@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "data/data_channel.h"
 #include "data/data_histories.h"
+#include "data/data_message_reaction_id.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "history/history.h"
@@ -27,8 +28,8 @@ constexpr auto kSearchPerPage = 50;
 	auto result = MessageIdsList();
 	for (const auto &message : messages) {
 		const auto peerId = PeerFromMessage(message);
-		if (const auto peer = data->peerLoaded(peerId)) {
-			if (const auto lastDate = DateFromMessage(message)) {
+		if (data->peerLoaded(peerId)) {
+			if (DateFromMessage(message)) {
 				const auto item = data->addNewMessage(
 					message,
 					MessageFlags(),
@@ -38,6 +39,23 @@ constexpr auto kSearchPerPage = 50;
 		} else {
 			LOG(("API Error: a search results with not loaded peer %1"
 				).arg(peerId.value));
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] QString RequestToToken(
+		const MessagesSearch::Request &request) {
+	auto result = request.query;
+	if (request.from) {
+		result += '\n' + QString::number(request.from->id.value);
+	}
+	for (const auto &tag : request.tags) {
+		result += '\n';
+		if (const auto customId = tag.custom()) {
+			result += u"custom"_q + QString::number(customId);
+		} else {
+			result += u"emoji"_q + tag.emoji();
 		}
 	}
 	return result;
@@ -54,9 +72,8 @@ MessagesSearch::~MessagesSearch() {
 		base::take(_searchInHistoryRequest));
 }
 
-void MessagesSearch::searchMessages(const QString &query, PeerData *from) {
-	_query = query;
-	_from = from;
+void MessagesSearch::searchMessages(Request request) {
+	_request = std::move(request);
 	_offsetId = {};
 	searchRequest();
 }
@@ -69,8 +86,7 @@ void MessagesSearch::searchMore() {
 }
 
 void MessagesSearch::searchRequest() {
-	const auto nextToken = _query
-		+ QString::number(_from ? _from->id.value : 0);
+	const auto nextToken = RequestToToken(_request);
 	if (!_offsetId) {
 		const auto it = _cacheOfStartByToken.find(nextToken);
 		if (it != end(_cacheOfStartByToken)) {
@@ -80,17 +96,23 @@ void MessagesSearch::searchRequest() {
 		}
 	}
 	auto callback = [=](Fn<void()> finish) {
-		const auto flags = _from
-			? MTP_flags(MTPmessages_Search::Flag::f_from_id)
-			: MTP_flags(0);
+		using Flag = MTPmessages_Search::Flag;
+		const auto from = _request.from;
+		const auto fromPeer = _history->peer->isUser() ? nullptr : from;
+		const auto savedPeer = _history->peer->isSelf() ? from : nullptr;
 		_requestId = _history->session().api().request(MTPmessages_Search(
-			flags,
+			MTP_flags((fromPeer ? Flag::f_from_id : Flag())
+				| (savedPeer ? Flag::f_saved_peer_id : Flag())
+				| (_request.topMsgId ? Flag::f_top_msg_id : Flag())
+				| (_request.tags.empty() ? Flag() : Flag::f_saved_reaction)),
 			_history->peer->input,
-			MTP_string(_query),
-			(_from
-				? _from->input
-				: MTP_inputPeerEmpty()),
-			MTPint(), // top_msg_id
+			MTP_string(_request.query),
+			(fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
+			(savedPeer ? savedPeer->input : MTP_inputPeerEmpty()),
+			MTP_vector_from_range(_request.tags | ranges::views::transform(
+				Data::ReactionToMTP
+			)),
+			MTP_int(_request.topMsgId), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
 			MTP_int(0), // min_date
 			MTP_int(0), // max_date
@@ -152,17 +174,21 @@ void MessagesSearch::searchReceived(
 		const auto total = int(data.vcount().v);
 		return FoundMessages{ total, std::move(items), nextToken };
 	}, [&](const MTPDmessages_channelMessages &data) {
-		if (const auto channel = _history->peer->asChannel()) {
-			channel->ptsReceived(data.vpts().v);
-		} else {
-			LOG(("API Error: "
-				"received messages.channelMessages when no channel "
-				"was passed!"));
-		}
 		if (_requestId != 0) {
 			// Don't apply cached data!
 			owner.processUsers(data.vusers());
 			owner.processChats(data.vchats());
+		}
+		if (const auto channel = _history->peer->asChannel()) {
+			channel->ptsReceived(data.vpts().v);
+			if (_requestId != 0) {
+				// Don't apply cached data!
+				channel->processTopics(data.vtopics());
+			}
+		} else {
+			LOG(("API Error: "
+				"received messages.channelMessages when no channel "
+				"was passed!"));
 		}
 		auto items = HistoryItemsFromTL(&owner, data.vmessages().v);
 		const auto total = int(data.vcount().v);

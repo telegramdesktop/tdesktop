@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 
 #include "mainwidget.h"
-#include "core/click_handler_types.h"
+#include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "ui/image/image.h"
 #include "data/data_file_origin.h"
@@ -24,7 +24,7 @@ QString LocationClickHandler::copyToClipboardContextItemText() const {
 
 void LocationClickHandler::onClick(ClickContext context) const {
 	if (!psLaunchMaps(_point)) {
-		UrlClickHandler::Open(_text);
+		File::OpenUrl(_text);
 	}
 }
 
@@ -34,5 +34,9 @@ void LocationClickHandler::setup() {
 
 QString LocationClickHandler::Url(const Data::LocationPoint &point) {
 	const auto latlon = point.latAsString() + ',' + point.lonAsString();
-	return qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
+	return u"https://maps.google.com/maps?q="_q
+		+ latlon
+		+ u"&ll="_q
+		+ latlon
+		+ u"&z=16"_q;
 }

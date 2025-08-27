@@ -16,8 +16,10 @@ namespace Ui {
 
 SingleMediaPreview *SingleMediaPreview::Create(
 		QWidget *parent,
+		const style::ComposeControls &st,
 		Fn<bool()> gifPaused,
 		const PreparedFile &file,
+		Fn<bool(AttachActionType)> actionAllowed,
 		AttachControls::Type type) {
 	auto preview = QImage();
 	auto animated = false;
@@ -30,7 +32,9 @@ SingleMediaPreview *SingleMediaPreview::Create(
 		hasModifications = !image->modifications.empty();
 	} else if (const auto video = std::get_if<PreparedFileInformation::Video>(
 			&file.information->media)) {
-		preview = video->thumbnail;
+		preview = file.videoCover
+			? file.videoCover->preview
+			: video->thumbnail;
 		animated = true;
 		animationPreview = video->isGifv;
 	}
@@ -43,23 +47,29 @@ SingleMediaPreview *SingleMediaPreview::Create(
 	}
 	return CreateChild<SingleMediaPreview>(
 		parent,
+		st,
 		std::move(gifPaused),
 		preview,
 		animated,
 		Core::IsMimeSticker(file.information->filemime),
+		file.spoiler,
 		animationPreview ? file.path : QString(),
-		type);
+		type,
+		std::move(actionAllowed));
 }
 
 SingleMediaPreview::SingleMediaPreview(
 	QWidget *parent,
+	const style::ComposeControls &st,
 	Fn<bool()> gifPaused,
 	QImage preview,
 	bool animated,
 	bool sticker,
+	bool spoiler,
 	const QString &animatedPreviewPath,
-	AttachControls::Type type)
-: AbstractSingleMediaPreview(parent, type)
+	AttachControls::Type type,
+	Fn<bool(AttachActionType)> actionAllowed)
+: AbstractSingleMediaPreview(parent, st, type, std::move(actionAllowed))
 , _gifPaused(std::move(gifPaused))
 , _sticker(sticker) {
 	Expects(!preview.isNull());
@@ -67,7 +77,11 @@ SingleMediaPreview::SingleMediaPreview(
 
 	preparePreview(preview);
 	prepareAnimatedPreview(animatedPreviewPath, animated);
-	updatePhotoEditorButton();
+	setSpoiler(spoiler);
+}
+
+bool SingleMediaPreview::supportsSpoilers() const {
+	return !_sticker || sendWay().sendImagesAsPhotos();
 }
 
 bool SingleMediaPreview::drawBackground() const {

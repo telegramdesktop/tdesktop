@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/image/image.h"
+#include "ui/rect.h"
 #include "main/main_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
@@ -53,10 +54,7 @@ constexpr auto kPremiumCachesCount = 8;
 [[nodiscard]] QSize SingleSize() {
 	const auto single = st::largeEmojiSize;
 	const auto outline = st::largeEmojiOutline;
-	return QSize(
-		2 * outline + single,
-		2 * outline + single
-	) * cIntRetinaFactor();
+	return Size(2 * outline + single) * style::DevicePixelRatio();
 }
 
 [[nodiscard]] const Lottie::ColorReplacements *ColorReplacements(int index) {
@@ -271,10 +269,10 @@ std::unique_ptr<Lottie::SinglePlayer> EmojiPack::effectPlayer(
 		not_null<DocumentData*> document,
 		QByteArray data,
 		QString filepath,
-		bool premium) {
+		EffectType type) {
 	// Shortened copy from stickers_lottie module.
 	const auto baseKey = document->bigFileBaseCacheKey();
-	const auto tag = uint8(0);
+	const auto tag = uint8(type);
 	const auto keyShift = ((tag << 4) & 0xF0)
 		| (uint8(ChatHelpers::StickerLottieSize::EmojiInteraction) & 0x0F);
 	const auto key = Storage::Cache::Key{
@@ -294,19 +292,24 @@ std::unique_ptr<Lottie::SinglePlayer> EmojiPack::effectPlayer(
 				std::move(data));
 		});
 	};
-	const auto size = premium
+	const auto size = (type == EffectType::PremiumSticker)
 		? HistoryView::Sticker::PremiumEffectSize(document)
-		: HistoryView::Sticker::EmojiEffectSize();
+		: (type == EffectType::EmojiInteraction)
+		? HistoryView::Sticker::EmojiEffectSize()
+		: HistoryView::Sticker::MessageEffectSize();
 	const auto request = Lottie::FrameRequest{
 		size * style::DevicePixelRatio(),
 	};
-	auto &weakProvider = _sharedProviders[document];
+	auto &weakProvider = _sharedProviders[{ document, type }];
 	auto shared = [&] {
 		if (const auto result = weakProvider.lock()) {
 			return result;
 		}
+		const auto count = (type == EffectType::PremiumSticker)
+			? kPremiumCachesCount
+			: kEmojiCachesCount;
 		const auto result = Lottie::SinglePlayer::SharedProvider(
-			premium ? kPremiumCachesCount : kEmojiCachesCount,
+			count,
 			get,
 			put,
 			Lottie::ReadContent(data, filepath),
@@ -384,6 +387,7 @@ void EmojiPack::applySet(const MTPDmessages_stickerSet &data) {
 	for (const auto &[emoji, document] : was) {
 		refreshItems(emoji);
 	}
+	_refreshed.fire({});
 }
 
 void EmojiPack::applyAnimationsSet(const MTPDmessages_stickerSet &data) {

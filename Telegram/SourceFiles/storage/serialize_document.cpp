@@ -18,7 +18,7 @@ namespace Serialize {
 namespace {
 
 constexpr auto kVersionTag = int32(0x7FFFFFFF);
-constexpr auto kVersion = 4;
+constexpr auto kVersion = 6;
 
 enum StickerSetType {
 	StickerSetTypeEmpty = 0,
@@ -58,11 +58,12 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 			stream << qint32(StickerSetTypeEmpty);
 		}
 	}
-	stream << qint32(document->getDuration());
+	stream << qint64(document->hasDuration() ? document->duration() : -1);
 	if (document->type == StickerDocument) {
 		const auto premium = document->isPremiumSticker()
 			|| document->isPremiumEmoji();
 		stream << qint32(premium ? 1 : 0);
+		stream << qint32(document->emojiUsesTextColor() ? 1 : 0);
 	}
 	writeImageLocation(stream, document->thumbnailLocation());
 	stream << qint32(document->thumbnailByteSize());
@@ -109,16 +110,24 @@ DocumentData *Document::readFromStreamHelper(
 		attributes.push_back(MTP_documentAttributeFilename(MTP_string(name)));
 	}
 
-	qint32 duration = -1;
+	qint64 duration = -1;
 	qint32 isPremiumSticker = 0;
+	qint32 useTextColor = 0;
 	if (type == StickerDocument) {
 		QString alt;
 		qint32 typeOfSet;
 		stream >> alt >> typeOfSet;
-		if (version >= 3) {
-			stream >> duration;
+		if (version >= 6) {
+			stream >> duration >> isPremiumSticker >> useTextColor;
+		} else if (version >= 3) {
+			qint32 oldDuration = -1;
+			stream >> oldDuration;
+			duration = (oldDuration < 0) ? oldDuration : oldDuration * 1000;
 			if (version >= 4) {
 				stream >> isPremiumSticker;
+				if (version >= 5) {
+					stream >> useTextColor;
+				}
 			}
 		}
 		if (typeOfSet == StickerSetTypeEmpty) {
@@ -128,7 +137,8 @@ DocumentData *Document::readFromStreamHelper(
 				|| info->setId == Data::Stickers::CloudRecentSetId
 				|| info->setId == Data::Stickers::CloudRecentAttachedSetId
 				|| info->setId == Data::Stickers::FavedSetId
-				|| info->setId == Data::Stickers::CustomSetId) {
+				|| info->setId == Data::Stickers::CustomSetId
+				|| info->setId == Data::Stickers::CollectibleSetId) {
 				typeOfSet = StickerSetTypeEmpty;
 			}
 
@@ -140,9 +150,15 @@ DocumentData *Document::readFromStreamHelper(
 				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(MTPDdocumentAttributeSticker::Flag::f_mask), MTP_string(alt), MTP_inputStickerSetID(MTP_long(info->setId), MTP_long(info->accessHash)), MTPMaskCoords()));
 			} break;
 			case StickerSetTypeEmoji: {
+				if (version < 5) {
+					// We didn't store useTextColor yet, can't use.
+					stream.setStatus(QDataStream::ReadCorruptData);
+					return nullptr;
+				}
 				using Flag = MTPDdocumentAttributeCustomEmoji::Flag;
 				attributes.push_back(MTP_documentAttributeCustomEmoji(
-					MTP_flags(isPremiumSticker ? Flag(0) : Flag::f_free),
+					MTP_flags((isPremiumSticker ? Flag(0) : Flag::f_free)
+						| (useTextColor ? Flag::f_text_color : Flag(0))),
 					MTP_string(alt),
 					MTP_inputStickerSetID(
 						MTP_long(info->setId),
@@ -155,7 +171,13 @@ DocumentData *Document::readFromStreamHelper(
 			}
 		}
 	} else {
-		stream >> duration;
+		if (version >= 6) {
+			stream >> duration;
+		} else {
+			qint32 oldDuration = -1;
+			stream >> oldDuration;
+			duration = (oldDuration < 0) ? oldDuration : oldDuration * 1000;
+		}
 		if (type == AnimatedDocument) {
 			attributes.push_back(MTP_documentAttributeAnimated());
 		}
@@ -181,9 +203,18 @@ DocumentData *Document::readFromStreamHelper(
 			if (type == RoundVideoDocument) {
 				flags |= MTPDdocumentAttributeVideo::Flag::f_round_message;
 			}
-			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(duration), MTP_int(width), MTP_int(height)));
+			attributes.push_back(MTP_documentAttributeVideo(
+				MTP_flags(flags),
+				MTP_double(duration / 1000.),
+				MTP_int(width),
+				MTP_int(height),
+				MTPint(), // preload_prefix_size
+				MTPdouble(), // video_start_ts
+				MTPstring())); // video_codec
 		} else {
-			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
+			attributes.push_back(MTP_documentAttributeImageSize(
+				MTP_int(width),
+				MTP_int(height)));
 		}
 	}
 

@@ -7,27 +7,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/observer.h"
 #include "ui/rp_widget.h"
 
-class EditColorBox;
+namespace Ui {
+class BoxContent;
+} // namespace Ui;
+
+class ColorEditor;
 
 namespace Window {
 namespace Theme {
 
-class EditorBlock : public TWidget, private base::Subscriber {
+class EditorBlock final : public Ui::RpWidget {
 public:
 	enum class Type {
 		Existing,
 		New,
 	};
 	struct Context {
-		QPointer<EditColorBox> box;
+		struct {
+			base::weak_qptr<Ui::BoxContent> box;
+			base::weak_qptr<ColorEditor> editor;
+		} colorEditor;
 		QString name;
 		QString possibleCopyOf;
 
-		base::Observable<void> updated;
-		base::Observable<void> resized;
+		rpl::event_stream<> updated;
+		rpl::event_stream<> resized;
 
 		struct AppendData {
 			QString name;
@@ -35,27 +41,27 @@ public:
 			QColor value;
 			QString description;
 		};
-		base::Observable<AppendData> appended;
+		rpl::event_stream<AppendData> appended;
 
 		struct ChangeData {
 			QStringList names;
 			QColor value;
 		};
-		base::Observable<ChangeData> changed;
+		rpl::event_stream<ChangeData> changed;
 
 		struct EditionData {
 			QString name;
 			QString copyOf;
 			QColor value;
 		};
-		base::Observable<EditionData> pending;
+		rpl::event_stream<EditionData> pending;
 
 		struct ScrollData {
-			Type type;
-			int position;
-			int height;
+			Type type = {};
+			int position = 0;
+			int height = 0;
 		};
-		base::Observable<ScrollData> scroll;
+		rpl::event_stream<ScrollData> scroll;
 	};
 	EditorBlock(QWidget *parent, Type type, Context *context);
 

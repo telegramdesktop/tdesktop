@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_ffmpeg_loader.h"
 #include "media/audio/media_audio.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/file_location.h"
 
 #include <al.h>
@@ -59,7 +60,8 @@ void Track::fillFromData(bytes::vector &&data) {
 	}
 	auto format = loader.format();
 	_peakEachPosition = _peakDurationMs ? ((loader.samplesFrequency() * _peakDurationMs) / 1000) : 0;
-	auto peaksCount = _peakEachPosition ? (loader.samplesCount() / _peakEachPosition) : 0;
+	const auto samplesCount = (loader.duration() * loader.samplesFrequency()) / 1000;
+	const auto peaksCount = _peakEachPosition ? (samplesCount / _peakEachPosition) : 0;
 	_peaks.reserve(peaksCount);
 	auto peakValue = uint16(0);
 	auto peakSamples = 0;
@@ -77,38 +79,35 @@ void Track::fillFromData(bytes::vector &&data) {
 		}
 	};
 	do {
-		auto buffer = QByteArray();
-		auto samplesAdded = int64(0);
-		auto result = loader.readMore(buffer, samplesAdded);
-		if (samplesAdded > 0) {
-			auto sampleBytes = bytes::make_span(buffer);
-			_samplesCount += samplesAdded;
-			_samples.insert(_samples.end(), sampleBytes.data(), sampleBytes.data() + sampleBytes.size());
-			if (peaksCount) {
-				if (format == AL_FORMAT_MONO8 || format == AL_FORMAT_STEREO8) {
-					Media::Audio::IterateSamples<uchar>(sampleBytes, peakCallback);
-				} else if (format == AL_FORMAT_MONO16 || format == AL_FORMAT_STEREO16) {
-					Media::Audio::IterateSamples<int16>(sampleBytes, peakCallback);
-				}
-			}
-		}
+		using Error = AudioPlayerLoader::ReadError;
+		const auto result = loader.readMore();
+		Assert(result != Error::Wait && result != Error::RetryNotQueued);
 
-		using Result = AudioPlayerLoader::ReadResult;
-		switch (result) {
-		case Result::Error:
-		case Result::NotYet:
-		case Result::Wait: {
-			_failed = true;
-		} break;
-		}
-		if (result != Result::Ok) {
+		if (result == Error::Retry) {
+			continue;
+		} else if (result == Error::EndOfFile) {
 			break;
+		} else if (result == Error::Other || result == Error::Wait) {
+			_failed = true;
+			break;
+		}
+		Assert(v::is<bytes::const_span>(result));
+		const auto sampleBytes = v::get<bytes::const_span>(result);
+		Assert(!sampleBytes.empty());
+		_samplesCount += sampleBytes.size() / loader.sampleSize();
+		_samples.insert(_samples.end(), sampleBytes.data(), sampleBytes.data() + sampleBytes.size());
+		if (peaksCount) {
+			if (format == AL_FORMAT_MONO8 || format == AL_FORMAT_STEREO8) {
+				Media::Audio::IterateSamples<uchar>(sampleBytes, peakCallback);
+			} else if (format == AL_FORMAT_MONO16 || format == AL_FORMAT_STEREO16) {
+				Media::Audio::IterateSamples<int16>(sampleBytes, peakCallback);
+			}
 		}
 	} while (true);
 
 	_alFormat = loader.format();
 	_sampleRate = loader.samplesFrequency();
-	_lengthMs = (loader.samplesCount() * crl::time(1000)) / _sampleRate;
+	_lengthMs = loader.duration();
 }
 
 void Track::fillFromFile(const Core::FileLocation &location) {
@@ -143,7 +142,7 @@ void Track::fillFromFile(const QString &filePath) {
 	}
 }
 
-void Track::playWithLooping(bool looping) {
+void Track::playWithLooping(bool looping, float64 volumeOverride) {
 	_active = true;
 	if (failed() || _samples.empty()) {
 		finish();
@@ -153,7 +152,12 @@ void Track::playWithLooping(bool looping) {
 	alSourceStop(_alSource);
 	_looping = looping;
 	alSourcei(_alSource, AL_LOOPING, _looping ? 1 : 0);
-	alSourcef(_alSource, AL_GAIN, _volume);
+	alSourcef(
+		_alSource,
+		AL_GAIN,
+		(volumeOverride > 0)
+			? volumeOverride
+			: float64(Core::App().settings().notificationsVolume()) / 100.);
 	alSourcePlay(_alSource);
 	_instance->trackStarted(this);
 }
@@ -244,7 +248,17 @@ Track::~Track() {
 	_instance->unregisterTrack(this);
 }
 
-Instance::Instance() {
+Instance::Instance()
+: _playbackDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Playback,
+	Webrtc::DeviceIdOrDefault(
+		Core::App().settings().playbackDeviceIdValue()))
+, _captureDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Capture,
+	Webrtc::DeviceIdOrDefault(
+		Core::App().settings().captureDeviceIdValue())) {
 	_updateTimer.setCallback([this] {
 		auto hasActive = false;
 		for (auto track : _tracks) {
@@ -262,6 +276,21 @@ Instance::Instance() {
 		_detachFromDeviceForce = false;
 		Player::internal::DetachFromDevice(this);
 	});
+
+	_playbackDeviceId.changes(
+	) | rpl::start_with_next([=](Webrtc::DeviceResolvedId id) {
+		if (Player::internal::DetachIfDeviceChanged(this, id)) {
+			_detachFromDeviceForce = false;
+		}
+	}, _lifetime);
+}
+
+Webrtc::DeviceResolvedId Instance::playbackDeviceId() const {
+	return _playbackDeviceId.threadSafeCurrent();
+}
+
+Webrtc::DeviceResolvedId Instance::captureDeviceId() const {
+	return _captureDeviceId.current();
 }
 
 std::unique_ptr<Track> Instance::createTrack() {

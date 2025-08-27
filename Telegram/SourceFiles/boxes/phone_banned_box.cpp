@@ -49,7 +49,7 @@ Locale: ") + ::Platform::SystemLanguage();
 void ShowPhoneBannedError(
 		not_null<Window::Controller*> controller,
 		const QString &phone) {
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto box = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	const auto close = [=] {
 		if (*box) {
 			(*box)->closeBox();

@@ -7,28 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/cloud_password/settings_cloud_password_common.h"
 
-#include "apiwrap.h"
-#include "base/timer.h"
-#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
-#include "main/main_session.h"
-#include "settings/cloud_password/settings_cloud_password_common.h"
-#include "settings/cloud_password/settings_cloud_password_email.h"
-#include "settings/cloud_password/settings_cloud_password_email_confirm.h"
-#include "settings/cloud_password/settings_cloud_password_hint.h"
-#include "settings/cloud_password/settings_cloud_password_input.h"
-#include "settings/cloud_password/settings_cloud_password_manage.h"
-#include "settings/cloud_password/settings_cloud_password_start.h"
 #include "settings/settings_common.h"
-#include "ui/boxes/confirm_box.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
-#include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
-#include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
 namespace Settings::CloudPassword {
@@ -63,13 +51,13 @@ BottomButton CreateBottomDisableButton(
 		Fn<void()> &&callback) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
 
-	AddSkip(content);
+	Ui::AddSkip(content);
 
-	AddButton(
+	content->add(object_ptr<Button>(
 		content,
 		std::move(buttonText),
 		st::settingsAttentionButton
-	)->addClickHandler(std::move(callback));
+	))->addClickHandler(std::move(callback));
 
 	const auto divider = Ui::CreateChild<OneEdgeBoxContentDivider>(
 		parent.get());
@@ -92,7 +80,7 @@ BottomButton CreateBottomDisableButton(
 	divider->show();
 
 	return {
-		.content = Ui::MakeWeak(not_null<Ui::RpWidget*>{ content }),
+		.content = base::make_weak(content),
 		.isBottomFillerShown = divider->geometryValue(
 		) | rpl::map([](const QRect &r) {
 			return r.height() > 0;
@@ -100,12 +88,15 @@ BottomButton CreateBottomDisableButton(
 	};
 }
 
-void SetupAutoCloseTimer(rpl::lifetime &lifetime, Fn<void()> callback) {
+void SetupAutoCloseTimer(
+		rpl::lifetime &lifetime,
+		Fn<void()> callback,
+		Fn<crl::time()> lastNonIdleTime) {
 	constexpr auto kTimerCheck = crl::time(1000 * 60);
 	constexpr auto kAutoCloseTimeout = crl::time(1000 * 60 * 10);
 
 	const auto timer = lifetime.make_state<base::Timer>([=] {
-		const auto idle = crl::now() - Core::App().lastNonIdleTime();
+		const auto idle = crl::now() - lastNonIdleTime();
 		if (idle >= kAutoCloseTimeout) {
 			callback();
 		}
@@ -118,7 +109,7 @@ void SetupHeader(
 		const QString &lottie,
 		rpl::producer<> &&showFinished,
 		rpl::producer<QString> &&subtitle,
-		rpl::producer<QString> &&about) {
+		v::text::data &&about) {
 	if (!lottie.isEmpty()) {
 		const auto &size = st::settingsCloudPasswordIconSize;
 		auto icon = CreateLottieIcon(
@@ -132,27 +123,28 @@ void SetupHeader(
 			animate(anim::repeat::once);
 		}, content->lifetime());
 	}
-	AddSkip(content);
+	Ui::AddSkip(content);
 
 	content->add(
-		object_ptr<Ui::CenterWrap<>>(
+		object_ptr<Ui::FlatLabel>(
 			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				std::move(subtitle),
-				st::changePhoneTitle)),
-		st::changePhoneTitlePadding);
+			std::move(subtitle),
+			st::changePhoneTitle),
+		st::changePhoneTitlePadding,
+		style::al_top);
 
 	{
 		const auto &st = st::settingLocalPasscodeDescription;
-		const auto wrap = content->add(
-			object_ptr<Ui::CenterWrap<>>(
+		const auto description = content->add(
+			object_ptr<Ui::FlatLabel>(
 				content,
-				object_ptr<Ui::FlatLabel>(content, std::move(about), st)),
-			st::changePhoneDescriptionPadding);
-		wrap->resize(
-			wrap->width(),
-			st::settingLocalPasscodeDescriptionHeight);
+				v::text::take_marked(std::move(about)),
+				st,
+				st::defaultPopupMenu),
+			st::changePhoneDescriptionPadding,
+			style::al_top);
+		description->setTryMakeSimilarLines(true);
+		description->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 }
 
@@ -178,24 +170,24 @@ not_null<Ui::PasswordInput*> AddPasswordField(
 	return field;
 }
 
-not_null<Ui::CenterWrap<Ui::InputField>*> AddWrappedField(
+not_null<Ui::InputField*> AddWrappedField(
 		not_null<Ui::VerticalLayout*> content,
 		rpl::producer<QString> &&placeholder,
 		const QString &text) {
-	return content->add(object_ptr<Ui::CenterWrap<Ui::InputField>>(
-		content,
+	return content->add(
 		object_ptr<Ui::InputField>(
 			content,
 			st::settingLocalPasscodeInputField,
 			std::move(placeholder),
-			text)));
+			text),
+		style::al_top);
 }
 
 not_null<Ui::LinkButton*> AddLinkButton(
-		not_null<Ui::CenterWrap<Ui::InputField>*> wrap,
+		not_null<Ui::InputField*> input,
 		rpl::producer<QString> &&text) {
 	const auto button = Ui::CreateChild<Ui::LinkButton>(
-		wrap->parentWidget(),
+		input->parentWidget(),
 		QString());
 	std::move(
 		text
@@ -203,9 +195,8 @@ not_null<Ui::LinkButton*> AddLinkButton(
 		button->setText(text);
 	}, button->lifetime());
 
-	wrap->geometryValue(
+	input->geometryValue(
 	) | rpl::start_with_next([=](QRect r) {
-		r.translate(wrap->entity()->pos().x(), 0);
 		button->moveToLeft(r.x(), r.y() + r.height() + st::passcodeTextLine);
 	}, button->lifetime());
 	return button;
@@ -215,14 +206,12 @@ not_null<Ui::FlatLabel*> AddError(
 		not_null<Ui::VerticalLayout*> content,
 		Ui::PasswordInput *input) {
 	const auto error = content->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				// Set any text to resize.
-				tr::lng_language_name(tr::now),
-				st::settingLocalPasscodeError)),
-		st::changePhoneDescriptionPadding)->entity();
+			QString(),
+			st::settingLocalPasscodeError),
+		st::changePhoneDescriptionPadding,
+		style::al_top);
 	error->hide();
 	if (input) {
 		QObject::connect(input, &Ui::MaskedInputField::changed, [=] {
@@ -236,19 +225,18 @@ not_null<Ui::RoundButton*> AddDoneButton(
 		not_null<Ui::VerticalLayout*> content,
 		rpl::producer<QString> &&text) {
 	const auto button = content->add(
-		object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+		object_ptr<Ui::RoundButton>(
 			content,
-			object_ptr<Ui::RoundButton>(
-				content,
-				std::move(text),
-				st::changePhoneButton)),
-		st::settingLocalPasscodeButtonPadding)->entity();
+			std::move(text),
+			st::changePhoneButton),
+		st::settingLocalPasscodeButtonPadding,
+		style::al_top);
 	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	return button;
 }
 
 void AddSkipInsteadOfField(not_null<Ui::VerticalLayout*> content) {
-	AddSkip(content, st::settingLocalPasscodeInputField.heightMin);
+	Ui::AddSkip(content, st::settingLocalPasscodeInputField.heightMin);
 }
 
 void AddSkipInsteadOfError(not_null<Ui::VerticalLayout*> content) {
@@ -257,109 +245,8 @@ void AddSkipInsteadOfError(not_null<Ui::VerticalLayout*> content) {
 		tr::lng_language_name(tr::now),
 		st::settingLocalPasscodeError);
 	const auto &padding = st::changePhoneDescriptionPadding;
-	AddSkip(content, dummy->height() + padding.top() + padding.bottom());
+	Ui::AddSkip(content, dummy->height() + padding.top() + padding.bottom());
 	dummy = nullptr;
 }
-
-AbstractStep::AbstractStep(
-	QWidget *parent,
-	not_null<Window::SessionController*> controller)
-: AbstractSection(parent)
-, _controller(controller) {
-}
-
-not_null<Window::SessionController*> AbstractStep::controller() const {
-	return _controller;
-}
-
-Api::CloudPassword &AbstractStep::cloudPassword() {
-	return _controller->session().api().cloudPassword();
-}
-
-rpl::producer<AbstractStep::Types> AbstractStep::removeTypes() {
-	return rpl::never<Types>();
-}
-
-void AbstractStep::showBack() {
-	_showBack.fire({});
-}
-
-void AbstractStep::showOther(Type type) {
-	_showOther.fire_copy(type);
-}
-
-void AbstractStep::setFocusCallback(Fn<void()> callback) {
-	_setInnerFocusCallback = callback;
-}
-
-rpl::producer<> AbstractStep::showFinishes() const {
-	return _showFinished.events();
-}
-
-void AbstractStep::showFinished() {
-	_showFinished.fire({});
-}
-
-void AbstractStep::setInnerFocus() {
-	if (_setInnerFocusCallback) {
-		_setInnerFocusCallback();
-	}
-}
-
-bool AbstractStep::isPasswordInvalidError(const QString &type) {
-	if (type == u"PASSWORD_HASH_INVALID"_q
-		|| type == u"SRP_PASSWORD_CHANGED"_q) {
-
-		// Most likely the cloud password has been changed on another device.
-		// Quit.
-		_quits.fire(AbstractStep::Types{
-			CloudPasswordStartId(),
-			CloudPasswordInputId(),
-			CloudPasswordHintId(),
-			CloudPasswordEmailId(),
-			CloudPasswordEmailConfirmId(),
-			CloudPasswordManageId(),
-		});
-		controller()->show(
-			Ui::MakeInformBox(tr::lng_cloud_password_expired()),
-			Ui::LayerOption::CloseOther);
-		setStepData(StepData());
-		showBack();
-		return true;
-	}
-	return false;
-}
-
-rpl::producer<Type> AbstractStep::sectionShowOther() {
-	return _showOther.events();
-}
-
-rpl::producer<> AbstractStep::sectionShowBack() {
-	return _showBack.events();
-}
-
-rpl::producer<std::vector<Type>> AbstractStep::removeFromStack() {
-	return rpl::merge(removeTypes(), _quits.events());
-}
-
-void AbstractStep::setStepDataReference(std::any &data) {
-	_stepData = &data;
-}
-
-StepData AbstractStep::stepData() const {
-	if (!_stepData || !_stepData->has_value()) {
-		StepData();
-	}
-	const auto my = std::any_cast<StepData>(_stepData);
-	return my ? (*my) : StepData();
-}
-
-void AbstractStep::setStepData(StepData data) {
-	if (_stepData) {
-		*_stepData = data;
-	}
-}
-
-AbstractStep::~AbstractStep() = default;
 
 } // namespace Settings::CloudPassword

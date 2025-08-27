@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 using "ui/chat/chat.style";
 using "ui/widgets/widgets.style";
-using "media/view/media_view.style";
 using "boxes/boxes.style";
 
 OverviewFileLayout {
@@ -44,9 +43,6 @@ OverviewFileLayout {
 	fileDateTop: pixels;
 }
 
-overviewLeftMin: 28px;
-overviewLeftMax: 42px;
-
 overviewCheckPressedSize: 0.8;
 overviewCheck: RoundCheckbox(defaultRoundCheckbox) {
 	bgInactive: overviewCheckBg;
@@ -66,8 +62,6 @@ overviewPhotoMinSize: 90px;
 overviewVideoBg: imageBg;
 
 overviewFileThumbBg: imageBg;
-overviewFileChecked: overviewCheckBgActive;
-overviewFileCheck: overviewCheckBg;
 overviewFileExtPadding: 5px;
 overviewFileExtTop: 24px;
 overviewFileExtFg: windowFgActive;
@@ -127,14 +121,6 @@ overviewFileLayout: OverviewFileLayout {
 	fileDateTop: 49px;
 }
 
-overviewLoader: size(34px, 14px);
-overviewLoaderPoint: size(4px, 4px);
-overviewLoaderSkip: 4px;
-
-playlistHoverBg: windowBgOver;
-playlistPadding: 10px;
-
-linksSearchTop: 30px;
 linksMaxWidth: 520px;
 linksLetterFg: windowFgActive;
 linksLetterFont: font(24px);
@@ -143,8 +129,6 @@ linksTextFg: windowFg;
 linksTextTop: 6px;
 linksBorder: 1px;
 linksBorderFg: shadowFg;
-linksDateColor: windowSubTextFg;
-linksDateMargin: margins(0px, 15px, 0px, 2px);
 linksPhotoSize: 46px;
 linksPhotoPadding: 12px;
 
@@ -156,3 +140,12 @@ overviewVideoPlaySelected: icon {{ "overview_video_play", historyFileThumbIconFg
 overviewVideoDownload: icon {{ "overview_video_download", historyFileThumbIconFg }};
 overviewVideoDownloadSelected: icon {{ "overview_video_download", historyFileThumbIconFgSelected }};
 overviewVideoRadialSize: 36px;
+
+storyPinnedIcon: icon{
+	{ "dialogs/dialogs_pinned_shadow", windowShadowFg },
+	{ "dialogs/dialogs_pinned", historyFileThumbIconFg }
+};
+storyPinnedIconSelected: icon{
+	{ "dialogs/dialogs_pinned_shadow", windowShadowFg },
+	{ "dialogs/dialogs_pinned", historyFileThumbIconFgSelected }
+};

@@ -19,7 +19,19 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <libswresample/swresample.h>
+#include <libavutil/opt.h>
+#include <libavutil/version.h>
 } // extern "C"
+
+#define DA_FFMPEG_NEW_CHANNEL_LAYOUT (LIBAVUTIL_VERSION_INT >= \
+	AV_VERSION_INT(57, 28, 100))
+
+#define DA_FFMPEG_CONST_WRITE_CALLBACK (LIBAVFORMAT_VERSION_INT >= \
+	AV_VERSION_INT(61, 01, 100))
+
+#define DA_FFMPEG_HAVE_DURATION (LIBAVUTIL_VERSION_INT >= \
+	AV_VERSION_INT(58, 02, 100))
 
 class QImage;
 
@@ -108,7 +120,11 @@ using IOPointer = std::unique_ptr<AVIOContext, IODeleter>;
 [[nodiscard]] IOPointer MakeIOPointer(
 	void *opaque,
 	int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+	int(*write)(void *opaque, const uint8_t *buffer, int bufferSize),
+#else
 	int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+#endif
 	int64_t(*seek)(void *opaque, int64_t offset, int whence));
 
 struct FormatDeleter {
@@ -118,8 +134,22 @@ using FormatPointer = std::unique_ptr<AVFormatContext, FormatDeleter>;
 [[nodiscard]] FormatPointer MakeFormatPointer(
 	void *opaque,
 	int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+	int(*write)(void *opaque, const uint8_t *buffer, int bufferSize),
+#else
 	int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+#endif
 	int64_t(*seek)(void *opaque, int64_t offset, int whence));
+[[nodiscard]] FormatPointer MakeWriteFormatPointer(
+	void *opaque,
+	int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+#if DA_FFMPEG_CONST_WRITE_CALLBACK
+	int(*write)(void *opaque, const uint8_t *buffer, int bufferSize),
+#else
+	int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+#endif
+	int64_t(*seek)(void *opaque, int64_t offset, int whence),
+	const QByteArray &format);
 
 struct CodecDeleter {
 	void operator()(AVCodecContext *value);
@@ -137,6 +167,7 @@ struct FrameDeleter {
 };
 using FramePointer = std::unique_ptr<AVFrame, FrameDeleter>;
 [[nodiscard]] FramePointer MakeFramePointer();
+[[nodiscard]] FramePointer DuplicateFramePointer(AVFrame *frame);
 [[nodiscard]] bool FrameHasData(AVFrame *frame);
 void ClearFrameMemory(AVFrame *frame);
 
@@ -160,8 +191,39 @@ using SwscalePointer = std::unique_ptr<SwsContext, SwscaleDeleter>;
 	QSize resize,
 	SwscalePointer *existing = nullptr);
 
-void LogError(QLatin1String method);
-void LogError(QLatin1String method, FFmpeg::AvErrorWrap error);
+struct SwresampleDeleter {
+	AVSampleFormat srcFormat = AV_SAMPLE_FMT_NONE;
+	int srcRate = 0;
+	int srcChannels = 0;
+	AVSampleFormat dstFormat = AV_SAMPLE_FMT_NONE;
+	int dstRate = 0;
+	int dstChannels = 0;
+
+	void operator()(SwrContext *value);
+};
+using SwresamplePointer = std::unique_ptr<SwrContext, SwresampleDeleter>;
+[[nodiscard]] SwresamplePointer MakeSwresamplePointer(
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	AVChannelLayout *srcLayout,
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	uint64_t srcLayout,
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	AVSampleFormat srcFormat,
+	int srcRate,
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	AVChannelLayout *dstLayout,
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	uint64_t dstLayout,
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	AVSampleFormat dstFormat,
+	int dstRate,
+	SwresamplePointer *existing = nullptr);
+
+void LogError(const QString &method, const QString &details = {});
+void LogError(
+	const QString &method,
+	FFmpeg::AvErrorWrap error,
+	const QString &details = {});
 
 [[nodiscard]] const AVCodec *FindDecoder(not_null<AVCodecContext*> context);
 [[nodiscard]] crl::time PtsToTime(int64_t pts, AVRational timeBase);

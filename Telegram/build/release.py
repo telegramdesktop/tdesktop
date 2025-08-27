@@ -63,20 +63,11 @@ def getOutput(command):
     sys.exit(1)
   return output.decode('utf-8')
 
-def prepareSources():
-  workpath = os.getcwd()
-  os.chdir('../..')
-  rootpath = os.getcwd()
-  finalpath = rootpath + '/out/Release/sources.tar'
-  if os.path.exists(finalpath):
-    os.remove(finalpath)
-  if os.path.exists(finalpath + '.gz'):
-    os.remove(finalpath + '.gz')
-  tmppath = rootpath + '/out/Release/tmp.tar'
-  print('Preparing source tarball...')
-  if (call(('git archive --prefix=tdesktop-' + version + '-full/ -o ' + finalpath + ' v' + version).split()) != 0):
-    os.remove(finalpath)
-    sys.exit(1)
+def invoke(command):
+  return call(command.split()) == 0
+
+def appendSubmodules(appendTo, root, rootRevision):
+  startpath = os.getcwd()
   lines = getOutput('git submodule foreach').split('\n')
   for line in lines:
     if len(line) == 0:
@@ -84,23 +75,49 @@ def prepareSources():
     match = re.match(r"^Entering '([^']+)'$", line)
     if not match:
       print('Bad line: ' + line)
-      sys.exit(1)
+      return False
     path = match.group(1)
-    revision = getOutput('git rev-parse v' + version + ':' + path).split('\n')[0]
+    subroot = root + '/' + path
+    revision = getOutput('git rev-parse ' + rootRevision + ':' + path).split('\n')[0]
     print('Adding submodule ' + path + '...')
     os.chdir(path)
-    if (call(('git archive --prefix=tdesktop-' + version + '-full/' + path + '/ ' + revision + ' -o ' + tmppath).split()) != 0):
-      os.remove(finalpath)
-      os.remove(tmppath)
-      sys.exit(1)
-    if (call(('gtar --concatenate --file=' + finalpath + ' ' + tmppath).split()) != 0):
-      os.remove(finalpath)
-      os.remove(tmppath)
-      sys.exit(1)
-    os.remove(tmppath)
-    os.chdir(rootpath)
+    tmppath = appendTo + '_tmp'
+    if not invoke('git archive --prefix=' + subroot + '/ ' + revision + ' -o ' + tmppath + '.tar'):
+      os.remove(appendTo + '.tar')
+      os.remove(tmppath + '.tar')
+      return False
+    if not appendSubmodules(tmppath, subroot, revision):
+      return False
+    tar = 'tar' if sys.platform == 'linux' else 'gtar'
+    if not invoke(tar + ' --concatenate --file=' + appendTo + '.tar ' + tmppath + '.tar'):
+      os.remove(appendTo + '.tar')
+      os.remove(tmppath + '.tar')
+      return False
+    os.remove(tmppath + '.tar')
+    os.chdir(startpath)
+  return True
+
+def prepareSources():
+  workpath = os.getcwd()
+  os.chdir('../..')
+  rootpath = os.getcwd()
+  finalpart = rootpath + '/out/Release/sources'
+  finalpath = finalpart + '.tar'
+  if os.path.exists(finalpath):
+    os.remove(finalpath)
+  if os.path.exists(finalpath + '.gz'):
+    os.remove(finalpath + '.gz')
+  tmppath = rootpath + '/out/Release/tmp.tar'
+  print('Preparing source tarball...')
+  revision = 'v' + version
+  targetRoot = 'tdesktop-' + version + '-full';
+  if not invoke('git archive --prefix=' + targetRoot + '/ -o ' + finalpath + ' ' + revision):
+    os.remove(finalpath)
+    sys.exit(1)
+  if not appendSubmodules(finalpart, targetRoot, revision):
+    sys.exit(1)
   print('Compressing...')
-  if (call(('gzip -9 ' + finalpath).split()) != 0):
+  if not invoke('gzip -9 ' + finalpath):
     os.remove(finalpath)
     sys.exit(1)
   os.chdir(workpath)
@@ -147,7 +164,13 @@ if access_token == '':
   sys.exit(1)
 
 print('Version: ' + version_full)
-local_folder = expanduser("~") + '/Projects/backup/tdesktop/' + version_major + '/' + version_full
+local_base = expanduser("~") + '/Projects/backup/tdesktop'
+if not os.path.isdir(local_base):
+    local_base = '/mnt/c/Telegram/Projects/backup/tdesktop'
+    if not os.path.isdir(local_base):
+        print('Backup path not found: ' + local_base)
+        sys.exit(1)
+local_folder = local_base + '/' + version_major + '/' + version_full
 
 if stable == 1:
   if os.path.isdir(local_folder + '.beta'):
@@ -163,6 +186,12 @@ if not os.path.isdir(local_folder):
 local_folder = local_folder + '/'
 
 files = []
+files.append({
+  'local': 'sources',
+  'remote': 'tdesktop-' + version + '-full.tar.gz',
+  'mime': 'application/x-gzip',
+  'label': 'Source code (tar.gz, full)',
+})
 files.append({
   'local': 'tsetup.' + version_full + '.exe',
   'remote': 'tsetup.' + version_full + '.exe',
@@ -192,11 +221,25 @@ files.append({
   'label': 'Windows 64 bit: Portable',
 })
 files.append({
+  'local': 'tsetup-arm64.' + version_full + '.exe',
+  'remote': 'tsetup-arm64.' + version_full + '.exe',
+  'backup_folder': 'tarm64',
+  'mime': 'application/octet-stream',
+  'label': 'Windows on ARM: Installer',
+})
+files.append({
+  'local': 'tportable-arm64.' + version_full + '.zip',
+  'remote': 'tportable-arm64.' + version_full + '.zip',
+  'backup_folder': 'tarm64',
+  'mime': 'application/zip',
+  'label': 'Windows on ARM: Portable',
+})
+files.append({
   'local': 'tsetup.' + version_full + '.dmg',
   'remote': 'tsetup.' + version_full + '.dmg',
   'backup_folder': 'tmac',
   'mime': 'application/octet-stream',
-  'label': 'macOS 10.12+: Installer',
+  'label': 'macOS 10.13+: Installer',
 })
 files.append({
   'local': 'tsetup.' + version_full + '.tar.xz',
@@ -204,12 +247,6 @@ files.append({
   'backup_folder': 'tlinux',
   'mime': 'application/octet-stream',
   'label': 'Linux 64 bit: Binary',
-})
-files.append({
-  'local': 'sources',
-  'remote': 'tdesktop-' + version + '-full.tar.gz',
-  'mime': 'application/x-gzip',
-  'label': 'Source code (tar.gz, full)',
 })
 
 r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/tags/v' + version)
@@ -254,12 +291,12 @@ if r.status_code == 404:
   checkResponseCode(r, 201)
 
 tagname = 'v' + version
-call("git fetch origin".split())
+invoke("git fetch origin")
 if stable == 1:
-  call("git push launchpad {}:master".format(tagname).split())
+  invoke("git push launchpad {}:master".format(tagname))
 else:
-  call("git push launchpad {}:beta".format(tagname).split())
-call("git push --tags launchpad".split())
+  invoke("git push launchpad {}:beta".format(tagname))
+invoke("git push --tags launchpad")
 
 r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/tags/v' + version)
 checkResponseCode(r, 200)
@@ -307,9 +344,8 @@ for file in files:
   checkResponseCode(r, 201)
 
   print('Success! Removing.')
-  return_code = call(["rm", file_path])
-  if return_code != 0:
-    print('Bad rm code: ' + str(return_code))
+  if not invoke('rm ' + file_path):
+    print('Bad rm return code :(')
     sys.exit(1)
 
 sys.exit()

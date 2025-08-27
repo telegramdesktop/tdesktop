@@ -29,7 +29,7 @@ namespace internal {
 
 class FileBase : public ItemBase {
 public:
-	FileBase(not_null<Context*> context, not_null<Result*> result);
+	FileBase(not_null<Context*> context, std::shared_ptr<Result> result);
 
 	// For saved gif layouts.
 	FileBase(not_null<Context*> context, not_null<DocumentData*> document);
@@ -58,7 +58,7 @@ private:
 
 class Gif final : public FileBase {
 public:
-	Gif(not_null<Context*> context, not_null<Result*> result);
+	Gif(not_null<Context*> context, std::shared_ptr<Result> result);
 	Gif(
 		not_null<Context*> context,
 		not_null<DocumentData*> document,
@@ -138,7 +138,7 @@ private:
 
 class Photo : public ItemBase {
 public:
-	Photo(not_null<Context*> context, not_null<Result*> result);
+	Photo(not_null<Context*> context, std::shared_ptr<Result> result);
 	// Not used anywhere currently.
 	//Photo(not_null<Context*> context, not_null<PhotoData*> photo);
 
@@ -178,7 +178,7 @@ private:
 
 class Sticker : public FileBase {
 public:
-	Sticker(not_null<Context*> context, not_null<Result*> result);
+	Sticker(not_null<Context*> context, std::shared_ptr<Result> result);
 	~Sticker();
 	// Not used anywhere currently.
 	//Sticker(not_null<Context*> context, not_null<DocumentData*> document);
@@ -229,7 +229,7 @@ private:
 
 class Video : public FileBase {
 public:
-	Video(not_null<Context*> context, not_null<Result*> result);
+	Video(not_null<Context*> context, std::shared_ptr<Result> result);
 
 	void initDimensions() override;
 
@@ -269,7 +269,7 @@ private:
 
 class File : public FileBase {
 public:
-	File(not_null<Context*> context, not_null<Result*> result);
+	File(not_null<Context*> context, std::shared_ptr<Result> result);
 	~File();
 
 	void initDimensions() override;
@@ -347,7 +347,7 @@ private:
 
 class Contact : public ItemBase {
 public:
-	Contact(not_null<Context*> context, not_null<Result*> result);
+	Contact(not_null<Context*> context, std::shared_ptr<Result> result);
 
 	void initDimensions() override;
 
@@ -366,7 +366,10 @@ private:
 
 class Article : public ItemBase {
 public:
-	Article(not_null<Context*> context, not_null<Result*> result, bool withThumb);
+	Article(
+		not_null<Context*> context,
+		std::shared_ptr<Result> result,
+		bool withThumb);
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
@@ -391,7 +394,7 @@ private:
 
 class Game : public ItemBase {
 public:
-	Game(not_null<Context*> context, not_null<Result*> result);
+	Game(not_null<Context*> context, std::shared_ptr<Result> result);
 
 	void setPosition(int32 position) override;
 	void initDimensions() override;

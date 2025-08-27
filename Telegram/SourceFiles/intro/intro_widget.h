@@ -30,6 +30,7 @@ class FadeWrap;
 namespace Window {
 class ConnectionState;
 class Controller;
+class SlideAnimation;
 } // namespace Window
 
 namespace Intro {
@@ -40,6 +41,11 @@ enum class CallStatus {
 	Calling,
 	Called,
 	Disabled,
+};
+
+enum class EmailStatus {
+	None,
+	SetupRequired,
 };
 
 struct Data {
@@ -55,6 +61,11 @@ struct Data {
 
 	int codeLength = 5;
 	bool codeByTelegram = false;
+	QString codeByFragmentUrl;
+
+	EmailStatus emailStatus = EmailStatus::None;
+	QString email;
+	QString emailPattern;
 
 	Core::CloudPasswordState pwdState;
 
@@ -95,14 +106,13 @@ public:
 		not_null<Window::Controller*> controller,
 		not_null<Main::Account*> account,
 		EnterPoint point);
+	~Widget();
 
-	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
+	void showAnimated(QPixmap oldContentCache, bool back = false);
 
 	void setInnerFocus();
 
 	[[nodiscard]] rpl::producer<> showSettingsRequested() const;
-
-	~Widget();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -111,7 +121,7 @@ protected:
 
 private:
 	void refreshLang();
-	void animationCallback();
+	void showFinished();
 	void createLanguageLink();
 	void checkUpdateStatus();
 	void setupNextButton();
@@ -157,6 +167,7 @@ private:
 	[[nodiscard]] auto floatPlayerSectionDelegate()
 		-> not_null<Media::Player::FloatSectionDelegate*>;
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
+	void floatPlayerToggleGifsPaused(bool paused) override;
 	not_null<Media::Player::FloatSectionDelegate*> floatPlayerGetSection(
 		Window::Column column) override;
 	void floatPlayerEnumerateSections(Fn<void(
@@ -174,9 +185,7 @@ private:
 	std::optional<MTP::Sender> _api;
 	mtpRequestId _nearestDcRequestId = 0;
 
-	Ui::Animations::Simple _a_show;
-	bool _showBack = false;
-	QPixmap _cacheUnder, _cacheOver;
+	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 
 	std::vector<details::Step*> _stepHistory;
 	rpl::lifetime _stepLifetime;
@@ -186,6 +195,8 @@ private:
 	Ui::Animations::Simple _coverShownAnimation;
 	int _nextTopFrom = 0;
 	int _controlsTopFrom = 0;
+
+	const style::RoundButton *_nextStyle = nullptr;
 
 	object_ptr<Ui::FadeWrap<Ui::IconButton>> _back;
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _update = { nullptr };

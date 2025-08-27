@@ -8,13 +8,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_abstract_single_media_preview.h"
 
 #include "editor/photo_editor_common.h"
+#include "lang/lang_keys.h"
 #include "ui/chat/attach/attach_controls.h"
+#include "ui/chat/attach/attach_prepare.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/image/image_prepare.h"
-#include "ui/widgets/buttons.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
+#include "ui/ui_utility.h"
+#include "ui/widgets/popup_menu.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 
 namespace Ui {
 namespace {
@@ -25,11 +32,14 @@ constexpr auto kMinPreviewWidth = 20;
 
 AbstractSingleMediaPreview::AbstractSingleMediaPreview(
 	QWidget *parent,
-	AttachControls::Type type)
+	const style::ComposeControls &st,
+	AttachControls::Type type,
+	Fn<bool(AttachActionType)> actionAllowed)
 : AbstractSinglePreview(parent)
+, _st(st)
+, _actionAllowed(std::move(actionAllowed))
 , _minThumbH(st::sendBoxAlbumGroupSize.height()
 	+ st::sendBoxAlbumGroupSkipTop * 2)
-, _photoEditorButton(base::make_unique_q<AbstractButton>(this))
 , _controls(base::make_unique_q<AttachControlsWidget>(this, type)) {
 }
 
@@ -44,7 +54,47 @@ rpl::producer<> AbstractSingleMediaPreview::editRequests() const {
 }
 
 rpl::producer<> AbstractSingleMediaPreview::modifyRequests() const {
-	return _photoEditorButton->clicks() | rpl::to_empty;
+	return _photoEditorRequests.events();
+}
+
+rpl::producer<> AbstractSingleMediaPreview::editCoverRequests() const {
+	return _editCoverRequests.events();
+}
+
+rpl::producer<> AbstractSingleMediaPreview::clearCoverRequests() const {
+	return _clearCoverRequests.events();
+}
+
+void AbstractSingleMediaPreview::setSendWay(SendFilesWay way) {
+	_sendWay = way;
+	update();
+}
+
+SendFilesWay AbstractSingleMediaPreview::sendWay() const {
+	return _sendWay;
+}
+
+void AbstractSingleMediaPreview::setSpoiler(bool spoiler) {
+	_spoiler = spoiler
+		? std::make_unique<SpoilerAnimation>([=] { update(); })
+		: nullptr;
+	update();
+}
+
+bool AbstractSingleMediaPreview::hasSpoiler() const {
+	return _spoiler != nullptr;
+}
+
+bool AbstractSingleMediaPreview::canHaveSpoiler() const {
+	return supportsSpoilers();
+}
+
+rpl::producer<bool> AbstractSingleMediaPreview::spoileredChanges() const {
+	return _spoileredChanges.events();
+}
+
+QImage AbstractSingleMediaPreview::generatePriceTagBackground() const {
+	return (_previewBlurred.isNull() ? _preview : _previewBlurred).toImage();
 }
 
 void AbstractSingleMediaPreview::preparePreview(QImage preview) {
@@ -70,7 +120,7 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 		preview = Images::Prepare(
 			std::move(preview),
 			QSize(maxW, maxH) * ratio,
-			{ .options = Images::Option::Blur, .outer = { maxW, maxH } });
+			{ .outer = { maxW, maxH } });
 	}
 	auto originalWidth = preview.width();
 	auto originalHeight = preview.height();
@@ -105,16 +155,17 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 	preview = Images::Opaque(std::move(preview));
 	_preview = PixmapFromImage(std::move(preview));
 	_preview.setDevicePixelRatio(style::DevicePixelRatio());
-
-	updatePhotoEditorButton();
+	_previewBlurred = QPixmap();
 
 	resize(width(), std::max(_previewHeight, _minThumbH));
 }
 
-void AbstractSingleMediaPreview::updatePhotoEditorButton() {
-	_photoEditorButton->resize(_previewWidth, _previewHeight);
-	_photoEditorButton->moveToLeft(_previewLeft, _previewTop);
-	_photoEditorButton->setVisible(isPhoto());
+bool AbstractSingleMediaPreview::isOverPreview(QPoint position) const {
+	return QRect(
+		_previewLeft,
+		_previewTop,
+		_previewWidth,
+		_previewHeight).contains(position);
 }
 
 void AbstractSingleMediaPreview::resizeEvent(QResizeEvent *e) {
@@ -127,6 +178,15 @@ void AbstractSingleMediaPreview::resizeEvent(QResizeEvent *e) {
 void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
+	auto takenSpoiler = supportsSpoilers()
+		? nullptr
+		: base::take(_spoiler);
+	const auto guard = gsl::finally([&] {
+		if (takenSpoiler) {
+			_spoiler = base::take(takenSpoiler);
+		}
+	});
+
 	if (drawBackground()) {
 		const auto &padding = st::boxPhotoPadding;
 		if (_previewLeft > padding.left()) {
@@ -135,7 +195,7 @@ void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 				_previewTop,
 				_previewLeft - padding.left(),
 				_previewHeight,
-				st::confirmBg);
+				_st.files.confirmBg);
 		}
 		if ((_previewLeft + _previewWidth) < (width() - padding.right())) {
 			p.fillRect(
@@ -143,7 +203,7 @@ void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 				_previewTop,
 				width() - padding.right() - _previewLeft - _previewWidth,
 				_previewHeight,
-				st::confirmBg);
+				_st.files.confirmBg);
 		}
 		if (_previewTop > 0) {
 			p.fillRect(
@@ -151,13 +211,27 @@ void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 				0,
 				width() - padding.right() - padding.left(),
 				height(),
-				st::confirmBg);
+				_st.files.confirmBg);
 		}
 	}
-	if (!tryPaintAnimation(p)) {
-		p.drawPixmap(_previewLeft, _previewTop, _preview);
+
+	if (_spoiler && _previewBlurred.isNull()) {
+		_previewBlurred = BlurredPreviewFromPixmap(_preview, RectPart::None);
 	}
-	if (_animated && !isAnimatedPreviewReady()) {
+	if (_spoiler || !tryPaintAnimation(p)) {
+		const auto &pixmap = _spoiler ? _previewBlurred : _preview;
+		const auto position = QPoint(_previewLeft, _previewTop);
+		p.drawPixmap(position, pixmap);
+		if (_spoiler) {
+			const auto paused = On(PowerSaving::kChatSpoiler);
+			FillSpoilerRect(
+				p,
+				QRect(position, pixmap.size() / pixmap.devicePixelRatio()),
+				DefaultImageSpoiler().frame(
+					_spoiler->index(crl::now(), paused)));
+		}
+	}
+	if (_animated && !isAnimatedPreviewReady() && !_spoiler) {
 		const auto innerSize = st::msgFileLayout.thumbSize;
 		auto inner = QRect(
 			_previewLeft + (_previewWidth - innerSize) / 2,
@@ -174,6 +248,70 @@ void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 
 		auto icon = &st::historyFileInPlay;
 		icon->paintInCenter(p, inner);
+	}
+}
+
+void AbstractSingleMediaPreview::mousePressEvent(QMouseEvent *e) {
+	if (isOverPreview(e->pos())) {
+		_pressed = true;
+	}
+}
+
+void AbstractSingleMediaPreview::mouseMoveEvent(QMouseEvent *e) {
+	applyCursor((isPhoto() && isOverPreview(e->pos()))
+		? style::cur_pointer
+		: style::cur_default);
+}
+
+void AbstractSingleMediaPreview::mouseReleaseEvent(QMouseEvent *e) {
+	if (base::take(_pressed) && isOverPreview(e->pos())) {
+		if (e->button() == Qt::RightButton) {
+			showContextMenu(e->globalPos());
+		} else if (isPhoto()) {
+			_photoEditorRequests.fire({});
+		}
+	}
+}
+
+void AbstractSingleMediaPreview::applyCursor(style::cursor cursor) {
+	if (_cursor != cursor) {
+		_cursor = cursor;
+		setCursor(_cursor);
+	}
+}
+
+void AbstractSingleMediaPreview::showContextMenu(QPoint position) {
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		_st.tabbed.menu);
+
+	const auto &icons = _st.tabbed.icons;
+	if (_actionAllowed(AttachActionType::ToggleSpoiler)
+		&& _sendWay.sendImagesAsPhotos()
+		&& supportsSpoilers()) {
+		const auto spoilered = hasSpoiler();
+		_menu->addAction(spoilered
+			? tr::lng_context_disable_spoiler(tr::now)
+			: tr::lng_context_spoiler_effect(tr::now), [=] {
+			setSpoiler(!spoilered);
+			_spoileredChanges.fire_copy(!spoilered);
+		}, spoilered ? &icons.menuSpoilerOff : &icons.menuSpoiler);
+	}
+	if (_actionAllowed(AttachActionType::EditCover)) {
+		_menu->addAction(tr::lng_context_edit_cover(tr::now), [=] {
+			_editCoverRequests.fire({});
+		}, &st::menuIconEdit);
+
+		if (_actionAllowed(AttachActionType::ClearCover)) {
+			_menu->addAction(tr::lng_context_clear_cover(tr::now), [=] {
+				_clearCoverRequests.fire({});
+			}, &st::menuIconCancel);
+		}
+	}
+	if (_menu->empty()) {
+		_menu = nullptr;
+	} else {
+		_menu->popup(position);
 	}
 }
 

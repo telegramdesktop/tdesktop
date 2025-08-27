@@ -84,6 +84,7 @@ public:
 	void unregisterHeavyItem(not_null<const BaseLayout*> item) override;
 	void repaintItem(not_null<const BaseLayout*> item) override;
 	bool itemVisible(not_null<const BaseLayout*> item) override;
+	not_null<StickerPremiumMark*> hiddenMark() override;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -158,6 +159,7 @@ private:
 	void setupSelectRestriction();
 
 	[[nodiscard]] MsgId topicRootId() const;
+	[[nodiscard]] PeerId monoforumPeerId() const;
 
 	QMargins padding() const;
 	bool isItemLayout(
@@ -169,8 +171,8 @@ private:
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void itemLayoutChanged(not_null<const HistoryItem*> item);
 
-	void refreshViewer();
 	void refreshRows();
+	void markStoryMsgsSelected();
 	void trackSession(not_null<Main::Session*> session);
 
 	[[nodiscard]] SelectedItems collectSelectedItems() const;
@@ -190,8 +192,18 @@ private:
 	void forwardItem(GlobalMsgId globalId);
 	void forwardItems(MessageIdsList &&items);
 	void deleteSelected();
+	void toggleStoryPinSelected();
+	void toggleStoryInProfileSelected(bool toProfile);
 	void deleteItem(GlobalMsgId globalId);
 	void deleteItems(SelectedItems &&items, Fn<void()> confirmed = nullptr);
+	void toggleStoryInProfile(
+		MessageIdsList &&items,
+		bool toProfile,
+		Fn<void()> confirmed = nullptr);
+	void toggleStoryPin(
+		MessageIdsList &&items,
+		bool pin,
+		Fn<void()> confirmed = nullptr);
 	void applyItemSelection(
 		HistoryItem *item,
 		TextSelection selection);
@@ -263,7 +275,9 @@ private:
 	void checkMoveToOtherViewer();
 	void clearHeavyItems();
 
-	void setActionBoxWeak(QPointer<Ui::BoxContent> box);
+	void setActionBoxWeak(base::weak_qptr<Ui::BoxContent> box);
+
+	void setupStoriesTrackIds();
 
 	const not_null<AbstractController*> _controller;
 	const std::unique_ptr<ListProvider> _provider;
@@ -295,15 +309,23 @@ private:
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
 	const std::unique_ptr<DateBadge> _dateBadge;
-	base::flat_map<not_null<Main::Session*>, rpl::lifetime> _trackedSessions;
+
+	int _selectedLimit = 0;
+	int _storiesAddToAlbumId = 0;
+	int _storiesAddToAlbumTotal = 0;
+	base::flat_set<StoryId> _storiesInAlbum;
+	base::flat_set<MsgId> _storyMsgsToMarkSelected;
+	std::unique_ptr<StickerPremiumMark> _hiddenMark;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;
-	QPointer<Ui::BoxContent> _actionBoxWeak;
+	base::weak_qptr<Ui::BoxContent> _actionBoxWeak;
 	rpl::lifetime _actionBoxWeakLifetime;
 
 	QPoint _trippleClickPoint;
 	crl::time _trippleClickStartTime = 0;
+
+	base::flat_map<not_null<Main::Session*>, rpl::lifetime> _trackedSessions;
 
 };
 

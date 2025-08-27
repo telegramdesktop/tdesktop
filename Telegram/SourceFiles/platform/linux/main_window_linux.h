@@ -21,13 +21,13 @@ namespace Platform {
 class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
-
 	~MainWindow();
+
+	void updateWindowIcon() override;
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *evt) override;
 
-	void initHook() override;
 	void unreadCounterChangedHook() override;
 	void updateGlobalMenuHook() override;
 
@@ -35,6 +35,8 @@ protected:
 	void createGlobalMenu() override;
 
 private:
+	void updateUnityCounter();
+
 	QMenuBar *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;
 	QAction *psUndo = nullptr;
@@ -53,12 +55,16 @@ private:
 	QAction *psItalic = nullptr;
 	QAction *psUnderline = nullptr;
 	QAction *psStrikeOut = nullptr;
+	QAction *psBlockquote = nullptr;
 	QAction *psMonospace = nullptr;
 	QAction *psClearFormat = nullptr;
 
-	void updateIconCounters();
-	void handleNativeSurfaceChanged(bool exist);
+	bool _exposed = false;
 
 };
+
+[[nodiscard]] inline int32 ScreenNameChecksum(const QString &name) {
+	return Window::DefaultScreenNameChecksum(name);
+}
 
 } // namespace Platform

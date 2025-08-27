@@ -21,6 +21,13 @@ namespace Streaming {
 
 class FileDelegate;
 
+struct StartOptions {
+	crl::time position = 0;
+	crl::time durationOverride = 0;
+	bool seekable = true;
+	bool hwAllow = false;
+};
+
 class File final {
 public:
 	explicit File(std::shared_ptr<Reader> reader);
@@ -28,15 +35,15 @@ public:
 	File(const File &other) = delete;
 	File &operator=(const File &other) = delete;
 
-	void start(
-		not_null<FileDelegate*> delegate,
-		crl::time position,
-		bool hwAllow);
+	void start(not_null<FileDelegate*> delegate, StartOptions options);
 	void wake();
 	void stop(bool stillActive = false);
 
 	[[nodiscard]] bool isRemoteLoader() const;
 	void setLoaderPriority(int priority);
+
+	[[nodiscard]] int64 size() const;
+	[[nodiscard]] rpl::producer<SpeedEstimate> speedEstimate() const;
 
 	~File();
 
@@ -46,7 +53,7 @@ private:
 		Context(not_null<FileDelegate*> delegate, not_null<Reader*> reader);
 		~Context();
 
-		void start(crl::time position, bool hwAllow);
+		void start(StartOptions options);
 		void readNextPacket();
 
 		void interrupt();
@@ -79,7 +86,7 @@ private:
 			not_null<AVFormatContext *> format,
 			AVMediaType type,
 			Mode mode,
-			bool hwAllowed);
+			StartOptions options);
 		void seekToPosition(
 			not_null<AVFormatContext *> format,
 			const Stream &stream,

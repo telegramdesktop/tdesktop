@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/flags.h"
 #include "data/data_photo.h"
 
 class FileLoader;
@@ -43,11 +42,13 @@ public:
 
 	[[nodiscard]] bool autoLoadThumbnailAllowed(
 		not_null<PeerData*> peer) const;
-	void automaticLoad(Data::FileOrigin origin, const HistoryItem *item);
+	void automaticLoad(FileOrigin origin, const HistoryItem *item);
+	void automaticLoad(FileOrigin origin, not_null<PeerData*> peer);
 
 	void collectLocalData(not_null<PhotoMedia*> local);
 
 	bool saveToFile(const QString &path);
+	bool setToClipboard();
 
 private:
 	struct PhotoImage {
@@ -63,7 +64,7 @@ private:
 	// In case this is a problem the ~Gif code should be rewritten.
 	const not_null<PhotoData*> _owner;
 	mutable std::unique_ptr<Image> _inlineThumbnail;
-	std::array<PhotoImage, kPhotoSizeCount>  _images;
+	std::array<PhotoImage, kPhotoSizeCount> _images;
 	QByteArray _videoBytesSmall;
 	QByteArray _videoBytesLarge;
 

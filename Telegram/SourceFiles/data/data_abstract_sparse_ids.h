@@ -57,7 +57,7 @@ public:
 		return std::nullopt;
 	}
 	[[nodiscard]] std::optional<Id> nearest(Id id) const {
-		static_assert(std::is_same_v<IdsContainer, base::flat_set<MsgId>>);
+		static_assert(std::is_same_v<IdsContainer, base::flat_set<Id>>);
 		if (const auto it = ranges::lower_bound(_ids, id); it != _ids.end()) {
 			return *it;
 		} else if (_ids.empty()) {
@@ -69,6 +69,10 @@ public:
 		ranges::reverse(_ids);
 		std::swap(_skippedBefore, _skippedAfter);
 	}
+
+	friend inline bool operator==(
+		const AbstractSparseIds&,
+		const AbstractSparseIds&) = default;
 
 private:
 	IdsContainer _ids;

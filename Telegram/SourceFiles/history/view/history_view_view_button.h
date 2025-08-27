@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/chat_style.h"
 
-struct HistoryMessageSponsored;
-
 namespace Data {
 class Media;
 } // namespace Data
@@ -24,15 +22,13 @@ struct TextState;
 class ViewButton {
 public:
 	ViewButton(
-		not_null<HistoryMessageSponsored*> sponsored,
+		not_null<Data::Media*> media,
+		uint8 colorIndex,
 		Fn<void()> updateCallback);
-	ViewButton(not_null<Data::Media*> media, Fn<void()> updateCallback);
 	~ViewButton();
 
 	[[nodiscard]] static bool MediaHasViewButton(
 		not_null<Data::Media*> media);
-	[[nodiscard]] static bool MediaHasViewButton(
-		not_null<WebPageData*> webpage);
 
 	[[nodiscard]] int height() const;
 	[[nodiscard]] bool belowMessageInfo() const;

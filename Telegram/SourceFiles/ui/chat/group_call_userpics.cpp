@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/paint/blobs.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "base/random.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Ui {
 namespace {
@@ -116,10 +118,10 @@ GroupCallUserpics::GroupCallUserpics(
 	});
 
 	rpl::combine(
-		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
+		PowerSaving::OnValue(PowerSaving::kCalls),
 		std::move(hideBlobs)
-	) | rpl::start_with_next([=](bool animDisabled, bool deactivated) {
-		const auto hide = animDisabled || deactivated;
+	) | rpl::start_with_next([=](bool disabled, bool deactivated) {
+		const auto hide = disabled || deactivated;
 
 		if (!(hide && _speakingAnimationHideLastTime)) {
 			_speakingAnimationHideLastTime = hide ? crl::now() : 0;
@@ -239,7 +241,7 @@ void GroupCallUserpics::sendRandomLevels() {
 	for (auto &userpic : _list) {
 		if (const auto blobs = userpic.blobsAnimation.get()) {
 			const auto value = 30 + base::RandomIndex(70);
-			userpic.blobsAnimation->blobs.setLevel(float64(value) / 100.);
+			blobs->blobs.setLevel(float64(value) / 100.);
 		}
 	}
 }
@@ -262,7 +264,7 @@ void GroupCallUserpics::validateCache(Userpic &userpic) {
 	{
 		auto p = QPainter(&userpic.cache);
 		const auto skip = (kWideScale - 1) / 2 * size;
-		p.drawImage(skip, skip, userpic.data.userpic);
+		p.drawImage(QRect(skip, skip, size, size), userpic.data.userpic);
 
 		if (userpic.cacheMasked) {
 			auto hq = PainterHighQualityEnabler(p);
@@ -346,16 +348,25 @@ void GroupCallUserpics::update(
 		_speakingAnimation.start();
 	}
 
-	if (!visible) {
-		for (auto &userpic : _list) {
-			userpic.shownAnimation.stop();
-			userpic.leftAnimation.stop();
-		}
+	if (visible) {
+		recountAndRepaint();
+	} else {
+		finishAnimating();
+	}
+}
+
+void GroupCallUserpics::finishAnimating() {
+	for (auto &userpic : _list) {
+		userpic.shownAnimation.stop();
+		userpic.leftAnimation.stop();
 	}
 	recountAndRepaint();
 }
 
 void GroupCallUserpics::toggle(Userpic &userpic, bool shown) {
+	if (userpic.hiding == !shown && !userpic.shownAnimation.animating()) {
+		return;
+	}
 	userpic.hiding = !shown;
 	userpic.shownAnimation.start(
 		[=] { recountAndRepaint(); },

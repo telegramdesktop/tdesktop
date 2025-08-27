@@ -7,28 +7,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_call.h"
 
-#include "main/main_session.h"
-#include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "apiwrap.h"
-#include "lang/lang_keys.h"
-#include "ui/boxes/confirm_box.h"
-#include "ui/boxes/rate_call_box.h"
-#include "calls/calls_instance.h"
 #include "base/openssl_help.h"
+#include "base/platform/base_platform_info.h"
 #include "base/random.h"
-#include "mtproto/mtproto_dh_utils.h"
-#include "mtproto/mtproto_config.h"
+#include "boxes/abstract_box.h"
+#include "calls/group/calls_group_common.h"
+#include "calls/calls_instance.h"
+#include "calls/calls_panel.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "media/audio/media_audio_track.h"
-#include "base/platform/base_platform_info.h"
-#include "calls/calls_panel.h"
-#include "webrtc/webrtc_video_track.h"
-#include "webrtc/webrtc_media_devices.h"
-#include "webrtc/webrtc_create_adm.h"
-#include "data/data_user.h"
+#include "data/data_group_call.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
+#include "lang/lang_keys.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
+#include "media/audio/media_audio_track.h"
+#include "mtproto/mtproto_config.h"
+#include "mtproto/mtproto_dh_utils.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/boxes/rate_call_box.h"
+#include "webrtc/webrtc_create_adm.h"
+#include "webrtc/webrtc_environment.h"
+#include "webrtc/webrtc_video_track.h"
+#include "window/window_controller.h"
 
 #include <tgcalls/Instance.h>
 #include <tgcalls/VideoCaptureInterface.h>
@@ -38,9 +41,6 @@ namespace tgcalls {
 class InstanceImpl;
 class InstanceV2Impl;
 class InstanceV2ReferenceImpl;
-class InstanceV2_4_0_0Impl;
-class InstanceImplLegacy;
-void SetLegacyGlobalServerConfig(const std::string &serverConfig);
 } // namespace tgcalls
 
 namespace Calls {
@@ -55,8 +55,6 @@ const auto kDefaultVersion = "2.4.4"_q;
 const auto Register = tgcalls::Register<tgcalls::InstanceImpl>();
 const auto RegisterV2 = tgcalls::Register<tgcalls::InstanceV2Impl>();
 const auto RegV2Ref = tgcalls::Register<tgcalls::InstanceV2ReferenceImpl>();
-const auto RegisterV240 = tgcalls::Register<tgcalls::InstanceV2_4_0_0Impl>();
-const auto RegisterLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
 
 [[nodiscard]] base::flat_set<int64> CollectEndpointIds(
 		const QVector<MTPPhoneConnection> &list) {
@@ -128,6 +126,7 @@ void AppendServer(
 				.login = username,
 				.password = password,
 				.isTurn = true,
+				.isTcp = data.is_tcp(),
 			});
 		};
 		pushTurn(host);
@@ -213,6 +212,22 @@ Call::Call(
 , _api(&_user->session().mtp())
 , _type(type)
 , _discardByTimeoutTimer([=] { hangup(); })
+, _playbackDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Playback,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callPlaybackDeviceIdValue(),
+		Core::App().settings().playbackDeviceIdValue()))
+, _captureDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Capture,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callCaptureDeviceIdValue(),
+		Core::App().settings().captureDeviceIdValue()))
+, _cameraDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Camera,
+	Core::App().settings().cameraDeviceIdValue())
 , _videoIncoming(
 	std::make_unique<Webrtc::VideoTrack>(
 		StartVideoState(video)))
@@ -220,16 +235,62 @@ Call::Call(
 	std::make_unique<Webrtc::VideoTrack>(
 		StartVideoState(video))) {
 	if (_type == Type::Outgoing) {
-		setState(State::Requesting);
+		setState(State::WaitingUserConfirmation);
 	} else {
 		const auto &config = _user->session().serverConfig();
 		_discardByTimeoutTimer.callOnce(config.callRingTimeoutMs);
 		startWaitingTrack();
 	}
+	setupMediaDevices();
+	setupOutgoingVideo();
+}
+
+Call::Call(
+	not_null<Delegate*> delegate,
+	not_null<UserData*> user,
+	CallId conferenceId,
+	MsgId conferenceInviteMsgId,
+	std::vector<not_null<PeerData*>> conferenceParticipants,
+	bool video)
+: _delegate(delegate)
+, _user(user)
+, _api(&_user->session().mtp())
+, _type(Type::Incoming)
+, _state(State::WaitingIncoming)
+, _discardByTimeoutTimer([=] { hangup(); })
+, _playbackDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Playback,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callPlaybackDeviceIdValue(),
+		Core::App().settings().playbackDeviceIdValue()))
+, _captureDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Capture,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callCaptureDeviceIdValue(),
+		Core::App().settings().captureDeviceIdValue()))
+, _cameraDeviceId(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Camera,
+	Core::App().settings().cameraDeviceIdValue())
+, _id(base::RandomValue<CallId>())
+, _conferenceId(conferenceId)
+, _conferenceInviteMsgId(conferenceInviteMsgId)
+, _conferenceParticipants(std::move(conferenceParticipants))
+, _videoIncoming(
+	std::make_unique<Webrtc::VideoTrack>(
+		StartVideoState(video)))
+, _videoOutgoing(
+	std::make_unique<Webrtc::VideoTrack>(
+		StartVideoState(video))) {
+	startWaitingTrack();
 	setupOutgoingVideo();
 }
 
 void Call::generateModExpFirst(bytes::const_span randomSeed) {
+	Expects(!conferenceInvite());
+
 	auto first = MTP::CreateModExp(_dhConfig.g, _dhConfig.p, randomSeed);
 	if (first.modexp.empty()) {
 		LOG(("Call Error: Could not compute mod-exp first."));
@@ -255,6 +316,8 @@ bool Call::isIncomingWaiting() const {
 }
 
 void Call::start(bytes::const_span random) {
+	Expects(!conferenceInvite());
+
 	// Save config here, because it is possible that it changes between
 	// different usages inside the same call.
 	_dhConfig = _delegate->getDhConfig();
@@ -279,6 +342,7 @@ void Call::startOutgoing() {
 	Expects(_type == Type::Outgoing);
 	Expects(_state.current() == State::Requesting);
 	Expects(_gaHash.size() == kSha256Size);
+	Expects(!conferenceInvite());
 
 	const auto flags = _videoCapture
 		? MTPphone_RequestCall::Flag::f_video
@@ -332,6 +396,7 @@ void Call::startOutgoing() {
 void Call::startIncoming() {
 	Expects(_type == Type::Incoming);
 	Expects(_state.current() == State::Starting);
+	Expects(!conferenceInvite());
 
 	_api.request(MTPphone_ReceivedCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash))
@@ -344,6 +409,14 @@ void Call::startIncoming() {
 	}).send();
 }
 
+void Call::applyUserConfirmation() {
+	Expects(!conferenceInvite());
+
+	if (_state.current() == State::WaitingUserConfirmation) {
+		setState(State::Requesting);
+	}
+}
+
 void Call::answer() {
 	const auto video = isSharingVideo();
 	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
@@ -351,8 +424,50 @@ void Call::answer() {
 	}), video);
 }
 
+StartConferenceInfo Call::migrateConferenceInfo(StartConferenceInfo extend) {
+	extend.migrating = true;
+	extend.muted = muted();
+	extend.videoCapture = isSharingVideo() ? _videoCapture : nullptr;
+	extend.videoCaptureScreenId = screenSharingDeviceId();
+	return extend;
+}
+
+void Call::acceptConferenceInvite() {
+	Expects(conferenceInvite());
+
+	if (_state.current() != State::WaitingIncoming) {
+		return;
+	}
+	setState(State::ExchangingKeys);
+	const auto limit = 5;
+	const auto messageId = _conferenceInviteMsgId;
+	_api.request(MTPphone_GetGroupCall(
+		MTP_inputGroupCallInviteMessage(MTP_int(messageId.bare)),
+		MTP_int(limit)
+	)).done([=](const MTPphone_GroupCall &result) {
+		result.data().vcall().match([&](const auto &data) {
+			auto call = _user->owner().sharedConferenceCall(
+				data.vid().v,
+				data.vaccess_hash().v);
+			call->processFullCall(result);
+			Core::App().calls().startOrJoinConferenceCall(
+				migrateConferenceInfo({
+					.call = std::move(call),
+					.joinMessageId = messageId,
+				}));
+		});
+	}).fail([=](const MTP::Error &error) {
+		handleRequestError(error.type());
+	}).send();
+}
+
 void Call::actuallyAnswer() {
 	Expects(_type == Type::Incoming);
+
+	if (conferenceInvite()) {
+		acceptConferenceInvite();
+		return;
+	}
 
 	const auto state = _state.current();
 	if (state != State::Starting && state != State::WaitingIncoming) {
@@ -395,6 +510,14 @@ void Call::actuallyAnswer() {
 	}).send();
 }
 
+void Call::captureMuteChanged(bool mute) {
+	setMuted(mute);
+}
+
+rpl::producer<Webrtc::DeviceResolvedId> Call::captureMuteDeviceId() {
+	return _captureDeviceId.value();
+}
+
 void Call::setMuted(bool mute) {
 	_muted = mute;
 	if (_instance) {
@@ -402,24 +525,48 @@ void Call::setMuted(bool mute) {
 	}
 }
 
+void Call::setupMediaDevices() {
+	Expects(!conferenceInvite());
+
+	_playbackDeviceId.changes() | rpl::filter([=] {
+		return _instance && _setDeviceIdCallback;
+	}) | rpl::start_with_next([=](const Webrtc::DeviceResolvedId &deviceId) {
+		_setDeviceIdCallback(deviceId);
+
+		// Value doesn't matter here, just trigger reading of the new value.
+		_instance->setAudioOutputDevice(deviceId.value.toStdString());
+	}, _lifetime);
+
+	_captureDeviceId.changes() | rpl::filter([=] {
+		return _instance && _setDeviceIdCallback;
+	}) | rpl::start_with_next([=](const Webrtc::DeviceResolvedId &deviceId) {
+		_setDeviceIdCallback(deviceId);
+
+		// Value doesn't matter here, just trigger reading of the new value.
+		_instance->setAudioInputDevice(deviceId.value.toStdString());
+	}, _lifetime);
+}
+
 void Call::setupOutgoingVideo() {
-	static const auto hasDevices = [] {
-		return !Webrtc::GetVideoInputList().empty();
+	const auto cameraId = [] {
+		return Core::App().mediaDevices().defaultId(
+			Webrtc::DeviceType::Camera);
 	};
 	const auto started = _videoOutgoing->state();
-	if (!hasDevices()) {
+	if (cameraId().isEmpty()) {
 		_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 	}
 	_videoOutgoing->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
 		if (state != Webrtc::VideoState::Inactive
-			&& !hasDevices()
+			&& cameraId().isEmpty()
 			&& !_videoCaptureIsScreencast) {
 			_errors.fire({ ErrorType::NoCamera });
 			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		} else if (_state.current() != State::Established
 			&& (state != Webrtc::VideoState::Inactive)
-			&& (started == Webrtc::VideoState::Inactive)) {
+			&& (started == Webrtc::VideoState::Inactive)
+			&& !conferenceInvite()) {
 			_errors.fire({ ErrorType::NotStartedCall });
 			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		} else if (state != Webrtc::VideoState::Inactive
@@ -447,6 +594,20 @@ void Call::setupOutgoingVideo() {
 			}
 		}
 	}, _lifetime);
+
+	_cameraDeviceId.changes(
+	) | rpl::filter([=] {
+		return !_videoCaptureIsScreencast;
+	}) | rpl::start_with_next([=](Webrtc::DeviceResolvedId deviceId) {
+		const auto &id = deviceId.value;
+		_videoCaptureDeviceId = id;
+		if (_videoCapture) {
+			_videoCapture->switchToDevice(id.toStdString(), false);
+			if (_instance) {
+				_instance->sendVideoDeviceUpdated();
+			}
+		}
+	}, _lifetime);
 }
 
 not_null<Webrtc::VideoTrack*> Call::videoIncoming() const {
@@ -461,24 +622,30 @@ crl::time Call::getDurationMs() const {
 	return _startTime ? (crl::now() - _startTime) : 0;
 }
 
-void Call::hangup() {
+void Call::hangup(Data::GroupCall *migrateCall, const QString &migrateSlug) {
 	const auto state = _state.current();
-	if (state == State::Busy) {
+	if (state == State::Busy
+		|| state == State::MigrationHangingUp) {
 		_delegate->callFinished(this);
 	} else {
 		const auto missed = (state == State::Ringing
 			|| (state == State::Waiting && _type == Type::Outgoing));
 		const auto declined = isIncomingWaiting();
-		const auto reason = missed
+		const auto reason = !migrateSlug.isEmpty()
+			? MTP_phoneCallDiscardReasonMigrateConferenceCall(
+				MTP_string(migrateSlug))
+			: missed
 			? MTP_phoneCallDiscardReasonMissed()
 			: declined
 			? MTP_phoneCallDiscardReasonBusy()
 			: MTP_phoneCallDiscardReasonHangup();
-		finish(FinishType::Ended, reason);
+		finish(FinishType::Ended, reason, migrateCall);
 	}
 }
 
 void Call::redial() {
+	Expects(!conferenceInvite());
+
 	if (_state.current() != State::Busy) {
 		return;
 	}
@@ -500,14 +667,16 @@ void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
 	const auto trackFileName = Core::App().settings().getSoundPath(
 		(_type == Type::Outgoing)
-		? qsl("call_outgoing")
-		: qsl("call_incoming"));
+		? u"call_outgoing"_q
+		: u"call_incoming"_q);
 	_waitingTrack->samplePeakEach(kSoundSampleMs);
 	_waitingTrack->fillFromFile(trackFileName);
 	_waitingTrack->playInLoop();
 }
 
 void Call::sendSignalingData(const QByteArray &data) {
+	Expects(!conferenceInvite());
+
 	_api.request(MTPphone_SendSignalingData(
 		MTP_inputPhoneCall(
 			MTP_long(_id),
@@ -638,11 +807,16 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			}
 		}
 		if (data.is_need_rating() && _id && _accessHash) {
+			const auto window = Core::App().windowFor(
+				::Window::SeparateId(_user));
 			const auto session = &_user->session();
 			const auto callId = _id;
 			const auto callAccessHash = _accessHash;
-			const auto box = Ui::show(Box<Ui::RateCallBox>(
-				Core::App().settings().sendSubmitWay()));
+			auto owned = Box<Ui::RateCallBox>(
+				Core::App().settings().sendSubmitWay());
+			const auto box = window
+				? window->show(std::move(owned))
+				: Ui::show(std::move(owned));
 			const auto sender = box->lifetime().make_state<MTP::Sender>(
 				&session->mtp());
 			box->sends(
@@ -669,7 +843,10 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			&& reason->type() == mtpc_phoneCallDiscardReasonDisconnect) {
 			LOG(("Call Info: Discarded with DISCONNECT reason."));
 		}
-		if (reason && reason->type() == mtpc_phoneCallDiscardReasonBusy) {
+		if (reason && reason->type() == mtpc_phoneCallDiscardReasonMigrateConferenceCall) {
+			const auto slug = qs(reason->c_phoneCallDiscardReasonMigrateConferenceCall().vslug());
+			finishByMigration(slug);
+		} else if (reason && reason->type() == mtpc_phoneCallDiscardReasonBusy) {
 			setState(State::Busy);
 		} else if (_type == Type::Outgoing
 			|| _state.current() == State::HangingUp) {
@@ -695,6 +872,35 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 	}
 
 	Unexpected("phoneCall type inside an existing call handleUpdate()");
+}
+
+void Call::finishByMigration(const QString &slug) {
+	Expects(!conferenceInvite());
+
+	if (_state.current() == State::MigrationHangingUp) {
+		return;
+	}
+	setState(State::MigrationHangingUp);
+	const auto limit = 5;
+	const auto session = &_user->session();
+	session->api().request(MTPphone_GetGroupCall(
+		MTP_inputGroupCallSlug(MTP_string(slug)),
+		MTP_int(limit)
+	)).done([=](const MTPphone_GroupCall &result) {
+		result.data().vcall().match([&](const auto &data) {
+			const auto call = session->data().sharedConferenceCall(
+				data.vid().v,
+				data.vaccess_hash().v);
+			call->processFullCall(result);
+			Core::App().calls().startOrJoinConferenceCall(
+				migrateConferenceInfo({
+					.call = call,
+					.linkSlug = slug,
+				}));
+		});
+	}).fail(crl::guard(this, [=] {
+		setState(State::Failed);
+	})).send();
 }
 
 void Call::updateRemoteMediaState(
@@ -737,6 +943,7 @@ bool Call::handleSignalingData(
 
 void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	Expects(_type == Type::Outgoing);
+	Expects(!conferenceInvite());
 
 	if (_state.current() == State::ExchangingKeys
 		|| _instance) {
@@ -789,6 +996,7 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 
 void Call::startConfirmedCall(const MTPDphoneCall &call) {
 	Expects(_type == Type::Incoming);
+	Expects(!conferenceInvite());
 
 	const auto firstBytes = bytes::make_span(call.vg_a_or_b().v);
 	if (_gaHash != openssl::Sha256(firstBytes)) {
@@ -815,10 +1023,14 @@ void Call::startConfirmedCall(const MTPDphoneCall &call) {
 }
 
 void Call::createAndStartController(const MTPDphoneCall &call) {
+	Expects(!conferenceInvite());
+
 	_discardByTimeoutTimer.cancel();
 	if (!checkCallFields(call) || _authKey.size() != kAuthKeySize) {
 		return;
 	}
+
+	_conferenceSupported = call.is_conference_supported();
 
 	const auto &protocol = call.vprotocol().c_phoneCallProtocol();
 	const auto &serverConfig = _user->session().serverConfig();
@@ -840,11 +1052,39 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	const auto versionString = version.toStdString();
 	const auto &settings = Core::App().settings();
 	const auto weak = base::make_weak(this);
+
+	_setDeviceIdCallback = nullptr;
+	const auto playbackDeviceIdInitial = _playbackDeviceId.current();
+	const auto captureDeviceIdInitial = _captureDeviceId.current();
+	const auto saveSetDeviceIdCallback = [=](
+			Fn<void(Webrtc::DeviceResolvedId)> setDeviceIdCallback) {
+		setDeviceIdCallback(playbackDeviceIdInitial);
+		setDeviceIdCallback(captureDeviceIdInitial);
+		crl::on_main(weak, [=] {
+			_setDeviceIdCallback = std::move(setDeviceIdCallback);
+			const auto playback = _playbackDeviceId.current();
+			if (_instance && playback != playbackDeviceIdInitial) {
+				_setDeviceIdCallback(playback);
+
+				// Value doesn't matter here, just trigger reading of the...
+				_instance->setAudioOutputDevice(
+					playback.value.toStdString());
+			}
+			const auto capture = _captureDeviceId.current();
+			if (_instance && capture != captureDeviceIdInitial) {
+				_setDeviceIdCallback(capture);
+
+				// Value doesn't matter here, just trigger reading of the...
+				_instance->setAudioInputDevice(capture.value.toStdString());
+			}
+		});
+	};
+
 	tgcalls::Descriptor descriptor = {
 		.version = versionString,
 		.config = tgcalls::Config{
-			.initializationTimeout =
-				serverConfig.callConnectTimeoutMs / 1000.,
+			.initializationTimeout
+				= serverConfig.callConnectTimeoutMs / 1000.,
 			.receiveTimeout = serverConfig.callPacketTimeoutMs / 1000.,
 			.dataSaving = tgcalls::DataSaving::Never,
 			.enableP2P = call.is_p2p_allowed(),
@@ -858,8 +1098,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			std::move(encryptionKeyValue),
 			(_type == Type::Outgoing)),
 		.mediaDevicesConfig = tgcalls::MediaDevicesConfig{
-			.audioInputId = settings.callInputDeviceId().toStdString(),
-			.audioOutputId = settings.callOutputDeviceId().toStdString(),
+			.audioInputId = captureDeviceIdInitial.value.toStdString(),
+			.audioOutputId = playbackDeviceIdInitial.value.toStdString(),
 			.inputVolume = 1.f,//settings.callInputVolume() / 100.f,
 			.outputVolume = 1.f,//settings.callOutputVolume() / 100.f,
 		},
@@ -872,6 +1112,16 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		.signalBarsUpdated = [=](int count) {
 			crl::on_main(weak, [=] {
 				handleControllerBarCountChange(count);
+			});
+		},
+		.remoteBatteryLevelIsLowUpdated = [=](bool isLow) {
+#ifdef _DEBUG
+//			isLow = true;
+#endif
+			crl::on_main(weak, [=] {
+				_remoteBatteryState = isLow
+					? RemoteBatteryState::Low
+					: RemoteBatteryState::Normal;
 			});
 		},
 		.remoteMediaStateUpdated = [=](
@@ -890,11 +1140,11 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			});
 		},
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
-			settings.callAudioBackend()),
+			saveSetDeviceIdCallback),
 	};
 	if (Logs::DebugEnabled()) {
-		const auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
-		const auto callLogPath = callLogFolder + qsl("/last_call_log.txt");
+		const auto callLogFolder = cWorkingDir() + u"DebugLogs"_q;
+		const auto callLogPath = callLogFolder + u"/last_call_log.txt"_q;
 		const auto callLogNative = QDir::toNativeSeparators(callLogPath);
 #ifdef Q_OS_WIN
 		descriptor.config.logPath.data = callLogNative.toStdWString();
@@ -945,9 +1195,37 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 
 	raw->setIncomingVideoOutput(_videoIncoming->sink());
 	raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
+
+	_state.value() | rpl::start_with_next([=](State state) {
+		const auto track = (state != State::FailedHangingUp)
+			&& (state != State::Failed)
+			&& (state != State::HangingUp)
+			&& (state != State::MigrationHangingUp)
+			&& (state != State::Ended)
+			&& (state != State::EndedByOtherDevice)
+			&& (state != State::Busy);
+		Core::App().mediaDevices().setCaptureMuteTracker(this, track);
+	}, _instanceLifetime);
+
+	_muted.value() | rpl::start_with_next([=](bool muted) {
+		Core::App().mediaDevices().setCaptureMuted(muted);
+	}, _instanceLifetime);
+
+#if 0
+	Core::App().batterySaving().value(
+	) | rpl::start_with_next([=](bool isSaving) {
+		crl::on_main(weak, [=] {
+			if (_instance) {
+				_instance->setIsLowBatteryLevel(isSaving);
+			}
+		});
+	}, _instanceLifetime);
+#endif
 }
 
 void Call::handleControllerStateChange(tgcalls::State state) {
+	Expects(!conferenceInvite());
+
 	switch (state) {
 	case tgcalls::State::WaitInit: {
 		DEBUG_LOG(("Call Info: State changed to WaitingInit."));
@@ -1033,14 +1311,20 @@ bool Call::checkCallFields(const MTPDphoneCallAccepted &call) {
 }
 
 void Call::setState(State state) {
-	if (_state.current() == State::Failed) {
+	const auto was = _state.current();
+	if (was == State::Failed) {
 		return;
 	}
-	if (_state.current() == State::FailedHangingUp
+	if (was == State::FailedHangingUp
 		&& state != State::Failed) {
 		return;
 	}
-	if (_state.current() != state) {
+	if (was == State::MigrationHangingUp
+		&& state != State::Ended
+		&& state != State::Failed) {
+		return;
+	}
+	if (was != state) {
 		_state = state;
 
 		if (true
@@ -1068,7 +1352,9 @@ void Call::setState(State state) {
 			_delegate->callPlaySound(Delegate::CallSound::Connecting);
 			break;
 		case State::Ended:
-			_delegate->callPlaySound(Delegate::CallSound::Ended);
+			if (was != State::WaitingUserConfirmation) {
+				_delegate->callPlaySound(Delegate::CallSound::Ended);
+			}
 			[[fallthrough]];
 		case State::EndedByOtherDevice:
 			_delegate->callFinished(this);
@@ -1081,29 +1367,6 @@ void Call::setState(State state) {
 			_delegate->callPlaySound(Delegate::CallSound::Busy);
 			_discardByTimeoutTimer.cancel();
 			break;
-		}
-	}
-}
-
-void Call::setCurrentAudioDevice(bool input, const QString &deviceId) {
-	if (_instance) {
-		const auto id = deviceId.toStdString();
-		if (input) {
-			_instance->setAudioInputDevice(id);
-		} else {
-			_instance->setAudioOutputDevice(id);
-		}
-	}
-}
-
-void Call::setCurrentCameraDevice(const QString &deviceId) {
-	if (!_videoCaptureIsScreencast) {
-		_videoCaptureDeviceId = deviceId;
-		if (_videoCapture) {
-			_videoCapture->switchToDevice(deviceId.toStdString(), false);
-			if (_instance) {
-				_instance->sendVideoDeviceUpdated();
-			}
 		}
 	}
 }
@@ -1157,10 +1420,11 @@ void Call::toggleCameraSharing(bool enabled) {
 	}
 	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
 		toggleScreenSharing(std::nullopt);
-		const auto deviceId = Core::App().settings().callVideoInputDeviceId();
-		_videoCaptureDeviceId = deviceId;
+		_videoCaptureDeviceId = _cameraDeviceId.current().value;
 		if (_videoCapture) {
-			_videoCapture->switchToDevice(deviceId.toStdString(), false);
+			_videoCapture->switchToDevice(
+				_videoCaptureDeviceId.toStdString(),
+				false);
 			if (_instance) {
 				_instance->sendVideoDeviceUpdated();
 			}
@@ -1195,7 +1459,28 @@ void Call::toggleScreenSharing(std::optional<QString> uniqueId) {
 	_videoOutgoing->setState(Webrtc::VideoState::Active);
 }
 
-void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
+auto Call::peekVideoCapture() const
+-> std::shared_ptr<tgcalls::VideoCaptureInterface> {
+	return _videoCapture;
+}
+
+auto Call::playbackDeviceIdValue() const
+-> rpl::producer<Webrtc::DeviceResolvedId> {
+	return _playbackDeviceId.value();
+}
+
+rpl::producer<Webrtc::DeviceResolvedId> Call::captureDeviceIdValue() const {
+	return _captureDeviceId.value();
+}
+
+rpl::producer<Webrtc::DeviceResolvedId> Call::cameraDeviceIdValue() const {
+	return _cameraDeviceId.value();
+}
+
+void Call::finish(
+		FinishType type,
+		const MTPPhoneCallDiscardReason &reason,
+		Data::GroupCall *migrateCall) {
 	Expects(type != FinishType::None);
 
 	setSignalBarCount(kSignalBarFinished);
@@ -1220,8 +1505,15 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 		|| state == State::Ended
 		|| state == State::Failed) {
 		return;
-	}
-	if (!_id) {
+	} else if (conferenceInvite()) {
+		if (migrateCall) {
+			_delegate->callFinished(this);
+		} else {
+			Core::App().calls().declineIncomingConferenceInvites(_conferenceId);
+			setState(finalState);
+		}
+		return;
+	} else if (!_id) {
 		setState(finalState);
 		return;
 	}
@@ -1243,6 +1535,13 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 
 	// We want to discard request still being sent and processed even if
 	// the call is already destroyed.
+	if (migrateCall) {
+		_user->owner().registerInvitedToCallUser(
+			migrateCall->id(),
+			migrateCall,
+			_user,
+			true);
+	}
 	const auto session = &_user->session();
 	const auto weak = base::make_weak(this);
 	session->api().request(MTPphone_DiscardCall( // We send 'discard' here.
@@ -1284,9 +1583,14 @@ void Call::handleRequestError(const QString &error) {
 		? Lang::Hard::CallErrorIncompatible().replace(
 			"{user}",
 			_user->name())
-		: QString();
+		: error;
 	if (!inform.isEmpty()) {
-		Ui::show(Ui::MakeInformBox(inform));
+		if (const auto window = Core::App().windowFor(
+				::Window::SeparateId(_user))) {
+			window->show(Ui::MakeInformBox(inform));
+		} else {
+			Ui::show(Ui::MakeInformBox(inform));
+		}
 	}
 	finish(FinishType::Failed);
 }
@@ -1300,12 +1604,20 @@ void Call::handleControllerError(const QString &error) {
 		? tr::lng_call_error_audio_io(tr::now)
 		: QString();
 	if (!inform.isEmpty()) {
-		Ui::show(Ui::MakeInformBox(inform));
+		if (const auto window = Core::App().windowFor(
+				::Window::SeparateId(_user))) {
+			window->show(Ui::MakeInformBox(inform));
+		} else {
+			Ui::show(Ui::MakeInformBox(inform));
+		}
 	}
 	finish(FinishType::Failed);
 }
 
 void Call::destroyController() {
+	_instanceLifetime.destroy();
+	Core::App().mediaDevices().setCaptureMuteTracker(this, false);
+
 	if (_instance) {
 		_instance->stop([](tgcalls::FinalState) {
 		});
@@ -1322,7 +1634,6 @@ Call::~Call() {
 }
 
 void UpdateConfig(const std::string &data) {
-	tgcalls::SetLegacyGlobalServerConfig(data);
 }
 
 } // namespace Calls

@@ -48,8 +48,8 @@ void PaintBubbleGeneric(
 		? Corner::None
 		: bottomWithTailRight;
 	const auto rect = args.geometry;
-	const auto small = st::bubbleRadiusSmall;
-	const auto large = st::bubbleRadiusLarge;
+	const auto small = BubbleRadiusSmall();
+	const auto large = BubbleRadiusLarge();
 	const auto cornerSize = [&](Corner corner) {
 		return (corner == Corner::Large)
 			? large
@@ -250,8 +250,8 @@ void PaintSolidBubble(QPainter &p, const SimpleBubble &args) {
 std::unique_ptr<BubblePattern> PrepareBubblePattern(
 		not_null<const style::palette*> st) {
 	auto result = std::make_unique<Ui::BubblePattern>();
-	result->cornersSmall = Images::CornersMask(st::bubbleRadiusSmall);
-	result->cornersLarge = Images::CornersMask(st::bubbleRadiusLarge);
+	result->cornersSmall = Images::CornersMask(BubbleRadiusSmall());
+	result->cornersLarge = Images::CornersMask(BubbleRadiusLarge());
 	const auto addShadow = [&](QImage &bottomCorner) {
 		auto result = QImage(
 			bottomCorner.width(),

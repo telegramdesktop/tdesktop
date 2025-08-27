@@ -12,6 +12,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Storage {
 
+struct UserPhotosSetBack {
+	UserPhotosSetBack(UserId userId, PhotoId photoId)
+		: userId(userId), photoId(photoId) {
+	}
+
+	UserId userId = 0;
+	PhotoId photoId = 0;
+
+};
+
 struct UserPhotosAddNew {
 	UserPhotosAddNew(UserId userId, PhotoId photoId)
 		: userId(userId), photoId(photoId) {
@@ -71,10 +81,13 @@ struct UserPhotosKey {
 		: userId(userId)
 		, photoId(photoId) {
 	}
+	UserPhotosKey(UserId userId, bool back) : userId(userId), back(back) {
+	}
 
 	bool operator==(const UserPhotosKey &other) const {
 		return (userId == other.userId)
-			&& (photoId == other.photoId);
+			&& (photoId == other.photoId)
+			&& (back == other.back);
 	}
 	bool operator!=(const UserPhotosKey &other) const {
 		return !(*this == other);
@@ -82,6 +95,7 @@ struct UserPhotosKey {
 
 	UserId userId = 0;
 	PhotoId photoId = 0;
+	bool back = false;
 
 };
 
@@ -125,6 +139,7 @@ struct UserPhotosSliceUpdate {
 
 class UserPhotos {
 public:
+	void add(UserPhotosSetBack &&query);
 	void add(UserPhotosAddNew &&query);
 	void add(UserPhotosAddSlice &&query);
 	void remove(UserPhotosRemoveOne &&query);
@@ -136,6 +151,7 @@ public:
 private:
 	class List {
 	public:
+		void setBack(PhotoId photoId);
 		void addNew(PhotoId photoId);
 		void addSlice(
 			std::vector<PhotoId> &&photoIds,
@@ -152,9 +168,13 @@ private:
 
 	private:
 		void sendUpdate();
+		void detachBack();
+		void attachBack();
 
 		std::optional<int> _count;
 		std::deque<PhotoId> _photoIds;
+
+		PhotoId _backPhotoId = PhotoId(0);
 
 		rpl::event_stream<SliceUpdate> _sliceUpdated;
 

@@ -7,16 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_photo_media.h"
 
-#include "data/data_photo.h"
-#include "data/data_session.h"
 #include "data/data_file_origin.h"
-#include "data/data_auto_download.h"
+#include "data/data_session.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "history/history_item.h"
-#include "history/history.h"
 #include "storage/file_download.h"
-#include "ui/image/image.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace Data {
 
@@ -65,13 +65,13 @@ QByteArray PhotoMedia::imageBytes(PhotoSize size) const {
 auto PhotoMedia::resolveLoadedImage(PhotoSize size) const
 -> const PhotoImage * {
 	const auto &original = _images[PhotoSizeIndex(size)];
-	if (const auto image = original.data.get()) {
+	if (original.data) {
 		if (original.goodFor >= size) {
 			return &original;
 		}
 	}
 	const auto &valid = _images[_owner->validSizeIndex(size)];
-	if (const auto image = valid.data.get()) {
+	if (valid.data.get()) {
 		if (valid.goodFor >= size) {
 			return &valid;
 		}
@@ -163,14 +163,22 @@ bool PhotoMedia::autoLoadThumbnailAllowed(not_null<PeerData*> peer) const {
 }
 
 void PhotoMedia::automaticLoad(
-		Data::FileOrigin origin,
+		FileOrigin origin,
 		const HistoryItem *item) {
-	if (!item || loaded() || _owner->cancelled()) {
+	if (item) {
+		automaticLoad(origin, item->history()->peer);
+	}
+}
+
+void PhotoMedia::automaticLoad(
+		FileOrigin origin,
+		not_null<PeerData*> peer) {
+	if (loaded() || _owner->cancelled()) {
 		return;
 	}
 	const auto loadFromCloud = Data::AutoDownload::Should(
 		_owner->session().settings().autoDownload(),
-		item->history()->peer,
+		peer,
 		_owner);
 	_owner->load(
 		origin,
@@ -198,8 +206,7 @@ bool PhotoMedia::saveToFile(const QString &path) {
 		QFile f(path);
 		return f.open(QIODevice::WriteOnly)
 			&& (f.write(video) == video.size());
-	} else if (const auto photo = imageBytes(large)
-		; !photo.isEmpty()) {
+	} else if (const auto photo = imageBytes(large); !photo.isEmpty()) {
 		QFile f(path);
 		return f.open(QIODevice::WriteOnly)
 			&& (f.write(photo) == photo.size());
@@ -208,6 +215,25 @@ bool PhotoMedia::saveToFile(const QString &path) {
 		return fallback.save(path, "JPG");
 	}
 	return false;
+}
+
+bool PhotoMedia::setToClipboard() {
+	constexpr auto large = PhotoSize::Large;
+	if (const auto video = videoContent(large); !video.isEmpty()) {
+		return false;
+	}
+	auto fallback = image(large)->original();
+	if (fallback.isNull()) {
+		return false;
+	}
+	auto mime = std::make_unique<QMimeData>();
+	mime->setImageData(std::move(fallback));
+	if (auto bytes = imageBytes(large); !bytes.isEmpty()) {
+		mime->setData(u"image/jpeg"_q, std::move(bytes));
+	}
+	mime->setData(u"application/x-td-use-jpeg"_q, "1");
+	QGuiApplication::clipboard()->setMimeData(mime.release());
+	return true;
 }
 
 } // namespace Data

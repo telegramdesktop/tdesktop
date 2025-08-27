@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "countries/countries_instance.h"
 
 #include "base/qt/qt_common_adapters.h"
+#include "base/qt/qt_string_view.h"
 
 namespace Countries {
 namespace {
@@ -253,7 +254,7 @@ const std::array<Info, 231> FallbackList = { {
 CountriesInstance::CountriesInstance() {
 }
 
-const std::vector<Info> &CountriesInstance::list() {
+const std::vector<Info> &CountriesInstance::list() const {
 	if (_list.empty()) {
 		_list = (FallbackList | ranges::to_vector);
 	}
@@ -267,7 +268,7 @@ void CountriesInstance::setList(std::vector<Info> &&infos) {
 	_updated.fire({});
 }
 
-const CountriesInstance::Map &CountriesInstance::byCode() {
+const CountriesInstance::Map &CountriesInstance::byCode() const {
 	if (_byCode.empty()) {
 		_byCode.reserve(list().size());
 		for (const auto &entry : list()) {
@@ -279,7 +280,7 @@ const CountriesInstance::Map &CountriesInstance::byCode() {
 	return _byCode;
 }
 
-const CountriesInstance::Map &CountriesInstance::byISO2() {
+const CountriesInstance::Map &CountriesInstance::byISO2() const {
 	if (_byISO2.empty()) {
 		_byISO2.reserve(list().size());
 		for (const auto &entry : list()) {
@@ -289,7 +290,7 @@ const CountriesInstance::Map &CountriesInstance::byISO2() {
 	return _byISO2;
 }
 
-QString CountriesInstance::validPhoneCode(QString fullCode) {
+QString CountriesInstance::validPhoneCode(QString fullCode) const {
 	const auto &listByCode = byCode();
 	while (fullCode.length()) {
 		const auto i = listByCode.constFind(fullCode);
@@ -301,20 +302,37 @@ QString CountriesInstance::validPhoneCode(QString fullCode) {
 	return QString();
 }
 
-QString CountriesInstance::countryNameByISO2(const QString &iso) {
+QString CountriesInstance::countryNameByISO2(const QString &iso) const {
 	const auto &listByISO2 = byISO2();
 	const auto i = listByISO2.constFind(iso);
 	return (i != listByISO2.cend()) ? (*i)->name : QString();
 }
 
-QString CountriesInstance::countryISO2ByPhone(const QString &phone) {
+QString CountriesInstance::countryISO2ByPhone(const QString &phone) const {
 	const auto &listByCode = byCode();
 	const auto code = validPhoneCode(phone);
 	const auto i = listByCode.find(code);
 	return (i != listByCode.cend()) ? (*i)->iso2 : QString();
 }
 
-FormatResult CountriesInstance::format(FormatArgs args) {
+QString CountriesInstance::flagEmojiByISO2(const QString &iso) const {
+	if (iso.size() != 2
+		|| iso.front() < 'A'
+		|| iso.front() > 'Z'
+		|| iso.back() < 'A'
+		|| iso.back() > 'Z') {
+		return QString();
+	} else if (iso == u"FT"_q) {
+		return QString::fromUtf8(
+			"\xF0\x9F\x8F\xB4\xE2\x80\x8D\xE2\x98\xA0\xEF\xB8\x8F");
+	}
+	auto result = QString(4, QChar(0xD83C));
+	result[1] = QChar(iso.front().unicode() - 'A' + 0xDDE6);
+	result[3] = QChar(iso.back().unicode() - 'A' + 0xDDE6);
+	return result;
+}
+
+FormatResult CountriesInstance::format(FormatArgs args) const {
 	// Ported from TDLib.
 	if (args.phone.isEmpty()) {
 		return FormatResult();
@@ -356,24 +374,55 @@ FormatResult CountriesInstance::format(FormatArgs args) {
 	const auto codeSize = int(bestCallingCodePtr->callingCode.size());
 
 	if (args.onlyGroups && args.incomplete) {
-		auto groups = args.skipCode
+		auto initialGroups = args.skipCode
 			? QVector<int>()
 			: QVector<int>{ codeSize };
-		auto groupSize = 0;
+		auto initialGroupsSize = 0;
 		if (bestCallingCodePtr->patterns.empty()) {
-			return FormatResult{ .groups = std::move(groups) };
+			return FormatResult{ .groups = std::move(initialGroups) };
 		}
-		for (const auto &c : bestCallingCodePtr->patterns.front()) {
-			if (c == ' ') {
-				groups.push_back(base::take(groupSize));
-			} else {
-				groupSize++;
+		auto bestGroups = initialGroups;
+		auto bestGroupsSize = initialGroupsSize;
+		auto bestPatternMaxMatches = -1;
+		for (const auto &pattern : bestCallingCodePtr->patterns) {
+			auto groups = initialGroups;
+			auto groupSize = initialGroupsSize;
+			auto lastSpacesCount = 0;
+			auto maxMatchedDigits = 0;
+			auto isNotBestPattern = false;
+			for (auto i = 0; i < pattern.size(); i++) {
+				const auto c = pattern.at(i);
+				if (c.isDigit()) {
+					const auto n = (i - lastSpacesCount) + codeSize;
+					if (n < phoneNumber.size()) {
+						if (phoneNumber.at(n) == c) {
+							maxMatchedDigits++;
+						} else {
+							isNotBestPattern = true;
+						}
+					} else {
+						isNotBestPattern = true;
+					}
+				}
+				if (c.isSpace()) {
+					groups.push_back(base::take(groupSize));
+					lastSpacesCount++;
+				} else {
+					groupSize++;
+				}
+			}
+			if (maxMatchedDigits > bestPatternMaxMatches) {
+				bestPatternMaxMatches = isNotBestPattern
+					? -1
+					: maxMatchedDigits;
+				bestGroups = std::move(groups);
+				bestGroupsSize = groupSize;
 			}
 		}
-		if (groupSize) {
-			groups.push_back(base::take(groupSize));
+		if (bestGroupsSize) {
+			bestGroups.push_back(base::take(bestGroupsSize));
 		}
-		return FormatResult{ .groups = std::move(groups) };
+		return FormatResult{ .groups = std::move(bestGroups) };
 	}
 
 	const auto formattedPart = phoneNumber.mid(codeSize);

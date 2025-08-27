@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "chat_helpers/field_autocomplete.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -28,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "editor/editor_layer_widget.h"
+#include "editor/photo_editor.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
@@ -35,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "mainwidget.h" // controller->content() -> QWidget*
+#include "menu/menu_send.h"
 #include "mtproto/mtproto_config.h"
 #include "platform/platform_specific.h"
 #include "storage/localimageloader.h" // SendMediaType
@@ -51,7 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -65,30 +70,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-auto ListFromMimeData(not_null<const QMimeData*> data, bool premium) {
+constexpr auto kChangesDebounceTimeout = crl::time(1000);
+
+[[nodiscard]] Ui::PreparedList ListFromMimeData(
+		not_null<const QMimeData*> data,
+		bool premium) {
 	using Error = Ui::PreparedList::Error;
-	auto result = data->hasUrls()
+	const auto list = Core::ReadMimeUrls(data);
+	auto result = !list.isEmpty()
 		? Storage::PrepareMediaList(
-			// When we edit media, we need only 1 file.
-			base::GetMimeUrls(data).mid(0, 1),
+			list.mid(0, 1), // When we edit media, we need only 1 file.
 			st::sendMediaPreviewSize,
 			premium)
 		: Ui::PreparedList(Error::EmptyFile, QString());
 	if (result.error == Error::None) {
 		return result;
-	} else if (data->hasImage()) {
-		auto image = qvariant_cast<QImage>(data->imageData());
-		if (!image.isNull()) {
-			return Storage::PrepareMediaFromImage(
-				std::move(image),
-				QByteArray(),
-				st::sendMediaPreviewSize);
-		}
+	} else if (auto read = Core::ReadMimeImage(data)) {
+		return Storage::PrepareMediaFromImage(
+			std::move(read.image),
+			std::move(read.content),
+			st::sendMediaPreviewSize);
 	}
 	return result;
 }
 
-Ui::AlbumType ComputeAlbumType(not_null<HistoryItem*> item) {
+[[nodiscard]] Ui::AlbumType ComputeAlbumType(not_null<HistoryItem*> item) {
 	if (item->groupId().empty()) {
 		return Ui::AlbumType();
 	}
@@ -108,9 +114,115 @@ Ui::AlbumType ComputeAlbumType(not_null<HistoryItem*> item) {
 	return Ui::AlbumType();
 }
 
-bool CanBeCompressed(Ui::AlbumType type) {
+[[nodiscard]] bool CanBeCompressed(Ui::AlbumType type) {
 	return (type == Ui::AlbumType::None)
 		|| (type == Ui::AlbumType::PhotoVideo);
+}
+
+void ChooseReplacement(
+		not_null<Window::SessionController*> controller,
+		Ui::AlbumType type,
+		Fn<void(Ui::PreparedList&&)> chosen) {
+	const auto weak = base::make_weak(controller);
+	const auto callback = [=](FileDialog::OpenResult &&result) {
+		const auto strong = weak.get();
+		if (!strong) {
+			return;
+		}
+		const auto showError = [=](tr::phrase<> t) {
+			if (const auto strong = weak.get()) {
+				strong->showToast(t(tr::now));
+			}
+		};
+
+		const auto checkResult = [=](const Ui::PreparedList &list) {
+			if (list.files.size() != 1) {
+				return false;
+			}
+			const auto &file = list.files.front();
+			const auto mime = file.information->filemime;
+			if (Core::IsMimeSticker(mime)) {
+				showError(tr::lng_edit_media_invalid_file);
+				return false;
+			} else if (type != Ui::AlbumType::None
+				&& !file.canBeInAlbumType(type)) {
+				showError(tr::lng_edit_media_album_error);
+				return false;
+			}
+			return true;
+		};
+		const auto premium = strong->session().premium();
+		auto list = Storage::PreparedFileFromFilesDialog(
+			std::move(result),
+			checkResult,
+			showError,
+			st::sendMediaPreviewSize,
+			premium);
+
+		if (list) {
+			chosen(std::move(*list));
+		}
+	};
+
+	const auto filters = (type == Ui::AlbumType::PhotoVideo)
+		? FileDialog::PhotoVideoFilesFilter()
+		: FileDialog::AllFilesFilter();
+	FileDialog::GetOpenPath(
+		controller->content().get(),
+		tr::lng_choose_file(tr::now),
+		filters,
+		crl::guard(controller, callback));
+}
+
+void EditPhotoImage(
+		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Data::PhotoMedia> media,
+		bool spoilered,
+		Fn<void(Ui::PreparedList)> done) {
+	const auto large = media
+		? media->image(Data::PhotoSize::Large)
+		: nullptr;
+	const auto parent = controller->content();
+	const auto previewWidth = st::sendMediaPreviewSize;
+	auto callback = [=](const Editor::PhotoModifications &mods) {
+		if (!mods) {
+			return;
+		}
+		const auto large = media->image(Data::PhotoSize::Large);
+		if (!large) {
+			return;
+		}
+		auto copy = large->original();
+		auto list = Storage::PrepareMediaFromImage(
+			std::move(copy),
+			QByteArray(),
+			previewWidth);
+
+		using ImageInfo = Ui::PreparedFileInformation::Image;
+		auto &file = list.files.front();
+		file.spoiler = spoilered;
+		const auto image = std::get_if<ImageInfo>(&file.information->media);
+
+		image->modifications = mods;
+		const auto sideLimit = PhotoSideLimit();
+		Storage::UpdateImageDetails(file, previewWidth, sideLimit);
+		done(std::move(list));
+	};
+	if (!large) {
+		return;
+	}
+	const auto fileImage = std::make_shared<Image>(*large);
+	auto editor = base::make_unique_q<Editor::PhotoEditor>(
+		parent,
+		&controller->window(),
+		fileImage,
+		Editor::PhotoModifications());
+	const auto raw = editor.get();
+	auto layer = std::make_unique<Editor::LayerWidget>(
+		parent,
+		std::move(editor));
+	Editor::InitEditorLayer(layer.get(), raw, std::move(callback));
+	controller->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
 }
 
 } // namespace
@@ -118,25 +230,35 @@ bool CanBeCompressed(Ui::AlbumType type) {
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	not_null<HistoryItem*> item)
+	not_null<HistoryItem*> item,
+	TextWithTags &&text,
+	SuggestPostOptions suggest,
+	bool spoilered,
+	bool invertCaption,
+	Ui::PreparedList &&list,
+	Fn<void()> saved)
 : _controller(controller)
 , _historyItem(item)
-, _isAllowedEditMedia(item->media()
-	? item->media()->allowsEditMedia()
-	: false)
+, _suggest(suggest)
+, _isAllowedEditMedia(item->allowsEditMedia())
 , _albumType(ComputeAlbumType(item))
 , _controls(base::make_unique_q<Ui::VerticalLayout>(this))
 , _scroll(base::make_unique_q<Ui::ScrollArea>(this, st::boxScroll))
 , _field(base::make_unique_q<Ui::InputField>(
 	this,
-	st::confirmCaptionArea,
+	st::defaultComposeFiles.caption,
 	Ui::InputField::Mode::MultiLine,
 	tr::lng_photo_caption()))
 , _emojiToggle(base::make_unique_q<Ui::EmojiButton>(
 	this,
-	st::boxAttachEmoji)) {
-	Expects(item->media() != nullptr);
-	Expects(item->media()->allowsEditCaption());
+	st::defaultComposeFiles.emoji))
+, _initialText(std::move(text))
+, _initialList(std::move(list))
+, _saved(std::move(saved)) {
+	Expects(!_initialList.files.empty());
+	Expects(item->allowsEditMedia());
+
+	_mediaEditManager.start(item, spoilered, invertCaption);
 
 	_controller->session().data().itemRemoved(
 		_historyItem->fullId()
@@ -147,9 +269,159 @@ EditCaptionBox::EditCaptionBox(
 
 EditCaptionBox::~EditCaptionBox() = default;
 
+void EditCaptionBox::StartMediaReplace(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		TextWithTags text,
+		SuggestPostOptions suggest,
+		bool spoilered,
+		bool invertCaption,
+		Fn<void()> saved) {
+	const auto session = &controller->session();
+	const auto item = session->data().message(itemId);
+	if (!item) {
+		return;
+	}
+	const auto show = [=](Ui::PreparedList &&list) mutable {
+		controller->show(Box<EditCaptionBox>(
+			controller,
+			item,
+			std::move(text),
+			suggest,
+			spoilered,
+			invertCaption,
+			std::move(list),
+			std::move(saved)));
+	};
+	ChooseReplacement(
+		controller,
+		ComputeAlbumType(item),
+		crl::guard(controller, show));
+}
+
+void EditCaptionBox::StartMediaReplace(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		Ui::PreparedList &&list,
+		TextWithTags text,
+		SuggestPostOptions suggest,
+		bool spoilered,
+		bool invertCaption,
+		Fn<void()> saved) {
+	const auto session = &controller->session();
+	const auto item = session->data().message(itemId);
+	if (!item) {
+		return;
+	}
+	const auto type = ComputeAlbumType(item);
+	const auto showError = [=](tr::phrase<> t) {
+		controller->showToast(t(tr::now));
+	};
+	const auto checkResult = [=](const Ui::PreparedList &list) {
+		if (list.files.size() != 1) {
+			return false;
+		}
+		const auto &file = list.files.front();
+		const auto mime = file.information->filemime;
+		if (Core::IsMimeSticker(mime)) {
+			showError(tr::lng_edit_media_invalid_file);
+			return false;
+		} else if (type != Ui::AlbumType::None
+			&& !file.canBeInAlbumType(type)) {
+			showError(tr::lng_edit_media_album_error);
+			return false;
+		}
+		return true;
+	};
+	if (list.error != Ui::PreparedList::Error::None) {
+		showError(tr::lng_send_media_invalid_files);
+	} else if (checkResult(list)) {
+		controller->show(Box<EditCaptionBox>(
+			controller,
+			item,
+			std::move(text),
+			suggest,
+			spoilered,
+			invertCaption,
+			std::move(list),
+			std::move(saved)));
+	}
+}
+
+void EditCaptionBox::StartPhotoEdit(
+		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Data::PhotoMedia> media,
+		FullMsgId itemId,
+		TextWithTags text,
+		SuggestPostOptions suggest,
+		bool spoilered,
+		bool invertCaption,
+		Fn<void()> saved) {
+	const auto session = &controller->session();
+	const auto item = session->data().message(itemId);
+	if (!item) {
+		return;
+	}
+	EditPhotoImage(controller, media, spoilered, [=](
+			Ui::PreparedList &&list) mutable {
+		const auto item = session->data().message(itemId);
+		if (!item) {
+			return;
+		}
+		controller->show(Box<EditCaptionBox>(
+			controller,
+			item,
+			std::move(text),
+			suggest,
+			spoilered,
+			invertCaption,
+			std::move(list),
+			std::move(saved)));
+	});
+}
+
+void EditCaptionBox::showFinished() {
+	if (const auto raw = _autocomplete.get()) {
+		InvokeQueued(raw, [=] {
+			raw->raise();
+		});
+	}
+}
+
 void EditCaptionBox::prepare() {
-	addButton(tr::lng_settings_save(), [=] { save(); });
+	const auto button = addButton(tr::lng_settings_save(), [=] { save(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
+
+	const auto details = crl::guard(this, [=] {
+		auto result = SendMenu::Details();
+		const auto allWithSpoilers = ranges::all_of(
+			_preparedList.files,
+			&Ui::PreparedFile::spoiler);
+		result.spoiler = !_preparedList.hasSpoilerMenu(!_asFile)
+			? SendMenu::SpoilerState::None
+			: allWithSpoilers
+			? SendMenu::SpoilerState::Enabled
+			: SendMenu::SpoilerState::Possible;
+		const auto canMoveCaption = _preparedList.canMoveCaption(
+			false,
+			!_asFile
+		) && _field && HasSendText(_field);
+		result.caption = !canMoveCaption
+			? SendMenu::CaptionState::None
+			: _mediaEditManager.invertCaption()
+			? SendMenu::CaptionState::Above
+			: SendMenu::CaptionState::Below;
+		return result;
+	});
+	const auto callback = [=](SendMenu::Action action, const auto &) {
+		_mediaEditManager.apply(action);
+		rebuildPreview();
+	};
+	SendMenu::SetupMenuAndShortcuts(
+		button,
+		nullptr,
+		details,
+		crl::guard(this, callback));
 
 	updateBoxSize();
 
@@ -157,7 +429,10 @@ void EditCaptionBox::prepare() {
 	setupEmojiPanel();
 	setInitialText();
 
-	rebuildPreview();
+	if (!setPreparedList(std::move(_initialList))) {
+		crl::on_main(this, [=] { closeBox(); });
+		return;
+	}
 	setupEditEventHandler();
 	SetupShadowsToScrollContent(this, _scroll, _contentHeight.events());
 
@@ -175,41 +450,57 @@ void EditCaptionBox::rebuildPreview() {
 			Window::GifPauseReason::Layer);
 	};
 
+	applyChanges();
+
 	if (_preparedList.files.empty()) {
 		const auto media = _historyItem->media();
 		const auto photo = media->photo();
 		const auto document = media->document();
+		_isPhoto = (photo != nullptr);
 		if (photo || document->isVideoFile() || document->isAnimation()) {
-			_isPhoto = (photo != nullptr);
 			const auto media = Ui::CreateChild<Ui::ItemSingleMediaPreview>(
 				this,
+				st::defaultComposeControls,
 				gifPaused,
 				_historyItem,
 				Ui::AttachControls::Type::EditOnly);
 			_photoMedia = media->sharedPhotoMedia();
 			_content.reset(media);
 		} else {
-			_isPhoto = false;
 			_content.reset(Ui::CreateChild<Ui::ItemSingleFilePreview>(
 				this,
+				st::defaultComposeControls,
 				_historyItem,
 				Ui::AttachControls::Type::EditOnly));
 		}
 	} else {
 		const auto &file = _preparedList.files.front();
-
+		const auto isVideoFile = file.isVideoFile();
 		const auto media = Ui::SingleMediaPreview::Create(
 			this,
+			st::defaultComposeControls,
 			gifPaused,
 			file,
+			[=](Ui::AttachActionType type) {
+				return (type != Ui::AttachActionType::EditCover)
+					|| isVideoFile;
+			},
 			Ui::AttachControls::Type::EditOnly);
-		if (media) {
-			_isPhoto = media->isPhoto();
+		_isPhoto = (media && media->isPhoto());
+		const auto withCheckbox = _isPhoto && CanBeCompressed(_albumType);
+		if (media && (!withCheckbox || !_asFile)) {
+			media->spoileredChanges(
+			) | rpl::start_with_next([=](bool spoilered) {
+				_mediaEditManager.apply({ .type = spoilered
+					? SendMenu::ActionType::SpoilerOn
+					: SendMenu::ActionType::SpoilerOff
+				});
+			}, media->lifetime());
 			_content.reset(media);
 		} else {
-			_isPhoto = false;
 			_content.reset(Ui::CreateChild<Ui::SingleFilePreview>(
 				this,
+				st::defaultComposeControls,
 				file,
 				Ui::AttachControls::Type::EditOnly));
 		}
@@ -247,14 +538,15 @@ void EditCaptionBox::rebuildPreview() {
 
 void EditCaptionBox::setupField() {
 	const auto peer = _historyItem->history()->peer;
-	const auto allow = [=](const auto&) {
-		return Data::AllowEmojiWithoutPremium(peer);
+	const auto allow = [=](not_null<DocumentData*> emoji) {
+		return Data::AllowEmojiWithoutPremium(peer, emoji);
 	};
 	InitMessageFieldHandlers(
 		_controller,
 		_field.get(),
 		Window::GifPauseReason::Layer,
 		allow);
+	setupFieldAutocomplete();
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_field,
@@ -263,11 +555,18 @@ void EditCaptionBox::setupField() {
 
 	_field->setSubmitSettings(
 		Core::App().settings().sendSubmitWay());
-	_field->setMaxHeight(st::confirmCaptionArea.heightMax);
+	_field->setMaxHeight(st::defaultComposeFiles.caption.heightMax);
 
-	connect(_field, &Ui::InputField::submitted, [=] { save(); });
-	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
-	connect(_field, &Ui::InputField::resized, [=] { captionResized(); });
+	_field->submits(
+	) | rpl::start_with_next([=] { save(); }, _field->lifetime());
+	_field->cancelled(
+	) | rpl::start_with_next([=] {
+		closeBox();
+	}, _field->lifetime());
+	_field->heightChanges(
+	) | rpl::start_with_next([=] {
+		captionResized();
+	}, _field->lifetime());
 	_field->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {
@@ -285,13 +584,74 @@ void EditCaptionBox::setupField() {
 	});
 }
 
+void EditCaptionBox::setupFieldAutocomplete() {
+	const auto parent = getDelegate()->outerContainer();
+	ChatHelpers::InitFieldAutocomplete(_autocomplete, {
+		.parent = parent,
+		.show = _controller->uiShow(),
+		.field = _field.get(),
+		.peer = _historyItem->history()->peer,
+		.features = [=] {
+			auto result = ChatHelpers::ComposeFeatures();
+			result.autocompleteCommands = false;
+			result.suggestStickersByEmoji = false;
+			return result;
+		},
+	});
+	const auto raw = _autocomplete.get();
+	const auto scheduled = std::make_shared<bool>();
+	const auto recountPostponed = [=] {
+		if (*scheduled) {
+			return;
+		}
+		*scheduled = true;
+		Ui::PostponeCall(raw, [=] {
+			*scheduled = false;
+
+			auto field = Ui::MapFrom(parent, this, _field->geometry());
+			_autocomplete->setBoundings(QRect(
+				field.x() - _field->x(),
+				st::defaultBox.margin.top(),
+				width(),
+				(field.y()
+					+ st::defaultComposeFiles.caption.textMargins.top()
+					+ st::defaultComposeFiles.caption.placeholderShift
+					+ st::defaultComposeFiles.caption.placeholderFont->height
+					- st::defaultBox.margin.top())));
+		});
+	};
+	for (auto w = (QWidget*)_field.get(); w; w = w->parentWidget()) {
+		base::install_event_filter(raw, w, [=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::Move || e->type() == QEvent::Resize) {
+				recountPostponed();
+			}
+			return base::EventFilterResult::Continue;
+		});
+		if (w == parent) {
+			break;
+		}
+	}
+}
+
 void EditCaptionBox::setInitialText() {
 	_field->setTextWithTags(
-		PrepareEditText(_historyItem),
+		_initialText,
 		Ui::InputField::HistoryAction::Clear);
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
 	_field->setTextCursor(cursor);
+
+	_checkChangedTimer.setCallback([=] {
+		if (_field->getTextWithAppliedMarkdown() == _initialText
+			&& _preparedList.files.empty()) {
+			setCloseByOutsideClick(true);
+		}
+	});
+	_field->changes(
+	) | rpl::start_with_next([=] {
+		_checkChangedTimer.callOnce(kChangesDebounceTimeout);
+		setCloseByOutsideClick(false);
+	}, _field->lifetime());
 }
 
 void EditCaptionBox::setupControls() {
@@ -299,7 +659,7 @@ void EditCaptionBox::setupControls() {
 		{}
 	) | rpl::map([=] {
 		return _controller->session().settings().photoEditorHintShown()
-			? _isPhoto
+			? (_isPhoto && !_asFile)
 			: false;
 	});
 
@@ -316,7 +676,7 @@ void EditCaptionBox::setupControls() {
 		this,
 		object_ptr<Ui::Checkbox>(
 			this,
-			tr::lng_send_compressed(tr::now),
+			tr::lng_send_compressed_one(tr::now),
 			true,
 			st::defaultBoxCheckbox),
 		st::editMediaCheckboxMargins)
@@ -329,130 +689,53 @@ void EditCaptionBox::setupControls() {
 		anim::type::instant
 	)->entity()->checkedChanges(
 	) | rpl::start_with_next([&](bool checked) {
+		applyChanges();
 		_asFile = !checked;
+		rebuildPreview();
 	}, _controls->lifetime());
 
 	_controls->resizeToWidth(st::sendMediaPreviewSize);
 }
 
 void EditCaptionBox::setupEditEventHandler() {
-	const auto toastParent = Ui::BoxShow(this).toastParent();
-	const auto callback = [=](FileDialog::OpenResult &&result) {
-		auto showError = [toastParent](tr::phrase<> t) {
-			Ui::Toast::Show(toastParent, t(tr::now));
-		};
-
-		const auto checkResult = [=](const Ui::PreparedList &list) {
-			if (list.files.size() != 1) {
-				return false;
-			}
-			const auto &file = list.files.front();
-			const auto mime = file.information->filemime;
-			if (Core::IsMimeSticker(mime)) {
-				showError(tr::lng_edit_media_invalid_file);
-				return false;
-			} else if (_albumType != Ui::AlbumType::None
-				&& !file.canBeInAlbumType(_albumType)) {
-				showError(tr::lng_edit_media_album_error);
-				return false;
-			}
-			return true;
-		};
-		const auto premium = _controller->session().premium();
-		auto list = Storage::PreparedFileFromFilesDialog(
-			std::move(result),
-			checkResult,
-			showError,
-			st::sendMediaPreviewSize,
-			premium);
-
-		if (list) {
-			setPreparedList(std::move(*list));
-		}
-	};
-
-	const auto buttonCallback = [=] {
-		const auto filters = (_albumType == Ui::AlbumType::PhotoVideo)
-			? FileDialog::PhotoVideoFilesFilter()
-			: FileDialog::AllFilesFilter();
-		FileDialog::GetOpenPath(
-			this,
-			tr::lng_choose_file(tr::now),
-			filters,
-			crl::guard(this, callback));
-	};
-
 	_editMediaClicks.events(
-	) | rpl::start_with_next(
-		buttonCallback,
-		lifetime());
+	) | rpl::start_with_next([=] {
+		ChooseReplacement(_controller, _albumType, crl::guard(this, [=](
+				Ui::PreparedList &&list) {
+			setPreparedList(std::move(list));
+		}));
+	}, lifetime());
 }
 
 void EditCaptionBox::setupPhotoEditorEventHandler() {
 	const auto openedOnce = lifetime().make_state<bool>(false);
 	_photoEditorOpens.events(
 	) | rpl::start_with_next([=, controller = _controller] {
-		const auto increment = [=] {
-			if (*openedOnce) {
-				return;
-			}
+		if (_preparedList.files.empty()
+			&& (!_photoMedia
+				|| !_photoMedia->image(Data::PhotoSize::Large))) {
+			return;
+		} else if (!*openedOnce) {
 			*openedOnce = true;
 			controller->session().settings().incrementPhotoEditorHintShown();
 			controller->session().saveSettings();
-		};
-		const auto clearError = [=] {
+		}
+		if (!_error.isEmpty()) {
 			_error = QString();
 			update();
-		};
-		const auto previewWidth = st::sendMediaPreviewSize;
+		}
 		if (!_preparedList.files.empty()) {
-			increment();
-			clearError();
 			Editor::OpenWithPreparedFile(
 				this,
-				controller,
+				controller->uiShow(),
 				&_preparedList.files.front(),
-				previewWidth,
-				[=] { rebuildPreview(); });
-		} else if (_photoMedia) {
-			const auto large = _photoMedia->image(Data::PhotoSize::Large);
-			if (!large) {
-				return;
-			}
-			increment();
-			clearError();
-			auto callback = [=](const Editor::PhotoModifications &mods) {
-				if (!mods || !_photoMedia) {
-					return;
-				}
-				const auto large = _photoMedia->image(Data::PhotoSize::Large);
-				if (!large) {
-					return;
-				}
-				auto copy = large->original();
-				_preparedList = Storage::PrepareMediaFromImage(
-					std::move(copy),
-					QByteArray(),
-					previewWidth);
-
-				using ImageInfo = Ui::PreparedFileInformation::Image;
-				auto &file = _preparedList.files.front();
-				const auto image = std::get_if<ImageInfo>(
-					&file.information->media);
-
-				image->modifications = mods;
-				Storage::UpdateImageDetails(file, previewWidth);
-				rebuildPreview();
-			};
-			const auto fileImage = std::make_shared<Image>(*large);
-			controller->showLayer(
-				std::make_unique<Editor::LayerWidget>(
-					this,
-					&controller->window(),
-					fileImage,
-					Editor::PhotoModifications(),
-					std::move(callback)),
-				Ui::LayerOption::KeepOther);
+				st::sendMediaPreviewSize,
+				[=](bool ok) { if (ok) rebuildPreview(); });
+		} else {
+			EditPhotoImage(_controller, _photoMedia, hasSpoiler(), [=](
+					Ui::PreparedList &&list) {
+				setPreparedList(std::move(list));
+			});
 		}
 	}, lifetime());
 }
@@ -465,9 +748,10 @@ void EditCaptionBox::setupDragArea() {
 	};
 	// Avoid both drag areas appearing at one time.
 	auto computeState = [=](const QMimeData *data) {
+		using DragState = Storage::MimeDataState;
 		const auto state = Storage::ComputeMimeDataState(data);
-		return (state == Storage::MimeDataState::PhotoFiles)
-			? Storage::MimeDataState::Image
+		return (state == DragState::PhotoFiles || state == DragState::Image)
+			? (_asFile ? DragState::Files : DragState::Image)
 			: state;
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(
@@ -495,7 +779,7 @@ void EditCaptionBox::setupEmojiPanel() {
 		_controller,
 		object_ptr<Selector>(
 			nullptr,
-			_controller,
+			_controller->uiShow(),
 			Window::GifPauseReason::Layer,
 			Selector::Mode::EmojiOnly));
 	_emojiPanel->setDesiredHeightValues(
@@ -516,7 +800,7 @@ void EditCaptionBox::setupEmojiPanel() {
 			&& !_controller->session().premium()) {
 			ShowPremiumPreviewBox(
 				_controller,
-				PremiumPreview::AnimatedEmoji);
+				PremiumFeature::AnimatedEmoji);
 		} else {
 			Data::InsertCustomEmoji(_field.get(), data.document);
 		}
@@ -576,14 +860,19 @@ bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
 		}
 	}
 	if (invalidForAlbum) {
-		Ui::Toast::Show(
-			Ui::BoxShow(this).toastParent(),
-			tr::lng_edit_media_album_error(tr::now));
+		showToast(tr::lng_edit_media_album_error(tr::now));
 		return false;
 	}
+	const auto wasSpoiler = hasSpoiler();
 	_preparedList = std::move(list);
+	_preparedList.files.front().spoiler = wasSpoiler;
+	setCloseByOutsideClick(false);
 	rebuildPreview();
 	return true;
+}
+
+bool EditCaptionBox::hasSpoiler() const {
+	return _mediaEditManager.spoilered();
 }
 
 void EditCaptionBox::captionResized() {
@@ -686,8 +975,15 @@ bool EditCaptionBox::validateLength(const QString &text) const {
 	if (remove <= 0) {
 		return true;
 	}
-	_controller->show(Box(CaptionLimitReachedBox, session, remove));
+	_controller->show(
+		Box(CaptionLimitReachedBox, session, remove, nullptr));
 	return false;
+}
+
+void EditCaptionBox::applyChanges() {
+	if (!_preparedList.files.empty()) {
+		_preparedList.files.front().spoiler = _mediaEditManager.spoilered();
+	}
 }
 
 void EditCaptionBox::save() {
@@ -713,7 +1009,10 @@ void EditCaptionBox::save() {
 	};
 
 	auto options = Api::SendOptions();
+	options.suggest = _suggest;
 	options.scheduled = item->isScheduled() ? item->date() : 0;
+	options.shortcutId = item->shortcutId();
+	options.invertCaption = _mediaEditManager.invertCaption();
 
 	if (!_preparedList.files.empty()) {
 		if ((_albumType != Ui::AlbumType::None)
@@ -727,21 +1026,25 @@ void EditCaptionBox::save() {
 		action.replaceMediaOf = item->fullId().msg;
 
 		Storage::ApplyModifications(_preparedList);
+		if (!_preparedList.files.empty()) {
+			_preparedList.files.front().spoiler = false;
+			applyChanges();
+		}
 
 		_controller->session().api().editMedia(
 			std::move(_preparedList),
-			(!_asFile && _isPhoto && CanBeCompressed(_albumType))
+			(_isPhoto && !_asFile && CanBeCompressed(_albumType))
 				? SendMediaType::Photo
 				: SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
 			action);
-		closeBox();
+		closeAfterSave();
 		return;
 	}
 
 	const auto done = crl::guard(this, [=] {
 		_saveRequestId = 0;
-		closeBox();
+		closeAfterSave();
 	});
 
 	const auto fail = crl::guard(this, [=](const QString &error) {
@@ -750,7 +1053,7 @@ void EditCaptionBox::save() {
 			_error = tr::lng_edit_error(tr::now);
 			update();
 		} else if (error == u"MESSAGE_NOT_MODIFIED"_q) {
-			closeBox();
+			closeAfterSave();
 		} else if (error == u"MESSAGE_EMPTY"_q) {
 			_field->setFocus();
 			_field->showError();
@@ -769,6 +1072,16 @@ void EditCaptionBox::save() {
 	});
 
 	_saveRequestId = Api::EditCaption(item, sending, options, done, fail);
+}
+
+void EditCaptionBox::closeAfterSave() {
+	const auto weak = base::make_weak(this);
+	if (_saved) {
+		_saved();
+	}
+	if (weak) {
+		closeBox();
+	}
 }
 
 void EditCaptionBox::keyPressEvent(QKeyEvent *e) {

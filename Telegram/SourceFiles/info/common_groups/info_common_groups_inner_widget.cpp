@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/common_groups/info_common_groups_inner_widget.h"
 
+#include "base/weak_ptr.h"
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
@@ -27,7 +28,9 @@ namespace {
 constexpr auto kCommonGroupsPerPage = 40;
 constexpr auto kCommonGroupsSearchAfter = 20;
 
-class ListController final : public PeerListController {
+class ListController final
+	: public PeerListController
+	, public base::has_weak_ptr {
 public:
 	ListController(
 		not_null<Controller*> controller,
@@ -108,16 +111,30 @@ void ListController::loadMoreRows() {
 			return data.vchats().v;
 		});
 		if (!chats.empty()) {
+			auto add = std::vector<not_null<PeerData*>>();
+			auto allLoaded = _allLoaded;
+			auto preloadGroupId = _preloadGroupId;
+			const auto owner = &_user->owner();
+			const auto weak = base::make_weak(this);
 			for (const auto &chat : chats) {
-				if (const auto peer = _user->owner().processChat(chat)) {
+				if (const auto peer = owner->processChat(chat)) {
 					if (!peer->migrateTo()) {
-						delegate()->peerListAppendRow(
-							createRow(peer));
+						add.push_back(peer);
 					}
-					_preloadGroupId = peer->id;
-					_allLoaded = false;
+					preloadGroupId = peer->id;
+					allLoaded = false;
 				}
 			}
+			if (!weak) {
+				return;
+			}
+			for (const auto &peer : add) {
+				if (!delegate()->peerListFindRow(peer->id.value)) {
+					delegate()->peerListAppendRow(createRow(peer));
+				}
+			}
+			_preloadGroupId = preloadGroupId;
+			_allLoaded = allLoaded;
 			delegate()->peerListRefreshRows();
 		}
 		auto fullCount = delegate()->peerListFullRowsCount();
@@ -160,9 +177,15 @@ void ListController::restoreState(
 }
 
 void ListController::rowClicked(not_null<PeerListRow*> row) {
-	_controller->parentController()->showPeerHistory(
-		row->peer(),
-		Window::SectionShow::Way::Forward);
+	const auto peer = row->peer();
+	const auto controller = _controller->parentController();
+	if (const auto forum = peer->forum()) {
+		controller->showForum(forum);
+	} else {
+		controller->showPeerHistory(
+			peer,
+			Window::SectionShow::Way::Forward);
+	}
 }
 
 } // namespace
@@ -172,7 +195,7 @@ InnerWidget::InnerWidget(
 	not_null<Controller*> controller,
 	not_null<UserData*> user)
 : RpWidget(parent)
-, _show(std::make_unique<Window::Show>(controller->parentController()))
+, _show(controller->uiShow())
 , _controller(controller)
 , _user(user)
 , _listController(std::make_unique<ListController>(controller, _user))
@@ -281,18 +304,8 @@ void InnerWidget::peerListSetDescription(
 	description.destroy();
 }
 
-void InnerWidget::peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) {
-	_show->showBox(std::move(content), options);
-}
-
-void InnerWidget::peerListHideLayer() {
-	_show->hideLayer();
-}
-
-not_null<QWidget*> InnerWidget::peerListToastParent() {
-	return _show->toastParent();
+std::shared_ptr<Main::SessionShow> InnerWidget::peerListUiShow() {
+	return _show;
 }
 
 } // namespace CommonGroups

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/ui_utility.h"
 
 namespace Ui {
 
@@ -31,9 +32,9 @@ void SetupShadowsToScrollContent(
 		bottomShadow->move(
 			geometry.x(),
 			geometry.y() + geometry.height() - st::lineWidth);
-	}, [t = Ui::MakeWeak(topShadow), b = Ui::MakeWeak(bottomShadow)] {
-		Ui::DestroyChild(t.data());
-		Ui::DestroyChild(b.data());
+	}, [t = base::make_weak(topShadow), b = base::make_weak(bottomShadow)] {
+		Ui::DestroyChild(t.get());
+		Ui::DestroyChild(b.get());
 	}, topShadow->lifetime());
 
 	topShadow->toggleOn(scroll->scrollTopValue() | rpl::map(_1 > 0));

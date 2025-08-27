@@ -11,6 +11,11 @@ namespace Ui {
 class LayerWidget;
 } // namespace Ui
 
+namespace Data {
+class ForumTopic;
+class SavedSublist;
+} // namespace Data
+
 namespace Window {
 
 class SessionController;
@@ -34,6 +39,13 @@ public:
 		return false;
 	}
 
+	[[nodiscard]] virtual Data::ForumTopic *topicForRemoveRequests() const {
+		return nullptr;
+	}
+	[[nodiscard]] virtual auto sublistForRemoveRequests() const
+	-> Data::SavedSublist* {
+		return nullptr;
+	}
 	[[nodiscard]] virtual rpl::producer<> removeRequests() const {
 		return rpl::never<>();
 	}

@@ -14,9 +14,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace Premium {
 
+enum class MiniStarsType {
+	MonoStars,
+	BiStars,
+	SlowStars,
+	DiamondStars,
+	SlowDiamondStars,
+};
+
 class MiniStars final {
 public:
-	MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque = false);
+	MiniStars(
+		Fn<void(const QRect &r)> updateCallback,
+		bool opaque = false,
+		MiniStarsType type = MiniStarsType::MonoStars);
 
 	void paint(QPainter &p, const QRectF &rect);
 	void setPaused(bool paused);
@@ -31,6 +42,7 @@ private:
 		float64 size = 0.;
 		float64 alpha = 0.;
 		float64 sinFactor = 0.;
+		not_null<QSvgRenderer*> sprite;
 	};
 
 	struct Interval {
@@ -39,9 +51,10 @@ private:
 	};
 
 	void createStar(crl::time now);
-	[[nodiscard]] int angle() const;
 	[[nodiscard]] crl::time timeNow() const;
-	[[nodiscard]] int randomInterval(const Interval &interval) const;
+	[[nodiscard]] int randomInterval(
+		const Interval &interval,
+		const gsl::byte &random) const;
 
 	const std::vector<Interval> _availableAngles;
 	const Interval _lifeLength;
@@ -49,12 +62,14 @@ private:
 	const Interval _size;
 	const Interval _alpha;
 	const Interval _sinFactor;
+	const Interval _spritesCount;
 
 	const float64 _appearProgressTill;
 	const float64 _disappearProgressAfter;
 	const float64 _distanceProgressStart;
 
 	QSvgRenderer _sprite;
+	std::unique_ptr<QSvgRenderer> _secondSprite;
 
 	Ui::Animations::Basic _animation;
 

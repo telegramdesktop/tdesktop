@@ -153,15 +153,16 @@ ProxyData::Status ProxyData::status() const {
 }
 
 bool ProxyData::supportsCalls() const {
-	return (type == Type::Socks5);
+	return false;// (type == Type::Socks5);
 }
 
 bool ProxyData::tryCustomResolve() const {
+	static const auto RegExp = QRegularExpression(
+		QStringLiteral("^\\d+\\.\\d+\\.\\d+\\.\\d+$")
+	);
 	return (type == Type::Socks5 || type == Type::Mtproto)
 		&& !qthelp::is_ipv6(host)
-		&& !QRegularExpression(
-			QStringLiteral("^\\d+\\.\\d+\\.\\d+\\.\\d+$")
-		).match(host).hasMatch();
+		&& !RegExp.match(host).hasMatch();
 }
 
 bytes::vector ProxyData::secretFromMtprotoPassword() const {

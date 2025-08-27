@@ -29,13 +29,24 @@ enum class WhoReactedList {
 	One,
 };
 
+[[nodiscard]] QString FormatReadDate(TimeId date, const QDateTime &now);
 [[nodiscard]] bool WhoReadExists(not_null<HistoryItem*> item);
 [[nodiscard]] bool WhoReactedExists(
 	not_null<HistoryItem*> item,
 	WhoReactedList list);
 
+struct WhoReadPeer {
+	PeerId peer = 0;
+	TimeId date = 0;
+	bool dateReacted = false;
+
+	friend inline bool operator==(
+		const WhoReadPeer &a,
+		const WhoReadPeer &b) noexcept = default;
+};
+
 struct WhoReadList {
-	std::vector<PeerId> list;
+	std::vector<WhoReadPeer> list;
 	Ui::WhoReadType type = {};
 };
 
@@ -50,5 +61,11 @@ struct WhoReadList {
 	const Data::ReactionId &reaction,
 	not_null<QWidget*> context, // Cache results for this lifetime.
 	const style::WhoRead &st);
+[[nodiscard]] rpl::producer<Ui::WhoReadContent> WhenEdited(
+	not_null<PeerData*> author,
+	TimeId date);
+[[nodiscard]] rpl::producer<Ui::WhoReadContent> WhenOriginal(
+	not_null<PeerData*> author,
+	TimeId date);
 
 } // namespace Api

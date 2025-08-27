@@ -15,13 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 namespace Data {
-namespace {
-
-constexpr auto kRefreshDefaultListEach = 60 * 60 * crl::time(1000);
-constexpr auto kRecentRequestTimeout = 10 * crl::time(1000);
-constexpr auto kMaxTimeout = 6 * 60 * 60 * crl::time(1000);
-
-} // namespace
 
 ForumIcons::ForumIcons(not_null<Session*> owner)
 : _owner(owner)
@@ -76,7 +69,7 @@ void ForumIcons::updateDefault(const MTPDmessages_stickerSet &data) {
 	const auto &list = data.vdocuments().v;
 	_default.clear();
 	_default.reserve(list.size());
-	for (const auto &sticker : data.vdocuments().v) {
+	for (const auto &sticker : list) {
 		_default.push_back(_owner->processDocument(sticker)->id);
 	}
 	_defaultUpdated.fire({});

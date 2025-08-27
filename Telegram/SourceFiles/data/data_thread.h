@@ -7,11 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flags.h"
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/ui/dialogs_message_view.h"
 #include "ui/text/text.h"
 
 #include <deque>
+
+enum class ChatRestriction;
+using ChatRestrictions = base::flags<ChatRestriction>;
 
 namespace Main {
 class Session;
@@ -63,11 +67,12 @@ public:
 		return const_cast<Thread*>(this)->owningHistory();
 	}
 	[[nodiscard]] MsgId topicRootId() const;
+	[[nodiscard]] PeerId monoforumPeerId() const;
+	[[nodiscard]] PeerData *maybeSublistPeer() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] PeerNotifySettings &notify();
 	[[nodiscard]] const PeerNotifySettings &notify() const;
 
-	[[nodiscard]] bool canWrite() const;
 	void setUnreadThingsKnown();
 	[[nodiscard]] HistoryUnreadThings::Proxy unreadMentions();
 	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadMentions() const;
@@ -75,6 +80,7 @@ public:
 	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadReactions() const;
 	virtual void hasUnreadMentionChanged(bool has) = 0;
 	virtual void hasUnreadReactionChanged(bool has) = 0;
+	bool canToggleUnread(bool nowUnread) const;
 
 	void removeNotification(not_null<HistoryItem*> item);
 	void clearNotifications();
@@ -109,10 +115,12 @@ public:
 	}
 
 	[[nodiscard]] virtual auto sendActionPainter()
-		-> not_null<HistoryView::SendActionPainter*> = 0;
+		-> HistoryView::SendActionPainter* = 0;
 
 	[[nodiscard]] bool hasPinnedMessages() const;
 	void setHasPinnedMessages(bool has);
+
+	void saveMeAsActiveSubsectionThread();
 
 protected:
 	void setUnreadMarkFlag(bool unread);

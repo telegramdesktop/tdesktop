@@ -31,35 +31,35 @@ DocumentGenericPreview DocumentGenericPreview::Create(
 		? (document->filename().isEmpty()
 			? (document->sticker()
 				? tr::lng_in_dlg_sticker(tr::now)
-				: qsl("Unknown File"))
+				: u"Unknown File"_q)
 			: document->filename())
 		: tr::lng_message_empty(tr::now)).toLower();
 	auto lastDot = name.lastIndexOf('.');
 	const auto mime = document ? document->mimeString() : QString();
-	if (name.endsWith(qstr(".doc")) ||
-		name.endsWith(qstr(".docx")) ||
-		name.endsWith(qstr(".txt")) ||
-		name.endsWith(qstr(".psd")) ||
-		mime.startsWith(qstr("text/"))) {
+	if (name.endsWith(u".doc"_q) ||
+		name.endsWith(u".docx"_q) ||
+		name.endsWith(u".txt"_q) ||
+		name.endsWith(u".psd"_q) ||
+		mime.startsWith(u"text/"_q)) {
 		colorIndex = 0;
 	} else if (
-		name.endsWith(qstr(".xls")) ||
-		name.endsWith(qstr(".xlsx")) ||
-		name.endsWith(qstr(".csv"))) {
+		name.endsWith(u".xls"_q) ||
+		name.endsWith(u".xlsx"_q) ||
+		name.endsWith(u".csv"_q)) {
 		colorIndex = 1;
 	} else if (
-		name.endsWith(qstr(".pdf")) ||
-		name.endsWith(qstr(".ppt")) ||
-		name.endsWith(qstr(".pptx")) ||
-		name.endsWith(qstr(".key"))) {
+		name.endsWith(u".pdf"_q) ||
+		name.endsWith(u".ppt"_q) ||
+		name.endsWith(u".pptx"_q) ||
+		name.endsWith(u".key"_q)) {
 		colorIndex = 2;
 	} else if (
-		name.endsWith(qstr(".zip")) ||
-		name.endsWith(qstr(".rar")) ||
-		name.endsWith(qstr(".ai")) ||
-		name.endsWith(qstr(".mp3")) ||
-		name.endsWith(qstr(".mov")) ||
-		name.endsWith(qstr(".avi"))) {
+		name.endsWith(u".zip"_q) ||
+		name.endsWith(u".rar"_q) ||
+		name.endsWith(u".ai"_q) ||
+		name.endsWith(u".mp3"_q) ||
+		name.endsWith(u".mov"_q) ||
+		name.endsWith(u".avi"_q)) {
 		colorIndex = 3;
 	} else {
 		auto ch = (lastDot >= 0 && lastDot + 1 < name.size())

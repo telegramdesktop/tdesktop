@@ -26,6 +26,11 @@ LocationPoint::LocationPoint(const MTPDgeoPoint &point)
 , _access(point.vaccess_hash().v) {
 }
 
+LocationPoint::LocationPoint(float64 lat, float64 lon, IgnoreAccessHash)
+: _lat(lat)
+, _lon(lon) {
+}
+
 QString LocationPoint::latAsString() const {
 	return AsString(_lat);
 }
@@ -62,7 +67,7 @@ size_t LocationPoint::hash() const {
 }
 
 GeoPointLocation ComputeLocation(const LocationPoint &point) {
-	const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
+	const auto scale = 1 + (cScale() * style::DevicePixelRatio()) / 200;
 	const auto zoom = 13 + (scale - 1);
 	const auto w = st::locationSize.width() / scale;
 	const auto h = st::locationSize.height() / scale;

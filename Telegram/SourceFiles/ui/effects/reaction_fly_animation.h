@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui::Text {
 class CustomEmoji;
-struct CustomEmojiColored;
 } // namespace Ui::Text
 
 namespace Data {
@@ -28,8 +27,23 @@ struct ReactionFlyAnimationArgs {
 	::Data::ReactionId id;
 	QImage flyIcon;
 	QRect flyFrom;
+	crl::time scaleOutDuration = 0;
+	float64 scaleOutTarget = 0.;
+	float64 miniCopyMultiplier = 1.;
+	bool effectOnly = false;
+	bool forceFirstFrame = false;
 
 	[[nodiscard]] ReactionFlyAnimationArgs translated(QPoint point) const;
+};
+
+struct ReactionFlyCenter {
+	std::unique_ptr<Text::CustomEmoji> custom;
+	std::unique_ptr<AnimatedIcon> icon;
+	float64 scale = 0.;
+	float64 centerSizeMultiplier = 0.;
+	int customSize = 0;
+	int size = 0;
+	bool forceFirstFrame = false;
 };
 
 class ReactionFlyAnimation final {
@@ -54,6 +68,8 @@ public:
 	[[nodiscard]] bool flying() const;
 	[[nodiscard]] float64 flyingProgress() const;
 	[[nodiscard]] bool finished() const;
+
+	[[nodiscard]] ReactionFlyCenter takeCenter();
 
 private:
 	struct Parabolic {
@@ -89,21 +105,26 @@ private:
 		QPoint center,
 		const QColor &colored,
 		crl::time now) const;
-	void generateMiniCopies(int size);
+	void generateMiniCopies(int size, float64 miniCopyMultiplier);
 
 	const not_null<::Data::Reactions*> _owner;
 	Fn<void()> _repaint;
 	QImage _flyIcon;
 	std::unique_ptr<Text::CustomEmoji> _custom;
-	std::unique_ptr<Text::CustomEmojiColored> _colored;
 	std::unique_ptr<AnimatedIcon> _center;
 	std::unique_ptr<AnimatedIcon> _effect;
+	Animations::Simple _noEffectScaleAnimation;
 	std::vector<MiniCopy> _miniCopies;
 	Animations::Simple _fly;
 	Animations::Simple _minis;
 	QRect _flyFrom;
 	float64 _centerSizeMultiplier = 0.;
 	int _customSize = 0;
+	crl::time _scaleOutDuration = 0;
+	float64 _scaleOutTarget = 0.;
+	bool _noEffectScaleStarted = false;
+	bool _forceFirstFrame = false;
+	bool _effectOnly = false;
 	bool _valid = false;
 
 	mutable Parabolic _cached;

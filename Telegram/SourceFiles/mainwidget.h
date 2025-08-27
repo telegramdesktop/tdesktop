@@ -8,33 +8,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
-#include "base/unique_qptr.h"
-#include "chat_helpers/bot_command.h"
-#include "ui/rp_widget.h"
-#include "ui/effects/animations.h"
 #include "media/player/media_player_float.h"
 #include "mtproto/sender.h"
-#include "data/data_pts_waiter.h"
 
-struct HistoryMessageMarkupButton;
-class MainWindow;
 class HistoryWidget;
 class StackItem;
-struct FileLoadResult;
-class History;
 class Image;
 
-namespace MTP {
-class Error;
-} // namespace MTP
-
-namespace Api {
-struct SendAction;
-struct SendOptions;
-} // namespace Api
+namespace Bot {
+struct SendCommandRequest;
+} // namespace Bot
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace Main {
@@ -45,6 +31,9 @@ namespace Data {
 class Thread;
 class WallPaper;
 struct ForwardDraft;
+class Forum;
+class SavedMessages;
+struct ReportInput;
 } // namespace Data
 
 namespace Dialogs {
@@ -72,11 +61,8 @@ struct Content;
 
 namespace Ui {
 class ChatTheme;
-class ConfirmBox;
 class ResizeArea;
 class PlainShadow;
-class DropdownMenu;
-enum class ReportReason;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
@@ -87,12 +73,13 @@ template <typename Inner>
 class TopBarWrapWidget;
 class SectionMemento;
 class SectionWidget;
-class AbstractSectionWidget;
+class SlideAnimation;
 class ConnectionState;
 struct SectionSlideParams;
 struct SectionShow;
 enum class Column;
 class HistoryHider;
+struct SeparateId;
 } // namespace Window
 
 namespace Calls {
@@ -105,16 +92,9 @@ namespace Core {
 class Changelogs;
 } // namespace Core
 
-namespace InlineBots {
-namespace Layout {
-class ItemBase;
-} // namespace Layout
-} // namespace InlineBots
-
-class MainWidget
+class MainWidget final
 	: public Ui::RpWidget
-	, private Media::Player::FloatDelegate
-	, private base::Subscriber {
+	, private Media::Player::FloatDelegate {
 public:
 	using SectionShow = Window::SectionShow;
 
@@ -125,7 +105,7 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<Window::SessionController*> controller() const;
-	[[nodiscard]] PeerData *singlePeer() const;
+	[[nodiscard]] Window::SeparateId windowId() const;
 	[[nodiscard]] bool isPrimary() const;
 	[[nodiscard]] bool isMainSectionShown() const;
 	[[nodiscard]] bool isThirdSectionShown() const;
@@ -137,7 +117,7 @@ public:
 
 	void returnTabbedSelector();
 
-	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
+	void showAnimated(QPixmap oldContentCache, bool back = false);
 
 	void activate();
 
@@ -155,39 +135,39 @@ public:
 		const SectionShow &params);
 	void updateColumnLayout();
 	bool stackIsEmpty() const;
-	void showBackFromStack(
-		const SectionShow &params);
+	bool showBackFromStack(const SectionShow &params);
 	void orderWidgets();
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
 	void checkMainSectionToLayer();
 
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
-	bool sendExistingDocument(not_null<DocumentData*> document);
-	bool sendExistingDocument(
-		not_null<DocumentData*> document,
-		Api::SendOptions options);
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 
 	[[nodiscard]] bool animatingShow() const;
 
-	void showForwardLayer(Data::ForwardDraft &&draft);
-	void showSendPathsLayer();
-	void shareUrlLayer(const QString &url, const QString &text);
-	void inlineSwitchLayer(const QString &botAndQuery);
-	void hiderLayer(base::unique_qptr<Window::HistoryHider> h);
+	void showDragForwardInfo();
+	void hideDragForwardInfo();
+
 	bool setForwardDraft(
 		not_null<Data::Thread*> thread,
 		Data::ForwardDraft &&draft);
-	bool sendPaths(not_null<Data::Thread*> thread);
-	bool onFilesOrForwardDrop(
+	bool sendPaths(
+		not_null<Data::Thread*> thread,
+		const QStringList &paths);
+	bool shareUrl(
+		not_null<Data::Thread*> thread,
+		const QString &url,
+		const QString &text) const;
+	bool filesOrForwardDrop(
 		not_null<Data::Thread*> thread,
 		not_null<const QMimeData*> data);
-	bool selectingPeer() const;
-	void clearSelectingPeer();
 
 	void sendBotCommand(Bot::SendCommandRequest request);
-	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
+	void hideSingleUseKeyboard(FullMsgId replyToId);
 
-	void searchMessages(const QString &query, Dialogs::Key inChat);
+	void searchMessages(
+		const QString &query,
+		Dialogs::Key inChat,
+		PeerData *searchFrom = nullptr);
 
 	void setChatBackground(
 		const Data::WallPaper &background,
@@ -197,39 +177,33 @@ public:
 	void checkChatBackground();
 	Image *newBackgroundThumb();
 
-	// Does offerThread or showThread.
-	void chooseThread(not_null<Data::Thread*> thread, MsgId showAtMsgId);
-	void chooseThread(not_null<PeerData*> peer, MsgId showAtMsgId);
-	void clearBotStartToken(PeerData *peer);
-
-	void ctrlEnterSubmitUpdated();
 	void setInnerFocus();
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	void searchInChat(Dialogs::Key chat);
-
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,
-		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> done);
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> done);
 	void clearChooseReportMessages();
 
-	void toggleChooseChatTheme(not_null<PeerData*> peer);
+	void toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show);
 
-	void ui_showPeerHistory(
+	void showHistory(
 		PeerId peer,
 		const SectionShow &params,
 		MsgId msgId);
 	void showMessage(
 		not_null<const HistoryItem*> item,
 		const SectionShow &params);
+	void showForum(not_null<Data::Forum*> forum, const SectionShow &params);
 
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 
 	using FloatDelegate::floatPlayerAreaUpdated;
 
-	void closeBothPlayers();
 	void stopAndClosePlayer();
 
 	bool preventsCloseSection(Fn<void()> callback) const;
@@ -237,20 +211,26 @@ public:
 		Fn<void()> callback,
 		const SectionShow &params) const;
 
-	void dialogsCancelled();
+	void showNonPremiumLimitToast(bool download);
 
-protected:
+	void dialogsCancelled();
+	void toggleFiltersMenu(bool value) const;
+
+private:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	bool eventFilter(QObject *o, QEvent *e) override;
 
-private:
-	void animationCallback();
+	[[nodiscard]] bool relevantForDialogsFocus(
+		not_null<QWidget*> widget) const;
+
+	void showFinished();
 	void handleAdaptiveLayoutUpdate();
 	void updateWindowAdaptiveLayout();
 	void handleAudioUpdate(const Media::Player::TrackState &state);
 	void updateMediaPlaylistPosition(int x);
 	void updateControlsGeometry();
+	void updateMainSectionShown();
 	void updateDialogsWidthAnimated();
 	void updateThirdColumnToCurrentChat(
 		Dialogs::Key key,
@@ -259,21 +239,13 @@ private:
 	[[nodiscard]] auto thirdSectionForCurrentMainSection(Dialogs::Key key)
 		-> std::shared_ptr<Window::SectionMemento>;
 
-	bool shareUrl(
-		not_null<Data::Thread*> thread,
-		const QString &url,
-		const QString &text) const;
-	bool inlineSwitchChosen(
-		not_null<Data::Thread*> thread,
-		const QString &botAndQuery) const;
-
 	void setupConnectingWidget();
 	void createPlayer();
 	void playerHeightUpdated();
 
 	void setCurrentCall(Calls::Call *call);
 	void setCurrentGroupCall(Calls::GroupCall *call);
-	void createCallTopBar();
+	void createCallTopBar(Calls::Call *call, Calls::GroupCall *group);
 	void destroyCallTopBar();
 	void callTopBarHeightUpdated(int callTopBarHeight);
 
@@ -287,7 +259,7 @@ private:
 	void showNewSection(
 		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params);
-	void dropMainSection(Window::SectionWidget *widget);
+	void destroyThirdSection();
 
 	Window::SectionSlideParams prepareThirdSectionAnimation(Window::SectionWidget *section);
 
@@ -296,18 +268,24 @@ private:
 	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
 	Window::SectionSlideParams prepareDialogsAnimation();
 
-	void saveSectionInStack();
+	bool saveSectionInStack(
+		const SectionShow &params,
+		Window::SectionWidget *newMainSection = nullptr);
 
 	int getMainSectionTop() const;
 	int getThirdSectionTop() const;
 
 	void hideAll();
 	void showAll();
+	void hiderLayer(base::unique_qptr<Window::HistoryHider> h);
 	void clearHider(not_null<Window::HistoryHider*> instance);
+
+	void closeBothPlayers();
 
 	[[nodiscard]] auto floatPlayerDelegate()
 		-> not_null<Media::Player::FloatDelegate*>;
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
+	void floatPlayerToggleGifsPaused(bool paused) override;
 	not_null<Media::Player::FloatSectionDelegate*> floatPlayerGetSection(
 		Window::Column column) override;
 	void floatPlayerEnumerateSections(Fn<void(
@@ -346,24 +324,23 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 
-	Ui::Animations::Simple _a_show;
-	bool _showBack = false;
-	QPixmap _cacheUnder, _cacheOver;
+	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 
 	int _dialogsWidth = 0;
 	int _thirdColumnWidth = 0;
 	Ui::Animations::Simple _a_dialogsWidth;
 
-	const base::unique_qptr<Ui::PlainShadow> _sideShadow;
-	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };
-	object_ptr<Ui::ResizeArea> _firstColumnResizeArea = { nullptr };
-	object_ptr<Ui::ResizeArea> _thirdColumnResizeArea = { nullptr };
 	const base::unique_qptr<Dialogs::Widget> _dialogs;
 	const base::unique_qptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
 	std::shared_ptr<Window::SectionMemento> _thirdSectionFromStack;
 	std::unique_ptr<Window::ConnectionState> _connecting;
+
+	const base::unique_qptr<Ui::PlainShadow> _sideShadow;
+	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };
+	object_ptr<Ui::ResizeArea> _firstColumnResizeArea = { nullptr };
+	object_ptr<Ui::ResizeArea> _thirdColumnResizeArea = { nullptr };
 
 	base::weak_ptr<Calls::Call> _currentCall;
 	base::weak_ptr<Calls::GroupCall> _currentGroupCall;
@@ -394,7 +371,3 @@ private:
 	const std::unique_ptr<Core::Changelogs> _changelogs;
 
 };
-
-namespace App {
-MainWidget *main();
-} // namespace App

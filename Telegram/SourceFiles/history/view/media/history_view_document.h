@@ -17,13 +17,13 @@ namespace Data {
 class DocumentMedia;
 } // namespace Data
 
-namespace Ui {
-namespace Text {
+namespace Ui::Text {
 class String;
-} // namespace Text
-} // namespace Ui
+} // namespace Ui::Text
 
 namespace HistoryView {
+
+using TtlPaintCallback = Fn<void(QPainter&, QRect, QColor)>;
 
 class Document final
 	: public File
@@ -34,6 +34,10 @@ public:
 		not_null<HistoryItem*> realParent,
 		not_null<DocumentData*> document);
 	~Document();
+
+	bool hideMessageText() const override {
+		return false;
+	}
 
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
@@ -46,6 +50,9 @@ public:
 	bool hasTextForCopy() const override;
 
 	TextForMimeData selectedText(TextSelection selection) const override;
+	SelectedQuote selectedQuote(TextSelection selection) const override;
+	TextSelection selectionFromQuote(
+		const SelectedQuote &quote) const override;
 
 	bool uploading() const override;
 
@@ -53,7 +60,7 @@ public:
 		return _data;
 	}
 
-	TextWithEntities getCaption() const override;
+	void hideSpoilers() override;
 	bool needsBubble() const override {
 		return true;
 	}
@@ -62,7 +69,7 @@ public:
 	}
 	QMargins bubbleMargins() const override;
 
-	QSize sizeForGroupingOptimal(int maxWidth) const override;
+	QSize sizeForGroupingOptimal(int maxWidth, bool last) const override;
 	QSize sizeForGrouping(int width) const override;
 	void drawGrouped(
 		Painter &p,
@@ -95,11 +102,6 @@ protected:
 	bool dataLoaded() const override;
 
 private:
-	struct StateFromPlayback {
-		int64 statusSize = 0;
-		bool showPause = false;
-		TimeId realDuration = 0;
-	};
 	enum class LayoutMode {
 		Full,
 		Grouped,
@@ -118,12 +120,13 @@ private:
 		LayoutMode mode) const;
 	void ensureDataMediaCreated() const;
 
-	[[nodiscard]] Ui::Text::String createCaption();
+	[[nodiscard]] Ui::Text::String createCaption() const;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
-	void createComponents(bool caption);
+	void refreshCaption(bool last);
+	void createComponents();
 	void fillNamedFromData(not_null<HistoryDocumentNamed*> named);
 
 	[[nodiscard]] Ui::BubbleRounding thumbRounding(
@@ -133,14 +136,10 @@ private:
 		not_null<const HistoryDocumentThumbed*> thumbed,
 		int size,
 		Ui::BubbleRounding rounding) const;
-	void fillThumbnailOverlay(
-		QPainter &p,
-		QRect rect,
-		Ui::BubbleRounding rounding,
-		const PaintContext &context) const;
 
 	void setStatusSize(int64 newSize, TimeId realDuration = 0) const;
 	bool updateStatusText() const; // returns showPause
+	[[nodiscard]] int thumbedLinkMaxWidth() const;
 
 	[[nodiscard]] bool downloadInCorner() const;
 	void drawCornerDownload(
@@ -174,6 +173,8 @@ private:
 
 	mutable TooltipFilename _tooltipFilename;
 
+	TtlPaintCallback _drawTtl;
+
 	bool _transcribedRound = false;
 
 };
@@ -183,6 +184,8 @@ bool DrawThumbnailAsSongCover(
 	const style::color &colored,
 	const std::shared_ptr<Data::DocumentMedia> &dataMedia,
 	const QRect &rect,
-	const bool selected = false);
+	bool selected = false);
+
+rpl::producer<> TTLVoiceStops(FullMsgId fullId);
 
 } // namespace HistoryView

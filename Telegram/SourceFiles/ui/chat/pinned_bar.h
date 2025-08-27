@@ -22,7 +22,10 @@ class RpWidget;
 
 class PinnedBar final {
 public:
-	PinnedBar(not_null<QWidget*> parent, Fn<bool()> customEmojiPaused);
+	PinnedBar(
+		not_null<QWidget*> parent,
+		Fn<bool()> customEmojiPaused,
+		rpl::producer<> customEmojiPausedChanges);
 	~PinnedBar();
 
 	void show();

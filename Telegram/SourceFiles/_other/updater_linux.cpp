@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#define _GLIBCXX_USE_CXX11_ABI 0
 #include <cstdio>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -41,11 +42,13 @@ bool do_mkdir(const char *path) { // from http://stackoverflow.com/questions/675
 }
 
 bool _debug = false;
+bool writeprotected = false;
 string updaterDir;
 string updaterName;
 string workDir;
 string exeName;
 string exePath;
+string argv0;
 
 FILE *_logFile = 0;
 void openLog() {
@@ -87,7 +90,7 @@ void writeLog(const char *format, ...) {
 	va_end(args);
 }
 
-bool copyFile(const char *from, const char *to, bool writeprotected) {
+bool copyFile(const char *from, const char *to) {
 	FILE *ffrom = fopen(from, "rb"), *fto = fopen(to, "wb");
 	if (!ffrom) {
 		if (fto) fclose(fto);
@@ -210,7 +213,7 @@ void delFolder() {
 	rmdir(delFolder.c_str());
 }
 
-bool update(bool writeprotected) {
+bool update() {
 	writeLog("Update started..");
 
 	string updDir = workDir + "tupdates/temp", readyFilePath = workDir + "tupdates/temp/ready", tdataDir = workDir + "tupdates/temp/tdata";
@@ -323,7 +326,7 @@ bool update(bool writeprotected) {
 		writeLog("Copying file '%s' to '%s'..", fname.c_str(), tofname.c_str());
 		int copyTries = 0, triesLimit = 30;
 		do {
-			if (!copyFile(fname.c_str(), tofname.c_str(), writeprotected)) {
+			if (!copyFile(fname.c_str(), tofname.c_str())) {
 				++copyTries;
 				usleep(100000);
 			} else {
@@ -358,10 +361,10 @@ int main(int argc, char *argv[]) {
 	bool needupdate = true;
 	bool autostart = false;
 	bool debug = false;
-	bool writeprotected = false;
 	bool tosettings = false;
 	bool startintray = false;
 	bool customWorkingDir = false;
+	bool justUpdate = false;
 
 	char *key = 0;
 	char *workdir = 0;
@@ -380,6 +383,9 @@ int main(int argc, char *argv[]) {
 			customWorkingDir = true;
 		} else if (equal(argv[i], "-writeprotected")) {
 			writeprotected = true;
+			justUpdate = true;
+		} else if (equal(argv[i], "-justupdate")) {
+			justUpdate = true;
 		} else if (equal(argv[i], "-key") && ++i < argc) {
 			key = argv[i];
 		} else if (equal(argv[i], "-workpath") && ++i < argc) {
@@ -388,6 +394,8 @@ int main(int argc, char *argv[]) {
 			exeName = argv[i];
 		} else if (equal(argv[i], "-exepath") && ++i < argc) {
 			exePath = argv[i];
+		} else if (equal(argv[i], "-argv0") && ++i < argc) {
+			argv0 = argv[i];
 		}
 	}
 	if (exeName.empty() || exeName.find('/') != string::npos) {
@@ -452,7 +460,7 @@ int main(int argc, char *argv[]) {
 				} else {
 					writeLog("Passed workpath is '%s'", workDir.c_str());
 				}
-				update(writeprotected);
+				update();
 			}
 		} else {
 			writeLog("Error: bad exe name!");
@@ -461,49 +469,51 @@ int main(int argc, char *argv[]) {
 		writeLog("Error: short exe name!");
 	}
 
-	auto fullBinaryPath = exePath + exeName;
-	const auto path = fullBinaryPath.c_str();
-
-	auto values = vector<string>();
-	const auto push = [&](string arg) {
-		// Force null-terminated .data() call result.
-		values.push_back(arg + char(0));
-	};
-	push(path);
-	push("-noupdate");
-	if (autostart) push("-autostart");
-	if (debug) push("-debug");
-	if (startintray) push("-startintray");
-	if (tosettings) push("-tosettings");
-	if (key) {
-		push("-key");
-		push(key);
-	}
-	if (customWorkingDir && workdir) {
-		push("-workdir");
-		push(workdir);
-	}
-
-	auto args = vector<char*>();
-	for (auto &arg : values) {
-		args.push_back(arg.data());
-	}
-	args.push_back(nullptr);
-
 	// let the parent launch instead
-	if (!writeprotected) {
+	if (justUpdate) {
+		writeLog("Closing log and quitting..");
+	} else {
+		const auto fullBinaryPath = exePath + exeName;
+
+		auto values = vector<string>();
+		const auto push = [&](string arg) {
+			// Force null-terminated .data() call result.
+			values.push_back(arg + char(0));
+		};
+		push(!argv0.empty() ? argv0 : fullBinaryPath);
+		push("-noupdate");
+		if (autostart) push("-autostart");
+		if (debug) push("-debug");
+		if (startintray) push("-startintray");
+		if (tosettings) push("-tosettings");
+		if (key) {
+			push("-key");
+			push(key);
+		}
+		if (customWorkingDir && workdir) {
+			push("-workdir");
+			push(workdir);
+		}
+
+		auto args = vector<char*>();
+		for (auto &arg : values) {
+			args.push_back(arg.data());
+		}
+		args.push_back(nullptr);
+
 		pid_t pid = fork();
 		switch (pid) {
 		case -1:
 			writeLog("fork() failed!");
 			return 1;
 		case 0:
-			execv(args[0], args.data());
+			execv(fullBinaryPath.c_str(), args.data());
 			return 1;
 		}
+
+		writeLog("Executed Telegram, closing log and quitting..");
 	}
 
-	writeLog("Executed Telegram, closing log and quitting..");
 	closeLog();
 
 	return 0;

@@ -76,7 +76,7 @@ TextParseOptions TextNameOptions = {
 };
 
 TextParseOptions TextDialogOptions = {
-	TextParsePlainLinks | TextParseMarkdown, // flags
+	TextParseColorized | TextParseMarkdown, // flags
 	0, // maxw is style-dependent
 	1, // maxh
 	Qt::LayoutDirectionAuto, // lang-dependent
@@ -103,19 +103,15 @@ TextParseOptions WebpageDescriptionOptions = {
 } // namespace
 
 void InitTextOptions() {
-	HistoryServiceOptions.dir
-		= TextNameOptions.dir
-		= TextDialogOptions.dir
-		= Qt::LeftToRight;
 	TextDialogOptions.maxw = st::columnMaximalWidthLeft * 2;
 	WebpageTitleOptions.maxh = st::webPageTitleFont->height * 2;
 	WebpageTitleOptions.maxw
 		= WebpageDescriptionOptions.maxw
 		= st::msgMaxWidth
 		- st::msgPadding.left()
-		- st::webPageLeft
+		- st::messageQuoteStyle.padding.left()
+		- st::messageQuoteStyle.padding.right()
 		- st::msgPadding.right();
-	WebpageDescriptionOptions.maxh = st::webPageDescriptionFont->height * 3;
 }
 
 const TextParseOptions &ItemTextDefaultOptions() {

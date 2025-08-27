@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "core/click_handler_types.h"
 #include "data/data_user.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/scroll_content_shadow.h"
 #include "ui/widgets/buttons.h"
@@ -23,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
-#include "ui/special_buttons.h"
+#include "ui/ui_utility.h"
 #include "styles/style_passport.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -63,40 +64,29 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 		inner->resizeToWidth(width);
 	}, inner->lifetime());
 
-	const auto userpicWrap = inner->add(
-		object_ptr<Ui::FixedHeightWidget>(
-			inner,
-			st::passportFormUserpic.size.height()),
-		st::passportFormUserpicPadding);
-	_userpic = Ui::AttachParentChild(
-		userpicWrap,
+	_userpic = inner->add(
 		object_ptr<Ui::UserpicButton>(
-			userpicWrap,
+			inner,
 			bot,
-			Ui::UserpicButton::Role::Custom,
-			st::passportFormUserpic));
-	userpicWrap->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		_userpic->move((width - _userpic->width()) / 2, _userpic->y());
-	}, _userpic->lifetime());
+			st::passportFormUserpic),
+		st::passportFormUserpicPadding,
+		style::al_top);
 
 	_about1 = inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			inner,
-			object_ptr<Ui::FlatLabel>(
-				inner,
-				tr::lng_passport_request1(tr::now, lt_bot, bot->name()),
-				st::passportPasswordLabelBold)),
-		st::passportFormAbout1Padding)->entity();
+			tr::lng_passport_request1(tr::now, lt_bot, bot->name()),
+			st::passportPasswordLabelBold),
+		st::passportFormAbout1Padding,
+		style::al_top);
 
 	_about2 = inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			inner,
-			object_ptr<Ui::FlatLabel>(
-				inner,
-				tr::lng_passport_request2(tr::now),
-				st::passportPasswordLabel)),
-		st::passportFormAbout2Padding)->entity();
+			tr::lng_passport_request2(tr::now),
+			st::passportPasswordLabel),
+		st::passportFormAbout2Padding,
+		style::al_top);
 
 	inner->add(object_ptr<Ui::BoxContentDivider>(
 		inner,
@@ -145,6 +135,14 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 		});
 	}, lifetime());
 	const auto policyUrl = _controller->privacyPolicyUrl();
+	auto policyLink = tr::lng_passport_policy(
+		lt_bot,
+		rpl::single(bot->name())
+	) | Ui::Text::ToLink(
+		policyUrl
+	) | rpl::map([=](TextWithEntities &&text) {
+		return Ui::Text::Wrapped(std::move(text), EntityType::Bold);
+	});
 	auto text = policyUrl.isEmpty()
 		? tr::lng_passport_allow(
 			lt_bot,
@@ -152,10 +150,7 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 		) | Ui::Text::ToWithEntities()
 		: tr::lng_passport_accept_allow(
 			lt_policy,
-			tr::lng_passport_policy(
-				lt_bot,
-				rpl::single(bot->name())
-			) | Ui::Text::ToLink(policyUrl),
+			std::move(policyLink),
 			lt_bot,
 			rpl::single('@' + bot->username()) | Ui::Text::ToWithEntities(),
 			Ui::Text::WithEntities);

@@ -7,121 +7,74 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/mappers.h>
-#include <rpl/map.h>
 #include "lang/lang_keys.h"
 #include "storage/storage_shared_media.h"
-#include "info/info_memento.h"
-#include "info/info_controller.h"
-#include "info/profile/info_profile_values.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/widgets/buttons.h"
-#include "settings/settings_common.h"
-#include "window/window_session_controller.h"
-#include "data/data_user.h"
-#include "styles/style_info.h"
+
+namespace Ui {
+class AbstractButton;
+class MultiSlideTracker;
+class SettingsButton;
+class VerticalLayout;
+template <typename Widget>
+class SlideWrap;
+} // namespace Ui
+
+namespace Window {
+class SessionNavigation;
+} // namespace Window
 
 namespace Info::Media {
 
 using Type = Storage::SharedMediaType;
 
-inline tr::phrase<lngtag_count> MediaTextPhrase(Type type) {
-	switch (type) {
-	case Type::Photo: return tr::lng_profile_photos;
-	case Type::GIF: return tr::lng_profile_gifs;
-	case Type::Video: return tr::lng_profile_videos;
-	case Type::File: return tr::lng_profile_files;
-	case Type::MusicFile: return tr::lng_profile_songs;
-	case Type::Link: return tr::lng_profile_shared_links;
-	case Type::RoundVoiceFile: return tr::lng_profile_audios;
-	}
-	Unexpected("Type in MediaTextPhrase()");
-};
+[[nodiscard]] tr::phrase<lngtag_count> MediaTextPhrase(Type type);
 
-inline auto MediaText(Type type) {
-	return [phrase = MediaTextPhrase(type)](int count) {
-		return phrase(tr::now, lt_count, count);
-	};
-}
+[[nodiscard]] Fn<QString(int)> MediaText(Type type);
 
-template <typename Count, typename Text>
-inline auto AddCountedButton(
-		Ui::VerticalLayout *parent,
-		Count &&count,
-		Text &&textFromCount,
-		Ui::MultiSlideTracker &tracker) {
-	using namespace rpl::mappers;
+[[nodiscard]] not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddCountedButton(
+	Ui::VerticalLayout *parent,
+	rpl::producer<int> &&count,
+	Fn<QString(int)> &&textFromCount,
+	Ui::MultiSlideTracker &tracker);
 
-	using namespace ::Settings;
-	auto forked = std::move(count)
-		| start_spawning(parent->lifetime());
-	auto text = rpl::duplicate(
-		forked
-	) | rpl::map([textFromCount](int count) {
-		return (count > 0)
-			? textFromCount(count)
-			: QString();
-	});
-	auto button = parent->add(object_ptr<Ui::SlideWrap<Button>>(
-		parent,
-		CreateButton(
-			parent,
-			std::move(text),
-			st::infoSharedMediaButton))
-	)->setDuration(
-		st::infoSlideDuration
-	)->toggleOn(
-		rpl::duplicate(forked) | rpl::map(_1 > 0)
-	);
-	tracker.track(button);
-	return button;
-};
+[[nodiscard]] not_null<Ui::SettingsButton*> AddButton(
+	Ui::VerticalLayout *parent,
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	MsgId topicRootId,
+	PeerId monoforumPeerId,
+	PeerData *migrated,
+	Type type,
+	Ui::MultiSlideTracker &tracker);
 
-inline auto AddButton(
-		Ui::VerticalLayout *parent,
-		not_null<Window::SessionNavigation*> navigation,
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		PeerData *migrated,
-		Type type,
-		Ui::MultiSlideTracker &tracker) {
-	auto result = AddCountedButton(
-		parent,
-		Profile::SharedMediaCountValue(peer, topicRootId, migrated, type),
-		MediaText(type),
-		tracker)->entity();
-	result->addClickHandler([=] {
-		const auto topic = topicRootId
-			? peer->forumTopicFor(topicRootId)
-			: nullptr;
-		if (topicRootId && !topic) {
-			return;
-		}
-		navigation->showSection(topicRootId
-			? std::make_shared<Info::Memento>(topic, Section(type))
-			: std::make_shared<Info::Memento>(peer, Section(type)));
-	});
-	return result;
-};
+[[nodiscard]] not_null<Ui::SettingsButton*> AddCommonGroupsButton(
+	Ui::VerticalLayout *parent,
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<UserData*> user,
+	Ui::MultiSlideTracker &tracker);
 
-inline auto AddCommonGroupsButton(
-		Ui::VerticalLayout *parent,
-		not_null<Window::SessionNavigation*> navigation,
-		not_null<UserData*> user,
-		Ui::MultiSlideTracker &tracker) {
-	auto result = AddCountedButton(
-		parent,
-		Profile::CommonGroupsCountValue(user),
-		[](int count) {
-			return tr::lng_profile_common_groups(tr::now, lt_count, count);
-		},
-		tracker)->entity();
-	result->addClickHandler([=] {
-		navigation->showSection(
-			std::make_shared<Info::Memento>(user, Section::Type::CommonGroups));
-	});
-	return result;
-};
+[[nodiscard]] not_null<Ui::SettingsButton*> AddSimilarPeersButton(
+	Ui::VerticalLayout *parent,
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	Ui::MultiSlideTracker &tracker);
+
+[[nodiscard]] not_null<Ui::SettingsButton*> AddStoriesButton(
+	Ui::VerticalLayout *parent,
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	Ui::MultiSlideTracker &tracker);
+
+[[nodiscard]] not_null<Ui::SettingsButton*> AddSavedSublistButton(
+	Ui::VerticalLayout *parent,
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	Ui::MultiSlideTracker &tracker);
+
+[[nodiscard]] not_null<Ui::SettingsButton*> AddPeerGiftsButton(
+	Ui::VerticalLayout *parent,
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	Ui::MultiSlideTracker &tracker);
 
 } // namespace Info::Media

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_pip.h"
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_video_track.h"
+#include "ui/integration.h"
 #include "ui/painter.h"
 #include "ui/abstract_button.h"
 #include "ui/gl/gl_surface.h"
@@ -237,13 +238,15 @@ void Viewport::add(
 		const VideoEndpoint &endpoint,
 		VideoTileTrack track,
 		rpl::producer<QSize> trackSize,
-		rpl::producer<bool> pinned) {
+		rpl::producer<bool> pinned,
+		bool self) {
 	_tiles.push_back(std::make_unique<VideoTile>(
 		endpoint,
 		track,
 		std::move(trackSize),
 		std::move(pinned),
-		[=] { widget()->update(); }));
+		[=] { widget()->update(); },
+		self));
 
 	_tiles.back()->trackSizeValue(
 	) | rpl::filter([](QSize size) {

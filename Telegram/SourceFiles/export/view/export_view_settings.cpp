@@ -22,7 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/calendar_box.h"
+#include "ui/boxes/choose_time.h"
 #include "platform/platform_specific.h"
+#include "core/application.h"
 #include "core/file_utilities.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
@@ -75,7 +77,10 @@ void ChooseFormatBox(
 	box->setTitle(tr::lng_export_option_choose_format());
 	addFormatOption(tr::lng_export_option_html(tr::now), Format::Html);
 	addFormatOption(tr::lng_export_option_json(tr::now), Format::Json);
-	box->addButton(tr::lng_settings_save(), [=] { done(group->value()); });
+	addFormatOption(
+		tr::lng_export_option_html_and_json(tr::now),
+		Format::HtmlAndJson);
+	box->addButton(tr::lng_settings_save(), [=] { done(group->current()); });
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
@@ -173,6 +178,11 @@ void SettingsWidget::setupFullExportOptions(
 		tr::lng_export_option_contacts(tr::now),
 		Type::Contacts,
 		tr::lng_export_option_contacts_about(tr::now));
+	addOptionWithAbout(
+		container,
+		tr::lng_export_option_stories(tr::now),
+		Type::Stories,
+		tr::lng_export_option_stories_about(tr::now));
 	addHeader(container, tr::lng_export_header_chats(tr::now));
 	addOption(
 		container,
@@ -275,6 +285,7 @@ void SettingsWidget::setupPathAndFormat(
 	addLocationLabel(container);
 	addFormatOption(tr::lng_export_option_html(tr::now), Format::Html);
 	addFormatOption(tr::lng_export_option_json(tr::now), Format::Json);
+	addFormatOption(tr::lng_export_option_html_and_json(tr::now), Format::HtmlAndJson);
 }
 
 void SettingsWidget::addLocationLabel(
@@ -285,7 +296,9 @@ void SettingsWidget::addLocationLabel(
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([=](const QString &path) {
 		const auto text = IsDefaultPath(_session, path)
+			? Core::App().canReadDefaultDownloadPath()
 			? u"Downloads/"_q + File::DefaultDownloadPathFolder(_session)
+			: tr::lng_download_path_temp(tr::now)
 			: path;
 		return Ui::Text::Link(
 			QDir::toNativeSeparators(text),
@@ -307,20 +320,20 @@ void SettingsWidget::addLocationLabel(
 }
 
 void SettingsWidget::chooseFormat() {
-	const auto shared = std::make_shared<QPointer<Ui::GenericBox>>();
+	const auto shared = std::make_shared<base::weak_qptr<Ui::GenericBox>>();
 	const auto callback = [=](Format format) {
 		changeData([&](Settings &data) {
 			data.format = format;
 		});
-		if (const auto weak = shared->data()) {
-			weak->closeBox();
+		if (const auto strong = shared->get()) {
+			strong->closeBox();
 		}
 	};
 	auto box = Box(
 		ChooseFormatBox,
 		readData().format,
 		callback);
-	*shared = Ui::MakeWeak(box.data());
+	*shared = base::make_weak(box.data());
 	_showBoxCallback(std::move(box));
 }
 
@@ -332,7 +345,9 @@ void SettingsWidget::addFormatAndLocationLabel(
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([=](const QString &path) {
 		const auto text = IsDefaultPath(_session, path)
+			? Core::App().canReadDefaultDownloadPath()
 			? u"Downloads/"_q + File::DefaultDownloadPathFolder(_session)
+			: tr::lng_download_path_temp(tr::now)
 			: path;
 		return Ui::Text::Link(
 			QDir::toNativeSeparators(text),
@@ -342,7 +357,11 @@ void SettingsWidget::addFormatAndLocationLabel(
 		return data.format;
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([](Format format) {
-		const auto text = (format == Format::Html) ? "HTML" : "JSON";
+		const auto text = (format == Format::Html)
+			? "HTML"
+			: (format == Format::Json)
+			? "JSON"
+			: tr::lng_export_option_html_and_json(tr::now);
 		return Ui::Text::Link(text, u"internal:edit_format"_q);
 	});
 	const auto label = container->add(
@@ -357,9 +376,9 @@ void SettingsWidget::addFormatAndLocationLabel(
 			st::exportLocationLabel),
 		st::exportLocationPadding);
 	label->overrideLinkClickHandler([=](const QString &url) {
-		if (url == qstr("internal:edit_export_path")) {
+		if (url == u"internal:edit_export_path"_q) {
 			chooseFolder();
-		} else if (url == qstr("internal:edit_format")) {
+		} else if (url == u"internal:edit_format"_q) {
 			chooseFormat();
 		} else {
 			Unexpected("Click handler URL in export limits edit.");
@@ -370,7 +389,7 @@ void SettingsWidget::addFormatAndLocationLabel(
 
 void SettingsWidget::addLimitsLabel(
 		not_null<Ui::VerticalLayout*> container) {
-	auto fromLink = value() | rpl::map([](const Settings &data) {
+	auto fromDateLink = value() | rpl::map([](const Settings &data) {
 		return data.singlePeerFrom;
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([](TimeId from) {
@@ -378,10 +397,37 @@ void SettingsWidget::addLimitsLabel(
 			? rpl::single(langDayOfMonthFull(
 				base::unixtime::parse(from).date()))
 			: tr::lng_export_beginning()
-		) | Ui::Text::ToLink(qsl("internal:edit_from"));
+		) | Ui::Text::ToLink(u"internal:edit_from"_q);
 	}) | rpl::flatten_latest();
 
-	auto tillLink = value() | rpl::map([](const Settings &data) {
+	const auto mapToTime = [](TimeId id, const QString &link) {
+		return rpl::single(id
+			? QLocale().toString(
+				base::unixtime::parse(id).time(),
+				QLocale::ShortFormat)
+			: QString()
+		) | Ui::Text::ToLink(link);
+	};
+
+	const auto concat = [](TextWithEntities date, TextWithEntities link) {
+		return link.text.isEmpty()
+			? date
+			: date.append(u", "_q).append(std::move(link));
+	};
+
+	auto fromTimeLink = value() | rpl::map([](const Settings &data) {
+		return data.singlePeerFrom;
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([=](TimeId from) {
+		return mapToTime(from, u"internal:edit_from_time"_q);
+	}) | rpl::flatten_latest();
+
+	auto fromLink = rpl::combine(
+		std::move(fromDateLink),
+		std::move(fromTimeLink)
+	) | rpl::map(concat);
+
+	auto tillDateLink = value() | rpl::map([](const Settings &data) {
 		return data.singlePeerTill;
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([](TimeId till) {
@@ -389,8 +435,20 @@ void SettingsWidget::addLimitsLabel(
 			? rpl::single(langDayOfMonthFull(
 				base::unixtime::parse(till).date()))
 			: tr::lng_export_end()
-		) | Ui::Text::ToLink(qsl("internal:edit_till"));
+		) | Ui::Text::ToLink(u"internal:edit_till"_q);
 	}) | rpl::flatten_latest();
+
+	auto tillTimeLink = value() | rpl::map([](const Settings &data) {
+		return data.singlePeerTill;
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([=](TimeId till) {
+		return mapToTime(till, u"internal:edit_till_time"_q);
+	}) | rpl::flatten_latest();
+
+	auto tillLink = rpl::combine(
+		std::move(tillDateLink),
+		std::move(tillTimeLink)
+	) | rpl::map(concat);
 
 	auto datesText = tr::lng_export_limits(
 		lt_from,
@@ -406,10 +464,49 @@ void SettingsWidget::addLimitsLabel(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			std::move(datesText),
-			st::exportLocationLabel),
+			st::boxLabel),
 		st::exportLimitsPadding);
+
+	const auto removeTime = [](TimeId dateTime) {
+		return base::unixtime::serialize(
+			QDateTime(
+				base::unixtime::parse(dateTime).date(),
+				QTime()));
+	};
+
+	const auto editTimeLimit = [=](Fn<TimeId()> now, Fn<void(TimeId)> done) {
+		_showBoxCallback(Box([=](not_null<Ui::GenericBox*> box) {
+			auto result = Ui::ChooseTimeWidget(
+				box->verticalLayout(),
+				[&] {
+					const auto time = base::unixtime::parse(now()).time();
+					return time.hour() * 3600
+						+ time.minute() * 60
+						+ time.second();
+				}(),
+				true);
+			const auto widget = box->addRow(std::move(result.widget));
+			const auto toSave = widget->lifetime().make_state<TimeId>(0);
+			std::move(
+				result.secondsValue
+			) | rpl::start_with_next([=](TimeId t) {
+				*toSave = t;
+			}, box->lifetime());
+			box->addButton(tr::lng_settings_save(), [=] {
+				done(*toSave);
+				box->closeBox();
+			});
+			box->addButton(tr::lng_cancel(), [=] {
+				box->closeBox();
+			});
+			box->setTitle(tr::lng_settings_ttl_after_custom());
+		}));
+	};
+
+	constexpr auto kOffset = 600;
+
 	label->overrideLinkClickHandler([=](const QString &url) {
-		if (url == qstr("internal:edit_from")) {
+		if (url == u"internal:edit_from"_q) {
 			const auto done = [=](TimeId limit) {
 				changeData([&](Settings &settings) {
 					settings.singlePeerFrom = limit;
@@ -421,10 +518,38 @@ void SettingsWidget::addLimitsLabel(
 				readData().singlePeerTill,
 				tr::lng_export_from_beginning(),
 				done);
-		} else if (url == qstr("internal:edit_till")) {
+		} else if (url == u"internal:edit_from_time"_q) {
+			const auto now = [=] {
+				auto result = TimeId(0);
+				changeData([&](Settings &settings) {
+					result = settings.singlePeerFrom;
+				});
+				return result;
+			};
+			const auto done = [=](TimeId time) {
+				changeData([&](Settings &settings) {
+					const auto result = time
+						+ removeTime(settings.singlePeerFrom);
+					if (result >= settings.singlePeerTill
+							&& settings.singlePeerTill) {
+						settings.singlePeerFrom = settings.singlePeerTill
+							- kOffset;
+					} else {
+						settings.singlePeerFrom = result;
+					}
+				});
+			};
+			editTimeLimit(now, done);
+		} else if (url == u"internal:edit_till"_q) {
 			const auto done = [=](TimeId limit) {
 				changeData([&](Settings &settings) {
-					settings.singlePeerTill = limit;
+					if (limit <= settings.singlePeerFrom
+							&& settings.singlePeerFrom) {
+						settings.singlePeerTill = settings.singlePeerFrom
+							+ kOffset;
+					} else {
+						settings.singlePeerTill = limit;
+					}
 				});
 			};
 			editDateLimit(
@@ -433,6 +558,28 @@ void SettingsWidget::addLimitsLabel(
 				0,
 				tr::lng_export_till_end(),
 				done);
+		} else if (url == u"internal:edit_till_time"_q) {
+			const auto now = [=] {
+				auto result = TimeId(0);
+				changeData([&](Settings &settings) {
+					result = settings.singlePeerTill;
+				});
+				return result;
+			};
+			const auto done = [=](TimeId time) {
+				changeData([&](Settings &settings) {
+					const auto result = time
+						+ removeTime(settings.singlePeerTill);
+					if (result <= settings.singlePeerFrom
+							&& settings.singlePeerFrom) {
+						settings.singlePeerTill = settings.singlePeerFrom
+							+ kOffset;
+					} else {
+						settings.singlePeerTill = result;
+					}
+				});
+			};
+			editTimeLimit(now, done);
 		} else {
 			Unexpected("Click handler URL in export limits edit.");
 		}
@@ -455,18 +602,18 @@ void SettingsWidget::editDateLimit(
 		? base::unixtime::parse(min).date()
 		: QDate::currentDate();
 	const auto month = highlighted;
-	const auto shared = std::make_shared<QPointer<Ui::CalendarBox>>();
+	const auto shared = std::make_shared<base::weak_qptr<Ui::CalendarBox>>();
 	const auto finalize = [=](not_null<Ui::CalendarBox*> box) {
 		box->addLeftButton(std::move(resetLabel), crl::guard(this, [=] {
 			done(0);
-			if (const auto weak = shared->data()) {
+			if (const auto weak = shared->get()) {
 				weak->closeBox();
 			}
 		}));
 	};
 	const auto callback = crl::guard(this, [=](const QDate &date) {
 		done(base::unixtime::serialize(date.startOfDay()));
-		if (const auto weak = shared->data()) {
+		if (const auto weak = shared->get()) {
 			weak->closeBox();
 		}
 	});
@@ -483,7 +630,7 @@ void SettingsWidget::editDateLimit(
 			? base::unixtime::parse(max).date()
 			: QDate::currentDate()),
 	});
-	*shared = Ui::MakeWeak(box.data());
+	*shared = base::make_weak(box.data());
 	_showBoxCallback(std::move(box));
 }
 

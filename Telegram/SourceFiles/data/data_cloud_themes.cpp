@@ -221,7 +221,7 @@ void CloudThemes::resolve(
 	)).done([=](const MTPTheme &result) {
 		showPreview(controller, result);
 	}).fail([=](const MTP::Error &error) {
-		if (error.type() == qstr("THEME_FORMAT_INVALID")) {
+		if (error.type() == u"THEME_FORMAT_INVALID"_q) {
 			controller->show(Ui::MakeInformBox(tr::lng_theme_no_desktop()));
 		}
 	}).send();
@@ -238,7 +238,7 @@ void CloudThemes::showPreview(
 void CloudThemes::showPreview(
 		not_null<Window::Controller*> controller,
 		const CloudTheme &cloud) {
-	if (const auto documentId = cloud.documentId) {
+	if (cloud.documentId) {
 		previewFromDocument(controller, cloud);
 	} else if (cloud.createdBy == _session->userId()) {
 		controller->show(Box(

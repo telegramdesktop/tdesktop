@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_peer_values.h"
@@ -22,12 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 namespace HistoryView::Reactions {
 namespace {
 
-constexpr auto kDivider = 4;
 constexpr auto kToggleDuration = crl::time(120);
 constexpr auto kActivateDuration = crl::time(150);
 constexpr auto kExpandDuration = crl::time(300);
@@ -318,6 +319,7 @@ Manager::Manager(
 : _outer(CountOuterSize())
 , _inner(QRect({}, st::reactionCornerSize))
 , _strip(
+	st::reactPanelEmojiPan,
 	_inner,
 	st::reactionCornerImage,
 	crl::guard(this, [=] { updateCurrentButton(); }),
@@ -447,9 +449,8 @@ void Manager::applyList(const Data::PossibleItemReactionsRef &reactions) {
 		reactions.recent,
 		(/*reactions.customAllowed
 			? Button::Expand
-			: reactions.morePremiumAvailable
-			? Button::Premium
 			: */Button::None));
+	_tagsStrip = reactions.tags;
 }
 
 QMargins Manager::innerMargins() const {
@@ -487,6 +488,10 @@ void Manager::paint(QPainter &p, const PaintContext &context) {
 		paintButton(p, context, button.get());
 	}
 	if (const auto current = _button.get()) {
+		if (context.gestureHorizontal.ratio) {
+			current->applyState(ButtonState::Hidden);
+			_buttonHiding.push_back(std::move(_button));
+		}
 		paintButton(p, context, current);
 	}
 
@@ -517,14 +522,7 @@ ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
 		int(_strip.count() - 1));
 	_strip.setSelected(index);
 	const auto selected = _strip.selected();
-	if (selected == Strip::AddedButton::Premium) {
-		if (!_premiumPromoLink) {
-			_premiumPromoLink = std::make_shared<LambdaClickHandler>([=] {
-				_premiumPromoChosen.fire_copy(_buttonContext);
-			});
-		}
-		return _premiumPromoLink;
-	} else if (selected == Strip::AddedButton::Expand) {
+	if (selected == Strip::AddedButton::Expand) {
 		if (!_expandLink) {
 			_expandLink = std::make_shared<LambdaClickHandler>([=] {
 				_expandChosen.fire_copy(_buttonContext);
@@ -813,9 +811,9 @@ bool Manager::showContextMenu(
 		const ReactionId &favorite) {
 	const auto selected = _strip.selected();
 	const auto id = std::get_if<ReactionId>(&selected);
-	if (!id || id->empty()) {
+	if (!id || id->empty() || _tagsStrip) {
 		return false;
-	} else if (*id == favorite) {
+	} else if (*id == favorite || id->paid()) {
 		return true;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
@@ -894,7 +892,9 @@ void SetupManagerList(
 				reactions.topUpdates(),
 				reactions.recentUpdates(),
 				reactions.defaultUpdates(),
-				reactions.favoriteUpdates()
+				reactions.favoriteUpdates(),
+				reactions.myTagsUpdates(),
+				reactions.tagsUpdates()
 			) | rpl::start_with_next([=] {
 				if (!state->timer.isActive()) {
 					state->timer.callOnce(kRefreshListDelay);

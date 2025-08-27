@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/rect_part.h"
 #include "ui/rp_widget.h"
 
 namespace Webrtc {
@@ -37,6 +38,10 @@ public:
 		return _content.lifetime();
 	}
 
+	void setMirrored(bool mirrored) {
+		_mirrored = mirrored;
+	}
+
 private:
 	void setup();
 	void paint();
@@ -59,6 +64,7 @@ private:
 	RectPart _corner = RectPart::None;
 	bool _dragging = false;
 	bool _geometryDirty = false;
+	bool _mirrored = true;
 
 };
 

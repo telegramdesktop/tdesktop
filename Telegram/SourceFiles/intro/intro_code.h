@@ -9,36 +9,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "intro/intro_step.h"
 #include "intro/intro_widget.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/masked_input_field.h"
 #include "base/timer.h"
 
 namespace Ui {
 class RoundButton;
 class LinkButton;
 class FlatLabel;
+class CodeInput;
 } // namespace Ui
 
 namespace Intro {
 namespace details {
 
 enum class CallStatus;
-
-class CodeInput final : public Ui::MaskedInputField {
-public:
-	CodeInput(
-		QWidget *parent,
-		const style::InputField &st,
-		rpl::producer<QString> placeholder);
-
-	void setDigitsCountMax(int digitsCount);
-
-protected:
-	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
-
-private:
-	int _digitsCountMax = 5;
-
-};
 
 class CodeWidget final : public Step {
 public:
@@ -55,6 +39,8 @@ public:
 	void finished() override;
 	void cancelled() override;
 	void submit() override;
+	rpl::producer<QString> nextButtonText() const override;
+	rpl::producer<const style::RoundButton*> nextButtonStyle() const override;
 
 	void updateDescText();
 
@@ -63,11 +49,12 @@ protected:
 
 private:
 	void noTelegramCode();
-	void codeChanged();
 	void sendCall();
 	void checkRequest();
 
 	int errorTop() const override;
+
+	[[nodiscard]] bool isEmailVerification() const;
 
 	void updateCallText();
 	void refreshLang();
@@ -77,20 +64,24 @@ private:
 	void codeSubmitFail(const MTP::Error &error);
 
 	void showCodeError(rpl::producer<QString> text);
-	void callDone(const MTPauth_SentCode &v);
+	void callDone(const MTPauth_SentCode &result);
 	void gotPassword(const MTPaccount_Password &result);
 
 	void noTelegramCodeDone(const MTPauth_SentCode &result);
 	void noTelegramCodeFail(const MTP::Error &result);
+
+	void submitCode(const QString &text);
 
 	void stopCheck();
 
 	object_ptr<Ui::LinkButton> _noTelegramCode;
 	mtpRequestId _noTelegramCodeRequestId = 0;
 
-	object_ptr<CodeInput> _code;
+	object_ptr<Ui::CodeInput> _code;
 	QString _sentCode;
 	mtpRequestId _sentRequest = 0;
+
+	rpl::variable<bool> _isFragment = false;
 
 	base::Timer _callTimer;
 	CallStatus _callStatus = CallStatus();

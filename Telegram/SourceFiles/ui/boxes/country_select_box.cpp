@@ -234,13 +234,14 @@ void CountrySelectBox::Inner::init() {
 	}
 	auto index = 0;
 	for (const auto &info : _list) {
+		static const auto RegExp = QRegularExpression("[\\s\\-]");
 		auto full = info.country
 			+ ' '
 			+ (!info.alternativeName.isEmpty()
 				? info.alternativeName
 				: QString());
 		const auto namesList = std::move(full).toLower().split(
-			QRegularExpression("[\\s\\-]"),
+			RegExp,
 			Qt::SkipEmptyParts);
 		auto &names = _namesList.emplace_back();
 		names.reserve(namesList.size());

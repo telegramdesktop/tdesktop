@@ -11,15 +11,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 #include "base/weak_ptr.h"
+#include "ui/userpic_view.h"
 
 class History;
 class HistoryBlock;
 class HistoryItem;
-class HistoryMessage;
-class HistoryService;
 struct HistoryMessageReply;
+struct PreparedServiceText;
 
 namespace Data {
+class Thread;
 struct Reaction;
 struct ReactionId;
 } // namespace Data
@@ -35,6 +36,7 @@ struct ChatPaintContext;
 class ChatStyle;
 struct ReactionFlyAnimationArgs;
 class ReactionFlyAnimation;
+class RippleAnimation;
 } // namespace Ui
 
 namespace HistoryView::Reactions {
@@ -50,29 +52,46 @@ enum class InfoDisplayType : char;
 struct StateRequest;
 struct TextState;
 class Media;
+class Reply;
 
 enum class Context : char {
 	History,
 	Replies,
 	Pinned,
 	AdminLog,
-	ContactPreview
+	ContactPreview,
+	Monoforum,
+	SavedSublist,
+	TTLViewer,
+	ShortcutMessages,
+	ScheduledTopic,
+	ChatPreview,
+};
+
+enum class OnlyEmojiAndSpaces : char {
+	Unknown,
+	Yes,
+	No,
+};
+
+struct SelectionModeResult {
+	bool inSelectionMode = false;
+	float64 progress = 0.0;
+};
+
+enum class ElementChatMode : char {
+	Default,
+	Wide,
+	Narrow, // monoforum with left tabs
 };
 
 class Element;
 class ElementDelegate {
 public:
 	virtual Context elementContext() = 0;
-	virtual std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing = nullptr) = 0;
-	virtual std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing = nullptr) = 0;
 	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
-	[[nodiscard]] virtual float64 elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const = 0;
-	virtual bool elementInSelectionMode() = 0;
+	virtual SelectionModeResult elementInSelectionMode(
+		const Element *view) = 0;
 	virtual bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
@@ -98,16 +117,23 @@ public:
 	virtual void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) = 0;
+	virtual void elementSearchInList(
+		const QString &query,
+		const FullMsgId &context) = 0;
 	virtual void elementHandleViaClick(not_null<UserData*> bot) = 0;
-	virtual bool elementIsChatWide() = 0;
+	virtual ElementChatMode elementChatMode() = 0;
 	virtual not_null<Ui::PathShiftGradient*> elementPathShiftGradient() = 0;
-	virtual void elementReplyTo(const FullMsgId &to) = 0;
+	virtual void elementReplyTo(const FullReplyTo &to) = 0;
 	virtual void elementStartInteraction(not_null<const Element*> view) = 0;
 	virtual void elementStartPremium(
 		not_null<const Element*> view,
 		Element *replacing) = 0;
 	virtual void elementCancelPremium(not_null<const Element*> view) = 0;
+	virtual void elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing) = 0;
 	virtual QString elementAuthorRank(not_null<const Element*> view) = 0;
+	virtual bool elementHideTopicButton(not_null<const Element*> view) = 0;
 
 	virtual ~ElementDelegate() {
 	}
@@ -118,23 +144,10 @@ public:
 	not_null<const Ui::ChatStyle*> st,
 	Fn<void()> update);
 
-class SimpleElementDelegate : public ElementDelegate {
+class DefaultElementDelegate : public ElementDelegate {
 public:
-	SimpleElementDelegate(
-		not_null<Window::SessionController*> controller,
-		Fn<void()> update);
-	~SimpleElementDelegate();
-
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing = nullptr) override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	[[nodiscard]] float64 elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const override;
-	bool elementInSelectionMode() override;
+	SelectionModeResult elementInSelectionMode(const Element *view) override;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
@@ -154,23 +167,39 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
-	bool elementAnimationsPaused() override;
 	bool elementHideReply(not_null<const Element*> view) override;
 	bool elementShownUnread(not_null<const Element*> view) override;
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) override;
+	void elementSearchInList(
+		const QString &query,
+		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
-	bool elementIsChatWide() override;
-	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
-	void elementReplyTo(const FullMsgId &to) override;
+	ElementChatMode elementChatMode() override;
+	void elementReplyTo(const FullReplyTo &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
 	void elementStartPremium(
 		not_null<const Element*> view,
 		Element *replacing) override;
 	void elementCancelPremium(not_null<const Element*> view) override;
+	void elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing) override;
 	QString elementAuthorRank(not_null<const Element*> view) override;
+	bool elementHideTopicButton(not_null<const Element*> view) override;
 
+};
+
+class SimpleElementDelegate : public DefaultElementDelegate {
+public:
+	SimpleElementDelegate(
+		not_null<Window::SessionController*> controller,
+		Fn<void()> update);
+	~SimpleElementDelegate();
+
+	bool elementAnimationsPaused() override;
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 
 protected:
 	[[nodiscard]] not_null<Window::SessionController*> controller() const {
@@ -200,7 +229,7 @@ QString DateTooltipText(not_null<Element*> view);
 
 // Any HistoryView::Element can have this Component for
 // displaying the unread messages bar above the message.
-struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
+struct UnreadBar : RuntimeComponent<UnreadBar, Element> {
 	void init(const QString &string);
 
 	static int height();
@@ -211,7 +240,7 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 		const PaintContext &context,
 		int y,
 		int w,
-		bool chatWide) const;
+		ElementChatMode mode) const;
 
 	QString text;
 	int width = 0;
@@ -221,7 +250,7 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 
 // Any HistoryView::Element can have this Component for
 // displaying the day mark above the message.
-struct DateBadge : public RuntimeComponent<DateBadge, Element> {
+struct DateBadge : RuntimeComponent<DateBadge, Element> {
 	void init(const QString &date);
 
 	int height() const;
@@ -237,6 +266,108 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 
 };
 
+struct ForumThreadBar : RuntimeComponent<ForumThreadBar, Element> {
+	void init(
+		not_null<PeerData*> parentChat,
+		not_null<Data::Thread*> thread);
+
+	int height() const;
+	void paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		int y,
+		int w,
+		bool chatWide,
+		bool skipPatternLine) const;
+	static int PaintForGetWidth(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<Element*> itemView,
+		Ui::PeerUserpicView &userpicView,
+		int y,
+		int w,
+		bool chatWide);
+
+	base::weak_ptr<Data::Thread> thread;
+	Ui::Text::String text;
+	mutable Ui::PeerUserpicView view;
+	int width = 0;
+
+private:
+	static void Paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<Data::Thread*> thread,
+		const Ui::Text::String &text,
+		int width,
+		Ui::PeerUserpicView &view,
+		int y,
+		int w,
+		bool chatWide,
+		bool skipPatternLine);
+
+};
+
+// Any HistoryView::Element can have this Component for
+// displaying some text in layout of a service message above the message.
+struct ServicePreMessage : RuntimeComponent<ServicePreMessage, Element> {
+	void init(
+		not_null<Element*> view,
+		PreparedServiceText string,
+		ClickHandlerPtr fullClickHandler,
+		std::unique_ptr<Media> media = nullptr);
+
+	int resizeToWidth(int newWidth, ElementChatMode mode);
+
+	void paint(
+		Painter &p,
+		const PaintContext &context,
+		QRect g,
+		ElementChatMode mode) const;
+	[[nodiscard]] ClickHandlerPtr textState(
+		QPoint point,
+		const StateRequest &request,
+		QRect g) const;
+
+	std::unique_ptr<Media> media;
+	Ui::Text::String text;
+	ClickHandlerPtr handler;
+	int width = 0;
+	int height = 0;
+
+};
+
+struct FakeBotAboutTop : RuntimeComponent<FakeBotAboutTop, Element> {
+	void init();
+
+	Ui::Text::String text;
+	int maxWidth = 0;
+	int height = 0;
+};
+
+struct PurchasedTag : RuntimeComponent<PurchasedTag, Element> {
+	Ui::Text::String text;
+};
+
+struct TopicButton {
+	std::unique_ptr<Ui::RippleAnimation> ripple;
+	ClickHandlerPtr link;
+	Ui::Text::String name;
+	QPoint lastPoint;
+	int nameVersion = 0;
+};
+
+struct SelectedQuote {
+	HistoryItem *item = nullptr;
+	MessageHighlightId highlight;
+	bool overflown = false;
+
+	explicit operator bool() const {
+		return item && !highlight.quote.empty();
+	}
+	friend inline bool operator==(SelectedQuote, SelectedQuote) = default;
+};
+
 class Element
 	: public Object
 	, public RuntimeComposer<Element>
@@ -244,16 +375,19 @@ class Element
 	, public base::has_weak_ptr {
 public:
 	enum class Flag : uint16 {
-		ServiceMessage = 0x0001,
-		NeedsResize = 0x0002,
-		AttachedToPrevious = 0x0004,
-		AttachedToNext = 0x0008,
+		ServiceMessage           = 0x0001,
+		NeedsResize              = 0x0002,
+		AttachedToPrevious       = 0x0004,
+		AttachedToNext           = 0x0008,
 		BubbleAttachedToPrevious = 0x0010,
-		BubbleAttachedToNext = 0x0020,
-		HiddenByGroup = 0x0040,
-		SpecialOnlyEmoji = 0x0080,
-		CustomEmojiRepainting = 0x0100,
-		ScheduledUntilOnline = 0x0200,
+		BubbleAttachedToNext     = 0x0020,
+		HiddenByGroup            = 0x0040,
+		SpecialOnlyEmoji         = 0x0080,
+		CustomEmojiRepainting    = 0x0100,
+		ScheduledUntilOnline     = 0x0200,
+		TopicRootReply           = 0x0400,
+		MediaOverriden           = 0x0800,
+		HeavyCustomEmoji         = 0x1000,
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -264,6 +398,8 @@ public:
 		Element *replacing,
 		Flag serviceFlag);
 
+	[[nodiscard]] virtual bool embedReactionsInBubble() const;
+
 	[[nodiscard]] not_null<ElementDelegate*> delegate() const;
 	[[nodiscard]] not_null<HistoryItem*> data() const;
 	[[nodiscard]] not_null<History*> history() const;
@@ -271,6 +407,8 @@ public:
 	[[nodiscard]] Context context() const;
 	void refreshDataId();
 
+	[[nodiscard]] uint8 colorIndex() const;
+	[[nodiscard]] uint8 contentColorIndex() const;
 	[[nodiscard]] QDateTime dateTime() const;
 
 	[[nodiscard]] int y() const;
@@ -290,6 +428,8 @@ public:
 	[[nodiscard]] bool isBubbleAttachedToPrevious() const;
 	[[nodiscard]] bool isBubbleAttachedToNext() const;
 
+	[[nodiscard]] bool isTopicRootReply() const;
+
 	[[nodiscard]] int skipBlockWidth() const;
 	[[nodiscard]] int skipBlockHeight() const;
 	[[nodiscard]] virtual int infoWidth() const;
@@ -308,8 +448,11 @@ public:
 			&& _text.isOnlyCustomEmoji();
 	}
 
+	[[nodiscard]] HistoryItem *textItem() const;
 	[[nodiscard]] Ui::Text::IsolatedEmoji isolatedEmoji() const;
 	[[nodiscard]] Ui::Text::OnlyCustomEmoji onlyCustomEmoji() const;
+
+	[[nodiscard]] OnlyEmojiAndSpaces isOnlyEmojiAndSpaces() const;
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks().
 	void setAttachToPrevious(bool attachToNext, Element *previous = nullptr);
@@ -320,6 +463,10 @@ public:
 
 	// For blocks context this should be called only from recountDisplayDate().
 	void setDisplayDate(bool displayDate);
+	void setServicePreMessage(
+		PreparedServiceText text,
+		ClickHandlerPtr fullClickHandler = nullptr,
+		std::unique_ptr<Media> media = nullptr);
 
 	bool computeIsAttachToPrevious(not_null<Element*> previous);
 
@@ -329,6 +476,9 @@ public:
 	[[nodiscard]] int displayedDateHeight() const;
 	[[nodiscard]] bool displayDate() const;
 	[[nodiscard]] bool isInOneDayWithPrevious() const;
+
+	[[nodiscard]] bool displayForumThreadBar() const;
+	[[nodiscard]] bool isInOneBunchWithPrevious() const;
 
 	virtual void draw(Painter &p, const PaintContext &context) const = 0;
 	[[nodiscard]] virtual PointState pointState(QPoint point) const = 0;
@@ -348,11 +498,22 @@ public:
 		int bottom,
 		QPoint point,
 		InfoDisplayType type) const;
-	virtual TextForMimeData selectedText(
+	virtual TextForMimeData selectedText(TextSelection selection) const = 0;
+	virtual SelectedQuote selectedQuote(
 		TextSelection selection) const = 0;
+	virtual TextSelection selectionFromQuote(
+		const SelectedQuote &quote) const = 0;
 	[[nodiscard]] virtual TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const;
+
+	[[nodiscard]] static SelectedQuote FindSelectedQuote(
+		const Ui::Text::String &text,
+		TextSelection selection,
+		not_null<HistoryItem*> item);
+	[[nodiscard]] static TextSelection FindSelectionFromQuote(
+		const Ui::Text::String &text,
+		const SelectedQuote &quote);
 
 	[[nodiscard]] virtual auto reactionButtonParameters(
 		QPoint position,
@@ -372,17 +533,18 @@ public:
 	[[nodiscard]] virtual bool hasFromPhoto() const;
 	[[nodiscard]] virtual bool displayFromPhoto() const;
 	[[nodiscard]] virtual bool hasFromName() const;
+	[[nodiscard]] bool displayReply() const;
 	[[nodiscard]] virtual bool displayFromName() const;
+	[[nodiscard]] virtual TopicButton *displayedTopicButton() const;
 	[[nodiscard]] virtual bool displayForwardedFrom() const;
 	[[nodiscard]] virtual bool hasOutLayout() const;
+	[[nodiscard]] bool hasRightLayout() const;
 	[[nodiscard]] virtual bool drawBubble() const;
 	[[nodiscard]] virtual bool hasBubble() const;
 	[[nodiscard]] virtual bool unwrapped() const;
 	[[nodiscard]] virtual int minWidthForMedia() const {
 		return 0;
 	}
-	[[nodiscard]] virtual bool hasFastReply() const;
-	[[nodiscard]] virtual bool displayFastReply() const;
 	[[nodiscard]] virtual std::optional<QSize> rightActionSize() const;
 	virtual void drawRightAction(
 		Painter &p,
@@ -390,15 +552,20 @@ public:
 		int left,
 		int top,
 		int outerWidth) const;
-	[[nodiscard]] virtual ClickHandlerPtr rightActionLink() const;
+	[[nodiscard]] virtual ClickHandlerPtr rightActionLink(
+		std::optional<QPoint> pressPoint) const;
 	[[nodiscard]] virtual TimeId displayedEditDate() const;
 	[[nodiscard]] virtual bool hasVisibleText() const;
-	[[nodiscard]] virtual HistoryMessageReply *displayedReply() const;
+	[[nodiscard]] int textualMaxWidth() const;
 	virtual void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) {
 	}
 	[[nodiscard]] virtual bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &handler) const;
+	[[nodiscard]] virtual bool allowTextSelectionByHandler(
+		const ClickHandlerPtr &handler) const;
+
+	[[nodiscard]] bool usesBubblePattern(const PaintContext &context) const;
 
 	struct VerticalRepaintRange {
 		int top = 0;
@@ -410,6 +577,7 @@ public:
 
 	virtual void itemDataChanged();
 	void itemTextUpdated();
+	void blockquoteExpandChanged();
 
 	[[nodiscard]] virtual bool hasHeavyPart() const;
 	virtual void unloadHeavyPart();
@@ -437,6 +605,7 @@ public:
 	void previousInBlocksChanged();
 	void nextInBlocksRemoved();
 
+	[[nodiscard]] virtual QRect effectIconGeometry() const;
 	[[nodiscard]] virtual QRect innerGeometry() const = 0;
 
 	void customEmojiRepaint();
@@ -450,6 +619,7 @@ public:
 		const Reactions::InlineList &reactions) const;
 	void clearCustomEmojiRepaint() const;
 	void hideSpoilers();
+	void repaint() const;
 
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
 		return fromLink();
@@ -457,12 +627,29 @@ public:
 
 	[[nodiscard]] bool markSponsoredViewed(int shownFromTop) const;
 
-	virtual void animateReaction(Ui::ReactionFlyAnimationArgs &&args);
+	virtual void animateReaction(Ui::ReactionFlyAnimationArgs &&args) = 0;
 	void animateUnreadReactions();
-	[[nodiscard]] virtual auto takeReactionAnimations()
+	[[nodiscard]] auto takeReactionAnimations()
 	-> base::flat_map<
 		Data::ReactionId,
 		std::unique_ptr<Ui::ReactionFlyAnimation>>;
+
+	virtual void animateEffect(Ui::ReactionFlyAnimationArgs &&args);
+	void animateUnreadEffect();
+	[[nodiscard]] virtual auto takeEffectAnimation()
+	-> std::unique_ptr<Ui::ReactionFlyAnimation>;
+
+	void overrideMedia(std::unique_ptr<Media> media);
+
+	[[nodiscard]] not_null<PurchasedTag*> enforcePurchasedTag();
+
+	[[nodiscard]] static int AdditionalSpaceForSelectionCheckbox(
+		not_null<const Element*> view,
+		QRect countedGeometry = QRect());
+
+	virtual bool consumeHorizontalScroll(QPoint position, int delta) {
+		return false;
+	}
 
 	virtual ~Element();
 
@@ -479,8 +666,6 @@ public:
 	static void ClearGlobal();
 
 protected:
-	void repaint() const;
-
 	void paintHighlight(
 		Painter &p,
 		const PaintContext &context,
@@ -498,17 +683,28 @@ protected:
 	void clearSpecialOnlyEmoji();
 	void checkSpecialOnlyEmoji();
 
+	void setupReactions(Element *replacing);
+	void refreshReactions();
+	bool updateReactions();
+
+	std::unique_ptr<Reactions::InlineList> _reactions;
+
 private:
+	void recountThreadBarInBlocks();
+
 	// This should be called only from previousInBlocksChanged()
 	// to add required bits to the Composer mask
 	// after that always use Has<DateBadge>().
 	void recountDisplayDateInBlocks();
 
 	// This should be called only from previousInBlocksChanged() or when
-	// DateBadge or UnreadBar bit is changed in the Composer mask
-	// then the result should be cached in a client side flag
+	// DateBadge or UnreadBar or MonoforumSenderBar bit
+	// is changed in the Composer mask then the result
+	// should be cached in a client side flag
 	// HistoryView::Element::Flag::AttachedToPrevious.
 	void recountAttachToPreviousInBlocks();
+
+	[[nodiscard]] bool countIsTopicRootReply() const;
 
 	QSize countOptimalSize() final override;
 	QSize countCurrentSize(int newWidth) final override;
@@ -517,6 +713,10 @@ private:
 	virtual QSize performCountCurrentSize(int newWidth) = 0;
 
 	void refreshMedia(Element *replacing);
+	void setTextWithLinks(
+		const TextWithEntities &text,
+		const std::vector<ClickHandlerPtr> &links = {});
+	void setReactions(std::unique_ptr<Reactions::InlineList> list);
 
 	struct TextWithLinks {
 		TextWithEntities text;
@@ -531,6 +731,7 @@ private:
 	mutable ClickHandlerPtr _fromLink;
 	const QDateTime _dateTime;
 
+	HistoryItem *_textItem = nullptr;
 	mutable Ui::Text::String _text;
 	mutable int _textWidth = -1;
 	mutable int _textHeight = 0;
@@ -539,9 +740,29 @@ private:
 	int _indexInBlock = -1;
 
 	mutable Flags _flags = Flag(0);
-	mutable bool _heavyCustomEmoji = false;
 	Context _context = Context();
 
 };
+
+[[nodiscard]] int FindViewY(
+	not_null<Element*> view,
+	uint16 symbol,
+	int yfrom = 0);
+
+[[nodiscard]] int FindViewTaskY(
+	not_null<Element*> view,
+	int taskId,
+	int yfrom = 0);
+
+[[nodiscard]] Window::SessionController *ExtractController(
+	const ClickContext &context);
+
+[[nodiscard]] TextSelection FindSearchQueryHighlight(
+	const QString &text,
+	const QString &query);
+
+[[nodiscard]] TextSelection FindSearchQueryHighlight(
+	const QString &text,
+	QStringView lower);
 
 } // namespace HistoryView

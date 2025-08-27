@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "chat_helpers/compose/compose_features.h"
 #include "ui/rp_widget.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/message_sending_animation_common.h"
 #include "ui/effects/panel_animation.h"
@@ -31,15 +33,11 @@ class ScrollArea;
 class SettingsSlider;
 class FlatLabel;
 class BoxContent;
+class TabbedSearch;
 } // namespace Ui
 
-namespace Window {
-class SessionController;
-enum class GifPauseReason;
-} // namespace Window
-
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace style {
@@ -48,9 +46,11 @@ struct EmojiPan;
 
 namespace ChatHelpers {
 
+class Show;
 class EmojiListWidget;
 class StickersListWidget;
 class GifsListWidget;
+enum class PauseReason;
 
 enum class SelectorTab {
 	Emoji,
@@ -63,6 +63,8 @@ struct FileChosen {
 	not_null<DocumentData*> document;
 	Api::SendOptions options;
 	Ui::MessageSendingAnimationFrom messageSendingFrom;
+	std::shared_ptr<Data::EmojiStatusCollectible> collectible;
+	TextWithTags caption;
 };
 
 struct PhotoChosen {
@@ -77,15 +79,47 @@ struct EmojiChosen {
 
 using InlineChosen = InlineBots::ResultSelected;
 
+enum class TabbedSelectorMode {
+	Full,
+	EmojiOnly,
+	StickersOnly,
+	MediaEditor,
+	EmojiStatus,
+	ChannelStatus,
+	BackgroundEmoji,
+	FullReactions,
+	RecentReactions,
+	PeerTitle,
+	ChatIntro,
+};
+
+struct TabbedSelectorDescriptor {
+	std::shared_ptr<Show> show;
+	const style::EmojiPan &st;
+	PauseReason level = {};
+	TabbedSelectorMode mode = TabbedSelectorMode::Full;
+	Fn<QColor()> customTextColor;
+	ComposeFeatures features;
+};
+
+enum class TabbedSearchType {
+	Emoji,
+	Status,
+	ProfilePhoto,
+	Stickers,
+	Greeting,
+};
+[[nodiscard]] std::unique_ptr<Ui::TabbedSearch> MakeSearch(
+	not_null<Ui::RpWidget*> parent,
+	const style::EmojiPan &st,
+	Fn<void(std::vector<QString>&&)> callback,
+	not_null<Main::Session*> session,
+	TabbedSearchType type);
+
 class TabbedSelector : public Ui::RpWidget {
 public:
 	static constexpr auto kPickCustomTimeId = -1;
-	enum class Mode {
-		Full,
-		EmojiOnly,
-		MediaEditor,
-		EmojiStatus,
-	};
+	using Mode = TabbedSelectorMode;
 	enum class Action {
 		Update,
 		Cancel,
@@ -93,31 +127,36 @@ public:
 
 	TabbedSelector(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		Window::GifPauseReason level,
+		std::shared_ptr<Show> show,
+		PauseReason level,
 		Mode mode = Mode::Full);
+	TabbedSelector(
+		QWidget *parent,
+		TabbedSelectorDescriptor &&descriptor);
 	~TabbedSelector();
 
-	Main::Session &session() const;
-	Window::GifPauseReason level() const;
+	[[nodiscard]] const style::EmojiPan &st() const;
+	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] PauseReason level() const;
 
-	rpl::producer<EmojiChosen> emojiChosen() const;
-	rpl::producer<FileChosen> customEmojiChosen() const;
-	rpl::producer<FileChosen> fileChosen() const;
-	rpl::producer<PhotoChosen> photoChosen() const;
-	rpl::producer<InlineChosen> inlineResultChosen() const;
+	[[nodiscard]] rpl::producer<EmojiChosen> emojiChosen() const;
+	[[nodiscard]] rpl::producer<FileChosen> customEmojiChosen() const;
+	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
+	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
+	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
 
-	rpl::producer<> cancelled() const;
-	rpl::producer<> checkForHide() const;
-	rpl::producer<> slideFinished() const;
-	rpl::producer<> contextMenuRequested() const;
-	rpl::producer<Action> choosingStickerUpdated() const;
+	[[nodiscard]] rpl::producer<> cancelled() const;
+	[[nodiscard]] rpl::producer<> checkForHide() const;
+	[[nodiscard]] rpl::producer<> slideFinished() const;
+	[[nodiscard]] rpl::producer<> contextMenuRequested() const;
+	[[nodiscard]] rpl::producer<Action> choosingStickerUpdated() const;
 
 	void setAllowEmojiWithoutPremium(bool allow);
 	void setRoundRadius(int radius);
 	void refreshStickers();
 	void setCurrentPeer(PeerData *peer);
-	void provideRecentEmoji(const std::vector<DocumentId> &customRecentList);
+	void provideRecentEmoji(
+		const std::vector<EmojiStatusId> &customRecentList);
 
 	void hideFinished();
 	void showStarted();
@@ -142,7 +181,7 @@ public:
 		_beforeHidingCallback = std::move(callback);
 	}
 
-	void showMenuWithType(SendMenu::Type type);
+	void showMenuWithDetails(SendMenu::Details details);
 	void setDropDown(bool dropDown);
 
 	// Float player interface.
@@ -168,16 +207,19 @@ private:
 		object_ptr<Inner> takeWidget();
 		void returnWidget(object_ptr<Inner> widget);
 
-		SelectorTab type() const {
+		[[nodiscard]] SelectorTab type() const {
 			return _type;
 		}
-		int index() const {
+		[[nodiscard]] int index() const {
 			return _index;
 		}
-		Inner *widget() const {
+		[[nodiscard]] Inner *widget() const {
 			return _weak;
 		}
-		not_null<InnerFooter*> footer() const {
+		[[nodiscard]] bool hasFooter() const {
+			return _footer != nullptr;
+		}
+		[[nodiscard]] not_null<InnerFooter*> footer() const {
 			return _footer;
 		}
 
@@ -185,7 +227,7 @@ private:
 		void saveScrollTop(int scrollTop) {
 			_scrollTop = scrollTop;
 		}
-		int getScrollTop() const {
+		[[nodiscard]] int getScrollTop() const {
 			return _scrollTop;
 		}
 
@@ -246,13 +288,20 @@ private:
 	not_null<GifsListWidget*> gifs() const;
 	not_null<StickersListWidget*> masks() const;
 
+	void reinstallSwipe(not_null<Ui::RpWidget*> widget);
+
 	const style::EmojiPan &_st;
-	const not_null<Window::SessionController*> _controller;
-	const Window::GifPauseReason _level = {};
+	const ComposeFeatures _features;
+	const std::shared_ptr<Show> _show;
+	const PauseReason _level = {};
+	const Fn<QColor()> _customTextColor;
+
+	Ui::Controls::SwipeBackResult _swipeBackData;
 
 	Mode _mode = Mode::Full;
 	int _roundRadius = 0;
 	int _footerTop = 0;
+	bool _noFooter = false;
 	Ui::CornersPixmaps _panelRounding;
 	Ui::CornersPixmaps _categoriesRounding;
 	PeerData *_currentPeer = nullptr;
@@ -266,6 +315,7 @@ private:
 	object_ptr<Ui::PlainShadow> _bottomShadow;
 	object_ptr<Ui::ScrollArea> _scroll;
 	object_ptr<Ui::FlatLabel> _restrictedLabel = { nullptr };
+	QString _restrictedLabelKey;
 	std::vector<Tab> _tabs;
 	SelectorTab _currentTabType = SelectorTab::Emoji;
 
@@ -284,18 +334,20 @@ private:
 	rpl::event_stream<> _showRequests;
 	rpl::event_stream<> _slideFinished;
 
+	rpl::lifetime _swipeLifetime;
+
 };
 
 class TabbedSelector::Inner : public Ui::RpWidget {
 public:
 	Inner(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		Window::GifPauseReason level);
+		std::shared_ptr<Show> show,
+		PauseReason level);
 	Inner(
 		QWidget *parent,
 		const style::EmojiPan &st,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Show> show,
 		Fn<bool()> paused);
 
 	[[nodiscard]] Main::Session &session() const {
@@ -338,7 +390,7 @@ public:
 	virtual void beforeHiding() {
 	}
 	[[nodiscard]] virtual base::unique_qptr<Ui::PopupMenu> fillContextMenu(
-			SendMenu::Type type) {
+			const SendMenu::Details &details) {
 		return nullptr;
 	}
 
@@ -365,16 +417,22 @@ protected:
 	void scrollTo(int y);
 	void disableScroll(bool disabled);
 
-	void checkHideWithBox(QPointer<Ui::BoxContent> box);
+	void checkHideWithBox(object_ptr<Ui::BoxContent> box);
+
+	void paintEmptySearchResults(
+		Painter &p,
+		const style::icon &icon,
+		const QString &text) const;
 
 private:
 	const style::EmojiPan &_st;
+	const std::shared_ptr<Show> _show;
 	const not_null<Main::Session*> _session;
 	const Fn<bool()> _paused;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	int _minimalHeight = 0;
+	std::optional<int> _minimalHeight;
 
 	rpl::event_stream<int> _scrollToRequests;
 	rpl::event_stream<bool> _disableScrollRequests;

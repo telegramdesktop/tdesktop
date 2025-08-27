@@ -17,6 +17,7 @@ struct ChannelLocation;
 namespace Data {
 class ForumTopic;
 class Thread;
+class Birthday;
 } // namespace Data
 
 namespace Main {
@@ -56,18 +57,28 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneOrHiddenValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<TextWithEntities> UsernameValue(
-	not_null<UserData*> user,
+	not_null<PeerData*> peer,
 	bool primary = false);
 [[nodiscard]] rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
 	not_null<PeerData*> peer);
+[[nodiscard]] QString UsernameUrl(
+	not_null<PeerData*> peer,
+	const QString &username,
+	bool link = false);
 [[nodiscard]] TextWithEntities AboutWithEntities(
 	not_null<PeerData*> peer,
 	const QString &value);
 [[nodiscard]] rpl::producer<TextWithEntities> AboutValue(
 	not_null<PeerData*> peer);
-[[nodiscard]] rpl::producer<QString> LinkValue(
+
+struct LinkWithUrl {
+	QString text;
+	QString url;
+};
+[[nodiscard]] rpl::producer<LinkWithUrl> LinkValue(
 	not_null<PeerData*> peer,
 	bool primary = false);
+
 [[nodiscard]] rpl::producer<const ChannelLocation*> LocationValue(
 	not_null<ChannelData*> channel);
 [[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
@@ -82,6 +93,10 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<bool> CanShareContactValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<bool> CanAddContactValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<Data::Birthday> BirthdayValue(
+	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<ChannelData*> PersonalChannelValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<bool> AmInChannelValue(
 	not_null<ChannelData*> channel);
@@ -98,18 +113,32 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<int> SharedMediaCountValue(
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
+	PeerId monoforumPeerId,
 	PeerData *migrated,
 	Storage::SharedMediaType type);
 [[nodiscard]] rpl::producer<int> CommonGroupsCountValue(
 	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<int> SimilarPeersCountValue(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<int> SavedSublistCountValue(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<int> PeerGiftsCountValue(
+	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> CanAddMemberValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> FullReactionsCountValue(
 	not_null<Main::Session*> peer);
+[[nodiscard]] rpl::producer<bool> CanViewParticipantsValue(
+	not_null<ChannelData*> megagroup);
 
-enum class BadgeType;
+enum class BadgeType : uchar;
 [[nodiscard]] rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer);
-[[nodiscard]] rpl::producer<DocumentId> EmojiStatusIdValue(
+[[nodiscard]] rpl::producer<EmojiStatusId> EmojiStatusIdValue(
 	not_null<PeerData*> peer);
+
+[[nodiscard]] rpl::producer<QString> BirthdayLabelText(
+	rpl::producer<Data::Birthday> birthday);
+[[nodiscard]] rpl::producer<QString> BirthdayValueText(
+	rpl::producer<Data::Birthday> birthday);
 
 } // namespace Info::Profile

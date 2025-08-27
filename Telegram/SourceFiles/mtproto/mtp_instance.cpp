@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
 #include "main/main_account.h" // Account::configUpdated.
-#include "apiwrap.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "lang/lang_instance.h"
@@ -98,6 +97,10 @@ public:
 
 	void restartedByTimeout(ShiftedDcId shiftedDcId);
 	[[nodiscard]] rpl::producer<ShiftedDcId> restartsByTimeout() const;
+
+	[[nodiscard]] auto nonPremiumDelayedRequests() const
+	-> rpl::producer<mtpRequestId>;
+	[[nodiscard]] rpl::producer<> frozenErrorReceived() const;
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -282,6 +285,9 @@ private:
 	Fn<void(const Error&, const Response&)> _globalFailHandler;
 	Fn<void(ShiftedDcId shiftedDcId, int32 state)> _stateChangedHandler;
 	Fn<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
+
+	rpl::event_stream<mtpRequestId> _nonPremiumDelayedRequests;
+	rpl::event_stream<> _frozenErrorReceived;
 
 	base::Timer _checkDelayedTimer;
 
@@ -542,7 +548,7 @@ void Instance::Private::syncHttpUnixtime() {
 		InvokeQueued(_instance, [=] {
 			_httpUnixtimeLoader = nullptr;
 		});
-	}, configValues().txtDomainString);
+	}, isTestMode(), configValues().txtDomainString);
 }
 
 void Instance::Private::restartedByTimeout(ShiftedDcId shiftedDcId) {
@@ -551,6 +557,15 @@ void Instance::Private::restartedByTimeout(ShiftedDcId shiftedDcId) {
 
 rpl::producer<ShiftedDcId> Instance::Private::restartsByTimeout() const {
 	return _restartsByTimeout.events();
+}
+
+auto Instance::Private::nonPremiumDelayedRequests() const
+-> rpl::producer<mtpRequestId> {
+	return _nonPremiumDelayedRequests.events();
+}
+
+rpl::producer<> Instance::Private::frozenErrorReceived() const {
+	return _frozenErrorReceived.events();
 }
 
 void Instance::Private::requestConfigIfOld() {
@@ -1011,11 +1026,24 @@ void Instance::Private::sendRequest(
 	const auto signedDcId = toMainDc ? -realShiftedDcId : realShiftedDcId;
 	registerRequest(requestId, signedDcId);
 
-	if (afterRequestId) {
-		request->after = getRequest(afterRequestId);
-	}
 	request->lastSentTime = crl::now();
 	request->needsLayer = needsLayer;
+
+	if (afterRequestId) {
+		request->after = getRequest(afterRequestId);
+
+		if (request->after) {
+			// Check if this after request is waiting in _dependentRequests.
+			// This happens if it was after some other request and failed
+			// to wait for it, but that other request is still processed.
+			QMutexLocker locker(&_dependentRequestsLock);
+			const auto i = _dependentRequests.find(afterRequestId);
+			if (i != end(_dependentRequests)) {
+				_dependentRequests.emplace(requestId, afterRequestId);
+				return;
+			}
+		}
+	}
 
 	session->sendPrepared(request, msCanWait);
 }
@@ -1134,9 +1162,10 @@ void Instance::Private::processCallback(const Response &response) {
 					QString::number(error.code()),
 					error.type(),
 					error.description()));
-			if (rpcErrorOccured(response, handler, error)) {
+			const auto guard = QPointer<Instance>(_instance);
+			if (rpcErrorOccured(response, handler, error) && guard) {
 				unregisterRequest(requestId);
-			} else {
+			} else if (guard) {
 				QMutexLocker locker(&_parserMapLock);
 				_parserMap.emplace(requestId, std::move(handler));
 			}
@@ -1156,12 +1185,15 @@ void Instance::Private::processCallback(const Response &response) {
 						"RESPONSE_PARSE_FAILED",
 						"Error parse failed.")));
 		} else {
-			if (handler.done && !handler.done(response)) {
+			const auto guard = QPointer<Instance>(_instance);
+			if (handler.done && !handler.done(response) && guard) {
 				handleError(Error::Local(
 					"RESPONSE_PARSE_FAILED",
 					"Response parse failed."));
 			}
-			unregisterRequest(requestId);
+			if (guard) {
+				unregisterRequest(requestId);
+			}
 		}
 	} else {
 		DEBUG_LOG(("RPC Info: parser not found for %1").arg(requestId));
@@ -1192,8 +1224,11 @@ bool Instance::Private::rpcErrorOccured(
 		const FailHandler &onFail,
 		const Error &error) { // return true if need to clean request data
 	if (IsDefaultHandledError(error)) {
+		const auto guard = QPointer<Instance>(_instance);
 		if (onFail && onFail(error, response)) {
 			return true;
+		} else if (!guard) {
+			return false;
 		}
 	}
 
@@ -1208,7 +1243,11 @@ bool Instance::Private::rpcErrorOccured(
 			? QString()
 			: QString(": %1").arg(error.description())));
 	if (onFail) {
+		const auto guard = QPointer<Instance>(_instance);
 		onFail(error, response);
+		if (!guard) {
+			return false;
+		}
 	}
 	return true;
 }
@@ -1342,9 +1381,13 @@ bool Instance::Private::onErrorDefault(
 	const auto requestId = response.requestId;
 	const auto &type = error.type();
 	const auto code = error.code();
-	auto badGuestDc = (code == 400) && (type == qsl("FILE_ID_INVALID"));
-	QRegularExpressionMatch m1, m2;
-	if ((m1 = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(type)).hasMatch()) {
+	auto badGuestDc = (code == 400) && (type == u"FILE_ID_INVALID"_q);
+	static const auto MigrateRegExp = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$");
+	static const auto FloodWaitRegExp = QRegularExpression("^FLOOD_WAIT_(\\d+)$");
+	static const auto FloodPremiumWaitRegExp = QRegularExpression("^FLOOD_PREMIUM_WAIT_(\\d+)$");
+	static const auto SlowmodeWaitRegExp = QRegularExpression("^SLOWMODE_WAIT_(\\d+)$");
+	QRegularExpressionMatch m1, m2, m3;
+	if ((m1 = MigrateRegExp.match(type)).hasMatch()) {
 		if (!requestId) return false;
 
 		auto dcWithShift = ShiftedDcId(0);
@@ -1406,7 +1449,7 @@ bool Instance::Private::onErrorDefault(
 			(dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
 		session->sendPrepared(request);
 		return true;
-	} else if (type == qstr("MSG_WAIT_TIMEOUT") || type == qstr("MSG_WAIT_FAILED")) {
+	} else if (type == u"MSG_WAIT_TIMEOUT"_q || type == u"MSG_WAIT_FAILED"_q) {
 		SerializedRequest request;
 		{
 			QReadLocker locker(&_requestMapLock);
@@ -1447,14 +1490,18 @@ bool Instance::Private::onErrorDefault(
 		return true;
 	} else if (code < 0
 		|| code >= 500
-		|| (m1 = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(type)).hasMatch()
-		|| ((m2 = QRegularExpression("^SLOWMODE_WAIT_(\\d+)$").match(type)).hasMatch()
-			&& m2.captured(1).toInt() < 3)) {
-		if (!requestId) return false;
+		|| (m1 = FloodWaitRegExp.match(type)).hasMatch()
+		|| (m2 = FloodPremiumWaitRegExp.match(type)).hasMatch()
+		|| ((m3 = SlowmodeWaitRegExp.match(type)).hasMatch()
+			&& m3.captured(1).toInt() < 3)) {
+		if (!requestId) {
+			return false;
+		}
 
-		int32 secs = 1;
+		auto secs = 1;
+		auto nonPremiumDelay = false;
 		if (code < 0 || code >= 500) {
-			auto it = _requestsDelays.find(requestId);
+			const auto it = _requestsDelays.find(requestId);
 			if (it != _requestsDelays.cend()) {
 				secs = (it->second > 60) ? it->second : (it->second *= 2);
 			} else {
@@ -1465,19 +1512,29 @@ bool Instance::Private::onErrorDefault(
 //			if (secs >= 60) return false;
 		} else if (m2.hasMatch()) {
 			secs = m2.captured(1).toInt();
+			nonPremiumDelay = true;
+		} else if (m3.hasMatch()) {
+			secs = m3.captured(1).toInt();
 		}
 		auto sendAt = crl::now() + secs * 1000 + 10;
 		auto it = _delayedRequests.begin(), e = _delayedRequests.end();
 		for (; it != e; ++it) {
-			if (it->first == requestId) return true;
-			if (it->second > sendAt) break;
+			if (it->first == requestId) {
+				return true;
+			} else if (it->second > sendAt) {
+				break;
+			}
 		}
 		_delayedRequests.insert(it, std::make_pair(requestId, sendAt));
 
 		checkDelayedRequests();
 
+		if (nonPremiumDelay) {
+			_nonPremiumDelayedRequests.fire_copy(requestId);
+		}
+
 		return true;
-	} else if ((code == 401 && type != qstr("AUTH_KEY_PERM_EMPTY"))
+	} else if ((code == 401 && type != u"AUTH_KEY_PERM_EMPTY"_q)
 		|| (badGuestDc && _badGuestDcRequests.find(requestId) == _badGuestDcRequests.cend())) {
 		auto dcWithShift = ShiftedDcId(0);
 		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
@@ -1515,8 +1572,8 @@ bool Instance::Private::onErrorDefault(
 		waiters.push_back(requestId);
 		if (badGuestDc) _badGuestDcRequests.insert(requestId);
 		return true;
-	} else if (type == qstr("CONNECTION_NOT_INITED")
-		|| type == qstr("CONNECTION_LAYER_INVALID")) {
+	} else if (type == u"CONNECTION_NOT_INITED"_q
+		|| type == u"CONNECTION_LAYER_INVALID"_q) {
 		SerializedRequest request;
 		{
 			QReadLocker locker(&_requestMapLock);
@@ -1537,10 +1594,13 @@ bool Instance::Private::onErrorDefault(
 
 		const auto session = getSession(qAbs(dcWithShift));
 		request->needsLayer = true;
+		session->setConnectionNotInited();
 		session->sendPrepared(request);
 		return true;
-	} else if (type == qstr("CONNECTION_LANG_CODE_INVALID")) {
+	} else if (type == u"CONNECTION_LANG_CODE_INVALID"_q) {
 		Lang::CurrentCloudManager().resetToDefault();
+	} else if (type == u"FROZEN_METHOD_INVALID"_q) {
+		_frozenErrorReceived.fire({});
 	}
 	if (badGuestDc) _badGuestDcRequests.erase(requestId);
 	return false;
@@ -1862,6 +1922,14 @@ void Instance::restartedByTimeout(ShiftedDcId shiftedDcId) {
 
 rpl::producer<ShiftedDcId> Instance::restartsByTimeout() const {
 	return _private->restartsByTimeout();
+}
+
+rpl::producer<mtpRequestId> Instance::nonPremiumDelayedRequests() const {
+	return _private->nonPremiumDelayedRequests();
+}
+
+rpl::producer<> Instance::frozenErrorReceived() const {
+	return _private->frozenErrorReceived();
 }
 
 void Instance::requestConfigIfOld() {

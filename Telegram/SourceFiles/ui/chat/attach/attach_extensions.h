@@ -10,6 +10,5 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 [[nodiscard]] const QStringList &ImageExtensions();
-[[nodiscard]] const QStringList &ExtensionsForCompression();
 
 } // namespace Ui

@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_lock_widgets.h"
 
+#include "base/platform/base_platform_info.h"
+#include "base/call_delayed.h"
+#include "base/system_unlock.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_domain.h"
 #include "mainwindow.h"
@@ -15,19 +18,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/toast/toast.h"
+#include "ui/ui_utility.h"
 #include "window/window_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "main/main_domain.h"
-#include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
 namespace Window {
+namespace {
+
+constexpr auto kSystemUnlockDelay = crl::time(1000);
+
+} // namespace
 
 LockWidget::LockWidget(QWidget *parent, not_null<Controller*> window)
 : RpWidget(parent)
@@ -35,73 +43,50 @@ LockWidget::LockWidget(QWidget *parent, not_null<Controller*> window)
 	show();
 }
 
+LockWidget::~LockWidget() = default;
+
 not_null<Controller*> LockWidget::window() const {
 	return _window;
 }
 
 void LockWidget::setInnerFocus() {
-	if (const auto controller = _window->sessionController()) {
-		controller->dialogsListFocused().set(false, true);
-	}
 	setFocus();
 }
 
-void LockWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
-	_showBack = back;
-	(_showBack ? _cacheOver : _cacheUnder) = bgAnimCache;
-
-	_a_show.stop();
+void LockWidget::showAnimated(QPixmap oldContentCache) {
+	_showAnimation = nullptr;
 
 	showChildren();
 	setInnerFocus();
-	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
+	auto newContentCache = Ui::GrabWidget(this);
 	hideChildren();
 
-	_a_show.start(
-		[this] { animationCallback(); },
-		0.,
-		1.,
-		st::slideDuration,
-		Window::SlideAnimation::transition());
-	show();
-}
+	_showAnimation = std::make_unique<Window::SlideAnimation>();
+	_showAnimation->setRepaintCallback([=] { update(); });
+	_showAnimation->setFinishedCallback([=] { showFinished(); });
+	_showAnimation->setPixmaps(oldContentCache, newContentCache);
+	_showAnimation->start();
 
-void LockWidget::animationCallback() {
-	update();
-	if (!_a_show.animating()) {
-		showFinished();
-	}
+	show();
 }
 
 void LockWidget::showFinished() {
 	showChildren();
 	_window->widget()->setInnerFocus();
+	_showAnimation = nullptr;
 	if (const auto controller = _window->sessionController()) {
-		Ui::showChatsList(&controller->session());
+		controller->clearSectionStack();
 	}
-	_cacheUnder = _cacheOver = QPixmap();
 }
 
 void LockWidget::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	auto progress = _a_show.value(1.);
-	if (_a_show.animating()) {
-		auto coordUnder = _showBack ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
-		auto coordOver = _showBack ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
-		auto shadow = _showBack ? (1. - progress) : progress;
-		if (coordOver > 0) {
-			p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * cRetinaFactor(), 0, coordOver * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(shadow);
-			p.fillRect(0, 0, coordOver, height(), st::slideFadeOutBg);
-			p.setOpacity(1);
-		}
-		p.drawPixmap(coordOver, 0, _cacheOver);
-		p.setOpacity(shadow);
-		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
-	} else {
-		paintContent(p);
+	if (_showAnimation) {
+		_showAnimation->paintContents(p);
+		return;
 	}
+	paintContent(p);
 }
 
 void LockWidget::paintContent(QPainter &p) {
@@ -118,10 +103,145 @@ PasscodeLockWidget::PasscodeLockWidget(
 	connect(_passcode, &Ui::MaskedInputField::changed, [=] { changed(); });
 	connect(_passcode, &Ui::MaskedInputField::submitted, [=] { submit(); });
 
+	_submit->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_submit->setClickedCallback([=] { submit(); });
 	_logout->setClickedCallback([=] {
 		window->showLogoutConfirmation();
 	});
+
+	using namespace rpl::mappers;
+	if (Core::App().settings().systemUnlockEnabled()) {
+		_systemUnlockAvailable = base::SystemUnlockStatus(
+			true
+		) | rpl::map([](base::SystemUnlockAvailability status) {
+			return status.withBiometrics
+				? SystemUnlockType::Biometrics
+				: status.withCompanion
+				? SystemUnlockType::Companion
+				: status.available
+				? SystemUnlockType::Default
+				: SystemUnlockType::None;
+		});
+		if (Core::App().domain().started()) {
+			_systemUnlockAllowed = _systemUnlockAvailable.value();
+			setupSystemUnlock();
+		} else {
+			setupSystemUnlockInfo();
+		}
+	}
+}
+
+void PasscodeLockWidget::setupSystemUnlockInfo() {
+	const auto macos = [&] {
+		return _systemUnlockAvailable.value(
+		) | rpl::map([](SystemUnlockType type) {
+			return (type == SystemUnlockType::Biometrics)
+				? tr::lng_passcode_touchid()
+				: (type == SystemUnlockType::Companion)
+				? tr::lng_passcode_applewatch()
+				: tr::lng_passcode_systempwd();
+		}) | rpl::flatten_latest();
+	};
+	auto text = Platform::IsWindows()
+		? tr::lng_passcode_winhello()
+		: macos();
+	const auto info = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		std::move(text),
+		st::passcodeSystemUnlockLater);
+	_logout->geometryValue(
+	) | rpl::start_with_next([=](QRect logout) {
+		info->resizeToWidth(width()
+			- st::boxRowPadding.left()
+			- st::boxRowPadding.right());
+		info->moveToLeft(
+			st::boxRowPadding.left(),
+			logout.y() + logout.height() + st::passcodeSystemUnlockSkip);
+	}, info->lifetime());
+	info->showOn(_systemUnlockAvailable.value(
+	) | rpl::map(rpl::mappers::_1 != SystemUnlockType::None));
+}
+
+void PasscodeLockWidget::setupSystemUnlock() {
+	windowActiveValue() | rpl::skip(1) | rpl::filter([=](bool active) {
+		return active
+			&& !_systemUnlockSuggested
+			&& !_systemUnlockCooldown.isActive();
+	}) | rpl::start_with_next([=](bool) {
+		[[maybe_unused]] auto refresh = base::SystemUnlockStatus();
+		suggestSystemUnlock();
+	}, lifetime());
+
+	const auto button = Ui::CreateChild<Ui::IconButton>(
+		_passcode.data(),
+		st::passcodeSystemUnlock);
+	if (!Platform::IsWindows()) {
+		using namespace base;
+		_systemUnlockAllowed.value(
+		) | rpl::start_with_next([=](SystemUnlockType type) {
+			const auto icon = (type == SystemUnlockType::Biometrics)
+				? &st::passcodeSystemTouchID
+				: (type == SystemUnlockType::Companion)
+				? &st::passcodeSystemAppleWatch
+				: &st::passcodeSystemSystemPwd;
+			button->setIconOverride(icon, icon);
+		}, button->lifetime());
+	}
+	button->showOn(_systemUnlockAllowed.value(
+	) | rpl::map(rpl::mappers::_1 != SystemUnlockType::None));
+	_passcode->sizeValue() | rpl::start_with_next([=](QSize size) {
+		button->moveToRight(0, size.height() - button->height());
+	}, button->lifetime());
+	button->setClickedCallback([=] {
+		const auto delay = st::passcodeSystemUnlock.ripple.hideDuration;
+		base::call_delayed(delay, this, [=] {
+			suggestSystemUnlock();
+		});
+	});
+}
+
+void PasscodeLockWidget::suggestSystemUnlock() {
+	InvokeQueued(this, [=] {
+		if (_systemUnlockSuggested) {
+			return;
+		}
+		_systemUnlockCooldown.cancel();
+
+		using namespace base;
+		_systemUnlockAllowed.value(
+		) | rpl::filter(
+			rpl::mappers::_1 != SystemUnlockType::None
+		) | rpl::take(1) | rpl::start_with_next([=] {
+			const auto weak = base::make_weak(this);
+			const auto done = [weak](SystemUnlockResult result) {
+				crl::on_main([=] {
+					if (const auto strong = weak.get()) {
+						strong->systemUnlockDone(result);
+					}
+				});
+			};
+			SuggestSystemUnlock(
+				this,
+				(::Platform::IsWindows()
+					? tr::lng_passcode_winhello_unlock(tr::now)
+					: tr::lng_passcode_touchid_unlock(tr::now)),
+				done);
+		}, _systemUnlockSuggested);
+	});
+}
+
+void PasscodeLockWidget::systemUnlockDone(base::SystemUnlockResult result) {
+	if (result == base::SystemUnlockResult::Success) {
+		Core::App().unlockPasscode();
+		return;
+	}
+	_systemUnlockCooldown.callOnce(kSystemUnlockDelay);
+	_systemUnlockSuggested.destroy();
+	if (result == base::SystemUnlockResult::FloodError) {
+		_error = tr::lng_flood_error(tr::now);
+		_passcode->setFocusFast();
+		update();
+	}
 }
 
 void PasscodeLockWidget::paintContent(QPainter &p) {
@@ -263,7 +383,7 @@ void TermsBox::prepare() {
 			st::termsPadding),
 		0,
 		age ? age->height() : 0);
-	const auto toastParent = Ui::BoxShow(this).toastParent();
+	const auto show = uiShow();
 	content->entity()->setClickHandlerFilter([=](
 			const ClickHandlerPtr &handler,
 			Qt::MouseButton button) {
@@ -272,8 +392,7 @@ void TermsBox::prepare() {
 			: QString();
 		if (TextUtilities::RegExpMention().match(link).hasMatch()) {
 			_lastClickedMention = link;
-			Ui::Toast::Show(
-				toastParent,
+			show->showToast(
 				tr::lng_terms_agree_to_proceed(tr::now, lt_bot, link));
 			return false;
 		}

@@ -9,7 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/variant.h"
 #include "api/api_common.h"
-#include "ui/chat/attach/attach_prepare.h"
+
+namespace Ui {
+struct PreparedFileInformation;
+} // namespace Ui
 
 namespace Main {
 class Session;
@@ -21,88 +24,21 @@ constexpr auto kFileSizeLimit = 2'000 * int64(1024 * 1024);
 // Load files up to 4'000 MB.
 constexpr auto kFileSizePremiumLimit = 4'000 * int64(1024 * 1024);
 
+extern const char kOptionSendLargePhotos[];
+
+[[nodiscard]] int PhotoSideLimit();
+
 enum class SendMediaType {
 	Photo,
 	Audio,
+	Round,
 	File,
 	ThemeFile,
 	Secure,
 };
 
-struct SendMediaPrepare {
-	SendMediaPrepare(
-		const QString &file,
-		const PeerId &peer,
-		SendMediaType type,
-		MsgId replyTo);
-	SendMediaPrepare(
-		const QImage &img,
-		const PeerId &peer,
-		SendMediaType type,
-		MsgId replyTo);
-	SendMediaPrepare(
-		const QByteArray &data,
-		const PeerId &peer,
-		SendMediaType type,
-		MsgId replyTo);
-	SendMediaPrepare(
-		const QByteArray &data,
-		int duration,
-		const PeerId &peer,
-		SendMediaType type,
-		MsgId replyTo);
-
-	PhotoId id;
-	QString file;
-	QImage img;
-	QByteArray data;
-	PeerId peer;
-	SendMediaType type;
-	int duration = 0;
-	MsgId replyTo;
-
-};
-using SendMediaPrepareList = QList<SendMediaPrepare>;
-
-using UploadFileParts =  QMap<int, QByteArray>;
-struct SendMediaReady {
-	SendMediaReady() = default; // temp
-	SendMediaReady(
-		SendMediaType type,
-		const QString &file,
-		const QString &filename,
-		int64 filesize,
-		const QByteArray &data,
-		const uint64 &id,
-		const uint64 &thumbId,
-		const QString &thumbExt,
-		const PeerId &peer,
-		const MTPPhoto &photo,
-		const PreparedPhotoThumbs &photoThumbs,
-		const MTPDocument &document,
-		const QByteArray &jpeg,
-		MsgId replyTo);
-
-	MsgId replyTo;
-	SendMediaType type;
-	QString file, filename;
-	int64 filesize = 0;
-	QByteArray data;
-	QString thumbExt;
-	uint64 id, thumbId; // id always file-id of media, thumbId is file-id of thumb ( == id for photos)
-	PeerId peer;
-
-	MTPPhoto photo;
-	MTPDocument document;
-	PreparedPhotoThumbs photoThumbs;
-	UploadFileParts parts;
-	QByteArray jpeg_md5;
-
-	QString caption;
-
-};
-
 using TaskId = void*; // no interface, just id
+inline constexpr auto kEmptyTaskId = TaskId();
 
 class Task {
 public:
@@ -174,7 +110,7 @@ struct SendingAlbum {
 	struct Item {
 		explicit Item(TaskId taskId);
 
-		TaskId taskId;
+		TaskId taskId = kEmptyTaskId;
 		uint64 randomId = 0;
 		FullMsgId msgId;
 		std::optional<MTPInputSingleMedia> media;
@@ -192,6 +128,7 @@ struct SendingAlbum {
 	uint64 groupId = 0;
 	std::vector<Item> items;
 	Api::SendOptions options;
+	bool sent = false;
 
 };
 
@@ -199,32 +136,34 @@ struct FileLoadTo {
 	FileLoadTo(
 		PeerId peer,
 		Api::SendOptions options,
-		MsgId replyTo,
-		MsgId topicRootId,
+		FullReplyTo replyTo,
 		MsgId replaceMediaOf)
 	: peer(peer)
 	, options(options)
 	, replyTo(replyTo)
-	, topicRootId(topicRootId)
 	, replaceMediaOf(replaceMediaOf) {
 	}
 	PeerId peer;
 	Api::SendOptions options;
-	MsgId replyTo;
-	MsgId topicRootId;
+	FullReplyTo replyTo;
 	MsgId replaceMediaOf;
 };
 
-struct FileLoadResult {
-	FileLoadResult(
-		TaskId taskId,
-		uint64 id,
-		const FileLoadTo &to,
-		const TextWithTags &caption,
-		std::shared_ptr<SendingAlbum> album);
+using UploadFileParts = std::vector<QByteArray>;
+struct FilePrepareDescriptor {
+	TaskId taskId = kEmptyTaskId;
+	base::required<uint64> id;
+	SendMediaType type = SendMediaType::File;
+	FileLoadTo to = { PeerId(), Api::SendOptions(), FullReplyTo(), MsgId() };
+	TextWithTags caption;
+	bool spoiler = false;
+	std::shared_ptr<SendingAlbum> album;
+};
+struct FilePrepareResult {
+	explicit FilePrepareResult(FilePrepareDescriptor &&descriptor);
 
-	TaskId taskId;
-	uint64 id;
+	TaskId taskId = kEmptyTaskId;
+	uint64 id = 0;
 	FileLoadTo to;
 	std::shared_ptr<SendingAlbum> album;
 	SendMediaType type = SendMediaType::File;
@@ -248,18 +187,24 @@ struct FileLoadResult {
 	QImage goodThumbnail;
 	QByteArray goodThumbnailBytes;
 
-	MTPPhoto photo;
-	MTPDocument document;
+	MTPPhoto photo = MTP_photoEmpty(MTP_long(0));
+	MTPDocument document = MTP_documentEmpty(MTP_long(0));
 
 	PreparedPhotoThumbs photoThumbs;
 	TextWithTags caption;
+	bool spoiler = false;
 
 	std::vector<MTPInputDocument> attachedStickers;
+
+	std::shared_ptr<FilePrepareResult> videoCover;
 
 	void setFileData(const QByteArray &filedata);
 	void setThumbData(const QByteArray &thumbdata);
 
 };
+
+[[nodiscard]] std::shared_ptr<FilePrepareResult> MakePreparedFile(
+	FilePrepareDescriptor &&descriptor);
 
 class FileLoadTask final : public Task {
 public:
@@ -279,15 +224,19 @@ public:
 		const QString &filepath,
 		const QByteArray &content,
 		std::unique_ptr<Ui::PreparedFileInformation> information,
+		std::unique_ptr<FileLoadTask> videoCover,
 		SendMediaType type,
 		const FileLoadTo &to,
 		const TextWithTags &caption,
-		std::shared_ptr<SendingAlbum> album = nullptr);
+		bool spoiler,
+		std::shared_ptr<SendingAlbum> album = nullptr,
+		uint64 idOverride = 0);
 	FileLoadTask(
 		not_null<Main::Session*> session,
 		const QByteArray &voice,
-		int32 duration,
+		crl::time duration,
 		const VoiceWaveform &waveform,
+		bool video,
 		const FileLoadTo &to,
 		const TextWithTags &caption);
 	~FileLoadTask();
@@ -306,7 +255,8 @@ public:
 	}
 	void finish() override;
 
-	FileLoadResult *peekResult() const;
+	[[nodiscard]] auto peekResult() const
+		-> const std::shared_ptr<FilePrepareResult> &;
 
 private:
 	static bool CheckForSong(
@@ -335,12 +285,14 @@ private:
 	const std::shared_ptr<SendingAlbum> _album;
 	QString _filepath;
 	QByteArray _content;
+	std::unique_ptr<FileLoadTask> _videoCover;
 	std::unique_ptr<Ui::PreparedFileInformation> _information;
-	int32 _duration = 0;
+	crl::time _duration = 0;
 	VoiceWaveform _waveform;
 	SendMediaType _type;
 	TextWithTags _caption;
+	bool _spoiler = false;
 
-	std::shared_ptr<FileLoadResult> _result;
+	std::shared_ptr<FilePrepareResult> _result;
 
 };

@@ -7,27 +7,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_requests_box.h"
 
-#include "ui/effects/ripple_animation.h"
+#include "api/api_invite_links.h"
+#include "apiwrap.h"
+#include "base/unixtime.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration
 #include "boxes/peers/edit_peer_invite_link.h" // PrepareRequestedRowStatus
-#include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfoBox
-#include "history/view/history_view_requests_bar.h" // kRecentRequestsLimit
-#include "data/data_peer.h"
-#include "data/data_user.h"
-#include "data/data_chat.h"
+#include "boxes/peers/edit_peer_requests_box.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_peer.h"
 #include "data/data_session.h"
-#include "base/unixtime.h"
+#include "data/data_user.h"
+#include "history/view/history_view_requests_bar.h" // kRecentRequestsLimit
+#include "info/info_controller.h"
+#include "info/info_memento.h"
+#include "info/requests_list/info_requests_list_widget.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
-#include "ui/text/text_utilities.h"
-#include "ui/toasts/common_toasts.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
-#include "lang/lang_keys.h"
+#include "ui/round_rect.h"
+#include "ui/text/text_utilities.h"
 #include "window/window_session_controller.h"
-#include "apiwrap.h"
-#include "api/api_invite_links.h"
 #include "styles/style_boxes.h"
 
 namespace {
@@ -241,8 +244,8 @@ RequestsBoxController::RowHelper::RowHelper(bool isGroup)
 	? tr::lng_group_requests_add(tr::now)
 	: tr::lng_group_requests_add_channel(tr::now))
 , _rejectText(tr::lng_group_requests_dismiss(tr::now))
-, _acceptTextWidth(st::requestsAcceptButton.font->width(_acceptText))
-, _rejectTextWidth(st::requestsRejectButton.font->width(_rejectText)) {
+, _acceptTextWidth(st::requestsAcceptButton.style.font->width(_acceptText))
+, _rejectTextWidth(st::requestsRejectButton.style.font->width(_rejectText)) {
 }
 
 RequestsBoxController::RequestsBoxController(
@@ -262,14 +265,10 @@ RequestsBoxController::~RequestsBoxController() = default;
 void RequestsBoxController::Start(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer) {
-	auto controller = std::make_unique<RequestsBoxController>(
-		navigation,
-		peer->migrateToOrMe());
-	const auto initBox = [=](not_null<PeerListBox*> box) {
-		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
-	};
-	navigation->parentController()->show(
-		Box<PeerListBox>(std::move(controller), initBox));
+	navigation->showSection(
+		std::make_shared<Info::Memento>(
+			peer->migrateToOrMe(),
+			Info::Section::Type::RequestsList));
 }
 
 Main::Session &RequestsBoxController::session() const {
@@ -287,6 +286,58 @@ std::unique_ptr<PeerListRow> RequestsBoxController::createSearchRow(
 		return createRow(user);
 	}
 	return nullptr;
+}
+
+std::unique_ptr<PeerListRow> RequestsBoxController::createRestoredRow(
+		not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return createRow(user, _dates[user]);
+	}
+	return nullptr;
+}
+
+auto RequestsBoxController::saveState() const
+-> std::unique_ptr<PeerListState> {
+	auto result = PeerListController::saveState();
+
+	auto my = std::make_unique<SavedState>();
+	my->dates = _dates;
+	my->offsetDate = _offsetDate;
+	my->offsetUser = _offsetUser;
+	my->allLoaded = _allLoaded;
+	my->wasLoading = (_loadRequestId != 0);
+	if (const auto search = searchController()) {
+		my->searchState = search->saveState();
+	}
+	result->controllerState = std::move(my);
+	return result;
+}
+
+void RequestsBoxController::restoreState(
+		std::unique_ptr<PeerListState> state) {
+	auto typeErasedState = state
+		? state->controllerState.get()
+		: nullptr;
+	if (const auto my = dynamic_cast<SavedState*>(typeErasedState)) {
+		if (const auto requestId = base::take(_loadRequestId)) {
+			_api.request(requestId).cancel();
+		}
+		_dates = std::move(my->dates);
+		_offsetDate = my->offsetDate;
+		_offsetUser = my->offsetUser;
+		_allLoaded = my->allLoaded;
+		if (const auto search = searchController()) {
+			search->restoreState(std::move(my->searchState));
+		}
+		if (my->wasLoading) {
+			loadMoreRows();
+		}
+		PeerListController::restoreState(std::move(state));
+		if (delegate()->peerListFullRowsCount() || _allLoaded) {
+			refreshDescription();
+			delegate()->peerListRefreshRows();
+		}
+	}
 }
 
 void RequestsBoxController::prepare() {
@@ -356,9 +407,7 @@ void RequestsBoxController::refreshDescription() {
 }
 
 void RequestsBoxController::rowClicked(not_null<PeerListRow*> row) {
-	_navigation->parentController()->show(PrepareShortInfoBox(
-		row->peer(),
-		_navigation));
+	_navigation->showPeerInfo(row->peer());
 }
 
 void RequestsBoxController::rowElementClicked(
@@ -382,16 +431,13 @@ void RequestsBoxController::processRequest(
 	const auto done = crl::guard(this, [=] {
 		remove();
 		if (approved) {
-			Ui::ShowMultilineToast({
-				.parentOverride = delegate()->peerListToastParent(),
-				.text = (_peer->isBroadcast()
-					? tr::lng_group_requests_was_added_channel
-					: tr::lng_group_requests_was_added)(
-						tr::now,
-						lt_user,
-						Ui::Text::Bold(user->name()),
-						Ui::Text::WithEntities)
-			});
+			delegate()->peerListUiShow()->showToast((_peer->isBroadcast()
+				? tr::lng_group_requests_was_added_channel
+				: tr::lng_group_requests_was_added)(
+					tr::now,
+					lt_user,
+					Ui::Text::Bold(user->name()),
+					Ui::Text::WithEntities));
 		}
 	});
 	const auto fail = crl::guard(this, remove);
@@ -408,6 +454,7 @@ void RequestsBoxController::appendRow(
 		not_null<UserData*> user,
 		TimeId date) {
 	if (!delegate()->peerListFindRow(user->id.value)) {
+		_dates.emplace(user, date);
 		if (auto row = createRow(user, date)) {
 			delegate()->peerListAppendRow(std::move(row));
 			setDescriptionText(QString());
@@ -494,7 +541,7 @@ void RequestsBoxController::RowHelper::paintButton(
 	const auto textLeft = geometry.x()
 		+ ((geometry.width() - textWidth) / 2);
 	const auto textTop = geometry.y() + st.textTop;
-	p.setFont(st.font);
+	p.setFont(st.style.font);
 	p.setPen(over ? st.textFgOver : st.textFg);
 	p.drawTextLeft(textLeft, textTop, outerWidth, text);
 }
@@ -506,6 +553,7 @@ std::unique_ptr<PeerListRow> RequestsBoxController::createRow(
 		const auto search = static_cast<RequestsBoxSearchController*>(
 			searchController());
 		date = search->dateForUser(user);
+		_dates.emplace(user, date);
 	}
 	return std::make_unique<Row>(_helper.get(), user, date);
 }
@@ -575,6 +623,36 @@ TimeId RequestsBoxSearchController::dateForUser(not_null<UserData*> user) {
 		return i->second;
 	}
 	return {};
+}
+
+auto RequestsBoxSearchController::saveState() const
+-> std::unique_ptr<SavedStateBase> {
+	auto result = std::make_unique<SavedState>();
+	result->query = _query;
+	result->offsetDate = _offsetDate;
+	result->offsetUser = _offsetUser;
+	result->allLoaded = _allLoaded;
+	result->wasLoading = (_requestId != 0);
+	return result;
+}
+
+void RequestsBoxSearchController::restoreState(
+		std::unique_ptr<SavedStateBase> state) {
+	if (auto my = dynamic_cast<SavedState*>(state.get())) {
+		if (auto requestId = base::take(_requestId)) {
+			_api.request(requestId).cancel();
+		}
+		_cache.clear();
+		_queries.clear();
+
+		_allLoaded = my->allLoaded;
+		_offsetDate = my->offsetDate;
+		_offsetUser = my->offsetUser;
+		_query = my->query;
+		if (my->wasLoading) {
+			searchOnServer();
+		}
+	}
 }
 
 bool RequestsBoxSearchController::searchInCache() {

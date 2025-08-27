@@ -82,6 +82,7 @@ private:
 	int _itemsLeft = 0;
 	int _itemsTop = 0;
 	int _itemWidth = 0;
+	int _itemHeight = 0;
 	int _itemsInRow = 1;
 	mutable int _rowsCount = 0;
 	int _top = 0;

@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_element.h"
 
-class HistoryService;
+class HistoryItem;
 
 namespace Ui {
 class ChatStyle;
@@ -30,7 +30,7 @@ class Service final : public Element {
 public:
 	Service(
 		not_null<ElementDelegate*> delegate,
-		not_null<HistoryService*> data,
+		not_null<HistoryItem*> data,
 		Element *replacing);
 
 	int marginTop() const override;
@@ -43,16 +43,21 @@ public:
 		StateRequest request) const override;
 	void updatePressed(QPoint point) override;
 	TextForMimeData selectedText(TextSelection selection) const override;
+	SelectedQuote selectedQuote(TextSelection selection) const override;
+	TextSelection selectionFromQuote(
+		const SelectedQuote &quote) const override;
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
 
 	QRect innerGeometry() const override;
 
-private:
-	not_null<HistoryService*> message() const;
+	bool consumeHorizontalScroll(QPoint position, int delta) override;
 
-	QRect countGeometry() const;
+	void animateReaction(Ui::ReactionFlyAnimationArgs &&args) override;
+
+private:
+	[[nodiscard]] QRect countGeometry() const;
 
 	QSize performCountOptimalSize() override;
 	QSize performCountCurrentSize(int newWidth) override;
@@ -115,7 +120,7 @@ public:
 		const QRect &textRect);
 
 private:
-	static QVector<int> CountLineWidths(
+	static std::vector<int> CountLineWidths(
 		const Ui::Text::String &text,
 		const QRect &textRect);
 

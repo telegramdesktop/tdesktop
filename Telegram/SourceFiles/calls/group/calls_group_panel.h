@@ -7,34 +7,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/weak_ptr.h"
-#include "base/timer.h"
-#include "base/flags.h"
 #include "base/object_ptr.h"
-#include "base/unique_qptr.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_common.h"
 #include "calls/group/calls_choose_join_as.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
-#include "ui/gl/gl_window.h"
-#include "ui/layers/show.h"
-#include "ui/rp_widget.h"
 
 class Image;
 
-namespace base {
-class PowerSaveBlocker;
-} // namespace base
-
 namespace Data {
 class PhotoMedia;
-class CloudImageView;
 class GroupCall;
 } // namespace Data
 
+namespace Main {
+class SessionShow;
+} // namespace Main
+
 namespace Ui {
+class Show;
 class BoxContent;
+class LayerWidget;
 enum class LayerOption;
 using LayerOptions = base::flags<LayerOption>;
 class AbstractButton;
@@ -45,26 +39,31 @@ class CallMuteButton;
 class IconButton;
 class FlatLabel;
 class RpWidget;
+class RpWindow;
 template <typename Widget>
 class FadeWrap;
 template <typename Widget>
 class PaddingWrap;
 class ScrollArea;
 class GenericBox;
-class LayerManager;
 class GroupCallScheduledLeft;
-namespace Toast {
-class Instance;
-} // namespace Toast
-namespace Platform {
-struct SeparateTitleControls;
-} // namespace Platform
 } // namespace Ui
+
+namespace Ui::Toast {
+class Instance;
+struct Config;
+} // namespace Ui::Toast
 
 namespace style {
 struct CallSignalBars;
 struct CallBodyLayout;
 } // namespace style
+
+namespace Calls {
+struct InviteRequest;
+struct ConferencePanelMigration;
+class Window;
+} // namespace Calls
 
 namespace Calls::Group {
 
@@ -79,25 +78,29 @@ class Panel final
 	: public base::has_weak_ptr
 	, private Ui::DesktopCapture::ChooseSourceDelegate {
 public:
-	Panel(not_null<GroupCall*> call);
+	explicit Panel(not_null<GroupCall*> call);
+	Panel(not_null<GroupCall*> call, ConferencePanelMigration info);
 	~Panel();
 
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 	[[nodiscard]] not_null<GroupCall*> call() const;
+	[[nodiscard]] bool isVisible() const;
 	[[nodiscard]] bool isActive() const;
 
-	void showToast(TextWithEntities &&text, crl::time duration = 0);
-	void showBox(object_ptr<Ui::BoxContent> box);
-	void showBox(
-		object_ptr<Ui::BoxContent> box,
-		Ui::LayerOptions options,
-		anim::type animated = anim::type::normal);
-	void hideLayer(anim::type animated = anim::type::normal);
+	void migrationShowShareLink();
+	void migrationInviteUsers(std::vector<InviteRequest> users);
 
 	void minimize();
+	void toggleFullScreen();
+	void toggleFullScreen(bool fullscreen);
 	void close();
 	void showAndActivate();
 	void closeBeforeDestroy();
+
+	[[nodiscard]] std::shared_ptr<Main::SessionShow> sessionShow();
+	[[nodiscard]] std::shared_ptr<Ui::Show> uiShow();
+
+	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
 
 	rpl::lifetime &lifetime();
 
@@ -115,8 +118,6 @@ private:
 		Discarded,
 	};
 
-	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
-
 	[[nodiscard]] PanelMode mode() const;
 
 	void paint(QRect clip);
@@ -125,16 +126,16 @@ private:
 	void initWidget();
 	void initControls();
 	void initShareAction();
-	void initLayout();
-	void initGeometry();
+	void initLayout(ConferencePanelMigration info);
+	void initGeometry(ConferencePanelMigration info);
 	void setupScheduledLabels(rpl::producer<TimeId> date);
 	void setupMembers();
 	void setupVideo(not_null<Viewport*> viewport);
 	void setupRealMuteButtonState(not_null<Data::GroupCall*> real);
+	[[nodiscard]] rpl::producer<QString> titleText();
 
 	bool handleClose();
 	void startScheduledNow();
-	void toggleFullScreen();
 	void trackControls(bool track, bool force = false);
 	void raiseControls();
 	void enlargeVideo();
@@ -169,6 +170,7 @@ private:
 	void toggleWideControls(bool shown);
 	void updateWideControlsVisibility();
 	[[nodiscard]] bool videoButtonInNarrowMode() const;
+	[[nodiscard]] Fn<void()> shareConferenceLinkCallback();
 
 	void endCall();
 
@@ -202,17 +204,11 @@ private:
 	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;
 
-	Ui::GL::Window _window;
-	const std::unique_ptr<Ui::LayerManager> _layerBg;
+	std::shared_ptr<Window> _window;
 	rpl::variable<PanelMode> _mode;
 	rpl::variable<bool> _fullScreenOrMaximized = false;
-
-#ifndef Q_OS_MAC
-	rpl::variable<int> _controlsTop = 0;
-	const std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
-#endif // !Q_OS_MAC
-
-	const std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
+	bool _unpinnedMaximized = false;
+	bool _rtmpFull = false;
 
 	rpl::lifetime _callLifetime;
 
@@ -261,7 +257,6 @@ private:
 	Fn<void()> _callShareLinkCallback;
 
 	const std::unique_ptr<Toasts> _toasts;
-	base::weak_ptr<Ui::Toast::Instance> _lastToast;
 
 	std::unique_ptr<MicLevelTester> _micLevelTester;
 
@@ -270,23 +265,7 @@ private:
 	rpl::lifetime _hideControlsTimerLifetime;
 
 	rpl::lifetime _peerLifetime;
-
-};
-
-class Show : public Ui::Show {
-public:
-	explicit Show(not_null<Panel*> panel);
-	~Show();
-	void showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options = Ui::LayerOption::KeepOther) const override;
-	void hideLayer() const override;
-	[[nodiscard]] not_null<QWidget*> toastParent() const override;
-	[[nodiscard]] bool valid() const override;
-	operator bool() const override;
-
-private:
-	const base::weak_ptr<Panel> _panel;
+	rpl::lifetime _lifetime;
 
 };
 

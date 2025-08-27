@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "lang/lang_keys.h"
 #include "data/data_poll.h"
+#include "ui/ui_utility.h"
 
-namespace Info {
-namespace Polls {
+namespace Info::Polls {
 
 Memento::Memento(not_null<PollData*> poll, FullMsgId contextId)
 : ContentMemento(poll, contextId) {
@@ -112,5 +112,4 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	scrollTopRestore(memento->scrollTop());
 }
 
-} // namespace Polls
-} // namespace Info
+} // namespace Info::Polls

@@ -1,0 +1,79 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "ui/widgets/widgets.style";
+
+ivMenuToggle: IconButton(defaultIconButton) {
+	width: 48px;
+	height: 48px;
+
+	icon: icon {{ "title_menu_dots", menuIconColor }};
+	iconOver: icon {{ "title_menu_dots", menuIconColor }};
+
+	rippleAreaPosition: point(6px, 6px);
+	rippleAreaSize: 36px;
+	ripple: defaultRippleAnimationBgOver;
+}
+ivMenuPosition: point(-2px, 40px);
+ivBackIcon: icon {{ "box_button_back", menuIconColor }};
+ivBack: IconButton(ivMenuToggle) {
+	width: 60px;
+	icon: ivBackIcon;
+	iconOver: ivBackIcon;
+	rippleAreaPosition: point(12px, 6px);
+}
+ivZoomButtonsSize: 26px;
+ivPlusMinusZoom: IconButton(ivMenuToggle) {
+	width: ivZoomButtonsSize;
+	height: ivZoomButtonsSize;
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: ivZoomButtonsSize;
+	ripple: defaultRippleAnimationBgOver;
+}
+ivResetZoomStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+}
+ivResetZoom: RoundButton(defaultActiveButton) {
+	textFg: windowFg;
+	textFgOver: windowFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	height: ivZoomButtonsSize;
+	padding: margins(0px, 0px, 0px, 0px);
+
+	style: ivResetZoomStyle;
+
+	ripple: defaultRippleAnimation;
+}
+ivResetZoomLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowFg;
+	style: ivResetZoomStyle;
+}
+ivResetZoomInnerPadding: 20px;
+ivBackIconDisabled: icon {{ "box_button_back", menuIconFg }};
+ivForwardIcon: icon {{ "box_button_back-flip_horizontal", menuIconColor }};
+ivForward: IconButton(ivBack) {
+	width: 48px;
+	icon: ivForwardIcon;
+	iconOver: ivForwardIcon;
+	rippleAreaPosition: point(0px, 6px);
+}
+ivSubtitleFont: font(16px semibold);
+ivSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: boxTitleFg;
+	maxHeight: 26px;
+	style: TextStyle(defaultTextStyle) {
+		font: ivSubtitleFont;
+	}
+}
+ivSubtitleHeight: 48px;
+ivSubtitleTop: 12px;
+ivSubtitleLeft: 22px;
+ivSubtitleSkip: 0px;

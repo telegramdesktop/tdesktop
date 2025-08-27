@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "data/data_media_types.h"
 #include "styles/style_chat.h"
 
@@ -33,11 +34,14 @@ Invoice::Invoice(
 }
 
 void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
-	if (invoice->photo) {
+	const auto isCreditsCurrency = false;
+	if (invoice->photo && !isCreditsCurrency) {
+		const auto spoiler = false;
 		_attach = std::make_unique<Photo>(
 			_parent,
 			_parent->data(),
-			invoice->photo);
+			invoice->photo,
+			spoiler);
 	} else {
 		_attach = nullptr;
 	}
@@ -61,6 +65,9 @@ void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
 		0,
 		int(statusText.text.size()) });
 	statusText.text += ' ' + labelText().toUpper();
+	if (isCreditsCurrency) {
+		statusText = {};
+	}
 	_status.setMarkedText(
 		st::defaultTextStyle,
 		statusText,
@@ -235,8 +242,10 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 			.availableWidth = paintw,
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
-			.paused = context.paused,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = toDescriptionSelection(context.selection),
+			.useFullWidth = true,
 		});
 		tshift += _descriptionHeight;
 	}

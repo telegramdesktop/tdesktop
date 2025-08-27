@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_scans.h"
 #include "passport/ui/passport_details_row.h"
 #include "ui/effects/scroll_content_shadow.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
@@ -140,7 +140,7 @@ void RequestTypeBox::setupControls(
 	_height = y;
 
 	_submit = [=] {
-		const auto value = group->hasValue() ? group->value() : -1;
+		const auto value = group->hasValue() ? group->current() : -1;
 		if (value >= 0) {
 			submit(value);
 		}
@@ -488,8 +488,9 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			}, lifetime());
 		}
 
-		inner->add(
-			object_ptr<Ui::FixedHeightWidget>(inner, st::passportDetailsSkip));
+		inner->add(object_ptr<Ui::FixedHeightWidget>(
+			inner,
+			st::passportDetailsSkip));
 	}
 	if (auto text = _controller->deleteValueLabel()) {
 		inner->add(
@@ -530,7 +531,7 @@ void PanelEditDocument::createDetailsRow(
 	const auto isoByPhone = Countries::Instance().countryISO2ByPhone(
 		_controller->bot()->session().user()->phone());
 
-	const auto [it, ok] = _details.emplace(
+	const auto &[it, ok] = _details.emplace(
 		i,
 		container->add(Ui::PanelDetailsRow::Create(
 			container,

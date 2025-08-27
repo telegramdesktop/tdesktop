@@ -7,18 +7,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/platform/win/base_windows_h.h"
+#include <wtypes.h>
 
 namespace Platform {
 namespace AppUserModelId {
 
-void cleanupShortcut();
-void checkPinned();
+void CleanupShortcut();
+void CheckPinned();
 
-const WCHAR *getId();
-bool validateShortcut();
+[[nodiscard]] const std::wstring &Id();
+bool ValidateShortcut();
 
-const PROPERTYKEY &getKey();
+[[nodiscard]] const PROPERTYKEY &Key();
+
+[[nodiscard]] const std::wstring &MyExecutablePath();
+
+struct UniqueFileId {
+	std::uint64_t part1 = 0;
+	std::uint64_t part2 = 0;
+
+	[[nodiscard]] bool valid() const {
+		return part1 || part2;
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return valid();
+	}
+
+	[[nodiscard]] friend inline auto operator<=>(
+		UniqueFileId a,
+		UniqueFileId b) = default;
+	[[nodiscard]] friend inline bool operator==(
+		UniqueFileId a,
+		UniqueFileId b) = default;
+};
+
+[[nodiscard]] UniqueFileId GetUniqueFileId(LPCWSTR path);
+[[nodiscard]] UniqueFileId MyExecutablePathId();
 
 } // namespace AppUserModelId
 } // namespace Platform

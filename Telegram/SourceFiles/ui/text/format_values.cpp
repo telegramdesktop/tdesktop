@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "countries/countries_instance.h"
 
-#include <QRegularExpression>
 #include <QtCore/QLocale>
 #include <locale>
 #include <sstream>
@@ -79,28 +78,25 @@ QString FormatProgressText(qint64 ready, qint64 total) {
 		total);
 }
 
-QString FormatDateTime(
-		QDateTime date,
-		QString dateFormat,
-		QString timeFormat) {
+QString FormatDateTime(QDateTime date) {
 	const auto now = QDateTime::currentDateTime();
 	if (date.date() == now.date()) {
 		return tr::lng_mediaview_today(
 			tr::now,
 			lt_time,
-			QLocale().toString(date.time(), timeFormat));
+			QLocale().toString(date.time(), QLocale::ShortFormat));
 	} else if (date.date().addDays(1) == now.date()) {
 		return tr::lng_mediaview_yesterday(
 			tr::now,
 			lt_time,
-			QLocale().toString(date.time(), timeFormat));
+			QLocale().toString(date.time(), QLocale::ShortFormat));
 	} else {
 		return tr::lng_mediaview_date_time(
 			tr::now,
 			lt_date,
-			QLocale().toString(date.date(), dateFormat),
+			QLocale().toString(date.date(), QLocale::ShortFormat),
 			lt_time,
-			QLocale().toString(date.time(), timeFormat));
+			QLocale().toString(date.time(), QLocale::ShortFormat));
 	}
 }
 
@@ -150,8 +146,11 @@ QString FillAmountAndCurrency(
 	// std::abs doesn't work on that one :/
 	Expects(amount != std::numeric_limits<int64>::min());
 
-	const auto rule = LookupCurrencyRule(currency);
+	if (currency == kCreditsCurrency) {
+		return QChar(0x2B50) + Lang::FormatCountDecimal(std::abs(amount));
+	}
 
+	const auto rule = LookupCurrencyRule(currency);
 	const auto prefix = (amount < 0)
 		? QString::fromUtf8("\xe2\x88\x92")
 		: QString();
@@ -192,45 +191,52 @@ CurrencyRule LookupCurrencyRule(const QString &currency) {
 		{ u"BAM"_q, { "", '.', ',', false, true } },
 		{ u"BDT"_q, { "", ',', '.', true, true } },
 		{ u"BGN"_q, { "", ' ', ',', false, true } },
-		{ u"BND"_q, { "", '.', ',', } },
+		{ u"BHD"_q, { "", ',', '.', true, true, 3 } },
+		{ u"BND"_q, { "", '.', ',' } },
 		{ u"BOB"_q, { "", '.', ',', true, true } },
 		{ u"BRL"_q, { "R$", '.', ',', true, true } },
-		{ u"BHD"_q, { "", ',', '.', true, true, 3 } },
-		{ u"BYR"_q, { "", ' ', ',', false, true, 0 } },
+		{ u"BYN"_q, { "", ' ', ',', false, true } },
 		{ u"CAD"_q, { "CA$" } },
 		{ u"CHF"_q, { "", '\'', '.', false, true } },
 		{ u"CLP"_q, { "", '.', ',', true, true, 0 } },
 		{ u"CNY"_q, { "\x43\x4E\xC2\xA5" } },
 		{ u"COP"_q, { "", '.', ',', true, true } },
-		{ u"CRC"_q, { "", '.', ',', } },
+		{ u"CRC"_q, { "", '.', ',' } },
 		{ u"CZK"_q, { "", ' ', ',', false, true } },
 		{ u"DKK"_q, { "", '\0', ',', false, true } },
 		{ u"DOP"_q, {} },
 		{ u"DZD"_q, { "", ',', '.', true, true } },
 		{ u"EGP"_q, { "", ',', '.', true, true } },
+		{ u"ETB"_q, {} },
 		{ u"EUR"_q, { "\xE2\x82\xAC", ' ', ',', false, true } },
 		{ u"GBP"_q, { "\xC2\xA3" } },
 		{ u"GEL"_q, { "", ' ', ',', false, true } },
+		{ u"GHS"_q, {} },
 		{ u"GTQ"_q, {} },
 		{ u"HKD"_q, { "HK$" } },
 		{ u"HNL"_q, { "", ',', '.', true, true } },
 		{ u"HRK"_q, { "", '.', ',', false, true } },
 		{ u"HUF"_q, { "", ' ', ',', false, true } },
-		{ u"IDR"_q, { "", '.', ',', } },
+		{ u"IDR"_q, { "", '.', ',' } },
 		{ u"ILS"_q, { "\xE2\x82\xAA", ',', '.', true, true } },
 		{ u"INR"_q, { "\xE2\x82\xB9" } },
+		{ u"IQD"_q, { "", ',', '.', true, true, 3 } },
+		{ u"IRR"_q, { "", ',', '/', false, true } },
 		{ u"ISK"_q, { "", '.', ',', false, true, 0 } },
 		{ u"JMD"_q, {} },
+		{ u"JOD"_q, { "", ',', '.', true, false, 3 } },
 		{ u"JPY"_q, { "\xC2\xA5", ',', '.', true, false, 0 } },
 		{ u"KES"_q, {} },
 		{ u"KGS"_q, { "", ' ', '-', false, true } },
 		{ u"KRW"_q, { "\xE2\x82\xA9", ',', '.', true, false, 0 } },
-		{ u"KZT"_q, { "", ' ', '-', } },
+		{ u"KZT"_q, { "", ' ', '-' } },
 		{ u"LBP"_q, { "", ',', '.', true, true } },
 		{ u"LKR"_q, { "", ',', '.', true, true } },
 		{ u"MAD"_q, { "", ',', '.', true, true } },
 		{ u"MDL"_q, { "", ',', '.', false, true } },
-		{ u"MNT"_q, { "", ' ', ',', } },
+		{ u"MMK"_q, {} },
+		{ u"MNT"_q, { "", ' ', ',' } },
+		{ u"MOP"_q, {} },
 		{ u"MUR"_q, {} },
 		{ u"MVR"_q, { "", ',', '.', false, true } },
 		{ u"MXN"_q, { "MX$" } },
@@ -254,6 +260,7 @@ CurrencyRule LookupCurrencyRule(const QString &currency) {
 		{ u"SAR"_q, { "", ',', '.', true, true } },
 		{ u"SEK"_q, { "", '.', ',', false, true } },
 		{ u"SGD"_q, {} },
+		{ u"SYP"_q, { "", ',', '.', true, true } },
 		{ u"THB"_q, { "\xE0\xB8\xBF" } },
 		{ u"TJS"_q, { "", ' ', ';', false, true } },
 		{ u"TRY"_q, { "", '.', ',', false, true } },
@@ -265,13 +272,10 @@ CurrencyRule LookupCurrencyRule(const QString &currency) {
 		{ u"USD"_q, { "$" } },
 		{ u"UYU"_q, { "", '.', ',', true, true } },
 		{ u"UZS"_q, { "", ' ', ',', false, true } },
+		{ u"VEF"_q, { "", '.', ',', true, true } },
 		{ u"VND"_q, { "\xE2\x82\xAB", '.', ',', false, true, 0 } },
 		{ u"YER"_q, { "", ',', '.', true, true } },
 		{ u"ZAR"_q, { "", ',', '.', true, true } },
-		{ u"IRR"_q, { "", ',', '/', false, true, 2, true } },
-		{ u"IQD"_q, { "", ',', '.', true, true, 3 } },
-		{ u"VEF"_q, { "", '.', ',', true, true } },
-		{ u"SYP"_q, { "", ',', '.', true, true } },
 
 		//{ u"VUV"_q, { "", ',', '.', false, false, 0 } },
 		//{ u"WST"_q, {} },
@@ -304,7 +308,6 @@ CurrencyRule LookupCurrencyRule(const QString &currency) {
 		//{ u"CDF"_q, { "", ',', '.', false } },
 		//{ u"CVE"_q, { "", ',', '.', true, false, 0 } },
 		//{ u"DJF"_q, { "", ',', '.', false, false, 0 } },
-		//{ u"ETB"_q, {} },
 		//{ u"FJD"_q, {} },
 		//{ u"FKP"_q, {} },
 		//{ u"GIP"_q, {} },
@@ -320,11 +323,9 @@ CurrencyRule LookupCurrencyRule(const QString &currency) {
 		//{ u"LSL"_q, { "", ',', '.', false } },
 		//{ u"MGA"_q, { "", ',', '.', true, false, 0 } },
 		//{ u"MKD"_q, { "", '.', ',', false, true } },
-		//{ u"MOP"_q, {} },
 		//{ u"MWK"_q, {} },
 		//{ u"NAD"_q, {} },
 		//{ u"CLF"_q, { "", ',', '.', true, false, 4 } },
-		//{ u"JOD"_q, { "", ',', '.', true, false, 3 } },
 		//{ u"KWD"_q, { "", ',', '.', true, false, 3 } },
 		//{ u"LYD"_q, { "", ',', '.', true, false, 3 } },
 		//{ u"OMR"_q, { "", ',', '.', true, false, 3 } },
@@ -361,6 +362,7 @@ CurrencyRule LookupCurrencyRule(const QString &currency) {
 
 		char do_decimal_point() const override { return decimal; }
 		char do_thousands_sep() const override { return thousands; }
+		std::string do_grouping() const override { return "\3"; }
 
 		char decimal = '.';
 		char thousands = ',';
@@ -385,26 +387,62 @@ QString FormatImageSizeText(const QSize &size) {
 		+ QString::number(size.height());
 }
 
-QString FormatPhone(const QString &phone) {
+QString FormatPhone(QString phone) {
 	if (phone.isEmpty()) {
 		return QString();
 	}
 	if (phone.at(0) == '0') {
 		return phone;
 	}
-	return Countries::Instance().format({ .phone = phone }).formatted;
+	phone = phone.remove(QChar::Space);
+	return Countries::Instance().format({
+		.phone = (phone.at(0) == '+') ? phone.mid(1) : phone,
+	}).formatted;
 }
 
 QString FormatTTL(float64 ttl) {
+	if (ttl < 86400) {
+		return tr::lng_hours(tr::now, lt_count, int(ttl / 3600));
+	} else if (ttl < 86400 * 7) {
+		return tr::lng_days(tr::now, lt_count, int(ttl / (86400)));
+	} else if (ttl < 86400 * 31) {
+		const auto days = int(ttl / 86400);
+		if ((int(ttl) % 7) == 0) {
+			return tr::lng_weeks(tr::now, lt_count, int(days / 7));
+		} else {
+			return tr::lng_weeks(tr::now, lt_count, int(days / 7))
+				+ ' '
+				+ tr::lng_days(tr::now, lt_count, int(days % 7));
+		}
+	} else if (ttl <= (86400 * 31) * 11) {
+		return tr::lng_months(tr::now, lt_count, int(ttl / (86400 * 31)));
+	} else {
+		return tr::lng_years({}, lt_count, std::round(ttl / (86400 * 365)));
+	}
+}
+
+QString FormatTTLAfter(float64 ttl) {
 	return (ttl <= 3600 * 23)
-		? tr::lng_hours(tr::now, lt_count, int(ttl / 3600))
+		? tr::lng_settings_ttl_after_hours(tr::now, lt_count, int(ttl / 3600))
 		: (ttl <= (86400) * 6)
-		? tr::lng_days(tr::now, lt_count, int(ttl / (86400)))
+		? tr::lng_settings_ttl_after_days(
+			tr::now,
+			lt_count,
+			int(ttl / (86400)))
 		: (ttl <= (86400 * 7) * 3)
-		? tr::lng_weeks(tr::now, lt_count, int(ttl / (86400 * 7)))
+		? tr::lng_settings_ttl_after_weeks(
+			tr::now,
+			lt_count,
+			int(ttl / (86400 * 7)))
 		: (ttl <= (86400 * 31) * 11)
-		? tr::lng_months({}, lt_count, int(ttl / (86400 * 31)))
-		: tr::lng_years({}, lt_count, std::round(ttl / (86400 * 365)));
+		? tr::lng_settings_ttl_after_months(
+			tr::now,
+			lt_count,
+			int(ttl / (86400 * 31)))
+		: tr::lng_settings_ttl_after_years(
+			tr::now,
+			lt_count,
+			std::round(ttl / (86400 * 365)));
 }
 
 QString FormatTTLTiny(float64 ttl) {
@@ -449,6 +487,24 @@ QString FormatMuteForTiny(float64 sec) {
 
 QString FormatResetCloudPasswordIn(float64 sec) {
 	return (sec >= 3600) ? FormatTTL(sec) : FormatDurationText(sec);
+}
+
+QString FormatDialogsDate(const QDateTime &lastTime) {
+	// Show all dates that are in the last 20 hours in time format.
+	constexpr int kRecentlyInSeconds = 20 * 3600;
+
+	const auto now = QDateTime::currentDateTime();
+	const auto nowDate = now.date();
+	const auto lastDate = lastTime.date();
+
+	if ((lastDate == nowDate)
+		|| (std::abs(lastTime.secsTo(now)) < kRecentlyInSeconds)) {
+		return QLocale().toString(lastTime.time(), QLocale::ShortFormat);
+	} else if (std::abs(lastDate.daysTo(nowDate)) < 7) {
+		return langDayOfWeek(lastDate);
+	} else {
+		return QLocale().toString(lastDate, QLocale::ShortFormat);
+	}
 }
 
 } // namespace Ui

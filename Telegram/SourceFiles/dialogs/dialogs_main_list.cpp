@@ -28,7 +28,7 @@ MainList::MainList(
 	std::move(
 		pinnedLimit
 	) | rpl::start_with_next([=](int limit) {
-		_pinned.setLimit(limit);
+		_pinned.setLimit(std::max(limit, 1));
 	}, _lifetime);
 
 	session->changes().realtimeNameUpdates(
@@ -81,6 +81,7 @@ void MainList::clear() {
 		recomputeFullListSize();
 	});
 	const auto notifier = unreadStateChangeNotifier(true);
+	_pinned.clear();
 	_all.clear();
 	_unreadState = UnreadState();
 	_cloudUnreadState = UnreadState();
@@ -89,7 +90,7 @@ void MainList::clear() {
 	_cloudListSize = 0;
 }
 
-RowsByLetter MainList::addEntry(const Key &key) {
+RowsByLetter MainList::addEntry(Key key) {
 	const auto result = _all.addToEnd(key);
 
 	const auto unread = key.entry()->chatListUnreadState();
@@ -99,8 +100,8 @@ RowsByLetter MainList::addEntry(const Key &key) {
 	return result;
 }
 
-void MainList::removeEntry(const Key &key) {
-	_all.del(key);
+void MainList::removeEntry(Key key) {
+	_all.remove(key);
 
 	const auto unread = key.entry()->chatListUnreadState();
 	unreadEntryChanged(unread, false);
@@ -119,6 +120,10 @@ void MainList::unreadStateChanged(
 	const auto notify = !useClouded || wasState.known;
 	const auto notifier = unreadStateChangeNotifier(notify);
 	_unreadState += nowState - wasState;
+	if (_unreadState.chatsMuted > _unreadState.chats
+		|| _unreadState.messagesMuted > _unreadState.messages) {
+		[[maybe_unused]] int a = 0;
+	}
 	if (updateCloudUnread) {
 		Assert(nowState.known);
 		_cloudUnreadState += nowState - wasState;
@@ -143,6 +148,10 @@ void MainList::unreadEntryChanged(
 		_unreadState += state;
 	} else {
 		_unreadState -= state;
+	}
+	if (_unreadState.chatsMuted > _unreadState.chats
+		|| _unreadState.messagesMuted > _unreadState.messages) {
+		[[maybe_unused]] int a = 0;
 	}
 	if (updateCloudUnread) {
 		if (added) {
@@ -193,6 +202,14 @@ UnreadState MainList::unreadState() const {
 		result.chatsMuted = result.chats;
 		result.marksMuted = result.marks;
 	}
+#ifdef Q_OS_WIN
+	[[maybe_unused]] volatile auto touch = 0
+		+ _unreadState.marks + _unreadState.marksMuted
+		+ _unreadState.messages + _unreadState.messagesMuted
+		+ _unreadState.chats + _unreadState.chatsMuted
+		+ _unreadState.reactions + _unreadState.reactionsMuted
+		+ _unreadState.mentions;
+#endif // Q_OS_WIN
 	return result;
 }
 

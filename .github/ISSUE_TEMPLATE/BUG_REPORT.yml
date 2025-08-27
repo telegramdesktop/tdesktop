@@ -34,7 +34,7 @@ body:
       label: Operating system
       description: >
         Your operating system name, version and desktop environment.
-        Please don't use kernel version (uname), it's useless.
+        **Don't use kernel version (uname), it's useless.**
     validations:
       required: true
   - type: input
@@ -42,9 +42,9 @@ body:
       label: Version of Telegram Desktop
       description: >
         Please note we don't support versions from Linux distro repositories.
-        If you need support for these versions, please contact your distro maintainer
+        If you need support for these versions, **please contact your distro maintainer**
         or your distro bugtracker.
-        Don't use 'latest', specify actual version, that's a reason to close your issue.
+        **Don't use 'latest'**, specify actual version, **that's a reason to close your issue**.
     validations:
       required: true
   - type: dropdown
@@ -60,8 +60,19 @@ body:
         - Other (unofficial) source
     validations:
       required: true
+  - type: input
+    attributes:
+      label: Crash ID
+      description: >
+        If you're reporting a crash, please enter the crash ID from the crash reporter
+        opening on the next launch after crash. **You have to enable beta versions
+        installation in Settings -> Advanced for the reporter to appear.**
+        You don't have to wait for a beta version to arrive.
   - type: textarea
     attributes:
       label: Logs
+      description: >
+        You can find log.txt using the `viewlogs`
+        [cheat code](https://github.com/telegramdesktop/tdesktop/wiki/Cheat-Codes).
       placeholder: Insert log.txt here (if necessary)
       render: shell

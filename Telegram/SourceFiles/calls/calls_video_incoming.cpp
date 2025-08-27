@@ -73,6 +73,7 @@ private:
 
 	QSize _viewport;
 	float _factor = 1.;
+	int _ifactor = 1;
 	QVector2D _uniformViewport;
 
 	std::optional<QOpenGLBuffer> _contentBuffer;
@@ -189,9 +190,10 @@ void Panel::Incoming::RendererGL::paint(
 		return;
 	}
 
-	const auto factor = widget->devicePixelRatio();
+	const auto factor = widget->devicePixelRatioF();
 	if (_factor != factor) {
 		_factor = factor;
+		_ifactor = int(std::ceil(_factor));
 		_controlsShadowImage.invalidate();
 	}
 	_viewport = widget->size();
@@ -329,6 +331,7 @@ void Panel::Incoming::RendererGL::paint(
 		shadow.texture.left(), shadow.texture.top(),
 	};
 
+	_contentBuffer->bind();
 	_contentBuffer->write(0, coords, sizeof(coords));
 
 	const auto bottomShadowArea = QRect(
@@ -375,9 +378,9 @@ void Panel::Incoming::RendererGL::validateShadowImage() {
 		return;
 	}
 	const auto size = st::callTitleShadowLeft.size();
-	const auto full = QSize(size.width(), 2 * size.height()) * int(_factor);
+	const auto full = QSize(size.width(), 2 * size.height()) * _ifactor;
 	auto image = QImage(full, QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(_factor);
+	image.setDevicePixelRatio(_ifactor);
 	image.fill(Qt::transparent);
 	{
 		auto p = QPainter(&image);
@@ -470,7 +473,7 @@ void Panel::Incoming::RendererSW::paintFallback(
 
 void Panel::Incoming::RendererSW::initBottomShadow() {
 	auto image = QImage(
-		QSize(1, st::callBottomShadowSize) * cIntRetinaFactor(),
+		QSize(1, st::callBottomShadowSize) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	const auto colorFrom = uint32(0);
 	const auto colorTill = uint32(kBottomShadowAlphaMax);
@@ -525,7 +528,7 @@ void Panel::Incoming::RendererSW::fillBottomShadow(QPainter &p) {
 	if (fill.isEmpty()) {
 		return;
 	}
-	const auto factor = cIntRetinaFactor();
+	const auto factor = style::DevicePixelRatio();
 	p.drawImage(
 		fill,
 		_bottomShadow,

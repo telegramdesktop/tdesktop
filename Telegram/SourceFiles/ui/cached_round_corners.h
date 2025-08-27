@@ -36,25 +36,28 @@ enum CachedRoundCorners : int {
 	RoundCornersCount
 };
 
-void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, CachedRoundCorners index);
+void FillRoundRect(QPainter &p, int x, int y, int w, int h, style::color bg, CachedRoundCorners index);
 inline void FillRoundRect(QPainter &p, const QRect &rect, style::color bg, CachedRoundCorners index) {
 	FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index);
 }
 
 [[nodiscard]] const CornersPixmaps &CachedCornerPixmaps(CachedRoundCorners index);
 [[nodiscard]] CornersPixmaps PrepareCornerPixmaps(
-	int32 radius,
+	int radius,
 	style::color bg,
 	const style::color *sh = nullptr);
 [[nodiscard]] CornersPixmaps PrepareCornerPixmaps(
 	ImageRoundRadius radius,
 	style::color bg,
 	const style::color *sh = nullptr);
-void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corners);
+[[nodiscard]] CornersPixmaps PrepareInvertedCornerPixmaps(
+	int radius,
+	style::color bg);
+void FillRoundRect(QPainter &p, int x, int y, int w, int h, style::color bg, const CornersPixmaps &corners);
 inline void FillRoundRect(QPainter &p, const QRect &rect, style::color bg, const CornersPixmaps &corners) {
 	return FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, corners);
 }
-void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corners);
+void FillRoundShadow(QPainter &p, int x, int y, int w, int h, style::color shadow, const CornersPixmaps &corners);
 inline void FillRoundShadow(QPainter &p, const QRect &rect, style::color shadow, const CornersPixmaps &corners) {
 	FillRoundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, corners);
 }

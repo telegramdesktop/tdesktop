@@ -133,8 +133,7 @@ void AudioTrack::mixerInit() {
 	auto data = std::make_unique<ExternalSoundData>();
 	data->frame = std::move(_stream.decodedFrame);
 	data->codec = std::move(_stream.codec);
-	data->frequency = _stream.frequency;
-	data->length = (_stream.duration * data->frequency) / 1000LL;
+	data->duration = _stream.duration;
 	data->speed = _options.speed;
 
 	Media::Player::mixer()->play(
@@ -198,7 +197,7 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 
 	if (!_subscription) {
 		_subscription = Media::Player::Updated(
-		).add_subscription([=](const AudioMsgId &id) {
+		) | rpl::start_with_next([=](const AudioMsgId &id) {
 			using State = Media::Player::State;
 			if (id != _audioId) {
 				return;

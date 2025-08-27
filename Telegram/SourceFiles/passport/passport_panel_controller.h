@@ -26,8 +26,8 @@ struct EditContactScheme;
 
 enum class ReadScanError;
 
-using preferredLangCallback =
-	Fn<rpl::producer<EditDocumentCountry>(const QString &)>;
+using preferredLangCallback
+	= Fn<rpl::producer<EditDocumentCountry>(const QString &)>;
 EditDocumentScheme GetDocumentScheme(
 	Scope::Type type,
 	std::optional<Value::Type> scansType,
@@ -174,7 +174,7 @@ private:
 
 	std::unique_ptr<Panel> _panel;
 	Fn<bool()> _panelHasUnsavedChanges;
-	QPointer<Ui::BoxContent> _confirmForgetChangesBox;
+	base::weak_qptr<Ui::BoxContent> _confirmForgetChangesBox;
 	std::vector<Ui::BoxPointer> _editScopeBoxes;
 	Scope *_editScope = nullptr;
 	const Value *_editValue = nullptr;

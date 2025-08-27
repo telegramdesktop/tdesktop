@@ -22,6 +22,7 @@ enum class CursorState : char {
 	None,
 	Text,
 	Date,
+	Enlarge,
 	Forwarded,
 };
 
@@ -49,9 +50,11 @@ struct TextState {
 	FullMsgId itemId;
 	CursorState cursor = CursorState::None;
 	ClickHandlerPtr link;
-	bool afterSymbol = false;
-	bool customTooltip = false;
 	uint16 symbol = 0;
+	bool afterSymbol = false;
+	bool overMessageText = false;
+	bool customTooltip = false;
+	bool horizontalScroll = false;
 	QString customTooltipText;
 
 };
@@ -63,6 +66,7 @@ struct StateRequest {
 		result.flags = flags;
 		return result;
 	}
+	bool onlyMessageText = false;
 };
 
 enum class InfoDisplayType : char {

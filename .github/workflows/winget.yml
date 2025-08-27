@@ -10,9 +10,11 @@ jobs:
         uses: telegramdesktop/winget-releaser@main
         with:
           identifier: Telegram.TelegramDesktop
+          installers-regex: 't(setup|portable).*(exe|zip)$'
           token: ${{ secrets.WINGET_TOKEN }}
       - if: github.event.action == 'prereleased'
         uses: telegramdesktop/winget-releaser@main
         with:
           identifier: Telegram.TelegramDesktop.Beta
+          installers-regex: 't(setup|portable).*(exe|zip)$'
           token: ${{ secrets.WINGET_TOKEN }}

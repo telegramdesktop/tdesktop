@@ -11,6 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace Data {
+struct TopicIconDescriptor;
+enum class CustomEmojiSizeTag : uchar;
+} // namespace Data
+
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -25,3 +34,8 @@ void EditForumTopicBox(
 	not_null<Window::SessionController*> controller,
 	not_null<History*> forum,
 	MsgId rootId);
+
+[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> MakeTopicIconEmoji(
+	Data::TopicIconDescriptor descriptor,
+	Fn<void()> repaint,
+	Data::CustomEmojiSizeTag tag);

@@ -7,11 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/rect_part.h"
-#include "ui/effects/animations.h"
 #include "base/object_ptr.h"
-#include "base/observer.h"
+#include "ui/effects/animations.h"
+#include "ui/rect_part.h"
+#include "ui/rp_widget.h"
 
 namespace Window {
 class SessionController;
@@ -48,7 +47,7 @@ private:
 
 };
 
-class Float : public Ui::RpWidget, private base::Subscriber {
+class Float final : public Ui::RpWidget {
 public:
 	Float(
 		QWidget *parent,
@@ -131,6 +130,7 @@ public:
 class FloatDelegate {
 public:
 	virtual not_null<Ui::RpWidget*> floatPlayerWidget() = 0;
+	virtual void floatPlayerToggleGifsPaused(bool paused) = 0;
 	virtual not_null<FloatSectionDelegate*> floatPlayerGetSection(
 		Window::Column column) = 0;
 	virtual void floatPlayerEnumerateSections(Fn<void(
@@ -210,12 +210,13 @@ private:
 
 };
 
-class FloatController : private base::Subscriber {
+class FloatController final {
 public:
 	explicit FloatController(not_null<FloatDelegate*> delegate);
 
 	void replaceDelegate(not_null<FloatDelegate*> delegate);
-	rpl::producer<FullMsgId> closeEvents() const {
+
+	[[nodiscard]] rpl::producer<FullMsgId> closeEvents() const {
 		return _closeEvents.events();
 	}
 

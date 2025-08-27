@@ -1,0 +1,155 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "boxes/boxes.style";
+using "statistics/statistics.style";
+
+channelEarnLearnArrowMargins: margins(-2px, 5px, 0px, 0px);
+
+channelEarnOverviewTitleSkip: 11px;
+channelEarnOverviewMajorLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 30px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+	}
+}
+channelEarnOverviewMinorLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+}
+channelEarnOverviewMinorLabelSkip: 3px;
+channelEarnOverviewSubMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+}
+channelEarnOverviewSubMinorLabelPos: point(4px, 2px);
+channelEarnSemiboldLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+	style: semiboldTextStyle;
+}
+channelEarnHeaderLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+	style: TextStyle(statisticsHeaderTitleTextStyle) {
+	}
+	textFg: windowActiveTextFg;
+}
+channelEarnHistorySubLabel: FlatLabel(channelEarnOverviewSubMinorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+channelEarnHistoryRecipientLabel: FlatLabel(channelEarnOverviewSubMinorLabel) {
+	maxHeight: 0px;
+	minWidth: 100px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+channelEarnHistoryMajorLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+}
+channelEarnHistoryMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+}
+channelEarnHistoryDescriptionLabel: FlatLabel(channelEarnHistoryMajorLabel) {
+	// boxWidth - boxRowPadding = 320 - 24 * 2
+	minWidth: 272px;
+	maxHeight: 0px;
+	align: align(center);
+}
+channelEarnHistoryMinorLabelSkip: 2px;
+channelEarnHistoryOuter: margins(0px, 6px, 0px, 6px);
+channelEarnHistoryTwoSkip: 5px;
+channelEarnHistoryThreeSkip: 3px;
+
+channelEarnHistoryRecipientButton: RoundButton {
+	textFg: transparent;
+	textFgOver: transparent;
+	numbersTextFg: transparent;
+	numbersTextFgOver: transparent;
+	textBg: windowBgOver;
+	textBgOver: windowBgOver;
+
+	numbersSkip: 7px;
+
+	width: 190px;
+	height: 34px;
+	padding: margins(0px, 0px, 0px, 0px);
+
+	textTop: 8px;
+	radius: 8px;
+
+	iconPosition: point(0px, 0px);
+
+	style: semiboldTextStyle;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
+channelEarnHistoryRecipientButtonLabel: FlatLabel(channelEarnHistoryRecipientLabel) {
+	align: align(center);
+}
+
+channelEarnBalanceMajorLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(22px semibold);
+	}
+}
+channelEarnBalanceMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+	}
+}
+channelEarnBalanceMinorLabelSkip: 6px;
+channelEarnFadeDuration: 60;
+
+channelEarnLearnDescription: FlatLabel(defaultFlatLabel) {
+	maxHeight: 0px;
+	minWidth: 264px;
+	align: align(top);
+}
+
+channelEarnCurrencyCommonMargins: margins(0px, 3px, 1px, 0px);
+channelEarnCurrencyLearnMargins: margins(0px, 2px, 0px, 0px);
+
+sponsoredAboutTitleIcon: icon {{ "sponsored/large_about", activeButtonFg }};
+sponsoredAboutPrivacyIcon: icon {{ "sponsored/privacy_about", boxTextFg }};
+sponsoredAboutRemoveIcon: icon {{ "sponsored/remove_about", boxTextFg }};
+sponsoredAboutSplitIcon: icon {{ "sponsored/revenue_split", boxTextFg }};
+
+channelEarnLearnTitleIcon: icon {{ "sponsored/large_earn", activeButtonFg }};
+channelEarnLearnChannelIcon: icon {{ "sponsored/channel", boxTextFg }};
+channelEarnLearnWithdrawalsIcon: icon {{ "sponsored/withdrawals", boxTextFg }};
+
+sponsoredReportLabel: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+	minWidth: 150px;
+}
+
+botEarnInputField: InputField(defaultInputField) {
+	textMargins: margins(23px, 28px, 0px, 4px);
+	placeholderMargins: margins(-23px, 0px, 0px, 0px);
+	width: 100px;
+	heightMax: 55px;
+}
+botEarnLockedButtonLabel: FlatLabel(channelEarnOverviewMajorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(10px semibold);
+	}
+}
+botEarnButtonLock: IconEmoji {
+	icon: icon{{ "chat/mini_lock", premiumButtonFg }};
+	padding: margins(-2px, 4px, 0px, 0px);
+}
+

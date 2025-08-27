@@ -31,10 +31,12 @@ public:
 	MenuVolumeItem(
 		not_null<RpWidget*> parent,
 		const style::Menu &st,
+		const style::MediaSlider &stSlider,
 		rpl::producer<Group::ParticipantState> participantState,
 		int startVolume,
 		int maxVolume,
-		bool muted);
+		bool muted,
+		const QMargins &padding);
 
 	not_null<QAction*> action() const override;
 	bool isEnabled() const override;
@@ -71,6 +73,7 @@ private:
 	const not_null<QAction*> _dummyAction;
 	const style::Menu &_st;
 	const style::CrossLineAnimation &_stCross;
+	const QMargins &_padding;
 
 	const std::unique_ptr<Ui::CrossLineAnimation> _crossLineMute;
 	Ui::Animations::Simple _crossLineAnimation;

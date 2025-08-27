@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/peer_list_box.h"
 #include "base/weak_ptr.h"
+#include "mtproto/sender.h"
 
 namespace Window {
 class SessionNavigation;
@@ -34,14 +35,31 @@ public:
 	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
-	void rowElementClicked(not_null<PeerListRow*> row, int element) override;
+	void rowElementClicked(
+		not_null<PeerListRow*> row,
+		int element) override;
 	void loadMoreRows() override;
 
 	std::unique_ptr<PeerListRow> createSearchRow(
 		not_null<PeerData*> peer) override;
+	std::unique_ptr<PeerListRow> createRestoredRow(
+		not_null<PeerData*> peer) override;
+
+	std::unique_ptr<PeerListState> saveState() const override;
+	void restoreState(std::unique_ptr<PeerListState> state) override;
 
 private:
 	class RowHelper;
+
+	struct SavedState : SavedStateBase {
+		using SearchStateBase = PeerListSearchController::SavedStateBase;
+		std::unique_ptr<SearchStateBase> searchState;
+		base::flat_map<not_null<UserData*>, TimeId> dates;
+		TimeId offsetDate = 0;
+		UserData *offsetUser = nullptr;
+		bool allLoaded = false;
+		bool wasLoading = false;
+	};
 
 	static std::unique_ptr<PeerListSearchController> CreateSearchController(
 		not_null<PeerData*> peer);
@@ -62,6 +80,8 @@ private:
 	not_null<PeerData*> _peer;
 	MTP::Sender _api;
 
+	base::flat_map<not_null<UserData*>, TimeId> _dates;
+
 	TimeId _offsetDate = 0;
 	UserData *_offsetUser = nullptr;
 	mtpRequestId _loadRequestId = 0;
@@ -81,7 +101,17 @@ public:
 	void removeFromCache(not_null<UserData*> user);
 	[[nodiscard]] TimeId dateForUser(not_null<UserData*> user);
 
+	std::unique_ptr<SavedStateBase> saveState() const override;
+	void restoreState(std::unique_ptr<SavedStateBase> state) override;
+
 private:
+	struct SavedState : SavedStateBase {
+		QString query;
+		TimeId offsetDate = 0;
+		UserData *offsetUser = nullptr;
+		bool allLoaded = false;
+		bool wasLoading = false;
+	};
 	struct Item {
 		not_null<UserData*> user;
 		TimeId date = 0;

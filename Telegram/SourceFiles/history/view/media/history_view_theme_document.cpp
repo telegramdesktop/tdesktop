@@ -7,10 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_theme_document.h"
 
+#include "apiwrap.h"
+#include "boxes/background_preview_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/media/history_view_sticker_player_abstract.h"
+#include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_document_media.h"
@@ -18,35 +22,88 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_wall_paper.h"
 #include "base/qthelp_url.h"
+#include "core/click_handler_types.h"
 #include "core/local_url_handlers.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/text/format_values.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "window/section_widget.h"
+#include "window/window_session_controller.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
+namespace {
+
+[[nodiscard]] bool WallPaperRevertable(
+		not_null<PeerData*> peer,
+		const Data::WallPaper &paper) {
+	if (!peer->wallPaperOverriden()) {
+		return false;
+	}
+	const auto now = peer->wallPaper();
+	return now && now->equals(paper);
+}
+
+[[nodiscard]] bool WallPaperRevertable(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	const auto paper = media ? media->paper() : nullptr;
+	return paper
+		&& media->paperForBoth()
+		&& WallPaperRevertable(item->history()->peer, *paper);
+}
+
+[[nodiscard]] rpl::producer<bool> WallPaperRevertableValue(
+		not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	const auto paper = media ? media->paper() : nullptr;
+	if (!paper || !media->paperForBoth()) {
+		return rpl::single(false);
+	}
+	const auto peer = item->history()->peer;
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::ChatWallPaper
+	) | rpl::map([peer, paper = *paper] {
+		return WallPaperRevertable(peer, paper);
+	});
+}
+
+} // namespace
 
 ThemeDocument::ThemeDocument(
 	not_null<Element*> parent,
 	DocumentData *document)
-: ThemeDocument(parent, document, std::nullopt) {
+: ThemeDocument(parent, document, std::nullopt, 0) {
 }
 
 ThemeDocument::ThemeDocument(
 	not_null<Element*> parent,
 	DocumentData *document,
-	const std::optional<Data::WallPaper> &params)
+	const std::optional<Data::WallPaper> &params,
+	int serviceWidth)
 : File(parent, parent->data())
-, _data(document) {
-	Expects(params.has_value() || _data->hasThumbnail() || _data->isTheme());
+, _data(document)
+, _serviceWidth(serviceWidth) {
+	Expects(params.has_value()
+		|| (_data && (_data->hasThumbnail() || _data->isTheme())));
 
 	if (params) {
 		_background = params->backgroundColors();
 		_patternOpacity = params->patternOpacity();
 		_gradientRotation = params->gradientRotation();
+		_blurredWallPaper = params->isBlurred();
+		_dimmingIntensity = (!params->document()
+			|| params->isPattern()
+			|| !_serviceWidth)
+			? 0
+			: std::max(params->patternIntensity(), 0);
 	}
 	const auto fullId = _parent->data()->fullId();
 	if (_data) {
@@ -100,6 +157,10 @@ std::optional<Data::WallPaper> ThemeDocument::ParamsFromUrl(
 }
 
 QSize ThemeDocument::countOptimalSize() {
+	if (_serviceWidth > 0) {
+		return { _serviceWidth, _serviceWidth };
+	}
+
 	if (!_data) {
 		return { st::maxWallPaperWidth, st::maxWallPaperHeight };
 	} else if (_data->isTheme()) {
@@ -123,6 +184,10 @@ QSize ThemeDocument::countOptimalSize() {
 }
 
 QSize ThemeDocument::countCurrentSize(int newWidth) {
+	if (_serviceWidth) {
+		_pixw = _pixh = _serviceWidth;
+		return { _serviceWidth, _serviceWidth };
+	}
 	if (!_data) {
 		_pixw = st::maxWallPaperWidth;
 		_pixh = st::maxWallPaperHeight;
@@ -187,14 +252,16 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	if (_data) {
-		auto statusX = paintx + st::msgDateImgDelta + st::msgDateImgPadding.x();
-		auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
-		auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
-		auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
-		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), sti->msgDateImgBg, sti->msgDateImgBgCorners);
-		p.setFont(st::normalFont);
-		p.setPen(st->msgDateImgFg());
-		p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
+		if (!_serviceWidth) {
+			auto statusX = paintx + st::msgDateImgDelta + st::msgDateImgPadding.x();
+			auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
+			auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
+			auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+			Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), sti->msgDateImgBg, sti->msgDateImgBgCorners);
+			p.setFont(st::normalFont);
+			p.setPen(st->msgDateImgFg());
+			p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
+		}
 		if (radial || (!loaded && !_data->loading())) {
 			const auto radialOpacity = (radial && loaded && !_data->uploading())
 				? _animation->radial.opacity() :
@@ -250,6 +317,11 @@ bool ThemeDocument::checkGoodThumbnail() const {
 }
 
 void ThemeDocument::validateThumbnail() const {
+	const auto isDark = Window::Theme::IsNightMode();
+	if (_isDark != isDark) {
+		_isDark = isDark;
+		_thumbnailGood = -1;
+	}
 	if (checkGoodThumbnail()) {
 		if (_thumbnailGood > 0) {
 			return;
@@ -277,13 +349,31 @@ void ThemeDocument::validateThumbnail() const {
 	}
 }
 
+QImage ThemeDocument::finishServiceThumbnail(QImage image) const {
+	if (!_serviceWidth) {
+		return image;
+	} else if (_isDark && _dimmingIntensity > 0) {
+		image.setDevicePixelRatio(style::DevicePixelRatio());
+		auto p = QPainter(&image);
+		const auto alpha = 255 * _dimmingIntensity / 100;
+		p.fillRect(0, 0, _pixw, _pixh, QColor(0, 0, 0, alpha));
+	}
+	if (_blurredWallPaper) {
+		constexpr auto kRadius = 16;
+		image = Images::BlurLargeImage(std::move(image), kRadius);
+	}
+	return Images::Circle(std::move(image));
+}
+
 void ThemeDocument::generateThumbnail() const {
-	_thumbnail = Ui::PixmapFromImage(Ui::GenerateBackgroundImage(
-		QSize(_pixw, _pixh) * cIntRetinaFactor(),
+	auto image = Ui::GenerateBackgroundImage(
+		QSize(_pixw, _pixh) * style::DevicePixelRatio(),
 		_background,
 		_gradientRotation,
-		_patternOpacity));
-	_thumbnail.setDevicePixelRatio(cRetinaFactor());
+		_patternOpacity);
+	_thumbnail = Ui::PixmapFromImage(
+		finishServiceThumbnail(std::move(image)));
+	_thumbnail.setDevicePixelRatio(style::DevicePixelRatio());
 	_thumbnailGood = 1;
 }
 
@@ -307,9 +397,12 @@ void ThemeDocument::prepareThumbnailFrom(
 		tw = th = 1;
 	}
 	const auto ratio = style::DevicePixelRatio();
+	const auto resizeTo = _serviceWidth
+		? QSize(tw, th).scaled(_pixw, _pixh, Qt::KeepAspectRatioByExpanding)
+		: QSize(_pixw, (_pixw * th) / tw);
 	original = Images::Prepare(
 		std::move(original),
-		QSize(_pixw, (_pixw * th) / tw) * ratio,
+		resizeTo * ratio,
 		{ .options = options, .outer = { _pixw, _pixh } });
 	if (isPattern) {
 		original = Ui::PreparePatternImage(
@@ -319,7 +412,8 @@ void ThemeDocument::prepareThumbnailFrom(
 			_patternOpacity);
 		original.setDevicePixelRatio(ratio);
 	}
-	_thumbnail = Ui::PixmapFromImage(std::move(original));
+	_thumbnail = Ui::PixmapFromImage(
+		finishServiceThumbnail(std::move(original)));
 	_thumbnailGood = good;
 }
 
@@ -367,19 +461,148 @@ bool ThemeDocument::isReadyForOpen() const {
 	return !_data || _dataMedia->loaded();
 }
 
-QString ThemeDocument::additionalInfoString() const {
-	// This will force message info (time) to be displayed below
-	// this attachment in WebPage media.
-	static auto result = QString(" ");
-	return result;
-}
-
 bool ThemeDocument::hasHeavyPart() const {
 	return (_dataMedia != nullptr);
 }
 
 void ThemeDocument::unloadHeavyPart() {
 	_dataMedia = nullptr;
+}
+
+ThemeDocumentBox::ThemeDocumentBox(
+	not_null<Element*> parent,
+	const Data::WallPaper &paper)
+: _parent(parent)
+, _emojiId(paper.emojiId()) {
+	Window::WallPaperResolved(
+		&_parent->history()->owner(),
+		&paper
+	) | rpl::start_with_next([=](const Data::WallPaper *paper) {
+		_parent->repaint();
+		if (!paper) {
+			_preview.reset();
+		} else {
+			createPreview(*paper);
+		}
+	}, _lifetime);
+}
+
+void ThemeDocumentBox::createPreview(const Data::WallPaper &paper) {
+	_preview.emplace(
+		_parent,
+		paper.document(),
+		paper,
+		st::msgServicePhotoWidth);
+	_preview->initDimensions();
+	_preview->resizeGetHeight(_preview->maxWidth());
+}
+
+ThemeDocumentBox::~ThemeDocumentBox() = default;
+
+int ThemeDocumentBox::top() {
+	return st::msgServiceGiftBoxButtonMargins.top();
+}
+
+QSize ThemeDocumentBox::size() {
+	return _preview
+		? QSize(_preview->maxWidth(), _preview->minHeight())
+		: QSize(st::msgServicePhotoWidth, st::msgServicePhotoWidth);
+}
+
+TextWithEntities ThemeDocumentBox::title() {
+	return {};
+}
+
+TextWithEntities ThemeDocumentBox::subtitle() {
+	return _parent->data()->notificationText();
+}
+
+rpl::producer<QString> ThemeDocumentBox::button() {
+	if (_parent->data()->out() || _parent->history()->peer->isChannel()) {
+		return {};
+	}
+	return rpl::conditional(
+		WallPaperRevertableValue(_parent->data()),
+		tr::lng_action_set_wallpaper_remove(),
+		tr::lng_action_set_wallpaper_button());
+}
+
+ClickHandlerPtr ThemeDocumentBox::createViewLink() {
+	const auto to = _parent->history()->peer;
+	if (to->isChannel()) {
+		return nullptr;
+	}
+	const auto out = _parent->data()->out();
+	const auto media = _parent->data()->media();
+	const auto weak = base::make_weak(_parent);
+	const auto paper = media ? media->paper() : nullptr;
+	const auto maybe = paper ? *paper : std::optional<Data::WallPaper>();
+	const auto itemId = _parent->data()->fullId();
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			const auto view = weak.get();
+			if (view
+				&& !view->data()->out()
+				&& WallPaperRevertable(view->data())) {
+				const auto reset = crl::guard(weak, [=](Fn<void()> close) {
+					const auto api = &controller->session().api();
+					api->request(MTPmessages_SetChatWallPaper(
+						MTP_flags(MTPmessages_SetChatWallPaper::Flag::f_revert),
+						view->data()->history()->peer->input,
+						MTPInputWallPaper(),
+						MTPWallPaperSettings(),
+						MTPint()
+					)).done([=](const MTPUpdates &result) {
+						api->applyUpdates(result);
+					}).send();
+					close();
+				});
+				controller->show(Ui::MakeConfirmBox({
+					.text = tr::lng_background_sure_reset_default(),
+					.confirmed = reset,
+					.confirmText = tr::lng_background_reset_default(),
+				}));
+			} else if (out) {
+				controller->toggleChooseChatTheme(to);
+			} else if (maybe) {
+				controller->show(Box<BackgroundPreviewBox>(
+					controller,
+					*maybe,
+					BackgroundPreviewArgs{ to, itemId }));
+			}
+		}
+	});
+}
+
+void ThemeDocumentBox::draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &geometry) {
+	if (_preview) {
+		p.translate(geometry.topLeft());
+		_preview->draw(p, context);
+		p.translate(-geometry.topLeft());
+	}
+}
+
+void ThemeDocumentBox::stickerClearLoopPlayed() {
+}
+
+std::unique_ptr<StickerPlayer> ThemeDocumentBox::stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
+	return nullptr;
+}
+
+bool ThemeDocumentBox::hasHeavyPart() {
+	return _preview && _preview->hasHeavyPart();
+}
+
+void ThemeDocumentBox::unloadHeavyPart() {
+	if (_preview) {
+		_preview->unloadHeavyPart();
+	}
 }
 
 } // namespace HistoryView

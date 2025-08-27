@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "boxes/peer_list_box.h"
 
-namespace Window {
+namespace Ui {
 class Show;
-} // namespace Window
+} // namespace Ui
 
 namespace Info {
 
@@ -64,17 +64,13 @@ private:
 	void peerListFinishSelectedRowsBunch() override;
 	void peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) override;
-	void peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
-	void peerListHideLayer() override;
-	not_null<QWidget*> peerListToastParent() override;
+	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 
 	object_ptr<ListWidget> setupList(
 		RpWidget *parent,
 		not_null<PeerListController*> controller) const;
 
-	std::unique_ptr<Window::Show> _show;
+	std::shared_ptr<Main::SessionShow> _show;
 	not_null<Controller*> _controller;
 	not_null<UserData*> _user;
 	std::unique_ptr<PeerListController> _listController;

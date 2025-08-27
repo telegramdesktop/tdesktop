@@ -195,6 +195,8 @@ QByteArray SerializeText(
 			? "language"
 			: (part.type == Type::TextUrl)
 			? "href"
+			: (part.type == Type::Blockquote)
+			? "collapsed"
 			: "none";
 		const auto additionalValue = (part.type == Type::MentionName)
 			? part.additional
@@ -202,6 +204,8 @@ QByteArray SerializeText(
 				|| part.type == Type::TextUrl
 				|| part.type == Type::CustomEmoji)
 			? SerializeString(part.additional)
+			: (part.type == Type::Blockquote)
+			? (part.additional.isEmpty() ? "false" : "true")
 			: QByteArray();
 		return SerializeObject(context, {
 			{ "type", SerializeString(typeString) },
@@ -286,28 +290,25 @@ QByteArray SerializeMessage(
 		pushBare("edited_unixtime", SerializeDateRaw(message.edited));
 	}
 
+	const auto wrapPeerId = [&](PeerId peerId) {
+		if (const auto chat = peerToChat(peerId)) {
+			return SerializeString("chat"
+				+ Data::NumberToString(chat.bare));
+		} else if (const auto channel = peerToChannel(peerId)) {
+			return SerializeString("channel"
+				+ Data::NumberToString(channel.bare));
+		}
+		return SerializeString("user"
+			+ Data::NumberToString(peerToUser(peerId).bare));
+	};
 	const auto push = [&](const QByteArray &key, const auto &value) {
-		if constexpr (std::is_arithmetic_v<std::decay_t<decltype(value)>>) {
+		using V = std::decay_t<decltype(value)>;
+		if constexpr (std::is_same_v<V, bool>) {
+			pushBare(key, value ? "true" : "false");
+		} else if constexpr (std::is_arithmetic_v<V>) {
 			pushBare(key, Data::NumberToString(value));
-		} else if constexpr (std::is_same_v<
-				std::decay_t<decltype(value)>,
-				PeerId>) {
-			if (const auto chat = peerToChat(value)) {
-				pushBare(
-					key,
-					SerializeString("chat"
-						+ Data::NumberToString(chat.bare)));
-			} else if (const auto channel = peerToChannel(value)) {
-				pushBare(
-					key,
-					SerializeString("channel"
-						+ Data::NumberToString(channel.bare)));
-			} else {
-				pushBare(
-					key,
-					SerializeString("user"
-						+ Data::NumberToString(peerToUser(value).bare)));
-			}
+		} else if constexpr (std::is_same_v<V, PeerId>) {
+			pushBare(key, wrapPeerId(value));
 		} else {
 			const auto wrapped = QByteArray(value);
 			if (!wrapped.isEmpty()) {
@@ -384,9 +385,15 @@ QByteArray SerializeMessage(
 	};
 	const auto pushPhoto = [&](const Image &image) {
 		pushPath(image.file, "photo");
+		push("photo_file_size", image.file.size);
 		if (image.width && image.height) {
 			push("width", image.width);
 			push("height", image.height);
+		}
+	};
+	const auto pushSpoiler = [&](const auto &media) {
+		if (media.spoilered) {
+			push("media_spoiler", true);
 		}
 	};
 
@@ -403,6 +410,7 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("edit_group_photo");
 		pushPhoto(data.photo.image);
+		pushSpoiler(data.photo);
 	}, [&](const ActionChatDeletePhoto &data) {
 		pushActor();
 		pushAction("delete_group_photo");
@@ -445,7 +453,6 @@ QByteArray SerializeMessage(
 		pushAction("send_payment");
 		push("amount", data.amount);
 		push("currency", data.currency);
-		const auto amount = FormatMoneyAmount(data.amount, data.currency);
 		pushReplyToMsgId("invoice_message_id");
 		if (data.recurringUsed) {
 			push("recurring", "used");
@@ -454,20 +461,27 @@ QByteArray SerializeMessage(
 		}
 	}, [&](const ActionPhoneCall &data) {
 		pushActor();
-		pushAction("phone_call");
+		pushAction(data.conferenceId ? "conference_call" : "phone_call");
 		if (data.duration) {
 			push("duration_seconds", data.duration);
 		}
-		using Reason = ActionPhoneCall::DiscardReason;
-		push("discard_reason", [&] {
-			switch (data.discardReason) {
-			case Reason::Busy: return "busy";
-			case Reason::Disconnect: return "disconnect";
-			case Reason::Hangup: return "hangup";
-			case Reason::Missed: return "missed";
-			}
-			return "";
-		}());
+		using State = ActionPhoneCall::State;
+		if (data.conferenceId) {
+			push("is_active", data.state == State::Active);
+			push("is_missed", data.state == State::Missed);
+		} else {
+			push("discard_reason", [&] {
+				switch (data.state) {
+				case State::Busy: return "busy";
+				case State::Disconnect: return "disconnect";
+				case State::Hangup: return "hangup";
+				case State::Missed: return "missed";
+				case State::MigrateConferenceCall:
+					return "migrate_conference_all";
+				}
+				return "";
+			}());
+		}
 	}, [&](const ActionScreenshotTaken &data) {
 		pushActor();
 		pushAction("take_screenshot");
@@ -475,8 +489,18 @@ QByteArray SerializeMessage(
 		pushActor();
 		push("information_text", data.message);
 	}, [&](const ActionBotAllowed &data) {
-		pushAction("allow_sending_messages");
-		push("reason_domain", data.domain);
+		if (data.attachMenu) {
+			pushAction("attach_menu_bot_allowed");
+		} else if (data.fromRequest) {
+			pushAction("web_app_bot_allowed");
+		} else if (data.appId) {
+			pushAction("allow_sending_messages");
+			push("reason_app_id", data.appId);
+			push("reason_app_name", data.app);
+		} else {
+			pushAction("allow_sending_messages");
+			push("reason_domain", data.domain);
+		}
 	}, [&](const ActionSecureValuesSent &data) {
 		pushAction("send_passport_values");
 		auto list = std::vector<QByteArray>();
@@ -573,6 +597,144 @@ QByteArray SerializeMessage(
 		if (data.iconEmojiId) {
 			push("new_icon_emoji_id", *data.iconEmojiId);
 		}
+	}, [&](const ActionSuggestProfilePhoto &data) {
+		pushActor();
+		pushAction("suggest_profile_photo");
+		pushPhoto(data.photo.image);
+		pushSpoiler(data.photo);
+	}, [&](const ActionRequestedPeer &data) {
+		pushActor();
+		pushAction("requested_peer");
+		push("button_id", data.buttonId);
+		auto values = std::vector<QByteArray>();
+		for (const auto &one : data.peers) {
+			values.push_back(Data::NumberToString(one.value));
+		}
+		push("peers", SerializeArray(context, values));
+	}, [&](const ActionGiftCode &data) {
+		pushAction("gift_code_prize");
+		push("gift_code", data.code);
+		if (data.boostPeerId) {
+			push("boost_peer_id", data.boostPeerId);
+		}
+		push("months", data.months);
+		push("unclaimed", data.unclaimed);
+		push("via_giveaway", data.viaGiveaway);
+	}, [&](const ActionGiveawayLaunch &data) {
+		pushAction("giveaway_launch");
+	}, [&](const ActionGiveawayResults &data) {
+		pushAction("giveaway_results");
+		push("winners", data.winners);
+		push("unclaimed", data.unclaimed);
+		push("stars", data.credits);
+	}, [&](const ActionSetChatWallPaper &data) {
+		pushActor();
+		pushAction(data.same
+			? "set_same_chat_wallpaper"
+			: "set_chat_wallpaper");
+		pushReplyToMsgId("message_id");
+	}, [&](const ActionBoostApply &data) {
+		pushActor();
+		pushAction("boost_apply");
+		push("boosts", data.boosts);
+	}, [&](const ActionPaymentRefunded &data) {
+		pushAction("refunded_payment");
+		push("amount", data.amount);
+		push("currency", data.currency);
+		pushBare("peer_name", wrapPeerName(data.peerId));
+		push("peer_id", data.peerId);
+		push("charge_id", data.transactionId);
+	}, [&](const ActionGiftCredits &data) {
+		pushActor();
+		pushAction(data.amount.ton()
+			? "send_ton_gift"
+			: "send_stars_gift");
+		if (!data.cost.isEmpty()) {
+			push("cost", data.cost);
+		}
+		if (data.amount) {
+			push("amount_whole", data.amount.whole());
+			push("amount_nano", data.amount.nano());
+		}
+	}, [&](const ActionPrizeStars &data) {
+		pushActor();
+		pushAction("stars_prize");
+		push("boost_peer_id", data.peerId);
+		pushBare("boost_peer_name", wrapPeerName(data.peerId));
+		push("stars", data.amount);
+		push("is_unclaimed", data.isUnclaimed);
+		push("giveaway_msg_id", data.giveawayMsgId);
+		push("transaction_id", data.transactionId);
+	}, [&](const ActionStarGift &data) {
+		pushActor();
+		pushAction("send_star_gift");
+		push("gift_id", data.giftId);
+		push("stars", data.stars);
+		push("is_limited", data.limited);
+		push("is_anonymous", data.anonymous);
+		pushBare("gift_text", SerializeText(context, data.text));
+	}, [&](const ActionPaidMessagesRefunded &data) {
+		pushActor();
+		pushAction("paid_messages_refund");
+		push("messages_count", data.messages);
+		push("stars_count", data.stars);
+	}, [&](const ActionPaidMessagesPrice &data) {
+		pushActor();
+		pushAction("paid_messages_price_change");
+		push("price_stars", data.stars);
+		push("is_broadcast_messages_allowed", data.broadcastAllowed);
+	}, [&](const ActionTodoCompletions &data) {
+		pushActor();
+		pushAction("todo_completions");
+		auto completed = QByteArrayList();
+		for (const auto index : data.completed) {
+			completed.push_back(QByteArray::number(index));
+		}
+		auto incompleted = QByteArrayList();
+		for (const auto index : data.incompleted) {
+			incompleted.push_back(QByteArray::number(index));
+		}
+		pushBare("completed", '[' + completed.join(',') + ']');
+		pushBare("incompleted", '[' + incompleted.join(',') + ']');
+	}, [&](const ActionTodoAppendTasks &data) {
+		pushActor();
+		pushAction("todo_append_tasks");
+		const auto items = ranges::views::all(
+			data.items
+		) | ranges::views::transform([&](const TodoListItem &item) {
+			context.nesting.push_back(Context::kArray);
+			auto result = SerializeObject(context, {
+				{ "text", SerializeText(context, item.text) },
+				{ "id", NumberToString(item.id) },
+			});
+			context.nesting.pop_back();
+			return result;
+		}) | ranges::to_vector;
+		pushBare("items", SerializeArray(context, items));
+	}, [&](const ActionSuggestedPostApproval &data) {
+		pushActor();
+		pushAction("process_suggested_post");
+		if (data.rejected) {
+			pushBare("rejected", "true");
+			if (!data.rejectComment.isEmpty()) {
+				push("comment", data.rejectComment);
+			}
+		} else {
+			push("price_amount_whole", NumberToString(data.price.whole()));
+			push("price_amount_nano", NumberToString(data.price.nano()));
+			push("price_currency", data.price.ton() ? "TON" : "Stars");
+			push("scheduled_date", data.scheduleDate);
+		}
+	}, [&](const ActionSuggestedPostSuccess &data) {
+		pushActor();
+		pushAction("suggested_post_success");
+		push("price_amount_whole", NumberToString(data.price.whole()));
+		push("price_amount_nano", NumberToString(data.price.nano()));
+		push("price_currency", data.price.ton() ? "TON" : "Stars");
+	}, [&](const ActionSuggestedPostRefund &data) {
+		pushActor();
+		pushAction("suggested_post_refund");
+		push("user_initiated", data.payerInitiated);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {
@@ -602,11 +764,15 @@ QByteArray SerializeMessage(
 
 	v::match(message.media.content, [&](const Photo &photo) {
 		pushPhoto(photo.image);
+		pushSpoiler(photo);
 		pushTTL();
 	}, [&](const Document &data) {
 		pushPath(data.file, "file");
+		push("file_name", data.name);
+		push("file_size", data.file.size);
 		if (data.thumb.width > 0) {
 			pushPath(data.thumb.file, "thumbnail");
+			push("thumbnail_file_size", data.thumb.file.size);
 		}
 		const auto pushType = [&](const QByteArray &value) {
 			push("media_type", value);
@@ -627,9 +793,7 @@ QByteArray SerializeMessage(
 			push("performer", data.songPerformer);
 			push("title", data.songTitle);
 		}
-		if (!data.isSticker) {
-			push("mime_type", data.mime);
-		}
+		push("mime_type", data.mime);
 		if (data.duration) {
 			push("duration_seconds", data.duration);
 		}
@@ -637,6 +801,7 @@ QByteArray SerializeMessage(
 			push("width", data.width);
 			push("height", data.height);
 		}
+		pushSpoiler(data);
 		pushTTL();
 	}, [&](const SharedContact &data) {
 		pushBare("contact_information", SerializeObject(context, {
@@ -649,6 +814,7 @@ QByteArray SerializeMessage(
 		}));
 		if (!data.vcard.content.isEmpty()) {
 			pushPath(data.vcard, "contact_vcard");
+			push("contact_vcard_file_size", data.vcard.size);
 		}
 	}, [&](const GeoPoint &data) {
 		pushBare(
@@ -696,7 +862,7 @@ QByteArray SerializeMessage(
 		) | ranges::views::transform([&](const Poll::Answer &answer) {
 			context.nesting.push_back(Context::kArray);
 			auto result = SerializeObject(context, {
-				{ "text", SerializeString(answer.text) },
+				{ "text", SerializeText(context, answer.text) },
 				{ "voters", NumberToString(answer.votes) },
 				{ "chosen", answer.my ? "true" : "false" },
 			});
@@ -707,17 +873,227 @@ QByteArray SerializeMessage(
 		context.nesting.pop_back();
 
 		pushBare("poll", SerializeObject(context, {
-			{ "question", SerializeString(data.question) },
+			{ "question", SerializeText(context, data.question) },
 			{ "closed", data.closed ? "true" : "false" },
 			{ "total_voters", NumberToString(data.totalVotes) },
 			{ "answers", serialized }
 		}));
+	}, [&](const TodoList &data) {
+		context.nesting.push_back(Context::kObject);
+		const auto items = ranges::views::all(
+			data.items
+		) | ranges::views::transform([&](const TodoListItem &item) {
+			context.nesting.push_back(Context::kArray);
+			auto result = SerializeObject(context, {
+				{ "text", SerializeText(context, item.text) },
+				{ "id", NumberToString(item.id) },
+			});
+			context.nesting.pop_back();
+			return result;
+		}) | ranges::to_vector;
+		const auto serialized = SerializeArray(context, items);
+		context.nesting.pop_back();
+
+		pushBare("todo_list", SerializeObject(context, {
+			{ "title", SerializeText(context, data.title) },
+			{ "others_can_append", data.othersCanAppend ? "true" : "false" },
+			{
+				"others_can_complete",
+				data.othersCanComplete ? "true" : "false",
+			},
+			{ "answers", serialized }
+		}));
+	}, [&](const GiveawayStart &data) {
+		context.nesting.push_back(Context::kArray);
+		const auto channels = ranges::views::all(
+			data.channels
+		) | ranges::views::transform([&](ChannelId id) {
+			return NumberToString(id.bare);
+		}) | ranges::to_vector;
+		const auto serialized = SerializeArray(context, channels);
+		context.nesting.pop_back();
+
+		context.nesting.push_back(Context::kArray);
+		const auto countries = ranges::views::all(
+			data.countries
+		) | ranges::views::transform([&](const QString &code) {
+			return SerializeString(code.toUtf8());
+		}) | ranges::to_vector;
+		const auto serializedCountries = SerializeArray(context, countries);
+		context.nesting.pop_back();
+
+		const auto additionalPrize = data.additionalPrize.toUtf8();
+
+		pushBare("giveaway_information", SerializeObject(context, {
+			{ "quantity", NumberToString(data.quantity) },
+			{ "months", NumberToString(data.months) },
+			{ "until_date", SerializeDate(data.untilDate) },
+			{ "channels", serialized },
+			{ "countries", serializedCountries },
+			{ "additional_prize", SerializeString(additionalPrize) },
+			{ "stars", NumberToString(data.credits) },
+			{ "is_only_new_subscribers", (!data.all) ? "true" : "false" },
+		}));
+	}, [&](const GiveawayResults &data) {
+		context.nesting.push_back(Context::kArray);
+		const auto winners = ranges::views::all(
+			data.winners
+		) | ranges::views::transform([&](PeerId id) {
+			return NumberToString(id.value);
+		}) | ranges::to_vector;
+		const auto serialized = SerializeArray(context, winners);
+		context.nesting.pop_back();
+
+		const auto additionalPrize = data.additionalPrize.toUtf8();
+		const auto peersCount = data.additionalPeersCount;
+
+		pushBare("giveaway_results", SerializeObject(context, {
+			{ "channel", NumberToString(data.channel.bare) },
+			{ "winners", serialized },
+			{ "additional_prize", SerializeString(additionalPrize) },
+			{ "until_date", SerializeDate(data.untilDate) },
+			{ "launch_message_id", NumberToString(data.launchId) },
+			{ "additional_peers_count", NumberToString(peersCount) },
+			{ "winners_count", NumberToString(data.winnersCount) },
+			{ "unclaimed_count", NumberToString(data.unclaimedCount) },
+			{ "months", NumberToString(data.months) },
+			{ "stars", NumberToString(data.credits) },
+			{ "is_refunded", data.refunded ? "true" : "false" },
+			{ "is_only_new_subscribers", (!data.all) ? "true" : "false" },
+		}));
+	}, [&](const PaidMedia &data) {
+		push("paid_stars_amount", data.stars);
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
 	}, [](v::null_t) {});
 
 	pushBare("text", SerializeText(context, message.text));
 	pushBare("text_entities", SerializeText(context, message.text, true));
+
+	if (!message.inlineButtonRows.empty()) {
+		const auto serializeRow = [&](
+				const std::vector<HistoryMessageMarkupButton> &row) {
+			context.nesting.push_back(Context::kArray);
+			const auto buttons = ranges::views::all(
+				row
+			) | ranges::views::transform([&](
+					const HistoryMessageMarkupButton &entry) {
+				auto pairs = std::vector<std::pair<QByteArray, QByteArray>>();
+				pairs.push_back({
+					"type",
+					SerializeString(
+						HistoryMessageMarkupButton::TypeToString(entry)),
+				});
+				if (!entry.text.isEmpty()) {
+					pairs.push_back({
+						"text",
+						SerializeString(entry.text.toUtf8()),
+					});
+				}
+				if (!entry.data.isEmpty()) {
+					using Type = HistoryMessageMarkupButton::Type;
+					const auto isCallback = (entry.type == Type::Callback)
+						|| (entry.type == Type::CallbackWithPassword);
+					const auto data = isCallback
+						? entry.data.toBase64(QByteArray::Base64UrlEncoding
+							| QByteArray::OmitTrailingEquals)
+						: entry.data;
+					if (isCallback) {
+						pairs.push_back({
+							"dataBase64",
+							SerializeString(data),
+						});
+						pairs.push_back({ "data", SerializeString({}) });
+					} else {
+						pairs.push_back({ "data", SerializeString(data) });
+					}
+				}
+				if (!entry.forwardText.isEmpty()) {
+					pairs.push_back({
+						"forward_text",
+						SerializeString(entry.forwardText.toUtf8()),
+					});
+				}
+				if (entry.buttonId) {
+					pairs.push_back({
+						"button_id",
+						NumberToString(entry.buttonId),
+					});
+				}
+				return SerializeObject(context, pairs);
+			}) | ranges::to_vector;
+			context.nesting.pop_back();
+			return SerializeArray(context, buttons);
+		};
+		context.nesting.push_back(Context::kArray);
+		const auto rows = ranges::views::all(
+			message.inlineButtonRows
+		) | ranges::views::transform(serializeRow) | ranges::to_vector;
+		context.nesting.pop_back();
+		pushBare("inline_bot_buttons", SerializeArray(context, rows));
+	}
+
+	if (!message.reactions.empty()) {
+		const auto serializeReaction = [&](const Reaction &reaction) {
+			context.nesting.push_back(Context::kObject);
+			const auto guard = gsl::finally([&] {
+				context.nesting.pop_back();
+			});
+
+			auto pairs = std::vector<std::pair<QByteArray, QByteArray>>();
+			pairs.push_back({
+				"type",
+				SerializeString(Reaction::TypeToString(reaction)),
+			});
+			pairs.push_back({
+				"count",
+				NumberToString(reaction.count),
+			});
+			switch (reaction.type) {
+				case Reaction::Type::Emoji:
+					pairs.push_back({
+						"emoji",
+						SerializeString(reaction.emoji.toUtf8()),
+					});
+					break;
+				case Reaction::Type::CustomEmoji:
+					pairs.push_back({
+						"document_id",
+						SerializeString(reaction.documentId),
+					});
+					break;
+			}
+
+			if (!reaction.recent.empty()) {
+				context.nesting.push_back(Context::kArray);
+				const auto recents = ranges::views::all(
+					reaction.recent
+				) | ranges::views::transform([&](
+						const Reaction::Recent &recent) {
+					context.nesting.push_back(Context::kArray);
+					const auto guard = gsl::finally([&] {
+						context.nesting.pop_back();
+					});
+					return SerializeObject(context, {
+						{ "from", wrapPeerName(recent.peerId) },
+						{ "from_id", wrapPeerId(recent.peerId) },
+						{ "date", SerializeDate(recent.date) },
+					});
+				}) | ranges::to_vector;
+				pairs.push_back({"recent", SerializeArray(context, recents)});
+				context.nesting.pop_back();
+			}
+
+			return SerializeObject(context, pairs);
+		};
+
+		context.nesting.push_back(Context::kArray);
+		const auto reactions = ranges::views::all(
+			message.reactions
+		) | ranges::views::transform(serializeReaction) | ranges::to_vector;
+		pushBare("reactions", SerializeArray(context, reactions));
+		context.nesting.pop_back();
+	}
 
 	return serialized();
 }
@@ -863,6 +1239,77 @@ Result JsonWriter::writeUserpicsEnd() {
 	return _output->writeBlock(popNesting());
 }
 
+Result JsonWriter::writeStoriesStart(const Data::StoriesInfo &data) {
+	Expects(_output != nullptr);
+
+	auto block = prepareObjectItemStart("stories");
+	return _output->writeBlock(block + pushNesting(Context::kArray));
+}
+
+Result JsonWriter::writeStoriesSlice(const Data::StoriesSlice &data) {
+	Expects(_output != nullptr);
+
+	if (data.list.empty()) {
+		return Result::Success();
+	}
+
+	auto block = QByteArray();
+	for (const auto &story : data.list) {
+		using SkipReason = Data::File::SkipReason;
+		const auto &file = story.file();
+		Assert(!file.relativePath.isEmpty()
+			|| file.skipReason != SkipReason::None);
+		const auto path = [&]() -> Data::Utf8String {
+			switch (file.skipReason) {
+			case SkipReason::Unavailable:
+				return "(Photo unavailable, please try again later)";
+			case SkipReason::FileSize:
+				return "(Photo exceeds maximum size. "
+					"Change data exporting settings to download.)";
+			case SkipReason::FileType:
+				return "(Photo not included. "
+					"Change data exporting settings to download.)";
+			case SkipReason::None: return FormatFilePath(file);
+			}
+			Unexpected("Skip reason while writing story path.");
+		}();
+		block.append(prepareArrayItemStart());
+		block.append(SerializeObject(_context, {
+			{
+				"date",
+				story.date ? SerializeDate(story.date) : QByteArray()
+			},
+			{
+				"date_unixtime",
+				story.date ? SerializeDateRaw(story.date) : QByteArray()
+			},
+			{
+				"expires",
+				story.expires ? SerializeDate(story.expires) : QByteArray()
+			},
+			{
+				"expires_unixtime",
+				story.expires ? SerializeDateRaw(story.expires) : QByteArray()
+			},
+			{
+				"pinned",
+				story.pinned ? "true" : "false"
+			},
+			{
+				"media",
+				SerializeString(path)
+			},
+		}));
+	}
+	return _output->writeBlock(block);
+}
+
+Result JsonWriter::writeStoriesEnd() {
+	Expects(_output != nullptr);
+
+	return _output->writeBlock(popNesting());
+}
+
 Result JsonWriter::writeContactsList(const Data::ContactsList &data) {
 	Expects(_output != nullptr);
 
@@ -950,7 +1397,7 @@ Result JsonWriter::writeFrequentContacts(const Data::ContactsList &data) {
 				{ "id", Data::NumberToString(Data::PeerToBareId(top.peer.id())) },
 				{ "category", SerializeString(category) },
 				{ "type", SerializeString(type) },
-				{ "name",  StringAllowNull(top.peer.name()) },
+				{ "name", StringAllowNull(top.peer.name()) },
 				{ "rating", Data::NumberToString(top.rating) },
 			}));
 		}
@@ -1128,6 +1575,7 @@ Result JsonWriter::writeDialogStart(const Data::DialogInfo &data) {
 		case Type::Unknown: return "";
 		case Type::Self: return "saved_messages";
 		case Type::Replies: return "replies";
+		case Type::VerifyCodes: return "verification_codes";
 		case Type::Personal: return "personal_chat";
 		case Type::Bot: return "bot_chat";
 		case Type::PrivateGroup: return "private_group";
@@ -1143,7 +1591,9 @@ Result JsonWriter::writeDialogStart(const Data::DialogInfo &data) {
 		? QByteArray()
 		: prepareArrayItemStart();
 	block.append(pushNesting(Context::kObject));
-	if (data.type != Type::Self && data.type != Type::Replies) {
+	if (data.type != Type::Self
+		&& data.type != Type::Replies
+		&& data.type != Type::VerifyCodes) {
 		block.append(prepareObjectItemStart("name")
 			+ StringAllowNull(data.name));
 	}

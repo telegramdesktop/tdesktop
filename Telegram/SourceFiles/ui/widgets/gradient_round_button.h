@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/widgets/buttons.h"
+#include "ui/effects/glare.h"
 
 namespace Ui {
 
@@ -24,21 +25,10 @@ private:
 	void validateBg();
 	void validateGlare();
 
-	struct Glare final {
-		crl::time birthTime = 0;
-		crl::time deathTime = 0;
-	};
-
 	QGradientStops _stops;
 	QImage _bg;
 
-	struct {
-		Ui::Animations::Basic animation;
-		Glare glare;
-		QPixmap pixmap;
-		int width = 0;
-		bool paused = false;
-	} _glare;
+	GlareEffect _glare;
 
 };
 

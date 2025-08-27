@@ -8,15 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_password_check.h"
 
 #include "intro/intro_widget.h"
-#include "core/file_utilities.h"
 #include "core/core_cloud_password.h"
 #include "ui/boxes/confirm_box.h"
+#include "boxes/abstract_box.h"
 #include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
 #include "intro/intro_signup.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
-#include "ui/widgets/labels.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/password_input.h"
 #include "main/main_account.h"
 #include "base/random.h"
 #include "styles/style_intro.h"
@@ -46,7 +47,10 @@ PasswordCheckWidget::PasswordCheckWidget(
 	_toRecover->addClickHandler([=] { toRecover(); });
 	_toPassword->addClickHandler([=] { toPassword(); });
 	connect(_pwdField, &Ui::PasswordInput::changed, [=] { hideError(); });
-	connect(_codeField, &Ui::InputField::changed, [=] { hideError(); });
+	_codeField->changes(
+	) | rpl::start_with_next([=] {
+		hideError();
+	}, _codeField->lifetime());
 
 	setTitleText(tr::lng_signin_title());
 	updateDescriptionText();
@@ -122,17 +126,14 @@ void PasswordCheckWidget::cancelled() {
 	api().request(base::take(_sentRequest)).cancel();
 }
 
-void PasswordCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &result) {
+void PasswordCheckWidget::pwdSubmitDone(
+		bool recover,
+		const MTPauth_Authorization &result) {
 	_sentRequest = 0;
 	if (recover) {
 		cSetPasswordRecovered(true);
 	}
-	auto &d = result.c_auth_authorization();
-	if (d.vuser().type() != mtpc_user || !d.vuser().c_user().is_self()) { // wtf?
-		showError(rpl::single(Lang::Hard::ServerError()));
-		return;
-	}
-	finish(d.vuser());
+	finish(result);
 }
 
 void PasswordCheckWidget::pwdSubmitFail(const MTP::Error &error) {
@@ -145,15 +146,15 @@ void PasswordCheckWidget::pwdSubmitFail(const MTP::Error &error) {
 
 	_sentRequest = 0;
 	const auto &type = error.type();
-	if (type == qstr("PASSWORD_HASH_INVALID")
-		|| type == qstr("SRP_PASSWORD_CHANGED")) {
+	if (type == u"PASSWORD_HASH_INVALID"_q
+		|| type == u"SRP_PASSWORD_CHANGED"_q) {
 		showError(tr::lng_signin_bad_password());
 		_pwdField->selectAll();
 		_pwdField->showError();
-	} else if (type == qstr("PASSWORD_EMPTY")
-		|| type == qstr("AUTH_KEY_UNREGISTERED")) {
+	} else if (type == u"PASSWORD_EMPTY"_q
+		|| type == u"AUTH_KEY_UNREGISTERED"_q) {
 		goBack();
-	} else if (type == qstr("SRP_ID_INVALID")) {
+	} else if (type == u"SRP_ID_INVALID"_q) {
 		handleSrpIdInvalid();
 	} else {
 		if (Logs::DebugEnabled()) { // internal server error
@@ -229,7 +230,7 @@ void PasswordCheckWidget::codeSubmitDone(
 	fields.mtp.curRequest = {};
 	fields.hasPassword = false;
 	auto box = Box<PasscodeBox>(&api().instance(), nullptr, fields);
-	const auto boxShared = std::make_shared<QPointer<PasscodeBox>>();
+	const auto boxShared = std::make_shared<base::weak_qptr<PasscodeBox>>();
 
 	box->newAuthorization(
 	) | rpl::start_with_next([=](const MTPauth_Authorization &result) {
@@ -251,15 +252,15 @@ void PasswordCheckWidget::codeSubmitFail(const MTP::Error &error) {
 
 	_sentRequest = 0;
 	const auto &type = error.type();
-	if (type == qstr("PASSWORD_EMPTY")
-		|| type == qstr("AUTH_KEY_UNREGISTERED")) {
+	if (type == u"PASSWORD_EMPTY"_q
+		|| type == u"AUTH_KEY_UNREGISTERED"_q) {
 		goBack();
-	} else if (type == qstr("PASSWORD_RECOVERY_NA")) {
+	} else if (type == u"PASSWORD_RECOVERY_NA"_q) {
 		recoverStartFail(error);
-	} else if (type == qstr("PASSWORD_RECOVERY_EXPIRED")) {
+	} else if (type == u"PASSWORD_RECOVERY_EXPIRED"_q) {
 		_emailPattern = QString();
 		toPassword();
-	} else if (type == qstr("CODE_INVALID")) {
+	} else if (type == u"CODE_INVALID"_q) {
 		showError(tr::lng_signin_wrong_code());
 		_codeField->selectAll();
 		_codeField->showError();
@@ -350,8 +351,11 @@ void PasswordCheckWidget::updateDescriptionText() {
 	auto pwdHidden = _pwdField->isHidden();
 	auto emailPattern = _emailPattern;
 	setDescriptionText(pwdHidden
-		? tr::lng_signin_recover_desc(lt_email, rpl::single(emailPattern))
-		: tr::lng_signin_desc());
+		? tr::lng_signin_recover_desc(
+			lt_email,
+			rpl::single(Ui::Text::WrapEmailPattern(emailPattern)),
+			Ui::Text::WithEntities)
+		: tr::lng_signin_desc(Ui::Text::WithEntities));
 }
 
 void PasswordCheckWidget::submit() {

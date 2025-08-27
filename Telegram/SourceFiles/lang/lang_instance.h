@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/producer.h>
 #include "lang_auto.h"
+#include "base/const_string.h"
 #include "base/weak_ptr.h"
 
 namespace Lang {
@@ -31,8 +31,6 @@ inline bool operator!=(const Language &a, const Language &b) {
 	return !(a == b);
 }
 
-QString DefaultLanguageId();
-QString LanguageIdOrDefault(const QString &id);
 QString CloudLangPackName();
 QString CustomLanguageId();
 Language DefaultLanguage();

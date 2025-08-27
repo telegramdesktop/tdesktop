@@ -3,10 +3,16 @@ from os import environ
 from os.path import dirname
 from jinja2 import Environment, FileSystemLoader
 
+def checkEnv(envName, defaultValue):
+    if isinstance(defaultValue, bool):
+        return bool(len(environ[envName])) if envName in environ else defaultValue
+    return environ[envName] if envName in environ else defaultValue
+
 def main():
     print(Environment(loader=FileSystemLoader(dirname(__file__))).get_template("Dockerfile").render(
-        DEBUG=bool(len(environ["DEBUG"])) if "DEBUG" in environ else True,
-        LTO=bool(len(environ["LTO"])) if "LTO" in environ else True,
+        DEBUG=checkEnv("DEBUG", True),
+        LTO=checkEnv("LTO", True),
+        JOBS=checkEnv("JOBS", ""),
     ))
 
 if __name__ == '__main__':

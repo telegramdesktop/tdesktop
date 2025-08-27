@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_ttl_validator.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView::Controls {
@@ -47,6 +48,14 @@ void TTLButton::show() {
 
 void TTLButton::hide() {
 	_button.hide();
+}
+
+void TTLButton::setVisible(bool visible) {
+	_button.setVisible(visible);
+}
+
+bool TTLButton::isVisible() const {
+	return _button.isVisible();
 }
 
 void TTLButton::move(int x, int y) {

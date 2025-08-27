@@ -35,6 +35,7 @@ TextWithLabel CreateTextWithLabel(
 	QWidget *parent,
 	rpl::producer<TextWithEntities> &&label,
 	rpl::producer<TextWithEntities> &&text,
+	const style::FlatLabel &labelSt,
 	const style::FlatLabel &textSt,
 	const style::margins &padding);
 

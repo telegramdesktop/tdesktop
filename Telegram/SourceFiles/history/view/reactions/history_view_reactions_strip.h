@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/round_area_with_shadow.h"
 #include "data/data_message_reaction_id.h"
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 class HistoryItem;
 
 namespace Data {
@@ -44,12 +48,16 @@ class Strip final {
 public:
 	using ReactionId = Data::ReactionId;
 
-	Strip(QRect inner, int size, Fn<void()> update, IconFactory iconFactory);
+	Strip(
+		const style::EmojiPan &st,
+		QRect inner,
+		int size,
+		Fn<void()> update,
+		IconFactory iconFactory = nullptr);
 
 	enum class AddedButton : uchar {
 		None,
 		Expand,
-		Premium,
 	};
 	void applyList(
 		const std::vector<not_null<const Data::Reaction*>> &list,
@@ -101,7 +109,6 @@ private:
 	};
 
 	void clearStateForHidden(ReactionIcons &icon);
-	void paintPremiumIcon(QPainter &p, QPoint position, QRectF target) const;
 	void paintExpandIcon(QPainter &p, QPoint position, QRectF target) const;
 	void clearStateForSelectFinished(ReactionIcons &icon);
 
@@ -117,9 +124,11 @@ private:
 	[[nodiscard]] Fn<QRectF(const ReactionIcons&)> resolveCountTargetMethod(
 		float64 scale) const;
 
+	void invalidateMainReactionImage();
 	void resolveMainReactionIcon();
 	void setMainReactionIcon();
 
+	const style::EmojiPan &_st;
 	const IconFactory _iconFactory;
 	const QRect _inner;
 	const int _finalSize = 0;
@@ -141,6 +150,8 @@ private:
 	QImage _emojiParts;
 	std::array<bool, kFramesCount> _validEmoji = { { false } };
 
+	rpl::lifetime _lifetime;
+
 };
 
 class CachedIconFactory final {
@@ -159,6 +170,10 @@ private:
 };
 
 [[nodiscard]] std::shared_ptr<Ui::AnimatedIcon> DefaultIconFactory(
+	not_null<Data::DocumentMedia*> media,
+	int size);
+
+[[nodiscard]] std::shared_ptr<Ui::AnimatedIcon> DefaultCachingIconFactory(
 	not_null<Data::DocumentMedia*> media,
 	int size);
 

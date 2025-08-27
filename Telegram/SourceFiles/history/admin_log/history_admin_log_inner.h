@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_element.h"
 #include "history/admin_log/history_admin_log_item.h"
-#include "history/admin_log/history_admin_log_section.h"
+#include "history/admin_log/history_admin_log_filter_value.h"
+#include "menu/menu_antispam_validator.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/tooltip.h"
@@ -17,10 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 struct ChatRestrictionsInfo;
-
-namespace Data {
-class CloudImageView;
-} // namespace Data
 
 namespace Main {
 class Session;
@@ -37,6 +34,9 @@ enum class PointState : char;
 namespace Ui {
 class PopupMenu;
 class ChatStyle;
+class ChatTheme;
+struct PeerUserpicView;
+struct ChatPaintContext;
 } // namespace Ui
 
 namespace Window {
@@ -70,12 +70,14 @@ public:
 		return _channel;
 	}
 
+	Ui::ChatPaintContext preparePaintContext(QRect clip) const;
+
 	// Set the correct scroll position after being resized.
 	void restoreScrollPosition();
 
 	void resizeToWidth(int newWidth, int minHeight) {
 		_minHeight = minHeight;
-		return TWidget::resizeToWidth(newWidth);
+		return RpWidget::resizeToWidth(newWidth);
 	}
 
 	void saveState(not_null<SectionMemento*> memento);
@@ -93,17 +95,10 @@ public:
 
 	// HistoryView::ElementDelegate interface.
 	HistoryView::Context elementContext() override;
-	std::unique_ptr<HistoryView::Element> elementCreate(
-		not_null<HistoryMessage*> message,
-		HistoryView::Element *replacing = nullptr) override;
-	std::unique_ptr<HistoryView::Element> elementCreate(
-		not_null<HistoryService*> message,
-		HistoryView::Element *replacing = nullptr) override;
 	bool elementUnderCursor(
 		not_null<const HistoryView::Element*> view) override;
-	[[nodiscard]] float64 elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const override;
-	bool elementInSelectionMode() override;
+	HistoryView::SelectionModeResult elementInSelectionMode(
+		const HistoryView::Element *view) override;
 	bool elementIntersectsRange(
 		not_null<const HistoryView::Element*> view,
 		int from,
@@ -132,10 +127,13 @@ public:
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) override;
+	void elementSearchInList(
+		const QString &query,
+		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
-	bool elementIsChatWide() override;
+	HistoryView::ElementChatMode elementChatMode() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
-	void elementReplyTo(const FullMsgId &to) override;
+	void elementReplyTo(const FullReplyTo &to) override;
 	void elementStartInteraction(
 		not_null<const HistoryView::Element*> view) override;
 	void elementStartPremium(
@@ -143,7 +141,12 @@ public:
 		HistoryView::Element *replacing) override;
 	void elementCancelPremium(
 		not_null<const HistoryView::Element*> view) override;
+	void elementStartEffect(
+		not_null<const HistoryView::Element*> view,
+		HistoryView::Element *replacing) override;
 	QString elementAuthorRank(
+		not_null<const HistoryView::Element*> view) override;
+	bool elementHideTopicButton(
 		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
@@ -230,8 +233,12 @@ private:
 	void paintEmpty(Painter &p, not_null<const Ui::ChatStyle*> st);
 	void clearAfterFilterChange();
 	void clearAndRequestLog();
-	void addEvents(Direction direction, const QVector<MTPChannelAdminLogEvent> &events);
-	Element *viewForItem(const HistoryItem *item);
+	void addEvents(
+		Direction direction,
+		const QVector<MTPChannelAdminLogEvent> &events);
+	[[nodiscard]] Element *viewForItem(const HistoryItem *item);
+	[[nodiscard]] bool myView(
+		not_null<const HistoryView::Element*> view) const;
 
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
@@ -244,7 +251,7 @@ private:
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
 	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int itembottom)" signature
-	// if it returns false the enumeration stops immidiately.
+	// if it returns false the enumeration stops immediately.
 	template <EnumItemsDirection direction, typename Method>
 	void enumerateItems(Method method);
 
@@ -277,9 +284,8 @@ private:
 	std::map<not_null<const HistoryItem*>, not_null<Element*>> _itemsByData;
 	base::flat_map<not_null<const HistoryItem*>, TimeId> _itemDates;
 	base::flat_set<FullMsgId> _animatedStickersPlayed;
-	base::flat_map<
-		not_null<PeerData*>,
-		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpics;
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpicsCache;
 	int _itemsTop = 0;
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;
@@ -325,6 +331,7 @@ private:
 	Qt::CursorShape _cursor = style::cur_default;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
+	AntiSpamMenu::AntiSpamValidator _antiSpamValidator;
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;

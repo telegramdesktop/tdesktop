@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/text_custom_emoji.h" // Ui::Text::CustomEmojiFactory.
+
 namespace Ui {
 enum class WhoReadType;
 } // namespace Ui
@@ -25,7 +27,7 @@ struct Tabs {
 	Fn<rpl::producer<int>()> heightValue;
 };
 
-not_null<Tabs*> CreateTabs(
+[[nodiscard]] not_null<Tabs*> CreateTabs(
 	not_null<QWidget*> parent,
 	Ui::Text::CustomEmojiFactory factory,
 	Fn<bool()> paused,

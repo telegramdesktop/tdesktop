@@ -69,7 +69,7 @@ struct ReplaceUnwrap<Tag, Tags...> {
 			Type accumulated,
 			const Value &value,
 			const Values &...values) {
-		return ReplaceUnwrap<Tags...>::template Call(
+		return ReplaceUnwrap<Tags...>::Call(
 			ReplaceTag<Type>::Call(
 				std::move(accumulated),
 				TagValue<Tag>(),
@@ -92,7 +92,7 @@ struct Producer {
 
 	template <typename P, typename ...Values>
 	[[nodiscard]] static S<P> Current(ushort base, P p, const Values &...values) {
-		return ReplaceUnwrap<Tags...>::template Call(
+		return ReplaceUnwrap<Tags...>::Call(
 			p(Lang::details::Current(base)),
 			values...);
 	}
@@ -161,7 +161,7 @@ struct Producer<lngtag_count, Tags...> {
 			float64 count,
 			const Values &...values) {
 		auto plural = Plural(base, count, type);
-		return ReplaceUnwrap<Tags...>::template Call(
+		return ReplaceUnwrap<Tags...>::Call(
 			ReplaceTag<S<P>>::Call(
 				p(Lang::details::Current(base + plural.keyShift)),
 				TagValue<lngtag_count>(),

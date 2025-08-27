@@ -111,6 +111,11 @@ pre {
     border-radius: 50%;
     overflow: hidden;
 }
+.story {
+    display: block;
+    border-radius: 4px;
+    overflow: hidden;
+}
 .userpic .initials {
     display: block;
     color: #fff;
@@ -193,6 +198,10 @@ a.block_link {
 a.block_link:hover {
     text-decoration: none !important;
     background-color: #f5f7f8;
+}
+a.expanded {
+    padding: 2px 8px;
+    margin: -2px -8px;
 }
 .sections {
     padding: 11px 0;
@@ -428,6 +437,9 @@ div.toast_shown {
 .section.sessions {
     background-image: url(../images/section_sessions.png);
 }
+.section.stories {
+    background-image: url(../images/section_stories.png);
+}
 .section.web {
     background-image: url(../images/section_web.png);
 }
@@ -489,6 +501,9 @@ div.toast_shown {
 .section.sessions {
     background-image: url(../images/section_sessions@2x.png);
 }
+.section.stories {
+    background-image: url(../images/section_stories@2x.png);
+}
 .section.web {
     background-image: url(../images/section_web@2x.png);
 }
@@ -543,4 +558,79 @@ div.toast_shown {
 .spoiler.hidden span {
     opacity: 0;
     user-select: none;
+}
+
+.bot_buttons_table {
+    border-spacing: 0px 2px;
+    width: 100%;
+}
+.bot_button {
+    border-radius: 8px;
+    text-align: center;
+    vertical-align: middle;
+    background-color: #168acd40;
+}
+.bot_button_row {
+    display: table;
+    table-layout: fixed;
+    padding: 0px;
+    width:100%;
+}
+.bot_button_row div {
+    display: table-cell;
+}
+.bot_button_column_separator {
+    width: 2px
+}
+
+.reactions {
+    margin: 5px 0;
+}
+
+.reactions .reaction {
+    display: inline-flex;
+    height: 20px;
+    border-radius: 15px;
+    background-color: #e8f5fc;
+    color: #168acd;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.reactions .reaction.active {
+    background-color: #40a6e2;
+    color: #fff;
+}
+
+.reactions .reaction.paid {
+    background-color: #fdf6e1;
+    color: #c58523;
+}
+
+.reactions .reaction.active.paid {
+    background-color: #ecae0a;
+    color: #fdf6e1;
+}
+
+.reactions .reaction .emoji {
+    line-height: 20px;
+    margin: 0 5px;
+    font-size: 15px;
+}
+
+.reactions .reaction .userpic:not(:first-child) {
+    margin-left: -8px;
+}
+
+.reactions .reaction .userpic {
+    display: inline-block;
+}
+
+.reactions .reaction .userpic .initials {
+    font-size: 8px;
+}
+
+.reactions .reaction .count {
+    margin-right: 8px;
+    line-height: 20px;
 }

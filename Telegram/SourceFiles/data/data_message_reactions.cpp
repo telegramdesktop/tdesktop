@@ -7,18 +7,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_message_reactions.h"
 
+#include "api/api_global_privacy.h"
+#include "chat_helpers/stickers_lottie.h"
+#include "core/application.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "main/main_session.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
+#include "main/session/send_as_peers.h"
+#include "data/components/credits.h"
+#include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer_values.h"
+#include "data/data_saved_sublist.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "storage/localimageloader.h"
 #include "ui/image/image_location_factory.h"
@@ -26,8 +34,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "base/timer_rpl.h"
 #include "base/call_delayed.h"
+#include "base/unixtime.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
+
+#include "base/random.h"
 
 namespace Data {
 namespace {
@@ -37,8 +48,10 @@ constexpr auto kPollEach = 20 * crl::time(1000);
 constexpr auto kSizeForDownscale = 64;
 constexpr auto kRecentRequestTimeout = 10 * crl::time(1000);
 constexpr auto kRecentReactionsLimit = 40;
+constexpr auto kMyTagsRequestTimeout = crl::time(1000);
 constexpr auto kTopRequestDelay = 60 * crl::time(1000);
 constexpr auto kTopReactionsLimit = 14;
+constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000) + 500;
 
 [[nodiscard]] QString ReactionIdToLog(const ReactionId &id) {
 	if (const auto custom = id.custom()) {
@@ -63,6 +76,27 @@ constexpr auto kTopReactionsLimit = 14;
 	return result;
 }
 
+[[nodiscard]] std::vector<MyTagInfo> ListFromMTP(
+		const MTPDmessages_savedReactionTags &data) {
+	const auto &list = data.vtags().v;
+	auto result = std::vector<MyTagInfo>();
+	result.reserve(list.size());
+	for (const auto &reaction : list) {
+		const auto &data = reaction.data();
+		const auto id = ReactionFromMTP(data.vreaction());
+		if (id.empty()) {
+			LOG(("API Error: reactionEmpty in messages.reactions."));
+		} else {
+			result.push_back({
+				.id = id,
+				.title = qs(data.vtitle().value_or_empty()),
+				.count = data.vcount().v,
+			});
+		}
+	}
+	return result;
+}
+
 [[nodiscard]] Reaction CustomReaction(not_null<DocumentData*> document) {
 	return Reaction{
 		.id = { { document->id } },
@@ -76,27 +110,102 @@ constexpr auto kTopReactionsLimit = 14;
 
 [[nodiscard]] int SentReactionsLimit(not_null<HistoryItem*> item) {
 	const auto session = &item->history()->session();
-	const auto config = &session->account().appConfig();
+	const auto config = &session->appConfig();
 	return session->premium()
 		? config->get<int>("reactions_user_max_premium", 3)
 		: config->get<int>("reactions_user_max_default", 1);
 }
 
+[[nodiscard]] bool IsMyRecent(
+		const MTPDmessagePeerReaction &data,
+		const ReactionId &id,
+		not_null<PeerData*> peer,
+		const base::flat_map<
+			ReactionId,
+			std::vector<RecentReaction>> &recent,
+		bool min) {
+	if (peer->isSelf()) {
+		return true;
+	} else if (!min) {
+		return data.is_my();
+	}
+	const auto j = recent.find(id);
+	if (j == end(recent)) {
+		return false;
+	}
+	const auto k = ranges::find(
+		j->second,
+		peer,
+		&RecentReaction::peer);
+	return (k != end(j->second)) && k->my;
+}
+
+[[nodiscard]] bool IsMyTop(
+		const MTPDmessageReactor &data,
+		PeerData *peer,
+		const std::vector<MessageReactionsTopPaid> &top,
+		bool min) {
+	if (peer && peer->isSelf()) {
+		return true;
+	} else if (!min) {
+		return data.is_my();
+	}
+	const auto i = ranges::find(top, peer, &MessageReactionsTopPaid::peer);
+	return (i != end(top)) && i->my;
+}
+
+[[nodiscard]] std::optional<PeerId> MaybeShownPeer(
+		uint32 privacySet,
+		PeerId shownPeer) {
+	return privacySet ? shownPeer : std::optional<PeerId>();
+}
+
+[[nodiscard]] MTPPaidReactionPrivacy PaidReactionShownPeerToTL(
+		not_null<Main::Session*> session,
+		std::optional<PeerId> shownPeer) {
+	return !shownPeer
+		? MTPPaidReactionPrivacy()
+		: !*shownPeer
+		? MTP_paidReactionPrivacyAnonymous()
+		: (*shownPeer == session->userPeerId())
+		? MTP_paidReactionPrivacyDefault()
+		: MTP_paidReactionPrivacyPeer(
+			session->data().peer(*shownPeer)->input);
+}
+
 } // namespace
 
 PossibleItemReactionsRef LookupPossibleReactions(
-		not_null<HistoryItem*> item) {
+		not_null<HistoryItem*> item,
+		bool paidInFront) {
 	if (!item->canReact()) {
 		return {};
 	}
 	auto result = PossibleItemReactionsRef();
-	const auto peer = item->history()->peer;
+	auto peer = item->history()->peer;
+	if (item->isDiscussionPost()) {
+		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+			if (forwarded->savedFromPeer) {
+				peer = forwarded->savedFromPeer;
+			}
+		}
+	}
 	const auto session = &peer->session();
+	if (const auto channel = peer->asChannel()) {
+		if ((!channel->amCreator())
+			&& (channel->adminRights() & ChatAdminRight::Anonymous)
+			&& (session->sendAsPeers().resolveChosen(channel) == channel)) {
+			return {};
+		}
+	}
 	const auto reactions = &session->data().reactions();
 	const auto &full = reactions->list(Reactions::Type::Active);
 	const auto &top = reactions->list(Reactions::Type::Top);
 	const auto &recent = reactions->list(Reactions::Type::Recent);
+	const auto &myTags = reactions->list(Reactions::Type::MyTags);
+	const auto &tags = reactions->list(Reactions::Type::Tags);
 	const auto &all = item->reactions();
+	const auto &allowed = PeerAllowedReactions(peer);
 	const auto limit = UniqueReactionsLimit(peer);
 	const auto premiumPossible = session->premiumPossible();
 	const auto limited = (all.size() >= limit) && [&] {
@@ -118,24 +227,44 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		}
 	};
 	reactions->clearTemporary();
-	if (limited) {
-		result.recent.reserve(all.size());
+	if (item->reactionsAreTags()) {
+		auto &&all = ranges::views::concat(myTags, tags);
+		result.recent.reserve(myTags.size() + tags.size());
+		for (const auto &reaction : all) {
+			if (premiumPossible
+				|| ranges::contains(tags, reaction.id, &Reaction::id)) {
+				if (added.emplace(reaction.id).second) {
+					result.recent.push_back(&reaction);
+				}
+			}
+		}
+		result.customAllowed = premiumPossible;
+		result.tags = true;
+	} else if (limited) {
+		result.recent.reserve((allowed.paidEnabled ? 1 : 0) + all.size());
 		add([&](const Reaction &reaction) {
 			return ranges::contains(all, reaction.id, &MessageReaction::id);
 		});
 		for (const auto &reaction : all) {
 			const auto id = reaction.id;
-			if (!added.contains(id)) {
+			if (added.emplace(id).second) {
 				if (const auto temp = reactions->lookupTemporary(id)) {
 					result.recent.push_back(temp);
 				}
 			}
 		}
+		if (allowed.paidEnabled
+			&& !added.contains(Data::ReactionId::Paid())) {
+			result.recent.push_back(reactions->lookupPaid());
+		}
 	} else {
-		const auto &allowed = PeerAllowedReactions(peer);
-		result.recent.reserve((allowed.type == AllowedReactionsType::Some)
-			? allowed.some.size()
-			: full.size());
+		result.recent.reserve((allowed.paidEnabled ? 1 : 0)
+			+ ((allowed.type == AllowedReactionsType::Some)
+				? allowed.some.size()
+				: full.size()));
+		if (allowed.paidEnabled) {
+			result.recent.push_back(reactions->lookupPaid());
+		}
 		add([&](const Reaction &reaction) {
 			const auto id = reaction.id;
 			if (id.custom() && !premiumPossible) {
@@ -146,48 +275,71 @@ PossibleItemReactionsRef LookupPossibleReactions(
 			} else if (id.custom()
 				&& allowed.type == AllowedReactionsType::Default) {
 				return false;
-			} else if (reaction.premium
-				&& !session->premium()
-				&& !ranges::contains(all, id, &MessageReaction::id)) {
-				if (premiumPossible) {
-					result.morePremiumAvailable = true;
-				}
-				return false;
 			}
 			return true;
 		});
+		if (allowed.type == AllowedReactionsType::Some) {
+			for (const auto &id : allowed.some) {
+				if (!added.contains(id)) {
+					if (const auto temp = reactions->lookupTemporary(id)) {
+						result.recent.push_back(temp);
+					}
+				}
+			}
+		}
 		result.customAllowed = (allowed.type == AllowedReactionsType::All)
 			&& premiumPossible;
+
+		const auto favoriteId = reactions->favoriteId();
+		if (favoriteId.custom()
+			&& result.customAllowed
+			&& !ranges::contains(result.recent, favoriteId, &Reaction::id)) {
+			if (const auto temp = reactions->lookupTemporary(favoriteId)) {
+				result.recent.insert(begin(result.recent), temp);
+			}
+		}
 	}
-	const auto i = ranges::find(
-		result.recent,
-		reactions->favoriteId(),
-		&Reaction::id);
-	if (i != end(result.recent) && i != begin(result.recent)) {
-		std::rotate(begin(result.recent), i, i + 1);
+	if (!item->reactionsAreTags()) {
+		const auto toFront = [&](Data::ReactionId id) {
+			const auto i = ranges::find(result.recent, id, &Reaction::id);
+			if (i != end(result.recent) && i != begin(result.recent)) {
+				std::rotate(begin(result.recent), i, i + 1);
+			}
+		};
+		toFront(reactions->favoriteId());
+		if (paidInFront) {
+			toFront(Data::ReactionId::Paid());
+		}
 	}
 	return result;
 }
 
 PossibleItemReactions::PossibleItemReactions(
 	const PossibleItemReactionsRef &other)
-	: recent(other.recent | ranges::views::transform([](const auto &value) {
+: recent(other.recent | ranges::views::transform([](const auto &value) {
 	return *value;
 }) | ranges::to_vector)
-, morePremiumAvailable(other.morePremiumAvailable)
-, customAllowed(other.customAllowed) {
+, stickers(other.stickers | ranges::views::transform([](const auto &value) {
+	return *value;
+}) | ranges::to_vector)
+, customAllowed(other.customAllowed)
+, tags(other.tags){
 }
 
 Reactions::Reactions(not_null<Session*> owner)
 : _owner(owner)
 , _topRefreshTimer([=] { refreshTop(); })
-, _repaintTimer([=] { repaintCollected(); }) {
+, _repaintTimer([=] { repaintCollected(); })
+, _sendPaidTimer([=] { sendPaid(); }) {
 	refreshDefault();
+
+	_myTags.emplace(nullptr);
 
 	base::timer_each(
 		kRefreshFullListEach
 	) | rpl::start_with_next([=] {
 		refreshDefault();
+		requestEffects();
 	}, _lifetime);
 
 	_owner->session().changes().messageUpdates(
@@ -197,6 +349,15 @@ Reactions::Reactions(not_null<Session*> owner)
 		_pollingItems.remove(item);
 		_pollItems.remove(item);
 		_repaintItems.remove(item);
+		_sendPaidItems.remove(item);
+		if (const auto i = _sendingPaid.find(item)
+			; i != end(_sendingPaid)) {
+			_sendingPaid.erase(i);
+			_owner->session().credits().invalidate();
+			crl::on_main(&_owner->session(), [=] {
+				sendPaid();
+			});
+		}
 	}, _lifetime);
 
 	crl::on_main(&owner->session(), [=] {
@@ -246,14 +407,61 @@ void Reactions::refreshDefault() {
 	requestDefault();
 }
 
+void Reactions::refreshMyTags(SavedSublist *sublist) {
+	requestMyTags(sublist);
+}
+
+void Reactions::refreshMyTagsDelayed() {
+	auto &my = _myTags[nullptr];
+	if (my.requestId || my.requestScheduled) {
+		return;
+	}
+	my.requestScheduled = true;
+	base::call_delayed(kMyTagsRequestTimeout, &_owner->session(), [=] {
+		if (_myTags[nullptr].requestScheduled) {
+			requestMyTags();
+		}
+	});
+}
+
+void Reactions::refreshTags() {
+	requestTags();
+}
+
+void Reactions::refreshEffects() {
+	if (_effects.empty()) {
+		requestEffects();
+	}
+}
+
 const std::vector<Reaction> &Reactions::list(Type type) const {
 	switch (type) {
 	case Type::Active: return _active;
 	case Type::Recent: return _recent;
 	case Type::Top: return _top;
 	case Type::All: return _available;
+	case Type::MyTags:
+		return _myTags.find((SavedSublist*)nullptr)->second.tags;
+	case Type::Tags: return _tags;
+	case Type::Effects: return _effects;
 	}
 	Unexpected("Type in Reactions::list.");
+}
+
+const std::vector<MyTagInfo> &Reactions::myTagsInfo() const {
+	return _myTags.find((SavedSublist*)nullptr)->second.info;
+}
+
+const QString &Reactions::myTagTitle(const ReactionId &id) const {
+	const auto i = _myTags.find((SavedSublist*)nullptr);
+	if (i != end(_myTags)) {
+		const auto j = ranges::find(i->second.info, id, &MyTagInfo::id);
+		if (j != end(i->second.info)) {
+			return j->title;
+		}
+	}
+	static const auto kEmpty = QString();
+	return kEmpty;
 }
 
 ReactionId Reactions::favoriteId() const {
@@ -280,6 +488,86 @@ void Reactions::setFavorite(const ReactionId &id) {
 	applyFavorite(id);
 }
 
+void Reactions::incrementMyTag(const ReactionId &id, SavedSublist *sublist) {
+	if (sublist) {
+		incrementMyTag(id, nullptr);
+	}
+	auto &my = _myTags[sublist];
+	auto i = ranges::find(my.info, id, &MyTagInfo::id);
+	if (i == end(my.info)) {
+		my.info.push_back({ .id = id, .count = 0 });
+		i = end(my.info) - 1;
+	}
+	++i->count;
+	while (i != begin(my.info)) {
+		auto j = i - 1;
+		if (j->count >= i->count) {
+			break;
+		}
+		std::swap(*i, *j);
+		i = j;
+	}
+	scheduleMyTagsUpdate(sublist);
+}
+
+void Reactions::decrementMyTag(const ReactionId &id, SavedSublist *sublist) {
+	if (sublist) {
+		decrementMyTag(id, nullptr);
+	}
+	auto &my = _myTags[sublist];
+	auto i = ranges::find(my.info, id, &MyTagInfo::id);
+	if (i != end(my.info) && i->count > 0) {
+		--i->count;
+		while (i + 1 != end(my.info)) {
+			auto j = i + 1;
+			if (j->count <= i->count) {
+				break;
+			}
+			std::swap(*i, *j);
+			i = j;
+		}
+	}
+	scheduleMyTagsUpdate(sublist);
+}
+
+void Reactions::renameTag(const ReactionId &id, const QString &name) {
+	auto changed = false;
+	for (auto &[sublist, my] : _myTags) {
+		auto i = ranges::find(my.info, id, &MyTagInfo::id);
+		if (i == end(my.info) || i->title == name) {
+			continue;
+		}
+		i->title = name;
+		changed = true;
+		scheduleMyTagsUpdate(sublist);
+	}
+	if (!changed) {
+		return;
+	}
+	_myTagRenamed.fire_copy(id);
+
+	using Flag = MTPmessages_UpdateSavedReactionTag::Flag;
+	_owner->session().api().request(MTPmessages_UpdateSavedReactionTag(
+		MTP_flags(name.isEmpty() ? Flag(0) : Flag::f_title),
+		ReactionToMTP(id),
+		MTP_string(name)
+	)).send();
+}
+
+void Reactions::scheduleMyTagsUpdate(SavedSublist *sublist) {
+	auto &my = _myTags[sublist];
+	my.updateScheduled = true;
+	crl::on_main(&session(), [=] {
+		auto &my = _myTags[sublist];
+		if (!my.updateScheduled) {
+			return;
+		}
+		my.updateScheduled = false;
+		my.tags = resolveByInfos(my.info, _unresolvedMyTags, sublist);
+		_myTagsUpdated.fire_copy(sublist);
+	});
+}
+
 DocumentData *Reactions::chooseGenericAnimation(
 		not_null<DocumentData*> custom) const {
 	const auto sticker = custom->sticker();
@@ -296,21 +584,49 @@ DocumentData *Reactions::chooseGenericAnimation(
 			return i->aroundAnimation;
 		}
 	}
-	if (_genericAnimations.empty()) {
+	return randomLoadedFrom(_genericAnimations);
+}
+
+void Reactions::fillPaidReactionAnimations() const {
+	const auto generate = [&](int index) {
+		const auto session = &_owner->session();
+		const auto name = u"star_reaction_effect%1"_q.arg(index + 1);
+		return ChatHelpers::GenerateLocalTgsSticker(session, name);
+	};
+	const auto kCount = 3;
+	for (auto i = 0; i != kCount; ++i) {
+		const auto document = generate(i);
+		_paidReactionAnimations.push_back(document);
+		_paidReactionCache.emplace(
+			document,
+			document->createMediaView());
+	}
+	_paidReactionCache.front().second->checkStickerLarge();
+}
+
+DocumentData *Reactions::choosePaidReactionAnimation() const {
+	if (_paidReactionAnimations.empty()) {
+		fillPaidReactionAnimations();
+	}
+	return randomLoadedFrom(_paidReactionAnimations);
+}
+
+DocumentData *Reactions::randomLoadedFrom(
+		std::vector<not_null<DocumentData*>> list) const {
+	if (list.empty()) {
 		return nullptr;
 	}
-	auto copy = _genericAnimations;
-	ranges::shuffle(copy);
-	const auto first = copy.front();
+	ranges::shuffle(list);
+	const auto first = list.front();
 	const auto view = first->createMediaView();
 	view->checkStickerLarge();
 	if (view->loaded()) {
 		return first;
 	}
-	const auto k = ranges::find_if(copy, [&](not_null<DocumentData*> value) {
+	const auto k = ranges::find_if(list, [&](not_null<DocumentData*> value) {
 		return value->createMediaView()->loaded();
 	});
-	return (k != end(copy)) ? (*k) : first;
+	return (k != end(list)) ? (*k) : first;
 }
 
 void Reactions::applyFavorite(const ReactionId &id) {
@@ -341,26 +657,96 @@ rpl::producer<> Reactions::favoriteUpdates() const {
 	return _favoriteUpdated.events();
 }
 
+rpl::producer<> Reactions::myTagsUpdates() const {
+	return _myTagsUpdated.events(
+	) | rpl::filter(
+		!rpl::mappers::_1
+	) | rpl::to_empty;
+}
+
+rpl::producer<> Reactions::tagsUpdates() const {
+	return _tagsUpdated.events();
+}
+
+rpl::producer<ReactionId> Reactions::myTagRenamed() const {
+	return _myTagRenamed.events();
+}
+
+rpl::producer<> Reactions::effectsUpdates() const {
+	return _effectsUpdated.events();
+}
+
+void Reactions::preloadReactionImageFor(const ReactionId &emoji) {
+	if (emoji.paid() || !emoji.emoji().isEmpty()) {
+		preloadImageFor(emoji);
+	}
+}
+
+void Reactions::preloadEffectImageFor(EffectId id) {
+	if (id != kFakeEffectId) {
+		preloadImageFor({ DocumentId(id) });
+	}
+}
+
 void Reactions::preloadImageFor(const ReactionId &id) {
-	if (_images.contains(id) || id.emoji().isEmpty()) {
+	if (_images.contains(id)) {
 		return;
 	}
 	auto &set = _images.emplace(id).first->second;
-	const auto i = ranges::find(_available, id, &Reaction::id);
-	const auto document = (i == end(_available))
+	set.effect = (id.custom() != 0);
+	if (id.paid()) {
+		loadImage(set, lookupPaid()->centerIcon, true);
+		return;
+	}
+	auto &list = set.effect ? _effects : _available;
+	const auto i = ranges::find(list, id, &Reaction::id);
+	const auto document = (i == end(list))
 		? nullptr
 		: i->centerIcon
 		? i->centerIcon
 		: i->selectAnimation.get();
-	if (document) {
-		loadImage(set, document, !i->centerIcon);
-	} else if (!_waitingForList) {
-		_waitingForList = true;
-		refreshRecent();
+	if (document || (set.effect && i != end(list))) {
+		if (!set.effect || i->centerIcon) {
+			loadImage(set, document, !i->centerIcon);
+		} else {
+			generateImage(set, i->title);
+		}
+		if (set.effect) {
+			preloadEffect(*i);
+		}
+	} else if (set.effect && !_waitingForEffects) {
+		_waitingForEffects = true;
+		refreshEffects();
+	} else if (!set.effect && !_waitingForReactions) {
+		_waitingForReactions = true;
+		refreshDefault();
+	}
+}
+
+void Reactions::preloadEffect(const Reaction &effect) {
+	if (effect.aroundAnimation) {
+		effect.aroundAnimation->createMediaView()->checkStickerLarge();
+	} else {
+		const auto premium = effect.selectAnimation;
+		premium->loadVideoThumbnail(premium->stickerSetOrigin());
 	}
 }
 
 void Reactions::preloadAnimationsFor(const ReactionId &id) {
+	const auto preload = [&](DocumentData *document) {
+		const auto view = document
+			? document->activeMediaView()
+			: nullptr;
+		if (view) {
+			view->checkStickerLarge();
+		}
+	};
+	if (id.paid()) {
+		const auto fake = lookupPaid();
+		preload(fake->centerIcon);
+		preload(fake->aroundAnimation);
+		return;
+	}
 	const auto custom = id.custom();
 	const auto document = custom ? _owner->document(custom).get() : nullptr;
 	const auto customSticker = document ? document->sticker() : nullptr;
@@ -371,35 +757,41 @@ void Reactions::preloadAnimationsFor(const ReactionId &id) {
 	if (i == end(_available)) {
 		return;
 	}
-	const auto preload = [&](DocumentData *document) {
-		const auto view = document
-			? document->activeMediaView()
-			: nullptr;
-		if (view) {
-			view->checkStickerLarge();
-		}
-	};
-
 	if (!custom) {
 		preload(i->centerIcon);
 	}
 	preload(i->aroundAnimation);
 }
 
-QImage Reactions::resolveImageFor(
-		const ReactionId &emoji,
-		ImageSize size) {
-	const auto i = _images.find(emoji);
+QImage Reactions::resolveReactionImageFor(const ReactionId &emoji) {
+	Expects(!emoji.custom());
+
+	return resolveImageFor(emoji);
+}
+
+QImage Reactions::resolveEffectImageFor(EffectId id) {
+	return (id == kFakeEffectId)
+		? QImage()
+		: resolveImageFor({ DocumentId(id) });
+}
+
+QImage Reactions::resolveImageFor(const ReactionId &id) {
+	auto i = _images.find(id);
 	if (i == end(_images)) {
-		preloadImageFor(emoji);
+		preloadImageFor(id);
+		i = _images.find(id);
+		Assert(i != end(_images));
 	}
-	auto &set = (i != end(_images)) ? i->second : _images[emoji];
+	auto &set = i->second;
+	set.effect = (id.custom() != 0);
+
 	const auto resolve = [&](QImage &image, int size) {
 		const auto factor = style::DevicePixelRatio();
 		const auto frameSize = set.fromSelectAnimation
 			? (size / 2)
 			: size;
-		image = set.icon->frame().scaled(
+		// Must not be colored to text.
+		image = set.icon->frame(QColor()).scaled(
 			frameSize * factor,
 			frameSize * factor,
 			Qt::IgnoreAspectRatio,
@@ -422,21 +814,18 @@ QImage Reactions::resolveImageFor(
 		}
 		image.setDevicePixelRatio(factor);
 	};
-	if (set.bottomInfo.isNull() && set.icon) {
-		resolve(set.bottomInfo, st::reactionInfoImage);
-		resolve(set.inlineList, st::reactionInlineImage);
+	if (set.image.isNull() && set.icon) {
+		resolve(
+			set.image,
+			set.effect ? st::effectInfoImage : st::reactionInlineImage);
 		crl::async([icon = std::move(set.icon)]{});
 	}
-	switch (size) {
-	case ImageSize::BottomInfo: return set.bottomInfo;
-	case ImageSize::InlineList: return set.inlineList;
-	}
-	Unexpected("ImageSize in Reactions::resolveImageFor.");
+	return set.image;
 }
 
-void Reactions::resolveImages() {
+void Reactions::resolveReactionImages() {
 	for (auto &[id, set] : _images) {
-		if (!set.bottomInfo.isNull() || set.icon || set.media) {
+		if (set.effect || !set.image.isNull() || set.icon || set.media) {
 			continue;
 		}
 		const auto i = ranges::find(_available, id, &Reaction::id);
@@ -454,14 +843,41 @@ void Reactions::resolveImages() {
 	}
 }
 
+void Reactions::resolveEffectImages() {
+	for (auto &[id, set] : _images) {
+		if (!set.effect || !set.image.isNull() || set.icon || set.media) {
+			continue;
+		}
+		const auto i = ranges::find(_effects, id, &Reaction::id);
+		const auto document = (i == end(_effects))
+			? nullptr
+			: i->centerIcon
+			? i->centerIcon
+			: nullptr;
+		if (document) {
+			loadImage(set, document, false);
+		} else if (i != end(_effects)) {
+			generateImage(set, i->title);
+		} else {
+			LOG(("API Error: Effect '%1' not found!"
+				).arg(ReactionIdToLog(id)));
+		}
+		if (i != end(_effects)) {
+			preloadEffect(*i);
+		}
+	}
+}
+
 void Reactions::loadImage(
 		ImageSet &set,
 		not_null<DocumentData*> document,
 		bool fromSelectAnimation) {
-	if (!set.bottomInfo.isNull() || set.icon) {
+	if (!set.image.isNull() || set.icon) {
 		return;
 	} else if (!set.media) {
-		set.fromSelectAnimation = fromSelectAnimation;
+		if (!set.effect) {
+			set.fromSelectAnimation = fromSelectAnimation;
+		}
 		set.media = document->createMediaView();
 		set.media->checkStickerLarge();
 	}
@@ -475,11 +891,32 @@ void Reactions::loadImage(
 	}
 }
 
+void Reactions::generateImage(ImageSet &set, const QString &emoji) {
+	Expects(set.effect);
+
+	const auto e = Ui::Emoji::Find(emoji);
+	Assert(e != nullptr);
+
+	const auto large = Ui::Emoji::GetSizeLarge();
+	const auto factor = style::DevicePixelRatio();
+	auto image = QImage(large, large, QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(factor);
+	image.fill(Qt::transparent);
+	{
+		QPainter p(&image);
+		Ui::Emoji::Draw(p, e, large, 0, 0);
+	}
+	const auto size = st::effectInfoImage;
+	set.image = image.scaled(size * factor, size * factor);
+	set.image.setDevicePixelRatio(factor);
+}
+
 void Reactions::setAnimatedIcon(ImageSet &set) {
 	const auto size = style::ConvertScale(kSizeForDownscale);
 	set.icon = Ui::MakeAnimatedIcon({
 		.generator = DocumentIconFrameGenerator(set.media),
 		.sizeOverride = QSize(size, size),
+		.colorized = set.media->owner()->emojiUsesTextColor(),
 	});
 	set.media = nullptr;
 }
@@ -581,6 +1018,71 @@ void Reactions::requestGeneric() {
 	}).send();
 }
 
+void Reactions::requestMyTags(SavedSublist *sublist) {
+	auto &my = _myTags[sublist];
+	if (my.requestId) {
+		return;
+	}
+	auto &api = _owner->session().api();
+	my.requestScheduled = false;
+	using Flag = MTPmessages_GetSavedReactionTags::Flag;
+	my.requestId = api.request(MTPmessages_GetSavedReactionTags(
+		MTP_flags(sublist ? Flag::f_peer : Flag()),
+		(sublist ? sublist->sublistPeer()->input : MTP_inputPeerEmpty()),
+		MTP_long(my.hash)
+	)).done([=](const MTPmessages_SavedReactionTags &result) {
+		auto &my = _myTags[sublist];
+		my.requestId = 0;
+		result.match([&](const MTPDmessages_savedReactionTags &data) {
+			updateMyTags(sublist, data);
+		}, [](const MTPDmessages_savedReactionTagsNotModified&) {
+		});
+	}).fail([=] {
+		auto &my = _myTags[sublist];
+		my.requestId = 0;
+		my.hash = 0;
+	}).send();
+}
+
+void Reactions::requestTags() {
+	if (_tagsRequestId) {
+		return;
+	}
+	auto &api = _owner->session().api();
+	_tagsRequestId = api.request(MTPmessages_GetDefaultTagReactions(
+		MTP_long(_tagsHash)
+	)).done([=](const MTPmessages_Reactions &result) {
+		_tagsRequestId = 0;
+		result.match([&](const MTPDmessages_reactions &data) {
+			updateTags(data);
+		}, [](const MTPDmessages_reactionsNotModified&) {
+		});
+	}).fail([=] {
+		_tagsRequestId = 0;
+		_tagsHash = 0;
+	}).send();
+
+}
+
+void Reactions::requestEffects() {
+	if (_effectsRequestId) {
+		return;
+	}
+	auto &api = _owner->session().api();
+	_effectsRequestId = api.request(MTPmessages_GetAvailableEffects(
+		MTP_int(_effectsHash)
+	)).done([=](const MTPmessages_AvailableEffects &result) {
+		_effectsRequestId = 0;
+		result.match([&](const MTPDmessages_availableEffects &data) {
+			updateEffects(data);
+		}, [&](const MTPDmessages_availableEffectsNotModified &) {
+		});
+	}).fail([=] {
+		_effectsRequestId = 0;
+		_effectsHash = 0;
+	}).send();
+}
+
 void Reactions::updateTop(const MTPDmessages_reactions &data) {
 	_topHash = data.vhash().v;
 	_topIds = ListFromMTP(data);
@@ -622,9 +1124,9 @@ void Reactions::updateDefault(const MTPDmessages_availableReactions &data) {
 			}
 		}
 	}
-	if (_waitingForList) {
-		_waitingForList = false;
-		resolveImages();
+	if (_waitingForReactions) {
+		_waitingForReactions = false;
+		resolveReactionImages();
 	}
 	defaultUpdated();
 }
@@ -649,6 +1151,63 @@ void Reactions::updateGeneric(const MTPDmessages_stickerSet &data) {
 	}
 }
 
+void Reactions::updateMyTags(
+		SavedSublist *sublist,
+		const MTPDmessages_savedReactionTags &data) {
+	auto &my = _myTags[sublist];
+	my.hash = data.vhash().v;
+	auto list = ListFromMTP(data);
+	auto renamed = base::flat_set<ReactionId>();
+	if (!sublist) {
+		for (const auto &info : list) {
+			const auto j = ranges::find(my.info, info.id, &MyTagInfo::id);
+			const auto was = (j != end(my.info)) ? j->title : QString();
+			if (info.title != was) {
+				renamed.emplace(info.id);
+			}
+		}
+	}
+	my.info = std::move(list);
+	my.tags = resolveByInfos(my.info, _unresolvedMyTags, sublist);
+	_myTagsUpdated.fire_copy(sublist);
+	for (const auto &id : renamed) {
+		_myTagRenamed.fire_copy(id);
+	}
+}
+
+void Reactions::updateTags(const MTPDmessages_reactions &data) {
+	_tagsHash = data.vhash().v;
+	_tagsIds = ListFromMTP(data);
+	_tags = resolveByIds(_tagsIds, _unresolvedTags);
+	_tagsUpdated.fire({});
+}
+
+void Reactions::updateEffects(const MTPDmessages_availableEffects &data) {
+	_effectsHash = data.vhash().v;
+
+	const auto &list = data.veffects().v;
+	const auto toCache = [&](DocumentData *document) {
+		if (document) {
+			_iconsCache.emplace(document, document->createMediaView());
+		}
+	};
+	for (const auto &document : data.vdocuments().v) {
+		toCache(_owner->processDocument(document));
+	}
+	_effects.clear();
+	_effects.reserve(list.size());
+	for (const auto &effect : list) {
+		if (const auto parsed = parse(effect)) {
+			_effects.push_back(*parsed);
+		}
+	}
+	if (_waitingForEffects) {
+		_waitingForEffects = false;
+		resolveEffectImages();
+	}
+	effectsUpdated();
+}
+
 void Reactions::recentUpdated() {
 	_topRefreshTimer.callOnce(kTopRequestDelay);
 	_recentUpdated.fire({});
@@ -660,7 +1219,28 @@ void Reactions::defaultUpdated() {
 	if (_genericAnimations.empty()) {
 		requestGeneric();
 	}
+	refreshMyTags();
+	refreshTags();
+	refreshEffects();
 	_defaultUpdated.fire({});
+}
+
+void Reactions::myTagsUpdated() {
+	if (_genericAnimations.empty()) {
+		requestGeneric();
+	}
+	_myTagsUpdated.fire({});
+}
+
+void Reactions::tagsUpdated() {
+	if (_genericAnimations.empty()) {
+		requestGeneric();
+	}
+	_tagsUpdated.fire({});
+}
+
+void Reactions::effectsUpdated() {
+	_effectsUpdated.fire({});
 }
 
 not_null<CustomEmojiManager::Listener*> Reactions::resolveListener() {
@@ -668,12 +1248,21 @@ not_null<CustomEmojiManager::Listener*> Reactions::resolveListener() {
 }
 
 void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
+	if (!document->sticker()) {
+		return;
+	}
 	const auto id = ReactionId{ { document->id } };
 	const auto favorite = (_unresolvedFavoriteId == id);
 	const auto i = _unresolvedTop.find(id);
 	const auto top = (i != end(_unresolvedTop));
 	const auto j = _unresolvedRecent.find(id);
 	const auto recent = (j != end(_unresolvedRecent));
+	const auto k = _unresolvedMyTags.find(id);
+	const auto myTagSublists = (k != end(_unresolvedMyTags))
+		? base::take(k->second)
+		: base::flat_set<SavedSublist*>();
+	const auto l = _unresolvedTags.find(id);
+	const auto tag = (l != end(_unresolvedTags));
 	if (favorite) {
 		_unresolvedFavoriteId = ReactionId();
 		_favorite = resolveById(_favoriteId);
@@ -686,6 +1275,17 @@ void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
 		_unresolvedRecent.erase(j);
 		_recent = resolveByIds(_recentIds, _unresolvedRecent);
 	}
+	if (!myTagSublists.empty()) {
+		_unresolvedMyTags.erase(k);
+		for (const auto &sublist : myTagSublists) {
+			auto &my = _myTags[sublist];
+			my.tags = resolveByInfos(my.info, _unresolvedMyTags, sublist);
+		}
+	}
+	if (tag) {
+		_unresolvedTags.erase(l);
+		_tags = resolveByIds(_tagsIds, _unresolvedTags);
+	}
 	if (favorite) {
 		_favoriteUpdated.fire({});
 	}
@@ -694,6 +1294,12 @@ void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
 	}
 	if (recent) {
 		_recentUpdated.fire({});
+	}
+	for (const auto &sublist : myTagSublists) {
+		_myTagsUpdated.fire_copy(sublist);
+	}
+	if (tag) {
+		_tagsUpdated.fire({});
 	}
 }
 
@@ -727,6 +1333,50 @@ std::vector<Reaction> Reactions::resolveByIds(
 	return result;
 }
 
+std::optional<Reaction> Reactions::resolveByInfo(
+		const MyTagInfo &info,
+		SavedSublist *sublist) {
+	const auto withInfo = [&](Reaction reaction) {
+		reaction.count = info.count;
+		reaction.title = sublist ? myTagTitle(reaction.id) : info.title;
+		return reaction;
+	};
+	if (const auto emoji = info.id.emoji(); !emoji.isEmpty()) {
+		const auto i = ranges::find(_available, info.id, &Reaction::id);
+		if (i != end(_available)) {
+			return withInfo(*i);
+		}
+	} else if (const auto customId = info.id.custom()) {
+		const auto document = _owner->document(customId);
+		if (document->sticker()) {
+			return withInfo(CustomReaction(document));
+		}
+	}
+	return {};
+}
+
+std::vector<Reaction> Reactions::resolveByInfos(
+		const std::vector<MyTagInfo> &infos,
+		base::flat_map<
+			ReactionId,
+			base::flat_set<SavedSublist*>> &unresolved,
+		SavedSublist *sublist) {
+	auto result = std::vector<Reaction>();
+	result.reserve(infos.size());
+	for (const auto &tag : infos) {
+		if (auto resolved = resolveByInfo(tag, sublist)) {
+			result.push_back(*resolved);
+		} else if (const auto i = unresolved.find(tag.id)
+			; i != end(unresolved)) {
+			i->second.emplace(sublist);
+		} else {
+			unresolved[tag.id].emplace(sublist);
+			resolve(tag.id);
+		}
+	}
+	return result;
+}
+
 void Reactions::resolve(const ReactionId &id) {
 	if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
 		refreshDefault();
@@ -738,36 +1388,74 @@ void Reactions::resolve(const ReactionId &id) {
 }
 
 std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
-	return entry.match([&](const MTPDavailableReaction &data) {
-		const auto emoji = qs(data.vreaction());
-		const auto known = (Ui::Emoji::Find(emoji) != nullptr);
-		if (!known) {
-			LOG(("API Error: Unknown emoji in reactions: %1").arg(emoji));
-		}
-		return known
-			? std::make_optional(Reaction{
-				.id = ReactionId{ emoji },
-				.title = qs(data.vtitle()),
-				//.staticIcon = _owner->processDocument(data.vstatic_icon()),
-				.appearAnimation = _owner->processDocument(
-					data.vappear_animation()),
-				.selectAnimation = _owner->processDocument(
-					data.vselect_animation()),
-				//.activateAnimation = _owner->processDocument(
-				//	data.vactivate_animation()),
-				//.activateEffects = _owner->processDocument(
-				//	data.veffect_animation()),
-				.centerIcon = (data.vcenter_icon()
-					? _owner->processDocument(*data.vcenter_icon()).get()
-					: nullptr),
-				.aroundAnimation = (data.varound_animation()
-					? _owner->processDocument(
-						*data.varound_animation()).get()
-					: nullptr),
-				.active = !data.is_inactive(),
-				.premium = data.is_premium(),
-			})
-			: std::nullopt;
+	const auto &data = entry.data();
+	const auto emoji = qs(data.vreaction());
+	const auto known = (Ui::Emoji::Find(emoji) != nullptr);
+	if (!known) {
+		LOG(("API Error: Unknown emoji in reactions: %1").arg(emoji));
+		return std::nullopt;
+	}
+	return std::make_optional(Reaction{
+		.id = ReactionId{ emoji },
+		.title = qs(data.vtitle()),
+		//.staticIcon = _owner->processDocument(data.vstatic_icon()),
+		.appearAnimation = _owner->processDocument(
+			data.vappear_animation()),
+		.selectAnimation = _owner->processDocument(
+			data.vselect_animation()),
+		//.activateAnimation = _owner->processDocument(
+		//	data.vactivate_animation()),
+		//.activateEffects = _owner->processDocument(
+		//	data.veffect_animation()),
+		.centerIcon = (data.vcenter_icon()
+			? _owner->processDocument(*data.vcenter_icon()).get()
+			: nullptr),
+		.aroundAnimation = (data.varound_animation()
+			? _owner->processDocument(*data.varound_animation()).get()
+			: nullptr),
+		.active = !data.is_inactive(),
+	});
+}
+
+std::optional<Reaction> Reactions::parse(const MTPAvailableEffect &entry) {
+	const auto &data = entry.data();
+	const auto emoji = qs(data.vemoticon());
+	const auto known = (Ui::Emoji::Find(emoji) != nullptr);
+	if (!known) {
+		LOG(("API Error: Unknown emoji in effects: %1").arg(emoji));
+		return std::nullopt;
+	}
+	const auto id = DocumentId(data.vid().v);
+	const auto stickerId = data.veffect_sticker_id().v;
+	const auto document = _owner->document(stickerId);
+	if (!document->sticker()) {
+		LOG(("API Error: Bad sticker in effects: %1").arg(stickerId));
+		return std::nullopt;
+	}
+	const auto aroundId = data.veffect_animation_id().value_or_empty();
+	const auto around = aroundId
+		? _owner->document(aroundId).get()
+		: nullptr;
+	if (around && !around->sticker()) {
+		LOG(("API Error: Bad sticker in effects around: %1").arg(aroundId));
+		return std::nullopt;
+	}
+	const auto iconId = data.vstatic_icon_id().value_or_empty();
+	const auto icon = iconId ? _owner->document(iconId).get() : nullptr;
+	if (icon && !icon->sticker()) {
+		LOG(("API Error: Bad sticker in effects icon: %1").arg(iconId));
+		return std::nullopt;
+	}
+	return std::make_optional(Reaction{
+		.id = ReactionId{ id },
+		.title = emoji,
+		.appearAnimation = document,
+		.selectAnimation = document,
+		.centerIcon = icon,
+		.aroundAnimation = around,
+		.active = true,
+		.effect = true,
+		.premium = data.is_premium_required(),
 	});
 }
 
@@ -788,7 +1476,10 @@ void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 		MTP_flags(flags),
 		item->history()->peer->input,
 		MTP_int(id.msg),
-		MTP_vector<MTPReaction>(chosen | ranges::views::transform(
+		MTP_vector<MTPReaction>(chosen | ranges::views::filter([](
+				const ReactionId &id) {
+			return !id.paid();
+		}) | ranges::views::transform(
 			ReactionToMTP
 		) | ranges::to<QVector<MTPReaction>>())
 	)).done([=](const MTPUpdates &result) {
@@ -835,7 +1526,9 @@ void Reactions::clearTemporary() {
 }
 
 Reaction *Reactions::lookupTemporary(const ReactionId &id) {
-	if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
+	if (id.paid()) {
+		return lookupPaid();
+	} else if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
 		const auto i = ranges::find(_available, id, &Reaction::id);
 		return (i != end(_available)) ? &*i : nullptr;
 	} else if (const auto customId = id.custom()) {
@@ -854,6 +1547,94 @@ Reaction *Reactions::lookupTemporary(const ReactionId &id) {
 		return nullptr;
 	}
 	return nullptr;
+}
+
+not_null<Reaction*> Reactions::lookupPaid() {
+	if (!_paid) {
+		const auto generate = [&](const QString &name) {
+			const auto session = &_owner->session();
+			return ChatHelpers::GenerateLocalTgsSticker(session, name);
+		};
+		const auto appear = generate(u"star_reaction_appear"_q);
+		const auto center = generate(u"star_reaction_center"_q);
+		const auto select = generate(u"star_reaction_select"_q);
+		_paid.emplace(Reaction{
+			.id = ReactionId::Paid(),
+			.title = u"Telegram Star"_q,
+			.appearAnimation = appear,
+			.selectAnimation = select,
+			.centerIcon = center,
+			.active = true,
+		});
+		_iconsCache.emplace(appear, appear->createMediaView());
+		_iconsCache.emplace(center, center->createMediaView());
+		_iconsCache.emplace(select, select->createMediaView());
+
+		fillPaidReactionAnimations();
+	}
+	return &*_paid;
+}
+
+not_null<DocumentData*> Reactions::paidToastAnimation() {
+	if (!_paidToastAnimation) {
+		_paidToastAnimation = ChatHelpers::GenerateLocalTgsSticker(
+			&_owner->session(),
+			u"star_reaction_toast"_q);
+	}
+	return _paidToastAnimation;
+}
+
+rpl::producer<std::vector<Reaction>> Reactions::myTagsValue(
+		SavedSublist *sublist) {
+	refreshMyTags(sublist);
+	const auto list = [=] {
+		return _myTags[sublist].tags;
+	};
+	return rpl::single(
+		list()
+	) | rpl::then(_myTagsUpdated.events(
+	) | rpl::filter(
+		rpl::mappers::_1 == sublist
+	) | rpl::map(list));
+}
+
+bool Reactions::isQuitPrevent() {
+	for (auto i = begin(_sendPaidItems); i != end(_sendPaidItems);) {
+		const auto item = i->first;
+		if (_sendingPaid.contains(item)) {
+			++i;
+		} else {
+			i = _sendPaidItems.erase(i);
+			sendPaid(item);
+		}
+	}
+	if (_sendingPaid.empty()) {
+		return false;
+	}
+	LOG(("Reactions prevents quit, sending paid..."));
+	return true;
+}
+
+void Reactions::schedulePaid(not_null<HistoryItem*> item) {
+	_sendPaidItems[item] = crl::now() + kPaidAccumulatePeriod;
+	if (!_sendPaidTimer.isActive()) {
+		_sendPaidTimer.callOnce(kPaidAccumulatePeriod);
+	}
+}
+
+void Reactions::undoScheduledPaid(not_null<HistoryItem*> item) {
+	_sendPaidItems.remove(item);
+	item->cancelScheduledPaidReaction();
+}
+
+crl::time Reactions::sendingScheduledPaidAt(
+		not_null<HistoryItem*> item) const {
+	const auto i = _sendPaidItems.find(item);
+	return (i != end(_sendPaidItems)) ? i->second : crl::time();
+}
+
+crl::time Reactions::ScheduledPaidDelay() {
+	return kPaidAccumulatePeriod;
 }
 
 void Reactions::repaintCollected() {
@@ -911,7 +1692,8 @@ void Reactions::pollCollected() {
 }
 
 bool Reactions::sending(not_null<HistoryItem*> item) const {
-	return _sentRequests.contains(item->fullId());
+	return _sentRequests.contains(item->fullId())
+		|| _sendingPaid.contains(item);
 }
 
 bool Reactions::HasUnread(const MTPMessageReactions &data) {
@@ -943,21 +1725,174 @@ void Reactions::CheckUnknownForUnread(
 	});
 }
 
+void Reactions::sendPaid() {
+	if (!_sendingPaid.empty()) {
+		return;
+	}
+	auto next = crl::time();
+	const auto now = crl::now();
+	for (auto i = begin(_sendPaidItems); i != end(_sendPaidItems);) {
+		const auto item = i->first;
+		const auto when = i->second;
+		if (when > now) {
+			if (!next || next > when) {
+				next = when;
+			}
+			++i;
+		} else {
+			i = _sendPaidItems.erase(i);
+			if (sendPaid(item)) {
+				return;
+			}
+		}
+	}
+	if (next) {
+		_sendPaidTimer.callOnce(next - now);
+	}
+}
+
+bool Reactions::sendPaid(not_null<HistoryItem*> item) {
+	const auto send = item->startPaidReactionSending();
+	if (!send.valid) {
+		return false;
+	}
+
+	sendPaidRequest(item, send);
+	return true;
+}
+
+void Reactions::sendPaidPrivacyRequest(
+		not_null<HistoryItem*> item,
+		PaidReactionSend send) {
+	Expects(!_sendingPaid.contains(item));
+	Expects(send.shownPeer.has_value());
+	Expects(!send.count);
+
+	const auto id = item->fullId();
+	auto &api = _owner->session().api();
+	const auto requestId = api.request(
+		MTPmessages_TogglePaidReactionPrivacy(
+			item->history()->peer->input,
+			MTP_int(id.msg),
+			PaidReactionShownPeerToTL(&_owner->session(), send.shownPeer))
+	).done([=] {
+		if (const auto item = _owner->message(id)) {
+			if (_sendingPaid.remove(item)) {
+				sendPaidFinish(item, send, true);
+			}
+		}
+		checkQuitPreventFinished();
+	}).fail([=](const MTP::Error &error) {
+		if (const auto item = _owner->message(id)) {
+			if (_sendingPaid.remove(item)) {
+				sendPaidFinish(item, send, false);
+			}
+		}
+		checkQuitPreventFinished();
+	}).send();
+	_sendingPaid[item] = requestId;
+}
+
+void Reactions::sendPaidRequest(
+		not_null<HistoryItem*> item,
+		PaidReactionSend send) {
+	Expects(!_sendingPaid.contains(item));
+
+	if (!send.count) {
+		sendPaidPrivacyRequest(item, send);
+		return;
+	}
+
+	const auto id = item->fullId();
+	const auto randomId = base::unixtime::mtproto_msg_id();
+	auto &api = _owner->session().api();
+	using Flag = MTPmessages_SendPaidReaction::Flag;
+	const auto requestId = api.request(MTPmessages_SendPaidReaction(
+		MTP_flags(send.shownPeer ? Flag::f_private : Flag()),
+		item->history()->peer->input,
+		MTP_int(id.msg),
+		MTP_int(send.count),
+		MTP_long(randomId),
+		(!send.shownPeer
+			? MTPPaidReactionPrivacy()
+			: PaidReactionShownPeerToTL(&_owner->session(), *send.shownPeer))
+	)).done([=](const MTPUpdates &result) {
+		if (const auto item = _owner->message(id)) {
+			if (_sendingPaid.remove(item)) {
+				sendPaidFinish(item, send, true);
+			}
+		}
+		_owner->session().api().applyUpdates(result);
+		checkQuitPreventFinished();
+	}).fail([=](const MTP::Error &error) {
+		if (const auto item = _owner->message(id)) {
+			_sendingPaid.remove(item);
+			if (error.type() == u"RANDOM_ID_EXPIRED"_q) {
+				sendPaidRequest(item, send);
+			} else {
+				sendPaidFinish(item, send, false);
+			}
+		}
+		checkQuitPreventFinished();
+	}).send();
+	_sendingPaid[item] = requestId;
+}
+
+void Reactions::checkQuitPreventFinished() {
+	if (_sendingPaid.empty()) {
+		if (Core::Quitting()) {
+			LOG(("Reactions doesn't prevent quit any more."));
+		}
+		Core::App().quitPreventFinished();
+	}
+}
+
+void Reactions::sendPaidFinish(
+		not_null<HistoryItem*> item,
+		PaidReactionSend send,
+		bool success) {
+	item->finishPaidReactionSending(send, success);
+	sendPaid();
+}
+
 MessageReactions::MessageReactions(not_null<HistoryItem*> item)
 : _item(item) {
 }
 
+MessageReactions::~MessageReactions() {
+	cancelScheduledPaid();
+	if (const auto paid = _paid.get()) {
+		if (paid->sending > 0) {
+			finishPaidSending({
+				.count = int(paid->sending),
+				.valid = true,
+				.shownPeer = MaybeShownPeer(
+					paid->sendingPrivacySet,
+					paid->sendingShownPeer),
+			}, false);
+		}
+	}
+}
+
 void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 	Expects(!id.empty());
+	Expects(!id.paid());
 
 	const auto history = _item->history();
-	const auto self = history->session().user();
 	const auto myLimit = SentReactionsLimit(_item);
 	if (ranges::contains(chosen(), id)) {
 		return;
 	}
 	auto my = 0;
+	const auto tags = _item->reactionsAreTags();
+	if (tags) {
+		const auto sublist = _item->savedSublist();
+		history->owner().reactions().incrementMyTag(id, sublist);
+	}
 	_list.erase(ranges::remove_if(_list, [&](MessageReaction &one) {
+		if (one.id.paid()) {
+			return false;
+		}
 		const auto removing = one.my && (my == myLimit || ++my == myLimit);
 		if (!removing) {
 			return false;
@@ -966,20 +1901,32 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 		const auto removed = !--one.count;
 		const auto j = _recent.find(one.id);
 		if (j != end(_recent)) {
-			j->second.erase(
-				ranges::remove(j->second, self, &RecentReaction::peer),
-				end(j->second));
-			if (j->second.empty()) {
+			if (removed) {
+				j->second.clear();
 				_recent.erase(j);
 			} else {
-				Assert(!removed);
+				j->second.erase(
+					ranges::remove(j->second, true, &RecentReaction::my),
+					end(j->second));
+				if (j->second.empty()) {
+					_recent.erase(j);
+				}
 			}
+		}
+		if (tags) {
+			const auto sublist = _item->savedSublist();
+			history->owner().reactions().decrementMyTag(one.id, sublist);
 		}
 		return removed;
 	}), end(_list));
-	if (_item->canViewReactions() || history->peer->isUser()) {
+	const auto peer = history->peer;
+	if (_item->canViewReactions() || peer->isUser()) {
 		auto &list = _recent[id];
-		list.insert(begin(list), RecentReaction{ self });
+		const auto from = peer->session().sendAsPeers().resolveChosen(peer);
+		list.insert(begin(list), RecentReaction{
+			.peer = from,
+			.my = true,
+		});
 	}
 	const auto i = ranges::find(_list, id, &MessageReaction::id);
 	if (i != end(_list)) {
@@ -995,6 +1942,8 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 }
 
 void MessageReactions::remove(const ReactionId &id) {
+	Expects(!id.paid());
+
 	const auto history = _item->history();
 	const auto self = history->session().user();
 	const auto i = ranges::find(_list, id, &MessageReaction::id);
@@ -1008,19 +1957,27 @@ void MessageReactions::remove(const ReactionId &id) {
 		return;
 	}
 	i->my = false;
+	const auto tags = _item->reactionsAreTags();
 	const auto removed = !--i->count;
 	if (removed) {
 		_list.erase(i);
 	}
 	if (j != end(_recent)) {
-		j->second.erase(
-			ranges::remove(j->second, self, &RecentReaction::peer),
-			end(j->second));
-		if (j->second.empty()) {
+		if (removed) {
+			j->second.clear();
 			_recent.erase(j);
 		} else {
-			Assert(!removed);
+			j->second.erase(
+				ranges::remove(j->second, true, &RecentReaction::my),
+				end(j->second));
+			if (j->second.empty()) {
+				_recent.erase(j);
+			}
 		}
+	}
+	if (tags) {
+		const auto sublist = _item->savedSublist();
+		history->owner().reactions().decrementMyTag(id, sublist);
 	}
 	auto &owner = history->owner();
 	owner.reactions().send(_item, false);
@@ -1029,7 +1986,8 @@ void MessageReactions::remove(const ReactionId &id) {
 
 bool MessageReactions::checkIfChanged(
 		const QVector<MTPReactionCount> &list,
-		const QVector<MTPMessagePeerReaction> &recent) const {
+		const QVector<MTPMessagePeerReaction> &recent,
+		bool min) const {
 	auto &owner = _item->history()->owner();
 	if (owner.reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
@@ -1061,13 +2019,18 @@ bool MessageReactions::checkIfChanged(
 	for (const auto &reaction : recent) {
 		reaction.match([&](const MTPDmessagePeerReaction &data) {
 			const auto id = ReactionFromMTP(data.vreaction());
-			if (ranges::contains(_list, id, &MessageReaction::id)) {
-				parsed[id].push_back(RecentReaction{
-					.peer = owner.peer(peerFromMTP(data.vpeer_id())),
-					.unread = data.is_unread(),
-					.big = data.is_big(),
-				});
+			if (!ranges::contains(_list, id, &MessageReaction::id)) {
+				return;
 			}
+			const auto peerId = peerFromMTP(data.vpeer_id());
+			const auto peer = owner.peer(peerId);
+			const auto my = IsMyRecent(data, id, peer, _recent, min);
+			parsed[id].push_back({
+				.peer = peer,
+				.unread = data.is_unread(),
+				.big = data.is_big(),
+				.my = my,
+			});
 		});
 	}
 	return !ranges::equal(_recent, parsed, [](
@@ -1076,7 +2039,7 @@ bool MessageReactions::checkIfChanged(
 		return ranges::equal(a.second, b.second, [](
 				const RecentReaction &a,
 				const RecentReaction &b) {
-			return (a.peer == b.peer) && (a.big == b.big);
+			return (a.peer == b.peer) && (a.big == b.big) && (a.my == b.my);
 		});
 	});
 }
@@ -1084,7 +2047,8 @@ bool MessageReactions::checkIfChanged(
 bool MessageReactions::change(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,
-		bool ignoreChosen) {
+		const QVector<MTPMessageReactor> &top,
+		bool min) {
 	auto &owner = _item->history()->owner();
 	if (owner.reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
@@ -1097,7 +2061,7 @@ bool MessageReactions::change(
 		count.match([&](const MTPDreactionCount &data) {
 			const auto id = ReactionFromMTP(data.vreaction());
 			const auto &chosen = data.vchosen_order();
-			if (!ignoreChosen && chosen) {
+			if (!min && chosen) {
 				order[id] = chosen->v;
 			}
 			const auto i = ranges::find(_list, id, &MessageReaction::id);
@@ -1107,10 +2071,10 @@ bool MessageReactions::change(
 				_list.push_back({
 					.id = id,
 					.count = nowCount,
-					.my = (!ignoreChosen && chosen)
+					.my = (!min && chosen)
 				});
 			} else {
-				const auto nowMy = ignoreChosen ? i->my : chosen.has_value();
+				const auto nowMy = min ? i->my : chosen.has_value();
 				if (i->count != nowCount || i->my != nowMy) {
 					i->count = nowCount;
 					i->my = nowMy;
@@ -1120,13 +2084,13 @@ bool MessageReactions::change(
 			existing.emplace(id);
 		});
 	}
-	if (!ignoreChosen && !order.empty()) {
-		const auto min = std::numeric_limits<int>::min();
+	if (!min && !order.empty()) {
+		const auto minimal = std::numeric_limits<int>::min();
 		const auto proj = [&](const MessageReaction &reaction) {
-			return reaction.my ? order[reaction.id] : min;
+			return reaction.my ? order[reaction.id] : minimal;
 		};
 		const auto correctOrder = [&] {
-			auto previousOrder = min;
+			auto previousOrder = minimal;
 			for (const auto &reaction : _list) {
 				const auto nowOrder = proj(reaction);
 				if (nowOrder < previousOrder) {
@@ -1156,21 +2120,77 @@ bool MessageReactions::change(
 		reaction.match([&](const MTPDmessagePeerReaction &data) {
 			const auto id = ReactionFromMTP(data.vreaction());
 			const auto i = ranges::find(_list, id, &MessageReaction::id);
-			if (i != end(_list)) {
-				auto &list = parsed[id];
-				if (list.size() < i->count) {
-					list.push_back(RecentReaction{
-						.peer = owner.peer(peerFromMTP(data.vpeer_id())),
-						.unread = data.is_unread(),
-						.big = data.is_big(),
-					});
-				}
+			if (i == end(_list)) {
+				return;
 			}
+			auto &list = parsed[id];
+			if (list.size() >= i->count) {
+				return;
+			}
+			const auto peer = owner.peer(peerFromMTP(data.vpeer_id()));
+			const auto my = IsMyRecent(data, id, peer, _recent, min);
+			list.push_back({
+				.peer = peer,
+				.unread = data.is_unread(),
+				.big = data.is_big(),
+				.my = my,
+			});
 		});
 	}
 	if (_recent != parsed) {
 		_recent = std::move(parsed);
 		changed = true;
+	}
+
+	auto paidTop = std::vector<TopPaid>();
+	const auto &paindTopNow = _paid ? _paid->top : std::vector<TopPaid>();
+	for (const auto &reactor : top) {
+		const auto &data = reactor.data();
+		const auto peerId = (data.is_anonymous() || !data.vpeer_id())
+			? PeerId()
+			: peerFromMTP(*data.vpeer_id());
+		const auto peer = peerId ? owner.peer(peerId).get() : nullptr;
+		paidTop.push_back({
+			.peer = peer,
+			.count = uint32(data.vcount().v),
+			.top = data.is_top(),
+			.my = IsMyTop(data, peer, paindTopNow, min),
+		});
+	}
+	if (paidTop.empty()) {
+		if (_paid && !_paid->top.empty()) {
+			changed = true;
+			if (localPaidData()) {
+				_paid->top.clear();
+			} else {
+				_paid = nullptr;
+			}
+		}
+	} else {
+		if (min && _paid) {
+			const auto mine = [](const TopPaid &entry) {
+				return entry.my != 0;
+			};
+			if (!ranges::contains(paidTop, true, mine)) {
+				const auto nonTopMine = [](const TopPaid &entry) {
+					return entry.my && !entry.top;
+				};
+				const auto i = ranges::find(_paid->top, true, nonTopMine);
+				if (i != end(_paid->top)) {
+					paidTop.push_back(*i);
+				}
+			}
+		}
+		ranges::sort(paidTop, std::greater(), [](const TopPaid &entry) {
+			return entry.count;
+		});
+		if (!_paid) {
+			_paid = std::make_unique<Paid>();
+		}
+		if (_paid->top != paidTop) {
+			_paid->top = std::move(paidTop);
+			changed = true;
+		}
 	}
 	return changed;
 }
@@ -1182,6 +2202,11 @@ const std::vector<MessageReaction> &MessageReactions::list() const {
 auto MessageReactions::recent() const
 -> const base::flat_map<ReactionId, std::vector<RecentReaction>> & {
 	return _recent;
+}
+
+auto MessageReactions::topPaid() const -> const std::vector<TopPaid> & {
+	static const auto kEmpty = std::vector<TopPaid>();
+	return _paid ? _paid->top : kEmpty;
 }
 
 bool MessageReactions::empty() const {
@@ -1203,6 +2228,144 @@ void MessageReactions::markRead() {
 			reaction.unread = false;
 		}
 	}
+}
+
+void MessageReactions::scheduleSendPaid(
+		int count,
+		std::optional<PeerId> shownPeer) {
+	Expects(count >= 0);
+
+	if (!_paid) {
+		_paid = std::make_unique<Paid>();
+	}
+	_paid->scheduled += count;
+	_paid->scheduledFlag = 1;
+	if (shownPeer.has_value()) {
+		_paid->scheduledShownPeer = *shownPeer;
+		_paid->scheduledPrivacySet = true;
+	}
+	if (count > 0) {
+		_item->history()->session().credits().lock(CreditsAmount(count));
+	}
+	_item->history()->owner().reactions().schedulePaid(_item);
+}
+
+int MessageReactions::scheduledPaid() const {
+	return _paid ? _paid->scheduled : 0;
+}
+
+void MessageReactions::cancelScheduledPaid() {
+	if (_paid) {
+		if (_paid->scheduledFlag) {
+			if (const auto amount = int(_paid->scheduled)) {
+				_item->history()->session().credits().unlock(
+					CreditsAmount(amount));
+			}
+			_paid->scheduled = 0;
+			_paid->scheduledFlag = 0;
+			_paid->scheduledShownPeer = 0;
+			_paid->scheduledPrivacySet = 0;
+		}
+		if (!_paid->sendingFlag && _paid->top.empty()) {
+			_paid = nullptr;
+		}
+	}
+}
+
+PaidReactionSend MessageReactions::startPaidSending() {
+	if (!_paid || !_paid->scheduledFlag || _paid->sendingFlag) {
+		return {};
+	}
+	_paid->sending = _paid->scheduled;
+	_paid->sendingFlag = _paid->scheduledFlag;
+	_paid->sendingShownPeer = _paid->scheduledShownPeer;
+	_paid->sendingPrivacySet = _paid->scheduledPrivacySet;
+	_paid->scheduled = 0;
+	_paid->scheduledFlag = 0;
+	_paid->scheduledShownPeer = 0;
+	_paid->scheduledPrivacySet = 0;
+	return {
+		.count = int(_paid->sending),
+		.valid = true,
+		.shownPeer = MaybeShownPeer(
+			_paid->sendingPrivacySet,
+			_paid->sendingShownPeer),
+	};
+}
+
+void MessageReactions::finishPaidSending(
+		PaidReactionSend send,
+		bool success) {
+	Expects(_paid != nullptr);
+	Expects(send.count == _paid->sending);
+	Expects(send.valid == (_paid->sendingFlag == 1));
+	Expects(send.shownPeer == MaybeShownPeer(
+		_paid->sendingPrivacySet,
+		_paid->sendingShownPeer));
+
+	_paid->sending = 0;
+	_paid->sendingFlag = 0;
+	_paid->sendingShownPeer = 0;
+	_paid->sendingPrivacySet = 0;
+	if (!_paid->scheduledFlag && _paid->top.empty()) {
+		_paid = nullptr;
+	} else if (!send.count) {
+		const auto i = ranges::find_if(_paid->top, [](const TopPaid &top) {
+			return top.my;
+		});
+		if (i != end(_paid->top)) {
+			i->peer = send.shownPeer
+				? _item->history()->owner().peer(*send.shownPeer).get()
+				: nullptr;
+		}
+	}
+	if (const auto amount = send.count) {
+		const auto credits = &_item->history()->session().credits();
+		if (success) {
+			credits->withdrawLocked(CreditsAmount(amount));
+		} else {
+			credits->unlock(CreditsAmount(amount));
+		}
+	}
+}
+
+bool MessageReactions::localPaidData() const {
+	return _paid && (_paid->scheduledFlag || _paid->sendingFlag);
+}
+
+int MessageReactions::localPaidCount() const {
+	return _paid ? (_paid->scheduled + _paid->sending) : 0;
+}
+
+PeerId MessageReactions::localPaidShownPeer() const {
+	const auto minePaidShownPeer = [&] {
+		for (const auto &entry : _paid->top) {
+			if (entry.my) {
+				return entry.peer ? entry.peer->id : PeerId();
+			}
+		}
+		const auto api = &_item->history()->session().api();
+		return api->globalPrivacy().paidReactionShownPeerCurrent();
+	};
+	return !_paid
+		? PeerId()
+		: (_paid->scheduledFlag && _paid->scheduledPrivacySet)
+		? _paid->scheduledShownPeer
+		: (_paid->sendingFlag && _paid->sendingPrivacySet)
+		? _paid->sendingShownPeer
+		: minePaidShownPeer();
+}
+
+bool MessageReactions::clearCloudData() {
+	const auto result = !_list.empty();
+	_recent.clear();
+	_list.clear();
+	if (localPaidData()) {
+		_paid->top.clear();
+	} else {
+		_paid = nullptr;
+	}
+	return result;
 }
 
 std::vector<ReactionId> MessageReactions::chosen() const {

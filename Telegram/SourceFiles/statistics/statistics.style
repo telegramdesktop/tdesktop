@@ -1,0 +1,183 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+
+using "window/window.style";
+using "ui/widgets/widgets.style";
+
+statisticsLayerOverviewMargins: margins(0px, 17px, 0px, 9px);
+statisticsLayerMargins: margins(20px, 0px, 20px, 0px);
+
+statisticsChartHeight: 200px;
+
+statisticsChartEntryPadding: margins(0px, 13px, 0px, 2px);
+
+statisticsDetailsArrowShift: 3px;
+statisticsDetailsArrowStroke: 1.5;
+statisticsDetailsPopupMargins: margins(12px, 8px, 12px, 11px);
+statisticsDetailsPopupPadding: margins(6px, 6px, 6px, 6px);
+statisticsDetailsPopupMidLineSpace: 4px;
+statisticsDetailsDotRadius: 5px;
+statisticsChartLineWidth: 2px;
+
+statisticsChartFooterSkip: 11px;
+statisticsChartFooterHeight: 42px;
+statisticsChartFooterBetweenSide: 5px;
+statisticsChartFooterSideWidth: 10px;
+statisticsChartFooterArrowHeight: 10px;
+statisticsChartFooterSideRadius: 6px;
+
+statisticsChartRulerCaptionSkip: 4px;
+
+statisticsChartBottomCaptionHeight: 15px;
+statisticsChartBottomCaptionSkip: 6px;
+
+statisticsChartFlatCheckboxMargins: margins(4px, 3px, 4px, 5px);
+statisticsChartFlatCheckboxCheckWidth: 3px;
+statisticsChartFlatCheckboxShrinkkWidth: 4px;
+
+statisticsFilterButtonsPadding: margins(0px, 12px, 0px, 8px);
+
+statisticsDetailsPopupHeaderStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+}
+statisticsDetailsBottomCaptionStyle: TextStyle(defaultTextStyle) {
+	font: font(10px);
+}
+
+statisticsPieChartFont: font(20px);
+statisticsPieChartPartOffset: 8px;
+
+statisticsChartHeaderHeight: 36px;
+statisticsChartHeaderPadding: margins(2px, 0px, 0px, 10px);
+statisticsHeaderTitleTextStyle: TextStyle(defaultTextStyle) {
+	font: font(boxFontSize semibold);
+}
+statisticsHeaderDatesTextStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+}
+statisticsHeaderButton: RoundButton(defaultLightButton) {
+	width: -14px;
+	height: 20px;
+	textTop: 2px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(11px semibold);
+	}
+}
+
+statisticsLoadingSubtext: FlatLabel(changePhoneDescription) {
+	minWidth: 256px;
+}
+
+statisticsOverviewValue: FlatLabel(boxLabel) {
+	minWidth: 0px;
+	maxHeight: 60px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+statisticsOverviewValuePadding: margins(2px, 1px, 0px, 0px);
+statisticsOverviewSecondValuePadding: margins(5px, 3px, 0px, 0px);
+statisticsOverviewSecondValue: FlatLabel(boxLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+statisticsOverviewSubtext: FlatLabel(boxLabel) {
+	minWidth: 152px;
+	maxHeight: 32px;
+	style: statisticsHeaderDatesTextStyle;
+}
+statisticsOverviewMidSkip: 50px;
+statisticsOverviewRightSkip: 14px;
+
+statisticsRecentPostRowHeight: 40px;
+statisticsRecentPostButton: SettingsButton(defaultSettingsButton) {
+	height: 56px;
+	padding: margins(7px, 0px, 24px, 0px);
+}
+statisticsRecentPostIconSkip: 1px;
+statisticsRecentPostShareIcon: icon {{ "statistics/mini_stats_share", windowSubTextFg }};
+statisticsRecentPostReactionIcon: icon {{ "statistics/mini_stats_like", windowSubTextFg }};
+statisticsRecentPostUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(contactsPhotoSize, contactsPhotoSize);
+	photoSize: contactsPhotoSize;
+}
+
+statisticsShowMoreButton: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+
+	padding: margins(70px, 10px, 22px, 8px);
+}
+
+statisticsShowMoreButtonArrowPosition: point(29px, 13px);
+statisticsShowMoreButtonArrowSize: 7px;
+
+statisticsLimitsDividerPadding: margins(22px, -26px, 22px, 22px);
+statisticsLimitsLinePadding: margins(0px, -2px, 0px, 0px);
+
+boostsLayerOverviewMargins: margins(0px, 12px, 0px, 4px);
+boostsOverviewValuePadding: margins(2px, 0px, 0px, 0px);
+boostsChartHeaderPadding: margins(2px, 1px, 0px, 1px);
+
+boostsListBox: PeerList(defaultPeerList) {
+	padding: margins(
+		0px,
+		7px,
+		0px,
+		7px);
+	item: PeerListItem(defaultPeerListItem) {
+		height: 52px;
+		photoPosition: point(18px, 4px);
+		namePosition: point(70px, 6px);
+		statusPosition: point(70px, 26px);
+		photoSize: 42px;
+	}
+}
+boostsLinkSkip: 5px;
+boostsLinkFieldPadding: margins(22px, 7px, 22px, 12px);
+boostsButton: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+}
+
+getBoostsButton: SettingsButton(reportReasonButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFg;
+}
+getBoostsButtonIcon: icon {{ "menu/gift_premium", lightButtonFg }};
+
+boostsListMiniIcon: icon{{ "boosts/boost_mini2", premiumButtonFg }};
+boostsListMiniIconPadding: margins(1px, 0px, 0px, 0px);
+boostsListMiniIconSkip: 1px;
+boostsListEntryIcon: IconEmoji {
+	icon: boostsListMiniIcon;
+	padding: margins(6px, 2px, 0px, 0px);
+}
+boostsListBadgeTextPadding: margins(16px, 1px, 6px, 0px);
+boostsListBadgePadding: margins(4px, 1px, 4px, 0px);
+boostsListBadgeHeight: 16px;
+
+boostsListRightBadgeTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+boostsListRightBadgeTextPadding: margins(22px, 1px, 8px, 0px);
+boostsListRightBadgePadding: margins(4px, 5px, 12px, 0px);
+boostsListRightBadgeHeight: 20px;
+boostsListGiftMiniIconPadding: margins(4px, 2px, 0px, 0px);
+boostsListGiftMiniIcon: icon{{ "boosts/mini_gift", historyPeer8UserpicBg2 }};
+boostsListGiveawayMiniIcon: icon{{ "boosts/mini_giveaway", historyPeer4UserpicBg2 }};
+boostsListUnclaimedIcon: icon{{ "boosts/boost_unclaimed", premiumButtonFg }};
+boostsListUnknownIcon: icon{{ "boosts/boost_unknown", premiumButtonFg }};
+boostsListCreditsIconSize: 13px;
+
+statisticsCurrencyIcon: icon {{ "statistics/mini_currency_graph", windowSubTextFg }};

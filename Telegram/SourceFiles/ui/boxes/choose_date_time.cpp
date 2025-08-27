@@ -11,41 +11,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "ui/boxes/calendar_box.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/time_input.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+#include <QtWidgets/QTextEdit>
+
 namespace Ui {
 namespace {
 
 constexpr auto kMinimalSchedule = TimeId(10);
 
-tr::phrase<> MonthDay(int index) {
-	switch (index) {
-	case 1: return tr::lng_month_day1;
-	case 2: return tr::lng_month_day2;
-	case 3: return tr::lng_month_day3;
-	case 4: return tr::lng_month_day4;
-	case 5: return tr::lng_month_day5;
-	case 6: return tr::lng_month_day6;
-	case 7: return tr::lng_month_day7;
-	case 8: return tr::lng_month_day8;
-	case 9: return tr::lng_month_day9;
-	case 10: return tr::lng_month_day10;
-	case 11: return tr::lng_month_day11;
-	case 12: return tr::lng_month_day12;
-	}
-	Unexpected("Index in MonthDay.");
-}
-
 QString DayString(const QDate &date) {
 	return tr::lng_month_day(
 		tr::now,
 		lt_month,
-		MonthDay(date.month())(tr::now),
+		Lang::MonthDay(date.month())(tr::now),
 		lt_day,
 		QString::number(date.day()));
 }
@@ -162,11 +146,12 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 			width);
 	}, content->lifetime());
 
-	const auto calendar =
-		content->lifetime().make_state<QPointer<CalendarBox>>();
+	const auto calendar
+		= content->lifetime().make_state<base::weak_qptr<CalendarBox>>();
 	const auto calendarStyle = args.style.calendarStyle;
-	QObject::connect(state->day, &InputField::focused, [=] {
-		if (*calendar) {
+	state->day->focusedChanges(
+	) | rpl::start_with_next([=](bool focused) {
+		if (*calendar || !focused) {
 			return;
 		}
 		*calendar = box->getDelegate()->show(
@@ -185,7 +170,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		) | rpl::start_with_next(crl::guard(state->time, [=] {
 			state->time->setFocusFast();
 		}), (*calendar)->lifetime());
-	});
+	}, state->day->lifetime());
 
 	const auto collect = [=] {
 		const auto timeValue = state->time->valueCurrent().split(':');

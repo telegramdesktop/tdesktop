@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/mtproto_proxy_data.h"
-#include "base/qt/qt_common_adapters.h"
 
 #include <QtWidgets/QApplication>
 #include <QtNetwork/QLocalServer>
@@ -19,7 +18,6 @@ class QLockFile;
 
 namespace Core {
 
-class Launcher;
 class UpdateChecker;
 class Application;
 
@@ -33,7 +31,7 @@ private:
 	}
 
 public:
-	Sandbox(not_null<Launcher*> launcher, int &argc, char **argv);
+	Sandbox(int &argc, char **argv);
 
 	Sandbox(const Sandbox &other) = delete;
 	Sandbox &operator=(const Sandbox &other) = delete;
@@ -41,7 +39,6 @@ public:
 	int start();
 
 	void refreshGlobalProxy();
-	uint64 installationTag() const;
 
 	void postponeCall(FnMut<void()> &&callable);
 	bool notify(QObject *receiver, QEvent *e) override;
@@ -89,12 +86,14 @@ private:
 	bool nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
-		base::NativeEventResult *result) override;
+		native_event_filter_result *result) override;
 	void processPostponedCalls(int level);
 	void singleInstanceChecked();
 	void launchApplication();
 	void setupScreenScale();
-	void execExternal(const QString &cmd);
+
+	// Return window id for activation.
+	uint64 execExternal(const QString &cmd);
 
 	// Single instance application
 	void socketConnected();
@@ -107,14 +106,13 @@ private:
 	void readClients();
 	void removeClients();
 
+	QEventLoopLocker _eventLoopLocker;
 	const Qt::HANDLE _mainThreadId = nullptr;
 	int _eventNestingLevel = 0;
 	int _loopNestingLevel = 0;
 	std::vector<int> _previousLoopNestingLevels;
 	std::vector<PostponedCall> _postponedCalls;
-	SingleQueuedInvokation _handleObservables;
 
-	not_null<Launcher*> _launcher;
 	std::unique_ptr<Application> _application;
 
 	QString _localServerName, _localSocketReadData;
@@ -132,6 +130,8 @@ private:
 	MTP::ProxyData _sandboxProxy;
 
 	rpl::event_stream<> _widgetUpdateRequests;
+
+	std::unique_ptr<QThread> _deadlockDetector;
 
 };
 

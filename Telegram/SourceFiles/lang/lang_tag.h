@@ -7,25 +7,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class CreditsAmount;
+
 enum lngtag_count : int;
 
 namespace Lang {
 
+inline constexpr auto kTextCommand = 0x10;
 inline constexpr auto kTextCommandLangTag = 0x20;
 constexpr auto kTagReplacementSize = 4;
 
-int FindTagReplacementPosition(const QString &original, ushort tag);
+[[nodiscard]] int FindTagReplacementPosition(
+	const QString &original,
+	ushort tag);
 
 struct ShortenedCount {
 	int64 number = 0;
 	QString string;
+	bool shortened = false;
 };
-ShortenedCount FormatCountToShort(int64 number);
+[[nodiscard]] ShortenedCount FormatCountToShort(
+	int64 number,
+	bool onlyK = false);
+[[nodiscard]] QString FormatCountDecimal(int64 number);
+[[nodiscard]] QString FormatExactCountDecimal(float64 number);
+[[nodiscard]] ShortenedCount FormatCreditsAmountToShort(
+	CreditsAmount amount);
+[[nodiscard]] QString FormatCreditsAmountDecimal(CreditsAmount amount);
+[[nodiscard]] QString FormatCreditsAmountRounded(CreditsAmount amount);
 
 struct PluralResult {
 	int keyShift = 0;
 	QString replacement;
 };
+inline constexpr auto kPluralKeyBaseForCloudValue = ushort(-1);
 PluralResult Plural(
 	ushort keyBase,
 	float64 value,

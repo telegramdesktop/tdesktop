@@ -51,15 +51,13 @@ struct FormRequest {
 		const QString &scope,
 		const QString &callbackUrl,
 		const QString &publicKey,
-		const QString &nonce,
-		const QString &errors);
+		const QString &nonce);
 
 	UserId botId;
 	QString scope;
 	QString callbackUrl;
 	QString publicKey;
 	QString nonce;
-	QString errors;
 
 };
 
@@ -188,6 +186,7 @@ struct Verification {
 	mtpRequestId requestId = 0;
 	QString phoneCodeHash;
 	int codeLength = 0;
+	QString fragmentUrl;
 	std::unique_ptr<Ui::SentCodeCall> call;
 
 	QString error;

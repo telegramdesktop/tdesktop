@@ -34,5 +34,12 @@ namespace Lang {
 [[nodiscard]] QString Id();
 [[nodiscard]] rpl::producer<> Updated();
 [[nodiscard]] QString GetNonDefaultValue(const QByteArray &key);
+[[nodiscard]] QString DefaultLanguageId();
+[[nodiscard]] QString LanguageIdOrDefault(const QString &id);
+
+[[nodiscard]] tr::phrase<> Month(int index);
+[[nodiscard]] tr::phrase<> MonthSmall(int index);
+[[nodiscard]] tr::phrase<> MonthDay(int index);
+[[nodiscard]] tr::phrase<> Weekday(int index);
 
 } // namespace Lang

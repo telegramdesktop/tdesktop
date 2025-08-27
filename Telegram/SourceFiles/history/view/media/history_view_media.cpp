@@ -7,22 +7,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_media.h"
 
+#include "boxes/send_credits_box.h" // CreditsEmoji.
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
-#include "history/view/history_view_spoiler_click_handler.h"
+#include "history/view/history_view_text_helper.h"
+#include "history/view/media/history_view_media_common.h"
+#include "history/view/media/history_view_media_spoiler.h"
 #include "history/view/media/history_view_sticker.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
+#include "lang/lang_keys.h"
 #include "ui/item_text_options.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/image/image_prepare.h"
+#include "ui/cached_round_corners.h"
+#include "ui/painter.h"
+#include "ui/power_saving.h"
+#include "ui/text/text_utilities.h"
 #include "core/ui_integration.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_menu_icons.h" // mediaMenuIconStealth.
 
 namespace HistoryView {
 namespace {
@@ -54,7 +65,7 @@ TimeId DurationForTimestampLinks(not_null<DocumentData*> document) {
 		&& !document->isVoiceMessage()) {
 		return TimeId(0);
 	}
-	return std::max(document->getDuration(), TimeId(0));
+	return std::max(document->duration(), crl::time(0)) / 1000;
 }
 
 QString TimestampLinkBase(
@@ -71,7 +82,7 @@ TimeId DurationForTimestampLinks(not_null<WebPageData*> webpage) {
 	} else if (const auto document = webpage->document) {
 		return DurationForTimestampLinks(document);
 	} else if (webpage->type != WebPageType::Video
-		|| webpage->siteName != qstr("YouTube")) {
+		|| webpage->siteName != u"YouTube"_q) {
 		return TimeId(0);
 	} else if (webpage->duration > 0) {
 		return webpage->duration;
@@ -120,7 +131,9 @@ TextWithEntities AddTimestampLinks(
 		return text;
 	}
 	static const auto expression = QRegularExpression(
-		"(?<![^\\s\\(\\)\"\\,\\.\\-])(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)(?![^\\s\\(\\)\",\\.\\-])");
+		"(?<![^\\s\\(\\)\"\\,\\.\\-])"
+		"(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)"
+		"(?![^\\s\\(\\)\",\\.\\-\\+])");
 	const auto &string = text.text;
 	auto offset = 0;
 	while (true) {
@@ -143,17 +156,23 @@ TextWithEntities AddTimestampLinks(
 		}
 
 		auto &entities = text.entities;
-		const auto i = ranges::lower_bound(
+		auto i = ranges::lower_bound(
 			entities,
 			from,
 			std::less<>(),
 			&EntityInText::offset);
+		while (i != entities.end()
+			&& i->offset() < till
+			&& i->type() == EntityType::Spoiler) {
+			++i;
+		}
 		if (i != entities.end() && i->offset() < till) {
 			continue;
 		}
 
 		const auto intersects = [&](const EntityInText &entity) {
-			return entity.offset() + entity.length() > from;
+			return (entity.offset() + entity.length() > from)
+				&& (entity.type() != EntityType::Spoiler);
 		};
 		auto j = std::make_reverse_iterator(i);
 		const auto e = std::make_reverse_iterator(entities.begin());
@@ -176,16 +195,91 @@ Storage::SharedMediaTypesMask Media::sharedMediaTypes() const {
 	return {};
 }
 
+bool Media::allowTextSelectionByHandler(
+		const ClickHandlerPtr &handler) const {
+	return false;
+}
+
+not_null<Element*> Media::parent() const {
+	return _parent;
+}
+
 not_null<History*> Media::history() const {
 	return _parent->history();
 }
 
-bool Media::isDisplayed() const {
-	return true;
+SelectedQuote Media::selectedQuote(TextSelection selection) const {
+	return {};
 }
 
 QSize Media::countCurrentSize(int newWidth) {
 	return QSize(qMin(newWidth, maxWidth()), minHeight());
+}
+
+bool Media::hasPurchasedTag() const {
+	if (const auto media = parent()->data()->media()) {
+		if (const auto invoice = media->invoice()) {
+			if (invoice->isPaidMedia && !invoice->extendedMedia.empty()) {
+				const auto photo = invoice->extendedMedia.front()->photo();
+				return !photo || !photo->extendedMediaPreview();
+			}
+		}
+	}
+	return false;
+}
+
+void Media::drawPurchasedTag(
+		Painter &p,
+		QRect outer,
+		const PaintContext &context) const {
+	const auto purchased = parent()->enforcePurchasedTag();
+	if (purchased->text.isEmpty()) {
+		const auto item = parent()->data();
+		const auto media = item->media();
+		const auto invoice = media ? media->invoice() : nullptr;
+		const auto amount = invoice ? invoice->amount : 0;
+		if (!amount) {
+			return;
+		}
+		auto text = Ui::Text::Colorized(Ui::CreditsEmojiSmall());
+		text.append(Lang::FormatCountDecimal(amount));
+		purchased->text.setMarkedText(
+			st::defaultTextStyle,
+			text,
+			kMarkupTextOptions);
+	}
+
+	const auto st = context.st;
+	const auto sti = context.imageStyle();
+	const auto &padding = st::purchasedTagPadding;
+	auto right = outer.x() + outer.width();
+	auto top = outer.y();
+	right -= st::msgDateImgDelta + padding.right();
+	top += st::msgDateImgDelta + padding.top();
+
+	const auto size = QSize(
+		purchased->text.maxWidth(),
+		st::normalFont->height);
+	const auto tagX = right - size.width();
+	const auto tagY = top;
+	const auto tagW = padding.left() + size.width() + padding.right();
+	const auto tagH = padding.top() + size.height() + padding.bottom();
+	Ui::FillRoundRect(
+		p,
+		tagX - padding.left(),
+		tagY - padding.top(),
+		tagW,
+		tagH,
+		sti->msgDateImgBg,
+		sti->msgDateImgBgCorners);
+
+	p.setPen(st->msgDateImgFg());
+	purchased->text.draw(p, {
+		.position = { tagX, tagY },
+		.outerWidth = width(),
+		.availableWidth = size.width(),
+		.palette = &st->priceTagTextPalette(),
+	});
 }
 
 void Media::fillImageShadow(
@@ -242,8 +336,195 @@ void Media::fillImageOverlay(
 	Ui::FillComplexOverlayRect(p, rect, st->msgSelectOverlay(), corners);
 }
 
+void Media::fillImageSpoiler(
+		QPainter &p,
+		not_null<MediaSpoiler*> spoiler,
+		QRect rect,
+		const PaintContext &context) const {
+	if (!spoiler->animation) {
+		spoiler->animation = std::make_unique<Ui::SpoilerAnimation>([=] {
+			_parent->customEmojiRepaint();
+		});
+		history()->owner().registerHeavyViewPart(_parent);
+	}
+	_parent->clearCustomEmojiRepaint();
+	const auto pausedSpoiler = context.paused
+		|| On(PowerSaving::kChatSpoiler);
+	Ui::FillSpoilerRect(
+		p,
+		rect,
+		MediaRoundingMask(spoiler->backgroundRounding),
+		Ui::DefaultImageSpoiler().frame(
+			spoiler->animation->index(context.now, pausedSpoiler)),
+		spoiler->cornerCache);
+}
+
+void Media::drawSpoilerTag(
+		Painter &p,
+		not_null<MediaSpoiler*> spoiler,
+		std::unique_ptr<MediaSpoilerTag> &tag,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const {
+	if (!tag) {
+		setupSpoilerTag(tag);
+		if (!tag) {
+			return;
+		}
+	}
+	const auto revealed = spoiler->revealAnimation.value(
+		spoiler->revealed ? 1. : 0.);
+	if (revealed == 1.) {
+		return;
+	}
+	p.setOpacity(1. - revealed);
+	const auto st = context.st;
+	const auto darken = st->msgDateImgBg()->c;
+	const auto fg = st->msgDateImgFg()->c;
+	const auto star = st->creditsBg1()->c;
+	if (tag->cache.isNull()
+		|| tag->darken != darken
+		|| tag->fg != fg
+		|| tag->star != star) {
+		const auto ratio = style::DevicePixelRatio();
+		auto bg = generateBackground();
+		if (bg.isNull()) {
+			bg = QImage(ratio, ratio, QImage::Format_ARGB32_Premultiplied);
+			bg.fill(Qt::black);
+		}
+
+		auto text = Ui::Text::String();
+		auto iconSkip = 0;
+		if (tag->sensitive) {
+			text.setText(
+				st::semiboldTextStyle,
+				tr::lng_sensitive_tag(tr::now));
+			iconSkip = st::mediaMenuIconStealth.width() * 1.4;
+		} else {
+			auto price = Ui::Text::Colorized(Ui::CreditsEmoji());
+			price.append(Lang::FormatCountDecimal(tag->price));
+			text.setMarkedText(
+				st::semiboldTextStyle,
+				tr::lng_paid_price(
+					tr::now,
+					lt_price,
+					price,
+					Ui::Text::WithEntities),
+				kMarkupTextOptions);
+		}
+		const auto width = iconSkip + text.maxWidth();
+		const auto inner = QRect(0, 0, width, text.minHeight());
+		const auto outer = inner.marginsAdded(st::paidTagPadding);
+		const auto size = outer.size();
+		const auto radius = std::min(size.width(), size.height()) / 2;
+		auto cache = QImage(
+			size * ratio,
+			QImage::Format_ARGB32_Premultiplied);
+		cache.setDevicePixelRatio(ratio);
+		cache.fill(Qt::black);
+		auto p = Painter(&cache);
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(
+			QRect(
+				(size.width() - rthumb.width()) / 2,
+				(size.height() - rthumb.height()) / 2,
+				rthumb.width(),
+				rthumb.height()),
+			bg);
+		p.fillRect(QRect(QPoint(), size), darken);
+		p.setPen(fg);
+		p.setTextPalette(st->priceTagTextPalette());
+		if (iconSkip) {
+			st::mediaMenuIconStealth.paint(
+				p,
+				-outer.x(),
+				(size.height() - st::mediaMenuIconStealth.height()) / 2,
+				size.width(),
+				fg);
+		}
+		text.draw(p, iconSkip - outer.x(), -outer.y(), width);
+		p.end();
+
+		tag->darken = darken;
+		tag->fg = fg;
+		tag->cache = Images::Round(
+			std::move(cache),
+			Images::CornersMask(radius));
+	}
+	const auto &cache = tag->cache;
+	const auto size = cache.size() / cache.devicePixelRatio();
+	const auto left = rthumb.x() + (rthumb.width() - size.width()) / 2;
+	const auto top = rthumb.y() + (rthumb.height() - size.height()) / 2;
+	p.drawImage(left, top, cache);
+	if (context.selected()) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = std::min(size.width(), size.height()) / 2;
+		p.setPen(Qt::NoPen);
+		p.setBrush(st->msgSelectOverlay());
+		p.drawRoundedRect(
+			QRect(left, top, size.width(), size.height()),
+			radius,
+			radius);
+	}
+	p.setOpacity(1.);
+}
+
+void Media::setupSpoilerTag(std::unique_ptr<MediaSpoilerTag> &tag) const {
+	const auto item = parent()->data();
+	if (item->isMediaSensitive()) {
+		tag = std::make_unique<MediaSpoilerTag>();
+		tag->sensitive = 1;
+		return;
+	}
+	const auto media = parent()->data()->media();
+	const auto invoice = media ? media->invoice() : nullptr;
+	if (const auto price = invoice->isPaidMedia ? invoice->amount : 0) {
+		tag = std::make_unique<MediaSpoilerTag>();
+		tag->price = price;
+	}
+}
+
+ClickHandlerPtr Media::spoilerTagLink(
+		not_null<MediaSpoiler*> spoiler,
+		std::unique_ptr<MediaSpoilerTag> &tag) const {
+	const auto item = parent()->data();
+	if (!item->isRegular() || spoiler->revealed) {
+		return nullptr;
+	} else if (!tag) {
+		setupSpoilerTag(tag);
+		if (!tag) {
+			return nullptr;
+		}
+	}
+	if (!tag->link) {
+		tag->link = tag->sensitive
+			? MakeSensitiveMediaLink(spoiler->link, item)
+			: MakePaidMediaLink(item);
+	}
+	return tag->link;
+}
+
+void Media::createSpoilerLink(not_null<MediaSpoiler*> spoiler) {
+	const auto weak = base::make_weak(this);
+	spoiler->link = std::make_shared<LambdaClickHandler>([weak, spoiler](
+			const ClickContext &context) {
+		const auto button = context.button;
+		const auto media = weak.get();
+		if (button != Qt::LeftButton || !media || spoiler->revealed) {
+			return;
+		}
+		const auto view = media->parent();
+		spoiler->revealed = true;
+		spoiler->revealAnimation.start([=] {
+			view->repaint();
+		}, 0., 1., st::fadeWrapDuration);
+		view->repaint();
+		media->history()->owner().registerShownSpoiler(view);
+	});
+}
+
 void Media::repaint() const {
-	history()->owner().requestViewRepaint(_parent);
+	_parent->repaint();
 }
 
 Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
@@ -254,16 +535,16 @@ Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 		- st::msgPadding.left()
 		- st::msgPadding.right();
 	auto result = Ui::Text::String(minResizeWidth);
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &history()->session(),
-		.customEmojiRepaint = [=] { _parent->customEmojiRepaint(); },
-	};
+		.repaint = [=] { _parent->customEmojiRepaint(); },
+	});
 	result.setMarkedText(
 		st::messageTextStyle,
-		item->originalTextWithLocalEntities(),
+		item->translatedTextWithLocalEntities(),
 		Ui::ItemTextOptions(item),
 		context);
-	FillTextWithAnimatedSpoilers(_parent, result);
+	InitElementTextPart(_parent, result);
 	if (const auto width = _parent->skipBlockWidth()) {
 		result.updateSkipBlock(width, _parent->skipBlockHeight());
 	}
@@ -285,11 +566,7 @@ auto Media::getBubbleSelectionIntervals(
 }
 
 bool Media::usesBubblePattern(const PaintContext &context) const {
-	return (context.selection != FullSelection)
-		&& _parent->hasOutLayout()
-		&& context.bubblesPattern
-		&& !context.viewport.isEmpty()
-		&& !context.bubblesPattern->pixmap.size().isEmpty();
+	return _parent->usesBubblePattern(context);
 }
 
 PointState Media::pointState(QPoint point) const {
@@ -302,6 +579,14 @@ std::unique_ptr<StickerPlayer> Media::stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) {
 	return nullptr;
+}
+
+QImage Media::locationTakeImage() {
+	return QImage();
+}
+
+std::vector<Media::TodoTaskInfo> Media::takeTasksInfo() {
+	return {};
 }
 
 TextState Media::getStateGrouped(
@@ -335,10 +620,8 @@ Ui::BubbleRounding Media::adjustedBubbleRounding(RectParts square) const {
 	return result;
 }
 
-Ui::BubbleRounding Media::adjustedBubbleRoundingWithCaption(
-		const Ui::Text::String &caption) const {
-	return adjustedBubbleRounding(
-		caption.isEmpty() ? RectParts() : RectPart::FullBottom);
+HistoryItem *Media::itemForText() const {
+	return _parent->data();
 }
 
 bool Media::isRoundedInBubbleBottom() const {

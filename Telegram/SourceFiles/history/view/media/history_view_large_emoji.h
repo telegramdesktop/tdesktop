@@ -14,6 +14,10 @@ namespace Stickers {
 struct LargeEmojiImage;
 } // namespace Stickers
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace HistoryView {
 
 using LargeEmojiMedia = std::variant<

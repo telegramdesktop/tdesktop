@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_common.h"
+#include "settings/settings_common_session.h"
 
 namespace Ui {
 class VerticalLayout;
@@ -29,7 +29,7 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
-	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToTop(
+	[[nodiscard]] base::weak_qptr<Ui::RpWidget> createPinnedToTop(
 		not_null<QWidget*> parent) override;
 
 private:

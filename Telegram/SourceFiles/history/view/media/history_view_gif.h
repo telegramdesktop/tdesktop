@@ -15,9 +15,11 @@ struct HistoryMessageVia;
 struct HistoryMessageReply;
 struct HistoryMessageForwarded;
 class Painter;
+class PhotoData;
 
 namespace Data {
 class DocumentMedia;
+class PhotoMedia;
 } // namespace Data
 
 namespace Media {
@@ -37,32 +39,32 @@ enum class Error;
 
 namespace HistoryView {
 
+class Photo;
+class Reply;
 class TranscribeButton;
+
+using TtlRoundPaintCallback = Fn<void(
+	QPainter&,
+	QRect,
+	const PaintContext &context)>;
 
 class Gif final : public File {
 public:
 	Gif(
 		not_null<Element*> parent,
 		not_null<HistoryItem*> realParent,
-		not_null<DocumentData*> document);
+		not_null<DocumentData*> document,
+		bool spoiler);
 	~Gif();
+
+	bool hideMessageText() const override;
 
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
-	[[nodiscard]] TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const override {
-		return _caption.adjustSelection(selection, type);
-	}
-	uint16 fullSelectionLength() const override {
-		return _caption.length();
-	}
-	bool hasTextForCopy() const override {
-		return !_caption.isEmpty();
-	}
-
-	TextForMimeData selectedText(TextSelection selection) const override;
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) override;
 
 	bool uploading() const override;
 
@@ -71,7 +73,7 @@ public:
 	}
 
 	bool fullFeaturedGrouped(RectParts sides) const;
-	QSize sizeForGroupingOptimal(int maxWidth) const override;
+	QSize sizeForGroupingOptimal(int maxWidth, bool last) const override;
 	QSize sizeForGrouping(int width) const override;
 	void drawGrouped(
 		Painter &p,
@@ -91,13 +93,19 @@ public:
 	void stopAnimation() override;
 	void checkAnimation() override;
 
-	TextWithEntities getCaption() const override {
-		return _caption.toTextWithEntities();
-	}
+	void drawSpoilerTag(
+		Painter &p,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const override;
+	ClickHandlerPtr spoilerTagLink() const override;
+	QImage spoilerTagBackground() const override;
+
+	void hideSpoilers() override;
 	bool needsBubble() const override;
 	bool unwrapped() const override;
 	bool customInfoLayout() const override {
-		return _caption.isEmpty();
+		return true;
 	}
 	QRect contentRectForReactions() const override;
 	std::optional<int> reactionButtonCenterOverride() const override;
@@ -105,16 +113,13 @@ public:
 	QString additionalInfoString() const override;
 
 	bool skipBubbleTail() const override {
-		return isRoundedInBubbleBottom() && _caption.isEmpty();
+		return isRoundedInBubbleBottom();
 	}
 	bool isReadyForOpen() const override;
 
-	void parentTextUpdated() override;
-
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
-
-	void refreshParentId(not_null<HistoryItem*> realParent) override;
+	bool enforceBubbleWidth() const override;
 
 	[[nodiscard]] static bool CanPlayInline(not_null<DocumentData*> document);
 
@@ -133,9 +138,10 @@ private:
 
 	void ensureDataMediaCreated() const;
 	void dataMediaCreated() const;
-	void refreshCaption();
 
 	[[nodiscard]] bool autoplayEnabled() const;
+	[[nodiscard]] bool autoplayUnderCursor() const;
+	[[nodiscard]] bool underCursor() const;
 
 	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
@@ -162,12 +168,16 @@ private:
 		int y,
 		bool right,
 		const PaintContext &context) const;
+	void paintTimestampMark(
+		Painter &p,
+		QRect rthumb,
+		std::optional<Ui::BubbleRounding> rounding) const;
 
 	[[nodiscard]] bool needInfoDisplay() const;
 	[[nodiscard]] bool needCornerStatusDisplay() const;
 	[[nodiscard]] int additionalWidth(
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
 	[[nodiscard]] int additionalWidth() const;
 	[[nodiscard]] bool isUnwrapped() const;
@@ -177,6 +187,9 @@ private:
 		bool isEllipse,
 		std::optional<Ui::BubbleRounding> rounding) const;
 	[[nodiscard]] QImage prepareThumbCache(QSize outer) const;
+	void validateSpoilerImageCache(
+		QSize outer,
+		std::optional<Ui::BubbleRounding> rounding) const;
 
 	void validateGroupedCache(
 		const QRect &geometry,
@@ -198,19 +211,35 @@ private:
 		QPoint point,
 		StateRequest request,
 		QPoint position) const;
+	[[nodiscard]] ClickHandlerPtr currentVideoLink() const;
+
+	void togglePollingStory(bool enabled) const;
+
+	TtlRoundPaintCallback _drawTtl;
 
 	const not_null<DocumentData*> _data;
-	Ui::Text::String _caption;
+	PhotoData *_videoCover = nullptr;
+	const FullStoryId _storyId;
 	std::unique_ptr<Streamed> _streamed;
+	const std::unique_ptr<MediaSpoiler> _spoiler;
+	mutable std::unique_ptr<MediaSpoilerTag> _spoilerTag;
 	mutable std::unique_ptr<TranscribeButton> _transcribe;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
+	mutable std::shared_ptr<Data::PhotoMedia> _videoCoverMedia;
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
 	QString _downloadSize;
 	mutable QImage _thumbCache;
 	mutable QImage _roundingMask;
+	mutable crl::time _videoPosition = 0;
+	mutable TimeId _videoTimestamp = 0;
 	mutable std::optional<Ui::BubbleRounding> _thumbCacheRounding;
-	mutable bool _thumbCacheBlurred = false;
-	mutable bool _thumbIsEllipse = false;
+	mutable bool _thumbCacheBlurred : 1 = false;
+	mutable bool _thumbIsEllipse : 1 = false;
+	mutable bool _pollingStory : 1 = false;
+	mutable bool _purchasedPriceTag : 1 = false;
+	mutable bool _smallGroupPart : 1 = false;
+	const bool _sensitiveSpoiler : 1 = false;
+	const bool _hasVideoCover : 1 = false;
 
 };
 

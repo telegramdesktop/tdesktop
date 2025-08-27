@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
@@ -46,10 +46,11 @@ Members::Members(
 	QWidget *parent,
 	not_null<Controller*> controller)
 : RpWidget(parent)
-, _show(std::make_unique<Window::Show>(controller->parentController()))
+, _show(controller->uiShow())
 , _controller(controller)
 , _peer(_controller->key().peer())
 , _listController(CreateMembersController(controller, _peer)) {
+	_listController->setStoriesShown(true);
 	setupHeader();
 	setupList();
 	setContent(_list.data());
@@ -85,6 +86,10 @@ int Members::desiredHeight() const {
 
 rpl::producer<int> Members::onlineCountValue() const {
 	return _listController->onlineCountValue();
+}
+
+rpl::producer<int> Members::fullCountValue() const {
+	return _listController->fullCountValue();
 }
 
 rpl::producer<Ui::ScrollToRequest> Members::scrollToRequests() const {
@@ -162,13 +167,18 @@ void Members::setupHeader() {
 }
 
 object_ptr<Ui::FlatLabel> Members::setupTitle() {
+	auto visible = _peer->isMegagroup()
+		? CanViewParticipantsValue(_peer->asMegagroup())
+		: rpl::single(true);
 	auto result = object_ptr<Ui::FlatLabel>(
 		_titleWrap,
-		tr::lng_chat_status_members(
-			lt_count_decimal,
-			MembersCountValue(_peer) | tr::to_count(),
-			Ui::Text::Upper
-		),
+		rpl::conditional(
+			std::move(visible),
+			tr::lng_chat_status_members(
+				lt_count_decimal,
+				MembersCountValue(_peer) | tr::to_count(),
+				Ui::Text::Upper),
+			tr::lng_channel_admins(Ui::Text::Upper)),
 		st::infoBlockHeaderLabel);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return result;
@@ -184,8 +194,16 @@ void Members::setupButtons() {
 	//_searchField->hide();
 	//_cancelSearch->setVisible(false);
 
-	auto addMemberShown = CanAddMemberValue(_peer)
-		| rpl::start_spawning(lifetime());
+	auto visible = _peer->isMegagroup()
+		? CanViewParticipantsValue(_peer->asMegagroup())
+		: rpl::single(true);
+	rpl::duplicate(visible) | rpl::start_with_next([=](bool visible) {
+		_openMembers->setVisible(visible);
+	}, lifetime());
+
+	auto addMemberShown = CanAddMemberValue(
+		_peer
+	) | rpl::start_spawning(lifetime());
 	_addMember->showOn(rpl::duplicate(addMemberShown));
 	_addMember->addClickHandler([this] { // TODO throttle(ripple duration)
 		this->addMember();
@@ -205,7 +223,8 @@ void Members::setupButtons() {
 
 	rpl::combine(
 		std::move(addMemberShown),
-		std::move(searchShown)
+		std::move(searchShown),
+		std::move(visible)
 	) | rpl::start_with_next([this] {
 		updateHeaderControlsGeometry(width());
 	}, lifetime());
@@ -214,6 +233,7 @@ void Members::setupButtons() {
 void Members::setupList() {
 	auto topSkip = _header ? _header->height() : 0;
 	_listController->setStyleOverrides(&st::infoMembersList);
+	_listController->setStoriesShown(true);
 	_list = object_ptr<ListWidget>(
 		this,
 		_listController.get());
@@ -439,18 +459,8 @@ void Members::peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) {
 void Members::peerListFinishSelectedRowsBunch() {
 }
 
-void Members::peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) {
-	_show->showBox(std::move(content), options);
-}
-
-void Members::peerListHideLayer() {
-	_show->hideLayer();
-}
-
-not_null<QWidget*> Members::peerListToastParent() {
-	return _show->toastParent();
+std::shared_ptr<Main::SessionShow> Members::peerListUiShow() {
+	return _show;
 }
 
 void Members::peerListSetDescription(

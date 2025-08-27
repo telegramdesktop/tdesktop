@@ -96,11 +96,11 @@ Environment PrepareEnvironment(not_null<Main::Session*> session) {
 	return result;
 }
 
-QPointer<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session) {
+base::weak_qptr<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session) {
 	ClearSuggestStart(session);
 	return Ui::show(
 		Box<SuggestBox>(session),
-		Ui::LayerOption::KeepOther).data();
+		Ui::LayerOption::KeepOther).get();
 }
 
 void ClearSuggestStart(not_null<Main::Session*> session) {
@@ -156,7 +156,7 @@ PanelController::~PanelController() {
 		saveSettings();
 	}
 	if (_panel) {
-		_panel->destroyLayer();
+		_panel->hideLayer(anim::type::instant);
 	}
 }
 
@@ -220,12 +220,12 @@ void PanelController::showSettings() {
 void PanelController::showError(const ApiErrorState &error) {
 	LOG(("Export Info: API Error '%1'.").arg(error.data.type()));
 
-	if (error.data.type() == qstr("TAKEOUT_INVALID")) {
+	if (error.data.type() == u"TAKEOUT_INVALID"_q) {
 		showError(tr::lng_export_invalid(tr::now));
-	} else if (error.data.type().startsWith(qstr("TAKEOUT_INIT_DELAY_"))) {
+	} else if (error.data.type().startsWith(u"TAKEOUT_INIT_DELAY_"_q)) {
 		const auto seconds = std::max(base::StringViewMid(
 			error.data.type(),
-			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 1);
+			u"TAKEOUT_INIT_DELAY_"_q.size()).toInt(), 1);
 		const auto now = QDateTime::currentDateTime();
 		const auto when = now.addSecs(seconds);
 		const auto hours = seconds / 3600;
@@ -277,7 +277,7 @@ void PanelController::showCriticalError(const QString &text) {
 
 void PanelController::showError(const QString &text) {
 	auto box = Ui::MakeInformBox(text);
-	const auto weak = Ui::MakeWeak(box.data());
+	const auto weak = base::make_weak(box.data());
 	const auto hidden = _panel->isHidden();
 	_panel->showBox(
 		std::move(box),

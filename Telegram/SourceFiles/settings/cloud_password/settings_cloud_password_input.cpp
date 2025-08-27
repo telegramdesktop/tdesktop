@@ -12,16 +12,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/unixtime.h"
 #include "core/core_cloud_password.h"
+#include "data/components/promo_suggestions.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
+#include "main/main_session.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_hint.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
+#include "settings/cloud_password/settings_cloud_password_step.h"
+#include "settings/cloud_password/settings_cloud_password_validate_icon.h"
+#include "ui/boxes/boost_box.h" // Ui::StartFireworks.
 #include "ui/boxes/confirm_box.h"
+#include "ui/rect.h"
 #include "ui/text/format_values.h"
+#include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
@@ -51,6 +59,10 @@ RecreateResetPassword:
 – Continue to RecreateResetHint.
 – Clear password and Back to Settings.
 – Back to Settings.
+
+ValidatePassword:
+- Submit to show good validate.
+- Back to Main Settings.
 */
 
 namespace Settings {
@@ -70,9 +82,7 @@ Icon CreateInteractiveLottieIcon(
 	const auto raw = object.data();
 
 	const auto width = descriptor.sizeOverride.width();
-	raw->resize(QRect(
-		QPoint(),
-		descriptor.sizeOverride).marginsAdded(padding).size());
+	raw->resize((Rect(descriptor.sizeOverride) + padding).size());
 
 	auto owned = Lottie::MakeIcon(std::move(descriptor));
 	const auto icon = owned.get();
@@ -116,7 +126,10 @@ public:
 	using TypedAbstractStep::TypedAbstractStep;
 
 	[[nodiscard]] rpl::producer<QString> title() override;
+	[[nodiscard]] base::weak_qptr<Ui::RpWidget> createPinnedToTop(
+		not_null<QWidget*> parent) override;
 	void setupContent();
+	void setupValidateGood();
 
 protected:
 	[[nodiscard]] rpl::producer<std::vector<Type>> removeTypes() override;
@@ -127,6 +140,8 @@ private:
 		not_null<Ui::LinkButton*> button,
 		not_null<Ui::FlatLabel*> info,
 		Fn<void()> recoverCallback);
+
+	QWidget *_parent = nullptr;
 
 	rpl::variable<std::vector<Type>> _removesFromStack;
 	rpl::lifetime _requestLifetime;
@@ -141,12 +156,55 @@ rpl::producer<QString> Input::title() {
 	return tr::lng_settings_cloud_password_password_title();
 }
 
+base::weak_qptr<Ui::RpWidget> Input::createPinnedToTop(
+		not_null<QWidget*> parent) {
+	_parent = parent;
+	return nullptr;
+}
+
+void Input::setupValidateGood() {
+	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+
+	if (_parent) {
+		Ui::StartFireworks(_parent);
+	}
+
+	if (auto owned = CreateValidateGoodIcon(&controller()->session())) {
+		content->add(
+			std::move(owned),
+			QMargins(0, st::lineWidth * 75, 0, 0));
+	}
+
+	SetupHeader(
+		content,
+		QString(),
+		rpl::never<>(),
+		tr::lng_settings_suggestion_password_step_finish_title(),
+		tr::lng_settings_suggestion_password_step_finish_about());
+
+	const auto button = AddDoneButton(content, tr::lng_share_done());
+	button->setClickedCallback([=] {
+		showBack();
+	});
+
+	Ui::ToggleChildrenVisibility(this, true);
+	Ui::ResizeFitChild(this, content);
+	content->resizeToWidth(width());
+	Ui::SendPendingMoveResizeEvents(content);
+}
+
 void Input::setupContent() {
+	if (QWidget::children().count() > 0) {
+		return;
+	}
+
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	auto currentStepData = stepData();
 	const auto currentStepDataPassword = base::take(currentStepData.password);
 	const auto currentStepProcessRecover = base::take(
 		currentStepData.processRecover);
+	const auto currentStepValidate = base::take(
+		currentStepData.suggestionValidate);
 	setStepData(currentStepData);
 
 	const auto currentState = cloudPassword().stateCurrent();
@@ -165,11 +223,10 @@ void Input::setupContent() {
 	const auto icon = CreateInteractiveLottieIcon(
 		content,
 		{
-			.name = u"cloud_password/password_input"_q,
-			.sizeOverride = {
-				st::settingsCloudPasswordIconSize,
-				st::settingsCloudPasswordIconSize
-			},
+			.name = currentStepValidate
+				? u"cloud_password/validate"_q
+				: u"cloud_password/password_input"_q,
+			.sizeOverride = Size(st::settingsCloudPasswordIconSize),
 		},
 		st::settingLocalPasscodeIconPadding);
 
@@ -177,21 +234,27 @@ void Input::setupContent() {
 		content,
 		QString(),
 		rpl::never<>(),
-		isCheck
+		currentStepValidate
+			? tr::lng_settings_suggestion_password_step_input_title()
+			: isCheck
 			? tr::lng_settings_cloud_password_check_subtitle()
 			: hasPassword
 			? tr::lng_settings_cloud_password_manage_password_change()
 			: tr::lng_settings_cloud_password_password_subtitle(),
-		tr::lng_cloud_password_about());
+		currentStepValidate
+			? tr::lng_settings_suggestion_password_step_input_about()
+			: isCheck
+			? tr::lng_settings_cloud_password_manage_about1()
+			: tr::lng_cloud_password_about());
 
-	AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
+	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
 	const auto newInput = AddPasswordField(
 		content,
-		isCheck
+		(isCheck
 			? tr::lng_cloud_password_enter_old()
-			: tr::lng_cloud_password_enter_new(),
-			currentStepDataPassword);
+			: tr::lng_cloud_password_enter_new()),
+		currentStepDataPassword);
 	const auto reenterInput = isCheck
 		? (Ui::PasswordInput*)(nullptr)
 		: AddPasswordField(
@@ -214,9 +277,12 @@ void Input::setupContent() {
 			tr::lng_signin_hint(tr::now, lt_password_hint, hint),
 			st::defaultFlatLabel);
 		hintInfo->setVisible(!hint.isEmpty());
-		error->geometryValue(
-		) | rpl::start_with_next([=](const QRect &r) {
-			hintInfo->setGeometry(r);
+		rpl::combine(
+			error->geometryValue(),
+			newInput->geometryValue()
+		) | rpl::start_with_next([=](QRect r, QRect input) {
+			hintInfo->setGeometry(
+				{ input.x(), r.y(), input.width(), r.height() });
 		}, hintInfo->lifetime());
 		error->shownValue(
 		) | rpl::start_with_next([=](bool shown) {
@@ -262,7 +328,18 @@ void Input::setupContent() {
 					}
 					close();
 					_requestLifetime = cloudPassword().resetPassword(
-					) | rpl::start_with_error_done([=](const QString &type) {
+					) | rpl::start_with_next_error_done([=](
+							Api::CloudPassword::ResetRetryDate retryDate) {
+						_requestLifetime.destroy();
+						const auto left = std::max(
+							retryDate - base::unixtime::now(),
+							60);
+						controller()->show(Ui::MakeInformBox(
+							tr::lng_cloud_password_reset_later(
+								tr::now,
+								lt_duration,
+								Ui::FormatResetCloudPasswordIn(left))));
+					}, [=](const QString &type) {
 						_requestLifetime.destroy();
 					}, [=] {
 						_requestLifetime.destroy();
@@ -322,10 +399,12 @@ void Input::setupContent() {
 				showBack();
 			});
 		});
-		AddSkip(content);
+		Ui::AddSkip(content);
 	}
 
-	if (!newInput->text().isEmpty()) {
+	if (currentStepValidate) {
+		icon.icon->animate(icon.update, 0, icon.icon->framesCount() - 1);
+	} else if (!newInput->text().isEmpty()) {
 		icon.icon->jumpTo(icon.icon->framesCount() / 2, icon.update);
 	}
 
@@ -361,10 +440,18 @@ void Input::setupContent() {
 				}
 			}
 
-			auto data = stepData();
-			data.currentPassword = pass;
-			setStepData(std::move(data));
-			showOther(CloudPasswordManageId());
+			if (currentStepValidate) {
+				controller()->session().promoSuggestions().dismiss(
+					Data::PromoSuggestions::SugValidatePassword());
+				setupValidateGood();
+				delete content;
+			} else {
+				auto data = stepData();
+				data.currentPassword = pass;
+				setStepData(std::move(data));
+				showOther(CloudPasswordManageId());
+			}
+
 		});
 	};
 
@@ -397,17 +484,19 @@ void Input::setupContent() {
 		}
 	});
 
-	base::qt_signal_producer(
-		newInput.get(),
-		&QLineEdit::textChanged // Covers Undo.
-	) | rpl::map([=] {
-		return newInput->text().isEmpty();
-	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool empty) {
-		const auto from = icon.icon->frameIndex();
-		const auto to = empty ? 0 : (icon.icon->framesCount() / 2 - 1);
-		icon.icon->animate(icon.update, from, to);
-	}, content->lifetime());
+	if (!currentStepValidate) {
+		base::qt_signal_producer(
+			newInput.get(),
+			&QLineEdit::textChanged // Covers Undo.
+		) | rpl::map([=] {
+			return newInput->text().isEmpty();
+		}) | rpl::distinct_until_changed(
+		) | rpl::start_with_next([=](bool empty) {
+			const auto from = icon.icon->frameIndex();
+			const auto to = empty ? 0 : (icon.icon->framesCount() / 2 - 1);
+			icon.icon->animate(icon.update, from, to);
+		}, content->lifetime());
+	}
 
 	const auto submit = [=] {
 		if (!reenterInput || reenterInput->hasFocus()) {
@@ -422,7 +511,7 @@ void Input::setupContent() {
 		QObject::connect(reenterInput, &MaskedInputField::submitted, submit);
 	}
 
-	setFocusCallback([=] {
+	setFocusCallback(crl::guard(content, [=] {
 		if (isCheck || newInput->text().isEmpty()) {
 			newInput->setFocus();
 		} else if (reenterInput->text().isEmpty()) {
@@ -430,7 +519,7 @@ void Input::setupContent() {
 		} else {
 			newInput->setFocus();
 		}
-	});
+	}));
 
 	Ui::ResizeFitChild(this, content);
 }
@@ -571,10 +660,33 @@ void Input::setupRecoverButton(
 	});
 }
 
+class SuggestionInput : public Input {
+public:
+	SuggestionInput(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller)
+	: Input(parent, controller)
+	, _stepData(StepData{ .suggestionValidate = true }) {
+		setStepDataReference(_stepData);
+	}
+
+	[[nodiscard]] static Type Id() {
+		return SectionFactory<SuggestionInput>::Instance();
+	}
+
+private:
+	std::any _stepData;
+
+};
+
 } // namespace CloudPassword
 
 Type CloudPasswordInputId() {
 	return CloudPassword::Input::Id();
+}
+
+Type CloudPasswordSuggestionInputId() {
+	return CloudPassword::SuggestionInput::Id();
 }
 
 } // namespace Settings

@@ -2,16 +2,10 @@ name: telegram-desktop
 adopt-info: telegram
 icon: Telegram/Resources/art/icon512@2x.png
 
-base: core22
+base: core24
 grade: stable
 confinement: strict
 compression: lzo
-
-architectures:
-  - build-on: amd64
-  - build-on: arm64
-  - build-on: armhf
-  - build-on: ppc64el
 
 plugs:
   shmem:
@@ -20,119 +14,48 @@ plugs:
 
 apps:
   telegram-desktop:
-    command: bin/desktop-launch telegram-desktop
+    command: usr/bin/telegram-desktop
     common-id: org.telegram.desktop
-    desktop: usr/share/applications/telegramdesktop.desktop
-    environment:
-      # Tell glib to use portals on file associations handling.
-      GTK_USE_PORTAL: 1
-      # Use sandboxed ibus api
-      IBUS_USE_PORTAL: 1
+    desktop: usr/share/applications/org.telegram.desktop.desktop
+    autostart: telegram-desktop_telegram-desktop.desktop
+    extensions: [gnome]
     plugs:
-      - alsa
       - audio-playback
       - audio-record
       - camera
-      - desktop
-      - desktop-legacy
       - hardware-observe
       - home
       - network
+      - network-bind
       - network-status
-      - opengl
       - removable-media
       - shmem
-      - unity7
-      - wayland
-      - x11
     slots:
-      - tdesktop-mpris
-
-hooks:
-  configure:
-    command-chain:
-      - bin/hooks-configure-desktop
-    plugs:
-      - desktop
-
-plugs:
-  desktop:
-    mount-host-font-cache: false
-  # Support for common GTK themes
-  # https://forum.snapcraft.io/t/how-to-use-the-system-gtk-theme-via-the-gtk-common-themes-snap/6235
-  gsettings:
-  gtk-3-themes:
-    interface: content
-    target: $SNAP/data-dir/themes
-    default-provider: gtk-common-themes
-  icon-themes:
-    interface: content
-    target: $SNAP/data-dir/icons
-    default-provider: gtk-common-themes
-  sound-themes:
-    interface: content
-    target: $SNAP/data-dir/sounds
-    default-provider: gtk-common-themes
-
-slots:
-  tdesktop-mpris:
-    interface: mpris
-    name: tdesktop
-
-layout:
-  /usr/share/alsa:
-    bind: $SNAP/usr/share/alsa
-  /usr/share/X11:
-    bind: $SNAP/usr/share/X11
-  /usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1:
-    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1
+      - mpris
 
 parts:
   telegram:
     plugin: cmake
     source: .
     source-type: git
-    parse-info: [usr/share/metainfo/telegramdesktop.metainfo.xml]
+    parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
-      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-ldav1d,-lhwy,--pop-state -s
     build-packages:
       - clang
-      - python3
-      - libasound2-dev
-      - libavif-dev
-      - libglib2.0-dev
+      - libboost-regex-dev
       - libheif-dev
-      - libopus-dev
-      - libpulse-dev
-      - libwayland-dev
-      - libxcb1-dev
+      - libjxl-dev
+      - libssl-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
       - libxcb-screensaver0-dev
-      - zlib1g-dev
-    stage-packages:
-      - libasound2
-      - libavif13
-      - libglib2.0-0
-      - libheif1
-      - libopus0
-      - libpulse0
-      - libwayland-client0
-      - libwebkit2gtk-4.1-0
-      - libxcb1
-      - libxcb-keysyms1
-      - libxcb-record0
-      - libxcb-screensaver0
-      - zlib1g
-      - glib-networking
-      - systemd
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
-      - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
     override-pull: |
       craftctl default
 
@@ -147,114 +70,262 @@ parts:
       version="${version}$(git describe --tags | sed 's,^v[^-]\+,,')"
 
       craftctl set version="$version"
-
-      sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/telegramdesktop.desktop
     override-build: |
       craftctl default
-      rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
-    prime:
-      - -./lib/systemd
+      mv "$CRAFT_PART_INSTALL"/usr/bin/{Telegram,telegram-desktop}
+
+      APP_ID=org.telegram.desktop
+      sed -i "s/^Icon=$APP_ID$/Icon=snap.$CRAFT_PROJECT_NAME./g" "$CRAFT_PART_INSTALL/usr/share/applications/$APP_ID.desktop"
+      for i in $(find "$CRAFT_PART_INSTALL/usr/share/icons" -name "$APP_ID*.svg" -o -name "$APP_ID*.png"); do
+        PREFIXED="$(dirname "$i")/snap.$CRAFT_PROJECT_NAME.$(basename "$i" | sed "s/$APP_ID//")"
+        mv "$i" "$PREFIXED"
+        DEST="$(echo "$PREFIXED" | sed 's@usr/share@meta/gui@')"
+        DESTDIR="$(dirname "$DEST")"
+        mkdir -p "$DESTDIR"
+        RELATIVE="$(realpath -s --relative-to="$DESTDIR" "$PREFIXED")"
+        ln -sfn "$RELATIVE" "$DEST"
+      done
     after:
-      - desktop-qt
+      - ada
+      - avif
       - ffmpeg
-      - libjxl
-      - glibmm
-      - mozjpeg
+      - jpegli
       - openal
-      - openssl
+      - protobuf
+      - qt
       - rnnoise
+      - tde2e
       - webrtc
+
+  pkgs:
+    plugin: nil
+    stage-packages:
+      - libgeoclue-2-0
+      - libxcb-cursor0
+      - libxcb-record0
+      - libxcb-screensaver0
+    stage:
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libgeoclue-2.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-cursor.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-record.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-screensaver.so*
 
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
+    source-commit: e15b5d87c565e516aad5bcafdfe40315f84e5459
     plugin: dump
     override-pull: |
       craftctl default
       cp -r . "$CRAFT_STAGE/patches"
-    override-stage: |
+    override-prime: |
       rm -rf patches
     stage: [-./*]
 
-  desktop-qt:
-    source: https://github.com/desktop-app/snapcraft-desktop-helpers.git
-    source-subdir: qt
-    plugin: make
-    make-parameters: ["FLAVOR=qt5"]
-    build-packages:
-      - build-essential
-      - dpkg-dev
-    stage-packages:
-      - libxkbcommon0
-      - shared-mime-info
-      - libgdk-pixbuf-2.0-0
-      - locales-all
-      - xdg-user-dirs
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
-    after:
-      - mozjpeg
-      - qt
-
-  ffmpeg:
-    plugin: nil
-    build-packages:
-      - libavcodec-dev
-      - libavformat-dev
-      - libavutil-dev
-      - libswresample-dev
-      - libswscale-dev
-    stage-packages:
-      - libavcodec58
-      - libavformat58
-      - libavutil56
-      - libswresample3
-      - libswscale5
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
-    after:
-      - mozjpeg
-
-  glibmm:
-    source: https://github.com/GNOME/glibmm.git
+  ada:
+    source: https://github.com/ada-url/ada.git
     source-depth: 1
-    source-tag: 2.72.1
-    plugin: meson
-    build-packages:
-      - curl
-      - meson
-      - ninja-build
-      - libglib2.0-dev
-      - libxml-parser-perl
-    stage-packages:
-      - libglib2.0-0
-    meson-parameters:
-      - --buildtype=release
-      - --prefix=/usr
-      - -Dbuild-documentation=false
-      - -Dbuild-examples=false
-      - -Dsigc++-3.0:build-documentation=false
-      - -Dsigc++-3.0:build-examples=false
-      - -Dsigc++-3.0:validation=false
-      - -Dmm-common:use-network=true
-    prime:
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
-
-  libjxl:
-    source: https://github.com/libjxl/libjxl.git
-    source-depth: 1
-    source-tag: v0.7.0
+    source-tag: v3.2.4
     plugin: cmake
+    cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DADA_TESTING=OFF
+      - -DADA_TOOLS=OFF
+      - -DADA_INCLUDE_URL_PATTERN=OFF
+    prime: [-./*]
+
+  avif:
+    source: https://github.com/AOMediaCodec/libavif.git
+    source-depth: 1
+    source-tag: v1.3.0
+    plugin: cmake
+    build-packages:
+      - libdav1d-dev
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DAVIF_CODEC_DAV1D=SYSTEM
+      - -DAVIF_LIBYUV=OFF
+    prime: [-./*]
+
+  ffmpeg:
+    source: https://github.com/FFmpeg/FFmpeg.git
+    source-depth: 1
+    source-branch: n6.1.1
+    plugin: autotools
+    build-packages:
+      - nasm
+      - libdav1d-dev
+      - libopus-dev
+      - libvdpau-dev
+      - libvpx-dev
+      - libxv-dev
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --libdir=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - --extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1"
+      - --extra-cxxflags="-DCONFIG_SAFE_BITSTREAM_READER=1"
+      - --extra-ldflags="-Wl,--push-state,--no-as-needed,-lstdc++,--pop-state"
+      - --disable-debug
+      - --disable-programs
+      - --disable-doc
+      - --disable-network
+      - --disable-autodetect
+      - --disable-everything
+      - --enable-libdav1d
+      - --enable-libopenh264
+      - --enable-libopus
+      - --enable-libvpx
+      - --enable-vaapi
+      - --enable-vdpau
+      - --enable-xlib
+      - --enable-libdrm
+      - --enable-ffnvcodec
+      - --enable-nvdec
+      - --enable-cuvid
+      - --enable-protocol=file
+      - --enable-hwaccel=av1_vaapi
+      - --enable-hwaccel=av1_nvdec
+      - --enable-hwaccel=h264_vaapi
+      - --enable-hwaccel=h264_vdpau
+      - --enable-hwaccel=h264_nvdec
+      - --enable-hwaccel=hevc_vaapi
+      - --enable-hwaccel=hevc_vdpau
+      - --enable-hwaccel=hevc_nvdec
+      - --enable-hwaccel=mpeg2_vaapi
+      - --enable-hwaccel=mpeg2_vdpau
+      - --enable-hwaccel=mpeg2_nvdec
+      - --enable-hwaccel=mpeg4_vaapi
+      - --enable-hwaccel=mpeg4_vdpau
+      - --enable-hwaccel=mpeg4_nvdec
+      - --enable-hwaccel=vp8_vaapi
+      - --enable-hwaccel=vp8_nvdec
+      - --enable-decoder=aac
+      - --enable-decoder=aac_fixed
+      - --enable-decoder=aac_latm
+      - --enable-decoder=aasc
+      - --enable-decoder=ac3
+      - --enable-decoder=alac
+      - --enable-decoder=av1
+      - --enable-decoder=av1_cuvid
+      - --enable-decoder=eac3
+      - --enable-decoder=flac
+      - --enable-decoder=gif
+      - --enable-decoder=h264
+      - --enable-decoder=hevc
+      - --enable-decoder=libdav1d
+      - --enable-decoder=libvpx_vp8
+      - --enable-decoder=libvpx_vp9
+      - --enable-decoder=mp1
+      - --enable-decoder=mp1float
+      - --enable-decoder=mp2
+      - --enable-decoder=mp2float
+      - --enable-decoder=mp3
+      - --enable-decoder=mp3adu
+      - --enable-decoder=mp3adufloat
+      - --enable-decoder=mp3float
+      - --enable-decoder=mp3on4
+      - --enable-decoder=mp3on4float
+      - --enable-decoder=mpeg4
+      - --enable-decoder=msmpeg4v2
+      - --enable-decoder=msmpeg4v3
+      - --enable-decoder=opus
+      - --enable-decoder=pcm_alaw
+      - --enable-decoder=pcm_f32be
+      - --enable-decoder=pcm_f32le
+      - --enable-decoder=pcm_f64be
+      - --enable-decoder=pcm_f64le
+      - --enable-decoder=pcm_lxf
+      - --enable-decoder=pcm_mulaw
+      - --enable-decoder=pcm_s16be
+      - --enable-decoder=pcm_s16be_planar
+      - --enable-decoder=pcm_s16le
+      - --enable-decoder=pcm_s16le_planar
+      - --enable-decoder=pcm_s24be
+      - --enable-decoder=pcm_s24daud
+      - --enable-decoder=pcm_s24le
+      - --enable-decoder=pcm_s24le_planar
+      - --enable-decoder=pcm_s32be
+      - --enable-decoder=pcm_s32le
+      - --enable-decoder=pcm_s32le_planar
+      - --enable-decoder=pcm_s64be
+      - --enable-decoder=pcm_s64le
+      - --enable-decoder=pcm_s8
+      - --enable-decoder=pcm_s8_planar
+      - --enable-decoder=pcm_u16be
+      - --enable-decoder=pcm_u16le
+      - --enable-decoder=pcm_u24be
+      - --enable-decoder=pcm_u24le
+      - --enable-decoder=pcm_u32be
+      - --enable-decoder=pcm_u32le
+      - --enable-decoder=pcm_u8
+      - --enable-decoder=pcm_zork
+      - --enable-decoder=vorbis
+      - --enable-decoder=vp8
+      - --enable-decoder=wavpack
+      - --enable-decoder=wmalossless
+      - --enable-decoder=wmapro
+      - --enable-decoder=wmav1
+      - --enable-decoder=wmav2
+      - --enable-decoder=wmavoice
+      - --enable-encoder=aac
+      - --enable-encoder=libopenh264
+      - --enable-encoder=libopus
+      - --enable-encoder=pcm_s16le
+      - --enable-filter=atempo
+      - --enable-parser=aac
+      - --enable-parser=aac_latm
+      - --enable-parser=flac
+      - --enable-parser=gif
+      - --enable-parser=h264
+      - --enable-parser=hevc
+      - --enable-parser=mpeg4video
+      - --enable-parser=mpegaudio
+      - --enable-parser=opus
+      - --enable-parser=vorbis
+      - --enable-demuxer=aac
+      - --enable-demuxer=flac
+      - --enable-demuxer=gif
+      - --enable-demuxer=h264
+      - --enable-demuxer=hevc
+      - --enable-demuxer=matroska
+      - --enable-demuxer=m4v
+      - --enable-demuxer=mov
+      - --enable-demuxer=mp3
+      - --enable-demuxer=ogg
+      - --enable-demuxer=wav
+      - --enable-muxer=mp4
+      - --enable-muxer=ogg
+      - --enable-muxer=opus
+      - --enable-muxer=wav
+    override-pull: |
+      craftctl default
+      sed -i 's/disable ffnvcodec cuvid nvdec nvenc/:/g' configure
+    prime: [-./*]
+    after:
+      - nv-codec-headers
+      - openh264
+
+  jpegli:
+    source: https://github.com/libjxl/libjxl.git
+    source-depth: 1
+    source-tag: v0.11.1
+    plugin: cmake
+    build-packages:
+      - libhwy-dev
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DBUILD_SHARED_LIBS=OFF
       - -DBUILD_TESTING=OFF
       - -DJPEGXL_ENABLE_DEVTOOLS=OFF
       - -DJPEGXL_ENABLE_TOOLS=OFF
+      - -DJPEGXL_INSTALL_JPEGLI_LIBJPEG=ON
       - -DJPEGXL_ENABLE_DOXYGEN=OFF
       - -DJPEGXL_ENABLE_MANPAGES=OFF
       - -DJPEGXL_ENABLE_BENCHMARK=OFF
@@ -263,283 +334,175 @@ parts:
       - -DJPEGXL_ENABLE_SJPEG=OFF
       - -DJPEGXL_ENABLE_OPENEXR=OFF
       - -DJPEGXL_ENABLE_SKCMS=OFF
-    override-pull: |
+      - -DJPEGXL_FORCE_SYSTEM_BROTLI=ON
+      - -DJPEGXL_FORCE_SYSTEM_LCMS2=ON
+      - -DJPEGXL_FORCE_SYSTEM_HWY=ON
+    override-build: |
       craftctl default
-      sed -i 's/NOT JPEGXL_ENABLE_SKCMS/0/' lib/jxl.cmake
+      cp lib/libjpegli-static.a "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
+      ar rcs "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o
     stage:
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libbrotli*
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
-      - -./usr/share
-
-  mozjpeg:
-    source: https://github.com/mozilla/mozjpeg.git
-    source-depth: 1
-    source-tag: v4.0.3
-    plugin: cmake
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DENABLE_STATIC=OFF
-      - -DWITH_JPEG8=ON
-      - -DPNG_SUPPORTED=OFF
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
-      - -./usr/share
+      - ./usr/include/jconfig.h
+      - ./usr/include/jmorecfg.h
+      - ./usr/include/jpeglib.h
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
+    prime: [-./*]
 
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
-    source-tag: 1.22.2
+    source-tag: 1.24.3
     plugin: cmake
     build-packages:
-      - libasound2-dev
-      - libdbus-1-dev
       - libpipewire-0.3-dev
-      - libpulse-dev
-    stage-packages:
-      - libasound2
-      - libdbus-1-3
-      - libpipewire-0.3-0
-      - libpulse0
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DLIBTYPE=STATIC
+      - -DALSOFT_DLOPEN=OFF
       - -DALSOFT_EXAMPLES=OFF
       - -DALSOFT_UTILS=OFF
       - -DALSOFT_INSTALL_CONFIG=OFF
-    prime:
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
+      - -DALSOFT_BACKEND_PIPEWIRE=OFF
+    prime: [-./*]
 
-  openssl:
-    source: https://github.com/openssl/openssl.git
+  nv-codec-headers:
+    source: https://github.com/FFmpeg/nv-codec-headers.git
     source-depth: 1
-    source-branch: OpenSSL_1_1_1-stable
+    source-branch: n12.1.14.0
     plugin: make
-    override-build: |
-      ./config \
-        shared \
-        --prefix=/usr \
-        --openssldir=/usr/lib/ssl \
-        --libdir=lib/$CRAFT_ARCH_TRIPLET \
-        no-tests
-      craftctl default
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
-      - -./usr/share
+    make-parameters:
+      - PREFIX=/usr
+      - LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+    prime: [-./*]
+
+  openh264:
+    source: https://github.com/cisco/openh264.git
+    source-depth: 1
+    source-tag: v2.6.0
+    plugin: meson
+    build-packages:
+      - meson
+    meson-parameters:
+      - --prefix=/usr
+      - --buildtype=release
+      - --default-library=static
+    prime: [-./*]
+
+  protobuf:
+    source: https://github.com/protocolbuffers/protobuf.git
+    source-depth: 1
+    source-tag: v30.2
+    plugin: cmake
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -Dprotobuf_BUILD_TESTS=OFF
+    prime: [-./*]
 
   qt:
-    plugin: nil
+    source: https://github.com/qt/qt5.git
+    source-depth: 1
+    source-tag: v6.9.1
+    source-submodules:
+      - qtbase
+      - qtdeclarative
+      - qtimageformats
+      - qtshadertools
+      - qtsvg
+      - qtwayland
+    plugin: cmake
+    build-environment:
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-lhwy,--pop-state
     build-packages:
-      - libdbus-1-dev
-      - libegl-dev
-      - libfontconfig1-dev
-      - libfreetype-dev
-      - libglib2.0-dev
-      - libglx-dev
-      - libgtk-3-dev
-      - libharfbuzz-dev
-      - libice-dev
-      - libicu-dev
-      - libopengl-dev
-      - libpcre2-dev
-      - libpng-dev
-      - libsm-dev
-      - libvulkan-dev
-      - libwayland-dev
-      - libx11-dev
-      - libx11-xcb-dev
-      - libxcb1-dev
+      - libssl-dev
+      - libxcb-cursor-dev
       - libxcb-glx0-dev
       - libxcb-icccm4-dev
       - libxcb-image0-dev
       - libxcb-keysyms1-dev
       - libxcb-randr0-dev
-      - libxcb-render0-dev
       - libxcb-render-util0-dev
       - libxcb-shape0-dev
-      - libxcb-shm0-dev
       - libxcb-sync-dev
       - libxcb-util-dev
       - libxcb-xfixes0-dev
       - libxcb-xkb-dev
-      - libxcursor-dev
-      - libxkbcommon-dev
       - libxkbcommon-x11-dev
-      - zlib1g-dev
-    stage-packages:
-      - libdbus-1-3
-      - libegl1
-      - libfontconfig1
-      - libfreetype6
-      - libglib2.0-0
-      - libglx0
-      - libgtk-3-0
-      - libharfbuzz0b
-      - libice6
-      - libicu70
-      - libopengl0
-      - libpcre2-16-0
-      - libpng16-16
-      - libsm6
-      - libvulkan1
-      - libwayland-client0
-      - libwayland-cursor0
-      - libwayland-egl1
-      - libwayland-server0
-      - libx11-6
-      - libx11-xcb1
-      - libxcb1
-      - libxcb-glx0
-      - libxcb-icccm4
-      - libxcb-image0
-      - libxcb-keysyms1
-      - libxcb-randr0
-      - libxcb-render0
-      - libxcb-render-util0
-      - libxcb-shape0
-      - libxcb-shm0
-      - libxcb-sync1
-      - libxcb-util1
-      - libxcb-xfixes0
-      - libxcb-xkb1
-      - libxcursor1
-      - libxkbcommon0
-      - libxkbcommon-x11-0
-      - zlib1g
-    override-pull: |
-      QT=6_4_0
-
-      git clone -b v6.4.0 --depth=1 git://code.qt.io/qt/qt5.git .
-      git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools
-
-      cd qtbase
-      find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
-      cd ..
-    override-build: |
-      ./configure \
-        -prefix /usr \
-        -libdir /usr/lib/$CRAFT_ARCH_TRIPLET \
-        -release \
-        -opensource \
-        -confirm-license \
-        -no-feature-getentropy \
-        -no-feature-renameat2 \
-        -no-feature-statx \
-        -no-feature-egl-extension-platform-wayland \
-        -no-feature-highdpiscaling \
-        -openssl-linked \
-        -nomake examples \
-        -nomake tests
-
-      cmake --build . -j$CRAFT_PARALLEL_BUILD_COUNT
-      DESTDIR="$CRAFT_PART_INSTALL" cmake --install .
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
-    prime:
-      - -./usr/bin
-      - -./usr/doc
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/metatypes
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.la
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.prl
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
-      - -./usr/libexec
-      - -./usr/mkspecs
-      - -./usr/modules
-    after:
-      - mozjpeg
-      - openssl
-      - patches
-
-  rnnoise:
-    source: https://gitlab.xiph.org/xiph/rnnoise.git
-    source-depth: 1
-    source-commit: 7f449bf8bd3b933891d12c30112268c4090e4d59
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=/usr
-      - --libdir=\${exec_prefix}/lib/$CRAFT_ARCH_TRIPLET
-      - --disable-static
-      - --disable-examples
-      - --disable-doc
-    prime:
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.la
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
-      - -./usr/share
-
-  webrtc:
-    source: https://github.com/desktop-app/tg_owt.git
-    source-depth: 1
-    source-commit: 10d5f4bf77333ef6b43516f90d2ce13273255f41
-    plugin: cmake
-    build-packages:
-      - yasm
-      - libdrm-dev
-      - libegl-dev
-      - libgbm-dev
-      - libgl-dev
-      - libglib2.0-dev
-      - libopenh264-dev
-      - libopus-dev
-      - libpipewire-0.3-dev
-      - libvpx-dev
-      - libx11-dev
-      - libxcomposite-dev
-      - libxdamage-dev
-      - libxext-dev
-      - libxfixes-dev
-      - libxrender-dev
-      - libxrandr-dev
-      - libxtst-dev
-    stage-packages:
-      - libdrm2
-      - libegl1
-      - libgbm1
-      - libgl1
-      - libglib2.0-0
-      - libopenh264-6
-      - libopus0
-      - libpipewire-0.3-0
-      - libvpx7
-      - libx11-6
-      - libxcomposite1
-      - libxdamage1
-      - libxext6
-      - libxfixes3
-      - libxrender1
-      - libxrandr2
-      - libxtst6
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-    prime:
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
+      - -DINSTALL_LIBDIR=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DQT_QPA_PLATFORMS="wayland;xcb"
+      - -DFEATURE_eglfs=OFF
+      - -DINPUT_openssl=linked
+    override-pull: |
+      craftctl default
+      QT="$(grep 'set(QT_REPO_MODULE_VERSION' qtbase/.cmake.conf | sed -r 's/.*"(.*)".*/\1/')"
+      cd qtbase
+      find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+      cd ../qtwayland
+      find $CRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+      cd ..
+    prime: [-./*]
+    after:
+      - jpegli
+      - patches
+
+  rnnoise:
+    source: https://github.com/xiph/rnnoise.git
+    source-depth: 1
+    source-tag: v0.2
+    plugin: autotools
+    build-packages:
+      - wget
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --libdir=\${exec_prefix}/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - --disable-shared
+      - --disable-examples
+      - --disable-doc
+    override-pull: |
+      craftctl default
+      sed -i 's/os_support.h/common.h/g;s/OPUS_CLEAR/RNN_CLEAR/g' src/vec{,_neon}.h
+    prime: [-./*]
+
+  tde2e:
+    source: https://github.com/tdlib/td.git
+    source-depth: 1
+    source-commit: 51743dfd01dff6179e2d8f7095729caa4e2222e9
+    plugin: cmake
+    build-packages:
+      - gperf
+      - libssl-dev
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_INSTALL_LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - -DTD_E2E_ONLY=ON
+    prime: [-./*]
+
+  webrtc:
+    source: https://github.com/desktop-app/tg_owt.git
+    source-depth: 1
+    source-commit: 62321fd7128ab2650b459d4195781af8185e46b5
+    plugin: cmake
+    build-packages:
+      - libopus-dev
+      - libpipewire-0.3-dev
+      - libssl-dev
+      - libvpx-dev
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+    prime: [-./*]
     after:
       - ffmpeg
-      - mozjpeg
-      - openssl
+      - jpegli
+      - openh264

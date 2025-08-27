@@ -7,23 +7,92 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/self_destruction_box.h"
 
+#include "api/api_authorizations.h"
+#include "api/api_cloud_password.h"
+#include "api/api_self_destruct.h"
+#include "apiwrap.h"
+#include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
-#include "apiwrap.h"
-#include "api/api_self_destruct.h"
-#include "api/api_authorizations.h"
-#include "main/main_session.h"
-#include "styles/style_layers.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/popup_menu.h"
 #include "styles/style_boxes.h"
+#include "styles/style_info.h"
+#include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
+#include "styles/style_widgets.h"
 
 namespace {
 
 using Type = SelfDestructionBox::Type;
 
+void AddDeleteAccount(
+		not_null<Ui::BoxContent*> box,
+		not_null<Main::Session*> session) {
+	if (!session->isTestMode()) {
+		return;
+	}
+	const auto maybeState = session->api().cloudPassword().stateCurrent();
+	if (!maybeState || !maybeState->hasPassword) {
+		return;
+	}
+	const auto top = box->addTopButton(st::infoTopBarMenu);
+	const auto menu
+		= top->lifetime().make_state<base::unique_qptr<Ui::PopupMenu>>();
+	const auto handler = [=] {
+		session->api().cloudPassword().state(
+		) | rpl::take(
+			1
+		) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+			auto fields = PasscodeBox::CloudFields::From(state);
+			fields.customTitle = tr::lng_settings_destroy_title();
+			fields.customDescription = tr::lng_context_mark_read_all_sure_2(
+				tr::now,
+				Ui::Text::RichLangValue).text;
+			fields.customSubmitButton = tr::lng_theme_delete();
+			fields.customCheckCallback = [=](
+					const Core::CloudPasswordResult &result,
+					base::weak_qptr<PasscodeBox> box) {
+				session->api().request(MTPaccount_DeleteAccount(
+					MTP_flags(MTPaccount_DeleteAccount::Flag::f_password),
+					MTP_string("Manual"),
+					result.result
+				)).done([=] {
+					if (box) {
+						box->uiShow()->hideLayer();
+					}
+				}).fail([=](const MTP::Error &error) {
+					if (box) {
+						box->handleCustomCheckError(error.type());
+					}
+				}).send();
+			};
+			box->uiShow()->showBox(Box<PasscodeBox>(session, fields));
+		}, top->lifetime());
+	};
+	top->setClickedCallback([=] {
+		*menu = base::make_unique_q<Ui::PopupMenu>(
+			top,
+			st::popupMenuWithIcons);
+
+		const auto addAction = Ui::Menu::CreateAddActionCallback(menu->get());
+		addAction({
+			.text = tr::lng_settings_destroy_title(tr::now),
+			.handler = handler,
+			.icon = &st::menuIconDeleteAttention,
+			.isAttention = true,
+		});
+		(*menu)->popup(QCursor::pos());
+	});
+}
+
 [[nodiscard]] std::vector<int> Values(Type type) {
 	switch (type) {
-	case Type::Account: return { 30, 90, 180, 365 };
+	case Type::Account: return { 30, 90, 180, 365, 548, 720 };
 	case Type::Sessions: return { 7, 30, 90, 180, 365 };
 	}
 	Unexpected("SelfDestructionBox::Type in Values.");
@@ -95,12 +164,13 @@ void SelfDestructionBox::showContent() {
 
 	clearButtons();
 	addButton(tr::lng_settings_save(), [=] {
+		const auto value = _ttlGroup->current();
 		switch (_type) {
 		case Type::Account:
-			_session->api().selfDestruct().update(_ttlGroup->value());
+			_session->api().selfDestruct().updateAccountTTL(value);
 			break;
 		case Type::Sessions:
-			_session->api().authorizations().updateTTL(_ttlGroup->value());
+			_session->api().authorizations().updateTTL(value);
 			break;
 		}
 
@@ -112,8 +182,8 @@ void SelfDestructionBox::showContent() {
 QString SelfDestructionBox::DaysLabel(int days) {
 	return !days
 		? QString()
-		: (days > 364)
-		? tr::lng_years(tr::now, lt_count, days / 365)
+		//: (days > 364)
+		//? tr::lng_years(tr::now, lt_count, days / 365)
 		: (days > 25)
 		? tr::lng_months(tr::now, lt_count, std::max(days / 30, 1))
 		: tr::lng_weeks(tr::now, lt_count, std::max(days / 7, 1));
@@ -150,4 +220,6 @@ void SelfDestructionBox::prepare() {
 	} else {
 		showContent();
 	}
+
+	AddDeleteAccount(this, _session);
 }

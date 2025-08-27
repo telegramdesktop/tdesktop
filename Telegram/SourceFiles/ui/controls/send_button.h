@@ -9,11 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 
+namespace style {
+struct SendButton;
+} // namespace style
+
 namespace Ui {
 
 class SendButton final : public RippleButton {
 public:
-	explicit SendButton(QWidget *parent);
+	SendButton(QWidget *parent, const style::SendButton &st);
 
 	static constexpr auto kSlowmodeDelayLimit = 100 * 60;
 
@@ -22,14 +26,25 @@ public:
 		Schedule,
 		Save,
 		Record,
+		Round,
 		Cancel,
 		Slowmode,
 	};
+	struct State {
+		Type type = Type::Send;
+		int slowmodeDelay = 0;
+		int starsToSend = 0;
+
+		friend inline constexpr auto operator<=>(State, State) = default;
+		friend inline constexpr bool operator==(State, State) = default;
+	};
 	[[nodiscard]] Type type() const {
-		return _type;
+		return _state.type;
 	}
-	void setType(Type state);
-	void setSlowmodeDelay(int seconds);
+	[[nodiscard]] State state() const {
+		return _state;
+	}
+	void setState(State state);
 	void finishAnimating();
 
 protected:
@@ -39,24 +54,35 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
+	struct StarsGeometry {
+		QRect inner;
+		QRect rounded;
+		QRect outer;
+	};
 	[[nodiscard]] QPixmap grabContent();
-	[[nodiscard]] bool isSlowmode() const;
+	void updateSize();
+
+	[[nodiscard]] StarsGeometry starsGeometry() const;
 
 	void paintRecord(QPainter &p, bool over);
+	void paintRound(QPainter &p, bool over);
 	void paintSave(QPainter &p, bool over);
 	void paintCancel(QPainter &p, bool over);
 	void paintSend(QPainter &p, bool over);
 	void paintSchedule(QPainter &p, bool over);
 	void paintSlowmode(QPainter &p);
+	void paintStarsToSend(QPainter &p, bool over);
 
-	Type _type = Type::Send;
-	Type _afterSlowmodeType = Type::Send;
+	const style::SendButton &_st;
+
+	State _state;
 	QPixmap _contentFrom, _contentTo;
 
-	Ui::Animations::Simple _a_typeChanged;
+	Ui::Animations::Simple _stateChangeAnimation;
+	int _stateChangeFromWidth = 0;
 
-	int _slowmodeDelay = 0;
 	QString _slowmodeDelayText;
+	Ui::Text::String _starsToSendText;
 
 };
 

@@ -75,7 +75,7 @@ void File::setStatusSize(
 	if (_statusSize == Ui::FileStatusSizeReady) {
 		_statusText = (duration >= 0) ? Ui::FormatDurationAndSizeText(duration, fullSize) : (duration < -1 ? Ui::FormatGifAndSizeText(fullSize) : Ui::FormatSizeText(fullSize));
 	} else if (_statusSize == Ui::FileStatusSizeLoaded) {
-		_statusText = (duration >= 0) ? Ui::FormatDurationText(duration) : (duration < -1 ? qsl("GIF") : Ui::FormatSizeText(fullSize));
+		_statusText = (duration >= 0) ? Ui::FormatDurationText(duration) : (duration < -1 ? u"GIF"_q : Ui::FormatSizeText(fullSize));
 	} else if (_statusSize == Ui::FileStatusSizeFailed) {
 		_statusText = tr::lng_attach_failed(tr::now);
 	} else if (_statusSize >= 0) {
@@ -117,13 +117,16 @@ void File::checkAnimationFinished() const {
 }
 void File::setDocumentLinks(
 		not_null<DocumentData*> document,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		Fn<bool()> openHook) {
 	const auto context = realParent->fullId();
 	setLinks(
 		std::make_shared<DocumentOpenClickHandler>(
 			document,
 			crl::guard(this, [=](FullMsgId id) {
-				_parent->delegate()->elementOpenDocument(document, id);
+				if (!openHook || !openHook()) {
+					_parent->delegate()->elementOpenDocument(document, id);
+				}
 			}),
 			context),
 		std::make_shared<DocumentSaveClickHandler>(document, context),

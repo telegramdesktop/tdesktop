@@ -19,9 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 namespace Settings {
@@ -38,16 +40,17 @@ Blocked::Blocked(
 	{
 		auto padding = st::changePhoneIconPadding;
 		padding.setBottom(padding.top());
-		_loading = base::make_unique_q<Ui::CenterWrap<>>(
+		_loading = base::make_unique_q<Ui::PaddingWrap<>>(
 			this,
-			object_ptr<Ui::PaddingWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				this,
-				object_ptr<Ui::FlatLabel>(
-					this,
-					tr::lng_contacts_loading(),
-					st::changePhoneDescription),
-				std::move(padding)));
-		Ui::ResizeFitChild(this, _loading.get());
+				tr::lng_contacts_loading(),
+				st::changePhoneDescription),
+			std::move(padding));
+		Ui::ResizeFitChild(
+			this,
+			_loading.get(),
+			st::settingsBlockedHeightMin);
 	}
 
 	_controller->session().api().blockedPeers().slice(
@@ -68,37 +71,37 @@ rpl::producer<QString> Blocked::title() {
 	return tr::lng_settings_blocked_users();
 }
 
-QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
+base::weak_qptr<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
 
-	AddSkip(content);
+	Ui::AddSkip(content);
 
-	AddButton(
+	AddButtonWithIcon(
 		content,
 		tr::lng_blocked_list_add(),
 		st::settingsButtonActive,
-		{ &st::menuIconBlockSettings, 0, IconType::Round, &st::transparent }
+		{ &st::menuIconBlockSettings }
 	)->addClickHandler([=] {
 		BlockedBoxController::BlockNewPeer(_controller);
 	});
 
-	AddSkip(content);
-	AddDividerText(content, tr::lng_blocked_list_about());
+	Ui::AddSkip(content);
+	Ui::AddDividerText(content, tr::lng_blocked_list_about());
 
 	{
 		const auto subtitle = content->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				content,
 				object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
-		AddSkip(subtitle->entity());
+		Ui::AddSkip(subtitle->entity());
 		auto subtitleText = _countBlocked.value(
 		) | rpl::map([=](int count) {
 			return tr::lng_blocked_list_subtitle(tr::now, lt_count, count);
 		});
-		AddSubsectionTitle(
+		Ui::AddSubsectionTitle(
 			subtitle->entity(),
 			rpl::duplicate(subtitleText),
-			st::blockedUsersListSubtitleAddPadding);
+			st::settingsBlockedListSubtitleAddPadding);
 		subtitle->toggleOn(
 			rpl::merge(
 				_emptinessChanges.events() | rpl::map(!rpl::mappers::_1),
@@ -113,7 +116,7 @@ QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
 		}, subtitle->lifetime());
 	}
 
-	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
+	return base::make_weak(not_null<Ui::RpWidget*>{ content });
 }
 
 void Blocked::setupContent() {
@@ -134,6 +137,7 @@ void Blocked::setupContent() {
 		};
 
 		auto controller = std::make_unique<BlockedBoxController>(_controller);
+		controller->setStyleOverrides(&st::settingsBlockedList);
 		const auto content = listWrap->entity()->add(
 			object_ptr<PeerListContent>(this, controller.get()));
 
@@ -171,7 +175,7 @@ void Blocked::setupContent() {
 					st::changePhoneIconSize,
 				},
 			},
-			st::blockedUsersListIconPadding);
+			st::settingsBlockedListIconPadding);
 		content->add(std::move(icon.widget));
 
 		_showFinished.events(
@@ -180,27 +184,48 @@ void Blocked::setupContent() {
 		}, content->lifetime());
 
 		content->add(
-			object_ptr<Ui::CenterWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				content,
-				object_ptr<Ui::FlatLabel>(
-					content,
-					tr::lng_blocked_list_empty_title(),
-					st::changePhoneTitle)),
-			st::changePhoneTitlePadding);
+				tr::lng_blocked_list_empty_title(),
+				st::changePhoneTitle),
+			st::changePhoneTitlePadding,
+			style::al_top);
 
 		content->add(
-			object_ptr<Ui::CenterWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				content,
-				object_ptr<Ui::FlatLabel>(
-					content,
-					tr::lng_blocked_list_empty_description(),
-					st::changePhoneDescription)),
-			st::changePhoneDescriptionPadding);
+				tr::lng_blocked_list_empty_description(),
+				st::changePhoneDescription),
+			st::changePhoneDescriptionPadding,
+			style::al_top);
 
-		AddSkip(content, st::blockedUsersListIconPadding.top());
+		Ui::AddSkip(content, st::settingsBlockedListIconPadding.top());
 	}
 
-	Ui::ResizeFitChild(this, _container);
+	// We want minimal height to be the same no matter if subtitle
+	// is visible or not, so minimal height isn't a constant here.
+//	Ui::ResizeFitChild(this, _container, st::settingsBlockedHeightMin);
+
+	widthValue(
+	) | rpl::start_with_next([=](int width) {
+		_container->resizeToWidth(width);
+	}, _container->lifetime());
+
+	rpl::combine(
+		_container->heightValue(),
+		_emptinessChanges.events_starting_with(true)
+	) | rpl::start_with_next([=](int height, bool empty) {
+		const auto subtitled = !empty || (_countBlocked.current() > 0);
+		const auto total = st::settingsBlockedHeightMin;
+		const auto padding = st::defaultSubsectionTitlePadding
+			+ st::settingsBlockedListSubtitleAddPadding;
+		const auto subtitle = st::defaultVerticalListSkip
+			+ padding.top()
+			+ st::defaultSubsectionTitle.style.font->height
+			+ padding.bottom();
+		const auto min = total - (subtitled ? subtitle : 0);
+		resize(width(), std::max(height, min));
+	}, _container->lifetime());
 }
 
 void Blocked::checkTotal(int total) {

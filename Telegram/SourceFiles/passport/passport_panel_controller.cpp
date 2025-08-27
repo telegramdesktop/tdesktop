@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_panel_controller.h"
 
+#include "main/main_account.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "passport/passport_panel_edit_document.h"
 #include "passport/passport_panel_edit_contact.h"
@@ -128,9 +130,9 @@ EditDocumentScheme GetDocumentScheme(
 		return result.isEmpty() ? value : result;
 	};
 	const auto GenderFormat = [](const QString &value) {
-		if (value == qstr("male")) {
+		if (value == u"male"_q) {
 			return tr::lng_passport_gender_male(tr::now);
-		} else if (value == qstr("female")) {
+		} else if (value == u"female"_q) {
 			return tr::lng_passport_gender_female(tr::now);
 		}
 		return value;
@@ -150,11 +152,12 @@ EditDocumentScheme GetDocumentScheme(
 	};
 	using Result = std::optional<QString>;
 	const auto NameValidate = [](const QString &value) -> Result {
+		static const auto RegExp = QRegularExpression(
+			"^[a-zA-Z0-9\\.,/&\\-' ]+$"
+		);
 		if (value.isEmpty() || value.size() > kMaxNameSize) {
 			return QString();
-		} else if (!QRegularExpression(
-			"^[a-zA-Z0-9\\.,/&\\-' ]+$"
-		).match(value).hasMatch()) {
+		} else if (!RegExp.match(value).hasMatch()) {
 			return tr::lng_passport_bad_name(tr::now);
 		}
 		return std::nullopt;
@@ -165,21 +168,23 @@ EditDocumentScheme GetDocumentScheme(
 	const auto StreetValidate = LimitedValidate(kMaxStreetSize);
 	const auto CityValidate = LimitedValidate(kMaxCitySize, kMinCitySize);
 	const auto PostcodeValidate = FromBoolean([](const QString &value) {
-		return QRegularExpression(
+		static const auto RegExp = QRegularExpression(
 			QString("^[a-zA-Z0-9\\-]{2,%1}$").arg(kMaxPostcodeSize)
-		).match(value).hasMatch();
+		);
+		return RegExp.match(value).hasMatch();
 	});
 	const auto DateValidateBoolean = [](const QString &value) {
-		return QRegularExpression(
+		static const auto RegExp = QRegularExpression(
 			"^\\d{2}\\.\\d{2}\\.\\d{4}$"
-		).match(value).hasMatch();
+		);
+		return RegExp.match(value).hasMatch();
 	};
 	const auto DateValidate = FromBoolean(DateValidateBoolean);
 	const auto DateOrEmptyValidate = FromBoolean([=](const QString &value) {
 		return value.isEmpty() || DateValidateBoolean(value);
 	});
 	const auto GenderValidate = FromBoolean([](const QString &value) {
-		return value == qstr("male") || value == qstr("female");
+		return value == u"male"_q || value == u"female"_q;
 	});
 	const auto CountryValidate = FromBoolean([=](const QString &value) {
 		return !CountryFormat(value).isEmpty();
@@ -217,7 +222,7 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Text,
-				qsl("first_name"),
+				"first_name"_q,
 				tr::lng_passport_first_name(tr::now),
 				NameValidate,
 				DontFormat,
@@ -226,27 +231,27 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Text,
-				qsl("middle_name"),
+				"middle_name"_q,
 				tr::lng_passport_middle_name(tr::now),
 				NameOrEmptyValidate,
 				DontFormat,
 				kMaxNameSize,
-				qsl("first_name"),
+				"first_name"_q,
 			},
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Text,
-				qsl("last_name"),
+				"last_name"_q,
 				tr::lng_passport_last_name(tr::now),
 				NameValidate,
 				DontFormat,
 				kMaxNameSize,
-				qsl("first_name"),
+				"first_name"_q,
 			},
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Date,
-				qsl("birth_date"),
+				"birth_date"_q,
 				tr::lng_passport_birth_date(tr::now),
 				DateValidate,
 				DontFormat,
@@ -254,7 +259,7 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Gender,
-				qsl("gender"),
+				"gender"_q,
 				tr::lng_passport_gender(tr::now),
 				GenderValidate,
 				GenderFormat,
@@ -262,7 +267,7 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Country,
-				qsl("country_code"),
+				"country_code"_q,
 				tr::lng_passport_country(tr::now),
 				CountryValidate,
 				CountryFormat,
@@ -270,7 +275,7 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Country,
-				qsl("residence_country_code"),
+				"residence_country_code"_q,
 				tr::lng_passport_residence_country(tr::now),
 				CountryValidate,
 				CountryFormat,
@@ -278,7 +283,7 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Scans,
 				Ui::PanelDetailsType::Text,
-				qsl("document_no"),
+				"document_no"_q,
 				tr::lng_passport_document_number(tr::now),
 				DocumentValidate,
 				DontFormat,
@@ -287,14 +292,14 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Scans,
 				Ui::PanelDetailsType::Date,
-				qsl("expiry_date"),
+				"expiry_date"_q,
 				tr::lng_passport_expiry_date(tr::now),
 				DateOrEmptyValidate,
 				DontFormat,
 			},
 		};
 		if (nativeNames) {
-			result.additionalDependencyKey = qsl("residence_country_code");
+			result.additionalDependencyKey = "residence_country_code"_q;
 
 			result.preferredLanguage = preferredLanguage
 				? std::move(preferredLanguage)
@@ -342,35 +347,35 @@ EditDocumentScheme GetDocumentScheme(
 				{
 					ValueClass::Additional,
 					Ui::PanelDetailsType::Text,
-					qsl("first_name_native"),
+					"first_name_native"_q,
 					tr::lng_passport_first_name(tr::now),
 					NativeNameValidate,
 					DontFormat,
 					kMaxNameSize,
 					QString(),
-					qsl("first_name"),
+					"first_name"_q,
 				},
 				{
 					ValueClass::Additional,
 					Ui::PanelDetailsType::Text,
-					qsl("middle_name_native"),
+					"middle_name_native"_q,
 					tr::lng_passport_middle_name(tr::now),
 					NativeNameOrEmptyValidate,
 					DontFormat,
 					kMaxNameSize,
-					qsl("first_name_native"),
-					qsl("middle_name"),
+					"first_name_native"_q,
+					"middle_name"_q,
 				},
 				{
 					ValueClass::Additional,
 					Ui::PanelDetailsType::Text,
-					qsl("last_name_native"),
+					"last_name_native"_q,
 					tr::lng_passport_last_name(tr::now),
 					NativeNameValidate,
 					DontFormat,
 					kMaxNameSize,
-					qsl("first_name_native"),
-					qsl("last_name"),
+					"first_name_native"_q,
+					"last_name"_q,
 				},
 			};
 			for (auto &row : additional) {
@@ -409,7 +414,7 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Text,
-				qsl("street_line1"),
+				"street_line1"_q,
 				tr::lng_passport_street(tr::now),
 				StreetValidate,
 				DontFormat,
@@ -418,7 +423,7 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Text,
-				qsl("street_line2"),
+				"street_line2"_q,
 				tr::lng_passport_street(tr::now),
 				DontValidate,
 				DontFormat,
@@ -427,7 +432,7 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Text,
-				qsl("city"),
+				"city"_q,
 				tr::lng_passport_city(tr::now),
 				CityValidate,
 				DontFormat,
@@ -436,7 +441,7 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Text,
-				qsl("state"),
+				"state"_q,
 				tr::lng_passport_state(tr::now),
 				DontValidate,
 				DontFormat,
@@ -445,15 +450,15 @@ EditDocumentScheme GetDocumentScheme(
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Country,
-				qsl("country_code"),
-				tr::lng_passport_country(tr::now),
+				"country_code"_q,
+				tr::lng_passport_residence_country(tr::now),
 				CountryValidate,
 				CountryFormat,
 			},
 			{
 				ValueClass::Fields,
 				Ui::PanelDetailsType::Postcode,
-				qsl("post_code"),
+				"post_code"_q,
 				tr::lng_passport_postcode(tr::now),
 				PostcodeValidate,
 				DontFormat,
@@ -477,15 +482,16 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 		result.newHeader = tr::lng_passport_new_phone(tr::now);
 		result.aboutNew = tr::lng_passport_new_phone_code(tr::now);
 		result.validate = [](const QString &value) {
-			return QRegularExpression(
-				"^\\d{2,12}$"
-			).match(value).hasMatch();
+			static const auto RegExp = QRegularExpression("^\\d{2,12}$");
+			return RegExp.match(value).hasMatch();
 		};
 		result.format = [](const QString &value) {
 			return Ui::FormatPhone(value);
 		};
 		result.postprocess = [](QString value) {
-			return value.replace(QRegularExpression("[^\\d]"), QString());
+			return value.replace(
+				TextUtilities::RegExpDigitsExclude(),
+				QString());
 		};
 		return result;
 	} break;
@@ -512,18 +518,18 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 
 const std::map<QString, QString> &LatinToNativeMap() {
 	static const auto result = std::map<QString, QString> {
-		{ qsl("first_name"), qsl("first_name_native") },
-		{ qsl("last_name"), qsl("last_name_native") },
-		{ qsl("middle_name"), qsl("middle_name_native") },
+		{ "first_name"_q, "first_name_native"_q },
+		{ "last_name"_q, "last_name_native"_q },
+		{ "middle_name"_q, "middle_name_native"_q },
 	};
 	return result;
 }
 
 const std::map<QString, QString> &NativeToLatinMap() {
 	static const auto result = std::map<QString, QString> {
-		{ qsl("first_name_native"), qsl("first_name") },
-		{ qsl("last_name_native"), qsl("last_name") },
-		{ qsl("middle_name_native"), qsl("middle_name") },
+		{ "first_name_native"_q, "first_name"_q },
+		{ "last_name_native"_q, "last_name"_q },
+		{ "middle_name_native"_q, "middle_name"_q },
 	};
 	return result;
 }
@@ -904,7 +910,7 @@ void PanelController::suggestReset(Fn<void()> callback) {
 		.confirmed = [=] { resetPassport(callback); },
 		.cancelled = [=] { cancelReset(); },
 		.confirmText = Lang::Hard::PassportCorruptedReset(),
-	})).data());
+	})).get());
 }
 
 void PanelController::resetPassport(Fn<void()> callback) {
@@ -915,7 +921,7 @@ void PanelController::resetPassport(Fn<void()> callback) {
 		.confirmText = Lang::Hard::PassportCorruptedReset(),
 		.confirmStyle = &st::attentionBoxButton,
 	}));
-	_resetBox = Ui::BoxPointer(box.data());
+	_resetBox = Ui::BoxPointer(box.get());
 }
 
 void PanelController::cancelReset() {
@@ -1204,7 +1210,7 @@ void PanelController::startScopeEdit(
 					std::move(scans),
 					std::move(translations),
 					PrepareSpecialFiles(*_editDocument));
-			const auto weak = Ui::MakeWeak(result.data());
+			const auto weak = base::make_weak(result.data());
 			_panelHasUnsavedChanges = [=] {
 				return weak ? weak->hasUnsavedChanges() : false;
 			};
@@ -1223,7 +1229,7 @@ void PanelController::startScopeEdit(
 					std::move(preferredLanguage)),
 				_editValue->error,
 				_editValue->data.parsedInEdit);
-			const auto weak = Ui::MakeWeak(result.data());
+			const auto weak = base::make_weak(result.data());
 			_panelHasUnsavedChanges = [=] {
 				return weak ? weak->hasUnsavedChanges() : false;
 			};
@@ -1319,11 +1325,16 @@ void PanelController::processVerificationNeeded(
 	});
 	const auto box = [&] {
 		if (type == Value::Type::Phone) {
-			return show(VerifyPhoneBox(
+			const auto submit = [=](const QString &code) {
+				_form->verify(value, code);
+			};
+			const auto account = &_form->window()->session().account();
+			account->setHandleLoginCode(submit);
+			const auto box = show(VerifyPhoneBox(
 				text,
 				value->verification.codeLength,
-				[=](const QString &code) { _form->verify(value, code); },
-
+				value->verification.fragmentUrl,
+				submit,
 				value->verification.call ? rpl::single(
 					value->verification.call->getText()
 				) | rpl::then(rpl::duplicate(
@@ -1339,6 +1350,11 @@ void PanelController::processVerificationNeeded(
 				) | rpl::map([=](not_null<const Value*> field) {
 					return field->verification.error;
 				}) | rpl::distinct_until_changed()));
+			box->boxClosing(
+			) | rpl::start_with_next([=] {
+				account->setHandleLoginCode(nullptr);
+			}, box->lifetime());
+			return box;
 		} else if (type == Value::Type::Email) {
 			return show(VerifyEmailBox(
 				text,

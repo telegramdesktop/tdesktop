@@ -536,12 +536,12 @@ void Reader::Slices::processPart(
 		_header.addPart(offset, bytes);
 		checkSliceFullLoaded(0);
 		return;
-	} else if (_headerMode == HeaderMode::Unknown) {
-		if (_header.parts.contains(offset)) {
-			return;
-		} else if (_header.parts.size() < kMaxPartsInHeader) {
-			_header.addPart(offset, bytes);
-		}
+	//} else if (_headerMode == HeaderMode::Unknown) {
+	//	if (_header.parts.contains(offset)) {
+	//		return;
+	//	} else if (_header.parts.size() < kMaxPartsInHeader) {
+	//		_header.addPart(offset, bytes);
+	//	}
 	}
 	const auto index = offset / kInSlice;
 	_data[index].addPart(offset - index * kInSlice, std::move(bytes));
@@ -599,6 +599,17 @@ auto Reader::Slices::fill(uint32 offset, bytes::span buffer) -> FillResult {
 			result.state = FillState::WaitingCache;
 		}
 	};
+	const auto addToHeader = [&](int slice, auto parts) {
+		if (_headerMode == HeaderMode::Unknown) {
+			for (const auto &part : parts) {
+				const auto totalOffset = slice * kInSlice + part.first;
+				if (!_header.parts.contains(totalOffset)
+					&& _header.parts.size() < kMaxPartsInHeader) {
+					_header.addPart(totalOffset, part.second);
+				}
+			}
+		}
+	};
 	const auto firstFrom = offset - fromSlice * kInSlice;
 	const auto firstTill = std::min(kInSlice, till - fromSlice * kInSlice);
 	const auto secondFrom = 0;
@@ -615,18 +626,18 @@ auto Reader::Slices::fill(uint32 offset, bytes::span buffer) -> FillResult {
 	}
 	if (first.ready && second.ready) {
 		markSliceUsed(fromSlice);
-		CopyLoaded(
-			buffer,
-			ranges::make_subrange(first.start, first.finish),
-			firstFrom,
-			firstTill);
+		auto &&list = ranges::make_subrange(first.start, first.finish);
+		CopyLoaded(buffer, list, firstFrom, firstTill);
+		addToHeader(fromSlice, list);
 		if (fromSlice + 1 < tillSlice) {
 			markSliceUsed(fromSlice + 1);
+			auto &&list = ranges::make_subrange(second.start, second.finish);
 			CopyLoaded(
 				buffer.subspan(firstTill - firstFrom),
-				ranges::make_subrange(second.start, second.finish),
+				list,
 				secondFrom,
 				secondTill);
+			addToHeader(fromSlice + 1, list);
 		}
 		result.toCache = serializeAndUnloadUnused();
 		result.state = FillState::Success;
@@ -807,23 +818,7 @@ void Reader::Slices::unloadSlice(Slice &slice) const {
 }
 
 QByteArray Reader::Slices::serializeComplexSlice(const Slice &slice) const {
-	auto result = QByteArray();
-	const auto count = slice.parts.size();
-	const auto intSize = sizeof(int32);
-	result.reserve(count * kPartSize + 2 * intSize * (count + 1));
-	const auto appendInt = [&](int value) {
-		auto serialized = int32(value);
-		result.append(
-			reinterpret_cast<const char*>(&serialized),
-			intSize);
-	};
-	appendInt(count);
-	for (const auto &[offset, part] : slice.parts) {
-		appendInt(offset);
-		appendInt(part.size());
-		result.append(part);
-	}
-	return result;
+	return SerializeComplexPartsMap(slice.parts);
 }
 
 QByteArray Reader::Slices::serializeAndUnloadFirstSliceNoHeader() {
@@ -919,6 +914,10 @@ void Reader::stopStreaming(bool stillActive) {
 
 	_stopStreamingAsync = false;
 	_waiting.store(nullptr, std::memory_order_release);
+	if (_cacheHelper && _cacheHelper->waiting != nullptr) {
+		QMutexLocker lock(&_cacheHelper->mutex);
+		_cacheHelper->waiting.store(nullptr, std::memory_order_release);
+	}
 	if (!stillActive) {
 		_streamingActive = false;
 		refreshLoaderPriority();
@@ -944,20 +943,16 @@ void Reader::loadForDownloader(
 		_loader->attachDownloader(downloader);
 	}
 	_downloaderOffsetRequests.emplace(uint32(offset));
-	if (_streamingActive) {
-		wakeFromSleep();
-	} else {
-		processDownloaderRequests();
-	}
+	// Will be processed in continueDownloaderFromMainThread()
+	// from StreamedFileDownloader::requestParts().
 }
 
 void Reader::doneForDownloader(int64 offset) {
 	Expects(offset >= 0 && offset <= std::numeric_limits<uint32>::max());
 
 	_downloaderOffsetAcks.emplace(offset);
-	if (!_streamingActive) {
-		processDownloaderRequests();
-	}
+	// Will be processed in continueDownloaderFromMainThread()
+	// from StreamedFileDownloader::requestParts().
 }
 
 void Reader::cancelForDownloader(
@@ -1104,10 +1099,19 @@ bool Reader::downloaderWaitForCachedSlice(uint32 offset) {
 }
 
 void Reader::checkCacheResultsForDownloader() {
+	continueDownloaderFromMainThread();
+}
+
+void Reader::continueDownloaderFromMainThread() {
 	if (_streamingActive) {
-		return;
+		wakeFromSleep();
+	} else {
+		processDownloaderRequests();
 	}
-	processDownloaderRequests();
+}
+
+rpl::producer<SpeedEstimate> Reader::speedEstimate() const {
+	return _loader->speedEstimate();
 }
 
 void Reader::setLoaderPriority(int priority) {
@@ -1394,10 +1398,6 @@ void Reader::finalizeCache() {
 		return;
 	}
 	Assert(_cache != nullptr);
-	if (_cacheHelper->waiting != nullptr) {
-		QMutexLocker lock(&_cacheHelper->mutex);
-		_cacheHelper->waiting.store(nullptr, std::memory_order_release);
-	}
 	auto toCache = _slices.unloadToCache();
 	while (toCache.number >= 0) {
 		putToCache(std::move(toCache));
@@ -1408,6 +1408,27 @@ void Reader::finalizeCache() {
 
 Reader::~Reader() {
 	finalizeCache();
+}
+
+QByteArray SerializeComplexPartsMap(
+		const base::flat_map<uint32, QByteArray> &parts) {
+	auto result = QByteArray();
+	const auto count = parts.size();
+	const auto intSize = sizeof(int32);
+	result.reserve(count * kPartSize + 2 * intSize * (count + 1));
+	const auto appendInt = [&](int value) {
+		auto serialized = int32(value);
+		result.append(
+			reinterpret_cast<const char*>(&serialized),
+			intSize);
+	};
+	appendInt(count);
+	for (const auto &[offset, part] : parts) {
+		appendInt(offset);
+		appendInt(part.size());
+		result.append(part);
+	}
+	return result;
 }
 
 } // namespace Streaming

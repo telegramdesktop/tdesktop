@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout/abstract_layout_item.h"
 #include "layout/layout_position.h"
 
-#include "styles/style_chat_helpers.h"
-
 namespace Mosaic::Layout {
 
 struct FoundItem {
@@ -32,7 +30,7 @@ public:
 	[[nodiscard]] QRect findRect(int index) const;
 
 	void setRightSkip(int rightSkip);
-	void setOffset(int left, int top);
+	void setPadding(QMargins padding);
 	void setFullWidth(int w);
 
 	[[nodiscard]] bool empty() const;
@@ -73,7 +71,7 @@ private:
 	int _bigWidth;
 	int _width = 0;
 	int _rightSkip = 0;
-	QPoint _offset;
+	QMargins _padding;
 	std::vector<Row> _rows;
 
 };

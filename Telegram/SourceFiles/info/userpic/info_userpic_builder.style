@@ -1,0 +1,68 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+
+using "boxes/boxes.style";
+using "ui/widgets/widgets.style";
+
+userpicBuilderEmojiPreviewPadding: margins(0px, 36px, 0px, 8px);
+userpicBuilderEmojiSubtitle: FlatLabel(defaultFlatLabel) {
+	align: align(center);
+	minWidth: 356px;
+	maxHeight: 24px;
+	textFg: windowSubTextFg;
+}
+userpicBuilderEmojiSubtitlePadding: margins(0px, 9px, 0px, 2px);
+userpicBuilderEmojiBubblePaletteWidth: 356px;
+userpicBuilderEmojiBubblePalettePadding: margins(12px, 8px, 12px, 8px);
+
+userpicBuilderEmojiSelectorLeft: 5px;
+
+userpicBuilderEmojiButton: RoundButton(defaultBoxButton) {
+	textFg: boxTextFg;
+	textFgOver: boxTextFg;
+	textBg: boxDividerBg;
+	textBgOver: boxDividerBg;
+
+	ripple: universalRippleAnimation;
+}
+userpicBuilderEmojiBackButton: IconButton(backButton) {
+	icon: icon {{ "box_button_back", boxTextFg }};
+	iconOver: icon {{ "box_button_back", boxTextFg }};
+
+	ripple: universalRippleAnimation;
+}
+
+userpicBuilderEmojiBackPosiiton: point(8px, 8px);
+userpicBuilderEmojiSavePosiiton: point(7px, 12px);
+
+userpicBuilderEmojiAccentColorSize: 30px;
+userpicBuilderEmojiBubblePadding: margins(5px, 5px, 5px, 5px);
+
+userpicBuilderEmojiLayerMinHeight: 496px;
+userpicBuilderEmojiSelectorMinHeight: 216px;
+userpicBuilderEmojiSelectorTogglePosition: point(6px, 6px);
+
+userpicBuilderEmojiColorMinus: IconButton(defaultIconButton) {
+	width: userpicBuilderEmojiAccentColorSize;
+	height: userpicBuilderEmojiAccentColorSize;
+
+	icon: icon {{ "info/info_colors_remove", menuIconFg }};
+	iconOver: icon {{ "info/info_colors_remove", menuIconFg }};
+
+	rippleAreaSize: userpicBuilderEmojiAccentColorSize;
+	rippleAreaPosition: point(0px, 0px);
+	ripple: universalRippleAnimation;
+}
+
+userpicBuilderEmojiColorPlus: IconButton(userpicBuilderEmojiColorMinus) {
+	icon: icon {{ "info/info_colors_add", menuIconFg }};
+	iconOver: icon {{ "info/info_colors_add", menuIconFg }};
+}
+
+userpicBuilderEmojiToggleStickersIcon: icon {{ "menu/stickers", emojiIconFg }};

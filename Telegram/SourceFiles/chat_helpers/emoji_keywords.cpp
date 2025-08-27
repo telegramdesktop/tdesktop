@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 
 #include <QtGui/QGuiApplication>
 
@@ -55,19 +57,19 @@ struct LangPackData {
 		const QString &word) {
 	if ((word.size() == 1) && !word[0].isLetter()) {
 		return true;
-	} else if (word == qstr("10")) {
+	} else if (word == u"10"_q) {
 		return true;
-	} else if (language != qstr("en")) {
+	} else if (language != u"en"_q) {
 		return false;
 	} else if ((word.size() == 1)
 		&& (word[0] != '$')
 		&& (word[0].unicode() != 8364)) { // Euro.
 		return true;
 	} else if ((word.size() == 2)
-		&& (word != qstr("us"))
-		&& (word != qstr("uk"))
-		&& (word != qstr("hi"))
-		&& (word != qstr("ok"))) {
+		&& (word != u"us"_q)
+		&& (word != u"uk"_q)
+		&& (word != u"hi"_q)
+		&& (word != u"ok"_q)) {
 		return true;
 	}
 	return false;
@@ -80,7 +82,7 @@ struct LangPackData {
 }
 
 void CreateCacheFilePath() {
-	QDir().mkpath(internal::CacheFileFolder() + qstr("/keywords"));
+	QDir().mkpath(internal::CacheFileFolder() + u"/keywords"_q);
 }
 
 [[nodiscard]] QString CacheFilePath(QString id) {
@@ -89,7 +91,7 @@ void CreateCacheFilePath() {
 	if (id.isEmpty()) {
 		return QString();
 	}
-	return internal::CacheFileFolder() + qstr("/keywords/") + id;
+	return internal::CacheFileFolder() + u"/keywords/"_q + id;
 }
 
 [[nodiscard]] LangPackData ReadLocalCache(const QString &id) {
@@ -637,6 +639,44 @@ std::vector<Result> EmojiKeywords::query(
 		AppendLegacySuggestions(result, query);
 	}
 	return result;
+}
+
+std::vector<Result> EmojiKeywords::queryMine(
+		const QString &query,
+		bool exact) const {
+	return ApplyVariants(PrioritizeRecent(this->query(query, exact)));
+}
+
+std::vector<Result> EmojiKeywords::PrioritizeRecent(
+		std::vector<Result> list) {
+	using Entry = Result;
+	auto lastRecent = begin(list);
+	const auto &recent = Core::App().settings().recentEmoji();
+	for (const auto &item : recent) {
+		const auto emoji = std::get_if<EmojiPtr>(&item.id.data);
+		if (!emoji) {
+			continue;
+		}
+		const auto original = (*emoji)->original()
+			? (*emoji)->original()
+			: (*emoji);
+		const auto it = ranges::find(list, original, [](const Entry &entry) {
+			return entry.emoji;
+		});
+		if (it > lastRecent && it != end(list)) {
+			std::rotate(lastRecent, it, it + 1);
+			++lastRecent;
+		}
+	}
+	return list;
+}
+
+std::vector<Result> EmojiKeywords::ApplyVariants(std::vector<Result> list) {
+	auto &settings = Core::App().settings();
+	for (auto &item : list) {
+		item.emoji = settings.lookupEmojiVariant(item.emoji);
+	}
+	return list;
 }
 
 int EmojiKeywords::maxQueryLength() const {

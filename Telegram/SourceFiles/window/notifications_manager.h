@@ -10,17 +10,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reaction_id.h"
 #include "base/timer.h"
 #include "base/type_traits.h"
+#include "media/audio/media_audio_local_cache.h"
 
 class History;
 
 namespace Data {
 class Session;
-class CloudImageView;
 class ForumTopic;
+class SavedSublist;
 class Thread;
 struct ItemNotification;
 enum class ItemNotificationType;
 } // namespace Data
+
+namespace Ui {
+struct PeerUserpicView;
+} // namespace Ui
 
 namespace Main {
 class Session;
@@ -71,9 +76,26 @@ struct custom_is_fast_copy_type<Window::Notifications::ChangeType> : std::true_t
 
 } // namespace base
 
+namespace base::options {
+
+template <typename Type>
+class option;
+
+using toggle = option<bool>;
+
+} // namespace base::options
+
 namespace Window::Notifications {
 
+extern const char kOptionGNotification[];
+extern base::options::toggle OptionGNotification;
+
 class Manager;
+
+struct ActivateOptions {
+	TextWithTags draft;
+	bool allowNewWindow = false;
+};
 
 class System final {
 public:
@@ -83,14 +105,17 @@ public:
 	[[nodiscard]] Main::Session *findSession(uint64 sessionId) const;
 
 	void createManager();
-	void setManager(std::unique_ptr<Manager> manager);
-	[[nodiscard]] ManagerType managerType() const;
+	void setManager(Fn<std::unique_ptr<Manager>()> create);
+	[[nodiscard]] Manager &manager() const;
+	[[nodiscard]] rpl::producer<> managerChanged() const;
 
 	void checkDelayed();
 	void schedule(Data::ItemNotification notification);
 	void clearFromTopic(not_null<Data::ForumTopic*> topic);
+	void clearFromSublist(not_null<Data::SavedSublist*> sublist);
 	void clearFromHistory(not_null<History*> history);
 	void clearIncomingFromTopic(not_null<Data::ForumTopic*> topic);
+	void clearIncomingFromSublist(not_null<Data::SavedSublist*> sublist);
 	void clearIncomingFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearFromItem(not_null<HistoryItem*> item);
@@ -101,7 +126,16 @@ public:
 	[[nodiscard]] rpl::producer<ChangeType> settingsChanged() const;
 	void notifySettingsChanged(ChangeType type);
 
-	void playSound(not_null<Main::Session*> session, DocumentId id);
+	[[nodiscard]] bool volumeSupported() const;
+	[[nodiscard]] rpl::producer<bool> volumeSupportedValue() const;
+
+	void playSound(
+		not_null<Main::Session*> session,
+		DocumentId id,
+		float64 volumeOverride = -1);
+	[[nodiscard]] QByteArray lookupSoundBytes(
+		not_null<Data::Session*> owner,
+		DocumentId id);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -187,6 +221,7 @@ private:
 		crl::time> _sentReactionNotifications;
 
 	std::unique_ptr<Manager> _manager;
+	rpl::event_stream<> _managerChanged;
 
 	rpl::event_stream<ChangeType> _settingsChanged;
 
@@ -198,10 +233,14 @@ private:
 	base::flat_map<
 		not_null<Data::ForumTopic*>,
 		rpl::lifetime> _watchedTopics;
+	base::flat_map<
+		not_null<Data::SavedSublist*>,
+		rpl::lifetime> _watchedSublists;
 
 	int _lastForwardedCount = 0;
 	uint64 _lastHistorySessionId = 0;
 	FullMsgId _lastHistoryItemId;
+	std::optional<DocumentId> _lastSoundId;
 
 	rpl::lifetime _lifetime;
 
@@ -213,6 +252,7 @@ public:
 		uint64 sessionId = 0;
 		PeerId peerId = 0;
 		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
 
 		friend inline auto operator<=>(
 			const ContextId&,
@@ -231,6 +271,7 @@ public:
 		int forwardedCount = 0;
 		PeerData *reactionFrom = nullptr;
 		Data::ReactionId reactionId;
+		std::optional<DocumentId> soundId;
 	};
 
 	explicit Manager(not_null<System*> system) : _system(system) {
@@ -254,6 +295,9 @@ public:
 	void clearFromTopic(not_null<Data::ForumTopic*> topic) {
 		doClearFromTopic(topic);
 	}
+	void clearFromSublist(not_null<Data::SavedSublist*> sublist) {
+		doClearFromSublist(sublist);
+	}
 	void clearFromHistory(not_null<History*> history) {
 		doClearFromHistory(history);
 	}
@@ -263,14 +307,15 @@ public:
 
 	void notificationActivated(
 		NotificationId id,
-		const TextWithTags &draft = {});
+		ActivateOptions &&options = {});
 	void notificationReplied(NotificationId id, const TextWithTags &reply);
 
 	struct DisplayOptions {
-		bool hideNameAndPhoto = false;
-		bool hideMessageText = false;
-		bool hideMarkAsRead = false;
-		bool hideReplyButton = false;
+		bool hideNameAndPhoto : 1 = false;
+		bool hideMessageText : 1 = false;
+		bool hideMarkAsRead : 1 = false;
+		bool hideReplyButton : 1 = false;
+		bool spoilerLoginCode : 1 = false;
 	};
 	[[nodiscard]] DisplayOptions getNotificationOptions(
 		HistoryItem *item,
@@ -292,14 +337,12 @@ public:
 
 	[[nodiscard]] virtual ManagerType type() const = 0;
 
-	[[nodiscard]] bool skipAudio() const {
-		return doSkipAudio();
-	}
 	[[nodiscard]] bool skipToast() const {
 		return doSkipToast();
 	}
-	[[nodiscard]] bool skipFlashBounce() const {
-		return doSkipFlashBounce();
+	void maybePlaySound(Fn<void()> playSound);
+	void maybeFlashBounce(Fn<void()> flashBounce) {
+		doMaybeFlashBounce(std::move(flashBounce));
 	}
 
 	virtual ~Manager() = default;
@@ -315,11 +358,13 @@ protected:
 	virtual void doClearAllFast() = 0;
 	virtual void doClearFromItem(not_null<HistoryItem*> item) = 0;
 	virtual void doClearFromTopic(not_null<Data::ForumTopic*> topic) = 0;
+	virtual void doClearFromSublist(
+		not_null<Data::SavedSublist*> sublist) = 0;
 	virtual void doClearFromHistory(not_null<History*> history) = 0;
 	virtual void doClearFromSession(not_null<Main::Session*> session) = 0;
-	virtual bool doSkipAudio() const = 0;
-	virtual bool doSkipToast() const = 0;
-	virtual bool doSkipFlashBounce() const = 0;
+	[[nodiscard]] virtual bool doSkipToast() const = 0;
+	virtual void doMaybePlaySound(Fn<void()> playSound) = 0;
+	virtual void doMaybeFlashBounce(Fn<void()> flashBounce) = 0;
 	[[nodiscard]] virtual bool forceHideDetails() const {
 		return false;
 	}
@@ -332,9 +377,10 @@ protected:
 	[[nodiscard]] virtual QString accountNameSeparator();
 
 private:
-	void openNotificationMessage(
+	Window::SessionController *openNotificationMessage(
 		not_null<History*> history,
-		MsgId messageId);
+		MsgId messageId,
+		bool openSeparated);
 
 	const not_null<System*> _system;
 
@@ -345,6 +391,19 @@ public:
 	[[nodiscard]] ManagerType type() const override {
 		return ManagerType::Native;
 	}
+
+	using NotificationSound = Media::Audio::LocalSound;
+	struct NotificationInfo {
+		not_null<PeerData*> peer;
+		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
+		MsgId itemId = 0;
+		QString title;
+		QString subtitle;
+		QString message;
+		Fn<NotificationSound()> sound;
+		DisplayOptions options;
+	};
 
 protected:
 	using Manager::Manager;
@@ -360,14 +419,11 @@ protected:
 	bool forceHideDetails() const override;
 
 	virtual void doShowNativeNotification(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options) = 0;
+		NotificationInfo &&info,
+		Ui::PeerUserpicView &userpicView) = 0;
+
+private:
+	Media::Audio::LocalCache _localSoundCache;
 
 };
 
@@ -381,14 +437,8 @@ public:
 
 protected:
 	void doShowNativeNotification(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options) override {
+		NotificationInfo &&info,
+		Ui::PeerUserpicView &userpicView) override {
 	}
 	void doClearAllFast() override {
 	}
@@ -396,18 +446,20 @@ protected:
 	}
 	void doClearFromTopic(not_null<Data::ForumTopic*> topic) override {
 	}
+	void doClearFromSublist(not_null<Data::SavedSublist*> sublist) override {
+	}
 	void doClearFromHistory(not_null<History*> history) override {
 	}
 	void doClearFromSession(not_null<Main::Session*> session) override {
 	}
-	bool doSkipAudio() const override {
-		return false;
-	}
 	bool doSkipToast() const override {
 		return false;
 	}
-	bool doSkipFlashBounce() const override {
-		return false;
+	void doMaybePlaySound(Fn<void()> playSound) override {
+		playSound();
+	}
+	void doMaybeFlashBounce(Fn<void()> flashBounce) override {
+		flashBounce();
 	}
 
 };

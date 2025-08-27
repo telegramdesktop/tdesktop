@@ -20,8 +20,6 @@ class ReactionFlyAnimation;
 
 namespace Data {
 class Reactions;
-struct ReactionId;
-struct MessageReaction;
 } // namespace Data
 
 namespace HistoryView {
@@ -33,18 +31,17 @@ struct TextState;
 
 class BottomInfo final : public Object {
 public:
-	using ReactionId = ::Data::ReactionId;
-	using MessageReaction = ::Data::MessageReaction;
 	struct Data {
-		enum class Flag : uchar {
-			Edited         = 0x01,
-			OutLayout      = 0x02,
-			Sending        = 0x04,
-			RepliesContext = 0x08,
-			Sponsored      = 0x10,
-			Pinned         = 0x20,
-			Imported       = 0x40,
-			Recommended    = 0x80,
+		enum class Flag : uint16 {
+			Edited         = 0x001,
+			OutLayout      = 0x002,
+			Sending        = 0x004,
+			RepliesContext = 0x008,
+			Sponsored      = 0x010,
+			Pinned         = 0x020,
+			Imported       = 0x040,
+			Shortcut       = 0x080,
+			EstimateDate   = 0x100,
 			//Unread, // We don't want to pass and update it in Date for now.
 		};
 		friend inline constexpr bool is_flag_type(Flag) { return true; };
@@ -52,7 +49,8 @@ public:
 
 		QDateTime date;
 		QString author;
-		std::vector<MessageReaction> reactions;
+		EffectId effectId = 0;
+		int stars = 0;
 		std::optional<int> views;
 		std::optional<int> replies;
 		std::optional<int> forwardsCount;
@@ -66,7 +64,7 @@ public:
 	[[nodiscard]] int firstLineWidth() const;
 	[[nodiscard]] bool isWide() const;
 	[[nodiscard]] TextState textState(
-		not_null<const HistoryItem*> item,
+		not_null<const Message*> view,
 		QPoint position) const;
 	[[nodiscard]] bool isSignedAuthorElided() const;
 
@@ -78,29 +76,28 @@ public:
 		bool inverted,
 		const PaintContext &context) const;
 
-	void animateReaction(
+	void animateEffect(
 		Ui::ReactionFlyAnimationArgs &&args,
 		Fn<void()> repaint);
-	[[nodiscard]] auto takeReactionAnimations()
-		-> base::flat_map<
-			ReactionId,
-			std::unique_ptr<Ui::ReactionFlyAnimation>>;
-	void continueReactionAnimations(base::flat_map<
-		ReactionId,
-		std::unique_ptr<Ui::ReactionFlyAnimation>> animations);
+	[[nodiscard]] auto takeEffectAnimation()
+		-> std::unique_ptr<Ui::ReactionFlyAnimation>;
+	void continueEffectAnimation(
+		std::unique_ptr<Ui::ReactionFlyAnimation> animation);
+
+	QRect effectIconGeometry() const;
 
 private:
-	struct Reaction;
+	struct Effect;
 
 	void layout();
 	void layoutDateText();
 	void layoutViewsText();
 	void layoutRepliesText();
-	void layoutReactionsText();
+	void layoutEffectText();
 
-	[[nodiscard]] int countReactionsMaxWidth() const;
-	[[nodiscard]] int countReactionsHeight(int newWidth) const;
-	void paintReactions(
+	[[nodiscard]] int countEffectMaxWidth() const;
+	[[nodiscard]] int countEffectHeight(int newWidth) const;
+	void paintEffect(
 		Painter &p,
 		QPoint origin,
 		int left,
@@ -111,23 +108,21 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
-	void setReactionCount(Reaction &reaction, int count);
-	[[nodiscard]] Reaction prepareReactionWithId(
-		const ReactionId &id);
-	[[nodiscard]] ClickHandlerPtr revokeReactionLink(
-		not_null<const HistoryItem*> item,
+	[[nodiscard]] Effect prepareEffectWithId(EffectId id);
+	[[nodiscard]] ClickHandlerPtr replayEffectLink(
+		not_null<const Message*> view,
 		QPoint position) const;
-	[[nodiscard]] ClickHandlerPtr revokeReactionLink(
-		not_null<const HistoryItem*> item) const;
+	[[nodiscard]] ClickHandlerPtr replayEffectLink(
+		not_null<const Message*> view) const;
 
 	const not_null<::Data::Reactions*> _reactionsOwner;
 	Data _data;
 	Ui::Text::String _authorEditedDate;
 	Ui::Text::String _views;
 	Ui::Text::String _replies;
-	std::vector<Reaction> _reactions;
-	mutable ClickHandlerPtr _revokeLink;
-	int _reactionsMaxWidth = 0;
+	std::unique_ptr<Effect> _effect;
+	mutable ClickHandlerPtr _replayLink;
+	int _effectMaxWidth = 0;
 	bool _authorElided = false;
 
 };

@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DocumentData;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 struct ReactionId;
 } // namespace Data
@@ -30,14 +34,25 @@ class Session;
 } // namespace Main
 
 void ShowStickerPreviewBox(
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<DocumentData*> document);
 
 void DoubledLimitsPreviewBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
 
-enum class PremiumPreview {
+void UpgradedStoriesPreviewBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
+
+void TelegramBusinessPreviewBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
+
+enum class PremiumFeature {
+	// Premium features.
+	Stories,
+	DoubleLimits,
 	MoreUpload,
 	FasterDownload,
 	VoiceToText,
@@ -49,19 +64,44 @@ enum class PremiumPreview {
 	AdvancedChatManagement,
 	ProfileBadge,
 	AnimatedUserpics,
+	RealTimeTranslation,
+	Wallpapers,
+	TagsForMessages,
+	LastSeen,
+	MessagePrivacy,
+	Business,
+	Effects,
+	FilterTags,
+	TodoLists,
+
+	// Business features.
+	BusinessLocation,
+	BusinessHours,
+	QuickReplies,
+	GreetingMessage,
+	AwayMessage,
+	BusinessBots,
+	ChatIntro,
+	ChatLinks,
 
 	kCount,
 };
 
 void ShowPremiumPreviewBox(
 	not_null<Window::SessionController*> controller,
-	PremiumPreview section,
+	PremiumFeature section,
 	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr);
+
+void ShowPremiumPreviewBox(
+	std::shared_ptr<ChatHelpers::Show> show,
+	PremiumFeature section,
+	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr,
+	bool hideSubscriptionButton = false);
 
 void ShowPremiumPreviewToBuy(
 	not_null<Window::SessionController*> controller,
-	PremiumPreview section,
-	Fn<void()> hiddenCallback);
+	PremiumFeature section,
+	Fn<void()> hiddenCallback = nullptr);
 
 void PremiumUnavailableBox(not_null<Ui::GenericBox*> box);
 

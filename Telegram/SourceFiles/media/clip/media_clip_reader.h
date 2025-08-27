@@ -7,11 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_prepare.h"
 
 #include <QtCore/QTimer>
 #include <QtCore/QMutex>
+
+namespace Ui {
+struct PreparedFileInformation;
+} // namespace Ui
 
 namespace Core {
 class FileLocation;
@@ -236,7 +239,7 @@ inline ReaderPointer MakeReader(Args&&... args) {
 	return ReaderPointer(new Reader(std::forward<Args>(args)...));
 }
 
-[[nodiscard]] Ui::PreparedFileInformation::Video PrepareForSending(
+[[nodiscard]] Ui::PreparedFileInformation PrepareForSending(
 	const QString &fname,
 	const QByteArray &data);
 

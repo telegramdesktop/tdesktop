@@ -30,6 +30,9 @@ struct EditorData {
 		RoundedRect,
 	};
 
+	TextWithEntities about;
+	QString confirm;
+	QSize exactSize;
 	CropType cropType = CropType::Rect;
 	bool keepAspectRatio = false;
 };

@@ -62,6 +62,12 @@ function ShowNotAvailableEmoji() {
     return false;
 }
 
+function ShowTextCopied(content) {
+    navigator.clipboard.writeText(content);
+    ShowToast("Text copied to clipboard.");
+    return false;
+}
+
 function ShowSpoiler(target) {
     if (target.classList.contains("hidden")) {
         target.classList.toggle("hidden");

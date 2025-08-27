@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_content.h"
 #include "editor/photo_editor_controls.h"
 #include "window/window_controller.h"
+#include "window/window_session_controller.h"
+#include "ui/layers/layer_widget.h"
 #include "styles/style_editor.h"
 
 namespace Editor {
@@ -45,31 +47,50 @@ constexpr auto kPrecision = 100000;
 } // namespace
 
 PhotoEditor::PhotoEditor(
-	not_null<Ui::RpWidget*> parent,
+	not_null<QWidget*> parent,
 	not_null<Window::Controller*> controller,
+	std::shared_ptr<Image> photo,
+	PhotoModifications modifications,
+	EditorData data)
+: PhotoEditor(
+	parent,
+	controller->uiShow(),
+	(controller->sessionController()
+		? controller->sessionController()->uiShow()
+		: nullptr),
+	std::move(photo),
+	std::move(modifications),
+	std::move(data)) {
+}
+
+PhotoEditor::PhotoEditor(
+	not_null<QWidget*> parent,
+	std::shared_ptr<Ui::Show> show,
+	std::shared_ptr<ChatHelpers::Show> sessionShow,
 	std::shared_ptr<Image> photo,
 	PhotoModifications modifications,
 	EditorData data)
 : RpWidget(parent)
 , _modifications(std::move(modifications))
 , _controllers(std::make_shared<Controllers>(
-	controller->sessionController()
+	sessionShow
 		? std::make_unique<StickersPanelController>(
 			this,
-			controller->sessionController())
+			std::move(sessionShow))
 		: nullptr,
 	std::make_unique<UndoController>(),
-	[=] (object_ptr<Ui::BoxContent> c) { controller->show(std::move(c)); }))
+	std::move(show)))
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,
 	photo,
 	_modifications,
 	_controllers,
-	std::move(data)))
+	data))
 , _controls(base::make_unique_q<PhotoEditorControls>(
 	this,
 	_controllers,
-	_modifications))
+	_modifications,
+	data))
 , _colorPicker(std::make_unique<ColorPicker>(
 	this,
 	Deserialize(Core::App().settings().photoEditorBrush()))) {
@@ -79,12 +100,18 @@ PhotoEditor::PhotoEditor(
 		if (size.isEmpty()) {
 			return;
 		}
-		const auto geometry = QRect(QPoint(), size);
-		const auto contentRect = geometry - st::photoEditorContentMargins;
-		_content->setGeometry(contentRect);
-		const auto contentBottom = contentRect.top() + contentRect.height();
-		const auto controlsRect = geometry
-			- style::margins(0, contentBottom, 0, 0);
+		_content->setGeometry(rect() - st::photoEditorContentMargins);
+	}, lifetime());
+
+	_content->innerRect(
+	) | rpl::start_with_next([=](QRect inner) {
+		if (inner.isEmpty()) {
+			return;
+		}
+		const auto innerTop = _content->y() + inner.top();
+		const auto skip = st::photoEditorCropPointSize;
+		const auto controlsRect = rect()
+			- style::margins(0, innerTop + inner.height() + skip, 0, 0);
 		_controls->setGeometry(controlsRect);
 	}, lifetime());
 
@@ -173,7 +200,7 @@ PhotoEditor::PhotoEditor(
 	}, lifetime());
 }
 
-void PhotoEditor::handleKeyPress(not_null<QKeyEvent*> e) {
+void PhotoEditor::keyPressEvent(QKeyEvent *e) {
 	if (!_colorPicker->preventHandleKeyPress()) {
 		_content->handleKeyPress(e) || _controls->handleKeyPress(e);
 	}
@@ -190,6 +217,26 @@ rpl::producer<PhotoModifications> PhotoEditor::doneRequests() const {
 
 rpl::producer<> PhotoEditor::cancelRequests() const {
 	return _cancel.events();
+}
+
+void InitEditorLayer(
+		not_null<Ui::LayerWidget*> layer,
+		not_null<PhotoEditor*> editor,
+		Fn<void(PhotoModifications)> doneCallback) {
+	editor->cancelRequests(
+	) | rpl::start_with_next([=] {
+		layer->closeLayer();
+	}, editor->lifetime());
+
+	const auto weak = base::make_weak(layer.get());
+	editor->doneRequests(
+	) | rpl::start_with_next([=, done = std::move(doneCallback)](
+			const PhotoModifications &mods) {
+		done(mods);
+		if (const auto strong = weak.get()) {
+			strong->closeLayer();
+		}
+	}, editor->lifetime());
 }
 
 } // namespace Editor

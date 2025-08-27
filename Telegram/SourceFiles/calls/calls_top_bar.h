@@ -42,11 +42,11 @@ class TopBar : public Ui::RpWidget {
 public:
 	TopBar(
 		QWidget *parent,
-		const base::weak_ptr<Call> &call,
+		Call *call,
 		std::shared_ptr<Ui::Show> show);
 	TopBar(
 		QWidget *parent,
-		const base::weak_ptr<GroupCall> &call,
+		GroupCall *call,
 		std::shared_ptr<Ui::Show> show);
 	~TopBar();
 
@@ -64,10 +64,11 @@ private:
 	TopBar(
 		QWidget *parent,
 		std::shared_ptr<Ui::Show> show,
-		const base::weak_ptr<Call> &call,
-		const base::weak_ptr<GroupCall> &groupCall);
+		Call *call,
+		GroupCall *groupCall);
 
 	void initControls();
+	void setupInitialBrush();
 	void updateInfoLabels();
 	void setInfoLabels();
 	void updateDurationText();
@@ -84,6 +85,7 @@ private:
 
 	bool _muted = false;
 	std::vector<Ui::GroupCallUser> _users;
+	int _usersCount = 0;
 	std::unique_ptr<Ui::GroupCallUserpics> _userpics;
 	int _userpicsWidth = 0;
 	object_ptr<Ui::LabelSimple> _durationLabel;
@@ -98,9 +100,13 @@ private:
 
 	rpl::variable<bool> _isGroupConnecting = false;
 
+	std::vector<not_null<PeerData*>> _conferenceFirstUsers;
+	int _conferenceUsersCount = 0;
+
 	QBrush _groupBrush;
 	anim::linear_gradients<BarState> _gradients;
 	Ui::Animations::Simple _switchStateAnimation;
+	Fn<void(float64)> _switchStateCallback;
 
 	base::Timer _updateDurationTimer;
 

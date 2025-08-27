@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class History;
-class HistoryService;
 
 namespace Data {
 
@@ -42,6 +41,7 @@ public:
 		int limitAfter);
 
 	[[nodiscard]] rpl::producer<int> fullCount() const;
+	[[nodiscard]] rpl::producer<std::optional<int>> maybeFullCount() const;
 
 	[[nodiscard]] bool unreadCountKnown() const;
 	[[nodiscard]] int unreadCountCurrent() const;
@@ -58,8 +58,6 @@ public:
 	[[nodiscard]] bool isServerSideUnread(
 		not_null<const HistoryItem*> item) const;
 
-	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
-		MsgId afterId) const;
 	void requestUnreadCount();
 
 	void readTill(not_null<HistoryItem*> item);
@@ -78,11 +76,9 @@ private:
 	[[nodiscard]] Histories &histories();
 
 	void subscribeToUpdates();
-	[[nodiscard]] rpl::producer<MessagesSlice> sourceFromServer(
-		MessagePosition aroundId,
-		int limitBefore,
-		int limitAfter);
 	void appendClientSideMessages(MessagesSlice &slice);
+	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
+		MsgId afterId) const;
 
 	[[nodiscard]] bool buildFromData(not_null<Viewer*> viewer);
 	[[nodiscard]] bool applyItemDestroyed(
@@ -122,7 +118,7 @@ private:
 	rpl::variable<std::optional<int>> _unreadCount;
 	MsgId _inboxReadTillId = 0;
 	MsgId _outboxReadTillId = 0;
-	HistoryService *_divider = nullptr;
+	HistoryItem *_divider = nullptr;
 	bool _dividerWithComments = false;
 	int _beforeId = 0;
 	int _afterId = 0;

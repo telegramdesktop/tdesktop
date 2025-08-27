@@ -3,18 +3,12 @@
     <file alias="art/background.tgv">../../art/background.tgv</file>
     <file alias="art/bg_thumbnail.png">../../art/bg_thumbnail.png</file>
     <file alias="art/bg_initial.jpg">../../art/bg_initial.jpg</file>
+    <file alias="art/business_logo.png">../../art/business_logo.png</file>
+    <file alias="art/affiliate_logo.png">../../art/affiliate_logo.png</file>
     <file alias="art/logo_256.png">../../art/logo_256.png</file>
     <file alias="art/logo_256_no_margin.png">../../art/logo_256_no_margin.png</file>
     <file alias="art/themeimage.jpg">../../art/themeimage.jpg</file>
-    <file alias="art/dice_idle.tgs">../../art/dice_idle.tgs</file>
-    <file alias="art/dart_idle.tgs">../../art/dart_idle.tgs</file>
-    <file alias="art/bball_idle.tgs">../../art/bball_idle.tgs</file>
-    <file alias="art/fball_idle.tgs">../../art/fball_idle.tgs</file>
-    <file alias="art/slot_0_idle.tgs">../../art/slot_0_idle.tgs</file>
-    <file alias="art/slot_1_idle.tgs">../../art/slot_1_idle.tgs</file>
-    <file alias="art/slot_2_idle.tgs">../../art/slot_2_idle.tgs</file>
-    <file alias="art/slot_back.tgs">../../art/slot_back.tgs</file>
-    <file alias="art/slot_pull.tgs">../../art/slot_pull.tgs</file>
+    <file alias="art/round_placeholder.jpg">../../art/round_placeholder.jpg</file>
     <file alias="day-blue.tdesktop-theme">../../day-blue.tdesktop-theme</file>
     <file alias="night.tdesktop-theme">../../night.tdesktop-theme</file>
     <file alias="night-green.tdesktop-theme">../../night-green.tdesktop-theme</file>
@@ -25,9 +19,13 @@
     <file alias="recording/info_audio.svg">../../art/recording/recording_info_audio.svg</file>
     <file alias="recording/info_video_landscape.svg">../../art/recording/recording_info_video_landscape.svg</file>
     <file alias="recording/info_video_portrait.svg">../../art/recording/recording_info_video_portrait.svg</file>
+    <file alias="ttl/video_message_icon.svg">../../art/ttl/video_message_icon.svg</file>
     <file alias="icons/settings/dino.svg">../../icons/settings/dino.svg</file>
     <file alias="icons/settings/star.svg">../../icons/settings/star.svg</file>
     <file alias="icons/settings/starmini.svg">../../icons/settings/starmini.svg</file>
+    <file alias="icons/tray/monochrome.svg">../../icons/tray_monochrome.svg</file>
+    <file alias="icons/tray/monochrome_attention.svg">../../icons/tray_monochrome_attention.svg</file>
+    <file alias="icons/tray/monochrome_mute.svg">../../icons/tray_monochrome_mute.svg</file>
     <file alias="topic_icons/blue.svg">../../art/topic_icons/blue.svg</file>
     <file alias="topic_icons/yellow.svg">../../art/topic_icons/yellow.svg</file>
     <file alias="topic_icons/violet.svg">../../art/topic_icons/violet.svg</file>
@@ -35,6 +33,9 @@
     <file alias="topic_icons/rose.svg">../../art/topic_icons/rose.svg</file>
     <file alias="topic_icons/red.svg">../../art/topic_icons/red.svg</file>
     <file alias="topic_icons/gray.svg">../../art/topic_icons/gray.svg</file>
+    <file alias="topic_icons/general.svg">../../art/topic_icons/general.svg</file>
+    <file alias="links_subscription.svg">../../icons/info/edit/links_subscription.svg</file>
+    <file alias="plane_white.svg">../../icons/plane_white.svg</file>
   </qresource>
   <qresource prefix="/icons">
     <file alias="calls/hands.lottie">../../icons/calls/hands.lottie</file>
@@ -53,6 +54,6 @@
   </qresource>
   <qresource prefix="/misc">
     <file alias="default_shortcuts-custom.json">../../default_shortcuts-custom.json</file>
-    <file alias="telegramdesktop.desktop">../../../../lib/xdg/telegramdesktop.desktop</file>
+    <file alias="org.telegram.desktop.desktop">../../../../lib/xdg/org.telegram.desktop.desktop</file>
   </qresource>
 </RCC>

@@ -7,11 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_forum.h"
 
+#include "data/components/recent_peers.h"
 #include "data/data_channel.h"
 #include "data/data_histories.h"
+#include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_forum_icons.h"
 #include "data/data_forum_topic.h"
+#include "data/data_replies_list.h"
 #include "data/notify/data_notify_settings.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -23,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "ui/layers/generic_box.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "window/window_session_controller.h"
@@ -37,13 +40,14 @@ constexpr auto kTopicsFirstLoad = 20;
 constexpr auto kLoadedTopicsMinCount = 20;
 constexpr auto kTopicsPerPage = 500;
 constexpr auto kStalePerRequest = 100;
+constexpr auto kShowTopicNamesCount = 8;
 // constexpr auto kGeneralColorId = 0xA9A9A9;
 
 } // namespace
 
 Forum::Forum(not_null<History*> history)
 : _history(history)
-, _topicsList(&session(), FilterId(0), rpl::single(1)) {
+, _topicsList(&session(), {}, owner().maxPinnedChatsLimitValue(this)) {
 	Expects(_history->peer->isChannel());
 
 	if (_history->inChatList()) {
@@ -66,12 +70,19 @@ Forum::~Forum() {
 	if (_requestId) {
 		session().api().request(_requestId).cancel();
 	}
+	auto &storage = session().storage();
+	auto &changes = session().changes();
 	const auto peerId = _history->peer->id;
 	for (const auto &[rootId, topic] : _topics) {
-		session().storage().unload(Storage::SharedMediaUnloadThread(
+		storage.unload(Storage::SharedMediaUnloadThread(
 			peerId,
-			rootId));
-		_history->setForwardDraft(rootId, {});
+			rootId,
+			PeerId()));
+		_history->setForwardDraft(rootId, PeerId(), {});
+
+		const auto raw = topic.get();
+		changes.topicRemoved(raw);
+		changes.entryRemoved(raw);
 	}
 }
 
@@ -93,13 +104,6 @@ not_null<ChannelData*> Forum::channel() const {
 
 not_null<Dialogs::MainList*> Forum::topicsList() {
 	return &_topicsList;
-}
-
-void Forum::unpinTopic() {
-	const auto list = _topicsList.pinned();
-	while (!list->order().empty()) {
-		list->setPinned(list->order().front(), false);
-	}
 }
 
 rpl::producer<> Forum::destroyed() const {
@@ -147,9 +151,12 @@ void Forum::requestTopics() {
 		MTP_int(_offset.topicId),
 		MTP_int(loadCount)
 	)).done([=](const MTPmessages_ForumTopics &result) {
+		const auto previousOffset = _offset;
 		applyReceivedTopics(result, _offset);
 		const auto &list = result.data().vtopics().v;
-		if (list.isEmpty() || list.size() == result.data().vcount().v) {
+		if (list.isEmpty()
+			|| list.size() == result.data().vcount().v
+			|| (_offset == previousOffset)) {
 			_topicsList.setLoaded();
 		}
 		_requestId = 0;
@@ -157,6 +164,7 @@ void Forum::requestTopics() {
 		if (_topicsList.loaded()) {
 			_chatsListLoadedEvents.fire({});
 		}
+		reorderLastTopics();
 		requestSomeStale();
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
@@ -172,18 +180,135 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 	_topicsDeleted.emplace(rootId);
 
 	const auto i = _topics.find(rootId);
-	if (i != end(_topics)) {
-		const auto raw = i->second.get();
-		Core::App().notifications().clearFromTopic(raw);
-		owner().removeChatListEntry(raw);
-		_topicDestroyed.fire(raw);
-		_topics.erase(i);
+	if (i == end(_topics)) {
+		return;
+	}
+	const auto raw = i->second.get();
+	Core::App().notifications().clearFromTopic(raw);
+	owner().removeChatListEntry(raw);
 
-		_history->destroyMessagesByTopic(rootId);
-		session().storage().unload(Storage::SharedMediaUnloadThread(
-			_history->peer->id,
-			rootId));
-		_history->setForwardDraft(rootId, {});
+	if (ranges::contains(_lastTopics, not_null(raw))) {
+		reorderLastTopics();
+	}
+
+	if (_activeSubsectionTopic == raw) {
+		_activeSubsectionTopic = nullptr;
+	}
+	_topicDestroyed.fire(raw);
+	_history->session().recentPeers().chatOpenDestroyed(raw);
+	session().changes().topicUpdated(
+		raw,
+		Data::TopicUpdate::Flag::Destroyed);
+	session().changes().entryUpdated(
+		raw,
+		Data::EntryUpdate::Flag::Destroyed);
+	_topics.erase(i);
+
+	_history->destroyMessagesByTopic(rootId);
+	session().storage().unload(Storage::SharedMediaUnloadThread(
+		_history->peer->id,
+		rootId,
+		PeerId()));
+	_history->setForwardDraft(rootId, PeerId(), {});
+}
+
+void Forum::reorderLastTopics() {
+	// We want first kShowTopicNamesCount histories, by last message date.
+	const auto pred = [](not_null<ForumTopic*> a, not_null<ForumTopic*> b) {
+		const auto aItem = a->chatListMessage();
+		const auto bItem = b->chatListMessage();
+		const auto aDate = aItem ? aItem->date() : TimeId(0);
+		const auto bDate = bItem ? bItem->date() : TimeId(0);
+		return aDate > bDate;
+	};
+	_lastTopics.clear();
+	_lastTopics.reserve(kShowTopicNamesCount + 1);
+	auto &&topics = ranges::views::all(
+		*_topicsList.indexed()
+	) | ranges::views::transform([](not_null<Dialogs::Row*> row) {
+		return row->topic();
+	});
+	auto nonPinnedChecked = 0;
+	for (const auto topic : topics) {
+		const auto i = ranges::upper_bound(
+			_lastTopics,
+			not_null(topic),
+			pred);
+		if (size(_lastTopics) < kShowTopicNamesCount
+			|| i != end(_lastTopics)) {
+			_lastTopics.insert(i, topic);
+		}
+		if (size(_lastTopics) > kShowTopicNamesCount) {
+			_lastTopics.pop_back();
+		}
+		if (!topic->isPinnedDialog(FilterId())
+			&& ++nonPinnedChecked >= kShowTopicNamesCount) {
+			break;
+		}
+	}
+	++_lastTopicsVersion;
+	_history->updateChatListEntry();
+}
+
+int Forum::recentTopicsListVersion() const {
+	return _lastTopicsVersion;
+}
+
+void Forum::recentTopicsInvalidate(not_null<ForumTopic*> topic) {
+	if (ranges::contains(_lastTopics, topic)) {
+		++_lastTopicsVersion;
+		_history->updateChatListEntry();
+	}
+}
+
+const std::vector<not_null<ForumTopic*>> &Forum::recentTopics() const {
+	return _lastTopics;
+}
+
+void Forum::saveActiveSubsectionThread(not_null<Thread*> thread) {
+	if (const auto topic = thread->asTopic()) {
+		Assert(topic->forum() == this);
+		_activeSubsectionTopic = topic->creating() ? nullptr : topic;
+	} else {
+		Assert(thread == history());
+		_activeSubsectionTopic = nullptr;
+	}
+}
+
+Thread *Forum::activeSubsectionThread() const {
+	return _activeSubsectionTopic;
+}
+
+void Forum::markUnreadCountsUnknown(MsgId readTillId) {
+	if (!channel()->useSubsectionTabs()) {
+		return;
+	}
+	for (const auto &[rootId, topic] : _topics) {
+		const auto replies = topic->replies();
+		if (replies->unreadCountCurrent() > 0) {
+			replies->setInboxReadTill(readTillId, std::nullopt);
+		}
+	}
+}
+
+void Forum::updateUnreadCounts(
+		MsgId readTillId,
+		const base::flat_map<not_null<ForumTopic*>, int> &counts) {
+	if (!channel()->useSubsectionTabs()) {
+		return;
+	}
+	for (const auto &[rootId, topic] : _topics) {
+		const auto raw = topic.get();
+		const auto replies = raw->replies();
+		const auto i = counts.find(raw);
+		const auto count = (i != end(counts)) ? i->second : 0;
+		replies->setInboxReadTill(readTillId, count);
+	}
+}
+
+void Forum::listMessageChanged(HistoryItem *from, HistoryItem *to) {
+	if (from || to) {
+		reorderLastTopics();
 	}
 }
 
@@ -207,7 +332,16 @@ void Forum::applyReceivedTopics(
 	owner().processChats(data.vchats());
 	owner().processMessages(data.vmessages(), NewMessageType::Existing);
 	channel()->ptsReceived(data.vpts().v);
-	const auto &list = data.vtopics().v;
+	applyReceivedTopics(data.vtopics(), std::move(callback));
+	if (!_staleRootIds.empty()) {
+		requestSomeStale();
+	}
+}
+
+void Forum::applyReceivedTopics(
+		const MTPVector<MTPForumTopic> &topics,
+		Fn<void(not_null<ForumTopic*>)> callback) {
+	const auto &list = topics.v;
 	for (const auto &topic : list) {
 		const auto rootId = topic.match([&](const auto &data) {
 			return data.vid().v;
@@ -237,9 +371,6 @@ void Forum::applyReceivedTopics(
 				callback(raw);
 			}
 		});
-	}
-	if (!_staleRootIds.empty()) {
-		requestSomeStale();
 	}
 }
 
@@ -342,6 +473,7 @@ ForumTopic *Forum::applyTopicAdded(
 	if (!creating(rootId)) {
 		raw->addToChatList(FilterId(), topicsList());
 		_chatsListChanges.fire({});
+		reorderLastTopics();
 	}
 	return raw;
 }
@@ -393,6 +525,8 @@ void Forum::created(MsgId rootId, MsgId realId) {
 			realId,
 			std::move(topic)
 		).first->second->setRealRootId(realId);
+
+		reorderLastTopics();
 	}
 	owner().notifyItemIdChange({ id, rootId });
 }

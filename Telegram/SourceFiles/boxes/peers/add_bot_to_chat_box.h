@@ -65,6 +65,8 @@ private:
 	mtpRequestId _existingRightsRequestId = 0;
 	std::optional<ChatAdminRights> _existingRights;
 	QString _existingRank;
+	TimeId _promotedSince = 0;
+	UserId _promotedBy = 0;
 
 	rpl::event_stream<not_null<PeerData*>> _groups;
 	rpl::event_stream<not_null<PeerData*>> _channels;
@@ -76,6 +78,7 @@ private:
 };
 
 void AddBotToGroup(
+	std::shared_ptr<Ui::Show> show,
 	not_null<UserData*> bot,
 	not_null<PeerData*> chat,
 	const QString &startToken);

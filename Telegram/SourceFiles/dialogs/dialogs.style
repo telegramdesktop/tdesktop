@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 
+using "ui/layers/layers.style"; // boxRoundShadow
 using "ui/widgets/widgets.style";
 
 DialogRow {
@@ -17,6 +18,26 @@ DialogRow {
 	nameTop: pixels;
 	textLeft: pixels;
 	textTop: pixels;
+	topicsSkip: pixels;
+	topicsSkipBig: pixels;
+	topicsHeight: pixels;
+	unreadMarkDiameter: pixels;
+	tagTop: pixels;
+}
+DialogRightButton {
+	button: RoundButton;
+	margin: margins;
+}
+
+ThreeStateIcon {
+	icon: icon;
+	over: icon;
+	active: icon;
+}
+
+VerifiedBadge {
+	color: color;
+	height: pixels;
 }
 
 ForumTopicIcon {
@@ -25,9 +46,20 @@ ForumTopicIcon {
 	textTop: pixels;
 }
 
+DialogsMiniIcon {
+	icon: ThreeStateIcon;
+	skipText: pixels;
+	skipMedia: pixels;
+}
+
 defaultForumTopicIcon: ForumTopicIcon {
 	size: 21px;
 	font: font(bold 11px);
+	textTop: 2px;
+}
+normalForumTopicIcon: ForumTopicIcon {
+	size: 19px;
+	font: font(bold 10px);
 	textTop: 2px;
 }
 largeForumTopicIcon: ForumTopicIcon {
@@ -49,12 +81,8 @@ dialogsRipple: RippleAnimation(defaultRippleAnimation) {
 	color: dialogsRippleBg;
 }
 
-dialogsTextFont: font(fsize);
-dialogsTextStyle: TextStyle(defaultTextStyle) {
-	font: dialogsTextFont;
-	linkFont: dialogsTextFont;
-	linkFontOver: dialogsTextFont;
-}
+dialogsTextFont: normalFont;
+dialogsTextStyle: defaultTextStyle;
 dialogsDateFont: font(13px);
 dialogsDateSkip: 5px;
 
@@ -71,6 +99,43 @@ defaultDialogRow: DialogRow {
 	textLeft: 68px;
 	textTop: 34px;
 }
+taggedDialogRow: DialogRow(defaultDialogRow) {
+	height: 72px;
+	textTop: 30px;
+	tagTop: 52px;
+}
+forumDialogRow: DialogRow(defaultDialogRow) {
+	height: 80px;
+	textTop: 32px;
+	topicsSkip: 8px;
+	topicsSkipBig: 14px;
+	topicsHeight: 21px;
+}
+taggedForumDialogRow: DialogRow(forumDialogRow) {
+	height: 96px;
+	tagTop: 77px;
+}
+dialogRowFilterTagSkip: 4px;
+dialogRowFilterTagStyle: TextStyle(defaultTextStyle) {
+	font: font(10px);
+}
+dialogRowOpenBot: DialogRightButton {
+	button: RoundButton(defaultActiveButton) {
+		height: 20px;
+		textTop: 1px;
+	}
+	margin: margins(0px, 32px, 10px, 0px);
+}
+dialogRowOpenBotRecent: DialogRightButton(dialogRowOpenBot) {
+	margin: margins(0px, 32px, 16px, 0px);
+}
+
+forumDialogJumpArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFg }};
+forumDialogJumpArrowOver: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgOver }};
+forumDialogJumpArrowSkip: 8px;
+forumDialogJumpArrowPosition: point(3px, 3px);
+forumDialogJumpPadding: margins(8px, 3px, 8px, 3px);
+forumDialogJumpRadius: 11px;
 
 dialogsOnlineBadgeStroke: 2px;
 dialogsOnlineBadgeSize: 10px;
@@ -80,12 +145,20 @@ dialogsOnlineBadgeDuration: 150;
 dialogsCallBadgeSize: 16px;
 dialogsCallBadgeSkip: point(-3px, -3px);
 
+dialogsSubscriptionBadgeSize: 16px;
+dialogsSubscriptionBadgeSkip: point(-4px, -4px);
+
+dialogsTTLBadgeSize: 20px;
+dialogsTTLBadgeInnerMargins: margins(2px, 2px, 2px, 2px);
+// Relative to a photo place, not a whole userpic place.
+dialogsTTLBadgeSkip: point(1px, 1px);
+
 dialogsSpeakingStrokeNumerator: 16px;
 dialogsSpeakingDenominator: 8.;
 
 dialogsImportantBarHeight: 37px;
 
-dialogsWidthDuration: 120;
+dialogsWidthDuration: universalDuration;
 dialogsTextWidthMin: 150px;
 
 dialogsTextPalette: TextPalette(defaultTextPalette) {
@@ -148,6 +221,21 @@ dialogsTextPaletteArchiveActive: TextPalette(defaultTextPalette) {
 	monoFg: dialogsTextFgActive;
 	spoilerFg: dialogsTextFgActive;
 }
+dialogsTextPaletteInTopic: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFg;
+	monoFg: dialogsTextFg;
+	spoilerFg: dialogsTextFg;
+}
+dialogsTextPaletteInTopicOver: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFgOver;
+	monoFg: dialogsTextFgOver;
+	spoilerFg: dialogsTextFgOver;
+}
+dialogsTextPaletteInTopicActive: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFgActive;
+	monoFg: dialogsTextFgActive;
+	spoilerFg: dialogsTextFgActive;
+}
 
 dialogsEmptyHeight: 160px;
 dialogsEmptySkip: 2px;
@@ -155,6 +243,17 @@ dialogsEmptyLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 32px;
 	align: align(top);
 	textFg: windowSubTextFg;
+}
+dialogEmptyButton: RoundButton(defaultActiveButton) {
+}
+dialogEmptyButtonSkip: 12px;
+dialogEmptyButtonLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(boxFontSize semibold);
+	}
+	minWidth: 32px;
+	align: align(top);
+	textFg: windowFg;
 }
 
 dialogsMenuToggle: IconButton {
@@ -167,9 +266,7 @@ dialogsMenuToggle: IconButton {
 
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 dialogsMenuToggleUnread: icon {
 	{ "dialogs/dialogs_menu_unread", dialogsMenuIconFg },
@@ -180,22 +277,28 @@ dialogsMenuToggleUnreadMuted: icon {
 	{ "dialogs/dialogs_menu_unread_dot", dialogsMenuIconFg },
 };
 
-dialogsLock: IconButton(dialogsMenuToggle) {
-	icon: icon {{ "dialogs/dialogs_lock", dialogsMenuIconFg }};
-	iconOver: icon {{ "dialogs/dialogs_lock", dialogsMenuIconFgOver }};
+dialogsLock: IconButton {
+	width: 36px;
+	height: 38px;
+
+	icon: icon {{ "dialogs/dialogs_lock_off", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs/dialogs_lock_off", dialogsMenuIconFgOver }};
+	iconPosition: point(-1px, -1px);
+
+	ripple: emptyRippleAnimation;
 }
-dialogsUnlockIcon: icon {{ "dialogs/dialogs_unlock", dialogsMenuIconFg }};
-dialogsUnlockIconOver: icon {{ "dialogs/dialogs_unlock", dialogsMenuIconFgOver }};
+dialogsUnlockIcon: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFg }};
+dialogsUnlockIconOver: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFgOver }};
 dialogsCalendar: IconButton {
-	width: 29px;
-	height: 32px;
+	width: 32px;
+	height: 35px;
 
 	icon: icon {{ "dialogs/dialogs_calendar", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs/dialogs_calendar", dialogsMenuIconFgOver }};
-	iconPosition: point(0px, 5px);
+	iconPosition: point(1px, 6px);
 }
 dialogsSearchFrom: IconButton(dialogsCalendar) {
-	width: 26px;
+	width: 29px;
 	icon: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFgOver }};
 }
@@ -204,32 +307,32 @@ dialogsSearchForNarrowFilters: IconButton(dialogsMenuToggle) {
 	iconOver: icon {{ "top_bar_search", menuIconFgOver }};
 	iconPosition: point(4px, 4px);
 }
-dialogsSearchFromPadding: margins(10px, 10px, 10px, 10px);
 
 dialogsFilter: InputField(defaultInputField) {
 	textBg: filterInputInactiveBg;
 	textBgActive: filterInputActiveBg;
-	textMargins: margins(12px, 7px, 30px, 3px);
+	textMargins: margins(12px, 8px, 30px, 5px);
 
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;
 	placeholderFgError: placeholderFgActive;
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderMargins: margins(5px, 0px, 2px, 0px);
 	placeholderScale: 0.;
 	placeholderShift: -50px;
 	placeholderFont: normalFont;
 
 	borderFg: filterInputInactiveBg;
-	borderFgActive: filterInputBorderFg;
+	borderFgActive: windowBgRipple;
 	borderFgError: activeLineFgError;
 
-	border: 2px;
+	border: 3px;
 	borderActive: 2px;
-	borderRadius: roundRadiusSmall;
+	borderRadius: 18px;
+	borderDenominator: 2;
 
-	font: normalFont;
+	style: defaultTextStyle;
 
-	heightMin: 32px;
+	heightMin: 35px;
 }
 dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
@@ -239,12 +342,12 @@ dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	rippleAreaSize: 34px;
 }
 dialogsCancelSearch: CrossButton {
-	width: 32px;
-	height: 32px;
+	width: 35px;
+	height: 35px;
 
 	cross: CrossAnimation {
-		size: 32px;
-		skip: 10px;
+		size: 35px;
+		skip: 12px;
 		stroke: 1.5;
 		minScale: 0.3;
 	}
@@ -272,37 +375,69 @@ dialogSearchFrom: IconButton(dialogCalendar) {
 }
 
 dialogsChatTypeSkip: 3px;
-dialogsChatIcon: icon {{ "dialogs/dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
-dialogsChatIconOver: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
-dialogsChatIconActive: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
-dialogsChannelIcon: icon {{ "dialogs/dialogs_channel", dialogsChatIconFg, point(3px, 4px) }};
-dialogsChannelIconOver: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgOver, point(3px, 4px) }};
-dialogsChannelIconActive: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgActive, point(3px, 4px) }};
-dialogsBotIcon: icon {{ "dialogs/dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
-dialogsBotIconOver: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
-dialogsBotIconActive: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
-dialogsForumIcon: icon {{ "dialogs/dialogs_forum", dialogsChatIconFg, point(1px, 4px) }};
-dialogsForumIconOver: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgOver, point(1px, 4px) }};
-dialogsForumIconActive: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgActive, point(1px, 4px) }};
+dialogsChatIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
+	over: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
+	active: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
+}
+dialogsChannelIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_channel", dialogsChatIconFg, point(3px, 4px) }};
+	over: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgOver, point(3px, 4px) }};
+	active: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgActive, point(3px, 4px) }};
+}
+dialogsBotIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
+	over: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
+	active: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
+}
+dialogsForumIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_forum", dialogsChatIconFg, point(1px, 4px) }};
+	over: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgOver, point(1px, 4px) }};
+	active: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgActive, point(1px, 4px) }};
+}
 dialogsArchiveUserpic: icon {{ "archive_userpic", historyPeerUserpicFg }};
 dialogsRepliesUserpic: icon {{ "replies_userpic", historyPeerUserpicFg }};
+dialogsInaccessibleUserpic: icon {{ "dialogs/inaccessible_userpic", historyPeerUserpicFg }};
+dialogsHiddenAuthorUserpic: icon {{ "dialogs/avatar_hidden", premiumButtonFg }};
+dialogsMyNotesUserpic: icon {{ "dialogs/avatar_notes", historyPeerUserpicFg }};
 
 dialogsSendStateSkip: 20px;
-dialogsSendingIcon: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};
-dialogsSendingIconOver: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgOver, point(8px, 4px) }};
-dialogsSendingIconActive: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgActive, point(8px, 4px) }};
-dialogsSentIcon: icon {{ "dialogs/dialogs_sent", dialogsSentIconFg, point(10px, 4px) }};
-dialogsSentIconOver: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgOver, point(10px, 4px) }};
-dialogsSentIconActive: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgActive, point(10px, 4px) }};
-dialogsReceivedIcon: icon {{ "dialogs/dialogs_received", dialogsSentIconFg, point(5px, 4px) }};
-dialogsReceivedIconOver: icon {{ "dialogs/dialogs_received", dialogsSentIconFgOver, point(5px, 4px) }};
-dialogsReceivedIconActive: icon {{ "dialogs/dialogs_received", dialogsSentIconFgActive, point(5px, 4px) }};
-dialogsPinnedIcon: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMuted }};
-dialogsPinnedIconOver: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedOver }};
-dialogsPinnedIconActive: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedActive }};
-dialogsLockIcon: icon {{ "emoji/premium_lock", dialogsUnreadBgMuted, point(4px, 0px) }};
-dialogsLockIconOver: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedOver, point(4px, 0px) }};
-dialogsLockIconActive: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedActive, point(4px, 0px) }};
+dialogsSendingIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};
+	over: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgOver, point(8px, 4px) }};
+	active: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgActive, point(8px, 4px) }};
+}
+dialogsSentIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_sent", dialogsSentIconFg, point(10px, 4px) }};
+	over: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgOver, point(10px, 4px) }};
+	active: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgActive, point(10px, 4px) }};
+}
+dialogsReceivedIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_received", dialogsSentIconFg, point(5px, 4px) }};
+	over: icon {{ "dialogs/dialogs_received", dialogsSentIconFgOver, point(5px, 4px) }};
+	active: icon {{ "dialogs/dialogs_received", dialogsSentIconFgActive, point(5px, 4px) }};
+}
+dialogsPinnedIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMuted }};
+	over: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedOver }};
+	active: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedActive }};
+}
+dialogsLockIcon: ThreeStateIcon {
+	icon: icon {{ "emoji/premium_lock", dialogsUnreadBgMuted, point(4px, 0px) }};
+	over: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedOver, point(4px, 0px) }};
+	active: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedActive, point(4px, 0px) }};
+}
+
+dialogsVerifiedColors: VerifiedBadge {
+	height: 20px;
+	color: dialogsVerifiedIconBg;
+}
+dialogsVerifiedColorsOver: VerifiedBadge(dialogsVerifiedColors) {
+	color: dialogsVerifiedIconBgOver;
+}
+dialogsVerifiedColorsActive: VerifiedBadge(dialogsVerifiedColors) {
+	color: dialogsVerifiedIconBgActive;
+}
 
 dialogsVerifiedIcon: icon {
 	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg },
@@ -316,14 +451,16 @@ dialogsVerifiedIconActive: icon {
 	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBgActive },
 	{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFgActive },
 };
-dialogsPremiumIcon: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
-dialogsPremiumIconOver: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgOver }};
-dialogsPremiumIconActive: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgActive }};
+dialogsPremiumIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
+	over: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgOver }};
+	active: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgActive }};
+}
 
 historySendingIcon: icon {{ "dialogs/dialogs_sending", historySendingOutIconFg, point(5px, 5px) }};
 historySendingInvertedIcon: icon {{ "dialogs/dialogs_sending", historySendingInvertedIconFg, point(5px, 5px) }};
 historyViewsSendingIcon: icon {{ "dialogs/dialogs_sending", historySendingInIconFg, point(3px, 0px) }};
-historyViewsSendingInvertedIcon: icon  {{ "dialogs/dialogs_sending", historySendingInvertedIconFg, point(3px, 0px) }};
+historyViewsSendingInvertedIcon: icon {{ "dialogs/dialogs_sending", historySendingInvertedIconFg, point(3px, 0px) }};
 
 dialogsUpdateButton: FlatButton {
 	color: activeButtonFg;
@@ -346,6 +483,11 @@ dialogsUpdateButton: FlatButton {
 }
 dialogsInstallUpdate: icon {{ "install_update", activeButtonFg }};
 dialogsInstallUpdateOver: icon {{ "install_update", activeButtonFgOver }};
+dialogsInstallUpdateIconSkip: 7px;
+dialogsInstallUpdateIconSize: 20px;
+dialogsInstallUpdateIconInnerMargin: 5px;
+dialogsInstallUpdateIconSide1: 5px;
+dialogsInstallUpdateIconSide2: 3px;
 
 dialogsLoadMoreButton: FlatButton(dialogsUpdateButton) {
 	color: lightButtonFg;
@@ -358,6 +500,8 @@ dialogsLoadMoreButton: FlatButton(dialogsUpdateButton) {
 
 	height: 36px;
 	textTop: 9px;
+	font: semiboldFont;
+	overFont: semiboldFont;
 }
 dialogsLoadMore: icon {{ "install_update-flip_vertical", lightButtonFg }};
 dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
@@ -366,28 +510,26 @@ dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) 
 	size: size(12px, 12px);
 }
 
-dialogsForwardHeight: 32px;
-dialogsForwardTextLeft: 35px;
-dialogsForwardTextTop: 6px;
-dialogsForwardCancel: IconButton {
-	width: 34px;
-	height: dialogsForwardHeight;
-
-	icon: dialogsForwardCancelIcon;
-	iconOver: dialogsForwardCancelIcon;
-	iconPosition: point(12px, 11px);
-}
-dialogsForwardFont: semiboldFont;
-
-dialogsSearchInHeight: 52px;
-dialogsSearchInPhotoSize: 36px;
+dialogsSearchInHeight: 38px;
+dialogsSearchInPhotoSize: 28px;
 dialogsSearchInPhotoPadding: 10px;
-dialogsSearchInSkip: 7px;
-dialogsSearchFromStyle: TextStyle(defaultTextStyle) {
-	font: normalFont;
-	linkFont: semiboldFont;
-	linkFontOver: semiboldFont;
+dialogsSearchInSkip: 10px;
+dialogsSearchInNameTop: 9px;
+dialogsSearchInDownTop: 15px;
+dialogsSearchInDown: icon {{ "intro_country_dropdown", windowBoldFg }};
+dialogsSearchInDownSkip: 4px;
+dialogsSearchInMenu: PopupMenu(defaultPopupMenu) {
+	shadow: boxRoundShadow;
+	animation: PanelAnimation(defaultPanelAnimation) {
+		shadow: boxRoundShadow;
+	}
+	scrollPadding: margins(0px, 0px, 0px, 0px);
+	radius: 8px;
+	menu: menuWithIcons;
 }
+dialogsSearchInCheck: icon {{ "player/player_check", mediaPlayerActiveFg }};
+dialogsSearchInCheckSkip: 8px;
+dialogsSearchFromStyle: defaultTextStyle;
 dialogsSearchFromPalette: TextPalette(defaultTextPalette) {
 	linkFg: dialogsNameFg;
 }
@@ -404,12 +546,41 @@ dialogsMiniPreviewSkip: 2px;
 dialogsMiniPreviewRight: 3px;
 dialogsMiniPlay: icon{{ "dialogs/dialogs_mini_play", videoPlayIconFg }};
 
-dialogsUnreadMention: icon{{ "dialogs/dialogs_mention", dialogsUnreadFg }};
-dialogsUnreadMentionOver: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgOver }};
-dialogsUnreadMentionActive: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgActive }};
-dialogsUnreadReaction: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFg }};
-dialogsUnreadReactionOver: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgOver }};
-dialogsUnreadReactionActive: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgActive }};
+dialogsMiniForward: DialogsMiniIcon {
+	icon: ThreeStateIcon {
+		icon: icon {{ "mini_forward", dialogsTextFg, point(0px, 1px) }};
+		over: icon {{ "mini_forward", dialogsTextFgOver, point(0px, 1px) }};
+		active: icon {{ "mini_forward", dialogsTextFgActive, point(0px, 1px) }};
+	}
+	skipText: 1px;
+	skipMedia: 2px;
+}
+
+dialogsMiniReplyIcon: IconEmoji {
+	icon: icon {{ "mini_forward-flip_horizontal", attentionButtonFg }};
+	padding: margins(0px, 2px, 0px, 0px);
+}
+
+dialogsMiniReplyStory: DialogsMiniIcon {
+	icon: ThreeStateIcon {
+		icon: icon {{ "mini_reply_story", dialogsTextFg, point(0px, 1px) }};
+		over: icon {{ "mini_reply_story", dialogsTextFgOver, point(0px, 1px) }};
+		active: icon {{ "mini_reply_story", dialogsTextFgActive, point(0px, 1px) }};
+	}
+	skipText: 4px;
+	skipMedia: 5px;
+}
+
+dialogsUnreadMention: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_mention", dialogsUnreadFg }};
+	over: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgOver }};
+	active: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgActive }};
+}
+dialogsUnreadReaction: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFg }};
+	over: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgOver }};
+	active: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgActive }};
+}
 
 downloadBarHeight: 46px;
 downloadArrow: icon{{ "fast_to_original", menuIconFg }};
@@ -419,15 +590,12 @@ downloadTitleLeft: 57px;
 downloadTitleTop: 4px;
 downloadInfoStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
-	linkFont: font(12px);
-	linkFontOver: font(12px underline);
 }
 downloadInfoLeft: 57px;
 downloadInfoTop: 23px;
 downloadLoadingLeft: 15px;
 downloadLoadingSize: 24px;
 downloadLoadingLine: 2px;
-downloadLoadedSize: 30px;
 downloadIconDocument: icon {{ "dialogs/dialogs_downloads", windowFgActive }};
 downloadIconSize: 16px;
 downloadIconSizeDone: 20px;
@@ -438,8 +606,9 @@ forumTopicRow: DialogRow(defaultDialogRow) {
 	photoSize: 20px;
 	nameLeft: 39px;
 	nameTop: 7px;
-	textLeft: 68px;
+	textLeft: 39px;
 	textTop: 29px;
+	unreadMarkDiameter: 8px;
 }
 forumTopicIconPosition: point(2px, 0px);
 editTopicTitleMargin: margins(70px, 2px, 22px, 18px);
@@ -448,19 +617,260 @@ editTopicMaxHeight: 408px;
 
 chooseTopicListItem: PeerListItem(defaultPeerListItem) {
 	height: 44px;
-	photoSize: 28px;
-	photoPosition: point(8px, 5px);
+	photoSize: 20px;
+	photoPosition: point(16px, 12px);
 	namePosition: point(55px, 11px);
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold);
 	}
 }
 chooseTopicList: PeerList(defaultPeerList) {
 	item: chooseTopicListItem;
 }
 
-dialogsTopicArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgService }};
-dialogsTopicArrowSkip: 13px;
-dialogsTopicArrowTop: 4px;
+DialogsStories {
+	left: pixels;
+	height: pixels;
+	photo: pixels;
+	photoLeft: pixels;
+	photoTop: pixels;
+	shift: pixels;
+	lineTwice: pixels;
+	lineReadTwice: pixels;
+	nameLeft: pixels;
+	nameRight: pixels;
+	nameTop: pixels;
+	nameStyle: TextStyle;
+}
+DialogsStoriesList {
+	small: DialogsStories;
+	full: DialogsStories;
+	bg: color;
+	readOpacity: double;
+	fullClickable: int;
+}
+
+dialogsStories: DialogsStories {
+	left: 4px;
+	height: 35px;
+	photo: 21px;
+	photoTop: 4px;
+	photoLeft: 4px;
+	shift: 16px;
+	lineTwice: 3px;
+	lineReadTwice: 0px;
+	nameLeft: 11px;
+	nameRight: 10px;
+	nameTop: 3px;
+	nameStyle: semiboldTextStyle;
+}
+
+dialogsStoriesFull: DialogsStories {
+	left: 4px;
+	height: 77px;
+	photo: 42px;
+	photoLeft: 10px;
+	photoTop: 9px;
+	lineTwice: 4px;
+	lineReadTwice: 2px;
+	nameLeft: 0px;
+	nameRight: 0px;
+	nameTop: 56px;
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+topPeers: DialogsStories(dialogsStoriesFull) {
+	photo: 46px;
+	photoLeft: 10px;
+	photoTop: 8px;
+	nameLeft: 6px;
+}
+topPeersRadius: 4px;
+topPeersMargin: margins(3px, 3px, 3px, 4px);
+
+recentPeersEmptySize: 100px;
+recentPeersEmptyMargin: margins(10px, 10px, 10px, 10px);
+recentPeersEmptySkip: 10px;
+recentPeersEmptyHeightMin: 220px;
+recentPeersItem: PeerListItem(defaultPeerListItem) {
+	height: 56px;
+	photoSize: 42px;
+	photoPosition: point(10px, 7px);
+	namePosition: point(64px, 9px);
+	statusPosition: point(64px, 30px);
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBgOver;
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: contactsStatusFg;
+	statusFgOver: contactsStatusFgOver;
+	statusFgActive: contactsStatusFgOnline;
+}
+recentPeersList: PeerList(defaultPeerList) {
+	padding: margins(0px, 4px, 0px, 4px);
+	item: recentPeersItem;
+}
+recentPeersItemActive: PeerListItem(recentPeersItem) {
+	nameFg: dialogsNameFgActive;
+	nameFgChecked: dialogsNameFgActive;
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: dialogsBgActive;
+		textBgOver: dialogsBgActive;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: dialogsRippleBgActive;
+		}
+	}
+	statusFg: dialogsTextFgActive;
+	statusFgOver: dialogsTextFgActive;
+	statusFgActive: dialogsTextFgActive;
+}
+recentPeersSpecialName: PeerListItem(recentPeersItem) {
+	namePosition: point(64px, 19px);
+}
+
+dialogsTabsScroll: ScrollArea(defaultScrollArea) {
+	barHidden: true;
+}
+dialogsSearchTabs: SettingsSlider(defaultSettingsSlider) {
+	padding: 9px;
+	height: 33px;
+	barTop: 30px;
+	barSkip: 0px;
+	barStroke: 6px;
+	barRadius: 2px;
+	barFg: transparent;
+	barSnapToLabel: true;
+	strictSkip: 18px;
+	labelTop: 7px;
+	labelStyle: semiboldTextStyle;
+	labelFg: windowSubTextFg;
+	labelFgActive: lightButtonFg;
+	rippleBottomSkip: 1px;
+	rippleBg: windowBgOver;
+	rippleBgActive: lightButtonBgOver;
+	ripple: defaultRippleAnimation;
+}
+
+chatsFiltersTabs: SettingsSlider(dialogsSearchTabs) {
+	rippleBottomSkip: 0px;
+}
+
+dialogsStoriesList: DialogsStoriesList {
+	small: dialogsStories;
+	full: dialogsStoriesFull;
+	bg: dialogsBg;
+	readOpacity: 0.6;
+	fullClickable: 0;
+}
+dialogsStoriesListInfo: DialogsStoriesList(dialogsStoriesList) {
+	bg: transparent;
+	fullClickable: 1;
+}
+dialogsStoriesListMine: DialogsStoriesList(dialogsStoriesListInfo) {
+	readOpacity: 1.;
+}
+dialogsStoriesTooltip: ImportantTooltip(defaultImportantTooltip) {
+	padding: margins(0px, 0px, 0px, 0px);
+}
+dialogsStoriesTooltipLabel: defaultImportantTooltipLabel;
+dialogsStoriesTooltipMaxWidth: 200px;
+dialogsStoriesTooltipHide: IconButton(defaultIconButton) {
+	width: 34px;
+	height: 20px;
+	iconPosition: point(-1px, -1px);
+	icon: icon {{ "calls/video_tooltip", importantTooltipFg }};
+	iconOver: icon {{ "calls/video_tooltip", importantTooltipFg }};
+	ripple: emptyRippleAnimation;
+}
+
+searchedBarHeight: 28px;
+searchedBarFont: normalFont;
+searchedBarPosition: point(14px, 5px);
+searchedBarLabel: FlatLabel(defaultFlatLabel) {
+	textFg: searchedBarFg;
+	margin: margins(14px, 5px, 14px, 5px);
+}
+searchedBarLink: LinkButton(defaultLinkButton) {
+	color: searchedBarFg;
+	overColor: searchedBarFg;
+	padding: margins(14px, 5px, 14px, 5px);
+}
+
+dialogsSearchTagSkip: point(8px, 4px);
+dialogsSearchTagBottom: 10px;
+dialogsSearchTagLocked: icon{{ "dialogs/mini_tag_lock", lightButtonFgOver }};
+dialogsSearchTagPromo: defaultTextStyle;
+dialogsSearchTagArrow: IconEmoji {
+	icon: icon{{ "dialogs/mini_arrow", windowSubTextFg }};
+	padding: margins(-6px, 3px, 0px, 0px);
+}
+dialogsSearchTagPromoLeft: 6px;
+dialogsSearchTagPromoRight: 1px;
+dialogsSearchTagPromoSkip: 6px;
+
+dialogsPopularAppsPadding: margins(10px, 8px, 10px, 12px);
+dialogsPopularAppsAbout: FlatLabel(boxDividerLabel) {
+	minWidth: 128px;
+}
+
+dialogsQuickActionSize: 20px;
+dialogsQuickActionRippleSize: 80px;
+
+dialogsSponsoredButton: DialogRightButton(dialogRowOpenBot) {
+	button: RoundButton(defaultLightButton) {
+		textFg: windowActiveTextFg;
+		textFgOver: windowActiveTextFg;
+		textBg: lightButtonBgOver;
+		textBgOver: lightButtonBgOver;
+		height: 20px;
+		textTop: 1px;
+	}
+	margin: margins(0px, 9px, 10px, 0px);
+}
+
+dialogsTopBarLeftPadding: 18px;
+dialogsTopBarSuggestionTitleStyle: TextStyle(defaultTextStyle) {
+	font: font(semibold 12px);
+}
+dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+}
+
+dialogsMiniQuoteIcon: icon{{ "chat/mini_quote", dialogsTextFg }};
+
+postsSearchIntroTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	minWidth: 64px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(semibold 16px);
+	}
+	align: align(top);
+}
+postsSearchIntroTitleMargin: margins(20px, 0px, 20px, 4px);
+postsSearchIntroSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 64px;
+	align: align(top);
+}
+postsSearchIntroSubtitleMargin: margins(20px, 4px, 20px, 16px);
+postsSearchIntroButton: RoundButton(defaultActiveButton) {
+	width: 200px;
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+postsSearchIntroFooter: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 64px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+postsSearchIntroFooterMargin: margins(20px, 12px, 20px, 0px);
+postsSearchIcon: icon {{ "box_search", windowFgActive }};
+postsSearchIconPadding: margins(12px, 1px, 6px, 0px);
+postsSearchArrow: icon {{ "dialogs/mini_arrow", windowFgActive }};
+postsSearchArrowPadding: margins(2px, 1px, 8px, 0px);

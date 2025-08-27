@@ -13,6 +13,9 @@ void SendFilesWay::setSendImagesAsPhotos(bool value) {
 	if (value) {
 		_flags |= Flag::SendImagesAsPhotos;
 	} else {
+		if (hasCompressedStickers()) {
+			setGroupFiles(false);
+		}
 		_flags &= ~Flag::SendImagesAsPhotos;
 	}
 }
@@ -20,8 +23,19 @@ void SendFilesWay::setSendImagesAsPhotos(bool value) {
 void SendFilesWay::setGroupFiles(bool value) {
 	if (value) {
 		_flags |= Flag::GroupFiles;
+		if (hasCompressedStickers()) {
+			setSendImagesAsPhotos(true);
+		}
 	} else {
 		_flags &= ~Flag::GroupFiles;
+	}
+}
+
+void SendFilesWay::setHasCompressedStickers(bool value) {
+	if (value) {
+		_flags |= Flag::HasCompressedStickers;
+	} else {
+		_flags &= ~Flag::HasCompressedStickers;
 	}
 }
 

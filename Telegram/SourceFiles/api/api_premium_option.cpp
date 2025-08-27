@@ -11,26 +11,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Api {
 
-constexpr auto kDiscountDivider = 5.;
+constexpr auto kDiscountDivider = 1.;
 
-Data::SubscriptionOption CreateSubscriptionOption(
+Data::PremiumSubscriptionOption CreateSubscriptionOption(
 		int months,
 		int monthlyAmount,
 		int64 amount,
 		const QString &currency,
 		const QString &botUrl) {
 	const auto discount = [&] {
-		const auto percent = monthlyAmount * months / float64(amount) - 1.;
+		const auto percent = 1. - float64(amount) / (monthlyAmount * months);
 		return std::round(percent * 100. / kDiscountDivider)
 			* kDiscountDivider;
 	}();
 	return {
+		.months = months,
 		.duration = Ui::FormatTTL(months * 86400 * 31),
-		.discount = discount
+		.discount = (discount > 0)
 			? QString::fromUtf8("\xe2\x88\x92%1%").arg(discount)
 			: QString(),
 		.costPerMonth = Ui::FillAmountAndCurrency(
 			amount / float64(months),
+			currency),
+		.costNoDiscount = Ui::FillAmountAndCurrency(
+			monthlyAmount * months,
 			currency),
 		.costTotal = Ui::FillAmountAndCurrency(amount, currency),
 		.botUrl = botUrl,

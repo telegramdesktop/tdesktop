@@ -43,6 +43,9 @@ public:
 	[[nodiscard]] std::vector<Result> query(
 		const QString &query,
 		bool exact = false) const;
+	[[nodiscard]] std::vector<Result> queryMine(
+		const QString &query,
+		bool exact = false) const;
 	[[nodiscard]] int maxQueryLength() const;
 
 private:
@@ -51,6 +54,11 @@ private:
 	not_null<details::EmojiKeywordsLangPackDelegate*> delegate();
 	ApiWrap *api() override;
 	void langPackRefreshed() override;
+
+	[[nodiscard]] static std::vector<Result> PrioritizeRecent(
+		std::vector<Result> list);
+	[[nodiscard]] static std::vector<Result> ApplyVariants(
+		std::vector<Result> list);
 
 	void handleSessionChanges();
 	void apiChanged(ApiWrap *api);

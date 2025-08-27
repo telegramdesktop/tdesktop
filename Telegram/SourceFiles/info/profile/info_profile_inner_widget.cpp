@@ -7,53 +7,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_inner_widget.h"
 
-#include <rpl/combine.h>
-#include <rpl/combine_previous.h>
-#include <rpl/flatten_latest.h>
-#include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_widget.h"
-#include "info/profile/info_profile_text.h"
-#include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_cover.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_members.h"
 #include "info/profile/info_profile_actions.h"
 #include "info/media/info_media_buttons.h"
-#include "boxes/abstract_box.h"
-#include "boxes/add_contact_box.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h"
 #include "data/data_forum_topic.h"
-#include "ui/boxes/confirm_box.h"
-#include "mainwidget.h"
+#include "data/data_peer.h"
+#include "data/data_photo.h"
+#include "data/data_file_origin.h"
+#include "data/data_user.h"
+#include "data/data_saved_sublist.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "window/main_window.h"
-#include "window/window_session_controller.h"
-#include "storage/storage_shared_media.h"
+#include "api/api_peer_photo.h"
 #include "lang/lang_keys.h"
-#include "styles/style_info.h"
-#include "styles/style_boxes.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
-#include "ui/widgets/box_content_divider.h"
-#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "data/data_shared_media.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/ui_utility.h"
+#include "styles/style_info.h"
 
 namespace Info {
 namespace Profile {
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	not_null<Controller*> controller)
+	not_null<Controller*> controller,
+	Origin origin)
 : RpWidget(parent)
 , _controller(controller)
 , _peer(_controller->key().peer())
 , _migrated(_controller->migrated())
 , _topic(_controller->key().topic())
-, _content(setupContent(this)) {
+, _sublist(_controller->key().sublist())
+, _content(setupContent(this, origin)) {
 	_content->heightValue(
 	) | rpl::start_with_next([this](int height) {
 		if (!_inResize) {
@@ -64,63 +59,80 @@ InnerWidget::InnerWidget(
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupContent(
-		not_null<RpWidget*> parent) {
-	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	_cover = _topic
-		? result->add(object_ptr<Cover>(
-			result,
-			_topic,
-			_controller->parentController()))
-		: result->add(object_ptr<Cover>(
-			result,
-			_peer,
-			_controller->parentController()));
-	_cover->showSection(
-	) | rpl::start_with_next([=](Section section) {
-		_controller->showSection(_topic
-			? std::make_shared<Info::Memento>(_topic, section)
-			: std::make_shared<Info::Memento>(_peer, section));
-	}, _cover->lifetime());
-	_cover->setOnlineCount(rpl::single(0));
-	if (_topic) {
-		if (_topic->creating()) {
-			return result;
-		}
-		result->add(SetupDetails(_controller, parent, _topic));
-	} else {
-		result->add(SetupDetails(_controller, parent, _peer));
-	}
-	result->add(setupSharedMedia(result.data()));
-	if (_topic) {
-		return result;
-	}
-	if (auto members = SetupChannelMembers(_controller, result.data(), _peer)) {
-		result->add(std::move(members));
-	}
-	result->add(object_ptr<Ui::BoxContentDivider>(result));
-	if (auto actions = SetupActions(_controller, result.data(), _peer)) {
-		result->add(std::move(actions));
+		not_null<RpWidget*> parent,
+		Origin origin) {
+	if (const auto user = _peer->asUser()) {
+		user->session().changes().peerFlagsValue(
+			user,
+			Data::PeerUpdate::Flag::FullInfo
+		) | rpl::start_with_next([=] {
+			auto &photos = user->session().api().peerPhoto();
+			if (const auto original = photos.nonPersonalPhoto(user)) {
+				// Preload it for the edit contact box.
+				_nonPersonalView = original->createMediaView();
+				const auto id = peerToUser(user->id);
+				original->load(Data::FileOriginFullUser{ id });
+			}
+		}, lifetime());
 	}
 
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	_cover = AddCover(result, _controller, _peer, _topic, _sublist);
+	if (_topic && _topic->creating()) {
+		return result;
+	}
+
+	AddDetails(result, _controller, _peer, _topic, _sublist, origin);
+	result->add(setupSharedMedia(result.data()));
+	if (_topic || _sublist) {
+		return result;
+	}
+	{
+		auto buttons = SetupChannelMembersAndManage(
+			_controller,
+			result.data(),
+			_peer);
+		if (buttons) {
+			result->add(std::move(buttons));
+		}
+	}
+	if (auto actions = SetupActions(_controller, result.data(), _peer)) {
+		result->add(object_ptr<Ui::BoxContentDivider>(result));
+		result->add(std::move(actions));
+	}
 	if (_peer->isChat() || _peer->isMegagroup()) {
-		_members = result->add(object_ptr<Members>(
-			result,
-			_controller));
-		_members->scrollToRequests(
-		) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-			auto min = (request.ymin < 0)
-				? request.ymin
-				: MapFrom(this, _members, QPoint(0, request.ymin)).y();
-			auto max = (request.ymin < 0)
-				? MapFrom(this, _members, QPoint()).y()
-				: (request.ymax < 0)
-				? request.ymax
-				: MapFrom(this, _members, QPoint(0, request.ymax)).y();
-			_scrollToRequests.fire({ min, max });
-		}, _members->lifetime());
-		_cover->setOnlineCount(_members->onlineCountValue());
+		if (!_peer->isMonoforum()) {
+			setupMembers(result.data());
+		}
 	}
 	return result;
+}
+
+void InnerWidget::setupMembers(not_null<Ui::VerticalLayout*> container) {
+	auto wrap = container->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		container,
+		object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = wrap->entity();
+	inner->add(object_ptr<Ui::BoxContentDivider>(inner));
+	_members = inner->add(object_ptr<Members>(inner, _controller));
+	_members->scrollToRequests(
+	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+		auto min = (request.ymin < 0)
+			? request.ymin
+			: MapFrom(this, _members, QPoint(0, request.ymin)).y();
+		auto max = (request.ymin < 0)
+			? MapFrom(this, _members, QPoint()).y()
+			: (request.ymax < 0)
+			? request.ymax
+			: MapFrom(this, _members, QPoint(0, request.ymax)).y();
+		_scrollToRequests.fire({ min, max });
+	}, _members->lifetime());
+	_cover->setOnlineCount(_members->onlineCountValue());
+
+	using namespace rpl::mappers;
+	wrap->toggleOn(
+		_members->fullCountValue() | rpl::map(_1 > 0),
+		anim::type::instant);
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
@@ -137,7 +149,8 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			content,
 			_controller,
 			_peer,
-			_topic ? _topic->rootId() : 0,
+			_topic ? _topic->rootId() : MsgId(),
+			_sublist ? _sublist->sublistPeer()->id : PeerId(),
 			_migrated,
 			type,
 			tracker);
@@ -159,7 +172,67 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			icon,
 			st::infoSharedMediaButtonIconPosition);
 	};
+	const auto addSimilarPeersButton = [&](
+			not_null<PeerData*> peer,
+			const style::icon &icon) {
+		auto result = Media::AddSimilarPeersButton(
+			content,
+			_controller,
+			peer,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
+	};
+	auto addStoriesButton = [&](
+			not_null<PeerData*> peer,
+			const style::icon &icon) {
+		if (peer->isChat()) {
+			return;
+		}
+		auto result = Media::AddStoriesButton(
+			content,
+			_controller,
+			peer,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
+	};
+	auto addSavedSublistButton = [&](
+			not_null<PeerData*> peer,
+			const style::icon &icon) {
+		auto result = Media::AddSavedSublistButton(
+			content,
+			_controller,
+			peer,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
+	};
+	auto addPeerGiftsButton = [&](
+			not_null<PeerData*> peer,
+			const style::icon &icon) {
+		auto result = Media::AddPeerGiftsButton(
+			content,
+			_controller,
+			peer,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
+	};
 
+	if (!_topic) {
+		addStoriesButton(_peer, st::infoIconMediaStories);
+		addPeerGiftsButton(_peer, st::infoIconMediaGifts);
+		addSavedSublistButton(_peer, st::infoIconMediaSaved);
+	}
 	addMediaButton(MediaType::Photo, st::infoIconMediaPhoto);
 	addMediaButton(MediaType::Video, st::infoIconMediaVideo);
 	addMediaButton(MediaType::File, st::infoIconMediaFile);
@@ -167,7 +240,12 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	addMediaButton(MediaType::Link, st::infoIconMediaLink);
 	addMediaButton(MediaType::RoundVoiceFile, st::infoIconMediaVoice);
 	addMediaButton(MediaType::GIF, st::infoIconMediaGif);
-	if (auto user = _peer->asUser()) {
+	if (const auto bot = _peer->asBot()) {
+		addCommonGroupsButton(bot, st::infoIconMediaGroup);
+		addSimilarPeersButton(bot, st::infoIconMediaBot);
+	} else if (const auto channel = _peer->asBroadcast()) {
+		addSimilarPeersButton(channel, st::infoIconMediaChannel);
+	} else if (const auto user = _peer->asUser()) {
 		addCommonGroupsButton(user, st::infoIconMediaGroup);
 	}
 

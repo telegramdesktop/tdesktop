@@ -7,14 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_peer.h"
 
+#include "api/api_sensitive_content.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_channel.h"
 #include "data/data_changes.h"
+#include "data/data_emoji_statuses.h"
+#include "data/data_message_reaction_id.h"
 #include "data/data_photo.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_messages.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
@@ -27,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_app_config.h"
 #include "mtproto/mtproto_config.h"
@@ -36,15 +40,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/main_window.h" // Window::LogoNoMargin.
 #include "ui/image/image.h"
+#include "ui/chat/chat_style.h"
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/painter.h"
+#include "ui/unread_badge.h"
 #include "ui/ui_utility.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "storage/file_download.h"
+#include "storage/storage_account.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 
@@ -55,32 +61,39 @@ constexpr auto kUserpicSize = 160;
 
 using UpdateFlag = Data::PeerUpdate::Flag;
 
+[[nodiscard]] const std::vector<QString> &IgnoredReasons(
+		not_null<Main::Session*> session) {
+	return session->appConfig().ignoredRestrictionReasons();
+}
+
+[[nodiscard]] int ParseRegistrationDate(const QString &text) {
+	// MM.YYYY
+	if (text.size() != 7 || text[2] != '.') {
+		return 0;
+	}
+	const auto month = text.mid(0, 2).toInt();
+	const auto year = text.mid(3, 4).toInt();
+	return (year > 2012 && year < 2100 && month > 0 && month <= 12)
+		? (year * 100) + month
+		: 0;
+}
+
+[[nodiscard]] int RegistrationYear(int date) {
+	const auto year = date / 100;
+	return (year > 2012 && year < 2100) ? year : 0;
+}
+
+[[nodiscard]] int RegistrationMonth(int date) {
+	const auto month = date % 100;
+	return (month > 0 && month <= 12) ? month : 0;
+}
+
 } // namespace
 
 namespace Data {
 
-int PeerColorIndex(BareId bareId) {
-	const auto index = bareId % 7;
-	const int map[] = { 0, 7, 4, 1, 6, 3, 5 };
-	return map[index];
-}
-
-int PeerColorIndex(PeerId peerId) {
-	return PeerColorIndex(peerId.value & PeerId::kChatTypeMask);
-}
-
-style::color PeerUserpicColor(PeerId peerId) {
-	const style::color colors[] = {
-		st::historyPeer1UserpicBg,
-		st::historyPeer2UserpicBg,
-		st::historyPeer3UserpicBg,
-		st::historyPeer4UserpicBg,
-		st::historyPeer5UserpicBg,
-		st::historyPeer6UserpicBg,
-		st::historyPeer7UserpicBg,
-		st::historyPeer8UserpicBg,
-	};
-	return colors[PeerColorIndex(peerId)];
+uint8 DecideColorIndex(PeerId peerId) {
+	return Ui::DecideColorIndex(peerId.value & PeerId::kChatTypeMask);
 }
 
 PeerId FakePeerIdForJustName(const QString &name) {
@@ -89,6 +102,62 @@ PeerId FakePeerIdForJustName(const QString &name) {
 		? 777
 		: base::crc32(name.constData(), name.size() * sizeof(QChar));
 	return peerFromUser(kShift + std::abs(base));
+}
+
+bool UnavailableReason::sensitive() const {
+	return reason == u"sensitive"_q;
+}
+
+UnavailableReason UnavailableReason::Sensitive() {
+	return { u"sensitive"_q };
+}
+
+QString UnavailableReason::Compute(
+		not_null<Main::Session*> session,
+		const std::vector<UnavailableReason> &list) {
+	const auto &skip = IgnoredReasons(session);
+	auto &&filtered = ranges::views::all(
+		list
+	) | ranges::views::filter([&](const Data::UnavailableReason &reason) {
+		return !reason.sensitive()
+			&& !ranges::contains(skip, reason.reason);
+	});
+	const auto first = filtered.begin();
+	return (first != filtered.end()) ? first->text : QString();
+}
+
+bool UnavailableReason::IgnoreSensitiveMark(
+		not_null<Main::Session*> session) {
+	return ranges::contains(
+			IgnoredReasons(session),
+			UnavailableReason::Sensitive().reason);
+}
+
+// We should get a full restriction in "{full}: {reason}" format and we
+// need to find an "-all" tag in {full}, otherwise ignore this restriction.
+std::vector<UnavailableReason> UnavailableReason::Extract(
+		const MTPvector<MTPRestrictionReason> *list) {
+	if (!list) {
+		return {};
+	}
+	return ranges::views::all(
+		list->v
+	) | ranges::views::filter([](const MTPRestrictionReason &restriction) {
+		return restriction.match([&](const MTPDrestrictionReason &data) {
+			const auto platform = data.vplatform().v;
+			return false
+#ifdef OS_MAC_STORE
+				|| (platform == "ios"_q)
+#elif defined OS_WIN_STORE // OS_MAC_STORE
+				|| (platform == "ms"_q)
+#endif // OS_MAC_STORE || OS_WIN_STORE
+				|| (platform == "all"_q);
+		});
+	}) | ranges::views::transform([](const MTPRestrictionReason &restriction) {
+		return restriction.match([&](const MTPDrestrictionReason &data) {
+			return UnavailableReason{ qs(data.vreason()), qs(data.vtext()) };
+		});
+	}) | ranges::to_vector;
 }
 
 bool ApplyBotMenuButton(
@@ -112,26 +181,22 @@ bool ApplyBotMenuButton(
 	return changed;
 }
 
-bool operator<(
-		const AllowedReactions &a,
-		const AllowedReactions &b) {
-	return (a.type < b.type) || ((a.type == b.type) && (a.some < b.some));
-}
-
-bool operator==(
-		const AllowedReactions &a,
-		const AllowedReactions &b) {
-	return (a.type == b.type) && (a.some == b.some);
-}
-
-AllowedReactions Parse(const MTPChatReactions &value) {
+AllowedReactions Parse(
+		const MTPChatReactions &value,
+		int maxCount,
+		bool paidEnabled) {
 	return value.match([&](const MTPDchatReactionsNone &) {
-		return AllowedReactions();
+		return AllowedReactions{
+			.maxCount = maxCount,
+			.paidEnabled = paidEnabled,
+		};
 	}, [&](const MTPDchatReactionsAll &data) {
 		return AllowedReactions{
+			.maxCount = maxCount,
 			.type = (data.is_allow_custom()
 				? AllowedReactionsType::All
 				: AllowedReactionsType::Default),
+			.paidEnabled = paidEnabled,
 		};
 	}, [&](const MTPDchatReactionsSome &data) {
 		return AllowedReactions{
@@ -140,8 +205,44 @@ AllowedReactions Parse(const MTPChatReactions &value) {
 			) | ranges::views::transform(
 				ReactionFromMTP
 			) | ranges::to_vector,
+			.maxCount = maxCount,
 			.type = AllowedReactionsType::Some,
+			.paidEnabled = paidEnabled,
 		};
+	});
+}
+
+PeerData *PeerFromInputMTP(
+		not_null<Session*> owner,
+		const MTPInputPeer &input) {
+	return input.match([&](const MTPDinputPeerUser &data) {
+		const auto user = owner->user(data.vuser_id().v);
+		user->setAccessHash(data.vaccess_hash().v);
+		return (PeerData*)user;
+	}, [&](const MTPDinputPeerChat &data) {
+		return (PeerData*)owner->chat(data.vchat_id().v);
+	}, [&](const MTPDinputPeerChannel &data) {
+		const auto channel = owner->channel(data.vchannel_id().v);
+		channel->setAccessHash(data.vaccess_hash().v);
+		return (PeerData*)channel;
+	}, [&](const MTPDinputPeerSelf &data) {
+		return (PeerData*)owner->session().user();
+	}, [&](const auto &data) {
+		return (PeerData*)nullptr;
+	});
+}
+
+UserData *UserFromInputMTP(
+		not_null<Session*> owner,
+		const MTPInputUser &input) {
+	return input.match([&](const MTPDinputUser &data) {
+		const auto user = owner->user(data.vuser_id().v);
+		user->setAccessHash(data.vaccess_hash().v);
+		return user.get();
+	}, [&](const MTPDinputUserSelf &data) {
+		return owner->session().user().get();
+	}, [](const auto &data) {
+		return (UserData*)nullptr;
 	});
 }
 
@@ -177,7 +278,8 @@ void PeerClickHandler::onClick(ClickContext context) const {
 
 PeerData::PeerData(not_null<Data::Session*> owner, PeerId id)
 : id(id)
-, _owner(owner) {
+, _owner(owner)
+, _colorIndex(Data::DecideColorIndex(id)) {
 }
 
 Data::Session &PeerData::owner() const {
@@ -211,7 +313,7 @@ void PeerData::updateNameDelayed(
 		}
 	}
 	_name = newName;
-	_userpicEmpty = nullptr;
+	invalidateEmptyUserpic();
 
 	auto flags = UpdateFlag::None | UpdateFlag::None;
 	auto oldFirstLetters = base::flat_set<QChar>();
@@ -248,11 +350,29 @@ void PeerData::updateNameDelayed(
 
 not_null<Ui::EmptyUserpic*> PeerData::ensureEmptyUserpic() const {
 	if (!_userpicEmpty) {
+		const auto user = asUser();
 		_userpicEmpty = std::make_unique<Ui::EmptyUserpic>(
-			Data::PeerUserpicColor(id),
-			name());
+			Ui::EmptyUserpic::UserpicColor(colorIndex()),
+			((user && user->isInaccessible())
+				? Ui::EmptyUserpic::InaccessibleName()
+				: name()));
 	}
 	return _userpicEmpty.get();
+}
+
+void PeerData::invalidateEmptyUserpic() {
+	_userpicEmpty = nullptr;
+}
+
+void PeerData::checkTrustedPayForMessage() {
+	if (!_checkedTrustedPayForMessage
+		&& !starsPerMessage()
+		&& session().local().peerTrustedPayForMessageRead()) {
+		_checkedTrustedPayForMessage = 1;
+		if (session().local().hasPeerTrustedPayForMessageEntry(id)) {
+			session().local().clearPeerTrustedPayForMessage(id);
+		}
+	}
 }
 
 ClickHandlerPtr PeerData::createOpenLink() {
@@ -264,7 +384,7 @@ void PeerData::setUserpic(
 		const ImageLocation &location,
 		bool hasVideo) {
 	_userpicPhotoId = photoId;
-	_userpicHasVideo = hasVideo;
+	_userpicHasVideo = hasVideo ? 1 : 0;
 	_userpic.set(&session(), ImageWithLocation{ .location = location });
 }
 
@@ -282,50 +402,56 @@ void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 	}
 }
 
-Image *PeerData::currentUserpic(
-		std::shared_ptr<Data::CloudImageView> &view) const {
-	if (!_userpic.isCurrentView(view)) {
-		view = _userpic.createView();
-		_userpic.load(&session(), userpicOrigin());
+QImage *PeerData::userpicCloudImage(Ui::PeerUserpicView &view) const {
+	if (!_userpic.isCurrentView(view.cloud)) {
+		if (!_userpic.empty()) {
+			view.cloud = _userpic.createView();
+			_userpic.load(&session(), userpicOrigin());
+		} else {
+			view.cloud = nullptr;
+		}
+		view.cached = QImage();
 	}
-	const auto image = view ? view->image() : nullptr;
-	if (image) {
+	if (const auto image = view.cloud.get(); image && !image->isNull()) {
 		_userpicEmpty = nullptr;
+		return image;
 	} else if (isNotificationsUser()) {
-		static auto result = Image(
-			Window::LogoNoMargin().scaledToWidth(
-				kUserpicSize,
-				Qt::SmoothTransformation));
+		static auto result = Window::LogoNoMargin().scaledToWidth(
+			kUserpicSize,
+			Qt::SmoothTransformation);
 		return &result;
 	}
-	return image;
+	return nullptr;
 }
 
 void PeerData::paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int size) const {
-	if (const auto userpic = currentUserpic(view)) {
-		const auto rounding = isForum()
-			? Images::Option::RoundLarge
-			: Images::Option::RoundCircle;
-		p.drawPixmap(
-			x,
-			y,
-			userpic->pix(size, size, { .options = rounding }));
-	} else if (isForum()) {
-		ensureEmptyUserpic()->paintRounded(
-			p,
-			x,
-			y,
-			x + size + x,
-			size,
-			st::roundRadiusLarge);
-	} else{
-		ensureEmptyUserpic()->paint(p, x, y, x + size + x, size);
+		Ui::PeerUserpicView &view,
+		PaintUserpicContext context) const {
+	if (const auto broadcast = monoforumBroadcast()) {
+		if (context.shape == Ui::PeerUserpicShape::Auto) {
+			context.shape = Ui::PeerUserpicShape::Monoforum;
+		}
+		broadcast->paintUserpic(p, view, context);
+		return;
 	}
+	const auto size = context.size;
+	const auto cloud = userpicCloudImage(view);
+	const auto ratio = style::DevicePixelRatio();
+	if (context.shape == Ui::PeerUserpicShape::Auto) {
+		context.shape = isForum()
+			? Ui::PeerUserpicShape::Forum
+			: isMonoforum()
+			? Ui::PeerUserpicShape::Monoforum
+			: Ui::PeerUserpicShape::Circle;
+	}
+	Ui::ValidateUserpicCache(
+		view,
+		cloud,
+		cloud ? nullptr : ensureEmptyUserpic().get(),
+		size * ratio,
+		context.shape);
+	p.drawImage(QRect(context.position, QSize(size, size)), view.cached);
 }
 
 void PeerData::loadUserpic() {
@@ -336,113 +462,95 @@ bool PeerData::hasUserpic() const {
 	return !_userpic.empty();
 }
 
-std::shared_ptr<Data::CloudImageView> PeerData::activeUserpicView() {
-	return _userpic.empty() ? nullptr : _userpic.activeView();
+Ui::PeerUserpicView PeerData::activeUserpicView() {
+	return { .cloud = _userpic.empty() ? nullptr : _userpic.activeView() };
 }
 
-std::shared_ptr<Data::CloudImageView> PeerData::createUserpicView() {
+Ui::PeerUserpicView PeerData::createUserpicView() {
 	if (_userpic.empty()) {
-		return nullptr;
+		return {};
 	}
 	auto result = _userpic.createView();
 	_userpic.load(&session(), userpicPhotoOrigin());
-	return result;
+	return { .cloud = result };
 }
 
-bool PeerData::useEmptyUserpic(
-		std::shared_ptr<Data::CloudImageView> &view) const {
-	return !currentUserpic(view);
+bool PeerData::useEmptyUserpic(Ui::PeerUserpicView &view) const {
+	return !userpicCloudImage(view);
 }
 
-InMemoryKey PeerData::userpicUniqueKey(
-		std::shared_ptr<Data::CloudImageView> &view) const {
+InMemoryKey PeerData::userpicUniqueKey(Ui::PeerUserpicView &view) const {
 	return useEmptyUserpic(view)
 		? ensureEmptyUserpic()->uniqueKey()
 		: inMemoryKey(_userpic.location());
 }
 
-void PeerData::saveUserpic(
-		std::shared_ptr<Data::CloudImageView> &view,
-		const QString &path,
-		int size) const {
-	generateUserpicImage(view, size * cIntRetinaFactor()).save(path, "PNG");
-}
-
-void PeerData::saveUserpicRounded(
-		std::shared_ptr<Data::CloudImageView> &view,
-		const QString &path,
-		int size) const {
-	generateUserpicImage(
-		view,
-		size * cIntRetinaFactor(),
-		ImageRoundRadius::Small).save(path, "PNG");
-}
-
-QPixmap PeerData::genUserpic(
-		std::shared_ptr<Data::CloudImageView> &view,
-		int size) const {
-	if (const auto userpic = currentUserpic(view)) {
-		const auto rounding = isForum()
-			? Images::Option::RoundLarge
-			: Images::Option::RoundCircle;
-		return userpic->pix(size, size, { .options = rounding });
-	}
-	const auto ratio = style::DevicePixelRatio();
-	auto result = QImage(
-		QSize(size, size) * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(ratio);
-	result.fill(Qt::transparent);
-	{
-		Painter p(&result);
-		paintUserpic(p, view, 0, 0, size);
-	}
-	return Ui::PixmapFromImage(std::move(result));
-}
-
-QImage PeerData::generateUserpicImage(
-		std::shared_ptr<Data::CloudImageView> &view,
-		int size) const {
-	return generateUserpicImage(
-		view,
-		size,
-		isForum() ? ImageRoundRadius::Large : ImageRoundRadius::Ellipse);
-}
-
-QImage PeerData::generateUserpicImage(
-		std::shared_ptr<Data::CloudImageView> &view,
+QImage PeerData::GenerateUserpicImage(
+		not_null<PeerData*> peer,
+		Ui::PeerUserpicView &view,
 		int size,
-		ImageRoundRadius radius) const {
-	if (const auto userpic = currentUserpic(view)) {
-		const auto options = (radius == ImageRoundRadius::Ellipse)
-			? Images::Option::RoundCircle
-			: (radius == ImageRoundRadius::Large)
-			? Images::Option::RoundLarge
-			: (radius == ImageRoundRadius::Small)
-			? Images::Option::RoundSmall
-			: Images::Option();
-		return userpic->pixNoCache(
+		std::optional<int> radius) {
+	if (const auto userpic = peer->userpicCloudImage(view)) {
+		auto image = userpic->scaled(
 			{ size, size },
-			{ .options = options }).toImage();
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		const auto round = [&](int radius) {
+			return Images::Round(
+				std::move(image),
+				Images::CornersMask(radius / style::DevicePixelRatio()));
+		};
+		if (radius == 0) {
+			return image;
+		} else if (radius) {
+			return round(*radius);
+		} else if (peer->isForum()) {
+			return round(size * Ui::ForumUserpicRadiusMultiplier());
+		} else {
+			return Images::Circle(std::move(image));
+		}
 	}
 	auto result = QImage(
 		QSize(size, size),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
-	{
-		Painter p(&result);
-		if (radius == ImageRoundRadius::Ellipse) {
-			ensureEmptyUserpic()->paint(p, 0, 0, size, size);
-		} else if (radius == ImageRoundRadius::None) {
-			ensureEmptyUserpic()->paintSquare(p, 0, 0, size, size);
-		} else if (radius == ImageRoundRadius::Large) {
-			const auto radius = st::roundRadiusLarge;
-			ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size, radius);
-		} else {
-			ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size);
-		}
+
+	Painter p(&result);
+	if (radius == 0) {
+		peer->ensureEmptyUserpic()->paintSquare(p, 0, 0, size, size);
+	} else if (radius) {
+		const auto r = *radius;
+		peer->ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size, r);
+	} else if (peer->isForum()) {
+		peer->ensureEmptyUserpic()->paintRounded(
+			p,
+			0,
+			0,
+			size,
+			size,
+			size * Ui::ForumUserpicRadiusMultiplier());
+	} else {
+		peer->ensureEmptyUserpic()->paintCircle(p, 0, 0, size, size);
 	}
+	p.end();
+
 	return result;
+}
+
+ImageLocation PeerData::userpicLocation() const {
+	return _userpic.location();
+}
+
+bool PeerData::userpicPhotoUnknown() const {
+	return (_userpicPhotoId == kUnknownPhotoId);
+}
+
+PhotoId PeerData::userpicPhotoId() const {
+	return userpicPhotoUnknown() ? 0 : _userpicPhotoId;
+}
+
+bool PeerData::userpicHasVideo() const {
+	return _userpicHasVideo != 0;
 }
 
 Data::FileOrigin PeerData::userpicOrigin() const {
@@ -484,7 +592,7 @@ void PeerData::setUserpicChecked(
 		bool hasVideo) {
 	if (_userpicPhotoId != photoId
 		|| _userpic.location() != location
-		|| _userpicHasVideo != hasVideo) {
+		|| _userpicHasVideo != (hasVideo ? 1 : 0)) {
 		const auto known = !userpicPhotoUnknown();
 		setUserpic(photoId, location, hasVideo);
 		session().changes().peerUpdated(this, UpdateFlag::Photo);
@@ -501,24 +609,56 @@ auto PeerData::unavailableReasons() const
 }
 
 QString PeerData::computeUnavailableReason() const {
-	const auto &list = unavailableReasons();
-	const auto &config = session().account().appConfig();
-	const auto skip = config.get<std::vector<QString>>(
-		"ignore_restriction_reasons",
-		std::vector<QString>());
-	auto &&filtered = ranges::views::all(
-		list
-	) | ranges::views::filter([&](const Data::UnavailableReason &reason) {
-		return !ranges::contains(skip, reason.reason);
-	});
-	const auto first = filtered.begin();
-	return (first != filtered.end()) ? first->text : QString();
+	return Data::UnavailableReason::Compute(
+		&session(),
+		unavailableReasons());
+}
+
+bool PeerData::hasSensitiveContent() const {
+	return _sensitiveContent == 1;
+}
+
+void PeerData::setUnavailableReasonsList(
+		std::vector<Data::UnavailableReason> &&reasons) {
+	Unexpected("PeerData::setUnavailableReasonsList.");
+}
+
+void PeerData::setUnavailableReasons(
+		std::vector<Data::UnavailableReason> &&reasons) {
+	const auto i = ranges::find(
+		reasons,
+		true,
+		&Data::UnavailableReason::sensitive);
+	const auto sensitive = (i != end(reasons));
+	if (sensitive) {
+		reasons.erase(i);
+	}
+	auto changed = (sensitive != hasSensitiveContent());
+	if (changed) {
+		setHasSensitiveContent(sensitive);
+	}
+	if (reasons != unavailableReasons()) {
+		setUnavailableReasonsList(std::move(reasons));
+		changed = true;
+	}
+	if (changed) {
+		session().changes().peerUpdated(
+			this,
+			UpdateFlag::UnavailableReason);
+	}
+}
+
+void PeerData::setHasSensitiveContent(bool has) {
+	_sensitiveContent = has ? 1 : 0;
+	if (has) {
+		session().api().sensitiveContent().preload();
+	}
 }
 
 // This is duplicated in CanPinMessagesValue().
 bool PeerData::canPinMessages() const {
 	if (const auto user = asUser()) {
-		return user->flags() & UserDataFlag::CanPinMessages;
+		return !user->amRestricted(ChatRestriction::PinMessages);
 	} else if (const auto chat = asChat()) {
 		return chat->amIn()
 			&& !chat->amRestricted(ChatRestriction::PinMessages);
@@ -529,6 +669,27 @@ bool PeerData::canPinMessages() const {
 				|| channel->adminRights() & ChatAdminRight::EditMessages));
 	}
 	Unexpected("Peer type in PeerData::canPinMessages.");
+}
+
+bool PeerData::canCreatePolls() const {
+	if (const auto user = asUser()) {
+		return user->isSelf()
+			|| (user->isBot()
+				&& !user->isSupport()
+				&& !user->isRepliesChat()
+				&& !user->isVerifyCodes());
+	} else if (isMonoforum()) {
+		return false;
+	}
+	return Data::CanSend(this, ChatRestriction::SendPolls);
+}
+
+bool PeerData::canCreateTodoLists() const {
+	if (isMonoforum() || isBroadcast()) {
+		return false;
+	}
+	return session().premium()
+		&& (Data::CanSend(this, ChatRestriction::SendPolls) || isUser());
 }
 
 bool PeerData::canCreateTopics() const {
@@ -548,10 +709,45 @@ bool PeerData::canManageTopics() const {
 	return false;
 }
 
+bool PeerData::canPostStories() const {
+	if (const auto channel = asChannel()) {
+		return channel->canPostStories();
+	}
+	return isSelf();
+}
+
+bool PeerData::canEditStories() const {
+	if (const auto channel = asChannel()) {
+		return channel->canEditStories();
+	}
+	return isSelf();
+}
+
+bool PeerData::canDeleteStories() const {
+	if (const auto channel = asChannel()) {
+		return channel->canDeleteStories();
+	}
+	return isSelf();
+}
+
+bool PeerData::canManageGifts() const {
+	if (const auto channel = asChannel()) {
+		return channel->canPostMessages();
+	}
+	return isSelf();
+}
+
+bool PeerData::canTransferGifts() const {
+	if (const auto channel = asChannel()) {
+		return channel->amCreator();
+	}
+	return isSelf();
+}
+
 bool PeerData::canEditMessagesIndefinitely() const {
 	if (const auto user = asUser()) {
 		return user->isSelf();
-	} else if (const auto chat = asChat()) {
+	} else if (isChat()) {
 		return false;
 	} else if (const auto channel = asChannel()) {
 		return channel->isMegagroup()
@@ -562,7 +758,7 @@ bool PeerData::canEditMessagesIndefinitely() const {
 }
 
 bool PeerData::canExportChatHistory() const {
-	if (isRepliesChat() || !allowsForwarding()) {
+	if (isRepliesChat() || isVerifyCodes() || !allowsForwarding()) {
 		return false;
 	} else if (const auto channel = asChannel()) {
 		if (!channel->amIn() && channel->invitePeekExpires()) {
@@ -578,6 +774,13 @@ bool PeerData::canExportChatHistory() const {
 	}
 	if (const auto from = migrateFrom()) {
 		return from->canExportChatHistory();
+	}
+	return false;
+}
+
+bool PeerData::autoTranslation() const {
+	if (const auto channel = asChannel()) {
+		return channel->autoTranslation();
 	}
 	return false;
 }
@@ -602,13 +805,88 @@ void PeerData::checkFolder(FolderId folderId) {
 	}
 }
 
-void PeerData::setSettings(const MTPPeerSettings &data) {
-	data.match([&](const MTPDpeerSettings &data) {
-		_requestChatTitle = data.vrequest_chat_title().value_or_empty();
-		_requestChatDate = data.vrequest_chat_date().value_or_empty();
+void PeerData::clearBusinessBot() {
+	if (const auto details = _barDetails.get()) {
+		if (details->requestChatDate
+			|| details->paysPerMessage
+			|| !details->phoneCountryCode.isEmpty()) {
+			details->businessBot = nullptr;
+			details->businessBotManageUrl = QString();
+		} else {
+			_barDetails = nullptr;
+		}
+	}
+	if (const auto settings = barSettings()) {
+		setBarSettings(*settings
+			& ~PeerBarSetting::BusinessBotPaused
+			& ~PeerBarSetting::BusinessBotCanReply
+			& ~PeerBarSetting::HasBusinessBot);
+	}
+}
 
-		using Flag = PeerSetting;
-		setSettings((data.is_add_contact() ? Flag::AddContact : Flag())
+void PeerData::setTranslationDisabled(bool disabled) {
+	const auto flag = disabled
+		? TranslationFlag::Disabled
+		: TranslationFlag::Enabled;
+	if (_translationFlag != flag) {
+		_translationFlag = flag;
+		session().changes().peerUpdated(
+			this,
+			UpdateFlag::TranslationDisabled);
+	}
+}
+
+PeerData::TranslationFlag PeerData::translationFlag() const {
+	return _translationFlag;
+}
+
+void PeerData::saveTranslationDisabled(bool disabled) {
+	setTranslationDisabled(disabled);
+
+	using Flag = MTPmessages_TogglePeerTranslations::Flag;
+	session().api().request(MTPmessages_TogglePeerTranslations(
+		MTP_flags(disabled ? Flag::f_disabled : Flag()),
+		input
+	)).send();
+}
+
+void PeerData::setBarSettings(const MTPPeerSettings &data) {
+	data.match([&](const MTPDpeerSettings &data) {
+		const auto wasPaysPerMessage = paysPerMessage();
+		if (!data.vbusiness_bot_id()
+			&& !data.vrequest_chat_title()
+			&& !data.vcharge_paid_message_stars()
+			&& !data.vphone_country()
+			&& !data.vregistration_month()
+			&& !data.vname_change_date()
+			&& !data.vphoto_change_date()) {
+			_barDetails = nullptr;
+		} else if (!_barDetails) {
+			_barDetails = std::make_unique<PeerBarDetails>();
+		}
+		if (_barDetails) {
+			_barDetails->phoneCountryCode
+				= qs(data.vphone_country().value_or_empty());
+			_barDetails->registrationDate = ParseRegistrationDate(
+				data.vregistration_month().value_or_empty());
+			_barDetails->nameChangeDate
+				= data.vname_change_date().value_or_empty();
+			_barDetails->photoChangeDate
+				= data.vphoto_change_date().value_or_empty();
+			_barDetails->requestChatTitle
+				= qs(data.vrequest_chat_title().value_or_empty());
+			_barDetails->requestChatDate
+				= data.vrequest_chat_date().value_or_empty();
+			_barDetails->businessBot = data.vbusiness_bot_id()
+				? _owner->user(data.vbusiness_bot_id()->v).get()
+				: nullptr;
+			_barDetails->businessBotManageUrl
+				= qs(data.vbusiness_bot_manage_url().value_or_empty());
+			_barDetails->paysPerMessage
+				= data.vcharge_paid_message_stars().value_or_empty();
+		}
+		using Flag = PeerBarSetting;
+		setBarSettings((data.is_add_contact() ? Flag::AddContact : Flag())
 			| (data.is_autoarchived() ? Flag::AutoArchived : Flag())
 			| (data.is_block_contact() ? Flag::BlockContact : Flag())
 			//| (data.is_invite_members() ? Flag::InviteMembers : Flag())
@@ -619,10 +897,106 @@ void PeerData::setSettings(const MTPPeerSettings &data) {
 			| (data.is_report_spam() ? Flag::ReportSpam : Flag())
 			| (data.is_share_contact() ? Flag::ShareContact : Flag())
 			| (data.vrequest_chat_title() ? Flag::RequestChat : Flag())
+			| (data.vbusiness_bot_id() ? Flag::HasBusinessBot : Flag())
 			| (data.is_request_chat_broadcast()
 				? Flag::RequestChatIsBroadcast
+				: Flag())
+			| (data.is_business_bot_paused()
+				? Flag::BusinessBotPaused
+				: Flag())
+			| (data.is_business_bot_can_reply()
+				? Flag::BusinessBotCanReply
 				: Flag()));
+		if (wasPaysPerMessage != paysPerMessage()) {
+			session().changes().peerUpdated(
+				this,
+				UpdateFlag::PaysPerMessage);
+		}
 	});
+}
+
+int PeerData::paysPerMessage() const {
+	return _barDetails ? _barDetails->paysPerMessage : 0;
+}
+
+void PeerData::clearPaysPerMessage() {
+	if (const auto details = _barDetails.get()) {
+		if (details->paysPerMessage) {
+			if (details->businessBot
+				|| details->requestChatDate
+				|| !details->phoneCountryCode.isEmpty()) {
+				details->paysPerMessage = 0;
+			} else {
+				_barDetails = nullptr;
+			}
+			session().changes().peerUpdated(
+				this,
+				UpdateFlag::PaysPerMessage);
+		}
+	}
+}
+
+QString PeerData::requestChatTitle() const {
+	return _barDetails ? _barDetails->requestChatTitle : QString();
+}
+
+TimeId PeerData::requestChatDate() const {
+	return _barDetails ? _barDetails->requestChatDate : 0;
+}
+
+UserData *PeerData::businessBot() const {
+	return _barDetails ? _barDetails->businessBot : nullptr;
+}
+
+QString PeerData::businessBotManageUrl() const {
+	return _barDetails ? _barDetails->businessBotManageUrl : QString();
+}
+
+QString PeerData::phoneCountryCode() const {
+	return _barDetails ? _barDetails->phoneCountryCode : QString();
+}
+
+int PeerData::registrationMonth() const {
+	return _barDetails
+		? RegistrationMonth(_barDetails->registrationDate)
+		: 0;
+}
+
+int PeerData::registrationYear() const {
+	return _barDetails ? RegistrationYear(_barDetails->registrationDate) : 0;
+}
+
+TimeId PeerData::nameChangeDate() const {
+	return _barDetails ? _barDetails->nameChangeDate : 0;
+}
+
+TimeId PeerData::photoChangeDate() const {
+	return _barDetails ? _barDetails->photoChangeDate : 0;
+}
+
+bool PeerData::changeColorIndex(
+		const tl::conditional<MTPint> &cloudColorIndex) {
+	return cloudColorIndex
+		? changeColorIndex(cloudColorIndex->v)
+		: clearColorIndex();
+}
+
+bool PeerData::changeBackgroundEmojiId(
+		const tl::conditional<MTPlong> &cloudBackgroundEmoji) {
+	return changeBackgroundEmojiId(cloudBackgroundEmoji
+		? cloudBackgroundEmoji->v
+		: DocumentId());
+}
+
+bool PeerData::changeColor(
+		const tl::conditional<MTPPeerColor> &cloudColor) {
+	const auto changed1 = cloudColor
+		? changeColorIndex(cloudColor->data().vcolor())
+		: clearColorIndex();
+	const auto changed2 = changeBackgroundEmojiId(cloudColor
+		? cloudColor->data().vbackground_emoji_id().value_or_empty()
+		: DocumentId());
+	return changed1 || changed2;
 }
 
 void PeerData::fillNames() {
@@ -647,15 +1021,22 @@ void PeerData::fillNames() {
 		}
 		appendToIndex(user->username());
 		if (isSelf()) {
-			const auto english = qsl("Saved messages");
+			const auto english = u"Saved messages"_q;
 			const auto localized = tr::lng_saved_messages(tr::now);
 			appendToIndex(english);
 			if (localized != english) {
 				appendToIndex(localized);
 			}
 		} else if (isRepliesChat()) {
-			const auto english = qsl("Replies");
+			const auto english = u"Replies"_q;
 			const auto localized = tr::lng_replies_messages(tr::now);
+			appendToIndex(english);
+			if (localized != english) {
+				appendToIndex(localized);
+			}
+		} else if (isVerifyCodes()) {
+			const auto english = u"Verification Codes"_q;
+			const auto localized = tr::lng_verification_codes(tr::now);
 			appendToIndex(english);
 			if (localized != english) {
 				appendToIndex(localized);
@@ -695,6 +1076,16 @@ void PeerData::updateFullForced() {
 void PeerData::fullUpdated() {
 	_lastFullUpdate = crl::now();
 	setLoadedStatus(LoadedStatus::Full);
+}
+
+UserData *PeerData::asBot() {
+	return isBot() ? static_cast<UserData*>(this) : nullptr;
+}
+
+const UserData *PeerData::asBot() const {
+	return isBot()
+		? static_cast<const UserData*>(this)
+		: nullptr;
 }
 
 UserData *PeerData::asUser() {
@@ -771,6 +1162,16 @@ const ChannelData *PeerData::asChannelOrMigrated() const {
 	return migrateTo();
 }
 
+ChannelData *PeerData::asMonoforum() {
+	const auto channel = asMegagroup();
+	return (channel && channel->isMonoforum()) ? channel : nullptr;
+}
+
+const ChannelData *PeerData::asMonoforum() const {
+	const auto channel = asMegagroup();
+	return (channel && channel->isMonoforum()) ? channel : nullptr;
+}
+
 ChatData *PeerData::migrateFrom() const {
 	if (const auto megagroup = asMegagroup()) {
 		return megagroup->amIn()
@@ -803,6 +1204,35 @@ not_null<const PeerData*> PeerData::migrateToOrMe() const {
 	return this;
 }
 
+not_null<PeerData*> PeerData::userpicPaintingPeer() {
+	if (const auto broadcast = monoforumBroadcast()) {
+		return broadcast;
+	}
+	return this;
+}
+
+not_null<const PeerData*> PeerData::userpicPaintingPeer() const {
+	return const_cast<PeerData*>(this)->userpicPaintingPeer();
+}
+
+Ui::PeerUserpicShape PeerData::userpicShape() const {
+	return isForum()
+		? Ui::PeerUserpicShape::Forum
+		: isMonoforum()
+		? Ui::PeerUserpicShape::Monoforum
+		: Ui::PeerUserpicShape::Circle;
+}
+
+ChannelData *PeerData::monoforumBroadcast() const {
+	const auto monoforum = asMonoforum();
+	return monoforum ? monoforum->monoforumLink() : nullptr;
+}
+
+ChannelData *PeerData::broadcastMonoforum() const {
+	const auto broadcast = asBroadcast();
+	return broadcast ? broadcast->monoforumLink() : nullptr;
+}
+
 const QString &PeerData::topBarNameText() const {
 	if (const auto to = migrateTo()) {
 		return to->topBarNameText();
@@ -821,6 +1251,8 @@ int PeerData::nameVersion() const {
 const QString &PeerData::name() const {
 	if (const auto to = migrateTo()) {
 		return to->name();
+	} else if (const auto broadcast = monoforumBroadcast()) {
+		return broadcast->name();
 	}
 	return _name;
 }
@@ -828,17 +1260,104 @@ const QString &PeerData::name() const {
 const QString &PeerData::shortName() const {
 	if (const auto user = asUser()) {
 		return user->firstName.isEmpty() ? user->lastName : user->firstName;
+	} else if (const auto to = migrateTo()) {
+		return to->shortName();
+	} else if (const auto broadcast = monoforumBroadcast()) {
+		return broadcast->shortName();
 	}
 	return _name;
 }
 
-QString PeerData::userName() const {
+QString PeerData::username() const {
 	if (const auto user = asUser()) {
 		return user->username();
 	} else if (const auto channel = asChannel()) {
 		return channel->username();
 	}
 	return QString();
+}
+
+QString PeerData::editableUsername() const {
+	if (const auto user = asUser()) {
+		return user->editableUsername();
+	} else if (const auto channel = asChannel()) {
+		return channel->editableUsername();
+	}
+	return QString();
+}
+
+const std::vector<QString> &PeerData::usernames() const {
+	if (const auto user = asUser()) {
+		return user->usernames();
+	} else if (const auto channel = asChannel()) {
+		return channel->usernames();
+	}
+	static const auto kEmpty = std::vector<QString>();
+	return kEmpty;
+}
+
+bool PeerData::isUsernameEditable(QString username) const {
+	if (const auto user = asUser()) {
+		return user->isUsernameEditable(username);
+	} else if (const auto channel = asChannel()) {
+		return channel->isUsernameEditable(username);
+	}
+	return false;
+}
+
+bool PeerData::changeColorIndex(uint8 index) {
+	index %= Ui::kColorIndexCount;
+	if (_colorIndexCloud && _colorIndex == index) {
+		return false;
+	}
+	_colorIndexCloud = 1;
+	_colorIndex = index;
+	return true;
+}
+
+bool PeerData::clearColorIndex() {
+	if (!_colorIndexCloud) {
+		return false;
+	}
+	_colorIndexCloud = 0;
+	_colorIndex = Data::DecideColorIndex(id);
+	return true;
+}
+
+DocumentId PeerData::backgroundEmojiId() const {
+	return _backgroundEmojiId;
+}
+
+bool PeerData::changeBackgroundEmojiId(DocumentId id) {
+	if (_backgroundEmojiId == id) {
+		return false;
+	}
+	_backgroundEmojiId = id;
+	return true;
+}
+
+void PeerData::setEmojiStatus(const MTPEmojiStatus &status) {
+	const auto parsed = owner().emojiStatuses().parse(status);
+	setEmojiStatus(parsed.id, parsed.until);
+}
+
+void PeerData::setEmojiStatus(EmojiStatusId emojiStatusId, TimeId until) {
+	if (_emojiStatusId != emojiStatusId) {
+		_emojiStatusId = emojiStatusId;
+		session().changes().peerUpdated(this, UpdateFlag::EmojiStatus);
+	}
+	owner().emojiStatuses().registerAutomaticClear(this, until);
+}
+
+EmojiStatusId PeerData::emojiStatusId() const {
+	return _emojiStatusId;
+}
+
+bool PeerData::isBot() const {
+	if (const auto user = asUser()) {
+		return user->isBot();
+	}
+	return false;
 }
 
 bool PeerData::isSelf() const {
@@ -903,6 +1422,13 @@ bool PeerData::isForum() const {
 	return false;
 }
 
+bool PeerData::isMonoforum() const {
+	if (const auto channel = asChannel()) {
+		return channel->isMonoforum();
+	}
+	return false;
+}
+
 bool PeerData::isGigagroup() const {
 	if (const auto channel = asChannel()) {
 		return channel->isGigagroup();
@@ -921,6 +1447,55 @@ bool PeerData::isRepliesChat() const {
 		: kTestId) == id;
 }
 
+bool PeerData::isVerifyCodes() const {
+	constexpr auto kVerifyCodesId = peerFromUser(489000);
+	return (id == kVerifyCodesId);
+}
+
+bool PeerData::isFreezeAppealChat() const {
+	return username().compare(u"spambot"_q, Qt::CaseInsensitive) == 0;
+}
+
+bool PeerData::sharedMediaInfo() const {
+	return isSelf() || isRepliesChat();
+}
+
+bool PeerData::savedSublistsInfo() const {
+	return isSelf() && owner().savedMessages().supported();
+}
+
+bool PeerData::hasStoriesHidden() const {
+	if (const auto user = asUser()) {
+		return user->hasStoriesHidden();
+	} else if (const auto channel = asChannel()) {
+		return channel->hasStoriesHidden();
+	}
+	return false;
+}
+
+void PeerData::setStoriesHidden(bool hidden) {
+	if (const auto user = asUser()) {
+		user->setFlags(hidden
+			? (user->flags() | UserDataFlag::StoriesHidden)
+			: (user->flags() & ~UserDataFlag::StoriesHidden));
+	} else if (const auto channel = asChannel()) {
+		channel->setFlags(hidden
+			? (channel->flags() | ChannelDataFlag::StoriesHidden)
+			: (channel->flags() & ~ChannelDataFlag::StoriesHidden));
+	} else {
+		Unexpected("PeerData::setStoriesHidden for non-user/non-channel.");
+	}
+}
+
+Ui::BotVerifyDetails *PeerData::botVerifyDetails() const {
+	if (const auto user = asUser()) {
+		return user->botVerifyDetails();
+	} else if (const auto channel = asChannel()) {
+		return channel->botVerifyDetails();
+	}
+	return nullptr;
+}
+
 Data::Forum *PeerData::forum() const {
 	if (const auto channel = asChannel()) {
 		return channel->forum();
@@ -937,20 +1512,25 @@ Data::ForumTopic *PeerData::forumTopicFor(MsgId rootId) const {
 	return nullptr;
 }
 
-
-bool PeerData::canWrite(bool checkForForum) const {
-	if (const auto user = asUser()) {
-		return user->canWrite();
-	} else if (const auto channel = asChannel()) {
-		return channel->canWrite(checkForForum);
-	} else if (const auto chat = asChat()) {
-		return chat->canWrite();
+Data::SavedMessages *PeerData::monoforum() const {
+	if (const auto channel = asChannel()) {
+		return channel->monoforum();
 	}
-	return false;
+	return nullptr;
+}
+
+Data::SavedSublist *PeerData::monoforumSublistFor(
+		PeerId sublistPeerId) const {
+	if (!sublistPeerId) {
+		return nullptr;
+	} else if (const auto monoforum = this->monoforum()) {
+		return monoforum->sublistLoaded(owner().peer(sublistPeerId));
+	}
+	return nullptr;
 }
 
 bool PeerData::allowsForwarding() const {
-	if (const auto user = asUser()) {
+	if (isUser()) {
 		return true;
 	} else if (const auto channel = asChannel()) {
 		return channel->allowsForwarding();
@@ -976,14 +1556,33 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 			return chat->hasAdminRights();
 		}
 	};
-	if (const auto channel = asChannel()) {
+	if (const auto user = asUser()) {
+		if (user->requiresPremiumToWrite() && !user->session().premium()) {
+			return Result::Explicit();
+		}
+		return (right == ChatRestriction::SendVoiceMessages
+			|| right == ChatRestriction::SendVideoMessages)
+			? ((user->flags() & UserDataFlag::VoiceMessagesForbidden)
+				? Result::Explicit()
+				: Result::Allowed())
+			: (right == ChatRestriction::PinMessages)
+			? ((user->flags() & UserDataFlag::CanPinMessages)
+				? Result::Allowed()
+				: Result::Explicit())
+			: Result::Allowed();
+	} else if (const auto channel = asChannel()) {
+		if (channel->monoforumDisabled()) {
+			return Result::WithEveryone();
+		}
 		const auto defaultRestrictions = channel->defaultRestrictions()
 			| (channel->isPublic()
-				? (ChatRestriction::PinMessages | ChatRestriction::ChangeInfo)
+				? (ChatRestriction::PinMessages
+					| ChatRestriction::ChangeInfo)
 				: ChatRestrictions(0));
 		return (channel->amCreator() || allowByAdminRights(right, channel))
 			? Result::Allowed()
-			: (defaultRestrictions & right)
+			: ((defaultRestrictions & right)
+				&& !channel->unrestrictedByBoosts())
 			? Result::WithEveryone()
 			: (channel->restrictions() & right)
 			? Result::Explicit()
@@ -999,15 +1598,19 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 }
 
 bool PeerData::amAnonymous() const {
-	return isBroadcast()
-		|| (isChannel()
-			&& (asChannel()->adminRights() & ChatAdminRight::Anonymous));
+	if (const auto channel = asChannel()) {
+		return channel->isBroadcast()
+			? !channel->signatureProfiles()
+			: (channel->adminRights() & ChatAdminRight::Anonymous);
+	}
+	return false;
 }
 
 bool PeerData::canRevokeFullHistory() const {
 	if (const auto user = asUser()) {
 		return !isSelf()
 			&& (!user->isBot() || user->isSupport())
+			&& !user->isInaccessible()
 			&& session().serverConfig().revokePrivateInbox
 			&& (session().serverConfig().revokePrivateTimeLimit == 0x7FFFFFFF);
 	} else if (const auto chat = asChat()) {
@@ -1015,7 +1618,8 @@ bool PeerData::canRevokeFullHistory() const {
 	} else if (const auto megagroup = asMegagroup()) {
 		return megagroup->amCreator()
 			&& megagroup->membersCountKnown()
-			&& megagroup->canDelete();
+			&& megagroup->canDelete()
+			&& !megagroup->isMonoforum();
 	}
 	return false;
 }
@@ -1066,28 +1670,52 @@ int PeerData::slowmodeSecondsLeft() const {
 	return 0;
 }
 
-bool PeerData::canSendPolls() const {
-	if (const auto user = asUser()) {
-		return user->isBot()
-			&& !user->isRepliesChat()
-			&& !user->isSupport();
-	} else if (const auto chat = asChat()) {
-		return chat->canSendPolls();
-	} else if (const auto channel = asChannel()) {
-		return channel->canSendPolls();
-	}
-	return false;
-}
-
 bool PeerData::canManageGroupCall() const {
 	if (const auto chat = asChat()) {
 		return chat->amCreator()
 			|| (chat->adminRights() & ChatAdminRight::ManageCall);
 	} else if (const auto group = asChannel()) {
+		if (group->isMonoforum()) {
+			return false;
+		}
 		return group->amCreator()
 			|| (group->adminRights() & ChatAdminRight::ManageCall);
 	}
 	return false;
+}
+
+bool PeerData::amMonoforumAdmin() const {
+	if (const auto channel = asChannel()) {
+		return channel->flags() & ChannelDataFlag::MonoforumAdmin;
+	}
+	return false;
+}
+
+int PeerData::starsPerMessage() const {
+	if (const auto user = asUser()) {
+		return user->starsPerMessage();
+	} else if (const auto channel = asChannel()) {
+		return channel->starsPerMessage();
+	}
+	return 0;
+}
+
+int PeerData::starsPerMessageChecked() const {
+	if (const auto channel = asChannel()) {
+		if (channel->adminRights()
+			|| channel->amCreator()
+			|| amMonoforumAdmin()) {
+			return 0;
+		}
+	}
+	return starsPerMessage();
+}
+
+Data::StarsRating PeerData::starsRating() const {
+	if (const auto user = asUser()) {
+		return user->starsRating();
+	}
+	return {};
 }
 
 Data::GroupCall *PeerData::groupCall() const {
@@ -1128,6 +1756,73 @@ const QString &PeerData::themeEmoji() const {
 	return _themeEmoticon;
 }
 
+void PeerData::setWallPaper(
+		std::optional<Data::WallPaper> paper,
+		bool overriden) {
+	const auto paperChanged = (paper || _wallPaper)
+		&& (!paper || !_wallPaper || !_wallPaper->equals(*paper));
+	if (paperChanged) {
+		_wallPaper = paper
+			? std::make_unique<Data::WallPaper>(std::move(*paper))
+			: nullptr;
+	}
+
+	const auto overridenValue = overriden ? 1 : 0;
+	const auto overridenChanged = (_wallPaperOverriden != overridenValue);
+	if (overridenChanged) {
+		_wallPaperOverriden = overridenValue;
+	}
+
+	if (paperChanged || overridenChanged) {
+		session().changes().peerUpdated(this, UpdateFlag::ChatWallPaper);
+	}
+}
+
+bool PeerData::wallPaperOverriden() const {
+	return _wallPaperOverriden != 0;
+}
+
+const Data::WallPaper *PeerData::wallPaper() const {
+	return _wallPaper.get();
+}
+
+bool PeerData::hasActiveStories() const {
+	if (const auto user = asUser()) {
+		return user->hasActiveStories();
+	} else if (const auto channel = asChannel()) {
+		return channel->hasActiveStories();
+	}
+	return false;
+}
+
+bool PeerData::hasUnreadStories() const {
+	if (const auto user = asUser()) {
+		return user->hasUnreadStories();
+	} else if (const auto channel = asChannel()) {
+		return channel->hasUnreadStories();
+	}
+	return false;
+}
+
+void PeerData::setStoriesState(StoriesState state) {
+	if (const auto user = asUser()) {
+		return user->setStoriesState(state);
+	} else if (const auto channel = asChannel()) {
+		return channel->setStoriesState(state);
+	} else {
+		Unexpected("PeerData::setStoriesState for non-user/non-channel.");
+	}
+}
+
+int PeerData::peerGiftsCount() const {
+	if (const auto user = asUser()) {
+		return user->peerGiftsCount();
+	} else if (const auto channel = asChannel()) {
+		return channel->peerGiftsCount();
+	}
+	return 0;
+}
+
 void PeerData::setIsBlocked(bool is) {
 	const auto status = is
 		? BlockStatus::Blocked
@@ -1165,95 +1860,6 @@ void PeerData::setMessagesTTL(TimeId period) {
 
 namespace Data {
 
-std::optional<QString> RestrictionError(
-		not_null<PeerData*> peer,
-		ChatRestriction restriction) {
-	using Flag = ChatRestriction;
-	if (const auto restricted = peer->amRestricted(restriction)) {
-		const auto all = restricted.isWithEveryone();
-		const auto channel = peer->asChannel();
-		if (!all && channel) {
-			auto restrictedUntil = channel->restrictedUntil();
-			if (restrictedUntil > 0 && !ChannelData::IsRestrictedForever(restrictedUntil)) {
-				auto restrictedUntilDateTime = base::unixtime::parse(channel->restrictedUntil());
-				auto date = QLocale().toString(restrictedUntilDateTime, cDateFormat());
-				auto time = QLocale().toString(restrictedUntilDateTime, cTimeFormat());
-
-				switch (restriction) {
-				case Flag::SendPolls:
-					return tr::lng_restricted_send_polls_until(
-						tr::now, lt_date, date, lt_time, time);
-				case Flag::SendMessages:
-					return tr::lng_restricted_send_message_until(
-						tr::now, lt_date, date, lt_time, time);
-				case Flag::SendMedia:
-					return tr::lng_restricted_send_media_until(
-						tr::now, lt_date, date, lt_time, time);
-				case Flag::SendStickers:
-					return tr::lng_restricted_send_stickers_until(
-						tr::now, lt_date, date, lt_time, time);
-				case Flag::SendGifs:
-					return tr::lng_restricted_send_gifs_until(
-						tr::now, lt_date, date, lt_time, time);
-				case Flag::SendInline:
-				case Flag::SendGames:
-					return tr::lng_restricted_send_inline_until(
-						tr::now, lt_date, date, lt_time, time);
-				}
-				Unexpected("Restriction in Data::RestrictionErrorKey.");
-			}
-		}
-		switch (restriction) {
-		case Flag::SendPolls:
-			return all
-				? tr::lng_restricted_send_polls_all(tr::now)
-				: tr::lng_restricted_send_polls(tr::now);
-		case Flag::SendMessages:
-			return all
-				? tr::lng_restricted_send_message_all(tr::now)
-				: tr::lng_restricted_send_message(tr::now);
-		case Flag::SendMedia:
-			return all
-				? tr::lng_restricted_send_media_all(tr::now)
-				: tr::lng_restricted_send_media(tr::now);
-		case Flag::SendStickers:
-			return all
-				? tr::lng_restricted_send_stickers_all(tr::now)
-				: tr::lng_restricted_send_stickers(tr::now);
-		case Flag::SendGifs:
-			return all
-				? tr::lng_restricted_send_gifs_all(tr::now)
-				: tr::lng_restricted_send_gifs(tr::now);
-		case Flag::SendInline:
-		case Flag::SendGames:
-			return all
-				? tr::lng_restricted_send_inline_all(tr::now)
-				: tr::lng_restricted_send_inline(tr::now);
-		}
-		Unexpected("Restriction in Data::RestrictionErrorKey.");
-	}
-	return std::nullopt;
-}
-
-std::optional<QString> RestrictionError(
-		not_null<PeerData*> peer,
-		UserRestriction restriction) {
-	const auto user = peer->asUser();
-	if (user && !user->canReceiveVoices()) {
-		const auto voice = restriction == UserRestriction::SendVoiceMessages;
-		if (voice
-			|| (restriction == UserRestriction::SendVideoMessages)) {
-			return (voice
-				? tr::lng_restricted_send_voice_messages
-				: tr::lng_restricted_send_video_messages)(
-					tr::now,
-					lt_user,
-					user->name());
-		}
-	}
-	return std::nullopt;
-}
-
 void SetTopPinnedMessageId(
 		not_null<PeerData*> peer,
 		MsgId messageId) {
@@ -1268,12 +1874,14 @@ void SetTopPinnedMessageId(
 		session.settings().setHiddenPinnedMessageId(
 			peer->id,
 			MsgId(0), // topicRootId
+			PeerId(0), // monoforumPeerId
 			0);
 		session.saveSettingsDelayed();
 	}
 	session.storage().add(Storage::SharedMediaAddExisting(
 		peer->id,
 		MsgId(0), // topicRootId
+		PeerId(0), // monoforumPeerId
 		Storage::SharedMediaType::Pinned,
 		messageId,
 		{ messageId, ServerMaxMsgId }));
@@ -1283,22 +1891,25 @@ void SetTopPinnedMessageId(
 FullMsgId ResolveTopPinnedId(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		PeerData *migrated) {
 	const auto slice = peer->session().storage().snapshot(
 		Storage::SharedMediaQuery(
 			Storage::SharedMediaKey(
 				peer->id,
 				topicRootId,
+				monoforumPeerId,
 				Storage::SharedMediaType::Pinned,
 				ServerMaxMsgId - 1),
 			1,
 			1));
-	const auto old = (!topicRootId && migrated)
+	const auto old = (!topicRootId && !monoforumPeerId && migrated)
 		? migrated->session().storage().snapshot(
 			Storage::SharedMediaQuery(
 				Storage::SharedMediaKey(
 					migrated->id,
 					MsgId(0), // topicRootId
+					PeerId(0), // monoforumPeerId
 					Storage::SharedMediaType::Pinned,
 					ServerMaxMsgId - 1),
 				1,
@@ -1320,22 +1931,25 @@ FullMsgId ResolveTopPinnedId(
 FullMsgId ResolveMinPinnedId(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		PeerData *migrated) {
 	const auto slice = peer->session().storage().snapshot(
 		Storage::SharedMediaQuery(
 			Storage::SharedMediaKey(
 				peer->id,
 				topicRootId,
+				monoforumPeerId,
 				Storage::SharedMediaType::Pinned,
 				1),
 			1,
 			1));
-	const auto old = (!topicRootId && migrated)
+	const auto old = (!topicRootId && !monoforumPeerId && migrated)
 		? migrated->session().storage().snapshot(
 			Storage::SharedMediaQuery(
 				Storage::SharedMediaKey(
 					migrated->id,
 					MsgId(0), // topicRootId
+					PeerId(0), // monoforumPeerId
 					Storage::SharedMediaType::Pinned,
 					1),
 				1,

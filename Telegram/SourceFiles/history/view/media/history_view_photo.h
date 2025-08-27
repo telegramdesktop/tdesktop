@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_file.h"
 
+class Image;
 enum class ImageRoundRadius;
 
 namespace Data {
@@ -31,7 +32,8 @@ public:
 	Photo(
 		not_null<Element*> parent,
 		not_null<HistoryItem*> realParent,
-		not_null<PhotoData*> photo);
+		not_null<PhotoData*> photo,
+		bool spoiler);
 	Photo(
 		not_null<Element*> parent,
 		not_null<PeerData*> chat,
@@ -39,28 +41,24 @@ public:
 		int width);
 	~Photo();
 
+	bool hideMessageText() const override {
+		return false;
+	}
+
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
-
-	[[nodiscard]] TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const override {
-		return _caption.adjustSelection(selection, type);
-	}
-	uint16 fullSelectionLength() const override {
-		return _caption.length();
-	}
-	bool hasTextForCopy() const override {
-		return !_caption.isEmpty();
-	}
-
-	TextForMimeData selectedText(TextSelection selection) const override;
 
 	PhotoData *getPhoto() const override {
 		return _data;
 	}
+	void showPhoto(FullMsgId id);
 
-	QSize sizeForGroupingOptimal(int maxWidth) const override;
+	void paintUserpicFrame(
+		Painter &p,
+		QPoint photoPosition,
+		bool markFrameShown) const;
+
+	QSize sizeForGroupingOptimal(int maxWidth, bool last) const override;
 	QSize sizeForGrouping(int width) const override;
 	void drawGrouped(
 		Painter &p,
@@ -77,23 +75,28 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
-	TextWithEntities getCaption() const override {
-		return _caption.toTextWithEntities();
-	}
+	void drawSpoilerTag(
+		Painter &p,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const override;
+	ClickHandlerPtr spoilerTagLink() const override;
+	QImage spoilerTagBackground() const override;
+
+	void hideSpoilers() override;
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
-		return _caption.isEmpty();
+		return true;
 	}
 	QPoint resolveCustomInfoRightBottom() const override;
 	bool skipBubbleTail() const override {
-		return isRoundedInBubbleBottom() && _caption.isEmpty();
+		return isRoundedInBubbleBottom();
 	}
 	bool isReadyForOpen() const override;
 
-	void parentTextUpdated() override;
-
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
+	bool enforceBubbleWidth() const override;
 
 protected:
 	float64 dataProgress() const override;
@@ -102,8 +105,6 @@ protected:
 
 private:
 	struct Streamed;
-
-	void showPhoto(FullMsgId id);
 
 	void create(FullMsgId contextId, PeerData *chat = nullptr);
 
@@ -129,7 +130,14 @@ private:
 	void validateImageCache(
 		QSize outer,
 		std::optional<Ui::BubbleRounding> rounding) const;
+	void validateUserpicImageCache(QSize size, bool forum) const;
 	[[nodiscard]] QImage prepareImageCache(QSize outer) const;
+	void validateSpoilerImageCache(
+		QSize outer,
+		std::optional<Ui::BubbleRounding> rounding) const;
+	[[nodiscard]] QImage prepareImageCacheWithLarge(
+		QSize outer,
+		Image *large) const;
 
 	bool videoAutoplayEnabled() const;
 	void setStreamed(std::unique_ptr<Streamed> value);
@@ -144,14 +152,26 @@ private:
 		const PaintContext &context,
 		QPoint photoPosition) const;
 
+	[[nodiscard]] QSize photoSize() const;
+	[[nodiscard]] QRect enlargeRect() const;
+
+	void togglePollingStory(bool enabled) const;
+
 	const not_null<PhotoData*> _data;
-	Ui::Text::String _caption;
+	const FullStoryId _storyId;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	mutable std::unique_ptr<Streamed> _streamed;
+	const std::unique_ptr<MediaSpoiler> _spoiler;
+	mutable std::unique_ptr<MediaSpoilerTag> _spoilerTag;
 	mutable QImage _imageCache;
 	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
-	int _serviceWidth = 0;
-	mutable bool _imageCacheBlurred = false;
+	uint32 _serviceWidth : 26 = 0;
+	uint32 _purchasedPriceTag : 1 = 0;
+	const uint32 _sensitiveSpoiler : 1 = 0;
+	mutable uint32 _imageCacheForum : 1 = 0;
+	mutable uint32 _imageCacheBlurred : 1 = 0;
+	mutable uint32 _pollingStory : 1 = 0;
+	mutable uint32 _showEnlarge : 1 = 0;
 
 };
 

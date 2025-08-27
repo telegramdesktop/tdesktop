@@ -7,17 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/message_bar.h"
 
-#include "ui/text/text_options.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
+#include "ui/text/text_options.h"
+#include "ui/ui_utility.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/palette.h"
 
 namespace Ui {
 namespace {
 
 [[nodiscard]] int SameFirstPartLength(const QString &a, const QString &b) {
-	const auto [i, j] = ranges::mismatch(a, b);
+	const auto &[i, j] = ranges::mismatch(a, b);
 	return (i - a.begin());
 }
 
@@ -140,6 +144,7 @@ void MessageBar::tweenTo(MessageBarContent &&content) {
 		? RectPart::Bottom
 		: RectPart::None;
 	animation.imageFrom = grabImagePart();
+	animation.spoilerFrom = std::move(_spoiler);
 	animation.bodyOrTextFrom = grabBodyOrTextPart(animation.bodyAnimation);
 	const auto sameLength = SameFirstPartLength(
 		_content.title,
@@ -208,12 +213,18 @@ void MessageBar::updateFromContent(MessageBarContent &&content) {
 		Ui::DialogTextOptions(),
 		_content.context);
 	_image = prepareImage(_content.preview);
+	if (!_content.spoilerRepaint) {
+		_spoiler = nullptr;
+	} else if (!_spoiler) {
+		_spoiler = std::make_unique<SpoilerAnimation>(
+			_content.spoilerRepaint);
+	}
 }
 
 QRect MessageBar::imageRect() const {
 	const auto left = st::msgReplyBarSkip + st::msgReplyBarSkip;
-	const auto top = st::msgReplyPadding.top();
-	const auto size = st::msgReplyBarSize.height();
+	const auto top = (st::historyReplyHeight - st::historyReplyPreview) / 2;
+	const auto size = st::historyReplyPreview;
 	return QRect(left, top, size, size);
 }
 
@@ -233,14 +244,11 @@ QRect MessageBar::titleRangeRect(int from, int till) const {
 
 QRect MessageBar::bodyRect(bool withImage) const {
 	const auto innerLeft = st::msgReplyBarSkip + st::msgReplyBarSkip;
-	const auto imageSkip = st::msgReplyBarSize.height()
-		+ st::msgReplyBarSkip
-		- st::msgReplyBarSize.width()
-		- st::msgReplyBarPos.x();
+	const auto imageSkip = st::historyReplyPreview + st::msgReplyBarSkip;
 	const auto left = innerLeft + (withImage ? imageSkip : 0);
 	const auto top = st::msgReplyPadding.top();
 	const auto width = _widget.width() - left - st::msgReplyPadding.right();
-	const auto height = st::msgReplyBarSize.height();
+	const auto height = (st::historyReplyHeight - 2 * top);
 	return QRect(left, top, width, height) - _content.margins;
 }
 
@@ -258,10 +266,21 @@ auto MessageBar::makeGrabGuard() {
 	auto imageShown = _animation
 		? std::move(_animation->imageShown)
 		: Ui::Animations::Simple();
-	return gsl::finally([&, shown = std::move(imageShown)]() mutable {
+	auto spoiler = std::move(_spoiler);
+	auto fromSpoiler = _animation
+		? std::move(_animation->spoilerFrom)
+		: nullptr;
+	return gsl::finally([
+		&,
+		shown = std::move(imageShown),
+		spoiler = std::move(spoiler),
+		fromSpoiler = std::move(fromSpoiler)
+	]() mutable {
 		if (_animation) {
 			_animation->imageShown = std::move(shown);
+			_animation->spoilerFrom = std::move(fromSpoiler);
 		}
+		_spoiler = std::move(spoiler);
 	});
 }
 
@@ -358,12 +377,21 @@ void MessageBar::paint(Painter &p) {
 		: (_animation->movingTo == RectPart::Top)
 		? (shiftTo - shiftFull)
 		: (shiftTo + shiftFull);
+	const auto now = crl::now();
+	const auto paused = p.inactive();
+	const auto pausedSpoiler = paused || On(PowerSaving::kChatSpoiler);
 
 	paintLeftBar(p);
 
 	if (!_animation) {
 		if (!_image.isNull()) {
-			p.drawPixmap(image, _image);
+			paintImageWithSpoiler(
+				p,
+				image,
+				_image,
+				_spoiler.get(),
+				now,
+				pausedSpoiler);
 		}
 	} else if (!_animation->imageTo.isNull()
 		|| (!_animation->imageFrom.isNull()
@@ -381,26 +409,45 @@ void MessageBar::paint(Painter &p) {
 		}();
 		if (_animation->bodyMoved.animating()) {
 			p.setOpacity(1. - progress);
-			p.drawPixmap(
+			paintImageWithSpoiler(
+				p,
 				rect.translated(0, shiftFrom),
-				_animation->imageFrom);
+				_animation->imageFrom,
+				_animation->spoilerFrom.get(),
+				now,
+				pausedSpoiler);
 			p.setOpacity(progress);
-			p.drawPixmap(rect.translated(0, shiftTo), _animation->imageTo);
+			paintImageWithSpoiler(
+				p,
+				rect.translated(0, shiftTo),
+				_animation->imageTo,
+				_spoiler.get(),
+				now,
+				pausedSpoiler);
 			p.setOpacity(1.);
 		} else {
-			p.drawPixmap(rect, _image);
+			paintImageWithSpoiler(
+				p,
+				rect,
+				_image,
+				_spoiler.get(),
+				now,
+				pausedSpoiler);
 		}
 	}
 	if (!_animation || _animation->bodyAnimation == BodyAnimation::None) {
 		if (_title.isEmpty()) {
 			// "Loading..." state.
 			p.setPen(st::historyComposeAreaFgService);
-			_text.drawLeftElided(
-				p,
-				body.x(),
-				body.y() + (body.height() - st::normalFont->height) / 2,
-				body.width(),
-				width);
+			_text.draw(p, {
+				.position = {
+					body.x(),
+					body.y() + (body.height() - st::normalFont->height) / 2,
+				},
+				.outerWidth = width,
+				.availableWidth = body.width(),
+				.elisionLines = 1,
+			});
 		} else {
 			p.setPen(_st.textFg);
 			_text.draw(p, {
@@ -409,8 +456,9 @@ void MessageBar::paint(Painter &p) {
 				.availableWidth = body.width(),
 				.palette = &_st.textPalette,
 				.spoiler = Ui::Text::DefaultSpoilerCache(),
-				.now = crl::now(),
-				.paused = p.inactive(),
+				.now = now,
+				.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
+				.pausedSpoiler = pausedSpoiler,
 				.elisionLines = 1,
 			});
 		}
@@ -508,6 +556,21 @@ void MessageBar::ensureGradientsCreated(int size) {
 	auto top = bottom.mirrored();
 	_bottomBarGradient = Images::PixmapFast(std::move(bottom));
 	_topBarGradient = Images::PixmapFast(std::move(top));
+}
+
+void MessageBar::paintImageWithSpoiler(
+		QPainter &p,
+		QRect rect,
+		const QPixmap &image,
+		SpoilerAnimation *spoiler,
+		crl::time now,
+		bool paused) const {
+	p.drawPixmap(rect, image);
+	if (spoiler) {
+		const auto frame = DefaultImageSpoiler().frame(
+			spoiler->index(now, paused));
+		FillSpoilerRect(p, rect, frame);
+	}
 }
 
 void MessageBar::paintLeftBar(Painter &p) {

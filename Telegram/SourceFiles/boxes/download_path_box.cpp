@@ -25,7 +25,14 @@ DownloadPathBox::DownloadPathBox(
 , _path(Core::App().settings().downloadPath())
 , _pathBookmark(Core::App().settings().downloadPathBookmark())
 , _group(std::make_shared<Ui::RadioenumGroup<Directory>>(typeFromPath(_path)))
-, _default(this, _group, Directory::Downloads, tr::lng_download_path_default_radio(tr::now), st::defaultBoxCheckbox)
+, _default(Core::App().canReadDefaultDownloadPath()
+	? object_ptr<Ui::Radioenum<Directory>>(
+		this,
+		_group,
+		Directory::Downloads,
+		tr::lng_download_path_default_radio(tr::now),
+		st::defaultBoxCheckbox)
+	: nullptr)
 , _temp(this, _group, Directory::Temp, tr::lng_download_path_temp_radio(tr::now), st::defaultBoxCheckbox)
 , _dir(this, _group, Directory::Custom, tr::lng_download_path_dir_radio(tr::now), st::defaultBoxCheckbox)
 , _pathLink(this, QString(), st::boxLinkButton) {
@@ -37,20 +44,22 @@ void DownloadPathBox::prepare() {
 
 	setTitle(tr::lng_download_path_header());
 
-	_group->setChangedCallback([this](Directory value) { radioChanged(value); });
+	_group->setChangedCallback([this](Directory value) {
+		radioChanged(value);
+	});
 
 	_pathLink->addClickHandler([=] { editPath(); });
-	if (!_path.isEmpty() && _path != qsl("tmp")) {
+	if (!_path.isEmpty() && _path != FileDialog::Tmp()) {
 		setPathText(QDir::toNativeSeparators(_path));
 	}
 	updateControlsVisibility();
 }
 
 void DownloadPathBox::updateControlsVisibility() {
-	auto custom = (_group->value() == Directory::Custom);
+	auto custom = (_group->current() == Directory::Custom);
 	_pathLink->setVisible(custom);
 
-	auto newHeight = st::boxOptionListPadding.top() + _default->getMargins().top() + _default->heightNoMargins() + st::boxOptionListSkip + _temp->heightNoMargins() + st::boxOptionListSkip + _dir->heightNoMargins();
+	auto newHeight = st::boxOptionListPadding.top() + (_default ? _default->getMargins().top() + _default->heightNoMargins() : 0) + st::boxOptionListSkip + _temp->heightNoMargins() + st::boxOptionListSkip + _dir->heightNoMargins();
 	if (custom) {
 		newHeight += st::downloadPathSkip + _pathLink->height();
 	}
@@ -62,8 +71,10 @@ void DownloadPathBox::updateControlsVisibility() {
 void DownloadPathBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	_default->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top() + _default->getMargins().top());
-	_temp->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _default->bottomNoMargins() + st::boxOptionListSkip);
+	if (_default) {
+		_default->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top() + _default->getMargins().top());
+	}
+	_temp->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), (_default ? _default->bottomNoMargins() : 0) + st::boxOptionListSkip);
 	_dir->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _temp->bottomNoMargins() + st::boxOptionListSkip);
 	auto inputx = st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultCheck.diameter + st::defaultBoxCheckbox.textPosition.x();
 	auto inputy = _dir->bottomNoMargins() + st::downloadPathSkip;
@@ -73,14 +84,14 @@ void DownloadPathBox::resizeEvent(QResizeEvent *e) {
 
 void DownloadPathBox::radioChanged(Directory value) {
 	if (value == Directory::Custom) {
-		if (_path.isEmpty() || _path == qsl("tmp")) {
+		if (_path.isEmpty() || _path == FileDialog::Tmp()) {
 			_group->setValue(_path.isEmpty() ? Directory::Downloads : Directory::Temp);
 			editPath();
 		} else {
 			setPathText(QDir::toNativeSeparators(_path));
 		}
 	} else if (value == Directory::Temp) {
-		_path = qsl("tmp");
+		_path = FileDialog::Tmp();
 	} else {
 		_path = QString();
 	}
@@ -91,7 +102,7 @@ void DownloadPathBox::radioChanged(Directory value) {
 void DownloadPathBox::editPath() {
 	const auto initialPath = [] {
 		const auto path = Core::App().settings().downloadPath();
-		if (!path.isEmpty() && path != qstr("tmp")) {
+		if (!path.isEmpty() && path != FileDialog::Tmp()) {
 			return path.left(path.size() - (path.endsWith('/') ? 1 : 0));
 		}
 		return QString();
@@ -113,12 +124,12 @@ void DownloadPathBox::editPath() {
 
 void DownloadPathBox::save() {
 #ifndef OS_WIN_STORE
-	auto value = _group->value();
+	auto value = _group->current();
 	auto computePath = [this, value] {
 		if (value == Directory::Custom) {
 			return _path;
 		} else if (value == Directory::Temp) {
-			return qsl("tmp");
+			return FileDialog::Tmp();
 		}
 		return QString();
 	};
@@ -133,4 +144,16 @@ void DownloadPathBox::save() {
 void DownloadPathBox::setPathText(const QString &text) {
 	auto availw = st::boxWideWidth - st::boxPadding.left() - st::defaultCheck.diameter - st::defaultBoxCheckbox.textPosition.x() - st::boxPadding.right();
 	_pathLink->setText(st::boxTextFont->elided(text, availw));
+}
+
+DownloadPathBox::Directory DownloadPathBox::typeFromPath(
+		const QString &path) {
+	if (path.isEmpty()) {
+		return Core::App().canReadDefaultDownloadPath()
+			? Directory::Downloads
+			: Directory::Temp;
+	} else if (path == FileDialog::Tmp()) {
+		return Directory::Temp;
+	}
+	return Directory::Custom;
 }

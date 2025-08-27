@@ -53,9 +53,10 @@ void SlideAnimation::paintContents(QPainter &p) const {
 					0,
 					0,
 					_cacheUnder,
-					(_cacheUnder.width() - leftWidth * cIntRetinaFactor()),
+					_cacheUnder.width()
+						- leftWidth * style::DevicePixelRatio(),
 					0,
-					leftWidth * cIntRetinaFactor(),
+					leftWidth * style::DevicePixelRatio(),
 					_topSkip * retina);
 			}
 
@@ -67,7 +68,7 @@ void SlideAnimation::paintContents(QPainter &p) const {
 					_cacheOver,
 					0,
 					0,
-					rightWidth * cIntRetinaFactor(),
+					rightWidth * style::DevicePixelRatio(),
 					_topSkip * retina);
 			}
 
@@ -141,6 +142,12 @@ void SlideAnimation::paintContents(QPainter &p) const {
 	}
 }
 
+float64 SlideAnimation::progress() const {
+	const auto slideLeft = (_direction == SlideDirection::FromLeft);
+	const auto progress = _animation.value(slideLeft ? 0. : 1.);
+	return slideLeft ? (1. - progress) : progress;
+}
+
 void SlideAnimation::setDirection(SlideDirection direction) {
 	_direction = direction;
 }
@@ -187,14 +194,18 @@ void SlideAnimation::start() {
 		fromLeft ? 0. : 1.,
 		st::slideDuration,
 		transition());
-	_repaintCallback();
+	if (const auto onstack = _repaintCallback) {
+		onstack();
+	}
 }
 
 void SlideAnimation::animationCallback() {
-	_repaintCallback();
+	if (const auto onstack = _repaintCallback) {
+		onstack();
+	}
 	if (!_animation.animating()) {
-		if (_finishedCallback) {
-			_finishedCallback();
+		if (const auto onstack = _finishedCallback) {
+			onstack();
 		}
 	}
 }

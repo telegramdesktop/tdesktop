@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "dialogs/dialogs_common.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_pinned_list.h"
 
@@ -33,8 +34,8 @@ public:
 	void setAllAreMuted(bool allAreMuted = true);
 	void clear();
 
-	RowsByLetter addEntry(const Key &key);
-	void removeEntry(const Key &key);
+	RowsByLetter addEntry(Key key);
+	void removeEntry(Key key);
 
 	void unreadStateChanged(
 		const UnreadState &wasState,

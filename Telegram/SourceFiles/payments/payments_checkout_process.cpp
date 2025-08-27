@@ -11,8 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_panel.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
-#include "main/main_domain.h"
-#include "storage/storage_domain.h"
+#include "storage/storage_account.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "data/data_user.h" // UserData::isBot.
@@ -25,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
 #include "window/themes/window_theme.h"
-#include "webview/webview_interface.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -38,6 +36,7 @@ namespace {
 struct SessionProcesses {
 	base::flat_map<FullMsgId, std::unique_ptr<CheckoutProcess>> byItem;
 	base::flat_map<QString, std::unique_ptr<CheckoutProcess>> bySlug;
+	base::flat_map<uint64, std::unique_ptr<CheckoutProcess>> byRandomId;
 	base::flat_map<FullMsgId, PaidInvoice> paymentStartedByItem;
 	base::flat_map<QString, PaidInvoice> paymentStartedBySlug;
 	rpl::lifetime lifetime;
@@ -65,7 +64,8 @@ base::flat_map<not_null<Main::Session*>, SessionProcesses> Processes;
 void CheckoutProcess::Start(
 		not_null<const HistoryItem*> item,
 		Mode mode,
-		Fn<void(CheckoutResult)> reactivate) {
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess) {
 	auto &processes = LookupSessionProcesses(&item->history()->session());
 	const auto media = item->media();
 	const auto invoice = media ? media->invoice() : nullptr;
@@ -84,6 +84,8 @@ void CheckoutProcess::Start(
 	const auto i = processes.byItem.find(id);
 	if (i != end(processes.byItem)) {
 		i->second->setReactivateCallback(std::move(reactivate));
+		i->second->setNonPanelPaymentFormProcess(
+			std::move(nonPanelPaymentFormProcess));
 		i->second->requestActivate();
 		return;
 	}
@@ -93,6 +95,7 @@ void CheckoutProcess::Start(
 			InvoiceId{ InvoiceMessage{ item->history()->peer, id.msg } },
 			mode,
 			std::move(reactivate),
+			std::move(nonPanelPaymentFormProcess),
 			PrivateTag{})).first;
 	j->second->requestActivate();
 }
@@ -100,11 +103,14 @@ void CheckoutProcess::Start(
 void CheckoutProcess::Start(
 		not_null<Main::Session*> session,
 		const QString &slug,
-		Fn<void(CheckoutResult)> reactivate) {
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess) {
 	auto &processes = LookupSessionProcesses(session);
 	const auto i = processes.bySlug.find(slug);
 	if (i != end(processes.bySlug)) {
 		i->second->setReactivateCallback(std::move(reactivate));
+		i->second->setNonPanelPaymentFormProcess(
+			std::move(nonPanelPaymentFormProcess));
 		i->second->requestActivate();
 		return;
 	}
@@ -114,8 +120,82 @@ void CheckoutProcess::Start(
 			InvoiceId{ InvoiceSlug{ session, slug } },
 			Mode::Payment,
 			std::move(reactivate),
+			std::move(nonPanelPaymentFormProcess),
 			PrivateTag{})).first;
 	j->second->requestActivate();
+}
+
+void CheckoutProcess::Start(
+		InvoicePremiumGiftCode giftCodeInvoice,
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess) {
+	const auto randomId = giftCodeInvoice.randomId;
+	auto id = InvoiceId{ std::move(giftCodeInvoice) };
+	auto &processes = LookupSessionProcesses(SessionFromId(id));
+	const auto i = processes.byRandomId.find(randomId);
+	if (i != end(processes.byRandomId)) {
+		i->second->setReactivateCallback(std::move(reactivate));
+		i->second->setNonPanelPaymentFormProcess(
+			std::move(nonPanelPaymentFormProcess));
+		i->second->requestActivate();
+		return;
+	}
+	const auto j = processes.byRandomId.emplace(
+		randomId,
+		std::make_unique<CheckoutProcess>(
+			std::move(id),
+			Mode::Payment,
+			std::move(reactivate),
+			std::move(nonPanelPaymentFormProcess),
+			PrivateTag{})).first;
+	j->second->requestActivate();
+}
+
+void CheckoutProcess::Start(
+		InvoiceCredits creditsInvoice,
+		Fn<void(CheckoutResult)> reactivate) {
+	const auto randomId = creditsInvoice.randomId;
+	auto id = InvoiceId{ std::move(creditsInvoice) };
+	auto &processes = LookupSessionProcesses(SessionFromId(id));
+	const auto i = processes.byRandomId.find(randomId);
+	if (i != end(processes.byRandomId)) {
+		i->second->setReactivateCallback(std::move(reactivate));
+		i->second->requestActivate();
+		return;
+	}
+	const auto j = processes.byRandomId.emplace(
+		randomId,
+		std::make_unique<CheckoutProcess>(
+			std::move(id),
+			Mode::Payment,
+			std::move(reactivate),
+			nullptr,
+			PrivateTag{})).first;
+	j->second->requestActivate();
+}
+
+void CheckoutProcess::Start(
+		InvoiceStarGift giftInvoice,
+		Fn<void(CheckoutResult)> reactivate,
+		Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess) {
+	const auto randomId = giftInvoice.randomId;
+	auto id = InvoiceId{ std::move(giftInvoice) };
+	auto &processes = LookupSessionProcesses(SessionFromId(id));
+	const auto i = processes.byRandomId.find(randomId);
+	if (i != end(processes.byRandomId)) {
+		i->second->setReactivateCallback(std::move(reactivate));
+		i->second->setNonPanelPaymentFormProcess(
+			std::move(nonPanelPaymentFormProcess));
+		return;
+	}
+	processes.byRandomId.emplace(
+		randomId,
+		std::make_unique<CheckoutProcess>(
+			std::move(id),
+			Mode::Payment,
+			std::move(reactivate),
+			std::move(nonPanelPaymentFormProcess),
+			PrivateTag{}));
 }
 
 std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
@@ -139,7 +219,8 @@ std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
 	} else if (i->second.paymentStartedByItem.empty()
 		&& i->second.byItem.empty()
 		&& i->second.paymentStartedBySlug.empty()
-		&& i->second.bySlug.empty()) {
+		&& i->second.bySlug.empty()
+		&& i->second.byRandomId.empty()) {
 		Processes.erase(i);
 	}
 	return result;
@@ -165,7 +246,8 @@ std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
 	} else if (i->second.paymentStartedByItem.empty()
 		&& i->second.byItem.empty()
 		&& i->second.paymentStartedBySlug.empty()
-		&& i->second.bySlug.empty()) {
+		&& i->second.bySlug.empty()
+		&& i->second.byRandomId.empty()) {
 		Processes.erase(i);
 	}
 	return result;
@@ -192,6 +274,11 @@ void CheckoutProcess::RegisterPaymentStart(
 			return;
 		}
 	}
+	for (const auto &[randomId, itemProcess] : i->second.byRandomId) {
+		if (itemProcess.get() == process) {
+			return;
+		}
+	}
 }
 
 void CheckoutProcess::UnregisterPaymentStart(
@@ -212,10 +299,16 @@ void CheckoutProcess::UnregisterPaymentStart(
 			break;
 		}
 	}
+	for (const auto &[randomId, itemProcess] : i->second.byRandomId) {
+		if (itemProcess.get() == process) {
+			break;
+		}
+	}
 	if (i->second.paymentStartedByItem.empty()
 		&& i->second.byItem.empty()
 		&& i->second.paymentStartedBySlug.empty()
-		&& i->second.bySlug.empty()) {
+		&& i->second.bySlug.empty()
+		&& i->second.byRandomId.empty()) {
 		Processes.erase(i);
 	}
 }
@@ -224,11 +317,13 @@ CheckoutProcess::CheckoutProcess(
 	InvoiceId id,
 	Mode mode,
 	Fn<void(CheckoutResult)> reactivate,
+	Fn<void(NonPanelPaymentForm)> nonPanelPaymentFormProcess,
 	PrivateTag)
 : _session(SessionFromId(id))
 , _form(std::make_unique<Form>(id, (mode == Mode::Receipt)))
 , _panel(std::make_unique<Ui::Panel>(panelDelegate()))
-, _reactivate(std::move(reactivate)) {
+, _reactivate(std::move(reactivate))
+, _nonPanelPaymentFormProcess(std::move(nonPanelPaymentFormProcess)) {
 	_form->updates(
 	) | rpl::start_with_next([=](const FormUpdate &update) {
 		handleFormUpdate(update);
@@ -243,19 +338,10 @@ CheckoutProcess::CheckoutProcess(
 	) | rpl::start_with_next([=] {
 		panelCancelEdit();
 	}, _panel->lifetime());
-	showForm();
+	if (!_nonPanelPaymentFormProcess) {
+		showForm();
+	}
 	_panel->toggleProgress(true);
-
-	style::PaletteChanged(
-	) | rpl::filter([=] {
-		return !_themeUpdateScheduled;
-	}) | rpl::start_with_next([=] {
-		_themeUpdateScheduled = true;
-		crl::on_main(this, [=] {
-			_themeUpdateScheduled = false;
-			_panel->updateThemeParams(Window::Theme::WebViewParams());
-		});
-	}, _panel->lifetime());
 
 	if (mode == Mode::Payment) {
 		_session->api().cloudPassword().state(
@@ -273,8 +359,15 @@ void CheckoutProcess::setReactivateCallback(
 	_reactivate = std::move(reactivate);
 }
 
+void CheckoutProcess::setNonPanelPaymentFormProcess(
+		Fn<void(NonPanelPaymentForm)> callback) {
+	_nonPanelPaymentFormProcess = std::move(callback);
+}
+
 void CheckoutProcess::requestActivate() {
-	_panel->requestActivate();
+	if (!_nonPanelPaymentFormProcess) {
+		_panel->requestActivate();
+	}
 }
 
 not_null<Ui::PanelDelegate*> CheckoutProcess::panelDelegate() {
@@ -317,7 +410,7 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		UnregisterPaymentStart(this);
 		_submitState = SubmitState::Validated;
 		_panel->showWarning(data.bot->name(), data.provider->name());
-		if (const auto box = _enterPasswordBox.data()) {
+		if (const auto box = _enterPasswordBox.get()) {
 			box->closeBox();
 		}
 	}, [&](const VerificationNeeded &data) {
@@ -336,15 +429,27 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		if (weak) {
 			closeAndReactivate(CheckoutResult::Paid);
 		}
+	}, [&](const CreditsPaymentStarted &data) {
+		if (_nonPanelPaymentFormProcess) {
+			_nonPanelPaymentFormProcess(
+				std::make_shared<CreditsFormData>(data.data));
+			close();
+		}
+	}, [&](const CreditsReceiptReady &data) {
+		if (_nonPanelPaymentFormProcess) {
+			_nonPanelPaymentFormProcess(
+				std::make_shared<CreditsReceiptData>(data.data));
+			close();
+		}
 	}, [&](const Error &error) {
 		handleError(error);
 	});
 }
 
 void CheckoutProcess::handleError(const Error &error) {
-	const auto showToast = [&](const TextWithEntities &text) {
+	const auto showToast = [&](TextWithEntities &&text) {
 		_panel->requestActivate();
-		_panel->showToast(text);
+		_panel->showToast(std::move(text));
 	};
 	const auto &id = error.id;
 	switch (error.type) {
@@ -429,7 +534,7 @@ void CheckoutProcess::handleError(const Error &error) {
 		showToast({ "SmartGlocal Error: " + id });
 	} break;
 	case Error::Type::TmpPassword:
-		if (const auto box = _enterPasswordBox.data()) {
+		if (const auto box = _enterPasswordBox.get()) {
 			if (!box->handleCustomCheckError(id)) {
 				showToast({ "Error: Could not generate tmp password." });
 			}
@@ -437,7 +542,7 @@ void CheckoutProcess::handleError(const Error &error) {
 		break;
 	case Error::Type::Send:
 		_sendFormFailed = true;
-		if (const auto box = _enterPasswordBox.data()) {
+		if (const auto box = _enterPasswordBox.get()) {
 			box->closeBox();
 		}
 		if (_submitState == SubmitState::Finishing) {
@@ -450,6 +555,8 @@ void CheckoutProcess::handleError(const Error &error) {
 			showToast({ tr::lng_payments_payment_failed(tr::now) });
 		} else if (id == u"BOT_PRECHECKOUT_FAILED"_q) {
 			showToast({ tr::lng_payments_precheckout_failed(tr::now) });
+		} else if (id == u"BOT_PRECHECKOUT_TIMEOUT"_q) {
+			showToast({ tr::lng_payments_precheckout_timeout(tr::now) });
 		} else if (id == u"REQUESTED_INFO_INVALID"_q
 			|| id == u"SHIPPING_OPTION_INVALID"_q
 			|| id == u"PAYMENT_CREDENTIALS_INVALID"_q
@@ -508,8 +615,16 @@ void CheckoutProcess::close() {
 	if (k != end(entry.bySlug)) {
 		entry.bySlug.erase(k);
 	}
+	const auto l = ranges::find(
+		entry.byRandomId,
+		this,
+		[](const auto &pair) { return pair.second.get(); });
+	if (l != end(entry.byRandomId)) {
+		entry.byRandomId.erase(l);
+	}
 	if (entry.byItem.empty()
 		&& entry.bySlug.empty()
+		&& i->second.byRandomId.empty()
 		&& entry.paymentStartedByItem.empty()
 		&& entry.paymentStartedBySlug.empty()) {
 		Processes.erase(i);
@@ -540,10 +655,12 @@ void CheckoutProcess::panelSubmit() {
 	} else if (!method.newCredentials
 		&& method.savedCredentialsIndex >= method.savedCredentials.size()) {
 		editPaymentMethod();
-	} else if (invoice.isRecurring && !_form->details().termsAccepted) {
+	} else if (!invoice.termsUrl.isEmpty()
+		&& !_form->details().termsAccepted) {
 		_panel->requestTermsAcceptance(
 			_form->details().termsBotUsername,
-			invoice.recurringTermsUrl);
+			invoice.termsUrl,
+			invoice.isRecurring);
 	} else {
 		RegisterPaymentStart(this, { _form->invoice().cover.title });
 		_submitState = SubmitState::Finishing;
@@ -611,6 +728,10 @@ void CheckoutProcess::panelWebviewMessage(
 	});
 }
 
+std::optional<QDate> CheckoutProcess::panelOverrideExpireDateThreshold() {
+	return _form->overrideExpireDateThreshold();
+}
+
 bool CheckoutProcess::panelWebviewNavigationAttempt(const QString &uri) {
 	if (Core::TryConvertUrlToLocal(uri) == uri) {
 		return true;
@@ -664,6 +785,14 @@ void CheckoutProcess::showForm() {
 		_form->information(),
 		_form->paymentMethod().ui,
 		_form->shippingOptions());
+	if (_nonPanelPaymentFormProcess && !_realFormNotified) {
+		_realFormNotified = true;
+		const auto weak = base::make_weak(_panel.get());
+		_nonPanelPaymentFormProcess(RealFormPresentedNotification());
+		if (weak) {
+			requestActivate();
+		}
+	}
 }
 
 void CheckoutProcess::showEditInformation(Ui::InformationField field) {
@@ -727,12 +856,12 @@ void CheckoutProcess::requestPassword() {
 			(index < list.size()) ? list[index].title : QString());
 		fields.customSubmitButton = tr::lng_payments_password_submit();
 		fields.customCheckCallback = [=](
-				const Core::CloudPasswordResult &result) {
+				const Core::CloudPasswordResult &result,
+				base::weak_qptr<PasscodeBox> box) {
+			_enterPasswordBox = box;
 			_form->submit(result);
 		};
-		auto owned = Box<PasscodeBox>(_session, fields);
-		_enterPasswordBox = owned.data();
-		_panel->showBox(std::move(owned));
+		_panel->showBox(Box<PasscodeBox>(_session, fields));
 	});
 }
 
@@ -838,8 +967,12 @@ void CheckoutProcess::performInitialSilentValidation() {
 	_form->validateInformation(saved);
 }
 
-QString CheckoutProcess::panelWebviewDataPath() {
-	return _session->domain().local().webviewDataPath();
+Webview::StorageId CheckoutProcess::panelWebviewStorageId() {
+	return _session->local().resolveStorageIdOther();
+}
+
+Webview::ThemeParams CheckoutProcess::panelWebviewThemeParams() {
+	return Window::Theme::WebViewParams();
 }
 
 } // namespace Payments

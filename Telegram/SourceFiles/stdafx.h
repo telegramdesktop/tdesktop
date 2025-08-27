@@ -76,9 +76,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QOpenGLWidget>
 
 // Fix Google Breakpad build for Mac App Store and Linux version
-#ifdef Q_OS_UNIX
+#ifndef Q_OS_WIN
 #define __STDC_FORMAT_MACROS
-#endif // Q_OS_UNIX
+#endif // !Q_OS_WIN
 
 // Remove 'small' macro definition.
 #ifdef Q_OS_WIN
@@ -109,28 +109,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/rpl.h>
 #include <crl/crl.h>
 
-#include "base/variant.h"
-#include "base/optional.h"
 #include "base/algorithm.h"
-#include "base/invoke_queued.h"
+#include "base/basic_types.h"
+#include "base/debug_destroy_informer.h" // _DEBUG only.
 #include "base/flat_set.h"
 #include "base/flat_map.h"
+#include "base/invoke_queued.h"
+#include "base/optional.h"
+#include "base/variant.h"
 #include "base/weak_ptr.h"
-
-#include "base/basic_types.h"
-#include "logs.h"
-#include "core/utils.h"
-#include "config.h"
+#include "base/weak_qptr.h"
 
 #include "scheme.h"
 #include "mtproto/type_utils.h"
 
+#include "ui/image/image_location.h"
 #include "ui/style/style_core.h"
+#include "ui/text/text.h"
+#include "ui/arc_angles.h"
+#include "ui/emoji_config.h"
+#include "ui/qt_object_factory.h"
+#include "ui/ui_rpl_filter.h"
+
 #include "styles/palette.h"
 #include "styles/style_basic.h"
 
-#include "ui/image/image_location.h"
-#include "ui/text/text.h"
+#include "core/credits_amount.h"
+#include "core/utils.h"
+#include "logs.h"
+#include "config.h"
 
 #include "data/data_types.h"
 

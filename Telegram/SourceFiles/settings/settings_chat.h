@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_common.h"
+#include "settings/settings_common_session.h"
 
 namespace Window {
 class Controller;
@@ -29,7 +29,14 @@ void SetupSupport(
 	not_null<Ui::VerticalLayout*> container);
 void SetupExport(
 	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container);
+	not_null<Ui::VerticalLayout*> container,
+	Fn<void(Type)> showOther);
+
+void PaintRoundColorButton(
+	QPainter &p,
+	int size,
+	QBrush brush,
+	float64 selected);
 
 class Chat : public Section<Chat> {
 public:
@@ -37,8 +44,13 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
+	void fillTopBarMenu(
+		const Ui::Menu::MenuCallback &addAction) override;
+
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
+
+	const not_null<Window::SessionController*> _controller;
 
 };
 

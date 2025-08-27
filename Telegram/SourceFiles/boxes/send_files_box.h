@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/variable.h>
-#include "boxes/abstract_box.h"
+#include "base/flags.h"
+#include "ui/layers/box_content.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
-#include "storage/localimageloader.h"
-#include "storage/storage_media_prepare.h"
+
+namespace style {
+struct ComposeControls;
+} // namespace style
 
 namespace Window {
 class SessionController;
@@ -25,6 +27,8 @@ enum class SendType;
 
 namespace ChatHelpers {
 class TabbedPanel;
+class Show;
+class FieldAutocomplete;
 } // namespace ChatHelpers
 
 namespace Ui {
@@ -36,6 +40,7 @@ class EmojiButton;
 class AlbumPreview;
 class VerticalLayout;
 class FlatLabel;
+class PopupMenu;
 } // namespace Ui
 
 namespace Window {
@@ -43,8 +48,61 @@ class SessionController;
 } // namespace Window
 
 namespace SendMenu {
-enum class Type;
+struct Details;
+struct Action;
 } // namespace SendMenu
+
+namespace HistoryView::Controls {
+class CharactersLimitLabel;
+} // namespace HistoryView::Controls
+
+enum class SendFilesAllow {
+	OnlyOne = (1 << 0),
+	Photos = (1 << 1),
+	Videos = (1 << 2),
+	Music = (1 << 3),
+	Files = (1 << 4),
+	Stickers = (1 << 5),
+	Gifs = (1 << 6),
+	EmojiWithoutPremium = (1 << 7),
+	Texts = (1 << 8),
+};
+inline constexpr bool is_flag_type(SendFilesAllow) { return true; }
+using SendFilesLimits = base::flags<SendFilesAllow>;
+
+using SendFilesCheck = Fn<bool(
+	const Ui::PreparedFile &file,
+	bool compress,
+	bool silent)>;
+
+[[nodiscard]] SendFilesLimits DefaultLimitsForPeer(not_null<PeerData*> peer);
+[[nodiscard]] SendFilesCheck DefaultCheckForPeer(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer);
+[[nodiscard]] SendFilesCheck DefaultCheckForPeer(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer);
+
+using SendFilesConfirmed = Fn<void(
+	Ui::PreparedList &&list,
+	Ui::SendFilesWay way,
+	TextWithTags &&caption,
+	Api::SendOptions options,
+	bool ctrlShiftEnter)>;
+
+struct SendFilesBoxDescriptor {
+	std::shared_ptr<ChatHelpers::Show> show;
+	Ui::PreparedList list;
+	TextWithTags caption;
+	PeerData *captionToPeer = nullptr;
+	SendFilesLimits limits = {};
+	SendFilesCheck check;
+	Api::SendType sendType = {};
+	Fn<SendMenu::Details()> sendMenuDetails = nullptr;
+	const style::ComposeControls *stOverride = nullptr;
+	SendFilesConfirmed confirmed;
+	Fn<void()> cancelled;
+};
 
 class SendFilesBox : public Ui::BoxContent {
 public:
@@ -57,22 +115,19 @@ public:
 		not_null<Window::SessionController*> controller,
 		Ui::PreparedList &&list,
 		const TextWithTags &caption,
-		not_null<PeerData*> peer,
+		not_null<PeerData*> toPeer,
 		Api::SendType sendType,
-		SendMenu::Type sendMenuType);
+		SendMenu::Details sendMenuDetails);
+	SendFilesBox(QWidget*, SendFilesBoxDescriptor &&descriptor);
 
-	void setConfirmedCallback(
-		Fn<void(
-			Ui::PreparedList &&list,
-			Ui::SendFilesWay way,
-			TextWithTags &&caption,
-			Api::SendOptions options,
-			bool ctrlShiftEnter)> callback) {
+	void setConfirmedCallback(SendFilesConfirmed callback) {
 		_confirmedCallback = std::move(callback);
 	}
 	void setCancelledCallback(Fn<void()> callback) {
 		_cancelledCallback = std::move(callback);
 	}
+
+	void showFinished() override;
 
 	~SendFilesBox();
 
@@ -85,15 +140,22 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	using MenuAction = SendMenu::Action;
+	using MenuDetails = SendMenu::Details;
+
 	class Block final {
 	public:
 		Block(
 			not_null<QWidget*> parent,
+			const style::ComposeControls &st,
 			not_null<std::vector<Ui::PreparedFile>*> items,
 			int from,
 			int till,
 			Fn<bool()> gifPaused,
-			Ui::SendFilesWay way);
+			Ui::SendFilesWay way,
+			Fn<bool(
+				const Ui::PreparedFile &,
+				Ui::AttachActionType)> actionAllowed);
 		Block(Block &&other) = default;
 		Block &operator=(Block &&other) = default;
 
@@ -104,9 +166,15 @@ private:
 		[[nodiscard]] rpl::producer<int> itemDeleteRequest() const;
 		[[nodiscard]] rpl::producer<int> itemReplaceRequest() const;
 		[[nodiscard]] rpl::producer<int> itemModifyRequest() const;
+		[[nodiscard]] rpl::producer<int> itemEditCoverRequest() const;
+		[[nodiscard]] rpl::producer<int> itemClearCoverRequest() const;
+		[[nodiscard]] rpl::producer<> orderUpdated() const;
 
 		void setSendWay(Ui::SendFilesWay way);
-		void applyAlbumOrder();
+		void toggleSpoilers(bool enabled);
+		void applyChanges();
+
+		[[nodiscard]] QImage generatePriceTagBackground() const;
 
 	private:
 		base::unique_qptr<Ui::RpWidget> _preview;
@@ -117,16 +185,38 @@ private:
 		bool _isSingleMedia = false;
 
 	};
+
 	void initSendWay();
 	void initPreview();
+	[[nodiscard]] bool hasSendMenu(const MenuDetails &details) const;
+	[[nodiscard]] bool hasSpoilerMenu() const;
+	[[nodiscard]] bool allWithSpoilers();
+	[[nodiscard]] bool checkWithWay(
+		Ui::SendFilesWay way,
+		bool silent = false) const;
+	[[nodiscard]] bool checkWith(
+		const Ui::PreparedList &added,
+		Ui::SendFilesWay way,
+		bool silent = false) const;
+	void addMenuButton();
+	void applyBlockChanges();
+	void toggleSpoilers(bool enabled);
+	void changePrice();
+
+	[[nodiscard]] bool canChangePrice() const;
+	[[nodiscard]] bool hasPrice() const;
+	void refreshPriceTag();
+	[[nodiscard]] QImage preparePriceTagBg(QSize size) const;
 
 	bool validateLength(const QString &text) const;
-	void refreshControls();
+	void refreshButtons();
+	void refreshControls(bool initial = false);
 	void setupSendWayControls();
 	void setupCaption();
+	void setupCaptionAutocomplete();
 
 	void setupEmojiPanel();
-	void updateSendWayControlsVisibility();
+	void updateSendWayControls();
 	void updateEmojiPanelGeometry();
 	void emojiFilterForGeometry(not_null<QEvent*> event);
 
@@ -134,8 +224,7 @@ private:
 	void generatePreviewFrom(int fromBlock);
 
 	void send(Api::SendOptions options, bool ctrlShiftEnter = false);
-	void sendSilent();
-	void sendScheduled();
+	[[nodiscard]] Fn<void(Api::SendOptions)> sendCallback();
 	void captionResized();
 	void saveSendWaySettings();
 
@@ -145,19 +234,27 @@ private:
 	void updateControlsGeometry();
 	void updateCaptionPlaceholder();
 
-	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool addFiles(not_null<const QMimeData*> data);
 	bool addFiles(Ui::PreparedList list);
 	void addFile(Ui::PreparedFile &&file);
 	void pushBlock(int from, int till);
 
 	void openDialogToAddFileToAlbum();
-	void refreshAllAfterChanges(int fromItem);
+	void refreshAllAfterChanges(int fromItem, Fn<void()> perform = nullptr);
 
 	void enqueueNextPrepare();
 	void addPreparedAsyncFile(Ui::PreparedFile &&file);
 
-	const not_null<Window::SessionController*> _controller;
+	void checkCharsLimitation();
+	void refreshMessagesCount();
+
+	[[nodiscard]] Fn<MenuDetails()> prepareSendMenuDetails(
+		const SendFilesBoxDescriptor &descriptor);
+	[[nodiscard]] auto prepareSendMenuCallback()
+		-> Fn<void(MenuAction, MenuDetails)>;
+
+	const std::shared_ptr<ChatHelpers::Show> _show;
+	const style::ComposeControls &_st;
 	const Api::SendType _sendType = Api::SendType();
 
 	QString _titleText;
@@ -165,28 +262,34 @@ private:
 
 	Ui::PreparedList _list;
 	std::optional<int> _removingIndex;
+	rpl::variable<int> _messagesCount;
 
-	SendLimit _sendLimit = SendLimit::Many;
-	SendMenu::Type _sendMenuType = SendMenu::Type();
-	bool _allowEmojiWithoutPremium = false;
+	SendFilesLimits _limits = {};
+	Fn<MenuDetails()> _sendMenuDetails;
+	Fn<void(MenuAction, MenuDetails)> _sendMenuCallback;
 
-	Fn<void(
-		Ui::PreparedList &&list,
-		Ui::SendFilesWay way,
-		TextWithTags &&caption,
-		Api::SendOptions options,
-		bool ctrlShiftEnter)> _confirmedCallback;
+	PeerData *_captionToPeer = nullptr;
+	SendFilesCheck _check;
+	SendFilesConfirmed _confirmedCallback;
 	Fn<void()> _cancelledCallback;
+	rpl::variable<uint64> _price = 0;
+	std::unique_ptr<Ui::RpWidget> _priceTag;
+	QImage _priceTagBg;
 	bool _confirmed = false;
+	bool _invertCaption = false;
 
 	object_ptr<Ui::InputField> _caption = { nullptr };
+	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
 	TextWithTags _prefilledCaptionText;
 	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
+	using CharactersLimitLabel = HistoryView::Controls::CharactersLimitLabel;
+	base::unique_qptr<CharactersLimitLabel> _charsLimitation;
 
 	object_ptr<Ui::Checkbox> _groupFiles = { nullptr };
 	object_ptr<Ui::Checkbox> _sendImagesAsPhotos = { nullptr };
+	object_ptr<Ui::Checkbox> _wayRemember = { nullptr };
 	object_ptr<Ui::FlatLabel> _hintLabel = { nullptr };
 	rpl::variable<Ui::SendFilesWay> _sendWay = Ui::SendFilesWay();
 
@@ -198,6 +301,8 @@ private:
 	std::vector<Block> _blocks;
 	Fn<void()> _whenReadySend;
 	bool _preparing = false;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	QPointer<Ui::RoundButton> _send;
 	QPointer<Ui::RoundButton> _addFile;

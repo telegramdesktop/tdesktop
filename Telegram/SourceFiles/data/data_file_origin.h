@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 
 using FileOriginMessage = FullMsgId;
+using FileOriginStory = FullStoryId;
 
 struct FileOriginUserPhoto {
 	FileOriginUserPhoto(UserId userId, PhotoId photoId)
@@ -26,6 +27,18 @@ struct FileOriginUserPhoto {
 	inline bool operator<(const FileOriginUserPhoto &other) const {
 		return std::tie(userId, photoId)
 			< std::tie(other.userId, other.photoId);
+	}
+};
+
+struct FileOriginFullUser {
+	FileOriginFullUser(UserId userId)
+	: userId(userId) {
+	}
+
+	UserId userId = 0;
+
+	inline bool operator<(const FileOriginFullUser &other) const {
+		return userId < other.userId;
 	}
 };
 
@@ -108,23 +121,36 @@ struct FileOriginPremiumPreviews {
 	}
 };
 
+struct FileOriginWebPage {
+	QString url;
+
+	inline bool operator<(const FileOriginWebPage &other) const {
+		return url < other.url;
+	}
+};
+
 struct FileOrigin {
 	using Variant = std::variant<
 		v::null_t,
 		FileOriginMessage,
 		FileOriginUserPhoto,
+		FileOriginFullUser,
 		FileOriginPeerPhoto,
 		FileOriginStickerSet,
 		FileOriginSavedGifs,
 		FileOriginWallpaper,
 		FileOriginTheme,
 		FileOriginRingtones,
-		FileOriginPremiumPreviews>;
+		FileOriginPremiumPreviews,
+		FileOriginWebPage,
+		FileOriginStory>;
 
 	FileOrigin() = default;
 	FileOrigin(FileOriginMessage data) : data(data) {
 	}
 	FileOrigin(FileOriginUserPhoto data) : data(data) {
+	}
+	FileOrigin(FileOriginFullUser data) : data(data) {
 	}
 	FileOrigin(FileOriginPeerPhoto data) : data(data) {
 	}
@@ -139,6 +165,10 @@ struct FileOrigin {
 	FileOrigin(FileOriginRingtones data) : data(data) {
 	}
 	FileOrigin(FileOriginPremiumPreviews data) : data(data) {
+	}
+	FileOrigin(FileOriginWebPage data) : data(data) {
+	}
+	FileOrigin(FileOriginStory data) : data(data) {
 	}
 
 	explicit operator bool() const {
@@ -177,6 +207,7 @@ struct UpdatedFileReferences {
 
 UpdatedFileReferences GetFileReferences(const MTPmessages_Messages &data);
 UpdatedFileReferences GetFileReferences(const MTPphotos_Photos &data);
+UpdatedFileReferences GetFileReferences(const MTPusers_UserFull &data);
 UpdatedFileReferences GetFileReferences(
 	const MTPmessages_RecentStickers &data);
 UpdatedFileReferences GetFileReferences(
@@ -188,6 +219,8 @@ UpdatedFileReferences GetFileReferences(const MTPTheme &data);
 UpdatedFileReferences GetFileReferences(
 	const MTPaccount_SavedRingtones &data);
 UpdatedFileReferences GetFileReferences(const MTPhelp_PremiumPromo &data);
+UpdatedFileReferences GetFileReferences(const MTPmessages_WebPage &data);
+UpdatedFileReferences GetFileReferences(const MTPstories_Stories &data);
 
 // Admin Log Event.
 UpdatedFileReferences GetFileReferences(const MTPMessageMedia &data);

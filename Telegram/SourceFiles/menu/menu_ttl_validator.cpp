@@ -13,13 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
+#include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "menu/menu_ttl.h"
 #include "ui/layers/generic_box.h"
 #include "ui/layers/show.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/text/format_values.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
@@ -30,11 +30,11 @@ namespace {
 constexpr auto kToastDuration = crl::time(3500);
 
 void ShowAutoDeleteToast(
-		not_null<QWidget*> parent,
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer) {
 	const auto period = peer->messagesTTL();
 	if (!period) {
-		Ui::Toast::Show(parent, tr::lng_ttl_about_tooltip_off(tr::now));
+		show->showToast(tr::lng_ttl_about_tooltip_off(tr::now));
 		return;
 	}
 
@@ -44,11 +44,7 @@ void ShowAutoDeleteToast(
 	const auto text = peer->isBroadcast()
 		? tr::lng_ttl_about_tooltip_channel(tr::now, lt_duration, duration)
 		: tr::lng_ttl_about_tooltip(tr::now, lt_duration, duration);
-	Ui::ShowMultilineToast({
-		.parentOverride = parent,
-		.text = { text },
-		.duration = kToastDuration,
-	});
+	show->showToast(text, kToastDuration);
 }
 
 } // namespace
@@ -68,7 +64,9 @@ Args TTLValidator::createArgs() const {
 		mtpRequestId savingRequestId = 0;
 	};
 	const auto state = std::make_shared<State>();
-	auto callback = [=, toastParent = show->toastParent()](TimeId period) {
+	auto callback = [=](
+			TimeId period,
+			Fn<void()>) {
 		auto &api = peer->session().api();
 		if (state->savingRequestId) {
 			if (period == state->savingPeriod) {
@@ -82,22 +80,31 @@ Args TTLValidator::createArgs() const {
 			MTP_int(period)
 		)).done([=](const MTPUpdates &result) {
 			peer->session().api().applyUpdates(result);
-			ShowAutoDeleteToast(toastParent, peer);
+			ShowAutoDeleteToast(show, peer);
 			state->savingRequestId = 0;
-#if 0
-			if (const auto strong = state->weak.data()) {
-				strong->closeBox();
-			}
-#endif
 		}).fail([=] {
 			state->savingRequestId = 0;
 		}).send();
+		show->hideLayer();
 	};
-	auto about = peer->isUser()
+	auto about1 = peer->isUser()
 		? tr::lng_ttl_edit_about(lt_user, rpl::single(peer->shortName()))
 		: peer->isBroadcast()
 		? tr::lng_ttl_edit_about_channel()
 		: tr::lng_ttl_edit_about_group();
+	auto about2 = tr::lng_ttl_edit_about2(
+		lt_link,
+		tr::lng_ttl_edit_about2_link(
+		) | rpl::map([=](const QString &s) {
+			return Ui::Text::Link(s, "tg://settings/auto_delete");
+		}),
+		Ui::Text::WithEntities);
+	auto about = rpl::combine(
+		std::move(about1),
+		std::move(about2)
+	) | rpl::map([](const QString &s1, TextWithEntities &&s2) {
+		return TextWithEntities{ s1 }.append(u"\n\n"_q).append(std::move(s2));
+	});
 	const auto ttl = peer->messagesTTL();
 	return { std::move(show), ttl, std::move(about), std::move(callback) };
 }
@@ -106,17 +113,21 @@ bool TTLValidator::can() const {
 	return (_peer->isUser()
 			&& !_peer->isSelf()
 			&& !_peer->isNotificationsUser()
-			&& !_peer->asUser()->isInaccessible())
+			&& !_peer->asUser()->isInaccessible()
+			&& !_peer->asUser()->starsPerMessage()
+			&& !_peer->asUser()->isVerifyCodes()
+			&& (!_peer->asUser()->requiresPremiumToWrite()
+				|| _peer->session().premium()))
 		|| (_peer->isChat()
-			&& _peer->asChat()->canDeleteMessages()
+			&& _peer->asChat()->canEditInformation()
 			&& _peer->asChat()->amIn())
 		|| (_peer->isChannel()
-			&& _peer->asChannel()->canDeleteMessages()
+			&& _peer->asChannel()->canEditInformation()
 			&& _peer->asChannel()->amIn());
 }
 
 void TTLValidator::showToast() const {
-	ShowAutoDeleteToast(_show->toastParent(), _peer);
+	ShowAutoDeleteToast(_show, _peer);
 }
 
 const style::icon *TTLValidator::icon() const {
@@ -124,6 +135,9 @@ const style::icon *TTLValidator::icon() const {
 }
 
 void TTLValidator::showBox() const {
+	if (Main::MakeSessionShow(_show, &_peer->session())->showFrozenError()) {
+		return;
+	}
 	_show->showBox(Box(TTLBox, createArgs()));
 }
 

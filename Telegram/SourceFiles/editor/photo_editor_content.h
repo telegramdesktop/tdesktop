@@ -37,6 +37,10 @@ public:
 
 	void setupDragArea();
 
+	[[nodiscard]] rpl::producer<QRect> innerRect() const {
+		return _innerRect.value();
+	}
+
 private:
 
 	const QSize _photoSize;
@@ -44,6 +48,7 @@ private:
 	const base::unique_qptr<Crop> _crop;
 	const std::shared_ptr<Image> _photo;
 
+	rpl::variable<QRect> _innerRect;
 	rpl::variable<PhotoModifications> _modifications;
 	rpl::event_stream<int> _keyPresses;
 

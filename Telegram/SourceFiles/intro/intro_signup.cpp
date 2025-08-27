@@ -7,14 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "intro/intro_signup.h"
 
+#include "boxes/abstract_box.h"
 #include "intro/intro_widget.h"
 #include "core/file_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
-#include "ui/special_buttons.h"
 #include "styles/style_intro.h"
 #include "styles/style_boxes.h"
 
@@ -29,12 +30,13 @@ SignupWidget::SignupWidget(
 , _photo(
 	this,
 	data->controller,
-	tr::lng_settings_crop_profile(tr::now),
-	Ui::UserpicButton::Role::ChangePhoto,
+	Ui::UserpicButton::Role::ChoosePhoto,
 	st::defaultUserpicButton)
 , _first(this, st::introName, tr::lng_signup_firstname())
 , _last(this, st::introName, tr::lng_signup_lastname())
 , _invertOrder(langFirstNameGoesSecond()) {
+	_photo->showCustomOnChosen();
+
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
 		refreshLang();
@@ -109,12 +111,7 @@ void SignupWidget::cancelled() {
 }
 
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
-	auto &d = result.c_auth_authorization();
-	if (d.vuser().type() != mtpc_user || !d.vuser().c_user().is_self()) { // wtf?
-		showError(rpl::single(Lang::Hard::ServerError()));
-		return;
-	}
-	finish(d.vuser(), _photo->takeResultImage());
+	finish(result);
 }
 
 void SignupWidget::nameSubmitFail(const MTP::Error &error) {
@@ -129,14 +126,14 @@ void SignupWidget::nameSubmitFail(const MTP::Error &error) {
 	}
 
 	auto &err = error.type();
-	if (err == qstr("PHONE_NUMBER_FLOOD")) {
+	if (err == u"PHONE_NUMBER_FLOOD"_q) {
 		Ui::show(Ui::MakeInformBox(tr::lng_error_phone_flood()));
-	} else if (err == qstr("PHONE_NUMBER_INVALID")
-		|| err == qstr("PHONE_NUMBER_BANNED")
-		|| err == qstr("PHONE_CODE_EXPIRED")
-		|| err == qstr("PHONE_CODE_EMPTY")
-		|| err == qstr("PHONE_CODE_INVALID")
-		|| err == qstr("PHONE_NUMBER_OCCUPIED")) {
+	} else if (err == u"PHONE_NUMBER_INVALID"_q
+		|| err == u"PHONE_NUMBER_BANNED"_q
+		|| err == u"PHONE_CODE_EXPIRED"_q
+		|| err == u"PHONE_CODE_EMPTY"_q
+		|| err == u"PHONE_CODE_INVALID"_q
+		|| err == u"PHONE_NUMBER_OCCUPIED"_q) {
 		goBack();
 	} else if (err == "FIRSTNAME_INVALID") {
 		showError(tr::lng_bad_name());
@@ -186,6 +183,7 @@ void SignupWidget::submit() {
 		_firstName = _first->getLastText().trimmed();
 		_lastName = _last->getLastText().trimmed();
 		_sentRequest = api().request(MTPauth_SignUp(
+			MTP_flags(0),
 			MTP_string(getData()->phone),
 			MTP_bytes(getData()->phoneHash),
 			MTP_string(_firstName),

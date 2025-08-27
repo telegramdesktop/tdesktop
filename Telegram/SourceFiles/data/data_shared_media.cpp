@@ -13,10 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "data/components/scheduled_messages.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_photo.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
 #include "core/crash_reports.h"
 
@@ -110,11 +110,13 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		auto requestMediaAround = [
 			peer = session->data().peer(key.peerId),
 			topicRootId = key.topicRootId,
+			monoforumPeerId = key.monoforumPeerId,
 			type = key.type
 		](const SparseIdsSliceBuilder::AroundData &data) {
 			peer->session().api().requestSharedMedia(
 				peer,
 				topicRootId,
+				monoforumPeerId,
 				type,
 				data.aroundId,
 				data.direction);
@@ -131,6 +133,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		) | rpl::filter([=](const SliceUpdate &update) {
 			return (update.peerId == key.peerId)
 				&& (update.topicRootId == key.topicRootId)
+				&& (update.monoforumPeerId == key.monoforumPeerId)
 				&& (update.type == key.type);
 		}) | rpl::filter([=](const SliceUpdate &update) {
 			return builder->applyUpdate(update.data);
@@ -151,6 +154,8 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 			return (update.peerId == key.peerId)
 				&& (!update.topicRootId
 					|| update.topicRootId == key.topicRootId)
+				&& (!update.monoforumPeerId
+					|| update.monoforumPeerId == key.monoforumPeerId)
 				&& update.types.test(key.type);
 		}) | rpl::filter([=] {
 			return builder->removeAll();
@@ -185,16 +190,17 @@ rpl::producer<SparseIdsMergedSlice> SharedScheduledMediaViewer(
 		SharedMediaMergedKey key,
 		int limitBefore,
 		int limitAfter) {
-	Expects(!IsServerMsgId(key.mergedKey.universalId));
+	Expects(!key.mergedKey.universalId
+		|| Data::IsScheduledMsgId(key.mergedKey.universalId));
 	Expects((key.mergedKey.universalId != 0)
 		|| (limitBefore == 0 && limitAfter == 0));
 
 	const auto history = session->data().history(key.mergedKey.peerId);
 
 	return rpl::single(rpl::empty) | rpl::then(
-		session->data().scheduledMessages().updates(history)
+		session->scheduledMessages().updates(history)
 	) | rpl::map([=] {
-		const auto list = session->data().scheduledMessages().list(history);
+		const auto list = session->scheduledMessages().list(history);
 
 		auto items = ranges::views::all(
 			list.ids
@@ -235,6 +241,7 @@ rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 	auto createSimpleViewer = [=](
 			PeerId peerId,
 			MsgId topicRootId,
+			PeerId monoforumPeerId,
 			SparseIdsSlice::Key simpleKey,
 			int limitBefore,
 			int limitAfter) {
@@ -243,6 +250,7 @@ rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 			Storage::SharedMediaKey(
 				peerId,
 				topicRootId,
+				monoforumPeerId,
 				key.type,
 				simpleKey),
 			limitBefore,

@@ -13,12 +13,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "base/object_ptr.h"
 
+namespace Api {
+struct WhoReadList;
+} // namespace Api
+
 namespace Storage {
 enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Data {
 class ForumTopic;
+class SavedSublist;
+struct ReactionId;
 } // namespace Data
 
 namespace Ui {
@@ -44,8 +50,14 @@ public:
 	Memento(not_null<PeerData*> peer, Section section);
 	explicit Memento(not_null<Data::ForumTopic*> topic);
 	Memento(not_null<Data::ForumTopic*> topic, Section section);
+	explicit Memento(not_null<Data::SavedSublist*> sublist);
+	Memento(not_null<Data::SavedSublist*> sublist, Section section);
 	Memento(Settings::Tag settings, Section section);
 	Memento(not_null<PollData*> poll, FullMsgId contextId);
+	Memento(
+		std::shared_ptr<Api::WhoReadList> whoReadIds,
+		FullMsgId contextId,
+		Data::ReactionId selected);
 	explicit Memento(std::vector<std::shared_ptr<ContentMemento>> stack);
 
 	object_ptr<Window::SectionWidget> createWidget(
@@ -86,17 +98,27 @@ private:
 		not_null<Data::ForumTopic*> topic,
 		Section section);
 	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
+		not_null<Data::SavedSublist*> sublist,
+		Section section);
+	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
 		Settings::Tag settings,
 		Section section);
 	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
 		not_null<PollData*> poll,
 		FullMsgId contextId);
+	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
+		std::shared_ptr<Api::WhoReadList> whoReadIds,
+		FullMsgId contextId,
+		Data::ReactionId selected);
 
 	static std::shared_ptr<ContentMemento> DefaultContent(
 		not_null<PeerData*> peer,
 		Section section);
 	static std::shared_ptr<ContentMemento> DefaultContent(
 		not_null<Data::ForumTopic*> topic,
+		Section section);
+	static std::shared_ptr<ContentMemento> DefaultContent(
+		not_null<Data::SavedSublist*> sublist,
 		Section section);
 
 	std::vector<std::shared_ptr<ContentMemento>> _stack;

@@ -14,6 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 class ChannelData;
 
+namespace Main {
+class Session;
+} // namespace Main
+
+namespace Ui {
+class Show;
+} // namespace Ui
+
 namespace Api {
 
 class ChatParticipant final {
@@ -52,6 +60,11 @@ public:
 	ChatRestrictionsInfo restrictions() const;
 	ChatAdminRightsInfo rights() const;
 
+	TimeId subscriptionDate() const;
+	TimeId promotedSince() const;
+	TimeId restrictedSince() const;
+	TimeId memberSince() const;
+
 	Type type() const;
 	QString rank() const;
 
@@ -65,6 +78,8 @@ private:
 	bool _canBeEdited = false;
 
 	QString _rank;
+	TimeId _subscriptionDate = 0;
+	TimeId _date = 0;
 
 	ChatRestrictionsInfo _restrictions;
 	ChatAdminRightsInfo _rights;
@@ -92,7 +107,15 @@ public:
 	static Parsed ParseRecent(
 		not_null<ChannelData*> channel,
 		const TLMembers &data);
+	static void Restrict(
+		not_null<ChannelData*> channel,
+		not_null<PeerData*> participant,
+		ChatRestrictionsInfo oldRights,
+		ChatRestrictionsInfo newRights,
+		Fn<void()> onDone,
+		Fn<void()> onFail);
 	void add(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,
 		bool passGroupHistory = true,
@@ -115,7 +138,32 @@ public:
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> participant);
 
+	void loadSimilarPeers(not_null<PeerData*> peer);
+
+	struct Peers {
+		std::vector<not_null<PeerData*>> list;
+		int more = 0;
+
+		friend inline bool operator==(
+			const Peers &,
+			const Peers &) = default;
+	};
+	[[nodiscard]] const Peers &similar(not_null<PeerData*> peer);
+	[[nodiscard]] auto similarLoaded() const
+		-> rpl::producer<not_null<PeerData*>>;
+
+	void loadRecommendations();
+	[[nodiscard]] const Peers &recommendations() const;
+	[[nodiscard]] rpl::producer<> recommendationsLoaded() const;
+
 private:
+	struct SimilarPeers {
+		Peers peers;
+		mtpRequestId requestId = 0;
+	};
+
+	const not_null<Main::Session*> _session;
+
 	MTP::Sender _api;
 
 	using PeerRequests = base::flat_map<PeerData*, mtpRequestId>;
@@ -137,6 +185,12 @@ private:
 		not_null<ChannelData*>,
 		not_null<PeerData*>>;
 	base::flat_map<KickRequest, mtpRequestId> _kickRequests;
+
+	base::flat_map<not_null<PeerData*>, SimilarPeers> _similar;
+	rpl::event_stream<not_null<PeerData*>> _similarLoaded;
+
+	SimilarPeers _recommendations;
+	rpl::variable<bool> _recommendationsLoaded = false;
 
 };
 

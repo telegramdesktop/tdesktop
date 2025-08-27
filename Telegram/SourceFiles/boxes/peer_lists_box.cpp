@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/ui_utility.h"
+#include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"
@@ -280,9 +282,7 @@ void PeerListsBox::resizeEvent(QResizeEvent *e) {
 void PeerListsBox::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	const auto &bg = (firstController()->listSt()
-		? *firstController()->listSt()
-		: st::peerListBox).bg;
+	const auto &bg = firstController()->computeListSt().bg;
 	for (const auto &rect : e->region()) {
 		p.fillRect(rect, bg);
 	}
@@ -301,7 +301,7 @@ PeerListsBox::Delegate::Delegate(
 	not_null<PeerListController*> controller)
 : _box(box)
 , _controller(controller)
-, _show(_box) {
+, _show(Main::MakeSessionShow(_box->uiShow(), &_controller->session())) {
 }
 
 void PeerListsBox::Delegate::peerListSetTitle(rpl::producer<QString> title) {
@@ -371,18 +371,9 @@ void PeerListsBox::Delegate::peerListFinishSelectedRowsBunch() {
 	_box->_select->entity()->finishItemsBunch();
 }
 
-void PeerListsBox::Delegate::peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) {
-	_show.showBox(std::move(content), options);
-}
-
-void PeerListsBox::Delegate::peerListHideLayer() {
-	_show.hideLayer();
-}
-
-not_null<QWidget*> PeerListsBox::Delegate::peerListToastParent() {
-	return _show.toastParent();
+auto PeerListsBox::Delegate::peerListUiShow()
+-> std::shared_ptr<Main::SessionShow> {
+	return _show;
 }
 
 bool PeerListsBox::Delegate::peerListIsRowChecked(
@@ -402,7 +393,9 @@ void PeerListsBox::addSelectItem(
 	addSelectItem(
 		peer->id.value,
 		peer->shortName(),
-		PaintUserpicCallback(peer, false),
+		(peer->isForum()
+			? ForceRoundUserpicCallback(peer)
+			: PaintUserpicCallback(peer, false)),
 		animated);
 }
 
@@ -412,7 +405,7 @@ void PeerListsBox::addSelectItem(
 	addSelectItem(
 		row->id(),
 		row->generateShortName(),
-		row->generatePaintUserpicCallback(),
+		row->generatePaintUserpicCallback(true),
 		animated);
 }
 

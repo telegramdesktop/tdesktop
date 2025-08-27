@@ -23,9 +23,11 @@ public:
 	MultiSelect(
 		QWidget *parent,
 		const style::MultiSelect &st,
-		rpl::producer<QString> placeholder = nullptr);
+		rpl::producer<QString> placeholder = nullptr,
+		const QString &query = QString());
 
-	QString getQuery() const;
+	[[nodiscard]] QString getQuery() const;
+	void setQuery(const QString &query);
 	void setInnerFocus();
 	void clearQuery();
 

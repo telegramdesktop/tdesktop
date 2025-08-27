@@ -78,7 +78,7 @@ private:
 		return width() - contentLeft() - contentRight();
 	}
 	int contentHeight() const {
-		return height() - contentTop() - contentBottom();;
+		return height() - contentTop() - contentBottom();
 	}
 
 	void startAnimation();

@@ -7,18 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_intro.h"
 
-#include "settings/settings_common.h"
 #include "settings/settings_advanced.h"
 #include "settings/settings_main.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_codes.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/shadow.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/cached_round_corners.h"
+#include "ui/vertical_list.h"
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"
 #include "window/window_controller.h"
@@ -61,47 +61,57 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 		not_null<Window::Controller*> window) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 
-	AddDivider(result);
-	AddSkip(result);
-	SetupLanguageButton(result, false);
+	Ui::AddDivider(result);
+	Ui::AddSkip(result);
+	SetupLanguageButton(window, result);
 	SetupConnectionType(window, &window->account(), result);
-	AddSkip(result);
+	Ui::AddSkip(result);
 	if (HasUpdate()) {
-		AddDivider(result);
-		AddSkip(result);
-		SetupUpdate(result, nullptr);
-		AddSkip(result);
+		Ui::AddDivider(result);
+		Ui::AddSkip(result);
+		SetupUpdate(result);
+		Ui::AddSkip(result);
 	}
 	{
 		auto wrap = object_ptr<Ui::VerticalLayout>(result);
 		SetupSystemIntegrationContent(
 			window->sessionController(),
 			wrap.data());
+		SetupWindowTitleContent(
+			window->sessionController(),
+			wrap.data());
 		if (wrap->count() > 0) {
-			AddDivider(result);
-			AddSkip(result);
+			Ui::AddDivider(result);
+			Ui::AddSkip(result);
 			result->add(object_ptr<Ui::OverrideMargins>(
 				result,
 				std::move(wrap)));
-			AddSkip(result);
+			Ui::AddSkip(result);
 		}
 	}
-	AddDivider(result);
-	AddSkip(result);
+	Ui::AddDivider(result);
+	Ui::AddSkip(result);
 	SetupInterfaceScale(window, result, false);
 	SetupDefaultThemes(window, result);
-	AddSkip(result);
+	Ui::AddSkip(result);
 
 	if (anim::Disabled()) {
-		AddDivider(result);
-		AddSkip(result);
-		SetupAnimations(result);
-		AddSkip(result);
+		Ui::AddDivider(result);
+		Ui::AddSkip(result);
+		SetupAnimations(window, result);
+		Ui::AddSkip(result);
 	}
 
-	AddDivider(result);
-	AddSkip(result);
-	SetupFaq(result, false);
+	Ui::AddDivider(result);
+	Ui::AddSkip(result);
+
+	AddButtonWithIcon(
+		result,
+		tr::lng_settings_faq(),
+		st::settingsButtonNoIcon
+	)->addClickHandler([] {
+		OpenFaq(nullptr);
+	});
 
 	return result;
 }
@@ -174,7 +184,7 @@ public:
 
 	void updateGeometry(QRect newGeometry, int additionalScroll);
 	int scrollTillBottom(int forHeight) const;
-	rpl::producer<int>  scrollTillBottomChanges() const;
+	rpl::producer<int> scrollTillBottomChanges() const;
 
 	void setInnerFocus();
 

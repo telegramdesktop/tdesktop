@@ -7,13 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "styles/style_widgets.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
 namespace base {
 class Timer;
 } // namespace base
+
+namespace style {
+struct FilledSlider;
+struct MediaSlider;
+} // namespace style
 
 namespace Ui {
 
@@ -144,15 +148,16 @@ public:
 	template <
 		typename Value,
 		typename Convert,
-		typename Callback,
+		typename Progress,
 		typename = std::enable_if_t<
-			rpl::details::is_callable_plain_v<Callback, Value>
+			rpl::details::is_callable_plain_v<Progress, Value>
 			&& std::is_same_v<Value, decltype(std::declval<Convert>()(1))>>>
 	void setPseudoDiscrete(
 			int valuesCount,
 			Convert &&convert,
 			Value current,
-			Callback &&callback) {
+			Progress &&progress,
+			int indexMin = 0) {
 		Expects(valuesCount > 1);
 
 		setAlwaysDisplayMarker(true);
@@ -167,17 +172,50 @@ public:
 			}
 		}
 		setAdjustCallback([=](float64 value) {
-			return base::SafeRound(value * sectionsCount) / sectionsCount;
+			return std::max(
+				base::SafeRound(value * sectionsCount),
+				indexMin * 1.
+			) / sectionsCount;
 		});
-		setChangeProgressCallback([
-			=,
-			convert = std::forward<Convert>(convert),
-			callback = std::forward<Callback>(callback)
-		](float64 value) {
-			const auto index = int(base::SafeRound(value * sectionsCount));
-			callback(convert(index));
+		setChangeProgressCallback([=](float64 value) {
+			const auto index = std::max(
+				int(base::SafeRound(value * sectionsCount)),
+				indexMin);
+			progress(convert(index));
 		});
 	}
+
+	template <
+		typename Value,
+		typename Convert,
+		typename Progress,
+		typename Finished,
+		typename = std::enable_if_t<
+			rpl::details::is_callable_plain_v<Progress, Value>
+			&& rpl::details::is_callable_plain_v<Finished, Value>
+			&& std::is_same_v<Value, decltype(std::declval<Convert>()(1))>>>
+	void setPseudoDiscrete(
+			int valuesCount,
+			Convert &&convert,
+			Value current,
+			Progress &&progress,
+			Finished &&finished,
+			int indexMin = 0) {
+		setPseudoDiscrete(
+			valuesCount,
+			std::forward<Convert>(convert),
+			current,
+			std::forward<Progress>(progress),
+			indexMin);
+		setChangeFinishedCallback([=](float64 value) {
+			const auto sectionsCount = (valuesCount - 1);
+			const auto index = std::max(
+				int(base::SafeRound(value * sectionsCount)),
+				indexMin);
+			finished(convert(index));
+		});
+	}
+
 	void setActiveFgOverride(std::optional<QColor> color);
 	void addDivider(float64 atValue, const QSize &size);
 
@@ -199,6 +237,17 @@ private:
 
 	std::vector<Divider> _dividers;
 	std::optional<QColor> _activeFgOverride;
+
+};
+
+class MediaSliderWheelless : public MediaSlider {
+public:
+	using Ui::MediaSlider::MediaSlider;
+
+protected:
+	void wheelEvent(QWheelEvent *e) override {
+		e->ignore();
+	}
 
 };
 

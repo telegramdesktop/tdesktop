@@ -8,10 +8,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
+#include "data/data_chat_participant_status.h"
+
+namespace Api {
+struct SendOptions;
+} // namespace Api
 
 namespace Data {
 class Session;
 } // namespace Data
+
+namespace InlineBots {
+enum class PeerType : uint8;
+using PeerTypes = base::flags<PeerType>;
+} // namespace InlineBots
+
+[[nodiscard]] InlineBots::PeerTypes PeerTypesFromMTP(
+	const MTPvector<MTPInlineQueryPeerType> &types);
 
 enum class ReplyMarkupFlag : uint32 {
 	None                  = (1U << 0),
@@ -23,9 +36,38 @@ enum class ReplyMarkupFlag : uint32 {
 	Selective             = (1U << 6),
 	IsNull                = (1U << 7),
 	OnlyBuyButton         = (1U << 8),
+	Persistent            = (1U << 9),
+	SuggestionDecline     = (1U << 10),
+	SuggestionAccept      = (1U << 11),
+	SuggestionSeparator   = (1U << 12),
 };
 inline constexpr bool is_flag_type(ReplyMarkupFlag) { return true; }
 using ReplyMarkupFlags = base::flags<ReplyMarkupFlag>;
+
+struct RequestPeerQuery {
+	enum class Type : uchar {
+		User,
+		Group,
+		Broadcast,
+	};
+	enum class Restriction : uchar {
+		Any,
+		Yes,
+		No,
+	};
+
+	int maxQuantity = 0;
+	Type type = Type::User;
+	Restriction userIsBot = Restriction::Any;
+	Restriction userIsPremium = Restriction::Any;
+	Restriction groupIsForum = Restriction::Any;
+	Restriction hasUsername = Restriction::Any;
+	bool amCreator = false;
+	bool isBotParticipant = false;
+	ChatAdminRights myRights = {};
+	ChatAdminRights botRights = {};
+};
+static_assert(std::is_trivially_copy_assignable_v<RequestPeerQuery>);
 
 struct HistoryMessageMarkupButton {
 	enum class Type {
@@ -36,6 +78,7 @@ struct HistoryMessageMarkupButton {
 		RequestPhone,
 		RequestLocation,
 		RequestPoll,
+		RequestPeer,
 		SwitchInline,
 		SwitchInlineSame,
 		Game,
@@ -44,6 +87,11 @@ struct HistoryMessageMarkupButton {
 		UserProfile,
 		WebView,
 		SimpleWebView,
+		CopyText,
+
+		SuggestDecline,
+		SuggestAccept,
+		SuggestChange,
 	};
 
 	HistoryMessageMarkupButton(
@@ -63,6 +111,7 @@ struct HistoryMessageMarkupButton {
 	QString text, forwardText;
 	QByteArray data;
 	int64 buttonId = 0;
+	InlineBots::PeerTypes peerTypes = 0;
 	mutable mtpRequestId requestId = 0;
 
 };
@@ -97,4 +146,17 @@ struct HistoryMessageRepliesData {
 	int repliesCount = 0;
 	bool isNull = true;
 	int pts = 0;
+};
+
+struct HistoryMessageSuggestInfo {
+	HistoryMessageSuggestInfo() = default;
+	explicit HistoryMessageSuggestInfo(const MTPSuggestedPost *data);
+	explicit HistoryMessageSuggestInfo(const Api::SendOptions &options);
+	explicit HistoryMessageSuggestInfo(SuggestPostOptions options);
+
+	CreditsAmount price;
+	TimeId date = 0;
+	bool accepted = false;
+	bool rejected = false;
+	bool exists = false;
 };

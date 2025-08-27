@@ -17,6 +17,7 @@ class SingleFilePreview final : public AbstractSingleFilePreview {
 public:
 	SingleFilePreview(
 		QWidget *parent,
+		const style::ComposeControls &st,
 		const PreparedFile &file,
 		AttachControls::Type type = AttachControls::Type::Full);
 

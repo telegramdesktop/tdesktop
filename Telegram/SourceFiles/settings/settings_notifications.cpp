@@ -7,9 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_notifications.h"
 
-#include "settings/settings_common.h"
+#include "ui/widgets/continuous_sliders.h"
+#include "settings/settings_notifications_type.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/chat_service_checkbox.h"
 #include "ui/effects/animations.h"
+#include "data/notify/data_peer_notify_volume.h"
+#include "ui/text/text_utilities.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/box_content_divider.h"
@@ -17,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "window/notifications_manager.h"
@@ -32,21 +37,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "api/api_authorizations.h"
 #include "api/api_ringtones.h"
+#include "data/data_chat_filters.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/notify/data_notify_settings.h"
 #include "boxes/ringtones_box.h"
 #include "apiwrap.h"
-#include "facades.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 
 #include <QSvgRenderer>
-#include <QTimer>
 
 namespace Settings {
 namespace {
@@ -130,15 +135,166 @@ private:
 	void startAnimation();
 	void animationCallback();
 
-	void destroyDelayed();
-
 	NotificationsCount *_owner;
 	QPixmap _cache;
 	Ui::Animations::Simple _opacity;
 	bool _hiding = false;
-	bool _deleted = false;
 
 };
+
+void AddTypeButton(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller,
+		Data::DefaultNotify type,
+		Fn<void(Type)> showOther) {
+	using Type = Data::DefaultNotify;
+	auto label = [&] {
+		switch (type) {
+		case Type::User: return tr::lng_notification_private_chats();
+		case Type::Group: return tr::lng_notification_groups();
+		case Type::Broadcast: return tr::lng_notification_channels();
+		}
+		Unexpected("Type value in AddTypeButton.");
+	}();
+	const auto icon = [&] {
+		switch (type) {
+		case Type::User: return &st::menuIconProfile;
+		case Type::Group: return &st::menuIconGroups;
+		case Type::Broadcast: return &st::menuIconChannel;
+		}
+		Unexpected("Type value in AddTypeButton.");
+	}();
+	const auto button = AddButtonWithIcon(
+		container,
+		std::move(label),
+		st::settingsNotificationType,
+		{ icon });
+	button->setClickedCallback([=] {
+		showOther(NotificationsType::Id(type));
+	});
+
+	const auto session = &controller->session();
+	const auto settings = &session->data().notifySettings();
+	const auto &st = st::settingsNotificationType;
+	auto status = rpl::combine(
+		NotificationsEnabledForTypeValue(session, type),
+		rpl::single(
+			type
+		) | rpl::then(settings->exceptionsUpdates(
+		) | rpl::filter(rpl::mappers::_1 == type))
+	) | rpl::map([=](bool enabled, const auto &) {
+		const auto count = int(settings->exceptions(type).size());
+		return !count
+			? tr::lng_notification_click_to_change()
+			: (enabled
+				? tr::lng_notification_on
+				: tr::lng_notification_off)(
+					lt_exceptions,
+					tr::lng_notification_exceptions(
+						lt_count,
+						rpl::single(float64(count))));
+	}) | rpl::flatten_latest();
+	const auto details = Ui::CreateChild<Ui::FlatLabel>(
+		button.get(),
+		std::move(status),
+		st::settingsNotificationTypeDetails);
+	details->show();
+	details->moveToLeft(
+		st.padding.left(),
+		st.padding.top() + st.height - details->height());
+	details->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto toggleButton = Ui::CreateChild<Ui::SettingsButton>(
+		container.get(),
+		nullptr,
+		st);
+	const auto checkView = button->lifetime().make_state<Ui::ToggleView>(
+		st.toggle,
+		NotificationsEnabledForType(session, type),
+		[=] { toggleButton->update(); });
+
+	const auto separator = Ui::CreateChild<Ui::RpWidget>(container.get());
+	separator->paintRequest(
+	) | rpl::start_with_next([=, bg = st.textBgOver] {
+		auto p = QPainter(separator);
+		p.fillRect(separator->rect(), bg);
+	}, separator->lifetime());
+	const auto separatorHeight = st.height - 2 * st.toggle.border;
+	button->geometryValue(
+	) | rpl::start_with_next([=](const QRect &r) {
+		const auto w = st::rightsButtonToggleWidth;
+		toggleButton->setGeometry(
+			r.x() + r.width() - w,
+			r.y(),
+			w,
+			r.height());
+		separator->setGeometry(
+			toggleButton->x() - st::lineWidth,
+			r.y() + (r.height() - separatorHeight) / 2,
+			st::lineWidth,
+			separatorHeight);
+	}, toggleButton->lifetime());
+
+	const auto checkWidget = Ui::CreateChild<Ui::RpWidget>(toggleButton);
+	checkWidget->resize(checkView->getSize());
+	checkWidget->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(checkWidget);
+		checkView->paint(p, 0, 0, checkWidget->width());
+	}, checkWidget->lifetime());
+	toggleButton->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		checkWidget->moveToRight(
+			st.toggleSkip,
+			(s.height() - checkWidget->height()) / 2);
+	}, toggleButton->lifetime());
+
+	const auto toggle = crl::guard(toggleButton, [=] {
+		const auto enabled = !checkView->checked();
+		checkView->setChecked(enabled, anim::type::normal);
+		settings->defaultUpdate(type, Data::MuteValue{
+			.unmute = enabled,
+			.forever = !enabled,
+		});
+	});
+	toggleButton->clicks(
+	) | rpl::start_with_next([=] {
+		const auto count = int(settings->exceptions(type).size());
+		if (!count) {
+			toggle();
+		} else {
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				const auto phrase = [&] {
+					switch (type) {
+					case Type::User:
+						return tr::lng_notification_about_private_chats;
+					case Type::Group:
+						return tr::lng_notification_about_groups;
+					case Type::Broadcast:
+						return tr::lng_notification_about_channels;
+					}
+					Unexpected("Type in AddTypeButton.");
+				}();
+				Ui::ConfirmBox(box, {
+					.text = phrase(
+						lt_count,
+						rpl::single(float64(count)),
+						Ui::Text::RichLangValue),
+					.confirmed = [=](auto close) { toggle(); close(); },
+					.confirmText = tr::lng_box_ok(),
+					.title = tr::lng_notification_exceptions_title(),
+					.inform = true,
+				});
+				box->addLeftButton(
+					tr::lng_notification_exceptions_view(),
+					[=] {
+						box->closeBox();
+						showOther(NotificationsType::Id(type));
+					});
+			}));
+		}
+	}, toggleButton->lifetime());
+}
 
 NotificationsCount::NotificationsCount(
 	QWidget *parent,
@@ -233,8 +389,10 @@ int NotificationsCount::resizeGetHeight(int newWidth) {
 void NotificationsCount::prepareNotificationSampleSmall() {
 	auto width = st::notificationSampleSize.width();
 	auto height = st::notificationSampleSize.height();
-	auto sampleImage = QImage(width * cIntRetinaFactor(), height * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	sampleImage.setDevicePixelRatio(cRetinaFactor());
+	auto sampleImage = QImage(
+		QSize(width, height) * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	sampleImage.setDevicePixelRatio(style::DevicePixelRatio());
 	sampleImage.fill(st::notificationBg->c);
 	{
 		Painter p(&sampleImage);
@@ -265,28 +423,29 @@ void NotificationsCount::prepareNotificationSampleSmall() {
 		p.fillRect(style::rtlrect(closeLeft, padding, padding, padding, width), st::notificationSampleCloseFg);
 	}
 	_notificationSampleSmall = Ui::PixmapFromImage(std::move(sampleImage));
-	_notificationSampleSmall.setDevicePixelRatio(cRetinaFactor());
+	_notificationSampleSmall.setDevicePixelRatio(style::DevicePixelRatio());
 }
 
 void NotificationsCount::prepareNotificationSampleUserpic() {
 	if (_notificationSampleUserpic.isNull()) {
 		_notificationSampleUserpic = Ui::PixmapFromImage(
 			Window::LogoNoMargin().scaled(
-				st::notifyPhotoSize * cIntRetinaFactor(),
-				st::notifyPhotoSize * cIntRetinaFactor(),
+				st::notifyPhotoSize * style::DevicePixelRatio(),
+				st::notifyPhotoSize * style::DevicePixelRatio(),
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation));
-		_notificationSampleUserpic.setDevicePixelRatio(cRetinaFactor());
+		_notificationSampleUserpic.setDevicePixelRatio(
+			style::DevicePixelRatio());
 	}
 }
 
 void NotificationsCount::prepareNotificationSampleLarge() {
 	int w = st::notifyWidth, h = st::notifyMinHeight;
 	auto sampleImage = QImage(
-		w * cIntRetinaFactor(),
-		h * cIntRetinaFactor(),
+		w * style::DevicePixelRatio(),
+		h * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	sampleImage.setDevicePixelRatio(cRetinaFactor());
+	sampleImage.setDevicePixelRatio(style::DevicePixelRatio());
 	sampleImage.fill(st::notificationBg->c);
 	{
 		Painter p(&sampleImage);
@@ -310,7 +469,7 @@ void NotificationsCount::prepareNotificationSampleLarge() {
 		p.setPen(st::dialogsNameFg);
 		p.setFont(st::msgNameFont);
 
-		auto notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
+		auto notifyTitle = st::msgNameFont->elided(u"Telegram Desktop"_q, rectForName.width());
 		p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
 
 		st::notifyClose.icon.paint(p, w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPosition.x(), st::notifyClosePos.y() + st::notifyClose.iconPosition.y(), w);
@@ -453,13 +612,9 @@ NotificationsCount::SampleWidget::SampleWidget(
 	const QPixmap &cache)
 : _owner(owner)
 , _cache(cache) {
-	const QSize size(
+	setFixedSize(
 		cache.width() / cache.devicePixelRatio(),
 		cache.height() / cache.devicePixelRatio());
-
-	resize(size);
-	setMinimumSize(size);
-	setMaximumSize(size);
 
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint)
 		| Qt::WindowStaysOnTopHint
@@ -509,20 +664,8 @@ void NotificationsCount::SampleWidget::animationCallback() {
 			_owner->removeSample(this);
 		}
 		hide();
-		destroyDelayed();
+		deleteLater();
 	}
-}
-
-void NotificationsCount::SampleWidget::destroyDelayed() {
-	if (_deleted) return;
-	_deleted = true;
-
-	// Ubuntu has a lag if deleteLater() called immediately.
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-	QTimer::singleShot(1000, [this] { delete this; });
-#else // Q_OS_UNIX && !Q_OS_MAC
-	deleteLater();
-#endif // Q_OS_UNIX && !Q_OS_MAC
 }
 
 class NotifyPreview final {
@@ -561,9 +704,9 @@ NotifyPreview::NotifyPreview(bool nameShown, bool previewShown)
 	_logo.setDevicePixelRatio(ratio);
 
 	_name.setText(
-		st::settingsSubsectionTitle.style,
+		st::defaultSubsectionTitle.style,
 		tr::lng_notification_preview_title(tr::now));
-	_title.setText(st::settingsSubsectionTitle.style, AppName.utf16());
+	_title.setText(st::defaultSubsectionTitle.style, AppName.utf16());
 
 	_text.setText(
 		st::boxTextStyle,
@@ -723,17 +866,40 @@ NotifyViewCheckboxes SetupNotifyViewOptions(
 void SetupAdvancedNotifications(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, tr::lng_settings_notifications_position());
-	AddSkip(container, st::settingsCheckboxesSkip);
+	if (Platform::IsWindows()) {
+		const auto skipInFocus = container->add(object_ptr<Button>(
+			container,
+			tr::lng_settings_skip_in_focus(),
+			st::settingsButtonNoIcon
+		))->toggleOn(rpl::single(Core::App().settings().skipToastsInFocus()));
+
+		skipInFocus->toggledChanges(
+		) | rpl::filter([](bool checked) {
+			return (checked != Core::App().settings().skipToastsInFocus());
+		}) | rpl::start_with_next([=](bool checked) {
+			Core::App().settings().setSkipToastsInFocus(checked);
+			Core::App().saveSettingsDelayed();
+			if (checked && Platform::Notifications::SkipToastForCustom()) {
+				using Change = Window::Notifications::ChangeType;
+				Core::App().notifications().notifySettingsChanged(
+					Change::DesktopEnabled);
+			}
+		}, skipInFocus->lifetime());
+	}
+
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSubsectionTitle(
+		container,
+		tr::lng_settings_notifications_position());
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 
 	const auto position = container->add(
 		object_ptr<NotificationsCount>(container, controller));
 
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, tr::lng_settings_notifications_count());
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_notifications_count());
 
 	const auto count = container->add(
 		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
@@ -746,7 +912,7 @@ void SetupAdvancedNotifications(
 	) | rpl::start_with_next([=](int section) {
 		position->setCount(section + 1);
 	}, count->lifetime());
-	AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 }
 
 void SetupMultiAccountNotifications(
@@ -755,13 +921,13 @@ void SetupMultiAccountNotifications(
 	if (Core::App().domain().accounts().size() < 2) {
 		return;
 	}
-	AddSubsectionTitle(container, tr::lng_settings_show_from());
+	Ui::AddSubsectionTitle(container, tr::lng_settings_show_from());
 
-	const auto fromAll = AddButton(
+	const auto fromAll = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_notify_all(),
 		st::settingsButtonNoIcon
-	)->toggleOn(rpl::single(Core::App().settings().notifyFromAll()));
+	))->toggleOn(rpl::single(Core::App().settings().notifyFromAll()));
 	fromAll->toggledChanges(
 	) | rpl::filter([](bool checked) {
 		return (checked != Core::App().settings().notifyFromAll());
@@ -781,29 +947,30 @@ void SetupMultiAccountNotifications(
 		}
 	}, fromAll->lifetime());
 
-	AddSkip(container);
-	AddDividerText(container, tr::lng_settings_notify_all_about());
-	AddSkip(container);
+	Ui::AddSkip(container);
+	Ui::AddDividerText(container, tr::lng_settings_notify_all_about());
+	Ui::AddSkip(container);
 }
 
 void SetupNotificationsContent(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
 	using namespace rpl::mappers;
 
-	AddSkip(container);
+	Ui::AddSkip(container, st::settingsPrivacySkip);
 
 	using NotifyView = Core::Settings::NotifyView;
 	SetupMultiAccountNotifications(controller, container);
 
-	AddSubsectionTitle(container, tr::lng_settings_notify_title());
+	AddSubsectionTitle(container, tr::lng_settings_notify_global());
 
 	const auto session = &controller->session();
 	const auto checkbox = [&](
 			rpl::producer<QString> label,
 			IconDescriptor &&descriptor,
 			rpl::producer<bool> checked) {
-		auto result = CreateButton(
+		auto result = CreateButtonWithIcon(
 			container,
 			std::move(label),
 			st::settingsButton,
@@ -827,7 +994,7 @@ void SetupNotificationsContent(
 	).make_state<rpl::event_stream<bool>>();
 	const auto desktop = addCheckbox(
 		tr::lng_settings_desktop_notify(),
-		{ &st::settingsIconNotifications, kIconRed },
+		{ &st::menuIconNotifications },
 		desktopToggles->events_starting_with(settings.desktopNotify()));
 
 	const auto flashbounceToggles = container->lifetime(
@@ -838,47 +1005,40 @@ void SetupNotificationsContent(
 			: Platform::IsMac()
 			? tr::lng_settings_alert_mac
 			: tr::lng_settings_alert_linux)(),
-		{ &st::settingsIconDock, kIconDarkBlue },
+		{ &st::menuIconDockBounce },
 		flashbounceToggles->events_starting_with(
 			settings.flashBounceNotify()));
 
-	const auto soundLabel = container->lifetime(
-	).make_state<rpl::event_stream<QString>>();
-	const auto soundValue = [=] {
-		const auto owner = &controller->session().data();
-		const auto &settings = owner->notifySettings().defaultSettings(
-			Data::DefaultNotify::User);
-		return !Core::App().settings().soundNotify()
-			? Data::NotifySound{ .none = true }
-			: settings.sound().value_or(Data::NotifySound());
+	const auto soundAllowed = container->lifetime(
+	).make_state<rpl::event_stream<bool>>();
+	const auto allowed = [=] {
+		return Core::App().settings().soundNotify();
 	};
-	const auto label = [=] {
-		const auto now = soundValue();
-		const auto owner = &controller->session().data();
-		return now.none
-			? tr::lng_settings_sound_notify_off(tr::now)
-			: !now.id
-			? tr::lng_ringtones_box_default(tr::now)
-			: ExtractRingtoneName(owner->document(now.id));
-	};
-	controller->session().data().notifySettings().defaultUpdates(
-		Data::DefaultNotify::User
-	) | rpl::start_with_next([=] {
-		soundLabel->fire(label());
-	}, container->lifetime());
-	controller->session().api().ringtones().listUpdates(
-	) | rpl::start_with_next([=] {
-		soundLabel->fire(label());
-	}, container->lifetime());
+	const auto sound = addCheckbox(
+		tr::lng_settings_sound_allowed(),
+		{ &st::menuIconUnmute },
+		soundAllowed->events_starting_with(allowed()));
 
-	const auto sound = AddButtonWithLabel(
+	Ui::AddRingtonesVolumeSlider(
 		container,
-		tr::lng_settings_sound_notify(),
-		soundLabel->events_starting_with(label()),
-		st::settingsButton,
-		{ &st::settingsIconSound, kIconLightBlue });
+		rpl::single(true),
+		tr::lng_settings_master_volume_notifications(),
+		Data::VolumeController{
+			.volume = []() -> ushort {
+				const auto volume
+					= Core::App().settings().notificationsVolume();
+				return volume ? volume : 100;
+			},
+			.saveVolume = [=](ushort volume) {
+				Core::App().notifications().playSound(
+					session,
+					0,
+					volume / 100.);
+				Core::App().settings().setNotificationsVolume(volume);
+				Core::App().saveSettingsDelayed();
+			}});
 
-	AddSkip(container);
+	Ui::AddSkip(container);
 
 	const auto checkboxes = SetupNotifyViewOptions(
 		controller,
@@ -895,15 +1055,28 @@ void SetupNotificationsContent(
 	previewWrap->toggle(settings.desktopNotify(), anim::type::instant);
 	previewDivider->toggle(!settings.desktopNotify(), anim::type::instant);
 
-	AddSkip(container, st::notifyPreviewBottomSkip);
-	AddSubsectionTitle(container, tr::lng_settings_events_title());
+	controller->session().data().notifySettings().loadExceptions();
+
+	Ui::AddSkip(container, st::notifyPreviewBottomSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_notify_title());
+	const auto addType = [&](Data::DefaultNotify type) {
+		AddTypeButton(container, controller, type, showOther);
+	};
+	addType(Data::DefaultNotify::User);
+	addType(Data::DefaultNotify::Group);
+	addType(Data::DefaultNotify::Broadcast);
+
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_events_title());
 
 	auto joinSilent = rpl::single(
 		session->api().contactSignupSilentCurrent().value_or(false)
 	) | rpl::then(session->api().contactSignupSilent());
 	const auto joined = addCheckbox(
 		tr::lng_settings_events_joined(),
-		{ &st::settingsIconPlus, kIconGreen },
+		{ &st::menuIconInvite },
 		std::move(joinSilent) | rpl::map(!_1));
 	joined->toggledChanges(
 	) | rpl::filter([=](bool enabled) {
@@ -915,7 +1088,7 @@ void SetupNotificationsContent(
 
 	const auto pinned = addCheckbox(
 		tr::lng_settings_events_pinned(),
-		{ &st::settingsIconPin, kIconLightOrange },
+		{ &st::menuIconPin },
 		rpl::single(
 			settings.notifyAboutPinned()
 		) | rpl::then(settings.notifyAboutPinnedChanges()));
@@ -927,16 +1100,18 @@ void SetupNotificationsContent(
 		Core::App().saveSettingsDelayed();
 	}, joined->lifetime());
 
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSubsectionTitle(
 		container,
 		tr::lng_settings_notifications_calls_title());
 	const auto authorizations = &session->api().authorizations();
+	// Request valid value of calls disabled flag.
+	authorizations->reload();
 	const auto acceptCalls = addCheckbox(
 		tr::lng_settings_call_accept_calls(),
-		{ &st::settingsIconCalls, kIconGreen },
+		{ &st::menuIconCallsReceive },
 		authorizations->callsDisabledHereValue() | rpl::map(!_1));
 	acceptCalls->toggledChanges(
 	) | rpl::filter([=](bool toggled) {
@@ -945,20 +1120,30 @@ void SetupNotificationsContent(
 		authorizations->toggleCallsDisabledHere(!toggled);
 	}, container->lifetime());
 
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, tr::lng_settings_badge_title());
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container, st::settingsCheckboxesSkip);
+	Ui::AddSubsectionTitle(container, tr::lng_settings_badge_title());
 
-	const auto muted = AddButton(
+	const auto muted = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_include_muted(),
-		st::settingsButtonNoIcon);
+		st::settingsButtonNoIcon));
 	muted->toggleOn(rpl::single(settings.includeMutedCounter()));
-	const auto count = AddButton(
+	const auto mutedFolders = session->data().chatsFilters().has()
+		? container->add(object_ptr<Button>(
+			container,
+			tr::lng_settings_include_muted_folders(),
+			st::settingsButtonNoIcon))
+		: nullptr;
+	if (mutedFolders) {
+		mutedFolders->toggleOn(
+			rpl::single(settings.includeMutedCounterFolders()));
+	}
+	const auto count = container->add(object_ptr<Button>(
 		container,
 		tr::lng_settings_count_unread(),
-		st::settingsButtonNoIcon);
+		st::settingsButtonNoIcon));
 	count->toggleOn(rpl::single(settings.countUnreadMessages()));
 
 	auto nativeText = [&] {
@@ -975,15 +1160,15 @@ void SetupNotificationsContent(
 			return nullptr;
 		}
 
-		AddSkip(container, st::settingsCheckboxesSkip);
-		AddDivider(container);
-		AddSkip(container, st::settingsCheckboxesSkip);
-		AddSubsectionTitle(container, tr::lng_settings_native_title());
-		return AddButton(
+		Ui::AddSkip(container, st::settingsCheckboxesSkip);
+		Ui::AddDivider(container);
+		Ui::AddSkip(container, st::settingsCheckboxesSkip);
+		Ui::AddSubsectionTitle(container, tr::lng_settings_native_title());
+		return container->add(object_ptr<Button>(
 			container,
 			std::move(nativeText),
 			st::settingsButtonNoIcon
-		)->toggleOn(rpl::single(settings.nativeNotifications()));
+		))->toggleOn(rpl::single(settings.nativeNotifications()));
 	}();
 
 	const auto advancedSlide = !Platform::Notifications::Enforced()
@@ -1015,6 +1200,14 @@ void SetupNotificationsContent(
 		Core::App().settings().setDesktopNotify(checked);
 		changed(Change::DesktopEnabled);
 	}, desktop->lifetime());
+
+	sound->toggledChanges(
+	) | rpl::filter([](bool checked) {
+		return (checked != Core::App().settings().soundNotify());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setSoundNotify(checked);
+		changed(Change::SoundEnabled);
+	}, sound->lifetime());
 
 	name->checkedChanges(
 	) | rpl::map([=](bool checked) {
@@ -1048,25 +1241,6 @@ void SetupNotificationsContent(
 		changed(Change::ViewParams);
 	}, preview->lifetime());
 
-	sound->setClickedCallback([=] {
-		controller->show(Box(RingtonesBox, session, soundValue(), [=](
-				Data::NotifySound sound) {
-			Core::App().settings().setSoundNotify(!sound.none);
-			if (!sound.none) {
-				using Type = Data::DefaultNotify;
-				const auto owner = &controller->session().data();
-				auto &settings = owner->notifySettings();
-				const auto updateType = [&](Type type) {
-					settings.defaultUpdate(type, {}, {}, sound);
-				};
-				updateType(Type::User);
-				updateType(Type::Group);
-				updateType(Type::Broadcast);
-			}
-			changed(Change::SoundEnabled);
-		}));
-	});
-
 	flashbounce->toggledChanges(
 	) | rpl::filter([](bool checked) {
 		return (checked != Core::App().settings().flashBounceNotify());
@@ -1082,6 +1256,17 @@ void SetupNotificationsContent(
 		Core::App().settings().setIncludeMutedCounter(checked);
 		changed(Change::IncludeMuted);
 	}, muted->lifetime());
+
+	if (mutedFolders) {
+		mutedFolders->toggledChanges(
+		) | rpl::filter([=](bool checked) {
+			return (checked
+				!= Core::App().settings().includeMutedCounterFolders());
+		}) | rpl::start_with_next([=](bool checked) {
+			Core::App().settings().setIncludeMutedCounterFolders(checked);
+			changed(Change::IncludeMuted);
+		}, mutedFolders->lifetime());
+	}
 
 	count->toggledChanges(
 	) | rpl::filter([=](bool checked) {
@@ -1104,7 +1289,7 @@ void SetupNotificationsContent(
 		} else if (change == Change::ViewParams) {
 			//
 		} else if (change == Change::SoundEnabled) {
-			soundLabel->fire(label());
+			soundAllowed->fire(allowed());
 		} else if (change == Change::FlashBounceEnabled) {
 			flashbounceToggles->fire(
 				Core::App().settings().flashBounceNotify());
@@ -1131,8 +1316,9 @@ void SetupNotificationsContent(
 
 void SetupNotifications(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
-	SetupNotificationsContent(controller, container);
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
+	SetupNotificationsContent(controller, container, std::move(showOther));
 }
 
 } // namespace
@@ -1152,7 +1338,7 @@ void Notifications::setupContent(
 		not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	SetupNotifications(controller, content);
+	SetupNotifications(controller, content, showOtherMethod());
 
 	Ui::ResizeFitChild(this, content);
 }

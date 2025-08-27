@@ -11,31 +11,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class RpWidget;
+} // namespace Ui
 
-namespace Premium {
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
+namespace Ui::Premium {
 
 class ColoredMiniStars final {
 public:
-	ColoredMiniStars(not_null<Ui::RpWidget*> parent);
+	// optimizeUpdate may cause paint glitch.
+	ColoredMiniStars(
+		not_null<Ui::RpWidget*> parent,
+		bool optimizeUpdate,
+		MiniStarsType type = MiniStarsType::MonoStars);
+	ColoredMiniStars(Fn<void(const QRect &)> update, MiniStarsType type);
 
 	void setSize(const QSize &size);
 	void setPosition(QPoint position);
-	void setColorOverride(std::optional<QColor> color);
+	void setColorOverride(std::optional<QGradientStops> stops);
 	void setCenter(const QRect &rect);
 	void paint(QPainter &p);
 
 	void setPaused(bool paused);
 
 private:
-	Ui::Premium::MiniStars _ministars;
+	MiniStars _ministars;
 	QRectF _ministarsRect;
 	QImage _frame;
 	QImage _mask;
 	QSize _size;
 	QPoint _position;
-	std::optional<QColor> _colorOverride;
+	std::optional<QGradientStops> _stopsOverride;
 
 };
 
-} // namespace Premium
-} // namespace Ui
+[[nodiscard]] std::unique_ptr<Text::CustomEmoji> MakeCollectibleEmoji(
+	QStringView entityData,
+	QColor centerColor,
+	QColor edgeColor,
+	std::unique_ptr<Text::CustomEmoji> inner,
+	Fn<void()> update,
+	int size);
+
+} // namespace Ui::Premium

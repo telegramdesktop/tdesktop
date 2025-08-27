@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 
 namespace Main {
 class Session;

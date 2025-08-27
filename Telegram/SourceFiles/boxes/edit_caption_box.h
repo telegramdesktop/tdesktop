@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "history/view/controls/history_view_compose_media_edit_manager.h"
+#include "ui/layers/box_content.h"
 #include "ui/chat/attach/attach_prepare.h"
 
 namespace ChatHelpers {
 class TabbedPanel;
+class FieldAutocomplete;
 } // namespace ChatHelpers
 
 namespace Window {
@@ -35,8 +37,43 @@ public:
 	EditCaptionBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
-		not_null<HistoryItem*> item);
+		not_null<HistoryItem*> item,
+		TextWithTags &&text,
+		SuggestPostOptions suggest,
+		bool spoilered,
+		bool invertCaption,
+		Ui::PreparedList &&list,
+		Fn<void()> saved);
 	~EditCaptionBox();
+
+	static void StartMediaReplace(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		TextWithTags text,
+		SuggestPostOptions suggest,
+		bool spoilered,
+		bool invertCaption,
+		Fn<void()> saved);
+	static void StartMediaReplace(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		Ui::PreparedList &&list,
+		TextWithTags text,
+		SuggestPostOptions suggest,
+		bool spoilered,
+		bool invertCaption,
+		Fn<void()> saved);
+	static void StartPhotoEdit(
+		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Data::PhotoMedia> media,
+		FullMsgId itemId,
+		TextWithTags text,
+		SuggestPostOptions suggest,
+		bool spoilered,
+		bool invertCaption,
+		Fn<void()> saved);
+
+	void showFinished() override;
 
 protected:
 	void prepare() override;
@@ -51,6 +88,7 @@ private:
 	void setupEditEventHandler();
 	void setupPhotoEditorEventHandler();
 	void setupField();
+	void setupFieldAutocomplete();
 	void setupControls();
 	void setInitialText();
 
@@ -64,16 +102,20 @@ private:
 	void setupDragArea();
 
 	bool validateLength(const QString &text) const;
+	void applyChanges();
 	void save();
+	void closeAfterSave();
 
 	bool fileFromClipboard(not_null<const QMimeData*> data);
 
-	int errorTopSkip() const;
+	[[nodiscard]] int errorTopSkip() const;
+	[[nodiscard]] bool hasSpoiler() const;
 
 	bool setPreparedList(Ui::PreparedList &&list);
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<HistoryItem*> _historyItem;
+	const SuggestPostOptions _suggest;
 	const bool _isAllowedEditMedia;
 	const Ui::AlbumType _albumType;
 
@@ -82,16 +124,24 @@ private:
 	const base::unique_qptr<Ui::InputField> _field;
 	const base::unique_qptr<Ui::EmojiButton> _emojiToggle;
 
+	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
+
 	base::unique_qptr<Ui::AbstractSinglePreview> _content;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
 
+	const TextWithTags _initialText;
+	Ui::PreparedList _initialList;
+	Fn<void()> _saved;
+
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 
 	Ui::PreparedList _preparedList;
+	HistoryView::MediaEditManager _mediaEditManager;
 
 	mtpRequestId _saveRequestId = 0;
 
+	base::Timer _checkChangedTimer;
 	bool _isPhoto = false;
 	bool _asFile = false;
 

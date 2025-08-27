@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/clip/media_clip_ffmpeg.h"
 #include "media/clip/media_clip_check_streaming.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/painter.h"
 #include "core/file_location.h"
 #include "base/random.h"
@@ -179,7 +180,7 @@ struct Worker {
 	Manager manager;
 };
 
-std::vector<std::unique_ptr<Worker>>  Workers;
+std::vector<std::unique_ptr<Worker>> Workers;
 
 } // namespace
 
@@ -963,7 +964,9 @@ Manager::~Manager() {
 	clear();
 }
 
-Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const QByteArray &data) {
+Ui::PreparedFileInformation PrepareForSending(
+		const QString &fname,
+		const QByteArray &data) {
 	auto result = Ui::PreparedFileInformation::Video();
 	auto localLocation = Core::FileLocation(fname);
 	auto localData = QByteArray(data);
@@ -971,7 +974,7 @@ Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const
 	auto seekPositionMs = crl::time(0);
 	auto reader = std::make_unique<internal::FFMpegReaderImplementation>(&localLocation, &localData);
 	if (reader->start(internal::ReaderImplementation::Mode::Inspecting, seekPositionMs)) {
-		auto durationMs = reader->durationMs();
+		const auto durationMs = reader->durationMs();
 		if (durationMs > 0) {
 			result.isGifv = reader->isGifv();
 			result.isWebmSticker = reader->isWebmSticker();
@@ -991,7 +994,7 @@ Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const
 				if (hasAlpha && !result.isWebmSticker) {
 					result.thumbnail = Images::Opaque(std::move(result.thumbnail));
 				}
-				result.duration = static_cast<int>(durationMs / 1000);
+				result.duration = durationMs;
 			}
 
 			result.supportsStreaming = CheckStreamingSupport(
@@ -999,7 +1002,7 @@ Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const
 				localData);
 		}
 	}
-	return result;
+	return { .media = result };
 }
 
 void Finish() {

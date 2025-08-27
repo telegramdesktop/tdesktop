@@ -13,10 +13,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/chat/group_call_userpics.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/emoji_config.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
+
+#include <QtCore/QLocale>
 
 namespace Lang {
 namespace {
@@ -69,14 +74,9 @@ StringWithReacted ReplaceTag<StringWithReacted>::Call(
 namespace Ui {
 namespace {
 
-using Text::CustomEmojiFactory;
+constexpr auto kPreloaderAlpha = 0.2;
 
-struct EntryData {
-	QString text;
-	QString customEntityData;
-	QImage userpic;
-	Fn<void()> callback;
-};
+using Text::CustomEmojiFactory;
 
 class Action final : public Menu::ItemBase {
 public:
@@ -84,7 +84,7 @@ public:
 		not_null<PopupMenu*> parentMenu,
 		rpl::producer<WhoReadContent> content,
 		CustomEmojiFactory factory,
-		Fn<void(uint64)> participantChosen,
+		Fn<void(WhoReadParticipant)> participantChosen,
 		Fn<void()> showAllChosen);
 
 	bool isEnabled() const override;
@@ -109,7 +109,7 @@ private:
 
 	const not_null<PopupMenu*> _parentMenu;
 	const not_null<QAction*> _dummyAction;
-	const Fn<void(uint64)> _participantChosen;
+	const Fn<void(WhoReadParticipant)> _participantChosen;
 	const Fn<void()> _showAllChosen;
 	const std::unique_ptr<GroupCallUserpics> _userpics;
 	const style::Menu &_st;
@@ -123,6 +123,45 @@ private:
 	const int _height = 0;
 	int _userpicsWidth = 0;
 	bool _appeared = false;
+
+	WhoReadContent _content;
+
+};
+
+class WhenAction final : public Menu::ItemBase {
+public:
+	WhenAction(
+		not_null<PopupMenu*> parentMenu,
+		rpl::producer<WhoReadContent> content,
+		Fn<void()> showOrPremium);
+
+	bool isEnabled() const override;
+	not_null<QAction*> action() const override;
+
+protected:
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+
+	int contentHeight() const override;
+
+private:
+	void paint(Painter &p);
+	void resizeEvent(QResizeEvent *e) override;
+
+	void resolveMinWidth();
+	void refreshText();
+	void refreshDimensions();
+
+	const not_null<PopupMenu*> _parentMenu;
+	const not_null<QAction*> _dummyAction;
+	const Fn<void()> _showOrPremium;
+	const style::Menu &_st;
+
+	Text::String _text;
+	Text::String _show;
+	QRect _showRect;
+	int _textWidth = 0;
+	const int _height = 0;
 
 	WhoReadContent _content;
 
@@ -151,7 +190,7 @@ Action::Action(
 	not_null<PopupMenu*> parentMenu,
 	rpl::producer<WhoReadContent> content,
 	Text::CustomEmojiFactory factory,
-	Fn<void(uint64)> participantChosen,
+	Fn<void(WhoReadParticipant)> participantChosen,
 	Fn<void()> showAllChosen)
 : ItemBase(parentMenu->menu(), parentMenu->menu()->st())
 , _parentMenu(parentMenu)
@@ -169,8 +208,9 @@ Action::Action(
 		+ _st.itemStyle.font->height
 		+ st::defaultWhoRead.itemPadding.bottom()) {
 	const auto parent = parentMenu->menu();
-	const auto checkAppeared = [=, now = crl::now()] {
-		_appeared = (crl::now() - now) >= parentMenu->st().duration;
+	const auto delay = anim::Disabled() ? 0 : parentMenu->st().duration;
+	const auto checkAppeared = [=, now = crl::now()](bool force = false) {
+		_appeared = force || ((crl::now() - now) >= delay);
 	};
 
 	setAcceptBoth(true);
@@ -181,7 +221,7 @@ Action::Action(
 	) | rpl::start_with_next([=](WhoReadContent &&content) {
 		checkAppeared();
 		const auto changed = (_content.participants != content.participants)
-			|| (_content.unknown != content.unknown);
+			|| (_content.state != content.state);
 		_content = content;
 		if (changed) {
 			PostponeCall(this, [=] { populateSubmenu(); });
@@ -216,7 +256,7 @@ Action::Action(
 	) | rpl::start_with_next([=] {
 		if (_content.participants.size() == 1) {
 			if (const auto onstack = _participantChosen) {
-				onstack(_content.participants.front().id);
+				onstack(_content.participants.front());
 			}
 		} else if (_content.fullReactionsCount > 0) {
 			if (const auto onstack = _showAllChosen) {
@@ -228,8 +268,10 @@ Action::Action(
 	enableMouseSelecting();
 
 	base::call_delayed(parentMenu->st().duration, this, [=] {
-		checkAppeared();
-		updateUserpicsFromContent();
+		if (!_appeared) {
+			checkAppeared(true);
+			updateUserpicsFromContent();
+		}
 	});
 }
 
@@ -287,7 +329,7 @@ void Action::updateUserpicsFromContent() {
 }
 
 void Action::populateSubmenu() {
-	if (_content.participants.size() < 2) {
+	if (_content.participants.size() < 1) {
 		_submenu.clear();
 		_parentMenu->removeSubmenu(action());
 		if (!isEnabled()) {
@@ -317,7 +359,7 @@ void Action::paint(Painter &p) {
 	if (!_custom && !_content.singleCustomEntityData.isEmpty()) {
 		_custom = _customEmojiFactory(
 			_content.singleCustomEntityData,
-			[=] { update(); });
+			{ .repaint = [=] { update(); } });
 	}
 	if (_custom) {
 		const auto ratio = style::DevicePixelRatio();
@@ -327,7 +369,7 @@ void Action::paint(Painter &p) {
 			+ (st::whoReadChecks.width() - adjusted) / 2;
 		const auto y = (_height - adjusted) / 2;
 		_custom->paint(p, {
-			.preview = _st.ripple.color->c,
+			.textColor = (selected ? _st.itemFgOver : _st.itemFg)->c,
 			.now = crl::now(),
 			.position = { x, y },
 		});
@@ -380,7 +422,7 @@ void Action::refreshText() {
 	const auto count = std::max(_content.fullReactionsCount, usersCount);
 	_text.setMarkedText(
 		_st.itemStyle,
-		{ (_content.unknown
+		{ ((_content.state == WhoReadState::Unknown)
 			? tr::lng_context_seen_loading(tr::now)
 			: (usersCount == 1)
 			? _content.participants.front().name
@@ -432,7 +474,8 @@ void Action::refreshDimensions() {
 }
 
 bool Action::isEnabled() const {
-	return !_content.participants.empty();
+	return !_content.participants.empty()
+		|| (_content.state == WhoReadState::MyHidden);
 }
 
 not_null<QAction*> Action::action() const {
@@ -461,44 +504,230 @@ void Action::handleKeyPress(not_null<QKeyEvent*> e) {
 	}
 }
 
+WhenAction::WhenAction(
+	not_null<PopupMenu*> parentMenu,
+	rpl::producer<WhoReadContent> content,
+	Fn<void()> showOrPremium)
+: ItemBase(parentMenu->menu(), parentMenu->menu()->st())
+, _parentMenu(parentMenu)
+, _dummyAction(CreateChild<QAction>(parentMenu->menu().get()))
+, _showOrPremium(std::move(showOrPremium))
+, _st(parentMenu->menu()->st())
+, _height(st::whenReadPadding.top()
+		+ st::whenReadStyle.font->height
+		+ st::whenReadPadding.bottom()) {
+	const auto parent = parentMenu->menu();
+
+	setAcceptBoth(true);
+	initResizeHook(parent->sizeValue());
+
+	std::move(
+		content
+	) | rpl::start_with_next([=](WhoReadContent &&content) {
+		_content = content;
+		refreshText();
+		refreshDimensions();
+		setPointerCursor(isEnabled());
+		_dummyAction->setEnabled(isEnabled());
+		if (!isEnabled()) {
+			setSelected(false);
+		}
+		update();
+	}, lifetime());
+
+	resolveMinWidth();
+	refreshDimensions();
+
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		Painter p(this);
+		paint(p);
+	}, lifetime());
+
+	clicks(
+	) | rpl::start_with_next([=] {
+		if (_content.state == WhoReadState::MyHidden) {
+			if (const auto onstack = _showOrPremium) {
+				onstack();
+			}
+		}
+	}, lifetime());
+
+	enableMouseSelecting();
+}
+
+void WhenAction::resolveMinWidth() {
+	const auto width = [&](const QString &text) {
+		return st::whenReadStyle.font->width(text);
+	};
+	const auto added = st::whenReadShowPadding.left()
+		+ st::whenReadShowPadding.right();
+
+	const auto sampleDate = QDate::currentDate();
+	const auto sampleTime = QLocale().toString(
+		QTime::currentTime(),
+		QLocale::ShortFormat);
+	const auto maxTextWidth = added + std::max({
+		width(tr::lng_contacts_loading(tr::now)),
+		(width(tr::lng_context_read_hidden(tr::now))
+			+ st::whenReadSkip
+			+ width(tr::lng_context_read_show(tr::now))),
+		width(tr::lng_mediaview_today(tr::now, lt_time, sampleTime)),
+		width(tr::lng_mediaview_yesterday(tr::now, lt_time, sampleTime)),
+		width(tr::lng_mediaview_date_time(
+			tr::now,
+			lt_date,
+			tr::lng_month_day(
+				tr::now,
+				lt_month,
+				Lang::MonthDay(sampleDate.month())(tr::now),
+				lt_day,
+				QString::number(sampleDate.day())),
+			lt_time,
+			sampleTime)),
+	});
+
+	const auto maxWidth = st::whenReadPadding.left()
+		+ maxTextWidth
+		+ st::whenReadPadding.right();
+	setMinWidth(maxWidth);
+}
+
+void WhenAction::paint(Painter &p) {
+	const auto loading = !isEnabled() && _content.participants.empty();
+	const auto selected = isSelected();
+	if (selected && _st.itemBgOver->c.alpha() < 255) {
+		p.fillRect(0, 0, width(), _height, _st.itemBg);
+	}
+	p.fillRect(0, 0, width(), _height, _st.itemBg);
+	const auto &icon = (_content.type == WhoReadType::Edited)
+		? (selected ? st::whenEditedOver : st::whenEdited)
+		: (_content.type == WhoReadType::Original)
+		? (selected ? st::whenOriginalOver : st::whenOriginal)
+		: loading
+		? st::whoReadChecksDisabled
+		: selected
+		? st::whoReadChecksOver
+		: st::whoReadChecks;
+	icon.paint(p, st::whenReadIconPosition, width());
+	p.setPen(loading ? _st.itemFgDisabled : _st.itemFg);
+	_text.drawLeftElided(
+		p,
+		st::whenReadPadding.left(),
+		st::whenReadPadding.top(),
+		_textWidth,
+		width());
+	if (!_show.isEmpty()) {
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(_st.itemBgOver);
+		const auto radius = _showRect.height() / 2.;
+		p.drawRoundedRect(_showRect, radius, radius);
+		paintRipple(p, 0, 0);
+		const auto inner = _showRect.marginsRemoved(st::whenReadShowPadding);
+		p.setPen(_st.itemFgOver);
+		_show.drawLeftElided(
+			p,
+			inner.x(),
+			inner.y(),
+			inner.width(),
+			width());
+	}
+}
+
+void WhenAction::refreshText() {
+	_text.setMarkedText(
+		st::whenReadStyle,
+		{ ((_content.state == WhoReadState::Unknown)
+			? tr::lng_context_seen_loading(tr::now)
+			: _content.participants.empty()
+			? tr::lng_context_read_hidden(tr::now)
+			: _content.participants.front().date) },
+		MenuTextOptions);
+	if (_content.state == WhoReadState::MyHidden) {
+		_show.setMarkedText(
+			st::whenReadStyle,
+			{ tr::lng_context_read_show(tr::now) },
+			MenuTextOptions);
+	} else {
+		_show = Text::String();
+	}
+}
+
+void WhenAction::resizeEvent(QResizeEvent *e) {
+	ItemBase::resizeEvent(e);
+	refreshDimensions();
+}
+
+void WhenAction::refreshDimensions() {
+	if (!minWidth()) {
+		return;
+	}
+	const auto textWidth = _text.maxWidth();
+	const auto showWidth = _show.isEmpty() ? 0 : _show.maxWidth();
+	const auto &padding = st::whenReadPadding;
+
+	const auto goodWidth = padding.left()
+		+ textWidth
+		+ (showWidth
+			? (st::whenReadSkip
+				+ st::whenReadShowPadding.left()
+				+ showWidth
+				+ st::whenReadShowPadding.right())
+			: 0)
+		+ padding.right();
+
+	const auto w = std::clamp(
+		goodWidth,
+		_st.widthMin,
+		std::max(width(), _st.widthMin));
+	_textWidth = std::min(w - (goodWidth - textWidth), textWidth);
+	if (showWidth) {
+		_showRect = QRect(
+			padding.left() + _textWidth + st::whenReadSkip,
+			padding.top() - st::whenReadShowPadding.top(),
+			(st::whenReadShowPadding.left()
+				+ showWidth
+				+ st::whenReadShowPadding.right()),
+			(st::whenReadShowPadding.top()
+				+ st::whenReadStyle.font->height
+				+ st::whenReadShowPadding.bottom()));
+	}
+}
+
+bool WhenAction::isEnabled() const {
+	return (_content.state == WhoReadState::MyHidden);
+}
+
+not_null<QAction*> WhenAction::action() const {
+	return _dummyAction;
+}
+
+QPoint WhenAction::prepareRippleStartPosition() const {
+	const auto result = mapFromGlobal(QCursor::pos());
+	return _showRect.contains(result)
+		? result
+		: Ui::RippleButton::DisabledRippleStartPosition();
+}
+
+QImage WhenAction::prepareRippleMask() const {
+	return Ui::RippleAnimation::MaskByDrawer(size(), false, [&](QPainter &p) {
+		const auto radius = _showRect.height() / 2.;
+		p.drawRoundedRect(_showRect, radius, radius);
+	});
+}
+
+int WhenAction::contentHeight() const {
+	return _height;
+}
+
 } // namespace
 
-class WhoReactedListMenu::EntryAction final : public Menu::ItemBase {
-public:
-	EntryAction(
-		not_null<RpWidget*> parent,
-		CustomEmojiFactory factory,
-		const style::Menu &st,
-		EntryData &&data);
-
-	void setData(EntryData &&data);
-
-	not_null<QAction*> action() const override;
-	bool isEnabled() const override;
-
-private:
-	int contentHeight() const override;
-
-	void paint(Painter &&p);
-
-	const not_null<QAction*> _dummyAction;
-	const CustomEmojiFactory _customEmojiFactory;
-	const style::Menu &_st;
-	const int _height = 0;
-
-	Text::String _text;
-	std::unique_ptr<Ui::Text::CustomEmoji> _custom;
-	QImage _userpic;
-	int _textWidth = 0;
-	int _customSize = 0;
-
-};
-
-WhoReactedListMenu::EntryAction::EntryAction(
+WhoReactedEntryAction::WhoReactedEntryAction(
 	not_null<RpWidget*> parent,
 	CustomEmojiFactory customEmojiFactory,
 	const style::Menu &st,
-	EntryData &&data)
+	Data &&data)
 : ItemBase(parent, st)
 , _dummyAction(CreateChild<QAction>(parent.get()))
 , _customEmojiFactory(std::move(customEmojiFactory))
@@ -517,27 +746,42 @@ WhoReactedListMenu::EntryAction::EntryAction(
 	enableMouseSelecting();
 }
 
-not_null<QAction*> WhoReactedListMenu::EntryAction::action() const {
+not_null<QAction*> WhoReactedEntryAction::action() const {
 	return _dummyAction.get();
 }
 
-bool WhoReactedListMenu::EntryAction::isEnabled() const {
+bool WhoReactedEntryAction::isEnabled() const {
 	return true;
 }
 
-int WhoReactedListMenu::EntryAction::contentHeight() const {
+int WhoReactedEntryAction::contentHeight() const {
 	return _height;
 }
 
-void WhoReactedListMenu::EntryAction::setData(EntryData &&data) {
+void WhoReactedEntryAction::setData(Data &&data) {
 	setClickedCallback(std::move(data.callback));
 	_userpic = std::move(data.userpic);
 	_text.setMarkedText(_st.itemStyle, { data.text }, MenuTextOptions);
-	_custom = _customEmojiFactory(data.customEntityData, [=] { update(); });
+	if (data.date.isEmpty()) {
+		_date = Text::String();
+	} else {
+		_date.setMarkedText(
+			st::whoReadDateStyle,
+			{ data.date },
+			MenuTextOptions);
+	}
+	_type = data.type;
+	_custom = _customEmojiFactory
+		? _customEmojiFactory(
+			data.customEntityData,
+			{ .repaint = [=] { update(); } })
+		: nullptr;
 	const auto ratio = style::DevicePixelRatio();
 	const auto size = Emoji::GetSizeNormal() / ratio;
 	_customSize = Text::AdjustCustomEmojiSize(size);
-	const auto textWidth = _text.maxWidth();
+	const auto textWidth = std::max(
+		_text.maxWidth(),
+		st::whoReadDateSkip + _date.maxWidth());
 	const auto &padding = _st.itemPadding;
 	const auto rightSkip = padding.right()
 		+ (_custom ? (size + padding.right()) : 0);
@@ -550,48 +794,133 @@ void WhoReactedListMenu::EntryAction::setData(EntryData &&data) {
 	update();
 }
 
-void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
+void WhoReactedEntryAction::paint(Painter &&p) {
 	const auto enabled = isEnabled();
 	const auto selected = isSelected();
 	if (selected && _st.itemBgOver->c.alpha() < 255) {
 		p.fillRect(0, 0, width(), _height, _st.itemBg);
 	}
-	p.fillRect(0, 0, width(), _height, selected ? _st.itemBgOver : _st.itemBg);
+	const auto bg = selected ? _st.itemBgOver : _st.itemBg;
+	p.fillRect(0, 0, width(), _height, bg);
 	if (enabled) {
 		paintRipple(p, 0, 0);
 	}
 	const auto photoSize = st::defaultWhoRead.photoSize;
 	const auto photoLeft = st::defaultWhoRead.photoLeft;
 	const auto photoTop = (height() - photoSize) / 2;
-	if (!_userpic.isNull()) {
+	const auto preloader = (_type == WhoReactedType::Preloader);
+	const auto preloaderBrush = preloader
+		? [&] {
+			auto color = _st.itemFg->c;
+			color.setAlphaF(color.alphaF() * kPreloaderAlpha);
+			return QBrush(color);
+		}() : QBrush();
+	if (preloader) {
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(preloaderBrush);
+		p.drawEllipse(photoLeft, photoTop, photoSize, photoSize);
+	} else if (!_userpic.isNull()) {
 		p.drawImage(photoLeft, photoTop, _userpic);
+		if (_type == WhoReactedType::RefRecipientNow) {
+			auto hq = PainterHighQualityEnabler(p);
+			p.setBrush(Qt::NoBrush);
+			auto bgPen = bg->p;
+			bgPen.setWidthF(st::lineWidth * 6.);
+			p.setPen(bgPen);
+			p.drawEllipse(photoLeft, photoTop, photoSize, photoSize);
+			auto fgPen = st::windowBgActive->p;
+			fgPen.setWidthF(st::lineWidth * 2.);
+			p.setPen(fgPen);
+			p.drawEllipse(photoLeft, photoTop, photoSize, photoSize);
+		}
 	} else if (!_custom) {
 		st::menuIconReactions.paintInCenter(
 			p,
 			QRect(photoLeft, photoTop, photoSize, photoSize));
 	}
 
-	p.setPen(selected
-		? _st.itemFgOver
-		: enabled
-		? _st.itemFg
-		: _st.itemFgDisabled);
-	_text.drawLeftElided(
-		p,
-		st::defaultWhoRead.nameLeft,
-		(height() - _st.itemStyle.font->height) / 2,
-		_textWidth,
-		width());
-
+	const auto withDate = !_date.isEmpty();
+	const auto textTop = withDate
+		? st::whoReadNameWithDateTop
+		: (height() - _st.itemStyle.font->height) / 2;
+	if (_type == WhoReactedType::Preloader) {
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(preloaderBrush);
+		const auto height = _st.itemStyle.font->height / 2;
+		p.drawRoundedRect(
+			st::defaultWhoRead.nameLeft,
+			textTop + (_st.itemStyle.font->height - height) / 2,
+			_textWidth,
+			height,
+			height / 2.,
+			height / 2.);
+	} else {
+		p.setPen(selected
+			? _st.itemFgOver
+			: enabled
+			? _st.itemFg
+			: _st.itemFgDisabled);
+		_text.drawLeftElided(
+			p,
+			st::defaultWhoRead.nameLeft,
+			textTop,
+			_textWidth,
+			width());
+	}
+	if (_type == WhoReactedType::RefRecipient
+		|| _type == WhoReactedType::RefRecipientNow) {
+		p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
+		_date.drawLeftElided(
+			p,
+			st::defaultWhoRead.nameLeft,
+			st::whoReadDateTop,
+			_textWidth,
+			width());
+	} else if (withDate) {
+		const auto iconPosition = QPoint(
+			st::defaultWhoRead.nameLeft,
+			st::whoReadDateTop) + st::whoReadDateChecksPosition;
+		const auto icon = [&] {
+			switch (_type) {
+			case WhoReactedType::Viewed:
+				return &(selected
+					? st::whoReadDateChecksOver
+					: st::whoReadDateChecks);
+			case WhoReactedType::Reacted:
+				return &(selected
+					? st::whoLikedDateHeartOver
+					: st::whoLikedDateHeart);
+			case WhoReactedType::Reposted:
+				return &(selected
+					? st::whoRepostedDateHeartOver
+					: st::whoRepostedDateHeart);
+			case WhoReactedType::Forwarded:
+				return &(selected
+					? st::whoForwardedDateHeartOver
+					: st::whoForwardedDateHeart);
+			}
+			Unexpected("Type in WhoReactedEntryAction::paint.");
+		}();
+		icon->paint(p, iconPosition, width());
+		p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
+		_date.drawLeftElided(
+			p,
+			st::defaultWhoRead.nameLeft + st::whoReadDateSkip,
+			st::whoReadDateTop,
+			_textWidth - st::whoReadDateSkip,
+			width());
+	}
 	if (_custom) {
 		const auto ratio = style::DevicePixelRatio();
 		const auto size = Emoji::GetSizeNormal() / ratio;
 		const auto skip = (size - _customSize) / 2;
 		_custom->paint(p, {
-			.preview = _st.ripple.color->c,
+			.textColor = (selected ? _st.itemFgOver : _st.itemFg)->c,
 			.now = crl::now(),
 			.position = QPoint(
-				width() - _st.itemPadding.right() - (size / ratio) + skip,
+				width() - _st.itemPadding.right() - size + skip,
 				(height() - _customSize) / 2),
 		});
 	}
@@ -600,6 +929,7 @@ void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
 bool operator==(const WhoReadParticipant &a, const WhoReadParticipant &b) {
 	return (a.id == b.id)
 		&& (a.name == b.name)
+		&& (a.date == b.date)
 		&& (a.userpicKey == b.userpicKey);
 }
 
@@ -611,7 +941,7 @@ base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 		not_null<PopupMenu*> menu,
 		rpl::producer<WhoReadContent> content,
 		CustomEmojiFactory factory,
-		Fn<void(uint64)> participantChosen,
+		Fn<void(WhoReadParticipant)> participantChosen,
 		Fn<void()> showAllChosen) {
 	return base::make_unique_q<Action>(
 		menu,
@@ -621,9 +951,19 @@ base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 		std::move(showAllChosen));
 }
 
+base::unique_qptr<Menu::ItemBase> WhenReadContextAction(
+		not_null<PopupMenu*> menu,
+		rpl::producer<WhoReadContent> content,
+		Fn<void()> showOrPremium) {
+	return base::make_unique_q<WhenAction>(
+		menu,
+		std::move(content),
+		std::move(showOrPremium));
+}
+
 WhoReactedListMenu::WhoReactedListMenu(
 	CustomEmojiFactory factory,
-	Fn<void(uint64)> participantChosen,
+	Fn<void(WhoReadParticipant)> participantChosen,
 	Fn<void()> showAllChosen)
 : _customEmojiFactory(std::move(factory))
 , _participantChosen(std::move(participantChosen))
@@ -655,11 +995,11 @@ void WhoReactedListMenu::populate(
 		addedToBottom = 0;
 	}
 	auto index = 0;
-	const auto append = [&](EntryData &&data) {
+	const auto append = [&](WhoReactedEntryData &&data) {
 		if (index < _actions.size()) {
 			_actions[index]->setData(std::move(data));
 		} else {
-			auto item = base::make_unique_q<EntryAction>(
+			auto item = base::make_unique_q<WhoReactedEntryAction>(
 				menu->menu(),
 				_customEmojiFactory,
 				menu->menu()->st(),
@@ -675,11 +1015,15 @@ void WhoReactedListMenu::populate(
 		++index;
 	};
 	for (const auto &participant : content.participants) {
-		const auto chosen = [call = _participantChosen, id = participant.id]{
-			call(id);
+		const auto chosen = [call = _participantChosen, participant] {
+			call(participant);
 		};
 		append({
 			.text = participant.name,
+			.date = participant.date,
+			.type = (participant.dateReacted
+				? WhoReactedType::Reacted
+				: WhoReactedType::Viewed),
 			.customEntityData = participant.customEntityData,
 			.userpic = participant.userpicLarge,
 			.callback = chosen,

@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "dialogs/dialogs_entry.h"
 #include "dialogs/dialogs_list.h"
 
 class History;
 
 namespace Dialogs {
+
+struct RowsByLetter;
+class Row;
 
 class IndexedList {
 public:
@@ -22,6 +24,8 @@ public:
 	Row *addByName(Key key);
 	void adjustByDate(const RowsByLetter &links);
 	void moveToTop(Key key);
+	bool updateHeight(Key key, float64 narrowRatio);
+	bool updateHeights(float64 narrowRatio);
 
 	// row must belong to this indexed list all().
 	void movePinned(Row *row, int deltaSign);
@@ -37,39 +41,48 @@ public:
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldChars);
 
-	void del(Key key, Row *replacedBy = nullptr);
+	void remove(Key key, Row *replacedBy = nullptr);
 	void clear();
 
-	const List &all() const {
+	[[nodiscard]] const List &all() const {
 		return _list;
 	}
-	const List *filtered(QChar ch) const {
+	[[nodiscard]] const List *filtered(QChar ch) const {
 		const auto i = _index.find(ch);
 		return (i != _index.end()) ? &i->second : nullptr;
 	}
-	std::vector<not_null<Row*>> filtered(const QStringList &words) const;
+	[[nodiscard]] std::vector<not_null<Row*>> filtered(
+		const QStringList &words) const;
 
 	// Part of List interface is duplicated here for all() list.
-	int size() const { return all().size(); }
-	bool empty() const { return all().empty(); }
-	bool contains(Key key) const { return all().contains(key); }
-	Row *getRow(Key key) const { return all().getRow(key); }
-	Row *rowAtY(int32 y, int32 h) const { return all().rowAtY(y, h); }
+	[[nodiscard]] int size() const { return all().size(); }
+	[[nodiscard]] bool empty() const { return all().empty(); }
+	[[nodiscard]] int height() const { return all().height(); }
+	[[nodiscard]] bool contains(Key key) const {
+		return all().contains(key);
+	}
+	[[nodiscard]] Row *getRow(Key key) const { return all().getRow(key); }
+	[[nodiscard]] Row *rowAtY(int y) const { return all().rowAtY(y); }
 
 	using iterator = List::iterator;
 	using const_iterator = List::const_iterator;
-	const_iterator cbegin() const { return all().cbegin(); }
-	const_iterator cend() const { return all().cend(); }
-	const_iterator begin() const { return all().cbegin(); }
-	const_iterator end() const { return all().cend(); }
-	iterator begin() { return all().begin(); }
-	iterator end() { return all().end(); }
-	const_iterator cfind(Row *value) const { return all().cfind(value); }
-	const_iterator find(Row *value) const { return all().cfind(value); }
-	iterator find(Row *value) { return all().find(value); }
-	const_iterator cfind(int y, int h) const { return all().cfind(y, h); }
-	const_iterator find(int y, int h) const { return all().cfind(y, h); }
-	iterator find(int y, int h) { return all().find(y, h); }
+	[[nodiscard]] const_iterator cbegin() const { return all().cbegin(); }
+	[[nodiscard]] const_iterator cend() const { return all().cend(); }
+	[[nodiscard]] const_iterator begin() const { return all().cbegin(); }
+	[[nodiscard]] const_iterator end() const { return all().cend(); }
+	[[nodiscard]] iterator begin() { return all().begin(); }
+	[[nodiscard]] iterator end() { return all().end(); }
+	[[nodiscard]] const_iterator cfind(Row *value) const {
+		return all().cfind(value);
+	}
+	[[nodiscard]] const_iterator find(Row *value) const {
+		return all().cfind(value);
+	}
+	[[nodiscard]] iterator find(Row *value) { return all().find(value); }
+	[[nodiscard]] const_iterator findByY(int y) const {
+		return all().findByY(y);
+	}
+	[[nodiscard]] iterator findByY(int y) { return all().findByY(y); }
 
 private:
 	void adjustByName(

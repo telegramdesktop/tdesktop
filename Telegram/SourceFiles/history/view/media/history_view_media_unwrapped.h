@@ -17,6 +17,9 @@ struct HistoryMessageForwarded;
 
 namespace HistoryView {
 
+class Reply;
+struct TopicButton;
+
 class UnwrappedMedia final : public Media {
 public:
 	class Content {
@@ -71,12 +74,7 @@ public:
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
 	}
-	bool dragItem() const override {
-		return true;
-	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
-		return true;
-	}
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override;
 
 	DocumentData *getDocument() const override {
 		return _content->document();
@@ -111,7 +109,9 @@ public:
 
 private:
 	struct SurroundingInfo {
+		QSize topicSize;
 		int height = 0;
+		int panelHeight = 0;
 		int forwardedHeight = 0;
 		bool forwardedBreakEverywhere = false;
 
@@ -120,16 +120,18 @@ private:
 		}
 	};
 	[[nodiscard]] SurroundingInfo surroundingInfo(
+		const TopicButton *topic,
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded,
 		int outerw) const;
 	void drawSurrounding(
 		Painter &p,
 		const QRect &inner,
 		const PaintContext &context,
+		const TopicButton *topic,
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
 
 	QSize countOptimalSize() override;
@@ -137,14 +139,19 @@ private:
 
 	bool needInfoDisplay() const;
 	int additionalWidth(
+		const TopicButton *topic,
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
 
 	int calculateFullRight(const QRect &inner) const;
 	QPoint calculateFastActionPosition(
-		int fullBottom,
+		QRect inner,
+		bool rightAligned,
+		int replyLeft,
 		int replyRight,
+		int replyHeight,
+		int fullBottom,
 		int fullRight,
 		QSize size) const;
 

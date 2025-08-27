@@ -21,12 +21,14 @@ struct MessageToEdit {
 	FullMsgId fullId;
 	Api::SendOptions options;
 	TextWithTags textWithTags;
+	bool spoilered = false;
 };
 struct VoiceToSend {
 	QByteArray bytes;
 	VoiceWaveform waveform;
-	int duration = 0;
+	crl::time duration = 0;
 	Api::SendOptions options;
+	bool video = false;
 };
 struct SendActionUpdate {
 	Api::SendProgressType type = Api::SendProgressType();
@@ -34,14 +36,43 @@ struct SendActionUpdate {
 	bool cancel = false;
 };
 
+enum class WriteRestrictionType {
+	None,
+	Rights,
+	PremiumRequired,
+	Frozen,
+};
+
+struct WriteRestriction {
+	using Type = WriteRestrictionType;
+
+	QString text;
+	QString button;
+	Type type = Type::None;
+	int boostsToLift = false;
+
+	[[nodiscard]] bool empty() const {
+		return (type == Type::None);
+	}
+	explicit operator bool() const {
+		return !empty();
+	}
+
+	friend inline bool operator==(
+		const WriteRestriction &a,
+		const WriteRestriction &b) = default;
+};
+
 struct SetHistoryArgs {
 	required<History*> history;
 	MsgId topicRootId = 0;
+	PeerId monoforumPeerId = 0;
 	Fn<bool()> showSlowmodeError;
 	Fn<Api::SendAction()> sendActionFactory;
 	rpl::producer<int> slowmodeSecondsLeft;
 	rpl::producer<bool> sendDisabledBySlowmode;
-	rpl::producer<std::optional<QString>> writeRestriction;
+	rpl::producer<bool> liked;
+	rpl::producer<WriteRestriction> writeRestriction;
 };
 
 struct ReplyNextRequest {

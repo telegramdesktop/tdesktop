@@ -1,0 +1,120 @@
+:root {
+	--font-sans: -apple-system, BlinkMacSystemFont, avenir next, avenir, Segoe UI Variable Text, segoe ui, helvetica neue, helvetica, Cantarell, Ubuntu, roboto, noto, tahoma, arial, sans-serif;
+}
+
+html {
+	width: 100%;
+	height: 100%;
+	padding: 0;
+	margin: 0;
+}
+
+body {
+	font-family: var(--font-sans);
+	width: 100%;
+	height: 100%;
+	padding: 0;
+	margin: 0;
+	background-color: var(--td-window-bg);
+	color: var(--td-window-fg);
+}
+
+html.custom_scroll ::-webkit-scrollbar {
+	border-radius: 5px !important;
+	border: 3px solid transparent !important;
+	background-color: var(--td-scroll-bg) !important;
+	background-clip: content-box !important;
+	width: 10px !important;
+}
+html.custom_scroll ::-webkit-scrollbar:hover {
+	background-color: var(--td-scroll-bg-over) !important;
+}
+html.custom_scroll ::-webkit-scrollbar-thumb {
+	border-radius: 5px !important;
+	border: 3px solid transparent !important;
+	background-color: var(--td-scroll-bar-bg) !important;
+	background-clip: content-box !important;
+}
+html.custom_scroll ::-webkit-scrollbar-thumb:hover {
+	background-color: var(--td-scroll-bar-bg-over) !important;
+}
+
+#map {
+	position: relative;
+	width: 100%;
+	height: 100%;
+}
+#marker {
+	pointer-events: none;
+	display: none;
+	z-index: 2;
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	justify-content: center;
+	align-items: center;
+}
+#marker_drop {
+	margin-bottom: 0px;
+	transition: margin 160ms ease-in-out;
+}
+#marker_drop.moving {
+	margin-bottom: 24px;
+}
+#marker_shadow {
+	position: absolute;
+}
+#search_venues {
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 2;
+	top: -30px;
+	transition: top 200ms ease-in-out;
+}
+#search_venues.shown {
+	top: 6px;
+}
+#search_venues_inner {
+	position: relative;
+	overflow: hidden;
+	font-size: 13px;
+	font-weight: 500;
+	background: var(--td-window-bg);
+	color: var(--td-window-active-text-fg);
+	cursor: pointer;
+	border-radius: 14px;
+	padding: 5px 12px 6px;
+	box-shadow: 0 0 3px 0px var(--td-history-to-down-shadow);
+}
+#search_venues_inner:hover {
+	background: var(--td-window-bg-over);
+}
+#search_venues_content {
+	position: relative;
+	z-index: 2;
+}
+#search_venues_content:before {
+	content: var(--td-lng-maps-places-in-area);
+}
+#search_venues_inner .ripple .inner {
+	position: absolute;
+	border-radius: 50%;
+	transform: scale(0);
+	opacity: 1;
+	animation: ripple 650ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+	background-color: var(--td-window-bg-ripple);
+}
+#search_venues_inner .ripple.hiding {
+	animation: fadeOut 200ms linear forwards;
+}
+@keyframes ripple {
+	to {
+		transform: scale(2);
+	}
+}
+@keyframes fadeOut {
+	to {
+		opacity: 0;
+	}
+}

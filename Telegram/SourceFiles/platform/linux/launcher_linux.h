@@ -18,10 +18,9 @@ public:
 	int exec() override;
 
 private:
-	void initHook() override;
 	bool launchUpdater(UpdaterLaunch action) override;
 
-	std::vector<std::string> _arguments;
+	bool _updating = false;
 
 };
 

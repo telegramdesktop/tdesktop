@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/masked_input_field.h"
 
 namespace Ui {
 
@@ -23,10 +23,14 @@ public:
 	[[nodiscard]] rpl::producer<QString> codeChanged() const {
 		return _codeChanged.events();
 	}
+	[[nodiscard]] rpl::producer<> spacePressed() const {
+		return _spacePressed.events();
+	}
 
 	void codeSelected(const QString &code);
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
 	void correctValue(
 		const QString &was,
 		int wasCursor,
@@ -37,6 +41,7 @@ private:
 	bool _nosignal = false;
 	rpl::event_stream<QString> _addedToNumber;
 	rpl::event_stream<QString> _codeChanged;
+	rpl::event_stream<> _spacePressed;
 
 };
 
@@ -68,6 +73,10 @@ protected:
 	void paintAdditionalPlaceholder(QPainter &p) override;
 
 private:
+	void updatePattern(QVector<int> &&pattern);
+
+	QString _code;
+	QString _lastDigits;
 	QVector<int> _pattern;
 	QString _additionalPlaceholder;
 	rpl::event_stream<not_null<QKeyEvent*>> _frontBackspaceEvent;

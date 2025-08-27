@@ -29,7 +29,7 @@ void SingleChoiceBox(
 		layout,
 		st::boxOptionListPadding.top() + st::autolockButton.margin.top()));
 	auto &&ints = ranges::views::ints(0, ranges::unreachable);
-	for (const auto [i, text] : ranges::views::zip(ints, args.options)) {
+	for (const auto &[i, text] : ranges::views::zip(ints, args.options)) {
 		layout->add(
 			object_ptr<Ui::Radiobutton>(
 				layout,
@@ -46,7 +46,7 @@ void SingleChoiceBox(
 	}
 	const auto callback = args.callback.value();
 	group->setChangedCallback([=](int value) {
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		callback(value);
 		if (weak) {
 			box->closeBox();

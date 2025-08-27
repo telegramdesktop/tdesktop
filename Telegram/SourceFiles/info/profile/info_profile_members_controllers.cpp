@@ -39,6 +39,10 @@ void MemberListRow::setType(Type type) {
 		: QString());
 }
 
+MemberListRow::Type MemberListRow::type() const {
+	return _type;
+}
+
 bool MemberListRow::rightActionDisabled() const {
 	return true;
 }
@@ -68,7 +72,7 @@ void MemberListRow::refreshStatus() {
 	}
 }
 
-std::unique_ptr<PeerListController> CreateMembersController(
+std::unique_ptr<ParticipantsBoxController> CreateMembersController(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer) {
 	return std::make_unique<ParticipantsBoxController>(

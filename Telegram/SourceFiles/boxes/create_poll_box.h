@@ -7,12 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 #include "api/api_common.h"
 #include "data/data_poll.h"
 #include "base/flags.h"
 
 struct PollData;
+
+namespace ChatHelpers {
+class TabbedPanel;
+} // namespace ChatHelpers
 
 namespace Ui {
 class VerticalLayout;
@@ -23,7 +27,7 @@ class SessionController;
 } // namespace Window
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 class CreatePollBox : public Ui::BoxContent {
@@ -38,8 +42,9 @@ public:
 		not_null<Window::SessionController*> controller,
 		PollData::Flags chosen,
 		PollData::Flags disabled,
+		rpl::producer<int> starsRequired,
 		Api::SendType sendType,
-		SendMenu::Type sendMenuType);
+		SendMenu::Details sendMenuDetails);
 
 	[[nodiscard]] rpl::producer<Result> submitRequests() const;
 	void submitFailed(const QString &error);
@@ -71,7 +76,9 @@ private:
 	const PollData::Flags _chosen = PollData::Flags();
 	const PollData::Flags _disabled = PollData::Flags();
 	const Api::SendType _sendType = Api::SendType();
-	const SendMenu::Type _sendMenuType;
+	const Fn<SendMenu::Details()> _sendMenuDetails;
+	rpl::variable<int> _starsRequired;
+	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	Fn<void()> _setInnerFocus;
 	Fn<rpl::producer<bool>()> _dataIsValidValue;
 	rpl::event_stream<Result> _submitRequests;

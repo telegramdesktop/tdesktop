@@ -10,34 +10,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "base/timer.h"
 
-namespace Data {
-class CloudImageView;
-} // namespace Data
+namespace Ui {
+struct PeerUserpicView;
+} // namespace Ui
 
-namespace Window {
-namespace Notifications {
+namespace Window::Notifications {
+
+[[nodiscard]] QImage GenerateUserpic(
+	not_null<PeerData*> peer,
+	Ui::PeerUserpicView &view);
 
 class CachedUserpics : public QObject {
 public:
-	enum class Type {
-		Rounded,
-		Circled,
-	};
-
-	CachedUserpics(Type type);
+	CachedUserpics();
 	~CachedUserpics();
 
 	[[nodiscard]] QString get(
 		const InMemoryKey &key,
 		not_null<PeerData*> peer,
-		std::shared_ptr<Data::CloudImageView> &view);
+		Ui::PeerUserpicView &view);
 
 private:
 	void clear();
 	void clearInMs(int ms);
 	crl::time clear(crl::time ms);
 
-	Type _type = Type::Rounded;
 	struct Image {
 		crl::time until = 0;
 		QString path;
@@ -49,5 +46,4 @@ private:
 
 };
 
-} // namesapce Notifications
-} // namespace Window
+} // namespace Window::Notifications

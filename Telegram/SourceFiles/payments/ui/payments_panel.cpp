@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/boxes/single_choice_box.h"
+#include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/radial_animation.h"
@@ -70,8 +71,8 @@ Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 Panel::Panel(not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
 , _widget(std::make_unique<SeparatePanel>()) {
-	_widget->setInnerSize(st::paymentsPanelSize);
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
+	_widget->setInnerSize(st::paymentsPanelSize);
 
 	_widget->closeRequests(
 	) | rpl::start_with_next([=] {
@@ -82,10 +83,21 @@ Panel::Panel(not_null<PanelDelegate*> delegate)
 	) | rpl::start_with_next([=] {
 		_delegate->panelCloseSure();
 	}, _widget->lifetime());
+
+	style::PaletteChanged(
+	) | rpl::filter([=] {
+		return !_themeUpdateScheduled;
+	}) | rpl::start_with_next([=] {
+		_themeUpdateScheduled = true;
+		crl::on_main(_widget.get(), [=] {
+			_themeUpdateScheduled = false;
+			updateThemeParams(_delegate->panelWebviewThemeParams());
+		});
+	}, lifetime());
 }
 
 Panel::~Panel() {
-	_webview = nullptr;
+	base::take(_webview);
 	_progress = nullptr;
 	_widget = nullptr;
 }
@@ -483,11 +495,13 @@ bool Panel::showWebview(
 		const QString &url,
 		bool allowBack,
 		rpl::producer<QString> bottomText) {
-	if (!_webview && !createWebview()) {
+	const auto params = _delegate->panelWebviewThemeParams();
+	if (!_webview && !createWebview(params)) {
 		return false;
 	}
 	showWebviewProgress();
-	_widget->destroyLayer();
+	_widget->hideLayer(anim::type::instant);
+	updateThemeParams(params);
 	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);
 	if (bottomText) {
@@ -511,33 +525,39 @@ bool Panel::showWebview(
 	return true;
 }
 
-bool Panel::createWebview() {
+bool Panel::createWebview(const Webview::ThemeParams &params) {
 	auto outer = base::make_unique_q<RpWidget>(_widget.get());
 	const auto container = outer.get();
 	_widget->showInner(std::move(outer));
+	const auto webviewParent = QPointer<RpWidget>(container);
 
 	_webviewBottom = std::make_unique<RpWidget>(_widget.get());
 	const auto bottom = _webviewBottom.get();
 	bottom->show();
 
-	bottom->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		const auto inner = _widget->innerGeometry();
+	rpl::combine(
+		container->geometryValue() | rpl::map([=] {
+			return _widget->innerGeometry();
+		}),
+		bottom->heightValue()
+	) | rpl::start_with_next([=](QRect inner, int height) {
 		bottom->move(inner.x(), inner.y() + inner.height() - height);
-		container->resize(inner.width(), inner.height() - height);
 		bottom->resizeToWidth(inner.width());
+		_footerHeight = bottom->height();
 	}, bottom->lifetime());
 	container->show();
 
 	_webview = std::make_unique<WebviewWithLifetime>(
 		container,
 		Webview::WindowConfig{
-			.userDataPath = _delegate->panelWebviewDataPath(),
+			.opaqueBg = params.bodyBg,
+			.storageId = _delegate->panelWebviewStorageId(),
 		});
+
 	const auto raw = &_webview->window;
 	QObject::connect(container, &QObject::destroyed, [=] {
 		if (_webview && &_webview->window == raw) {
-			_webview = nullptr;
+			base::take(_webview);
 			if (_webviewProgress) {
 				hideWebviewProgress();
 				if (_progress && !_progress->shown) {
@@ -552,10 +572,29 @@ bool Panel::createWebview() {
 	if (!raw->widget()) {
 		return false;
 	}
+	QObject::connect(raw->widget(), &QObject::destroyed, [=] {
+		const auto parent = webviewParent.data();
+		if (!_webview
+			|| &_webview->window != raw
+			|| !parent
+			|| _widget->inner() != parent) {
+			// If we destroyed _webview ourselves,
+			// or if we changed _widget->inner ourselves,
+			// we don't show any message, nothing crashed.
+			return;
+		}
+		crl::on_main(this, [=] {
+			showCriticalError({ "Error: WebView has crashed." });
+		});
+	});
 
-	container->geometryValue(
-	) | rpl::start_with_next([=](QRect geometry) {
-		raw->widget()->setGeometry(geometry);
+	rpl::combine(
+		container->geometryValue(),
+		_footerHeight.value()
+	) | rpl::start_with_next([=](QRect geometry, int footer) {
+		if (const auto view = raw->widget()) {
+			view->setGeometry(geometry.marginsRemoved({ 0, 0, 0, footer }));
+		}
 	}, _webview->lifetime);
 
 	raw->setMessageHandler([=](const QJsonDocument &message) {
@@ -585,6 +624,10 @@ postEvent: function(eventType, eventData) {
 	}
 }
 };)");
+
+	if (!_webview) {
+		return false;
+	}
 
 	setupProgressGeometry();
 
@@ -689,15 +732,18 @@ void Panel::showWarning(const QString &bot, const QString &provider) {
 
 void Panel::requestTermsAcceptance(
 		const QString &username,
-		const QString &url) {
+		const QString &url,
+		bool recurring) {
 	showBox(Box([=](not_null<GenericBox*> box) {
 		box->setTitle(tr::lng_payments_terms_title());
 		box->addRow(object_ptr<Ui::FlatLabel>(
 			box.get(),
-			tr::lng_payments_terms_text(
-				lt_bot,
-				rpl::single(Ui::Text::Bold('@' + username)),
-				Ui::Text::WithEntities),
+			(recurring
+				? tr::lng_payments_terms_text
+				: tr::lng_payments_terms_text_once)(
+					lt_bot,
+					rpl::single(Ui::Text::Bold('@' + username)),
+					Ui::Text::WithEntities),
 			st::boxLabel));
 		const auto update = std::make_shared<Fn<void()>>();
 		auto checkView = std::make_unique<Ui::CheckView>(
@@ -735,41 +781,9 @@ void Panel::requestTermsAcceptance(
 
 		(*update) = [=] { row->update(); };
 
-		struct State {
-			bool error = false;
-			Ui::Animations::Simple errorAnimation;
-		};
-		const auto state = box->lifetime().make_state<State>();
-		const auto showError = [=] {
-			const auto callback = [=] {
-				const auto error = state->errorAnimation.value(
-					state->error ? 1. : 0.);
-				if (error == 0.) {
-					check->setUntoggledOverride(std::nullopt);
-				} else {
-					const auto color = anim::color(
-						st::defaultCheck.untoggledFg,
-						st::boxTextFgError,
-						error);
-					check->setUntoggledOverride(color);
-				}
-			};
-			state->error = true;
-			state->errorAnimation.stop();
-			state->errorAnimation.start(
-				callback,
-				0.,
-				1.,
-				st::defaultCheck.duration);
-		};
-
-		row->checkedChanges(
-		) | rpl::filter([=](bool checked) {
-			return checked;
-		}) | rpl::start_with_next([=] {
-			state->error = false;
-			check->setUntoggledOverride(std::nullopt);
-		}, row->lifetime());
+		const auto showError = Ui::CheckView::PrepareNonToggledError(
+			check,
+			box->lifetime());
 
 		box->addButton(tr::lng_payments_terms_accept(), [=] {
 			if (check->checked()) {
@@ -859,8 +873,8 @@ void Panel::showBox(object_ptr<BoxContent> box) {
 		anim::type::normal);
 }
 
-void Panel::showToast(const TextWithEntities &text) {
-	_widget->showToast(text);
+void Panel::showToast(TextWithEntities &&text) {
+	_widget->showToast(std::move(text));
 }
 
 void Panel::showCriticalError(const TextWithEntities &text) {
@@ -895,36 +909,9 @@ std::shared_ptr<Show> Panel::uiShow() {
 void Panel::showWebviewError(
 		const QString &text,
 		const Webview::Available &information) {
-	using Error = Webview::Available::Error;
-	Expects(information.error != Error::None);
-
-	auto rich = TextWithEntities{ text };
-	rich.append("\n\n");
-	switch (information.error) {
-	case Error::NoWebview2: {
-		const auto command = QString(QChar(TextCommand));
-		const auto text = tr::lng_payments_webview_install_edge(
-			tr::now,
-			lt_link,
-			command);
-		const auto parts = text.split(command);
-		rich.append(parts.value(0))
-			.append(Text::Link(
-				"Microsoft Edge WebView2 Runtime",
-				"https://go.microsoft.com/fwlink/p/?LinkId=2124703"))
-			.append(parts.value(1));
-	} break;
-	case Error::NoGtkOrWebkit2Gtk:
-		rich.append(tr::lng_payments_webview_install_webkit(tr::now));
-		break;
-	case Error::OldWindows:
-		rich.append(tr::lng_payments_webview_update_windows(tr::now));
-		break;
-	default:
-		rich.append(QString::fromStdString(information.details));
-		break;
-	}
-	showCriticalError(rich);
+	showCriticalError(TextWithEntities{ text }.append(
+		"\n\n"
+	).append(BotWebView::ErrorText(information)));
 }
 
 void Panel::updateThemeParams(const Webview::ThemeParams &params) {
@@ -932,6 +919,7 @@ void Panel::updateThemeParams(const Webview::ThemeParams &params) {
 		return;
 	}
 	_webview->window.updateTheme(
+		params.bodyBg,
 		params.scrollBg,
 		params.scrollBgOver,
 		params.scrollBarBg,

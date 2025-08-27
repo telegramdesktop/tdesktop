@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_forum_topic_box.h"
 
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/emoji_fly_animation.h"
 #include "ui/abstract_button.h"
-#include "ui/color_int_conversion.h"
+#include "ui/vertical_list.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_forum.h"
@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "base/event_filter.h"
 #include "base/random.h"
 #include "base/qt_signal_producer.h"
 #include "chat_helpers/emoji_list_widget.h"
@@ -26,13 +27,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "main/main_session.h"
 #include "history/history.h"
-#include "history/view/history_view_replies_section.h"
+#include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_sticker_toast.h"
 #include "lang/lang_keys.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
-#include "settings/settings_common.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
 #include "styles/style_layers.h"
@@ -40,21 +40,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 
 namespace {
-namespace {
 
 constexpr auto kDefaultIconId = DocumentId(0x7FFF'FFFF'FFFF'FFFFULL);
 
-struct DefaultIcon {
-	QString title;
-	int32 colorId = 0;
-};
+using DefaultIcon = Data::TopicIconDescriptor;
 
 class DefaultIconEmoji final : public Ui::Text::CustomEmoji {
 public:
 	DefaultIconEmoji(
 		rpl::producer<DefaultIcon> value,
-		Fn<void()> repaint);
+		Fn<void()> repaint,
+		Data::CustomEmojiSizeTag tag);
 
+	int width() override;
 	QString entityData() override;
 
 	void paint(QPainter &p, const Context &context) override;
@@ -65,19 +63,28 @@ public:
 private:
 	DefaultIcon _icon = {};
 	QImage _image;
+	Data::CustomEmojiSizeTag _tag = {};
 
 	rpl::lifetime _lifetime;
 
 };
 
 DefaultIconEmoji::DefaultIconEmoji(
-		rpl::producer<DefaultIcon> value,
-		Fn<void()> repaint) {
+	rpl::producer<DefaultIcon> value,
+	Fn<void()> repaint,
+	Data::CustomEmojiSizeTag tag)
+: _tag(tag) {
 	std::move(value) | rpl::start_with_next([=](DefaultIcon value) {
 		_icon = value;
 		_image = QImage();
-		repaint();
+		if (repaint) {
+			repaint();
+		}
 	}, _lifetime);
+}
+
+int DefaultIconEmoji::width() {
+	return st::emojiSize + 2 * st::emojiPadding;
 }
 
 QString DefaultIconEmoji::entityData() {
@@ -85,16 +92,26 @@ QString DefaultIconEmoji::entityData() {
 }
 
 void DefaultIconEmoji::paint(QPainter &p, const Context &context) {
+	const auto &st = (_tag == Data::CustomEmojiSizeTag::Normal)
+		? st::normalForumTopicIcon
+		: st::defaultForumTopicIcon;
+	const auto general = Data::IsForumGeneralIconTitle(_icon.title);
 	if (_image.isNull()) {
-		_image = Data::ForumTopicIconFrame(
-			_icon.colorId,
-			_icon.title,
-			st::defaultForumTopicIcon);
+		_image = general
+			? Data::ForumTopicGeneralIconFrame(
+				st.size,
+				QColor(255, 255, 255))
+			: Data::ForumTopicIconFrame(_icon.colorId, _icon.title, st);
 	}
-	const auto esize = Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio();
+	const auto full = (_tag == Data::CustomEmojiSizeTag::Normal)
+		? Ui::Emoji::GetSizeNormal()
+		: Ui::Emoji::GetSizeLarge();
+	const auto esize = full / style::DevicePixelRatio();
 	const auto customSize = Ui::Text::AdjustCustomEmojiSize(esize);
-	const auto skip = (customSize - st::defaultForumTopicIcon.size) / 2;
-	p.drawImage(context.position + QPoint(skip, skip), _image);
+	const auto skip = (customSize - st.size) / 2;
+	p.drawImage(context.position + QPoint(skip, skip), general
+		? style::colorizeImage(_image, context.textColor)
+		: _image);
 }
 
 void DefaultIconEmoji::unload() {
@@ -108,8 +125,6 @@ bool DefaultIconEmoji::ready() {
 bool DefaultIconEmoji::readyInDefaultState() {
 	return true;
 }
-
-} // namespace
 
 [[nodiscard]] int EditIconSize() {
 	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
@@ -177,7 +192,7 @@ bool DefaultIconEmoji::readyInDefaultState() {
 		return !paintIconFrame(result);
 	}) | rpl::start_with_next([=](QRect clip) {
 		auto args = Ui::Text::CustomEmoji::Context{
-			.preview = st::windowBgOver->c,
+			.textColor = st::windowFg->c,
 			.now = crl::now(),
 			.paused = controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::Layer),
@@ -189,6 +204,38 @@ bool DefaultIconEmoji::readyInDefaultState() {
 			const auto skip = (size - st::largeForumTopicIcon.size) / 2;
 			p.drawImage(skip, skip, state->defaultIcon);
 		}
+	}, result->lifetime());
+
+	return result;
+}
+
+[[nodiscard]] not_null<Ui::AbstractButton*> GeneralIconPreview(
+		not_null<QWidget*> parent) {
+	using namespace Info::Profile;
+	struct State {
+		QImage frame;
+	};
+	const auto size = EditIconSize();
+	const auto result = Ui::CreateChild<Ui::AbstractButton>(parent.get());
+	result->show();
+	result->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto state = result->lifetime().make_state<State>();
+
+	rpl::single(rpl::empty) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::start_with_next([=] {
+		state->frame = Data::ForumTopicGeneralIconFrame(
+			st::largeForumTopicIcon.size,
+			st::windowSubTextFg->c);
+		result->update();
+	}, result->lifetime());
+
+	result->resize(size, size);
+	result->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(result);
+		const auto skip = (size - st::largeForumTopicIcon.size) / 2;
+		p.drawImage(skip, skip, state->frame);
 	}, result->lifetime());
 
 	return result;
@@ -223,19 +270,19 @@ struct IconSelector {
 	const auto manager = &controller->session().data().customEmojiManager();
 
 	auto factory = [=](DocumentId id, Fn<void()> repaint)
-		-> std::unique_ptr<Ui::Text::CustomEmoji> {
+	-> std::unique_ptr<Ui::Text::CustomEmoji> {
 		const auto tag = Data::CustomEmojiManager::SizeTag::Large;
 		if (id == kDefaultIconId) {
 			return std::make_unique<DefaultIconEmoji>(
 				rpl::duplicate(defaultIcon),
-				repaint);
+				std::move(repaint),
+				tag);
 		}
 		return manager->create(id, std::move(repaint), tag);
 	};
 
 	const auto icons = &controller->session().data().forumIcons();
 	const auto body = box->verticalLayout();
-	Settings::AddSkip(body);
 	const auto recent = [=] {
 		auto list = icons->list();
 		list.insert(begin(list), kDefaultIconId);
@@ -243,13 +290,10 @@ struct IconSelector {
 	};
 	const auto selector = body->add(
 		object_ptr<EmojiListWidget>(body, EmojiListDescriptor{
-			.session = &controller->session(),
+			.show = controller->uiShow(),
 			.mode = EmojiListWidget::Mode::TopicIcon,
-			.controller = controller,
-			.paused = Window::PausedIn(
-				controller,
-				Window::GifPauseReason::Layer),
-			.customRecentList = recent(),
+			.paused = Window::PausedIn(controller, PauseReason::Layer),
+			.customRecentList = DocumentListToRecent(recent()),
 			.customRecentFactory = std::move(factory),
 			.st = &st::reactPanelEmojiPan,
 		}),
@@ -258,7 +302,7 @@ struct IconSelector {
 	icons->requestDefaultIfUnknown();
 	icons->defaultUpdates(
 	) | rpl::start_with_next([=] {
-		selector->provideRecent(recent());
+		selector->provideRecent(DocumentListToRecent(recent()));
 	}, selector->lifetime());
 
 	placeFooter(selector->createFooter());
@@ -326,6 +370,7 @@ struct IconSelector {
 				&owner->reactions(),
 				std::move(args),
 				[=] { state->animation->repaint(); },
+				[] { return st::windowFg->c; },
 				Data::CustomEmojiSizeTag::Large);
 		}
 		state->iconId = id;
@@ -404,14 +449,16 @@ void EditForumTopicBox(
 	});
 
 	const auto paintIconFrame = [=](not_null<Ui::RpWidget*> widget) {
-		return state->paintIconFrame(widget);
+		return state->paintIconFrame && state->paintIconFrame(widget);
 	};
-	const auto icon = EditIconButton(
-		title->parentWidget(),
-		controller,
-		state->defaultIcon.value(),
-		state->iconId.value(),
-		paintIconFrame);
+	const auto icon = (topic && topic->isGeneral())
+		? GeneralIconPreview(title->parentWidget())
+		: EditIconButton(
+			title->parentWidget(),
+			controller,
+			state->defaultIcon.value(),
+			state->iconId.value(),
+			paintIconFrame);
 
 	title->geometryValue(
 	) | rpl::start_with_next([=](QRect geometry) {
@@ -434,37 +481,38 @@ void EditForumTopicBox(
 			ChooseNextColorId(current.colorId, state->otherColorIds),
 		};
 	});
-	base::qt_signal_producer(
-		title,
-		&Ui::InputField::changed
+	title->changes(
 	) | rpl::start_with_next([=] {
 		state->defaultIcon = DefaultIcon{
 			title->getLastText().trimmed(),
 			state->defaultIcon.current().colorId,
 		};
-	}, box->lifetime());
+	}, title->lifetime());
+	title->submits() | rpl::start_with_next([box] {
+		box->triggerButton(0);
+	}, title->lifetime());
 
-	Settings::AddDividerText(
-		top,
-		tr::lng_forum_choose_title_and_icon());
+	if (!topic || !topic->isGeneral()) {
+		Ui::AddDividerText(top, tr::lng_forum_choose_title_and_icon());
 
-	box->setScrollStyle(st::reactPanelScroll);
+		box->setScrollStyle(st::reactPanelScroll);
 
-	auto selector = AddIconSelector(
-		box,
-		icon,
-		controller,
-		state->defaultIcon.value(),
-		top->heightValue(),
-		state->iconId.current(),
-		[&](object_ptr<Ui::RpWidget> footer) {
-			top->add(std::move(footer)); });
-	state->paintIconFrame = std::move(selector.paintIconFrame);
-	std::move(
-		selector.iconIdValue
-	) | rpl::start_with_next([=](DocumentId iconId) {
-		state->iconId = (iconId != kDefaultIconId) ? iconId : 0;
-	}, box->lifetime());
+		auto selector = AddIconSelector(
+			box,
+			icon,
+			controller,
+			state->defaultIcon.value(),
+			top->heightValue(),
+			state->iconId.current(),
+			[&](object_ptr<Ui::RpWidget> footer) {
+				top->add(std::move(footer)); });
+		state->paintIconFrame = std::move(selector.paintIconFrame);
+		std::move(
+			selector.iconIdValue
+		) | rpl::start_with_next([=](DocumentId iconId) {
+			state->iconId = (iconId != kDefaultIconId) ? iconId : 0;
+		}, box->lifetime());
+	}
 
 	const auto create = [=] {
 		const auto channel = forum->peer->asChannel();
@@ -475,13 +523,15 @@ void EditForumTopicBox(
 			title->showError();
 			return;
 		}
+		using namespace HistoryView;
 		controller->showSection(
-			std::make_shared<HistoryView::RepliesMemento>(
-				forum,
-				channel->forum()->reserveCreatingId(
+			std::make_shared<ChatMemento>(ChatViewId{
+				.history = forum,
+				.repliesRootId = channel->forum()->reserveCreatingId(
 					title->getLastText().trimmed(),
 					state->defaultIcon.current().colorId,
-					state->iconId.current())),
+					state->iconId.current()),
+			}),
 			Window::SectionShow::Way::ClearStack);
 	};
 
@@ -506,21 +556,23 @@ void EditForumTopicBox(
 		} else {
 			using Flag = MTPchannels_EditForumTopic::Flag;
 			const auto api = &forum->session().api();
-			const auto weak = Ui::MakeWeak(box.get());
+			const auto weak = base::make_weak(box);
 			state->requestId = api->request(MTPchannels_EditForumTopic(
-				MTP_flags(Flag::f_title | Flag::f_icon_emoji_id),
+				MTP_flags(Flag::f_title
+					| (topic->isGeneral() ? Flag() : Flag::f_icon_emoji_id)),
 				topic->channel()->inputChannel,
 				MTP_int(rootId),
 				MTP_string(title->getLastText().trimmed()),
 				MTP_long(state->iconId.current()),
-				MTPBool() // closed
+				MTPBool(), // closed
+				MTPBool() // hidden
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result);
-				if (const auto strong = weak.data()) {
+				if (const auto strong = weak.get()) {
 					strong->closeBox();
 				}
 			}).fail([=](const MTP::Error &error) {
-				if (const auto strong = weak.data()) {
+				if (const auto strong = weak.get()) {
 					if (error.type() == u"TOPIC_NOT_MODIFIED") {
 						strong->closeBox();
 					} else {
@@ -539,4 +591,14 @@ void EditForumTopicBox(
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
 	});
+}
+
+std::unique_ptr<Ui::Text::CustomEmoji> MakeTopicIconEmoji(
+		Data::TopicIconDescriptor descriptor,
+		Fn<void()> repaint,
+		Data::CustomEmojiSizeTag tag) {
+	return std::make_unique<DefaultIconEmoji>(
+		rpl::single(descriptor),
+		std::move(repaint),
+		tag);
 }

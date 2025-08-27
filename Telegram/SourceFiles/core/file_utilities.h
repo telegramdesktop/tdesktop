@@ -34,7 +34,7 @@ namespace File {
 // Those functions are async wrappers to Platform::File::Unsafe* calls.
 void OpenUrl(const QString &url);
 void OpenEmailLink(const QString &email);
-void OpenWith(const QString &filepath, QPoint menuPosition);
+void OpenWith(const QString &filepath);
 void Launch(const QString &filepath);
 void ShowInFolder(const QString &filepath);
 
@@ -92,6 +92,7 @@ void GetFolder(
 [[nodiscard]] QString AllOrImagesFilter();
 [[nodiscard]] QString ImagesOrAllFilter();
 [[nodiscard]] QString PhotoVideoFilesFilter();
+[[nodiscard]] const QString &Tmp();
 
 namespace internal {
 

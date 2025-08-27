@@ -1,12 +1,73 @@
 <RCC>
   <qresource prefix="/animations">
-    <file alias="change_number.tgs">../../animations/change_number.tgs</file>
     <file alias="blocked_peers_empty.tgs">../../animations/blocked_peers_empty.tgs</file>
+    <file alias="change_number.tgs">../../animations/change_number.tgs</file>
     <file alias="filters.tgs">../../animations/filters.tgs</file>
+    <file alias="cloud_filters.tgs">../../animations/cloud_filters.tgs</file>
     <file alias="local_passcode_enter.tgs">../../animations/local_passcode_enter.tgs</file>
     <file alias="cloud_password/intro.tgs">../../animations/cloud_password/intro.tgs</file>
     <file alias="cloud_password/password_input.tgs">../../animations/cloud_password/password_input.tgs</file>
     <file alias="cloud_password/hint.tgs">../../animations/cloud_password/hint.tgs</file>
     <file alias="cloud_password/email.tgs">../../animations/cloud_password/email.tgs</file>
+    <file alias="cloud_password/validate.tgs">../../animations/cloud_password/validate.tgs</file>
+    <file alias="ttl.tgs">../../animations/ttl.tgs</file>
+    <file alias="discussion.tgs">../../animations/discussion.tgs</file>
+    <file alias="stats.tgs">../../animations/stats.tgs</file>
+    <file alias="stats_boosts.tgs">../../animations/stats_boosts.tgs</file>
+    <file alias="stats_earn.tgs">../../animations/stats_earn.tgs</file>
+    <file alias="voice_ttl_idle.tgs">../../animations/voice_ttl_idle.tgs</file>
+    <file alias="voice_ttl_start.tgs">../../animations/voice_ttl_start.tgs</file>
+    <file alias="palette.tgs">../../animations/palette.tgs</file>
+    <file alias="sleep.tgs">../../animations/sleep.tgs</file>
+    <file alias="greeting.tgs">../../animations/greeting.tgs</file>
+    <file alias="location.tgs">../../animations/location.tgs</file>
+    <file alias="robot.tgs">../../animations/robot.tgs</file>
+    <file alias="writing.tgs">../../animations/writing.tgs</file>
+    <file alias="hours.tgs">../../animations/hours.tgs</file>
+    <file alias="phone.tgs">../../animations/phone.tgs</file>
+    <file alias="chat_link.tgs">../../animations/chat_link.tgs</file>
+    <file alias="diamond.tgs">../../animations/diamond.tgs</file>
+    <file alias="collectible_username.tgs">../../animations/collectible_username.tgs</file>
+    <file alias="collectible_phone.tgs">../../animations/collectible_phone.tgs</file>
+    <file alias="search.tgs">../../animations/search.tgs</file>
+    <file alias="noresults.tgs">../../animations/noresults.tgs</file>
+    <file alias="hello_status.tgs">../../animations/hello_status.tgs</file>
+    <file alias="starref_link.tgs">../../animations/starref_link.tgs</file>
+    <file alias="media_forbidden.tgs">../../animations/media_forbidden.tgs</file>
+    <file alias="topics.tgs">../../animations/edit_peers/topics.tgs</file>
+    <file alias="topics_tabs.tgs">../../animations/edit_peers/topics_tabs.tgs</file>
+    <file alias="topics_list.tgs">../../animations/edit_peers/topics_list.tgs</file>
+    <file alias="direct_messages.tgs">../../animations/edit_peers/direct_messages.tgs</file>
+    <file alias="no_chats.tgs">../../animations/no_chats.tgs</file>
+
+    <file alias="dice_idle.tgs">../../animations/dice/dice_idle.tgs</file>
+    <file alias="dart_idle.tgs">../../animations/dice/dart_idle.tgs</file>
+    <file alias="bball_idle.tgs">../../animations/dice/bball_idle.tgs</file>
+    <file alias="fball_idle.tgs">../../animations/dice/fball_idle.tgs</file>
+    <file alias="slot_0_idle.tgs">../../animations/dice/slot_0_idle.tgs</file>
+    <file alias="slot_1_idle.tgs">../../animations/dice/slot_1_idle.tgs</file>
+    <file alias="slot_2_idle.tgs">../../animations/dice/slot_2_idle.tgs</file>
+    <file alias="slot_back.tgs">../../animations/dice/slot_back.tgs</file>
+    <file alias="slot_pull.tgs">../../animations/dice/slot_pull.tgs</file>
+    <file alias="winners.tgs">../../animations/dice/winners.tgs</file>
+
+    <file alias="star_reaction_appear.tgs">../../animations/star_reaction/appear.tgs</file>
+    <file alias="star_reaction_center.tgs">../../animations/star_reaction/center.tgs</file>
+    <file alias="star_reaction_select.tgs">../../animations/star_reaction/select.tgs</file>
+    <file alias="star_reaction_toast.tgs">../../animations/star_reaction/toast.tgs</file>
+    <file alias="star_reaction_effect1.tgs">../../animations/star_reaction/effect1.tgs</file>
+    <file alias="star_reaction_effect2.tgs">../../animations/star_reaction/effect2.tgs</file>
+    <file alias="star_reaction_effect3.tgs">../../animations/star_reaction/effect3.tgs</file>
+
+    <file alias="swipe_archive.tgs">../../animations/swipe_action/archive.tgs</file>
+    <file alias="swipe_unarchive.tgs">../../animations/swipe_action/unarchive.tgs</file>
+    <file alias="swipe_delete.tgs">../../animations/swipe_action/delete.tgs</file>
+    <file alias="swipe_disabled.tgs">../../animations/swipe_action/disabled.tgs</file>
+    <file alias="swipe_mute.tgs">../../animations/swipe_action/mute.tgs</file>
+    <file alias="swipe_unmute.tgs">../../animations/swipe_action/unmute.tgs</file>
+    <file alias="swipe_pin.tgs">../../animations/swipe_action/pin.tgs</file>
+    <file alias="swipe_unpin.tgs">../../animations/swipe_action/unpin.tgs</file>
+    <file alias="swipe_read.tgs">../../animations/swipe_action/read.tgs</file>
+    <file alias="swipe_unread.tgs">../../animations/swipe_action/unread.tgs</file>
   </qresource>
 </RCC>

@@ -25,8 +25,12 @@ enum class ConvertOption {
 	const QVector<MTPMessageEntity> &entities);
 
 [[nodiscard]] MTPVector<MTPMessageEntity> EntitiesToMTP(
-	not_null<Main::Session*> session,
+	Main::Session *session,
 	const EntitiesInText &entities,
 	ConvertOption option = ConvertOption::WithLocal);
+
+[[nodiscard]] TextWithEntities ParseTextWithEntities(
+	Main::Session *session,
+	const MTPTextWithEntities &text);
 
 } // namespace Api

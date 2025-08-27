@@ -26,7 +26,9 @@ void openLog() {
 		return;
 	}
 
-	NSDateFormatter *fmt = [[NSDateFormatter alloc] initWithDateFormat:@"DebugLogs/%Y%m%d_%H%M%S_upd.txt" allowNaturalLanguage:NO];
+	NSDateFormatter *fmt = [[NSDateFormatter alloc] init];
+	[fmt setLocale:[NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"]];
+	[fmt setDateFormat:@"'DebugLogs/'yyyyMMdd'_'HHmmss'_update.txt'"];
 	NSString *logPath = [workDir stringByAppendingString:[fmt stringFromDate:[NSDate date]]];
 	[[NSFileManager defaultManager] createFileAtPath:logPath contents:nil attributes:nil];
 	_logFile = [NSFileHandle fileHandleForWritingAtPath:logPath];
@@ -90,7 +92,7 @@ int main(int argc, const char * argv[]) {
 
 	openLog();
 	pid_t procId = 0;
-	BOOL update = YES, toSettings = NO, autoStart = NO, startInTray = NO, freeType = NO;
+	BOOL update = YES, toSettings = NO, autoStart = NO, startInTray = NO;
 	BOOL customWorkingDir = NO;
 	NSString *key = nil;
 	for (int i = 0; i < argc; ++i) {
@@ -114,8 +116,6 @@ int main(int argc, const char * argv[]) {
 			_debug = YES;
 		} else if ([@"-startintray" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
 			startInTray = YES;
-		} else if ([@"-freetype" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
-			freeType = YES;
 		} else if ([@"-workdir_custom" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
 			customWorkingDir = YES;
 		} else if ([@"-key" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
@@ -252,7 +252,6 @@ int main(int argc, const char * argv[]) {
 	if (toSettings) [args addObject:@"-tosettings"];
 	if (_debug) [args addObject:@"-debug"];
 	if (startInTray) [args addObject:@"-startintray"];
-	if (freeType) [args addObject:@"-freetype"];
 	if (autoStart) [args addObject:@"-autostart"];
 	if (key) {
 		[args addObject:@"-key"];

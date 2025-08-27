@@ -22,17 +22,16 @@ TextWithLabel CreateTextWithLabel(
 		QWidget *parent,
 		rpl::producer<TextWithEntities> &&label,
 		rpl::producer<TextWithEntities> &&text,
+		const style::FlatLabel &labelSt,
 		const style::FlatLabel &textSt,
 		const style::margins &padding) {
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent),
 		padding);
-	result->setDuration(
-		st::infoSlideDuration
-	);
+	result->setDuration(st::infoSlideDuration);
 	auto layout = result->entity();
-	auto nonEmptyText = std::move(
+	auto nonEmptyText = rpl::duplicate(
 		text
 	) | rpl::before_next([slide = result.data()](
 			const TextWithEntities &value) {
@@ -45,10 +44,13 @@ TextWithLabel CreateTextWithLabel(
 			const TextWithEntities &value) {
 		slide->show(anim::type::normal);
 	});
-	auto labeled = layout->add(object_ptr<Ui::FlatLabel>(
+	const auto labeled = layout->add(object_ptr<Ui::FlatLabel>(
 		layout,
 		std::move(nonEmptyText),
 		textSt));
+	std::move(text) | rpl::start_with_next([=] {
+		labeled->resizeToWidth(layout->width());
+	}, labeled->lifetime());
 	labeled->setSelectable(true);
 	layout->add(Ui::CreateSkipWidget(layout, st::infoLabelSkip));
 	const auto subtext = layout->add(object_ptr<Ui::FlatLabel>(
@@ -58,7 +60,7 @@ TextWithLabel CreateTextWithLabel(
 		) | rpl::after_next([=] {
 			layout->resizeToWidth(layout->widthNoMargins());
 		}),
-		st::infoLabel));
+		labelSt));
 	result->finishAnimating();
 	return { std::move(result), labeled, subtext };
 }

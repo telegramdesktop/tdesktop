@@ -11,20 +11,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_menu.h" // LeaveBox.
 #include "calls/group/calls_group_common.h"
 #include "calls/group/calls_choose_join_as.h"
+#include "calls/group/calls_volume_item.h"
 #include "calls/calls_instance.h"
 #include "ui/widgets/level_meter.h"
 #include "ui/widgets/continuous_sliders.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toasts/common_toasts.h"
+#include "ui/vertical_list.h"
 #include "lang/lang_keys.h"
 #include "boxes/share_box.h"
 #include "history/view/history_view_schedule_box.h"
-#include "history/history_message.h" // GetErrorTextForSending.
+#include "history/history_item_helpers.h" // GetErrorForSending.
 #include "history/history.h"
 #include "data/data_histories.h"
 #include "data/data_session.h"
@@ -36,16 +36,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_group_call.h"
+#include "data/data_user.h"
 #include "calls/group/calls_group_rtmp.h"
 #include "ui/toast/toast.h"
 #include "data/data_changes.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "ui/boxes/single_choice_box.h"
 #include "webrtc/webrtc_audio_input_tester.h"
-#include "webrtc/webrtc_media_devices.h"
-#include "settings/settings_common.h"
+#include "webrtc/webrtc_device_resolver.h"
 #include "settings/settings_calls.h"
+#include "settings/settings_credits_graphics.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "api/api_invite_links.h"
@@ -108,9 +108,9 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		not_null<PeerData*> peer,
 		const QString &linkSpeaker,
 		const QString &linkListener,
-		Fn<void(QString)> showToast) {
+		std::shared_ptr<Ui::Show> show) {
 	const auto sending = std::make_shared<bool>();
-	const auto box = std::make_shared<QPointer<ShareBox>>();
+	const auto box = std::make_shared<base::weak_qptr<ShareBox>>();
 
 	auto bottom = linkSpeaker.isEmpty()
 		? nullptr
@@ -130,10 +130,14 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 	};
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(currentLink());
-		showToast(tr::lng_group_invite_copied(tr::now));
+		show->showToast(tr::lng_group_invite_copied(tr::now));
+	};
+	auto countMessagesCallback = [=](const TextWithTags &comment) {
+		return 1;
 	};
 	auto submitCallback = [=](
 			std::vector<not_null<Data::Thread*>> &&result,
+			Fn<bool()> checkPaid,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			Data::ForwardOptions) {
@@ -141,31 +145,16 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			return;
 		}
 
-		const auto error = [&] {
-			for (const auto thread : result) {
-				const auto error = GetErrorTextForSending(
-					thread,
-					{ .text = &comment });
-				if (!error.isEmpty()) {
-					return std::make_pair(error, thread);
-				}
-			}
-			return std::make_pair(QString(), result.front());
-		}();
-		if (!error.first.isEmpty()) {
-			auto text = TextWithEntities();
-			if (result.size() > 1) {
-				text.append(
-					Ui::Text::Bold(error.second->chatListName())
-				).append("\n\n");
-			}
-			text.append(error.first);
+		const auto error = GetErrorForSending(
+			result,
+			{ .text = &comment });
+		if (error.error) {
 			if (const auto weak = *box) {
-				weak->getDelegate()->show(ConfirmBox({
-					.text = text,
-					.inform = true,
-				}));
+				weak->getDelegate()->show(
+					MakeSendErrorBox(error, result.size() > 1));
 			}
+			return;
+		} else if (!checkPaid()) {
 			return;
 		}
 
@@ -191,31 +180,22 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		if (*box) {
 			(*box)->closeBox();
 		}
-		showToast(tr::lng_share_done(tr::now));
+		show->showToast(tr::lng_share_done(tr::now));
 	};
 	auto filterCallback = [](not_null<Data::Thread*> thread) {
-		return thread->canWrite();
+		if (const auto user = thread->peer()->asUser()) {
+			if (user->canSendIgnoreMoneyRestrictions()) {
+				return true;
+			}
+		}
+		return Data::CanSend(thread, ChatRestriction::SendOther);
 	};
 
-	const auto scheduleStyle = [&] {
-		auto date = Ui::ChooseDateTimeStyleArgs();
-		date.labelStyle = &st::groupCallBoxLabel;
-		date.dateFieldStyle = &st::groupCallScheduleDateField;
-		date.timeFieldStyle = &st::groupCallScheduleTimeField;
-		date.separatorStyle = &st::callMuteButtonLabel;
-		date.atStyle = &st::callMuteButtonLabel;
-		date.calendarStyle = &st::groupCallCalendarColors;
-
-		auto st = HistoryView::ScheduleBoxStyleArgs();
-		st.topButtonStyle = &st::groupCallMenuToggle;
-		st.popupMenuStyle = &st::groupCallPopupMenu;
-		st.chooseDateTimeArgs = std::move(date);
-		return st;
-	};
-
+	const auto st = ::Settings::DarkCreditsEntryBoxStyle();
 	auto result = Box<ShareBox>(ShareBox::Descriptor{
 		.session = &peer->session(),
 		.copyCallback = std::move(copyCallback),
+		.countMessagesCallback = std::move(countMessagesCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
 		.bottomWidget = std::move(bottom),
@@ -225,11 +205,8 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 				: rpl::single(false)),
 			tr::lng_group_call_copy_speaker_link(),
 			tr::lng_group_call_copy_listener_link()),
-		.stMultiSelect = &st::groupCallMultiSelect,
-		.stComment = &st::groupCallShareBoxComment,
-		.st = &st::groupCallShareBoxList,
-		.stLabel = &st::groupCallField,
-		.scheduleBoxStyle = scheduleStyle(),
+		.st = st.shareBox ? *st.shareBox : ShareBoxStyleOverrides(),
+		.moneyRestrictionError = ShareMessageMoneyRestrictionError(),
 	});
 	*box = result.data();
 	return result;
@@ -243,11 +220,10 @@ void SettingsBox(
 	using namespace Settings;
 
 	const auto weakCall = base::make_weak(call);
-	const auto weakBox = Ui::MakeWeak(box);
+	const auto weakBox = base::make_weak(box);
 
 	struct State {
-		rpl::event_stream<QString> outputNameStream;
-		rpl::event_stream<QString> inputNameStream;
+		std::unique_ptr<Webrtc::DeviceResolver> deviceId;
 		std::unique_ptr<Webrtc::AudioInputTester> micTester;
 		Ui::LevelMeter *micTestLevel = nullptr;
 		float micLevel = 0.;
@@ -279,54 +255,55 @@ void SettingsBox(
 	};
 
 	if (addCheck) {
-		AddSkip(layout);
+		Ui::AddSkip(layout);
 	}
 	const auto muteJoined = addCheck
-		? AddButton(
+		? layout->add(object_ptr<Ui::SettingsButton>(
 			layout,
 			tr::lng_group_call_new_muted(),
-			st::groupCallSettingsButton)->toggleOn(rpl::single(joinMuted))
+			st::groupCallSettingsButton))->toggleOn(rpl::single(joinMuted))
 		: nullptr;
 	if (addCheck) {
-		AddSkip(layout);
+		Ui::AddSkip(layout);
 	}
 
+	auto playbackIdWithFallback = Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callPlaybackDeviceIdValue(),
+		Core::App().settings().playbackDeviceIdValue());
 	AddButtonWithLabel(
 		layout,
 		tr::lng_group_call_speakers(),
-		rpl::single(
-			CurrentAudioOutputName()
-		) | rpl::then(
-			state->outputNameStream.events()
-		),
+		PlaybackDeviceNameValue(rpl::duplicate(playbackIdWithFallback)),
 		st::groupCallSettingsButton
 	)->addClickHandler([=] {
-		box->getDelegate()->show(ChooseAudioOutputBox(crl::guard(box, [=](
-				const QString &id,
-				const QString &name) {
-			state->outputNameStream.fire_copy(name);
-		}), &st::groupCallCheckbox, &st::groupCallRadio));
+		box->getDelegate()->show(ChoosePlaybackDeviceBox(
+			rpl::duplicate(playbackIdWithFallback),
+			crl::guard(box, [=](const QString &id) {
+				Core::App().settings().setCallPlaybackDeviceId(id);
+				Core::App().saveSettingsDelayed();
+			}),
+			&st::groupCallCheckbox,
+			&st::groupCallRadio));
 	});
 
 	if (!rtmp) {
+		auto captureIdWithFallback = Webrtc::DeviceIdValueWithFallback(
+			Core::App().settings().callCaptureDeviceIdValue(),
+			Core::App().settings().captureDeviceIdValue());
 		AddButtonWithLabel(
 			layout,
 			tr::lng_group_call_microphone(),
-			rpl::single(
-				CurrentAudioInputName()
-			) | rpl::then(
-				state->inputNameStream.events()
-			),
+			CaptureDeviceNameValue(rpl::duplicate(captureIdWithFallback)),
 			st::groupCallSettingsButton
 		)->addClickHandler([=] {
-			box->getDelegate()->show(ChooseAudioInputBox(crl::guard(box, [=](
-					const QString &id,
-					const QString &name) {
-				state->inputNameStream.fire_copy(name);
-				if (state->micTester) {
-					state->micTester->setDeviceId(id);
-				}
-			}), &st::groupCallCheckbox, &st::groupCallRadio));
+			box->getDelegate()->show(ChooseCaptureDeviceBox(
+				rpl::duplicate(captureIdWithFallback),
+				crl::guard(box, [=](const QString &id) {
+					Core::App().settings().setCallCaptureDeviceId(id);
+					Core::App().saveSettingsDelayed();
+				}),
+				&st::groupCallCheckbox,
+				&st::groupCallRadio));
 		});
 
 		state->micTestLevel = box->addRow(
@@ -345,15 +322,15 @@ void SettingsBox(
 			}, was, state->micLevel, kMicTestAnimationDuration);
 		});
 
-		AddSkip(layout);
-		//AddDivider(layout);
-		//AddSkip(layout);
+		Ui::AddSkip(layout);
+		//Ui::AddDivider(layout);
+		//Ui::AddSkip(layout);
 
-		AddButton(
+		layout->add(object_ptr<Ui::SettingsButton>(
 			layout,
 			tr::lng_group_call_noise_suppression(),
 			st::groupCallSettingsButton
-		)->toggleOn(rpl::single(
+		))->toggleOn(rpl::single(
 			settings.groupCallNoiseSuppression()
 		))->toggledChanges(
 		) | rpl::start_with_next([=](bool enabled) {
@@ -392,11 +369,12 @@ void SettingsBox(
 			tryFillFromManager();
 
 			state->delay = settings.groupCallPushToTalkDelay();
-			const auto pushToTalk = AddButton(
-				layout,
-				tr::lng_group_call_push_to_talk(),
-				st::groupCallSettingsButton
-			)->toggleOn(rpl::single(
+			const auto pushToTalk = layout->add(
+				object_ptr<Ui::SettingsButton>(
+					layout,
+					tr::lng_group_call_push_to_talk(),
+					st::groupCallSettingsButton
+			))->toggleOn(rpl::single(
 				settings.groupCallPushToTalk()
 			) | rpl::then(state->pushToTalkToggles.events()));
 			const auto pushToTalkWrap = layout->add(
@@ -404,10 +382,11 @@ void SettingsBox(
 					layout,
 					object_ptr<Ui::VerticalLayout>(layout)));
 			const auto pushToTalkInner = pushToTalkWrap->entity();
-			const auto recording = AddButton(
-				pushToTalkInner,
-				state->recordText.value(),
-				st::groupCallSettingsButton);
+			const auto recording = pushToTalkInner->add(
+				object_ptr<Ui::SettingsButton>(
+					pushToTalkInner,
+					state->recordText.value(),
+					st::groupCallSettingsButton));
 			CreateRightLabel(
 				recording,
 				state->shortcutText.value(),
@@ -578,9 +557,9 @@ void SettingsBox(
 				base::install_event_filter(box, std::move(boxKeyFilter)));
 		}
 
-		AddSkip(layout);
-		//AddDivider(layout);
-		//AddSkip(layout);
+		Ui::AddSkip(layout);
+		//Ui::AddDivider(layout);
+		//Ui::AddSkip(layout);
 	}
 	auto shareLink = Fn<void()>();
 	if (peer->isChannel()
@@ -591,15 +570,11 @@ void SettingsBox(
 			box->getDelegate()->show(std::move(next));
 		});
 		const auto showToast = crl::guard(box, [=](QString text) {
-			Ui::ShowMultilineToast({
-				.parentOverride = Ui::BoxShow(box).toastParent(),
-				.text = { text },
-			});
+			box->showToast(text);
 		});
 		auto [shareLinkCallback, shareLinkLifetime] = ShareInviteLinkAction(
 			peer,
-			showBox,
-			showToast);
+			box->uiShow());
 		shareLink = std::move(shareLinkCallback);
 		box->lifetime().add(std::move(shareLinkLifetime));
 	} else {
@@ -635,34 +610,33 @@ void SettingsBox(
 				}
 				QGuiApplication::clipboard()->setText(link);
 				if (weakBox) {
-					Ui::ShowMultilineToast({
-						.parentOverride = Ui::BoxShow(box).toastParent(),
-						.text = { tr::lng_create_channel_link_copied(tr::now) },
-					});
+					box->showToast(
+						tr::lng_create_channel_link_copied(tr::now));
 				}
 				return true;
 			};
 			shareLink = [=] {
 				if (!copyLink() && !state->generatingLink) {
 					state->generatingLink = true;
-					peer->session().api().inviteLinks().create(
+					peer->session().api().inviteLinks().create({
 						peer,
-						crl::guard(layout, [=](auto&&) { copyLink(); }));
+						crl::guard(layout, [=](auto&&) { copyLink(); })
+					});
 				}
 			};
 		}
 	}
 	if (shareLink) {
-		AddButton(
+		layout->add(object_ptr<Ui::SettingsButton>(
 			layout,
 			tr::lng_group_call_share(),
 			st::groupCallSettingsButton
-		)->addClickHandler(std::move(shareLink));
+		))->addClickHandler(std::move(shareLink));
 	}
 	if (rtmp && !call->rtmpInfo().url.isEmpty()) {
-		AddSkip(layout);
+		Ui::AddSkip(layout);
 		addDivider();
-		AddSkip(layout);
+		Ui::AddSkip(layout);
 
 		struct State {
 			base::unique_qptr<Ui::PopupMenu> menu;
@@ -735,7 +709,7 @@ void SettingsBox(
 		StartRtmpProcess::FillRtmpRows(
 			layout,
 			false,
-			std::make_shared<Ui::BoxShow>(box),
+			box->uiShow(),
 			state->data.events(),
 			&st::groupCallBoxLabel,
 			&st::groupCallSettingsRtmpShowButton,
@@ -745,17 +719,61 @@ void SettingsBox(
 		state->data.fire(call->rtmpInfo());
 
 		addDivider();
-		AddSkip(layout);
+		Ui::AddSkip(layout);
+	}
+	if (rtmp) {
+		const auto volumeItem = layout->add(
+			object_ptr<MenuVolumeItem>(
+				layout,
+				st::groupCallVolumeSettings,
+				st::groupCallVolumeSettingsSlider,
+				call->otherParticipantStateValue(
+				) | rpl::filter([=](const Group::ParticipantState &data) {
+					return data.peer == peer;
+				}),
+				call->rtmpVolume(),
+				Group::kMaxVolume,
+				false,
+				st::groupCallVolumeSettingsPadding));
+
+		const auto toggleMute = crl::guard(layout, [=](bool m, bool local) {
+			if (call) {
+				call->toggleMute({
+					.peer = peer,
+					.mute = m,
+					.locallyOnly = local,
+				});
+			}
+		});
+		const auto changeVolume = crl::guard(layout, [=](int v, bool local) {
+			if (call) {
+				call->changeVolume({
+					.peer = peer,
+					.volume = std::clamp(v, 1, Group::kMaxVolume),
+					.locallyOnly = local,
+				});
+			}
+		});
+
+		volumeItem->toggleMuteLocallyRequests(
+		) | rpl::start_with_next([=](bool muted) {
+			toggleMute(muted, true);
+		}, volumeItem->lifetime());
+
+		volumeItem->changeVolumeLocallyRequests(
+		) | rpl::start_with_next([=](int volume) {
+			changeVolume(volume, true);
+		}, volumeItem->lifetime());
 	}
 
-	if (peer->canManageGroupCall()) {
-		AddButton(
+	if (call->canManage()) {
+		layout->add(object_ptr<Ui::SettingsButton>(
 			layout,
 			(peer->isBroadcast()
 				? tr::lng_group_call_end_channel()
 				: tr::lng_group_call_end()),
 			st::groupCallSettingsAttentionButton
-		)->addClickHandler([=] {
+		))->addClickHandler([=] {
 			if (const auto call = weakCall.get()) {
 				box->getDelegate()->show(Box(
 					LeaveBox,
@@ -771,9 +789,14 @@ void SettingsBox(
 		box->setShowFinishedCallback([=] {
 			// Means we finished showing the box.
 			crl::on_main(box, [=] {
+				state->deviceId = std::make_unique<Webrtc::DeviceResolver>(
+					&Core::App().mediaDevices(),
+					Webrtc::DeviceType::Capture,
+					Webrtc::DeviceIdValueWithFallback(
+						Core::App().settings().callCaptureDeviceIdValue(),
+						Core::App().settings().captureDeviceIdValue()));
 				state->micTester = std::make_unique<Webrtc::AudioInputTester>(
-					Core::App().settings().callAudioBackend(),
-					Core::App().settings().callInputDeviceId());
+					state->deviceId->value());
 				state->levelUpdateTimer.callEach(kMicTestUpdateInterval);
 			});
 		});
@@ -795,8 +818,7 @@ void SettingsBox(
 
 std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 		not_null<PeerData*> peer,
-		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
-		Fn<void(QString)> showToast) {
+		std::shared_ptr<Ui::Show> show) {
 	auto lifetime = rpl::lifetime();
 	struct State {
 		State(not_null<Main::Session*> session) : session(session) {
@@ -823,11 +845,11 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 			|| state->linkListener.isEmpty()) {
 			return false;
 		}
-		showBox(ShareInviteLinkBox(
+		show->showBox(ShareInviteLinkBox(
 			peer,
 			*state->linkSpeaker,
 			state->linkListener,
-			showToast));
+			show));
 		return true;
 	};
 	auto callback = [=] {
@@ -881,10 +903,13 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 MicLevelTester::MicLevelTester(Fn<void()> show)
 : _show(std::move(show))
 , _timer([=] { check(); })
-, _tester(
-	std::make_unique<Webrtc::AudioInputTester>(
-		Core::App().settings().callAudioBackend(),
-		Core::App().settings().callInputDeviceId())) {
+, _deviceId(std::make_unique<Webrtc::DeviceResolver>(
+	&Core::App().mediaDevices(),
+	Webrtc::DeviceType::Capture,
+	Webrtc::DeviceIdValueWithFallback(
+		Core::App().settings().callCaptureDeviceIdValue(),
+		Core::App().settings().captureDeviceIdValue())))
+, _tester(std::make_unique<Webrtc::AudioInputTester>(_deviceId->value())) {
 	_timer.callEach(kMicrophoneTooltipCheckInterval);
 }
 

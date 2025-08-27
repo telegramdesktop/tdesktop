@@ -80,4 +80,10 @@ const std::vector<QString> &UsernamesInfo::usernames() const {
 	return _usernames;
 }
 
+bool UsernamesInfo::isEditable(const QString &username) const {
+	return (_indexEditableUsername >= 0)
+		&& (_indexEditableUsername < _usernames.size())
+		&& (_usernames[_indexEditableUsername] == username);
+}
+
 } // namespace Data

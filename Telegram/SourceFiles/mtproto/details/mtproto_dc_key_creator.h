@@ -69,7 +69,7 @@ private:
 		MTPint128 nonce, server_nonce;
 
 		// 32 bytes new_nonce + 1 check byte + 8 bytes of auth_key_aux_hash.
-		bytes::array<41> new_nonce_buf;
+		bytes::array<41> new_nonce_buf{};
 
 		MTPint256 &new_nonce;
 		MTPlong &auth_key_aux_hash;

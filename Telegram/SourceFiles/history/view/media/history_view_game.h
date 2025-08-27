@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ReplyMarkupClickHandler;
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 namespace HistoryView {
 
 class Game : public Media {
@@ -35,12 +39,11 @@ public:
 		return false; // we do not add _title and _description in FullSelection text copy.
 	}
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
-		return _attach && _attach->toggleSelectionByHandlerClick(p);
-	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
-		return _attach && _attach->dragItemByHandler(p);
-	}
+	bool toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &p) const override;
+	bool allowTextSelectionByHandler(
+		const ClickHandlerPtr &p) const override;
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override;
 
 	TextForMimeData selectedText(TextSelection selection) const override;
 
@@ -87,23 +90,30 @@ public:
 
 private:
 	void playAnimation(bool autoplay) override;
-	QSize countOptimalSize() override;
-	QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] QSize countOptimalSize() override;
+	[[nodiscard]] QSize countCurrentSize(int newWidth) override;
 
-	TextSelection toDescriptionSelection(TextSelection selection) const;
-	TextSelection fromDescriptionSelection(TextSelection selection) const;
-	QMargins inBubblePadding() const;
-	int bottomInfoPadding() const;
+	[[nodiscard]] TextSelection toDescriptionSelection(
+		TextSelection selection) const;
+	[[nodiscard]] TextSelection fromDescriptionSelection(
+		TextSelection selection) const;
+	[[nodiscard]] QMargins inBubblePadding() const;
+	[[nodiscard]] QMargins innerMargin() const;
+	[[nodiscard]] int bottomInfoPadding() const;
 
-	not_null<GameData*> _data;
+	const style::QuoteStyle &_st;
+	const not_null<GameData*> _data;
 	std::shared_ptr<ReplyMarkupClickHandler> _openl;
 	std::unique_ptr<Media> _attach;
+	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
 
-	int _titleLines, _descriptionLines;
-
-	Ui::Text::String _title, _description;
-
+	mutable QPoint _lastPoint;
 	int _gameTagWidth = 0;
+	int _descriptionLines = 0;
+	int _titleLines = 0;
+
+	Ui::Text::String _title;
+	Ui::Text::String _description;
 
 };
 

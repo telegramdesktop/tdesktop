@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_auto_download.h"
+#include "data/notify/data_peer_notify_settings.h"
 #include "ui/rect_part.h"
 
 namespace Support {
@@ -75,8 +76,15 @@ public:
 		_groupStickersSectionHidden.remove(peerId);
 	}
 
-	void setMediaLastPlaybackPosition(DocumentId id, crl::time time);
-	[[nodiscard]] crl::time mediaLastPlaybackPosition(DocumentId id) const;
+	void setGroupEmojiSectionHidden(PeerId peerId) {
+		_groupEmojiSectionHidden.insert(peerId);
+	}
+	[[nodiscard]] bool isGroupEmojiSectionHidden(PeerId peerId) const {
+		return _groupEmojiSectionHidden.contains(peerId);
+	}
+	void removeGroupEmojiSectionHidden(PeerId peerId) {
+		_groupEmojiSectionHidden.remove(peerId);
+	}
 
 	[[nodiscard]] Data::AutoDownload::Full &autoDownload() {
 		return _autoDownload;
@@ -103,11 +111,16 @@ public:
 
 	[[nodiscard]] MsgId hiddenPinnedMessageId(
 		PeerId peerId,
-		MsgId topicRootId = 0) const;
+		MsgId topicRootId = 0,
+		PeerId monoforumPeerId = 0) const;
 	void setHiddenPinnedMessageId(
 		PeerId peerId,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		MsgId msgId);
+
+	[[nodiscard]] bool verticalSubsectionTabs(PeerId peerId) const;
+	void setVerticalSubsectionTabs(PeerId peerId, bool vertical);
 
 	[[nodiscard]] bool dialogsFiltersEnabled() const {
 		return _dialogsFiltersEnabled;
@@ -122,12 +135,35 @@ public:
 	[[nodiscard]] std::vector<TimeId> mutePeriods() const;
 	void addMutePeriod(TimeId period);
 
-	[[nodiscard]] bool skipPremiumStickersSet() const {
-		return _skipPremiumStickersSet;
+	[[nodiscard]] TimeId lastNonPremiumLimitDownload() const {
+		return _lastNonPremiumLimitDownload;
 	}
-	void setSkipPremiumStickersSet(bool value) {
-		_skipPremiumStickersSet = value;
+	[[nodiscard]] TimeId lastNonPremiumLimitUpload() const {
+		return _lastNonPremiumLimitUpload;
 	}
+	void setLastNonPremiumLimitDownload(TimeId when) {
+		_lastNonPremiumLimitDownload = when;
+	}
+	void setLastNonPremiumLimitUpload(TimeId when) {
+		_lastNonPremiumLimitUpload = when;
+	}
+	void setRingtoneVolume(
+		Data::DefaultNotify defaultNotify,
+		ushort volume);
+	[[nodiscard]] ushort ringtoneVolume(
+		Data::DefaultNotify defaultNotify) const;
+	void setRingtoneVolume(
+		PeerId peerId,
+		MsgId topicRootId,
+		PeerId monoforumPeerId,
+		ushort volume);
+	[[nodiscard]] ushort ringtoneVolume(
+		PeerId peerId,
+		MsgId topicRootId,
+		PeerId monoforumPeerId) const;
+
+	void markTranscriptionAsRated(uint64 transcriptionId);
+	[[nodiscard]] bool isTranscriptionRated(uint64 transcriptionId) const;
 
 private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
@@ -136,6 +172,7 @@ private:
 	struct ThreadId {
 		PeerId peerId;
 		MsgId topicRootId;
+		PeerId monoforumPeerId;
 
 		friend inline constexpr auto operator<=>(
 			ThreadId,
@@ -144,17 +181,21 @@ private:
 
 	ChatHelpers::SelectorTab _selectorTab; // per-window
 	base::flat_set<PeerId> _groupStickersSectionHidden;
+	base::flat_set<PeerId> _groupEmojiSectionHidden;
 	bool _hadLegacyCallsPeerToPeerNobody = false;
 	Data::AutoDownload::Full _autoDownload;
 	rpl::variable<bool> _archiveCollapsed = false;
 	rpl::variable<bool> _archiveInMainMenu = false;
 	rpl::variable<bool> _skipArchiveInSearch = false;
-	std::vector<std::pair<DocumentId, crl::time>> _mediaLastPlaybackPosition;
 	base::flat_map<ThreadId, MsgId> _hiddenPinnedMessages;
+	base::flat_set<PeerId> _verticalSubsectionTabs;
+	base::flat_map<Data::DefaultNotify, ushort> _ringtoneDefaultVolumes;
+	base::flat_map<ThreadId, ushort> _ringtoneVolumes;
 	bool _dialogsFiltersEnabled = false;
 	int _photoEditorHintShowsCount = 0;
 	std::vector<TimeId> _mutePeriods;
-	bool _skipPremiumStickersSet = false;
+	TimeId _lastNonPremiumLimitDownload = 0;
+	TimeId _lastNonPremiumLimitUpload = 0;
 
 	Support::SwitchSettings _supportSwitch;
 	bool _supportFixChatsOrder = true;
@@ -163,6 +204,8 @@ private:
 	rpl::variable<int> _supportChatsTimeSlice
 		= kDefaultSupportChatsLimitSlice;
 	rpl::variable<bool> _supportAllSearchResults = false;
+
+	base::flat_set<uint64> _ratedTranscriptions;
 
 };
 

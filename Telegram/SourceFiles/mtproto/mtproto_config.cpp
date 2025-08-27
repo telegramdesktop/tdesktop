@@ -16,18 +16,30 @@ namespace {
 
 constexpr auto kVersion = 1;
 
-} // namespace
-
-QString ConfigDefaultReactionEmoji() {
+[[nodiscard]] QString ConfigDefaultReactionEmoji() {
 	static const auto result = QString::fromUtf8("\xf0\x9f\x91\x8d");
 	return result;
 }
 
-Config::Config(Environment environment) : _dcOptions(environment) {
-	_fields.webFileDcId = _dcOptions.isTestMode() ? 2 : 4;
-	_fields.txtDomainString = _dcOptions.isTestMode()
-		? u"tapv3.stel.com"_q
-		: u"apv3.stel.com"_q;
+} // namespace
+
+ConfigFields::ConfigFields(Environment environment)
+: webFileDcId(environment == Environment::Test ? 2 : 4)
+, txtDomainString(environment == Environment::Test
+	? u"tapv3.stel.com"_q
+	: u"apv3.stel.com"_q)
+, reactionDefaultEmoji(ConfigDefaultReactionEmoji())
+, gifSearchUsername(environment == Environment::Test
+	? u"izgifbot"_q
+	: u"gif"_q)
+, venueSearchUsername(environment == Environment::Test
+	? u"foursquarebot"_q
+	: u"foursquare"_q) {
+}
+
+Config::Config(Environment environment)
+: _dcOptions(environment)
+, _fields(environment) {
 }
 
 Config::Config(const Config &other)
@@ -45,7 +57,10 @@ QByteArray Config::serialize() const {
 		+ Serialize::stringSize(_fields.txtDomainString)
 		+ 3 * sizeof(qint32)
 		+ Serialize::stringSize(_fields.reactionDefaultEmoji)
-		+ sizeof(quint64);
+		+ sizeof(quint64)
+		+ sizeof(qint32)
+		+ Serialize::stringSize(_fields.gifSearchUsername)
+		+ Serialize::stringSize(_fields.venueSearchUsername);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -68,15 +83,15 @@ QByteArray Config::serialize() const {
 			<< qint32(_fields.onlineCloudTimeout)
 			<< qint32(_fields.notifyCloudDelay)
 			<< qint32(_fields.notifyDefaultDelay)
-			<< qint32(_fields.savedGifsLimit)
+			<< qint32(0) // legacy savedGifsLimit
 			<< qint32(_fields.editTimeLimit)
 			<< qint32(_fields.revokeTimeLimit)
 			<< qint32(_fields.revokePrivateTimeLimit)
 			<< qint32(_fields.revokePrivateInbox ? 1 : 0)
 			<< qint32(_fields.stickersRecentLimit)
-			<< qint32(_fields.stickersFavedLimit)
-			<< qint32(_fields.pinnedDialogsCountMax.current())
-			<< qint32(_fields.pinnedDialogsInFolderMax.current())
+			<< qint32(0) // legacy stickersFavedLimit
+			<< qint32(0) // legacy pinnedDialogsCountMax
+			<< qint32(0) // legacy pinnedDialogsInFolderMax
 			<< _fields.internalLinksDomain
 			<< qint32(_fields.channelsReadMediaPeriod)
 			<< qint32(_fields.callReceiveTimeoutMs)
@@ -89,7 +104,10 @@ QByteArray Config::serialize() const {
 			<< qint32(_fields.blockedMode ? 1 : 0)
 			<< qint32(_fields.captionLengthMax)
 			<< _fields.reactionDefaultEmoji
-			<< quint64(_fields.reactionDefaultCustom);
+			<< quint64(_fields.reactionDefaultCustom)
+			<< qint32(_fields.ratingDecay)
+			<< _fields.gifSearchUsername
+			<< _fields.venueSearchUsername;
 	}
 	return result;
 }
@@ -121,6 +139,10 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 	}
 
 	auto dcOptionsSerialized = QByteArray();
+	auto legacySavedGifsLimit = int();
+	auto legacyStickersFavedLimit = int();
+	auto legacyPinnedDialogsCountMax = 0;
+	auto legacyPinnedDialogsInFolderMax = 0;
 	auto legacyPhoneCallsEnabled = rpl::variable<bool>();
 	const auto read = [&](auto &field) {
 		using Type = std::remove_reference_t<decltype(field)>;
@@ -157,15 +179,15 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 	read(raw->_fields.onlineCloudTimeout);
 	read(raw->_fields.notifyCloudDelay);
 	read(raw->_fields.notifyDefaultDelay);
-	read(raw->_fields.savedGifsLimit);
+	read(legacySavedGifsLimit);
 	read(raw->_fields.editTimeLimit);
 	read(raw->_fields.revokeTimeLimit);
 	read(raw->_fields.revokePrivateTimeLimit);
 	read(raw->_fields.revokePrivateInbox);
 	read(raw->_fields.stickersRecentLimit);
-	read(raw->_fields.stickersFavedLimit);
-	read(raw->_fields.pinnedDialogsCountMax);
-	read(raw->_fields.pinnedDialogsInFolderMax);
+	read(legacyStickersFavedLimit);
+	read(legacyPinnedDialogsCountMax);
+	read(legacyPinnedDialogsInFolderMax);
 	read(raw->_fields.internalLinksDomain);
 	read(raw->_fields.channelsReadMediaPeriod);
 	read(raw->_fields.callReceiveTimeoutMs);
@@ -180,6 +202,13 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		read(raw->_fields.reactionDefaultEmoji);
 		read(raw->_fields.reactionDefaultCustom);
+	}
+	if (!stream.atEnd()) {
+		read(raw->_fields.ratingDecay);
+	}
+	if (!stream.atEnd()) {
+		read(raw->_fields.gifSearchUsername);
+		read(raw->_fields.venueSearchUsername);
 	}
 
 	if (stream.status() != QDataStream::Ok
@@ -220,17 +249,11 @@ void Config::apply(const MTPDconfig &data) {
 	_fields.onlineCloudTimeout = data.vonline_cloud_timeout_ms().v;
 	_fields.notifyCloudDelay = data.vnotify_cloud_delay_ms().v;
 	_fields.notifyDefaultDelay = data.vnotify_default_delay_ms().v;
-	_fields.savedGifsLimit = data.vsaved_gifs_limit().v;
 	_fields.editTimeLimit = data.vedit_time_limit().v;
 	_fields.revokeTimeLimit = data.vrevoke_time_limit().v;
 	_fields.revokePrivateTimeLimit = data.vrevoke_pm_time_limit().v;
 	_fields.revokePrivateInbox = data.is_revoke_pm_inbox();
 	_fields.stickersRecentLimit = data.vstickers_recent_limit().v;
-	_fields.stickersFavedLimit = data.vstickers_faved_limit().v;
-	_fields.pinnedDialogsCountMax =
-		std::max(data.vpinned_dialogs_count_max().v, 1);
-	_fields.pinnedDialogsInFolderMax =
-		std::max(data.vpinned_infolder_count_max().v, 1);
 	_fields.internalLinksDomain = qs(data.vme_url_prefix());
 	_fields.channelsReadMediaPeriod = data.vchannels_read_media_period().v;
 	_fields.webFileDcId = data.vwebfile_dc_id().v;
@@ -248,8 +271,19 @@ void Config::apply(const MTPDconfig &data) {
 			_fields.reactionDefaultEmoji = qs(data.vemoticon());
 		}, [&](const MTPDreactionCustomEmoji &data) {
 			_fields.reactionDefaultCustom = data.vdocument_id().v;
+		}, [&](const MTPDreactionPaid &data) {
+			_fields.reactionDefaultEmoji = QString(QChar('*'));
 		});
 	}
+	_fields.autologinToken = qs(data.vautologin_token().value_or_empty());
+	_fields.ratingDecay = data.vrating_e_decay().v;
+	if (_fields.ratingDecay <= 0) {
+		_fields.ratingDecay = ConfigFields(
+			_dcOptions.environment()
+		).ratingDecay;
+	}
+	_fields.gifSearchUsername = qs(data.vgif_search_username().value_or_empty());
+	_fields.venueSearchUsername = qs(data.vvenue_search_username().value_or_empty());
 
 	if (data.vdc_options().v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));
@@ -268,16 +302,8 @@ void Config::setChatSizeMax(int value) {
 	_fields.chatSizeMax = value;
 }
 
-void Config::setSavedGifsLimit(int value) {
-	_fields.savedGifsLimit = value;
-}
-
 void Config::setStickersRecentLimit(int value) {
 	_fields.stickersRecentLimit = value;
-}
-
-void Config::setStickersFavedLimit(int value) {
-	_fields.stickersFavedLimit = value;
 }
 
 void Config::setMegagroupSizeMax(int value) {

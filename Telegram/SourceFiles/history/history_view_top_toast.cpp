@@ -31,21 +31,13 @@ void InfoTooltip::show(
 		not_null<Main::Session*> session,
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) {
-	const auto context = [=](not_null<QWidget*> toast) {
-		return Core::MarkedTextContext{
-			.session = session,
-			.customEmojiRepaint = [=] { toast->update(); },
-		};
-	};
 	hide(anim::type::normal);
 	_topToast = Ui::Toast::Show(parent, Ui::Toast::Config{
 		.text = text,
+		.textContext = Core::TextContext({ .session = session }),
 		.st = &st::historyInfoToast,
-		.durationMs = CountToastDuration(text),
-		.multiline = true,
-		.dark = true,
-		.slideSide = RectPart::Top,
-		.textContext = context,
+		.attach = RectPart::Top,
+		.duration = CountToastDuration(text),
 	});
 	if (const auto strong = _topToast.get()) {
 		if (hiddenCallback) {

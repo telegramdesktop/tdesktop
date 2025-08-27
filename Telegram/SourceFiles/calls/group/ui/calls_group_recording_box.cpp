@@ -12,8 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
+#include "styles/style_basic.h"
 #include "styles/style_calls.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -26,7 +27,6 @@ namespace {
 constexpr auto kRoundRadius = 9;
 constexpr auto kMaxGroupCallLength = 40;
 constexpr auto kSwitchDuration = 200;
-constexpr auto kSelectDuration = 120;
 
 class GraphicButton final : public Ui::AbstractButton {
 public:
@@ -103,7 +103,7 @@ void GraphicButton::setToggled(bool value) {
 		[=] { update(); },
 		_toggled ? 0. : 1.,
 		_toggled ? 1. : 0.,
-		kSelectDuration);
+		st::universalDuration);
 }
 
 void GraphicButton::paintEvent(QPaintEvent *e) {
@@ -196,22 +196,13 @@ void RecordingInfo::prepareVideo() {
 }
 
 void RecordingInfo::setLabel(const QString &text) {
-	const auto label = _container->add(
+	_container->add(
 		object_ptr<Ui::FlatLabel>(
 			_container,
 			text,
 			st::groupCallRecordingSubLabel),
-		st::groupCallRecordingSubLabelMargins);
-
-	rpl::combine(
-		sizeValue(),
-		label->sizeValue()
-	) | rpl::start_with_next([=](QSize my, QSize labelSize) {
-		label->moveToLeft(
-			(my.width() - labelSize.width()) / 2,
-			label->y(),
-			my.width());
-	}, label->lifetime());
+		st::groupCallRecordingSubLabelMargins,
+		style::al_top);
 }
 
 RecordingType RecordingInfo::type() const {
@@ -287,7 +278,7 @@ void EditGroupCallTitleBox(
 		box->closeBox();
 		done(result);
 	};
-	QObject::connect(input, &Ui::InputField::submitted, submit);
+	input->submits() | rpl::start_with_next(submit, input->lifetime());
 	box->addButton(tr::lng_settings_save(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
@@ -346,7 +337,7 @@ void AddTitleGroupCallRecordingBox(
 		box->closeBox();
 		done(result);
 	};
-	QObject::connect(input, &Ui::InputField::submitted, submit);
+	input->submits() | rpl::start_with_next(submit, input->lifetime());
 	box->addButton(tr::lng_group_call_recording_start_button(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

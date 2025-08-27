@@ -8,24 +8,41 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 
 #include "apiwrap.h"
-#include "window/window_session_controller.h"
-#include "lang/lang_keys.h"
-#include "main/main_session.h"
-#include "ui/empty_userpic.h"
-#include "ui/painter.h"
+#include "api/api_credits.h"
+#include "boxes/premium_limits_box.h"
 #include "core/application.h"
-#include "data/data_session.h"
+#include "data/components/credits.h"
+#include "data/data_channel.h"
+#include "data/data_file_origin.h"
+#include "data/data_forum.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
-#include "data/data_channel.h"
-#include "data/data_forum.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
-#include "data/data_file_origin.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h"
+#include "info/profile/info_profile_badge.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/toasts/common_toasts.h"
-#include "boxes/premium_limits_box.h"
+#include "ui/controls/userpic_button.h"
+#include "ui/effects/credits_graphics.h"
+#include "ui/effects/premium_graphics.h"
+#include "ui/effects/premium_stars_colored.h"
+#include "ui/empty_userpic.h"
+#include "ui/layers/generic_box.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
+#include "ui/vertical_list.h"
+#include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_credits.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_premium.h"
 
 namespace Api {
 
@@ -81,24 +98,262 @@ void SubmitChatInvite(
 		} else if (type == u"CHANNELS_TOO_MUCH"_q) {
 			strongController->show(
 				Box(ChannelsLimitBox, &strongController->session()));
+			return;
 		}
 
 		strongController->hideLayer();
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(strongController).toastParent(),
-			.text = { [&] {
-				if (type == u"INVITE_REQUEST_SENT"_q) {
-					return isGroup
-						? tr::lng_group_request_sent(tr::now)
-						: tr::lng_group_request_sent_channel(tr::now);
-				} else if (type == u"USERS_TOO_MUCH"_q) {
-					return tr::lng_group_invite_no_room(tr::now);
-				} else {
-					return tr::lng_group_invite_bad_link(tr::now);
-				}
-			}() },
-			.duration = ApiWrap::kJoinErrorDuration });
+		strongController->showToast([&] {
+			if (type == u"INVITE_REQUEST_SENT"_q) {
+				return isGroup
+					? tr::lng_group_request_sent(tr::now)
+					: tr::lng_group_request_sent_channel(tr::now);
+			} else if (type == u"USERS_TOO_MUCH"_q) {
+				return tr::lng_group_invite_no_room(tr::now);
+			} else {
+				return tr::lng_group_invite_bad_link(tr::now);
+			}
+		}(), ApiWrap::kJoinErrorDuration);
 	}).send();
+}
+
+void ConfirmSubscriptionBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		const QString &hash,
+		const MTPDchatInvite *data) {
+	box->setWidth(st::boxWideWidth);
+	const auto amount = data->vsubscription_pricing()->data().vamount().v;
+	const auto formId = data->vsubscription_form_id()->v;
+	const auto name = qs(data->vtitle());
+	const auto maybePhoto = session->data().processPhoto(data->vphoto());
+	const auto photo = maybePhoto->isNull() ? nullptr : maybePhoto.get();
+
+	struct State final {
+		std::shared_ptr<Data::PhotoMedia> photoMedia;
+		std::unique_ptr<Ui::EmptyUserpic> photoEmpty;
+		QImage frame;
+
+		std::optional<MTP::Sender> api;
+		Ui::RpWidget* saveButton = nullptr;
+		rpl::variable<bool> loading;
+	};
+	const auto state = box->lifetime().make_state<State>();
+
+	const auto content = box->verticalLayout();
+
+	Ui::AddSkip(content, st::confirmInvitePhotoTop);
+	const auto userpic = content->add(
+		object_ptr<Ui::RpWidget>(content),
+		style::al_top);
+	const auto photoSize = st::confirmInvitePhotoSize;
+	userpic->resize(Size(photoSize));
+	userpic->setNaturalWidth(photoSize);
+	const auto creditsIconSize = photoSize / 3;
+	const auto creditsIconCallback =
+		Ui::PaintOutlinedColoredCreditsIconCallback(
+			creditsIconSize,
+			1.5);
+	state->frame = QImage(
+		Size(photoSize * style::DevicePixelRatio()),
+		QImage::Format_ARGB32_Premultiplied);
+	state->frame.setDevicePixelRatio(style::DevicePixelRatio());
+	const auto options = Images::Option::RoundCircle;
+	userpic->paintRequest(
+	) | rpl::start_with_next([=, small = Data::PhotoSize::Small] {
+		state->frame.fill(Qt::transparent);
+		{
+			auto p = QPainter(&state->frame);
+			if (state->photoMedia) {
+				if (const auto image = state->photoMedia->image(small)) {
+					p.drawPixmap(
+						0,
+						0,
+						image->pix(Size(photoSize), { .options = options }));
+				}
+			} else if (state->photoEmpty) {
+				state->photoEmpty->paintCircle(
+					p,
+					0,
+					0,
+					userpic->width(),
+					photoSize);
+			}
+			if (creditsIconCallback) {
+				p.translate(
+					photoSize - creditsIconSize,
+					photoSize - creditsIconSize);
+				creditsIconCallback(p);
+			}
+		}
+		auto p = QPainter(userpic);
+		p.drawImage(0, 0, state->frame);
+	}, userpic->lifetime());
+	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+	if (photo) {
+		state->photoMedia = photo->createMediaView();
+		state->photoMedia->wanted(Data::PhotoSize::Small, Data::FileOrigin());
+		if (!state->photoMedia->image(Data::PhotoSize::Small)) {
+			session->downloaderTaskFinished(
+			) | rpl::start_with_next([=] {
+				userpic->update();
+			}, userpic->lifetime());
+		}
+	} else {
+		state->photoEmpty = std::make_unique<Ui::EmptyUserpic>(
+			Ui::EmptyUserpic::UserpicColor(0),
+			name);
+	}
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+	Settings::AddMiniStars(
+		content,
+		Ui::CreateChild<Ui::RpWidget>(content),
+		photoSize,
+		box->width(),
+		2.);
+
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_channel_invite_subscription_title(),
+			st::inviteLinkSubscribeBoxTitle),
+		style::al_top);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_channel_invite_subscription_about(
+				lt_channel,
+				rpl::single(Ui::Text::Bold(name)),
+				lt_price,
+				tr::lng_credits_summary_options_credits(
+					lt_count,
+					rpl::single(amount) | tr::to_count(),
+					Ui::Text::Bold),
+				Ui::Text::WithEntities),
+			st::inviteLinkSubscribeBoxAbout),
+		style::al_top);
+	Ui::AddSkip(content);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_channel_invite_subscription_terms(
+				lt_link,
+				rpl::combine(
+					tr::lng_paid_react_agree_link(),
+					tr::lng_group_invite_subscription_about_url()
+				) | rpl::map([](const QString &text, const QString &url) {
+					return Ui::Text::Link(text, url);
+				}),
+				Ui::Text::RichLangValue),
+			st::inviteLinkSubscribeBoxTerms),
+		style::al_top);
+
+	{
+		const auto balance = Settings::AddBalanceWidget(
+			content,
+			session,
+			session->credits().balanceValue(),
+			true);
+		session->credits().load(true);
+
+		rpl::combine(
+			balance->sizeValue(),
+			content->sizeValue()
+		) | rpl::start_with_next([=](const QSize &, const QSize &) {
+			balance->moveToRight(
+				st::creditsHistoryRightSkip * 2,
+				st::creditsHistoryRightSkip);
+			balance->update();
+		}, balance->lifetime());
+	}
+
+	const auto sendCredits = [=, weak = base::make_weak(box)] {
+		const auto show = box->uiShow();
+		const auto buttonWidth = state->saveButton
+			? state->saveButton->width()
+			: 0;
+		const auto finish = [=] {
+			state->api = std::nullopt;
+			state->loading.force_assign(false);
+			if (const auto strong = weak.get()) {
+				strong->closeBox();
+			}
+		};
+		state->api->request(
+			MTPpayments_SendStarsForm(
+				MTP_long(formId),
+				MTP_inputInvoiceChatInviteSubscription(MTP_string(hash)))
+		).done([=](const MTPpayments_PaymentResult &result) {
+			result.match([&](const MTPDpayments_paymentResult &data) {
+				session->api().applyUpdates(data.vupdates());
+			}, [](const MTPDpayments_paymentVerificationNeeded &data) {
+			});
+			const auto refill = session->data().activeCreditsSubsRebuilder();
+			const auto strong = weak.get();
+			if (!strong) {
+				return;
+			}
+			if (!refill) {
+				return finish();
+			}
+			const auto api
+				= strong->lifetime().make_state<Api::CreditsHistory>(
+					session->user(),
+					true,
+					true);
+			api->requestSubscriptions({}, [=](Data::CreditsStatusSlice d) {
+				refill->fire(std::move(d));
+				finish();
+			});
+		}).fail([=](const MTP::Error &error) {
+			const auto id = error.type();
+			if (weak) {
+				state->api = std::nullopt;
+			}
+			show->showToast(id);
+			state->loading.force_assign(false);
+		}).send();
+		if (state->saveButton) {
+			state->saveButton->resizeToWidth(buttonWidth);
+		}
+	};
+
+	auto confirmText = tr::lng_channel_invite_subscription_button();
+	state->saveButton = box->addButton(std::move(confirmText), [=] {
+		if (state->api) {
+			return;
+		}
+		state->api.emplace(&session->mtp());
+		state->loading.force_assign(true);
+
+		const auto done = [=](Settings::SmallBalanceResult result) {
+			if (result == Settings::SmallBalanceResult::Success
+				|| result == Settings::SmallBalanceResult::Already) {
+				sendCredits();
+			} else {
+				state->api = std::nullopt;
+				state->loading.force_assign(false);
+			}
+		};
+		Settings::MaybeRequestBalanceIncrease(
+			Main::MakeSessionShow(box->uiShow(), session),
+			amount,
+			Settings::SmallBalanceSubscription{ .name = name },
+			done);
+	});
+
+	if (const auto saveButton = state->saveButton) {
+		using namespace Info::Statistics;
+		const auto loadingAnimation = InfiniteRadialAnimationWidget(
+			saveButton,
+			saveButton->height() / 2,
+			&st::editStickerSetNameLoading);
+		AddChildToWidgetCenter(saveButton, loadingAnimation);
+		loadingAnimation->showOn(
+			state->loading.value() | rpl::map(rpl::mappers::_1));
+	}
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 } // namespace
@@ -106,7 +361,8 @@ void SubmitChatInvite(
 void CheckChatInvite(
 		not_null<Window::SessionController*> controller,
 		const QString &hash,
-		ChannelData *invitePeekChannel) {
+		ChannelData *invitePeekChannel,
+		Fn<void()> loaded) {
 	const auto session = &controller->session();
 	const auto weak = base::make_weak(controller);
 	session->api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
@@ -114,25 +370,40 @@ void CheckChatInvite(
 		if (!strong) {
 			return;
 		}
+		if (loaded) {
+			loaded();
+		}
 		Core::App().hideMediaView();
 		const auto show = [&](not_null<PeerData*> chat) {
+			const auto way = Window::SectionShow::Way::Forward;
 			if (const auto forum = chat->forum()) {
-				strong->openForum(
-					forum->channel(),
-					Window::SectionShow::Way::Forward);
+				strong->showForum(forum, way);
 			} else {
-				strong->showPeerHistory(
-					chat,
-					Window::SectionShow::Way::Forward);
+				strong->showPeerHistory(chat, way);
 			}
 		};
 		result.match([=](const MTPDchatInvite &data) {
 			const auto isGroup = !data.is_broadcast();
-			const auto box = strong->show(Box<ConfirmInviteBox>(
-				session,
-				data,
-				invitePeekChannel,
-				[=] { SubmitChatInvite(weak, session, hash, isGroup); }));
+			const auto hasPricing = !!data.vsubscription_pricing();
+			const auto canRefulfill = data.is_can_refulfill_subscription();
+			if (hasPricing
+				&& !canRefulfill
+				&& !data.vsubscription_form_id()) {
+				strong->uiShow()->showToast(
+					tr::lng_confirm_phone_link_invalid(tr::now));
+				return;
+			}
+			const auto box = (hasPricing && !canRefulfill)
+				? strong->show(Box(
+					ConfirmSubscriptionBox,
+					session,
+					hash,
+					&data))
+				: strong->show(Box<ConfirmInviteBox>(
+					session,
+					data,
+					invitePeekChannel,
+					[=] { SubmitChatInvite(weak, session, hash, isGroup); }));
 			if (invitePeekChannel) {
 				box->boxClosing(
 				) | rpl::filter([=] {
@@ -162,6 +433,12 @@ void CheckChatInvite(
 			}
 		});
 	}, [=](const MTP::Error &error) {
+		if (MTP::IsFloodError(error)) {
+			if (const auto strong = weak.get()) {
+				strong->show(Ui::MakeInformBox(tr::lng_flood_error()));
+			}
+			return;
+		}
 		if (error.code() != 400) {
 			return;
 		}
@@ -173,6 +450,11 @@ void CheckChatInvite(
 }
 
 } // namespace Api
+
+struct ConfirmInviteBox::Participant {
+	not_null<UserData*> user;
+	Ui::PeerUserpicView userpic;
+};
 
 ConfirmInviteBox::ConfirmInviteBox(
 	QWidget*,
@@ -195,6 +477,13 @@ ConfirmInviteBox::ConfirmInviteBox(
 : _session(session)
 , _submit(std::move(submit))
 , _title(this, st::confirmInviteTitle)
+, _badge(std::make_unique<Info::Profile::Badge>(
+	this,
+	st::infoPeerBadge,
+	_session,
+	rpl::single(Info::Profile::Badge::Content{ BadgeForInvite(invite) }),
+	nullptr,
+	[=] { return false; }))
 , _status(this, st::confirmInviteStatus)
 , _about(this, st::confirmInviteAbout)
 , _aboutRequests(this, st::confirmInviteStatus)
@@ -244,7 +533,7 @@ ConfirmInviteBox::ConfirmInviteBox(
 		}
 	} else {
 		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(
-			Data::PeerUserpicColor(0),
+			Ui::EmptyUserpic::UserpicColor(0),
 			invite.title);
 	}
 }
@@ -275,7 +564,22 @@ ConfirmInviteBox::ChatInvite ConfirmInviteBox::Parse(
 		.isMegagroup = data.is_megagroup(),
 		.isBroadcast = data.is_broadcast(),
 		.isRequestNeeded = data.is_request_needed(),
+		.isFake = data.is_fake(),
+		.isScam = data.is_scam(),
+		.isVerified = data.is_verified(),
 	};
+}
+
+[[nodiscard]] Info::Profile::BadgeType ConfirmInviteBox::BadgeForInvite(
+		const ChatInvite &invite) {
+	using Type = Info::Profile::BadgeType;
+	return invite.isVerified
+		? Type::Verified
+		: invite.isScam
+		? Type::Scam
+		: invite.isFake
+		? Type::Fake
+		: Type::None;
 }
 
 void ConfirmInviteBox::prepare() {
@@ -326,8 +630,26 @@ void ConfirmInviteBox::prepare() {
 
 void ConfirmInviteBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
-	_title->move((width() - _title->width()) / 2, st::confirmInviteTitleTop);
-	_status->move((width() - _status->width()) / 2, st::confirmInviteStatusTop);
+
+	const auto padding = st::boxRowPadding;
+	auto nameWidth = width() - padding.left() - padding.right();
+	auto badgeWidth = 0;
+	if (const auto widget = _badge->widget()) {
+		badgeWidth = st::infoVerifiedCheckPosition.x() + widget->width();
+		nameWidth -= badgeWidth;
+	}
+	_title->resizeToWidth(std::min(nameWidth, _title->textMaxWidth()));
+	_title->moveToLeft(
+		(width() - _title->width() - badgeWidth) / 2,
+		st::confirmInviteTitleTop);
+	const auto badgeLeft = _title->x() + _title->width();
+	const auto badgeTop = _title->y();
+	const auto badgeBottom = _title->y() + _title->height();
+	_badge->move(badgeLeft, badgeTop, badgeBottom);
+
+	_status->move(
+		(width() - _status->width()) / 2,
+		st::confirmInviteStatusTop);
 	auto bottom = _status->y()
 		+ _status->height()
 		+ st::boxPadding.bottom()
@@ -359,7 +681,7 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 					{ .options = Images::Option::RoundCircle }));
 		}
 	} else if (_photoEmpty) {
-		_photoEmpty->paint(
+		_photoEmpty->paintCircle(
 			p,
 			(width() - st::confirmInvitePhotoSize) / 2,
 			st::confirmInvitePhotoTop,

@@ -11,14 +11,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_set.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "mtproto/sender.h"
 
 class History;
+
+namespace style {
+struct PeerListItem;
+} // namespace style
+
+namespace Api {
+struct MessageMoneyRestriction;
+} // namespace Api
 
 namespace Data {
 class Thread;
 class Forum;
 class ForumTopic;
+class SavedSublist;
+class SavedMessages;
 } // namespace Data
+
+namespace Ui {
+struct OutlineSegment;
+} // namespace Ui
 
 namespace Window {
 class SessionController;
@@ -26,6 +41,11 @@ class SessionController;
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareContactsBox(
 	not_null<Window::SessionController*> sessionController);
+[[nodiscard]] QBrush PeerListStoriesGradient(const style::PeerList &st);
+[[nodiscard]] std::vector<Ui::OutlineSegment> PeerListStoriesSegments(
+	int count,
+	int unread,
+	const QBrush &unreadBrush);
 
 class PeerListRowWithLink : public PeerListRow {
 public:
@@ -79,18 +99,81 @@ private:
 
 };
 
+struct RecipientMoneyRestrictionError {
+	TextWithEntities text;
+};
+
+[[nodiscard]] RecipientMoneyRestrictionError WriteMoneyRestrictionError(
+	not_null<UserData*> user);
+
+struct RestrictionBadgeCache {
+	int paletteVersion = 0;
+	int stars = 0;
+	QImage badge;
+};
+void PaintRestrictionBadge(
+	Painter &p,
+	not_null<const style::PeerListItem*> st,
+	int stars,
+	RestrictionBadgeCache &cache,
+	int x,
+	int y,
+	int outerWidth,
+	int size);
+
+class RecipientRow : public PeerListRow {
+public:
+	explicit RecipientRow(
+		not_null<PeerData*> peer,
+		const style::PeerListItem *maybeLockedSt = nullptr,
+		History *maybeHistory = nullptr);
+
+	bool refreshLock(not_null<const style::PeerListItem*> maybeLockedSt);
+
+	[[nodiscard]] static bool ShowLockedError(
+		not_null<PeerListController*> controller,
+		not_null<PeerListRow*> row,
+		Fn<RecipientMoneyRestrictionError(not_null<UserData*>)> error);
+
+	[[nodiscard]] History *maybeHistory() const {
+		return _maybeHistory;
+	}
+	void paintUserpicOverlay(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int outerWidth) override;
+
+	void preloadUserpic() override;
+
+	[[nodiscard]] Api::MessageMoneyRestriction restriction() const;
+	void setRestriction(Api::MessageMoneyRestriction restriction);
+
+private:
+	struct Restriction;
+
+	History *_maybeHistory = nullptr;
+	const style::PeerListItem *_maybeLockedSt = nullptr;
+	std::shared_ptr<Restriction> _restriction;
+
+};
+
+void TrackMessageMoneyRestrictionsChanges(
+	not_null<PeerListController*> controller,
+	rpl::lifetime &lifetime);
+
 class ChatsListBoxController : public PeerListController {
 public:
-	class Row : public PeerListRow {
+	class Row : public RecipientRow {
 	public:
-		Row(not_null<History*> history);
+		Row(
+			not_null<History*> history,
+			const style::PeerListItem *maybeLockedSt = nullptr);
 
-		not_null<History*> history() const {
-			return _history;
+		[[nodiscard]] not_null<History*> history() const {
+			return maybeHistory();
 		}
-
-	private:
-		not_null<History*> _history;
 
 	};
 
@@ -116,6 +199,41 @@ private:
 
 };
 
+class PeerListStories final {
+public:
+	PeerListStories(
+		not_null<PeerListController*> controller,
+		not_null<Main::Session*> session);
+
+	void prepare(not_null<PeerListDelegate*> delegate);
+
+	void process(not_null<PeerListRow*> row);
+	bool handleClick(not_null<PeerData*> peer);
+
+private:
+	struct Counts {
+		int count = 0;
+		int unread = 0;
+	};
+
+	void updateColors();
+	void updateFor(uint64 id, int count, int unread);
+	void applyForRow(
+		not_null<PeerListRow*> row,
+		int count,
+		int unread,
+		bool force = false);
+
+	const not_null<PeerListController*> _controller;
+	const not_null<Main::Session*> _session;
+	PeerListDelegate *_delegate = nullptr;
+
+	QBrush _unreadBrush;
+	base::flat_map<uint64, Counts> _counts;
+	rpl::lifetime _lifetime;
+
+};
+
 class ContactsBoxController : public PeerListController {
 public:
 	explicit ContactsBoxController(not_null<Main::Session*> session);
@@ -128,12 +246,16 @@ public:
 	[[nodiscard]] std::unique_ptr<PeerListRow> createSearchRow(
 		not_null<PeerData*> peer) override final;
 	void rowClicked(not_null<PeerListRow*> row) override;
+	bool trackSelectedList() override {
+		return !_stories;
+	}
 
 	enum class SortMode {
 		Alphabet,
 		Online,
 	};
 	void setSortMode(SortMode mode);
+	void setStoriesShown(bool shown);
 
 protected:
 	virtual std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
@@ -144,7 +266,6 @@ protected:
 
 private:
 	void sort();
-	void sortByName();
 	void sortByOnline();
 	void rebuildRows();
 	void checkForEmptyRows();
@@ -155,6 +276,17 @@ private:
 	base::Timer _sortByOnlineTimer;
 	rpl::lifetime _sortByOnlineLifetime;
 
+	std::unique_ptr<PeerListStories> _stories;
+
+};
+
+struct ChooseRecipientArgs {
+	not_null<Main::Session*> session;
+	FnMut<void(not_null<Data::Thread*>)> callback;
+	Fn<bool(not_null<Data::Thread*>)> filter;
+
+	using MoneyRestrictionError = RecipientMoneyRestrictionError;
+	Fn<MoneyRestrictionError(not_null<UserData*>)> moneyRestrictionError;
 };
 
 class ChooseRecipientBoxController
@@ -165,22 +297,25 @@ public:
 		not_null<Main::Session*> session,
 		FnMut<void(not_null<Data::Thread*>)> callback,
 		Fn<bool(not_null<Data::Thread*>)> filter = nullptr);
+	explicit ChooseRecipientBoxController(ChooseRecipientArgs &&args);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	bool respectSavedMessagesChat() const override {
-		return true;
-	}
+	QString savedMessagesChatStatus() const override;
 
 protected:
 	void prepareViewHook() override;
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 
+	bool showLockedError(not_null<PeerListRow*> row);
+
 private:
 	const not_null<Main::Session*> _session;
 	FnMut<void(not_null<Data::Thread*>)> _callback;
 	Fn<bool(not_null<Data::Thread*>)> _filter;
+	Fn<RecipientMoneyRestrictionError(
+		not_null<UserData*>)> _moneyRestrictionError;
 
 };
 
@@ -224,6 +359,9 @@ public:
 	void loadMoreRows() override;
 	std::unique_ptr<PeerListRow> createSearchRow(PeerListRowId id) override;
 
+	[[nodiscard]] static std::unique_ptr<PeerListRow> MakeRow(
+		not_null<Data::ForumTopic*> topic);
+
 private:
 	class Row final : public PeerListRow {
 	public:
@@ -235,7 +373,8 @@ private:
 
 		QString generateName() override;
 		QString generateShortName() override;
-		PaintRoundImageCallback generatePaintUserpicCallback() override;
+		PaintRoundImageCallback generatePaintUserpicCallback(
+			bool forceRound) override;
 
 		auto generateNameFirstLetters() const
 			-> const base::flat_set<QChar> & override;
@@ -254,5 +393,32 @@ private:
 	const not_null<Data::Forum*> _forum;
 	FnMut<void(not_null<Data::ForumTopic*>)> _callback;
 	Fn<bool(not_null<Data::ForumTopic*>)> _filter;
+
+};
+
+class ChooseSublistBoxController final
+	: public PeerListController
+	, public base::has_weak_ptr {
+public:
+	ChooseSublistBoxController(
+		not_null<Data::SavedMessages*> monoforum,
+		FnMut<void(not_null<Data::SavedSublist*>)> callback,
+		Fn<bool(not_null<Data::SavedSublist*>)> filter = nullptr);
+
+	Main::Session &session() const override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+	void prepare() override;
+	void loadMoreRows() override;
+	std::unique_ptr<PeerListRow> createSearchRow(PeerListRowId id) override;
+
+private:
+	void refreshRows(bool initial = false);
+	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
+		not_null<Data::SavedSublist*> sublist);
+
+	const not_null<Data::SavedMessages*> _monoforum;
+	FnMut<void(not_null<Data::SavedSublist*>)> _callback;
+	Fn<bool(not_null<Data::SavedSublist*>)> _filter;
 
 };

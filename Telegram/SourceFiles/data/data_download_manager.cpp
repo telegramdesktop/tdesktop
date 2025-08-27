@@ -20,15 +20,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "lang/lang_keys.h"
 #include "storage/storage_account.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_message.h"
+#include "history/history_item_helpers.h"
 #include "core/application.h"
 #include "core/mime_type.h"
 #include "ui/controls/download_bar.h"
 #include "ui/text/format_song_document_name.h"
 #include "ui/layers/generic_box.h"
+#include "ui/ui_utility.h"
 #include "storage/serialize_common.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -64,26 +66,43 @@ constexpr auto ByDocument = [](const auto &entry) {
 	return 0;
 }
 
-[[nodiscard]] PhotoData *ItemPhoto(not_null<HistoryItem*> item) {
-	if (const auto media = item->media()) {
-		if (const auto page = media->webpage()) {
-			return page->document ? nullptr : page->photo;
-		} else if (const auto photo = media->photo()) {
-			return photo;
+[[nodiscard]] bool ItemContainsMedia(const DownloadObject &object) {
+	if (const auto photo = object.photo) {
+		if (const auto media = object.item->media()) {
+			if (const auto page = media->webpage()) {
+				if (page->photo == photo) {
+					return true;
+				}
+				for (const auto &item : page->collage.items) {
+					if (const auto v = std::get_if<PhotoData*>(&item)) {
+						if ((*v) == photo) {
+							return true;
+						}
+					}
+				}
+			} else {
+				return (media->photo() == photo);
+			}
+		}
+	} else if (const auto document = object.document) {
+		if (const auto media = object.item->media()) {
+			if (const auto page = media->webpage()) {
+				if (page->document == document) {
+					return true;
+				}
+				for (const auto &item : page->collage.items) {
+					if (const auto v = std::get_if<DocumentData*>(&item)) {
+						if ((*v) == document) {
+							return true;
+						}
+					}
+				}
+			} else {
+				return (media->document() == document);
+			}
 		}
 	}
-	return nullptr;
-}
-
-[[nodiscard]] DocumentData *ItemDocument(not_null<HistoryItem*> item) {
-	if (const auto media = item->media()) {
-		if (const auto page = media->webpage()) {
-			return page->document;
-		} else if (const auto document = media->document()) {
-			return document;
-		}
-	}
-	return nullptr;
+	return false;
 }
 
 struct DocumentDescriptor {
@@ -105,6 +124,15 @@ DownloadManager::DownloadManager()
 
 DownloadManager::~DownloadManager() = default;
 
+bool DownloadManager::empty() const {
+	for (const auto &[session, data] : _sessions) {
+		if (!data.downloading.empty() || !data.downloaded.empty()) {
+			return false;
+		}
+	}
+	return true;
+}
+
 void DownloadManager::trackSession(not_null<Main::Session*> session) {
 	auto &data = _sessions.emplace(session, SessionData()).first->second;
 	data.downloaded = deserialize(session);
@@ -125,7 +153,7 @@ void DownloadManager::trackSession(not_null<Main::Session*> session) {
 	}, data.lifetime);
 
 	session->data().itemViewRefreshRequest(
-	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		changed(item);
 	}, data.lifetime);
 
@@ -242,12 +270,12 @@ void DownloadManager::check(
 		std::vector<DownloadingId>::iterator i) {
 	auto &entry = *i;
 
-	const auto photo = ItemPhoto(entry.object.item);
-	const auto document = ItemDocument(entry.object.item);
-	if (entry.object.photo != photo || entry.object.document != document) {
+	if (!ItemContainsMedia(entry.object)) {
 		cancel(data, i);
 		return;
 	}
+	const auto document = entry.object.document;
+
 	// Load with progress only documents for now.
 	Assert(document != nullptr);
 
@@ -508,9 +536,13 @@ HistoryItem *DownloadManager::lookupLoadingItem(
 void DownloadManager::loadingStopWithConfirmation(
 		Fn<void()> callback,
 		Main::Session *onlyInSession) {
-	const auto window = Core::App().primaryWindow();
 	const auto item = lookupLoadingItem(onlyInSession);
-	if (!window || !item) {
+	if (!item) {
+		return;
+	}
+	const auto window = Core::App().windowFor(
+		not_null(&item->history()->session().account()));
+	if (!window) {
 		return;
 	}
 	const auto weak = base::make_weak(&item->history()->session());
@@ -790,11 +822,14 @@ void DownloadManager::cancel(
 		SessionData &data,
 		std::vector<DownloadingId>::iterator i) {
 	const auto object = i->object;
+	const auto item = object.item;
 	remove(data, i);
-	if (const auto document = object.document) {
-		document->cancel();
-	} else if (const auto photo = object.photo) {
-		photo->cancel();
+	if (!item->isAdminLogEntry()) {
+		if (const auto document = object.document) {
+			document->cancel();
+		} else if (const auto photo = object.photo) {
+			photo->cancel();
+		}
 	}
 }
 
@@ -854,30 +889,20 @@ not_null<HistoryItem*> DownloadManager::generateItem(
 	const auto session = document
 		? &document->session()
 		: &photo->session();
-	const auto fromId = previousItem
-		? previousItem->from()->id
-		: session->userPeerId();
 	const auto history = previousItem
 		? previousItem->history()
 		: session->data().history(session->user());
-	const auto flags = MessageFlag::FakeHistoryItem;
-	const auto replyTo = MsgId();
-	const auto viaBotId = UserId();
-	const auto date = base::unixtime::now();
-	const auto postAuthor = QString();
+	;
 	const auto caption = TextWithEntities();
 	const auto make = [&](const auto media) {
-		return history->makeMessage(
-			history->nextNonHistoryEntryId(),
-			flags,
-			replyTo,
-			viaBotId,
-			date,
-			fromId,
-			QString(),
-			media,
-			caption,
-			HistoryMessageMarkupData());
+		return history->makeMessage({
+			.id = history->nextNonHistoryEntryId(),
+			.flags = MessageFlag::FakeHistoryItem,
+			.from = (previousItem
+				? previousItem->from()->id
+				: session->userPeerId()),
+			.date = base::unixtime::now(),
+		}, media, caption);
 	};
 	const auto result = document ? make(document) : make(photo);
 	_generated.emplace(result);
@@ -1108,13 +1133,14 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 				state->thumbnail = Images::Prepare(embed->original(), 0, {
 					.options = Images::Option::Blur,
 				});
+			} else if (!state->downloadTaskLifetime) {
+				state->document->session().downloaderTaskFinished(
+				) | rpl::filter([=] {
+					return self(self);
+				}) | rpl::start_with_next(
+					state->push,
+					state->downloadTaskLifetime);
 			}
-			state->document->session().downloaderTaskFinished(
-			) | rpl::filter([=] {
-				return self(self);
-			}) | rpl::start_with_next(
-				state->push,
-				state->downloadTaskLifetime);
 			return !state->thumbnail.isNull();
 		};
 		const auto resolveThumbnail = [=] {

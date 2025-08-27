@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h"
 #include "passport/passport_encryption.h"
 
+#include "base/unixtime.h"
+#include "base/call_delayed.h"
+
 namespace Api {
 namespace {
 
@@ -539,6 +542,40 @@ auto CloudPassword::checkRecoveryEmailAddressCode(const QString &code)
 
 		return rpl::lifetime();
 	};
+}
+
+void RequestLoginEmailCode(
+		MTP::Sender &api,
+		const QString &sendToEmail,
+		Fn<void(int length, const QString &pattern)> done,
+		Fn<void(const QString &error)> fail) {
+	api.request(MTPaccount_SendVerifyEmailCode(
+		MTP_emailVerifyPurposeLoginChange(),
+		MTP_string(sendToEmail)
+	)).done([=](const MTPaccount_SentEmailCode &result) {
+		done(result.data().vlength().v, qs(result.data().vemail_pattern()));
+	}).fail([=](const MTP::Error &error) {
+		fail(error.type());
+	}).send();
+}
+
+void VerifyLoginEmail(
+		MTP::Sender &api,
+		const QString &code,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail) {
+	api.request(MTPaccount_VerifyEmail(
+		MTP_emailVerifyPurposeLoginChange(),
+		MTP_emailVerificationCode(MTP_string(code))
+	)).done([=](const MTPaccount_EmailVerified &result) {
+		result.match([=](const MTPDaccount_emailVerified &data) {
+			done();
+		}, [=](const MTPDaccount_emailVerifiedLogin &data) {
+			fail(QString());
+		});
+	}).fail([=](const MTP::Error &error) {
+		fail(error.type());
+	}).send();
 }
 
 } // namespace Api

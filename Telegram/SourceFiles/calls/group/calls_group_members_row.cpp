@@ -129,7 +129,7 @@ MembersRow::MembersRow(
 : PeerListRow(participantPeer)
 , _delegate(delegate) {
 	refreshStatus();
-	_aboutText = participantPeer->about();
+	_about.setText(st::defaultTextStyle, participantPeer->about());
 }
 
 MembersRow::~MembersRow() = default;
@@ -138,41 +138,52 @@ void MembersRow::setSkipLevelUpdate(bool value) {
 	_skipLevelUpdate = value;
 }
 
-void MembersRow::updateState(
-		const Data::GroupCallParticipant *participant) {
-	setVolume(participant
-		? participant->volume
-		: Group::kDefaultVolume);
-	if (!participant) {
-		setState(State::Invited);
-		setSounding(false);
-		setSpeaking(false);
-		_mutedByMe = false;
-		_raisedHandRating = 0;
-	} else if (!participant->muted
-		|| (participant->sounding && participant->ssrc != 0)
-		|| (participant->additionalSounding
-			&& GetAdditionalAudioSsrc(participant->videoParams) != 0)) {
+void MembersRow::updateStateInvited(bool calling) {
+	setVolume(Group::kDefaultVolume);
+	setState(calling ? State::Calling : State::Invited);
+	setSounding(false);
+	setSpeaking(false);
+	_mutedByMe = false;
+	_raisedHandRating = 0;
+	refreshStatus();
+}
+
+void MembersRow::updateStateWithAccess() {
+	setVolume(Group::kDefaultVolume);
+	setState(State::WithAccess);
+	setSounding(false);
+	setSpeaking(false);
+	_mutedByMe = false;
+	_raisedHandRating = 0;
+	refreshStatus();
+}
+
+void MembersRow::updateState(const Data::GroupCallParticipant &participant) {
+	setVolume(participant.volume);
+	if (!participant.muted
+		|| (participant.sounding && participant.ssrc != 0)
+		|| (participant.additionalSounding
+			&& GetAdditionalAudioSsrc(participant.videoParams) != 0)) {
 		setState(State::Active);
-		setSounding((participant->sounding && participant->ssrc != 0)
-			|| (participant->additionalSounding
-				&& GetAdditionalAudioSsrc(participant->videoParams) != 0));
-		setSpeaking((participant->speaking && participant->ssrc != 0)
-			|| (participant->additionalSpeaking
-				&& GetAdditionalAudioSsrc(participant->videoParams) != 0));
-		_mutedByMe = participant->mutedByMe;
+		setSounding((participant.sounding && participant.ssrc != 0)
+			|| (participant.additionalSounding
+				&& GetAdditionalAudioSsrc(participant.videoParams) != 0));
+		setSpeaking((participant.speaking && participant.ssrc != 0)
+			|| (participant.additionalSpeaking
+				&& GetAdditionalAudioSsrc(participant.videoParams) != 0));
+		_mutedByMe = participant.mutedByMe;
 		_raisedHandRating = 0;
-	} else if (participant->canSelfUnmute) {
+	} else if (participant.canSelfUnmute) {
 		setState(State::Inactive);
 		setSounding(false);
 		setSpeaking(false);
-		_mutedByMe = participant->mutedByMe;
+		_mutedByMe = participant.mutedByMe;
 		_raisedHandRating = 0;
 	} else {
 		setSounding(false);
 		setSpeaking(false);
-		_mutedByMe = participant->mutedByMe;
-		_raisedHandRating = participant->raisedHandRating;
+		_mutedByMe = participant.mutedByMe;
+		_raisedHandRating = participant.raisedHandRating;
 		setState(_raisedHandRating ? State::RaisedHand : State::Muted);
 	}
 	refreshStatus();
@@ -350,17 +361,19 @@ void MembersRow::updateBlobAnimation(crl::time now) {
 }
 
 void MembersRow::ensureUserpicCache(
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		int size) {
 	Expects(_blobsAnimation != nullptr);
 
 	const auto user = peer();
 	const auto key = user->userpicUniqueKey(view);
-	const auto full = QSize(size, size) * kWideScale * cIntRetinaFactor();
+	const auto full = QSize(size, size)
+		* kWideScale
+		* style::DevicePixelRatio();
 	auto &cache = _blobsAnimation->userpicCache;
 	if (cache.isNull()) {
 		cache = QImage(full, QImage::Format_ARGB32_Premultiplied);
-		cache.setDevicePixelRatio(cRetinaFactor());
+		cache.setDevicePixelRatio(style::DevicePixelRatio());
 	} else if (_blobsAnimation->userpicKey == key
 		&& cache.size() == full) {
 		return;
@@ -401,7 +414,7 @@ void MembersRow::paintBlobs(
 
 void MembersRow::paintScaledUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &userpic,
+		Ui::PeerUserpicView &userpic,
 		int x,
 		int y,
 		int outerWidth,
@@ -448,7 +461,22 @@ void MembersRow::paintMuteIcon(
 	_delegate->rowPaintIcon(p, iconRect, computeIconState(style));
 }
 
-auto MembersRow::generatePaintUserpicCallback() -> PaintRoundImageCallback {
+QString MembersRow::generateName() {
+	const auto result = peer()->name();
+	return result.isEmpty()
+		? u"User #%1"_q.arg(peerToUser(peer()->id).bare)
+		: result;
+}
+
+QString MembersRow::generateShortName() {
+	const auto result = peer()->shortName();
+	return result.isEmpty()
+		? u"User #%1"_q.arg(peerToUser(peer()->id).bare)
+		: result;
+}
+
+auto MembersRow::generatePaintUserpicCallback(bool forceRound)
+-> PaintRoundImageCallback {
 	return [=](Painter &p, int x, int y, int outerWidth, int size) {
 		const auto outer = outerWidth;
 		paintComplexUserpic(p, x, y, outer, size, size, PanelMode::Default);
@@ -561,10 +589,10 @@ void MembersRow::paintStatusIcon(
 }
 
 void MembersRow::setAbout(const QString &about) {
-	if (_aboutText == about) {
+	if (_about.toString() == about) {
 		return;
 	}
-	_aboutText = about;
+	_about.setText(st::defaultTextStyle, about);
 	_delegate->rowUpdateRow(this);
 }
 
@@ -609,14 +637,17 @@ void MembersRow::paintComplexStatusText(
 	x += skip;
 	availableWidth -= skip;
 	const auto &font = st::normalFont;
-	const auto about = (style == MembersRowStyle::Video)
-		? QString()
-		: ((_state == State::RaisedHand && !_raisedHandStatus)
-			|| (_state != State::RaisedHand && !_speaking))
-		? _aboutText
-		: QString();
-	if (about.isEmpty()
+	const auto useAbout = !_about.isEmpty()
+		&& (_state != State::WithAccess)
+		&& (_state != State::Invited)
+		&& (_state != State::Calling)
+		&& (style != MembersRowStyle::Video)
+		&& ((_state == State::RaisedHand && !_raisedHandStatus)
+			|| (_state != State::RaisedHand && !_speaking));
+	if (!useAbout
 		&& _state != State::Invited
+		&& _state != State::Calling
+		&& _state != State::WithAccess
 		&& !_mutedByMe) {
 		paintStatusIcon(p, x, y, st, font, selected, narrowMode);
 
@@ -640,25 +671,34 @@ void MembersRow::paintComplexStatusText(
 			selected);
 		return;
 	}
-	p.setFont(font);
-	if (style == MembersRowStyle::Video) {
-		p.setPen(st::groupCallVideoSubTextFg);
-	} else if (_mutedByMe) {
-		p.setPen(st::groupCallMemberMutedIcon);
+	p.setPen((style == MembersRowStyle::Video)
+		? st::groupCallVideoSubTextFg
+		: _mutedByMe
+		? st::groupCallMemberMutedIcon
+		: st::groupCallMemberNotJoinedStatus);
+	if (!_mutedByMe && useAbout) {
+		return _about.draw(p, {
+			.position = QPoint(x, y),
+			.outerWidth = outerWidth,
+			.availableWidth = availableWidth,
+			.elisionLines = 1,
+		});
 	} else {
-		p.setPen(st::groupCallMemberNotJoinedStatus);
+		p.setFont(font);
+		p.drawTextLeft(
+			x,
+			y,
+			outerWidth,
+			(_mutedByMe
+				? tr::lng_group_call_muted_by_me_status(tr::now)
+				: _delegate->rowIsMe(peer())
+				? tr::lng_status_connecting(tr::now)
+				: (_state == State::WithAccess)
+				? tr::lng_group_call_blockchain_only_status(tr::now)
+				: (_state == State::Calling)
+				? tr::lng_group_call_calling_status(tr::now)
+				: tr::lng_group_call_invited_status(tr::now)));
 	}
-	p.drawTextLeft(
-		x,
-		y,
-		outerWidth,
-		(_mutedByMe
-			? tr::lng_group_call_muted_by_me_status(tr::now)
-			: !about.isEmpty()
-			? font->m.elidedText(about, Qt::ElideRight, availableWidth)
-			: _delegate->rowIsMe(peer())
-			? tr::lng_status_connecting(tr::now)
-			: tr::lng_group_call_invited_status(tr::now)));
 }
 
 QSize MembersRow::rightActionSize() const {
@@ -670,6 +710,7 @@ QSize MembersRow::rightActionSize() const {
 bool MembersRow::rightActionDisabled() const {
 	return _delegate->rowIsMe(peer())
 		|| (_state == State::Invited)
+		|| (_state == State::Calling)
 		|| !_delegate->rowCanMuteMembers();
 }
 
@@ -695,7 +736,9 @@ void MembersRow::rightActionPaint(
 		size.width(),
 		size.height(),
 		outerWidth);
-	if (_state == State::Invited) {
+	if (_state == State::Invited
+		|| _state == State::Calling
+		|| _state == State::WithAccess) {
 		_actionRipple = nullptr;
 	}
 	if (_actionRipple) {
@@ -725,6 +768,7 @@ MembersRowDelegate::IconState MembersRow::computeIconState(
 		.mutedByMe = _mutedByMe,
 		.raisedHand = (_state == State::RaisedHand),
 		.invited = (_state == State::Invited),
+		.calling = (_state == State::Calling),
 		.style = style,
 	};
 }

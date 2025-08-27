@@ -8,14 +8,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <rpl/variable.h>
-#include "boxes/peer_list_box.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "info/profile/info_profile_members_controllers.h"
 
+class PeerListStories;
 struct ChatAdminRightsInfo;
 struct ChatRestrictionsInfo;
+
+namespace Ui {
+class Show;
+} // namespace Ui
 
 namespace Window {
 class SessionNavigation;
@@ -29,6 +33,7 @@ Fn<void(
 	ChatAdminRightsInfo oldRights,
 	ChatAdminRightsInfo newRights,
 	const QString &rank)> SaveAdminCallback(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		Fn<void(
@@ -101,14 +106,19 @@ public:
 		not_null<PeerData*> participant) const;
 	[[nodiscard]] std::optional<ChatAdminRightsInfo> adminRights(
 		not_null<UserData*> user) const;
-	QString adminRank(not_null<UserData*> user) const;
+	[[nodiscard]] QString adminRank(not_null<UserData*> user) const;
 	[[nodiscard]] std::optional<ChatRestrictionsInfo> restrictedRights(
 		not_null<PeerData*> participant) const;
 	[[nodiscard]] bool isCreator(not_null<UserData*> user) const;
 	[[nodiscard]] bool isExternal(not_null<PeerData*> participant) const;
 	[[nodiscard]] bool isKicked(not_null<PeerData*> participant) const;
 	[[nodiscard]] UserData *adminPromotedBy(not_null<UserData*> user) const;
-	[[nodiscard]] UserData *restrictedBy(not_null<PeerData*> participant) const;
+	[[nodiscard]] UserData *restrictedBy(
+		not_null<PeerData*> participant) const;
+
+	[[nodiscard]] TimeId adminPromotedSince(not_null<UserData*>) const;
+	[[nodiscard]] TimeId restrictedSince(not_null<PeerData*>) const;
+	[[nodiscard]] TimeId memberSince(not_null<UserData*>) const;
 
 	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);
 
@@ -139,6 +149,9 @@ private:
 	// Data for channels.
 	base::flat_map<not_null<UserData*>, ChatAdminRightsInfo> _adminRights;
 	base::flat_map<not_null<UserData*>, QString> _adminRanks;
+	base::flat_map<not_null<UserData*>, TimeId> _adminPromotedSince;
+	base::flat_map<not_null<PeerData*>, TimeId> _restrictedSince;
+	base::flat_map<not_null<UserData*>, TimeId> _memberSince;
 	base::flat_set<not_null<UserData*>> _adminCanEdit;
 	base::flat_map<not_null<UserData*>, not_null<UserData*>> _adminPromotedBy;
 	std::map<not_null<PeerData*>, ChatRestrictionsInfo> _restrictedRights;
@@ -174,6 +187,9 @@ public:
 		QWidget *parent,
 		not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
+	bool trackSelectedList() override {
+		return !_stories;
+	}
 
 	void peerListSearchAddRow(not_null<PeerData*> peer) override;
 	std::unique_ptr<PeerListRow> createSearchRow(
@@ -184,7 +200,10 @@ public:
 	std::unique_ptr<PeerListState> saveState() const override;
 	void restoreState(std::unique_ptr<PeerListState> state) override;
 
-	rpl::producer<int> onlineCountValue() const override;
+	[[nodiscard]] rpl::producer<int> onlineCountValue() const;
+	[[nodiscard]] rpl::producer<int> fullCountValue() const;
+
+	void setStoriesShown(bool shown);
 
 protected:
 	// Allow child controllers not providing navigation.
@@ -221,7 +240,7 @@ private:
 		Role role,
 		not_null<ParticipantsAdditionalData*> additional);
 
-	QPointer<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
+	base::weak_qptr<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
 
 	void prepareChatRows(not_null<ChatData*> chat);
 	void rebuildChatRows(not_null<ChatData*> chat);
@@ -229,6 +248,8 @@ private:
 	void rebuildChatAdmins(not_null<ChatData*> chat);
 	void chatListReady();
 	void rebuildRowTypes();
+	void rebuild();
+	void unload();
 
 	void addNewItem();
 	void addNewParticipants();
@@ -266,6 +287,7 @@ private:
 	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);
 	void subscribeToCreatorChange(not_null<ChannelData*> channel);
 	void fullListRefresh();
+	void refreshRows();
 
 	// It may be nullptr in subclasses of this controller.
 	Window::SessionNavigation *_navigation = nullptr;
@@ -278,9 +300,13 @@ private:
 	bool _allLoaded = false;
 	ParticipantsAdditionalData _additional;
 	std::unique_ptr<ParticipantsOnlineSorter> _onlineSorter;
+	rpl::variable<int> _onlineCountValue;
+	rpl::variable<int> _fullCountValue;
 	Ui::BoxPointer _editBox;
 	Ui::BoxPointer _addBox;
-	QPointer<Ui::BoxContent> _editParticipantBox;
+	base::weak_qptr<Ui::BoxContent> _editParticipantBox;
+
+	std::unique_ptr<PeerListStories> _stories;
 
 };
 

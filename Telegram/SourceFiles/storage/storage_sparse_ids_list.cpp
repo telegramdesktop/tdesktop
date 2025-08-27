@@ -187,20 +187,9 @@ void SparseIdsList::invalidateBottom() {
 rpl::producer<SparseIdsListResult> SparseIdsList::query(
 		SparseIdsListQuery &&query) const {
 	return [this, query = std::move(query)](auto consumer) {
-		auto slice = query.aroundId
-			? ranges::lower_bound(
-				_slices,
-				query.aroundId,
-				std::less<>(),
-				[](const Slice &slice) { return slice.range.till; })
-			: _slices.end();
-		if (slice != _slices.end()
-			&& slice->range.from <= query.aroundId) {
-			consumer.put_next(queryFromSlice(query, *slice));
-		} else if (_count) {
-			auto result = SparseIdsListResult {};
-			result.count = _count;
-			consumer.put_next(std::move(result));
+		auto now = snapshot(query);
+		if (!now.messageIds.empty() || now.count) {
+			consumer.put_next(std::move(now));
 		}
 		consumer.put_done();
 		return rpl::lifetime();

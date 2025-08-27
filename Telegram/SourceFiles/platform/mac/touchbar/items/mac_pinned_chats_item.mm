@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "dialogs/ui/dialogs_layout.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -28,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "ui/effects/animations.h"
 #include "ui/empty_userpic.h"
+#include "ui/userpic_view.h"
+#include "ui/unread_badge_paint.h"
 #include "ui/painter.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -56,7 +57,7 @@ inline bool IsRepliesPeer(PeerData *peer) {
 }
 
 QImage PrepareImage() {
-	const auto s = kCircleDiameter * cIntRetinaFactor();
+	const auto s = kCircleDiameter * style::DevicePixelRatio();
 	auto result = QImage(QSize(s, s), QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
 	return result;
@@ -84,7 +85,6 @@ QImage ArchiveUserpic(not_null<Data::Folder*> folder) {
 	auto result = PrepareImage();
 	Painter paint(&result);
 
-	auto view = std::shared_ptr<Data::CloudImageView>();
 	folder->paintUserpic(paint, 0, 0, result.width());
 	return result;
 }
@@ -98,24 +98,24 @@ QImage UnreadBadge(not_null<PeerData*> peer) {
 	const auto counter = (state.unreadCounter > 0)
 		? QString::number(state.unreadCounter)
 		: QString();
-	Dialogs::Ui::UnreadBadgeStyle unreadSt;
-	unreadSt.sizeId = Dialogs::Ui::UnreadBadgeSize::TouchBar;
+	Ui::UnreadBadgeStyle unreadSt;
+	unreadSt.sizeId = Ui::UnreadBadgeSize::TouchBar;
 	unreadSt.muted = state.unreadMuted;
 	// Use constant values to draw badge regardless of cConfigScale().
-	unreadSt.size = kUnreadBadgeSize * cRetinaFactor();
-	unreadSt.padding = 4 * cRetinaFactor();
+	unreadSt.size = kUnreadBadgeSize * float64(style::DevicePixelRatio());
+	unreadSt.padding = 4 * float64(style::DevicePixelRatio());
 	unreadSt.font = style::font(
-		9.5 * cRetinaFactor(),
+		9.5 * float64(style::DevicePixelRatio()),
 		unreadSt.font->flags(),
 		unreadSt.font->family());
 
 	auto result = QImage(
-		QSize(kCircleDiameter, kUnreadBadgeSize) * cIntRetinaFactor(),
+		QSize(kCircleDiameter, kUnreadBadgeSize) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
 	Painter p(&result);
 
-	Dialogs::Ui::PaintUnreadBadge(
+	Ui::PaintUnreadBadge(
 		p,
 		counter,
 		result.width(),
@@ -134,22 +134,13 @@ NSRect PeerRectByIndex(int index) {
 		kCircleDiameter);
 }
 
-TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
-	if (peer->isSelf() || peer->isRepliesChat()) {
-		return 0;
-	}
+[[nodiscard]] Data::LastseenStatus CalculateLastseenStatus(
+		not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
-		if (!user->isServiceUser() && !user->isBot()) {
-			const auto onlineTill = user->onlineTill;
-			return (onlineTill <= -5)
-				? -onlineTill
-				: (onlineTill <= 0)
-				? 0
-				: onlineTill;
-		}
+		return user->lastseen();
 	}
-	return 0;
-};
+	return Data::LastseenStatus();
+}
 
 } // namespace
 
@@ -161,7 +152,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 @implementation PinnedDialogsPanel {
 	struct Pin {
 		PeerData *peer = nullptr;
-		std::shared_ptr<Data::CloudImageView> userpicView = nullptr;
+		Ui::PeerUserpicView userpicView;
 		int index = -1;
 		QImage userpic;
 		QImage unreadBadge;
@@ -175,7 +166,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		bool onTop = false;
 
 		Ui::Animations::Simple onlineAnimation;
-		TimeId onlineTill = 0;
+		Data::LastseenStatus lastseen;
 	};
 	rpl::lifetime _lifetime;
 	Main::Session *_session;
@@ -386,9 +377,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 			if (index == result) {
 				return;
 			}
-			const auto &order = _session->data().pinnedChatsOrder(
-				nullptr,
-				FilterId());
+			const auto &order = _session->data().pinnedChatsOrder(nullptr);
 			const auto d = (index < result) ? 1 : -1; // Direction.
 			for (auto i = index; i != result; i += d) {
 				_session->data().chatsList()->pinned()->reorder(
@@ -527,7 +516,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		Painter p(&userpic);
 
 		pin->peer->paintUserpic(p, pin->userpicView, 0, 0, userpic.width());
-		userpic.setDevicePixelRatio(cRetinaFactor());
+		userpic.setDevicePixelRatio(style::DevicePixelRatio());
 		pin->userpic = std::move(userpic);
 		const auto userpicIndex = pin->index + [self shift];
 		[self setNeedsDisplayInRect:PeerRectByIndex(userpicIndex)];
@@ -551,7 +540,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		) | rpl::start_with_next([=] {
 			const auto all = ranges::all_of(_pins, [=](const auto &pin) {
 				return (!pin->peer->hasUserpic())
-					|| (pin->userpicView && pin->userpicView->image());
+					|| (!Ui::PeerUserpicLoading(pin->userpicView));
 			});
 			if (all) {
 				downloadLifetime->destroy();
@@ -562,20 +551,18 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 	const auto processOnline = [=](const auto &pin) {
 		// TODO: this should be replaced
 		// with the global application timer for online statuses.
-		const auto onlineChanges =
-			peerChangedLifetime->make_state<rpl::event_stream<PeerData*>>();
+		const auto onlineChanges
+			= peerChangedLifetime->make_state<rpl::event_stream<PeerData*>>();
 		const auto peer = pin->peer;
-		const auto onlineTimer =
-			peerChangedLifetime->make_state<base::Timer>([=] {
-				onlineChanges->fire_copy({ peer });
-			});
+		const auto onlineTimer = peerChangedLifetime->make_state<base::Timer>(
+			[=] { onlineChanges->fire_copy({ peer }); });
 
 		const auto callTimer = [=](const auto &pin) {
 			onlineTimer->cancel();
-			if (pin->onlineTill) {
-				const auto time = pin->onlineTill - base::unixtime::now();
-				if (time > 0) {
-					onlineTimer->callOnce(std::min(86400, time)
+			if (const auto till = pin->lastseen.onlineTill()) {
+				const auto left = till - base::unixtime::now();
+				if (left > 0) {
+					onlineTimer->callOnce(std::min(86400, left)
 						* crl::time(1000));
 				}
 			}
@@ -597,7 +584,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 				return;
 			}
 			const auto &pin = *it;
-			pin->onlineTill = CalculateOnlineTill(pin->peer);
+			pin->lastseen = CalculateLastseenStatus(pin->peer);
 
 			callTimer(pin);
 
@@ -605,9 +592,8 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 				pin->onlineAnimation.stop();
 				return;
 			}
-			const auto online = Data::OnlineTextActive(
-				pin->onlineTill,
-				base::unixtime::now());
+			const auto now = base::unixtime::now();
+			const auto online = pin->lastseen.isOnline(now);
 			if (pin->onlineAnimation.animating()) {
 				pin->onlineAnimation.change(
 					online ? 1. : 0.,
@@ -634,19 +620,18 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 
 	const auto updatePinnedChats = [=] {
 		_pins = ranges::views::zip(
-			_session->data().pinnedChatsOrder(nullptr, FilterId()),
+			_session->data().pinnedChatsOrder(nullptr),
 			ranges::views::ints(0, ranges::unreachable)
 		) | ranges::views::transform([=](const auto &pair) {
 			const auto index = pair.second;
 			auto peer = pair.first.history()->peer;
 			auto view = peer->createUserpicView();
-			const auto onlineTill = CalculateOnlineTill(peer);
-			Pin pin = {
+			return std::make_unique<Pin>(Pin{
 				.peer = std::move(peer),
 				.userpicView = std::move(view),
 				.index = index,
-				.onlineTill = onlineTill };
-			return std::make_unique<Pin>(std::move(pin));
+				.lastseen = CalculateLastseenStatus(peer),
+			});
 		}) | ranges::to_vector;
 		_selfUnpinned = ranges::none_of(peers, &PeerData::isSelf);
 		_repliesUnpinned = ranges::none_of(peers, &PeerData::isRepliesChat);
@@ -769,7 +754,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		return;
 	}
 
-	const auto active = Core::App().primaryWindow();
+	const auto active = Core::App().activePrimaryWindow();
 	const auto controller = active ? active->sessionController() : nullptr;
 	const auto openFolder = [=] {
 		const auto folder = _session->data().folderLoaded(Data::Folder::kId);
@@ -781,10 +766,9 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		if (_hasArchive && (index == (_selfUnpinned ? -2 : -1))) {
 			openFolder();
 		} else {
-			const auto chosen = (_selfUnpinned && index == -1)
+			controller->showPeerHistory((_selfUnpinned && index == -1)
 				? _session->user()
-				: peer;
-			controller->content()->chooseThread(chosen, ShowAtUnreadMsgId);
+				: peer);
 		}
 	});
 }
@@ -830,19 +814,20 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		const auto rectRight = NSMaxX(rect);
 		if (!pin->unreadBadge.isNull()) {
 			CGImageRef image = pin->unreadBadge.toCGImage();
-			const auto w = CGImageGetWidth(image) / cRetinaFactor();
+			const auto w = CGImageGetWidth(image)
+				/ float64(style::DevicePixelRatio());
 			const auto borderRect = CGRectMake(
 				rectRight - w,
 				0,
 				w,
-				CGImageGetHeight(image) / cRetinaFactor());
+				CGImageGetHeight(image)
+					/ float64(style::DevicePixelRatio()));
 			CGContextDrawImage(context, borderRect, image);
 			CGImageRelease(image);
 			return;
 		}
-		const auto online = Data::OnlineTextActive(
-			pin->onlineTill,
-			base::unixtime::now());
+		const auto now = base::unixtime::now();
+		const auto online = pin->lastseen.isOnline(now);
 		const auto value = pin->onlineAnimation.value(online ? 1. : 0.);
 		if (value < 0.05) {
 			return;

@@ -17,12 +17,17 @@ The latest version is available for
 
 * [Windows 7 and above (64 bit)](https://telegram.org/dl/desktop/win64) ([portable](https://telegram.org/dl/desktop/win64_portable))
 * [Windows 7 and above (32 bit)](https://telegram.org/dl/desktop/win) ([portable](https://telegram.org/dl/desktop/win_portable))
-* [macOS 10.12 and above](https://telegram.org/dl/desktop/mac)
+* [macOS 10.13 and above](https://telegram.org/dl/desktop/mac)
 * [Linux static build for 64 bit](https://telegram.org/dl/desktop/linux)
 * [Snap](https://snapcraft.io/telegram-desktop)
 * [Flatpak](https://flathub.org/apps/details/org.telegram.desktop)
 
 ## Old system versions
+
+Version **4.9.9** was the last that supports older systems
+
+* [macOS 10.12](https://updates.tdesktop.com/tmac/tsetup.4.9.9.dmg)
+* [Linux with glibc < 2.28 static build](https://updates.tdesktop.com/tlinux/tsetup.4.9.9.tar.xz)
 
 Version **2.4.4** was the last that supports older systems
 
@@ -38,7 +43,7 @@ Version **1.8.15** was the last that supports older systems
 ## Third-party
 
 * Qt 6 ([LGPL](http://doc.qt.io/qt-6/lgpl.html)) and Qt 5.15 ([LGPL](http://doc.qt.io/qt-5/lgpl.html)) slightly patched
-* OpenSSL 1.1.1 and 1.0.1 ([OpenSSL License](https://www.openssl.org/source/license.html))
+* OpenSSL 3.2.1 ([Apache License 2.0](https://www.openssl.org/source/apache-license-2.0.txt))
 * WebRTC ([New BSD License](https://github.com/desktop-app/tg_owt/blob/master/LICENSE))
 * zlib 1.2.11 ([zlib License](http://www.zlib.net/zlib_license.html))
 * LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
@@ -53,13 +58,13 @@ Version **1.8.15** was the last that supports older systems
 * Guideline Support Library ([MIT License](https://github.com/Microsoft/GSL/blob/master/LICENSE))
 * Range-v3 ([Boost License](https://github.com/ericniebler/range-v3/blob/master/LICENSE.txt))
 * Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
-* Vazir font ([SIL Open Font License 1.1](https://github.com/rastikerdar/vazir-font/blob/master/OFL.txt))
+* Vazirmatn font ([SIL Open Font License 1.1](https://github.com/rastikerdar/vazirmatn/blob/master/OFL.txt))
 * Emoji alpha codes ([MIT License](https://github.com/emojione/emojione/blob/master/extras/alpha-codes/LICENSE.md))
-* Catch test framework ([Boost License](https://github.com/philsquared/Catch/blob/master/LICENSE.txt))
 * xxHash ([BSD License](https://github.com/Cyan4973/xxHash/blob/dev/LICENSE))
 * QR Code generator ([MIT License](https://github.com/nayuki/QR-Code-generator#license))
 * CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
 * Hunspell ([LGPL](https://github.com/hunspell/hunspell/blob/master/COPYING.LESSER))
+* Ada ([Apache License 2.0](https://github.com/ada-url/ada/blob/main/LICENSE-APACHE))
 
 ## Build instructions
 

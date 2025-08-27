@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_utilities.h"
 #include "window/window_session_controller.h"
 #include "base/platform/win/base_windows_co_task_mem.h"
+#include "base/platform/win/base_windows_rpcndr_h.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/win/wrl/wrl_module_h.h"
@@ -19,14 +20,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_dlls.h"
 #include "platform/win/specific_win.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
+#include "data/data_peer.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "windows_quiethours_h.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 #include <QtCore/QOperatingSystemVersion>
 
@@ -34,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <shellapi.h>
 #include <strsafe.h>
 
-#ifndef __MINGW32__
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Data.Xml.Dom.h>
 #include <winrt/Windows.UI.Notifications.h>
@@ -45,13 +49,23 @@ using namespace winrt::Windows::UI::Notifications;
 using namespace winrt::Windows::Data::Xml::Dom;
 using namespace winrt::Windows::Foundation;
 using winrt::com_ptr;
-#endif // !__MINGW32__
 
 namespace Platform {
 namespace Notifications {
-
-#ifndef __MINGW32__
 namespace {
+
+constexpr auto kQuerySettingsEachMs = 1000;
+
+crl::time LastSettingsQueryMs/* = 0*/;
+
+[[nodiscard]] bool ShouldQuerySettings() {
+	const auto now = crl::now();
+	if (LastSettingsQueryMs > 0 && now <= LastSettingsQueryMs + kQuerySettingsEachMs) {
+		return false;
+	}
+	LastSettingsQueryMs = now;
+	return true;
+}
 
 [[nodiscard]] std::wstring NotificationTemplate(
 		QString id,
@@ -93,11 +107,7 @@ namespace {
 }
 
 bool init() {
-	if (!IsWindows8OrGreater()) {
-		return false;
-	}
-	if ((Dlls::SetCurrentProcessExplicitAppUserModelID == nullptr)
-		|| !base::WinRT::Supported()) {
+	if (!IsWindows8OrGreater() || !base::WinRT::Supported()) {
 		return false;
 	}
 
@@ -108,13 +118,21 @@ bool init() {
 			LOG(("App Error: Object registration failed."));
 		}
 	}
-	if (!AppUserModelId::validateShortcut()) {
+	if (!AppUserModelId::ValidateShortcut()) {
 		LOG(("App Error: Shortcut validation failed."));
 		return false;
 	}
 
-	auto appUserModelId = AppUserModelId::getId();
-	if (!SUCCEEDED(Dlls::SetCurrentProcessExplicitAppUserModelID(appUserModelId))) {
+	PWSTR appUserModelId = {};
+	if (!SUCCEEDED(GetCurrentProcessExplicitAppUserModelID(&appUserModelId))) {
+		return false;
+	}
+
+	const auto appUserModelIdGuard = gsl::finally([&] {
+		CoTaskMemFree(appUserModelId);
+	});
+
+	if (AppUserModelId::Id() != appUserModelId) {
 		return false;
 	}
 	return true;
@@ -290,7 +308,7 @@ void QueryFocusAssist() {
 		}
 		return;
 	}
-	const auto appUserModelId = std::wstring(AppUserModelId::getId());
+	const auto appUserModelId = AppUserModelId::Id();
 	auto blocked = true;
 	const auto guard = gsl::finally([&] {
 		if (FocusAssistBlocks != blocked) {
@@ -333,52 +351,62 @@ void QueryUserNotificationState() {
 	}
 }
 
-static constexpr auto kQuerySettingsEachMs = 1000;
-crl::time LastSettingsQueryMs = 0;
-
 void QuerySystemNotificationSettings() {
-	auto ms = crl::now();
-	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
+	if (!ShouldQuerySettings()) {
 		return;
 	}
-	LastSettingsQueryMs = ms;
 	QueryQuietHours();
 	QueryFocusAssist();
 	QueryUserNotificationState();
 }
 
-} // namespace
-#endif // !__MINGW32__
-
-bool SkipAudioForCustom() {
+bool SkipSoundForCustom() {
 	QuerySystemNotificationSettings();
 
 	return (UserNotificationState == QUNS_NOT_PRESENT)
 		|| (UserNotificationState == QUNS_PRESENTATION_MODE)
+		|| (FocusAssistBlocks && Core::App().settings().skipToastsInFocus())
 		|| Core::App().screenIsLocked();
-}
-
-bool SkipToastForCustom() {
-	QuerySystemNotificationSettings();
-
-	return (UserNotificationState == QUNS_PRESENTATION_MODE)
-		|| (UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN);
 }
 
 bool SkipFlashBounceForCustom() {
 	return SkipToastForCustom();
 }
 
+} // namespace
+
+void MaybePlaySoundForCustom(Fn<void()> playSound) {
+	if (!SkipSoundForCustom()) {
+		playSound();
+	}
+}
+
+bool SkipToastForCustom() {
+	QuerySystemNotificationSettings();
+
+	return (UserNotificationState == QUNS_PRESENTATION_MODE)
+		|| (UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN)
+		|| (FocusAssistBlocks && Core::App().settings().skipToastsInFocus());
+}
+
+void MaybeFlashBounceForCustom(Fn<void()> flashBounce) {
+	if (!SkipFlashBounceForCustom()) {
+		flashBounce();
+	}
+}
+
+bool WaitForInputForCustom() {
+	QuerySystemNotificationSettings();
+
+	return UserNotificationState != QUNS_BUSY;
+}
+
 bool Supported() {
-#ifndef __MINGW32__
 	if (!Checked) {
 		Checked = true;
 		Check();
 	}
 	return InitSucceeded;
-#endif // !__MINGW32__
-
-	return false;
 }
 
 bool Enforced() {
@@ -389,39 +417,29 @@ bool ByDefault() {
 	return false;
 }
 
-void Create(Window::Notifications::System *system) {
-#ifndef __MINGW32__
-	if (Core::App().settings().nativeNotifications() && Supported()) {
-		auto result = std::make_unique<Manager>(system);
-		if (result->init()) {
-			system->setManager(std::move(result));
-			return;
-		}
-	}
-#endif // !__MINGW32__
-	system->setManager(nullptr);
+bool VolumeSupported() {
+	return true;
 }
 
-#ifndef __MINGW32__
+void Create(Window::Notifications::System *system) {
+	system->setManager([=] {
+		auto result = std::make_unique<Manager>(system);
+		return result->init() ? std::move(result) : nullptr;
+	});
+}
+
 class Manager::Private {
 public:
-	using Type = Window::Notifications::CachedUserpics::Type;
+	using Info = Window::Notifications::NativeManager::NotificationInfo;
 
-	explicit Private(Manager *instance, Type type);
+	explicit Private(Manager *instance);
 	bool init();
 
-	bool showNotification(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options);
+	bool showNotification(Info &&info, Ui::PeerUserpicView &userpicView);
 	void clearAll();
 	void clearFromItem(not_null<HistoryItem*> item);
 	void clearFromTopic(not_null<Data::ForumTopic*> topic);
+	void clearFromSublist(not_null<Data::SavedSublist*> sublist);
 	void clearFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void beforeNotificationActivated(NotificationId id);
@@ -436,14 +454,8 @@ public:
 
 private:
 	bool showNotificationInTryCatch(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options);
+		NotificationInfo &&info,
+		Ui::PeerUserpicView &userpicView);
 	void tryHide(const ToastNotification &notification);
 	[[nodiscard]] std::wstring ensureSendButtonIcon();
 
@@ -460,9 +472,8 @@ private:
 
 };
 
-Manager::Private::Private(Manager *instance, Type type)
-: _cachedUserpics(type)
-, _guarded(std::make_shared<Manager*>(instance)) {
+Manager::Private::Private(Manager *instance)
+: _guarded(std::make_shared<Manager*>(instance)) {
 	ToastActivations(
 	) | rpl::start_with_next([=](const ToastActivation &activation) {
 		handleActivation(activation);
@@ -472,7 +483,7 @@ Manager::Private::Private(Manager *instance, Type type)
 bool Manager::Private::init() {
 	return base::WinRT::Try([&] {
 		_notifier = ToastNotificationManager::CreateToastNotifier(
-			AppUserModelId::getId());
+			AppUserModelId::Id());
 	});
 }
 
@@ -504,6 +515,7 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 		.sessionId = item->history()->session().uniqueId(),
 		.peerId = item->history()->peer->id,
 		.topicRootId = item->topicRootId(),
+		.monoforumPeerId = item->sublistPeerId(),
 	});
 	if (i == _notifications.cend()) {
 		return;
@@ -529,6 +541,27 @@ void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 		.sessionId = topic->session().uniqueId(),
 		.peerId = topic->history()->peer->id,
 		.topicRootId = topic->rootId(),
+	});
+	if (i != _notifications.cend()) {
+		const auto temp = base::take(i->second);
+		_notifications.erase(i);
+
+		for (const auto &[msgId, notification] : temp) {
+			tryHide(notification);
+		}
+	}
+}
+
+void Manager::Private::clearFromSublist(
+		not_null<Data::SavedSublist*> sublist) {
+	if (!_notifier) {
+		return;
+	}
+
+	const auto i = _notifications.find(ContextId{
+		.sessionId = sublist->session().uniqueId(),
+		.peerId = sublist->owningHistory()->peer->id,
+		.monoforumPeerId = sublist->sublistPeer()->id,
 	});
 	if (i != _notifications.cend()) {
 		const auto temp = base::take(i->second);
@@ -612,7 +645,9 @@ void Manager::Private::handleActivation(const ToastActivation &activation) {
 			).arg(activation.args
 			).arg(my
 			).arg(pid));
-		psActivateProcess(pid);
+		const auto processId = pid;
+		const auto windowId = 0; // Activate some window.
+		Platform::ActivateOtherProcess(processId, windowId);
 		return;
 	}
 	const auto action = parsed.value("action");
@@ -620,7 +655,9 @@ void Manager::Private::handleActivation(const ToastActivation &activation) {
 		.contextId = ContextId{
 			.sessionId = parsed.value("session").toULongLong(),
 			.peerId = PeerId(parsed.value("peer").toULongLong()),
-			.topicRootId = MsgId(parsed.value("topic").toLongLong())
+			.topicRootId = MsgId(parsed.value("topic").toLongLong()),
+			.monoforumPeerId = PeerId(
+					parsed.value("monoforumpeer").toULongLong()),
 		},
 		.msgId = MsgId(parsed.value("msg").toLongLong()),
 	};
@@ -650,33 +687,21 @@ void Manager::Private::handleActivation(const ToastActivation &activation) {
 	} else if (action == "mark") {
 		manager->notificationReplied(id, TextWithTags());
 	} else {
-		manager->notificationActivated(id, text);
+		manager->notificationActivated(id, {
+			.draft = std::move(text),
+		});
 	}
 }
 
 bool Manager::Private::showNotification(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options) {
+		Info &&info,
+		Ui::PeerUserpicView &userpicView) {
 	if (!_notifier) {
 		return false;
 	}
 
 	return base::WinRT::Try([&] {
-		return showNotificationInTryCatch(
-			peer,
-			topicRootId,
-			userpicView,
-			msgId,
-			title,
-			subtitle,
-			msg,
-			options);
+		return showNotificationInTryCatch(std::move(info), userpicView);
 	}).value_or(false);
 }
 
@@ -690,36 +715,33 @@ std::wstring Manager::Private::ensureSendButtonIcon() {
 }
 
 bool Manager::Private::showNotificationInTryCatch(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options) {
-	const auto withSubtitle = !subtitle.isEmpty();
+		NotificationInfo &&info,
+		Ui::PeerUserpicView &userpicView) {
+	const auto withSubtitle = !info.subtitle.isEmpty();
+	const auto peer = info.peer;
 	auto toastXml = XmlDocument();
 
 	const auto key = ContextId{
 		.sessionId = peer->session().uniqueId(),
 		.peerId = peer->id,
-		.topicRootId = topicRootId,
+		.topicRootId = info.topicRootId,
+		.monoforumPeerId = info.monoforumPeerId,
 	};
 	const auto notificationId = NotificationId{
 		.contextId = key,
-		.msgId = msgId
+		.msgId = info.itemId,
 	};
-	const auto idString = u"pid=%1&session=%2&peer=%3&topic=%4&msg=%5"_q
+	const auto idString = u"pid=%1&session=%2&peer=%3&topic=%4&monoforumpeer=%5&msg=%6"_q
 		.arg(GetCurrentProcessId())
 		.arg(key.sessionId)
 		.arg(key.peerId.value)
-		.arg(topicRootId.bare)
-		.arg(msgId.bare);
+		.arg(info.topicRootId.bare)
+		.arg(info.monoforumPeerId.value)
+		.arg(info.itemId.bare);
 
 	const auto modern = Platform::IsWindows10OrGreater();
 	if (modern) {
-		toastXml.LoadXml(NotificationTemplate(idString, options));
+		toastXml.LoadXml(NotificationTemplate(idString, info.options));
 	} else {
 		toastXml = ToastNotificationManager::GetTemplateContent(
 			(withSubtitle
@@ -729,7 +751,7 @@ bool Manager::Private::showNotificationInTryCatch(
 		SetAction(toastXml, idString);
 	}
 
-	const auto userpicKey = options.hideNameAndPhoto
+	const auto userpicKey = info.options.hideNameAndPhoto
 		? InMemoryKey()
 		: peer->userpicUniqueKey(userpicView);
 	const auto userpicPath = _cachedUserpics.get(
@@ -738,13 +760,13 @@ bool Manager::Private::showNotificationInTryCatch(
 		userpicView);
 	const auto userpicPathWide = QDir::toNativeSeparators(
 		userpicPath).toStdWString();
-	if (modern && !options.hideReplyButton) {
+	if (modern && !info.options.hideReplyButton) {
 		SetReplyIconSrc(toastXml, ensureSendButtonIcon());
 		SetReplyPlaceholder(
 			toastXml,
 			tr::lng_message_ph(tr::now).toStdWString());
 	}
-	if (modern && !options.hideMarkAsRead) {
+	if (modern && !info.options.hideMarkAsRead) {
 		SetMarkAsReadText(
 			toastXml,
 			tr::lng_context_mark_read(tr::now).toStdWString());
@@ -757,17 +779,20 @@ bool Manager::Private::showNotificationInTryCatch(
 		return false;
 	}
 
-	SetNodeValueString(toastXml, nodeList.Item(0), title.toStdWString());
+	SetNodeValueString(
+		toastXml,
+		nodeList.Item(0),
+		info.title.toStdWString());
 	if (withSubtitle) {
 		SetNodeValueString(
 			toastXml,
 			nodeList.Item(1),
-			subtitle.toStdWString());
+			info.subtitle.toStdWString());
 	}
 	SetNodeValueString(
 		toastXml,
 		nodeList.Item(withSubtitle ? 2 : 1),
-		msg.toStdWString());
+		info.message.toStdWString());
 
 	const auto weak = std::weak_ptr(_guarded);
 	const auto performOnMainQueue = [=](FnMut<void(Manager *manager)> task) {
@@ -838,7 +863,7 @@ bool Manager::Private::showNotificationInTryCatch(
 
 	auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
-		auto j = i->second.find(msgId);
+		auto j = i->second.find(info.itemId);
 		if (j != i->second.end()) {
 			const auto existing = j->second;
 			i->second.erase(j);
@@ -858,7 +883,7 @@ bool Manager::Private::showNotificationInTryCatch(
 		}
 		return false;
 	}
-	i->second.emplace(msgId, toast);
+	i->second.emplace(info.itemId, toast);
 	return true;
 }
 
@@ -870,7 +895,7 @@ void Manager::Private::tryHide(const ToastNotification &notification) {
 
 Manager::Manager(Window::Notifications::System *system)
 : NativeManager(system)
-, _private(std::make_unique<Private>(this, Private::Type::Rounded)) {
+, _private(std::make_unique<Private>(this)) {
 }
 
 bool Manager::init() {
@@ -888,23 +913,9 @@ void Manager::handleActivation(const ToastActivation &activation) {
 Manager::~Manager() = default;
 
 void Manager::doShowNativeNotification(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options) {
-	_private->showNotification(
-		peer,
-		topicRootId,
-		userpicView,
-		msgId,
-		title,
-		subtitle,
-		msg,
-		options);
+		NotificationInfo &&info,
+		Ui::PeerUserpicView &userpicView) {
+	_private->showNotification(std::move(info), userpicView);
 }
 
 void Manager::doClearAllFast() {
@@ -917,6 +928,10 @@ void Manager::doClearFromItem(not_null<HistoryItem*> item) {
 
 void Manager::doClearFromTopic(not_null<Data::ForumTopic*> topic) {
 	_private->clearFromTopic(topic);
+}
+
+void Manager::doClearFromSublist(not_null<Data::SavedSublist*> sublist) {
+	_private->clearFromSublist(sublist);
 }
 
 void Manager::doClearFromHistory(not_null<History*> history) {
@@ -937,22 +952,27 @@ void Manager::onAfterNotificationActivated(
 	_private->afterNotificationActivated(id, window);
 }
 
-bool Manager::doSkipAudio() const {
-	return SkipAudioForCustom()
-		|| QuietHoursEnabled
-		|| FocusAssistBlocks;
-}
-
 bool Manager::doSkipToast() const {
 	return false;
 }
 
-bool Manager::doSkipFlashBounce() const {
-	return SkipFlashBounceForCustom()
+void Manager::doMaybePlaySound(Fn<void()> playSound) {
+	const auto skip = SkipSoundForCustom()
 		|| QuietHoursEnabled
 		|| FocusAssistBlocks;
+	if (!skip) {
+		playSound();
+	}
 }
-#endif // !__MINGW32__
+
+void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {
+	const auto skip = SkipFlashBounceForCustom()
+		|| QuietHoursEnabled
+		|| FocusAssistBlocks;
+	if (!skip) {
+		flashBounce();
+	}
+}
 
 } // namespace Notifications
 } // namespace Platform

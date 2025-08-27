@@ -7,15 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 #include "base/timer.h"
 #include "mtproto/sender.h"
 #include "data/stickers/data_stickers_set.h"
 #include "ui/effects/animations.h"
-#include "ui/widgets/fields/special_fields.h"
 
 namespace style {
 struct RippleAnimation;
+struct PeerListItem;
 } // namespace style
 
 namespace Ui {
@@ -27,9 +27,9 @@ class CrossButton;
 class BoxContentDivider;
 } // namespace Ui
 
-namespace Window {
-class SessionController;
-} // namespace Window
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
 
 namespace Main {
 class Session;
@@ -60,20 +60,21 @@ public:
 
 	StickersBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		Section section,
 		bool masks = false);
 	StickersBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
-		not_null<ChannelData*> megagroup);
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<ChannelData*> megagroup,
+		bool isEmoji);
 	StickersBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const QVector<MTPStickerSetCovered> &attachedSets);
 	StickersBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const std::vector<StickerSetIdentifier> &emojiSets);
 	~StickersBox();
 
@@ -103,7 +104,7 @@ private:
 		[[nodiscard]] int index() const;
 
 		void saveScrollTop();
-		int getScrollTop() const {
+		int scrollTop() const {
 			return _scrollTop;
 		}
 
@@ -121,12 +122,12 @@ private:
 	void updateTabsGeometry();
 	void switchTab();
 	void installSet(uint64 setId);
-	int getTopSkip() const;
+	int topSkip() const;
 	void saveChanges();
 
 	QPixmap grabContentCache();
 
-	void installDone(const MTPmessages_StickerSetInstallResult &result);
+	void installDone(const MTPmessages_StickerSetInstallResult &result) const;
 	void installFail(const MTP::Error &error, uint64 setId);
 
 	void preloadArchivedSets();
@@ -138,11 +139,13 @@ private:
 	void showAttachedStickers();
 
 	const Data::StickersSetsOrder &archivedSetsOrder() const;
-	Data::StickersSetsOrder &archivedSetsOrderRef();
+	Data::StickersSetsOrder &archivedSetsOrderRef() const;
 
 	std::array<Inner*, 5> widgets() const;
 
-	const not_null<Window::SessionController*> _controller;
+	const style::PeerListItem &_st;
+	const std::shared_ptr<ChatHelpers::Show> _show;
+	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
 	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };

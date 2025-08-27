@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/gui">
+    <file alias="art/icon_round512@2x.png">../../art/icon_round512@2x.png</file>
+  </qresource>
+</RCC>

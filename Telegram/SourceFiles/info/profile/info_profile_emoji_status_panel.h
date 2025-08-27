@@ -40,34 +40,58 @@ public:
 	EmojiStatusPanel();
 	~EmojiStatusPanel();
 
-	void setChooseFilter(Fn<bool(DocumentId)> filter);
-	void setChooseCallback(Fn<void(DocumentId)> callback);
+	void setChooseFilter(Fn<bool(EmojiStatusId)> filter);
 
 	void show(
 		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> button,
 		Data::CustomEmojiSizeTag animationSizeTag = {});
+	[[nodiscard]] bool hasFocus() const;
+
+	struct Descriptor {
+		not_null<Window::SessionController*> controller;
+		not_null<QWidget*> button;
+		Data::CustomEmojiSizeTag animationSizeTag = {};
+		EmojiStatusId ensureAddedEmojiId;
+		Fn<QColor()> customTextColor;
+		bool backgroundEmojiMode = false;
+		bool channelStatusMode = false;
+		bool withCollectibles = false;
+	};
+	void show(Descriptor &&descriptor);
+	void repaint();
+
+	struct CustomChosen {
+		EmojiStatusId id;
+		TimeId until = 0;
+	};
+	[[nodiscard]] rpl::producer<CustomChosen> someCustomChosen() const {
+		return _someCustomChosen.events();
+	}
 
 	bool paintBadgeFrame(not_null<Ui::RpWidget*> widget);
 
 private:
-	void create(not_null<Window::SessionController*> controller);
+	void create(const Descriptor &descriptor);
 	[[nodiscard]] bool filter(
 		not_null<Window::SessionController*> controller,
-		DocumentId chosenId) const;
+		EmojiStatusId chosenId) const;
 
 	void startAnimation(
 		not_null<Data::Session*> owner,
 		not_null<Ui::RpWidget*> body,
-		DocumentId statusId,
+		EmojiStatusId statusId,
 		Ui::MessageSendingAnimationFrom from);
 
 	base::unique_qptr<ChatHelpers::TabbedPanel> _panel;
-	Fn<bool(DocumentId)> _chooseFilter;
-	Fn<void(DocumentId)> _chooseCallback;
+	Fn<QColor()> _customTextColor;
+	Fn<bool(EmojiStatusId)> _chooseFilter;
 	QPointer<QWidget> _panelButton;
 	std::unique_ptr<Ui::EmojiFlyAnimation> _animation;
+	rpl::event_stream<CustomChosen> _someCustomChosen;
 	Data::CustomEmojiSizeTag _animationSizeTag = {};
+	bool _backgroundEmojiMode = false;
+	bool _channelStatusMode = false;
 
 };
 

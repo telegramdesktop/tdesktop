@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
-struct SectionMeta;
-using Type = not_null<SectionMeta*>(*)();
+struct AbstractSectionFactory;
+using Type = std::shared_ptr<AbstractSectionFactory>;
 
 } // namespace Settings

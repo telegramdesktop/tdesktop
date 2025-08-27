@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/generic_box.h"
+template <typename Object>
+class object_ptr;
 
 class PeerData;
 
@@ -15,9 +16,18 @@ namespace Api {
 struct InviteLink;
 } // namespace Api
 
+namespace Data {
+class Thread;
+} // namespace Data
+
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class VerticalLayout;
 class Show;
+class BoxContent;
 } // namespace Ui
 
 [[nodiscard]] bool IsExpiredLink(const Api::InviteLink &data, TimeId now);
@@ -25,7 +35,14 @@ class Show;
 void AddSinglePeerRow(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
-	rpl::producer<QString> status);
+	rpl::producer<QString> status,
+	Fn<void()> clicked = nullptr);
+
+void AddSinglePeerRow(
+	not_null<Ui::VerticalLayout*> container,
+	not_null<Data::Thread*> thread,
+	rpl::producer<QString> status,
+	Fn<void()> clicked = nullptr);
 
 void AddPermanentLinkBlock(
 	std::shared_ptr<Ui::Show> show,
@@ -34,11 +51,20 @@ void AddPermanentLinkBlock(
 	not_null<UserData*> admin,
 	rpl::producer<Api::InviteLink> fromList);
 
-void CopyInviteLink(not_null<QWidget*> toastParent, const QString &link);
+void CopyInviteLink(std::shared_ptr<Ui::Show> show, const QString &link);
 [[nodiscard]] object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 	not_null<PeerData*> peer,
-	const QString &link);
-[[nodiscard]] object_ptr<Ui::BoxContent> InviteLinkQrBox(const QString &link);
+	const QString &link,
+	const QString &copied = {});
+[[nodiscard]] object_ptr<Ui::BoxContent> ShareInviteLinkBox(
+	not_null<Main::Session*> session,
+	const QString &link,
+	const QString &copied = {});
+[[nodiscard]] object_ptr<Ui::BoxContent> InviteLinkQrBox(
+	PeerData *peer,
+	const QString &link,
+	rpl::producer<QString> title,
+	rpl::producer<QString> about);
 [[nodiscard]] object_ptr<Ui::BoxContent> RevokeLinkBox(
 	not_null<PeerData*> peer,
 	not_null<UserData*> admin,

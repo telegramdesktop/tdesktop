@@ -12,14 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 
 namespace Window {
-class CounterLayerArgs;
+struct CounterLayerArgs;
 } // namespace Window
 
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
 
-class QSystemTrayIcon;
+class QPlatformSystemTrayIcon;
 
 namespace Platform {
 
@@ -57,10 +57,12 @@ public:
 	[[nodiscard]] static QPixmap IconWithCounter(
 		Window::CounterLayerArgs &&args,
 		bool smallIcon,
+		bool monochrome,
 		bool supportMode);
+	[[nodiscard]] static QString QuitJumpListIconPath();
 
 private:
-	base::unique_qptr<QSystemTrayIcon> _icon;
+	base::unique_qptr<QPlatformSystemTrayIcon> _icon;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	rpl::event_stream<> _iconClicks;
@@ -71,5 +73,7 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+void RefreshTaskbarThemeValue();
 
 } // namespace Platform

@@ -4,6 +4,10 @@
 
 Choose a folder for the future build, for example **/Users/user/TBuild**. It will be named ***BuildPath*** in the rest of this document. All commands will be launched from Terminal.
 
+**Note about disk space:** The full build process will require approximately **55 GB** of free space. This includes:
+- **~35 GB** for libraries (when building for both x64 and arm64 architectures)
+- **~20 GB** for the compiled Telegram app (in the `out` folder)
+
 ### Obtain your API credentials
 
 You will require **api_id** and **api_hash** to access the Telegram API servers. To learn how to obtain them [click here][api_credentials].
@@ -12,8 +16,8 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 Go to ***BuildPath*** and run
 
-    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-    brew install git automake cmake wget pkg-config gnu-tar
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    brew install git automake cmake wget pkg-config gnu-tar ninja nasm meson
 
     sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 

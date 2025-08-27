@@ -12,6 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class UserData;
 class ChannelData;
 
+namespace Info::Profile {
+class Badge;
+enum class BadgeType : uchar;
+} // namespace Info::Profile
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -21,7 +26,6 @@ class SessionController;
 } // namespace Window
 
 namespace Data {
-class CloudImageView;
 class PhotoMedia;
 } // namespace Data
 
@@ -34,7 +38,8 @@ namespace Api {
 void CheckChatInvite(
 	not_null<Window::SessionController*> controller,
 	const QString &hash,
-	ChannelData *invitePeekChannel = nullptr);
+	ChannelData *invitePeekChannel = nullptr,
+	Fn<void()> loaded = nullptr);
 
 } // namespace Api
 
@@ -55,10 +60,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	struct Participant {
-		not_null<UserData*> user;
-		std::shared_ptr<Data::CloudImageView> userpic;
-	};
+	struct Participant;
 	struct ChatInvite {
 		QString title;
 		QString about;
@@ -70,10 +72,15 @@ private:
 		bool isMegagroup = false;
 		bool isBroadcast = false;
 		bool isRequestNeeded = false;
+		bool isFake = false;
+		bool isScam = false;
+		bool isVerified = false;
 	};
 	[[nodiscard]] static ChatInvite Parse(
 		not_null<Main::Session*> session,
 		const MTPDchatInvite &data);
+	[[nodiscard]] Info::Profile::BadgeType BadgeForInvite(
+		const ChatInvite &invite);
 
 	ConfirmInviteBox(
 		not_null<Main::Session*> session,
@@ -85,12 +92,14 @@ private:
 
 	Fn<void()> _submit;
 	object_ptr<Ui::FlatLabel> _title;
+	std::unique_ptr<Info::Profile::Badge> _badge;
 	object_ptr<Ui::FlatLabel> _status;
 	object_ptr<Ui::FlatLabel> _about;
 	object_ptr<Ui::FlatLabel> _aboutRequests;
 	std::shared_ptr<Data::PhotoMedia> _photo;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
 	std::vector<Participant> _participants;
+
 	bool _isChannel = false;
 	bool _requestApprove = false;
 

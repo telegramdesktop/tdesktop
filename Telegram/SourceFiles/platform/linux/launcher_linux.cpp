@@ -9,60 +9,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
-#include "webview/platform/linux/webview_linux_webkit2gtk.h"
+#include "webview/platform/linux/webview_linux_webkitgtk.h"
 
 #include <QtWidgets/QApplication>
+#include <glib/glib.hpp>
 
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <cstdlib>
-#include <unistd.h>
-#include <dirent.h>
-#include <pwd.h>
+using namespace gi::repository;
 
 namespace Platform {
-namespace {
-
-class Arguments {
-public:
-	void push(QByteArray argument) {
-		argument.append(char(0));
-		_argumentValues.push_back(argument);
-		_arguments.push_back(_argumentValues.back().data());
-	}
-
-	char **result() {
-		_arguments.push_back(nullptr);
-		return _arguments.data();
-	}
-
-private:
-	std::vector<QByteArray> _argumentValues;
-	std::vector<char*> _arguments;
-
-};
-
-} // namespace
 
 Launcher::Launcher(int argc, char *argv[])
-: Core::Launcher(argc, argv)
-, _arguments(argv, argv + argc) {
+: Core::Launcher(argc, argv) {
 }
 
 int Launcher::exec() {
-	for (auto i = begin(_arguments), e = end(_arguments); i != e; ++i) {
-		if (*i == "-webviewhelper" && std::distance(i, e) > 1) {
-			Webview::WebKit2Gtk::SetSocketPath(*(i + 1));
-			return Webview::WebKit2Gtk::Exec();
+	for (auto i = arguments().begin(), e = arguments().end(); i != e; ++i) {
+		if (*i == u"-webviewhelper"_q && std::distance(i, e) > 1) {
+			Webview::WebKitGTK::SetSocketPath((i + 1)->toStdString());
+			return Webview::WebKitGTK::Exec();
 		}
 	}
 
 	return Core::Launcher::exec();
-}
-
-void Launcher::initHook() {
-	QApplication::setAttribute(Qt::AA_DisableSessionManager, true);
 }
 
 bool Launcher::launchUpdater(UpdaterLaunch action) {
@@ -70,73 +38,103 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		return false;
 	}
 
-	const auto binaryPath = (action == UpdaterLaunch::JustRelaunch)
+	const auto justRelaunch = action == UpdaterLaunch::JustRelaunch;
+	if (action == UpdaterLaunch::PerformUpdate) {
+		_updating = true;
+	}
+
+	std::vector<std::string> argumentsList;
+
+	// What we are launching.
+	const auto launching = justRelaunch
 		? (cExeDir() + cExeName())
-		: (cWriteProtected()
-			? (cWorkingDir() + qsl("tupdates/temp/Updater"))
-			: (cExeDir() + qsl("Updater")));
+		: cWriteProtected()
+		? GLib::find_program_in_path("run0")
+		? u"run0"_q
+		: u"pkexec"_q
+		: (cExeDir() + u"Updater"_q);
+	argumentsList.push_back(launching.toStdString());
 
-	auto argumentsList = Arguments();
-	if (action == UpdaterLaunch::PerformUpdate && cWriteProtected()) {
-		argumentsList.push("pkexec");
+	if (justRelaunch) {
+		// argv[0] that is passed to what we are launching.
+		// It should be added explicitly in case of FILE_AND_ARGV_ZERO_.
+		const auto argv0 = !arguments().isEmpty()
+			? arguments().first()
+			: launching;
+		argumentsList.push_back(argv0.toStdString());
+	} else if (cWriteProtected()) {
+		// Elevated process that run0/pkexec should launch.
+		const auto elevated = cWorkingDir() + u"tupdates/temp/Updater"_q;
+		argumentsList.push_back(elevated.toStdString());
 	}
-	argumentsList.push(QFile::encodeName(binaryPath));
 
-	if (cLaunchMode() == LaunchModeAutoStart) {
-		argumentsList.push("-autostart");
-	}
 	if (Logs::DebugEnabled()) {
-		argumentsList.push("-debug");
-	}
-	if (cStartInTray()) {
-		argumentsList.push("-startintray");
-	}
-	if (cDataFile() != qsl("data")) {
-		argumentsList.push("-key");
-		argumentsList.push(QFile::encodeName(cDataFile()));
+		argumentsList.push_back("-debug");
 	}
 
-	if (action == UpdaterLaunch::JustRelaunch) {
-		argumentsList.push("-noupdate");
-		argumentsList.push("-tosettings");
+	if (justRelaunch) {
+		if (cLaunchMode() == LaunchModeAutoStart) {
+			argumentsList.push_back("-autostart");
+		}
+		if (cStartInTray()) {
+			argumentsList.push_back("-startintray");
+		}
+		if (cDataFile() != u"data"_q) {
+			argumentsList.push_back("-key");
+			argumentsList.push_back(cDataFile().toStdString());
+		}
+		if (!_updating) {
+			argumentsList.push_back("-noupdate");
+			argumentsList.push_back("-tosettings");
+		}
 		if (customWorkingDir()) {
-			argumentsList.push("-workdir");
-			argumentsList.push(QFile::encodeName(cWorkingDir()));
+			argumentsList.push_back("-workdir");
+			argumentsList.push_back(cWorkingDir().toStdString());
 		}
 	} else {
-		argumentsList.push("-workpath");
-		argumentsList.push(QFile::encodeName(cWorkingDir()));
-		argumentsList.push("-exename");
-		argumentsList.push(QFile::encodeName(cExeName()));
-		argumentsList.push("-exepath");
-		argumentsList.push(QFile::encodeName(cExeDir()));
-		if (customWorkingDir()) {
-			argumentsList.push("-workdir_custom");
-		}
+		// Don't relaunch Telegram.
+		argumentsList.push_back("-justupdate");
+
+		argumentsList.push_back("-workpath");
+		argumentsList.push_back(cWorkingDir().toStdString());
+		argumentsList.push_back("-exename");
+		argumentsList.push_back(cExeName().toStdString());
+		argumentsList.push_back("-exepath");
+		argumentsList.push_back(cExeDir().toStdString());
 		if (cWriteProtected()) {
-			argumentsList.push("-writeprotected");
+			argumentsList.push_back("-writeprotected");
 		}
 	}
 
 	Logs::closeMain();
 	CrashReports::Finish();
 
-	const auto args = argumentsList.result();
-
-	pid_t pid = fork();
-	switch (pid) {
-	case -1: return false;
-	case 0: execvp(args[0], args); return false;
+	int waitStatus = 0;
+	if (justRelaunch) {
+		return GLib::spawn_async(
+			initialWorkingDir().toStdString(),
+			argumentsList,
+			{},
+			GLib::SpawnFlags::FILE_AND_ARGV_ZERO_,
+			nullptr,
+			nullptr,
+			nullptr);
+	} else if (!GLib::spawn_sync(
+			argumentsList,
+			{},
+			// if the spawn is sync, working directory is not set
+			// and GLib::SpawnFlags::LEAVE_DESCRIPTORS_OPEN_ is set,
+			// it goes through an optimized code path
+			GLib::SpawnFlags::SEARCH_PATH_
+				| GLib::SpawnFlags::LEAVE_DESCRIPTORS_OPEN_,
+			nullptr,
+			nullptr,
+			nullptr,
+			&waitStatus,
+			nullptr) || !g_spawn_check_exit_status(waitStatus, nullptr)) {
+		return false;
 	}
-
-	// pkexec needs an alive parent
-	if (action == UpdaterLaunch::PerformUpdate && cWriteProtected()) {
-		waitpid(pid, nullptr, 0);
-		// launch new version in the same environment
-		return launchUpdater(UpdaterLaunch::JustRelaunch);
-	}
-
-	return true;
+	return launchUpdater(UpdaterLaunch::JustRelaunch);
 }
 
 } // namespace

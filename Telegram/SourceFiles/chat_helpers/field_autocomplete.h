@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace Ui {
 class PopupMenu;
 class ScrollArea;
@@ -25,55 +29,66 @@ class SinglePlayer;
 class FrameRenderer;
 } // namespace Lottie;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window
 
 namespace Data {
 class DocumentMedia;
-class CloudImageView;
 } // namespace Data
 
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace ChatHelpers {
+
+struct ComposeFeatures;
 struct FileChosen;
-} // namespace ChatHelpers
+class Show;
+
+enum class FieldAutocompleteChooseMethod {
+	ByEnter,
+	ByTab,
+	ByClick,
+};
 
 class FieldAutocomplete final : public Ui::RpWidget {
 public:
 	FieldAutocomplete(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller);
+		std::shared_ptr<Show> show,
+		const style::EmojiPan *stOverride = nullptr);
 	~FieldAutocomplete();
 
-	[[nodiscard]] not_null<Window::SessionController*> controller() const;
+	[[nodiscard]] std::shared_ptr<Show> uiShow() const;
 
 	bool clearFilteredBotCommands();
 	void showFiltered(
 		not_null<PeerData*> peer,
 		QString query,
 		bool addInlineBots);
+
 	void showStickers(EmojiPtr emoji);
+	[[nodiscard]] EmojiPtr stickersEmoji() const;
+
 	void setBoundings(QRect boundings);
 
-	const QString &filter() const;
-	ChatData *chat() const;
-	ChannelData *channel() const;
-	UserData *user() const;
+	[[nodiscard]] const QString &filter() const;
+	[[nodiscard]] ChatData *chat() const;
+	[[nodiscard]] ChannelData *channel() const;
+	[[nodiscard]] UserData *user() const;
 
-	int32 innerTop();
-	int32 innerBottom();
+	[[nodiscard]] int32 innerTop();
+	[[nodiscard]] int32 innerBottom();
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
-	enum class ChooseMethod {
-		ByEnter,
-		ByTab,
-		ByClick,
-	};
+	using ChooseMethod = FieldAutocompleteChooseMethod;
 	struct MentionChosen {
 		not_null<UserData*> user;
 		QString mention;
@@ -84,10 +99,11 @@ public:
 		ChooseMethod method = ChooseMethod::ByEnter;
 	};
 	struct BotCommandChosen {
+		not_null<UserData*> user;
 		QString command;
 		ChooseMethod method = ChooseMethod::ByEnter;
 	};
-	using StickerChosen = ChatHelpers::FileChosen;
+	using StickerChosen = FileChosen;
 	enum class Type {
 		Mentions,
 		Hashtags,
@@ -97,32 +113,36 @@ public:
 
 	bool chooseSelected(ChooseMethod method) const;
 
-	bool stickersShown() const {
+	[[nodiscard]] bool stickersShown() const {
 		return !_srows.empty();
 	}
 
-	bool overlaps(const QRect &globalRect) {
-		if (isHidden() || !testAttribute(Qt::WA_OpaquePaintEvent)) return false;
-
+	[[nodiscard]] bool overlaps(const QRect &globalRect) {
+		if (isHidden() || !testAttribute(Qt::WA_OpaquePaintEvent)) {
+			return false;
+		}
 		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
 	void setModerateKeyActivateCallback(Fn<bool(int)> callback) {
 		_moderateKeyActivateCallback = std::move(callback);
 	}
-	void setSendMenuType(Fn<SendMenu::Type()> &&callback);
+	void setSendMenuDetails(Fn<SendMenu::Details()> &&callback);
 
 	void hideFast();
-
-	rpl::producer<MentionChosen> mentionChosen() const;
-	rpl::producer<HashtagChosen> hashtagChosen() const;
-	rpl::producer<BotCommandChosen> botCommandChosen() const;
-	rpl::producer<StickerChosen> stickerChosen() const;
-	rpl::producer<Type> choosingProcesses() const;
-
-public Q_SLOTS:
 	void showAnimated();
 	void hideAnimated();
+
+	void requestRefresh();
+	[[nodiscard]] rpl::producer<> refreshRequests() const;
+	void requestStickersUpdate();
+	[[nodiscard]] rpl::producer<> stickersUpdateRequests() const;
+
+	[[nodiscard]] rpl::producer<MentionChosen> mentionChosen() const;
+	[[nodiscard]] rpl::producer<HashtagChosen> hashtagChosen() const;
+	[[nodiscard]] rpl::producer<BotCommandChosen> botCommandChosen() const;
+	[[nodiscard]] rpl::producer<StickerChosen> stickerChosen() const;
+	[[nodiscard]] rpl::producer<Type> choosingProcesses() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -131,20 +151,8 @@ private:
 	class Inner;
 	friend class Inner;
 	struct StickerSuggestion;
-
-	struct MentionRow {
-		not_null<UserData*> user;
-		Ui::Text::String name;
-		std::shared_ptr<Data::CloudImageView> userpic;
-	};
-
-	struct BotCommandRow {
-		not_null<UserData*> user;
-		QString command;
-		QString description;
-		std::shared_ptr<Data::CloudImageView> userpic;
-		Ui::Text::String descriptionText;
-	};
+	struct MentionRow;
+	struct BotCommandRow;
 
 	using HashtagRows = std::vector<QString>;
 	using BotCommandRows = std::vector<BotCommandRow>;
@@ -158,7 +166,9 @@ private:
 	void recount(bool resetScroll = false);
 	StickerRows getStickerSuggestions();
 
-	const not_null<Window::SessionController*> _controller;
+	const std::shared_ptr<Show> _show;
+	const not_null<Main::Session*> _session;
+	const style::EmojiPan &_st;
 	QPixmap _cache;
 	MentionRows _mrows;
 	HashtagRows _hrows;
@@ -188,7 +198,30 @@ private:
 	bool _hiding = false;
 
 	Ui::Animations::Simple _a_opacity;
+	rpl::event_stream<> _refreshRequests;
+	rpl::event_stream<> _stickersUpdateRequests;
 
 	Fn<bool(int)> _moderateKeyActivateCallback;
 
 };
+
+struct FieldAutocompleteDescriptor {
+	not_null<QWidget*> parent;
+	std::shared_ptr<Show> show;
+	not_null<Ui::InputField*> field;
+	const style::EmojiPan *stOverride = nullptr;
+	not_null<PeerData*> peer;
+	Fn<ComposeFeatures()> features;
+	Fn<SendMenu::Details()> sendMenuDetails;
+	Fn<void()> stickerChoosing;
+	Fn<void(FileChosen&&)> stickerChosen;
+	Fn<void(TextWithTags)> setText;
+	Fn<void(QString)> sendBotCommand;
+	Fn<void(QString)> processShortcut;
+	Fn<bool(int)> moderateKeyActivateCallback;
+};
+void InitFieldAutocomplete(
+	std::unique_ptr<FieldAutocomplete> &autocomplete,
+	FieldAutocompleteDescriptor &&descriptor);
+
+} // namespace ChatHelpers

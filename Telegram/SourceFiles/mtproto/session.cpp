@@ -257,8 +257,12 @@ void Session::refreshOptions() {
 }
 
 void Session::reInitConnection() {
-	_dc->setConnectionInited(false);
+	setConnectionNotInited();
 	restart();
+}
+
+void Session::setConnectionNotInited() {
+	_dc->setConnectionInited(false);
 }
 
 void Session::stop() {
@@ -395,12 +399,10 @@ int32 Session::getState() const {
 
 	if (_private) {
 		const auto s = _private->getState();
-		if (s == ConnectedState) {
+		if (s == ConnectedState
+			|| s == ConnectingState
+			|| s == DisconnectedState) {
 			return s;
-		} else if (s == ConnectingState || s == DisconnectedState) {
-			if (result < 0) {
-				return s;
-			}
 		} else if (s < 0) {
 			if (result < 0 && s > result) {
 				result = s;
@@ -553,13 +555,22 @@ void Session::tryToReceive() {
 		if (messages.empty()) {
 			break;
 		}
+		const auto guard = QPointer<Session>(this);
+		const auto instance = QPointer<Instance>(_instance);
+		const auto main = (_shiftedDcId == BareDcId(_shiftedDcId));
 		for (const auto &message : messages) {
 			if (message.requestId) {
-				_instance->processCallback(message);
-			} else if (_shiftedDcId == BareDcId(_shiftedDcId)) {
+				instance->processCallback(message);
+			} else if (main) {
 				// Process updates only in main session.
-				_instance->processUpdate(message);
+				instance->processUpdate(message);
 			}
+			if (!instance) {
+				return;
+			}
+		}
+		if (!guard) {
+			break;
 		}
 	}
 }

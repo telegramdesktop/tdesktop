@@ -1,206 +1,219 @@
-{%- set GIT = "https://github.com" -%}
-{%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
-{%- set QT = "6_4_0" -%}
-{%- set QT_TAG = "v6.4.0" -%}
-{%- set QT_PREFIX = "/usr/local/desktop-app/Qt-6.4.0" -%}
-{%- set OPENSSL_VER = "1_1_1" -%}
-{%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-1.1.1" -%}
-{%- set CMAKE_VER = "3.21.3" -%}
-{%- set CMAKE_FILE = "cmake-" ~ CMAKE_VER ~ "-Linux-x86_64.sh" -%}
-{%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -D_GLIBCXX_ASSERTIONS" -%}
-{%- set LibrariesPath = "/usr/src/Libraries" -%}
-
 # syntax=docker/dockerfile:1
 
-FROM centos:7 AS builder-base
-ENV LIBRARY_PATH /usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
-ENV LD_LIBRARY_PATH $LIBRARY_PATH
-ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
+FROM rockylinux:8 AS builder
+ENV LANG=C.UTF-8
+ENV TOOLSET=gcc-toolset-14
+ENV PATH=/opt/rh/$TOOLSET/root/usr/bin:$PATH
+ENV LIBRARY_PATH=/opt/rh/$TOOLSET/root/usr/lib64:/opt/rh/$TOOLSET/root/usr/lib:/usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
+ENV LD_LIBRARY_PATH=$LIBRARY_PATH
+ENV PKG_CONFIG_PATH=/opt/rh/$TOOLSET/root/usr/lib64/pkgconfig:/opt/rh/$TOOLSET/root/usr/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 
-RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
-	&& yum -y install https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm \
-	&& yum -y install centos-release-scl \
-	&& yum -y install git python3-pip autoconf automake libtool patch \
-		fontconfig-devel freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
+RUN dnf -y install epel-release \
+	&& dnf config-manager --set-enabled powertools \
+	&& dnf -y install cmake autoconf automake libtool pkgconfig make patch git \
+		python3.11-pip python3.11-devel gperf flex bison clang clang-tools-extra \
+		lld nasm yasm file which wget perl-open perl-XML-Parser perl-IPC-Cmd \
+		xorg-x11-util-macros $TOOLSET-gcc $TOOLSET-gcc-c++ $TOOLSET-binutils \
+		$TOOLSET-gdb $TOOLSET-libasan-devel libffi-devel fontconfig-devel \
+		freetype-devel libX11-devel wayland-devel alsa-lib-devel \
 		pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
-		libdrm-devel vulkan-devel gtk3-devel \
-		perl-XML-Parser pkgconfig bison yasm file which xorg-x11-util-macros \
-		devtoolset-10-make devtoolset-10-gcc devtoolset-10-gcc-c++ \
-		devtoolset-10-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
-		llvm-toolset-7.0-llvm-devel \
-	&& yum clean all
+		libdrm-devel vulkan-devel libva-devel libvdpau-devel libselinux-devel \
+		libmount-devel systemd-devel glib2-devel gobject-introspection-devel \
+		at-spi2-core-devel gtk3-devel boost1.78-devel \
+	&& dnf clean all
 
+RUN alternatives --set python3 /usr/bin/python3.11
 RUN python3 -m pip install meson ninja
+RUN cat <<EOF > /usr/local/bin/pkg-config && chmod +x /usr/local/bin/pkg-config
+#!/bin/sh
+for i in "\$@"; do
+	[ "\$i" = "--version" ] && exec /usr/bin/pkg-config "\$i"
+done
+exec /usr/bin/pkg-config --static "\$@"
+EOF
+RUN sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/")/ -O0 {% if LTO %}-fno-lto -fno-use-linker-plugin{% endif %} -fuse-ld=lld")/' /usr/share/cmake/Modules/Compiler/GNU.cmake
+RUN sed -i 's/NO_DEFAULT_PATH//g; s/PKG_CONFIG_ALLOW_SYSTEM_LIBS/PKG_CONFIG_IS_DUMB/g' /usr/share/cmake/Modules/FindPkgConfig.cmake
+RUN sed -i 's/set(OpenGL_GL_PREFERENCE "")/set(OpenGL_GL_PREFERENCE "LEGACY")/' /usr/share/cmake/Modules/FindOpenGL.cmake
+RUN sed -i '/Requires.private: valgrind/d' /usr/lib64/pkgconfig/libdrm.pc
+RUN sed -i 's/-lharfbuzz//' /usr/lib64/pkgconfig/harfbuzz.pc
+RUN sed -i 's/-lpng16//' /usr/lib64/pkgconfig/libpng16.pc
+RUN echo set debuginfod enabled on > /opt/rh/$TOOLSET/root/etc/gdbinit.d/00-debuginfod.gdb
+RUN adduser user
 
-# Fix a bug with argument naming in CentOS 7 glibc
-RUN sed -i 's/char \*__block/char */' /usr/include/unistd.h
+WORKDIR /usr/src
+ENV AR=gcc-ar
+ENV RANLIB=gcc-ranlib
+ENV NM=gcc-nm
+ENV CFLAGS='{% if DEBUG %}-g{% endif %} -O3 {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened'
+ENV CXXFLAGS=$CFLAGS
+ENV LDFLAGS='-static-libstdc++ -static-libgcc -static-libasan -pthread -Wl,--push-state,--no-as-needed,-ldl,--pop-state -Wl,--as-needed -Wl,-z,muldefs'
 
-SHELL [ "bash", "-c", ". /opt/rh/devtoolset-10/enable; exec bash -c \"$@\"", "-s"]
+ENV CMAKE_GENERATOR=Ninja
+ENV CMAKE_BUILD_TYPE=None
+ENV CMAKE_BUILD_PARALLEL_LEVEL='{{ JOBS }}'
 
-WORKDIR {{ LibrariesPath }}
-
-RUN mkdir /opt/cmake \
-	&& curl -sSLo {{ CMAKE_FILE }} {{ GIT }}/Kitware/CMake/releases/download/v{{ CMAKE_VER }}/{{ CMAKE_FILE }} \
-	&& sh {{ CMAKE_FILE }} --prefix=/opt/cmake --skip-license \
-	&& ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake \
-	&& rm {{ CMAKE_FILE }}
-
-FROM builder-base AS builder
-{%- if LTO %}
-ENV AR gcc-ar
-ENV RANLIB gcc-ranlib
-ENV NM gcc-nm
-{%- endif %}
-ENV CFLAGS {% if DEBUG %}-g{% endif %} -Ofast {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fstack-protector-all -fstack-clash-protection -DNDEBUG -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS
-ENV CXXFLAGS $CFLAGS
+RUN git init Implib.so \
+	&& cd Implib.so \
+	&& git remote add origin https://github.com/yugr/Implib.so.git \
+	&& git fetch --depth=1 origin ecf7bb51a92a0fb16834c5b698570ab25f9f1d21 \
+	&& git reset --hard FETCH_HEAD \
+	&& mkdir build \
+	&& cd build \
+	&& implib() { \
+		LIBFILE=$(basename $1); \
+		LIBNAME=$(basename $1 .so); \
+		../implib-gen.py -q $1; \
+		gcc $CFLAGS -c -o $LIBFILE.tramp.o $LIBFILE.tramp.S; \
+		gcc $CFLAGS -c -o $LIBFILE.init.o $LIBFILE.init.c; \
+		ar rcs /usr/local/lib64/$LIBNAME.a $LIBFILE.tramp.o $LIBFILE.init.o; \
+	} \
+	&& implib /usr/lib64/libgtk-3.so \
+	&& implib /usr/lib64/libgdk-3.so \
+	&& implib /usr/lib64/libgdk_pixbuf-2.0.so \
+	&& implib /usr/lib64/libpango-1.0.so \
+	&& implib /usr/lib64/libvdpau.so \
+	&& implib /usr/lib64/libva-x11.so \
+	&& implib /usr/lib64/libva-drm.so \
+	&& implib /usr/lib64/libva.so \
+	&& implib /usr/lib64/libEGL.so \
+	&& implib /usr/lib64/libGL.so \
+	&& implib /usr/lib64/libdrm.so \
+	&& implib /usr/lib64/libwayland-egl.so \
+	&& implib /usr/lib64/libwayland-cursor.so \
+	&& implib /usr/lib64/libwayland-client.so \
+	&& implib /usr/lib64/libwayland-server.so \
+	&& implib /usr/lib64/libX11-xcb.so \
+	&& implib /usr/lib64/libxcb.so \
+	&& cd ../.. \
+	&& rm -rf Implib.so
 
 FROM builder AS patches
-RUN git clone {{ GIT }}/desktop-app/patches.git \
+RUN git init patches \
 	&& cd patches \
-	&& git checkout b3b5f5cf92 \
+	&& git remote add origin https://github.com/desktop-app/patches.git \
+	&& git fetch --depth=1 origin e15b5d87c565e516aad5bcafdfe40315f84e5459 \
+	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
-FROM builder AS nasm
-RUN git clone -b nasm-2.15.05 --depth=1 {{ GIT }}/netwide-assembler/nasm.git \
-	&& cd nasm \
-	&& ./autogen.sh \
-	&& ./configure \
-	&& make -j$(nproc) \
-	&& mkdir -p "{{ LibrariesPath }}/nasm-cache/usr/local/bin" \
-	&& install -c nasm "{{ LibrariesPath }}/nasm-cache/usr/local/bin/nasm" \
-	&& cd .. \
-	&& rm -rf nasm
-
-FROM builder AS libffi
-RUN git clone -b v3.4.2 --depth=1 {{ GIT }}/libffi/libffi.git \
-	&& cd libffi \
-	&& ./autogen.sh \
-	&& ./configure --enable-static --disable-docs \
-	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libffi-cache" install \
-	&& cd .. \
-	&& rm -rf libffi
-
 FROM builder AS zlib
-RUN git clone -b v1.2.11 --depth=1 {{ GIT }}/madler/zlib.git \
+RUN git clone -b v1.3.1 --depth=1 https://github.com/madler/zlib.git \
 	&& cd zlib \
-	&& ./configure \
-	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/zlib-cache" install \
+	&& cmake -B build . -DZLIB_BUILD_EXAMPLES=OFF \
+	&& cmake --build build \
+	&& export DESTDIR=/usr/src/zlib-cache \
+	&& cmake --install build \
+	&& rm $DESTDIR/usr/local/lib/libz.so* \
 	&& cd .. \
 	&& rm -rf zlib
 
 FROM builder AS xz
-RUN git clone -b v5.2.5 https://git.tukaani.org/xz.git \
+RUN git clone -b v5.8.1 --depth=1 https://github.com/tukaani-project/xz.git \
 	&& cd xz \
-	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=None \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/xz-cache" cmake --install build \
+	&& cmake -B build . \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/xz-cache cmake --install build \
 	&& cd .. \
 	&& rm -rf xz
 
-FROM patches AS libproxy
-RUN git clone -b 0.4.17 --depth=1 {{ GIT }}/libproxy/libproxy.git \
-	&& cd libproxy \
-	&& git apply ../patches/libproxy.patch \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
-		-DWITH_DBUS=OFF \
-		-DWITH_NM=OFF \
-		-DWITH_NMold=OFF \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/libproxy-cache" cmake --install build \
+FROM builder AS protobuf
+RUN git clone -b v30.2 --depth=1 --recursive --shallow-submodules https://github.com/protocolbuffers/protobuf.git \
+	&& cd protobuf \
+	&& cmake -B build . \
+		-Dprotobuf_BUILD_TESTS=OFF \
+		-Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
+		-Dprotobuf_BUILD_LIBPROTOC=ON \
+		-Dprotobuf_WITH_ZLIB=OFF \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/protobuf-cache cmake --install build \
 	&& cd .. \
-	&& rm -rf libproxy
+	&& rm -rf protobuf
 
 FROM builder AS lcms2
-RUN git clone -b lcms2.13.1 --depth=1 {{ GIT }}/mm2/Little-CMS.git \
+RUN git clone -b lcms2.15 --depth=1 https://github.com/mm2/Little-CMS.git \
 	&& cd Little-CMS \
 	&& meson build \
 		--buildtype=plain \
-		--default-library=both \
+		--default-library=static \
 	&& meson compile -C build \
-	&& DESTDIR="{{ LibrariesPath }}/lcms2-cache" meson install -C build \
+	&& DESTDIR=/usr/src/lcms2-cache meson install -C build \
 	&& cd .. \
 	&& rm -rf Little-CMS
 
 FROM builder AS brotli
-RUN git clone -b v1.0.9 --depth=1 {{ GIT }}/google/brotli.git \
+RUN git clone -b v1.1.0 --depth=1 https://github.com/google/brotli.git \
 	&& cd brotli \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
+		-DBUILD_SHARED_LIBS=OFF \
 		-DBROTLI_DISABLE_TESTS=ON \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/brotli-cache" cmake --install build \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/brotli-cache cmake --install build \
 	&& cd .. \
 	&& rm -rf brotli
 
 FROM builder AS highway
-RUN git clone -b 1.0.1 --depth=1 {{ GIT }}/google/highway.git \
+RUN git clone -b 1.0.7 --depth=1 https://github.com/google/highway.git \
 	&& cd highway \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DBUILD_TESTING=OFF \
 		-DHWY_ENABLE_CONTRIB=OFF \
 		-DHWY_ENABLE_EXAMPLES=OFF \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/highway-cache" cmake --install build \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/highway-cache cmake --install build \
 	&& cd .. \
 	&& rm -rf highway
 
-FROM builder AS mozjpeg
-RUN git clone -b v4.0.3 --depth=1 {{ GIT }}/mozilla/mozjpeg.git \
-	&& cd mozjpeg \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
-		-DCMAKE_INSTALL_PREFIX=/usr/local \
-		-DWITH_JPEG8=ON \
-		-DPNG_SUPPORTED=OFF \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/mozjpeg-cache" cmake --install build \
-	&& cd .. \
-	&& rm -rf mozjpeg
-
 FROM builder AS opus
-RUN git clone -b v1.3.1 --depth=1 {{ GIT }}/xiph/opus.git \
+RUN git clone -b v1.5.2 --depth=1 https://github.com/xiph/opus.git \
 	&& cd opus \
-	&& ./autogen.sh \
-	&& ./configure --enable-float-approx \
-	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/opus-cache" install \
+	&& cmake -B build . \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/opus-cache cmake --install build \
 	&& cd .. \
 	&& rm -rf opus
 
 FROM builder AS dav1d
-COPY --link --from=nasm {{ LibrariesPath }}/nasm-cache /
-
-RUN git clone -b 1.0.0 --depth=1 {{ GIT }}/videolan/dav1d.git \
+RUN git clone -b 1.5.1 --depth=1 https://github.com/videolan/dav1d.git \
 	&& cd dav1d \
 	&& meson build \
 		--buildtype=plain \
-		--default-library=both \
+		--default-library=static \
 		-Denable_tools=false \
 		-Denable_tests=false \
 	&& meson compile -C build \
-	&& DESTDIR="{{ LibrariesPath }}/dav1d-cache" meson install -C build \
+	&& DESTDIR=/usr/src/dav1d-cache meson install -C build \
 	&& cd .. \
 	&& rm -rf dav1d
 
-FROM builder AS libde265
-RUN git clone -b v1.0.8 --depth=1 {{ GIT }}/strukturag/libde265.git \
+FROM builder AS openh264
+RUN git clone -b v2.6.0 --depth=1 https://github.com/cisco/openh264.git \
+	&& cd openh264 \
+	&& meson build \
+		--buildtype=plain \
+		--default-library=static \
+	&& meson compile -C build \
+	&& DESTDIR=/usr/src/openh264-cache meson install -C build \
+	&& cd .. \
+	&& rm -rf openh264
+
+FROM builder AS de265
+RUN git clone -b v1.0.16 --depth=1 https://github.com/strukturag/libde265.git \
 	&& cd libde265 \
-	&& cmake -GNinja . \
+	&& cmake -B build . \
 		-DCMAKE_BUILD_TYPE=None \
 		-DBUILD_SHARED_LIBS=OFF \
+		-DENABLE_DECODER=OFF \
 		-DENABLE_SDL=OFF \
-	&& cmake --build . --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/libde265-cache" cmake --install . \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/de265-cache cmake --install build \
 	&& cd .. \
 	&& rm -rf libde265
 
-FROM builder AS libvpx
-RUN git clone -b v1.11.0 --depth=1 {{ GIT }}/webmproject/libvpx.git \
+FROM builder AS vpx
+RUN git init libvpx \
 	&& cd libvpx \
+	&& git remote add origin https://github.com/webmproject/libvpx.git \
+	&& git fetch --depth=1 origin 12f3a2ac603e8f10742105519e0cd03c3b8f71dd \
+	&& git reset --hard FETCH_HEAD \
 	&& CFLAGS="$CFLAGS -fno-lto" CXXFLAGS="$CXXFLAGS -fno-lto" ./configure \
 		--disable-examples \
 		--disable-unit-tests \
@@ -209,56 +222,83 @@ RUN git clone -b v1.11.0 --depth=1 {{ GIT }}/webmproject/libvpx.git \
 		--enable-vp8 \
 		--enable-vp9 \
 		--enable-webm-io \
+		--size-limit=4096x4096 \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libvpx-cache" install \
+	&& make DESTDIR=/usr/src/vpx-cache install \
 	&& cd .. \
 	&& rm -rf libvpx
 
-FROM builder AS libavif
-COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
+FROM builder AS webp
+RUN git clone -b v1.5.0 --depth=1 https://github.com/webmproject/libwebp.git \
+	&& cd libwebp \
+	&& cmake -B build . \
+		-DWEBP_BUILD_ANIM_UTILS=OFF \
+		-DWEBP_BUILD_CWEBP=OFF \
+		-DWEBP_BUILD_DWEBP=OFF \
+		-DWEBP_BUILD_GIF2WEBP=OFF \
+		-DWEBP_BUILD_IMG2WEBP=OFF \
+		-DWEBP_BUILD_VWEBP=OFF \
+		-DWEBP_BUILD_WEBPMUX=OFF \
+		-DWEBP_BUILD_WEBPINFO=OFF \
+		-DWEBP_BUILD_EXTRAS=OFF \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/webp-cache cmake --install build \
+	&& cd .. \
+	&& rm -rf libwebp
 
-RUN git clone -b v0.10.1 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
+FROM builder AS avif
+COPY --link --from=dav1d /usr/src/dav1d-cache /
+
+RUN git clone -b v1.3.0 --depth=1 https://github.com/AOMediaCodec/libavif.git \
 	&& cd libavif \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
-		-DAVIF_CODEC_DAV1D=ON \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/libavif-cache" cmake --install build \
+		-DAVIF_CODEC_DAV1D=SYSTEM \
+		-DAVIF_LIBYUV=OFF \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/avif-cache cmake --install build \
 	&& cd .. \
 	&& rm -rf libavif
 
-FROM builder AS libheif
-COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
+FROM builder AS heif
+COPY --link --from=de265 /usr/src/de265-cache /
 
-RUN git clone -b v1.13.0 --depth=1 {{ GIT }}/strukturag/libheif.git \
+RUN git clone -b v1.19.8 --depth=1 https://github.com/strukturag/libheif.git \
 	&& cd libheif \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
+		-DBUILD_TESTING=OFF \
+		-DENABLE_PLUGIN_LOADING=OFF \
 		-DWITH_X265=OFF \
-		-DWITH_AOM=OFF \
+		-DWITH_AOM_DECODER=OFF \
+		-DWITH_AOM_ENCODER=OFF \
+		-DWITH_OpenH264_DECODER=OFF \
 		-DWITH_RAV1E=OFF \
+		-DWITH_RAV1E_PLUGIN=OFF \
+		-DWITH_SvtEnc=OFF \
+		-DWITH_SvtEnc_PLUGIN=OFF \
 		-DWITH_DAV1D=OFF \
+		-DWITH_LIBSHARPYUV=OFF \
 		-DWITH_EXAMPLES=OFF \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/libheif-cache" cmake --install build \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/heif-cache cmake --install build \
 	&& cd .. \
 	&& rm -rf libheif
 
-FROM builder AS libjxl
-COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
-COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
-COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
+FROM builder AS jxl
+COPY --link --from=lcms2 /usr/src/lcms2-cache /
+COPY --link --from=brotli /usr/src/brotli-cache /
+COPY --link --from=highway /usr/src/highway-cache /
 
-RUN git clone -b v0.7.0 --depth=1 {{ GIT }}/libjxl/libjxl.git \
+RUN git clone -b v0.11.1 --depth=1 https://github.com/libjxl/libjxl.git \
 	&& cd libjxl \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& git submodule update --init --recursive --depth=1 third_party/libjpeg-turbo \
+	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DBUILD_TESTING=OFF \
 		-DJPEGXL_ENABLE_DEVTOOLS=OFF \
 		-DJPEGXL_ENABLE_TOOLS=OFF \
+		-DJPEGXL_INSTALL_JPEGLI_LIBJPEG=ON \
 		-DJPEGXL_ENABLE_DOXYGEN=OFF \
 		-DJPEGXL_ENABLE_MANPAGES=OFF \
 		-DJPEGXL_ENABLE_BENCHMARK=OFF \
@@ -267,210 +307,249 @@ RUN git clone -b v0.7.0 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 		-DJPEGXL_ENABLE_SJPEG=OFF \
 		-DJPEGXL_ENABLE_OPENEXR=OFF \
 		-DJPEGXL_ENABLE_SKCMS=OFF \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/libjxl-cache" cmake --install build \
+	&& cmake --build build \
+	&& export DESTDIR=/usr/src/jxl-cache \
+	&& cmake --install build \
+	&& sed -i 's/-lstdc++//' $DESTDIR/usr/local/lib64/pkgconfig/libjxl*.pc \
+	&& rm $DESTDIR/usr/local/lib64/libjpeg.so* \
+	&& cp build/lib/libjpegli-static.a $DESTDIR/usr/local/lib64/libjpeg.a \
+	&& mkdir build/hwy \
+	&& ar --output=build/hwy x /usr/local/lib64/libhwy.a \
+	&& ar rcs $DESTDIR/usr/local/lib64/libjpeg.a build/lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o build/hwy/* \
 	&& cd .. \
 	&& rm -rf libjxl
 
 FROM builder AS rnnoise
-RUN git clone -b master --depth=1 {{ GIT }}/desktop-app/rnnoise \
+RUN git clone -b v0.2 --depth=1 https://github.com/xiph/rnnoise.git \
 	&& cd rnnoise \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
-		-DCMAKE_C_FLAGS="$CFLAGS -DFLOAT_APPROX" \
-		-DCMAKE_CXX_FLAGS="$CXXFLAGS -DFLOAT_APPROX" \
-	&& cmake --build build --parallel \
-	&& mkdir -p "{{ LibrariesPath }}/rnnoise-cache/usr/local/include" \
-	&& cp "include/rnnoise.h" "{{ LibrariesPath }}/rnnoise-cache/usr/local/include/" \
-	&& mkdir -p "{{ LibrariesPath }}/rnnoise-cache/usr/local/lib" \
-	&& cp "build/librnnoise.a" "{{ LibrariesPath }}/rnnoise-cache/usr/local/lib/" \
+	&& ./autogen.sh \
+	&& ./configure --enable-static --disable-shared \
+	&& make -j$(nproc) \
+	&& make DESTDIR=/usr/src/rnnoise-cache install \
 	&& cd .. \
 	&& rm -rf rnnoise
 
 FROM builder AS xcb-proto
-RUN git clone -b xcb-proto-1.14.1 --depth=1 {{ GIT_FREEDESKTOP }}/xcbproto.git \
+RUN git clone -b xcb-proto-1.16.0 --depth=1 https://github.com/gitlab-freedesktop-mirrors/xcbproto.git \
 	&& cd xcbproto \
 	&& ./autogen.sh \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/xcb-proto-cache" install \
+	&& make DESTDIR=/usr/src/xcb-proto-cache install \
 	&& cd .. \
 	&& rm -rf xcbproto
 
 FROM builder AS xcb
-COPY --link --from=xcb-proto {{ LibrariesPath }}/xcb-proto-cache /
+COPY --link --from=xcb-proto /usr/src/xcb-proto-cache /
 
-RUN git clone -b libxcb-1.14 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb.git \
+RUN git clone -b libxcb-1.16 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcb.git \
 	&& cd libxcb \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/xcb-cache" install \
+	&& export DESTDIR=/usr/src/xcb-cache \
+	&& make install \
+	&& rm $DESTDIR/usr/local/lib/{libxcb.{,l}a,pkgconfig/xcb.pc} \
 	&& cd .. \
 	&& rm -rf libxcb
 
 FROM builder AS xcb-wm
-RUN git clone -b 0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-wm.git \
+RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-wm.git \
 	&& cd libxcb-wm \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/xcb-wm-cache" install \
+	&& make DESTDIR=/usr/src/xcb-wm-cache install \
 	&& cd .. \
 	&& rm -rf libxcb-wm
 
 FROM builder AS xcb-util
-RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-util.git \
+RUN git clone -b xcb-util-0.4.1-gitlab --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-util.git \
 	&& cd libxcb-util \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/xcb-util-cache" install \
+	&& make DESTDIR=/usr/src/xcb-util-cache install \
 	&& cd .. \
 	&& rm -rf libxcb-util
 
 FROM builder AS xcb-image
-COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
+COPY --link --from=xcb-util /usr/src/xcb-util-cache /
 
-RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-image.git \
+RUN git clone -b xcb-util-image-0.4.1-gitlab --depth=1 --recursive --shallow-submodules https://github.com/gitlab-freedesktop-mirrors/libxcb-image.git \
 	&& cd libxcb-image \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/xcb-image-cache" install \
+	&& make DESTDIR=/usr/src/xcb-image-cache install \
 	&& cd .. \
 	&& rm -rf libxcb-image
 
 FROM builder AS xcb-keysyms
-RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-keysyms.git \
+RUN git init libxcb-keysyms \
 	&& cd libxcb-keysyms \
-	&& ./autogen.sh --enable-static \
+	&& git remote add origin https://github.com/gitlab-freedesktop-mirrors/libxcb-keysyms.git \
+	&& git fetch --depth=1 origin ef5cb393d27511ba511c68a54f8ff7b9aab4a384 \
+	&& git reset --hard FETCH_HEAD \
+	&& git submodule update --init --recursive --depth=1 \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/xcb-keysyms-cache" install \
+	&& make DESTDIR=/usr/src/xcb-keysyms-cache install \
 	&& cd .. \
 	&& rm -rf libxcb-keysyms
 
 FROM builder AS xcb-render-util
-RUN git clone -b 0.3.9 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-render-util.git \
+RUN git init libxcb-render-util \
 	&& cd libxcb-render-util \
-	&& ./autogen.sh --enable-static \
+	&& git remote add origin https://github.com/gitlab-freedesktop-mirrors/libxcb-render-util.git \
+	&& git fetch --depth=1 origin 5ad9853d6ddcac394d42dd2d4e34436b5db9da39 \
+	&& git reset --hard FETCH_HEAD \
+	&& git submodule update --init --recursive --depth=1 \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/xcb-render-util-cache" install \
+	&& make DESTDIR=/usr/src/xcb-render-util-cache install \
 	&& cd .. \
 	&& rm -rf libxcb-render-util
 
-FROM builder AS libXext
-RUN git clone -b libXext-1.3.4 --depth=1 {{ GIT_FREEDESKTOP }}/libxext.git \
-	&& cd libxext \
-	&& ./autogen.sh --enable-static \
+FROM builder AS xcb-cursor
+COPY --link --from=xcb-util /usr/src/xcb-util-cache /
+COPY --link --from=xcb-image /usr/src/xcb-image-cache /
+COPY --link --from=xcb-render-util /usr/src/xcb-render-util-cache /
+
+RUN git init libxcb-cursor \
+	&& cd libxcb-cursor \
+	&& git remote add origin https://github.com/gitlab-freedesktop-mirrors/libxcb-cursor.git \
+	&& git fetch --depth=1 origin 4929f6051658ba5424b41703a1fb63f9db896065 \
+	&& git reset --hard FETCH_HEAD \
+	&& git submodule update --init --recursive --depth=1 \
+	&& ./autogen.sh --enable-static --disable-shared --with-cursorpath='~/.local/share/icons:~/.icons:/usr/share/icons:/usr/share/pixmaps' \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXext-cache" install \
+	&& make DESTDIR=/usr/src/xcb-cursor-cache install \
+	&& cd .. \
+	&& rm -rf libxcb-cursor
+
+FROM builder AS xext
+RUN git clone -b libXext-1.3.5 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxext.git \
+	&& cd libxext \
+	&& ./autogen.sh --enable-static --disable-shared \
+	&& make -j$(nproc) \
+	&& make DESTDIR=/usr/src/xext-cache install \
 	&& cd .. \
 	&& rm -rf libxext
 
-FROM builder AS libXtst
-RUN git clone -b libXtst-1.2.3 --depth=1 {{ GIT_FREEDESKTOP }}/libxtst.git \
+FROM builder AS xtst
+RUN git clone -b libXtst-1.2.4 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxtst.git \
 	&& cd libxtst \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXtst-cache" install \
+	&& make DESTDIR=/usr/src/xtst-cache install \
 	&& cd .. \
 	&& rm -rf libxtst
 
-FROM builder AS libXfixes
-RUN git clone -b libXfixes-5.0.3 --depth=1 {{ GIT_FREEDESKTOP }}/libxfixes.git \
+FROM builder AS xfixes
+RUN git clone -b libXfixes-5.0.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxfixes.git \
 	&& cd libxfixes \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXfixes-cache" install \
+	&& make DESTDIR=/usr/src/xfixes-cache install \
 	&& cd .. \
 	&& rm -rf libxfixes
 
-FROM builder AS libXrandr
-RUN git clone -b libXrandr-1.5.2 --depth=1 {{ GIT_FREEDESKTOP }}/libxrandr.git \
-	&& cd libxrandr \
-	&& ./autogen.sh --enable-static \
+FROM builder AS xv
+COPY --link --from=xext /usr/src/xext-cache /
+
+RUN git clone -b libXv-1.0.12 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxv.git \
+	&& cd libxv \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXrandr-cache" install \
+	&& make DESTDIR=/usr/src/xv-cache install \
+	&& cd .. \
+	&& rm -rf libxv
+
+FROM builder AS xrandr
+RUN git clone -b libXrandr-1.5.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrandr.git \
+	&& cd libxrandr \
+	&& ./autogen.sh --enable-static --disable-shared \
+	&& make -j$(nproc) \
+	&& make DESTDIR=/usr/src/xrandr-cache install \
 	&& cd .. \
 	&& rm -rf libxrandr
 
-FROM builder AS libXrender
-RUN git clone -b libXrender-0.9.10 --depth=1 {{ GIT_FREEDESKTOP }}/libxrender.git \
+FROM builder AS xrender
+RUN git clone -b libXrender-0.9.11 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrender.git \
 	&& cd libxrender \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXrender-cache" install \
+	&& make DESTDIR=/usr/src/xrender-cache install \
 	&& cd .. \
 	&& rm -rf libxrender
 
-FROM builder AS libXdamage
-RUN git clone -b libXdamage-1.1.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxdamage.git \
+FROM builder AS xdamage
+RUN git clone -b libXdamage-1.1.6 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxdamage.git \
 	&& cd libxdamage \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXdamage-cache" install \
+	&& make DESTDIR=/usr/src/xdamage-cache install \
 	&& cd .. \
 	&& rm -rf libxdamage
 
-FROM builder AS libXcomposite
-RUN git clone -b libXcomposite-0.4.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxcomposite.git \
+FROM builder AS xcomposite
+RUN git clone -b libXcomposite-0.4.6 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcomposite.git \
 	&& cd libxcomposite \
-	&& ./autogen.sh --enable-static \
+	&& ./autogen.sh --enable-static --disable-shared \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libXcomposite-cache" install \
+	&& make DESTDIR=/usr/src/xcomposite-cache install \
 	&& cd .. \
 	&& rm -rf libxcomposite
 
-FROM builder AS wayland
-COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
-
-RUN git clone -b 1.21.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
-	&& cd wayland \
-	&& meson build \
-		--buildtype=plain \
-		--default-library=both \
-		-Dtests=false \
-		-Ddocumentation=false \
-		-Ddtd_validation=false \
-		-Dicon_directory=/usr/share/icons \
-	&& meson compile -C build \
-	&& DESTDIR="{{ LibrariesPath }}/wayland-cache" meson install -C build \
-	&& cd .. \
-	&& rm -rf wayland
-
 FROM builder AS nv-codec-headers
-RUN git clone -b n11.1.5.1 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
-	&& DESTDIR="{{ LibrariesPath }}/nv-codec-headers-cache" make -C nv-codec-headers install \
+RUN git clone -b n12.1.14.0 --depth=1 https://github.com/FFmpeg/nv-codec-headers.git \
+	&& DESTDIR=/usr/src/nv-codec-headers-cache make -C nv-codec-headers install \
 	&& rm -rf nv-codec-headers
 
 FROM builder AS ffmpeg
-COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
-COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
-COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
+COPY --link --from=opus /usr/src/opus-cache /
+COPY --link --from=openh264 /usr/src/openh264-cache /
+COPY --link --from=dav1d /usr/src/dav1d-cache /
+COPY --link --from=vpx /usr/src/vpx-cache /
+COPY --link --from=xext /usr/src/xext-cache /
+COPY --link --from=xv /usr/src/xv-cache /
+COPY --link --from=nv-codec-headers /usr/src/nv-codec-headers-cache /
 
-RUN git init ffmpeg \
-	&& cd ffmpeg \
-	&& git remote add origin {{ GIT }}/FFmpeg/FFmpeg.git \
-	&& git fetch --depth=1 origin cc33e73618a981de7fd96385ecb34719de031f16 \
-	&& git reset --hard FETCH_HEAD \
+RUN git clone -b n6.1.1 --depth=1 https://github.com/FFmpeg/FFmpeg.git \
+	&& cd FFmpeg \
 	&& ./configure \
-		--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
-		--extra-cxxflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
+		--extra-cflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
+		--extra-cxxflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
+		--extra-ldflags="-Wl,--push-state,--no-as-needed,-lstdc++,--pop-state" \
 		--disable-debug \
-		--disable-optimizations \
-		--disable-inline-asm \
 		--disable-programs \
 		--disable-doc \
 		--disable-network \
 		--disable-autodetect \
 		--disable-everything \
+		--enable-libdav1d \
+		--enable-libopenh264 \
 		--enable-libopus \
 		--enable-libvpx \
+		--enable-vaapi \
+		--enable-vdpau \
+		--enable-xlib \
+		--enable-libdrm \
 		--enable-ffnvcodec \
 		--enable-nvdec \
 		--enable-cuvid \
 		--enable-protocol=file \
+		--enable-hwaccel=av1_vaapi \
 		--enable-hwaccel=av1_nvdec \
+		--enable-hwaccel=h264_vaapi \
+		--enable-hwaccel=h264_vdpau \
 		--enable-hwaccel=h264_nvdec \
+		--enable-hwaccel=hevc_vaapi \
+		--enable-hwaccel=hevc_vdpau \
 		--enable-hwaccel=hevc_nvdec \
+		--enable-hwaccel=mpeg2_vaapi \
+		--enable-hwaccel=mpeg2_vdpau \
 		--enable-hwaccel=mpeg2_nvdec \
+		--enable-hwaccel=mpeg4_vaapi \
+		--enable-hwaccel=mpeg4_vdpau \
 		--enable-hwaccel=mpeg4_nvdec \
+		--enable-hwaccel=vp8_vaapi \
 		--enable-hwaccel=vp8_nvdec \
 		--enable-decoder=aac \
 		--enable-decoder=aac_fixed \
@@ -485,6 +564,7 @@ RUN git init ffmpeg \
 		--enable-decoder=gif \
 		--enable-decoder=h264 \
 		--enable-decoder=hevc \
+		--enable-decoder=libdav1d \
 		--enable-decoder=libvpx_vp8 \
 		--enable-decoder=libvpx_vp9 \
 		--enable-decoder=mp1 \
@@ -539,10 +619,15 @@ RUN git init ffmpeg \
 		--enable-decoder=wmav1 \
 		--enable-decoder=wmav2 \
 		--enable-decoder=wmavoice \
+		--enable-encoder=aac \
+		--enable-encoder=libopenh264 \
 		--enable-encoder=libopus \
+		--enable-encoder=pcm_s16le \
+		--enable-filter=atempo \
 		--enable-parser=aac \
 		--enable-parser=aac_latm \
 		--enable-parser=flac \
+		--enable-parser=gif \
 		--enable-parser=h264 \
 		--enable-parser=hevc \
 		--enable-parser=mpeg4video \
@@ -560,64 +645,65 @@ RUN git init ffmpeg \
 		--enable-demuxer=mp3 \
 		--enable-demuxer=ogg \
 		--enable-demuxer=wav \
+		--enable-muxer=mp4 \
 		--enable-muxer=ogg \
 		--enable-muxer=opus \
+		--enable-muxer=wav \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/ffmpeg-cache" install \
+	&& make DESTDIR=/usr/src/ffmpeg-cache install \
 	&& cd .. \
 	&& rm -rf ffmpeg
 
 FROM builder AS pipewire
-RUN git clone -b 0.3.25 --depth=1 {{ GIT }}/PipeWire/pipewire.git \
+RUN git clone -b 0.3.62 --depth=1 https://github.com/PipeWire/pipewire.git \
 	&& cd pipewire \
 	&& meson build \
 		--buildtype=plain \
 		-Dtests=disabled \
 		-Dexamples=disabled \
+		-Dsession-managers=media-session \
 		-Dspa-plugins=disabled \
 	&& meson compile -C build \
-	&& DESTDIR="{{ LibrariesPath }}/pipewire-cache" meson install -C build \
+	&& DESTDIR=/usr/src/pipewire-cache meson install -C build \
 	&& cd .. \
 	&& rm -rf pipewire
 
 FROM builder AS openal
-COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
+COPY --link --from=pipewire /usr/src/pipewire-cache /
 
-RUN git clone -b 1.22.2 --depth=1 {{ GIT }}/kcat/openal-soft.git \
+RUN git clone -b 1.24.3 --depth=1 https://github.com/kcat/openal-soft.git \
 	&& cd openal-soft \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=None \
+	&& cmake -B build . \
 		-DLIBTYPE:STRING=STATIC \
 		-DALSOFT_EXAMPLES=OFF \
 		-DALSOFT_UTILS=OFF \
 		-DALSOFT_INSTALL_CONFIG=OFF \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/openal-cache" cmake --install build \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/openal-cache cmake --install build \
 	&& cd .. \
 	&& rm -rf openal-soft
 
 FROM builder AS openssl
-ENV opensslDir openssl_{{ OPENSSL_VER }}
-RUN git clone -b OpenSSL_{{ OPENSSL_VER }}-stable --depth=1 {{ GIT }}/openssl/openssl.git $opensslDir \
-	&& cd $opensslDir \
+RUN git clone -b openssl-3.2.1 --depth=1 https://github.com/openssl/openssl.git \
+	&& cd openssl \
 	&& ./config \
-		--prefix="{{ OPENSSL_PREFIX }}" \
 		--openssldir=/etc/ssl \
+		no-shared \
 		no-tests \
 		no-dso \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/openssl-cache" install_sw \
+	&& make DESTDIR=/usr/src/openssl-cache install_sw \
 	&& cd .. \
-	&& rm -rf $opensslDir
+	&& rm -rf openssl
 
 FROM builder AS xkbcommon
-COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
+COPY --link --from=xcb /usr/src/xcb-cache /
 
-RUN git clone -b xkbcommon-1.3.1 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git \
+RUN git clone -b xkbcommon-1.6.0 --depth=1 https://github.com/xkbcommon/libxkbcommon.git \
 	&& cd libxkbcommon \
 	&& meson build \
 		--buildtype=plain \
-		--default-library=both \
+		--default-library=static \
 		-Denable-docs=false \
 		-Denable-wayland=false \
 		-Denable-xkbregistry=false \
@@ -625,182 +711,169 @@ RUN git clone -b xkbcommon-1.3.1 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git 
 		-Dxkb-config-extra-path=/etc/xkb \
 		-Dx-locale-root=/usr/share/X11/locale \
 	&& meson compile -C build \
-	&& DESTDIR="{{ LibrariesPath }}/xkbcommon-cache" meson install -C build \
+	&& DESTDIR=/usr/src/xkbcommon-cache meson install -C build \
 	&& cd .. \
 	&& rm -rf libxkbcommon
 
-FROM patches AS glibmm
-COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
-
-RUN git clone -b 2.74.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
-	&& cd glibmm \
-	&& git apply ../patches/glibmm.patch \
-	&& meson build \
-		--buildtype=plain \
-		--default-library=both \
-		-Dbuild-documentation=false \
-		-Dbuild-examples=false \
-		-Dsigc++-3.0:build-documentation=false \
-		-Dsigc++-3.0:build-examples=false \
-		-Dsigc++-3.0:validation=false \
-		-Dglib:tests=false \
-		-Dmm-common:use-network=true \
-	&& meson compile -C build \
-	&& DESTDIR="{{ LibrariesPath }}/glibmm-cache" meson install -C build \
-	&& cd .. \
-	&& rm -rf glibmm
-
 FROM patches AS qt
-COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
-COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
-COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
-COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
-COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
-COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
-COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
-COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
-COPY --link --from=xcb-keysyms {{ LibrariesPath }}/xcb-keysyms-cache /
-COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
-COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
-COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
-COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
+COPY --link --from=zlib /usr/src/zlib-cache /
+COPY --link --from=lcms2 /usr/src/lcms2-cache /
+COPY --link --from=webp /usr/src/webp-cache /
+COPY --link --from=jxl /usr/src/jxl-cache /
+COPY --link --from=xcb /usr/src/xcb-cache /
+COPY --link --from=xcb-wm /usr/src/xcb-wm-cache /
+COPY --link --from=xcb-util /usr/src/xcb-util-cache /
+COPY --link --from=xcb-image /usr/src/xcb-image-cache /
+COPY --link --from=xcb-keysyms /usr/src/xcb-keysyms-cache /
+COPY --link --from=xcb-render-util /usr/src/xcb-render-util-cache /
+COPY --link --from=xcb-cursor /usr/src/xcb-cursor-cache /
+COPY --link --from=openssl /usr/src/openssl-cache /
+COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
 
-ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
-
-RUN git clone -b {{ QT_TAG }} --depth=1 git://code.qt.io/qt/qt5.git qt_{{ QT }} \
-	&& cd qt_{{ QT }} \
-	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools \
+ENV QT=6.9.1
+RUN git clone -b v$QT --depth=1 https://github.com/qt/qt5.git \
+	&& cd qt5 \
+	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools \
 	&& cd qtbase \
-	&& find ../../patches/qtbase_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
-	&& cd ../qtdeclarative \
-	&& sed -i '/add_subdirectory(quickcontrols2)/d' src/CMakeLists.txt \
-	&& sed -i '/add_subdirectory(quickdialogs2)/d' src/CMakeLists.txt \
-	&& sed -i '/add_subdirectory(quicknativestyle)/d' src/CMakeLists.txt \
+	&& find ../../patches/qtbase_$QT -type f -print0 | sort -z | xargs -r0 git apply \
+	&& cd ../qtwayland \
+	&& find ../../patches/qtwayland_$QT -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd .. \
-	&& ./configure -prefix "{{ QT_PREFIX }}" \
-		CMAKE_BUILD_TYPE=None \
-		-opensource \
-		-confirm-license \
-		-libproxy \
-		-qt-libpng \
-		-qt-harfbuzz \
-		-qt-pcre \
-		-no-icu \
-		-no-feature-xcb-sm \
-		-no-feature-egl-extension-platform-wayland \
-		-no-feature-highdpiscaling \
-		-static \
-		-dbus-runtime \
-		-openssl-linked \
-		-nomake examples \
-		-nomake tests \
-	&& cmake --build . --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/qt-cache" cmake --install . \
+	&& cmake -B build . \
+		-DCMAKE_INSTALL_PREFIX=/usr/local \
+		-DBUILD_SHARED_LIBS=OFF \
+		-DQT_QPA_PLATFORMS="wayland;xcb" \
+		-DINPUT_libpng=qt \
+		-DINPUT_harfbuzz=qt \
+		-DINPUT_pcre=qt \
+		-DFEATURE_icu=OFF \
+		-DFEATURE_xcb_sm=OFF \
+		-DFEATURE_eglfs=OFF \
+		-DINPUT_dbus=runtime \
+		-DINPUT_openssl=linked \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/qt-cache cmake --install build \
 	&& cd .. \
-	&& rm -rf qt_{{ QT }}
+	&& rm -rf qt5
 
-FROM patches AS breakpad
-RUN git clone https://chromium.googlesource.com/breakpad/breakpad.git \
+FROM builder AS breakpad
+RUN git clone -b v2024.02.16 --depth=1 https://chromium.googlesource.com/breakpad/breakpad.git \
 	&& cd breakpad \
-	&& git checkout dfcb7b6799 \
-	&& git apply ../patches/breakpad.diff \
-	&& git clone https://chromium.googlesource.com/linux-syscall-support.git src/third_party/lss \
-	&& cd src/third_party/lss \
-	&& git checkout e1e7b0ad8e \
-	&& cd ../../.. \
-	&& env -u CFLAGS -u CXXFLAGS ./configure \
+	&& git clone -b v2024.02.01 --depth=1 https://chromium.googlesource.com/linux-syscall-support.git src/third_party/lss \
+	&& CFLAGS="$CFLAGS -fno-lto" CXXFLAGS="$CXXFLAGS -fno-lto" ./configure \
 	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/breakpad-cache" install \
+	&& make DESTDIR=/usr/src/breakpad-cache install \
 	&& cd .. \
 	&& rm -rf breakpad
 
 FROM builder AS webrtc
-COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
-COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
-COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
-COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
-COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
-COPY --link --from=libXtst {{ LibrariesPath }}/libXtst-cache /
-COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
+COPY --link --from=zlib /usr/src/zlib-cache /
+COPY --link --from=opus /usr/src/opus-cache /
+COPY --link --from=openh264 /usr/src/openh264-cache /
+COPY --link --from=dav1d /usr/src/dav1d-cache /
+COPY --link --from=vpx /usr/src/vpx-cache /
+COPY --link --from=jxl /usr/src/jxl-cache /
+COPY --link --from=ffmpeg /usr/src/ffmpeg-cache /
+COPY --link --from=openssl /usr/src/openssl-cache /
+COPY --link --from=xext /usr/src/xext-cache /
+COPY --link --from=xfixes /usr/src/xfixes-cache /
+COPY --link --from=xtst /usr/src/xtst-cache /
+COPY --link --from=xrandr /usr/src/xrandr-cache /
+COPY --link --from=xrender /usr/src/xrender-cache /
+COPY --link --from=xdamage /usr/src/xdamage-cache /
+COPY --link --from=xcomposite /usr/src/xcomposite-cache /
+COPY --link --from=pipewire /usr/src/pipewire-cache /
 
 # Shallow clone on a specific commit.
 RUN git init tg_owt \
 	&& cd tg_owt \
-	&& git remote add origin {{ GIT }}/desktop-app/tg_owt.git \
-	&& git fetch --depth=1 origin 442d5bb593c0ae314960308d78f2016ad1f80c3e \
+	&& git remote add origin https://github.com/desktop-app/tg_owt.git \
+	&& git fetch --depth=1 origin 62321fd7128ab2650b459d4195781af8185e46b5 \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
-	&& rm -rf .git \
-	&& env -u CFLAGS -u CXXFLAGS cmake -G"Ninja Multi-Config" -B out . \
-		-DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
-		-DCMAKE_C_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
-		-DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
-		-DCMAKE_CXX_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
-		-DTG_OWT_SPECIAL_TARGET=linux \
-		-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
-		-DTG_OWT_OPENSSL_INCLUDE_PATH={{ OPENSSL_PREFIX }}/include \
-		-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
-		-DTG_OWT_LIBVPX_INCLUDE_PATH=/usr/local/include \
-		-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
+	&& cmake -B build . -DTG_OWT_DLOPEN_PIPEWIRE=ON \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/webrtc-cache cmake --install build \
+	&& cd .. \
+	&& rm -rf tg_owt
 
-WORKDIR tg_owt
+FROM builder AS ada
+RUN git clone -b v3.2.4 --depth=1 https://github.com/ada-url/ada.git \
+	&& cd ada \
+	&& cmake -B build . \
+        -D ADA_TESTING=OFF \
+        -D ADA_TOOLS=OFF \
+        -D ADA_INCLUDE_URL_PATTERN=OFF \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/ada-cache cmake --install build \
+	&& cd .. \
+	&& rm -rf ada
 
-FROM webrtc AS webrtc_release
-RUN cmake --build out --config Release --parallel \
-	&& find out -mindepth 1 -maxdepth 1 ! -name Release -exec rm -rf {} \;
+FROM builder AS tde2e
+COPY --link --from=zlib /usr/src/zlib-cache /
+COPY --link --from=openssl /usr/src/openssl-cache /
 
-{%- if DEBUG %}
+# Shallow clone on a specific commit.
+RUN git init tde2e \
+	&& cd tde2e \
+	&& git remote add origin https://github.com/tdlib/td.git \
+	&& git fetch --depth=1 origin 51743dfd01dff6179e2d8f7095729caa4e2222e9 \
+	&& git reset --hard FETCH_HEAD \
+	&& cmake -B build . -DTD_E2E_ONLY=ON \
+	&& cmake --build build \
+	&& DESTDIR=/usr/src/tde2e-cache cmake --install build \
+	&& cd .. \
+	&& rm -rf tde2e
 
-FROM webrtc AS webrtc_debug
-RUN cmake --build out --config Debug --parallel \
-	&& find out -mindepth 1 -maxdepth 1 ! -name Debug -exec rm -rf {} \;
-{%- endif %}
+FROM builder
+COPY --link --from=zlib /usr/src/zlib-cache /
+COPY --link --from=xz /usr/src/xz-cache /
+COPY --link --from=protobuf /usr/src/protobuf-cache /
+COPY --link --from=lcms2 /usr/src/lcms2-cache /
+COPY --link --from=brotli /usr/src/brotli-cache /
+COPY --link --from=highway /usr/src/highway-cache /
+COPY --link --from=opus /usr/src/opus-cache /
+COPY --link --from=dav1d /usr/src/dav1d-cache /
+COPY --link --from=openh264 /usr/src/openh264-cache /
+COPY --link --from=de265 /usr/src/de265-cache /
+COPY --link --from=vpx /usr/src/vpx-cache /
+COPY --link --from=webp /usr/src/webp-cache /
+COPY --link --from=avif /usr/src/avif-cache /
+COPY --link --from=heif /usr/src/heif-cache /
+COPY --link --from=jxl /usr/src/jxl-cache /
+COPY --link --from=rnnoise /usr/src/rnnoise-cache /
+COPY --link --from=xcb /usr/src/xcb-cache /
+COPY --link --from=xcb-wm /usr/src/xcb-wm-cache /
+COPY --link --from=xcb-util /usr/src/xcb-util-cache /
+COPY --link --from=xcb-image /usr/src/xcb-image-cache /
+COPY --link --from=xcb-keysyms /usr/src/xcb-keysyms-cache /
+COPY --link --from=xcb-render-util /usr/src/xcb-render-util-cache /
+COPY --link --from=xcb-cursor /usr/src/xcb-cursor-cache /
+COPY --link --from=xext /usr/src/xext-cache /
+COPY --link --from=xfixes /usr/src/xfixes-cache /
+COPY --link --from=xv /usr/src/xv-cache /
+COPY --link --from=xtst /usr/src/xtst-cache /
+COPY --link --from=xrandr /usr/src/xrandr-cache /
+COPY --link --from=xrender /usr/src/xrender-cache /
+COPY --link --from=xdamage /usr/src/xdamage-cache /
+COPY --link --from=xcomposite /usr/src/xcomposite-cache /
+COPY --link --from=ffmpeg /usr/src/ffmpeg-cache /
+COPY --link --from=openal /usr/src/openal-cache /
+COPY --link --from=openssl /usr/src/openssl-cache /
+COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
+COPY --link --from=qt /usr/src/qt-cache /
+COPY --link --from=breakpad /usr/src/breakpad-cache /
+COPY --link --from=webrtc /usr/src/webrtc-cache /
+COPY --link --from=ada /usr/src/ada-cache /
+COPY --link --from=tde2e /usr/src/tde2e-cache /
 
-FROM builder-base
-COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
-COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
-COPY --link --from=xz {{ LibrariesPath }}/xz-cache /
-COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
-COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
-COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
-COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
-COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
-COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
-COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
-COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
-COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
-COPY --link --from=libavif {{ LibrariesPath }}/libavif-cache /
-COPY --link --from=libheif {{ LibrariesPath }}/libheif-cache /
-COPY --link --from=libjxl {{ LibrariesPath }}/libjxl-cache /
-COPY --link --from=rnnoise {{ LibrariesPath }}/rnnoise-cache /
-COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
-COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
-COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
-COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
-COPY --link --from=xcb-keysyms {{ LibrariesPath }}/xcb-keysyms-cache /
-COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
-COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
-COPY --link --from=libXfixes {{ LibrariesPath }}/libXfixes-cache /
-COPY --link --from=libXtst {{ LibrariesPath }}/libXtst-cache /
-COPY --link --from=libXrandr {{ LibrariesPath }}/libXrandr-cache /
-COPY --link --from=libXrender {{ LibrariesPath }}/libXrender-cache /
-COPY --link --from=libXdamage {{ LibrariesPath }}/libXdamage-cache /
-COPY --link --from=libXcomposite {{ LibrariesPath }}/libXcomposite-cache /
-COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
-COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
-COPY --link --from=openal {{ LibrariesPath }}/openal-cache /
-COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
-COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
-COPY --link --from=glibmm {{ LibrariesPath }}/glibmm-cache /
-COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
-COPY --link --from=breakpad {{ LibrariesPath }}/breakpad-cache /
-COPY --link --from=webrtc {{ LibrariesPath }}/tg_owt tg_owt
-COPY --link --from=webrtc_release {{ LibrariesPath }}/tg_owt/out/Release tg_owt/out/Release
+COPY --link --from=patches /usr/src/patches patches
+RUN patch -p1 -d /usr/lib64/gobject-introspection -i $PWD/patches/gobject-introspection.patch && rm -rf patches
 
-{%- if DEBUG %}
-COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/Debug
-{%- endif %}
+WORKDIR /usr/src/tdesktop
+ENV BOOST_INCLUDEDIR=/usr/include/boost1.78
+ENV BOOST_LIBRARYDIR=/usr/lib64/boost1.78
 
-WORKDIR ../tdesktop
+USER user
 VOLUME [ "/usr/src/tdesktop" ]
 CMD [ "/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh" ]

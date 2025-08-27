@@ -11,11 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
-namespace Ui {
-namespace Paint {
+namespace style {
+struct RecordBar;
+} // namespace style
+
+namespace Ui::Paint {
 class Blobs;
-} // namespace Paint
-} // namespace Ui
+} // namespace Ui::Paint
 
 namespace HistoryView::Controls {
 
@@ -23,12 +25,13 @@ class VoiceRecordButton final : public Ui::AbstractButton {
 public:
 	VoiceRecordButton(
 		not_null<Ui::RpWidget*> parent,
-		rpl::producer<> leaveWindowEventProducer);
+		const style::RecordBar &st);
 	~VoiceRecordButton();
 
 	enum class Type {
 		Send,
 		Record,
+		Round,
 	};
 
 	void setType(Type state);
@@ -53,7 +56,6 @@ private:
 
 	rpl::variable<float64> _showProgress = 0.;
 	float64 _colorProgress = 0.;
-	rpl::variable<bool> _inCircle = false;
 	rpl::variable<Type> _state = Type::Record;
 
 	// This can animate for a very long time (like in music playing),

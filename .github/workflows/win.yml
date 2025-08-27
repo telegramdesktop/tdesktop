@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - '!docs/building-win*.md'
       - 'changelog.txt'
       - 'LEGAL'
       - 'LICENSE'
@@ -23,6 +24,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - '!docs/building-win*.md'
       - 'changelog.txt'
       - 'LEGAL'
       - 'LICENSE'
@@ -42,14 +44,15 @@ jobs:
 
   windows:
     name: Windows
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     strategy:
       matrix:
         arch: [Win32, x64]
+        generator: ["", "Ninja Multi-Config"]
 
     env:
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
 
@@ -60,47 +63,60 @@ jobs:
     steps:
       - name: Prepare directories.
         run: |
-          mkdir %userprofile%\TBuild Libraries
-          mklink /d %userprofile%\TBuild\Libraries %GITHUB_WORKSPACE%\Libraries
-          echo TBUILD=%userprofile%\TBuild>>%GITHUB_ENV%
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
 
       - name: Get repository name.
         shell: bash
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
-      - uses: ilammy/msvc-dev-cmd@v1.10.0
-        name: Native Tools Command Prompt.
-        with:
-          arch: ${{ matrix.arch }}
-
       - name: Clone.
-        uses: LebedevRI/checkout@issue197
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
-      - name: Python installs.
-        run: pip3 install --upgrade pywin32 six
-
-      - name: Set up environment paths.
+      - name: First set up.
         shell: bash
         run: |
-          echo "CACHE_KEY=$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> $GITHUB_ENV
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          [ "${{ matrix.arch }}" != Win32 ] && DOCPATH=$TBUILD/$REPO_NAME/docs/building-win-${{ matrix.arch }}.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+
+          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
 
           echo "Configurate git for cherry-picks."
           git config --global user.email "you@example.com"
           git config --global user.name "Sample"
+
+      - uses: ilammy/msvc-dev-cmd@v1.13.0
+        name: Native Tools Command Prompt.
+        with:
+          arch: ${{ matrix.arch }}
+          sdk: ${{ env.SDK }}
 
       - name: NuGet sources.
         run: |
           nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
           nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
 
+      - name: ThirdParty cache.
+        id: cache-third-party
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-${{ matrix.arch }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-third-party-
+
       - name: Libraries cache.
         id: cache-libs
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
-          path: Libraries
+          path: ${{ env.TBUILD }}\Libraries
           key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
           restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-
 
@@ -108,23 +124,56 @@ jobs:
         env:
           GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\'
           GYP_MSVS_VERSION: 2022
-        run: '%TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent'
+        run: |
+          cd %TBUILD%
+          %REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
 
-      - name: Read defines.
+      - name: Read configuration matrix.
         shell: bash
         run: |
+          ARTIFACT_NAME="Telegram"
+
+          ARCH=""
+          if [ -n "${{ matrix.arch }}" ]; then
+            case "${{ matrix.arch }}" in
+              Win32) ARCH="x86";;
+              *) ARCH="${{ matrix.arch }}";;
+            esac
+            echo "Architecture from matrix: $ARCH"
+            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.arch }}"
+          fi
+
+          GENERATOR=""
+          if [ -n "${{ matrix.generator }}" ]; then
+            GENERATOR="-G \"${{ matrix.generator }}\""
+            echo "Generator from matrix: $GENERATOR"
+            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.generator }}"
+          fi
+          echo "TDESKTOP_BUILD_GENERATOR=$GENERATOR" >> $GITHUB_ENV
+
+          [ -n "$GENERATOR" ] && ARCH=""
+          echo "TDESKTOP_BUILD_ARCH=$ARCH" >> $GITHUB_ENV
+
           DEFINE=""
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
-            echo Define from matrix: $DEFINE
-            echo "ARTIFACT_NAME=Telegram_${{ matrix.arch }}_${{ matrix.defines }}" >> $GITHUB_ENV
-          else
-            echo "ARTIFACT_NAME=Telegram_${{ matrix.arch }}" >> $GITHUB_ENV
+            echo "Define from matrix: $DEFINE"
+            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.defines }}"
           fi
           echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
 
+          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
+
+          API="-D TDESKTOP_API_TEST=ON"
+          if [ $GITHUB_REF == 'refs/heads/nightly' ]; then
+            echo "Use the open credentials."
+            API="-D TDESKTOP_API_ID=611335 -D TDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c"
+          fi
+          echo "TDESKTOP_BUILD_API=$API" >> $GITHUB_ENV
+
       - name: Free up some disk space.
         run: |
+          cd %TBUILD%
           del /S Libraries\*.pdb
           del /S Libraries\*.pch
           del /S Libraries\*.obj
@@ -132,28 +181,31 @@ jobs:
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |
-          C:
           cd %TBUILD%\%REPO_NAME%\Telegram
 
           call configure.bat ^
-          ${{ matrix.arch }} ^
-          -D TDESKTOP_API_TEST=ON ^
+          %TDESKTOP_BUILD_GENERATOR% ^
+          %TDESKTOP_BUILD_ARCH% ^
+          %TDESKTOP_BUILD_API% ^
+          -D CMAKE_CONFIGURATION_TYPES=Debug ^
+          -D CMAKE_COMPILE_WARNING_AS_ERROR=ON ^
+          -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
-          -D DESKTOP_APP_NO_PDB=ON ^
-          %TDESKTOP_BUILD_DEFINE% ^
-          -DCMAKE_SYSTEM_VERSION=%SDK%
+          %TDESKTOP_BUILD_DEFINE%
 
-          cd ..\out
-          msbuild -m Telegram.sln /p:Configuration=Debug,Platform=${{ matrix.arch }},DebugSymbols=false,DebugType=none
+          cmake --build ..\out --config Debug --parallel
 
       - name: Move artifact.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
         run: |
+          set OUT=%TBUILD%\%REPO_NAME%\out\Debug
           mkdir artifact
-          move %TBUILD%\%REPO_NAME%\out\Debug\Telegram.exe artifact/
-      - uses: actions/upload-artifact@master
+          move %OUT%\Telegram.exe artifact/
+          move %OUT%\Updater.exe artifact/
+      - uses: actions/upload-artifact@v4
         name: Upload artifact.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: artifact\

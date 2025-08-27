@@ -7,19 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/flags.h"
-#include "base/object_ptr.h"
-#include "base/observer.h"
-#include "base/weak_ptr.h"
 #include "base/timer.h"
-#include "boxes/gift_premium_box.h" // GiftPremiumValidator.
+#include "chat_helpers/compose/compose_show.h"
 #include "data/data_chat_participant_status.h"
+#include "data/data_report.h"
 #include "dialogs/dialogs_key.h"
-#include "ui/layers/layer_widget.h"
-#include "ui/layers/show.h"
+#include "mtproto/sender.h"
 #include "settings/settings_type.h"
 #include "window/window_adaptive.h"
-#include "mtproto/sender.h"
 
 class PhotoData;
 class MainWidget;
@@ -28,6 +23,16 @@ class MainWindow;
 namespace Adaptive {
 enum class WindowLayout;
 } // namespace Adaptive
+
+namespace Data {
+struct StoriesContext;
+class SavedMessages;
+enum class StorySourcesList : uchar;
+} // namespace Data
+
+namespace Dialogs {
+struct SearchState;
+} // namespace Dialogs
 
 namespace ChatHelpers {
 class TabbedSelector;
@@ -56,7 +61,6 @@ class FormController;
 
 namespace Ui {
 class LayerWidget;
-enum class ReportReason;
 class ChatStyle;
 class ChatTheme;
 struct ChatThemeKey;
@@ -64,14 +68,23 @@ struct ChatPaintContext;
 struct ChatThemeBackground;
 struct ChatThemeBackgroundData;
 class MessageSendingAnimationController;
+struct BoostCounters;
+struct ChatPaintContextArgs;
 } // namespace Ui
 
 namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
 class Thread;
+class Forum;
 class ForumTopic;
+class SavedSublist;
+class WallPaper;
 } // namespace Data
+
+namespace HistoryView {
+class SubsectionTabs;
+} // namespace HistoryView
 
 namespace HistoryView::Reactions {
 class CachedIconFactory;
@@ -79,34 +92,22 @@ class CachedIconFactory;
 
 namespace Window {
 
-class MainWindow;
+using GifPauseReason = ChatHelpers::PauseReason;
+using GifPauseReasons = ChatHelpers::PauseReasons;
+
 class SectionMemento;
 class Controller;
 class FiltersMenu;
+class ChatPreviewManager;
+class ChatSwitchProcess;
 
-enum class GifPauseReason {
-	Any           = 0,
-	InlineResults = (1 << 0),
-	TabbedPanel   = (1 << 1),
-	Layer         = (1 << 2),
-	RoundPlaying  = (1 << 3),
-	MediaPreview  = (1 << 4),
-};
-using GifPauseReasons = base::flags<GifPauseReason>;
-inline constexpr bool is_flag_type(GifPauseReason) { return true; };
-
-enum class ResolveType {
-	Default,
-	BotStart,
-	AddToGroup,
-	AddToChannel,
-	ShareGame,
-	Mention,
-};
+struct PeerByLinkInfo;
+struct SeparateId;
 
 struct PeerThemeOverride {
 	PeerData *peer = nullptr;
 	std::shared_ptr<Ui::ChatTheme> theme;
+	EmojiPtr emoji = nullptr;
 };
 bool operator==(const PeerThemeOverride &a, const PeerThemeOverride &b);
 bool operator!=(const PeerThemeOverride &a, const PeerThemeOverride &b);
@@ -122,6 +123,21 @@ private:
 	Dialogs::Key _chat;
 	base::weak_ptr<Data::ForumTopic> _weak;
 	QDate _date;
+
+};
+
+class ForumThreadClickHandler : public ClickHandler {
+public:
+	explicit ForumThreadClickHandler(not_null<HistoryItem*> item);
+
+	void update(not_null<HistoryItem*> item);
+	void onClick(ClickContext context) const override;
+
+private:
+	[[nodiscard]] base::weak_ptr<Data::Thread> resolveThread(
+		not_null<HistoryItem*> item) const;
+
+	base::weak_ptr<Data::Thread> _thread;
 
 };
 
@@ -152,22 +168,38 @@ struct SectionShow {
 	, activation(activation) {
 	}
 
-	SectionShow withWay(Way newWay) const {
+	[[nodiscard]] SectionShow withWay(Way newWay) const {
 		return SectionShow(newWay, animated, activation);
 	}
-	SectionShow withThirdColumn() const {
+	[[nodiscard]] SectionShow withThirdColumn() const {
 		auto copy = *this;
 		copy.thirdColumn = true;
 		return copy;
 	}
+	[[nodiscard]] SectionShow withChildColumn() const {
+		auto copy = *this;
+		copy.childColumn = true;
+		return copy;
+	}
 
+	MessageHighlightId highlight;
+	int highlightPartOffsetHint = 0;
+	int highlightTodoItemId = 0;
+	std::optional<TimeId> videoTimestamp;
 	Way way = Way::Forward;
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;
 	bool thirdColumn = false;
+	bool childColumn = false;
+	bool forbidLayer = false;
+	bool forceTopicsList = false;
+	bool reapplyLocalDraft = false;
+	bool dropSameFromStack = false;
 	Origin origin;
 
 };
+
+[[nodiscard]] MessageHighlightId SearchHighlightId(const QString &query);
 
 class SessionController;
 
@@ -176,7 +208,9 @@ public:
 	explicit SessionNavigation(not_null<Main::Session*> session);
 	virtual ~SessionNavigation();
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
+
+	bool showFrozenError();
 
 	virtual void showSection(
 		std::shared_ptr<SectionMemento> memento,
@@ -185,28 +219,6 @@ public:
 		const SectionShow &params = SectionShow()) = 0;
 	virtual not_null<SessionController*> parentController() = 0;
 
-	struct CommentId {
-		MsgId id = 0;
-	};
-	struct ThreadId {
-		MsgId id = 0;
-	};
-	using RepliesByLinkInfo = std::variant<v::null_t, CommentId, ThreadId>;
-	struct PeerByLinkInfo {
-		std::variant<QString, ChannelId> usernameOrId;
-		QString phone;
-		MsgId messageId = ShowAtUnreadMsgId;
-		RepliesByLinkInfo repliesInfo;
-		ResolveType resolveType = ResolveType::Default;
-		QString startToken;
-		ChatAdminRights startAdminRights;
-		bool startAutoSubmit = false;
-		QString attachBotUsername;
-		std::optional<QString> attachBotToggleCommand;
-		InlineBots::PeerTypes attachBotChooseTypes;
-		std::optional<QString> voicechatHash;
-		FullMsgId clickFromMessageId;
-	};
 	void showPeerByLink(const PeerByLinkInfo &info);
 
 	void showRepliesForMessage(
@@ -216,6 +228,10 @@ public:
 		const SectionShow &params = SectionShow());
 	void showTopic(
 		not_null<Data::ForumTopic*> topic,
+		MsgId itemId = 0,
+		const SectionShow &params = SectionShow());
+	void showSublist(
+		not_null<Data::SavedSublist*> sublist,
 		MsgId itemId = 0,
 		const SectionShow &params = SectionShow());
 	void showThread(
@@ -254,6 +270,10 @@ public:
 			ShowAtUnreadMsgId);
 	}
 
+	void showByInitialId(
+		const SectionShow &params = SectionShow::Way::ClearStack,
+		MsgId msgId = ShowAtUnreadMsgId);
+
 	void showSettings(
 		Settings::Type type,
 		const SectionShow &params = SectionShow());
@@ -264,16 +284,56 @@ public:
 		FullMsgId contextId,
 		const SectionShow &params = SectionShow());
 
+	void searchInChat(Dialogs::Key inChat, PeerData *searchFrom = nullptr);
+	void searchMessages(
+		const QString &query,
+		Dialogs::Key inChat,
+		PeerData *searchFrom = nullptr);
+
+	void resolveBoostState(
+		not_null<ChannelData*> channel,
+		int boostsToLift = 0);
+
+	void resolveCollectible(
+		PeerId ownerId,
+		const QString &entity,
+		Fn<void(QString)> fail = nullptr);
+	void resolveConferenceCall(
+		QString slug,
+		FullMsgId contextId);
+	void resolveConferenceCall(
+		MsgId inviteMsgId,
+		FullMsgId contextId);
+
+	base::weak_ptr<Ui::Toast::Instance> showToast(
+		Ui::Toast::Config &&config);
+	base::weak_ptr<Ui::Toast::Instance> showToast(
+		TextWithEntities &&text,
+		crl::time duration = 0);
+	base::weak_ptr<Ui::Toast::Instance> showToast(
+		const QString &text,
+		crl::time duration = 0);
+
+	[[nodiscard]] virtual std::shared_ptr<ChatHelpers::Show> uiShow();
+
 private:
 	void resolvePhone(
 		const QString &phone,
 		Fn<void(not_null<PeerData*>)> done);
+	void resolveChatLink(
+		const QString &slug,
+		Fn<void(not_null<PeerData*> peer, TextWithEntities draft)> done);
 	void resolveUsername(
 		const QString &username,
-		Fn<void(not_null<PeerData*>)> done);
+		Fn<void(not_null<PeerData*>)> done,
+		const QString &starref = QString());
 	void resolveChannelById(
 		ChannelId channelId,
 		Fn<void(not_null<ChannelData*>)> done);
+	void resolveConferenceCall(
+		QString slug,
+		MsgId inviteMsgId,
+		FullMsgId contextId);
 
 	void resolveDone(
 		const MTPcontacts_ResolvedPeer &result,
@@ -289,6 +349,14 @@ private:
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
 
+	void applyBoost(
+		not_null<ChannelData*> channel,
+		Fn<void(Ui::BoostCounters)> done);
+	void applyBoostsChecked(
+		not_null<ChannelData*> channel,
+		std::vector<int> slots,
+		Fn<void(Ui::BoostCounters)> done);
+
 	const not_null<Main::Session*> _session;
 
 	MTP::Sender _api;
@@ -298,6 +366,17 @@ private:
 	History *_showingRepliesHistory = nullptr;
 	MsgId _showingRepliesRootId = 0;
 	mtpRequestId _showingRepliesRequestId = 0;
+
+	ChannelData *_boostStateResolving = nullptr;
+	int _boostsToLift = 0;
+
+	QString _collectibleEntity;
+	mtpRequestId _collectibleRequestId = 0;
+
+	QString _conferenceCallSlug;
+	MsgId _conferenceCallInviteMsgId;
+	FullMsgId _conferenceCallResolveContextId;
+	mtpRequestId _conferenceCallRequestId = 0;
 
 };
 
@@ -311,22 +390,13 @@ public:
 	[[nodiscard]] Controller &window() const {
 		return *_window;
 	}
-	[[nodiscard]] PeerData *singlePeer() const;
+	[[nodiscard]] SeparateId windowId() const;
 	[[nodiscard]] bool isPrimary() const;
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
 	[[nodiscard]] not_null<MainWidget*> content() const;
 	[[nodiscard]] Adaptive &adaptive() const;
 	[[nodiscard]] ChatHelpers::EmojiInteractions &emojiInteractions() const {
 		return *_emojiInteractions;
-	}
-
-	// We need access to this from MainWidget::MainWidget, where
-	// we can't call content() yet.
-	void setSelectingPeer(bool selecting) {
-		_selectingPeer = selecting;
-	}
-	[[nodiscard]] bool selectingPeer() const {
-		return _selectingPeer;
 	}
 
 	void setConnectingBottomSkip(int skip);
@@ -336,11 +406,10 @@ public:
 	void stickerOrEmojiChosen(FileChosen chosen);
 	[[nodiscard]] rpl::producer<FileChosen> stickerOrEmojiChosen() const;
 
-	QPointer<Ui::BoxContent> show(
+	base::weak_qptr<Ui::BoxContent> show(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther,
 		anim::type animated = anim::type::normal);
-
 	void hideLayer(anim::type animated = anim::type::normal);
 
 	[[nodiscard]] auto sendingAnimation() const
@@ -352,18 +421,23 @@ public:
 
 	// This is needed for History TopBar updating when searchInChat
 	// is changed in the Dialogs::Widget of the current window.
-	rpl::variable<Dialogs::Key> searchInChat;
-	bool uniqueChatsInSearchResults() const;
+	rpl::producer<Dialogs::Key> searchInChatValue() const {
+		return _searchInChat.value();
+	}
+	void setSearchInChat(Dialogs::Key value) {
+		_searchInChat = value;
+	}
+	bool uniqueChatsInSearchResults(const Dialogs::SearchState &state) const;
 
 	void openFolder(not_null<Data::Folder*> folder);
 	void closeFolder();
 	const rpl::variable<Data::Folder*> &openedFolder() const;
 
-	void openForum(
-		not_null<ChannelData*> forum,
+	void showForum(
+		not_null<Data::Forum*> forum,
 		const SectionShow &params = SectionShow::Way::ClearStack);
 	void closeForum();
-	const rpl::variable<ChannelData*> &openedForum() const;
+	const rpl::variable<Data::Forum*> &shownForum() const;
 
 	void setActiveChatEntry(Dialogs::RowDescriptor row);
 	void setActiveChatEntry(Dialogs::Key key);
@@ -375,13 +449,25 @@ public:
 	rpl::producer<Dialogs::Key> activeChatValue() const;
 	bool jumpToChatListEntry(Dialogs::RowDescriptor row);
 
+	void setDialogsEntryState(Dialogs::EntryState state);
+	[[nodiscard]] Dialogs::EntryState dialogsEntryStateCurrent() const;
+	[[nodiscard]] auto dialogsEntryStateValue() const
+		-> rpl::producer<Dialogs::EntryState>;
+	bool switchInlineQuery(
+		Dialogs::EntryState to,
+		not_null<UserData*> bot,
+		const QString &query);
+	bool switchInlineQuery(
+		not_null<Data::Thread*> thread,
+		not_null<UserData*> bot,
+		const QString &query);
+
 	[[nodiscard]] Dialogs::RowDescriptor resolveChatNext(
 		Dialogs::RowDescriptor from = {}) const;
 	[[nodiscard]] Dialogs::RowDescriptor resolveChatPrevious(
 		Dialogs::RowDescriptor from = {}) const;
 
 	void showEditPeerBox(PeerData *peer);
-	void showGiftPremiumBox(UserData *user);
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
@@ -390,9 +476,6 @@ public:
 	}
 	bool isGifPausedAtLeastFor(GifPauseReason reason) const;
 	void floatPlayerAreaUpdated();
-
-	void materializeLocalDrafts();
-	[[nodiscard]] rpl::producer<> materializeLocalDraftsRequests() const;
 
 	struct ColumnLayout {
 		int bodyWidth = 0;
@@ -403,15 +486,14 @@ public:
 	};
 	[[nodiscard]] ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;
-	bool forceWideDialogs() const;
-	void updateColumnLayout();
+	void updateColumnLayout() const;
 	bool canShowThirdSection() const;
 	bool canShowThirdSectionWithoutResize() const;
 	bool takeThirdSectionFromLayer();
 	void resizeForThirdSection();
 	void closeThirdSection();
 
-	[[nodiscard]] bool canShowSeparateWindow(not_null<PeerData*> peer) const;
+	[[nodiscard]] bool canShowSeparateWindow(SeparateId id) const;
 	void showPeer(not_null<PeerData*> peer, MsgId msgId = ShowAtUnreadMsgId);
 
 	void startOrJoinGroupCall(not_null<PeerData*> peer);
@@ -449,6 +531,7 @@ public:
 		showSpecialLayer(nullptr, animated);
 	}
 	void removeLayerBlackout();
+	[[nodiscard]] bool isLayerShown() const;
 
 	void showCalendar(
 		Dialogs::Key chat,
@@ -461,36 +544,61 @@ public:
 	void showPassportForm(const Passport::FormRequest &request);
 	void clearPassportForm();
 
+	struct MessageContext {
+		FullMsgId id;
+		MsgId topicRootId;
+		PeerId monoforumPeerId;
+	};
 	void openPhoto(
 		not_null<PhotoData*> photo,
-		FullMsgId contextId,
-		MsgId topicRootId);
+		MessageContext message,
+		const Data::StoriesContext *stories = nullptr);
 	void openPhoto(not_null<PhotoData*> photo, not_null<PeerData*> peer);
 	void openDocument(
 		not_null<DocumentData*> document,
-		FullMsgId contextId,
-		MsgId topicRootId,
-		bool showInMediaView = false);
+		bool showInMediaView,
+		MessageContext message,
+		const Data::StoriesContext *stories = nullptr,
+		std::optional<TimeId> videoTimestampOverride = {});
+	bool openSharedStory(HistoryItem *item);
+	bool openFakeItemStory(
+		FullMsgId fakeItemId,
+		const Data::StoriesContext *stories = nullptr);
 
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,
-		Ui::ReportReason reason,
-		Fn<void(MessageIdsList)> done);
-	void clearChooseReportMessages();
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> done) const;
+	void clearChooseReportMessages() const;
 
-	void toggleChooseChatTheme(not_null<PeerData*> peer);
+	void showInNewWindow(
+		SeparateId id,
+		MsgId msgId = ShowAtUnreadMsgId);
 
-	base::Variable<bool> &dialogsListFocused() {
-		return _dialogsListFocused;
+	void toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show = std::nullopt);
+	void finishChatThemeEdit(not_null<PeerData*> peer);
+
+	[[nodiscard]] bool mainSectionShown() const {
+		return _mainSectionShown.current();
 	}
-	const base::Variable<bool> &dialogsListFocused() const {
-		return _dialogsListFocused;
+	[[nodiscard]] rpl::producer<bool> mainSectionShownChanges() const {
+		return _mainSectionShown.changes();
 	}
-	base::Variable<bool> &dialogsListDisplayForced() {
-		return _dialogsListDisplayForced;
+	void setMainSectionShown(bool value) {
+		_mainSectionShown = value;
 	}
-	const base::Variable<bool> &dialogsListDisplayForced() const {
-		return _dialogsListDisplayForced;
+
+	[[nodiscard]] bool chatsForceDisplayWide() const {
+		return _chatsForceDisplayWide.current();
+	}
+	[[nodiscard]] auto chatsForceDisplayWideChanges() const
+	-> rpl::producer<bool> {
+		return _chatsForceDisplayWide.changes();
+	}
+	void setChatsForceDisplayWide(bool value) {
+		_chatsForceDisplayWide = value;
 	}
 
 	not_null<SessionController*> parentController() override {
@@ -498,6 +606,8 @@ public:
 	}
 
 	[[nodiscard]] int filtersWidth() const;
+	[[nodiscard]] bool enoughSpaceForFilters() const;
+	[[nodiscard]] rpl::producer<bool> enoughSpaceForFiltersValue() const;
 	[[nodiscard]] rpl::producer<FilterId> activeChatsFilter() const;
 	[[nodiscard]] FilterId activeChatsFilterCurrent() const;
 	void setActiveChatsFilter(
@@ -513,8 +623,13 @@ public:
 	}
 	[[nodiscard]] auto cachedChatThemeValue(
 		const Data::CloudTheme &data,
+		const Data::WallPaper &paper,
 		Data::CloudThemeType type)
 	-> rpl::producer<std::shared_ptr<Ui::ChatTheme>>;
+	[[nodiscard]] bool chatThemeAlreadyCached(
+		const Data::CloudTheme &data,
+		const Data::WallPaper &paper,
+		Data::CloudThemeType type);
 	void setChatStyleTheme(const std::shared_ptr<Ui::ChatTheme> &theme);
 	void clearCachedChatThemes();
 	void pushLastUsedChatTheme(const std::shared_ptr<Ui::ChatTheme> &theme);
@@ -522,44 +637,69 @@ public:
 
 	void overridePeerTheme(
 		not_null<PeerData*> peer,
-		std::shared_ptr<Ui::ChatTheme> theme);
+		std::shared_ptr<Ui::ChatTheme> theme,
+		EmojiPtr emoji);
 	void clearPeerThemeOverride(not_null<PeerData*> peer);
 	[[nodiscard]] auto peerThemeOverrideValue() const
 		-> rpl::producer<PeerThemeOverride> {
 		return _peerThemeOverride.value();
 	}
 
-	struct PaintContextArgs {
-		not_null<Ui::ChatTheme*> theme;
-		int visibleAreaTop = 0;
-		int visibleAreaTopGlobal = 0;
-		int visibleAreaWidth = 0;
-		QRect clip;
-	};
+	void openPeerStory(
+		not_null<PeerData*> peer,
+		StoryId storyId,
+		Data::StoriesContext context);
+	void openPeerStories(
+		PeerId peerId,
+		std::optional<Data::StorySourcesList> list = std::nullopt);
+
 	[[nodiscard]] Ui::ChatPaintContext preparePaintContext(
-		PaintContextArgs &&args);
+		Ui::ChatPaintContextArgs &&args);
 	[[nodiscard]] not_null<const Ui::ChatStyle*> chatStyle() const {
 		return _chatStyle.get();
 	}
 
-	[[nodiscard]] auto cachedReactionIconFactory() const
-	-> HistoryView::Reactions::CachedIconFactory & {
-		return *_cachedReactionIconFactory;
+	[[nodiscard]] QString authedName() const {
+		return _authedName;
 	}
 
 	void setPremiumRef(const QString &ref);
 	[[nodiscard]] QString premiumRef() const;
 
-	rpl::lifetime &lifetime() {
+	bool showChatPreview(
+		Dialogs::RowDescriptor row,
+		Fn<void(bool shown)> callback = nullptr,
+		QPointer<QWidget> parentOverride = nullptr,
+		std::optional<QPoint> positionOverride = {});
+	bool scheduleChatPreview(
+		Dialogs::RowDescriptor row,
+		Fn<void(bool shown)> callback = nullptr,
+		QPointer<QWidget> parentOverride = nullptr,
+		std::optional<QPoint> positionOverride = {});
+	void cancelScheduledPreview();
+
+	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e) const;
+
+	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() override;
+
+	void saveSubsectionTabs(
+		std::unique_ptr<HistoryView::SubsectionTabs> tabs);
+	[[nodiscard]] auto restoreSubsectionTabsFor(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::Thread*> thread)
+		-> std::unique_ptr<HistoryView::SubsectionTabs>;
+	void dropSubsectionTabs();
+
+	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
 
 private:
+	struct CachedThemeKey;
 	struct CachedTheme;
 
 	void init();
-	void initSupportMode();
-	void refreshFiltersMenu();
+	void setupShortcuts();
 	void checkOpenedFilter();
 	void suggestArchiveAndMute();
 	void activateFirstChatsFilter();
@@ -585,7 +725,9 @@ private:
 
 	void pushDefaultChatBackground();
 	void cacheChatTheme(
+		CachedThemeKey key,
 		const Data::CloudTheme &data,
+		const Data::WallPaper &paper,
 		Data::CloudThemeType type);
 	void cacheChatThemeDone(std::shared_ptr<Ui::ChatTheme> result);
 	void updateCustomThemeBackground(CachedTheme &theme);
@@ -593,9 +735,24 @@ private:
 		CachedTheme &theme,
 		bool generateGradient = true) const;
 
+	[[nodiscard]] bool skipNonPremiumLimitToast(bool download) const;
+	void checkNonPremiumLimitToastDownload(DocumentId id);
+	void checkNonPremiumLimitToastUpload(FullMsgId id);
+
+	bool openFolderInDifferentWindow(not_null<Data::Folder*> folder);
+	bool showForumInDifferentWindow(
+		not_null<Data::Forum*> forum,
+		const SectionShow &params);
+
 	const not_null<Controller*> _window;
 	const std::unique_ptr<ChatHelpers::EmojiInteractions> _emojiInteractions;
+	const std::unique_ptr<ChatPreviewManager> _chatPreviewManager;
 	const bool _isPrimary = false;
+	const bool _hasDialogs = false;
+
+	mutable std::shared_ptr<ChatHelpers::Show> _cachedShow;
+
+	QString _authedName;
 
 	using SendingAnimation = Ui::MessageSendingAnimationController;
 	const std::unique_ptr<SendingAnimation> _sendingAnimation;
@@ -609,14 +766,16 @@ private:
 	// Depends on _gifPause*.
 	const std::unique_ptr<ChatHelpers::TabbedSelector> _tabbedSelector;
 
+	rpl::variable<Dialogs::Key> _searchInChat;
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	rpl::lifetime _activeHistoryLifetime;
-	base::Variable<bool> _dialogsListFocused = { false };
-	base::Variable<bool> _dialogsListDisplayForced = { false };
+	rpl::variable<bool> _mainSectionShown = false;
+	rpl::variable<bool> _chatsForceDisplayWide = false;
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
 	bool _filtersActivated = false;
-	bool _selectingPeer = false;
+
+	rpl::variable<Dialogs::EntryState> _dialogsEntryState;
 
 	base::Timer _invitePeekTimer;
 
@@ -628,27 +787,26 @@ private:
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
-	rpl::variable<ChannelData*> _openedForum;
-	rpl::lifetime _openedForumLifetime;
+	rpl::variable<Data::Forum*> _shownForum;
+	rpl::lifetime _shownForumLifetime;
 
 	rpl::event_stream<> _filtersMenuChanged;
 
-	std::shared_ptr<Ui::ChatTheme> _defaultChatTheme;
-	base::flat_map<Ui::ChatThemeKey, CachedTheme> _customChatThemes;
+	const std::shared_ptr<Ui::ChatTheme> _defaultChatTheme;
+	base::flat_map<CachedThemeKey, CachedTheme> _customChatThemes;
 	rpl::event_stream<std::shared_ptr<Ui::ChatTheme>> _cachedThemesStream;
 	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
 	std::weak_ptr<Ui::ChatTheme> _chatStyleTheme;
 	std::deque<std::shared_ptr<Ui::ChatTheme>> _lastUsedCustomChatThemes;
 	rpl::variable<PeerThemeOverride> _peerThemeOverride;
 
-	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
-	std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
+	std::unique_ptr<ChatSwitchProcess> _chatSwitchProcess;
 
-	GiftPremiumValidator _giftPremiumValidator;
+	base::has_weak_ptr _storyOpenGuard;
 
 	QString _premiumRef;
-
-	rpl::event_stream<> _materializeLocalDraftsRequests;
+	std::unique_ptr<HistoryView::SubsectionTabs> _savedSubsectionTabs;
+	rpl::lifetime _savedSubsectionTabsLifetime;
 
 	rpl::lifetime _lifetime;
 
@@ -663,22 +821,9 @@ void ActivateWindow(not_null<SessionController*> controller);
 	not_null<SessionController*> controller,
 	GifPauseReason level);
 
-class Show : public Ui::Show {
-public:
-	explicit Show(not_null<SessionNavigation*> navigation);
-	explicit Show(Controller *window);
-	~Show();
-	void showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options = Ui::LayerOption::KeepOther) const override;
-	void hideLayer() const override;
-	[[nodiscard]] not_null<QWidget*> toastParent() const override;
-	[[nodiscard]] bool valid() const override;
-	operator bool() const override;
-
-private:
-	const base::weak_ptr<Controller> _window;
-
-};
+bool CheckAndJumpToNearChatsFilter(
+	not_null<SessionController*> controller,
+	bool isNext,
+	bool jump);
 
 } // namespace Window

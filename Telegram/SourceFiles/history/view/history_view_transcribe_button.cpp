@@ -7,23 +7,45 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_transcribe_button.h"
 
+#include "base/unixtime.h"
+#include "boxes/premium_preview_box.h"
+#include "core/click_handler_types.h" // ClickHandlerContext
 #include "history/history.h"
 #include "history/history_item.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
-#include "ui/click_handler.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "api/api_transcribes.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
+#include "window/window_session_controller.h"
 
 namespace HistoryView {
 namespace {
 
 constexpr auto kInNonChosenOpacity = 0.12;
 constexpr auto kOutNonChosenOpacity = 0.18;
+
+void ClipPainterForLock(QPainter &p, bool roundview, const QRect &r) {
+	const auto &pos = roundview
+		? st::historyFastTranscribeLockOverlayPos
+		: st::historyTranscribeLockOverlayPos;
+	const auto &size = roundview
+		? st::historyFastTranscribeLockOverlaySize
+		: st::historyTranscribeLockOverlaySize;
+
+	auto clipPath = QPainterPath();
+	clipPath.addRect(r);
+	const auto clear = QRect(pos + r.topLeft(), size);
+	clipPath.addRoundedRect(clear, clear.width() * 0.5, clear.height() * 0.5);
+	p.setClipPath(clipPath);
+}
 
 } // namespace
 
@@ -68,14 +90,37 @@ void TranscribeButton::paint(
 	const auto stm = context.messageStyle();
 	if (_roundview) {
 		_lastPaintedPoint = { x, y };
+		const auto r = QRect(QPoint(x, y), size());
 
-		PainterHighQualityEnabler hq(p);
+		if (_ripple) {
+			const auto colorOverride = &stm->msgWaveformInactive->c;
+			_ripple->paint(
+				p,
+				x,
+				y,
+				r.width(),
+				colorOverride);
+			if (_ripple->empty()) {
+				_ripple.reset();
+			}
+		}
+
+		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(context.st->msgServiceBg());
 
-		const auto r = QRect(QPoint(x, y), size());
 		p.drawEllipse(r);
-		context.st->historyFastTranscribeIcon().paintInCenter(p, r);
+		if (!_loading && hasLock()) {
+			ClipPainterForLock(p, true, r);
+			context.st->historyFastTranscribeIcon().paintInCenter(p, r);
+			p.setClipping(false);
+			context.st->historyFastTranscribeLock().paint(
+				p,
+				r.topLeft() + st::historyFastTranscribeLockPos,
+				r.width());
+		} else {
+			context.st->historyFastTranscribeIcon().paintInCenter(p, r);
+		}
 
 		const auto state = _animation
 			? _animation->computeState()
@@ -92,7 +137,7 @@ void TranscribeButton::paint(
 				_st->thickness,
 				pen.color(),
 				_st->bg);
-		} else if (state.arcLength < FullArcLength) {
+		} else if (state.arcLength < arc::kFullLength) {
 			const auto opacity = p.opacity();
 			p.setOpacity(state.shown * (1. - opened));
 			p.drawArc(r, state.arcFrom, state.arcLength);
@@ -155,12 +200,39 @@ void TranscribeButton::paint(
 			p.scale(1. - opened, 1. - opened);
 			p.translate(-r.center());
 		}
-		stm->historyTranscribeIcon.paintInCenter(p, r);
+
+		if (!_loading && hasLock()) {
+			ClipPainterForLock(p, false, r);
+			stm->historyTranscribeIcon.paintInCenter(p, r);
+			p.setClipping(false);
+			stm->historyTranscribeLock.paint(
+				p,
+				r.topLeft() + st::historyTranscribeLockPos,
+				r.width());
+		} else {
+			stm->historyTranscribeIcon.paintInCenter(p, r);
+		}
+
 		if (opened != 0.) {
 			p.restore();
 		}
 	}
 	p.setOpacity(1.);
+}
+
+bool TranscribeButton::hasLock() const {
+	const auto session = &_item->history()->session();
+	const auto transcribes = &session->api().transcribes();
+	if (session->premium()
+		|| transcribes->freeFor(_item)
+		|| transcribes->trialsCount()) {
+		return false;
+	}
+	const auto until = transcribes->trialsRefreshAt();
+	if (!until || base::unixtime::now() >= until) {
+		return false;
+	}
+	return true;
 }
 
 void TranscribeButton::setOpened(bool opened, Fn<void()> update) {
@@ -187,16 +259,60 @@ ClickHandlerPtr TranscribeButton::link() {
 	}
 	const auto session = &_item->history()->session();
 	const auto id = _item->fullId();
-	_link = std::make_shared<LambdaClickHandler>([=] {
-		if (const auto item = session->data().message(id)) {
+	_link = std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto item = session->data().message(id);
+		if (!item) {
+			return;
+		}
+		if (session->premium()) {
+			return session->api().transcribes().toggle(item);
+		}
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (hasLock()) {
+			if (const auto controller = my.sessionWindow.get()) {
+				ShowPremiumPreviewBox(
+					controller,
+					PremiumFeature::VoiceToText);
+			}
+		} else {
+			const auto max = session->api().transcribes().trialsMaxLengthMs();
+			const auto doc = _item->media()
+				? _item->media()->document()
+				: nullptr;
+			if (doc && (doc->isVoiceMessage() || doc->isVideoMessage())) {
+				if (doc->duration() > max) {
+					if (const auto controller = my.sessionWindow.get()) {
+						controller->uiShow()->showToast(
+							tr::lng_audio_transcribe_long(tr::now));
+						return;
+					}
+				}
+			}
 			session->api().transcribes().toggle(item);
 		}
 	});
 	return _link;
 }
 
-QRect TranscribeButton::lastPaintedRect() const {
-	return { _lastPaintedPoint, size() };
+bool TranscribeButton::contains(const QPoint &p) {
+	_lastStatePoint = p - _lastPaintedPoint;
+	return QRect(_lastPaintedPoint, size()).contains(p);
+}
+
+void TranscribeButton::addRipple(Fn<void()> callback) {
+	if (!_ripple) {
+		_ripple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultRippleAnimation,
+			Ui::RippleAnimation::EllipseMask(size()),
+			std::move(callback));
+	}
+	_ripple->add(_lastStatePoint);
+}
+
+void TranscribeButton::stopRipple() const {
+	if (_ripple) {
+		_ripple->lastStop();
+	}
 }
 
 } // namespace HistoryView

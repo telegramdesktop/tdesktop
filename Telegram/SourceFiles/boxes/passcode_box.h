@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 #include "mtproto/sender.h"
 #include "core/core_cloud_password.h"
 
@@ -51,7 +51,10 @@ public:
 		TimeId pendingResetDate = 0;
 
 		// Check cloud password for some action.
-		Fn<void(const Core::CloudPasswordResult &)> customCheckCallback;
+		using CustomCheck = Fn<void(
+			const Core::CloudPasswordResult &,
+			base::weak_qptr<PasscodeBox>)>;
+		CustomCheck customCheckCallback;
 		rpl::producer<QString> customTitle;
 		std::optional<QString> customDescription;
 		rpl::producer<QString> customSubmitButton;
@@ -90,7 +93,6 @@ private:
 	void closeReplacedBy();
 	void oldChanged();
 	void newChanged();
-	void emailChanged();
 	void save(bool force = false);
 	void badOldPasscode();
 	void recoverByEmail();
@@ -152,10 +154,11 @@ private:
 
 	Main::Session *_session = nullptr;
 	MTP::Sender _api;
+	const int _textWidth;
 
 	QString _pattern;
 
-	QPointer<Ui::BoxContent> _replacedBy;
+	base::weak_qptr<Ui::BoxContent> _replacedBy;
 	bool _turningOff = false;
 	bool _cloudPwd = false;
 	CloudFields _cloudFields;
@@ -217,17 +220,18 @@ private:
 	void proceedToChange(const QString &code);
 	void checkSubmitFail(const MTP::Error &error);
 	void setError(const QString &error);
+	void updateHeight();
 
 	Main::Session *_session = nullptr;
 	MTP::Sender _api;
+	const int _textWidth;
 	mtpRequestId _submitRequest = 0;
-
-	QString _pattern;
 
 	PasscodeBox::CloudFields _cloudFields;
 
 	object_ptr<Ui::InputField> _recoverCode;
 	object_ptr<Ui::LinkButton> _noEmailAccess;
+	object_ptr<Ui::FlatLabel> _patternLabel;
 	Fn<void()> _closeParent;
 
 	QString _error;

@@ -8,7 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/file_utilities.h"
-#include "lang/lang_keys.h"
+
+namespace tr {
+template <typename ...>
+struct phrase;
+} // namespace tr
 
 namespace Ui {
 struct PreparedFileInformation;
@@ -51,8 +55,11 @@ enum class MimeDataState {
 	QImage &&image,
 	QByteArray &&content,
 	int previewWidth);
-void PrepareDetails(Ui::PreparedFile &file, int previewWidth);
-void UpdateImageDetails(Ui::PreparedFile &file, int previewWidth);
+void PrepareDetails(Ui::PreparedFile &file, int previewWidth, int sideLimit);
+void UpdateImageDetails(
+	Ui::PreparedFile &file,
+	int previewWidth,
+	int sideLimit);
 
 bool ApplyModifications(Ui::PreparedList &list);
 

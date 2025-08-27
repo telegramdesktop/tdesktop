@@ -41,7 +41,6 @@ private:
 
 	not_null<Session*> _data;
 	std::map<MessageGroupId, Group> _groups;
-	std::map<MessageGroupId, MessageGroupId> _alias;
 
 };
 

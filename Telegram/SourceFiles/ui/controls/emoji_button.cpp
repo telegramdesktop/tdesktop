@@ -10,32 +10,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
-#include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Ui {
-namespace {
 
-} // namespace
-
-EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st)
-: RippleButton(parent, st.ripple)
+EmojiButton::EmojiButton(QWidget *parent, const style::EmojiButton &st)
+: RippleButton(parent, st.inner.ripple)
 , _st(st) {
-	resize(_st.width, _st.height);
+	resize(_st.inner.width, _st.inner.height);
 	setCursor(style::cur_pointer);
 }
 
 void EmojiButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	p.fillRect(e->rect(), st::historyComposeAreaBg);
-	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), _rippleOverride ? &(*_rippleOverride)->c : nullptr);
+	p.fillRect(e->rect(), _st.bg);
+	const auto &st = _st.inner;
+	paintRipple(p, st.rippleAreaPosition.x(), st.rippleAreaPosition.y(), _rippleOverride ? &(*_rippleOverride)->c : nullptr);
 
 	const auto over = isOver();
 	const auto loadingState = _loading
 		? _loading->computeState()
 		: RadialState{ 0., 0, RadialState::kFull };
-	const auto icon = _iconOverride ? _iconOverride : &(over ? _st.iconOver : _st.icon);
-	auto position = _st.iconPosition;
+	const auto icon = _iconOverride ? _iconOverride : &(over ? st.iconOver : st.icon);
+	auto position = st.iconPosition;
 	if (position.x() < 0) {
 		position.setX((width() - icon->width()) / 2);
 	}
@@ -56,9 +54,7 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 
 	const auto color = (_colorOverride
 		? *_colorOverride
-		: (over
-			? st::historyEmojiCircleFgOver
-			: st::historyEmojiCircleFg));
+		: (over ? _st.lineFgOver : _st.lineFg));
 	const auto line = style::ConvertScaleExact(st::historyEmojiCircleLine);
 	if (anim::Disabled() && _loading && _loading->animating()) {
 		anim::DrawStaticLoading(p, inner, line, color);
@@ -115,14 +111,15 @@ void EmojiButton::onStateChanged(State was, StateChangeSource source) {
 }
 
 QPoint EmojiButton::prepareRippleStartPosition() const {
-	if (!_st.rippleAreaSize) {
+	if (!_st.inner.rippleAreaSize) {
 		return DisabledRippleStartPosition();
 	}
-	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
+	return mapFromGlobal(QCursor::pos()) - _st.inner.rippleAreaPosition;
 }
 
 QImage EmojiButton::prepareRippleMask() const {
-	return RippleAnimation::EllipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+	const auto size = _st.inner.rippleAreaSize;
+	return RippleAnimation::EllipseMask(QSize(size, size));
 }
 
 } // namespace Ui

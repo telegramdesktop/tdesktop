@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_widget.h"
 
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "history/history.h"
 #include "info/profile/info_profile_inner_widget.h"
 #include "info/profile/info_profile_members.h"
 #include "ui/widgets/scroll_area.h"
@@ -14,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
@@ -24,22 +27,34 @@ Memento::Memento(not_null<Controller*> controller)
 : Memento(
 	controller->peer(),
 	controller->topic(),
-	controller->migratedPeerId()) {
+	controller->sublist(),
+	controller->migratedPeerId(),
+	{ v::null }) {
 }
 
-Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId)
-: Memento(peer, nullptr, migratedPeerId) {
+Memento::Memento(
+	not_null<PeerData*> peer,
+	PeerId migratedPeerId,
+	Origin origin)
+: Memento(peer, nullptr, nullptr, migratedPeerId, origin) {
 }
 
 Memento::Memento(
 	not_null<PeerData*> peer,
 	Data::ForumTopic *topic,
-	PeerId migratedPeerId)
-: ContentMemento(peer, topic, migratedPeerId) {
+	Data::SavedSublist *sublist,
+	PeerId migratedPeerId,
+	Origin origin)
+: ContentMemento(peer, topic, sublist, migratedPeerId)
+, _origin(origin) {
 }
 
 Memento::Memento(not_null<Data::ForumTopic*> topic)
-: ContentMemento(topic->channel(), topic, 0) {
+: ContentMemento(topic->channel(), topic, nullptr, 0) {
+}
+
+Memento::Memento(not_null<Data::SavedSublist*> sublist)
+: ContentMemento(sublist->owningHistory()->peer, nullptr, sublist, 0) {
 }
 
 Section Memento::section() const {
@@ -50,7 +65,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(parent, controller);
+	auto result = object_ptr<Widget>(parent, controller, _origin);
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -65,13 +80,17 @@ std::unique_ptr<MembersState> Memento::membersState() {
 
 Memento::~Memento() = default;
 
-Widget::Widget(QWidget *parent, not_null<Controller*> controller)
+Widget::Widget(
+	QWidget *parent,
+	not_null<Controller*> controller,
+	Origin origin)
 : ContentWidget(parent, controller) {
 	controller->setSearchEnabledByContent(false);
 
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
-		controller));
+		controller,
+		origin));
 	_inner->move(0, 0);
 	_inner->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
@@ -89,8 +108,11 @@ void Widget::setInnerFocus() {
 }
 
 rpl::producer<QString> Widget::title() {
-	if (const auto topic = controller()->key().topic()) {
+	if (controller()->key().topic()) {
 		return tr::lng_info_topic_title();
+	} else if (controller()->key().sublist()
+		&& controller()->key().sublist()->parentChat()) {
+		return tr::lng_profile_direct_messages();
 	}
 	const auto peer = controller()->key().peer();
 	if (const auto user = peer->asUser()) {
@@ -98,14 +120,23 @@ rpl::producer<QString> Widget::title() {
 			? tr::lng_info_bot_title()
 			: tr::lng_info_user_title();
 	} else if (const auto channel = peer->asChannel()) {
-		return channel->isMegagroup()
+		return channel->isMonoforum()
+			? tr::lng_profile_direct_messages()
+			: channel->isMegagroup()
 			? tr::lng_info_group_title()
 			: tr::lng_info_channel_title();
 	} else if (peer->isChat()) {
 		return tr::lng_info_group_title();
 	}
 	Unexpected("Bad peer type in Info::TitleValue()");
+}
 
+rpl::producer<Dialogs::Stories::Content> Widget::titleStories() {
+	const auto peer = controller()->key().peer();
+	if (peer && !peer->isChat()) {
+		return Dialogs::Stories::LastForPeer(peer);
+	}
+	return nullptr;
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {

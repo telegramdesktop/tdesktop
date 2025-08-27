@@ -9,36 +9,72 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "main/main_session.h"
-#include "main/main_account.h"
 #include "main/main_app_config.h"
 
 namespace Api {
 namespace {
 
-constexpr auto kRefreshAppConfigTimeout = 3 * crl::time(1000);
+constexpr auto kRefreshAppConfigTimeout = crl::time(1);
 
 } // namespace
 
 SensitiveContent::SensitiveContent(not_null<ApiWrap*> api)
 : _session(&api->session())
 , _api(&api->instance())
-, _appConfigReloadTimer([=] { _session->account().appConfig().refresh(); }) {
+, _appConfigReloadTimer([=] { _session->appConfig().refresh(); }) {
 }
 
-void SensitiveContent::reload() {
-	if (_requestId) {
+void SensitiveContent::preload() {
+	if (!_loaded && !_loadRequestId) {
+		reload();
+	}
+}
+
+void SensitiveContent::reload(bool force) {
+	if (_loadRequestId) {
+		if (force) {
+			_loadPending = true;
+		}
 		return;
 	}
-	_requestId = _api.request(MTPaccount_GetContentSettings(
+	_loadRequestId = _api.request(MTPaccount_GetContentSettings(
 	)).done([=](const MTPaccount_ContentSettings &result) {
-		_requestId = 0;
-		result.match([&](const MTPDaccount_contentSettings &data) {
-			_enabled = data.is_sensitive_enabled();
-			_canChange = data.is_sensitive_can_change();
-		});
+		_loadRequestId = 0;
+		const auto &data = result.data();
+		const auto enabled = data.is_sensitive_enabled();
+		const auto canChange = data.is_sensitive_can_change();
+		const auto changed = (_enabled.current() != enabled)
+			|| (_canChange.current() != canChange);
+		if (changed) {
+			_enabled = enabled;
+			_canChange = canChange;
+		}
+		if (!_loaded) {
+			_loaded = true;
+			_loadedChanged.fire({});
+		}
+		if (base::take(_appConfigReloadForce) || changed) {
+			_appConfigReloadTimer.callOnce(kRefreshAppConfigTimeout);
+		}
+		if (base::take(_loadPending)) {
+			reload();
+		}
 	}).fail([=] {
-		_requestId = 0;
+		_loadRequestId = 0;
 	}).send();
+}
+
+bool SensitiveContent::loaded() const {
+	return _loaded;
+}
+
+rpl::producer<bool> SensitiveContent::loadedValue() const {
+	if (_loaded) {
+		return rpl::single(true);
+	}
+	return rpl::single(false) | rpl::then(
+		_loadedChanged.events() | rpl::map_to(true)
+	);
 }
 
 bool SensitiveContent::enabledCurrent() const {
@@ -47,6 +83,10 @@ bool SensitiveContent::enabledCurrent() const {
 
 rpl::producer<bool> SensitiveContent::enabled() const {
 	return _enabled.value();
+}
+
+bool SensitiveContent::canChangeCurrent() const {
+	return _canChange.current();
 }
 
 rpl::producer<bool> SensitiveContent::canChange() const {
@@ -58,17 +98,24 @@ void SensitiveContent::update(bool enabled) {
 		return;
 	}
 	using Flag = MTPaccount_SetContentSettings::Flag;
-	_api.request(_requestId).cancel();
-	_requestId = _api.request(MTPaccount_SetContentSettings(
+	_api.request(_saveRequestId).cancel();
+	if (const auto load = base::take(_loadRequestId)) {
+		_api.request(load).cancel();
+		_loadPending = true;
+	}
+	const auto finish = [=] {
+		_saveRequestId = 0;
+		if (base::take(_loadPending)) {
+			_appConfigReloadForce = true;
+			reload(true);
+		} else {
+			_appConfigReloadTimer.callOnce(kRefreshAppConfigTimeout);
+		}
+	};
+	_saveRequestId = _api.request(MTPaccount_SetContentSettings(
 		MTP_flags(enabled ? Flag::f_sensitive_enabled : Flag(0))
-	)).done([=] {
-		_requestId = 0;
-	}).fail([=] {
-		_requestId = 0;
-	}).send();
+	)).done(finish).fail(finish).send();
 	_enabled = enabled;
-
-	_appConfigReloadTimer.callOnce(kRefreshAppConfigTimeout);
 }
 
 } // namespace Api

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "countries/countries_instance.h" // Countries::ValidPhoneCode
+#include "styles/style_widgets.h"
 
 #include <QtCore/QRegularExpression>
 
@@ -47,6 +48,14 @@ void CountryCodeInput::codeSelected(const QString &code) {
 	correctValue(wasText, wasCursor, newText, newCursor);
 	_nosignal = false;
 	changed();
+}
+
+void CountryCodeInput::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Space) {
+		_spacePressed.fire({});
+	} else {
+		MaskedInputField::keyPressEvent(e);
+	}
 }
 
 void CountryCodeInput::correctValue(
@@ -134,6 +143,12 @@ void PhonePartInput::correctValue(
 		int wasCursor,
 		QString &now,
 		int &nowCursor) {
+	if (!now.isEmpty() && (_lastDigits != now)) {
+		_lastDigits = now;
+		_lastDigits.replace(TextUtilities::RegExpDigitsExclude(), QString());
+		updatePattern(_groupsCallback(_code + _lastDigits));
+	}
+
 	QString newText;
 	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = 0;
 	for (int i = 0; i < oldLen; ++i) {
@@ -212,21 +227,8 @@ void PhonePartInput::addedToNumber(const QString &added) {
 }
 
 void PhonePartInput::chooseCode(const QString &code) {
-	_pattern = _groupsCallback(code);
-	if (!_pattern.isEmpty() && _pattern.at(0) == code.size()) {
-		_pattern.pop_front();
-	} else {
-		_pattern.clear();
-	}
-	_additionalPlaceholder = QString();
-	if (!_pattern.isEmpty()) {
-		_additionalPlaceholder.reserve(20);
-		for (const auto part : std::as_const(_pattern)) {
-			_additionalPlaceholder.append(' ');
-			_additionalPlaceholder.append(QString(part, QChar(0x2212)));
-		}
-	}
-	setPlaceholderHidden(!_additionalPlaceholder.isEmpty());
+	_code = code;
+	updatePattern(_groupsCallback(_code));
 
 	auto wasText = getLastText();
 	auto wasCursor = cursorPosition();
@@ -237,6 +239,27 @@ void PhonePartInput::chooseCode(const QString &code) {
 	startPlaceholderAnimation();
 
 	update();
+}
+
+void PhonePartInput::updatePattern(QVector<int> &&pattern) {
+	if (_pattern == pattern) {
+		return;
+	}
+	_pattern = std::move(pattern);
+	if (!_pattern.isEmpty() && _pattern.at(0) == _code.size()) {
+		_pattern.pop_front();
+	} else {
+		_pattern.clear();
+	}
+	_additionalPlaceholder = QString();
+	if (!_pattern.isEmpty()) {
+		_additionalPlaceholder.reserve(20);
+		for (const auto &part : _pattern) {
+			_additionalPlaceholder.append(' ');
+			_additionalPlaceholder.append(QString(part, QChar(0x2212)));
+		}
+	}
+	setPlaceholderHidden(!_additionalPlaceholder.isEmpty());
 }
 
 UsernameInput::UsernameInput(
@@ -252,14 +275,14 @@ UsernameInput::UsernameInput(
 void UsernameInput::setLinkPlaceholder(const QString &placeholder) {
 	_linkPlaceholder = placeholder;
 	if (!_linkPlaceholder.isEmpty()) {
-		setTextMargins(style::margins(_st.textMargins.left() + _st.font->width(_linkPlaceholder), _st.textMargins.top(), _st.textMargins.right(), _st.textMargins.bottom()));
+		setTextMargins(style::margins(_st.textMargins.left() + _st.style.font->width(_linkPlaceholder), _st.textMargins.top(), _st.textMargins.right(), _st.textMargins.bottom()));
 		setPlaceholderHidden(true);
 	}
 }
 
 void UsernameInput::paintAdditionalPlaceholder(QPainter &p) {
 	if (!_linkPlaceholder.isEmpty()) {
-		p.setFont(_st.font);
+		p.setFont(_st.style.font);
 		p.setPen(_st.placeholderFg);
 		p.drawText(QRect(_st.textMargins.left(), _st.textMargins.top(), width(), height() - _st.textMargins.top() - _st.textMargins.bottom()), _linkPlaceholder, style::al_topleft);
 	}
@@ -345,7 +368,7 @@ void PhoneInput::correctValue(
 		QString &now,
 		int &nowCursor) {
 	auto digits = now;
-	digits.replace(QRegularExpression("[^\\d]"), QString());
+	digits.replace(TextUtilities::RegExpDigitsExclude(), QString());
 	_pattern = _groupsCallback(digits);
 
 	QString newPlaceholder;
@@ -419,7 +442,7 @@ void PhoneInput::correctValue(
 			plusFound = true;
 		}
 	}
-	if (!plusFound && newText == qstr("+")) {
+	if (!plusFound && newText == u"+"_q) {
 		newText = QString();
 		newPos = 0;
 	}

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_types.h"
 
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "storage/cache/storage_cache_types.h"
 #include "base/openssl_help.h"
 
@@ -102,7 +102,7 @@ void MessageCursor::fillFrom(not_null<const Ui::InputField*> field) {
 	position = cursor.position();
 	anchor = cursor.anchor();
 	const auto top = field->scrollTop().current();
-	scroll = (top != field->scrollTopMax()) ? top : QFIXED_MAX;
+	scroll = (top != field->scrollTopMax()) ? top : Ui::kQFixedMax;
 }
 
 void MessageCursor::applyTo(not_null<Ui::InputField*> field) {
@@ -114,8 +114,8 @@ void MessageCursor::applyTo(not_null<Ui::InputField*> field) {
 }
 
 PeerId PeerFromMessage(const MTPmessage &message) {
-	return message.match([](const MTPDmessageEmpty &) {
-		return PeerId(0);
+	return message.match([](const MTPDmessageEmpty &data) {
+		return data.vpeer_id() ? peerFromMTP(*data.vpeer_id()) : PeerId(0);
 	}, [](const auto &data) {
 		return peerFromMTP(data.vpeer_id());
 	});
@@ -142,6 +142,15 @@ TimeId DateFromMessage(const MTPmessage &message) {
 		return TimeId(0);
 	}, [](const auto &message) {
 		return message.vdate().v;
+	});
+}
+
+BusinessShortcutId BusinessShortcutIdFromMessage(
+		const MTPmessage &message) {
+	return message.match([](const MTPDmessage &data) {
+		return data.vquick_reply_shortcut_id().value_or_empty();
+	}, [](const auto &) {
+		return BusinessShortcutId();
 	});
 }
 

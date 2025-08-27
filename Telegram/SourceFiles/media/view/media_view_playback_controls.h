@@ -9,8 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "base/object_ptr.h"
-#include "base/unique_qptr.h"
-#include "styles/style_widgets.h"
+#include "media/media_common.h"
 
 namespace Ui {
 class LabelSimple;
@@ -20,12 +19,13 @@ class MediaSlider;
 class PopupMenu;
 } // namespace Ui
 
-namespace Media {
-namespace Player {
+namespace Media::Player {
 struct TrackState;
-} // namespace Player
+class SettingsButton;
+class SpeedController;
+} // namespace Media::Player
 
-namespace View {
+namespace Media::View {
 
 class PlaybackProgress;
 
@@ -42,7 +42,13 @@ public:
 		virtual void playbackControlsVolumeToggled() = 0;
 		virtual void playbackControlsVolumeChangeFinished() = 0;
 		virtual void playbackControlsSpeedChanged(float64 speed) = 0;
-		[[nodiscard]] virtual float64 playbackControlsCurrentSpeed() = 0;
+		[[nodiscard]] virtual float64 playbackControlsCurrentSpeed(
+			bool lastNonDefault) = 0;
+		[[nodiscard]] virtual auto playbackControlsQualities()
+			-> std::vector<int> = 0;
+		[[nodiscard]] virtual auto playbackControlsCurrentQuality()
+			-> VideoQuality = 0;
+		virtual void playbackControlsQualityChanged(int quality) = 0;
 		virtual void playbackControlsToFullScreen() = 0;
 		virtual void playbackControlsFromFullScreen() = 0;
 		virtual void playbackControlsToPictureInPicture() = 0;
@@ -50,6 +56,7 @@ public:
 	};
 
 	PlaybackControls(QWidget *parent, not_null<Delegate*> delegate);
+	~PlaybackControls();
 
 	void showAnimated();
 	void hideAnimated();
@@ -58,8 +65,7 @@ public:
 	void setLoadingProgress(int64 ready, int64 total);
 	void setInFullScreen(bool inFullScreen);
 	[[nodiscard]] bool hasMenu() const;
-
-	~PlaybackControls();
+	[[nodiscard]] bool dragging() const;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -85,9 +91,17 @@ private:
 	void updatePlayPauseResumeState(const Player::TrackState &state);
 	void updateTimeTexts(const Player::TrackState &state);
 	void refreshTimeTexts();
-	void showMenu();
 
-	not_null<Delegate*> _delegate;
+	[[nodiscard]] float64 speedLookup(bool lastNonDefault) const;
+	void saveSpeed(float64 speed);
+
+	void saveQuality(int quality);
+	void updateSpeedToggleQuality();
+
+	const not_null<Delegate*> _delegate;
+
+	bool _speedControllable = false;
+	std::vector<int> _qualitiesList;
 
 	bool _inFullScreen = false;
 	bool _showPause = false;
@@ -105,18 +119,15 @@ private:
 	std::unique_ptr<PlaybackProgress> _receivedTillProgress;
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::MediaSlider> _volumeController;
-	object_ptr<Ui::IconButton> _menuToggle;
+	object_ptr<Player::SettingsButton> _speedToggle;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::IconButton> _pictureInPicture;
 	object_ptr<Ui::LabelSimple> _playedAlready;
 	object_ptr<Ui::LabelSimple> _toPlayLeft;
 	object_ptr<Ui::LabelSimple> _downloadProgress = { nullptr };
-
-	const style::PopupMenu &_menuStyle;
-	base::unique_qptr<Ui::PopupMenu> _menu;
+	std::unique_ptr<Player::SpeedController> _speedController;
 	std::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
 
 };
 
-} // namespace View
-} // namespace Media
+} // namespace Media::View

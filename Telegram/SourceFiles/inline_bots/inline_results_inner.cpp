@@ -17,20 +17,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_chat_participant_status.h"
 #include "data/data_session.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "lang/lang_keys.h"
 #include "layout/layout_position.h"
 #include "mainwindow.h"
-#include "facades.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/history.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
@@ -111,19 +114,35 @@ void Inner::checkRestrictedPeer() {
 		const auto error = Data::RestrictionError(
 			_inlineQueryPeer,
 			ChatRestriction::SendInline);
-		if (error) {
-			if (!_restrictedLabel) {
-				_restrictedLabel.create(this, *error, st::stickersRestrictedLabel);
-				_restrictedLabel->show();
-				_restrictedLabel->move(st::inlineResultsLeft - st::roundRadiusSmall, st::stickerPanPadding);
-				_restrictedLabel->resizeToNaturalWidth(width() - (st::inlineResultsLeft - st::roundRadiusSmall) * 2);
-				if (_switchPmButton) {
-					_switchPmButton->hide();
-				}
-				repaintItems();
-			}
+		const auto changed = (_restrictedLabelKey != error.text);
+		if (!changed) {
 			return;
 		}
+		_restrictedLabelKey = error.text;
+		if (error) {
+			const auto window = _controller;
+			const auto peer = _inlineQueryPeer;
+			_restrictedLabel.create(
+				this,
+				rpl::single(error.boostsToLift
+					? Ui::Text::Link(error.text)
+					: TextWithEntities{ error.text }),
+				st::stickersRestrictedLabel);
+			const auto lifting = error.boostsToLift;
+			_restrictedLabel->setClickHandlerFilter([=](auto...) {
+				window->resolveBoostState(peer->asChannel(), lifting);
+				return false;
+			});
+			_restrictedLabel->show();
+			updateRestrictedLabelGeometry();
+			if (_switchPmButton) {
+				_switchPmButton->hide();
+			}
+			repaintItems();
+			return;
+		}
+	} else {
+		_restrictedLabelKey = QString();
 	}
 	if (_restrictedLabel) {
 		_restrictedLabel.destroy();
@@ -132,6 +151,18 @@ void Inner::checkRestrictedPeer() {
 		}
 		repaintItems();
 	}
+}
+
+void Inner::updateRestrictedLabelGeometry() {
+	if (!_restrictedLabel) {
+		return;
+	}
+
+	auto labelWidth = width() - st::stickerPanPadding * 2;
+	_restrictedLabel->resizeToWidth(labelWidth);
+	_restrictedLabel->moveToLeft(
+		(width() - _restrictedLabel->width()) / 2,
+		st::stickerPanPadding);
 }
 
 bool Inner::isRestrictedView() {
@@ -175,6 +206,10 @@ rpl::producer<> Inner::inlineRowsCleared() const {
 }
 
 Inner::~Inner() = default;
+
+void Inner::resizeEvent(QResizeEvent *e) {
+	updateRestrictedLabelGeometry();
+}
 
 void Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
@@ -296,7 +331,7 @@ void Inner::selectInlineResult(
 	if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
 			_resultSelectedCallback({
-				.result = inlineResult,
+				.result = std::move(inlineResult),
 				.bot = _inlineBot,
 				.options = std::move(options),
 				.messageSendingFrom = messageSendingFrom(),
@@ -329,22 +364,31 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (_selected < 0 || _pressed >= 0) {
 		return;
 	}
-	const auto type = _sendMenuType
-		? _sendMenuType()
-		: SendMenu::Type::Disabled;
+	auto details = _sendMenuDetails
+		? _sendMenuDetails()
+		: SendMenu::Details();
+
+	// inline results don't have effects
+	details.effectAllowed = false;
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
 
-	const auto send = [=, selected = _selected](Api::SendOptions options) {
+	const auto selected = _selected;
+	const auto send = crl::guard(this, [=](Api::SendOptions options) {
 		selectInlineResult(selected, options, false);
-	};
+	});
+	const auto show = _controller->uiShow();
+
+	// In case we're adding items after FillSendMenu we have
+	// to pass nullptr for showForEffect and attach selector later.
+	// Otherwise added items widths won't be respected in menu geometry.
 	SendMenu::FillSendMenu(
 		_menu,
-		type,
-		SendMenu::DefaultSilentCallback(send),
-		SendMenu::DefaultScheduleCallback(this, type, send));
+		nullptr, // showForEffect
+		details,
+		SendMenu::DefaultCallback(show, send));
 
 	const auto item = _mosaic.itemAt(_selected);
 	if (const auto previewDocument = item->getPreviewDocument()) {
@@ -356,9 +400,15 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 		};
 		ChatHelpers::AddGifAction(
 			std::move(callback),
-			_controller,
+			_controller->uiShow(),
 			previewDocument);
 	}
+
+	SendMenu::AttachSendMenuEffect(
+		_menu,
+		show,
+		details,
+		SendMenu::DefaultCallback(show, send));
 
 	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());
@@ -398,11 +448,15 @@ void Inner::clearInlineRows(bool resultsDeleted) {
 	_mosaic.clearRows(resultsDeleted);
 }
 
-ItemBase *Inner::layoutPrepareInlineResult(Result *result) {
-	auto it = _inlineLayouts.find(result);
+ItemBase *Inner::layoutPrepareInlineResult(std::shared_ptr<Result> result) {
+	const auto raw = result.get();
+	auto it = _inlineLayouts.find(raw);
 	if (it == _inlineLayouts.cend()) {
-		if (auto layout = ItemBase::createLayout(this, result, _inlineWithThumb)) {
-			it = _inlineLayouts.emplace(result, std::move(layout)).first;
+		if (auto layout = ItemBase::createLayout(
+				this,
+				std::move(result),
+				_inlineWithThumb)) {
+			it = _inlineLayouts.emplace(raw, std::move(layout)).first;
 			it->second->initDimensions();
 		} else {
 			return nullptr;
@@ -444,19 +498,17 @@ void Inner::clearInlineRowsPanel() {
 }
 
 void Inner::refreshMosaicOffset() {
-	const auto top = st::stickerPanPadding
-		+ (_switchPmButton
-			? _switchPmButton->height() + st::inlineResultsSkip
-			: 0);
-	_mosaic.setOffset(
-		st::inlineResultsLeft - st::roundRadiusSmall,
-		top);
+	const auto top = _switchPmButton
+		? (_switchPmButton->height() + st::inlineResultsSkip)
+		: 0;
+	_mosaic.setPadding(st::emojiPanMargins + QMargins(0, top, 0, 0));
 }
 
 void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 	if (!entry || entry->switchPmText.isEmpty()) {
 		_switchPmButton.destroy();
 		_switchPmStartToken.clear();
+		_switchPmUrl = QByteArray();
 	} else {
 		if (!_switchPmButton) {
 			_switchPmButton.create(this, nullptr, st::switchPmButton);
@@ -466,6 +518,7 @@ void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 		}
 		_switchPmButton->setText(rpl::single(entry->switchPmText));
 		_switchPmStartToken = entry->switchPmStartToken;
+		_switchPmUrl = entry->switchPmUrl;
 		const auto buttonTop = st::stickerPanPadding;
 		_switchPmButton->move(st::inlineResultsLeft - st::roundRadiusSmall, buttonTop);
 		if (isRestrictedView()) {
@@ -511,8 +564,8 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 		const auto resultItems = entry->results | ranges::views::slice(
 			from,
 			count
-		) | ranges::views::transform([&](const std::unique_ptr<Result> &r) {
-			return layoutPrepareInlineResult(r.get());
+		) | ranges::views::transform([&](const std::shared_ptr<Result> &r) {
+			return layoutPrepareInlineResult(r);
 		}) | ranges::views::filter([](const ItemBase *item) {
 			return item != nullptr;
 		}) | ranges::to<std::vector<not_null<ItemBase*>>>;
@@ -536,7 +589,7 @@ int Inner::validateExistingInlineRows(const Results &results) {
 	const auto until = _mosaic.validateExistingRows([&](
 			not_null<const ItemBase*> item,
 			int untilIndex) {
-		return item->getResult() != results[untilIndex].get();
+		return item->getResult().get() != results[untilIndex].get();
 	}, results.size());
 
 	if (_mosaic.empty()) {
@@ -671,15 +724,29 @@ void Inner::repaintItems(crl::time now) {
 }
 
 void Inner::switchPm() {
-	if (_inlineBot && _inlineBot->isBot()) {
+	if (!_inlineBot || !_inlineBot->isBot()) {
+		return;
+	} else if (!_switchPmUrl.isEmpty()) {
+		const auto bot = _inlineBot;
+		_inlineBot->session().attachWebView().open({
+			.bot = bot,
+			.context = { .controller = _controller },
+			.button = { .url = _switchPmUrl },
+			.source = InlineBots::WebViewSourceSwitch(),
+		});
+	} else {
 		_inlineBot->botInfo->startToken = _switchPmStartToken;
-		_inlineBot->botInfo->inlineReturnTo = _currentDialogsEntryState;
-		Ui::showPeerHistory(_inlineBot, ShowAndStartBotMsgId);
+		_inlineBot->botInfo->inlineReturnTo
+			= _controller->dialogsEntryStateCurrent();
+		_controller->showPeerHistory(
+			_inlineBot,
+			Window::SectionShow::Way::ClearStack,
+			ShowAndStartBotMsgId);
 	}
 }
 
-void Inner::setSendMenuType(Fn<SendMenu::Type()> &&callback) {
-	_sendMenuType = std::move(callback);
+void Inner::setSendMenuDetails(Fn<SendMenu::Details()> &&callback) {
+	_sendMenuDetails = std::move(callback);
 }
 
 } // namespace Layout

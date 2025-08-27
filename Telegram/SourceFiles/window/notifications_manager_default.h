@@ -11,15 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/text/text.h"
 #include "ui/rp_widget.h"
+#include "ui/userpic_view.h"
 #include "base/timer.h"
 #include "base/binary_guard.h"
 #include "base/object_ptr.h"
 
 #include <QtCore/QTimer>
-
-namespace Data {
-class CloudImageView;
-} // namespace Data
 
 namespace Ui {
 class IconButton;
@@ -73,12 +70,13 @@ private:
 	void doClearAll() override;
 	void doClearAllFast() override;
 	void doClearFromTopic(not_null<Data::ForumTopic*> topic) override;
+	void doClearFromSublist(not_null<Data::SavedSublist*> sublist) override;
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
 	void doClearFromItem(not_null<HistoryItem*> item) override;
-	bool doSkipAudio() const override;
 	bool doSkipToast() const override;
-	bool doSkipFlashBounce() const override;
+	void doMaybePlaySound(Fn<void()> playSound) override;
+	void doMaybeFlashBounce(Fn<void()> flashBounce) override;
 
 	void showNextFromQueue();
 	void unlinkFromShown(Notification *remove);
@@ -114,6 +112,7 @@ private:
 
 		not_null<History*> history;
 		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
 		not_null<PeerData*> peer;
 		Data::ReactionId reaction;
 		QString author;
@@ -146,7 +145,7 @@ public:
 		int shift,
 		Direction shiftDirection);
 
-	bool isShowing() const {
+	bool isFadingIn() const {
 		return _a_opacity.animating() && !_hiding;
 	}
 
@@ -174,7 +173,6 @@ protected:
 
 private:
 	void opacityAnimationCallback();
-	void destroyDelayed();
 	void moveByShift();
 	void hideAnimated(float64 duration, const anim::transition &func);
 	bool shiftAnimationCallback(crl::time now);
@@ -182,7 +180,6 @@ private:
 	const not_null<Manager*> _manager;
 
 	bool _hiding = false;
-	bool _deleted = false;
 	base::binary_guard _hidingDelayed;
 	Ui::Animations::Simple _a_opacity;
 
@@ -193,7 +190,7 @@ private:
 
 };
 
-class Background : public TWidget {
+class Background : public Ui::RpWidget {
 public:
 	Background(QWidget *parent);
 
@@ -208,6 +205,7 @@ public:
 		not_null<Manager*> manager,
 		not_null<History*> history,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		not_null<PeerData*> peer,
 		const QString &author,
 		HistoryItem *item,
@@ -236,7 +234,10 @@ public:
 
 	// Called only by Manager.
 	bool unlinkItem(HistoryItem *del);
-	bool unlinkHistory(History *history = nullptr, MsgId topicRootId = 0);
+	bool unlinkHistory(
+		History *history = nullptr,
+		MsgId topicRootId = 0,
+		PeerId monoforumPeerId = 0);
 	bool unlinkSession(not_null<Main::Session*> session);
 	bool checkLastInput(
 		bool hasReplyingNotifications,
@@ -290,7 +291,9 @@ private:
 	History *_history = nullptr;
 	Data::ForumTopic *_topic = nullptr;
 	MsgId _topicRootId = 0;
-	std::shared_ptr<Data::CloudImageView> _userpicView;
+	Data::SavedSublist *_sublist = nullptr;
+	PeerId _monoforumPeerId = 0;
+	Ui::PeerUserpicView _userpicView;
 	QString _author;
 	Data::ReactionId _reaction;
 	HistoryItem *_item = nullptr;

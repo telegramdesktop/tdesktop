@@ -43,24 +43,37 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      UPLOAD_ARTIFACT: "false"
+      UPLOAD_ARTIFACT: "true"
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
 
       - name: First set up.
         run: |
+          sudo iptables -P FORWARD ACCEPT
           sudo snap install --classic snapcraft
           sudo usermod -aG lxd $USER
-          sudo snap run lxd init --auto
-          sudo snap run lxd waitready
+          sudo lxd init --auto
+          sudo lxd waitready
+
+      - name: Free up some disk space.
+        uses: endersonmenezes/free-disk-space@dd13eb48e709830a7ec4e50692e841be6b400d90
+        with:
+          remove_android: true
+          remove_dotnet: true
+          remove_haskell: true
+          remove_tool_cache: true
+          remove_swap: true
+          remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* *llvm* mysql* dotnet-sdk-*"
+          remove_packages_one_command: true
+          remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/lib/node_modules /usr/local/share/chromium /usr/local/share/powershell"
 
       - name: Telegram Desktop snap build.
-        run: sg lxd -c 'snap run snapcraft -v'
+        run: sudo -u $USER snap run snapcraft --verbosity=debug
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -71,7 +84,7 @@ jobs:
           mkdir artifact
           mv $artifact_name artifact
 
-      - uses: actions/upload-artifact@master
+      - uses: actions/upload-artifact@v4
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:

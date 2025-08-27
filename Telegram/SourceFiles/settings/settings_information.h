@@ -7,12 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_common.h"
+#include "settings/settings_common_session.h"
 
-namespace Dialogs::Ui {
-using namespace ::Ui;
+class UserData;
+
+namespace Ui {
 struct UnreadBadgeStyle;
-} // namespace Dialogs::Ui
+} // namespace Ui
 
 namespace Main {
 class Account;
@@ -34,15 +35,17 @@ private:
 };
 
 struct AccountsEvents {
-	rpl::producer<> currentAccountActivations;
+	rpl::producer<> closeRequests;
 };
 AccountsEvents SetupAccounts(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Window::SessionController*> controller);
 
+void UpdatePhotoLocally(not_null<UserData*> user, const QImage &image);
+
 namespace Badge {
 
-[[nodiscard]] Dialogs::Ui::UnreadBadgeStyle Style();
+[[nodiscard]] Ui::UnreadBadgeStyle Style();
 
 struct UnreadBadge {
 	int count = 0;

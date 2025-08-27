@@ -7,12 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 #include "ui/widgets/sent_code_field.h"
 
 namespace Ui {
 
 class FlatLabel;
+class RoundButton;
 
 class ConfirmPhoneBox final : public Ui::BoxContent {
 public:
@@ -20,6 +21,7 @@ public:
 		QWidget*,
 		const QString &phone,
 		int codeLength,
+		const QString &openUrl,
 		std::optional<int> timeout);
 
 	[[nodiscard]] rpl::producer<QString> checkRequests() const;
@@ -40,6 +42,8 @@ private:
 	void sendCall();
 	void checkPhoneAndHash();
 
+	[[nodiscard]] int fragmentSkip() const;
+
 	QString getPhone() const;
 	void showError(const QString &error);
 
@@ -54,6 +58,7 @@ private:
 
 	object_ptr<Ui::FlatLabel> _about = { nullptr };
 	object_ptr<Ui::SentCodeField> _code = { nullptr };
+	object_ptr<Ui::RoundButton> _fragment = { nullptr };
 
 	QString _error;
 	Ui::SentCodeCall _call;

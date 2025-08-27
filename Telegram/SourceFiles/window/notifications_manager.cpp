@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/notifications_manager.h"
 
+#include "base/options.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "platform/platform_notifications_manager.h"
 #include "window/notifications_manager_default.h"
 #include "media/audio/media_audio_track.h"
@@ -14,11 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_replies_section.h"
+#include "history/view/history_view_chat_section.h"
 #include "lang/lang_keys.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_document_media.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
@@ -33,12 +36,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "apiwrap.h"
 #include "main/main_account.h"
-#include "main/main_session.h"
 #include "main/main_domain.h"
+#include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "ui/text/text_utilities.h"
-#include "facades.h"
 
 #include <QtGui/QWindow>
+
+#if __has_include(<gio/gio.hpp>)
+#include <gio/gio.hpp>
+#endif // __has_include(<gio/gio.hpp>)
 
 namespace Window {
 namespace Notifications {
@@ -62,7 +69,15 @@ constexpr auto kSystemAlertDuration = crl::time(0);
 	return result;
 }
 
-QString TextWithPermanentSpoiler(const TextWithEntities &textWithEntities) {
+[[nodiscard]] QString TextWithForwardedChar(
+		const QString &text,
+		bool forwarded) {
+	static const auto result = QString::fromUtf8("\xE2\x9E\xA1\xEF\xB8\x8F");
+	return forwarded ? result + text : text;
+}
+
+[[nodiscard]] QString TextWithPermanentSpoiler(
+		const TextWithEntities &textWithEntities) {
 	auto text = textWithEntities.text;
 	for (const auto &e : textWithEntities.entities) {
 		if (e.type() == EntityType::Spoiler) {
@@ -76,7 +91,61 @@ QString TextWithPermanentSpoiler(const TextWithEntities &textWithEntities) {
 	return text;
 }
 
+[[nodiscard]] QByteArray ReadRingtoneBytes(
+		const std::shared_ptr<Data::DocumentMedia> &media) {
+	const auto result = media->bytes();
+	if (!result.isEmpty()) {
+		return result;
+	}
+	const auto &location = media->owner()->location();
+	if (!location.isEmpty() && location.accessEnable()) {
+		const auto guard = gsl::finally([&] {
+			location.accessDisable();
+		});
+		auto f = QFile(location.name());
+		if (f.open(QIODevice::ReadOnly)) {
+			return f.readAll();
+		}
+	}
+	return {};
+}
+
+[[nodiscard]] std::optional<DocumentId> MaybeSoundFor(
+		not_null<Data::Thread*> thread,
+		PeerData *from) {
+	const auto notifySettings = &thread->owner().notifySettings();
+	const auto threadUnknown = notifySettings->muteUnknown(thread);
+	const auto threadAlert = !threadUnknown
+		&& !notifySettings->isMuted(thread);
+	const auto fromUnknown = (!from
+		|| notifySettings->muteUnknown(from));
+	const auto fromAlert = !fromUnknown
+		&& !notifySettings->isMuted(from);
+	const auto &sound = notifySettings->sound(thread);
+	return ((threadAlert || fromAlert) && !sound.none)
+		? sound.id
+		: std::optional<DocumentId>();
+}
+
 } // namespace
+
+const char kOptionGNotification[] = "gnotification";
+
+base::options::toggle OptionGNotification({
+	.id = kOptionGNotification,
+	.name = "GNotification",
+	.description = "Force enable GLib's GNotification."
+		" When disabled, autodetect is used.",
+	.scope = [] {
+#if __has_include(<gio/gio.hpp>)
+		using namespace gi::repository;
+		return bool(Gio::Application::get_default());
+#else // __has_include(<gio/gio.hpp>)
+		return false;
+#endif // __has_include(<gio/gio.hpp>)
+	},
+	.restartRequired = true,
+});
 
 struct System::Waiter {
 	NotificationInHistoryKey key;
@@ -118,16 +187,45 @@ void System::createManager() {
 	Platform::Notifications::Create(this);
 }
 
-void System::setManager(std::unique_ptr<Manager> manager) {
-	_manager = std::move(manager);
-	if (!_manager) {
+void System::setManager(Fn<std::unique_ptr<Manager>()> create) {
+	Expects(_manager != nullptr);
+	const auto oldManager = _manager.get();
+	const auto guard = gsl::finally([&] {
+		Ensures(_manager != nullptr);
+		if (oldManager != _manager.get()) {
+			_managerChanged.fire({});
+		}
+	});
+
+	if ((Core::App().settings().nativeNotifications()
+				|| Platform::Notifications::Enforced())
+			&& Platform::Notifications::Supported()) {
+		if (_manager->type() == ManagerType::Native) {
+			return;
+		}
+
+		if (auto manager = create()) {
+			_manager = std::move(manager);
+			return;
+		}
+	}
+
+	if (Platform::Notifications::Enforced()) {
+		if (_manager->type() != ManagerType::Dummy) {
+			_manager = std::make_unique<DummyManager>(this);
+		}
+	} else if (_manager->type() != ManagerType::Default) {
 		_manager = std::make_unique<Default::Manager>(this);
 	}
 }
 
-ManagerType System::managerType() const {
+Manager &System::manager() const {
 	Expects(_manager != nullptr);
-	return _manager->type();
+	return *_manager;
+}
+
+rpl::producer<> System::managerChanged() const {
+	return _managerChanged.events();
 }
 
 Main::Session *System::findSession(uint64 sessionId) const {
@@ -260,10 +358,19 @@ System::Timing System::countTiming(
 
 void System::registerThread(not_null<Data::Thread*> thread) {
 	if (const auto topic = thread->asTopic()) {
-		const auto [i, ok] = _watchedTopics.emplace(topic, rpl::lifetime());
+		const auto &[i, ok] = _watchedTopics.emplace(topic, rpl::lifetime());
 		if (ok) {
 			topic->destroyed() | rpl::start_with_next([=] {
 				clearFromTopic(topic);
+			}, i->second);
+		}
+	} else if (const auto sublist = thread->asSublist()) {
+		const auto &[i, ok] = _watchedSublists.emplace(
+			sublist,
+			rpl::lifetime());
+		if (ok) {
+			sublist->destroyed() | rpl::start_with_next([=] {
+				clearFromSublist(sublist);
 			}, i->second);
 		}
 	}
@@ -295,6 +402,12 @@ void System::schedule(Data::ItemNotification notification) {
 	if (!skip.silent) {
 		registerThread(thread);
 		_whenAlerts[thread].emplace(timing.when, notifyBy);
+	}
+	if (const auto user = item->history()->peer->asUser()) {
+		if (user->hasStarsPerMessage()
+			&& !user->messageMoneyRestrictionsKnown()) {
+			user->updateFull();
+		}
 	}
 	if (Core::App().settings().desktopNotify()
 		&& !_manager->skipToast()) {
@@ -337,6 +450,7 @@ void System::clearAll() {
 	_waiters.clear();
 	_settingWaiters.clear();
 	_watchedTopics.clear();
+	_watchedSublists.clear();
 }
 
 void System::clearFromTopic(not_null<Data::ForumTopic*> topic) {
@@ -351,6 +465,23 @@ void System::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 	_settingWaiters.remove(topic);
 
 	_watchedTopics.remove(topic);
+
+	_waitTimer.cancel();
+	showNext();
+}
+
+void System::clearFromSublist(not_null<Data::SavedSublist*> sublist) {
+	if (_manager) {
+		_manager->clearFromSublist(sublist);
+	}
+
+	sublist->clearNotifications();
+	_whenMaps.remove(sublist);
+	_whenAlerts.remove(sublist);
+	_waiters.remove(sublist);
+	_settingWaiters.remove(sublist);
+
+	_watchedSublists.remove(sublist);
 
 	_waitTimer.cancel();
 	showNext();
@@ -371,6 +502,8 @@ void System::clearForThreadIf(Fn<bool(not_null<Data::Thread*>)> predicate) {
 		_settingWaiters.remove(thread);
 		if (const auto topic = thread->asTopic()) {
 			_watchedTopics.remove(topic);
+		} else if (const auto sublist = thread->asSublist()) {
+			_watchedSublists.remove(sublist);
 		}
 	}
 	const auto clearFrom = [&](auto &map) {
@@ -379,6 +512,8 @@ void System::clearForThreadIf(Fn<bool(not_null<Data::Thread*>)> predicate) {
 			if (predicate(thread)) {
 				if (const auto topic = thread->asTopic()) {
 					_watchedTopics.remove(topic);
+				} else if (const auto sublist = thread->asSublist()) {
+					_watchedSublists.remove(sublist);
 				}
 				i = map.erase(i);
 			} else {
@@ -428,6 +563,15 @@ void System::clearIncomingFromTopic(not_null<Data::ForumTopic*> topic) {
 	_whenAlerts.remove(topic);
 }
 
+void System::clearIncomingFromSublist(
+		not_null<Data::SavedSublist*> sublist) {
+	if (_manager) {
+		_manager->clearFromSublist(sublist);
+	}
+	sublist->clearIncomingNotifications();
+	_whenAlerts.remove(sublist);
+}
+
 void System::clearFromItem(not_null<HistoryItem*> item) {
 	if (_manager) {
 		_manager->clearFromItem(item);
@@ -444,6 +588,7 @@ void System::clearAllFast() {
 	_waiters.clear();
 	_settingWaiters.clear();
 	_watchedTopics.clear();
+	_watchedSublists.clear();
 }
 
 void System::checkDelayed() {
@@ -489,10 +634,12 @@ void System::showGrouped() {
 			_manager->showNotification({
 				.item = lastItem,
 				.forwardedCount = _lastForwardedCount,
+				.soundId = _lastSoundId,
 			});
 			_lastForwardedCount = 0;
 			_lastHistoryItemId = FullMsgId();
 			_lastHistorySessionId = 0;
+			_lastSoundId = {};
 		}
 	}
 }
@@ -519,23 +666,16 @@ void System::showNext() {
 		}
 		return false;
 	};
-
 	auto ms = crl::now(), nextAlert = crl::time(0);
 	auto alertThread = (Data::Thread*)nullptr;
+	auto alertSoundId = std::optional<DocumentId>();
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i->second.empty() && i->second.begin()->first <= ms) {
 			const auto thread = i->first;
-			const auto notifySettings = &thread->owner().notifySettings();
-			const auto threadUnknown = notifySettings->muteUnknown(thread);
-			const auto threadAlert = !threadUnknown
-				&& !notifySettings->isMuted(thread);
 			const auto from = i->second.begin()->second;
-			const auto fromUnknown = (!from
-				|| notifySettings->muteUnknown(from));
-			const auto fromAlert = !fromUnknown
-				&& !notifySettings->isMuted(from);
-			if (threadAlert || fromAlert) {
+			if (const auto soundId = MaybeSoundFor(thread, from)) {
 				alertThread = thread;
+				alertSoundId = soundId;
 			}
 			while (!i->second.empty()
 				&& i->second.begin()->first <= ms + kMinimalAlertDelay) {
@@ -553,25 +693,43 @@ void System::showNext() {
 	}
 	const auto &settings = Core::App().settings();
 	if (alertThread) {
-		if (settings.flashBounceNotify() && !_manager->skipFlashBounce()) {
-			if (const auto window = Core::App().primaryWindow()) {
-				if (const auto handle = window->widget()->windowHandle()) {
-					handle->alert(kSystemAlertDuration);
-					// (handle, SLOT(_q_clearAlert())); in the future.
+		if (settings.flashBounceNotify()) {
+			const auto peer = alertThread->peer();
+			if (const auto window = Core::App().windowFor(peer)) {
+				if (const auto controller = window->sessionController()) {
+					_manager->maybeFlashBounce(crl::guard(controller, [=] {
+						if (const auto handle = window->widget()->windowHandle()) {
+							handle->alert(kSystemAlertDuration);
+							// (handle, SLOT(_q_clearAlert())); in the future.
+						}
+					}));
 				}
 			}
 		}
-		if (settings.soundNotify() && !_manager->skipAudio()) {
-			const auto track = lookupSound(
-				&alertThread->owner(),
-				alertThread->owner().notifySettings().sound(alertThread).id);
-			track->playOnce();
-			Media::Player::mixer()->suppressAll(track->getLengthMs());
-			Media::Player::mixer()->faderOnTimer();
+		if (settings.soundNotify()) {
+			const auto owner = &alertThread->owner();
+			const auto id = owner->notifySettings().sound(alertThread).id;
+			auto volume
+				= owner->session().settings().ringtoneVolume(
+					alertThread->peer()->id,
+					alertThread->topicRootId(),
+					alertThread->monoforumPeerId());
+			if (!volume) {
+				volume = owner->session().settings().ringtoneVolume(
+					Data::DefaultNotifyType(alertThread->peer()));
+			}
+			_manager->maybePlaySound(crl::guard(&owner->session(), [=] {
+				const auto track = lookupSound(owner, id);
+				track->playOnce(volume ? volume * 0.01 : 0);
+				Media::Player::mixer()->suppressAll(track->getLengthMs());
+				Media::Player::mixer()->scheduleFaderCallback();
+			}));
 		}
 	}
 
-	if (_waiters.empty() || !settings.desktopNotify() || _manager->skipToast()) {
+	if (_waiters.empty()
+		|| !settings.desktopNotify()
+		|| _manager->skipToast()) {
 		if (nextAlert) {
 			_waitTimer.callOnce(nextAlert - ms);
 		}
@@ -627,6 +785,7 @@ void System::showNext() {
 			break;
 		}
 		const auto notifyItem = notify->item;
+		const auto notifySilent = computeSkipState(*notify).silent;
 		const auto messageType = (notify->type
 			== Data::ItemNotificationType::Message);
 		const auto isForwarded = messageType
@@ -703,6 +862,9 @@ void System::showNext() {
 		if (!_lastHistoryItemId && groupedItem) {
 			_lastHistorySessionId = groupedItem->history()->session().uniqueId();
 			_lastHistoryItemId = groupedItem->fullId();
+			_lastSoundId = notifySilent ? std::nullopt : MaybeSoundFor(
+				notifyThread,
+				groupedItem->specialNotificationPeer());
 		}
 
 		// If the current notification is grouped.
@@ -721,6 +883,9 @@ void System::showNext() {
 			_lastForwardedCount += forwardedCount;
 			_lastHistorySessionId = groupedItem->history()->session().uniqueId();
 			_lastHistoryItemId = groupedItem->fullId();
+			_lastSoundId = notifySilent ? std::nullopt : MaybeSoundFor(
+				notifyThread,
+				groupedItem->specialNotificationPeer());
 			_waitForAllGroupedTimer.callOnce(kWaitingForAllGroupedDelay);
 		} else {
 			// If the current notification is not grouped
@@ -732,12 +897,18 @@ void System::showNext() {
 			const auto reaction = reactionNotification
 				? notify->item->lookupUnreadReaction(notify->reactionSender)
 				: Data::ReactionId();
+			const auto soundFrom = reactionNotification
+				? notify->reactionSender
+				: notify->item->specialNotificationPeer();
 			if (!reactionNotification || !reaction.empty()) {
 				_manager->showNotification({
 					.item = notify->item,
 					.forwardedCount = forwardedCount,
 					.reactionFrom = notify->reactionSender,
 					.reactionId = reaction,
+					.soundId = (notifySilent
+						? std::nullopt
+						: MaybeSoundFor(notifyThread, soundFrom)),
 				});
 			}
 		}
@@ -752,6 +923,25 @@ void System::showNext() {
 	}
 }
 
+QByteArray System::lookupSoundBytes(
+		not_null<Data::Session*> owner,
+		DocumentId id) {
+	if (id) {
+		const auto &notifySettings = owner->notifySettings();
+		const auto custom = notifySettings.lookupRingtone(id);
+		return custom ? ReadRingtoneBytes(custom) : QByteArray();
+	}
+	auto f = QFile(Core::App().settings().getSoundPath(u"msg_incoming"_q));
+	if (f.open(QIODevice::ReadOnly)) {
+		return f.readAll();
+	}
+	auto fallback = QFile(u":/sounds/msg_incoming.mp3"_q);
+	if (fallback.open(QIODevice::ReadOnly)) {
+		return fallback.readAll();
+	}
+	Unexpected("Embedded sound not found!");
+}
+
 not_null<Media::Audio::Track*> System::lookupSound(
 		not_null<Data::Session*> owner,
 		DocumentId id) {
@@ -763,14 +953,13 @@ not_null<Media::Audio::Track*> System::lookupSound(
 	if (i != end(_customSoundTracks)) {
 		return i->second.get();
 	}
-	const auto &notifySettings = owner->notifySettings();
-	const auto custom = notifySettings.lookupRingtone(id);
-	if (custom && !custom->bytes().isEmpty()) {
+	const auto bytes = lookupSoundBytes(owner, id);
+	if (!bytes.isEmpty()) {
 		const auto j = _customSoundTracks.emplace(
 			id,
 			Media::Audio::Current().createTrack()
 		).first;
-		j->second->fillFromData(bytes::make_vector(custom->bytes()));
+		j->second->fillFromData(bytes::make_vector(bytes));
 		return j->second.get();
 	}
 	ensureSoundCreated();
@@ -784,7 +973,7 @@ void System::ensureSoundCreated() {
 
 	_soundTrack = Media::Audio::Current().createTrack();
 	_soundTrack->fillFromFile(
-		Core::App().settings().getSoundPath(qsl("msg_incoming")));
+		Core::App().settings().getSoundPath(u"msg_incoming"_q));
 }
 
 void System::updateAll() {
@@ -801,8 +990,29 @@ void System::notifySettingsChanged(ChangeType type) {
 	return _settingsChanged.fire(std::move(type));
 }
 
-void System::playSound(not_null<Main::Session*> session, DocumentId id) {
-	lookupSound(&session->data(), id)->playOnce();
+bool System::volumeSupported() const {
+	// Play through native notification system if toasts are enabled.
+	return Core::App().settings().soundNotify()
+		&& (!Core::App().settings().desktopNotify()
+			|| _manager->type() != ManagerType::Native
+			|| Platform::Notifications::VolumeSupported());
+}
+
+rpl::producer<bool> System::volumeSupportedValue() const {
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		rpl::merge(settingsChanged() | rpl::to_empty, managerChanged())
+	) | rpl::map([=] {
+		return volumeSupported();
+	}) | rpl::distinct_until_changed();
+}
+
+void System::playSound(
+		not_null<Main::Session*> session,
+		DocumentId id,
+		float64 volumeOverride) {
+	lookupSound(&session->data(), id)->playOnce(volumeOverride);
 }
 
 Manager::DisplayOptions Manager::getNotificationOptions(
@@ -824,9 +1034,15 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 		|| !item
 		|| ((item->out() || peer->isSelf()) && item->isFromScheduled());
 	result.hideReplyButton = result.hideMarkAsRead
-		|| (!peer->canWrite() && (!topic || !topic->canWrite()))
+		|| (!Data::CanSendTexts(peer)
+			&& (!topic || !Data::CanSendTexts(topic)))
 		|| peer->isBroadcast()
-		|| (peer->slowmodeSecondsLeft() > 0);
+		|| (peer->slowmodeSecondsLeft() > 0)
+		|| (peer->starsPerMessageChecked() > 0);
+	result.spoilerLoginCode = item
+		&& !item->out()
+		&& peer->isNotificationsUser()
+		&& Core::App().isSharingScreen();
 	return result;
 }
 
@@ -837,7 +1053,6 @@ TextWithEntities Manager::ComposeReactionEmoji(
 		return TextWithEntities{ *emoji };
 	}
 	const auto id = v::get<DocumentId>(reaction.data);
-	auto entities = EntitiesInText();
 	const auto document = session->data().document(id);
 	const auto sticker = document->sticker();
 	const auto text = sticker ? sticker->alt : PlaceholderReactionText();
@@ -932,7 +1147,7 @@ TextWithEntities Manager::ComposeReactionNotification(
 				lt_reaction,
 				reactionWithEntities,
 				lt_title,
-				Ui::Text::WithEntities(poll->question),
+				poll->question,
 				Ui::Text::WithEntities);
 	} else if (media->game()) {
 		return simple(tr::lng_reaction_game);
@@ -976,76 +1191,136 @@ QString Manager::accountNameSeparator() {
 
 void Manager::notificationActivated(
 		NotificationId id,
-		const TextWithTags &reply) {
+		ActivateOptions &&options) {
 	onBeforeNotificationActivated(id);
 	if (const auto session = system()->findSession(id.contextId.sessionId)) {
-		if (session->windows().empty()) {
-			Core::App().domain().activate(&session->account());
+		const auto history = session->data().history(
+			id.contextId.peerId);
+		const auto item = history->owner().message(
+			history->peer,
+			id.msgId);
+		const auto topic = item ? item->topic() : nullptr;
+		const auto sublist = item ? item->savedSublist() : nullptr;
+		if (!options.draft.text.isEmpty()) {
+			const auto topicRootId = topic
+				? topic->rootId()
+				: id.contextId.topicRootId;
+			const auto monoforumPeerId = (sublist && sublist->parentChat())
+				? sublist->sublistPeer()->id
+				: id.contextId.monoforumPeerId;
+			const auto replyToId = (id.msgId > 0
+				&& !history->peer->isUser()
+				&& id.msgId != topicRootId)
+				? FullMsgId(history->peer->id, id.msgId)
+				: FullMsgId();
+			const auto length = int(options.draft.text.size());
+			auto draft = std::make_unique<Data::Draft>(
+				std::move(options.draft),
+				FullReplyTo{
+					.messageId = replyToId,
+					.topicRootId = topicRootId,
+					.monoforumPeerId = monoforumPeerId,
+				},
+				SuggestPostOptions(),
+				MessageCursor{
+					length,
+					length,
+					Ui::kQFixedMax,
+				},
+				Data::WebPageDraft());
+			history->setLocalDraft(std::move(draft));
 		}
-		if (!session->windows().empty()) {
-			const auto window = session->windows().front();
-			const auto history = session->data().history(
-				id.contextId.peerId);
-			const auto item = history->owner().message(
-				history->peer,
-				id.msgId);
-			const auto topic = item ? item->topic() : nullptr;
-			if (!reply.text.isEmpty()) {
-				const auto topicRootId = topic
-					? topic->rootId()
-					: id.contextId.topicRootId;
-				const auto replyToId = (id.msgId > 0
-					&& !history->peer->isUser()
-					&& id.msgId != topicRootId)
-					? id.msgId
-					: 0;
-				auto draft = std::make_unique<Data::Draft>(
-					reply,
-					replyToId,
-					topicRootId,
-					MessageCursor{
-						int(reply.text.size()),
-						int(reply.text.size()),
-						QFIXED_MAX,
-					},
-					Data::PreviewState::Allowed);
-				history->setLocalDraft(std::move(draft));
-			}
-			window->widget()->showFromTray();
-			window->widget()->reActivateWindow();
-			if (Core::App().passcodeLocked()) {
-				window->widget()->setInnerFocus();
-				system()->clearAll();
-			} else {
-				openNotificationMessage(history, id.msgId);
-			}
-			onAfterNotificationActivated(id, window);
-		}
+		const auto openSeparated = options.allowNewWindow
+			&& base::IsCtrlPressed();
+		const auto window = openNotificationMessage(
+			history,
+			id.msgId,
+			openSeparated);
+		onAfterNotificationActivated(id, window);
 	}
 }
 
-void Manager::openNotificationMessage(
+Window::SessionController *Manager::openNotificationMessage(
 		not_null<History*> history,
-		MsgId messageId) {
+		MsgId messageId,
+		bool openSeparated) {
+	if (Core::App().passcodeLocked()) {
+		const auto window = history->session().tryResolveWindow();
+		if (window) {
+			window->widget()->showFromTray();
+			window->widget()->setInnerFocus();
+			system()->clearAll();
+		}
+		return window;
+	}
 	const auto item = history->owner().message(history->peer, messageId);
 	const auto openExactlyMessage = !history->peer->isBroadcast()
 		&& item
 		&& item->isRegular()
 		&& (item->out() || (item->mentionsMe() && !history->peer->isUser()));
 	const auto topic = item ? item->topic() : nullptr;
-	const auto separate = Core::App().separateWindowForPeer(history->peer);
+	const auto sublist = item ? item->savedSublist() : nullptr;
+
+	const auto guard = gsl::finally([&] {
+		if (topic) {
+			system()->clearFromTopic(topic);
+		} else if (sublist && sublist->parentChat()) {
+			system()->clearFromSublist(sublist);
+		} else {
+			system()->clearFromHistory(history);
+		}
+	});
+
+	const auto separateId = !topic
+		? Window::SeparateId(history->peer)
+		: history->peer->asChannel()->useSubsectionTabs()
+		? Window::SeparateId(Window::SeparateType::Chat, topic)
+		: Window::SeparateId(Window::SeparateType::Forum, history);
+	const auto separate = Core::App().separateWindowFor(separateId);
+	const auto itemId = openExactlyMessage ? messageId : ShowAtUnreadMsgId;
+	if (openSeparated && !separate && !topic) {
+		// In case we're opening a chat history we first try to open it like
+		// it is done from the main window context menu (that checks if the
+		// chat isn't restricted and also closes the chat we're opening
+		// in the window itself). If this couldn't be done, we open normally.
+		const auto tryInExisting = [&](bool primary) {
+			for (const auto &window : history->session().windows()) {
+				if (primary && !window->window().id().primary()) {
+					continue;
+				} else if (!primary && !window->window().id().folder()) {
+					continue;
+				}
+				window->showInNewWindow(separateId, itemId);
+				const auto shown = Core::App().separateWindowFor(
+					separateId);
+				return shown ? shown->sessionController() : window.get();
+			}
+			return (Window::SessionController*)nullptr;
+		};
+		const auto shownPrimary = tryInExisting(true);
+		const auto shown = shownPrimary
+			? shownPrimary
+			: tryInExisting(false);
+		if (shown) {
+			return shown;
+		}
+	}
 	const auto window = separate
 		? separate->sessionController()
+		: openSeparated
+		? [&] {
+			const auto window = Core::App().ensureSeparateWindowFor(
+				separateId,
+				itemId);
+			return window ? window->sessionController() : nullptr;
+		}()
 		: history->session().tryResolveWindow();
-	const auto itemId = openExactlyMessage ? messageId : ShowAtUnreadMsgId;
 	if (window) {
+		window->widget()->showFromTray();
 		if (topic) {
-			window->showSection(
-				std::make_shared<HistoryView::RepliesMemento>(
-					history,
-					topic->rootId(),
-					itemId),
-				SectionShow::Way::Forward);
+			window->showTopic(topic, itemId, SectionShow::Way::Forward);
+		} else if (sublist) {
+			window->showSublist(sublist, itemId, SectionShow::Way::Forward);
 		} else {
 			window->showPeerHistory(
 				history->peer->id,
@@ -1053,11 +1328,7 @@ void Manager::openNotificationMessage(
 				itemId);
 		}
 	}
-	if (topic) {
-		system()->clearFromTopic(topic);
-	} else {
-		system()->clearFromHistory(history);
-	}
+	return window;
 }
 
 void Manager::notificationReplied(
@@ -1074,18 +1345,38 @@ void Manager::notificationReplied(
 	const auto history = session->data().history(id.contextId.peerId);
 	const auto item = history->owner().message(history->peer, id.msgId);
 	const auto topic = item ? item->topic() : nullptr;
+	const auto topicRootId = topic
+		? topic->rootId()
+		: id.contextId.topicRootId;
+	const auto sublist = item ? item->savedSublist() : nullptr;
+	const auto monoforumPeerId = (sublist && sublist->parentChat())
+		? sublist->sublistPeer()->id
+		: id.contextId.monoforumPeerId;
 
 	auto message = Api::MessageToSend(Api::SendAction(history));
 	message.textWithTags = reply;
-	message.action.replyTo = (id.msgId > 0 && !history->peer->isUser())
+	const auto replyToId = (id.msgId > 0 && !history->peer->isUser()
+		&& id.msgId != topicRootId)
 		? id.msgId
-		: id.contextId.topicRootId;
-	message.action.topicRootId = topic ? topic->rootId() : 0;
+		: history->peer->isForum()
+		? topicRootId
+		: MsgId(0);
+	message.action.replyTo = {
+		.messageId = { replyToId ? history->peer->id : 0, replyToId },
+		.topicRootId = topic ? topic->rootId() : 0,
+		.monoforumPeerId = monoforumPeerId,
+	};
 	message.action.clearDraft = false;
 	history->session().api().sendMessage(std::move(message));
 
 	if (item && item->isUnreadMention() && !item->isIncomingUnreadMedia()) {
 		history->session().api().markContentsRead(item);
+	}
+}
+
+void Manager::maybePlaySound(Fn<void()> playSound) {
+	if (_system->volumeSupported()) {
+		doMaybePlaySound(std::move(playSound));
 	}
 }
 
@@ -1105,16 +1396,21 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		&& !reactionFrom
 		&& (item->out() || peer->isSelf())
 		&& item->isFromScheduled();
-	const auto topicWithChat = [&] {
+	const auto subWithChat = [&] {
 		const auto name = peer->name();
 		const auto topic = item->topic();
-		return topic ? (topic->title() + u" ("_q + name + ')') : name;
+		const auto sublist = item->savedSublist();
+		return topic
+			? (topic->title() + u" ("_q + name + ')')
+			: (sublist && sublist->parentChat())
+			? (sublist->sublistPeer()->shortName() + u" ("_q + name + ')')
+			: name;
 	};
 	const auto title = options.hideNameAndPhoto
 		? AppName.utf16()
 		: (scheduled && peer->isSelf())
 		? tr::lng_notification_reminder(tr::now)
-		: topicWithChat();
+		: subWithChat();
 	const auto fullTitle = addTargetAccountName(title, &peer->session());
 	const auto subtitle = reactionFrom
 		? (reactionFrom != peer ? reactionFrom->name() : QString())
@@ -1132,19 +1428,37 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		? tr::lng_forward_messages(tr::now, lt_count, fields.forwardedCount)
 		: item->groupId()
 		? tr::lng_in_dlg_album(tr::now)
-		: TextWithPermanentSpoiler(item->notificationText());
+		: TextWithForwardedChar(
+			TextWithPermanentSpoiler(item->notificationText({
+				.spoilerLoginCode = options.spoilerLoginCode,
+			})),
+			(fields.forwardedCount == 1));
 
 	// #TODO optimize
 	auto userpicView = item->history()->peer->createUserpicView();
-	doShowNativeNotification(
-		item->history()->peer,
-		item->topicRootId(),
-		userpicView,
-		item->id,
-		scheduled ? WrapFromScheduled(fullTitle) : fullTitle,
-		subtitle,
-		text,
-		options);
+	const auto owner = &item->history()->owner();
+	const auto withSound = fields.soundId
+		&& Core::App().settings().soundNotify();
+	const auto sound = withSound ? [=, id = *fields.soundId] {
+		return _localSoundCache.sound(id, [=] {
+			return Core::App().notifications().lookupSoundBytes(owner, id);
+		}, [=] {
+			return Core::App().notifications().lookupSoundBytes(owner, 0);
+		});
+	} : Fn<NotificationSound()>();
+	doShowNativeNotification({
+		.peer = item->history()->peer,
+		.topicRootId = item->topicRootId(),
+		.monoforumPeerId = (item->history()->amMonoforumAdmin()
+			? item->sublistPeerId()
+			: PeerId()),
+		.itemId = item->id,
+		.title = scheduled ? WrapFromScheduled(fullTitle) : fullTitle,
+		.subtitle = subtitle,
+		.message = text,
+		.sound = sound,
+		.options = options,
+	}, userpicView);
 }
 
 bool NativeManager::forceHideDetails() const {

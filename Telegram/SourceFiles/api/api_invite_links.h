@@ -9,11 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ApiWrap;
 
+#include "data/data_subscriptions.h"
+
 namespace Api {
 
 struct InviteLink {
 	QString link;
 	QString label;
+	Data::PeerSubscription subscription;
 	not_null<UserData*> admin;
 	TimeId date = 0;
 	TimeId startDate = 0;
@@ -34,6 +37,7 @@ struct PeerInviteLinks {
 struct JoinedByLinkUser {
 	not_null<UserData*> user;
 	TimeId date = 0;
+	bool viaFilterLink = false;
 };
 
 struct JoinedByLinkSlice {
@@ -52,6 +56,16 @@ struct InviteLinkUpdate {
 	not_null<PeerData*> peer,
 	const MTPmessages_ChatInviteImporters &slice);
 
+struct CreateInviteLinkArgs {
+	not_null<PeerData*> peer;
+	Fn<void(InviteLink)> done = nullptr;
+	QString label;
+	TimeId expireDate = 0;
+	int usageLimit = 0;
+	bool requestApproval = false;
+	Data::PeerSubscription subscription;
+};
+
 class InviteLinks final {
 public:
 	explicit InviteLinks(not_null<ApiWrap*> api);
@@ -60,13 +74,7 @@ public:
 	using Links = PeerInviteLinks;
 	using Update = InviteLinkUpdate;
 
-	void create(
-		not_null<PeerData*> peer,
-		Fn<void(Link)> done = nullptr,
-		const QString &label = QString(),
-		TimeId expireDate = 0,
-		int usageLimit = 0,
-		bool requestApproval = false);
+	void create(const CreateInviteLinkArgs &args);
 	void edit(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
@@ -75,6 +83,12 @@ public:
 		TimeId expireDate,
 		int usageLimit,
 		bool requestApproval,
+		Fn<void(Link)> done = nullptr);
+	void editTitle(
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const QString &link,
+		const QString &label,
 		Fn<void(Link)> done = nullptr);
 	void revoke(
 		not_null<PeerData*> peer,
@@ -186,15 +200,11 @@ private:
 		const QString &label = QString(),
 		TimeId expireDate = 0,
 		int usageLimit = 0,
-		bool requestApproval = false);
+		bool requestApproval = false,
+		bool editOnlyTitle = false);
 	void performCreate(
-		not_null<PeerData*> peer,
-		Fn<void(Link)> done,
-		bool revokeLegacyPermanent,
-		const QString &label = QString(),
-		TimeId expireDate = 0,
-		int usageLimit = 0,
-		bool requestApproval = false);
+		const CreateInviteLinkArgs &args,
+		bool revokeLegacyPermanent);
 
 	void requestJoinedFirstSlice(LinkKey key);
 	[[nodiscard]] std::optional<JoinedByLinkSlice> lookupJoinedFirstSlice(

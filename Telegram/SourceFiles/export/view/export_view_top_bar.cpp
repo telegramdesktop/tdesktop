@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/view/export_view_top_bar.h"
 
 #include "export/view/export_view_content.h"
+#include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/labels.h"
@@ -22,7 +23,9 @@ namespace View {
 
 TopBar::TopBar(QWidget *parent, Content &&content)
 : RpWidget(parent)
-, _info(this, st::exportTopBarLabel)
+, _infoLeft(this, st::exportTopBarLabel)
+, _infoMiddle(this, st::exportTopBarLabel)
+, _infoRight(this, st::exportTopBarLabel)
 , _shadow(this)
 , _progress(this, st::mediaPlayerPlayback)
 , _button(this) {
@@ -35,24 +38,56 @@ rpl::producer<Qt::MouseButton> TopBar::clicks() const {
 	return _button->clicks();
 }
 
+void TopBar::resizeToWidthInfo(int w) {
+	if (w <= 0) {
+		return;
+	}
+	const auto &infoFont = st::mediaPlayerName.style.font;
+	const auto infoTop = st::mediaPlayerNameTop - infoFont->ascent;
+	const auto padding = st::mediaPlayerPlayLeft + st::mediaPlayerPadding;
+	_infoLeft->moveToLeft(padding, infoTop);
+	auto availableWidth = w;
+	availableWidth -= rect::right(_infoLeft);
+	availableWidth -= padding;
+	_infoMiddle->resizeToWidth(_infoMiddle->naturalWidth());
+	_infoRight->resizeToWidth(_infoRight->naturalWidth());
+	if (_infoMiddle->naturalWidth() > availableWidth) {
+		_infoRight->moveToLeft(
+			w - padding - _infoRight->width(),
+			infoTop);
+		_infoMiddle->resizeToWidth(_infoRight->x()
+			- rect::right(_infoLeft)
+			- infoFont->spacew * 2);
+		_infoMiddle->moveToLeft(
+			rect::right(_infoLeft) + infoFont->spacew,
+			infoTop);
+	} else {
+		_infoMiddle->moveToLeft(
+			rect::right(_infoLeft) + infoFont->spacew,
+			infoTop);
+		_infoRight->moveToLeft(
+			rect::right(_infoMiddle) + infoFont->spacew,
+			infoTop);
+	}
+}
+
 void TopBar::updateData(Content &&content) {
 	if (content.rows.empty()) {
 		return;
 	}
 	const auto &row = content.rows[0];
-	_info->setMarkedText(
-		Ui::Text::Bold(tr::lng_export_progress_title(tr::now))
-			.append(" \xe2\x80\x93 ")
-			.append(row.label)
+	_infoLeft->setMarkedText(
+		tr::lng_export_progress_title(tr::now, Ui::Text::Bold)
 			.append(' ')
-			.append(Ui::Text::PlainLink(row.info)));
+			.append(QChar(0x2013)));
+	_infoMiddle->setText(row.label);
+	_infoRight->setMarkedText(Ui::Text::Colorized(row.info));
+	resizeToWidthInfo(width());
 	_progress->setValue(row.progress);
 }
 
 void TopBar::resizeEvent(QResizeEvent *e) {
-	_info->moveToLeft(
-		st::mediaPlayerPlayLeft + st::mediaPlayerPadding,
-		st::mediaPlayerNameTop - st::mediaPlayerName.style.font->ascent);
+	resizeToWidthInfo(e->size().width());
 	_button->setGeometry(0, 0, width(), height() - st::lineWidth);
 	_progress->setGeometry(
 		0,

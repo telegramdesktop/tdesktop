@@ -14,12 +14,16 @@ paymentsPanelSize: size(392px, 600px);
 paymentsPanelButton: RoundButton(defaultBoxButton) {
 	width: -36px;
 	height: 36px;
-	font: boxButtonFont;
+	style: TextStyle(defaultTextStyle) {
+		font: boxButtonFont;
+	}
 }
 paymentsPanelSubmit: RoundButton(defaultActiveButton) {
 	width: -36px;
 	height: 36px;
-	font: boxButtonFont;
+	style: TextStyle(defaultTextStyle) {
+		font: boxButtonFont;
+	}
 }
 paymentsPanelPadding: margins(8px, 12px, 15px, 12px);
 
@@ -136,8 +140,17 @@ paymentsLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	thickness: 4px;
 }
 
+botWebViewPanelSize: size(384px, 694px);
+botWebViewBottomPadding: margins(12px, 12px, 12px, 12px);
+botWebViewBottomSkip: point(12px, 8px);
 botWebViewBottomButton: RoundButton(paymentsPanelSubmit) {
-	height: 56px;
-	font: boxButtonFont;
-	textTop: 19px;
+	height: 40px;
+	style: TextStyle(defaultTextStyle) {
+		font: boxButtonFont;
+	}
+	textTop: 11px;
+}
+botWebViewRadialStroke: 3px;
+botWebViewMenu: PopupMenu(popupMenuWithIcons) {
+	maxHeight: 360px;
 }

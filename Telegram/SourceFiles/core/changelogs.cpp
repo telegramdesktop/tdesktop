@@ -23,59 +23,22 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		4000003,
-		"- Animated emoji for messages.\n"
+		4008011,
+		"- Fix initial video playback speed.\n"
 
-		"- Premium: Privacy settings for voice messages.\n"
+		"- Use native window resize on Windows 11.\n"
 
-		"- Premium: Gifting Telegram Premium "
-		"to any user from their profile page.\n"
+		"- Fix memory leak in Direct3D 11 media viewer on Windows.\n"
 	},
 	{
-		4000004,
-		"- Allow sending animated emoji to Saved Messages "
-		"even without Telegram Premium.\n"
+		4010004,
+		"- Statistics in channels and group chats.\n"
 
-		"- Premium: Suggest animated emoji by regular emoji "
-		"(can be disabled in Settings).\n"
+		"- Nice looking code blocks with syntax highlight.\n"
 
-		"- Premium: Show all suggested premium stickers "
-		"in a special section of the stickers panel.\n"
+		"- Copy full code block by click on its header.\n"
 
-		"- Premium: Allow hiding premium stickers special section "
-		"of the stickers panel.\n"
-
-		"- Fix a memory leak in RTMP livestreams.\n"
-
-		"- Fix some bot webview bugs on macOS.\n"
-
-		"- Fix forwarding of voice messages.\n"
-	},
-	{
-		4001002,
-		"- New reaction selector above the right click menu.\n"
-
-		"- Premium: Set any custom emoji reactions in private chats.\n"
-
-		"- Premium: Set any custom emoji as your profile status.\n"
-
-		"- Insert or copy custom emoji from pack preview.\n"
-	},
-	{
-		4002001,
-		"- Improve scaling / cropping for photos / video files.\n"
-
-		"- Improve touch support in channel comments.\n"
-
-		"- Nice animation for spoilers.\n"
-	},
-	{
-		4002002,
-		"- Fix crash in spoiler revealing in media captions.\n"
-
-		"- Fix spoiler revealing in media viewer captions.\n"
-		
-		"- Fix crash in folder editing on Linux.\n"
+		"- Send a highlighted code block using ```language syntax.\n"
 	}
 	};
 };
@@ -180,7 +143,7 @@ void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 		return result.replace(simple, separator);
 	}();
 	const auto version = FormatVersionDisplay(changeVersion);
-	const auto log = qsl("New in version %1 beta:\n\n").arg(version) + text;
+	const auto log = u"New in version %1 beta:\n\n"_q.arg(version) + text;
 	addLocalLog(log);
 }
 

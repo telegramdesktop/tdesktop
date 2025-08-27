@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/cross_animation.h"
@@ -381,7 +381,7 @@ void Item::prepareCache() {
 		paintOnce(
 			p,
 			_width * (kWideScale - 1) / 2,
-			_st.height  * (kWideScale - 1) / 2,
+			_st.height * (kWideScale - 1) / 2,
 			cacheWidth);
 	}
 	_cache = Ui::PixmapFromImage(std::move(data));
@@ -409,16 +409,18 @@ void Item::setOver(bool over) {
 
 } // namespace
 
-class MultiSelect::Inner : public TWidget {
+class MultiSelect::Inner : public RpWidget {
 public:
 	using ScrollCallback = Fn<void(int activeTop, int activeBottom)>;
 	Inner(
 		QWidget *parent,
 		const style::MultiSelect &st,
 		rpl::producer<QString> placeholder,
+		const QString &query,
 		ScrollCallback callback);
 
-	QString getQuery() const;
+	[[nodiscard]] QString getQuery() const;
+	void setQuery(const QString &query);
 	bool setInnerFocus();
 	void clearQuery();
 
@@ -451,7 +453,6 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
-	void submitted(Qt::KeyboardModifiers modifiers);
 	void cancelled();
 	void queryChanged();
 	void fieldFocused();
@@ -511,7 +512,8 @@ private:
 MultiSelect::MultiSelect(
 	QWidget *parent,
 	const style::MultiSelect &st,
-	rpl::producer<QString> placeholder)
+	rpl::producer<QString> placeholder,
+	const QString &query)
 : RpWidget(parent)
 , _st(st)
 , _scroll(this, _st.scroll) {
@@ -522,6 +524,7 @@ MultiSelect::MultiSelect(
 		this,
 		st,
 		std::move(placeholder),
+		query,
 		scrollCallback));
 	_scroll->installEventFilter(this);
 	_inner->setResizedCallback([this](int innerHeightDelta) {
@@ -597,6 +600,10 @@ QString MultiSelect::getQuery() const {
 	return _inner->getQuery();
 }
 
+void MultiSelect::setQuery(const QString &query) {
+	_inner->setQuery(query);
+}
+
 void MultiSelect::addItem(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage, AddItemWay way) {
 	addItemInBunch(itemId, text, color, std::move(paintRoundImage));
 	_inner->finishItemsBunch(way);
@@ -643,17 +650,32 @@ MultiSelect::Inner::Inner(
 	QWidget *parent,
 	const style::MultiSelect &st,
 	rpl::producer<QString> placeholder,
+	const QString &query,
 	ScrollCallback callback)
-: TWidget(parent)
+: RpWidget(parent)
 , _st(st)
 , _scrollCallback(std::move(callback))
-, _field(this, _st.field, std::move(placeholder))
+, _field(this, _st.field, std::move(placeholder), query)
 , _cancel(this, _st.fieldCancel) {
 	_field->customUpDown(true);
-	connect(_field, &Ui::InputField::focused, [=] { fieldFocused(); });
-	connect(_field, &Ui::InputField::changed, [=] { queryChanged(); });
-	connect(_field, &Ui::InputField::submitted, this, &Inner::submitted);
-	connect(_field, &Ui::InputField::cancelled, this, &Inner::cancelled);
+	_field->focusedChanges(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
+		fieldFocused();
+	}, _field->lifetime());
+	_field->changes(
+	) | rpl::start_with_next([=] {
+		queryChanged();
+	}, _field->lifetime());
+	_field->submits(
+	) | rpl::start_with_next([=](Qt::KeyboardModifiers m) {
+		if (_submittedCallback) {
+			_submittedCallback(m);
+		}
+	}, _field->lifetime());
+	_field->cancelled(
+	) | rpl::start_with_next([=] {
+		cancelled();
+	}, _field->lifetime());
 	_cancel->setClickedCallback([=] {
 		clearQuery();
 		_field->setFocus();
@@ -672,6 +694,13 @@ void MultiSelect::Inner::queryChanged() {
 
 QString MultiSelect::Inner::getQuery() const {
 	return _field->getLastText().trimmed();
+}
+
+void MultiSelect::Inner::setQuery(const QString &query) {
+	_field->setText(query);
+	if (const auto last = _field->getLastText(); !last.isEmpty()) {
+		_field->setCursorPosition(last.size());
+	}
 }
 
 bool MultiSelect::Inner::setInnerFocus() {
@@ -855,12 +884,6 @@ void MultiSelect::Inner::keyPressEvent(QKeyEvent *e) {
 		setActiveItemPrevious();
 	} else {
 		e->ignore();
-	}
-}
-
-void MultiSelect::Inner::submitted(Qt::KeyboardModifiers modifiers) {
-	if (_submittedCallback) {
-		_submittedCallback(modifiers);
 	}
 }
 

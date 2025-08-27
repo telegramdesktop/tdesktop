@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Editor {
 
 ItemImage::ItemImage(
-	const QPixmap &&pixmap,
+	QPixmap &&pixmap,
 	ItemBase::Data data)
 : ItemBase(std::move(data))
 , _pixmap(std::move(pixmap)) {
@@ -23,7 +23,13 @@ void ItemImage::paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *w) {
-	p->drawPixmap(contentRect().toRect(), _pixmap);
+	const auto rect = contentRect();
+	const auto pixmapSize = QSizeF(_pixmap.size() / style::DevicePixelRatio())
+		.scaled(rect.size(), Qt::KeepAspectRatio);
+	const auto resultRect = QRectF(rect.topLeft(), pixmapSize).translated(
+		(rect.width() - pixmapSize.width()) / 2.,
+		(rect.height() - pixmapSize.height()) / 2.);
+	p->drawPixmap(resultRect.toRect(), _pixmap);
 	ItemBase::paint(p, option, w);
 }
 

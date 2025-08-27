@@ -1,6 +1,3 @@
-[submodule "Telegram/ThirdParty/libtgvoip"]
-	path = Telegram/ThirdParty/libtgvoip
-	url = https://github.com/telegramdesktop/libtgvoip
 [submodule "Telegram/ThirdParty/GSL"]
 	path = Telegram/ThirdParty/GSL
 	url = https://github.com/Microsoft/GSL.git
@@ -58,9 +55,6 @@
 [submodule "Telegram/ThirdParty/range-v3"]
 	path = Telegram/ThirdParty/range-v3
 	url = https://github.com/ericniebler/range-v3.git
-[submodule "Telegram/ThirdParty/fcitx-qt5"]
-	path = Telegram/ThirdParty/fcitx-qt5
-	url = https://github.com/fcitx/fcitx-qt5.git
 [submodule "Telegram/ThirdParty/nimf"]
 	path = Telegram/ThirdParty/nimf
 	url = https://github.com/hamonikr/nimf.git
@@ -79,21 +73,21 @@
 [submodule "Telegram/lib_webview"]
 	path = Telegram/lib_webview
 	url = https://github.com/desktop-app/lib_webview.git
-[submodule "Telegram/ThirdParty/jemalloc"]
-	path = Telegram/ThirdParty/jemalloc
-	url = https://github.com/jemalloc/jemalloc
 [submodule "Telegram/ThirdParty/dispatch"]
 	path = Telegram/ThirdParty/dispatch
 	url = https://github.com/apple/swift-corelibs-libdispatch
-[submodule "Telegram/ThirdParty/plasma-wayland-protocols"]
-	path = Telegram/ThirdParty/plasma-wayland-protocols
-	url = https://github.com/KDE/plasma-wayland-protocols.git
-[submodule "Telegram/ThirdParty/wayland-protocols"]
-	path = Telegram/ThirdParty/wayland-protocols
-	url = https://github.com/gitlab-freedesktop-mirrors/wayland-protocols.git
 [submodule "Telegram/ThirdParty/kimageformats"]
 	path = Telegram/ThirdParty/kimageformats
 	url = https://github.com/KDE/kimageformats.git
 [submodule "Telegram/ThirdParty/kcoreaddons"]
 	path = Telegram/ThirdParty/kcoreaddons
 	url = https://github.com/KDE/kcoreaddons.git
+[submodule "Telegram/ThirdParty/cld3"]
+	path = Telegram/ThirdParty/cld3
+	url = https://github.com/google/cld3.git
+[submodule "Telegram/ThirdParty/libprisma"]
+	path = Telegram/ThirdParty/libprisma
+	url = https://github.com/desktop-app/libprisma.git
+[submodule "Telegram/ThirdParty/xdg-desktop-portal"]
+	path = Telegram/ThirdParty/xdg-desktop-portal
+	url = https://github.com/flatpak/xdg-desktop-portal.git

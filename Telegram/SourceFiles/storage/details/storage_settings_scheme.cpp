@@ -10,12 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/details/storage_file_utilities.h"
 #include "storage/cache/storage_cache_database.h"
 #include "storage/serialize_common.h"
+#include "storage/storage_media_prepare.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "mtproto/mtproto_config.h"
-#include "ui/effects/animation_value.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/power_saving.h"
 #include "window/themes/window_theme.h"
 #include "core/update_checker.h"
 #include "platform/platform_specific.h"
@@ -192,12 +193,10 @@ bool ReadSetting(
 		cSetSendToMenu(v == 1);
 	} break;
 
-	case dbiUseExternalVideoPlayer: {
+	case dbiUseExternalVideoPlayerOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
-
-		cSetUseExternalVideoPlayer(v == 1);
 	} break;
 
 	case dbiCacheSettingsOld: {
@@ -234,14 +233,14 @@ bool ReadSetting(
 		context.cacheBigFileTotalTimeLimit = NoTimeLimit(timeBig) ? 0 : timeBig;
 	} break;
 
-	case dbiAnimationsDisabled: {
-		qint32 disabled;
-		stream >> disabled;
+	case dbiPowerSaving: {
+		qint32 settings;
+		stream >> settings;
 		if (!CheckStreamStatus(stream)) {
 			return false;
 		}
 
-		anim::SetDisabled(disabled == 1);
+		PowerSaving::Set(PowerSaving::Flags::from_raw(settings));
 	} break;
 
 	case dbiSoundFlashBounceNotifyOld: {
@@ -401,7 +400,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().settings().setDialogsWidthRatio(v / 1000000.);
+		Core::App().settings().updateDialogsWidthRatio(v / 1000000., false);
 		context.legacyRead = true;
 	} break;
 
@@ -554,7 +553,7 @@ bool ReadSetting(
 				const auto proxy = readProxy();
 				if (proxy) {
 					list.push_back(proxy);
-				} else if (index < -list.size()) {
+				} else if (index < -int64(list.size())) {
 					++index;
 				} else if (index > list.size()) {
 					--index;
@@ -936,7 +935,9 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 #ifndef OS_WIN_STORE
-		if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
+		if (!v.isEmpty() && v != FileDialog::Tmp() && !v.endsWith('/')) {
+			v += '/';
+		}
 		Core::App().settings().setDownloadPathBookmark(QByteArray());
 		Core::App().settings().setDownloadPath(v);
 #endif // OS_WIN_STORE
@@ -950,7 +951,9 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 #ifndef OS_WIN_STORE
-		if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
+		if (!v.isEmpty() && v != FileDialog::Tmp() && !v.endsWith('/')) {
+			v += '/';
+		}
 		Core::App().settings().setDownloadPathBookmark(bookmark);
 		Core::App().settings().setDownloadPath(v);
 		psDownloadPathEnableAccess();
@@ -1056,9 +1059,7 @@ bool ReadSetting(
 			auto id = Ui::Emoji::IdFromOldKey(static_cast<uint64>(i.key()));
 			if (!id.isEmpty()) {
 				auto index = Ui::Emoji::ColorIndexFromOldKey(i.value());
-				if (index >= 0) {
-					variants.insert(id, index);
-				}
+				variants.insert(id, index);
 			}
 		}
 		Core::App().settings().setLegacyEmojiVariants(std::move(variants));
@@ -1083,6 +1084,7 @@ bool ReadSetting(
 			context.sessionSettings().setHiddenPinnedMessageId(
 				DeserializePeerId(i.key()),
 				MsgId(0), // topicRootId
+				PeerId(0), // monoforumPeerId
 				MsgId(i.value()));
 		}
 		context.legacyRead = true;
@@ -1145,9 +1147,9 @@ bool ReadSetting(
 		settingsStream >> duckingEnabled;
 		if (CheckStreamStatus(settingsStream)) {
 			auto &app = Core::App().settings();
-			app.setCallOutputDeviceId(outputDeviceID);
+			app.setCallPlaybackDeviceId(outputDeviceID);
+			app.setCallCaptureDeviceId(inputDeviceID);
 			app.setCallOutputVolume(outputVolume);
-			app.setCallInputDeviceId(inputDeviceID);
 			app.setCallInputVolume(inputVolume);
 			app.setCallAudioDuckingEnabled(duckingEnabled);
 		}
@@ -1178,17 +1180,9 @@ void ApplyReadFallbackConfig(ReadSettingsContext &context) {
 		if (context.fallbackConfigLegacyChatSizeMax > 0) {
 			config.setChatSizeMax(context.fallbackConfigLegacyChatSizeMax);
 		}
-		if (context.fallbackConfigLegacySavedGifsLimit > 0) {
-			config.setSavedGifsLimit(
-				context.fallbackConfigLegacySavedGifsLimit);
-		}
 		if (context.fallbackConfigLegacyStickersRecentLimit > 0) {
 			config.setStickersRecentLimit(
 				context.fallbackConfigLegacyStickersRecentLimit);
-		}
-		if (context.fallbackConfigLegacyStickersFavedLimit > 0) {
-			config.setStickersFavedLimit(
-				context.fallbackConfigLegacyStickersFavedLimit);
 		}
 		if (context.fallbackConfigLegacyMegagroupSizeMax > 0) {
 			config.setMegagroupSizeMax(

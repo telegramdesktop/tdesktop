@@ -10,6 +10,7 @@ using "ui/basic.style";
 using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
 using "ui/chat/chat.style"; // GroupCallUserpics.
+using "dialogs/dialogs.style"; // dialogsDateFont.
 
 InfoToggle {
 	color: color;
@@ -28,14 +29,33 @@ InfoPeerBadge {
 	sizeTag: int;
 }
 
+InfoTopBar {
+	height: pixels;
+	back: IconButton;
+	title: FlatLabel;
+	titlePosition: point;
+	titleWithSubtitle: FlatLabel;
+	titleWithSubtitlePosition: point;
+	subtitle: FlatLabel;
+	subtitlePosition: point;
+	bg: color;
+	mediaCancel: IconButton;
+	mediaActionsSkip: pixels;
+	mediaForward: IconButton;
+	mediaDelete: IconButton;
+	storiesSave: IconButton;
+	storiesArchive: IconButton;
+	storiesPin: IconButton;
+	storiesUnpin: IconButton;
+	search: IconButton;
+	searchRow: SearchFieldRow;
+	highlightBg: color;
+	highlightDuration: int;
+	radius: pixels;
+}
+
 infoMediaHeaderFg: windowFg;
 
-infoToggleCheckbox: Checkbox(defaultCheckbox) {
-	margin: margins(0px, 0px, 0px, 0px);
-	rippleBgActive: windowBgOver;
-	checkPosition: point(16px, 8px);
-	rippleAreaPosition: point(-8px, -8px);
-}
 infoToggle: InfoToggle {
 	color: menuIconFg;
 	duration: slideWrapDuration;
@@ -109,17 +129,13 @@ infoTopBarBack: IconButton(defaultIconButton) {
 
 	rippleAreaPosition: point(6px, 6px);
 	rippleAreaSize: 42px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 infoTopBarTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 	maxHeight: 20px;
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold);
 	}
 }
 infoTopBarMediaCancel: IconButton(infoTopBarBack) {
@@ -151,6 +167,20 @@ infoTopBarCall: IconButton(infoTopBarMenu) {
 	iconPosition: point(5px, -1px);
 	rippleAreaPosition: point(0px, 6px);
 }
+infoTopBarQr: IconButton(infoTopBarMenu) {
+	width: 48px;
+	icon: icon {{ "menu/qr_code", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/qr_code", boxTitleCloseFgOver }};
+	iconPosition: point(8px, -1px);
+	rippleAreaPosition: point(0px, 6px);
+}
+infoTopBarEdit: IconButton(infoTopBarMenu) {
+	width: 48px;
+	icon: icon {{ "menu/edit", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/edit", boxTitleCloseFgOver }};
+	iconPosition: point(8px, -1px);
+	rippleAreaPosition: point(0px, 6px);
+}
 infoTopBarForward: IconButton(infoTopBarBack) {
 	width: 46px;
 	icon: icon {{ "info/info_media_forward", boxTitleCloseFg }};
@@ -162,16 +192,44 @@ infoTopBarDelete: IconButton(infoTopBarForward) {
 	icon: icon {{ "info/info_media_delete", boxTitleCloseFg }};
 	iconOver: icon {{ "info/info_media_delete", boxTitleCloseFgOver }};
 }
+infoTopBarSaveStories: IconButton(infoTopBarForward) {
+	icon: icon {{ "info/info_stories_to_profile", boxTitleCloseFg }};
+	iconOver: icon {{ "info/info_stories_to_profile", boxTitleCloseFgOver }};
+}
+infoTopBarArchiveStories: IconButton(infoTopBarForward) {
+	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
+	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
+}
+infoTopBarPinStories: IconButton(infoTopBarForward) {
+	icon: icon {{ "menu/pin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/pin", boxTitleCloseFgOver }};
+}
+infoTopBarUnpinStories: IconButton(infoTopBarForward) {
+	icon: icon {{ "menu/unpin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/unpin", boxTitleCloseFgOver }};
+}
 infoTopBar: InfoTopBar {
 	height: infoTopBarHeight;
 	back: infoTopBarBack;
 	title: infoTopBarTitle;
 	titlePosition: point(24px, 17px);
+	titleWithSubtitle: FlatLabel(infoTopBarTitle) {
+		style: semiboldTextStyle;
+	}
+	titleWithSubtitlePosition: point(16px, 8px);
+	subtitle: FlatLabel(defaultFlatLabel) {
+		textFg: windowSubTextFg;
+	}
+	subtitlePosition: point(16px, 28px);
 	bg: windowBg;
 	mediaCancel: infoTopBarMediaCancel;
 	mediaActionsSkip: 4px;
 	mediaForward: infoTopBarForward;
 	mediaDelete: infoTopBarDelete;
+	storiesSave: infoTopBarSaveStories;
+	storiesArchive: infoTopBarArchiveStories;
+	storiesPin: infoTopBarPinStories;
+	storiesUnpin: infoTopBarUnpinStories;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
 	highlightBg: windowBgOver;
@@ -216,6 +274,18 @@ infoLayerTopBarCall: IconButton(infoLayerTopBarMenu) {
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
 	iconPosition: point(3px, -1px);
 }
+infoLayerTopBarQr: IconButton(infoLayerTopBarClose) {
+	width: 40px;
+	icon: icon {{ "menu/qr_code", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/qr_code", boxTitleCloseFgOver }};
+	iconPosition: point(8px, -1px);
+}
+infoLayerTopBarEdit: IconButton(infoLayerTopBarClose) {
+	width: 40px;
+	icon: icon {{ "menu/edit", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/edit", boxTitleCloseFgOver }};
+	iconPosition: point(8px, -1px);
+}
 infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
 	width: 45px;
 	icon: icon {{ "info/info_media_forward", boxTitleCloseFg }};
@@ -227,33 +297,48 @@ infoLayerTopBarDelete: IconButton(infoLayerTopBarForward) {
 	icon: icon {{ "info/info_media_delete", boxTitleCloseFg }};
 	iconOver: icon {{ "info/info_media_delete", boxTitleCloseFgOver }};
 }
+infoLayerTopBarSaveStories: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "info/info_stories_to_profile", boxTitleCloseFg }};
+	iconOver: icon {{ "info/info_stories_to_profile", boxTitleCloseFgOver }};
+}
+infoLayerTopBarArchiveStories: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
+	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
+}
+infoLayerTopBarPinStories: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "menu/pin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/pin", boxTitleCloseFgOver }};
+}
+infoLayerTopBarUnpinStories: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "menu/unpin", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/unpin", boxTitleCloseFgOver }};
+}
 infoLayerTopBar: InfoTopBar(infoTopBar) {
 	height: infoLayerTopBarHeight;
 	back: infoLayerTopBarBack;
 	title: boxTitle;
 	titlePosition: point(24px, 17px);
+	titleWithSubtitlePosition: point(16px, 9px);
+	subtitlePosition: point(16px, 30px);
 	bg: boxBg;
 	mediaCancel: infoLayerTopBarMediaCancel;
 	mediaActionsSkip: 6px;
 	mediaForward: infoLayerTopBarForward;
 	mediaDelete: infoLayerTopBarDelete;
+	storiesSave: infoLayerTopBarSaveStories;
+	storiesArchive: infoLayerTopBarArchiveStories;
+	storiesPin: infoLayerTopBarPinStories;
+	storiesUnpin: infoLayerTopBarUnpinStories;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
 	radius: boxRadius;
 }
 
-infoTopBarMenuPosition: point(-2px, 35px);
 infoLayerTopBarMenuPosition: point(40px, 37px);
 
 infoMinimalWidth: 324px;
 infoDesiredWidth: 392px;
 infoMinimalLayerMargin: 48px;
-
-infoTabs: SettingsSlider(defaultTabsSlider) {
-	height: 55px;
-	barTop: 52px;
-	labelTop: 19px;
-}
 
 InfoProfileCover {
 	height: pixels;
@@ -266,6 +351,11 @@ InfoProfileCover {
 	status: FlatLabel;
 	statusLeft: pixels;
 	statusTop: pixels;
+	starsRatingLeft: pixels;
+	starsRatingTop: pixels;
+	showLastSeen: RoundButton;
+	showLastSeenPosition: point;
+	showLastSeenVisible: bool;
 	rightSkip: pixels;
 }
 infoProfilePhotoInnerSize: 72px;
@@ -275,11 +365,6 @@ infoProfilePhotoSize: size(
 infoProfileStatus: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
 	textFg: windowSubTextFg;
-	style: TextStyle(defaultTextStyle) {
-		font: normalFont;
-		linkFont: normalFont;
-		linkFontOver: normalFont;
-	}
 }
 infoProfileCover: InfoProfileCover {
 	height: 108px;
@@ -294,8 +379,6 @@ infoProfileCover: InfoProfileCover {
 		textFg: windowBoldFg;
 		style: TextStyle(defaultTextStyle) {
 			font: font(16px semibold);
-			linkFont: font(16px semibold);
-			linkFontOver: font(16px semibold underline);
 		}
 	}
 	nameLeft: 109px;
@@ -303,11 +386,27 @@ infoProfileCover: InfoProfileCover {
 	status: infoProfileStatus;
 	statusLeft: 109px;
 	statusTop: 58px;
+	starsRatingLeft: 107px;
+	starsRatingTop: 57px;
+	showLastSeen: RoundButton(defaultActiveButton) {
+		textFg: windowSubTextFg;
+		textFgOver: windowSubTextFg;
+		textBg: windowBgOver;
+		textBgOver: windowBgOver;
+		width: -12px;
+		height: 18px;
+		textTop: 0px;
+		style: TextStyle(defaultTextStyle) {
+			font: font(12px);
+		}
+		ripple: defaultRippleAnimation;
+	}
+	showLastSeenPosition: point(3px, 58px);
+	showLastSeenVisible: true;
 	rightSkip: 20px;
 }
 infoProfileMegagroupCover: InfoProfileCover(infoProfileCover) {
 	status: FlatLabel(infoProfileStatus) {
-		style: defaultTextStyle;
 		palette: TextPalette(defaultTextPalette) {
 			linkFg: windowSubTextFg;
 		}
@@ -325,6 +424,17 @@ infoTopicCover: InfoProfileCover(infoProfileMegagroupCover) {
 	statusLeft: 79px;
 	statusTop: 38px;
 }
+infoEditContactCover: InfoProfileCover(infoProfileCover) {
+	nameTop: 33px;
+	statusTop: 57px;
+}
+infoEditContactPersonalLeft: 6px;
+
+infoRatingDeductedBadge: RoundButton(customEmojiTextBadge) {
+	textBg: windowSubTextFg;
+}
+
+infoProfileInaccessibleUserpic: icon {{ "info/inaccessible_userpic", historyPeerUserpicFg }};
 
 infoVerifiedCheckPosition: point(4px, 2px);
 infoVerifiedCheck: icon {
@@ -338,7 +448,10 @@ infoPeerBadge: InfoPeerBadge {
 	premium: infoPremiumStar;
 	premiumFg: profileVerifiedCheckBg;
 	position: infoVerifiedCheckPosition;
-	sizeTag: 1; // Large
+	sizeTag: 0; // Normal
+}
+infoBotVerifyBadge: InfoPeerBadge(infoPeerBadge) {
+	position: point(-2px, 2px);
 }
 
 infoIconFg: windowBoldFg;
@@ -352,18 +465,20 @@ infoProfileSeparatorPadding: margins(
 	infoProfileSkip,
 	0px,
 	infoProfileSkip);
-infoProfileLabeledButtonCopy: IconButton(defaultIconButton) {
+infoProfileLabeledButtonQr: IconButton(defaultIconButton) {
 	width: 34px;
 	height: 34px;
-	icon: icon {{ "menu/copy", infoIconFg }};
-	iconOver: icon {{ "menu/copy", infoIconFg }};
+	icon: icon {{ "menu/qr_code", windowActiveTextFg }};
+	iconOver: icon {{ "menu/qr_code", windowActiveTextFg }};
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 34px;
 	ripple: defaultRippleAnimation;
 }
+infoProfileLabeledButtonQrRightSkip: 10px;
 
 infoIconInformation: icon {{ "info/info_information", infoIconFg }};
 infoIconAddMember: icon {{ "info/info_add_member", infoIconFg }};
+infoIconBotBalance: icon {{ "menu/earn", infoIconFg, point(5px, 5px) }};
 infoIconNotifications: icon {{ "info/info_notifications", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info/info_media_photo", infoIconFg }};
 infoIconMediaVideo: icon {{ "info/info_media_video", infoIconFg }};
@@ -372,51 +487,63 @@ infoIconMediaFile: icon {{ "info/info_media_file", infoIconFg }};
 infoIconMediaAudio: icon {{ "info/info_media_audio", infoIconFg }};
 infoIconMediaLink: icon {{ "info/info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info/info_common_groups", infoIconFg }};
+infoIconMediaChannel: icon {{ "menu/channel", infoIconFg, point(4px, 4px) }};
+infoIconMediaBot: icon {{ "menu/bot", infoIconFg, point(4px, 4px) }};
 infoIconMediaVoice: icon {{ "info/info_media_voice", infoIconFg }};
-infoIconMediaRound: icon {{ "info/info_media_round", infoIconFg }};
-
-infoRoundedIconRequests: icon {{ "info/edit/group_manage_join_requests", settingsIconFg }};
-infoRoundedIconRecentActions: icon {{ "info/edit/group_manage_actions", settingsIconFg }};
-infoRoundedIconAdministrators: icon {{ "info/edit/group_manage_admins", settingsIconFg }};
-infoRoundedIconInviteLinks: icon {{ "info/edit/group_manage_links", settingsIconFg }};
-infoRoundedIconReactions: icon {{ "info/edit/group_manage_reactions", settingsIconFg }};
-infoRoundedIconSignature: icon {{ "info/edit/channel_manage_signature", settingsIconFg }};
+infoIconMediaStories: icon {{ "info/info_media_stories", infoIconFg }};
+infoIconMediaSaved: icon {{ "info/info_media_saved", infoIconFg }};
+infoIconMediaStoriesArchive: icon {{ "info/info_stories_archive", infoIconFg }};
+infoIconMediaStoriesRecent: icon {{ "info/info_stories_recent", infoIconFg }};
+infoIconMediaGifts: icon {{ "menu/gift_premium", infoIconFg, point(4px, 4px) }};
+infoIconEmojiStatusAccess: icon {{ "menu/read_reactions", infoIconFg, point(4px, 4px) }};
 
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};
 infoIconDelete: icon {{ "info/info_delete", infoIconFg }};
+infoIconDeleteRed: icon {{ "info/info_delete", attentionButtonFg }};
 infoIconReport: icon {{ "info/info_report", attentionButtonFg }};
 infoIconLeave: icon {{ "info/info_leave", infoIconFg }};
 infoIconBlock: icon {{ "info/info_block", attentionButtonFg }};
 infoIconMembers: icon {{ "info/info_members", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
-infoSharedMediaIconPosition: point(20px, 24px);
 infoSharedMediaButtonIconPosition: point(20px, 3px);
 infoGroupMembersIconPosition: point(20px, 10px);
-infoChannelMembersIconPosition: point(20px, 19px);
-infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
+infoChannelMembersIconPosition: point(20px, 4px);
+infoChannelAdminsIconPosition: point(24px, 7px);
+infoEarnCreditsIconPosition: point(24px, 7px);
+infoEarnCurrencyIconPosition: point(20px, 3px);
+
+infoOpenApp: RoundButton(defaultActiveButton) {
+	textTop: 11px;
+	height: 40px;
+}
+infoOpenAppMargin: margins(16px, 12px, 16px, 12px);
+
+infoPersonalChannelIconPosition: point(25px, 12px);
+infoPersonalChannelNameLabel: FlatLabel(infoProfileStatus) {
+	textFg: windowBoldFg;
+	style: semiboldTextStyle;
 	maxHeight: 20px;
-	style: TextStyle(defaultTextStyle) {
-		lineHeight: 19px;
+}
+infoPersonalChannelDateSkip: 22px;
+infoPersonalChannelDateLabel: FlatLabel(infoProfileStatus) {
+	textFg: dialogsDateFg;
+	style: TextStyle(semiboldTextStyle) {
+		font: dialogsDateFont;
 	}
+	maxHeight: 20px;
 }
-infoLabelSkip: 2px;
-infoLabel: FlatLabel(infoLabeledOneLine) {
-	textFg: windowSubTextFg;
-}
-infoLabeled: FlatLabel(infoLabeledOneLine) {
-	minWidth: 180px;
-	maxHeight: 0px;
-	margin: margins(5px, 5px, 5px, 5px);
+infoPersonalChannelUserpicSkip: 3px;
+infoPersonalChannelUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(42px, 42px);
+	photoSize: 42px;
 }
 
 infoBlockHeaderLabel: FlatLabel(infoProfileStatus) {
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
 		font: semiboldFont;
-		linkFont: semiboldFont;
-		linkFontOver: semiboldFont;
 	}
 }
 infoBlockHeaderPosition: point(79px, 17px);
@@ -445,7 +572,10 @@ infoMainButton: SettingsButton(infoProfileButton) {
 	textFgOver: lightButtonFgOver;
 	style: semiboldTextStyle;
 }
-infoSharedMediaCoverHeight: 62px;
+infoMainButtonAttention: SettingsButton(infoMainButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
 infoSharedMediaButton: infoProfileButton;
 infoSharedMediaBottomSkip: 12px;
 
@@ -453,26 +583,35 @@ infoBlockButton: SettingsButton(infoProfileButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
-infoCreateLinkedChatButton: SettingsButton(infoMainButton) {
+infoCreateDiscussionLinkButton: SettingsButton(infoProfileButton) {
 	padding: margins(74px, 10px, 8px, 8px);
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
 }
-infoUnlinkChatButton: SettingsButton(infoCreateLinkedChatButton) {
+infoUnlinkDiscussionLinkButton: SettingsButton(infoCreateDiscussionLinkButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
 infoBlockButtonSkip: 8px;
 
 infoMembersHeader: 56px;
-infoMembersHeaderPaddingBottom: 6px;
 infoMembersList: PeerList(defaultPeerList) {
 	item: PeerListItem(defaultPeerListItem) {
 		photoPosition: point(18px, 6px);
 		namePosition: point(79px, 11px);
 		statusPosition: point(79px, 31px);
+		checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+			selectExtendTwice: 1px;
+			imageRadius: 21px;
+			imageSmallRadius: 19px;
+			check: RoundCheckbox(defaultPeerListCheck) {
+				size: 0px;
+			}
+		}
+		nameFgChecked: contactsNameFg;
 	}
 }
 infoMembersButtonPosition: point(12px, 0px);
-infoMembersButtonIconPosition: point(3px, 3px);
 infoMembersButton: IconButton(defaultIconButton) {
 	width: 38px;
 	height: 38px;
@@ -507,26 +646,19 @@ infoMembersCancelSearch: CrossButton {
 
 	duration: 150;
 	loadingPeriod: 1000;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 infoMembersSearchTop: 15px;
 
-infoChannelsAddChannel: IconButton(infoMembersButton) {
-	icon: icon {{ "settings/settings_edit_name", menuIconFg, point(9px, 9px) }};
-	iconOver: icon {{ "settings/settings_edit_name", menuIconFgOver, point(9px, 9px) }};
-}
-
-infoMediaHeaderStyle: TextStyle(semiboldTextStyle) {
-}
+infoMediaHeaderStyle: semiboldTextStyle;
 infoMediaHeaderHeight: 28px;
 infoMediaHeaderPosition: point(14px, 6px);
-infoMediaSkip: 5px;
+infoMediaSkip: 2px;
+infoMediaLeft: 3px;
 infoMediaMargin: margins(0px, 6px, 0px, 2px);
-infoMediaMinGridSize: 90px;
+infoMediaMinGridSize: 82px;
 
-infoCommonGroupsMargin: margins(0px, 13px, 0px, 2px);
+infoCommonGroupsMargin: margins(0px, 2px, 0px, 2px);
 infoCommonGroupsListItem: PeerListItem(defaultPeerListItem) {
 	height: 52px;
 	photoSize: 40px;
@@ -534,19 +666,11 @@ infoCommonGroupsListItem: PeerListItem(defaultPeerListItem) {
 	namePosition: point(71px, 15px);
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold);
 	}
 	statusPosition: point(79px, 31px);
 }
 infoCommonGroupsList: PeerList(infoMembersList) {
 	item: infoCommonGroupsListItem;
-}
-infoChannelsList: PeerList(infoCommonGroupsList) {
-	item: PeerListItem(infoCommonGroupsListItem) {
-		photoPosition: point(18px, 6px);
-		namePosition: point(79px, 15px);
-	}
 }
 
 managePeerButton: SettingsCountButton {
@@ -572,12 +696,17 @@ manageGroupButtonInner: SettingsButton(infoProfileButton) {
 }
 manageGroupButton: SettingsCountButton(managePeerButton) {
 	button: manageGroupButtonInner;
-	labelPosition: point(22px, 12px);
+	labelPosition: point(22px, 10px);
 	iconPosition: point(20px, 4px);
+}
+infoSharedMediaCountButton: SettingsCountButton(managePeerButton) {
+	button: infoSharedMediaButton;
+	iconPosition: point(20px, 4px);
+	label: defaultSettingsRightLabel;
+	labelPosition: point(24px, 10px);
 }
 
 manageGroupTopButtonWithText: SettingsCountButton(manageGroupButton) {
-	labelPosition: point(22px, 10px);
 	iconPosition: point(0px, 0px);
 }
 manageGroupTopicsButton: SettingsCountButton(manageGroupTopButtonWithText) {
@@ -590,19 +719,49 @@ manageGroupTopicsButton: SettingsCountButton(manageGroupTopButtonWithText) {
 		}
 	}
 }
+managePeerColorsButton: SettingsButton(infoProfileButton) {
+	padding: margins(60px, 10px, 48px, 8px);
+}
 
-manageDeleteGroupButton: SettingsCountButton(manageGroupTopButtonWithText) {
-	button: SettingsButton(infoProfileButton) {
-		padding: margins(25px, 11px, 24px, 8px);
-		textFg: attentionButtonFg;
-		textFgOver: attentionButtonFg;
-	}
+manageGroupNoIconButtonInner: SettingsButton(infoProfileButton) {
+	padding: margins(25px, 11px, 24px, 8px);
+}
+manageGroupNoIconButton: SettingsCountButton(manageGroupTopButtonWithText) {
+	button: manageGroupNoIconButtonInner;
 	labelPosition: point(22px, 11px);
 	iconPosition: point(0px, 0px);
 }
 
-editPeerSkip: 7px;
-editPeerHistoryVisibilityMargins: margins(15px, 0px, 20px, 16px);
+manageDeleteGroupButton: SettingsCountButton(manageGroupNoIconButton) {
+	button: SettingsButton(manageGroupNoIconButtonInner) {
+		textFg: attentionButtonFg;
+		textFgOver: attentionButtonFg;
+	}
+}
+
+manageGroupReactions: IconButton(defaultIconButton) {
+	width: 24px;
+	height: 36px;
+	icon: icon{{ "menu/add", historyComposeIconFg }};
+	iconOver: icon{{ "menu/add", historyComposeIconFgOver }};
+}
+manageGroupReactionsField: InputField(defaultInputField) {
+	textMargins: margins(1px, 12px, 24px, 8px);
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(1px, 0px, 7px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	placeholderShift: -50px;
+	style: defaultTextStyle;
+	heightMin: 36px;
+	heightMax: 158px;
+}
+manageGroupReactionsFieldPadding: margins(0px, 0px, 0px, -9px);
+manageGroupReactionsTextSkip: 16px;
+manageGroupReactionsMaxSubtitlePadding: margins(0px, 0px, 0px, -3px);
 
 infoEmptyFg: windowSubTextFg;
 infoEmptyPhoto: icon {{ "info/info_media_photo_empty", infoEmptyFg }};
@@ -619,26 +778,48 @@ infoEmptyLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 
+infoStoriesAboutArchive: FlatLabel(defaultFlatLabel) {
+	minWidth: 245px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: defaultTextStyle;
+}
+infoStoriesAboutArchivePadding: margins(22px, 12px, 22px, 12px);
+
 editPeerBottomButtonsLayoutMargins: margins(0px, 7px, 0px, 0px);
-editPeerTopButtonsLayoutMargins: margins(0px, 12px, 0px, 6px);
 
-editPeerTopButtonsLayoutSkip: 13px;
-editPeerTopButtonsLayoutSkipToBottom: 12px;
+editPeerTopButtonsLayoutSkip: 5px;
+editPeerTopButtonsLayoutSkipToBottom: 5px;
 
-editPeerTopButtonsLayoutSkipCustomTop: 14px;
-editPeerTopButtonsLayoutSkipCustomBottom: 11px;
+editPeerTopButtonsLayoutSkipCustomBottom: 5px;
 
 editPeerHistoryVisibilityTopSkip: 8px;
 
-editPeerPhotoMargins: margins(22px, 16px, 22px, 8px);
+editPeerPhotoMargins: margins(22px, 8px, 22px, 8px);
 editPeerTitle: defaultInputField;
-editPeerTitleMargins: margins(27px, 21px, 22px, 8px);
-editPeerDescription: InputField(newGroupDescription) {
-	borderFg: transparent;
+editPeerTitleMargins: margins(27px, 13px, 22px, 8px);
+editPeerTitleEmojiPosition: point(0px, 23px);
+editPeerTitleField: InputField(defaultInputField) {
+	textMargins: margins(0px, 28px, 30px, 4px);
 }
-editPeerDescriptionMargins: margins(22px, 5px, 22px, 16px);
+editPeerDescription: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(0px, 7px, 0px, 7px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
+
+	heightMin: 32px;
+}
+editPeerDescriptionMargins: margins(22px, 3px, 22px, 2px);
 editPeerPrivaciesMargins: margins(15px, 7px, 22px, 0px);
-editPeerPrivacyTopSkip: 10px;
 editPeerPrivacyBottomSkip: 16px;
 editPeerPrivacyLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 220px;
@@ -648,29 +829,15 @@ editPeerPrivacyBoxCheckbox: Checkbox(defaultBoxCheckbox) {
 	margin: margins(0px, 8px, 0px, 8px);
 	style: boxTextStyle;
 }
-editPeerHistoryVisibilityLabelMargins: margins(34px, 0px, 48px, 0px);
 editPeerPrivacyLabelMargins: margins(42px, 0px, 34px, 0px);
 editPeerPreHistoryLabelMargins: margins(34px, 0px, 34px, 0px);
-editPeerUsernameTitleLabelMargins: margins(22px, 17px, 22px, 10px);
-editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 16px);
+editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 0px);
 editPeerUsername: setupChannelLink;
-editPeerUsernameSkip: 8px;
-editPeerInviteLink: FlatLabel(defaultFlatLabel) {
-	minWidth: 1px; // for break everywhere
-	style: boxTextStyle;
-}
 editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 	textFg: boxTextFgGood;
 	style: boxTextStyle;
 }
-editPeerUsernameError: FlatLabel(editPeerUsernameGood) {
-	textFg: boxTextFgError;
-}
-editPeerUsernamePosition: point(22px, 18px);
 
-editPeerReactionsButton: SettingsButton(infoProfileButton) {
-	padding: margins(59px, 13px, 8px, 11px);
-}
 editPeerReactionsPreview: 24px;
 editPeerReactionsIconLeft: 21px;
 
@@ -680,9 +847,6 @@ historyTopBarBack: IconButton(infoTopBarBack) {
 topBarHeight: 54px;
 topBarMenuPosition: point(-6px, 45px);
 topBarMenuGroupCallSkip: 20px;
-topBarDuration: 200;
-topBarBackward: icon {{ "title_back", menuIconFg }};
-topBarForwardAlpha: 0.6;
 topBarBack: icon {{ "title_back", lightButtonFg }};
 topBarArrowPadding: margins(39px, 8px, 17px, 8px);
 topBarNameRightPadding: 3px;
@@ -703,9 +867,7 @@ topBarSearch: IconButton {
 
 	rippleAreaPosition: point(0px, 7px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 topBarCloseChoose: IconButton(topBarSearch) {
 	width: 56px;
@@ -757,9 +919,12 @@ topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimatio
 	size: size(8px, 8px);
 }
 
-infoFeedLeaveIconMargins: margins(10px, 12px, 20px, 10px);
+inviteLinkTitleRight: FlatLabel(defaultSubsectionTitle) {
+	minWidth: 0px;
+}
 
-inviteLinkFieldHeight: 44px;
+inviteLinkFieldRadius: 5px;
+inviteLinkFieldHeight: 42px;
 inviteLinkFieldMargin: margins(14px, 12px, 36px, 9px);
 inviteLinkThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
 inviteLinkThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
@@ -774,10 +939,14 @@ inviteLinkThreeDots: IconButton(defaultIconButton) {
 	rippleAreaSize: 0px;
 }
 inviteLinkFieldPadding: margins(22px, 7px, 22px, 14px);
+inviteLinkFieldLabel: FlatLabel(defaultFlatLabel) {
+	align: align(center);
+}
 
 inviteLinkButton: RoundButton(defaultActiveButton) {
 	height: 36px;
 	textTop: 9px;
+	radius: 6px;
 }
 inviteLinkButtonsPadding: margins(22px, 0px, 22px, 0px);
 inviteLinkButtonsSkip: 10px;
@@ -843,6 +1012,9 @@ inviteLinkList: PeerList(defaultPeerList) {
 	item: inviteLinkListItem;
 	padding: margins(0px, 4px, 0px, 0px);
 }
+inviteLinkChatList: PeerList(peerListBox) {
+	padding: margins(0px, 4px, 0px, 6px);
+}
 inviteLinkAdminsList: PeerList(inviteLinkList) {
 	item: PeerListItem(inviteLinkListItem) {
 		photoPosition: point(16px, 9px);
@@ -859,11 +1031,51 @@ inviteLinkRevokedIcon: icon {{ "info/edit/links_revoked", mediaviewFileExtFg }};
 inviteLinkThreeDotsSkip: 12px;
 inviteLinkRevokedTitlePadding: margins(22px, 16px, 10px, 4px);
 inviteLinkLimitMargin: margins(22px, 8px, 22px, 8px);
+inviteLinkSubscriptionSize: 18px;
 
 inviteLinkQrPixel: 8px;
 inviteLinkQrSkip: 24px;
 inviteLinkQrMargin: margins(0px, 0px, 0px, 13px);
 inviteLinkQrValuePadding: margins(22px, 0px, 22px, 12px);
+
+inviteLinkCreditsField: InputField(defaultInputField) {
+	textMargins: margins(23px, 10px, 0px, 0px);
+	textAlign: align(left);
+	textFg: historyComposeAreaFg;
+	textBg: historyComposeAreaBg;
+	heightMin: 36px;
+	heightMax: 36px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(0px, 0px, 2px, 0px);
+	placeholderAlign: align(left);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	placeholderShift: -50px;
+	duration: 100;
+}
+
+inviteLinkSubscribeBoxTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 300px;
+	textFg: windowBoldFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(17px semibold);
+	}
+}
+inviteLinkSubscribeBoxAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 300px;
+	align: align(top);
+}
+inviteLinkSubscribeBoxTerms: FlatLabel(defaultFlatLabel) {
+	minWidth: 300px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
 
 usernamesReorderIcon: icon {{ "stickers_reorder", dialogsMenuIconFg }};
 
@@ -908,8 +1120,6 @@ shortInfoCover: ShortInfoCover {
 		maxHeight: 19px;
 		style: TextStyle(defaultTextStyle) {
 			font: font(15px semibold);
-			linkFont: font(15px semibold);
-			linkFontOver: font(15px semibold underline);
 		}
 	}
 	namePosition: point(25px, 37px);
@@ -928,8 +1138,147 @@ shortInfoCover: ShortInfoCover {
 	}
 }
 
-reportReasonTopSkip: 8px;
-reportReasonButton: SettingsButton(infoProfileButton) {
-	style: boxTextStyle;
-	padding: margins(62px, 7px, 8px, 7px);
+permissionsExpandIcon: icon{{ "info/edit/expand_arrow_small", windowBoldFg }};
+
+similarChannelsLockOverlap: 58px;
+similarChannelsLockFade: 58px;
+similarChannelsLock: RoundButton(defaultActiveButton) {
+	height: 44px;
+	textTop: 12px;
+	style: semiboldTextStyle;
 }
+similarChannelsLockLabel: FlatLabel(defaultFlatLabel) {
+	textFg: premiumButtonFg;
+	style: semiboldTextStyle;
+}
+similarChannelsLockPadding: margins(12px, 12px, 12px, 12px);
+similarChannelsLockAbout: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+	minWidth: 128px;
+}
+similarChannelsLockAboutPadding: margins(12px, 12px, 12px, 12px);
+
+infoHoursState: FlatLabel(infoLabeled) {
+	minWidth: 0px;
+}
+infoHoursValue: FlatLabel(infoHoursState) {
+	textFg: windowSubTextFg;
+	align: align(topright);
+}
+infoHoursDayLabel: infoHoursState;
+infoHoursOuter: RoundButton(defaultActiveButton) {
+	textBg: transparent;
+	textBgOver: transparent;
+	ripple: defaultRippleAnimationBgOver;
+}
+infoHoursOuterMargin: margins(8px, 4px, 8px, 4px);
+infoHoursDaySkip: 6px;
+infoHoursArrowSize: 4px;
+
+infoSharedMediaScroll: ScrollArea(defaultScrollArea) {
+	round: 1px;
+	width: 5px;
+	deltax: 2px;
+}
+
+infoGiftTooltip: ImportantTooltip(defaultImportantTooltip) {
+	margin: margins(4px, 4px, 4px, 4px);
+	padding: margins(8px, 2px, 8px, 3px);
+}
+infoGiftTooltipFont: font(11px semibold);
+
+topicsLayoutButtonLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	margin: margins(10px, 4px, 10px, 4px);
+	textFg: windowSubTextFg;
+}
+topicsLayoutButtonIconPadding: margins(4px, 0px, 4px, 0px);
+topicsLayoutButtonIconSize: 140px;
+topicsLayoutButtonPadding: margins(4px, 0px, 4px, 12px);
+topicsLayoutButtonSkip: 0px;
+
+infoStarsTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	textFg: windowBoldFg;
+	maxHeight: 24px;
+	style: TextStyle(boxTextStyle) {
+		font: font(17px semibold);
+	}
+	align: align(top);
+}
+infoStarsFeatureTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	style: semiboldTextStyle;
+	minWidth: 10px;
+	maxHeight: 20px;
+}
+infoStarsFeatureAbout: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 20px;
+}
+infoStarsFeatureIconPosition: point(3px, 7px);
+infoStarsFeatureMargin: margins(0px, 8px, 0px, 6px);
+infoStarsFeatureLabelLeft: 46px;
+infoStarsFeatureSkip: 2px;
+infoStarsCrown: icon {{ "limits/filled_rating_crown-24x24", windowFgActive }};
+infoStarsUnderstood: IconEmoji{
+	icon: icon {{ "limits/filled_understood-20x20", windowFgActive }};
+	padding: margins(0px, -1px, 0px, 0px);
+}
+
+collectionAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+}
+collectionNameField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(2px, 10px, 32px, 2px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+
+	heightMin: 36px;
+}
+collectionEmptyTitle: FlatLabel(boxTitle) {
+}
+collectionEmptyText: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+collectionEmptyButton: RoundButton(defaultActiveButton) {
+	width: -96px;
+}
+collectionEmptyTitleMargin: margins(10px, 24px, 10px, 4px);
+collectionEmptyTextMargin: margins(10px, 4px, 10px, 12px);
+collectionEmptyAddMargin: margins(10px, 12px, 10px, 24px);
+collectionAddIcon: IconEmoji {
+	icon: icon {{ "settings/plus", windowFgActive }};
+	padding: margins(1px, -2px, 1px, 0px);
+}
+collectionEditBox: Box(defaultBox) {
+	buttonPadding: margins(16px, 12px, 16px, 12px);
+	buttonHeight: 42px;
+	buttonWide: true;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+}
+collectionEditMenuToggle: IconButton(infoTopBarMenu) {
+	width: boxTitleHeight;
+	height: boxTitleHeight;
+
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaPosition: point(4px, 4px);
+	rippleAreaSize: 40px;
+	ripple: defaultRippleAnimationBgOver;
+}
+
+earnTonIconSize: 16px;
+earnTonIconMargin: margins(0px, 2px, 0px, 0px);

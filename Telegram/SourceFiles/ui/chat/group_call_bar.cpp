@@ -14,12 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_calls.h"
 #include "styles/style_info.h" // st::topBarArrowPadding, like TopBarWidget.
 #include "styles/style_window.h" // st::columnMinimalWidthLeft
 #include "styles/palette.h"
 
 #include <QtGui/QtEvents>
+#include <QtCore/QLocale>
 
 namespace Ui {
 
@@ -220,7 +222,9 @@ void GroupCallBar::setupInner() {
 	_inner->setCursor(style::cur_pointer);
 	_inner->events(
 	) | rpl::filter([=](not_null<QEvent*> event) {
-		return (event->type() == QEvent::MouseButtonPress);
+		return (event->type() == QEvent::MouseButtonPress)
+			&& (static_cast<QMouseEvent*>(event.get())->button()
+				== Qt::LeftButton);
 	}) | rpl::map([=] {
 		return _inner->events(
 		) | rpl::filter([=](not_null<QEvent*> event) {
@@ -240,6 +244,7 @@ void GroupCallBar::setupInner() {
 }
 
 void GroupCallBar::setupRightButton(not_null<RoundButton*> button) {
+	button->setFullRadius(true);
 	rpl::combine(
 		_inner->widthValue(),
 		button->widthValue()
@@ -248,7 +253,7 @@ void GroupCallBar::setupRightButton(not_null<RoundButton*> button) {
 		const auto top = (st::historyReplyHeight
 			- st::lineWidth
 			- button->height()) / 2 + st::lineWidth;
-		const auto narrow = (outerWidth < st::columnMinimalWidthLeft);
+		const auto narrow = (outerWidth < st::columnMinimalWidthLeft / 2);
 		if (narrow) {
 			button->moveToLeft(
 				(outerWidth - buttonWidth) / 2,
@@ -265,7 +270,7 @@ void GroupCallBar::setupRightButton(not_null<RoundButton*> button) {
 void GroupCallBar::paint(Painter &p) {
 	p.fillRect(_inner->rect(), st::historyComposeAreaBg);
 
-	const auto narrow = (_inner->width() < st::columnMinimalWidthLeft);
+	const auto narrow = (_inner->width() < st::columnMinimalWidthLeft / 2);
 	if (!narrow) {
 		paintTitleAndStatus(p);
 		paintUserpics(p);
@@ -308,7 +313,7 @@ void GroupCallBar::paintTitleAndStatus(Painter &p) {
 		const auto date = parsed.date();
 		const auto time = QLocale().toString(
 			parsed.time(),
-			Ui::Integration::Instance().timeFormat());
+			QLocale::ShortFormat);
 		const auto today = QDate::currentDate();
 		if (date == today) {
 			return tr::lng_group_call_starts_today(tr::now, lt_time, time);
@@ -441,7 +446,10 @@ rpl::producer<> GroupCallBar::barClicks() const {
 }
 
 rpl::producer<> GroupCallBar::joinClicks() const {
-	return _joinClicks.events() | rpl::to_empty;
+	using namespace rpl::mappers;
+	return _joinClicks.events()
+		| rpl::filter(_1 == Qt::LeftButton)
+		| rpl::to_empty;
 }
 
 } // namespace Ui

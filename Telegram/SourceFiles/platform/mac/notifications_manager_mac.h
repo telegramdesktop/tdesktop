@@ -20,23 +20,18 @@ public:
 
 protected:
 	void doShowNativeNotification(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		DisplayOptions options) override;
+		NotificationInfo &&info,
+		Ui::PeerUserpicView &userpicView) override;
 	void doClearAllFast() override;
 	void doClearFromItem(not_null<HistoryItem*> item) override;
 	void doClearFromTopic(not_null<Data::ForumTopic*> topic) override;
+	void doClearFromSublist(not_null<Data::SavedSublist*> sublist) override;
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
 	QString accountNameSeparator() override;
-	bool doSkipAudio() const override;
 	bool doSkipToast() const override;
-	bool doSkipFlashBounce() const override;
+	void doMaybePlaySound(Fn<void()> playSound) override;
+	void doMaybeFlashBounce(Fn<void()> flashBounce) override;
 
 private:
 	class Private;

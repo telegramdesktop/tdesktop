@@ -48,8 +48,8 @@ PhotoEditorContent::PhotoEditorContent(
 			return;
 		}
 		const auto imageSizeF = [&] {
-			const auto rotatedSize =
-				FlipSizeByRotation(size, mods.angle);
+			const auto rotatedSize
+				= FlipSizeByRotation(size, mods.angle);
 			const auto m = _crop->cropMargins();
 			const auto sizeForCrop = rotatedSize
 				- QSize(m.left() + m.right(), m.top() + m.bottom());
@@ -80,6 +80,8 @@ PhotoEditorContent::PhotoEditorContent(
 			mods.angle,
 			mods.flipped, imageSizeF);
 		_paint->applyTransform(geometry, mods.angle, mods.flipped);
+
+		_innerRect = geometry;
 	}, lifetime());
 
 	paintRequest(

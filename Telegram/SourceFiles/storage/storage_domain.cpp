@@ -20,7 +20,7 @@ namespace {
 using namespace details;
 
 [[nodiscard]] QString BaseGlobalPath() {
-	return cWorkingDir() + qsl("tdata/");
+	return cWorkingDir() + u"tdata/"_q;
 }
 
 [[nodiscard]] QString ComputeKeyName(const QString &dataName) {
@@ -266,10 +266,6 @@ int Domain::oldVersion() const {
 
 void Domain::clearOldVersion() {
 	_oldVersion = 0;
-}
-
-QString Domain::webviewDataPath() const {
-	return BaseGlobalPath() + "webview";
 }
 
 rpl::producer<> Domain::localPasscodeChanged() const {

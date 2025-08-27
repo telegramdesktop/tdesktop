@@ -18,28 +18,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
+#include "styles/style_widgets.h"
 
 CountryInput::CountryInput(
 	QWidget *parent,
-	std::shared_ptr<Window::Show> show,
+	std::shared_ptr<Ui::Show> show,
 	const style::InputField &st)
 : RpWidget(parent)
 , _show(show)
 , _st(st)
 , _text(tr::lng_country_code(tr::now)) {
 	resize(_st.width, _st.heightMin);
-
-	auto placeholderFont = _st.placeholderFont->f;
-	placeholderFont.setStyleStrategy(QFont::PreferMatch);
-	//auto metrics = QFontMetrics(placeholderFont);
-	auto placeholder = QString();// metrics.elidedText(tr::lng_country_fake_ph(tr::now), Qt::ElideRight, availableWidth);
-	if (!placeholder.isNull()) {
-		_placeholderPath.addText(
-			0,
-			QFontMetrics(placeholderFont).ascent(),
-			placeholderFont,
-			placeholder);
-	}
 }
 
 void CountryInput::paintEvent(QPaintEvent *e) {
@@ -66,45 +55,9 @@ void CountryInput::paintEvent(QPaintEvent *e) {
 		st::introCountryIconPosition.y(),
 		width());
 
-	p.setFont(_st.font);
+	p.setFont(_st.style.font);
 	p.setPen(_st.textFg);
 	p.drawText(rect().marginsRemoved(_st.textMargins), _text, _st.textAlign);
-	if (!_placeholderPath.isEmpty()) {
-		auto placeholderShiftDegree = 1.;
-		p.save();
-		p.setClipRect(r);
-
-		const auto placeholderTop = anim::interpolate(
-			0,
-			_st.placeholderShift,
-			placeholderShiftDegree);
-
-		auto r = QRect(rect() - (_st.textMargins + _st.placeholderMargins));
-		r.moveTop(r.top() + placeholderTop);
-		if (rtl()) {
-			r.moveLeft(width() - r.left() - r.width());
-		}
-
-		const auto placeholderScale = 1.
-			- (1. - _st.placeholderScale) * placeholderShiftDegree;
-		auto placeholderFg = anim::color(
-			_st.placeholderFg,
-			_st.placeholderFgActive,
-			0.);
-		placeholderFg = anim::color(
-			placeholderFg,
-			_st.placeholderFgError,
-			0.);
-
-		PainterHighQualityEnabler hq(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(placeholderFg);
-		p.translate(r.topLeft());
-		p.scale(placeholderScale, placeholderScale);
-		p.drawPath(_placeholderPath);
-
-		p.restore();
-	}
 }
 
 void CountryInput::mouseMoveEvent(QMouseEvent *e) {
@@ -119,7 +72,7 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_active) {
 		auto object = Box<Ui::CountrySelectBox>();
-		const auto box = Ui::MakeWeak(object.data());
+		const auto box = base::make_weak(object.data());
 		_show->showBox(std::move(object), Ui::LayerOption::CloseOther);
 		box->entryChosen(
 		) | rpl::start_with_next([=](
@@ -206,7 +159,7 @@ rpl::producer<QString> CountryInput::codeChanged() const {
 }
 
 void CountryInput::setText(const QString &newText) {
-	_text = _st.font->elided(
+	_text = _st.style.font->elided(
 		newText,
 		width() - _st.textMargins.left() - _st.textMargins.right());
 }

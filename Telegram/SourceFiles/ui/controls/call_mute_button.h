@@ -1,9 +1,10 @@
-// This file is part of Desktop App Toolkit,
-// a set of libraries for developing nice desktop applications.
-//
-// For license and copyright information please follow this link:
-// https://github.com/desktop-app/legal/blob/master/LEGAL
-//
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
 #pragma once
 
 #include "base/unique_qptr.h"
@@ -38,6 +39,7 @@ enum class CallMuteButtonType {
 	Muted,
 	ForceMuted,
 	RaisedHand,
+	ConferenceForceMuted,
 	ScheduledCanStart,
 	ScheduledSilent,
 	ScheduledNotify,
@@ -72,7 +74,6 @@ public:
 	[[nodiscard]] rpl::producer<Qt::MouseButton> clicks();
 
 	[[nodiscard]] QSize innerSize() const;
-	[[nodiscard]] QRect innerGeometry() const;
 	void moveInner(QPoint position);
 
 	void shake();
@@ -164,6 +165,9 @@ private:
 	HandleMouseState _handleMouseState = HandleMouseState::Enabled;
 
 	not_null<const style::CallMuteButton*> _st;
+	QSize _lottieSize;
+	int _bgSize = 0;
+	int _bgSkip = 0;
 
 	const base::unique_qptr<BlobsWidget> _blobs;
 	const base::unique_qptr<AbstractButton> _content;

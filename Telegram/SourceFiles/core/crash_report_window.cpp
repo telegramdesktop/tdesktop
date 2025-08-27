@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/application.h"
-#include "core/launcher.h"
 #include "core/sandbox.h"
 #include "core/update_checker.h"
 #include "core/ui_integration.h"
@@ -18,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/zlib_help.h"
 
 #include <QtWidgets/QFileDialog>
+#include <QtGui/QFontInfo>
 #include <QtGui/QScreen>
 #include <QtGui/QDesktopServices>
 #include <QtCore/QStandardPaths>
@@ -32,23 +32,46 @@ constexpr auto kDefaultProxyPort = 80;
 PreLaunchWindow *PreLaunchWindowInstance = nullptr;
 
 PreLaunchWindow::PreLaunchWindow(QString title) {
-	style::internal::StartFonts();
-
 	setWindowIcon(Window::CreateIcon());
 	setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
 
-	setWindowTitle(title.isEmpty() ? qsl("Telegram") : title);
+	setWindowTitle(title.isEmpty() ? u"Telegram"_q : title);
 
 	QPalette p(palette());
 	p.setColor(QPalette::Window, QColor(255, 255, 255));
 	setPalette(p);
 
-	_size = QFontMetrics(font()).height();
+	_size = QFontInfo(font()).pixelSize();
 
 	int paddingVertical = (_size / 2);
 	int paddingHorizontal = _size;
 	int borderRadius = (_size / 5);
-	setStyleSheet(qsl("QPushButton { padding: %1px %2px; background-color: #ffffff; border-radius: %3px; }\nQPushButton#confirm:hover, QPushButton#cancel:hover { background-color: #e3f1fa; color: #2f9fea; }\nQPushButton#confirm { color: #2f9fea; }\nQPushButton#cancel { color: #aeaeae; }\nQLineEdit { border: 1px solid #e0e0e0; padding: 5px; }\nQLineEdit:focus { border: 2px solid #37a1de; padding: 4px; }").arg(paddingVertical).arg(paddingHorizontal).arg(borderRadius));
+	setStyleSheet(uR"(
+QPushButton {
+	padding: %1px %2px;
+	background-color: #ffffff;
+	border-radius: %3px;
+}
+QPushButton#confirm:hover,
+QPushButton#cancel:hover {
+	background-color: #e3f1fa;
+	color: #2f9fea;
+}
+QPushButton#confirm {
+	color: #2f9fea;
+}
+QPushButton#cancel {
+	color: #aeaeae;
+}
+QLineEdit {
+	border: 1px solid #e0e0e0;
+	padding: 5px;
+}
+QLineEdit:focus {
+	border: 2px solid #37a1de;
+	padding: 4px;
+}
+)"_q.arg(paddingVertical).arg(paddingHorizontal).arg(borderRadius));
 	if (!PreLaunchWindowInstance) {
 		PreLaunchWindowInstance = this;
 	}
@@ -57,7 +80,7 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 void PreLaunchWindow::activate() {
 	setWindowState(windowState() & ~Qt::WindowMinimized);
 	setVisible(true);
-	psActivateProcess();
+	Platform::ActivateThisProcess();
 	raise();
 	activateWindow();
 }
@@ -74,7 +97,7 @@ PreLaunchWindow::~PreLaunchWindow() {
 
 PreLaunchLabel::PreLaunchLabel(QWidget *parent) : QLabel(parent) {
 	QFont labelFont(font());
-	labelFont.setFamily(style::internal::GetFontOverride(style::internal::FontSemibold));
+	labelFont.setWeight(QFont::DemiBold);
 	labelFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(labelFont);
 
@@ -93,7 +116,6 @@ void PreLaunchLabel::setText(const QString &text) {
 
 PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(parent) {
 	QFont logFont(font());
-	logFont.setFamily(style::internal::GetFontOverride());
 	logFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(logFont);
 
@@ -114,7 +136,6 @@ PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(paren
 
 PreLaunchLog::PreLaunchLog(QWidget *parent) : QTextEdit(parent) {
 	QFont logFont(font());
-	logFont.setFamily(style::internal::GetFontOverride());
 	logFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(logFont);
 
@@ -137,7 +158,7 @@ PreLaunchButton::PreLaunchButton(QWidget *parent, bool confirm) : QPushButton(pa
 	setObjectName(confirm ? "confirm" : "cancel");
 
 	QFont closeFont(font());
-	closeFont.setFamily(style::internal::GetFontOverride(style::internal::FontSemibold));
+	closeFont.setWeight(QFont::DemiBold);
 	closeFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(closeFont);
 
@@ -156,7 +177,7 @@ PreLaunchCheckbox::PreLaunchCheckbox(QWidget *parent) : QCheckBox(parent) {
 	setCheckState(Qt::Checked);
 
 	QFont closeFont(font());
-	closeFont.setFamily(style::internal::GetFontOverride(style::internal::FontSemibold));
+	closeFont.setWeight(QFont::DemiBold);
 	closeFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(closeFont);
 
@@ -179,12 +200,12 @@ NotStartedWindow::NotStartedWindow()
 : _label(this)
 , _log(this)
 , _close(this) {
-	_label.setText(qsl("Could not start Telegram Desktop!\nYou can see complete log below:"));
+	_label.setText(u"Could not start Telegram Desktop!\nYou can see complete log below:"_q);
 
 	_log.setPlainText(Logs::full());
 
 	connect(&_close, &QPushButton::clicked, [=] { close(); });
-	_close.setText(qsl("CLOSE"));
+	_close.setText(u"CLOSE"_q);
 
 	QRect scr(QApplication::primaryScreen()->availableGeometry());
 	move(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6));
@@ -224,7 +245,6 @@ LastCrashedWindow::UpdaterData::UpdaterData(QWidget *buttonParent)
 }
 
 LastCrashedWindow::LastCrashedWindow(
-	not_null<Core::Launcher*> launcher,
 	const QByteArray &crashdump,
 	Fn<void()> launch)
 : _dumpraw(crashdump)
@@ -261,9 +281,9 @@ LastCrashedWindow::LastCrashedWindow(
 	}
 	if (_sendingState != SendingNoReport) {
 		qint64 dumpsize = 0;
-		QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
+		QString dumpspath = cWorkingDir() + u"tdata/dumps"_q;
 #if defined Q_OS_MAC && !defined MAC_USE_BREAKPAD
-		dumpspath += qsl("/completed");
+		dumpspath += u"/completed"_q;
 #endif
 		QString possibleDump = getReportField(qstr("minidump"), qstr("Minidump:"));
 		if (!possibleDump.isEmpty()) {
@@ -271,7 +291,7 @@ LastCrashedWindow::LastCrashedWindow(
 				possibleDump = dumpspath + '/' + possibleDump;
 			}
 			if (!possibleDump.endsWith(qstr(".dmp"))) {
-				possibleDump += qsl(".dmp");
+				possibleDump += u".dmp"_q;
 			}
 			QFileInfo possibleInfo(possibleDump);
 			if (possibleInfo.exists()) {
@@ -282,7 +302,7 @@ LastCrashedWindow::LastCrashedWindow(
 		}
 		if (_minidumpFull.isEmpty()) {
 			QString maxDump, maxDumpFull;
-			QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified();
+			QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + u"tdata/working"_q).lastModified();
 			QFileInfoList list = QDir(dumpspath).entryInfoList();
 			for (int32 i = 0, l = list.size(); i < l; ++i) {
 				QString name = list.at(i).fileName();
@@ -304,36 +324,36 @@ LastCrashedWindow::LastCrashedWindow(
 		if (_minidumpName.isEmpty()) { // currently don't accept crash reports without dumps from google libraries
 			_sendingState = SendingNoReport;
 		} else {
-			_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(dumpsize / 1024));
+			_minidump.setText(u"+ %1 (%2 KB)"_q.arg(_minidumpName).arg(dumpsize / 1024));
 		}
 	}
 	if (_sendingState != SendingNoReport) {
 		QString version = getReportField(qstr("version"), qstr("Version:"));
-		QString current = cAlphaVersion() ? qsl("-%1").arg(cAlphaVersion()) : QString::number(AppVersion);
+		QString current = cAlphaVersion() ? u"-%1"_q.arg(cAlphaVersion()) : QString::number(AppVersion);
 		if (version != current) { // currently don't accept crash reports from not current app version
 			_sendingState = SendingNoReport;
 		}
 	}
 
-	_networkSettings.setText(qsl("NETWORK SETTINGS"));
+	_networkSettings.setText(u"NETWORK SETTINGS"_q);
 	connect(
 		&_networkSettings,
 		&QPushButton::clicked,
 		[=] { networkSettings(); });
 
 	if (_sendingState == SendingNoReport) {
-		_label.setText(qsl("Last time Telegram Desktop was not closed properly."));
+		_label.setText(u"Last time Telegram Desktop was not closed properly."_q);
 	} else {
-		_label.setText(qsl("Last time Telegram Desktop crashed :("));
+		_label.setText(u"Last time Telegram Desktop crashed :("_q);
 	}
 
 	if (_updaterData) {
-		_updaterData->check.setText(qsl("TRY AGAIN"));
+		_updaterData->check.setText(u"TRY AGAIN"_q);
 		connect(
 			&_updaterData->check,
 			&QPushButton::clicked,
 			[=] { updateRetry(); });
-		_updaterData->skip.setText(qsl("SKIP"));
+		_updaterData->skip.setText(u"SKIP"_q);
 		connect(
 			&_updaterData->skip,
 			&QPushButton::clicked,
@@ -393,39 +413,39 @@ LastCrashedWindow::LastCrashedWindow(
 		cSetLastUpdateCheck(0);
 		checker.start();
 	} else {
-		_updating.setText(qsl("Please check if there is a new version available."));
+		_updating.setText(u"Please check if there is a new version available."_q);
 		if (_sendingState != SendingNoReport) {
 			_sendingState = SendingNone;
 		}
 	}
 
-	_pleaseSendReport.setText(qsl("Please send us a crash report."));
-	_yourReportName.setText(qsl("Your Report Tag: %1\nYour User Tag: %2").arg(QString(_minidumpName).replace(".dmp", "")).arg(launcher->installationTag(), 0, 16));
+	_pleaseSendReport.setText(u"Please send us a crash report."_q);
+	_yourReportName.setText(u"Crash ID: %1"_q.arg(QString(_minidumpName).replace(".dmp", "")));
 	_yourReportName.setCursor(style::cur_text);
 	_yourReportName.setTextInteractionFlags(Qt::TextSelectableByMouse);
 
-	_includeUsername.setText(qsl("Include username @%1 as your contact info").arg(_reportUsername));
+	_includeUsername.setText(u"Include username @%1 as your contact info"_q.arg(_reportUsername));
 
 	_report.setPlainText(_reportTextNoUsername);
 
-	_showReport.setText(qsl("VIEW REPORT"));
+	_showReport.setText(u"VIEW REPORT"_q);
 	connect(&_showReport, &QPushButton::clicked, [=] {
 		_reportShown = !_reportShown;
 		updateControls();
 	});
-	_saveReport.setText(qsl("SAVE TO FILE"));
+	_saveReport.setText(u"SAVE TO FILE"_q);
 	connect(&_saveReport, &QPushButton::clicked, [=] { saveReport(); });
-	_getApp.setText(qsl("GET THE LATEST OFFICIAL VERSION OF TELEGRAM DESKTOP"));
+	_getApp.setText(u"GET THE LATEST OFFICIAL VERSION OF TELEGRAM DESKTOP"_q);
 	connect(&_getApp, &QPushButton::clicked, [=] {
-		QDesktopServices::openUrl(qsl("https://desktop.telegram.org"));
+		QDesktopServices::openUrl(u"https://desktop.telegram.org"_q);
 	});
 
-	_send.setText(qsl("SEND CRASH REPORT"));
+	_send.setText(u"SEND CRASH REPORT"_q);
 	connect(&_send, &QPushButton::clicked, [=] { sendReport(); });
 
-	_sendSkip.setText(qsl("SKIP"));
+	_sendSkip.setText(u"SKIP"_q);
 	connect(&_sendSkip, &QPushButton::clicked, [=] { processContinue(); });
-	_continue.setText(qsl("CONTINUE"));
+	_continue.setText(u"CONTINUE"_q);
 	connect(&_continue, &QPushButton::clicked, [=] { processContinue(); });
 
 	QRect scr(QApplication::primaryScreen()->availableGeometry());
@@ -435,7 +455,7 @@ LastCrashedWindow::LastCrashedWindow(
 }
 
 void LastCrashedWindow::saveReport() {
-	QString to = QFileDialog::getSaveFileName(0, qsl("Telegram Crash Report"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + qsl("/report.telegramcrash"), qsl("Telegram crash report (*.telegramcrash)"));
+	QString to = QFileDialog::getSaveFileName(0, u"Telegram Crash Report"_q, QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + u"/report.telegramcrash"_q, u"Telegram crash report (*.telegramcrash)"_q);
 	if (!to.isEmpty()) {
 		QFile file(to);
 		if (file.open(QIODevice::WriteOnly)) {
@@ -450,7 +470,7 @@ QByteArray LastCrashedWindow::getCrashReportRaw() const {
 	auto result = _dumpraw;
 	if (!_reportUsername.isEmpty() && _includeUsername.checkState() != Qt::Checked) {
 		result.replace(
-			(qsl("Username: ") + _reportUsername).toUtf8(),
+			(u"Username: "_q + _reportUsername).toUtf8(),
 			"Username: _not_included_");
 	}
 	return result;
@@ -477,9 +497,9 @@ QString LastCrashedWindow::getReportField(const QLatin1String &name, const QLati
 
 			if (name == qstr("version")) {
 				if (data.endsWith(qstr(" alpha"))) {
-					data = QString::number(-data.replace(QRegularExpression(qsl("[^\\d]")), "").toLongLong());
+					data = QString::number(-data.replace(QRegularExpression(u"[^\\d]"_q), "").toLongLong());
 				} else {
-					data = QString::number(data.replace(QRegularExpression(qsl("[^\\d]")), "").toLongLong());
+					data = QString::number(data.replace(QRegularExpression(u"[^\\d]"_q), "").toLongLong());
 				}
 			}
 
@@ -493,7 +513,7 @@ void LastCrashedWindow::addReportFieldPart(const QLatin1String &name, const QLat
 	QString data = getReportField(name, prefix);
 	if (!data.isEmpty()) {
 		QHttpPart reportPart;
-		reportPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(qsl("form-data; name=\"%1\"").arg(name)));
+		reportPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(u"form-data; name=\"%1\""_q.arg(name)));
 		reportPart.setBody(data.toUtf8());
 		multipart->append(reportPart);
 	}
@@ -510,7 +530,7 @@ void LastCrashedWindow::sendReport() {
 	}
 
 	QString apiid = getReportField(qstr("apiid"), qstr("ApiId:")), version = getReportField(qstr("version"), qstr("Version:"));
-	_checkReply = _sendManager.get(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=query_report&apiid=%1&version=%2&dmp=%3&platform=%4").arg(
+	_checkReply = _sendManager.get(QNetworkRequest(u"https://tdesktop.com/crash.php?act=query_report&apiid=%1&version=%2&dmp=%3&platform=%4"_q.arg(
 		apiid,
 		version,
 		QString::number(minidumpFileName().isEmpty() ? 0 : 1),
@@ -525,7 +545,7 @@ void LastCrashedWindow::sendReport() {
 		&QNetworkReply::finished,
 		[=] { checkingFinished(); });
 
-	_pleaseSendReport.setText(qsl("Sending crash report..."));
+	_pleaseSendReport.setText(u"Sending crash report..."_q);
 	_sendingState = SendingProgress;
 	_reportShown = false;
 	updateControls();
@@ -534,7 +554,7 @@ void LastCrashedWindow::sendReport() {
 QString LastCrashedWindow::minidumpFileName() {
 	QFileInfo dmpFile(_minidumpFull);
 	if (dmpFile.exists() && dmpFile.size() > 0 && dmpFile.size() < 20 * 1024 * 1024 &&
-		QRegularExpression(qsl("^[a-zA-Z0-9\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch()) {
+		QRegularExpression(u"^[a-zA-Z0-9\\-]{1,64}\\.dmp$"_q).match(dmpFile.fileName()).hasMatch()) {
 		return dmpFile.fileName();
 	}
 	return QString();
@@ -550,17 +570,17 @@ void LastCrashedWindow::checkingFinished() {
 	LOG(("Crash report check for sending done, result: %1").arg(QString::fromUtf8(result)));
 
 	if (result == "Old") {
-		_pleaseSendReport.setText(qsl("This report is about some old version of Telegram Desktop."));
+		_pleaseSendReport.setText(u"This report is about some old version of Telegram Desktop."_q);
 		_sendingState = SendingTooOld;
 		updateControls();
 		return;
 	} else if (result == "Unofficial") {
-		_pleaseSendReport.setText(qsl("You use some custom version of Telegram Desktop."));
+		_pleaseSendReport.setText(u"You use some custom version of Telegram Desktop."_q);
 		_sendingState = SendingUnofficial;
 		updateControls();
 		return;
 	} else if (result != "Report") {
-		_pleaseSendReport.setText(qsl("Thank you for your report!"));
+		_pleaseSendReport.setText(u"Thank you for your report!"_q);
 		_sendingState = SendingDone;
 		updateControls();
 
@@ -600,16 +620,16 @@ void LastCrashedWindow::checkingFinished() {
 			if (minidumpZip.error() == ZIP_OK) {
 				QHttpPart dumpPart;
 				dumpPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/octet-stream"));
-				dumpPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(qsl("form-data; name=\"dump\"; filename=\"%1\"").arg(zipName)));
+				dumpPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(u"form-data; name=\"dump\"; filename=\"%1\""_q.arg(zipName)));
 				dumpPart.setBody(minidumpZip.result());
 				multipart->append(dumpPart);
 
-				_minidump.setText(qsl("+ %1 (%2 KB)").arg(zipName).arg(minidumpZip.result().size() / 1024));
+				_minidump.setText(u"+ %1 (%2 KB)"_q.arg(zipName).arg(minidumpZip.result().size() / 1024));
 			}
 		}
 	}
 
-	_sendReply = _sendManager.post(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=report")), multipart);
+	_sendReply = _sendManager.post(QNetworkRequest(u"https://tdesktop.com/crash.php?act=report"_q), multipart);
 	multipart->setParent(_sendReply);
 
 	connect(
@@ -843,7 +863,7 @@ void LastCrashedWindow::updateControls() {
 		h += _networkSettings.height() + padding;
 	}
 
-	QSize s(2 * padding + QFontMetrics(_label.font()).horizontalAdvance(qsl("Last time Telegram Desktop was not closed properly.")) + padding + _networkSettings.width(), h);
+	QSize s(2 * padding + QFontMetrics(_label.font()).horizontalAdvance(u"Last time Telegram Desktop was not closed properly."_q) + padding + _networkSettings.width(), h);
 	if (s == size()) {
 		resizeEvent(0);
 	} else {
@@ -896,7 +916,7 @@ void LastCrashedWindow::setUpdatingState(UpdatingState state, bool force) {
 		_updaterData->state = state;
 		switch (state) {
 		case UpdatingLatest:
-			_updating.setText(qsl("Latest version is installed."));
+			_updating.setText(u"Latest version is installed."_q);
 			if (_sendingState == SendingNoReport) {
 				InvokeQueued(this, [=] { processContinue(); });
 			} else {
@@ -914,10 +934,10 @@ void LastCrashedWindow::setUpdatingState(UpdatingState state, bool force) {
 			}
 		break;
 		case UpdatingCheck:
-			_updating.setText(qsl("Checking for updates..."));
+			_updating.setText(u"Checking for updates..."_q);
 		break;
 		case UpdatingFail:
-			_updating.setText(qsl("Update check failed :("));
+			_updating.setText(u"Update check failed :("_q);
 		break;
 		}
 		updateControls();
@@ -930,7 +950,7 @@ void LastCrashedWindow::setDownloadProgress(qint64 ready, qint64 total) {
 	qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
 	QString readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
 	QString totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-	QString res = qsl("Downloading update {ready} / {total} MB..").replace(qstr("{ready}"), readyStr).replace(qstr("{total}"), totalStr);
+	QString res = u"Downloading update {ready} / {total} MB.."_q.replace(qstr("{ready}"), readyStr).replace(qstr("{total}"), totalStr);
 	if (_updaterData->newVersionDownload != res) {
 		_updaterData->newVersionDownload = res;
 		_updating.setText(_updaterData->newVersionDownload);
@@ -970,7 +990,7 @@ void LastCrashedWindow::processContinue() {
 void LastCrashedWindow::sendingError(QNetworkReply::NetworkError e) {
 	LOG(("Crash report sending error: %1").arg(e));
 
-	_pleaseSendReport.setText(qsl("Sending crash report failed :("));
+	_pleaseSendReport.setText(u"Sending crash report failed :("_q);
 	_sendingState = SendingFail;
 	if (_checkReply) {
 		_checkReply->deleteLater();
@@ -990,7 +1010,7 @@ void LastCrashedWindow::sendingFinished() {
 
 		_sendReply->deleteLater();
 		_sendReply = nullptr;
-		_pleaseSendReport.setText(qsl("Thank you for your report!"));
+		_pleaseSendReport.setText(u"Thank you for your report!"_q);
 		_sendingState = SendingDone;
 		updateControls();
 
@@ -1003,9 +1023,9 @@ void LastCrashedWindow::sendingProgress(qint64 uploaded, qint64 total) {
 	_sendingState = SendingUploading;
 
 	if (total < 0) {
-		_pleaseSendReport.setText(qsl("Sending crash report %1 KB...").arg(uploaded / 1024));
+		_pleaseSendReport.setText(u"Sending crash report %1 KB..."_q.arg(uploaded / 1024));
 	} else {
-		_pleaseSendReport.setText(qsl("Sending crash report %1 / %2 KB...").arg(uploaded / 1024).arg(total / 1024));
+		_pleaseSendReport.setText(u"Sending crash report %1 / %2 KB..."_q.arg(uploaded / 1024).arg(total / 1024));
 	}
 	updateControls();
 }
@@ -1076,7 +1096,7 @@ void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
 }
 
 NetworkSettingsWindow::NetworkSettingsWindow(QWidget *parent, QString host, quint32 port, QString username, QString password)
-: PreLaunchWindow(qsl("HTTP Proxy Settings"))
+: PreLaunchWindow(u"HTTP Proxy Settings"_q)
 , _hostLabel(this)
 , _portLabel(this)
 , _usernameLabel(this)
@@ -1090,14 +1110,14 @@ NetworkSettingsWindow::NetworkSettingsWindow(QWidget *parent, QString host, quin
 , _parent(parent) {
 	setWindowModality(Qt::ApplicationModal);
 
-	_hostLabel.setText(qsl("Hostname"));
-	_portLabel.setText(qsl("Port"));
-	_usernameLabel.setText(qsl("Username"));
-	_passwordLabel.setText(qsl("Password"));
+	_hostLabel.setText(u"Hostname"_q);
+	_portLabel.setText(u"Port"_q);
+	_usernameLabel.setText(u"Username"_q);
+	_passwordLabel.setText(u"Password"_q);
 
-	_save.setText(qsl("SAVE"));
+	_save.setText(u"SAVE"_q);
 	connect(&_save, &QPushButton::clicked, [=] { save(); });
-	_cancel.setText(qsl("CANCEL"));
+	_cancel.setText(u"CANCEL"_q);
 	connect(&_cancel, &QPushButton::clicked, [=] { close(); });
 
 	_hostInput.setText(host);

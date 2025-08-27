@@ -10,10 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/weak_ptr.h"
 #include "base/flags.h"
-#include "dialogs/dialogs_key.h"
+#include "dialogs/dialogs_common.h"
 #include "ui/unread_badge.h"
 
 class HistoryItem;
+class History;
 class UserData;
 
 namespace Main {
@@ -25,10 +26,13 @@ class Session;
 class Forum;
 class Folder;
 class ForumTopic;
-class CloudImageView;
+class SavedSublist;
+class SavedMessages;
+class Thread;
 } // namespace Data
 
 namespace Ui {
+struct PeerUserpicView;
 } // namespace Ui
 
 namespace Dialogs::Ui {
@@ -38,106 +42,10 @@ struct PaintContext;
 
 namespace Dialogs {
 
+struct UnreadState;
 class Row;
 class IndexedList;
 class MainList;
-
-struct RowsByLetter {
-	not_null<Row*> main;
-	base::flat_map<QChar, not_null<Row*>> letters;
-};
-
-enum class SortMode {
-	Date    = 0x00,
-	Name    = 0x01,
-	Add     = 0x02,
-};
-
-struct PositionChange {
-	int from = -1;
-	int to = -1;
-};
-
-struct UnreadState {
-	int messages = 0;
-	int messagesMuted = 0;
-	int chats = 0;
-	int chatsMuted = 0;
-	int marks = 0;
-	int marksMuted = 0;
-	int reactions = 0;
-	int reactionsMuted = 0;
-	int mentions = 0;
-	bool known = false;
-
-	UnreadState &operator+=(const UnreadState &other) {
-		messages += other.messages;
-		messagesMuted += other.messagesMuted;
-		chats += other.chats;
-		chatsMuted += other.chatsMuted;
-		marks += other.marks;
-		marksMuted += other.marksMuted;
-		reactions += other.reactions;
-		reactionsMuted += other.reactionsMuted;
-		mentions += other.mentions;
-		return *this;
-	}
-	UnreadState &operator-=(const UnreadState &other) {
-		messages -= other.messages;
-		messagesMuted -= other.messagesMuted;
-		chats -= other.chats;
-		chatsMuted -= other.chatsMuted;
-		marks -= other.marks;
-		marksMuted -= other.marksMuted;
-		reactions -= other.reactions;
-		reactionsMuted -= other.reactionsMuted;
-		mentions -= other.mentions;
-		return *this;
-	}
-};
-
-inline UnreadState operator+(const UnreadState &a, const UnreadState &b) {
-	auto result = a;
-	result += b;
-	return result;
-}
-
-inline UnreadState operator-(const UnreadState &a, const UnreadState &b) {
-	auto result = a;
-	result -= b;
-	return result;
-}
-
-struct BadgesState {
-	int unreadCounter = 0;
-	bool unread : 1 = false;
-	bool unreadMuted : 1 = false;
-	bool mention : 1 = false;
-	bool mentionMuted : 1 = false;
-	bool reaction : 1 = false;
-	bool reactionMuted : 1 = false;
-
-	friend inline constexpr auto operator<=>(
-		BadgesState,
-		BadgesState) = default;
-
-	[[nodiscard]] bool empty() const {
-		return !unread && !mention && !reaction;
-	}
-};
-
-enum class CountInBadge : uchar {
-	Default,
-	Chats,
-	Messages,
-};
-
-enum class IncludeInBadge : uchar {
-	Default,
-	Unmuted,
-	All,
-	UnmutedOrAll,
-};
 
 [[nodiscard]] BadgesState BadgesForUnread(
 	const UnreadState &state,
@@ -150,6 +58,7 @@ public:
 		History,
 		Folder,
 		ForumTopic,
+		SavedSublist,
 	};
 	Entry(not_null<Data::Session*> owner, Type type);
 	virtual ~Entry();
@@ -162,12 +71,14 @@ public:
 	Data::Folder *asFolder();
 	Data::Thread *asThread();
 	Data::ForumTopic *asTopic();
+	Data::SavedSublist *asSublist();
 
 	const History *asHistory() const;
 	const Data::Forum *asForum() const;
 	const Data::Folder *asFolder() const;
 	const Data::Thread *asThread() const;
 	const Data::ForumTopic *asTopic() const;
+	const Data::SavedSublist *asSublist() const;
 
 	PositionChange adjustByPosInChatList(
 		FilterId filterId,
@@ -181,6 +92,7 @@ public:
 	not_null<Row*> addToChatList(
 		FilterId filterId,
 		not_null<MainList*> list);
+	void setColorIndexForFilterId(FilterId, std::optional<uint8>);
 	void removeFromChatList(
 		FilterId filterId,
 		not_null<MainList*> list);
@@ -191,6 +103,7 @@ public:
 		not_null<Row*> row);
 	void updateChatListEntry();
 	void updateChatListEntryPostponed();
+	void updateChatListEntryHeight();
 	[[nodiscard]] bool isPinnedDialog(FilterId filterId) const {
 		return lookupPinnedIndex(filterId) != 0;
 	}
@@ -204,34 +117,36 @@ public:
 	void setChatListTimeId(TimeId date);
 	virtual void updateChatListExistence();
 	bool needUpdateInChatList() const;
-	virtual TimeId adjustedChatListTimeId() const;
+	[[nodiscard]] virtual TimeId adjustedChatListTimeId() const;
 
-	virtual int fixedOnTopIndex() const = 0;
+	[[nodiscard]] virtual int fixedOnTopIndex() const = 0;
 	static constexpr auto kArchiveFixOnTopIndex = 1;
 	static constexpr auto kTopPromotionFixOnTopIndex = 2;
 
-	virtual bool shouldBeInChatList() const = 0;
-	virtual UnreadState chatListUnreadState() const = 0;
-	virtual BadgesState chatListBadgesState() const = 0;
-	virtual HistoryItem *chatListMessage() const = 0;
-	virtual bool chatListMessageKnown() const = 0;
-	virtual void requestChatListMessage() = 0;
-	virtual const QString &chatListName() const = 0;
-	virtual const QString &chatListNameSortKey() const = 0;
-	virtual const base::flat_set<QString> &chatListNameWords() const = 0;
-	virtual const base::flat_set<QChar> &chatListFirstLetters() const = 0;
+	[[nodiscard]] virtual bool shouldBeInChatList() const = 0;
+	[[nodiscard]] virtual UnreadState chatListUnreadState() const = 0;
+	[[nodiscard]] virtual BadgesState chatListBadgesState() const = 0;
+	[[nodiscard]] virtual HistoryItem *chatListMessage() const = 0;
+	[[nodiscard]] virtual bool chatListMessageKnown() const = 0;
+	[[nodiscard]] virtual const QString &chatListName() const = 0;
+	[[nodiscard]] virtual const QString &chatListNameSortKey() const = 0;
+	[[nodiscard]] virtual int chatListNameVersion() const = 0;
+	[[nodiscard]] virtual auto chatListNameWords() const
+		-> const base::flat_set<QString> & = 0;
+	[[nodiscard]] virtual auto chatListFirstLetters() const
+		-> const base::flat_set<QChar> & = 0;
 
-	virtual bool folderKnown() const {
+	[[nodiscard]] virtual bool folderKnown() const {
 		return true;
 	}
-	virtual Data::Folder *folder() const {
+	[[nodiscard]] virtual Data::Folder *folder() const {
 		return nullptr;
 	}
 
-	virtual void loadUserpic() = 0;
+	virtual void chatListPreloadData() = 0;
 	virtual void paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context) const = 0;
 
 	[[nodiscard]] TimeId chatListTimeId() const {
@@ -243,6 +158,7 @@ public:
 		return _chatListPeerBadge;
 	}
 
+	[[nodiscard]] bool hasChatsFilterTags(FilterId exclude) const;
 protected:
 	void notifyUnreadStateChange(const UnreadState &wasState);
 	inline auto unreadStateChangeNotifier(bool required);
@@ -253,8 +169,10 @@ private:
 	enum class Flag : uchar {
 		IsThread = (1 << 0),
 		IsHistory = (1 << 1),
-		UpdatePostponed = (1 << 2),
-		InUnreadChangeBlock = (1 << 3),
+		IsForumTopic = (1 << 2),
+		IsSavedSublist = (1 << 3),
+		UpdatePostponed = (1 << 4),
+		InUnreadChangeBlock = (1 << 5),
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; }
 	using Flags = base::flags<Flag>;
@@ -262,8 +180,6 @@ private:
 	virtual void changedChatListPinHook();
 	void pinnedIndexChanged(FilterId filterId, int was, int now);
 	[[nodiscard]] uint64 computeSortPosition(FilterId filterId) const;
-
-	[[nodiscard]] virtual int chatListNameVersion() const = 0;
 
 	void setChatListExistence(bool exists);
 	not_null<Row*> mainChatListLink(FilterId filterId) const;
@@ -274,6 +190,7 @@ private:
 	uint64 _sortKeyInChatList = 0;
 	uint64 _sortKeyByDate = 0;
 	base::flat_map<FilterId, int> _pinnedIndex;
+	base::flat_map<FilterId, uint8> _tagColors;
 	mutable Ui::PeerBadge _chatListPeerBadge;
 	mutable Ui::Text::String _chatListNameText;
 	mutable int _chatListNameVersion = 0;
@@ -288,7 +205,7 @@ auto Entry::unreadStateChangeNotifier(bool required) {
 	_flags |= Flag::InUnreadChangeBlock;
 	const auto notify = required && inChatList();
 	const auto wasState = notify ? chatListUnreadState() : UnreadState();
-	return gsl::finally([=] {
+	return gsl::finally([=, this] {
 		_flags &= ~Flag::InUnreadChangeBlock;
 		if (notify) {
 			Assert(inChatList());

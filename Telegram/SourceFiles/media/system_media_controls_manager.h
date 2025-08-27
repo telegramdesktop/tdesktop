@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_audio_msg_id.h"
 #include "media/player/media_player_instance.h"
+#include "media/media_common.h"
 
 namespace base::Platform {
 class SystemMediaControls;
@@ -30,7 +31,7 @@ namespace Media {
 
 class SystemMediaControlsManager {
 public:
-	SystemMediaControlsManager(not_null<Window::Controller*> controller);
+	SystemMediaControlsManager();
 	~SystemMediaControlsManager();
 
 	static bool Supported();
@@ -39,12 +40,12 @@ private:
 	const std::unique_ptr<base::Platform::SystemMediaControls> _controls;
 
 	std::vector<std::shared_ptr<Data::DocumentMedia>> _cachedMediaView;
-	std::unique_ptr<Media::Streaming::Instance> _streamed;
+	std::unique_ptr<Streaming::Instance> _streamed;
 	AudioMsgId _lastAudioMsgId;
-	Media::Player::OrderMode _lastOrderMode;
+	OrderMode _lastOrderMode = OrderMode::Default;
 
 	rpl::lifetime _lifetimeDownload;
 	rpl::lifetime _lifetime;
 };
 
-}  // namespace Media
+} // namespace Media

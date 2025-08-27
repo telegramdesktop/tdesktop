@@ -536,9 +536,10 @@ void TcpConnection::connectToServer(
 	const auto postfix = _socket->debugPostfix();
 	_debugId = u"%1(dc:%2,%3%4:%5%6)"_q
 		.arg(_debugId.toInt())
-		.arg(ProtocolDcDebugId(_protocolDcId))
-		.arg((_proxy.type == ProxyData::Type::Mtproto) ? "mtproxy " : "")
-		.arg(_address)
+		.arg(
+			ProtocolDcDebugId(_protocolDcId),
+			(_proxy.type == ProxyData::Type::Mtproto) ? "mtproxy " : "",
+			_address)
 		.arg(_port)
 		.arg(postfix.isEmpty() ? _protocol->debugPostfix() : postfix);
 	_socket->setDebugId(_debugId);
@@ -636,19 +637,19 @@ QString TcpConnection::transport() const {
 	if (!isConnected()) {
 		return QString();
 	}
-	auto result = qsl("TCP");
+	auto result = u"TCP"_q;
 	if (qthelp::is_ipv6(_address)) {
-		result += qsl("/IPv6");
+		result += u"/IPv6"_q;
 	}
 	return result;
 }
 
 QString TcpConnection::tag() const {
-	auto result = qsl("TCP");
+	auto result = u"TCP"_q;
 	if (qthelp::is_ipv6(_address)) {
-		result += qsl("/IPv6");
+		result += u"/IPv6"_q;
 	} else {
-		result += qsl("/IPv4");
+		result += u"/IPv4"_q;
 	}
 	return result;
 }

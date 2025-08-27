@@ -343,7 +343,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	LPWSTR *args;
 	int argsCount;
 
-	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false, freetype = false;
+	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false;
 	args = CommandLineToArgvW(GetCommandLine(), &argsCount);
 	if (args) {
 		for (int i = 1; i < argsCount; ++i) {
@@ -357,8 +357,6 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 				openLog();
 			} else if (equal(args[i], L"-startintray")) {
 				startintray = true;
-			} else if (equal(args[i], L"-freetype")) {
-				freetype = true;
 			} else if (equal(args[i], L"-writeprotected") && ++i < argsCount) {
 				writeLog(std::wstring(L"Argument: ") + args[i]);
 				writeprotected = true;
@@ -428,7 +426,6 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	if (autostart) targs += L" -autostart";
 	if (debug) targs += L" -debug";
 	if (startintray) targs += L" -startintray";
-	if (freetype) targs += L" -freetype";
 	if (!customWorkingDir.empty()) {
 		targs += L" -workdir \"" + customWorkingDir + L"\"";
 	}
@@ -540,11 +537,12 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 
 	GetLocalTime(&stLocalTime);
 
-	wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
-	         szPath, szExeName, updaterVersionStr,
-	         stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
-	         stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
-	         GetCurrentProcessId(), GetCurrentThreadId());
+	wsprintf(
+		szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
+		szPath, szExeName, updaterVersionStr,
+		stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
+		stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
+		GetCurrentProcessId(), GetCurrentThreadId());
 	return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }
 
@@ -565,7 +563,7 @@ void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 	DWORD len = GetModuleFileName(GetModuleHandle(0), szPath, maxFileLen);
 	if (!len) return;
 
-	WCHAR *pathEnd = szPath  + len;
+	WCHAR *pathEnd = szPath + len;
 
 	if (!_wcsicmp(pathEnd - wcslen(_exeName), _exeName)) {
 		wsprintf(pathEnd - wcslen(_exeName), L"");
@@ -573,8 +571,8 @@ void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 	}
 	if (!hDumpFile || hDumpFile == INVALID_HANDLE_VALUE) {
 		WCHAR wstrPath[maxFileLen];
-		DWORD wstrPathLen;
-		if (wstrPathLen = GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
+		DWORD wstrPathLen = GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen);
+		if (wstrPathLen) {
 			wsprintf(wstrPath + wstrPathLen, L"\\%s\\", _programName);
 			hDumpFile = _generateDumpFileAtPath(wstrPath);
 		}

@@ -25,14 +25,17 @@ public:
 
 	void paint(QPainter &p, int x, int y);
 	void setType(Type type);
+	void setVertical(bool vertical);
 
 	[[nodiscard]] int width() const;
 	[[nodiscard]] int height() const;
 	[[nodiscard]] Type type() const;
+	[[nodiscard]] bool vertical() const;
 
 private:
 	RoundRect _rect;
 	Type _type = Type::Full;
+	bool _vertical = false;
 
 };
 

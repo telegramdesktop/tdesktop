@@ -27,7 +27,9 @@ public:
 
 	[[nodiscard]] bool canAdd() const;
 	[[nodiscard]] bool canRemove(FilterId filterId) const;
-	[[nodiscard]] LimitData limitReached(FilterId filterId) const;
+	[[nodiscard]] LimitData limitReached(
+		FilterId filterId,
+		bool always) const;
 
 	void add(FilterId filterId) const;
 	void remove(FilterId filterId) const;

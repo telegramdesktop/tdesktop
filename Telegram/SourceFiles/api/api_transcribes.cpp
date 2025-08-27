@@ -7,19 +7,95 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_transcribes.h"
 
-#include "history/history_item.h"
-#include "history/history.h"
-#include "main/main_session.h"
-#include "data/data_document.h"
-#include "data/data_session.h"
-#include "data/data_peer.h"
 #include "apiwrap.h"
+#include "data/data_channel.h"
+#include "data/data_document.h"
+#include "data/data_peer.h"
+#include "data/data_session.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
+#include "main/main_session_settings.h"
 
 namespace Api {
 
 Transcribes::Transcribes(not_null<ApiWrap*> api)
 : _session(&api->session())
 , _api(&api->instance()) {
+}
+
+bool Transcribes::isRated(not_null<HistoryItem*> item) const {
+	const auto fullId = item->fullId();
+	for (const auto &[transcribeId, id] : _ids) {
+		if (id == fullId) {
+			return _session->settings().isTranscriptionRated(transcribeId);
+		}
+	}
+	return false;
+}
+
+void Transcribes::rate(not_null<HistoryItem*> item, bool isGood) {
+	const auto fullId = item->fullId();
+	for (const auto &[transcribeId, id] : _ids) {
+		if (id == fullId) {
+			_api.request(MTPmessages_RateTranscribedAudio(
+				item->history()->peer->input,
+				MTP_int(item->id),
+				MTP_long(transcribeId),
+				MTP_bool(isGood))).send();
+			_session->settings().markTranscriptionAsRated(transcribeId);
+			_session->saveSettings();
+			return;
+		}
+	}
+}
+
+bool Transcribes::freeFor(not_null<HistoryItem*> item) const {
+	if (const auto channel = item->history()->peer->asMegagroup()) {
+		const auto owner = &channel->owner();
+		return channel->levelHint() >= owner->groupFreeTranscribeLevel();
+	}
+	return false;
+}
+
+bool Transcribes::trialsSupport() {
+	if (!_trialsSupport) {
+		const auto count = _session->appConfig().get<int>(
+			u"transcribe_audio_trial_weekly_number"_q,
+			0);
+		const auto until = _session->appConfig().get<int>(
+			u"transcribe_audio_trial_cooldown_until"_q,
+			0);
+		_trialsSupport = (count > 0) || (until > 0);
+	}
+	return *_trialsSupport;
+}
+
+TimeId Transcribes::trialsRefreshAt() {
+	if (_trialsRefreshAt < 0) {
+		_trialsRefreshAt = _session->appConfig().get<int>(
+			u"transcribe_audio_trial_cooldown_until"_q,
+			0);
+	}
+	return _trialsRefreshAt;
+}
+
+int Transcribes::trialsCount() {
+	if (_trialsCount < 0) {
+		_trialsCount = _session->appConfig().get<int>(
+			u"transcribe_audio_trial_weekly_number"_q,
+			-1);
+		return std::max(_trialsCount, 0);
+	}
+	return _trialsCount;
+}
+
+crl::time Transcribes::trialsMaxLengthMs() const {
+	return 1000 * _session->appConfig().get<int>(
+		u"transcribe_audio_trial_duration_max"_q,
+		300);
 }
 
 void Transcribes::toggle(not_null<HistoryItem*> item) {
@@ -86,6 +162,23 @@ void Transcribes::load(not_null<HistoryItem*> item) {
 		MTP_int(item->id)
 	)).done([=](const MTPmessages_TranscribedAudio &result) {
 		const auto &data = result.data();
+
+		{
+			const auto trialsCountChanged = data.vtrial_remains_num()
+				&& (_trialsCount != data.vtrial_remains_num()->v);
+			if (trialsCountChanged) {
+				_trialsCount = data.vtrial_remains_num()->v;
+			}
+			const auto refreshAtChanged = data.vtrial_remains_until_date()
+				&& (_trialsRefreshAt != data.vtrial_remains_until_date()->v);
+			if (refreshAtChanged) {
+				_trialsRefreshAt = data.vtrial_remains_until_date()->v;
+			}
+			if (trialsCountChanged) {
+				ShowTrialTranscribesToast(_trialsCount, _trialsRefreshAt);
+			}
+		}
+
 		auto &entry = _map[id];
 		entry.requestId = 0;
 		entry.pending = data.is_pending();

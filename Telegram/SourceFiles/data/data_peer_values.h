@@ -7,10 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/filter.h>
-#include <rpl/map.h>
-#include <rpl/combine.h>
 #include "data/data_peer.h"
+#include "data/data_peer_values.h"
+#include "data/data_chat_participant_status.h"
 
 enum class ImageRoundRadius;
 
@@ -22,6 +21,7 @@ namespace Data {
 
 struct Reaction;
 class ForumTopic;
+class LastseenStatus;
 
 template <typename ChangeType, typename Error, typename Generator>
 inline auto FlagsValueWithMask(
@@ -53,6 +53,7 @@ template <
 	typename ChangeType = typename PeerType::Flags::Change>
 inline auto PeerFlagsValue(PeerType *peer) {
 	Expects(peer != nullptr);
+
 	return peer->flagsValue();
 }
 
@@ -101,15 +102,48 @@ inline auto PeerFullFlagValue(
 	return SingleFlagValue(PeerFullFlagsValue(peer), flag);
 }
 
-[[nodiscard]] rpl::producer<bool> CanWriteValue(UserData *user);
-[[nodiscard]] rpl::producer<bool> CanWriteValue(ChatData *chat);
-[[nodiscard]] rpl::producer<bool> CanWriteValue(
-	ChannelData *channel,
-	bool checkForForum = true);
-[[nodiscard]] rpl::producer<bool> CanWriteValue(
+[[nodiscard]] rpl::producer<bool> CanSendAnyOfValue(
+	not_null<Data::Thread*> thread,
+	ChatRestrictions rights,
+	bool forbidInForums = true);
+[[nodiscard]] rpl::producer<bool> CanSendAnyOfValue(
 	not_null<PeerData*> peer,
-	bool checkForForum = true);
-[[nodiscard]] rpl::producer<bool> CanWriteValue(not_null<ForumTopic*> topic);
+	ChatRestrictions rights,
+	bool forbidInForums = true);
+
+[[nodiscard]] inline rpl::producer<bool> CanSendValue(
+		not_null<Thread*> thread,
+		ChatRestriction right,
+		bool forbidInForums = true) {
+	return CanSendAnyOfValue(thread, right, forbidInForums);
+}
+[[nodiscard]] inline rpl::producer<bool> CanSendValue(
+		not_null<PeerData*> peer,
+		ChatRestriction right,
+		bool forbidInForums = true) {
+	return CanSendAnyOfValue(peer, right, forbidInForums);
+}
+[[nodiscard]] inline rpl::producer<bool> CanSendTextsValue(
+		not_null<Thread*> thread,
+		bool forbidInForums = true) {
+	return CanSendValue(thread, ChatRestriction::SendOther, forbidInForums);
+}
+[[nodiscard]] inline rpl::producer<bool> CanSendTextsValue(
+		not_null<PeerData*> peer,
+		bool forbidInForums = true) {
+	return CanSendValue(peer, ChatRestriction::SendOther, forbidInForums);
+}
+[[nodiscard]] inline rpl::producer<bool> CanSendAnythingValue(
+		not_null<Thread*> thread,
+		bool forbidInForums = true) {
+	return CanSendAnyOfValue(thread, AllSendRestrictions(), forbidInForums);
+}
+[[nodiscard]] inline rpl::producer<bool> CanSendAnythingValue(
+		not_null<PeerData*> peer,
+		bool forbidInForums = true) {
+	return CanSendAnyOfValue(peer, AllSendRestrictions(), forbidInForums);
+}
+
 [[nodiscard]] rpl::producer<bool> CanPinMessagesValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> CanManageGroupCallValue(
@@ -119,25 +153,27 @@ inline auto PeerFullFlagValue(
 	not_null<Main::Session*> session);
 
 [[nodiscard]] TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now);
-[[nodiscard]] crl::time OnlineChangeTimeout(TimeId online, TimeId now);
+[[nodiscard]] crl::time OnlineChangeTimeout(
+	LastseenStatus status,
+	TimeId now);
 [[nodiscard]] crl::time OnlineChangeTimeout(
 	not_null<UserData*> user,
 	TimeId now);
-[[nodiscard]] QString OnlineText(TimeId online, TimeId now);
+[[nodiscard]] QString OnlineText(LastseenStatus status, TimeId now);
 [[nodiscard]] QString OnlineText(not_null<UserData*> user, TimeId now);
 [[nodiscard]] QString OnlineTextFull(not_null<UserData*> user, TimeId now);
-[[nodiscard]] bool OnlineTextActive(TimeId online, TimeId now);
 [[nodiscard]] bool OnlineTextActive(not_null<UserData*> user, TimeId now);
 [[nodiscard]] bool IsUserOnline(not_null<UserData*> user, TimeId now = 0);
 [[nodiscard]] bool ChannelHasActiveCall(not_null<ChannelData*> channel);
+[[nodiscard]] bool ChannelHasSubscriptionUntilDate(ChannelData *channel);
+
+[[nodiscard]] rpl::producer<Data::StarsRating> StarsRatingValue(
+	not_null<PeerData*> peer);
 
 [[nodiscard]] rpl::producer<QImage> PeerUserpicImageValue(
 	not_null<PeerData*> peer,
-	int size);
-[[nodiscard]] rpl::producer<QImage> PeerUserpicImageValue(
-	not_null<PeerData*> peer,
 	int size,
-	ImageRoundRadius radius);
+	std::optional<int> radius = {});
 
 [[nodiscard]] const AllowedReactions &PeerAllowedReactions(
 	not_null<PeerData*> peer);

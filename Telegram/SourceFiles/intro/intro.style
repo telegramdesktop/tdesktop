@@ -33,8 +33,6 @@ introCoverTitle: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	style: TextStyle(defaultTextStyle) {
 		font: font(22px semibold);
-		linkFont: font(22px semibold);
-		linkFontOver: font(22px semibold underline);
 	}
 }
 introCoverTitleTop: 136px;
@@ -43,8 +41,6 @@ introCoverDescription: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	style: TextStyle(defaultTextStyle) {
 		font: font(15px);
-		linkFont: font(15px);
-		linkFontOver: font(15px underline);
 		lineHeight: 24px;
 	}
 }
@@ -53,8 +49,6 @@ introTitle: FlatLabel(defaultFlatLabel) {
 	textFg: introTitleFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(17px semibold);
-		linkFont: font(17px semibold);
-		linkFontOver: font(17px semibold underline);
 	}
 }
 introTitleTop: 1px;
@@ -84,10 +78,19 @@ introCoverDuration: 200;
 
 introNextButton: RoundButton(defaultActiveButton) {
 	width: 300px;
-	height: 56px;
-
-	textTop: 17px;
-	font: font(17px semibold);
+	height: 42px;
+	radius: 6px;
+	textTop: 11px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(boxFontSize semibold);
+	}
+}
+introFragmentIcon: icon{{ "fragment", activeButtonFg }};
+introFragmentIconOver: icon{{ "fragment", activeButtonFgOver }};
+introFragmentButton: RoundButton(introNextButton) {
+	icon: introFragmentIcon;
+	iconOver: introFragmentIconOver;
+	iconPosition: point(-10px, 9px);
 }
 
 introStepFieldTop: 96px;
@@ -95,7 +98,9 @@ introPhoneTop: 6px;
 introLinkTop: 24px;
 introCountry: InputField(defaultInputField) {
 	textMargins: margins(3px, 27px, 3px, 6px);
-	font: font(16px);
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px);
+	}
 	width: 300px;
 	heightMin: 61px;
 }
@@ -113,6 +118,11 @@ introName: introCountry;
 introPassword: introCountry;
 introPasswordTop: 74px;
 introPasswordHintTop: 151px;
+
+introCodeDigitFont: font(20px);
+introCodeDigitHeight: 50px;
+introCodeDigitBorderWidth: 4px;
+introCodeDigitSkip: 10px;
 
 introPasswordHint: FlatLabel(introDescription) {
 	textFg: windowFg;
@@ -137,11 +147,8 @@ introTermsBottom: 20px;
 introCountryIcon: icon {{ "intro_country_dropdown", menuIconFg }};
 introCountryIconPosition: point(8px, 37px);
 
-introSelectDelta: 30px;
-
 introErrorTop: 235px;
 introErrorBelowLinkTop: 220px;
-introErrorDuration: 200;
 
 introError: FlatLabel(introDescription) {
 }
@@ -158,9 +165,7 @@ introBackButton: IconButton(defaultIconButton) {
 
 	rippleAreaPosition: point(8px, 8px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 
 introQrTop: -18px;
@@ -176,14 +181,12 @@ introQrTitle: FlatLabel(defaultFlatLabel) {
 	minWidth: introQrTitleWidth;
 	style: TextStyle(defaultTextStyle) {
 		font: font(20px semibold);
-		linkFont: font(20px semibold);
-		linkFontOver: font(20px semibold underline);
 	}
 }
 introQrErrorTop: 336px;
 introQrTitleTop: 196px;
 introQrStep: FlatLabel(defaultFlatLabel) {
-	minWidth: introQrLabelsWidth;
+	minWidth: 200px;
 }
 introQrStepsTop: 232px;
 introQrStepMargins: margins(20px, 8px, 0px, 0px);

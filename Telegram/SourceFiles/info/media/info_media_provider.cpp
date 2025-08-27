@@ -11,10 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_section.h"
 #include "info/info_controller.h"
 #include "layout/layout_selection.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "data/data_session.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
@@ -22,7 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
 #include "data/data_document.h"
+#include "data/data_saved_sublist.h"
 #include "styles/style_info.h"
+#include "styles/style_overview.h"
 
 namespace Info::Media {
 namespace {
@@ -31,32 +35,6 @@ constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
 
-[[nodiscard]] int MinItemHeight(Type type, int width) {
-	auto &songSt = st::overviewFileLayout;
-
-	switch (type) {
-	case Type::Photo:
-	case Type::GIF:
-	case Type::Video:
-	case Type::RoundFile: {
-		auto itemsLeft = st::infoMediaSkip;
-		auto itemsInRow = (width - itemsLeft)
-			/ (st::infoMediaMinGridSize + st::infoMediaSkip);
-		return (st::infoMediaMinGridSize + st::infoMediaSkip) / itemsInRow;
-	} break;
-
-	case Type::RoundVoiceFile:
-		return songSt.songPadding.top() + songSt.songThumbSize + songSt.songPadding.bottom() + st::lineWidth;
-	case Type::File:
-		return songSt.filePadding.top() + songSt.fileThumbSize + songSt.filePadding.bottom() + st::lineWidth;
-	case Type::MusicFile:
-		return songSt.songPadding.top() + songSt.songThumbSize + songSt.songPadding.bottom();
-	case Type::Link:
-		return st::linksPhotoSize + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
-	}
-	Unexpected("Type in MinItemHeight()");
-}
-
 } // namespace
 
 Provider::Provider(not_null<AbstractController*> controller)
@@ -64,7 +42,10 @@ Provider::Provider(not_null<AbstractController*> controller)
 , _peer(_controller->key().peer())
 , _topicRootId(_controller->key().topic()
 	? _controller->key().topic()->rootId()
-	: 0)
+	: MsgId())
+, _monoforumPeerId(_controller->key().sublist()
+	? _controller->key().sublist()->sublistPeer()->id
+	: PeerId())
 , _migrated(_controller->migrated())
 , _type(_controller->section().mediaType())
 , _slice(sliceKey(_universalAroundId)) {
@@ -79,6 +60,16 @@ Provider::Provider(not_null<AbstractController*> controller)
 			layout.second.item->invalidateCache();
 		}
 	}, _lifetime);
+
+	_controller->session().appConfig().ignoredRestrictionReasonsChanges(
+	) | rpl::start_with_next([=](std::vector<QString> &&changed) {
+		const auto sensitive = Data::UnavailableReason::Sensitive();
+		if (ranges::contains(changed, sensitive.reason)) {
+			for (auto &[id, layout] : _layouts) {
+				layout.item->maybeClearSensitiveSpoiler();
+			}
+		}
+	}, _lifetime);
 }
 
 Type Provider::type() {
@@ -86,7 +77,9 @@ Type Provider::type() {
 }
 
 bool Provider::hasSelectRestriction() {
-	if (_peer->allowsForwarding()) {
+	if (_peer->session().frozen()) {
+		return true;
+	} else if (_peer->allowsForwarding()) {
 		return false;
 	} else if (const auto chat = _peer->asChat()) {
 		return !chat->canDeleteMessages();
@@ -353,13 +346,23 @@ SparseIdsMergedSlice::Key Provider::sliceKey(
 		UniversalMsgId universalId) const {
 	using Key = SparseIdsMergedSlice::Key;
 	if (!_topicRootId && _migrated) {
-		return Key(_peer->id, _topicRootId, _migrated->id, universalId);
+		return Key(
+			_peer->id,
+			_topicRootId,
+			_monoforumPeerId,
+			_migrated->id,
+			universalId);
 	}
 	if (universalId < 0) {
 		// Convert back to plain id for non-migrated histories.
 		universalId = universalId + ServerMaxMsgId;
 	}
-	return Key(_peer->id, _topicRootId, 0, universalId);
+	return Key(
+		_peer->id,
+		_topicRootId,
+		_monoforumPeerId,
+		PeerId(),
+		universalId);
 }
 
 void Provider::itemRemoved(not_null<const HistoryItem*> item) {
@@ -415,7 +418,7 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return nullptr;
 	};
 	const auto getFile = [&]() -> DocumentData* {
-		if (auto media = item->media()) {
+		if (const auto media = item->media()) {
 			return media->document();
 		}
 		return nullptr;
@@ -423,10 +426,18 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 
 	const auto &songSt = st::overviewFileLayout;
 	using namespace Overview::Layout;
+	const auto options = [&] {
+		const auto media = item->media();
+		return MediaOptions{ .spoiler = media && media->hasSpoiler() };
+	};
 	switch (type) {
 	case Type::Photo:
 		if (const auto photo = getPhoto()) {
-			return std::make_unique<Photo>(delegate, item, photo);
+			return std::make_unique<Photo>(
+				delegate,
+				item,
+				photo,
+				options());
 		}
 		return nullptr;
 	case Type::GIF:
@@ -436,7 +447,7 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return nullptr;
 	case Type::Video:
 		if (const auto file = getFile()) {
-			return std::make_unique<Video>(delegate, item, file);
+			return std::make_unique<Video>(delegate, item, file, options());
 		}
 		return nullptr;
 	case Type::File:

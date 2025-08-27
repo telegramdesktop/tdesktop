@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
+#include "core/mime_type.h"
 #include "ui/boxes/confirm_box.h"
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
 #include "editor/scene/scene_item_sticker.h"
+#include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/chat/attach/attach_prepare.h"
@@ -190,7 +192,7 @@ void Paint::handleMimeData(const QMimeData *data) {
 			return;
 		}
 		if (!Ui::ValidateThumbDimensions(image.width(), image.height())) {
-			_controllers->showBox(
+			_controllers->show->showBox(
 				Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
 			return;
 		}
@@ -204,16 +206,17 @@ void Paint::handleMimeData(const QMimeData *data) {
 
 	using Error = Ui::PreparedList::Error;
 	const auto premium = false; // Don't support > 2GB files here.
-	auto result = data->hasUrls()
+	const auto list = Core::ReadMimeUrls(data);
+	auto result = !list.isEmpty()
 		? Storage::PrepareMediaList(
-			base::GetMimeUrls(data).mid(0, 1),
+			list.mid(0, 1),
 			_imageSize.width() / 2,
 			premium)
 		: Ui::PreparedList(Error::EmptyFile, QString());
 	if (result.error == Error::None) {
 		add(base::take(result.files.front().preview));
-	} else if (data->hasImage()) {
-		add(qvariant_cast<QImage>(data->imageData()));
+	} else if (auto read = Core::ReadMimeImage(data)) {
+		add(std::move(read.image));
 	}
 }
 

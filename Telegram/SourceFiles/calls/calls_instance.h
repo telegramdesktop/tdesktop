@@ -13,6 +13,10 @@ namespace crl {
 class semaphore;
 } // namespace crl
 
+namespace Data {
+class GroupCall;
+} // namespace Data
+
 namespace Platform {
 enum class PermissionType;
 } // namespace Platform
@@ -31,6 +35,7 @@ class Show;
 
 namespace Calls::Group {
 struct JoinInfo;
+struct ConferenceInfo;
 class Panel;
 class ChooseJoinAsProcess;
 class StartRtmpProcess;
@@ -47,6 +52,8 @@ enum class CallType;
 class GroupCall;
 class Panel;
 struct DhConfig;
+struct InviteRequest;
+struct StartConferenceInfo;
 
 struct StartGroupCallArgs {
 	enum class JoinConfirm {
@@ -59,6 +66,15 @@ struct StartGroupCallArgs {
 	bool scheduleNeeded = false;
 };
 
+struct ConferenceInviteMessages {
+	base::flat_set<MsgId> incoming;
+	base::flat_set<MsgId> outgoing;
+};
+
+struct ConferenceInvites {
+	base::flat_map<not_null<UserData*>, ConferenceInviteMessages> users;
+};
+
 class Instance final : public base::has_weak_ptr {
 public:
 	Instance();
@@ -69,6 +85,10 @@ public:
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		StartGroupCallArgs args);
+	void startOrJoinConferenceCall(StartConferenceInfo args);
+	void startedConferenceReady(
+		not_null<GroupCall*> call,
+		StartConferenceInfo args);
 	void showStartWithRtmp(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer);
@@ -89,10 +109,13 @@ public:
 	[[nodiscard]] rpl::producer<GroupCall*> currentGroupCallValue() const;
 	[[nodiscard]] bool inCall() const;
 	[[nodiscard]] bool inGroupCall() const;
+	[[nodiscard]] bool hasVisiblePanel(
+		Main::Session *session = nullptr) const;
 	[[nodiscard]] bool hasActivePanel(
-		not_null<Main::Session*> session) const;
+		Main::Session *session = nullptr) const;
 	bool activateCurrentCall(const QString &joinHash = QString());
 	bool minimizeCurrentActiveCall();
+	bool toggleFullScreenCurrentActiveCall();
 	bool closeCurrentActiveCall();
 	[[nodiscard]] auto getVideoCapture(
 		std::optional<QString> deviceId = std::nullopt,
@@ -100,10 +123,31 @@ public:
 		-> std::shared_ptr<tgcalls::VideoCaptureInterface>;
 	void requestPermissionsOrFail(Fn<void()> onSuccess, bool video = true);
 
-	void setCurrentAudioDevice(bool input, const QString &deviceId);
+	[[nodiscard]] const ConferenceInvites &conferenceInvites(
+		CallId conferenceId) const;
+	void registerConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user,
+		MsgId messageId,
+		bool incoming);
+	void unregisterConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user,
+		MsgId messageId,
+		bool incoming,
+		bool onlyStopCalling = false);
+	void showConferenceInvite(
+		not_null<UserData*> user,
+		MsgId conferenceInviteMsgId);
+	void declineIncomingConferenceInvites(CallId conferenceId);
+	void declineOutgoingConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user,
+		bool discard = false);
 
 	[[nodiscard]] FnMut<void()> addAsyncWaiter();
 
+	[[nodiscard]] bool isSharingScreen() const;
 	[[nodiscard]] bool isQuitPrevent();
 
 private:
@@ -113,8 +157,9 @@ private:
 	not_null<Media::Audio::Track*> ensureSoundLoaded(const QString &key);
 	void playSoundOnce(const QString &key);
 
-	void createCall(not_null<UserData*> user, CallType type, bool video);
+	void createCall(not_null<UserData*> user, CallType type, bool isVideo);
 	void destroyCall(not_null<Call*> call);
+	void finishConferenceInvitations(const StartConferenceInfo &args);
 
 	void createGroupCall(
 		Group::JoinInfo info,
@@ -134,7 +179,9 @@ private:
 	void refreshServerConfig(not_null<Main::Session*> session);
 	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
 
-	void destroyCurrentCall();
+	void destroyCurrentCall(
+		Data::GroupCall *migrateCall = nullptr,
+		const QString &migrateSlug = QString());
 	void handleCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPPhoneCall &call);
@@ -157,6 +204,7 @@ private:
 	std::unique_ptr<Panel> _currentCallPanel;
 
 	std::unique_ptr<GroupCall> _currentGroupCall;
+	std::unique_ptr<GroupCall> _startingGroupCall;
 	rpl::event_stream<GroupCall*> _currentGroupCallChanges;
 	std::unique_ptr<Group::Panel> _currentGroupCallPanel;
 
@@ -164,6 +212,8 @@ private:
 
 	const std::unique_ptr<Group::ChooseJoinAsProcess> _chooseJoinAs;
 	const std::unique_ptr<Group::StartRtmpProcess> _startWithRtmp;
+
+	base::flat_map<CallId, ConferenceInvites> _conferenceInvites;
 
 	base::flat_set<std::unique_ptr<crl::semaphore>> _asyncWaiters;
 

@@ -40,8 +40,12 @@ void HttpConnection::sendData(mtpBuffer &&buffer) {
 	int32 requestSize = (buffer.size() - 2) * sizeof(mtpPrime);
 
 	QNetworkRequest request(url());
-	request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
-	request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(qsl("application/x-www-form-urlencoded")));
+	request.setHeader(
+		QNetworkRequest::ContentLengthHeader,
+		QVariant(requestSize));
+	request.setHeader(
+		QNetworkRequest::ContentTypeHeader,
+		QVariant(u"application/x-www-form-urlencoded"_q));
 
 	CONNECTION_LOG_INFO(u"Sending %1 len request."_q.arg(requestSize));
 	_requests.insert(_manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
@@ -51,7 +55,8 @@ void HttpConnection::disconnectFromServer() {
 	if (_status == Status::Finished) return;
 	_status = Status::Finished;
 
-	for (const auto request : base::take(_requests)) {
+	const auto requests = base::take(_requests);
+	for (const auto request : requests) {
 		request->abort();
 		request->deleteLater();
 	}
@@ -81,8 +86,7 @@ void HttpConnection::connectToServer(
 	if (Logs::DebugEnabled()) {
 		_debugId = u"%1(dc:%2,%3)"_q
 			.arg(_debugId.toInt())
-			.arg(ProtocolDcDebugId(protocolDcId))
-			.arg(url().toDisplayString());
+			.arg(ProtocolDcDebugId(protocolDcId), url().toDisplayString());
 	}
 
 	_pingTime = crl::now();
@@ -255,27 +259,27 @@ QString HttpConnection::transport() const {
 	if (!isConnected()) {
 		return QString();
 	}
-	auto result = qsl("HTTP");
+	auto result = u"HTTP"_q;
 	if (qthelp::is_ipv6(_address)) {
-		result += qsl("/IPv6");
+		result += u"/IPv6"_q;
 	}
 	return result;
 }
 
 QString HttpConnection::tag() const {
-	auto result = qsl("HTTP");
+	auto result = u"HTTP"_q;
 	if (qthelp::is_ipv6(_address)) {
-		result += qsl("/IPv6");
+		result += u"/IPv6"_q;
 	} else {
-		result += qsl("/IPv4");
+		result += u"/IPv4"_q;
 	}
 	return result;
 }
 
 QUrl HttpConnection::url() const {
 	const auto pattern = qthelp::is_ipv6(_address)
-		? qsl("http://[%1]:%2/api")
-		: qsl("http://%1:%2/api");
+		? u"http://[%1]:%2/api"_q
+		: u"http://%1:%2/api"_q;
 
 	// Not endpoint.port - always 80 port for http transport.
 	return QUrl(pattern.arg(_address).arg(kForceHttpPort));

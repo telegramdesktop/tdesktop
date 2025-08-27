@@ -7,13 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/observer.h"
 #include "data/data_audio_msg_id.h"
 #include "data/data_shared_media.h"
 
 class AudioMsgId;
 class DocumentData;
 class History;
+
+namespace Media {
+enum class RepeatMode;
+enum class OrderMode;
+} // namespace Media
 
 namespace Media {
 namespace Audio {
@@ -46,18 +50,6 @@ namespace Player {
 
 extern const char kOptionDisableAutoplayNext[];
 
-enum class RepeatMode {
-	None,
-	One,
-	All,
-};
-
-enum class OrderMode {
-	Default,
-	Reverse,
-	Shuffle,
-};
-
 class Instance;
 struct TrackState;
 
@@ -70,7 +62,7 @@ void SaveLastPlaybackPosition(
 
 not_null<Instance*> instance();
 
-class Instance : private base::Subscriber {
+class Instance final {
 public:
 	enum class Seeking {
 		Start,
@@ -80,7 +72,7 @@ public:
 
 	void play(AudioMsgId::Type type);
 	void pause(AudioMsgId::Type type);
-	void stop(AudioMsgId::Type type);
+	void stop(AudioMsgId::Type type, bool asFinished = false);
 	void playPause(AudioMsgId::Type type);
 	bool next(AudioMsgId::Type type);
 	bool previous(AudioMsgId::Type type);
@@ -116,6 +108,9 @@ public:
 		HistoryItem *item) const;
 	[[nodiscard]] View::PlaybackProgress *roundVideoPlayback(
 		HistoryItem *item) const;
+
+	[[nodiscard]] Streaming::Instance *roundVideoPreview(
+		not_null<DocumentData*> document) const;
 
 	[[nodiscard]] AudioMsgId current(AudioMsgId::Type type) const {
 		if (const auto data = getData(type)) {
@@ -167,7 +162,10 @@ public:
 	[[nodiscard]] rpl::producer<Seeking> seekingChanges(
 		AudioMsgId::Type type) const;
 
-	[[nodiscard]] bool pauseGifByRoundVideo() const;
+	[[nodiscard]] rpl::producer<> closePlayerRequests() const {
+		return _closePlayerRequests.events();
+	}
+	void stopAndClose();
 
 private:
 	using SharedMediaType = Storage::SharedMediaType;
@@ -196,6 +194,7 @@ private:
 		rpl::event_stream<> playlistChanges;
 		History *history = nullptr;
 		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
 		History *migrated = nullptr;
 		Main::Session *session = nullptr;
 		bool isPlaying = false;
@@ -313,6 +312,7 @@ private:
 	rpl::event_stream<AudioMsgId::Type> _playerStartedPlay;
 	rpl::event_stream<TrackState> _updatedNotifier;
 	rpl::event_stream<SeekingChanges> _seekingChanges;
+	rpl::event_stream<> _closePlayerRequests;
 	rpl::lifetime _lifetime;
 
 };

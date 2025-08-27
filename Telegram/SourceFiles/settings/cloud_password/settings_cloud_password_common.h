@@ -7,12 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_common.h"
+#include "ui/text/text_variant.h"
 #include "ui/widgets/box_content_divider.h"
 
 namespace Ui {
-template <typename Widget>
-class CenterWrap;
 class FlatLabel;
 class InputField;
 class LinkButton;
@@ -34,6 +32,7 @@ struct StepData {
 	QString email;
 	int unconfirmedEmailLengthCode;
 	bool setOnlyRecoveryEmail = false;
+	bool suggestionValidate = false;
 
 	struct ProcessRecover {
 		bool setNewPassword = false;
@@ -43,21 +42,24 @@ struct StepData {
 	ProcessRecover processRecover;
 };
 
-void SetupAutoCloseTimer(rpl::lifetime &lifetime, Fn<void()> callback);
+void SetupAutoCloseTimer(
+	rpl::lifetime &lifetime,
+	Fn<void()> callback,
+	Fn<crl::time()> lastNonIdleTime);
 
 void SetupHeader(
 	not_null<Ui::VerticalLayout*> content,
 	const QString &lottie,
 	rpl::producer<> &&showFinished,
 	rpl::producer<QString> &&subtitle,
-	rpl::producer<QString> &&about);
+	v::text::data &&about);
 
 [[nodiscard]] not_null<Ui::PasswordInput*> AddPasswordField(
 	not_null<Ui::VerticalLayout*> content,
 	rpl::producer<QString> &&placeholder,
 	const QString &text);
 
-[[nodiscard]] not_null<Ui::CenterWrap<Ui::InputField>*> AddWrappedField(
+[[nodiscard]] not_null<Ui::InputField*> AddWrappedField(
 	not_null<Ui::VerticalLayout*> content,
 	rpl::producer<QString> &&placeholder,
 	const QString &text);
@@ -71,14 +73,14 @@ void SetupHeader(
 	rpl::producer<QString> &&text);
 
 [[nodiscard]] not_null<Ui::LinkButton*> AddLinkButton(
-	not_null<Ui::CenterWrap<Ui::InputField>*> wrap,
+	not_null<Ui::InputField*> input,
 	rpl::producer<QString> &&text);
 
 void AddSkipInsteadOfField(not_null<Ui::VerticalLayout*> content);
 void AddSkipInsteadOfError(not_null<Ui::VerticalLayout*> content);
 
 struct BottomButton {
-	QPointer<Ui::RpWidget> content;
+	base::weak_qptr<Ui::RpWidget> content;
 	rpl::producer<bool> isBottomFillerShown;
 };
 
@@ -99,74 +101,6 @@ protected:
 
 private:
 	Qt::Edges _skipEdges;
-
-};
-
-class AbstractStep : public AbstractSection {
-public:
-	using Types = std::vector<Type>;
-	AbstractStep(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller);
-	~AbstractStep();
-
-	void showFinished() override final;
-	void setInnerFocus() override final;
-	[[nodiscard]] rpl::producer<Type> sectionShowOther() override final;
-	[[nodiscard]] rpl::producer<> sectionShowBack() override final;
-
-	[[nodiscard]] rpl::producer<Types> removeFromStack() override final;
-
-	void setStepDataReference(std::any &data) override;
-
-protected:
-	[[nodiscard]] not_null<Window::SessionController*> controller() const;
-	[[nodiscard]] Api::CloudPassword &cloudPassword();
-
-	[[nodiscard]] virtual rpl::producer<Types> removeTypes();
-
-	bool isPasswordInvalidError(const QString &type);
-
-	void showBack();
-	void showOther(Type type);
-
-	void setFocusCallback(Fn<void()> callback);
-
-	[[nodiscard]] rpl::producer<> showFinishes() const;
-
-	StepData stepData() const;
-	void setStepData(StepData data);
-
-private:
-	const not_null<Window::SessionController*> _controller;
-
-	Fn<void()> _setInnerFocusCallback;
-
-	rpl::event_stream<> _showFinished;
-	rpl::event_stream<Type> _showOther;
-	rpl::event_stream<> _showBack;
-	rpl::event_stream<Types> _quits;
-
-	std::any *_stepData;
-
-};
-
-template <typename SectionType>
-class TypedAbstractStep : public AbstractStep {
-public:
-	using AbstractStep::AbstractStep;
-
-	void setStepDataReference(std::any &data) override final {
-		AbstractStep::setStepDataReference(data);
-		static_cast<SectionType*>(this)->setupContent();
-	}
-
-	[[nodiscard]] static Type Id() {
-		return &SectionMetaImplementation<SectionType>::Meta;
-	}
-	[[nodiscard]] Type id() const final override {
-		return Id();
-	}
 
 };
 

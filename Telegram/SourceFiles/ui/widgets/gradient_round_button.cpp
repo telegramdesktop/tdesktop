@@ -11,11 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 namespace Ui {
-namespace {
-
-constexpr auto kMaxGlareOpaque = 0.5;
-
-} // namespace
 
 GradientButton::GradientButton(QWidget *widget, QGradientStops stops)
 : RippleButton(widget, st::defaultRippleAnimation)
@@ -37,8 +32,7 @@ void GradientButton::paintGlare(QPainter &p) {
 	if (!_glare.glare.birthTime) {
 		return;
 	}
-	const auto progress = (crl::now() - _glare.glare.birthTime)
-		/ float64(_glare.glare.deathTime - _glare.glare.birthTime);
+	const auto progress = _glare.progress(crl::now());
 	const auto x = (-_glare.width) + (width() + _glare.width * 2) * progress;
 	const auto h = height();
 
@@ -86,49 +80,11 @@ void GradientButton::setGlarePaused(bool paused) {
 }
 
 void GradientButton::validateGlare() {
-	if (anim::Disabled()) {
-		return;
-	}
-	_glare.width = st::gradientButtonGlareWidth;
-	_glare.animation.init([=](crl::time now) {
-		if (const auto diff = (now - _glare.glare.deathTime); diff > 0) {
-			if (diff > st::gradientButtonGlareTimeout && !_glare.paused) {
-				_glare.glare = Glare{
-					.birthTime = now,
-					.deathTime = now + st::gradientButtonGlareDuration,
-				};
-				update();
-			}
-		} else {
-			update();
-		}
-	});
-	_glare.animation.start();
-	{
-		auto pixmap = QPixmap(QSize(_glare.width, 1)
-			* style::DevicePixelRatio());
-		pixmap.setDevicePixelRatio(style::DevicePixelRatio());
-		pixmap.fill(Qt::transparent);
-		{
-			auto p = QPainter(&pixmap);
-			auto gradient = QLinearGradient(
-				QPointF(0, 0),
-				QPointF(_glare.width, 0));
-
-			auto color = st::premiumButtonFg->c;
-			color.setAlphaF(0);
-			const auto edge = color;
-			color.setAlphaF(kMaxGlareOpaque);
-			const auto middle = color;
-			gradient.setStops({
-				{ 0., edge },
-				{ .5, middle },
-				{ 1., edge },
-			});
-			p.fillRect(pixmap.rect(), QBrush(gradient));
-		}
-		_glare.pixmap = std::move(pixmap);
-	}
+	_glare.validate(
+		st::premiumButtonFg->c,
+		[=] { update(); },
+		st::gradientButtonGlareTimeout,
+		st::gradientButtonGlareDuration);
 }
 
 void GradientButton::startGlareAnimation() {

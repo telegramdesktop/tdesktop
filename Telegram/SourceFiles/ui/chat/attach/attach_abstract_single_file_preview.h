@@ -11,13 +11,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_controls.h"
 #include "base/object_ptr.h"
 
+namespace style {
+struct ComposeControls;
+} // namespace style
+
 namespace Ui {
 
 class IconButton;
 
 class AbstractSingleFilePreview : public AbstractSinglePreview {
 public:
-	AbstractSingleFilePreview(QWidget *parent, AttachControls::Type type);
+	AbstractSingleFilePreview(
+		QWidget *parent,
+		const style::ComposeControls &st,
+		AttachControls::Type type);
 	~AbstractSingleFilePreview();
 
 	[[nodiscard]] rpl::producer<> deleteRequests() const override;
@@ -46,6 +53,7 @@ private:
 
 	void updateTextWidthFor(Data &data);
 
+	const style::ComposeControls &_st;
 	const AttachControls::Type _type;
 
 	Data _data;

@@ -40,6 +40,8 @@ public:
 	void applyUpdatesNoPtsCheck(const MTPUpdates &updates);
 	void applyUpdateNoPtsCheck(const MTPUpdate &update);
 
+	void checkForSentToScheduled(const MTPUpdates &updates);
+
 	[[nodiscard]] int32 pts() const;
 
 	void updateOnline(crl::time lastNonIdleTime = 0);
@@ -63,6 +65,7 @@ public:
 	void requestChannelRangeDifference(not_null<History*> history);
 
 	void addActiveChat(rpl::producer<PeerData*> chat);
+	[[nodiscard]] bool inActiveChats(not_null<PeerData*> peer) const;
 
 private:
 	enum class ChannelDifferenceRequest {
@@ -130,6 +133,9 @@ private:
 	// Doesn't call sendHistoryChangeNotifications itself.
 	void feedUpdate(const MTPUpdate &update);
 
+	void applyConvertToScheduledOnSend(
+		const MTPVector<MTPUpdate> &other,
+		bool skipScheduledCheck = false);
 	void applyGroupCallParticipantUpdates(const MTPUpdates &updates);
 
 	bool whenGetDiffChanged(
@@ -210,5 +216,8 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+[[nodiscard]] bool IsWithdrawalNotification(
+	const MTPDupdateServiceNotification &);
 
 } // namespace Api

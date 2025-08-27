@@ -8,13 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_dlls.h"
 
 #include "base/platform/win/base_windows_safe_library.h"
+#include "ui/gl/gl_detection.h"
 
 #include <VersionHelpers.h>
 #include <QtCore/QSysInfo>
 
 #define LOAD_SYMBOL(lib, name) ::base::Platform::LoadMethod(lib, #name, name)
 
+#ifdef DESKTOP_APP_USE_ANGLE
 bool DirectXResolveCompiler();
+#endif // DESKTOP_APP_USE_ANGLE
 
 namespace Platform {
 namespace Dlls {
@@ -34,7 +37,6 @@ SafeIniter::SafeIniter() {
 	LOAD_SYMBOL(LibShell32, OpenAs_RunDLL);
 	LOAD_SYMBOL(LibShell32, SHQueryUserNotificationState);
 	LOAD_SYMBOL(LibShell32, SHChangeNotify);
-	LOAD_SYMBOL(LibShell32, SetCurrentProcessExplicitAppUserModelID);
 
 	//if (IsWindows10OrGreater()) {
 	//	static const auto kSystemVersion = QOperatingSystemVersion::current();
@@ -61,6 +63,9 @@ SafeIniter::SafeIniter() {
 
 	const auto LibUser32 = LoadLibrary(L"user32.dll");
 	LOAD_SYMBOL(LibUser32, SetWindowCompositionAttribute);
+
+	const auto LibShCore = LoadLibrary(L"Shcore.dll");
+	LOAD_SYMBOL(LibShCore, GetDpiForMonitor);
 }
 
 SafeIniter kSafeIniter;
@@ -68,6 +73,7 @@ SafeIniter kSafeIniter;
 } // namespace
 
 void CheckLoadedModules() {
+#ifdef DESKTOP_APP_USE_ANGLE
 	if (DirectXResolveCompiler()) {
 		auto LibD3DCompiler = HMODULE();
 		if (GetModuleHandleEx(0, L"d3dcompiler_47.dll", &LibD3DCompiler)) {
@@ -89,6 +95,7 @@ void CheckLoadedModules() {
 	} else {
 		LOG(("Error: Could not resolve DirectX compiler library."));
 	}
+#endif // DESKTOP_APP_USE_ANGLE
 }
 
 } // namespace Dlls

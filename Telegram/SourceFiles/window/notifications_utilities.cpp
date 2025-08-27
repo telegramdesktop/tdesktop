@@ -15,8 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "styles/style_window.h"
 
-namespace Window {
-namespace Notifications {
+namespace Window::Notifications {
 namespace {
 
 // Delete notify photo file after 1 minute of not using.
@@ -24,10 +23,17 @@ constexpr int kNotifyDeletePhotoAfterMs = 60000;
 
 } // namespace
 
-CachedUserpics::CachedUserpics(Type type)
-: _type(type)
-, _clearTimer([=] { clear(); }) {
-	QDir().mkpath(cWorkingDir() + qsl("tdata/temp"));
+QImage GenerateUserpic(not_null<PeerData*> peer, Ui::PeerUserpicView &view) {
+	return peer->isSelf()
+		? Ui::EmptyUserpic::GenerateSavedMessages(st::notifyMacPhotoSize)
+		: peer->isRepliesChat()
+		? Ui::EmptyUserpic::GenerateRepliesMessages(st::notifyMacPhotoSize)
+		: PeerData::GenerateUserpicImage(peer, view, st::notifyMacPhotoSize);
+}
+
+CachedUserpics::CachedUserpics()
+: _clearTimer([=] { clear(); }) {
+	QDir().mkpath(cWorkingDir() + u"tdata/temp"_q);
 }
 
 CachedUserpics::~CachedUserpics() {
@@ -37,14 +43,14 @@ CachedUserpics::~CachedUserpics() {
 		}
 
 		// This works about 1200ms on Windows for a folder with one image O_o
-		//		base::Platform::DeleteDirectory(cWorkingDir() + qsl("tdata/temp"));
+		//base::Platform::DeleteDirectory(cWorkingDir() + u"tdata/temp"_q);
 	}
 }
 
 QString CachedUserpics::get(
 		const InMemoryKey &key,
 		not_null<PeerData*> peer,
-		std::shared_ptr<Data::CloudImageView> &view) {
+		Ui::PeerUserpicView &view) {
 	auto ms = crl::now();
 	auto i = _images.find(key);
 	if (i != _images.cend()) {
@@ -64,21 +70,7 @@ QString CachedUserpics::get(
 			cWorkingDir(),
 			QString::number(base::RandomValue<uint64>(), 16));
 		if (key.first || key.second) {
-			if (peer->isSelf()) {
-				const auto method = (_type == Type::Rounded)
-					? Ui::EmptyUserpic::GenerateSavedMessagesRounded
-					: Ui::EmptyUserpic::GenerateSavedMessages;
-				method(st::notifyMacPhotoSize).save(v.path, "PNG");
-			} else if (peer->isRepliesChat()) {
-				const auto method = (_type == Type::Rounded)
-					? Ui::EmptyUserpic::GenerateRepliesMessagesRounded
-					: Ui::EmptyUserpic::GenerateRepliesMessages;
-				method(st::notifyMacPhotoSize).save(v.path, "PNG");
-			} else if (_type == Type::Rounded) {
-				peer->saveUserpicRounded(view, v.path, st::notifyMacPhotoSize);
-			} else {
-				peer->saveUserpic(view, v.path, st::notifyMacPhotoSize);
-			}
+			GenerateUserpic(peer, view).save(v.path, "PNG");
 		} else {
 			LogoNoMargin().save(v.path, "PNG");
 		}
@@ -128,5 +120,4 @@ void CachedUserpics::clear() {
 	}
 }
 
-} // namespace Notifications
-} // namespace Window
+} // namespace Window::Notifications

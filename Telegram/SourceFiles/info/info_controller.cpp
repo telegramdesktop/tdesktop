@@ -8,9 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 
 #include "ui/search_field_controller.h"
-#include "data/data_shared_media.h"
+#include "history/history.h"
 #include "info/info_content_widget.h"
 #include "info/info_memento.h"
+#include "info/global_media/info_global_media_widget.h"
 #include "info/media/info_media_widget.h"
 #include "core/application.h"
 #include "data/data_changes.h"
@@ -19,7 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_forum_topic.h"
 #include "data/data_forum.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
+#include "data/data_shared_media.h"
 #include "data/data_media_types.h"
 #include "data/data_download_manager.h"
 #include "history/history_item.h"
@@ -34,14 +37,39 @@ Key::Key(not_null<PeerData*> peer) : _value(peer) {
 Key::Key(not_null<Data::ForumTopic*> topic) : _value(topic) {
 }
 
+Key::Key(not_null<Data::SavedSublist*> sublist) : _value(sublist) {
+}
+
 Key::Key(Settings::Tag settings) : _value(settings) {
 }
 
 Key::Key(Downloads::Tag downloads) : _value(downloads) {
 }
 
+Key::Key(Stories::Tag stories) : _value(stories) {
+}
+
+Key::Key(Statistics::Tag statistics) : _value(statistics) {
+}
+
+Key::Key(PeerGifts::Tag gifts) : _value(gifts) {
+}
+
+Key::Key(BotStarRef::Tag starref) : _value(starref) {
+}
+
+Key::Key(GlobalMedia::Tag global) : _value(global) {
+}
+
 Key::Key(not_null<PollData*> poll, FullMsgId contextId)
 : _value(PollKey{ poll, contextId }) {
+}
+
+Key::Key(
+	std::shared_ptr<Api::WhoReadList> whoReadIds,
+	Data::ReactionId selected,
+	FullMsgId contextId)
+: _value(ReactionsKey{ whoReadIds, selected, contextId }) {
 }
 
 PeerData *Key::peer() const {
@@ -49,6 +77,8 @@ PeerData *Key::peer() const {
 		return *peer;
 	} else if (const auto topic = this->topic()) {
 		return topic->channel();
+	} else if (const auto sublist = this->sublist()) {
+		return sublist->owningHistory()->peer;
 	}
 	return nullptr;
 }
@@ -57,6 +87,14 @@ Data::ForumTopic *Key::topic() const {
 	if (const auto topic = std::get_if<not_null<Data::ForumTopic*>>(
 			&_value)) {
 		return *topic;
+	}
+	return nullptr;
+}
+
+Data::SavedSublist *Key::sublist() const {
+	if (const auto sublist = std::get_if<not_null<Data::SavedSublist*>>(
+			&_value)) {
+		return *sublist;
 	}
 	return nullptr;
 }
@@ -72,6 +110,66 @@ bool Key::isDownloads() const {
 	return v::is<Downloads::Tag>(_value);
 }
 
+bool Key::isGlobalMedia() const {
+	return v::is<GlobalMedia::Tag>(_value);
+}
+
+PeerData *Key::storiesPeer() const {
+	if (const auto tag = std::get_if<Stories::Tag>(&_value)) {
+		return tag->peer;
+	}
+	return nullptr;
+}
+
+int Key::storiesAlbumId() const {
+	if (const auto tag = std::get_if<Stories::Tag>(&_value)) {
+		return tag->albumId;
+	}
+	return 0;
+}
+
+int Key::storiesAddToAlbumId() const {
+	if (const auto tag = std::get_if<Stories::Tag>(&_value)) {
+		return tag->addingToAlbumId;
+	}
+	return 0;
+}
+
+PeerData *Key::giftsPeer() const {
+	if (const auto tag = std::get_if<PeerGifts::Tag>(&_value)) {
+		return tag->peer;
+	}
+	return nullptr;
+}
+
+int Key::giftsCollectionId() const {
+	if (const auto tag = std::get_if<PeerGifts::Tag>(&_value)) {
+		return tag->collectionId;
+	}
+	return 0;
+}
+
+Statistics::Tag Key::statisticsTag() const {
+	if (const auto tag = std::get_if<Statistics::Tag>(&_value)) {
+		return *tag;
+	}
+	return Statistics::Tag();
+}
+
+PeerData *Key::starrefPeer() const {
+	if (const auto tag = std::get_if<BotStarRef::Tag>(&_value)) {
+		return tag->peer;
+	}
+	return nullptr;
+}
+
+BotStarRef::Type Key::starrefType() const {
+	if (const auto tag = std::get_if<BotStarRef::Tag>(&_value)) {
+		return tag->type;
+	}
+	return BotStarRef::Type();
+}
+
 PollData *Key::poll() const {
 	if (const auto data = std::get_if<PollKey>(&_value)) {
 		return data->poll;
@@ -81,6 +179,27 @@ PollData *Key::poll() const {
 
 FullMsgId Key::pollContextId() const {
 	if (const auto data = std::get_if<PollKey>(&_value)) {
+		return data->contextId;
+	}
+	return FullMsgId();
+}
+
+std::shared_ptr<Api::WhoReadList> Key::reactionsWhoReadIds() const {
+	if (const auto data = std::get_if<ReactionsKey>(&_value)) {
+		return data->whoReadIds;
+	}
+	return nullptr;
+}
+
+Data::ReactionId Key::reactionsSelected() const {
+	if (const auto data = std::get_if<ReactionsKey>(&_value)) {
+		return data->selected;
+	}
+	return Data::ReactionId();
+}
+
+FullMsgId Key::reactionsContextId() const {
+	if (const auto data = std::get_if<ReactionsKey>(&_value)) {
 		return data->contextId;
 	}
 	return FullMsgId();
@@ -115,6 +234,7 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 			SparseIdsMergedSlice::Key(
 				peer()->id,
 				topicId,
+				sublist() ? sublist()->sublistPeer()->id : PeerId(),
 				migratedPeerId(),
 				aroundId),
 			section().mediaType()),
@@ -156,6 +276,19 @@ PollData *AbstractController::poll() const {
 	return nullptr;
 }
 
+auto AbstractController::reactionsWhoReadIds() const
+-> std::shared_ptr<Api::WhoReadList> {
+	return key().reactionsWhoReadIds();
+}
+
+Data::ReactionId AbstractController::reactionsSelected() const {
+	return key().reactionsSelected();
+}
+
+FullMsgId AbstractController::reactionsContextId() const {
+	return key().reactionsContextId();
+}
+
 void AbstractController::showSection(
 		std::shared_ptr<Window::SectionMemento> memento,
 		const Window::SectionShow &params) {
@@ -188,6 +321,10 @@ Controller::Controller(
 	updateSearchControllers(memento);
 	setupMigrationViewer();
 	setupTopicViewer();
+}
+
+void Controller::replaceKey(Key key) {
+	_key = key;
 }
 
 void Controller::setupMigrationViewer() {
@@ -245,11 +382,19 @@ rpl::producer<Wrap> Controller::wrapValue() const {
 	return _widget->wrapValue();
 }
 
+not_null<Ui::RpWidget*> Controller::wrapWidget() const {
+	return _widget;
+}
+
 bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peer() == peer()
 		&& memento->migratedPeerId() == migratedPeerId()
-		&& memento->settingsSelf() == settingsSelf();
+		&& memento->settingsSelf() == settingsSelf()
+		&& memento->storiesPeer() == storiesPeer()
+		&& memento->statisticsTag().peer == statisticsTag().peer
+		&& memento->starrefPeer() == starrefPeer()
+		&& memento->starrefType() == starrefType();
 }
 
 void Controller::setSection(not_null<ContentMemento*> memento) {
@@ -257,32 +402,38 @@ void Controller::setSection(not_null<ContentMemento*> memento) {
 	updateSearchControllers(memento);
 }
 
+bool Controller::hasBackButton() const {
+	return _widget->hasBackButton();
+}
+
 void Controller::updateSearchControllers(
 		not_null<ContentMemento*> memento) {
 	using Type = Section::Type;
 	const auto type = _section.type();
-	const auto isMedia = (type == Type::Media);
+	const auto isMedia = (type == Type::Media)
+		|| (type == Type::GlobalMedia);
 	const auto mediaType = isMedia
 		? _section.mediaType()
 		: Section::MediaType::kCount;
 	const auto hasMediaSearch = isMedia
 		&& SharedMediaAllowSearch(mediaType);
+	const auto hasRequestsListSearch = (type == Type::RequestsList);
 	const auto hasCommonGroupsSearch = (type == Type::CommonGroups);
 	const auto hasDownloadsSearch = (type == Type::Downloads);
 	const auto hasMembersSearch = (type == Type::Members)
 		|| (type == Type::Profile);
 	const auto searchQuery = memento->searchFieldQuery();
-	if (isMedia) {
+	if (type == Type::Media) {
 		_searchController
 			= std::make_unique<Api::DelayedSearchController>(&session());
 		auto mediaMemento = dynamic_cast<Media::Memento*>(memento.get());
 		Assert(mediaMemento != nullptr);
-		_searchController->restoreState(
-			mediaMemento->searchState());
+		_searchController->restoreState(mediaMemento->searchState());
 	} else {
 		_searchController = nullptr;
 	}
 	if (hasMediaSearch
+		|| hasRequestsListSearch
 		|| hasCommonGroupsSearch
 		|| hasDownloadsSearch
 		|| hasMembersSearch) {
@@ -358,7 +509,8 @@ rpl::producer<QString> Controller::mediaSourceQueryValue() const {
 }
 
 rpl::producer<QString> Controller::searchQueryValue() const {
-	return searchFieldController()->queryValue();
+	const auto controller = searchFieldController();
+	return controller ? controller->queryValue() : rpl::single(QString());
 }
 
 rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
@@ -379,6 +531,7 @@ rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 			SparseIdsMergedSlice::Key(
 				query.peerId,
 				query.topicRootId,
+				query.monoforumPeerId,
 				query.migratedPeerId,
 				aroundId),
 			query.type),

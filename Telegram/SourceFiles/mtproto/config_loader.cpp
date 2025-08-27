@@ -116,7 +116,7 @@ void ConfigLoader::enumerate() {
 }
 
 void ConfigLoader::refreshSpecialLoader() {
-	if (_proxyEnabled) {
+	if (_proxyEnabled || _instance->isKeysDestroyer()) {
 		_specialLoader.reset();
 		return;
 	}
@@ -136,6 +136,7 @@ void ConfigLoader::setPhone(const QString &phone) {
 }
 
 void ConfigLoader::createSpecialLoader() {
+	const auto testMode = _instance->isTestMode();
 	_triedSpecialEndpoints.clear();
 	_specialLoader = std::make_unique<SpecialConfigRequest>([=](
 			DcId dcId,
@@ -147,7 +148,7 @@ void ConfigLoader::createSpecialLoader() {
 		} else {
 			addSpecialEndpoint(dcId, ip, port, secret);
 		}
-	}, _instance->configValues().txtDomainString, _phone);
+	}, testMode, _instance->configValues().txtDomainString, _phone);
 }
 
 void ConfigLoader::addSpecialEndpoint(

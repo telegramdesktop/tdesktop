@@ -14,12 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_forum_topic.h"
 #include "data/data_chat_filters.h"
+#include "data/data_saved_sublist.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "ui/text/text_options.h"
+#include "ui/ui_utility.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "styles/style_dialogs.h" // st::dialogsTextWidthMin
@@ -82,7 +84,9 @@ Entry::Entry(not_null<Data::Session*> owner, Type type)
 , _flags((type == Type::History)
 	? (Flag::IsThread | Flag::IsHistory)
 	: (type == Type::ForumTopic)
-	? Flag::IsThread
+	? (Flag::IsThread | Flag::IsForumTopic)
+	: (type == Type::SavedSublist)
+	? (Flag::IsThread | Flag::IsSavedSublist)
 	: Flag(0)) {
 }
 
@@ -121,8 +125,14 @@ Data::Thread *Entry::asThread() {
 }
 
 Data::ForumTopic *Entry::asTopic() {
-	return ((_flags & Flag::IsThread) && !(_flags & Flag::IsHistory))
+	return (_flags & Flag::IsForumTopic)
 		? static_cast<Data::ForumTopic*>(this)
+		: nullptr;
+}
+
+Data::SavedSublist *Entry::asSublist() {
+	return (_flags & Flag::IsSavedSublist)
+		? static_cast<Data::SavedSublist*>(this)
 		: nullptr;
 }
 
@@ -144,6 +154,10 @@ const Data::Thread *Entry::asThread() const {
 
 const Data::ForumTopic *Entry::asTopic() const {
 	return const_cast<Entry*>(this)->asTopic();
+}
+
+const Data::SavedSublist *Entry::asSublist() const {
+	return const_cast<Entry*>(this)->asSublist();
 }
 
 void Entry::pinnedIndexChanged(FilterId filterId, int was, int now) {
@@ -215,6 +229,13 @@ uint64 Entry::computeSortPosition(FilterId filterId) const {
 }
 
 void Entry::updateChatListExistence() {
+	if (const auto history = asHistory()) {
+		if (history->peer->asMonoforum()) {
+			if (!folderKnown()) {
+				history->clearFolder();
+			}
+		}
+	}
 	setChatListExistence(shouldBeInChatList());
 }
 
@@ -240,8 +261,36 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 			return state.messages || state.marks || state.mentions;
 		};
 		if (isForFilters(wasState) != isForFilters(nowState)) {
+			const auto wasTags = _tagColors.size();
 			owner().chatsFilters().refreshHistory(history);
+
+			// Hack for History::fakeUnreadWhileOpened().
+			if (!isForFilters(nowState)
+				&& (wasTags > 0)
+				&& (wasTags == _tagColors.size())) {
+				auto updateRequested = false;
+				for (const auto &filter : filters.list()) {
+					if (!(filter.flags() & Data::ChatFilter::Flag::NoRead)
+						|| !_chatListLinks.contains(filter.id())
+						|| filter.contains(history, true)) {
+						continue;
+					}
+					const auto wasTagsCount = _tagColors.size();
+					setColorIndexForFilterId(filter.id(), std::nullopt);
+					updateRequested |= (wasTagsCount != _tagColors.size());
+				}
+				if (updateRequested) {
+					updateChatListEntryHeight();
+					session().changes().peerUpdated(
+						history->peer,
+						Data::PeerUpdate::Flag::Name);
+				}
+			}
 		}
+	} else if (const auto sublist = asSublist()) {
+		session().changes().sublistUpdated(
+			sublist,
+			Data::SublistUpdate::Flag::UnreadView);
 	}
 	updateChatListEntryPostponed();
 }
@@ -300,10 +349,10 @@ PositionChange Entry::adjustByPosInChatList(
 		not_null<MainList*> list) {
 	const auto links = chatListLinks(filterId);
 	Assert(links != nullptr);
-	const auto from = links->main->pos();
+	const auto from = links->main->top();
 	list->indexed()->adjustByDate(*links);
-	const auto to = links->main->pos();
-	return { from, to };
+	const auto to = links->main->top();
+	return { .from = from, .to = to, .height = links->main->height() };
 }
 
 void Entry::setChatListTimeId(TimeId date) {
@@ -315,12 +364,32 @@ void Entry::setChatListTimeId(TimeId date) {
 }
 
 int Entry::posInChatList(FilterId filterId) const {
-	return mainChatListLink(filterId)->pos();
+	return mainChatListLink(filterId)->index();
+}
+
+void Entry::setColorIndexForFilterId(
+		FilterId filterId,
+		std::optional<uint8> colorIndex) {
+	if (!filterId) {
+		return;
+	}
+	if (colorIndex) {
+		_tagColors[filterId] = *colorIndex;
+	} else {
+		_tagColors.remove(filterId);
+	}
 }
 
 not_null<Row*> Entry::addToChatList(
 		FilterId filterId,
 		not_null<MainList*> list) {
+	if (filterId) {
+		const auto &list = owner().chatsFilters().list();
+		const auto it = ranges::find(list, filterId, &Data::ChatFilter::id);
+		if (it != end(list)) {
+			setColorIndexForFilterId(filterId, it->colorIndex());
+		}
+	}
 	if (const auto main = maybeMainChatListLink(filterId)) {
 		return main;
 	}
@@ -333,8 +402,14 @@ not_null<Row*> Entry::addToChatList(
 void Entry::removeFromChatList(
 		FilterId filterId,
 		not_null<MainList*> list) {
-	if (!asTopic() && isPinnedDialog(filterId)) {
+	if (isPinnedDialog(filterId)) {
 		owner().setChatPinned(this, filterId, false);
+	}
+	if (filterId) {
+		const auto it = _tagColors.find(filterId);
+		if (it != end(_tagColors)) {
+			_tagColors.erase(it);
+		}
 	}
 
 	const auto i = _chatListLinks.find(filterId);
@@ -377,6 +452,24 @@ void Entry::updateChatListEntryPostponed() {
 			updateChatListEntry();
 		}
 	});
+}
+
+void Entry::updateChatListEntryHeight() {
+	session().changes().entryUpdated(this, Data::EntryUpdate::Flag::Height);
+}
+
+[[nodiscard]] bool Entry::hasChatsFilterTags(FilterId exclude) const {
+	if (!owner().chatsFilters().tagsEnabled()) {
+		return false;
+	}
+	if (exclude) {
+		if (_tagColors.size() == 1) {
+			if (_tagColors.begin()->first == exclude) {
+				return false;
+			}
+		}
+	}
+	return !_tagColors.empty();
 }
 
 } // namespace Dialogs

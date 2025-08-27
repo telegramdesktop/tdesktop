@@ -44,8 +44,6 @@ public:
 	[[nodiscard]] int oldVersion() const;
 	void clearOldVersion();
 
-	[[nodiscard]] QString webviewDataPath() const;
-
 	[[nodiscard]] rpl::producer<> localPasscodeChanged() const;
 	[[nodiscard]] bool hasLocalPasscode() const;
 

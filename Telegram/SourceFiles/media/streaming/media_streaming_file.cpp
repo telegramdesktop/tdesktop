@@ -150,7 +150,7 @@ Stream File::Context::initStream(
 		not_null<AVFormatContext*> format,
 		AVMediaType type,
 		Mode mode,
-		bool hwAllowed) {
+		StartOptions options) {
 	auto result = Stream();
 	const auto index = result.index = av_find_best_stream(
 		format,
@@ -171,7 +171,7 @@ Stream File::Context::initStream(
 		}
 		result.codec = FFmpeg::MakeCodecPointer({
 			.stream = info,
-			.hwAllowed = hwAllowed,
+			.hwAllowed = options.hwAllow,
 		});
 		if (!result.codec) {
 			return result;
@@ -196,7 +196,9 @@ Stream File::Context::initStream(
 		return result;
 	}
 	result.timeBase = info->time_base;
-	result.duration = (info->duration != AV_NOPTS_VALUE)
+	result.duration = options.durationOverride
+		? options.durationOverride
+		: (info->duration != AV_NOPTS_VALUE)
 		? FFmpeg::PtsToTime(info->duration, result.timeBase)
 		: UnreliableFormatDuration(format, info, mode)
 		? kTimeUnknown
@@ -269,17 +271,19 @@ std::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap> File::Context::readPacket() {
 	return error;
 }
 
-void File::Context::start(crl::time position, bool hwAllow) {
+void File::Context::start(StartOptions options) {
+	Expects(options.seekable || !options.position);
+
 	auto error = FFmpeg::AvErrorWrap();
 
 	if (unroll()) {
 		return;
 	}
 	auto format = FFmpeg::MakeFormatPointer(
-		static_cast<void *>(this),
+		static_cast<void*>(this),
 		&Context::Read,
 		nullptr,
-		&Context::Seek);
+		options.seekable ? &Context::Seek : nullptr);
 	if (!format) {
 		return fail(Error::OpenFailed);
 	}
@@ -289,12 +293,20 @@ void File::Context::start(crl::time position, bool hwAllow) {
 	}
 
 	const auto mode = _delegate->fileOpenMode();
-	auto video = initStream(format.get(), AVMEDIA_TYPE_VIDEO, mode, hwAllow);
+	auto video = initStream(
+		format.get(),
+		AVMEDIA_TYPE_VIDEO,
+		mode,
+		options);
 	if (unroll()) {
 		return;
 	}
 
-	auto audio = initStream(format.get(), AVMEDIA_TYPE_AUDIO, mode, false);
+	auto audio = initStream(
+		format.get(),
+		AVMEDIA_TYPE_AUDIO,
+		mode,
+		options);
 	if (unroll()) {
 		return;
 	}
@@ -303,8 +315,11 @@ void File::Context::start(crl::time position, bool hwAllow) {
 	if (_reader->isRemoteLoader()) {
 		sendFullInCache(true);
 	}
-	if (video.codec || audio.codec) {
-		seekToPosition(format.get(), video.codec ? video : audio, position);
+	if (options.seekable && (video.codec || audio.codec)) {
+		seekToPosition(
+			format.get(),
+			video.codec ? video : audio,
+			options.position);
 	}
 	if (unroll()) {
 		return;
@@ -434,10 +449,7 @@ File::File(std::shared_ptr<Reader> reader)
 : _reader(std::move(reader)) {
 }
 
-void File::start(
-		not_null<FileDelegate*> delegate,
-		crl::time position,
-		bool hwAllow) {
+void File::start(not_null<FileDelegate*> delegate, StartOptions options) {
 	stop(true);
 
 	_reader->startStreaming();
@@ -445,7 +457,7 @@ void File::start(
 
 	_thread = std::thread([=, context = &*_context] {
 		crl::toggle_fp_exceptions(true);
-		context->start(position, hwAllow);
+		context->start(options);
 		while (!context->finished()) {
 			context->readNextPacket();
 		}
@@ -476,6 +488,14 @@ bool File::isRemoteLoader() const {
 
 void File::setLoaderPriority(int priority) {
 	_reader->setLoaderPriority(priority);
+}
+
+int64 File::size() const {
+	return _reader->size();
+}
+
+rpl::producer<SpeedEstimate> File::speedEstimate() const {
+	return _reader->speedEstimate();
 }
 
 File::~File() {

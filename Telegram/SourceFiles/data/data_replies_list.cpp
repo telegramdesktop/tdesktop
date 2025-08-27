@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_service.h"
+#include "history/history_item_helpers.h"
 #include "main/main_session.h"
 #include "data/data_histories.h"
 #include "data/data_session.h"
@@ -30,15 +30,15 @@ constexpr auto kMessagesPerPage = 50;
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
 constexpr auto kMaxMessagesToDeleteMyTopic = 10;
 
-[[nodiscard]] HistoryService *GenerateDivider(
+[[nodiscard]] HistoryItem *GenerateDivider(
 		not_null<History*> history,
 		TimeId date,
 		const QString &text) {
-	return history->makeServiceMessage(
-		history->nextNonHistoryEntryId(),
-		MessageFlag::FakeHistoryItem,
-		date,
-		HistoryService::PreparedText{ { .text = text } });
+	return history->makeMessage({
+		.id = history->nextNonHistoryEntryId(),
+		.flags = MessageFlag::FakeHistoryItem,
+		.date = date,
+	}, PreparedServiceText{ { .text = text } });
 }
 
 [[nodiscard]] bool IsCreating(not_null<History*> history, MsgId rootId) {
@@ -276,6 +276,10 @@ rpl::producer<int> RepliesList::fullCount() const {
 	return _fullCount.value() | rpl::filter_optional();
 }
 
+rpl::producer<std::optional<int>> RepliesList::maybeFullCount() const {
+	return _fullCount.value();
+}
+
 bool RepliesList::unreadCountKnown() const {
 	return _unreadCount.current().has_value();
 }
@@ -300,7 +304,9 @@ void RepliesList::injectRootMessage(not_null<Viewer*> viewer) {
 		return;
 	}
 	const auto root = lookupRoot();
-	if (!root || root->topicRootId()) {
+	if (!root
+		|| (_rootId == Data::ForumTopic::kGeneralId)
+		|| (root->topicRootId() != Data::ForumTopic::kGeneralId)) {
 		return;
 	}
 	injectRootDivider(root, slice);
@@ -339,7 +345,7 @@ void RepliesList::injectRootDivider(
 			text());
 	} else if (_dividerWithComments != withComments) {
 		_dividerWithComments = withComments;
-		_divider->setServiceText(HistoryService::PreparedText{ { text() } });
+		_divider->updateServiceText(PreparedServiceText{ { text() } });
 	}
 	slice->ids.push_back(_divider->fullId());
 }
@@ -360,7 +366,17 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	const auto around = [&] {
 		if (viewer->around != ShowAtUnreadMsgId) {
 			return viewer->around;
-		} else if (const auto item = lookupRoot()) {
+		} else if (lookupRoot()) {
+			return computeInboxReadTillFull();
+		} else if (_owningTopic) {
+			// Somehow we don't want always to jump to computed inboxReadTill
+			// (this was in the code before, but I don't remember why).
+			// Maybe in case we "View Thread" from a group we don't really
+			// want to jump to unread inside thread, cause it isn't defined.
+			//
+			// But in case of topics we definitely want to support jumping
+			// to the first unread, even if it is General topic without the
+			// actual root message or it is a broken topic without root.
 			return computeInboxReadTillFull();
 		}
 		return viewer->around;
@@ -657,25 +673,6 @@ void RepliesList::loadAfter() {
 bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	const auto guard = gsl::finally([&] { _listChanges.fire({}); });
 
-	const auto fullCount = result.match([&](
-			const MTPDmessages_messagesNotModified &) {
-		LOG(("API Error: received messages.messagesNotModified! "
-			"(HistoryWidget::messagesReceived)"));
-		return 0;
-	}, [&](const MTPDmessages_messages &data) {
-		return int(data.vmessages().v.size());
-	}, [&](const MTPDmessages_messagesSlice &data) {
-		return data.vcount().v;
-	}, [&](const MTPDmessages_channelMessages &data) {
-		if (_history->peer->isChannel()) {
-			_history->peer->asChannel()->ptsReceived(data.vpts().v);
-		} else {
-			LOG(("API Error: received messages.channelMessages when "
-				"no channel was passed! (HistoryWidget::messagesReceived)"));
-		}
-		return data.vcount().v;
-	});
-
 	auto &owner = _history->owner();
 	const auto list = result.match([&](
 			const MTPDmessages_messagesNotModified &) {
@@ -687,6 +684,27 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		owner.processChats(data.vchats());
 		return data.vmessages().v;
 	});
+
+	const auto fullCount = result.match([&](
+			const MTPDmessages_messagesNotModified &) {
+		LOG(("API Error: received messages.messagesNotModified! "
+			"(HistoryWidget::messagesReceived)"));
+		return 0;
+	}, [&](const MTPDmessages_messages &data) {
+		return int(data.vmessages().v.size());
+	}, [&](const MTPDmessages_messagesSlice &data) {
+		return data.vcount().v;
+	}, [&](const MTPDmessages_channelMessages &data) {
+		if (const auto channel = _history->peer->asChannel()) {
+			channel->ptsReceived(data.vpts().v);
+			channel->processTopics(data.vtopics());
+		} else {
+			LOG(("API Error: received messages.channelMessages when "
+				"no channel was passed! (HistoryWidget::messagesReceived)"));
+		}
+		return data.vcount().v;
+	});
+
 	if (list.isEmpty()) {
 		return true;
 	}
@@ -852,7 +870,13 @@ std::optional<int> RepliesList::computeUnreadCountLocally(
 		MsgId afterId) const {
 	Expects(afterId >= _inboxReadTillId);
 
-	const auto wasUnreadCountAfter = _unreadCount.current();
+	const auto currentUnreadCountAfter = _unreadCount.current();
+	const auto startingMarkingAsRead = (currentUnreadCountAfter == 0)
+		&& (_inboxReadTillId == 1)
+		&& (afterId > 1);
+	const auto wasUnreadCountAfter = startingMarkingAsRead
+		? _fullCount.current().value_or(0)
+		: currentUnreadCountAfter;
 	const auto readTillId = std::max(afterId, _rootId);
 	const auto wasReadTillId = _inboxReadTillId;
 	const auto backLoaded = (_skippedBefore == 0);

@@ -1,0 +1,9 @@
+<RCC>
+  <qresource prefix="/iv">
+    <file alias="page.css">../../iv_html/page.css</file>
+    <file alias="page.js">../../iv_html/page.js</file>
+    <file alias="highlight.css">../../iv_html/highlight.9.12.0.css</file>
+    <file alias="highlight.js">../../iv_html/highlight.9.12.0.js</file>
+    <file alias="morphdom.js">../../iv_html/morphdom-umd.min.2.7.2.js</file>
+  </qresource>
+</RCC>

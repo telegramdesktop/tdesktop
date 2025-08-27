@@ -154,7 +154,7 @@ void StickerToast::showWithTitle(const QString &title) {
 		? tr::lng_animated_emoji_saved_open(tr::now)
 		: tr::lng_sticker_premium_view(tr::now);
 	_st.padding.setLeft(skip + size + skip);
-	_st.padding.setRight(st::historyPremiumViewSet.font->width(view)
+	_st.padding.setRight(st::historyPremiumViewSet.style.font->width(view)
 		- st::historyPremiumViewSet.width);
 
 	clearHiddenHiding();
@@ -165,16 +165,14 @@ void StickerToast::showWithTitle(const QString &title) {
 	_weak = Ui::Toast::Show(_parent, Ui::Toast::Config{
 		.text = text,
 		.st = &_st,
-		.durationMs = kPremiumToastDuration,
-		.multiline = true,
-		.dark = true,
-		.slideSide = RectPart::Bottom,
+		.attach = RectPart::Bottom,
+		.acceptinput = true,
+		.duration = kPremiumToastDuration,
 	});
 	const auto strong = _weak.get();
 	if (!strong) {
 		return;
 	}
-	strong->setInputUsed(true);
 	const auto widget = strong->widget();
 	const auto hideToast = [weak = _weak] {
 		if (const auto strong = weak.get()) {
@@ -238,10 +236,10 @@ void StickerToast::showWithTitle(const QString &title) {
 			&& (i->second->flags & Data::StickersSetFlag::Installed)) {
 			ShowPremiumPreviewBox(
 				_controller,
-				PremiumPreview::AnimatedEmoji);
+				PremiumFeature::AnimatedEmoji);
 		} else {
 			_controller->show(Box<StickerSetBox>(
-				_controller,
+				_controller->uiShow(),
 				_for->sticker()->set,
 				setType));
 		}
@@ -311,7 +309,7 @@ void StickerToast::setupEmojiPreview(
 		const auto size = Ui::Emoji::GetSizeLarge()
 			/ style::DevicePixelRatio();
 		instance->object.paint(p, Ui::Text::CustomEmoji::Context{
-			.preview = st::toastBg->c,
+			.textColor = st::toastFg->c,
 			.now = crl::now(),
 			.position = QPoint(
 				(widget->width() - size) / 2,
@@ -325,9 +323,10 @@ void StickerToast::setupLottiePreview(not_null<Ui::RpWidget*> widget, int size) 
 
 	const auto bytes = _for->createMediaView()->bytes();
 	const auto filepath = _for->filepath();
+	const auto ratio = style::DevicePixelRatio();
 	const auto player = widget->lifetime().make_state<Lottie::SinglePlayer>(
 		Lottie::ReadContent(bytes, filepath),
-		Lottie::FrameRequest{ QSize(size, size) },
+		Lottie::FrameRequest{ QSize(size, size) * ratio },
 		Lottie::Quality::Default);
 
 	widget->paintRequest(
@@ -337,7 +336,7 @@ void StickerToast::setupLottiePreview(not_null<Ui::RpWidget*> widget, int size) 
 		}
 		const auto image = player->frame();
 		QPainter(widget).drawImage(
-			QRect(QPoint(), image.size() / image.devicePixelRatio()),
+			QRect(QPoint(), image.size() / ratio),
 			image);
 		player->markFrameShown();
 	}, widget->lifetime());

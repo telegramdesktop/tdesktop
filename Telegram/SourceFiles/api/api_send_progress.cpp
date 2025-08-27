@@ -141,7 +141,7 @@ void SendProgressManager::send(const Key &key, int progress) {
 		MTP_int(key.topMsgId),
 		action
 	)).done([=](const MTPBool &result, mtpRequestId requestId) {
-		done(result, requestId);
+		done(requestId);
 	}).send();
 	_requests.emplace(key, requestId);
 
@@ -161,19 +161,16 @@ bool SendProgressManager::skipRequest(const Key &key) const {
 		return true;
 	}
 	const auto recently = base::unixtime::now() - kSendTypingsToOfflineFor;
-	const auto online = user->onlineTill;
-	if (online == -2) { // last seen recently
+	const auto lastseen = user->lastseen();
+	if (lastseen.isRecently()) {
 		return false;
-	} else if (online < 0) {
-		return (-online < recently);
-	} else {
-		return (online < recently);
+	} else if (const auto value = lastseen.onlineTill()) {
+		return (value < recently);
 	}
+	return true;
 }
 
-void SendProgressManager::done(
-		const MTPBool &result,
-		mtpRequestId requestId) {
+void SendProgressManager::done(mtpRequestId requestId) {
 	for (auto i = _requests.begin(), e = _requests.end(); i != e; ++i) {
 		if (i->second == requestId) {
 			_requests.erase(i);

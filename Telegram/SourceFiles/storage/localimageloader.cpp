@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "base/options.h"
 #include "base/unixtime.h"
 #include "base/random.h"
 #include "editor/scene/scene_item_sticker.h"
@@ -24,9 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "boxes/abstract_box.h"
 #include "boxes/send_files_box.h"
 #include "boxes/premium_limits_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "storage/file_download.h"
@@ -38,7 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageWriter>
-#include <QtGui/QColorSpace>
 
 namespace {
 
@@ -48,6 +50,13 @@ constexpr auto kPhotoUploadPartSize = 32 * 1024;
 constexpr auto kRecompressAfterBpp = 4;
 
 using Ui::ValidateThumbDimensions;
+
+base::options::toggle SendLargePhotos({
+	.id = kOptionSendLargePhotos,
+	.name = "Send large photos",
+	.description = "Increase the side limit on compressed images to 2560px.",
+});
+std::atomic<bool> SendLargePhotosAtomic/* = false*/;
 
 struct PreparedFileThumbnail {
 	uint64 id = 0;
@@ -112,7 +121,7 @@ struct PreparedFileThumbnail {
 		const QString &filemime,
 		int64 filesize,
 		bool isSticker) {
-	prepared.name = isSticker ? qsl("thumb.webp") : qsl("thumb.jpg");
+	prepared.name = isSticker ? u"thumb.webp"_q : u"thumb.jpg"_q;
 	if (FileThumbnailUploadRequired(filemime, filesize)) {
 		const auto format = isSticker ? "WEBP" : "JPG";
 		auto buffer = QBuffer(&prepared.bytes);
@@ -175,15 +184,17 @@ struct PreparedFileThumbnail {
 	if (!bytes.isEmpty()
 		&& (bytes.size()
 			<= full.width() * full.height() * kRecompressAfterBpp / 8)
-		&& (format == u"jpeg"_q)
-		&& Images::IsProgressiveJpeg(bytes)) {
-		return bytes;
+		&& (format == u"jpeg"_q)) {
+		if (!Images::IsProgressiveJpeg(bytes)) {
+			if (const auto result = Images::MakeProgressiveJpeg(bytes)
+				; !result.isEmpty()) {
+				return result;
+			}
+		} else {
+			return bytes;
+		}
 	}
 
-	// We have an example of dark .png image that when being sent without
-	// removing its color space is displayed fine on tdesktop, but with
-	// a light gray background on mobile apps.
-	full.setColorSpace(QColorSpace());
 	auto result = QByteArray();
 	QBuffer buffer(&result);
 	QImageWriter writer(&buffer, "JPEG");
@@ -195,94 +206,20 @@ struct PreparedFileThumbnail {
 	return result;
 }
 
+[[nodiscard]] int PhotoSideLimit(bool large) {
+	return large ? 2560 : 1280;
+}
+
+[[nodiscard]] int PhotoSideLimitAtomic() {
+	return PhotoSideLimit(SendLargePhotosAtomic.load());
+}
+
 } // namespace
 
-SendMediaPrepare::SendMediaPrepare(
-	const QString &file,
-	const PeerId &peer,
-	SendMediaType type,
-	MsgId replyTo)
-: id(base::RandomValue<PhotoId>())
-, file(file)
-, peer(peer)
-, type(type)
-, replyTo(replyTo) {
-}
+const char kOptionSendLargePhotos[] = "send-large-photos";
 
-SendMediaPrepare::SendMediaPrepare(
-	const QImage &img,
-	const PeerId &peer,
-	SendMediaType type,
-	MsgId replyTo)
-: id(base::RandomValue<PhotoId>())
-, img(img)
-, peer(peer)
-, type(type)
-, replyTo(replyTo) {
-}
-
-SendMediaPrepare::SendMediaPrepare(
-	const QByteArray &data,
-	const PeerId &peer,
-	SendMediaType type,
-	MsgId replyTo)
-: id(base::RandomValue<PhotoId>())
-, data(data)
-, peer(peer)
-, type(type)
-, replyTo(replyTo) {
-}
-
-SendMediaPrepare::SendMediaPrepare(
-	const QByteArray &data,
-	int duration,
-	const PeerId &peer,
-	SendMediaType type,
-	MsgId replyTo)
-: id(base::RandomValue<PhotoId>())
-, data(data)
-, peer(peer)
-, type(type)
-, duration(duration)
-, replyTo(replyTo) {
-}
-
-SendMediaReady::SendMediaReady(
-	SendMediaType type,
-	const QString &file,
-	const QString &filename,
-	int64 filesize,
-	const QByteArray &data,
-	const uint64 &id,
-	const uint64 &thumbId,
-	const QString &thumbExt,
-	const PeerId &peer,
-	const MTPPhoto &photo,
-	const PreparedPhotoThumbs &photoThumbs,
-	const MTPDocument &document,
-	const QByteArray &jpeg,
-	MsgId replyTo)
-: replyTo(replyTo)
-, type(type)
-, file(file)
-, filename(filename)
-, filesize(filesize)
-, data(data)
-, thumbExt(thumbExt)
-, id(id)
-, thumbId(thumbId)
-, peer(peer)
-, photo(photo)
-, document(document)
-, photoThumbs(photoThumbs) {
-	if (!jpeg.isEmpty()) {
-		int32 size = jpeg.size();
-		for (int32 i = 0, part = 0; i < size; i += kPhotoUploadPartSize, ++part) {
-			parts.insert(part, jpeg.mid(i, kPhotoUploadPartSize));
-		}
-		jpeg_md5.resize(32);
-		hashMd5Hex(jpeg.constData(), jpeg.size(), jpeg_md5.data());
-	}
+int PhotoSideLimit() {
+	return PhotoSideLimit(SendLargePhotos.value());
 }
 
 TaskQueue::TaskQueue(crl::time stopTimeoutMs) {
@@ -467,12 +404,15 @@ void SendingAlbum::removeItem(not_null<HistoryItem*> item) {
 	Assert(i != end(items));
 	items.erase(i);
 	if (moveCaption) {
-		const auto caption = item->originalText();
+		auto caption = item->originalText();
 		const auto firstId = items.front().msgId;
 		if (const auto first = item->history()->owner().message(firstId)) {
 			// We don't need to finishEdition() here, because the whole
 			// album will be rebuilt after one item was removed from it.
-			first->setText(caption);
+			auto firstCaption = first->originalText();
+			first->setText(firstCaption.text.isEmpty()
+				? std::move(caption)
+				: firstCaption.append('\n').append(std::move(caption)));
 			refreshMediaCaption(first);
 		}
 	}
@@ -482,74 +422,88 @@ SendingAlbum::Item::Item(TaskId taskId)
 : taskId(taskId) {
 }
 
-FileLoadResult::FileLoadResult(
-	TaskId taskId,
-	uint64 id,
-	const FileLoadTo &to,
-	const TextWithTags &caption,
-	std::shared_ptr<SendingAlbum> album)
-: taskId(taskId)
-, id(id)
-, to(to)
-, album(std::move(album))
-, caption(caption) {
+FilePrepareResult::FilePrepareResult(FilePrepareDescriptor &&descriptor)
+: taskId(descriptor.taskId)
+, id(descriptor.id)
+, to(std::move(descriptor.to))
+, album(std::move(descriptor.album))
+, type(descriptor.type)
+, caption(std::move(descriptor.caption))
+, spoiler(descriptor.spoiler) {
 }
 
-void FileLoadResult::setFileData(const QByteArray &filedata) {
+void FilePrepareResult::setFileData(const QByteArray &filedata) {
 	if (filedata.isEmpty()) {
 		partssize = 0;
 	} else {
 		partssize = filedata.size();
+		fileparts.reserve(
+			(partssize + kPhotoUploadPartSize - 1) / kPhotoUploadPartSize);
 		for (int32 i = 0, part = 0; i < partssize; i += kPhotoUploadPartSize, ++part) {
-			fileparts.insert(part, filedata.mid(i, kPhotoUploadPartSize));
+			fileparts.push_back(filedata.mid(i, kPhotoUploadPartSize));
 		}
 		filemd5.resize(32);
 		hashMd5Hex(filedata.constData(), filedata.size(), filemd5.data());
 	}
 }
 
-void FileLoadResult::setThumbData(const QByteArray &thumbdata) {
+void FilePrepareResult::setThumbData(const QByteArray &thumbdata) {
 	if (!thumbdata.isEmpty()) {
 		thumbbytes = thumbdata;
 		int32 size = thumbdata.size();
+		thumbparts.reserve(
+			(size + kPhotoUploadPartSize - 1) / kPhotoUploadPartSize);
 		for (int32 i = 0, part = 0; i < size; i += kPhotoUploadPartSize, ++part) {
-			thumbparts.insert(part, thumbdata.mid(i, kPhotoUploadPartSize));
+			thumbparts.push_back(thumbdata.mid(i, kPhotoUploadPartSize));
 		}
 		thumbmd5.resize(32);
 		hashMd5Hex(thumbdata.constData(), thumbdata.size(), thumbmd5.data());
 	}
 }
 
+std::shared_ptr<FilePrepareResult> MakePreparedFile(
+		FilePrepareDescriptor &&descriptor) {
+	return std::make_shared<FilePrepareResult>(std::move(descriptor));
+}
 
 FileLoadTask::FileLoadTask(
 	not_null<Main::Session*> session,
 	const QString &filepath,
 	const QByteArray &content,
 	std::unique_ptr<Ui::PreparedFileInformation> information,
+	std::unique_ptr<FileLoadTask> videoCover,
 	SendMediaType type,
 	const FileLoadTo &to,
 	const TextWithTags &caption,
-	std::shared_ptr<SendingAlbum> album)
-: _id(base::RandomValue<uint64>())
+	bool spoiler,
+	std::shared_ptr<SendingAlbum> album,
+	uint64 idOverride)
+: _id(idOverride ? idOverride : base::RandomValue<uint64>())
 , _session(session)
 , _dcId(session->mainDcId())
 , _to(to)
 , _album(std::move(album))
 , _filepath(filepath)
 , _content(content)
+, _videoCover(std::move(videoCover))
 , _information(std::move(information))
 , _type(type)
-, _caption(caption) {
+, _caption(caption)
+, _spoiler(spoiler) {
 	Expects(to.options.scheduled
+		|| to.options.shortcutId
 		|| !to.replaceMediaOf
 		|| IsServerMsgId(to.replaceMediaOf));
+
+	SendLargePhotosAtomic = SendLargePhotos.value();
 }
 
 FileLoadTask::FileLoadTask(
 	not_null<Main::Session*> session,
 	const QByteArray &voice,
-	int32 duration,
+	crl::time duration,
 	const VoiceWaveform &waveform,
+	bool video,
 	const FileLoadTo &to,
 	const TextWithTags &caption)
 : _id(base::RandomValue<uint64>())
@@ -559,7 +513,7 @@ FileLoadTask::FileLoadTask(
 , _content(voice)
 , _duration(duration)
 , _waveform(waveform)
-, _type(SendMediaType::Audio)
+, _type(video ? SendMediaType::Round : SendMediaType::Audio)
 , _caption(caption) {
 }
 
@@ -605,21 +559,21 @@ bool FileLoadTask::CheckForSong(
 		const QByteArray &content,
 		std::unique_ptr<Ui::PreparedFileInformation> &result) {
 	static const auto mimes = {
-		qstr("audio/mp3"),
-		qstr("audio/m4a"),
-		qstr("audio/aac"),
-		qstr("audio/ogg"),
-		qstr("audio/flac"),
-		qstr("audio/opus"),
+		u"audio/mp3"_q,
+		u"audio/m4a"_q,
+		u"audio/aac"_q,
+		u"audio/ogg"_q,
+		u"audio/flac"_q,
+		u"audio/opus"_q,
 	};
 	static const auto extensions = {
-		qstr(".mp3"),
-		qstr(".m4a"),
-		qstr(".aac"),
-		qstr(".ogg"),
-		qstr(".flac"),
-		qstr(".opus"),
-		qstr(".oga"),
+		u".mp3"_q,
+		u".m4a"_q,
+		u".aac"_q,
+		u".ogg"_q,
+		u".flac"_q,
+		u".opus"_q,
+		u".oga"_q,
 	};
 	if (!filepath.isEmpty()
 		&& !CheckMimeOrExtensions(
@@ -630,7 +584,8 @@ bool FileLoadTask::CheckForSong(
 		return false;
 	}
 
-	auto media = Media::Player::PrepareForSending(filepath, content);
+	auto media = v::get<Ui::PreparedFileInformation::Song>(
+		Media::Player::PrepareForSending(filepath, content).media);
 	if (media.duration < 0) {
 		return false;
 	}
@@ -646,19 +601,21 @@ bool FileLoadTask::CheckForVideo(
 		const QByteArray &content,
 		std::unique_ptr<Ui::PreparedFileInformation> &result) {
 	static const auto mimes = {
-		qstr("video/mp4"),
-		qstr("video/quicktime"),
+		u"video/mp4"_q,
+		u"video/quicktime"_q,
 	};
 	static const auto extensions = {
-		qstr(".mp4"),
-		qstr(".mov"),
-		qstr(".webm"),
+		u".mp4"_q,
+		u".mov"_q,
+		u".m4v"_q,
+		u".webm"_q,
 	};
 	if (!CheckMimeOrExtensions(filepath, result->filemime, mimes, extensions)) {
 		return false;
 	}
 
-	auto media = Media::Clip::PrepareForSending(filepath, content);
+	auto media = v::get<Ui::PreparedFileInformation::Video>(
+		Media::Clip::PrepareForSending(filepath, content).media);
 	if (media.duration < 0) {
 		return false;
 	}
@@ -669,8 +626,8 @@ bool FileLoadTask::CheckForVideo(
 		return false;
 	}
 
-	if (filepath.endsWith(qstr(".mp4"), Qt::CaseInsensitive)) {
-		result->filemime = qstr("video/mp4");
+	if (filepath.endsWith(u".mp4"_q, Qt::CaseInsensitive)) {
+		result->filemime = u"video/mp4"_q;
 	}
 	result->media = std::move(media);
 	return true;
@@ -681,12 +638,12 @@ bool FileLoadTask::CheckForImage(
 		const QByteArray &content,
 		std::unique_ptr<Ui::PreparedFileInformation> &result) {
 	auto read = [&] {
-		if (filepath.endsWith(qstr(".tgs"), Qt::CaseInsensitive)) {
+		if (filepath.endsWith(u".tgs"_q, Qt::CaseInsensitive)) {
 			auto image = Lottie::ReadThumbnail(
 				Lottie::ReadContent(content, filepath));
 			const auto success = !image.isNull();
 			if (success) {
-				result->filemime = qstr("application/x-tgsticker");
+				result->filemime = u"application/x-tgsticker"_q;
 			}
 			return Images::ReadResult{
 				.image = std::move(image),
@@ -728,12 +685,23 @@ bool FileLoadTask::FillImageInformation(
 }
 
 void FileLoadTask::process(Args &&args) {
-	_result = std::make_shared<FileLoadResult>(
-		id(),
-		_id,
-		_to,
-		_caption,
-		_album);
+	_result = MakePreparedFile({
+		.taskId = id(),
+		.id = _id,
+		.to = _to,
+		.caption = _caption,
+		.spoiler = _spoiler,
+		.album = _album,
+	});
+	if (const auto cover = _videoCover.get()) {
+		cover->process();
+		if (const auto &result = cover->peekResult()) {
+			if (result->type == SendMediaType::Photo
+				&& !result->fileparts.empty()) {
+				_result->videoCover = result;
+			}
+		}
+	}
 
 	QString filename, filemime;
 	qint64 filesize = 0;
@@ -743,6 +711,7 @@ void FileLoadTask::process(Args &&args) {
 	auto isSong = false;
 	auto isVideo = false;
 	auto isVoice = (_type == SendMediaType::Audio);
+	auto isRound = (_type == SendMediaType::Round);
 	auto isSticker = false;
 
 	auto fullimage = QImage();
@@ -758,7 +727,7 @@ void FileLoadTask::process(Args &&args) {
 		// Voice sending is supported only from memory for now.
 		// Because for voice we force mime type and don't read MediaInformation.
 		// For a real file we always read mime type and read MediaInformation.
-		Assert(!isVoice);
+		Assert(!isVoice && !isRound);
 
 		filesize = info.size();
 		filename = info.fileName();
@@ -781,8 +750,11 @@ void FileLoadTask::process(Args &&args) {
 	} else if (!_content.isEmpty()) {
 		filesize = _content.size();
 		if (isVoice) {
-			filename = filedialogDefaultName(qsl("audio"), qsl(".ogg"), QString(), true);
+			filename = filedialogDefaultName(u"audio"_q, u".ogg"_q, QString(), true);
 			filemime = "audio/ogg";
+		} else if (isRound) {
+			filename = filedialogDefaultName(u"round"_q, u".mp4"_q, QString(), true);
+			filemime = "video/mp4";
 		} else {
 			if (_information) {
 				if (auto image = std::get_if<Ui::PreparedFileInformation::Image>(
@@ -800,16 +772,16 @@ void FileLoadTask::process(Args &&args) {
 				fullimagebytes = fullimageformat = QByteArray();
 			}
 			if (filemime == "image/jpeg") {
-				filename = filedialogDefaultName(qsl("photo"), qsl(".jpg"), QString(), true);
+				filename = filedialogDefaultName(u"photo"_q, u".jpg"_q, QString(), true);
 			} else if (filemime == "image/png") {
-				filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+				filename = filedialogDefaultName(u"image"_q, u".png"_q, QString(), true);
 			} else {
 				QString ext;
 				QStringList patterns = mimeType.globPatterns();
 				if (!patterns.isEmpty()) {
 					ext = patterns.front().replace('*', QString());
 				}
-				filename = filedialogDefaultName(qsl("file"), ext, QString(), true);
+				filename = filedialogDefaultName(u"file"_q, ext, QString(), true);
 			}
 		}
 	} else {
@@ -826,14 +798,14 @@ void FileLoadTask::process(Args &&args) {
 				if (ValidateThumbDimensions(fullimage.width(), fullimage.height())) {
 					filesize = -1; // Fill later.
 					filemime = Core::MimeTypeForName("image/jpeg").name();
-					filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
+					filename = filedialogDefaultName(u"image"_q, u".jpg"_q, QString(), true);
 				} else {
 					_type = SendMediaType::File;
 				}
 			}
 			if (_type == SendMediaType::File) {
 				filemime = Core::MimeTypeForName("image/png").name();
-				filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+				filename = filedialogDefaultName(u"image"_q, u".png"_q, QString(), true);
 				{
 					QBuffer buffer(&_content);
 					fullimage.save(&buffer, "PNG");
@@ -862,7 +834,41 @@ void FileLoadTask::process(Args &&args) {
 	auto photo = MTP_photoEmpty(MTP_long(0));
 	auto document = MTP_documentEmpty(MTP_long(0));
 
-	if (!isVoice) {
+	if (isRound) {
+		_information = readMediaInformation(u"video/mp4"_q);
+		if (auto video = std::get_if<Ui::PreparedFileInformation::Video>(
+			&_information->media)) {
+			isVideo = true;
+			auto coverWidth = video->thumbnail.width();
+			auto coverHeight = video->thumbnail.height();
+			if (video->isGifv && !_album) {
+				attributes.push_back(MTP_documentAttributeAnimated());
+			}
+			auto flags = MTPDdocumentAttributeVideo::Flags(
+				MTPDdocumentAttributeVideo::Flag::f_round_message);
+			if (video->supportsStreaming) {
+				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
+			}
+			const auto realSeconds = video->duration / 1000.;
+			attributes.push_back(MTP_documentAttributeVideo(
+				MTP_flags(flags),
+				MTP_double(realSeconds),
+				MTP_int(coverWidth),
+				MTP_int(coverHeight),
+				MTPint(), // preload_prefix_size
+				MTPdouble(), // video_start_ts
+				MTPstring())); // video_codec
+
+			if (args.generateGoodThumbnail) {
+				goodThumbnail = video->thumbnail;
+				{
+					QBuffer buffer(&goodThumbnailBytes);
+					goodThumbnail.save(&buffer, "JPG", kThumbnailQuality);
+				}
+			}
+			thumbnail = PrepareFileThumbnail(std::move(video->thumbnail));
+		}
+	} else if (!isVoice) {
 		if (!_information) {
 			_information = readMediaInformation(filemime);
 			filemime = _information->filemime;
@@ -870,8 +876,9 @@ void FileLoadTask::process(Args &&args) {
 		if (auto song = std::get_if<Ui::PreparedFileInformation::Song>(
 				&_information->media)) {
 			isSong = true;
+			const auto seconds = song->duration / 1000;
 			auto flags = MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer;
-			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(song->duration), MTP_string(song->title), MTP_string(song->performer), MTPstring()));
+			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(seconds), MTP_string(song->title), MTP_string(song->performer), MTPstring()));
 			thumbnail = PrepareFileThumbnail(std::move(song->cover));
 		} else if (auto video = std::get_if<Ui::PreparedFileInformation::Video>(
 				&_information->media)) {
@@ -885,7 +892,15 @@ void FileLoadTask::process(Args &&args) {
 			if (video->supportsStreaming) {
 				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
 			}
-			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(video->duration), MTP_int(coverWidth), MTP_int(coverHeight)));
+			const auto realSeconds = video->duration / 1000.;
+			attributes.push_back(MTP_documentAttributeVideo(
+				MTP_flags(flags),
+				MTP_double(realSeconds),
+				MTP_int(coverWidth),
+				MTP_int(coverHeight),
+				MTPint(), // preload_prefix_size
+				MTPdouble(), // video_start_ts
+				MTPstring())); // video_codec
 
 			if (args.generateGoodThumbnail) {
 				goodThumbnail = video->thumbnail;
@@ -895,8 +910,8 @@ void FileLoadTask::process(Args &&args) {
 				}
 			}
 			thumbnail = PrepareFileThumbnail(std::move(video->thumbnail));
-		} else if (filemime == qstr("application/x-tdesktop-theme")
-			|| filemime == qstr("application/x-tgtheme-tdesktop")) {
+		} else if (filemime == u"application/x-tdesktop-theme"_q
+			|| filemime == u"application/x-tgtheme-tdesktop"_q) {
 			goodThumbnail = Window::Theme::GeneratePreview(_content, _filepath);
 			if (!goodThumbnail.isNull()) {
 				QBuffer buffer(&goodThumbnailBytes);
@@ -907,7 +922,7 @@ void FileLoadTask::process(Args &&args) {
 		}
 	}
 
-	if (!fullimage.isNull() && fullimage.width() > 0 && !isSong && !isVideo && !isVoice) {
+	if (!fullimage.isNull() && fullimage.width() > 0 && !isSong && !isVideo && !isVoice && !isRound) {
 		auto w = fullimage.width(), h = fullimage.height();
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
@@ -915,7 +930,8 @@ void FileLoadTask::process(Args &&args) {
 			isSticker = Core::IsMimeSticker(filemime)
 				&& (filesize < Storage::kMaxStickerBytesSize)
 				&& (Core::IsMimeStickerAnimated(filemime)
-					|| GoodStickerDimensions(w, h));
+					|| (_type == SendMediaType::File
+						&& GoodStickerDimensions(w, h)));
 			if (isSticker) {
 				attributes.push_back(MTP_documentAttributeSticker(
 					MTP_flags(0),
@@ -933,10 +949,14 @@ void FileLoadTask::process(Args &&args) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (filemime.startsWith(u"image/"_q)
 				&& _type != SendMediaType::File) {
+				if (Core::IsMimeSticker(filemime)) {
+					fullimage = Images::Opaque(std::move(fullimage));
+				}
 				auto medium = (w > 320 || h > 320) ? fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 
-				const auto downscaled = (w > 1280 || h > 1280);
-				auto full = downscaled ? fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
+				const auto limit = PhotoSideLimitAtomic();
+				const auto downscaled = (w > limit || h > limit);
+				auto full = downscaled ? fullimage.scaled(limit, limit, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				if (downscaled) {
 					fullimagebytes = fullimageformat = QByteArray();
 				}
@@ -979,8 +999,9 @@ void FileLoadTask::process(Args &&args) {
 	}
 
 	if (isVoice) {
+		const auto seconds = _duration / 1000;
 		auto flags = MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform;
-		attributes[0] = MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(_duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(_waveform)));
+		attributes[0] = MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(seconds), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(_waveform)));
 		attributes.resize(1);
 		document = MTP_document(
 			MTP_flags(0),
@@ -1007,7 +1028,7 @@ void FileLoadTask::process(Args &&args) {
 			MTPVector<MTPVideoSize>(),
 			MTP_int(_dcId),
 			MTP_vector<MTPDocumentAttribute>(attributes));
-		_type = SendMediaType::File;
+		_type = isRound ? SendMediaType::Round : SendMediaType::File;
 	}
 
 	if (_information) {
@@ -1016,7 +1037,7 @@ void FileLoadTask::process(Args &&args) {
 			if (image->modifications.paint) {
 				const auto documents = ExtractStickersFromScene(image);
 				_result->attachedStickers = documents
-					| ranges::view::transform(&DocumentData::mtpInput)
+					| ranges::views::transform(&DocumentData::mtpInput)
 					| ranges::to_vector;
 			}
 		}
@@ -1058,7 +1079,7 @@ void FileLoadTask::finish() {
 	} else if (_result->filesize > kFileSizePremiumLimit
 		|| (_result->filesize > kFileSizeLimit && !premium)) {
 		Ui::show(
-			Box(FileSizeLimitBox, session, _result->filesize),
+			Box(FileSizeLimitBox, session, _result->filesize, nullptr),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
 	} else {
@@ -1066,8 +1087,8 @@ void FileLoadTask::finish() {
 	}
 }
 
-FileLoadResult *FileLoadTask::peekResult() const {
-	return _result.get();
+const std::shared_ptr<FilePrepareResult> &FileLoadTask::peekResult() const {
+	return _result;
 }
 
 std::unique_ptr<Ui::PreparedFileInformation> FileLoadTask::readMediaInformation(

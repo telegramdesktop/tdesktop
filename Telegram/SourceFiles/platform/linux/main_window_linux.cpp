@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_window.h"
 #include "platform/linux/specific_linux.h"
-#include "platform/linux/linux_wayland_integration.h"
 #include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
@@ -27,14 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/ui_utility.h"
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include "base/platform/linux/base_linux_glibmm_helper.h"
-#include "base/platform/linux/base_linux_dbus_utilities.h"
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 #include "base/platform/linux/base_linux_xcb_utilities.h"
@@ -44,27 +39,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeData>
 #include <QtGui/QWindow>
 #include <QtWidgets/QMenuBar>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QTextEdit>
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include <glibmm.h>
-#include <giomm.h>
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include <gio/gio.hpp>
 
 namespace Platform {
 namespace {
 
-using internal::WaylandIntegration;
 using WorkMode = Core::Settings::WorkMode;
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 void XCBSkipTaskbar(QWindow *window, bool skip) {
-	const auto connection = base::Platform::XCB::GetConnectionFromQt();
-	if (!connection) {
+	const base::Platform::XCB::Connection connection;
+	if (!connection || xcb_connection_has_error(connection)) {
 		return;
 	}
 
 	const auto root = base::Platform::XCB::GetRootWindow(connection);
-	if (!root.has_value()) {
+	if (!root) {
 		return;
 	}
 
@@ -72,7 +65,7 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 		connection,
 		"_NET_WM_STATE");
 
-	if (!stateAtom.has_value()) {
+	if (!stateAtom) {
 		return;
 	}
 
@@ -80,93 +73,57 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 		connection,
 		"_NET_WM_STATE_SKIP_TASKBAR");
 
-	if (!skipTaskbarAtom.has_value()) {
+	if (!skipTaskbarAtom) {
 		return;
 	}
 
 	xcb_client_message_event_t xev;
 	xev.response_type = XCB_CLIENT_MESSAGE;
-	xev.type = *stateAtom;
+	xev.type = stateAtom;
 	xev.sequence = 0;
 	xev.window = window->winId();
 	xev.format = 32;
 	xev.data.data32[0] = skip ? 1 : 0;
-	xev.data.data32[1] = *skipTaskbarAtom;
+	xev.data.data32[1] = skipTaskbarAtom;
 	xev.data.data32[2] = 0;
 	xev.data.data32[3] = 0;
 	xev.data.data32[4] = 0;
 
-	xcb_send_event(
-		connection,
-		false,
-		*root,
-		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
-			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
-		reinterpret_cast<const char*>(&xev));
-}
-
-void XCBSetDesktopFileName(QWindow *window) {
-	const auto connection = base::Platform::XCB::GetConnectionFromQt();
-	if (!connection) {
-		return;
-	}
-
-	const auto utf8Atom = base::Platform::XCB::GetAtom(
-		connection,
-		"UTF8_STRING");
-
-	if (!utf8Atom.has_value()) {
-		return;
-	}
-
-	const auto filenameAtoms = {
-		base::Platform::XCB::GetAtom(connection, "_GTK_APPLICATION_ID"),
-		base::Platform::XCB::GetAtom(connection, "_KDE_NET_WM_DESKTOP_FILE"),
-	};
-
-	const auto filename = QGuiApplication::desktopFileName()
-		.chopped(8)
-		.toUtf8();
-
-	for (const auto atom : filenameAtoms) {
-		if (atom.has_value()) {
-			xcb_change_property(
+	free(
+		xcb_request_check(
+			connection,
+			xcb_send_event_checked(
 				connection,
-				XCB_PROP_MODE_REPLACE,
-				window->winId(),
-				*atom,
-				*utf8Atom,
-				8,
-				filename.size(),
-				filename.data());
-		}
-	}
+				false,
+				root,
+				XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+					| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+				reinterpret_cast<const char*>(&xev))));
 }
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 void SkipTaskbar(QWindow *window, bool skip) {
-	if (const auto integration = WaylandIntegration::Instance()) {
-		integration->skipTaskbar(window, skip);
-	}
-
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (IsX11()) {
 		XCBSkipTaskbar(window, skip);
+		return;
 	}
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 }
 
 void SendKeySequence(
-	Qt::Key key,
-	Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
-	const auto focused = static_cast<QObject*>(QApplication::focusWidget());
+		Qt::Key key,
+		Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+	const auto focused = QApplication::focusWidget();
 	if (qobject_cast<QLineEdit*>(focused)
 		|| qobject_cast<QTextEdit*>(focused)
 		|| dynamic_cast<HistoryInner*>(focused)) {
-		QKeyEvent pressEvent(QEvent::KeyPress, key, modifiers);
-		focused->event(&pressEvent);
-		QKeyEvent releaseEvent(QEvent::KeyRelease, key, modifiers);
-		focused->event(&releaseEvent);
+		QApplication::postEvent(
+			focused,
+			new QKeyEvent(QEvent::KeyPress, key, modifiers));
+		QApplication::postEvent(
+			focused,
+			new QKeyEvent(QEvent::KeyRelease, key, modifiers));
 	}
 }
 
@@ -178,73 +135,10 @@ void ForceDisabled(QAction *action, bool disabled) {
 	}
 }
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-bool UseUnityCounter() {
-	static const auto Result = [&] {
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::SESSION);
-
-			return base::Platform::DBus::NameHasOwner(
-				connection,
-				"com.canonical.Unity");
-		} catch (...) {
-		}
-
-		return false;
-	}();
-
-	return Result;
-}
-
-uint djbStringHash(const std::string &string) {
-	uint hash = 5381;
-	for (const auto &curChar : string) {
-		hash = (hash << 5) + hash + curChar;
-	}
-	return hash;
-}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 } // namespace
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
-}
-
-void MainWindow::initHook() {
-	base::install_event_filter(windowHandle(), [=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::Expose) {
-			auto ee = static_cast<QExposeEvent*>(e.get());
-			if (ee->region().isNull()) {
-				return base::EventFilterResult::Continue;
-			}
-			if (!windowHandle()
-				|| windowHandle()->parent()
-				|| !windowHandle()->isVisible()) {
-				return base::EventFilterResult::Continue;
-			}
-			handleNativeSurfaceChanged(true);
-		} else if (e->type() == QEvent::Hide) {
-			if (!windowHandle() || windowHandle()->parent()) {
-				return base::EventFilterResult::Continue;
-			}
-			handleNativeSurfaceChanged(false);
-		}
-		return base::EventFilterResult::Continue;
-	});
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (UseUnityCounter()) {
-		LOG(("Using Unity launcher counter."));
-	} else {
-		LOG(("Not using Unity launcher counter."));
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-	XCBSetDesktopFileName(windowHandle());
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 }
 
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
@@ -256,51 +150,61 @@ void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 }
 
 void MainWindow::unreadCounterChangedHook() {
-	updateIconCounters();
+	updateUnityCounter();
 }
 
-void MainWindow::updateIconCounters() {
-	updateWindowIcon();
+void MainWindow::updateWindowIcon() {
+	const auto session = sessionController()
+		? &sessionController()->session()
+		: nullptr;
+	setWindowIcon(Window::CreateIcon(session));
+}
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (UseUnityCounter()) {
-		const auto launcherUrl = Glib::ustring(
-			"application://"
-				+ QGuiApplication::desktopFileName().toStdString());
-		const auto counterSlice = std::min(Core::App().unreadBadge(), 9999);
-		std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
+void MainWindow::updateUnityCounter() {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+	qApp->setBadgeNumber(Core::App().unreadBadge());
+#else // Qt >= 6.6.0
+	using namespace gi::repository;
 
-		if (counterSlice > 0) {
-			// According to the spec, it should be of 'x' D-Bus signature,
-			// which corresponds to gint64 type with glib
-			// https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
-			dbusUnityProperties["count"] = Glib::Variant<gint64>::create(
-				counterSlice);
-			dbusUnityProperties["count-visible"] =
-				Glib::Variant<bool>::create(true);
-		} else {
-			dbusUnityProperties["count-visible"] =
-				Glib::Variant<bool>::create(false);
+	static const auto djbStringHash = [](const std::string &string) {
+		uint hash = 5381;
+		for (const auto &curChar : string) {
+			hash = (hash << 5) + hash + curChar;
 		}
+		return hash;
+	};
 
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::SESSION);
+	const auto launcherUrl = "application://"
+		+ QGuiApplication::desktopFileName().toStdString()
+		+ ".desktop";
 
-			connection->emit_signal(
-				"/com/canonical/unity/launcherentry/"
-					+ std::to_string(djbStringHash(launcherUrl)),
-				"com.canonical.Unity.LauncherEntry",
-				"Update",
-				{},
-				base::Platform::MakeGlibVariant(std::tuple{
-					launcherUrl,
-					dbusUnityProperties,
-				}));
-		} catch (...) {
-		}
+	const auto counterSlice = std::min(Core::App().unreadBadge(), 9999);
+
+	auto connection = Gio::bus_get_sync(Gio::BusType::SESSION_, nullptr);
+	if (!connection) {
+		return;
 	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+	connection.emit_signal(
+		{},
+		"/com/canonical/unity/launcherentry/"
+			+ std::to_string(djbStringHash(launcherUrl)),
+		"com.canonical.Unity.LauncherEntry",
+		"Update",
+		GLib::Variant::new_tuple({
+			GLib::Variant::new_string(launcherUrl),
+			GLib::Variant::new_array({
+				GLib::Variant::new_dict_entry(
+					GLib::Variant::new_string("count"),
+					GLib::Variant::new_variant(
+						GLib::Variant::new_int64(counterSlice))),
+				GLib::Variant::new_dict_entry(
+					GLib::Variant::new_string("count-visible"),
+					GLib::Variant::new_variant(
+						GLib::Variant::new_boolean(counterSlice))),
+			}),
+		}));
+#endif // Qt < 6.6.0
 }
 
 void MainWindow::createGlobalMenu() {
@@ -324,12 +228,13 @@ void MainWindow::createGlobalMenu() {
 		});
 
 	auto quit = file->addAction(
-		tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, qsl("Telegram")),
+		tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, u"Telegram"_q),
 		this,
 		[=] { quitFromTray(); },
 		QKeySequence::Quit);
 
 	quit->setMenuRole(QAction::QuitRole);
+	quit->setShortcutContext(Qt::WidgetShortcut);
 
 	auto edit = psMainMenu->addMenu(tr::lng_mac_menu_edit(tr::now));
 
@@ -337,6 +242,8 @@ void MainWindow::createGlobalMenu() {
 		tr::lng_linux_menu_undo(tr::now),
 		[] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); },
 		QKeySequence::Undo);
+
+	psUndo->setShortcutContext(Qt::WidgetShortcut);
 
 	psRedo = edit->addAction(
 		tr::lng_linux_menu_redo(tr::now),
@@ -347,6 +254,8 @@ void MainWindow::createGlobalMenu() {
 		},
 		QKeySequence::Redo);
 
+	psRedo->setShortcutContext(Qt::WidgetShortcut);
+
 	edit->addSeparator();
 
 	psCut = edit->addAction(
@@ -354,20 +263,28 @@ void MainWindow::createGlobalMenu() {
 		[] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
 		QKeySequence::Cut);
 
+	psCut->setShortcutContext(Qt::WidgetShortcut);
+
 	psCopy = edit->addAction(
 		tr::lng_mac_menu_copy(tr::now),
 		[] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
 		QKeySequence::Copy);
+
+	psCopy->setShortcutContext(Qt::WidgetShortcut);
 
 	psPaste = edit->addAction(
 		tr::lng_mac_menu_paste(tr::now),
 		[] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
 		QKeySequence::Paste);
 
+	psPaste->setShortcutContext(Qt::WidgetShortcut);
+
 	psDelete = edit->addAction(
 		tr::lng_mac_menu_delete(tr::now),
 		[] { SendKeySequence(Qt::Key_Delete); },
 		QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
+
+	psDelete->setShortcutContext(Qt::WidgetShortcut);
 
 	edit->addSeparator();
 
@@ -376,15 +293,21 @@ void MainWindow::createGlobalMenu() {
 		[] { SendKeySequence(Qt::Key_B, Qt::ControlModifier); },
 		QKeySequence::Bold);
 
+	psBold->setShortcutContext(Qt::WidgetShortcut);
+
 	psItalic = edit->addAction(
 		tr::lng_menu_formatting_italic(tr::now),
 		[] { SendKeySequence(Qt::Key_I, Qt::ControlModifier); },
 		QKeySequence::Italic);
 
+	psItalic->setShortcutContext(Qt::WidgetShortcut);
+
 	psUnderline = edit->addAction(
 		tr::lng_menu_formatting_underline(tr::now),
 		[] { SendKeySequence(Qt::Key_U, Qt::ControlModifier); },
 		QKeySequence::Underline);
+
+	psUnderline->setShortcutContext(Qt::WidgetShortcut);
 
 	psStrikeOut = edit->addAction(
 		tr::lng_menu_formatting_strike_out(tr::now),
@@ -395,6 +318,19 @@ void MainWindow::createGlobalMenu() {
 		},
 		Ui::kStrikeOutSequence);
 
+	psStrikeOut->setShortcutContext(Qt::WidgetShortcut);
+
+	psBlockquote = edit->addAction(
+		tr::lng_menu_formatting_blockquote(tr::now),
+		[] {
+			SendKeySequence(
+				Qt::Key_Period,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kBlockquoteSequence);
+
+	psBlockquote->setShortcutContext(Qt::WidgetShortcut);
+
 	psMonospace = edit->addAction(
 		tr::lng_menu_formatting_monospace(tr::now),
 		[] {
@@ -403,6 +339,8 @@ void MainWindow::createGlobalMenu() {
 				Qt::ControlModifier | Qt::ShiftModifier);
 		},
 		Ui::kMonospaceSequence);
+
+	psMonospace->setShortcutContext(Qt::WidgetShortcut);
 
 	psClearFormat = edit->addAction(
 		tr::lng_menu_formatting_clear(tr::now),
@@ -413,12 +351,16 @@ void MainWindow::createGlobalMenu() {
 		},
 		Ui::kClearFormatSequence);
 
+	psClearFormat->setShortcutContext(Qt::WidgetShortcut);
+
 	edit->addSeparator();
 
 	psSelectAll = edit->addAction(
 		tr::lng_mac_menu_select_all(tr::now),
 		[] { SendKeySequence(Qt::Key_A, Qt::ControlModifier); },
 		QKeySequence::SelectAll);
+
+	psSelectAll->setShortcutContext(Qt::WidgetShortcut);
 
 	edit->addSeparator();
 
@@ -432,6 +374,7 @@ void MainWindow::createGlobalMenu() {
 		QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 
 	prefs->setMenuRole(QAction::PreferencesRole);
+	prefs->setShortcutContext(Qt::WidgetShortcut);
 
 	auto tools = psMainMenu->addMenu(tr::lng_linux_menu_tools(tr::now));
 
@@ -485,10 +428,10 @@ void MainWindow::createGlobalMenu() {
 		tr::lng_mac_menu_about_telegram(
 			tr::now,
 			lt_telegram,
-			qsl("Telegram")),
+			u"Telegram"_q),
 		[=] {
 			ensureWindowShown();
-			controller().show(Box<AboutBox>());
+			controller().show(Box(AboutBox));
 		});
 
 	about->setMenuRole(QAction::AboutQtRole);
@@ -511,7 +454,7 @@ void MainWindow::updateGlobalMenuHook() {
 	auto canSelectAll = false;
 	const auto mimeData = QGuiApplication::clipboard()->mimeData();
 	const auto clipboardHasText = mimeData ? mimeData->hasText() : false;
-	auto markdownEnabled = false;
+	auto markdownState = Ui::MarkdownEnabledState();
 	if (const auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
 		canSelectAll = !edit->text().isEmpty();
@@ -527,7 +470,7 @@ void MainWindow::updateGlobalMenuHook() {
 		if (canCopy) {
 			if (const auto inputField = dynamic_cast<Ui::InputField*>(
 				focused->parentWidget())) {
-				markdownEnabled = inputField->isMarkdownEnabled();
+				markdownState = inputField->markdownEnabledState();
 			}
 		}
 	} else if (const auto list = dynamic_cast<HistoryInner*>(focused)) {
@@ -552,12 +495,19 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psNewGroup, inactive || support);
 	ForceDisabled(psNewChannel, inactive || support);
 
-	ForceDisabled(psBold, !markdownEnabled);
-	ForceDisabled(psItalic, !markdownEnabled);
-	ForceDisabled(psUnderline, !markdownEnabled);
-	ForceDisabled(psStrikeOut, !markdownEnabled);
-	ForceDisabled(psMonospace, !markdownEnabled);
-	ForceDisabled(psClearFormat, !markdownEnabled);
+	const auto diabled = [=](const QString &tag) {
+		return !markdownState.enabledForTag(tag);
+	};
+	using Field = Ui::InputField;
+	ForceDisabled(psBold, diabled(Field::kTagBold));
+	ForceDisabled(psItalic, diabled(Field::kTagItalic));
+	ForceDisabled(psUnderline, diabled(Field::kTagUnderline));
+	ForceDisabled(psStrikeOut, diabled(Field::kTagStrikeOut));
+	ForceDisabled(psBlockquote, diabled(Field::kTagBlockquote));
+	ForceDisabled(
+		psMonospace,
+		diabled(Field::kTagPre) || diabled(Field::kTagCode));
+	ForceDisabled(psClearFormat, markdownState.disabled());
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
@@ -570,17 +520,20 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 				updateGlobalMenu();
 			}
 		}
+	} else if (obj == this && t == QEvent::Paint) {
+		if (!_exposed) {
+			_exposed = true;
+			SkipTaskbar(
+				windowHandle(),
+				(Core::App().settings().workMode() == WorkMode::TrayOnly)
+					&& TrayIconSupported());
+		}
+	} else if (obj == this && t == QEvent::Hide) {
+		_exposed = false;
+	} else if (obj == this && t == QEvent::ThemeChange) {
+		updateWindowIcon();
 	}
 	return Window::MainWindow::eventFilter(obj, evt);
-}
-
-void MainWindow::handleNativeSurfaceChanged(bool exist) {
-	if (exist) {
-		SkipTaskbar(
-			windowHandle(),
-			(Core::App().settings().workMode() == WorkMode::TrayOnly)
-				&& TrayIconSupported());
-	}
 }
 
 MainWindow::~MainWindow() {

@@ -13,5 +13,4 @@ class GenericBox;
 
 void PinMessageBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<PeerData*> peer,
-	MsgId msgId);
+	not_null<HistoryItem*> item);

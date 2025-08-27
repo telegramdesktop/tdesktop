@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/platform_integration.h"
 
-#ifdef Q_OS_MAC
-#include "platform/mac/integration_mac.h"
-#elif defined Q_OS_UNIX // Q_OS_MAC
-#include "platform/linux/integration_linux.h"
-#elif defined Q_OS_WINRT || defined Q_OS_WIN // Q_OS_MAC || Q_OS_UNIX
+#if defined Q_OS_WINRT || defined Q_OS_WIN
 #include "platform/win/integration_win.h"
-#endif // Q_OS_MAC || Q_OS_UNIX || Q_OS_WINRT || Q_OS_WIN
+#elif defined Q_OS_MAC // Q_OS_WINRT || Q_OS_WIN
+#include "platform/mac/integration_mac.h"
+#else // Q_OS_WINRT || Q_OS_WIN || Q_OS_MAC
+#include "platform/linux/integration_linux.h"
+#endif // else Q_OS_WINRT || Q_OS_WIN || Q_OS_MAC
 
 namespace Platform {
 namespace {

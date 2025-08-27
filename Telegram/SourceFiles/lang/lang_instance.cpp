@@ -19,9 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Lang {
 namespace {
 
-const auto kSerializeVersionTag = qsl("#new");
+const auto kSerializeVersionTag = u"#new"_q;
 constexpr auto kSerializeVersion = 1;
-constexpr auto kDefaultLanguage = "en"_cs;
 constexpr auto kCloudLangPackName = "tdesktop"_cs;
 constexpr auto kCustomLanguage = "#custom"_cs;
 constexpr auto kLangValuesLimit = 20000;
@@ -102,7 +101,7 @@ bool ValueParser::readTag() {
 	auto isTagChar = [](QChar ch) {
 		if (ch >= 'a' && ch <= 'z') {
 			return true;
-		} else if (ch >= 'A' && ch <= 'z') {
+		} else if (ch >= 'A' && ch <= 'Z') {
 			return true;
 		} else if (ch >= '0' && ch <= '9') {
 			return true;
@@ -134,8 +133,8 @@ bool ValueParser::readTag() {
 	_tagsUsed.insert(_currentTagIndex);
 
 	if (_currentTagReplacer.isEmpty()) {
-		_currentTagReplacer = QString(4, TextCommand);
-		_currentTagReplacer[1] = kTextCommandLangTag;
+		_currentTagReplacer = QString(4, QChar(kTextCommand));
+		_currentTagReplacer[1] = QChar(kTextCommandLangTag);
 	}
 	_currentTagReplacer[2] = QChar(0x0020 + _currentTagIndex);
 
@@ -169,8 +168,10 @@ QString PrepareTestValue(const QString &current, QChar filler) {
 	auto result = QString(size + 1, filler);
 	auto inCommand = false;
 	for (auto i = 0; i != size; ++i) {
-		auto ch = current[i];
-		auto newInCommand = (ch.unicode() == TextCommand) ? (!inCommand) : inCommand;
+		const auto ch = current[i];
+		const auto newInCommand = (ch.unicode() == kTextCommand)
+			? (!inCommand)
+			: inCommand;
 		if (inCommand || newInCommand || ch.isSpace()) {
 			result[i + 1] = ch;
 		}
@@ -213,14 +214,6 @@ void ParseKeyValue(
 
 } // namespace
 
-QString DefaultLanguageId() {
-	return kDefaultLanguage.utf16();
-}
-
-QString LanguageIdOrDefault(const QString &id) {
-	return !id.isEmpty() ? id : DefaultLanguageId();
-}
-
 QString CloudLangPackName() {
 	return kCloudLangPackName.utf16();
 }
@@ -231,11 +224,11 @@ QString CustomLanguageId() {
 
 Language DefaultLanguage() {
 	return Language{
-		qsl("en"),
+		u"en"_q,
 		QString(),
 		QString(),
-		qsl("English"),
-		qsl("English"),
+		u"English"_q,
+		u"English"_q,
 	};
 }
 
@@ -254,7 +247,7 @@ Instance::Instance(not_null<Instance*> derived, const PrivateTag &)
 
 void Instance::switchToId(const Language &data) {
 	reset(data);
-	if (_id == qstr("#TEST_X") || _id == qstr("#TEST_0")) {
+	if (_id == u"#TEST_X"_q || _id == u"#TEST_0"_q) {
 		for (auto &value : _values) {
 			value = PrepareTestValue(value, _id[5]);
 		}
@@ -365,8 +358,8 @@ QString Instance::id(Pack pack) const {
 
 bool Instance::isCustom() const {
 	return (_id == CustomLanguageId())
-		|| (_id == qstr("#TEST_X"))
-		|| (_id == qstr("#TEST_0"));
+		|| (_id == u"#TEST_X"_q)
+		|| (_id == u"#TEST_0"_q);
 }
 
 int Instance::version(Pack pack) const {

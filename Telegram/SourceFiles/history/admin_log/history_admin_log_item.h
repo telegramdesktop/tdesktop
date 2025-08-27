@@ -22,7 +22,7 @@ void GenerateItems(
 	not_null<HistoryView::ElementDelegate*> delegate,
 	not_null<History*> history,
 	const MTPDchannelAdminLogEvent &event,
-	Fn<void(OwnedItem item, TimeId sentDate)> callback);
+	Fn<void(OwnedItem item, TimeId sentDate, MsgId)> callback);
 
 // Smart pointer wrapper for HistoryItem* that destroys the owned item.
 class OwnedItem {

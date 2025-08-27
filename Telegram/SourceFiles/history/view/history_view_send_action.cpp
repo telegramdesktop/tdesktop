@@ -150,8 +150,8 @@ bool SendActionPainter::paint(
 		const auto extraAnimationWidth = _animationLeft
 			? animationWidth * 2
 			: 0;
-		const auto left =
-			(availableWidth < _animationLeft + extraAnimationWidth)
+		const auto left
+			= (availableWidth < _animationLeft + extraAnimationWidth)
 				? 0
 				: _animationLeft;
 		_sendActionAnimation.paint(

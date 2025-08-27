@@ -21,20 +21,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h" // HistoryView::SelectedItem.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "mainwindow.h"
 #include "storage/storage_account.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 
 namespace Menu {
 namespace {
 
-using DocumentViewPtr = std::shared_ptr<Data::DocumentMedia>;
-using Documents = std::vector<std::pair<DocumentViewPtr, FullMsgId>>;
-using Photos = std::vector<std::shared_ptr<Data::PhotoMedia>>;
+using Documents = std::vector<std::pair<not_null<DocumentData*>, FullMsgId>>;
+using Photos = std::vector<std::pair<not_null<PhotoData*>, FullMsgId>>;
 
 [[nodiscard]] bool Added(
 		HistoryItem *item,
@@ -43,19 +44,11 @@ using Photos = std::vector<std::shared_ptr<Data::PhotoMedia>>;
 	if (item && !item->forbidsForward()) {
 		if (const auto media = item->media()) {
 			if (const auto photo = media->photo()) {
-				if (const auto view = photo->activeMediaView()) {
-					if (view->loaded()) {
-						photos.push_back(view);
-						return true;
-					}
-				}
+				photos.emplace_back(photo, item->fullId());
+				return true;
 			} else if (const auto document = media->document()) {
-				if (const auto view = document->activeMediaView()) {
-					if (!view->loaded()) {
-						documents.emplace_back(view, item->fullId());
-						return true;
-					}
-				}
+				documents.emplace_back(document, item->fullId());
+				return true;
 			}
 		}
 	}
@@ -74,60 +67,142 @@ void AddAction(
 	const auto icon = documents.empty()
 		? &st::menuIconSaveImage
 		: &st::menuIconDownload;
-	const auto showToast = documents.empty();
+	const auto shouldShowToast = documents.empty();
 
-	const auto saveImages = [=] {
+	const auto weak = base::make_weak(controller);
+	const auto saveImages = [=](const QString &folderPath) {
+		const auto controller = weak.get();
+		if (!controller) {
+			return;
+		}
 		const auto session = &controller->session();
-		const auto downloadPath = Core::App().settings().downloadPath();
+		const auto downloadPath = folderPath.isEmpty()
+			? Core::App().settings().downloadPath()
+			: folderPath;
 		const auto path = downloadPath.isEmpty()
 			? File::DefaultDownloadPath(session)
-			: (downloadPath == u"tmp"_q)
+			: (downloadPath == FileDialog::Tmp())
 			? session->local().tempDirectory()
 			: downloadPath;
+		if (path.isEmpty()) {
+			return;
+		}
+		QDir().mkpath(path);
 
-		const auto fullPath = [&](int i) {
-			return filedialogDefaultName(
-				u"photo_"_q + QString::number(i),
-				u".jpg"_q,
-				path);
-		};
-		auto lastPath = QString();
-		for (auto i = 0; i < photos.size(); i++) {
-			lastPath = fullPath(i + 1);
-			photos[i]->saveToFile(lastPath);
+		const auto showToast = !shouldShowToast
+			? Fn<void(const QString &)>(nullptr)
+			: [=](const QString &lastPath) {
+				const auto filter = [lastPath](const auto ...) {
+					File::ShowInFolder(lastPath);
+					return false;
+				};
+				controller->showToast({
+					.text = (photos.size() > 1
+							? tr::lng_mediaview_saved_images_to
+							: tr::lng_mediaview_saved_to)(
+						tr::now,
+						lt_downloads,
+						Ui::Text::Link(
+							tr::lng_mediaview_downloads(tr::now),
+							"internal:show_saved_message"),
+						Ui::Text::WithEntities),
+					.filter = filter,
+					.st = &st::defaultToast,
+				});
+			};
+
+		auto views = std::vector<std::shared_ptr<Data::PhotoMedia>>();
+		for (const auto &[photo, fullId] : photos) {
+			if (const auto view = photo->createMediaView()) {
+				view->wanted(Data::PhotoSize::Large, fullId);
+				views.push_back(view);
+			}
 		}
 
-		if (showToast) {
-			const auto filter = [lastPath](const auto ...) {
-				File::ShowInFolder(lastPath);
-				return false;
+		const auto finalCheck = [=] {
+			for (const auto &[photo, _] : photos) {
+				if (photo->loading()) {
+					return false;
+				}
+			}
+			return true;
+		};
+
+		const auto saveToFiles = [=] {
+			const auto fullPath = [&](int i) {
+				return filedialogDefaultName(
+					u"photo_"_q + QString::number(i),
+					u".jpg"_q,
+					path);
 			};
-			const auto config = Ui::Toast::Config{
-				.text = (photos.size() > 1
-						? tr::lng_mediaview_saved_images_to
-						: tr::lng_mediaview_saved_to)(
-					tr::now,
-					lt_downloads,
-					Ui::Text::Link(
-						tr::lng_mediaview_downloads(tr::now),
-						"internal:show_saved_message"),
-					Ui::Text::WithEntities),
-				.st = &st::defaultToast,
-				.filter = filter,
-			};
-			Ui::Toast::Show(Window::Show(controller).toastParent(), config);
+			auto lastPath = QString();
+			for (auto i = 0; i < views.size(); i++) {
+				lastPath = fullPath(i + 1);
+				views[i]->saveToFile(lastPath);
+			}
+			if (showToast) {
+				showToast(lastPath);
+			}
+		};
+
+		if (finalCheck()) {
+			saveToFiles();
+		} else {
+			auto lifetime = std::make_shared<rpl::lifetime>();
+			session->downloaderTaskFinished(
+			) | rpl::start_with_next([=]() mutable {
+				if (finalCheck()) {
+					saveToFiles();
+					base::take(lifetime)->destroy();
+				}
+			}, *lifetime);
 		}
 	};
-	const auto saveDocuments = [=] {
-		for (const auto &pair : documents) {
-			DocumentSaveClickHandler::Save(pair.second, pair.first->owner());
+	const auto saveDocuments = [=](const QString &folderPath) {
+		for (const auto &[document, origin] : documents) {
+			if (!folderPath.isEmpty()) {
+				document->save(origin, folderPath + document->filename());
+			} else {
+				DocumentSaveClickHandler::SaveAndTrack(origin, document);
+			}
 		}
 	};
 
 	menu->addAction(text, [=] {
-		saveImages();
-		saveDocuments();
-		callback();
+		const auto save = [=](const QString &folderPath) {
+			saveImages(folderPath);
+			saveDocuments(folderPath);
+			callback();
+		};
+		const auto controller = weak.get();
+		if (!controller) {
+			return;
+		}
+		if (Core::App().settings().askDownloadPath()) {
+			const auto initialPath = [] {
+				const auto path = Core::App().settings().downloadPath();
+				if (!path.isEmpty() && path != FileDialog::Tmp()) {
+					return path.left(path.size()
+						- (path.endsWith('/') ? 1 : 0));
+				}
+				return QString();
+			}();
+			const auto handleFolder = [=](const QString &result) {
+				if (!result.isEmpty()) {
+					const auto folderPath = result.endsWith('/')
+						? result
+						: (result + '/');
+					save(folderPath);
+				}
+			};
+			FileDialog::GetFolder(
+				controller->window().widget().get(),
+				tr::lng_download_path_choose(tr::now),
+				initialPath,
+				handleFolder);
+		} else {
+			save(QString());
+		}
 	}, icon);
 }
 
@@ -138,7 +213,7 @@ void AddDownloadFilesAction(
 		not_null<Window::SessionController*> window,
 		const std::vector<HistoryView::SelectedItem> &selectedItems,
 		not_null<HistoryView::ListWidget*> list) {
-	if (selectedItems.empty() || Core::App().settings().askDownloadPath()) {
+	if (selectedItems.empty()) {
 		return;
 	}
 	auto docs = Documents();
@@ -151,8 +226,8 @@ void AddDownloadFilesAction(
 			return;
 		}
 	}
-	const auto done = [weak = Ui::MakeWeak(list)] {
-		if (const auto strong = weak.data()) {
+	const auto done = [weak = base::make_weak(list)] {
+		if (const auto strong = weak.get()) {
 			strong->cancelSelection();
 		}
 	};
@@ -162,20 +237,24 @@ void AddDownloadFilesAction(
 void AddDownloadFilesAction(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<Window::SessionController*> window,
-		const std::map<HistoryItem*, TextSelection, std::less<>> &items,
+		const base::flat_map<HistoryItem*, TextSelection, std::less<>> &items,
 		not_null<HistoryInner*> list) {
-	if (items.empty() || Core::App().settings().askDownloadPath()) {
+	if (items.empty()) {
 		return;
 	}
+	auto sortedItems = ranges::views::all(items)
+		| ranges::views::keys
+		| ranges::to<std::vector>();
+	ranges::sort(sortedItems, {}, &HistoryItem::fullId);
 	auto docs = Documents();
 	auto photos = Photos();
-	for (const auto &pair : items) {
-		if (!Added(pair.first, docs, photos)) {
+	for (const auto &item : sortedItems) {
+		if (!Added(item, docs, photos)) {
 			return;
 		}
 	}
-	const auto done = [weak = Ui::MakeWeak(list)] {
-		if (const auto strong = weak.data()) {
+	const auto done = [weak = base::make_weak(list)] {
+		if (const auto strong = weak.get()) {
 			strong->clearSelected();
 		}
 	};

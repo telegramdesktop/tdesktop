@@ -8,22 +8,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 
 #include "api/api_cloud_password.h"
+#include "core/application.h"
 #include "core/core_cloud_password.h"
 #include "lang/lang_keys.h"
-#include "lottie/lottie_icon.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_email.h"
 #include "settings/cloud_password/settings_cloud_password_hint.h"
 #include "settings/cloud_password/settings_cloud_password_input.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
+#include "settings/cloud_password/settings_cloud_password_step.h"
+#include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 /*
@@ -43,49 +45,6 @@ From RecreateResetHint:
 
 namespace Settings {
 namespace CloudPassword {
-namespace {
-
-void SetupTopContent(
-		not_null<Ui::VerticalLayout*> parent,
-		rpl::producer<> showFinished) {
-	const auto divider = Ui::CreateChild<Ui::BoxContentDivider>(parent.get());
-	const auto verticalLayout = parent->add(
-		object_ptr<Ui::VerticalLayout>(parent.get()));
-
-	auto icon = CreateLottieIcon(
-		verticalLayout,
-		{
-			.name = u"cloud_password/intro"_q,
-			.sizeOverride = {
-				st::settingsFilterIconSize,
-				st::settingsFilterIconSize,
-			},
-		},
-		st::settingsFilterIconPadding);
-	std::move(
-		showFinished
-	) | rpl::start_with_next([animate = std::move(icon.animate)] {
-		animate(anim::repeat::once);
-	}, verticalLayout->lifetime());
-	verticalLayout->add(std::move(icon.widget));
-
-	verticalLayout->add(
-		object_ptr<Ui::CenterWrap<>>(
-			verticalLayout,
-			object_ptr<Ui::FlatLabel>(
-				verticalLayout,
-				tr::lng_settings_cloud_password_manage_about1(),
-				st::settingsFilterDividerLabel)),
-		st::settingsFilterDividerLabelPadding);
-
-	verticalLayout->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
-		divider->setGeometry(r);
-	}, divider->lifetime());
-
-}
-
-} // namespace
 
 class Manage : public TypedAbstractStep<Manage> {
 public:
@@ -94,7 +53,7 @@ public:
 	[[nodiscard]] rpl::producer<QString> title() override;
 	void setupContent();
 
-	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToBottom(
+	[[nodiscard]] base::weak_qptr<Ui::RpWidget> createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) override;
 
 protected:
@@ -140,7 +99,10 @@ void Manage::setupContent() {
 		showBack();
 	};
 
-	SetupAutoCloseTimer(content->lifetime(), quit);
+	SetupAutoCloseTimer(
+		content->lifetime(),
+		quit,
+		[] { return Core::App().lastNonIdleTime(); });
 
 	const auto state = cloudPassword().stateCurrent();
 	if (!state) {
@@ -164,24 +126,29 @@ void Manage::setupContent() {
 		showOther(type);
 	};
 
-	SetupTopContent(content, showFinishes());
+	AddDividerTextWithLottie(content, {
+		.lottie = u"cloud_password/intro"_q,
+		.showFinished = showFinishes(),
+		.about = tr::lng_settings_cloud_password_manage_about1(
+			TextWithEntities::Simple),
+	});
 
-	AddSkip(content);
-	AddButton(
+	Ui::AddSkip(content);
+	AddButtonWithIcon(
 		content,
 		tr::lng_settings_cloud_password_manage_password_change(),
 		st::settingsButton,
-		{ &st::settingsIconKey, kIconLightBlue }
+		{ &st::menuIconPermissions }
 	)->setClickedCallback([=] {
 		showOtherAndRememberPassword(CloudPasswordInputId());
 	});
-	AddButton(
+	AddButtonWithIcon(
 		content,
 		state->hasRecovery
 			? tr::lng_settings_cloud_password_manage_email_change()
 			: tr::lng_settings_cloud_password_manage_email_new(),
 		st::settingsButton,
-		{ &st::settingsIconEmail, kIconLightOrange }
+		{ &st::menuIconRecoveryEmail }
 	)->setClickedCallback([=] {
 		auto data = stepData();
 		data.setOnlyRecoveryEmail = true;
@@ -189,7 +156,7 @@ void Manage::setupContent() {
 
 		showOtherAndRememberPassword(CloudPasswordEmailId());
 	});
-	AddSkip(content);
+	Ui::AddSkip(content);
 
 	using Divider = CloudPassword::OneEdgeBoxContentDivider;
 	const auto divider = Ui::CreateChild<Divider>(this);
@@ -201,7 +168,7 @@ void Manage::setupContent() {
 				content,
 				tr::lng_settings_cloud_password_manage_about2(),
 				st::boxDividerLabel),
-		st::settingsDividerLabelPadding));
+		st::defaultBoxDividerLabelPadding));
 	rpl::combine(
 		about->geometryValue(),
 		content->widthValue()
@@ -217,7 +184,7 @@ void Manage::setupContent() {
 	Ui::ResizeFitChild(this, content);
 }
 
-QPointer<Ui::RpWidget> Manage::createPinnedToBottom(
+base::weak_qptr<Ui::RpWidget> Manage::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 
 	const auto disable = [=](Fn<void()> close) {

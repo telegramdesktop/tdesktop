@@ -11,6 +11,12 @@ namespace Data {
 
 class NotifyPeerSettingsValue;
 
+enum class DefaultNotify : uint8_t {
+	User,
+	Group,
+	Broadcast,
+};
+
 struct NotifySound {
 	QString	title;
 	QString data;
@@ -44,7 +50,9 @@ public:
 	bool change(
 		MuteValue muteForSeconds,
 		std::optional<bool> silentPosts,
-		std::optional<NotifySound> sound);
+		std::optional<NotifySound> sound,
+		std::optional<bool> storiesMuted);
+	bool resetToDefault();
 
 	bool settingsUnknown() const;
 	std::optional<TimeId> muteUntil() const;

@@ -34,6 +34,7 @@ public:
 		const std::vector<GroupCallUser> &users,
 		bool visible);
 	void paint(QPainter &p, int x, int y, int size);
+	void finishAnimating();
 
 	[[nodiscard]] int maxWidth() const;
 	[[nodiscard]] rpl::producer<int> widthValue() const;

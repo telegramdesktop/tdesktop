@@ -17,11 +17,20 @@ class History;
 enum class SendMediaType;
 struct SendingAlbum;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
+namespace Data {
+struct SentFromScheduled;
+} // namespace Data
+
 namespace SendMenu {
-enum class Type;
+struct Details;
 } // namespace SendMenu
 
 namespace Api {
+struct MessageToSend;
 struct SendOptions;
 struct SendAction;
 } // namespace Api
@@ -30,9 +39,9 @@ namespace Ui {
 class ScrollArea;
 class PlainShadow;
 class FlatButton;
-class HistoryDownButton;
 struct PreparedList;
 class SendFilesWay;
+class ImportantTooltip;
 } // namespace Ui
 
 namespace Profile {
@@ -42,6 +51,14 @@ class BackButton;
 namespace InlineBots {
 class Result;
 } // namespace InlineBots
+
+namespace HistoryView::Controls {
+struct VoiceToSend;
+} // namespace HistoryView::Controls
+
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace HistoryView {
 
@@ -53,13 +70,14 @@ class StickerToast;
 
 class ScheduledWidget final
 	: public Window::SectionWidget
-	, private ListDelegate
+	, private WindowListDelegate
 	, private CornerButtonsDelegate {
 public:
 	ScheduledWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		not_null<History*> history);
+		not_null<History*> history,
+		const Data::ForumTopic *forumTopic);
 	~ScheduledWidget();
 
 	not_null<History*> history() const;
@@ -105,6 +123,7 @@ public:
 	bool listScrollTo(int top, bool syntetic = true) override;
 	void listCancelRequest() override;
 	void listDeleteRequest() override;
+	void listTryProcessKeyInput(not_null<QKeyEvent*> e) override;
 	rpl::producer<Data::MessagesSlice> listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -131,6 +150,9 @@ public:
 	void listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) override;
+	void listSearch(
+		const QString &query,
+		const FullMsgId &context) override;
 	void listHandleViaClick(not_null<UserData*> bot) override;
 	not_null<Ui::ChatTheme*> listChatTheme() override;
 	CopyRestrictionType listCopyRestrictionType(HistoryItem *item) override;
@@ -151,6 +173,10 @@ public:
 		Painter &p,
 		const Ui::ChatPaintContext &context) override;
 	QString listElementAuthorRank(not_null<const Element*> view) override;
+	bool listElementHideTopicButton(not_null<const Element*> view) override;
+	History *listTranslateHistory() override;
+	void listAddTranslatedItems(
+		not_null<TranslateTracker*> tracker) override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(
@@ -182,6 +208,12 @@ private:
 		Data::MessagePosition position,
 		FullMsgId originId = {});
 
+	void initProcessingVideoView(not_null<Element*> view);
+	void checkProcessingVideoTooltip(int visibleTop, int visibleBottom);
+	void showProcessingVideoTooltip();
+	void updateProcessingVideoTooltipPosition();
+	void clearProcessingVideoTracking(bool fast);
+
 	void setupComposeControls();
 
 	void setupDragArea();
@@ -194,19 +226,18 @@ private:
 		Api::SendOptions options) const;
 	void send();
 	void send(Api::SendOptions options);
-	void sendVoice(QByteArray bytes, VoiceWaveform waveform, int duration);
+	void sendVoice(const Controls::VoiceToSend &data);
 	void sendVoice(
-		QByteArray bytes,
-		VoiceWaveform waveform,
-		int duration,
+		const Controls::VoiceToSend &data,
 		Api::SendOptions options);
 	void edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
-		mtpRequestId *const saveEditMsgRequestId);
+		mtpRequestId *const saveEditMsgRequestId,
+		bool spoilered);
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
 	void chooseAttach();
-	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
 	void checkReplyReturns();
@@ -225,6 +256,9 @@ private:
 		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Ui::PreparedList &list) const;
+	bool showSendingFilesError(
+		const Ui::PreparedList &list,
+		std::optional<bool> compress) const;
 	void sendingFilesConfirmed(
 		Ui::PreparedList &&list,
 		Ui::SendFilesWay way,
@@ -232,23 +266,24 @@ private:
 		Api::SendOptions options,
 		bool ctrlShiftEnter);
 
-	void sendExistingDocument(not_null<DocumentData*> document);
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
-		Api::SendOptions options);
+		Api::MessageToSend messageToSend);
 	void sendExistingPhoto(not_null<PhotoData*> photo);
 	bool sendExistingPhoto(
 		not_null<PhotoData*> photo,
 		Api::SendOptions options);
 	void sendInlineResult(
-		not_null<InlineBots::Result*> result,
+		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot);
 	void sendInlineResult(
-		not_null<InlineBots::Result*> result,
+		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot,
 		Api::SendOptions options);
 
+	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<History*> _history;
+	const Data::ForumTopic *_forumTopic;
 	std::shared_ptr<Ui::ChatTheme> _theme;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<ListWidget> _inner;
@@ -257,7 +292,16 @@ private:
 	std::unique_ptr<ComposeControls> _composeControls;
 	bool _skipScrollEvent = false;
 
+	Data::MessagePosition _processingVideoPosition;
+	base::weak_ptr<Element> _processingVideoView;
+	rpl::lifetime _processingVideoLifetime;
+
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
+	std::unique_ptr<Ui::ImportantTooltip> _processingVideoTooltip;
+	base::Timer _processingVideoTipTimer;
+	bool _processingVideoUpdateScheduled = false;
+	bool _processingVideoTooltipShown = false;
+	bool _processingVideoCanShow = false;
 
 	CornerButtons _cornerButtons;
 
@@ -266,11 +310,12 @@ private:
 
 };
 
-class ScheduledMemento : public Window::SectionMemento {
+class ScheduledMemento final : public Window::SectionMemento {
 public:
-	ScheduledMemento(not_null<History*> history)
-	: _history(history) {
-	}
+	ScheduledMemento(
+		not_null<History*> history,
+		MsgId sentToScheduledId = 0);
+	ScheduledMemento(not_null<Data::ForumTopic*> forumTopic);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
@@ -278,18 +323,29 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	not_null<History*> getHistory() const {
+	[[nodiscard]] not_null<History*> getHistory() const {
 		return _history;
 	}
 
-	not_null<ListMemento*> list() {
+	[[nodiscard]] not_null<ListMemento*> list() {
 		return &_list;
+	}
+
+	[[nodiscard]] MsgId sentToScheduledId() const {
+		return _sentToScheduledId;
 	}
 
 private:
 	const not_null<History*> _history;
+	const Data::ForumTopic *_forumTopic;
 	ListMemento _list;
+	MsgId _sentToScheduledId = 0;
 
 };
+
+bool ShowScheduledVideoPublished(
+	not_null<Window::SessionController*> controller,
+	const Data::SentFromScheduled &info,
+	Fn<void()> hidden = nullptr);
 
 } // namespace HistoryView

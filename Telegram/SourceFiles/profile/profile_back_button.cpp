@@ -61,7 +61,7 @@ void BackButton::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::profileBg);
 	st::topBarBack.paint(p, (st::topBarArrowPadding.left() - st::topBarBack.width()) / 2, (st::topBarHeight - st::topBarBack.height()) / 2, width());
 
-	p.setFont(st::topBarButton.font);
+	p.setFont(st::topBarButton.style.font);
 	p.setPen(st::topBarButton.textFg);
 	p.drawTextLeft(st::topBarArrowPadding.left(), st::topBarButton.padding.top() + st::topBarButton.textTop, width(), _text);
 }

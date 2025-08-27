@@ -245,13 +245,13 @@ MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
 
 QString DictPathByLangId(int langId) {
 	EnsurePath();
-	return qsl("%1/%2").arg(
+	return u"%1/%2"_q.arg(
 		DictionariesPath(),
 		Spellchecker::LocaleFromLangId(langId).name());
 }
 
 QString DictionariesPath() {
-	return cWorkingDir() + qsl("tdata/dictionaries");
+	return cWorkingDir() + u"tdata/dictionaries"_q;
 }
 
 bool UnpackDictionary(const QString &path, int langId) {
@@ -275,7 +275,7 @@ bool RemoveDictionary(int langId) {
 		return true;
 	}
 	const auto fileName = Spellchecker::LocaleFromLangId(langId).name();
-	const auto folder = qsl("%1/%2/").arg(
+	const auto folder = u"%1/%2/"_q.arg(
 		DictionariesPath(),
 		fileName);
 	return QDir(folder).removeRecursively();
@@ -288,14 +288,14 @@ bool WriteDefaultDictionary() {
 		return false;
 	}
 	const auto fileName = QLocale(en).name();
-	const auto folder = qsl("%1/%2/").arg(
+	const auto folder = u"%1/%2/"_q.arg(
 		DictionariesPath(),
 		fileName);
 	QDir(folder).removeRecursively();
 
 	const auto path = folder + fileName;
 	QDir().mkpath(folder);
-	auto input = QFile(qsl(":/misc/en_US_dictionary"));
+	auto input = QFile(u":/misc/en_US_dictionary"_q);
 	auto output = QFile(path);
 	if (input.open(QIODevice::ReadOnly)
 		&& output.open(QIODevice::WriteOnly)) {

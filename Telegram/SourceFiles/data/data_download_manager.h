@@ -80,6 +80,8 @@ public:
 	DownloadManager();
 	~DownloadManager();
 
+	[[nodiscard]] bool empty() const;
+
 	void trackSession(not_null<Main::Session*> session);
 	void itemVisibilitiesUpdated(not_null<Main::Session*> session);
 

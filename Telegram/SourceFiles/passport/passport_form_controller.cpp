@@ -44,24 +44,24 @@ constexpr auto kShortPollTimeout = crl::time(3000);
 constexpr auto kRememberCredentialsDelay = crl::time(1800 * 1000);
 
 bool ForwardServiceErrorRequired(const QString &error) {
-	return (error == qstr("BOT_INVALID"))
-		|| (error == qstr("PUBLIC_KEY_REQUIRED"))
-		|| (error == qstr("PUBLIC_KEY_INVALID"))
-		|| (error == qstr("SCOPE_EMPTY"))
-		|| (error == qstr("PAYLOAD_EMPTY"));
+	return (error == u"BOT_INVALID"_q)
+		|| (error == u"PUBLIC_KEY_REQUIRED"_q)
+		|| (error == u"PUBLIC_KEY_INVALID"_q)
+		|| (error == u"SCOPE_EMPTY"_q)
+		|| (error == u"PAYLOAD_EMPTY"_q);
 }
 
 bool SaveErrorRequiresRestart(const QString &error) {
-	return (error == qstr("PASSWORD_REQUIRED"))
-		|| (error == qstr("SECURE_SECRET_REQUIRED"))
-		|| (error == qstr("SECURE_SECRET_INVALID"));
+	return (error == u"PASSWORD_REQUIRED"_q)
+		|| (error == u"SECURE_SECRET_REQUIRED"_q)
+		|| (error == u"SECURE_SECRET_INVALID"_q);
 }
 
 bool AcceptErrorRequiresRestart(const QString &error) {
-	return (error == qstr("PASSWORD_REQUIRED"))
-		|| (error == qstr("SECURE_SECRET_REQUIRED"))
-		|| (error == qstr("SECURE_VALUE_EMPTY"))
-		|| (error == qstr("SECURE_VALUE_HASH_INVALID"));
+	return (error == u"PASSWORD_REQUIRED"_q)
+		|| (error == u"SECURE_SECRET_REQUIRED"_q)
+		|| (error == u"SECURE_VALUE_EMPTY"_q)
+		|| (error == u"SECURE_VALUE_HASH_INVALID"_q);
 }
 
 std::map<QString, QString> GetTexts(const ValueMap &map) {
@@ -233,9 +233,10 @@ QString SpecialScanCredentialsKey(FileType type) {
 
 QString ValidateUrl(const QString &url) {
 	const auto result = qthelp::validate_url(url);
-	return result.startsWith("tg://", Qt::CaseInsensitive)
-		? QString()
-		: result;
+	return (result.startsWith("http://", Qt::CaseInsensitive)
+		|| result.startsWith("https://", Qt::CaseInsensitive))
+		? result
+		: QString();
 }
 
 auto ParseConfig(const QByteArray &json) {
@@ -268,10 +269,9 @@ auto ParseConfig(const QByteArray &json) {
 } // namespace
 
 QString NonceNameByScope(const QString &scope) {
-	if (scope.startsWith('{') && scope.endsWith('}')) {
-		return qsl("nonce");
-	}
-	return qsl("payload");
+	return (scope.startsWith('{') && scope.endsWith('}'))
+		? u"nonce"_q
+		: u"payload"_q;
 }
 
 bool ValueChanged(not_null<const Value*> value, const ValueMap &data) {
@@ -316,14 +316,12 @@ FormRequest::FormRequest(
 	const QString &scope,
 	const QString &callbackUrl,
 	const QString &publicKey,
-	const QString &nonce,
-	const QString &errors)
+	const QString &nonce)
 : botId(botId)
 , scope(scope)
 , callbackUrl(ValidateUrl(callbackUrl))
 , publicKey(publicKey)
-, nonce(nonce)
-, errors(errors) {
+, nonce(nonce) {
 }
 
 EditFile::EditFile(
@@ -884,7 +882,7 @@ void FormController::submitPassword(
 		}
 	}).fail([=](const MTP::Error &error) {
 		_passwordCheckRequestId = 0;
-		if (error.type() == qstr("SRP_ID_INVALID")) {
+		if (error.type() == u"SRP_ID_INVALID"_q) {
 			handleSrpIdInvalid(_passwordCheckRequestId);
 		} else if (submitSaved) {
 			// Force reload and show form.
@@ -892,8 +890,8 @@ void FormController::submitPassword(
 			reloadPassword();
 		} else if (MTP::IsFloodError(error)) {
 			_passwordError.fire(tr::lng_flood_error(tr::now));
-		} else if (error.type() == qstr("PASSWORD_HASH_INVALID")
-			|| error.type() == qstr("SRP_PASSWORD_CHANGED")) {
+		} else if (error.type() == u"PASSWORD_HASH_INVALID"_q
+			|| error.type() == u"SRP_PASSWORD_CHANGED"_q) {
 			_passwordError.fire(tr::lng_passport_password_wrong(tr::now));
 		} else {
 			_passwordError.fire_copy(error.type());
@@ -963,7 +961,7 @@ void FormController::checkSavedPasswordSettings(
 		}
 	}).fail([=](const MTP::Error &error) {
 		_passwordCheckRequestId = 0;
-		if (error.type() != qstr("SRP_ID_INVALID")
+		if (error.type() != u"SRP_ID_INVALID"_q
 			|| !handleSrpIdInvalid(_passwordCheckRequestId)) {
 		} else {
 			session().data().forgetPassportCredentials();
@@ -1126,7 +1124,7 @@ void FormController::resetSecret(
 		generateSecret(password);
 	}).fail([=](const MTP::Error &error) {
 		_saveSecretRequestId = 0;
-		if (error.type() != qstr("SRP_ID_INVALID")
+		if (error.type() != u"SRP_ID_INVALID"_q
 			|| !handleSrpIdInvalid(_saveSecretRequestId)) {
 			formFail(error.type());
 		}
@@ -1584,13 +1582,10 @@ void FormController::uploadEncryptedFile(
 		&session(),
 		std::make_unique<UploadScanData>(std::move(data)));
 
-	auto prepared = std::make_shared<FileLoadResult>(
-		TaskId(),
-		file.uploadData->fileId,
-		FileLoadTo(PeerId(), Api::SendOptions(), MsgId(), MsgId(), MsgId()),
-		TextWithTags(),
-		std::shared_ptr<SendingAlbum>(nullptr));
-	prepared->type = SendMediaType::Secure;
+	auto prepared = MakePreparedFile({
+		.id = file.uploadData->fileId,
+		.type = SendMediaType::Secure,
+	});
 	prepared->content = QByteArray::fromRawData(
 		reinterpret_cast<char*>(file.uploadData->bytes.data()),
 		file.uploadData->bytes.size());
@@ -1709,7 +1704,7 @@ void FormController::verify(
 				clearValueVerification(nonconst);
 			}).fail([=](const MTP::Error &error) {
 				nonconst->verification.requestId = 0;
-				if (error.type() == qstr("PHONE_CODE_INVALID")) {
+				if (error.type() == u"PHONE_CODE_INVALID"_q) {
 					verificationError(
 						nonconst,
 						tr::lng_signin_wrong_code(tr::now));
@@ -1726,7 +1721,7 @@ void FormController::verify(
 				clearValueVerification(nonconst);
 			}).fail([=](const MTP::Error &error) {
 				nonconst->verification.requestId = 0;
-				if (error.type() == qstr("CODE_INVALID")) {
+				if (error.type() == u"CODE_INVALID"_q) {
 					verificationError(
 						nonconst,
 						tr::lng_signin_wrong_code(tr::now));
@@ -1793,7 +1788,7 @@ void FormController::loadFile(File &file) {
 		return;
 	}
 	file.downloadStatus.set(LoadStatus::Status::InProgress, 0);
-	const auto [j, ok] = _fileLoaders.emplace(
+	const auto &[j, ok] = _fileLoaders.emplace(
 		key,
 		std::make_unique<mtpFileLoader>(
 			&_controller->session(),
@@ -1816,7 +1811,7 @@ void FormController::loadFile(File &file) {
 	loader->updates(
 	) | rpl::start_with_next_error_done([=] {
 		fileLoadProgress(key, loader->currentOffset());
-	}, [=](bool started) {
+	}, [=](FileLoader::Error error) {
 		fileLoadFail(key);
 	}, [=] {
 		fileLoadDone(key, loader->bytes());
@@ -1825,7 +1820,7 @@ void FormController::loadFile(File &file) {
 }
 
 void FormController::fileLoadDone(FileKey key, const QByteArray &bytes) {
-	if (const auto [value, file] = findFile(key); file != nullptr) {
+	if (const auto &[value, file] = findFile(key); file != nullptr) {
 		const auto decrypted = DecryptData(
 			bytes::make_span(bytes),
 			file->hash,
@@ -1845,7 +1840,7 @@ void FormController::fileLoadDone(FileKey key, const QByteArray &bytes) {
 }
 
 void FormController::fileLoadProgress(FileKey key, int offset) {
-	if (const auto [value, file] = findFile(key); file != nullptr) {
+	if (const auto &[value, file] = findFile(key); file != nullptr) {
 		file->downloadStatus.set(LoadStatus::Status::InProgress, offset);
 		if (const auto fileInEdit = findEditFile(key)) {
 			fileInEdit->fields.downloadStatus = file->downloadStatus;
@@ -1855,7 +1850,7 @@ void FormController::fileLoadProgress(FileKey key, int offset) {
 }
 
 void FormController::fileLoadFail(FileKey key) {
-	if (const auto [value, file] = findFile(key); file != nullptr) {
+	if (const auto &[value, file] = findFile(key); file != nullptr) {
 		file->downloadStatus.set(LoadStatus::Status::Failed);
 		if (const auto fileInEdit = findEditFile(key)) {
 			fileInEdit->fields.downloadStatus = file->downloadStatus;
@@ -2107,24 +2102,24 @@ void FormController::sendSaveRequest(
 		value->saveRequestId = 0;
 		const auto code = error.type();
 		if (handleAppUpdateError(code)) {
-		} else if (code == qstr("PHONE_VERIFICATION_NEEDED")) {
+		} else if (code == u"PHONE_VERIFICATION_NEEDED"_q) {
 			if (value->type == Value::Type::Phone) {
 				startPhoneVerification(value);
 				return;
 			}
-		} else if (code == qstr("PHONE_NUMBER_INVALID")) {
+		} else if (code == u"PHONE_NUMBER_INVALID"_q) {
 			if (value->type == Value::Type::Phone) {
 				value->data.parsedInEdit.fields["value"].error
 					= tr::lng_bad_phone(tr::now);
 				valueSaveFailed(value);
 				return;
 			}
-		} else if (code == qstr("EMAIL_VERIFICATION_NEEDED")) {
+		} else if (code == u"EMAIL_VERIFICATION_NEEDED"_q) {
 			if (value->type == Value::Type::Email) {
 				startEmailVerification(value);
 				return;
 			}
-		} else if (code == qstr("EMAIL_INVALID")) {
+		} else if (code == u"EMAIL_INVALID"_q) {
 			if (value->type == Value::Type::Email) {
 				value->data.parsedInEdit.fields["value"].error
 					= tr::lng_cloud_password_bad_email(tr::now);
@@ -2167,13 +2162,18 @@ QString FormController::getPlainTextFromValue(
 void FormController::startPhoneVerification(not_null<Value*> value) {
 	value->verification.requestId = _api.request(MTPaccount_SendVerifyPhoneCode(
 		MTP_string(getPhoneFromValue(value)),
-		MTP_codeSettings(MTP_flags(0), MTP_vector<MTPbytes>())
+		MTP_codeSettings(
+			MTP_flags(0),
+			MTPVector<MTPbytes>(),
+			MTPstring(),
+			MTPBool())
 	)).done([=](const MTPauth_SentCode &result) {
 		result.match([&](const MTPDauth_sentCode &data) {
 			const auto next = data.vnext_type();
 			const auto timeout = data.vtimeout();
 			value->verification.requestId = 0;
 			value->verification.phoneCodeHash = qs(data.vphone_code_hash());
+			value->verification.fragmentUrl = QString();
 			const auto bad = [](const char *type) {
 				LOG(("API Error: Should not be '%1' "
 					"in FormController::startPhoneVerification.").arg(type));
@@ -2206,16 +2206,32 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 						timeout.value_or(60),
 					});
 				}
+			}, [&](const MTPDauth_sentCodeTypeFragmentSms &data) {
+				value->verification.codeLength = data.vlength().v;
+				value->verification.fragmentUrl = qs(data.vurl());
+				value->verification.call = nullptr;
 			}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
 				bad("FlashCall");
 			}, [&](const MTPDauth_sentCodeTypeMissedCall &) {
 				bad("MissedCall");
+			}, [&](const MTPDauth_sentCodeTypeFirebaseSms &) {
+				bad("FirebaseSms");
 			}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
 				bad("EmailCode");
+			}, [&](const MTPDauth_sentCodeTypeSmsWord &) {
+				bad("SmsWord");
+			}, [&](const MTPDauth_sentCodeTypeSmsPhrase &) {
+				bad("SmsPhrase");
 			}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
 				bad("SetUpEmailRequired");
 			});
 			_verificationNeeded.fire_copy(value);
+		}, [](const MTPDauth_sentCodeSuccess &) {
+			LOG(("API Error: Unexpected auth.sentCodeSuccess "
+				"(FormController::startPhoneVerification)."));
+		}, [](const MTPDauth_sentCodePaymentRequired &) {
+			LOG(("API Error: Unexpected auth.sentCodePaymentRequired "
+				"(FormController::startPhoneVerification)."));
 		});
 	}).fail([=](const MTP::Error &error) {
 		value->verification.requestId = 0;
@@ -2249,9 +2265,11 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 	value->verification.call->setStatus(
 		{ Ui::SentCodeCall::State::Calling, 0 });
 	_api.request(MTPauth_ResendCode(
+		MTP_flags(0),
 		MTP_string(getPhoneFromValue(value)),
-		MTP_string(value->verification.phoneCodeHash)
-	)).done([=](const MTPauth_SentCode &code) {
+		MTP_string(value->verification.phoneCodeHash),
+		MTPstring() // reason
+	)).done([=] {
 		value->verification.call->callDone();
 	}).send();
 }
@@ -2325,7 +2343,7 @@ void FormController::saveSecret(
 		}
 	}).fail([=](const MTP::Error &error) {
 		_saveSecretRequestId = 0;
-		if (error.type() != qstr("SRP_ID_INVALID")
+		if (error.type() != u"SRP_ID_INVALID"_q
 			|| !handleSrpIdInvalid(_saveSecretRequestId)) {
 			suggestRestart();
 		}
@@ -2579,7 +2597,7 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 		const auto row = CollectRequestedRow(required);
 		for (const auto &requested : row.values) {
 			const auto type = requested.type;
-			const auto [i, ok] = _form.values.emplace(type, Value(type));
+			const auto &[i, ok] = _form.values.emplace(type, Value(type));
 			auto &value = i->second;
 			value.translationRequired = requested.translationRequired;
 			value.selfieRequired = requested.selfieRequired;
@@ -2608,7 +2626,7 @@ void FormController::formFail(const QString &error) {
 }
 
 bool FormController::handleAppUpdateError(const QString &error) {
-	if (error == qstr("APP_VERSION_OUTDATED")) {
+	if (error == u"APP_VERSION_OUTDATED"_q) {
 		_view->showUpdateAppBox();
 		return true;
 	}
@@ -2678,8 +2696,8 @@ bool FormController::applyPassword(const MTPDaccount_password &result) {
 	settings.notEmptyPassport = result.is_has_secure_values();
 	settings.request = Core::ParseCloudPasswordCheckRequest(result);
 	settings.unknownAlgo = result.vcurrent_algo() && !settings.request;
-	settings.unconfirmedPattern =
-		qs(result.vemail_unconfirmed_pattern().value_or_empty());
+	settings.unconfirmedPattern = qs(
+		result.vemail_unconfirmed_pattern().value_or_empty());
 	settings.newAlgo = Core::ValidateNewCloudPasswordAlgo(
 		Core::ParseCloudPasswordAlgo(result.vnew_algo()));
 	settings.newSecureAlgo = Core::ValidateNewSecureSecretAlgo(

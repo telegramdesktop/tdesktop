@@ -21,10 +21,10 @@ namespace Platform {
 
 // Platform dependent implementations.
 
-#ifdef Q_OS_MAC
-#include "platform/mac/launcher_mac.h"
-#elif defined Q_OS_UNIX // Q_OS_MAC
-#include "platform/linux/launcher_linux.h"
-#elif defined Q_OS_WINRT || defined Q_OS_WIN // Q_OS_MAC || Q_OS_UNIX
+#if defined Q_OS_WINRT || defined Q_OS_WIN
 #include "platform/win/launcher_win.h"
-#endif // Q_OS_MAC || Q_OS_UNIX || Q_OS_WINRT || Q_OS_WIN
+#elif defined Q_OS_MAC // Q_OS_WINRT || Q_OS_WIN
+#include "platform/mac/launcher_mac.h"
+#else // Q_OS_WINRT || Q_OS_WIN || Q_OS_MAC
+#include "platform/linux/launcher_linux.h"
+#endif // else for Q_OS_WINRT || Q_OS_WIN || Q_OS_MAC

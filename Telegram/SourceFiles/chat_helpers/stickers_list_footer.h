@@ -7,21 +7,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "media/clip/media_clip_reader.h"
+#include "chat_helpers/compose/compose_features.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "media/clip/media_clip_reader.h"
 #include "mtproto/sender.h"
+#include "ui/dpr/dpr_image.h"
 #include "ui/round_rect.h"
+#include "ui/userpic_view.h"
 
 namespace Ui {
 class InputField;
 class CrossButton;
 } // namespace Ui
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Data {
 class StickersSet;
 class StickersSetThumbnailView;
 class DocumentMedia;
-class CloudImageView;
 } // namespace Data
 
 namespace Lottie {
@@ -48,7 +54,23 @@ enum class ValidateIconAnimations {
 [[nodiscard]] uint64 EmojiSectionSetId(Ui::Emoji::Section section);
 [[nodiscard]] uint64 RecentEmojiSectionSetId();
 [[nodiscard]] uint64 AllEmojiSectionSetId();
+[[nodiscard]] uint64 SearchEmojiSectionSetId();
 [[nodiscard]] std::optional<Ui::Emoji::Section> SetIdEmojiSection(uint64 id);
+
+struct GifSection {
+	DocumentData *document = nullptr;
+	EmojiPtr emoji;
+
+	friend inline constexpr auto operator<=>(
+		GifSection,
+		GifSection) = default;
+};
+[[nodiscard]] rpl::producer<std::vector<GifSection>> GifSectionsValue(
+	not_null<Main::Session*> session);
+
+[[nodiscard]] std::vector<EmojiPtr> SearchEmoji(
+	const std::vector<QString> &query,
+	base::flat_set<EmojiPtr> &outResultSet);
 
 struct StickerIcon {
 	explicit StickerIcon(uint64 setId);
@@ -73,7 +95,7 @@ struct StickerIcon {
 	ChannelData *megagroup = nullptr;
 	mutable std::shared_ptr<Data::StickersSetThumbnailView> thumbnailMedia;
 	mutable std::shared_ptr<Data::DocumentMedia> stickerMedia;
-	mutable std::shared_ptr<Data::CloudImageView> megagroupUserpic;
+	mutable Ui::PeerUserpicView megagroupUserpic;
 	int pixw = 0;
 	int pixh = 0;
 	mutable rpl::lifetime lifetime;
@@ -97,12 +119,12 @@ class StickersListFooter final : public TabbedSelector::InnerFooter {
 public:
 	struct Descriptor {
 		not_null<Main::Session*> session;
+		Fn<QColor()> customTextColor;
 		Fn<bool()> paused;
 		not_null<RpWidget*> parent;
-		bool searchButtonVisible = false;
-		bool settingsButtonVisible = false;
-		bool barSelection = false;
 		const style::EmojiPan *st = nullptr;
+		ComposeFeatures features;
+		bool forceFirstFrame = false;
 	};
 	explicit StickersListFooter(Descriptor &&descriptor);
 
@@ -115,30 +137,21 @@ public:
 		uint64 activeSetId,
 		Fn<std::shared_ptr<Lottie::FrameRenderer>()> renderer,
 		ValidateIconAnimations animations);
-	[[nodiscard]] bool hasOnlyFeaturedSets() const;
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-
-	void stealFocus();
-	void returnFocus();
-	void setLoading(bool loading);
 
 	void clearHeavyData();
 
 	[[nodiscard]] rpl::producer<uint64> setChosen() const;
 	[[nodiscard]] rpl::producer<> openSettingsRequests() const;
 
-	struct SearchRequest {
-		QString text;
-		bool forced = false;
-	};
-	[[nodiscard]] rpl::producer<SearchRequest> searchRequests() const;
-
 	void paintExpanding(
 		Painter &p,
 		QRect clip,
 		float64 radius,
 		RectPart origin);
+
+	[[nodiscard]] static int IconFrameSize();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -153,7 +166,6 @@ protected:
 private:
 	enum class SpecialOver {
 		None,
-		Search,
 		Settings,
 	};
 	struct IconId {
@@ -227,8 +239,18 @@ private:
 
 	void paint(Painter &p, const ExpandingContext &context) const;
 	void paintStickerSettingsIcon(QPainter &p) const;
-	void paintSearchIcon(QPainter &p) const;
 	void paintSetIcon(
+		Painter &p,
+		const ExpandingContext &context,
+		const IconInfo &info,
+		crl::time now,
+		bool paused) const;
+	void prepareSetIcon(
+		const ExpandingContext &context,
+		const IconInfo &info,
+		crl::time now,
+		bool paused) const;
+	void paintSetIconToCache(
 		Painter &p,
 		const ExpandingContext &context,
 		const IconInfo &info,
@@ -237,7 +259,6 @@ private:
 	void paintSelectionBg(
 		QPainter &p,
 		const ExpandingContext &context) const;
-	void paintSelectionBar(QPainter &p) const;
 	void paintLeftRightFading(
 		QPainter &p,
 		const ExpandingContext &context) const;
@@ -245,17 +266,18 @@ private:
 	void updateEmojiSectionWidth();
 	void updateEmojiWidthCallback();
 
-	void initSearch();
-	void toggleSearch(bool visible);
-	void resizeSearchControls();
 	void scrollByWheelEvent(not_null<QWheelEvent*> e);
+
+	void validateFadeLeft(int leftWidth) const;
+	void validateFadeRight(int rightWidth) const;
+	void validateFadeMask() const;
 
 	void clipCallback(Media::Clip::Notification notification, uint64 setId);
 
 	const not_null<Main::Session*> _session;
+	const Fn<QColor()> _customTextColor;
 	const Fn<bool()> _paused;
-	const bool _searchButtonVisible = false;
-	const bool _settingsButtonVisible = false;
+	const ComposeFeatures _features;
 
 	static constexpr auto kVisibleIconsCount = 8;
 
@@ -267,12 +289,18 @@ private:
 	OverState _pressed = SpecialOver::None;
 
 	QPoint _iconsMousePos, _iconsMouseDown;
-	GradientPremiumStar _premiumIcon;
 	int _iconsLeft = 0;
 	int _iconsRight = 0;
 	int _iconsTop = 0;
 	int _singleWidth = 0;
 	QPoint _areaPosition;
+
+	mutable QImage _fadeLeftCache;
+	mutable QColor _fadeLeftColor;
+	mutable QImage _fadeRightCache;
+	mutable QColor _fadeRightColor;
+	mutable QImage _fadeMask;
+	mutable QImage _setIconCache;
 
 	ScrollState _iconState;
 	ScrollState _subiconState;
@@ -281,19 +309,11 @@ private:
 	Ui::Animations::Simple _subiconsWidthAnimation;
 	int _subiconsWidth = 0;
 	bool _subiconsExpanded = false;
-	bool _barSelection = false;
 	bool _repaintScheduled = false;
-
-	bool _horizontal = false;
-
-	bool _searchShown = false;
-	object_ptr<Ui::InputField> _searchField = { nullptr };
-	object_ptr<Ui::CrossButton> _searchCancel = { nullptr };
-	QPointer<QWidget> _focusTakenFrom;
+	bool _forceFirstFrame = false;
 
 	rpl::event_stream<> _openSettingsRequests;
 	rpl::event_stream<uint64> _setChosen;
-	rpl::event_stream<SearchRequest> _searchRequests;
 
 };
 

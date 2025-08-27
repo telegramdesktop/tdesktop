@@ -144,7 +144,11 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 }
 
 void FFMpegReaderImplementation::processReadFrame() {
+#if DA_FFMPEG_HAVE_DURATION
+	int64 duration = _frame->duration;
+#else
 	int64 duration = _frame->pkt_duration;
+#endif
 	int64 framePts = _frame->pts;
 	crl::time frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 	_currentFrameDelay = _nextFrameDelay;
@@ -335,6 +339,10 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
 
 	const auto codec = FFmpeg::FindDecoder(_codecContext);
+	if (!codec) {
+		LOG(("Gif Error: Unable to avcodec_find_decoder %1").arg(logData()));
+		return false;
+	}
 	if (_mode == Mode::Inspecting) {
 		const auto audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
 		_hasAudioStream = (audioStreamId >= 0);

@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/language_box.h"
 
+#include "data/data_peer_values.h"
 #include "lang/lang_keys.h"
+#include "ui/boxes/choose_language_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -22,19 +24,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
+#include "ui/ui_utility.h"
 #include "storage/localstorage.h"
+#include "boxes/abstract_box.h"
+#include "boxes/premium_preview_box.h"
+#include "boxes/translate_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
+#include "settings/settings_common.h"
+#include "spellcheck/spellcheck_types.h"
+#include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_passport.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -413,7 +425,7 @@ bool Rows::hasMenu(not_null<const Row*> row) const {
 }
 
 void Rows::share(not_null<const Row*> row) const {
-	const auto link = qsl("https://t.me/setlanguage/") + row->data.id;
+	const auto link = u"https://t.me/setlanguage/"_q + row->data.id;
 	QGuiApplication::clipboard()->setText(link);
 	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
@@ -1090,30 +1102,45 @@ Ui::ScrollToRequest Content::jump(int rows) {
 
 } // namespace
 
+LanguageBox::LanguageBox(QWidget*, Window::SessionController *controller)
+: _controller(controller) {
+}
+
 void LanguageBox::prepare() {
 	addButton(tr::lng_box_ok(), [=] { closeBox(); });
 
 	setTitle(tr::lng_languages());
 
-	const auto select = createMultiSelect();
+	const auto topContainer = Ui::CreateChild<Ui::VerticalLayout>(this);
+	setupTop(topContainer);
+	const auto select = topContainer->add(
+		object_ptr<Ui::MultiSelect>(
+			topContainer,
+			st::defaultMultiSelect,
+			tr::lng_participant_filter()));
+	topContainer->resizeToWidth(st::boxWidth);
 
 	using namespace rpl::mappers;
 
-	const auto [recent, official] = PrepareLists();
+	const auto &[recent, official] = PrepareLists();
 	const auto inner = setInnerWidget(
 		object_ptr<Content>(this, recent, official),
 		st::boxScroll,
-		select->height());
+		topContainer->height());
 	inner->resizeToWidth(st::boxWidth);
 
 	const auto max = lifetime().make_state<int>(0);
 	rpl::combine(
 		inner->heightValue(),
-		select->heightValue(),
+		topContainer->heightValue(),
 		_1 + _2
 	) | rpl::start_with_next([=](int height) {
 		accumulate_max(*max, height);
 		setDimensions(st::boxWidth, qMin(*max, st::boxMaxListHeight));
+	}, inner->lifetime());
+	topContainer->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setInnerTopSkip(height);
 	}, inner->lifetime());
 
 	select->setSubmittedCallback([=](Qt::KeyboardModifiers) {
@@ -1149,6 +1176,87 @@ void LanguageBox::prepare() {
 	};
 }
 
+void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
+	if (!_controller) {
+		return;
+	}
+	const auto translateEnabled = container->add(
+		object_ptr<Ui::SettingsButton>(
+			container,
+			tr::lng_translate_settings_show(),
+			st::settingsButtonNoIcon))->toggleOn(
+				rpl::single(Core::App().settings().translateButtonEnabled()));
+
+	translateEnabled->toggledValue(
+	) | rpl::filter([](bool checked) {
+		return (checked != Core::App().settings().translateButtonEnabled());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setTranslateButtonEnabled(checked);
+		Core::App().saveSettingsDelayed();
+	}, translateEnabled->lifetime());
+
+	using namespace rpl::mappers;
+	auto premium = Data::AmPremiumValue(&_controller->session());
+	const auto translateChat = container->add(object_ptr<Ui::SettingsButton>(
+		container,
+		tr::lng_translate_settings_chat(),
+		st::settingsButtonNoIconLocked
+	))->toggleOn(rpl::merge(
+		rpl::combine(
+			Core::App().settings().translateChatEnabledValue(),
+			rpl::duplicate(premium),
+			_1 && _2),
+		_translateChatTurnOff.events()));
+	std::move(premium) | rpl::start_with_next([=](bool value) {
+		translateChat->setToggleLocked(!value);
+	}, translateChat->lifetime());
+
+	translateChat->toggledValue(
+	) | rpl::filter([=](bool checked) {
+		const auto premium = _controller->session().premium();
+		if (checked && !premium) {
+			ShowPremiumPreviewToBuy(
+				_controller,
+				PremiumFeature::RealTimeTranslation);
+			_translateChatTurnOff.fire(false);
+		}
+		return premium
+			&& (checked != Core::App().settings().translateChatEnabled());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setTranslateChatEnabled(checked);
+		Core::App().saveSettingsDelayed();
+	}, translateChat->lifetime());
+
+	using Languages = std::vector<LanguageId>;
+	const auto translateSkipWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	translateSkipWrap->toggle(
+		translateEnabled->toggled(),
+		anim::type::normal);
+	translateSkipWrap->toggleOn(rpl::combine(
+		translateEnabled->toggledValue(),
+		translateChat->toggledValue(),
+		rpl::mappers::_1 || rpl::mappers::_2));
+	const auto translateSkip = Settings::AddButtonWithLabel(
+		translateSkipWrap->entity(),
+		tr::lng_translate_settings_choose(),
+		Core::App().settings().skipTranslationLanguagesValue(
+		) | rpl::map([](const Languages &list) {
+			return (list.size() > 1)
+				? tr::lng_languages_count(tr::now, lt_count, list.size())
+				: Ui::LanguageName(list.front());
+		}),
+		st::settingsButtonNoIcon);
+
+	translateSkip->setClickedCallback([=] {
+		uiShow()->showBox(Ui::EditSkipTranslationLanguages());
+	});
+	Ui::AddSkip(container);
+	Ui::AddDividerText(container, tr::lng_translate_settings_about());
+}
+
 void LanguageBox::keyPressEvent(QKeyEvent *e) {
 	const auto key = e->key();
 	if (key == Qt::Key_Escape) {
@@ -1180,21 +1288,12 @@ void LanguageBox::setInnerFocus() {
 	_setInnerFocus();
 }
 
-not_null<Ui::MultiSelect*> LanguageBox::createMultiSelect() {
-	const auto result = Ui::CreateChild<Ui::MultiSelect>(
-		this,
-		st::defaultMultiSelect,
-		tr::lng_participant_filter());
-	result->resizeToWidth(st::boxWidth);
-	result->moveToLeft(0, 0);
-	return result;
-}
-
-base::binary_guard LanguageBox::Show() {
+base::binary_guard LanguageBox::Show(Window::SessionController *controller) {
 	auto result = base::binary_guard();
 
 	auto &manager = Lang::CurrentCloudManager();
 	if (manager.languageList().empty()) {
+		const auto weak = base::make_weak(controller);
 		auto guard = std::make_shared<base::binary_guard>(
 			result.make_guard());
 		auto lifetime = std::make_shared<rpl::lifetime>();
@@ -1207,11 +1306,11 @@ base::binary_guard LanguageBox::Show() {
 				base::take(lifetime)->destroy();
 			}
 			if (show) {
-				Ui::show(Box<LanguageBox>());
+				Ui::show(Box<LanguageBox>(weak.get()));
 			}
 		}, *lifetime);
 	} else {
-		Ui::show(Box<LanguageBox>());
+		Ui::show(Box<LanguageBox>(controller));
 	}
 	manager.requestLanguageList();
 

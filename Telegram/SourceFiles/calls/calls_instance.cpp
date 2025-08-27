@@ -12,9 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_choose_join_as.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_rtmp.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "main/session/session_show.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "apiwrap.h"
@@ -26,8 +30,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_panel.h"
 #include "data/data_user.h"
 #include "data/data_group_call.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_histories.h"
 #include "data/data_session.h"
 #include "media/audio/media_audio_track.h"
 #include "platform/platform_specific.h"
@@ -103,6 +109,8 @@ void Instance::Delegate::callFailed(not_null<Call*> call) {
 }
 
 void Instance::Delegate::callRedial(not_null<Call*> call) {
+	Expects(!call->conferenceInvite());
+
 	if (_instance->_currentCall.get() == call) {
 		_instance->refreshDhConfig();
 	}
@@ -156,6 +164,8 @@ void Instance::Delegate::groupCallPlaySound(GroupCallSound sound) {
 		case GroupCallSound::Ended: return "group_call_end";
 		case GroupCallSound::AllowedToSpeak: return "group_call_allowed";
 		case GroupCallSound::Connecting: return "group_call_connect";
+		case GroupCallSound::RecordingStarted:
+			return "group_call_recording_start";
 		}
 		Unexpected("GroupCallSound in Instance::groupCallPlaySound.");
 	}());
@@ -228,6 +238,78 @@ void Instance::startOrJoinGroupCall(
 				call ? call->input() : MTP_inputGroupCall({}, {}));
 		});
 	});
+}
+
+void Instance::startOrJoinConferenceCall(StartConferenceInfo args) {
+	Expects(args.call || args.show);
+
+	const auto migrationInfo = (args.migrating
+		&& args.call
+		&& _currentCallPanel)
+		? _currentCallPanel->migrationInfo()
+		: ConferencePanelMigration();
+	if (!args.migrating) {
+		destroyCurrentCall();
+	}
+
+	const auto session = args.show
+		? &args.show->session()
+		: &args.call->session();
+	auto call = std::make_unique<GroupCall>(_delegate.get(), args);
+	const auto raw = call.get();
+
+	session->account().sessionChanges(
+	) | rpl::start_with_next([=] {
+		destroyGroupCall(raw);
+	}, raw->lifetime());
+
+	if (args.call) {
+		_currentGroupCallPanel = std::make_unique<Group::Panel>(
+			raw,
+			migrationInfo);
+		_currentGroupCall = std::move(call);
+		_currentGroupCallChanges.fire_copy(raw);
+		finishConferenceInvitations(args);
+		if (args.migrating) {
+			destroyCurrentCall(args.call.get(), args.linkSlug);
+		}
+	} else {
+		if (const auto was = base::take(_startingGroupCall)) {
+			destroyGroupCall(was.get());
+		}
+		_startingGroupCall = std::move(call);
+	}
+}
+
+void Instance::startedConferenceReady(
+		not_null<GroupCall*> call,
+		StartConferenceInfo args) {
+	if (_startingGroupCall.get() != call) {
+		return;
+	}
+	const auto migrationInfo = _currentCallPanel
+		? _currentCallPanel->migrationInfo()
+		: ConferencePanelMigration();
+	_currentGroupCallPanel = std::make_unique<Group::Panel>(
+		call,
+		migrationInfo);
+	_currentGroupCall = std::move(_startingGroupCall);
+	_currentGroupCallChanges.fire_copy(call);
+	const auto real = call->conferenceCall().get();
+	const auto link = real->conferenceInviteLink();
+	const auto slug = Group::ExtractConferenceSlug(link);
+	finishConferenceInvitations(args);
+	destroyCurrentCall(real, slug);
+}
+
+void Instance::finishConferenceInvitations(const StartConferenceInfo &args) {
+	Expects(_currentGroupCallPanel != nullptr);
+
+	if (!args.invite.empty()) {
+		_currentGroupCallPanel->migrationInviteUsers(std::move(args.invite));
+	} else if (args.sharingLink) {
+		_currentGroupCallPanel->migrationShowShareLink();
+	}
 }
 
 void Instance::confirmLeaveCurrent(
@@ -310,7 +392,11 @@ void Instance::playSoundOnce(const QString &key) {
 
 void Instance::destroyCall(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
-		_currentCallPanel->closeBeforeDestroy();
+		const auto groupCallWindow = _currentGroupCallPanel
+			? _currentGroupCallPanel->window().get()
+			: nullptr;
+		const auto reused = (_currentCallPanel->window() == groupCallWindow);
+		_currentCallPanel->closeBeforeDestroy(reused);
 		_currentCallPanel = nullptr;
 
 		auto taken = base::take(_currentCall);
@@ -324,26 +410,52 @@ void Instance::destroyCall(not_null<Call*> call) {
 	}
 }
 
-void Instance::createCall(not_null<UserData*> user, Call::Type type, bool video) {
-	auto call = std::make_unique<Call>(_delegate.get(), user, type, video);
-	const auto raw = call.get();
+void Instance::createCall(
+		not_null<UserData*> user,
+		CallType type,
+		bool isVideo) {
+	struct Performer final {
+		explicit Performer(Fn<void(bool, bool, const Performer &)> callback)
+		: callback(std::move(callback)) {
+		}
+		Fn<void(bool, bool, const Performer &)> callback;
+	};
+	const auto performer = Performer([=](
+			bool video,
+			bool isConfirmed,
+			const Performer &repeater) {
+		const auto delegate = _delegate.get();
+		auto call = std::make_unique<Call>(delegate, user, type, video);
+		if (isConfirmed) {
+			call->applyUserConfirmation();
+		}
+		const auto raw = call.get();
 
-	user->session().account().sessionChanges(
-	) | rpl::start_with_next([=] {
-		destroyCall(raw);
-	}, raw->lifetime());
+		user->session().account().sessionChanges(
+		) | rpl::start_with_next([=] {
+			destroyCall(raw);
+		}, raw->lifetime());
 
-	if (_currentCall) {
-		_currentCallPanel->replaceCall(raw);
-		std::swap(_currentCall, call);
-		call->hangup();
-	} else {
-		_currentCallPanel = std::make_unique<Panel>(raw);
-		_currentCall = std::move(call);
-	}
-	_currentCallChanges.fire_copy(raw);
-	refreshServerConfig(&user->session());
-	refreshDhConfig();
+		if (_currentCall) {
+			_currentCallPanel->replaceCall(raw);
+			std::swap(_currentCall, call);
+			call->hangup();
+		} else {
+			_currentCallPanel = std::make_unique<Panel>(raw);
+			_currentCall = std::move(call);
+		}
+		if (raw->state() == Call::State::WaitingUserConfirmation) {
+			_currentCallPanel->startOutgoingRequests(
+			) | rpl::start_with_next([=](bool video) {
+				repeater.callback(video, true, repeater);
+			}, raw->lifetime());
+		} else {
+			refreshServerConfig(&user->session());
+			refreshDhConfig();
+		}
+		_currentCallChanges.fire_copy(raw);
+	});
+	performer.callback(isVideo, false, performer);
 }
 
 void Instance::destroyGroupCall(not_null<GroupCall*> call) {
@@ -359,6 +471,8 @@ void Instance::destroyGroupCall(not_null<GroupCall*> call) {
 			LOG(("Calls::Instance doesn't prevent quit any more."));
 		}
 		Core::App().quitPreventFinished();
+	} else if (_startingGroupCall.get() == call) {
+		base::take(_startingGroupCall);
 	}
 }
 
@@ -385,6 +499,7 @@ void Instance::createGroupCall(
 
 void Instance::refreshDhConfig() {
 	Expects(_currentCall != nullptr);
+	Expects(!_currentCall->conferenceInvite());
 
 	const auto weak = base::make_weak(_currentCall);
 	_currentCall->user()->session().api().request(MTPmessages_GetDhConfig(
@@ -479,6 +594,8 @@ void Instance::handleUpdate(
 		handleGroupCallUpdate(session, update);
 	}, [&](const MTPDupdateGroupCallParticipants &data) {
 		handleGroupCallUpdate(session, update);
+	}, [&](const MTPDupdateGroupCallChainBlocks &data) {
+		handleGroupCallUpdate(session, update);
 	}, [](const auto &) {
 		Unexpected("Update type in Calls::Instance::handleUpdate.");
 	});
@@ -493,20 +610,6 @@ void Instance::showInfoPanel(not_null<Call*> call) {
 void Instance::showInfoPanel(not_null<GroupCall*> call) {
 	if (_currentGroupCall.get() == call) {
 		_currentGroupCallPanel->showAndActivate();
-	}
-}
-
-void Instance::setCurrentAudioDevice(bool input, const QString &deviceId) {
-	if (input) {
-		Core::App().settings().setCallInputDeviceId(deviceId);
-	} else {
-		Core::App().settings().setCallOutputDeviceId(deviceId);
-	}
-	Core::App().saveSettingsDelayed();
-	if (const auto call = currentCall()) {
-		call->setCurrentAudioDevice(input, deviceId);
-	} else if (const auto group = currentGroupCall()) {
-		group->setCurrentAudioDevice(input, deviceId);
 	}
 }
 
@@ -528,6 +631,11 @@ FnMut<void()> Instance::addAsyncWaiter() {
 			}
 		});
 	};
+}
+
+bool Instance::isSharingScreen() const {
+	return (_currentCall && _currentCall->isSharingScreen())
+		|| (_currentGroupCall && _currentGroupCall->isSharingScreen());
 }
 
 bool Instance::isQuitPrevent() {
@@ -558,6 +666,14 @@ void Instance::handleCallUpdate(
 			// May be a repeated phoneCallRequested update from getDifference.
 			return;
 		}
+		if (inCall()
+			&& _currentCall->type() == Call::Type::Outgoing
+			&& _currentCall->user()->id == session->userPeerId()
+			&& (user->id == _currentCall->user()->session().userPeerId())) {
+			// Ignore call from the same running app, other account.
+			return;
+		}
+
 		const auto &config = session->serverConfig();
 		if (inCall() || inGroupCall() || !user || user->isSelf()) {
 			const auto flags = phoneCall.is_video()
@@ -587,12 +703,14 @@ void Instance::handleCallUpdate(
 void Instance::handleGroupCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update) {
-	if (_currentGroupCall
-		&& (&_currentGroupCall->peer()->session() == session)) {
+	const auto groupCall = _currentGroupCall
+		? _currentGroupCall.get()
+		: _startingGroupCall.get();
+	if (groupCall && (&groupCall->peer()->session() == session)) {
 		update.match([&](const MTPDupdateGroupCall &data) {
-			_currentGroupCall->handlePossibleCreateOrJoinResponse(data);
+			groupCall->handlePossibleCreateOrJoinResponse(data);
 		}, [&](const MTPDupdateGroupCallConnection &data) {
-			_currentGroupCall->handlePossibleCreateOrJoinResponse(data);
+			groupCall->handlePossibleCreateOrJoinResponse(data);
 		}, [](const auto &) {
 		});
 	}
@@ -607,11 +725,24 @@ void Instance::handleGroupCallUpdate(
 	}, [](const MTPDupdateGroupCallParticipants &data) {
 		return data.vcall().match([&](const MTPDinputGroupCall &data) {
 			return data.vid().v;
+		}, [](const auto &) -> CallId {
+			Unexpected("slug/msg in Instance::handleGroupCallUpdate");
+		});
+	}, [](const MTPDupdateGroupCallChainBlocks &data) {
+		return data.vcall().match([&](const MTPDinputGroupCall &data) {
+			return data.vid().v;
+		}, [](const auto &) -> CallId {
+			Unexpected("slug/msg in Instance::handleGroupCallUpdate");
 		});
 	}, [](const auto &) -> CallId {
 		Unexpected("Type in Instance::handleGroupCallUpdate.");
 	});
-	if (const auto existing = session->data().groupCall(callId)) {
+	if (update.type() == mtpc_updateGroupCallChainBlocks) {
+		const auto existing = session->data().groupCall(callId);
+		if (existing && groupCall && groupCall->lookupReal() == existing) {
+			groupCall->handleUpdate(update);
+		}
+	} else if (const auto existing = session->data().groupCall(callId)) {
 		existing->enqueueUpdate(update);
 	} else {
 		applyGroupCallUpdateChecked(session, update);
@@ -621,9 +752,11 @@ void Instance::handleGroupCallUpdate(
 void Instance::applyGroupCallUpdateChecked(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update) {
-	if (_currentGroupCall
-		&& (&_currentGroupCall->peer()->session() == session)) {
-		_currentGroupCall->handleUpdate(update);
+	const auto groupCall = _currentGroupCall
+		? _currentGroupCall.get()
+		: _startingGroupCall.get();
+	if (groupCall && (&groupCall->peer()->session() == session)) {
+		groupCall->handleUpdate(update);
 	}
 }
 
@@ -643,7 +776,8 @@ bool Instance::inCall() const {
 		return false;
 	}
 	const auto state = _currentCall->state();
-	return (state != Call::State::Busy);
+	return (state != Call::State::Busy)
+		&& (state != Call::State::WaitingUserConfirmation);
 }
 
 bool Instance::inGroupCall() const {
@@ -657,28 +791,44 @@ bool Instance::inGroupCall() const {
 		&& (state != GroupCall::State::Failed);
 }
 
-void Instance::destroyCurrentCall() {
+void Instance::destroyCurrentCall(
+		Data::GroupCall *migrateCall,
+		const QString &migrateSlug) {
 	if (const auto current = currentCall()) {
-		current->hangup();
+		current->hangup(migrateCall, migrateSlug);
 		if (const auto still = currentCall()) {
 			destroyCall(still);
 		}
 	}
 	if (const auto current = currentGroupCall()) {
-		current->hangup();
-		if (const auto still = currentGroupCall()) {
-			destroyGroupCall(still);
+		if (!migrateCall || current->lookupReal() != migrateCall) {
+			current->hangup();
+			if (const auto still = currentGroupCall()) {
+				destroyGroupCall(still);
+			}
 		}
 	}
+	base::take(_startingGroupCall);
 }
 
-bool Instance::hasActivePanel(not_null<Main::Session*> session) const {
+bool Instance::hasVisiblePanel(Main::Session *session) const {
 	if (inCall()) {
-		return (&_currentCall->user()->session() == session)
-			&& _currentCallPanel->isActive();
+		return _currentCallPanel->isVisible()
+			&& (!session || (&_currentCall->user()->session() == session));
 	} else if (inGroupCall()) {
-		return (&_currentGroupCall->peer()->session() == session)
-			&& _currentGroupCallPanel->isActive();
+		return _currentGroupCallPanel->isVisible()
+			&& (!session || (&_currentGroupCall->peer()->session() == session));
+	}
+	return false;
+}
+
+bool Instance::hasActivePanel(Main::Session *session) const {
+	if (inCall()) {
+		return _currentCallPanel->isActive()
+			&& (!session || (&_currentCall->user()->session() == session));
+	} else if (inGroupCall()) {
+		return _currentGroupCallPanel->isActive()
+			&& (!session || (&_currentGroupCall->peer()->session() == session));
 	}
 	return false;
 }
@@ -703,6 +853,17 @@ bool Instance::minimizeCurrentActiveCall() {
 		return true;
 	} else if (inGroupCall() && _currentGroupCallPanel->isActive()) {
 		_currentGroupCallPanel->minimize();
+		return true;
+	}
+	return false;
+}
+
+bool Instance::toggleFullScreenCurrentActiveCall() {
+	if (inCall() && _currentCallPanel->isActive()) {
+		_currentCallPanel->toggleFullScreen();
+		return true;
+	} else if (inGroupCall() && _currentGroupCallPanel->isActive()) {
+		_currentGroupCallPanel->toggleFullScreen();
 		return true;
 	}
 	return false;
@@ -784,7 +945,7 @@ std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture(
 		if (deviceId) {
 			result->switchToDevice(
 				(deviceId->isEmpty()
-					? Core::App().settings().callVideoInputDeviceId()
+					? Core::App().settings().cameraDeviceId()
 					: *deviceId).toStdString(),
 				isScreenCapture);
 		}
@@ -792,7 +953,7 @@ std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture(
 	}
 	const auto startDeviceId = (deviceId && !deviceId->isEmpty())
 		? *deviceId
-		: Core::App().settings().callVideoInputDeviceId();
+		: Core::App().settings().cameraDeviceId();
 	auto result = std::shared_ptr<tgcalls::VideoCaptureInterface>(
 		tgcalls::VideoCaptureInterface::Create(
 			tgcalls::StaticThreads::getThreads(),
@@ -800,5 +961,189 @@ std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture(
 	_videoCapture = result;
 	return result;
 }
+
+const ConferenceInvites &Instance::conferenceInvites(
+		CallId conferenceId) const {
+	static const auto kEmpty = ConferenceInvites();
+	const auto i = _conferenceInvites.find(conferenceId);
+	return (i != end(_conferenceInvites)) ? i->second : kEmpty;
+}
+
+void Instance::registerConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user,
+		MsgId messageId,
+		bool incoming) {
+	auto &info = _conferenceInvites[conferenceId].users[user];
+	(incoming ? info.incoming : info.outgoing).emplace(messageId);
+}
+
+void Instance::unregisterConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user,
+		MsgId messageId,
+		bool incoming,
+		bool onlyStopCalling) {
+	const auto i = _conferenceInvites.find(conferenceId);
+	if (i == end(_conferenceInvites)) {
+		return;
+	}
+	const auto j = i->second.users.find(user);
+	if (j == end(i->second.users)) {
+		return;
+	}
+	auto &info = j->second;
+	if (!(incoming ? info.incoming : info.outgoing).remove(messageId)) {
+		return;
+	}
+	if (!incoming) {
+		user->owner().unregisterInvitedToCallUser(
+			conferenceId,
+			user,
+			onlyStopCalling);
+	}
+	if (info.incoming.empty() && info.outgoing.empty()) {
+		i->second.users.erase(j);
+		if (i->second.users.empty()) {
+			_conferenceInvites.erase(i);
+		}
+	}
+	if (_currentCall
+		&& _currentCall->user() == user
+		&& _currentCall->conferenceInviteMsgId() == messageId
+		&& _currentCall->state() == Call::State::WaitingIncoming) {
+		destroyCurrentCall();
+	}
+}
+
+void Instance::declineIncomingConferenceInvites(CallId conferenceId) {
+	const auto i = _conferenceInvites.find(conferenceId);
+	if (i == end(_conferenceInvites)) {
+		return;
+	}
+	for (auto j = begin(i->second.users); j != end(i->second.users);) {
+		const auto api = &j->first->session().api();
+		for (const auto &messageId : base::take(j->second.incoming)) {
+			api->request(MTPphone_DeclineConferenceCallInvite(
+				MTP_int(messageId.bare)
+			)).send();
+		}
+		if (j->second.outgoing.empty()) {
+			j = i->second.users.erase(j);
+		} else {
+			++j;
+		}
+	}
+	if (i->second.users.empty()) {
+		_conferenceInvites.erase(i);
+	}
+}
+
+void Instance::declineOutgoingConferenceInvite(
+		CallId conferenceId,
+		not_null<UserData*> user,
+		bool discard) {
+	const auto i = _conferenceInvites.find(conferenceId);
+	if (i == end(_conferenceInvites)) {
+		return;
+	}
+	const auto j = i->second.users.find(user);
+	if (j == end(i->second.users)) {
+		return;
+	}
+	const auto api = &user->session().api();
+	auto ids = base::take(j->second.outgoing);
+	auto inputs = QVector<MTPint>();
+	for (const auto &messageId : ids) {
+		if (discard) {
+			inputs.push_back(MTP_int(messageId.bare));
+		} else {
+			api->request(MTPphone_DeclineConferenceCallInvite(
+				MTP_int(messageId.bare)
+			)).send();
+		}
+	}
+	if (!inputs.empty()) {
+		user->owner().histories().deleteMessages(
+			user->owner().history(user),
+			std::move(inputs),
+			true);
+		for (const auto &messageId : ids) {
+			if (const auto item = user->owner().message(user, messageId)) {
+				item->destroy();
+			}
+		}
+	}
+	if (j->second.incoming.empty()) {
+		i->second.users.erase(j);
+		if (i->second.users.empty()) {
+			_conferenceInvites.erase(i);
+		}
+	}
+	user->owner().unregisterInvitedToCallUser(conferenceId, user, !discard);
+}
+
+void Instance::showConferenceInvite(
+		not_null<UserData*> user,
+		MsgId conferenceInviteMsgId) {
+	const auto item = user->owner().message(user, conferenceInviteMsgId);
+	const auto media = item ? item->media() : nullptr;
+	const auto call = media ? media->call() : nullptr;
+	const auto conferenceId = call ? call->conferenceId : 0;
+	const auto video = call->video;
+	if (!conferenceId
+		|| call->state != Data::CallState::Invitation
+		|| user->isSelf()
+		|| user->session().appConfig().callsDisabledForSession()) {
+		return;
+	} else if (_currentCall
+		&& _currentCall->conferenceId() == conferenceId) {
+		return;
+	} else if (inGroupCall()
+		&& _currentGroupCall->conference()
+		&& _currentGroupCall->conferenceCall()->id() == conferenceId) {
+		return;
+	}
+
+	auto conferenceParticipants = call->otherParticipants;
+	if (!ranges::contains(conferenceParticipants, user)) {
+		conferenceParticipants.push_back(user);
+	}
+
+	const auto &config = user->session().serverConfig();
+	if (inCall() || inGroupCall()) {
+		declineIncomingConferenceInvites(conferenceId);
+	} else if (item->date() + (config.callRingTimeoutMs / 1000)
+		< base::unixtime::now()) {
+		declineIncomingConferenceInvites(conferenceId);
+		LOG(("Ignoring too old conference call invitation."));
+	} else {
+		const auto delegate = _delegate.get();
+		auto call = std::make_unique<Call>(
+			delegate,
+			user,
+			conferenceId,
+			conferenceInviteMsgId,
+			std::move(conferenceParticipants),
+			video);
+		const auto raw = call.get();
+
+		user->session().account().sessionChanges(
+		) | rpl::start_with_next([=] {
+			destroyCall(raw);
+		}, raw->lifetime());
+
+		if (_currentCall) {
+			_currentCallPanel->replaceCall(raw);
+			std::swap(_currentCall, call);
+			call->hangup();
+		} else {
+			_currentCallPanel = std::make_unique<Panel>(raw);
+			_currentCall = std::move(call);
+		}
+		_currentCallChanges.fire_copy(raw);
+	}
+}
+
 
 } // namespace Calls

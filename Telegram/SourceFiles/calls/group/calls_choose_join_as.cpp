@@ -393,7 +393,7 @@ void ChooseJoinAsProcess::finish(JoinInfo info) {
 	const auto box = _request->box;
 	_request = nullptr;
 	done(std::move(info));
-	if (const auto strong = box.data()) {
+	if (const auto strong = box.get()) {
 		strong->closeBox();
 	}
 }
@@ -406,9 +406,7 @@ void ChooseJoinAsProcess::processList(
 	auto info = JoinInfo{ .peer = peer, .joinAs = self };
 	const auto selectedId = peer->groupCallDefaultJoinAs();
 	if (list.empty()) {
-		Ui::Toast::Show(
-			_request->show->toastParent(),
-			Lang::Hard::ServerError());
+		_request->show->showToast(Lang::Hard::ServerError());
 		return;
 	}
 	info.joinAs = [&]() -> not_null<PeerData*> {

@@ -7,18 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/bot_keyboard.h"
 
+#include "api/api_bot.h"
 #include "core/click_handler_types.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
-#include "data/data_user.h"
-#include "data/data_session.h"
 #include "main/main_session.h"
-#include "window/window_session_controller.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
-#include "api/api_bot.h"
-#include "styles/style_widgets.h"
+#include "ui/ui_utility.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_widgets.h"
 
 namespace {
 
@@ -52,7 +53,9 @@ protected:
 	void paintButtonLoading(
 		QPainter &p,
 		const Ui::ChatStyle *st,
-		const QRect &rect) const override;
+		const QRect &rect,
+		int outerWidth,
+		Ui::BubbleRounding rounding) const override;
 	int minButtonWidth(HistoryMessageMarkupButton::Type type) const override;
 
 private:
@@ -107,7 +110,9 @@ void Style::paintButtonIcon(
 void Style::paintButtonLoading(
 		QPainter &p,
 		const Ui::ChatStyle *st,
-		const QRect &rect) const {
+		const QRect &rect,
+		int outerWidth,
+		Ui::BubbleRounding rounding) const {
 	// Buttons with loading progress should not appear here.
 }
 
@@ -121,7 +126,7 @@ int Style::minButtonWidth(HistoryMessageMarkupButton::Type type) const {
 BotKeyboard::BotKeyboard(
 	not_null<Window::SessionController*> controller,
 	QWidget *parent)
-: TWidget(parent)
+: RpWidget(parent)
 , _controller(controller)
 , _st(&st::botKbButton) {
 	setGeometry(0, 0, _st->margin, st::botKbScroll.deltat);
@@ -255,7 +260,7 @@ void BotKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 	if (!to || !to->definesReplyKeyboard()) {
 		if (_wasForMsgId.msg) {
-			_maximizeSize = _singleUse = _forceReply = false;
+			_maximizeSize = _singleUse = _forceReply = _persistent = false;
 			_wasForMsgId = FullMsgId();
 			_placeholder = QString();
 			_impl = nullptr;
@@ -275,6 +280,7 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 	_forceReply = markupFlags & ReplyMarkupFlag::ForceReply;
 	_maximizeSize = !(markupFlags & ReplyMarkupFlag::Resize);
 	_singleUse = _forceReply || (markupFlags & ReplyMarkupFlag::SingleUse);
+	_persistent = (markupFlags & ReplyMarkupFlag::Persistent);
 
 	if (const auto markup = to->Get<HistoryMessageReplyMarkup>()) {
 		_placeholder = markup->data.placeholder;
@@ -324,6 +330,10 @@ bool BotKeyboard::maximizeSize() const {
 
 bool BotKeyboard::singleUse() const {
 	return _singleUse;
+}
+
+bool BotKeyboard::persistent() const {
+	return _persistent;
 }
 
 void BotKeyboard::updateStyle(int newWidth) {

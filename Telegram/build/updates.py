@@ -11,6 +11,7 @@ nextDate = False
 nextUuid = False
 building = True
 composing = False
+conf = 'Release'
 for arg in sys.argv:
     if nextLast:
         lastCommit = arg
@@ -32,6 +33,8 @@ for arg in sys.argv:
         nextDate = True
     elif arg == 'request_uuid':
         nextUuid = True
+    elif arg == 'debug':
+        conf = 'Debug'
 
 def finish(code, error = ''):
     if error != '':
@@ -53,9 +56,9 @@ outputFolder = 'updates/' + today
 archive = 'tdesktop_macOS_' + today + '.zip'
 
 if building:
-    print('Building debug version for OS X 10.12+..')
+    print('Building ' + conf + ' version for OS X 10.13+..')
 
-    if os.path.exists('../out/Debug/' + outputFolder):
+    if os.path.exists('../out/' + conf + '/' + outputFolder):
         finish(1, 'Todays updates version exists.')
 
     if uuid == '':
@@ -65,11 +68,11 @@ if building:
 
     os.chdir('../out')
     if uuid == '':
-        result = subprocess.call('cmake --build . --config Debug --target Telegram', shell=True)
+        result = subprocess.call('cmake --build . --config ' + conf + ' --target Telegram', shell=True)
         if result != 0:
             finish(1, 'While building Telegram.')
 
-    os.chdir('Debug')
+    os.chdir(conf);
     if uuid == '':
         if not os.path.exists('Telegram.app'):
             finish(1, 'Telegram.app not found.')
@@ -78,7 +81,7 @@ if building:
         if result != 0:
             finish(1, 'While stripping Telegram.')
 
-        result = subprocess.call('codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" Telegram.app --entitlements "../../Telegram/Telegram/Telegram.entitlements"', shell=True)
+        result = subprocess.call('codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: Telegram FZ-LLC (C67CF9S4VU)" Telegram.app --entitlements "../../Telegram/Telegram/Telegram.entitlements"', shell=True)
         if result != 0:
             finish(1, 'While signing Telegram.')
 
@@ -86,8 +89,6 @@ if building:
             finish(1, 'Updater not found.')
         elif not os.path.exists('Telegram.app/Contents/Helpers/crashpad_handler'):
             finish(1, 'crashpad_handler not found.')
-        elif not os.path.exists('Telegram.app/Contents/Resources/Icon.icns'):
-            finish(1, 'Icon not found.')
         elif not os.path.exists('Telegram.app/Contents/_CodeSignature'):
             finish(1, 'Signature not found.')
 
@@ -106,53 +107,9 @@ if building:
             finish(1, 'Adding tdesktop to archive.')
 
         print('Beginning notarization process.')
-        lines = subprocess.check_output('xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.TelegramDebug" --username "' + username + '" --password "@keychain:AC_PASSWORD" --file "' + archive + '"', stderr=subprocess.STDOUT, shell=True).decode('utf-8')
-        print('Response received.')
-        uuid = ''
-        for line in lines.split('\n'):
-            parts = line.strip().split(' ')
-            if len(parts) > 2 and parts[0] == 'RequestUUID':
-                uuid = parts[2]
-        if uuid == '':
-            finish(1, 'Could not extract Request UUID. Response: ' + lines)
-        print('Request UUID: ' + uuid)
-    else:
-        print('Continue with request UUID: ' + uuid)
-
-    requestStatus = ''
-    logUrl = ''
-    while requestStatus == '':
-        time.sleep(5)
-        print('Checking...')
-        lines = subprocess.check_output('xcrun altool --notarization-info "' + uuid + '" --username "' + username + '" --password "@keychain:AC_PASSWORD"', stderr=subprocess.STDOUT, shell=True).decode('utf-8')
-        statusFound = False
-        for line in lines.split('\n'):
-            parts = line.strip().split(' ')
-            if len(parts) > 1:
-                if parts[0] == 'LogFileURL:':
-                    logUrl = parts[1]
-                elif parts[0] == 'Status:':
-                    if parts[1] == 'in':
-                        print('In progress.')
-                        statusFound = True
-                    else:
-                        requestStatus = parts[1]
-                        print('Status: ' + requestStatus)
-                        statusFound = True
-        if not statusFound:
-            print('Nothing: ' + lines)
-    if requestStatus != 'success':
-        print('Notarization problems, response: ' + lines)
-        if logUrl != '':
-            print('Requesting log...')
-            result = subprocess.call('curl ' + logUrl, shell=True)
-            if result != 0:
-                finish(1, 'Error calling curl ' + logUrl)
-        finish(1, 'Notarization failed.')
-    logLines = ''
-    if logUrl != '':
-        print('Requesting log...')
-        logLines = subprocess.check_output('curl ' + logUrl, shell=True).decode('utf-8')
+        result = subprocess.call('xcrun notarytool submit "' + archive + '" --keychain-profile "preston" --wait', shell=True)
+        if result != 0:
+            finish(1, 'Notarizing the archive.')
     result = subprocess.call('xcrun stapler staple Telegram.app', shell=True)
     if result != 0:
         finish(1, 'Error calling stapler')
@@ -172,28 +129,9 @@ if building:
     subprocess.call('mv ' + archive + ' ' + outputFolder + '/', shell=True)
     subprocess.call('rm -rf ' + today, shell=True)
     print('Finished.')
-
-    if logLines != '':
-        displayingLog = 0
-        for line in logLines.split('\n'):
-            if displayingLog == 1:
-                print(line)
-            else:
-                parts = line.strip().split(' ')
-                if len(parts) > 1 and parts[0] == '"issues":':
-                    if parts[1] != 'null':
-                        print('NB! Notarization log issues:')
-                        print(line)
-                        displayingLog = 1
-                    else:
-                        displayingLog = -1
-        if displayingLog == 0:
-            print('NB! Notarization issues not found: ' + logLines)
-    else:
-        print('NB! Notarization log not found.')
     finish(0)
 
-commandPath = scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt'
+commandPath = scriptPath + '/../../out/' + conf + '/' + outputFolder + '/command.txt'
 
 if composing:
     templatePath = scriptPath + '/../../../DesktopPrivate/updates_template.txt'
@@ -235,7 +173,7 @@ if composing:
             for line in template:
                 if line.startswith('//'):
                     continue
-                line = line.replace('{path}', scriptPath + '/../../out/Debug/' + outputFolder + '/' + archive)
+                line = line.replace('{path}', scriptPath + '/../../out/' + conf + '/' + outputFolder + '/' + archive)
                 line = line.replace('{caption}', 'TDesktop at ' + today.replace('_', '.') + ':\n\n' + changelog)
                 f.write(line)
     print('\n\nEdit:\n')
@@ -262,9 +200,9 @@ if len(caption) > 1024:
     print('vi ' + commandPath)
     finish(1, 'Too large.')
 
-if not os.path.exists('../out/Debug/' + outputFolder + '/' + archive):
+if not os.path.exists('../out/' + conf + '/' + outputFolder + '/' + archive):
     finish(1, 'Not built yet.')
 
-subprocess.call(scriptPath + '/../../out/Debug/Telegram.app/Contents/MacOS/Telegram -sendpath interpret://' + scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt', shell=True)
+subprocess.call(scriptPath + '/../../out/' + conf + '/Telegram.app/Contents/MacOS/Telegram -sendpath interpret://' + scriptPath + '/../../out/' + conf + '/' + outputFolder + '/command.txt', shell=True)
 
 finish(0)

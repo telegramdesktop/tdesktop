@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "ui/unread_badge.h"
 
+class ParticipantsBoxController;
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
@@ -32,6 +34,7 @@ public:
 	MemberListRow(not_null<UserData*> user, Type type);
 
 	void setType(Type type);
+	[[nodiscard]] Type type() const;
 	bool rightActionDisabled() const override;
 	QMargins rightActionMargins() const override;
 	void refreshStatus() override;
@@ -43,7 +46,7 @@ private:
 
 };
 
-std::unique_ptr<PeerListController> CreateMembersController(
+std::unique_ptr<ParticipantsBoxController> CreateMembersController(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer);
 

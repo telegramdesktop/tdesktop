@@ -6,8 +6,93 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
+using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
-using "settings/settings.style";
+using "ui/layers/layers.style";
+
+PremiumLimits {
+	boxLabel: FlatLabel;
+	nonPremiumBg: color;
+	nonPremiumFg: color;
+	gradientFromLeft: bool;
+}
+PremiumBubble {
+	widthLimit: pixels;
+	height: pixels;
+	padding: margins;
+	skip: pixels;
+	penWidth: pixels;
+	textSkip: pixels;
+	tailSize: size;
+	font: font;
+	additionalStyle: TextStyle;
+	additionalSkip: pixels;
+}
+PremiumCover {
+	bg: color;
+	starSize: size;
+	starTopSkip: pixels;
+	titlePadding: margins;
+	titleFont: font;
+	about: FlatLabel;
+	aboutMaxWidth: pixels;
+	additionalShadowForDarkThemes: bool;
+}
+ComposePremiumRequired {
+	label: FlatLabel;
+	button: RoundButton;
+	buttonSkip: pixels;
+	buttonTop: pixels;
+	position: point;
+	icon: icon;
+}
+
+premiumAboutTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	linkUnderline: kLinkUnderlineAlways;
+	lineHeight: 18px;
+}
+defaultPremiumCover: PremiumCover {
+	bg: boxBg;
+	starSize: size(84px, 81px);
+	starTopSkip: 37px;
+	titlePadding: margins(0px, 18px, 0px, 11px);
+	titleFont: boxTitleFont;
+	about: FlatLabel(defaultFlatLabel) {
+		style: premiumAboutTextStyle;
+		palette: TextPalette(defaultTextPalette) {
+			linkFg: premiumButtonFg;
+		}
+		align: align(top);
+		textFg: premiumButtonFg;
+		minWidth: 190px;
+	}
+	aboutMaxWidth: 0px;
+	additionalShadowForDarkThemes: true;
+}
+userPremiumCoverAbout: FlatLabel(boxDividerLabel) {
+	style: premiumAboutTextStyle;
+	minWidth: 315px;
+	maxHeight: 0px;
+	align: align(top);
+}
+userPremiumCover: PremiumCover(defaultPremiumCover) {
+	about: userPremiumCoverAbout;
+}
+
+defaultPremiumBoxLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 220px;
+	align: align(topleft);
+	style: TextStyle(boxTextStyle) {
+		lineHeight: 22px;
+	}
+}
+defaultPremiumLimits: PremiumLimits {
+	boxLabel: defaultPremiumBoxLabel;
+	nonPremiumBg: windowBgOver;
+	nonPremiumFg: windowFg;
+	gradientFromLeft: false;
+}
 
 // Preview.
 premiumPreviewBox: Box(defaultBox) {
@@ -16,7 +101,7 @@ premiumPreviewBox: Box(defaultBox) {
 	button: RoundButton(defaultActiveButton) {
 		height: 44px;
 		textTop: 12px;
-		font: font(13px semibold);
+		style: semiboldTextStyle;
 	}
 }
 premiumPreviewDoubledLimitsBox: Box(premiumPreviewBox) {
@@ -29,8 +114,6 @@ premiumPreviewAboutTitle: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	style: TextStyle(defaultTextStyle) {
 		font: font(17px semibold);
-		linkFont: font(17px semibold);
-		linkFontOver: font(17px semibold);
 	}
 }
 premiumPreviewAbout: FlatLabel(defaultFlatLabel) {
@@ -48,14 +131,6 @@ premiumVideoStarSize: size(77px, 73px);
 
 premiumPreviewHeight: 312px;
 
-premiumReactionWidthSkip: 64px;
-premiumReactionHeightSkip: 75px;
-premiumReactionSize: 108px;
-premiumReactionAround: 164px;
-premiumReactionsMiddle: 148px;
-premiumReactionScale: 0.70;
-premiumReactionInfoTop: 260px;
-
 premiumDot: 6px;
 premiumDotPadding: margins(4px, 4px, 4px, 4px);
 premiumDotsMargin: margins(0px, 5px, 0px, 6px);
@@ -63,15 +138,17 @@ premiumVideoWidth: 182px;
 
 // Graphics.
 
-premiumBubblePadding: margins(14px, 0px, 14px, 0px);
-premiumBubblePenWidth: 6;
-premiumBubbleHeight: 40px;
-premiumBubbleSkip: 8px;
-premiumBubbleWidthLimit: 80px;
-premiumBubbleTextSkip: 3px;
-premiumBubbleSlideDuration: 1000;
-premiumBubbleTailSize: size(21px, 7px);
-premiumBubbleFont: font(19px);
+defaultPremiumBubble: PremiumBubble {
+	widthLimit: 80px;
+	height: 40px;
+	padding: margins(14px, 0px, 14px, 0px);
+	skip: 8px;
+	penWidth: 6px;
+	textSkip: 3px;
+	tailSize: size(21px, 7px);
+	font: font(19px);
+}
+premiumLineRadius: 5px;
 premiumLineTextSkip: 11px;
 premiumInfographicPadding: margins(0px, 10px, 0px, 15px);
 
@@ -82,6 +159,7 @@ premiumIconGroups: icon {{ "limits/groups", settingsIconFg }};
 premiumIconLinks: icon {{ "limits/links", settingsIconFg }};
 premiumIconPins: icon {{ "limits/pins", settingsIconFg }};
 premiumIconAccounts: icon {{ "limits/accounts", settingsIconFg }};
+premiumIconBoost: icon {{ "limits/boost", settingsIconFg }};
 
 premiumAccountsCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
 	imageRadius: 27px;
@@ -148,18 +226,294 @@ premiumGiftOption: PremiumOption {
 	badgeMargins: margins(5px, 1px, 5px, 0px);
 }
 
-premiumGiftUserpicPadding: margins(10px, 27px, 18px, 13px);
-premiumGiftTitlePadding: margins(18px, 0px, 18px, 0px);
-premiumGiftAboutPadding: margins(18px, 5px, 18px, 23px);
-premiumGiftTermsPadding: margins(18px, 27px, 18px, 0px);
-
-premiumGiftTerms: FlatLabel(settingLocalPasscodeDescription) {
-	style: TextStyle(defaultTextStyle) {
-		font: font(11px);
-		linkFont: font(11px);
-		linkFontOver: font(11px underline);
-	}
-}
 premiumGiftBox: Box(premiumPreviewBox) {
 	buttonPadding: margins(12px, 12px, 12px, 12px);
+}
+
+premiumGiftsUserpicButton: UserpicButton(defaultUserpicButton) {
+	size: size(66px, 66px);
+	photoSize: 66px;
+	photoPosition: point(-1px, -1px);
+}
+
+boostSkipTop: 37px;
+boostLimits: PremiumLimits(defaultPremiumLimits) {
+	gradientFromLeft: true;
+	nonPremiumBg: windowBgRipple;
+}
+negativeStarsLimits: PremiumLimits(boostLimits) {
+	gradientFromLeft: false;
+}
+boostBubble: PremiumBubble(defaultPremiumBubble) {
+	height: 32px;
+	padding: margins(7px, 0px, 11px, 0px);
+	skip: 5px;
+	textSkip: 2px;
+	tailSize: size(14px, 6px);
+	font: font(16px);
+	additionalStyle: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+	additionalSkip: 2px;
+}
+starRatingBubble: PremiumBubble(boostBubble) {
+	font: font(16px semibold);
+}
+iconOnlyPremiumBubble: PremiumBubble(boostBubble) {
+	padding: margins(7px, 0px, 7px, 0px);
+	textSkip: 0px;
+}
+boostTitleSkip: 32px;
+boostTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	textFg: windowBoldFg;
+	maxHeight: 24px;
+	style: TextStyle(boxTextStyle) {
+		font: font(17px semibold);
+	}
+}
+boostTitleBadge: FlatLabel(defaultFlatLabel) {
+	margin: margins(4px, 2px, 4px, 2px);
+	style: semiboldTextStyle;
+	textFg: premiumButtonFg;
+}
+boostTitleBadgeSkip: 6px;
+boostCenteredTitle: FlatLabel(boostTitle) {
+	align: align(top);
+}
+boostTextSkip: 5px;
+boostText: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	align: align(top);
+}
+boostTextPending: FlatLabel(boostText) {
+	textFg: windowSubTextFg;
+}
+boostTextNegative: FlatLabel(boostText) {
+	textFg: attentionButtonFg;
+}
+boostReassignText: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	align: align(top);
+}
+boostBottomSkip: 6px;
+boostBox: Box(premiumPreviewDoubledLimitsBox) {
+	buttonPadding: margins(16px, 12px, 16px, 12px);
+	buttonHeight: 42px;
+	buttonWide: true;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+}
+
+boostReplaceUserpicsPadding: margins(0px, 18px, 0px, 20px);
+boostReplaceUserpicsSkip: 42px;
+boostReplaceUserpicsShift: 24px;
+boostReplaceUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(60px, 60px);
+	photoSize: 60px;
+}
+boostReplaceIcon: icon{{ "stories/boost_mini", premiumButtonFg }};
+boostReplaceIconSkip: 3px;
+boostReplaceIconOutline: 2px;
+boostReplaceIconAdd: point(4px, 2px);
+boostReplaceArrow: icon{{ "mediaview/next", windowSubTextFg }};
+boostReplaceUserpicsRow: UserpicsRow {
+	button: boostReplaceUserpic;
+	bg: windowBg;
+	shift: boostReplaceUserpicsShift;
+	stroke: boostReplaceIconOutline;
+	complex: true;
+}
+
+showOrIconLastSeen: icon{{ "settings/premium/large_lastseen", windowFgActive }};
+showOrIconReadTime: icon{{ "settings/premium/large_readtime", windowFgActive }};
+showOrIconBg: windowBgActive;
+showOrIconPadding: margins(12px, 12px, 12px, 12px);
+showOrIconMargin: margins(0px, 28px, 0px, 12px);
+showOrTitlePadding: margins(0px, 0px, 0px, 5px);
+showOrAboutPadding: margins(0px, 0px, 0px, 16px);
+showOrShowButton: RoundButton(defaultActiveButton) {
+	width: 308px;
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+showOrLabel: FlatLabel(boostText) {
+	textFg: windowSubTextFg;
+}
+showOrLineWidth: 190px;
+showOrLabelSkip: 7px;
+showOrLineTop: 10px;
+showOrLabelPadding: margins(0px, 17px, 0px, 13px);
+showOrPremiumAboutPadding: margins(0px, 0px, 0px, 0px);
+showOrBox: Box(boostBox) {
+	buttonPadding: margins(28px, 16px, 28px, 27px);
+	button: showOrShowButton;
+}
+
+boostBoxMaxHeight: 512px;
+boostLevelBadge: FlatLabel(defaultFlatLabel) {
+	margin: margins(12px, 4px, 12px, 5px);
+	style: semiboldTextStyle;
+	textFg: premiumButtonFg;
+	align: align(top);
+}
+boostLevelBadgePadding: margins(30px, 12px, 32px, 12px);
+boostLevelBadgeSkip: 12px;
+boostLevelBadgeLine: 1px;
+
+boostFeatureLabel: FlatLabel(defaultFlatLabel) {
+	margin: margins(36px, 4px, 0px, 4px);
+}
+boostFeaturePadding: margins(64px, 6px, 24px, 6px);
+boostFeatureIconPosition: point(0px, 0px);
+boostFeatureBackground: icon{{ "settings/premium/features/feature_wallpaper", windowBgActive }};
+boostFeatureCustomBackground: icon{{ "settings/premium/features/feature_custombg", windowBgActive }};
+boostFeatureCustomEmoji: icon{{ "settings/premium/features/feature_emoji_pack", windowBgActive }};
+boostFeatureCustomLink: icon{{ "settings/premium/features/feature_links2", windowBgActive }};
+boostFeatureCustomReactions: icon{{ "settings/premium/features/feature_reactions", windowBgActive }};
+boostFeatureEmojiStatus: icon{{ "settings/premium/features/feature_status", windowBgActive }};
+boostFeatureLink: icon{{ "settings/premium/features/feature_links", windowBgActive }};
+boostFeatureName: icon{{ "settings/premium/features/feature_color_names", windowBgActive }};
+boostFeatureStories: icon{{ "settings/premium/features/feature_stories", windowBgActive }};
+boostFeatureTranscribe: icon{{ "settings/premium/features/feature_voice", windowBgActive }};
+boostFeatureAutoTranslate: icon{{ "menu/translate", windowBgActive }};
+boostFeatureOffSponsored: icon{{ "settings/premium/features/feature_off_sponsored", windowBgActive }};
+
+paidReactBox: Box(boostBox) {
+	buttonPadding: margins(22px, 22px, 22px, 22px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+}
+paidReactBubbleIcon: icon{{ "settings/premium/star", premiumButtonFg }};
+paidReactBubbleTop: 5px;
+paidReactSliderTop: 5px;
+paidReactSlider: MediaSlider(defaultContinuousSlider) {
+	activeFg: creditsBg3;
+	inactiveFg: creditsBg2;
+	activeFgOver: creditsBg3;
+	inactiveFgOver: creditsBg2;
+	activeFgDisabled: creditsBg3;
+	inactiveFgDisabled: creditsBg2;
+	width: 6px;
+	seekSize: size(16px, 16px);
+}
+paidReactTitleSkip: 23px;
+paidReactTopTitleMargin: margins(10px, 26px, 10px, 12px);
+paidReactTopMargin: margins(0px, 12px, 0px, 11px);
+paidReactTopUserpic: 42px;
+paidReactTopNameSkip: 47px;
+paidReactTopBadgeSkip: 32px;
+paidReactToastLabel: FlatLabel(defaultFlatLabel) {
+	textFg: toastFg;
+	palette: defaultToastPalette;
+}
+paidReactTopStarIcon: icon{{ "chat/mini_stars", premiumButtonFg }};
+paidReactTopStarIconPosition: point(0px, 1px);
+paidReactTopStarSkip: 4px;
+paidReactChannelArrow: icon{{ "intro_country_dropdown", activeButtonFg }};
+paidReactChannelMenu: PopupMenu(popupMenuWithIcons) {
+	menu: Menu(menuWithIcons) {
+		widthMax: 240px;
+	}
+	maxHeight: 345px;
+}
+
+toastUndoStroke: 2px;
+toastUndoSpace: 8px;
+toastUndoDiameter: 20px;
+toastUndoSkip: 20px;
+toastUndoFont: font(12px bold);
+
+starrefCover: PremiumCover(userPremiumCover) {
+	bg: windowBgOver;
+	starTopSkip: 24px;
+	titlePadding: margins(0px, 12px, 0px, 11px);
+}
+starrefCoverHeight: 180px;
+starrefFooterButton: RoundButton(defaultActiveButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+starrefFooterBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 54px);
+	buttonHeight: 42px;
+	button: starrefFooterButton;
+	shadowIgnoreTopSkip: true;
+}
+starrefCopyButton: RoundButton(starrefFooterButton) {
+	icon: icon {{ "info/edit/links_copy", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_copy", activeButtonFgOver }};
+	iconPosition: point(-1px, 5px);
+}
+
+starrefJoinIcon: icon{{ "payments/small_star", premiumButtonFg }};
+starrefJoinUserpicsPadding: margins(0px, 32px, 0px, 10px);
+starrefJoinTitlePadding: margins(0px, 0px, 0px, 12px);
+starrefCenteredText: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 40px;
+}
+starrefJoinFooter: FlatLabel(starrefCenteredText) {
+	textFg: windowSubTextFg;
+}
+starrefRevenueText: FlatLabel(starrefCenteredText) {
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: creditsBg1;
+	}
+}
+
+starrefInfoIconPosition: point(16px, 8px);
+starrefBottomButton: RoundButton(defaultActiveButton) {
+	height: 44px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+starrefButtonMargin: margins(12px, 6px, 12px, 4px);
+starrefBottomButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowFgActive;
+	style: semiboldTextStyle;
+	minWidth: 0px;
+}
+starrefBottomButtonSublabel: FlatLabel(starrefBottomButtonLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px semibold);
+	}
+}
+starrefBottomButtonLabelTop: 5px;
+starrefBottomButtonSublabelTop: 23px;
+starrefEndBulletSize: 6px;
+starrefEndBulletTop: 8px;
+starrefLinkThumbOuter: 64px;
+starrefLinkThumbInner: 48px;
+starrefLinkCountAdd: 6px;
+starrefLinkCountIcon: icon{{ "chat/mini_subscribers", historyPeerUserpicFg }};
+starrefLinkCountIconPosition: point(0px, 1px);
+starrefLinkCountFont: font(10px bold);
+starrefLinkCountPadding: margins(2px, 0px, 3px, 1px);
+starrefRecipientBg: lightButtonBgOver;
+starrefRecipientBgDisabled: windowBgOver;
+starrefRecipientArrow: icon{{ "intro_country_dropdown", lightButtonFg }};
+starrefCommissionFont: font(10px semibold);
+starrefCommissionPadding: margins(3px, 0px, 3px, 0px);
+starrefLinkBadge: 16px;
+starrefLinkBadgeSkip: 1px;
+
+starrefAddForBotIcon: icon {{ "menu/bot_add", lightButtonFg }};
+starrefAddForBotIconPosition: point(23px, 2px);
+
+starrefPopupMenu: PopupMenu(defaultPopupMenu) {
+	maxHeight: 320px;
+	menu: Menu(defaultMenu) {
+		widthMin: 156px;
+		widthMax: 200px;
+	}
 }

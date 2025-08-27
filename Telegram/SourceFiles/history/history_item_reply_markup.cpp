@@ -10,6 +10,71 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "inline_bots/bot_attach_web_view.h"
+
+namespace {
+
+[[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
+		const MTPDkeyboardButtonRequestPeer &query) {
+	using Type = RequestPeerQuery::Type;
+	using Restriction = RequestPeerQuery::Restriction;
+	auto result = RequestPeerQuery();
+	result.maxQuantity = query.vmax_quantity().v;
+	const auto restriction = [](const MTPBool *value) {
+		return !value
+			? Restriction::Any
+			: mtpIsTrue(*value)
+			? Restriction::Yes
+			: Restriction::No;
+	};
+	const auto rights = [](const MTPChatAdminRights *value) {
+		return value ? ChatAdminRightsInfo(*value).flags : ChatAdminRights();
+	};
+	query.vpeer_type().match([&](const MTPDrequestPeerTypeUser &data) {
+		result.type = Type::User;
+		result.userIsBot = restriction(data.vbot());
+		result.userIsPremium = restriction(data.vpremium());
+	}, [&](const MTPDrequestPeerTypeChat &data) {
+		result.type = Type::Group;
+		result.amCreator = data.is_creator();
+		result.isBotParticipant = data.is_bot_participant();
+		result.groupIsForum = restriction(data.vforum());
+		result.hasUsername = restriction(data.vhas_username());
+		result.myRights = rights(data.vuser_admin_rights());
+		result.botRights = rights(data.vbot_admin_rights());
+	}, [&](const MTPDrequestPeerTypeBroadcast &data) {
+		result.type = Type::Broadcast;
+		result.amCreator = data.is_creator();
+		result.hasUsername = restriction(data.vhas_username());
+		result.myRights = rights(data.vuser_admin_rights());
+		result.botRights = rights(data.vbot_admin_rights());
+	});
+	return result;
+}
+
+} // namespace
+
+InlineBots::PeerTypes PeerTypesFromMTP(
+		const MTPvector<MTPInlineQueryPeerType> &types) {
+	using namespace InlineBots;
+	auto result = PeerTypes(0);
+	for (const auto &type : types.v) {
+		result |= type.match([&](const MTPDinlineQueryPeerTypePM &data) {
+			return PeerType::User;
+		}, [&](const MTPDinlineQueryPeerTypeChat &data) {
+			return PeerType::Group;
+		}, [&](const MTPDinlineQueryPeerTypeMegagroup &data) {
+			return PeerType::Group;
+		}, [&](const MTPDinlineQueryPeerTypeBroadcast &data) {
+			return PeerType::Broadcast;
+		}, [&](const MTPDinlineQueryPeerTypeBotPM &data) {
+			return PeerType::Bot;
+		}, [&](const MTPDinlineQueryPeerTypeSameBotPM &data) {
+			return PeerType();
+		});
+	}
+	return result;
+}
 
 HistoryMessageMarkupButton::HistoryMessageMarkupButton(
 	Type type,
@@ -69,6 +134,16 @@ void HistoryMessageMarkupData::fillRows(
 					row.emplace_back(Type::RequestLocation, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonRequestPhone &data) {
 					row.emplace_back(Type::RequestPhone, qs(data.vtext()));
+				}, [&](const MTPDkeyboardButtonRequestPeer &data) {
+					const auto query = RequestPeerQueryFromTL(data);
+					row.emplace_back(
+						Type::RequestPeer,
+						qs(data.vtext()),
+						QByteArray(
+							reinterpret_cast<const char*>(&query),
+							sizeof(query)),
+						QString(),
+						int64(data.vbutton_id().v));
 				}, [&](const MTPDkeyboardButtonUrl &data) {
 					row.emplace_back(
 						Type::Url,
@@ -83,6 +158,9 @@ void HistoryMessageMarkupData::fillRows(
 						// Optimization flag.
 						// Fast check on all new messages if there is a switch button to auto-click it.
 						flags |= ReplyMarkupFlag::HasSwitchInlineButton;
+						if (const auto types = data.vpeer_types()) {
+							row.back().peerTypes = PeerTypesFromMTP(*types);
+						}
 					}
 				}, [&](const MTPDkeyboardButtonGame &data) {
 					row.emplace_back(Type::Game, qs(data.vtext()));
@@ -131,6 +209,14 @@ void HistoryMessageMarkupData::fillRows(
 						Type::SimpleWebView,
 						qs(data.vtext()),
 						data.vurl().v);
+				}, [&](const MTPDkeyboardButtonCopy &data) {
+					row.emplace_back(
+						Type::CopyText,
+						qs(data.vtext()),
+						data.vcopy_text().v);
+				}, [&](const MTPDinputKeyboardButtonRequestPeer &data) {
+					LOG(("API Error: inputKeyboardButtonRequestPeer."));
+					// Should not get those for the users.
 				});
 			}
 			if (!row.empty()) {
@@ -154,7 +240,8 @@ HistoryMessageMarkupData::HistoryMessageMarkupData(
 	data->match([&](const MTPDreplyKeyboardMarkup &data) {
 		flags = (data.is_resize() ? Flag::Resize : Flag())
 			| (data.is_selective() ? Flag::Selective : Flag())
-			| (data.is_single_use() ? Flag::SingleUse : Flag());
+			| (data.is_single_use() ? Flag::SingleUse : Flag())
+			| (data.is_persistent() ? Flag::Persistent : Flag());
 		placeholder = qs(data.vplaceholder().value_or_empty());
 		fillRows(data.vrows().v);
 	}, [&](const MTPDreplyInlineMarkup &data) {
@@ -225,7 +312,7 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 	if (!data) {
 		return;
 	}
-	const auto &fields = data->c_messageReplies();
+	const auto &fields = data->data();
 	if (const auto list = fields.vrecent_repliers()) {
 		recentRepliers.reserve(list->v.size());
 		for (const auto &id : list->v) {
@@ -238,4 +325,32 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 	maxId = fields.vmax_id().value_or_empty();
 	isNull = false;
 	pts = fields.vreplies_pts().v;
+}
+
+HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
+		const MTPSuggestedPost *data) {
+	if (!data) {
+		return;
+	}
+	const auto &fields = data->data();
+	price = CreditsAmountFromTL(fields.vprice());
+	date = fields.vschedule_date().value_or_empty();
+	accepted = fields.is_accepted();
+	rejected = fields.is_rejected();
+	exists = true;
+}
+
+HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
+	const Api::SendOptions &options)
+: HistoryMessageSuggestInfo(options.suggest) {
+}
+
+HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
+		SuggestPostOptions options) {
+	if (!options.exists) {
+		return;
+	}
+	price = options.price();
+	date = options.date;
+	exists = true;
 }

@@ -8,11 +8,90 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 
 using "boxes/boxes.style";
+using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
+using "ui/menu_icons.style";
+using "ui/effects/premium.style";
+
+GroupCallUserpics {
+	size: pixels;
+	shift: pixels;
+	stroke: pixels;
+	align: align;
+}
+
+TabbedSearch {
+	outer: color;
+	bg: color;
+	bgActive: color;
+	fg: color;
+	fgActive: color;
+	fadeLeft: icon;
+	fadeRight: icon;
+	field: InputField;
+	search: IconButton;
+	back: IconButton;
+	cancel: CrossButton;
+	defaultFieldWidth: pixels;
+	groupWidth: pixels;
+	groupSkip: pixels;
+	height: pixels;
+}
+
+ComposeIcons {
+	settings: icon;
+	collectibles: icon;
+
+	recent: icon;
+	recentActive: icon;
+	people: icon;
+	peopleActive: icon;
+	nature: icon;
+	natureActive: icon;
+	food: icon;
+	foodActive: icon;
+	activity: icon;
+	activityActive: icon;
+	travel: icon;
+	travelActive: icon;
+	objects: icon;
+	objectsActive: icon;
+	symbols: icon;
+	symbolsActive: icon;
+
+	menuFave: icon;
+	menuUnfave: icon;
+	menuStickerSet: icon;
+	menuRecentRemove: icon;
+	menuGifAdd: icon;
+	menuGifRemove: icon;
+	menuMute: icon;
+	menuSchedule: icon;
+	menuWhenOnline: icon;
+	menuSpoiler: icon;
+	menuSpoilerOff: icon;
+	menuBelow: icon;
+	menuAbove: icon;
+	menuPrice: icon;
+
+	stripBubble: icon;
+	stripExpandPanel: icon;
+	stripExpandDropdown: icon;
+}
+
+EmojiSuggestions {
+	dropdown: InnerDropdown;
+	bg: color;
+	overBg: color;
+	textFg: color;
+	fadeLeft: icon;
+	fadeRight: icon;
+}
 
 EmojiPan {
 	margin: margins;
 	padding: margins;
+	showAnimation: PanelAnimation;
 	desiredSize: pixels;
 	verticalSizeSub: pixels;
 	header: pixels;
@@ -25,9 +104,175 @@ EmojiPan {
 	iconWidth: pixels;
 	iconArea: pixels;
 	bg: color;
+	headerFg: color;
+	trendingHeaderFg: color;
+	trendingSubheaderFg: color;
+	trendingUnreadFg: color;
 	overBg: color;
+	pathBg: color;
+	pathFg: color;
+	textFg: color;
+	categoriesBg: color;
+	categoriesBgOver: color;
 	fadeLeft: icon;
 	fadeRight: icon;
+	menu: PopupMenu;
+	expandedSeparator: MenuSeparator;
+	tabs: SettingsSlider;
+	search: TabbedSearch;
+	searchMargin: margins;
+	colorAll: IconButton;
+	colorAllLabel: FlatLabel;
+	removeSet: IconButton;
+	boxLabel: FlatLabel;
+	icons: ComposeIcons;
+	about: FlatLabel;
+	aboutPadding: margins;
+	autocompleteBottomSkip: pixels;
+}
+
+MessageBar {
+	title: TextStyle;
+	titleFg: color;
+	text: TextStyle;
+	textFg: color;
+	textPalette: TextPalette;
+	duration: int;
+}
+
+EmojiButton {
+	inner: IconButton;
+	bg: color;
+	lineFg: color;
+	lineFgOver: color;
+}
+
+SendButton {
+	inner: IconButton;
+	stars: RoundButton;
+	record: icon;
+	recordOver: icon;
+	round: icon;
+	roundOver: icon;
+	sendDisabledFg: color;
+}
+
+RecordBarLock {
+	ripple: RippleAnimation;
+	originTop: icon;
+	originBottom: icon;
+	originBody: icon;
+	shadowTop: icon;
+	shadowBottom: icon;
+	shadowBody: icon;
+	arrow: icon;
+	fg: color;
+}
+
+RecordBar {
+	radius: pixels;
+	bg: color;
+	durationFg: color;
+	cancel: color;
+	cancelActive: color;
+	cancelRipple: RippleAnimation;
+	lock: RecordBarLock;
+	remove: IconButton;
+}
+
+ComposeFiles {
+	check: Check;
+	checkbox: Checkbox;
+	menu: IconButton;
+	caption: InputField;
+	emoji: EmojiButton;
+	confirmBg: color;
+	buttonFile: IconButton;
+	buttonFileEdit: icon;
+	buttonFileDelete: icon;
+	iconBg: color;
+	iconPlay: icon;
+	iconImage: icon;
+	iconDocument: icon;
+	nameFg: color;
+	statusFg: color;
+}
+
+ComposeControls {
+	bg: color;
+	radius: pixels;
+
+	field: InputField;
+	send: SendButton;
+	attach: IconButton;
+	emoji: EmojiButton;
+	like: IconButton;
+	liked: icon;
+	suggestions: EmojiSuggestions;
+	tabbed: EmojiPan;
+	tabbedHeightMin: pixels;
+	tabbedHeightMax: pixels;
+	record: RecordBar;
+	files: ComposeFiles;
+	premium: PremiumLimits;
+	boxField: InputField;
+	restrictionLabel: FlatLabel;
+	premiumRequired: ComposePremiumRequired;
+}
+
+ReportBox {
+	button: SettingsButton;
+	noIconButton: SettingsButton;
+	label: FlatLabel;
+	field: InputField;
+	dividerBg: color;
+	dividerFg: color;
+	spam: icon;
+	fake: icon;
+	violence: icon;
+	children: icon;
+	pornography: icon;
+	copyright: icon;
+	drugs: icon;
+	personal: icon;
+	other: icon;
+}
+
+WhoRead {
+	userpics: GroupCallUserpics;
+	photoLeft: pixels;
+	photoSize: pixels;
+	photoSkip: pixels;
+	nameLeft: pixels;
+	iconPosition: point;
+	itemPadding: margins;
+}
+
+defaultWhoRead: WhoRead {
+	userpics: GroupCallUserpics {
+		size: 22px;
+		shift: 8px;
+		stroke: 4px;
+		align: align(right);
+	}
+	photoLeft: 13px;
+	photoSize: 30px;
+	photoSkip: 5px;
+	nameLeft: 57px;
+	iconPosition: point(15px, 7px);
+	itemPadding: margins(44px, 9px, 17px, 7px);
+}
+whenReadStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+}
+whenReadPadding: margins(34px, 3px, 17px, 4px);
+whenReadIconPosition: point(8px, 0px);
+whenReadSkip: 3px;
+whenReadShowPadding: margins(6px, 0px, 6px, 2px);
+whoSentItem: Menu(defaultMenu) {
+	itemPadding: margins(17px, 3px, 17px, 4px);
+	itemRightSkip: 0px;
+	itemStyle: whenReadStyle;
 }
 
 switchPmButton: RoundButton(defaultBoxButton) {
@@ -51,15 +296,21 @@ stickersTrendingSubheaderFont: normalFont;
 stickersTrendingSubheaderFg: windowSubTextFg;
 stickersTrendingSubheaderTop: 31px;
 
+stickersHeaderBadgeFont: font(10px);
+stickersHeaderBadgeFontTop: 12px;
+stickersHeaderBadgeFontSkip: 12px;
+
 emojiPanButtonRight: 7px;
-emojiPanButtonTop: 10px;
+emojiPanButtonTop: 8px;
 emojiPanButton: RoundButton(defaultActiveButton) {
 	width: -24px;
 	height: 23px;
 	textTop: 2px;
 }
 emojiPanExpand: RoundButton(defaultActiveButton) {
-	font: font(12px bold);
+	style: TextStyle(semiboldTextStyle) {
+		font: font(12px bold);
+	}
 	width: -8px;
 	height: 19px;
 	textTop: 1px;
@@ -71,6 +322,15 @@ stickersTrendingAdd: RoundButton(defaultActiveButton) {
 	height: 26px;
 	textTop: 4px;
 }
+stickersTrendingInstalled: RoundButton(stickersTrendingAdd) {
+	textFg: activeButtonBg;
+	textFgOver: activeButtonBgOver;
+	textBg: lightButtonBgOver;
+	textBgOver: lightButtonBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: activeButtonSecondaryFg;
+	}
+}
 stickersRemove: IconButton(defaultIconButton) {
 	width: 40px;
 	height: 40px;
@@ -80,9 +340,7 @@ stickersRemove: IconButton(defaultIconButton) {
 
 	rippleAreaSize: 40px;
 	rippleAreaPosition: point(0px, 0px);
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 stickersUndoRemove: RoundButton(defaultLightButton) {
 	width: -16px;
@@ -91,9 +349,25 @@ stickersUndoRemove: RoundButton(defaultLightButton) {
 }
 stickersRemoveSkip: 4px;
 stickersReorderIcon: icon {{ "stickers_reorder", menuIconFg }};
-stickersReorderSkip: 13px;
+stickersReorderSkip: 18px;
 
 stickersTabs: defaultTabsSlider;
+
+stickersRowItem: PeerListItem(defaultPeerListItem) {
+	height: 52px;
+	photoSize: 32px;
+	photoPosition: point(18px, 10px);
+	namePosition: point(66px, 7px);
+	statusPosition: point(66px, 26px);
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBgOver;
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: contactsStatusFg;
+	statusFgOver: contactsStatusFgOver;
+	statusFgActive: contactsStatusFgOnline;
+}
 
 stickerEmojiSkip: 5px;
 
@@ -103,12 +377,10 @@ stickersFeaturedBadgeTextTop: -1px;
 stickersFeaturedBadgePadding: 4px;
 stickersFeaturedBadgeSkip: 4px;
 stickersFeaturedBadgeTop: 9px;
-stickersFeaturedPen: lightButtonFg;
 stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;
 stickersFeaturedUnreadTop: 7px;
-stickersFeaturedInstalled: icon {{ "chat/input_save", lightButtonFg }};
 
 stickersMaxHeight: 320px;
 stickersPadding: margins(19px, 13px, 19px, 13px);
@@ -120,23 +392,10 @@ stickersScroll: ScrollArea(boxScroll) {
 	deltat: 19px;
 	deltab: 9px;
 }
-stickersReorderPadding: margins(0px, 12px, 0px, 12px);
-stickersReorderFg: windowSubTextFg;
 stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
-stickersSettings: icon {{ "emoji/emoji_settings", emojiIconFg }};
-stickersTrending: icon {{ "emoji/stickers_add", emojiIconFg }};
-stickersTrendingUnread: icon {
-	{ "emoji/stickers_add_unread", emojiIconFg },
-	{ "emoji/stickers_add_dot", dialogsUnreadBg }
-};
-stickersRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
-stickersSearch: icon {{ "emoji/stickers_search", emojiIconFg }};
-stickersPremium: icon {{ "emoji/stickers_premium", emojiIconFg }};
-
-stickersSettingsUnreadSize: 6px;
-stickersSettingsUnreadPosition: point(6px, 10px);
+emojiStatusDefault: icon {{ "emoji/stickers_premium", emojiIconFg }};
 
 filtersRemove: IconButton(stickersRemove) {
 	ripple: defaultRippleAnimation;
@@ -144,34 +403,13 @@ filtersRemove: IconButton(stickersRemove) {
 
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
-emojiTabs: SettingsSlider(defaultTabsSlider) {
-	height: 55px;
-	barTop: 52px;
-	labelTop: 19px;
-}
-emojiScroll: defaultSolidScroll;
-emojiRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
-emojiRecentActive: icon {{ "emoji/emoji_recent", emojiSubIconFgActive }};
-emojiPeople: icon {{ "emoji/emoji_people", emojiIconFg }};
-emojiPeopleActive: icon {{ "emoji/emoji_people", emojiSubIconFgActive }};
-emojiNature: icon {{ "emoji/emoji_nature", emojiIconFg }};
-emojiNatureActive: icon {{ "emoji/emoji_nature", emojiSubIconFgActive }};
-emojiFood: icon {{ "emoji/emoji_food", emojiIconFg }};
-emojiFoodActive: icon {{ "emoji/emoji_food", emojiSubIconFgActive }};
-emojiActivity: icon {{ "emoji/emoji_activity", emojiIconFg }};
-emojiActivityActive: icon {{ "emoji/emoji_activity", emojiSubIconFgActive }};
-emojiTravel: icon {{ "emoji/emoji_travel", emojiIconFg }};
-emojiTravelActive: icon {{ "emoji/emoji_travel", emojiSubIconFgActive }};
-emojiObjects: icon {{ "emoji/emoji_objects", emojiIconFg }};
-emojiObjectsActive: icon {{ "emoji/emoji_objects", emojiSubIconFgActive }};
-emojiSymbols: icon {{ "emoji/emoji_symbols", emojiIconFg }};
-emojiSymbolsActive: icon {{ "emoji/emoji_symbols", emojiSubIconFgActive }};
+emojiTabs: defaultTabsSlider;
 
 emojiCategoryIconTop: 6px;
 emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
 	fadeBg: emojiPanBg;
+	shadow: boxRoundShadow;
 }
-emojiPanPadding: 12px;
 emojiPanWidth: 345px;
 emojiPanMinHeight: 278px;
 emojiPanMaxHeight: 640px;
@@ -181,28 +419,61 @@ emojiPanDuration: 200;
 emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
 emojiPanArea: size(34px, 32px);
-emojiPanLeft: 13px;
-emojiPanRight: 17px;
 emojiPanRadius: 8px;
 
-defaultEmojiPan: EmojiPan {
-	margin: margins(roundRadiusSmall, 0px, 14px, 0px);
-	padding: margins(13px, 12px, 17px, 12px);
-	desiredSize: 39px;
-	verticalSizeSub: 2px;
-	header: 40px;
-	headerLeft: 23px;
-	headerLockLeft: 17px;
-	headerLockedLeft: 36px;
-	headerTop: 12px;
-	footer: 46px;
-	iconSkip: 4px;
-	iconWidth: 35px;
-	iconArea: 32px;
-	bg: emojiPanBg;
-	overBg: emojiPanHover;
-	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
-	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
+defaultTabbedSearchCancel: CrossButton {
+	width: 33px;
+	height: 33px;
+
+	cross: CrossAnimation {
+		size: 27px;
+		skip: 8px;
+		stroke: 1.;
+		minScale: 0.3;
+	}
+	crossFg: menuIconFg;
+	crossFgOver: menuIconFg;
+	crossPosition: point(1px, 3px);
+
+	duration: 150;
+	loadingPeriod: 1000;
+	ripple: emptyRippleAnimation;
+}
+defaultTabbedSearchField: InputField(defaultMultiSelectSearchField) {
+	textMargins: margins(2px, 7px, 2px, 0px);
+}
+defaultTabbedSearchButton: IconButton(defaultIconButton) {
+	width: 33px;
+	height: 33px;
+	icon: icon{{ "emoji/emoji_search_input", emojiIconFg }};
+	iconOver: icon{{ "emoji/emoji_search_input", emojiIconFg }};
+	iconPosition: point(7px, -1px);
+	ripple: emptyRippleAnimation;
+}
+defaultTabbedSearchBack: IconButton(defaultIconButton) {
+	width: 33px;
+	height: 33px;
+	icon: icon{{ "emoji/emoji_back", menuIconFg }};
+	iconOver: icon{{ "emoji/emoji_back", menuIconFg }};
+	iconPosition: point(7px, -1px);
+	ripple: emptyRippleAnimation;
+}
+defaultTabbedSearch: TabbedSearch {
+	outer: emojiPanBg;
+	bg: emojiPanHover;
+	bgActive: windowBgRipple;
+	fg: emojiIconFg;
+	fgActive: emojiSubIconFgActive;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanHover }};
+	fadeRight: icon {{ "fade_horizontal", emojiPanHover }};
+	field: defaultTabbedSearchField;
+	search: defaultTabbedSearchButton;
+	back: defaultTabbedSearchBack;
+	cancel: defaultTabbedSearchCancel;
+	defaultFieldWidth: 103px;
+	groupWidth: 30px;
+	groupSkip: 2px;
+	height: 33px;
 }
 
 inlineResultsMinHeight: 278px;
@@ -210,18 +481,13 @@ inlineResultsMaxHeight: 640px;
 
 emojiPanHeaderFont: semiboldFont;
 emojiPanRemoveSkip: 10px;
+emojiPanRemoveTop: 10px;
+emojiPanColorAllSkip: 9px;
 
 emojiColorsPadding: 5px;
 emojiColorsSep: 1px;
 emojiColorsSepColor: shadowFg;
 
-emojiSwitchSkip: 27px;
-emojiSwitchImgSkip: 21px;
-emojiSwitchColor: windowActiveTextFg;
-emojiSwitchStickers: icon {{ "emoji/emoji_switch", emojiSwitchColor }};
-emojiSwitchEmoji: icon {{ "emoji/emoji_switch-flip_horizontal", emojiSwitchColor }};
-
-emojiIconPadding: 7px;
 emojiIconSelectSkip: 3px;
 emojiPremiumRequired: icon{{ "emoji/premium_lock", windowSubTextFg }};
 
@@ -235,13 +501,12 @@ hashtagClose: IconButton {
 
 	rippleAreaPosition: point(5px, 5px);
 	rippleAreaSize: 20px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	ripple: defaultRippleAnimationBgOver;
 }
 
 stickerPanWidthMin: 64px;
 stickerPanSize: size(stickerPanWidthMin, stickerPanWidthMin);
+stickerEffectWidthMin: 48px;
 stickerPanPadding: 11px;
 stickerPanDeleteIconBg: icon {{ "emoji/emoji_delete_bg", stickerPanDeleteBg }};
 stickerPanDeleteIconFg: icon {{ "emoji/emoji_delete", stickerPanDeleteFg }};
@@ -249,15 +514,32 @@ stickerPanDeleteOpacityBg: 0.3;
 stickerPanDeleteOpacityBgOver: 0.5;
 stickerPanDeleteOpacityFg: 0.8;
 stickerPanDeleteOpacityFgOver: 1.;
-stickerPanRemoveSet: hashtagClose;
-stickerIconWidth: 42px;
-stickerIconPadding: 5px;
-stickerIconOpacity: 0.7;
-stickerIconSel: 2px;
-stickerIconSelColor: emojiIconFgActive;
+stickerPanRemoveSet: IconButton(hashtagClose) {
+	width: 20px;
+	height: 20px;
+	iconPosition: point(-1px, -1px);
+	rippleAreaPosition: point(0px, 0px);
+}
 stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewMin: 0.1;
+
+emojiPanColorAll: IconButton(stickerPanRemoveSet) {
+	width: 24px;
+	height: 24px;
+	rippleAreaSize: 24px;
+	icon: icon {{ "emoji/emoji_skin", smallCloseIconFg }};
+	iconOver: icon {{ "emoji/emoji_skin", smallCloseIconFgOver }};
+}
+emojiPanColorAllLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+	minWidth: 40px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+emojiPanColorAllPadding: margins(10px, 6px, 10px, -1px);
 
 stickerGroupCategorySize: 28px;
 stickerGroupCategoryAbout: defaultTextStyle;
@@ -271,18 +553,163 @@ stickersToast: Toast(defaultToast) {
 }
 
 stickersEmpty: icon {{ "stickers_empty", windowSubTextFg }};
+emojiEmpty: icon {{ "emoji_empty", windowSubTextFg }};
+
+editMediaButtonSize: 32px;
+
+editMediaButtonIconFile: icon {{ "send_media/send_media_replace", menuIconFg }};
+editMediaButton: IconButton(defaultIconButton) {
+	width: editMediaButtonSize;
+	height: editMediaButtonSize;
+
+	icon: editMediaButtonIconFile;
+
+	rippleAreaSize: editMediaButtonSize;
+	ripple: defaultRippleAnimation;
+}
+
+sendBoxAlbumGroupEditInternalSkip: 8px;
+sendBoxAlbumGroupSkipRight: 5px;
+sendBoxAlbumGroupSkipTop: 5px;
+sendBoxAlbumGroupRadius: 4px;
+sendBoxAlbumGroupSize: size(62px, 25px);
+sendBoxAlbumGroupSizeVertical: size(30px, 50px);
+sendBoxAlbumSmallGroupSize: size(30px, 25px);
+
+sendBoxFileGroupSkipTop: 2px;
+sendBoxFileGroupSkipRight: 5px;
+sendBoxFileGroupEditInternalSkip: -1px;
+
+sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
+sendBoxAlbumGroupEditButtonIconFile: editMediaButtonIconFile;
+sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "send_media/send_media_delete", menuIconFg }};
+
+sendBoxAlbumButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg }};
+sendBoxAlbumGroupButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg, point(4px, 1px) }};
+sendBoxAlbumGroupButtonMediaDelete: icon {{ "send_media/send_media_delete", roundedFg }};
+
+defaultComposeIcons: ComposeIcons {
+	settings: icon {{ "emoji/emoji_settings", emojiIconFg }};
+	collectibles: icon {{ "menu/unique", emojiIconFg }};
+
+	recent: icon {{ "emoji/emoji_recent", emojiIconFg }};
+	recentActive: icon {{ "emoji/emoji_recent", emojiSubIconFgActive }};
+	people: icon {{ "emoji/emoji_smile", emojiIconFg }};
+	peopleActive: icon {{ "emoji/emoji_smile", emojiSubIconFgActive }};
+	nature: icon {{ "emoji/emoji_nature", emojiIconFg }};
+	natureActive: icon {{ "emoji/emoji_nature", emojiSubIconFgActive }};
+	food: icon {{ "emoji/emoji_food", emojiIconFg }};
+	foodActive: icon {{ "emoji/emoji_food", emojiSubIconFgActive }};
+	activity: icon {{ "emoji/emoji_activities", emojiIconFg }};
+	activityActive: icon {{ "emoji/emoji_activities", emojiSubIconFgActive }};
+	travel: icon {{ "emoji/emoji_travel", emojiIconFg }};
+	travelActive: icon {{ "emoji/emoji_travel", emojiSubIconFgActive }};
+	objects: icon {{ "emoji/emoji_objects", emojiIconFg }};
+	objectsActive: icon {{ "emoji/emoji_objects", emojiSubIconFgActive }};
+	symbols: icon {{ "emoji/emoji_love", emojiIconFg }};
+	symbolsActive: icon {{ "emoji/emoji_love", emojiSubIconFgActive }};
+
+	menuFave: menuIconFave;
+	menuUnfave: menuIconUnfave;
+	menuStickerSet: menuIconStickers;
+	menuRecentRemove: menuIconDelete;
+	menuGifAdd: menuIconGif;
+	menuGifRemove: menuIconDelete;
+	menuMute: menuIconMute;
+	menuSchedule: menuIconSchedule;
+	menuWhenOnline: menuIconWhenOnline;
+	menuSpoiler: menuIconSpoiler;
+	menuSpoilerOff: menuIconSpoilerOff;
+	menuBelow: menuIconBelow;
+	menuAbove: menuIconAbove;
+	menuPrice: menuIconEarn;
+
+	stripBubble: icon{
+		{ "chat/reactions_bubble_shadow", windowShadowFg },
+		{ "chat/reactions_bubble", emojiPanBg },
+	};
+	stripExpandPanel: icon{
+		{ "chat/reactions_round_big", windowBgRipple },
+		{ "chat/reactions_expand_panel", windowSubTextFg },
+	};
+	stripExpandDropdown: icon{
+		{ "chat/reactions_round_small", windowBgRipple },
+		{ "chat/reactions_expand_panel", windowSubTextFg },
+	};
+}
+defaultEmojiPanAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 10px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+defaultEmojiPan: EmojiPan {
+	margin: margins(7px, 0px, 7px, 0px);
+	padding: margins(7px, 0px, 4px, 7px);
+	showAnimation: emojiPanAnimation;
+	desiredSize: 37px;
+	verticalSizeSub: 1px;
+	header: 33px;
+	headerLeft: 14px;
+	headerLockLeft: 7px;
+	headerLockedLeft: 26px;
+	headerTop: 10px;
+	footer: 36px;
+	iconSkip: 3px;
+	iconWidth: 30px;
+	iconArea: 28px;
+	bg: emojiPanBg;
+	headerFg: emojiPanHeaderFg;
+	trendingHeaderFg: stickersTrendingHeaderFg;
+	trendingSubheaderFg: stickersTrendingSubheaderFg;
+	trendingUnreadFg: stickersFeaturedUnreadBg;
+	overBg: emojiPanHover;
+	pathBg: windowBgRipple;
+	pathFg: windowBgOver;
+	textFg: windowFg;
+	categoriesBg: emojiPanCategories;
+	categoriesBgOver: windowBgRipple;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
+	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
+	menu: popupMenuWithIcons;
+	expandedSeparator: MenuSeparator(defaultMenuSeparator) {
+		padding: margins(0px, 4px, 0px, 4px);
+		width: 6px;
+	}
+	tabs: emojiTabs;
+	search: defaultTabbedSearch;
+	searchMargin: margins(1px, 11px, 2px, 5px);
+	colorAll: emojiPanColorAll;
+	colorAllLabel: emojiPanColorAllLabel;
+	removeSet: stickerPanRemoveSet;
+	boxLabel: boxLabel;
+	icons: defaultComposeIcons;
+	about: defaultEmojiPanAbout;
+	aboutPadding: margins(12px, 3px, 12px, 2px);
+	autocompleteBottomSkip: 0px;
+}
+statusEmojiPan: EmojiPan(defaultEmojiPan) {
+	categoriesBg: windowBg;
+	categoriesBgOver: windowBgOver;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
+	fadeRight: icon {{ "fade_horizontal", windowBg }};
+}
+backgroundEmojiPan: EmojiPan(defaultEmojiPan) {
+	padding: margins(7px, 7px, 4px, 0px);
+}
 
 inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltat: stickerPanPadding;
 	deltab: stickerPanPadding;
 }
 
-gifsSearchField: defaultMultiSelectSearchField;
-gifsSearchFieldPosition: point(42px, 7px);
-gifsSearchCancel: defaultMultiSelectSearchCancel;
-gifsSearchCancelPosition: point(1px, 1px);
-gifsSearchIcon: boxFieldSearchIcon;
-gifsSearchIconPosition: point(6px, 7px);
+gifsPadding: margins(9px, 5px, 3px, 9px);
 
 emojiSuggestionsDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, emojiColorsPadding, 0px, emojiColorsPadding);
@@ -292,6 +719,15 @@ emojiSuggestionSize: 40px;
 emojiSuggestionsScrolledWidth: 240px;
 emojiSuggestionsPadding: margins(emojiColorsPadding, 0px, emojiColorsPadding, 0px);
 emojiSuggestionsFadeAfter: 20px;
+
+defaultEmojiSuggestions: EmojiSuggestions {
+	dropdown: emojiSuggestionsDropdown;
+	bg: menuBg;
+	overBg: emojiPanHover;
+	textFg: windowFg;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
+	fadeRight: icon {{ "fade_horizontal", boxBg }};
+}
 
 mentionHeight: 40px;
 mentionPadding: margins(8px, 5px, 8px, 5px);
@@ -323,8 +759,23 @@ manageEmojiStatusTop: 25px;
 
 inlineRadialSize: 44px;
 inlineFileSize: 44px;
+inlineResultsLeft: 11px;
+inlineResultsSkip: 3px;
+inlineMediaHeight: 96px;
+inlineThumbSize: 64px;
+inlineThumbSkip: 10px;
+inlineTitleFg: windowFg;
+inlineDescriptionFg: windowSubTextFg;
+inlineRowMargin: 6px;
+inlineRowBorder: 1px;
+inlineRowBorderFg: shadowFg;
+inlineRowFileNameTop: 2px;
+inlineRowFileDescriptionTop: 23px;
+inlineResultsMinWidth: 48px;
+inlineDurationMargin: 3px;
 
 stickersPremiumLock: icon{{ "emoji/premium_lock", premiumButtonFg }};
+emojiPremiumLock: icon{{ "chat/mini_lock", premiumButtonFg }};
 
 reactStripExtend: margins(21px, 49px, 39px, 0px);
 reactStripHeight: 40px;
@@ -332,36 +783,861 @@ reactStripSize: 32px;
 reactStripMinWidth: 60px;
 reactStripImage: 26px;
 reactStripSkip: 7px;
-reactStripBubble: icon{
-	{ "chat/reactions_bubble_shadow", windowShadowFg },
-	{ "chat/reactions_bubble", windowBg },
-};
 reactStripBubbleRight: 20px;
-reactPanelEmojiPan: EmojiPan(defaultEmojiPan) {
+userpicBuilderEmojiPan: EmojiPan(statusEmojiPan) {
 	margin: margins(reactStripSkip, 0px, reactStripSkip, 0px);
 	padding: margins(reactStripSkip, 0px, reactStripSkip, reactStripSkip);
 	desiredSize: reactStripSize;
 	verticalSizeSub: 0px;
-	headerLeft: 13px;
-	headerLockLeft: 7px;
-	headerLockedLeft: 26px;
-	footer: 42px;
-	iconSkip: 6px;
-	iconWidth: 33px;
-	iconArea: 30px;
 	overBg: transparent;
-	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
-	fadeRight: icon {{ "fade_horizontal", windowBg }};
+	search: TabbedSearch(defaultTabbedSearch) {
+		defaultFieldWidth: 88px;
+	}
 }
-reactPanelScroll: ScrollArea(defaultSolidScroll) {
+reactPanelEmojiPan: EmojiPan(userpicBuilderEmojiPan) {
+	searchMargin: margins(1px, 10px, 2px, 6px);
+}
+emojiScroll: ScrollArea(defaultSolidScroll) {
 	deltat: 3px;
 	deltab: 3px;
-	round: 1px;
+	round: -1px;
 	width: 7px;
 	deltax: 2px;
 	hiding: 0;
 }
+reactPanelScroll: ScrollArea(emojiScroll) {
+	deltab: 7px;
+}
+reactPanelScrollRounded: ScrollArea(emojiScroll) {
+	width: 8px;
+	deltax: 3px;
+	deltat: 14px;
+	deltab: 14px;
+}
 
-emojiSuggestionsFadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
-emojiSuggestionsFadeRight: icon {{ "fade_horizontal", boxBg }};
+choosePeerGroupIcon: icon {{ "info/edit/create_group", lightButtonFg }};
+choosePeerChannelIcon: icon {{ "info/edit/create_channel", lightButtonFg }};
+choosePeerCreateIconLeft: 25px;
 
+historyRequestsUserpics: GroupCallUserpics {
+	size: 22px;
+	shift: 8px;
+	stroke: 4px;
+	align: align(left);
+}
+historyRequestsHeight: 33px;
+
+historySlowmodeCounterMargins: margins(0px, 0px, 10px, 0px);
+
+historyComposeAreaPalette: TextPalette(defaultTextPalette) {
+	linkFg: historyComposeAreaFgService;
+}
+
+defaultMessageBar: MessageBar {
+	title: semiboldTextStyle;
+	titleFg: windowActiveTextFg;
+	text: defaultTextStyle;
+	textFg: historyComposeAreaFg;
+	textPalette: historyComposeAreaPalette;
+	duration: 160;
+}
+
+historyComposeButton: FlatButton {
+	color: windowActiveTextFg;
+	overColor: windowActiveTextFg;
+
+	bgColor: historyComposeButtonBg;
+	overBgColor: historyComposeButtonBgOver;
+
+	width: -32px;
+	height: 46px;
+
+	textTop: 14px;
+
+	font: semiboldFont;
+	overFont: semiboldFont;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: historyComposeButtonBgRipple;
+	}
+}
+historyComposeButtonText: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: windowActiveTextFg;
+}
+historyGiftToChannel: IconButton(defaultIconButton) {
+	width: 46px;
+	height: 46px;
+
+	icon: icon{{ "menu/gift_premium", windowActiveTextFg }};
+	iconOver: icon{{ "menu/gift_premium", windowActiveTextFg }};
+
+	rippleAreaPosition: point(3px, 3px);
+	rippleAreaSize: 40px;
+	ripple: universalRippleAnimation;
+}
+historyDirectMessage: IconButton(historyGiftToChannel) {
+	icon: icon{{ "menu/chat_discuss", windowActiveTextFg }};
+	iconOver: icon{{ "menu/chat_discuss", windowActiveTextFg }};
+}
+historyUnblock: FlatButton(historyComposeButton) {
+	color: attentionButtonFg;
+	overColor: attentionButtonFgOver;
+}
+historyContactStatusButton: FlatButton(historyComposeButton) {
+	height: 49px;
+	textTop: 16px;
+	overBgColor: historyComposeButtonBg;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: historyComposeButtonBgOver;
+	}
+}
+historyContactStatusBlock: FlatButton(historyContactStatusButton) {
+	color: attentionButtonFg;
+	overColor: attentionButtonFg;
+}
+historyContactStatusLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+}
+historyEmojiStatusInfoLabel: FlatLabel(historyContactStatusLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+historyContactStatusMinSkip: 16px;
+
+historyBusinessBotPhoto: UserpicButton(defaultUserpicButton) {
+	size: size(46px, 46px);
+	photoSize: 46px;
+	photoPosition: point(0px, 0px);
+}
+historyBusinessBotName: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+}
+historyBusinessBotStatus: FlatLabel(historyContactStatusLabel) {
+	textFg: windowSubTextFg;
+}
+historyBusinessBotToggle: defaultActiveButton;
+historyBusinessBotSettings: IconButton(defaultIconButton) {
+	icon: icon{{ "menu/customize", menuIconFg }};
+	iconOver: icon{{ "menu/customize", menuIconFgOver }};
+	iconPosition: point(-1px, -1px);
+	rippleAreaSize: 40px;
+	rippleAreaPosition: point(4px, 9px);
+	ripple: defaultRippleAnimationBgOver;
+	height: 58px;
+	width: 48px;
+}
+paysStatusLabel: FlatLabel(historyBusinessBotStatus) {
+	align: align(top);
+	minWidth: 240px;
+}
+
+historyReplyCancelIcon: icon {{ "box_button_close", historyReplyCancelFg }};
+historyReplyCancelIconOver: icon {{ "box_button_close", historyReplyCancelFgOver }};
+
+historyReplySkip: 53px;
+historyReplyNameFg: windowActiveTextFg;
+historyReplyHeight: 49px;
+historyReplyIconPosition: point(7px, 7px);
+historyReplyIcon: icon {{ "chat/input_reply_settings", historyReplyIconFg }};
+historyLinkIcon: icon {{ "chat/input_link_settings", historyReplyIconFg }};
+historyQuoteIcon: icon {{ "chat/input_reply_quote", historyReplyIconFg }};
+historyForwardIcon: icon {{ "chat/input_forward", historyReplyIconFg }};
+historyEditIcon: icon {{ "chat/input_edit", historyReplyIconFg }};
+historyReplyCancel: IconButton {
+	width: 49px;
+	height: 49px;
+
+	icon: historyReplyCancelIcon;
+	iconOver: historyReplyCancelIconOver;
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaPosition: point(4px, 4px);
+	rippleAreaSize: 40px;
+	ripple: defaultRippleAnimationBgOver;
+}
+historyPinnedShowAll: IconButton(historyReplyCancel) {
+	icon: icon {{ "pinned_show_all", historyReplyCancelFg }};
+	iconOver: icon {{ "pinned_show_all", historyReplyCancelFgOver }};
+}
+historyPinnedBotButton: RoundButton(defaultActiveButton) {
+	width: -34px;
+	height: 30px;
+	textTop: 6px;
+	padding: margins(2px, 10px, 10px, 9px);
+}
+historyPinnedBotLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	align: align(center);
+	maxHeight: 30px;
+}
+historyPinnedBotButtonMaxWidth: 120px;
+
+historyToDownPosition: point(12px, 10px);
+historyToDownAbove: icon {{ "history_down_arrow", historyToDownFg }};
+historyToDownAboveOver: icon {{ "history_down_arrow", historyToDownFgOver }};
+historyToDownPaddingTop: 10px;
+historyToDownBelow: icon {
+	{ "history_down_shadow", historyToDownShadow },
+	{ "history_down_circle", historyToDownBg },
+};
+historyToDownBelowOver: icon {
+	{ "history_down_shadow", historyToDownShadow },
+	{ "history_down_circle", historyToDownBgOver },
+};
+historyToDown: TwoIconButton {
+	width: 52px;
+	height: 62px;
+
+	iconBelow: historyToDownBelow;
+	iconBelowOver: historyToDownBelowOver;
+	iconAbove: historyToDownAbove;
+	iconAboveOver: historyToDownAboveOver;
+	iconPosition: point(0px, historyToDownPaddingTop);
+
+	rippleAreaPosition: point(5px, 15px);
+	rippleAreaSize: 42px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: historyToDownBgRipple;
+	}
+}
+historyToDownBadgeFont: semiboldFont;
+historyToDownBadgeSize: 22px;
+
+historyToDownShownAfter: 480px;
+historyToDownDuration: 150;
+
+dialogsToUpAbove: icon {{ "history_down_arrow-flip_vertical", historyToDownFg, point(0px, 1px) }};
+dialogsToUpAboveOver: icon {{ "history_down_arrow-flip_vertical", historyToDownFgOver, point(0px, 1px) }};
+
+dialogsToUp: TwoIconButton(historyToDown) {
+	iconAbove: dialogsToUpAbove;
+	iconAboveOver: dialogsToUpAboveOver;
+}
+
+historyUnreadMentions: TwoIconButton(historyToDown) {
+	iconAbove: icon {{ "history_unread_mention", historyToDownFg }};
+	iconAboveOver: icon {{ "history_unread_mention", historyToDownFgOver }};
+}
+historyUnreadReactions: TwoIconButton(historyToDown) {
+	iconAbove: icon {{ "history_unread_reaction", historyToDownFg }};
+	iconAboveOver: icon {{ "history_unread_reaction", historyToDownFgOver }};
+}
+historyUnreadThingsSkip: 4px;
+
+historyQuoteStyle: QuoteStyle(defaultQuoteStyle) {
+	padding: margins(10px, 2px, 4px, 2px);
+	verticalSkip: 4px;
+	outline: 3px;
+	outlineShift: 2px;
+	radius: 5px;
+}
+historyTextStyle: TextStyle(defaultTextStyle) {
+	blockquote: QuoteStyle(historyQuoteStyle) {
+		padding: margins(10px, 2px, 20px, 2px);
+		icon: icon{{ "chat/mini_quote", windowFg }};
+		iconPosition: point(4px, 4px);
+		expand: icon{{ "intro_country_dropdown", windowFg }};
+		expandPosition: point(6px, 4px);
+		collapse: icon{{ "intro_country_dropdown-flip_vertical", windowFg }};
+		collapsePosition: point(6px, 4px);
+	}
+	pre: QuoteStyle(historyQuoteStyle) {
+		header: 20px;
+		headerPosition: point(10px, 2px);
+		scrollable: true;
+		icon: icon{{ "chat/mini_copy", windowFg }};
+		iconPosition: point(4px, 2px);
+	}
+}
+historyComposeField: InputField(defaultInputField) {
+	style: historyTextStyle;
+	textMargins: margins(0px, 0px, 0px, 0px);
+	textAlign: align(left);
+	textFg: historyComposeAreaFg;
+	textBg: historyComposeAreaBg;
+	heightMin: 36px;
+	heightMax: 72px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	placeholderShift: -50px;
+	border: 0px;
+	borderActive: 0px;
+	duration: 100;
+}
+historyComposeFieldMaxHeight: 224px;
+historyComposeFieldFadeHeight: 6px;
+// historyMinHeight: 56px;
+
+historyAttach: IconButton(defaultIconButton) {
+	width: 44px;
+	height: 46px;
+
+	icon: icon {{ "chat/input_attach", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_attach", historyComposeIconFgOver }};
+
+	rippleAreaPosition: point(2px, 3px);
+	rippleAreaSize: 40px;
+	ripple: defaultRippleAnimationBgOver;
+}
+
+historyMessagesTTL: IconButtonWithText {
+	iconButton: IconButton(historyAttach) {
+		icon: icon {{ "chat/input_autodelete", historyComposeIconFg }};
+		iconOver: icon {{ "chat/input_autodelete", historyComposeIconFgOver }};
+	}
+	textFg: historyComposeIconFg;
+	textFgOver: historyComposeIconFgOver;
+	textPadding: margins(21px, 20px, 3px, 7px);
+	textAlign: align(left);
+
+	font: font(10px semibold);
+}
+historyReplaceMedia: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_replace", windowBgActive }};
+	iconOver: icon {{ "chat/input_replace", windowBgActive }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
+historyAddMedia: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_attach", windowBgActive }};
+	iconOver: icon {{ "chat/input_attach", windowBgActive }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
+
+historyAttachEmojiActive: icon {{ "chat/input_smile_face", windowBgActive }};
+historyEmojiCircle: size(20px, 20px);
+historyEmojiCircleLine: 1.5;
+historyEmojiCircleFg: historyComposeIconFg;
+historyEmojiCircleFgOver: historyComposeIconFgOver;
+historyBotKeyboardShow: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_bot_keyboard", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_bot_keyboard", historyComposeIconFgOver }};
+}
+historyBotKeyboardHide: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_bot_keyboard_hide", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_bot_keyboard_hide", historyComposeIconFgOver }};
+}
+historyBotCommandStart: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_bot_command", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_bot_command", historyComposeIconFgOver }};
+}
+historyScheduledToggle: IconButton(historyAttach) {
+	icon: icon {
+		{ "chat/input_scheduled", historyComposeIconFg },
+		{ "chat/input_scheduled_dot", attentionButtonFg }
+	};
+	iconOver: icon {
+		{ "chat/input_scheduled", historyComposeIconFgOver },
+		{ "chat/input_scheduled_dot", attentionButtonFg }
+	};
+}
+historyGiftToUser: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_gift", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_gift", historyComposeIconFgOver }};
+}
+historySuggestPostToggle: IconButton(historyAttach) {
+	icon: icon{{ "chat/input_paid", historyComposeIconFg }};
+	iconOver: icon{{ "chat/input_paid", historyComposeIconFgOver }};
+}
+historySuggestIconPosition: point(4px, 4px);
+historySuggestIconActive: icon{{ "chat/input_paid", windowActiveTextFg }};
+
+suggestOptionsPrice: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(2px, 20px, 2px, 0px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
+
+	heightMin: 32px;
+
+	style: defaultTextStyle;
+}
+
+historyAttachEmojiInner: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_smile_face", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_smile_face", historyComposeIconFgOver }};
+}
+historyAttachEmoji: EmojiButton {
+	inner: historyAttachEmojiInner;
+	bg: historyComposeAreaBg;
+	lineFg: historyEmojiCircleFg;
+	lineFgOver: historyEmojiCircleFgOver;
+}
+boxAttachEmoji: EmojiButton(historyAttachEmoji) {
+	inner: IconButton(historyAttachEmojiInner) {
+		width: 30px;
+		height: 30px;
+		rippleAreaSize: 0px;
+	}
+}
+boxAttachEmojiTop: 20px;
+
+historySendIcon: icon {{ "chat/input_send", historySendIconFg }};
+historySendIconOver: icon {{ "chat/input_send", historySendIconFgOver }};
+historySendIconPosition: point(10px, 11px);
+historySendSize: size(44px, 46px);
+historyScheduleIcon: icon {{ "chat/input_schedule", historyComposeAreaBg }};
+historyScheduleIconPosition: point(7px, 8px);
+historyEditSaveIcon: icon {{ "chat/input_save", historySendIconFg }};
+historyEditSaveIconOver: icon {{ "chat/input_save", historySendIconFgOver }};
+
+historyEditMediaBg: videoPlayIconBg;
+historyEditMedia: icon{{ "chat/input_draw", videoPlayIconFg }};
+historyMessagesTTLPickerHeight: 200px;
+historyMessagesTTLPickerItemHeight: 40px;
+historyMessagesTTLLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 200px;
+	align: align(topleft);
+	textFg: windowSubTextFg;
+}
+
+historyCharsLimitationLabel: FlatLabel(defaultFlatLabel) {
+	// The same as a width of the historySendSize.
+	minWidth: 44px;
+	align: align(center);
+	textFg: attentionButtonFg;
+}
+
+historyRecordVoiceFg: historyComposeIconFg;
+historyRecordVoiceFgOver: historyComposeIconFgOver;
+historyRecordVoiceFgInactive: attentionButtonFg;
+historyRecordVoiceFgActive: windowBgActive;
+historyRecordVoiceFgActiveIcon: windowFgActive;
+historyRecordVoice: icon {{ "chat/input_record", historyRecordVoiceFg }};
+historyRecordVoiceOver: icon {{ "chat/input_record", historyRecordVoiceFgOver }};
+historyRecordVoiceOnceBg: icon {{ "voice_lock/audio_once_bg", historySendIconFg }};
+historyRecordVoiceOnceBgOver: icon {{ "voice_lock/audio_once_bg", historySendIconFgOver }};
+historyRecordVoiceOnceFg: icon {{ "voice_lock/audio_once_number", windowFgActive }};
+historyRecordVoiceOnceFgOver: icon {{ "voice_lock/audio_once_number", windowFgActive }};
+historyRecordVoiceOnceInactive: icon {{ "chat/audio_once", windowSubTextFg }};
+historyRecordVoiceActive: icon {{ "chat/input_record_filled", historyRecordVoiceFgActiveIcon }};
+historyRecordRound: icon {{ "chat/input_video", historyRecordVoiceFg }};
+historyRecordRoundOver: icon {{ "chat/input_video", historyRecordVoiceFgOver }};
+historyRecordRoundActive: icon {{ "chat/input_video", historyRecordVoiceFgActiveIcon }};
+historyRecordRoundIconPosition: point(0px, 0px);
+historyRecordSendIconPosition: point(2px, 0px);
+historyRecordVoiceRippleBgActive: lightButtonBgOver;
+historyRecordSignalRadius: 5px;
+historyRecordCancel: windowSubTextFg;
+historyRecordCancelActive: historySendIconFg;
+historyRecordFont: font(13px);
+historyRecordDurationSkip: 12px;
+historyRecordDurationFg: historyComposeAreaFg;
+historyRecordTTLLineWidth: 2px;
+
+historyRecordMainBlobMinRadius: 23px;
+historyRecordMainBlobMaxRadius: 37px;
+historyRecordMinorBlobMinRadius: 40px;
+historyRecordMinorBlobMaxRadius: 47px;
+historyRecordMajorBlobMinRadius: 43px;
+historyRecordMajorBlobMaxRadius: 50px;
+
+historyRecordTextStyle: TextStyle(defaultTextStyle) {
+	font: historyRecordFont;
+}
+
+historyRecordTextWidthForWrap: 210px;
+historyRecordTextLeft: 15px;
+historyRecordTextRight: 25px;
+
+historyRecordLockShowDuration: historyToDownDuration;
+historyRecordLockSize: size(75px, 133px);
+
+historyRecordLockIconSize: size(14px, 17px);
+historyRecordLockIconBottomHeight: 9px;
+historyRecordLockIconLineHeight: 2px;
+historyRecordLockIconLineSkip: 3px;
+historyRecordLockIconLineWidth: 2px;
+historyRecordLockIconArcHeight: 4px;
+historyRecordStopIconWidth: 12px;
+
+historyRecordLockTopShadow: icon {{ "voice_lock/record_lock_top_shadow", historyToDownShadow }};
+historyRecordLockTop: icon {{ "voice_lock/record_lock_top", historyToDownBg }};
+historyRecordLockBottomShadow: icon {{ "voice_lock/record_lock_bottom_shadow", historyToDownShadow }};
+historyRecordLockBottom: icon {{ "voice_lock/record_lock_bottom", historyToDownBg }};
+historyRecordLockBodyShadow: icon {{ "voice_lock/record_lock_body_shadow", historyToDownShadow }};
+historyRecordLockBody: icon {{ "voice_lock/record_lock_body", historyToDownBg }};
+historyRecordLockMargin: margins(4px, 4px, 4px, 4px);
+historyRecordLockArrow: icon {{ "voice_lock/voice_arrow", historyToDownFg }};
+historyRecordLockInput: icon {{ "voice_lock/input_mic_s", historyToDownFg }};
+historyRecordLockRound: icon {{ "voice_lock/input_round_s", historyToDownFg }};
+historyRecordLockRippleMargin: margins(6px, 6px, 6px, 6px);
+
+historyRecordDelete: IconButton(historyAttach) {
+	icon: icon {{ "voice_lock/recorded_delete", historyComposeIconFg }};
+	iconOver: icon {{ "voice_lock/recorded_delete", historyComposeIconFgOver }};
+	iconPosition: point(10px, 11px);
+}
+historyRecordWaveformRightSkip: 10px;
+historyRecordWaveformBgMargins: margins(5px, 8px, 5px, 9px);
+
+historyRecordWaveformBar: 3px;
+
+historyRecordLockPosition: point(1px, 22px);
+
+historyRecordCancelButtonWidth: 100px;
+historyRecordCancelButtonFg: lightButtonFg;
+
+historyRecordTooltipSkip: 8px;
+historyRecordTooltip: ImportantTooltip(defaultImportantTooltip) {
+	padding: margins(4px, 4px, 4px, 4px);
+	radius: 11px;
+	arrow: 6px;
+}
+
+historySilentToggle: IconButton(historyBotKeyboardShow) {
+	icon: icon {{ "chat/input_silent", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_silent", historyComposeIconFgOver }};
+}
+historySilentToggleOn: icon {{ "chat/input_silent_on", historyComposeIconFg }};
+historySilentToggleOnOver: icon {{ "chat/input_silent_on", historyComposeIconFgOver }};
+
+defaultRecordBarLock: RecordBarLock {
+	ripple: defaultRippleAnimation;
+	originTop: historyRecordLockTop;
+	originBottom: historyRecordLockBottom;
+	originBody: historyRecordLockBody;
+	shadowTop: historyRecordLockTopShadow;
+	shadowBottom: historyRecordLockBottomShadow;
+	shadowBody: historyRecordLockBodyShadow;
+	arrow: historyRecordLockArrow;
+	fg: historyToDownFg;
+}
+defaultRecordBar: RecordBar {
+	bg: historyComposeAreaBg;
+	durationFg: historyRecordDurationFg;
+	cancel: historyRecordCancel;
+	cancelActive: historyRecordCancelActive;
+	cancelRipple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+	lock: defaultRecordBarLock;
+	remove: historyRecordDelete;
+}
+
+historySend: SendButton {
+	inner: IconButton(historyAttach) {
+		icon: historySendIcon;
+		iconOver: historySendIconOver;
+	}
+	stars: RoundButton(defaultActiveButton) {
+		height: 28px;
+		padding: margins(0px, 0px, 6px, 0px);
+		textTop: 5px;
+		width: -8px;
+	}
+	record: historyRecordVoice;
+	recordOver: historyRecordVoiceOver;
+	round: historyRecordRound;
+	roundOver: historyRecordRoundOver;
+	sendDisabledFg: historyComposeIconFg;
+}
+
+defaultComposeFilesMenu: IconButton(defaultIconButton) {
+	width: 48px;
+	height: 54px;
+
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+	iconPosition: point(18px, -1px);
+
+	rippleAreaPosition: point(1px, 6px);
+	rippleAreaSize: 42px;
+	ripple: defaultRippleAnimationBgOver;
+}
+defaultComposeFilesField: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 31px, 4px);
+	heightMax: 158px;
+}
+defaultComposeFiles: ComposeFiles {
+	check: defaultCheck;
+	checkbox: defaultBoxCheckbox;
+	menu: defaultComposeFilesMenu;
+	caption: defaultComposeFilesField;
+	emoji: boxAttachEmoji;
+	confirmBg: windowBgOver;
+	buttonFile: sendBoxAlbumGroupButtonFile;
+	buttonFileEdit: sendBoxAlbumGroupEditButtonIconFile;
+	buttonFileDelete: sendBoxAlbumGroupDeleteButtonIconFile;
+	iconBg: msgFileInBg;
+	iconPlay: icon {{ "history_file_play", historyFileInIconFg }};
+	iconImage: icon {{ "history_file_image", historyFileInIconFg }};
+	iconDocument: icon {{ "history_file_document", historyFileInIconFg }};
+	nameFg: historyFileNameInFg;
+	statusFg: mediaInFg;
+}
+defaultRestrictionLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 12px;
+	textFg: placeholderFg;
+	align: align(top);
+}
+defaultComposeControls: ComposeControls {
+	bg: historyComposeAreaBg;
+	radius: 0px;
+
+	field: historyComposeField;
+	send: historySend;
+	attach: historyAttach;
+	emoji: historyAttachEmoji;
+	suggestions: defaultEmojiSuggestions;
+	tabbed: defaultEmojiPan;
+	tabbedHeightMin: emojiPanMinHeight;
+	tabbedHeightMax: emojiPanMaxHeight;
+	record: defaultRecordBar;
+	files: defaultComposeFiles;
+	premium: defaultPremiumLimits;
+	boxField: defaultInputField;
+	restrictionLabel: defaultRestrictionLabel;
+}
+
+moreChatsBarHeight: 48px;
+moreChatsBarTextPosition: point(12px, 4px);
+moreChatsBarStatusPosition: point(12px, 24px);
+moreChatsBarClose: IconButton(defaultIconButton) {
+	width: 48px;
+	height: 48px;
+
+	icon: boxTitleCloseIcon;
+	iconOver: boxTitleCloseIconOver;
+	iconPosition: point(12px, -1px);
+
+	rippleAreaPosition: point(0px, 4px);
+	rippleAreaSize: 40px;
+	ripple: defaultRippleAnimationBgOver;
+}
+
+reportReasonTopSkip: 8px;
+reportReasonButton: SettingsButton(defaultSettingsButton) {
+	style: boxTextStyle;
+	padding: margins(62px, 7px, 8px, 7px);
+	iconLeft: 22px;
+}
+
+defaultReportBox: ReportBox {
+	button: reportReasonButton;
+	noIconButton: SettingsButton(reportReasonButton) {
+		padding: margins(22px, 7px, 8px, 7px);
+	}
+	label: boxLabel;
+	field: newGroupDescription;
+	dividerBg: boxDividerBg;
+	dividerFg: windowSubTextFg;
+	spam: menuIconDelete;
+	fake: menuIconFake;
+	violence: menuIconViolence;
+	children: menuIconBlock;
+	pornography: menuIconPorn;
+	copyright: menuIconCopyright;
+	drugs: menuIconDrugs;
+	personal: menuIconPersonal;
+	other: menuIconReport;
+}
+
+dragFont: font(27px semibold);
+dragSubfont: font(19px semibold);
+dragColor: windowSubTextFg;
+dragDropColor: windowActiveTextFg;
+
+dragMargin: margins(0px, 10px, 0px, 10px);
+dragPadding: margins(20px, 10px, 20px, 10px);
+dragHeight: 72px;
+
+ttlMediaImportantTooltipLabel: FlatLabel(defaultImportantTooltipLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+ttlMediaButton: RoundButton(defaultActiveButton) {
+	textBg: shadowFg;
+	textBgOver: shadowFg;
+	ripple: universalRippleAnimation;
+	height: 31px;
+	textTop: 6px;
+}
+ttlMediaButtonBottomSkip: 14px;
+
+editTagAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+}
+editTagField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(24px, 10px, 32px, 2px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+
+	heightMin: 36px;
+}
+
+editStickerSetNameField: InputField(defaultInputField) {
+	textMargins: margins(0px, 8px, 26px, 4px);
+	heightMin: 36px;
+	heightMax: 36px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+}
+editStickerSetNameLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: lightButtonFg;
+	thickness: 2px;
+}
+
+paidStarIcon: icon {{ "settings/premium/star", creditsBg1 }};
+paidStarIconTop: 7px;
+paidAmountAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	textFg: windowSubTextFg;
+}
+paidTagLabel: FlatLabel(defaultFlatLabel) {
+	textFg: radialFg;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: creditsBg1;
+	}
+	style: semiboldTextStyle;
+}
+paidTagPadding: margins(16px, 6px, 16px, 6px);
+
+pickLocationWindow: size(364px, 680px);
+pickLocationMapHeight: 220px;
+pickLocationCollapsedHeight: 92px;
+pickLocationRowHeight: 52px;
+pickLocationButton: FlatButton {
+	height: pickLocationRowHeight;
+	bgColor: contactsBg;
+	overBgColor: contactsBgOver;
+	ripple: defaultRippleAnimation;
+}
+pickLocationButtonText: FlatLabel(defaultFlatLabel) {
+	minWidth: 128px;
+	maxHeight: 20px;
+	style: semiboldTextStyle;
+	textFg: windowBoldFg;
+}
+pickLocationButtonStatus: FlatLabel(defaultFlatLabel) {
+	minWidth: 128px;
+	maxHeight: 20px;
+	textFg: windowSubTextFg;
+}
+pickLocationButtonSkip: 6px;
+pickLocationSendIcon: icon{{ "chat/filled_location", windowFgActive }};
+pickLocationVenueItem: PeerListItem(defaultPeerListItem) {
+	height: pickLocationRowHeight;
+	photoSize: 42px;
+	photoPosition: point(18px, 5px);
+	namePosition: point(70px, 7px);
+	statusPosition: point(70px, 27px);
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBgOver;
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: contactsStatusFg;
+	statusFgOver: contactsStatusFgOver;
+	statusFgActive: contactsStatusFgOnline;
+}
+pickLocationVenueList: PeerList(defaultPeerList) {
+	item: pickLocationVenueItem;
+	padding: margins(0px, 0px, 0px, 0px);
+}
+pickLocationIconSkip: 6px;
+pickLocationLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(56px, 56px);
+	color: windowSubTextFg;
+	thickness: 4px;
+}
+pickLocationPromoHeight: 32px;
+pickLocationChooseOnMap: RoundButton(defaultActiveButton) {
+	height: 44px;
+	textTop: 11px;
+	width: -96px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(15px semibold);
+	}
+}
+
+sendGifBox: Box(defaultBox) {
+	shadowIgnoreBottomSkip: true;
+}
+
+processingVideoTipMaxWidth: 364px;
+processingVideoTipShift: 8px;
+processingVideoToast: Toast(defaultToast) {
+	minWidth: 32px;
+	maxWidth: 380px;
+	padding: margins(19px, 17px, 19px, 17px);
+}
+processingVideoPreviewSkip: 8px;
+processingVideoView: RoundButton(defaultActiveButton) {
+	width: -24px;
+	height: 52px;
+	textTop: 17px;
+	textFg: mediaviewTextLinkFg;
+	textFgOver: mediaviewTextLinkFg;
+	textBg: transparent;
+	textBgOver: transparent;
+	ripple: emptyRippleAnimation;
+}
+
+frozenBarTitle: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: attentionButtonFg;
+}
+frozenRestrictionTitle: FlatLabel(frozenBarTitle) {
+	align: align(top);
+}
+frozenBarSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+frozenRestrictionSubtitle: FlatLabel(frozenBarSubtitle) {
+	align: align(top);
+}
+frozenInfoBox: Box(defaultBox) {
+	buttonPadding: margins(16px, 11px, 16px, 16px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+	shadowIgnoreTopSkip: true;
+}
+
+menuTranscribeItemPadding: margins(0px, 10px, 0px, 10px);
+menuTranscribeDummyButton: IconButton(defaultIconButton) {
+	width: 40px;
+	height: 40px;
+
+	icon: icon {{ "chat/input_attach", historyComposeIconFgOver }};
+	iconOver: icon {{ "chat/input_attach", historyComposeIconFgOver }};
+
+	rippleAreaPosition: point(3px, 3px);
+	rippleAreaSize: 34px;
+	ripple: defaultRippleAnimationBgOver;
+}
+
+roundVideoFont: font(14px semibold);

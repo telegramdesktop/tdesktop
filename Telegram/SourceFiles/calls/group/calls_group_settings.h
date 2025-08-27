@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Webrtc {
 class AudioInputTester;
+class DeviceResolver;
 } // namespace Webrtc
 
 namespace Calls {
@@ -25,8 +26,7 @@ void SettingsBox(
 
 [[nodiscard]] std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 	not_null<PeerData*> peer,
-	Fn<void(object_ptr<Ui::BoxContent>)> showBox,
-	Fn<void(QString)> showToast);
+	std::shared_ptr<Ui::Show> show);
 
 class MicLevelTester final {
 public:
@@ -39,6 +39,7 @@ private:
 
 	Fn<void()> _show;
 	base::Timer _timer;
+	std::unique_ptr<Webrtc::DeviceResolver> _deviceId;
 	std::unique_ptr<Webrtc::AudioInputTester> _tester;
 	int _loudCount = 0;
 	int _quietCount = 0;

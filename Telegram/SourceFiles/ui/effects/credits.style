@@ -1,0 +1,361 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "boxes/boxes.style";
+using "ui/widgets/widgets.style";
+using "ui/effects/premium.style";
+using "settings/settings.style";
+
+creditsSettingsBigBalance: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(24px semibold);
+	}
+}
+creditsSettingsBigBalanceSkip: 4px;
+creditsSettingsBigBalanceButton: RoundButton(defaultActiveButton) {
+	width: 240px;
+	height: 40px;
+	textTop: 11px;
+	style: semiboldTextStyle;
+}
+creditsSettingsBigBalanceButtonGift: RoundButton(defaultLightButton) {
+	height: 42px;
+	textTop: 12px;
+	style: defaultTextStyle;
+}
+
+creditsPremiumCover: PremiumCover(defaultPremiumCover) {
+	starTopSkip: 39px;
+	titleFont: font(15px semibold);
+	about: FlatLabel(userPremiumCoverAbout) {
+		textFg: boxTitleFg;
+	}
+	aboutMaxWidth: 236px;
+	additionalShadowForDarkThemes: false;
+}
+creditsLowBalancePremiumCover: PremiumCover(creditsPremiumCover) {
+	starSize: size(64px, 62px);
+	starTopSkip: 30px;
+	about: FlatLabel(userPremiumCoverAbout) {
+		textFg: boxTitleFg;
+		minWidth: 200px;
+	}
+}
+creditsLowBalancePremiumCoverHeight: 162px;
+creditsTopupButton: SettingsButton(settingsButton) {
+	style: semiboldTextStyle;
+}
+creditsTopupPrice: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+
+creditsHistoryRightSkip: 10px;
+creditsBalanceStarHeight: 20px;
+
+creditsBoxAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	align: align(top);
+}
+creditsBoxAboutTitle: FlatLabel(settingsPremiumUserTitle) {
+	minWidth: 256px;
+}
+creditsBoxAboutDivider: FlatLabel(boxDividerLabel) {
+	align: align(top);
+}
+creditsBoxButtonLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+}
+creditsReleasedByLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+
+starIconEmoji: IconEmoji {
+	icon: icon{{ "payments/premium_emoji", creditsBg1 }};
+	padding: margins(4px, 1px, 4px, 0px);
+}
+starIconEmojiColored: IconEmoji(starIconEmoji) {
+	useIconColor: true;
+}
+starIconEmojiSmall: IconEmoji {
+	icon: icon{{ "chat/mini_stars", creditsBg1 }};
+	padding: margins(0px, 4px, 0px, 0px);
+}
+starIconEmojiLarge: IconEmoji {
+	icon: icon {{ "settings/premium/star", settingsIconFg }};
+	padding: margins(0px, -2px, 0px, 0px);
+}
+
+tonIconEmoji: IconEmoji {
+	icon: icon{{ "chat/mini_ton_bold", currencyFg }};
+	padding: margins(1px, 3px, 1px, 0px);
+}
+tonIconEmojiLarge: IconEmoji {
+	icon: icon{{ "payments/ton_emoji-18x18", currencyFg }};
+	padding: margins(0px, 1px, 0px, 0px);
+}
+tonIconEmojiInSmall: IconEmoji(tonIconEmoji) {
+	padding: margins(0px, 2px, 0px, 0px);
+}
+
+creditsHistoryEntryTypeAds: icon {{ "folders/folders_channels", premiumButtonFg }};
+creditsHistorySearchPostsIcon: icon {{ "box_search", historyPeerUserpicFg }};
+
+creditsHistoryEntryGiftStickerSkip: -20px;
+creditsHistoryEntryGiftStickerSize: 150px;
+creditsHistoryEntryGiftStickerSpace: 105px;
+
+creditsHistoryEntryStarGiftSkip: 10px;
+creditsHistoryEntryStarGiftSize: 120px;
+creditsHistoryEntryStarGiftSpace: 125px;
+
+creditsGiftBox: Box(defaultBox) {
+	shadowIgnoreTopSkip: true;
+}
+
+giftBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 12px);
+	buttonHeight: 42px;
+	buttonWide: true;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+}
+giftLimitedBox: Box(giftBox) {
+	buttonPadding: margins(22px, 48px, 22px, 12px);
+}
+giftLimitedPadding: margins(8px, 4px, 8px, 4px);
+giftBoxSubtitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+	}
+	textFg: windowBoldFg;
+	align: align(top);
+	minWidth: 200px;
+}
+giftBoxSubtitleMargin: margins(22px, 4px, 22px, 4px);
+giftBoxAbout: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 200px;
+}
+giftBoxAboutMargin: margins(20px, 4px, 20px, 4px);
+giftBoxTabsMargin: margins(20px, 4px, 20px, 4px);
+giftBoxTabPadding: margins(8px, 2px, 8px, 2px);
+giftBoxTabSkip: 2px;
+giftBoxTabStyle: semiboldTextStyle;
+giftBoxTabFg: windowSubTextFg;
+giftBoxTabFgActive: windowBoldFg;
+giftBoxTabBgActive: windowBgRipple;
+giftBoxResaleTabsMargin: margins(11px, 10px, 11px, 8px);
+giftBoxResaleTabSkip: 8px;
+giftBoxResaleTabsDropdown: IconEmoji {
+	icon: icon{{ "intro_country_dropdown", lightButtonFg }};
+	padding: margins(4px, 6px, 0px, 0px);
+}
+giftBoxResaleMiniNumber: IconEmoji {
+	icon: icon{{ "settings/mini_gift_order_number-16x16", lightButtonFg }};
+	padding: margins(0px, 2px, 4px, 0px);
+}
+giftBoxResaleMiniPrice: IconEmoji {
+	icon: icon{{ "settings/mini_gift_order_price-16x16", lightButtonFg }};
+	padding: margins(0px, 2px, 4px, 0px);
+}
+giftBoxResaleMiniDate: IconEmoji {
+	icon: icon{{ "settings/mini_gift_order_date-16x16", lightButtonFg }};
+	padding: margins(0px, 2px, 4px, 0px);
+}
+giftBoxResaleFilter: PopupMenu(popupMenuWithIcons) {
+	menu: Menu(menuWithIcons) {
+		itemPadding: margins(54px, 8px, 48px, 8px);
+		itemRightSkip: 12px;
+	}
+	maxHeight: 320px;
+}
+giftBoxResaleColorSize: 18px;
+giftBoxResaleColorTop: 1px;
+giftBoxPadding: margins(11px, 4px, 11px, 24px);
+giftBoxGiftSkip: point(10px, 8px);
+giftBoxGiftHeight: 164px;
+giftBoxGiftSmall: 108px;
+giftBoxGiftRadius: 12px;
+giftBoxGiftBadgeFont: font(10px semibold);
+giftBoxByStarsStyle: TextStyle(defaultTextStyle) {
+	font: font(10px);
+}
+giftBoxByStarsSkip: 2px;
+giftBoxByStarsStarTop: 3px;
+giftBoxPremiumIconSize: 64px;
+giftBoxPremiumIconTop: 10px;
+giftBoxPremiumTextTop: 84px;
+giftBoxPremiumTextTopByStars: 78px;
+giftBoxButtonBottomSmall: 4px;
+giftBoxButtonBottom: 12px;
+giftBoxButtonBottomByStars: 18px;
+giftBoxButtonPadding: margins(8px, 4px, 8px, 4px);
+giftBoxPreviewStickerPadding: margins(10px, 12px, 10px, 16px);
+giftBoxPreviewTitlePadding: margins(12px, 4px, 12px, 4px);
+giftBoxReleasedByMargin: margins(12px, 2px, 12px, 2px);
+giftBoxPreviewTextPadding: margins(12px, 4px, 12px, 4px);
+giftBoxButtonMargin: margins(12px, 8px, 12px, 12px);
+giftBoxStickerTop: 0px;
+giftBoxStickerStarTop: 24px;
+giftBoxSmallStickerTop: 16px;
+giftBoxStickerTopByStars: -4px;
+giftBoxStickerSize: size(80px, 80px);
+giftBoxSelectSkip: 5px;
+giftBoxUserpicSize: 24px;
+giftBoxUserpicSkip: 2px;
+giftBoxTextField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(2px, 0px, 32px, 0px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
+
+	heightMin: 20px;
+	heightMax: 48px;
+
+	style: defaultTextStyle;
+}
+giftBoxTextPadding: margins(20px, 15px, 20px, 11px);
+giftBoxHiddenMark: icon{{ "menu/stealth", premiumButtonFg }};
+giftListAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: membersAboutLimitFg;
+	align: align(top);
+	style: boxLabelStyle;
+}
+giftListAboutMargin: margins(12px, 24px, 12px, 24px);
+giftBoxEmojiToggleTop: 7px;
+giftBoxLimitTop: 28px;
+giftBoxLock: IconEmoji {
+	icon: icon {{ "emoji/premium_lock", placeholderFgActive }};
+	padding: margins(-2px, 1px, 0px, 0px);
+}
+giftBoxPinIcon: icon {{ "dialogs/dialogs_pinned", premiumButtonFg }};
+
+creditsHistoryEntriesList: PeerList(defaultPeerList) {
+	padding: margins(0px, 7px, 0px, 7px);
+	item: PeerListItem(defaultPeerListItem) {
+		height: 72px;
+		photoPosition: point(18px, 7px);
+		namePosition: point(70px, 6px);
+		statusPosition: point(70px, 46px);
+		photoSize: 42px;
+	}
+}
+
+subscriptionCreditsBadgePadding: margins(10px, 1px, 8px, 3px);
+
+uniqueGiftModelTop: 20px;
+uniqueGiftTitle: FlatLabel(boxTitle) {
+	align: align(top);
+}
+uniqueGiftResalePrice: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+}
+uniqueGiftResalePadding: margins(4px, 4px, 8px, 4px);
+uniqueGiftResaleMargin: margins(10px, 10px, 10px, 10px);
+uniqueGiftTitleTop: 140px;
+uniqueGiftSubtitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	align: align(top);
+}
+uniqueGiftSubtitleTop: 170px;
+uniqueGiftUserpicTop: 48px;
+uniqueGiftUserpicSize: 80px;
+uniqueGiftBottom: 20px;
+uniqueCloseButton: IconButton(boxTitleClose) {
+	icon: icon {{ "box_button_close", videoPlayIconFg }};
+	iconOver: icon {{ "box_button_close", videoPlayIconFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
+uniqueMenuButton: IconButton(uniqueCloseButton) {
+	width: 40px;
+	rippleAreaPosition: point(0px, 4px);
+
+	icon: icon {{ "title_menu_dots", videoPlayIconFg }};
+	iconOver: icon {{ "title_menu_dots", videoPlayIconFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
+upgradeGiftBox: Box(giftBox) {
+	buttonPadding: margins(22px, 3px, 22px, 22px);
+}
+upgradeGiftSubtext: FlatLabel(boxDividerLabel) {
+	minWidth: 200px;
+}
+darkUpgradeGiftTitle: FlatLabel(uniqueGiftTitle) {
+	textFg: groupCallMembersFg;
+}
+darkUpgradeGiftSubtitle: FlatLabel(uniqueGiftSubtitle) {
+	textFg: groupCallMembersFg;
+}
+darkUpgradeGiftBox: Box(upgradeGiftBox) {
+	bg: groupCallMembersBg;
+	title: darkUpgradeGiftTitle;
+	titleAdditionalFg: groupCallMemberNotJoinedStatus;
+}
+darkUpgradeGiftRadiant: icon{{ "menu/unique", groupCallMembersFg }};
+darkUpgradeGiftProof: icon{{ "menu/factcheck", groupCallMembersFg }};
+darkUpgradeGiftInfoTitle: FlatLabel(defaultFlatLabel) {
+	textFg: groupCallMembersFg;
+}
+darkUpgradeGiftInfoAbout: FlatLabel(upgradeGiftSubtext) {
+	textFg: groupCallMemberNotJoinedStatus;
+}
+
+giftTooManyPinnedBox: Box(giftBox) {
+	buttonPadding: margins(11px, 11px, 11px, 11px);
+}
+giftTooManyPinnedChoose: FlatLabel(giftBoxAbout) {
+	textFg: windowSubTextFg;
+}
+
+creditsHistoryTabsSlider: SettingsSlider(defaultTabsSlider) {
+	height: 39px;
+	labelTop: 7px;
+	barTop: 36px;
+	barSkip: 0px;
+	rippleBottomSkip: 0px;
+}
+creditsHistoryTabsSliderPadding: margins(14px, 0px, 24px, 0px);
+creditsHistoryRowDescriptionSkip: 20px;
+creditsHistoryRowRightTop: 16px;
+creditsHistoryRowRightMinorTop: 18px;
+creditsHistoryRowRightStyle: TextStyle(defaultTextStyle) {
+	font: font(fsize);
+}
+resaleButtonTitle: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: activeButtonFg;
+	maxHeight: 20px;
+}
+resaleButtonSubtitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+	textFg: activeButtonFg;
+	maxHeight: 20px;
+}
+
+resaleConfirmTonOnly: FlatLabel(boxLabel) {
+	textFg: windowSubTextFg;
+}
+resaleConfirmTonOnlyMargin: margins(0px, 12px, 0px, 12px);

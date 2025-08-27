@@ -17,20 +17,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "calls/calls_instance.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {
 
-using FinishReason = Data::CallFinishReason;
+using State = Data::CallState;
 
-[[nodiscard]] int ComputeDuration(FinishReason reason, int duration) {
-	return (reason != FinishReason::Missed
-		&& reason != FinishReason::Busy)
+[[nodiscard]] int ComputeDuration(State state, int duration) {
+	return (state != State::Missed && state != State::Busy)
 		? duration
 		: 0;
 }
@@ -41,12 +42,15 @@ Call::Call(
 	not_null<Element*> parent,
 	not_null<Data::Call*> call)
 : Media(parent)
-, _duration(ComputeDuration(call->finishReason, call->duration))
-, _reason(call->finishReason)
+, _duration(ComputeDuration(call->state, call->duration))
+, _state(call->state)
+, _conference(call->conferenceId != 0)
 , _video(call->video) {
 	const auto item = parent->data();
-	_text = Data::MediaCall::Text(item, _reason, _video);
-	_status = QLocale().toString(parent->dateTime().time(), cTimeFormat());
+	_text = Data::MediaCall::Text(item, _state, _conference, _video);
+	_status = QLocale().toString(
+		parent->dateTime().time(),
+		QLocale::ShortFormat);
 	if (_duration) {
 		_status = tr::lng_call_duration_info(
 			tr::now,
@@ -59,13 +63,22 @@ Call::Call(
 
 QSize Call::countOptimalSize() {
 	const auto user = _parent->history()->peer->asUser();
+	const auto conference = _conference;
 	const auto video = _video;
-	_link = std::make_shared<LambdaClickHandler>([=] {
-		if (user) {
+	const auto contextId = _parent->data()->fullId();
+	const auto id = _parent->data()->id;
+	_link = std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		if (conference) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto weak = my.sessionWindow;
+			if (const auto strong = weak.get()) {
+				QSize();
+				strong->resolveConferenceCall(id, contextId);
+			}
+		} else if (user) {
 			Core::App().calls().startOutgoingCall(user, video);
 		}
 	});
-
 	auto maxWidth = st::historyCallWidth;
 	auto minHeight = st::historyCallHeight;
 	if (!isBubbleTop()) {
@@ -94,8 +107,7 @@ void Call::draw(Painter &p, const PaintContext &context) const {
 	p.drawTextLeft(nameleft, nametop, paintw, _text);
 
 	auto statusleft = nameleft;
-	auto missed = (_reason == FinishReason::Missed)
-		|| (_reason == FinishReason::Busy);
+	auto missed = (_state == State::Missed) || (_state == State::Busy);
 	const auto &arrow = missed
 		? stm->historyCallArrowMissed
 		: stm->historyCallArrow;
@@ -108,6 +120,8 @@ void Call::draw(Painter &p, const PaintContext &context) const {
 
 	const auto &icon = _video
 		? stm->historyCallCameraIcon
+		: _conference
+		? stm->historyCallGroupIcon
 		: stm->historyCallIcon;
 	icon.paint(p, paintw - st::historyCallIconPosition.x() - icon.width(), st::historyCallIconPosition.y() - topMinus, paintw);
 }

@@ -108,9 +108,7 @@ bool InnerWidget::showInternal(not_null<Memento*> memento) {
 }
 
 object_ptr<Media::ListWidget> InnerWidget::setupList() {
-	auto result = object_ptr<Media::ListWidget>(
-		this,
-		_controller);
+	auto result = object_ptr<Media::ListWidget>(this, _controller);
 	result->heightValue(
 	) | rpl::start_with_next(
 		[this] { refreshHeight(); },

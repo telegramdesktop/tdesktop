@@ -10,7 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/paint/blobs.h"
 #include "ui/painter.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
+
+#include <QtMath>
 
 namespace HistoryView::Controls {
 
@@ -49,7 +52,7 @@ auto Blobs() {
 
 VoiceRecordButton::VoiceRecordButton(
 	not_null<Ui::RpWidget*> parent,
-	rpl::producer<> leaveWindowEventProducer)
+	const style::RecordBar &st)
 : AbstractButton(parent)
 , _blobs(std::make_unique<Ui::Paint::Blobs>(
 	Blobs(),
@@ -57,11 +60,6 @@ VoiceRecordButton::VoiceRecordButton(
 	kMaxLevel))
 , _center(_blobs->maxRadius()) {
 	resize(_center * 2, _center * 2);
-	std::move(
-		leaveWindowEventProducer
-	) | rpl::start_with_next([=] {
-		_inCircle = false;
-	}, lifetime());
 	init();
 }
 
@@ -139,10 +137,14 @@ void VoiceRecordButton::init() {
 			const auto state = *currentState;
 			const auto icon = (state == Type::Send)
 				? st::historySendIcon
-				: st::historyRecordVoiceActive;
+				: (state == Type::Record)
+				? st::historyRecordVoiceActive
+				: st::historyRecordRoundActive;
 			const auto position = (state == Type::Send)
 				? st::historyRecordSendIconPosition
-				: QPoint(0, 0);
+				: (state == Type::Record)
+				? QPoint(0, 0)
+				: st::historyRecordRoundIconPosition;
 			icon.paint(
 				p,
 				-icon.width() / 2 + position.x(),
@@ -198,8 +200,8 @@ void VoiceRecordButton::init() {
 			}
 			update();
 		};
-		const auto duration = st::historyRecordVoiceDuration * 2;
-		_stateChangedAnimation.start(std::move(callback), 0., to, duration);
+		constexpr auto kDuration = st::universalDuration * 2;
+		_stateChangedAnimation.start(std::move(callback), 0., to, kDuration);
 	}, lifetime());
 }
 

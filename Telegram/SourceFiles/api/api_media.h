@@ -13,7 +13,9 @@ namespace Api {
 
 struct RemoteFileInfo;
 
-MTPInputMedia PrepareUploadedPhoto(RemoteFileInfo info);
+MTPInputMedia PrepareUploadedPhoto(
+	not_null<HistoryItem*> item,
+	RemoteFileInfo info);
 
 MTPInputMedia PrepareUploadedDocument(
 	not_null<HistoryItem*> item,

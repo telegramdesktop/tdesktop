@@ -16,7 +16,7 @@ class Session;
 } // namespace Main
 
 struct PollAnswer {
-	QString text;
+	TextWithEntities text;
 	QByteArray option;
 	int votes = 0;
 	bool chosen = false;
@@ -65,9 +65,9 @@ struct PollData {
 	[[nodiscard]] bool quiz() const;
 
 	PollId id = 0;
-	QString question;
+	TextWithEntities question;
 	std::vector<PollAnswer> answers;
-	std::vector<not_null<UserData*>> recentVoters;
+	std::vector<not_null<PeerData*>> recentVoters;
 	std::vector<QByteArray> sendingVotes;
 	TextWithEntities solution;
 	TimeId closePeriod = 0;
@@ -75,7 +75,7 @@ struct PollData {
 	int totalVoters = 0;
 	int version = 0;
 
-	static constexpr auto kMaxOptions = 10;
+	static constexpr auto kMaxOptions = 32;
 
 private:
 	bool applyResultToAnswers(

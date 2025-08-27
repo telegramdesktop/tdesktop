@@ -31,6 +31,9 @@ public:
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
+	HistoryItem *itemForText() const override;
+	bool hideMessageText() const override;
+
 	void drawHighlight(
 		Painter &p,
 		const PaintContext &context,
@@ -55,6 +58,9 @@ public:
 	DocumentData *getDocument() const override;
 
 	TextForMimeData selectedText(TextSelection selection) const override;
+	SelectedQuote selectedQuote(TextSelection selection) const override;
+	TextSelection selectionFromQuote(
+		const SelectedQuote &quote) const override;
 
 	std::vector<Ui::BubbleSelectionInterval> getBubbleSelectionIntervals(
 		TextSelection selection) const override;
@@ -66,7 +72,7 @@ public:
 		const ClickHandlerPtr &p,
 		bool pressed) override;
 
-	TextWithEntities getCaption() const override;
+	void hideSpoilers() override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	bool overrideEditedDate() const override {
@@ -75,23 +81,23 @@ public:
 	HistoryMessageEdited *displayedEditBadge() const override;
 
 	bool skipBubbleTail() const override {
-		return (_mode == Mode::Grid)
-			&& isRoundedInBubbleBottom()
-			&& _caption.isEmpty();
+		return (_mode == Mode::Grid) && isRoundedInBubbleBottom();
 	}
 	void updateNeedBubbleState() override;
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
-		return _caption.isEmpty() && (_mode != Mode::Column);
+		return (_mode != Mode::Column);
 	}
 	QPoint resolveCustomInfoRightBottom() const override;
 
 	bool allowsFastShare() const override {
 		return true;
 	}
+	std::optional<PaidInformation> paidInformation() const override;
 	bool customHighlight() const override {
 		return true;
 	}
+	bool enforceBubbleWidth() const override;
 
 	void stopAnimation() override;
 	void checkAnimation() override;
@@ -139,18 +145,19 @@ private:
 		QPoint point,
 		StateRequest request) const;
 
-	void refreshCaption();
-
 	[[nodiscard]] Ui::BubbleRounding applyRoundingSides(
 		Ui::BubbleRounding already,
 		RectParts sides) const;
 	[[nodiscard]] QMargins groupedPadding() const;
 
-	Ui::Text::String _caption;
-	HistoryItem *_captionItem = nullptr;
+	[[nodiscard]] Media *lookupSpoilerTagMedia() const;
+	[[nodiscard]] QImage generateSpoilerTagBackground(QRect full) const;
+
+	mutable std::optional<HistoryItem*> _captionItem;
 	std::vector<Part> _parts;
 	Mode _mode = Mode::Grid;
-	bool _needBubble = false;
+	bool _needBubble : 1 = false;
+	bool _purchasedPriceTag : 1 = false;
 
 };
 

@@ -17,9 +17,13 @@ namespace Window {
 class Controller;
 } // namespace Window
 
+namespace Ui {
+struct MarkdownEnabledState;
+} // namespace Ui
+
 API_AVAILABLE(macos(10.12.2))
 @interface RootTouchBar : NSTouchBar<NSTouchBarDelegate>
-- (id)init:(rpl::producer<bool>)canApplyMarkdown
+- (id)init:(rpl::producer<Ui::MarkdownEnabledState>)markdownState
 	controller:(not_null<Window::Controller*>)controller
 	domain:(not_null<Main::Domain*>)domain;
 @end

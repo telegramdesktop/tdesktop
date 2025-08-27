@@ -15,16 +15,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "storage/cache/storage_cache_database.h"
+#include "storage/localimageloader.h"
 #include "history/view/media/history_view_media_common.h"
 #include "media/clip/media_clip_reader.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/image/image_location_factory.h"
 #include "ui/painter.h"
 #include "main/main_session.h"
+
+#include <xxhash.h>
 
 namespace ChatHelpers {
 namespace {
 
 constexpr auto kDontCacheLottieAfterArea = 512 * 512;
+
+[[nodiscard]] uint64 LocalStickerId(QStringView name) {
+	auto full = u"local_sticker:"_q;
+	full.append(name);
+	return XXH64(full.data(), full.size() * sizeof(QChar), 0);
+}
 
 } // namespace
 
@@ -138,11 +149,11 @@ not_null<Lottie::Animation*> LottieAnimationFromDocument(
 }
 
 bool HasLottieThumbnail(
-		Data::StickersSetFlags flags,
+		StickerType thumbType,
 		Data::StickersSetThumbnailView *thumb,
 		Data::DocumentMedia *media) {
 	if (thumb) {
-		return !(flags & Data::StickersSetFlag::Webm)
+		return (thumbType == StickerType::Tgs)
 			&& !thumb->content().isEmpty();
 	} else if (!media) {
 		return false;
@@ -187,9 +198,7 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 	};
 	const auto session = thumb
 		? &thumb->owner()->session()
-		: media
-		? &media->owner()->session()
-		: nullptr;
+		: &media->owner()->session();
 	return LottieCachedFromContent(
 		method,
 		baseKey,
@@ -200,11 +209,11 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 }
 
 bool HasWebmThumbnail(
-		Data::StickersSetFlags flags,
+		StickerType thumbType,
 		Data::StickersSetThumbnailView *thumb,
 		Data::DocumentMedia *media) {
 	if (thumb) {
-		return (flags & Data::StickersSetFlag::Webm)
+		return (thumbType == StickerType::Webm)
 			&& !thumb->content().isEmpty();
 	} else if (!media) {
 		return false;
@@ -310,6 +319,47 @@ QSize ComputeStickerSize(not_null<DocumentData*> document, QSize box) {
 	const auto ratio = style::DevicePixelRatio();
 	const auto request = Lottie::FrameRequest{ box * ratio };
 	return HistoryView::NonEmptySize(request.size(dimensions, 8) / ratio);
+}
+
+not_null<DocumentData*> GenerateLocalSticker(
+		not_null<Main::Session*> session,
+		const QString &path) {
+	auto task = FileLoadTask(
+		session,
+		path,
+		QByteArray(),
+		nullptr,
+		nullptr,
+		SendMediaType::File,
+		FileLoadTo(0, {}, {}, 0),
+		{},
+		false,
+		nullptr,
+		LocalStickerId(path));
+	task.process({ .generateGoodThumbnail = false });
+	const auto result = task.peekResult();
+	Assert(result != nullptr);
+	const auto document = session->data().processDocument(
+		result->document,
+		Images::FromImageInMemory(
+			result->thumb,
+			"WEBP",
+			result->thumbbytes));
+	document->setLocation(Core::FileLocation(path));
+
+	Ensures(document->sticker());
+	return document;
+}
+
+not_null<DocumentData*> GenerateLocalTgsSticker(
+		not_null<Main::Session*> session,
+		const QString &name) {
+	const auto result = GenerateLocalSticker(
+		session,
+		u":/animations/"_q + name + u".tgs"_q);
+
+	Ensures(result->sticker()->isLottie());
+	return result;
 }
 
 } // namespace ChatHelpers

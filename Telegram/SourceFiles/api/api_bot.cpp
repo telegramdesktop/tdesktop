@@ -10,10 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
 #include "api/api_send_progress.h"
+#include "api/api_suggest_post.h"
 #include "boxes/share_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/url_auth_box.h"
+#include "boxes/peers/choose_peer_box.h"
 #include "lang/lang_keys.h"
+#include "chat_helpers/bot_command.h"
 #include "core/core_cloud_password.h"
 #include "core/click_handler_types.h"
 #include "data/data_changes.h"
@@ -26,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "payments/payments_checkout_process.h"
+#include "payments/payments_non_panel_process.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -35,6 +39,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace Api {
 namespace {
@@ -81,7 +88,7 @@ void SendBotCallbackData(
 		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_password;
 	}
 	const auto weak = base::make_weak(controller);
-	const auto show = std::make_shared<Window::Show>(controller);
+	const auto show = controller->uiShow();
 	button->requestId = api->request(MTPmessages_GetBotCallbackAnswer(
 		MTP_flags(flags),
 		history->peer->input,
@@ -110,24 +117,22 @@ void SendBotCallbackData(
 		const auto showAlert = data.is_alert();
 
 		if (!message.isEmpty()) {
-			if (showAlert) {
+			if (!show->valid()) {
+				return;
+			} else if (showAlert) {
 				show->showBox(Ui::MakeInformBox(message));
 			} else {
 				if (withPassword) {
 					show->hideLayer();
 				}
-				Ui::Toast::Show(show->toastParent(), message);
+				show->showToast(message);
 			}
 		} else if (!link.isEmpty()) {
 			if (!isGame) {
 				UrlClickHandler::Open(link);
 				return;
 			}
-			const auto scoreLink = AppendShareGameScoreUrl(
-				session,
-				link,
-				item->fullId());
-			BotGameUrlClickHandler(bot, scoreLink).onClick({
+			BotGameUrlClickHandler(bot, link).onClick({
 				Qt::LeftButton,
 				QVariant::fromValue(ClickHandlerContext{
 					.itemId = item->fullId(),
@@ -166,9 +171,7 @@ void SendBotCallbackData(
 void HideSingleUseKeyboard(
 		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item) {
-	controller->content()->hideSingleUseKeyboard(
-		item->history()->peer,
-		item->id);
+	controller->content()->hideSingleUseKeyboard(item->fullId());
 }
 
 } // namespace
@@ -207,7 +210,7 @@ void SendBotCallbackDataWithPassword(
 	}
 	api->cloudPassword().reload();
 	const auto weak = base::make_weak(controller);
-	const auto show = std::make_shared<Window::Show>(controller);
+	const auto show = controller->uiShow();
 	SendBotCallbackData(controller, item, row, column, {}, {}, [=](
 			const QString &error) {
 		auto box = PrePasswordErrorBox(
@@ -235,14 +238,14 @@ void SendBotCallbackDataWithPassword(
 				} else {
 					return;
 				}
-				const auto box = std::make_shared<QPointer<PasscodeBox>>();
 				auto fields = PasscodeBox::CloudFields::From(state);
 				fields.customTitle = tr::lng_bots_password_confirm_title();
 				fields.customDescription
 					= tr::lng_bots_password_confirm_description(tr::now);
 				fields.customSubmitButton = tr::lng_passcode_submit();
 				fields.customCheckCallback = [=](
-						const Core::CloudPasswordResult &result) {
+						const Core::CloudPasswordResult &result,
+						base::weak_qptr<PasscodeBox> box) {
 					if (const auto button = getButton()) {
 						if (button->requestId) {
 							return;
@@ -256,18 +259,17 @@ void SendBotCallbackDataWithPassword(
 							return;
 						}
 						SendBotCallbackData(strongController, item, row, column, result, [=] {
-							if (*box) {
-								(*box)->closeBox();
+							if (box) {
+								box->closeBox();
 							}
 						}, [=](const QString &error) {
-							if (*box) {
-								(*box)->handleCustomCheckError(error);
+							if (box) {
+								box->handleCustomCheckError(error);
 							}
 						});
 					}
 				};
 				auto object = Box<PasscodeBox>(session, fields);
-				*box = Ui::MakeWeak(object.data());
 				show->showBox(std::move(object), Ui::LayerOption::CloseOther);
 			}, *lifetime);
 		}
@@ -276,20 +278,21 @@ void SendBotCallbackDataWithPassword(
 
 bool SwitchInlineBotButtonReceived(
 		not_null<Window::SessionController*> controller,
-		const QString &query,
+		const QByteArray &queryWithPeerTypes,
 		UserData *samePeerBot,
 		MsgId samePeerReplyTo) {
 	return controller->content()->notify_switchInlineBotButtonReceived(
-		query,
+		QString::fromUtf8(queryWithPeerTypes),
 		samePeerBot,
 		samePeerReplyTo);
 }
 
 void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
-	const auto controller = context.sessionWindow.get();
-	if (!controller) {
+	const auto strong = context.sessionWindow.get();
+	if (!strong) {
 		return;
 	}
+	const auto controller = not_null{ strong };
 	const auto item = controller->session().data().message(context.itemId);
 	if (!item) {
 		return;
@@ -308,12 +311,14 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 	case ButtonType::Default: {
 		// Copy string before passing it to the sending method
 		// because the original button can be destroyed inside.
-		const auto replyTo = item->isRegular() ? item->id : 0;
+		const auto replyTo = item->isRegular()
+			? item->fullId()
+			: FullMsgId();
 		controller->content()->sendBotCommand({
 			.peer = item->history()->peer,
 			.command = QString(button->text),
 			.context = item->fullId(),
-			.replyTo = replyTo,
+			.replyTo = { replyTo },
 		});
 	} break;
 
@@ -332,7 +337,8 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			Payments::Mode::Payment,
 			crl::guard(controller, [=](auto) {
 				controller->widget()->activate();
-			}));
+			}),
+			Payments::ProcessNonPanelPaymentFormFactory(controller, item));
 	} break;
 
 	case ButtonType::Url: {
@@ -359,7 +365,7 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 
 	case ButtonType::RequestPhone: {
 		HideSingleUseKeyboard(controller, item);
-		const auto itemId = item->id;
+		const auto itemId = item->fullId();
 		const auto topicRootId = item->topicRootId();
 		const auto history = item->history();
 		controller->show(Ui::MakeConfirmBox({
@@ -371,8 +377,10 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 					ShowAtTheEndMsgId);
 				auto action = Api::SendAction(history);
 				action.clearDraft = false;
-				action.replyTo = itemId;
-				action.topicRootId = topicRootId;
+				action.replyTo = {
+					.messageId = itemId,
+					.topicRootId = topicRootId,
+				};
 				history->session().api().shareContact(
 					history->session().user(),
 					action);
@@ -391,15 +399,45 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 				chosen |= PollData::Flag::Quiz;
 			}
 		}
-		const auto replyToId = MsgId(0);
-		const auto topicRootId = MsgId(0);
+		const auto replyTo = FullReplyTo();
+		const auto suggest = SuggestPostOptions();
 		Window::PeerMenuCreatePoll(
 			controller,
 			item->history()->peer,
-			replyToId,
-			topicRootId,
+			replyTo,
+			suggest,
 			chosen,
 			disabled);
+	} break;
+
+	case ButtonType::RequestPeer: {
+		HideSingleUseKeyboard(controller, item);
+
+		auto query = RequestPeerQuery();
+		Assert(button->data.size() == sizeof(query));
+		memcpy(&query, button->data.data(), sizeof(query));
+		const auto peer = item->history()->peer;
+		const auto itemId = item->id;
+		const auto id = int32(button->buttonId);
+		const auto chosen = [=](std::vector<not_null<PeerData*>> result) {
+			peer->session().api().request(MTPmessages_SendBotRequestedPeer(
+				peer->input,
+				MTP_int(itemId),
+				MTP_int(id),
+				MTP_vector_from_range(
+					result | ranges::views::transform([](
+							not_null<PeerData*> peer) {
+						return MTPInputPeer(peer->input);
+					}))
+			)).done([=](const MTPUpdates &result) {
+				peer->session().api().applyUpdates(result);
+			}).send();
+		};
+		if (const auto bot = item->getMessageBot()) {
+			ShowChoosePeerBox(controller, bot, query, chosen);
+		} else {
+			LOG(("API Error: Bot not found for RequestPeer button."));
+		}
 	} break;
 
 	case ButtonType::SwitchInlineSame:
@@ -411,14 +449,14 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 				if (samePeer) {
 					SwitchInlineBotButtonReceived(
 						controller,
-						QString::fromUtf8(button->data),
+						button->data,
 						bot,
 						item->id);
 					return true;
 				} else if (bot->isBot() && bot->botInfo->inlineReturnTo.key) {
 					const auto switched = SwitchInlineBotButtonReceived(
 						controller,
-						QString::fromUtf8(button->data));
+						button->data);
 					if (switched) {
 						return true;
 					}
@@ -426,10 +464,19 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 				return false;
 			}();
 			if (!fastSwitchDone) {
-				controller->content()->inlineSwitchLayer('@'
-					+ bot->username()
-					+ ' '
-					+ QString::fromUtf8(button->data));
+				const auto query = QString::fromUtf8(button->data);
+				const auto chosen = [=](not_null<Data::Thread*> thread) {
+					return controller->switchInlineQuery(
+						thread,
+						bot,
+						query);
+				};
+				Window::ShowChooseRecipientBox(
+					controller,
+					chosen,
+					tr::lng_inline_switch_choose(),
+					nullptr,
+					button->peerTypes);
 			}
 		}
 	} break;
@@ -448,21 +495,53 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 
 	case ButtonType::WebView: {
 		if (const auto bot = item->getMessageBot()) {
-			bot->session().attachWebView().request(
-				controller,
-				Api::SendAction(bot->owner().history(bot)),
-				bot,
-				{ .text = button->text, .url = button->data });
+			bot->session().attachWebView().open({
+				.bot = bot,
+				.context = { .controller = controller },
+				.button = { .text = button->text, .url = button->data },
+				.source = InlineBots::WebViewSourceButton{ .simple = false },
+			});
 		}
 	} break;
 
 	case ButtonType::SimpleWebView: {
 		if (const auto bot = item->getMessageBot()) {
-			bot->session().attachWebView().requestSimple(
-				controller,
-				bot,
-				{ .text = button->text, .url = button->data });
+			bot->session().attachWebView().open({
+				.bot = bot,
+				.context = { .controller = controller },
+				.button = { .text = button->text, .url = button->data },
+				.source = InlineBots::WebViewSourceButton{ .simple = true },
+			});
 		}
+	} break;
+
+	case ButtonType::CopyText: {
+		const auto text = QString::fromUtf8(button->data);
+		if (!text.isEmpty()) {
+			QGuiApplication::clipboard()->setText(text);
+			controller->showToast(tr::lng_text_copied(tr::now));
+		}
+	} break;
+
+	case ButtonType::SuggestAccept: {
+		Api::AcceptClickHandler(item)->onClick(ClickContext{
+			Qt::LeftButton,
+			QVariant::fromValue(context),
+		});
+	} break;
+
+	case ButtonType::SuggestDecline: {
+		Api::DeclineClickHandler(item)->onClick(ClickContext{
+			Qt::LeftButton,
+			QVariant::fromValue(context),
+		});
+	} break;
+
+	case ButtonType::SuggestChange: {
+		Api::SuggestChangesClickHandler(item)->onClick(ClickContext{
+			Qt::LeftButton,
+			QVariant::fromValue(context),
+		});
 	} break;
 	}
 }

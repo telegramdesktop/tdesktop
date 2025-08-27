@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/painter.h"
+#include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_facade.h"
 #include "core/application.h"
@@ -33,15 +35,88 @@ namespace {
 constexpr auto kLoadedChatsMinCount = 20;
 constexpr auto kShowChatNamesCount = 8;
 
+[[nodiscard]] TextWithEntities ComposeFolderListEntryText(
+		not_null<Folder*> folder) {
+	const auto &list = folder->lastHistories();
+	if (list.empty()) {
+		if (const auto storiesUnread = folder->storiesUnreadCount()) {
+			return {
+				tr::lng_contacts_stories_status_new(
+					tr::now,
+					lt_count,
+					storiesUnread),
+			};
+		} else if (const auto storiesCount = folder->storiesCount()) {
+			return {
+				tr::lng_contacts_stories_status(
+					tr::now,
+					lt_count,
+					storiesCount),
+			};
+		}
+		return {};
+	}
+
+	const auto count = std::max(
+		int(list.size()),
+		folder->chatsList()->fullSize().current());
+
+	const auto throwAwayLastName = (list.size() > 1)
+		&& (count == list.size() + 1);
+	auto &&peers = ranges::views::all(
+		list
+	) | ranges::views::take(
+		list.size() - (throwAwayLastName ? 1 : 0)
+	);
+	const auto wrapName = [](not_null<History*> history) {
+		const auto name = history->peer->name();
+		return st::wrap_rtl(TextWithEntities{
+			.text = name,
+			.entities = (history->chatListBadgesState().unread
+				? EntitiesInText{
+					{ EntityType::Semibold, 0, int(name.size()), QString() },
+					{ EntityType::Colorized, 0, int(name.size()), QString() },
+				}
+				: EntitiesInText{}),
+		});
+	};
+	const auto shown = int(peers.size());
+	const auto accumulated = [&] {
+		Expects(shown > 0);
+
+		auto i = peers.begin();
+		auto result = wrapName(*i);
+		for (++i; i != peers.end(); ++i) {
+			result = tr::lng_archived_last_list(
+				tr::now,
+				lt_accumulated,
+				result,
+				lt_chat,
+				wrapName(*i),
+				Ui::Text::WithEntities);
+		}
+		return result;
+	}();
+	return (shown < count)
+		? tr::lng_archived_last(
+			tr::now,
+			lt_count,
+			(count - shown),
+			lt_chats,
+			accumulated,
+			Ui::Text::WithEntities)
+		: accumulated;
+}
+
 } // namespace
 
-Folder::Folder(not_null<Data::Session*> owner, FolderId id)
+Folder::Folder(not_null<Session*> owner, FolderId id)
 : Entry(owner, Type::Folder)
 , _id(id)
 , _chatsList(
 	&owner->session(),
 	FilterId(),
-	owner->maxPinnedChatsLimitValue(this, FilterId()))
+	owner->maxPinnedChatsLimitValue(this))
 , _name(tr::lng_archived_name(tr::now)) {
 	indexNameParts();
 
@@ -76,29 +151,6 @@ FolderId Folder::id() const {
 
 void Folder::indexNameParts() {
 	// We don't want archive to be filtered in the chats list.
-	//_nameWords.clear();
-	//_nameFirstLetters.clear();
-	//auto toIndexList = QStringList();
-	//auto appendToIndex = [&](const QString &value) {
-	//	if (!value.isEmpty()) {
-	//		toIndexList.push_back(TextUtilities::RemoveAccents(value));
-	//	}
-	//};
-
-	//appendToIndex(_name);
-	//const auto appendTranslit = !toIndexList.isEmpty()
-	//	&& cRussianLetters().match(toIndexList.front()).hasMatch();
-	//if (appendTranslit) {
-	//	appendToIndex(translitRusEng(toIndexList.front()));
-	//}
-	//auto toIndex = toIndexList.join(' ');
-	//toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
-
-	//const auto namesList = TextUtilities::PrepareSearchWords(toIndex);
-	//for (const auto &name : namesList) {
-	//	_nameWords.insert(name);
-	//	_nameFirstLetters.insert(name[0]);
-	//}
 }
 
 void Folder::registerOne(not_null<History*> history) {
@@ -110,16 +162,12 @@ void Folder::registerOne(not_null<History*> history) {
 	} else {
 		updateChatListEntry();
 	}
-	applyChatListMessage(history->chatListMessage());
 	reorderLastHistories();
 }
 
 void Folder::unregisterOne(not_null<History*> history) {
 	if (_chatsList.empty()) {
 		updateChatListExistence();
-	}
-	if (_chatListMessage && _chatListMessage->history() == history) {
-		computeChatListMessage();
 	}
 	reorderLastHistories();
 }
@@ -129,45 +177,9 @@ int Folder::chatListNameVersion() const {
 }
 
 void Folder::oneListMessageChanged(HistoryItem *from, HistoryItem *to) {
-	if (!applyChatListMessage(to) && _chatListMessage == from) {
-		computeChatListMessage();
-	}
 	if (from || to) {
 		reorderLastHistories();
 	}
-}
-
-bool Folder::applyChatListMessage(HistoryItem *item) {
-	if (!item) {
-		return false;
-	} else if (_chatListMessage
-		&& _chatListMessage->date() >= item->date()) {
-		return false;
-	}
-	_chatListMessage = item;
-	updateChatListEntry();
-	return true;
-}
-
-void Folder::computeChatListMessage() {
-	auto &&items = ranges::views::all(
-		*_chatsList.indexed()
-	) | ranges::views::filter([](not_null<Dialogs::Row*> row) {
-		return row->entry()->chatListMessage() != nullptr;
-	});
-	const auto chatListDate = [](not_null<Dialogs::Row*> row) {
-		return row->entry()->chatListMessage()->date();
-	};
-	const auto top = ranges::max_element(
-		items,
-		ranges::less(),
-		chatListDate);
-	if (top == items.end()) {
-		_chatListMessage = nullptr;
-	} else {
-		_chatListMessage = (*top)->entry()->chatListMessage();
-	}
-	updateChatListEntry();
 }
 
 void Folder::reorderLastHistories() {
@@ -179,7 +191,7 @@ void Folder::reorderLastHistories() {
 		const auto bDate = bItem ? bItem->date() : TimeId(0);
 		return aDate > bDate;
 	};
-	_lastHistories.erase(_lastHistories.begin(), _lastHistories.end());
+	_lastHistories.clear();
 	_lastHistories.reserve(kShowChatNamesCount + 1);
 	auto &&histories = ranges::views::all(
 		*_chatsList.indexed()
@@ -187,17 +199,23 @@ void Folder::reorderLastHistories() {
 		return row->history();
 	}) | ranges::views::filter([](History *history) {
 		return (history != nullptr);
-	}) | ranges::views::transform([](History *history) {
-		return not_null<History*>(history);
 	});
+	auto nonPinnedChecked = 0;
 	for (const auto history : histories) {
-		const auto i = ranges::upper_bound(_lastHistories, history, pred);
+		const auto i = ranges::upper_bound(
+			_lastHistories,
+			not_null(history),
+			pred);
 		if (size(_lastHistories) < kShowChatNamesCount
 			|| i != end(_lastHistories)) {
 			_lastHistories.insert(i, history);
 		}
 		if (size(_lastHistories) > kShowChatNamesCount) {
 			_lastHistories.pop_back();
+		}
+		if (!history->isPinnedDialog(FilterId())
+			&& ++nonPinnedChecked >= kShowChatNamesCount) {
+			break;
 		}
 	}
 	++_chatListViewVersion;
@@ -208,12 +226,16 @@ not_null<Dialogs::MainList*> Folder::chatsList() {
 	return &_chatsList;
 }
 
-void Folder::loadUserpic() {
+void Folder::clearChatsList() {
+	_chatsList.clear();
+}
+
+void Folder::chatListPreloadData() {
 }
 
 void Folder::paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Dialogs::Ui::PaintContext &context) const {
 	paintUserpic(
 		p,
@@ -282,18 +304,47 @@ const std::vector<not_null<History*>> &Folder::lastHistories() const {
 	return _lastHistories;
 }
 
-uint32 Folder::chatListViewVersion() const {
-	return _chatListViewVersion;
+void Folder::validateListEntryCache() {
+	if (_listEntryCacheVersion == _chatListViewVersion) {
+		return;
+	}
+	_listEntryCacheVersion = _chatListViewVersion;
+	_listEntryCache.setMarkedText(
+		st::dialogsTextStyle,
+		ComposeFolderListEntryText(this),
+		// Use rich options as long as the entry text does not have user text.
+		Ui::ItemTextDefaultOptions());
 }
 
-void Folder::requestChatListMessage() {
-	if (!chatListMessageKnown()) {
-		owner().histories().requestDialogEntry(this);
+void Folder::updateStoriesCount(int count, int unread) {
+	if (_storiesCount == count && _storiesUnreadCount == unread) {
+		return;
 	}
+	const auto limit = (1 << 16) - 1;
+	const auto was = (_storiesCount > 0);
+	_storiesCount = std::min(count, limit);
+	_storiesUnreadCount = std::min(unread, limit);
+	const auto now = (_storiesCount > 0);
+	if (was == now) {
+		updateChatListEntryPostponed();
+	} else if (now) {
+		updateChatListSortPosition();
+	} else {
+		updateChatListExistence();
+	}
+	++_chatListViewVersion;
+}
+
+int Folder::storiesCount() const {
+	return _storiesCount;
+}
+
+int Folder::storiesUnreadCount() const {
+	return _storiesUnreadCount;
 }
 
 TimeId Folder::adjustedChatListTimeId() const {
-	return _chatListMessage ? _chatListMessage->date() : chatListTimeId();
+	return chatListTimeId();
 }
 
 void Folder::applyDialog(const MTPDdialogFolder &data) {
@@ -324,7 +375,7 @@ int Folder::fixedOnTopIndex() const {
 }
 
 bool Folder::shouldBeInChatList() const {
-	return !_chatsList.empty();
+	return !_chatsList.empty() || (_storiesCount > 0);
 }
 
 Dialogs::UnreadState Folder::chatListUnreadState() const {
@@ -344,7 +395,7 @@ Dialogs::BadgesState Folder::chatListBadgesState() const {
 }
 
 HistoryItem *Folder::chatListMessage() const {
-	return _chatListMessage;
+	return nullptr;
 }
 
 bool Folder::chatListMessageKnown() const {

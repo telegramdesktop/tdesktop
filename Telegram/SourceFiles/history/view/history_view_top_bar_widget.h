@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
+#include "data/data_report.h"
 #include "dialogs/dialogs_key.h"
 
 namespace Main {
@@ -27,7 +28,6 @@ class UnreadBadge;
 class InputField;
 class CrossButton;
 class InfiniteRadialAnimation;
-enum class ReportReason;
 template <typename Widget>
 class FadeWrapScaled;
 } // namespace Ui
@@ -75,19 +75,22 @@ public:
 		SendActionPainter *sendAction);
 	void setCustomTitle(const QString &title);
 
-	void showChooseMessagesForReport(Ui::ReportReason reason);
+	void showChooseMessagesForReport(Data::ReportInput reportInput);
 	void clearChooseMessagesForReport();
 
 	bool toggleSearch(bool shown, anim::type animated);
 	void searchEnableJumpToDate(bool enable);
 	void searchEnableChooseFromUser(bool enable, bool visible);
 	bool searchSetFocus();
+	[[nodiscard]] bool searchMode() const;
 	[[nodiscard]] bool searchHasFocus() const;
 	[[nodiscard]] rpl::producer<> searchCancelled() const;
 	[[nodiscard]] rpl::producer<> searchSubmitted() const;
 	[[nodiscard]] rpl::producer<QString> searchQuery() const;
 	[[nodiscard]] QString searchQueryCurrent() const;
+	[[nodiscard]] int searchQueryCursorPosition() const;
 	void searchClear();
+	void searchSetText(const QString &query, int cursorPosition = -1);
 
 	[[nodiscard]] rpl::producer<> forwardSelectionRequest() const {
 		return _forwardSelection.events();
@@ -112,6 +115,12 @@ public:
 	}
 	[[nodiscard]] rpl::producer<> searchRequest() const;
 
+	void setGeometryWithNarrowRatio(
+		QRect geometry,
+		int narrowWidth,
+		float64 narrowRatio);
+	void showPeerMenu();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -123,16 +132,17 @@ protected:
 private:
 	struct EmojiInteractionSeenAnimation;
 
+	[[nodiscard]] bool rootChatsListBar() const;
 	void refreshInfoButton();
 	void refreshLang();
 	void updateSearchVisibility();
 	void updateControlsGeometry();
 	void slideAnimationCallback();
 	void updateInfoToggleActive();
+	void setupDragOnBackButton();
 
 	void call();
 	void groupCall();
-	void showPeerMenu();
 	void showGroupCallMenu(not_null<PeerData*> peer);
 	void toggleInfoSection();
 
@@ -173,7 +183,7 @@ private:
 
 	void refreshUnreadBadge();
 	void updateUnreadBadge();
-	void setChooseForReportReason(std::optional<Ui::ReportReason> reason);
+	void setChooseForReportReason(std::optional<Data::ReportInput>);
 	void toggleSelectedControls(bool shown);
 	[[nodiscard]] bool showSelectedActions() const;
 
@@ -223,19 +233,21 @@ private:
 	object_ptr<Ui::IconButton> _menuToggle;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
-	object_ptr<TWidget> _membersShowArea = { nullptr };
+	object_ptr<RpWidget> _membersShowArea = { nullptr };
 	rpl::event_stream<bool> _membersShowAreaActive;
+
+	float64 _narrowRatio = 0.;
+	int _narrowWidth = 0;
 
 	Ui::Text::String _titlePeerText;
 	bool _titlePeerTextOnline = false;
 	int _leftTaken = 0;
 	int _rightTaken = 0;
 	bool _animatingMode = false;
-	bool _narrowMode = false;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _connecting;
 
 	SendActionPainter *_sendAction = nullptr;
-	std::optional<Ui::ReportReason> _chooseForReportReason;
+	std::optional<Data::ReportInput> _chooseForReportReason;
 
 	base::Timer _onlineUpdater;
 
@@ -244,6 +256,8 @@ private:
 	rpl::event_stream<> _deleteSelection;
 	rpl::event_stream<> _clearSelection;
 	rpl::event_stream<> _cancelChooseForReport;
+
+	rpl::lifetime _backLifetime;
 
 };
 

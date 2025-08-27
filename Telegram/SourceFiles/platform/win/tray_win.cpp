@@ -10,15 +10,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/invoke_queued.h"
 #include "base/qt_signal_producer.h"
 #include "core/application.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "storage/localstorage.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_window.h"
 
-#include <QtWidgets/QSystemTrayIcon>
+#include <qpa/qplatformscreen.h>
+#include <qpa/qplatformsystemtrayicon.h>
+#include <qpa/qplatformtheme.h>
+#include <private/qguiapplication_p.h>
+#include <private/qhighdpiscaling_p.h>
+#include <QSvgRenderer>
+#include <QBuffer>
 
 namespace Platform {
 
@@ -26,72 +34,141 @@ namespace {
 
 constexpr auto kTooltipDelay = crl::time(10000);
 
+std::optional<bool> DarkTaskbar;
+bool DarkTasbarValueValid/* = false*/;
+
+[[nodiscard]] std::optional<bool> ReadDarkTaskbarValue() {
+	const auto keyName = L""
+		"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+	const auto valueName = L"SystemUsesLightTheme";
+	auto key = HKEY();
+	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, keyName, 0, KEY_READ, &key);
+	if (result != ERROR_SUCCESS) {
+		return std::nullopt;
+	}
+
+	DWORD value = 0, type = 0, size = sizeof(value);
+	result = RegQueryValueEx(key, valueName, 0, &type, (LPBYTE)&value, &size);
+	RegCloseKey(key);
+	if (result != ERROR_SUCCESS) {
+		return std::nullopt;
+	}
+
+	return (value == 0);
+}
+
+[[nodiscard]] std::optional<bool> IsDarkTaskbar() {
+	static const auto kSystemVersion = QOperatingSystemVersion::current();
+	static const auto kDarkModeAddedVersion = QOperatingSystemVersion(
+		QOperatingSystemVersion::Windows,
+		10,
+		0,
+		18282);
+	static const auto kSupported = (kSystemVersion >= kDarkModeAddedVersion);
+	if (!kSupported) {
+		return std::nullopt;
+	} else if (!DarkTasbarValueValid) {
+		DarkTasbarValueValid = true;
+		DarkTaskbar = ReadDarkTaskbarValue();
+	}
+	return DarkTaskbar;
+}
+
+[[nodiscard]] QImage MonochromeIconFor(int size, bool darkMode) {
+	Expects(size > 0);
+
+	static const auto Content = [&] {
+		auto f = QFile(u":/gui/icons/tray/monochrome.svg"_q);
+		f.open(QIODevice::ReadOnly);
+		return f.readAll();
+	}();
+	static auto Mask = QImage();
+	static auto Size = 0;
+	if (Mask.isNull() || Size != size) {
+		Size = size;
+		Mask = QImage(size, size, QImage::Format_ARGB32_Premultiplied);
+		Mask.fill(Qt::transparent);
+		auto p = QPainter(&Mask);
+		QSvgRenderer(Content).render(&p, QRectF(0, 0, size, size));
+	}
+	static auto Colored = QImage();
+	static auto ColoredDark = QImage();
+	auto &use = darkMode ? ColoredDark : Colored;
+	if (use.size() != Mask.size()) {
+		const auto color = darkMode ? 255 : 0;
+		const auto alpha = darkMode ? 255 : 228;
+		use = style::colorizeImage(Mask, { color, color, color, alpha });
+	}
+	return use;
+}
+
+[[nodiscard]] QImage MonochromeWithDot(QImage image, style::color color) {
+	auto p = QPainter(&image);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto xm = image.width() / 16.;
+	const auto ym = image.height() / 16.;
+	p.setBrush(color);
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(QRectF( // cx=3.9, cy=12.7, r=2.2
+		1.7 * xm,
+		10.5 * ym,
+		4.4 * xm,
+		4.4 * ym));
+	return image;
+}
+
 [[nodiscard]] QImage ImageIconWithCounter(
 		Window::CounterLayerArgs &&args,
 		bool supportMode,
-		bool smallIcon) {
-	static constexpr auto kCount = 3;
-	static auto ScaledLogo = std::array<QImage, kCount>();
-	static auto ScaledLogoNoMargin = std::array<QImage, kCount>();
+		bool smallIcon,
+		bool monochrome) {
+	static auto ScaledLogo = base::flat_map<int, QImage>();
+	static auto ScaledLogoNoMargin = base::flat_map<int, QImage>();
+	static auto ScaledLogoDark = base::flat_map<int, QImage>();
+	static auto ScaledLogoLight = base::flat_map<int, QImage>();
 
-	struct Dimensions {
-		int index = 0;
-		int size = 0;
-	};
-	const auto d = [&]() -> Dimensions {
-		switch (args.size) {
-		case 16:
-			return {
-				.index = 0,
-				.size = 16,
-			};
-		case 32:
-			return {
-				.index = 1,
-				.size = 32,
-			};
-		default:
-			return {
-				.index = 2,
-				.size = 64,
-			};
-		}
-	}();
-	Assert(d.index < kCount);
+	const auto darkMode = IsDarkTaskbar();
+	auto &scaled = (monochrome && darkMode)
+		? (*darkMode
+			? ScaledLogoDark
+			: ScaledLogoLight)
+		: smallIcon
+		? ScaledLogoNoMargin
+		: ScaledLogo;
 
-	auto &scaled = smallIcon ? ScaledLogoNoMargin : ScaledLogo;
 	auto result = [&] {
-		auto &image = scaled[d.index];
-		if (image.isNull()) {
-			image = (smallIcon
-				? Window::LogoNoMargin()
-				: Window::Logo()).scaledToWidth(
-					d.size,
-					Qt::SmoothTransformation);
+		if (const auto it = scaled.find(args.size); it != scaled.end()) {
+			return it->second;
+		} else if (monochrome && darkMode) {
+			return MonochromeIconFor(args.size, *darkMode);
 		}
-		return image;
+		return scaled.emplace(
+			args.size,
+			(smallIcon
+				? Window::LogoNoMargin()
+				: Window::Logo()
+			).scaledToWidth(args.size, Qt::SmoothTransformation)
+		).first->second;
 	}();
-	if (supportMode) {
+	if ((!monochrome || !darkMode) && supportMode) {
 		Window::ConvertIconToBlack(result);
 	}
 	if (!args.count) {
 		return result;
 	} else if (smallIcon) {
+		if (monochrome && darkMode) {
+			return MonochromeWithDot(std::move(result), args.bg);
+		}
 		return Window::WithSmallCounter(std::move(result), std::move(args));
 	}
 	QPainter p(&result);
-	const auto half = d.size / 2;
+	const auto half = args.size / 2;
 	args.size = half;
 	p.drawPixmap(
 		half,
 		half,
 		Ui::PixmapFromImage(Window::GenerateCounterLayer(std::move(args))));
 	return result;
-}
-
-[[nodiscard]] QWidget *Parent() {
-	Expects(Core::App().primaryWindow() != nullptr);
-	return Core::App().primaryWindow()->widget();
 }
 
 } // namespace
@@ -101,28 +178,45 @@ Tray::Tray() {
 
 void Tray::createIcon() {
 	if (!_icon) {
-		_icon = base::make_unique_q<QSystemTrayIcon>(Parent());
+		if (const auto theme = QGuiApplicationPrivate::platformTheme()) {
+			_icon.reset(theme->createPlatformSystemTrayIcon());
+		}
+		if (!_icon) {
+			return;
+		}
+		_icon->init();
 		updateIcon();
-		_icon->setToolTip(AppName.utf16());
-		using Reason = QSystemTrayIcon::ActivationReason;
+		_icon->updateToolTip(AppName.utf16());
+
+		using Reason = QPlatformSystemTrayIcon::ActivationReason;
 		base::qt_signal_producer(
 			_icon.get(),
-			&QSystemTrayIcon::activated
-		) | rpl::start_with_next([=](Reason reason) {
-			if (reason == QSystemTrayIcon::Context && _menu) {
-				_aboutToShowRequests.fire({});
-				InvokeQueued(_menu.get(), [=] {
-					_menu->popup(QCursor::pos());
-				});
-			} else {
-				_iconClicks.fire({});
-			}
+			&QPlatformSystemTrayIcon::activated
+		) | rpl::filter(
+			rpl::mappers::_1 != Reason::Context
+		) | rpl::map_to(
+			rpl::empty
+		) | rpl::start_to_stream(_iconClicks, _lifetime);
+
+		base::qt_signal_producer(
+			_icon.get(),
+			&QPlatformSystemTrayIcon::contextMenuRequested
+		) | rpl::filter([=] {
+			return _menu != nullptr;
+		}) | rpl::start_with_next([=](
+				QPoint globalNativePosition,
+				const QPlatformScreen *screen) {
+			_aboutToShowRequests.fire({});
+			const auto position = QHighDpi::fromNativePixels(
+				globalNativePosition,
+				screen ? screen->screen() : nullptr);
+			InvokeQueued(_menu.get(), [=] {
+				_menu->popup(position);
+			});
 		}, _lifetime);
 	} else {
 		updateIcon();
 	}
-
-	_icon->show();
 }
 
 void Tray::destroyIcon() {
@@ -133,34 +227,25 @@ void Tray::updateIcon() {
 	if (!_icon) {
 		return;
 	}
-	const auto counter = Core::App().unreadBadge();
-	const auto muted = Core::App().unreadBadgeMuted();
-	const auto controller = Core::App().primaryWindow();
+	const auto controller = Core::App().activePrimaryWindow();
 	const auto session = !controller
 		? nullptr
 		: !controller->sessionController()
 		? nullptr
 		: &controller->sessionController()->session();
-	const auto supportMode = session && session->supportMode();
-	const auto iconSizeWidth = GetSystemMetrics(SM_CXSMICON);
 
-	auto iconSmallPixmap16 = Tray::IconWithCounter(
-		CounterLayerArgs(16, counter, muted),
-		true,
-		supportMode);
-	auto iconSmallPixmap32 = Tray::IconWithCounter(
-		CounterLayerArgs(32, counter, muted),
-		true,
-		supportMode);
-	auto iconSmall = QIcon();
-	iconSmall.addPixmap(iconSmallPixmap16);
-	iconSmall.addPixmap(iconSmallPixmap32);
 	// Force Qt to use right icon size, not the larger one.
 	QIcon forTrayIcon;
-	forTrayIcon.addPixmap(iconSizeWidth >= 20
-		? iconSmallPixmap32
-		: iconSmallPixmap16);
-	_icon->setIcon(forTrayIcon);
+	forTrayIcon.addPixmap(
+		Tray::IconWithCounter(
+			CounterLayerArgs(
+				GetSystemMetrics(SM_CXSMICON),
+				Core::App().unreadBadge(),
+				Core::App().unreadBadgeMuted()),
+			true,
+			Core::App().settings().trayIconMonochrome(),
+			session && session->supportMode()));
+	_icon->updateIcon(forTrayIcon);
 }
 
 void Tray::createMenu() {
@@ -204,7 +289,8 @@ void Tray::showTrayMessage() const {
 		_icon->showMessage(
 			AppName.utf16(),
 			tr::lng_tray_icon_text(tr::now),
-			QSystemTrayIcon::Information,
+			QIcon(),
+			QPlatformSystemTrayIcon::Information,
 			kTooltipDelay);
 		cSetSeenTrayTooltip(true);
 		Local::writeSettings();
@@ -254,9 +340,110 @@ Window::CounterLayerArgs Tray::CounterLayerArgs(
 QPixmap Tray::IconWithCounter(
 		Window::CounterLayerArgs &&args,
 		bool smallIcon,
+		bool monochrome,
 		bool supportMode) {
-	return Ui::PixmapFromImage(
-		ImageIconWithCounter(std::move(args), supportMode, smallIcon));
+	return Ui::PixmapFromImage(ImageIconWithCounter(
+		std::move(args),
+		supportMode,
+		smallIcon,
+		monochrome));
+}
+
+void WriteIco(const QString &path, std::vector<QImage> images) {
+	Expects(!images.empty());
+
+	auto buffer = QByteArray();
+	const auto write = [&](auto value) {
+		buffer.append(reinterpret_cast<const char*>(&value), sizeof(value));
+	};
+
+	const auto count = int(images.size());
+
+	auto full = 0;
+	auto pngs = std::vector<QByteArray>();
+	pngs.reserve(count);
+	for (const auto &image : images) {
+		pngs.emplace_back();
+		{
+			auto buffer = QBuffer(&pngs.back());
+			image.save(&buffer, "PNG");
+		}
+		full += pngs.back().size();
+	}
+
+	// Images directory
+	constexpr auto entry = sizeof(int8)
+		+ sizeof(int8)
+		+ sizeof(int8)
+		+ sizeof(int8)
+		+ sizeof(int16)
+		+ sizeof(int16)
+		+ sizeof(uint32)
+		+ sizeof(uint32);
+	static_assert(entry == 16);
+
+	auto offset = 3 * sizeof(int16) + count * entry;
+	full += offset;
+
+	buffer.reserve(full);
+
+	// Thanks https://stackoverflow.com/a/54289564/6509833
+	write(int16(0));
+	write(int16(1));
+	write(int16(count));
+
+	for (auto i = 0; i != count; ++i) {
+		const auto &image = images[i];
+		Assert(image.width() <= 256 && image.height() <= 256);
+
+		write(int8(image.width() == 256 ? 0 : image.width()));
+		write(int8(image.height() == 256 ? 0 : image.height()));
+		write(int8(0)); // palette size
+		write(int8(0)); // reserved
+		write(int16(1)); // color planes
+		write(int16(image.depth())); // bits-per-pixel
+		write(uint32(pngs[i].size())); // size of image in bytes
+		write(uint32(offset)); // offset
+		offset += pngs[i].size();
+	}
+	for (auto i = 0; i != count; ++i) {
+		buffer.append(pngs[i]);
+	}
+
+	const auto dir = QFileInfo(path).dir();
+	dir.mkpath(dir.absolutePath());
+	auto f = QFile(path);
+	if (f.open(QIODevice::WriteOnly)) {
+		f.write(buffer);
+	}
+}
+
+QString Tray::QuitJumpListIconPath() {
+	const auto dark = IsDarkTaskbar();
+	const auto key = !dark ? 0 : *dark ? 1 : 2;
+	const auto path = cWorkingDir() + u"tdata/temp/quit_%1.ico"_q.arg(key);
+	if (QFile::exists(path)) {
+		return path;
+	}
+	const auto color = !dark
+		? st::trayCounterBg->c
+		: *dark
+		? QColor(255, 255, 255)
+		: QColor(0, 0, 0, 228);
+	WriteIco(path, {
+		st::winQuitIcon.instance(color, 100, true),
+		st::winQuitIcon.instance(color, 200, true),
+		st::winQuitIcon.instance(color, 300, true),
+	});
+	return path;
+}
+
+bool HasMonochromeSetting() {
+	return IsDarkTaskbar().has_value();
+}
+
+void RefreshTaskbarThemeValue() {
+	DarkTasbarValueValid = false;
 }
 
 } // namespace Platform

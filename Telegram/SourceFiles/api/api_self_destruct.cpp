@@ -16,36 +16,61 @@ SelfDestruct::SelfDestruct(not_null<ApiWrap*> api)
 }
 
 void SelfDestruct::reload() {
-	if (_requestId) {
-		return;
+	if (!_accountTTL.requestId) {
+		_accountTTL.requestId = _api.request(MTPaccount_GetAccountTTL(
+		)).done([=](const MTPAccountDaysTTL &result) {
+			_accountTTL.requestId = 0;
+			_accountTTL.days = result.data().vdays().v;
+		}).fail([=] {
+			_accountTTL.requestId = 0;
+		}).send();
 	}
-	_requestId = _api.request(MTPaccount_GetAccountTTL(
-	)).done([=](const MTPAccountDaysTTL &result) {
-		_requestId = 0;
-		result.match([&](const MTPDaccountDaysTTL &data) {
-			_days = data.vdays().v;
-		});
-	}).fail([=] {
-		_requestId = 0;
-	}).send();
+	if (!_defaultHistoryTTL.requestId) {
+		_defaultHistoryTTL.requestId = _api.request(
+			MTPmessages_GetDefaultHistoryTTL()
+		).done([=](const MTPDefaultHistoryTTL &result) {
+			_defaultHistoryTTL.requestId = 0;
+			_defaultHistoryTTL.period = result.data().vperiod().v;
+		}).fail([=] {
+			_defaultHistoryTTL.requestId = 0;
+		}).send();
+	}
 }
 
-rpl::producer<int> SelfDestruct::days() const {
-	using namespace rpl::mappers;
-
-	return _days.value() | rpl::filter(_1 != 0);
+rpl::producer<int> SelfDestruct::daysAccountTTL() const {
+	return _accountTTL.days.value() | rpl::filter(rpl::mappers::_1 != 0);
 }
 
-void SelfDestruct::update(int days) {
-	_api.request(_requestId).cancel();
-	_requestId = _api.request(MTPaccount_SetAccountTTL(
+rpl::producer<TimeId> SelfDestruct::periodDefaultHistoryTTL() const {
+	return _defaultHistoryTTL.period.value();
+}
+
+TimeId SelfDestruct::periodDefaultHistoryTTLCurrent() const {
+	return _defaultHistoryTTL.period.current();
+}
+
+void SelfDestruct::updateAccountTTL(int days) {
+	_api.request(_accountTTL.requestId).cancel();
+	_accountTTL.requestId = _api.request(MTPaccount_SetAccountTTL(
 		MTP_accountDaysTTL(MTP_int(days))
 	)).done([=] {
-		_requestId = 0;
+		_accountTTL.requestId = 0;
 	}).fail([=] {
-		_requestId = 0;
+		_accountTTL.requestId = 0;
 	}).send();
-	_days = days;
+	_accountTTL.days = days;
+}
+
+void SelfDestruct::updateDefaultHistoryTTL(TimeId period) {
+	_api.request(_defaultHistoryTTL.requestId).cancel();
+	_defaultHistoryTTL.requestId = _api.request(
+		MTPmessages_SetDefaultHistoryTTL(MTP_int(period))
+	).done([=] {
+		_defaultHistoryTTL.requestId = 0;
+	}).fail([=] {
+		_defaultHistoryTTL.requestId = 0;
+	}).send();
+	_defaultHistoryTTL.period = period;
 }
 
 } // namespace Api

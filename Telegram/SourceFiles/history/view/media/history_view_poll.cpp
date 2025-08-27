@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_poll.h"
 
+#include "core/ui_integration.h" // TextContext
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -154,7 +155,10 @@ struct Poll::SendingAnimation {
 struct Poll::Answer {
 	Answer();
 
-	void fillData(not_null<PollData*> poll, const PollAnswer &original);
+	void fillData(
+		not_null<PollData*> poll,
+		const PollAnswer &original,
+		Ui::Text::MarkedContext context);
 
 	Ui::Text::String text;
 	QByteArray option;
@@ -181,6 +185,11 @@ struct Poll::CloseInformation {
 	Ui::Animations::Basic radial;
 };
 
+struct Poll::RecentVoter {
+	not_null<PeerData*> peer;
+	mutable Ui::PeerUserpicView userpic;
+};
+
 template <typename Callback>
 Poll::SendingAnimation::SendingAnimation(
 	const QByteArray &option,
@@ -196,16 +205,18 @@ Poll::Answer::Answer() : text(st::msgMinWidth / 2) {
 
 void Poll::Answer::fillData(
 		not_null<PollData*> poll,
-		const PollAnswer &original) {
+		const PollAnswer &original,
+		Ui::Text::MarkedContext context) {
 	chosen = original.chosen;
 	correct = poll->quiz() ? original.correct : chosen;
-	if (!text.isEmpty() && text.toString() == original.text) {
+	if (!text.isEmpty() && text.toTextWithEntities() == original.text) {
 		return;
 	}
-	text.setText(
+	text.setMarkedText(
 		st::historyPollAnswerStyle,
 		original.text,
-		Ui::WebpageTextTitleOptions());
+		Ui::WebpageTextTitleOptions(),
+		context);
 }
 
 Poll::CloseInformation::CloseInformation(
@@ -378,13 +389,18 @@ void Poll::updateTexts() {
 	const auto willStartAnimation = checkAnimationStart();
 	const auto voted = _voted;
 
-	if (_question.toString() != _poll->question) {
+	if (_question.toTextWithEntities() != _poll->question) {
 		auto options = Ui::WebpageTextTitleOptions();
 		options.maxw = options.maxh = 0;
-		_question.setText(
+		_question.setMarkedText(
 			st::historyPollQuestionStyle,
 			_poll->question,
-			options);
+			options,
+			Core::TextContext({
+				.session = &_poll->session(),
+				.repaint = [=] { repaint(); },
+				.customEmojiLoopLimit = 2,
+			}));
 	}
 	if (_flags != _poll->flags() || _subtitle.isEmpty()) {
 		using Flag = PollData::Flag;
@@ -482,20 +498,20 @@ void Poll::updateRecentVoters() {
 		_recentVoters,
 		sliced,
 		ranges::equal_to(),
-		&RecentVoter::user);
+		&RecentVoter::peer);
 	if (changed) {
 		auto updated = ranges::views::all(
 			sliced
-		) | ranges::views::transform([](not_null<UserData*> user) {
-			return RecentVoter{ user };
+		) | ranges::views::transform([](not_null<PeerData*> peer) {
+			return RecentVoter{ peer };
 		}) | ranges::to_vector;
 		const auto has = hasHeavyPart();
 		if (has) {
 			for (auto &voter : updated) {
 				const auto i = ranges::find(
 					_recentVoters,
-					voter.user,
-					&RecentVoter::user);
+					voter.peer,
+					&RecentVoter::peer);
 				if (i != end(_recentVoters)) {
 					voter.userpic = std::move(i->userpic);
 				}
@@ -509,6 +525,11 @@ void Poll::updateRecentVoters() {
 }
 
 void Poll::updateAnswers() {
+	const auto context = Core::TextContext({
+		.session = &_poll->session(),
+		.repaint = [=] { repaint(); },
+		.customEmojiLoopLimit = 2,
+	});
 	const auto changed = !ranges::equal(
 		_answers,
 		_poll->answers,
@@ -518,7 +539,7 @@ void Poll::updateAnswers() {
 	if (!changed) {
 		auto &&answers = ranges::views::zip(_answers, _poll->answers);
 		for (auto &&[answer, original] : answers) {
-			answer.fillData(_poll, original);
+			answer.fillData(_poll, original, context);
 		}
 		return;
 	}
@@ -527,7 +548,7 @@ void Poll::updateAnswers() {
 	) | ranges::views::transform([&](const PollAnswer &answer) {
 		auto result = Answer();
 		result.option = answer.option;
-		result.fillData(_poll, answer);
+		result.fillData(_poll, answer, context);
 		return result;
 	}) | ranges::to_vector;
 
@@ -756,7 +777,7 @@ void Poll::draw(Painter &p, const PaintContext &context) const {
 	auto &&answers = ranges::views::zip(
 		_answers,
 		ranges::views::ints(0, int(_answers.size())));
-	for (const auto [answer, index] : answers) {
+	for (const auto &[answer, index] : answers) {
 		const auto animation = _answersAnimation
 			? &_answersAnimation->data[index]
 			: nullptr;
@@ -798,9 +819,11 @@ void Poll::paintInlineFooter(
 		p,
 		left,
 		top,
-		std::min(
-			_totalVotesLabel.maxWidth(),
-			paintw - _parent->bottomInfoFirstLineWidth()),
+		_parent->data()->reactions().empty()
+			? std::min(
+				_totalVotesLabel.maxWidth(),
+				paintw - _parent->bottomInfoFirstLineWidth())
+			: _totalVotesLabel.maxWidth(),
 		width());
 }
 
@@ -828,7 +851,7 @@ void Poll::paintBottom(
 			p.setOpacity(st::historyPollRippleOpacity);
 			_linkRipple->paint(
 				p,
-				left - st::msgPadding.left(),
+				left - st::msgPadding.left() - _linkRippleShift,
 				height() - linkHeight,
 				width(),
 				&stm->msgWaveformInactive->c);
@@ -886,9 +909,9 @@ void Poll::paintRecentVoters(
 
 	auto created = false;
 	for (auto &recent : _recentVoters) {
-		const auto was = (recent.userpic != nullptr);
-		recent.user->paintUserpic(p, recent.userpic, x, y, size);
-		if (!was && recent.userpic) {
+		const auto was = !recent.userpic.null();
+		recent.peer->paintUserpic(p, recent.userpic, x, y, size);
+		if (!was && !recent.userpic.null()) {
 			created = true;
 		}
 		const auto paintContent = [&](QPainter &p) {
@@ -966,8 +989,8 @@ void Poll::paintCloseByTimer(
 		auto hq = PainterHighQualityEnabler(p);
 		const auto part = std::max(
 			left / float64(radial),
-			1. / FullArcLength);
-		const auto length = int(base::SafeRound(FullArcLength * part));
+			1. / arc::kFullLength);
+		const auto length = int(base::SafeRound(arc::kFullLength * part));
 		auto pen = regular->p;
 		pen.setWidth(st::historyPollRadio.thickness);
 		pen.setCapStyle(Qt::RoundCap);
@@ -975,7 +998,7 @@ void Poll::paintCloseByTimer(
 		const auto size = icon.width() / 2;
 		const auto left = (x + (icon.width() - size) / 2);
 		const auto top = (y + (icon.height() - size) / 2) + st::lineWidth;
-		p.drawArc(left, top, size, size, (FullArcLength / 4), length);
+		p.drawArc(left, top, size, size, (arc::kFullLength / 4), length);
 	} else {
 		icon.paint(p, x, y, width());
 	}
@@ -1499,13 +1522,13 @@ void Poll::clickHandlerPressedChanged(
 
 void Poll::unloadHeavyPart() {
 	for (auto &recent : _recentVoters) {
-		recent.userpic = nullptr;
+		recent.userpic = {};
 	}
 }
 
 bool Poll::hasHeavyPart() const {
 	for (auto &recent : _recentVoters) {
-		if (recent.userpic) {
+		if (!recent.userpic.null()) {
 			return true;
 		}
 	}

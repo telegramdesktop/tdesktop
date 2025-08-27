@@ -16,7 +16,7 @@ struct SendCommandRequest {
 	not_null<PeerData*> peer;
 	QString command;
 	FullMsgId context;
-	MsgId replyTo = 0;
+	FullReplyTo replyTo;
 };
 
 [[nodiscard]] QString WrapCommandInChat(

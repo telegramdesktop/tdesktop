@@ -55,7 +55,9 @@ void ViewsManager::removeIncremented(not_null<PeerData*> peer) {
 	_incremented.remove(peer);
 }
 
-void ViewsManager::pollExtendedMedia(not_null<HistoryItem*> item) {
+void ViewsManager::pollExtendedMedia(
+		not_null<HistoryItem*> item,
+		bool force) {
 	if (!item->isRegular()) {
 		return;
 	}
@@ -63,14 +65,20 @@ void ViewsManager::pollExtendedMedia(not_null<HistoryItem*> item) {
 	const auto peer = item->history()->peer;
 	auto &request = _pollRequests[peer];
 	if (request.ids.contains(id) || request.sent.contains(id)) {
-		return;
+		if (!force || request.forced) {
+			return;
+		}
 	}
 	request.ids.emplace(id);
-	if (!request.id && !request.when) {
-		request.when = crl::now() + kPollExtendedMediaPeriod;
+	if (force) {
+		request.forced = true;
 	}
-	if (!_pollTimer.isActive()) {
-		_pollTimer.callOnce(kPollExtendedMediaPeriod);
+	const auto delay = force ? 1 : kPollExtendedMediaPeriod;
+	if (!request.id && (!request.when || force)) {
+		request.when = crl::now() + delay;
+	}
+	if (!_pollTimer.isActive() || force) {
+		_pollTimer.callOnce(delay);
 	}
 }
 
@@ -160,9 +168,12 @@ void ViewsManager::sendPollRequests(
 					if (i->second.ids.empty()) {
 						i = _pollRequests.erase(i);
 					} else {
-						i->second.when = now + kPollExtendedMediaPeriod;
-						if (!_pollTimer.isActive()) {
-							_pollTimer.callOnce(kPollExtendedMediaPeriod);
+						const auto delay = i->second.forced
+							? 1
+							: kPollExtendedMediaPeriod;
+						i->second.when = now + delay;
+						if (!_pollTimer.isActive() || i->second.forced) {
+							_pollTimer.callOnce(delay);
 						}
 						++i;
 					}

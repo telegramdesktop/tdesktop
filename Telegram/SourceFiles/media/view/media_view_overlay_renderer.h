@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/view/media_view_overlay_widget.h"
 
+namespace Media::Stories {
+struct SiblingView;
+} // namespace Media::Stories
+
 namespace Media::View {
 
 class OverlayWidget::Renderer : public Ui::GL::Renderer {
@@ -19,7 +23,8 @@ public:
 		const QImage &image,
 		ContentGeometry geometry,
 		bool semiTransparent,
-		bool fillTransparentBackground) = 0;
+		bool fillTransparentBackground,
+		int index = 0) = 0; // image, left sibling, right sibling
 	virtual void paintRadialLoading(
 		QRect inner,
 		bool radial,
@@ -29,16 +34,21 @@ public:
 	virtual void paintSaveMsg(QRect outer) = 0;
 	virtual void paintControlsStart() = 0;
 	virtual void paintControl(
-		OverState control,
-		QRect outer,
-		float64 outerOpacity,
+		Over control,
+		QRect over,
+		float64 overOpacity,
 		QRect inner,
 		float64 innerOpacity,
 		const style::icon &icon) = 0;
 	virtual void paintFooter(QRect outer, float64 opacity) = 0;
 	virtual void paintCaption(QRect outer, float64 opacity) = 0;
 	virtual void paintGroupThumbs(QRect outer, float64 opacity) = 0;
-
+	virtual void paintRoundedCorners(int radius) = 0;
+	virtual void paintStoriesSiblingPart(
+		int index,
+		const QImage &image,
+		QRect rect,
+		float64 opacity = 1.) = 0;
 };
 
 } // namespace Media::View

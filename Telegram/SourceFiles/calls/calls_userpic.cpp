@@ -159,13 +159,18 @@ void Userpic::refreshPhoto() {
 		_userPhotoFull = true;
 		createCache(_photo->image(Data::PhotoSize::Thumbnail));
 	} else if (_userPhoto.isNull()) {
-		createCache(_userpic ? _userpic->image() : nullptr);
+		if (const auto cloud = _peer->userpicCloudImage(_userpic)) {
+			auto image = Image(base::duplicate(*cloud));
+			createCache(&image);
+		} else {
+			createCache(nullptr);
+		}
 	}
 }
 
 void Userpic::createCache(Image *image) {
 	const auto size = this->size();
-	const auto real = size * cIntRetinaFactor();
+	const auto real = size * style::DevicePixelRatio();
 	//_useTransparency
 	//	? (Images::Option::RoundLarge
 	//		| Images::Option::RoundSkipBottomLeft
@@ -187,19 +192,19 @@ void Userpic::createCache(Image *image) {
 				.options = Images::Option::RoundCircle,
 				.outer = { size, size },
 			});
-		_userPhoto.setDevicePixelRatio(cRetinaFactor());
+		_userPhoto.setDevicePixelRatio(style::DevicePixelRatio());
 	} else {
 		auto filled = QImage(
 			QSize(real, real),
 			QImage::Format_ARGB32_Premultiplied);
-		filled.setDevicePixelRatio(cRetinaFactor());
+		filled.setDevicePixelRatio(style::DevicePixelRatio());
 		filled.fill(Qt::transparent);
 		{
 			auto p = QPainter(&filled);
 			Ui::EmptyUserpic(
-				Data::PeerUserpicColor(_peer->id),
+				Ui::EmptyUserpic::UserpicColor(_peer->colorIndex()),
 				_peer->name()
-			).paint(p, 0, 0, size, size);
+			).paintCircle(p, 0, 0, size, size);
 		}
 		//_userPhoto = Images::PixmapFast(Images::Round(
 		//	std::move(filled),

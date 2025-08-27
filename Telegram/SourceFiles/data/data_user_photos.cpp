@@ -237,3 +237,21 @@ rpl::producer<UserPhotosSlice> UserPhotosReversedViewer(
 		return std::move(slice);
 	});
 }
+
+std::optional<PhotoId> SyncUserFallbackPhotoViewer(not_null<UserData*> user) {
+	auto syncLifetime = rpl::lifetime();
+	auto result = std::optional<PhotoId>(std::nullopt);
+
+	constexpr auto kFallbackCount = 1;
+	user->session().storage().query(Storage::UserPhotosQuery(
+		Storage::UserPhotosKey(peerToUser(user->id), true),
+		kFallbackCount,
+		kFallbackCount
+	)) | rpl::start_with_next([&](Storage::UserPhotosResult &&slice) {
+		if (slice.photoIds.empty()) {
+			return;
+		}
+		result = slice.photoIds.front();
+	}, syncLifetime);
+	return result;
+}

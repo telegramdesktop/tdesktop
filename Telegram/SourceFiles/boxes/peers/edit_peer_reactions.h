@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class PeerData;
+#include "data/data_peer.h"
 
 namespace Data {
 struct Reaction;
@@ -22,13 +22,20 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
+struct EditAllowedReactionsArgs {
+	not_null<Window::SessionNavigation*> navigation;
+	int allowedCustomReactions = 0;
+	int customReactionsHardLimit = 0;
+	bool isGroup = false;
+	std::vector<Data::Reaction> list;
+	Data::AllowedReactions allowed;
+	Fn<void(int required)> askForBoosts;
+	Fn<void(const Data::AllowedReactions &)> save;
+};
+
 void EditAllowedReactionsBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Window::SessionNavigation*> navigation,
-	bool isGroup,
-	const std::vector<Data::Reaction> &list,
-	const Data::AllowedReactions &allowed,
-	Fn<void(const Data::AllowedReactions &)> callback);
+	EditAllowedReactionsArgs &&args);
 
 void SaveAllowedReactions(
 	not_null<PeerData*> peer,

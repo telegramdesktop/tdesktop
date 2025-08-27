@@ -16,8 +16,20 @@ inline QString UrlToLocal(const QUrl &url) {
 	return ::File::internal::UrlToLocalDefault(url);
 }
 
-inline bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
+inline void UnsafeOpenUrl(const QString &url) {
+	return ::File::internal::UnsafeOpenUrlDefault(url);
+}
+
+inline void UnsafeOpenEmailLink(const QString &email) {
+	return ::File::internal::UnsafeOpenEmailLinkDefault(email);
+}
+
+inline bool UnsafeShowOpenWithDropdown(const QString &filepath) {
 	return false;
+}
+
+inline void UnsafeLaunch(const QString &filepath) {
+	return ::File::internal::UnsafeLaunchDefault(filepath);
 }
 
 inline void PostprocessDownloaded(const QString &filepath) {
@@ -29,6 +41,24 @@ namespace FileDialog {
 
 inline void InitLastPath() {
 	::FileDialog::internal::InitLastPathDefault();
+}
+
+inline bool Get(
+		QPointer<QWidget> parent,
+		QStringList &files,
+		QByteArray &remoteContent,
+		const QString &caption,
+		const QString &filter,
+		::FileDialog::internal::Type type,
+		QString startFile) {
+	return ::FileDialog::internal::GetDefault(
+		parent,
+		files,
+		remoteContent,
+		caption,
+		filter,
+		type,
+		startFile);
 }
 
 } // namespace FileDialog

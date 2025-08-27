@@ -7,14 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Main {
-class Session;
-} // namespace Main
-
 class History;
 class PhotoData;
 class DocumentData;
-struct FileLoadResult;
+struct FilePrepareResult;
+
+namespace Data {
+struct InputVenue;
+} // namespace Data
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Api {
 
@@ -33,6 +37,13 @@ void SendExistingPhoto(
 
 bool SendDice(MessageToSend &message);
 
+// We can't create Data::LocationPoint() and use it
+// for a local sending message, because we can't request
+// map thumbnail in messages history without access hash.
+void SendLocation(SendAction action, float64 lat, float64 lon);
+
+void SendVenue(SendAction action, Data::InputVenue venue);
+
 void FillMessagePostFlags(
 	const SendAction &action,
 	not_null<PeerData*> peer,
@@ -40,6 +51,6 @@ void FillMessagePostFlags(
 
 void SendConfirmedFile(
 	not_null<Main::Session*> session,
-	const std::shared_ptr<FileLoadResult> &file);
+	const std::shared_ptr<FilePrepareResult> &file);
 
 } // namespace Api

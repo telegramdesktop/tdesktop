@@ -66,5 +66,9 @@ inline QString EmailConfirmationExpired() {
 	return u"This email confirmation has expired. Please setup two-step verification once again."_q;
 }
 
+inline QString AutostartEnableError() {
+	return u"Could not register for autostart."_q;
+}
+
 } // namespace Hard
 } // namespace Lang

@@ -32,6 +32,7 @@ struct ColorReplacements;
 namespace Ui {
 struct BubbleSelectionInterval;
 struct ChatPaintContext;
+class SpoilerAnimation;
 } // namespace Ui
 
 namespace Images {
@@ -45,8 +46,11 @@ enum class CursorState : char;
 enum class InfoDisplayType : char;
 struct TextState;
 struct StateRequest;
+struct MediaSpoiler;
+struct MediaSpoilerTag;
 class StickerPlayer;
 class Element;
+struct SelectedQuote;
 
 using PaintContext = Ui::ChatPaintContext;
 
@@ -74,29 +78,61 @@ enum class MediaInBubbleState : uchar {
 	TimeId duration,
 	const QString &base);
 
-class Media : public Object {
+struct PaidInformation {
+	int messages = 0;
+	int stars = 0;
+
+	explicit operator bool() const {
+		return stars != 0;
+	}
+};
+
+class Media : public Object, public base::has_weak_ptr {
 public:
 	explicit Media(not_null<Element*> parent) : _parent(parent) {
 	}
 
+	[[nodiscard]] not_null<Element*> parent() const;
 	[[nodiscard]] not_null<History*> history() const;
 
 	[[nodiscard]] virtual TextForMimeData selectedText(
 			TextSelection selection) const {
-		return TextForMimeData();
+		return {};
+	}
+	[[nodiscard]] virtual SelectedQuote selectedQuote(
+		TextSelection selection) const;
+	[[nodiscard]] virtual TextSelection selectionFromQuote(
+			const SelectedQuote &quote) const {
+		return {};
 	}
 
-	[[nodiscard]] virtual bool isDisplayed() const;
+	[[nodiscard]] virtual bool isDisplayed() const {
+		return true;
+	}
 	virtual void updateNeedBubbleState() {
 	}
 	[[nodiscard]] virtual bool hasTextForCopy() const {
 		return false;
 	}
+	[[nodiscard]] virtual bool aboveTextByDefault() const {
+		return true;
+	}
+	[[nodiscard]] virtual HistoryItem *itemForText() const;
 	[[nodiscard]] virtual bool hideMessageText() const {
 		return true;
 	}
+	[[nodiscard]] virtual bool hideServiceText() const {
+		return false;
+	}
+	[[nodiscard]] virtual bool hideFromName() const {
+		return false;
+	}
 	[[nodiscard]] virtual bool allowsFastShare() const {
 		return false;
+	}
+	[[nodiscard]] virtual auto paidInformation() const
+	-> std::optional<PaidInformation> {
+		return {};
 	}
 	virtual void refreshParentId(not_null<HistoryItem*> realParent) {
 	}
@@ -119,11 +155,8 @@ public:
 	// toggle selection instead of activating the pressed link
 	[[nodiscard]] virtual bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const = 0;
-
-	// if we press and drag on this media should we drag the item
-	[[nodiscard]] virtual bool dragItem() const {
-		return false;
-	}
+	[[nodiscard]] virtual bool allowTextSelectionByHandler(
+		const ClickHandlerPtr &p) const;
 
 	[[nodiscard]] virtual TextSelection adjustSelection(
 			TextSelection selection,
@@ -175,10 +208,21 @@ public:
 	virtual std::unique_ptr<StickerPlayer> stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements);
+	virtual QImage locationTakeImage();
+
+	struct TodoTaskInfo {
+		int id = 0;
+		PeerData *completedBy = nullptr;
+		TimeId completionDate = TimeId();
+	};
+	virtual std::vector<TodoTaskInfo> takeTasksInfo();
+
 	virtual void checkAnimation() {
 	}
 
-	[[nodiscard]] virtual QSize sizeForGroupingOptimal(int maxWidth) const {
+	[[nodiscard]] virtual QSize sizeForGroupingOptimal(
+			int maxWidth,
+			bool last) const {
 		Unexpected("Grouping method call.");
 	}
 	[[nodiscard]] virtual QSize sizeForGrouping(int width) const {
@@ -201,12 +245,25 @@ public:
 		QPoint point,
 		StateRequest request) const;
 
+	virtual void drawSpoilerTag(
+			Painter &p,
+			QRect rthumb,
+			const PaintContext &context,
+			Fn<QImage()> generateBackground) const {
+		Unexpected("Spoiler tag method call.");
+	}
+	[[nodiscard]] virtual ClickHandlerPtr spoilerTagLink() const {
+		Unexpected("Spoiler tag method call.");
+	}
+	[[nodiscard]] virtual QImage spoilerTagBackground() const {
+		Unexpected("Spoiler tag method call.");
+	}
+
 	[[nodiscard]] virtual bool animating() const {
 		return false;
 	}
 
-	[[nodiscard]] virtual TextWithEntities getCaption() const {
-		return TextWithEntities();
+	virtual void hideSpoilers() {
 	}
 	[[nodiscard]] virtual bool needsBubble() const = 0;
 	[[nodiscard]] virtual bool unwrapped() const {
@@ -255,8 +312,6 @@ public:
 	}
 	[[nodiscard]] Ui::BubbleRounding adjustedBubbleRounding(
 		RectParts square = {}) const;
-	[[nodiscard]] Ui::BubbleRounding adjustedBubbleRoundingWithCaption(
-		const Ui::Text::String &caption) const;
 	[[nodiscard]] bool isBubbleTop() const {
 		return (_inBubbleState == MediaInBubbleState::Top)
 			|| (_inBubbleState == MediaInBubbleState::None);
@@ -320,6 +375,16 @@ public:
 	virtual void parentTextUpdated() {
 	}
 
+	virtual bool consumeHorizontalScroll(QPoint position, int delta) {
+		return false;
+	}
+
+	[[nodiscard]] bool hasPurchasedTag() const;
+	void drawPurchasedTag(
+		Painter &p,
+		QRect outer,
+		const PaintContext &context) const;
+
 	virtual ~Media() = default;
 
 protected:
@@ -342,6 +407,23 @@ protected:
 		QRect rect,
 		std::optional<Ui::BubbleRounding> rounding, // nullopt if in WebPage.
 		const PaintContext &context) const;
+	void fillImageSpoiler(
+		QPainter &p,
+		not_null<MediaSpoiler*> spoiler,
+		QRect rect,
+		const PaintContext &context) const;
+	void drawSpoilerTag(
+		Painter &p,
+		not_null<MediaSpoiler*> spoiler,
+		std::unique_ptr<MediaSpoilerTag> &tag,
+		QRect rthumb,
+		const PaintContext &context,
+		Fn<QImage()> generateBackground) const;
+	void setupSpoilerTag(std::unique_ptr<MediaSpoilerTag> &tag) const;
+	[[nodiscard]] ClickHandlerPtr spoilerTagLink(
+		not_null<MediaSpoiler*> spoiler,
+		std::unique_ptr<MediaSpoilerTag> &tag) const;
+	void createSpoilerLink(not_null<MediaSpoiler*> spoiler);
 
 	void repaint() const;
 

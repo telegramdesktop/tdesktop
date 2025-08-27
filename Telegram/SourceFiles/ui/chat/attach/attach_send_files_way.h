@@ -11,6 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+enum class AttachActionType {
+	ToggleSpoiler,
+	EditCover,
+	ClearCover,
+};
+
 enum class AttachButtonType {
 	Edit,
 	Delete,
@@ -28,6 +34,7 @@ public:
 	}
 	void setGroupFiles(bool value);
 	void setSendImagesAsPhotos(bool value);
+	void setHasCompressedStickers(bool value);
 
 	[[nodiscard]] inline bool operator<(const SendFilesWay &other) const {
 		return _flags < other._flags;
@@ -53,9 +60,14 @@ public:
 		int32 value);
 
 private:
+	[[nodiscard]] bool hasCompressedStickers() const {
+		return (_flags & Flag::HasCompressedStickers) != 0;
+	}
+
 	enum class Flag : uchar {
 		GroupFiles = (1 << 0),
 		SendImagesAsPhotos = (1 << 1),
+		HasCompressedStickers = (1 << 2),
 
 		Default = GroupFiles | SendImagesAsPhotos,
 	};

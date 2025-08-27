@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 #include "base/timer.h"
 #include "mtproto/sender.h"
 
 class PeerListBox;
+struct RequestPeerQuery;
 
 namespace Window {
 class SessionNavigation;
@@ -33,6 +34,7 @@ template <typename Enum>
 class Radioenum;
 class LinkButton;
 class UserpicButton;
+class Show;
 } // namespace Ui
 
 enum class PeerFloodType {
@@ -41,13 +43,21 @@ enum class PeerFloodType {
 	InviteChannel,
 };
 
+struct ForbiddenInvites;
+
 [[nodiscard]] TextWithEntities PeerFloodErrorText(
 	not_null<Main::Session*> session,
 	PeerFloodType type);
 void ShowAddParticipantsError(
+	std::shared_ptr<Ui::Show> show,
 	const QString &error,
 	not_null<PeerData*> chat,
-	const std::vector<not_null<UserData*>> &users);
+	const ForbiddenInvites &forbidden);
+void ShowAddParticipantsError(
+	std::shared_ptr<Ui::Show> show,
+	const QString &error,
+	not_null<PeerData*> chat,
+	not_null<UserData*> user);
 
 class AddContactBox : public Ui::BoxContent {
 public:
@@ -103,6 +113,12 @@ public:
 		Type type,
 		const QString &title = QString(),
 		Fn<void(not_null<ChannelData*>)> channelDone = nullptr);
+	GroupInfoBox(
+		QWidget*,
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<UserData*> bot,
+		RequestPeerQuery query,
+		Fn<void(not_null<PeerData*>)> done);
 
 protected:
 	void prepare() override;
@@ -113,7 +129,7 @@ protected:
 private:
 	void createChannel(const QString &title, const QString &description);
 	void createGroup(
-		not_null<PeerListBox*> selectUsersBox,
+		base::weak_qptr<Ui::BoxContent> selectUsersBox,
 		const QString &title,
 		const std::vector<not_null<PeerData*>> &users);
 	void submitName();
@@ -124,12 +140,16 @@ private:
 	void descriptionResized();
 	void updateMaxHeight();
 
+	[[nodiscard]] TimeId ttlPeriod() const;
+
 	const not_null<Window::SessionNavigation*> _navigation;
 	MTP::Sender _api;
 
 	Type _type = Type::Group;
 	QString _initialTitle;
-	Fn<void(not_null<ChannelData*>)> _channelDone;
+	bool _mustBePublic = false;
+	UserData *_canAddBot = nullptr;
+	Fn<void(not_null<PeerData*>)> _done;
 
 	object_ptr<Ui::UserpicButton> _photo = { nullptr };
 	object_ptr<Ui::InputField> _title = { nullptr };
@@ -139,6 +159,8 @@ private:
 	mtpRequestId _creationRequestId = 0;
 	bool _creatingInviteLink = false;
 	ChannelData *_createdChannel = nullptr;
+	TimeId _ttlPeriod = 0;
+	bool _ttlPeriodOverridden = false;
 
 };
 
@@ -148,7 +170,8 @@ public:
 		QWidget*,
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
-		bool existing = false);
+		bool mustBePublic,
+		Fn<void(not_null<PeerData*>)> done);
 
 	void setInnerFocus() override;
 
@@ -185,6 +208,7 @@ private:
 
 	void updateFail(UsernameResult result);
 
+	void mustBePublicFailed();
 	void checkFail(UsernameResult result);
 	void firstCheckFail(UsernameResult result);
 
@@ -196,8 +220,9 @@ private:
 	const not_null<ChannelData*> _channel;
 	MTP::Sender _api;
 
-	bool _existing = false;
 	bool _creatingInviteLink = false;
+	bool _mustBePublic = false;
+	Fn<void(not_null<PeerData*>)> _done;
 
 	std::shared_ptr<Ui::RadioenumGroup<Privacy>> _privacyGroup;
 	object_ptr<Ui::Radioenum<Privacy>> _public;

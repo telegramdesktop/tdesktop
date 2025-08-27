@@ -190,18 +190,19 @@ public:
 		Data::FileOrigin origin,
 		Fn<void()> handler);
 
-	int leftToUpdate() const;
-	int rightToUpdate() const;
+	[[nodiscard]] int leftToUpdate() const;
+	[[nodiscard]] int rightToUpdate() const;
 
 	void animateToLeft(not_null<Thumb*> next);
 	void animateToRight(not_null<Thumb*> prev);
 
 	void setState(State state);
-	State state() const;
-	bool removed() const;
+	[[nodiscard]] State state() const;
+	[[nodiscard]] bool inited() const;
+	[[nodiscard]] bool removed() const;
 
 	void paint(QPainter &p, int x, int y, int outerWidth, float64 progress);
-	ClickHandlerPtr getState(QPoint point) const;
+	[[nodiscard]] ClickHandlerPtr getState(QPoint point) const;
 
 private:
 	QSize wantedPixSize() const;
@@ -288,15 +289,15 @@ void GroupThumbs::Thumb::validateImage() {
 		const auto takeWidth = originalWidth * st::mediaviewGroupWidthMax
 			/ pixSize.width();
 		auto original = _image->original();
-		original.setDevicePixelRatio(cRetinaFactor());
+		original.setDevicePixelRatio(style::DevicePixelRatio());
 		_full = Ui::PixmapFromImage(original.copy(
 			(originalWidth - takeWidth) / 2,
 			0,
 			takeWidth,
 			originalHeight
 		).scaled(
-			st::mediaviewGroupWidthMax * cIntRetinaFactor(),
-			pixSize.height() * cIntRetinaFactor(),
+			st::mediaviewGroupWidthMax * style::DevicePixelRatio(),
+			pixSize.height() * style::DevicePixelRatio(),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation));
 	} else {
@@ -400,6 +401,10 @@ auto GroupThumbs::Thumb::state() const -> State {
 	return _state;
 }
 
+bool GroupThumbs::Thumb::inited() const {
+	return _fullWidth != 0;
+}
+
 bool GroupThumbs::Thumb::removed() const {
 	return (_state == State::Dying) && _hiding && !_opacity.current();
 }
@@ -423,7 +428,7 @@ void GroupThumbs::Thumb::paint(
 	if (width == _fullWidth) {
 		p.drawPixmap(left, y, _full);
 	} else {
-		const auto takeWidth = width * cIntRetinaFactor();
+		const auto takeWidth = width * style::DevicePixelRatio();
 		const auto from = QRect(
 			(_full.width() - takeWidth) / 2,
 			0,
@@ -664,6 +669,11 @@ auto GroupThumbs::createThumb(Key key)
 							key,
 							page->collage,
 							collageKey->index);
+					} else if (const auto invoice = media->invoice()) {
+						return createThumb(
+							key,
+							*invoice,
+							collageKey->index);
 					}
 				}
 			}
@@ -686,6 +696,23 @@ auto GroupThumbs::createThumb(
 		return createThumb(key, (*photo));
 	} else if (const auto document = std::get_if<DocumentData*>(&item)) {
 		return createThumb(key, (*document));
+	}
+	return createThumb(key, nullptr);
+}
+
+auto GroupThumbs::createThumb(
+	Key key,
+	const Data::Invoice &invoice,
+	int index)
+-> std::unique_ptr<Thumb> {
+	if (index < 0 || index >= invoice.extendedMedia.size()) {
+		return createThumb(key, nullptr);
+	}
+	const auto &media = invoice.extendedMedia[index];
+	if (const auto photo = media->photo()) {
+		return createThumb(key, photo);
+	} else if (const auto document = media->document()) {
+		return createThumb(key, document);
 	}
 	return createThumb(key, nullptr);
 }
@@ -819,20 +846,26 @@ void GroupThumbs::paint(QPainter &p, int x, int y, int outerWidth) {
 		: _animation.value(1.);
 	x += (_width / 2);
 	y += st::mediaviewGroupPadding.top();
+	auto initedCurrentIndex = int(_items.size());
 	for (auto i = _cache.begin(); i != _cache.end();) {
-		const auto &thumb = i->second;
+		const auto thumb = not_null{ i->second.get() };
+		const auto inited = thumb->inited();
 		thumb->paint(p, x, y, outerWidth, progress);
 		if (thumb->removed()) {
-			_dying.erase(
-				ranges::remove(
-					_dying,
-					thumb.get(),
-					[](not_null<Thumb*> thumb) { return thumb.get(); }),
-				_dying.end());
+			_dying.erase(ranges::remove(_dying, thumb), _dying.end());
 			i = _cache.erase(i);
 		} else {
+			if (!inited
+				&& thumb->inited()
+				&& thumb->state() == Thumb::State::Current) {
+				initedCurrentIndex = ranges::find(_items, thumb)
+					- begin(_items);
+			}
 			++i;
 		}
+	}
+	if (initedCurrentIndex < _items.size()) {
+		animateAliveItems(initedCurrentIndex);
 	}
 }
 

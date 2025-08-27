@@ -11,12 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Api {
 
-bool MessagesSearchMerged::RequestCompare::operator()(
-		const Request &a,
-		const Request &b) const {
-	return (a.query < b.query) && (a.from < b.from);
-}
-
 MessagesSearchMerged::MessagesSearchMerged(not_null<History*> history)
 : _apiSearch(history) {
 	if (const auto migrated = history->migrateFrom()) {
@@ -70,6 +64,10 @@ MessagesSearchMerged::MessagesSearchMerged(not_null<History*> history)
 	}
 }
 
+void MessagesSearchMerged::disableMigrated() {
+	_migratedSearch = std::nullopt;
+}
+
 void MessagesSearchMerged::addFound(const FoundMessages &data) {
 	for (const auto &message : data.messages) {
 		_concatedFound.messages.push_back(message);
@@ -80,17 +78,22 @@ const FoundMessages &MessagesSearchMerged::messages() const {
 	return _concatedFound;
 }
 
+const MessagesSearch::Request &MessagesSearchMerged::request() const {
+	return _request;
+}
+
 void MessagesSearchMerged::clear() {
 	_concatedFound = {};
 	_migratedFirstFound = {};
 }
 
 void MessagesSearchMerged::search(const Request &search) {
+	_request = search;
 	if (_migratedSearch) {
 		_waitingForTotal = true;
-		_migratedSearch->searchMessages(search.query, search.from);
+		_migratedSearch->searchMessages(search);
 	}
-	_apiSearch.searchMessages(search.query, search.from);
+	_apiSearch.searchMessages(search);
 }
 
 void MessagesSearchMerged::searchMore() {

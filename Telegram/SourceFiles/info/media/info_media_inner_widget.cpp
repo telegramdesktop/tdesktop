@@ -15,10 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
 #include "data/data_forum_topic.h"
+#include "data/data_peer.h"
+#include "data/data_saved_sublist.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/box_content_divider.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/search_field_controller.h"
 #include "styles/style_info.h"
@@ -43,7 +46,7 @@ InnerWidget::InnerWidget(
 // Allows showing additional shared media links and tabs.
 // Used for shared media in Saved Messages.
 void InnerWidget::setupOtherTypes() {
-	if (_controller->key().peer()->isSelf() && _isStackBottom) {
+	if (_controller->key().peer()->sharedMediaInfo() && _isStackBottom) {
 		createOtherTypes();
 	} else {
 		_otherTypes.destroy();
@@ -77,7 +80,11 @@ void InnerWidget::createTypeButtons() {
 	auto tracker = Ui::MultiSlideTracker();
 	const auto peer = _controller->key().peer();
 	const auto topic = _controller->key().topic();
+	const auto sublist = _controller->key().sublist();
 	const auto topicRootId = topic ? topic->rootId() : MsgId();
+	const auto monoforumPeerId = sublist
+		? sublist->sublistPeer()->id
+		: PeerId();
 	const auto migrated = _controller->migrated();
 	const auto addMediaButton = [&](
 			Type buttonType,
@@ -90,6 +97,7 @@ void InnerWidget::createTypeButtons() {
 			_controller,
 			peer,
 			topicRootId,
+			monoforumPeerId,
 			migrated,
 			buttonType,
 			tracker);
@@ -137,9 +145,7 @@ bool InnerWidget::showInternal(not_null<Memento*> memento) {
 }
 
 object_ptr<ListWidget> InnerWidget::setupList() {
-	auto result = object_ptr<ListWidget>(
-		this,
-		_controller);
+	auto result = object_ptr<ListWidget>(this, _controller);
 	result->heightValue(
 	) | rpl::start_with_next(
 		[this] { refreshHeight(); },

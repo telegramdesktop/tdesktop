@@ -9,8 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 #include "mtproto/sender.h"
+#include "ui/text/text_variant.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+
+namespace style {
+struct RoundButton;
+} // namespace style;
 
 namespace Main {
 class Account;
@@ -77,6 +82,8 @@ public:
 
 	virtual void submit() = 0;
 	[[nodiscard]] virtual rpl::producer<QString> nextButtonText() const;
+	[[nodiscard]] virtual auto nextButtonStyle() const
+		-> rpl::producer<const style::RoundButton*>;
 
 	[[nodiscard]] int contentLeft() const;
 	[[nodiscard]] int contentTop() const;
@@ -92,9 +99,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void setTitleText(rpl::producer<QString> titleText);
-	void setDescriptionText(rpl::producer<QString> descriptionText);
-	void setDescriptionText(
-		rpl::producer<TextWithEntities> richDescriptionText);
+	void setDescriptionText(v::text::data &&descriptionText);
 	bool paintAnimated(QPainter &p, QRect clip);
 
 	void fillSentCodeData(const MTPDauth_sentCode &type);
@@ -105,11 +110,13 @@ protected:
 	[[nodiscard]] not_null<Data*> getData() const {
 		return _data;
 	}
-	void finish(const MTPUser &user, QImage &&photo = QImage());
+	void finish(const MTPauth_Authorization &auth, QImage &&photo = {});
+	void finish(const MTPUser &user, QImage &&photo = {});
 	void createSession(
 		const MTPUser &user,
 		QImage photo,
-		const QVector<MTPDialogFilter> &filters);
+		const QVector<MTPDialogFilter> &filters,
+		bool tagsEnabled);
 
 	void goBack();
 

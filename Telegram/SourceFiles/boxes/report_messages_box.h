@@ -12,20 +12,22 @@ class object_ptr;
 
 namespace Ui {
 class BoxContent;
+class Show;
 } // namespace Ui
 
-namespace Window {
-class SessionController;
-} // namespace Main
+namespace style {
+struct ReportBox;
+} // namespace style
 
 class PeerData;
 
-[[nodiscard]] object_ptr<Ui::BoxContent> ReportItemsBox(
-	not_null<PeerData*> peer,
-	MessageIdsList ids);
 [[nodiscard]] object_ptr<Ui::BoxContent> ReportProfilePhotoBox(
 	not_null<PeerData*> peer,
 	not_null<PhotoData*> photo);
-void ShowReportPeerBox(
-	not_null<Window::SessionController*> window,
-	not_null<PeerData*> peer);
+
+void ShowReportMessageBox(
+	std::shared_ptr<Ui::Show> show,
+	not_null<PeerData*> peer,
+	const std::vector<MsgId> &ids,
+	const std::vector<StoryId> &stories,
+	const style::ReportBox *stOverride = nullptr);

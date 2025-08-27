@@ -16,6 +16,7 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
 #include <libswresample/swresample.h>
+#include <libavfilter/avfilter.h>
 } // extern "C"
 
 #include <al.h>
@@ -35,19 +36,29 @@ public:
 	: AudioPlayerLoader(file, data, std::move(buffer)) {
 	}
 
-	bool open(crl::time positionMs) override;
+	bool open(crl::time positionMs, float64 speed = 1.) override;
 
-	int64 samplesCount() override {
-		return _samplesCount;
+	crl::time duration() override {
+		return _duration;
+	}
+	void overrideDuration(int64 startedAtSample, crl::time duration) {
+		_startedAtSample = startedAtSample;
+		_duration = duration;
 	}
 
 	int samplesFrequency() override {
 		return _samplesFrequency;
 	}
 
+#if !DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	static uint64_t ComputeChannelLayout(
 		uint64_t channel_layout,
 		int channels);
+#endif // !DA_FFMPEG_NEW_CHANNEL_LAYOUT
+
+	[[nodiscard]] int64 startedAtSample() const {
+		return _startedAtSample;
+	}
 
 	~AbstractFFMpegLoader();
 
@@ -55,7 +66,8 @@ protected:
 	static int64 Mul(int64 value, AVRational rational);
 
 	int _samplesFrequency = Media::Player::kDefaultFrequency;
-	int64 _samplesCount = 0;
+	int64 _startedAtSample = 0;
+	crl::time _duration = 0;
 
 	uchar *ioBuffer = nullptr;
 	AVIOContext *ioContext = nullptr;
@@ -86,12 +98,15 @@ public:
 		const QByteArray &data,
 		bytes::vector &&buffer);
 
-	int64 samplesCount() override {
-		return _outputSamplesCount;
-	}
+	void dropFramesTill(int64 samples) override;
+	int64 startReadingQueuedFrames(float64 newSpeed) override;
 
 	int samplesFrequency() override {
 		return _swrDstRate;
+	}
+
+	int sampleSize() override {
+		return _outputSampleSize;
 	}
 
 	int format() override {
@@ -101,56 +116,73 @@ public:
 	~AbstractAudioFFMpegLoader();
 
 protected:
-	bool initUsingContext(
-		not_null<AVCodecContext *> context,
-		int64 initialCount,
-		int initialFrequency);
-	ReadResult readFromReadyContext(
-		not_null<AVCodecContext *> context,
-		QByteArray &result,
-		int64 &samplesAdded);
+	bool initUsingContext(not_null<AVCodecContext*> context, float64 speed);
+	[[nodiscard]] ReadResult readFromReadyContext(
+		not_null<AVCodecContext*> context);
 
 	// Streaming player provides the first frame to the ChildFFMpegLoader
 	// so we replace our allocated frame with the one provided.
-	ReadResult replaceFrameAndRead(
-		FFmpeg::FramePointer frame,
-		QByteArray &result,
-		int64 &samplesAdded);
-
-	int sampleSize() const {
-		return _outputSampleSize;
-	}
+	[[nodiscard]] ReadResult replaceFrameAndRead(FFmpeg::FramePointer frame);
 
 private:
-	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
-	bool frameHasDesiredFormat() const;
+	struct EnqueuedFrame {
+		int64 position = 0;
+		int64 samples = 0;
+		FFmpeg::FramePointer frame;
+	};
+	[[nodiscard]] ReadResult readFromReadyFrame();
+	[[nodiscard]] ReadResult readOrBufferForFilter(
+		not_null<AVFrame*> frame,
+		int64 samplesOverride);
+	bool frameHasDesiredFormat(not_null<AVFrame*> frame) const;
 	bool initResampleForFrame();
 	bool initResampleUsingFormat();
 	bool ensureResampleSpaceAvailable(int samples);
 
-	void appendSamples(
-		QByteArray &result,
-		int64 &samplesAdded,
-		uint8_t **data,
-		int count) const;
+	bool changeSpeedFilter(float64 speed);
+	void createSpeedFilter(float64 speed);
+
+	void enqueueNormalFrame(
+		not_null<AVFrame*> frame,
+		int64 samples = 0);
+	void enqueueFramesFinished();
+	[[nodiscard]] auto fillFrameFromQueued()
+		-> std::variant<not_null<const EnqueuedFrame*>, ReadError>;
 
 	FFmpeg::FramePointer _frame;
+	FFmpeg::FramePointer _resampledFrame;
+	FFmpeg::FramePointer _filteredFrame;
+	int _resampledFrameCapacity = 0;
+
+	int64 _framesQueuedSamples = 0;
+	std::deque<EnqueuedFrame> _framesQueued;
+	int _framesQueuedIndex = -1;
+
 	int _outputFormat = AL_FORMAT_STEREO16;
 	int _outputChannels = 2;
 	int _outputSampleSize = 2 * sizeof(uint16);
-	int64 _outputSamplesCount = 0;
 
 	SwrContext *_swrContext = nullptr;
 
 	int _swrSrcRate = 0;
 	AVSampleFormat _swrSrcSampleFormat = AV_SAMPLE_FMT_NONE;
-	uint64_t _swrSrcChannelLayout = 0;
 
 	const int _swrDstRate = Media::Player::kDefaultFrequency;
 	AVSampleFormat _swrDstSampleFormat = AV_SAMPLE_FMT_S16;
+
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	AVChannelLayout _swrSrcChannelLayout = AV_CHANNEL_LAYOUT_STEREO;
+	AVChannelLayout _swrDstChannelLayout = AV_CHANNEL_LAYOUT_STEREO;
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	uint64_t _swrSrcChannelLayout = 0;
 	uint64_t _swrDstChannelLayout = AV_CH_LAYOUT_STEREO;
-	uint8_t **_swrDstData = nullptr;
-	int _swrDstDataCapacity = 0;
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+
+	AVFilterGraph *_filterGraph = nullptr;
+	float64 _filterSpeed = 1.;
+	AVFilterContext *_filterSrc = nullptr;
+	AVFilterContext *_atempo = nullptr;
+	AVFilterContext *_filterSink = nullptr;
 
 };
 
@@ -161,9 +193,9 @@ public:
 		const QByteArray &data,
 		bytes::vector &&buffer);
 
-	bool open(crl::time positionMs) override;
+	bool open(crl::time positionMs, float64 speed = 1.) override;
 
-	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
+	ReadResult readMore() override;
 
 	~FFMpegLoader();
 
@@ -173,6 +205,7 @@ private:
 
 	AVCodecContext *_codecContext = nullptr;
 	AVPacket _packet;
+	bool _readTillEnd = false;
 
 };
 

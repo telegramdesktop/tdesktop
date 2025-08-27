@@ -13,13 +13,9 @@ struct BotCommand final {
 	QString command;
 	QString description;
 
-	inline bool operator==(const BotCommand &other) const {
-		return (command == other.command)
-			&& (description == other.description);
-	}
-	inline bool operator!=(const BotCommand &other) const {
-		return !(*this == other);
-	}
+	friend inline bool operator==(
+		const BotCommand &,
+		const BotCommand &) = default;
 };
 
 [[nodiscard]] BotCommand BotCommandFromTL(const MTPBotCommand &result);

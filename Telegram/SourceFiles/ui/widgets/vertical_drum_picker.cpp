@@ -8,12 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/vertical_drum_picker.h"
 
 #include "ui/effects/animation_value_f.h"
+#include "ui/ui_utility.h"
 #include "styles/style_basic.h"
 
 namespace Ui {
+namespace {
 
-PickerAnimation::PickerAnimation() {
-}
+constexpr auto kAlmostIndex = float64(.99);
+
+} // namespace
+
+PickerAnimation::PickerAnimation() = default;
 
 void PickerAnimation::jumpToOffset(int offset) {
 	_result.from = _result.current;
@@ -27,6 +32,23 @@ void PickerAnimation::jumpToOffset(int offset) {
 			value);
 		_updates.fire(_result.current - was);
 	};
+	if (anim::Disabled()) {
+		auto value = float64(0.);
+		const auto diff = _result.to - _result.from;
+		const auto step = std::min(
+			kAlmostIndex,
+			1. / (std::max(1. - kAlmostIndex, std::abs(diff) + 1)));
+		while (true) {
+			value += step;
+			if (value >= 1.) {
+				callback(1.);
+				break;
+			} else {
+				callback(value);
+			}
+		}
+		return;
+	}
 	_animation.start(
 		std::move(callback),
 		0.,
@@ -61,15 +83,18 @@ VerticalDrumPicker::VerticalDrumPicker(
 	) | rpl::start_with_next([=](const QSize &s) {
 		_itemsVisible.count = std::ceil(float64(s.height()) / _itemHeight);
 		_itemsVisible.centerOffset = _itemsVisible.count / 2;
-		if (_pendingStartIndex && _itemsVisible.count) {
-			_index = normalizedIndex(base::take(_pendingStartIndex)
+		if ((_pendingStartIndex >= 0) && _itemsVisible.count) {
+			_index = normalizedIndex(_pendingStartIndex
 				- _itemsVisible.centerOffset);
+			_pendingStartIndex = -1;
 		}
 
 		if (!_loopData.looped) {
 			_loopData.minIndex = -_itemsVisible.centerOffset;
 			_loopData.maxIndex = _itemsCount - 1 - _itemsVisible.centerOffset;
 		}
+
+		_changes.fire({});
 	}, lifetime());
 
 	paintRequest(
@@ -101,9 +126,13 @@ VerticalDrumPicker::VerticalDrumPicker(
 }
 
 void VerticalDrumPicker::increaseShift(float64 by) {
-	// Guard input.
-	if (by >= 1.) {
-		by = .99;
+	{
+		// Guard input.
+		if (by >= 1.) {
+			by = kAlmostIndex;
+		} else if (by <= -1.) {
+			by = -kAlmostIndex;
+		}
 	}
 
 	auto shift = _shift;
@@ -118,7 +147,9 @@ void VerticalDrumPicker::increaseShift(float64 by) {
 		index++;
 		index = normalizedIndex(index);
 	}
-	if (!_loopData.looped && (index <= _loopData.minIndex)) {
+	if (_loopData.minIndex == _loopData.maxIndex) {
+		_shift = 0.;
+	} else if (!_loopData.looped && (index <= _loopData.minIndex)) {
 		_shift = std::min(0., shift);
 		_index = _loopData.minIndex;
 	} else if (!_loopData.looped && (index >= _loopData.maxIndex)) {
@@ -128,6 +159,7 @@ void VerticalDrumPicker::increaseShift(float64 by) {
 		_shift = shift;
 		_index = index;
 	}
+	_changes.fire({});
 	update();
 }
 
@@ -242,6 +274,16 @@ int VerticalDrumPicker::normalizedIndex(int index) const {
 
 int VerticalDrumPicker::index() const {
 	return normalizedIndex(_index + _itemsVisible.centerOffset);
+}
+
+rpl::producer<int> VerticalDrumPicker::changes() const {
+	return _changes.events() | rpl::map([=] { return index(); });
+}
+
+rpl::producer<int> VerticalDrumPicker::value() const {
+	return rpl::single(index())
+		| rpl::then(changes())
+		| rpl::distinct_until_changed();
 }
 
 } // namespace Ui

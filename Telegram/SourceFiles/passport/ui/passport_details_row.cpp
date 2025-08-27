@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "base/platform/base_platform_info.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/masked_input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -50,7 +51,8 @@ PostcodeInput::PostcodeInput(
 	rpl::producer<QString> placeholder,
 	const QString &val)
 : MaskedInputField(parent, st, std::move(placeholder), val) {
-	if (!QRegularExpression("^[a-zA-Z0-9\\-]+$").match(val).hasMatch()) {
+	static const auto RegExp = QRegularExpression("^[a-zA-Z0-9\\-]+$");
+	if (!RegExp.match(val).hasMatch()) {
 		setText(QString());
 	}
 }
@@ -268,9 +270,16 @@ AbstractTextRow<Input>::AbstractTextRow(
 , _field(this, st::passportDetailsField, nullptr, value)
 , _value(value) {
 	_field->setMaxLength(limit);
-	connect(_field, &Input::changed, [=] {
-		_value = valueCurrent();
-	});
+	if constexpr (std::is_same<Input, Ui::InputField>::value) {
+		_field->changes(
+		) | rpl::start_with_next([=] {
+			_value = valueCurrent();
+		}, _field->lifetime());
+	} else {
+		connect(_field, &Input::changed, [=] {
+			_value = valueCurrent();
+		});
+	}
 }
 
 template <typename Input>
@@ -406,8 +415,9 @@ void CountryRow::chooseCountry() {
 }
 
 QDate ValidateDate(const QString &value) {
-	const auto match = QRegularExpression(
-		"^([0-9]{2})\\.([0-9]{2})\\.([0-9]{4})$").match(value);
+	static const auto RegExp = QRegularExpression(
+		"^([0-9]{2})\\.([0-9]{2})\\.([0-9]{4})$");
+	const auto match = RegExp.match(value);
 	if (!match.hasMatch()) {
 		return QDate();
 	}
@@ -517,9 +527,9 @@ void DateInput::correctValue(
 	if (accumulated > _maxValue
 		|| (limit == _maxDigits && oldLength > _maxDigits)) {
 		if (oldCursor > limit) {
-			_putNext.fire('0' + (accumulated % 10));
+			_putNext.fire(QChar('0' + (accumulated % 10)));
 		} else {
-			_putNext.fire(0);
+			_putNext.fire(QChar(0));
 		}
 	}
 }
@@ -561,7 +571,7 @@ DateRow::DateRow(
 	GetYear(value))
 , _value(valueCurrent()) {
 	const auto focused = [=](const object_ptr<DateInput> &field) {
-		return [this, pointer = MakeWeak(field.data())]{
+		return [this, pointer = base::make_weak(field.data())]{
 			_borderAnimationStart = pointer->borderAnimationStart()
 				+ pointer->x()
 				- _day->x();
@@ -885,9 +895,9 @@ std::unique_ptr<AbstractCheckView> GenderRow::createRadioView(
 
 auto GenderRow::StringToGender(const QString &value)
 -> std::optional<Gender> {
-	if (value == qstr("male")) {
+	if (value == u"male"_q) {
 		return Gender::Male;
-	} else if (value == qstr("female")) {
+	} else if (value == u"female"_q) {
 		return Gender::Female;
 	}
 	return std::nullopt;

@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/generic_box.h"
-
 namespace Window {
 class SessionController;
 } // namespace Window
+
+namespace Ui {
+class GenericBox;
+} // namespace Ui
 
 namespace Data {
 class ChatFilter;
@@ -21,7 +23,8 @@ void EditFilterBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> window,
 	const Data::ChatFilter &filter,
-	Fn<void(const Data::ChatFilter &)> doneCallback);
+	Fn<void(const Data::ChatFilter &)> doneCallback,
+	Fn<void(const Data::ChatFilter &, Fn<void(Data::ChatFilter)>)> saveAnd);
 
 void EditExistingFilter(
 	not_null<Window::SessionController*> window,

@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "ui/controls/send_as_button.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toast/toast.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
@@ -168,42 +167,6 @@ rpl::producer<not_null<PeerData*>> ListController::clicked() const {
 	return _clicked.events();
 }
 
-void ShowPremiumPromoToast(not_null<Window::SessionController*> controller) {
-	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
-	const auto toast = std::make_shared<WeakToast>();
-
-	auto link = Ui::Text::Link(
-		tr::lng_send_as_premium_required_link(tr::now));
-	link.entities.push_back(
-		EntityInText(EntityType::Semibold, 0, link.text.size()));
-	const auto config = Ui::Toast::Config{
-		.text = tr::lng_send_as_premium_required(
-			tr::now,
-			lt_link,
-			link,
-			Ui::Text::WithEntities),
-		.st = &st::defaultMultilineToast,
-		.durationMs = Ui::Toast::kDefaultDuration * 2,
-		.multiline = true,
-		.filter = crl::guard(&controller->session(), [=](
-				const ClickHandlerPtr &,
-				Qt::MouseButton button) {
-			if (button == Qt::LeftButton) {
-				if (const auto strong = toast->get()) {
-					strong->hideAnimated();
-					(*toast) = nullptr;
-					Settings::ShowPremium(controller, "send_as");
-					return true;
-				}
-			}
-			return false;
-		}),
-	};
-	(*toast) = Ui::Toast::Show(
-		Window::Show(controller).toastParent(),
-		config);
-}
-
 } // namespace
 
 void ChooseSendAsBox(
@@ -235,7 +198,7 @@ void ChooseSendAsBox(
 
 	controller->clicked(
 	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
-		const auto weak = MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		if (done(peer) && weak) {
 			box->closeBox();
 		}
@@ -275,7 +238,17 @@ void SetupSendAsButton(
 			if (i != end(list)
 				&& i->premiumRequired
 				&& !sendAs->session().premium()) {
-				ShowPremiumPromoToast(window);
+				Settings::ShowPremiumPromoToast(
+					window->uiShow(),
+					tr::lng_send_as_premium_required(
+						tr::now,
+						lt_link,
+						Ui::Text::Link(
+							Ui::Text::Bold(
+								tr::lng_send_as_premium_required_link(
+									tr::now))),
+						Ui::Text::WithEntities),
+					u"send_as"_q);
 				return false;
 			}
 			session->sendAsPeers().saveChosen(peer, sendAs);
@@ -290,9 +263,9 @@ void SetupSendAsButton(
 
 	auto userpic = current->value(
 	) | rpl::filter([=](PeerData *peer) {
-		return peer && peer->isMegagroup();
+		return peer && peer->isChannel();
 	}) | rpl::map([=](not_null<PeerData*> peer) {
-		const auto channel = peer->asMegagroup();
+		const auto channel = peer->asChannel();
 
 		auto updates = rpl::single(
 			rpl::empty
@@ -325,7 +298,7 @@ void SetupSendAsButton(
 		not_null<SendAsButton*> button,
 		not_null<Window::SessionController*> window) {
 	auto active = window->activeChatValue(
-	) | rpl::map([=](const Dialogs::Key &key) {
+	) | rpl::map([=](Dialogs::Key key) {
 		return key.history() ? key.history()->peer.get() : nullptr;
 	});
 	SetupSendAsButton(button, std::move(active), window);

@@ -18,11 +18,17 @@ namespace style {
 struct InfoTopBar;
 } // namespace style
 
+namespace Dialogs::Stories {
+class List;
+struct Content;
+} // namespace Dialogs::Stories
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
 
 namespace Ui {
+class AbstractButton;
 class IconButton;
 class FlatLabel;
 class InputField;
@@ -35,6 +41,11 @@ namespace Info {
 class Key;
 class Section;
 
+struct TitleDescriptor {
+	rpl::producer<QString> title;
+	rpl::producer<QString> subtitle;
+};
+
 class TopBar : public Ui::RpWidget {
 public:
 	TopBar(
@@ -43,11 +54,15 @@ public:
 		const style::InfoTopBar &st,
 		SelectedItems &&items);
 
-	auto backRequest() const {
+	[[nodiscard]] auto backRequest() const {
 		return _backClicks.events();
 	}
+	[[nodiscard]] auto storyClicks() const {
+		return _storyClicks.events();
+	}
 
-	void setTitle(rpl::producer<QString> &&title);
+	void setTitle(TitleDescriptor descriptor);
+	void setStories(rpl::producer<Dialogs::Stories::Content> content);
 	void enableBackButton();
 	void highlight();
 
@@ -87,6 +102,8 @@ public:
 
 	void showSearch();
 
+	void checkBeforeCloseByEscape(Fn<void()> close);
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;
@@ -95,6 +112,7 @@ private:
 	void updateControlsGeometry(int newWidth);
 	void updateDefaultControlsGeometry(int newWidth);
 	void updateSelectionControlsGeometry(int newWidth);
+	void updateStoriesGeometry(int newWidth);
 	Ui::FadeWrap<Ui::RpWidget> *pushButton(
 		base::unique_qptr<Ui::RpWidget> button);
 	void forceButtonVisibility(
@@ -104,16 +122,21 @@ private:
 	void startHighlightAnimation();
 	void updateControlsVisibility(anim::type animated);
 
-	bool selectionMode() const;
-	bool searchMode() const;
-	Ui::StringWithNumbers generateSelectedText() const;
+	[[nodiscard]] bool selectionMode() const;
+	[[nodiscard]] bool storiesTitle() const;
+	[[nodiscard]] bool searchMode() const;
+	[[nodiscard]] Ui::StringWithNumbers generateSelectedText() const;
 	[[nodiscard]] bool computeCanDelete() const;
 	[[nodiscard]] bool computeCanForward() const;
+	[[nodiscard]] bool computeCanUnpinStories() const;
+	[[nodiscard]] bool computeCanToggleStoryPin() const;
+	[[nodiscard]] bool computeAllStoriesInProfile() const;
 	void updateSelectionState();
 	void createSelectionControls();
 
 	void performForward();
 	void performDelete();
+	void performToggleStoryPin();
 
 	void setSearchField(
 		base::unique_qptr<Ui::InputField> field,
@@ -140,6 +163,7 @@ private:
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _back;
 	std::vector<base::unique_qptr<Ui::RpWidget>> _buttons;
 	QPointer<Ui::FadeWrap<Ui::FlatLabel>> _title;
+	QPointer<Ui::FadeWrap<Ui::FlatLabel>> _subtitle;
 
 	bool _searchModeEnabled = false;
 	bool _searchModeAvailable = false;
@@ -147,15 +171,26 @@ private:
 	QPointer<Ui::InputField> _searchField;
 
 	rpl::event_stream<> _backClicks;
+	rpl::event_stream<uint64> _storyClicks;
 
 	SelectedItems _selectedItems;
 	bool _canDelete = false;
 	bool _canForward = false;
+	bool _canToggleStoryPin = false;
+	bool _canUnpinStories = false;
+	bool _allStoriesInProfile = false;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _cancelSelection;
 	QPointer<Ui::FadeWrap<Ui::LabelWithNumbers>> _selectionText;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _forward;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _delete;
+	QPointer<Ui::FadeWrap<Ui::IconButton>> _toggleStoryInProfile;
+	QPointer<Ui::FadeWrap<Ui::IconButton>> _toggleStoryPin;
 	rpl::event_stream<SelectionAction> _selectionActionRequests;
+
+	QPointer<Ui::FadeWrap<Ui::AbstractButton>> _storiesWrap;
+	QPointer<Dialogs::Stories::List> _stories;
+	rpl::lifetime _storiesLifetime;
+	int _storiesCount = 0;
 
 	using UpdateCallback = Fn<bool(anim::type)>;
 	std::map<QObject*, UpdateCallback> _updateControlCallbacks;

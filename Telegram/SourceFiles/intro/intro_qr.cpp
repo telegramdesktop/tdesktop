@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "intro/intro_qr.h"
 
+#include "boxes/abstract_box.h"
 #include "intro/intro_phone.h"
 #include "intro/intro_widget.h"
 #include "intro/intro_password_check.h"
@@ -118,7 +119,7 @@ namespace {
 			1,
 			st::introQrPixel);
 		const auto size = has
-			? (state->qr.size() / cIntRetinaFactor())
+			? (state->qr.size() / style::DevicePixelRatio())
 			: QSize(usualSize * pixel, usualSize * pixel);
 		const auto qr = QRect(
 			(result->width() - size.width()) / 2,
@@ -347,7 +348,7 @@ void QrWidget::handleTokenResult(const MTPauth_LoginToken &result) {
 
 void QrWidget::showTokenError(const MTP::Error &error) {
 	_requestId = 0;
-	if (error.type() == qstr("SESSION_PASSWORD_NEEDED")) {
+	if (error.type() == u"SESSION_PASSWORD_NEEDED"_q) {
 		sendCheckPasswordRequest();
 	} else if (base::take(_forceRefresh)) {
 		refreshCode();
@@ -375,18 +376,7 @@ void QrWidget::importTo(MTP::DcId dcId, const QByteArray &token) {
 }
 
 void QrWidget::done(const MTPauth_Authorization &authorization) {
-	authorization.match([&](const MTPDauth_authorization &data) {
-		if (data.vuser().type() != mtpc_user
-			|| !data.vuser().c_user().is_self()) {
-			showError(rpl::single(Lang::Hard::ServerError()));
-			return;
-		}
-		finish(data.vuser());
-	}, [&](const MTPDauth_authorizationSignUpRequired &data) {
-		_requestId = 0;
-		LOG(("API Error: Unexpected auth.authorizationSignUpRequired."));
-		showError(rpl::single(Lang::Hard::ServerError()));
-	});
+	finish(authorization);
 }
 
 void QrWidget::sendCheckPasswordRequest() {

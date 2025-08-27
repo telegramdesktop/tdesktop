@@ -39,14 +39,7 @@ private:
 		Custom,
 	};
 	void radioChanged(Directory value);
-	Directory typeFromPath(const QString &path) {
-		if (path.isEmpty()) {
-			return Directory::Downloads;
-		} else if (path == qsl("tmp")) {
-			return Directory::Temp;
-		}
-		return Directory::Custom;
-	}
+	Directory typeFromPath(const QString &path);
 
 	void save();
 	void updateControlsVisibility();

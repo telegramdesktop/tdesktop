@@ -7,26 +7,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/prepare_short_info_box.h"
 
+#include "base/unixtime.h"
 #include "boxes/peers/peer_short_info_box.h"
+#include "core/application.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer.h"
+#include "data/data_peer_values.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
-#include "data/data_streaming.h"
-#include "data/data_file_origin.h"
-#include "data/data_user.h"
-#include "data/data_chat.h"
-#include "data/data_channel.h"
-#include "data/data_peer_values.h"
-#include "data/data_user_photos.h"
-#include "data/data_changes.h"
 #include "data/data_session.h"
-#include "main/main_session.h"
-#include "window/window_session_controller.h"
+#include "data/data_streaming.h"
+#include "data/data_user.h"
+#include "data/data_user_photos.h"
 #include "info/profile/info_profile_values.h"
-#include "ui/text/format_values.h"
-#include "base/unixtime.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "ui/delayed_activation.h" // PreventDelayedActivation
+#include "ui/text/format_values.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "window/window_session_controller.h"
 #include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 namespace {
 
@@ -36,7 +40,7 @@ struct UserpicState {
 	PeerShortInfoUserpic current;
 	std::optional<UserPhotosSlice> userSlice;
 	PhotoId userpicPhotoId = PeerData::kUnknownPhotoId;
-	std::shared_ptr<Data::CloudImageView> userpicView;
+	Ui::PeerUserpicView userpicView;
 	std::shared_ptr<Data::PhotoMedia> photoView;
 	std::vector<std::shared_ptr<Data::PhotoMedia>> photoPreloads;
 	InMemoryKey userpicKey;
@@ -76,27 +80,27 @@ void ProcessUserpic(
 		not_null<UserpicState*> state) {
 	state->current.videoDocument = nullptr;
 	state->userpicKey = peer->userpicUniqueKey(state->userpicView);
-	if (!state->userpicView) {
+	if (!state->userpicView.cloud) {
 		GenerateImage(
 			state,
-			peer->generateUserpicImage(
+			PeerData::GenerateUserpicImage(
+				peer,
 				state->userpicView,
 				st::shortInfoWidth * style::DevicePixelRatio(),
-				ImageRoundRadius::None),
+				0),
 			false);
 		state->current.photoLoadingProgress = 1.;
 		state->photoView = nullptr;
 		return;
 	}
 	peer->loadUserpic();
-	const auto image = state->userpicView->image();
-	if (!image) {
+	if (Ui::PeerUserpicLoading(state->userpicView)) {
 		state->current.photoLoadingProgress = 0.;
 		state->current.photo = QImage();
 		state->waitingLoad = true;
 		return;
 	}
-	GenerateImage(state, image, true);
+	GenerateImage(state, *state->userpicView.cloud, true);
 	state->current.photoLoadingProgress = peer->userpicPhotoId() ? 0. : 1.;
 	state->photoView = nullptr;
 }
@@ -202,14 +206,28 @@ void ProcessFullPhoto(
 	return peer->session().changes().peerFlagsValue(
 		peer,
 		(UpdateFlag::Name
+			| UpdateFlag::PersonalChannel
 			| UpdateFlag::PhoneNumber
 			| UpdateFlag::Username
-			| UpdateFlag::About)
+			| UpdateFlag::About
+			| UpdateFlag::Birthday)
 	) | rpl::map([=] {
 		const auto user = peer->asUser();
-		const auto username = peer->userName();
+		const auto username = peer->username();
+		const auto channelId = user ? user->personalChannelId() : 0;
+		const auto channel = channelId
+			? user->owner().channel(channelId).get()
+			: nullptr;
+		const auto channelUsername = channel
+			? channel->username()
+			: QString();
+		const auto hasChannel = !channelUsername.isEmpty();
 		return PeerShortInfoFields{
 			.name = peer->name(),
+			.channelName = hasChannel ? channel->name() : QString(),
+			.channelLink = (hasChannel
+				? channel->session().createInternalLinkFull(channelUsername)
+				: QString()),
 			.phone = user ? Ui::FormatPhone(user->phone()) : QString(),
 			.link = ((user || username.isEmpty())
 				? QString()
@@ -218,6 +236,7 @@ void ProcessFullPhoto(
 			.username = ((user && !username.isEmpty())
 				? ('@' + username)
 				: QString()),
+			.birthday = user ? user->birthday() : Data::Birthday(),
 			.isBio = (user && !user->isBot()),
 		};
 	});
@@ -336,6 +355,15 @@ bool ProcessCurrent(
 		: state->photoView
 		? state->photoView->owner().get()
 		: nullptr;
+	state->current.additionalStatus = (!peer->isUser())
+		? QString()
+		: ((state->photoId == userpicPhotoId)
+			&& peer->asUser()->hasPersonalPhoto())
+		? tr::lng_profile_photo_by_you(tr::now)
+		: ((state->current.index == (state->current.count - 1))
+			&& SyncUserFallbackPhotoViewer(peer->asUser()) == state->photoId)
+		? tr::lng_profile_public_photo(tr::now)
+		: QString();
 	state->waitingLoad = false;
 	if (!changedPhotoId
 		&& (state->current.index > 0 || !changedUserpic)
@@ -355,7 +383,9 @@ bool ProcessCurrent(
 
 [[nodiscard]] PreparedShortInfoUserpic UserpicValue(
 		not_null<PeerData*> peer,
-		const style::ShortInfoCover &st) {
+		const style::ShortInfoCover &st,
+		rpl::producer<UserPhotosSlice> slices,
+		Fn<bool(not_null<UserpicState*>)> customProcess) {
 	const auto moveRequests = std::make_shared<rpl::event_stream<int>>();
 	auto move = [=](int shift) {
 		moveRequests->fire_copy(shift);
@@ -368,7 +398,7 @@ bool ProcessCurrent(
 		state->size = size;
 		state->roundMask = Images::CornersMask(radius);
 		const auto push = [=](bool force = false) {
-			if (ProcessCurrent(peer, state) || force) {
+			if (customProcess(state) || force) {
 				consumer.put_next_copy(state->current);
 			}
 		};
@@ -382,17 +412,12 @@ bool ProcessCurrent(
 			push();
 		}, lifetime);
 
-		if (const auto user = peer->asUser()) {
-			UserPhotosReversedViewer(
-				&peer->session(),
-				UserPhotosSlice::Key(peerToUser(user->id), PhotoId()),
-				kOverviewLimit,
-				kOverviewLimit
-			) | rpl::start_with_next([=](UserPhotosSlice &&slice) {
-				state->userSlice = std::move(slice);
-				push();
-			}, lifetime);
-		}
+		rpl::duplicate(
+			slices
+		) | rpl::start_with_next([=](UserPhotosSlice &&slice) {
+			state->userSlice = std::move(slice);
+			push();
+		}, lifetime);
 
 		moveRequests->events(
 		) | rpl::filter([=] {
@@ -411,7 +436,7 @@ bool ProcessCurrent(
 			return state->waitingLoad
 				&& (state->photoView
 					? (!!state->photoView->image(Data::PhotoSize::Large))
-					: (state->userpicView && state->userpicView->image()));
+					: (!Ui::PeerUserpicLoading(state->userpicView)));
 		}) | rpl::start_with_next([=] {
 			push();
 		}, lifetime);
@@ -424,19 +449,31 @@ bool ProcessCurrent(
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		not_null<PeerData*> peer,
 		Fn<void()> open,
-		Fn<bool()> videoPaused) {
-	const auto type = peer->isUser()
+		Fn<bool()> videoPaused,
+		Fn<void(Ui::Menu::MenuCallback)> menuFiller,
+		const style::ShortInfoBox *stOverride) {
+	const auto type = peer->isSelf()
+		? PeerShortInfoType::Self
+		: peer->isUser()
 		? PeerShortInfoType::User
 		: peer->isBroadcast()
 		? PeerShortInfoType::Channel
 		: PeerShortInfoType::Group;
-	auto userpic = UserpicValue(peer, st::shortInfoCover);
+	auto userpic = PrepareShortInfoUserpic(peer, st::shortInfoCover);
 	auto result = Box<PeerShortInfoBox>(
 		type,
 		FieldsValue(peer),
 		StatusValue(peer),
 		std::move(userpic.value),
-		std::move(videoPaused));
+		std::move(videoPaused),
+		stOverride);
+
+	if (menuFiller) {
+		result->fillMenuRequests(
+		) | rpl::start_with_next([=](Ui::Menu::MenuCallback callback) {
+			menuFiller(std::move(callback));
+		}, result->lifetime());
+	}
 
 	result->openRequests(
 	) | rpl::start_with_next(open, result->lifetime());
@@ -449,16 +486,39 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		not_null<PeerData*> peer,
-		not_null<Window::SessionNavigation*> navigation) {
-	const auto open = [=] { navigation->showPeerHistory(peer); };
+		std::shared_ptr<ChatHelpers::Show> show,
+		const style::ShortInfoBox *stOverride) {
+	const auto open = [=] {
+		if (const auto window = show->resolveWindow()) {
+			window->showPeerHistory(peer);
+		}
+	};
 	const auto videoIsPaused = [=] {
-		return navigation->parentController()->isGifPausedAtLeastFor(
-			Window::GifPauseReason::Layer);
+		return show->paused(Window::GifPauseReason::Layer);
+	};
+	auto menuFiller = [=](Ui::Menu::MenuCallback addAction) {
+		const auto peerSeparateId = Window::SeparateId(peer);
+		const auto window = show->resolveWindow();
+		if (window && window->windowId() != peerSeparateId) {
+			addAction(tr::lng_context_new_window(tr::now), [=] {
+				Ui::PreventDelayedActivation();
+				window->showInNewWindow(peer);
+			}, &st::menuIconNewWindow);
+		}
 	};
 	return PrepareShortInfoBox(
 		peer,
 		open,
-		videoIsPaused);
+		videoIsPaused,
+		std::move(menuFiller),
+		stOverride);
+}
+
+object_ptr<Ui::BoxContent> PrepareShortInfoBox(
+		not_null<PeerData*> peer,
+		not_null<Window::SessionNavigation*> navigation,
+		const style::ShortInfoBox *stOverride) {
+	return PrepareShortInfoBox(peer, navigation->uiShow(), stOverride);
 }
 
 rpl::producer<QString> PrepareShortInfoStatus(not_null<PeerData*> peer) {
@@ -468,5 +528,39 @@ rpl::producer<QString> PrepareShortInfoStatus(not_null<PeerData*> peer) {
 PreparedShortInfoUserpic PrepareShortInfoUserpic(
 		not_null<PeerData*> peer,
 		const style::ShortInfoCover &st) {
-	return UserpicValue(peer, st);
+	auto slices = peer->isUser()
+		? UserPhotosReversedViewer(
+			&peer->session(),
+			UserPhotosSlice::Key(peerToUser(peer->asUser()->id), PhotoId()),
+			kOverviewLimit,
+			kOverviewLimit)
+		: rpl::never<UserPhotosSlice>();
+	auto process = [=](not_null<UserpicState*> state) {
+		return ProcessCurrent(peer, state);
+	};
+	return UserpicValue(peer, st, std::move(slices), std::move(process));
+}
+
+PreparedShortInfoUserpic PrepareShortInfoFallbackUserpic(
+		not_null<PeerData*> peer,
+		const style::ShortInfoCover &st) {
+	Expects(peer->isUser());
+
+	const auto photoId = SyncUserFallbackPhotoViewer(peer->asUser());
+	auto slices = photoId
+		? rpl::single<UserPhotosSlice>(UserPhotosSlice(
+			Storage::UserPhotosKey(peerToUser(peer->id), *photoId),
+			std::deque<PhotoId>({ *photoId }),
+			1,
+			1,
+			1))
+		: (rpl::never<UserPhotosSlice>() | rpl::type_erased());
+	auto process = [=](not_null<UserpicState*> state) {
+		if (photoId) {
+			ProcessFullPhoto(peer, state, peer->owner().photo(*photoId));
+			return true;
+		}
+		return false;
+	};
+	return UserpicValue(peer, st, std::move(slices), std::move(process));
 }

@@ -57,13 +57,18 @@ struct Settings {
 		PublicGroups        = 0x100,
 		PrivateChannels     = 0x200,
 		PublicChannels      = 0x400,
+		Stories             = 0x800,
 
 		GroupsMask          = PrivateGroups | PublicGroups,
 		ChannelsMask        = PrivateChannels | PublicChannels,
 		GroupsChannelsMask  = GroupsMask | ChannelsMask,
 		NonChannelChatsMask = PersonalChats | BotChats | PrivateGroups,
 		AnyChatsMask        = PersonalChats | BotChats | GroupsChannelsMask,
-		NonChatsMask        = PersonalInfo | Userpics | Contacts | Sessions,
+		NonChatsMask        = (PersonalInfo
+			| Userpics
+			| Contacts
+			| Stories
+			| Sessions),
 		AllMask             = NonChatsMask | OtherData | AnyChatsMask,
 	};
 	using Types = base::flags<Type>;
@@ -91,6 +96,7 @@ struct Settings {
 		return Type::PersonalInfo
 			| Type::Userpics
 			| Type::Contacts
+			| Type::Stories
 			| Type::PersonalChats
 			| Type::PrivateGroups;
 	}

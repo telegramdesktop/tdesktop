@@ -20,8 +20,6 @@ class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
-	bool psFilterNativeEvent(void *event);
-
 	int getCustomTitleHeight() const {
 		return _customTitleHeight;
 	}
@@ -30,7 +28,9 @@ public:
 
 	void updateWindowIcon() override;
 
-	bool preventsQuit(Core::QuitReason reason) override;
+	rpl::producer<QPoint> globalForceClicks() override {
+		return _forceClicks.events();
+	}
 
 	class Private;
 
@@ -49,8 +49,13 @@ protected:
 private:
 	friend class Private;
 
+	bool nativeEvent(
+		const QByteArray &eventType,
+		void *message,
+		qintptr *result) override;
+
 	void hideAndDeactivate();
-	void updateIconCounters();
+	void updateDockCounter();
 
 	std::unique_ptr<Private> _private;
 
@@ -58,8 +63,6 @@ private:
 	mutable QTimer psIdleTimer;
 
 	base::Timer _hideAfterFullScreenTimer;
-
-	rpl::variable<bool> _canApplyMarkdown;
 
 	QMenuBar psMainMenu;
 	QAction *psLogout = nullptr;
@@ -80,11 +83,18 @@ private:
 	QAction *psItalic = nullptr;
 	QAction *psUnderline = nullptr;
 	QAction *psStrikeOut = nullptr;
+	QAction *psBlockquote = nullptr;
 	QAction *psMonospace = nullptr;
 	QAction *psClearFormat = nullptr;
 
+	rpl::event_stream<QPoint> _forceClicks;
 	int _customTitleHeight = 0;
+	int _lastPressureStage = 0;
 
 };
+
+[[nodiscard]] inline int32 ScreenNameChecksum(const QString &name) {
+	return Window::DefaultScreenNameChecksum(name);
+}
 
 } // namespace Platform

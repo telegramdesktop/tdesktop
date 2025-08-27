@@ -24,9 +24,10 @@ constexpr auto kCommandBold = 0x010;
 constexpr auto kCommandItalic = 0x011;
 constexpr auto kCommandUnderline = 0x012;
 constexpr auto kCommandStrikeOut = 0x013;
-constexpr auto kCommandMonospace = 0x014;
-constexpr auto kCommandClear = 0x015;
-constexpr auto kCommandLink = 0x016;
+constexpr auto kCommandBlockquote = 0x014;
+constexpr auto kCommandMonospace = 0x015;
+constexpr auto kCommandClear = 0x016;
+constexpr auto kCommandLink = 0x017;
 
 const auto kPopoverFormatter = @"popoverInputFormatter";
 
@@ -43,6 +44,10 @@ void SendKeyEvent(int command) {
 		break;
 	case kCommandItalic:
 		key = Qt::Key_I;
+		break;
+	case kCommandBlockquote:
+		key = Qt::Key_Period;
+		modifier |= Qt::ShiftModifier;
 		break;
 	case kCommandMonospace:
 		key = Qt::Key_M;
@@ -103,6 +108,7 @@ void SendKeyEvent(int command) {
 			tr::lng_menu_formatting_italic,
 			tr::lng_menu_formatting_underline,
 			tr::lng_menu_formatting_strike_out,
+			tr::lng_menu_formatting_blockquote,
 			tr::lng_menu_formatting_monospace,
 			tr::lng_menu_formatting_clear,
 			tr::lng_info_link_label,

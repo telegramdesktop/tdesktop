@@ -80,7 +80,8 @@ public:
 		const VideoEndpoint &endpoint,
 		VideoTileTrack track,
 		rpl::producer<QSize> trackSize,
-		rpl::producer<bool> pinned);
+		rpl::producer<bool> pinned,
+		bool self);
 	void remove(const VideoEndpoint &endpoint);
 	void showLarge(const VideoEndpoint &endpoint);
 

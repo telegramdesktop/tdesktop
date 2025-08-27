@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_form.h"
 
 #include "main/main_session.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
@@ -16,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "countries/countries_instance.h"
 #include "history/history_item.h"
-#include "history/history_service.h" // HistoryServicePayment.
+#include "history/history_item_components.h"
 #include "stripe/stripe_api_client.h"
 #include "stripe/stripe_error.h"
 #include "stripe/stripe_token.h"
@@ -26,8 +27,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "smartglocal/smartglocal_token.h"
 #include "storage/storage_account.h"
 #include "ui/image/image.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_entity.h"
 #include "apiwrap.h"
+#include "api/api_text_entities.h"
 #include "core/core_cloud_password.h"
 #include "window/themes/window_theme.h"
 #include "webview/webview_interface.h"
@@ -112,10 +115,115 @@ constexpr auto kPasswordPeriod = 15 * TimeId(60);
 } // namespace
 
 not_null<Main::Session*> SessionFromId(const InvoiceId &id) {
-	if (const auto slug = std::get_if<InvoiceSlug>(&id.value)) {
+	if (const auto message = std::get_if<InvoiceMessage>(&id.value)) {
+		return &message->peer->session();
+	} else if (const auto slug = std::get_if<InvoiceSlug>(&id.value)) {
 		return slug->session;
+	} else if (const auto slug = std::get_if<InvoiceCredits>(&id.value)) {
+		return slug->session;
+	} else if (const auto gift = std::get_if<InvoiceStarGift>(&id.value)) {
+		return &gift->recipient->session();
 	}
-	return &v::get<InvoiceMessage>(id.value).peer->session();
+	const auto &giftCode = v::get<InvoicePremiumGiftCode>(id.value);
+	const auto users = std::get_if<InvoicePremiumGiftCodeUsers>(
+		&giftCode.purpose);
+	if (users) {
+		Assert(!users->users.empty());
+		return &users->users.front()->session();
+	}
+	const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
+		giftCode.purpose);
+	return &giveaway.boostPeer->session();
+}
+
+MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
+		const InvoicePremiumGiftCode &invoice) {
+	const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
+		invoice.purpose);
+	using Flag = MTPDinputStorePaymentPremiumGiveaway::Flag;
+	return MTP_inputStorePaymentPremiumGiveaway(
+		MTP_flags(Flag()
+			| (giveaway.onlyNewSubscribers
+				? Flag::f_only_new_subscribers
+				: Flag())
+			| (giveaway.additionalChannels.empty()
+				? Flag()
+				: Flag::f_additional_peers)
+			| (giveaway.countries.empty()
+				? Flag()
+				: Flag::f_countries_iso2)
+			| (giveaway.showWinners
+				? Flag::f_winners_are_visible
+				: Flag())
+			| (giveaway.additionalPrize.isEmpty()
+				? Flag()
+				: Flag::f_prize_description)),
+		giveaway.boostPeer->input,
+		MTP_vector_from_range(ranges::views::all(
+			giveaway.additionalChannels
+		) | ranges::views::transform([](not_null<ChannelData*> c) {
+			return MTPInputPeer(c->input);
+		})),
+		MTP_vector_from_range(ranges::views::all(
+			giveaway.countries
+		) | ranges::views::transform([](QString value) {
+			return MTP_string(value);
+		})),
+		MTP_string(giveaway.additionalPrize),
+		MTP_long(invoice.randomId),
+		MTP_int(giveaway.untilDate),
+		MTP_string(invoice.currency),
+		MTP_long(invoice.amount));
+}
+
+MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
+		const InvoicePremiumGiftCode &invoice) {
+	Expects(invoice.giveawayCredits.has_value());
+	const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
+		invoice.purpose);
+	using Flag = MTPDinputStorePaymentStarsGiveaway::Flag;
+	return MTP_inputStorePaymentStarsGiveaway(
+		MTP_flags(Flag()
+			| (giveaway.onlyNewSubscribers
+				? Flag::f_only_new_subscribers
+				: Flag())
+			| (giveaway.additionalChannels.empty()
+				? Flag()
+				: Flag::f_additional_peers)
+			| (giveaway.countries.empty()
+				? Flag()
+				: Flag::f_countries_iso2)
+			| (giveaway.showWinners
+				? Flag::f_winners_are_visible
+				: Flag())
+			| (giveaway.additionalPrize.isEmpty()
+				? Flag()
+				: Flag::f_prize_description)),
+		MTP_long(*invoice.giveawayCredits),
+		giveaway.boostPeer->input,
+		MTP_vector_from_range(ranges::views::all(
+			giveaway.additionalChannels
+		) | ranges::views::transform([](not_null<ChannelData*> c) {
+			return MTPInputPeer(c->input);
+		})),
+		MTP_vector_from_range(ranges::views::all(
+			giveaway.countries
+		) | ranges::views::transform([](QString value) {
+			return MTP_string(value);
+		})),
+		MTP_string(giveaway.additionalPrize),
+		MTP_long(invoice.randomId),
+		MTP_int(giveaway.untilDate),
+		MTP_string(invoice.currency),
+		MTP_long(invoice.amount),
+		MTP_int(invoice.users));
+}
+
+bool IsPremiumForStarsInvoice(const InvoiceId &id) {
+	const auto giftCode = std::get_if<InvoicePremiumGiftCode>(&id.value);
+	return giftCode
+		&& !giftCode->giveawayCredits
+		&& (giftCode->currency == ::Ui::kCreditsCurrency);
 }
 
 Form::Form(InvoiceId id, bool receipt)
@@ -207,11 +315,10 @@ void Form::loadThumbnail(not_null<PhotoData*> photo) {
 }
 
 Data::FileOrigin Form::thumbnailFileOrigin() const {
-	if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
-		return Data::FileOrigin();
+	if (const auto message = std::get_if<InvoiceMessage>(&_id.value)) {
+		return FullMsgId(message->peer->id, message->itemId);
 	}
-	const auto message = v::get<InvoiceMessage>(_id.value);
-	return FullMsgId(message.peer->id, message.itemId);
+	return Data::FileOrigin();
 }
 
 QImage Form::prepareGoodThumbnail(
@@ -243,27 +350,113 @@ QImage Form::prepareThumbnail(
 		Qt::KeepAspectRatio,
 		Qt::SmoothTransformation);
 	result = Images::Round(std::move(result), ImageRoundRadius::Large);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	return result;
 }
 
 QImage Form::prepareEmptyThumbnail() const {
 	auto result = QImage(
-		st::paymentsThumbnailSize * cIntRetinaFactor(),
+		st::paymentsThumbnailSize * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	return result;
 }
 
 MTPInputInvoice Form::inputInvoice() const {
-	if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
+	if (const auto message = std::get_if<InvoiceMessage>(&_id.value)) {
+		return MTP_inputInvoiceMessage(
+			message->peer->input,
+			MTP_int(message->itemId.bare));
+	} else if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
 		return MTP_inputInvoiceSlug(MTP_string(slug->slug));
+	} else if (const auto credits = std::get_if<InvoiceCredits>(&_id.value)) {
+		if (const auto userId = peerToUser(credits->giftPeerId)) {
+			if (const auto user = _session->data().user(userId)) {
+				return MTP_inputInvoiceStars(
+					MTP_inputStorePaymentStarsGift(
+						user->inputUser,
+						MTP_long(credits->credits),
+						MTP_string(credits->currency),
+						MTP_long(credits->amount)));
+			}
+		}
+		return MTP_inputInvoiceStars(
+			MTP_inputStorePaymentStarsTopup(
+				MTP_long(credits->credits),
+				MTP_string(credits->currency),
+				MTP_long(credits->amount)));
+	} else if (const auto gift = std::get_if<InvoiceStarGift>(&_id.value)) {
+		using Flag = MTPDinputInvoiceStarGift::Flag;
+		return MTP_inputInvoiceStarGift(
+			MTP_flags((gift->anonymous ? Flag::f_hide_name : Flag(0))
+				| (gift->message.empty() ? Flag(0) : Flag::f_message)
+				| (gift->upgraded ? Flag::f_include_upgrade : Flag(0))),
+			gift->recipient->input,
+			MTP_long(gift->giftId),
+			MTP_textWithEntities(
+				MTP_string(gift->message.text),
+				Api::EntitiesToMTP(
+					&gift->recipient->session(),
+					gift->message.entities,
+					Api::ConvertOption::SkipLocal)));
 	}
-	const auto message = v::get<InvoiceMessage>(_id.value);
-	return MTP_inputInvoiceMessage(
-		message.peer->input,
-		MTP_int(message.itemId.bare));
+	const auto &giftCode = v::get<InvoicePremiumGiftCode>(_id.value);
+	if (giftCode.giveawayCredits) {
+		return MTP_inputInvoiceStars(InvoiceCreditsGiveawayToTL(giftCode));
+	}
+	using Flag = MTPDpremiumGiftCodeOption::Flag;
+	const auto option = MTP_premiumGiftCodeOption(
+		MTP_flags((giftCode.storeQuantity ? Flag::f_store_quantity : Flag())
+			| (giftCode.storeProduct.isEmpty()
+				? Flag()
+				: Flag::f_store_product)),
+		MTP_int(giftCode.users),
+		MTP_int(giftCode.months),
+		MTP_string(giftCode.storeProduct),
+		MTP_int(giftCode.storeQuantity),
+		MTP_string(giftCode.currency),
+		MTP_long(giftCode.amount));
+	const auto users = std::get_if<InvoicePremiumGiftCodeUsers>(
+		&giftCode.purpose);
+	auto message = (users && !users->message.empty())
+		? MTP_textWithEntities(
+			MTP_string(users->message.text),
+			Api::EntitiesToMTP(
+				&users->users.front()->session(),
+				users->message.entities,
+				Api::ConvertOption::SkipLocal))
+		: std::optional<MTPTextWithEntities>();
+	if (users
+		&& users->users.size() == 1
+		&& giftCode.currency == ::Ui::kCreditsCurrency) {
+		using Flag = MTPDinputInvoicePremiumGiftStars::Flag;
+		return MTP_inputInvoicePremiumGiftStars(
+			MTP_flags(message ? Flag::f_message : Flag()),
+			users->users.front()->inputUser,
+			MTP_int(giftCode.months),
+			message.value_or(MTPTextWithEntities()));
+	} else if (users) {
+		using Flag = MTPDinputStorePaymentPremiumGiftCode::Flag;
+		return MTP_inputInvoicePremiumGiftCode(
+			MTP_inputStorePaymentPremiumGiftCode(
+				MTP_flags((users->boostPeer ? Flag::f_boost_peer : Flag())
+					| (message ? Flag::f_message : Flag())),
+				MTP_vector_from_range(ranges::views::all(
+					users->users
+				) | ranges::views::transform([](not_null<UserData*> user) {
+					return MTPInputUser(user->inputUser);
+				})),
+				users->boostPeer ? users->boostPeer->input : MTPInputPeer(),
+				MTP_string(giftCode.currency),
+				MTP_long(giftCode.amount),
+				message.value_or(MTPTextWithEntities())),
+			option);
+	} else {
+		return MTP_inputInvoicePremiumGiftCode(
+			InvoicePremiumGiftCodeGiveawayToTL(giftCode),
+			option);
+	}
 }
 
 void Form::requestForm() {
@@ -274,8 +467,73 @@ void Form::requestForm() {
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json))
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		hideProgress();
-		result.match([&](const auto &data) {
+		result.match([&](const MTPDpayments_paymentForm &data) {
 			processForm(data);
+		}, [&](const MTPDpayments_paymentFormStars &data) {
+			_session->data().processUsers(data.vusers());
+			const auto currency = qs(data.vinvoice().data().vcurrency());
+			const auto &tlPrices = data.vinvoice().data().vprices().v;
+			const auto amount = tlPrices.empty()
+				? 0
+				: tlPrices.front().data().vamount().v;
+			const auto subscriptionPeriod
+				= data.vinvoice().data().vsubscription_period().value_or(0);
+			if (currency != ::Ui::kCreditsCurrency || !amount) {
+				using Type = Error::Type;
+				_updates.fire(Error{ Type::Form, u"Bad Stars Form."_q });
+				return;
+			}
+			const auto invoice = InvoiceCredits{
+				.session = _session,
+				.randomId = 0,
+				.credits = amount,
+				.currency = currency,
+				.amount = amount,
+				.subscriptionPeriod = subscriptionPeriod,
+			};
+			const auto formData = CreditsFormData{
+				.id = _id,
+				.formId = data.vform_id().v,
+				.botId = data.vbot_id().v,
+				.title = qs(data.vtitle()),
+				.description = qs(data.vdescription()),
+				.photo = data.vphoto()
+					? _session->data().photoFromWeb(
+						*data.vphoto(),
+						ImageLocation())
+					: nullptr,
+				.invoice = invoice,
+				.inputInvoice = inputInvoice(),
+			};
+			_updates.fire(CreditsPaymentStarted{ .data = formData });
+		}, [&](const MTPDpayments_paymentFormStarGift &data) {
+			const auto currency = qs(data.vinvoice().data().vcurrency());
+			const auto &tlPrices = data.vinvoice().data().vprices().v;
+			const auto amount = tlPrices.empty()
+				? 0
+				: tlPrices.front().data().vamount().v;
+			if (currency != ::Ui::kCreditsCurrency || !amount) {
+				using Type = Error::Type;
+				_updates.fire(Error{ Type::Form, u"Bad Stars Form."_q });
+				return;
+			}
+			const auto invoice = InvoiceCredits{
+				.session = _session,
+				.randomId = 0,
+				.credits = amount,
+				.currency = currency,
+				.amount = amount,
+			};
+			const auto gift = std::get_if<InvoiceStarGift>(&_id.value);
+			const auto formData = CreditsFormData{
+				.id = _id,
+				.formId = data.vform_id().v,
+				.invoice = invoice,
+				.inputInvoice = inputInvoice(),
+				.starGiftLimitedCount = gift ? gift->limitedCount : 0,
+				.starGiftForm = true,
+			};
+			_updates.fire(CreditsPaymentStarted{ .data = formData });
 		});
 	}).fail([=](const MTP::Error &error) {
 		hideProgress();
@@ -360,6 +618,25 @@ void Form::processReceipt(const MTPDpayments_paymentReceipt &data) {
 	_updates.fire(FormReady{});
 }
 
+void Form::processReceipt(const MTPDpayments_paymentReceiptStars &data) {
+	_session->data().processUsers(data.vusers());
+
+	const auto receiptData = CreditsReceiptData{
+		.id = qs(data.vtransaction_id()),
+		.title = qs(data.vtitle()),
+		.description = qs(data.vdescription()),
+		.photo = data.vphoto()
+			? _session->data().photoFromWeb(
+				*data.vphoto(),
+				ImageLocation())
+			: nullptr,
+		.peerId = peerFromUser(data.vbot_id().v),
+		.credits = CreditsAmount(data.vtotal_amount().v),
+		.date = data.vdate().v,
+	};
+	_updates.fire(CreditsReceiptReady{ .data = receiptData });
+}
+
 void Form::processInvoice(const MTPDinvoice &data) {
 	const auto suggested = data.vsuggested_tip_amounts().value_or_empty();
 	_invoice = Ui::Invoice{
@@ -384,8 +661,7 @@ void Form::processInvoice(const MTPDinvoice &data) {
 		.isFlexible = data.is_flexible(),
 		.isTest = data.is_test(),
 
-		.recurringTermsUrl = qs(
-			data.vrecurring_terms_url().value_or_empty()),
+		.termsUrl = qs(data.vterms_url().value_or_empty()),
 
 		.phoneSentToProvider = data.is_phone_to_provider(),
 		.emailSentToProvider = data.is_email_to_provider(),
@@ -441,6 +717,37 @@ void Form::processDetails(const MTPDpayments_paymentReceipt &data) {
 	_details = FormDetails{
 		.botId = data.vbot_id().v,
 		.providerId = data.vprovider_id().v,
+	};
+	if (_invoice.cover.title.isEmpty()
+		&& _invoice.cover.description.empty()
+		&& _invoice.cover.thumbnail.isNull()
+		&& !_thumbnailLoadProcess) {
+		_invoice.cover = Ui::Cover{
+			.title = qs(data.vtitle()),
+			.description = { qs(data.vdescription()) },
+		};
+		if (const auto web = data.vphoto()) {
+			if (const auto photo = _session->data().photoFromWeb(*web, {})) {
+				loadThumbnail(photo);
+			}
+		}
+	}
+	if (_details.botId) {
+		if (const auto bot = _session->data().userLoaded(_details.botId)) {
+			_invoice.cover.seller = bot->name();
+		}
+	}
+}
+
+void Form::processDetails(const MTPDpayments_paymentReceiptStars &data) {
+	_invoice.receipt = Ui::Receipt{
+		.date = data.vdate().v,
+		.totalAmount = ParsePriceAmount(data.vtotal_amount().v),
+		.currency = qs(data.vcurrency()),
+		.paid = true,
+	};
+	_details = FormDetails{
+		.botId = data.vbot_id().v,
 	};
 	if (_invoice.cover.title.isEmpty()
 		&& _invoice.cover.description.empty()
@@ -591,6 +898,7 @@ void Form::fillSmartGlocalNativeMethod(QJsonObject object) {
 	_paymentMethod.native = NativePaymentMethod{
 		.data = SmartGlocalPaymentMethod{
 			.publicToken = key,
+			.tokenizeUrl = value(u"tokenize_url").toString(),
 		},
 	};
 	_paymentMethod.ui.native = Ui::NativeMethodDetails{
@@ -615,7 +923,7 @@ void Form::submit() {
 	if (index < list.size() && password.isEmpty()) {
 		_updates.fire(TmpPasswordRequired{});
 		return;
-	} else if (!_session->local().isBotTrustedPayment(_details.botId)) {
+	} else if (!_session->local().isPeerTrustedPayment(_details.botId)) {
 		_updates.fire(BotTrustRequired{
 			.bot = _session->data().user(_details.botId),
 			.provider = _session->data().user(_details.providerId),
@@ -680,6 +988,13 @@ void Form::submit(const Core::CloudPasswordResult &result) {
 		_passwordRequestId = 0;
 		_updates.fire(Error{ Error::Type::TmpPassword, error.type() });
 	}).send();
+}
+
+std::optional<QDate> Form::overrideExpireDateThreshold() const {
+	const auto phone = _session->user()->phone();
+	return phone.startsWith('7')
+		? QDate(2022, 2, 1)
+		: std::optional<QDate>();
 }
 
 void Form::validateInformation(const Ui::RequestedInformation &information) {
@@ -795,7 +1110,7 @@ void Form::validateCard(
 		bool saveInformation) {
 	Expects(!v::is_null(_paymentMethod.native.data));
 
-	if (!validateCardLocal(details)) {
+	if (!validateCardLocal(details, overrideExpireDateThreshold())) {
 		return;
 	}
 	const auto &native = _paymentMethod.native.data;
@@ -809,15 +1124,19 @@ void Form::validateCard(
 	}
 }
 
-bool Form::validateCardLocal(const Ui::UncheckedCardDetails &details) const {
-	if (auto error = cardErrorLocal(details)) {
+bool Form::validateCardLocal(
+		const Ui::UncheckedCardDetails &details,
+		const std::optional<QDate> &overrideExpireDateThreshold) const {
+	if (auto error = cardErrorLocal(details, overrideExpireDateThreshold)) {
 		_updates.fire(std::move(error));
 		return false;
 	}
 	return true;
 }
 
-Error Form::cardErrorLocal(const Ui::UncheckedCardDetails &details) const {
+Error Form::cardErrorLocal(
+		const Ui::UncheckedCardDetails &details,
+		const std::optional<QDate> &overrideExpireDateThreshold) const {
 	using namespace Stripe;
 
 	auto errors = QStringList();
@@ -830,7 +1149,8 @@ Error Form::cardErrorLocal(const Ui::UncheckedCardDetails &details) const {
 	}
 	if (ValidateParsedExpireDate(
 		details.expireMonth,
-		details.expireYear
+		details.expireYear,
+		overrideExpireDateThreshold
 	) != kValid) {
 		push(u"LOCAL_CARD_EXPIRE_DATE_INVALID"_q);
 	}
@@ -888,8 +1208,7 @@ void Form::validateCard(
 		if (error) {
 			LOG(("Stripe Error %1: %2 (%3)"
 				).arg(int(error.code())
-				).arg(error.description()
-				).arg(error.message()));
+				).arg(error.description(), error.message()));
 			_updates.fire(Error{ Error::Type::Stripe, error.description() });
 		} else {
 			setPaymentCredentials({
@@ -915,6 +1234,7 @@ void Form::validateCard(
 	}
 	auto configuration = SmartGlocal::PaymentConfiguration{
 		.publicToken = method.publicToken,
+		.tokenizeUrl = method.tokenizeUrl,
 		.isTest = _invoice.isTest,
 	};
 	_smartglocal = std::make_unique<SmartGlocal::APIClient>(
@@ -938,8 +1258,7 @@ void Form::validateCard(
 		if (error) {
 			LOG(("SmartGlocal Error %1: %2 (%3)"
 				).arg(int(error.code())
-				).arg(error.description()
-				).arg(error.message()));
+				).arg(error.description(), error.message()));
 			_updates.fire(Error{
 				Error::Type::SmartGlocal,
 				error.description(),
@@ -1007,7 +1326,7 @@ void Form::acceptTerms() {
 }
 
 void Form::trustBot() {
-	_session->local().markBotTrustedPayment(_details.botId);
+	_session->local().markPeerTrustedPayment(_details.botId);
 }
 
 void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {

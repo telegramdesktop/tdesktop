@@ -7,18 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 
+#include "apiwrap.h"
 #include "api/api_cloud_password.h"
 #include "base/unixtime.h"
 #include "core/core_cloud_password.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/cloud_password/settings_cloud_password_email.h"
 #include "settings/cloud_password/settings_cloud_password_hint.h"
 #include "settings/cloud_password/settings_cloud_password_input.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
+#include "settings/cloud_password/settings_cloud_password_step.h"
+#include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/sent_code_field.h"
 #include "ui/wrap/padding_wrap.h"
@@ -26,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 /*
@@ -54,6 +61,10 @@ public:
 	using TypedAbstractStep::TypedAbstractStep;
 
 	[[nodiscard]] rpl::producer<QString> title() override;
+
+	void fillTopBarMenu(
+		const Ui::Menu::MenuCallback &addAction) override;
+
 	void setupContent();
 
 protected:
@@ -66,6 +77,20 @@ private:
 
 rpl::producer<QString> EmailConfirm::title() {
 	return tr::lng_settings_cloud_password_email_title();
+}
+
+void EmailConfirm::fillTopBarMenu(
+		const Ui::Menu::MenuCallback &addAction) {
+	const auto api = &controller()->session().api();
+	if (const auto state = api->cloudPassword().stateCurrent()) {
+		if (state->unconfirmedPattern.isEmpty()) {
+			return;
+		}
+	}
+	addAction(
+		tr::lng_settings_password_abort(tr::now),
+		[=] { api->cloudPassword().clearUnconfirmedPassword(); },
+		&st::menuIconCancel);
 }
 
 rpl::producer<std::vector<Type>> EmailConfirm::removeTypes() {
@@ -115,30 +140,30 @@ void EmailConfirm::setupContent() {
 		state->unconfirmedPattern.isEmpty()
 			? tr::lng_settings_cloud_password_email_recovery_subtitle()
 			: tr::lng_cloud_password_confirm(),
-		rpl::single(
-			tr::lng_cloud_password_waiting_code(
-				tr::now,
-				lt_email,
-				state->unconfirmedPattern.isEmpty()
-					? recoverEmailPattern
-					: state->unconfirmedPattern)));
+		tr::lng_cloud_password_waiting_code(
+			lt_email,
+			rpl::single(
+				Ui::Text::WrapEmailPattern(
+					state->unconfirmedPattern.isEmpty()
+						? recoverEmailPattern
+						: state->unconfirmedPattern)),
+			TextWithEntities::Simple));
 
-	AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
+	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
 	auto objectInput = object_ptr<Ui::SentCodeField>(
 		content,
 		st::settingLocalPasscodeInputField,
 		tr::lng_change_phone_code_title());
-	const auto newInput = objectInput.data();
-	const auto wrap = content->add(
-		object_ptr<Ui::CenterWrap<Ui::InputField>>(
-			content,
-			std::move(objectInput)));
+	const auto newInput = content->add(
+		std::move(objectInput),
+		style::al_top);
 
 	const auto error = AddError(content, nullptr);
-	QObject::connect(newInput, &Ui::InputField::changed, [=] {
+	newInput->changes(
+	) | rpl::start_with_next([=] {
 		error->hide();
-	});
+	}, newInput->lifetime());
 	AddSkipInsteadOfField(content);
 
 	const auto resendInfo = Ui::CreateChild<Ui::FlatLabel>(
@@ -157,7 +182,9 @@ void EmailConfirm::setupContent() {
 		}
 	}, resendInfo->lifetime());
 
-	const auto resend = AddLinkButton(wrap, tr::lng_cloud_password_resend());
+	const auto resend = AddLinkButton(
+		newInput,
+		tr::lng_cloud_password_resend());
 	resend->setClickedCallback([=] {
 		if (_requestLifetime) {
 			return;
@@ -326,7 +353,7 @@ void EmailConfirm::setupContent() {
 
 	const auto submit = [=] { button->clicked({}, Qt::LeftButton); };
 	newInput->setAutoSubmit(currentStepDataCodeLength, submit);
-	QObject::connect(newInput, &Ui::InputField::submitted, submit);
+	newInput->submits() | rpl::start_with_next(submit, newInput->lifetime());
 
 	setFocusCallback([=] { newInput->setFocus(); });
 

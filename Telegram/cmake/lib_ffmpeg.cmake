@@ -12,6 +12,7 @@ nice_target_sources(lib_ffmpeg ${src_loc}
 PRIVATE
     ffmpeg/ffmpeg_frame_generator.cpp
     ffmpeg/ffmpeg_frame_generator.h
+    ffmpeg/ffmpeg_bytes_io_wrap.h
     ffmpeg/ffmpeg_utility.cpp
     ffmpeg/ffmpeg_utility.h
 )

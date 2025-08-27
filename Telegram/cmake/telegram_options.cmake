@@ -36,14 +36,16 @@ if (TDESKTOP_API_ID STREQUAL "0" OR TDESKTOP_API_HASH STREQUAL "")
     " ")
 endif()
 
-if (DESKTOP_APP_DISABLE_SPELLCHECK)
-    target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_SPELLCHECK)
-else()
-    target_link_libraries(Telegram PRIVATE desktop-app::lib_spellcheck)
-endif()
-
 if (DESKTOP_APP_DISABLE_AUTOUPDATE)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_AUTOUPDATE)
+endif()
+
+if (DESKTOP_APP_DISABLE_CRASH_REPORTS)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_CRASH_REPORTS)
+endif()
+
+if (DESKTOP_APP_USE_PACKAGED)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_USE_PACKAGED)
 endif()
 
 if (DESKTOP_APP_SPECIAL_TARGET)

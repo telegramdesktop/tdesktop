@@ -21,12 +21,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/ui_utility.h"
 #include "base/random.h"
 #include "base/weak_ptr.h"
 #include "api/api_chat_participants.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
-#include "facades.h"
 #include "styles/style_boxes.h"
 
 namespace {
@@ -111,6 +111,9 @@ void AddBotToGroupBoxController::Start(
 		Scope scope,
 		const QString &token,
 		ChatAdminRights requestedRights) {
+	if (controller->showFrozenError()) {
+		return;
+	}
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_cancel(), [box] { box->closeBox(); });
 	};
@@ -170,11 +173,15 @@ void AddBotToGroupBoxController::requestExistingRights(
 				channel);
 			_existingRights = participant.rights().flags;
 			_existingRank = participant.rank();
+			_promotedSince = participant.promotedSince();
+			_promotedBy = participant.by();
 			addBotToGroup(_existingRightsChannel);
 		});
 	}).fail([=] {
 		_existingRights = ChatAdminRights();
 		_existingRank = QString();
+		_promotedSince = 0;
+		_promotedBy = 0;
 		addBotToGroup(_existingRightsChannel);
 	}).send();
 }
@@ -183,8 +190,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 	if (const auto megagroup = chat->asMegagroup()) {
 		if (!megagroup->canAddMembers()) {
 			_controller->show(
-				Ui::MakeInformBox(tr::lng_error_cant_add_member()),
-				Ui::LayerOption::KeepOther);
+				Ui::MakeInformBox(tr::lng_error_cant_add_member()));
 			return;
 		}
 	}
@@ -192,6 +198,8 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		_existingRights = {};
 		_existingRank = QString();
 		_existingRightsChannel = nullptr;
+		_promotedSince = 0;
+		_promotedBy = 0;
 		_bot->session().api().request(_existingRightsRequestId).cancel();
 	}
 	const auto requestedAddAdmin = (_scope == Scope::GroupAdmin)
@@ -219,6 +227,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		? bot->botInfo->groupAdminRights
 		: ChatAdminRights();
 	const auto addingAdmin = requestedAddAdmin || (rights != 0);
+	const auto show = controller->uiShow();
 	if (addingAdmin) {
 		const auto scope = _scope;
 		const auto token = _token;
@@ -226,11 +235,12 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 				ChatAdminRightsInfo newRights,
 				const QString &rank) {
 			if (scope == Scope::GroupAdmin) {
-				chat->session().api().sendBotStart(bot, chat, token);
+				chat->session().api().sendBotStart(show, bot, chat, token);
 			}
 			close();
 		};
 		const auto saveCallback = SaveAdminCallback(
+			show,
 			chat,
 			bot,
 			done,
@@ -240,22 +250,23 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 			bot,
 			ChatAdminRightsInfo(rights),
 			_existingRank,
+			_promotedSince,
+			_promotedBy ? chat->owner().user(_promotedBy).get() : nullptr,
 			EditAdminBotFields{
 				_token,
-				_existingRights.value_or(ChatAdminRights()) });
+				_existingRights.value_or(ChatAdminRights()),
+			});
 		box->setSaveCallback(saveCallback);
-		controller->show(std::move(box), Ui::LayerOption::KeepOther);
+		controller->show(std::move(box));
 	} else {
 		auto callback = crl::guard(this, [=] {
-			AddBotToGroup(bot, chat, _token);
+			AddBotToGroup(show, bot, chat, _token);
 			controller->hideLayer();
 		});
-		controller->show(
-			Ui::MakeConfirmBox({
-				tr::lng_bot_sure_invite(tr::now, lt_group, chat->name()),
-				std::move(callback),
-			}),
-			Ui::LayerOption::KeepOther);
+		controller->show(Ui::MakeConfirmBox({
+			tr::lng_bot_sure_invite(tr::now, lt_group, chat->name()),
+			std::move(callback),
+		}));
 	}
 }
 
@@ -398,13 +409,16 @@ void AddBotToGroupBoxController::prepareViewHook() {
 }
 
 void AddBotToGroup(
+		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> bot,
 		not_null<PeerData*> chat,
 		const QString &startToken) {
 	if (!startToken.isEmpty()) {
-		chat->session().api().sendBotStart(bot, chat, startToken);
+		chat->session().api().sendBotStart(show, bot, chat, startToken);
 	} else {
-		chat->session().api().chatParticipants().add(chat, { 1, bot });
+		chat->session().api().chatParticipants().add(show, chat, { 1, bot });
 	}
-	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+	if (const auto window = chat->session().tryResolveWindow()) {
+		window->showPeerHistory(chat);
+	}
 }

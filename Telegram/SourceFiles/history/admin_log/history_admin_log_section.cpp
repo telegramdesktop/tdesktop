@@ -11,11 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_filter.h"
 #include "profile/profile_back_button.h"
 #include "core/shortcuts.h"
+#include "ui/chat/chat_style.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/ui_utility.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -28,14 +30,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"
 
 namespace AdminLog {
 
-class FixedBar final : public TWidget {
+class FixedBar final : public Ui::RpWidget {
 public:
 	FixedBar(
 		QWidget *parent,
@@ -107,7 +109,8 @@ object_ptr<Window::SectionWidget> SectionMemento::createWidget(
 FixedBar::FixedBar(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
-	not_null<ChannelData*> channel) : TWidget(parent)
+	not_null<ChannelData*> channel)
+: RpWidget(parent)
 , _controller(controller)
 , _channel(channel)
 , _field(this, st::defaultMultiSelectSearchField, tr::lng_dlg_filter())
@@ -125,16 +128,23 @@ FixedBar::FixedBar(
 	_cancel->setClickedCallback([=] { cancelSearch(); });
 	_field->hide();
 	_filter->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	connect(_field, &Ui::InputField::cancelled, [=] { cancelSearch(); });
-	connect(_field, &Ui::InputField::changed, [=] { searchUpdated(); });
-	connect(_field, &Ui::InputField::submitted, [=] { applySearch(); });
+	_field->cancelled(
+	) | rpl::start_with_next([=] {
+		cancelSearch();
+	}, _field->lifetime());
+	_field->changes(
+	) | rpl::start_with_next([=] {
+		searchUpdated();
+	}, _field->lifetime());
+	_field->submits(
+	) | rpl::start_with_next([=] { applySearch(); }, _field->lifetime());
 	_searchTimer.setCallback([=] { applySearch(); });
 
 	_cancel->hide(anim::type::instant);
 }
 
 void FixedBar::applyFilter(const FilterValue &value) {
-	auto hasFilter = (value.flags != 0) || !value.allUsers;
+	auto hasFilter = value.flags || value.admins;
 	_backButton->setText(hasFilter
 		? tr::lng_admin_log_title_selected(tr::now)
 		: tr::lng_admin_log_title_all(tr::now));
@@ -267,7 +277,7 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
 		goBack();
 	} else {
-		TWidget::mousePressEvent(e);
+		RpWidget::mousePressEvent(e);
 	}
 }
 
@@ -334,6 +344,7 @@ Widget::Widget(
 	});
 
 	setupShortcuts();
+	setupSwipeReply();
 }
 
 void Widget::showFilter() {
@@ -398,7 +409,7 @@ void Widget::setupShortcuts() {
 	) | rpl::filter([=] {
 		return Ui::AppInFocus()
 			&& Ui::InFocusChain(this)
-			&& !Ui::isLayerShown()
+			&& !controller()->isLayerShown()
 			&& isActiveWindow();
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
@@ -407,6 +418,44 @@ void Widget::setupShortcuts() {
 			return true;
 		});
 	}, lifetime());
+}
+
+void Widget::setupSwipeReply() {
+	auto update = [=](Ui::Controls::SwipeContextData data) {
+		if (data.translation > 0) {
+			if (!_swipeBackData.callback) {
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
+					this,
+					[=]() -> std::pair<QColor, QColor> {
+						auto context = _inner->preparePaintContext({});
+						return {
+							context.st->msgServiceBg()->c,
+							context.st->msgServiceFg()->c,
+						};
+					});
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
+	};
+
+	auto init = [=](int, Qt::LayoutDirection direction) {
+		if (direction == Qt::RightToLeft) {
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+				controller()->showBackFromStack();
+			});
+		}
+		return Ui::Controls::SwipeHandlerFinishData();
+	};
+
+	Ui::Controls::SetupSwipeHandler({
+		.widget = _inner.data(),
+		.scroll = _scroll.data(),
+		.update = std::move(update),
+		.init = std::move(init),
+	});
 }
 
 std::shared_ptr<Window::SectionMemento> Widget::createMemento() {
@@ -462,7 +511,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	if (animatingShow()) {
 		SectionWidget::paintEvent(e);
 		return;
-	} else if (Ui::skipPaintEvent(this, e)) {
+	} else if (controller()->contentOverlapped(this, e)) {
 		return;
 	}
 	//if (hasPendingResizedItems()) {

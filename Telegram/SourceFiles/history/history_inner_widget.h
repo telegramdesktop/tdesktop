@@ -8,30 +8,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_report.h"
 #include "ui/rp_widget.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/animations.h"
 #include "ui/dragging_scroll_manager.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/userpic_view.h"
 #include "history/view/history_view_top_bar_widget.h"
+
+#include <QtGui/QPainterPath>
 
 struct ClickContext;
 struct ClickHandlerContext;
 
 namespace Data {
 struct Group;
-class CloudImageView;
 } // namespace Data
 
 namespace HistoryView {
 class ElementDelegate;
 class EmojiInteractions;
 struct TextState;
+struct SelectionModeResult;
 struct StateRequest;
 enum class CursorState : char;
 enum class PointState : char;
+enum class ElementChatMode : char;
 class EmptyPainter;
 class Element;
+class TranslateTracker;
+struct PinnedId;
+struct SelectedQuote;
+class AboutView;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
@@ -48,9 +58,9 @@ namespace Ui {
 class ChatTheme;
 class ChatStyle;
 class PopupMenu;
-enum class ReportReason;
 struct ChatPaintContext;
 class PathShiftGradient;
+struct PeerUserpicView;
 } // namespace Ui
 
 namespace Dialogs::Ui {
@@ -99,8 +109,12 @@ public:
 
 	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
 
-	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
-	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
+	void messagesReceived(
+		not_null<PeerData*> peer,
+		const QVector<MTPMessage> &messages);
+	void messagesReceivedDown(
+		not_null<PeerData*> peer,
+		const QVector<MTPMessage> &messages);
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
 
@@ -109,8 +123,9 @@ public:
 	void setItemsRevealHeight(int revealHeight);
 	void changeItemsRevealHeight(int revealHeight);
 	void checkActivation();
-	void recountHistoryGeometry();
+	void recountHistoryGeometry(bool initial = false);
 	void updateSize();
+	void setShownPinned(HistoryItem *item);
 
 	void repaintItem(const HistoryItem *item);
 	void repaintItem(const Element *view);
@@ -123,14 +138,12 @@ public:
 	void clearSelected(bool onlyTextSelection = false);
 	[[nodiscard]] MessageIdsList getSelectedItems() const;
 	[[nodiscard]] bool hasSelectedItems() const;
-	[[nodiscard]] bool inSelectionMode() const;
+	[[nodiscard]] HistoryView::SelectionModeResult inSelectionMode() const;
 	[[nodiscard]] bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
 		int till) const;
 	void elementStartStickerLoop(not_null<const Element*> view);
-	[[nodiscard]] float64 elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const;
 	void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context);
@@ -149,16 +162,23 @@ public:
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context);
+	void elementSearchInList(
+		const QString &query,
+		const FullMsgId &context);
 	void elementHandleViaClick(not_null<UserData*> bot);
-	bool elementIsChatWide();
+	HistoryView::ElementChatMode elementChatMode();
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient();
-	void elementReplyTo(const FullMsgId &to);
+	void elementReplyTo(const FullReplyTo &to);
 	void elementStartInteraction(not_null<const Element*> view);
 	void elementStartPremium(
 		not_null<const Element*> view,
 		Element *replacing);
 	void elementCancelPremium(not_null<const Element*> view);
+	void elementStartEffect(
+		not_null<const Element*> view,
+		Element *replacing);
 
+	void startEffectOnRead(not_null<HistoryItem*> item);
 	void updateBotInfo(bool recount = true);
 
 	bool wasSelectedText() const;
@@ -172,20 +192,20 @@ public:
 	int historyTop() const;
 	int historyDrawTop() const;
 
-	void setChooseReportReason(Ui::ReportReason reason);
+	void setChooseReportReason(Data::ReportInput reportInput);
 	void clearChooseReportReason();
-
-	void setCanHaveFromUserpicsSponsored(bool value);
+	void toggleRemoveFromUserpics(bool remove);
 
 	// -1 if should not be visible, -2 if bad history()
-	int itemTop(const HistoryItem *item) const;
-	int itemTop(const Element *view) const;
+	[[nodiscard]] int itemTop(const HistoryItem *item) const;
+	[[nodiscard]] int itemTop(const Element *view) const;
+	[[nodiscard]] Element *viewByItem(const HistoryItem *item) const;
 
 	// Returns (view, offset-from-top).
 	[[nodiscard]] std::pair<Element*, int> findViewForPinnedTracking(
 		int top) const;
 
-	void notifyIsBotChanged();
+	void refreshAboutView(bool force = false);
 	void notifyMigrateUpdated();
 
 	// Ui::AbstractTooltipShower interface.
@@ -194,6 +214,7 @@ public:
 	bool tooltipWindowActive() const override;
 
 	void onParentGeometryChanged();
+	bool consumeScrollAction(QPoint delta);
 
 	[[nodiscard]] Fn<HistoryView::ElementDelegate*()> elementDelegateFactory(
 		FullMsgId itemId) const;
@@ -202,6 +223,9 @@ public:
 	[[nodiscard]] ClickContext prepareClickContext(
 		Qt::MouseButton button,
 		FullMsgId itemId) const;
+
+	[[nodiscard]] auto sendIntroSticker() const
+		-> rpl::producer<not_null<DocumentData*>>;
 
 	[[nodiscard]] static auto DelegateMixin()
 	-> std::unique_ptr<HistoryMainElementDelegateMixin>;
@@ -226,10 +250,14 @@ private:
 	void onTouchSelect();
 	void onTouchScrollTimer();
 
-	class BotAbout;
+	[[nodiscard]] static int SelectionViewOffset(
+		not_null<const HistoryInner*> inner,
+		not_null<const Element*> view);
+
 	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 	using VideoUserpic = Dialogs::Ui::VideoUserpic;
-	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
+	using SelectedItems
+		= base::flat_map<HistoryItem*, TextSelection, std::less<>>;
 	enum class MouseAction {
 		None,
 		PrepareDrag,
@@ -255,7 +283,7 @@ private:
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
 	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int itembottom)" signature
-	// if it returns false the enumeration stops immidiately.
+	// if it returns false the enumeration stops immediately.
 	template <bool TopToBottom, typename Method>
 	void enumerateItemsInHistory(History *history, int historytop, Method method);
 
@@ -275,7 +303,7 @@ private:
 	// for each found userpic (from the top to the bottom) using enumerateItems() method.
 	//
 	// Method has "bool (*Method)(not_null<Element*> view, int userpicTop)" signature
-	// if it returns false the enumeration stops immidiately.
+	// if it returns false the enumeration stops immediately.
 	template <typename Method>
 	void enumerateUserpics(Method method);
 
@@ -283,9 +311,17 @@ private:
 	// for each found date element (from the bottom to the top) using enumerateItems() method.
 	//
 	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int dateTop)" signature
-	// if it returns false the enumeration stops immidiately.
+	// if it returns false the enumeration stops immediately.
 	template <typename Method>
 	void enumerateDates(Method method);
+
+	// This function finds all forum thread bar elements that are displayed and calls template method
+	// for each found date element (from the bottom to the top) using enumerateItems() method.
+	//
+	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int dateTop)" signature
+	// if it returns false the enumeration stops immediately.
+	template <typename Method>
+	void enumerateForumThreadBars(Method method);
 
 	void scrollDateCheck();
 	void scrollDateHideByTimer();
@@ -306,6 +342,8 @@ private:
 
 	QPoint mapPointToItem(QPoint p, const Element *view) const;
 	QPoint mapPointToItem(QPoint p, const HistoryItem *item) const;
+	[[nodiscard]] HistoryView::SelectedQuote selectedQuote(
+		not_null<HistoryItem*> item) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 	void cancelContextDownload(not_null<DocumentData*> document);
@@ -392,6 +430,7 @@ private:
 	void blockSenderItem(FullMsgId itemId);
 	void blockSenderAsGroup(FullMsgId itemId);
 	void copySelectedText();
+	void editCaptionUploadLayer(not_null<HistoryItem*> item);
 
 	[[nodiscard]] auto reactionButtonParameters(
 		not_null<const Element*> view,
@@ -402,6 +441,7 @@ private:
 	void reactionChosen(const ChosenReaction &reaction);
 
 	void setupSharingDisallowed();
+	void setupSwipeReplyAndBack();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
 	[[nodiscard]] bool hasCopyMediaRestriction(
 		not_null<HistoryItem*> item) const;
@@ -430,6 +470,8 @@ private:
 	int _contentWidth = 0;
 	int _historyPaddingTop = 0;
 	int _revealHeight = 0;
+	int _forumThreadBarWidth = 0;
+	Ui::PeerUserpicView _forumThreadBarUserpicView;
 
 	// Save visible area coords for painting / pressing userpics.
 	int _visibleAreaTop = 0;
@@ -439,8 +481,10 @@ private:
 	// the first _history message date (just skip it by height).
 	int _historySkipHeight = 0;
 
-	std::unique_ptr<BotAbout> _botAbout;
+	std::unique_ptr<HistoryView::AboutView> _aboutView;
 	std::unique_ptr<HistoryView::EmptyPainter> _emptyPainter;
+	std::unique_ptr<HistoryView::TranslateTracker> _translateTracker;
+	rpl::event_stream<not_null<DocumentData*>> _sendIntroSticker;
 
 	mutable History *_curHistory = nullptr;
 	mutable int _curBlock = 0;
@@ -448,24 +492,24 @@ private:
 
 	style::cursor _cursor = style::cur_default;
 	SelectedItems _selected;
-	std::optional<Ui::ReportReason> _chooseForReportReason;
+	std::optional<Data::ReportInput> _chooseForReportReason;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+	QPainterPath _highlightPathCache;
 	bool _isChatWide = false;
+	bool _removeFromUserpics = false;
 
 	base::flat_set<not_null<const HistoryItem*>> _animatedStickersPlayed;
-	base::flat_map<
-		not_null<PeerData*>,
-		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
-	base::flat_map<
-		MsgId,
-		std::shared_ptr<Data::CloudImageView>> _sponsoredUserpics;
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpics;
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpicsCache;
+	base::flat_map<MsgId, Ui::PeerUserpicView> _hiddenSenderUserpics;
 	base::flat_map<
 		not_null<PeerData*>,
 		std::unique_ptr<VideoUserpic>> _videoUserpics;
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
 	rpl::variable<HistoryItem*> _reactionsItem;
+	HistoryItem *_pinnedItem = nullptr;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
@@ -475,10 +519,13 @@ private:
 	HistoryItem *_dragStateItem = nullptr;
 	CursorState _mouseCursorState = CursorState();
 	uint16 _mouseTextSymbol = 0;
+	bool _mouseActive = false;
+	bool _dragStateUserpic = false;
 	bool _pressWasInactive = false;
 	bool _recountedAfterPendingResizedItems = false;
 	bool _useCornerReaction = false;
-	bool _canHaveFromUserpicsSponsored = false;
+	bool _acceptsHorizontalScroll = false;
+	bool _horizontalScrollLocked = false;
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;
@@ -488,11 +535,15 @@ private:
 	bool _dragSelecting = false;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
+	mutable bool _lastInSelectionMode = false;
+	mutable Ui::Animations::Simple _inSelectionModeAnimation;
+
 	// scroll by touch support (at least Windows Surface tablets)
 	bool _touchScroll = false;
 	bool _touchSelect = false;
 	bool _touchInProgress = false;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
+	rpl::variable<bool> _touchMaybeSelecting;
 	base::Timer _touchSelectTimer;
 
 	Ui::DraggingScrollManager _selectScroll;
@@ -508,6 +559,9 @@ private:
 	crl::time _touchTime = 0;
 	base::Timer _touchScrollTimer;
 
+	Ui::Controls::SwipeContextData _gestureHorizontal;
+	Ui::Controls::SwipeBackResult _swipeBackData;
+
 	// _menu must be destroyed before _whoReactedMenuLifetime.
 	rpl::lifetime _whoReactedMenuLifetime;
 	base::unique_qptr<Ui::PopupMenu> _menu;
@@ -519,5 +573,8 @@ private:
 	Element *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 	ClickHandlerPtr _scrollDateLink;
+	ClickHandlerPtr _forumThreadBarLink;
 
 };
+
+[[nodiscard]] bool CanSendReply(not_null<const HistoryItem*> item);

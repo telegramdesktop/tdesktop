@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -107,6 +108,9 @@ CustomEmoji::CustomEmoji(
 }
 
 void CustomEmoji::customEmojiResolveDone(not_null<DocumentData*> document) {
+	if (!document->sticker()) {
+		return;
+	}
 	_resolving = false;
 	const auto id = document->id;
 	for (auto &line : _lines) {
@@ -127,7 +131,9 @@ std::unique_ptr<Sticker> CustomEmoji::createStickerPart(
 		_parent,
 		document,
 		skipPremiumEffect);
-	result->setCustomEmojiPart(_singleSize, _cachingTag);
+	result->initSize(_singleSize);
+	result->setCustomCachingTag(_cachingTag);
+	result->setCustomEmojiPart();
 	return result;
 }
 
@@ -262,7 +268,9 @@ void CustomEmoji::paintCustom(
 		_hasHeavyPart = true;
 		_parent->history()->owner().registerHeavyViewPart(_parent);
 	}
-	const auto preview = context.imageStyle()->msgServiceBg->c;
+	//const auto preview = context.imageStyle()->msgServiceBg->c;
+	auto &textst = context.st->messageStyle(false, false);
+	const auto paused = context.paused || On(PowerSaving::kEmojiChat);
 	if (context.selected()) {
 		const auto factor = style::DevicePixelRatio();
 		const auto size = QSize(_singleSize, _singleSize) * factor;
@@ -275,9 +283,9 @@ void CustomEmoji::paintCustom(
 		_selectedFrame.fill(Qt::transparent);
 		auto q = QPainter(&_selectedFrame);
 		emoji->paint(q, {
-			.preview = preview,
+			.textColor = textst.historyTextFg->c,
 			.now = context.now,
-			.paused = context.paused,
+			.paused = paused,
 		});
 		q.end();
 
@@ -287,10 +295,10 @@ void CustomEmoji::paintCustom(
 		p.drawImage(x, y, _selectedFrame);
 	} else {
 		emoji->paint(p, {
-			.preview = preview,
+			.textColor = textst.historyTextFg->c,
 			.now = context.now,
 			.position = { x, y },
-			.paused = context.paused,
+			.paused = paused,
 		});
 	}
 }

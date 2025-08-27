@@ -243,7 +243,7 @@ QString ToFilePart(FileKey val) {
 	result.reserve(0x10);
 	for (int32 i = 0; i < 0x10; ++i) {
 		uchar v = (val & 0x0F);
-		result.push_back((v < 0x0A) ? ('0' + v) : ('A' + (v - 0x0A)));
+		result.push_back((v < 0x0A) ? QChar('0' + v) : QChar('A' + (v - 0x0A)));
 		val >>= 4;
 	}
 	return result;

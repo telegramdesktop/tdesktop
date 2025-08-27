@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_section.h"
 
 #include "chat_helpers/tabbed_selector.h"
+#include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h"
 
@@ -28,6 +29,9 @@ TabbedSection::TabbedSection(
 	not_null<Window::SessionController*> controller)
 : Window::SectionWidget(parent, controller)
 , _selector(controller->tabbedSelector()) {
+	if (Ui::InFocusChain(_selector)) {
+		parent->window()->setFocus();
+	}
 	_selector->setParent(this);
 	_selector->setRoundRadius(0);
 	_selector->setGeometry(rect());

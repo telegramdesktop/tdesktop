@@ -7,10 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "lang/lang_keys.h"
-
-class QImage;
-
 namespace style {
 struct colorizer;
 } // namespace style
@@ -32,7 +28,7 @@ struct EmbeddedScheme {
 	QColor received;
 	QColor radiobuttonInactive;
 	QColor radiobuttonActive;
-	tr::phrase<> name;
+	rpl::producer<QString> name;
 	QString path;
 	QColor accentColor;
 };
@@ -62,6 +58,11 @@ void Colorize(
 
 [[nodiscard]] std::vector<EmbeddedScheme> EmbeddedThemes();
 [[nodiscard]] std::vector<QColor> DefaultAccentColors(EmbeddedType type);
+
+[[nodiscard]] Fn<void(style::palette&)> PreparePaletteCallback(
+	bool dark,
+	std::optional<QColor> accent);
+[[nodiscard]] Fn<void(style::palette&)> PrepareCurrentPaletteCallback();
 
 } // namespace Theme
 } // namespace Window

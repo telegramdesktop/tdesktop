@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/touchbar/mac_touchbar_common.h"
 #include "styles/style_basic.h"
 #include "styles/style_settings.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "window/section_widget.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -46,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #import <AppKit/NSScrubberLayout.h>
 #import <AppKit/NSSegmentedControl.h>
 #import <AppKit/NSTextField.h>
+
+#include <QtWidgets/QTextEdit>
 
 using TouchBar::kCircleDiameter;
 using TouchBar::CreateNSImageFromStyleIcon;
@@ -144,9 +146,9 @@ using Platform::Q2NSImage;
 
 NSImage *CreateNSImageFromEmoji(EmojiPtr emoji) {
 	auto image = QImage(
-		QSize(kIdealIconSize, kIdealIconSize) * cIntRetinaFactor(),
+		QSize(kIdealIconSize, kIdealIconSize) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(cRetinaFactor());
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::black);
 	{
 		Painter paint(&image);
@@ -168,25 +170,24 @@ auto ActiveChat(not_null<Window::Controller*> controller) {
 	return Dialogs::Key();
 }
 
-bool CanWriteToActiveChat(not_null<Window::Controller*> controller) {
+bool CanSendToActiveChat(
+		not_null<Window::Controller*> controller,
+			ChatRestriction right) {
 	if (const auto topic = ActiveChat(controller).topic()) {
-		return topic->canWrite();
+		return Data::CanSend(topic, right);
 	} else if (const auto history = ActiveChat(controller).history()) {
-		return history->peer->canWrite();
+		return Data::CanSend(history->peer, right);
 	}
 	return false;
 }
 
-std::optional<QString> RestrictionToSendStickers(not_null<PeerData*> peer) {
-	return Data::RestrictionError(
-		peer,
-		ChatRestriction::SendStickers);
-}
-
-std::optional<QString> RestrictionToSendStickers(
-		not_null<Window::Controller*> controller) {
+std::optional<QString> RestrictionToSend(
+		not_null<Window::Controller*> controller,
+		ChatRestriction right) {
 	if (const auto peer = ActiveChat(controller).peer()) {
-		return RestrictionToSendStickers(peer);
+		if (const auto error = Data::RestrictionError(peer, right)) {
+			return *error;
+		}
 	}
 	return std::nullopt;
 }
@@ -364,9 +365,16 @@ void AppendEmojiPacks(
 		gesture.allowableMovement = 0;
 		[scrubber addGestureRecognizer:gesture];
 
-		if (const auto error = RestrictionToSendStickers(_controller)) {
+		const auto kRight = ChatRestriction::SendStickers;
+		if (const auto error = RestrictionToSend(_controller, kRight)) {
 			_error = std::make_unique<PickerScrubberItem>(
 				tr::lng_restricted_send_stickers_all(tr::now));
+		}
+	} else {
+		const auto kRight = ChatRestriction::SendOther;
+		if (const auto error = RestrictionToSend(_controller, kRight)) {
+			_error = std::make_unique<PickerScrubberItem>(
+				tr::lng_restricted_send_message_all(tr::now));
 		}
 	}
 	_lastPreviewedSticker = 0;
@@ -467,16 +475,19 @@ void AppendEmojiPacks(
 
 - (void)scrubber:(NSScrubber*)scrubber
 		didSelectItemAtIndex:(NSInteger)index {
-	if (!CanWriteToActiveChat(_controller) || _error) {
-		return;
-	}
 	scrubber.selectedIndex = -1;
 	const auto sticker = _itemsDataSource->at(index, _type);
 	const auto document = sticker.document;
 	const auto emoji = sticker.emoji;
+	const auto kRight = document
+		? ChatRestriction::SendStickers
+		: ChatRestriction::SendOther;
+	if (!CanSendToActiveChat(_controller, kRight) || _error) {
+		return;
+	}
 	auto callback = [=] {
 		if (document) {
-			if (const auto error = RestrictionToSendStickers(_controller)) {
+			if (const auto error = RestrictionToSend(_controller, kRight)) {
 				_controller->show(Ui::MakeInformBox(*error));
 				return true;
 			} else if (Window::ShowSendPremiumError(_controller->sessionController(), document)) {
@@ -488,7 +499,10 @@ void AppendEmojiPacks(
 				document);
 			return true;
 		} else if (emoji) {
-			if (const auto inputField = qobject_cast<QTextEdit*>(
+			if (const auto error = RestrictionToSend(_controller, kRight)) {
+				_controller->show(Ui::MakeInformBox(*error));
+				return true;
+			} else if (const auto inputField = qobject_cast<QTextEdit*>(
 					QApplication::focusWidget())) {
 				Ui::InsertEmojiAtCursor(inputField->textCursor(), emoji);
 				Core::App().settings().incrementRecentEmoji({ emoji });
@@ -562,9 +576,11 @@ void AppendEmojiPacks(
 	) | rpl::map([](Dialogs::Key k) {
 		const auto topic = k.topic();
 		const auto peer = k.peer();
+		const auto right = ChatRestriction::SendStickers;
 		return peer
-			&& !RestrictionToSendStickers(peer)
-			&& (topic ? topic->canWrite() : peer->canWrite());
+			&& (topic
+				? Data::CanSend(topic, right)
+				: Data::CanSend(peer, right));
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool value) {
 		[self dismissPopover:nil];

@@ -18,11 +18,24 @@ namespace Info::Profile {
 class InnerWidget;
 struct MembersState;
 
+struct GroupReactionOrigin {
+	not_null<PeerData*> group;
+	MsgId messageId = 0;
+};
+
+struct Origin {
+	std::variant<v::null_t, GroupReactionOrigin> data;
+};
+
 class Memento final : public ContentMemento {
 public:
 	explicit Memento(not_null<Controller*> controller);
-	Memento(not_null<PeerData*> peer, PeerId migratedPeerId);
+	Memento(
+		not_null<PeerData*> peer,
+		PeerId migratedPeerId,
+		Origin origin = { v::null });
 	explicit Memento(not_null<Data::ForumTopic*> topic);
+	explicit Memento(not_null<Data::SavedSublist*> sublist);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -30,6 +43,10 @@ public:
 		const QRect &geometry) override;
 
 	Section section() const override;
+
+	[[nodiscard]] Origin origin() const {
+		return _origin;
+	}
 
 	void setMembersState(std::unique_ptr<MembersState> state);
 	std::unique_ptr<MembersState> membersState();
@@ -40,15 +57,18 @@ private:
 	Memento(
 		not_null<PeerData*> peer,
 		Data::ForumTopic *topic,
-		PeerId migratedPeerId);
+		Data::SavedSublist *sublist,
+		PeerId migratedPeerId,
+		Origin origin);
 
 	std::unique_ptr<MembersState> _membersState;
+	Origin _origin;
 
 };
 
 class Widget final : public ContentWidget {
 public:
-	Widget(QWidget *parent, not_null<Controller*> controller);
+	Widget(QWidget *parent, not_null<Controller*> controller, Origin origin);
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
@@ -60,6 +80,7 @@ public:
 	void setInnerFocus() override;
 
 	rpl::producer<QString> title() override;
+	rpl::producer<Dialogs::Stories::Content> titleStories() override;
 
 private:
 	void saveState(not_null<Memento*> memento);

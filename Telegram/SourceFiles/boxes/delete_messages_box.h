@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
+
+enum class PaidPostType : uchar;
 
 namespace Main {
 class Session;
@@ -17,6 +19,8 @@ namespace Ui {
 class Checkbox;
 class FlatLabel;
 class LinkButton;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 class DeleteMessagesBox final : public Ui::BoxContent {
@@ -56,6 +60,7 @@ private:
 	[[nodiscard]] bool hasScheduledMessages() const;
 	[[nodiscard]] std::optional<RevokeConfig> revokeText(
 		not_null<PeerData*> peer) const;
+	[[nodiscard]] PaidPostType paidPostType() const;
 
 	const not_null<Main::Session*> _session;
 
@@ -69,12 +74,19 @@ private:
 	bool _moderateBan = false;
 	bool _moderateDeleteAll = false;
 
+	bool _revokeForBot = false;
+	bool _revokeJustClearForChannel = false;
+
 	object_ptr<Ui::FlatLabel> _text = { nullptr };
 	object_ptr<Ui::Checkbox> _revoke = { nullptr };
+	object_ptr<Ui::SlideWrap<Ui::Checkbox>> _revokeRemember = { nullptr };
 	object_ptr<Ui::Checkbox> _banUser = { nullptr };
 	object_ptr<Ui::Checkbox> _reportSpam = { nullptr };
 	object_ptr<Ui::Checkbox> _deleteAll = { nullptr };
 	object_ptr<Ui::LinkButton> _autoDeleteSettings = { nullptr };
+
+	int _fullHeight = 0;
+	bool _confirmedDeletePaidSuggestedPosts = false;
 
 	Fn<void()> _deleteConfirmedCallback;
 

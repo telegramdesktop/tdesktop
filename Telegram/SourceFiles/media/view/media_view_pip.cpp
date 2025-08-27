@@ -24,14 +24,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/platform/base_platform_info.h"
 #include "base/power_save_blocker.h"
-#include "base/event_filter.h"
 #include "ui/platform/ui_platform_utility.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/shadow.h"
 #include "ui/text/format_values.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "window/window_controller.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
@@ -48,20 +49,19 @@ namespace {
 constexpr auto kPipLoaderPriority = 2;
 constexpr auto kMsInSecond = 1000;
 
-[[nodiscard]] bool IsWindowControlsOnLeft() {
-	using Control = Ui::Platform::TitleControls::Control;
-	const auto controlsLayout = Ui::Platform::TitleControlsLayout();
-	return ranges::contains(controlsLayout.left, Control::Close)
-		|| (controlsLayout.left.size() > controlsLayout.right.size()
-			&& !ranges::contains(controlsLayout.right, Control::Close));
-}
-
 [[nodiscard]] QRect ScreenFromPosition(QPoint point) {
 	const auto screen = QGuiApplication::screenAt(point);
 	const auto use = screen ? screen : QGuiApplication::primaryScreen();
 	return use
 		? use->availableGeometry()
 		: QRect(0, 0, st::windowDefaultWidth, st::windowDefaultHeight);
+}
+
+[[nodiscard]] QSize MaxAllowedSizeForScreen(QSize screenSize) {
+	// Each side should be less than screen side - 3 * st::pipBorderSkip,
+	// That way it won't try to snap to both opposite sides of the screen.
+	const auto skip = 3 * st::pipBorderSkip;
+	return { screenSize.width() - skip, screenSize.height() - skip };
 }
 
 [[nodiscard]] QPoint ClampToEdges(QRect screen, QRect inner) {
@@ -351,49 +351,34 @@ void PipPanel::init() {
 	widget()->setMouseTracking(true);
 	widget()->resize(0, 0);
 	widget()->hide();
-	widget()->createWinId();
 
-	rp()->shownValue(
-	) | rpl::filter([=](bool shown) {
-		return shown;
-	}) | rpl::start_with_next([=] {
+	rpl::merge(
+		rp()->shownValue() | rpl::to_empty,
+		rp()->paintRequest() | rpl::to_empty
+	) | rpl::map([=] {
+		return widget()->windowHandle()
+			&& widget()->windowHandle()->isExposed();
+	}) | rpl::distinct_until_changed(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
 		// Workaround Qt's forced transient parent.
 		Ui::Platform::ClearTransientParent(widget());
 	}, rp()->lifetime());
 
-	QObject::connect(
-		widget()->windowHandle(),
-		&QWindow::screenChanged,
-		[=](QScreen *screen) {
-			handleScreenChanged(screen);
-		});
+	rp()->shownValue(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
+		Ui::Platform::SetWindowMargins(widget(), _padding);
+	}, rp()->lifetime());
+
+	rp()->screenValue(
+	) | rpl::skip(1) | rpl::start_with_next([=](not_null<QScreen*> screen) {
+		handleScreenChanged(screen);
+	}, rp()->lifetime());
 
 	if (Platform::IsWayland()) {
 		rp()->sizeValue(
-		) | rpl::start_with_next([=](QSize size) {
+		) | rpl::skip(1) | rpl::start_with_next([=](QSize size) {
 			handleWaylandResize(size);
 		}, rp()->lifetime());
-
-		base::install_event_filter(widget(), [=](not_null<QEvent*> event) {
-			if (event->type() == QEvent::Resize && _inHandleWaylandResize) {
-				return base::EventFilterResult::Cancel;
-			}
-			return base::EventFilterResult::Continue;
-		});
-
-		base::install_event_filter(widget()->windowHandle(), [=](not_null<QEvent*> event) {
-			if (event->type() == QEvent::Resize) {
-				if (_inHandleWaylandResize) {
-					return base::EventFilterResult::Cancel;
-				}
-				const auto newSize = static_cast<QResizeEvent*>(event.get())->size();
-				if (_suggestedWaylandSize == newSize) {
-					handleWaylandResize(newSize);
-					return base::EventFilterResult::Cancel;
-				}
-			}
-			return base::EventFilterResult::Continue;
-		});
 	}
 }
 
@@ -501,22 +486,14 @@ PipPanel::Position PipPanel::countPosition() const {
 }
 
 void PipPanel::setPositionDefault() {
-	const auto widgetScreen = [&](auto &&widget) -> QScreen* {
-		if (!widget) {
-			return nullptr;
-		}
-		if (!Platform::IsWayland()) {
-			if (const auto screen = QGuiApplication::screenAt(
-				widget->geometry().center())) {
-				return screen;
-			}
-		}
-		return widget->screen();
-	};
-	const auto parentScreen = widgetScreen(_parent);
-	const auto myScreen = widgetScreen(widget());
-	if (parentScreen && myScreen && myScreen != parentScreen) {
+	const auto parentScreen = _parent ? _parent->screen() : nullptr;
+	const auto myScreen = widget()->screen();
+	if (parentScreen && myScreen != parentScreen) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		widget()->setScreen(parentScreen);
+#else // Qt >= 6.0.0
 		widget()->windowHandle()->setScreen(parentScreen);
+#endif // Qt < 6.0.0
 	}
 	auto position = Position();
 	position.snapped = RectPart::Top | RectPart::Left;
@@ -535,10 +512,10 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 		? QSize(max, max * _ratio.height() / _ratio.width())
 		: QSize(max * _ratio.width() / _ratio.height(), max);
 
-	// At least one side should not be greater than half of screen size.
-	const auto byWidth = (scaled.width() * screen.height())
-		> (scaled.height() * screen.width());
-	const auto fit = QSize(screen.width() / 2, screen.height() / 2);
+	// Apply maximum size.
+	const auto fit = MaxAllowedSizeForScreen(screen.size());
+	const auto byWidth = (scaled.width() * fit.height())
+		> (scaled.height() * fit.width());
 	const auto normalized = (byWidth && scaled.width() > fit.width())
 		? QSize(fit.width(), fit.width() * scaled.height() / scaled.width())
 		: (!byWidth && scaled.height() > fit.height())
@@ -610,8 +587,10 @@ void PipPanel::setGeometry(QRect geometry) {
 }
 
 void PipPanel::handleWaylandResize(QSize size) {
+	if (_inHandleWaylandResize) {
+		return;
+	}
 	_inHandleWaylandResize = true;
-	_suggestedWaylandSize = size;
 
 	// Apply aspect ratio.
 	const auto max = std::max(size.width(), size.height());
@@ -632,18 +611,19 @@ void PipPanel::handleWaylandResize(QSize size) {
 		: scaled;
 
 	widget()->resize(normalized);
+	QResizeEvent e(normalized, size);
+	QCoreApplication::sendEvent(widget()->windowHandle(), &e);
 	_inHandleWaylandResize = false;
 }
 
-void PipPanel::handleScreenChanged(QScreen *screen) {
+void PipPanel::handleScreenChanged(not_null<QScreen*> screen) {
 	const auto screenGeometry = screen->availableGeometry();
 	const auto minimalSize = _ratio.scaled(
 		st::pipMinimalSize,
 		st::pipMinimalSize,
 		Qt::KeepAspectRatioByExpanding);
 	const auto maximalSize = _ratio.scaled(
-		screenGeometry.width() / 2,
-		screenGeometry.height() / 2,
+		MaxAllowedSizeForScreen(screenGeometry.size()),
 		Qt::KeepAspectRatio);
 	widget()->setMinimumSize(minimalSize);
 	widget()->setMaximumSize(
@@ -762,6 +742,11 @@ void PipPanel::startSystemDrag() {
 	} else {
 		widget()->windowHandle()->startSystemMove();
 	}
+
+	Ui::SendSynteticMouseEvent(
+		widget().get(),
+		QEvent::MouseButtonRelease,
+		Qt::LeftButton);
 }
 
 void PipPanel::processDrag(QPoint point) {
@@ -781,8 +766,7 @@ void PipPanel::processDrag(QPoint point) {
 		st::pipMinimalSize,
 		Qt::KeepAspectRatioByExpanding);
 	const auto maximalSize = _ratio.scaled(
-		screen.width() / 2,
-		screen.height() / 2,
+		MaxAllowedSizeForScreen(screen.size()),
 		Qt::KeepAspectRatio);
 	const auto geometry = Transformed(
 		_dragStartGeometry,
@@ -899,6 +883,9 @@ void PipPanel::updateDecorations() {
 	_padding = padding;
 	_useTransparency = use;
 	widget()->setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
+	if (widget()->windowHandle()) {
+		Ui::Platform::SetWindowMargins(widget(), _padding);
+	}
 	setGeometry(newGeometry);
 	update();
 }
@@ -906,18 +893,30 @@ void PipPanel::updateDecorations() {
 Pip::Pip(
 	not_null<Delegate*> delegate,
 	not_null<DocumentData*> data,
+	Data::FileOrigin origin,
+	not_null<DocumentData*> chosenQuality,
+	HistoryItem *context,
+	VideoQuality quality,
 	std::shared_ptr<Streaming::Document> shared,
 	FnMut<void()> closeAndContinue,
 	FnMut<void()> destroy)
 : _delegate(delegate)
 , _data(data)
-, _instance(std::move(shared), [=] { waitingAnimationCallback(); })
+, _origin(origin)
+, _chosenQuality(chosenQuality)
+, _context(context)
+, _quality(quality)
+, _instance(
+	std::in_place,
+	std::move(shared),
+	[=] { waitingAnimationCallback(); })
 , _panel(
 	_delegate->pipParentWidget(),
 	[=](Ui::GL::Capabilities capabilities) {
 		return chooseRenderer(capabilities);
 	})
 , _playbackProgress(std::make_unique<PlaybackProgress>())
+, _dataMedia(_data->createMediaView())
 , _rotation(data->owner().mediaRotation().get(data))
 , _lastPositiveVolume((Core::App().settings().videoVolume() > 0.)
 	? Core::App().settings().videoVolume()
@@ -932,15 +931,28 @@ Pip::Pip(
 	) | rpl::start_with_next([=] {
 		_destroy();
 	}, _panel.rp()->lifetime());
+
+	if (_context) {
+		_data->owner().itemRemoved(
+		) | rpl::start_with_next([=](not_null<const HistoryItem*> data) {
+			if (_context != data) {
+				_context = nullptr;
+			}
+		}, _panel.rp()->lifetime());
+	}
 }
 
 Pip::~Pip() = default;
 
+std::shared_ptr<Streaming::Document> Pip::shared() const {
+	return _instance->shared();
+}
+
 void Pip::setupPanel() {
 	_panel.init();
 	const auto size = [&] {
-		if (!_instance.info().video.size.isEmpty()) {
-			return _instance.info().video.size;
+		if (!_instance->info().video.size.isEmpty()) {
+			return _instance->info().video.size;
 		}
 		const auto media = _data->activeMediaView();
 		if (media) {
@@ -997,7 +1009,7 @@ void Pip::handleLeave() {
 }
 
 void Pip::handleMouseMove(QPoint position) {
-	const auto weak = Ui::MakeWeak(_panel.widget());
+	const auto weak = base::make_weak(_panel.widget());
 	const auto guard = gsl::finally([&] {
 		if (weak) {
 			_panel.handleMouseMove(position);
@@ -1075,7 +1087,7 @@ Pip::OverState Pip::ResolveShownOver(OverState state) {
 }
 
 void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
-	const auto weak = Ui::MakeWeak(_panel.widget());
+	const auto weak = base::make_weak(_panel.widget());
 	const auto guard = gsl::finally([&] {
 		if (weak) {
 			_panel.handleMousePress(position, button);
@@ -1093,10 +1105,7 @@ void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
 }
 
 void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
-	Expects(1 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
-	const auto weak = Ui::MakeWeak(_panel.widget());
+	const auto weak = base::make_weak(_panel.widget());
 	const auto guard = gsl::finally([&] {
 		if (weak) {
 			_panel.handleMouseRelease(position, button);
@@ -1107,21 +1116,11 @@ void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 	}
 	seekUpdate(position);
 
-	Assert(2 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	volumeControllerUpdate(position);
-
-	Assert(3 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
 
 	const auto pressed = base::take(_pressed);
 	if (pressed && *pressed == OverState::Playback) {
 		_panel.setDragDisabled(false);
-
-		Assert(4 && _delegate->pipPlaybackSpeed() >= 0.5
-			&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 		seekFinish(_playbackProgress->value());
 	} else if (pressed && *pressed == OverState::VolumeController) {
 		_panel.setDragDisabled(false);
@@ -1172,8 +1171,8 @@ void Pip::seekProgress(float64 value) {
 		_lastDurationMs);
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
-		if (!_instance.player().paused()
-			&& !_instance.player().finished()) {
+		if (!_instance->player().paused()
+			&& !_instance->player().finished()) {
 			_pausedBySeek = true;
 			playbackPauseResume();
 		}
@@ -1182,9 +1181,6 @@ void Pip::seekProgress(float64 value) {
 }
 
 void Pip::seekFinish(float64 value) {
-	Expects(5 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	if (!_lastDurationMs) {
 		return;
 	}
@@ -1194,7 +1190,7 @@ void Pip::seekFinish(float64 value) {
 		crl::time(0),
 		_lastDurationMs);
 	_seekPositionMs = -1;
-	_startPaused = !_pausedBySeek && !_instance.player().finished();
+	_startPaused = !_pausedBySeek && !_instance->player().finished();
 	restartAtSeekPosition(positionMs);
 }
 
@@ -1271,7 +1267,8 @@ void Pip::setupButtons() {
 			rect.y(),
 			volumeToggleWidth,
 			volumeToggleHeight);
-		if (!IsWindowControlsOnLeft()) {
+		using Ui::Platform::TitleControlsLayout;
+		if (!TitleControlsLayout::Instance()->current().onLeft()) {
 			_close.area.moveLeft(rect.x()
 				+ rect.width()
 				- (_close.area.x() - rect.x())
@@ -1331,16 +1328,69 @@ void Pip::updatePlayPauseResumeState(const Player::TrackState &state) {
 }
 
 void Pip::setupStreaming() {
-	_instance.setPriority(kPipLoaderPriority);
-	_instance.lockPlayer();
+	_instance->setPriority(kPipLoaderPriority);
+	_instance->lockPlayer();
 
-	_instance.player().updates(
+	_instance->switchQualityRequests(
+	) | rpl::filter([=](int quality) {
+		return !_quality.manual && _quality.height != quality;
+	}) | rpl::start_with_next([=](int quality) {
+		applyVideoQuality({
+			.manual = 0,
+			.height = uint32(quality),
+		});
+	}, _instance->lifetime());
+
+	_instance->player().updates(
 	) | rpl::start_with_next_error([=](Streaming::Update &&update) {
 		handleStreamingUpdate(std::move(update));
 	}, [=](Streaming::Error &&error) {
 		handleStreamingError(std::move(error));
-	}, _instance.lifetime());
+	}, _instance->lifetime());
 	updatePlaybackState();
+}
+
+void Pip::applyVideoQuality(VideoQuality value) {
+	if (_quality == value
+		|| !_dataMedia->canBePlayed(_context)) {
+		return;
+	}
+	const auto resolved = _data->chooseQuality(_context, value);
+	if (_chosenQuality == resolved) {
+		return;
+	}
+	auto instance = Streaming::Instance(
+		resolved,
+		_data,
+		_context,
+		_origin,
+		[=] { waitingAnimationCallback(); });
+	if (!instance.valid()) {
+		return;
+	}
+
+	if (_instance->ready()) {
+		_qualityChangeFrame = currentVideoFrameImage();
+	}
+	if (!_instance->player().active()
+		|| _instance->player().finished()) {
+		_qualityChangeFinished = true;
+	}
+	_startPaused = _qualityChangeFinished || _instance->player().paused();
+
+	_quality = value;
+	Core::App().settings().setVideoQuality(value);
+	Core::App().saveSettingsDelayed();
+	_chosenQuality = resolved;
+	_instance.emplace(std::move(instance));
+	setupStreaming();
+	restartAtSeekPosition(_lastUpdatePosition);
+}
+
+QImage Pip::currentVideoFrameImage() const {
+	return _instance->player().ready()
+		? _instance->player().currentFrameImage()
+		: _instance->info().video.cover;
 }
 
 Ui::GL::ChosenRenderer Pip::chooseRenderer(
@@ -1373,20 +1423,20 @@ void Pip::paint(not_null<Renderer*> renderer) const {
 		.fade = controlsShown,
 		.outer = _panel.widget()->size(),
 		.rotation = _rotation,
-		.videoRotation = _instance.info().video.rotation,
+		.videoRotation = _instance->info().video.rotation,
 		.useTransparency = _panel.useTransparency(),
 	};
 	if (canUseVideoFrame()) {
 		renderer->paintTransformedVideoFrame(geometry);
-		_instance.markFrameShown();
+		_instance->markFrameShown();
 	} else {
 		const auto content = staticContent();
 		if (_preparedCoverState == ThumbState::Cover) {
 			geometry.rotation += base::take(geometry.videoRotation);
 		}
-		renderer->paintTransformedStaticContent(staticContent(), geometry);
+		renderer->paintTransformedStaticContent(content, geometry);
 	}
-	if (_instance.waitingShown()) {
+	if (_instance->waitingShown()) {
 		renderer->paintRadialLoading(countRadialRect(), controlsShown);
 	}
 	if (controlsShown > 0) {
@@ -1569,28 +1619,31 @@ void Pip::paintVolumeControllerContent(
 void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 	using namespace Streaming;
 
-	v::match(update.data, [&](Information &update) {
+	v::match(update.data, [&](const Information &update) {
 		_panel.setAspectRatio(
 			FlipSizeByRotation(update.video.size, _rotation));
-	}, [&](const PreloadedVideo &update) {
+		_qualityChangeFrame = QImage();
+	}, [&](PreloadedVideo) {
 		updatePlaybackState();
-	}, [&](const UpdateVideo &update) {
+	}, [&](UpdateVideo update) {
 		_panel.update();
 		Core::App().updateNonIdle();
 		updatePlaybackState();
-	}, [&](const PreloadedAudio &update) {
+		_lastUpdatePosition = update.position;
+	}, [&](PreloadedAudio) {
 		updatePlaybackState();
-	}, [&](const UpdateAudio &update) {
+	}, [&](UpdateAudio) {
 		updatePlaybackState();
-	}, [&](WaitingForData) {
-	}, [&](MutedByOther) {
+	}, [](WaitingForData) {
+	}, [](SpeedEstimate) {
+	}, [](MutedByOther) {
 	}, [&](Finished) {
 		updatePlaybackState();
 	});
 }
 
 void Pip::updatePlaybackState() {
-	const auto state = _instance.player().prepareLegacyState();
+	const auto state = _instance->player().prepareLegacyState();
 	updatePlayPauseResumeState(state);
 	if (state.position == kTimeUnknown
 		|| state.length == kTimeUnknown
@@ -1655,74 +1708,65 @@ void Pip::handleStreamingError(Streaming::Error &&error) {
 }
 
 void Pip::playbackPauseResume() {
-	if (_instance.player().failed()) {
+	if (_instance->player().failed()) {
 		_panel.widget()->close();
-	} else if (_instance.player().finished()
-		|| !_instance.player().active()) {
+	} else if (_instance->player().finished()
+		|| !_instance->player().active()) {
 		_startPaused = false;
 		restartAtSeekPosition(0);
-	} else if (_instance.player().paused()) {
-		_instance.resume();
+	} else if (_instance->player().paused()) {
+		_instance->resume();
 		updatePlaybackState();
 	} else {
-		_instance.pause();
+		_instance->pause();
 		updatePlaybackState();
 	}
 }
 
 void Pip::restartAtSeekPosition(crl::time position) {
-	Expects(6 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
+	_lastUpdatePosition = position;
 
-	if (!_instance.info().video.cover.isNull()) {
+	if (!_instance->info().video.cover.isNull()) {
 		_preparedCoverStorage = QImage();
 		_preparedCoverState = ThumbState::Empty;
-		_instance.saveFrameToCover();
+		_instance->saveFrameToCover();
 	}
-
-	Assert(7 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
 
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
 	options.hwAllowed = Core::App().settings().hardwareAcceleratedVideo();
-	options.audioId = _instance.player().prepareLegacyState().id;
-
-	Assert(8 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
+	options.audioId = _instance->player().prepareLegacyState().id;
 	options.speed = _delegate->pipPlaybackSpeed();
 
-	Assert(9 && options.speed >= 0.5
-		&& options.speed <= 2.); // Debugging strange crash.
-
-	_instance.play(options);
+	_instance->play(options);
 	if (_startPaused) {
-		_instance.pause();
+		_instance->pause();
 	}
 	_pausedBySeek = false;
 	updatePlaybackState();
 }
 
 bool Pip::canUseVideoFrame() const {
-	return _instance.player().ready()
-		&& !_instance.info().video.cover.isNull();
+	return _instance->player().ready()
+		&& !_instance->info().video.cover.isNull();
 }
 
 QImage Pip::videoFrame(const FrameRequest &request) const {
 	Expects(canUseVideoFrame());
 
-	return _instance.frame(request);
+	return _instance->frame(request);
 }
 
 Streaming::FrameWithInfo Pip::videoFrameWithInfo() const {
 	Expects(canUseVideoFrame());
 
-	return _instance.frameWithInfo();
+	return _instance->frameWithInfo();
 }
 
 QImage Pip::staticContent() const {
-	const auto &cover = _instance.info().video.cover;
+	const auto &cover = !_qualityChangeFrame.isNull()
+		? _qualityChangeFrame
+		: _instance->info().video.cover;
 	const auto media = _data->activeMediaView();
 	const auto use = media
 		? media
@@ -1750,7 +1794,7 @@ QImage Pip::staticContent() const {
 	}
 	_preparedCoverState = state;
 	if (state == ThumbState::Cover) {
-		_preparedCoverStorage = _instance.info().video.cover;
+		_preparedCoverStorage = cover;
 	} else {
 		_preparedCoverStorage = (good
 			? good
@@ -1776,7 +1820,7 @@ void Pip::paintRadialLoadingContent(
 		st::radialLine,
 		st::radialLine,
 		st::radialLine));
-	p.setOpacity(_instance.waitingOpacity());
+	p.setOpacity(_instance->waitingOpacity());
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::radialBg);
 	{
@@ -1786,7 +1830,7 @@ void Pip::paintRadialLoadingContent(
 	p.setOpacity(1.);
 	Ui::InfiniteRadialAnimation::Draw(
 		p,
-		_instance.waitingState(),
+		_instance->waitingState(),
 		arc.topLeft(),
 		arc.size(),
 		_panel.widget()->width(),

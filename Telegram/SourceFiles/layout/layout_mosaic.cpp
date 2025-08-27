@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "layout/layout_mosaic.h"
 
-#include "styles/style_basic.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Mosaic::Layout {
 
@@ -27,12 +27,12 @@ int AbstractMosaicLayout::countDesiredHeight(int newWidth) {
 		layoutRow(row, newWidth ? newWidth : _width);
 		result += row.height;
 	}
-	return result;
+	return _padding.top() + result + _padding.bottom();
 }
 
 FoundItem AbstractMosaicLayout::findByPoint(const QPoint &globalPoint) const {
-	auto sx = globalPoint.x() - _offset.x();
-	auto sy = globalPoint.y() - _offset.y();
+	auto sx = globalPoint.x() - _padding.left();
+	auto sy = globalPoint.y() - _padding.top();
 	auto row = -1;
 	auto col = -1;
 	auto sel = -1;
@@ -108,8 +108,8 @@ QRect AbstractMosaicLayout::findRect(int index) const {
 				if ((left + w) > fromX) {
 					if (item->position() == index) {
 						return QRect(
-							left + _offset.x(),
-							top + _offset.y(),
+							left + _padding.left(),
+							top + _padding.top(),
 							item->width(),
 							item->height());
 					}
@@ -139,8 +139,8 @@ void AbstractMosaicLayout::setRightSkip(int rightSkip) {
 	_rightSkip = rightSkip;
 }
 
-void AbstractMosaicLayout::setOffset(int left, int top) {
-	_offset = { left, top };
+void AbstractMosaicLayout::setPadding(QMargins padding) {
+	_padding = padding;
 }
 
 void AbstractMosaicLayout::setFullWidth(int w) {
@@ -211,7 +211,7 @@ void AbstractMosaicLayout::forEach(
 void AbstractMosaicLayout::paint(
 		Fn<void(not_null<AbstractLayoutItem*>, QPoint)> paintItem,
 		const QRect &clip) const {
-	auto top = _offset.y();
+	auto top = _padding.top();
 	const auto fromX = style::RightToLeft()
 		? (_width - clip.x() - clip.width())
 		: clip.x();
@@ -225,7 +225,7 @@ void AbstractMosaicLayout::paint(
 		}
 		auto &inlineRow = _rows[row];
 		if ((top + inlineRow.height) > clip.top()) {
-			auto left = _offset.x();
+			auto left = _padding.left();
 			if (row == (rows - 1)) {
 //				context.lastRow = true;
 			}
@@ -366,8 +366,7 @@ void AbstractMosaicLayout::layoutRow(Row &row, int fullWidth) {
 
 	auto desiredWidth = row.maxWidth;
 	row.height = 0;
-	auto availableWidth = fullWidth
-		- (st::inlineResultsLeft - st::roundRadiusSmall);
+	auto availableWidth = fullWidth - _padding.left() - _padding.right();
 	for (auto i = 0; i < count; ++i) {
 		const auto index = indices[i];
 		const auto &item = row.items[index];

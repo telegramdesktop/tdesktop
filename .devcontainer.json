@@ -1,0 +1,30 @@
+{
+    "name": "CentOS",
+    "image": "tdesktop:centos_env",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "C_Cpp.intelliSenseEngine": "disabled",
+                "cmake.generator": "Ninja Multi-Config",
+                "cmake.buildDirectory": "${workspaceFolder}/out",
+                "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json"
+            },
+            "extensions": [
+                "ms-vscode.cpptools-extension-pack",
+                "llvm-vs-code-extensions.vscode-clangd",
+                "TheQtCompany.qt",
+                "ms-python.python",
+                "ms-azuretools.vscode-docker",
+                "eamodio.gitlens"
+            ]
+        }
+    },
+    "capAdd": [
+        "SYS_PTRACE"
+    ],
+    "securityOpt": [
+        "seccomp=unconfined"
+    ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/usr/src/tdesktop,type=bind,consistency=cached",
+    "workspaceFolder": "/usr/src/tdesktop"
+}

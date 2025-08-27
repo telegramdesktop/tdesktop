@@ -5,36 +5,38 @@ on:
     paths:
       - '.github/workflows/docker.yml'
       - 'Telegram/build/docker/centos_env/**'
-  pull_request:
-    paths:
-      - '.github/workflows/docker.yml'
-      - 'Telegram/build/docker/centos_env/**'
 
 jobs:
   docker:
     name: Ubuntu
     runs-on: ubuntu-latest
+    if: github.ref_name == github.event.repository.default_branch
 
     env:
       IMAGE_TAG: ghcr.io/${{ github.repository }}/centos_env:latest
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: First set up.
-        run: curl -sSL https://install.python-poetry.org | python3 -
+        run: |
+          sudo apt update
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
+
+      - name: Free up some disk space.
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
 
       - name: Docker image build.
         run: |
           cd Telegram/build/docker/centos_env
           poetry install
-          DEBUG= LTO= poetry run gen_dockerfile | docker buildx build -t $IMAGE_TAG -
+          DEBUG= LTO= poetry run gen_dockerfile | DOCKER_BUILDKIT=1 docker build -t $IMAGE_TAG -
 
       - name: Push the Docker image.
-        if: ${{ github.ref_name == github.event.repository.default_branch }}
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-          docker push $IMAGE_TAG
+        run: docker push $IMAGE_TAG

@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/platform/win/base_windows_rpcndr_h.h"
 #include "windows_toastactivator_h.h"
+
 #include "base/platform/win/wrl/wrl_implements_h.h"
 
 // {F11932D3-6110-4BBC-9B02-B2EC07A1BD19}

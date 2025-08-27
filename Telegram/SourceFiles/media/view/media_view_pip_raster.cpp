@@ -167,16 +167,12 @@ QImage Pip::RendererSW::staticContentByRequest(
 	}
 	_preparedStaticKey = image.cacheKey();
 	_preparedStaticRequest = request;
-	//_preparedCoverStorage = Streaming::PrepareByRequest(
-	//	_instance.info().video.cover,
-	//	false,
-	//	_instance.info().video.rotation,
-	//	request,
-	//	std::move(_preparedCoverStorage));
-	_preparedStaticContent = Images::Round(Images::Prepare(
-		image,
-		request.resize,
-		{ .outer = request.outer }), request.rounding);
+	_preparedStaticContent = Images::Round(
+		Images::Prepare(
+			image,
+			request.resize,
+			{ .outer = request.outer / style::DevicePixelRatio() }),
+		request.rounding);
 
 	return _preparedStaticContent;
 }

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_unread_things.h"
 
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -36,6 +37,12 @@ template <typename Update>
 
 [[nodiscard]] Data::TopicUpdate::Flag TopicUpdateFlag(Type type) {
 	return UpdateFlag<Data::TopicUpdate>(type);
+}
+
+[[nodiscard]] Data::SublistUpdate::Flag SublistUpdateFlag(Type type) {
+	Expects(type == Type::Reactions);
+
+	return Data::SublistUpdate::Flag::UnreadReactions;
 }
 
 } // namespace
@@ -142,6 +149,7 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 	}, [&](const MTPDmessages_channelMessages &data) {
 		if (const auto channel = history->peer->asChannel()) {
 			channel->ptsReceived(data.vpts().v);
+			channel->processTopics(data.vtopics());
 		} else {
 			LOG(("API Error: received messages.channelMessages when "
 				"no channel was passed! (Proxy::addSlice)"));
@@ -223,6 +231,10 @@ void Proxy::notifyUpdated() {
 		topic->session().changes().topicUpdated(
 			topic,
 			TopicUpdateFlag(_type));
+	} else if (const auto sublist = _thread->asSublist()) {
+		sublist->session().changes().sublistUpdated(
+			sublist,
+			SublistUpdateFlag(_type));
 	}
 }
 

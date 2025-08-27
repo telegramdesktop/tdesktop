@@ -800,12 +800,16 @@ void DownloadMtprotoTask::getCdnFileHashesDone(
 void DownloadMtprotoTask::placeSentRequest(
 		mtpRequestId requestId,
 		const RequestData &requestData) {
+	if (_sentRequests.empty()) {
+		subscribeToNonPremiumLimit();
+	}
+
 	const auto amount = _owner->changeRequestedAmount(
 		dcId(),
 		requestData.sessionIndex,
 		Storage::kDownloadPartSize);
-	const auto [i, ok1] = _sentRequests.emplace(requestId, requestData);
-	const auto [j, ok2] = _requestByOffset.emplace(
+	const auto &[i, ok1] = _sentRequests.emplace(requestId, requestData);
+	const auto &[j, ok2] = _requestByOffset.emplace(
 		requestData.offset,
 		requestId);
 
@@ -813,6 +817,24 @@ void DownloadMtprotoTask::placeSentRequest(
 	i->second.sent = crl::now();
 
 	Ensures(ok1 && ok2);
+}
+
+void DownloadMtprotoTask::subscribeToNonPremiumLimit() {
+	if (_nonPremiumLimitSubscription) {
+		return;
+	}
+	_owner->api().instance().nonPremiumDelayedRequests(
+	) | rpl::start_with_next([=](mtpRequestId id) {
+		if (_sentRequests.contains(id)) {
+			if (const auto documentId = objectId()) {
+				const auto type = v::get<StorageFileLocation>(
+					_location.data).type();
+				if (type == StorageFileLocation::Type::Document) {
+					_owner->notifyNonPremiumDelay(documentId);
+				}
+			}
+		}
+	}, _nonPremiumLimitSubscription);
 }
 
 auto DownloadMtprotoTask::finishSentRequest(
@@ -832,6 +854,10 @@ auto DownloadMtprotoTask::finishSentRequest(
 		-Storage::kDownloadPartSize);
 	_sentRequests.erase(it);
 	const auto ok = _requestByOffset.remove(result.offset);
+
+	if (_sentRequests.empty()) {
+		_nonPremiumLimitSubscription.destroy();
+	}
 
 	if (reason == FinishRequestReason::Success) {
 		_owner->requestSucceeded(
@@ -904,7 +930,7 @@ bool DownloadMtprotoTask::normalPartFailed(
 		return false;
 	}
 	if (error.code() == 400
-		&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+		&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
 		api().refreshFileReference(
 			_origin,
 			this,
@@ -932,8 +958,8 @@ bool DownloadMtprotoTask::cdnPartFailed(
 		return false;
 	}
 
-	if (error.type() == qstr("FILE_TOKEN_INVALID")
-		|| error.type() == qstr("REQUEST_TOKEN_INVALID")) {
+	if (error.type() == u"FILE_TOKEN_INVALID"_q
+		|| error.type() == u"REQUEST_TOKEN_INVALID"_q) {
 		const auto requestData = finishSentRequest(
 			requestId,
 			FinishRequestReason::Redirect);

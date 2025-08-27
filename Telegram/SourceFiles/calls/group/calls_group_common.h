@@ -8,12 +8,80 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "base/weak_ptr.h"
 
 class UserData;
+struct ShareBoxStyleOverrides;
+
+namespace style {
+struct Box;
+struct FlatLabel;
+struct IconButton;
+struct InputField;
+struct PopupMenu;
+} // namespace style
+
+namespace Data {
+class GroupCall;
+} // namespace Data
+
+namespace Main {
+class SessionShow;
+} // namespace Main
 
 namespace Ui {
+class Show;
+class RpWidget;
 class GenericBox;
 } // namespace Ui
+
+namespace TdE2E {
+class Call;
+} // namespace TdE2E
+
+namespace tgcalls {
+class VideoCaptureInterface;
+} // namespace tgcalls
+
+namespace Window {
+class SessionController;
+} // namespace Window
+
+namespace Calls {
+
+class Window;
+
+struct InviteRequest {
+	not_null<UserData*> user;
+	bool video = false;
+};
+
+struct InviteResult {
+	std::vector<not_null<UserData*>> invited;
+	std::vector<not_null<UserData*>> alreadyIn;
+	std::vector<not_null<UserData*>> privacyRestricted;
+	std::vector<not_null<UserData*>> kicked;
+	std::vector<not_null<UserData*>> failed;
+};
+
+struct StartConferenceInfo {
+	std::shared_ptr<Main::SessionShow> show;
+	std::shared_ptr<Data::GroupCall> call;
+	QString linkSlug;
+	MsgId joinMessageId;
+	std::vector<InviteRequest> invite;
+	bool sharingLink = false;
+	bool migrating = false;
+	bool muted = false;
+	std::shared_ptr<tgcalls::VideoCaptureInterface> videoCapture;
+	QString videoCaptureScreenId;
+};
+
+struct ConferencePanelMigration {
+	std::shared_ptr<Window> window;
+};
+
+} // namespace Calls
 
 namespace Calls::Group {
 
@@ -92,5 +160,45 @@ constexpr inline bool is_flag_type(StickedTooltip) {
 using StickedTooltips = base::flags<StickedTooltip>;
 
 [[nodiscard]] object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox();
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeJoinCallLogo(
+	not_null<QWidget*> parent);
+
+void ConferenceCallJoinConfirm(
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<Data::GroupCall> call,
+	UserData *maybeInviter,
+	Fn<void(Fn<void()> close)> join);
+
+struct ConferenceCallLinkStyleOverrides {
+	const style::Box *box = nullptr;
+	const style::IconButton *menuToggle = nullptr;
+	const style::PopupMenu *menu = nullptr;
+	const style::IconButton *close = nullptr;
+	const style::FlatLabel *centerLabel = nullptr;
+	const style::InputField *linkPreview = nullptr;
+	const style::icon *contextRevoke = nullptr;
+	std::shared_ptr<ShareBoxStyleOverrides> shareBox;
+};
+[[nodiscard]] ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle();
+
+struct ConferenceCallLinkArgs {
+	ConferenceCallLinkStyleOverrides st;
+	bool initial = false;
+};
+void ShowConferenceCallLinkBox(
+	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<Data::GroupCall> call,
+	const ConferenceCallLinkArgs &args);
+
+struct ConferenceFactoryArgs {
+	std::shared_ptr<Main::SessionShow> show;
+	Fn<void(bool)> finished;
+	bool joining = false;
+	StartConferenceInfo info;
+};
+void MakeConferenceCall(ConferenceFactoryArgs &&args);
+
+[[nodiscard]] QString ExtractConferenceSlug(const QString &link);
 
 } // namespace Calls::Group

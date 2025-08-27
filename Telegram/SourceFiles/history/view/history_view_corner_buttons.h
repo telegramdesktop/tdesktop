@@ -17,7 +17,8 @@ struct FullMsgId;
 namespace Ui {
 class ChatStyle;
 class ScrollArea;
-class HistoryDownButton;
+class ElasticScroll;
+class JumpDownButton;
 } // namespace Ui
 
 namespace Data {
@@ -32,7 +33,7 @@ struct CornerButton {
 	CornerButton(Args &&...args) : widget(std::forward<Args>(args)...) {
 	}
 
-	object_ptr<Ui::HistoryDownButton> widget;
+	object_ptr<Ui::JumpDownButton> widget;
 	Ui::Animations::Simple animation;
 	bool shown = false;
 };
@@ -59,6 +60,10 @@ class CornerButtons final : private QObject {
 public:
 	CornerButtons(
 		not_null<Ui::ScrollArea*> parent,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<CornerButtonsDelegate*> delegate);
+	CornerButtons(
+		not_null<Ui::ElasticScroll*> parent,
 		not_null<const Ui::ChatStyle*> st,
 		not_null<CornerButtonsDelegate*> delegate);
 
@@ -91,6 +96,12 @@ public:
 		bool ignoreMessageNotFound = false);
 
 private:
+	CornerButtons(
+		not_null<QWidget*> parent,
+		Fn<bool(QEvent*)> scrollViewportEvent,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<CornerButtonsDelegate*> delegate);
+
 	bool eventFilter(QObject *o, QEvent *e) override;
 
 	void computeCurrentReplyReturn();
@@ -99,8 +110,11 @@ private:
 	[[nodiscard]] History *lookupHistory() const;
 	void showAt(MsgId id);
 
-	const not_null<Ui::ScrollArea*> _scroll;
+	const not_null<QWidget*> _parent;
+	const Fn<bool(QEvent*)> _scrollViewportEvent;
 	const not_null<CornerButtonsDelegate*> _delegate;
+
+	rpl::lifetime _stLifetime;
 
 	CornerButton _down;
 	CornerButton _mentions;

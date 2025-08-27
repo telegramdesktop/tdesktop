@@ -75,7 +75,7 @@ QSize LargeEmoji::countOptimalSize() {
 	const auto count = _images.size()
 		- ranges::count(_images, LargeEmojiMedia());
 
-	const auto single = LargeEmojiImage::Size() / cIntRetinaFactor();
+	const auto single = LargeEmojiImage::Size() / style::DevicePixelRatio();
 	const auto skip = st::largeEmojiSkip - 2 * st::largeEmojiOutline;
 	const auto inner = count * single.width() + (count - 1) * skip;
 	const auto &padding = st::largeEmojiPadding;
@@ -95,7 +95,7 @@ void LargeEmoji::draw(
 	auto x = r.x() + (r.width() - _size.width()) / 2 + padding.left();
 	const auto y = r.y() + (r.height() - _size.height()) / 2 + padding.top();
 	const auto skip = st::largeEmojiSkip - 2 * st::largeEmojiOutline;
-	const auto size = LargeEmojiImage::Size() / cIntRetinaFactor();
+	const auto size = LargeEmojiImage::Size() / style::DevicePixelRatio();
 	const auto selected = context.selected();
 	if (!selected) {
 		_selectedFrame = QImage();
@@ -135,7 +135,8 @@ void LargeEmoji::paintCustom(
 	const auto inner = st::largeEmojiSize + 2 * st::largeEmojiOutline;
 	const auto outer = Ui::Text::AdjustCustomEmojiSize(inner);
 	const auto skip = (inner - outer) / 2;
-	const auto preview = context.imageStyle()->msgServiceBg->c;
+	//const auto preview = context.imageStyle()->msgServiceBg->c;
+	auto &textst = context.st->messageStyle(false, false);
 	if (context.selected()) {
 		const auto factor = style::DevicePixelRatio();
 		const auto size = QSize(outer, outer) * factor;
@@ -148,7 +149,7 @@ void LargeEmoji::paintCustom(
 		_selectedFrame.fill(Qt::transparent);
 		auto q = QPainter(&_selectedFrame);
 		emoji->paint(q, {
-			.preview = preview,
+			.textColor = textst.historyTextFg->c,
 			.now = context.now,
 			.paused = context.paused,
 		});
@@ -160,7 +161,7 @@ void LargeEmoji::paintCustom(
 		p.drawImage(x + skip, y + skip, _selectedFrame);
 	} else {
 		emoji->paint(p, {
-			.preview = preview,
+			.textColor = textst.historyTextFg->c,
 			.now = context.now,
 			.position = { x + skip, y + skip },
 			.paused = context.paused,

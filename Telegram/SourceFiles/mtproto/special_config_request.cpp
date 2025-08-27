@@ -62,8 +62,9 @@ QString InstanceId() {
 }
 
 bool CheckPhoneByPrefixesRules(const QString &phone, const QString &rules) {
+	static const auto RegExp = QRegularExpression("[^0-9]");
 	const auto check = QString(phone).replace(
-		QRegularExpression("[^0-9]"),
+		RegExp,
 		QString());
 	auto result = false;
 	for (const auto &prefix : rules.split(',')) {
@@ -100,7 +101,7 @@ QByteArray ParseRemoteConfigResponse(const QByteArray &bytes) {
 	return document.object().value(
 		"entries"
 	).toObject().value(
-		qsl("%1%2").arg(kConfigKey, kConfigSubKey)
+		u"%1%2"_q.arg(kConfigKey, kConfigSubKey)
 	).toString().toLatin1();
 }
 
@@ -188,6 +189,7 @@ SpecialConfigRequest::SpecialConfigRequest(
 		int port,
 		bytes::const_span secret)> callback,
 	Fn<void()> timeDoneCallback,
+	bool isTestMode,
 	const QString &domainString,
 	const QString &phone)
 : _callback(std::move(callback))
@@ -198,16 +200,7 @@ SpecialConfigRequest::SpecialConfigRequest(
 
 	_manager.setProxy(QNetworkProxy::NoProxy);
 
-	auto domains = DnsDomains();
-	const auto domainsCount = domains.size();
-
 	std::random_device rd;
-	ranges::shuffle(domains, std::mt19937(rd()));
-	const auto takeDomain = [&] {
-		const auto result = domains.back();
-		domains.pop_back();
-		return result;
-	};
 	const auto shuffle = [&](int from, int till) {
 		Expects(till > from);
 
@@ -219,14 +212,9 @@ SpecialConfigRequest::SpecialConfigRequest(
 
 	_attempts = {};
 	_attempts.push_back({ Type::Google, "dns.google.com" });
-	_attempts.push_back({ Type::Google, takeDomain(), "dns" });
 	_attempts.push_back({ Type::Mozilla, "mozilla.cloudflare-dns.com" });
 	_attempts.push_back({ Type::RemoteConfig, "firebaseremoteconfig" });
-	while (!domains.empty()) {
-		_attempts.push_back({ Type::Google, takeDomain(), "dns" });
-	}
 	if (!_timeDoneCallback) {
-		_attempts.push_back({ Type::Realtime, "firebaseio.com" });
 		_attempts.push_back({ Type::FireStore, "firestore" });
 		for (const auto &domain : DnsDomains()) {
 			_attempts.push_back({ Type::FireStore, domain, "firestore" });
@@ -234,12 +222,15 @@ SpecialConfigRequest::SpecialConfigRequest(
 	}
 
 	shuffle(0, 2);
-	shuffle(2, 4);
 	if (!_timeDoneCallback) {
-		shuffle(
-			_attempts.size() - (2 + domainsCount),
-			_attempts.size() - domainsCount);
-		shuffle(_attempts.size() - domainsCount, _attempts.size());
+		shuffle(_attempts.size() - (int(DnsDomains().size()) + 1), _attempts.size());
+	}
+	if (isTestMode) {
+		_attempts.erase(ranges::remove_if(_attempts, [](
+				const Attempt &attempt) {
+			return (attempt.type != Type::Google)
+				&& (attempt.type != Type::Mozilla);
+		}), _attempts.end());
 	}
 	ranges::reverse(_attempts); // We go from last to first.
 
@@ -252,17 +243,25 @@ SpecialConfigRequest::SpecialConfigRequest(
 		const std::string &ip,
 		int port,
 		bytes::const_span secret)> callback,
+	bool isTestMode,
 	const QString &domainString,
 	const QString &phone)
-: SpecialConfigRequest(std::move(callback), nullptr, domainString, phone) {
+: SpecialConfigRequest(
+	std::move(callback),
+	nullptr,
+	isTestMode,
+	domainString,
+	phone) {
 }
 
 SpecialConfigRequest::SpecialConfigRequest(
 	Fn<void()> timeDoneCallback,
+	bool isTestMode,
 	const QString &domainString)
 : SpecialConfigRequest(
 	nullptr,
 	std::move(timeDoneCallback),
+	isTestMode,
 	domainString,
 	QString()) {
 }
@@ -283,22 +282,22 @@ void SpecialConfigRequest::sendNextRequest() {
 void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 	const auto type = attempt.type;
 	auto url = QUrl();
-	url.setScheme(qsl("https"));
+	url.setScheme(u"https"_q);
 	auto request = QNetworkRequest();
 	auto payload = QByteArray();
 	switch (type) {
 	case Type::Mozilla: {
 		url.setHost(attempt.data);
-		url.setPath(qsl("/dns-query"));
-		url.setQuery(qsl("name=%1&type=16&random_padding=%2").arg(
+		url.setPath(u"/dns-query"_q);
+		url.setQuery(u"name=%1&type=16&random_padding=%2"_q.arg(
 			_domainString,
 			GenerateDnsRandomPadding()));
 		request.setRawHeader("accept", "application/dns-json");
 	} break;
 	case Type::Google: {
 		url.setHost(attempt.data);
-		url.setPath(qsl("/resolve"));
-		url.setQuery(qsl("name=%1&type=ANY&random_padding=%2").arg(
+		url.setPath(u"/resolve"_q);
+		url.setQuery(u"name=%1&type=ANY&random_padding=%2"_q.arg(
 			_domainString,
 			GenerateDnsRandomPadding()));
 		if (!attempt.host.isEmpty()) {
@@ -308,23 +307,23 @@ void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 	} break;
 	case Type::RemoteConfig: {
 		url.setHost(ApiDomain(attempt.data));
-		url.setPath(qsl("/v1/projects/%1/namespaces/firebase:fetch"
+		url.setPath((u"/v1/projects/%1/namespaces/firebase:fetch"_q
 		).arg(kRemoteProject));
-		url.setQuery(qsl("key=%1").arg(kApiKey));
-		payload = qsl("{\"app_id\":\"%1\",\"app_instance_id\":\"%2\"}").arg(
+		url.setQuery(u"key=%1"_q.arg(kApiKey));
+		payload = u"{\"app_id\":\"%1\",\"app_instance_id\":\"%2\"}"_q.arg(
 			kAppId,
 			InstanceId()).toLatin1();
 		request.setRawHeader("Content-Type", "application/json");
 	} break;
 	case Type::Realtime: {
-		url.setHost(kFireProject + qsl(".%1").arg(attempt.data));
-		url.setPath(qsl("/%1%2.json").arg(kConfigKey, kConfigSubKey));
+		url.setHost(kFireProject + u".%1"_q.arg(attempt.data));
+		url.setPath(u"/%1%2.json"_q.arg(kConfigKey, kConfigSubKey));
 	} break;
 	case Type::FireStore: {
 		url.setHost(attempt.host.isEmpty()
 			? ApiDomain(attempt.data)
 			: attempt.data);
-		url.setPath(qsl("/v1/projects/%1/databases/(default)/documents/%2/%3"
+		url.setPath((u"/v1/projects/%1/databases/(default)/documents/%2/%3"_q
 		).arg(
 			kFireProject,
 			kConfigKey,
@@ -517,7 +516,7 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 		for (const auto &address : data.vips().v) {
 			const auto parseIp = [](const MTPint &ipv4) {
 				const auto ip = *reinterpret_cast<const uint32*>(&ipv4.v);
-				return qsl("%1.%2.%3.%4"
+				return (u"%1.%2.%3.%4"_q
 				).arg((ip >> 24) & 0xFF
 				).arg((ip >> 16) & 0xFF
 				).arg((ip >> 8) & 0xFF

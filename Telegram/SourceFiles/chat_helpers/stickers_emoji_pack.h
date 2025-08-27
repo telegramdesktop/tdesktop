@@ -50,6 +50,12 @@ struct LargeEmojiImage {
 	[[nodiscard]] static QSize Size();
 };
 
+enum class EffectType : uint8 {
+	EmojiInteraction,
+	PremiumSticker,
+	MessageEffect,
+};
+
 class EmojiPack final {
 public:
 	using ViewElement = HistoryView::Element;
@@ -87,15 +93,30 @@ public:
 	[[nodiscard]] int animationsVersion() const {
 		return _animationsVersion;
 	}
+	[[nodiscard]] rpl::producer<> refreshed() const {
+		return _refreshed.events();
+	}
 
 	[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> effectPlayer(
 		not_null<DocumentData*> document,
 		QByteArray data,
 		QString filepath,
-		bool premium);
+		EffectType type);
 
 private:
 	class ImageLoader;
+
+	struct ProviderKey {
+		not_null<DocumentData*> document;
+		Stickers::EffectType type = {};
+
+		friend inline auto operator<=>(
+			const ProviderKey &,
+			const ProviderKey &) = default;
+		friend inline bool operator==(
+			const ProviderKey &,
+			const ProviderKey &) = default;
+	};
 
 	void refresh();
 	void refreshDelayed();
@@ -132,8 +153,10 @@ private:
 	mtpRequestId _animationsRequestId = 0;
 
 	base::flat_map<
-		not_null<DocumentData*>,
+		ProviderKey,
 		std::weak_ptr<Lottie::FrameProvider>> _sharedProviders;
+
+	rpl::event_stream<> _refreshed;
 
 	rpl::lifetime _lifetime;
 

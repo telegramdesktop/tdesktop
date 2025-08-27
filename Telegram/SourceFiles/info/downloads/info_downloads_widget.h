@@ -57,6 +57,8 @@ public:
 	rpl::producer<SelectedItems> selectedListValue() const override;
 	void selectionAction(SelectionAction action) override;
 
+	void fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) override;
+
 	rpl::producer<QString> title() override;
 
 private:

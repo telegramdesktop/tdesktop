@@ -91,12 +91,10 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
 		if (!_channel->inviteLink().isEmpty()) {
 			QGuiApplication::clipboard()->setText(_channel->inviteLink());
-			Ui::Toast::Show(
-				Ui::BoxShow(this).toastParent(),
-				tr::lng_create_channel_link_copied(tr::now));
+			showToast(tr::lng_create_channel_link_copied(tr::now));
 		} else if (_channel->isFullLoaded() && !_creatingInviteLink) {
 			_creatingInviteLink = true;
-			_channel->session().api().inviteLinks().create(_channel);
+			_channel->session().api().inviteLinks().create({ _channel });
 		}
 	}
 }
@@ -135,8 +133,8 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	auto option = QTextOption(style::al_left);
 	option.setWrapMode(QTextOption::WrapAnywhere);
 	p.setFont(_linkOver
-		? st::defaultInputField.font->underline()
-		: st::defaultInputField.font);
+		? st::defaultInputField.style.font->underline()
+		: st::defaultInputField.style.font);
 	p.setPen(st::defaultLinkButton.color);
 	const auto inviteLinkText = _channel->inviteLink().isEmpty()
 		? tr::lng_group_invite_create(tr::now)
