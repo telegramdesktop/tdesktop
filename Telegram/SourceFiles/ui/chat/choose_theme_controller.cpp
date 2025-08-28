@@ -561,8 +561,8 @@ void ChooseThemeController::fill(
 	const auto single = st::chatThemePreviewSize;
 	const auto skip = st::chatThemeEntrySkip;
 	const auto &margin = st::chatThemeEntryMargin;
-	const auto initial = Ui::Emoji::Find(_peer->themeToken());
-	if (!initial) {
+	const auto initial = _peer->themeToken();
+	if (initial.isEmpty()) {
 		_chosen = kDisableElement();
 	}
 
@@ -574,8 +574,8 @@ void ChooseThemeController::fill(
 		) | rpl::then(cloudThemes->myGiftThemesUpdated())
 	) | rpl::start_with_next([=](bool dark, auto) {
 		clearCurrentBackgroundState();
-		if (_chosen.current().isEmpty() && initial) {
-			_chosen = initial->text();
+		if (_chosen.current().isEmpty() && !initial.isEmpty()) {
+			_chosen = initial;
 		}
 
 		_cachingLifetime.destroy();
@@ -598,89 +598,30 @@ void ChooseThemeController::fill(
 			: Data::CloudThemeType::Light;
 
 		x += single.width() + skip;
-		for (const auto &theme : themes) {
-			const auto emoji = Ui::Emoji::Find(theme.emoticon);
-			if (!emoji || !theme.settings.contains(type)) {
-				continue;
-			}
-			const auto token = emoji->text();
-			const auto key = ChatThemeKey{ theme.id, dark };
-			const auto isChosen = (_chosen.current() == token);
-			_entries.push_back({
-				.token = token,
-				.key = key,
-				.emoji = emoji,
-				.geometry = QRect(QPoint(x, skip), single),
-				.chosen = isChosen,
-			});
-			_controller->cachedChatThemeValue(
-				theme,
-				Data::WallPaper(0),
-				type
-			) | rpl::filter([=](const std::shared_ptr<ChatTheme> &data) {
-				return data && (data->key() == key);
-			}) | rpl::take(
-				1
-			) | rpl::start_with_next([=](std::shared_ptr<ChatTheme> &&data) {
-				const auto key = data->key();
-				const auto i = ranges::find(_entries, key, &Entry::key);
-				if (i == end(_entries)) {
-					return;
-				}
-				const auto theme = data.get();
-				const auto token = i->token;
-				i->theme = std::move(data);
-				i->preview = GeneratePreview(theme);
-				if (_chosen.current() == token) {
-					_controller->overridePeerTheme(_peer, i->theme, token);
-				}
-				_inner->update();
 
-				if (!theme->background().isPattern
-					|| !theme->background().prepared.isNull()) {
-					return;
-				}
-				// Subscribe to pattern loading if needed.
-				theme->repaintBackgroundRequests(
-				) | rpl::filter([=] {
-					const auto i = ranges::find(
-						_entries,
-						key,
-						&Entry::key);
-					return (i == end(_entries))
-						|| !i->theme->background().prepared.isNull();
-				}) | rpl::take(1) | rpl::start_with_next([=] {
-					const auto i = ranges::find(
-						_entries,
-						key,
-						&Entry::key);
-					if (i == end(_entries)) {
-						return;
-					}
-					i->preview = GeneratePreview(theme);
-					_inner->update();
-				}, _cachingLifetime);
-			}, _cachingLifetime);
-			x += single.width() + skip;
-		}
 		const auto owner = &_controller->session().data();
 		const auto manager = &owner->customEmojiManager();
-		for (const auto &token : cloudThemes->myGiftThemesTokens()) {
-			const auto found = cloudThemes->themeForToken(token);
-			if (!found || !found->settings.contains(type)) {
-				continue;
+		const auto push = [&](
+				const Data::CloudTheme &theme,
+				const QString &token) {
+			if (token.isEmpty() || !theme.settings.contains(type)) {
+				return;
 			}
-			const auto &theme = *found;
 			const auto key = ChatThemeKey{ theme.id, dark };
 			const auto isChosen = (_chosen.current() == token);
 			_entries.push_back({
 				.token = token,
 				.key = key,
-				.gift = found->unique,
-				.custom = manager->create(
-					found->unique->model.document, 
-					[=] { _inner->update(); }, 
-					Data::CustomEmojiSizeTag::Large),
+				.gift = theme.unique,
+				.custom = (theme.unique
+					? manager->create(
+						theme.unique->model.document,
+						[=] { _inner->update(); },
+						Data::CustomEmojiSizeTag::Large)
+					: nullptr),
+				.emoji = (theme.emoticon.isEmpty()
+					? nullptr
+					: Ui::Emoji::Find(theme.emoticon)),
 				.geometry = QRect(QPoint(x, skip), single),
 				.chosen = isChosen,
 			});
@@ -733,6 +674,25 @@ void ChooseThemeController::fill(
 				}, _cachingLifetime);
 			}, _cachingLifetime);
 			x += single.width() + skip;
+		};
+
+		if (const auto now = cloudThemes->themeForToken(initial)) {
+			push(*now, initial);
+		}
+		for (const auto &theme : themes) {
+			if (const auto emoji = Ui::Emoji::Find(theme.emoticon)) {
+				const auto token = emoji->text();
+				if (token != initial) {
+					push(theme, token);
+				}
+			}
+		}
+		for (const auto &token : cloudThemes->myGiftThemesTokens()) {
+			if (const auto found = cloudThemes->themeForToken(token)) {
+				if (token != initial) {
+					push(*found, token);
+				}
+			}
 		}
 
 		const auto full = x - skip + margin.right();

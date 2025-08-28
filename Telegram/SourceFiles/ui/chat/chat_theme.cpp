@@ -975,16 +975,12 @@ BackgroundImageFields ReadBackgroundImage(
 		.maxSize = QSize(kMaxSize, kMaxSize),
 		.gzipSvg = gzipSvg,
 	});
-	if (read.image.isNull()) {
-		read.image = QImage(1, 1, QImage::Format_ARGB32_Premultiplied);
-		read.image.fill(Qt::black);
-	}
 	auto result = BackgroundImageFields{
 		.image = std::move(read.image),
 	};
 	if (const auto &rects = read.svgCutOutContent; !rects.isEmpty()) {
 		result.giftSymbols = ParseGiftSymbols(
-			rects, 
+			rects,
 			result.image.size(),
 			read.scale);
 	}

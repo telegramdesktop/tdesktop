@@ -170,6 +170,10 @@ base::binary_guard ReadBackgroundImageAsync(
 		callback = std::move(done)
 	]() mutable {
 		auto image = Ui::ReadBackgroundImage(path, bytes, gzipSvg).image;
+		if (image.isNull()) {
+			image = QImage(1, 1, QImage::Format_ARGB32_Premultiplied);
+			image.fill(Qt::black);
+		}
 		if (postprocess) {
 			image = postprocess(std::move(image));
 		}
