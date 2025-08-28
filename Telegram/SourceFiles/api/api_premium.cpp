@@ -911,6 +911,7 @@ std::optional<Data::StarGift> FromTL(
 				.starsForResale = FindStarsForResale(data.vresell_amount()),
 				.number = data.vnum().v,
 				.onlyAcceptTon = data.is_resale_ton_only(),
+				.canBeTheme = data.is_theme_available(),
 				.model = *model,
 				.pattern = *pattern,
 				.value = (data.vvalue_amount()

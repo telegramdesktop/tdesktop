@@ -202,7 +202,9 @@ private:
 	BackgroundState _backgroundState;
 	Animations::Simple _backgroundFade;
 	CacheBackgroundRequest _backgroundCachingRequest;
+	CacheBackgroundRequest _nextCachingRequest;
 	CacheBackgroundResult _backgroundNext;
+	int _backgroundVersion = 0;
 	QSize _cacheBackgroundArea;
 	crl::time _lastBackgroundAreaChangeTime = 0;
 	std::optional<base::Timer> _cacheBackgroundTimer;

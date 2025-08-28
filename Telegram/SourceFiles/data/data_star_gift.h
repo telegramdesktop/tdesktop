@@ -67,6 +67,7 @@ struct UniqueGift {
 	int starsForTransfer = -1;
 	int number = 0;
 	bool onlyAcceptTon = false;
+	bool canBeTheme = false;
 	TimeId exportAt = 0;
 	TimeId canTransferAt = 0;
 	TimeId canResellAt = 0;

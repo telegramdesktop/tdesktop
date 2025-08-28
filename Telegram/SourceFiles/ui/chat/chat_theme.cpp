@@ -535,7 +535,8 @@ bool ChatTheme::readyForBackgroundRotation() const {
 }
 
 void ChatTheme::generateNextBackgroundRotation() {
-	if (_backgroundCachingRequest
+	if (_nextCachingRequest
+		|| _backgroundCachingRequest
 		|| !_backgroundNext.image.isNull()
 		|| !readyForBackgroundRotation()
 		|| background().colors.size() < 3) {
@@ -548,8 +549,9 @@ void ChatTheme::generateNextBackgroundRotation() {
 	if (!request) {
 		return;
 	}
+	_nextCachingRequest = request;
 	cacheBackgroundAsync(request, [=](CacheBackgroundResult &&result) {
-		const auto forRequest = base::take(_backgroundCachingRequest);
+		const auto forRequest = base::take(_nextCachingRequest);
 		if (!readyForBackgroundRotation()) {
 			return;
 		}
@@ -601,7 +603,9 @@ void ChatTheme::cacheBackgroundNow() {
 void ChatTheme::cacheBackgroundAsync(
 		const CacheBackgroundRequest &request,
 		Fn<void(CacheBackgroundResult&&)> done) {
-	_backgroundCachingRequest = request;
+	if (!done) {
+		_backgroundCachingRequest = request;
+	}
 	const auto weak = base::make_weak(this);
 	crl::async([=] {
 		if (!weak) {
