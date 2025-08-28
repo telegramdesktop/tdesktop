@@ -653,11 +653,7 @@ bool DocumentData::checkWallPaperProperties() {
 	if (type == WallPaperDocument) {
 		return true;
 	}
-	if (hasMimeType(u"application/x-tgwallpattern"_q)
-		&& dimensions.isEmpty()) {
-		dimensions = QSize(1125, 2313);
-		AssertIsDebug();
-	} else if (type != FileDocument
+	if (type != FileDocument
 		|| !hasThumbnail()
 		|| dimensions.isEmpty()
 		|| dimensions.width() > Storage::kMaxWallPaperDimension

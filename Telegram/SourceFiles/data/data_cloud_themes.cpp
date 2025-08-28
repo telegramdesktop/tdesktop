@@ -524,6 +524,8 @@ void CloudThemes::myGiftThemesLoadMore(bool reload) {
 				_myGiftThemesTokens.clear();
 				_myGiftThemesLoaded = false;
 			}
+			_session->data().processUsers(data.vusers());
+			_session->data().processChats(data.vchats());
 			const auto &list = data.vthemes().v;
 			const auto got = int(list.size());
 			_myGiftThemesTokens.reserve(_myGiftThemesTokens.size() + got);
