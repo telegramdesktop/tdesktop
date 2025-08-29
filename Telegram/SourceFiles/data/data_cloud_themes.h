@@ -85,6 +85,7 @@ public:
 	[[nodiscard]] rpl::producer<> myGiftThemesUpdated() const;
 	[[nodiscard]] QString processGiftThemeGetToken(
 		const MTPDchatThemeUniqueGift &data);
+	[[nodiscard]] bool myGiftThemesReady() const;
 
 	void refreshChatThemesFor(const QString &token);
 	[[nodiscard]] std::optional<CloudTheme> themeForToken(

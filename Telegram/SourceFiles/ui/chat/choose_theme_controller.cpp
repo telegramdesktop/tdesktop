@@ -573,6 +573,9 @@ void ChooseThemeController::fill(
 			rpl::empty
 		) | rpl::then(cloudThemes->myGiftThemesUpdated())
 	) | rpl::start_with_next([=](bool dark, auto) {
+		if (!cloudThemes->myGiftThemesReady()) {
+			return;
+		}
 		clearCurrentBackgroundState();
 		if (_chosen.current().isEmpty() && !initial.isEmpty()) {
 			_chosen = initial;
@@ -679,18 +682,18 @@ void ChooseThemeController::fill(
 		if (const auto now = cloudThemes->themeForToken(initial)) {
 			push(*now, initial);
 		}
+		for (const auto &token : cloudThemes->myGiftThemesTokens()) {
+			if (const auto found = cloudThemes->themeForToken(token)) {
+				if (token != initial) {
+					push(*found, token);
+				}
+			}
+		}
 		for (const auto &theme : themes) {
 			if (const auto emoji = Ui::Emoji::Find(theme.emoticon)) {
 				const auto token = emoji->text();
 				if (token != initial) {
 					push(theme, token);
-				}
-			}
-		}
-		for (const auto &token : cloudThemes->myGiftThemesTokens()) {
-			if (const auto found = cloudThemes->themeForToken(token)) {
-				if (token != initial) {
-					push(*found, token);
 				}
 			}
 		}

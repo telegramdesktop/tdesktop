@@ -541,6 +541,7 @@ void CloudThemes::myGiftThemesLoadMore(bool reload) {
 		}, [&](const MTPDaccount_chatThemesNotModified &) {
 			if (!reload) {
 				_myGiftThemesLoaded = true;
+				_myGiftThemesUpdates.fire({});
 			}
 		});
 	}).fail([=] {
@@ -551,6 +552,10 @@ void CloudThemes::myGiftThemesLoadMore(bool reload) {
 
 const std::vector<QString> &CloudThemes::myGiftThemesTokens() const {
 	return _myGiftThemesTokens;
+}
+
+bool CloudThemes::myGiftThemesReady() const {
+	return !_myGiftThemesTokens.empty() || _myGiftThemesLoaded;
 }
 
 rpl::producer<> CloudThemes::myGiftThemesUpdated() const {
