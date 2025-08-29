@@ -527,6 +527,24 @@ void FillCreditOptions(
 		st::creditsTopupButton.height,
 		1).width() / style::DevicePixelRatio();
 
+	struct StarsState {
+		base::flat_map<int, QImage> cache;
+		rpl::variable<bool> ready = false;
+	};
+	const auto starsState = content->lifetime().make_state<StarsState>();
+	const auto weak = base::make_weak(content);
+	crl::async([=]() mutable {
+		constexpr auto kPreloadCount = 10;
+		auto cache = base::flat_map<int, QImage>();
+		for (auto i = 1; i <= kPreloadCount; ++i) {
+			cache[i] = Ui::GenerateStars(st::creditsTopupButton.height, i);
+		}
+		crl::on_main(weak, [=, result = std::move(cache)]() mutable {
+			starsState->cache = std::move(result);
+			starsState->ready = true;
+		});
+	});
+
 	const auto loadingContainer = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			content,
@@ -639,7 +657,14 @@ void FillCreditOptions(
 				Ui::FillAmountAndCurrency(option.amount, option.currency),
 				st::creditsTopupPrice);
 			const auto inner = Ui::CreateChild<Ui::RpWidget>(button);
-			const auto stars = Ui::GenerateStars(st.height, (i + 1));
+			const auto getStars = [=] {
+				const auto starIndex = i + 1;
+				if (starsState->cache.contains(starIndex)) {
+					return starsState->cache[starIndex];
+				}
+				return Ui::GenerateStars(st.height, starIndex);
+			};
+			const auto stars = getStars();
 			const auto textLeft = diffBetweenTextAndStar
 				+ stars.width() / style::DevicePixelRatio();
 			inner->paintRequest(
@@ -719,7 +744,11 @@ void FillCreditOptions(
 				) | rpl::start_with_error_done([=](const QString &error) {
 					show->showToast(error);
 				}, [=] {
-					fill(apiCredits->options());
+					starsState->ready.value() | rpl::filter(
+						rpl::mappers::_1
+					) | rpl::start_with_next([=] {
+						fill(apiCredits->options());
+					}, content->lifetime());
 				}, content->lifetime());
 			}, content->lifetime());
 		} else {
