@@ -85,7 +85,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 
 		struct State {
 			TopBarSuggestionContent *content = nullptr;
-			Ui::RpWidget *unconfirmedWarning = nullptr;
+			Ui::SlideWrap<Ui::VerticalLayout> *unconfirmedWarning = nullptr;
 			base::unique_qptr<Ui::SlideWrap<Ui::RpWidget>> wrap;
 			rpl::variable<int> leftPadding;
 			rpl::variable<Toggle> desiredWrapToggle;
@@ -116,9 +116,10 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 		};
 		const auto ensureWrap = [=](not_null<Ui::RpWidget*> child) {
 			if (!state->wrap) {
-				state->wrap = base::make_unique_q<Ui::SlideWrap<Ui::RpWidget>>(
-					parent,
-					object_ptr<Ui::RpWidget>::fromRaw(child));
+				state->wrap
+					= base::make_unique_q<Ui::SlideWrap<Ui::RpWidget>>(
+						parent,
+						object_ptr<Ui::RpWidget>::fromRaw(child));
 				state->desiredWrapToggle.force_assign(
 					Toggle{ false, anim::type::instant });
 			}
@@ -143,17 +144,20 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			if (!session->api().authorizations().unreviewed().empty()) {
 				state->content = nullptr;
 				state->wrap = nullptr;
-				const auto list = session->api().authorizations().unreviewed();
-				const auto hashes = list
-					| ranges::views::transform([](const auto &auth) {
+				const auto &list
+					= session->api().authorizations().unreviewed();
+				const auto hashes = ranges::views::all(
+						list
+					) | ranges::views::transform([](const auto &auth) {
 						return auth.hash;
-					})
-					| ranges::to<std::vector>();
+					}) | ranges::to_vector;
 				const auto content = CreateUnconfirmedAuthContent(
 					parent,
 					list,
 					[=](bool confirmed) {
-						session->api().authorizations().review(hashes, confirmed);
+						session->api().authorizations().review(
+							hashes,
+							confirmed);
 					});
 				ensureWrap(content);
 				const auto wasUnconfirmedWarning = state->unconfirmedWarning;

@@ -32,22 +32,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Dialogs {
 
-not_null<Ui::RpWidget*> CreateUnconfirmedAuthContent(
+class UnconfirmedAuthWrap : public Ui::SlideWrap<Ui::VerticalLayout> {
+public:
+	UnconfirmedAuthWrap(
+		not_null<Ui::RpWidget*> parent,
+		object_ptr<Ui::VerticalLayout> &&child)
+	: Ui::SlideWrap<Ui::VerticalLayout>(parent, std::move(child)) {
+	}
+
+	rpl::producer<int> desiredHeightValue() const override {
+		return entity()->heightValue();
+	}
+};
+
+not_null<Ui::SlideWrap<Ui::VerticalLayout>*> CreateUnconfirmedAuthContent(
 		not_null<Ui::RpWidget*> parent,
 		const std::vector<Data::UnreviewedAuth> &list,
 		Fn<void(bool)> callback) {
-	const auto wrap = Ui::CreateChild<Ui::SlideWrap<Ui::VerticalLayout>>(
+	const auto wrap = Ui::CreateChild<UnconfirmedAuthWrap>(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent));
 	const auto content = wrap->entity();
 	content->paintRequest() | rpl::start_with_next([=] {
 		auto p = QPainter(content);
 		p.fillRect(content->rect(), st::dialogsBg);
-	}, content->lifetime());
-
-	parent->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		content->resizeToWidth(width);
 	}, content->lifetime());
 
 	const auto padding = st::dialogsUnconfirmedAuthPadding;
