@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/chat_theme.h"
 
-#include "ui/image/image_prepare.h"
+#include "ui/color_contrast.h"
+#include "ui/emoji_config.h"
+#include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
-#include "ui/color_contrast.h"
+#include "ui/image/image_prepare.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/style/style_core_palette.h"
 #include "ui/style/style_palette_colorizer.h"
 
@@ -53,6 +56,14 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 	return (doubled % 2) ? 0.5 : 1.;
 }
 
+[[nodiscard]] int RotationForSymbol(const QRectF &symbol) {
+	const auto a = int(base::SafeRound(symbol.x() * 255));
+	const auto b = int(base::SafeRound(symbol.y() * 255));
+	const auto value = uint16((uint16(a) << 8) | uint16(b));
+	const auto shuffled = uint16(value << 5) | uint16(value >> 3);
+	return (shuffled % 90) - 45;
+}
+
 [[nodiscard]] CacheBackgroundResult CacheBackgroundByRequest(
 		const CacheBackgroundRequest &request) {
 	Expects(!request.area.isEmpty());
@@ -83,14 +94,17 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 			QPainter p(&result);
 			if (!gradient.isNull()) {
 				if (request.background.patternOpacity >= 0.) {
-					p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+					p.setCompositionMode(
+						QPainter::CompositionMode_SoftLight);
 					p.setOpacity(request.background.patternOpacity);
 				} else {
 					p.setCompositionMode(
 						QPainter::CompositionMode_DestinationIn);
 				}
 			}
-			const auto tiled = request.background.isPattern
+			const auto hasGiftSymbols = request.background.isPattern
+				&& !request.background.giftSymbols.empty();
+			auto tiled = request.background.isPattern
 				? request.background.prepared.scaled(
 					request.area.height() * ratio,
 					request.area.height() * ratio,
@@ -99,6 +113,31 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 				: request.background.preparedForTiled;
 			const auto w = tiled.width() / float(ratio);
 			const auto h = tiled.height() / float(ratio);
+
+			const auto &giftSymbols = request.background.giftSymbols;
+			const auto &giftSymbolFrame = request.background.giftSymbolFrame;
+			const auto giftSymbolSize = giftSymbolFrame.size() / ratio;
+			if (hasGiftSymbols) {
+				auto q = QPainter(&tiled);
+				auto hq = PainterHighQualityEnabler(q);
+				q.setOpacity(0.8);
+				for (const auto &symbol : giftSymbols) {
+					const auto rect = QRectF(
+						symbol.x() * w,
+						symbol.y() * h,
+						symbol.width() * w,
+						symbol.height() * h);
+					q.save();
+					q.translate(rect.center());
+					q.scale(
+						rect.width() / giftSymbolSize.width(),
+						rect.height() / giftSymbolSize.height());
+					q.rotate(RotationForSymbol(symbol));
+					q.translate(-rect.center());
+					q.drawImage(rect.topLeft(), giftSymbolFrame);
+					q.restore();
+				}
+			}
 			const auto cx = int(std::ceil(request.area.width() / w));
 			const auto cy = int(std::ceil(request.area.height() / h));
 			const auto rows = cy;
@@ -111,7 +150,8 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 			const auto useshift = xshift / float(ratio);
 			for (auto y = 0; y != rows; ++y) {
 				for (auto x = 0; x != cols; ++x) {
-					p.drawImage(QPointF(useshift + x * w, y * h), tiled);
+					const auto position = QPointF(useshift + x * w, y * h);
+					p.drawImage(position, tiled);
 				}
 			}
 			if (!gradient.isNull()
@@ -1093,7 +1133,7 @@ ChatThemeBackground PrepareBackgroundImage(
 			data.path,
 			data.bytes,
 			data.gzipSvg,
-			data.findGiftSymbols)
+			!data.giftSymbolFrame.isNull())
 		: BackgroundImageFields();
 	auto prepared = needBackground
 		? PreprocessBackgroundImage(std::move(read.image))
@@ -1143,10 +1183,32 @@ ChatThemeBackground PrepareBackgroundImage(
 			: std::make_optional(data.colors.front())),
 		.colors = data.colors,
 		.giftSymbols = std::move(read.giftSymbols),
+		.giftSymbolFrame = data.giftSymbolFrame,
 		.patternOpacity = data.patternOpacity,
 		.gradientRotation = data.generateGradient ? data.gradientRotation : 0,
 		.isPattern = data.isPattern,
 	};
+}
+
+[[nodiscard]] QImage PrepareGiftSymbol(
+		const std::unique_ptr<Text::CustomEmoji> &emoji) {
+	if (!emoji || !emoji->ready()) {
+		return QImage();
+	}
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = Ui::Emoji::GetSizeNormal() / ratio;
+	auto result = QImage(
+		2 * QSize(size, size) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	auto p = QPainter(&result);
+	const auto shift = (2 * size - (Ui::Emoji::GetSizeLarge() / ratio)) / 2;
+	emoji->paint(p, {
+		.textColor = QColor(0, 0, 0),
+		.position = QPoint(shift, shift),
+	});
+	return result;
 }
 
 } // namespace Window::Theme

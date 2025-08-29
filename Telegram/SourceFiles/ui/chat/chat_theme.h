@@ -16,6 +16,10 @@ class palette;
 struct colorizer;
 } // namespace style
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Ui {
 
 class ChatStyle;
@@ -30,6 +34,7 @@ struct ChatThemeBackground {
 	std::optional<QColor> colorForFill;
 	std::vector<QColor> colors;
 	std::vector<QRectF> giftSymbols;
+	QImage giftSymbolFrame;
 	float64 patternOpacity = 1.;
 	int gradientRotation = 0;
 	bool isPattern = false;
@@ -47,6 +52,7 @@ struct ChatThemeBackgroundData {
 	QString key;
 	QString path;
 	QByteArray bytes;
+	QImage giftSymbolFrame;
 	bool gzipSvg = false;
 	std::vector<QColor> colors;
 	bool isPattern = false;
@@ -55,7 +61,6 @@ struct ChatThemeBackgroundData {
 	bool isBlurred = false;
 	bool forDarkMode = false;
 	bool generateGradient = false;
-	bool findGiftSymbols = false;
 	int gradientRotation = 0;
 };
 
@@ -269,5 +274,7 @@ struct BackgroundImageFields {
 	int rotation);
 [[nodiscard]] ChatThemeBackground PrepareBackgroundImage(
 	const ChatThemeBackgroundData &data);
+[[nodiscard]] QImage PrepareGiftSymbol(
+	const std::unique_ptr<Text::CustomEmoji> &emoji);
 
 } // namespace Ui

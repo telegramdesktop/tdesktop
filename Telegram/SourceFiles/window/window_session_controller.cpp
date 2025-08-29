@@ -1505,8 +1505,8 @@ struct SessionController::CachedThemeKey {
 struct SessionController::CachedTheme {
 	std::weak_ptr<Ui::ChatTheme> theme;
 	std::shared_ptr<Data::DocumentMedia> media;
+	std::unique_ptr<Ui::Text::CustomEmoji> giftSymbol;
 	Data::WallPaper paper;
-	bool findGiftSymbols = false;
 	bool basedOnDark = false;
 	bool caching = false;
 	rpl::lifetime lifetime;
@@ -3296,13 +3296,20 @@ void SessionController::cacheChatTheme(
 	const auto document = use.document();
 	const auto media = document ? document->createMediaView() : nullptr;
 	const auto findGiftSymbols = (data.unique != nullptr);
+	auto giftSymbol = findGiftSymbols
+		? session().data().customEmojiManager().create(
+			data.unique->pattern.document,
+			crl::guard(this, [=] { _giftSymbolLoaded.fire({}); }),
+			Data::CustomEmojiSizeTag::Large)
+		: nullptr;
+	const auto giftSymbolReady = !giftSymbol || giftSymbol->ready();
 	use.loadDocument();
 	auto &theme = [&]() -> CachedTheme& {
 		const auto i = _customChatThemes.find(key);
 		if (i != end(_customChatThemes)) {
 			i->second.media = media;
+			i->second.giftSymbol = std::move(giftSymbol);
 			i->second.paper = use;
-			i->second.findGiftSymbols = findGiftSymbols;
 			i->second.basedOnDark = dark;
 			i->second.caching = true;
 			return i->second;
@@ -3311,8 +3318,8 @@ void SessionController::cacheChatTheme(
 			key,
 			CachedTheme{
 				.media = media,
+				.giftSymbol = std::move(giftSymbol),
 				.paper = use,
-				.findGiftSymbols = findGiftSymbols,
 				.basedOnDark = dark,
 				.caching = true,
 			}).first->second;
@@ -3341,6 +3348,9 @@ void SessionController::cacheChatTheme(
 	});
 	if (media && media->loaded(true)) {
 		theme.media = nullptr;
+		if (giftSymbolReady) {
+			theme.giftSymbol = nullptr;
+		}
 	}
 }
 
@@ -3358,15 +3368,25 @@ void SessionController::cacheChatThemeDone(
 	}
 	i->second.caching = false;
 	i->second.theme = result;
-	if (i->second.media) {
-		if (i->second.media->loaded(true)) {
+	const auto media = i->second.media.get();
+	const auto giftSymbol = i->second.giftSymbol.get();
+	if (media || giftSymbol) {
+		if ((!media || media->loaded(true))
+			&& (!giftSymbol || giftSymbol->ready())) {
 			updateCustomThemeBackground(i->second);
 		} else {
-			session().downloaderTaskFinished(
+			rpl::merge(
+				session().downloaderTaskFinished(),
+				((giftSymbol && !giftSymbol->ready())
+					? (_giftSymbolLoaded.events() | rpl::type_erased())
+					: rpl::never<rpl::empty_value>())
 			) | rpl::filter([=] {
 				const auto i = _customChatThemes.find(key);
 				Assert(i != end(_customChatThemes));
-				return !i->second.media || i->second.media->loaded(true);
+				const auto media = i->second.media.get();
+				const auto giftSymbol = i->second.giftSymbol.get();
+				return (!media || media->loaded(true))
+					&& (!giftSymbol || giftSymbol->ready());
 			}) | rpl::start_with_next([=] {
 				const auto i = _customChatThemes.find(key);
 				Assert(i != end(_customChatThemes));
@@ -3381,9 +3401,15 @@ void SessionController::updateCustomThemeBackground(CachedTheme &theme) {
 	const auto guard = gsl::finally([&] {
 		theme.lifetime.destroy();
 		theme.media = nullptr;
+		theme.giftSymbol = nullptr;
 	});
 	const auto strong = theme.theme.lock();
-	if (!theme.media || !strong || !theme.media->loaded(true)) {
+	const auto media = theme.media.get();
+	const auto giftSymbol = theme.giftSymbol.get();
+	if (!strong
+		|| (!media && !giftSymbol)
+		|| (media && !media->loaded(true))
+		|| (giftSymbol && !giftSymbol->ready())) {
 		return;
 	}
 	const auto key = strong->key();
@@ -3424,6 +3450,7 @@ Ui::ChatThemeBackgroundData SessionController::backgroundData(
 		.key = paper.key(),
 		.path = paperPath,
 		.bytes = paperBytes,
+		.giftSymbolFrame = Ui::PrepareGiftSymbol(theme.giftSymbol),
 		.gzipSvg = gzipSvg,
 		.colors = colors,
 		.isPattern = isPattern,
@@ -3432,7 +3459,6 @@ Ui::ChatThemeBackgroundData SessionController::backgroundData(
 		.isBlurred = isBlurred,
 		.forDarkMode = theme.basedOnDark,
 		.generateGradient = generateGradient,
-		.findGiftSymbols = theme.findGiftSymbols,
 		.gradientRotation = gradientRotation,
 	};
 }
