@@ -560,6 +560,10 @@ void ChooseThemeController::updateInnerLeft(int now) {
 		? (skip / 2)
 		: std::clamp(now, skip, 0);
 	_inner->move(clamped, 0);
+	const auto visibleTill = -clamped + _content->width();
+	if (_giftsFinishAt - visibleTill < _content->width()) {
+		_peer->owner().cloudThemes().myGiftThemesLoadMore();
+	}
 }
 
 void ChooseThemeController::close() {
@@ -734,6 +738,7 @@ void ChooseThemeController::fill(
 			x += single.width() + skip;
 		};
 
+		_giftsFinishAt = 0;
 		if (const auto now = cloudThemes->themeForToken(initial)) {
 			push(*now, initial);
 		}
@@ -741,6 +746,7 @@ void ChooseThemeController::fill(
 			if (const auto found = cloudThemes->themeForToken(token)) {
 				if (token != initial) {
 					push(*found, token);
+					_giftsFinishAt = x;
 				}
 			}
 		}
