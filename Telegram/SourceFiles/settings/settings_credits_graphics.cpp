@@ -69,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
 #include "ui/effects/credits_graphics.h"
+#include "ui/effects/loading_element.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/premium_top_bar.h"
@@ -513,6 +514,7 @@ void FillCreditOptions(
 		not_null<PeerData*> peer,
 		CreditsAmount minimumCredits,
 		Fn<void()> paid,
+		rpl::producer<> showFinishes,
 		rpl::producer<QString> subtitle,
 		std::vector<Data::CreditTopupOption> preloadedTopupOptions) {
 	const auto options = container->add(
@@ -521,16 +523,59 @@ void FillCreditOptions(
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto content = options->entity();
 
-	Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
-
 	const auto singleStarWidth = Ui::GenerateStars(
 		st::creditsTopupButton.height,
 		1).width() / style::DevicePixelRatio();
+
+	const auto loadingContainer = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			content,
+			object_ptr<Ui::VerticalLayout>(content)));
+	loadingContainer->toggle(true, anim::type::instant);
+	const auto fillLoading = [=] {
+		Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
+		if (subtitle) {
+			Ui::AddSubsectionTitle(content, std::move(subtitle));
+		}
+		const auto &st = st::creditsTopupButton;
+		const auto loadingList = content;
+		const auto isRtl = QLocale().textDirection() == Qt::RightToLeft;
+		using WidgetPtr = object_ptr<Ui::RpWidget>;
+		for (auto i = 0; i < 4; i++) {
+			auto owned = object_ptr<Ui::SettingsButton>(
+				loadingList,
+				rpl::never<QString>(),
+				st);
+			owned->setAttribute(Qt::WA_TransparentForMouseEvents);
+			auto loadingLeft = Ui::CreateLoadingTextWidget(
+				owned,
+				st.style,
+				1,
+				rpl::single(isRtl));
+			content->widthValue(
+			) | rpl::start_with_next([=, raw = loadingLeft.get()](int w) {
+				if (w > 0) {
+					const auto availableWidth = w
+						- st.iconLeft
+						- st::boxRowPadding.right();
+					raw->resize(availableWidth, st.style.font->height);
+				}
+			}, loadingLeft->lifetime());
+			loadingLeft->moveToLeft(
+				st.iconLeft,
+				st.padding.top() - st::lineWidth * 2);
+			owned->lifetime().make_state<WidgetPtr>(std::move(loadingLeft));
+			Ui::ToggleChildrenVisibility(owned, true);
+			loadingList->add(std::move(owned));
+		}
+		content->resizeToWidth(container->width());
+	};
 
 	const auto fill = [=](Data::CreditTopupOptions options) {
 		while (content->count()) {
 			delete content->widgetAt(0);
 		}
+		Ui::AddSkip(content, st::settingsPremiumOptionsPadding.top());
 		if (subtitle) {
 			Ui::AddSubsectionTitle(content, std::move(subtitle));
 		}
@@ -668,11 +713,14 @@ void FillCreditOptions(
 
 	if (show->session().premiumPossible()) {
 		if (preloadedTopupOptions.empty()) {
-			apiCredits->request(
-			) | rpl::start_with_error_done([=](const QString &error) {
-				show->showToast(error);
-			}, [=] {
-				fill(apiCredits->options());
+			fillLoading();
+			std::move(showFinishes) | rpl::start_with_next([=] {
+				apiCredits->request(
+				) | rpl::start_with_error_done([=](const QString &error) {
+					show->showToast(error);
+				}, [=] {
+					fill(apiCredits->options());
+				}, content->lifetime());
 			}, content->lifetime());
 		} else {
 			fill(std::move(preloadedTopupOptions));
@@ -2578,6 +2626,7 @@ void SmallBalanceBox(
 		show->session().user(),
 		credits - show->session().credits().balance(),
 		[=] { show->session().credits().load(true); },
+		box->showFinishes(),
 		tr::lng_credits_summary_options_subtitle(),
 		{});
 

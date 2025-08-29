@@ -939,7 +939,7 @@ Fn<void()> BuyStarsHandler::handler(
 			if (const auto onstack = paid) {
 				onstack();
 			}
-		}, nullptr, options);
+		}, box->showFinishes(), nullptr, options);
 
 		const auto button = box->addButton(tr::lng_close(), [=] {
 			box->closeBox();

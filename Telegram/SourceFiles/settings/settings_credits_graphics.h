@@ -74,6 +74,7 @@ void FillCreditOptions(
 	not_null<PeerData*> peer,
 	CreditsAmount minCredits,
 	Fn<void()> paid,
+	rpl::producer<> showFinishes,
 	rpl::producer<QString> subtitle,
 	std::vector<Data::CreditTopupOption> preloadedTopupOptions);
 

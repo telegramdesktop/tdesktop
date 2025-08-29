@@ -97,6 +97,7 @@ void GiftCreditsBox(
 		peer,
 		CreditsAmount(),
 		[=] { gifted(); box->uiShow()->hideLayer(); },
+		box->showFinishes(),
 		tr::lng_credits_summary_options_subtitle(),
 		{});
 
