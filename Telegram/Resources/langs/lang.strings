@@ -6352,6 +6352,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_theme_change_wallpaper" = "Change Wallpaper";
 "lng_chat_theme_title" = "Select theme";
 "lng_chat_theme_cant_voice" = "Sorry, you can't change the chat theme while you have an unsent voice message.";
+"lng_chat_theme_gift_replace" = "This gift is already your theme in the chat with {name}. Remove it there and use it here instead?";
 
 "lng_photo_editor_menu_delete" = "Delete";
 "lng_photo_editor_menu_flip" = "Flip";

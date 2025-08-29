@@ -891,8 +891,14 @@ std::optional<Data::StarGift> FromTL(
 		const auto releasedById = data.vreleased_by()
 			? peerFromMTP(*data.vreleased_by())
 			: PeerId();
+		const auto themeUserId = data.vtheme_peer()
+			? peerFromMTP(*data.vtheme_peer())
+			: PeerId();
 		const auto releasedBy = releasedById
 			? session->data().peer(releasedById).get()
+			: nullptr;
+		const auto themeUser = themeUserId
+			? session->data().peer(themeUserId).get()
 			: nullptr;
 		auto result = Data::StarGift{
 			.id = data.vid().v,
@@ -907,6 +913,7 @@ std::optional<Data::StarGift> FromTL(
 					? peerFromMTP(*data.vowner_id())
 					: PeerId()),
 				.releasedBy = releasedBy,
+				.themeUser = themeUser,
 				.nanoTonForResale = FindTonForResale(data.vresell_amount()),
 				.starsForResale = FindStarsForResale(data.vresell_amount()),
 				.number = data.vnum().v,

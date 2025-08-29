@@ -62,6 +62,7 @@ struct UniqueGift {
 	QString ownerName;
 	PeerId ownerId = 0;
 	PeerData *releasedBy = nullptr;
+	PeerData *themeUser = nullptr;
 	int64 nanoTonForResale = -1;
 	int starsForResale = -1;
 	int starsForTransfer = -1;
