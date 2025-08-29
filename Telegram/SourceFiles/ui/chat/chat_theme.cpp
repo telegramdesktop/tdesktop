@@ -61,7 +61,27 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 	const auto b = int(base::SafeRound(symbol.y() * 255));
 	const auto value = uint16((uint16(a) << 8) | uint16(b));
 	const auto shuffled = uint16(value << 5) | uint16(value >> 3);
-	return (shuffled % 90) - 45;
+	return (shuffled % 60) - 30;
+}
+
+[[nodiscard]] int ChooseGiftSymbolSkip(const std::vector<QRectF> &symbols) {
+	if (symbols.empty()) {
+		return -1;
+	}
+	auto maxIndex = -1;
+	auto maxValue = 0.;
+	for (auto i = 0, count = int(symbols.size()); i != count; ++i) {
+		const auto &symbol = symbols[i];
+		const auto center = symbol.center();
+		const auto value = std::min(center.x(), 1. - center.x())
+			* std::min(center.y(), 1. - center.y())
+			* std::min(symbol.width(), symbol.height());
+		if (maxIndex < 0 || maxValue < value) {
+			maxIndex = i;
+			maxValue = value;
+		}
+	}
+	return maxIndex;
 }
 
 [[nodiscard]] CacheBackgroundResult CacheBackgroundByRequest(
@@ -90,6 +110,8 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		result.setDevicePixelRatio(ratio);
+		auto giftArea = QRect();
+		int giftRotation = 0;
 		if (!request.background.prepared.isNull()) {
 			QPainter p(&result);
 			if (!gradient.isNull()) {
@@ -115,27 +137,37 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 			const auto h = tiled.height() / float(ratio);
 
 			const auto &giftSymbols = request.background.giftSymbols;
+			const auto giftSymbolsCount = int(giftSymbols.size());
+			const auto giftSymbolSkip = ChooseGiftSymbolSkip(giftSymbols);
 			const auto &giftSymbolFrame = request.background.giftSymbolFrame;
 			const auto giftSymbolSize = giftSymbolFrame.size() / ratio;
+			const auto giftSymbolRect = [&](const QRectF &symbol) {
+				return QRectF(
+					symbol.x() * w,
+					symbol.y() * h,
+					symbol.width() * w,
+					symbol.height() * h);
+			};
+			const auto giftSymbolPaint = [&](QPainter &p, QRectF symbol) {
+				const auto rect = giftSymbolRect(symbol);
+				p.save();
+				p.translate(rect.center());
+				p.scale(
+					rect.width() / giftSymbolSize.width(),
+					rect.height() / giftSymbolSize.height());
+				p.rotate(RotationForSymbol(symbol));
+				p.translate(-rect.center());
+				p.drawImage(rect.topLeft(), giftSymbolFrame);
+				p.restore();
+			};
 			if (hasGiftSymbols) {
 				auto q = QPainter(&tiled);
 				auto hq = PainterHighQualityEnabler(q);
 				q.setOpacity(0.8);
-				for (const auto &symbol : giftSymbols) {
-					const auto rect = QRectF(
-						symbol.x() * w,
-						symbol.y() * h,
-						symbol.width() * w,
-						symbol.height() * h);
-					q.save();
-					q.translate(rect.center());
-					q.scale(
-						rect.width() / giftSymbolSize.width(),
-						rect.height() / giftSymbolSize.height());
-					q.rotate(RotationForSymbol(symbol));
-					q.translate(-rect.center());
-					q.drawImage(rect.topLeft(), giftSymbolFrame);
-					q.restore();
+				for (auto i = 0; i != giftSymbolsCount; ++i) {
+					if (i != giftSymbolSkip) {
+						giftSymbolPaint(q, giftSymbols[i]);
+					}
 				}
 			}
 			const auto cx = int(std::ceil(request.area.width() / w));
@@ -148,10 +180,33 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 				? (request.area.width() * ratio - cols * tiled.width()) / 2
 				: 0;
 			const auto useshift = xshift / float(ratio);
+			const auto drawTile = [&](int x, int y) {
+				const auto position = QPointF(useshift + x * w, y * h);
+				p.drawImage(position, tiled);
+			};
+
+			// Skip a symbol in the center for the gift itself.
+			drawTile(cols / 2, 0);
+			if (hasGiftSymbols) {
+				const auto &gift = giftSymbols[giftSymbolSkip];
+				auto q = QPainter(&tiled);
+				auto hq = PainterHighQualityEnabler(q);
+				q.setOpacity(0.8);
+				giftSymbolPaint(q, gift);
+				const auto exact = giftSymbolRect(gift);
+				giftArea = QRect(
+					useshift + (cols / 2) * w + exact.x(),
+					exact.y(),
+					exact.width(),
+					exact.height());
+				giftRotation = RotationForSymbol(gift);
+			}
+
 			for (auto y = 0; y != rows; ++y) {
 				for (auto x = 0; x != cols; ++x) {
-					const auto position = QPointF(useshift + x * w, y * h);
-					p.drawImage(position, tiled);
+					if (y || x != (cols / 2)) {
+						drawTile(x, y);
+					}
 				}
 			}
 			if (!gradient.isNull()
@@ -167,6 +222,8 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 				QImage::Format_ARGB32_Premultiplied),
 			.gradient = gradient,
 			.area = request.area,
+			.giftArea = giftArea,
+			.giftRotation = giftRotation,
 			.waitingForNegativePattern
 				= request.background.waitingForNegativePattern()
 		};
@@ -239,6 +296,8 @@ CachedBackground::CachedBackground(CacheBackgroundResult &&result)
 , area(result.area)
 , x(result.x)
 , y(result.y)
+, giftArea(result.giftArea)
+, giftRotation(result.giftRotation)
 , waitingForNegativePattern(result.waitingForNegativePattern) {
 }
 
@@ -456,6 +515,7 @@ void ChatTheme::updateBackgroundImageFrom(ChatThemeBackground &&background) {
 	_mutableBackground.key = background.key;
 	_mutableBackground.prepared = std::move(background.prepared);
 	_mutableBackground.giftSymbols = std::move(background.giftSymbols);
+	_mutableBackground.giftId = background.giftId;
 	_mutableBackground.preparedForTiled = std::move(
 		background.preparedForTiled);
 	if (!_backgroundState.now.pixmap.isNull()) {
@@ -1184,6 +1244,7 @@ ChatThemeBackground PrepareBackgroundImage(
 		.colors = data.colors,
 		.giftSymbols = std::move(read.giftSymbols),
 		.giftSymbolFrame = data.giftSymbolFrame,
+		.giftId = data.giftId,
 		.patternOpacity = data.patternOpacity,
 		.gradientRotation = data.generateGradient ? data.gradientRotation : 0,
 		.isPattern = data.isPattern,

@@ -325,12 +325,33 @@ void SectionWidget::PaintBackground(
 		not_null<Ui::ChatTheme*> theme,
 		not_null<QWidget*> widget,
 		QRect clip) {
+	if (const auto id = theme->background().giftId) {
+		const auto fillHeight = controller->content()->height();
+		const auto fill = QSize(widget->width(), fillHeight);
+		const auto &state = theme->backgroundState(fill);
+		const auto make = [&] {
+			return std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+				controller->session().data().customEmojiManager().create(
+					id,
+					crl::guard(widget, [=] { widget->update(); }),
+					Data::CustomEmojiSizeTag::Isolated),
+				1);
+		};
+		if (!state.was.gift) {
+			state.was.gift = make();
+		}
+		if (!state.now.gift) {
+			state.now.gift = make();
+		}
+	}
+
 	PaintBackground(
 		theme,
 		widget,
 		controller->content()->height(),
 		controller->content()->backgroundFromY(),
-		clip);
+		clip,
+		controller->isGifPausedAtLeastFor(GifPauseReason::Any));
 }
 
 void SectionWidget::PaintBackground(
@@ -338,37 +359,68 @@ void SectionWidget::PaintBackground(
 		not_null<QWidget*> widget,
 		int fillHeight,
 		int fromy,
-		QRect clip) {
+		QRect clip,
+		bool paused) {
 	auto p = QPainter(widget);
 	if (fromy) {
 		p.translate(0, fromy);
 		clip = clip.translated(0, -fromy);
 	}
-	PaintBackground(p, theme, QSize(widget->width(), fillHeight), clip);
+	const auto fill = QSize(widget->width(), fillHeight);
+	PaintBackground(p, theme, fill, clip, paused);
 }
 
 void SectionWidget::PaintBackground(
 		QPainter &p,
 		not_null<Ui::ChatTheme*> theme,
 		QSize fill,
-		QRect clip) {
+		QRect clip,
+		bool paused) {
 	const auto &background = theme->background();
 	if (background.colorForFill) {
 		p.fillRect(clip, *background.colorForFill);
 		return;
 	}
 	const auto &gradient = background.gradientForFill;
-	auto state = theme->backgroundState(fill);
+	const auto &state = theme->backgroundState(fill);
 	const auto paintCache = [&](const Ui::CachedBackground &cache) {
 		const auto to = QRect(
 			QPoint(cache.x, cache.y),
 			cache.pixmap.size() / style::DevicePixelRatio());
+		const auto paintGift = [&](QRect area) {
+			if (!cache.gift) {
+				return;
+			}
+			auto hq = PainterHighQualityEnabler(p);
+			const auto center = area.center();
+			const auto size = Data::FrameSizeFromTag(
+				Data::CustomEmojiSizeTag::Isolated
+			) / style::DevicePixelRatio();
+			p.save();
+			p.translate(center);
+			p.rotate(cache.giftRotation);
+			p.translate(-center);
+			p.setOpacity(0.5);
+			cache.gift->paint(p, {
+				.textColor = st::windowFg->c,
+				.size = QSize(size, size),
+				.now = crl::now(),
+				.scale = (area.width() / float64(size)),
+				.position = area.topLeft(),
+				.paused = paused,
+				.scaled = true,
+			});
+			p.restore();
+		};
 		if (cache.waitingForNegativePattern) {
 			// While we wait for pattern being loaded we paint just gradient.
 			// But in case of negative patter opacity we just fill-black.
 			p.fillRect(to, Qt::black);
 		} else if (cache.area == fill) {
 			p.drawPixmap(to, cache.pixmap);
+			if (background.giftId && !cache.giftArea.isEmpty()) {
+				paintGift(cache.giftArea.translated(to.topLeft()));
+			}
 		} else {
 			const auto sx = fill.width() / float64(cache.area.width());
 			const auto sy = fill.height() / float64(cache.area.height());
@@ -384,6 +436,13 @@ void SectionWidget::PaintBackground(
 				round((to.x() + to.width()) * sx) - sto.x(),
 				round((to.y() + to.height()) * sy) - sto.y(),
 				cache.pixmap);
+			if (background.giftId && !cache.giftArea.isEmpty()) {
+				paintGift(QRect(
+					(to.x() + cache.giftArea.x()) * sx,
+					(to.y() + cache.giftArea.y()) * sy,
+					cache.giftArea.width() * sx,
+					cache.giftArea.height() * sy));
+			}
 		}
 	};
 	const auto hasNow = !state.now.pixmap.isNull();

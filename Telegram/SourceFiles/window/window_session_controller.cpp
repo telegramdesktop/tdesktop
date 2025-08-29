@@ -1506,6 +1506,7 @@ struct SessionController::CachedTheme {
 	std::weak_ptr<Ui::ChatTheme> theme;
 	std::shared_ptr<Data::DocumentMedia> media;
 	std::unique_ptr<Ui::Text::CustomEmoji> giftSymbol;
+	uint64 giftId = 0;
 	Data::WallPaper paper;
 	bool basedOnDark = false;
 	bool caching = false;
@@ -3302,6 +3303,9 @@ void SessionController::cacheChatTheme(
 			crl::guard(this, [=] { _giftSymbolLoaded.fire({}); }),
 			Data::CustomEmojiSizeTag::Large)
 		: nullptr;
+	const auto giftId = findGiftSymbols
+		? data.unique->model.document->id
+		: uint64();
 	const auto giftSymbolReady = !giftSymbol || giftSymbol->ready();
 	use.loadDocument();
 	auto &theme = [&]() -> CachedTheme& {
@@ -3309,6 +3313,7 @@ void SessionController::cacheChatTheme(
 		if (i != end(_customChatThemes)) {
 			i->second.media = media;
 			i->second.giftSymbol = std::move(giftSymbol);
+			i->second.giftId = giftId;
 			i->second.paper = use;
 			i->second.basedOnDark = dark;
 			i->second.caching = true;
@@ -3319,6 +3324,7 @@ void SessionController::cacheChatTheme(
 			CachedTheme{
 				.media = media,
 				.giftSymbol = std::move(giftSymbol),
+				.giftId = giftId,
 				.paper = use,
 				.basedOnDark = dark,
 				.caching = true,
@@ -3451,6 +3457,7 @@ Ui::ChatThemeBackgroundData SessionController::backgroundData(
 		.path = paperPath,
 		.bytes = paperBytes,
 		.giftSymbolFrame = Ui::PrepareGiftSymbol(theme.giftSymbol),
+		.giftId = theme.giftId,
 		.gzipSvg = gzipSvg,
 		.colors = colors,
 		.isPattern = isPattern,

@@ -35,6 +35,7 @@ struct ChatThemeBackground {
 	std::vector<QColor> colors;
 	std::vector<QRectF> giftSymbols;
 	QImage giftSymbolFrame;
+	uint64_t giftId = 0;
 	float64 patternOpacity = 1.;
 	int gradientRotation = 0;
 	bool isPattern = false;
@@ -53,6 +54,7 @@ struct ChatThemeBackgroundData {
 	QString path;
 	QByteArray bytes;
 	QImage giftSymbolFrame;
+	uint64 giftId = 0;
 	bool gzipSvg = false;
 	std::vector<QColor> colors;
 	bool isPattern = false;
@@ -94,6 +96,8 @@ struct CacheBackgroundResult {
 	QSize area;
 	int x = 0;
 	int y = 0;
+	QRect giftArea;
+	int giftRotation = 0;
 	bool waitingForNegativePattern = false;
 };
 
@@ -108,6 +112,9 @@ struct CachedBackground {
 	QSize area;
 	int x = 0;
 	int y = 0;
+	QRect giftArea;
+	int giftRotation = 0;
+	mutable std::unique_ptr<Text::CustomEmoji> gift;
 	bool waitingForNegativePattern = false;
 };
 
