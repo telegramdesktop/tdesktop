@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_cloud_password.h"
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
+#include "data/data_cloud_themes.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
+#include "data/data_thread.h"
 #include "data/data_user.h"
 #include "boxes/filters/edit_filter_chats_list.h" // CreatePe...tionSubtitle.
 #include "boxes/peer_list_box.h"
@@ -671,6 +673,107 @@ void ShowTransferGiftBox(
 	window->show(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)),
 		Ui::LayerOption::KeepOther);
+}
+
+void SetThemeFromUniqueGift(
+		not_null<Window::SessionController*> window,
+		std::shared_ptr<Data::UniqueGift> unique) {
+	class Controller final : public ChooseRecipientBoxController {
+	public:
+		Controller(
+			not_null<Window::SessionController*> window,
+			std::shared_ptr<Data::UniqueGift> unique)
+		: ChooseRecipientBoxController({
+			.session = &window->session(),
+			.callback = [=](not_null<Data::Thread*> thread) {
+				const auto weak = base::make_weak(window);
+				const auto peer = thread->peer();
+				SendPeerThemeChangeRequest(window, peer, QString(), unique);
+				if (weak) window->showPeerHistory(peer);
+				if (weak) window->hideLayer(anim::type::normal);
+			},
+			.filter = [=](not_null<Data::Thread*> thread) {
+				return thread->peer()->isUser();
+			},
+			.moneyRestrictionError = WriteMoneyRestrictionError,
+		}) {
+		}
+
+	private:
+		void prepareViewHook() override {
+			ChooseRecipientBoxController::prepareViewHook();
+			delegate()->peerListSetTitle(tr::lng_gift_transfer_choose());
+		}
+
+	};
+
+	window->show(
+		Box<PeerListBox>(
+			std::make_unique<Controller>(window, std::move(unique)),
+			[](not_null<PeerListBox*> box) {
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+			}));
+}
+
+void SendPeerThemeChangeRequest(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		const QString &token,
+		const std::shared_ptr<Data::UniqueGift> &unique,
+		bool locallySet) {
+	const auto api = &peer->session().api();
+
+	api->request(MTPmessages_SetChatWallPaper(
+		MTP_flags(0),
+		peer->input,
+		MTPInputWallPaper(),
+		MTPWallPaperSettings(),
+		MTPint()
+	)).afterDelay(10).done([=](const MTPUpdates &result) {
+		api->applyUpdates(result);
+	}).send();
+
+	api->request(MTPmessages_SetChatTheme(
+		peer->input,
+		(unique
+			? MTP_inputChatThemeUniqueGift(MTP_string(unique->slug))
+			: MTP_inputChatTheme(MTP_string(token)))
+	)).done([=](const MTPUpdates &result) {
+		api->applyUpdates(result);
+		if (!locallySet) {
+			peer->updateFullForced();
+		}
+	}).send();
+}
+
+void SetPeerTheme(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		const QString &token,
+		const std::shared_ptr<Ui::ChatTheme> &theme) {
+	const auto giftTheme = token.startsWith(u"gift:"_q)
+		? peer->owner().cloudThemes().themeForToken(token)
+		: std::optional<Data::CloudTheme>();
+
+	peer->setThemeToken(token);
+	const auto dropWallPaper = (peer->wallPaper() != nullptr);
+	if (dropWallPaper) {
+		peer->setWallPaper({});
+	}
+
+	if (theme) {
+		// Remember while changes propagate through event loop.
+		controller->pushLastUsedChatTheme(theme);
+	}
+
+	SendPeerThemeChangeRequest(
+		controller,
+		peer,
+		token,
+		giftTheme ? giftTheme->unique : nullptr,
+		true);
 }
 
 void ShowBuyResaleGiftBox(

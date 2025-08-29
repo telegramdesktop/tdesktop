@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/choose_theme_controller.h"
 
 #include "boxes/background_box.h"
+#include "boxes/transfer_gift_box.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
 #include "ui/rp_widget.h"
@@ -327,42 +328,7 @@ void ChooseThemeController::initButtons() {
 	const auto setTheme = crl::guard(apply, [=](
 			const QString &token,
 			const std::shared_ptr<Ui::ChatTheme> &theme) {
-		const auto giftTheme = token.startsWith(u"gift:"_q)
-			? _peer->owner().cloudThemes().themeForToken(token)
-			: std::optional<Data::CloudTheme>();
-
-		_peer->setThemeToken(token);
-		const auto dropWallPaper = (_peer->wallPaper() != nullptr);
-		if (dropWallPaper) {
-			_peer->setWallPaper({});
-		}
-
-		if (theme) {
-			// Remember while changes propagate through event loop.
-			_controller->pushLastUsedChatTheme(theme);
-		}
-		const auto api = &_peer->session().api();
-
-		api->request(MTPmessages_SetChatWallPaper(
-			MTP_flags(0),
-			_peer->input,
-			MTPInputWallPaper(),
-			MTPWallPaperSettings(),
-			MTPint()
-		)).afterDelay(10).done([=](const MTPUpdates &result) {
-			api->applyUpdates(result);
-		}).send();
-
-		api->request(MTPmessages_SetChatTheme(
-			_peer->input,
-			((giftTheme && giftTheme->unique)
-				? MTP_inputChatThemeUniqueGift(
-					MTP_string(giftTheme->unique->slug))
-				: MTP_inputChatTheme(MTP_string(token)))
-		)).done([=](const MTPUpdates &result) {
-			api->applyUpdates(result);
-		}).send();
-
+		SetPeerTheme(_controller, _peer, token, theme);
 		_controller->toggleChooseChatTheme(_peer);
 	});
 	const auto confirmTakeGiftTheme = crl::guard(apply, [=](

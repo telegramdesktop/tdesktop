@@ -115,6 +115,7 @@ struct CreditsEntryBoxStyleOverrides {
 	const style::FlatLabel *tableValueMessage = nullptr;
 	const style::icon *link = nullptr;
 	const style::icon *share = nullptr;
+	const style::icon *theme = nullptr;
 	const style::icon *transfer = nullptr;
 	const style::icon *wear = nullptr;
 	const style::icon *takeoff = nullptr;

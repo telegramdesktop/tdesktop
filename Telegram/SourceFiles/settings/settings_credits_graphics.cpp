@@ -1094,6 +1094,13 @@ void FillUniqueGiftMenu(
 	if (!unique) {
 		return;
 	}
+	if (unique->canBeTheme) {
+		menu->addAction(tr::lng_gift_transfer_set_theme(tr::now), [=] {
+			if (const auto window = show->resolveWindow()) {
+				SetThemeFromUniqueGift(window, unique);
+			}
+		}, st.theme ? st.theme : &st::menuIconChangeColors);
+	}
 	const auto transfer = savedId
 		&& (savedId.isUser() ? e.in : savedId.chat()->canTransferGifts())
 		&& (unique->starsForTransfer >= 0);
@@ -1176,6 +1183,7 @@ CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle() {
 		.tableValueMessage = &st::darkGiftTableMessage,
 		.link = &st::darkGiftLink,
 		.share = &st::darkGiftShare,
+		.theme = &st::darkGiftTheme,
 		.transfer = &st::darkGiftTransfer,
 		.wear = &st::darkGiftNftWear,
 		.takeoff = &st::darkGiftNftTakeOff,

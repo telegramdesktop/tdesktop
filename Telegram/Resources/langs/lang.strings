@@ -3787,6 +3787,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_transfer_sure_for" = "Do you want to transfer ownership of {name} to {recipient} for {price}?";
 "lng_gift_transfer_button" = "Transfer";
 "lng_gift_transfer_button_for" = "Transfer for {price}";
+"lng_gift_transfer_set_theme" = "Set as Theme in...";
+"lng_gift_transfer_choose" = "Choose Chat";
 "lng_gift_transfer_wear" = "Wear";
 "lng_gift_transfer_take_off" = "Take Off";
 "lng_gift_transfer_sell" = "Sell";
