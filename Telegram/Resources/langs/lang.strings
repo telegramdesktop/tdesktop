@@ -4154,6 +4154,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_unconfirmed_auth_multiple#other" = "We detected new {count} logins to your account. Is it you?";
 "lng_unconfirmed_auth_multiple_from#one" = "We detected new {count} login to your account from {country}. Is it you?";
 "lng_unconfirmed_auth_multiple_from#other" = "We detected new {count} logins to your account from {country}. Is it you?";
+"lng_unconfirmed_auth_denied_title#one" = "New Login Prevented";
+"lng_unconfirmed_auth_denied_title#other" = "New Logins Prevented";
+"lng_unconfirmed_auth_denied_single" = "We have terminated the login attempt from {country}.";
+"lng_unconfirmed_auth_denied_multiple" = "We have terminated the login attempts from: {country}";
+"lng_unconfirmed_auth_denied_warning" = "Never send your login code to anyone or you can lose your Telegram account!";
+"lng_unconfirmed_auth_confirmed" = "New Login Allowed";
+"lng_unconfirmed_auth_confirmed_message" = "You can check the list of your active logins in {link}.";
 
 "lng_about_random" = "Send a {emoji} emoji to any chat to try your luck.";
 "lng_about_random_send" = "Send";

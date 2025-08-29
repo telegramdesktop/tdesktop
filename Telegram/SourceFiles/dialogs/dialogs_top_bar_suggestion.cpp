@@ -28,14 +28,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_active_sessions.h"
 #include "settings/settings_credits_graphics.h"
 #include "settings/settings_premium.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/wrap/fade_wrap.h"
@@ -56,6 +59,92 @@ namespace {
 	const auto window = Core::App().findWindow(widget);
 	Assert(window != nullptr);
 	return window->sessionController();
+}
+
+[[nodiscard]] QString FormatAuthInfo(const Data::UnreviewedAuth &auth) {
+	const auto location = auth.location.isEmpty()
+		? QString()
+		: "\U0001F30D " + auth.location;
+	const auto device = auth.device.isEmpty()
+		? QString()
+		: "\U0001F4F1 " + auth.device;
+
+	if (!location.isEmpty() && !device.isEmpty()) {
+		return location + " (" + device + ")";
+	} else if (!location.isEmpty()) {
+		return location;
+	} else if (!device.isEmpty()) {
+		return device;
+	}
+	return QString();
+}
+
+void ShowAuthToast(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Main::Session*> session,
+		const std::vector<Data::UnreviewedAuth> &list,
+		bool confirmed) {
+	if (confirmed) {
+		auto text = tr::lng_unconfirmed_auth_confirmed_message(
+			tr::now,
+			lt_link,
+			Ui::Text::Link(tr::lng_settings_sessions_title(tr::now)),
+			Ui::Text::RichLangValue);
+		auto filter = [=](
+				ClickHandlerPtr handler,
+				Qt::MouseButton button) {
+			if (const auto controller = FindSessionController(parent)) {
+				session->api().authorizations().reload();
+				controller->showSettings(Settings::Sessions::Id());
+				return false;
+			}
+			return true;
+		};
+		Ui::Toast::Show(parent->window(), Ui::Toast::Config{
+			.title = tr::lng_unconfirmed_auth_confirmed(tr::now),
+			.text = std::move(text),
+			.filter = std::move(filter),
+			.duration = crl::time(5000),
+		});
+	} else {
+		auto messageText = QString();
+		if (list.size() == 1) {
+			messageText = tr::lng_unconfirmed_auth_denied_single(
+				tr::now,
+				lt_country,
+				FormatAuthInfo(list.front()));
+		} else {
+			auto authList = QString('\n');
+			for (auto i = 0; i < std::min(int(list.size()), 10); ++i) {
+				const auto info = FormatAuthInfo(list[i]);
+				if (!info.isEmpty()) {
+					authList += "• " + info + "\n";
+				}
+			}
+			messageText = tr::lng_unconfirmed_auth_denied_multiple(
+				tr::now,
+				lt_country,
+				authList);
+		}
+		if (const auto controller = FindSessionController(parent)) {
+			const auto count = float64(list.size());
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(tr::lng_unconfirmed_auth_denied_title(
+					lt_count,
+					rpl::single(count)));
+				Ui::InformBox(box, {
+					.text = TextWithEntities()
+						.append(messageText)
+						.append('\n')
+						.append(
+							tr::lng_unconfirmed_auth_denied_warning(
+								tr::now,
+								Ui::Text::Bold)),
+					.confirmText = tr::lng_archive_hint_button(tr::now),
+				});
+			}));
+		}
+	}
 }
 
 constexpr auto kSugSetBirthday = "BIRTHDAY_SETUP"_cs;
@@ -147,14 +236,16 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 				const auto &list
 					= session->api().authorizations().unreviewed();
 				const auto hashes = ranges::views::all(
-						list
-					) | ranges::views::transform([](const auto &auth) {
-						return auth.hash;
-					}) | ranges::to_vector;
+					list
+				) | ranges::views::transform([](const auto &auth) {
+					return auth.hash;
+				}) | ranges::to_vector;
+
 				const auto content = CreateUnconfirmedAuthContent(
 					parent,
 					list,
 					[=](bool confirmed) {
+						ShowAuthToast(parent, session, list, confirmed);
 						session->api().authorizations().review(
 							hashes,
 							confirmed);
