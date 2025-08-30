@@ -528,6 +528,7 @@ historyVoiceMessageOutTTLSelected: icon {{ "chat/mini_media_once", historyFileOu
 historyTranscribeSkip: 10px;
 historyTranscribeSize: size(28px, 22px);
 historyTranscribeRadius: 4px;
+historyTranscribeLoadingSize: 24px;
 historyTranscribeInIcon: icon {{ "chat/voice_to_text", msgFileInBg }};
 historyTranscribeInIconSelected: icon {{ "chat/voice_to_text", msgFileInBgSelected }};
 historyTranscribeOutIcon: icon {{ "chat/voice_to_text", msgFileOutBg }};
