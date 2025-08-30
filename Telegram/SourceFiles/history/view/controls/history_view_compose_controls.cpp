@@ -2240,6 +2240,12 @@ void ComposeControls::initSendButton() {
 		updateSendButtonType();
 	}, _send->lifetime());
 
+	Core::App().mediaDevices().recordAvailabilityValue(
+	) | rpl::start_with_next([=](Webrtc::RecordAvailability value) {
+		_recordAvailability = value;
+		updateSendButtonType();
+	}, _send->lifetime());
+
 	_send->finishAnimating();
 
 	_send->clicks(
@@ -2270,12 +2276,6 @@ void ComposeControls::initSendButton() {
 		_show,
 		[=] { return sendButtonMenuDetails(); },
 		sendAction);
-
-	Core::App().mediaDevices().recordAvailabilityValue(
-	) | rpl::start_with_next([=](Webrtc::RecordAvailability value) {
-		_recordAvailability = value;
-		updateSendButtonType();
-	}, _send->lifetime());
 
 	_send->widthValue() | rpl::skip(1) | rpl::start_with_next([=] {
 		updateControlsGeometry(_wrap->size());
