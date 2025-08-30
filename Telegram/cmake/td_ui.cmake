@@ -448,6 +448,8 @@ PRIVATE
     ui/text/format_song_name.h
     ui/text/format_values.cpp
     ui/text/format_values.h
+    ui/text/text_lottie_custom_emoji.cpp
+    ui/text/text_lottie_custom_emoji.h
     ui/text/text_options.cpp
     ui/text/text_options.h
 
