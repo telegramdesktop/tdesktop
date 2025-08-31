@@ -95,11 +95,13 @@ parts:
     plugin: nil
     stage-packages:
       - libgeoclue-2-0
+      - libopenh264-7
       - libxcb-cursor0
       - libxcb-record0
       - libxcb-screensaver0
     stage:
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libgeoclue-2.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libopenh264.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-cursor.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-record.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-screensaver.so*
@@ -153,6 +155,7 @@ parts:
     build-packages:
       - nasm
       - libdav1d-dev
+      - libopenh264-dev
       - libopus-dev
       - libvdpau-dev
       - libvpx-dev
@@ -162,7 +165,6 @@ parts:
       - --libdir=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       - --extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1"
       - --extra-cxxflags="-DCONFIG_SAFE_BITSTREAM_READER=1"
-      - --extra-ldflags="-Wl,--push-state,--no-as-needed,-lstdc++,--pop-state"
       - --disable-debug
       - --disable-programs
       - --disable-doc
@@ -301,7 +303,6 @@ parts:
     prime: [-./*]
     after:
       - nv-codec-headers
-      - openh264
 
   jpegli:
     source: https://github.com/libjxl/libjxl.git
@@ -368,19 +369,6 @@ parts:
     make-parameters:
       - PREFIX=/usr
       - LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
-    prime: [-./*]
-
-  openh264:
-    source: https://github.com/cisco/openh264.git
-    source-depth: 1
-    source-tag: v2.6.0
-    plugin: meson
-    build-packages:
-      - meson
-    meson-parameters:
-      - --prefix=/usr
-      - --buildtype=release
-      - --default-library=static
     prime: [-./*]
 
   protobuf:
@@ -486,6 +474,7 @@ parts:
     source-commit: 62321fd7128ab2650b459d4195781af8185e46b5
     plugin: cmake
     build-packages:
+      - libopenh264-dev
       - libopus-dev
       - libpipewire-0.3-dev
       - libssl-dev
@@ -498,4 +487,3 @@ parts:
     after:
       - ffmpeg
       - jpegli
-      - openh264
