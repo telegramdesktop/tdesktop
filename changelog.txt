@@ -1,3 +1,10 @@
+6.1 (31.08.25)
+
+- Music on Profiles.
+- Gift Themes.
+- Gift Value Information.
+- Upgrading Gifts for Other Users.
+
 6.0.3 beta (22.08.25)
 
 - Ctrl+Tab / Ctrl+Shift+Tab for last opened chats switching.
