@@ -9,12 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_file.h"
 #include "history/view/media/history_view_service_box.h"
+#include "history/view/media/history_view_sticker.h"
 
 class Image;
 
 namespace Data {
 class DocumentMedia;
 class WallPaper;
+class MediaGiftBox;
+struct GiftCode;
 } // namespace Data
 
 namespace HistoryView {
@@ -125,6 +128,49 @@ private:
 	QString _emojiId;
 	std::optional<ThemeDocument> _preview;
 	rpl::lifetime _lifetime;
+
+};
+
+class GiftThemeBox final : public ServiceBoxContent {
+public:
+	GiftThemeBox(
+		not_null<Element*> parent,
+		not_null<Data::MediaGiftBox*> gift);
+	~GiftThemeBox();
+
+	int top() override;
+	int width() override;
+	QSize size() override;
+	TextWithEntities title() override;
+	TextWithEntities subtitle() override;
+	rpl::producer<QString> button() override;
+	int buttonSkip() override;
+	void draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &geometry) override;
+	ClickHandlerPtr createViewLink() override;
+
+	bool hideServiceText() override;
+	void stickerClearLoopPlayed() override;
+	std::unique_ptr<StickerPlayer> stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) override;
+
+	bool hasHeavyPart() override;
+	void unloadHeavyPart() override;
+
+private:
+	void ensureStickerCreated() const;
+	void cacheUniqueBackground(int width, int height);
+
+	const not_null<Element*> _parent;
+	const Data::GiftCode &_data;
+	std::unique_ptr<Ui::Text::CustomEmoji> _patternEmoji;
+	QImage _backgroundCache;
+	base::flat_map<float64, QImage> _patternCache;
+	bool _backroundPatterned = false;
+	mutable std::optional<Sticker> _sticker;
 
 };
 

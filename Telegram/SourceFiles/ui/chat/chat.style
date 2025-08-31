@@ -948,6 +948,8 @@ msgServiceStarGiftBoxWidth: 224px;
 msgServiceStarGiftByWidth: 272px;
 msgServiceStarGiftStickerTop: 24px;
 msgServiceStarGiftStickerSize: 100px;
+msgServiceGiftThemeStickerSize: 64px;
+msgServiceGiftThemeStickerPadding: margins(18px, 18px, 18px, 18px);
 
 historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {

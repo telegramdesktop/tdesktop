@@ -6410,6 +6410,20 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 					data.is_for_both());
 			}
 		}
+	}, [&](const MTPDmessageActionSetChatTheme &data) {
+		data.vtheme().match([](const MTPDchatTheme &) {
+		}, [&](const MTPDchatThemeUniqueGift &data) {
+			const auto session = &history()->session();
+			if (const auto gift = Api::FromTL(session, data.vgift())) {
+				_media = std::make_unique<Data::MediaGiftBox>(
+					this,
+					_from,
+					Data::GiftCode{
+						.unique = gift->unique,
+						.type = Data::GiftType::ChatTheme,
+					});
+			}
+		}, [](const MTPDchatTheme &) {});
 	}, [&](const MTPDmessageActionGiftCode &data) {
 		const auto boostedId = data.vboost_peer()
 			? peerToChannel(peerFromMTP(*data.vboost_peer()))
