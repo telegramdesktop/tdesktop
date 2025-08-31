@@ -64,7 +64,9 @@ Bubble::Bubble(
 	const auto texts = _textFactory(0);
 	_numberAnimation.setText(texts.counter, 0);
 	_numberAnimation.finishAnimating();
-	_additional.setText(_st.additionalStyle, texts.additional);
+	if (!texts.additional.isEmpty()) {
+		_additional.setText(_st.additionalStyle, texts.additional);
+	}
 }
 
 crl::time Bubble::SlideNoDeflectionDuration() {
@@ -120,7 +122,9 @@ void Bubble::setCounter(int value) {
 		_counter = value;
 		const auto texts = _textFactory(value);
 		_numberAnimation.setText(texts.counter, value);
-		_additional.setText(_st.additionalStyle, texts.additional);
+		if (!texts.additional.isEmpty()) {
+			_additional.setText(_st.additionalStyle, texts.additional);
+		}
 	}
 }
 
