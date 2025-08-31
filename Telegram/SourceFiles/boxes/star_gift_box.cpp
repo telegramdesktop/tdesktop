@@ -2094,12 +2094,12 @@ void ShowUpgradeGiftedToast(
 	if (const auto strong = weak.get()) {
 		strong->showToast({
 			.title = tr::lng_gift_upgrade_gifted_title(tr::now),
-			.text = (peer->isBroadcast()
+			.text = { (peer->isBroadcast()
 				? tr::lng_gift_upgrade_gifted_about_channel
 				: tr::lng_gift_upgrade_gifted_about)(
 					tr::now,
 					lt_name,
-					peer->shortName()),
+					peer->shortName()) },
 			.duration = kUpgradeDoneToastDuration,
 		});
 	}
@@ -2204,7 +2204,6 @@ void GiftUpgrade(
 		}
 		done(result);
 	};
-	using Flag = MTPDinputInvoiceStarGiftUpgrade::Flag;
 	RequestStarsFormAndSubmit(
 		window->uiShow(),
 		MTP_inputInvoiceStarGiftPrepaidUpgrade(

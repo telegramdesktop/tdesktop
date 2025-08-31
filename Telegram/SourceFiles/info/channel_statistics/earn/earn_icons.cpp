@@ -160,7 +160,7 @@ Ui::Text::PaletteDependentEmoji IconCreditsEmoji(
 				: st::defaultTableLabel.style.font->height),
 			1);
 	}, .margin = descriptor.margin.value_or(
-		{ 0, st::giftBoxByStarsSkip, 0, 0 }) };
+		QMargins{ 0, st::giftBoxByStarsSkip, 0, 0 }) };
 }
 
 Ui::Text::PaletteDependentEmoji IconCurrencyEmoji(
