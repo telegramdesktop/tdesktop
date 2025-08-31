@@ -353,7 +353,7 @@ HistoryItem *MusicProvider::scrollTopStateItem(ListScrollTopState state) {
 	//	}
 	}
 
-	auto nearestId = (HistoryItem*)nullptr; AssertIsDebug();
+	auto nearestId = (HistoryItem*)nullptr; //AssertIsDebug();
 	//for (auto i = 0; i != _slice.size(); ++i) {
 	//	if (!nearestId
 	//		|| std::abs(*nearestId - state.position)
@@ -375,7 +375,7 @@ void MusicProvider::saveState(
 		not_null<Media::Memento*> memento,
 		ListScrollTopState scrollState) {
 	if (_aroundId != nullptr && scrollState.item) {
-		AssertIsDebug();
+		//AssertIsDebug();
 		//memento->setAroundId({ _peer->id, StoryIdToMsgId(_aroundId) });
 		//memento->setIdsLimit(_idsLimit);
 		//memento->setScrollTopItem(scrollState.item->globalId());
@@ -391,7 +391,7 @@ void MusicProvider::restoreState(
 		const auto wasAroundId = memento->aroundId();
 		if (wasAroundId.peer == _peer->id) {
 			_idsLimit = limit;
-			AssertIsDebug();
+			//AssertIsDebug();
 			//_aroundId = StoryIdFromMsgId(wasAroundId.msg);
 			restoreScrollState({
 				.position = memento->scrollTopItemPosition(),
