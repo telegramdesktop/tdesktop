@@ -3297,10 +3297,19 @@ void SessionController::cacheChatTheme(
 	const auto document = use.document();
 	const auto media = document ? document->createMediaView() : nullptr;
 	const auto findGiftSymbols = (data.unique != nullptr);
+	const auto reportSymbolLoaded = [weak = base::make_weak(this)] {
+		// We must notify async here, because we destroy emoji in
+		// the handler and we can't destroy emoji in repaint callback.
+		crl::on_main([weak] {
+			if (const auto strong = weak.get()) {
+				strong->_giftSymbolLoaded.fire({});
+			}
+		});
+	};
 	auto giftSymbol = findGiftSymbols
 		? session().data().customEmojiManager().create(
 			data.unique->pattern.document,
-			crl::guard(this, [=] { _giftSymbolLoaded.fire({}); }),
+			reportSymbolLoaded,
 			Data::CustomEmojiSizeTag::Large)
 		: nullptr;
 	const auto giftId = findGiftSymbols
