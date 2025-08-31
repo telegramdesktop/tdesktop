@@ -64,8 +64,7 @@ void AboutSponsoredBox(not_null<Ui::GenericBox*> box) {
 			return Ui::Text::Link(text, url);
 		}),
 		Ui::Text::RichLangValue);
-	const auto info1 = box->addRow(
-		object_ptr<FlatLabel>(box, std::move(text1), stLabel));
+	box->addRow(object_ptr<FlatLabel>(box, std::move(text1), stLabel));
 
 	box->addSkip(st::sponsoredUrlButtonSkip);
 	addUrl();
