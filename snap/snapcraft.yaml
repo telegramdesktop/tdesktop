@@ -98,12 +98,21 @@ parts:
   pkgs:
     plugin: nil
     stage-packages:
+      - gstreamer1.0-fdkaac
+      - gstreamer1.0-plugins-bad
       - libgeoclue-2-0
       - libopenh264-7
       - libxcb-cursor0
       - libxcb-record0
       - libxcb-screensaver0
     stage:
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstde265.so
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstfdkaac.so
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstopenh264.so
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstsubenc.so
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstva.so
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstvideoparsersbad.so
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libfdk-aac.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libgeoclue-2.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libopenh264.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-cursor.so*
