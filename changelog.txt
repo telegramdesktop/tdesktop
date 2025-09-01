@@ -1,3 +1,10 @@
+6.1.1 (01.09.25)
+
+- Ctrl+Tab / Ctrl+Shift+Tab collect chats on every launch.
+- Fix Ctrl+Tab / Ctrl+Shift+Tab shortcut override.
+- Fix possible crashes in saved music.
+- Fix webview error label alignment.
+
 6.1 (31.08.25)
 
 - Music on Profiles.
