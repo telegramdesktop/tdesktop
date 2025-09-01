@@ -758,7 +758,7 @@ backgroundCheckbox: Checkbox(defaultCheckbox) {
 	textFg: msgServiceFg;
 	textFgActive: msgServiceFg;
 
-	width: -50px;
+	width: -10px;
 	margin: margins(0px, 0px, 0px, 0px);
 
 	textPosition: point(0px, 6px);
