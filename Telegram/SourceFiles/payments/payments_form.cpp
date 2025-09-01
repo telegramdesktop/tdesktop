@@ -533,6 +533,7 @@ void Form::requestForm() {
 				.invoice = invoice,
 				.inputInvoice = inputInvoice(),
 				.starGiftLimitedCount = gift ? gift->limitedCount : 0,
+				.starGiftPerUserLimit = gift ? gift->perUserLimit : 0,
 				.starGiftForm = true,
 			};
 			_updates.fire(CreditsPaymentStarted{ .data = formData });

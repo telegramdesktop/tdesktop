@@ -2041,6 +2041,7 @@ void SendGift(
 			.message = details.text,
 			.recipient = peer,
 			.limitedCount = gift.info.limitedCount,
+			.perUserLimit = gift.info.perUserTotal,
 			.anonymous = details.anonymous,
 			.upgraded = details.upgraded,
 		}, done, processNonPanelPaymentFormFactory);
@@ -2952,6 +2953,16 @@ void SendGiftBox(
 						[=] { state->resaleRequestingId = 0; });
 				} else if (star && IsSoldOut(star->info)) {
 					window->show(Box(SoldOutBox, window, *star));
+				} else if (star
+						&& star->info.perUserTotal
+						&& !star->info.perUserRemains) {
+					window->showToast({
+						.text = tr::lng_gift_sent_finished(
+							tr::now,
+							lt_count,
+							star->info.perUserTotal,
+							Ui::Text::RichLangValue),
+					});
 				} else {
 					send();
 				}
