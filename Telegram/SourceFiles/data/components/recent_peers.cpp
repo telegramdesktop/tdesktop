@@ -139,17 +139,7 @@ void RecentPeers::applyLocal(QByteArray serialized) {
 
 std::vector<not_null<Thread*>> RecentPeers::collectChatOpenHistory() const {
 	_session->local().readSearchSuggestions();
-
-	auto result = _opens;
-	result.reserve(result.size() + _list.size());
-	for (const auto &peer : _list) {
-		const auto history = peer->owner().history(peer);
-		const auto thread = not_null<Data::Thread*>(history);
-		if (!ranges::contains(result, thread)) {
-			result.push_back(thread);
-		}
-	}
-	return result;
+	return _opens;
 }
 
 void RecentPeers::chatOpenPush(not_null<Thread*> thread) {

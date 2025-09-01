@@ -190,7 +190,7 @@ ChatSwitchProcess::ChatSwitchProcess(
 : _session(session)
 , _widget(std::make_unique<Ui::RpWidget>(
 	geometry->parentWidget() ? geometry->parentWidget() : geometry))
-, _view(Ui::CreateChild<Ui::RpWidget>(_widget.get()))\
+, _view(Ui::CreateChild<Ui::RpWidget>(_widget.get()))
 , _bg(st::boxRadius, st::boxBg) {
 	setupWidget(geometry);
 	setupContent(opened);
@@ -246,7 +246,7 @@ void ChatSwitchProcess::process(const Request &request) {
 }
 
 void ChatSwitchProcess::setSelected(int index) {
-	if (_selected == index || _list.empty()) {
+	if (_selected == index || _list.size() < 2) {
 		return;
 	}
 	if (_selected >= 0) {
@@ -280,6 +280,9 @@ void ChatSwitchProcess::setupWidget(not_null<Ui::RpWidget*> geometry) {
 
 void ChatSwitchProcess::setupContent(Data::Thread *opened) {
 	_list = _session->recentPeers().collectChatOpenHistory();
+	if (_list.size() < 2) {
+		return;
+	}
 
 	if (opened) {
 		const auto i = ranges::find(_list, not_null(opened));
@@ -373,7 +376,10 @@ void ChatSwitchProcess::layout(QSize size) {
 		: (canPerRow > 3 * 4)
 		? 2
 		: 3;
-	if (canPerRow < 1 || _list.empty()) {
+	if (canPerRow < 1) {
+		return;
+	} else if (_list.size() < 2) {
+		_closeRequests.fire({});
 		return;
 	}
 	const auto count = int(_list.size());
