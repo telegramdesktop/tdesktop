@@ -245,7 +245,7 @@ BaseLayout *MusicProvider::lookupLayout(const HistoryItem *item) {
 }
 
 bool MusicProvider::isMyItem(not_null<const HistoryItem*> item) {
-	return IsStoryMsgId(item->id) && (item->history()->peer == _peer);
+	return item->isSavedMusicItem() && (item->history()->peer == _peer);
 }
 
 bool MusicProvider::isAfter(
@@ -340,7 +340,7 @@ QString MusicProvider::showInFolderPath(
 }
 
 int64 MusicProvider::scrollTopStatePosition(not_null<HistoryItem*> item) {
-	return StoryIdFromMsgId(item->id);
+	return item->id.bare;
 }
 
 HistoryItem *MusicProvider::scrollTopStateItem(ListScrollTopState state) {

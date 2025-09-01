@@ -291,6 +291,10 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 			: Dialogs::RowDescriptor(
 				storiesPeer->owner().history(storiesPeer),
 				FullMsgId());
+	} else if (const auto musicPeer = key().musicPeer()) {
+		return Dialogs::RowDescriptor(
+			musicPeer->owner().history(musicPeer),
+			FullMsgId());
 	} else if (key().settingsSelf()
 			|| key().isDownloads()
 			|| key().reactionsContextId()
