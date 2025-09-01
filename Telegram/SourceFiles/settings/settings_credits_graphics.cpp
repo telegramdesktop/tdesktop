@@ -2688,7 +2688,6 @@ void ShowStarGiftViewBox(
 	const auto toChannel = peer->isServiceUser() && data.channel;
 	const auto incoming = !toChannel
 		&& (data.upgrade ? item->out() : !item->out());
-	const auto fromId = incoming ? peer->id : peer->session().userPeerId();
 	const auto toId = incoming ? peer->session().userPeerId() : peer->id;
 	const auto ownerId = data.unique ? data.unique->ownerId : toId;
 	const auto owner = peer->owner().peer(ownerId);

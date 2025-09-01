@@ -1105,17 +1105,6 @@ void ListWidget::showContextMenu(
 			link->property(kDocumentLinkMediaProperty).toULongLong())
 		: nullptr;
 	if (lnkPhoto || lnkDocument) {
-		auto [isVideo, isVoice, isAudio] = [&] {
-			if (lnkDocument) {
-				return std::make_tuple(
-					lnkDocument->isVideoFile(),
-					lnkDocument->isVoiceMessage(),
-					lnkDocument->isAudioFile()
-				);
-			}
-			return std::make_tuple(false, false, false);
-		}();
-
 		if (lnkPhoto) {
 		} else {
 			if (lnkDocument->loading()) {
