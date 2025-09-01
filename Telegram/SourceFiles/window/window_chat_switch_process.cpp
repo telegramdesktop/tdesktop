@@ -269,7 +269,9 @@ void ChatSwitchProcess::setupWidget(not_null<Ui::RpWidget*> geometry) {
 
 	_widget->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::MouseButtonPress) {
-			_closeRequests.fire({});
+			crl::on_main(_widget.get(), [=] {
+				_closeRequests.fire({});
+			});
 		}
 	}, _widget->lifetime());
 
