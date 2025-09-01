@@ -63,22 +63,24 @@ class PhoneClickHandler;
 
 class HiddenUrlClickHandler : public UrlClickHandler {
 public:
-	HiddenUrlClickHandler(QString url) : UrlClickHandler(url, false) {
-	}
+	HiddenUrlClickHandler(QString url, QString label);
 	QString copyToClipboardText() const override;
 	QString copyToClipboardContextItemText() const override;
 	QString dragText() const override;
 
-	static void Open(QString url, QVariant context = {});
+	static void Open(QString url, QVariant context = {}, bool IsSpoof = false, QString label = QString());
 	void onClick(ClickContext context) const override {
 		const auto button = context.button;
 		if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-			Open(url(), context.other);
+			Open(url(), context.other, _isSpoof, _label);
 		}
 	}
 
 	TextEntity getTextEntity() const override;
 
+private:
+	QString _label;
+	bool _isSpoof;
 };
 
 class UserData;

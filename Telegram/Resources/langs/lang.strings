@@ -4219,6 +4219,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_url_auth_login_option" = "Log in to {domain} as {user}";
 "lng_url_auth_allow_messages" = "Allow {bot} to send me messages";
 
+"lng_open_spoof_title" = "⚠️ URL Spoofing";
+"lng_open_spoof_link" = "Do you want to open link that is masked to look like different link?";
+"lng_open_spoof_link_confirm" = "It is Safe";
+"lng_open_spoof_link_label" = "Link is shown as";
+"lng_open_spoof_link_url" = "Actual link is";
+
 "lng_bot_start" = "Start";
 "lng_bot_choose_group" = "Select a Group";
 "lng_bot_no_groups" = "You have no groups";

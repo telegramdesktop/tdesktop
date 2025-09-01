@@ -190,12 +190,12 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 	case EntityType::Url:
 		return (!data.data.isEmpty()
 			&& UrlClickHandler::IsSuspicious(data.data))
-			? std::make_shared<HiddenUrlClickHandler>(data.data)
+			? std::make_shared<HiddenUrlClickHandler>(data.data, data.data)
 			: Integration::createLinkHandler(data, context);
 
 	case EntityType::CustomUrl:
 		return !data.data.isEmpty()
-			? std::make_shared<HiddenUrlClickHandler>(data.data)
+			? std::make_shared<HiddenUrlClickHandler>(data.data, data.text)
 			: Integration::createLinkHandler(data, context);
 
 	case EntityType::BotCommand:

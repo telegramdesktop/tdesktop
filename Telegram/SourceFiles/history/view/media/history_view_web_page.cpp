@@ -478,7 +478,7 @@ QSize WebPage::countOptimalSize() {
 				? IvClickHandler(_data, original)
 				: (previewOfHiddenUrl || UrlClickHandler::IsSuspicious(
 					_data->url))
-				? std::make_shared<HiddenUrlClickHandler>(_data->url)
+				? std::make_shared<HiddenUrlClickHandler>(_data->url, _data->url)
 				: std::make_shared<UrlClickHandler>(_data->url, true);
 			if (_data->document
 				&& (_data->document->isWallPaper()
