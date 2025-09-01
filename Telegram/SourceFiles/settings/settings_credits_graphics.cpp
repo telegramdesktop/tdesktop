@@ -1874,7 +1874,9 @@ void GenericCreditsEntryBox(
 				&& e.hasGiftComment),
 			.canAddMyComment = (giftToSelf && e.hasGiftComment),
 			.addDetailsDefault = (giftToSelf
-				|| (e.starsUpgradedBySender && !e.anonymous)),
+				|| (e.starsUpgradedBySender
+					&& !e.giftUpgradeSeparate
+					&& !e.anonymous)),
 		});
 	};
 
@@ -2553,6 +2555,7 @@ Data::CreditsHistoryEntry SavedStarGiftEntry(
 		.converted = false,
 		.anonymous = data.anonymous,
 		.stargift = true,
+		.giftUpgradeSeparate = data.upgradeSeparate,
 		.giftPinned = data.pinned,
 		.savedToProfile = !data.hidden,
 		.fromGiftsList = true,
@@ -2657,6 +2660,7 @@ void ShowStarGiftViewBox(
 		.stargift = true,
 		.giftTransferred = data.transferred,
 		.giftRefunded = data.refunded,
+		.giftUpgradeSeparate = data.upgradeSeparate,
 		.savedToProfile = data.saved,
 		.canUpgradeGift = data.upgradable,
 		.hasGiftComment = !data.message.empty(),

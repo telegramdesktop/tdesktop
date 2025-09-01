@@ -992,6 +992,7 @@ std::optional<Data::SavedStarGift> FromTL(
 			? peerFromMTP(*data.vfrom_id())
 			: PeerId()),
 		.date = data.vdate().v,
+		.upgradeSeparate = data.is_upgrade_separate(),
 		.upgradable = data.is_can_upgrade(),
 		.anonymous = data.is_name_hidden(),
 		.pinned = data.is_pinned_to_top() && hasUnique,

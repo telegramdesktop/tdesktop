@@ -5869,13 +5869,14 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			const MTPDmessageActionStarGift &action) {
 		auto result = PreparedServiceText();
 		const auto upgradeGifted = action.is_prepaid_upgrade();
+		const auto upgradeSeparate = action.is_upgrade_separate();
 		const auto isSelf = _from->isSelf();
 		const auto peer = isSelf ? _history->peer : _from;
 		const auto stars = action.vgift().match([&](
 				const MTPDstarGift &data) {
 			return upgradeGifted
 				? uint64(action.vupgrade_stars().value_or_empty())
-				: action.is_upgrade_separate()
+				: upgradeSeparate
 				? uint64(data.vstars().v)
 				: (uint64(data.vstars().v)
 					+ uint64(action.vupgrade_stars().value_or_empty()));
@@ -6503,6 +6504,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 			.starsUpgradedBySender = int(
 				data.vupgrade_stars().value_or_empty()),
 			.type = Data::GiftType::StarGift,
+			.upgradeSeparate = data.is_upgrade_separate(),
 			.upgradable = data.is_can_upgrade(),
 			.anonymous = data.is_name_hidden(),
 			.converted = data.is_converted(),
