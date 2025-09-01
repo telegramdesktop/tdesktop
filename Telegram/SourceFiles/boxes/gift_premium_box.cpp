@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "api/api_premium_option.h"
 #include "apiwrap.h"
+#include "base/event_filter.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "base/weak_ptr.h"
@@ -105,6 +106,13 @@ void ShowInfoTooltip(
 			st::defaultImportantTooltipLabel),
 		st::defaultImportantTooltip);
 	tooltip->toggleFast(false);
+
+	base::install_event_filter(tooltip, qApp, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::MouseButtonPress) {
+			tooltip->toggleAnimated(false);
+		}
+		return base::EventFilterResult::Continue;
+	});
 
 	const auto update = [=] {
 		const auto geometry = Ui::MapFrom(parent, target, target->rect());
