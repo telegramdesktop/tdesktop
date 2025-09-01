@@ -455,7 +455,7 @@ QSize Document::countOptimalSize() {
 				? Ui::Text::Italic(tr::lng_audio_transcribe_long(tr::now))
 				: entry.failed
 				? Ui::Text::Italic(tr::lng_attach_failed(tr::now))
-				: TextWithEntities(entry.result).append(
+				: TextWithEntities{ entry.result }.append(
 					pending
 						? Ui::Text::LottieEmoji(descriptor)
 						: TextWithEntities());
