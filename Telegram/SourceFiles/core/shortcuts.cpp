@@ -799,12 +799,6 @@ const QStringList &Errors() {
 	return Data.errors();
 }
 
-bool HandleEvent(
-		not_null<QObject*> object,
-		not_null<QShortcutEvent*> event) {
-	return Launch(Data.lookup(object));
-}
-
 bool CancelChatSwitch(Qt::Key result) {
 	ChatSwitchModifier = Qt::Key();
 	if (!ChatSwitchStarted) {
@@ -821,6 +815,38 @@ bool NavigateChatSwitch(Qt::Key result) {
 	}
 	ChatSwitchStream.fire({ .action = result });
 	return true;
+}
+
+bool CheckChatSwitchEvent(Qt::Key key) {
+	const auto plain = key
+		& ~(Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier);
+	if (plain == Qt::Key_Escape) {
+		return CancelChatSwitch(Qt::Key_Escape);
+	} else if (plain == Qt::Key_Return || plain == Qt::Key_Enter) {
+		return CancelChatSwitch(Qt::Key_Enter);
+	} else if (plain == Qt::Key_Left
+		|| plain == Qt::Key_Right
+		|| plain == Qt::Key_Up
+		|| plain == Qt::Key_Down
+		|| plain == Qt::Key_Q) {
+		return NavigateChatSwitch(Qt::Key(plain));
+	}
+	return false;
+}
+
+bool HandleEvent(
+		not_null<QObject*> object,
+		not_null<QShortcutEvent*> event) {
+	if (ChatSwitchStarted) {
+		const auto key = event->key();
+		for (auto i = 0; i != key.count(); ++i) {
+			if (CheckChatSwitchEvent(Qt::Key(key[i]))) {
+				return true;
+			}
+		}
+		return false;
+	}
+	return Launch(Data.lookup(object));
 }
 
 rpl::producer<ChatSwitchRequest> ChatSwitchRequests() {
@@ -875,17 +901,7 @@ bool HandlePossibleChatSwitch(not_null<QKeyEvent*> event) {
 			}
 		}
 	} else if (type == QEvent::KeyPress) {
-		const auto key = Qt::Key(event->key());
-		if (key == Qt::Key_Escape) {
-			return CancelChatSwitch(Qt::Key_Escape);
-		} else if (key == Qt::Key_Return || key == Qt::Key_Enter) {
-			return CancelChatSwitch(Qt::Key_Enter);
-		} else if (key == Qt::Key_Left
-			|| key == Qt::Key_Right
-			|| key == Qt::Key_Up
-			|| key == Qt::Key_Down) {
-			return NavigateChatSwitch(key);
-		}
+		return CheckChatSwitchEvent(Qt::Key(event->key()));
 	} else if (type == QEvent::KeyRelease) {
 		const auto key = Qt::Key(event->key());
 		if (key == ChatSwitchModifier) {

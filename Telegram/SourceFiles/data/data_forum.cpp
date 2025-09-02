@@ -195,7 +195,7 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 		_activeSubsectionTopic = nullptr;
 	}
 	_topicDestroyed.fire(raw);
-	_history->session().recentPeers().chatOpenDestroyed(raw);
+	_history->session().recentPeers().chatOpenRemove(raw);
 	session().changes().topicUpdated(
 		raw,
 		Data::TopicUpdate::Flag::Destroyed);

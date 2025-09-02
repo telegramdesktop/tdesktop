@@ -154,7 +154,7 @@ void RecentPeers::chatOpenPush(not_null<Thread*> thread) {
 	}
 }
 
-void RecentPeers::chatOpenDestroyed(not_null<Thread*> thread) {
+void RecentPeers::chatOpenRemove(not_null<Thread*> thread) {
 	_opens.erase(ranges::remove(_opens, thread), end(_opens));
 }
 
