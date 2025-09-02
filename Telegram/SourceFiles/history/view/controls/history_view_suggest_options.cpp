@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/event_filter.h"
 #include "base/unixtime.h"
+#include "boxes/star_gift_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/ui_integration.h"
 #include "data/components/credits.h"
@@ -271,7 +272,7 @@ StarsTonPriceInput AddStarsTonPriceInput(
 
 	auto computeResult = [=]() -> std::optional<CreditsAmount> {
 		auto nanos = int64();
-		const auto ton = uint32(state->ton.current() ? 1 : 0);
+		const auto ton = state->ton.current();
 		if (ton) {
 			const auto text = tonField->getLastText();
 			const auto now = Ui::ParseTonAmountString(text);
@@ -302,16 +303,41 @@ StarsTonPriceInput AddStarsTonPriceInput(
 		}
 		state->updates.fire({});
 	};
-	QObject::connect(
-		starsField,
-		&Ui::NumberInput::changed,
-		starsField,
-		updatePrice);
+	const auto updateTonFromStars = [=] {
+		if (auto result = computeResult(); result && result->stars()) {
+			const auto v = Ui::TonFromStars(session, *result);
+			const auto amount = v.whole() * Ui::kNanosInOne + v.nano();
+			tonField->setText(
+				Ui::FormatTonAmount(amount, Ui::TonFormatFlag::Simple).full);
+		}
+	};
+	const auto updateStarsFromTon = [=] {
+		if (auto result = computeResult(); result && result->ton()) {
+			const auto v = Ui::StarsFromTon(session, *result);
+			starsField->setText(QString::number(v.whole()));
+		}
+	};
+	QObject::connect(starsField, &Ui::NumberInput::changed, starsField, [=] {
+		if (!state->ton.current()) {
+			updatePrice();
+			updateTonFromStars();
+		}
+	});
 	tonField->changes(
-	) | rpl::start_with_next(updatePrice, tonField->lifetime());
+	) | rpl::start_with_next([=] {
+		if (state->ton.current()) {
+			updatePrice();
+			updateStarsFromTon();
+		}
+	}, tonField->lifetime());
 
 	state->ton.changes(
 	) | rpl::start_with_next(updatePrice, container->lifetime());
+	if (state->ton.current()) {
+		updateStarsFromTon();
+	} else {
+		updateTonFromStars();
+	}
 
 	QObject::connect(
 		starsField,
