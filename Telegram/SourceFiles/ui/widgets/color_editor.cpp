@@ -917,6 +917,7 @@ void ColorEditor::prepare() {
 	connect(_blueField, &Ui::MaskedInputField::submitted, submitted);
 	connect(_result, &Ui::MaskedInputField::submitted, submitted);
 
+	setNaturalWidth(st::colorEditWidth);
 	const auto height = st::colorEditSkip
 		+ st::colorPickerSize
 		+ st::colorEditSkip
