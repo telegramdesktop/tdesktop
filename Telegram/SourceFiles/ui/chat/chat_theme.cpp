@@ -64,7 +64,8 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 	return (shuffled % 60) - 30;
 }
 
-[[nodiscard]] int ChooseGiftSymbolSkip(const std::vector<QRectF> &symbols) {
+[[nodiscard]] int ChooseGiftSymbolSkip(
+		const std::vector<ChatThemeGiftSymbol> &symbols) {
 	if (symbols.empty()) {
 		return -1;
 	}
@@ -72,10 +73,10 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 	auto maxValue = 0.;
 	for (auto i = 0, count = int(symbols.size()); i != count; ++i) {
 		const auto &symbol = symbols[i];
-		const auto center = symbol.center();
+		const auto center = symbol.area.center();
 		const auto value = std::min(center.x(), 1. - center.x())
 			* std::min(center.y(), 1. - center.y())
-			* std::min(symbol.width(), symbol.height());
+			* std::min(symbol.area.width(), symbol.area.height());
 		if (maxIndex < 0 || maxValue < value) {
 			maxIndex = i;
 			maxValue = value;
@@ -111,7 +112,7 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 				Qt::SmoothTransformation);
 		result.setDevicePixelRatio(ratio);
 		auto giftArea = QRect();
-		int giftRotation = 0;
+		float64 giftRotation = 0.;
 		if (!request.background.prepared.isNull()) {
 			QPainter p(&result);
 			if (!gradient.isNull()) {
@@ -148,15 +149,22 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 					symbol.width() * w,
 					symbol.height() * h);
 			};
-			const auto giftSymbolPaint = [&](QPainter &p, QRectF symbol) {
-				const auto rect = giftSymbolRect(symbol);
+			const auto giftSymbolPaint = [&](
+					QPainter &p,
+					ChatThemeGiftSymbol symbol) {
+				const auto rect = giftSymbolRect(symbol.area);
+
+				const auto esize = Ui::Emoji::GetSizeLarge() / ratio;
+				const auto custom = Ui::Text::AdjustCustomEmojiSize(esize);
+				const auto coef = rect.width() / float64(custom);
+
 				p.save();
 				p.translate(rect.center());
-				p.scale(
-					rect.width() / giftSymbolSize.width(),
-					rect.height() / giftSymbolSize.height());
-				p.rotate(RotationForSymbol(symbol));
+				p.rotate(symbol.rotation);
 				p.translate(-rect.center());
+				p.translate(rect.topLeft());
+				p.scale(coef, coef);
+				p.translate(-rect.topLeft());
 				p.drawImage(rect.topLeft(), giftSymbolFrame);
 				p.restore();
 			};
@@ -193,13 +201,13 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 				auto hq = PainterHighQualityEnabler(q);
 				q.setOpacity(0.8);
 				giftSymbolPaint(q, gift);
-				const auto exact = giftSymbolRect(gift);
+				const auto exact = giftSymbolRect(gift.area);
 				giftArea = QRect(
 					useshift + (cols / 2) * w + exact.x(),
 					exact.y(),
 					exact.width(),
 					exact.height());
-				giftRotation = RotationForSymbol(gift);
+				giftRotation = gift.rotation;
 			}
 
 			for (auto y = 0; y != rows; ++y) {
@@ -1010,7 +1018,7 @@ QImage PrepareImageForTiled(const QImage &prepared) {
 	return result;
 }
 
-std::vector<QRectF> ParseGiftSymbols(
+std::vector<ChatThemeGiftSymbol> ParseGiftSymbols(
 		const QByteArray &rects,
 		QSize size,
 		float64 scale) {
@@ -1018,7 +1026,7 @@ std::vector<QRectF> ParseGiftSymbols(
 		return {};
 	}
 
-	auto result = std::vector<QRectF>();
+	auto result = std::vector<ChatThemeGiftSymbol>();
 	auto offset = 0;
 	const auto jumpPast = [&](const QByteArray &what) {
 		const auto pos = rects.indexOf(what, offset);
@@ -1028,8 +1036,8 @@ std::vector<QRectF> ParseGiftSymbols(
 		offset = pos + what.size();
 		return true;
 	};
-	const auto takeDouble = [&](float64 &value) {
-		const auto end = rects.indexOf('"', offset);
+	const auto takeDouble = [&](float64 &value, char finish = '"') {
+		const auto end = rects.indexOf(finish, offset);
 		if (end < 0) {
 			return false;
 		}
@@ -1037,10 +1045,20 @@ std::vector<QRectF> ParseGiftSymbols(
 		offset = end + 1;
 		return true;
 	};
+	const auto maybeTakeRotation = [&](float64 &value) {
+		const auto end = rects.indexOf("/>"_q, offset);
+		const auto pos = rects.indexOf("rotate("_q, offset);
+		if (pos > offset && end > offset && pos < end) {
+			offset = pos + 7;
+			return takeDouble(value, ')');
+		}
+		return true;
+	};
 	const auto cw = scale / float64(size.width());
 	const auto ch = scale / float64(size.height());
 	while (true) {
 		auto x = float64(), y = float64(), w = float64(), h = float64();
+		auto rotation = float64();
 		if (!jumpPast("<rect "_q)
 			|| !jumpPast("x=\""_q)
 			|| !takeDouble(x)
@@ -1050,15 +1068,16 @@ std::vector<QRectF> ParseGiftSymbols(
 			|| !takeDouble(w)
 			|| !jumpPast("height=\""_q)
 			|| !takeDouble(h)
+			|| !maybeTakeRotation(rotation)
 			|| !jumpPast("/>"_q)) {
 			break;
 		}
-		result.push_back({
+		result.push_back({ .area = {
 			x * cw,
 			y * ch,
 			w * cw,
 			h * ch,
-		});
+		}, .rotation = rotation });
 	}
 	return result;
 }
@@ -1257,17 +1276,16 @@ ChatThemeBackground PrepareBackgroundImage(
 		return QImage();
 	}
 	const auto ratio = style::DevicePixelRatio();
-	const auto size = Ui::Emoji::GetSizeNormal() / ratio;
+	const auto esize = Ui::Emoji::GetSizeLarge() / ratio;
+	const auto customSize = Ui::Text::AdjustCustomEmojiSize(esize);
 	auto result = QImage(
-		2 * QSize(size, size) * ratio,
+		QSize(customSize, customSize) * ratio,
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 	auto p = QPainter(&result);
-	const auto shift = (2 * size - (Ui::Emoji::GetSizeLarge() / ratio)) / 2;
 	emoji->paint(p, {
 		.textColor = QColor(0, 0, 0),
-		.position = QPoint(shift, shift),
 	});
 	return result;
 }

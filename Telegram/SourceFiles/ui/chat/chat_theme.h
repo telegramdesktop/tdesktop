@@ -26,6 +26,11 @@ class ChatStyle;
 struct ChatPaintContext;
 struct BubblePattern;
 
+struct ChatThemeGiftSymbol {
+	QRectF area;
+	float64 rotation = 0.;
+};
+
 struct ChatThemeBackground {
 	QString key;
 	QImage prepared;
@@ -33,7 +38,7 @@ struct ChatThemeBackground {
 	QImage gradientForFill;
 	std::optional<QColor> colorForFill;
 	std::vector<QColor> colors;
-	std::vector<QRectF> giftSymbols;
+	std::vector<ChatThemeGiftSymbol> giftSymbols;
 	QImage giftSymbolFrame;
 	uint64_t giftId = 0;
 	float64 patternOpacity = 1.;
@@ -97,7 +102,7 @@ struct CacheBackgroundResult {
 	int x = 0;
 	int y = 0;
 	QRect giftArea;
-	int giftRotation = 0;
+	float64 giftRotation = 0;
 	bool waitingForNegativePattern = false;
 };
 
@@ -113,7 +118,7 @@ struct CachedBackground {
 	int x = 0;
 	int y = 0;
 	QRect giftArea;
-	int giftRotation = 0;
+	float64 giftRotation = 0.;
 	mutable std::unique_ptr<Text::CustomEmoji> gift;
 	bool waitingForNegativePattern = false;
 };
@@ -256,7 +261,7 @@ struct ChatBackgroundRects {
 
 struct BackgroundImageFields {
 	QImage image;
-	std::vector<QRectF> giftSymbols;
+	std::vector<ChatThemeGiftSymbol> giftSymbols;
 };
 [[nodiscard]] BackgroundImageFields ReadBackgroundImage(
 	const QString &path,
