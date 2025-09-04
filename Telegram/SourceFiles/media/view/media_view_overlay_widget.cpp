@@ -5638,27 +5638,43 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 void OverlayWidget::handleWheelEvent(not_null<QWheelEvent*> e) {
 	constexpr auto step = int(QWheelEvent::DefaultDeltasPerStep);
 
+	const auto _thisWheelDelta = e->angleDelta().y();
 	const auto acceptForJump = !_stories
 		&& ((e->source() == Qt::MouseEventNotSynthesized)
 			|| (e->source() == Qt::MouseEventSynthesizedBySystem));
-	_verticalWheelDelta += e->angleDelta().y();
-	while (qAbs(_verticalWheelDelta) >= step) {
-		if (_verticalWheelDelta < 0) {
-			_verticalWheelDelta += step;
+
+	const bool directionChanges =
+		std::signbit(_lastWheelDelta) != std::signbit(_thisWheelDelta);
+
+	if ((qAbs(_thisWheelDelta) != step) && directionChanges) {
+		// linux: first scroll after direction changes on hi-res wheel in
+		// libinput is unreliable. offen lost first half of it's value,
+		// or even only remain one with 15 delta, so we just hardcode it
+		// to same as step here, other system should be fine too.
+		_absWheelDelta = _thisWheelDelta > 0 ? step : step * -1;
+	} else {
+		_absWheelDelta += _thisWheelDelta;
+	}
+
+	while (qAbs(_absWheelDelta) >= step) {
+		if (_absWheelDelta < 0) {
+			// _absWheelDelta += step;
 			if (e->modifiers().testFlag(Qt::ControlModifier)) {
 				zoomOut();
 			} else if (acceptForJump) {
 				moveToNext(1);
 			}
 		} else {
-			_verticalWheelDelta -= step;
+			// _absWheelDelta -= step;
 			if (e->modifiers().testFlag(Qt::ControlModifier)) {
 				zoomIn();
 			} else if (acceptForJump) {
 				moveToNext(-1);
 			}
 		}
+		_absWheelDelta = 0; // reset to 0 to reduce pic move jump or skip.
 	}
+	_lastWheelDelta = _thisWheelDelta; // record last wheel delta
 }
 
 void OverlayWidget::setZoomLevel(int newZoom, bool force) {
