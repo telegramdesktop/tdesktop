@@ -56,14 +56,6 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 	return (doubled % 2) ? 0.5 : 1.;
 }
 
-[[nodiscard]] int RotationForSymbol(const QRectF &symbol) {
-	const auto a = int(base::SafeRound(symbol.x() * 255));
-	const auto b = int(base::SafeRound(symbol.y() * 255));
-	const auto value = uint16((uint16(a) << 8) | uint16(b));
-	const auto shuffled = uint16(value << 5) | uint16(value >> 3);
-	return (shuffled % 60) - 30;
-}
-
 [[nodiscard]] int ChooseGiftSymbolSkip(
 		const std::vector<ChatThemeGiftSymbol> &symbols) {
 	if (symbols.empty()) {
@@ -141,7 +133,6 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 			const auto giftSymbolsCount = int(giftSymbols.size());
 			const auto giftSymbolSkip = ChooseGiftSymbolSkip(giftSymbols);
 			const auto &giftSymbolFrame = request.background.giftSymbolFrame;
-			const auto giftSymbolSize = giftSymbolFrame.size() / ratio;
 			const auto giftSymbolRect = [&](const QRectF &symbol) {
 				return QRectF(
 					symbol.x() * w,
