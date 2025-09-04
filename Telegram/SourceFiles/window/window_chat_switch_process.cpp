@@ -68,12 +68,12 @@ void CloseInWindows(not_null<Data::Thread*> thread) {
 			clearing.push_back(base::make_weak(window));
 		}
 	}
-	for (const auto window : closing) {
+	for (const auto &window : closing) {
 		if (const auto strong = window.get()) {
 			Core::App().closeWindow(&strong->window());
 		}
 	}
-	for (const auto window : clearing) {
+	for (const auto &window : clearing) {
 		if (const auto strong = window.get()) {
 			strong->clearSectionStack();
 		}
