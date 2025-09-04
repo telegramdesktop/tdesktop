@@ -7,6 +7,11 @@ grade: stable
 confinement: strict
 compression: lzo
 
+plugs:
+  shmem:
+    interface: shared-memory
+    private: true
+
 apps:
   telegram-desktop:
     command: usr/bin/telegram-desktop
@@ -24,6 +29,7 @@ apps:
       - network-bind
       - network-status
       - removable-media
+      - shmem
     slots:
       - mpris
 
