@@ -16,6 +16,7 @@ struct PremiumSubscriptionOption {
 	QString costPerMonth;
 	QString costNoDiscount;
 	QString costTotal;
+	QString currency;
 	QString total;
 	QString botUrl;
 };

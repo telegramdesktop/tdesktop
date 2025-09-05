@@ -758,7 +758,7 @@ backgroundCheckbox: Checkbox(defaultCheckbox) {
 	textFg: msgServiceFg;
 	textFgActive: msgServiceFg;
 
-	width: -50px;
+	width: -10px;
 	margin: margins(0px, 0px, 0px, 0px);
 
 	textPosition: point(0px, 6px);
@@ -1116,8 +1116,16 @@ moderateBoxExpandInnerSkip: 2px;
 moderateBoxExpandFont: font(11px);
 moderateBoxExpandToggleSize: 4px;
 moderateBoxExpandToggleFourStrokes: 3px;
-moderateBoxExpandIcon: icon{{ "info/edit/expand_arrow_small-flip_vertical", windowActiveTextFg }};
-moderateBoxExpandIconDown: icon{{ "info/edit/expand_arrow_small", windowActiveTextFg }};
+moderateBoxExpandIcon: IconEmoji{
+	icon: icon{{ "info/edit/expand_arrow_small-flip_vertical", windowActiveTextFg }};
+	padding: margins(-2px, -1px, 0px, 0px);
+	useIconColor: true;
+}
+moderateBoxExpandIconDown: IconEmoji{
+	icon: icon{{ "info/edit/expand_arrow_small", windowActiveTextFg }};
+	padding: margins(-2px, -1px, 0px, 0px);
+	useIconColor: true;
+}
 moderateBoxDividerLabel: FlatLabel(boxDividerLabel) {
 	palette: TextPalette(defaultTextPalette) {
 		selectLinkFg: windowActiveTextFg;

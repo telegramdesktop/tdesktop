@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/components/recent_peers.h"
 
+#include "data/data_peer.h"
+#include "data/data_session.h"
+#include "history/history.h"
 #include "main/main_session.h"
 #include "storage/serialize_common.h"
 #include "storage/serialize_peer.h"
@@ -16,6 +19,7 @@ namespace Data {
 namespace {
 
 constexpr auto kLimit = 48;
+constexpr auto kMaxRememberedOpenChats = 32;
 
 } // namespace
 
@@ -131,6 +135,32 @@ void RecentPeers::applyLocal(QByteArray serialized) {
 	}
 	DEBUG_LOG(
 		("Suggestions: RecentPeers read OK, count: %1").arg(_list.size()));
+}
+
+std::vector<not_null<Thread*>> RecentPeers::collectChatOpenHistory() const {
+	_session->local().readSearchSuggestions();
+	return _opens;
+}
+
+void RecentPeers::chatOpenPush(not_null<Thread*> thread) {
+	const auto i = ranges::find(_opens, thread);
+	if (i == end(_opens)) {
+		while (_opens.size() >= kMaxRememberedOpenChats) {
+			_opens.pop_back();
+		}
+		_opens.insert(begin(_opens), thread);
+	} else if (i != begin(_opens)) {
+		ranges::rotate(begin(_opens), i, i + 1);
+	}
+}
+
+void RecentPeers::chatOpenRemove(not_null<Thread*> thread) {
+	_opens.erase(ranges::remove(_opens, thread), end(_opens));
+}
+
+void RecentPeers::chatOpenKeepUserpics(
+		base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> userpics) {
+	_chatOpenUserpicsCache = std::move(userpics);
 }
 
 } // namespace Data

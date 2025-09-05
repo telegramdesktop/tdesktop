@@ -7,14 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/shortcuts.h"
 
+#include "base/platform/base_platform_info.h"
+#include "base/event_filter.h"
+#include "base/parse_helper.h"
+#include "core/application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "window/window_controller.h"
-#include "core/application.h"
 #include "media/player/media_player_instance.h"
-#include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
-#include "base/parse_helper.h"
 
 #include <QAction>
 #include <QShortcut>
@@ -29,6 +30,19 @@ constexpr auto kCountLimit = 256; // How many shortcuts can be in json file.
 
 rpl::event_stream<not_null<Request*>> RequestsStream;
 bool Paused/* = false*/;
+
+const auto kChatSwitchSpecialKeys = std::array{
+	Qt::Key_Left,
+	Qt::Key_Right,
+	Qt::Key_Up,
+	Qt::Key_Down,
+	Qt::Key_Q,
+};
+Qt::Key ChatSwitchModifier/* = Qt::Key()*/;
+bool ChatSwitchStarted/* = false*/;
+QObject *ChatSwitchFilter/* = nullptr*/;
+rpl::event_stream<ChatSwitchRequest> ChatSwitchStream;
+std::array<Qt::Key, kChatSwitchSpecialKeys.size()> ChatSwitchKeyPressHandled;
 
 const auto AutoRepeatCommands = base::flat_set<Command>{
 	Command::MediaPrevious,
@@ -112,6 +126,8 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"show_chat_menu"_q    , Command::ShowChatMenu },
 	{ u"show_chat_preview"_q , Command::ShowChatPreview },
 
+	{ u"record_voice"_q      , Command::RecordVoice },
+
 	// Shortcuts that have no default values.
 	{ u"message"_q                       , Command::JustSendMessage },
 	{ u"message_silently"_q              , Command::SendSilentMessage },
@@ -119,6 +135,7 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"media_viewer_video_fullscreen"_q , Command::MediaViewerFullscreen },
 	{ u"show_scheduled"_q                , Command::ShowScheduled },
 	{ u"archive_chat"_q                  , Command::ArchiveChat },
+	{ u"record_round"_q                  , Command::RecordRound },
 	//
 };
 
@@ -140,6 +157,7 @@ const base::flat_map<Command, QString> &CommandNames() {
 	Command::MediaViewerFullscreen,
 	Command::ShowScheduled,
 	Command::ArchiveChat,
+	Command::RecordRound,
 };
 
 class Manager {
@@ -152,6 +170,7 @@ public:
 	void toggleMedia(bool toggled);
 	void toggleSupport(bool toggled);
 	void listen(not_null<QWidget*> widget);
+	[[nodiscard]] bool handles(const QKeySequence &sequence) const;
 
 	[[nodiscard]] const QStringList &errors() const;
 
@@ -357,6 +376,10 @@ void Manager::listen(not_null<QWidget*> widget) {
 	}
 }
 
+bool Manager::handles(const QKeySequence &sequence) const {
+	return _shortcuts.contains(sequence);
+}
+
 void Manager::pruneListened() {
 	for (auto i = begin(_listened); i != end(_listened);) {
 		if (i->data()) {
@@ -466,10 +489,6 @@ void Manager::fillDefaults() {
 	set(u"ctrl+pgup"_q, Command::ChatPrevious);
 	set(u"alt+up"_q, Command::ChatPrevious);
 
-	set(u"%1+tab"_q.arg(ctrl), Command::ChatNext);
-	set(u"%1+shift+tab"_q.arg(ctrl), Command::ChatPrevious);
-	set(u"%1+backtab"_q.arg(ctrl), Command::ChatPrevious);
-
 	set(u"ctrl+alt+home"_q, Command::ChatFirst);
 	set(u"ctrl+alt+end"_q, Command::ChatLast);
 
@@ -508,6 +527,8 @@ void Manager::fillDefaults() {
 
 	set(u"ctrl+\\"_q, Command::ShowChatMenu);
 	set(u"ctrl+]"_q, Command::ShowChatPreview);
+
+	set(u"ctrl+r"_q, Command::RecordVoice);
 
 	_defaults = keysCurrents();
 }
@@ -788,10 +809,165 @@ const QStringList &Errors() {
 	return Data.errors();
 }
 
+bool MarkChatSwitchKeyPressHandled(Qt::Key key, bool handled) {
+	if (handled) {
+		if (ranges::contains(ChatSwitchKeyPressHandled, key)) {
+			return false;
+		}
+		const auto i = ranges::find(ChatSwitchKeyPressHandled, Qt::Key(0));
+		Assert(i != end(ChatSwitchKeyPressHandled));
+		*i = key;
+		return true;
+	}
+	const auto i = ranges::find(ChatSwitchKeyPressHandled, key);
+	if (i == end(ChatSwitchKeyPressHandled)) {
+		return false;
+	}
+	*i = Qt::Key(0);
+	return true;
+}
+
+bool CancelChatSwitch(Qt::Key result) {
+	ChatSwitchModifier = Qt::Key();
+	if (!ChatSwitchStarted) {
+		return false;
+	}
+	ChatSwitchStarted = false;
+	delete base::take(ChatSwitchFilter);
+	ChatSwitchStream.fire({ .action = result });
+	return true;
+}
+
+bool NavigateChatSwitch(Qt::Key result) {
+	if (!ChatSwitchStarted) {
+		return false;
+	}
+	ChatSwitchStream.fire({ .action = result });
+	return true;
+}
+
+bool CheckChatSwitchEvent(Qt::Key key) {
+	const auto plain = Qt::Key(int(key)
+		& ~(Qt::ControlModifier
+			| Qt::ShiftModifier
+			| Qt::AltModifier
+			| Qt::MetaModifier));
+	if (MarkChatSwitchKeyPressHandled(plain, false)) {
+		return true;
+	} else if (plain == Qt::Key_Escape) {
+		return CancelChatSwitch(Qt::Key_Escape);
+	} else if (plain == Qt::Key_Return || plain == Qt::Key_Enter) {
+		return CancelChatSwitch(Qt::Key_Enter);
+	} else if (ranges::contains(kChatSwitchSpecialKeys, plain)) {
+		return NavigateChatSwitch(Qt::Key(plain));
+	}
+	return false;
+}
+
 bool HandleEvent(
 		not_null<QObject*> object,
 		not_null<QShortcutEvent*> event) {
+	if (ChatSwitchStarted) {
+		const auto full = event->key();
+		for (auto i = 0; i != full.count(); ++i) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+			const auto raw = full[i].key();
+#else // Qt >= 6.0.0
+			const auto raw = full[i];
+#endif // Qt < 6.0.0
+			if (CheckChatSwitchEvent(Qt::Key(raw))) {
+				return true;
+			}
+		}
+		return false;
+	}
 	return Launch(Data.lookup(object));
+}
+
+rpl::producer<ChatSwitchRequest> ChatSwitchRequests() {
+	return ChatSwitchStream.events();
+}
+
+bool HandlePossibleChatSwitch(not_null<QKeyEvent*> event) {
+	const auto type = event->type();
+	if (Paused) {
+		return false;
+	} else if (type == QEvent::ShortcutOverride) {
+		const auto key = Qt::Key(event->key());
+		const auto ctrl = Platform::IsMac()
+			? Qt::MetaModifier
+			: Qt::ControlModifier;
+		if ((event->modifiers() & ctrl)
+			&& ranges::contains(kChatSwitchSpecialKeys, key)) {
+			// For Ctrl+Q in case of active chat switch we have
+			// on Windows always ShortcutOverride + KeyPress,
+			// while on macOS we have just ShortcutOverride for
+			// the first press and KeyPress only for repeat events.
+			//
+			// This complex scheme allows to handle both cases with
+			// firing the switch event Key_Q exactly once initially.
+			if (CheckChatSwitchEvent(key)) {
+				MarkChatSwitchKeyPressHandled(key, true);
+			}
+			crl::on_main([=] {
+				MarkChatSwitchKeyPressHandled(key, false);
+			});
+		}
+		if (Data.handles(QKeySequence(ctrl | Qt::Key_Tab))
+			&& (Data.handles(ctrl | Qt::ShiftModifier | Qt::Key_Backtab)
+				|| Data.handles(ctrl | Qt::ShiftModifier | Qt::Key_Tab)
+				|| Data.handles(QKeySequence(ctrl | Qt::Key_Backtab)))) {
+			return false;
+		} else if (key == Qt::Key_Control || key == Qt::Key_Meta) {
+			ChatSwitchModifier = key;
+		} else if (key == Qt::Key_Tab || key == Qt::Key_Backtab) {
+			const auto modifiers = event->modifiers();
+			if (modifiers & ctrl) {
+				if (ChatSwitchModifier == Qt::Key()) {
+					ChatSwitchModifier = Platform::IsMac()
+						? Qt::Key_Meta
+						: Qt::Key_Control;
+				}
+				const auto action = (modifiers & Qt::ShiftModifier)
+					? Qt::Key_Backtab
+					: key;
+				if (Data.handles(modifiers | key)) {
+					return false;
+				} else if (action == Qt::Key_Tab
+					&& Data.handles(QKeySequence(ctrl | Qt::Key_Tab))) {
+					return false;
+				} else if (action == Qt::Key_Backtab
+					&& Data.handles(QKeySequence(ctrl | Qt::Key_Backtab))) {
+					return false;
+				} else if (action == Qt::Key_Backtab
+					&& Data.handles(ctrl | Qt::ShiftModifier | Qt::Key_Tab)) {
+					return false;
+				}
+				const auto started = !std::exchange(ChatSwitchStarted, true);
+				if (started) {
+					Assert(!ChatSwitchFilter);
+					ChatSwitchFilter = base::install_event_filter(qApp, [=](not_null<QEvent*> e) {
+						return (e->type() == QEvent::InputMethod)
+							? base::EventFilterResult::Cancel
+							: base::EventFilterResult::Continue;
+					});
+				}
+				ChatSwitchStream.fire({
+					.action = action,
+					.started = started,
+				});
+				return true;
+			}
+		}
+	} else if (type == QEvent::KeyPress) {
+		return CheckChatSwitchEvent(Qt::Key(event->key()));
+	} else if (type == QEvent::KeyRelease) {
+		const auto key = Qt::Key(event->key());
+		if (key == ChatSwitchModifier) {
+			CancelChatSwitch(Qt::Key_Enter);
+		}
+	}
+	return false;
 }
 
 void ToggleMediaShortcuts(bool toggled) {

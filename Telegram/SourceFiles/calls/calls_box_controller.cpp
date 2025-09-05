@@ -825,7 +825,7 @@ void ShowCallsBox(not_null<::Window::SessionController*> window) {
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				box,
 				object_ptr<Ui::VerticalLayout>(box)),
-			{});
+			style::margins());
 		groupCalls->hide(anim::type::instant);
 		groupCalls->toggleOn(state->groupCallsController.shownValue());
 
@@ -833,8 +833,7 @@ void ShowCallsBox(not_null<::Window::SessionController*> window) {
 			groupCalls->entity(),
 			tr::lng_call_box_groupcalls_subtitle());
 		state->groupCallsDelegate.setContent(groupCalls->entity()->add(
-			object_ptr<PeerListContent>(box, &state->groupCallsController),
-			{}));
+			object_ptr<PeerListContent>(box, &state->groupCallsController)));
 		state->groupCallsController.setDelegate(&state->groupCallsDelegate);
 		Ui::AddSkip(groupCalls->entity());
 		Ui::AddDivider(groupCalls->entity());
@@ -853,7 +852,7 @@ void ShowCallsBox(not_null<::Window::SessionController*> window) {
 
 		const auto content = box->addRow(
 			object_ptr<PeerListContent>(box, &state->callsController),
-			{});
+			style::margins());
 		state->callsDelegate.setContent(content);
 		state->callsController.setDelegate(&state->callsDelegate);
 

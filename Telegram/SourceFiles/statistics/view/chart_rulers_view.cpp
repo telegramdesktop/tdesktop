@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_basic.h"
 #include "styles/style_statistics.h"
 
+#include <QtCore/QLocale>
+
 namespace Statistic {
 namespace {
 
@@ -25,7 +27,7 @@ namespace {
 		? u"0"_q
 		: (absoluteValue >= kTooMuch)
 		? Lang::FormatCountToShort(absoluteValue).string
-		: QString::number(absoluteValue);
+		: QLocale().toString(absoluteValue);
 }
 
 } // namespace

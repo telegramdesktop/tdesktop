@@ -101,6 +101,7 @@ private:
 
 	rpl::lifetime _refreshListLifetime;
 	PeerData *_listPeer = nullptr;
+	PeerData *_listMusicPeer = nullptr;
 	PeerData *_listMigratedPeer = nullptr;
 
 };

@@ -23,7 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_chat_section.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/profile/info_profile_values.h"
+#include "info/saved/info_saved_music_widget.h"
 #include "info/stories/info_stories_widget.h"
 #include "main/main_session.h"
 #include "ui/text/text_utilities.h"
@@ -246,8 +248,9 @@ not_null<Ui::SettingsButton*> AddStoriesButton(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Ui::MultiSlideTracker &tracker) {
-	auto count = rpl::single(0) | rpl::then(Data::SavedStoriesIds(
+	auto count = rpl::single(0) | rpl::then(Data::AlbumStoriesIds(
 		peer,
+		0, // = Data::kStoriesAlbumIdSaved
 		ServerMaxStoryId - 1,
 		0
 	) | rpl::map([](const Data::StoriesIdsSlice &slice) {
@@ -385,10 +388,7 @@ not_null<Ui::SettingsButton*> AddPeerGiftsButton(
 		if (navigation->showFrozenError()) {
 			return;
 		}
-		navigation->showSection(
-			std::make_shared<Info::Memento>(
-				peer,
-				Section::Type::PeerGifts));
+		navigation->showSection(Info::PeerGifts::Make(peer));
 	});
 	return wrap->entity();
 }

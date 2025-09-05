@@ -59,7 +59,7 @@ void AddUniqueGiftCover(
 	not_null<VerticalLayout*> container,
 	rpl::producer<Data::UniqueGift> data,
 	rpl::producer<QString> subtitleOverride = nullptr,
-	rpl::producer<int> resalePrice = nullptr,
+	rpl::producer<CreditsAmount> resalePrice = nullptr,
 	Fn<void()> resaleClick = nullptr);
 void AddWearGiftCover(
 	not_null<VerticalLayout*> container,
@@ -78,7 +78,7 @@ void UpdateGiftSellPrice(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> unique,
 	Data::SavedStarGiftId savedId,
-	int price);
+	CreditsAmount price);
 void ShowUniqueGiftSellBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> unique,
@@ -110,6 +110,7 @@ struct StarGiftUpgradeArgs {
 	Fn<void(bool)> ready;
 	not_null<PeerData*> peer;
 	Data::SavedStarGiftId savedId;
+	QString giftPrepayUpgradeHash;
 	int cost = 0;
 	bool canAddSender = false;
 	bool canAddComment = false;
@@ -129,12 +130,18 @@ void SubmitStarsForm(
 	uint64 formId,
 	uint64 price,
 	Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done);
-void RequestStarsForm(
+void SubmitTonForm(
+	std::shared_ptr<Main::SessionShow> show,
+	MTPInputInvoice invoice,
+	uint64 formId,
+	CreditsAmount ton,
+	Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done);
+void RequestOurForm(
 	std::shared_ptr<Main::SessionShow> show,
 	MTPInputInvoice invoice,
 	Fn<void(
 		uint64 formId,
-		uint64 price,
+		CreditsAmount price,
 		std::optional<Payments::CheckoutResult> failure)> done);
 void RequestStarsFormAndSubmit(
 	std::shared_ptr<Main::SessionShow> show,
@@ -150,5 +157,19 @@ void ShowResaleGiftBoughtToast(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<PeerData*> to,
 	const Data::UniqueGift &gift);
+
+[[nodiscard]] rpl::lifetime ShowStarGiftResale(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	uint64 giftId,
+	QString title,
+	Fn<void()> finishRequesting);
+
+[[nodiscard]] CreditsAmount StarsFromTon(
+	not_null<Main::Session*> session,
+	CreditsAmount ton);
+[[nodiscard]] CreditsAmount TonFromStars(
+	not_null<Main::Session*> session,
+	CreditsAmount stars);
 
 } // namespace Ui

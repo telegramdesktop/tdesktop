@@ -37,17 +37,38 @@ struct UniqueGiftOriginalDetails {
 	TextWithEntities message;
 };
 
+struct UniqueGiftValue {
+	QString currency;
+	int64 valuePrice = 0;
+	CreditsAmount initialPriceStars;
+	int64 initialSalePrice = 0;
+	TimeId initialSaleDate = 0;
+	int64 lastSalePrice = 0;
+	TimeId lastSaleDate = 0;
+	int64 averagePrice = 0;
+	int64 minimumPrice = 0;
+	int forSaleOnTelegram = 0;
+	int forSaleOnFragment = 0;
+	QString fragmentUrl;
+	bool lastSaleFragment = false;
+};
+
 struct UniqueGift {
 	CollectibleId id = 0;
+	uint64 initialGiftId = 0;
 	QString slug;
 	QString title;
 	QString ownerAddress;
 	QString ownerName;
 	PeerId ownerId = 0;
 	PeerData *releasedBy = nullptr;
-	int number = 0;
-	int starsForTransfer = -1;
+	PeerData *themeUser = nullptr;
+	int64 nanoTonForResale = -1;
 	int starsForResale = -1;
+	int starsForTransfer = -1;
+	int number = 0;
+	bool onlyAcceptTon = false;
+	bool canBeTheme = false;
 	TimeId exportAt = 0;
 	TimeId canTransferAt = 0;
 	TimeId canResellAt = 0;
@@ -55,11 +76,18 @@ struct UniqueGift {
 	UniqueGiftPattern pattern;
 	UniqueGiftBackdrop backdrop;
 	UniqueGiftOriginalDetails originalDetails;
+	std::shared_ptr<UniqueGiftValue> value;
 };
 
-[[nodiscard]] inline QString UniqueGiftName(const UniqueGift &gift) {
-	return gift.title + u" #"_q + QString::number(gift.number);
-}
+[[nodiscard]] QString UniqueGiftName(const UniqueGift &gift);
+
+[[nodiscard]] CreditsAmount UniqueGiftResaleStars(const UniqueGift &gift);
+[[nodiscard]] CreditsAmount UniqueGiftResaleTon(const UniqueGift &gift);
+[[nodiscard]] CreditsAmount UniqueGiftResaleAsked(const UniqueGift &gift);
+
+[[nodiscard]] TextWithEntities FormatGiftResaleStars(const UniqueGift &gift);
+[[nodiscard]] TextWithEntities FormatGiftResaleTon(const UniqueGift &gift);
+[[nodiscard]] TextWithEntities FormatGiftResaleAsked(const UniqueGift &gift);
 
 struct StarGift {
 	uint64 id = 0;
@@ -78,10 +106,12 @@ struct StarGift {
 	int perUserRemains = 0;
 	TimeId firstSaleDate = 0;
 	TimeId lastSaleDate = 0;
-	bool requirePremium = false;
-	bool upgradable = false;
-	bool birthday = false;
-	bool soldOut = false;
+	TimeId lockedUntilDate = 0;
+	bool resellTonOnly : 1 = false;
+	bool requirePremium : 1 = false;
+	bool upgradable : 1 = false;
+	bool birthday : 1 = false;
+	bool soldOut : 1 = false;
 
 	friend inline bool operator==(
 		const StarGift &,
@@ -145,8 +175,10 @@ struct SavedStarGift {
 	TextWithEntities message;
 	int64 starsConverted = 0;
 	int64 starsUpgradedBySender = 0;
+	QString giftPrepayUpgradeHash;
 	PeerId fromId = 0;
 	TimeId date = 0;
+	bool upgradeSeparate = false;
 	bool upgradable = false;
 	bool anonymous = false;
 	bool pinned = false;

@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "boxes/background_preview_box.h"
+#include "boxes/star_gift_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_sticker_player_abstract.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -27,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -37,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "styles/style_chat.h"
+#include "styles/style_credits.h"
 
 namespace HistoryView {
 namespace {
@@ -603,6 +607,174 @@ void ThemeDocumentBox::unloadHeavyPart() {
 	if (_preview) {
 		_preview->unloadHeavyPart();
 	}
+}
+
+GiftThemeBox::GiftThemeBox(
+	not_null<Element*> parent,
+	not_null<Data::MediaGiftBox*> gift)
+: _parent(parent)
+, _data(*gift->gift()) {
+}
+
+GiftThemeBox::~GiftThemeBox() = default;
+
+int GiftThemeBox::top() {
+	return st::msgServiceStarGiftStickerTop;
+}
+
+int GiftThemeBox::width() {
+	return _data.stargiftReleasedBy
+		? st::msgServiceStarGiftByWidth
+		: st::msgServiceStarGiftBoxWidth;
+}
+
+QSize GiftThemeBox::size() {
+	return QSize(
+		st::msgServiceGiftThemeStickerSize,
+		st::msgServiceGiftThemeStickerSize).grownBy(
+			st::msgServiceGiftThemeStickerPadding);
+}
+
+TextWithEntities GiftThemeBox::title() {
+	return {};
+}
+
+TextWithEntities GiftThemeBox::subtitle() {
+	const auto giftName = Ui::Text::Bold(
+		Data::UniqueGiftName(*_data.unique));
+	if (_parent->data()->out()) {
+		return tr::lng_action_you_gift_theme_changed(
+			tr::now,
+			lt_name,
+			giftName,
+			Ui::Text::WithEntities);
+	} else {
+		return tr::lng_action_gift_theme_changed(
+			tr::now,
+			lt_from,
+			Ui::Text::Bold(_parent->data()->from()->shortName()),
+			lt_name,
+			giftName,
+			Ui::Text::WithEntities);
+	}
+	return _parent->data()->originalText();
+}
+
+rpl::producer<QString> GiftThemeBox::button() {
+	return tr::lng_sticker_premium_view();
+}
+
+ClickHandlerPtr GiftThemeBox::createViewLink() {
+	return std::make_shared<UrlClickHandler>(
+		u"tg://nft?slug="_q + _data.unique->slug);
+}
+
+int GiftThemeBox::buttonSkip() {
+	return st::msgServiceGiftBoxButtonMargins.top();
+}
+
+void GiftThemeBox::cacheUniqueBackground(int width, int height) {
+	if (!_patternEmoji) {
+		const auto session = &_parent->data()->history()->session();
+		_patternEmoji = session->data().customEmojiManager().create(
+			_data.unique->pattern.document,
+			[=] { _parent->repaint(); },
+			Data::CustomEmojiSizeTag::Large);
+		[[maybe_unused]] const auto preload = _patternEmoji->ready();
+	}
+	const auto inner = QRect(0, 0, width, height);
+	const auto ratio = style::DevicePixelRatio();
+	if (_backgroundCache.size() != inner.size() * ratio) {
+		_backgroundCache = QImage(
+			inner.size() * ratio,
+			QImage::Format_ARGB32_Premultiplied);
+		_backgroundCache.fill(Qt::transparent);
+		_backgroundCache.setDevicePixelRatio(ratio);
+
+		const auto radius = st::giftBoxGiftRadius;
+		auto p = QPainter(&_backgroundCache);
+		auto hq = PainterHighQualityEnabler(p);
+		auto gradient = QRadialGradient(inner.center(), inner.width() / 2);
+		gradient.setStops({
+			{ 0., _data.unique->backdrop.centerColor },
+			{ 1., _data.unique->backdrop.edgeColor },
+		});
+		p.setBrush(gradient);
+		p.setPen(Qt::NoPen);
+		p.drawRoundedRect(inner, radius, radius);
+		_backroundPatterned = false;
+	}
+	if (!_backroundPatterned && _patternEmoji->ready()) {
+		_backroundPatterned = true;
+		auto p = QPainter(&_backgroundCache);
+		p.setClipRect(inner);
+		const auto skip = inner.width() / 3;
+		Ui::PaintPoints(
+			p,
+			Ui::PatternPointsSmall(),
+			_patternCache,
+			_patternEmoji.get(),
+			*_data.unique,
+			QRect(-skip, 0, inner.width() + 2 * skip, inner.height()));
+	}
+}
+
+void GiftThemeBox::draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &geometry) {
+	cacheUniqueBackground(geometry.width(), geometry.height());
+	p.drawImage(geometry.topLeft(), _backgroundCache);
+
+	if (_sticker) {
+		_sticker->draw(
+			p,
+			context,
+			geometry.marginsRemoved(st::msgServiceGiftThemeStickerPadding));
+	} else {
+		ensureStickerCreated();
+	}
+}
+
+bool GiftThemeBox::hideServiceText() {
+	return true;
+}
+
+void GiftThemeBox::stickerClearLoopPlayed() {
+	if (_sticker) {
+		_sticker->stickerClearLoopPlayed();
+	}
+}
+
+std::unique_ptr<StickerPlayer> GiftThemeBox::stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
+	return _sticker
+		? _sticker->stickerTakePlayer(data, replacements)
+		: nullptr;
+}
+
+bool GiftThemeBox::hasHeavyPart() {
+	return (_sticker ? _sticker->hasHeavyPart() : false);
+}
+
+void GiftThemeBox::unloadHeavyPart() {
+	if (_sticker) {
+		_sticker->unloadHeavyPart();
+	}
+}
+
+void GiftThemeBox::ensureStickerCreated() const {
+	if (_sticker) {
+		return;
+	}
+	const auto document = _data.unique->model.document;
+	const auto sticker = document->sticker();
+	Assert(sticker != nullptr);
+	_sticker.emplace(_parent, document, false, _parent);
+	_sticker->setPlayingOnce(true);
+	_sticker->initSize(st::msgServiceGiftThemeStickerSize);
+	_parent->repaint();
 }
 
 } // namespace HistoryView

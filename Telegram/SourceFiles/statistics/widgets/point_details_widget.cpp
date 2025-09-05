@@ -303,6 +303,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 	if (xIndex < 0) {
 		return;
 	}
+	Assert(xIndex < _chartData.x.size());
 	{
 		constexpr auto kOneDay = 3600 * 24 * 1000;
 		const auto timestamp = _chartData.x[xIndex];
@@ -328,6 +329,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 		= (_chartData.currency == Data::StatisticalCurrency::Credits);
 	for (auto i = 0; i < _chartData.lines.size(); i++) {
 		const auto &dataLine = _chartData.lines[i];
+		Assert(xIndex < dataLine.y.size());
 		auto textLine = Line();
 		textLine.id = dataLine.id;
 		if (_maxPercentageWidth) {

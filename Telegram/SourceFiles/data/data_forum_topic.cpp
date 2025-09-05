@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/color_int_conversion.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/text/text_utilities.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 
@@ -754,6 +755,16 @@ QString ForumTopic::title() const {
 
 TextWithEntities ForumTopic::titleWithIcon() const {
 	return ForumTopicIconWithTitle(_rootId, _iconId, _title);
+}
+
+TextWithEntities ForumTopic::titleWithIconOrLogo() const {
+	if (_iconId || isGeneral()) {
+		return titleWithIcon();
+	}
+	return Ui::Text::SingleCustomEmoji(Data::TopicIconEmojiEntity({
+		.title = _title,
+		.colorId = _colorId,
+	})).append(' ').append(_title);
 }
 
 int ForumTopic::titleVersion() const {

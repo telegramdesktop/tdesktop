@@ -70,12 +70,9 @@ bool PollData::closeByTimer() {
 bool PollData::applyChanges(const MTPDpoll &poll) {
 	Expects(poll.vid().v == id);
 
-	const auto newQuestion = TextWithEntities{
-		.text = qs(poll.vquestion().data().vtext()),
-		.entities = Api::EntitiesFromMTP(
-			&session(),
-			poll.vquestion().data().ventities().v),
-	};
+	const auto newQuestion = Api::ParseTextWithEntities(
+		&session(),
+		poll.vquestion());
 	const auto newFlags = (poll.is_closed() ? Flag::Closed : Flag(0))
 		| (poll.is_public_voters() ? Flag::PublicVotes : Flag(0))
 		| (poll.is_multiple_choice() ? Flag::MultiChoice : Flag(0))
@@ -88,12 +85,9 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 		return data.match([&](const MTPDpollAnswer &answer) {
 			auto result = PollAnswer();
 			result.option = answer.voption().v;
-			result.text = TextWithEntities{
-				.text = qs(answer.vtext().data().vtext()),
-				.entities = Api::EntitiesFromMTP(
-					&session(),
-					answer.vtext().data().ventities().v),
-			};
+			result.text = Api::ParseTextWithEntities(
+				&session(),
+				answer.vtext());
 			return result;
 		});
 	}) | ranges::views::take(

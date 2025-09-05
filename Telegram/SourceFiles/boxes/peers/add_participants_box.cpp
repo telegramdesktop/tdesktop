@@ -233,7 +233,8 @@ void FillUpgradeToPremiumCover(
 			container,
 			rpl::single(text),
 			st::inviteForbiddenInfo),
-		st::inviteForbiddenInfoPadding);
+		st::inviteForbiddenInfoPadding,
+		style::al_top);
 }
 
 void SimpleForbiddenBox(
@@ -511,7 +512,8 @@ void InviteForbiddenController::setComplexCover() {
 		if (_can) {
 			container->add(
 				MakeShowOrLabel(container, tr::lng_invite_upgrade_or()),
-				st::inviteForbiddenOrLabelPadding);
+				st::inviteForbiddenOrLabelPadding,
+				style::al_justify);
 		}
 		container->add(
 			object_ptr<Ui::FlatLabel>(
@@ -520,7 +522,8 @@ void InviteForbiddenController::setComplexCover() {
 					? tr::lng_invite_upgrade_via_title()
 					: tr::lng_via_link_cant()),
 				st::inviteForbiddenTitle),
-			st::inviteForbiddenTitlePadding);
+			st::inviteForbiddenTitlePadding,
+			style::al_top);
 
 		const auto about = _can
 			? (_peer->isBroadcast()
@@ -544,7 +547,8 @@ void InviteForbiddenController::setComplexCover() {
 				container,
 				rpl::single(about),
 				st::inviteForbiddenInfo),
-			st::inviteForbiddenInfoPadding);
+			st::inviteForbiddenInfoPadding,
+			style::al_top);
 	}
 	delegate()->peerListSetAboveWidget(std::move(cover));
 }

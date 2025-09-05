@@ -58,12 +58,6 @@ namespace {
 constexpr auto kResolveAddressDelay = 3 * crl::time(1000);
 constexpr auto kSearchDebounceDelay = crl::time(900);
 
-#if defined Q_OS_MAC || defined Q_OS_LINUX
-const auto kProtocolOverride = "mapboxapihelper";
-#else // Q_OS_MAC
-const auto kProtocolOverride = "";
-#endif // Q_OS_MAC
-
 Core::GeoLocation LastExactLocation;
 
 using VenueData = Data::InputVenue;
@@ -923,7 +917,6 @@ void LocationPicker::setupWebview() {
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
 			.storageId = _webviewStorageId,
-			.dataProtocolOverride = kProtocolOverride,
 		});
 	const auto raw = _webview.get();
 
@@ -1104,13 +1097,9 @@ void LocationPicker::mapReady() {
 	const auto token = _config.mapsToken.toUtf8();
 	const auto center = DefaultCenter(_initialProvided);
 	const auto bounds = DefaultBounds();
-	const auto protocol = *kProtocolOverride
-		? "'"_q + kProtocolOverride + "'"
-		: "null";
 	const auto params = "token: '" + token + "'"
 		+ ", center: " + center
-		+ ", bounds: " + bounds
-		+ ", protocol: " + protocol;
+		+ ", bounds: " + bounds;
 	_webview->eval("LocationPicker.init({ " + params + " });");
 
 	const auto handle = _window->window()->windowHandle();

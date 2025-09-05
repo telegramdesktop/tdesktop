@@ -84,11 +84,10 @@ void Email::setupContent() {
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
-	const auto wrap = AddWrappedField(
+	const auto newInput = AddWrappedField(
 		content,
 		tr::lng_cloud_password_email(),
 		currentStepDataEmail);
-	const auto newInput = wrap->entity();
 	const auto error = AddError(content, nullptr);
 	newInput->changes(
 	) | rpl::start_with_next([=] {
@@ -169,7 +168,7 @@ void Email::setupContent() {
 	};
 
 	const auto skip = AddLinkButton(
-		wrap,
+		newInput,
 		tr::lng_cloud_password_skip_email());
 	skip->setClickedCallback([=] {
 		confirm(QString());

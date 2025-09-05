@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Profile {
 
-class CoverDropArea : public TWidget {
+class CoverDropArea : public Ui::RpWidget {
 public:
 	CoverDropArea(QWidget *parent, const QString &title, const QString &subtitle);
 

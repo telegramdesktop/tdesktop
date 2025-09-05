@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/notify/data_peer_notify_volume.h" // VolumeController
+
 namespace Data {
 class Thread;
 struct NotifySound;
-enum class DefaultNotify;
+enum class DefaultNotify : uint8_t;
+struct VolumeController;
 } // namespace Data
 
 namespace Main {
@@ -31,6 +34,7 @@ struct Descriptor {
 	Fn<std::optional<Data::NotifySound>()> currentSound;
 	Fn<void(Data::NotifySound)> updateSound;
 	Fn<void(TimeId)> updateMutePeriod;
+	Data::VolumeController volumeController;
 };
 
 [[nodiscard]] Descriptor ThreadDescriptor(not_null<Data::Thread*> thread);

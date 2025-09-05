@@ -178,7 +178,7 @@ void ShowGradientEditor(
 				},
 			});
 		box->setWidth(content->width());
-		box->addRow(std::move(content), {});
+		box->addRow(std::move(content), style::margins());
 	}));
 }
 
@@ -408,13 +408,12 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	const auto state = container->lifetime().make_state<State>();
 
 	const auto preview = container->add(
-		object_ptr<Ui::CenterWrap<EmojiUserpic>>(
+		object_ptr<EmojiUserpic>(
 			container,
-			object_ptr<EmojiUserpic>(
-				container,
-				Size(st::settingsInfoPhotoSize),
-				data.isForum)),
-		st::userpicBuilderEmojiPreviewPadding)->entity();
+			Size(st::settingsInfoPhotoSize),
+			data.isForum),
+		st::userpicBuilderEmojiPreviewPadding,
+		style::al_top);
 	if (const auto id = data.documentId) {
 		const auto document = controller->session().data().document(id);
 		if (document && document->sticker()) {
@@ -423,13 +422,12 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	}
 
 	container->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			container,
-			object_ptr<Ui::FlatLabel>(
-				container,
-				tr::lng_userpic_builder_color_subtitle(),
-				st::userpicBuilderEmojiSubtitle)),
-		st::userpicBuilderEmojiSubtitlePadding);
+			tr::lng_userpic_builder_color_subtitle(),
+			st::userpicBuilderEmojiSubtitle),
+		st::userpicBuilderEmojiSubtitlePadding,
+		style::al_top);
 
 	const auto paletteBg = Ui::AddBubbleWrap(
 		container,
@@ -515,13 +513,12 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	}, palette->lifetime());
 
 	container->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			container,
-			object_ptr<Ui::FlatLabel>(
-				container,
-				tr::lng_userpic_builder_emoji_subtitle(),
-				st::userpicBuilderEmojiSubtitle)),
-		st::userpicBuilderEmojiSubtitlePadding);
+			tr::lng_userpic_builder_emoji_subtitle(),
+			st::userpicBuilderEmojiSubtitle),
+		st::userpicBuilderEmojiSubtitlePadding,
+		style::al_top);
 
 	const auto selectorBg = Ui::AddBubbleWrap(
 		container,

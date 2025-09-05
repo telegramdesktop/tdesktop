@@ -170,11 +170,8 @@ void Input::setupValidateGood() {
 	}
 
 	if (auto owned = CreateValidateGoodIcon(&controller()->session())) {
-		owned->setParent(content);
 		content->add(
-			object_ptr<Ui::CenterWrap<>>(
-				content,
-				std::move(owned)),
+			std::move(owned),
 			QMargins(0, st::lineWidth * 75, 0, 0));
 	}
 
@@ -254,10 +251,10 @@ void Input::setupContent() {
 
 	const auto newInput = AddPasswordField(
 		content,
-		isCheck
+		(isCheck
 			? tr::lng_cloud_password_enter_old()
-			: tr::lng_cloud_password_enter_new(),
-			currentStepDataPassword);
+			: tr::lng_cloud_password_enter_new()),
+		currentStepDataPassword);
 	const auto reenterInput = isCheck
 		? (Ui::PasswordInput*)(nullptr)
 		: AddPasswordField(
@@ -280,9 +277,12 @@ void Input::setupContent() {
 			tr::lng_signin_hint(tr::now, lt_password_hint, hint),
 			st::defaultFlatLabel);
 		hintInfo->setVisible(!hint.isEmpty());
-		error->geometryValue(
-		) | rpl::start_with_next([=](const QRect &r) {
-			hintInfo->setGeometry(r);
+		rpl::combine(
+			error->geometryValue(),
+			newInput->geometryValue()
+		) | rpl::start_with_next([=](QRect r, QRect input) {
+			hintInfo->setGeometry(
+				{ input.x(), r.y(), input.width(), r.height() });
 		}, hintInfo->lifetime());
 		error->shownValue(
 		) | rpl::start_with_next([=](bool shown) {

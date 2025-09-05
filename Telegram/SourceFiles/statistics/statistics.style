@@ -159,6 +159,10 @@ getBoostsButtonIcon: icon {{ "menu/gift_premium", lightButtonFg }};
 boostsListMiniIcon: icon{{ "boosts/boost_mini2", premiumButtonFg }};
 boostsListMiniIconPadding: margins(1px, 0px, 0px, 0px);
 boostsListMiniIconSkip: 1px;
+boostsListEntryIcon: IconEmoji {
+	icon: boostsListMiniIcon;
+	padding: margins(6px, 2px, 0px, 0px);
+}
 boostsListBadgeTextPadding: margins(16px, 1px, 6px, 0px);
 boostsListBadgePadding: margins(4px, 1px, 4px, 0px);
 boostsListBadgeHeight: 16px;

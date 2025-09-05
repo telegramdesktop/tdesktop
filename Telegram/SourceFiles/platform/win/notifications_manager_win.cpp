@@ -417,6 +417,10 @@ bool ByDefault() {
 	return false;
 }
 
+bool VolumeSupported() {
+	return true;
+}
+
 void Create(Window::Notifications::System *system) {
 	system->setManager([=] {
 		auto result = std::make_unique<Manager>(system);

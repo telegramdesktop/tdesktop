@@ -403,22 +403,10 @@ void CreateModerateMessagesBox(
 			const auto container = wrap->entity();
 			wrap->toggle(false, anim::type::instant);
 
-			const auto session = &participants.front()->session();
-			const auto emojiMargin = QMargins(
-				-st::moderateBoxExpandInnerSkip,
-				-st::moderateBoxExpandInnerSkip / 2,
-				0,
-				0);
-			const auto emojiUp = Ui::Text::SingleCustomEmoji(
-				session->data().customEmojiManager().registerInternalEmoji(
-					st::moderateBoxExpandIcon,
-					emojiMargin,
-					false));
-			const auto emojiDown = Ui::Text::SingleCustomEmoji(
-				session->data().customEmojiManager().registerInternalEmoji(
-					st::moderateBoxExpandIconDown,
-					emojiMargin,
-					false));
+			const auto emojiUp = Ui::Text::IconEmoji(
+				&st::moderateBoxExpandIcon);
+			const auto emojiDown = Ui::Text::IconEmoji(
+				&st::moderateBoxExpandIconDown);
 
 			auto label = object_ptr<Ui::FlatLabel>(
 				inner,
@@ -463,9 +451,7 @@ void CreateModerateMessagesBox(
 						Ui::Text::WithEntities);
 			}) | rpl::flatten_latest(
 			) | rpl::start_with_next([=](const TextWithEntities &text) {
-				raw->setMarkedText(
-					Ui::Text::Link(text, u"internal:"_q),
-					Core::TextContext({ .session = session }));
+				raw->setMarkedText(Ui::Text::Link(text, u"internal:"_q));
 			}, label->lifetime());
 
 			Ui::AddSkip(inner);

@@ -9,10 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/unixtime.h"
-#include "core/changelogs.h"
 #include "core/application.h"
+#include "core/changelogs.h"
 #include "core/core_settings.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
+#include "main/main_session_settings.h"
+#include "main/main_session.h"
 
 namespace Api {
 namespace {
@@ -83,7 +86,19 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 } // namespace
 
 Authorizations::Authorizations(not_null<ApiWrap*> api)
-: _api(&api->instance()) {
+: _api(&api->instance())
+, _autoconfirmPeriod([=] {
+	constexpr auto kFallbackCount = 604800;
+	return api->session().appConfig().get<int>(
+		u"authorization_autoconfirm_period"_q,
+		kFallbackCount);
+})
+, _saveUnreviewed([=] {
+	api->session().settings().setUnreviewed(_unreviewed);
+	api->session().saveSettingsDelayed();
+}) {
+	_unreviewed = api->session().settings().unreviewed();
+	removeExpiredUnreviewed();
 	Core::App().settings().deviceModelChanges(
 	) | rpl::start_with_next([=](const QString &model) {
 		auto changed = false;
@@ -119,6 +134,7 @@ void Authorizations::reload() {
 		) | ranges::views::transform([](const MTPAuthorization &auth) {
 			return ParseEntry(auth.data());
 		}) | ranges::to<List>;
+		removeExpiredUnreviewed();
 		refreshCallsDisabledHereFromCloud();
 		_listChanges.fire({});
 	}).fail([=] {
@@ -217,11 +233,7 @@ void Authorizations::toggleCallsDisabled(uint64 hash, bool disabled) {
 		MTP_bool(disabled)
 	)).done([=] {
 		_toggleCallsDisabledRequests.remove(hash);
-	}).fail([=](const MTP::Error &error) {
-		LOG(("API Error: toggle calls %1. Hash: %2. %3.")
-			.arg(disabled ? u"disabled"_q : u"enabled"_q)
-			.arg(hash)
-			.arg(error.type()));
+	}).fail([=] {
 		_toggleCallsDisabledRequests.remove(hash);
 	}).send();
 	_toggleCallsDisabledRequests.emplace(hash, id);
@@ -263,6 +275,131 @@ int Authorizations::total() const {
 
 crl::time Authorizations::lastReceivedTime() {
 	return _lastReceived;
+}
+
+const std::vector<Data::UnreviewedAuth> &Authorizations::unreviewed() {
+	removeExpiredUnreviewed();
+	return _unreviewed;
+}
+
+void Authorizations::removeExpiredUnreviewed() {
+	const auto now = base::unixtime::now();
+	const auto period = _autoconfirmPeriod();
+
+	const auto oldSize = _unreviewed.size();
+	_unreviewed.erase(
+		std::remove_if(_unreviewed.begin(), _unreviewed.end(),
+			[=](const auto &auth) {
+				return (now - auth.date) >= period;
+			}),
+		_unreviewed.end());
+
+	if (_unreviewed.size() != oldSize) {
+		_saveUnreviewed();
+	}
+}
+
+void Authorizations::review(const std::vector<uint64> &hashes, bool confirm) {
+	for (const auto hash : hashes) {
+		if (const auto sent = _reviewRequests.take(hash)) {
+			_api.request(*sent).cancel();
+		}
+	}
+
+	const auto checkComplete = [=] {
+		if (_reviewRequests.empty()) {
+			_saveUnreviewed();
+			_unreviewedChanges.fire({});
+		}
+	};
+
+	for (const auto hash : hashes) {
+		const auto removeFromUnreviewed = [=] {
+			_unreviewed.erase(
+				std::remove_if(_unreviewed.begin(), _unreviewed.end(),
+					[hash](const auto &auth) { return auth.hash == hash; }),
+				_unreviewed.end());
+			_reviewRequests.remove(hash);
+			checkComplete();
+		};
+
+		if (confirm) {
+			using Flag = MTPaccount_ChangeAuthorizationSettings::Flag;
+			const auto id = _api.request(MTPaccount_ChangeAuthorizationSettings(
+				MTP_flags(Flag::f_confirmed),
+				MTP_long(hash),
+				MTPBool(), // encrypted_requests_disabled
+				MTPBool() // call_requests_disabled
+			)).done([=] {
+				removeFromUnreviewed();
+			}).fail([=] {
+				removeFromUnreviewed();
+			}).send();
+			_reviewRequests.emplace(hash, id);
+		} else {
+			const auto id = _api.request(MTPaccount_ResetAuthorization(
+				MTP_long(hash)
+			)).done([=](const MTPBool &result) {
+				if (mtpIsTrue(result)) {
+					_list.erase(
+						ranges::remove(_list, hash, &Entry::hash),
+						end(_list));
+					_listChanges.fire({});
+				}
+				removeFromUnreviewed();
+			}).fail([=] {
+				removeFromUnreviewed();
+			}).send();
+			_reviewRequests.emplace(hash, id);
+		}
+	}
+}
+
+rpl::producer<> Authorizations::unreviewedChanges() const {
+	return _unreviewedChanges.events();
+}
+
+void Authorizations::apply(const MTPUpdate &update) {
+	removeExpiredUnreviewed();
+	update.match([&](const MTPDupdateNewAuthorization &data) {
+		auto unreviewed = Data::UnreviewedAuth{
+			.hash = data.vhash().v,
+			.unconfirmed = data.is_unconfirmed(),
+			.date = data.vdate().value_or_empty(),
+			.device = qs(data.vdevice().value_or_empty()),
+			.location = qs(data.vlocation().value_or_empty())
+		};
+		if (!unreviewed.unconfirmed) {
+			const auto hash = unreviewed.hash;
+			const auto was = _unreviewed.size();
+			_unreviewed.erase(
+				std::remove_if(
+					_unreviewed.begin(),
+					_unreviewed.end(),
+					[hash](const auto &auth) { return auth.hash == hash; }),
+				_unreviewed.end());
+			if (was != _unreviewed.size()) {
+				_saveUnreviewed();
+				_unreviewedChanges.fire({});
+			}
+			return;
+		}
+
+		for (auto &auth : _unreviewed) {
+			if (auth.hash == unreviewed.hash) {
+				auth = std::move(unreviewed);
+				_saveUnreviewed();
+				_unreviewedChanges.fire({});
+				return;
+			}
+		}
+
+		_unreviewed.push_back(std::move(unreviewed));
+		_saveUnreviewed();
+		_unreviewedChanges.fire({});
+	}, [](auto&&) {
+		Unexpected("Update in Authorizations::apply.");
+	});
 }
 
 } // namespace Api

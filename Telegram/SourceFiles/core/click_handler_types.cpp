@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/popup_menu.h"
 #include "base/qthelp_regex.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "storage/storage_account.h"
@@ -32,6 +33,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 
 namespace {
+
+[[nodiscard]] TextWithEntities BoldDomainInUrl(const QString &url) {
+	auto result = TextWithEntities{ .text = url };
+
+	if (const auto parsedUrl = QUrl(url); parsedUrl.isValid()) {
+		if (const auto host = parsedUrl.host(); !host.isEmpty()) {
+			if (const auto hostPos = url.indexOf(host); hostPos != -1) {
+				auto boldEntity = EntityInText(
+					EntityType::Bold,
+					hostPos,
+					host.length());
+
+				if (host.startsWith("www.")) {
+					boldEntity = EntityInText(
+						EntityType::Bold,
+						hostPos + 4,
+						host.length() - 4);
+				}
+
+				result.entities.push_back(boldEntity);
+			}
+		}
+	}
+	return result;
+}
 
 // Possible context owners: media viewer, profile, history widget.
 
@@ -155,7 +181,39 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 					: st::boxLabel;
 				box->addSkip(st.style.lineHeight - st::boxPadding.bottom());
 				const auto url = box->addRow(
-					object_ptr<Ui::FlatLabel>(box, displayUrl, st));
+					object_ptr<Ui::FlatLabel>(
+						box,
+						rpl::single(BoldDomainInUrl(displayUrl)),
+						st));
+				url->setContextMenuHook([=](
+						Ui::FlatLabel::ContextMenuRequest request) {
+					const auto copyContextText = [=] {
+						TextUtilities::SetClipboardText(
+							TextForMimeData::Simple(displayUrl));
+					};
+					if (request.fullSelection) {
+						request.menu->addAction(
+							tr::lng_context_copy_link(tr::now),
+							copyContextText);
+					} else if (request.uponSelection
+						&& !request.fullSelection) {
+						const auto selection = request.selection;
+						const auto copySelectedText = [=] {
+							TextUtilities::SetClipboardText(
+								TextForMimeData::Simple(
+									displayUrl.mid(
+										selection.from,
+										selection.to - selection.from)));
+						};
+						request.menu->addAction(
+							tr::lng_context_copy_selected(tr::now),
+							copySelectedText);
+					} else if (request.selection.empty()) {
+						request.menu->addAction(
+							tr::lng_context_copy_link(tr::now),
+							copyContextText);
+					}
+				});
 				url->setSelectable(true);
 				url->setContextCopyText(tr::lng_context_copy_link(tr::now));
 			});

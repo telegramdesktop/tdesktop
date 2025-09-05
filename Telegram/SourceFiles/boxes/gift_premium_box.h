@@ -106,3 +106,9 @@ void AddChannelEarnTable(
 	std::shared_ptr<Ui::Show> show,
 	not_null<Ui::VerticalLayout*> container,
 	const Data::CreditsHistoryEntry &entry);
+
+void AddUniqueGiftValueTable(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<Ui::VerticalLayout*> container,
+	Settings::CreditsEntryBoxStyleOverrides st,
+	const Data::CreditsHistoryEntry &entry);

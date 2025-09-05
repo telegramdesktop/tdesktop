@@ -41,6 +41,10 @@ creditsPremiumCover: PremiumCover(defaultPremiumCover) {
 creditsLowBalancePremiumCover: PremiumCover(creditsPremiumCover) {
 	starSize: size(64px, 62px);
 	starTopSkip: 30px;
+	about: FlatLabel(userPremiumCoverAbout) {
+		textFg: boxTitleFg;
+		minWidth: 200px;
+	}
 }
 creditsLowBalancePremiumCoverHeight: 162px;
 creditsTopupButton: SettingsButton(settingsButton) {
@@ -81,8 +85,25 @@ starIconEmojiSmall: IconEmoji {
 	icon: icon{{ "chat/mini_stars", creditsBg1 }};
 	padding: margins(0px, 4px, 0px, 0px);
 }
+starIconEmojiLarge: IconEmoji {
+	icon: icon {{ "settings/premium/star", settingsIconFg }};
+	padding: margins(0px, -2px, 0px, 0px);
+}
+
+tonIconEmoji: IconEmoji {
+	icon: icon{{ "chat/mini_ton_bold", currencyFg }};
+	padding: margins(1px, 3px, 1px, 0px);
+}
+tonIconEmojiLarge: IconEmoji {
+	icon: icon{{ "payments/ton_emoji-18x18", currencyFg }};
+	padding: margins(0px, 1px, 0px, 0px);
+}
+tonIconEmojiInSmall: IconEmoji(tonIconEmoji) {
+	padding: margins(0px, 2px, 0px, 0px);
+}
 
 creditsHistoryEntryTypeAds: icon {{ "folders/folders_channels", premiumButtonFg }};
+creditsHistorySearchPostsIcon: icon {{ "box_search", historyPeerUserpicFg }};
 
 creditsHistoryEntryGiftStickerSkip: -20px;
 creditsHistoryEntryGiftStickerSize: 150px;
@@ -220,8 +241,13 @@ giftListAbout: FlatLabel(defaultFlatLabel) {
 giftListAboutMargin: margins(12px, 24px, 12px, 24px);
 giftBoxEmojiToggleTop: 7px;
 giftBoxLimitTop: 28px;
-giftBoxLockMargins: margins(-2px, 1px, 0px, 0px);
+giftBoxLock: IconEmoji {
+	icon: icon {{ "emoji/premium_lock", placeholderFgActive }};
+	padding: margins(-2px, 1px, 0px, 0px);
+}
 giftBoxPinIcon: icon {{ "dialogs/dialogs_pinned", premiumButtonFg }};
+giftBoxLockIcon: icon{{ "limits/mini_gift_lock-18x18", attentionButtonFg }};
+giftBoxLockIconPosition: point(4px, 4px);
 
 creditsHistoryEntriesList: PeerList(defaultPeerList) {
 	padding: margins(0px, 7px, 0px, 7px);
@@ -318,3 +344,38 @@ creditsHistoryRowRightMinorTop: 18px;
 creditsHistoryRowRightStyle: TextStyle(defaultTextStyle) {
 	font: font(fsize);
 }
+resaleButtonTitle: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: activeButtonFg;
+	maxHeight: 20px;
+}
+resaleButtonSubtitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+	textFg: activeButtonFg;
+	maxHeight: 20px;
+}
+
+resaleConfirmTonOnly: FlatLabel(boxLabel) {
+	textFg: windowSubTextFg;
+}
+resaleConfirmTonOnlyMargin: margins(0px, 12px, 0px, 12px);
+
+uniqueGiftValuePrice: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(20px semibold);
+	}
+	margin: margins(12px, 6px, 12px, 6px);
+	textFg: windowFgActive;
+}
+uniqueGiftValueAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 128px;
+	align: align(top);
+}
+uniqueGiftValueAvailableLink: FlatLabel(boxLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+uniqueGiftValueAvailableMargin: margins(0px, 4px, 0px, 4px);

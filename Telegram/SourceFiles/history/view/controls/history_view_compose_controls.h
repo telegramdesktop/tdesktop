@@ -183,6 +183,7 @@ public:
 	-> rpl::producer<ReplyNextRequest>;
 	[[nodiscard]] rpl::producer<> focusRequests() const;
 	[[nodiscard]] rpl::producer<> showScheduledRequests() const;
+	[[nodiscard]] rpl::producer<> scrollToMaxRequests() const;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,

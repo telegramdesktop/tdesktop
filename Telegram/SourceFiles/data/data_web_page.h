@@ -49,6 +49,8 @@ enum class WebPageType : uint8 {
 	Theme,
 	Story,
 	StickerSet,
+	StoryAlbum,
+	GiftCollection,
 
 	Article,
 	ArticleWithIV,

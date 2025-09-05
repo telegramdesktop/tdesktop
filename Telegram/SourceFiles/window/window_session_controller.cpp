@@ -14,10 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/replace_boost_box.h"
 #include "boxes/delete_messages_box.h"
 #include "window/window_chat_preview.h"
+#include "window/window_chat_switch_process.h"
 #include "window/window_controller.h"
 #include "window/window_filters_menu.h"
 #include "window/window_separate_id.h"
 #include "info/channel_statistics/earn/info_channel_earn_list.h"
+#include "info/peer_gifts/info_peer_gifts_widget.h"
+#include "info/stories/info_stories_widget.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "inline_bots/bot_attach_web_view.h"
@@ -30,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_subsection_tabs.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
+#include "data/components/recent_peers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_document_resolver.h"
 #include "data/data_download_manager.h"
@@ -174,20 +178,6 @@ private:
 		}
 	}
 	return false;
-}
-
-[[nodiscard]] Ui::CollectibleDetails PrepareCollectibleDetails(
-		not_null<Main::Session*> session) {
-	return {
-		.tonEmoji = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				Ui::Earn::IconCurrencyColored(
-					st::collectibleInfo.style.font,
-					st::collectibleInfo.textFg->c),
-				st::collectibleInfoTonMargins,
-				true)),
-		.tonEmojiContext = Core::TextContext({ .session = session }),
-	};
 }
 
 [[nodiscard]] Ui::CollectibleInfo Parse(
@@ -358,6 +348,33 @@ void DateClickHandler::onClick(ClickContext context) const {
 	}
 }
 
+ForumThreadClickHandler::ForumThreadClickHandler(not_null<HistoryItem*> item)
+: _thread(resolveThread(item)) {
+}
+
+void ForumThreadClickHandler::update(not_null<HistoryItem*> item) {
+	_thread = resolveThread(item);
+}
+
+void ForumThreadClickHandler::onClick(ClickContext context) const {
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto window = my.sessionWindow.get()) {
+		if (const auto strong = _thread.get()) {
+			window->showThread(strong, 0, SectionShow::Way::ClearStack);
+		}
+	}
+}
+
+base::weak_ptr<Data::Thread> ForumThreadClickHandler::resolveThread(
+		not_null<HistoryItem*> item) const {
+	if (const auto sublist = item->savedSublist()) {
+		return sublist;
+	} else if (const auto topic = item->topic()) {
+		return topic;
+	}
+	return nullptr;
+}
+
 MessageHighlightId SearchHighlightId(const QString &query) {
 	auto result = MessageHighlightId{ .quote = { query } };
 	if (!result.quote.empty()) {
@@ -412,6 +429,15 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 			showPeerByLinkResolved(channel, info);
 		});
 	}
+}
+
+void SessionNavigation::fullInfoLoadedHook(not_null<PeerData*> peer) {
+	if (!_waitingDirectChannel || _waitingDirectChannel != peer) {
+		return;
+	}
+	const auto monoforum = peer->broadcastMonoforum();
+	const auto open = monoforum ? monoforum : peer.get();
+	showPeerHistory(open, SectionShow::Way::Forward, ShowAtUnreadMsgId);
 }
 
 void SessionNavigation::resolvePhone(
@@ -636,16 +662,25 @@ void SessionNavigation::showPeerByLinkResolved(
 		}
 	} else if (info.storyId) {
 		const auto storyId = FullStoryId{ peer->id, info.storyId };
+		const auto context = (info.storyAlbumId > 0)
+			? Data::StoriesContext{ Data::StoriesContextAlbum{
+				info.storyAlbumId,
+			} }
+			: Data::StoriesContext{ Data::StoriesContextSingle() };
 		peer->owner().stories().resolve(storyId, crl::guard(this, [=] {
 			if (peer->owner().stories().lookup(storyId)) {
 				parentController()->openPeerStory(
 					peer,
 					storyId.story,
-					Data::StoriesContext{ Data::StoriesContextSingle() });
+					context);
 			} else {
 				showToast(tr::lng_stories_link_invalid(tr::now));
 			}
 		}));
+	} else if (info.storyAlbumId > 0) {
+		showSection(Info::Stories::Make(peer, info.storyAlbumId));
+	} else if (info.giftCollectionId > 0) {
+		showSection(Info::PeerGifts::Make(peer, info.giftCollectionId));
 	} else if (bot && resolveType == ResolveType::BotApp) {
 		const auto itemId = info.clickFromMessageId;
 		const auto item = _session->data().message(itemId);
@@ -699,6 +734,13 @@ void SessionNavigation::showPeerByLinkResolved(
 		}
 	} else if (resolveType == ResolveType::Boost && peer->isChannel()) {
 		resolveBoostState(peer->asChannel());
+	} else if (resolveType == ResolveType::ChannelDirect
+		&& !peer->isFullLoaded()) {
+		_waitingDirectChannel = peer;
+		peer->updateFull();
+	} else if (const auto monoforum = peer->broadcastMonoforum()
+		; monoforum && resolveType == ResolveType::ChannelDirect) {
+		showPeerHistory(peer, params, ShowAtUnreadMsgId);
 	} else {
 		// Show specific posts only in channels / supergroups.
 		const auto msgId = peer->isChannel()
@@ -769,12 +811,26 @@ void SessionNavigation::showPeerByLinkResolved(
 			});
 		} else {
 			const auto draft = info.text;
+			const auto historyInNewWindow = info.historyInNewWindow;
 			params.videoTimestamp = info.videoTimestamp;
 			crl::on_main(this, [=] {
 				if (peer->isUser() && !draft.isEmpty()) {
 					Data::SetChatLinkDraft(peer, { draft });
 				}
-				showPeerHistory(peer, params, msgId);
+				if (historyInNewWindow) {
+					const auto window
+						= Core::App().ensureSeparateWindowFor(peer);
+					const auto controller = window
+						? window->sessionController()
+						: nullptr;
+					if (controller) {
+						controller->showPeerHistory(peer, params, msgId);
+					} else {
+						showPeerHistory(peer, params, msgId);
+					}
+				} else {
+					showPeerHistory(peer, params, msgId);
+				}
 			});
 		}
 	}
@@ -842,8 +898,7 @@ void SessionNavigation::resolveCollectible(
 		_collectibleRequestId = 0;
 		uiShow()->show(Box(
 			Ui::CollectibleInfoBox,
-			Parse(entity, _session->data().peer(ownerId), result),
-			PrepareCollectibleDetails(_session)));
+			Parse(entity, _session->data().peer(ownerId), result)));
 	}).fail([=](const MTP::Error &error) {
 		_collectibleEntity = QString();
 		_collectibleRequestId = 0;
@@ -1450,6 +1505,8 @@ struct SessionController::CachedThemeKey {
 struct SessionController::CachedTheme {
 	std::weak_ptr<Ui::ChatTheme> theme;
 	std::shared_ptr<Data::DocumentMedia> media;
+	std::unique_ptr<Ui::Text::CustomEmoji> giftSymbol;
+	uint64 giftId = 0;
 	Data::WallPaper paper;
 	bool basedOnDark = false;
 	bool caching = false;
@@ -1514,6 +1571,9 @@ SessionController::SessionController(
 					widget()->updateTitle();
 				}
 			}
+		}
+		if (update.flags & Data::PeerUpdate::Flag::FullInfo) {
+			fullInfoLoadedHook(update.peer);
 		}
 		return (update.flags & Data::PeerUpdate::Flag::FullInfo)
 			&& (update.peer == _showEditPeer);
@@ -1725,18 +1785,56 @@ void SessionController::init() {
 }
 
 void SessionController::setupShortcuts() {
-	Shortcuts::Requests(
+	using namespace Shortcuts;
+
+	ChatSwitchRequests(
+	) | rpl::filter([=](const ChatSwitchRequest &request) {
+		return !window().locked()
+			&& (_chatSwitchProcess
+				|| (request.started
+					&& (Core::App().activeWindow() == &window())));
+	}) | rpl::start_with_next([=](const ChatSwitchRequest &request) {
+		if (!_chatSwitchProcess) {
+			_chatSwitchProcess = std::make_unique<ChatSwitchProcess>(
+				widget()->bodyWidget(),
+				&session(),
+				activeChatCurrent().thread());
+			const auto close = [this, raw = _chatSwitchProcess.get()] {
+				if (_chatSwitchProcess.get() == raw) {
+					base::take(_chatSwitchProcess);
+				}
+			};
+
+			_chatSwitchProcess->chosen(
+			) | rpl::start_with_next([=](not_null<Data::Thread*> thread) {
+				close();
+
+				const auto id = SeparateId(thread);
+				if (const auto window = Core::App().separateWindowFor(id)) {
+					window->activate();
+					return;
+				}
+				jumpToChatListEntry({ Dialogs::Key(thread), FullMsgId() });
+			}, _chatSwitchProcess->lifetime());
+
+			_chatSwitchProcess->closeRequests(
+			) | rpl::start_with_next(close, _chatSwitchProcess->lifetime());
+		}
+		_chatSwitchProcess->process(request);
+	}, _lifetime);
+
+	Requests(
 	) | rpl::filter([=] {
 		return (Core::App().activeWindow() == &window())
 			&& !isLayerShown()
 			&& !window().locked();
-	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
-		using C = Shortcuts::Command;
+	}) | rpl::start_with_next([=](not_null<Request*> request) {
+		using C = Command;
 
 		const auto app = &Core::App();
 		const auto accountsCount = int(app->domain().accounts().size());
 		auto &&accounts = ranges::views::zip(
-			Shortcuts::kShowAccount,
+			kShowAccount,
 			ranges::views::ints(0, accountsCount));
 		for (const auto &[command, index] : accounts) {
 			request->check(command) && request->handle([=] {
@@ -2023,6 +2121,9 @@ void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
 					{ anim::type::normal, anim::activation::background });
 			}, _activeHistoryLifetime);
 		}
+	}
+	if (const auto thread = row.key.thread()) {
+		session().recentPeers().chatOpenPush(thread);
 	}
 	if (session().supportMode()) {
 		pushToChatEntryHistory(row);
@@ -3149,11 +3250,11 @@ void SessionController::clearCachedChatThemes() {
 void SessionController::overridePeerTheme(
 		not_null<PeerData*> peer,
 		std::shared_ptr<Ui::ChatTheme> theme,
-		EmojiPtr emoji) {
+		QString token) {
 	_peerThemeOverride = PeerThemeOverride{
 		peer,
 		theme ? theme : _defaultChatTheme,
-		emoji,
+		token,
 	};
 }
 
@@ -3195,11 +3296,33 @@ void SessionController::cacheChatTheme(
 	const auto &use = !paper.isNull() ? paper : *i->second.paper;
 	const auto document = use.document();
 	const auto media = document ? document->createMediaView() : nullptr;
+	const auto findGiftSymbols = (data.unique != nullptr);
+	const auto reportSymbolLoaded = [weak = base::make_weak(this)] {
+		// We must notify async here, because we destroy emoji in
+		// the handler and we can't destroy emoji in repaint callback.
+		crl::on_main([weak] {
+			if (const auto strong = weak.get()) {
+				strong->_giftSymbolLoaded.fire({});
+			}
+		});
+	};
+	auto giftSymbol = findGiftSymbols
+		? session().data().customEmojiManager().create(
+			data.unique->pattern.document,
+			reportSymbolLoaded,
+			Data::CustomEmojiSizeTag::Large)
+		: nullptr;
+	const auto giftId = findGiftSymbols
+		? data.unique->model.document->id
+		: uint64();
+	const auto giftSymbolReady = !giftSymbol || giftSymbol->ready();
 	use.loadDocument();
 	auto &theme = [&]() -> CachedTheme& {
 		const auto i = _customChatThemes.find(key);
 		if (i != end(_customChatThemes)) {
 			i->second.media = media;
+			i->second.giftSymbol = std::move(giftSymbol);
+			i->second.giftId = giftId;
 			i->second.paper = use;
 			i->second.basedOnDark = dark;
 			i->second.caching = true;
@@ -3209,6 +3332,8 @@ void SessionController::cacheChatTheme(
 			key,
 			CachedTheme{
 				.media = media,
+				.giftSymbol = std::move(giftSymbol),
+				.giftId = giftId,
 				.paper = use,
 				.basedOnDark = dark,
 				.caching = true,
@@ -3238,6 +3363,9 @@ void SessionController::cacheChatTheme(
 	});
 	if (media && media->loaded(true)) {
 		theme.media = nullptr;
+		if (giftSymbolReady) {
+			theme.giftSymbol = nullptr;
+		}
 	}
 }
 
@@ -3255,15 +3383,25 @@ void SessionController::cacheChatThemeDone(
 	}
 	i->second.caching = false;
 	i->second.theme = result;
-	if (i->second.media) {
-		if (i->second.media->loaded(true)) {
+	const auto media = i->second.media.get();
+	const auto giftSymbol = i->second.giftSymbol.get();
+	if (media || giftSymbol) {
+		if ((!media || media->loaded(true))
+			&& (!giftSymbol || giftSymbol->ready())) {
 			updateCustomThemeBackground(i->second);
 		} else {
-			session().downloaderTaskFinished(
+			rpl::merge(
+				session().downloaderTaskFinished(),
+				((giftSymbol && !giftSymbol->ready())
+					? (_giftSymbolLoaded.events() | rpl::type_erased())
+					: rpl::never<rpl::empty_value>())
 			) | rpl::filter([=] {
 				const auto i = _customChatThemes.find(key);
 				Assert(i != end(_customChatThemes));
-				return !i->second.media || i->second.media->loaded(true);
+				const auto media = i->second.media.get();
+				const auto giftSymbol = i->second.giftSymbol.get();
+				return (!media || media->loaded(true))
+					&& (!giftSymbol || giftSymbol->ready());
 			}) | rpl::start_with_next([=] {
 				const auto i = _customChatThemes.find(key);
 				Assert(i != end(_customChatThemes));
@@ -3278,9 +3416,15 @@ void SessionController::updateCustomThemeBackground(CachedTheme &theme) {
 	const auto guard = gsl::finally([&] {
 		theme.lifetime.destroy();
 		theme.media = nullptr;
+		theme.giftSymbol = nullptr;
 	});
 	const auto strong = theme.theme.lock();
-	if (!theme.media || !strong || !theme.media->loaded(true)) {
+	const auto media = theme.media.get();
+	const auto giftSymbol = theme.giftSymbol.get();
+	if (!strong
+		|| (!media && !giftSymbol)
+		|| (media && !media->loaded(true))
+		|| (giftSymbol && !giftSymbol->ready())) {
 		return;
 	}
 	const auto key = strong->key();
@@ -3321,6 +3465,8 @@ Ui::ChatThemeBackgroundData SessionController::backgroundData(
 		.key = paper.key(),
 		.path = paperPath,
 		.bytes = paperBytes,
+		.giftSymbolFrame = Ui::PrepareGiftSymbol(theme.giftSymbol),
+		.giftId = theme.giftId,
 		.gzipSvg = gzipSvg,
 		.colors = colors,
 		.isPattern = isPattern,

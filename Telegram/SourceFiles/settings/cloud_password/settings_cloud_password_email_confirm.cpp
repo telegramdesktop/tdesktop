@@ -155,11 +155,9 @@ void EmailConfirm::setupContent() {
 		content,
 		st::settingLocalPasscodeInputField,
 		tr::lng_change_phone_code_title());
-	const auto newInput = objectInput.data();
-	const auto wrap = content->add(
-		object_ptr<Ui::CenterWrap<Ui::InputField>>(
-			content,
-			std::move(objectInput)));
+	const auto newInput = content->add(
+		std::move(objectInput),
+		style::al_top);
 
 	const auto error = AddError(content, nullptr);
 	newInput->changes(
@@ -184,7 +182,9 @@ void EmailConfirm::setupContent() {
 		}
 	}, resendInfo->lifetime());
 
-	const auto resend = AddLinkButton(wrap, tr::lng_cloud_password_resend());
+	const auto resend = AddLinkButton(
+		newInput,
+		tr::lng_cloud_password_resend());
 	resend->setClickedCallback([=] {
 		if (_requestLifetime) {
 			return;

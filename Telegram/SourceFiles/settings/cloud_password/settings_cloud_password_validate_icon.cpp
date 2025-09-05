@@ -67,6 +67,7 @@ object_ptr<Ui::RpWidget> CreateValidateGoodIcon(
 	}, widget->lifetime());
 	const auto padding = st::settingLocalPasscodeIconPadding;
 	widget->resize((Rect(Size(size)) + padding).size());
+	widget->setNaturalWidth(padding.left() + size + padding.right());
 
 	return owned;
 }

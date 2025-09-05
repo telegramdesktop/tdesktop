@@ -7,10 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_notifications.h"
 
+#include "ui/widgets/continuous_sliders.h"
 #include "settings/settings_notifications_type.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/chat_service_checkbox.h"
 #include "ui/effects/animations.h"
+#include "data/notify/data_peer_notify_volume.h"
 #include "ui/text/text_utilities.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
@@ -1017,6 +1019,25 @@ void SetupNotificationsContent(
 		{ &st::menuIconUnmute },
 		soundAllowed->events_starting_with(allowed()));
 
+	Ui::AddRingtonesVolumeSlider(
+		container,
+		rpl::single(true),
+		tr::lng_settings_master_volume_notifications(),
+		Data::VolumeController{
+			.volume = []() -> ushort {
+				const auto volume
+					= Core::App().settings().notificationsVolume();
+				return volume ? volume : 100;
+			},
+			.saveVolume = [=](ushort volume) {
+				Core::App().notifications().playSound(
+					session,
+					0,
+					volume / 100.);
+				Core::App().settings().setNotificationsVolume(volume);
+				Core::App().saveSettingsDelayed();
+			}});
+
 	Ui::AddSkip(container);
 
 	const auto checkboxes = SetupNotifyViewOptions(
@@ -1086,6 +1107,8 @@ void SetupNotificationsContent(
 		container,
 		tr::lng_settings_notifications_calls_title());
 	const auto authorizations = &session->api().authorizations();
+	// Request valid value of calls disabled flag.
+	authorizations->reload();
 	const auto acceptCalls = addCheckbox(
 		tr::lng_settings_call_accept_calls(),
 		{ &st::menuIconCallsReceive },

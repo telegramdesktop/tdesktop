@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
+#include "ui/widgets/fields/input_field.h" // ShouldSubmit.
 #include "ui/widgets/tooltip.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
@@ -128,10 +129,6 @@ QImage SoundedPreview::image(int size) {
 
 void SoundedPreview::subscribeToUpdates(Fn<void()> callback) {
 	_repaint = std::move(callback);
-}
-
-[[nodiscard]] auto InactiveColor(const QColor &c) {
-	return QColor(c.red(), c.green(), c.blue(), kInactiveWaveformBarAlpha);
 }
 
 [[nodiscard]] auto Progress(int low, int high) {
@@ -442,6 +439,7 @@ TTLButton::TTLButton(
 					r.top()
 						+ r.height()
 						- size.height()
+						- st::historyRecordTooltipSkip
 						+ st::historyRecordTooltip.padding.top());
 			});
 		}, _tooltip->lifetime());
@@ -606,7 +604,8 @@ ListenWrap::ListenWrap(
 , _playPauseSt(st::mediaPlayerButton)
 , _playPauseButton(base::make_unique_q<Ui::AbstractButton>(parent))
 , _activeWaveformBar(st::historyRecordVoiceFgActiveIcon->c)
-, _inactiveWaveformBar(InactiveColor(_activeWaveformBar))
+, _inactiveWaveformBar(
+	anim::with_alpha(_activeWaveformBar, kInactiveWaveformBarAlpha))
 , _playPause(_playPauseSt, [=] { _playPauseButton->update(); }) {
 	init();
 }
@@ -1655,6 +1654,7 @@ void VoiceRecordBar::init() {
 
 		auto callback = [=](float64 value) {
 			_lock->requestPaintLockToStopProgress(value);
+			_level->requestPaintColor(activeAnimationRatio());
 			update();
 			updateTTLGeometry(TTLAnimationType::RightLeft, value);
 		};
@@ -1678,11 +1678,7 @@ void VoiceRecordBar::init() {
 			if (_startRecordingFilter && _startRecordingFilter()) {
 				return;
 			}
-			_recordingTipRequire = crl::now();
-			_recordingVideo = (_send->type() == Ui::SendButton::Type::Round);
-			_fullRecord = false;
-			_ttlButton = nullptr;
-			_lock->setRecordingVideo(_recordingVideo);
+			prepareOnSendPress();
 			_startTimer.callOnce(st::universalDuration);
 		} else if (e->type() == QEvent::MouseButtonRelease) {
 			checkTipRequired();
@@ -1710,6 +1706,14 @@ void VoiceRecordBar::init() {
 
 	initLockGeometry();
 	initLevelGeometry();
+}
+
+void VoiceRecordBar::prepareOnSendPress() {
+	_recordingTipRequire = crl::now();
+	_recordingVideo = (_send->type() == Ui::SendButton::Type::Round);
+	_fullRecord = false;
+	_ttlButton = nullptr;
+	_lock->setRecordingVideo(_recordingVideo);
 }
 
 void VoiceRecordBar::activeAnimate(bool active) {
@@ -1800,6 +1804,24 @@ void VoiceRecordBar::initLevelGeometry() {
 		const auto center = (send.width() - _level->width()) / 2;
 		_level->moveToLeft(mapped.x() + center, mapped.y() + center);
 	}, lifetime());
+}
+
+void VoiceRecordBar::startRecordingAndLock(bool round) {
+	{
+		auto sendState = _send->state();
+		sendState.type = round
+			? Ui::SendButton::Type::Round
+			: Ui::SendButton::Type::Record;
+		_send->setState(std::move(sendState));
+	}
+	if (_startRecordingFilter && _startRecordingFilter()) {
+		return;
+	}
+	prepareOnSendPress();
+
+	_lock->show();
+	_lock->requestPaintProgress(1.);
+	startRecording();
 }
 
 void VoiceRecordBar::startRecording() {
@@ -1942,6 +1964,40 @@ void VoiceRecordBar::startRecording() {
 			stop(_inField.current());
 		}
 	}, _recordingLifetime);
+
+	_listenChanges.events_starting_with(
+		rpl::empty_value()
+	) | rpl::filter([=] {
+		return _listen == nullptr;
+	}) | rpl::start_with_next([=] {
+		auto keyFilterCallback = [=](not_null<QEvent*> e) {
+			using Result = base::EventFilterResult;
+			if (_send->type() != Ui::SendButton::Type::Record
+				&& _send->type() != Ui::SendButton::Type::Round) {
+				return Result::Continue;
+			}
+			switch(e->type()) {
+			case QEvent::KeyPress: {
+				if (!_warningShown
+					&& isRecordingLocked()
+					&& Ui::ShouldSubmit(
+						static_cast<QKeyEvent*>(e.get()),
+						Core::App().settings().sendSubmitWay())) {
+					stop(true);
+					return Result::Cancel;
+				}
+				return Result::Continue;
+			}
+			default: return Result::Continue;
+			}
+		};
+
+		_keyFilterInRecordingState = base::unique_qptr{
+			base::install_event_filter(
+				QCoreApplication::instance(),
+				std::move(keyFilterCallback)).get()
+		};
+	}, lifetime());
 }
 
 void VoiceRecordBar::checkTipRequired() {
@@ -2015,6 +2071,7 @@ void VoiceRecordBar::hideFast() {
 	_lock->hide();
 	_level->hide();
 	[[maybe_unused]] const auto s = takeTTLState();
+	_keyFilterInRecordingState = nullptr;
 }
 
 void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
@@ -2145,8 +2202,8 @@ void VoiceRecordBar::startRedCircleAnimation() {
 	if (anim::Disabled()) {
 		return;
 	}
-	const auto animation = _recordingLifetime
-		.make_state<Ui::Animations::Basic>();
+	const auto animation
+		= _recordingLifetime.make_state<Ui::Animations::Basic>();
 	animation->init([=](crl::time now) {
 		const auto diffTime = now - animation->started();
 		_redCircleProgress = std::abs(std::sin(diffTime / 400.));
@@ -2298,6 +2355,9 @@ bool VoiceRecordBar::hasDuration() const {
 }
 
 float64 VoiceRecordBar::activeAnimationRatio() const {
+	if (isRecordingLocked()) {
+		return 1.;
+	}
 	return _activeAnimation.value(_inField.current() ? 1. : 0.);
 }
 
@@ -2352,6 +2412,7 @@ void VoiceRecordBar::orderControls() {
 }
 
 void VoiceRecordBar::installListenStateFilter() {
+	_keyFilterInRecordingState = nullptr;
 	auto keyFilterCallback = [=](not_null<QEvent*> e) {
 		using Result = base::EventFilterResult;
 		if (!(_send->type() == Ui::SendButton::Type::Send

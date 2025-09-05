@@ -27,7 +27,12 @@ class VerticalLayout;
 
 namespace Ui::Premium {
 
-using TextFactory = Fn<QString(int)>;
+struct BubbleText {
+	QString counter;
+	QString additional;
+};
+
+using TextFactory = Fn<BubbleText(int)>;
 
 [[nodiscard]] TextFactory ProcessTextFactory(
 	std::optional<tr::phrase<lngtag_count>> phrase);
@@ -45,7 +50,7 @@ public:
 
 	[[nodiscard]] static crl::time SlideNoDeflectionDuration();
 
-	[[nodiscard]] int counter() const;
+	[[nodiscard]] std::optional<int> counter() const;
 	[[nodiscard]] int height() const;
 	[[nodiscard]] int width() const;
 	[[nodiscard]] int bubbleRadius() const;
@@ -68,11 +73,12 @@ private:
 
 	const style::icon *_icon;
 	NumbersAnimation _numberAnimation;
+	Text::String _additional;
 	const int _height;
 	const int _textTop;
 	const bool _hasTail;
 
-	int _counter = -1;
+	std::optional<int> _counter;
 	EdgeProgress _tailEdge = 0.;
 	bool _flipHorizontal = false;
 
@@ -88,6 +94,8 @@ struct BubbleRowState {
 };
 
 enum class BubbleType : uchar {
+	StarRating,
+	NegativeRating,
 	NoPremium,
 	Premium,
 	Credits,
@@ -161,7 +169,7 @@ void AddBubbleRow(
 	rpl::producer<> showFinishes,
 	rpl::producer<BubbleRowState> state,
 	BubbleType type,
-	Fn<QString(int)> text,
+	TextFactory text,
 	const style::icon *icon,
 	const style::margins &outerPadding);
 

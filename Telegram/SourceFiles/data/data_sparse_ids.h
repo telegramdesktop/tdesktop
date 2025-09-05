@@ -28,6 +28,7 @@ class SparseIdsMergedSlice {
 public:
 	using UniversalMsgId = MsgId;
 	static constexpr MsgId kScheduledTopicId = ScheduledMaxMsgId;
+	static constexpr MsgId kSavedMusicTopicId = ScheduledMaxMsgId + 1;
 
 	struct Key {
 		Key(

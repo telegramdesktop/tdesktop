@@ -40,15 +40,13 @@ Blocked::Blocked(
 	{
 		auto padding = st::changePhoneIconPadding;
 		padding.setBottom(padding.top());
-		_loading = base::make_unique_q<Ui::CenterWrap<>>(
+		_loading = base::make_unique_q<Ui::PaddingWrap<>>(
 			this,
-			object_ptr<Ui::PaddingWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				this,
-				object_ptr<Ui::FlatLabel>(
-					this,
-					tr::lng_contacts_loading(),
-					st::changePhoneDescription),
-				std::move(padding)));
+				tr::lng_contacts_loading(),
+				st::changePhoneDescription),
+			std::move(padding));
 		Ui::ResizeFitChild(
 			this,
 			_loading.get(),
@@ -186,22 +184,20 @@ void Blocked::setupContent() {
 		}, content->lifetime());
 
 		content->add(
-			object_ptr<Ui::CenterWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				content,
-				object_ptr<Ui::FlatLabel>(
-					content,
-					tr::lng_blocked_list_empty_title(),
-					st::changePhoneTitle)),
-			st::changePhoneTitlePadding);
+				tr::lng_blocked_list_empty_title(),
+				st::changePhoneTitle),
+			st::changePhoneTitlePadding,
+			style::al_top);
 
 		content->add(
-			object_ptr<Ui::CenterWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				content,
-				object_ptr<Ui::FlatLabel>(
-					content,
-					tr::lng_blocked_list_empty_description(),
-					st::changePhoneDescription)),
-			st::changePhoneDescriptionPadding);
+				tr::lng_blocked_list_empty_description(),
+				st::changePhoneDescription),
+			st::changePhoneDescriptionPadding,
+			style::al_top);
 
 		Ui::AddSkip(content, st::settingsBlockedListIconPadding.top());
 	}

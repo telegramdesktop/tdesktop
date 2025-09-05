@@ -286,6 +286,7 @@ chatThemeEntryMargin: margins(16px, 10px, 16px, 8px);
 chatThemeEmptyPreviewTop: 16px;
 chatThemeEmojiBottom: 12px;
 chatThemeButtonMargin: margins(10px, 0px, 10px, 8px);
+chatThemeGiftTaken: icon {{ "mediaview/mini_repost", msgFileInBg }};
 
 autoDownloadLimitButton: SettingsButton(settingsButtonNoIcon) {
 	padding: margins(22px, 10px, 22px, 0px);
@@ -302,7 +303,7 @@ settingsAccentColorSkip: 4px;
 settingsAccentColorLine: 3px;
 
 settingsFilterDividerLabel: FlatLabel(boxDividerLabel) {
-	minWidth: 258px;
+	minWidth: 200px;
 	maxHeight: 0px;
 	align: align(top);
 }
@@ -597,8 +598,11 @@ settingsColorButton: SettingsButton(settingsButton) {
 settingsColorRadioMargin: 17px;
 settingsColorRadioSkip: 13px;
 settingsColorRadioStroke: 2px;
-settingsLevelBadgeLock: icon {{ "chat/mini_lock", premiumButtonFg }};
-settingsLevelBadgeLockSkip: 4px;
+settingsLevelBadgeLock: IconEmoji{
+	icon: icon {{ "chat/mini_lock", premiumButtonFg }};
+	padding: margins(0px, 4px, 0px, 0px);
+	useIconColor: true;
+}
 
 messagePrivacyTopSkip: 8px;
 messagePrivacyRadioSkip: 6px;

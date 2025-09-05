@@ -772,30 +772,12 @@ void SetupPremium(
 					? Lang::FormatCreditsAmountToShort(c).string
 					: QString();
 			}),
-			st::settingsButton);
+			st::settingsButton,
+			{ &st::menuIconTon });
 		button->addClickHandler([=] {
 			controller->setPremiumRef("settings");
 			showOther(CurrencyId());
 		});
-
-		const auto badge = Ui::CreateChild<Ui::RpWidget>(button.get());
-		const auto image = Ui::Earn::IconCurrencyColored(
-			st::tonFieldIconSize,
-			st::menuIconColor->c);
-
-		badge->resize(Size(st::tonFieldIconSize));
-		badge->paintRequest(
-		) | rpl::start_with_next([=] {
-			auto p = QPainter(badge);
-			p.drawImage(0, 0, image);
-		}, badge->lifetime());
-
-		button->sizeValue() | rpl::start_with_next([=](const QSize &s) {
-			badge->moveToLeft(
-				button->st().iconLeft
-					+ (st::menuIconShop.width() - badge->width()) / 2,
-				(s.height() - badge->height()) / 2);
-		}, badge->lifetime());
 	}
 	const auto button = AddButtonWithIcon(
 		container,

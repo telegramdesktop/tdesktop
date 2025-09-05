@@ -37,6 +37,8 @@ public:
 	void apply(const MTPDupdateTranscribedAudio &update);
 
 	[[nodiscard]] bool freeFor(not_null<HistoryItem*> item) const;
+	[[nodiscard]] bool isRated(not_null<HistoryItem*> item) const;
+	void rate(not_null<HistoryItem*> item, bool isGood);
 
 	[[nodiscard]] bool trialsSupport();
 	[[nodiscard]] TimeId trialsRefreshAt();

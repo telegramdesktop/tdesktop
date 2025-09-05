@@ -142,13 +142,12 @@ void ConfirmSubscriptionBox(
 	const auto content = box->verticalLayout();
 
 	Ui::AddSkip(content, st::confirmInvitePhotoTop);
-	const auto userpicWrap = content->add(
-		object_ptr<Ui::CenterWrap<>>(
-			content,
-			object_ptr<Ui::RpWidget>(content)));
-	const auto userpic = userpicWrap->entity();
+	const auto userpic = content->add(
+		object_ptr<Ui::RpWidget>(content),
+		style::al_top);
 	const auto photoSize = st::confirmInvitePhotoSize;
 	userpic->resize(Size(photoSize));
+	userpic->setNaturalWidth(photoSize);
 	const auto creditsIconSize = photoSize / 3;
 	const auto creditsIconCallback =
 		Ui::PaintOutlinedColoredCreditsIconCallback(
@@ -188,8 +187,8 @@ void ConfirmSubscriptionBox(
 		}
 		auto p = QPainter(userpic);
 		p.drawImage(0, 0, state->frame);
-	}, userpicWrap->lifetime());
-	userpicWrap->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}, userpic->lifetime());
+	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 	if (photo) {
 		state->photoMedia = photo->createMediaView();
 		state->photoMedia->wanted(Data::PhotoSize::Small, Data::FileOrigin());
@@ -197,7 +196,7 @@ void ConfirmSubscriptionBox(
 			session->downloaderTaskFinished(
 			) | rpl::start_with_next([=] {
 				userpic->update();
-			}, userpicWrap->entity()->lifetime());
+			}, userpic->lifetime());
 		}
 	} else {
 		state->photoEmpty = std::make_unique<Ui::EmptyUserpic>(
@@ -215,43 +214,40 @@ void ConfirmSubscriptionBox(
 		2.);
 
 	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_channel_invite_subscription_title(),
-				st::inviteLinkSubscribeBoxTitle)));
+			tr::lng_channel_invite_subscription_title(),
+			st::inviteLinkSubscribeBoxTitle),
+		style::al_top);
 	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_channel_invite_subscription_about(
-					lt_channel,
-					rpl::single(Ui::Text::Bold(name)),
-					lt_price,
-					tr::lng_credits_summary_options_credits(
-						lt_count,
-						rpl::single(amount) | tr::to_count(),
-						Ui::Text::Bold),
-					Ui::Text::WithEntities),
-				st::inviteLinkSubscribeBoxAbout)));
+			tr::lng_channel_invite_subscription_about(
+				lt_channel,
+				rpl::single(Ui::Text::Bold(name)),
+				lt_price,
+				tr::lng_credits_summary_options_credits(
+					lt_count,
+					rpl::single(amount) | tr::to_count(),
+					Ui::Text::Bold),
+				Ui::Text::WithEntities),
+			st::inviteLinkSubscribeBoxAbout),
+		style::al_top);
 	Ui::AddSkip(content);
 	box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_channel_invite_subscription_terms(
-					lt_link,
-					rpl::combine(
-						tr::lng_paid_react_agree_link(),
-						tr::lng_group_invite_subscription_about_url()
-					) | rpl::map([](const QString &text, const QString &url) {
-						return Ui::Text::Link(text, url);
-					}),
-					Ui::Text::RichLangValue),
-				st::inviteLinkSubscribeBoxTerms)));
+			tr::lng_channel_invite_subscription_terms(
+				lt_link,
+				rpl::combine(
+					tr::lng_paid_react_agree_link(),
+					tr::lng_group_invite_subscription_about_url()
+				) | rpl::map([](const QString &text, const QString &url) {
+					return Ui::Text::Link(text, url);
+				}),
+				Ui::Text::RichLangValue),
+			st::inviteLinkSubscribeBoxTerms),
+		style::al_top);
 
 	{
 		const auto balance = Settings::AddBalanceWidget(

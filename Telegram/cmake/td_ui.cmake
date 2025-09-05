@@ -27,6 +27,7 @@ set(style_files
     info/info.style
     info/channel_statistics/boosts/giveaway/giveaway.style
     info/channel_statistics/earn/channel_earn.style
+    info/profile/info_levels.style
     info/userpic/info_userpic_builder.style
     intro/intro.style
     iv/iv.style
@@ -87,6 +88,7 @@ PRIVATE
 
     data/raw/raw_countries_bounds.cpp
     data/raw/raw_countries_bounds.h
+    data/data_authorization.h
     data/data_birthday.cpp
     data/data_birthday.h
     data/data_channel_earn.h
@@ -109,6 +111,8 @@ PRIVATE
     dialogs/ui/dialogs_stories_list.h
     dialogs/ui/dialogs_top_bar_suggestion_content.cpp
     dialogs/ui/dialogs_top_bar_suggestion_content.h
+    dialogs/ui/posts_search_intro.cpp
+    dialogs/ui/posts_search_intro.h
     dialogs/ui/top_peers_strip.cpp
     dialogs/ui/top_peers_strip.h
 
@@ -142,6 +146,8 @@ PRIVATE
 
     info/profile/info_profile_icon.cpp
     info/profile/info_profile_icon.h
+    info/profile/info_profile_music_button.cpp
+    info/profile/info_profile_music_button.h
     info/userpic/info_userpic_bubble_wrap.cpp
     info/userpic/info_userpic_bubble_wrap.h
     info/userpic/info_userpic_color_circle_button.cpp
@@ -193,6 +199,8 @@ PRIVATE
     menu/gift_resale_filter.h
     menu/menu_check_item.cpp
     menu/menu_check_item.h
+    menu/menu_item_rate_transcribe.cpp
+    menu/menu_item_rate_transcribe.h
     menu/menu_ttl.cpp
     menu/menu_ttl.h
 
@@ -361,6 +369,8 @@ PRIVATE
     ui/chat/pinned_bar.h
     ui/chat/requests_bar.cpp
     ui/chat/requests_bar.h
+    ui/controls/button_labels.cpp
+    ui/controls/button_labels.h
     ui/controls/call_mute_button.cpp
     ui/controls/call_mute_button.h
     ui/controls/chat_service_checkbox.cpp
@@ -440,6 +450,8 @@ PRIVATE
     ui/text/format_song_name.h
     ui/text/format_values.cpp
     ui/text/format_values.h
+    ui/text/text_lottie_custom_emoji.cpp
+    ui/text/text_lottie_custom_emoji.h
     ui/text/text_options.cpp
     ui/text/text_options.h
 

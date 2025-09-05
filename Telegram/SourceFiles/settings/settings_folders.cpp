@@ -862,13 +862,12 @@ void SetupTopContent(
 	verticalLayout->add(std::move(icon.widget));
 
 	verticalLayout->add(
-		object_ptr<Ui::CenterWrap<>>(
+		object_ptr<Ui::FlatLabel>(
 			verticalLayout,
-			object_ptr<Ui::FlatLabel>(
-				verticalLayout,
-				tr::lng_filters_about(),
-				st::settingsFilterDividerLabel)),
-		st::settingsFilterDividerLabelPadding);
+			tr::lng_filters_about(),
+			st::settingsFilterDividerLabel),
+		st::settingsFilterDividerLabelPadding,
+		style::al_top)->setTryMakeSimilarLines(true);
 
 	verticalLayout->geometryValue(
 	) | rpl::start_with_next([=](const QRect &r) {

@@ -148,16 +148,30 @@ bool AppConfig::confcallPrioritizeVP8() const {
 	return get<bool>(u"confcall_use_vp8"_q, false);
 }
 
-int AppConfig::giftResalePriceMax() const {
-	return get<int>(u"stars_stargift_resale_amount_max"_q, 35000);
-}
-
-int AppConfig::giftResalePriceMin() const {
+int AppConfig::giftResaleStarsMin() const {
 	return get<int>(u"stars_stargift_resale_amount_min"_q, 125);
 }
 
-int AppConfig::giftResaleReceiveThousandths() const {
+int AppConfig::giftResaleStarsMax() const {
+	return get<int>(u"stars_stargift_resale_amount_max"_q, 35000);
+}
+
+int AppConfig::giftResaleStarsThousandths() const {
 	return get<int>(u"stars_stargift_resale_commission_permille"_q, 800);
+}
+
+int64 AppConfig::giftResaleNanoTonMin() const {
+	return get<int64>(u"ton_stargift_resale_amount_min"_q, 250'000'000LL);
+}
+
+int64 AppConfig::giftResaleNanoTonMax() const {
+	return get<int64>(
+		u"ton_stargift_resale_amount_max"_q,
+		1'000'000'000'000'000LL);
+}
+
+int AppConfig::giftResaleNanoTonThousandths() const {
+	return get<int>(u"ton_stargift_resale_commission_permille"_q, 800);
 }
 
 int AppConfig::pollOptionsLimit() const {
@@ -232,10 +246,12 @@ QString AppConfig::ageVerifyBotUsername() const {
 	return get<QString>(u"verify_age_bot_username"_q, QString());
 }
 
-QString AppConfig::starsRatingLearnMoreUrl() const {
-	return get<QString>(
-		u"stars_rating_learnmore_url"_q,
-		u"https://telegram.org/blog"_q);
+int AppConfig::storiesAlbumsLimit() const {
+	return get<int>(u"stories_albums_limit"_q, 100);
+}
+
+int AppConfig::storiesAlbumLimit() const {
+	return get<int>(u"stories_album_stories_limit"_q, 1000);
 }
 
 void AppConfig::refresh(bool force) {

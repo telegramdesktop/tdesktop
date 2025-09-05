@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
+#include "styles/style_info_levels.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 
@@ -34,8 +35,12 @@ constexpr auto kSlideDuration = crl::time(1000);
 TextFactory ProcessTextFactory(
 		std::optional<tr::phrase<lngtag_count>> phrase) {
 	return phrase
-		? TextFactory([=](int n) { return (*phrase)(tr::now, lt_count, n); })
-		: TextFactory([=](int n) { return QString::number(n); });
+		? TextFactory([=](int n) -> BubbleText {
+			return { (*phrase)(tr::now, lt_count, n) };
+		})
+		: TextFactory([=](int n) -> BubbleText {
+			return { QString::number(n) };
+		});
 }
 
 Bubble::Bubble(
@@ -56,15 +61,19 @@ Bubble::Bubble(
 	_numberAnimation.setWidthChangedCallback([=] {
 		_widthChanges.fire({});
 	});
-	_numberAnimation.setText(_textFactory(0), 0);
+	const auto texts = _textFactory(0);
+	_numberAnimation.setText(texts.counter, 0);
 	_numberAnimation.finishAnimating();
+	if (!texts.additional.isEmpty()) {
+		_additional.setText(_st.additionalStyle, texts.additional);
+	}
 }
 
 crl::time Bubble::SlideNoDeflectionDuration() {
 	return kSlideDuration * kStepBeforeDeflection;
 }
 
-int Bubble::counter() const {
+std::optional<int> Bubble::counter() const {
 	return _counter;
 }
 
@@ -84,23 +93,38 @@ int Bubble::filledWidth() const {
 }
 
 int Bubble::width() const {
-	return filledWidth() + _numberAnimation.countWidth();
+	return filledWidth()
+		+ _numberAnimation.countWidth()
+		+ (_additional.isEmpty()
+			? 0
+			: (_st.additionalSkip + _additional.maxWidth()));
 }
 
 int Bubble::countMaxWidth(int maxPossibleCounter) const {
 	auto numbers = Ui::NumbersAnimation(_st.font, [] {});
 	numbers.setDisabledMonospace(true);
 	numbers.setDuration(0);
-	numbers.setText(_textFactory(0), 0);
-	numbers.setText(_textFactory(maxPossibleCounter), maxPossibleCounter);
+	const auto textsZero = _textFactory(0);
+	const auto textsMax = _textFactory(maxPossibleCounter);
+	numbers.setText(textsZero.counter, 0);
+	numbers.setText(textsMax.counter, maxPossibleCounter);
 	numbers.finishAnimating();
-	return filledWidth() + numbers.maxWidth();
+	return filledWidth()
+		+ numbers.maxWidth()
+		+ (_additional.isEmpty()
+			? 0
+			: (_st.additionalSkip
+				+ _st.additionalStyle.font->width(textsMax.additional)));
 }
 
 void Bubble::setCounter(int value) {
 	if (_counter != value) {
 		_counter = value;
-		_numberAnimation.setText(_textFactory(_counter), _counter);
+		const auto texts = _textFactory(value);
+		_numberAnimation.setText(texts.counter, value);
+		if (!texts.additional.isEmpty()) {
+			_additional.setText(_st.additionalStyle, texts.additional);
+		}
 	}
 }
 
@@ -113,7 +137,7 @@ void Bubble::setFlipHorizontal(bool value) {
 }
 
 void Bubble::paintBubble(QPainter &p, const QRect &r, const QBrush &brush) {
-	if (_counter < 0) {
+	if (!_counter.has_value()) {
 		return;
 	}
 
@@ -181,16 +205,25 @@ void Bubble::paintBubble(QPainter &p, const QRect &r, const QBrush &brush) {
 	p.setPen(st::activeButtonFg);
 	p.setFont(_st.font);
 	const auto iconLeft = r.x() + _st.padding.left();
-	_icon->paint(
-		p,
-		iconLeft,
-		bubbleRect.y() + (bubbleRect.height() - _icon->height()) / 2,
-		bubbleRect.width());
-	_numberAnimation.paint(
-		p,
-		iconLeft + _icon->width() + _st.textSkip,
-		r.y() + _textTop,
-		width() / 2);
+	const auto iconTop = bubbleRect.y()
+		+ (bubbleRect.height() - _icon->height()) / 2;
+	_icon->paint(p, iconLeft, iconTop, bubbleRect.width());
+	const auto numberLeft = iconLeft + _icon->width() + _st.textSkip;
+	const auto numberTop = r.y() + _textTop;
+	_numberAnimation.paint(p, numberLeft, numberTop, width());
+	if (!_additional.isEmpty()) {
+		p.setOpacity(0.7);
+		const auto additionalLeft = numberLeft
+			+ _numberAnimation.countWidth()
+			+ _st.additionalSkip;
+		const auto additionalTop = numberTop
+			+ _st.font->ascent
+			- _st.additionalStyle.font->ascent;
+		_additional.draw(p, {
+			.position = { additionalLeft, additionalTop },
+			.availableWidth = _additional.maxWidth(),
+		});
+	}
 }
 
 rpl::producer<> Bubble::widthChanges() const {
@@ -364,7 +397,7 @@ void BubbleWidget::animateTo(BubbleRowState state) {
 }
 
 void BubbleWidget::paintEvent(QPaintEvent *e) {
-	if (_bubble.counter() < 0) {
+	if (!_bubble.counter().has_value()) {
 		return;
 	}
 
@@ -422,7 +455,9 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 
 	_bubble.paintBubble(p, bubbleRect, [&] {
 		switch (_type) {
-		case BubbleType::NoPremium: return st::windowBgActive->b;
+		case BubbleType::NoPremium:
+		case BubbleType::StarRating: return st::windowBgActive->b;
+		case BubbleType::NegativeRating: return st::attentionButtonFg->b;
 		case BubbleType::Premium: return QBrush(_cachedGradient);
 		case BubbleType::Credits: return st::creditsBg3->b;
 		}
@@ -460,7 +495,7 @@ void AddBubbleRow(
 		rpl::producer<> showFinishes,
 		rpl::producer<BubbleRowState> state,
 		BubbleType type,
-		Fn<QString(int)> text,
+		TextFactory text,
 		const style::icon *icon,
 		const style::margins &outerPadding) {
 	const auto container = parent->add(

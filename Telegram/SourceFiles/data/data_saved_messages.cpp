@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "core/application.h"
+#include "data/components/recent_peers.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_histories.h"
@@ -452,6 +453,7 @@ void SavedMessages::applySublistDeleted(not_null<PeerData*> sublistPeer) {
 	}
 
 	_sublistDestroyed.fire(raw);
+	_owner->session().recentPeers().chatOpenRemove(raw);
 	session().changes().sublistUpdated(
 		raw,
 		Data::SublistUpdate::Flag::Destroyed);

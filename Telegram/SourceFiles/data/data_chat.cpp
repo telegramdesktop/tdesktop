@@ -486,7 +486,7 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		SetTopPinnedMessageId(chat, pinned->v);
 	}
 	chat->checkFolder(update.vfolder_id().value_or_empty());
-	chat->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
+	chat->setThemeToken(qs(update.vtheme_emoticon().value_or_empty()));
 	chat->setTranslationDisabled(update.is_translations_disabled());
 	const auto reactionsLimit = update.vreactions_limit().value_or_empty();
 	if (const auto allowed = update.vavailable_reactions()) {

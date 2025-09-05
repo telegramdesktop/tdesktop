@@ -1042,19 +1042,19 @@ not_null<Ui::RpWidget*> CreateReActivateHeader(not_null<QWidget*> parent) {
 		st::boxRowPadding + st::confcallLinkHeaderIconPadding);
 
 	result->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			result,
-			object_ptr<Ui::FlatLabel>(
-				result,
-				tr::lng_confcall_inactive_title(),
-				st::boxTitle)),
-		st::boxRowPadding + st::confcallLinkTitlePadding);
+			tr::lng_confcall_inactive_title(),
+			st::boxTitle),
+		st::boxRowPadding + st::confcallLinkTitlePadding,
+		style::al_top);
 	result->add(
 		object_ptr<Ui::FlatLabel>(
 			result,
 			tr::lng_confcall_inactive_about(),
 			st::confcallLinkCenteredText),
-		st::boxRowPadding + st::confcallLinkTitlePadding
+		st::boxRowPadding + st::confcallLinkTitlePadding,
+		style::al_top
 	)->setTryMakeSimilarLines(true);
 	Ui::AddDivider(result);
 

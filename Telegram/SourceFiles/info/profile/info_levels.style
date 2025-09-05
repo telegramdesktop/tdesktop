@@ -1,0 +1,81 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+
+LevelShape {
+	icon: icon;
+	position: point;
+}
+levelStyle: TextStyle(defaultTextStyle) {
+	font: font(9px semibold);
+}
+levelTextFg: windowFgActive;
+levelMargin: margins(4px, 3px, 2px, 2px);
+
+levelBase: LevelShape {
+	position: point(0px, 6px);
+}
+level1: LevelShape(levelBase) {
+	position: point(-1px, 6px);
+	icon: icon {{ "levels/level1_inner-26x26", windowBgActive }};
+}
+level2: LevelShape(level1) {
+	icon: icon {{ "levels/level2_inner-26x26", windowBgActive }};
+}
+level3: LevelShape(level1) {
+	icon: icon {{ "levels/level3_inner-26x26", windowBgActive }};
+}
+level4: LevelShape(level1) {
+	icon: icon {{ "levels/level4_inner-26x26", windowBgActive }};
+}
+level5: LevelShape(level1) {
+	icon: icon {{ "levels/level5_inner-26x26", windowBgActive }};
+}
+level6: LevelShape(level1) {
+	icon: icon {{ "levels/level6_inner-26x26", windowBgActive }};
+}
+level7: LevelShape(level1) {
+	icon: icon {{ "levels/level7_inner-26x26", windowBgActive }};
+}
+level8: LevelShape(level1) {
+	icon: icon {{ "levels/level8_inner-26x26", windowBgActive }};
+}
+level9: LevelShape(level1) {
+	icon: icon {{ "levels/level9_inner-26x26", windowBgActive }};
+}
+level10: LevelShape(levelBase) {
+	icon: icon {{ "levels/level10_inner-26x26", windowBgActive }};
+}
+level20: LevelShape(levelBase) {
+	icon: icon {{ "levels/level20_inner-26x26", windowBgActive }};
+}
+level30: LevelShape(levelBase) {
+	icon: icon {{ "levels/level30_inner-26x26", windowBgActive }};
+}
+level40: LevelShape(levelBase) {
+	icon: icon {{ "levels/level40_inner-26x26", windowBgActive }};
+}
+level50: LevelShape(levelBase) {
+	icon: icon {{ "levels/level50_inner-26x26", windowBgActive }};
+}
+level60: LevelShape(levelBase) {
+	icon: icon {{ "levels/level60_inner-26x26", windowBgActive }};
+}
+level70: LevelShape(levelBase) {
+	icon: icon {{ "levels/level70_inner-26x26", windowBgActive }};
+}
+level80: LevelShape(levelBase) {
+	icon: icon {{ "levels/level80_inner-26x26", windowBgActive }};
+}
+level90: LevelShape(levelBase) {
+	icon: icon {{ "levels/level90_inner-26x26", windowBgActive }};
+}
+levelNegative: LevelShape(levelBase) {
+	icon: icon {{ "levels/level_warning-18x18", attentionButtonFg, point(6px, 5px) }};
+}
+levelNegativeBubble: icon {{ "levels/level_warning-28x28", windowFgActive }};

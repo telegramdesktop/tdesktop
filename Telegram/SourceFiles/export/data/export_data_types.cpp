@@ -1608,9 +1608,13 @@ ServiceAction ParseServiceAction(
 			.date = data.vschedule_date().v,
 		};
 	}, [&](const MTPDmessageActionSetChatTheme &data) {
-		result.content = ActionSetChatTheme{
-			.emoji = qs(data.vemoticon()),
-		};
+		data.vtheme().match([&](const MTPDchatTheme &data) {
+			result.content = ActionSetChatTheme{
+				.emoji = qs(data.vemoticon()),
+			};
+		}, [&](const MTPDchatThemeUniqueGift &data) {
+			result.content = ActionSetChatTheme{};
+		});
 	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
 		result.content = ActionChatJoinedByRequest();
 	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/peer_gifts/info_peer_gifts_common.h"
 
+#include "base/unixtime.h"
 #include "boxes/send_credits_box.h" // SetButtonMarkedLabel
 #include "boxes/star_gift_box.h"
 #include "boxes/sticker_set_box.h"
@@ -20,7 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "main/main_session.h"
+#include "overview/overview_checkbox.h"
 #include "settings/settings_credits_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
@@ -33,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
+#include "styles/style_overview.h"
 #include "styles/style_premium.h"
 
 namespace Info::PeerGifts {
@@ -70,11 +74,24 @@ GiftButton::GiftButton(
 	QWidget *parent,
 	not_null<GiftButtonDelegate*> delegate)
 : AbstractButton(parent)
-, _delegate(delegate) {
+, _delegate(delegate)
+, _lockedTimer([=] { refreshLocked(); }) {
 }
 
 GiftButton::~GiftButton() {
 	unsubscribe();
+}
+
+void GiftButton::onStateChanged(State was, StateChangeSource source) {
+	if (_check) {
+		const auto diff = state() ^ was;
+		if (diff & State::Enum::Over) {
+			_check->setActive(state() & State::Enum::Over);
+		}
+		if (diff & State::Enum::Down) {
+			_check->setPressed(state() & State::Enum::Down);
+		}
+	}
 }
 
 void GiftButton::unsubscribe() {
@@ -84,6 +101,16 @@ void GiftButton::unsubscribe() {
 }
 
 void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
+	_mode = mode;
+
+	if (_mode != GiftButtonMode::Selection) {
+		_check = nullptr;
+	} else if (!_check) {
+		_check = std::make_unique<Overview::Layout::Checkbox>(
+			[=] { update(); },
+			st::overviewSmallCheck);
+	}
+
 	const auto unique = v::is<GiftTypeStars>(descriptor)
 		? v::get<GiftTypeStars>(descriptor).info.unique.get()
 		: nullptr;
@@ -91,15 +118,20 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	if (_descriptor == descriptor && _resalePrice == resalePrice) {
 		return;
 	}
-	auto player = base::take(_player);
 	const auto starsType = Ui::Premium::MiniStarsType::SlowStars;
-	_mediaLifetime.destroy();
 	unsubscribe();
+	update();
+
+	const auto format = [=](int64 number) {
+		const auto onlyK = (number < 100'000'000);
+		return (number >= 1'000'000)
+			? Lang::FormatCountToShort(number, onlyK).string
+			: Lang::FormatCountDecimal(number);
+	};
 
 	_descriptor = descriptor;
 	_resalePrice = resalePrice;
 	const auto resale = (_resalePrice > 0);
-	_small = (mode != Mode::Full);
 	v::match(descriptor, [&](const GiftTypePremium &data) {
 		const auto months = data.months;
 		_text = Ui::Text::String(st::giftBoxGiftHeight / 4);
@@ -136,16 +168,17 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 			{ 0., anim::with_alpha(st::windowActiveTextFg->c, .3) },
 			{ 1., st::windowActiveTextFg->c },
 		});
+		_lockedUntilDate = 0;
 	}, [&](const GiftTypeStars &data) {
 		const auto soldOut = data.info.limitedCount
 			&& !data.userpic
 			&& !data.info.limitedLeft;
-		_userpic = !data.userpic
+		_userpic = (!data.userpic || _mode == GiftButtonMode::Selection)
 			? nullptr
 			: data.from
 			? Ui::MakeUserpicThumbnail(data.from)
 			: Ui::MakeHiddenAuthorThumbnail();
-		if (_small && !resale) {
+		if (small() && !resale) {
 			_price = {};
 			_stars.reset();
 			return;
@@ -153,22 +186,22 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		_price.setMarkedText(
 			st::semiboldTextStyle,
 			(data.resale
-				? (unique
+				? ((unique && data.forceTon)
+					? Data::FormatGiftResaleTon(*unique)
+					: (unique
 					? _delegate->monostar()
-					: _delegate->star()).append(' ').append(
-						Lang::FormatCountDecimal(unique
-							? unique->starsForResale
-							: data.info.starsResellMin)
-					).append(data.info.resellCount > 1 ? "+" : "")
-				: (_small && unique && unique->starsForResale)
-				? _delegate->monostar().append(' ').append(
-					Lang::FormatCountDecimal(unique->starsForResale))
+						: _delegate->star()).append(' ').append(
+							format(unique
+								? unique->starsForResale
+								: data.info.starsResellMin)
+						).append(data.info.resellCount > 1 ? "+" : ""))
+				: (small() && unique && unique->starsForResale)
+				? Data::FormatGiftResaleAsked(*unique)
 				: unique
 				? tr::lng_gift_transfer_button(
 					tr::now,
 					Ui::Text::WithEntities)
-				: _delegate->star().append(
-					' ' + Lang::FormatCountDecimal(data.info.stars))),
+				: _delegate->star().append(' ' + format(data.info.stars))),
 			kMarkupTextOptions,
 			_delegate->textContext());
 		if (!_stars) {
@@ -189,18 +222,28 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 			_stars->setColorOverride(
 				Ui::Premium::CreditsIconGradientStops());
 		}
+		_lockedUntilDate = data.info.lockedUntilDate;
 	});
-	_delegate->sticker(
+
+	refreshLocked();
+
+	_resolvedDocument = nullptr;
+	_documentLifetime = _delegate->sticker(
 		descriptor
 	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		_documentLifetime.destroy();
 		setDocument(document);
-	}, lifetime());
+	});
+	if (_resolvedDocument) {
+		_documentLifetime.destroy();
+	}
+
 	_patterned = false;
 	_uniqueBackgroundCache = QImage();
 	_uniquePatternEmoji = nullptr;
 	_uniquePatternCache.clear();
 
-	if (_small && !resale) {
+	if (small() && !resale) {
 		_button = QRect();
 		return;
 	}
@@ -211,7 +254,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		QSize(buttonw, buttonh)
 	).marginsAdded(st::giftBoxButtonPadding);
 	const auto skipy = _delegate->buttonSize().height()
-		- (_small
+		- (small()
 			? st::giftBoxButtonBottomSmall
 			: _byStars.isEmpty()
 			? st::giftBoxButtonBottom
@@ -226,16 +269,35 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	}
 }
 
-bool GiftButton::documentResolved() const {
-	return _player || _mediaLifetime;
+void GiftButton::refreshLocked() {
+	_lockedTimer.cancel();
+
+	const auto lockedFor = _lockedUntilDate
+		? std::max(_lockedUntilDate - base::unixtime::now(), TimeId())
+		: TimeId();
+	const auto locked = (lockedFor > 0);
+	if (locked) {
+		_lockedTimer.callOnce(std::min(lockedFor, 86'400) * crl::time(1000));
+	}
+	if (_locked != locked) {
+		_locked = locked;
+		update();
+	}
 }
 
 void GiftButton::setDocument(not_null<DocumentData*> document) {
+	_resolvedDocument = document;
+	if (_playerDocument == document) {
+		return;
+	}
+
 	const auto media = document->createMediaView();
 	media->checkStickerLarge();
 	media->goodThumbnailWanted();
 
-	rpl::single() | rpl::then(
+	const auto destroyed = base::take(_player);
+	_playerDocument = nullptr;
+	_mediaLifetime = rpl::single() | rpl::then(
 		document->owner().session().downloaderTaskFinished()
 	) | rpl::filter([=] {
 		return media->loaded();
@@ -263,9 +325,13 @@ void GiftButton::setDocument(not_null<DocumentData*> document) {
 				st::giftBoxStickerSize);
 		}
 		result->setRepaintCallback([=] { update(); });
+		_playerDocument = media->owner();
 		_player = std::move(result);
 		update();
-	}, _mediaLifetime);
+	});
+	if (_playerDocument) {
+		_mediaLifetime.destroy();
+	}
 }
 
 void GiftButton::setGeometry(QRect inner, QMargins extend) {
@@ -274,9 +340,15 @@ void GiftButton::setGeometry(QRect inner, QMargins extend) {
 }
 
 QMargins GiftButton::currentExtend() const {
-	const auto progress = _selectedAnimation.value(_selected ? 1. : 0.);
+	const auto progress = (_mode == Mode::Selection)
+		? 0.
+		: _selectedAnimation.value(_selected ? 1. : 0.);
 	const auto added = anim::interpolate(0, st::giftBoxSelectSkip, progress);
 	return _extend + QMargins(added, added, added, added);
+}
+
+bool GiftButton::small() const {
+	return _mode != GiftButtonMode::Full;
 }
 
 void GiftButton::toggleSelected(bool selected, anim::type animated) {
@@ -289,7 +361,13 @@ void GiftButton::toggleSelected(bool selected, anim::type animated) {
 	const auto duration = st::defaultRoundCheckbox.duration;
 	_selected = selected;
 	if (animated == anim::type::instant) {
+		if (_check) {
+			_check->finishAnimating();
+		}
 		_selectedAnimation.stop();
+		return;
+	} else if (_check) {
+		_check->setChecked(selected, animated);
 		return;
 	}
 	_selectedAnimation.start([=] {
@@ -337,7 +415,9 @@ void GiftButton::paintBackground(QPainter &p, const QImage &background) {
 	}
 
 	auto hq = PainterHighQualityEnabler(p);
-	const auto progress = _selectedAnimation.value(_selected ? 1. : 0.);
+	const auto progress = (_mode == Mode::Selection)
+		? 0.
+		: _selectedAnimation.value(_selected ? 1. : 0.);
 	if (progress < 0.01) {
 		return;
 	}
@@ -425,7 +505,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	const auto unique = v::is<GiftTypeStars>(_descriptor)
 		? v::get<GiftTypeStars>(_descriptor).info.unique.get()
 		: nullptr;
-	const auto onsale = (unique && unique->starsForResale && _small);
+	const auto onsale = unique && unique->starsForResale && small();
 	const auto requirePremium = v::is<GiftTypeStars>(_descriptor)
 		&& !v::get<GiftTypeStars>(_descriptor).userpic
 		&& !v::get<GiftTypeStars>(_descriptor).info.unique
@@ -452,6 +532,12 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		const auto radius = st::giftBoxGiftRadius;
 		p.drawRoundedRect(outer.marginsRemoved(extend), radius, radius);
 	}
+	if (_locked) {
+		st::giftBoxLockIcon.paint(
+			p,
+			position + st::giftBoxLockIconPosition,
+			width);
+	}
 
 	if (_userpic) {
 		if (!_subscribed) {
@@ -461,6 +547,14 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		const auto image = _userpic->image(st::giftBoxUserpicSize);
 		const auto skip = st::giftBoxUserpicSkip;
 		p.drawImage(extend.left() + skip, extend.top() + skip, image);
+	} else if (_check) {
+		const auto skip = st::giftBoxUserpicSkip;
+		_check->paint(
+			p,
+			QPoint(extend.left() + skip, extend.top() + skip),
+			width,
+			_selected,
+			true);
 	}
 
 	auto frame = QImage();
@@ -481,7 +575,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		p.drawImage(
 			QRect(
 				(width - size.width()) / 2,
-				(_small
+				(small()
 					? st::giftBoxSmallStickerTop
 					: _text.isEmpty()
 					? st::giftBoxStickerStarTop
@@ -495,7 +589,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	if (hidden) {
 		const auto topleft = QPoint(
 			(width - st::giftBoxStickerSize.width()) / 2,
-			(_small
+			(small()
 				? st::giftBoxSmallStickerTop
 				: _text.isEmpty()
 				? st::giftBoxStickerStarTop
@@ -608,7 +702,8 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 
 	v::match(_descriptor, [](const GiftTypePremium &) {
 	}, [&](const GiftTypeStars &data) {
-		if (unique && data.pinned) {
+		if (!unique) {
+		} else if (data.pinned) {
 			auto hq = PainterHighQualityEnabler(p);
 			const auto &icon = st::giftBoxPinIcon;
 			const auto skip = st::giftBoxUserpicSkip;
@@ -620,6 +715,26 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				QSize(icon.width() + 2 * add, icon.height() + 2 * add));
 			p.drawEllipse(rect);
 			icon.paintInCenter(p, rect);
+		} else if (!data.forceTon
+			&& unique->nanoTonForResale
+			&& unique->onlyAcceptTon) {
+			if (_tonIcon.isNull()) {
+				_tonIcon = st::tonIconEmojiLarge.icon.instance(
+					QColor(255, 255, 255));
+			}
+			const auto size = _tonIcon.size() / _tonIcon.devicePixelRatio();
+			const auto skip = st::giftBoxUserpicSkip;
+			const auto add = (st::giftBoxUserpicSize - size.width()) / 2;
+			p.setPen(Qt::NoPen);
+			p.setBrush(unique->backdrop.patternColor);
+			const auto rect = QRect(
+				QPoint(extend.left() + skip, extend.top() + skip),
+				QSize(size.width() + 2 * add, size.height() + 2 * add));
+			p.drawEllipse(rect);
+			p.drawImage(
+				extend.left() + skip + add,
+				extend.top() + skip + add,
+				_tonIcon);
 		}
 	});
 
@@ -700,6 +815,10 @@ Delegate::Delegate(not_null<Main::Session*> session, GiftButtonMode mode)
 	st::giftBoxHiddenMark,
 	RectPart::Center))
 , _mode(mode) {
+	_ministarEmoji = _emojiHelper.paletteDependent(
+		Ui::Earn::IconCreditsEmojiSmall());
+	_starEmoji = _emojiHelper.paletteDependent(
+		Ui::Earn::IconCreditsEmoji());
 }
 
 Delegate::Delegate(Delegate &&other) = default;
@@ -707,21 +826,23 @@ Delegate::Delegate(Delegate &&other) = default;
 Delegate::~Delegate() = default;
 
 TextWithEntities Delegate::star() {
-	return _session->data().customEmojiManager().creditsEmoji();
+	return _starEmoji;
 }
 
 TextWithEntities Delegate::monostar() {
 	return Ui::Text::IconEmoji(&st::starIconEmoji);
 }
 
+TextWithEntities Delegate::monoton() {
+	return Ui::Text::IconEmoji(&st::tonIconEmoji);
+}
+
 TextWithEntities Delegate::ministar() {
-	const auto owner = &_session->data();
-	const auto top = st::giftBoxByStarsStarTop;
-	return owner->customEmojiManager().ministarEmoji({ 0, top, 0, 0 });
+	return _ministarEmoji;
 }
 
 Ui::Text::MarkedContext Delegate::textContext() {
-	return Core::TextContext({ .session = _session });
+	return _emojiHelper.context();
 }
 
 QSize Delegate::buttonSize() {
@@ -733,7 +854,7 @@ QSize Delegate::buttonSize() {
 	const auto available = width - padding.left() - padding.right();
 	const auto singlew = (available - 2 * st::giftBoxGiftSkip.x())
 		/ kGiftsPerRow;
-	const auto minimal = (_mode == GiftButtonMode::Minimal);
+	const auto minimal = (_mode != GiftButtonMode::Full);
 	_single = QSize(
 		singlew,
 		minimal ? st::giftBoxGiftSmall : st::giftBoxGiftHeight);
@@ -961,13 +1082,15 @@ void SelectGiftToUnpin(
 				box,
 				tr::lng_gift_many_pinned_title(),
 				st::giftBoxSubtitle),
-			st::giftBoxSubtitleMargin);
+			st::giftBoxSubtitleMargin,
+			style::al_top);
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_gift_many_pinned_choose(),
 				st::giftTooManyPinnedChoose),
-			st::giftBoxAboutMargin);
+			st::giftBoxAboutMargin,
+			style::al_top);
 
 		const auto gifts = box->addRow(
 			object_ptr<Ui::RpWidget>(box),

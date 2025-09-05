@@ -308,6 +308,10 @@ void RoundCheckbox::setChecked(bool newChecked, anim::type animated) {
 	}
 }
 
+void RoundCheckbox::finishAnimating() {
+	_checkedProgress.stop();
+}
+
 void RoundCheckbox::invalidateCache() {
 	if (!_inactiveCacheBg.isNull() || !_inactiveCacheFg.isNull()) {
 		prepareInactiveCache();

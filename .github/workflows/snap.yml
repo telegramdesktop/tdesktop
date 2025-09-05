@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           submodules: recursive
@@ -61,7 +61,7 @@ jobs:
           sudo lxd waitready
 
       - name: Free up some disk space.
-        uses: endersonmenezes/free-disk-space@4cae28d0d8e716a770938d92630f23db5184f61f
+        uses: endersonmenezes/free-disk-space@713d134e243b926eba4a5cce0cf608bfd1efb89a
         with:
           remove_android: true
           remove_dotnet: true

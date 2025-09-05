@@ -245,12 +245,11 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 		std::vector<QColor> colors;
 	};
 	const auto preview = container->add(
-		object_ptr<Ui::CenterWrap<EmojiUserpic>>(
+		object_ptr<EmojiUserpic>(
 			container,
-			object_ptr<EmojiUserpic>(
-				container,
-				Size(st::defaultUserpicButton.photoSize),
-				false)))->entity();
+			Size(st::defaultUserpicButton.photoSize),
+			false),
+		style::al_top);
 	preview->setDuration(0);
 	if (document) {
 		preview->setDocument(document);
@@ -271,10 +270,12 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 
-	const auto editor = container->add(object_ptr<ColorEditor>(
+	auto ownedEditor = object_ptr<ColorEditor>(
 		container,
 		ColorEditor::Mode::HSL,
-		state->colors.back()));
+		state->colors.back());
+	container->resizeToWidth(ownedEditor->width());
+	const auto editor = container->add(std::move(ownedEditor));
 
 	buttonsContainer->chosenChanges(
 	) | rpl::start_with_next([=](ColorsLine::Chosen *chosen) {
@@ -306,7 +307,6 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 		save();
 	}, container->lifetime());
 
-	container->resizeToWidth(editor->width());
 	buttonsContainer->init();
 
 	return container;

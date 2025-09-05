@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 
 #include "api/api_suggest_post.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "core/ui_integration.h"
@@ -576,30 +577,19 @@ void Message::refreshRightBadge() {
 		_rightBadgeHasBoosts = 1;
 
 		const auto many = (boosts > 1);
-		const auto &icon = many
-			? st::boostsMessageIcon
-			: st::boostMessageIcon;
-		const auto padding = many
-			? st::boostsMessageIconPadding
-			: st::boostMessageIconPadding;
-		const auto owner = &item->history()->owner();
-		auto added = Ui::Text::SingleCustomEmoji(
-			owner->customEmojiManager().registerInternalEmoji(icon, padding)
+		auto added = Ui::Text::IconEmoji(many
+			? &st::boostsMessageIcon
+			: &st::boostMessageIcon
 		).append(many ? QString::number(boosts) : QString());
 		badge.append(' ').append(Ui::Text::Colorized(added, 1));
 	}
 	if (badge.empty()) {
 		_rightBadge.clear();
 	} else {
-		const auto context = Core::TextContext({
-			.session = &item->history()->session(),
-			.customEmojiLoopLimit = 1,
-		});
 		_rightBadge.setMarkedText(
 			st::defaultTextStyle,
 			badge,
-			Ui::NameTextOptions(),
-			context);
+			Ui::NameTextOptions());
 	}
 }
 
@@ -1103,10 +1093,13 @@ QSize Message::performCountOptimalSize() {
 
 void Message::refreshTopicButton() {
 	const auto item = data();
-	if (isAttachedToPrevious()
-		|| delegate()->elementHideTopicButton(this)) {
+	if (isAttachedToPrevious() || delegate()->elementHideTopicButton(this)) {
 		_topicButton = nullptr;
 	} else if (const auto topic = item->topic()) {
+		if (topic->channel()->useSubsectionTabs()) {
+			_topicButton = nullptr;
+			return;
+		}
 		if (!_topicButton) {
 			_topicButton = std::make_unique<TopicButton>();
 		}
@@ -1143,8 +1136,8 @@ int Message::marginTop() const {
 	if (const auto bar = Get<UnreadBar>()) {
 		result += bar->height();
 	}
-	if (const auto monoforumBar = Get<MonoforumSenderBar>()) {
-		result += monoforumBar->height();
+	if (const auto bar = Get<ForumThreadBar>()) {
+		result += bar->height();
 	}
 	if (const auto service = Get<ServicePreMessage>()) {
 		result += service->height;
@@ -1192,8 +1185,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		if (const auto date = Get<DateBadge>()) {
 			aboveh += date->height();
 		}
-		if (const auto sender = Get<MonoforumSenderBar>()) {
-			aboveh += sender->height();
+		if (const auto bar = Get<ForumThreadBar>()) {
+			aboveh += bar->height();
 		}
 		if (context.clip.intersects(QRect(0, aboveh, width(), unreadbarh))) {
 			p.translate(0, aboveh);
@@ -4222,6 +4215,8 @@ ClickHandlerPtr Message::prepareRightActionLink() const {
 					savedFromPeer,
 					Window::SectionShow::Way::Forward,
 					savedFromMsgId);
+			} else if (base::IsCtrlPressed()) {
+				FastShareMessageToSelf(controller->uiShow(), item);
 			} else {
 				FastShareMessage(controller, item);
 			}

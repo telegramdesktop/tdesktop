@@ -527,8 +527,8 @@ int Service::marginTop() const {
 	if (const auto bar = Get<UnreadBar>()) {
 		result += bar->height();
 	}
-	if (const auto monoforumBar = Get<MonoforumSenderBar>()) {
-		result += monoforumBar->height();
+	if (const auto bar = Get<ForumThreadBar>()) {
+		result += bar->height();
 	}
 	if (const auto service = Get<ServicePreMessage>()) {
 		result += service->height;
@@ -553,8 +553,8 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 		if (const auto date = Get<DateBadge>()) {
 			aboveh += date->height();
 		}
-		if (const auto sender = Get<MonoforumSenderBar>()) {
-			aboveh += sender->height();
+		if (const auto bar = Get<ForumThreadBar>()) {
+			aboveh += bar->height();
 		}
 		if (context.clip.intersects(QRect(0, aboveh, width(), unreadbarh))) {
 			p.translate(0, aboveh);

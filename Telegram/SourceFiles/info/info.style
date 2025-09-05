@@ -430,6 +430,10 @@ infoEditContactCover: InfoProfileCover(infoProfileCover) {
 }
 infoEditContactPersonalLeft: 6px;
 
+infoRatingDeductedBadge: RoundButton(customEmojiTextBadge) {
+	textBg: windowSubTextFg;
+}
+
 infoProfileInaccessibleUserpic: icon {{ "info/inaccessible_userpic", historyPeerUserpicFg }};
 
 infoVerifiedCheckPosition: point(4px, 2px);
@@ -445,6 +449,9 @@ infoPeerBadge: InfoPeerBadge {
 	premiumFg: profileVerifiedCheckBg;
 	position: infoVerifiedCheckPosition;
 	sizeTag: 0; // Normal
+}
+infoBotVerifyBadge: InfoPeerBadge(infoPeerBadge) {
+	position: point(-2px, 2px);
 }
 
 infoIconFg: windowBoldFg;
@@ -763,7 +770,6 @@ infoEmptyAudio: icon {{ "info/info_media_audio_empty", infoEmptyFg }};
 infoEmptyFile: icon {{ "info/info_media_file_empty", infoEmptyFg }};
 infoEmptyVoice: icon {{ "info/info_media_voice_empty", infoEmptyFg }};
 infoEmptyLink: icon {{ "info/info_media_link_empty", infoEmptyFg }};
-infoEmptyStories: icon {{ "info/info_media_story_empty", infoEmptyFg }};
 infoEmptyIconTop: 120px;
 infoEmptyLabelTop: 40px;
 infoEmptyLabelSkip: 20px;
@@ -1192,41 +1198,34 @@ topicsLayoutButtonIconSize: 140px;
 topicsLayoutButtonPadding: margins(4px, 0px, 4px, 12px);
 topicsLayoutButtonSkip: 0px;
 
-StarsRating {
-	margin: margins;
-	padding: margins;
-	style: TextStyle;
-	minSkip: pixels;
-	border: pixels;
-	activeBg: color;
-	inactiveBg: color;
-	activeFg: color;
-	inactiveFg: color;
-}
-infoStarsRating: StarsRating {
-	margin: margins(6px, 6px, 6px, 6px);
-	padding: margins(6px, 1px, 6px, 1px);
-	style: TextStyle(defaultTextStyle) {
-		font: font(11px semibold);
+infoStarsTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	textFg: windowBoldFg;
+	maxHeight: 24px;
+	style: TextStyle(boxTextStyle) {
+		font: font(17px semibold);
 	}
-	minSkip: 32px;
-	border: 2px;
-	activeBg: windowBgActive;
-	inactiveBg: windowBgRipple;
-	activeFg: windowFgActive;
-	inactiveFg: windowBoldFg;
+	align: align(top);
 }
-infoStarsRatingLearn: RoundButton(defaultActiveButton) {
-	width: -24px;
-	height: 44px;
-	textTop: 13px;
-	textFg: mediaviewTextLinkFg;
-	textFgOver: mediaviewTextLinkFg;
-	textBg: transparent;
-	textBgOver: transparent;
-	ripple: emptyRippleAnimation;
+infoStarsFeatureTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	style: semiboldTextStyle;
+	minWidth: 10px;
+	maxHeight: 20px;
 }
-infoStarsRatingTooltip: defaultImportantTooltip;
+infoStarsFeatureAbout: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 20px;
+}
+infoStarsFeatureIconPosition: point(3px, 7px);
+infoStarsFeatureMargin: margins(0px, 8px, 0px, 6px);
+infoStarsFeatureLabelLeft: 46px;
+infoStarsFeatureSkip: 2px;
+infoStarsCrown: icon {{ "limits/filled_rating_crown-24x24", windowFgActive }};
+infoStarsUnderstood: IconEmoji{
+	icon: icon {{ "limits/filled_understood-20x20", windowFgActive }};
+	padding: margins(0px, -1px, 0px, 0px);
+}
 
 collectionAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 256px;
@@ -1280,3 +1279,20 @@ collectionEditMenuToggle: IconButton(infoTopBarMenu) {
 	rippleAreaSize: 40px;
 	ripple: defaultRippleAnimationBgOver;
 }
+
+earnTonIconSize: 16px;
+earnTonIconMargin: margins(0px, 2px, 0px, 0px);
+
+infoMusicButtonRipple: defaultRippleAnimation;
+infoMusicButtonPerformer: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	maxHeight: 20px;
+}
+infoMusicButtonTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	style: semiboldTextStyle;
+	maxHeight: 20px;
+}
+infoMusicButtonPadding: margins(48px, 6px, 12px, 6px);
+infoMusicButtonBottom: 8px;
+infoMusicButtonLine: 2px;

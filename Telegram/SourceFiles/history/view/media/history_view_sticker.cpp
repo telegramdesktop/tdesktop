@@ -569,7 +569,7 @@ void Sticker::dataMediaCreated() const {
 void Sticker::setDiceIndex(const QString &emoji, int index) {
 	_diceEmoji = emoji;
 	_diceIndex = index;
-	_playingOnce = (index >= 0);
+	_playingOnce = (index > 0);
 	_stopOnLastFrame = (index > 0);
 }
 

@@ -177,6 +177,7 @@ void CodeInput::setDigitsCountMax(int digitsCount) {
 			+ st::introCodeDigitSkip * (digitsCount - 1)
 			+ padding.right(),
 		st::introCodeDigitHeight);
+	setNaturalWidth(width());
 
 	for (auto i = 0; i < digitsCount; i++) {
 		const auto widget = Ui::CreateChild<CodeDigit>(this);

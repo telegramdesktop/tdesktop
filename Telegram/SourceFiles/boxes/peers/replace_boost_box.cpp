@@ -221,7 +221,8 @@ void Controller::prepare() {
 					Ui::Text::RichLangValue),
 				Ui::Text::RichLangValue),
 			st::boostReassignText),
-		st::boxRowPadding);
+		st::boxRowPadding,
+		style::al_top);
 	delegate()->peerListSetAboveWidget(std::move(above));
 
 	const auto now = base::unixtime::now();

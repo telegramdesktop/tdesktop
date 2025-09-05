@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_helpers.h" // GetErrorForSending.
 #include "history/view/history_view_group_call_bar.h" // GenerateUserpics...
+#include "info/channel_statistics/earn/earn_icons.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "qr/qr_generate.h"
@@ -42,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -247,6 +249,9 @@ private:
 	const Role _role = Role::Joined;
 	rpl::variable<LinkData> _data;
 
+	Ui::Text::CustomEmojiHelper _emojiHelper;
+	TextWithEntities _creditsEmoji;
+
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::event_stream<Processed> _processed;
 
@@ -408,6 +413,8 @@ Controller::Controller(
 	const auto current = _data.current();
 	_link = current.link;
 	_revoked = current.revoked;
+	_creditsEmoji = _emojiHelper.paletteDependent(
+		Ui::Earn::IconCreditsEmoji());
 }
 
 rpl::producer<LinkData> Controller::dataValue() const {
@@ -725,7 +732,7 @@ void Controller::setupAboveJoinedWidget() {
 				? tr::lng_group_invite_subscription_info_title(
 					tr::now,
 					lt_emoji,
-					session().data().customEmojiManager().creditsEmoji(),
+					_creditsEmoji,
 					lt_price,
 					{ QString::number(current.subscription.credits) },
 					lt_multiplier,
@@ -736,15 +743,12 @@ void Controller::setupAboveJoinedWidget() {
 				: tr::lng_group_invite_subscription_info_title_none(
 					tr::now,
 					lt_emoji,
-					session().data().customEmojiManager().creditsEmoji(),
+					_creditsEmoji,
 					lt_price,
 					{ QString::number(current.subscription.credits) },
 					Ui::Text::WithEntities),
 			kMarkupTextOptions,
-			Core::TextContext({
-				.session = &session(),
-				.repaint = [=] { widget->update(); },
-			}));
+			_emojiHelper.context([=] { widget->update(); }));
 		auto &lifetime = widget->lifetime();
 		const auto rateValue = lifetime.make_state<rpl::variable<float64>>(
 			session().credits().rateValue(_peer));
@@ -965,43 +969,41 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 
 		const auto photoSize = st::boostReplaceUserpic.photoSize;
 		const auto session = &row->peer()->session();
-		content->add(object_ptr<Ui::CenterWrap<>>(
-			content,
-			Settings::SubscriptionUserpic(content, channel, photoSize)));
+		content->add(
+			Settings::SubscriptionUserpic(content, channel, photoSize),
+			style::al_top);
 
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
 
-		box->addRow(object_ptr<Ui::CenterWrap<>>(
-			box,
+		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_credits_box_subscription_title(),
-				st::creditsBoxAboutTitle)));
+				st::creditsBoxAboutTitle),
+			style::al_top);
 
 		Ui::AddSkip(content);
 
 		const auto subtitle1 = box->addRow(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			object_ptr<Ui::FlatLabel>(
 				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					st::creditsTopupPrice)))->entity();
+				st::creditsTopupPrice),
+			style::al_top);
 		subtitle1->setMarkedText(
 			tr::lng_credits_subscription_subtitle(
 				tr::now,
 				lt_emoji,
-				session->data().customEmojiManager().creditsEmoji(),
+				_creditsEmoji,
 				lt_cost,
 				{ QString::number(data.subscription.credits) },
 				Ui::Text::WithEntities),
-			Core::TextContext({ .session = session }));
+			_emojiHelper.context());
 		const auto subtitle2 = box->addRow(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			object_ptr<Ui::FlatLabel>(
 				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					st::creditsTopupPrice)))->entity();
+				st::creditsTopupPrice),
+			style::al_top);
 		session->credits().rateValue(
 			channel
 		) | rpl::start_with_next([=, currency = u"USD"_q](float64 rate) {
@@ -1023,8 +1025,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
 
-		box->addRow(object_ptr<Ui::CenterWrap<>>(
-			box,
+		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_credits_box_out_about(
@@ -1033,18 +1034,12 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 					) | Ui::Text::ToLink(
 						tr::lng_credits_box_out_about_link(tr::now)),
 					Ui::Text::WithEntities),
-				st::creditsBoxAboutDivider)));
+				st::creditsBoxAboutDivider),
+			style::al_top);
 
-		const auto button = box->addButton(tr::lng_box_ok(), [=] {
+		box->addButton(tr::lng_box_ok(), [=] {
 			box->closeBox();
 		});
-		const auto buttonWidth = st::boxWidth
-			- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
-		button->widthValue() | rpl::filter([=] {
-			return (button->widthNoMargins() != buttonWidth);
-		}) | rpl::start_with_next([=] {
-			button->resizeToWidth(buttonWidth);
-		}, button->lifetime());
 	}));
 }
 

@@ -315,13 +315,13 @@ private:
 	template <typename Method>
 	void enumerateDates(Method method);
 
-	// This function finds all monoforum sender elements that are displayed and calls template method
+	// This function finds all forum thread bar elements that are displayed and calls template method
 	// for each found date element (from the bottom to the top) using enumerateItems() method.
 	//
 	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int dateTop)" signature
 	// if it returns false the enumeration stops immediately.
 	template <typename Method>
-	void enumerateMonoforumSenders(Method method);
+	void enumerateForumThreadBars(Method method);
 
 	void scrollDateCheck();
 	void scrollDateHideByTimer();
@@ -470,7 +470,8 @@ private:
 	int _contentWidth = 0;
 	int _historyPaddingTop = 0;
 	int _revealHeight = 0;
-	Ui::PeerUserpicView _monoforumSenderUserpicView;
+	int _forumThreadBarWidth = 0;
+	Ui::PeerUserpicView _forumThreadBarUserpicView;
 
 	// Save visible area coords for painting / pressing userpics.
 	int _visibleAreaTop = 0;
@@ -572,6 +573,7 @@ private:
 	Element *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 	ClickHandlerPtr _scrollDateLink;
+	ClickHandlerPtr _forumThreadBarLink;
 
 };
 

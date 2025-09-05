@@ -240,7 +240,7 @@ void RepostView::recountDimensions() {
 	}
 
 	auto nameFull = TextWithEntities();
-	nameFull.append(HistoryView::Reply::PeerEmoji(owner, _sourcePeer));
+	nameFull.append(HistoryView::Reply::PeerEmoji(_sourcePeer));
 	nameFull.append(name);
 	auto context = Core::TextContext({
 		.session = &_story->session(),

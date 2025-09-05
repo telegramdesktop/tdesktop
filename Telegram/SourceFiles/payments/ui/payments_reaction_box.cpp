@@ -481,7 +481,8 @@ void PaidReactionsBox(
 			box,
 			tr::lng_paid_react_title(),
 			st::boostCenteredTitle),
-		st::boxRowPadding + QMargins(0, st::paidReactTitleSkip, 0, 0));
+		st::boxRowPadding + QMargins(0, st::paidReactTitleSkip, 0, 0),
+		style::al_top);
 	const auto labelWrap = box->addRow(
 		object_ptr<RpWidget>(box),
 		(st::boxRowPadding
@@ -517,13 +518,13 @@ void PaidReactionsBox(
 			state->shownPeer = state->savedShownPeer = barePeerId;
 		});
 
-	const auto named = box->addRow(object_ptr<CenterWrap<Checkbox>>(
-		box,
+	const auto named = box->addRow(
 		object_ptr<Checkbox>(
 			box,
 			tr::lng_paid_react_show_in_top(tr::now),
-			state->shownPeer.current() != 0)));
-	named->entity()->checkedValue(
+			state->shownPeer.current() != 0),
+		style::al_top);
+	named->checkedValue(
 	) | rpl::start_with_next([=](bool show) {
 		state->shownPeer = show ? state->savedShownPeer : 0;
 	}, named->lifetime());
@@ -545,10 +546,8 @@ void PaidReactionsBox(
 			st::creditsBoxButtonLabel);
 		args.submit(
 			state->chosen.value()
-		) | rpl::start_with_next([=](const TextWithContext &text) {
-			buttonLabel->setMarkedText(
-				text.text,
-				text.context);
+		) | rpl::start_with_next([=](const TextWithEntities &text) {
+			buttonLabel->setMarkedText(text);
 		}, buttonLabel->lifetime());
 		buttonLabel->setTextColorOverride(
 			box->getDelegate()->style().button.textFg->c);

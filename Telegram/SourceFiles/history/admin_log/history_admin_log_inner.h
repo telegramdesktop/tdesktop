@@ -77,7 +77,7 @@ public:
 
 	void resizeToWidth(int newWidth, int minHeight) {
 		_minHeight = minHeight;
-		return TWidget::resizeToWidth(newWidth);
+		return RpWidget::resizeToWidth(newWidth);
 	}
 
 	void saveState(not_null<SectionMemento*> memento);

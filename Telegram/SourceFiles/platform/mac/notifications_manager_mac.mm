@@ -205,6 +205,10 @@ bool ByDefault() {
 	return Supported();
 }
 
+bool VolumeSupported() {
+	return false;
+}
+
 void Create(Window::Notifications::System *system) {
 	system->setManager([=] { return std::make_unique<Manager>(system); });
 }
@@ -575,10 +579,7 @@ bool Manager::doSkipToast() const {
 }
 
 void Manager::doMaybePlaySound(Fn<void()> playSound) {
-	// Play through native notification system if toasts are enabled.
-	if (!Core::App().settings().desktopNotify()) {
-		playSound();
-	}
+	playSound();
 }
 
 void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {

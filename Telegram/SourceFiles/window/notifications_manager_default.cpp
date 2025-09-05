@@ -621,7 +621,7 @@ QPoint Widget::computePosition(int height) const {
 	return QPoint(_startPosition.x(), _startPosition.y() + realShift);
 }
 
-Background::Background(QWidget *parent) : TWidget(parent) {
+Background::Background(QWidget *parent) : RpWidget(parent) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 

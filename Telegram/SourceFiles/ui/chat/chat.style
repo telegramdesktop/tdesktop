@@ -34,14 +34,22 @@ historyReplyBottom: 2px;
 historyReplyPreview: 32px;
 historyReplyPreviewMargin: margins(7px, 4px, 4px, 4px);
 historyReplyPadding: margins(11px, 2px, 6px, 2px);
-historyReplyUser: icon {{ "chat/reply_type_user", windowFg }};
-historyReplyUserPadding: margins(0px, 4px, 4px, 0px);
-historyReplyGroup: icon {{ "chat/reply_type_group", windowFg }};
-historyReplyGroupPadding: margins(0px, 4px, 4px, 0px);
-historyReplyChannel: icon {{ "chat/reply_type_channel", windowFg }};
-historyReplyChannelPadding: margins(0px, 5px, 4px, 0px);
-historyReplyForward: icon {{ "mini_forward", windowFg }};
-historyReplyForwardPadding: margins(0px, 2px, 2px, 0px);
+historyReplyUser: IconEmoji {
+	icon: icon {{ "chat/reply_type_user", windowFg }};
+	padding: margins(0px, 4px, 4px, 0px);
+}
+historyReplyGroup: IconEmoji {
+	icon: icon {{ "chat/reply_type_group", windowFg }};
+	padding: margins(0px, 4px, 4px, 0px);
+}
+historyReplyChannel: IconEmoji {
+	icon: icon {{ "chat/reply_type_channel", windowFg }};
+	padding: margins(0px, 5px, 4px, 0px);
+}
+historyReplyForward: IconEmoji {
+	icon: icon {{ "mini_forward", windowFg }};
+	padding: margins(0px, 2px, 2px, 0px);
+}
 
 msgReplyPadding: margins(6px, 6px, 11px, 6px);
 msgReplyBarPos: point(1px, 0px);
@@ -520,6 +528,7 @@ historyVoiceMessageOutTTLSelected: icon {{ "chat/mini_media_once", historyFileOu
 historyTranscribeSkip: 10px;
 historyTranscribeSize: size(28px, 22px);
 historyTranscribeRadius: 4px;
+historyTranscribeLoadingSize: 24px;
 historyTranscribeInIcon: icon {{ "chat/voice_to_text", msgFileInBg }};
 historyTranscribeInIconSelected: icon {{ "chat/voice_to_text", msgFileInBgSelected }};
 historyTranscribeOutIcon: icon {{ "chat/voice_to_text", msgFileOutBg }};
@@ -939,6 +948,8 @@ msgServiceStarGiftBoxWidth: 224px;
 msgServiceStarGiftByWidth: 272px;
 msgServiceStarGiftStickerTop: 24px;
 msgServiceStarGiftStickerSize: 100px;
+msgServiceGiftThemeStickerSize: 64px;
+msgServiceGiftThemeStickerPadding: margins(18px, 18px, 18px, 18px);
 
 historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
@@ -1096,13 +1107,18 @@ repliesComposeControls: ComposeControls(defaultComposeControls) {
 	tabbedHeightMin: 220px;
 }
 
-boostMessageIcon: icon {{ "stories/boost_mini", windowFg }};
-boostMessageIconPadding: margins(0px, 2px, 0px, 0px);
-boostsMessageIcon: icon {{ "stories/boosts_mini", windowFg }};
-boostsMessageIconPadding: margins(0px, 2px, 0px, 0px);
-
-historyIvIcon: icon{{ "boosts/boost_mini2", windowFg }};
-historyIvIconPadding: margins(2px, 2px, 2px, 0px);
+boostMessageIcon: IconEmoji {
+	icon: icon {{ "stories/boost_mini", windowFg }};
+	padding: margins(0px, 2px, 0px, 0px);
+}
+boostsMessageIcon: IconEmoji {
+	icon: icon {{ "stories/boosts_mini", windowFg }};
+	padding: margins(0px, 2px, 0px, 0px);
+}
+historyIvIcon: IconEmoji {
+	icon: icon {{ "boosts/boost_mini2", windowFg }};
+	padding: margins(2px, 2px, 2px, 0px);
+}
 
 chatIntroStickerSize: 96px;
 chatIntroWidth: 224px;
@@ -1373,7 +1389,6 @@ chatTabsOutlineHorizontal: ChatTabsOutline {
 chatTabsOutlineVertical: ChatTabsOutline(chatTabsOutlineHorizontal) {
 }
 
-suggestPriceTonIconMargins: margins(0px, 2px, 0px, 0px);
 suggestPriceBox: Box(defaultBox) {
 	buttonPadding: margins(22px, 22px, 22px, 22px);
 	buttonHeight: 42px;
@@ -1404,7 +1419,7 @@ tonInput: InputField(defaultInputField) {
 }
 starsFieldIconPosition: point(0px, 10px);
 tonFieldIconSize: 16px;
-tonFieldIconPosition: point(2px, 9px);
+tonFieldIconPosition: point(2px, 11px);
 
 suggestBarTonIconSize: 14px;
 suggestBarTonIconMargins: margins(0px, 3px, 0px, 0px);
@@ -1415,4 +1430,27 @@ lowTonTextPadding: margins(0px, 0px, 0px, 8px);
 lowTonText: FlatLabel(defaultFlatLabel) {
 	minWidth: 100px;
 	align: align(top);
+}
+
+groupMembersWidgetList: PeerList(defaultPeerList) {
+	item: PeerListItem(defaultPeerListItem) {
+		photoPosition: point(12px, 6px);
+		namePosition: point(68px, 11px);
+		statusPosition: point(68px, 31px);
+		checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+			selectExtendTwice: 1px;
+			imageRadius: 21px;
+			imageSmallRadius: 19px;
+			check: RoundCheckbox(defaultPeerListCheck) {
+				size: 0px;
+			}
+		}
+		nameFgChecked: contactsNameFg;
+	}
+}
+
+saveMusicInfoMenu: Menu(defaultMenu) {
+	itemBgOver: windowBg;
+	itemFgOver: windowFg;
+	itemPadding: margins(17px, 4px, 17px, 3px);
 }

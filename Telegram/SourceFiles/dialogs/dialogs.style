@@ -556,7 +556,10 @@ dialogsMiniForward: DialogsMiniIcon {
 	skipMedia: 2px;
 }
 
-dialogsMiniReplyIcon: icon {{ "mini_forward-flip_horizontal", attentionButtonFg, point(0px, 2px) }};
+dialogsMiniReplyIcon: IconEmoji {
+	icon: icon {{ "mini_forward-flip_horizontal", attentionButtonFg }};
+	padding: margins(0px, 2px, 0px, 0px);
+}
 
 dialogsMiniReplyStory: DialogsMiniIcon {
 	icon: ThreeStateIcon {
@@ -799,8 +802,10 @@ dialogsSearchTagSkip: point(8px, 4px);
 dialogsSearchTagBottom: 10px;
 dialogsSearchTagLocked: icon{{ "dialogs/mini_tag_lock", lightButtonFgOver }};
 dialogsSearchTagPromo: defaultTextStyle;
-dialogsSearchTagArrow: icon{{ "dialogs/mini_arrow", windowSubTextFg }};
-dialogsSearchTagArrowPadding: margins(-6px, 3px, 0px, 0px);
+dialogsSearchTagArrow: IconEmoji {
+	icon: icon{{ "dialogs/mini_arrow", windowSubTextFg }};
+	padding: margins(-6px, 3px, 0px, 0px);
+}
 dialogsSearchTagPromoLeft: 6px;
 dialogsSearchTagPromoRight: 1px;
 dialogsSearchTagPromoSkip: 6px;
@@ -831,4 +836,76 @@ dialogsTopBarSuggestionTitleStyle: TextStyle(defaultTextStyle) {
 }
 dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
+}
+
+dialogsMiniQuoteIcon: icon{{ "chat/mini_quote", dialogsTextFg }};
+
+postsSearchIntroTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	minWidth: 64px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(semibold 16px);
+	}
+	align: align(top);
+}
+postsSearchIntroTitleMargin: margins(20px, 0px, 20px, 4px);
+postsSearchIntroSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 64px;
+	align: align(top);
+}
+postsSearchIntroSubtitleMargin: margins(20px, 4px, 20px, 16px);
+postsSearchIntroButton: RoundButton(defaultActiveButton) {
+	width: 200px;
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+postsSearchIntroFooter: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 64px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+postsSearchIntroFooterMargin: margins(20px, 12px, 20px, 0px);
+postsSearchIcon: icon {{ "box_search", windowFgActive }};
+postsSearchIconPadding: margins(12px, 1px, 6px, 0px);
+postsSearchArrow: icon {{ "dialogs/mini_arrow", windowFgActive }};
+postsSearchArrowPadding: margins(2px, 1px, 8px, 0px);
+
+dialogsUnconfirmedAuthPadding: margins(10px, 0px, 10px, 0px);
+dialogsUnconfirmedAuthTitle: FlatLabel(boxLabel) {
+	minWidth: 70px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+dialogsUnconfirmedAuthAbout: FlatLabel(boxLabel) {
+	minWidth: 70px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+dialogsUnconfirmedAuthButton: RoundButton(defaultBoxButton) {
+	width: -16px;
+	height: 26px;
+	textTop: 5px;
+	radius: 10px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(11px semibold);
+	}
+}
+dialogsUnconfirmedAuthButtonNo: RoundButton(dialogsUnconfirmedAuthButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+	textBgOver: attentionButtonBgOver;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: attentionButtonBgRipple;
+	}
 }

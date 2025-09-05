@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_icons.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_saved_messages.h"
+#include "data/data_saved_music.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_stories.h"
 #include "data/data_streaming.h"
@@ -84,6 +85,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 namespace {
+
+constexpr auto kNextForUpgradeGiftTimeout = 5 * crl::time(1000);
 
 using ViewElement = HistoryView::Element;
 
@@ -248,6 +251,7 @@ Session::Session(not_null<Main::Session*> session)
 , _notifySettings(std::make_unique<NotifySettings>(this))
 , _customEmojiManager(std::make_unique<CustomEmojiManager>(this))
 , _stories(std::make_unique<Stories>(this))
+, _savedMusic(std::make_unique<SavedMusic>(this))
 , _savedMessages(std::make_unique<SavedMessages>(this))
 , _chatbots(std::make_unique<Chatbots>(this))
 , _businessInfo(std::make_unique<BusinessInfo>(this))
@@ -405,6 +409,7 @@ void Session::clear() {
 		channel->setFlags(channel->flags()
 			& ~(ChannelDataFlag::Forum | ChannelDataFlag::MonoforumAdmin));
 	}
+	_savedMusic->clear();
 	_savedMessages->clear();
 
 	_sendActionManager->clear();
@@ -2155,6 +2160,57 @@ rpl::producer<> Session::pinnedDialogsOrderUpdated() const {
 	return _pinnedDialogsOrderUpdated.events();
 }
 
+void Session::nextForUpgradeGiftInvalidate(not_null<PeerData*> owner) {
+	_nextForUpgradeGifts.remove(owner);
+}
+
+void Session::nextForUpgradeGiftRequest(
+		not_null<PeerData*> owner,
+		Fn<void(std::optional<Data::SavedStarGift>)> done) {
+	auto &entry = _nextForUpgradeGifts[owner];
+	if (entry.requestId) {
+		entry.done = std::move(done);
+		return;
+	} else if (crl::now() - entry.received < kNextForUpgradeGiftTimeout) {
+		done(entry.gift);
+		return;
+	}
+	entry.done = std::move(done);
+
+	const auto finishWith = [=](std::optional<Data::SavedStarGift> gift) {
+		auto &entry = _nextForUpgradeGifts[owner];
+		entry.requestId = 0;
+		entry.gift = std::move(gift);
+		entry.received = crl::now();
+		base::take(entry.done)(entry.gift);
+	};
+	using Flag = MTPpayments_GetSavedStarGifts::Flag;
+	entry.requestId = _session->api().request(
+		MTPpayments_GetSavedStarGifts(
+			MTP_flags(Flag::f_exclude_unique
+				| Flag::f_exclude_unlimited
+				| Flag::f_exclude_unupgradable),
+			owner->input,
+			MTPint(), // collection_id
+			MTP_string(), // offset
+			MTP_int(1)) // limit
+	).done([=](const MTPpayments_SavedStarGifts &result) {
+		const auto &data = result.data();
+		processUsers(data.vusers());
+		processChats(data.vchats());
+		const auto &list = data.vgifts().v;
+		if (list.empty()) {
+			finishWith(std::nullopt);
+		} else if (auto parsed = Api::FromTL(owner, list[0])) {
+			finishWith(std::move(*parsed));
+		} else {
+			finishWith(std::nullopt);
+		}
+	}).fail([=](const MTP::Error &error) {
+		finishWith(std::nullopt);
+	}).send();
+}
+
 Session::CreditsSubsRebuilderPtr Session::createCreditsSubsRebuilder() {
 	if (auto result = activeCreditsSubsRebuilder()) {
 		return result;
@@ -3798,6 +3854,8 @@ void Session::webpageApplyFields(
 					return (DocumentData*)nullptr;
 				}, [](const MTPDwebPageAttributeUniqueStarGift &) {
 					return (DocumentData*)nullptr;
+				}, [](const MTPDwebPageAttributeStarGiftCollection &) {
+					return (DocumentData*)nullptr;
 				});
 				if (result) {
 					return result;
@@ -3817,6 +3875,14 @@ void Session::webpageApplyFields(
 					result->isEmoji = data.is_emojis();
 					result->isTextColor = data.is_text_color();
 					for (const auto &tl : data.vstickers().v) {
+						result->items.push_back(processDocument(tl));
+					}
+					return result;
+				}, [&](const MTPDwebPageAttributeStarGiftCollection &data) {
+					auto result = std::make_unique<WebPageStickerSet>();
+					result->isEmoji = false;
+					result->isTextColor = false;
+					for (const auto &tl : data.vicons().v) {
 						result->items.push_back(processDocument(tl));
 					}
 					return result;
@@ -4325,6 +4391,9 @@ void Session::unregisterPhotoItem(
 void Session::registerDocumentItem(
 		not_null<const DocumentData*> document,
 		not_null<HistoryItem*> item) {
+	if (document->isMusicForProfile()) {
+		document->owner().savedMusic().loadIds();
+	}
 	_documentItems[document].insert(item);
 }
 
@@ -5173,6 +5242,16 @@ int Session::commonStarsPerMessage(
 		not_null<const ChannelData*> channel) const {
 	const auto i = _commonStarsPerMessage.find(channel);
 	return (i != end(_commonStarsPerMessage)) ? i->second : 0;
+}
+
+void Session::setPendingStarsRating(StarsRatingPending value) {
+	_pendingStarsRating = value
+		? std::make_unique<StarsRatingPending>(value)
+		: nullptr;
+}
+
+StarsRatingPending Session::pendingStarsRating() const {
+	return _pendingStarsRating ? *_pendingStarsRating : StarsRatingPending();
 }
 
 void Session::clearLocalStorage() {

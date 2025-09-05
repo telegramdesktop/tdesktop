@@ -1,3 +1,46 @@
+6.1.2 (02.09.25)
+
+- Close selected chat in Ctrl+Tab chat switch by 'Q'.
+- Auto-split pasted multiple lines to checklist task creation.
+- Fix color picker in userpic builder.
+
+6.1.1 (01.09.25)
+
+- Ctrl+Tab / Ctrl+Shift+Tab collect chats on every launch.
+- Fix Ctrl+Tab / Ctrl+Shift+Tab shortcut override.
+- Fix possible crashes in saved music.
+- Fix webview error label alignment.
+
+6.1 (31.08.25)
+
+- Music on Profiles.
+- Gift Themes.
+- Gift Value Information.
+- Upgrading Gifts for Other Users.
+
+6.0.3 beta (22.08.25)
+
+- Ctrl+Tab / Ctrl+Shift+Tab for last opened chats switching.
+- New topic dividers for groups with topics and tabs.
+- Adjust volume of notification sounds.
+- Show stars required for the next rating level.
+- IV support on Linux (in case WebView works).
+
+6.0.2 (01.08.25)
+
+- Improve design of profile stars rating.
+
+6.0.1 (01.08.25)
+
+- Fix crashing on Windows 7.
+
+6.0 (31.07.25)
+
+- Public Post Search.
+- Story Albums.
+- Gift Collections.
+- Profile Rating.
+
 5.16.6 (25.07.25)
 
 - Fix bad layout in box buttons.

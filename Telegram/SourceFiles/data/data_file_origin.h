@@ -221,6 +221,7 @@ UpdatedFileReferences GetFileReferences(
 UpdatedFileReferences GetFileReferences(const MTPhelp_PremiumPromo &data);
 UpdatedFileReferences GetFileReferences(const MTPmessages_WebPage &data);
 UpdatedFileReferences GetFileReferences(const MTPstories_Stories &data);
+UpdatedFileReferences GetFileReferences(const MTPusers_SavedMusic &data);
 
 // Admin Log Event.
 UpdatedFileReferences GetFileReferences(const MTPMessageMedia &data);

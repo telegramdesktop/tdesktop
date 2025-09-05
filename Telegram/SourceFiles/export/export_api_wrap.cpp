@@ -2068,7 +2068,7 @@ bool ApiWrap::processFileLoad(
 	} else if (!story && (_settings->media.types & type) != type) {
 		file.skipReason = SkipReason::FileType;
 		return true;
-	} else if (!story && fullSize >= _settings->media.sizeLimit) {
+	} else if (!story && fullSize > _settings->media.sizeLimit) {
 		// Don't load thumbs for large files that we skip.
 		file.skipReason = SkipReason::FileSize;
 		return true;

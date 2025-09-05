@@ -58,6 +58,7 @@ private:
 	void deleteAndClear();
 	[[nodiscard]] PeerData *checkFromSinglePeer() const;
 	[[nodiscard]] bool hasScheduledMessages() const;
+	[[nodiscard]] bool hasSavedMusicMessages() const;
 	[[nodiscard]] std::optional<RevokeConfig> revokeText(
 		not_null<PeerData*> peer) const;
 	[[nodiscard]] PaidPostType paidPostType() const;
@@ -75,6 +76,7 @@ private:
 	bool _moderateDeleteAll = false;
 
 	bool _revokeForBot = false;
+	bool _revokeJustClearForChannel = false;
 
 	object_ptr<Ui::FlatLabel> _text = { nullptr };
 	object_ptr<Ui::Checkbox> _revoke = { nullptr };

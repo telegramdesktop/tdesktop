@@ -64,6 +64,7 @@ struct PaintContext {
 	FilterId filter = 0;
 	float64 topicsExpanded = 0.;
 	crl::time now = 0;
+	QStringView searchLowerText;
 	int width = 0;
 	bool active = false;
 	bool selected = false;

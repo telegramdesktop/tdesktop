@@ -63,11 +63,10 @@ void LoginEmail::setupContent() {
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
-	const auto wrap = AddWrappedField(
+	const auto newInput = AddWrappedField(
 		content,
 		tr::lng_settings_cloud_login_email_placeholder(),
 		QString());
-	const auto newInput = wrap->entity();
 	const auto error = AddError(content, nullptr);
 	newInput->changes() | rpl::start_with_next([=] {
 		error->hide();

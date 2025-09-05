@@ -1429,6 +1429,17 @@ Image *DocumentData::getReplyPreview(
 		Data::FileOrigin origin,
 		not_null<PeerData*> context,
 		bool spoiler) {
+	if (v::is<Data::FileOriginMessage>(origin.data)) {
+		if (const auto item = _owner->message(
+				v::get<FullMsgId>(origin.data))) {
+			if (const auto cover = LookupVideoCover(this, item)) {
+				return cover->getReplyPreview(
+					std::move(origin),
+					context,
+					spoiler);
+			}
+		}
+	}
 	if (!hasThumbnail()) {
 		return nullptr;
 	} else if (!_replyPreview) {
@@ -1701,6 +1712,10 @@ void DocumentData::forceIsStreamedAnimation() {
 	setMaybeSupportsStreaming(true);
 }
 
+bool DocumentData::isMusicForProfile() const {
+	return isSong();
+}
+
 bool DocumentData::isVoiceMessage() const {
 	return (type == VoiceDocument);
 }
@@ -1729,6 +1744,7 @@ bool DocumentData::isTheme() const {
 		|| _filename.endsWith(u".tdesktop-palette"_q, Qt::CaseInsensitive)
 		|| (hasMimeType(u"application/x-tgtheme-tdesktop"_q)
 			&& (_filename.isEmpty()
+				|| !_filename.contains('.')
 				|| _nameType == Core::NameType::ThemeFile));
 }
 

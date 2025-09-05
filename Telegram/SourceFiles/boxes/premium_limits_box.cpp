@@ -585,14 +585,14 @@ void ChannelsLimitBox(
 
 	const auto content = box->addRow(
 		object_ptr<PeerListContent>(box, controller),
-		{});
+		style::margins());
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
 	const auto count = 100;
 	const auto placeholder = box->addRow(
 		object_ptr<PeerListDummy>(box, count, st::defaultPeerList),
-		{});
+		style::margins());
 
 	using namespace rpl::mappers;
 	controller->countValue(
@@ -676,14 +676,14 @@ void PublicLinksLimitBox(
 
 	const auto content = box->addRow(
 		object_ptr<PeerListContent>(box, controller),
-		{});
+		style::margins());
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
 	const auto count = defaultLimit;
 	const auto placeholder = box->addRow(
 		object_ptr<PeerListDummy>(box, count, st::defaultPeerList),
-		{});
+		style::margins());
 
 	using namespace rpl::mappers;
 	controller->countValue(

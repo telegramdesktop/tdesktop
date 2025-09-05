@@ -235,7 +235,8 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 		| Flag::CallNotEmpty
 		| Flag::SimilarExpanded
 		| Flag::Signatures
-		| Flag::SignatureProfiles)) {
+		| Flag::SignatureProfiles
+		| Flag::ForumTabs)) {
 		if (const auto history = this->owner().historyLoaded(this)) {
 			if (diff & Flag::CallNotEmpty) {
 				history->updateChatListEntry();
@@ -261,6 +262,9 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 			}
 			if (diff & (Flag::Signatures | Flag::SignatureProfiles)) {
 				session().changes().peerUpdated(this, UpdateFlag::Rights);
+			}
+			if (diff & Flag::ForumTabs) {
+				history->forumTabsChanged(which & Flag::ForumTabs);
 			}
 		}
 	}
@@ -1402,7 +1406,7 @@ void ApplyChannelUpdate(
 			update.vboosts_applied().value_or_empty(),
 			update.vboosts_unrestrict().value_or_empty());
 	}
-	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
+	channel->setThemeToken(qs(update.vtheme_emoticon().value_or_empty()));
 	channel->setTranslationDisabled(update.is_translations_disabled());
 
 	const auto reactionsLimit = update.vreactions_limit().value_or_empty();

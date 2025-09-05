@@ -20,6 +20,7 @@ struct HistoryMessageReply;
 struct PreparedServiceText;
 
 namespace Data {
+class Thread;
 struct Reaction;
 struct ReactionId;
 } // namespace Data
@@ -265,8 +266,10 @@ struct DateBadge : RuntimeComponent<DateBadge, Element> {
 
 };
 
-struct MonoforumSenderBar : RuntimeComponent<MonoforumSenderBar, Element> {
-	void init(not_null<PeerData*> parentChat, not_null<PeerData*> peer);
+struct ForumThreadBar : RuntimeComponent<ForumThreadBar, Element> {
+	void init(
+		not_null<PeerData*> parentChat,
+		not_null<Data::Thread*> thread);
 
 	int height() const;
 	void paint(
@@ -276,7 +279,7 @@ struct MonoforumSenderBar : RuntimeComponent<MonoforumSenderBar, Element> {
 		int w,
 		bool chatWide,
 		bool skipPatternLine) const;
-	static void PaintFor(
+	static int PaintForGetWidth(
 		Painter &p,
 		not_null<const Ui::ChatStyle*> st,
 		not_null<Element*> itemView,
@@ -285,9 +288,8 @@ struct MonoforumSenderBar : RuntimeComponent<MonoforumSenderBar, Element> {
 		int w,
 		bool chatWide);
 
-	PeerData *sender = nullptr;
+	base::weak_ptr<Data::Thread> thread;
 	Ui::Text::String text;
-	ClickHandlerPtr link;
 	mutable Ui::PeerUserpicView view;
 	int width = 0;
 
@@ -295,7 +297,7 @@ private:
 	static void Paint(
 		Painter &p,
 		not_null<const Ui::ChatStyle*> st,
-		not_null<PeerData*> sender,
+		not_null<Data::Thread*> thread,
 		const Ui::Text::String &text,
 		int width,
 		Ui::PeerUserpicView &view,
@@ -475,7 +477,7 @@ public:
 	[[nodiscard]] bool displayDate() const;
 	[[nodiscard]] bool isInOneDayWithPrevious() const;
 
-	[[nodiscard]] bool displayMonoforumSender() const;
+	[[nodiscard]] bool displayForumThreadBar() const;
 	[[nodiscard]] bool isInOneBunchWithPrevious() const;
 
 	virtual void draw(Painter &p, const PaintContext &context) const = 0;
@@ -688,7 +690,7 @@ protected:
 	std::unique_ptr<Reactions::InlineList> _reactions;
 
 private:
-	void recountMonoforumSenderBarInBlocks();
+	void recountThreadBarInBlocks();
 
 	// This should be called only from previousInBlocksChanged()
 	// to add required bits to the Composer mask
@@ -754,5 +756,13 @@ private:
 
 [[nodiscard]] Window::SessionController *ExtractController(
 	const ClickContext &context);
+
+[[nodiscard]] TextSelection FindSearchQueryHighlight(
+	const QString &text,
+	const QString &query);
+
+[[nodiscard]] TextSelection FindSearchQueryHighlight(
+	const QString &text,
+	QStringView lower);
 
 } // namespace HistoryView

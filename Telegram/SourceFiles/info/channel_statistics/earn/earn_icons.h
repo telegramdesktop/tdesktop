@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/custom_emoji_helper.h"
+
 namespace Ui::Text {
 class CustomEmoji;
 } // namespace Ui::Text
@@ -25,5 +27,17 @@ namespace Ui::Earn {
 std::unique_ptr<Ui::Text::CustomEmoji> MakeCurrencyIconEmoji(
 	const style::font &font,
 	const QColor &c);
+
+struct IconDescriptor {
+	int size = 0;
+	std::optional<QMargins> margin;
+};
+[[nodiscard]] Ui::Text::PaletteDependentEmoji IconCreditsEmoji(
+	IconDescriptor descriptor = {});
+[[nodiscard]] Ui::Text::PaletteDependentEmoji IconCurrencyEmoji(
+	IconDescriptor descriptor = {});
+
+[[nodiscard]] Ui::Text::PaletteDependentEmoji IconCreditsEmojiSmall();
+[[nodiscard]] Ui::Text::PaletteDependentEmoji IconCurrencyEmojiSmall();
 
 } // namespace Ui::Earn

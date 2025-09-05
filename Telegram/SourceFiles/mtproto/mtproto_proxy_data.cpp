@@ -153,7 +153,7 @@ ProxyData::Status ProxyData::status() const {
 }
 
 bool ProxyData::supportsCalls() const {
-	return (type == Type::Socks5);
+	return false;// (type == Type::Socks5);
 }
 
 bool ProxyData::tryCustomResolve() const {

@@ -142,7 +142,7 @@ void Track::fillFromFile(const QString &filePath) {
 	}
 }
 
-void Track::playWithLooping(bool looping) {
+void Track::playWithLooping(bool looping, float64 volumeOverride) {
 	_active = true;
 	if (failed() || _samples.empty()) {
 		finish();
@@ -152,7 +152,12 @@ void Track::playWithLooping(bool looping) {
 	alSourceStop(_alSource);
 	_looping = looping;
 	alSourcei(_alSource, AL_LOOPING, _looping ? 1 : 0);
-	alSourcef(_alSource, AL_GAIN, _volume);
+	alSourcef(
+		_alSource,
+		AL_GAIN,
+		(volumeOverride > 0)
+			? volumeOverride
+			: float64(Core::App().settings().notificationsVolume()) / 100.);
 	alSourcePlay(_alSource);
 	_instance->trackStarted(this);
 }

@@ -129,6 +129,7 @@ private:
 	std::optional<int> _fullCount;
 	base::flat_set<not_null<const HistoryItem*>> _downloading;
 	base::flat_set<not_null<const HistoryItem*>> _downloaded;
+	int _storiesAddToAlbumId = 0;
 
 	std::vector<Element> _addPostponed;
 

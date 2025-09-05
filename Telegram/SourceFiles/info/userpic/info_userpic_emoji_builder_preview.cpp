@@ -166,6 +166,7 @@ EmojiUserpic::EmojiUserpic(
 , _painter(size.width())
 , _duration(st::slideWrapDuration) {
 	resize(size);
+	setNaturalWidth(size.width());
 }
 
 void EmojiUserpic::setDocument(not_null<DocumentData*> document) {

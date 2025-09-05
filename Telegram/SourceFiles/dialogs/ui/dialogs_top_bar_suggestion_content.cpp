@@ -6,15 +6,154 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
+
+#include "base/call_delayed.h"
+#include "data/data_authorization.h"
+#include "lang/lang_keys.h"
+#include "ui/rect.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/ui_rpl_filter.h"
+#include "ui/vertical_list.h"
+#include "ui/vertical_list.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/shadow.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_settings.h"
+#include "styles/style_layers.h"
 
 namespace Dialogs {
+
+class UnconfirmedAuthWrap : public Ui::SlideWrap<Ui::VerticalLayout> {
+public:
+	UnconfirmedAuthWrap(
+		not_null<Ui::RpWidget*> parent,
+		object_ptr<Ui::VerticalLayout> &&child)
+	: Ui::SlideWrap<Ui::VerticalLayout>(parent, std::move(child)) {
+	}
+
+	rpl::producer<int> desiredHeightValue() const override {
+		return entity()->heightValue();
+	}
+};
+
+not_null<Ui::SlideWrap<Ui::VerticalLayout>*> CreateUnconfirmedAuthContent(
+		not_null<Ui::RpWidget*> parent,
+		const std::vector<Data::UnreviewedAuth> &list,
+		Fn<void(bool)> callback) {
+	const auto wrap = Ui::CreateChild<UnconfirmedAuthWrap>(
+		parent,
+		object_ptr<Ui::VerticalLayout>(parent));
+	const auto content = wrap->entity();
+	content->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(content);
+		p.fillRect(content->rect(), st::dialogsBg);
+	}, content->lifetime());
+
+	const auto padding = st::dialogsUnconfirmedAuthPadding;
+
+	Ui::AddSkip(content);
+
+	content->add(
+		object_ptr<Ui::FlatLabel>(
+			content,
+			tr::lng_unconfirmed_auth_title(),
+			st::dialogsUnconfirmedAuthTitle),
+		padding,
+		style::al_top);
+
+	Ui::AddSkip(content);
+
+	auto messageText = QString();
+	if (list.size() == 1) {
+		const auto &auth = list.at(0);
+		messageText = tr::lng_unconfirmed_auth_single(
+			tr::now,
+			lt_from,
+			auth.device,
+			lt_country,
+			auth.location);
+	} else {
+		auto commonLocation = list.at(0).location;
+		for (auto i = 1; i < list.size(); ++i) {
+			if (commonLocation != list.at(i).location) {
+				commonLocation.clear();
+				break;
+			}
+		}
+		if (commonLocation.isEmpty()) {
+			messageText = tr::lng_unconfirmed_auth_multiple(
+				tr::now,
+				lt_count,
+				list.size());
+		} else {
+			messageText = tr::lng_unconfirmed_auth_multiple_from(
+				tr::now,
+				lt_count,
+				list.size(),
+				lt_country,
+				commonLocation);
+		}
+	}
+
+	content->add(
+		object_ptr<Ui::FlatLabel>(
+			content,
+			rpl::single(messageText),
+			st::dialogsUnconfirmedAuthAbout),
+		padding,
+		style::al_top)->setTryMakeSimilarLines(true);
+
+	Ui::AddSkip(content);
+	const auto buttons = content->add(object_ptr<Ui::FixedHeightWidget>(
+		content,
+		st::dialogsUnconfirmedAuthButton.height));
+	const auto yes = Ui::CreateChild<Ui::RoundButton>(
+		buttons,
+		tr::lng_unconfirmed_auth_confirm(),
+		st::dialogsUnconfirmedAuthButton);
+	const auto no = Ui::CreateChild<Ui::RoundButton>(
+		buttons,
+		tr::lng_unconfirmed_auth_deny(),
+		st::dialogsUnconfirmedAuthButtonNo);
+	yes->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	no->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	yes->setClickedCallback([=] {
+		wrap->toggle(false, anim::type::normal);
+		base::call_delayed(st::universalDuration, wrap, [=] {
+			callback(true);
+		});
+	});
+	no->setClickedCallback([=] {
+		wrap->toggle(false, anim::type::normal);
+		base::call_delayed(st::universalDuration, wrap, [=] {
+			callback(false);
+		});
+	});
+	buttons->sizeValue(
+	) | rpl::filter_size(
+	) | rpl::start_with_next([=](const QSize &s) {
+		const auto halfWidth = (s.width() - rect::m::sum::h(padding)) / 2;
+		yes->moveToLeft(
+			padding.left() + (halfWidth - yes->width()) / 2,
+			0);
+		no->moveToLeft(
+			padding.left() + halfWidth + (halfWidth - no->width()) / 2,
+			0);
+	}, buttons->lifetime());
+	Ui::AddSkip(content);
+	content->add(object_ptr<Ui::FadeShadow>(content));
+
+	return wrap;
+}
 
 TopBarSuggestionContent::TopBarSuggestionContent(not_null<Ui::RpWidget*> p)
 : Ui::RippleButton(p, st::defaultRippleAnimationBgOver)

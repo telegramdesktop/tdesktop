@@ -88,6 +88,7 @@ struct Instance::ShuffleData {
 	PeerId monoforumPeerId = 0;
 	History *migrated = nullptr;
 	bool scheduled = false;
+	bool savedMusic = false;
 	int indexInPlayedIds = 0;
 	bool allLoaded = false;
 	rpl::lifetime nextSliceLifetime;
@@ -387,6 +388,8 @@ void Instance::validatePlaylist(not_null<Data*> data) {
 		const auto sharedMediaViewer = (key->topicRootId
 			== SparseIdsMergedSlice::kScheduledTopicId)
 			? SharedScheduledMediaViewer
+			: (key->topicRootId == SparseIdsMergedSlice::kSavedMusicTopicId)
+			? SavedMusicMediaViewer
 			: SharedMediaMergedViewer;
 		sharedMediaViewer(
 			&data->history->session(),
@@ -413,7 +416,10 @@ auto Instance::playlistKey(not_null<const Data*> data) const
 		return {};
 	}
 	const auto item = data->history->owner().message(contextId);
-	if (!item || (!item->isRegular() && !item->isScheduled())) {
+	if (!item
+		|| (!item->isRegular()
+			&& !item->isScheduled()
+			&& !item->isSavedMusicItem())) {
 		return {};
 	}
 
@@ -424,6 +430,8 @@ auto Instance::playlistKey(not_null<const Data*> data) const
 		data->history->peer->id,
 		(item->isScheduled()
 			? SparseIdsMergedSlice::kScheduledTopicId
+			: item->isSavedMusicItem()
+			? SparseIdsMergedSlice::kSavedMusicTopicId
 			: data->topicRootId),
 		data->monoforumPeerId,
 		data->migrated ? data->migrated->peer->id : 0,
@@ -908,14 +916,18 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 	const auto key = playlistKey(data);
 	const auto scheduled = key
 		&& (key->topicRootId == SparseIdsMergedSlice::kScheduledTopicId);
+	const auto savedMusic = key
+		&& (key->topicRootId == SparseIdsMergedSlice::kSavedMusicTopicId);
 	if (raw->history != data->history
 		|| raw->topicRootId != data->topicRootId
 		|| raw->monoforumPeerId != data->monoforumPeerId
 		|| raw->migrated != data->migrated
-		|| raw->scheduled != scheduled) {
+		|| raw->scheduled != scheduled
+		|| raw->savedMusic != savedMusic) {
 		raw->history = data->history;
 		raw->migrated = data->migrated;
 		raw->scheduled = scheduled;
+		raw->savedMusic = savedMusic;
 		raw->nextSliceLifetime.destroy();
 		raw->allLoaded = false;
 		raw->playlist.clear();

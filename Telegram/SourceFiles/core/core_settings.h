@@ -950,6 +950,13 @@ public:
 	[[nodiscard]] Dialogs::Ui::QuickDialogAction quickDialogAction() const;
 	void setQuickDialogAction(Dialogs::Ui::QuickDialogAction);
 
+	[[nodiscard]] ushort notificationsVolume() const {
+		return _notificationsVolume;
+	}
+	void setNotificationsVolume(ushort value) {
+		_notificationsVolume = value;
+	}
+
 	void resetOnLastLogout();
 
 private:
@@ -1092,6 +1099,8 @@ private:
 
 	Dialogs::Ui::QuickDialogAction _quickDialogAction
 		= Dialogs::Ui::QuickDialogAction::Disabled;
+
+	ushort _notificationsVolume = 100;
 
 	QByteArray _photoEditorBrush;
 

@@ -886,32 +886,18 @@ rpl::producer<int> AddSlowmodeSlider(
 	return secondsCount->value();
 }
 
-void AddBoostsUnrestrictLabels(
-		not_null<Ui::VerticalLayout*> container,
-		not_null<Main::Session*> session) {
+void AddBoostsUnrestrictLabels(not_null<Ui::VerticalLayout*> container) {
 	const auto labels = container->add(
 		object_ptr<Ui::FixedHeightWidget>(container, st::normalFont->height),
 		st::slowmodeLabelsMargin);
-	const auto manager = &session->data().customEmojiManager();
-	const auto one = Ui::Text::SingleCustomEmoji(
-		manager->registerInternalEmoji(
-			st::boostMessageIcon,
-			st::boostMessageIconPadding));
-	const auto many = Ui::Text::SingleCustomEmoji(
-		manager->registerInternalEmoji(
-			st::boostsMessageIcon,
-			st::boostsMessageIconPadding));
-	const auto context = Core::TextContext({
-		.session = session,
-		.customEmojiLoopLimit = 1,
-	});
+	const auto one = Ui::Text::IconEmoji(&st::boostMessageIcon);
+	const auto many = Ui::Text::IconEmoji(&st::boostsMessageIcon);
 	for (auto i = 0; i != kBoostsUnrestrictValues; ++i) {
 		const auto label = Ui::CreateChild<Ui::FlatLabel>(
 			labels,
 			st::boostsUnrestrictLabel);
 		label->setMarkedText(
-			TextWithEntities(i ? many : one).append(QString::number(i + 1)),
-			context);
+			TextWithEntities(i ? many : one).append(QString::number(i + 1)));
 		rpl::combine(
 			labels->widthValue(),
 			label->widthValue()
@@ -977,7 +963,7 @@ rpl::producer<int> AddBoostsUnrestrictSlider(
 
 	const auto inner = outer->entity();
 
-	AddBoostsUnrestrictLabels(inner, &peer->session());
+	AddBoostsUnrestrictLabels(inner);
 
 	const auto slider = inner->add(
 		object_ptr<Ui::MediaSlider>(inner, st::localStorageLimitSlider),

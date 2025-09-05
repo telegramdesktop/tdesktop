@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_file_origin.h"
 #include "data/data_user.h"
+#include "data/data_saved_music.h"
 #include "data/data_saved_sublist.h"
 #include "main/main_session.h"
 #include "apiwrap.h"

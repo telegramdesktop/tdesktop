@@ -237,6 +237,12 @@ void SubsectionTabs::setupSlider(
 	slider->requestShown(
 	) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
 		const auto full = vertical ? scroll->height() : scroll->width();
+		const auto tab = request.ymax - request.ymin;
+		if (tab < full) {
+			const auto add = std::min(full - tab, tab) / 2;
+			request.ymax += add;
+			request.ymin -= add;
+		}
 		const auto scrollValue = vertical
 			? scroll->scrollTop()
 			: scroll->scrollLeft();
@@ -510,6 +516,10 @@ void SubsectionTabs::toggleModes() {
 	_layoutRequests.fire({});
 }
 
+bool SubsectionTabs::dying() const {
+	return !UsedFor(_history);
+}
+
 rpl::producer<> SubsectionTabs::removeRequests() const {
 	if (const auto forum = _history->peer->forum()) {
 		return forum->destroyed();
@@ -728,7 +738,7 @@ void SubsectionTabs::refreshSlice() {
 			}
 			return thread->chatListBadgesState();
 		}();
-		if (topic) {
+		if (topic && badges.unreadCounter <= 0) {
 			// Don't show the small indicators for non-visited unread topics.
 			badges.unread = false;
 		}

@@ -78,7 +78,8 @@ public:
 		Fn<void()> &&callback,
 		anim::type animated = anim::type::instant);
 
-	void startRecording();
+	void startRecordingAndLock(bool round);
+
 	void finishAnimating();
 	void hideAnimated();
 	void hideFast();
@@ -145,6 +146,9 @@ private:
 	void startRedCircleAnimation();
 	void installListenStateFilter();
 
+	void startRecording();
+	void prepareOnSendPress();
+
 	[[nodiscard]] bool isTypeRecord() const;
 	[[nodiscard]] bool hasDuration() const;
 
@@ -193,6 +197,8 @@ private:
 
 	FilterCallback _startRecordingFilter;
 	FilterCallback _hasTTLFilter;
+
+	base::unique_qptr<QObject> _keyFilterInRecordingState;
 
 	bool _warningShown = false;
 	bool _pauseInsteadSend = false;

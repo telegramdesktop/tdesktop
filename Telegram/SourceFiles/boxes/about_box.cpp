@@ -13,12 +13,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+#include "styles/style_channel_earn.h"
+#include "styles/style_chat.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_menu_icons.h"
+#include "styles/style_premium.h"
+#include "styles/style_settings.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -158,3 +166,151 @@ QString currentVersionText() {
 #endif
 	return result;
 }
+
+void ArchiveHintBox(
+		not_null<Ui::GenericBox*> box,
+		bool unarchiveOnNewMessage,
+		Fn<void()> onUnarchive) {
+	box->setNoContentMargin(true);
+
+	const auto content = box->verticalLayout().get();
+
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	{
+		const auto &icon = st::dialogsArchiveUserpic;
+		const auto rect = Rect(icon.size() * 2);
+		auto owned = object_ptr<Ui::RpWidget>(content);
+		owned->resize(rect.size());
+		owned->setNaturalWidth(rect.width());
+		const auto widget = box->addRow(std::move(owned), style::al_top);
+		widget->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = Painter(widget);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::activeButtonBg);
+			p.drawEllipse(rect);
+			icon.paintInCenter(p, rect);
+		}, widget->lifetime());
+	}
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			content,
+			tr::lng_archive_hint_title(),
+			st::boxTitle),
+		style::al_top);
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	{
+		const auto label = box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				content,
+				(unarchiveOnNewMessage
+						? tr::lng_archive_hint_about_unmuted
+						: tr::lng_archive_hint_about)(
+					lt_link,
+					tr::lng_archive_hint_about_link(
+						lt_emoji,
+						rpl::single(
+							Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
+						Ui::Text::RichLangValue
+					) | rpl::map([](TextWithEntities text) {
+						return Ui::Text::Link(std::move(text), 1);
+					}),
+					Ui::Text::RichLangValue),
+				st::channelEarnHistoryRecipientLabel));
+		label->resizeToWidth(box->width()
+			- rect::m::sum::h(st::boxRowPadding));
+		label->setLink(
+			1,
+			std::make_shared<GenericClickHandler>([=](ClickContext context) {
+				if (context.button == Qt::LeftButton) {
+					onUnarchive();
+				}
+			}));
+	}
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	{
+		const auto padding = QMargins(
+			st::settingsButton.padding.left(),
+			st::boxRowPadding.top(),
+			st::boxRowPadding.right(),
+			st::boxRowPadding.bottom());
+		const auto addEntry = [&](
+				rpl::producer<QString> title,
+				rpl::producer<QString> about,
+				const style::icon &icon) {
+			const auto top = content->add(
+				object_ptr<Ui::FlatLabel>(
+					content,
+					std::move(title),
+					st::channelEarnSemiboldLabel),
+				padding);
+			Ui::AddSkip(content, st::channelEarnHistoryThreeSkip);
+			content->add(
+				object_ptr<Ui::FlatLabel>(
+					content,
+					std::move(about),
+					st::channelEarnHistoryRecipientLabel),
+				padding);
+			const auto left = Ui::CreateChild<Ui::RpWidget>(
+				box->verticalLayout().get());
+			left->paintRequest(
+			) | rpl::start_with_next([=] {
+				auto p = Painter(left);
+				icon.paint(p, 0, 0, left->width());
+			}, left->lifetime());
+			left->resize(icon.size());
+			top->geometryValue(
+			) | rpl::start_with_next([=](const QRect &g) {
+				left->moveToLeft(
+					(g.left() - left->width()) / 2,
+					g.top() + st::channelEarnHistoryThreeSkip);
+			}, left->lifetime());
+		};
+		addEntry(
+			tr::lng_archive_hint_section_1(),
+			tr::lng_archive_hint_section_1_info(),
+			st::menuIconArchive);
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+		addEntry(
+			tr::lng_archive_hint_section_2(),
+			tr::lng_archive_hint_section_2_info(),
+			st::menuIconStealth);
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+		addEntry(
+			tr::lng_archive_hint_section_3(),
+			tr::lng_archive_hint_section_3_info(),
+			st::menuIconStoriesSavedSection);
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+	}
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	{
+		const auto &st = st::premiumPreviewDoubledLimitsBox;
+		box->setStyle(st);
+		auto button = object_ptr<Ui::RoundButton>(
+			box,
+			tr::lng_archive_hint_button(),
+			st::defaultActiveButton);
+		button->setTextTransform(
+			Ui::RoundButton::TextTransform::NoTransform);
+		button->resizeToWidth(box->width()
+			- st.buttonPadding.left()
+			- st.buttonPadding.left());
+		button->setClickedCallback([=] { box->closeBox(); });
+		box->addButton(std::move(button));
+	}
+}
+

@@ -173,6 +173,10 @@ WebPageType ParseWebPageType(
 		return WebPageType::Giftcode;
 	} else if (type == u"telegram_stickerset"_q) {
 		return WebPageType::StickerSet;
+	} else if (type == u"telegram_story_album"_q) {
+		return WebPageType::StoryAlbum;
+	} else if (type == u"telegram_collection"_q) {
+		return WebPageType::GiftCollection;
 	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;
 	} else {

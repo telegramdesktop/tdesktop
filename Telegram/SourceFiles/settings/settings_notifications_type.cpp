@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/ringtones_box.h"
 #include "boxes/peer_list_box.h"
+#include "core/application.h"
+#include "data/notify/data_peer_notify_volume.h"
 #include "boxes/peer_list_controllers.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
@@ -21,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_mute.h"
+#include "platform/platform_notifications_manager.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
@@ -379,6 +382,15 @@ void ExceptionsController::sort() {
 	Unexpected("Type in Title.");
 }
 
+[[nodiscard]] rpl::producer<QString> VolumeSubtitle(Notify type) {
+	switch (type) {
+	case Notify::User: return tr::lng_notification_volume_private_chats();
+	case Notify::Group: return tr::lng_notification_volume_groups();
+	case Notify::Broadcast: return tr::lng_notification_volume_channel();
+	}
+	Unexpected("Type in VolumeSubtitle.");
+}
+
 void SetupChecks(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
@@ -476,6 +488,24 @@ void SetupChecks(
 		st::settingsButton,
 		{ &st::menuIconSoundOn });
 
+	{
+		auto controller = DefaultRingtonesVolumeController(session, type);
+		Ui::AddRingtonesVolumeSlider(
+			toneInner,
+			rpl::single(true),
+			VolumeSubtitle(type),
+			Data::VolumeController{
+				.volume = base::take(controller.volume),
+				.saveVolume = [=](ushort volume) {
+					Core::App().notifications().playSound(
+						session,
+						toneValue().id,
+						0.01 * volume);
+					controller.saveVolume(volume);
+				},
+			});
+	}
+
 	enabled->toggledValue(
 	) | rpl::filter([=](bool value) {
 		return (value != NotificationsEnabledForType(session, type));
@@ -499,6 +529,8 @@ void SetupChecks(
 		controller->show(Box(RingtonesBox, session, toneValue(), [=](
 				Data::NotifySound sound) {
 			settings->defaultUpdate(type, {}, {}, sound);
+		}, Data::VolumeController{
+			DefaultRingtonesVolumeController(session, type).volume,
 		}));
 	});
 }

@@ -192,8 +192,28 @@ void SubTabs::mouseMoveEvent(QMouseEvent *e) {
 
 void SubTabs::wheelEvent(QWheelEvent *e) {
 	const auto delta = ScrollDeltaF(e);
-	if (std::abs(delta.x()) > std::abs(delta.y())) {
+
+	const auto phase = e->phase();
+	const auto horizontal = (std::abs(delta.x()) > std::abs(delta.y()));
+	if (phase == Qt::NoScrollPhase) {
+		_locked = std::nullopt;
+	} else if (phase == Qt::ScrollBegin) {
+		_locked = std::nullopt;
+	} else if (!_locked) {
+		_locked = horizontal ? Qt::Horizontal : Qt::Vertical;
+	}
+	if (horizontal) {
+		if (_locked == Qt::Vertical) {
+			return;
+		}
 		e->accept();
+	} else {
+		if (_locked == Qt::Horizontal) {
+			e->accept();
+		} else {
+			e->ignore();
+		}
+		return;
 	}
 	_scrollAnimation.stop();
 	_scroll = std::clamp(_scroll - delta.x(), 0., _scrollMax * 1.);

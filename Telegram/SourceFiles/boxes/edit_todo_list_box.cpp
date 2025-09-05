@@ -143,6 +143,11 @@ private:
 		int id,
 		TextWithEntities text,
 		anim::type animated);
+	void insertTask(
+		int beforeIndex,
+		int id,
+		TextWithEntities text,
+		anim::type animated);
 	void initTaskField(not_null<Task*> task, TextWithEntities text);
 	void checkLastTask();
 	void validateState();
@@ -150,6 +155,9 @@ private:
 	void destroy(std::unique_ptr<Task> task);
 	void removeDestroyed(not_null<Task*> field);
 	int findField(not_null<Ui::InputField*> field) const;
+	void handlePaste(
+		not_null<Ui::InputField*> field,
+		const QStringList &list);
 
 	not_null<Ui::BoxContent*> _box;
 	not_null<Ui::VerticalLayout*> _container;
@@ -185,6 +193,27 @@ void InitField(
 		field,
 		session,
 		options);
+}
+
+[[nodiscard]] QStringList ParsePastedList(const QString &text) {
+	auto list = QStringView(text).split('\n');
+	for (auto i = list.begin(); i != list.end();) {
+		auto text = i->trimmed();
+		if (text.isEmpty() && (i + 1 != list.end())) {
+			i = list.erase(i);
+		} else {
+			*i++ = text;
+		}
+	}
+	if (list.size() < 2) {
+		return {};
+	}
+	auto result = QStringList();
+	result.reserve(list.size());
+	for (const auto &view : list) {
+		result.push_back(view.toString());
+	}
+	return result;
 }
 
 not_null<Ui::FlatLabel*> CreateWarningLabel(
@@ -263,7 +292,7 @@ Tasks::Task::Task(
 		session->user()->isPremium()
 			? st::createPollOptionFieldPremium
 			: st::createPollOptionField,
-		Ui::InputField::Mode::NoNewlines,
+		Ui::InputField::Mode::MultiLine,
 		tr::lng_todo_create_list_add()))
 , _limit(session->appConfig().todoListItemTextLimit()) {
 	InitField(outer, _field, session);
@@ -629,24 +658,35 @@ void Tasks::addTask(
 		int id,
 		TextWithEntities text,
 		anim::type animated) {
+	insertTask(_list.size(), id, std::move(text), animated);
+}
+
+void Tasks::insertTask(
+		int beforeIndex,
+		int id,
+		TextWithEntities text,
+		anim::type animated) {
 	if (full()) {
 		return;
 	}
+	Assert(beforeIndex >= 0 && beforeIndex <= _list.size());
 	if (_list.size() > 1) {
 		(*(_list.end() - 2))->removePlaceholder();
 		(*(_list.end() - 2))->toggleRemoveAlways(true);
 	}
 	const auto locked = id && _existingLocked;
-	_list.push_back(std::make_unique<Task>(
-		_box,
-		_container,
-		&_controller->session(),
-		id,
-		_position + _list.size() + _destroyed.size(),
-		locked));
-	const auto field = _list.back()->field();
+	const auto i = _list.insert(
+		begin(_list) + beforeIndex,
+		std::make_unique<Task>(
+			_box,
+			_container,
+			&_controller->session(),
+			id,
+			_position + beforeIndex + _destroyed.size(),
+			locked));
+	const auto field = i->get()->field();
 	if (!locked) {
-		initTaskField(_list.back().get(), std::move(text));
+		initTaskField(i->get(), std::move(text));
 	} else {
 		InitMessageFieldHandlers(
 			_controller,
@@ -659,7 +699,7 @@ void Tasks::addTask(
 		});
 	}
 	field->finishAnimating();
-	_list.back()->show(animated);
+	i->get()->show(animated);
 	fixShadows();
 }
 
@@ -706,6 +746,14 @@ void Tasks::initTaskField(not_null<Task*> task, TextWithEntities text) {
 	}, field->lifetime());
 	field->changes(
 	) | rpl::start_with_next([=] {
+		auto list = ParsePastedList(field->getLastText());
+		if (!list.empty()) {
+			field->setText(list.front());
+			field->forceProcessContentsChanges();
+
+			list.pop_front();
+			handlePaste(field, list);
+		}
 		Ui::PostponeCall(crl::guard(field, [=] {
 			validateState();
 		}));
@@ -791,6 +839,27 @@ int Tasks::findField(not_null<Ui::InputField*> field) const {
 
 	Ensures(result >= 0 && result < _list.size());
 	return result;
+}
+
+void Tasks::handlePaste(
+		not_null<Ui::InputField*> field,
+		const QStringList &list) {
+	const auto index = findField(field);
+	for (auto i = 0, count = int(list.size()); i != count; ++i) {
+		insertTask(
+			index + 1 + i,
+			0, // id
+			TextWithEntities{ list[i] },
+			anim::type::instant);
+	}
+	const auto last = std::min(
+		int(index + list.size()),
+		int(_list.size()) - 1);
+	const auto add = _list[last]->field();
+	crl::on_main(add, [=] {
+		add->setCursorPosition(add->getLastText().size());
+		add->setFocus();
+	});
 }
 
 void Tasks::checkLastTask() {

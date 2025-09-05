@@ -77,6 +77,14 @@ void ProcessCreditsPayment(
 							show->showToast(
 								tr::lng_gift_sold_out_title(tr::now));
 						}
+					} else if (*error == u"STARGIFT_USER_USAGE_LIMITED"_q) {
+						show->showToast({
+							.text = tr::lng_gift_sent_finished(
+								tr::now,
+								lt_count,
+								std::max(form->starGiftPerUserLimit, 1),
+								Ui::Text::RichLangValue),
+						});
 					} else {
 						show->showToast(*error);
 					}

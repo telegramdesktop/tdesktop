@@ -641,20 +641,11 @@ void ChangeSetNameBox(
 		const auto it = sets.find(input.id);
 		return (it == sets.end()) ? QString() : it->second->title;
 	}();
-	const auto wrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(
+	const auto field = box->addRow(object_ptr<Ui::InputField>(
 		box,
-		st::editStickerSetNameField.heightMin));
-	auto owned = object_ptr<Ui::InputField>(
-		wrap,
 		st::editStickerSetNameField,
 		tr::lng_stickers_context_edit_name(),
-		wasName);
-	const auto field = owned.data();
-	wrap->widthValue() | rpl::start_with_next([=](int width) {
-		field->move(0, 0);
-		field->resize(width, field->height());
-		wrap->resize(width, field->height());
-	}, wrap->lifetime());
+		wasName));
 	field->selectAll();
 	constexpr auto kMaxSetNameLength = 50;
 	field->setMaxLength(kMaxSetNameLength);

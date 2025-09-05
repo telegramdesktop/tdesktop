@@ -99,14 +99,7 @@ public:
 		return _link;
 	}
 
-	[[nodiscard]] static TextWithEntities PeerEmoji(
-		not_null<History*> history,
-		PeerData *peer);
-	[[nodiscard]] static TextWithEntities PeerEmoji(
-		not_null<Data::Session*> owner,
-		PeerData *peer);
-	[[nodiscard]] static TextWithEntities ForwardEmoji(
-		not_null<Data::Session*> owner);
+	[[nodiscard]] static TextWithEntities PeerEmoji(PeerData *peer);
 	[[nodiscard]] static TextWithEntities ComposePreviewName(
 		not_null<History*> history,
 		not_null<HistoryItem*> to,

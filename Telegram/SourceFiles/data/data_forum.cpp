@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_forum.h"
 
+#include "data/components/recent_peers.h"
 #include "data/data_channel.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_forum_icons.h"
 #include "data/data_forum_topic.h"
+#include "data/data_replies_list.h"
 #include "data/notify/data_notify_settings.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -193,6 +195,7 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 		_activeSubsectionTopic = nullptr;
 	}
 	_topicDestroyed.fire(raw);
+	_history->session().recentPeers().chatOpenRemove(raw);
 	session().changes().topicUpdated(
 		raw,
 		Data::TopicUpdate::Flag::Destroyed);
@@ -274,6 +277,33 @@ void Forum::saveActiveSubsectionThread(not_null<Thread*> thread) {
 
 Thread *Forum::activeSubsectionThread() const {
 	return _activeSubsectionTopic;
+}
+
+void Forum::markUnreadCountsUnknown(MsgId readTillId) {
+	if (!channel()->useSubsectionTabs()) {
+		return;
+	}
+	for (const auto &[rootId, topic] : _topics) {
+		const auto replies = topic->replies();
+		if (replies->unreadCountCurrent() > 0) {
+			replies->setInboxReadTill(readTillId, std::nullopt);
+		}
+	}
+}
+
+void Forum::updateUnreadCounts(
+		MsgId readTillId,
+		const base::flat_map<not_null<ForumTopic*>, int> &counts) {
+	if (!channel()->useSubsectionTabs()) {
+		return;
+	}
+	for (const auto &[rootId, topic] : _topics) {
+		const auto raw = topic.get();
+		const auto replies = raw->replies();
+		const auto i = counts.find(raw);
+		const auto count = (i != end(counts)) ? i->second : 0;
+		replies->setInboxReadTill(readTillId, count);
+	}
 }
 
 void Forum::listMessageChanged(HistoryItem *from, HistoryItem *to) {

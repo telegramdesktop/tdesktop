@@ -1074,8 +1074,10 @@ storiesRepostSimpleStyle: QuoteStyle(defaultQuoteStyle) {
 	outline: 0px;
 	radius: 10px;
 }
-storiesRepostIcon: icon {{ "mediaview/mini_repost", windowFg }};
-storiesRepostIconPadding: margins(0px, 4px, 2px, 0px);
+storiesRepostIcon: IconEmoji{
+	icon: icon {{ "mediaview/mini_repost", windowFg }};
+	padding: margins(0px, 4px, 2px, 0px);
+}
 storiesRepostUserpicPadding: margins(0px, 1px, 4px, 0px);
 
 mediaviewSponsoredButton: RoundButton(defaultActiveButton) {

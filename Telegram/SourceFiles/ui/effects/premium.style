@@ -25,6 +25,8 @@ PremiumBubble {
 	textSkip: pixels;
 	tailSize: size;
 	font: font;
+	additionalStyle: TextStyle;
+	additionalSkip: pixels;
 }
 PremiumCover {
 	bg: color;
@@ -224,18 +226,6 @@ premiumGiftOption: PremiumOption {
 	badgeMargins: margins(5px, 1px, 5px, 0px);
 }
 
-premiumGiftUserpicPadding: margins(10px, 27px, 18px, 13px);
-premiumGiftTitlePadding: margins(18px, 0px, 18px, 0px);
-premiumGiftAboutPadding: margins(18px, 5px, 18px, 23px);
-premiumGiftTermsPadding: margins(18px, 27px, 18px, 0px);
-premiumGiftTerms: FlatLabel(defaultFlatLabel) {
-	minWidth: 256px;
-	align: align(top);
-	textFg: windowSubTextFg;
-	style: TextStyle(defaultTextStyle) {
-		font: font(11px);
-	}
-}
 premiumGiftBox: Box(premiumPreviewBox) {
 	buttonPadding: margins(12px, 12px, 12px, 12px);
 }
@@ -245,15 +235,14 @@ premiumGiftsUserpicButton: UserpicButton(defaultUserpicButton) {
 	photoSize: 66px;
 	photoPosition: point(-1px, -1px);
 }
-premiumGiftsUserpicBadgeSize: size(26px, 26px);
-premiumGiftsUserpicBadgeInner: 2px;
-premiumGiftsUserpicBadgeFont: font(14px bold);
-premiumGiftsBoostIcon: icon{{ "stories/boost_mini", windowBgActive }};
 
 boostSkipTop: 37px;
 boostLimits: PremiumLimits(defaultPremiumLimits) {
 	gradientFromLeft: true;
 	nonPremiumBg: windowBgRipple;
+}
+negativeStarsLimits: PremiumLimits(boostLimits) {
+	gradientFromLeft: false;
 }
 boostBubble: PremiumBubble(defaultPremiumBubble) {
 	height: 32px;
@@ -262,6 +251,17 @@ boostBubble: PremiumBubble(defaultPremiumBubble) {
 	textSkip: 2px;
 	tailSize: size(14px, 6px);
 	font: font(16px);
+	additionalStyle: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+	additionalSkip: 2px;
+}
+starRatingBubble: PremiumBubble(boostBubble) {
+	font: font(16px semibold);
+}
+iconOnlyPremiumBubble: PremiumBubble(boostBubble) {
+	padding: margins(7px, 0px, 7px, 0px);
+	textSkip: 0px;
 }
 boostTitleSkip: 32px;
 boostTitle: FlatLabel(defaultFlatLabel) {
@@ -286,6 +286,12 @@ boostText: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	align: align(top);
 }
+boostTextPending: FlatLabel(boostText) {
+	textFg: windowSubTextFg;
+}
+boostTextNegative: FlatLabel(boostText) {
+	textFg: attentionButtonFg;
+}
 boostReassignText: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	align: align(top);
@@ -294,6 +300,7 @@ boostBottomSkip: 6px;
 boostBox: Box(premiumPreviewDoubledLimitsBox) {
 	buttonPadding: margins(16px, 12px, 16px, 12px);
 	buttonHeight: 42px;
+	buttonWide: true;
 	button: RoundButton(defaultActiveButton) {
 		height: 42px;
 		textTop: 12px;

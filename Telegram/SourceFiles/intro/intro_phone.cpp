@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "intro/intro_code.h"
+#include "intro/intro_email.h"
 #include "intro/intro_qr.h"
 #include "styles/style_intro.h"
 #include "ui/widgets/buttons.h"
@@ -237,6 +238,9 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 		fillSentCodeData(data);
 		getData()->phone = DigitsOnly(_sentPhone);
 		getData()->phoneHash = qba(data.vphone_code_hash());
+		if (getData()->emailStatus == EmailStatus::SetupRequired) {
+			return goNext<EmailWidget>();
+		}
 		const auto next = data.vnext_type();
 		if (next && next->type() == mtpc_auth_codeTypeCall) {
 			getData()->callStatus = CallStatus::Waiting;

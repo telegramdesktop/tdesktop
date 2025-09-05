@@ -183,7 +183,7 @@ LinuxIntegration::LinuxIntegration()
 				return timer;
 			}();
 
-			if (timer.hasExpired(1000)) {
+			if (timer.hasExpired(10000)) {
 				malloc_trim(0);
 				timer.start();
 			}

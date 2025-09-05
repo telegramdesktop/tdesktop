@@ -54,6 +54,8 @@ private:
 
 	int errorTop() const override;
 
+	[[nodiscard]] bool isEmailVerification() const;
+
 	void updateCallText();
 	void refreshLang();
 	void updateControlsGeometry();

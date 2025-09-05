@@ -824,9 +824,12 @@ void TopBarWidget::setActiveChat(
 
 			if (const auto channel = peer->asChannel()) {
 				if (channel->canEditStories()
-					&& !channel->owner().stories().archiveCountKnown(
-						channel->id)) {
-					channel->owner().stories().archiveLoadMore(channel->id);
+					&& !channel->owner().stories().albumIdsCountKnown(
+						channel->id,
+						Data::kStoriesAlbumIdArchive)) {
+					channel->owner().stories().albumIdsLoadMore(
+						channel->id,
+						Data::kStoriesAlbumIdArchive);
 				}
 			}
 		}

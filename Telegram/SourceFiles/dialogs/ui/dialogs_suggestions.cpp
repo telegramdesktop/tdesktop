@@ -13,8 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "boxes/peer_list_box.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "data/components/recent_peers.h"
 #include "data/components/top_peers.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -24,6 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "dialogs/ui/chat_search_empty.h"
+#include "dialogs/ui/chat_search_in.h"
+#include "dialogs/ui/posts_search_intro.h"
+#include "dialogs/dialogs_inner_widget.h"
+#include "dialogs/dialogs_search_posts.h"
 #include "history/history.h"
 #include "info/downloads/info_downloads_widget.h"
 #include "info/media/info_media_widget.h"
@@ -34,10 +40,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "settings/settings_credits_graphics.h"
+#include "settings/settings_premium.h"
 #include "storage/storage_shared_media.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/swipe_handler.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/toast/toast.h"
+#include "ui/text/custom_emoji_helper.h"
+#include "ui/text/custom_emoji_text_badge.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
@@ -61,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 #include "styles/style_window.h"
 
 namespace Dialogs {
@@ -1331,6 +1343,8 @@ Suggestions::Suggestions(
 , _appsScroll(std::make_unique<Ui::ElasticScroll>(this))
 , _appsContent(
 	_appsScroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(this)))
+, _postsScroll(std::make_unique<Ui::ElasticScroll>(this))
+, _postsWrap(_postsScroll->setOwnedWidget(object_ptr<Ui::RpWidget>(this)))
 , _recentApps(setupRecentApps())
 , _popularApps(setupPopularApps())
 , _searchQueryTimer([=] { applySearchQuery(); }) {
@@ -1397,6 +1411,7 @@ void Suggestions::setupTabs() {
 		{ Key{ Tab::Chats }, tr::lng_recent_chats(tr::now) },
 		{ Key{ Tab::Channels }, tr::lng_recent_channels(tr::now) },
 		{ Key{ Tab::Apps }, tr::lng_recent_apps(tr::now) },
+		{ Key{ Tab::Posts }, tr::lng_recent_posts(tr::now) },
 		{ Key{ Tab::Media, MediaType::Photo }, tr::lng_all_photos(tr::now) },
 		{ Key{ Tab::Media, MediaType::Video }, tr::lng_all_videos(tr::now) },
 		{ Key{ Tab::Downloads }, tr::lng_all_downloads(tr::now) },
@@ -1411,13 +1426,21 @@ void Suggestions::setupTabs() {
 			tr::lng_all_voice(tr::now),
 		},
 	};
-	auto sections = std::vector<QString>();
+
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto sections = std::vector<TextWithEntities>();
 	for (const auto key : _tabKeys) {
 		const auto i = labels.find(key);
 		Assert(i != end(labels));
-		sections.push_back(i->second);
+		auto text = TextWithEntities{ i->second };
+		if (key.tab == Tab::Posts) {
+			text.append(' ').append(helper.paletteDependent(
+				Ui::Text::CustomEmojiTextBadge(
+					tr::lng_premium_summary_new_badge(tr::now))));
+		}
+		sections.push_back(std::move(text));
 	}
-	_tabs->setSections(sections);
+	_tabs->setSections(sections, helper.context());
 	_tabs->sectionActivated(
 	) | rpl::start_with_next([=](int section) {
 		Assert(section >= 0 && section < _tabKeys.size());
@@ -1478,7 +1501,7 @@ void Suggestions::setupChats() {
 				Ui::Text::FixAmpersandInAction),
 			.removeAllConfirm = tr::lng_recent_hide_sure(tr::now),
 			.removeAll = removeAll,
-		});
+			});
 	}, _topPeers->lifetime());
 
 	_topPeers->scrollToRequests(
@@ -1496,8 +1519,8 @@ void Suggestions::setupChats() {
 }
 
 void Suggestions::handlePressForChatPreview(
-		PeerId id,
-		Fn<void(bool)> callback) {
+	PeerId id,
+	Fn<void(bool)> callback) {
 	callback = crl::guard(this, callback);
 	const auto row = RowDescriptor(
 		_controller->session().data().history(id),
@@ -1812,7 +1835,11 @@ bool Suggestions::consumeSearchQuery(const QString &query) {
 	const auto key = _key.current();
 	const auto tab = key.tab;
 	const auto type = (key.tab == Tab::Media) ? key.mediaType : Type::kCount;
-	if (tab != Tab::Downloads
+	if (tab == Tab::Posts) {
+		const auto changed = (_searchQuery != query);
+		setPostsSearchQuery(query);
+		return changed || !query.isEmpty();
+	} else if (tab != Tab::Downloads
 		&& type != Type::File
 		&& type != Type::Link
 		&& type != Type::MusicFile) {
@@ -1829,6 +1856,177 @@ bool Suggestions::consumeSearchQuery(const QString &query) {
 		_searchQueryTimer.callOnce(kSearchQueryDelay);
 	}
 	return true;
+}
+
+void Suggestions::setupPostsSearch() {
+	_postsSearch = std::make_unique<PostsSearch>(&_controller->session());
+
+	_postsSearch->stateUpdates(
+	) | rpl::start_with_next([=](const PostsSearchState &state) {
+		if (state.intro) {
+			if (!_postsSearchIntro) {
+				setupPostsIntro(*state.intro);
+			} else {
+				_postsSearchIntro->update(*state.intro);
+			}
+			return;
+		} else if (!_postsContent) {
+			setupPostsResults();
+		}
+
+		_postsContent->applySearchState(SearchState{
+			.tab = ChatSearchTab::PublicPosts,
+			.query = _searchQuery,
+		});
+		if (state.loading) {
+			_postsContent->searchRequested(true);
+		} else {
+			_postsContent->searchReceived(
+				state.page,
+				nullptr,
+				{ .posts = true, .start = true },
+				state.totalCount);
+			_postsScroll->scrollToY(0);
+			updatePostsSearchVisibleRange();
+		}
+	}, _postsWrap->lifetime());
+
+	_postsSearch->pagesUpdates(
+	) | rpl::start_with_next([=](const PostsSearchState &state) {
+		Expects(!state.intro && !state.loading);
+
+		if (!_postsContent) {
+			return;
+		}
+		_postsContent->searchReceived(
+			state.page,
+			nullptr,
+			{ .posts = true },
+			state.totalCount);
+		updatePostsSearchVisibleRange();
+	}, _postsWrap->lifetime());
+}
+
+void Suggestions::setPostsSearchQuery(const QString &query) {
+	if (!_postsSearch) {
+		setupPostsSearch();
+	}
+	if (!query.isEmpty()) {
+		_persist = true;
+	}
+	_searchQuery = query;
+	_searchQueryTimer.cancel();
+	_postsSearch->setQuery(query);
+}
+
+void Suggestions::setupPostsResults() {
+	Expects(!_postsContent);
+
+	delete base::take(_postsSearchIntro);
+	_postsContent = Ui::CreateChild<InnerWidget>(
+		_postsWrap.get(),
+		_controller,
+		rpl::single(InnerWidget::ChildListShown()));
+
+	_postsContent->applySearchState(SearchState{
+		.tab = ChatSearchTab::PublicPosts,
+		.query = _searchQuery,
+	});
+	_postsContent->searchRequested(true);
+
+	_postsContent->chosenRow(
+	) | rpl::start_with_next([=](const ChosenRow &row) {
+		const auto history = row.key.history();
+		if (!history) {
+			return;
+		}
+		_persist = true;
+		const auto showAtMsgId = row.message.fullId.msg;
+		auto params = Window::SectionShow(
+			Window::SectionShow::Way::ClearStack);
+		params.highlight = Window::SearchHighlightId(_searchQuery);
+		if (row.newWindow) {
+			_controller->showInNewWindow(history->peer, showAtMsgId);
+		} else {
+			_controller->showThread(history, showAtMsgId, params);
+		}
+	}, _postsContent->lifetime());
+
+	_postsContent->heightValue() | rpl::start_with_next([=](int height) {
+		_postsWrap->resize(_postsWrap->width(), height);
+	}, _postsContent->lifetime());
+
+	rpl::combine(
+		rpl::single(rpl::empty) | rpl::then(_postsScroll->scrolls()),
+		_postsScroll->heightValue()
+	) | rpl::start_with_next([=] {
+		updatePostsSearchVisibleRange();
+	}, _postsContent->lifetime());
+
+	_postsContent->setLoadMoreCallback([=] {
+		_postsSearch->requestMore();
+	});
+
+	_postsContent->setNarrowRatio(0.);
+	_postsContent->show();
+	updateControlsGeometry();
+}
+
+void Suggestions::updatePostsSearchVisibleRange() {
+	Expects(_postsContent != nullptr);
+
+	const auto top = _postsScroll->scrollTop();
+	const auto height = _postsScroll->height();
+	_postsContent->setVisibleTopBottom(top, top + height);
+}
+
+void Suggestions::setupPostsIntro(const PostsSearchIntroState &intro) {
+	Expects(!_postsSearchIntro);
+
+	delete base::take(_postsContent);
+	_postsSearchIntro = Ui::CreateChild<PostsSearchIntro>(_postsWrap, intro);
+
+	_postsSearchIntro->searchWithStars(
+	) | rpl::start_with_next([=](int stars) {
+		if (!_controller->session().premium()) {
+			Settings::ShowPremium(
+				_controller,
+				u"posts_search"_q);
+		} else if (!stars) {
+			_postsSearch->setAllowedStars(0);
+		} else {
+			using namespace Settings;
+			const auto done = [=](Settings::SmallBalanceResult result) {
+				if (result == Settings::SmallBalanceResult::Success
+					|| result == Settings::SmallBalanceResult::Already) {
+					const auto spent = _postsSearch->setAllowedStars(stars);
+					if (spent > 0) {
+						_controller->showToast({
+							.text = tr::lng_posts_paid_spent(
+								tr::now,
+								lt_count,
+								spent,
+								Ui::Text::RichLangValue),
+							.attach = RectPart::Top,
+							.duration = Ui::Toast::kDefaultDuration * 2,
+						});
+					}
+				}
+			};
+			MaybeRequestBalanceIncrease(
+				_controller->uiShow(),
+				stars,
+				SmallBalanceForSearch{},
+				done);
+		}
+	}, _postsSearchIntro->lifetime());
+
+	_postsScroll->heightValue() | rpl::start_with_next([=](int height) {
+		_postsWrap->resize(_postsWrap->width(), height);
+	}, _postsSearchIntro->lifetime());
+
+	_postsSearchIntro->show();
+	updateControlsGeometry();
 }
 
 void Suggestions::applySearchQuery() {
@@ -1926,7 +2124,10 @@ void Suggestions::switchTab(Key key) {
 }
 
 void Suggestions::ensureContent(Key key) {
-	if (key.tab != Tab::Downloads && key.tab != Tab::Media) {
+	if (key.tab == Tab::Posts) {
+		setPostsSearchQuery(QString());
+		return;
+	} else if (key.tab != Tab::Downloads && key.tab != Tab::Media) {
 		return;
 	}
 	auto &list = _mediaLists[key];
@@ -1958,6 +2159,7 @@ void Suggestions::startSlideAnimation(Key was, Key now) {
 			case Tab::Chats: return _chatsScroll.get();
 			case Tab::Channels: return _channelsScroll.get();
 			case Tab::Apps: return _appsScroll.get();
+			case Tab::Posts: return _postsScroll.get();
 			}
 			return _mediaLists[key].wrap;
 		};
@@ -2009,6 +2211,7 @@ void Suggestions::startShownAnimation(bool shown, Fn<void()> finish) {
 	_chatsScroll->hide();
 	_channelsScroll->hide();
 	_appsScroll->hide();
+	_postsScroll->hide();
 	for (const auto &[key, list] : _mediaLists) {
 		list.wrap->hide();
 	}
@@ -2028,6 +2231,7 @@ void Suggestions::finishShow() {
 	_chatsScroll->setVisible(key == Key{ Tab::Chats });
 	_channelsScroll->setVisible(key == Key{ Tab::Channels });
 	_appsScroll->setVisible(key == Key{ Tab::Apps });
+	_postsScroll->setVisible(key == Key{ Tab::Posts });
 	for (const auto &[mediaKey, list] : _mediaLists) {
 		list.wrap->setVisible(key == mediaKey);
 		if (key == mediaKey) {
@@ -2042,6 +2246,8 @@ void Suggestions::finishShow() {
 		reinstallSwipe(_channelsScroll.get());
 	} else if (key == Key{ Tab::Apps }) {
 		reinstallSwipe(_appsScroll.get());
+	} else if (key == Key{ Tab::Posts }) {
+		reinstallSwipe(_postsScroll.get());
 	}
 }
 
@@ -2055,6 +2261,7 @@ std::vector<Suggestions::Key> Suggestions::TabKeysFor(
 		{ Tab::Chats },
 		{ Tab::Channels },
 		{ Tab::Apps },
+		{ Tab::Posts },
 		{ Tab::Media, MediaType::Photo },
 		{ Tab::Media, MediaType::Video },
 		{ Tab::Downloads },
@@ -2118,6 +2325,16 @@ void Suggestions::updateControlsGeometry() {
 
 	_appsScroll->setGeometry(content);
 	_appsContent->resizeToWidth(w);
+
+	_postsScroll->setGeometry(content);
+	_postsWrap->resizeToWidth(w);
+	if (_postsSearchIntro) {
+		_postsSearchIntro->setGeometry(0, 0, w, height() - tabs);
+	} else if (_postsContent) {
+		_postsContent->resizeToWidth(w);
+		_postsContent->setMinimumHeight(height() - tabs);
+		_postsContent->refresh();
+	}
 
 	const auto expanding = false;
 	for (const auto &[key, list] : _mediaLists) {

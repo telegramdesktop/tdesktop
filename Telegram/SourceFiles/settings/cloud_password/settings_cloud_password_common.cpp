@@ -126,29 +126,25 @@ void SetupHeader(
 	Ui::AddSkip(content);
 
 	content->add(
-		object_ptr<Ui::CenterWrap<>>(
+		object_ptr<Ui::FlatLabel>(
 			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				std::move(subtitle),
-				st::changePhoneTitle)),
-		st::changePhoneTitlePadding);
+			std::move(subtitle),
+			st::changePhoneTitle),
+		st::changePhoneTitlePadding,
+		style::al_top);
 
 	{
 		const auto &st = st::settingLocalPasscodeDescription;
-		const auto wrap = content->add(
-			object_ptr<Ui::CenterWrap<>>(
+		const auto description = content->add(
+			object_ptr<Ui::FlatLabel>(
 				content,
-				object_ptr<Ui::FlatLabel>(
-					content,
-					v::text::take_marked(std::move(about)),
-					st,
-					st::defaultPopupMenu)),
-			st::changePhoneDescriptionPadding);
-		wrap->setAttribute(Qt::WA_TransparentForMouseEvents);
-		wrap->resize(
-			wrap->width(),
-			st::settingLocalPasscodeDescriptionHeight);
+				v::text::take_marked(std::move(about)),
+				st,
+				st::defaultPopupMenu),
+			st::changePhoneDescriptionPadding,
+			style::al_top);
+		description->setTryMakeSimilarLines(true);
+		description->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 }
 
@@ -174,24 +170,24 @@ not_null<Ui::PasswordInput*> AddPasswordField(
 	return field;
 }
 
-not_null<Ui::CenterWrap<Ui::InputField>*> AddWrappedField(
+not_null<Ui::InputField*> AddWrappedField(
 		not_null<Ui::VerticalLayout*> content,
 		rpl::producer<QString> &&placeholder,
 		const QString &text) {
-	return content->add(object_ptr<Ui::CenterWrap<Ui::InputField>>(
-		content,
+	return content->add(
 		object_ptr<Ui::InputField>(
 			content,
 			st::settingLocalPasscodeInputField,
 			std::move(placeholder),
-			text)));
+			text),
+		style::al_top);
 }
 
 not_null<Ui::LinkButton*> AddLinkButton(
-		not_null<Ui::CenterWrap<Ui::InputField>*> wrap,
+		not_null<Ui::InputField*> input,
 		rpl::producer<QString> &&text) {
 	const auto button = Ui::CreateChild<Ui::LinkButton>(
-		wrap->parentWidget(),
+		input->parentWidget(),
 		QString());
 	std::move(
 		text
@@ -199,9 +195,8 @@ not_null<Ui::LinkButton*> AddLinkButton(
 		button->setText(text);
 	}, button->lifetime());
 
-	wrap->geometryValue(
+	input->geometryValue(
 	) | rpl::start_with_next([=](QRect r) {
-		r.translate(wrap->entity()->pos().x(), 0);
 		button->moveToLeft(r.x(), r.y() + r.height() + st::passcodeTextLine);
 	}, button->lifetime());
 	return button;
@@ -211,14 +206,12 @@ not_null<Ui::FlatLabel*> AddError(
 		not_null<Ui::VerticalLayout*> content,
 		Ui::PasswordInput *input) {
 	const auto error = content->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				// Set any text to resize.
-				tr::lng_language_name(tr::now),
-				st::settingLocalPasscodeError)),
-		st::changePhoneDescriptionPadding)->entity();
+			QString(),
+			st::settingLocalPasscodeError),
+		st::changePhoneDescriptionPadding,
+		style::al_top);
 	error->hide();
 	if (input) {
 		QObject::connect(input, &Ui::MaskedInputField::changed, [=] {
@@ -232,13 +225,12 @@ not_null<Ui::RoundButton*> AddDoneButton(
 		not_null<Ui::VerticalLayout*> content,
 		rpl::producer<QString> &&text) {
 	const auto button = content->add(
-		object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+		object_ptr<Ui::RoundButton>(
 			content,
-			object_ptr<Ui::RoundButton>(
-				content,
-				std::move(text),
-				st::changePhoneButton)),
-		st::settingLocalPasscodeButtonPadding)->entity();
+			std::move(text),
+			st::changePhoneButton),
+		st::settingLocalPasscodeButtonPadding,
+		style::al_top);
 	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	return button;
 }

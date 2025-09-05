@@ -331,6 +331,33 @@ ivHeightDefault: 800px;
 
 maxWidthSharedMediaWindow: 419px;
 
+chatSwitchMargins: margins(16px, 16px, 16px, 16px);
+chatSwitchPadding: margins(12px, 12px, 12px, 12px);
+chatSwitchSize: size(72px, 104px);
+chatSwitchUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(56px, 56px);
+	photoSize: 56px;
+}
+chatSwitchUserpicSublist: UserpicButton(defaultUserpicButton) {
+	size: size(40px, 40px);
+	photoSize: 40px;
+}
+chatSwitchUserpicSmall: UserpicButton(defaultUserpicButton) {
+	size: size(24px, 24px);
+	photoSize: 24px;
+}
+chatSwitchUserpicTop: 8px;
+chatSwitchNameLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+	align: align(top);
+	minWidth: 56px;
+	maxHeight: 36px;
+}
+chatSwitchNameSkip: 6px;
+chatSwitchSelectLine: 3px;
+
 // Windows specific
 
 winQuitIcon: icon {{ "win_quit", windowFg }};

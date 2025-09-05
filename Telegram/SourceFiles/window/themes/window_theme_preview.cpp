@@ -468,7 +468,8 @@ void Generator::paintHistoryBackground() {
 			background = Ui::ReadBackgroundImage(
 				u":/gui/art/background.tgv"_q,
 				QByteArray(),
-				true);
+				true
+			).image;
 			const auto paper = Data::DefaultWallPaper();
 			background = Ui::PreparePatternImage(
 				std::move(background),

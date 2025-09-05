@@ -32,11 +32,9 @@ void SendCreditsBox(
 	std::shared_ptr<Payments::CreditsFormData> data,
 	Fn<void()> sent);
 
-[[nodiscard]] TextWithEntities CreditsEmoji(
-	not_null<Main::Session*> session);
+[[nodiscard]] TextWithEntities CreditsEmoji();
 
-[[nodiscard]] TextWithEntities CreditsEmojiSmall(
-	not_null<Main::Session*> session);
+[[nodiscard]] TextWithEntities CreditsEmojiSmall();
 
 not_null<FlatLabel*> SetButtonMarkedLabel(
 	not_null<RpWidget*> button,
