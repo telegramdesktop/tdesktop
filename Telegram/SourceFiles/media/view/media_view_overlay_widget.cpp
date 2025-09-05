@@ -5539,7 +5539,7 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 			return;
 		}
 	} else if (_streamed) {
-		// Ctrl + F for full screen toggle is in eventFilter().
+		// F for full screen toggle is in eventFilter().
 		const auto toggleFull = (modifiers.testFlag(Qt::AltModifier) || ctrl)
 			&& (key == Qt::Key_Enter || key == Qt::Key_Return);
 		if (toggleFull) {
@@ -6515,7 +6515,7 @@ bool OverlayWidget::filterApplicationEvent(
 		const auto event = static_cast<QKeyEvent*>(e.get());
 		const auto key = event->key();
 		const auto ctrl = event->modifiers().testFlag(Qt::ControlModifier);
-		if (key == Qt::Key_F && ctrl && _streamed) {
+		if (key == Qt::Key_F && _streamed) {
 			playbackToggleFullScreen();
 			return true;
 		} else if (key == Qt::Key_0 && ctrl) {
