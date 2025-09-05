@@ -569,8 +569,9 @@ void GroupThumbs::fillItems(
 	markCacheStale();
 	_items.reserve(till - from);
 	for (auto i = from; i != till; ++i) {
-		_items.push_back(validateCacheEntry(ComputeKey(slice, i)));
+    		_items.insert(_items.begin(), validateCacheEntry(ComputeKey(slice, i)));
 	}
+
 	animateAliveItems(current);
 	fillDyingItems(old);
 	startDelayedAnimation();
