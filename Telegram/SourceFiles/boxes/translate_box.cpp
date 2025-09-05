@@ -6,7 +6,6 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/translate_box.h"
-
 #include "api/api_text_entities.h" // Api::EntitiesToMTP / EntitiesFromMTP.
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -181,6 +180,17 @@ void TranslateBox(
 	Ui::AddSkip(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
+
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
+	const auto result = Platform::Language::Recognize(text.text);
+	const auto langName = result.known() ? LanguageName(result) : "Unknown";
+	const auto detectedLangCode = "Detected Language: " + langName;
+
+	const auto langLabel = container->add(object_ptr<Ui::FlatLabel>(
+		box,
+		detectedLangCode,
+		stLabel));
+#endif
 
 	{
 		const auto padding = st::defaultSubsectionTitlePadding;
