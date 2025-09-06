@@ -810,7 +810,9 @@ const QStringList &Errors() {
 }
 
 bool MarkChatSwitchKeyPressHandled(Qt::Key key, bool handled) {
-	if (handled) {
+	if (!key) {
+		return false;
+	} else if (handled) {
 		if (ranges::contains(ChatSwitchKeyPressHandled, key)) {
 			return false;
 		}
