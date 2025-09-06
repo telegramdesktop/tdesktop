@@ -59,6 +59,7 @@ SearchFromController::SearchFromController(
 	BannedDoneCallback())
 , _callback(std::move(callback)) {
 	_excludeSelf = false;
+	_excludeBroadcasts = false;
 }
 
 void SearchFromController::prepare() {

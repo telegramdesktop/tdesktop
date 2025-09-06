@@ -1221,8 +1221,12 @@ std::unique_ptr<PeerListRow> AddSpecialBoxController::createSearchRow(
 	if (_excludeSelf && peer->isSelf()) {
 		return nullptr;
 	}
-	if (const auto user = peer->asUser()) {
-		return createRow(user);
+	if (_excludeBroadcasts && peer->isBroadcast()) {
+		return nullptr;
+	}
+
+	if (peer->asUser() || peer->asBroadcast()) {
+		return createRow(peer);
 	}
 	return nullptr;
 }
@@ -1931,9 +1935,48 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 			}
 		}
 	};
+
+	const auto feedListChannels = [&](const MTPVector<MTPChat>& list) {
+		// skip this step in groups which are not eligible for masquerading.
+		if (const auto megagroup = _peer->asMegagroup()) {
+			if (!megagroup->hasUsername() && !megagroup->linkedChat()) {
+				return;
+			}
+		} else {
+			return;
+		}
+		for (const auto &mtpChat : list.v) {
+			const auto peerId = mtpChat.match([](const MTPDchannel &data) {
+					return peerFromChannel(data.vid().v);
+				}, [](const MTPDchat &data) {
+					return peerFromChat(data.vid().v);
+				}, [](auto&&) {
+					return PeerId();
+				});
+			if (const auto peer = _peer->owner().peerLoaded(peerId)) {
+				auto isBroadcastMasqueradable = false;
+				if (const auto broadcast = peer->asBroadcast()) {
+					// to reduce clutter, only allow exact username matches.
+					if (broadcast->hasUsername() &&
+						broadcast->username.compare(_query.startsWith('@') ?
+							QString(_query).remove('@') :
+							_query, Qt::CaseInsensitive) == 0) {
+						isBroadcastMasqueradable = true;
+					}
+				}
+
+				if (isBroadcastMasqueradable) {
+					_additional->checkForLoaded(peer);
+					delegate()->peerListSearchAddRow(peer);
+				}
+			}
+		}
+	};
+
 	if (_requestId == requestId) {
 		_requestId = 0;
 		_globalLoaded = true;
+		feedListChannels(found.vchats());
 		feedList(found.vmy_results());
 		feedList(found.vresults());
 		delegate()->peerListSearchRefreshRows();
