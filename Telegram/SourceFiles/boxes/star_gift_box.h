@@ -165,4 +165,11 @@ void ShowResaleGiftBoughtToast(
 	QString title,
 	Fn<void()> finishRequesting);
 
+[[nodiscard]] CreditsAmount StarsFromTon(
+	not_null<Main::Session*> session,
+	CreditsAmount ton);
+[[nodiscard]] CreditsAmount TonFromStars(
+	not_null<Main::Session*> session,
+	CreditsAmount stars);
+
 } // namespace Ui

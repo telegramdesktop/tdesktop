@@ -35,7 +35,7 @@ public:
 	[[nodiscard]] auto collectChatOpenHistory() const
 		-> std::vector<not_null<Thread*>>;
 	void chatOpenPush(not_null<Thread*> thread);
-	void chatOpenDestroyed(not_null<Thread*> thread);
+	void chatOpenRemove(not_null<Thread*> thread);
 	void chatOpenKeepUserpics(
 		base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> userpics);
 

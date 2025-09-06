@@ -239,37 +239,6 @@ struct SessionResalePrices {
 	crl::time lastReceived = 0;
 };
 
-[[nodiscard]] CreditsAmount StarsFromTon(
-		not_null<Main::Session*> session,
-		CreditsAmount ton) {
-	const auto appConfig = &session->appConfig();
-	const auto starsRate = appConfig->starsWithdrawRate() / 100.;
-	const auto tonRate = appConfig->currencyWithdrawRate();
-	if (!starsRate) {
-		return {};
-	}
-	const auto count = (ton.value() * tonRate) / starsRate;
-	return CreditsAmount(int(base::SafeRound(count)));
-}
-
-[[nodiscard]] CreditsAmount TonFromStars(
-		not_null<Main::Session*> session,
-		CreditsAmount stars) {
-	const auto appConfig = &session->appConfig();
-	const auto starsRate = appConfig->starsWithdrawRate() / 100.;
-	const auto tonRate = appConfig->currencyWithdrawRate();
-	if (!tonRate) {
-		return {};
-	}
-	const auto count = (stars.value() * starsRate) / tonRate;
-	const auto whole = int(std::floor(count));
-	const auto cents = int(base::SafeRound((count - whole) * 100));
-	return CreditsAmount(
-		whole,
-		cents * (Ui::kNanosInOne / 100),
-		CreditsType::Ton);
-}
-
 [[nodiscard]] not_null<SessionResalePrices*> ResalePrices(
 		not_null<Main::Session*> session) {
 	static auto result = base::flat_map<
@@ -5458,6 +5427,37 @@ rpl::lifetime ShowStarGiftResale(
 			strong->show(Box(GiftResaleBox, strong, peer, std::move(info)));
 		}
 	});
+}
+
+CreditsAmount StarsFromTon(
+		not_null<Main::Session*> session,
+		CreditsAmount ton) {
+	const auto appConfig = &session->appConfig();
+	const auto starsRate = appConfig->starsWithdrawRate() / 100.;
+	const auto tonRate = appConfig->currencyWithdrawRate();
+	if (!starsRate) {
+		return {};
+	}
+	const auto count = (ton.value() * tonRate) / starsRate;
+	return CreditsAmount(int(base::SafeRound(count)));
+}
+
+CreditsAmount TonFromStars(
+		not_null<Main::Session*> session,
+		CreditsAmount stars) {
+	const auto appConfig = &session->appConfig();
+	const auto starsRate = appConfig->starsWithdrawRate() / 100.;
+	const auto tonRate = appConfig->currencyWithdrawRate();
+	if (!tonRate) {
+		return {};
+	}
+	const auto count = (stars.value() * starsRate) / tonRate;
+	const auto whole = int(std::floor(count));
+	const auto cents = int(base::SafeRound((count - whole) * 100));
+	return CreditsAmount(
+		whole,
+		cents * (Ui::kNanosInOne / 100),
+		CreditsType::Ton);
 }
 
 } // namespace Ui

@@ -54,6 +54,7 @@ private:
 	void setupView();
 
 	void layout(QSize size);
+	void remove(not_null<Data::Thread*> thread);
 
 	void setSelected(int index);
 
