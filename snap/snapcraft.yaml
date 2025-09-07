@@ -1,4 +1,6 @@
 name: telegram-desktop
+# Snapcraft metadata for Telegram Desktop — small edits here are documentation-only and safe for PRs.
+# See ../CONTRIBUTING.md for guidance on making changes and submitting PRs.
 adopt-info: telegram
 icon: Telegram/Resources/art/icon512@2x.png
 

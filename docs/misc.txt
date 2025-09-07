@@ -7,4 +7,4 @@ minidump_stackwalk - go to Libraries/breakpad, run "configure", run "make"
 Windows:
 
 install InnoSetup
-open brekpad/src/tools/windows/dump_syms/dump_syms.vcproj, upgrade, change SDK and build Debug and Release
+open breakpad/src/tools/windows/dump_syms/dump_syms.vcproj, upgrade, change SDK and build Debug and Release

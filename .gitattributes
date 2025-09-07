@@ -1,3 +1,10 @@
+* text=auto eol=lf
+README.md text
+CONTRIBUTING.md text
+CODE_OF_CONDUCT.md text
+*.sh text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
 # Set the default behavior, in case people don't have core.autocrlf set.
 * text=auto
 

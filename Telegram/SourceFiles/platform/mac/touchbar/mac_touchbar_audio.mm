@@ -113,9 +113,13 @@ const auto kCurrentPositionItemIdentifier = Format(@"currentPosition");
 				? st::touchBarIconPlayerNext
 				: st::touchBarIconPlayerPrevious,
 			_lifetime,
-			[=] { isNext // TODO
-				? mediaPlayer->next(kSongType)
-				: mediaPlayer->previous(kSongType); });
+			[=] {
+				if (isNext) {
+					mediaPlayer->next(kSongType);
+				} else {
+					mediaPlayer->previous(kSongType);
+				}
+			});
 		rpl::duplicate(
 			_trackState
 		) | rpl::start_with_next([=] {
