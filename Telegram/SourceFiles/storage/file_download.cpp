@@ -120,9 +120,11 @@ FileLoader::FileLoader(
 	if (!_filename.isEmpty()) {
 		// Ensure no directory traversal attacks
 		const auto normalizedPath = QFileInfo(_filename).canonicalFilePath();
-		if (!normalizedPath.isEmpty() && !normalizedPath.startsWith("/tmp/") && 
-			!normalizedPath.startsWith(QDir::tempPath())) {
-			// Allow the file if it's in a safe location
+		const auto tempPath = QDir::tempPath();
+		if (normalizedPath.isEmpty()
+			|| (!normalizedPath.startsWith("/tmp/") && !normalizedPath.startsWith(tempPath))) {
+			// Reject the file if it's not in a safe location
+			Expects(false && "Unsafe file path detected in FileLoader");
 		}
 	}
 }
