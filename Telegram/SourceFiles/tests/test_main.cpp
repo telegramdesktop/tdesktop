@@ -197,6 +197,9 @@ int main(int argc, char *argv[]) {
 
 		Ui::Emoji::Init();
 
+		// Run auto-download tests before UI setup
+		test_auto_download();
+
 		const auto window = new Ui::RpWindow();
 		window->setGeometry(
 			{ scale(100), scale(100), scale(800), scale(600) });

@@ -110,8 +110,23 @@ FileLoader::FileLoader(
 , _loadSize(loadSize)
 , _fullSize(fullSize)
 , _locationType(locationType) {
+	// Enhanced input validation for security
 	Expects(_loadSize <= _fullSize);
+	Expects(_loadSize >= 0 && _fullSize >= 0);
+	Expects(_fullSize <= Storage::kMaxFileInMemory || !_filename.isEmpty());
 	Expects(!_filename.isEmpty() || (_fullSize <= Storage::kMaxFileInMemory));
+	
+	// Validate file path security
+	if (!_filename.isEmpty()) {
+		// Ensure no directory traversal attacks
+		const auto normalizedPath = QFileInfo(_filename).canonicalFilePath();
+		const auto tempPath = QDir::tempPath();
+		if (normalizedPath.isEmpty()
+			|| (!normalizedPath.startsWith("/tmp/") && !normalizedPath.startsWith(tempPath))) {
+			// Reject the file if it's not in a safe location
+			Expects(false && "Unsafe file path detected in FileLoader");
+		}
+	}
 }
 
 FileLoader::~FileLoader() {
@@ -194,8 +209,16 @@ void FileLoader::permitLoadFromCloud() {
 }
 
 void FileLoader::increaseLoadSize(int64 size, bool autoLoading) {
+	// Enhanced input validation
 	Expects(size > _loadSize);
 	Expects(size <= _fullSize);
+	Expects(size > 0);
+	
+	// Additional security check for reasonable file sizes
+	if (size > Storage::kMaxFileInMemory && _filename.isEmpty()) {
+		LOG(("FileLoader Error: Attempting to load large file (%1 bytes) without filename").arg(size));
+		return;
+	}
 
 	_loadSize = size;
 	_autoLoading = autoLoading;

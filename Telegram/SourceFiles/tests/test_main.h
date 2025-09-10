@@ -31,6 +31,9 @@ namespace Test {
 
 void test(not_null<Ui::RpWindow*> window, not_null<Ui::RpWidget*> widget);
 
+// Additional test functions
+void test_auto_download();
+
 [[nodiscard]] inline int scale(int value) {
 	return style::ConvertScale(value);
 };

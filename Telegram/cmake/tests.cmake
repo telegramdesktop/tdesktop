@@ -14,6 +14,7 @@ PRIVATE
     tests/test_main.cpp
     tests/test_main.h
     tests/test_text.cpp
+    tests/test_auto_download.cpp
 )
 
 nice_target_sources(test_text ${res_loc}

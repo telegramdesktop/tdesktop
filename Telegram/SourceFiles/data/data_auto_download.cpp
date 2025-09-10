@@ -183,10 +183,18 @@ void Full::setBytesLimit(Source source, Type type, int64 bytesLimit) {
 }
 
 bool Full::shouldDownload(Source source, Type type, int64 fileSize) const {
-	if (ranges::find(kStreamedTypes, type) != end(kStreamedTypes)) {
-		// With streaming we disable autodownload and hide them in Settings.
+	// Validate input parameters for security
+	if (fileSize < 0 || fileSize > kMaxBytesLimit) {
 		return false;
 	}
+	if (static_cast<int>(source) < 0 || static_cast<int>(source) >= kSourcesCount) {
+		return false;
+	}
+	if (static_cast<int>(type) < 0 || static_cast<int>(type) >= kTypesCount) {
+		return false;
+	}
+	
+	// Check user's auto-download settings for this source and type
 	return setOrDefault(source, type).shouldDownload(type, fileSize);
 }
 
@@ -263,14 +271,28 @@ bool Should(
 		const Full &data,
 		Source source,
 		not_null<DocumentData*> document) {
-	if (document->sticker() || document->isGifv()) {
-		return true;
-	} else if (document->isVoiceMessage()
-		|| document->isVideoMessage()
-		|| document->isSong()
-		|| document->isVideoFile()) {
+	// Validate input parameters
+	if (!document || document->size < 0) {
 		return false;
 	}
+	
+	// Always auto-download stickers and small GIFs for UX
+	if (document->sticker() || document->isGifv()) {
+		return true;
+	}
+	
+	// Check auto-download settings for audio content
+	if (document->isVoiceMessage()) {
+		return data.shouldDownload(source, Type::VoiceMessage, document->size);
+	} else if (document->isSong()) {
+		return data.shouldDownload(source, Type::Music, document->size);
+	} else if (document->isVideoMessage()) {
+		return data.shouldDownload(source, Type::AutoPlayVideoMessage, document->size);
+	} else if (document->isVideoFile()) {
+		return data.shouldDownload(source, Type::AutoPlayVideo, document->size);
+	}
+	
+	// For other file types, use the File type setting
 	return data.shouldDownload(source, Type::File, document->size);
 }
 

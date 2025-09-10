@@ -135,6 +135,19 @@ void AutoDownloadBox::setupContent() {
 		kDefaultDownloadLimit);
 
 	AddSkip(content);
+	AddSubsectionTitle(content, tr::lng_media_auto_audio());
+
+	const auto audioValues = Ui::CreateChild<base::flat_map<Type, int64>>(
+		content);
+	add(audioValues, Type::VoiceMessage, tr::lng_media_voice_title());
+	add(audioValues, Type::Music, tr::lng_media_music_title());
+
+	const auto audioLimit = AddSizeLimitSlider(
+		content,
+		*audioValues,
+		kDefaultDownloadLimit);
+
+	AddSkip(content);
 	AddSubsectionTitle(content, tr::lng_media_auto_play());
 
 	const auto autoPlayValues = Ui::CreateChild<base::flat_map<Type, int64>>(
@@ -152,14 +165,19 @@ void AutoDownloadBox::setupContent() {
 		kDefaultAutoPlayLimit);
 
 	const auto limitByType = [=](Type type) {
-		return (ranges::find(kAutoPlayTypes, type) != end(kAutoPlayTypes))
-			? *autoPlayLimit
-			: *downloadLimit;
+		if (ranges::find(kAutoPlayTypes, type) != end(kAutoPlayTypes)) {
+			return *autoPlayLimit;
+		} else if (ranges::find(kStreamedTypes, type) != end(kStreamedTypes)) {
+			return *audioLimit;
+		} else {
+			return *downloadLimit;
+		}
 	};
 
 	addButton(tr::lng_connection_save(), [=] {
 		auto &&values = ranges::views::concat(
 			*downloadValues,
+			*audioValues,
 			*autoPlayValues);
 		auto allowMore = values | ranges::views::filter([&](Pair pair) {
 			const auto &[type, enabled] = pair;
@@ -170,6 +188,10 @@ void AutoDownloadBox::setupContent() {
 			return pair.first;
 		});
 		const auto less = ranges::any_of(*autoPlayValues, [&](Pair pair) {
+			const auto &[type, enabled] = pair;
+			const auto value = enabled ? limitByType(type) : 0;
+			return value < settings->bytesLimit(_source, type);
+		}) || ranges::any_of(*audioValues, [&](Pair pair) {
 			const auto &[type, enabled] = pair;
 			const auto value = enabled ? limitByType(type) : 0;
 			return value < settings->bytesLimit(_source, type);
@@ -184,30 +206,12 @@ void AutoDownloadBox::setupContent() {
 			return value != settings->bytesLimit(_source, type);
 		});
 
-		const auto &kHidden = kStreamedTypes;
-		const auto hiddenChanged = ranges::any_of(kHidden, [&](Type type) {
-			const auto now = settings->bytesLimit(_source, type);
-			return (now > 0) && (now != limitByType(type));
-		});
-
+		// Audio types are no longer hidden since we want users to configure them
 		if (changed) {
 			for (const auto &[type, enabled] : values) {
 				const auto value = enabled ? limitByType(type) : 0;
 				settings->setBytesLimit(_source, type, value);
 			}
-		}
-		if (hiddenChanged) {
-			for (const auto type : kHidden) {
-				const auto now = settings->bytesLimit(_source, type);
-				if (now > 0) {
-					settings->setBytesLimit(
-						_source,
-						type,
-						limitByType(type));
-				}
-			}
-		}
-		if (changed || hiddenChanged) {
 			_session->saveSettingsDelayed();
 		}
 		if (allowMoreTypes.contains(Type::Photo)) {
