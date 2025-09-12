@@ -1,0 +1,118 @@
+---
+name: Upstream Sync
+
+'on':
+  schedule:
+    # Run weekly on Mondays at 8:00 AM UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  upstream-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream \
+            https://github.com/telegramdesktop/tdesktop.git || true
+          git fetch upstream
+
+      - name: Check for upstream changes
+        id: check_changes
+        run: |
+          git fetch upstream master
+          UPSTREAM_SHA=$(git rev-parse upstream/master)
+          CURRENT_SHA=$(git rev-parse HEAD)
+
+          if [ "$UPSTREAM_SHA" != "$CURRENT_SHA" ]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "upstream_sha=$UPSTREAM_SHA" >> $GITHUB_OUTPUT
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create sync branch
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          git checkout -b upstream-sync-$(date +%Y%m%d-%H%M%S)
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Attempt merge from upstream
+        if: steps.check_changes.outputs.changes == 'true'
+        id: merge_attempt
+        continue-on-error: true
+        run: |
+          git merge upstream/master --no-edit
+
+      - name: Check for conflicts in security-critical files
+        if: |
+          steps.check_changes.outputs.changes == 'true' &&
+          steps.merge_attempt.outcome == 'failure'
+        run: |
+          echo "## ⚠️ Merge Conflicts Detected" >> conflict_report.md
+          echo "" >> conflict_report.md
+          echo "Conflicts found in the following files:" >> conflict_report.md
+          git diff --name-only --diff-filter=U >> conflict_report.md
+          echo "" >> conflict_report.md
+
+          # Check for security-critical libraries
+          if git diff --name-only --diff-filter=U | \
+            grep -E "(openssl|qt|ffmpeg|webrtc)" -i; then
+            echo "🚨 **CRITICAL**: Conflicts detected in " \
+              "security-critical libraries!" >> conflict_report.md
+            echo "Manual review required for:" >> conflict_report.md
+            git diff --name-only --diff-filter=U | \
+              grep -E "(openssl|qt|ffmpeg|webrtc)" -i >> conflict_report.md
+          fi
+
+      - name: Create Pull Request for successful merge
+        if: |
+          steps.check_changes.outputs.changes == 'true' &&
+          steps.merge_attempt.outcome == 'success'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "🔄 Sync with upstream tdesktop"
+          body: |
+            ## Upstream Sync
+
+            This PR automatically syncs changes from the upstream repository.
+
+            **Upstream SHA**: `${{ steps.check_changes.outputs.upstream_sha }}`
+
+            ### Security Check
+            ✅ No conflicts detected in security-critical libraries
+
+            Please review the changes before merging.
+          branch: upstream-sync-$(date +%Y%m%d-%H%M%S)
+          delete-branch: true
+
+      - name: Create Issue for merge conflicts
+        if: |
+          steps.check_changes.outputs.changes == 'true' &&
+          steps.merge_attempt.outcome == 'failure'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "⚠️ Manual merge required: Upstream sync conflicts"
+          body: |
+            ## Upstream Sync Conflicts
+
+            Automatic merge from upstream failed due to conflicts.
+
+            **Upstream SHA**: `${{ steps.check_changes.outputs.upstream_sha }}`
+
+            $(cat conflict_report.md)
+
+            **Action Required**: Manual resolution needed before merging
+            upstream changes.
+          branch: upstream-sync-conflicts-$(date +%Y%m%d-%H%M%S)
+          delete-branch: false

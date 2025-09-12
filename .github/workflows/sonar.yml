@@ -1,0 +1,106 @@
+---
+name: SonarCloud Analysis
+
+'on':
+  push:
+    branches: ["master", "dev"]
+    paths:
+      - 'Telegram/SourceFiles/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ["master", "dev"]
+    paths:
+      - 'Telegram/SourceFiles/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libasound2-dev \
+            libpulse-dev \
+            libxrandr-dev \
+            libxss-dev \
+            libgtk-3-dev \
+            libdrm-dev \
+            libxcomposite-dev \
+            libxdamage-dev \
+            libxtst-dev \
+            gcovr \
+            lcov
+
+      - name: Install sonar-scanner and build-wrapper
+        uses: SonarSource/sonarcloud-github-c-cpp@v2
+
+      - name: Configure CMake with coverage
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
+            -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+            -DTDESKTOP_API_ID=611335 \
+            -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c \
+            -DDESKTOP_APP_USE_PACKAGED=OFF \
+            -DTDESKTOP_DISABLE_DESKTOP_FILE_GENERATION=ON
+
+      - name: Build with sonar build-wrapper
+        run: |
+          build-wrapper-linux-x86-64 --out-dir build/sonar \
+            cmake --build build --parallel $(nproc) --target Telegram || true
+
+      - name: Run tests and generate coverage
+        run: |
+          cd build
+          # Run any existing tests
+          ctest --output-on-failure || true
+          # Generate coverage report
+          mkdir -p coverage
+          gcovr --root .. --html-details coverage/index.html \
+            --xml coverage/coverage.xml || true
+          lcov --capture --directory . \
+            --output-file coverage/coverage.info || true
+
+      - name: Run SonarCloud Scan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          sonar-scanner \
+            -Dsonar.cfamily.build-wrapper-output=build/sonar \
+            -Dsonar.cfamily.gcov.reportsPath=build/coverage \
+            -Dsonar.coverageReportPaths=build/coverage/coverage.xml
+
+      - name: Quality Gate Check
+        uses: sonarqube-quality-gate-action@master
+        continue-on-error: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: coverage-reports
+          path: build/coverage/
+          retention-days: 30

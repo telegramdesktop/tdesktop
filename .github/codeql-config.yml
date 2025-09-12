@@ -1,0 +1,39 @@
+---
+name: "C++ Security Analysis Configuration"
+
+disable-default-queries: false
+
+queries:
+  - name: security-and-quality
+    uses: security-and-quality
+  - name: security-extended
+    uses: security-extended
+
+query-filters:
+  # Focus on critical security issues
+  - include:
+      kind: problem
+      problem.severity: error
+  - include:
+      kind: problem
+      problem.severity: warning
+      tags:
+        - security
+        - external/cwe/cwe-120  # Buffer overflow
+        - external/cwe/cwe-416  # Use after free
+        - external/cwe/cwe-190  # Integer overflow
+        - external/cwe/cwe-476  # NULL pointer dereference
+        - external/cwe/cwe-787  # Out-of-bounds write
+        - external/cwe/cwe-125  # Out-of-bounds read
+
+paths-ignore:
+  - "Telegram/ThirdParty/*/test/**"
+  - "Telegram/ThirdParty/*/tests/**"
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/*_test.cpp"
+  - "**/*_tests.cpp"
+
+paths:
+  - "Telegram/SourceFiles/**"
+  - "Telegram/ThirdParty/**"

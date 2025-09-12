@@ -1,0 +1,138 @@
+name: 🔒 Security Report
+description: Report a security vulnerability or concern (for sensitive issues, contact maintainers privately first)
+title: '[SECURITY] '
+labels: ['security', 'needs-triage']
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ⚠️ Security Report
+        
+        **IMPORTANT**: For critical security vulnerabilities, consider contacting the maintainers privately before creating a public issue.
+        
+        This template is for security-related concerns that can be discussed publicly or have already been coordinated privately.
+
+  - type: dropdown
+    id: security-type
+    attributes:
+      label: Security Issue Type
+      description: What type of security issue are you reporting?
+      options:
+        - Code vulnerability (buffer overflow, injection, etc.)
+        - Dependency security alert
+        - Build/CI security concern  
+        - Credential exposure
+        - Third-party library concern
+        - Security policy question
+        - Other security concern
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Level
+      description: How severe do you consider this security issue?
+      options:
+        - Critical (immediate action required)
+        - High (should be fixed soon) 
+        - Medium (moderate security concern)
+        - Low (minor security improvement)
+        - Informational (security-related question)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Security Issue Description
+      description: Describe the security issue in detail
+      placeholder: |
+        Please provide:
+        - What the security issue is
+        - How it can be exploited (if applicable)
+        - What systems/users are affected
+        - Any potential mitigation strategies
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce (if applicable)
+      description: How can this security issue be reproduced?
+      placeholder: |
+        1. 
+        2. 
+        3. 
+        ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Relevant environment information
+      placeholder: |
+        - OS: [e.g. Ubuntu 20.04, Windows 11, macOS 13]
+        - Compiler: [e.g. GCC 11, Clang 14, MSVC 2022]
+        - Build type: [e.g. Debug, Release]
+        - Specific configuration: [any relevant build flags or options]
+    validations:
+      required: false
+
+  - type: textarea
+    id: scanning-results
+    attributes:
+      label: Security Scanning Results
+      description: If this relates to automated security scanning results (CodeQL, SonarCloud, etc.)
+      placeholder: |
+        - Tool: [e.g. CodeQL, SonarCloud, Dependabot]
+        - Alert ID or link: 
+        - Scan date:
+        - Specific findings:
+    validations:
+      required: false
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Potential Impact
+      description: What are the potential security implications?
+      placeholder: |
+        - Who could be affected?
+        - What data could be compromised?
+        - What operations could be disrupted?
+        - Any other security implications?
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested Mitigation/Fix
+      description: Do you have suggestions for fixing this security issue?
+      placeholder: |
+        - Immediate workarounds:
+        - Suggested code changes:
+        - Configuration changes:
+        - Other recommendations:
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Security Report Checklist
+      description: Please confirm the following
+      options:
+        - label: I have checked that this issue hasn't been reported before
+          required: true
+        - label: I understand that security issues are taken seriously and may require coordinated disclosure
+          required: true
+        - label: I have not included sensitive information (passwords, private keys, etc.) in this public report
+          required: true
+        - label: For critical vulnerabilities, I have considered contacting maintainers privately first
+          required: true

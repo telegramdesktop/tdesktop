@@ -1,0 +1,96 @@
+---
+name: "CodeQL Security Analysis"
+
+'on':
+  push:
+    branches: ["master", "dev"]
+    paths:
+      - 'Telegram/SourceFiles/**'
+      - 'Telegram/ThirdParty/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+  pull_request:
+    branches: ["master", "dev"]
+    paths:
+      - 'Telegram/SourceFiles/**'
+      - 'Telegram/ThirdParty/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+  schedule:
+    # Run analysis weekly on Wednesdays at 3:00 AM UTC
+    - cron: '0 3 * * 3'
+
+jobs:
+  analyze:
+    name: Analyze C++
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["cpp"]
+
+    steps:
+      - name: Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          language: ${{ matrix.language }}
+          config-file: ./.github/codeql-config.yml
+          queries: +security-and-quality
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libasound2-dev \
+            libpulse-dev \
+            libxrandr-dev \
+            libxss-dev \
+            libgtk-3-dev \
+            libdrm-dev \
+            libxcomposite-dev \
+            libxdamage-dev \
+            libxtst-dev \
+            libxss-dev \
+            libasound2-dev
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DTDESKTOP_API_ID=611335 \
+            -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c \
+            -DDESKTOP_APP_USE_PACKAGED=OFF \
+            -DTDESKTOP_DISABLE_DESKTOP_FILE_GENERATION=ON
+
+      - name: Build with CodeQL
+        run: |
+          cmake --build build --parallel $(nproc) --target Telegram || true
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{matrix.language}}"
+          upload: true
+
+      - name: Upload CodeQL results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: /home/runner/work/_temp/codeql_results.sarif
+        continue-on-error: true

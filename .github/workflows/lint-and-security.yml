@@ -1,0 +1,177 @@
+---
+name: Lint and Security Checks
+
+'on':
+  push:
+    branches: ["master", "dev"]
+    paths:
+      - 'Telegram/SourceFiles/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+  pull_request:
+    branches: ["master", "dev"]
+    paths:
+      - 'Telegram/SourceFiles/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+
+jobs:
+  lint:
+    name: Code Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install linting tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-tidy \
+            cppcheck \
+            cpplint \
+            clang-format \
+            build-essential \
+            cmake \
+            ninja-build
+
+      - name: Configure CMake for linting
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DTDESKTOP_API_ID=611335 \
+            -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c \
+            -DDESKTOP_APP_USE_PACKAGED=OFF
+
+      - name: Run clang-tidy
+        continue-on-error: true
+        run: |
+          echo "Running clang-tidy security checks..."
+          find Telegram/SourceFiles -name "*.cpp" -o -name "*.h" | \
+          head -20 | \
+          xargs clang-tidy \
+            -checks='clang-analyzer-*,security-*,cert-*,misc-*' \
+            -p build/ \
+            --format-style=file || true
+
+      - name: Run cppcheck security analysis
+        continue-on-error: true
+        run: |
+          echo "Running cppcheck security analysis..."
+          cppcheck \
+            --enable=all \
+            --inconclusive \
+            --xml \
+            --xml-version=2 \
+            --suppress=missingIncludeSystem \
+            --suppress=unusedFunction \
+            --suppress=unmatchedSuppression \
+            Telegram/SourceFiles/ \
+            2> cppcheck_results.xml || true
+
+      - name: Run cpplint style check
+        continue-on-error: true
+        run: |
+          echo "Running cpplint style checks..."
+          find Telegram/SourceFiles -name "*.cpp" -o -name "*.h" | \
+          head -20 | \
+          xargs cpplint \
+            --filter=-build/include_order,-build/namespaces, \
+            -runtime/references \
+            --quiet || true
+
+      - name: Check for hardcoded credentials
+        run: |
+          echo "Checking for potential hardcoded secrets..."
+          if grep -r -i -E \
+            "(password|secret|token|key)\s*=\s*['\"][^'\"]{8,}" \
+            Telegram/SourceFiles/ --include="*.cpp" \
+            --include="*.h" || true; then
+            echo "⚠️ Potential hardcoded credentials found (review needed)"
+          else
+            echo "✅ No obvious hardcoded credentials detected"
+          fi
+
+      - name: Upload lint results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: lint-results
+          path: |
+            cppcheck_results.xml
+          retention-days: 7
+
+  memory-safety:
+    name: Memory Safety Analysis (Valgrind)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Valgrind and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            valgrind \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libasound2-dev \
+            libpulse-dev \
+            libxrandr-dev \
+            libxss-dev \
+            libgtk-3-dev \
+            libdrm-dev
+
+      - name: Configure CMake for Valgrind
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-g -O0 -fno-omit-frame-pointer" \
+            -DTDESKTOP_API_ID=611335 \
+            -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c \
+            -DDESKTOP_APP_USE_PACKAGED=OFF \
+            -DTDESKTOP_DISABLE_DESKTOP_FILE_GENERATION=ON
+
+      - name: Build for Valgrind (limited)
+        continue-on-error: true
+        timeout-minutes: 30
+        run: |
+          echo "Building limited components for memory analysis..."
+          cmake --build build --parallel 2 --target Telegram || true
+
+      - name: Run Valgrind memory check
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          echo "Running basic Valgrind checks on built components..."
+          if [ -f build/Telegram ]; then
+            timeout 300 valgrind \
+              --tool=memcheck \
+              --leak-check=summary \
+              --show-leak-kinds=definite \
+              --track-origins=yes \
+              --xml=yes \
+              --xml-file=valgrind_results.xml \
+              build/Telegram --version 2>/dev/null || true
+          else
+            echo "Telegram binary not found, skipping Valgrind analysis"
+          fi
+
+      - name: Upload Valgrind results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: valgrind-results
+          path: valgrind_results.xml
+          retention-days: 7

@@ -65,3 +65,4 @@ settings.local.json
 .cursor/*
 !.cursor/rules/
 build/
+test_build/
