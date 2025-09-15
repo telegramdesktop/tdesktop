@@ -791,7 +791,7 @@ COPY --link --from=pipewire /usr/src/pipewire-cache /
 RUN git init tg_owt \
 	&& cd tg_owt \
 	&& git remote add origin https://github.com/desktop-app/tg_owt.git \
-	&& git fetch --depth=1 origin 62321fd7128ab2650b459d4195781af8185e46b5 \
+	&& git fetch --depth=1 origin 5c5c71258777d0196dbb3a09cc37d2f56ead28ab \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
 	&& cmake -B build . -DTG_OWT_DLOPEN_PIPEWIRE=ON \
