@@ -22,7 +22,6 @@ jobs:
 
     steps:
       - name: Checkout
-      - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -111,7 +110,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
       - name: Checkout
         uses: actions/checkout@v4
         with:
