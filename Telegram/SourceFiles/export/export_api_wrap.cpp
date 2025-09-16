@@ -22,7 +22,7 @@ namespace Export {
 namespace {
 
 constexpr auto kUserpicsSliceLimit = 100;
-constexpr auto kFileChunkSize = 128 * 1024;
+constexpr auto kFileChunkSize = 1024 * 1024;
 constexpr auto kFileRequestsCount = 2;
 //constexpr auto kFileNextRequestDelay = crl::time(20);
 constexpr auto kChatsSliceLimit = 100;
