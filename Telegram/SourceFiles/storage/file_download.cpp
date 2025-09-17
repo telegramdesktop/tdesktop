@@ -23,6 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "base/bytes.h"
 
+#include <QtCore/QFileInfo>
+#include <QtCore/QDir>
+
 namespace {
 
 class FromMemoryLoader final : public FileLoader {
@@ -124,6 +127,7 @@ FileLoader::FileLoader(
 		if (normalizedPath.isEmpty()
 			|| (!normalizedPath.startsWith("/tmp/") && !normalizedPath.startsWith(tempPath))) {
 			// Reject the file if it's not in a safe location
+			LOG(("FileLoader Error: Unsafe file path detected: %1").arg(_filename));
 			Expects(false && "Unsafe file path detected in FileLoader");
 		}
 	}
@@ -208,7 +212,7 @@ void FileLoader::permitLoadFromCloud() {
 	_fromCloud = LoadFromCloudOrLocal;
 }
 
-void FileLoader::increaseLoadSize(int64 size, bool autoLoading) {
+bool FileLoader::increaseLoadSize(int64 size, bool autoLoading) {
 	// Enhanced input validation
 	Expects(size > _loadSize);
 	Expects(size <= _fullSize);
@@ -217,11 +221,12 @@ void FileLoader::increaseLoadSize(int64 size, bool autoLoading) {
 	// Additional security check for reasonable file sizes
 	if (size > Storage::kMaxFileInMemory && _filename.isEmpty()) {
 		LOG(("FileLoader Error: Attempting to load large file (%1 bytes) without filename").arg(size));
-		return;
+		return false;
 	}
 
 	_loadSize = size;
 	_autoLoading = autoLoading;
+	return true;
 }
 
 void FileLoader::notifyAboutProgress() {
