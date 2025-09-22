@@ -683,17 +683,17 @@ int DurationByPacket(const Packet &packet, AVRational timeBase) {
 }
 
 int ReadRotationFromMetadata(not_null<AVStream*> stream) {
-	const auto displaymatrix = av_stream_get_side_data(
-		stream,
-		AV_PKT_DATA_DISPLAYMATRIX,
-		nullptr);
-	auto theta = 0;
-	if (displaymatrix) {
-		theta = -round(av_display_rotation_get((int32_t*)displaymatrix));
-	}
+	for (int j = 0; j < stream->codecpar->nb_coded_side_data; j++) {
+	    const AVPacketSideData& sd = stream->codecpar->coded_side_data[j];
+	    auto theta = 0;
+	    if (sd.type == AV_PKT_DATA_DISPLAYMATRIX) {
+		    theta = -round(av_display_rotation_get((int32_t*)sd.data));
+		}
 	theta -= 360 * floor(theta / 360 + 0.9 / 360);
 	const auto result = int(base::SafeRound(theta));
 	return (result == 90 || result == 180 || result == 270) ? result : 0;
+	break;
+	}
 }
 
 AVRational ValidateAspectRatio(AVRational aspect) {
