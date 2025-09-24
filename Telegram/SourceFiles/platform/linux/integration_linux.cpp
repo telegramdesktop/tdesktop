@@ -177,15 +177,10 @@ LinuxIntegration::LinuxIntegration()
 		QCoreApplication::eventDispatcher(),
 		&QAbstractEventDispatcher::aboutToBlock,
 		[] {
-			static auto timer = [] {
-				QElapsedTimer timer;
-				timer.start();
-				return timer;
-			}();
-
-			if (timer.hasExpired(10000)) {
+			static auto since = crl::now();
+			if (crl::now() - since >= 10000) {
 				malloc_trim(0);
-				timer.start();
+				since = crl::now();
 			}
 		});
 #endif // __GLIBC__
