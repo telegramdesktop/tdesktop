@@ -267,6 +267,7 @@ RUN git clone -b v1.19.8 --depth=1 https://github.com/strukturag/libheif.git \
 	&& cd libheif \
 	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
+		-DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
 		-DBUILD_TESTING=OFF \
 		-DENABLE_PLUGIN_LOADING=OFF \
 		-DWITH_X265=OFF \
