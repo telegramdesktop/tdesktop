@@ -683,10 +683,10 @@ int DurationByPacket(const Packet &packet, AVRational timeBase) {
 }
 
 int ReadRotationFromMetadata(not_null<AVStream*> stream) {
-	const auto displaymatrix = av_stream_get_side_data(
-		stream,
-		AV_PKT_DATA_DISPLAYMATRIX,
-		nullptr);
+	const auto displaymatrix = av_packet_side_data_get(
+		stream->codecpar->coded_side_data,
+		stream->codecpar->nb_coded_side_data,
+		AV_PKT_DATA_DISPLAYMATRIX);
 	auto theta = 0;
 	if (displaymatrix) {
 		theta = -round(av_display_rotation_get((int32_t*)displaymatrix));
