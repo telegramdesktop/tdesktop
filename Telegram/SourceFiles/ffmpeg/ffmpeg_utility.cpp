@@ -512,18 +512,10 @@ void SwresampleDeleter::operator()(SwrContext *value) {
 }
 
 SwresamplePointer MakeSwresamplePointer(
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		AVChannelLayout *srcLayout,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-		uint64_t srcLayout,
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		AVSampleFormat srcFormat,
 		int srcRate,
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		AVChannelLayout *dstLayout,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-		uint64_t dstLayout,
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		AVSampleFormat dstFormat,
 		int dstRate,
 		SwresamplePointer *existing) {
@@ -534,16 +526,8 @@ SwresamplePointer MakeSwresamplePointer(
 	// to the resulting context, so the caching doesn't work.
 	if (existing && (*existing) != nullptr) {
 		const auto &deleter = existing->get_deleter();
-		if (true
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
-			&& srcLayout->nb_channels == deleter.srcChannels
+		if (srcLayout->nb_channels == deleter.srcChannels
 			&& dstLayout->nb_channels == deleter.dstChannels
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-			&& (av_get_channel_layout_nb_channels(srcLayout)
-				== deleter.srcChannels)
-			&& (av_get_channel_layout_nb_channels(dstLayout)
-				== deleter.dstChannels)
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 			&& srcFormat == deleter.srcFormat
 			&& dstFormat == deleter.dstFormat
 			&& srcRate == deleter.srcRate
@@ -553,10 +537,8 @@ SwresamplePointer MakeSwresamplePointer(
 	}
 
 	// Initialize audio resampler
-	AvErrorWrap error;
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	auto result = (SwrContext*)nullptr;
-	error = AvErrorWrap(swr_alloc_set_opts2(
+	auto error = AvErrorWrap(swr_alloc_set_opts2(
 		&result,
 		dstLayout,
 		dstFormat,
@@ -570,21 +552,6 @@ SwresamplePointer MakeSwresamplePointer(
 		LogError(u"swr_alloc_set_opts2"_q, error);
 		return SwresamplePointer();
 	}
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-	auto result = swr_alloc_set_opts(
-		existing ? existing->get() : nullptr,
-		dstLayout,
-		dstFormat,
-		dstRate,
-		srcLayout,
-		srcFormat,
-		srcRate,
-		0,
-		nullptr);
-	if (!result) {
-		LogError(u"swr_alloc_set_opts"_q);
-	}
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 
 	error = AvErrorWrap(swr_init(result));
 	if (error) {
@@ -598,18 +565,10 @@ SwresamplePointer MakeSwresamplePointer(
 		{
 			srcFormat,
 			srcRate,
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 			srcLayout->nb_channels,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-			av_get_channel_layout_nb_channels(srcLayout),
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 			dstFormat,
 			dstRate,
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 			dstLayout->nb_channels,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-			av_get_channel_layout_nb_channels(dstLayout),
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		});
 }
 

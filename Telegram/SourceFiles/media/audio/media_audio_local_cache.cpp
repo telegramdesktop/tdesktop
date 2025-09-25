@@ -45,12 +45,7 @@ constexpr auto kFrameSize = 4096;
 	}
 
 
-#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(58, 79, 100)
 	auto inCodec = (const AVCodec*)nullptr;
-#else
-	auto inCodec = (AVCodec*)nullptr;
-#endif
-
 	const auto streamId = av_find_best_stream(
 		input.get(),
 		AVMEDIA_TYPE_AUDIO,
@@ -106,7 +101,6 @@ constexpr auto kFrameSize = 4096;
 		return {};
 	}
 
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	auto mono = AVChannelLayout(AV_CHANNEL_LAYOUT_MONO);
 	auto stereo = AVChannelLayout(AV_CHANNEL_LAYOUT_STEREO);
 	const auto in = &inCodecContext->ch_layout;
@@ -116,16 +110,6 @@ constexpr auto kFrameSize = 4096;
 	} else {
 		outCodecContext->ch_layout = AV_CHANNEL_LAYOUT_STEREO;
 	}
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-	const auto in = inCodecContext->channels;
-	if (in == 1 || in == 2) {
-		outCodecContext->channels = in;
-		outCodecContext->channel_layout = inCodecContext->channel_layout;
-	} else {
-		outCodecContext->channels = 2;
-		outCodecContext->channel_layout = AV_CH_LAYOUT_STEREO;
-	}
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	const auto rate = 44'100;
 	outCodecContext->sample_fmt = AV_SAMPLE_FMT_S16;
 	outCodecContext->time_base = AVRational{ 1, rate };
@@ -152,17 +136,10 @@ constexpr auto kFrameSize = 4096;
 	}
 
 	auto swrContext = MakeSwresamplePointer(
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		&inCodecContext->ch_layout,
 		inCodecContext->sample_fmt,
 		inCodecContext->sample_rate,
 		&outCodecContext->ch_layout,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-		inCodecContext->channel_layout,
-		inCodecContext->sample_fmt,
-		inCodecContext->sample_rate,
-		outCodecContext->channel_layout,
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		outCodecContext->sample_fmt,
 		outCodecContext->sample_rate);
 	if (!swrContext) {
@@ -186,14 +163,9 @@ constexpr auto kFrameSize = 4096;
 
 	outFrame->nb_samples = kFrameSize;
 	outFrame->format = outCodecContext->sample_fmt;
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	av_channel_layout_copy(
 		&outFrame->ch_layout,
 		&outCodecContext->ch_layout);
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-	outFrame->channel_layout = outCodecContext->channel_layout;
-	outFrame->channels = outCodecContext->channels;
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	outFrame->sample_rate = outCodecContext->sample_rate;
 
 	error = av_frame_get_buffer(outFrame.get(), 0);
