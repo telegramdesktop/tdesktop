@@ -21,6 +21,11 @@ class Account;
 
 namespace Window {
 
+extern const char kOptionProxyAlwaysVisible[];
+[[nodiscard]] bool ProxyAlwaysVisible();
+[[nodiscard]] rpl::producer<> ProxyAlwaysVisibleValue();
+void NotifyProxyAlwaysVisibleChange();
+
 class ConnectionState {
 public:
 	ConnectionState(
@@ -46,6 +51,7 @@ private:
 		};
 		Type type = Type::Connected;
 		bool useProxy = false;
+		bool alwaysShowProxy = false;
 		bool exposed = false;
 		bool underCursor = false;
 		bool updateReady = false;

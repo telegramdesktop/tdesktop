@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "window/window_connecting_widget.h"
 #include "window/notifications_manager.h"
 #include "storage/localimageloader.h"
 #include "data/data_document_resolver.h"
@@ -83,7 +84,11 @@ void AddOption(
 				tr::lng_settings_experimental_irrelevant(tr::now));
 			return;
 		}
+		const auto isProxyAlwaysVisible = (&option == &base::options::lookup<bool>(Window::kOptionProxyAlwaysVisible));
 		option.set(toggled);
+		if (isProxyAlwaysVisible) {
+			Window::NotifyProxyAlwaysVisibleChange();
+		}
 		if (restarter) {
 			restarter->callOnce(st::settingsButtonNoIcon.toggle.duration);
 		}
@@ -146,6 +151,7 @@ void SetupExperimental(
 	addToggle(Dialogs::kOptionForumHideChatsList);
 	addToggle(Core::kOptionFractionalScalingEnabled);
 	addToggle(Window::kOptionViewProfileInChatsListContextMenu);
+	addToggle(Window::kOptionProxyAlwaysVisible);
 	addToggle(Info::Profile::kOptionShowPeerIdBelowAbout);
 	addToggle(Info::Profile::kOptionShowChannelJoinedBelowAbout);
 	addToggle(Ui::kOptionUseSmallMsgBubbleRadius);
