@@ -130,7 +130,7 @@ constexpr auto kGlareTimeout = crl::time(1000);
 		if (!song->performer.isEmpty() || !song->title.isEmpty()) {
 			return {
 				.performer = song->performer,
-				.title = song->title,
+				.title = u"- "_q + song->title,
 			};
 		}
 	}

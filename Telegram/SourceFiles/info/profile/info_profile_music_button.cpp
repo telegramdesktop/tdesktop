@@ -20,21 +20,21 @@ MusicButton::MusicButton(
 : RippleButton(parent, st::infoMusicButtonRipple)
 , _performer(std::make_unique<Ui::FlatLabel>(
 	this,
-	u"- "_q + data.performer,
+	data.performer,
 	st::infoMusicButtonPerformer))
 , _title(std::make_unique<Ui::FlatLabel>(
 		this,
 		data.title,
 		st::infoMusicButtonTitle)) {
 	rpl::combine(
-		_title->naturalWidthValue(),
-		_performer->naturalWidthValue()
+		_performer->naturalWidthValue(),
+		_title->naturalWidthValue()
 	) | rpl::start_with_next([=] {
 		resizeToWidth(widthNoMargins());
 	}, lifetime());
 
-	_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_performer->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	setClickedCallback(std::move(handler));
 }
@@ -42,7 +42,7 @@ MusicButton::MusicButton(
 MusicButton::~MusicButton() = default;
 
 void MusicButton::updateData(MusicButtonData data) {
-	_performer->setText(u"- "_q + data.performer);
+	_performer->setText(data.performer);
 	_title->setText(data.title);
 	resizeToWidth(widthNoMargins());
 }
@@ -78,18 +78,28 @@ void MusicButton::paintEvent(QPaintEvent *e) {
 int MusicButton::resizeGetHeight(int newWidth) {
 	const auto padding = st::infoMusicButtonPadding;
 	const auto &font = st::infoMusicButtonTitle.style.font;
-
 	const auto top = padding.top();
 	const auto skip = st::normalFont->spacew;
 	const auto available = newWidth - padding.left() - padding.right();
+	const auto minPerformer = std::min(style::ConvertScale(80), available / 4);
 	_title->resizeToNaturalWidth(available);
-	_title->moveToLeft(padding.left(), top);
-	if (const auto left = available - _title->width() - skip; left > 0) {
-		_performer->show();
+
+	if (auto left = available - _title->width() - skip; left > 0) {
 		_performer->resizeToNaturalWidth(left);
-		_performer->moveToLeft(padding.left() + _title->width() + skip, top);
+		_performer->moveToLeft(padding.left(), top);
+		_performer->show();
+
+		_title->moveToLeft(padding.left() + _performer->width() + skip, top);
 	} else {
-		_performer->hide();
+		const auto performerWidth = minPerformer;
+		const auto titleWidth = available - performerWidth - skip;
+
+		_performer->resizeToNaturalWidth(performerWidth);
+		_performer->moveToLeft(padding.left(), top);
+		_performer->show();
+
+		_title->resizeToNaturalWidth(titleWidth);
+		_title->moveToLeft(padding.left() + _performer->width() + skip, top);
 	}
 
 	return padding.top() + font->height + padding.bottom();
