@@ -52,24 +52,24 @@ def get_changelog_xml(changelog, max_items=None):
         releases.append(release)
     return releases
 
-def update_appdata(appdata_path, changelog, max_items=None):
-    appdata = ET.parse(appdata_path)
-    root = appdata.getroot()
+def update_metadata(metadata_path, changelog, max_items=None):
+    metadata = ET.parse(metadata_path)
+    root = metadata.getroot()
     releases = root.find("releases")
     if releases is not None:
         root.remove(releases)
     root.append(
         get_changelog_xml(changelog, max_items)
     )
-    appdata.write(appdata_path, encoding="utf-8", xml_declaration=True)
+    metadata.write(metadata_path, encoding="utf-8", xml_declaration=True)
 
 def main():
     ap = argparse.ArgumentParser("Parse Telegram changelog")
     ap.add_argument("-c", "--changelog-path", default="changelog.txt")
-    ap.add_argument("-a", "--appdata-path", default="lib/xdg/org.telegram.desktop.metainfo.xml")
+    ap.add_argument("-m", "--metadata-path", default="lib/xdg/org.telegram.desktop.metainfo.xml")
     ap.add_argument("-n", "--num-releases", type=int, default=None)
     args = ap.parse_args()
-    update_appdata(args.appdata_path,
+    update_metadata(args.metadata_path,
                    parse_changelog(args.changelog_path),
                    max_items=args.num_releases)
 
