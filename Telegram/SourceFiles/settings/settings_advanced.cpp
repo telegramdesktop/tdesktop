@@ -306,33 +306,37 @@ void SetupSpellchecker(
 		Core::App().saveSettingsDelayed();
 	}, container->lifetime());
 
-	if (isSystem) {
-		return;
-	}
-
 	const auto sliding = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 
-	sliding->entity()->add(object_ptr<Button>(
-		sliding->entity(),
-		tr::lng_settings_auto_download_dictionaries(),
-		st::settingsButtonNoIcon
-	))->toggleOn(
-		rpl::single(settings->autoDownloadDictionaries())
-	)->toggledValue(
-	) | rpl::filter([=](bool enabled) {
-		return (enabled != settings->autoDownloadDictionaries());
-	}) | rpl::start_with_next([=](bool enabled) {
-		settings->setAutoDownloadDictionaries(enabled);
-		Core::App().saveSettingsDelayed();
-	}, sliding->entity()->lifetime());
+	if (!isSystem) {
+		sliding->entity()->add(object_ptr<Button>(
+			sliding->entity(),
+			tr::lng_settings_auto_download_dictionaries(),
+			st::settingsButtonNoIcon
+		))->toggleOn(
+			rpl::single(settings->autoDownloadDictionaries())
+		)->toggledValue(
+		) | rpl::filter([=](bool enabled) {
+			return (enabled != settings->autoDownloadDictionaries());
+		}) | rpl::start_with_next([=](bool enabled) {
+			settings->setAutoDownloadDictionaries(enabled);
+			Core::App().saveSettingsDelayed();
+		}, sliding->entity()->lifetime());
+	}
+
+	if (isSystem && !Platform::Spellchecker::SupportsToggleDictionaries()) {
+		return;
+	}
 
 	AddButtonWithLabel(
 		sliding->entity(),
 		tr::lng_settings_manage_dictionaries(),
-		Spellchecker::ButtonManageDictsState(session),
+		isSystem
+			? rpl::single(QString())
+			: Spellchecker::ButtonManageDictsState(session),
 		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		controller->show(

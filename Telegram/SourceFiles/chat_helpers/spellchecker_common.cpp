@@ -391,6 +391,14 @@ void Start(not_null<Main::Session*> session) {
 		| rpl::take(1)
 		| rpl::start_with_next(AddExceptions, lifetime);
 
+		settings->dictionariesEnabledChanges(
+		) | rpl::start_with_next([](auto dictionaries) {
+			Platform::Spellchecker::UpdateLanguages(dictionaries);
+		}, lifetime);
+
+		settings->spellcheckerEnabledChanges(
+		) | rpl::start_with_next(onEnabled, lifetime);
+
 		return;
 	}
 
