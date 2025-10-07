@@ -91,7 +91,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin https://github.com/desktop-app/patches.git \
-	&& git fetch --depth=1 origin a25a212644a8e42d9a5b1c7ba6489e11e92df813 \
+	&& git fetch --depth=1 origin 435c8d69dd651357da120c0f14f77fd712919335 \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -731,7 +731,7 @@ COPY --link --from=xcb-cursor /usr/src/xcb-cursor-cache /
 COPY --link --from=openssl /usr/src/openssl-cache /
 COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
 
-ENV QT=6.9.2
+ENV QT=6.10.0
 RUN git clone -b v$QT --depth=1 https://github.com/qt/qt5.git \
 	&& cd qt5 \
 	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools \
@@ -747,6 +747,7 @@ RUN git clone -b v$QT --depth=1 https://github.com/qt/qt5.git \
 		-DFEATURE_sanitize_address=ON \
 {%- endif %}
 		-DQT_QPA_PLATFORMS="wayland;xcb" \
+		-DFEATURE_copy_file_range=OFF \
 		-DINPUT_libpng=qt \
 		-DINPUT_harfbuzz=qt \
 		-DINPUT_pcre=qt \
