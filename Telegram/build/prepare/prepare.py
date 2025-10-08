@@ -1654,7 +1654,7 @@ mac:
     make install
 """)
 else: # qt > '6'
-    branch = 'v$QT' + ('-lts-lgpl' if qt < '6.3' else '')
+    branch = 'v$QT' + ('-lts-lgpl' if qt.startswith('6.2.') else '')
     stage('qt_' + qt, """
     git clone -b """ + branch + """ https://github.com/qt/qt5.git qt_$QT
     cd qt_$QT
