@@ -675,4 +675,16 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 MainWindow::~MainWindow() {
 }
 
+int32 ScreenNameChecksum(const QString &name) {
+	return Window::DefaultScreenNameChecksum(name);
+}
+
+int32 ScreenNameChecksum(const QScreen *screen) {
+	return ScreenNameChecksum(screen->name());
+}
+
+QString ScreenDisplayLabel(const QScreen *screen) {
+	return screen ? screen->name() : QString();
+}
+
 } // namespace

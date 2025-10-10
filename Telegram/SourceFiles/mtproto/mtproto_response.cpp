@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_response.h"
 
 #include <QtCore/QRegularExpression>
+#include <QtCore/QDebug>
 
 namespace MTP {
 namespace {
@@ -74,6 +75,17 @@ Error Error::Local(
 		const QString &type,
 		const QString &description) {
 	return Error(MTPLocal(type, description));
+}
+
+QDebug operator<<(QDebug debug, const Error &error) {
+	return debug.nospace()
+		<< "MTP::Error("
+		<< error.code()
+		<< ", "
+		<< error.type()
+		<< ", "
+		<< error.description()
+		<< ")";
 }
 
 } // namespace MTP

@@ -2616,16 +2616,18 @@ void ComposeControls::initVoiceRecordBar() {
 		return Ui::AppInFocus();
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
-		const auto isVoice = request->check(Command::RecordVoice, 1);
-		const auto isRound = !isVoice
-			&& request->check(Command::RecordRound, 1);
-		(isVoice || isRound) && request->handle([=] {
-			if (_voiceRecordBar) {
-				_voiceRecordBar->startRecordingAndLock(isRound);
-				return true;
-			}
-			return false;
-		});
+		if (Data::CanSendAnything(_history->peer)) {
+			const auto isVoice = request->check(Command::RecordVoice, 1);
+			const auto isRound = !isVoice
+				&& request->check(Command::RecordRound, 1);
+			(isVoice || isRound) && request->handle([=] {
+				if (_voiceRecordBar) {
+					_voiceRecordBar->startRecordingAndLock(isRound);
+					return true;
+				}
+				return false;
+			});
+		}
 	}, _voiceRecordBar->lifetime());
 }
 

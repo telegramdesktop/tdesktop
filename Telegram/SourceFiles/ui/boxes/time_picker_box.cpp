@@ -18,12 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-namespace {
-
-constexpr auto kMinYScale = 0.2;
-
-} // namespace
-
 std::vector<TimeId> DefaultTimePickerValues() {
 	return {
 		(60 * 15),
@@ -81,27 +75,12 @@ Fn<TimeId()> TimePickerBox(
 		return std::ceil(mf.horizontalAdvance(*maxPhrase));
 	}();
 	const auto itemHeight = st::historyMessagesTTLPickerItemHeight;
-	auto paintCallback = [=](
-			QPainter &p,
-			int index,
-			float64 y,
-			float64 distanceFromCenter,
-			int outerWidth) {
-		const auto r = QRectF(0, y, outerWidth, itemHeight);
-		const auto progress = std::abs(distanceFromCenter);
-		const auto revProgress = 1. - progress;
-		p.save();
-		p.translate(r.center());
-		const auto yScale = kMinYScale
-			+ (1. - kMinYScale) * anim::easeOutCubic(1., revProgress);
-		p.scale(1., yScale);
-		p.translate(-r.center());
-		p.setOpacity(revProgress);
-		p.setFont(font);
-		p.setPen(st::defaultFlatLabel.textFg);
-		p.drawText(r, phrases[index], style::al_center);
-		p.restore();
-	};
+	auto paintCallback = Ui::VerticalDrumPicker::DefaultPaintCallback(
+		font,
+		itemHeight,
+		[=](QPainter &p, QRectF r, int index) {
+			p.drawText(r, phrases[index], style::al_center);
+		});
 
 	const auto picker = Ui::CreateChild<Ui::VerticalDrumPicker>(
 		content,

@@ -79,7 +79,7 @@ PeerData *Key::peer() const {
 	if (const auto peer = std::get_if<not_null<PeerData*>>(&_value)) {
 		return *peer;
 	} else if (const auto topic = this->topic()) {
-		return topic->channel();
+		return topic->peer();
 	} else if (const auto sublist = this->sublist()) {
 		return sublist->owningHistory()->peer;
 	}

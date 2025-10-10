@@ -254,7 +254,7 @@ PossibleItemReactionsRef LookupPossibleReactions(
 			}
 		}
 		if (allowed.paidEnabled
-			&& !added.contains(Data::ReactionId::Paid())) {
+			&& !added.contains(ReactionId::Paid())) {
 			result.recent.push_back(reactions->lookupPaid());
 		}
 	} else {
@@ -300,7 +300,7 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		}
 	}
 	if (!item->reactionsAreTags()) {
-		const auto toFront = [&](Data::ReactionId id) {
+		const auto toFront = [&](ReactionId id) {
 			const auto i = ranges::find(result.recent, id, &Reaction::id);
 			if (i != end(result.recent) && i != begin(result.recent)) {
 				std::rotate(begin(result.recent), i, i + 1);
@@ -308,8 +308,36 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		};
 		toFront(reactions->favoriteId());
 		if (paidInFront) {
-			toFront(Data::ReactionId::Paid());
+			toFront(ReactionId::Paid());
 		}
+	}
+	return result;
+}
+
+[[nodiscard]] PossibleItemReactionsRef LookupPossibleReactions(
+		not_null<Main::Session*> session) {
+	auto result = PossibleItemReactionsRef();
+	const auto reactions = &session->data().reactions();
+	const auto &full = reactions->list(Reactions::Type::Active);
+	const auto &top = reactions->list(Reactions::Type::Top);
+	const auto &recent = reactions->list(Reactions::Type::Recent);
+	const auto premiumPossible = session->premiumPossible();
+	auto added = base::flat_set<ReactionId>();
+	result.recent.reserve(full.size());
+	for (const auto &reaction : ranges::views::concat(top, recent, full)) {
+		if (premiumPossible || !reaction.id.custom()) {
+			if (added.emplace(reaction.id).second) {
+				result.recent.push_back(&reaction);
+			}
+		}
+	}
+	result.customAllowed = premiumPossible;
+	const auto i = ranges::find(
+		result.recent,
+		reactions->favoriteId(),
+		&Reaction::id);
+	if (i != end(result.recent) && i != begin(result.recent)) {
+		std::rotate(begin(result.recent), i, i + 1);
 	}
 	return result;
 }
@@ -574,8 +602,8 @@ DocumentData *Reactions::chooseGenericAnimation(
 	const auto i = sticker
 		? ranges::find(
 			_available,
-			::Data::ReactionId{ { sticker->alt } },
-			&::Data::Reaction::id)
+			ReactionId{ { sticker->alt } },
+			&Reaction::id)
 		: end(_available);
 	if (i != end(_available) && i->aroundAnimation) {
 		const auto view = i->aroundAnimation->createMediaView();

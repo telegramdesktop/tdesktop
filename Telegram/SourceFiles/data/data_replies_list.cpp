@@ -691,17 +691,19 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 			"(HistoryWidget::messagesReceived)"));
 		return 0;
 	}, [&](const MTPDmessages_messages &data) {
+		_history->peer->processTopics(data.vtopics());
 		return int(data.vmessages().v.size());
 	}, [&](const MTPDmessages_messagesSlice &data) {
+		_history->peer->processTopics(data.vtopics());
 		return data.vcount().v;
 	}, [&](const MTPDmessages_channelMessages &data) {
 		if (const auto channel = _history->peer->asChannel()) {
 			channel->ptsReceived(data.vpts().v);
-			channel->processTopics(data.vtopics());
 		} else {
 			LOG(("API Error: received messages.channelMessages when "
 				"no channel was passed! (HistoryWidget::messagesReceived)"));
 		}
+		_history->peer->processTopics(data.vtopics());
 		return data.vcount().v;
 	});
 

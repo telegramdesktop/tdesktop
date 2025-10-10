@@ -281,10 +281,10 @@ rpl::producer<bool> NotificationsEnabledValue(
 			Data::TopicUpdate::Flag::Notifications
 		) | rpl::to_empty,
 		topic->session().changes().peerUpdates(
-			topic->channel(),
+			topic->peer(),
 			UpdateFlag::Notifications
 		) | rpl::to_empty,
-		topic->owner().notifySettings().defaultUpdates(topic->channel())
+		topic->owner().notifySettings().defaultUpdates(topic->peer())
 	) | rpl::map([=] {
 		return !topic->owner().notifySettings().isMuted(topic);
 	}) | rpl::distinct_until_changed();

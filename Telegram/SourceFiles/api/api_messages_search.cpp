@@ -159,6 +159,7 @@ void MessagesSearch::searchReceived(
 			// Don't apply cached data!
 			owner.processUsers(data.vusers());
 			owner.processChats(data.vchats());
+			_history->peer->processTopics(data.vtopics());
 		}
 		auto items = HistoryItemsFromTL(&owner, data.vmessages().v);
 		const auto total = int(data.vmessages().v.size());
@@ -168,6 +169,7 @@ void MessagesSearch::searchReceived(
 			// Don't apply cached data!
 			owner.processUsers(data.vusers());
 			owner.processChats(data.vchats());
+			_history->peer->processTopics(data.vtopics());
 		}
 		auto items = HistoryItemsFromTL(&owner, data.vmessages().v);
 		// data.vnext_rate() is used only in global search.
@@ -178,17 +180,14 @@ void MessagesSearch::searchReceived(
 			// Don't apply cached data!
 			owner.processUsers(data.vusers());
 			owner.processChats(data.vchats());
-		}
-		if (const auto channel = _history->peer->asChannel()) {
-			channel->ptsReceived(data.vpts().v);
-			if (_requestId != 0) {
-				// Don't apply cached data!
-				channel->processTopics(data.vtopics());
+			if (const auto channel = _history->peer->asChannel()) {
+				channel->ptsReceived(data.vpts().v);
+			} else {
+				LOG(("API Error: "
+					"received messages.channelMessages when no channel "
+					"was passed!"));
 			}
-		} else {
-			LOG(("API Error: "
-				"received messages.channelMessages when no channel "
-				"was passed!"));
+			_history->peer->processTopics(data.vtopics());
 		}
 		auto items = HistoryItemsFromTL(&owner, data.vmessages().v);
 		const auto total = int(data.vcount().v);

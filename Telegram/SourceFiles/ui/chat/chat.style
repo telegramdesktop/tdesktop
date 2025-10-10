@@ -29,6 +29,8 @@ msgShadow: 2px;
 msgSelectionOffset: 30px;
 msgSelectionBottomSkip: 5px;
 
+itemRevealDuration: 150;
+
 historyReplyTop: 2px;
 historyReplyBottom: 2px;
 historyReplyPreview: 32px;
@@ -1396,6 +1398,8 @@ chatTabsOutlineHorizontal: ChatTabsOutline {
 chatTabsOutlineVertical: ChatTabsOutline(chatTabsOutlineHorizontal) {
 }
 
+messageSendingAnimationTextFromOffset: point(-6px, 9px);
+
 suggestPriceBox: Box(defaultBox) {
 	buttonPadding: margins(22px, 22px, 22px, 22px);
 	buttonHeight: 42px;
@@ -1461,3 +1465,19 @@ saveMusicInfoMenu: Menu(defaultMenu) {
 	itemFgOver: windowFg;
 	itemPadding: margins(17px, 4px, 17px, 3px);
 }
+
+newBotThreadDown: icon {{ "history_down_arrow", msgServiceFg }};
+newBotThreadTopSkip: 24px;
+
+birthdaySuggestStickerWidth: 236px;
+birthdaySuggestStickerSize: 96px;
+birthdaySuggestStickerPadding: margins(10px, 16px, 10px, 4px);
+birthdaySuggestTextPadding: margins(10px, 4px, 10px, 8px);
+birthdaySuggestTablePadding: margins(2px, 4px, 2px, 12px);
+birthdaySuggestTableLastPadding: margins(2px, 4px, 2px, 24px);
+birthdaySuggestTableSkip: 2px;
+
+messageGiftIconSkip: 30px;
+
+newChatIcon: icon{{ "chat/new_topic", windowFgActive }};
+newChatIconPadding: margins(2px, 2px, 2px, 2px);

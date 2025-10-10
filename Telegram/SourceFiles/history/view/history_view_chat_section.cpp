@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_pinned_section.h"
 #include "history/view/history_view_translate_bar.h"
 #include "history/view/history_view_translate_tracker.h"
+#include "history/view/history_view_self_forwards_tagger.h"
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
@@ -36,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/message_sending_animation_controller.h"
+#include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "base/timer_rpl.h"
 #include "api/api_bot.h"
@@ -43,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "ui/boxes/confirm_box.h"
+#include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/send_files_box.h"
@@ -437,6 +440,13 @@ ChatWidget::ChatWidget(
 			}
 		}, lifetime());
 	}
+
+	_selfForwardsTagger = std::make_unique<HistoryView::SelfForwardsTagger>(
+		controller,
+		this,
+		[=] { return _inner.data(); },
+		_scroll.get(),
+		[=] { return _history; });
 
 	setupTopicViewer();
 	setupComposeControls();
@@ -1444,7 +1454,22 @@ void ChatWidget::send(Api::SendOptions options) {
 			return;
 		}
 	}
-	session().api().sendMessage(std::move(message));
+
+	const auto nextLocalMessageId = session().data().nextLocalMessageId();
+
+	if (const auto field = _composeControls->fieldForMention(); field
+		&& HasSendText(field)
+		&& message.webPage.url.isEmpty()
+		&& (field->document()->size().height() <= field->height())) {
+		controller()->sendingAnimation().appendSending({
+			.type = Ui::MessageSendingAnimationFrom::Type::Text,
+			.localId = nextLocalMessageId,
+			.globalStartGeometry = field->mapToGlobal(
+				Rect(field->size())),
+		});
+	}
+
+	session().api().sendMessage(std::move(message), nextLocalMessageId);
 
 	_composeControls->clear();
 	if (_repliesRootId) {
@@ -1600,7 +1625,7 @@ void ChatWidget::validateSubsectionTabs() {
 }
 
 void ChatWidget::refreshJoinGroupButton() {
-	if (!_repliesRootId) {
+	if (!_repliesRootId || !_peer->isChannel()) {
 		return;
 	}
 	const auto set = [&](std::unique_ptr<Ui::FlatButton> button) {

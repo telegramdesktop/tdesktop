@@ -26,6 +26,8 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		not_null<PeerData*> peer,
 		int userpicSize,
 		bool showInForum) {
+	Expects(peer->isChat() || peer->isChannel());
+
 	struct State {
 		explicit State(not_null<PeerData*> peer)
 		: peer(peer) {
@@ -111,7 +113,7 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		const auto pushNext = [=](bool now = false) {
 			if ((!showInForum
 				&& peer->isForum()
-				&& !peer->asChannel()->useSubsectionTabs())
+				&& !peer->useSubsectionTabs())
 				|| (std::min(state->current.count, kRecentRequestsLimit)
 					!= state->users.size())) {
 				return;

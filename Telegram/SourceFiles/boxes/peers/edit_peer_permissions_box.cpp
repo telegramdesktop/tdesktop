@@ -50,7 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kSlowmodeValues = 7;
+constexpr auto kSlowmodeValues = 8;
 constexpr auto kBoostsUnrestrictValues = 5;
 constexpr auto kForceDisableTooltipDuration = 3 * crl::time(1000);
 constexpr auto kDefaultChargeStars = 10;
@@ -188,12 +188,13 @@ int SlowmodeDelayByIndex(int index) {
 
 	switch (index) {
 	case 0: return 0;
-	case 1: return 10;
-	case 2: return 30;
-	case 3: return 60;
-	case 4: return 5 * 60;
-	case 5: return 15 * 60;
-	case 6: return 60 * 60;
+	case 1: return 5;
+	case 2: return 10;
+	case 3: return 30;
+	case 4: return 60;
+	case 5: return 5 * 60;
+	case 6: return 15 * 60;
+	case 7: return 60 * 60;
 	}
 	Unexpected("Index in SlowmodeDelayByIndex.");
 }

@@ -96,7 +96,7 @@ void NotifySettings::request(not_null<Thread*> thread) {
 		if (topic->notify().settingsUnknown()) {
 			topic->session().api().requestNotifySettings(
 				MTP_inputNotifyForumTopic(
-					topic->channel()->input,
+					topic->peer()->input,
 					MTP_int(topic->rootId())));
 		}
 	}
@@ -507,7 +507,7 @@ bool NotifySettings::soundUnknown(not_null<const Thread*> thread) const {
 	const auto topic = thread->asTopic();
 	return (topic && topic->notify().settingsUnknown())
 		|| ((!topic || !topic->notify().sound().has_value())
-			&& soundUnknown(topic->channel()));
+			&& soundUnknown(topic->peer()));
 }
 
 bool NotifySettings::isMuted(

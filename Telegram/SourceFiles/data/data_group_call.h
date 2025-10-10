@@ -118,7 +118,7 @@ public:
 		return _unmutedVideoLimit.current();
 	}
 	[[nodiscard]] bool recordVideo() const {
-		return _recordVideo.current();
+		return _recordVideo;
 	}
 
 	void setPeer(not_null<PeerData*> peer);
@@ -189,6 +189,17 @@ public:
 	[[nodiscard]] bool canChangeJoinMuted() const;
 	[[nodiscard]] bool joinedToTop() const;
 
+	void setMessagesEnabledLocally(bool enabled);
+	[[nodiscard]] bool canChangeMessagesEnabled() const {
+		return _canChangeMessagesEnabled;
+	}
+	[[nodiscard]] bool messagesEnabled() const {
+		return _messagesEnabled.current();
+	}
+	[[nodiscard]] rpl::producer<bool> messagesEnabledValue() const {
+		return _messagesEnabled.value();
+	}
+
 private:
 	enum class ApplySliceSource {
 		FullReloaded,
@@ -250,7 +261,7 @@ private:
 	int _serverParticipantsCount = 0;
 	rpl::variable<int> _fullCount = 0;
 	rpl::variable<int> _unmutedVideoLimit = 0;
-	rpl::variable<bool> _recordVideo = 0;
+	rpl::variable<bool> _messagesEnabled = false;
 	rpl::variable<TimeId> _recordStartDate = 0;
 	rpl::variable<TimeId> _scheduleDate = 0;
 	rpl::variable<bool> _scheduleStartSubscribed = false;
@@ -273,7 +284,9 @@ private:
 
 	bool _creator : 1 = false;
 	bool _joinMuted : 1 = false;
+	bool _recordVideo : 1 = false;
 	bool _canChangeJoinMuted : 1 = true;
+	bool _canChangeMessagesEnabled : 1 = true;
 	bool _allParticipantsLoaded : 1 = false;
 	bool _joinedToTop : 1 = false;
 	bool _applyingQueuedUpdates : 1 = false;

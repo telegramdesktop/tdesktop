@@ -501,6 +501,7 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 		"Set from groupCall %1 -> %2"
 		).arg(_version
 		).arg(data.vversion().v));
+	const auto initial = !_version;
 	_version = data.vversion().v;
 	if (!_version) {
 		LOG(("API Error: Got zero version in groupCall."));
@@ -509,8 +510,20 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	_rtmp = data.is_rtmp_stream();
 	_creator = data.is_creator();
 	_listenersHidden = data.is_listeners_hidden();
-	_joinMuted = data.is_join_muted();
-	_canChangeJoinMuted = data.is_can_change_join_muted();
+	if (data.is_conference()) {
+		_canChangeJoinMuted = false;
+		_joinMuted = false;
+		const auto enabled = data.is_messages_enabled();
+		_canChangeMessagesEnabled = enabled;
+		if (!enabled || initial) {
+			_messagesEnabled = enabled;
+		}
+	} else {
+		_canChangeJoinMuted = data.is_can_change_join_muted();
+		_joinMuted = data.is_join_muted();
+		_canChangeMessagesEnabled = data.is_can_change_messages_enabled();
+		_messagesEnabled = data.is_messages_enabled();
+	}
 	_joinedToTop = !data.is_join_date_asc();
 	setServerParticipantsCount(data.vparticipants_count().v);
 	changePeerEmptyCallFlag();
@@ -1096,6 +1109,10 @@ bool GroupCall::canChangeJoinMuted() const {
 
 bool GroupCall::joinedToTop() const {
 	return _joinedToTop;
+}
+
+void GroupCall::setMessagesEnabledLocally(bool enabled) {
+	_messagesEnabled = enabled;
 }
 
 ApiWrap &GroupCall::api() const {

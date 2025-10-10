@@ -18,6 +18,7 @@ namespace {
 
 using Type = MiniStarsType;
 constexpr auto kDeformationMax = 0.1;
+constexpr auto kIdleLimit = 5;
 
 } // namespace
 
@@ -55,6 +56,10 @@ MiniStars::MiniStars(
 	? u":/gui/icons/settings/starmini.svg"_q
 	: u":/gui/icons/settings/star.svg"_q)
 , _animation([=](crl::time now) {
+	if (++_idleCounter >= kIdleLimit) {
+		_animation.stop();
+		return;
+	}
 	if (now > _nextBirthTime && !_paused) {
 		createStar(now);
 	}
@@ -75,8 +80,6 @@ MiniStars::MiniStars(
 			createStar(i);
 		}
 		updateCallback(_rectToUpdate);
-	} else {
-		_animation.start();
 	}
 }
 
@@ -91,6 +94,10 @@ crl::time MiniStars::timeNow() const {
 }
 
 void MiniStars::paint(QPainter &p, const QRectF &rect) {
+	_idleCounter = 0;
+	if (!_animation.animating()) {
+		_animation.start();
+	}
 	const auto center = rect.center();
 	const auto opacity = p.opacity();
 	const auto now = timeNow();

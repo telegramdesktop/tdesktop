@@ -91,6 +91,17 @@ giveawayGiftMessage: FlatLabel(defaultTableValue) {
 	minWidth: 128px;
 	maxHeight: 0px;
 }
+giveawayGiftMessageRemove: IconButton(defaultIconButton) {
+	width: 32px;
+	height: 32px;
+	icon: icon{{ "menu/delete", windowActiveTextFg }};
+	iconOver: icon{{ "menu/delete", windowActiveTextFg }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 32px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+}
 giveawayGiftCodeValueMargin: margins(13px, 9px, 13px, 9px);
 giveawayGiftCodePeerMargin: margins(11px, 6px, 11px, 4px);
 giveawayGiftCodeUserpic: UserpicButton(defaultUserpicButton) {

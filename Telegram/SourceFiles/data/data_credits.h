@@ -66,6 +66,7 @@ struct CreditsHistoryEntry final {
 	uint64 bareGiveawayMsgId = 0;
 	uint64 bareGiftStickerId = 0;
 	uint64 bareGiftOwnerId = 0;
+	uint64 bareGiftHostId = 0;
 	uint64 bareGiftReleasedById = 0;
 	uint64 bareGiftResaleRecipientId = 0;
 	uint64 bareActorId = 0;
@@ -97,6 +98,7 @@ struct CreditsHistoryEntry final {
 	int starsConverted = 0;
 	int starsToUpgrade = 0;
 	int starsUpgradedBySender = 0;
+	int starsForDetailsRemove = 0;
 	int premiumMonthsForStars = 0;
 	int floodSkip = 0;
 	bool converted : 1 = false;

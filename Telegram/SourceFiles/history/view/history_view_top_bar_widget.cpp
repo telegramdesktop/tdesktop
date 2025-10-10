@@ -846,7 +846,7 @@ void TopBarWidget::setActiveChat(
 
 		if (const auto topic = _activeChat.key.topic()) {
 			Info::Profile::NameValue(
-				topic->channel()
+				topic->peer()
 			) | rpl::start_with_next([=](const QString &name) {
 				_titlePeerText.setText(st::dialogsTextStyle, name);
 				_titlePeerTextOnline = false;

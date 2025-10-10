@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/integration.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/history.h"
@@ -457,6 +458,13 @@ void Selector::setSpecialExpandTopSkip(int skip) {
 	_specialExpandTopSkip = skip;
 }
 
+void Selector::setBubbleUp(bool bubbleUp) {
+	if (_bubbleUp == bubbleUp) {
+		return;
+	}
+	_bubbleUp = bubbleUp;
+}
+
 void Selector::initGeometry(int innerTop) {
 	const auto margins = marginsForShadow();
 	const auto parent = parentWidget()->rect();
@@ -491,7 +499,10 @@ void Selector::initGeometry(int innerTop) {
 	if (_about) {
 		_about->move(
 			_inner.x() + (_inner.width() - _about->width()) / 2,
-			_outer.y() + margins.top() + _st.aboutPadding.top());
+			_outer.y()
+				+ margins.top()
+				+ _st.aboutPadding.top()
+				- skipYBubbleUpShift());
 		_aboutCache = Ui::GrabWidgetToImage(_about.get());
 	}
 
@@ -568,7 +579,7 @@ void Selector::paintAppearing(QPainter &p) {
 	q.translate(_inner.topLeft() - QPoint(0, _outer.y()));
 	_strip->paint(
 		q,
-		{ _skipx, _skipy },
+		{ _skipx, _skipy - skipYBubbleUpShift() },
 		{ _size, 0 },
 		{ 0, 0, appearedWidth, _inner.height() },
 		1.,
@@ -622,6 +633,12 @@ void Selector::paintBackgroundToBuffer() {
 	_cachedRound.setShadowColor(st::shadowFg->c);
 
 	auto p = QPainter(&_paintBuffer);
+	if (_bubbleUp) {
+		const auto centerY = _paintBuffer.height() / (2. * factor);
+		p.translate(0, centerY);
+		p.scale(1., -1.);
+		p.translate(0, -centerY);
+	}
 	const auto radius = _inner.height() / 2.;
 	const auto frame = _cachedRound.validateFrame(0, 1., radius);
 	const auto outer = _outer.translated(0, -_outer.y());
@@ -630,6 +647,13 @@ void Selector::paintBackgroundToBuffer() {
 		p.fillRect(fill, _st.bg);
 	}
 	paintBubble(p, _inner.width());
+}
+
+int Selector::skipYBubbleUpShift() const {
+	if (!_bubbleUp) {
+		return 0;
+	}
+	return -_st.icons.stripBubble.height() + marginsForShadow().bottom();
 }
 
 void Selector::paintCollapsed(QPainter &p) {
@@ -645,7 +669,7 @@ void Selector::paintCollapsed(QPainter &p) {
 	}
 	_strip->paint(
 		p,
-		_inner.topLeft() + QPoint(_skipx, _skipy),
+		_inner.topLeft() + QPoint(_skipx, _skipy - skipYBubbleUpShift()),
 		{ _size, 0 },
 		_inner,
 		1.,
@@ -764,7 +788,7 @@ void Selector::paintFadingExpandIcon(QPainter &p, float64 progress) {
 	const auto expandIconRect = QRect(
 		expandIconPosition,
 		QSize(_size, _size)
-	).marginsRemoved({ sub, sub, sub, sub });
+	).marginsRemoved(Margins(sub)).translated(0, -skipYBubbleUpShift());
 	p.drawImage(expandIconRect, _expandIconCache);
 	p.setOpacity(1.);
 }

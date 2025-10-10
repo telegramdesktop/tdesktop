@@ -1135,7 +1135,7 @@ void Controller::fillForumButton() {
 	_forumSavedValue = _peer->isForum();
 	_forumTabsSavedValue = !_peer->isChannel()
 		|| !_peer->isForum()
-		|| _peer->asChannel()->useSubsectionTabs();
+		|| _peer->useSubsectionTabs();
 
 	const auto changes = std::make_shared<rpl::event_stream<>>();
 	const auto label = [=] {

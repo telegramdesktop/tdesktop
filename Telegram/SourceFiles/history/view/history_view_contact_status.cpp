@@ -1110,7 +1110,9 @@ TopicReopenBar::TopicReopenBar(
 
 void TopicReopenBar::setupState() {
 	const auto channel = _topic->channel();
-	auto canToggle = (_topic->my() || channel->amCreator())
+	auto canToggle = !channel
+		? (rpl::single(false) | rpl::type_erased())
+		: (_topic->my() || channel->amCreator())
 		? (rpl::single(true) | rpl::type_erased())
 		: channel->adminRightsValue(
 		) | rpl::map([=] { return _topic->canToggleClosed(); });

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/optional.h"
 #include "base/variant.h"
 #include "core/credits_amount.h"
+#include "data/data_birthday.h"
 #include "data/data_peer_id.h"
 
 #include <QtCore/QSize>
@@ -44,6 +45,8 @@ inline auto NumberToString(Type value, int length = 0, char filler = '0')
 		length,
 		filler).replace(',', '.');
 }
+
+using Birthday = ::Data::Birthday;
 
 struct TextPart {
 	enum class Type {
@@ -720,6 +723,10 @@ struct ActionSuggestedPostRefund {
 	bool payerInitiated = false;
 };
 
+struct ActionSuggestBirthday {
+	Birthday birthday;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -772,7 +779,8 @@ struct ServiceAction {
 		ActionTodoAppendTasks,
 		ActionSuggestedPostApproval,
 		ActionSuggestedPostSuccess,
-		ActionSuggestedPostRefund> content;
+		ActionSuggestedPostRefund,
+		ActionSuggestBirthday> content;
 };
 
 ServiceAction ParseServiceAction(

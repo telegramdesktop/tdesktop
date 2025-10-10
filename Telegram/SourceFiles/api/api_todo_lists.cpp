@@ -25,10 +25,6 @@ namespace {
 
 constexpr auto kSendTogglesDelay = 3 * crl::time(1000);
 
-[[nodiscard]] TimeId UnixtimeFromMsgId(mtpMsgId msgId) {
-	return TimeId(msgId >> 32);
-}
-
 } // namespace
 
 TodoLists::TodoLists(not_null<ApiWrap*> api)

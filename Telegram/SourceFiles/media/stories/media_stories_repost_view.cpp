@@ -105,7 +105,6 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 				crl::guard(this, [=] { _controller->repaint(); }));
 		}
 		ValidateBackgroundEmoji(
-			backgroundEmojiId,
 			backgroundEmoji,
 			backgroundEmojiCache,
 			cache);
@@ -115,7 +114,8 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 				p,
 				rect,
 				hasQuoteIcon,
-				*backgroundEmojiCache);
+				*backgroundEmojiCache,
+				backgroundEmoji->firstGiftFrame);
 		}
 	}
 	cache->bg = rippleColor;

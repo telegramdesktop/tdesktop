@@ -435,6 +435,7 @@ void SessionNavigation::fullInfoLoadedHook(not_null<PeerData*> peer) {
 	if (!_waitingDirectChannel || _waitingDirectChannel != peer) {
 		return;
 	}
+	_waitingDirectChannel = nullptr;
 	const auto monoforum = peer->broadcastMonoforum();
 	const auto open = monoforum ? monoforum : peer.get();
 	showPeerHistory(open, SectionShow::Way::Forward, ShowAtUnreadMsgId);
@@ -622,7 +623,7 @@ void SessionNavigation::showPeerByLinkResolved(
 			if (controller->windowId().hasChatsList()
 				&& !controller->adaptive().isOneColumn()
 				&& controller->shownForum().current() != forum
-				&& !forum->channel()->useSubsectionTabs()) {
+				&& !forum->peer()->useSubsectionTabs()) {
 				controller->showForum(forum);
 			}
 		}
@@ -740,7 +741,7 @@ void SessionNavigation::showPeerByLinkResolved(
 		peer->updateFull();
 	} else if (const auto monoforum = peer->broadcastMonoforum()
 		; monoforum && resolveType == ResolveType::ChannelDirect) {
-		showPeerHistory(peer, params, ShowAtUnreadMsgId);
+		showPeerHistory(monoforum, params, ShowAtUnreadMsgId);
 	} else {
 		// Show specific posts only in channels / supergroups.
 		const auto msgId = peer->isChannel()
@@ -1990,11 +1991,11 @@ void SessionController::showForum(
 	const auto forced = params.forceTopicsList;
 	if (showForumInDifferentWindow(forum, params)) {
 		return;
-	} else if (!forced && forum->channel()->useSubsectionTabs()) {
+	} else if (!forced && forum->peer()->useSubsectionTabs()) {
 		if (const auto active = forum->activeSubsectionThread()) {
 			showThread(active, ShowAtUnreadMsgId, params);
 		} else {
-			showPeerHistory(forum->channel(), params);
+			showPeerHistory(forum->peer(), params);
 		}
 		return;
 	}
@@ -2037,14 +2038,16 @@ void SessionController::showForum(
 	}, _shownForumLifetime);
 	if (!forced) {
 		using FlagChange = Data::Flags<ChannelDataFlags>::Change;
-		forum->channel()->flagsValue(
-		) | rpl::start_with_next([=](FlagChange change) {
-			if (change.diff & ChannelDataFlag::ForumTabs) {
-				if (HistoryView::SubsectionTabs::UsedFor(history)) {
-					closeAndShowHistory(true);
+		if (const auto channel = forum->channel()) {
+			channel->flagsValue(
+			) | rpl::start_with_next([=](FlagChange change) {
+				if (change.diff & ChannelDataFlag::ForumTabs) {
+					if (HistoryView::SubsectionTabs::UsedFor(history)) {
+						closeAndShowHistory(true);
+					}
 				}
-			}
-		}, _shownForumLifetime);
+			}, _shownForumLifetime);
+		}
 	}
 }
 

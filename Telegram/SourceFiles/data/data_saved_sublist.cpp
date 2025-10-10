@@ -372,17 +372,19 @@ bool SavedSublist::processMessagesIsEmpty(
 			"(HistoryWidget::messagesReceived)"));
 		return 0;
 	}, [&](const MTPDmessages_messages &data) {
+		owningHistory()->peer->processTopics(data.vtopics());
 		return int(data.vmessages().v.size());
 	}, [&](const MTPDmessages_messagesSlice &data) {
+		owningHistory()->peer->processTopics(data.vtopics());
 		return data.vcount().v;
 	}, [&](const MTPDmessages_channelMessages &data) {
 		if (const auto channel = owningHistory()->peer->asChannel()) {
 			channel->ptsReceived(data.vpts().v);
-			channel->processTopics(data.vtopics());
 		} else {
 			LOG(("API Error: received messages.channelMessages when "
 				"no channel was passed! (HistoryWidget::messagesReceived)"));
 		}
+		owningHistory()->peer->processTopics(data.vtopics());
 		return data.vcount().v;
 	});
 

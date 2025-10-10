@@ -7,23 +7,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_usernames_list.h"
 
+#include "api/api_filter_updates.h"
 #include "api/api_user_names.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
+#include "data/data_changes.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
+#include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/show.h"
 #include "ui/painter.h"
-#include "ui/vertical_list.h"
 #include "ui/text/text_utilities.h" // Ui::Text::RichLangValue.
 #include "ui/toast/toast.h"
+#include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout_reorder.h"
-#include "ui/ui_utility.h"
 #include "styles/style_boxes.h" // contactsStatusFont.
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -208,6 +211,17 @@ UsernamesList::UsernamesList(
 		}
 	}
 	load();
+
+	rpl::merge(
+		peer->session().changes().peerFlagsValue(
+			peer,
+			Data::PeerUpdate::Flag::Username),
+		peer->session().changes().peerFlagsValue(
+			peer,
+			Data::PeerUpdate::Flag::Usernames)
+	) | rpl::start_with_next([=] {
+		load();
+	}, lifetime());
 }
 
 void UsernamesList::load() {
@@ -250,6 +264,8 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 			username.username);
 		const auto status = (username.editable && _focusCallback)
 			? tr::lng_usernames_edit(tr::now)
+			: (username.editable && !username.active)
+			? tr::lng_usernames_non_active(tr::now)
 			: username.active
 			? tr::lng_usernames_active(tr::now)
 			: tr::lng_usernames_non_active(tr::now);
@@ -265,8 +281,20 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 			if (username.editable) {
 				if (_focusCallback) {
 					_focusCallback();
+					return;
 				}
-				return;
+				if (_isBot) {
+					const auto hasActiveAuction = ranges::any_of(
+						usernames,
+						[](const Data::Username &u) {
+							return !u.editable && u.active;
+						});
+					if (!hasActiveAuction && username.active) {
+						return;
+					}
+				} else {
+					return;
+				}
 			}
 
 			auto text = _peer->isSelf()
@@ -309,10 +337,13 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 											rpl::single(kMaxUsernames),
 											Ui::Text::RichLangValue)));
 							}
+							if (error == Api::Usernames::Error::Flood) {
+								_show->showToast(
+									tr::lng_flood_error(tr::now));
+							}
 							load();
 							_toggleLifetime.destroy();
 						}, [=] {
-							load();
 							_toggleLifetime.destroy();
 						});
 					});

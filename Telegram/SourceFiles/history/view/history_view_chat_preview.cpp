@@ -352,7 +352,7 @@ void Item::setupTop() {
 		: Ui::CreateChild<Ui::FlatLabel>(
 			_top.get(),
 			(topic
-				? Info::Profile::NameValue(topic->channel())
+				? Info::Profile::NameValue(topic->peer())
 				: std::move(statusText)),
 			st::previewStatus);
 	if (status) {

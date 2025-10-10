@@ -182,30 +182,31 @@ inline auto DefaultRestrictionValue(
 			| Flag::HasLink
 			| Flag::Forbidden
 			| Flag::Creator;
-		const auto channel = topic->channel();
-		return rpl::combine(
-			PeerFlagsValue(channel.get(), mask),
-			RestrictionsValue(channel, rights),
-			DefaultRestrictionsValue(channel, rights),
-			AdminRightsValue(channel, ChatAdminRight::ManageTopics),
-			topic->session().changes().topicFlagsValue(
-				topic,
-				TopicUpdate::Flag::Closed),
-			[=](
-					ChannelDataFlags flags,
-					ChatRestrictions sendRestriction,
-					ChatRestrictions defaultSendRestriction,
-					auto,
-					auto) {
-				const auto notAmInFlags = Flag::Left | Flag::Forbidden;
-				const auto allowed = !(flags & notAmInFlags)
-					|| ((flags & Flag::HasLink)
-						&& !(flags & Flag::JoinToWrite));
-				return allowed
-					&& ((flags & Flag::Creator)
-						|| (!sendRestriction && !defaultSendRestriction))
-					&& (!topic->closed() || topic->canToggleClosed());
-			});
+		if (const auto channel = topic->channel()) {
+			return rpl::combine(
+				PeerFlagsValue(channel, mask),
+				RestrictionsValue(channel, rights),
+				DefaultRestrictionsValue(channel, rights),
+				AdminRightsValue(channel, ChatAdminRight::ManageTopics),
+				topic->session().changes().topicFlagsValue(
+					topic,
+					TopicUpdate::Flag::Closed),
+				[=](
+						ChannelDataFlags flags,
+						ChatRestrictions sendRestriction,
+						ChatRestrictions defaultSendRestriction,
+						auto,
+						auto) {
+					const auto notAmInFlags = Flag::Left | Flag::Forbidden;
+					const auto allowed = !(flags & notAmInFlags)
+						|| ((flags & Flag::HasLink)
+							&& !(flags & Flag::JoinToWrite));
+					return allowed
+						&& ((flags & Flag::Creator)
+							|| (!sendRestriction && !defaultSendRestriction))
+						&& (!topic->closed() || topic->canToggleClosed());
+				});
+		}
 	}
 	return CanSendAnyOfValue(thread->peer(), rights, forbidInForums);
 }

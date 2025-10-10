@@ -22,6 +22,7 @@ class SubTabs;
 class PopupMenu;
 class VerticalLayout;
 class MultiSlideTracker;
+struct SubTabsReorderUpdate;
 } // namespace Ui
 
 namespace Info {
@@ -37,6 +38,10 @@ class ListWidget;
 namespace Window {
 class SessionNavigation;
 } // namespace Window
+
+namespace MTP {
+class Sender;
+} // namespace MTP
 
 namespace Info::Stories {
 
@@ -113,6 +118,9 @@ private:
 	void albumRenamed(int id, QString name);
 	void albumRemoved(int id);
 
+	void reorderAlbumsLocally(const Ui::SubTabsReorderUpdate &update);
+	void flushAlbumReorder();
+
 	const not_null<Controller*> _controller;
 	const not_null<PeerData*> _peer;
 	const int _addingToAlbumId = 0;
@@ -123,8 +131,11 @@ private:
 	Ui::RpWidget *_albumsWrap = nullptr;
 	std::unique_ptr<Ui::SubTabs> _albumsTabs;
 	rpl::variable<Data::StoryAlbumUpdate> _albumChanges;
+	bool _pendingAlbumReorder = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
+	std::unique_ptr<MTP::Sender> _api;
+	mtpRequestId _reorderRequestId = 0;
 
 	object_ptr<Ui::VerticalLayout> _top = { nullptr };
 	object_ptr<Media::ListWidget> _list = { nullptr };

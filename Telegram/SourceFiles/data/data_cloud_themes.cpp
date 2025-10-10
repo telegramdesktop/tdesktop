@@ -513,7 +513,7 @@ void CloudThemes::myGiftThemesLoadMore(bool reload) {
 	}
 	_myGiftThemesRequestId = _session->api().request(
 		MTPaccount_GetUniqueGiftChatThemes(
-			MTP_int(reload ? 0 : _myGiftThemesTokens.size()),
+			MTP_string(reload ? QString() : _myGiftThemesNextOffset),
 			MTP_int(kGiftThemesLimit),
 			MTP_long(_myGiftThemesHash))
 	).done([=](const MTPaccount_ChatThemes &result) {
@@ -536,7 +536,11 @@ void CloudThemes::myGiftThemesLoadMore(bool reload) {
 						processGiftThemeGetToken(data));
 				});
 			}
-			_myGiftThemesLoaded = (got < kGiftThemesLimit);
+			if (const auto next = data.vnext_offset()) {
+				_myGiftThemesNextOffset = qs(*next);
+			} else {
+				_myGiftThemesLoaded = true;
+			}
 			_myGiftThemesUpdates.fire({});
 		}, [&](const MTPDaccount_chatThemesNotModified &) {
 			if (!reload) {

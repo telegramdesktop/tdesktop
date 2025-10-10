@@ -205,6 +205,7 @@ SearchResult ParseSearchResult(
 			auto &d = data.c_messages_messages();
 			peer->owner().processUsers(d.vusers());
 			peer->owner().processChats(d.vchats());
+			peer->processTopics(d.vtopics());
 			result.fullCount = d.vmessages().v.size();
 			return &d.vmessages().v;
 		} break;
@@ -213,21 +214,22 @@ SearchResult ParseSearchResult(
 			auto &d = data.c_messages_messagesSlice();
 			peer->owner().processUsers(d.vusers());
 			peer->owner().processChats(d.vchats());
+			peer->processTopics(d.vtopics());
 			result.fullCount = d.vcount().v;
 			return &d.vmessages().v;
 		} break;
 
 		case mtpc_messages_channelMessages: {
 			const auto &d = data.c_messages_channelMessages();
+			peer->owner().processUsers(d.vusers());
+			peer->owner().processChats(d.vchats());
 			if (const auto channel = peer->asChannel()) {
 				channel->ptsReceived(d.vpts().v);
-				channel->processTopics(d.vtopics());
 			} else {
 				LOG(("API Error: received messages.channelMessages when "
 					"no channel was passed! (ParseSearchResult)"));
 			}
-			peer->owner().processUsers(d.vusers());
-			peer->owner().processChats(d.vchats());
+			peer->processTopics(d.vtopics());
 			result.fullCount = d.vcount().v;
 			return &d.vmessages().v;
 		} break;

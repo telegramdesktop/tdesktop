@@ -121,6 +121,11 @@ struct SentFromScheduled {
 	MsgId sentId = 0;
 };
 
+struct RecentSelfForwards {
+	PeerId fromPeerId = 0;
+	MessageIdsList ids;
+};
+
 class Session final {
 public:
 	using ViewElement = HistoryView::Element;
@@ -579,7 +584,9 @@ public:
 		MessageFlags localFlags,
 		NewMessageType type);
 
+	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] int unreadWithMentionsBadge() const;
+	[[nodiscard]] bool unreadBadgeMuted() const;
 	[[nodiscard]] bool unreadWithMentionsBadgeMuted() const;
 	[[nodiscard]] int unreadBadgeIgnoreOne(Dialogs::Key key) const;
 	[[nodiscard]] bool unreadBadgeMutedIgnoreOne(Dialogs::Key key) const;
@@ -884,6 +891,9 @@ public:
 
 	void setPendingStarsRating(StarsRatingPending value);
 	[[nodiscard]] StarsRatingPending pendingStarsRating() const;
+
+	void addRecentSelfForwards(const RecentSelfForwards &data);
+	[[nodiscard]] rpl::producer<RecentSelfForwards> recentSelfForwards() const;
 
 	void clearLocalStorage();
 
@@ -1252,6 +1262,8 @@ private:
 	base::flat_map<
 		not_null<PeerData*>,
 		NextToUpgradeGift> _nextForUpgradeGifts;
+
+	rpl::event_stream<RecentSelfForwards> _recentSelfForwards;
 
 	rpl::lifetime _lifetime;
 

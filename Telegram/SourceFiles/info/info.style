@@ -54,6 +54,14 @@ InfoTopBar {
 	radius: pixels;
 }
 
+SubTabs {
+	bg: color;
+}
+
+defaultSubTabs: SubTabs {
+	bg: windowBg;
+}
+
 infoMediaHeaderFg: windowFg;
 
 infoToggle: InfoToggle {
@@ -1278,6 +1286,9 @@ collectionEditMenuToggle: IconButton(infoTopBarMenu) {
 	rippleAreaPosition: point(4px, 4px);
 	rippleAreaSize: 40px;
 	ripple: defaultRippleAnimationBgOver;
+}
+collectionSubTabs: SubTabs(defaultSubTabs) {
+	bg: boxDividerBg;
 }
 
 earnTonIconSize: 16px;

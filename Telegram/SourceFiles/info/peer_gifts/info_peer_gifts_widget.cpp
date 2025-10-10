@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/ui_utility.h"
+#include "ui/effects/animations.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -48,11 +49,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_credits.h" // giftBoxPadding
 
+#include <QtWidgets/QApplication>
+
 namespace Info::PeerGifts {
 namespace {
 
 constexpr auto kPreloadPages = 2;
 constexpr auto kPerPage = 50;
+constexpr auto kScrollFactor = 0.05;
 
 [[nodiscard]] GiftDescriptor DescriptorForGift(
 		not_null<PeerData*> to,
@@ -106,7 +110,8 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
-		rpl::producer<Descriptor> descriptor);
+		rpl::producer<Descriptor> descriptor,
+		Ui::ScrollArea *scroll = nullptr);
 
 	[[nodiscard]] not_null<PeerData*> peer() const {
 		return _peer;
@@ -136,6 +141,9 @@ public:
 	void confirmDeleteCollection(int id);
 	void collectionAdded(MTPStarGiftCollection result);
 	void fillMenu(const Ui::Menu::MenuCallback &addAction);
+	void reorderCollections(const Ui::SubTabs::ReorderUpdate &update);
+	void reorderCollectionsLocally(const Ui::SubTabs::ReorderUpdate &update);
+	void flushCollectionReorder();
 
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
@@ -157,6 +165,18 @@ private:
 		uint64 giftId = 0;
 		int index = 0;
 	};
+	struct DragState {
+		bool enabled = false;
+		int index = -1;
+		int lastSelected = -1;
+		QPoint point;
+		QPoint startPos;
+	};
+	struct ShiftAnimation {
+		Ui::Animations::Simple xAnimation;
+		Ui::Animations::Simple yAnimation;
+		int shift = 0;
+	};
 
 public:
 	InnerWidget(
@@ -164,6 +184,7 @@ public:
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
 		rpl::producer<Descriptor> descriptor,
+		Ui::ScrollArea *scroll,
 		int addingToCollectionId,
 		Entries all);
 
@@ -172,6 +193,9 @@ private:
 		int visibleTop,
 		int visibleBottom) override;
 	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 	void subscribeToUpdates();
 	void applyUpdateTo(Entries &entries, const Data::GiftUpdate &update);
@@ -181,14 +205,30 @@ private:
 	void markInCollection(const Data::SavedStarGift &gift);
 	void refreshButtons();
 	void validateButtons();
+	[[nodiscard]] std::unique_ptr<GiftButton> createGiftButton();
 	void showGift(int index);
 	void showMenuFor(not_null<GiftButton*> button, QPoint point);
 	void showMenuForCollection(int id);
 	void refreshAbout();
 	void refreshCollectionsTabs();
 
+	void updateSelected();
+	int giftFromGlobalPos(const QPoint &p) const;
+	[[nodiscard]] QPoint posFromIndex(int index) const;
+	[[nodiscard]] bool isDraggedAnimating() const;
+	void requestReorder(int fromIndex, int toIndex);
+
 	void collectionRenamed(int id, QString name);
 	void collectionRemoved(int id);
+	void removeGiftFromCollection(
+		Data::SavedStarGiftId giftId,
+		int collectionId);
+	void addGiftToCollection(
+		Data::SavedStarGiftId giftId,
+		int collectionId);
+	void fillCollectionsMenu(
+		not_null<Ui::PopupMenu*> menu,
+		const Data::SavedStarGift &gift);
 
 	void markPinned(std::vector<Entry>::iterator i);
 	void markUnpinned(std::vector<Entry>::iterator i);
@@ -200,6 +240,7 @@ private:
 
 	const not_null<Window::SessionController*> _window;
 	const not_null<PeerData*> _peer;
+	Ui::ScrollArea * const _scroll;
 	const int _addingToCollectionId = 0;
 	const GiftButtonMode _mode;
 
@@ -209,6 +250,7 @@ private:
 	std::unique_ptr<Ui::RpWidget> _about;
 	rpl::event_stream<> _scrollToTop;
 	rpl::variable<bool> _collectionEmpty;
+	bool _pendingCollectionReorder = false;
 
 	std::vector<Data::GiftCollection> _collections;
 
@@ -229,6 +271,7 @@ private:
 	rpl::event_stream<Descriptor> _descriptorChanges;
 	rpl::event_stream<bool> _notifyEnabled;
 	std::vector<View> _views;
+	std::unique_ptr<View> _draggedView;
 	int _viewsForWidth = 0;
 	int _viewsFromRow = 0;
 	int _viewsTillRow = 0;
@@ -239,7 +282,21 @@ private:
 	int _visibleFrom = 0;
 	int _visibleTill = 0;
 
+	DragState _dragging;
+	base::flat_map<int, ShiftAnimation> _shiftAnimations;
+	int _selected = -1;
+
+	Ui::Animations::Basic _scrollAnimation;
 	base::unique_qptr<Ui::PopupMenu> _menu;
+
+protected:
+	void focusOutEvent(QFocusEvent *e) override;
+
+private:
+	void cancelDragging();
+	void updateScrollCallback();
+	void checkForScrollAnimation();
+	[[nodiscard]] int deltaFromEdge();
 
 };
 
@@ -247,12 +304,14 @@ InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> window,
 	not_null<PeerData*> peer,
-	rpl::producer<Descriptor> descriptor)
+	rpl::producer<Descriptor> descriptor,
+	Ui::ScrollArea *scroll)
 : InnerWidget(
 	parent,
 	window,
 	peer,
 	std::move(descriptor),
+	scroll,
 	0,
 	{ .total = peer->peerGiftsCount() }) {
 }
@@ -262,11 +321,13 @@ InnerWidget::InnerWidget(
 	not_null<Window::SessionController*> window,
 	not_null<PeerData*> peer,
 	rpl::producer<Descriptor> descriptor,
+	Ui::ScrollArea *scroll,
 	int addingToCollectionId,
 	Entries all)
 : BoxContentDivider(parent)
 , _window(window)
 , _peer(peer)
+, _scroll(scroll)
 , _addingToCollectionId(addingToCollectionId)
 , _mode(_addingToCollectionId
 	? GiftButtonMode::Selection
@@ -280,7 +341,8 @@ InnerWidget::InnerWidget(
 	.peer = _peer,
 	.collectionId = addingToCollectionId,
 })
-, _api(&_peer->session().mtp()) {
+, _api(&_peer->session().mtp())
+, _scrollAnimation([=] { updateScrollCallback(); }) {
 	_singleMin = _delegate.buttonSize();
 
 	if (peer->canManageGifts()) {
@@ -671,6 +733,36 @@ void InnerWidget::refreshButtons() {
 	validateButtons();
 }
 
+std::unique_ptr<GiftButton> InnerWidget::createGiftButton() {
+	auto button = std::make_unique<GiftButton>(this, &_delegate);
+	const auto raw = button.get();
+	raw->contextMenuRequests(
+	) | rpl::start_with_next([=](QPoint point) {
+		showMenuFor(raw, point);
+	}, raw->lifetime());
+
+	raw->mouseEvents(
+	) | rpl::start_with_next([=](QMouseEvent *e) {
+		switch (e->type()) {
+		case QEvent::MouseButtonPress:
+			raw->raise();
+			mousePressEvent(e);
+			break;
+		case QEvent::MouseMove:
+			mouseMoveEvent(e);
+			break;
+		case QEvent::MouseButtonRelease:
+			mouseReleaseEvent(e);
+			break;
+		default:
+			break;
+		}
+	}, raw->lifetime());
+
+	raw->show();
+	return button;
+}
+
 void InnerWidget::validateButtons() {
 	if (!_perRow) {
 		return;
@@ -735,28 +827,20 @@ void InnerWidget::validateButtons() {
 			if (unused != end(_views)) {
 				views.push_back(base::take(*unused));
 			} else {
-				auto button = std::make_unique<GiftButton>(this, &_delegate);
-				const auto raw = button.get();
-				raw->contextMenuRequests(
-				) | rpl::start_with_next([=](QPoint point) {
-					showMenuFor(raw, point);
-				}, raw->lifetime());
-				raw->show();
-				views.push_back({ .button = std::move(button) });
+				views.push_back({ .button = createGiftButton() });
 			}
 		}
 		auto &view = views.back();
-		const auto callback = [=] {
-			showGift(index);
-		};
 		view.index = index;
 		view.manageId = manageId;
 		view.giftId = giftId;
-		view.button->toggleSelected(
-			_addingToCollectionId && _inCollection.contains(manageId),
-			anim::type::instant);
+		if (_addingToCollectionId) {
+			view.button->toggleSelected(
+				_inCollection.contains(manageId),
+				GiftSelectionMode::Check,
+				anim::type::instant);
+		}
 		view.button->setDescriptor(descriptor, _mode);
-		view.button->setClickedCallback(callback);
 		return true;
 	};
 	for (auto j = fromRow; j != tillRow; ++j) {
@@ -764,14 +848,79 @@ void InnerWidget::validateButtons() {
 			if (!add(i, j)) {
 				break;
 			}
-			views.back().button->setGeometry(
-				QRect(QPoint(x, y), _single),
+			const auto &view = views.back();
+			const auto viewIndex = view.index;
+			auto pos = QPoint(x, y);
+
+			if (_dragging.enabled && viewIndex >= 0) {
+				if (viewIndex == _dragging.index && !isDraggedAnimating()) {
+					pos = mapFromGlobal(QCursor::pos()) - _dragging.point;
+				} else if (viewIndex == _dragging.index && isDraggedAnimating()) {
+					const auto it = _shiftAnimations.find(viewIndex);
+					if (it != _shiftAnimations.end()) {
+						pos = QPoint(
+							it->second.xAnimation.value(pos.x()),
+							it->second.yAnimation.value(pos.y()));
+					}
+				} else {
+					const auto it = _shiftAnimations.find(viewIndex);
+					if (it != _shiftAnimations.end()) {
+						const auto &entry = it->second;
+						const auto toPos = posFromIndex(viewIndex + entry.shift);
+						pos = QPoint(
+							entry.xAnimation.value(toPos.x()),
+							entry.yAnimation.value(toPos.y()));
+					}
+				}
+			} else if (_dragging.enabled && viewIndex == _dragging.index) {
+				pos = mapFromGlobal(QCursor::pos()) - _dragging.point;
+			}
+
+			view.button->setGeometry(
+				QRect(pos, _single),
 				_delegate.buttonExtend());
 			x += _single.width() + skipw;
 		}
 		x = left;
 		y += oneh;
 	}
+
+	if (_dragging.enabled
+		&& _dragging.index >= 0
+		&& _dragging.index < _list->size()) {
+		const auto alreadyInViews = ranges::find(
+			views,
+			_dragging.index,
+			&View::index);
+		if (alreadyInViews == end(views)) {
+			if (!_draggedView) {
+				const auto &entry = (*_list)[_dragging.index];
+				_draggedView = std::make_unique<View>();
+				_draggedView->button = createGiftButton();
+				_draggedView->index = _dragging.index;
+				_draggedView->manageId = entry.gift.manageId;
+				_draggedView->giftId = entry.gift.info.id;
+				_draggedView->button->setDescriptor(entry.descriptor, _mode);
+				if (_addingToCollectionId) {
+					_draggedView->button->toggleSelected(
+						_inCollection.contains(entry.gift.manageId),
+						GiftSelectionMode::Check,
+						anim::type::instant);
+				}
+				_draggedView->button->show();
+			} else {
+				_draggedView->index = _dragging.index;
+			}
+			auto pos = mapFromGlobal(QCursor::pos()) - _dragging.point;
+			_draggedView->button->setGeometry(
+				QRect(pos, _single),
+				_delegate.buttonExtend());
+			_draggedView->button->raise();
+		}
+	} else if (!_dragging.enabled || _dragging.index < 0) {
+		_draggedView = nullptr;
+	}
+
 	std::swap(_views, views);
 }
 
@@ -816,6 +965,19 @@ void InnerWidget::showMenuForCollection(int id) {
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+
+	if (_collectionsTabs && _collectionsTabs->reorderEnabled()) {
+		addAction(
+			tr::lng_gift_collection_reorder_exit(tr::now),
+			[=] {
+				flushCollectionReorder();
+				_collectionsTabs->setReorderEnabled(false);
+			},
+			&st::menuIconReorder);
+		_menu->popup(QCursor::pos());
+		return;
+	}
+
 	addAction(tr::lng_gift_collection_add_button(tr::now), [=] {
 		editCollectionGifts(id);
 	}, &st::menuIconGiftPremium);
@@ -827,6 +989,12 @@ void InnerWidget::showMenuForCollection(int id) {
 	addAction(tr::lng_gift_collection_edit(tr::now), [=] {
 		editCollectionName(id);
 	}, &st::menuIconEdit);
+	if (_collectionsTabs) {
+		addAction(
+			tr::lng_gift_collection_reorder(tr::now),
+			[=] { _collectionsTabs->setReorderEnabled(true); },
+			&st::menuIconReorder);
+	}
 	addAction({
 		.text = tr::lng_gift_collection_delete(tr::now),
 		.handler = [=] { confirmDeleteCollection(id); },
@@ -875,6 +1043,89 @@ void InnerWidget::confirmDeleteCollection(int id) {
 	}));
 }
 
+void InnerWidget::fillCollectionsMenu(
+		not_null<Ui::PopupMenu*> menu,
+		const Data::SavedStarGift &gift) {
+	if (!_peer->canManageGifts() || _collections.empty()) {
+		return;
+	}
+
+	const auto addAction = Ui::Menu::CreateAddActionCallback(menu);
+	for (const auto &collection : _collections) {
+		const auto id = collection.id;
+		const auto contains = ranges::contains(gift.collectionIds, id);
+		const auto title = collection.title;
+
+		auto callback = [=] {
+			if (contains) {
+				removeGiftFromCollection(gift.manageId, id);
+			} else {
+				addGiftToCollection(gift.manageId, id);
+			}
+		};
+
+		addAction(
+			title,
+			std::move(callback),
+			contains ? &st::mediaPlayerMenuCheck : nullptr);
+	}
+}
+
+void InnerWidget::addGiftToCollection(
+		Data::SavedStarGiftId giftId,
+		int collectionId) {
+	auto changes = Data::GiftsUpdate{
+		.peer = _peer,
+		.collectionId = collectionId,
+		.added = { giftId },
+	};
+	using Flag = MTPpayments_UpdateStarGiftCollection::Flag;
+	_window->session().api().request(
+		MTPpayments_UpdateStarGiftCollection(
+			MTP_flags(Flag::f_add_stargift),
+			_peer->input,
+			MTP_int(collectionId),
+			MTPstring(),
+			MTPVector<MTPInputSavedStarGift>(),
+			MTP_vector<MTPInputSavedStarGift>({
+				Api::InputSavedStarGiftId(giftId)
+			}),
+			MTPVector<MTPInputSavedStarGift>())
+	).done([=](const MTPStarGiftCollection &result) {
+		_window->session().data().notifyGiftsUpdate(base::duplicate(changes));
+
+		const auto i = ranges::find(
+			_collections,
+			collectionId,
+			&Data::GiftCollection::id);
+		if (i != end(_collections)) {
+			const auto updated = FromTL(&_window->session(), result);
+			*i = updated;
+
+			auto &per = _perCollection[collectionId];
+			per.total = updated.count;
+
+			const auto giftIt = ranges::find(
+				_all.list,
+				giftId,
+				[](const Entry &entry) { return entry.gift.manageId; });
+			if (giftIt != end(_all.list)) {
+				per.list.insert(per.list.begin(), *giftIt);
+			}
+
+			if (_addingToCollectionId == collectionId) {
+				auto currentChanges = _collectionChanges.current();
+				currentChanges.added.push_back(giftId);
+				_collectionChanges = std::move(currentChanges);
+			}
+
+			refreshCollectionsTabs();
+		}
+	}).fail([=, show = _window->uiShow()](const MTP::Error &error) {
+		show->showToast(error.type());
+	}).send();
+}
+
 void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
 	if (_menu || _addingToCollectionId) {
 		return;
@@ -896,11 +1147,40 @@ void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
 		(*_list)[index].gift);
 	entry.pinnedSavedGifts = pinnedSavedGifts();
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
+	if (_peer->canManageGifts() && !_collections.empty()) {
+		const auto &gift = (*_list)[index].gift;
+		const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+		addAction(Ui::Menu::MenuCallback::Args{
+			.text = tr::lng_gift_collection_add_to(tr::now),
+			.handler = nullptr,
+			.icon = &st::menuIconAddToFolder,
+			.fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
+				fillCollectionsMenu(menu, gift);
+			},
+		});
+	}
 	::Settings::FillSavedStarGiftMenu(
 		_window->uiShow(),
 		_menu.get(),
 		entry,
 		::Settings::SavedStarGiftMenuType::List);
+
+	const auto collectionId = _descriptor.current().collectionId;
+	if (collectionId > 0 && _peer->canManageGifts()) {
+		const auto &gift = (*_list)[index].gift;
+		if (ranges::contains(gift.collectionIds, collectionId)) {
+			const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+			addAction({
+				.text = tr::lng_gift_collection_remove_from(tr::now),
+				.handler = [=] {
+					removeGiftFromCollection(gift.manageId, collectionId);
+				},
+				.icon = &st::menuIconDeleteAttention,
+				.isAttention = true,
+			});
+		}
+	}
+
 	if (_menu->empty()) {
 		return;
 	}
@@ -937,7 +1217,9 @@ void InnerWidget::showGift(int index) {
 
 		const auto view = ranges::find(_views, index, &View::index);
 		if (view != end(_views)) {
-			view->button->toggleSelected(!selected);
+			view->button->toggleSelected(
+				!selected,
+				GiftSelectionMode::Check);
 		}
 		return;
 	}
@@ -1079,6 +1361,7 @@ void InnerWidget::editCollectionGifts(int id) {
 				_window,
 				_peer,
 				state->descriptor.value(),
+				nullptr,
 				id,
 				(_all.filter == Filter()) ? _all : Entries()),
 			style::margins());
@@ -1212,11 +1495,15 @@ void InnerWidget::refreshCollectionsTabs() {
 				&Data::GiftCollection::id))
 			? QString::number(selectedId)
 			: u"all"_q;
+		const auto tabsCount = tabs.size();
 		_collectionsTabs = std::make_unique<Ui::SubTabs>(
 			this,
+			st::collectionSubTabs,
 			Ui::SubTabs::Options{ .selected = selected, .centered = true },
 			std::move(tabs),
 			context);
+		_collectionsTabs->setPinnedInterval(0, 1);
+		_collectionsTabs->setPinnedInterval(tabsCount - 1, tabsCount);
 		_collectionsTabs->show();
 
 		_collectionsTabs->activated(
@@ -1249,8 +1536,22 @@ void InnerWidget::refreshCollectionsTabs() {
 			}
 			showMenuForCollection(id.toInt());
 		}, _collectionsTabs->lifetime());
+
+		using ReorderUpdate = Ui::SubTabs::ReorderUpdate;
+		_collectionsTabs->reorderUpdates(
+		) | rpl::start_with_next([=](const ReorderUpdate &update) {
+			if (update.state == ReorderUpdate::State::Applied) {
+				reorderCollectionsLocally(update);
+			}
+		}, _collectionsTabs->lifetime());
 	} else {
+		const auto tabsCount = tabs.size();
 		_collectionsTabs->setTabs(std::move(tabs), context);
+		_collectionsTabs->clearPinnedIntervals();
+		_collectionsTabs->setPinnedInterval(0, 1);
+		if (_peer->canManageGifts()) {
+			_collectionsTabs->setPinnedInterval(tabsCount - 1, tabsCount);
+		}
 	}
 	resizeToWidth(width());
 }
@@ -1261,6 +1562,75 @@ void InnerWidget::collectionRenamed(int id, QString name) {
 		i->title = name;
 		refreshCollectionsTabs();
 	}
+}
+
+void InnerWidget::removeGiftFromCollection(
+		Data::SavedStarGiftId giftId,
+		int collectionId) {
+	auto changes = Data::GiftsUpdate{
+		.peer = _peer,
+		.collectionId = collectionId,
+		.removed = { giftId },
+	};
+	using Flag = MTPpayments_UpdateStarGiftCollection::Flag;
+	_window->session().api().request(
+		MTPpayments_UpdateStarGiftCollection(
+			MTP_flags(Flag::f_delete_stargift),
+			_peer->input,
+			MTP_int(collectionId),
+			MTPstring(),
+			MTP_vector<MTPInputSavedStarGift>({
+				Api::InputSavedStarGiftId(giftId)
+			}),
+			MTPVector<MTPInputSavedStarGift>(),
+			MTPVector<MTPInputSavedStarGift>())
+	).done([=](const MTPStarGiftCollection &result) {
+		_window->session().data().notifyGiftsUpdate(base::duplicate(changes));
+
+		const auto i = ranges::find(
+			_collections,
+			collectionId,
+			&Data::GiftCollection::id);
+		if (i != end(_collections)) {
+			const auto updated = FromTL(&_window->session(), result);
+			*i = updated;
+
+			auto &per = _perCollection[collectionId];
+			per.total = updated.count;
+
+			if (_descriptor.current().collectionId == collectionId) {
+				const auto it = ranges::find(
+					*_list,
+					giftId,
+					[](const Entry &entry) { return entry.gift.manageId; });
+				if (it != end(*_list)) {
+					_list->erase(it);
+					if (_entries->total > 0) {
+						--_entries->total;
+					}
+					refreshButtons();
+				}
+			}
+
+			const auto giftIt = ranges::find(
+				per.list,
+				giftId,
+				[](const Entry &entry) { return entry.gift.manageId; });
+			if (giftIt != end(per.list)) {
+				per.list.erase(giftIt);
+			}
+
+			if (_addingToCollectionId == collectionId) {
+				auto currentChanges = _collectionChanges.current();
+				currentChanges.removed.push_back(giftId);
+				_collectionChanges = std::move(currentChanges);
+			}
+
+			refreshCollectionsTabs();
+		}
+	}).fail([=, show = _window->uiShow()](const MTP::Error &error) {
+		show->showToast(error.type());
+	}).send();
 }
 
 void InnerWidget::collectionRemoved(int id) {
@@ -1474,6 +1844,503 @@ void InnerWidget::fillMenu(const Ui::Menu::MenuCallback &addAction) {
 	}
 }
 
+void InnerWidget::reorderCollectionsLocally(
+		const Ui::SubTabs::ReorderUpdate &update) {
+	if (!_collectionsTabs || !_peer->canManageGifts()) {
+		return;
+	}
+
+	const auto collectionId = update.id.toInt();
+	if (collectionId <= 0) {
+		return;
+	}
+
+	const auto it = ranges::find(
+		_collections,
+		collectionId,
+		&Data::GiftCollection::id);
+	if (it == _collections.end()) {
+		return;
+	}
+
+	const auto collection = *it;
+	_collections.erase(it);
+
+	const auto newPos = std::max(
+		0,
+		std::min(update.newPosition - 1, int(_collections.size())));
+	_collections.insert(_collections.begin() + newPos, collection);
+
+	_pendingCollectionReorder = true;
+}
+
+void InnerWidget::flushCollectionReorder() {
+	if (!_pendingCollectionReorder || !_peer->canManageGifts()) {
+		return;
+	}
+
+	auto order = QVector<MTPint>();
+	for (const auto &c : _collections) {
+		order.push_back(MTP_int(c.id));
+	}
+
+	_api.request(MTPpayments_ReorderStarGiftCollections(
+		_peer->input,
+		MTP_vector<MTPint>(order)
+	)).fail([show = _window->uiShow()](const MTP::Error &error) {
+		show->showToast(error.type());
+	}).send();
+
+	_pendingCollectionReorder = false;
+}
+
+void InnerWidget::mousePressEvent(QMouseEvent *e) {
+	if (e->button() != Qt::LeftButton || _addingToCollectionId) {
+		return;
+	}
+	const auto index = giftFromGlobalPos(e->globalPos());
+	if (index < 0 || index >= _list->size()) {
+		return;
+	}
+	if (_peer->canManageGifts()
+		&& _descriptor.current().collectionId
+		&& _list->size() > 1) {
+		if (isDraggedAnimating()) {
+			return;
+		}
+		_dragging.enabled = false;
+		_dragging.index = index;
+		_dragging.point = mapFromGlobal(e->globalPos()) - posFromIndex(index);
+		_dragging.startPos = e->globalPos();
+		grabMouse();
+		e->accept();
+		return;
+	}
+}
+
+void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
+	if (_dragging.index < 0) {
+		updateSelected();
+		return;
+	}
+
+	const auto draggedAnimating = isDraggedAnimating();
+
+	if (!_dragging.enabled) {
+		const auto distance
+			= (e->globalPos() - _dragging.startPos).manhattanLength();
+		if (distance > QApplication::startDragDistance()) {
+			_dragging.enabled = true;
+		}
+	}
+
+	if (!_dragging.enabled) {
+		return;
+	}
+
+	e->accept();
+
+	const auto currentPos = e->globalPos();
+	const auto selected = giftFromGlobalPos(currentPos);
+	if (selected >= 0 && !draggedAnimating) {
+		_dragging.lastSelected = selected;
+	}
+
+	if (_dragging.index >= 0
+		&& _dragging.index < _list->size()
+		&& _dragging.lastSelected >= 0
+		&& !draggedAnimating) {
+		for (auto i = 0; i < _list->size(); i++) {
+			if (i == _dragging.index) {
+				continue;
+			}
+			auto &entry = _shiftAnimations[i];
+			const auto wasShift = entry.shift;
+			const auto dragIndex = _dragging.index;
+			const auto targetIndex = _dragging.lastSelected;
+
+			if (dragIndex < targetIndex) {
+				if (i > dragIndex && i <= targetIndex) {
+					entry.shift = -1;
+				} else {
+					entry.shift = 0;
+				}
+			} else if (dragIndex > targetIndex) {
+				if (i >= targetIndex && i < dragIndex) {
+					entry.shift = 1;
+				} else {
+					entry.shift = 0;
+				}
+			} else {
+				entry.shift = 0;
+			}
+			if (wasShift != entry.shift) {
+				const auto fromPoint = posFromIndex(i + wasShift);
+				const auto toPoint = posFromIndex(i + entry.shift);
+				const auto toX = float64(toPoint.x());
+				const auto toY = float64(toPoint.y());
+				const auto ratio = [&] {
+					const auto fromX = entry.xAnimation.value(toX);
+					const auto ratioX = std::min(toX, fromX)
+						/ std::max(toX, fromX);
+					const auto fromY = entry.yAnimation.value(toY);
+					const auto ratioY = std::min(toY, fromY)
+						/ std::max(toY, fromY);
+					return (ratioX == 1.)
+						? ratioY
+						: (ratioY == 1.)
+						? ratioX
+						: std::max(ratioX, ratioY);
+				}();
+				if (!entry.xAnimation.animating()) {
+					entry.xAnimation.stop();
+					entry.xAnimation.start(
+						[this, i](float64 value) {
+							for (auto &view : _views) {
+								if (view.index == i && view.button) {
+									view.button->moveToLeft(
+										value,
+										view.button->y());
+								}
+							}
+						},
+						fromPoint.x(),
+						toX,
+						st::fadeWrapDuration);
+				} else {
+					entry.xAnimation.change(
+						toX,
+						st::fadeWrapDuration * (1. - ratio),
+						anim::linear);
+				}
+				if (!entry.yAnimation.animating()) {
+					entry.yAnimation.stop();
+					entry.yAnimation.start(
+						[this, i](float64 value) {
+							for (auto &view : _views) {
+								if (view.index == i && view.button) {
+									view.button->moveToLeft(
+										view.button->x(),
+										value);
+								}
+							}
+						},
+						fromPoint.y(),
+						toY,
+						st::fadeWrapDuration);
+				} else {
+					entry.yAnimation.change(
+						toY,
+						st::fadeWrapDuration * (1. - ratio),
+						anim::linear);
+				}
+			}
+		}
+
+		for (auto &view : _views) {
+			if (view.index >= 0 && view.button) {
+				auto pos = posFromIndex(view.index);
+
+				if (view.index == _dragging.index) {
+					pos = mapFromGlobal(currentPos) - _dragging.point;
+				} else {
+					const auto it = _shiftAnimations.find(view.index);
+					if (it != _shiftAnimations.end()) {
+						const auto &entry = it->second;
+						const auto toPos = posFromIndex(view.index + entry.shift);
+						pos = QPoint(
+							entry.xAnimation.value(toPos.x()),
+							entry.yAnimation.value(toPos.y()));
+					}
+				}
+				view.button->moveToLeft(pos.x(), pos.y());
+			}
+		}
+
+		if (_draggedView && _draggedView->button) {
+			auto pos = mapFromGlobal(currentPos) - _dragging.point;
+			_draggedView->button->moveToLeft(pos.x(), pos.y());
+			_draggedView->button->raise();
+		}
+
+		update();
+	}
+
+	checkForScrollAnimation();
+}
+
+void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
+	if (mouseGrabber() == this) {
+		releaseMouse();
+	}
+
+	if (_dragging.enabled && _dragging.index >= 0 && !isDraggedAnimating()) {
+		const auto fromPos = mapFromGlobal(e->globalPos()) - _dragging.point;
+		const auto toPos = posFromIndex(_dragging.lastSelected);
+		const auto wasPosition = _dragging.index;
+		const auto nowPosition = _dragging.lastSelected;
+		const auto finish = [=, this] {
+			base::reorder(*_list, wasPosition, nowPosition);
+			for (auto &view : _views) {
+				view.index = base::reorder_index(
+					view.index,
+					wasPosition,
+					nowPosition);
+			}
+			if (_draggedView) {
+				_draggedView->index = nowPosition;
+			}
+			requestReorder(wasPosition, nowPosition);
+			_dragging = {};
+			_shiftAnimations.clear();
+			refreshButtons();
+		};
+		auto &entry = _shiftAnimations[_dragging.index];
+		entry.xAnimation.stop();
+		entry.yAnimation.stop();
+		entry.xAnimation.start(
+			[finish, toPos, this](float64 value) {
+				const auto index = _dragging.index;
+				if (std::abs(value - toPos.x()) < 1.0
+					&& index >= 0
+					&& !_shiftAnimations[index].yAnimation.animating()) {
+					finish();
+					return;
+				}
+				for (auto &view : _views) {
+					if (view.index == index && view.button) {
+						view.button->moveToLeft(value, view.button->y());
+					}
+				}
+				if (_draggedView
+					&& _draggedView->index == index
+					&& _draggedView->button) {
+					_draggedView->button->moveToLeft(
+						value,
+						_draggedView->button->y());
+				}
+			},
+			fromPos.x(),
+			toPos.x(),
+			st::fadeWrapDuration);
+		entry.yAnimation.start(
+			[finish, toPos, this](float64 value) {
+				const auto index = _dragging.index;
+				if (std::abs(value - toPos.y()) < 1.0
+					&& index >= 0
+					&& !_shiftAnimations[index].xAnimation.animating()) {
+					finish();
+					return;
+				}
+				for (auto &view : _views) {
+					if (view.index == index && view.button) {
+						view.button->moveToLeft(view.button->x(), value);
+					}
+				}
+				if (_draggedView
+					&& _draggedView->index == index
+					&& _draggedView->button) {
+					_draggedView->button->moveToLeft(
+						_draggedView->button->x(),
+						value);
+				}
+			},
+			fromPos.y(),
+			toPos.y(),
+			st::fadeWrapDuration);
+	} else {
+		const auto index = giftFromGlobalPos(e->globalPos());
+		_dragging = {};
+		_shiftAnimations.clear();
+		_draggedView = nullptr;
+		if (index >= 0 && index < _list->size()) {
+			showGift(index);
+		}
+		refreshButtons();
+	}
+}
+
+void InnerWidget::updateSelected() {
+	if (_dragging.enabled) {
+		return;
+	}
+	const auto selected = giftFromGlobalPos(QCursor::pos());
+	if (_selected != selected) {
+		_selected = selected;
+	}
+}
+
+int InnerWidget::giftFromGlobalPos(const QPoint &p) const {
+	const auto l = mapFromGlobal(p);
+	if (!_perRow) {
+		return -1;
+	}
+	const auto padding = st::giftBoxPadding;
+	const auto vskip = (_collectionsTabs && !_collectionsTabs->isHidden())
+		? (padding.top() + _collectionsTabs->height() + padding.top())
+		: padding.bottom();
+	const auto row = (l.y() >= vskip)
+		? ((l.y() - vskip) / (_single.height() + st::giftBoxGiftSkip.y()))
+		: -1;
+	const auto available = width() - padding.left() - padding.right();
+	const auto skipw = st::giftBoxGiftSkip.x();
+	const auto fullw = _perRow * (_single.width() + skipw) - skipw;
+	const auto left = padding.left() + (available - fullw) / 2;
+	const auto col = (l.x() >= left)
+		? ((l.x() - left) / (_single.width() + skipw))
+		: -1;
+	if (row >= 0 && col >= 0 && col < _perRow) {
+		const auto result = row * _perRow + col;
+		return (result < _list->size()) ? result : -1;
+	}
+	return -1;
+}
+
+QPoint InnerWidget::posFromIndex(int index) const {
+	if (!_perRow) {
+		return {};
+	}
+	const auto padding = st::giftBoxPadding;
+	const auto vskip = (_collectionsTabs && !_collectionsTabs->isHidden())
+		? (padding.top() + _collectionsTabs->height() + padding.top())
+		: padding.bottom();
+	const auto available = width() - padding.left() - padding.right();
+	const auto skipw = st::giftBoxGiftSkip.x();
+	const auto skiph = st::giftBoxGiftSkip.y();
+	const auto fullw = _perRow * (_single.width() + skipw) - skipw;
+	const auto left = padding.left() + (available - fullw) / 2;
+	const auto extend = _delegate.buttonExtend();
+	return {
+		left + (index % _perRow) * (_single.width() + skipw) - extend.left(),
+		vskip + (index / _perRow) * (_single.height() + skiph) - extend.top(),
+	};
+}
+
+bool InnerWidget::isDraggedAnimating() const {
+	if (_dragging.index < 0) {
+		return false;
+	}
+	const auto it = _shiftAnimations.find(_dragging.index);
+	return (it == _shiftAnimations.end())
+		? false
+		: (it->second.xAnimation.animating()
+			|| it->second.yAnimation.animating());
+}
+
+void InnerWidget::requestReorder(int fromIndex, int toIndex) {
+	if (fromIndex == toIndex || !_peer->canManageGifts()) {
+		return;
+	}
+	const auto collectionId = _descriptor.current().collectionId;
+	if (!collectionId) {
+		return;
+	}
+
+	auto order = QVector<MTPInputSavedStarGift>();
+	order.reserve(_list->size());
+	for (const auto &entry : *_list) {
+		order.push_back(Api::InputSavedStarGiftId(entry.gift.manageId));
+	}
+
+	_api.request(
+		MTPpayments_UpdateStarGiftCollection(
+			MTP_flags(MTPpayments_UpdateStarGiftCollection::Flag::f_order),
+			_peer->input,
+			MTP_int(collectionId),
+			MTPstring(),
+			MTPVector<MTPInputSavedStarGift>(),
+			MTPVector<MTPInputSavedStarGift>(),
+			MTP_vector<MTPInputSavedStarGift>(order))
+	).done([=] {
+		const auto i = ranges::find(
+			_collections,
+			collectionId,
+			&Data::GiftCollection::id);
+		if (i != end(_collections) && !_list->empty()) {
+			i->icon = (*_list)[0].gift.info.document;
+			refreshCollectionsTabs();
+		}
+	}).fail([show = _window->uiShow()](const MTP::Error &error) {
+		show->showToast(error.type());
+	}).send();
+}
+
+void InnerWidget::reorderCollections(
+		const Ui::SubTabs::ReorderUpdate &update) {
+	reorderCollectionsLocally(update);
+	flushCollectionReorder();
+}
+
+void InnerWidget::focusOutEvent(QFocusEvent *e) {
+	if (_dragging.enabled) {
+		cancelDragging();
+	}
+	BoxContentDivider::focusOutEvent(e);
+}
+
+void InnerWidget::cancelDragging() {
+	if (mouseGrabber() == this) {
+		releaseMouse();
+	}
+	_scrollAnimation.stop();
+	_dragging = {};
+	_shiftAnimations.clear();
+	if (_draggedView) {
+		_draggedView = nullptr;
+	}
+	refreshButtons();
+}
+
+void InnerWidget::updateScrollCallback() {
+	if (!_scroll) {
+		return;
+	}
+	const auto delta = deltaFromEdge();
+	const auto oldTop = _scroll->scrollTop();
+	_scroll->scrollToY(oldTop + delta);
+	const auto newTop = _scroll->scrollTop();
+
+	if (newTop == 0 || newTop == _scroll->scrollTopMax()) {
+		_scrollAnimation.stop();
+	}
+}
+
+void InnerWidget::checkForScrollAnimation() {
+	const auto delta = deltaFromEdge();
+	if (!_scroll || !delta || _scrollAnimation.animating()) {
+		return;
+	}
+	_scrollAnimation.start();
+}
+
+int InnerWidget::deltaFromEdge() {
+	if (!_dragging.enabled || _dragging.index < 0 || !_scroll) {
+		return 0;
+	}
+
+	const auto mousePos = QCursor::pos();
+	const auto scrollGlobalRect = QRect(
+		_scroll->mapToGlobal(QPoint(0, 0)),
+		_scroll->size());
+
+	const auto scrollTop = scrollGlobalRect.top();
+	const auto scrollBottom = scrollGlobalRect.bottom();
+
+	const auto scrollZone = 50;
+	const auto topDistance = mousePos.y() - scrollTop;
+	const auto bottomDistance = scrollBottom - mousePos.y();
+
+	if (topDistance < scrollZone) {
+		const auto effectiveDistance = std::max(1, scrollZone - topDistance);
+		return -int(effectiveDistance * kScrollFactor);
+	} else if (bottomDistance < scrollZone) {
+		const auto effectiveDistance
+			= std::max(1, scrollZone - bottomDistance);
+		return int(effectiveDistance * kScrollFactor);
+	}
+	return 0;
+}
+
 Memento::Memento(not_null<Controller*> controller)
 : ContentMemento(Tag{
 	controller->giftsPeer(),
@@ -1517,7 +2384,8 @@ Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 			this,
 			controller->parentController(),
 			controller->giftsPeer(),
-			_descriptor.value()));
+			_descriptor.value(),
+			scroll()));
 	_emptyCollectionShown = _inner->collectionEmptyValue();
 	_inner->notifyEnabled(
 	) | rpl::take(1) | rpl::start_with_next([=](bool enabled) {

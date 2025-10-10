@@ -91,7 +91,9 @@ public:
 	}
 
 	[[nodiscard]] std::shared_ptr<RepliesList> replies() const;
-	[[nodiscard]] not_null<ChannelData*> channel() const;
+	[[nodiscard]] not_null<PeerData*> peer() const;
+	[[nodiscard]] UserData *bot() const;
+	[[nodiscard]] ChannelData *channel() const;
 	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] not_null<Forum*> forum() const;
 	[[nodiscard]] rpl::producer<> destroyed() const;

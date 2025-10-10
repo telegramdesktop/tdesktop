@@ -41,7 +41,7 @@ void ShowBuyResaleGiftBox(
 	std::shared_ptr<Data::UniqueGift> gift,
 	bool forceTon,
 	not_null<PeerData*> to,
-	Fn<void()> closeParentBox);
+	Fn<void(bool ok)> closeParentBox);
 
 bool ShowResaleGiftLater(
 	std::shared_ptr<ChatHelpers::Show> show,
@@ -64,3 +64,7 @@ void SetPeerTheme(
 	not_null<PeerData*> peer,
 	const QString &token,
 	const std::shared_ptr<Ui::ChatTheme> &theme);
+
+void ShowActionLocked(
+	std::shared_ptr<ChatHelpers::Show> show,
+	const QString &slug);

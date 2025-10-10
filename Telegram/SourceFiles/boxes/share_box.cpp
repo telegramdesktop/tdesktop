@@ -1733,6 +1733,8 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 		const auto donePhraseArgs = CreateForwardedMessagePhraseArgs(
 			result,
 			msgIds);
+		const auto showRecentForwardsToSelf = result.size() == 1
+			&& result.front()->peer()->isSelf();
 		const auto requestType = Data::Histories::RequestType::Send;
 		for (const auto thread : result) {
 			if (!comment.text.isEmpty()) {
@@ -1790,13 +1792,22 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 						Api::SuggestToMTP(options.suggest)
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
 					threadHistory->session().api().applyUpdates(updates);
+					if (showRecentForwardsToSelf) {
+						ApiWrap::ProcessRecentSelfForwards(
+							&threadHistory->session(),
+							updates,
+							peer->id,
+							history->peer->id);
+					}
 					state->requests.remove(reqId);
 					if (state->requests.empty()) {
 						if (show->valid()) {
 							auto phrase = rpl::variable<TextWithEntities>(
 								ChatHelpers::ForwardedMessagePhrase(
 									donePhraseArgs)).current();
-							show->showToast(std::move(phrase));
+							if (!phrase.empty()) {
+								show->showToast(std::move(phrase));
+							}
 							show->hideLayer();
 						}
 					}
@@ -1954,7 +1965,9 @@ void FastShareMessageToSelf(
 			auto phrase = rpl::variable<TextWithEntities>(
 				ChatHelpers::ForwardedMessagePhrase(
 					donePhraseArgs)).current();
-			show->showToast(std::move(phrase));
+			if (!phrase.empty()) {
+				show->showToast(std::move(phrase));
+			}
 		});
 }
 

@@ -13,8 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/peers/replace_boost_box.h"
 #include "boxes/background_box.h"
+#include "boxes/star_gift_box.h"
 #include "boxes/stickers_box.h"
+#include "boxes/transfer_gift_box.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "core/ui_integration.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_changes.h"
@@ -23,13 +26,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_emoji_statuses.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer.h"
+#include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "data/data_web_page.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
+#include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/info_memento.h"
 #include "iv/iv_data.h"
@@ -42,11 +48,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/boost_box.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/controls/button_labels.h"
+#include "ui/controls/sub_tabs.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/color_contrast.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/vertical_list.h"
@@ -54,6 +64,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_credits.h"
+#include "styles/style_info.h" // defaultSubTabs.
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
@@ -66,13 +78,16 @@ using namespace Settings;
 constexpr auto kFakeChannelId = ChannelId(0xFFFFFFF000ULL);
 constexpr auto kFakeWebPageId = WebPageId(0xFFFFFFFF00000000ULL);
 constexpr auto kSelectAnimationDuration = crl::time(150);
+constexpr auto kUnsetColorIndex = uint8(0xFF);
 
 class ColorSample final : public Ui::AbstractButton {
 public:
 	ColorSample(
 		not_null<QWidget*> parent,
+		not_null<Main::Session*> session,
 		std::shared_ptr<Ui::ChatStyle> style,
 		rpl::producer<uint8> colorIndex,
+		rpl::producer<std::shared_ptr<Ui::ColorCollectible>> collectible,
 		const QString &name);
 	ColorSample(
 		not_null<QWidget*> parent,
@@ -90,6 +105,7 @@ private:
 	std::shared_ptr<Ui::ChatStyle> _style;
 	Ui::Text::String _name;
 	uint8 _index = 0;
+	std::shared_ptr<Ui::ColorCollectible> _collectible;
 	Ui::Animations::Simple _selectAnimation;
 	bool _selected = false;
 	bool _simple = false;
@@ -121,7 +137,8 @@ public:
 		std::shared_ptr<Ui::ChatTheme> theme,
 		not_null<PeerData*> peer,
 		rpl::producer<uint8> colorIndexValue,
-		rpl::producer<DocumentId> backgroundEmojiId);
+		rpl::producer<DocumentId> backgroundEmojiId,
+		rpl::producer<std::optional<Ui::ColorCollectible>> colorCollectible);
 	~PreviewWrap();
 
 private:
@@ -170,16 +187,33 @@ private:
 
 ColorSample::ColorSample(
 	not_null<QWidget*> parent,
+	not_null<Main::Session*> session,
 	std::shared_ptr<Ui::ChatStyle> style,
 	rpl::producer<uint8> colorIndex,
+	rpl::producer<std::shared_ptr<Ui::ColorCollectible>> collectible,
 	const QString &name)
 : AbstractButton(parent)
-, _style(style)
-, _name(st::semiboldTextStyle, name) {
-	std::move(
-		colorIndex
-	) | rpl::start_with_next([=](uint8 index) {
+, _style(style) {
+	rpl::combine(
+		std::move(colorIndex),
+		std::move(collectible)
+	) | rpl::start_with_next([=](
+			uint8 index,
+			std::shared_ptr<Ui::ColorCollectible> collectible) {
 		_index = index;
+		_collectible = std::move(collectible);
+		if (const auto raw = _collectible.get()) {
+			_name.setMarkedText(
+				st::semiboldTextStyle,
+				Data::SingleCustomEmoji(raw->giftEmojiId),
+				kMarkupTextOptions,
+				Core::TextContext({
+					.session = session,
+					.repaint = [=] { update(); },
+				}));
+		} else {
+			_name.setText(st::semiboldTextStyle, name);
+		}
 		setNaturalWidth([&] {
 			if (_name.isEmpty() || _style->colorPatternIndex(_index)) {
 				return st::settingsColorSampleSize;
@@ -225,7 +259,21 @@ void ColorSample::paintEvent(QPaintEvent *e) {
 	if (!_simple && !colors.outlines[1].alpha()) {
 		const auto radius = height() / 2;
 		p.setPen(Qt::NoPen);
-		p.setBrush(colors.bg);
+		if (const auto raw = _collectible.get()) {
+			const auto withBg = [&](const QColor &color) {
+				return Ui::CountContrast(st::windowBg->c, color);
+			};
+			const auto dark = (withBg({ 0, 0, 0 })
+				< withBg({ 255, 255, 255 }));
+			const auto name = (dark && raw->darkAccentColor.alpha() > 0)
+				? raw->darkAccentColor
+				: raw->accentColor;
+			auto bg = name;
+			bg.setAlpha(0.12 * 255);
+			p.setBrush(bg);
+		} else {
+			p.setBrush(colors.bg);
+		}
 		p.drawRoundedRect(rect(), radius, radius);
 
 		const auto padding = st::settingsColorSamplePadding;
@@ -291,7 +339,8 @@ PreviewWrap::PreviewWrap(
 	std::shared_ptr<Ui::ChatTheme> theme,
 	not_null<PeerData*> peer,
 	rpl::producer<uint8> colorIndexValue,
-	rpl::producer<DocumentId> backgroundEmojiId)
+	rpl::producer<DocumentId> backgroundEmojiId,
+	rpl::producer<std::optional<Ui::ColorCollectible>> colorCollectible)
 : RpWidget(box)
 , _box(box)
 , _peer(peer)
@@ -357,11 +406,22 @@ PreviewWrap::PreviewWrap(
 
 	_fake->setName(peer->name(), QString());
 	std::move(colorIndexValue) | rpl::start_with_next([=](uint8 index) {
-		_fake->changeColorIndex(index);
-		update();
+		if (index != kUnsetColorIndex) {
+			_fake->changeColorIndex(index);
+			update();
+		}
 	}, lifetime());
 	std::move(backgroundEmojiId) | rpl::start_with_next([=](DocumentId id) {
 		_fake->changeBackgroundEmojiId(id);
+		update();
+	}, lifetime());
+	std::move(colorCollectible) | rpl::start_with_next([=](
+			std::optional<Ui::ColorCollectible> &&collectible) {
+		if (collectible) {
+			_fake->changeColorCollectible(std::move(*collectible));
+		} else {
+			_fake->clearColorCollectible();
+		}
 		update();
 	}, lifetime());
 
@@ -517,6 +577,7 @@ void LevelBadge::paintEvent(QPaintEvent *e) {
 struct SetValues {
 	uint8 colorIndex = 0;
 	DocumentId backgroundEmojiId = 0;
+	std::optional<Ui::ColorCollectible> colorCollectible;
 	EmojiStatusId statusId;
 	TimeId statusUntil = 0;
 	bool statusChanged = false;
@@ -527,16 +588,32 @@ void Set(
 		SetValues values) {
 	const auto wasIndex = peer->colorIndex();
 	const auto wasEmojiId = peer->backgroundEmojiId();
+	const auto &wasColorCollectible = peer->colorCollectible();
 
-	const auto setLocal = [=](uint8 index, DocumentId emojiId) {
+	const auto setLocal = [=](
+			uint8 index,
+			DocumentId emojiId,
+			std::optional<Ui::ColorCollectible> colorCollectible) {
 		using UpdateFlag = Data::PeerUpdate::Flag;
-		peer->changeColorIndex(index);
+		if (index == kUnsetColorIndex) {
+			peer->clearColorIndex();
+		} else {
+			peer->changeColorIndex(index);
+		}
+		if (colorCollectible) {
+			peer->changeColorCollectible(*colorCollectible);
+		} else {
+			peer->clearColorCollectible();
+		}
 		peer->changeBackgroundEmojiId(emojiId);
 		peer->session().changes().peerUpdated(
 			peer,
 			UpdateFlag::Color | UpdateFlag::BackgroundEmoji);
 	};
-	setLocal(values.colorIndex, values.backgroundEmojiId);
+	setLocal(
+		values.colorIndex,
+		values.backgroundEmojiId,
+		values.colorCollectible);
 
 	const auto done = [=] {
 		show->showToast(peer->isSelf()
@@ -546,7 +623,9 @@ void Set(
 	const auto fail = [=](const MTP::Error &error) {
 		const auto type = error.type();
 		if (type != u"CHAT_NOT_MODIFIED"_q) {
-			setLocal(wasIndex, wasEmojiId);
+			setLocal(wasIndex, wasEmojiId, wasColorCollectible
+				? *wasColorCollectible
+				: std::optional<Ui::ColorCollectible>());
 			show->showToast(type);
 		}
 	};
@@ -557,10 +636,18 @@ void Set(
 	};
 	if (peer->isSelf()) {
 		using Flag = MTPaccount_UpdateColor::Flag;
+		using ColorFlag = MTPDpeerColor::Flag;
 		send(MTPaccount_UpdateColor(
-			MTP_flags(Flag::f_color | Flag::f_background_emoji_id),
-			MTP_int(values.colorIndex),
-			MTP_long(values.backgroundEmojiId)));
+			MTP_flags(Flag::f_color),
+			(values.colorCollectible
+				? MTP_inputPeerColorCollectible(
+					MTP_long(values.colorCollectible->collectibleId))
+				: MTP_peerColor(
+					MTP_flags(ColorFlag()
+						| ColorFlag::f_color
+						| ColorFlag::f_background_emoji_id),
+					MTP_int(values.colorIndex),
+					MTP_long(values.backgroundEmojiId)))));
 	} else if (const auto channel = peer->asChannel()) {
 		if (peer->isBroadcast()) {
 			using Flag = MTPchannels_UpdateColor::Flag;
@@ -582,29 +669,38 @@ void Set(
 	}
 }
 
+bool ShowPremiumToast(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer) {
+	if (!peer->isSelf() || show->session().premium()) {
+		return false;
+	}
+	Settings::ShowPremiumPromoToast(
+		show,
+		tr::lng_settings_color_subscribe(
+			tr::now,
+			lt_link,
+			Ui::Text::Link(
+				Ui::Text::Bold(
+					tr::lng_send_as_premium_required_link(tr::now))),
+			Ui::Text::WithEntities),
+		u"name_color"_q);
+	return true;
+}
+
 void Apply(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer,
 		SetValues values,
 		Fn<void()> close,
 		Fn<void()> cancel) {
-	const auto session = &peer->session();
 	if (peer->colorIndex() == values.colorIndex
 		&& peer->backgroundEmojiId() == values.backgroundEmojiId
+		&& (!peer->colorCollectible() == !values.colorCollectible)
+		&& (!peer->colorCollectible()
+			|| (*peer->colorCollectible() == *values.colorCollectible))
 		&& !values.statusChanged) {
 		close();
-	} else if (peer->isSelf() && !session->premium()) {
-		Settings::ShowPremiumPromoToast(
-			show,
-			tr::lng_settings_color_subscribe(
-				tr::now,
-				lt_link,
-				Ui::Text::Link(
-					Ui::Text::Bold(
-						tr::lng_send_as_premium_required_link(tr::now))),
-				Ui::Text::WithEntities),
-			u"name_color"_q);
-		cancel();
 	} else if (peer->isSelf()) {
 		Set(show, peer, values);
 		close();
@@ -658,7 +754,7 @@ public:
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Ui::ChatStyle> style,
 		rpl::producer<std::vector<uint8>> indices,
-		uint8 index,
+		rpl::producer<uint8> index,
 		Fn<void(uint8)> callback);
 
 private:
@@ -669,7 +765,7 @@ private:
 	const std::shared_ptr<Ui::ChatStyle> _style;
 	std::vector<std::unique_ptr<ColorSample>> _samples;
 	const Fn<void(uint8)> _callback;
-	uint8 _index = 0;
+	rpl::variable<uint8> _index;
 
 };
 
@@ -677,12 +773,12 @@ ColorSelector::ColorSelector(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Ui::ChatStyle> style,
 	rpl::producer<std::vector<uint8>> indices,
-	uint8 index,
+	rpl::producer<uint8> index,
 	Fn<void(uint8)> callback)
 : RpWidget(box)
 , _style(style)
 , _callback(std::move(callback))
-, _index(index) {
+, _index(std::move(index)) {
 	std::move(
 		indices
 	) | rpl::start_with_next([=](std::vector<uint8> indices) {
@@ -692,6 +788,7 @@ ColorSelector::ColorSelector(
 
 void ColorSelector::fillFrom(std::vector<uint8> indices) {
 	auto samples = std::vector<std::unique_ptr<ColorSample>>();
+	const auto initial = _index.current();
 	const auto add = [&](uint8 index) {
 		auto i = ranges::find(_samples, index, &ColorSample::index);
 		if (i != end(_samples)) {
@@ -702,37 +799,36 @@ void ColorSelector::fillFrom(std::vector<uint8> indices) {
 				this,
 				_style,
 				index,
-				index == _index));
+				index == initial));
 			samples.back()->show();
 			samples.back()->setClickedCallback([=] {
-				if (_index != index) {
-					_callback(index);
-
-					ranges::find(
-						_samples,
-						_index,
-						&ColorSample::index
-					)->get()->setSelected(false);
-					_index = index;
-					ranges::find(
-						_samples,
-						_index,
-						&ColorSample::index
-					)->get()->setSelected(true);
-				}
+				_callback(index);
 			});
 		}
 	};
 	for (const auto index : indices) {
 		add(index);
 	}
-	if (!ranges::contains(indices, _index)) {
-		add(_index);
+	if (initial != kUnsetColorIndex && !ranges::contains(indices, initial)) {
+		add(initial);
 	}
 	_samples = std::move(samples);
 	if (width() > 0) {
 		resizeToWidth(width());
 	}
+
+	_index.value(
+	) | rpl::combine_previous(
+	) | rpl::start_with_next([=](uint8 was, uint8 now) {
+		const auto i = ranges::find(_samples, was, &ColorSample::index);
+		if (i != end(_samples)) {
+			i->get()->setSelected(false);
+		}
+		const auto j = ranges::find(_samples, now, &ColorSample::index);
+		if (j != end(_samples)) {
+			j->get()->setSelected(true);
+		}
+	}, lifetime());
 }
 
 int ColorSelector::resizeGetHeight(int newWidth) {
@@ -840,7 +936,7 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 		}
 		auto p = QPainter(right);
 		const auto height = right->height();
-		if (state->emoji) {
+		if (state->emoji && state->index != kUnsetColorIndex) {
 			const auto colors = style->coloredValues(false, state->index);
 			state->emoji->paint(p, {
 				.textColor = colors.name,
@@ -1121,6 +1217,336 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 	return result;
 }
 
+void AddColorGiftTabs(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Main::Session*> session,
+		Fn<void(uint64 giftId)> chosen) {
+	using namespace Info::PeerGifts;
+
+	struct State {
+		rpl::variable<std::vector<Data::StarGift>> list;
+		Ui::SubTabs *tabs = nullptr;
+	};
+	const auto state = container->lifetime().make_state<State>();
+
+	GiftsStars(
+		session,
+		session->user()
+	) | rpl::start_with_next([=](const std::vector<GiftTypeStars> &list) {
+		auto filtered = std::vector<Data::StarGift>();
+		for (const auto &gift : list) {
+			if (gift.info.peerColorAvailable && gift.resale) {
+				filtered.push_back(gift.info);
+			}
+		}
+		state->list = std::move(filtered);
+	}, container->lifetime());
+
+	state->list.value(
+	) | rpl::start_with_next([=](const std::vector<Data::StarGift> &list) {
+		auto tabs = std::vector<Ui::SubTabs::Tab>();
+		tabs.push_back({
+			.id = u"my"_q,
+			.text = tr::lng_gift_stars_tabs_my(tr::now, Ui::Text::WithEntities),
+		});
+		for (const auto &gift : list) {
+			auto text = TextWithEntities();
+			tabs.push_back({
+				.id = QString::number(gift.id),
+				.text = Data::SingleCustomEmoji(
+					gift.document).append(' ').append(gift.resellTitle),
+			});
+		}
+		const auto context = Core::TextContext({
+			.session = session,
+		});
+		if (!state->tabs) {
+			state->tabs = container->add(
+				object_ptr<Ui::SubTabs>(
+					container,
+					st::defaultSubTabs,
+					Ui::SubTabs::Options{
+						.selected = u"my"_q,
+						.centered = true,
+					},
+					std::move(tabs),
+					context));
+
+			state->tabs->activated(
+			) | rpl::start_with_next([=](const QString &id) {
+				state->tabs->setActiveTab(id);
+				chosen(id.toULongLong());
+			}, state->tabs->lifetime());
+		} else {
+			state->tabs->setTabs(std::move(tabs), context);
+		}
+		container->resizeToWidth(container->width());
+	}, container->lifetime());
+}
+
+void AddGiftSelector(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Main::Session*> session,
+		rpl::producer<uint64> showingGiftIdValue,
+		Fn<void(std::shared_ptr<Data::UniqueGift> selected)> chosen,
+		rpl::producer<std::optional<Ui::ColorCollectible>> selected) {
+	using namespace Info::PeerGifts;
+
+	const auto raw = container->add(
+		object_ptr<Ui::VisibleRangeWidget>(container));
+
+	struct List {
+		std::vector<GiftTypeStars> list;
+		rpl::lifetime loading;
+		QString offset;
+		bool loaded = false;
+	};
+	struct State {
+		std::optional<Delegate> delegate;
+		rpl::variable<uint64> showingGiftId;
+		base::flat_map<uint64, List> lists;
+		List *current = nullptr;
+		std::vector<bool> validated;
+		std::vector<std::unique_ptr<GiftButton>> buttons;
+		rpl::variable<Ui::VisibleRange> visibleRange;
+		rpl::variable<std::optional<Ui::ColorCollectible>> selected;
+		int perRow = 1;
+
+		Fn<void()> loadMore;
+		Fn<void()> resize;
+		Fn<void()> rebuild;
+	};
+	const auto state = raw->lifetime().make_state<State>();
+	state->delegate.emplace(session, GiftButtonMode::Full);
+	state->showingGiftId = std::move(showingGiftIdValue);
+	state->selected = std::move(selected);
+	const auto shadow = st::defaultDropdownMenu.wrap.shadow;
+	const auto extend = shadow.extend;
+	state->loadMore = [=] {
+		const auto selfId = session->userPeerId();
+		const auto shownGiftId = state->showingGiftId.current();
+		if (state->current->loaded || state->current->loading) {
+			return;
+		} else if (shownGiftId) {
+			state->current->loading = Data::ResaleGiftsSlice(
+				session,
+				shownGiftId,
+				{},
+				state->current->offset
+			) | rpl::start_with_next([=](Data::ResaleGiftsDescriptor slice) {
+				auto &entry = state->lists[shownGiftId];
+				entry.loading.destroy();
+				entry.offset = slice.offset;
+				entry.loaded = entry.offset.isEmpty();
+				if (state->showingGiftId.current() != shownGiftId) {
+					return;
+				}
+
+				auto &list = state->current->list;
+				for (const auto &gift : slice.list) {
+					if (gift.unique && gift.unique->peerColor) {
+						list.push_back({
+							.info = gift,
+							.resale = true,
+							.mine = (gift.unique->ownerId == selfId),
+						});
+					}
+				}
+				state->resize();
+			});
+		} else {
+			state->current->loading = Data::MyUniqueGiftsSlice(
+				session,
+				Data::MyUniqueType::OwnedAndHosted,
+				state->current->offset
+			) | rpl::start_with_next([=](Data::MyGiftsDescriptor slice) {
+				auto &entry = state->lists[shownGiftId];
+				entry.loading.destroy();
+				entry.offset = slice.offset;
+				entry.loaded = entry.offset.isEmpty();
+				if (state->showingGiftId.current() != shownGiftId) {
+					return;
+				}
+
+				auto &list = state->current->list;
+				for (const auto &gift : slice.list) {
+					if (gift.info.unique && gift.info.unique->peerColor) {
+						list.push_back({ .info = gift.info });
+					}
+				}
+				state->resize();
+			});
+		}
+	};
+	state->rebuild = [=] {
+		const auto shownGiftId = state->showingGiftId.current();
+		const auto width = st::boxWideWidth;
+		const auto padding = st::giftBoxPadding;
+		const auto available = width - padding.left() - padding.right();
+		const auto range = state->visibleRange.current();
+		const auto count = int(state->current->list.size());
+
+		auto &buttons = state->buttons;
+		if (buttons.size() < count) {
+			buttons.resize(count);
+		}
+		auto &validated = state->validated;
+		validated.resize(count);
+
+		auto x = padding.left();
+		auto y = padding.top();
+		const auto single = state->delegate->buttonSize();
+		const auto perRow = state->perRow;
+		const auto singlew = single.width() + st::giftBoxGiftSkip.x();
+		const auto singleh = single.height() + st::giftBoxGiftSkip.y();
+		const auto rowFrom = std::max(range.top - y, 0) / singleh;
+		const auto rowTill = (std::max(range.bottom - y + st::giftBoxGiftSkip.y(), 0) + singleh - 1)
+			/ singleh;
+		Assert(rowTill >= rowFrom);
+		const auto first = rowFrom * perRow;
+		const auto last = std::min(rowTill * perRow, count);
+		const auto current = state->selected.current();
+		const auto selectedId = current ? current->collectibleId : 0;
+		auto checkedFrom = 0;
+		auto checkedTill = int(buttons.size());
+		const auto ensureButton = [&](int index) {
+			auto &button = buttons[index];
+			if (!button) {
+				validated[index] = false;
+				for (; checkedFrom != first; ++checkedFrom) {
+					if (buttons[checkedFrom]) {
+						button = std::move(buttons[checkedFrom]);
+						break;
+					}
+				}
+			}
+			if (!button) {
+				for (; checkedTill != last; ) {
+					--checkedTill;
+					if (buttons[checkedTill]) {
+						button = std::move(buttons[checkedTill]);
+						break;
+					}
+				}
+			}
+			if (!button) {
+				const auto delegate = &*state->delegate;
+				button = std::make_unique<GiftButton>(raw, delegate);
+			}
+			const auto raw = button.get();
+			if (validated[index]) {
+				return;
+			}
+			raw->show();
+			validated[index] = true;
+			const auto &gift = state->current->list[index];
+			raw->setDescriptor({ gift }, shownGiftId
+				? GiftButtonMode::Full
+				: GiftButtonMode::Minimal);
+			raw->setClickedCallback([=, unique = gift.info.unique] {
+				chosen(unique);
+			});
+			raw->setGeometry(QRect(QPoint(x, y), single), extend);
+			raw->toggleSelected(
+				gift.info.unique->id == selectedId,
+				GiftSelectionMode::Inset,
+				anim::type::instant);
+		};
+		y += rowFrom * singleh;
+		for (auto row = rowFrom; row != rowTill; ++row) {
+			for (auto col = 0; col != perRow; ++col) {
+				const auto index = row * perRow + col;
+				if (index >= count) {
+					break;
+				}
+				const auto last = !((col + 1) % perRow);
+				if (last) {
+					x = padding.left() + available - single.width();
+				}
+				ensureButton(index);
+				if (last) {
+					x = padding.left();
+					y += singleh;
+				} else {
+					x += singlew;
+				}
+			}
+		}
+		const auto till = std::min(int(buttons.size()), rowTill * perRow);
+		for (auto i = count; i < till; ++i) {
+			if (const auto button = buttons[i].get()) {
+				button->hide();
+			}
+		}
+
+		state->selected.value(
+		) | rpl::combine_previous() | rpl::start_with_next([=](
+				const std::optional<Ui::ColorCollectible> &was,
+				const std::optional<Ui::ColorCollectible> &now) {
+			const auto wasId = was ? was->collectibleId : 0;
+			const auto nowId = now ? now->collectibleId : 0;
+			const auto find = [&](uint64 id) -> GiftButton* {
+				if (!id) {
+					return nullptr;
+				}
+				for (auto i = 0, count = int(state->current->list.size())
+					; i != count
+					; ++i) {
+					const auto &gift = state->current->list[i];
+					if (gift.info.unique->id == id) {
+						return state->buttons[i].get();
+					}
+				}
+				return nullptr;
+			};
+			if (const auto button = find(wasId)) {
+				button->toggleSelected(false, GiftSelectionMode::Inset);
+			}
+			if (const auto button = find(nowId)) {
+				button->toggleSelected(true, GiftSelectionMode::Inset);
+			}
+		}, raw->lifetime());
+
+		const auto page = range.bottom - range.top;
+		if (page > 0 && range.bottom + page > raw->height()) {
+			state->loadMore();
+		}
+	};
+
+	const auto width = st::boxWideWidth;
+	const auto padding = st::giftBoxPadding;
+	const auto available = width - padding.left() - padding.right();
+	state->perRow = available / state->delegate->buttonSize().width();
+
+	state->resize = [=] {
+		const auto count = int(state->current->list.size());
+		state->validated.clear();
+
+		const auto rows = (count + state->perRow - 1) / state->perRow;
+		const auto height = padding.top()
+			+ (rows * state->delegate->buttonSize().height())
+			+ ((rows - 1) * st::giftBoxGiftSkip.y())
+			+ padding.bottom();
+		raw->resize(raw->width(), height);
+
+		state->rebuild();
+	};
+
+	state->showingGiftId.value(
+	) | rpl::start_with_next([=](uint64 showingId) {
+		state->current = &state->lists[showingId];
+		state->buttons.clear();
+		state->delegate.emplace(session, showingId
+			? GiftButtonMode::Full
+			: GiftButtonMode::Minimal);
+		state->resize();
+	}, raw->lifetime());
+
+	state->visibleRange = raw->visibleRange();
+	state->visibleRange.value(
+	) | rpl::start_with_next(state->rebuild, raw->lifetime());
+}
+
 } // namespace
 
 void AddLevelBadge(
@@ -1169,20 +1595,32 @@ void EditPeerColorBox(
 		? tr::lng_settings_color_title()
 		: tr::lng_edit_channel_color());
 	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giftBox);
+	box->addTopButton(st::boxTitleClose, [=] {
+		box->closeBox();
+	});
 
 	struct State {
 		rpl::variable<uint8> index;
 		rpl::variable<DocumentId> emojiId;
 		rpl::variable<EmojiStatusId> statusId;
+		rpl::variable<std::optional<Ui::ColorCollectible>> collectible;
+		rpl::variable<uint64> showingGiftId;
+		std::shared_ptr<Data::UniqueGift> buyCollectible;
 		TimeId statusUntil = 0;
 		bool statusChanged = false;
 		bool changing = false;
 		bool applying = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	state->index = peer->colorIndex();
+	state->index = peer->colorCollectible()
+		? kUnsetColorIndex
+		: peer->colorIndex();
 	state->emojiId = peer->backgroundEmojiId();
 	state->statusId = peer->emojiStatusId();
+	state->collectible = peer->colorCollectible()
+		? *peer->colorCollectible()
+		: std::optional<Ui::ColorCollectible>();
 	if (group) {
 		Settings::AddDividerTextWithLottie(box->verticalLayout(), {
 			.lottie = u"palette"_q,
@@ -1199,7 +1637,8 @@ void EditPeerColorBox(
 			theme,
 			peer,
 			state->index.value(),
-			state->emojiId.value()
+			state->emojiId.value(),
+			state->collectible.value()
 		), style::margins());
 
 		auto indices = peer->session().api().peerColors().suggestedValue();
@@ -1210,8 +1649,15 @@ void EditPeerColorBox(
 				box,
 				style,
 				std::move(indices),
-				state->index.current(),
-				[=](uint8 index) { state->index = index; }),
+				state->index.value(),
+				[=](uint8 index) {
+					if (state->collectible.current()) {
+						state->buyCollectible = nullptr;
+						state->collectible = std::nullopt;
+						state->emojiId = 0;
+					}
+					state->index = index;
+				}),
 			{ margin, skip, margin, skip });
 
 		Ui::AddDividerText(
@@ -1221,10 +1667,15 @@ void EditPeerColorBox(
 				: tr::lng_settings_color_about_channel()),
 			st::peerAppearanceDividerTextMargin);
 
-		Ui::AddSkip(container, st::settingsColorSampleSkip);
+		const auto iconWrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		const auto iconInner = iconWrap->entity();
 
-		container->add(CreateEmojiIconButton(
-			container,
+		Ui::AddSkip(iconInner, st::settingsColorSampleSkip);
+		iconInner->add(CreateEmojiIconButton(
+			iconInner,
 			show,
 			style,
 			peer,
@@ -1232,13 +1683,19 @@ void EditPeerColorBox(
 			state->emojiId.value(),
 			[=](DocumentId id) { state->emojiId = id; }));
 
-		Ui::AddSkip(container, st::settingsColorSampleSkip);
+		Ui::AddSkip(iconInner, st::settingsColorSampleSkip);
 		Ui::AddDividerText(
-			container,
+			iconInner,
 			(peer->isSelf()
 				? tr::lng_settings_color_emoji_about()
 				: tr::lng_settings_color_emoji_about_channel()),
 			st::peerAppearanceDividerTextMargin);
+
+		iconWrap->toggleOn(state->collectible.value(
+		) | rpl::map([](const std::optional<Ui::ColorCollectible> &value) {
+			return !value.has_value();
+		}));
+		iconWrap->finishAnimating();
 	}
 
 	if (const auto channel = peer->asChannel()) {
@@ -1324,28 +1781,108 @@ void EditPeerColorBox(
 				? tr::lng_edit_channel_status_about_group()
 				: tr::lng_edit_channel_status_about()),
 			st::peerAppearanceDividerTextMargin);
+	} else if (peer->isSelf()) {
+		Ui::AddSkip(container, st::settingsColorSampleSkip);
+
+		const auto session = &peer->session();
+		AddColorGiftTabs(container, session, [=](uint64 giftId) {
+			state->showingGiftId = giftId;
+		});
+
+		auto showingGiftId = state->showingGiftId.value();
+		AddGiftSelector(container, session, std::move(showingGiftId), [=](
+				std::shared_ptr<Data::UniqueGift> selected) {
+			state->index = selected->peerColor ? kUnsetColorIndex : 0;
+			state->emojiId = selected->peerColor
+				? selected->peerColor->backgroundEmojiId
+				: 0;
+			state->buyCollectible = (selected->peerColor
+				&& (selected->ownerId != session->userPeerId())
+				&& selected->starsForResale > 0)
+				? selected
+				: nullptr;
+			state->collectible = selected->peerColor
+				? *selected->peerColor
+				: std::optional<Ui::ColorCollectible>();
+		}, state->collectible.value());
 	}
 
-	box->addButton(tr::lng_settings_apply(), [=] {
+	const auto button = box->addButton(tr::lng_settings_color_apply(), [=] {
 		if (state->applying) {
 			return;
+		} else if (ShowPremiumToast(show, peer)) {
+			return;
 		}
-		state->applying = true;
-		Apply(show, peer, {
+		const auto values = SetValues{
 			state->index.current(),
 			state->emojiId.current(),
+			state->collectible.current(),
 			state->statusId.current(),
 			state->statusUntil,
 			state->statusChanged,
-		}, crl::guard(box, [=] {
+		};
+		if (const auto buy = state->buyCollectible) {
+			const auto done = [=, weak = base::make_weak(box)](bool ok) {
+				if (ok) {
+					if (const auto strong = weak.get()) {
+						strong->closeBox();
+					}
+					Apply(show, peer, values, [] {}, [] {});
+				}
+			};
+			const auto to = peer->session().user();
+			ShowBuyResaleGiftBox(show, buy, false, to, done);
+			return;
+		}
+		state->applying = true;
+		Apply(show, peer, values, crl::guard(box, [=] {
 			box->closeBox();
 		}), crl::guard(box, [=] {
 			state->applying = false;
 		}));
 	});
-	box->addButton(tr::lng_cancel(), [=] {
-		box->closeBox();
-	});
+	state->collectible.value(
+	) | rpl::start_with_next([=] {
+		const auto buy = state->buyCollectible.get();
+		while (!button->children().isEmpty()) {
+			delete button->children().first();
+		}
+		if (!buy) {
+			button->setText(rpl::combine(
+				tr::lng_settings_color_apply(),
+				Data::AmPremiumValue(&peer->session())
+			) | rpl::map([=](const QString &text, bool premium) {
+				auto result = TextWithEntities();
+				if (!premium && peer->isSelf()) {
+					result.append(Ui::Text::IconEmoji(&st::giftBoxLock));
+				}
+				result.append(text);
+				return result;
+			}));
+		} else if (buy->onlyAcceptTon) {
+			button->setText(rpl::single(QString()));
+			Ui::SetButtonTwoLabels(
+				button,
+				tr::lng_gift_buy_resale_button(
+					lt_cost,
+					rpl::single(Data::FormatGiftResaleTon(*buy)),
+					Ui::Text::WithEntities),
+				tr::lng_gift_buy_resale_equals(
+					lt_cost,
+					rpl::single(Ui::Text::IconEmoji(
+						&st::starIconEmojiSmall
+					).append(Lang::FormatCountDecimal(buy->starsForResale))),
+					Ui::Text::WithEntities),
+				st::resaleButtonTitle,
+				st::resaleButtonSubtitle);
+		} else {
+			button->setText(tr::lng_gift_buy_resale_button(
+				lt_cost,
+				rpl::single(Ui::Text::IconEmoji(&st::starIconEmoji).append(
+					Lang::FormatCountDecimal(buy->starsForResale))),
+				Ui::Text::WithEntities));
+		}
+	}, button->lifetime());
 }
 
 void SetupPeerColorSample(
@@ -1359,12 +1896,20 @@ void SetupPeerColorSample(
 	) | rpl::map([=] {
 		return peer->colorIndex();
 	});
+	auto colorCollectibleValue = peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::Color
+	) | rpl::map([=] {
+		return peer->colorCollectible();
+	});
 	const auto name = peer->shortName();
 
 	const auto sample = Ui::CreateChild<ColorSample>(
 		button.get(),
+		&peer->session(),
 		style,
 		rpl::duplicate(colorIndexValue),
+		rpl::duplicate(colorCollectibleValue),
 		name);
 	sample->show();
 

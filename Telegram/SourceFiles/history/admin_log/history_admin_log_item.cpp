@@ -1915,8 +1915,12 @@ void GenerateItems(
 			const auto &setEmoji,
 			const auto &removeEmoji,
 			const auto &changeEmoji) {
-		const auto prevColor = was.data().vcolor();
-		const auto nextColor = now.data().vcolor();
+		const auto prevColor = (was.type() == mtpc_peerColor)
+			? was.c_peerColor().vcolor()
+			: tl::conditional<MTPint>();
+		const auto nextColor = (now.type() == mtpc_peerColor)
+			? now.c_peerColor().vcolor()
+			: tl::conditional<MTPint>();
 		if (prevColor != nextColor) {
 			const auto wrap = [&](tl::conditional<MTPint> value) {
 				return value
@@ -1934,8 +1938,12 @@ void GenerateItems(
 				Ui::Text::WithEntities);
 			addSimpleServiceMessage(text);
 		}
-		const auto prevEmoji = was.data().vbackground_emoji_id().value_or_empty();
-		const auto nextEmoji = now.data().vbackground_emoji_id().value_or_empty();
+		const auto prevEmoji = (was.type() == mtpc_peerColor)
+			? was.c_peerColor().vbackground_emoji_id().value_or_empty()
+			: uint64();
+		const auto nextEmoji = (now.type() == mtpc_peerColor)
+			? now.c_peerColor().vbackground_emoji_id().value_or_empty()
+			: uint64();
 		if (prevEmoji != nextEmoji) {
 			const auto text = !prevEmoji
 				? setEmoji(

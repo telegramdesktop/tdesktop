@@ -30,6 +30,7 @@ class Error;
 } // namespace MTP
 
 namespace Data {
+class ForumTopic;
 class PhotoMedia;
 struct SendError;
 } // namespace Data
@@ -99,6 +100,7 @@ struct FileChosen;
 namespace HistoryView {
 class StickerToast;
 class PaidReactionToast;
+class SelfForwardsTagger;
 class TopBarWidget;
 class PaysStatus;
 class ContactStatus;
@@ -779,6 +781,7 @@ private:
 	QPointer<HistoryInner> _list;
 	History *_migrated = nullptr;
 	History *_history = nullptr;
+	mutable Data::ForumTopic *_creatingBotTopic = nullptr;
 	rpl::lifetime _historySponsoredPreloading;
 
 	// Initial updateHistoryGeometry() was called.
@@ -892,6 +895,7 @@ private:
 
 	HistoryView::InfoTooltip _topToast;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
+	std::unique_ptr<HistoryView::SelfForwardsTagger> _selfForwardsTagger;
 	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
 
 	std::unique_ptr<HistoryView::PaidReactionToast> _paidReactionToast;

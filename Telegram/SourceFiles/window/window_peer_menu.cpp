@@ -415,8 +415,9 @@ void TogglePinnedThread(
 			controller->content()->dialogsToUp();
 		}
 	} else if (const auto topic = entry->asTopic()) {
-		owner->session().api().request(MTPchannels_UpdatePinnedForumTopic(
-			topic->channel()->inputChannel,
+		const auto peer = topic->peer();
+		owner->session().api().request(MTPmessages_UpdatePinnedForumTopic(
+			peer->input,
 			MTP_int(topic->rootId()),
 			MTP_bool(isPinned)
 		)).done([=](const MTPUpdates &result) {
@@ -480,7 +481,10 @@ void Filler::addToggleTopicClosed() {
 	}
 	const auto closed = _topic->closed();
 	const auto weak = base::make_weak(_topic);
-	_addAction(closed ? tr::lng_forum_topic_reopen(tr::now) : tr::lng_forum_topic_close(tr::now), [=] {
+	const auto text = closed
+		? tr::lng_forum_topic_reopen(tr::now)
+		: tr::lng_forum_topic_close(tr::now);
+	_addAction(text, [=] {
 		if (const auto topic = weak.get()) {
 			topic->setClosedAndSave(!closed);
 		}
@@ -571,7 +575,9 @@ void Filler::addInfo() {
 	const auto controller = _controller;
 	const auto weak = base::make_weak(_thread);
 	const auto text = _thread->asTopic()
-		? tr::lng_context_view_topic(tr::now)
+		? (_thread->peer()->isBot()
+			? tr::lng_context_view_thread(tr::now)
+			: tr::lng_context_view_topic(tr::now))
 		: (infoPeer->isChat() || infoPeer->isMegagroup())
 		? tr::lng_context_view_group(tr::now)
 		: infoPeer->isUser()
@@ -695,7 +701,7 @@ void Filler::addNewWindow() {
 		if (const auto strong = weak.get()) {
 			const auto forum = !strong->asTopic()
 				&& peer->isForum()
-				&& !peer->asChannel()->useSubsectionTabs();
+				&& !peer->useSubsectionTabs();
 			controller->showInNewWindow(SeparateId(
 				forum ? SeparateType::Forum : SeparateType::Chat,
 				strong));
@@ -1063,6 +1069,9 @@ void Filler::addTopicLink() {
 		return;
 	}
 	const auto channel = _topic->channel();
+	if (!channel) {
+		return;
+	}
 	const auto id = _topic->rootId();
 	const auto controller = _controller;
 	_addAction(tr::lng_context_copy_topic_link(tr::now), [=] {
@@ -1085,7 +1094,10 @@ void Filler::addManageTopic() {
 	const auto history = _topic->history();
 	const auto rootId = _topic->rootId();
 	const auto navigation = _controller;
-	_addAction(tr::lng_forum_topic_edit(tr::now), [=] {
+	const auto text = _topic->forum()->peer()->isBot()
+		? tr::lng_bot_thread_edit(tr::now)
+		: tr::lng_forum_topic_edit(tr::now);
+	_addAction(text, [=] {
 		navigation->show(
 			Box(EditForumTopicBox, navigation, history, rootId));
 	}, &st::menuIconEdit);
@@ -1359,7 +1371,7 @@ void Filler::fill() {
 }
 
 void Filler::addCreateTopic() {
-	if (!_peer || !_peer->canCreateTopics()) {
+	if (!_peer || !_peer->canCreateTopics() || _peer->isBot()) {
 		return;
 	}
 	const auto peer = _peer;
@@ -1422,6 +1434,7 @@ void Filler::addViewAsMessages() {
 void Filler::addViewAsTopics() {
 	if (!_peer
 		|| !_peer->isForum()
+		|| !_peer->isChannel()
 		|| (_peer->asChannel()->flags() & ChannelDataFlag::ForumTabs)
 		|| !_controller->adaptive().isOneColumn()) {
 		return;
@@ -1805,17 +1818,17 @@ void PeerMenuDeleteTopicWithConfirmation(
 
 void PeerMenuDeleteTopic(
 		not_null<Window::SessionNavigation*> navigation,
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		MsgId rootId) {
-	const auto api = &channel->session().api();
-	api->request(MTPchannels_DeleteTopicHistory(
-		channel->inputChannel,
+	const auto api = &peer->session().api();
+	api->request(MTPmessages_DeleteTopicHistory(
+		peer->input,
 		MTP_int(rootId)
 	)).done([=](const MTPmessages_AffectedHistory &result) {
-		const auto offset = api->applyAffectedHistory(channel, result);
+		const auto offset = api->applyAffectedHistory(peer, result);
 		if (offset > 0) {
-			PeerMenuDeleteTopic(navigation, channel, rootId);
-		} else if (const auto forum = channel->forum()) {
+			PeerMenuDeleteTopic(navigation, peer, rootId);
+		} else if (const auto forum = peer->forum()) {
 			forum->applyTopicDeleted(rootId);
 		}
 	}).send();
@@ -1824,7 +1837,7 @@ void PeerMenuDeleteTopic(
 void PeerMenuDeleteTopic(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<Data::ForumTopic*> topic) {
-	PeerMenuDeleteTopic(navigation, topic->channel(), topic->rootId());
+	PeerMenuDeleteTopic(navigation, topic->peer(), topic->rootId());
 }
 
 void PeerMenuShareContactBox(
@@ -2808,7 +2821,7 @@ base::weak_qptr<Ui::BoxContent> ShowForwardMessagesBox(
 				return true;
 			}
 			const auto id = SeparateId(
-				((peer->isForum() && !peer->asChannel()->useSubsectionTabs())
+				((peer->isForum() && !peer->useSubsectionTabs())
 					? SeparateType::Forum
 					: SeparateType::Chat),
 				thread);
@@ -3895,7 +3908,9 @@ void ForwardToSelf(
 					.singleMessage = (count == 1),
 					.to1 = session->user(),
 				})).current();
-				show->showToast(std::move(phrase));
+				if (!phrase.empty()) {
+					show->showToast(std::move(phrase));
+				}
 			});
 	}
 }

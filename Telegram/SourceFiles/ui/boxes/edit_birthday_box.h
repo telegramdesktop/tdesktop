@@ -15,9 +15,16 @@ namespace Ui {
 
 class GenericBox;
 
+enum class EditBirthdayType {
+	Edit,
+	Suggest,
+	ConfirmSuggestion,
+};
+
 void EditBirthdayBox(
 	not_null<Ui::GenericBox*> box,
 	Data::Birthday current,
-	Fn<void(Data::Birthday)> save);
+	Fn<void(Data::Birthday)> save,
+	EditBirthdayType type = EditBirthdayType::Edit);
 
 } // namespace Ui

@@ -146,7 +146,7 @@ rpl::producer<QString> Credits::title() {
 	if (_creditsType == CreditsType::Ton) {
 		return tr::lng_credits_currency_summary_title();
 	}
-	return tr::lng_premium_summary_title();
+	return tr::lng_credits_summary_title();
 }
 
 bool Credits::hasFlexibleTopBar() const {

@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h" // peerListSingleRow.
 #include "styles/style_credits.h" // starIconEmoji.
 #include "styles/style_dialogs.h" // recentPeersSpecialName.
+#include "styles/style_info.h" // defaultSubTabs.
 #include "styles/style_layers.h" // boxLabel.
 
 namespace {
@@ -142,6 +143,8 @@ void ExportOnBlockchain(
 		) | rpl::take(
 			1
 		) | rpl::start_with_next([=](const Core::CloudPasswordState &pass) {
+			state->lifetime.destroy();
+
 			auto fields = PasscodeBox::CloudFields::From(pass);
 			fields.customTitle = tr::lng_gift_transfer_password_title();
 			fields.customDescription
@@ -789,7 +792,7 @@ void ShowBuyResaleGiftBox(
 		std::shared_ptr<Data::UniqueGift> gift,
 		bool forceTon,
 		not_null<PeerData*> to,
-		Fn<void()> closeParentBox) {
+		Fn<void(bool ok)> closeParentBox) {
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		struct State {
 			rpl::variable<bool> ton;
@@ -810,6 +813,7 @@ void ShowBuyResaleGiftBox(
 			const auto tabs = box->addRow(
 				object_ptr<Ui::SubTabs>(
 					box,
+					st::defaultSubTabs,
 					Ui::SubTabsOptions{
 						.selected = (state->ton.current()
 							? u"ton"_q
@@ -854,12 +858,12 @@ void ShowBuyResaleGiftBox(
 			const auto weak = base::make_weak(box);
 			const auto done = [=](Payments::CheckoutResult result) {
 				if (result == Payments::CheckoutResult::Cancelled) {
-					closeParentBox();
+					closeParentBox(false);
 					close();
 				} else if (result != Payments::CheckoutResult::Paid) {
 					state->sent = false;
 				} else {
-					closeParentBox();
+					closeParentBox(true);
 					close();
 				}
 			};
@@ -944,4 +948,20 @@ bool ShowTransferGiftLater(
 			: tr::lng_minutes(tr::now, lt_count, minutes)) },
 	});
 	return true;
+}
+
+void ShowActionLocked(
+		std::shared_ptr<ChatHelpers::Show> show,
+		const QString &slug) {
+	const auto open = [=] {
+		UrlClickHandler::Open(u"https://fragment.com/gift/"_q
+			+ slug
+			+ u"?collection=my"_q);
+	};
+	show->show(Ui::MakeConfirmBox({
+		.text = tr::lng_gift_transfer_locked_text(),
+		.confirmed = [=](Fn<void()> close) { open(); close(); },
+		.confirmText = tr::lng_gift_transfer_confirm_button(),
+		.title = tr::lng_gift_transfer_locked_title(),
+	}));
 }

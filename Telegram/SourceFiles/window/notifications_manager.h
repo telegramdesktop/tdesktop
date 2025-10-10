@@ -42,6 +42,7 @@ class Track;
 } // namespace Media::Audio
 
 namespace Window {
+class Controller;
 class SessionController;
 } // namespace Window
 
@@ -87,6 +88,7 @@ using toggle = option<bool>;
 
 namespace Window::Notifications {
 
+extern const char kOptionCustomNotification[];
 extern const char kOptionGNotification[];
 extern base::options::toggle OptionGNotification;
 
@@ -110,6 +112,7 @@ public:
 	void setManager(Fn<std::unique_ptr<Manager>()> create);
 	[[nodiscard]] Manager &manager() const;
 	[[nodiscard]] rpl::producer<> managerChanged() const;
+	[[nodiscard]] bool nativeEnforced() const;
 
 	void checkDelayed();
 	void schedule(Data::ItemNotification notification);
@@ -467,5 +470,7 @@ protected:
 };
 
 [[nodiscard]] QString WrapFromScheduled(const QString &text);
+
+[[nodiscard]] QRect NotificationDisplayRect(Window::Controller *controller);
 
 } // namespace Window::Notifications

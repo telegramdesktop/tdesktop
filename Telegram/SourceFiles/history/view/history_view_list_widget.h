@@ -292,8 +292,6 @@ public:
 		not_null<Main::Session*> session,
 		not_null<ListDelegate*> delegate);
 
-	static const crl::time kItemRevealDuration;
-
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<Window::SessionController*> controller() const;
 	[[nodiscard]] not_null<ListDelegate*> delegate() const;

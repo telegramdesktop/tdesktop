@@ -340,6 +340,16 @@ void WebPageData::ApplyChanges(
 		not_null<Main::Session*> session,
 		ChannelData *channel,
 		const MTPmessages_Messages &result) {
+	const auto list = result.match([](
+			const MTPDmessages_messagesNotModified &) {
+		LOG(("API Error: received messages.messagesNotModified! "
+			"(WebPageData::ApplyChanges)"));
+		return static_cast<const QVector<MTPMessage>*>(nullptr);
+	}, [&](const auto &data) {
+		session->data().processUsers(data.vusers());
+		session->data().processChats(data.vchats());
+		return &data.vmessages().v;
+	});
 	result.match([&](
 			const MTPDmessages_channelMessages &data) {
 		if (channel) {
@@ -351,15 +361,12 @@ void WebPageData::ApplyChanges(
 		}
 	}, [&](const auto &) {
 	});
-	const auto list = result.match([](
+	result.match([](
 			const MTPDmessages_messagesNotModified &) {
-		LOG(("API Error: received messages.messagesNotModified! "
-			"(WebPageData::ApplyChanges)"));
-		return static_cast<const QVector<MTPMessage>*>(nullptr);
 	}, [&](const auto &data) {
-		session->data().processUsers(data.vusers());
-		session->data().processChats(data.vchats());
-		return &data.vmessages().v;
+		if (channel) {
+			channel->processTopics(data.vtopics());
+		}
 	});
 	if (!list) {
 		return;

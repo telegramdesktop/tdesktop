@@ -240,6 +240,96 @@ bool EventFilter::mainWindowEvent(
 	return false;
 }
 
+[[nodiscard]] QString HumanReadableDisplayName(HMONITOR hMonitor) {
+	// https://github.com/qt/qtbase/commit/6136b92f540c15835e0c7eb7e01ab7b58fbea685
+	auto monitorInfo = MONITORINFOEX{};
+	monitorInfo.cbSize = sizeof(MONITORINFOEX);
+	if (!GetMonitorInfo(hMonitor, &monitorInfo)) {
+		return QString();
+	}
+
+	// Try Display Configuration API first (Windows 7+).
+	auto numPathArrayElements = UINT32(0);
+	auto numModeInfoArrayElements = UINT32(0);
+	if (GetDisplayConfigBufferSizes(
+			QDC_ONLY_ACTIVE_PATHS,
+			&numPathArrayElements,
+			&numModeInfoArrayElements) != ERROR_SUCCESS) {
+		return QString();
+	}
+
+	auto pathInfos = std::vector<DISPLAYCONFIG_PATH_INFO>(
+		numPathArrayElements);
+	auto modeInfos = std::vector<DISPLAYCONFIG_MODE_INFO>(
+		numModeInfoArrayElements);
+
+	if (QueryDisplayConfig(
+			QDC_ONLY_ACTIVE_PATHS,
+			&numPathArrayElements,
+			pathInfos.data(),
+			&numModeInfoArrayElements,
+			modeInfos.data(),
+			nullptr) != ERROR_SUCCESS) {
+		return QString();
+	}
+
+	// Find matching path.
+	for (const auto &path : pathInfos) {
+		auto deviceName = DISPLAYCONFIG_SOURCE_DEVICE_NAME{};
+		deviceName.header.type = static_cast<DISPLAYCONFIG_DEVICE_INFO_TYPE>(
+			DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME);
+		deviceName.header.size = sizeof(DISPLAYCONFIG_SOURCE_DEVICE_NAME);
+		deviceName.header.adapterId = path.sourceInfo.adapterId;
+		deviceName.header.id = path.sourceInfo.id;
+
+		if (DisplayConfigGetDeviceInfo(&deviceName.header) != ERROR_SUCCESS
+			|| wcscmp(
+				monitorInfo.szDevice,
+				deviceName.viewGdiDeviceName) != 0) {
+			continue;
+		}
+
+		auto targetName = DISPLAYCONFIG_TARGET_DEVICE_NAME{};
+		targetName.header.type = static_cast<DISPLAYCONFIG_DEVICE_INFO_TYPE>(
+			DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME);
+		targetName.header.size = sizeof(DISPLAYCONFIG_TARGET_DEVICE_NAME);
+		targetName.header.adapterId = path.targetInfo.adapterId;
+		targetName.header.id = path.targetInfo.id;
+
+		if (DisplayConfigGetDeviceInfo(&targetName.header) == ERROR_SUCCESS) {
+			const auto friendlyName = QString::fromWCharArray(
+				targetName.monitorFriendlyDeviceName);
+			if (!friendlyName.isEmpty()) {
+				return friendlyName;
+			}
+		}
+	}
+
+	// Fallback to legacy method.
+	auto displayDevice = DISPLAY_DEVICE{};
+	displayDevice.cb = sizeof(DISPLAY_DEVICE);
+	for (auto deviceIndex = DWORD(0);
+			EnumDisplayDevices(
+				monitorInfo.szDevice,
+				deviceIndex,
+				&displayDevice,
+				0);
+			deviceIndex++) {
+		if (!(displayDevice.StateFlags & DISPLAY_DEVICE_ACTIVE)) {
+			continue;
+		}
+		const auto deviceName = QString::fromWCharArray(
+			displayDevice.DeviceString);
+		if (!deviceName.isEmpty()
+			&& deviceName != u"Generic PnP Monitor"_q) {
+			return deviceName;
+		}
+		break;
+	}
+
+	return QString();
+}
+
 } // namespace
 
 struct MainWindow::Private {
@@ -722,6 +812,38 @@ int32 ScreenNameChecksum(const QString &name) {
 		memcpy(buffer, name.toStdWString().data(), sizeof(buffer));
 	}
 	return base::crc32(buffer, sizeof(buffer));
+}
+
+int32 ScreenNameChecksum(const QScreen *screen) {
+	return ScreenNameChecksum(screen->name());
+}
+
+QString ScreenDisplayLabel(const QScreen *screen) {
+	if (!screen) {
+		return QString();
+	}
+
+	const auto geometry = screen->geometry();
+	const auto hMonitor = MonitorFromPoint(
+		POINT{
+			geometry.x() + geometry.width() / 2,
+			geometry.y() + geometry.height() / 2,
+		},
+		MONITOR_DEFAULTTONEAREST);
+
+	const auto displayName = HumanReadableDisplayName(hMonitor);
+	if (!displayName.isEmpty()) {
+		return displayName;
+	}
+
+	const auto name = screen->name();
+	const auto genericName = u"\\\\.\\DISPLAY"_q;
+	if (name.startsWith(genericName)) {
+		const auto displayNum = name.mid(genericName.size());
+		return u"Display %1"_q.arg(displayNum);
+	}
+
+	return name;
 }
 
 } // namespace Platform

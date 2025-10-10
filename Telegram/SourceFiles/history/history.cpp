@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
+#include "history/history_streamed_drafts.h"
 #include "history/history_translation.h"
 #include "history/history_unread_things.h"
 #include "core/ui_integration.h"
@@ -1454,10 +1455,14 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	if (const auto sublist = item->savedSublist()) {
 		sublist->applyItemAdded(item);
 	}
+	if (const auto streamed = _streamedDrafts.get()) {
+		streamed->applyItemAdded(item);
+	}
 	if (const auto media = item->media()) {
 		if (const auto gift = media->gift()) {
 			if (const auto unique = gift->unique.get()) {
-				if (unique->ownerId == session().userPeerId()) {
+				if (unique->ownerId == session().userPeerId()
+					|| unique->hostId == session().userPeerId()) {
 					owner().emojiStatuses().refreshCollectibles();
 				}
 			}
@@ -2971,9 +2976,17 @@ bool History::shouldBeInChatList() const {
 }
 
 void History::unknownMessageDeleted(MsgId messageId) {
+	LOG(("History::unknownMessageDeleted. Peer ID: %1, Message ID: %2.")
+		.arg(peer->id.value & PeerId::kChatTypeMask)
+		.arg(messageId.bare));
+	_unknownDeletedMessages[messageId] = base::unixtime::now();
 	if (_inboxReadBefore && messageId >= *_inboxReadBefore) {
 		owner().histories().requestDialogEntry(this);
 	}
+}
+
+bool History::isUnknownMessageDeleted(MsgId messageId) const {
+	return _unknownDeletedMessages.contains(messageId);
 }
 
 bool History::isServerSideUnread(not_null<const HistoryItem*> item) const {
@@ -3167,7 +3180,7 @@ void History::tryMarkForumIntervalRead(
 		MsgId wasInboxReadBefore,
 		MsgId nowInboxReadBefore) {
 	if (!isForum()
-		|| !peer->asChannel()->useSubsectionTabs()
+		|| !peer->useSubsectionTabs()
 		|| (nowInboxReadBefore <= wasInboxReadBefore)) {
 		return;
 	} else if (loadedAtBottom() && nowInboxReadBefore >= minMsgId()) {
@@ -3473,10 +3486,8 @@ bool History::suggestDraftAllowed() const {
 bool History::hasForumThreadBars() const {
 	if (amMonoforumAdmin()) {
 		return true;
-	} else if (const auto channel = peer->asChannel()) {
-		return channel->forum() && channel->useSubsectionTabs();
 	}
-	return false;
+	return peer->useSubsectionTabs();
 }
 
 void History::forumTabsChanged(bool forumTabs) {
@@ -3749,6 +3760,13 @@ void History::checkLocalMessages() {
 	}
 }
 
+HistoryStreamedDrafts &History::streamedDrafts() {
+	if (!_streamedDrafts) {
+		_streamedDrafts = std::make_unique<HistoryStreamedDrafts>(this);
+	}
+	return *_streamedDrafts;
+}
+
 HistoryItem *History::joinedMessageInstance() const {
 	return _joinedMessage;
 }
@@ -3907,6 +3925,7 @@ void History::clear(ClearType type, bool markEmpty) {
 	_unreadBarView = nullptr;
 	_firstUnreadView = nullptr;
 	removeJoinedMessage();
+	base::take(_streamedDrafts);
 
 	forgetScrollState();
 	blocks.clear();

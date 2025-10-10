@@ -1,3 +1,24 @@
+6.2.2 (10.10.25)
+
+- Fix layer.
+
+6.2.1 (10.10.25)
+
+- Fix sending gifts.
+- Fix possible crash on Linux.
+
+6.2 (10.10.25)
+
+- Comments and reactions in group calls.
+- Notes for contacts.
+- Suggested birthdays.
+- Threads for AI bots.
+- Reorder gifts collections and stories albums.
+- Reorder gifts inside collections.
+- Apply tags instantly when forwarding to Saved Messages.
+- Choose which screen to show notifications on.
+- Nice text message sending animation.
+
 6.1.4 (06.10.25)
 
 - Allow add to folder from recent / top chats.

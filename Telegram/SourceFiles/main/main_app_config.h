@@ -115,6 +115,9 @@ public:
 	[[nodiscard]] int storiesAlbumsLimit() const;
 	[[nodiscard]] int storiesAlbumLimit() const;
 
+	[[nodiscard]] int groupCallMessageLengthLimit() const;
+	[[nodiscard]] TimeId groupCallMessageTTL() const;
+
 	void refresh(bool force = false);
 
 private:

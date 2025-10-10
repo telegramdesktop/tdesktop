@@ -543,12 +543,8 @@ void SponsoredMessages::append(
 			: PhotoId(0),
 		.mediaPhotoId = (mediaPhoto ? mediaPhoto->id : 0),
 		.mediaDocumentId = (mediaDocument ? mediaDocument->id : 0),
-		.backgroundEmojiId = data.vcolor().has_value()
-			? data.vcolor()->data().vbackground_emoji_id().value_or_empty()
-			: uint64(0),
-		.colorIndex = uint8(data.vcolor().has_value()
-			? data.vcolor()->data().vcolor().value_or_empty()
-			: 0),
+		.backgroundEmojiId = BackgroundEmojiIdFromColor(data.vcolor()),
+		.colorIndex = ColorIndexFromColor(data.vcolor()),
 		.isLinkInternal = !UrlRequiresConfirmation(qs(data.vurl())),
 		.isRecommended = data.is_recommended(),
 		.canReport = data.is_can_report(),

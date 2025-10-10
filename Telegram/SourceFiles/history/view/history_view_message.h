@@ -158,7 +158,6 @@ public:
 
 	void animateReaction(Ui::ReactionFlyAnimationArgs &&args) override;
 
-	void animateEffect(Ui::ReactionFlyAnimationArgs &&args) override;
 	auto takeEffectAnimation()
 	-> std::unique_ptr<Ui::ReactionFlyAnimation> override;
 

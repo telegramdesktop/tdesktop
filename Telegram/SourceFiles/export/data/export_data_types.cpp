@@ -1068,10 +1068,17 @@ ContactInfo ParseContactInfo(const MTPUser &data) {
 	auto result = ContactInfo();
 	data.match([&](const MTPDuser &data) {
 		result.userId = data.vid().v;
-		const auto color = data.vcolor();
-		result.colorIndex = (color && color->data().vcolor())
-			? color->data().vcolor()->v
-			: PeerColorIndex(result.userId);
+		result.colorIndex = PeerColorIndex(result.userId);
+		if (const auto color = data.vcolor()) {
+			color->match([&](const MTPDpeerColor &data) {
+				if (const auto color = data.vcolor()) {
+					result.colorIndex = color->v;
+				}
+			}, [](const MTPDpeerColorCollectible &) {
+				// themes
+			}, [](const MTPDinputPeerColorCollectible &) {
+			});
+		}
 		if (const auto firstName = data.vfirst_name()) {
 			result.firstName = ParseString(*firstName);
 		}
@@ -1101,10 +1108,17 @@ User ParseUser(const MTPUser &data) {
 	result.info = ParseContactInfo(data);
 	data.match([&](const MTPDuser &data) {
 		result.bareId = data.vid().v;
-		const auto color = data.vcolor();
-		result.colorIndex = (color && color->data().vcolor())
-			? color->data().vcolor()->v
-			: PeerColorIndex(result.bareId);
+		result.colorIndex = PeerColorIndex(result.bareId);
+		if (const auto color = data.vcolor()) {
+			color->match([&](const MTPDpeerColor &data) {
+				if (const auto color = data.vcolor()) {
+					result.colorIndex = color->v;
+				}
+			}, [](const MTPDpeerColorCollectible &) {
+				// themes
+			}, [](const MTPDinputPeerColorCollectible &) {
+			});
+		}
 		if (const auto username = data.vusername()) {
 			result.username = ParseString(*username);
 		}
@@ -1163,10 +1177,16 @@ Chat ParseChat(const MTPChat &data) {
 		result.input = MTP_inputPeerChat(MTP_long(result.bareId));
 	}, [&](const MTPDchannel &data) {
 		result.bareId = data.vid().v;
-		const auto color = data.vcolor();
-		result.colorIndex = (color && color->data().vcolor())
-			? color->data().vcolor()->v
-			: PeerColorIndex(result.bareId);
+		result.colorIndex = PeerColorIndex(result.bareId);
+		if (const auto color = data.vcolor()) {
+			color->match([&](const MTPDpeerColor &data) {
+				if (const auto color = data.vcolor()) {
+					result.colorIndex = color->v;
+				}
+			}, [](const MTPDpeerColorCollectible &) {
+			}, [](const MTPDinputPeerColorCollectible &) {
+			});
+		}
 		result.isMonoforum = data.is_monoforum();
 		result.isBroadcast = data.is_broadcast();
 		result.isSupergroup = data.is_megagroup();
@@ -1813,6 +1833,14 @@ ServiceAction ParseServiceAction(
 			: data.vduration().value_or_empty()
 			? State::Hangup
 			: State::Invitation;
+		result.content = content;
+	}, [&](const MTPDmessageActionSuggestBirthday &data) {
+		auto content = ActionSuggestBirthday();
+		const auto &fields = data.vbirthday().data();
+		content.birthday = Birthday(
+			fields.vday().v,
+			fields.vmonth().v,
+			fields.vyear().value_or_empty());
 		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;

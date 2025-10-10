@@ -130,6 +130,8 @@ private:
 		not_null<const MediaGeneric*>)> _paintBg;
 	ClickHandlerPtr _fullAreaLink;
 	int _maxWidthCap = 0;
+	int _marginTop = 0;
+	int _marginBottom = 0;
 	bool _service : 1 = false;
 	bool _hideServiceText : 1 = false;
 

@@ -281,7 +281,8 @@ void ShowConferenceCallLinkBox(
 					MTPphone_ToggleGroupCallSettings(
 						MTP_flags(Flag::f_reset_invite_hash),
 						call->input(),
-						MTPbool()) // join_muted
+						MTPBool(), // join_muted
+						MTPBool()) // messages_enabled
 				).done([=](const MTPUpdates &result) {
 					call->session().api().applyUpdates(result);
 					ShowConferenceCallLinkBox(show, call, args);

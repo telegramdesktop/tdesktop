@@ -25,6 +25,7 @@ enum class ChatRestriction;
 namespace Ui {
 class EmptyUserpic;
 struct BotVerifyDetails;
+struct ColorCollectible;
 } // namespace Ui
 
 namespace Main {
@@ -142,6 +143,9 @@ struct AllowedReactions {
 	not_null<Session*> owner,
 	const MTPInputUser &input);
 
+[[nodiscard]] Ui::ColorCollectible ParseColorCollectible(
+	const MTPDpeerColorCollectible &data);
+
 } // namespace Data
 
 class PeerClickHandler : public ClickHandler {
@@ -214,6 +218,12 @@ public:
 	[[nodiscard]] uint8 colorIndex() const {
 		return _colorIndex;
 	}
+	[[nodiscard]] auto colorCollectible() const
+	-> const std::shared_ptr<Ui::ColorCollectible> & {
+		return _colorCollectible;
+	}
+	bool changeColorCollectible(Ui::ColorCollectible data);
+	bool clearColorCollectible();
 	bool changeColorIndex(uint8 index);
 	bool clearColorIndex();
 	[[nodiscard]] DocumentId backgroundEmojiId() const;
@@ -270,6 +280,10 @@ public:
 	[[nodiscard]] Data::SavedMessages *monoforum() const;
 	[[nodiscard]] Data::SavedSublist *monoforumSublistFor(
 		PeerId sublistPeerId) const;
+
+	[[nodiscard]] bool useSubsectionTabs() const;
+	[[nodiscard]] bool viewForumAsMessages() const;
+	void processTopics(const MTPVector<MTPForumTopic> &topics);
 
 	[[nodiscard]] Data::PeerNotifySettings &notify() {
 		return _notify;
@@ -485,9 +499,10 @@ public:
 	void saveTranslationDisabled(bool disabled);
 
 	void setBarSettings(const MTPPeerSettings &data);
-	bool changeColorIndex(const tl::conditional<MTPint> &cloudColorIndex);
 	bool changeBackgroundEmojiId(
 		const tl::conditional<MTPlong> &cloudBackgroundEmoji);
+	bool changeColorCollectible(
+		const tl::conditional<MTPPeerColor> &cloudColor);
 	bool changeColor(const tl::conditional<MTPPeerColor> &cloudColor);
 
 	enum class BlockStatus : char {
@@ -605,6 +620,7 @@ private:
 
 	BarSettings _barSettings = PeerBarSettings(PeerBarSetting::Unknown);
 	std::unique_ptr<PeerBarDetails> _barDetails;
+	std::shared_ptr<Ui::ColorCollectible> _colorCollectible;
 
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
@@ -634,5 +650,8 @@ void SetTopPinnedMessageId(
 	MsgId topicRootId,
 	PeerId monoforumPeerId,
 	PeerData *migrated = nullptr);
+
+[[nodiscard]] uint64 BackgroundEmojiIdFromColor(const MTPPeerColor *color);
+[[nodiscard]] uint8 ColorIndexFromColor(const MTPPeerColor *color);
 
 } // namespace Data

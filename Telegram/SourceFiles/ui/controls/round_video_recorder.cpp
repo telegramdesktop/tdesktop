@@ -339,10 +339,13 @@ bool RoundVideoRecorder::Private::initVideo() {
 		return false;
 	}
 
-	const auto videoCodec = avcodec_find_encoder_by_name("libopenh264");
+	auto videoCodec = avcodec_find_encoder_by_name("libopenh264");
 	if (!videoCodec) {
-		LogError("avcodec_find_encoder_by_name", "libopenh264");
-		return false;
+		videoCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
+		if (!videoCodec) {
+			LogError("avcodec_find_encoder", "AV_CODEC_ID_H264");
+			return false;
+		}
 	}
 
 	_videoStream = avformat_new_stream(_format.get(), videoCodec);
@@ -428,6 +431,7 @@ bool RoundVideoRecorder::Private::initAudio() {
 	_audioCodec->sample_fmt = AV_SAMPLE_FMT_FLTP;
 	_audioCodec->bit_rate = kAudioBitRate;
 	_audioCodec->sample_rate = kAudioFrequency;
+	_audioCodec->ch_layout = AV_CHANNEL_LAYOUT_MONO;
 
 	auto error = AvErrorWrap(avcodec_open2(
 		_audioCodec.get(),

@@ -254,6 +254,14 @@ int AppConfig::storiesAlbumLimit() const {
 	return get<int>(u"stories_album_stories_limit"_q, 1000);
 }
 
+int AppConfig::groupCallMessageLengthLimit() const {
+	return get<int>(u"group_call_message_length_limit"_q, 128);
+}
+
+TimeId AppConfig::groupCallMessageTTL() const {
+	return get<int>(u"group_call_message_ttl"_q, 10);
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {

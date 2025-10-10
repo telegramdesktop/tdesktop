@@ -14,6 +14,7 @@ class Painter;
 namespace Data {
 class MediaGiftBox;
 struct UniqueGift;
+class Birthday;
 } // namespace Data
 
 namespace Ui {
@@ -56,7 +57,6 @@ class MediaGenericPart;
 	Fn<void()> repaint,
 	ClickHandlerPtr link,
 	QColor bg = QColor(0, 0, 0, 0));
-
 
 class TextPartColored : public MediaGenericTextPart {
 public:

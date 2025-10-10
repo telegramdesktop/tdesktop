@@ -241,7 +241,8 @@ QByteArray Settings::serialize() const {
 		+ sizeof(qint32) * 3
 		+ Serialize::bytearraySize(_tonsiteStorageToken)
 		+ sizeof(qint32) * 8
-		+ sizeof(ushort);
+		+ sizeof(ushort)
+		+ sizeof(qint32); // _notificationsDisplayChecksum
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -404,7 +405,8 @@ QByteArray Settings::serialize() const {
 			<< qint32(_ivZoom.current())
 			<< qint32(_systemDarkModeEnabled.current() ? 1 : 0)
 			<< qint32(_quickDialogAction)
-			<< _notificationsVolume;
+			<< _notificationsVolume
+			<< _notificationsDisplayChecksum;
 	}
 
 	Ensures(result.size() == size);
@@ -435,6 +437,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 nativeNotifications = _nativeNotifications ? (*_nativeNotifications ? 1 : 2) : 0;
 	qint32 notificationsCount = _notificationsCount;
 	qint32 notificationsCorner = static_cast<qint32>(_notificationsCorner);
+	qint32 notificationsDisplayChecksum = _notificationsDisplayChecksum;
 	qint32 autoLock = _autoLock;
 	QString playbackDeviceId = _playbackDeviceId.current();
 	QString captureDeviceId = _captureDeviceId.current();
@@ -869,6 +872,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> notificationsVolume;
 	}
+	if (!stream.atEnd()) {
+		stream >> notificationsDisplayChecksum;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -908,6 +914,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	case ScreenCorner::BottomRight:
 	case ScreenCorner::BottomLeft: _notificationsCorner = uncheckedNotificationsCorner; break;
 	}
+	_notificationsDisplayChecksum = notificationsDisplayChecksum;
 	_includeMutedCounter = (includeMutedCounter == 1);
 	_includeMutedCounterFolders = (includeMutedCounterFolders == 1);
 	_countUnreadMessages = (countUnreadMessages == 1);

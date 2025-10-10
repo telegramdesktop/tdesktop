@@ -1475,6 +1475,29 @@ auto HtmlWriter::Wrap::pushMessage(
 		return QByteArray() + (data.payerInitiated
 			? "The user refunded the payment, post was deleted."
 			: "The admin deleted the post early, the payment was refunded.");
+	}, [&](const ActionSuggestBirthday &data) {
+		return serviceFrom
+			+ " suggests to add a date of birth: "
+			+ QByteArray::number(data.birthday.day())
+			+ [&] {
+				switch (data.birthday.month()) {
+				case 1: return " January";
+				case 2: return " February";
+				case 3: return " March";
+				case 4: return " April";
+				case 5: return " May";
+				case 6: return " June";
+				case 7: return " July";
+				case 8: return " August";
+				case 9: return " September";
+				case 10: return " October";
+				case 11: return " November";
+				case 12: return " December";
+				}
+				return "";
+			}() + (data.birthday.year()
+				? (' ' + QByteArray::number(data.birthday.year()))
+				: QByteArray());
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

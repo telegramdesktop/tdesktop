@@ -60,6 +60,7 @@ struct RejoinEvent;
 struct RtmpInfo;
 enum class VideoQuality;
 enum class Error;
+class Messages;
 } // namespace Group
 
 struct InviteRequest;
@@ -244,6 +245,9 @@ public:
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> joinAsValue() const {
 		return _joinAs.value();
 	}
+	[[nodiscard]] not_null<Group::Messages*> messages() const {
+		return _messages.get();
+	}
 	[[nodiscard]] bool showChooseJoinAs() const;
 	[[nodiscard]] TimeId scheduleDate() const {
 		return _scheduleDate;
@@ -278,6 +282,9 @@ public:
 	void handlePossibleCreateOrJoinResponse(const MTPDupdateGroupCall &data);
 	void handlePossibleCreateOrJoinResponse(
 		const MTPDupdateGroupCallConnection &data);
+	void handleIncomingMessage(const MTPDupdateGroupCallMessage &data);
+	void handleIncomingMessage(
+		const MTPDupdateGroupCallEncryptedMessage &data);
 	void changeTitle(const QString &title);
 	void toggleRecording(
 		bool enabled,
@@ -415,6 +422,12 @@ public:
 	[[nodiscard]] rpl::producer<bool> videoIsWorkingValue() const {
 		return _videoIsWorking.value();
 	}
+	[[nodiscard]] bool messagesEnabled() const {
+		return _messagesEnabled.current();
+	}
+	[[nodiscard]] rpl::producer<bool> messagesEnabledValue() const {
+		return _messagesEnabled.value();
+	}
 
 	[[nodiscard]] bool isSharingScreen() const;
 	[[nodiscard]] rpl::producer<bool> isSharingScreenValue() const;
@@ -445,6 +458,13 @@ public:
 
 	void pushToTalk(bool pressed, crl::time delay);
 	void setNotRequireARGB32();
+
+	[[nodiscard]] std::function<std::vector<uint8_t>(
+		std::vector<uint8_t> const &,
+		int64_t, bool,
+		int32_t)> e2eEncryptDecrypt() const;
+	void sendMessage(TextWithTags message);
+	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -577,6 +597,7 @@ private:
 	void saveDefaultJoinAs(not_null<PeerData*> as);
 	void subscribeToReal(not_null<Data::GroupCall*> real);
 	void setScheduledDate(TimeId date);
+	void setMessagesEnabled(bool enabled);
 	void rejoinPresentation();
 	void leavePresentation();
 	void checkNextJoinAction();
@@ -647,7 +668,6 @@ private:
 
 	[[nodiscard]] int activeVideoSendersCount() const;
 
-	[[nodiscard]] MTPInputGroupCall inputCall() const;
 	[[nodiscard]] MTPInputGroupCall inputCallSafe() const;
 
 	const not_null<Delegate*> _delegate;
@@ -667,6 +687,7 @@ private:
 	base::flat_set<uint32> _unresolvedSsrcs;
 	rpl::event_stream<Error> _errors;
 	std::vector<Fn<void()>> _rejoinedCallbacks;
+	std::unique_ptr<Group::Messages> _messages;
 	bool _recordingStoppedByMe = false;
 	bool _requestedVideoChannelsUpdateScheduled = false;
 
@@ -697,6 +718,7 @@ private:
 	rpl::variable<bool> _canManage = false;
 	rpl::variable<bool> _videoIsWorking = false;
 	rpl::variable<bool> _emptyRtmp = false;
+	rpl::variable<bool> _messagesEnabled = false;
 	bool _initialMuteStateSent = false;
 	bool _acceptFields = false;
 

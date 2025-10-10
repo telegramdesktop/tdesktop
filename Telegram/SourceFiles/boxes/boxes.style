@@ -754,6 +754,12 @@ createPollFieldTitlePadding: margins(22px, 7px, 10px, 6px);
 
 sendGifWithCaptionEmojiPosition: point(-30px, 23px);
 
+notesFieldWithEmoji: InputField(defaultInputField) {
+	textMargins: margins(0px, 28px, 30px, 4px);
+//	border: 0px;
+//	borderActive: 0px;
+}
+
 backgroundCheckbox: Checkbox(defaultCheckbox) {
 	textFg: msgServiceFg;
 	textFgActive: msgServiceFg;
@@ -807,6 +813,7 @@ urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
 
 addContactFieldMargin: margins(19px, 0px, 19px, 10px);
 addContactWarningMargin: margins(19px, 10px, 19px, 5px);
+editContactSuggestBirthday: icon{{ "settings/birthday_add-22x22", lightButtonFg }};
 blockUserConfirmation: FlatLabel(boxLabel) {
 	minWidth: 240px;
 }

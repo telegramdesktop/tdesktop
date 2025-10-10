@@ -50,7 +50,7 @@ Memento::Memento(
 }
 
 Memento::Memento(not_null<Data::ForumTopic*> topic)
-: ContentMemento(topic->channel(), topic, nullptr, 0) {
+: ContentMemento(topic->peer(), topic, nullptr, 0) {
 }
 
 Memento::Memento(not_null<Data::SavedSublist*> sublist)
@@ -108,8 +108,10 @@ void Widget::setInnerFocus() {
 }
 
 rpl::producer<QString> Widget::title() {
-	if (controller()->key().topic()) {
-		return tr::lng_info_topic_title();
+	if (const auto topic = controller()->key().topic()) {
+		return topic->peer()->isBot()
+			? tr::lng_info_thread_title()
+			: tr::lng_info_topic_title();
 	} else if (controller()->key().sublist()
 		&& controller()->key().sublist()->parentChat()) {
 		return tr::lng_profile_direct_messages();

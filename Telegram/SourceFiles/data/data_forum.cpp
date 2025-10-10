@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_icons.h"
 #include "data/data_forum_topic.h"
 #include "data/data_replies_list.h"
+#include "data/data_user.h"
 #include "data/notify/data_notify_settings.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -48,12 +49,13 @@ constexpr auto kShowTopicNamesCount = 8;
 Forum::Forum(not_null<History*> history)
 : _history(history)
 , _topicsList(&session(), {}, owner().maxPinnedChatsLimitValue(this)) {
-	Expects(_history->peer->isChannel());
+	Expects(_history->peer->isChannel()
+		|| _history->peer->isBot());
 
 	if (_history->inChatList()) {
 		preloadTopics();
 	}
-	if (channel()->canCreateTopics()) {
+	if (peer()->canCreateTopics()) {
 		owner().forumIcons().requestDefaultIfUnknown();
 	}
 }
@@ -98,7 +100,15 @@ not_null<History*> Forum::history() const {
 	return _history;
 }
 
-not_null<ChannelData*> Forum::channel() const {
+not_null<PeerData*> Forum::peer() const {
+	return _history->peer;
+}
+
+UserData *Forum::bot() const {
+	return _history->peer->asBot();
+}
+
+ChannelData *Forum::channel() const {
 	return _history->peer->asChannel();
 }
 
@@ -107,6 +117,14 @@ not_null<Dialogs::MainList*> Forum::topicsList() {
 }
 
 rpl::producer<> Forum::destroyed() const {
+	if (const auto bot = this->bot()) {
+		return bot->flagsValue(
+		) | rpl::filter([=](const UserData::Flags::Change &update) {
+			using Flag = UserData::Flag;
+			return (update.diff & Flag::Forum)
+				&& !(update.value & Flag::Forum);
+		}) | rpl::take(1) | rpl::to_empty;
+	}
 	return channel()->flagsValue(
 	) | rpl::filter([=](const ChannelData::Flags::Change &update) {
 		using Flag = ChannelData::Flag;
@@ -142,9 +160,9 @@ void Forum::requestTopics() {
 	}
 	const auto firstLoad = !_offset.date;
 	const auto loadCount = firstLoad ? kTopicsFirstLoad : kTopicsPerPage;
-	_requestId = session().api().request(MTPchannels_GetForumTopics(
+	_requestId = session().api().request(MTPmessages_GetForumTopics(
 		MTP_flags(0),
-		channel()->inputChannel,
+		peer()->input,
 		MTPstring(), // q
 		MTP_int(_offset.date),
 		MTP_int(_offset.id),
@@ -169,7 +187,7 @@ void Forum::requestTopics() {
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		_topicsList.setLoaded();
-		if (error.type() == u"CHANNEL_FORUM_MISSING"_q) {
+		if (error.type() == u"CHANNEL_FORUM_MISSING"_q && channel()) {
 			const auto flags = channel()->flags() & ~ChannelDataFlag::Forum;
 			channel()->setFlags(flags);
 		}
@@ -280,7 +298,7 @@ Thread *Forum::activeSubsectionThread() const {
 }
 
 void Forum::markUnreadCountsUnknown(MsgId readTillId) {
-	if (!channel()->useSubsectionTabs()) {
+	if (!peer()->useSubsectionTabs()) {
 		return;
 	}
 	for (const auto &[rootId, topic] : _topics) {
@@ -294,7 +312,7 @@ void Forum::markUnreadCountsUnknown(MsgId readTillId) {
 void Forum::updateUnreadCounts(
 		MsgId readTillId,
 		const base::flat_map<not_null<ForumTopic*>, int> &counts) {
-	if (!channel()->useSubsectionTabs()) {
+	if (!peer()->useSubsectionTabs()) {
 		return;
 	}
 	for (const auto &[rootId, topic] : _topics) {
@@ -331,7 +349,9 @@ void Forum::applyReceivedTopics(
 	owner().processUsers(data.vusers());
 	owner().processChats(data.vchats());
 	owner().processMessages(data.vmessages(), NewMessageType::Existing);
-	channel()->ptsReceived(data.vpts().v);
+	if (const auto channel = this->channel()) {
+		channel->ptsReceived(data.vpts().v);
+	}
 	applyReceivedTopics(data.vtopics(), std::move(callback));
 	if (!_staleRootIds.empty()) {
 		requestSomeStale();
@@ -404,8 +424,8 @@ void Forum::requestSomeStale() {
 	_staleRequestId = histories.sendRequest(_history, type, [=](
 			Fn<void()> finish) {
 		return session().api().request(
-			MTPchannels_GetForumTopicsByID(
-				channel()->inputChannel,
+			MTPmessages_GetForumTopicsByID(
+				peer()->input,
 				MTP_vector<MTPint>(rootIds))
 		).done([=](const MTPmessages_ForumTopics &result) {
 			_staleRequestId = 0;
@@ -439,7 +459,7 @@ void Forum::requestTopic(MsgId rootId, Fn<void()> done) {
 	if (!request.id
 		&& _staleRootIds.emplace(rootId).second
 		&& (_staleRootIds.size() == 1)) {
-		crl::on_main(&session(), [peer = channel()] {
+		crl::on_main(&session(), [peer = peer()] {
 			if (const auto forum = peer->forum()) {
 				forum->requestSomeStale();
 			}
@@ -569,7 +589,8 @@ ForumTopic *Forum::enforceTopicFor(MsgId rootId) {
 }
 
 bool Forum::topicDeleted(MsgId rootId) const {
-	return _topicsDeleted.contains(rootId);
+	return _topicsDeleted.contains(rootId)
+		|| (rootId == ForumTopic::kGeneralId && peer()->isBot());
 }
 
 rpl::producer<> Forum::chatsListChanges() const {

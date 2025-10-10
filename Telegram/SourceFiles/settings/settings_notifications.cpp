@@ -52,11 +52,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 
 #include <QSvgRenderer>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QScreen>
 
 namespace Settings {
 namespace {
 
 constexpr auto kMaxNotificationsCount = 5;
+constexpr auto kDefaultDisplayIndex = -1;
 
 [[nodiscard]] int CurrentCount() {
 	return std::clamp(
@@ -542,7 +545,8 @@ void NotificationsCount::setOverCorner(ScreenCorner corner) {
 		samples[i]->showFast();
 	}
 	if (samplesNeeded > samplesLeave) {
-		auto r = _controller->widget()->desktopRect();
+		const auto r = Window::Notifications::NotificationDisplayRect(
+			&_controller->window());
 		auto isLeft = Core::Settings::IsLeftCorner(_overCorner);
 		auto isTop = Core::Settings::IsTopCorner(_overCorner);
 		auto sampleLeft = (isLeft == rtl()) ? (r.x() + r.width() - st::notifyWidth - st::notifyDeltaX) : (r.x() + st::notifyDeltaX);
@@ -887,6 +891,79 @@ void SetupAdvancedNotifications(
 		}, skipInFocus->lifetime());
 	}
 
+	const auto screens = QGuiApplication::screens();
+	if (screens.size() > 1) {
+		Ui::AddSkip(container, st::settingsCheckboxesSkip);
+		Ui::AddDivider(container);
+		Ui::AddSkip(container, st::settingsCheckboxesSkip);
+		Ui::AddSubsectionTitle(
+			container,
+			tr::lng_settings_notifications_display());
+
+		const auto currentChecksum
+			= Core::App().settings().notificationsDisplayChecksum();
+		auto currentIndex = (currentChecksum == 0)
+			? kDefaultDisplayIndex
+			: 0;
+		for (auto i = 0; i < screens.size(); ++i) {
+			if (Platform::ScreenNameChecksum(screens[i]) == currentChecksum) {
+				currentIndex = i;
+				break;
+			}
+		}
+
+		const auto group = std::make_shared<Ui::RadiobuttonGroup>(
+			currentIndex);
+
+		container->add(
+			object_ptr<Ui::Radiobutton>(
+				container,
+				group,
+				kDefaultDisplayIndex,
+				tr::lng_settings_notifications_display_default(tr::now),
+				st::settingsSendType),
+			st::settingsSendTypePadding);
+
+		for (auto i = 0; i < screens.size(); ++i) {
+			const auto &screen = screens[i];
+			const auto name = Platform::ScreenDisplayLabel(screen);
+			const auto geometry = screen->geometry();
+			const auto resolution = QString::number(geometry.width())
+				+ QChar(0x00D7)
+				+ QString::number(geometry.height());
+			const auto label = name.isEmpty()
+				? QString("Display (%1)").arg(resolution)
+				: QString("%1 (%2)").arg(name).arg(resolution);
+			container->add(
+				object_ptr<Ui::Radiobutton>(
+					container,
+					group,
+					i,
+					label,
+					st::settingsSendType),
+				st::settingsSendTypePadding);
+		}
+		group->setChangedCallback([=](int selectedIndex) {
+			if (selectedIndex == kDefaultDisplayIndex) {
+				Core::App().settings().setNotificationsDisplayChecksum(0);
+				Core::App().saveSettings();
+				Core::App().notifications().notifySettingsChanged(
+					ChangeType::Corner);
+			} else {
+				const auto screens = QGuiApplication::screens();
+				if (selectedIndex >= 0 && selectedIndex < screens.size()) {
+					const auto checksum = Platform::ScreenNameChecksum(
+						screens[selectedIndex]);
+					Core::App().settings().setNotificationsDisplayChecksum(
+						checksum);
+					Core::App().saveSettings();
+					Core::App().notifications().notifySettingsChanged(
+						ChangeType::Corner);
+				}
+			}
+		});
+	}
+
 	Ui::AddSkip(container, st::settingsCheckboxesSkip);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container, st::settingsCheckboxesSkip);
@@ -1148,7 +1225,7 @@ void SetupNotificationsContent(
 
 	auto nativeText = [&] {
 		if (!Platform::Notifications::Supported()
-			|| Platform::Notifications::Enforced()) {
+			|| Core::App().notifications().nativeEnforced()) {
 			return rpl::producer<QString>();
 		} else if (Platform::IsWindows()) {
 			return tr::lng_settings_use_windows();
@@ -1171,7 +1248,7 @@ void SetupNotificationsContent(
 		))->toggleOn(rpl::single(settings.nativeNotifications()));
 	}();
 
-	const auto advancedSlide = !Platform::Notifications::Enforced()
+	const auto advancedSlide = !Core::App().notifications().nativeEnforced()
 		? container->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				container,

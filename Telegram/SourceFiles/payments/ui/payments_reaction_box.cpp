@@ -293,7 +293,8 @@ void FillTopReactors(
 			container,
 			tr::lng_paid_react_top_title(),
 			[](QRect) { return st::creditsBg3->b; }),
-		st::boxRowPadding + st::paidReactTopTitleMargin);
+		st::boxRowPadding + st::paidReactTopTitleMargin,
+		style::al_top);
 
 	const auto height = st::paidReactTopNameSkip + st::normalFont->height;
 	const auto wrap = container->add(

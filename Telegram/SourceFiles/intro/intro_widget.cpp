@@ -118,6 +118,18 @@ Widget::Widget(
 
 	fixOrder();
 
+	if (_account->mtp().isTestMode()) {
+		_testModeLabel.create(
+			this,
+			object_ptr<Ui::FlatLabel>(
+				this,
+				u"Test Mode"_q,
+				st::defaultFlatLabel));
+		_testModeLabel->entity()->setTextColorOverride(
+			st::windowSubTextFg->c);
+		_testModeLabel->show(anim::type::instant);
+	}
+
 	Lang::CurrentCloudManager().firstLanguageSuggestion(
 	) | rpl::start_with_next([=] {
 		createLanguageLink();
@@ -392,6 +404,9 @@ void Widget::historyMove(StackAction action, Animate animate) {
 
 	auto stepHasCover = getStep()->hasCover();
 	_settings->toggle(!stepHasCover, anim::type::normal);
+	if (_testModeLabel) {
+		_testModeLabel->toggle(!stepHasCover, anim::type::normal);
+	}
 	if (_update) {
 		_update->toggle(!stepHasCover, anim::type::normal);
 	}
@@ -678,6 +693,9 @@ void Widget::showControls() {
 	_connecting->setForceHidden(false);
 	auto hasCover = getStep()->hasCover();
 	_settings->toggle(!hasCover, anim::type::instant);
+	if (_testModeLabel) {
+		_testModeLabel->toggle(!hasCover, anim::type::instant);
+	}
 	if (_update) {
 		_update->toggle(!hasCover, anim::type::instant);
 	}
@@ -727,6 +745,7 @@ void Widget::hideControls() {
 	_next->hide(anim::type::instant);
 	_connecting->setForceHidden(true);
 	_settings->hide(anim::type::instant);
+	if (_testModeLabel) _testModeLabel->hide(anim::type::instant);
 	if (_update) _update->hide(anim::type::instant);
 	if (_changeLanguage) _changeLanguage->hide(anim::type::instant);
 	if (_terms) _terms->hide(anim::type::instant);
@@ -797,6 +816,13 @@ void Widget::updateControlsGeometry() {
 		getStep()->hasCover() ? st::introCoverHeight : 0,
 		shown);
 	_settings->moveToRight(skip, controlsTop + skip);
+	if (_testModeLabel) {
+		_testModeLabel->moveToRight(
+			skip + _settings->width() + skip,
+			_settings->y()
+				+ (_settings->height()
+				- _testModeLabel->height()) / 2);
+	}
 	if (_update) {
 		_update->moveToRight(
 			skip + _settings->width() + skip,

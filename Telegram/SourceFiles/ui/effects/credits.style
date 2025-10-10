@@ -92,7 +92,7 @@ starIconEmojiLarge: IconEmoji {
 
 tonIconEmoji: IconEmoji {
 	icon: icon{{ "chat/mini_ton_bold", currencyFg }};
-	padding: margins(1px, 3px, 1px, 0px);
+	padding: margins(1px, 2px, 1px, 0px);
 }
 tonIconEmojiLarge: IconEmoji {
 	icon: icon{{ "payments/ton_emoji-18x18", currencyFg }};
@@ -305,6 +305,9 @@ uniqueMenuButton: IconButton(uniqueCloseButton) {
 upgradeGiftBox: Box(giftBox) {
 	buttonPadding: margins(22px, 3px, 22px, 22px);
 }
+upgradeGiftWithPricesBox: Box(giftBox) {
+	buttonPadding: margins(22px, 3px, 22px, 46px);
+}
 upgradeGiftSubtext: FlatLabel(boxDividerLabel) {
 	minWidth: 200px;
 }
@@ -360,6 +363,14 @@ resaleButtonSubtitle: FlatLabel(defaultFlatLabel) {
 	}
 	textFg: activeButtonFg;
 	maxHeight: 20px;
+}
+resalePriceTableLink: FlatLabel(defaultFlatLabel) {
+	minWidth: 200px;
+	align: align(top);
+}
+resalePriceAbout: FlatLabel(boxLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
 }
 
 resaleConfirmTonOnly: FlatLabel(boxLabel) {

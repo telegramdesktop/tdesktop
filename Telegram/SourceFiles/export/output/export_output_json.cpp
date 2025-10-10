@@ -735,6 +735,14 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("suggested_post_refund");
 		push("user_initiated", data.payerInitiated);
+	}, [&](const ActionSuggestBirthday &data) {
+		pushActor();
+		pushAction("suggest_birthday");
+		push("day", data.birthday.day());
+		push("month", data.birthday.month());
+		if (const auto year = data.birthday.year()) {
+			push("year", year);
+		}
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

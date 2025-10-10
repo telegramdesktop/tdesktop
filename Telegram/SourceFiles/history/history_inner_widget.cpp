@@ -852,7 +852,7 @@ void HistoryInner::enumerateUserpics(Method method) {
 				lowestAttachedItemTop = itemtop + view->marginTop();
 			}
 			// Attach userpic to the bottom of the visible area with the same margin as the last message.
-			auto userpicMinBottomSkip = st::historyPaddingBottom + st::msgMargin.bottom();
+			auto userpicMinBottomSkip = _historyMarginBottom + st::msgMargin.bottom();
 			auto userpicBottom = qMin(itembottom - view->marginBottom(), _visibleAreaBottom - userpicMinBottomSkip);
 
 			// Do not let the userpic go above the attached messages pack top line.
@@ -2979,7 +2979,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							const auto out = item->out();
 							const auto outgoingGift = isGift
 								&& (starGiftUpgrade ? !out : out);
-							if (outgoingGift) {
+							if (outgoingGift
+								&& gift->type
+									!= Data::GiftType::BirthdaySuggest) {
 								_menu->addAction(
 									tr::lng_context_gift_send(tr::now),
 									[=] {
@@ -3510,13 +3512,13 @@ void HistoryInner::recountHistoryGeometry(bool initial) {
 		|| (_migrated && _migrated->hasPendingResizedItems())) {
 		_recountedAfterPendingResizedItems = true;
 	}
-
+	const auto aboutAboveHistory = _aboutView && _aboutView->aboveHistory();
 	const auto visibleHeight = _scroll->height();
-	auto oldHistoryPaddingTop = qMax(
-		visibleHeight - historyHeight() - st::historyPaddingBottom,
+	auto oldHistoryMarginTop = qMax(
+		visibleHeight - historyHeight() - _historyMarginBottom,
 		0);
-	if (_aboutView) {
-		accumulate_max(oldHistoryPaddingTop, _aboutView->height);
+	if (aboutAboveHistory) {
+		accumulate_max(oldHistoryMarginTop, _aboutView->height);
 	}
 
 	updateBotInfo(false);
@@ -3546,26 +3548,32 @@ void HistoryInner::recountHistoryGeometry(bool initial) {
 
 	if (const auto view = _aboutView ? _aboutView->view() : nullptr) {
 		_aboutView->height = view->resizeGetHeight(_contentWidth);
-		_aboutView->top = qMin(
-			_historyPaddingTop - _aboutView->height,
-			qMax(0, (_scroll->height() - _aboutView->height) / 2));
+		if (aboutAboveHistory) {
+			_aboutView->top = qMin(
+				_historyMarginTop - _aboutView->height,
+				qMax(0, (_scroll->height() - _aboutView->height) / 2));
+		} else {
+			_aboutView->top = qMax(
+				qMax(0, (_scroll->height() - _aboutView->height) / 2),
+				_historyMarginTop + historyHeight() - _historyMarginBottom);
+		}
 	} else if (_aboutView) {
 		_aboutView->top = _aboutView->height = 0;
 	}
 
-	auto newHistoryPaddingTop = qMax(
-		visibleHeight - historyHeight() - st::historyPaddingBottom,
+	auto newHistoryMarginTop = qMax(
+		visibleHeight - historyHeight() - _historyMarginBottom,
 		0);
-	if (_aboutView) {
-		accumulate_max(newHistoryPaddingTop, _aboutView->height);
+	if (aboutAboveHistory) {
+		accumulate_max(newHistoryMarginTop, _aboutView->height);
 	}
 
-	auto historyPaddingTopDelta = (newHistoryPaddingTop - oldHistoryPaddingTop);
-	if (!initial && historyPaddingTopDelta != 0) {
+	const auto marginDelta = newHistoryMarginTop - oldHistoryMarginTop;
+	if (!initial && marginDelta) {
 		if (_history->scrollTopItem) {
-			_history->scrollTopOffset += historyPaddingTopDelta;
+			_history->scrollTopOffset += marginDelta;
 		} else if (_migrated && _migrated->scrollTopItem) {
-			_migrated->scrollTopOffset += historyPaddingTopDelta;
+			_migrated->scrollTopOffset += marginDelta;
 		}
 	}
 }
@@ -3598,7 +3606,7 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 		return;
 	}
 
-	if (bottom >= _historyPaddingTop + historyHeight() + st::historyPaddingBottom) {
+	if (bottom >= _historyMarginTop + historyHeight() + _historyMarginBottom) {
 		_history->forgetScrollState();
 		if (_migrated) {
 			_migrated->forgetScrollState();
@@ -3727,22 +3735,44 @@ void HistoryInner::changeItemsRevealHeight(int revealHeight) {
 void HistoryInner::updateSize() {
 	const auto visibleHeight = _scroll->height();
 	const auto itemsHeight = historyHeight() - _revealHeight;
-	auto newHistoryPaddingTop = qMax(visibleHeight - itemsHeight - st::historyPaddingBottom, 0);
-	if (_aboutView) {
-		accumulate_max(newHistoryPaddingTop, _aboutView->height);
+	const auto aboutAboveHistory = _aboutView && _aboutView->aboveHistory();
+	const auto aboutBelowHistory = _aboutView && !aboutAboveHistory;
+	auto newHistoryMarginBottom = st::historyPaddingBottom;
+	if (aboutBelowHistory) {
+		accumulate_max(newHistoryMarginBottom, _aboutView->height);
+	}
+	auto newHistoryMarginTop = qMax(
+		visibleHeight - itemsHeight - newHistoryMarginBottom,
+		0);
+	if (aboutAboveHistory) {
+		accumulate_max(newHistoryMarginTop, _aboutView->height);
 	}
 
 	if (_aboutView && _aboutView->height > 0) {
-		_aboutView->top = qMin(
-			newHistoryPaddingTop - _aboutView->height,
-			qMax(0, (_scroll->height() - _aboutView->height) / 2));
+		if (aboutAboveHistory) {
+			_aboutView->top = qMin(
+				newHistoryMarginTop - _aboutView->height,
+				qMax(0, (_scroll->height() - _aboutView->height) / 2));
+		} else {
+			_aboutView->top = qMax(
+				qMax(0, (_scroll->height() - _aboutView->height) / 2),
+				(newHistoryMarginTop
+					+ itemsHeight
+					+ newHistoryMarginBottom
+					- _aboutView->height));
+		}
 	}
 
-	if (_historyPaddingTop != newHistoryPaddingTop) {
-		_historyPaddingTop = newHistoryPaddingTop;
+	if (_historyMarginTop != newHistoryMarginTop) {
+		_historyMarginTop = newHistoryMarginTop;
+	}
+	if (_historyMarginBottom != newHistoryMarginBottom) {
+		_historyMarginBottom = newHistoryMarginBottom;
 	}
 
-	int newHeight = _historyPaddingTop + itemsHeight + st::historyPaddingBottom;
+	const auto newHeight = _historyMarginTop
+		+ itemsHeight
+		+ _historyMarginBottom;
 	if (width() != _scroll->width() || height() != newHeight) {
 		resize(_scroll->width(), newHeight);
 
@@ -4536,7 +4566,7 @@ int HistoryInner::historyScrollTop() const {
 }
 
 int HistoryInner::migratedTop() const {
-	return (_migrated && !_migrated->isEmpty()) ? _historyPaddingTop : -1;
+	return (_migrated && !_migrated->isEmpty()) ? _historyMarginTop : -1;
 }
 
 int HistoryInner::historyTop() const {
@@ -4544,7 +4574,7 @@ int HistoryInner::historyTop() const {
 	return !_history->isEmpty()
 		? (mig >= 0
 			? (mig + _migrated->height() - _historySkipHeight)
-			: _historyPaddingTop)
+			: _historyMarginTop)
 		: -1;
 }
 

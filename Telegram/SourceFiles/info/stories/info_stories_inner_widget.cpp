@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "mtproto/sender.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/sub_tabs.h"
@@ -208,7 +209,8 @@ InnerWidget::InnerWidget(
 , _albumChanges(Data::StoryAlbumUpdate{
 	.peer = _peer,
 	.albumId = _addingToAlbumId,
-}) {
+})
+, _api(std::make_unique<MTP::Sender>(&_peer->session().mtp())) {
 	preloadArchiveCount();
 
 	_albumId.value(
@@ -679,13 +681,19 @@ void InnerWidget::refreshAlbumsTabs() {
 		});
 	}
 	if (!_albumsTabs) {
+		const auto tabsCount = tabs.size();
 		_albumsTabs = std::make_unique<Ui::SubTabs>(
 			_albumsWrap,
+			st::collectionSubTabs,
 			Ui::SubTabs::Options{
 				.selected = selected,
 				.centered = true,
 			},
 			std::move(tabs));
+		_albumsTabs->setPinnedInterval(0, 1);
+		if (has) {
+			_albumsTabs->setPinnedInterval(tabsCount - 1, tabsCount);
+		}
 		_albumsTabs->show();
 
 		const auto padding = st::giftBoxPadding;
@@ -721,8 +729,22 @@ void InnerWidget::refreshAlbumsTabs() {
 			}
 			showMenuForAlbum(id.toInt());
 		}, _albumsTabs->lifetime());
+
+		using ReorderUpdate = Ui::SubTabsReorderUpdate;
+		_albumsTabs->reorderUpdates(
+		) | rpl::start_with_next([=](const ReorderUpdate &update) {
+			if (update.state == ReorderUpdate::State::Applied) {
+				reorderAlbumsLocally(update);
+			}
+		}, _albumsTabs->lifetime());
 	} else {
+		const auto tabsCount = tabs.size();
 		_albumsTabs->setTabs(std::move(tabs));
+		_albumsTabs->clearPinnedIntervals();
+		_albumsTabs->setPinnedInterval(0, 1);
+		if (has) {
+			_albumsTabs->setPinnedInterval(tabsCount - 1, tabsCount);
+		}
 		if (!selected.isEmpty()) {
 			_albumsTabs->setActiveTab(selected);
 		}
@@ -738,6 +760,19 @@ void InnerWidget::showMenuForAlbum(int id) {
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+
+	if (_albumsTabs && _albumsTabs->reorderEnabled()) {
+		addAction(
+			tr::lng_gift_collection_reorder_exit(tr::now),
+			[=] {
+				flushAlbumReorder();
+				_albumsTabs->setReorderEnabled(false);
+			},
+			&st::menuIconReorder);
+		_menu->popup(QCursor::pos());
+		return;
+	}
+
 	if (_peer->canEditStories()) {
 		addAction(tr::lng_stories_album_add_button(tr::now), [=] {
 			editAlbumStories(id);
@@ -752,6 +787,12 @@ void InnerWidget::showMenuForAlbum(int id) {
 		addAction(tr::lng_stories_album_edit(tr::now), [=] {
 			editAlbumName(id);
 		}, &st::menuIconEdit);
+		if (_albumsTabs) {
+			addAction(
+				tr::lng_gift_collection_reorder(tr::now),
+				[=] { _albumsTabs->setReorderEnabled(true); },
+				&st::menuIconReorder);
+		}
 		addAction({
 			.text = tr::lng_stories_album_delete(tr::now),
 			.handler = [=] { confirmDeleteAlbum(id); },
@@ -936,6 +977,63 @@ void InnerWidget::setScrollHeightValue(rpl::producer<int> value) {
 
 rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
 	return _scrollToRequests.events();
+}
+
+void InnerWidget::reorderAlbumsLocally(
+		const Ui::SubTabsReorderUpdate &update) {
+	if (!_albumsTabs || !_peer->canEditStories()) {
+		return;
+	}
+
+	const auto albumId = update.id.toInt();
+	if (albumId <= 0) {
+		return;
+	}
+
+	const auto it = ranges::find(
+		_albums,
+		albumId,
+		&Data::StoryAlbum::id);
+	if (it == _albums.end()) {
+		return;
+	}
+
+	const auto album = *it;
+	_albums.erase(it);
+
+	const auto newPos = std::max(
+		0,
+		std::min(update.newPosition - 1, int(_albums.size())));
+	_albums.insert(_albums.begin() + newPos, album);
+
+	_pendingAlbumReorder = true;
+}
+
+void InnerWidget::flushAlbumReorder() {
+	if (!_pendingAlbumReorder || !_peer->canEditStories()) {
+		return;
+	}
+
+	if (_reorderRequestId) {
+		_api->request(_reorderRequestId).cancel();
+		_reorderRequestId = 0;
+	}
+
+	auto order = QVector<MTPint>();
+	for (const auto &album : _albums) {
+		order.push_back(MTP_int(album.id));
+	}
+
+	_reorderRequestId = _api->request(MTPstories_ReorderAlbums(
+		_peer->input,
+		MTP_vector<MTPint>(order)
+	)).done([=] {
+		_reorderRequestId = 0;
+	}).fail([=, show = _controller->uiShow()](const MTP::Error &error) {
+		_reorderRequestId = 0;
+	}).send();
+
+	_pendingAlbumReorder = false;
 }
 
 } // namespace Info::Stories

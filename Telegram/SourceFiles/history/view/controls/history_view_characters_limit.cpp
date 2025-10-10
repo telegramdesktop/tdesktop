@@ -10,36 +10,62 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "styles/style_chat_helpers.h"
 
+namespace {
+
+constexpr auto kMinus = QChar(0x2212);
+constexpr auto kLimit = int(999);
+
+[[nodiscard]] int CountDigits(int n) {
+	return n == 0 ? 1 : static_cast<int>(std::log10(std::abs(n))) + 1;
+}
+
+} // namespace
+
 namespace HistoryView::Controls {
 
 CharactersLimitLabel::CharactersLimitLabel(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Ui::RpWidget*> widgetToAlign,
-	style::align align)
-: Ui::FlatLabel(parent, st::historyCharsLimitationLabel) {
+	style::align align,
+	QMargins margins)
+: Ui::FlatLabel(parent, st::historyCharsLimitationLabel)
+, _widgetToAlign(widgetToAlign)
+, _position((align == style::al_top)
+	? Fn<void(int, const QRect &)>([=](int height, const QRect &g) {
+		const auto w = textMaxWidth();
+		move(
+			g.x() + (g.width() - w) / 2 + margins.left(),
+			rect::bottom(g) + margins.top());
+	})
+	: Fn<void(int, const QRect &)>([=](int height, const QRect &g) {
+		const auto w = textMaxWidth();
+		move(
+			g.x() + (g.width() - w) / 2 + margins.left(),
+			g.y() - height - margins.bottom());
+	})) {
 	Expects((align == style::al_top) || align == style::al_bottom);
-	const auto w = st::historyCharsLimitationLabel.minWidth;
-	using F = Fn<void(int, const QRect &)>;
-	const auto position = (align == style::al_top)
-		? F([=](int height, const QRect &g) {
-			move(g.x() + (g.width() - w) / 2, rect::bottom(g));
-		})
-		: F([=](int height, const QRect &g) {
-			move(g.x() + (g.width() - w) / 2, g.y() - height);
-		});
 	rpl::combine(
 		Ui::RpWidget::heightValue(),
 		widgetToAlign->geometryValue()
-	) | rpl::start_with_next(position, lifetime());
+	) | rpl::start_with_next(_position, lifetime());
 }
 
 void CharactersLimitLabel::setLeft(int value) {
-	if (value <= 0) {
-		return;
+	const auto orderChanged = (CountDigits(value) != CountDigits(_lastValue));
+	_lastValue = value;
+
+	if (value > 0) {
+		setTextColorOverride(st::historyCharsLimitationLabel.textFg->c);
+		Ui::FlatLabel::setText(kMinus
+			+ QString::number(std::min(value, kLimit)));
+	} else {
+		setTextColorOverride(st::windowSubTextFg->c);
+		Ui::FlatLabel::setText(QString::number(-value));
 	}
-	constexpr auto kMinus = QChar(0x2212);
-	constexpr auto kLimit = int(999);
-	Ui::FlatLabel::setText(kMinus + QString::number(std::min(value, kLimit)));
+
+	if (orderChanged) {
+		_position(height(), _widgetToAlign->geometry());
+	}
 }
 
 } // namespace HistoryView::Controls

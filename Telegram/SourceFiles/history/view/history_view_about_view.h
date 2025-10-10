@@ -25,6 +25,7 @@ public:
 	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] Element *view() const;
 	[[nodiscard]] HistoryItem *item() const;
+	[[nodiscard]] bool aboveHistory() const;
 
 	bool refresh();
 
@@ -50,6 +51,7 @@ private:
 	[[nodiscard]] AdminLog::OwnedItem makeNewPeerInfo(
 		not_null<UserData*> user);
 	[[nodiscard]] AdminLog::OwnedItem makeBlocked();
+	[[nodiscard]] AdminLog::OwnedItem makeNewBotThread();
 	void makeIntro(not_null<UserData*> user);
 	void setItem(AdminLog::OwnedItem item, DocumentData *sticker);
 	void setHelloChosen(not_null<DocumentData*> sticker);

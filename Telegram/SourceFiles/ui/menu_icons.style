@@ -190,6 +190,7 @@ menuIconRatingGifts: icon {{ "menu/rating_gifts-24x24", menuIconColor }};
 menuIconRatingUsers: icon {{ "menu/users_stars-24x24", menuIconColor }};
 menuIconRatingRefund: icon {{ "menu/rating_refund-24x24", menuIconColor }};
 menuIconTon: icon{{ "payments/ton_emoji-18x18", menuIconColor, point(3px, 2px) }};
+menuIconReorder: icon{{ "menu/reorder-24x24", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
@@ -200,6 +201,7 @@ menuIconMuteForAnyTextPosition: point(14px, 9px);
 menuIconMuteForAnyTextFont: font(8px semibold);
 
 menuBlueIconPhotoSet: icon {{ "menu/photo_set", lightButtonFg }};
+menuBlueIconPhotoSuggest: icon {{ "menu/photo_suggest", lightButtonFg }};
 menuBlueIconPremium: icon{{ "menu/premium", lightButtonFg }};
 menuBlueIconColorNames: icon{{ "settings/premium/features/feature_color_names", lightButtonFg }};
 menuBlueIconWallpaper: icon{{ "settings/premium/features/feature_wallpaper", lightButtonFg }};

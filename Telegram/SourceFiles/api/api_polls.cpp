@@ -22,13 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 
 namespace Api {
-namespace {
-
-[[nodiscard]] TimeId UnixtimeFromMsgId(mtpMsgId msgId) {
-	return TimeId(msgId >> 32);
-}
-
-} // namespace
 
 Polls::Polls(not_null<ApiWrap*> api)
 : _session(&api->session())

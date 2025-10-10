@@ -117,6 +117,21 @@ int Bubble::countMaxWidth(int maxPossibleCounter) const {
 				+ _st.additionalStyle.font->width(textsMax.additional)));
 }
 
+int Bubble::countTargetWidth(int targetCounter) const {
+	auto numbers = Ui::NumbersAnimation(_st.font, [] {});
+	numbers.setDisabledMonospace(true);
+	numbers.setDuration(0);
+	const auto texts = _textFactory(targetCounter);
+	numbers.setText(texts.counter, targetCounter);
+	numbers.finishAnimating();
+	return filledWidth()
+		+ numbers.maxWidth()
+		+ (_additional.isEmpty()
+			? 0
+			: (_st.additionalSkip
+				+ _st.additionalStyle.font->width(texts.additional)));
+}
+
 void Bubble::setCounter(int value) {
 	if (_counter != value) {
 		_counter = value;
@@ -289,12 +304,12 @@ BubbleWidget::BubbleWidget(
 }
 
 void BubbleWidget::animateTo(BubbleRowState state) {
-	_maxBubbleWidth = _bubble.countMaxWidth(state.counter);
+	const auto targetWidth = _bubble.countTargetWidth(state.counter);
 	const auto parent = parentWidget();
 	const auto available = parent->width()
 		- _outerPadding.left()
 		- _outerPadding.right();
-	const auto halfWidth = (_maxBubbleWidth / 2);
+	const auto halfWidth = (targetWidth / 2);
 	const auto computeLeft = [=](float64 pointRatio, float64 animProgress) {
 		const auto delta = (pointRatio - _animatingFromResultRatio);
 		const auto center = available
@@ -303,9 +318,7 @@ void BubbleWidget::animateTo(BubbleRowState state) {
 	};
 	const auto moveEndPoint = state.ratio;
 	const auto computeRightEdge = [=] {
-		return parent->width()
-			- _outerPadding.right()
-			- _maxBubbleWidth;
+		return parent->width() - _outerPadding.right() - targetWidth;
 	};
 	struct Edge final {
 		float64 goodPointRatio = 0.;
@@ -456,6 +469,7 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 	_bubble.paintBubble(p, bubbleRect, [&] {
 		switch (_type) {
 		case BubbleType::NoPremium:
+		case BubbleType::UpgradePrice:
 		case BubbleType::StarRating: return st::windowBgActive->b;
 		case BubbleType::NegativeRating: return st::attentionButtonFg->b;
 		case BubbleType::Premium: return QBrush(_cachedGradient);

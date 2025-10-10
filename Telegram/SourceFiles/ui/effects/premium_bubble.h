@@ -55,6 +55,7 @@ public:
 	[[nodiscard]] int width() const;
 	[[nodiscard]] int bubbleRadius() const;
 	[[nodiscard]] int countMaxWidth(int maxPossibleCounter) const;
+	[[nodiscard]] int countTargetWidth(int targetCounter) const;
 
 	void setCounter(int value);
 	void setTailEdge(EdgeProgress edge);
@@ -94,6 +95,7 @@ struct BubbleRowState {
 };
 
 enum class BubbleType : uchar {
+	UpgradePrice,
 	StarRating,
 	NegativeRating,
 	NoPremium,
@@ -134,7 +136,6 @@ private:
 	float64 _animatingFromBubbleEdge = 0.;
 	rpl::variable<BubbleRowState> _state;
 	Bubble _bubble;
-	int _maxBubbleWidth = 0;
 	const BubbleType _type;
 	const style::margins _outerPadding;
 

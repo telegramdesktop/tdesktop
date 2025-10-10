@@ -40,6 +40,11 @@
     <file alias="direct_messages.tgs">../../animations/edit_peers/direct_messages.tgs</file>
     <file alias="no_chats.tgs">../../animations/no_chats.tgs</file>
     <file alias="transcribe_loading.tgs">../../animations/transcribe_loading.tgs</file>
+    <file alias="cake.tgs">../../animations/cake.tgs</file>
+    <file alias="camera_outline.tgs">../../animations/camera_outline.tgs</file>
+    <file alias="photo_suggest_icon.tgs">../../animations/photo_suggest_icon.tgs</file>
+    <file alias="toast/saved_messages.tgs">../../animations/toast/saved_messages.tgs</file>
+    <file alias="toast/tagged.tgs">../../animations/toast/tagged.tgs</file>
 
     <file alias="dice_idle.tgs">../../animations/dice/dice_idle.tgs</file>
     <file alias="dart_idle.tgs">../../animations/dice/dart_idle.tgs</file>

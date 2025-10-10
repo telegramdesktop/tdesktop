@@ -815,6 +815,15 @@ reactPanelScrollRounded: ScrollArea(emojiScroll) {
 	deltat: 14px;
 	deltab: 14px;
 }
+selfForwardsTaggerStripSkip: 26px;
+selfForwardsTaggerIcon: size(32px, 32px);
+selfForwardsTaggerToast: Toast(defaultToast) {
+	minWidth: 160px;
+	maxWidth: 380px;
+	radius: 9px;
+	padding: margins(54px, 12px, 19px, 12px);
+	iconPosition: point(15px, 6px);
+}
 
 choosePeerGroupIcon: icon {{ "info/edit/create_group", lightButtonFg }};
 choosePeerChannelIcon: icon {{ "info/edit/create_channel", lightButtonFg }};

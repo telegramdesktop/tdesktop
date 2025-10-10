@@ -548,6 +548,7 @@ void Histories::requestFakeChatListMessage(
 			_fakeChatListRequests.erase(history);
 			history->setFakeChatListMessageFrom(MTP_messages_messages(
 				MTP_vector<MTPMessage>(0),
+				MTP_vector<MTPForumTopic>(0),
 				MTP_vector<MTPChat>(0),
 				MTP_vector<MTPUser>(0)));
 			finish();
@@ -1043,8 +1044,6 @@ int Histories::sendRequest(
 void Histories::sendCreateTopicRequest(
 		not_null<History*> history,
 		MsgId rootId) {
-	Expects(history->peer->isChannel());
-
 	const auto forum = history->asForum();
 	Assert(forum != nullptr);
 	const auto topic = forum->topicFor(rootId);
@@ -1054,11 +1053,12 @@ void Histories::sendCreateTopicRequest(
 		randomId,
 		{ history->peer->id, rootId });
 	const auto api = &session().api();
-	using Flag = MTPchannels_CreateForumTopic::Flag;
-	api->request(MTPchannels_CreateForumTopic(
+	using Flag = MTPmessages_CreateForumTopic::Flag;
+	api->request(MTPmessages_CreateForumTopic(
 		MTP_flags(Flag::f_icon_color
-			| (topic->iconId() ? Flag::f_icon_emoji_id : Flag(0))),
-		history->peer->asChannel()->inputChannel,
+			| (topic->iconId() ? Flag::f_icon_emoji_id : Flag())
+			| (history->peer->isBot() ? Flag::f_title_missing : Flag())),
+		history->peer->input,
 		MTP_string(topic->title()),
 		MTP_int(topic->colorId()),
 		MTP_long(topic->iconId()),

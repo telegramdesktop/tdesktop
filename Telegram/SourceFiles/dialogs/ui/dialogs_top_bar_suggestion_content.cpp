@@ -320,11 +320,7 @@ rpl::producer<int> TopBarSuggestionContent::desiredHeightValue() const {
 		const auto desiredHeight = lastTop
 			+ (lastLines * _contentTextSt.font->height)
 			+ bottomPadding;
-		const auto minHeight = desiredHeight;
-		return std::clamp(
-			desiredHeight,
-			minHeight,
-			st::sponsoredMessageBarMaxHeight);
+		return std::min(desiredHeight, st::sponsoredMessageBarMaxHeight);
 	});
 }
 

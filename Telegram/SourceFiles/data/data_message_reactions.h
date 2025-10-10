@@ -61,6 +61,8 @@ struct PossibleItemReactions {
 [[nodiscard]] PossibleItemReactionsRef LookupPossibleReactions(
 	not_null<HistoryItem*> item,
 	bool paidInFront = false);
+[[nodiscard]] PossibleItemReactionsRef LookupPossibleReactions(
+	not_null<Main::Session*> session);
 
 struct MyTagInfo {
 	ReactionId id;

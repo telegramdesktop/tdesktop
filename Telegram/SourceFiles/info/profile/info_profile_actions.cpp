@@ -85,6 +85,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/padding_wrap.h"
@@ -700,6 +702,131 @@ base::options::toggle ShowChannelJoinedBelowAbout({
 	) | rpl::map([](const WorkingHours &data) {
 		return bool(data);
 	}));
+
+	return result;
+}
+
+void DeleteContactNote(
+		not_null<UserData*> user,
+		Fn<void(const QString &)> showError = nullptr) {
+	user->session().api().request(MTPcontacts_UpdateContactNote(
+		user->inputUser,
+		MTP_textWithEntities(MTP_string(), MTP_vector<MTPMessageEntity>())
+	)).done([=] {
+		user->setNote(TextWithEntities());
+	}).fail([=](const MTP::Error &error) {
+		if (showError) {
+			showError(error.description());
+		}
+	}).send();
+}
+
+[[nodiscard]] object_ptr<Ui::SlideWrap<>> CreateNotes(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user) {
+	auto allNotesText = user->session().changes().peerFlagsValue(
+		user,
+		Data::PeerUpdate::Flag::FullInfo
+	) | rpl::map([=] {
+		return user->note();
+	});
+
+	auto notesText = rpl::duplicate(
+		allNotesText
+	) | rpl::filter([](const TextWithEntities &note) {
+		return !note.text.isEmpty();
+	});
+
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		parent,
+		object_ptr<Ui::VerticalLayout>(parent));
+	result->toggleOn(rpl::duplicate(
+		allNotesText
+	) | rpl::map([](const TextWithEntities &note) {
+		return !note.text.isEmpty();
+	}));
+	result->finishAnimating();
+
+	const auto notesContainer = result->entity();
+
+	const auto context = Ui::Text::MarkedContext{
+		.customEmojiFactory = user->owner().customEmojiManager().factory(
+			Data::CustomEmojiManager::SizeTag::Normal)
+	};
+
+	auto notesLine = CreateTextWithLabel(
+		notesContainer,
+		tr::lng_info_notes_label(TextWithEntities::Simple),
+		rpl::duplicate(notesText),
+		st::infoLabel,
+		st::infoLabeled,
+		st::infoProfileLabeledPadding);
+
+	std::move(
+		notesText
+	) | rpl::start_with_next([=, raw = notesLine.text](
+			const TextWithEntities &note) {
+		raw->setMarkedText(note, context);
+	}, notesLine.text->lifetime());
+
+	notesLine.text->setContextMenuHook([=, raw = notesLine.text](
+			Ui::FlatLabel::ContextMenuRequest request) {
+		raw->fillContextMenu(request);
+		const auto addAction = Ui::Menu::CreateAddActionCallback(
+			request.menu);
+		addAction({
+			.text = tr::lng_edit_note(tr::now),
+			.handler = [=] {
+				controller->window().show(
+					Box(EditContactNoteBox, controller, user));
+			},
+		});
+		addAction({
+			.text = tr::lng_delete_note(tr::now),
+			.handler = [=] {
+				DeleteContactNote(user, [=](const QString &error) {
+					controller->showToast(error);
+				});
+			},
+			.isAttention = true,
+		});
+	});
+
+	rpl::merge(
+		notesLine.wrap->events(),
+		notesLine.subtext->events()
+	) | rpl::start_with_next([=, raw = notesLine.text](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ContextMenu) {
+			const auto ce = static_cast<QContextMenuEvent*>(e.get());
+			QCoreApplication::postEvent(
+				raw,
+				new QContextMenuEvent(
+					ce->reason(),
+					ce->pos(),
+					ce->globalPos()));
+		}
+	}, notesLine.wrap->lifetime());
+
+	const auto subtextLabel = Ui::CreateChild<Ui::FlatLabel>(
+		notesLine.subtext->parentWidget(),
+		tr::lng_info_notes_private(tr::now),
+		st::infoLabel);
+	subtextLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	rpl::combine(
+		notesLine.subtext->geometryValue(),
+		notesContainer->widthValue()
+	) | rpl::start_with_next([=, skip = st::lineWidth * 5](
+			const QRect &subtextGeometry,
+			int parentWidth) {
+		subtextLabel->moveToRight(
+			subtextLabel->width(),
+			subtextGeometry.y() + skip,
+			parentWidth);
+	}, subtextLabel->lifetime());
+
+	notesContainer->add(std::move(notesLine.wrap));
 
 	return result;
 }
@@ -1499,6 +1626,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			tracker.track(result->add(
 				CreateWorkingHours(result, user), {}, style::al_justify));
 
+			tracker.track(result->add(
+				CreateNotes(result, controller, user), {}, style::al_justify));
+
 			auto locationText = user->session().changes().peerFlagsValue(
 				user,
 				Data::PeerUpdate::Flag::BusinessDetails
@@ -2142,14 +2272,14 @@ void DetailsFiller::addShowTopicsListButton(
 	using namespace rpl::mappers;
 
 	const auto window = _controller->parentController();
-	const auto channel = forum->channel();
+	const auto peer = forum->peer();
 	auto showTopicsVisible = rpl::combine(
 		window->adaptive().oneColumnValue(),
 		window->shownForum().value(),
 		_1 || (_2 != forum));
 	const auto callback = [=] {
-		if (const auto forum = channel->forum()) {
-			if (channel->useSubsectionTabs()) {
+		if (const auto forum = peer->forum()) {
+			if (peer->useSubsectionTabs()) {
 				window->searchInChat(forum->history());
 			} else {
 				window->showForum(forum);
@@ -2158,7 +2288,9 @@ void DetailsFiller::addShowTopicsListButton(
 	};
 	AddMainButton(
 		_wrap,
-		tr::lng_forum_show_topics_list(),
+		(forum->peer()->isBot()
+			? tr::lng_bot_show_threads_list()
+			: tr::lng_forum_show_topics_list()),
 		std::move(showTopicsVisible),
 		callback,
 		tracker);

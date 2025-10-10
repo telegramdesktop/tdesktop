@@ -138,6 +138,35 @@ private:
 
 };
 
+class NewBotThreadDottedLine final : public MediaGenericPart {
+public:
+	explicit NewBotThreadDottedLine(not_null<Element*> parent);
+
+	void draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const override;
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+private:
+	const not_null<Element*> _parent;
+
+};
+
+class NewBotThreadDownIcon final : public MediaGenericPart {
+public:
+	void draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const override;
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+};
+
 UserpicsList::UserpicsList(
 	std::vector<not_null<PeerData*>> peers,
 	const style::GroupCallUserpics &st,
@@ -196,6 +225,54 @@ int UserpicsList::width() const {
 	}
 	const auto shifted = count - 1;
 	return _st.size + (shifted * (_st.size - _st.shift));
+}
+
+void NewBotThreadDownIcon::draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const {
+	auto color = context.st->msgServiceFg()->c;
+	color.setAlphaF(color.alphaF() * kLabelOpacity);
+	st::newBotThreadDown.paintInCenter(
+		p,
+		QRect(0, 0, outerWidth, st::newBotThreadDown.height()),
+		color);
+}
+
+QSize NewBotThreadDownIcon::countOptimalSize() {
+	return st::newBotThreadDown.size();
+}
+
+QSize NewBotThreadDownIcon::countCurrentSize(int newWidth) {
+	return st::newBotThreadDown.size();
+}
+
+NewBotThreadDottedLine::NewBotThreadDottedLine(not_null<Element*> parent)
+: _parent(parent) {
+}
+
+void NewBotThreadDottedLine::draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const {
+	const auto skip = st::monoforumBarUserpicSkip;
+	auto pen = context.st->msgServiceBg()->p;
+	pen.setWidthF(skip);
+	pen.setCapStyle(Qt::RoundCap);
+	pen.setDashPattern({ 2., 2. });
+	p.setPen(pen);
+	const auto top = -st::newBotThreadTopSkip / 2;
+	p.drawLine(context.viewport.x(), top, context.viewport.width(), top);
+}
+
+QSize NewBotThreadDottedLine::countOptimalSize() {
+	return { 0, 0 };
+}
+
+QSize NewBotThreadDottedLine::countCurrentSize(int newWidth) {
+	return { 0, 0 };
 }
 
 auto GenerateChatIntro(
@@ -261,6 +338,41 @@ auto GenerateChatIntro(
 			replacing,
 			sticker,
 			st::chatIntroStickerPadding));
+	};
+}
+
+auto GenerateNewBotThread(
+	not_null<Element*> parent,
+	Element *replacing)
+-> Fn<void(
+		not_null<MediaGeneric*>,
+		Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
+	return [=](
+			not_null<MediaGeneric*> media,
+			Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
+		auto pushText = [&](
+				TextWithEntities text,
+				QMargins margins = {},
+				const base::flat_map<uint16, ClickHandlerPtr> &links = {}) {
+			if (text.empty()) {
+				return;
+			}
+			push(std::make_unique<MediaGenericTextPart>(
+				std::move(text),
+				margins,
+				st::defaultTextStyle,
+				links));
+		};
+		const auto title = tr::lng_bot_new_thread_title(tr::now);
+		const auto description = tr::lng_bot_new_thread_about(tr::now);
+		push(std::make_unique<NewBotThreadDottedLine>(parent));
+		pushText(Ui::Text::Bold(title), st::chatIntroTitleMargin);
+		pushText({ description }, st::chatIntroMargin);
+		push(std::make_unique<NewBotThreadDownIcon>());
+
+		parent->addVerticalMargins(
+			st::newBotThreadTopSkip - st::msgServiceMargin.top(),
+			st::msgServiceMargin.top());
 	};
 }
 
@@ -513,6 +625,10 @@ HistoryItem *AboutView::item() const {
 	return nullptr;
 }
 
+bool AboutView::aboveHistory() const {
+	return !_history->peer->isBot() || !_history->isForum();
+}
+
 bool AboutView::refresh() {
 	if (_history->peer->isVerifyCodes()) {
 		if (_item) {
@@ -567,6 +683,12 @@ bool AboutView::refresh() {
 		}
 		_version = 0;
 		return false;
+	} else if (_history->peer->isForum()) {
+		if (_item) {
+			return false;
+		}
+		setItem(makeNewBotThread(), nullptr);
+		return true;
 	}
 	const auto version = info->descriptionVersion;
 	if (_version == version) {
@@ -889,6 +1011,28 @@ AdminLog::OwnedItem AboutView::makeBlocked() {
 		{ tr::lng_chat_intro_default_title(tr::now) }
 	});
 	return AdminLog::OwnedItem(_delegate, item);
+}
+
+AdminLog::OwnedItem AboutView::makeNewBotThread() {
+	const auto item = _history->makeMessage({
+		.id = _history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeAboutView
+			| MessageFlag::FakeHistoryItem
+			| MessageFlag::Local),
+		.from = _history->peer->id,
+	}, PreparedServiceText{
+		tr::lng_bot_new_thread_about(tr::now, Ui::Text::RichLangValue)
+	});
+	auto result = AdminLog::OwnedItem(_delegate, item);
+	result->overrideMedia(std::make_unique<MediaGeneric>(
+		result.get(),
+		GenerateNewBotThread(result.get(), _item.get()),
+		HistoryView::MediaGenericDescriptor{
+			.maxWidth = st::chatIntroWidth,
+			.service = true,
+			.hideServiceText = true,
+		}));
+	return result;
 }
 
 } // namespace HistoryView

@@ -397,15 +397,24 @@ void Session::clear() {
 
 	// We must clear all [mono]forums before clearing customEmojiManager.
 	// Because in Data::ForumTopic an Ui::Text::CustomEmoji is cached.
-	auto forums = base::flat_set<not_null<ChannelData*>>();
+	auto botForums = base::flat_set<not_null<UserData*>>();
+	auto channelForums = base::flat_set<not_null<ChannelData*>>();
 	for (const auto &[peerId, peer] : _peers) {
+		if (const auto bot = peer->asBot()) {
+			if (bot->isForum()) {
+				botForums.emplace(bot);
+			}
+		}
 		if (const auto channel = peer->asChannel()) {
 			if (channel->isForum() || channel->amMonoforumAdmin()) {
-				forums.emplace(channel);
+				channelForums.emplace(channel);
 			}
 		}
 	}
-	for (const auto &channel : forums) {
+	for (const auto &bot : botForums) {
+		bot->setFlags(bot->flags() & ~UserDataFlag::Forum);
+	}
+	for (const auto &channel : channelForums) {
 		channel->setFlags(channel->flags()
 			& ~(ChannelDataFlag::Forum | ChannelDataFlag::MonoforumAdmin));
 	}
@@ -564,6 +573,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| Flag::Scam
 			| Flag::Fake
 			| Flag::BotInlineGeo
+			| Flag::Forum
 			| Flag::Premium
 			| Flag::Support
 			| Flag::HasRequirePremiumToWrite
@@ -590,6 +600,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| (data.is_scam() ? Flag::Scam : Flag())
 			| (data.is_fake() ? Flag::Fake : Flag())
 			| (data.is_bot_inline_geo() ? Flag::BotInlineGeo : Flag())
+			| (data.is_bot_forum_view() ? Flag::Forum : Flag())
 			| (data.is_premium() ? Flag::Premium : Flag())
 			| (data.is_support() ? Flag::Support : Flag())
 			| (hasRequirePremiumToWrite
@@ -2681,21 +2692,25 @@ void Session::processMessages(
 void Session::processExistingMessages(
 		ChannelData *channel,
 		const MTPmessages_Messages &data) {
-	data.match([&](const MTPDmessages_channelMessages &data) {
-		if (channel) {
-			channel->ptsReceived(data.vpts().v);
-			channel->processTopics(data.vtopics());
-		} else {
-			LOG(("App Error: received messages.channelMessages!"));
-		}
-	}, [](const auto &) {});
-
 	data.match([&](const MTPDmessages_messagesNotModified&) {
 		LOG(("API Error: received messages.messagesNotModified!"));
 	}, [&](const auto &data) {
 		processUsers(data.vusers());
 		processChats(data.vchats());
 		processMessages(data.vmessages(), NewMessageType::Existing);
+	});
+	data.match([&](const MTPDmessages_channelMessages &data) {
+		if (channel) {
+			channel->ptsReceived(data.vpts().v);
+		} else {
+			LOG(("App Error: received messages.channelMessages!"));
+		}
+	}, [](const auto &) {});
+	data.match([&](const MTPDmessages_messagesNotModified&) {
+	}, [&](const auto &data) {
+		if (channel) {
+			channel->processTopics(data.vtopics());
+		}
 	});
 }
 
@@ -3002,12 +3017,20 @@ HistoryItem *Session::addNewMessage(
 	return result;
 }
 
+int Session::unreadBadge() const {
+	return computeUnreadBadge(_chatsList.unreadState());
+}
+
 int Session::unreadWithMentionsBadge() const {
 	auto state = _chatsList.unreadState();
 	if (state.mentions) {
 		state.messages -= state.mentions;
 	}
 	return computeUnreadBadge(state) + state.mentions;
+}
+
+bool Session::unreadBadgeMuted() const {
+	return computeUnreadBadgeMuted(_chatsList.unreadState());
 }
 
 bool Session::unreadWithMentionsBadgeMuted() const {
@@ -5166,6 +5189,9 @@ void Session::saveViewAsMessages(
 		not_null<Forum*> forum,
 		bool viewAsMessages) {
 	const auto channel = forum->channel();
+	if (!channel) {
+		return;
+	}
 	if (const auto requestId = _viewAsMessagesRequests.take(channel)) {
 		_session->api().request(*requestId).cancel();
 	}
@@ -5257,6 +5283,14 @@ void Session::setPendingStarsRating(StarsRatingPending value) {
 
 StarsRatingPending Session::pendingStarsRating() const {
 	return _pendingStarsRating ? *_pendingStarsRating : StarsRatingPending();
+}
+
+void Session::addRecentSelfForwards(const RecentSelfForwards &data) {
+	_recentSelfForwards.fire_copy(data);
+}
+
+rpl::producer<RecentSelfForwards> Session::recentSelfForwards() const {
+	return _recentSelfForwards.events();
 }
 
 void Session::clearLocalStorage() {

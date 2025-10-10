@@ -247,6 +247,9 @@ boostLimits: PremiumLimits(defaultPremiumLimits) {
 negativeStarsLimits: PremiumLimits(boostLimits) {
 	gradientFromLeft: false;
 }
+upgradePriceLimits: PremiumLimits(boostLimits) {
+	gradientFromLeft: false;
+}
 boostBubble: PremiumBubble(defaultPremiumBubble) {
 	height: 32px;
 	padding: margins(7px, 0px, 11px, 0px);

@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_statistics.h"
+#include "api/api_text_entities.h"
 #include "base/timer_rpl.h"
+#include "core/application.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "storage/storage_user_photos.h"
@@ -20,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_business_info.h"
 #include "data/components/credits.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_forum.h"
+#include "data/data_forum_icons.h"
 #include "data/data_saved_music.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
@@ -32,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "window/notifications_manager.h"
 #include "styles/style_chat.h"
 
 namespace {
@@ -83,6 +88,28 @@ bool ApplyBotVerifierSettings(
 } // namespace
 
 BotInfo::BotInfo() = default;
+
+BotInfo::~BotInfo() = default;
+
+void BotInfo::ensureForum(not_null<UserData*> that) {
+	if (!_forum) {
+		const auto history = that->owner().history(that);
+		_forum = std::make_unique<Data::Forum>(history);
+		history->forumChanged(nullptr);
+	}
+}
+
+Data::Forum *BotInfo::forum() const {
+	return _forum.get();
+}
+
+std::unique_ptr<Data::Forum> BotInfo::takeForumData() {
+	if (auto result = base::take(_forum)) {
+		result->history()->forumChanged(result.get());
+		return result;
+	}
+	return nullptr;
+}
 
 Data::LastseenStatus LastseenFromMTP(
 		const MTPUserStatus &status,
@@ -471,12 +498,43 @@ void UserData::setAccessHash(uint64 accessHash) {
 }
 
 void UserData::setFlags(UserDataFlags which) {
-	if ((which & UserDataFlag::Deleted)
-		!= (flags() & UserDataFlag::Deleted)) {
+	if (!isBot()) {
+		which &= ~Flag::Forum;
+	}
+	const auto diff = flags() ^ which;
+	if (diff & Flag::Deleted) {
 		invalidateEmptyUserpic();
 	}
-	_flags.set((flags() & UserDataFlag::Self)
-		| (which & ~UserDataFlag::Self));
+	// Let Data::Forum live till the end of _flags.set.
+	// That way the data can be used in changes handler.
+	// Example: render frame for forum auto-closing animation.
+	const auto takenForum = (botInfo
+		&& (diff & Flag::Forum)
+		&& !(which & Flag::Forum))
+		? botInfo->takeForumData()
+		: nullptr;
+	if ((diff & Flag::Forum) && (which & Flag::Forum)) {
+		if (const auto info = botInfo.get()) {
+			info->ensureForum(this);
+		}
+	}
+	_flags.set((flags() & Flag::Self) | (which & ~Flag::Self));
+	if (diff & Flag::Forum) {
+		if (const auto history = this->owner().historyLoaded(this)) {
+			if (diff & Flag::Forum) {
+				Core::App().notifications().clearFromHistory(history);
+				history->updateChatListEntryHeight();
+				if (history->inChatList()) {
+					if (const auto forum = this->forum()) {
+						forum->preloadTopics();
+					}
+				}
+			}
+		}
+	}
+	if (const auto raw = takenForum.get()) {
+		owner().forumIcons().clearUserpicsReset(raw);
+	}
 }
 
 void UserData::addFlags(UserDataFlags which) {
@@ -707,6 +765,17 @@ void UserData::setDisallowedGiftTypes(Api::DisallowedGiftTypes types) {
 	}
 }
 
+const TextWithEntities &UserData::note() const {
+	return _note;
+}
+
+void UserData::setNote(const TextWithEntities &note) {
+	if (_note != note) {
+		_note = note;
+		session().changes().peerUpdated(this, UpdateFlag::ContactNote);
+	}
+}
+
 namespace Data {
 
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
@@ -919,6 +988,17 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 
 	user->owner().stories().apply(user, update.vstories());
 	user->owner().savedMusic().apply(user, update.vsaved_music());
+
+	if (const auto note = update.vnote()) {
+		user->setNote(TextWithEntities{
+			qs(note->data().vtext()),
+			Api::EntitiesFromMTP(
+				&user->session(),
+				note->data().ventities().v)
+		});
+	} else {
+		user->setNote(TextWithEntities());
+	}
 
 	user->fullUpdated();
 }

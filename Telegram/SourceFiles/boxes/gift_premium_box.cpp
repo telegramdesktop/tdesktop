@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
 #include "ui/boxes/boost_box.h" // StartFireworks.
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
@@ -1433,13 +1434,108 @@ QString TonAddressUrl(
 	return prefix + address;
 }
 
+struct AddedUniqueDetails {
+	object_ptr<Ui::RpWidget> widget;
+	not_null<Ui::FlatLabel*> label;
+};
+[[nodiscard]] AddedUniqueDetails MakeUniqueDetails(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<QWidget*> parent,
+		rpl::producer<TextWithEntities> text,
+		Settings::CreditsEntryBoxStyleOverrides st,
+		Ui::Text::MarkedContext context,
+		int removeCost,
+		Fn<void(Fn<void()> removed)> remove) {
+	auto owned = object_ptr<Ui::FlatLabel>(
+		parent,
+		rpl::duplicate(text),
+		(st.tableValueMessage
+			? *st.tableValueMessage
+			: st::giveawayGiftMessage),
+		st::defaultPopupMenu,
+		context);
+	const auto label = owned.data();
+	if (!remove) {
+		return {
+			.widget = std::move(owned),
+			.label = label,
+		};
+	}
+	owned.release();
+
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+
+	label->setParent(raw);
+	label->show();
+	const auto icon = Ui::CreateChild<Ui::IconButton>(
+		raw,
+		st::giveawayGiftMessageRemove);
+	raw->widthValue() | rpl::start_with_next([=](int outer) {
+		label->resizeToWidth(outer - icon->width());
+		const auto height = std::max(label->height(), icon->height());
+
+		icon->moveToRight(0, (height - icon->height()) / 2);
+		label->move(0, (height - label->height()) / 2);
+
+		raw->resize(outer, height);
+	}, raw->lifetime());
+	icon->setClickedCallback([=] {
+		const auto weak = base::make_weak(raw);
+		show->show(Box([=](not_null<Ui::GenericBox*> box) {
+			const auto confirming = base::make_weak(box);
+			const auto confirmed = [=] {
+				remove([=] {
+					delete weak.get();
+					if (const auto strong = confirming.get()) {
+						strong->closeBox();
+					}
+				});
+			};
+			Ui::ConfirmBox(box, {
+				.text = tr::lng_gift_unique_info_remove_text(),
+				.confirmed = confirmed,
+				.confirmText = tr::lng_gift_unique_info_remove_confirm(
+					lt_cost,
+					rpl::single(
+						Ui::Text::IconEmoji(&st::starIconEmoji).append(
+							Lang::FormatCountDecimal(removeCost))),
+					Ui::Text::RichLangValue),
+				.title = tr::lng_gift_unique_info_remove_title(),
+			});
+			box->addRow(
+				object_ptr<Ui::TableLayout>(
+					box,
+					st.table ? *st.table : st::giveawayGiftCodeTable)
+			)->addRow(
+				object_ptr<Ui::FlatLabel>(
+					parent,
+					rpl::duplicate(text),
+					(st.tableValueMessage
+						? *st.tableValueMessage
+						: st::giveawayGiftMessage),
+					st::defaultPopupMenu,
+					context),
+				nullptr,
+				st::giveawayGiftCodeLabelMargin,
+				st::giveawayGiftCodeValueMargin);
+		}));
+	});
+
+	return {
+		.widget = std::move(result),
+		.label = label,
+	};
+}
+
 void AddStarGiftTable(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::VerticalLayout*> container,
 		Settings::CreditsEntryBoxStyleOverrides st,
 		const Data::CreditsHistoryEntry &entry,
 		Fn<void()> convertToStars,
-		Fn<void()> startUpgrade) {
+		Fn<void()> startUpgrade,
+		Fn<void(Fn<void()> removed)> removeDetails) {
 	const auto table = container->add(
 		object_ptr<Ui::TableLayout>(
 			container,
@@ -1467,7 +1563,10 @@ void AddStarGiftTable(
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_peer(),
-			MakePeerTableValue(table, show, PeerId(entry.bareGiftResaleRecipientId)),
+			MakePeerTableValue(
+				table,
+				show,
+				PeerId(entry.bareGiftResaleRecipientId)),
 			st::giveawayGiftCodePeerMargin);
 	} else if (unique && entry.bareGiftOwnerId) {
 		const auto ownerId = PeerId(entry.bareGiftOwnerId);
@@ -1519,6 +1618,38 @@ void AddStarGiftTable(
 				tr::lng_gift_unique_owner(),
 				std::move(label));
 		}
+
+		if (const auto hostId = PeerId(entry.bareGiftHostId)) {
+			const auto was = std::make_shared<std::optional<CollectibleId>>();
+			const auto handleChange = [=](
+					not_null<Ui::RpWidget*> badge,
+					EmojiStatusId emojiStatusId) {
+				const auto id = emojiStatusId.collectible
+					? emojiStatusId.collectible->id
+					: 0;
+				const auto show = [&](const auto &phrase) {
+					showTooltip(badge, phrase(
+						lt_name,
+						rpl::single(Ui::Text::Bold(UniqueGiftName(*unique))),
+						Ui::Text::WithEntities));
+				};
+				if (!*was || *was == id) {
+					*was = id;
+					return;
+				} else if (*was == unique->id) {
+					show(tr::lng_gift_wear_end_toast);
+				} else if (id == unique->id) {
+					show(tr::lng_gift_wear_start_toast);
+				}
+				*was = id;
+			};
+			AddTableRow(
+				table,
+				tr::lng_gift_unique_telegram(),
+				MakePeerWithStatusValue(table, show, hostId, handleChange),
+				st::giveawayGiftCodePeerMargin);
+		}
+
 	} else if (giftToChannel) {
 		AddTableRow(
 			table,
@@ -1638,60 +1769,63 @@ void AddStarGiftTable(
 				: nullptr;
 			const auto date = base::unixtime::parse(original.date).date();
 			const auto dateText = TextWithEntities{ langDayOfMonth(date) };
-			auto label = object_ptr<Ui::FlatLabel>(
+			auto details = from
+				? (original.message.empty()
+					? tr::lng_gift_unique_info_sender(
+						lt_from,
+						rpl::single(Ui::Text::Link(from->name(), 2)),
+						lt_recipient,
+						rpl::single(Ui::Text::Link(to->name(), 1)),
+						lt_date,
+						rpl::single(dateText),
+						Ui::Text::WithEntities)
+					: tr::lng_gift_unique_info_sender_comment(
+						lt_from,
+						rpl::single(Ui::Text::Link(from->name(), 2)),
+						lt_recipient,
+						rpl::single(Ui::Text::Link(to->name(), 1)),
+						lt_date,
+						rpl::single(dateText),
+						lt_text,
+						rpl::single(original.message),
+						Ui::Text::WithEntities))
+				: (original.message.empty()
+					? tr::lng_gift_unique_info_reciever(
+						lt_recipient,
+						rpl::single(Ui::Text::Link(to->name(), 1)),
+						lt_date,
+						rpl::single(dateText),
+						Ui::Text::WithEntities)
+					: tr::lng_gift_unique_info_reciever_comment(
+						lt_recipient,
+						rpl::single(Ui::Text::Link(to->name(), 1)),
+						lt_date,
+						rpl::single(dateText),
+						lt_text,
+						rpl::single(original.message),
+						Ui::Text::WithEntities));
+			const auto tmp = std::make_shared<Ui::RpWidget*>(nullptr);
+			auto made = MakeUniqueDetails(
+				show,
 				table,
-				(from
-					? (original.message.empty()
-						? tr::lng_gift_unique_info_sender(
-							lt_from,
-							rpl::single(Ui::Text::Link(from->name(), 2)),
-							lt_recipient,
-							rpl::single(Ui::Text::Link(to->name(), 1)),
-							lt_date,
-							rpl::single(dateText),
-							Ui::Text::WithEntities)
-						: tr::lng_gift_unique_info_sender_comment(
-							lt_from,
-							rpl::single(Ui::Text::Link(from->name(), 2)),
-							lt_recipient,
-							rpl::single(Ui::Text::Link(to->name(), 1)),
-							lt_date,
-							rpl::single(dateText),
-							lt_text,
-							rpl::single(original.message),
-							Ui::Text::WithEntities))
-					: (original.message.empty()
-						? tr::lng_gift_unique_info_reciever(
-							lt_recipient,
-							rpl::single(Ui::Text::Link(to->name(), 1)),
-							lt_date,
-							rpl::single(dateText),
-							Ui::Text::WithEntities)
-						: tr::lng_gift_unique_info_reciever_comment(
-							lt_recipient,
-							rpl::single(Ui::Text::Link(to->name(), 1)),
-							lt_date,
-							rpl::single(dateText),
-							lt_text,
-							rpl::single(original.message),
-							Ui::Text::WithEntities))),
-				(st.tableValueMessage
-					? *st.tableValueMessage
-					: st::giveawayGiftMessage),
-				st::defaultPopupMenu,
-				Core::TextContext({ .session = session }));
+				std::move(details),
+				st,
+				Core::TextContext({ .session = session }),
+				entry.starsForDetailsRemove,
+				std::move(removeDetails));
 			const auto showBoxLink = [=](not_null<PeerData*> peer) {
 				return std::make_shared<LambdaClickHandler>([=] {
 					show->showBox(PrepareShortInfoBox(peer, show));
 				});
 			};
-			label->setLink(1, showBoxLink(to));
+			made.label->setLink(1, showBoxLink(to));
 			if (from) {
-				label->setLink(2, showBoxLink(from));
+				made.label->setLink(2, showBoxLink(from));
 			}
-			label->setSelectable(true);
+			made.label->setSelectable(true);
+			*tmp = made.widget.data();
 			table->addRow(
-				std::move(label),
+				std::move(made.widget),
 				nullptr,
 				st::giveawayGiftCodeLabelMargin,
 				st::giveawayGiftCodeValueMargin);

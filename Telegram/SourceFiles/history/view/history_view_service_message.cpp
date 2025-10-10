@@ -533,11 +533,18 @@ int Service::marginTop() const {
 	if (const auto service = Get<ServicePreMessage>()) {
 		result += service->height;
 	}
+	if (const auto margins = Get<ViewAddedMargins>()) {
+		result += margins->top;
+	}
 	return result;
 }
 
 int Service::marginBottom() const {
-	return st::msgServiceMargin.bottom();
+	auto result = st::msgServiceMargin.bottom();
+	if (const auto margins = Get<ViewAddedMargins>()) {
+		result += margins->bottom;
+	}
+	return result;
 }
 
 void Service::draw(Painter &p, const PaintContext &context) const {

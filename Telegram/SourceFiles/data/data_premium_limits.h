@@ -79,6 +79,8 @@ public:
 	[[nodiscard]] int aboutLengthPremium() const;
 	[[nodiscard]] int aboutLengthCurrent() const;
 
+	[[nodiscard]] int contactNoteLengthCurrent() const;
+
 	[[nodiscard]] int maxBoostLevel() const;
 
 private:

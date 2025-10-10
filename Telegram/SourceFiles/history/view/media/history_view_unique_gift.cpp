@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "core/click_handler_types.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/data_birthday.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"

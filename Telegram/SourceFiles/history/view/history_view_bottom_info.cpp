@@ -518,19 +518,6 @@ BottomInfo::Effect BottomInfo::prepareEffectWithId(EffectId id) {
 	return result;
 }
 
-void BottomInfo::animateEffect(
-		Ui::ReactionFlyAnimationArgs &&args,
-		Fn<void()> repaint) {
-	if (!_effect || args.id.custom() != _effect->id) {
-		return;
-	}
-	_effect->animation = std::make_unique<Ui::ReactionFlyAnimation>(
-		_reactionsOwner,
-		args.translated(QPoint(width(), height())),
-		std::move(repaint),
-		st::effectInfoImage);
-}
-
 auto BottomInfo::takeEffectAnimation()
 -> std::unique_ptr<Ui::ReactionFlyAnimation> {
 	return _effect ? std::move(_effect->animation) : nullptr;

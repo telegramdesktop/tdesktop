@@ -76,9 +76,6 @@ public:
 		bool inverted,
 		const PaintContext &context) const;
 
-	void animateEffect(
-		Ui::ReactionFlyAnimationArgs &&args,
-		Fn<void()> repaint);
 	[[nodiscard]] auto takeEffectAnimation()
 		-> std::unique_ptr<Ui::ReactionFlyAnimation>;
 	void continueEffectAnimation(
