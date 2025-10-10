@@ -1,0 +1,17 @@
+homepage: "https://github.com/telegramdesktop/tdesktop"
+language: c++
+primary_contact: "security@telegram.org"
+main_repo: "https://github.com/telegramdesktop/tdesktop"
+file_github_issue: true
+
+sanitizers:
+  - address
+  - undefined
+  - memory
+
+architectures:
+  - x86_64
+
+help_url: "https://github.com/telegramdesktop/tdesktop/tree/ossFuzz/fuzzing"
+
+view_restrictions: none
