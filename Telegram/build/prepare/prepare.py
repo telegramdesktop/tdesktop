@@ -1683,8 +1683,6 @@ mac:
         -I "$USED_PREFIX/include" \
         -no-feature-futimens \
         -no-feature-brotli \
-        -nomake examples \
-        -nomake tests \
         -platform macx-clang -- \
         -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
         -DCMAKE_PREFIX_PATH="$USED_PREFIX"
@@ -1718,8 +1716,6 @@ win:
         -system-webp ^
         -system-zlib ^
         -system-libjpeg ^
-        -nomake examples ^
-        -nomake tests ^
         -platform win32-msvc ^
         -D ZLIB_WINAPI ^
         -- ^
