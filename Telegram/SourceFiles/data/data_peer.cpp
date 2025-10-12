@@ -980,6 +980,11 @@ bool PeerData::hideLinks() const {
 	//if (!isUser()) {
 	//	return false;
 	//}
+	if (const auto chat = asChat()) {
+		if (chat->isDeactivated()) {
+			return false;
+		}
+	}
 	const auto settings = barSettings();
 	return !settings || (*settings & PeerBarSetting::ReportSpam);
 }
