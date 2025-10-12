@@ -13,12 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "lang/lang_keys.h"
-#include "mainwindow.h"
-#include "storage/localstorage.h"
 #include "core/launcher.h"
 #include "core/sandbox.h"
 #include "core/application.h"
-#include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "window/window_controller.h"
 #include "webview/platform/linux/webview_linux_webkitgtk.h"
@@ -46,8 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <unistd.h>
 #include <dirent.h>
 #include <pwd.h>
-
-#include <iostream>
 
 namespace {
 
