@@ -148,6 +148,8 @@ PRIVATE
     info/profile/info_profile_icon.h
     info/profile/info_profile_music_button.cpp
     info/profile/info_profile_music_button.h
+    info/profile/info_profile_text.cpp
+    info/profile/info_profile_text.h
     info/userpic/info_userpic_bubble_wrap.cpp
     info/userpic/info_userpic_bubble_wrap.h
     info/userpic/info_userpic_color_circle_button.cpp

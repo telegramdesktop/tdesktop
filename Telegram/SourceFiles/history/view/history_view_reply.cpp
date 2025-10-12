@@ -903,10 +903,12 @@ void Reply::paint(
 			if (namew > 0) {
 				p.setPen(!inBubble
 					? st->msgImgReplyBarColor()->c
-					: FromNameFg(
+					: (colorCollectible || colorIndexPlusOne)
+					? FromNameFg(
 						context,
 						colorIndexPlusOne - 1,
-						colorCollectible));
+						colorCollectible)
+					: stm->msgServiceFg->c);
 				_name.drawLeftElided(
 					p,
 					x + st::historyReplyPadding.left() + previewSkip,

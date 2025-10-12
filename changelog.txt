@@ -1,3 +1,12 @@
+6.2.3 (12.10.25)
+
+- Fix crash when viewing messages with hidden senders.
+- Fix possible crash when editing contacts.
+- Fix layout of character count warning in contact notes.
+- Fix icons when editing contacts.
+- Fix color of sending messages animation in complex themes.
+- Fix crash in chat open on Flatpak build.
+
 6.2.2 (10.10.25)
 
 - Fix layer.

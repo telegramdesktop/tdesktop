@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/color_editor.h"
 
+#include "base/options.h"
 #include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
@@ -16,6 +17,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "styles/style_boxes.h"
 #include "styles/style_media_view.h"
+
+const char kOptionColorEditorHighContrastMarker[]
+	= "color-editor-high-contrast-marker";
+
+namespace {
+
+base::options::toggle ColorEditorHighContrastMarker({
+	.id = kOptionColorEditorHighContrastMarker,
+	.name = "High contrast color picker marker",
+	.description = "Draw the color picker marker with both black and white outlines.",
+});
+
+} // namespace
 
 class ColorEditor::Picker : public Ui::RpWidget {
 public:
@@ -121,18 +135,30 @@ void ColorEditor::Picker::paintEvent(QPaintEvent *e) {
 	const auto lightness = 0.2989 * color.redF()
 		+ 0.5870 * color.greenF()
 		+ 0.1140 * color.blueF();
-	auto pen = QPen((lightness > 0.6)
-		? QColor(0, 0, 0)
-		: QColor(255, 255, 255));
-	pen.setWidth(st::colorPickerMarkLine);
-	p.setPen(pen);
-	p.setBrush(Qt::NoBrush);
-
 	const auto x = anim::interpolate(0, width() - 1, _x);
 	const auto y = anim::interpolate(0, height() - 1, _y);
 	PainterHighQualityEnabler hq(p);
+	const auto ellipse = QRect(x, y, 0, 0) + Margins(st::colorPickerMarkRadius);
+	p.setBrush(Qt::NoBrush);
 
-	p.drawEllipse(QRect(x, y, 0, 0) + Margins(st::colorPickerMarkRadius));
+	if (ColorEditorHighContrastMarker.value()) {
+		auto outerPen = QPen(QColor(0, 0, 0));
+		outerPen.setWidth(st::colorPickerMarkLine * 2);
+		p.setPen(outerPen);
+		p.drawEllipse(ellipse);
+
+		auto innerPen = QPen(QColor(255, 255, 255));
+		innerPen.setWidth(st::colorPickerMarkLine);
+		p.setPen(innerPen);
+		p.drawEllipse(ellipse);
+	} else {
+		auto pen = QPen((lightness > 0.6)
+			? QColor(0, 0, 0)
+			: QColor(255, 255, 255));
+		pen.setWidth(st::colorPickerMarkLine);
+		p.setPen(pen);
+		p.drawEllipse(ellipse);
+	}
 }
 
 void ColorEditor::Picker::mousePressEvent(QMouseEvent *e) {
@@ -164,6 +190,9 @@ void ColorEditor::Picker::preparePalette() {
 
 void ColorEditor::Picker::preparePaletteRGBA() {
 	const auto size = _palette.width();
+	if (size <= 0) {
+		return;
+	}
 	auto ints = reinterpret_cast<uint32*>(_palette.bits());
 	const auto intsAddPerLine = (_palette.bytesPerLine()
 			- size * sizeof(uint32))
@@ -211,6 +240,9 @@ void ColorEditor::Picker::preparePaletteRGBA() {
 
 void ColorEditor::Picker::preparePaletteHSL() {
 	const auto size = _palette.width();
+	if (size <= 0) {
+		return;
+	}
 	const auto intsAddPerLine = (_palette.bytesPerLine()
 			- size * sizeof(uint32))
 		/ sizeof(uint32);
@@ -247,10 +279,15 @@ void ColorEditor::Picker::preparePaletteHSL() {
 }
 
 void ColorEditor::Picker::updateCurrentPoint(QPoint localPosition) {
-	const auto x = std::clamp(localPosition.x(), 0, width())
-		/ float64(width());
-	const auto y = std::clamp(localPosition.y(), 0, height())
-		/ float64(height());
+	const auto widthValue = width();
+	const auto heightValue = height();
+	if (widthValue <= 0 || heightValue <= 0) {
+		return;
+	}
+	const auto x = std::clamp(localPosition.x(), 0, widthValue)
+		/ float64(widthValue);
+	const auto y = std::clamp(localPosition.y(), 0, heightValue)
+		/ float64(heightValue);
 	if (_x != x || _y != y) {
 		_x = x;
 		_y = y;
@@ -947,6 +984,10 @@ void ColorEditor::setInnerFocus() const {
 
 QColor ColorEditor::color() const {
 	return _new.toRgb();
+}
+
+bool ColorEditor::isOpaque() const {
+	return (_new.alpha() == 255);
 }
 
 rpl::producer<QColor> ColorEditor::colorValue() const {

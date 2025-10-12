@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "base/object_ptr.h"
 
+extern const char kOptionColorEditorHighContrastMarker[];
+
 class ColorEditor : public Ui::RpWidget {
 public:
 	enum class Mode {
@@ -26,6 +28,7 @@ public:
 	[[nodiscard]] QColor color() const;
 	[[nodiscard]] rpl::producer<QColor> colorValue() const;
 	[[nodiscard]] rpl::producer<> submitRequests() const;
+	[[nodiscard]] bool isOpaque() const;
 
 	void showColor(QColor color);
 	void setCurrent(QColor color);

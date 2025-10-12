@@ -1760,6 +1760,13 @@ stage('tg_owt', """
     git checkout 5c5c71258777d0196dbb3a09cc37d2f56ead28ab
     git submodule update --init --recursive
 win:
+    if not exist src\absl mkdir src\absl
+    if not exist src\absl\base mkdir src\absl\base
+    copy /Y %ROOT_DIR%\Telegram\build\patches\tg_owt\nullability.h src\absl\base\nullability.h > nul
+!win:
+    mkdir -p src/absl/base
+    cp $ROOT_DIR/Telegram/build/patches/tg_owt/nullability.h src/absl/base/nullability.h
+win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
     SET OPUS_PATH=$USED_PREFIX/include/opus
     SET OPENSSL_PATH=$LIBS_DIR/openssl3/include
