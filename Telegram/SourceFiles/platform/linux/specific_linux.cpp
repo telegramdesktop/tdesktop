@@ -12,11 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
+#include "base/platform/linux/base_linux_app_launch_context.h"
 #include "lang/lang_keys.h"
 #include "core/launcher.h"
 #include "core/sandbox.h"
 #include "core/application.h"
 #include "core/update_checker.h"
+#include "data/data_location.h"
 #include "window/window_controller.h"
 #include "webview/platform/linux/webview_linux_webkitgtk.h"
 
@@ -26,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QSystemTrayIcon>
+#include <QtGui/QDesktopServices>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 
@@ -34,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <xdgdbus/xdgdbus.hpp>
 #include <xdpbackground/xdpbackground.hpp>
+#include <xdpopenuri/xdpopenuri.hpp>
 #include <xdprequest/xdprequest.hpp>
 
 #include <sys/stat.h>
@@ -781,7 +785,56 @@ QString ApplicationIconName() {
 }
 
 void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
-	fail();
+	if (auto appInfo = Gio::AppInfo::get_default_for_uri_scheme("geo")) {
+		if (appInfo.launch_uris(
+				{
+					std::format(
+						"geo:{},{}",
+						point.latAsString().toStdString(),
+						point.lonAsString().toStdString()),
+				},
+				base::Platform::AppLaunchContext(),
+				nullptr)) {
+			return;
+		}
+	}
+
+	XdpOpenURI::OpenURIProxy::new_for_bus(
+		Gio::BusType::SESSION_,
+		Gio::DBusProxyFlags::NONE_,
+		base::Platform::XDP::kService,
+		base::Platform::XDP::kObjectPath,
+		[=](GObject::Object, Gio::AsyncResult res) {
+			auto interface = XdpOpenURI::OpenURI(
+				XdpOpenURI::OpenURIProxy::new_for_bus_finish(res, nullptr));
+
+			if (!interface) {
+				fail();
+				return;
+			}
+
+			interface.call_scheme_supported(
+				"geo",
+				GLib::Variant::new_array(
+					GLib::VariantType::new_("{sv}"),
+					{}),
+				[=](GObject::Object, Gio::AsyncResult res) mutable {
+					const auto result
+						= interface.call_scheme_supported_finish(res);
+
+					if (!result || !std::get<1>(*result)) {
+						fail();
+						return;
+					}
+
+					if (!QDesktopServices::openUrl(
+						u"geo:%1,%2"_q.arg(
+							point.latAsString(),
+							point.lonAsString()))) {
+						fail();
+					}
+				});
+		});
 }
 
 namespace ThirdParty {
