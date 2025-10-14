@@ -7,11 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/color_picker.h"
 
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
+#include "ui/color_contrast.h"
 #include "styles/style_editor.h"
 
 #include <QtGui/QLinearGradient>
+#include <QtCore/QMarginsF>
+
+#include <algorithm>
 
 namespace Editor {
 namespace {
@@ -26,6 +32,17 @@ constexpr auto kMaxInnerHeight = 0.8;
 constexpr auto kCircleDuration = crl::time(200);
 
 constexpr auto kMax = 1.0;
+
+constexpr auto kHighContrastBorderRatio = 0.12;
+
+[[nodiscard]] QColor HighContrastBorderColor(const QColor &color) {
+	const auto black = QColor(Qt::black);
+	const auto white = QColor(Qt::white);
+	return (Ui::CountContrast(color, black)
+		>= Ui::CountContrast(color, white))
+		? black
+		: white;
+}
 
 ColorPicker::OutlinedStop FindOutlinedStop(
 		const QColor &color,
@@ -102,7 +119,8 @@ ColorPicker::ColorPicker(
 	.color = (savedBrush.color.isValid()
 		? savedBrush.color
 		: _gradientStops.front().second),
-}) {
+})
+, _highContrastMarker(Core::App().settings().photoEditorHighContrastMarker()) {
 	_colorLine->resize(_width, _lineHeight);
 	_canvasForCircle->resize(
 		_width + circleHeight(kMax),
@@ -163,6 +181,14 @@ ColorPicker::ColorPicker(
 
 		_canvasForCircle->update();
 	}, _colorLine->lifetime());
+
+	Core::App().settings().photoEditorHighContrastMarkerValue(
+	) | rpl::start_with_next([=](bool enabled) {
+		if (_highContrastMarker != enabled) {
+			_highContrastMarker = enabled;
+			_canvasForCircle->update();
+		}
+	}, _canvasForCircle->lifetime());
 }
 
 void ColorPicker::updateMousePosition(const QPoint &pos, float64 progress) {
@@ -178,16 +204,11 @@ void ColorPicker::updateMousePosition(const QPoint &pos, float64 progress) {
 		std::clamp(pos.x(), 0, _width),
 		std::clamp(mappedY, 0, bottom - skip));
 
-	// Convert Y to the brush size.
-	const auto from = 0;
-	const auto to = bottom - skip;
-
 	// Don't change the brush size when we are on the color line.
-	if (mappedY <= to) {
-		_brush.sizeRatio = std::clamp(
-			float(1. - InterpolationRatio(from, to, _down.pos.y())),
-			kMinBrushSize,
-			1.f);
+	const auto maxY = bottom - skip;
+	if (mappedY <= maxY) {
+		const auto ratio = 1. - InterpolationRatio(0, maxY, _down.pos.y());
+		_brush.sizeRatio = std::clamp(float(ratio), kMinBrushSize, 1.f);
 	}
 	_brush.color = positionToColor(_down.pos.x());
 }
@@ -205,22 +226,18 @@ void ColorPicker::moveLine(const QPoint &position) {
 }
 
 QColor ColorPicker::positionToColor(int x) const {
-	const auto from = 0;
-	const auto to = _width;
-	const auto gradientRatio = InterpolationRatio(from, to, x);
+	const auto gradientRatio = InterpolationRatio(0, _width, x);
 
-	for (auto i = 1; i < _gradientStops.size(); i++) {
+	for (auto i = 1; i < _gradientStops.size(); ++i) {
 		const auto &previous = _gradientStops[i - 1];
 		const auto &current = _gradientStops[i];
-		const auto &fromStop = previous.first;
-		const auto &toStop = current.first;
-		const auto &fromColor = previous.second;
-		const auto &toColor = current.second;
+		const auto fromStop = previous.first;
+		const auto toStop = current.first;
 
-		if ((fromStop <= gradientRatio) && (toStop >= gradientRatio)) {
+		if (fromStop <= gradientRatio && toStop >= gradientRatio) {
 			const auto stopRatio = RatioPrecise(
 				(gradientRatio - fromStop) / float64(toStop - fromStop));
-			return anim::color(fromColor, toColor, stopRatio);
+			return anim::color(previous.second, current.second, stopRatio);
 		}
 	}
 	return QColor();
@@ -243,15 +260,13 @@ void ColorPicker::paintCircle(QPainter &p) {
 		? _down.pos.y()
 		: bottom;
 
-	const auto r = QRect(circleX, circleY, h, h);
+	const auto r = QRectF(circleX, circleY, h, h);
 	p.drawEllipse(r);
 
 	const auto innerH = InterpolateF(
 		h * kMinInnerHeight,
 		h * kMaxInnerHeight,
 		_brush.sizeRatio);
-
-	p.setBrush(_brush.color);
 
 	const auto innerRect = QRectF(
 		r.x() + (r.width() - innerH) / 2.,
@@ -260,6 +275,28 @@ void ColorPicker::paintCircle(QPainter &p) {
 		innerH);
 
 	paintOutline(p, innerRect);
+
+	if (_highContrastMarker) {
+		const auto borderColor = HighContrastBorderColor(_brush.color);
+		const auto available = (r.width() - innerRect.width()) / 2.;
+		const auto desired = innerRect.width() * kHighContrastBorderRatio;
+		const auto border = std::clamp(desired, 1., available);
+		if (border > 0.) {
+			const auto borderRect = innerRect.marginsAdded(QMarginsF(
+				border,
+				border,
+				border,
+				border));
+			p.save();
+			p.setPen(Qt::NoPen);
+			p.setBrush(borderColor);
+			p.drawEllipse(borderRect);
+			p.restore();
+		}
+	}
+
+	p.setPen(Qt::NoPen);
+	p.setBrush(_brush.color);
 	p.drawEllipse(innerRect);
 }
 
@@ -272,7 +309,7 @@ void ColorPicker::paintOutline(QPainter &p, const QRectF &rect) {
 		p.save();
 		p.setOpacity(opacity);
 		p.setPen(Qt::lightGray);
-		p.setPen(Qt::NoBrush);
+		p.setBrush(Qt::NoBrush);
 		p.drawEllipse(rect);
 		p.restore();
 	};
@@ -311,10 +348,10 @@ rpl::producer<Brush> ColorPicker::saveBrushRequests() const {
 }
 
 int ColorPicker::colorToPosition(const QColor &color) const {
-	const auto step = 1. / kPrecision;
+	constexpr auto step = 1. / kPrecision;
 	for (auto i = 0.; i <= 1.; i += step) {
-		if (positionToColor(i * _width) == color) {
-			return i * _width;
+		if (positionToColor(int(i * _width)) == color) {
+			return int(i * _width);
 		}
 	}
 	return 0;
