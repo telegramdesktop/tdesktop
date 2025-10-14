@@ -214,7 +214,7 @@ QByteArray Settings::serialize() const {
 		+ Serialize::bytearraySize(proxy)
 		+ sizeof(qint32) * 2
 		+ Serialize::bytearraySize(_photoEditorBrush)
-		+ sizeof(qint32) * 3
+		+ sizeof(qint32) * 4
 		+ Serialize::stringSize(_customDeviceModel.current())
 		+ sizeof(qint32) * 4
 		+ (_accountsOrder.size() * sizeof(quint64))
@@ -337,6 +337,7 @@ QByteArray Settings::serialize() const {
 			<< qint32(_hiddenGroupCallTooltips.value())
 			<< qint32(_disableOpenGL ? 1 : 0)
 			<< _photoEditorBrush
+			<< qint32(_photoEditorHighContrastMarker.current() ? 1 : 0)
 			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
 			<< qint32(SerializePlaybackSpeed(_voicePlaybackSpeed))
 			<< qint32(_closeBehavior)
@@ -499,6 +500,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QByteArray proxy;
 	qint32 hiddenGroupCallTooltips = qint32(_hiddenGroupCallTooltips.value());
 	QByteArray photoEditorBrush = _photoEditorBrush;
+	qint32 photoEditorHighContrastMarker = _photoEditorHighContrastMarker.current() ? 1 : 0;
 	qint32 closeBehavior = qint32(_closeBehavior);
 	QString customDeviceModel = _customDeviceModel.current();
 	qint32 playerRepeatMode = static_cast<qint32>(_playerRepeatMode.current());
@@ -566,6 +568,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> lastSeenWarningSeen
 			>> soundOverridesCount;
 		if (stream.status() == QDataStream::Ok) {
+			soundOverrides.reserve(soundOverridesCount);
 			for (auto i = 0; i != soundOverridesCount; ++i) {
 				QString key, value;
 				stream >> key >> value;
@@ -589,6 +592,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> videoPipGeometry
 			>> dictionariesEnabledCount;
 		if (stream.status() == QDataStream::Ok) {
+			dictionariesEnabled.reserve(dictionariesEnabledCount);
 			for (auto i = 0; i != dictionariesEnabledCount; ++i) {
 				qint64 langId;
 				stream >> langId;
@@ -691,6 +695,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream >> photoEditorBrush;
 	}
 	if (!stream.atEnd()) {
+		stream >> photoEditorHighContrastMarker;
+	}
+	if (!stream.atEnd()) {
 		stream >> groupCallNoiseSuppression;
 	}
 	if (!stream.atEnd()) {
@@ -713,6 +720,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> accountsOrderCount;
 		if (stream.status() == QDataStream::Ok) {
+			accountsOrder.reserve(accountsOrderCount);
 			for (auto i = 0; i != accountsOrderCount; ++i) {
 				quint64 sessionUniqueId;
 				stream >> sessionUniqueId;
@@ -742,6 +750,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> skipTranslationLanguagesCount;
 		if (stream.status() == QDataStream::Ok) {
+			skipTranslationLanguages.reserve(skipTranslationLanguagesCount);
 			for (auto i = 0; i != skipTranslationLanguagesCount; ++i) {
 				quint64 language;
 				stream >> language;
@@ -922,7 +931,6 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_autoLock = autoLock;
 	_playbackDeviceId = playbackDeviceId;
 	_captureDeviceId = captureDeviceId;
-	const auto kOldDefault = u"default"_q;
 	_cameraDeviceId = cameraDeviceId;
 	_callPlaybackDeviceId = callPlaybackDeviceId;
 	_callCaptureDeviceId = callCaptureDeviceId;
@@ -976,9 +984,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	_thirdSectionInfoEnabled = thirdSectionInfoEnabled;
 	_dialogsWithChatWidthRatio = dialogsWithChatWidthRatio;
-	_dialogsNoChatWidthRatio = (dialogsWithChatWidthRatio > 0)
-		? dialogsWithChatWidthRatio
-		: dialogsNoChatWidthRatio;
+	_dialogsNoChatWidthRatio = (dialogsNoChatWidthRatio > 0)
+		? dialogsNoChatWidthRatio
+		: dialogsWithChatWidthRatio;
 	_thirdColumnWidth = thirdColumnWidth;
 	_thirdSectionExtendedBy = thirdSectionExtendedBy;
 	if (_thirdSectionInfoEnabled) {
@@ -1016,6 +1024,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 				: Tooltip(0));
 	}();
 	_photoEditorBrush = photoEditorBrush;
+	_photoEditorHighContrastMarker = (photoEditorHighContrastMarker == 1);
 	const auto uncheckedCloseBehavior = static_cast<CloseBehavior>(closeBehavior);
 	switch (uncheckedCloseBehavior) {
 	case CloseBehavior::CloseToTaskbar:
@@ -1236,32 +1245,26 @@ void Settings::resolveRecentEmoji() const {
 	if (!_recentEmojiPreload.empty()) {
 		_recentEmoji.reserve(_recentEmojiPreload.size());
 		for (const auto &[id, rating] : base::take(_recentEmojiPreload)) {
-			auto length = int();
-			const auto emoji = Ui::Emoji::Find(id, &length);
-			if (emoji && length == id.size()) {
-				if (!haveAlready({ emoji })) {
-					_recentEmoji.push_back({ { emoji }, rating });
-				}
-			} else if (const auto document = ParseRecentEmojiDocument(id)) {
-				if (!haveAlready({ *document })) {
-					_recentEmoji.push_back({ { *document }, rating });
-					if (document->test) {
-						++testCount;
-					} else {
-						++nonTestCount;
-					}
-				}
+			auto length = 0;
+			if (const auto emoji = Ui::Emoji::Find(id, &length);
+				emoji && length == id.size() && !haveAlready({ emoji })) {
+				_recentEmoji.push_back({ { emoji }, rating });
+			} else if (const auto document = ParseRecentEmojiDocument(id);
+				document && !haveAlready({ *document })) {
+				_recentEmoji.push_back({ { *document }, rating });
+				(document->test ? testCount : nonTestCount)++;
 			}
 		}
 		_recentEmojiPreload.clear();
 	}
 	const auto specialCount = std::max(testCount, nonTestCount);
+	const auto maxSize = specialCount + kRecentEmojiLimit;
 	for (const auto emoji : Ui::Emoji::GetDefaultRecent()) {
-		if (_recentEmoji.size() >= specialCount + kRecentEmojiLimit) {
+		if (_recentEmoji.size() >= maxSize) {
 			break;
-		} else if (_recentEmojiSkip.contains(emoji->id())) {
-			continue;
-		} else if (!haveAlready({ emoji })) {
+		}
+		if (!_recentEmojiSkip.contains(emoji->id())
+			&& !haveAlready({ emoji })) {
 			_recentEmoji.push_back({ { emoji }, 1 });
 		}
 	}
@@ -1273,29 +1276,23 @@ void Settings::incrementRecentEmoji(RecentEmojiId id) {
 	if (const auto emoji = std::get_if<EmojiPtr>(&id.data)) {
 		_recentEmojiSkip.remove((*emoji)->id());
 	}
-	auto i = _recentEmoji.begin(), e = _recentEmoji.end();
-	for (; i != e; ++i) {
-		if (i->id == id) {
-			++i->rating;
-			if (i->rating > 0x8000) {
-				for (auto j = _recentEmoji.begin(); j != e; ++j) {
-					if (j->rating > 1) {
-						j->rating /= 2;
-					} else {
-						j->rating = 1;
-					}
-				}
+	const auto e = _recentEmoji.end();
+	auto i = ranges::find(_recentEmoji, id, &RecentEmoji::id);
+	if (i != e) {
+		++i->rating;
+		if (i->rating > 0x8000) {
+			for (auto &emoji : _recentEmoji) {
+				emoji.rating = (emoji.rating > 1) ? (emoji.rating / 2) : 1;
 			}
-			for (; i != _recentEmoji.begin(); --i) {
-				if ((i - 1)->rating > i->rating) {
-					break;
-				}
-				std::swap(*i, *(i - 1));
+		}
+		for (; i != _recentEmoji.begin(); --i) {
+			if ((i - 1)->rating > i->rating) {
+				break;
 			}
-			break;
+			std::swap(*i, *(i - 1));
 		}
 	}
-	if (i == e) {
+	else {
 		_recentEmoji.push_back({ id, 1 });
 		for (i = _recentEmoji.end() - 1; i != _recentEmoji.begin(); --i) {
 			if ((i - 1)->rating > i->rating) {
@@ -1306,17 +1303,14 @@ void Settings::incrementRecentEmoji(RecentEmojiId id) {
 		auto testCount = 0;
 		auto nonTestCount = 0;
 		for (const auto &emoji : _recentEmoji) {
-			const auto id = &emoji.id.data;
-			if (const auto document = std::get_if<RecentEmojiDocument>(id)) {
-				if (document->test) {
-					++testCount;
-				} else {
-					++nonTestCount;
-				}
+			if (const auto document = std::get_if<RecentEmojiDocument>(
+					&emoji.id.data)) {
+				(document->test ? testCount : nonTestCount)++;
 			}
 		}
 		const auto specialCount = std::max(testCount, nonTestCount);
-		while (_recentEmoji.size() >= specialCount + kRecentEmojiLimit) {
+		const auto maxSize = specialCount + kRecentEmojiLimit;
+		while (_recentEmoji.size() >= maxSize) {
 			_recentEmoji.pop_back();
 		}
 	}
