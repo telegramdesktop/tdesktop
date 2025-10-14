@@ -1,0 +1,142 @@
+name: macOS ARM ONLY NEW
+
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: "Xcode build configuration"
+        default: "Release"
+        required: true
+        type: choice
+        options: [Release, Debug]
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: macos-arm-official-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos-official:
+    name: Build with Xcode (official way, ARM)
+    runs-on: macos-14          # Apple Silicon runner
+    timeout-minutes: 360
+
+    env:
+      # Добавь секреты в репозиторий: TDESKTOP_API_ID, TDESKTOP_API_HASH
+      TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID }}
+      TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
+      BUILD_CONFIGURATION: ${{ inputs.configuration || 'Release' }}
+
+    steps:
+      - name: Check API secrets
+        run: |
+          if [ -z "${TDESKTOP_API_ID}" ] || [ -z "${TDESKTOP_API_HASH}" ]; then
+            echo "::error::You must set TDESKTOP_API_ID and TDESKTOP_API_HASH in repo secrets."
+            exit 1
+          fi
+
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          path: tdesktop
+
+      - name: Select Xcode (prefer 15, fallback to default)
+        shell: bash
+        run: |
+          set -e
+          SELECTED=""
+          for X in /Applications/Xcode_15*.app /Applications/Xcode_15.app ; do
+            if [ -d "$X" ]; then
+              sudo xcode-select -s "$X/Contents/Developer"
+              SELECTED="$X"
+              break
+            fi
+          done
+          if [ -z "$SELECTED" ]; then
+            sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          fi
+          xcodebuild -version
+          swift --version || true
+
+      - name: Install prerequisites (as in official docs)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || true
+          brew update
+          brew install git automake cmake wget pkg-config gnu-tar ninja nasm meson python || true
+          python3 --version || true
+          meson --version || true
+
+      - name: Prepare pinned libraries (official script)
+        working-directory: tdesktop
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ./Telegram/build/prepare/mac.sh
+
+      - name: Configure Xcode project (official script)
+        working-directory: tdesktop/Telegram
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ./configure.sh \
+            -D TDESKTOP_API_ID=${TDESKTOP_API_ID} \
+            -D TDESKTOP_API_HASH=${TDESKTOP_API_HASH} \
+            -D CMAKE_OSX_ARCHITECTURES="arm64"
+
+      - name: Build with xcodebuild (ARM)
+        working-directory: tdesktop
+        shell: bash
+        run: |
+          set -euxo pipefail
+          xcodebuild \
+            -project out/Telegram.xcodeproj \
+            -scheme Telegram \
+            -configuration "${BUILD_CONFIGURATION}" \
+            -destination "generic/platform=macOS" \
+            build
+
+      - name: Locate .app
+        id: findapp
+        working-directory: tdesktop
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APP_PATH=$(find out -type d -name "Telegram.app" -maxdepth 3 | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::Telegram.app not found in ./out"
+            find out -maxdepth 3 -type d -print
+            exit 1
+          fi
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_OUTPUT
+          echo "Found app at: $APP_PATH"
+
+      - name: Create DMG
+        working-directory: tdesktop
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APP="${{ steps.findapp.outputs.APP_PATH }}"
+          mkdir -p out/dmgsrc
+          rsync -a "${APP}" out/dmgsrc/
+          DMG_NAME="Telegram_${BUILD_CONFIGURATION}_arm64.dmg"
+          hdiutil create -volname Telegram \
+            -srcfolder out/dmgsrc \
+            -ov -format UDZO "out/${DMG_NAME}"
+          echo "DMG_PATH=tdesktop/out/${DMG_NAME}" >> $GITHUB_ENV
+
+      - name: Upload .app (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Telegram.app-${{ env.BUILD_CONFIGURATION }}-arm64
+          path: ${{ steps.findapp.outputs.APP_PATH }}
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: Telegram-DMG-${{ env.BUILD_CONFIGURATION }}-arm64
+          path: ${{ env.DMG_PATH }}
