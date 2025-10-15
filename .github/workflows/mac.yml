@@ -66,8 +66,11 @@ jobs:
           sudo chown -R `whoami`:admin /usr/local/share
 
           brew update
-          brew upgrade || true
-          brew install automake meson nasm ninja pkg-config
+          
+          for pkg in automake meson nasm ninja pkg-config; do
+            brew list $pkg &>/dev/null || brew install $pkg
+            brew link --overwrite $pkg || true
+          done
 
           # Disable spotlight.
           sudo mdutil -a -i off
