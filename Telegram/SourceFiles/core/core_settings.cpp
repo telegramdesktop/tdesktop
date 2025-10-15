@@ -1291,8 +1291,7 @@ void Settings::incrementRecentEmoji(RecentEmojiId id) {
 			}
 			std::swap(*i, *(i - 1));
 		}
-	}
-	else {
+	} else {
 		_recentEmoji.push_back({ id, 1 });
 		for (i = _recentEmoji.end() - 1; i != _recentEmoji.begin(); --i) {
 			if ((i - 1)->rating > i->rating) {
