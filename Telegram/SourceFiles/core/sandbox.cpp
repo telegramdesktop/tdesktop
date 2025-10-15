@@ -35,47 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/qpa/qplatformscreen.h>
 
 namespace Core {
-namespace {
-
-QChar _toHex(ushort v) {
-	v = v & 0x000F;
-	return QChar::fromLatin1((v >= 10) ? ('a' + (v - 10)) : ('0' + v));
-}
-ushort _fromHex(QChar c) {
-	return ((c.unicode() >= uchar('a')) ? (c.unicode() - uchar('a') + 10) : (c.unicode() - uchar('0'))) & 0x000F;
-}
-
-QString _escapeTo7bit(const QString &str) {
-	QString result;
-	result.reserve(str.size() * 2);
-	for (int i = 0, l = str.size(); i != l; ++i) {
-		QChar ch(str.at(i));
-		ushort uch(ch.unicode());
-		if (uch < 32 || uch > 127 || uch == ushort(uchar('%'))) {
-			result.append('%').append(_toHex(uch >> 12)).append(_toHex(uch >> 8)).append(_toHex(uch >> 4)).append(_toHex(uch));
-		} else {
-			result.append(ch);
-		}
-	}
-	return result;
-}
-
-QString _escapeFrom7bit(const QString &str) {
-	QString result;
-	result.reserve(str.size());
-	for (int i = 0, l = str.size(); i != l; ++i) {
-		QChar ch(str.at(i));
-		if (ch == QChar::fromLatin1('%') && i + 4 < l) {
-			result.append(QChar(ushort((_fromHex(str.at(i + 1)) << 12) | (_fromHex(str.at(i + 2)) << 8) | (_fromHex(str.at(i + 3)) << 4) | _fromHex(str.at(i + 4)))));
-			i += 4;
-		} else {
-			result.append(ch);
-		}
-	}
-	return result;
-}
-
-} // namespace
 
 bool Sandbox::QuitOnStartRequested = false;
 
@@ -277,18 +236,15 @@ void Sandbox::socketConnected() {
 	_secondInstance = true;
 
 	QString commands;
-	const QStringList &lst(cSendPaths());
-	for (QStringList::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
-		commands += u"SEND:"_q + _escapeTo7bit(*i) + ';';
-	}
 	if (qEnvironmentVariableIsSet("XDG_ACTIVATION_TOKEN")) {
-		commands += u"XDG_ACTIVATION_TOKEN:"_q + _escapeTo7bit(qEnvironmentVariable("XDG_ACTIVATION_TOKEN")) + ';';
+		commands += u"XDG_ACTIVATION_TOKEN:"_q + qgetenv("XDG_ACTIVATION_TOKEN").toBase64() + ';';
 	}
-	if (!cStartUrl().isEmpty()) {
-		commands += u"OPEN:"_q + _escapeTo7bit(cStartUrl()) + ';';
-	} else if (cQuit()) {
+	for (const auto &url : cRefStartUrls()) {
+		commands += u"OPEN:"_q + url.toString(QUrl::FullyEncoded) + ';';
+	}
+	if (cQuit()) {
 		commands += u"CMD:quit;"_q;
-	} else {
+	} else if (cRefStartUrls().isEmpty()) {
 		commands += u"CMD:show;"_q;
 	}
 
@@ -434,11 +390,11 @@ void Sandbox::newInstanceConnected() {
 
 void Sandbox::readClients() {
 	// This method can be called before Application is constructed.
-	QString startUrl;
-	QStringList toSend;
+	QList<QUrl> startUrls;
 	for (LocalClients::iterator i = _localClients.begin(), e = _localClients.end(); i != e; ++i) {
 		i->second.append(i->first->readAll());
 		if (i->second.size()) {
+			bool activationRequired = false;
 			QString cmds(QString::fromLatin1(i->second));
 			int32 from = 0, l = cmds.length();
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
@@ -448,21 +404,13 @@ void Sandbox::readClients() {
 					const auto windowId = execExternal(cmds.mid(from + 4, to - from - 4));
 					const auto response = u"RES:%1_%2;"_q.arg(processId).arg(windowId).toLatin1();
 					i->first->write(response.data(), response.size());
-				} else if (cmd.startsWith(u"SEND:"_q)) {
-					if (cSendPaths().isEmpty()) {
-						toSend.append(_escapeFrom7bit(cmds.mid(from + 5, to - from - 5)));
-					}
 				} else if (cmd.startsWith(u"XDG_ACTIVATION_TOKEN:"_q)) {
-					qputenv("XDG_ACTIVATION_TOKEN", _escapeFrom7bit(cmds.mid(from + 21, to - from - 21)).toUtf8());
+					qputenv("XDG_ACTIVATION_TOKEN", QByteArray::fromBase64(cmds.mid(from + 21, to - from - 21).toLatin1()));
 				} else if (cmd.startsWith(u"OPEN:"_q)) {
-					startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5)).mid(0, 8192);
-					const auto activationRequired = StartUrlRequiresActivate(startUrl);
-					const auto processId = QApplication::applicationPid();
-					const auto windowId = activationRequired
-						? execExternal("show")
-						: 0;
-					const auto response = u"RES:%1_%2;"_q.arg(processId).arg(windowId).toLatin1();
-					i->first->write(response.data(), response.size());
+					startUrls.append(cmds.mid(from + 5, to - from - 5).mid(0, 8192));
+					if (!activationRequired) {
+						activationRequired = StartUrlRequiresActivate(startUrls.back().toString());
+					}
 				} else {
 					LOG(("Sandbox Error: unknown command %1 passed in local socket").arg(cmd.toString()));
 				}
@@ -471,21 +419,17 @@ void Sandbox::readClients() {
 			if (from > 0) {
 				i->second = i->second.mid(from);
 			}
+			const auto processId = QApplication::applicationPid();
+			const auto windowId = activationRequired
+				? execExternal("show")
+				: 0;
+			const auto response = u"RES:%1_%2;"_q.arg(processId).arg(windowId).toLatin1();
+			i->first->write(response.data(), response.size());
 		}
 	}
-	if (!toSend.isEmpty()) {
-		QStringList paths(cSendPaths());
-		paths.append(toSend);
-		cSetSendPaths(paths);
-	}
+	cRefStartUrls() << base::take(startUrls);
 	if (_application) {
-		_application->checkSendPaths();
-	}
-	if (!startUrl.isEmpty()) {
-		cSetStartUrl(startUrl);
-	}
-	if (_application) {
-		_application->checkStartUrl();
+		_application->checkStartUrls();
 	}
 }
 

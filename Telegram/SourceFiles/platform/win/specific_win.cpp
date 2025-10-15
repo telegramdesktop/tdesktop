@@ -707,7 +707,7 @@ void psSendToMenu(bool send, bool silent) {
 		send,
 		silent,
 		FOLDERID_SendTo,
-		L"-sendpath",
+		L"--",
 		L"Telegram send to link.\n"
 		"You can disable send to menu item in Telegram settings.");
 }

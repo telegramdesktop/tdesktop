@@ -2898,17 +2898,30 @@ bool MainWidget::contentOverlapped(const QRect &globalRect) {
 void MainWidget::activate() {
 	if (_showAnimation) {
 		return;
-	} else if (const auto paths = cSendPaths(); !paths.isEmpty()) {
-		const auto interpret = u"interpret://"_q;
-		cSetSendPaths(QStringList());
-		if (paths[0].startsWith(interpret)) {
-			const auto error = Support::InterpretSendPath(
-				_controller,
-				paths[0].mid(interpret.size()));
-			if (!error.isEmpty()) {
-				_controller->show(Ui::MakeInformBox(error));
+	}
+	const auto urls = base::take(cRefStartUrls());
+	const auto interprets = urls | ranges::views::filter([](const QUrl &url) {
+		return url.scheme() == u"interpret"_q;
+	}) | ranges::views::transform([](const QUrl &url) {
+		return url.path();
+	}) | ranges::to<QStringList>;
+	const auto paths = urls | ranges::views::filter(
+		&QUrl::isLocalFile
+	) | ranges::views::transform(
+		&QUrl::toLocalFile
+	) | ranges::to<QStringList>;
+	if (!interprets.isEmpty() || !paths.isEmpty()) {
+		if (!interprets.isEmpty()) {
+			for (const auto &interpret : interprets) {
+				const auto error = Support::InterpretSendPath(
+					_controller,
+					interpret);
+				if (!error.isEmpty()) {
+					_controller->show(Ui::MakeInformBox(error));
+				}
 			}
-		} else {
+		}
+		if (!paths.isEmpty()) {
 			const auto chosen = [=](not_null<Data::Thread*> thread) {
 				return sendPaths(thread, paths);
 			};

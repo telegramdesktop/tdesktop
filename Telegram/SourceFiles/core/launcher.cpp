@@ -536,9 +536,8 @@ void Launcher::processArguments() {
 		{ "-tosettings"     , KeyFormat::NoValues },
 		{ "-startintray"    , KeyFormat::NoValues },
 		{ "-quit"           , KeyFormat::NoValues },
-		{ "-sendpath"       , KeyFormat::AllLeftValues },
 		{ "-workdir"        , KeyFormat::OneValue },
-		{ "--"              , KeyFormat::OneValue },
+		{ "--"              , KeyFormat::AllLeftValues },
 		{ "-scale"          , KeyFormat::OneValue },
 	};
 	auto parseResult = QMap<QByteArray, QStringList>();
@@ -585,19 +584,15 @@ void Launcher::processArguments() {
 	gStartToSettings = parseResult.contains("-tosettings");
 	gStartInTray = parseResult.contains("-startintray");
 	gQuit = parseResult.contains("-quit");
-	gSendPaths = parseResult.value("-sendpath", {});
 	_customWorkingDir = parseResult.value("-workdir", {}).join(QString());
 	if (!_customWorkingDir.isEmpty()) {
 		_customWorkingDir = QDir(_customWorkingDir).absolutePath() + '/';
 	}
 
-	auto startUrls = parseResult.value("--", {});
-	startUrls = ranges::views::filter(startUrls, [](const QString &url) {
-		return QUrl::fromUserInput(url).isValid();
-	}) | ranges::to<QStringList>;
-	if (!startUrls.isEmpty()) {
-		gStartUrl = startUrls[0];
-	}
+	const auto startUrls = parseResult.value("--", {});
+	gStartUrls = startUrls | ranges::views::transform([&](const QString &url) {
+		return QUrl::fromUserInput(url, _initialWorkingDir);
+	}) | ranges::views::filter(&QUrl::isValid) | ranges::to<QList<QUrl>>;
 
 	const auto scaleKey = parseResult.value("-scale", {});
 	if (scaleKey.size() > 0) {
