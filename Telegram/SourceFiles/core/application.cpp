@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_download_manager.h"
 #include "base/battery_saving.h"
 #include "base/event_filter.h"
+#include "base/invoke_queued.h"
 #include "base/concurrent_timer.h"
 #include "base/options.h"
 #include "base/qt_signal_producer.h"
@@ -103,7 +104,6 @@ namespace {
 constexpr auto kQuitPreventTimeoutMs = crl::time(1500);
 constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 constexpr auto kClearEmojiImageSourceTimeout = 10 * crl::time(1000);
-constexpr auto kFileOpenTimeoutMs = crl::time(1000);
 
 LaunchState GlobalLaunchState/* = LaunchState::Running*/;
 
@@ -168,8 +168,7 @@ Application::Application()
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _tray(std::make_unique<Tray>())
-, _autoLockTimer([=] { checkAutoLock(); })
-, _fileOpenTimer([=] { checkFileOpen(); }) {
+, _autoLockTimer([=] { checkAutoLock(); }) {
 	Ui::Integration::Set(&_private->uiIntegration);
 
 	_platformIntegration->init();
@@ -693,9 +692,18 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 	case QEvent::FileOpen: {
 		if (object == QCoreApplication::instance()) {
 			const auto event = static_cast<QFileOpenEvent*>(e);
+			const auto flushQueued = [=] {
+				if (_filesToOpen.isEmpty()) {
+					InvokeQueued([=] {
+						cSetSendPaths(_filesToOpen);
+						_filesToOpen.clear();
+						checkSendPaths();
+					});
+				}
+			};
 			if (const auto file = event->file(); !file.isEmpty()) {
+				flushQueued();
 				_filesToOpen.append(file);
-				_fileOpenTimer.callOnce(kFileOpenTimeoutMs);
 			} else if (event->url().scheme() == u"tg"_q
 				|| event->url().scheme() == u"tonsite"_q) {
 				const auto url = QString::fromUtf8(
@@ -707,8 +715,8 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 					_lastActivePrimaryWindow->activate();
 				}
 			} else if (event->url().scheme() == u"interpret"_q) {
+				flushQueued();
 				_filesToOpen.append(event->url().toString());
-				_fileOpenTimer.callOnce(kFileOpenTimeoutMs);
 			}
 		}
 	} break;
@@ -1079,12 +1087,6 @@ bool Application::canApplyLangPackWithoutRestart() const {
 		}
 	}
 	return true;
-}
-
-void Application::checkFileOpen() {
-	cSetSendPaths(_filesToOpen);
-	_filesToOpen.clear();
-	checkSendPaths();
 }
 
 void Application::checkSendPaths() {
