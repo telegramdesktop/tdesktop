@@ -544,7 +544,11 @@ void Launcher::processArguments() {
 	auto parseResult = QMap<QByteArray, QStringList>();
 	auto parsingKey = QByteArray();
 	auto parsingFormat = KeyFormat::NoValues;
-	for (const auto &argument : std::as_const(_arguments)) {
+	for (auto i = _arguments.cbegin(); i != _arguments.cend(); ++i) {
+		if (i == _arguments.cbegin()) {
+			continue;
+		}
+		const auto &argument = *i;
 		switch (parsingFormat) {
 		case KeyFormat::OneValue: {
 			parseResult[parsingKey] = QStringList(argument.mid(0, 8192));
@@ -559,7 +563,9 @@ void Launcher::processArguments() {
 			if (it != parseMap.end()) {
 				parsingFormat = it->second;
 				parseResult[parsingKey] = QStringList();
+				continue;
 			}
+			parseResult["--"].push_back(argument.mid(0, 8192));
 		} break;
 		}
 	}
@@ -584,7 +590,14 @@ void Launcher::processArguments() {
 	if (!_customWorkingDir.isEmpty()) {
 		_customWorkingDir = QDir(_customWorkingDir).absolutePath() + '/';
 	}
-	gStartUrl = parseResult.value("--", {}).join(QString());
+
+	auto startUrls = parseResult.value("--", {});
+	startUrls = ranges::views::filter(startUrls, [](const QString &url) {
+		return QUrl::fromUserInput(url).isValid();
+	}) | ranges::to<QStringList>;
+	if (!startUrls.isEmpty()) {
+		gStartUrl = startUrls[0];
+	}
 
 	const auto scaleKey = parseResult.value("-scale", {});
 	if (scaleKey.size() > 0) {
