@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_inner_common.h"
 #include "ui/effects/animations.h"
 
-#include <optional>
-
 namespace Ui {
 class RpWidget;
 } // namespace Ui
@@ -53,7 +51,6 @@ private:
 	const QGradientStops _gradientStops;
 	const OutlinedStop _outlinedStop;
 	const QBrush _gradientBrush;
-	bool _highContrastMarker = false;
 
 	struct {
 		QPoint pos;

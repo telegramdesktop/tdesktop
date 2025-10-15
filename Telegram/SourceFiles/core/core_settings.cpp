@@ -976,9 +976,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	_thirdSectionInfoEnabled = thirdSectionInfoEnabled;
 	_dialogsWithChatWidthRatio = dialogsWithChatWidthRatio;
-	_dialogsNoChatWidthRatio = (dialogsWithChatWidthRatio > 0)
-		? dialogsWithChatWidthRatio
-		: dialogsNoChatWidthRatio;
+	_dialogsNoChatWidthRatio = (dialogsNoChatWidthRatio > 0)
+		? dialogsNoChatWidthRatio
+		: dialogsWithChatWidthRatio;
 	_thirdColumnWidth = thirdColumnWidth;
 	_thirdSectionExtendedBy = thirdSectionExtendedBy;
 	if (_thirdSectionInfoEnabled) {
@@ -1294,8 +1294,7 @@ void Settings::incrementRecentEmoji(RecentEmojiId id) {
 			}
 			break;
 		}
-	}
-	if (i == e) {
+	} else {
 		_recentEmoji.push_back({ id, 1 });
 		for (i = _recentEmoji.end() - 1; i != _recentEmoji.begin(); --i) {
 			if ((i - 1)->rating > i->rating) {
