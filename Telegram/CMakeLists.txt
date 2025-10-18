@@ -4,8 +4,8 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-add_executable(Telegram WIN32 MACOSX_BUNDLE)
-init_non_host_target(Telegram)
+add_executable(bismarkdev WIN32 MACOSX_BUNDLE)
+init_non_host_target(bismarkdev)
 
 add_subdirectory(lib_rpl)
 add_subdirectory(lib_crl)
@@ -43,15 +43,15 @@ endif()
 
 if (WIN32)
     include(cmake/generate_midl.cmake)
-    generate_midl(Telegram ${src_loc}
+    generate_midl(bismarkdev ${src_loc}
         platform/win/windows_quiethours.idl
         platform/win/windows_toastactivator.idl
     )
 endif()
 
-set_target_properties(Telegram PROPERTIES AUTOMOC ON)
+set_target_properties(bismarkdev PROPERTIES AUTOMOC ON)
 
-target_link_libraries(Telegram
+target_link_libraries(bismarkdev
 PRIVATE
     tdesktop::lib_tgcalls
 
@@ -94,8 +94,8 @@ PRIVATE
     desktop-app::external_xxhash
 )
 
-target_precompile_headers(Telegram PRIVATE $<$<COMPILE_LANGUAGE:CXX,OBJCXX>:${src_loc}/stdafx.h>)
-nice_target_sources(Telegram ${src_loc}
+target_precompile_headers(bismarkdev PRIVATE $<$<COMPILE_LANGUAGE:CXX,OBJCXX>:${src_loc}/stdafx.h>)
+nice_target_sources(bismarkdev ${src_loc}
 PRIVATE
     ${style_files}
 
@@ -1759,7 +1759,7 @@ if (DESKTOP_APP_USE_PACKAGED)
     )
 endif()
 
-nice_target_sources(Telegram ${res_loc}
+nice_target_sources(bismarkdev ${res_loc}
 PRIVATE
     qrc/emoji_1.qrc
     qrc/emoji_2.qrc
@@ -1776,8 +1776,8 @@ PRIVATE
     qrc/telegram/picker.qrc
     qrc/telegram/telegram.qrc
     qrc/telegram/sounds.qrc
-    winrc/Telegram.rc
-    winrc/Telegram.manifest
+    winrc/bismarkdev.rc
+    winrc/bismarkdev.manifest
     langs/lang.strings
     langs/cloud_lang.strings
     numbers.txt
@@ -1921,8 +1921,8 @@ else()
     else()
         set(bundle_identifier "com.tdesktop.Telegram")
     endif()
-    set(bundle_entitlements "Telegram.entitlements")
-    set(output_name "Telegram")
+    set(bundle_entitlements "bismarkdev.entitlements")
+    set(output_name "bismarkdev")
 endif()
 
 if (CMAKE_GENERATOR STREQUAL Xcode)
@@ -1931,7 +1931,7 @@ else()
     set(bundle_identifier_plist ${bundle_identifier})
 endif()
 
-set_target_properties(Telegram PROPERTIES
+set_target_properties(bismarkdev PROPERTIES
     OUTPUT_NAME ${output_name}
     MACOSX_BUNDLE_GUI_IDENTIFIER ${bundle_identifier}
     MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Telegram.plist
@@ -1952,12 +1952,12 @@ set(entitlement_sources
     "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram.entitlements"
     "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram Lite.entitlements"
 )
-target_sources(Telegram PRIVATE ${entitlement_sources})
+target_sources(bismarkdev PRIVATE ${entitlement_sources})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/Telegram PREFIX Resources FILES ${entitlement_sources})
 
-target_include_directories(Telegram PRIVATE ${src_loc})
+target_include_directories(bismarkdev PRIVATE ${src_loc})
 
-target_compile_definitions(Telegram
+target_compile_definitions(bismarkdev
 PRIVATE
     TDESKTOP_API_ID=${TDESKTOP_API_ID}
     TDESKTOP_API_HASH=${TDESKTOP_API_HASH}
@@ -1968,20 +1968,20 @@ get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if (APPLE
     OR is_multi_config
     OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL ""
-    OR NOT "${output_name}" STREQUAL "Telegram")
+    OR NOT "${output_name}" STREQUAL "bismarkdev")
     set(output_folder ${CMAKE_BINARY_DIR})
 else()
     set(output_folder ${CMAKE_BINARY_DIR}/bin)
 endif()
 
-set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
+set_target_properties(bismarkdev PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
 if (MSVC)
-    target_link_libraries(Telegram
+    target_link_libraries(bismarkdev
     PRIVATE
         delayimp
     )
-    target_link_options(Telegram
+    target_link_options(bismarkdev
     PRIVATE
         /DELAYLOAD:secur32.dll
         /DELAYLOAD:winmm.dll
@@ -2009,12 +2009,12 @@ if (MSVC)
     )
     if (QT_VERSION GREATER 6)
         if (NOT build_winarm)
-            target_link_options(Telegram PRIVATE
+            target_link_options(bismarkdev PRIVATE
                 /DELAYLOAD:API-MS-Win-EventLog-Legacy-l1-1-0.dll
             )
         endif()
 
-        target_link_options(Telegram
+        target_link_options(bismarkdev
         PRIVATE
             /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
             /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-0.dll
@@ -2046,13 +2046,13 @@ if (MSVC)
     endif()
 endif()
 
-target_prepare_qrc(Telegram)
+target_prepare_qrc(bismarkdev)
 
 if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_winstore)
     add_executable(Updater WIN32)
     init_non_host_target(Updater)
 
-    add_dependencies(Telegram Updater)
+    add_dependencies(bismarkdev Updater)
 
     nice_target_sources(Updater ${src_loc}
     PRIVATE

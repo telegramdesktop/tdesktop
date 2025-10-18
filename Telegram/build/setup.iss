@@ -1,8 +1,8 @@
-#define MyAppShortName "Telegram"
-#define MyAppName "Telegram Desktop"
-#define MyAppPublisher "Telegram FZ-LLC"
+#define MyAppShortName "bismarkdev"
+#define MyAppName "Bismark Dev Client"
+#define MyAppPublisher "Bismark"
 #define MyAppURL "https://desktop.telegram.org"
-#define MyAppExeName "Telegram.exe"
+#define MyAppExeName "bismarkdev.exe"
 #define MyAppId "53F49750-6209-4FBF-9CA8-7A333C87D1ED"
 #define CurrentYear GetDateTimeString('yyyy','','')
 

@@ -12,10 +12,10 @@ include(cmake/validate_special_target.cmake)
 include(cmake/version.cmake)
 desktop_app_parse_version(Telegram/build/version)
 
-project(Telegram
+project(BismarkDev
     LANGUAGES C CXX
     VERSION ${desktop_app_version_cmake}
-    DESCRIPTION "Official Telegram Desktop messenger"
+    DESCRIPTION "Bismark Dev Client"
     HOMEPAGE_URL "https://desktop.telegram.org"
 )
 
