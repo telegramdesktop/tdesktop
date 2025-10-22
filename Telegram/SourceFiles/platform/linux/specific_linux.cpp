@@ -780,6 +780,10 @@ QString ApplicationIconName() {
 	return Result;
 }
 
+void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
+	fail();
+}
+
 namespace ThirdParty {
 
 void start() {
@@ -836,8 +840,4 @@ bool linuxMoveFile(const char *from, const char *to) {
 	}
 
 	return true;
-}
-
-bool psLaunchMaps(const Data::LocationPoint &point) {
-	return false;
 }
