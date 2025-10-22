@@ -39,6 +39,7 @@ CodeWidget::CodeWidget(
 , _callTimeout(getData()->callTimeout)
 , _callLabel(this, st::introDescription)
 , _checkRequestTimer([=] { checkRequest(); }) {
+	setAccessibleRole(QAccessible::Role::Dialog);
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
 		refreshLang();

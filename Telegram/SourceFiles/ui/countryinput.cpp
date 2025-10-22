@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/countryinput.h"
 
 #include "lang/lang_keys.h"
+#include "ui/accessibility.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/effects/ripple_animation.h"
@@ -29,6 +30,9 @@ CountryInput::CountryInput(
 , _st(st)
 , _text(tr::lng_country_code(tr::now)) {
 	resize(_st.width, _st.heightMin);
+	setFocusPolicy(Qt::StrongFocus);
+	setAccessibleRole(QAccessible::Role::PushButton);
+	setAccessibleName(_text);
 }
 
 void CountryInput::paintEvent(QPaintEvent *e) {
@@ -198,4 +202,5 @@ void CountryInput::setText(const QString &newText) {
 	_text = _st.style.font->elided(
 		newText,
 		width() - _st.textMargins.left() - _st.textMargins.right());
+	setAccessibleName(newText);
 }

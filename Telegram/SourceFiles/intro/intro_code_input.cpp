@@ -160,6 +160,8 @@ void CodeDigit::paintEvent(QPaintEvent *e) {
 CodeInput::CodeInput(QWidget *parent)
 : Ui::RpWidget(parent) {
 	setFocusPolicy(Qt::StrongFocus);
+	setAccessibleRole(QAccessible::Role::EditableText);
+	setAccessibleName(tr::lng_code_ph(tr::now));
 }
 
 void CodeInput::setDigitsCountMax(int digitsCount) {

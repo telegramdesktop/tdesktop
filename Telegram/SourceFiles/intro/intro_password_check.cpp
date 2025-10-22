@@ -37,6 +37,7 @@ PasswordCheckWidget::PasswordCheckWidget(
 , _codeField(this, st::introPassword, tr::lng_signin_code())
 , _toRecover(this, tr::lng_signin_recover(tr::now))
 , _toPassword(this, tr::lng_signin_try_password(tr::now)) {
+	setAccessibleRole(QAccessible::Role::Dialog);
 	Expects(_passwordState.hasPassword);
 
 	Lang::Updated(

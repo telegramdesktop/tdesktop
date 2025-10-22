@@ -77,6 +77,7 @@ Step::Step(
 		_hasCover
 			? st::introCoverDescription
 			: st::introDescription)) {
+	setAccessibleRole(QAccessible::Pane);
 	hide();
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
@@ -94,6 +95,7 @@ Step::Step(
 	_titleText.value(
 	) | rpl::start_with_next([=](const QString &text) {
 		_title->setText(text);
+		setAccessibleName(text);
 		updateLabelsPosition();
 	}, lifetime());
 
@@ -105,6 +107,7 @@ Step::Step(
 			EntityType::Spoiler,
 			&EntityInText::type);
 		label->setMarkedText(text);
+		setAccessibleDescription(text.text);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents, hasSpoiler);
 		updateLabelsPosition();
 	}, lifetime());

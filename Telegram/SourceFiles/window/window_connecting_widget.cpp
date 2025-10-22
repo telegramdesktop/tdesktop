@@ -498,6 +498,7 @@ ConnectionState::Widget::Widget(
 : AbstractButton(parent)
 , _account(account)
 , _currentLayout(layout) {
+	setAccessibleRole(QAccessible::StatusBar);
 	_proxyIcon = Ui::CreateChild<ProxyIcon>(this);
 	_progress = Ui::CreateChild<Progress>(this);
 
@@ -619,6 +620,7 @@ void ConnectionState::Widget::setLayout(const Layout &layout) {
 	_currentLayout = layout;
 	_proxyIcon->setToggled(_currentLayout.proxyEnabled);
 	refreshRetryLink(_currentLayout.hasRetry);
+	setAccessibleName(_currentLayout.text);
 }
 
 void ConnectionState::Widget::setProgressVisibility(bool visible) {

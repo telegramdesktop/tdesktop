@@ -224,6 +224,8 @@ IntroWidget::IntroWidget(
 , _wrap(this)
 , _scroll(Ui::CreateChild<Ui::ScrollArea>(_wrap.data()))
 , _topShadow(this) {
+	setAccessibleRole(QAccessible::Dialog);
+	setAccessibleName(tr::lng_menu_settings(tr::now));
 	_wrap->setAttribute(Qt::WA_OpaquePaintEvent);
 	_wrap->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
@@ -290,6 +292,7 @@ void IntroWidget::createTopBar(not_null<Window::Controller*> window) {
 		base::make_unique_q<Ui::IconButton>(
 			_topBar,
 			st::infoLayerTopBarClose));
+	close->setAccessibleName(tr::lng_close(tr::now));
 	close->addClickHandler([=] {
 		window->hideSettingsAndLayer();
 	});

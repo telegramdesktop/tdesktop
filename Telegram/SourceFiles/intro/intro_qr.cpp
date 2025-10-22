@@ -80,6 +80,8 @@ namespace {
 		style::PaletteChanged()
 	);
 	auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	result->setAccessibleRole(QAccessible::Role::Graphic);
+	result->setAccessibleName(tr::lng_intro_qr_title(tr::now));
 	const auto state = result->lifetime().make_state<State>(
 		[=] { result->update(); });
 	state->waiting.start();
@@ -181,6 +183,20 @@ QrWidget::QrWidget(
 	setTitleText(rpl::single(QString()));
 	setDescriptionText(rpl::single(QString()));
 	setErrorCentered(true);
+	setAccessibleRole(QAccessible::Role::Dialog);
+	setAccessibleName(tr::lng_intro_qr_title(tr::now));
+
+	const auto texts = {
+	tr::lng_intro_qr_step1,
+	tr::lng_intro_qr_step2,
+	tr::lng_intro_qr_step3,
+	};
+	QString fullDescription;
+	int index = 1;
+	for (const auto& text : texts) {
+		fullDescription += QString::number(index++) + ". " + text(tr::now) + "\n";
+	}
+	setAccessibleDescription(fullDescription);
 
 	cancelNearestDcRequest();
 
@@ -410,6 +426,10 @@ void QrWidget::sendCheckPasswordRequest() {
 void QrWidget::activate() {
 	Step::activate();
 	showChildren();
+
+	if (const auto skipButton = findChild<Ui::LinkButton*>()) {
+		skipButton->setFocus(Qt::OtherFocusReason);
+	}
 }
 
 void QrWidget::finished() {

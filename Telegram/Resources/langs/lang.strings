@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_menu_my_stories" = "My Stories";
 "lng_menu_my_groups" = "My Groups";
 "lng_menu_my_channels" = "My Channels";
+"lng_open_menu" = "Open navigation menu";
 
 "lng_disable_notifications_from_tray" = "Disable notifications";
 "lng_enable_notifications_from_tray" = "Enable notifications";
@@ -127,6 +128,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cancel" = "Cancel";
 "lng_continue" = "Continue";
 "lng_close" = "Close";
+"lng_minimize_window" = "Minimize";
+"lng_maximize_window" = "Maximize";
+"lng_restore_window" = "Restore";
+"lng_go_back" = "Go back";
 "lng_connecting" = "Connecting...";
 "lng_reconnecting#one" = "Reconnect in {count} s...";
 "lng_reconnecting#other" = "Reconnect in {count} s...";
@@ -388,6 +393,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_country_ph" = "Search";
 "lng_country_none" = "Country not found";
 "lng_country_select" = "Select Country";
+"lng_phone_number" = "Phone number";
 
 "lng_code_ph" = "Code";
 "lng_code_desc" = "We've sent an activation code to your phone.\nPlease enter it below.";
