@@ -103,6 +103,42 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
+void CountryInput::keyPressEvent(QKeyEvent* e) {
+	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
+		auto object = Box<Ui::CountrySelectBox>();
+		const auto box = base::make_weak(object.data());
+		_show->showBox(std::move(object), Ui::LayerOption::CloseOther);
+		box->entryChosen(
+		) | rpl::start_with_next([=](
+			const Ui::CountrySelectBox::Entry& entry) {
+				if (box) {
+					box->closeBox();
+				}
+
+				const auto& list = Countries::Instance().list();
+				const auto infoIt = ranges::find(
+					list,
+					entry.iso2,
+					&Countries::Info::iso2);
+				if (infoIt == end(list)) {
+					return;
+				}
+				const auto info = *infoIt;
+				const auto it = ranges::find(
+					info.codes,
+					entry.code,
+					&Countries::CallingCodeInfo::callingCode);
+				if (it != end(info.codes)) {
+					chooseCountry(
+						&info,
+						std::distance(begin(info.codes), it));
+				}
+			}, lifetime());
+	} else {
+		RpWidget::keyPressEvent(e);
+	}
+}
+
 void CountryInput::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
 }
