@@ -1007,7 +1007,7 @@ PeerListContent::PeerListContent(
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	_controller->session().changes().peerUpdates(
-		UpdateFlag::Name | UpdateFlag::Photo | UpdateFlag::EmojiStatus
+		UpdateFlag::Name | UpdateFlag::Photo | UpdateFlag::EmojiStatus | UpdateFlag::ContactNote
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::Name) {
 			handleNameChanged(update.peer);

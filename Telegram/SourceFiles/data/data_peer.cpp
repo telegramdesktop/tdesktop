@@ -1075,6 +1075,7 @@ void PeerData::fillNames() {
 			appendToIndex(user->nameOrPhone);
 		}
 		appendToIndex(user->username());
+		appendToIndex(user->note().text);
 		if (isSelf()) {
 			const auto english = u"Saved messages"_q;
 			const auto localized = tr::lng_saved_messages(tr::now);
