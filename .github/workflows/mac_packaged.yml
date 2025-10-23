@@ -115,7 +115,8 @@ jobs:
           cmake -Bbuild -GNinja . \
           -DCMAKE_BUILD_TYPE=Debug \
           -DCMAKE_C_FLAGS_DEBUG="" \
-          -DCMAKE_CXX_FLAGS_DEBUG=""
+          -DCMAKE_CXX_FLAGS_DEBUG="" \
+          -DCMAKE_DISABLE_FIND_PACKAGE_absl=ON
 
           cmake --build build --parallel
 
