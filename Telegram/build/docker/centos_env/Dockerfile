@@ -662,8 +662,8 @@ RUN git clone -b 0.3.62 --depth=1 https://github.com/PipeWire/pipewire.git \
 		--buildtype=plain \
 		-Dtests=disabled \
 		-Dexamples=disabled \
-		-Dsession-managers=media-session \
 		-Dspa-plugins=disabled \
+		-Dsession-managers= \
 	&& meson compile -C build \
 	&& DESTDIR=/usr/src/pipewire-cache meson install -C build \
 	&& cd .. \
