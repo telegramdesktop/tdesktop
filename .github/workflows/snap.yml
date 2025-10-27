@@ -84,7 +84,7 @@ jobs:
           mkdir artifact
           mv $artifact_name artifact
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:
