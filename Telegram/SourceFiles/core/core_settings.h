@@ -579,6 +579,15 @@ public:
 	void setPhotoEditorBrush(QByteArray brush) {
 		_photoEditorBrush = brush;
 	}
+	[[nodiscard]] bool photoEditorHighContrastMarker() const {
+		return _photoEditorHighContrastMarker.current();
+	}
+	[[nodiscard]] rpl::producer<bool> photoEditorHighContrastMarkerValue() const {
+		return _photoEditorHighContrastMarker.value();
+	}
+	void setPhotoEditorHighContrastMarker(bool value) {
+		_photoEditorHighContrastMarker = value;
+	}
 
 	[[nodiscard]] float64 rememberedSongVolume() const {
 		return _rememberedSongVolume;
@@ -1109,6 +1118,7 @@ private:
 
 	ushort _notificationsVolume = 100;
 
+	rpl::variable<bool> _photoEditorHighContrastMarker = false;
 	QByteArray _photoEditorBrush;
 
 };
