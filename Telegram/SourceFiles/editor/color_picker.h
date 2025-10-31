@@ -29,16 +29,16 @@ public:
 
 	void moveLine(const QPoint &position);
 	void setVisible(bool visible);
-	bool preventHandleKeyPress() const;
+	[[nodiscard]] bool preventHandleKeyPress() const;
 
-	rpl::producer<Brush> saveBrushRequests() const;
+	[[nodiscard]] rpl::producer<Brush> saveBrushRequests() const;
 
 private:
 	void paintCircle(QPainter &p);
 	void paintOutline(QPainter &p, const QRectF &rect);
-	QColor positionToColor(int x) const;
-	int colorToPosition(const QColor &color) const;
-	int circleHeight(float64 progress = 0.) const;
+	[[nodiscard]] QColor positionToColor(int x) const;
+	[[nodiscard]] int colorToPosition(const QColor &color) const;
+	[[nodiscard]] int circleHeight(float64 progress = 0.) const;
 	void updateMousePosition(const QPoint &pos, float64 progress);
 
 	const QColor _circleColor;
