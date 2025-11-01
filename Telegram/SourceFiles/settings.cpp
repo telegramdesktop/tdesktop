@@ -22,7 +22,8 @@ QString gWorkingDir;
 
 QList<QUrl> gStartUrls;
 
-QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
+QString gDialogLastPath;
+QString gDialogHelperPath;
 
 bool gStartMinimized = false;
 bool gStartInTray = false;
@@ -31,7 +32,10 @@ bool gSendToMenu = false;
 bool gAutoUpdate = true;
 LaunchMode gLaunchMode = LaunchModeNormal;
 bool gSeenTrayTooltip = false;
-bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = false, gWriteProtected = false;
+bool gRestartingUpdate = false;
+bool gRestarting = false;
+bool gRestartingToSettings = false;
+bool gWriteProtected = false;
 bool gQuit = false;
 int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
@@ -47,7 +51,8 @@ int gConfigScale = style::kScaleAuto;
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
 
-RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
+RecentHashtagPack gRecentWriteHashtags;
+RecentHashtagPack gRecentSearchHashtags;
 
 RecentInlineBots gRecentInlineBots;
 
@@ -60,6 +65,10 @@ int32 gIntRetinaFactor = 1;
 
 int gOtherOnline = 0;
 
-int32 gAutoDownloadPhoto = 0; // all auto download
-int32 gAutoDownloadAudio = 0;
-int32 gAutoDownloadGif = 0;
+struct AutoDownloadSettings {
+	int32 photo = 0;
+	int32 audio = 0;
+	int32 gif = 0;
+};
+
+AutoDownloadSettings gAutoDownload;
