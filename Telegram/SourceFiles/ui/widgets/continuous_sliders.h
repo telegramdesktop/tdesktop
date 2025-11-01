@@ -58,6 +58,15 @@ public:
 
 	void setMoveByWheel(bool move);
 
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::Role::Slider;
+	}
+
+	QString accessibilityValue() const override {
+		const auto percent = std::clamp(qRound(_value * 100.), 0, 100);
+		return QString::number(percent) + '%';
+	}
+
 protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -65,6 +74,7 @@ protected:
 	void wheelEvent(QWheelEvent *e) override;
 	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
+	void keyPressEvent(QKeyEvent* e) override;
 
 	float64 fadeOpacity() const {
 		return _fadeOpacity;

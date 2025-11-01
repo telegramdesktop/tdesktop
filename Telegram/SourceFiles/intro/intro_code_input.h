@@ -22,6 +22,7 @@ public:
 		return QAccessible::EditableText;
 	}
 	QString accessibilityName() override;
+	QString accessibilityValue() const override;
 
 	void setDigitsCountMax(int digitsCount);
 

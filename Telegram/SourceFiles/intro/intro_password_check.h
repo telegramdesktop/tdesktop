@@ -29,10 +29,6 @@ public:
 		not_null<Main::Account*> account,
 		not_null<Data*> data);
 
-	QAccessible::Role accessibilityRole() override {
-		return QAccessible::Role::Dialog;
-	}
-
 	void setInnerFocus() override;
 	void activate() override;
 	void cancelled() override;

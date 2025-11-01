@@ -131,6 +131,66 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 	_byWheelFinished->callOnce(kByWheelFinishedTimeout);
 }
 
+void ContinuousSlider::keyPressEvent(QKeyEvent* e) {
+	const auto key = e->key();
+	auto newValue = _value;
+
+	constexpr auto smallStep = 0.01;
+	constexpr auto largeStep = 0.10;
+
+	switch (key) {
+	case Qt::Key_Right:
+	case Qt::Key_Up:
+		newValue = _value + smallStep;
+		break;
+
+	case Qt::Key_Left:
+	case Qt::Key_Down:
+		newValue = _value - smallStep;
+		break;
+
+	case Qt::Key_PageUp:
+		newValue = _value + largeStep;
+		break;
+
+	case Qt::Key_PageDown:
+		newValue = _value - largeStep;
+		break;
+
+	case Qt::Key_Home:
+		newValue = 0.0;
+		break;
+
+	case Qt::Key_End:
+		newValue = 1.0;
+		break;
+
+	default:
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+
+	e->accept();
+
+	newValue = std::clamp(_adjustCallback
+		? _adjustCallback(newValue)
+		: newValue, 0.0, 1.0);
+
+	if (newValue != _value) {
+		setValue(newValue);
+
+		if (_changeProgressCallback) {
+			_changeProgressCallback(_value);
+		}
+		if (_changeFinishedCallback) {
+			_changeFinishedCallback(_value);
+		}
+		const int percent = std::max(0, std::min(100, qRound(_value * 100.)));
+		const QString valueText = QString::number(percent) + '%';
+		accessibilityValueChanged(QVariant(valueText));
+	}
+}
+
 void ContinuousSlider::updateDownValueFromPos(const QPoint &pos) {
 	_downValue = computeValue(pos);
 	update();

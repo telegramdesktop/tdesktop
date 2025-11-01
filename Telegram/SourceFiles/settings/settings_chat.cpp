@@ -1609,7 +1609,16 @@ void SetupDefaultThemes(
 		}
 	};
 	group->setChangedCallback([=](Type type) {
-		group->setValue(chosen());
+		const auto scheme = ranges::find(
+			kSchemesList,
+			type,
+			&Scheme::type);
+		if (scheme != end(kSchemesList)) {
+			apply(*scheme);
+		}
+		else {
+			group->setValue(chosen());
+		}
 	});
 	for (const auto &scheme : kSchemesList) {
 		refreshColorizer(scheme.type);

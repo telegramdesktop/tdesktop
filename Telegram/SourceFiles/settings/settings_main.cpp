@@ -867,6 +867,7 @@ void SetupInterfaceScale(
 		icon ? st::settingsScalePadding : st::settingsBigScalePadding);
 	const auto slider = sliderWithLabel.slider;
 	const auto label = sliderWithLabel.label;
+	slider->setAccessibleName(tr::lng_settings_scale(tr::now));
 
 	const auto updateLabel = [=](int scale) {
 		const auto labelText = [&](int scale) {

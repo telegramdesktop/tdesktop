@@ -46,7 +46,7 @@ public:
 	~Step();
 
 	QAccessible::Role accessibilityRole() override {
-		return QAccessible::Role::Pane;
+		return QAccessible::Role::Dialog;
 	}
 	QString accessibilityName() override {
 		return _titleText.current();

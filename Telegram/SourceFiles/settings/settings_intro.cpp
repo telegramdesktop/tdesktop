@@ -351,6 +351,16 @@ void IntroWidget::showContent(not_null<Window::Controller*> window) {
 }
 
 void IntroWidget::setInnerFocus() {
+	const auto layout = _innerWrap->entity();
+	for (const auto childObject : layout->children()) {
+		auto childWidget = qobject_cast<QWidget*>(childObject);
+
+		if (childWidget && childWidget->focusPolicy() != Qt::NoFocus) {
+			childWidget->setFocus(Qt::OtherFocusReason);
+			return;
+		}
+	}
+
 	setFocus();
 }
 
