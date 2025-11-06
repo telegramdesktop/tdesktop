@@ -1030,7 +1030,7 @@ void OverlayWidget::updateGeometryToScreen(bool inMove) {
 		.arg(available.y())
 		.arg(available.width())
 		.arg(available.height()));
-	_window->setGeometry(available);
+	_window->Ui::RpWidget::setGeometry(available);
 }
 
 void OverlayWidget::updateControlsGeometry() {
