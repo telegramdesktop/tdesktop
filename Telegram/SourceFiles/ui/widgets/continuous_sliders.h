@@ -74,7 +74,7 @@ protected:
 	void wheelEvent(QWheelEvent *e) override;
 	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
-	void keyPressEvent(QKeyEvent* e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	float64 fadeOpacity() const {
 		return _fadeOpacity;
