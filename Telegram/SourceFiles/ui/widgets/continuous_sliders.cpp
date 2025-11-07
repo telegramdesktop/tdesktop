@@ -131,7 +131,7 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 	_byWheelFinished->callOnce(kByWheelFinishedTimeout);
 }
 
-void ContinuousSlider::keyPressEvent(QKeyEvent* e) {
+void ContinuousSlider::keyPressEvent(QKeyEvent *e) {
 	const auto key = e->key();
 	auto newValue = _value;
 
