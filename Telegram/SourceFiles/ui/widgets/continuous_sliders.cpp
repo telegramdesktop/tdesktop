@@ -172,9 +172,12 @@ void ContinuousSlider::keyPressEvent(QKeyEvent *e) {
 
 	e->accept();
 
-	newValue = std::clamp(_adjustCallback
-		? _adjustCallback(newValue)
-		: newValue, 0.0, 1.0);
+	newValue = std::clamp(
+		_adjustCallback
+			? _adjustCallback(newValue)
+			: newValue,
+		0.0,
+		1.0);
 
 	if (newValue != _value) {
 		setValue(newValue);
