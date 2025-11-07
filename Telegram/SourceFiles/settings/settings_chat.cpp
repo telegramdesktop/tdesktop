@@ -1615,8 +1615,7 @@ void SetupDefaultThemes(
 			&Scheme::type);
 		if (scheme != end(kSchemesList)) {
 			apply(*scheme);
-		}
-		else {
+		} else {
 			group->setValue(chosen());
 		}
 	});
