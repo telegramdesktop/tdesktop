@@ -2,7 +2,7 @@
 Name=Telegram
 Comment=New era of messaging
 TryExec=Telegram
-Exec=Telegram -- %u
+Exec=Telegram -- %U
 Icon=org.telegram.desktop
 Terminal=false
 StartupWMClass=TelegramDesktop
