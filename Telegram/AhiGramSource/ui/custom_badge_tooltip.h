@@ -25,50 +25,48 @@ namespace UI {
 
 class CustomBadgeTooltip final : public Ui::RpWidget {
 public:
-	CustomBadgeTooltip(
-		not_null<QWidget*> parent,
-		const QString &title,
-		const QString &description,
-		const style::icon *badgeIcon,
-		not_null<QWidget*> pointTo);
+    CustomBadgeTooltip(
+        not_null<QWidget*> parent,
+        const QString &title,
+        const QString &description,
+        const style::icon *badgeIcon,
+        not_null<QWidget*> pointTo);
 
-	void fade(bool shown);
-	void finishAnimating();
-
-	[[nodiscard]] rpl::producer<bool> shownValue() const;
-	[[nodiscard]] crl::time hideDuration() const;
-
+    void fade(bool shown);
+    void finishAnimating();
+	
+    [[nodiscard]] rpl::producer<bool> shownValue() const;
+    [[nodiscard]] crl::time hideDuration() const;
 protected:
-	void paintEvent(QPaintEvent *e) override;
-
+    void paintEvent(QPaintEvent *e) override;
 private:
-	void setupGeometry(not_null<QWidget*> pointTo);
+    void setupGeometry(not_null<QWidget*> pointTo);
+	
+    const style::ImportantTooltip &_st;
+    const QString _title;
+    const QString _description;
+    const style::icon *_badgeIcon = nullptr;
 
-	const style::ImportantTooltip &_st;
-	const QString _title;
-	const QString _description;
-	const style::icon *_badgeIcon = nullptr;
+    QFont _titleFont;
+    QFont _descFont;
+    QSize _inner;
+    QSize _outer;
+    QSize _full;
 
-	QFont _titleFont;
-	QFont _descFont;
-	QSize _inner;
-	QSize _outer;
-	QSize _full;
-	int _stroke = 0;
-	int _skip = 0;
+    int _stroke = 0;
+    int _skip = 0;
+    int _arrowCenterX = 0;
 
-	Ui::Animations::Simple _showAnimation;
-	bool _shown = false;
-	rpl::variable<bool> _shownVariable = false;
+    Ui::Animations::Simple _showAnimation;
+    bool _shown = false;
+    rpl::variable<bool> _shownVariable = false;
 };
-
 [[nodiscard]] CustomBadgeTooltip* CreateImportantTooltip(
-	not_null<QWidget*> parent,
-	const QString &title,
-	const QString &description,
-	const style::icon *badgeIcon,
-	not_null<QWidget*> pointTo,
-	crl::time hideAfter = 0);
-
+    not_null<QWidget*> parent,
+    const QString &title,
+    const QString &description,
+    const style::icon *badgeIcon,
+    not_null<QWidget*> pointTo,
+    crl::time hideAfter = 0);
 } // namespace UI
 } // namespace AhiGram

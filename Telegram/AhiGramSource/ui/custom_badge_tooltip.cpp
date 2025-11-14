@@ -20,6 +20,7 @@ AhiGram: Custom badge tooltip widget
 #include "base/weak_ptr.h"
 #include "styles/style_info.h"
 #include "styles/style_widgets.h"
+#include "ui/rect.h"
 
 #include <QFontMetrics>
 #include <memory>
@@ -97,15 +98,42 @@ void CustomBadgeTooltip::setupGeometry(not_null<QWidget*> pointTo) {
 			setGeometry({});
 			return;
 		}
-		const auto rect = Ui::MapFrom(parent, pointTo, pointTo->rect());
-		const auto centerX = rect.center().x();
-		const auto topY = rect.y();
-		const auto left = centerX - (width() / 2);
+		const auto badgeGlobalTopLeft = pointTo->mapToGlobal(QPoint(0, 0));
+		const auto badgeGlobalBottomRight = pointTo->mapToGlobal(
+			QPoint(pointTo->width(), pointTo->height()));
+		const auto badgeParentTopLeft = parent->mapFromGlobal(badgeGlobalTopLeft);
+		const auto badgeParentBottomRight = parent->mapFromGlobal(badgeGlobalBottomRight);
+		
+		const auto badgeRect = QRect(
+			badgeParentTopLeft,
+			badgeParentBottomRight);
+		const auto badgeCenterX = badgeRect.center().x();
+		const auto badgeTop = badgeRect.y();
+		
+		const auto desiredArrowX = badgeCenterX;
+		
+		const auto idealArrowCenterX = width() / 2;
+		const auto tooltipLeft = desiredArrowX - idealArrowCenterX;
+		const auto tooltipTop = badgeTop - height() - kShift;
+		
 		const auto skip = kPaddingLeft;
 		const auto maxLeft = parent->width() - width() - skip;
+		const auto minTop = skip;
+		
+		auto clampedLeft = tooltipLeft;
+		if (clampedLeft < skip) {
+			clampedLeft = skip;
+		} else if (clampedLeft > maxLeft) {
+			clampedLeft = maxLeft;
+		}
+		
+		_arrowCenterX = desiredArrowX - clampedLeft;
+		
+		const auto finalTop = std::max(tooltipTop, minTop);
+		
 		setGeometry(
-			std::clamp(left, skip, maxLeft),
-			std::max(topY - height() - kShift, skip),
+			clampedLeft,
+			finalTop,
 			width(),
 			height());
 	};
@@ -188,7 +216,7 @@ void CustomBadgeTooltip::paintEvent(QPaintEvent *e) {
 	p.drawRoundedRect(rect, kRadius, kRadius);
 
 	const auto arrowTop = _skip + _outer.height();
-	const auto arrowLeft = (width() - kArrow) / 2;
+	const auto arrowLeft = _arrowCenterX - (kArrow / 2);
 	QPainterPath arrowPath;
 	arrowPath.moveTo(arrowLeft, arrowTop);
 	arrowPath.lineTo(arrowLeft + kArrow, arrowTop);
