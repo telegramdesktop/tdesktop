@@ -30,6 +30,11 @@ namespace {
 		|| (content.badge == BadgeType::Verified && content.emojiStatusId);
 }
 
+// AhiGram added callback for click on Developer Verified badge
+[[nodiscard]] bool HasDeveloperAhiGramClick(const Badge::Content &content) {
+	return content.badge == BadgeType::DeveloperAhiGramVerified;
+}
+
 } // namespace
 
 Badge::Badge(
@@ -85,7 +90,9 @@ void Badge::setContent(Content content) {
 	switch (_content.badge) {
 	case BadgeType::Verified:
 	case BadgeType::BotVerified:
-	case BadgeType::Premium: {
+	case BadgeType::Premium:
+	// AhiGram added: Developer Verified Badge rendering
+	case BadgeType::DeveloperAhiGramVerified: {
 		const auto id = _content.emojiStatusId;
 		const auto emoji = id
 			? (Data::FrameSizeFromTag(sizeTag())
@@ -94,6 +101,8 @@ void Badge::setContent(Content content) {
 		const auto &style = st();
 		const auto icon = (_content.badge == BadgeType::Verified)
 			? &style.verified
+			: (_content.badge == BadgeType::DeveloperAhiGramVerified) // AhiGram added
+			? &style.developerAhigramVerified
 			: id
 			? nullptr
 			: &style.premium;
@@ -187,24 +196,23 @@ void Badge::setContent(Content content) {
 	} break;
 	}
 
-	if (!HasPremiumClick(_content) || !_premiumClickCallback) {
-		_view->setAttribute(Qt::WA_TransparentForMouseEvents);
-	} else {
-		_view->setClickedCallback(_premiumClickCallback);
-	}
+	updateClickability();
 
 	_updated.fire({});
 }
 
 void Badge::setPremiumClickCallback(Fn<void()> callback) {
 	_premiumClickCallback = std::move(callback);
-	if (_view && HasPremiumClick(_content)) {
-		if (!_premiumClickCallback) {
-			_view->setAttribute(Qt::WA_TransparentForMouseEvents);
-		} else {
-			_view->setAttribute(Qt::WA_TransparentForMouseEvents, false);
-			_view->setClickedCallback(_premiumClickCallback);
-		}
+	if (_view) {
+		updateClickability();
+	}
+}
+
+// AhiGram added callback for click on Developer Verified badge
+void Badge::setDeveloperAhiGramBadgeClickCallback(Fn<void()> callback) {
+	_developerAhiGramBadgeClickCallback = std::move(callback);
+	if (_view) {
+		updateClickability();
 	}
 }
 
@@ -226,7 +234,8 @@ void Badge::move(int left, int top, int bottom) {
 	const auto &style = st();
 	const auto star = !_emojiStatus
 		&& (_content.badge == BadgeType::Premium
-			|| _content.badge == BadgeType::Verified);
+			|| _content.badge == BadgeType::Verified
+			|| _content.badge == BadgeType::DeveloperAhiGramVerified); // AhiGram added
 	const auto fake = !_emojiStatus && !star;
 	const auto skip = fake ? 0 : style.position.x();
 	const auto badgeLeft = left + skip;
@@ -235,6 +244,29 @@ void Badge::move(int left, int top, int bottom) {
 			? style.position.y()
 			: (bottom - top - _view->height()) / 2);
 	_view->moveToLeft(badgeLeft, badgeTop);
+}
+
+void Badge::updateClickability() {
+	if (!_view) {
+		return;
+	}
+	
+	const auto hasPremiumClick = HasPremiumClick(_content) && _premiumClickCallback;
+	const auto hasDeveloperAhiGramClick = HasDeveloperAhiGramClick(_content) && _developerAhiGramBadgeClickCallback;
+	
+	if (!hasPremiumClick && !hasDeveloperAhiGramClick) {
+		_view->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_view->setClickedCallback(nullptr);
+		_view->setCursor(style::cur_default);
+	} else if (hasPremiumClick) {
+		_view->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+		_view->setClickedCallback(_premiumClickCallback);
+		_view->setCursor(style::cur_pointer);
+	} else if (hasDeveloperAhiGramClick) {
+		_view->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+		_view->setClickedCallback(_developerAhiGramBadgeClickCallback);
+		_view->setCursor(style::cur_pointer);
+	}
 }
 
 const style::InfoPeerBadge &Badge::st() const {
@@ -257,7 +289,8 @@ rpl::producer<Badge::Content> BadgeContentForPeer(not_null<PeerData*> peer) {
 		BadgeValue(peer),
 		EmojiStatusIdValue(peer)
 	) | rpl::map([=](BadgeType badge, EmojiStatusId emojiStatusId) {
-		if (badge == BadgeType::Verified) {
+		// AhiGram added: Hide Verified and DeveloperAhiGramVerified badges (they are shown in _verified)
+		if (badge == BadgeType::Verified || badge == BadgeType::DeveloperAhiGramVerified) {
 			badge = BadgeType::None;
 		}
 		if (statusOnlyForPremium && badge != BadgeType::Premium) {
@@ -272,7 +305,8 @@ rpl::producer<Badge::Content> BadgeContentForPeer(not_null<PeerData*> peer) {
 rpl::producer<Badge::Content> VerifiedContentForPeer(
 		not_null<PeerData*> peer) {
 	return BadgeValue(peer) | rpl::map([=](BadgeType badge) {
-		if (badge != BadgeType::Verified) {
+		// AhiGram added: Also return DeveloperAhiGramVerified badge
+		if (badge != BadgeType::Verified && badge != BadgeType::DeveloperAhiGramVerified) {
 			badge = BadgeType::None;
 		}
 		return Badge::Content{ badge };

@@ -28,6 +28,8 @@ InfoPeerBadge {
 	premiumFg: color;
 	position: point;
 	sizeTag: int;
+	// AhiGram added: Developer Verified Badge field
+	developerAhigramVerified: icon;
 }
 
 InfoTopBar {
@@ -595,9 +597,18 @@ infoVerifiedCheckPosition: point(4px, 2px);
 infoVerifiedStar: icon {{ "profile_verified_star", profileVerifiedCheckBg }};
 infoPremiumStar: icon {{ "profile_premium", profileVerifiedCheckBg }};
 
+// AhiGram added: Developer Verified Badge icon (uses profileVerifiedCheckBg like other badges)
+infoDeveloperAhiGramVerifiedStar: icon {{ 
+	"dialogs/dialogs_developer_ahigram_official", profileVerifiedCheckBg 
+}};
+
 infoPeerBadge: InfoPeerBadge {
 	verified: infoVerifiedStar;
 	verifiedCheck: icon {{ "profile_verified_check", profileVerifiedCheckFg }};
+
+	// AhiGram added: Developer Verified Badge icon
+	developerAhigramVerified: infoDeveloperAhiGramVerifiedStar;
+
 	premium: infoPremiumStar;
 	premiumFg: profileVerifiedCheckBg;
 	position: infoVerifiedCheckPosition;
@@ -609,6 +620,10 @@ infoBotVerifyBadge: InfoPeerBadge(infoPeerBadge) {
 infoColoredPeerBadge: InfoPeerBadge(infoPeerBadge) {
 	verified: icon {{ "profile_verified_star", groupCallMembersFg }}; // Will be colorized.
 	verifiedCheck: icon {{ "profile_verified_check", groupCallMembersFg }};
+
+	// AhiGram added: Developer Verified Badge icon for colored profiles
+	developerAhigramVerified: icon {{ "dialogs/dialogs_developer_ahigram_official", groupCallMembersFg }};
+
 	premium: icon {{ "profile_premium", groupCallMembersFg }};
 	premiumFg: groupCallVideoSubTextFg;
 }
@@ -1343,6 +1358,14 @@ infoGiftTooltip: ImportantTooltip(defaultImportantTooltip) {
 	padding: margins(8px, 2px, 8px, 3px);
 }
 infoGiftTooltipFont: font(11px semibold);
+
+// AhiGram added: Custom badge tooltip style with windowBg background and shadow effect
+infoDeveloperBadgeTooltip: ImportantTooltip(defaultImportantTooltip) {
+	bg: windowBg;
+	margin: margins(4px, 4px, 4px, 4px);
+	padding: margins(10px, 12px, 10px, 12px);
+	radius: 8px;
+}
 
 topicsLayoutButtonLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;

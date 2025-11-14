@@ -1757,6 +1757,24 @@ PRIVATE
     tray.h
 )
 
+# ============================================
+# AhiGram Custom Source Files
+# ============================================
+get_filename_component(ahigram_src_loc AhiGramSource REALPATH)
+
+nice_target_sources(Telegram ${ahigram_src_loc}
+PRIVATE
+    main_ahigram.cpp
+    main_ahigram.h
+    profile/badge_info.h
+    profile/developer_badges.cpp
+    profile/developer_badges.h
+    profile/verified.cpp
+    profile/verified.h
+    ui/custom_badge_tooltip.cpp
+    ui/custom_badge_tooltip.h
+)
+
 if (NOT build_winstore)
     remove_target_sources(Telegram ${src_loc}
         platform/win/windows_start_task.cpp
@@ -1967,6 +1985,11 @@ target_sources(Telegram PRIVATE ${entitlement_sources})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/Telegram PREFIX Resources FILES ${entitlement_sources})
 
 target_include_directories(Telegram PRIVATE ${src_loc})
+
+# ============================================
+# AhiGram Custom Include Directories
+# ============================================
+target_include_directories(Telegram PRIVATE ${ahigram_src_loc})
 
 target_compile_definitions(Telegram
 PRIVATE

@@ -610,8 +610,11 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			.scam = &st::attentionButtonFg,
 			.direct = &st::windowSubTextFg,
 			.premiumFg = &st::dialogsVerifiedIconBg,
+			// AhiGram added: Developer Verified Badge icon
+			.developerAhigramVerified = &st::dialogsDeveloperAhiGramVerifiedIcon,
 			.customEmojiRepaint = [=] { update(); },
 			.now = now,
+			.prioritizeVerification = true, // AhiGram added: Prioritize Developer Verified Badge
 			.bothVerifyAndStatus = true,
 			.paused = _controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::Any),

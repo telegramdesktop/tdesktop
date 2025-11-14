@@ -57,6 +57,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_menu_icons.h"
 
+// AhiGram added: Developer Verified Badge tooltip
+#include "ui/custom_badge_tooltip.h"
+#include "profile/verified.h"
+
 namespace Info::Profile {
 namespace {
 
@@ -351,6 +355,7 @@ Cover::Cover(
 				Window::GifPauseReason::Layer);
 		}))
 , _parentForTooltip(std::move(parentForTooltip))
+, _developerAhiGramBadgeTooltipHide([=] { hideDeveloperAhiGramBadgeTooltip(); }) // AhiGram added
 , _badgeTooltipHide([=] { hideBadgeTooltip(); })
 , _userpic(topic
 	? nullptr
@@ -415,6 +420,12 @@ Cover::Cover(
 			} else {
 				::Settings::ShowEmojiStatusPremium(_controller, _peer);
 			}
+		});
+	}
+	// AhiGram added: Настройка клика по Developer Verified бейджу
+	if (_verified) {
+		_verified->setDeveloperAhiGramBadgeClickCallback([=] {
+			showDeveloperAhiGramBadgeTooltip();
 		});
 	}
 	auto badgeUpdates = rpl::producer<rpl::empty_value>();
@@ -845,6 +856,42 @@ void Cover::setupUniqueBadgeTooltip() {
 
 	if (const auto raw = _badgeTooltip.get()) {
 		raw->finishAnimating();
+	}
+}
+
+// AhiGram added: Developer Verified Badge tooltip
+void Cover::showDeveloperAhiGramBadgeTooltip() {
+	hideDeveloperAhiGramBadgeTooltip();
+	
+	const auto widget = _verified ? _verified->widget() : nullptr;
+	if (!widget) {
+		return;
+	}
+	
+	const auto badgeInfo = AhiGram::Profile::Badge::getBadgeInfo(_peer);
+	if (!badgeInfo.has_value()) {
+		return;
+	}
+	
+	const auto parent = _parentForTooltip
+		? _parentForTooltip()
+		: _controller->window().widget()->bodyWidget();
+	
+	_developerAhiGramBadgeTooltip = AhiGram::UI::CreateImportantTooltip(
+		parent,
+		badgeInfo->title,
+		badgeInfo->description,
+		badgeInfo->icon,
+		widget,
+		2500);
+}
+
+void Cover::hideDeveloperAhiGramBadgeTooltip() {
+	_developerAhiGramBadgeTooltipHide.cancel();
+	
+	if (_developerAhiGramBadgeTooltip) {
+		_developerAhiGramBadgeTooltip->fade(false);
+		_developerAhiGramBadgeTooltip = nullptr;
 	}
 }
 

@@ -55,6 +55,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "styles/style_layers.h"
 
+#include "main_ahigram.h"
+
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "chat_helpers/spellchecker_common.h"
 #endif // TDESKTOP_DISABLE_SPELLCHECK
@@ -125,6 +127,8 @@ Session::Session(
 , _supportHelper(Support::Helper::Create(this))
 , _fastButtonsBots(std::make_unique<Support::FastButtonsBots>(this))
 , _saveSettingsTimer([=] { saveSettings(); }) {
+	// AhiGram added
+	AhiGram::Initialize(this);
 	Expects(_settings != nullptr);
 
 	_api->requestTermsUpdate();

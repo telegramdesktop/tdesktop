@@ -752,6 +752,12 @@ void PaintRow(
 				: context.selected
 				? &st::dialogsVerifiedIconBgOver
 				: &st::dialogsVerifiedIconBg),
+			// AhiGram added: Developer Verified Badge icon
+			.developerAhigramVerified = (context.active
+				? &st::dialogsDeveloperAhiGramVerifiedIconActive
+				: context.selected
+				? &st::dialogsDeveloperAhiGramVerifiedIconOver
+				: &st::dialogsDeveloperAhiGramVerifiedIcon),
 			.customEmojiRepaint = customEmojiRepaint,
 			.now = context.now,
 			.paused = context.paused,

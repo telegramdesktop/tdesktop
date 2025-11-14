@@ -26,6 +26,12 @@ class BadgeTooltip;
 class TopicIconView;
 } // namespace Info::Profile
 
+namespace AhiGram {
+namespace UI {
+class CustomBadgeTooltip;
+} // namespace UI
+} // namespace AhiGram
+
 namespace Lottie {
 class Animation;
 class MultiPlayer;
@@ -62,6 +68,7 @@ class StarsRating;
 template <typename Widget>
 class FadeWrap;
 class HorizontalFitContainer;
+class ImportantTooltip;
 namespace Animations {
 class Simple;
 } // namespace Animations
@@ -163,6 +170,9 @@ private:
 	void setupShowLastSeen(not_null<Window::SessionController*> controller);
 	void setupUniqueBadgeTooltip();
 	void hideBadgeTooltip();
+	// AhiGram added: Developer Verified Badge tooltip
+	void showDeveloperAhiGramBadgeTooltip();
+	void hideDeveloperAhiGramBadgeTooltip();
 	void setupAnimatedPattern(const QRect &userpicGeometry = QRect());
 	void paintAnimatedPattern(
 		QPainter &p,
@@ -208,6 +218,8 @@ private:
 	const Source _source;
 
 	std::unique_ptr<base::Timer> _badgeTooltipHide;
+	// AhiGram added: Developer Verified Badge tooltip
+	std::unique_ptr<base::Timer> _developerAhiGramBadgeTooltipHide;
 	const std::unique_ptr<Badge> _botVerify;
 	rpl::variable<Badge::Content> _badgeContent;
 	const Fn<bool()> _gifPausedChecker;
@@ -220,6 +232,8 @@ private:
 	std::unique_ptr<BadgeTooltip> _badgeTooltip;
 	std::vector<std::unique_ptr<BadgeTooltip>> _badgeOldTooltips;
 	uint64 _badgeCollectibleId = 0;
+	// AhiGram added: Developer Verified Badge tooltip
+	AhiGram::UI::CustomBadgeTooltip *_developerAhiGramBadgeTooltip = nullptr;
 
 	object_ptr<Ui::FlatLabel> _title;
 	std::unique_ptr<Ui::StarsRating> _starsRating;

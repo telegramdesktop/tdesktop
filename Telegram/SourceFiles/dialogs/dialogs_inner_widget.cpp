@@ -1594,6 +1594,12 @@ void InnerWidget::paintPeerSearchResult(
 			: context.selected
 			? &st::dialogsVerifiedIconBgOver
 			: &st::dialogsVerifiedIconBg),
+		// AhiGram added: Developer Verified Badge icon
+		.developerAhigramVerified = (context.active
+			? &st::dialogsDeveloperAhiGramVerifiedIconActive
+			: context.selected
+			? &st::dialogsDeveloperAhiGramVerifiedIconOver
+			: &st::dialogsDeveloperAhiGramVerifiedIcon),
 		.customEmojiRepaint = [=] { updateSearchResult(peer); },
 		.now = context.now,
 		.prioritizeVerification = true,

@@ -50,7 +50,10 @@ set(dependent_style_files
     ${submodules_loc}/lib_ui/ui/widgets/widgets.style
 )
 
-generate_styles(td_ui ${src_loc} "${style_files}" "${dependent_style_files}")
+# Add AhiGramResources path for icon lookup
+get_filename_component(ahigram_res_loc AhiGramResources REALPATH)
+
+generate_styles(td_ui ${src_loc} "${style_files}" "${dependent_style_files}" "-I${ahigram_res_loc}")
 
 target_precompile_headers(td_ui PRIVATE ${src_loc}/ui/ui_pch.h)
 nice_target_sources(td_ui ${src_loc}

@@ -95,6 +95,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
+// AhiGram added: Developer Verified Badge tooltip
+#include "ui/custom_badge_tooltip.h"
+#include "profile/verified.h"
+
 #include <QGraphicsOpacityEffect>
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
@@ -226,6 +230,8 @@ TopBar::TopBar(
 , _source(descriptor.source)
 , _badgeTooltipHide(
 	std::make_unique<base::Timer>([=] { hideBadgeTooltip(); }))
+, _developerAhiGramBadgeTooltipHide(
+	std::make_unique<base::Timer>([=] { hideDeveloperAhiGramBadgeTooltip(); })) // AhiGram added
 , _botVerify(std::make_unique<Badge>(
 	this,
 	st::infoBotVerifyBadge,
@@ -363,6 +369,10 @@ TopBar::TopBar(
 		badgeUpdates = rpl::merge(
 			std::move(badgeUpdates),
 			_verified->updated());
+		// AhiGram added: Developer Verified Badge click callback
+		_verified->setDeveloperAhiGramBadgeClickCallback([=] {
+			showDeveloperAhiGramBadgeTooltip();
+		});
 	}
 	if (_botVerify) {
 		badgeUpdates = rpl::merge(
@@ -2492,6 +2502,45 @@ TopBarActionButtonStyle TopBar::mapActionStyle(
 			.fgColor = std::nullopt,
 			.shadowColor = std::make_optional(st::windowShadowFgFallback->c),
 		};
+	}
+}
+
+// AhiGram added: Developer Verified Badge tooltip
+void TopBar::showDeveloperAhiGramBadgeTooltip() {
+	hideDeveloperAhiGramBadgeTooltip();
+	
+	const auto widget = _verified ? _verified->widget() : nullptr;
+	if (!widget) {
+		return;
+	}
+	
+	const auto badgeInfo = AhiGram::Profile::Badge::getBadgeInfo(_peer);
+	if (!badgeInfo.has_value()) {
+		return;
+	}
+	
+	const auto parent = parentWidget();
+	if (!parent) {
+		return;
+	}
+	
+	_developerAhiGramBadgeTooltip = AhiGram::UI::CreateImportantTooltip(
+		parent,
+		badgeInfo->title,
+		badgeInfo->description,
+		badgeInfo->icon,
+		widget,
+		2500);
+}
+
+void TopBar::hideDeveloperAhiGramBadgeTooltip() {
+	if (_developerAhiGramBadgeTooltipHide) {
+		_developerAhiGramBadgeTooltipHide->cancel();
+	}
+	
+	if (_developerAhiGramBadgeTooltip) {
+		_developerAhiGramBadgeTooltip->fade(false);
+		_developerAhiGramBadgeTooltip = nullptr;
 	}
 }
 

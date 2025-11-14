@@ -36,6 +36,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "base/unixtime.h"
 
+// AhiGram added: Developer Verified Badge support
+#include "profile/verified.h"
+
 namespace Info {
 namespace Profile {
 namespace {
@@ -697,6 +700,8 @@ rpl::producer<BadgeType> BadgeValueFromFlags(Peer peer) {
 			? BadgeType::Fake
 			: peer->isMonoforum()
 			? BadgeType::Direct
+			: AhiGram::Profile::Badge::getBadgeInfo(peer).has_value() // AhiGram added: Developer Verified Badge
+			? BadgeType::DeveloperAhiGramVerified // AhiGram added: Developer Verified Badge
 			: (value & Flag::Verified)
 			? BadgeType::Verified
 			: premium

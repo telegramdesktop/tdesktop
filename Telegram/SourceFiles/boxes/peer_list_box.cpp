@@ -816,6 +816,10 @@ int PeerListRow::paintNameIconGetWidth(
 		.premiumFg = &(selected
 			? st::dialogsVerifiedIconBgOver
 			: st::dialogsVerifiedIconBg),
+		// AhiGram added: Developer Verified Badge icon
+		.developerAhigramVerified = (selected
+			? &st::dialogsDeveloperAhiGramVerifiedIconOver
+			: &st::dialogsDeveloperAhiGramVerifiedIcon),
 		.customEmojiRepaint = repaint,
 		.now = now,
 		.paused = false,

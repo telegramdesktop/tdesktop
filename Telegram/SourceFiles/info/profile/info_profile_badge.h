@@ -43,6 +43,7 @@ enum class BadgeType : uchar {
 	Scam = 0x08,
 	Fake = 0x10,
 	Direct = 0x20,
+	DeveloperAhiGramVerified = 0x40, // AhiGram added: Developer Verified Badge
 };
 inline constexpr bool is_flag_type(BadgeType) { return true; }
 
@@ -70,6 +71,8 @@ public:
 	[[nodiscard]] Ui::RpWidget *widget() const;
 
 	void setPremiumClickCallback(Fn<void()> callback);
+	// AhiGram added callback for click on Developer Verified badge
+	void setDeveloperAhiGramBadgeClickCallback(Fn<void()> callback);
 	void setOverrideStyle(const style::InfoPeerBadge *st);
 	[[nodiscard]] rpl::producer<> updated() const;
 	void move(int left, int top, int bottom);
@@ -78,6 +81,7 @@ public:
 
 private:
 	void setContent(Content content);
+	void updateClickability();
 	[[nodiscard]] const style::InfoPeerBadge &st() const;
 
 	const not_null<QWidget*> _parent;
@@ -90,6 +94,7 @@ private:
 	base::flags<BadgeType> _allowed;
 	Content _content;
 	Fn<void()> _premiumClickCallback;
+	Fn<void()> _developerAhiGramBadgeClickCallback; // AhiGram added callback for click on Developer Verified badge
 	Fn<bool()> _animationPaused;
 	object_ptr<Ui::AbstractButton> _view = { nullptr };
 	rpl::event_stream<> _updated;

@@ -20,6 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge_paint.h"
 #include "styles/style_dialogs.h"
 
+// AhiGram added: Developer Verified Badge support
+#include "profile/verified.h"
+
 namespace Ui {
 namespace {
 
@@ -154,7 +157,13 @@ int PeerBadge::drawGetWidth(Painter &p, Descriptor &&descriptor) {
 		|| (descriptor.direct && peer->isMonoforum())) {
 		return drawTextBadge(p, descriptor);
 	}
-	const auto verifyCheck = descriptor.verified && peer->isVerified();
+	
+	// AhiGram added: Developer Verified Badge check (prioritized over regular verified)
+	const auto developerAhiGramVerified = descriptor.developerAhigramVerified
+		&& AhiGram::Profile::Badge::getBadgeInfo(peer).has_value();
+	const auto verifyCheck = !developerAhiGramVerified
+		&& descriptor.verified
+		&& peer->isVerified();
 	const auto premiumMark = descriptor.premium
 		&& peer->session().premiumBadgesShown();
 	const auto emojiStatus = premiumMark
@@ -164,29 +173,42 @@ int PeerBadge::drawGetWidth(Painter &p, Descriptor &&descriptor) {
 		&& !emojiStatus
 		&& peer->isPremium();
 
+	const auto paintDeveloperVerified = developerAhiGramVerified
+		&& (descriptor.prioritizeVerification
+			|| descriptor.bothVerifyAndStatus
+			|| !emojiStatus);
 	const auto paintVerify = verifyCheck
+		&& !paintDeveloperVerified
 		&& (descriptor.prioritizeVerification
 			|| descriptor.bothVerifyAndStatus
 			|| !emojiStatus);
 	const auto paintEmoji = emojiStatus
-		&& (!paintVerify || descriptor.bothVerifyAndStatus);
-	const auto paintStar = premiumStar && !paintVerify;
+		&& ((!paintDeveloperVerified && !paintVerify) || descriptor.bothVerifyAndStatus);
+	const auto paintStar = premiumStar && !paintDeveloperVerified && !paintVerify;
 
 	auto result = 0;
 	if (paintEmoji) {
 		auto &rectForName = descriptor.rectForName;
-		const auto verifyWidth = descriptor.verified->width();
-		if (paintVerify) {
+		const auto verifyWidth = (paintDeveloperVerified && descriptor.developerAhigramVerified)
+			? descriptor.developerAhigramVerified->width()
+			: (paintVerify && descriptor.verified)
+			? descriptor.verified->width()
+			: 0;
+		if (paintDeveloperVerified || paintVerify) {
 			rectForName.setWidth(rectForName.width() - verifyWidth);
 		}
 		result += drawPremiumEmojiStatus(p, descriptor);
-		if (!paintVerify) {
+		if (!paintDeveloperVerified && !paintVerify) {
 			return result;
 		}
 		rectForName.setWidth(rectForName.width() + verifyWidth);
 		descriptor.nameWidth += result;
 	}
-	if (paintVerify) {
+	// AhiGram added: Draw Developer Verified Badge first (highest priority)
+	if (paintDeveloperVerified) {
+		result += drawDeveloperAhiGramVerified(p, descriptor);
+		return result;
+	} else if (paintVerify) {
 		result += drawVerifyCheck(p, descriptor);
 		return result;
 	} else if (paintStar) {
@@ -238,6 +260,22 @@ int PeerBadge::drawVerifyCheck(Painter &p, const Descriptor &descriptor) {
 	const auto rectForName = descriptor.rectForName;
 	const auto nameWidth = descriptor.nameWidth;
 	descriptor.verified->paint(
+		p,
+		rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
+		rectForName.y(),
+		descriptor.outerWidth);
+	return iconw;
+}
+
+// AhiGram added: Developer Verified Badge drawing
+int PeerBadge::drawDeveloperAhiGramVerified(Painter &p, const Descriptor &descriptor) {
+	if (!descriptor.developerAhigramVerified) {
+		return 0;
+	}
+	const auto iconw = descriptor.developerAhigramVerified->width();
+	const auto rectForName = descriptor.rectForName;
+	const auto nameWidth = descriptor.nameWidth;
+	descriptor.developerAhigramVerified->paint(
 		p,
 		rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
 		rectForName.y(),

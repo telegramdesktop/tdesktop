@@ -10,6 +10,11 @@ using "ui/basic.style";
 using "ui/layers/layers.style"; // boxRoundShadow
 using "ui/widgets/widgets.style";
 
+// AhiGram added: Developer Verified Badge icons for dialogs
+dialogsDeveloperAhiGramVerifiedIcon: icon {{ "dialogs/dialogs_developer_ahigram_official", dialogsVerifiedIconBg }};
+dialogsDeveloperAhiGramVerifiedIconOver: icon {{ "dialogs/dialogs_developer_ahigram_official", dialogsVerifiedIconBgOver }};
+dialogsDeveloperAhiGramVerifiedIconActive: icon {{ "dialogs/dialogs_developer_ahigram_official", dialogsVerifiedIconBgActive }};
+
 DialogRow {
 	height: pixels;
 	padding: margins;

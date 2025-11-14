@@ -23,6 +23,7 @@ template <typename Widget>
 class SlideWrap;
 class RoundButton;
 class StarsRating;
+class ImportantTooltip;
 } // namespace Ui
 
 namespace HistoryView {
@@ -48,6 +49,16 @@ class BadgeTooltip;
 class EmojiStatusPanel;
 class Badge;
 class StatusLabel;
+
+} // namespace Info::Profile
+
+namespace AhiGram {
+namespace UI {
+class CustomBadgeTooltip;
+} // namespace UI
+} // namespace AhiGram
+
+namespace Info::Profile {
 
 [[nodiscard]] QMargins LargeCustomEmojiMargins();
 
@@ -141,6 +152,10 @@ private:
 		rpl::producer<QString> title,
 		Fn<not_null<QWidget*>()> parentForTooltip);
 
+	// AhiGram added tooltip for Developer Verified badge
+	void showDeveloperAhiGramBadgeTooltip();
+	void hideDeveloperAhiGramBadgeTooltip();
+
 	void setupShowLastSeen();
 	void setupChildGeometry();
 	void initViewers(rpl::producer<QString> title);
@@ -150,6 +165,10 @@ private:
 	void setupUniqueBadgeTooltip();
 	void setupChangePersonal();
 	void hideBadgeTooltip();
+
+	// AhiGram added tooltip for Developer Verified badge
+	AhiGram::UI::CustomBadgeTooltip *_developerAhiGramBadgeTooltip = nullptr;
+	base::Timer _developerAhiGramBadgeTooltipHide;
 
 	const style::InfoProfileCover &_st;
 

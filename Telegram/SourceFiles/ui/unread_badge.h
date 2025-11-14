@@ -60,6 +60,8 @@ public:
 		const style::color *scam = nullptr;
 		const style::color *direct = nullptr;
 		const style::color *premiumFg = nullptr;
+		// AhiGram added: Developer Verified Badge icon
+		const style::icon *developerAhigramVerified = nullptr;
 		Fn<void()> customEmojiRepaint;
 		crl::time now = 0;
 		bool prioritizeVerification = false;
@@ -87,6 +89,8 @@ private:
 
 	int drawTextBadge(Painter &p, const Descriptor &descriptor);
 	int drawVerifyCheck(Painter &p, const Descriptor &descriptor);
+	// AhiGram added: Developer Verified Badge drawing
+	int drawDeveloperAhiGramVerified(Painter &p, const Descriptor &descriptor);
 	int drawPremiumEmojiStatus(Painter &p, const Descriptor &descriptor);
 	int drawPremiumStar(Painter &p, const Descriptor &descriptor);
 
