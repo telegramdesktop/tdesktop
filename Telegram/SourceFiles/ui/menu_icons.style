@@ -77,6 +77,7 @@ menuIconImportTheme: icon {{ "menu/import_theme", menuIconColor }};
 menuIconExportTheme: icon {{ "menu/export_theme", menuIconColor }};
 menuIconRestore: icon {{ "menu/restore", menuIconColor }};
 menuIconSettings: icon {{ "menu/settings", menuIconColor }};
+menuIconAhiGramSettings: icon {{ "menu/menu_settings", menuIconColor }};
 menuIconCopyright: icon {{ "menu/copyright", menuIconColor }};
 menuIconDrugs: icon {{ "menu/drugs", menuIconColor }};
 menuIconFake: icon {{ "menu/fake", menuIconColor }};
@@ -191,6 +192,8 @@ menuIconRatingUsers: icon {{ "menu/users_stars-24x24", menuIconColor }};
 menuIconRatingRefund: icon {{ "menu/rating_refund-24x24", menuIconColor }};
 menuIconTon: icon{{ "payments/ton_emoji-18x18", menuIconColor, point(3px, 2px) }};
 menuIconReorder: icon{{ "menu/reorder-24x24", menuIconColor }};
+// AhiGram
+menuIconAhiGramHome: icon {{ "menu/ahigram_home_settings", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

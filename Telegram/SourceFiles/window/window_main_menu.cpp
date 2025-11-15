@@ -73,6 +73,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_window.h"
 
+// AhiGram added
+#include "settings/ahigram_settings.h"
+#include "ahigram_lang.h"
+
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
 
@@ -735,6 +739,15 @@ void MainMenu::setupMenu() {
 		controller->showSettings();
 	});
 
+	// AhiGram added button "AhiGram Settings"
+	addAction(
+		AhiGram::trReactive(u"ahigram_settings_title"_q),
+		{ &st::menuIconAhiGramSettings }
+	)->setClickedCallback([=] {
+		controller->showSettings(AhiGram::Settings::AhiGramSettingsId());
+	});
+
+	
 	_nightThemeToggle = addAction(
 		tr::lng_menu_night_mode(),
 		{ &st::menuIconNightMode }

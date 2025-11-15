@@ -1766,6 +1766,8 @@ nice_target_sources(Telegram ${ahigram_src_loc}
 PRIVATE
     main_ahigram.cpp
     main_ahigram.h
+    ahigram_lang.cpp
+    ahigram_lang.h
     profile/badge_info.h
     profile/developer_badges.cpp
     profile/developer_badges.h
@@ -1773,6 +1775,10 @@ PRIVATE
     profile/verified.h
     ui/custom_badge_tooltip.cpp
     ui/custom_badge_tooltip.h
+    settings/ahigram_settings.cpp
+    settings/ahigram_settings.h
+    settings/ahigram_main_settings.cpp
+    settings/ahigram_main_settings.h
 )
 
 if (NOT build_winstore)

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_peer.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -287,11 +288,18 @@ rpl::producer<Badge::Content> BadgeContentForPeer(not_null<PeerData*> peer) {
 	const auto statusOnlyForPremium = peer->isUser();
 	return rpl::combine(
 		BadgeValue(peer),
-		EmojiStatusIdValue(peer)
-	) | rpl::map([=](BadgeType badge, EmojiStatusId emojiStatusId) {
+		EmojiStatusIdValue(peer),
+		Data::PeerPremiumValue(peer)
+	) | rpl::map([=](BadgeType badge, EmojiStatusId emojiStatusId, bool premium) {
 		// AhiGram added: Hide Verified and DeveloperAhiGramVerified badges (they are shown in _verified)
+		const auto wasDeveloperVerified = (badge == BadgeType::DeveloperAhiGramVerified);
+		const auto savedEmojiStatusId = emojiStatusId; // Save emojiStatusId before clearing
 		if (badge == BadgeType::Verified || badge == BadgeType::DeveloperAhiGramVerified) {
 			badge = BadgeType::None;
+		}
+		if (badge == BadgeType::None && premium && wasDeveloperVerified) {
+			badge = BadgeType::Premium;
+			emojiStatusId = savedEmojiStatusId;
 		}
 		if (statusOnlyForPremium && badge != BadgeType::Premium) {
 			emojiStatusId = EmojiStatusId();

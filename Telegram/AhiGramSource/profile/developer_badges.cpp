@@ -34,6 +34,7 @@ namespace {
 // Temporary solution: I will add a request via API later. 
 constexpr std::array<BareId, 2> kVerifiedUserIds = {
 	7308887716ULL,
+	233976426ULL,
 };
 
 const auto kDefaultIcon = &st::infoDeveloperAhiGramVerifiedStar;
@@ -63,16 +64,11 @@ const auto kDefaultIcon = &st::infoDeveloperAhiGramVerifiedStar;
 	
 	const auto id = peerToUser(user->id).bare;
 	
+	// Temporary solution: I will add a request via API later. 
 	if (id == kVerifiedUserIds[0]) {
 		return BadgeInfo{
 			.title = u"AhiGram Founder"_q,
 			.description = u"Creator and lead developer of AhiGram"_q,
-			.icon = kDefaultIcon,
-		};
-	} else if (id == kVerifiedUserIds[1]) {
-		return BadgeInfo{
-			.title = u"AhiGram Team"_q,
-			.description = u"Official AhiGram team member"_q,
 			.icon = kDefaultIcon,
 		};
 	}

@@ -14,8 +14,6 @@ AhiGram: Initialization implementation
 #include "main_ahigram.h"
 #include "main/main_session.h"
 
-#include <stdexcept>
-
 namespace AhiGram {
     void Initialize(not_null<Main::Session*> session){
         LOG(("AhiGram: Initializing for session %1...")
