@@ -145,6 +145,7 @@ struct EntryMenuDescriptor {
 	QString removeAllText;
 	QString removeAllConfirm;
 	Fn<void()> removeAll;
+	Fn<void()> closeCallback;
 };
 
 [[nodiscard]] Fn<void()> RemoveAllConfirm(
@@ -170,6 +171,9 @@ void FillEntryMenu(
 	add(tr::lng_context_new_window(tr::now), [=] {
 		Ui::PreventDelayedActivation();
 		controller->showInNewWindow(peer);
+		if (descriptor.closeCallback) {
+			descriptor.closeCallback();
+		}
 	}, &st::menuIconNewWindow);
 	Window::AddSeparatorAndShiftUp(add);
 
@@ -438,6 +442,10 @@ public:
 		return _chosen.events();
 	}
 
+	void setCloseCallback(Fn<void()> callback) {
+		_closeCallback = std::move(callback);
+	}
+
 	Main::Session &session() const override {
 		return _window->session();
 	}
@@ -461,6 +469,8 @@ protected:
 	void setupPlainDivider(rpl::producer<QString> title);
 	void setupExpandDivider(rpl::producer<QString> title);
 
+	Fn<void()> _closeCallback;
+
 private:
 	const not_null<Window::SessionController*> _window;
 
@@ -480,7 +490,8 @@ public:
 	RecentsController(
 		not_null<Window::SessionController*> window,
 		RecentPeersList list,
-		RightActionCallback rightActionCallback);
+		RightActionCallback rightActionCallback,
+		Fn<void()> closeCallback);
 
 	void prepare() override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
@@ -704,6 +715,9 @@ void Suggestions::ObjectListController::rowClicked(
 void Suggestions::ObjectListController::rowMiddleClicked(
 		not_null<PeerListRow*> row) {
 	window()->showInNewWindow(row->peer());
+	if (_closeCallback) {
+		_closeCallback();
+	}
 }
 
 void Suggestions::ObjectListController::setupPlainDivider(
@@ -800,10 +814,12 @@ void Suggestions::ObjectListController::setupExpandDivider(
 RecentsController::RecentsController(
 	not_null<Window::SessionController*> window,
 	RecentPeersList list,
-	RightActionCallback rightActionCallback)
+	RightActionCallback rightActionCallback,
+	Fn<void()> closeCallback)
 : ObjectListController(window)
 , _recent(std::move(list))
 , _rightActionCallback(std::move(rightActionCallback)) {
+	_closeCallback = std::move(closeCallback);
 }
 
 void RecentsController::prepare() {
@@ -861,6 +877,11 @@ base::unique_qptr<Ui::PopupMenu> RecentsController::rowContextMenu(
 		.removeAllText = tr::lng_recent_clear_all(tr::now),
 		.removeAllConfirm = tr::lng_recent_clear_sure(tr::now),
 		.removeAll = removeAllCallback(),
+		.closeCallback = crl::guard(this, [=] {
+			if (_closeCallback) {
+				_closeCallback();
+			}
+		}),
 	});
 	return result;
 }
@@ -1210,6 +1231,11 @@ base::unique_qptr<Ui::PopupMenu> RecentAppsController::rowContextMenu(
 		.peer = peer,
 		.removeOneText = tr::lng_recent_remove(tr::now),
 		.removeOne = removeOne,
+		.closeCallback = crl::guard(this, [=] {
+			if (_closeCallback) {
+				_closeCallback();
+			}
+		}),
 	});
 	return result;
 }
@@ -1511,6 +1537,9 @@ void Suggestions::setupChats() {
 				Ui::Text::FixAmpersandInAction),
 			.removeAllConfirm = tr::lng_recent_hide_sure(tr::now),
 			.removeAll = removeAll,
+			.closeCallback = crl::guard(
+				this,
+				[=] { _closeRequests.fire({}); }),
 			});
 	}, _topPeers->lifetime());
 
@@ -1957,6 +1986,7 @@ void Suggestions::setupPostsResults() {
 		params.highlight = Window::SearchHighlightId(_searchQuery);
 		if (row.newWindow) {
 			_controller->showInNewWindow(history->peer, showAtMsgId);
+			_closeRequests.fire({});
 		} else {
 			_controller->showThread(history, showAtMsgId, params);
 		}
@@ -2365,7 +2395,8 @@ auto Suggestions::setupRecentPeers(RecentPeersList recentPeers)
 	const auto controller = lifetime().make_state<RecentsController>(
 		_controller,
 		std::move(recentPeers),
-		[=](not_null<PeerData*> p) { _openBotMainAppRequests.fire_copy(p); });
+		[=](not_null<PeerData*> p) { _openBotMainAppRequests.fire_copy(p); },
+		[=] { _closeRequests.fire({}); });
 
 	const auto addToScroll = [=] {
 		return _topPeersWrap->toggled() ? _topPeers->height() : 0;
@@ -2523,6 +2554,9 @@ auto Suggestions::setupRecommendations() -> std::unique_ptr<ObjectList> {
 auto Suggestions::setupRecentApps() -> std::unique_ptr<ObjectList> {
 	const auto controller = lifetime().make_state<RecentAppsController>(
 		_controller);
+	controller->setCloseCallback([=] {
+		_closeRequests.fire({});
+	});
 	_recentAppsShows = [=](not_null<PeerData*> peer) {
 		return controller->shown(peer);
 	};

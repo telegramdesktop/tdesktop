@@ -3975,6 +3975,7 @@ TextWithEntities HistoryItem::inReplyText() const {
 		return toPreview({
 			.hideSender = true,
 			.generateImages = false,
+			.ignoreGroup = true,
 			.translated = true,
 		}).text;
 	}

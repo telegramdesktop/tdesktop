@@ -322,6 +322,10 @@ TopBar::TopBar(
 	});
 	return owned;
 }()) {
+	_peer->updateFull();
+	if (const auto broadcast = _peer->monoforumBroadcast()) {
+		broadcast->updateFull();
+	}
 	const auto controller = descriptor.controller;
 
 	if (_peer->isMegagroup() || _peer->isChat()) {
@@ -379,16 +383,12 @@ TopBar::TopBar(
 			std::move(badgeUpdates),
 			_botVerify->updated());
 	}
+	_title->naturalWidthValue() | rpl::start_with_next([=](int w) {
+		_title->resizeToWidth(w);
+	}, _title->lifetime());
 	badgeUpdates = rpl::merge(
 		std::move(badgeUpdates),
-		nameValue() | rpl::map([=](const QString &name) {
-			const auto emojiCount = ranges::count(name, true, [](QChar ch) {
-				return ch.isHighSurrogate();
-			});
-			_title->resizeToWidth(_title->st().style.font->width(name)
-				+ emojiCount);
-			return rpl::empty_value();
-		}),
+		nameValue() | rpl::to_empty,
 		rpl::duplicate(descriptor.backToggles) | rpl::to_empty);
 	std::move(badgeUpdates) | rpl::start_with_next([=] {
 		updateLabelsPosition();
@@ -714,6 +714,18 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 		});
 		buttons.push_back(join);
 		_actions->add(join);
+	} else if (const auto channel = peer->monoforumBroadcast()) {
+		const auto message = Ui::CreateChild<TopBarActionButton>(
+			this,
+			tr::lng_profile_action_short_channel(tr::now),
+			st::infoProfileTopBarActionMessage);
+		message->setClickedCallback([=, window = controller] {
+			window->showPeerHistory(
+				channel,
+				Window::SectionShow::Way::Forward);
+		});
+		buttons.push_back(message);
+		_actions->add(message);
 	}
 	{
 		const auto notifications = Ui::CreateChild<TopBarActionButton>(
@@ -792,7 +804,7 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 		&& user
 		&& !user->sharedMediaInfo()
 		&& !user->isInaccessible()
-		&& user->hasCalls()) {
+		&& user->callsStatus() != UserData::CallsStatus::Disabled) {
 		const auto call = Ui::CreateChild<TopBarActionButton>(
 			this,
 			tr::lng_profile_action_short_call(tr::now),
@@ -806,7 +818,8 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 	if (chechMax()) {
 		return;
 	}
-	if (const auto chat = channel ? channel->discussionLink() : nullptr) {
+	if (const auto chat = channel ? channel->discussionLink() : nullptr;
+			chat && chat->isMegagroup()) {
 		const auto discuss = Ui::CreateChild<TopBarActionButton>(
 			this,
 			tr::lng_profile_action_short_discuss(tr::now),
@@ -905,18 +918,31 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 void TopBar::setupUserpicButton(
 		not_null<Window::SessionController*> controller) {
 	_userpicButton = base::make_unique_q<Ui::AbstractButton>(this);
+
+	const auto invalidate = [=] {
+		_userpicUniqueKey = InMemoryKey();
+		_userpicButton->setAttribute(
+			Qt::WA_TransparentForMouseEvents,
+			!_peer->userpicPhotoId() && !_hasStories);
+		updateVideoUserpic();
+	};
+
 	rpl::single(
 		rpl::empty_value()
 	) | rpl::then(
 		_peer->session().changes().peerFlagsValue(
 			_peer,
-			Data::PeerUpdate::Flag::Photo) | rpl::to_empty
-	) | rpl::start_with_next([=] {
-		_userpicButton->setAttribute(
-			Qt::WA_TransparentForMouseEvents,
-			!_peer->userpicPhotoId() && !_hasStories);
-		updateVideoUserpic();
-	}, lifetime());
+			Data::PeerUpdate::Flag::Photo
+				| Data::PeerUpdate::Flag::FullInfo) | rpl::to_empty
+	) | rpl::start_with_next(invalidate, lifetime());
+
+	if (const auto broadcast = _peer->monoforumBroadcast()) {
+		_peer->session().changes().peerFlagsValue(
+			broadcast,
+			Data::PeerUpdate::Flag::Photo
+				| Data::PeerUpdate::Flag::FullInfo
+		) | rpl::to_empty | rpl::start_with_next(invalidate, lifetime());
+	}
 
 	const auto openPhoto = [=, peer = _peer] {
 		if (const auto id = peer->userpicPhotoId()) {
@@ -1321,22 +1347,26 @@ void TopBar::updateLabelsPosition() {
 		titleMostLeft,
 		rect::m::sum::h(st::boxRowPadding),
 		progressCurrent);
-	auto titleWidth = width() - interpolatedPadding - reservedRight;
 	const auto verifiedWidget = _verified ? _verified->widget() : nullptr;
 	const auto badgeWidget = _badge ? _badge->widget() : nullptr;
 	const auto botVerifyWidget = _botVerify ? _botVerify->widget() : nullptr;
+	auto badgesWidth = 0;
 	if (verifiedWidget) {
-		titleWidth -= verifiedWidget->width();
+		badgesWidth += verifiedWidget->width();
 	}
 	if (badgeWidget) {
-		titleWidth -= badgeWidget->width();
+		badgesWidth += badgeWidget->width();
 	}
 	if (botVerifyWidget) {
-		titleWidth -= botVerifyWidget->width();
+		badgesWidth += botVerifyWidget->width();
 	}
 	if (verifiedWidget || badgeWidget) {
-		titleWidth -= st::infoVerifiedCheckPosition.x();
+		badgesWidth += st::infoVerifiedCheckPosition.x();
 	}
+	const auto titleWidth = width()
+		- interpolatedPadding
+		- reservedRight
+		- badgesWidth;
 
 	if (titleWidth > 0 && _title->textMaxWidth() > titleWidth) {
 		_title->resizeToWidth(titleWidth);

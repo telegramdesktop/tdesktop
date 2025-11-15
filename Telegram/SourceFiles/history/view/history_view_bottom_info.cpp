@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
+#include "base/unixtime.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "core/click_handler_types.h"
 #include "main/main_session.h"
@@ -415,9 +416,9 @@ void BottomInfo::layoutDateText() {
 		: QString();
 	const auto author = _data.author;
 	const auto prefix = !author.isEmpty() ? u", "_q : QString();
-	const auto date = edited + QLocale().toString(
-		_data.date.time(),
-		QLocale::ShortFormat);
+	const auto date = edited + ((_data.flags & Data::Flag::ForwardedDate)
+		? langDateTime(_data.date)
+		: QLocale().toString(_data.date.time(), QLocale::ShortFormat));
 	const auto afterAuthor = prefix + date;
 	const auto afterAuthorWidth = st::msgDateFont->width(afterAuthor);
 	const auto authorWidth = st::msgDateFont->width(author);
@@ -614,6 +615,13 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	}
 	if (item->awaitingVideoProcessing()) {
 		result.flags |= Flag::EstimateDate;
+	}
+	if (forwarded
+			&& forwarded->savedFromPeer
+			&& forwarded->savedFromMsgId
+			&& (!item->externalReply())) {
+		result.date = base::unixtime::parse(forwarded->originalDate);
+		result.flags |= Flag::ForwardedDate;
 	}
 	// We don't want to pass and update it in Data for now.
 	//if (item->unread()) {

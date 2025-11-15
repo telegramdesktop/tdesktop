@@ -292,10 +292,14 @@ infoLayerTopBarQr: IconButton(infoLayerTopBarClose) {
 	iconPosition: point(8px, -1px);
 }
 infoLayerTopBarEdit: IconButton(infoLayerTopBarClose) {
-	width: 40px;
+	width: 44px;
+	height: infoLayerTopBarHeight - 2px;
 	icon: icon {{ "menu/edit", boxTitleCloseFg }};
 	iconOver: icon {{ "menu/edit", boxTitleCloseFgOver }};
-	iconPosition: point(8px, -1px);
+	iconPosition: point(10px, -1px);
+
+	rippleAreaSize: 42px;
+	rippleAreaPosition: point(1px, 6px);
 }
 infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
 	width: 45px;
@@ -647,7 +651,7 @@ infoProfileLabeledButtonQr: IconButton(defaultIconButton) {
 	rippleAreaSize: 34px;
 	ripple: defaultRippleAnimation;
 }
-infoProfileLabeledButtonQrRightSkip: -4px;
+infoProfileLabeledButtonQrRightSkip: 0px;
 
 infoIconInformation: icon {{ "info/info_information", infoIconFg }};
 infoIconAddMember: icon {{ "info/info_add_member", infoIconFg }};

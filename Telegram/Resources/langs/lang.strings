@@ -1686,6 +1686,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_changed_photo_link" = "Settings";
 
 "lng_profile_action_short_message" = "Message";
+"lng_profile_action_short_channel" = "Channel";
 "lng_profile_action_short_mute" = "Mute";
 "lng_profile_action_short_unmute" = "Unmute";
 "lng_profile_action_short_call" = "Call";

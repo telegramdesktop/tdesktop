@@ -790,6 +790,9 @@ void MultiSelect::Inner::setActiveItemNext() {
 }
 
 int MultiSelect::Inner::resizeGetHeight(int newWidth) {
+	if (newWidth <= 0) {
+		return height();
+	}
 	computeItemsGeometry(newWidth);
 	updateFieldGeometry();
 

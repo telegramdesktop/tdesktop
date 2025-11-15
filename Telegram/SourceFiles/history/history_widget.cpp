@@ -2135,7 +2135,10 @@ void HistoryWidget::setupShortcuts() {
 					std::make_shared<Scheduled>(_history));
 				return true;
 			});
-		if (showRecordButton() && _canSendMessages) {
+		if (showRecordButton()
+			&& _canSendMessages
+			&& _joinChannel->isHidden()
+			&& !_composeSearch) {
 			const auto isVoice = request->check(Command::RecordVoice, 1);
 			const auto isRound = !isVoice
 				&& request->check(Command::RecordRound, 1);

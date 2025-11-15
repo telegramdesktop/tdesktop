@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
 #include "core/ui_integration.h"
+#include "data/components/recent_shared_media_gifts.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
 #include "data/data_credits.h"
@@ -285,6 +286,7 @@ private:
 	DragState _dragging;
 	base::flat_map<int, ShiftAnimation> _shiftAnimations;
 	int _selected = -1;
+	int _pressedIndex = -1;
 
 	Ui::Animations::Basic _scrollAnimation;
 	base::unique_qptr<Ui::PopupMenu> _menu;
@@ -519,8 +521,18 @@ void InnerWidget::markPinned(std::vector<Entry>::iterator i) {
 	}, [&](GiftTypeStars &data) {
 		data.pinned = true;
 	});
-	if (index) {
-		std::rotate(begin(*_list), i, i + 1);
+
+	auto lastPinnedIndex = 0;
+	for (auto j = begin(*_list); j != end(*_list); ++j) {
+		if (j->gift.pinned) {
+			lastPinnedIndex = int(j - begin(*_list));
+		} else {
+			break;
+		}
+	}
+
+	if (index != lastPinnedIndex) {
+		base::reorder(*_list, index, lastPinnedIndex);
 	}
 	auto unpin = end(*_list);
 	const auto session = &_window->session();
@@ -1145,7 +1157,8 @@ void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
 	auto entry = ::Settings::SavedStarGiftEntry(
 		_peer,
 		(*_list)[index].gift);
-	entry.pinnedSavedGifts = pinnedSavedGifts();
+	const auto collectionId = _descriptor.current().collectionId;
+	entry.pinnedSavedGifts = collectionId > 0 ? nullptr : pinnedSavedGifts();
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	if (_peer->canManageGifts() && !_collections.empty()) {
 		const auto &gift = (*_list)[index].gift;
@@ -1165,7 +1178,6 @@ void InnerWidget::showMenuFor(not_null<GiftButton*> button, QPoint point) {
 		entry,
 		::Settings::SavedStarGiftMenuType::List);
 
-	const auto collectionId = _descriptor.current().collectionId;
 	if (collectionId > 0 && _peer->canManageGifts()) {
 		const auto &gift = (*_list)[index].gift;
 		if (ranges::contains(gift.collectionIds, collectionId)) {
@@ -1902,9 +1914,15 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	if (index < 0 || index >= _list->size()) {
 		return;
 	}
-	if (_peer->canManageGifts()
-		&& _descriptor.current().collectionId
-		&& _list->size() > 1) {
+	_pressedIndex = index;
+	const auto collectionId = _descriptor.current().collectionId;
+	const auto canDrag = _peer->canManageGifts()
+		&& _list->size() > 1
+		&& (collectionId
+			|| (!collectionId
+				&& index < _list->size()
+				&& (*_list)[index].gift.pinned));
+	if (canDrag) {
 		if (isDraggedAnimating()) {
 			return;
 		}
@@ -1941,7 +1959,21 @@ void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 	e->accept();
 
 	const auto currentPos = e->globalPos();
-	const auto selected = giftFromGlobalPos(currentPos);
+	auto selected = giftFromGlobalPos(currentPos);
+	const auto collectionId = _descriptor.current().collectionId;
+	if (!collectionId && selected >= 0) {
+		auto pinnedCount = 0;
+		for (const auto &entry : *_list) {
+			if (entry.gift.pinned) {
+				++pinnedCount;
+			} else {
+				break;
+			}
+		}
+		if (selected >= pinnedCount) {
+			selected = pinnedCount - 1;
+		}
+	}
 	if (selected >= 0 && !draggedAnimating) {
 		_dragging.lastSelected = selected;
 	}
@@ -2070,6 +2102,7 @@ void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
+	const auto pressedIndex = base::take(_pressedIndex);
 	if (mouseGrabber() == this) {
 		releaseMouse();
 	}
@@ -2153,7 +2186,7 @@ void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
 		_dragging = {};
 		_shiftAnimations.clear();
 		_draggedView = nullptr;
-		if (index >= 0 && index < _list->size()) {
+		if (pressedIndex >= 0 && index == pressedIndex) {
 			showGift(index);
 		}
 		refreshButtons();
@@ -2232,37 +2265,41 @@ void InnerWidget::requestReorder(int fromIndex, int toIndex) {
 		return;
 	}
 	const auto collectionId = _descriptor.current().collectionId;
-	if (!collectionId) {
-		return;
-	}
-
-	auto order = QVector<MTPInputSavedStarGift>();
-	order.reserve(_list->size());
-	for (const auto &entry : *_list) {
-		order.push_back(Api::InputSavedStarGiftId(entry.gift.manageId));
-	}
-
-	_api.request(
-		MTPpayments_UpdateStarGiftCollection(
-			MTP_flags(MTPpayments_UpdateStarGiftCollection::Flag::f_order),
-			_peer->input,
-			MTP_int(collectionId),
-			MTPstring(),
-			MTPVector<MTPInputSavedStarGift>(),
-			MTPVector<MTPInputSavedStarGift>(),
-			MTP_vector<MTPInputSavedStarGift>(order))
-	).done([=] {
-		const auto i = ranges::find(
-			_collections,
-			collectionId,
-			&Data::GiftCollection::id);
-		if (i != end(_collections) && !_list->empty()) {
-			i->icon = (*_list)[0].gift.info.document;
-			refreshCollectionsTabs();
+	if (collectionId) {
+		auto order = QVector<MTPInputSavedStarGift>();
+		order.reserve(_list->size());
+		for (const auto &entry : *_list) {
+			order.push_back(Api::InputSavedStarGiftId(entry.gift.manageId));
 		}
-	}).fail([show = _window->uiShow()](const MTP::Error &error) {
-		show->showToast(error.type());
-	}).send();
+
+		_api.request(
+			MTPpayments_UpdateStarGiftCollection(
+				MTP_flags(MTPpayments_UpdateStarGiftCollection::Flag::f_order),
+				_peer->input,
+				MTP_int(collectionId),
+				MTPstring(),
+				MTPVector<MTPInputSavedStarGift>(),
+				MTPVector<MTPInputSavedStarGift>(),
+				MTP_vector<MTPInputSavedStarGift>(order))
+		).done([=] {
+			const auto i = ranges::find(
+				_collections,
+				collectionId,
+				&Data::GiftCollection::id);
+			if (i != end(_collections) && !_list->empty()) {
+				i->icon = (*_list)[0].gift.info.document;
+				refreshCollectionsTabs();
+			}
+		}).fail([show = _window->uiShow()](const MTP::Error &error) {
+			show->showToast(error.type());
+		}).send();
+	} else {
+		_window->session().recentSharedGifts().reorderPinned(
+			_window->uiShow(),
+			_peer,
+			fromIndex,
+			toIndex);
+	}
 }
 
 void InnerWidget::reorderCollections(
@@ -2284,6 +2321,7 @@ void InnerWidget::cancelDragging() {
 	}
 	_scrollAnimation.stop();
 	_dragging = {};
+	_pressedIndex = -1;
 	_shiftAnimations.clear();
 	if (_draggedView) {
 		_draggedView = nullptr;

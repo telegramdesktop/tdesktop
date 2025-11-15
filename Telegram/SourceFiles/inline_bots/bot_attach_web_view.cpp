@@ -1346,7 +1346,9 @@ void WebViewInstance::show(ShowArgs &&args) {
 		const auto raw = titleBadge.data();
 		raw->paintRequest() | rpl::start_with_next([=] {
 			auto p = Painter(raw);
-			st::infoVerifiedStar.paint(p, st::lineWidth, 0, raw->width());
+			const auto w = raw->width();
+			st::infoVerifiedStar.paint(p, st::lineWidth, 0, w);
+			st::infoPeerBadge.verifiedCheck.paint(p, st::lineWidth, 0, w);
 		}, raw->lifetime());
 		raw->resize(st::infoVerifiedStar.size() + QSize(0, st::lineWidth));
 	}

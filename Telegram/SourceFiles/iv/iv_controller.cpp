@@ -650,6 +650,7 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
 			.storageId = storageId,
+			.safe = true,
 		});
 	const auto raw = _webview.get();
 

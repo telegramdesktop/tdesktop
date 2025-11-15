@@ -39,7 +39,20 @@ public:
 		std::shared_ptr<Data::UniqueGift> uniqueData,
 		std::shared_ptr<Data::UniqueGift> replacingData = nullptr);
 
+	void reorderPinned(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer,
+		int oldPosition,
+		int newPosition);
+
 private:
+	void updatePinnedOrder(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer,
+		const std::vector<SavedStarGift> &gifts,
+		const std::vector<Data::SavedStarGiftId> &manageIds,
+		Fn<void()> done);
+
 	[[nodiscard]] std::vector<Data::SavedStarGift> filterGifts(
 		const std::deque<SavedStarGift> &gifts,
 		bool onlyPinnedToTop);

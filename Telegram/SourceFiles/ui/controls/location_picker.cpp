@@ -917,6 +917,7 @@ void LocationPicker::setupWebview() {
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
 			.storageId = _webviewStorageId,
+			.safe = true,
 		});
 	const auto raw = _webview.get();
 

@@ -50,11 +50,16 @@ namespace Ui {
 		rpl::single(false) | rpl::then(
 			field->focusedChanges()
 		) | rpl::start_with_next([=](bool shown) {
-			if (shown) {
-				fade->fadeIn(st::universalDuration);
-			} else {
-				fade->fadeOut(st::universalDuration);
-			}
+			crl::on_main(emojiToggle, [=] {
+				if (!emojiToggle->isVisible()) {
+					return;
+				}
+				if (shown) {
+					fade->fadeIn(st::universalDuration);
+				} else {
+					fade->fadeOut(st::universalDuration);
+				}
+			});
 		}, emojiToggle->lifetime());
 		fade->fadeOut(1);
 		fade->finish();

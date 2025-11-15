@@ -115,6 +115,40 @@ void RecentSharedMediaGifts::clearLastRequestTime(
 	}
 }
 
+void RecentSharedMediaGifts::updatePinnedOrder(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer,
+		const std::vector<SavedStarGift> &gifts,
+		const std::vector<Data::SavedStarGiftId> &manageIds,
+		Fn<void()> done) {
+	auto inputs = QVector<MTPInputSavedStarGift>();
+	inputs.reserve(manageIds.size());
+	for (const auto &id : manageIds) {
+		inputs.push_back(Api::InputSavedStarGiftId(id));
+	}
+
+	_session->api().request(MTPpayments_ToggleStarGiftsPinnedToTop(
+		peer->input,
+		MTP_vector<MTPInputSavedStarGift>(std::move(inputs))
+	)).done([=] {
+		auto result = std::deque<SavedStarGift>();
+		for (const auto &id : manageIds) {
+			for (const auto &gift : gifts) {
+				if (gift.manageId == id) {
+					result.push_back(gift);
+					break;
+				}
+			}
+		}
+		_recent[peer->id].gifts = std::move(result);
+		if (done) {
+			done();
+		}
+	}).fail([=](const MTP::Error &error) {
+		show->showToast(error.type());
+	}).send();
+}
+
 void RecentSharedMediaGifts::togglePinned(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer,
@@ -127,15 +161,15 @@ void RecentSharedMediaGifts::togglePinned(
 		auto manageIds = std::vector<Data::SavedStarGiftId>();
 
 		if (pinned) {
-			manageIds.push_back(manageId);
 			for (const auto &gift : gifts) {
 				if (gift.pinned && gift.manageId != manageId) {
 					manageIds.push_back(gift.manageId);
-					if (manageIds.size() >= limit) {
+					if (manageIds.size() >= limit - 1) {
 						break;
 					}
 				}
 			}
+			manageIds.push_back(manageId);
 		} else {
 			for (const auto &gift : gifts) {
 				if (gift.pinned && gift.manageId != manageId) {
@@ -144,17 +178,7 @@ void RecentSharedMediaGifts::togglePinned(
 			}
 		}
 
-		auto inputs = QVector<MTPInputSavedStarGift>();
-		inputs.reserve(manageIds.size());
-		for (const auto &id : manageIds) {
-			inputs.push_back(Api::InputSavedStarGiftId(id));
-		}
-
-		_session->api().request(MTPpayments_ToggleStarGiftsPinnedToTop(
-			peer->input,
-			MTP_vector<MTPInputSavedStarGift>(std::move(inputs))
-		)).done([=] {
-			const auto updateLocal = [=] {
+		const auto updateLocal = [=] {
 				using GiftAction = Data::GiftUpdate::Action;
 				_session->data().notifyGiftUpdate({
 					.id = manageId,
@@ -185,17 +209,7 @@ void RecentSharedMediaGifts::togglePinned(
 			};
 
 			if (!pinned) {
-				auto result = std::deque<SavedStarGift>();
-				for (const auto &id : manageIds) {
-					for (const auto &gift : gifts) {
-						if (gift.manageId == id) {
-							result.push_back(gift);
-							break;
-						}
-					}
-				}
-				_recent[peer->id].gifts = std::move(result);
-				updateLocal();
+				updatePinnedOrder(show, peer, gifts, manageIds, updateLocal);
 			} else {
 				_session->api().request(MTPpayments_GetSavedStarGift(
 					MTP_vector<MTPInputSavedStarGift>(
@@ -204,31 +218,51 @@ void RecentSharedMediaGifts::togglePinned(
 				)).done([=](const MTPpayments_SavedStarGifts &result) {
 					const auto &tlGift = result.data().vgifts().v.front();
 					if (auto parsed = Api::FromTL(peer, tlGift)) {
-						auto result = std::deque<SavedStarGift>();
-						for (const auto &id : manageIds) {
-							if (parsed->manageId == id) {
-								parsed->pinned = true;
-								result.push_back(*parsed);
-								continue;
-							}
-							for (const auto &gift : gifts) {
-								if (gift.manageId == id) {
-									result.push_back(gift);
-									break;
-								}
+						auto updatedGifts = std::vector<SavedStarGift>();
+						for (const auto &gift : gifts) {
+							if (gift.pinned && gift.manageId != manageId) {
+								updatedGifts.push_back(gift);
 							}
 						}
-						_recent[peer->id].gifts = std::move(result);
-						updateLocal();
+						parsed->pinned = true;
+						updatedGifts.push_back(*parsed);
+						updatePinnedOrder(
+							show,
+							peer,
+							updatedGifts,
+							manageIds,
+							updateLocal);
 					}
 				}).send();
 			}
-		}).fail([=](const MTP::Error &error) {
-			show->showToast(error.type());
-		}).send();
 	};
 
 	request(peer, performToggle, true);
+}
+
+void RecentSharedMediaGifts::reorderPinned(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<PeerData*> peer,
+		int oldPosition,
+		int newPosition) {
+	const auto performReorder = [=](const std::vector<SavedStarGift> &gifts) {
+		if (oldPosition < 0 || oldPosition >= gifts.size()
+			|| newPosition < 0 || newPosition >= gifts.size()
+			|| oldPosition == newPosition) {
+			return;
+		}
+
+		auto manageIds = std::vector<Data::SavedStarGiftId>();
+		manageIds.reserve(gifts.size());
+		for (const auto &gift : gifts) {
+			manageIds.push_back(gift.manageId);
+		}
+		base::reorder(manageIds, oldPosition, newPosition);
+
+		updatePinnedOrder(show, peer, gifts, manageIds, nullptr);
+	};
+
+	request(peer, performReorder, true);
 }
 
 } // namespace Data

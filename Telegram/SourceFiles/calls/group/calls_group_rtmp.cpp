@@ -231,7 +231,6 @@ void StartRtmpProcess::FillRtmpRows(
 		const style::RoundButton *attentionButtonStyle,
 		const style::PopupMenu *popupMenuStyle) {
 	struct State {
-		rpl::variable<bool> hidden = true;
 		rpl::variable<QString> key;
 		rpl::variable<QString> url;
 		bool warned = false;
@@ -280,11 +279,11 @@ void StartRtmpProcess::FillRtmpRows(
 		return weak;
 	};
 
-	const auto addLabel = [&](rpl::producer<QString> &&text) {
+	const auto addLabel = [&](v::text::data &&text) {
 		const auto label = container->add(
 			object_ptr<Ui::FlatLabel>(
 				container,
-				std::move(text),
+				v::text::take_marked(std::move(text)),
 				*labelStyle,
 				*popupMenuStyle),
 			st::boxRowPadding + QMargins(0, 0, showButtonStyle->width, 0));
@@ -319,47 +318,27 @@ void StartRtmpProcess::FillRtmpRows(
 		st::groupCallRtmpSubsectionTitleAddPadding,
 		subsectionTitleStyle);
 
-	auto keyLabelContent = rpl::combine(
-		state->hidden.value(),
-		state->key.value()
-	) | rpl::map([passChar](bool hidden, const QString &key) {
-		return key.isEmpty()
-			? QString()
-			: hidden
-			? QString().fill(passChar, kPasswordCharAmount)
-			: key;
+	auto keyLabelContent = state->key.value(
+	) | rpl::map([](const QString &key) {
+		const auto size = int(key.size());
+		auto result = TextWithEntities{ key };
+		if (size > 0) {
+			result.entities.push_back({ EntityType::Spoiler, 0, size });
+		}
+		return result;
 	}) | rpl::after_next([=] {
 		container->resizeToWidth(container->widthNoMargins());
 	});
 	const auto streamKeyLabel = addLabel(std::move(keyLabelContent));
-	streamKeyLabel->setSelectable(false);
-	const auto streamKeyButton = Ui::CreateChild<Ui::IconButton>(
-		container.get(),
-		*showButtonStyle);
-
-	streamKeyLabel->topValue(
-	) | rpl::start_with_next([=, right = rowPadding.right()](int top) {
-		streamKeyButton->moveToRight(
-			st::groupCallRtmpShowButtonPosition.x(),
-			top + st::groupCallRtmpShowButtonPosition.y());
-		streamKeyButton->raise();
-	}, container->lifetime());
-	streamKeyButton->addClickHandler([=] {
-		const auto toggle = [=] {
-			const auto newValue = !state->hidden.current();
-			state->hidden = newValue;
-			streamKeyLabel->setSelectable(!newValue);
-			streamKeyLabel->setAttribute(
-				Qt::WA_TransparentForMouseEvents,
-				newValue);
-		};
-		if (!state->warned && state->hidden.current()) {
+	streamKeyLabel->setClickHandlerFilter([=](
+			const ClickHandlerPtr &handler,
+			Qt::MouseButton button) {
+		if (button == Qt::LeftButton) {
 			show->showBox(Ui::MakeConfirmBox({
 				.text = tr::lng_group_call_rtmp_key_warning(
 					Ui::Text::RichLangValue),
 				.confirmed = [=](Fn<void()> &&close) {
-					state->warned = true;
-					toggle();
+					handler->onClick({});
 					close();
 				},
 				.confirmText = tr::lng_from_request_understand(),
@@ -367,9 +346,8 @@ void StartRtmpProcess::FillRtmpRows(
 				.confirmStyle = attentionButtonStyle,
 				.labelStyle = labelStyle,
 			}));
-		} else {
-			toggle();
 		}
+		return false;
 	});
 
 	addButton(true, tr::lng_group_call_rtmp_key_copy());

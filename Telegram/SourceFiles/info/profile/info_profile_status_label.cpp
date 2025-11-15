@@ -56,6 +56,18 @@ namespace {
 		: tr::lng_channel_status(tr::now);
 };
 
+[[nodiscard]] auto ChannelTypeText(not_null<ChannelData*> channel) {
+	const auto isPublic = channel->isPublic();
+	const auto isMegagroup = channel->isMegagroup();
+	return (isPublic
+		? (isMegagroup
+			? tr::lng_create_public_group_title(tr::now)
+			: tr::lng_create_public_channel_title(tr::now))
+		: (isMegagroup
+			? tr::lng_create_private_group_title(tr::now)
+			: tr::lng_create_private_channel_title(tr::now))).toLower();
+};
+
 } // namespace
 
 StatusLabel::StatusLabel(
@@ -110,14 +122,23 @@ void StatusLabel::refresh() {
 				onlineCount,
 				true) };
 		} else if (auto broadcast = _peer->monoforumBroadcast()) {
+			if (!broadcast->membersCountKnown()) {
+				return TextWithEntities{ .text = ChannelTypeText(broadcast) };
+			}
 			auto result = ChatStatusText(
-				qMax(broadcast->membersCount(), 1),
+				broadcast->membersCount(),
 				0,
 				false);
 			return TextWithEntities{ .text = result };
 		} else if (auto channel = _peer->asChannel()) {
+			if (!channel->membersCountKnown()) {
+				auto result = ChannelTypeText(channel);
+				return hasMembersLink
+					? Ui::Text::Link(result)
+					: TextWithEntities{ .text = result };
+			}
 			const auto onlineCount = _onlineCount;
-			const auto fullCount = qMax(channel->membersCount(), 1);
+			const auto fullCount = channel->membersCount();
 			auto result = ChatStatusText(
 				fullCount,
 				onlineCount,
