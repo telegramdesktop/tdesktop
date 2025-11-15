@@ -160,6 +160,14 @@ void CustomBadgeTooltip::fade(bool shown) {
 	if (_shown == shown) {
 		return;
 	}
+	
+	if (_isAnimating) {
+		//LOG(("AhiGram: CustomBadgeTooltip: fade: already animating"));
+		return;
+	}
+	
+	_isAnimating = true;
+	
 	show();
 	_shown = shown;
 
@@ -171,6 +179,7 @@ void CustomBadgeTooltip::fade(bool shown) {
 	_showAnimation.start([=] {
 		update();
 		if (!_showAnimation.animating()) {
+			_isAnimating = false;
 			_shownVariable = _shown;
 			if (!_shown) {
 				hide();
@@ -185,6 +194,7 @@ void CustomBadgeTooltip::fade(bool shown) {
 
 void CustomBadgeTooltip::finishAnimating() {
 	_showAnimation.stop();
+	_isAnimating = false;
 	_shownVariable = _shown;
 	if (!_shown) {
 		hide();

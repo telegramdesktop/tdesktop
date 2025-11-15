@@ -59,6 +59,7 @@ private:
 
     Ui::Animations::Simple _showAnimation;
     bool _shown = false;
+    bool _isAnimating = false;
     rpl::variable<bool> _shownVariable = false;
 };
 [[nodiscard]] CustomBadgeTooltip* CreateImportantTooltip(
