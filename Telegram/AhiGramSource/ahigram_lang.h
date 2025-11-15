@@ -5,7 +5,7 @@ a fork of Telegram Desktop with additional features.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-// Use of the code is permitted as long as links to the original source are maintained.
+// This code is licensed under GPLv3. Attribution to original source is appreciated.
 // Author: https://github.com/DyingLay
 
 AhiGram: Localization header

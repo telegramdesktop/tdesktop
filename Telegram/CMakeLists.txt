@@ -1779,6 +1779,8 @@ PRIVATE
     settings/ahigram_settings.h
     settings/ahigram_main_settings.cpp
     settings/ahigram_main_settings.h
+    storage/ahigram_storage.cpp
+    storage/ahigram_storage.h
 )
 
 if (NOT build_winstore)

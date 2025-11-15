@@ -6,3 +6,6 @@
 "ahigram_telegram_github_channel" = "GitHub Page";
 
 "ahigram_main_settings" = "Basic settings";
+
+"ahigram_off_logging" = "Disable log sending";
+"ahigram_off_logging_description" = "When this feature is enabled, logs with errors will not be sent to Telegram servers or third-party services. They will be stored locally.";

@@ -5,16 +5,19 @@ a fork of Telegram Desktop with additional features.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-// Use of the code is permitted as long as links to the original source are maintained.
+// This code is licensed under GPLv3. Attribution to original source is appreciated.
 // Author: https://github.com/DyingLay
 
 AhiGram: Main Settings implementation
 */
 
 #include "settings/ahigram_main_settings.h"
+#include "storage/ahigram_storage.h"
 
 #include "ahigram_lang.h"
 #include "settings/settings_common_session.h"
+#include "settings/settings_common.h"  
+#include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
@@ -40,6 +43,38 @@ void AhiGramMainSettings::setupContent() {
 
 	Ui::AddSubsectionTitle(content, AhiGram::trReactive(u"ahigram_main_settings"_q));
 	Ui::AddSkip(content);
+
+	const auto toggles = content->lifetime().make_state<rpl::event_stream<bool>>();
+	
+	auto& settings = AhiGram::Storage::Settings::Instance();
+	auto initialValue = settings.get().offLogsInServer;
+	
+	const auto offLoggingButton = content->add(
+		object_ptr<::Settings::Button>(
+			content,
+			AhiGram::trReactive(u"ahigram_off_logging"_q),
+			st::settingsButtonNoIcon
+		)
+	);
+	
+	offLoggingButton->toggleOn(toggles->events_starting_with(std::move(initialValue)));
+	
+	offLoggingButton->toggledChanges(
+	) | rpl::start_with_next([=, &settings](bool toggled) {  
+		toggles->fire_copy(toggled);
+		settings.update([toggled](AhiGram::SettingsData& data) {
+			data.offLogsInServer = toggled;
+		});
+		
+	}, content->lifetime());
+    
+	Ui::AddDividerText(
+		content, 
+		AhiGram::trReactive(u"ahigram_off_logging_description"_q)
+	);
+
+	Ui::AddSkip(content);
+	Ui::ResizeFitChild(this, content);
 }
 
 ::Settings::Type AhiGramMainSettingsId() {

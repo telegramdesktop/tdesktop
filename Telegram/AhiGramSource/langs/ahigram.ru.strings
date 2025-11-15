@@ -6,3 +6,6 @@
 "ahigram_telegram_github_channel" = "GitHub";
 
 "ahigram_main_settings" = "Основные настройки";
+
+"ahigram_off_logging" = "Выключить отправку логов";
+"ahigram_off_logging_description" = "Когда эта функция включена, логи с ошбиками не будут отправляться на серверы Telegram или сторонние сервисы. Они будут храниться локально.";
