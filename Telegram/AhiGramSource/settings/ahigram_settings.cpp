@@ -37,9 +37,21 @@ struct LinkButtonData {
 };
 
 const auto kLinkButtons = std::array{
-    LinkButtonData{ u"ahigram_telegram_info_channel"_q, u"@AhiGram"_q, u"https://t.me/AhiGram"_q, &st::menuIconChannel },
-    LinkButtonData{ u"ahigram_telegram_release_info_channel"_q, u"@AhiGramReleases"_q, u"https://t.me/AhiGramReleases"_q, &st::menuIconChannel },
-    LinkButtonData{ u"ahigram_telegram_github_channel"_q, u"GitHub"_q, u"https://github.com/AhiGram"_q, &st::menuIconLinks }
+    LinkButtonData{ 
+        u"ahigram_telegram_info_channel"_q, 
+        u"@AhiGram"_q, 
+        u"https://t.me/AhiGram"_q, 
+        &st::menuIconChannel },
+    LinkButtonData{ 
+        u"ahigram_telegram_release_info_channel"_q, 
+        u"@AhiGramReleases"_q, 
+        u"https://t.me/AhiGramReleases"_q, 
+        &st::menuIconAhiGramReleases },
+    LinkButtonData{ 
+        u"ahigram_telegram_github_channel"_q, 
+        u"GitHub"_q, 
+        u"https://github.com/AhiGram"_q, 
+        &st::menuIconLinks }
 };
 
 } // namespace

@@ -194,6 +194,7 @@ menuIconTon: icon{{ "payments/ton_emoji-18x18", menuIconColor, point(3px, 2px) }
 menuIconReorder: icon{{ "menu/reorder-24x24", menuIconColor }};
 // AhiGram
 menuIconAhiGramHome: icon {{ "menu/ahigram_home_settings", menuIconColor }};
+menuIconAhiGramReleases: icon {{ "menu/ahigram_release_settings", menuIconColor}};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
