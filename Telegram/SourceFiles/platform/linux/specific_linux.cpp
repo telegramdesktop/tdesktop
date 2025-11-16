@@ -528,6 +528,55 @@ void InstallLauncher() {
 	return base64.mid(0, kHashForSocketPathLength);
 }
 
+void AppInfoCheckScheme(
+		const std::string &scheme,
+		Fn<void(Gio::AppInfo, Fn<void()>)> callback,
+		Fn<void()> fail) {
+	// TODO: use get_default_for_uri_scheme_async once we can use GLib 2.74
+	if (auto appInfo = Gio::AppInfo::get_default_for_uri_scheme(scheme)) {
+		callback(appInfo, fail);
+		return;
+	}
+	fail();
+}
+
+void PortalCheckScheme(
+		const std::string &scheme,
+		Fn<void(Fn<void()>)> callback,
+		Fn<void()> fail) {
+	XdpOpenURI::OpenURIProxy::new_for_bus(
+		Gio::BusType::SESSION_,
+		Gio::DBusProxyFlags::NONE_,
+		base::Platform::XDP::kService,
+		base::Platform::XDP::kObjectPath,
+		[=](GObject::Object, Gio::AsyncResult res) {
+			auto interface = XdpOpenURI::OpenURI(
+				XdpOpenURI::OpenURIProxy::new_for_bus_finish(res, nullptr));
+
+			if (!interface) {
+				fail();
+				return;
+			}
+
+			interface.call_scheme_supported(
+				scheme,
+				GLib::Variant::new_array(
+					GLib::VariantType::new_("{sv}"),
+					{}),
+				[=](GObject::Object, Gio::AsyncResult res) mutable {
+					const auto result
+						= interface.call_scheme_supported_finish(res);
+
+					if (!result || !std::get<1>(*result)) {
+						fail();
+						return;
+					}
+
+					callback(fail);
+				});
+		});
+}
+
 } // namespace
 
 namespace Platform {
@@ -785,56 +834,26 @@ QString ApplicationIconName() {
 }
 
 void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
-	if (auto appInfo = Gio::AppInfo::get_default_for_uri_scheme("geo")) {
-		if (appInfo.launch_uris(
-				{
-					std::format(
-						"geo:{},{}",
-						point.latAsString().toStdString(),
-						point.lonAsString().toStdString()),
-				},
+	const auto url = QUrl(
+		u"geo:%1,%2"_q.arg(point.latAsString(), point.lonAsString()));
+
+	AppInfoCheckScheme(url.scheme().toStdString(), [=](
+			Gio::AppInfo appInfo,
+			Fn<void()> fail) {
+		// TODO: use launch_uris_async once we can use GLib 2.60
+		if (!appInfo.launch_uris(
+				{ url.toString().toStdString() },
 				base::Platform::AppLaunchContext(),
 				nullptr)) {
-			return;
+			fail();
 		}
-	}
-
-	XdpOpenURI::OpenURIProxy::new_for_bus(
-		Gio::BusType::SESSION_,
-		Gio::DBusProxyFlags::NONE_,
-		base::Platform::XDP::kService,
-		base::Platform::XDP::kObjectPath,
-		[=](GObject::Object, Gio::AsyncResult res) {
-			auto interface = XdpOpenURI::OpenURI(
-				XdpOpenURI::OpenURIProxy::new_for_bus_finish(res, nullptr));
-
-			if (!interface) {
+	}, [=] {
+		PortalCheckScheme(url.scheme().toStdString(), [=](Fn<void()> fail) {
+			if (!QDesktopServices::openUrl(url)) {
 				fail();
-				return;
 			}
-
-			interface.call_scheme_supported(
-				"geo",
-				GLib::Variant::new_array(
-					GLib::VariantType::new_("{sv}"),
-					{}),
-				[=](GObject::Object, Gio::AsyncResult res) mutable {
-					const auto result
-						= interface.call_scheme_supported_finish(res);
-
-					if (!result || !std::get<1>(*result)) {
-						fail();
-						return;
-					}
-
-					if (!QDesktopServices::openUrl(
-						u"geo:%1,%2"_q.arg(
-							point.latAsString(),
-							point.lonAsString()))) {
-						fail();
-					}
-				});
-		});
+		}, fail);
+	});
 }
 
 namespace ThirdParty {
