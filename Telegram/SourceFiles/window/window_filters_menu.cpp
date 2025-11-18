@@ -66,6 +66,7 @@ FiltersMenu::~FiltersMenu() = default;
 
 void FiltersMenu::setup() {
 	setupMainMenuIcon();
+	_menu.setAccessibleName(tr::lng_main_menu(tr::now));
 
 	_outer.setAttribute(Qt::WA_OpaquePaintEvent);
 	_outer.show();
@@ -271,6 +272,9 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		: container->add(std::move(prepared));
 	auto button = base::unique_qptr<Ui::SideBarButton>(std::move(added));
 	const auto raw = button.get();
+	const auto nameText = id
+		? title.text.text
+		: tr::lng_filters_all(tr::now);
 	const auto &icons = Ui::LookupFilterIcon(id
 		? icon
 		: Ui::FilterIcon::All);
@@ -293,6 +297,14 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 				? "99+"
 				: QString::number(count);
 			raw->setBadge(string, includeMuted && (count == muted));
+			raw->setAccessibleName(count
+				? tr::lng_filter_unread_chats(
+					tr::now,
+					lt_count,
+					count,
+					lt_text,
+					nameText)
+				: nameText);
 		}, raw->lifetime());
 	}
 	raw->setActive(_session->activeChatsFilterCurrent() == id);
