@@ -40,7 +40,7 @@ jobs:
 
   macos:
     name: MacOS
-    runs-on: macos-15-intel
+    runs-on: macos-latest
 
     strategy:
       matrix:
