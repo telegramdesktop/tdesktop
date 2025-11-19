@@ -142,7 +142,7 @@ Widget::Widget(
 	}, lifetime());
 
 	_back->entity()->setClickedCallback([=] { backRequested(); });
-	_back->entity()->accessibilitySetName(tr::lng_go_back(tr::now));
+	_back->entity()->setAccessibleName(tr::lng_go_back(tr::now));
 	_back->hide(anim::type::instant);
 
 	if (_changeLanguage) {
