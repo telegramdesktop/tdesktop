@@ -60,10 +60,10 @@ std::vector<std::string> CurrentCapabilities;
 	return ranges::contains(CurrentCapabilities, value);
 }
 
-std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
+std::optional<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 	auto connection = Gio::bus_get_sync(Gio::BusType::SESSION_, nullptr);
 	if (!connection) {
-		return nullptr;
+		return {};
 	}
 
 	const auto activatable = [&] {
@@ -78,7 +78,7 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 		return ranges::contains(*names, kService);
 	}();
 
-	return std::make_unique<base::Platform::DBus::ServiceWatcher>(
+	return std::make_optional<base::Platform::DBus::ServiceWatcher>(
 		connection.gobj_(),
 		kService,
 		[=](
