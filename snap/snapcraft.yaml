@@ -122,7 +122,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 0b68b11048987a68d31b2d8380d9b7c5116aa961
+    source-commit: 859556cab51d17585ff76d3db62ff1c7502bc850
     plugin: nil
     override-pull: |
       craftctl default
@@ -399,7 +399,7 @@ parts:
   qt:
     source: https://github.com/qt/qt5.git
     source-depth: 1
-    source-tag: v6.10.0
+    source-tag: v6.10.1
     source-submodules:
       - qtbase
       - qtdeclarative
@@ -432,7 +432,6 @@ parts:
       - -DINSTALL_LIBDIR=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       - -DBUILD_SHARED_LIBS=OFF
       - -DQT_QPA_PLATFORMS="wayland;xcb"
-      - -DFEATURE_copy_file_range=OFF
       - -DFEATURE_eglfs=OFF
       - -DINPUT_openssl=linked
     override-pull: |
