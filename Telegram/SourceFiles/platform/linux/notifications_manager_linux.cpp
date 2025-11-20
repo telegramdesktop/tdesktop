@@ -263,19 +263,26 @@ void Create(Window::Notifications::System *system) {
 		kService,
 		kObjectPath,
 		[=](GObject::Object, Gio::AsyncResult res) {
-			auto proxy =
-				XdgNotifications::NotificationsProxy::new_for_bus_finish(
-					res,
-					nullptr);
+			auto result =
+				XdgNotifications::NotificationsProxy::new_for_bus_finish(res);
 
-			ServiceRegistered = proxy ? bool(proxy.get_name_owner()) : false;
+			if (result) {
+				ServiceRegistered = bool(result->get_name_owner());
+			} else {
+				Gio::DBusErrorNS_::strip_remote_error(result.error());
+				LOG(("Native Notification Error: %1").arg(
+					result.error().message_().c_str()));
+				ServiceRegistered = false;
+			}
+
 			if (!ServiceRegistered) {
 				CurrentServerInformation = {};
 				CurrentCapabilities = {};
-				managerSetter(proxy);
+				managerSetter({});
 				return;
 			}
 
+			auto proxy = *result;
 			auto interface = XdgNotifications::Notifications(proxy);
 
 			interface.call_get_server_information([=](
