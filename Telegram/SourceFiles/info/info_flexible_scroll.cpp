@@ -166,7 +166,11 @@ void FlexibleScrollHelper::setupScrollHandling() {
 				: previousValue;
 			if (!_scrollAnimation.animating()) {
 				_scrollTopTo = ((nextStep != -1) ? nextStep : top);
-				_scrollAnimation.start();
+				if (!anim::Disabled()) {
+					_scrollAnimation.start();
+				} else {
+					scrollToY(_scrollTopTo);
+				}
 			} else {
 				if (_scrollTopTo > _scrollTopFrom) {
 					// Down.
@@ -303,7 +307,11 @@ void FlexibleScrollHelper::setupScrollHandlingWithFilter() {
 		_scrollTopFrom = top;
 		if (!animationActive) {
 			_scrollTopTo = (nextStep != -1) ? nextStep : targetTop;
-			_scrollAnimation.start();
+			if (!anim::Disabled()) {
+				_scrollAnimation.start();
+			} else {
+				scrollToY(_scrollTopTo);
+			}
 		} else {
 			if (_scrollTopTo > _scrollTopFrom) {
 				if (_scrollTopTo == step1) {
