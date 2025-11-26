@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mtproto/dedicated_file_loader.h"
 #include "spellcheck/spellcheck_utils.h"
+#include "spellcheck/platform/platform_spellcheck.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -42,6 +43,32 @@ using DictState = BlobState;
 using QueryCallback = Fn<void(const QString &)>;
 constexpr auto kMaxQueryLength = 15;
 
+// Get system dictionaries for enchant backend.
+std::vector<Spellchecker::Dict> SystemDictionaries() {
+	const auto available = Platform::Spellchecker::AvailableLanguages();
+	std::vector<Spellchecker::Dict> result;
+	std::set<int> seenIds;
+	result.reserve(available.size());
+
+	for (const auto &locale : available) {
+		const auto langId = Spellchecker::LangIdFromLocale(locale);
+
+		// Deduplicate langIds. E.g.: en_GB and en_GB-large.
+		if (!seenIds.insert(langId).second) {
+			continue;
+		}
+
+		const auto qlocale = QLocale(locale);
+		auto name = QLocale::languageToString(qlocale.language());
+		if (qlocale.country() != QLocale::AnyCountry) {
+			name += " (" + QLocale::countryToString(qlocale.country()) + ")";
+		}
+		result.push_back(Spellchecker::Dict{ langId, 0, 0, name });
+	}
+
+	return result;
+}
+
 class Inner : public Ui::RpWidget {
 public:
 	Inner(
@@ -63,6 +90,16 @@ private:
 };
 
 inline auto DictExists(int langId) {
+	if (Platform::Spellchecker::IsSystemSpellchecker()) {
+		// Check if the locale exists in available languages.
+		const auto available = Platform::Spellchecker::AvailableLanguages();
+		for (const auto &availableLocale : available) {
+			if (Spellchecker::LangIdFromLocale(availableLocale) == langId) {
+				return true;
+			}
+		}
+		return false;
+	}
 	return Spellchecker::DictionaryExists(langId);
 }
 
@@ -76,6 +113,10 @@ DictState ComputeState(int id, bool enabled) {
 	const auto result = enabled ? DictState(Active()) : DictState(Ready());
 	if (DictExists(id)) {
 		return result;
+	}
+	// For system spellchecker, dictionaries that don't exist are not available.
+	if (Platform::Spellchecker::IsSystemSpellchecker()) {
+		return Ready();
 	}
 	return Available{ Spellchecker::GetDownloadSize(id) };
 }
@@ -111,6 +152,86 @@ QueryCallback Inner::queryCallback() const {
 
 Dictionaries Inner::enabledRows() const {
 	return _enabledRows;
+}
+
+// Simplified button for system dictionaries (no download/remove).
+auto AddSystemDictButton(
+		not_null<Ui::VerticalLayout*> content,
+		const Spellchecker::Dict &dict,
+		bool buttonEnabled,
+		rpl::producer<QStringView> query) {
+	const auto id = dict.id;
+	buttonEnabled &= DictExists(id);
+
+	const auto locale = Spellchecker::LocaleFromLangId(id);
+	const std::vector<QString> indexList = {
+		dict.name,
+		QLocale::languageToString(locale.language()),
+		QLocale::countryToString(locale.country())
+	};
+
+	const auto wrap = content->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			content,
+			object_ptr<Ui::SettingsButton>(
+				content,
+				rpl::single(dict.name),
+				st::dictionariesSectionButton
+			)
+		)
+	);
+	const auto button = wrap->entity();
+
+	std::move(
+		query
+	) | rpl::start_with_next([=](auto string) {
+		wrap->toggle(
+			ranges::any_of(indexList, [&](const QString &s) {
+				return s.startsWith(string, Qt::CaseInsensitive);
+			}),
+			anim::type::instant);
+	}, button->lifetime());
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		(buttonEnabled
+			? tr::lng_settings_manage_enabled_dictionary(tr::now)
+			: QString()),
+		st::settingsUpdateState);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	rpl::combine(
+		button->widthValue(),
+		label->widthValue()
+	) | rpl::start_with_next([=] {
+		label->moveToLeft(
+			st::settingsUpdateStatePosition.x(),
+			st::settingsUpdateStatePosition.y());
+	}, label->lifetime());
+
+	button->toggleOn(rpl::single(buttonEnabled));
+
+	button->toggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		const auto over = !button->isDisabled()
+			&& (button->isDown() || button->isOver());
+		const auto toggledFloat = toggled ? 1. : 0.;
+
+		if (toggledFloat == 0. && !over) {
+			label->setTextColorOverride(std::nullopt);
+		} else {
+			label->setTextColorOverride(anim::color(
+				over ? st::contactsStatusFgOver : st::contactsStatusFg,
+				st::contactsStatusFgOnline,
+				toggledFloat));
+		}
+
+		label->setText(toggled
+			? tr::lng_settings_manage_enabled_dictionary(tr::now)
+			: QString());
+	}, label->lifetime());
+
+	return button;
 }
 
 auto AddButtonWithLoader(
@@ -344,14 +465,25 @@ void Inner::setupContent(
 	const auto queryStream = content->lifetime()
 		.make_state<rpl::event_stream<QStringView>>();
 
-	for (const auto &dict : Spellchecker::Dictionaries()) {
+	const auto isSystemSpellchecker = Platform::Spellchecker::IsSystemSpellchecker();
+	const auto dictionaries = isSystemSpellchecker
+		? SystemDictionaries()
+		: Spellchecker::Dictionaries();
+
+	for (const auto &dict : dictionaries) {
 		const auto id = dict.id;
-		const auto row = AddButtonWithLoader(
-			content,
-			session,
-			dict,
-			ranges::contains(enabledDictionaries, id),
-			queryStream->events());
+		const auto row = isSystemSpellchecker
+			? AddSystemDictButton(
+				content,
+				dict,
+				ranges::contains(enabledDictionaries, id),
+				queryStream->events())
+			: AddButtonWithLoader(
+				content,
+				session,
+				dict,
+				ranges::contains(enabledDictionaries, id),
+				queryStream->events());
 		row->toggledValue(
 		) | rpl::start_with_next([=](auto enabled) {
 			if (enabled) {
