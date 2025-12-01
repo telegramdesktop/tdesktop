@@ -28,7 +28,6 @@ void closeMain();
 
 void writeMain(const QString &v);
 void writeDebug(const QString &v);
-void writeTcp(const QString &v);
 void writeMtp(int32 dc, const QString &v);
 
 QString full();
@@ -64,13 +63,6 @@ inline MemoryBuffer mb(const void *ptr, uint32 size) {
 }
 
 } // namespace Logs
-
-#define TCP_LOG(msg) {\
-	if (Logs::DebugEnabled() || !Logs::started()) {\
-		Logs::writeTcp(QString msg);\
-	}\
-}
-//usage TCP_LOG(("log: %1 %2").arg(1).arg(2))
 
 #define MTP_LOG(dc, msg) {\
 	if (Logs::DebugEnabled() || !Logs::started()) {\
