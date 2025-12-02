@@ -74,6 +74,15 @@ jobs:
 
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+      - name: Free up some disk space.
+        uses: hugoalh/disk-space-optimizer-ghaction@271735125a1b35180620eae7e45c2e9d470c31b0
+        with:
+          general_include: ".+"
+          homebrew_prune: "True"
+          homebrew_clean: "True"
+          npm_prune: "True"
+          npm_clean: "True"
+
       - name: ThirdParty cache.
         id: cache-third-party
         uses: actions/cache@v4
