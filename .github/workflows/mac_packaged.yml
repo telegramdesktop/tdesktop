@@ -85,7 +85,7 @@ jobs:
           echo "MACOSX_DEPLOYMENT_TARGET=$(grep 'set(QT_SUPPORTED_MIN_MACOS_VERSION' /opt/homebrew/Cellar/qtbase/*/lib/cmake/Qt6/Qt6ConfigExtras.cmake | sed -E 's/^.*"(.*)"\)$/\1/')" >> $GITHUB_ENV
           echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
 
-          curl -o tg_owt-version.json https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master
+          echo "WEBRTC=`curl -sSL https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master | jq -r .object.sha`" >> $GITHUB_ENV
 
       - name: RNNoise.
         run: |
@@ -103,7 +103,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.LibrariesPath }}/tg_owt
-          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}-${{ hashFiles('**/tg_owt-version.json') }}
+          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}-${{ env.WEBRTC }}
       - name: WebRTC.
         if: steps.cache-webrtc.outputs.cache-hit != 'true'
         run: |

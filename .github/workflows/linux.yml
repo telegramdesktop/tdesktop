@@ -71,6 +71,7 @@ jobs:
           poetry install
           DOCKERFILE=$(DEBUG= LTO= poetry run gen_dockerfile)
           echo "$DOCKERFILE" > Dockerfile
+          rm -rf __pycache__
 
       - name: Free up some disk space.
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
