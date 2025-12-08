@@ -1938,8 +1938,9 @@ if (build_macstore)
     set(bundle_identifier "org.telegram.desktop")
     set(bundle_entitlements "Telegram Lite.entitlements")
     set(output_name "Telegram Lite")
-    set_target_properties(Telegram PROPERTIES
-        XCODE_ATTRIBUTE_FRAMEWORK_SEARCH_PATHS ${libs_loc}/breakpad/src/client/mac/build/Release
+    target_link_options(Telegram
+    PRIVATE
+        -F${libs_loc}/breakpad/src/client/mac/build/Release
     )
     target_link_frameworks(Telegram PRIVATE Breakpad)
     add_custom_command(TARGET Telegram
