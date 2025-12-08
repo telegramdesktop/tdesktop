@@ -1910,15 +1910,17 @@ elseif (APPLE)
         COMMAND cp ${CMAKE_BINARY_DIR}/lib_spellcheck.rcc $<TARGET_FILE_DIR:Telegram>/../Resources
     )
     if (NOT build_macstore AND NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
-        if (DESKTOP_APP_MAC_ARCH STREQUAL "x86_64" OR DESKTOP_APP_MAC_ARCH STREQUAL "arm64")
-            set(crashpad_dir_part ".${DESKTOP_APP_MAC_ARCH}")
+        if (DESKTOP_APP_USE_PACKAGED)
+            find_program(CRASHPAD_HANDLER crashpad_handler REQUIRED)
+        elseif (DESKTOP_APP_MAC_ARCH STREQUAL "x86_64" OR DESKTOP_APP_MAC_ARCH STREQUAL "arm64")
+            set(CRASHPAD_HANDLER "${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>.${DESKTOP_APP_MAC_ARCH}/crashpad_handler")
         else()
-            set(crashpad_dir_part "")
+            set(CRASHPAD_HANDLER "${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>/crashpad_handler")
         endif()
         add_custom_command(TARGET Telegram
         PRE_LINK
             COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
-            COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>${crashpad_dir_part}/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
+            COMMAND cp ${CRASHPAD_HANDLER} $<TARGET_FILE_DIR:Telegram>/../Helpers/
         )
     endif()
 else()
