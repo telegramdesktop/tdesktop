@@ -177,7 +177,6 @@ LinuxIntegration::LinuxIntegration()
 	}
 
 #ifdef __GLIBC__
-	mallopt(M_ARENA_MAX, 1);
 	_memoryTrim = QObject::connect(
 		QCoreApplication::eventDispatcher(),
 		&QAbstractEventDispatcher::aboutToBlock,
