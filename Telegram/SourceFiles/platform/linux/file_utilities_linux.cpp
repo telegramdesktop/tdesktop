@@ -42,14 +42,6 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		return false;
 	}
 
-	const auto fd = open(
-		QFile::encodeName(filepath).constData(),
-		O_RDONLY | O_CLOEXEC);
-
-	if (fd == -1) {
-		return false;
-	}
-
 	const auto handleToken = "tdesktop"
 		+ std::to_string(base::RandomValue<uint>());
 
@@ -71,7 +63,6 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 			nullptr));
 
 	if (!request) {
-		close(fd);
 		return false;
 	}
 
@@ -87,6 +78,14 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 	const auto signalGuard = gsl::finally([&] {
 		request.disconnect(signalId);
 	});
+
+	const auto fd = open(
+		QFile::encodeName(filepath).constData(),
+		O_RDONLY | O_CLOEXEC);
+
+	if (fd == -1) {
+		return false;
+	}
 
 	auto result = interface.call_open_file_sync(
 		base::Platform::XDP::ParentWindowID(),
