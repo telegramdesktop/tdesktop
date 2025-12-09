@@ -79,7 +79,7 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		request.disconnect(signalId);
 	});
 
-	const auto fd = open(
+	const auto fd = g_open(
 		QFile::encodeName(filepath).constData(),
 		O_RDONLY | O_CLOEXEC);
 
