@@ -138,7 +138,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			nullptr,
 			nullptr,
 			&waitStatus,
-			nullptr) || !g_spawn_check_exit_status(waitStatus, nullptr)) {
+			nullptr) || !GLib::spawn_check_exit_status(waitStatus)) {
 		return false;
 	}
 	return launchUpdater(UpdaterLaunch::JustRelaunch);
