@@ -187,7 +187,7 @@ jobs:
           cd $REPO_NAME/build
           mkdir artifact
           mv Telegram.dmg artifact/
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:
