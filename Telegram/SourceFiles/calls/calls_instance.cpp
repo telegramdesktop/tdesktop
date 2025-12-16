@@ -44,6 +44,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <tgcalls/VideoCaptureInterface.h>
 #include <tgcalls/StaticThreads.h>
+#include <thread>
+#include <chrono>
+#include <vector>
+#include <algorithm>
 
 namespace Calls {
 namespace {
@@ -993,7 +997,7 @@ void Instance::requestPermissionOrFail(Platform::PermissionType type, Fn<void()>
 
 std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture(
 		std::optional<QString> deviceId,
-		bool isScreenCapture) {
+		bool isScreenCapture) {		// If we already have a capture instance, switch device if requested and return it.
 	if (auto result = _videoCapture.lock()) {
 		if (deviceId) {
 			result->switchToDevice(
@@ -1004,16 +1008,111 @@ std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture(
 		}
 		return result;
 	}
+
+	// Determine initial device id (may be empty = default)
 	const auto startDeviceId = (deviceId && !deviceId->isEmpty())
 		? *deviceId
 		: Core::App().settings().cameraDeviceId();
-	auto result = std::shared_ptr<tgcalls::VideoCaptureInterface>(
+
+	// Build candidate device IDs: original first, then simple heuristics to
+	// prefer non-IR / RGB variants (common naming pattern: "... I" vs "... R",
+	// or "IR" tokens). These heuristics are intentionally conservative.
+	const std::string base = startDeviceId.toStdString();
+	std::vector<std::string> candidates;
+	auto push_unique = [&](std::string s) {
+		if (s.empty()) {
+			// empty means "default" — keep it as the first option if nothing else
+			// but avoid duplicate empties
+			if (std::find(candidates.begin(), candidates.end(), std::string()) == candidates.end())
+				candidates.push_back(std::move(s));
+			return;
+		}
+		if (std::find(candidates.begin(), candidates.end(), s) == candidates.end()) {
+			candidates.push_back(std::move(s));
+		}
+	};
+
+	push_unique(base);
+	// If name contains " I" token, try R variant and also removal of the token.
+	// Example: "Lenovo 510 Camera: Lenovo 510 I" -> try "Lenovo 510 Camera: Lenovo 510 R"
+	// and "Lenovo 510 Camera: Lenovo 510"
+	auto lower = base;
+	std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+	if (!base.empty()) {
+		if (lower.find(" i") != std::string::npos) {
+			std::string r_variant = base;
+			auto pos = r_variant.rfind(" I");
+			if (pos != std::string::npos) {
+				r_variant.replace(pos, 2, " R");
+				push_unique(r_variant);
+				// also try removing the trailing token
+				std::string removed = base;
+				removed.erase(pos, 2);
+				push_unique(removed);
+			}
+		}
+		// some cameras include "ir" or "infra" in the name; try removing " ir" token
+		if (lower.find(" ir") != std::string::npos || lower.find("infra") != std::string::npos) {
+			std::string removed = base;
+			// remove substring " IR" (simple, best-effort)
+			auto pos = removed.find(" IR");
+			if (pos != std::string::npos) {
+				removed.erase(pos, 3);
+				push_unique(removed);
+			}
+		}
+		// As a last resort, try the basename without trailing single-letter suffixes
+		// like "... R" or "... I"
+		if (base.size() > 2 && (base.back() == 'I' || base.back() == 'R')) {
+			std::string trimmed = base;
+			// remove last char if it's space+letter
+			if (trimmed.size() > 2 && trimmed[trimmed.size()-2] == ' ') {
+				trimmed.erase(trimmed.size()-2);
+				push_unique(trimmed);
+			}
+		}
+	}
+	// Ensure empty/default is present as fallback
+	push_unique(std::string());
+
+	// Try to create a VideoCaptureInterface for each candidate, with a small
+	// retry/backoff — many USB webcams take a bit longer to initialize.
+	constexpr int kAttemptsPerCandidate = 2;
+	constexpr auto kRetryDelayMs = std::chrono::milliseconds(300);
+	std::shared_ptr<tgcalls::VideoCaptureInterface> finalResult;
+	for (const auto &candidate : candidates) {
+		for (int attempt = 0; attempt < kAttemptsPerCandidate; ++attempt) {
+			// Create() usually chooses default if candidate is empty string.
+			auto created = std::shared_ptr<tgcalls::VideoCaptureInterface>(
+				tgcalls::VideoCaptureInterface::Create(
+					tgcalls::StaticThreads::getThreads(),
+					candidate));
+			if (created) {
+				// success — store and return
+				_videoCapture = created;
+				// If user requested switching right away, ensure that switchToDevice is called
+				if (deviceId && !deviceId->isEmpty()) {
+					created->switchToDevice(
+						(deviceId->isEmpty()
+							? Core::App().settings().cameraDeviceId()
+							: *deviceId).toStdString(),
+						isScreenCapture);
+				}
+				return created;
+			}
+			// small delay then retry
+			std::this_thread::sleep_for(kRetryDelayMs);
+		}
+	}
+
+	// Fallback: a final try with completely default device (empty string).
+	finalResult = std::shared_ptr<tgcalls::VideoCaptureInterface>(
 		tgcalls::VideoCaptureInterface::Create(
 			tgcalls::StaticThreads::getThreads(),
-			startDeviceId.toStdString()));
-	_videoCapture = result;
-	return result;
-}
+			std::string()));
+	_videoCapture = finalResult;
+	return finalResult;
+ }
 
 const ConferenceInvites &Instance::conferenceInvites(
 		CallId conferenceId) const {
