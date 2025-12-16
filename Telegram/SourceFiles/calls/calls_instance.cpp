@@ -1017,13 +1017,13 @@ std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture(
 	// Build candidate device IDs: original first, then simple heuristics to
 	// prefer non-IR / RGB variants (common naming pattern: "... I" vs "... R",
 	// or "IR" tokens). These heuristics are intentionally conservative.
-	const std::string base = startDeviceId.toStdString();
+	const auto std::string base = startDeviceId.toStdString();
 	std::vector<std::string> candidates;
 	auto push_unique = [&](std::string s) {
 		if (s.empty()) {
 			// empty means "default" — keep it as the first option if nothing else
 			// but avoid duplicate empties
-			if (std::find(candidates.begin(), candidates.end(), std::string()) == candidates.end())
+			if (ranges::find(candidates, std::string()) == candidates.end())
 				candidates.push_back(std::move(s));
 			return;
 		}
