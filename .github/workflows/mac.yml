@@ -74,6 +74,8 @@ jobs:
 
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+          sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
+
       - name: ThirdParty cache.
         id: cache-third-party
         uses: actions/cache@v4
