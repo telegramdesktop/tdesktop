@@ -140,14 +140,14 @@ jobs:
               *) ARCH="${{ matrix.arch }}";;
             esac
             echo "Architecture from matrix: $ARCH"
-            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.arch }}"
+            ARTIFACT_NAME="${ARTIFACT_NAME} ${{ matrix.arch }}"
           fi
 
           GENERATOR=""
           if [ -n "${{ matrix.generator }}" ]; then
             GENERATOR="-G \"${{ matrix.generator }}\""
             echo "Generator from matrix: $GENERATOR"
-            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.generator }}"
+            ARTIFACT_NAME="${ARTIFACT_NAME} ${{ matrix.generator }}"
           fi
           echo "TDESKTOP_BUILD_GENERATOR=$GENERATOR" >> $GITHUB_ENV
 
@@ -158,7 +158,7 @@ jobs:
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo "Define from matrix: $DEFINE"
-            ARTIFACT_NAME="${ARTIFACT_NAME}_${{ matrix.defines }}"
+            ARTIFACT_NAME="${ARTIFACT_NAME} ${{ matrix.defines }}"
           fi
           echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
 
