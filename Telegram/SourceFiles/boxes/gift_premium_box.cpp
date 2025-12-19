@@ -19,11 +19,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/replace_boost_box.h" // BoostsForGift.
 #include "boxes/premium_preview_box.h" // ShowPremiumPreviewBox.
 #include "boxes/star_gift_box.h" // ShowStarGiftBox.
+#include "boxes/star_gift_preview_box.h" // StarGiftPreviewBox.
 #include "core/ui_integration.h"
+#include "data/components/gift_auctions.h"
 #include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_credits.h"
+#include "data/data_document.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_media_types.h" // Data::GiveawayStart.
 #include "data/data_peer_values.h" // Data::PeerPremiumValue.
@@ -449,24 +452,79 @@ using SpinnerState = Data::GiftUpgradeSpinner::State;
 
 void AddUniqueGiftPropertyRows(
 		not_null<Ui::RpWidget*> container,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::TableLayout*> table,
-		not_null<Data::UniqueGift*> unique,
+		std::shared_ptr<Data::UniqueGift> unique,
 		std::shared_ptr<Data::GiftUpgradeSpinner> spinner) {
 	const auto tooltip = std::make_shared<TableRowTooltipData>(
 		TableRowTooltipData{ .parent = container });
 	const auto showTooltip = [=](
 			not_null<Ui::RpWidget*> widget,
 			rpl::producer<TextWithEntities> text) {
-		ShowTableRowTooltip(tooltip, widget, std::move(text), kTooltipDuration);
+		ShowTableRowTooltip(
+			tooltip,
+			widget,
+			std::move(text),
+			kTooltipDuration);
 	};
-	const auto showRarity = [=](
-			not_null<Ui::RpWidget*> widget,
-			int rarity) {
-		const auto percent = QString::number(rarity / 10.) + '%';
-		showTooltip(widget, tr::lng_gift_unique_rarity(
-			lt_percent,
-			rpl::single(TextWithEntities{ percent }),
-			tr::marked));
+
+	struct VariantsList {
+		rpl::variable<Data::UniqueGiftAttributes> attributes;
+		bool requested = false;
+		bool inited = false;
+		rpl::lifetime clickLifetime;
+	};
+	const auto variants = container->lifetime().make_state<VariantsList>();
+
+	const auto session = &unique->model.document->session();
+	const auto giftId = unique->initialGiftId;
+	const auto initVariants = [=] {
+		if (variants->requested || variants->inited) {
+			return;
+		}
+		const auto auctions = &session->giftAuctions();
+		if (auto attributes = auctions->attributes(giftId)) {
+			variants->inited = true;
+			variants->attributes = std::move(*attributes);
+		} else {
+			variants->requested = true;
+			auctions->requestAttributes(giftId, crl::guard(container, [=] {
+				variants->inited = true;
+				variants->attributes.force_assign(
+					*auctions->attributes(giftId));
+			}));
+		}
+	};
+
+	const auto title = unique->title;
+	const auto showRarity = [=](Data::GiftAttributeId id) {
+		return [=](
+				not_null<Ui::RpWidget*> widget,
+				int rarity) {
+			initVariants();
+
+			const auto weak = base::make_weak(widget);
+			variants->clickLifetime = variants->attributes.value(
+			) | rpl::filter([=] {
+				return variants->inited;
+			}) | rpl::take(1) | rpl::on_next([=](
+					const Data::UniqueGiftAttributes &list) {
+				if (!list.models.empty()) {
+					show->show(Box(
+						Ui::StarGiftPreviewBox,
+						title,
+						list,
+						id.type,
+						unique));
+				} else if (const auto widget = weak.get()) {
+					const auto percent = QString::number(rarity / 10.) + '%';
+					showTooltip(widget, tr::lng_gift_unique_rarity(
+						lt_percent,
+						rpl::single(TextWithEntities{ percent }),
+						tr::marked));
+				}
+			});
+		};
 	};
 	const auto empty = std::vector<Data::UniqueGiftAttribute>();
 	const auto extract = [&](const auto &list) {
@@ -490,7 +548,7 @@ void AddUniqueGiftPropertyRows(
 		MakeAttributeValue(
 			table,
 			unique->model,
-			showRarity,
+			showRarity(IdFor(unique->model)),
 			spinner,
 			models,
 			SpinnerState::FinishedModel),
@@ -501,7 +559,7 @@ void AddUniqueGiftPropertyRows(
 		MakeAttributeValue(
 			table,
 			unique->pattern,
-			showRarity,
+			showRarity(IdFor(unique->pattern)),
 			spinner,
 			patterns,
 			SpinnerState::FinishedPattern),
@@ -512,7 +570,7 @@ void AddUniqueGiftPropertyRows(
 		MakeAttributeValue(
 			table,
 			unique->backdrop,
-			showRarity,
+			showRarity(IdFor(unique->backdrop)),
 			spinner,
 			backdrops,
 			SpinnerState::FinishedBackdrop),
@@ -1598,7 +1656,8 @@ void AddStarGiftTable(
 			rpl::single(tr::marked(langDateTime(entry.date))));
 	}
 	if (unique) {
-		AddUniqueGiftPropertyRows(container, table, unique, spinner);
+		const auto shared = entry.uniqueGift;
+		AddUniqueGiftPropertyRows(container, show, table, shared, spinner);
 	} else {
 		AddTableRow(
 			table,
@@ -1745,7 +1804,7 @@ void AddTransferGiftTable(
 			container,
 			st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
-	AddUniqueGiftPropertyRows(container, table, unique.get(), nullptr);
+	AddUniqueGiftPropertyRows(container, show, table, unique, nullptr);
 	if (const auto value = unique->value.get()) {
 		AddTableRow(
 			table,

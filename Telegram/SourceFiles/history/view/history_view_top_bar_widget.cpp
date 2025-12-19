@@ -947,6 +947,7 @@ void TopBarWidget::refreshInfoButton() {
 			st::topBarInfoButton,
 			infoPeer->userpicShape());
 		info->showSavedMessagesOnSelf(true);
+		info->showMyNotesOnSelf(true);
 		_info.destroy();
 		_info = std::move(info);
 	}

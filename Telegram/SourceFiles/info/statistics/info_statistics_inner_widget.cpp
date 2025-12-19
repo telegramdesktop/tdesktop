@@ -287,6 +287,7 @@ void FillStatistic(
 				Type::Bar);
 		}
 	}
+	Statistic::FixCacheForHighDPIChartWidget(content);
 	if (!state->pendingCount) {
 		++state->pendingCount;
 		singlePendingDone();

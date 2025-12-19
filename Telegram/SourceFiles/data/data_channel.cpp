@@ -763,9 +763,7 @@ bool ChannelData::canEditEmoji() const {
 }
 
 bool ChannelData::canDelete() const {
-	constexpr auto kDeleteChannelMembersLimit = 1000;
-	return amCreator()
-		&& (membersCount() <= kDeleteChannelMembersLimit);
+	return amCreator();
 }
 
 bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {

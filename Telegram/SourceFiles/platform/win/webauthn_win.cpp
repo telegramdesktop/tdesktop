@@ -8,25 +8,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_webauthn.h"
 
+#include "base/platform/win/base_windows_safe_library.h"
 #include "data/data_passkey_deserialize.h"
 
 #include <windows.h>
 #include <combaseapi.h>
 #include <webauthn.h>
 
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QWindow>
 #include <QGuiApplication>
 
 namespace Platform::WebAuthn {
 namespace {
 
-auto webauthn = (HMODULE)(nullptr);
-
-using IsAvailableFunc = HRESULT(WINAPI*)(
+HRESULT(__stdcall *WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable)(
 	BOOL *pbIsUserVerifyingPlatformAuthenticatorAvailable);
-using MakeCredentialFunc = HRESULT(WINAPI*)(
+HRESULT(__stdcall *WebAuthNAuthenticatorMakeCredential)(
 	HWND hWnd,
 	PCWEBAUTHN_RP_ENTITY_INFORMATION pRpInformation,
 	PCWEBAUTHN_USER_ENTITY_INFORMATION pUserInformation,
@@ -35,94 +32,47 @@ using MakeCredentialFunc = HRESULT(WINAPI*)(
 	PCWEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS
 		pWebAuthNCredentialOptions,
 	PWEBAUTHN_CREDENTIAL_ATTESTATION *ppWebAuthNCredentialAttestation);
-using FreeAttestationFunc = void(WINAPI*)(
+void(__stdcall *WebAuthNFreeCredentialAttestation)(
 	PWEBAUTHN_CREDENTIAL_ATTESTATION pWebAuthNCredentialAttestation);
-using GetAssertionFunc = HRESULT(WINAPI*)(
+HRESULT(__stdcall *WebAuthNAuthenticatorGetAssertion)(
 	HWND hWnd,
 	LPCWSTR pwszRpId,
 	PCWEBAUTHN_CLIENT_DATA pWebAuthNClientData,
 	PCWEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS
 		pWebAuthNGetAssertionOptions,
 	PWEBAUTHN_ASSERTION *ppWebAuthNAssertion);
-using FreeAssertionFunc = void(WINAPI*)(
+void(__stdcall *WebAuthNFreeAssertion)(
 	PWEBAUTHN_ASSERTION pWebAuthNAssertion);
-using GetVersionFunc = DWORD(WINAPI*)();
-using GetErrorNameFunc = PCWSTR(WINAPI*)(HRESULT hr);
-using CancelOperationFunc = HRESULT(WINAPI*)(GUID* pCancellationId);
 
-auto WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable
-	= (IsAvailableFunc)(nullptr);
-auto WebAuthNAuthenticatorMakeCredential = (MakeCredentialFunc)(nullptr);
-auto WebAuthNFreeCredentialAttestation = (FreeAttestationFunc)(nullptr);
-auto WebAuthNAuthenticatorGetAssertion = (GetAssertionFunc)(nullptr);
-auto WebAuthNFreeAssertion = (FreeAssertionFunc)(nullptr);
-auto WebAuthNGetApiVersionNumber = (GetVersionFunc)(nullptr);
-auto WebAuthNGetErrorName = (GetErrorNameFunc)(nullptr);
-auto WebAuthNCancelCurrentOperation = (CancelOperationFunc)(nullptr);
-
-DWORD apiVersion = 0;
-
-bool LoadWebAuthn() {
-	if (webauthn) {
-		return true;
-	}
-	webauthn = LoadLibraryExW(
-		L"webauthn.dll",
-		nullptr,
-		LOAD_LIBRARY_SEARCH_SYSTEM32);
+[[nodiscard]] bool Resolve() {
+	const auto webauthn = base::Platform::SafeLoadLibrary(L"webauthn.dll");
 	if (!webauthn) {
 		return false;
 	}
+	auto total = 0, resolved = 0;
+#define LOAD_SYMBOL(name) \
+	++total; \
+	if (base::Platform::LoadMethod(webauthn, #name, name)) ++resolved;
 
-	WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable =
-		(IsAvailableFunc)GetProcAddress(
-			webauthn,
-			"WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable");
-	WebAuthNAuthenticatorMakeCredential =
-		(MakeCredentialFunc)GetProcAddress(
-			webauthn,
-			"WebAuthNAuthenticatorMakeCredential");
-	WebAuthNFreeCredentialAttestation =
-		(FreeAttestationFunc)GetProcAddress(
-			webauthn,
-			"WebAuthNFreeCredentialAttestation");
-	WebAuthNAuthenticatorGetAssertion =
-		(GetAssertionFunc)GetProcAddress(
-			webauthn,
-			"WebAuthNAuthenticatorGetAssertion");
-	WebAuthNFreeAssertion =
-		(FreeAssertionFunc)GetProcAddress(
-			webauthn,
-			"WebAuthNFreeAssertion");
+	LOAD_SYMBOL(WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable);
+	LOAD_SYMBOL(WebAuthNAuthenticatorMakeCredential);
+	LOAD_SYMBOL(WebAuthNFreeCredentialAttestation);
+	LOAD_SYMBOL(WebAuthNAuthenticatorGetAssertion);
+	LOAD_SYMBOL(WebAuthNFreeAssertion);
+#undef LOAD_SYMBOL
 
-	WebAuthNGetApiVersionNumber =
-		(GetVersionFunc)GetProcAddress(
-			webauthn,
-			"WebAuthNGetApiVersionNumber");
-	WebAuthNGetErrorName =
-		(GetErrorNameFunc)GetProcAddress(
-			webauthn,
-			"WebAuthNGetErrorName");
-	WebAuthNCancelCurrentOperation =
-		(CancelOperationFunc)GetProcAddress(
-			webauthn,
-			"WebAuthNCancelCurrentOperation");
+	return (total == resolved);
+}
 
-	apiVersion = WebAuthNGetApiVersionNumber
-		? WebAuthNGetApiVersionNumber()
-		: 0;
-
-	return WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable
-		&& WebAuthNAuthenticatorMakeCredential
-		&& WebAuthNFreeCredentialAttestation
-		&& WebAuthNAuthenticatorGetAssertion
-		&& WebAuthNFreeAssertion;
+[[nodiscard]] bool Supported() {
+	static const auto Result = Resolve();
+	return Result;
 }
 
 } // namespace
 
 bool IsSupported() {
-	if (!LoadWebAuthn()) {
+	if (!Supported()) {
 		return false;
 	}
 	auto available = (BOOL)(FALSE);
@@ -134,7 +84,7 @@ bool IsSupported() {
 void RegisterKey(
 		const Data::Passkey::RegisterData &data,
 		Fn<void(RegisterResult result)> callback) {
-	if (!LoadWebAuthn()) {
+	if (!Supported()) {
 		callback({});
 		return;
 	}
@@ -252,7 +202,7 @@ void RegisterKey(
 void Login(
 		const Data::Passkey::LoginData &data,
 		Fn<void(LoginResult result)> callback) {
-	if (!LoadWebAuthn()) {
+	if (!Supported()) {
 		callback({});
 		return;
 	}

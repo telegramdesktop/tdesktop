@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 struct StarGift;
+struct UniqueGift;
 struct UniqueGiftAttributes;
+enum class GiftAttributeIdType;
 } // namespace Data
 
 namespace Window {
@@ -22,8 +24,9 @@ class GenericBox;
 
 void StarGiftPreviewBox(
 	not_null<GenericBox*> box,
-	not_null<Window::SessionController*> controller,
-	const Data::StarGift &gift,
-	const Data::UniqueGiftAttributes &attributes);
+	const QString &title,
+	const Data::UniqueGiftAttributes &attributes,
+	Data::GiftAttributeIdType tab,
+	std::shared_ptr<Data::UniqueGift> selected);
 
 } // namespace Ui

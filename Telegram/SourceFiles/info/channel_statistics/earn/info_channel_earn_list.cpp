@@ -665,6 +665,7 @@ void InnerWidget::fill() {
 			}(), Type::StackBar);
 			widget->setTitle(tr::lng_bot_earn_chart_revenue());
 		}
+		Statistic::FixCacheForHighDPIChartWidget(container);
 	}
 	if (data.topHoursGraph.chart
 		|| data.revenueGraph.chart

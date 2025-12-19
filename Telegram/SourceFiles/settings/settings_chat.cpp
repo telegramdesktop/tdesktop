@@ -365,15 +365,18 @@ rpl::producer<QColor> ColorsPalette::selected() const {
 }
 
 void ColorsPalette::updateInnerGeometry() {
-	if (_buttons.size() < 2) {
+	const auto count = int(_buttons.size());
+	if (count < 2) {
 		return;
 	}
 	const auto inner = _outer->entity();
 	const auto size = st::settingsAccentColorSize;
 	const auto padding = st::settingsButtonNoIcon.padding;
 	const auto width = inner->width() - padding.left() - padding.right();
-	const auto skip = (width - size * _buttons.size())
-		/ float64(_buttons.size() - 1);
+	if (width < size * count) {
+		return;
+	}
+	const auto skip = (width - size * count) / float64(count - 1);
 	const auto y = st::defaultVerticalListSkip * 2;
 	auto x = float64(padding.left());
 	for (const auto &button : _buttons) {

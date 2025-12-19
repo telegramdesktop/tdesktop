@@ -154,6 +154,7 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container);
 		Ui::AddDivider(container);
 		Ui::AddSkip(container);
+		Statistic::FixCacheForHighDPIChartWidget(container);
 	}
 	{
 		AddHeader(container, tr::lng_bot_earn_overview_title);

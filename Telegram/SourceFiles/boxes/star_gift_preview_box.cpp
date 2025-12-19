@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/top_background_gradient.h"
 #include "settings/settings_credits_graphics.h"
-#include "window/window_session_controller.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
 
@@ -199,9 +198,9 @@ public:
 	AttributesList(
 		QWidget *parent,
 		not_null<Delegate*> delegate,
-		not_null<Window::SessionController*> window,
 		not_null<const Data::UniqueGiftAttributes*> attributes,
-		rpl::producer<Tab> tab);
+		rpl::producer<Tab> tab,
+		Selection initialSelection);
 
 	[[nodiscard]] rpl::producer<Selection> selected() const;
 
@@ -233,7 +232,6 @@ private:
 	void clicked(int index);
 
 	const not_null<Delegate*> _delegate;
-	const not_null<Window::SessionController*> _window;
 	const not_null<const Data::UniqueGiftAttributes*> _attributes;
 	rpl::variable<Tab> _tab;
 	rpl::variable<Selection> _selected;
@@ -948,14 +946,14 @@ PatternEmoji Delegate::patternEmoji() {
 AttributesList::AttributesList(
 	QWidget *parent,
 	not_null<Delegate*> delegate,
-	not_null<Window::SessionController*> window,
 	not_null<const Data::UniqueGiftAttributes*> attributes,
-	rpl::producer<Tab> tab)
+	rpl::producer<Tab> tab,
+	Selection initialSelection)
 : BoxContentDivider(parent)
 , _delegate(delegate)
-, _window(window)
 , _attributes(attributes)
 , _tab(std::move(tab))
+, _selected(initialSelection)
 , _entries(&_models)
 , _list(&_entries->list) {
 	_singleMin = _delegate->buttonSize();
@@ -1127,13 +1125,15 @@ void AttributesList::validateButtons() {
 			});
 			if (unused != end(_views)) {
 				views.push_back(base::take(*unused));
+				views.back().document = document;
 				views.back().button->setDescriptor(descriptor);
 			} else {
 				views.push_back({
 					.button = std::make_unique<AttributeButton>(
 						this,
 						_delegate,
-						descriptor)
+						descriptor),
+					.document = document,
 				});
 				views.back().button->show();
 			}
@@ -1239,9 +1239,10 @@ int AttributesList::resizeGetHeight(int width) {
 
 void StarGiftPreviewBox(
 		not_null<GenericBox*> box,
-		not_null<Window::SessionController*> controller,
-		const Data::StarGift &gift,
-		const Data::UniqueGiftAttributes &attributes) {
+		const QString &title,
+		const Data::UniqueGiftAttributes &attributes,
+		Data::GiftAttributeIdType tab,
+		std::shared_ptr<Data::UniqueGift> selected) {
 	Expects(!attributes.models.empty());
 	Expects(!attributes.patterns.empty());
 	Expects(!attributes.backdrops.empty());
@@ -1251,16 +1252,38 @@ void StarGiftPreviewBox(
 	box->setNoContentMargin(true);
 
 	struct State {
-		State(QString title, const Data::UniqueGiftAttributes &attributes)
+		State(
+			QString title,
+			const Data::UniqueGiftAttributes &attributes,
+			Data::GiftAttributeIdType tab,
+			std::shared_ptr<Data::UniqueGift> selected)
 		: title(title)
 		, delegate([=] {
-			if (tab.current() != Tab::Model && list) {
+			if (this->tab.current() != Tab::Model && list) {
 				list->update();
 			}
 		})
 		, attributes(attributes)
+		, tab(tab)
 		, gift(make())
 		, pushNextTimer([=] { push(); }) {
+			apply(selected);
+		}
+		void apply(std::shared_ptr<Data::UniqueGift> selected) {
+			if (!selected) {
+				return;
+			}
+			const auto up = [&](auto &list, const auto &attribute) {
+				ranges::stable_partition(list, [&](const auto &existing) {
+					return IdFor(attribute) == IdFor(existing);
+				});
+			};
+			up(attributes.models, selected->model);
+			up(attributes.patterns, selected->pattern);
+			up(attributes.backdrops, selected->backdrop);
+			fixed = { 0, 0, 0 };
+			paused = true;
+			gift = make();
 		}
 
 		void randomize() {
@@ -1328,8 +1351,11 @@ void StarGiftPreviewBox(
 		base::Timer pushNextTimer;
 	};
 
-	const auto title = gift.resellTitle;
-	const auto state = box->lifetime().make_state<State>(title, attributes);
+	const auto state = box->lifetime().make_state<State>(
+		title,
+		attributes,
+		tab,
+		selected);
 
 	const auto repaintedHook = [=](
 			std::optional<Data::UniqueGift> now,
@@ -1338,8 +1364,9 @@ void StarGiftPreviewBox(
 		state->delegate.update(now, next, progress);
 	};
 
-	const auto container = box->verticalLayout();
-	AddUniqueGiftCover(container, state->gift.value(), {
+	const auto top = box->setPinnedToTopContent(
+		object_ptr<VerticalLayout>(box));
+	AddUniqueGiftCover(top, state->gift.value(), {
 		.subtitle = rpl::conditional(
 			state->paused.value(),
 			tr::lng_auction_preview_selected(tr::marked),
@@ -1347,14 +1374,16 @@ void StarGiftPreviewBox(
 		.attributesInfo = true,
 		.repaintedHook = repaintedHook,
 	});
+
 	AddUniqueCloseButton(box, {});
 
+	const auto container = box->verticalLayout();
 	state->list = container->add(object_ptr<AttributesList>(
 		box,
 		&state->delegate,
-		controller,
 		&state->attributes,
-		state->tab.value()));
+		state->tab.value(),
+		state->fixed));
 	state->list->selected(
 	) | rpl::on_next([=](Selection value) {
 		state->fixed = value;

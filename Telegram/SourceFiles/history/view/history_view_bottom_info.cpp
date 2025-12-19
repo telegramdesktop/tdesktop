@@ -656,8 +656,13 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	if (item->isScheduled()) {
 		result.scheduleRepeatPeriod = item->scheduleRepeatPeriod();
 	}
-	if (forwarded
-		&& forwarded->originalDate
+	if (!forwarded) {
+		return result;
+	}
+	if (forwarded->savedFromMsgId && forwarded->savedFromDate) {
+		result.date = base::unixtime::parse(forwarded->savedFromDate);
+		result.flags |= Flag::ForwardedDate;
+	} else if (forwarded->originalDate
 		&& (message->context() == Context::SavedSublist
 			|| item->history()->peer->isSelf())
 		&& !item->externalReply()) {

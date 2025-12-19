@@ -1469,7 +1469,10 @@ void AuctionInfoBox(
 				st::boxRowPadding + st::uniqueGiftValueAvailableMargin,
 				style::al_top
 			)->setClickHandlerFilter([=](const auto &...) {
-				show->show(Box(StarGiftPreviewBox, window, *now.gift, list));
+				const auto title = now.gift->resellTitle;
+				const auto type = Data::GiftAttributeIdType::Model;
+				const auto null = nullptr;
+				show->show(Box(StarGiftPreviewBox, title, list, type, null));
 				return false;
 			});
 		}, box->lifetime());

@@ -1560,4 +1560,12 @@ rpl::producer<float64> ChartWidget::zoomRequests() {
 	return _zoomRequests.events();
 }
 
+void FixCacheForHighDPIChartWidget(not_null<Ui::RpWidget*> container) {
+	if (style::DevicePixelRatio() != 1) {
+		container->paintRequest() | rpl::take(2) | rpl::on_next([=] {
+			container->update();
+		}, container->lifetime());
+	}
+}
+
 } // namespace Statistic

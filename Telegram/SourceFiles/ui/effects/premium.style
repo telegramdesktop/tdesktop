@@ -494,6 +494,7 @@ starrefFooterButton: RoundButton(defaultActiveButton) {
 starrefFooterBox: Box(defaultBox) {
 	buttonPadding: margins(22px, 11px, 22px, 54px);
 	buttonHeight: 42px;
+	buttonWide: true;
 	button: starrefFooterButton;
 	shadowIgnoreTopSkip: true;
 }

@@ -165,6 +165,7 @@ struct HistoryMessageForwarded
 
 	PeerData *savedFromPeer = nullptr;
 	MsgId savedFromMsgId = 0;
+	TimeId savedFromDate = 0;
 
 	PeerData *savedFromSender = nullptr;
 	std::unique_ptr<HiddenSenderInfo> savedFromHiddenSenderInfo;

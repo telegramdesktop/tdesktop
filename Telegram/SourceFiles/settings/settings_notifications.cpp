@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/chat_service_checkbox.h"
 #include "ui/effects/animations.h"
 #include "data/notify/data_peer_notify_volume.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/text/text_utilities.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
@@ -25,8 +26,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "window/notifications_manager.h"
-#include "window/window_session_controller.h"
 #include "window/section_widget.h"
+#include "window/themes/window_theme.h"
+#include "window/window_session_controller.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
@@ -814,6 +816,9 @@ NotifyViewCheckboxes SetupNotifyViewOptions(
 	const auto view = widget->lifetime().make_state<NotifyPreview>(
 		nameShown,
 		previewShown);
+	using ThemePtr = std::unique_ptr<Ui::ChatTheme>;
+	const auto theme = widget->lifetime().make_state<ThemePtr>(
+		Window::Theme::DefaultChatThemeOn(widget->lifetime()));
 	widget->widthValue(
 	) | rpl::filter(
 		_1 >= (st::historyMinimalWidth / 2)
@@ -835,13 +840,14 @@ NotifyViewCheckboxes SetupNotifyViewOptions(
 
 	widget->paintRequest(
 	) | rpl::on_next([=](QRect rect) {
+		Painter p(widget);
+		p.setClipRect(rect);
 		Window::SectionWidget::PaintBackground(
-			controller,
-			controller->defaultChatTheme().get(), // #TODO themes
-			widget,
+			p,
+			theme->get(),
+			QSize(widget->width(), widget->window()->height()),
 			rect);
 
-		Painter p(widget);
 		view->paint(
 			p,
 			st::notifyPreviewMargins.left(),

@@ -607,6 +607,17 @@ QString DateTooltipText(not_null<Element*> view) {
 				dateText = tr::lng_forwarded_imported(tr::now)
 					+ "\n\n" + dateText;
 			}
+			if (forwarded->savedFromDate
+				&& forwarded->savedFromDate != forwarded->originalDate) {
+				const auto parsed = base::unixtime::parse(
+					forwarded->savedFromDate);
+				if (parsed != view->dateTime()) {
+					dateText += '\n' + tr::lng_forwarded_saved_date(
+						tr::now,
+						lt_date,
+						locale.toString(parsed, format));
+				}
+			}
 		}
 	}
 	if (view->isSignedAuthorElided()) {

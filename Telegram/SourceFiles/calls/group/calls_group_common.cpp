@@ -223,18 +223,13 @@ void ConferenceCallJoinConfirm(
 			style::al_top
 		)->setTryMakeSimilarLines(true);
 	}
-	const auto joinAndClose = [=] {
+	box->addButton(tr::lng_confcall_join_button(), [=] {
 		join([weak = base::make_weak(box)] {
 			if (const auto strong = weak.get()) {
 				strong->closeBox();
 			}
 		});
-	};
-	Info::BotStarRef::AddFullWidthButton(
-		box,
-		tr::lng_confcall_join_button(),
-		joinAndClose,
-		&st::confcallLinkButton);
+	});
 }
 
 ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle() {
