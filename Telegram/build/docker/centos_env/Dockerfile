@@ -294,6 +294,7 @@ COPY --link --from=highway /usr/src/highway-cache /
 RUN git clone -b v0.11.1 --depth=1 https://github.com/libjxl/libjxl.git \
 	&& cd libjxl \
 	&& git submodule update --init --recursive --depth=1 third_party/libjpeg-turbo \
+	&& curl -sSL https://github.com/libjxl/libjxl/commit/ee3955b1553bcc10304d45b85dfef9afa9349d72.patch | sed 's/offset + t/offset + i/' | git apply \
 	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DBUILD_TESTING=OFF \

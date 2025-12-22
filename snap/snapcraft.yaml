@@ -344,6 +344,9 @@ parts:
       - -DJPEGXL_FORCE_SYSTEM_BROTLI=ON
       - -DJPEGXL_FORCE_SYSTEM_LCMS2=ON
       - -DJPEGXL_FORCE_SYSTEM_HWY=ON
+    override-pull: |
+      craftctl default
+      curl -sSL https://github.com/libjxl/libjxl/commit/ee3955b1553bcc10304d45b85dfef9afa9349d72.patch | sed 's/offset + t/offset + i/' | git apply
     override-build: |
       craftctl default
       cp lib/libjpegli-static.a "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
