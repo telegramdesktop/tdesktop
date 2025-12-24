@@ -48,7 +48,7 @@ jobs:
 
     strategy:
       matrix:
-        arch: [Win32, x64]
+        arch: [x64_x86, x64]
         generator: ["", "Ninja Multi-Config"]
 
     env:
@@ -81,7 +81,7 @@ jobs:
         shell: bash
         run: |
           DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
-          [ "${{ matrix.arch }}" != Win32 ] && DOCPATH=$TBUILD/$REPO_NAME/docs/building-win-${{ matrix.arch }}.md
+          [ "${{ matrix.arch }}" != x64_x86 ] && DOCPATH=$TBUILD/$REPO_NAME/docs/building-win-${{ matrix.arch }}.md
           SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
           echo "SDK=$SDK" >> $GITHUB_ENV
 
@@ -138,7 +138,7 @@ jobs:
           ARCH=""
           if [ -n "${{ matrix.arch }}" ]; then
             case "${{ matrix.arch }}" in
-              Win32) ARCH="x86";;
+              x64_x86) ARCH="x86";;
               *) ARCH="${{ matrix.arch }}";;
             esac
             echo "Architecture from matrix: $ARCH"
