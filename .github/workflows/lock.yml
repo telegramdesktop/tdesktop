@@ -6,7 +6,7 @@ on:
 
 jobs:
   lock:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: dessant/lock-threads@v6
         with:
