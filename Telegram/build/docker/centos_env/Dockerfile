@@ -12,7 +12,7 @@ RUN dnf -y install epel-release \
 	&& dnf config-manager --set-enabled powertools \
 	&& dnf -y install cmake autoconf automake libtool pkgconfig make patch git \
 		python3.11-pip python3.11-devel gperf flex bison clang clang-tools-extra \
-		lld nasm yasm file which wget perl-open perl-XML-Parser perl-IPC-Cmd \
+		lld nasm file which wget perl-open perl-XML-Parser perl-IPC-Cmd \
 		xorg-x11-util-macros $TOOLSET-gcc $TOOLSET-gcc-c++ $TOOLSET-binutils \
 		$TOOLSET-gdb $TOOLSET-libasan-devel libffi-devel fontconfig-devel \
 		freetype-devel libX11-devel wayland-devel alsa-lib-devel \
