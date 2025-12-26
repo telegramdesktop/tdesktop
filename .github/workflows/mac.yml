@@ -76,19 +76,13 @@ jobs:
 
           sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
 
-      - name: ThirdParty cache.
-        id: cache-third-party
-        uses: actions/cache@v5
-        with:
-          path: ThirdParty
-          key: ${{ runner.OS }}-third-party-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH)) }}
-          restore-keys: ${{ runner.OS }}-third-party-
-
       - name: Libraries cache.
         id: cache-libs
         uses: actions/cache@v5
         with:
-          path: Libraries
+          path: |
+            Libraries
+            ThirdParty
           key: ${{ runner.OS }}-libs-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH)) }}
           restore-keys: ${{ runner.OS }}-libs-
 
