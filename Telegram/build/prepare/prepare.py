@@ -523,7 +523,7 @@ mac:
     python3 -m pip install \\
         --ignore-installed \\
         --target=$THIRDPARTY_DIR/gyp \\
-        git+https://chromium.googlesource.com/external/gyp@master
+        git+https://chromium.googlesource.com/external/gyp@master six
 """, 'ThirdParty')
 
 stage('yasm', """
