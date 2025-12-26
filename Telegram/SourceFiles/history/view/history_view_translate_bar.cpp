@@ -102,7 +102,7 @@ TwoTextAction::TwoTextAction(
 	setClickedCallback(std::move(callback));
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Painter p(this);
 		paint(p);
 	}, lifetime());
@@ -268,7 +268,7 @@ void TranslateBar::updateShadowGeometry(QRect wrapGeometry) {
 
 void TranslateBar::setup(not_null<History*> history) {
 	_wrap.geometryValue(
-	) | rpl::start_with_next([=](QRect rect) {
+	) | rpl::on_next([=](QRect rect) {
 		updateShadowGeometry(rect);
 	}, _wrap.lifetime());
 
@@ -283,7 +283,7 @@ void TranslateBar::setup(not_null<History*> history) {
 	button->setAttribute(Qt::WA_OpaquePaintEvent);
 
 	button->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		QPainter(button).fillRect(clip, st::historyComposeButtonBg);
 	}, button->lifetime());
 
@@ -298,7 +298,7 @@ void TranslateBar::setup(not_null<History*> history) {
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
 	icon->resize(st::historyTranslateIcon.size());
-	icon->paintRequest() | rpl::start_with_next([=] {
+	icon->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(icon);
 		st::historyTranslateIcon.paint(p, 0, 0, icon->width());
 	}, icon->lifetime());
@@ -327,7 +327,7 @@ void TranslateBar::setup(not_null<History*> history) {
 			(_wrap.height() - icon->height()) / 2);
 	};
 
-	_wrap.sizeValue() | rpl::start_with_next([=](QSize size) {
+	_wrap.sizeValue() | rpl::on_next([=](QSize size) {
 		settings->moveToRight(0, 0, size.width());
 		updateLabelGeometry();
 	}, lifetime());
@@ -354,7 +354,7 @@ void TranslateBar::setup(not_null<History*> history) {
 	) | rpl::filter([=](LanguageId should) {
 		const auto now = history->translatedTo();
 		return now && (now != should);
-	}) | rpl::start_with_next([=](LanguageId should) {
+	}) | rpl::on_next([=](LanguageId should) {
 		translateTo(should);
 	}, _wrap.lifetime());
 
@@ -387,7 +387,7 @@ void TranslateBar::setup(not_null<History*> history) {
 			: rpl::single(QString());
 	}) | rpl::flatten_latest(
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](QString phrase) {
+	) | rpl::on_next([=](QString phrase) {
 		_shouldBeShown = !phrase.isEmpty();
 		if (_shouldBeShown) {
 			label->setText(phrase);
@@ -487,14 +487,14 @@ void TranslateBar::showSettingsToast(
 	const auto text = tr::lng_translate_dont_added(
 		tr::now,
 		lt_name,
-		Ui::Text::Bold(Ui::LanguageName(ignored)),
-		Ui::Text::WithEntities);
+		tr::bold(Ui::LanguageName(ignored)),
+		tr::marked);
 	showToast(text, tr::lng_translate_settings(tr::now), [=] {
 		if (const auto strong = weak.get()) {
 			const auto box = strong->show(
 				Ui::EditSkipTranslationLanguages());
 			if (box) {
-				box->boxClosing() | rpl::start_with_next([=] {
+				box->boxClosing() | rpl::on_next([=] {
 					const auto in = ranges::contains(
 						Core::App().settings().skipTranslationLanguages(),
 						ignored);
@@ -513,7 +513,7 @@ void TranslateBar::showHiddenToast(not_null<PeerData*> peer) {
 		: peer->isBroadcast()
 		? tr::lng_translate_hidden_channel
 		: tr::lng_translate_hidden_group;
-	const auto proj = Ui::Text::WithEntities;
+	const auto proj = tr::marked;
 	showToast(phrase(tr::now, proj), tr::lng_translate_undo(tr::now), [=] {
 		peer->saveTranslationDisabled(false);
 	});
@@ -566,7 +566,7 @@ void TranslateBar::showToast(
 	rpl::combine(
 		widget->sizeValue(),
 		button->sizeValue()
-	) | rpl::start_with_next([=](QSize outer, QSize inner) {
+	) | rpl::on_next([=](QSize outer, QSize inner) {
 		button->moveToRight(
 			0,
 			(outer.height() - inner.height()) / 2,

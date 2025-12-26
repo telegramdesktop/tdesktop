@@ -81,7 +81,7 @@ rpl::producer<TextWithEntities> AgeVerifyAbout(
 		};
 		Assert(shift >= 0 && shift < postfixes.size());
 		const auto postfix = *(begin(postfixes) + shift);
-		return Ui::Text::RichLangValue(Lang::GetNonDefaultValue(
+		return tr::rich(Lang::GetNonDefaultValue(
 			kVerifyAgeAboutPrefix + country.toUtf8() + postfix
 		).replace(u"{count}"_q, string));
 	});
@@ -94,7 +94,7 @@ rpl::producer<TextWithEntities> AgeVerifyAbout(
 	auto result = object_ptr<Ui::RpWidget>(parent);
 	const auto raw = result.data();
 	raw->resize(full);
-	raw->paintRequest() | rpl::start_with_next([=] {
+	raw->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(raw);
 		const auto x = (raw->width() - full.width()) / 2;
 		auto hq = PainterHighQualityEnabler(p);
@@ -284,22 +284,22 @@ void ShowPaidMediaUnlockedToast(
 		: nullptr;
 	auto text = tr::lng_credits_media_done_title(
 		tr::now,
-		Ui::Text::Bold
+		tr::bold
 	).append('\n').append(user
 		? tr::lng_credits_media_done_text_user(
 			tr::now,
 			lt_count,
 			invoice->amount,
 			lt_user,
-			Ui::Text::Bold(user->shortName()),
-			Ui::Text::RichLangValue)
+			tr::bold(user->shortName()),
+			tr::rich)
 		: tr::lng_credits_media_done_text(
 			tr::now,
 			lt_count,
 			invoice->amount,
 			lt_chat,
-			Ui::Text::Bold(broadcast->name()),
-			Ui::Text::RichLangValue));
+			tr::bold(broadcast->name()),
+			tr::rich));
 	controller->showToast(std::move(text), kMediaUnlockedTooltipDuration);
 }
 
@@ -366,7 +366,7 @@ void ShowAgeVerification(
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
-				tr::lng_age_verify_here(Ui::Text::RichLangValue),
+				tr::lng_age_verify_here(tr::rich),
 				st::settingsAgeVerifyText),
 			st::boxRowPadding + st::settingsAgeVerifyMargin,
 			style::al_top);
@@ -399,7 +399,7 @@ void ShowAgeVerification(
 			});
 		});
 		box->widthValue(
-		) | rpl::start_with_next([=](int width) {
+		) | rpl::on_next([=](int width) {
 			const auto &padding = st::settingsAgeVerifyBox.buttonPadding;
 			button->resizeToWidth(width
 				- padding.left()
@@ -414,7 +414,7 @@ void ShowAgeVerification(
 			box->closeBox();
 		});
 		box->widthValue(
-		) | rpl::start_with_next([=](int width) {
+		) | rpl::on_next([=](int width) {
 			close->moveToRight(0, 0);
 		}, box->lifetime());
 		crl::on_main(close, [=] { close->raise(); });
@@ -438,7 +438,7 @@ void ShowAgeVerificationMobile(
 			st::peerAppearanceIconPadding);
 
 		box->showFinishes(
-		) | rpl::start_with_next([animate = std::move(icon.animate)] {
+		) | rpl::on_next([animate = std::move(icon.animate)] {
 			animate(anim::repeat::once);
 		}, box->lifetime());
 
@@ -454,7 +454,7 @@ void ShowAgeVerificationMobile(
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
-				tr::lng_age_verify_mobile(Ui::Text::RichLangValue),
+				tr::lng_age_verify_mobile(tr::rich),
 				st::settingsAgeVerifyText),
 			st::boxRowPadding + st::settingsAgeVerifyMargin,
 			style::al_top);
@@ -503,7 +503,7 @@ void ShowAgeVerificationRequired(
 			state->lifetime = sensitive->loadedValue(
 			) | rpl::filter(
 				rpl::mappers::_1
-			) | rpl::take(1) | rpl::start_with_next(state->check);
+			) | rpl::take(1) | rpl::on_next(state->check);
 			return;
 		} else if (!state->bot.has_value()) {
 			return;
@@ -545,7 +545,7 @@ void ShowSensitiveConfirm(
 				show->showToast({
 					.text = tr::lng_sensitive_toast(
 						tr::now,
-						Ui::Text::RichLangValue),
+						tr::rich),
 					.adaptive = true,
 					.duration = 5 * crl::time(1000),
 				});
@@ -556,7 +556,7 @@ void ShowSensitiveConfirm(
 			close();
 		};
 		Ui::ConfirmBox(box, {
-			.text = tr::lng_sensitive_text(Ui::Text::RichLangValue),
+			.text = tr::lng_sensitive_text(tr::rich),
 			.confirmed = done,
 			.confirmText = tr::lng_sensitive_view(),
 			.title = tr::lng_sensitive_title(),

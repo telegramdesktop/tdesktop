@@ -374,7 +374,6 @@ void MainWindow::createGlobalMenu() {
 		QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 
 	prefs->setMenuRole(QAction::PreferencesRole);
-	prefs->setShortcutContext(Qt::WidgetShortcut);
 
 	auto tools = psMainMenu->addMenu(tr::lng_linux_menu_tools(tr::now));
 
@@ -537,6 +536,38 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 }
 
 MainWindow::~MainWindow() {
+}
+
+int32 ScreenNameChecksum(const QString &name) {
+	return Window::DefaultScreenNameChecksum(name);
+}
+
+int32 ScreenNameChecksum(const QScreen *screen) {
+	return ScreenNameChecksum(screen->name());
+}
+
+QString ScreenDisplayLabel(const QScreen *screen) {
+	if (!screen) {
+		return QString();
+	}
+
+	const auto model = (screen->manufacturer()
+		+ ' '
+		+ screen->model()).simplified();
+
+	if (!model.isEmpty()) {
+		if (!screen->name().isEmpty()) {
+			return (model
+				+ ' '
+				+ QChar(8212)
+				+ ' '
+				+ screen->name()).simplified();
+		}
+
+		return model;
+	}
+
+	return screen->name();
 }
 
 } // namespace Platform

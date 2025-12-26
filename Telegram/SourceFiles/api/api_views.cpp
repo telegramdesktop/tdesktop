@@ -95,7 +95,7 @@ void ViewsManager::viewsIncrement() {
 			ids.push_back(MTP_int(msgId));
 		}
 		const auto requestId = _api.request(MTPmessages_GetMessagesViews(
-			i->first->input,
+			i->first->input(),
 			MTP_vector<MTPint>(ids),
 			MTP_bool(true)
 		)).done([=](
@@ -183,7 +183,7 @@ void ViewsManager::sendPollRequests(
 			}
 		};
 		const auto requestId = _api.request(MTPmessages_GetExtendedMedia(
-			peer->input,
+			peer->input(),
 			MTP_vector<MTPint>(list)
 		)).done([=](const MTPUpdates &result, mtpRequestId id) {
 			_session->api().applyUpdates(result);

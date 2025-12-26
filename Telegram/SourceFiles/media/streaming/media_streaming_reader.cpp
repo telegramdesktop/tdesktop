@@ -857,7 +857,7 @@ Reader::Reader(
 , _cacheHelper(cache ? InitCacheHelper(_loader->baseCacheKey()) : nullptr)
 , _slices(_loader->size(), _cacheHelper != nullptr) {
 	_loader->parts(
-	) | rpl::start_with_next([=](LoadedPart &&part) {
+	) | rpl::on_next([=](LoadedPart &&part) {
 		if (_attachedDownloader) {
 			_partsForDownloader.fire_copy(part);
 		}

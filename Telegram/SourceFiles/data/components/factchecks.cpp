@@ -60,7 +60,7 @@ void Factchecks::subscribeIfNotYet() {
 	_subscribed = true;
 
 	_session->data().itemRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		_pending.remove(item);
 		const auto i = ranges::find(_requested, item.get());
 		if (i != end(_requested)) {
@@ -91,7 +91,7 @@ void Factchecks::request() {
 		}
 	}
 	_requestId = _session->api().request(MTPmessages_GetFactCheck(
-		history->peer->input,
+		history->peer->input(),
 		MTP_vector<MTPint>(std::move(ids))
 	)).done([=](const MTPVector<MTPFactCheck> &result) {
 		_requestId = 0;
@@ -170,7 +170,7 @@ void Factchecks::save(
 		return;
 	} else if (text.empty()) {
 		_session->api().request(MTPmessages_DeleteFactCheck(
-			item->history()->peer->input,
+			item->history()->peer->input(),
 			MTP_int(item->id.bare)
 		)).done([=](const MTPUpdates &result) {
 			_session->api().applyUpdates(result);
@@ -180,7 +180,7 @@ void Factchecks::save(
 		}).send();
 	} else {
 		_session->api().request(MTPmessages_EditFactCheck(
-			item->history()->peer->input,
+			item->history()->peer->input(),
 			MTP_int(item->id.bare),
 			MTP_textWithEntities(
 				MTP_string(text.text),

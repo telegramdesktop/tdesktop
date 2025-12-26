@@ -54,13 +54,13 @@ Blocked::Blocked(
 	}
 
 	_controller->session().api().blockedPeers().slice(
-	) | rpl::start_with_next([=](const Api::BlockedPeers::Slice &slice) {
+	) | rpl::on_next([=](const Api::BlockedPeers::Slice &slice) {
 		checkTotal(slice.total);
 	}, lifetime());
 
 	_controller->session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::IsBlocked
-	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+	) | rpl::on_next([=](const Data::PeerUpdate &update) {
 		if (update.peer->isBlocked()) {
 			checkTotal(1);
 		}
@@ -111,7 +111,7 @@ base::weak_qptr<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> pare
 		// Workaround.
 		std::move(
 			subtitleText
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			subtitle->entity()->resizeToWidth(content->width());
 		}, subtitle->lifetime());
 	}
@@ -149,7 +149,7 @@ void Blocked::setupContent() {
 		state->controller->setDelegate(state->delegate.get());
 
 		state->controller->rowsCountChanges(
-		) | rpl::start_with_next([=](int total) {
+		) | rpl::on_next([=](int total) {
 			_countBlocked = total;
 			checkTotal(total);
 		}, content->lifetime());
@@ -170,16 +170,13 @@ void Blocked::setupContent() {
 			content,
 			{
 				.name = u"blocked_peers_empty"_q,
-				.sizeOverride = {
-					st::changePhoneIconSize,
-					st::changePhoneIconSize,
-				},
+				.sizeOverride = st::normalBoxLottieSize,
 			},
 			st::settingsBlockedListIconPadding);
 		content->add(std::move(icon.widget));
 
 		_showFinished.events(
-		) | rpl::start_with_next([animate = std::move(icon.animate)] {
+		) | rpl::on_next([animate = std::move(icon.animate)] {
 			animate(anim::repeat::once);
 		}, content->lifetime());
 
@@ -207,14 +204,14 @@ void Blocked::setupContent() {
 //	Ui::ResizeFitChild(this, _container, st::settingsBlockedHeightMin);
 
 	widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		_container->resizeToWidth(width);
 	}, _container->lifetime());
 
 	rpl::combine(
 		_container->heightValue(),
 		_emptinessChanges.events_starting_with(true)
-	) | rpl::start_with_next([=](int height, bool empty) {
+	) | rpl::on_next([=](int height, bool empty) {
 		const auto subtitled = !empty || (_countBlocked.current() > 0);
 		const auto total = st::settingsBlockedHeightMin;
 		const auto padding = st::defaultSubsectionTitlePadding

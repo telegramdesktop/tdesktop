@@ -80,7 +80,7 @@ void VoiceRecordButton::init() {
 		anim::Disabled()
 	) | rpl::then(
 		anim::Disables()
-	) | rpl::start_with_next([=](bool hide) {
+	) | rpl::on_next([=](bool hide) {
 		if (hide) {
 			_blobs->setLevel(0.);
 		}
@@ -94,7 +94,7 @@ void VoiceRecordButton::init() {
 	const auto mainRadiusDiff = st::historyRecordMainBlobMaxRadius
 		- mainRadiusMin;
 	paintRequest(
-	) | rpl::start_with_next([=](const QRect &clip) {
+	) | rpl::on_next([=](const QRect &clip) {
 		auto p = QPainter(this);
 
 		const auto hideProgress = _blobsHideLastTime
@@ -170,7 +170,7 @@ void VoiceRecordButton::init() {
 		shownValue(),
 		_showProgress.value(
 		) | rpl::map(rpl::mappers::_1 != 0.) | rpl::distinct_until_changed()
-	) | rpl::start_with_next([=](bool show) {
+	) | rpl::on_next([=](bool show) {
 		setVisible(show);
 		setMouseTracking(show);
 		if (!show) {
@@ -187,12 +187,12 @@ void VoiceRecordButton::init() {
 
 	actives(
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool active) {
+	) | rpl::on_next([=](bool active) {
 		setPointerCursor(active);
 	}, lifetime());
 
 	_state.changes(
-	) | rpl::start_with_next([=](Type newState) {
+	) | rpl::on_next([=](Type newState) {
 		const auto to = 1.;
 		auto callback = [=](float64 value) {
 			if (value >= (to * .5)) {

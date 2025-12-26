@@ -62,7 +62,7 @@ PanelAskPassword::PanelAskPassword(
 			st::passportPasswordHintLabel);
 	}
 	_controller->passwordError(
-	) | rpl::start_with_next([=](const QString &error) {
+	) | rpl::on_next([=](const QString &error) {
 		showError(error);
 	}, lifetime());
 
@@ -166,7 +166,7 @@ PanelNoPassword::PanelNoPassword(
 
 void PanelNoPassword::setupContent() {
 	widthValue(
-	) | rpl::start_with_next([=](int newWidth) {
+	) | rpl::on_next([=](int newWidth) {
 		_inner->resizeToWidth(newWidth);
 	}, _inner->lifetime());
 
@@ -256,7 +256,7 @@ void PanelNoPassword::refreshBottom() {
 			_controller->validateRecoveryEmail();
 		});
 		container->widthValue(
-		) | rpl::start_with_next([=](int width) {
+		) | rpl::on_next([=](int width) {
 			const auto both = cancel->width()
 				+ validate->width()
 				+ st::boxLittleSkip;

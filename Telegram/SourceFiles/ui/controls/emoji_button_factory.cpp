@@ -40,7 +40,7 @@ namespace Ui {
 		const auto fadeTarget = Ui::CreateChild<Ui::RpWidget>(emojiToggle);
 		fadeTarget->resize(emojiToggle->size());
 		fadeTarget->paintRequest(
-		) | rpl::start_with_next([=](const QRect &rect) {
+		) | rpl::on_next([=](const QRect &rect) {
 			auto p = QPainter(fadeTarget);
 			if (fade->animating()) {
 				p.fillRect(fadeTarget->rect(), st::boxBg);
@@ -49,12 +49,17 @@ namespace Ui {
 		}, fadeTarget->lifetime());
 		rpl::single(false) | rpl::then(
 			field->focusedChanges()
-		) | rpl::start_with_next([=](bool shown) {
-			if (shown) {
-				fade->fadeIn(st::universalDuration);
-			} else {
-				fade->fadeOut(st::universalDuration);
-			}
+		) | rpl::on_next([=](bool shown) {
+			crl::on_main(emojiToggle, [=] {
+				if (!emojiToggle->isVisible()) {
+					return;
+				}
+				if (shown) {
+					fade->fadeIn(st::universalDuration);
+				} else {
+					fade->fadeOut(st::universalDuration);
+				}
+			});
 		}, emojiToggle->lifetime());
 		fade->fadeOut(1);
 		fade->finish();
@@ -94,7 +99,7 @@ namespace Ui {
 	rpl::combine(
 		box->sizeValue(),
 		field->geometryValue()
-	) | rpl::start_with_next([=](QSize outer, QRect inner) {
+	) | rpl::on_next([=](QSize outer, QRect inner) {
 		emojiToggle->moveToLeft(
 			rect::right(inner) + shift.x(),
 			inner.y() + shift.y());

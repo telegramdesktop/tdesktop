@@ -22,13 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 
 namespace Api {
-namespace {
-
-[[nodiscard]] TimeId UnixtimeFromMsgId(mtpMsgId msgId) {
-	return TimeId(msgId >> 32);
-}
-
-} // namespace
 
 Polls::Polls(not_null<ApiWrap*> api)
 : _session(&api->session())
@@ -68,6 +61,9 @@ void Polls::create(
 	}
 	if (action.options.scheduled) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+		if (action.options.scheduleRepeatPeriod) {
+			sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_repeat_period;
+		}
 	}
 	if (action.options.shortcutId) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
@@ -94,7 +90,7 @@ void Polls::create(
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
-			peer->input,
+			peer->input(),
 			Data::Histories::ReplyToPlaceholder(),
 			PollDataToInputMedia(&data),
 			MTP_string(),
@@ -102,7 +98,8 @@ void Polls::create(
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
-			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+			MTP_int(action.options.scheduleRepeatPeriod),
+			(sendAs ? sendAs->input() : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
 			MTP_long(action.options.effectId),
 			MTP_long(starsPaid),
@@ -165,7 +162,7 @@ void Polls::sendVotes(
 		ranges::back_inserter(prepared),
 		[](const QByteArray &option) { return MTP_bytes(option); });
 	const auto requestId = _api.request(MTPmessages_SendVote(
-		item->history()->peer->input,
+		item->history()->peer->input(),
 		MTP_int(item->id),
 		MTP_vector<MTPbytes>(prepared)
 	)).done([=](const MTPUpdates &result) {
@@ -191,13 +188,14 @@ void Polls::close(not_null<HistoryItem*> item) {
 	}
 	const auto requestId = _api.request(MTPmessages_EditMessage(
 		MTP_flags(MTPmessages_EditMessage::Flag::f_media),
-		item->history()->peer->input,
+		item->history()->peer->input(),
 		MTP_int(item->id),
 		MTPstring(),
 		PollDataToInputMedia(poll, true),
 		MTPReplyMarkup(),
 		MTPVector<MTPMessageEntity>(),
 		MTP_int(0), // schedule_date
+		MTP_int(0), // schedule_repeat_period
 		MTPint() // quick_reply_shortcut_id
 	)).done([=](const MTPUpdates &result) {
 		_pollCloseRequestIds.erase(itemId);
@@ -214,7 +212,7 @@ void Polls::reloadResults(not_null<HistoryItem*> item) {
 		return;
 	}
 	const auto requestId = _api.request(MTPmessages_GetPollResults(
-		item->history()->peer->input,
+		item->history()->peer->input(),
 		MTP_int(item->id)
 	)).done([=](const MTPUpdates &result) {
 		_pollReloadRequestIds.erase(itemId);

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/bytes.h"
 #include "base/invoke_queued.h"
+#include "base/random.h"
 #include "base/unixtime.h"
 
 #include <QtCore/QtEndian>
@@ -20,7 +21,7 @@ namespace MTP::details {
 namespace {
 
 constexpr auto kMaxGrease = 8;
-constexpr auto kClientHelloLength = 517;
+constexpr auto kClientHelloLimit = 2048;
 constexpr auto kHelloDigestLength = 32;
 constexpr auto kLengthSize = sizeof(uint16);
 const auto kServerHelloPart1 = qstr("\x16\x03\x03");
@@ -68,6 +69,15 @@ using BigNumContext = openssl::Context;
 	const auto K = [&] {
 		pushToBack(MTP_tlsBlockPublicKey());
 	};
+	const auto M = [&] {
+		pushToBack(MTP_tlsBlockM());
+	};
+	const auto E = [&] {
+		pushToBack(MTP_tlsBlockE());
+	};
+	const auto P = [&] {
+		pushToBack(MTP_tlsBlockPadding());
+	};
 	const auto OpenScope = [&] {
 		stack.emplace_back(Scope());
 	};
@@ -112,7 +122,11 @@ using BigNumContext = openssl::Context;
 
 	stack.emplace_back(Scope());
 
-	S("\x16\x03\x01\x02\x00\x01\x00\x01\xfc\x03\x03"_q);
+	S("\x16\x03\x01"_q);
+	OpenScope();
+	S("\x01\x00"_q);
+	OpenScope();
+	S("\x03\x03"_q);
 	Z(32);
 	S("\x20"_q);
 	R(32);
@@ -121,7 +135,8 @@ using BigNumContext = openssl::Context;
 	S(""
 		"\x13\x01\x13\x02\x13\x03\xc0\x2b\xc0\x2f\xc0\x2c\xc0\x30\xcc\xa9"
 		"\xcc\xa8\xc0\x13\xc0\x14\x00\x9c\x00\x9d\x00\x2f\x00\x35\x01\x00"
-		"\x01\x93"_q);
+		""_q);
+	OpenScope();
 	G(2);
 	S("\x00\x00"_q);
 	OpenPermutation(); {
@@ -140,9 +155,9 @@ using BigNumContext = openssl::Context;
 			S("\x00\x05\x00\x05\x01\x00\x00\x00\x00"_q);
 		}
 		StartPermutationElement(); {
-			S("\x00\x0a\x00\x0a\x00\x08"_q);
+			S("\x00\x0a\x00\x0c\x00\x0a"_q);
 			G(4);
-			S("\x00\x1d\x00\x17\x00\x18"_q);
+			S("\x11\xec\x00\x1d\x00\x17\x00\x18"_q);
 		}
 		StartPermutationElement(); {
 			S("\x00\x0b\x00\x02\x01\x00"_q);
@@ -178,20 +193,39 @@ using BigNumContext = openssl::Context;
 			S("\x00\x2d\x00\x02\x01\x01"_q);
 		}
 		StartPermutationElement(); {
-			S("\x00\x33\x00\x2b\x00\x29"_q);
+			S("\x00\x33\x04\xef\x04\xed"_q);
 			G(4);
-			S("\x00\x01\x00\x00\x1d\x00\x20"_q);
+			S("\x00\x01\x00\x11\xec\x04\xc0"_q);
+			M();
+			K();
+			S("\x00\x1d\x00\x20"_q);
 			K();
 		}
 		StartPermutationElement(); {
-			S("\x44\x69\x00\x05\x00\x03\x02\x68\x32"_q);
+			S("\x44\xcd\x00\x05\x00\x03\x02\x68\x32"_q);
+		}
+		StartPermutationElement(); {
+			S("\xfe\x02"_q);
+			OpenScope();
+			S("\x00\x00\x01\x00\x01"_q);
+			R(1);
+			S("\x00\x20"_q);
+			R(20);
+			OpenScope();
+			E();
+			CloseScope();
+			CloseScope();
 		}
 		StartPermutationElement(); {
 			S("\xff\x01\x00\x01\x00"_q);
 		}
 	} ClosePermutation();
 	G(3);
-	S("\x00\x01\x00\x00\x15"_q);
+	S("\x00\x01\x00"_q);
+	P();
+	CloseScope();
+	CloseScope();
+	CloseScope();
 
 	return MTP_tlsClientHello(MTP_vector<MTPTlsBlock>(Finish()));
 }
@@ -211,93 +245,41 @@ using BigNumContext = openssl::Context;
 	return result;
 }
 
-// Returns y^2 = x^3 + 486662 * x^2 + x.
-[[nodiscard]] BigNum GenerateY2(
-		const BigNum &x,
-		const BigNum &mod,
-		const BigNumContext &context) {
-	auto coef = BigNum(486662);
-	auto y = BigNum::ModAdd(x, coef, mod, context);
-	y.setModMul(y, x, mod, context);
-	coef.setWord(1);
-	y.setModAdd(y, coef, mod, context);
-	return BigNum::ModMul(y, x, mod, context);
-}
-
-// Returns x_2 = (x^2 - 1)^2/(4*y^2).
-[[nodiscard]] BigNum GenerateX2(
-		const BigNum &x,
-		const BigNum &mod,
-		const BigNumContext &context) {
-	auto denominator = GenerateY2(x, mod, context);
-	auto coef = BigNum(4);
-	denominator.setModMul(denominator, coef, mod, context);
-
-	auto numerator = BigNum::ModMul(x, x, mod, context);
-	coef.setWord(1);
-	numerator.setModSub(numerator, coef, mod, context);
-	numerator.setModMul(numerator, numerator, mod, context);
-
-	denominator.setModInverse(denominator, mod, context);
-	return BigNum::ModMul(numerator, denominator, mod, context);
-}
-
 [[nodiscard]] bytes::vector GeneratePublicKey() {
-	const auto context = BigNumContext();
-	const char modBytes[] = ""
-		"\x7f\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
-		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xed";
-	const char powBytes[] = ""
-		"\x3f\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
-		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xf6";
-	const auto mod = BigNum(bytes::make_span(modBytes).subspan(0, 32));
-	const auto pow = BigNum(bytes::make_span(powBytes).subspan(0, 32));
+	const auto context = EVP_PKEY_CTX_new_id(NID_ED25519, nullptr);
+	if (!context) {
+		return {};
+	}
+	const auto guardContext = gsl::finally([&] {
+		EVP_PKEY_CTX_free(context);
+	});
 
-	auto x = BigNum();
-	do {
-		while (true) {
-			auto random = bytes::vector(32);
-			bytes::set_random(random);
-			random[31] &= bytes::type(0x7FU);
-			x.setBytes(random);
-			x.setModMul(x, x, mod, context);
+	if (EVP_PKEY_keygen_init(context) <= 0) {
+		return {};
+	}
 
-			auto y = GenerateY2(x, mod, context);
-			if (BigNum::ModExp(y, pow, mod, context).isOne()) {
-				break;
-			}
-		}
-		for (auto i = 0; i != 3; ++i) {
-			x = GenerateX2(x, mod, context);
-		}
-		const auto xBytes = x.getBytes();
-		Assert(!xBytes.empty());
-		Assert(xBytes.size() <= 32);
-	} while (x.bytesSize() == 32);
+	auto key = (EVP_PKEY*)nullptr;
+	if (EVP_PKEY_keygen(context, &key) <= 0) {
+		return {};
+	}
+	const auto guardKey = gsl::finally([&] {
+		EVP_PKEY_free(key);
+	});
 
-	const auto xBytes = x.getBytes();
-	auto result = bytes::vector(32, bytes::type());
-	bytes::copy(
-		bytes::make_span(result).subspan(32 - xBytes.size()),
-		xBytes);
-	ranges::reverse(result);
+	auto length = size_t(0);
+	if (!EVP_PKEY_get_raw_public_key(key, nullptr, &length)) {
+		return {};
+	}
+	Assert(length == 32);
 
-	//auto string = QString();
-	//string.reserve(64);
-	//for (const auto byte : result) {
-	//	const auto code = uchar(byte);
-	//	const auto hex = [](uchar value) -> char {
-	//		if (value >= 0 && value <= 9) {
-	//			return '0' + value;
-	//		} else if (value >= 10 && value <= 15) {
-	//			return 'a' + (value - 10);
-	//		}
-	//		return '-';
-	//	};
-	//	string.append(hex(code / 16)).append(hex(code % 16));
-	//}
-	//LOG(("KEY: %1").arg(string));
-
+	auto result = bytes::vector(length);
+	const auto code = EVP_PKEY_get_raw_public_key(
+		key,
+		reinterpret_cast<unsigned char *>(result.data()),
+		&length);
+	if (!code) {
+		return {};
+	}
 	return result;
 }
 
@@ -332,6 +314,9 @@ private:
 		void writeBlock(const MTPDtlsBlockPublicKey &data);
 		void writeBlock(const MTPDtlsBlockScope &data);
 		void writeBlock(const MTPDtlsBlockPermutation &data);
+		void writeBlock(const MTPDtlsBlockM &data);
+		void writeBlock(const MTPDtlsBlockE &data);
+		void writeBlock(const MTPDtlsBlockPadding &data);
 		void finalize(bytes::const_span key);
 		[[nodiscard]] QByteArray extractDigest() const;
 
@@ -339,7 +324,6 @@ private:
 		[[nodiscard]] QByteArray take();
 
 	private:
-		void writePadding();
 		void writeDigest(bytes::const_span key);
 		void injectTimestamp();
 
@@ -363,7 +347,7 @@ Generator::Part::Part(
 	const bytes::vector &greases)
 : _domain(domain)
 , _greases(greases) {
-	_result.reserve(kClientHelloLength);
+	_result.reserve(kClientHelloLimit);
 	_data = _result.constData();
 }
 
@@ -380,7 +364,7 @@ QByteArray Generator::Part::take() {
 bytes::span Generator::Part::grow(int size) {
 	if (_error
 		|| size <= 0
-		|| _result.size() + size > kClientHelloLength) {
+		|| _result.size() + size > kClientHelloLimit) {
 		_error = true;
 		return bytes::span();
 	}
@@ -496,6 +480,45 @@ void Generator::Part::writeBlock(const MTPDtlsBlockPermutation &data) {
 	}
 }
 
+void Generator::Part::writeBlock(const MTPDtlsBlockM &data) {
+	constexpr auto kElements = 384;
+	constexpr auto kAdded = 32;
+
+	const auto storage = grow(kElements * 3 + kAdded);
+	if (storage.empty()) {
+		return;
+	}
+
+	auto random = bytes::vector(kElements * 8 + kAdded);
+	bytes::set_random(random);
+
+	auto chars = reinterpret_cast<char*>(storage.data());
+	const auto ints = reinterpret_cast<const uint32*>(random.data());
+	for (auto i = 0; i < kElements; ++i) {
+		const auto a = int(ints[i * 2] % 3329);
+		const auto b = int(ints[i * 2 + 1] % 3329);
+		*chars++ = (char)(a & 255);
+		*chars++ = (char)((a >> 8) + ((b & 15) << 4));
+		*chars++ = (char)(b >> 4);
+	}
+	bytes::set_random(storage.subspan(kElements * 3));
+}
+
+void Generator::Part::writeBlock(const MTPDtlsBlockE &data) {
+	const auto lengths = std::array{ 144, 176, 208, 240 };
+	const auto length = lengths[base::RandomIndex(lengths.size())];
+	writeBlock(MTP_tlsBlockRandom(MTP_int(length)));
+}
+
+void Generator::Part::writeBlock(const MTPDtlsBlockPadding &data) {
+	const auto length = int(_result.size());
+	if (length < 513) {
+		const auto zero = MTP_tlsBlockZero(MTP_int(513 - length));
+		writeBlock(MTP_tlsBlockString(MTP_bytes("\x00\x15"_q)));
+		writeBlock(MTP_tlsBlockScope(MTP_vector<MTPTlsBlock>(1, zero)));
+	}
+}
+
 void Generator::Part::finalize(bytes::const_span key) {
 	if (_error) {
 		return;
@@ -503,7 +526,6 @@ void Generator::Part::finalize(bytes::const_span key) {
 		_error = true;
 		return;
 	}
-	writePadding();
 	writeDigest(key);
 	injectTimestamp();
 }
@@ -513,14 +535,6 @@ QByteArray Generator::Part::extractDigest() const {
 		return {};
 	}
 	return _result.mid(_digestPosition, kHelloDigestLength);
-}
-
-void Generator::Part::writePadding() {
-	Expects(_result.size() <= kClientHelloLength - kLengthSize);
-
-	const auto padding = kClientHelloLength - kLengthSize - _result.size();
-	writeBlock(MTP_tlsBlockScope(
-		MTP_vector<MTPTlsBlock>(1, MTP_tlsBlockZero(MTP_int(padding)))));
 }
 
 void Generator::Part::writeDigest(bytes::const_span key) {
@@ -549,9 +563,7 @@ Generator::Generator(
 	bytes::const_span key)
 : _greases(PrepareGreases())
 , _result(domain, _greases) {
-	_result.writeBlocks(rules.match([&](const MTPDtlsClientHello &data) {
-		return data.vblocks().v;
-	}));
+	_result.writeBlocks(rules.data().vblocks().v);
 	_result.finalize(key);
 }
 

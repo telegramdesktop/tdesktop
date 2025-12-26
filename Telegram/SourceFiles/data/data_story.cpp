@@ -279,7 +279,12 @@ bool Story::mine() const {
 }
 
 StoryIdDates Story::idDates() const {
-	return { _id, _date, _expires };
+	return {
+		_id,
+		_date,
+		_expires,
+		std::holds_alternative<std::shared_ptr<GroupCall>>(_media.data),
+	};
 }
 
 FullStoryId Story::fullId() const {
@@ -316,11 +321,20 @@ DocumentData *Story::document() const {
 	return result ? result->get() : nullptr;
 }
 
+const std::shared_ptr<GroupCall> &Story::call() const {
+	const auto result = std::get_if<std::shared_ptr<GroupCall>>(
+		&_media.data);
+	static const auto empty = std::shared_ptr<GroupCall>();
+	return result ? *result : empty;
+}
+
 bool Story::hasReplyPreview() const {
 	return v::match(_media.data, [](not_null<PhotoData*> photo) {
 		return !photo->isNull();
 	}, [](not_null<DocumentData*> document) {
 		return document->hasThumbnail();
+	}, [](const std::shared_ptr<GroupCall> &call) {
+		return false;
 	}, [](v::null_t) {
 		return false;
 	});
@@ -331,6 +345,8 @@ Image *Story::replyPreview() const {
 		return photo->getReplyPreview(fullId(), _peer, false);
 	}, [&](not_null<DocumentData*> document) {
 		return document->getReplyPreview(fullId(), _peer, false);
+	}, [](const std::shared_ptr<GroupCall> &call) {
+		return (Image*)nullptr;
 	}, [](v::null_t) {
 		return (Image*)nullptr;
 	});
@@ -347,10 +363,10 @@ TextWithEntities Story::inReplyText() const {
 				tr::now,
 				lt_media,
 				Ui::Text::Colorized(type),
-				Ui::Text::WithEntities),
+				tr::marked),
 			lt_caption,
 			_caption,
-			Ui::Text::WithEntities);
+			tr::marked);
 }
 
 void Story::setPinnedToTop(bool pinned) {
@@ -711,7 +727,7 @@ void Story::applyFields(
 	auto caption = TextWithEntities{
 		data.vcaption().value_or_empty(),
 		Api::EntitiesFromMTP(
-			&owner().session(),
+			&session(),
 			data.ventities().value_or_empty()),
 	};
 	if (const auto user = _peer->asUser()) {

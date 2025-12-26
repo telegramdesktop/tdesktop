@@ -140,12 +140,12 @@ void EditPriceBox(
 		price ? QString::number(price) : QString(),
 		limit);
 	const auto field = owned.data();
-	wrap->widthValue() | rpl::start_with_next([=](int width) {
+	wrap->widthValue() | rpl::on_next([=](int width) {
 		field->move(0, 0);
 		field->resize(width, field->height());
 		wrap->resize(width, field->height());
 	}, wrap->lifetime());
-	field->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	field->paintRequest() | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(field);
 		st::paidStarIcon.paint(p, 0, st::paidStarIconTop, field->width());
 	}, field->lifetime());
@@ -158,8 +158,8 @@ void EditPriceBox(
 			box,
 			tr::lng_paid_about(
 				lt_link,
-				tr::lng_paid_about_link() | Ui::Text::ToLink(),
-				Ui::Text::WithEntities),
+				tr::lng_paid_about_link(tr::link),
+				tr::marked),
 			st::paidAmountAbout),
 		st::boxRowPadding + QMargins(0, st::sendMediaRowSkip, 0, 0));
 	about->setClickHandlerFilter([=](const auto &...) {
@@ -574,7 +574,7 @@ void SendFilesBox::initPreview() {
 		_footerHeight.value(),
 		_titleHeight.value(),
 		_1 + _2 + _3
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setDimensions(
 			st::boxWideWidth,
 			std::min(st::sendMediaPreviewHeightMax, height),
@@ -619,7 +619,7 @@ void SendFilesBox::prepare() {
 	SetupShadowsToScrollContent(this, _scroll, _inner->heightValue());
 	setCloseByOutsideClick(false);
 
-	boxClosing() | rpl::start_with_next([=] {
+	boxClosing() | rpl::on_next([=] {
 		if (!_confirmed && _cancelledCallback) {
 			_cancelledCallback();
 		}
@@ -747,7 +747,9 @@ void SendFilesBox::refreshButtons() {
 			_send,
 			_show,
 			_sendMenuDetails,
-			_sendMenuCallback);
+			_sendMenuCallback,
+			&_st.tabbed.menu,
+			&_st.tabbed.icons);
 	}
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	_addFile = addLeftButton(
@@ -836,7 +838,7 @@ void SendFilesBox::refreshPriceTag() {
 		const auto raw = _priceTag.get();
 
 		raw->show();
-		raw->paintRequest() | rpl::start_with_next([=] {
+		raw->paintRequest() | rpl::on_next([=] {
 			if (_priceTagBg.isNull()) {
 				_priceTagBg = preparePriceTagBg(raw->size());
 			}
@@ -851,24 +853,24 @@ void SendFilesBox::refreshPriceTag() {
 		auto text = tr::lng_paid_price(
 			lt_price,
 			std::move(price),
-			Ui::Text::WithEntities);
+			tr::marked);
 		const auto label = Ui::CreateChild<Ui::FlatLabel>(
 			raw,
 			QString(),
 			st::paidTagLabel);
 		std::move(
 			text
-		) | rpl::start_with_next([=](const TextWithEntities &text) {
+		) | rpl::on_next([=](const TextWithEntities &text) {
 			label->setMarkedText(text);
 		}, label->lifetime());
 		label->show();
-		label->sizeValue() | rpl::start_with_next([=](QSize size) {
+		label->sizeValue() | rpl::on_next([=](QSize size) {
 			const auto inner = QRect(QPoint(), size);
 			const auto rect = inner.marginsAdded(st::paidTagPadding);
 			raw->resize(rect.size());
 			label->move(-rect.topLeft());
 		}, label->lifetime());
-		_inner->sizeValue() | rpl::start_with_next([=](QSize size) {
+		_inner->sizeValue() | rpl::on_next([=](QSize size) {
 			raw->move(
 				(size.width() - raw->width()) / 2,
 				(size.height() - raw->height()) / 2);
@@ -964,7 +966,7 @@ void SendFilesBox::initSendWay() {
 		return result;
 	}();
 	_sendWay.changes(
-	) | rpl::start_with_next([=](SendFilesWay value) {
+	) | rpl::on_next([=](SendFilesWay value) {
 		const auto hidden = [&] {
 			return !_caption || _caption->isHidden();
 		};
@@ -1080,7 +1082,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 	block.itemDeleteRequest(
 	) | rpl::filter([=] {
 		return !_removingIndex;
-	}) | rpl::start_with_next([=](int index) {
+	}) | rpl::on_next([=](int index) {
 		applyBlockChanges();
 
 		_removingIndex = index;
@@ -1102,7 +1104,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 
 	const auto show = uiShow();
 	block.itemReplaceRequest(
-	) | rpl::start_with_next([=](int index) {
+	) | rpl::on_next([=](int index) {
 		applyBlockChanges();
 
 		const auto replace = [=](Ui::PreparedList list) {
@@ -1179,7 +1181,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 
 	const auto openedOnce = widget->lifetime().make_state<bool>(false);
 	block.itemModifyRequest(
-	) | rpl::start_with_next([=, show = _show](int index) {
+	) | rpl::on_next([=, show = _show](int index) {
 		applyBlockChanges();
 
 		if (!(*openedOnce)) {
@@ -1196,7 +1198,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 	}, widget->lifetime());
 
 	block.itemEditCoverRequest(
-	) | rpl::start_with_next([=, show = _show](int index) {
+	) | rpl::on_next([=, show = _show](int index) {
 		applyBlockChanges();
 
 		const auto replace = [=](Ui::PreparedList list) {
@@ -1259,7 +1261,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 	}, widget->lifetime());
 
 	block.itemClearCoverRequest(
-	) | rpl::start_with_next([=](int index) {
+	) | rpl::on_next([=](int index) {
 		applyBlockChanges();
 		refreshAllAfterChanges(from, [&] {
 			auto &entry = _list.files[index];
@@ -1267,7 +1269,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 		});
 	}, widget->lifetime());
 
-	block.orderUpdated() | rpl::start_with_next([=]{
+	block.orderUpdated() | rpl::on_next([=]{
 		if (_priceTag) {
 			_priceTagBg = QImage();
 			_priceTag->update();
@@ -1300,13 +1302,13 @@ void SendFilesBox::setupSendWayControls() {
 		_st.files.check);
 
 	_sendWay.changes(
-	) | rpl::start_with_next([=](SendFilesWay value) {
+	) | rpl::on_next([=](SendFilesWay value) {
 		_groupFiles->setChecked(value.groupFiles());
 		_sendImagesAsPhotos->setChecked(value.sendImagesAsPhotos());
 	}, lifetime());
 
 	_groupFiles->checkedChanges(
-	) | rpl::start_with_next([=](bool checked) {
+	) | rpl::on_next([=](bool checked) {
 		auto sendWay = _sendWay.current();
 		if (sendWay.groupFiles() == checked) {
 			return;
@@ -1322,7 +1324,7 @@ void SendFilesBox::setupSendWayControls() {
 	}, lifetime());
 
 	_sendImagesAsPhotos->checkedChanges(
-	) | rpl::start_with_next([=](bool checked) {
+	) | rpl::on_next([=](bool checked) {
 		auto sendWay = _sendWay.current();
 		if (sendWay.sendImagesAsPhotos() == checked) {
 			return;
@@ -1347,7 +1349,7 @@ void SendFilesBox::setupSendWayControls() {
 	rpl::combine(
 		_groupFiles->checkedValue(),
 		_sendImagesAsPhotos->checkedValue()
-	) | rpl::start_with_next([=](bool groupFiles, bool asPhoto) {
+	) | rpl::on_next([=](bool groupFiles, bool asPhoto) {
 		_wayRemember->setVisible(
 			(groupFiles != groupFilesFirst) || (asPhoto != asPhotosFirst));
 		captionResized();
@@ -1437,18 +1439,18 @@ void SendFilesBox::setupCaption() {
 	_caption->setMaxLength(kMaxMessageLength);
 
 	_caption->heightChanges(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		captionResized();
 	}, _caption->lifetime());
 	_caption->submits(
-	) | rpl::start_with_next([=](Qt::KeyboardModifiers modifiers) {
+	) | rpl::on_next([=](Qt::KeyboardModifiers modifiers) {
 		const auto ctrlShiftEnter = modifiers.testFlag(Qt::ShiftModifier)
 			&& (modifiers.testFlag(Qt::ControlModifier)
 				|| modifiers.testFlag(Qt::MetaModifier));
 		send({}, ctrlShiftEnter);
 	}, _caption->lifetime());
 	_caption->cancelled(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		closeBox();
 	}, _caption->lifetime());
 	_caption->setMimeDataHook([=](
@@ -1467,7 +1469,7 @@ void SendFilesBox::setupCaption() {
 
 	rpl::single(rpl::empty_value()) | rpl::then(
 		_caption->changes()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		checkCharsLimitation();
 		refreshMessagesCount();
 	}, _caption->lifetime());
@@ -1541,7 +1543,7 @@ void SendFilesBox::checkCharsLimitation() {
 			_charsLimitation->show();
 			Data::AmPremiumValue(
 				&_show->session()
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				checkCharsLimitation();
 			}, _charsLimitation->lifetime());
 		}
@@ -1583,11 +1585,11 @@ void SendFilesBox::setupEmojiPanel() {
 	_emojiPanel->selector()->setAllowEmojiWithoutPremium(
 		_limits & SendFilesAllow::EmojiWithoutPremium);
 	_emojiPanel->selector()->emojiChosen(
-	) | rpl::start_with_next([=](ChatHelpers::EmojiChosen data) {
+	) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
 		Ui::InsertEmojiAtCursor(_caption->textCursor(), data.emoji);
 	}, lifetime());
 	_emojiPanel->selector()->customEmojiChosen(
-	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
+	) | rpl::on_next([=](ChatHelpers::FileChosen data) {
 		const auto info = data.document->sticker();
 		if (info
 			&& info->setType == Data::StickersType::Emoji

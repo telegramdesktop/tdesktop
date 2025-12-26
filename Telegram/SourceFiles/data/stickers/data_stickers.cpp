@@ -48,7 +48,7 @@ using SetFlag = StickersSetFlag;
 		const Data::PremiumLimits &limits) {
 	const auto defaultLimit = limits.gifsDefault();
 	const auto premiumLimit = limits.gifsPremium();
-	return Ui::Text::Bold(
+	return tr::bold(
 		tr::lng_saved_gif_limit_title(tr::now, lt_count, defaultLimit)
 	).append('\n').append(
 		tr::lng_saved_gif_limit_more(
@@ -56,15 +56,15 @@ using SetFlag = StickersSetFlag;
 			lt_count,
 			premiumLimit,
 			lt_link,
-			Ui::Text::Link(tr::lng_saved_gif_limit_link(tr::now)),
-			Ui::Text::WithEntities));
+			tr::link(tr::lng_saved_gif_limit_link(tr::now)),
+			tr::marked));
 }
 
 [[nodiscard]] TextWithEntities FaveStickersToast(
 		const Data::PremiumLimits &limits) {
 	const auto defaultLimit = limits.stickersFavedDefault();
 	const auto premiumLimit = limits.stickersFavedPremium();
-	return Ui::Text::Bold(
+	return tr::bold(
 		tr::lng_fave_sticker_limit_title(tr::now, lt_count, defaultLimit)
 	).append('\n').append(
 		tr::lng_fave_sticker_limit_more(
@@ -72,8 +72,8 @@ using SetFlag = StickersSetFlag;
 			lt_count,
 			premiumLimit,
 			lt_link,
-			Ui::Text::Link(tr::lng_fave_sticker_limit_link(tr::now)),
-			Ui::Text::WithEntities));
+			tr::link(tr::lng_fave_sticker_limit_link(tr::now)),
+			tr::marked));
 }
 
 void MaybeShowPremiumToast(

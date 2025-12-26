@@ -36,6 +36,10 @@ public:
 	Result writeStoriesSlice(const Data::StoriesSlice &data) override;
 	Result writeStoriesEnd() override;
 
+	Result writeProfileMusicStart(const Data::ProfileMusicInfo &data) override;
+	Result writeProfileMusicSlice(const Data::ProfileMusicSlice &data) override;
+	Result writeProfileMusicEnd() override;
+
 	Result writeContactsList(const Data::ContactsList &data) override;
 
 	Result writeSessionsList(const Data::SessionsList &data) override;

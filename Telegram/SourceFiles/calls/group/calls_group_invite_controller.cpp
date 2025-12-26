@@ -51,7 +51,7 @@ namespace {
 
 	const auto raw = result.data();
 	raw->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(raw);
 		p.fillRect(clip, st::groupCallMembersBgOver);
 	}, raw->lifetime());
@@ -61,7 +61,7 @@ namespace {
 		std::move(text),
 		st::groupCallBoxLabel);
 	raw->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto padding = st::groupCallInviteDividerPadding;
 		const auto available = width - padding.left() - padding.right();
 		label->resizeToNaturalWidth(available);
@@ -412,7 +412,7 @@ void ConfInviteRow::elementsPaint(
 	const auto activate = [=] {
 		content->submitted();
 	};
-	content->noSearchSubmits() | rpl::start_with_next([=] {
+	content->noSearchSubmits() | rpl::on_next([=] {
 		controller->toggleFirst();
 	}, content->lifetime());
 
@@ -676,7 +676,7 @@ void ConfInviteController::addShareLinkButton() {
 			: st::createCallInviteLinkIcon),
 		QPoint());
 	button->entity()->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		icon->moveToLeft(
 			st::createCallInviteLinkIconPosition.x(),
 			(height - st::groupCallInviteLinkIcon.height()) / 2);
@@ -686,7 +686,7 @@ void ConfInviteController::addShareLinkButton() {
 	button->entity()->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
 		return (e->type() == QEvent::Enter);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		delegate()->peerListMouseLeftGeometry();
 	}, button->lifetime());
 	delegate()->peerListSetAboveWidget(std::move(button));
@@ -787,7 +787,7 @@ void InviteContactsController::prepareViewHook() {
 
 	std::move(
 		_discoveredInGroup
-	) | rpl::start_with_next([=](not_null<UserData*> user) {
+	) | rpl::on_next([=](not_null<UserData*> user) {
 		if (auto row = delegate()->peerListFindRow(user->id.value)) {
 			delegate()->peerListRemoveRow(row);
 		}
@@ -846,7 +846,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 			&st::groupCallMultiSelect);
 		auto initBox = [=](not_null<PeerListBox*> box) {
 			box->setTitle(tr::lng_group_call_invite_conf());
-			raw->hasSelectedValue() | rpl::start_with_next([=](bool has) {
+			raw->hasSelectedValue() | rpl::on_next([=](bool has) {
 				box->clearButtons();
 				if (has) {
 					box->addButton(tr::lng_group_call_confcall_add(), [=] {
@@ -899,14 +899,14 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 				showToast(tr::lng_group_call_invite_done_user(
 					tr::now,
 					lt_user,
-					Ui::Text::Bold(result.invited.front()->firstName),
-					Ui::Text::WithEntities));
+					tr::bold(result.invited.front()->firstName),
+					tr::marked));
 			} else if (result.invited.size() > 1) {
 				showToast(tr::lng_group_call_invite_done_many(
 					tr::now,
 					lt_count,
 					result.invited.size(),
-					Ui::Text::RichLangValue));
+					tr::rich));
 			}
 		});
 	};
@@ -1018,7 +1018,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		&st::groupCallMultiSelect);
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->setTitle(tr::lng_group_call_invite_conf());
-		raw->hasSelectedValue() | rpl::start_with_next([=](bool has) {
+		raw->hasSelectedValue() | rpl::on_next([=](bool has) {
 			box->clearButtons();
 			if (has) {
 				box->addButton(tr::lng_group_call_invite_button(), [=] {
@@ -1067,7 +1067,7 @@ void InitReActivate(not_null<PeerListBox*> box) {
 
 	const auto header = CreateReActivateHeader(box);
 	header->resizeToWidth(st::boxWideWidth);
-	header->heightValue() | rpl::start_with_next([=](int height) {
+	header->heightValue() | rpl::on_next([=](int height) {
 		box->setAddedTopScrollSkip(height, true);
 	}, header->lifetime());
 	header->moveToLeft(0, 0);
@@ -1088,12 +1088,12 @@ object_ptr<Ui::BoxContent> PrepareInviteToEmptyBox(
 	const auto initBox = [=](not_null<PeerListBox*> box) {
 		InitReActivate(box);
 
-		box->noSearchSubmits() | rpl::start_with_next([=] {
+		box->noSearchSubmits() | rpl::on_next([=] {
 			raw->noSearchSubmit();
 		}, box->lifetime());
 
 		raw->prioritizeScrollRequests(
-		) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
+		) | rpl::on_next([=](Ui::ScrollToRequest request) {
 			box->scrollTo(request);
 		}, box->lifetime());
 
@@ -1171,12 +1171,12 @@ object_ptr<Ui::BoxContent> PrepareCreateCallBox(
 			box->setTitle(tr::lng_confcall_create_title());
 		}
 
-		box->noSearchSubmits() | rpl::start_with_next([=] {
+		box->noSearchSubmits() | rpl::on_next([=] {
 			raw->noSearchSubmit();
 		}, box->lifetime());
 
 		raw->prioritizeScrollRequests(
-		) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
+		) | rpl::on_next([=](Ui::ScrollToRequest request) {
 			box->scrollTo(request);
 		}, box->lifetime());
 

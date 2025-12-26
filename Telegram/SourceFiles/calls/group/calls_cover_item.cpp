@@ -38,7 +38,7 @@ CoverItem::CoverItem(
 
 	_cover.widget()->move(0, 0);
 	_cover.moveRequests(
-	) | rpl::start_with_next(userpic.move, lifetime());
+	) | rpl::on_next(userpic.move, lifetime());
 }
 
 not_null<QAction*> CoverItem::action() const {

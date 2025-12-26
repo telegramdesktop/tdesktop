@@ -79,7 +79,7 @@ Step::Step(
 			: st::introDescription)) {
 	hide();
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (!_coverMask.isNull()) {
 			_coverMask = QPixmap();
 			prepareCoverMask();
@@ -87,18 +87,19 @@ Step::Step(
 	}, lifetime());
 
 	_errorText.value(
-	) | rpl::start_with_next([=](const QString &text) {
+	) | rpl::on_next([=](const QString &text) {
 		refreshError(text);
 	}, lifetime());
 
 	_titleText.value(
-	) | rpl::start_with_next([=](const QString &text) {
+	) | rpl::on_next([=](const QString &text) {
 		_title->setText(text);
+		accessibilityNameChanged();
 		updateLabelsPosition();
 	}, lifetime());
 
 	_descriptionText.value(
-	) | rpl::start_with_next([=](const TextWithEntities &text) {
+	) | rpl::on_next([=](const TextWithEntities &text) {
 		const auto label = _description->entity();
 		const auto hasSpoiler = ranges::contains(
 			text.entities,
@@ -106,6 +107,7 @@ Step::Step(
 			&EntityInText::type);
 		label->setMarkedText(text);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents, hasSpoiler);
+		accessibilityDescriptionChanged();
 		updateLabelsPosition();
 	}, lifetime());
 }
@@ -129,6 +131,10 @@ rpl::producer<QString> Step::nextButtonText() const {
 
 rpl::producer<const style::RoundButton*> Step::nextButtonStyle() const {
 	return rpl::single((const style::RoundButton*)(nullptr));
+}
+
+rpl::producer<> Step::nextButtonFocusRequests() const {
+	return rpl::never();
 }
 
 void Step::goBack() {
@@ -368,8 +374,9 @@ void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 		bad("MissedCall");
 	}, [&](const MTPDauth_sentCodeTypeFirebaseSms &) {
 		bad("FirebaseSms");
-	}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
-		bad("EmailCode");
+	}, [&](const MTPDauth_sentCodeTypeEmailCode &data) {
+		getData()->emailPatternLogin = qs(data.vemail_pattern());
+		getData()->codeLength = data.vlength().v;
 	}, [&](const MTPDauth_sentCodeTypeSmsWord &) {
 		bad("SmsWord");
 	}, [&](const MTPDauth_sentCodeTypeSmsPhrase &) {

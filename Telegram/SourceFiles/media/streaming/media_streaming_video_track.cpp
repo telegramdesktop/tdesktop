@@ -198,15 +198,15 @@ VideoTrackObject::VideoTrackObject(
 
 rpl::producer<> VideoTrackObject::checkNextFrame() const {
 	return interrupted()
-		? (rpl::complete<>() | rpl::type_erased())
+		? (rpl::complete<>() | rpl::type_erased)
 		: !_shared->firstPresentHappened()
-		? (_checkNextFrame.events() | rpl::type_erased())
+		? (_checkNextFrame.events() | rpl::type_erased)
 		: _checkNextFrame.events_starting_with({});
 }
 
 rpl::producer<> VideoTrackObject::waitingForData() const {
 	return interrupted()
-		? (rpl::never() | rpl::type_erased())
+		? (rpl::never() | rpl::type_erased)
 		: _waitingForData.events();
 }
 

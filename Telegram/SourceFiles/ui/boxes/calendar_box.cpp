@@ -9,14 +9,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/vertical_drum_picker.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/chat/chat_style.h"
 #include "ui/ui_utility.h"
 #include "ui/painter.h"
 #include "ui/cached_round_corners.h"
+#include "ui/layers/generic_box.h"
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_settings.h"
+#include "styles/style_layers.h"
 
 #include <QtCore/QLocale>
 
@@ -30,6 +34,153 @@ constexpr auto kJumpDelay = 2 * crl::time(1000);
 // QDate -> 0..6
 [[nodiscard]] int DayOfWeekIndex(const QDate &date, int firstDayOfWeek) {
 	return (kDaysInWeek + date.dayOfWeek() - firstDayOfWeek) % kDaysInWeek;
+}
+
+void FillMonthYearPicker(
+		not_null<GenericBox*> box,
+		QDate current,
+		QDate minDate,
+		QDate maxDate,
+		const style::CalendarSizes &st,
+		Fn<void(QDate)> done) {
+	box->setWidth(st::boxWideWidth);
+	const auto content = box->addRow(
+		object_ptr<FixedHeightWidget>(box, st::settingsWorkingHoursPicker));
+
+	const auto font = st::boxTextFont;
+	const auto itemHeight = st::settingsWorkingHoursPickerItemHeight;
+	const auto picker = [=](
+			int count,
+			int startIndex,
+			Fn<void(QPainter&, QRectF, int)> paint) {
+		const auto result = CreateChild<VerticalDrumPicker>(
+			content,
+			VerticalDrumPicker::DefaultPaintCallback(
+				font,
+				itemHeight,
+				paint),
+			count,
+			itemHeight,
+			startIndex);
+		result->show();
+		return result;
+	};
+
+	const auto effectiveMaxDate = maxDate.isValid()
+		? maxDate
+		: QDate::currentDate().addDays(365);
+	const auto minYear = minDate.isValid() ? minDate.year() : 2013;
+	const auto maxYear = effectiveMaxDate.year();
+	const auto yearsCount = maxYear - minYear + 1;
+	const auto yearsStartIndex = current.year() - minYear;
+	const auto yearsPaint = [=](QPainter &p, QRectF rect, int index) {
+		p.drawText(rect, QString::number(minYear + index), style::al_center);
+	};
+	const auto years = picker(yearsCount, yearsStartIndex, yearsPaint);
+
+	const auto monthsRange = [=](int year) {
+		auto minMonth = 1;
+		auto maxMonth = 12;
+		if (minDate.isValid() && minDate.year() == year) {
+			minMonth = minDate.month();
+		}
+		if (maxDate.isValid() && maxDate.year() == year) {
+			maxMonth = maxDate.month();
+		}
+		return std::make_pair(minMonth, maxMonth);
+	};
+
+	struct State {
+		base::unique_qptr<VerticalDrumPicker> months;
+		int currentMinMonth = 0;
+		int currentMaxMonth = 0;
+	};
+	const auto state = box->lifetime().make_state<State>();
+
+	const auto [minMonth, maxMonth] = monthsRange(current.year());
+	const auto monthsCount = maxMonth - minMonth + 1;
+	const auto monthsStartIndex = current.month() - minMonth;
+	const auto monthsPaint = [=, minMonth = minMonth](
+			QPainter &p,
+			QRectF rect,
+			int index) {
+		p.drawText(
+			rect,
+			Lang::Month(minMonth + index)(tr::now),
+			style::al_center);
+	};
+	state->months = base::unique_qptr<VerticalDrumPicker>(
+			picker(monthsCount, monthsStartIndex, monthsPaint));
+	state->currentMinMonth = minMonth;
+	state->currentMaxMonth = maxMonth;
+
+	years->value(
+	) | rpl::skip(1) | rpl::on_next([=](int yearIndex) {
+		const auto year = minYear + yearIndex;
+		const auto [newMinMonth, newMaxMonth] = monthsRange(year);
+
+		if (newMinMonth != state->currentMinMonth
+			|| newMaxMonth != state->currentMaxMonth) {
+			const auto newMonthsCount = newMaxMonth - newMinMonth + 1;
+			const auto oldMonth = state->currentMinMonth
+				+ state->months->index();
+			const auto clampedMonth = std::clamp(
+				oldMonth - newMinMonth,
+				0,
+				newMonthsCount - 1);
+			const auto newMonthsPaint = [=, minMonth = newMinMonth](
+					QPainter &p,
+					QRectF rect,
+					int index) {
+				p.drawText(
+					rect,
+					Lang::Month(minMonth + index)(tr::now),
+					style::al_center);
+			};
+			state->months = base::unique_qptr<VerticalDrumPicker>(
+					picker(newMonthsCount, clampedMonth, newMonthsPaint));
+			state->currentMinMonth = newMinMonth;
+			state->currentMaxMonth = newMaxMonth;
+			const auto s = content->size();
+			if (s.isValid()) {
+				const auto half = s.width() / 2;
+				state->months->setGeometry(0, 0, half, s.height());
+			}
+		}
+	}, box->lifetime());
+
+	content->sizeValue(
+	) | rpl::on_next([=](QSize s) {
+		const auto half = s.width() / 2;
+		state->months->setGeometry(0, 0, half, s.height());
+		years->setGeometry(half, 0, half, s.height());
+	}, content->lifetime());
+
+	content->paintRequest(
+	) | rpl::on_next([=](const QRect &r) {
+		auto p = QPainter(content);
+		p.fillRect(r, Qt::transparent);
+		const auto lineRect = QRect(
+			0,
+			content->height() / 2,
+			content->width(),
+			st::defaultInputField.borderActive);
+		p.fillRect(
+			lineRect.translated(0, itemHeight / 2),
+			st::activeLineFg);
+		p.fillRect(
+			lineRect.translated(0, -itemHeight / 2),
+			st::activeLineFg);
+	}, content->lifetime());
+
+	box->addButton(tr::lng_gift_menu_show(), [=] {
+		const auto year = minYear + years->index();
+		const auto [minMonth, maxMonth] = monthsRange(year);
+		const auto month = minMonth + state->months->index();
+		done(QDate(year, month, 1));
+		box->closeBox();
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 } // namespace
@@ -443,7 +594,7 @@ CalendarBox::FloatingDate::FloatingDate(
 		HistoryServiceMsgRadius(),
 		st::roundedBg)) {
 	_context->monthValue(
-	) | rpl::start_with_next([=](QDate month) {
+	) | rpl::on_next([=](QDate month) {
 		_text = langMonthOfYearFull(month.month(), month.year());
 		const auto width = st::msgServiceFont->width(_text);
 		const auto rect = QRect(0, 0, width, st::msgServiceFont->height);
@@ -452,7 +603,7 @@ CalendarBox::FloatingDate::FloatingDate(
 	}, _widget.lifetime());
 
 	_widget.paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		paint();
 	}, _widget.lifetime());
 
@@ -497,12 +648,12 @@ CalendarBox::Inner::Inner(
 	setMouseTracking(true);
 
 	context->monthValue(
-	) | rpl::start_with_next([=](QDate month) {
+	) | rpl::on_next([=](QDate month) {
 		monthChanged(month);
 	}, lifetime());
 
 	context->selectionUpdates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 }
@@ -755,7 +906,7 @@ void CalendarBox::Inner::setDateChosenCallback(Fn<void(QDate)> callback) {
 
 CalendarBox::Inner::~Inner() = default;
 
-class CalendarBox::Title final : public RpWidget {
+class CalendarBox::Title final : public AbstractButton {
 public:
 	Title(
 		QWidget *parent,
@@ -786,7 +937,7 @@ CalendarBox::Title::Title(
 	not_null<Context*> context,
 	const style::CalendarSizes &st,
 	const style::CalendarColors &styleColors)
-: RpWidget(parent)
+: AbstractButton(parent)
 , _st(st)
 , _styleColors(styleColors)
 , _context(context) {
@@ -796,21 +947,26 @@ CalendarBox::Title::Title(
 	_context->monthValue(
 	) | rpl::filter([=] {
 		return !_context->selectionMode();
-	}) | rpl::start_with_next([=](QDate date) {
+	}) | rpl::on_next([=](QDate date) {
 		setTextFromMonth(date);
 	}, lifetime());
 
 	_context->selectionUpdates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (!_context->selectionMode()) {
 			setTextFromMonth(_context->month());
-		} else if (!_context->selectedMin()) {
-			setText(tr::lng_calendar_select_days(tr::now));
+			setAttribute(Qt::WA_TransparentForMouseEvents, false);
 		} else {
-			setText(tr::lng_calendar_days(
-				tr::now,
-				lt_count,
-				(1 + *_context->selectedMax() - *_context->selectedMin())));
+			setAttribute(Qt::WA_TransparentForMouseEvents, true);
+			if (!_context->selectedMin()) {
+				setText(tr::lng_calendar_select_days(tr::now));
+			} else {
+				setText(tr::lng_calendar_days(
+					tr::now,
+					lt_count,
+					(1 + *_context->selectedMax()
+						- *_context->selectedMin())));
+			}
 		}
 	}, lifetime());
 }
@@ -879,15 +1035,32 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 , _finalize(std::move(args.finalize))
 , _jumpTimer([=] { jump(_jumpButton); })
 , _selectionChanged(std::move(args.selectionChanged)) {
-	_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_context->setAllowsSelection(args.allowsSelection);
 	_context->setMinDate(args.minDate);
 	_context->setMaxDate(args.maxDate);
 
+	_title->setClickedCallback([=,
+			minDate = args.minDate,
+			maxDate = args.maxDate] {
+		BoxContent::uiShow()->show(Box([=](not_null<GenericBox*> box) {
+			FillMonthYearPicker(
+				box,
+				_context->month(),
+				minDate,
+				maxDate,
+				_st,
+				[=](QDate date) {
+					_watchScroll = false;
+					_context->showMonth(date);
+					setExactScroll();
+				});
+		}), LayerOption::KeepOther);
+	});
+
 	_scroll->scrolls(
 	) | rpl::filter([=] {
 		return _watchScroll;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		processScroll();
 	}, lifetime());
 
@@ -897,7 +1070,7 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 		button->events(
 		) | rpl::filter([=] {
 			return *enabled;
-		}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		}) | rpl::on_next([=](not_null<QEvent*> e) {
 			const auto type = e->type();
 			if (type == QEvent::MouseMove
 				&& !(static_cast<QMouseEvent*>(e.get())->buttons()
@@ -920,7 +1093,7 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 	setupJumps(_next.data(), &_nextEnabled);
 
 	_context->selectionUpdates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (!_context->selectionMode()) {
 			_floatingDate = nullptr;
 		} else if (!_floatingDate) {
@@ -930,7 +1103,7 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 			rpl::combine(
 				_scroll->geometryValue(),
 				_floatingDate->widthValue()
-			) | rpl::start_with_next([=](QRect scroll, int width) {
+			) | rpl::on_next([=](QRect scroll, int width) {
 				const auto shift = _st.daysHeight
 					- _st.padding.top()
 					- st::calendarDaysFont->height;
@@ -991,13 +1164,13 @@ void CalendarBox::prepare() {
 	_inner->setDateChosenCallback(std::move(_callback));
 
 	_context->monthValue(
-	) | rpl::start_with_next([=](QDate month) {
+	) | rpl::on_next([=](QDate month) {
 		monthChanged(month);
 	}, lifetime());
 	setExactScroll();
 
 	_context->selectionUpdates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_selectionMode = _context->selectionMode();
 		if (_selectionChanged) {
 			const auto count = !_selectionMode

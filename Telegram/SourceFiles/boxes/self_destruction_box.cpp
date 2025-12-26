@@ -48,12 +48,12 @@ void AddDeleteAccount(
 		session->api().cloudPassword().state(
 		) | rpl::take(
 			1
-		) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+		) | rpl::on_next([=](const Core::CloudPasswordState &state) {
 			auto fields = PasscodeBox::CloudFields::From(state);
 			fields.customTitle = tr::lng_settings_destroy_title();
 			fields.customDescription = tr::lng_context_mark_read_all_sure_2(
 				tr::now,
-				Ui::Text::RichLangValue).text;
+				tr::rich).text;
 			fields.customSubmitButton = tr::lng_theme_delete();
 			fields.customCheckCallback = [=](
 					const Core::CloudPasswordResult &result,
@@ -117,7 +117,7 @@ SelfDestructionBox::SelfDestructionBox(
 		preloaded
 	) | rpl::take(
 		1
-	) | rpl::start_with_next([=](int days) {
+	) | rpl::on_next([=](int days) {
 		gotCurrent(days);
 	}, lifetime());
 }

@@ -217,7 +217,7 @@ Main::Session &PreviewController::session() const {
 		state->timer.setCallback(push);
 		state->lastText = field->getLastText();
 		consumer.put_next_copy(field->getLastText());
-		field->changes() | rpl::start_with_next([=] {
+		field->changes() | rpl::on_next([=] {
 			const auto &text = field->getLastText();
 			const auto was = std::exchange(state->lastText, text);
 			if (std::abs(int(text.size()) - int(was.size())) == 1) {
@@ -330,7 +330,7 @@ Main::Session &PreviewController::session() const {
 	const auto child = inner->lifetime().make_state<Ui::RpWidget*>(nullptr);
 	std::move(state) | rpl::filter([=](BotState state) {
 		return state.state != LookupState::Loading;
-	}) | rpl::start_with_next([=](BotState state) {
+	}) | rpl::on_next([=](BotState state) {
 		raw->toggle(
 			(state.state == LookupState::Ready
 				|| state.state == LookupState::Unsupported),
@@ -365,7 +365,7 @@ Main::Session &PreviewController::session() const {
 			rpl::combine(
 				content->sizeValue(),
 				label->sizeValue()
-			) | rpl::start_with_next([=](QSize size, QSize inner) {
+			) | rpl::on_next([=](QSize size, QSize inner) {
 				label->move(
 					(size.width() - inner.width()) / 2,
 					(size.height() - inner.height()) / 2);
@@ -377,11 +377,11 @@ Main::Session &PreviewController::session() const {
 		}
 		(*child)->show();
 
-		inner->widthValue() | rpl::start_with_next([=](int width) {
+		inner->widthValue() | rpl::on_next([=](int width) {
 			(*child)->resizeToWidth(width);
 		}, (*child)->lifetime());
 
-		(*child)->heightValue() | rpl::start_with_next([=](int height) {
+		(*child)->heightValue() | rpl::on_next([=](int height) {
 			inner->resize(inner->width(), height + st::contactSkip);
 		}, inner->lifetime());
 	}, inner->lifetime());
@@ -429,8 +429,8 @@ void Chatbots::setupContent() {
 		.about = tr::lng_chatbots_about(
 			lt_link,
 			tr::lng_chatbots_about_link(
-			) | Ui::Text::ToLink(tr::lng_chatbots_info_url(tr::now)),
-			Ui::Text::WithEntities),
+				tr::url(tr::lng_chatbots_info_url(tr::now))),
+			tr::marked),
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 	});
 
@@ -468,12 +468,13 @@ void Chatbots::setupContent() {
 		content,
 		tr::lng_chatbots_add_about(),
 		st::peerAppearanceDividerTextMargin,
+		st::defaultDividerLabel,
 		RectPart::Top);
 
 	_detailsWrap = content->add(object_ptr<Ui::VerticalLayout>(content));
 
 	refreshDetails();
-	_botValue.changes() | rpl::start_with_next([=](const BotState &value) {
+	_botValue.changes() | rpl::on_next([=](const BotState &value) {
 		_permissions = Defaults();
 		refreshDetails();
 	}, lifetime());
@@ -520,10 +521,10 @@ void Chatbots::refreshDetails() {
 
 	std::move(
 		permissions.changes
-	) | rpl::start_with_next([=](Data::ChatbotsPermissions now) {
+	) | rpl::on_next([=](Data::ChatbotsPermissions now) {
 		const auto warn = [&](tr::phrase<lngtag_bot> text) {
 			controller()->show(Ui::MakeInformBox({
-				.text = text(tr::now, lt_bot, Ui::Text::Bold(bot->name()), Ui::Text::RichLangValue),
+				.text = text(tr::now, lt_bot, tr::bold(bot->name()), tr::rich),
 				.title = tr::lng_chatbots_warning_title(),
 			}));
 		};

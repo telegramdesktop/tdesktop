@@ -36,7 +36,7 @@ MessagesSearchMerged::MessagesSearchMerged(not_null<History*> history)
 	};
 
 	_apiSearch.messagesFounds(
-	) | rpl::start_with_next([=](const FoundMessages &data) {
+	) | rpl::on_next([=](const FoundMessages &data) {
 		if (data.nextToken == _concatedFound.nextToken) {
 			addFound(data);
 			checkFull(data);
@@ -50,7 +50,7 @@ MessagesSearchMerged::MessagesSearchMerged(not_null<History*> history)
 
 	if (_migratedSearch) {
 		_migratedSearch->messagesFounds(
-		) | rpl::start_with_next([=](const FoundMessages &data) {
+		) | rpl::on_next([=](const FoundMessages &data) {
 			if (_isFull) {
 				addFound(data);
 			}

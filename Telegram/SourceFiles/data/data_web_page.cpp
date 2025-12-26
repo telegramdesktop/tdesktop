@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "data/data_star_gift.h"
 #include "core/local_url_handlers.h"
 #include "lang/lang_keys.h"
 #include "iv/iv_data.h"
@@ -177,6 +178,8 @@ WebPageType ParseWebPageType(
 		return WebPageType::StoryAlbum;
 	} else if (type == u"telegram_collection"_q) {
 		return WebPageType::GiftCollection;
+	} else if (type == u"telegram_auction"_q) {
+		return WebPageType::Auction;
 	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;
 	} else {
@@ -232,6 +235,7 @@ bool WebPageData::applyChanges(
 		std::unique_ptr<Iv::Data> newIv,
 		std::unique_ptr<WebPageStickerSet> newStickerSet,
 		std::shared_ptr<Data::UniqueGift> newUniqueGift,
+		std::unique_ptr<WebPageAuction> newAuction,
 		int newDuration,
 		const QString &newAuthor,
 		bool newHasLargeMedia,
@@ -291,6 +295,7 @@ bool WebPageData::applyChanges(
 		&& (!iv || iv->partial() == newIv->partial())
 		&& (!stickerSet == !newStickerSet)
 		&& (!uniqueGift == !newUniqueGift)
+		&& (!auction == !newAuction)
 		&& duration == newDuration
 		&& author == resultAuthor
 		&& hasLargeMedia == (newHasLargeMedia ? 1 : 0)
@@ -316,6 +321,7 @@ bool WebPageData::applyChanges(
 	iv = std::move(newIv);
 	stickerSet = std::move(newStickerSet);
 	uniqueGift = std::move(newUniqueGift);
+	auction = std::move(newAuction);
 	duration = newDuration;
 	author = resultAuthor;
 	pendingTill = newPendingTill;
@@ -340,6 +346,16 @@ void WebPageData::ApplyChanges(
 		not_null<Main::Session*> session,
 		ChannelData *channel,
 		const MTPmessages_Messages &result) {
+	const auto list = result.match([](
+			const MTPDmessages_messagesNotModified &) {
+		LOG(("API Error: received messages.messagesNotModified! "
+			"(WebPageData::ApplyChanges)"));
+		return static_cast<const QVector<MTPMessage>*>(nullptr);
+	}, [&](const auto &data) {
+		session->data().processUsers(data.vusers());
+		session->data().processChats(data.vchats());
+		return &data.vmessages().v;
+	});
 	result.match([&](
 			const MTPDmessages_channelMessages &data) {
 		if (channel) {
@@ -351,15 +367,12 @@ void WebPageData::ApplyChanges(
 		}
 	}, [&](const auto &) {
 	});
-	const auto list = result.match([](
+	result.match([](
 			const MTPDmessages_messagesNotModified &) {
-		LOG(("API Error: received messages.messagesNotModified! "
-			"(WebPageData::ApplyChanges)"));
-		return static_cast<const QVector<MTPMessage>*>(nullptr);
 	}, [&](const auto &data) {
-		session->data().processUsers(data.vusers());
-		session->data().processChats(data.vchats());
-		return &data.vmessages().v;
+		if (channel) {
+			channel->processTopics(data.vtopics());
+		}
 	});
 	if (!list) {
 		return;

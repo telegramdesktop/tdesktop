@@ -38,7 +38,7 @@ Provider::Provider(not_null<AbstractController*> controller)
 : _controller(controller)
 , _storiesAddToAlbumId(_controller->storiesAddToAlbumId()) {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (auto &layout : _layouts) {
 			layout.second.item->invalidateCache();
 		}
@@ -123,7 +123,7 @@ void Provider::refreshViewer() {
 	auto &manager = Core::App().downloadManager();
 	rpl::single(rpl::empty) | rpl::then(
 		manager.loadingListChanges() | rpl::to_empty
-	) | rpl::start_with_next([=, &manager] {
+	) | rpl::on_next([=, &manager] {
 		auto copy = _downloading;
 		for (const auto id : manager.loadingList()) {
 			if (!id->done) {
@@ -154,12 +154,12 @@ void Provider::refreshViewer() {
 	}
 
 	manager.loadedAdded(
-	) | rpl::start_with_next([=](not_null<const Data::DownloadedId*> entry) {
+	) | rpl::on_next([=](not_null<const Data::DownloadedId*> entry) {
 		addPostponed(entry);
 	}, _lifetime);
 
 	manager.loadedRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		if (!_downloading.contains(item)) {
 			remove(item);
 		} else {
@@ -171,7 +171,7 @@ void Provider::refreshViewer() {
 	}, _lifetime);
 
 	manager.loadedResolveDone(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (!_fullCount.has_value()) {
 			_fullCount = 0;
 		}
@@ -283,12 +283,12 @@ void Provider::trackItemSession(not_null<const HistoryItem*> item) {
 	auto &lifetime = _trackedSessions.emplace(session).first->second;
 
 	session->data().itemRemoved(
-	) | rpl::start_with_next([this](auto item) {
+	) | rpl::on_next([this](auto item) {
 		itemRemoved(item);
 	}, lifetime);
 
 	session->account().sessionChanges(
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::on_next([=] {
 		_trackedSessions.remove(session);
 	}, lifetime);
 }

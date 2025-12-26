@@ -77,7 +77,7 @@ void MaxInviteBox::prepare() {
 	_channel->session().changes().peerUpdates(
 		_channel,
 		Data::PeerUpdate::Flag::InviteLinks
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		rtlupdate(_invitationLink);
 	}, lifetime());
 }

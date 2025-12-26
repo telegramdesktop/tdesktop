@@ -80,12 +80,12 @@ Action::Action(
 	});
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Painter p(this);
 		paint(p);
 	}, lifetime());
 
-	widthValue() | rpl::start_with_next([=](int width) {
+	widthValue() | rpl::on_next([=](int width) {
 		_progress.moveToLeft(
 			_st.itemPadding.left(),
 			st::ttlItemPadding.top() + _st.itemStyle.font->height,
@@ -197,12 +197,12 @@ void Action::refresh(const DownloadsEntry &entry) {
 			? TextWithEntities{
 				FormatProgressText(entry.ready, entry.total),
 			}
-			: tr::lng_bot_download_starting(tr::now, Text::WithEntities))
+			: tr::lng_bot_download_starting(tr::now, tr::marked))
 		: tr::lng_bot_download_failed(
 			tr::now,
 			lt_retry,
 			Text::Link(tr::lng_bot_download_retry(tr::now)),
-			Text::WithEntities);
+			tr::marked);
 	_progress.setMarkedText(progressText);
 
 	const auto enabled = isEnabled();
@@ -230,7 +230,7 @@ FnMut<void(not_null<PopupMenu*>)> FillAttachBotDownloadsSubmenu(
 		const auto state = menu->lifetime().make_state<State>();
 		std::move(
 			moved
-		) | rpl::start_with_next([=](
+		) | rpl::on_next([=](
 			const std::vector<DownloadsEntry> &entries) {
 			auto found = base::flat_set<uint32>();
 			for (const auto &entry : entries | ranges::views::reverse) {

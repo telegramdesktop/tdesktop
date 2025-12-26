@@ -210,7 +210,8 @@ void ProcessFullPhoto(
 			| UpdateFlag::PhoneNumber
 			| UpdateFlag::Username
 			| UpdateFlag::About
-			| UpdateFlag::Birthday)
+			| UpdateFlag::Birthday
+			| UpdateFlag::ContactNote)
 	) | rpl::map([=] {
 		const auto user = peer->asUser();
 		const auto username = peer->username();
@@ -237,6 +238,7 @@ void ProcessFullPhoto(
 				? ('@' + username)
 				: QString()),
 			.birthday = user ? user->birthday() : Data::Birthday(),
+			.note = user ? user->note() : TextWithEntities(),
 			.isBio = (user && !user->isBot()),
 		};
 	});
@@ -408,13 +410,13 @@ bool ProcessCurrent(
 			UpdateFlag::Photo | UpdateFlag::FullInfo
 		) | rpl::filter([=](const Data::PeerUpdate &update) {
 			return (update.flags & UpdateFlag::Photo) || state->waitingFull;
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			push();
 		}, lifetime);
 
 		rpl::duplicate(
 			slices
-		) | rpl::start_with_next([=](UserPhotosSlice &&slice) {
+		) | rpl::on_next([=](UserPhotosSlice &&slice) {
 			state->userSlice = std::move(slice);
 			push();
 		}, lifetime);
@@ -422,7 +424,7 @@ bool ProcessCurrent(
 		moveRequests->events(
 		) | rpl::filter([=] {
 			return (state->current.count > 1);
-		}) | rpl::start_with_next([=](int shift) {
+		}) | rpl::on_next([=](int shift) {
 			state->current.index = std::clamp(
 				((state->current.index + shift + state->current.count)
 					% state->current.count),
@@ -437,7 +439,7 @@ bool ProcessCurrent(
 				&& (state->photoView
 					? (!!state->photoView->image(Data::PhotoSize::Large))
 					: (!Ui::PeerUserpicLoading(state->userpicView)));
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			push();
 		}, lifetime);
 
@@ -470,16 +472,16 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 
 	if (menuFiller) {
 		result->fillMenuRequests(
-		) | rpl::start_with_next([=](Ui::Menu::MenuCallback callback) {
+		) | rpl::on_next([=](Ui::Menu::MenuCallback callback) {
 			menuFiller(std::move(callback));
 		}, result->lifetime());
 	}
 
 	result->openRequests(
-	) | rpl::start_with_next(open, result->lifetime());
+	) | rpl::on_next(open, result->lifetime());
 
 	result->moveRequests(
-	) | rpl::start_with_next(userpic.move, result->lifetime());
+	) | rpl::on_next(userpic.move, result->lifetime());
 
 	return result;
 }
@@ -554,7 +556,7 @@ PreparedShortInfoUserpic PrepareShortInfoFallbackUserpic(
 			1,
 			1,
 			1))
-		: (rpl::never<UserPhotosSlice>() | rpl::type_erased());
+		: (rpl::never<UserPhotosSlice>() | rpl::type_erased);
 	auto process = [=](not_null<UserpicState*> state) {
 		if (photoId) {
 			ProcessFullPhoto(peer, state, peer->owner().photo(*photoId));

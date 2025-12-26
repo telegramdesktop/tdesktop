@@ -1134,19 +1134,19 @@ private:
 Updater::Updater()
 : _timer([=] { check(); })
 , _retryTimer([=] { handleTimeout(); }) {
-	checking() | rpl::start_with_next([=] {
+	checking() | rpl::on_next([=] {
 		handleChecking();
 	}, _lifetime);
-	progress() | rpl::start_with_next([=] {
+	progress() | rpl::on_next([=] {
 		handleProgress();
 	}, _lifetime);
-	failed() | rpl::start_with_next([=] {
+	failed() | rpl::on_next([=] {
 		handleFailed();
 	}, _lifetime);
-	ready() | rpl::start_with_next([=] {
+	ready() | rpl::on_next([=] {
 		handleReady();
 	}, _lifetime);
-	isLatest() | rpl::start_with_next([=] {
+	isLatest() | rpl::on_next([=] {
 		handleLatest();
 	}, _lifetime);
 }
@@ -1299,11 +1299,11 @@ void Updater::startImplementation(
 	}
 
 	checker->ready(
-	) | rpl::start_with_next([=](std::shared_ptr<Loader> &&loader) {
+	) | rpl::on_next([=](std::shared_ptr<Loader> &&loader) {
 		checkerDone(which, std::move(loader));
 	}, checker->lifetime());
 	checker->failed(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		checkerFail(which);
 	}, checker->lifetime());
 
@@ -1373,11 +1373,11 @@ bool Updater::tryLoaders() {
 			loader->progress(
 			) | rpl::start_to_stream(_progress, loader->lifetime());
 			loader->ready(
-			) | rpl::start_with_next([=](QString &&filepath) {
+			) | rpl::on_next([=](QString &&filepath) {
 				finalize(std::move(filepath));
 			}, loader->lifetime());
 			loader->failed(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				_failed.fire({});
 			}, loader->lifetime());
 

@@ -60,15 +60,28 @@ public:
 	[[nodiscard]] DynamicImage *userpic() const;
 
 	void setActiveShown(float64 activeShown);
+	void setIsPinned(bool pinned);
+	[[nodiscard]] bool isPinned() const;
+	void setPinnedPosition(bool isFirst, bool isLast);
+	[[nodiscard]] bool isFirstPinned() const;
+	[[nodiscard]] bool isLastPinned() const;
+	virtual void setBackgroundMargin(int margin);
+	void setShift(int shift);
 
 protected:
 	virtual void dataUpdatedHook() = 0;
+	virtual void invalidateCache() = 0;
 
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	const not_null<SubsectionButtonDelegate*> _delegate;
 	SubsectionTab _data;
 	float64 _activeShown = 0.;
+	bool _isPinned = false;
+	bool _isFirstPinned = false;
+	bool _isLastPinned = false;
+	int _backgroundMargin = 0;
+	int _shift = 0;
 
 };
 
@@ -95,8 +108,18 @@ public:
 		not_null<QContextMenuEvent*> e) override;
 	Text::MarkedContext buttonContext() override;
 	[[nodiscard]] not_null<SubsectionButton*> buttonAt(int index);
+	void setButtonShift(int index, int shift);
+	void reorderButtons(int from, int to);
+	void recalculatePinnedPositions();
+	void recalculatePinnedPositionsByUI();
 
 	[[nodiscard]] rpl::producer<ScrollToRequest> requestShown() const;
+
+	void setIsReorderingCallback(Fn<bool()> callback);
+
+	[[nodiscard]] bool isVertical() const {
+		return _vertical;
+	}
 
 protected:
 	struct Range {
@@ -124,6 +147,7 @@ protected:
 	RoundRect _barRect;
 
 	std::vector<std::unique_ptr<SubsectionButton>> _tabs;
+	bool _tabsReorderedOnce = false;
 	int _active = -1;
 	int _pressed = -1;
 	Animations::Simple _activeFrom;
@@ -141,6 +165,8 @@ protected:
 	Fn<bool()> _paused;
 
 	rpl::event_stream<ScrollToRequest> _requestShown;
+
+	Fn<bool()> _isReorderingCallback;
 
 };
 
@@ -169,6 +195,8 @@ private:
 };
 
 [[nodiscard]] std::shared_ptr<DynamicImage> MakeAllSubsectionsThumbnail(
+	Fn<QColor()> textColor);
+[[nodiscard]] std::shared_ptr<DynamicImage> MakeNewChatSubsectionsThumbnail(
 	Fn<QColor()> textColor);
 
 } // namespace Ui

@@ -37,6 +37,7 @@ public:
 	[[nodiscard]] bool has(not_null<DocumentData*> document) const;
 	void save(not_null<DocumentData*> document, FileOrigin origin);
 	void remove(not_null<DocumentData*> document);
+	void reorder(int oldPosition, int newPosition);
 
 	void apply(not_null<UserData*> user, const MTPDocument *last);
 

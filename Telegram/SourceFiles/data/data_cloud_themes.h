@@ -160,6 +160,7 @@ private:
 	std::vector<QString> _myGiftThemesTokens;
 	rpl::event_stream<> _myGiftThemesUpdates;
 	uint64 _myGiftThemesHash = 0;
+	QString _myGiftThemesNextOffset;
 	bool _myGiftThemesLoaded = false;
 
 	base::Timer _reloadCurrentTimer;

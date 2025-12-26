@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_common.h"
 #include "base/platform/base_platform_info.h"
 #include "styles/style_media_view.h"
-#include "styles/style_calls.h" // st::callShadow.
+#include "styles/style_widgets.h"
 
 namespace Media::View {
 namespace {
@@ -148,7 +148,7 @@ vec4 shadow() {
 Pip::RendererGL::RendererGL(not_null<Pip*> owner)
 : _owner(owner) {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_radialImage.invalidate();
 		_playbackImage.invalidate();
 		_volumeControllerImage.invalidate();
@@ -156,9 +156,7 @@ Pip::RendererGL::RendererGL(not_null<Pip*> owner)
 	}, _lifetime);
 }
 
-void Pip::RendererGL::init(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f) {
+void Pip::RendererGL::init(QOpenGLFunctions &f) {
 	constexpr auto kQuads = 8;
 	constexpr auto kQuadVertices = kQuads * 4;
 	constexpr auto kQuadValues = kQuadVertices * 4;
@@ -233,9 +231,12 @@ void Pip::RendererGL::init(
 	createShadowTexture();
 }
 
-void Pip::RendererGL::deinit(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions *f) {
+void Pip::RendererGL::deinit(QOpenGLFunctions *f) {
+	_radialImage.destroy(f);
+	_controlsImage.destroy(f);
+	_playbackImage.destroy(f);
+	_volumeControllerImage.destroy(f);
+	_shadowImage.destroy(f);
 	_textures.destroy(f);
 	_imageProgram = std::nullopt;
 	_texturedVertexShader = nullptr;
@@ -247,8 +248,8 @@ void Pip::RendererGL::deinit(
 }
 
 void Pip::RendererGL::createShadowTexture() {
-	const auto &shadow = st::callShadow;
-	const auto size = 2 * st::callShadow.topLeft.size()
+	const auto &shadow = PipShadow();
+	const auto size = 2 * PipShadow().topLeft.size()
 		+ QSize(st::roundRadiusLarge, st::roundRadiusLarge);
 	auto image = QImage(
 		size * style::DevicePixelRatio(),
@@ -441,15 +442,15 @@ void Pip::RendererGL::paintTransformedContent(
 	program->setUniformValue("h_texture", GLint(rgbaFrame ? 1 : 3));
 	program->setUniformValue("h_size", QSizeF(_shadowImage.image().size()));
 	program->setUniformValue("h_extend", QVector4D(
-		st::callShadow.extend.left() * globalFactor,
-		st::callShadow.extend.top() * globalFactor,
-		st::callShadow.extend.right() * globalFactor,
-		st::callShadow.extend.bottom() * globalFactor));
+		PipShadow().extend.left() * globalFactor,
+		PipShadow().extend.top() * globalFactor,
+		PipShadow().extend.right() * globalFactor,
+		PipShadow().extend.bottom() * globalFactor));
 	program->setUniformValue("h_components", QVector4D(
-		float(st::callShadow.topLeft.width() * globalFactor),
-		float(st::callShadow.topLeft.height() * globalFactor),
-		float(st::callShadow.left.width() * globalFactor),
-		float(st::callShadow.top.height() * globalFactor)));
+		float(PipShadow().topLeft.width() * globalFactor),
+		float(PipShadow().topLeft.height() * globalFactor),
+		float(PipShadow().left.width() * globalFactor),
+		float(PipShadow().top.height() * globalFactor)));
 	program->setUniformValue(
 		"roundRadius",
 		GLfloat(st::roundRadiusLarge * _factor));
@@ -779,14 +780,14 @@ QRect Pip::RendererGL::RoundingRect(ContentGeometry geometry) {
 		inner.y(),
 		geometry.outer.width() - inner.x() - inner.width(),
 		geometry.outer.height() - inner.y() - inner.height(),
-		st::callShadow.topLeft.width(),
-		st::callShadow.topLeft.height(),
-		st::callShadow.topRight.width(),
-		st::callShadow.topRight.height(),
-		st::callShadow.bottomRight.width(),
-		st::callShadow.bottomRight.height(),
-		st::callShadow.bottomLeft.width(),
-		st::callShadow.bottomLeft.height(),
+		PipShadow().topLeft.width(),
+		PipShadow().topLeft.height(),
+		PipShadow().topRight.width(),
+		PipShadow().topRight.height(),
+		PipShadow().bottomRight.width(),
+		PipShadow().bottomRight.height(),
+		PipShadow().bottomLeft.width(),
+		PipShadow().bottomLeft.height(),
 	});
 	return geometry.inner.marginsAdded({
 		(attached & RectPart::Left) ? added : 0,

@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "window/section_widget.h"
+#include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
@@ -118,7 +119,7 @@ void AddMessage(
 	widget->widthValue(
 	) | rpl::filter(
 		rpl::mappers::_1 >= (st::historyMinimalWidth / 2)
-	) | rpl::start_with_next(updateWidgetSize, widget->lifetime());
+	) | rpl::on_next(updateWidgetSize, widget->lifetime());
 	updateWidgetSize(width);
 
 	const auto rightSize = st::settingsReactionCornerSize;
@@ -134,15 +135,19 @@ void AddMessage(
 			rightSize.height()).translated(st::settingsReactionCornerSkip);
 	};
 
+	using ThemePtr = std::unique_ptr<Ui::ChatTheme>;
+	const auto theme = widget->lifetime().make_state<ThemePtr>(
+		Window::Theme::DefaultChatThemeOn(widget->lifetime()));
 	widget->paintRequest(
-	) | rpl::start_with_next([=](const QRect &rect) {
+	) | rpl::on_next([=](const QRect &rect) {
+		Painter p(widget);
+		p.setClipRect(rect);
 		Window::SectionWidget::PaintBackground(
-			controller,
-			controller->defaultChatTheme().get(), // #TODO themes
-			widget,
+			p,
+			theme->get(),
+			QSize(widget->width(), widget->window()->height()),
 			rect);
 
-		Painter p(widget);
 		auto hq = PainterHighQualityEnabler(p);
 		const auto theme = controller->defaultChatTheme().get();
 		auto context = theme->preparePaintContext(
@@ -173,7 +178,7 @@ void AddMessage(
 	auto selectedId = rpl::duplicate(idValue);
 	std::move(
 		selectedId
-	) | rpl::start_with_next([
+	) | rpl::on_next([
 		=,
 		idValue = std::move(idValue),
 		iconSize = st::settingsReactionMessageSize
@@ -242,14 +247,14 @@ not_null<Ui::RpWidget*> AddReactionIconWrap(
 
 	std::move(
 		iconPositionValue
-	) | rpl::start_with_next([=](const QPoint &point) {
+	) | rpl::on_next([=](const QPoint &point) {
 		widget->moveToLeft(point.x(), point.y());
 	}, widget->lifetime());
 
 	const auto update = crl::guard(widget, [=] { widget->update(); });
 
 	widget->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(widget);
 
 		if (state->finalAnimation.animating()) {
@@ -269,7 +274,7 @@ not_null<Ui::RpWidget*> AddReactionIconWrap(
 
 	std::move(
 		destroys
-	) | rpl::take(1) | rpl::start_with_next([=, from = 0., to = 1.] {
+	) | rpl::take(1) | rpl::on_next([=, from = 0., to = 1.] {
 		state->finalAnimation.start(
 			[=](float64 value) {
 				update();
@@ -316,7 +321,7 @@ void AddReactionAnimatedIcon(
 	state->select.media->checkStickerLarge();
 	rpl::single() | rpl::then(
 		reaction.appearAnimation->session().downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto check = [&](State::Entry &entry) {
 			if (!entry.media) {
 				return true;
@@ -330,6 +335,8 @@ void AddReactionAnimatedIcon(
 			return true;
 		};
 		if (check(state->select) && check(state->appear)) {
+			state->select.icon->setCustomEndFrame(1);
+			state->select.icon->animate([] {});
 			state->loadingLifetime.destroy();
 		}
 	}, state->loadingLifetime);
@@ -353,6 +360,11 @@ void AddReactionAnimatedIcon(
 		}
 		if (appear && appear->animating()) {
 			paintFrame(appear);
+			if (appear->frameIndex() == appear->framesCount() - 1) {
+				if (const auto select = state->select.icon.get()) {
+					select->setCustomEndFrame(select->framesCount() - 1);
+				}
+			}
 		} else if (const auto select = state->select.icon.get()) {
 			paintFrame(select);
 		}
@@ -367,7 +379,7 @@ void AddReactionAnimatedIcon(
 
 	std::move(
 		selects
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto select = state->select.icon.get();
 		if (select && !select->animating()) {
 			select->animate(crl::guard(widget, [=] { widget->update(); }));
@@ -445,7 +457,7 @@ void ReactionsSettingsBox(
 	check->resize(st::settingsReactionCornerSize);
 	check->setAttribute(Qt::WA_TransparentForMouseEvents);
 	check->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Painter p(check);
 		st::mediaPlayerMenuCheck.paintInCenter(p, check->rect());
 	}, check->lifetime());
@@ -510,7 +522,7 @@ void ReactionsSettingsBox(
 		firstCheckedButton->geometryValue(
 		) | rpl::filter([=](const QRect &r) {
 			return r.isValid();
-		}) | rpl::take(1) | rpl::start_with_next([=] {
+		}) | rpl::take(1) | rpl::on_next([=] {
 			checkButton(firstCheckedButton);
 		}, firstCheckedButton->lifetime());
 	}

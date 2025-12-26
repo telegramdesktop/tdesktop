@@ -143,7 +143,7 @@ auto AddButtonWithLoader(
 
 	std::move(
 		query
-	) | rpl::start_with_next([=](auto string) {
+	) | rpl::on_next([=](auto string) {
 		wrap->toggle(
 			ranges::any_of(indexList, [&](const QString &s) {
 				return s.startsWith(string, Qt::CaseInsensitive);
@@ -198,7 +198,7 @@ auto AddButtonWithLoader(
 	};
 
 	Spellchecker::GlobalLoaderChanged(
-	) | rpl::start_with_next([=](int langId) {
+	) | rpl::on_next([=](int langId) {
 		if (!langId && rawGlobalLoaderPtr()) {
 			setGlobalLoaderPtr(nullptr);
 		} else if (langId == id) {
@@ -215,14 +215,14 @@ auto AddButtonWithLoader(
 	rpl::combine(
 		button->widthValue(),
 		label->widthValue()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		label->moveToLeft(
 			st::settingsUpdateStatePosition.x(),
 			st::settingsUpdateStatePosition.y());
 	}, label->lifetime());
 
 	buttonState->value(
-	) | rpl::start_with_next([=](const DictState &state) {
+	) | rpl::on_next([=](const DictState &state) {
 		const auto isToggledSet = v::is<Active>(state);
 		const auto toggled = isToggledSet ? 1. : 0.;
 		const auto over = !button->isDisabled()
@@ -279,7 +279,7 @@ auto AddButtonWithLoader(
 	});
 
 	button->toggledValue(
-	) | rpl::start_with_next([=](bool toggled) {
+	) | rpl::on_next([=](bool toggled) {
 		const auto &state = buttonState->current();
 		if (toggled && (v::is<Available>(state) || v::is<Failed>(state))) {
 			const auto weak = base::make_weak(button);
@@ -353,7 +353,7 @@ void Inner::setupContent(
 			ranges::contains(enabledDictionaries, id),
 			queryStream->events());
 		row->toggledValue(
-		) | rpl::start_with_next([=](auto enabled) {
+		) | rpl::on_next([=](auto enabled) {
 			if (enabled) {
 				_enabledRows.push_back(id);
 			} else {
@@ -420,7 +420,7 @@ void ManageDictionariesBox::prepare() {
 	});
 	addButton(tr::lng_close(), [=] { closeBox(); });
 
-	boxClosing() | rpl::start_with_next([=] {
+	boxClosing() | rpl::on_next([=] {
 		Core::App().settings().setDictionariesEnabled(
 			FilterEnabledDict(initialEnabledRows));
 		Core::App().saveSettingsDelayed();
@@ -434,7 +434,7 @@ void ManageDictionariesBox::prepare() {
 		inner->heightValue(),
 		multiSelect->heightValue(),
 		_1 + _2
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		using std::min;
 		accumulate_max(*max, height);
 		setDimensions(st::boxWidth, min(*max, st::boxMaxListHeight), true);

@@ -100,7 +100,7 @@ void StartCachedCorners() {
 	CreatePaletteCorners();
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		CreatePaletteCorners();
 	}, PaletteChangedLifetime);
 }

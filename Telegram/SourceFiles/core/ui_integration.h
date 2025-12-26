@@ -92,6 +92,9 @@ public:
 	QString phraseBotAllowWriteTitle() override;
 	QString phraseBotAllowWriteConfirm() override;
 	QString phraseQuoteHeaderCopy() override;
+	QString phraseMinimize() override;
+	QString phraseMaximize() override;
+	QString phraseRestore() override;
 
 };
 

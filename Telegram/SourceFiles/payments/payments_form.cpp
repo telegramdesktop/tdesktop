@@ -158,11 +158,11 @@ MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
 			| (giveaway.additionalPrize.isEmpty()
 				? Flag()
 				: Flag::f_prize_description)),
-		giveaway.boostPeer->input,
+		giveaway.boostPeer->input(),
 		MTP_vector_from_range(ranges::views::all(
 			giveaway.additionalChannels
 		) | ranges::views::transform([](not_null<ChannelData*> c) {
-			return MTPInputPeer(c->input);
+			return MTPInputPeer(c->input());
 		})),
 		MTP_vector_from_range(ranges::views::all(
 			giveaway.countries
@@ -200,11 +200,11 @@ MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 				? Flag()
 				: Flag::f_prize_description)),
 		MTP_long(*invoice.giveawayCredits),
-		giveaway.boostPeer->input,
+		giveaway.boostPeer->input(),
 		MTP_vector_from_range(ranges::views::all(
 			giveaway.additionalChannels
 		) | ranges::views::transform([](not_null<ChannelData*> c) {
-			return MTPInputPeer(c->input);
+			return MTPInputPeer(c->input());
 		})),
 		MTP_vector_from_range(ranges::views::all(
 			giveaway.countries
@@ -296,7 +296,7 @@ void Form::loadThumbnail(not_null<PhotoData*> photo) {
 	_thumbnailLoadProcess->view = std::move(view);
 	photo->load(Data::PhotoSize::Thumbnail, thumbnailFileOrigin());
 	_session->downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto &view = _thumbnailLoadProcess->view;
 		if (auto good = prepareGoodThumbnail(view); !good.isNull()) {
 			_invoice.cover.thumbnail = std::move(good);
@@ -366,7 +366,7 @@ QImage Form::prepareEmptyThumbnail() const {
 MTPInputInvoice Form::inputInvoice() const {
 	if (const auto message = std::get_if<InvoiceMessage>(&_id.value)) {
 		return MTP_inputInvoiceMessage(
-			message->peer->input,
+			message->peer->input(),
 			MTP_int(message->itemId.bare));
 	} else if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
 		return MTP_inputInvoiceSlug(MTP_string(slug->slug));
@@ -375,7 +375,7 @@ MTPInputInvoice Form::inputInvoice() const {
 			if (const auto user = _session->data().user(userId)) {
 				return MTP_inputInvoiceStars(
 					MTP_inputStorePaymentStarsGift(
-						user->inputUser,
+						user->inputUser(),
 						MTP_long(credits->credits),
 						MTP_string(credits->currency),
 						MTP_long(credits->amount)));
@@ -394,7 +394,7 @@ MTPInputInvoice Form::inputInvoice() const {
 			MTP_flags((gift->anonymous ? Flag::f_hide_name : Flag(0))
 				| (gift->message.empty() ? Flag(0) : Flag::f_message)
 				| (gift->upgraded ? Flag::f_include_upgrade : Flag(0))),
-			gift->recipient->input,
+			gift->recipient->input(),
 			MTP_long(gift->giftId),
 			MTP_textWithEntities(
 				MTP_string(gift->message.text),
@@ -435,7 +435,7 @@ MTPInputInvoice Form::inputInvoice() const {
 		using Flag = MTPDinputInvoicePremiumGiftStars::Flag;
 		return MTP_inputInvoicePremiumGiftStars(
 			MTP_flags(message ? Flag::f_message : Flag()),
-			users->users.front()->inputUser,
+			users->users.front()->inputUser(),
 			MTP_int(giftCode.months),
 			message.value_or(MTPTextWithEntities()));
 	} else if (users) {
@@ -447,9 +447,9 @@ MTPInputInvoice Form::inputInvoice() const {
 				MTP_vector_from_range(ranges::views::all(
 					users->users
 				) | ranges::views::transform([](not_null<UserData*> user) {
-					return MTPInputUser(user->inputUser);
+					return MTPInputUser(user->inputUser());
 				})),
-				users->boostPeer ? users->boostPeer->input : MTPInputPeer(),
+				users->boostPeer ? users->boostPeer->input() : MTPInputPeer(),
 				MTP_string(giftCode.currency),
 				MTP_long(giftCode.amount),
 				message.value_or(MTPTextWithEntities())),
@@ -550,7 +550,7 @@ void Form::requestReceipt() {
 	const auto message = v::get<InvoiceMessage>(_id.value);
 	showProgress();
 	_api.request(MTPpayments_GetPaymentReceipt(
-		message.peer->input,
+		message.peer->input(),
 		MTP_int(message.itemId.bare)
 	)).done([=](const MTPpayments_PaymentReceipt &result) {
 		hideProgress();

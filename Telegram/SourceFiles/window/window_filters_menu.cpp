@@ -66,11 +66,12 @@ FiltersMenu::~FiltersMenu() = default;
 
 void FiltersMenu::setup() {
 	setupMainMenuIcon();
+	_menu.setAccessibleName(tr::lng_main_menu(tr::now));
 
 	_outer.setAttribute(Qt::WA_OpaquePaintEvent);
 	_outer.show();
 	_outer.paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(&_outer);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::windowFiltersButton.textBg);
@@ -78,7 +79,7 @@ void FiltersMenu::setup() {
 	}, _outer.lifetime());
 
 	_parent->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		const auto width = st::windowFiltersWidth;
 		_outer.setGeometry({ 0, 0, width, height });
 		_menu.resizeToWidth(width);
@@ -95,7 +96,7 @@ void FiltersMenu::setup() {
 	rpl::combine(
 		rpl::single(rpl::empty) | rpl::then(filters->changed()),
 		std::move(premium)
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refresh();
 	}, _outer.lifetime());
 
@@ -103,7 +104,7 @@ void FiltersMenu::setup() {
 	_session->activeChatsFilter(
 	) | rpl::filter([=](FilterId id) {
 		return (id != _activeFilterId);
-	}) | rpl::start_with_next([=](FilterId id) {
+	}) | rpl::on_next([=](FilterId id) {
 		if (!_list) {
 			_activeFilterId = id;
 			return;
@@ -129,7 +130,7 @@ void FiltersMenu::setup() {
 void FiltersMenu::setupMainMenuIcon() {
 	OtherAccountsUnreadState(
 		&_session->session().account()
-	) | rpl::start_with_next([=](const OthersUnreadState &state) {
+	) | rpl::on_next([=](const OthersUnreadState &state) {
 		const auto icon = !state.count
 			? nullptr
 			: !state.allMuted
@@ -223,7 +224,7 @@ void FiltersMenu::setupList() {
 	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(_list, &_scroll);
 
 	_reorder->updates(
-	) | rpl::start_with_next([=](Ui::VerticalLayoutReorder::Single data) {
+	) | rpl::on_next([=](Ui::VerticalLayoutReorder::Single data) {
 		using State = Ui::VerticalLayoutReorder::State;
 		if (data.state == State::Started) {
 			++_reordering;
@@ -271,6 +272,9 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		: container->add(std::move(prepared));
 	auto button = base::unique_qptr<Ui::SideBarButton>(std::move(added));
 	const auto raw = button.get();
+	const auto nameText = id
+		? title.text.text
+		: tr::lng_filters_all(tr::now);
 	const auto &icons = Ui::LookupFilterIcon(id
 		? icon
 		: Ui::FilterIcon::All);
@@ -279,7 +283,7 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		rpl::combine(
 			Data::UnreadStateValue(&_session->session(), id),
 			Data::IncludeMutedCounterFoldersValue()
-		) | rpl::start_with_next([=](
+		) | rpl::on_next([=](
 				const Dialogs::UnreadState &state,
 				bool includeMuted) {
 			const auto chats = state.chats;
@@ -293,6 +297,14 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 				? "99+"
 				: QString::number(count);
 			raw->setBadge(string, includeMuted && (count == muted));
+			raw->setAccessibleName(count
+				? tr::lng_filter_unread_chats(
+					tr::now,
+					lt_count,
+					count,
+					lt_text,
+					nameText)
+				: nameText);
 		}, raw->lifetime());
 	}
 	raw->setActive(_session->activeChatsFilterCurrent() == id);
@@ -318,7 +330,7 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 				|| e->type() == QEvent::DragEnter
 				|| e->type() == QEvent::DragMove
 				|| e->type() == QEvent::DragLeave;
-		}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		}) | rpl::on_next([=](not_null<QEvent*> e) {
 			if (raw->locked()) {
 				return;
 			}
@@ -353,7 +365,7 @@ void FiltersMenu::openFiltersSettings() {
 		_waitingSuggested = true;
 		filters->requestSuggested();
 		filters->suggestedUpdated(
-		) | rpl::take(1) | rpl::start_with_next([=] {
+		) | rpl::take(1) | rpl::on_next([=] {
 			_session->showSettings(Settings::Folders::Id());
 		}, _outer.lifetime());
 	}

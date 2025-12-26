@@ -13,10 +13,10 @@ struct FlatLabel;
 
 namespace Ui {
 
-class RpWidget;
+class RoundButton;
 
 void SetButtonTwoLabels(
-    not_null<Ui::RpWidget*> button,
+    not_null<Ui::RoundButton*> button,
     rpl::producer<TextWithEntities> title,
     rpl::producer<TextWithEntities> subtitle,
     const style::FlatLabel &st,

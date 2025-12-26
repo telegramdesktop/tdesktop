@@ -100,6 +100,7 @@ enum { // Local Storage Keys
 	lskInlineBotsDownloads = 0x1b, // no data
 	lskMediaLastPlaybackPositions = 0x1c, // no data
 	lskBotStorages = 0x1d, // data: PeerId botId
+	lskPrefs = 0x1e, // no data
 };
 
 auto EmptyMessageDraftSources()
@@ -137,7 +138,7 @@ auto EmptyMessageDraftSources()
 }
 
 [[nodiscard]] std::pair<quint64, quint64> SerializeSuggest(
-		SuggestPostOptions options) {
+		SuggestOptions options) {
 	return {
 		((quint64(options.exists) << 63)
 			| (quint64(quint32(options.date)))),
@@ -147,7 +148,7 @@ auto EmptyMessageDraftSources()
 	};
 }
 
-[[nodiscard]] SuggestPostOptions DeserializeSuggest(
+[[nodiscard]] SuggestOptions DeserializeSuggest(
 		std::pair<quint64, quint64> suggest) {
 	const auto exists = (suggest.first >> 63) ? 1 : 0;
 	const auto date = TimeId(uint32(suggest.first & 0xFFFF'FFFFULL));
@@ -177,6 +178,7 @@ Account::Account(not_null<Main::Account*> owner, const QString &dataName)
 , _cacheTotalTimeLimit(Database::Settings().totalTimeLimit)
 , _cacheBigFileTotalTimeLimit(Database::Settings().totalTimeLimit)
 , _writeMapTimer([=] { writeMap(); })
+, _writePrefsTimer([=] { writePrefs(); })
 , _writeLocationsTimer([=] { writeLocations(); })
 , _writeSearchSuggestionsTimer([=] { writeSearchSuggestions(); }) {
 }
@@ -184,8 +186,13 @@ Account::Account(not_null<Main::Account*> owner, const QString &dataName)
 Account::~Account() {
 	Expects(!_writeSearchSuggestionsTimer.isActive());
 
-	if (_localKey && _mapChanged) {
-		writeMap();
+	if (_localKey) {
+		if (_prefsChanged) {
+			writePrefs();
+		}
+		if (_mapChanged) {
+			writeMap();
+		}
 	}
 }
 
@@ -236,6 +243,7 @@ void Account::clearLegacyFiles() {
 
 base::flat_set<QString> Account::collectGoodNames() const {
 	const auto keys = {
+		_prefsKey,
 		_locationsKey,
 		_settingsKey,
 		_installedStickersKey,
@@ -342,7 +350,7 @@ Account::ReadMapResult Account::readMapWith(
 	base::flat_map<PeerId, bool> draftsNotReadMap;
 	base::flat_map<PeerId, FileKey> botStoragesMap;
 	base::flat_map<PeerId, bool> botStoragesNotReadMap;
-	quint64 locationsKey = 0, reportSpamStatusesKey = 0, trustedPeersKey = 0;
+	quint64 prefsKey = 0, locationsKey = 0, reportSpamStatusesKey = 0, trustedPeersKey = 0;
 	quint64 recentStickersKeyOld = 0;
 	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
 	quint64 installedMasksKey = 0, recentMasksKey = 0, archivedMasksKey = 0;
@@ -397,6 +405,9 @@ Account::ReadMapResult Account::readMapWith(
 				map.stream >> key >> first >> second >> size;
 				// Just ignore the key, it will be removed as a leaked one.
 			}
+		} break;
+		case lskPrefs: {
+			map.stream >> prefsKey;
 		} break;
 		case lskLocations: {
 			map.stream >> locationsKey;
@@ -506,6 +517,7 @@ Account::ReadMapResult Account::readMapWith(
 	_botStoragesMap = botStoragesMap;
 	_botStoragesNotReadMap = botStoragesNotReadMap;
 
+	_prefsKey = prefsKey;
 	_locationsKey = locationsKey;
 	_trustedPeersKey = trustedPeersKey;
 	_recentStickersKeyOld = recentStickersKeyOld;
@@ -540,6 +552,9 @@ Account::ReadMapResult Account::readMapWith(
 		_mapChanged = false;
 	}
 
+	if (_prefsKey) {
+		readPrefs();
+	}
 	if (_locationsKey) {
 		readLocations();
 	}
@@ -620,6 +635,7 @@ void Account::writeMap() {
 	if (!self.isEmpty()) mapSize += sizeof(quint32) + Serialize::bytearraySize(self);
 	if (!_draftsMap.empty()) mapSize += sizeof(quint32) * 2 + _draftsMap.size() * sizeof(quint64) * 2;
 	if (!_draftCursorsMap.empty()) mapSize += sizeof(quint32) * 2 + _draftCursorsMap.size() * sizeof(quint64) * 2;
+	if (_prefsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_locationsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_trustedPeersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_recentStickersKeyOld) mapSize += sizeof(quint32) + sizeof(quint64);
@@ -664,6 +680,9 @@ void Account::writeMap() {
 		for (const auto &[key, value] : _draftCursorsMap) {
 			mapData.stream << quint64(value) << SerializePeerId(key);
 		}
+	}
+	if (_prefsKey) {
+		mapData.stream << quint32(lskPrefs) << quint64(_prefsKey);
 	}
 	if (_locationsKey) {
 		mapData.stream << quint32(lskLocations) << quint64(_locationsKey);
@@ -750,7 +769,7 @@ void Account::reset() {
 	_draftsNotReadMap.clear();
 	_botStoragesMap.clear();
 	_botStoragesNotReadMap.clear();
-	_locationsKey = _trustedPeersKey = 0;
+	_prefsKey = _locationsKey = _trustedPeersKey = 0;
 	_recentStickersKeyOld = 0;
 	_installedStickersKey = 0;
 	_featuredStickersKey = 0;
@@ -1295,7 +1314,7 @@ void Account::writeDrafts(not_null<History*> history) {
 	const auto sizeCallback = [&](
 			auto&&, // key
 			const FullReplyTo &reply,
-			SuggestPostOptions suggest,
+			SuggestOptions suggest,
 			const TextWithTags &text,
 			const Data::WebPageDraft &webpage,
 			auto&&) { // cursor
@@ -1326,7 +1345,7 @@ void Account::writeDrafts(not_null<History*> history) {
 	const auto writeCallback = [&](
 			const Data::DraftKey &key,
 			const FullReplyTo &reply,
-			SuggestPostOptions suggest,
+			SuggestOptions suggest,
 			const TextWithTags &text,
 			const Data::WebPageDraft &webpage,
 			auto&&) { // cursor
@@ -1700,7 +1719,7 @@ void Account::readDraftsWithCursorsLegacy(
 			std::make_unique<Data::Draft>(
 				msgData,
 				FullReplyTo{ FullMsgId(peerId, MsgId(msgReplyTo)) },
-				SuggestPostOptions(),
+				SuggestOptions(),
 				MessageCursor(),
 				Data::WebPageDraft{
 					.removed = (msgPreviewCancelled == 1),
@@ -1712,7 +1731,7 @@ void Account::readDraftsWithCursorsLegacy(
 			std::make_unique<Data::Draft>(
 				editData,
 				FullReplyTo{ FullMsgId(peerId, editMsgId) },
-				SuggestPostOptions(),
+				SuggestOptions(),
 				MessageCursor(),
 				Data::WebPageDraft{
 					.removed = (editPreviewCancelled == 1),
@@ -2024,6 +2043,10 @@ void Account::readStickerSets(
 		Data::StickersSetsOrder *outOrder,
 		Data::StickersSetFlags readingFlags) {
 	using SetFlag = Data::StickersSetFlag;
+
+	if (!stickersKey) {
+		return;
+	}
 
 	FileReadDescriptor stickers;
 	if (!ReadEncryptedFile(stickers, stickersKey, _basePath, _localKey)) {
@@ -2562,6 +2585,8 @@ void Account::importOldRecentStickers() {
 }
 
 void Account::readInstalledStickers() {
+	DEBUG_LOG(("Init: Read installed sticker sets."));
+
 	if (!_installedStickersKey) {
 		return importOldRecentStickers();
 	}
@@ -2574,6 +2599,8 @@ void Account::readInstalledStickers() {
 }
 
 void Account::readFeaturedStickers() {
+	DEBUG_LOG(("Init: Read featured sticker sets."));
+
 	readStickerSets(
 		_featuredStickersKey,
 		&_owner->session().data().stickers().featuredSetsOrderRef(),
@@ -2593,6 +2620,8 @@ void Account::readFeaturedStickers() {
 }
 
 void Account::readFeaturedCustomEmoji() {
+	DEBUG_LOG(("Init: Read featured emoji sets."));
+
 	readStickerSets(
 		_featuredCustomEmojiKey,
 		&_owner->session().data().stickers().featuredEmojiSetsOrderRef(),
@@ -2600,18 +2629,26 @@ void Account::readFeaturedCustomEmoji() {
 }
 
 void Account::readRecentStickers() {
+	DEBUG_LOG(("Init: Read recent stickers."));
+
 	readStickerSets(_recentStickersKey);
 }
 
 void Account::readRecentMasks() {
+	DEBUG_LOG(("Init: Read recent masks."));
+
 	readStickerSets(_recentMasksKey);
 }
 
 void Account::readFavedStickers() {
+	DEBUG_LOG(("Init: Read faved masks."));
+
 	readStickerSets(_favedStickersKey);
 }
 
 void Account::readArchivedStickers() {
+	DEBUG_LOG(("Init: Read archived stickers."));
+
 	// TODO: refactor to support for multiple accounts.
 	static bool archivedStickersRead = false;
 	if (!archivedStickersRead) {
@@ -2623,6 +2660,8 @@ void Account::readArchivedStickers() {
 }
 
 void Account::readArchivedMasks() {
+	DEBUG_LOG(("Init: Read archived masks."));
+
 	// TODO: refactor to support for multiple accounts.
 	static bool archivedMasksRead = false;
 	if (!archivedMasksRead) {
@@ -2634,6 +2673,8 @@ void Account::readArchivedMasks() {
 }
 
 void Account::readInstalledMasks() {
+	DEBUG_LOG(("Init: Read installed masks."));
+
 	readStickerSets(
 		_installedMasksKey,
 		&_owner->session().data().stickers().maskSetsOrderRef(),
@@ -2641,6 +2682,8 @@ void Account::readInstalledMasks() {
 }
 
 void Account::readInstalledCustomEmoji() {
+	DEBUG_LOG(("Init: Read installed emoji sets."));
+
 	readStickerSets(
 		_installedCustomEmojiKey,
 		&_owner->session().data().stickers().emojiSetsOrderRef(),
@@ -2676,7 +2719,11 @@ void Account::writeSavedGifs() {
 }
 
 void Account::readSavedGifs() {
-	if (!_savedGifsKey) return;
+	DEBUG_LOG(("Init: Read saved GIFs."));
+
+	if (!_savedGifsKey) {
+		return;
+	}
 
 	FileReadDescriptor gifs;
 	if (!ReadEncryptedFile(gifs, _savedGifsKey, _basePath, _localKey)) {
@@ -2919,7 +2966,7 @@ void Account::writeExportSettings(const Export::Settings &settings) {
 		<< quint32(settings.format)
 		<< settings.path
 		<< quint32(settings.availableAt);
-	settings.singlePeer.match([&](const MTPDinputPeerUser & user) {
+	settings.singlePeer.match([&](const MTPDinputPeerUser &user) {
 		data.stream
 			<< kSinglePeerTypeUser
 			<< quint64(user.vuser_id().v)
@@ -2948,12 +2995,16 @@ void Account::writeExportSettings(const Export::Settings &settings) {
 }
 
 Export::Settings Account::readExportSettings() {
+	if (!_exportSettingsKey) {
+		return {};
+	}
+
 	FileReadDescriptor file;
 	if (!ReadEncryptedFile(file, _exportSettingsKey, _basePath, _localKey)) {
 		ClearKey(_exportSettingsKey, _basePath);
 		_exportSettingsKey = 0;
 		writeMapDelayed();
-		return Export::Settings();
+		return {};
 	}
 
 	quint32 types = 0, fullChats = 0;
@@ -3647,6 +3698,121 @@ Webview::StorageId TonSiteStorageId() {
 		Core::App().saveSettingsDelayed();
 	}
 	return result;
+}
+
+void Account::clearPref(std::string_view key) {
+	const auto i = _prefs.find(QByteArray(key.data(), key.size()));
+	if (i == end(_prefs)) {
+		return;
+	}
+	_prefs.erase(i);
+	writePrefsDelayed();
+}
+
+void Account::writePrefGeneric(
+		std::string_view key,
+		const QByteArray &value) {
+	const auto raw = QByteArray(key.data(), key.size());
+	if (const auto i = _prefs.find(raw); i != end(_prefs)) {
+		if (i->second == value) {
+			return;
+		}
+		i->second = value;
+	} else {
+		_prefs.emplace(raw, value);
+	}
+	writePrefsDelayed();
+}
+
+std::optional<QByteArray> Account::readPrefGeneric(std::string_view key) {
+	const auto i = _prefs.find(QByteArray(key.data(), key.size()));
+	return (i != end(_prefs)) ? i->second : std::optional<QByteArray>();
+}
+
+void Account::writePrefsDelayed() {
+	_prefsChanged = true;
+	_writePrefsTimer.callOnce(kDelayedWriteTimeout);
+}
+
+void Account::writePrefs() {
+	_writePrefsTimer.cancel();
+	if (!_prefsChanged) {
+		return;
+	}
+	_prefsChanged = false;
+
+	if (_prefs.empty()) {
+		if (_prefsKey) {
+			ClearKey(_prefsKey, _basePath);
+			_prefsKey = 0;
+			writeMapDelayed();
+		}
+	} else {
+		if (!_prefsKey) {
+			_prefsKey = GenerateKey(_basePath);
+			writeMapQueued();
+		}
+		quint32 size = sizeof(quint32);
+		for (const auto &[key, value] : _prefs) {
+			size += 2 * sizeof(quint32) + key.size() + value.size();
+		}
+
+		EncryptedDescriptor data(size);
+		data.stream << quint32(_prefs.size());
+		for (const auto &[key, value] : _prefs) {
+			data.stream << quint32(key.size()) << quint32(value.size());
+			data.stream.writeRawData(key.constData(), key.size());
+			data.stream.writeRawData(value.constData(), value.size());
+		}
+
+		FileWriteDescriptor file(_prefsKey, _basePath);
+		file.writeEncrypted(data, _localKey);
+	}
+}
+
+void Account::readPrefs() {
+	FileReadDescriptor prefs;
+	if (!ReadEncryptedFile(prefs, _prefsKey, _basePath, _localKey)) {
+		ClearKey(_prefsKey, _basePath);
+		_prefsKey = 0;
+		writeMapDelayed();
+		return;
+	}
+
+	auto count = quint32();
+	prefs.stream >> count;
+	if (prefs.stream.status() != QDataStream::Ok) {
+		return;
+	}
+	auto map = base::flat_map<QByteArray, QByteArray>();
+	map.reserve(count);
+	for (auto i = quint32(); i != count; ++i) {
+		auto keySize = quint32(), valueSize = quint32();
+		prefs.stream >> keySize >> valueSize;
+		auto key = QByteArray(keySize, Qt::Uninitialized);
+		auto value = QByteArray(valueSize, Qt::Uninitialized);
+		prefs.stream.readRawData(key.data(), keySize);
+		prefs.stream.readRawData(value.data(), valueSize);
+		if (prefs.stream.status() != QDataStream::Ok) {
+			return;
+		}
+		map.emplace(std::move(key), std::move(value));
+	}
+	_prefs = std::move(map);
+}
+
+// Define your own pref types in the similar way.
+template <>
+std::optional<bool> Account::readPrefImpl<bool>(std::string_view key) {
+	if (const auto data = readPrefGeneric(key)) {
+		return !data->isEmpty();
+	}
+	return {};
+}
+
+template <>
+void Account::writePrefImpl<bool>(std::string_view key, bool value) {
+	writePrefGeneric(key, value ? "\x1"_q : QByteArray());
 }
 
 } // namespace Storage

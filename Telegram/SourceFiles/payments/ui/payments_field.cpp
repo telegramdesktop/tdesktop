@@ -375,7 +375,7 @@ struct SimpleFieldState {
 	};
 	std::move(
 		textPossiblyChanged
-	) | rpl::start_with_next(updateRight, result->lifetime());
+	) | rpl::on_next(updateRight, result->lifetime());
 	if (state->left) {
 		state->left->raise();
 	}
@@ -478,11 +478,11 @@ void Field::setupMaskedGeometry() {
 
 	_wrap->resize(_masked->size());
 	_wrap->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		_masked->resize(width, _masked->height());
 	}, _masked->lifetime());
 	_masked->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		_wrap->resize(_wrap->width(), height);
 	}, _masked->lifetime());
 }
@@ -506,7 +506,7 @@ void Field::setupCountry() {
 			CountrySelectBox::Type::Countries);
 		const auto raw = box.data();
 		raw->countryChosen(
-		) | rpl::start_with_next([=](QString iso2) {
+		) | rpl::on_next([=](QString iso2) {
 			_countryIso2 = iso2;
 			_masked->setText(Countries::Instance().countryNameByISO2(iso2));
 			_masked->hideError();
@@ -519,7 +519,7 @@ void Field::setupCountry() {
 				}
 			}
 		}, _masked->lifetime());
-		raw->boxClosing() | rpl::start_with_next([=] {
+		raw->boxClosing() | rpl::on_next([=] {
 			setFocus();
 		}, _masked->lifetime());
 		_config.showBox(std::move(box));
@@ -613,7 +613,7 @@ void Field::setupValidator(Fn<ValidateResult(ValidateRequest)> validator) {
 		const auto raw = _input->rawTextEdit();
 		QObject::connect(raw, &QTextEdit::cursorPositionChanged, save);
 		_input->changes(
-		) | rpl::start_with_next(validate, _input->lifetime());
+		) | rpl::on_next(validate, _input->lifetime());
 	}
 }
 
@@ -652,21 +652,21 @@ void Field::setupSubmit() {
 		QObject::connect(_masked, &MaskedInputField::submitted, submitted);
 	} else {
 		_input->submits(
-		) | rpl::start_with_next(submitted, _input->lifetime());
+		) | rpl::on_next(submitted, _input->lifetime());
 	}
 }
 
 void Field::setNextField(not_null<Field*> field) {
 	_nextField = field;
 
-	finished() | rpl::start_with_next([=] {
+	finished() | rpl::on_next([=] {
 		field->setFocus();
 	}, _masked ? _masked->lifetime() : _input->lifetime());
 }
 
 void Field::setPreviousField(not_null<Field*> field) {
 	frontBackspace(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		field->setFocus();
 	}, _masked ? _masked->lifetime() : _input->lifetime());
 }

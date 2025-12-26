@@ -302,7 +302,6 @@ QString strNeedToRefresh2() {
 	NSNumber *isDirectory;
 	if ([url getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil] && isDirectory != nil && [isDirectory boolValue]) {
 		if (onlyRecommended) {
-			CFStringRef ext = CFURLCopyPathExtension((CFURLRef)url);
 			NSNumber *isPackage;
 			if ([url getResourceValue:&isPackage forKey:NSURLIsPackageKey error:nil] && isPackage != nil && [isPackage boolValue]) {
 				return [self isRecommended:url];

@@ -55,7 +55,7 @@ void TranslateTracker::setup() {
 
 	const auto channel = peer->asChannel();
 	auto autoTranslationValue = (channel
-		? (channel->flagsValue() | rpl::type_erased())
+		? (channel->flagsValue() | rpl::type_erased)
 		: rpl::single(Data::Flags<ChannelDataFlags>::Change({}, {}))
 		) | rpl::map([=](Data::Flags<ChannelDataFlags>::Change data) {
 		return (data.value & ChannelDataFlag::AutoTranslation);
@@ -67,7 +67,7 @@ void TranslateTracker::setup() {
 		Data::AmPremiumValue(&_history->session()),
 		std::move(autoTranslationValue),
 		_1 && (_2 || _3));
-	_trackingLanguage.value() | rpl::start_with_next([=](bool tracking) {
+	_trackingLanguage.value() | rpl::on_next([=](bool tracking) {
 		_trackingLifetime.destroy();
 		if (tracking) {
 			recognizeCollected();
@@ -279,7 +279,7 @@ void TranslateTracker::requestSome() {
 	using Flag = MTPmessages_TranslateText::Flag;
 	_requestId = session->api().request(MTPmessages_TranslateText(
 		MTP_flags(Flag::f_peer | Flag::f_id),
-		peer->input,
+		peer->input(),
 		MTP_vector<MTPint>(list),
 		MTPVector<MTPTextWithEntities>(),
 		MTP_string(to.twoLetterCode())
@@ -354,7 +354,7 @@ void TranslateTracker::recognizeCollected() {
 
 void TranslateTracker::trackSkipLanguages() {
 	Core::App().settings().skipTranslationLanguagesValue(
-	) | rpl::start_with_next([=](const std::vector<LanguageId> &skip) {
+	) | rpl::on_next([=](const std::vector<LanguageId> &skip) {
 		checkRecognized(skip);
 	}, _trackingLifetime);
 }

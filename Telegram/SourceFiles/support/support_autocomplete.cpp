@@ -397,9 +397,9 @@ void Autocomplete::setupContent() {
 		scroll->scrollToY(0);
 	};
 
-	inner->activated() | rpl::start_with_next(submit, lifetime());
+	inner->activated() | rpl::on_next(submit, lifetime());
 	input->focusedChanges(
-	) | rpl::filter(!rpl::mappers::_1) | rpl::start_with_next([=] {
+	) | rpl::filter(!rpl::mappers::_1) | rpl::on_next([=] {
 		base::call_delayed(10, this, [=] {
 			if (!input->hasFocus()) {
 				deactivate();
@@ -407,11 +407,11 @@ void Autocomplete::setupContent() {
 		});
 	}, input->lifetime());
 	input->cancelled(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		deactivate();
 	}, input->lifetime());
-	input->changes() | rpl::start_with_next(refresh, input->lifetime());
-	input->submits() | rpl::start_with_next(submit, input->lifetime());
+	input->changes() | rpl::on_next(refresh, input->lifetime());
+	input->submits() | rpl::on_next(submit, input->lifetime());
 	input->customUpDown(true);
 
 	_activate = [=] {
@@ -430,7 +430,7 @@ void Autocomplete::setupContent() {
 	};
 
 	paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		QPainter p(this);
 		p.fillRect(
 			clip.intersected(QRect(0, st::lineWidth, width(), height())),
@@ -441,7 +441,7 @@ void Autocomplete::setupContent() {
 	}, lifetime());
 
 	sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		inputWrap->resizeToWidth(size.width());
 		inputWrap->moveToLeft(0, st::lineWidth, size.width());
 		scroll->setGeometry(
@@ -529,7 +529,7 @@ void ConfirmContactBox::prepare() {
 
 	const auto button = addButton(tr::lng_send_button(), [] {});
 	button->clicks(
-	) | rpl::start_with_next([=](Qt::MouseButton which) {
+	) | rpl::on_next([=](Qt::MouseButton which) {
 		_submit((which == Qt::RightButton)
 			? SkipSwitchModifiers()
 			: button->clickModifiers());

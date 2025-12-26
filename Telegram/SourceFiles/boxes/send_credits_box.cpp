@@ -109,9 +109,9 @@ void AddTerms(
 				tr::lng_paid_react_agree_link(),
 				tr::lng_group_invite_subscription_about_url()
 			) | rpl::map([](const QString &text, const QString &url) {
-				return Ui::Text::Link(text, url);
+				return tr::link(text, url);
 			}),
-			Ui::Text::RichLangValue),
+			tr::rich),
 		st::inviteLinkSubscribeBoxTerms);
 	const auto &buttonPadding = stBox.buttonPadding;
 	const auto style = box->lifetime().make_state<style::Box>(style::Box{
@@ -125,7 +125,7 @@ void AddTerms(
 		.shadowIgnoreTopSkip = stBox.shadowIgnoreTopSkip,
 		.shadowIgnoreBottomSkip = stBox.shadowIgnoreBottomSkip,
 	});
-	button->geometryValue() | rpl::start_with_next([=](const QRect &rect) {
+	button->geometryValue() | rpl::on_next([=](const QRect &rect) {
 		terms->resizeToWidth(box->width()
 			- rect::m::sum::h(st::boxRowPadding));
 		terms->moveToLeft(
@@ -153,25 +153,25 @@ void AddTerms(
 		auto photosBold = tr::lng_credits_box_out_photos(
 			lt_count,
 			rpl::single(photos) | tr::to_count(),
-			Ui::Text::Bold);
+			tr::bold);
 		auto videosBold = tr::lng_credits_box_out_videos(
 			lt_count,
 			rpl::single(videos) | tr::to_count(),
-			Ui::Text::Bold);
+			tr::bold);
 		auto media = (!videos)
 				? ((photos > 1)
 					? std::move(photosBold)
-					: tr::lng_credits_box_out_photo(Ui::Text::WithEntities))
+					: tr::lng_credits_box_out_photo(tr::marked))
 				: (!photos)
 				? ((videos > 1)
 					? std::move(videosBold)
-					: tr::lng_credits_box_out_video(Ui::Text::WithEntities))
+					: tr::lng_credits_box_out_video(tr::marked))
 				: tr::lng_credits_box_out_both(
 					lt_photo,
 					std::move(photosBold),
 					lt_video,
 					std::move(videosBold),
-					Ui::Text::WithEntities);
+					tr::marked);
 		if (const auto user = data.peer->asUser()) {
 			return tr::lng_credits_box_out_media_user(
 				lt_count,
@@ -179,8 +179,8 @@ void AddTerms(
 				lt_media,
 				std::move(media),
 				lt_user,
-				rpl::single(Ui::Text::Bold(user->shortName())),
-				Ui::Text::RichLangValue);
+				rpl::single(tr::bold(user->shortName())),
+				tr::rich);
 		}
 		return tr::lng_credits_box_out_media(
 			lt_count,
@@ -188,8 +188,8 @@ void AddTerms(
 			lt_media,
 			std::move(media),
 			lt_chat,
-			rpl::single(Ui::Text::Bold(data.peer->name())),
-			Ui::Text::RichLangValue);
+			rpl::single(tr::bold(data.peer->name())),
+			tr::rich);
 	}
 
 	const auto bot = session->data().user(form->botId);
@@ -203,7 +203,7 @@ void AddTerms(
 			rpl::single(TextWithEntities{ form->title }),
 			lt_recipient,
 			rpl::single(TextWithEntities{ bot->name() }),
-			Ui::Text::RichLangValue);
+			tr::rich);
 	}
 	return tr::lng_credits_box_out_sure(
 		lt_count,
@@ -212,7 +212,7 @@ void AddTerms(
 		rpl::single(TextWithEntities{ form->title }),
 		lt_bot,
 		rpl::single(TextWithEntities{ bot->name() }),
-		Ui::Text::RichLangValue);
+		tr::rich);
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> SendCreditsThumbnail(
@@ -266,7 +266,7 @@ void AddTerms(
 	const auto radius = smaller.height() / 2.;
 	widget->resize(size);
 
-	widget->paintRequest() | rpl::start_with_next([=] {
+	widget->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(widget);
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(QPen(st::premiumButtonFg, st::chatGiveawayBadgeStroke * 1.));
@@ -331,13 +331,13 @@ void SendCreditsBox(
 		ministars->setColorOverride(Ui::Premium::CreditsIconGradientStops());
 
 		ministarsContainer->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			auto p = QPainter(ministarsContainer);
 			ministars->paint(p);
 		}, ministarsContainer->lifetime());
 
 		box->widthValue(
-		) | rpl::start_with_next([=](int width) {
+		) | rpl::on_next([=](int width) {
 			ministarsContainer->resize(width, fullHeight);
 			const auto w = fullHeight / 3 * 2;
 			ministars->setCenter(QRect(
@@ -354,7 +354,7 @@ void SendCreditsBox(
 	thumb->setAttribute(Qt::WA_TransparentForMouseEvents);
 	if (form->invoice.subscriptionPeriod) {
 		const auto badge = SendCreditsBadge(content, form->invoice.amount);
-		thumb->geometryValue() | rpl::start_with_next([=](const QRect &r) {
+		thumb->geometryValue() | rpl::on_next([=](const QRect &r) {
 			badge->moveToLeft(
 				r.x() + (r.width() - badge->width()) / 2,
 				rect::bottom(r) - badge->height() / 2);
@@ -420,7 +420,7 @@ void SendCreditsBox(
 			if (id == u"BOT_PRECHECKOUT_FAILED"_q) {
 				auto error = ::Ui::MakeInformBox(
 					tr::lng_payments_precheckout_stars_failed(tr::now));
-				error->boxClosing() | rpl::start_with_next([=] {
+				error->boxClosing() | rpl::on_next([=] {
 					if (const auto paybox = weak.get()) {
 						paybox->closeBox();
 					}
@@ -455,7 +455,7 @@ void SendCreditsBox(
 					rpl::single(form->invoice.amount) | tr::to_count(),
 					lt_emoji,
 					rpl::single(CreditsEmojiSmall()),
-					Ui::Text::RichLangValue),
+					tr::rich),
 			state->confirmButtonBusy.value()
 		) | rpl::map([](TextWithEntities &&text, bool busy) {
 			return busy ? TextWithEntities() : std::move(text);
@@ -469,7 +469,7 @@ void SendCreditsBox(
 			content,
 			st::boxTitleClose);
 		close->setClickedCallback([=] { box->closeBox(); });
-		content->widthValue() | rpl::start_with_next([=](int) {
+		content->widthValue() | rpl::on_next([=](int) {
 			close->moveToRight(0, 0);
 		}, close->lifetime());
 	}
@@ -484,7 +484,7 @@ void SendCreditsBox(
 		rpl::combine(
 			balance->sizeValue(),
 			content->sizeValue()
-		) | rpl::start_with_next([=](const QSize &, const QSize &) {
+		) | rpl::on_next([=](const QSize &, const QSize &) {
 			balance->moveToLeft(
 				st::creditsHistoryRightSkip * 2,
 				st::creditsHistoryRightSkip);
@@ -520,17 +520,17 @@ not_null<FlatLabel*> SetButtonMarkedLabel(
 		text
 	) | rpl::filter([=](const TextWithEntities &text) {
 		return !text.text.isEmpty();
-	}) | rpl::start_with_next([=](const TextWithEntities &text) {
+	}) | rpl::on_next([=](const TextWithEntities &text) {
 		buttonLabel->setMarkedText(text, context);
 	}, buttonLabel->lifetime());
 	if (textFg) {
 		buttonLabel->setTextColorOverride((*textFg)->c);
-		style::PaletteChanged() | rpl::start_with_next([=] {
+		style::PaletteChanged() | rpl::on_next([=] {
 			buttonLabel->setTextColorOverride((*textFg)->c);
 		}, buttonLabel->lifetime());
 	}
 	button->sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		buttonLabel->moveToLeft(
 			(size.width() - buttonLabel->width()) / 2,
 			(size.height() - buttonLabel->height()) / 2);

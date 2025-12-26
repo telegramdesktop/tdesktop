@@ -74,6 +74,7 @@ class EmptyPainter;
 class PinnedTracker;
 class TranslateBar;
 class SubsectionTabs;
+class SelfForwardsTagger;
 
 struct ChatViewId {
 	not_null<History*> history;
@@ -453,6 +454,8 @@ private:
 	bool _choosingAttach = false;
 
 	bool _loaded = false;
+
+	std::unique_ptr<HistoryView::SelfForwardsTagger> _selfForwardsTagger;
 
 };
 

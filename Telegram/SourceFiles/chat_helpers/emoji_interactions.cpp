@@ -53,7 +53,7 @@ EmojiInteractions::EmojiInteractions(not_null<Main::Session*> session)
 	_session->changes().messageUpdates(
 		Data::MessageUpdate::Flag::Destroyed
 		| Data::MessageUpdate::Flag::Edited
-	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+	) | rpl::on_next([=](const Data::MessageUpdate &update) {
 		if (update.flags & Data::MessageUpdate::Flag::Destroyed) {
 			_outgoing.remove(update.item);
 			_incoming.remove(update.item);
@@ -281,7 +281,7 @@ void EmojiInteractions::sendAccumulatedOutgoing(
 	const auto emoji = from->emoji;
 	const auto requestId = _session->api().request(MTPmessages_SetTyping(
 		MTP_flags(0),
-		peer->input,
+		peer->input(),
 		MTPint(), // top_msg_id
 		MTP_sendMessageEmojiInteraction(
 			MTP_string(from->emoticon),
@@ -408,7 +408,7 @@ void EmojiInteractions::setWaitingForDownload(bool waiting) {
 	_waitingForDownload = waiting;
 	if (_waitingForDownload) {
 		_session->downloaderTaskFinished(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			check();
 		}, _downloadCheckLifetime);
 	} else {
@@ -426,7 +426,7 @@ void EmojiInteractions::playStarted(not_null<PeerData*> peer, QString emoji) {
 	}
 	_session->api().request(MTPmessages_SetTyping(
 		MTP_flags(0),
-		peer->input,
+		peer->input(),
 		MTPint(), // top_msg_id
 		MTP_sendMessageEmojiInteractionSeen(MTP_string(emoji))
 	)).send();

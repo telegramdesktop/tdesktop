@@ -135,7 +135,7 @@ void CountrySelectBox::prepare() {
 	setDimensions(st::boxWidth, st::boxMaxListHeight);
 
 	_inner->mustScrollTo(
-	) | rpl::start_with_next([=](ScrollToRequest request) {
+	) | rpl::on_next([=](ScrollToRequest request) {
 		scrollToY(request.ymin, request.ymax);
 	}, lifetime());
 }
@@ -194,7 +194,7 @@ CountrySelectBox::Inner::Inner(
 	rpl::single(
 	) | rpl::then(
 		Countries::Instance().updated()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_mustScrollTo.fire(ScrollToRequest(0, 0));
 		_list.clear();
 		_namesList.clear();

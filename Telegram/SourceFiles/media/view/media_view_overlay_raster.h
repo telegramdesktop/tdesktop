@@ -16,12 +16,13 @@ public:
 	explicit RendererSW(not_null<OverlayWidget*> owner);
 
 	void paintFallback(
-		Painter &&p,
+		Painter &p,
 		const QRegion &clip,
 		Ui::GL::Backend backend) override;
 
 private:
 	void paintBackground() override;
+	void paintVideoStream() override;
 	void paintTransformedVideoFrame(ContentGeometry geometry) override;
 	void paintTransformedStaticContent(
 		const QImage &image,

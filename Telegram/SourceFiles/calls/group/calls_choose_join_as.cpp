@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_calls.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Calls::Group {
 namespace {
@@ -224,7 +225,7 @@ void ChooseJoinAsBox(
 			&st::groupCallMultiSelect);
 	} else {
 		controller->setStyleOverrides(
-			&st::peerListJoinAsList,
+			&st::defaultChooseSendAs.list,
 			nullptr);
 	}
 	const auto content = box->addRow(
@@ -236,7 +237,7 @@ void ChooseJoinAsBox(
 	if ((context == Context::Create)
 		&& (peer->isChannel() && peer->asChannel()->hasAdminRights())) {
 		const auto makeLink = [](const QString &text) {
-			return Ui::Text::Link(text);
+			return tr::link(text);
 		};
 		const auto label = box->addRow(object_ptr<Ui::FlatLabel>(
 			box,
@@ -245,7 +246,7 @@ void ChooseJoinAsBox(
 				(livestream
 					? tr::lng_group_call_schedule_channel
 					: tr::lng_group_call_schedule)(makeLink),
-				Ui::Text::WithEntities),
+				tr::marked),
 			labelSt));
 		label->overrideLinkClickHandler([=] {
 			auto withJoinAs = info;
@@ -293,8 +294,8 @@ void ChooseJoinAsBox(
 		: tr::lng_group_call_join_confirm)(
 		tr::now,
 		lt_chat,
-		Ui::Text::Bold(name),
-		Ui::Text::WithEntities);
+		tr::bold(name),
+		tr::marked);
 }
 
 } // namespace
@@ -351,7 +352,7 @@ void ChooseJoinAsProcess::start(
 
 	createRequest();
 	session->account().sessionChanges(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_request = nullptr;
 	}, _request->lifetime);
 
@@ -361,7 +362,7 @@ void ChooseJoinAsProcess::start(
 void ChooseJoinAsProcess::requestList() {
 	const auto session = &_request->peer->session();
 	_request->id = session->api().request(MTPphone_GetGroupCallJoinAs(
-		_request->peer->input
+		_request->peer->input()
 	)).done([=](const MTPphone_JoinAsPeers &result) {
 		auto list = result.match([&](const MTPDphone_joinAsPeers &data) {
 			session->data().processUsers(data.vusers());
@@ -450,10 +451,10 @@ void ChooseJoinAsProcess::processList(
 				.append(tr::lng_group_call_or_schedule(
 				tr::now,
 				lt_link,
-				Ui::Text::Link((livestream
+				tr::link((livestream
 					? tr::lng_group_call_schedule_channel
 					: tr::lng_group_call_schedule)(tr::now)),
-				Ui::Text::WithEntities));
+				tr::marked));
 		}
 		const auto guard = base::make_weak(&_request->guard);
 		const auto safeFinish = crl::guard(guard, [=] { finish(info); });
@@ -475,7 +476,7 @@ void ChooseJoinAsProcess::processList(
 			.labelFilter = filter,
 		});
 		box->boxClosing(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_request = nullptr;
 		}, _request->lifetime);
 
@@ -489,7 +490,7 @@ void ChooseJoinAsProcess::processList(
 		std::move(info),
 		crl::guard(&_request->guard, [=](auto info) { finish(info); }));
 	box->boxClosing(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_request = nullptr;
 	}, _request->lifetime);
 

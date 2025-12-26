@@ -212,7 +212,7 @@ void CloudThemes::setupReload() {
 		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	}) | rpl::map([=] {
 		return needReload();
-	}) | rpl::start_with_next([=](bool need) {
+	}) | rpl::on_next([=](bool need) {
 		install();
 		if (need) {
 			scheduleReload();
@@ -375,7 +375,7 @@ void CloudThemes::loadDocumentAndInvoke(
 		_session->downloaderTaskFinished(
 		) | rpl::filter([=, &value] {
 			return value.documentMedia->loaded();
-		}) | rpl::start_with_next([=, &value] {
+		}) | rpl::on_next([=, &value] {
 			invokeForLoaded(value);
 		}, value.subscription);
 	}
@@ -513,7 +513,7 @@ void CloudThemes::myGiftThemesLoadMore(bool reload) {
 	}
 	_myGiftThemesRequestId = _session->api().request(
 		MTPaccount_GetUniqueGiftChatThemes(
-			MTP_int(reload ? 0 : _myGiftThemesTokens.size()),
+			MTP_string(reload ? QString() : _myGiftThemesNextOffset),
 			MTP_int(kGiftThemesLimit),
 			MTP_long(_myGiftThemesHash))
 	).done([=](const MTPaccount_ChatThemes &result) {
@@ -536,7 +536,11 @@ void CloudThemes::myGiftThemesLoadMore(bool reload) {
 						processGiftThemeGetToken(data));
 				});
 			}
-			_myGiftThemesLoaded = (got < kGiftThemesLimit);
+			if (const auto next = data.vnext_offset()) {
+				_myGiftThemesNextOffset = qs(*next);
+			} else {
+				_myGiftThemesLoaded = true;
+			}
 			_myGiftThemesUpdates.fire({});
 		}, [&](const MTPDaccount_chatThemesNotModified &) {
 			if (!reload) {

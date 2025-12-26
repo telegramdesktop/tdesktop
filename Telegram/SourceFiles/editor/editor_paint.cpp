@@ -64,7 +64,7 @@ Paint::Paint(
 
 	// Undo / Redo.
 	controllers->undoController->performRequestChanges(
-	) | rpl::start_with_next([=](const Undo &command) {
+	) | rpl::on_next([=](const Undo &command) {
 		if (command == Undo::Undo) {
 			_scene->performUndo();
 		} else {
@@ -97,7 +97,7 @@ Paint::Paint(
 			) | rpl::map_to(ShowRequest::HideAnimated));
 
 		controllers->stickersPanelController->stickerChosen(
-		) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		) | rpl::on_next([=](not_null<DocumentData*> document) {
 			const auto item = std::make_shared<ItemSticker>(
 				document,
 				itemBaseData());
@@ -110,15 +110,15 @@ Paint::Paint(
 		controllers->stickersPanelController
 			? controllers->stickersPanelController->stickerChosen(
 				) | rpl::to_empty
-			: rpl::never<>() | rpl::type_erased(),
+			: rpl::never<>() | rpl::type_erased,
 		_scene->addsItem()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		clearRedoList();
 		updateUndoState();
 	}, lifetime());
 
 	_scene->removesItem(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateUndoState();
 	}, lifetime());
 

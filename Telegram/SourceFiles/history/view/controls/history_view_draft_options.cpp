@@ -205,19 +205,19 @@ PreviewWrap::PreviewWrap(
 
 	const auto session = &_history->session();
 	session->data().viewRepaintRequest(
-	) | rpl::start_with_next([=](not_null<const Element*> view) {
+	) | rpl::on_next([=](not_null<const Element*> view) {
 		if (_views.contains(view)) {
 			update();
 		}
 	}, lifetime());
 
-	_selection.changes() | rpl::start_with_next([=] {
+	_selection.changes() | rpl::on_next([=] {
 		update();
 	}, lifetime());
 
 	_box->setAttribute(Qt::WA_OpaquePaintEvent, false);
 
-	_box->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	_box->paintRequest() | rpl::on_next([=](QRect clip) {
 		const auto geometry = Ui::MapFrom(_box, this, rect());
 		const auto fill = geometry.intersected(clip);
 		if (!fill.isEmpty()) {
@@ -618,7 +618,7 @@ void PreviewWrap::initElements() {
 	widthValue(
 	) | rpl::filter([=](int width) {
 		return width > st::msgMinWidth;
-	}) | rpl::start_with_next([=](int width) {
+	}) | rpl::on_next([=](int width) {
 		auto height = _position.y();
 		for (const auto &entry : _entries) {
 			height += entry.view->resizeGetHeight(width);
@@ -684,7 +684,7 @@ void AddFilledSkip(not_null<Ui::VerticalLayout*> container) {
 	const auto skip = container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		st::settingsPrivacySkipTop));
-	skip->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	skip->paintRequest() | rpl::on_next([=](QRect clip) {
 		QPainter(skip).fillRect(clip, st::boxBg);
 	}, skip->lifetime());
 };
@@ -774,7 +774,7 @@ void DraftOptionsBox(
 			state->tabs->setSections(labels);
 			state->tabs->setActiveSectionFast(indices[now]);
 			state->tabs->sectionActivated(
-			) | rpl::start_with_next([=](int index) {
+			) | rpl::on_next([=](int index) {
 				state->shown = sections[index];
 			}, box->lifetime());
 		} else {
@@ -1030,12 +1030,12 @@ void DraftOptionsBox(
 			const auto delay = std::max(page->pendingTill - now, TimeId());
 			base::timer_once(
 				(delay + 1) * crl::time(1000)
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				state->requestAndSwitch(link, true);
 			}, state->resolveLifetime);
 
 			page->owner().webPageUpdates(
-			) | rpl::start_with_next([=](not_null<WebPageData*> updated) {
+			) | rpl::on_next([=](not_null<WebPageData*> updated) {
 				if (updated == page && !updated->pendingTill) {
 					state->resolveLifetime.destroy();
 					state->performSwitch(link, page);
@@ -1054,7 +1054,7 @@ void DraftOptionsBox(
 		resolver->request(link, force);
 
 		state->resolveLifetime = resolver->resolved(
-		) | rpl::start_with_next([=](const QString &resolved) {
+		) | rpl::on_next([=](const QString &resolved) {
 			if (resolved == link) {
 				state->resolveLifetime.destroy();
 				state->performSwitch(
@@ -1077,12 +1077,12 @@ void DraftOptionsBox(
 		object_ptr<PreviewWrap>(box, args.history),
 		style::margins());
 	state->wrap->draggingScrollDelta(
-	) | rpl::start_with_next([=](int delta) {
+	) | rpl::on_next([=](int delta) {
 		box->scrollByDraggingDelta(delta);
 	}, state->wrap->lifetime());
 
 	const auto &linkRanges = args.links;
-	state->shown.value() | rpl::start_with_next([=](Section shown) {
+	state->shown.value() | rpl::on_next([=](Section shown) {
 		bottom->clear();
 		state->shownLifetime.destroy();
 		switch (shown) {
@@ -1097,7 +1097,7 @@ void DraftOptionsBox(
 					state->webpage,
 					linkRanges,
 					state->link
-				) | rpl::start_with_next([=](QString link) {
+				) | rpl::on_next([=](QString link) {
 					switchTo(link);
 				}, state->shownLifetime);
 				setupLinkActions();
@@ -1134,7 +1134,7 @@ void DraftOptionsBox(
 		box->closeBox();
 	});
 
-	box->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+	box->events() | rpl::on_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::KeyPress) {
 			const auto key = static_cast<QKeyEvent*>(e.get())->key();
 			if (key == Qt::Key_Enter || key == Qt::Key_Return) {
@@ -1144,7 +1144,7 @@ void DraftOptionsBox(
 	}, box->lifetime());
 
 	args.show->session().data().itemRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> removed) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> removed) {
 		const auto inReply = (state->quote.current().item == removed);
 		if (inReply) {
 			state->quote = SelectedQuote();
@@ -1160,7 +1160,7 @@ void DraftOptionsBox(
 	}, box->lifetime());
 
 	args.show->session().data().itemViewRefreshRequest(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		if (state->wrap->hasViewForItem(item)) {
 			state->rebuild();
 		}
@@ -1363,7 +1363,7 @@ void ShowReplyToChatBox(
 				not_null<PeerListBox*> box) {
 			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
-			box->noSearchSubmits() | rpl::start_with_next([=] {
+			box->noSearchSubmits() | rpl::on_next([=] {
 				controllerRaw->noSearchSubmit();
 			}, box->lifetime());
 		});
@@ -1387,7 +1387,7 @@ void ShowReplyToChatBox(
 		history->setLocalDraft(std::make_unique<Data::Draft>(
 			textWithTags,
 			reply,
-			SuggestPostOptions(),
+			SuggestOptions(),
 			cursor,
 			Data::WebPageDraft()));
 		history->clearLocalEditDraft(topicRootId, monoforumPeerId);
@@ -1410,7 +1410,7 @@ void ShowReplyToChatBox(
 		}
 	};
 	state->controller->singleChosen(
-	) | rpl::start_with_next(std::move(callback), state->box->lifetime());
+	) | rpl::on_next(std::move(callback), state->box->lifetime());
 }
 
 void EditDraftOptions(EditDraftOptionsArgs &&args) {

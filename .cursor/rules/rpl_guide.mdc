@@ -60,7 +60,7 @@ rpl::lifetime &parentLifetime = /* ... get lifetime from context ... */;
 
 To consume values from a producer, you start a pipeline using one of the `rpl::start_...` methods. These methods subscribe to the producer and execute callbacks for the events they handle.
 
-The most common method is `rpl::start_with_next`:
+The most common method is `rpl::on_next`:
 
 ```cpp
 auto counter = /* ... */; // Type: rpl::producer<int>
@@ -69,20 +69,20 @@ rpl::lifetime lifetime;
 // Counter is consumed here, use std::move if it's an l-value.
 std::move(
     counter
-) | rpl::start_with_next([=]\(int nextValue) {
+) | rpl::on_next([=]\(int nextValue) {
     // Process the next integer value emitted by the producer.
     qDebug() << "Received: " << nextValue;
 }, lifetime); // Pass the lifetime to manage the subscription.
 // Note: `counter` is now in a moved-from state and likely invalid.
 
 // If you need to start the same producer multiple times, duplicate it:
-// rpl::duplicate(counter) | rpl::start_with_next(...);
+// rpl::duplicate(counter) | rpl::on_next(...);
 
 // If you DON'T pass a lifetime to a start_... method:
 auto counter2 = /* ... */; // Type: rpl::producer<int>
 rpl::lifetime subscriptionLifetime = std::move(
     counter2
-) | rpl::start_with_next([=]\(int nextValue) { /* ... */ });
+) | rpl::on_next([=]\(int nextValue) { /* ... */ });
 // The returned lifetime MUST be stored. If it's discarded immediately,
 // the subscription stops instantly.
 // `counter2` is also moved-from here.
@@ -98,7 +98,7 @@ rpl::lifetime lifetime;
 // If it's the only use, std::move(dataStream) would be preferred.
 rpl::duplicate(
     dataStream
-) | rpl::start_with_error([=]\(Error &&error) {
+) | rpl::on_error([=]\(Error &&error) {
     // Handle the error signaled by the producer.
     qDebug() << "Error: " << error.text();
 }, lifetime);
@@ -106,7 +106,7 @@ rpl::duplicate(
 // Using dataStream again, perhaps duplicated again or moved if last use.
 rpl::duplicate(
     dataStream
-) | rpl::start_with_done([=] {
+) | rpl::on_done([=] {
     // Execute when the producer signals it's finished emitting values.
     qDebug() << "Stream finished.";
 }, lifetime);
@@ -114,7 +114,7 @@ rpl::duplicate(
 // Last use of dataStream, so we move it.
 std::move(
     dataStream
-) | rpl::start_with_next_error_done(
+) | rpl::on_next_error_done(
     [=]\(QString &&value) { /* handle next value */ },
     [=]\(Error &&error) { /* handle error */ },
     [=] { /* handle done */ },
@@ -169,7 +169,7 @@ You can combine multiple producers into one:
     // The lambda receives unpacked arguments, not the tuple itself.
     std::move(
         combined
-    ) | rpl::start_with_next([=]\(int count, const QString &text) {
+    ) | rpl::on_next([=]\(int count, const QString &text) {
         // No need for std::get<0>(latest), etc.
         qDebug() << "Combined: Count=" << count << ", Text=" << text;
     }, lifetime);
@@ -181,7 +181,7 @@ You can combine multiple producers into one:
         return count > 0 && !text.isEmpty();
     }) | rpl::map([=]\(int count, const QString &text) {
         return text.repeated(count);
-    }) | rpl::start_with_next([=]\(const QString &result) {
+    }) | rpl::on_next([=]\(const QString &result) {
         qDebug() << "Mapped & Filtered: " << result;
     }, lifetime);
     ```
@@ -197,7 +197,7 @@ You can combine multiple producers into one:
     // Starting the merged producer consumes it.
     std::move(
         merged
-    ) | rpl::start_with_next([=]\(QString &&value) {
+    ) | rpl::on_next([=]\(QString &&value) {
         // Receives values from either sourceA or sourceB as they arrive.
         qDebug() << "Merged value: " << value;
     }, lifetime);

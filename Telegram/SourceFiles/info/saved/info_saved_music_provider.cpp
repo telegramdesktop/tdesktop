@@ -37,21 +37,19 @@ constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
 
-[[nodiscard]] int MinStoryHeight(int width) {
-	auto itemsLeft = st::infoMediaSkip;
-	auto itemsInRow = (width - itemsLeft)
-		/ (st::infoMediaMinGridSize + st::infoMediaSkip);
-	return (st::infoMediaMinGridSize + st::infoMediaSkip) / itemsInRow;
-}
-
 } // namespace
 
 MusicProvider::MusicProvider(not_null<AbstractController*> controller)
 : _controller(controller)
 , _peer(controller->key().musicPeer())
 , _history(_peer->owner().history(_peer)) {
+	_controller->session().data().itemRemoved(
+	) | rpl::on_next([this](auto item) {
+		itemRemoved(item);
+	}, _lifetime);
+
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (auto &layout : _layouts) {
 			layout.second.item->invalidateCache();
 		}
@@ -120,7 +118,9 @@ void MusicProvider::checkPreload(
 	const auto visibleWidth = viewport.width();
 	const auto visibleHeight = viewport.height();
 	const auto preloadedHeight = kPreloadedScreensCountFull * visibleHeight;
-	const auto minItemHeight = MinStoryHeight(visibleWidth);
+	const auto minItemHeight = MinItemHeight(
+		Type::MusicFile,
+		visibleWidth);
 	const auto preloadedCount = preloadedHeight / minItemHeight;
 	const auto preloadIdsLimitMin = (preloadedCount / 2) + 1;
 	const auto preloadIdsLimit = preloadIdsLimitMin
@@ -165,10 +165,10 @@ void MusicProvider::setSearchQuery(QString query) {
 void MusicProvider::refreshViewer() {
 	_viewerLifetime.destroy();
 	const auto aroundId = _aroundId;
-	auto ids = Data::SavedMusicList(_peer, aroundId, _idsLimit);
+ 	auto ids = Data::SavedMusicList(_peer, aroundId, _idsLimit);
 	std::move(
 		ids
-	) | rpl::start_with_next([=](Data::SavedMusicSlice &&slice) {
+	) | rpl::on_next([=](Data::SavedMusicSlice &&slice) {
 		if (!slice.fullCount()) {
 			// Don't display anything while full count is unknown.
 			return;
@@ -217,6 +217,13 @@ std::vector<ListSection> MusicProvider::fillSections(
 		result.push_back(std::move(section));
 	}
 	return result;
+}
+
+void MusicProvider::itemRemoved(not_null<const HistoryItem*> item) {
+	if (const auto i = _layouts.find(item); i != end(_layouts)) {
+		_layoutRemoved.fire(i->second.item.get());
+		_layouts.erase(i);
+	}
 }
 
 void MusicProvider::markLayoutsStale() {

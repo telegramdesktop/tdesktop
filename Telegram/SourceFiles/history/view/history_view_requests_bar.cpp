@@ -26,6 +26,8 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		not_null<PeerData*> peer,
 		int userpicSize,
 		bool showInForum) {
+	Expects(peer->isChat() || peer->isChannel());
+
 	struct State {
 		explicit State(not_null<PeerData*> peer)
 		: peer(peer) {
@@ -111,7 +113,7 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		const auto pushNext = [=](bool now = false) {
 			if ((!showInForum
 				&& peer->isForum()
-				&& !peer->asChannel()->useSubsectionTabs())
+				&& !peer->useSubsectionTabs())
 				|| (std::min(state->current.count, kRecentRequestsLimit)
 					!= state->users.size())) {
 				return;
@@ -135,7 +137,7 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 				Data::PeerFlagValue(
 					channel,
 					ChannelData::Flag::Forum
-				) | rpl::start_with_next([=](bool hiddenByForum) {
+				) | rpl::on_next([=](bool hiddenByForum) {
 					if (hiddenByForum) {
 						consumer.put_next({});
 					} else {
@@ -148,7 +150,7 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		peer->session().downloaderTaskFinished(
 		) | rpl::filter([=] {
 			return state->someUserpicsNotLoaded;
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			for (const auto &userpic : state->userpics) {
 				if (userpic.peer->userpicUniqueKey(userpic.view)
 					!= userpic.uniqueKey) {
@@ -163,7 +165,7 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 			peer
 		) | rpl::filter([=](int count) {
 			return (state->current.count != count);
-		}) | rpl::start_with_next([=](int count) {
+		}) | rpl::on_next([=](int count) {
 			const auto &requesters = peer->isChat()
 				? peer->asChat()->recentRequesters()
 				: peer->asChannel()->recentRequesters();

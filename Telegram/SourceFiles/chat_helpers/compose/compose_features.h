@@ -13,6 +13,7 @@ struct ComposeFeatures {
 	bool likes : 1 = false;
 	bool sendAs : 1 = true;
 	bool ttlInfo : 1 = true;
+	bool attachments : 1 = true;
 	bool botCommandSend : 1 = true;
 	bool silentBroadcastToggle : 1 = true;
 	bool attachBotsMenu : 1 = true;
@@ -26,6 +27,10 @@ struct ComposeFeatures {
 	bool autocompleteCommands : 1 = true;
 	bool suggestStickersByEmoji : 1 = true;
 	bool commonTabbedPanel : 1 = true;
+	bool recordMediaMessage : 1 = true;
+	bool editMessageStars : 1 = false;
+	bool emojiOnlyPanel : 1 = false;
+	bool videoStream : 1 = false;
 };
 
 } // namespace ChatHelpers

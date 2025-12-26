@@ -96,7 +96,7 @@ MuteItem::MuteItem(
 	nullptr)
 , _itemIconPosition(st.itemIconPosition) {
 	descriptor.isMutedValue(
-	) | rpl::start_with_next([=](bool isMuted) {
+	) | rpl::on_next([=](bool isMuted) {
 		action()->setText(isMuted
 			? tr::lng_mute_menu_duration_unmute(tr::now)
 			: tr::lng_mute_menu_duration_forever(tr::now));
@@ -368,14 +368,15 @@ void SetupMuteMenu(
 		not_null<Ui::RpWidget*> parent,
 		rpl::producer<> triggers,
 		Fn<std::optional<Descriptor>()> makeDescriptor,
-		std::shared_ptr<Ui::Show> show) {
+		std::shared_ptr<Ui::Show> show,
+		Fn<QPoint()> positionCallback) {
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
 	};
 	const auto state = parent->lifetime().make_state<State>();
 	std::move(
 		triggers
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (state->menu) {
 			return;
 		} else if (const auto descriptor = makeDescriptor()) {
@@ -383,7 +384,9 @@ void SetupMuteMenu(
 				parent,
 				st::popupMenuWithIcons);
 			FillMuteMenu(state->menu.get(), *descriptor, show);
-			state->menu->popup(QCursor::pos());
+			state->menu->popup(positionCallback
+				? positionCallback()
+				: QCursor::pos());
 		}
 	}, parent->lifetime());
 }

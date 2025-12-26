@@ -73,6 +73,24 @@ Result HtmlAndJsonWriter::writeStoriesEnd() {
 	});
 }
 
+Result HtmlAndJsonWriter::writeProfileMusicStart(const Data::ProfileMusicInfo &data) {
+	return invoke([&](WriterPtr w) {
+		return w->writeProfileMusicStart(data);
+	});
+}
+
+Result HtmlAndJsonWriter::writeProfileMusicSlice(const Data::ProfileMusicSlice &data) {
+	return invoke([&](WriterPtr w) {
+		return w->writeProfileMusicSlice(data);
+	});
+}
+
+Result HtmlAndJsonWriter::writeProfileMusicEnd() {
+	return invoke([&](WriterPtr w) {
+		return w->writeProfileMusicEnd();
+	});
+}
+
 Result HtmlAndJsonWriter::writeContactsList(const Data::ContactsList &data) {
 	return invoke([&](WriterPtr w) {
 		return w->writeContactsList(data);

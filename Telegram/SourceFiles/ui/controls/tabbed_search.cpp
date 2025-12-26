@@ -114,7 +114,7 @@ void GroupsStrip::clearChosen() {
 void GroupsStrip::init(rpl::producer<std::vector<EmojiGroup>> groups) {
 	std::move(
 		groups
-	) | rpl::start_with_next([=](std::vector<EmojiGroup> &&list) {
+	) | rpl::on_next([=](std::vector<EmojiGroup> &&list) {
 		set(std::move(list));
 	}, lifetime());
 
@@ -314,7 +314,7 @@ anim::type SearchWithGroups::animated() const {
 
 void SearchWithGroups::initField() {
 	_field->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto last = FieldQuery(_field);
 		_query = last;
 		const auto empty = last.empty();
@@ -341,7 +341,7 @@ void SearchWithGroups::initField() {
 	_debouncedQuery = last;
 	_fieldEmpty = last.empty();
 	_fieldEmpty.value(
-	) | rpl::start_with_next([=](bool empty) {
+	) | rpl::on_next([=](bool empty) {
 		_cancel->toggle(!empty, animated());
 		_groups->toggle(empty, animated());
 		resizeToWidth(width());
@@ -358,12 +358,12 @@ void SearchWithGroups::initGroups() {
 	widget->widthValue(
 	) | rpl::filter([=] {
 		return (width() > 0);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		resizeToWidth(width());
 	}, widget->lifetime());
 
 	widget->chosen(
-	) | rpl::start_with_next([=](const GroupsStrip::Chosen &chosen) {
+	) | rpl::on_next([=](const GroupsStrip::Chosen &chosen) {
 		_chosenGroup = chosen.group->iconId;
 		_query = (chosen.group->type == EmojiGroupType::Premium)
 			? std::vector{ PremiumGroupFakeEmoticon() }
@@ -374,14 +374,14 @@ void SearchWithGroups::initGroups() {
 	}, lifetime());
 
 	widget->moveRequests(
-	) | rpl::start_with_next([=](int delta) {
+	) | rpl::on_next([=](int delta) {
 		moveGroupsBy(width(), delta);
 	}, lifetime());
 
 	_chosenGroup.value(
 	) | rpl::map([=](const QString &id) {
 		return id.isEmpty();
-	}) | rpl::start_with_next([=](bool empty) {
+	}) | rpl::on_next([=](bool empty) {
 		_search->toggle(empty, animated());
 		_back->toggle(!empty, animated());
 		if (empty) {
@@ -428,7 +428,7 @@ void SearchWithGroups::scrollGroupsTo(int left) {
 }
 
 void SearchWithGroups::initEdges() {
-	paintRequest() | rpl::start_with_next([=](QRect clip) {
+	paintRequest() | rpl::on_next([=](QRect clip) {
 		QPainter(this).fillRect(clip, _st.bg);
 	}, lifetime());
 
@@ -441,12 +441,12 @@ void SearchWithGroups::initEdges() {
 			edge->move(0, 0);
 		} else {
 			widthValue(
-			) | rpl::start_with_next([=](int width) {
+			) | rpl::on_next([=](int width) {
 				edge->move(width - edge->width(), 0);
 			}, edge->lifetime());
 		}
 		edge->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			const auto ratio = edge->devicePixelRatioF();
 			ensureRounding(height(), ratio);
 			const auto size = _rounding.height();
@@ -461,12 +461,12 @@ void SearchWithGroups::initEdges() {
 	makeEdge(false);
 
 	_fadeOpacity.changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_fade->update();
 	}, _fade->lifetime());
 
 	_fade->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(_fade);
 		p.setOpacity(_fadeOpacity.current());
 		const auto fill = QRect(0, 0, _fadeLeftStart, _st.height);
@@ -485,7 +485,7 @@ void SearchWithGroups::initEdges() {
 	_fade->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_rounding = QImage();
 	}, lifetime());
 }
@@ -503,7 +503,7 @@ void SearchWithGroups::initButtons() {
 		scrollGroupsToStart();
 	});
 	_field->focusedChanges(
-	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
+	) | rpl::filter(rpl::mappers::_1) | rpl::on_next([=] {
 		scrollGroupsToStart();
 	}, _field->lifetime());
 	_field->raise();
@@ -646,7 +646,7 @@ TabbedSearch::TabbedSearch(
 	_search.move(_st.searchMargin.left(), _st.searchMargin.top());
 
 	parent->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		_search.resizeToWidth(width - rect::m::sum::h(_st.searchMargin));
 	}, _search.lifetime());
 }

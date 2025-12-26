@@ -1,3 +1,125 @@
+6.3.10 beta (22.12.25)
+
+- Fix user info showing from large group messages.
+- Fix sent state of outgoing messages in forums.
+- Show who sent your unique collectible gifts.
+- Update Qt on all platforms.
+
+6.3.9 (15.12.25)
+
+- Fix possible crash in audio playback speed menu.
+- Fix possible crash in forum or bot topic deletion.
+
+6.3.8 (15.12.25)
+
+- Fix crash on older Linux.
+
+6.3.7 (12.12.25)
+
+- Fix login with passkey visibility on Windows.
+- Improve gift upgrading experience.
+
+6.3.6 (06.12.25)
+
+- Fix crash in media viewer.
+- Fix crash in experimental settings.
+
+6.3.5 (05.12.25)
+
+- Offer stars or TON for unique gifts.
+- Preview gift auctions before they start.
+- Support passkey login on Windows.
+
+6.3.4 (26.11.25)
+
+- Show active auctions above chats list.
+- Add star sending effects in live stories.
+- Fix back button in group member profile view.
+- Export separate topics message history.
+- Export audio files saved to profile.
+- Many different crash fixes.
+
+6.3.3 (21.11.25)
+
+- Some more improvements for gift auctions.
+
+6.3.2 (20.11.25)
+
+- Improved support for gift auctions.
+- Reorder stories in stories albums in My Profile.
+- Bug fixes in new profile cover design.
+- Add your Saved Music to data export.
+
+6.3.1 (17.11.25)
+
+- Reorder saved music in My Profile.
+- Fix new cover overlapping information in My Profile.
+- Fix opening stories from My Profile.
+- Fix media viewer breaking after viewing Live Stories.
+- Fix several possible crashes.
+
+6.3 (15.11.25)
+
+- Support for Gift auctions.
+- Support for Live stories.
+- New profile pages design.
+
+6.2.6 beta (07.11.25)
+
+- Bug fixes in the new profile page design.
+
+6.2.5 beta (28.10.25)
+
+- New profile pages design.
+- Qt 6.10 on Linux.
+
+6.2.4 (22.10.25)
+
+- Highlight links in contact notes.
+- Show menu with screen share controls in wide group call mode.
+- Fix possible crash in saved music removing.
+- Fix crash in theme editor.
+
+6.2.3 (12.10.25)
+
+- Fix crash when viewing messages with hidden senders.
+- Fix possible crash when editing contacts.
+- Fix layout of character count warning in contact notes.
+- Fix icons when editing contacts.
+- Fix color of sending messages animation in complex themes.
+- Fix crash in chat open on Flatpak build.
+
+6.2.2 (10.10.25)
+
+- Fix layer.
+
+6.2.1 (10.10.25)
+
+- Fix sending gifts.
+- Fix possible crash on Linux.
+
+6.2 (10.10.25)
+
+- Comments and reactions in group calls.
+- Notes for contacts.
+- Suggested birthdays.
+- Threads for AI bots.
+- Reorder gifts collections and stories albums.
+- Reorder gifts inside collections.
+- Apply tags instantly when forwarding to Saved Messages.
+- Choose which screen to show notifications on.
+- Nice text message sending animation.
+
+6.1.4 (06.10.25)
+
+- Allow add to folder from recent / top chats.
+- Fix clear history of group chats.
+- Fix several crashes.
+
+6.1.3 (06.09.25)
+
+- Fix dead keys / alt combinations / input methods issues.
+
 6.1.2 (02.09.25)
 
 - Close selected chat in Ctrl+Tab chat switch by 'Q'.

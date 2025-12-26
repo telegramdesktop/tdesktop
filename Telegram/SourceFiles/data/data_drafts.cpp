@@ -45,7 +45,7 @@ WebPageDraft WebPageDraft::FromItem(not_null<HistoryItem*> item) {
 Draft::Draft(
 	const TextWithTags &textWithTags,
 	FullReplyTo reply,
-	SuggestPostOptions suggest,
+	SuggestOptions suggest,
 	const MessageCursor &cursor,
 	WebPageDraft webpage,
 	mtpRequestId saveRequestId)
@@ -60,7 +60,7 @@ Draft::Draft(
 Draft::Draft(
 	not_null<const Ui::InputField*> field,
 	FullReplyTo reply,
-	SuggestPostOptions suggest,
+	SuggestOptions suggest,
 	WebPageDraft webpage,
 	mtpRequestId saveRequestId)
 : textWithTags(field->getTextWithTags())
@@ -110,7 +110,7 @@ void ApplyPeerCloudDraft(
 			}
 		}, [](const auto &) {});
 	}
-	auto suggest = SuggestPostOptions();
+	auto suggest = SuggestOptions();
 	if (!history->suggestDraftAllowed()) {
 		// Don't apply suggest options in unsupported chats.
 	} else if (const auto suggested = draft.vsuggested_post()) {
@@ -173,7 +173,7 @@ void SetChatLinkDraft(not_null<PeerData*> peer, TextWithEntities draft) {
 			.topicRootId = topicRootId,
 			.monoforumPeerId = monoforumPeerId,
 		},
-		SuggestPostOptions(),
+		SuggestOptions(),
 		cursor,
 		WebPageDraft()));
 	history->clearLocalEditDraft(topicRootId, monoforumPeerId);

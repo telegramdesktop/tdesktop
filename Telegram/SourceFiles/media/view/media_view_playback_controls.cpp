@@ -77,7 +77,7 @@ PlaybackControls::PlaybackControls(
 
 	if (const auto controller = _speedController.get()) {
 		controller->menuToggledValue(
-		) | rpl::start_with_next([=](bool toggled) {
+		) | rpl::on_next([=](bool toggled) {
 			_speedToggle->setActive(toggled);
 		}, _speedToggle->lifetime());
 	}

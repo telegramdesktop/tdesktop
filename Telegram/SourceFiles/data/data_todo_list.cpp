@@ -98,8 +98,8 @@ bool TodoListData::applyCompletions(
 	};
 	for (auto &item : items) {
 		const auto completion = lookup(item.id);
-		const auto by = (completion && completion->vcompleted_by().v)
-			? owner().user(UserId(completion->vcompleted_by().v)).get()
+		const auto by = completion
+			? owner().peer(peerFromMTP(completion->vcompleted_by())).get()
 			: nullptr;
 		const auto date = completion ? completion->vdate().v : TimeId();
 		if (item.completedBy != by || item.completionDate != date) {

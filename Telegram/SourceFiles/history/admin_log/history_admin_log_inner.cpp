@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/sticker_set_box.h"
+#include "boxes/translate_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_key_modifiers.h"
@@ -264,7 +265,7 @@ InnerWidget::InnerWidget(
 	Window::ChatThemeValueFromPeer(
 		controller,
 		channel
-	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
+	) | rpl::on_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
 		_theme = std::move(theme);
 		controller->setChatStyleTheme(_theme);
 	}, lifetime());
@@ -272,25 +273,25 @@ InnerWidget::InnerWidget(
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([=] { scrollDateHideByTimer(); });
 	session().data().viewRepaintRequest(
-	) | rpl::start_with_next([=](auto view) {
+	) | rpl::on_next([=](auto view) {
 		if (myView(view)) {
 			repaintItem(view);
 		}
 	}, lifetime());
 	session().data().viewResizeRequest(
-	) | rpl::start_with_next([=](auto view) {
+	) | rpl::on_next([=](auto view) {
 		if (myView(view)) {
 			resizeItem(view);
 		}
 	}, lifetime());
 	session().data().itemViewRefreshRequest(
-	) | rpl::start_with_next([=](auto item) {
+	) | rpl::on_next([=](auto item) {
 		if (const auto view = viewForItem(item)) {
 			refreshItem(view);
 		}
 	}, lifetime());
 	session().data().viewLayoutChanged(
-	) | rpl::start_with_next([=](auto view) {
+	) | rpl::on_next([=](auto view) {
 		if (myView(view)) {
 			if (view->isUnderCursor()) {
 				updateSelected();
@@ -298,7 +299,7 @@ InnerWidget::InnerWidget(
 		}
 	}, lifetime());
 	session().data().itemDataChanges(
-	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+	) | rpl::on_next([=](not_null<HistoryItem*> item) {
 		if (const auto view = viewForItem(item)) {
 			view->itemDataChanged();
 		}
@@ -309,7 +310,7 @@ InnerWidget::InnerWidget(
 		return (_history == query.item->history())
 			&& query.item->isAdminLogEntry()
 			&& isVisible();
-	}) | rpl::start_with_next([=](
+	}) | rpl::on_next([=](
 			const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			auto top = itemTop(view);
@@ -322,7 +323,7 @@ InnerWidget::InnerWidget(
 	}, lifetime());
 
 	controller->adaptive().chatWideValue(
-	) | rpl::start_with_next([=](bool wide) {
+	) | rpl::on_next([=](bool wide) {
 		_isChatWide = wide;
 	}, lifetime());
 
@@ -465,7 +466,7 @@ void InnerWidget::requestAdmins() {
 	const auto offset = 0;
 	const auto participantsHash = uint64(0);
 	_api.request(MTPchannels_GetParticipants(
-		_channel->inputChannel,
+		_channel->inputChannel(),
 		MTP_channelParticipantsAdmins(),
 		MTP_int(offset),
 		MTP_int(kMaxChannelAdmins),
@@ -549,7 +550,7 @@ void InnerWidget::showFilter(Fn<void(FilterValue &&filter)> callback) {
 				box->verticalLayout(),
 				tr::lng_admin_log_filter_actions_admins_section(
 					tr::now,
-					Ui::Text::WithEntities),
+					tr::marked),
 				checkedPeerId.size() == admins.size(),
 				st::defaultBoxCheckbox));
 		using Controller = Ui::ExpandablePeerListController;
@@ -602,7 +603,7 @@ void InnerWidget::clearAndRequestLog() {
 void InnerWidget::updateEmptyText() {
 	auto hasSearch = !_searchQuery.isEmpty();
 	auto hasFilter = _filter.flags || _filter.admins;
-	auto text = Ui::Text::Semibold((hasSearch || hasFilter)
+	auto text = tr::semibold((hasSearch || hasFilter)
 		? tr::lng_admin_log_no_results_title(tr::now)
 		: tr::lng_admin_log_no_events_title(tr::now));
 	auto description = hasSearch
@@ -859,7 +860,7 @@ void InnerWidget::preloadMore(Direction direction) {
 		if (!_filter.admins->empty()) {
 			admins.reserve(_filter.admins->size());
 			for (const auto &admin : (*_filter.admins)) {
-				admins.push_back(admin->inputUser);
+				admins.push_back(admin->inputUser());
 			}
 		}
 		flags |= MTPchannels_GetAdminLog::Flag::f_admins;
@@ -869,7 +870,7 @@ void InnerWidget::preloadMore(Direction direction) {
 	auto perPage = _items.empty() ? kEventsFirstPage : kEventsPerPage;
 	requestId = _api.request(MTPchannels_GetAdminLog(
 		MTP_flags(flags),
-		_channel->inputChannel,
+		_channel->inputChannel(),
 		MTP_string(_searchQuery),
 		MTP_channelAdminLogEventsFilter(MTP_flags(filter)),
 		MTP_vector<MTPInputUser>(admins),
@@ -1394,6 +1395,17 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				tr::lng_context_copy_selected(tr::now),
 				[this] { copySelectedText(); },
 				&st::menuIconCopy);
+			if (item && !Ui::SkipTranslate(getSelectedText().rich)) {
+				const auto peer = item->history()->peer;
+				_menu->addAction(tr::lng_context_translate_selected({}), [=] {
+					_controller->show(Box(
+						Ui::TranslateBox,
+						peer,
+						MsgId(),
+						getSelectedText().rich,
+						false));
+				}, &st::menuIconTranslate);
+			}
 		} else {
 			if (item && !isUponSelected) {
 				const auto media = view->media();
@@ -1414,6 +1426,17 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
 					}, &st::menuIconCopy);
+				}
+				if (!item->isService() && !Ui::SkipTranslate(item->originalText())) {
+					const auto peer = item->history()->peer;
+					_menu->addAction(tr::lng_context_translate({}), [=] {
+						_controller->show(Box(
+							Ui::TranslateBox,
+							peer,
+							MsgId(),
+							item->originalText(),
+							false));
+					}, &st::menuIconTranslate);
 				}
 			}
 		}
@@ -1575,8 +1598,8 @@ void InnerWidget::suggestRestrictParticipant(
 			editRestrictions(true, {}, nullptr, 0);
 		} else {
 			_api.request(MTPchannels_GetParticipant(
-				_channel->inputChannel,
-				user->input
+				_channel->inputChannel(),
+				user->input()
 			)).done([=](const MTPchannels_ChannelParticipant &result) {
 				user->owner().processUsers(result.data().vusers());
 
@@ -1607,7 +1630,7 @@ void InnerWidget::suggestRestrictParticipant(
 			participant->session().changes().peerUpdates(
 				_channel,
 				Data::PeerUpdate::Flag::Members
-			) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+			) | rpl::on_next([=](const Data::PeerUpdate &update) {
 				_downLoaded = false;
 				preloadMore(Direction::Down);
 				lifetime->destroy();

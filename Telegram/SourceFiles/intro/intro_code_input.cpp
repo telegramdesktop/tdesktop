@@ -162,6 +162,14 @@ CodeInput::CodeInput(QWidget *parent)
 	setFocusPolicy(Qt::StrongFocus);
 }
 
+QString CodeInput::accessibilityName() {
+	return tr::lng_code_ph(tr::now);
+}
+
+QString CodeInput::accessibilityValue() const {
+	return collectDigits();
+}
+
 void CodeInput::setDigitsCountMax(int digitsCount) {
 	_digitsCountMax = digitsCount;
 
@@ -311,6 +319,7 @@ void CodeInput::insertCodeAndSubmit(const QString &code) {
 		&& _digits[_currentIndex]->digit() != kDigitNone) {
 		requestCode();
 	}
+	accessibilityValueChanged();
 }
 
 QString CodeInput::collectDigits() const {

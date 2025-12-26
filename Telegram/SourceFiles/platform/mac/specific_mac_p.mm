@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "main/main_account.h"
+#include "main/main_domain.h"
+#include "main/main_session.h"
+#include "data/data_user.h"
 #include "calls/calls_instance.h"
 #include "core/sandbox.h"
 #include "core/application.h"
@@ -222,6 +226,40 @@ ApplicationDelegate *_sharedDelegate = nil;
 	}
 	RpMenu* dockMenu = [[[RpMenu alloc] initWithTitle: @""] autorelease];
 	[dockMenu setAutoenablesItems:false];
+
+	const auto accounts = Core::App().domain().orderedAccounts();
+	if (accounts.size() > 1) {
+		[dockMenu addItem:[NSMenuItem separatorItem]];
+		NSMenuItem *profilesHeader = [[NSMenuItem alloc]
+			initWithTitle:@"" action:nil keyEquivalent:@""];
+		NSDictionary *attributes = @{
+			NSFontAttributeName: [NSFont
+				menuFontOfSize:[NSFont smallSystemFontSize]],
+			NSForegroundColorAttributeName: [NSColor secondaryLabelColor]
+		};
+		NSAttributedString *attrTitle = [[NSAttributedString alloc]
+			initWithString:Q2NSString(tr::lng_mac_menu_profiles(tr::now))
+			attributes:attributes];
+		[profilesHeader setAttributedTitle:attrTitle];
+		[attrTitle release];
+		[profilesHeader setEnabled:NO];
+		[dockMenu addItem:[profilesHeader autorelease]];
+		constexpr auto kMaxLength = 30;
+		for (const auto &account : accounts) {
+			if (account->sessionExists()) {
+				auto name = account->session().user()->name();
+				[dockMenu addItem:CreateMenuItem(
+					(name.size() > kMaxLength)
+						? (name.mid(0, kMaxLength) + Ui::kQEllipsis)
+						: name,
+					[dockMenu lifetime],
+					[account] {
+						Core::App().ensureSeparateWindowFor(account);
+					})];
+			}
+		}
+		[dockMenu addItem:[NSMenuItem separatorItem]];
+	}
 
 	auto notifyCallback = [] {
 		auto &settings = Core::App().settings();

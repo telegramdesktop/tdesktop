@@ -94,7 +94,7 @@ void ColorsLine::fillButtons() {
 	_container = base::make_unique_q<Ui::RpWidget>(this);
 	const auto container = _container.get();
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		container->setGeometry(Rect(s));
 	}, container->lifetime());
 
@@ -278,7 +278,7 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 	const auto editor = container->add(std::move(ownedEditor));
 
 	buttonsContainer->chosenChanges(
-	) | rpl::start_with_next([=](ColorsLine::Chosen *chosen) {
+	) | rpl::on_next([=](ColorsLine::Chosen *chosen) {
 		if (chosen) {
 			const auto color = state->colors[chosen->index()];
 			editor->showColor(color);
@@ -290,10 +290,10 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 		communication.result(state->colors);
 	});
 	// editor->submitRequests(
-	// ) | rpl::start_with_next([=] {
+	// ) | rpl::on_next([=] {
 	// }, editor->lifetime());
 	editor->colorValue(
-	) | rpl::start_with_next([=](QColor c) {
+	) | rpl::on_next([=](QColor c) {
 		if (const auto chosen = buttonsContainer->chosen()) {
 			chosen->setBrush(c);
 			state->colors[chosen->index()] = c;
@@ -303,7 +303,7 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 
 	base::take(
 		communication.triggers
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		save();
 	}, container->lifetime());
 

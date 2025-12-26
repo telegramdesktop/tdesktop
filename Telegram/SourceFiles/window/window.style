@@ -283,8 +283,10 @@ windowFilterSmallRemove: IconButton(notifyClose) {
 }
 windowFilterSmallRemoveRight: 10px;
 windowFilterNameInput: InputField(defaultInputField) {
-	textMargins: margins(0px, 26px, 36px, 4px);
+	textMargins: margins(0px, 26px, 87px, 4px);
 }
+windowFilterNameEmojiPosition: point(-65px, 22px);
+windowFilterNameCharsLimitRightPosition: point(75px, 27px);
 windowFilterStaticTitlePosition: point(0px, 5px);
 windowFilterIconToggleSize: size(36px, 36px);
 windowFilterIconTogglePosition: point(-4px, 18px);
@@ -357,6 +359,22 @@ chatSwitchNameLabel: FlatLabel(defaultFlatLabel) {
 }
 chatSwitchNameSkip: 6px;
 chatSwitchSelectLine: 3px;
+
+lockSetupEmailLabelMaxWidth: 256px + 24px + 24px;
+lockSetupEmailTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: lockSetupEmailLabelMaxWidth;
+	style: TextStyle(defaultTextStyle) {
+		font: font(19px);
+	}
+}
+lockSetupEmailLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+}
+lockSetupEmailLogOutPosition: point(10px, 10px);
+lockSetupEmailUserpicSmall: UserpicButton(defaultUserpicButton) {
+	size: size(22px, 22px);
+	photoSize: 22px;
+}
 
 // Windows specific
 

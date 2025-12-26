@@ -95,7 +95,7 @@ void EmojiStatusPanel::show(Descriptor &&descriptor) {
 		_panel->shownValue(
 		) | rpl::filter([=] {
 			return (_panelButton != nullptr);
-		}) | rpl::start_with_next([=](bool shown) {
+		}) | rpl::on_next([=](bool shown) {
 			if (shown) {
 				_panelButton->installEventFilter(_panel.get());
 			} else {
@@ -122,7 +122,7 @@ void EmojiStatusPanel::show(Descriptor &&descriptor) {
 	if (descriptor.backgroundEmojiMode) {
 		controller->session().api().peerPhoto().emojiListValue(
 			Api::PeerPhoto::EmojiListType::Background
-		) | rpl::start_with_next([=](std::vector<DocumentId> &&list) {
+		) | rpl::on_next([=](std::vector<DocumentId> &&list) {
 			auto tmp = std::vector<EmojiStatusId>();
 			for (const auto &id : list) {
 				tmp.push_back(EmojiStatusId{ .documentId = id });
@@ -237,7 +237,7 @@ void EmojiStatusPanel::create(const Descriptor &descriptor) {
 	};
 
 	_panel->selector()->contextMenuRequested(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_panel->selector()->showMenuWithDetails({});
 	}, _panel->lifetime());
 
@@ -262,7 +262,7 @@ void EmojiStatusPanel::create(const Descriptor &descriptor) {
 		rpl::merge(
 			std::move(statusChosen),
 			std::move(emojiChosen)
-		) | rpl::start_with_next([=](const Chosen &chosen) {
+		) | rpl::on_next([=](const Chosen &chosen) {
 			const auto owner = &controller->session().data();
 			startAnimation(owner, body, chosen.id, chosen.animation);
 			_someCustomChosen.fire({ chosen.id, chosen.until });
@@ -286,7 +286,7 @@ void EmojiStatusPanel::create(const Descriptor &descriptor) {
 			std::move(emojiChosen)
 		) | rpl::filter([=](const Chosen &chosen) {
 			return filter(controller, chosen.id);
-		}) | rpl::start_with_next([=](const Chosen &chosen) {
+		}) | rpl::on_next([=](const Chosen &chosen) {
 			if (chosen.until == Selector::kPickCustomTimeId) {
 				_panel->hideAnimated();
 				controller->show(Box(PickUntilBox, [=](TimeId seconds) {

@@ -53,7 +53,7 @@ RateTranscribe::RateTranscribe(
 	setMinWidth(
 		label->st().style.font->width(
 			tr::lng_context_rate_transcription(tr::now)));
-	widthValue() | rpl::start_with_next([=](int w) {
+	widthValue() | rpl::on_next([=](int w) {
 		content->resizeToWidth(parentWidget()->width());
 	}, content->lifetime());
 	Ui::AddSkip(content);
@@ -73,7 +73,7 @@ RateTranscribe::RateTranscribe(
 			leftButton,
 			QString::fromUtf8("\U0001F44D"));
 		label->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-		leftButton->sizeValue() | rpl::start_with_next([=](QSize s) {
+		leftButton->sizeValue() | rpl::on_next([=](QSize s) {
 			label->moveToLeft(
 				(s.width() - label->width()) / 2,
 				(s.height() - label->height()) / 2);
@@ -88,7 +88,7 @@ RateTranscribe::RateTranscribe(
 			rightButton,
 			QString::fromUtf8("\U0001F44E"));
 		label->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-		rightButton->sizeValue() | rpl::start_with_next([=](QSize s) {
+		rightButton->sizeValue() | rpl::on_next([=](QSize s) {
 			label->moveToLeft(
 				(s.width() - label->width()) / 2,
 				(s.height() - label->height()) / 2);
@@ -134,7 +134,7 @@ RateTranscribe::RateTranscribe(
 	rpl::combine(
 		content->geometryValue(),
 		label->geometryValue()
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			const QRect &contentRect,
 			const QRect &labelRect) {
 		leftButton->moveToLeft(

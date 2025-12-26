@@ -92,7 +92,7 @@ ItemSingleMediaPreview::ItemSingleMediaPreview(
 
 	rpl::single(rpl::empty) | rpl::then(
 		session->downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto computed = computeThumbInfo();
 		if (!computed.image) {
 			if (_documentMedia && !_documentMedia->owner()->hasThumbnail()) {
@@ -142,7 +142,7 @@ void ItemSingleMediaPreview::setupStreamedPreview(
 		[=] { update(); });
 	_streamed->lockPlayer();
 	_streamed->player().updates(
-	) | rpl::start_with_next_error([=](Update &&update) {
+	) | rpl::on_next_error([=](Update &&update) {
 		handleStreamingUpdate(std::move(update));
 	}, [=](Error &&error) {
 		handleStreamingError(std::move(error));

@@ -305,10 +305,11 @@ void Sticker::paintAnimationFrame(
 		: (context.selected() && !_nextLastFrame)
 		? context.st->msgStickerOverlay()->c
 		: QColor(0, 0, 0, 0);
-	const auto powerSavingFlag = (emojiSticker() || _diceIndex >= 0)
+	const auto powerSavingFlag = emojiSticker()
 		? PowerSaving::kEmojiChat
 		: PowerSaving::kStickersChat;
-	const auto paused = context.paused || On(powerSavingFlag);
+	const auto paused = context.paused
+		|| (_diceIndex < 0 && On(powerSavingFlag));
 	const auto frame = _player
 		? _player->frame(
 			_size,

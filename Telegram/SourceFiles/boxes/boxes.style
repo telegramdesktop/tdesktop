@@ -378,10 +378,8 @@ connectionPortInputField: InputField(defaultInputField) {
 	width: 55px;
 }
 connectionUserInputField: InputField(defaultInputField) {
-	width: 95px;
 }
 connectionPasswordInputField: InputField(defaultInputField) {
-	width: 120px;
 }
 connectionIPv6Skip: 11px;
 
@@ -537,7 +535,6 @@ changePhoneDescription: FlatLabel(defaultFlatLabel) {
 }
 changePhoneDescriptionPadding: margins(0px, 1px, 0px, 8px);
 changePhoneIconPadding: margins(0px, 39px, 0px, 5px);
-changePhoneIconSize: 120px;
 changePhoneLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 275px;
 	textFg: windowSubTextFg;
@@ -545,6 +542,8 @@ changePhoneLabel: FlatLabel(defaultFlatLabel) {
 changePhoneError: FlatLabel(changePhoneLabel) {
 	textFg: boxTextFgError;
 }
+
+normalBoxLottieSize: size(120px, 120px);
 
 adminLogFilterUserpicLeft: 15px;
 adminLogFilterLittleSkip: 16px;
@@ -754,6 +753,12 @@ createPollFieldTitlePadding: margins(22px, 7px, 10px, 6px);
 
 sendGifWithCaptionEmojiPosition: point(-30px, 23px);
 
+notesFieldWithEmoji: InputField(defaultInputField) {
+	textMargins: margins(0px, 28px, 30px, 4px);
+//	border: 0px;
+//	borderActive: 0px;
+}
+
 backgroundCheckbox: Checkbox(defaultCheckbox) {
 	textFg: msgServiceFg;
 	textFgActive: msgServiceFg;
@@ -807,6 +812,7 @@ urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
 
 addContactFieldMargin: margins(19px, 0px, 19px, 10px);
 addContactWarningMargin: margins(19px, 10px, 19px, 5px);
+editContactSuggestBirthday: icon{{ "settings/birthday_add-22x22", lightButtonFg }};
 blockUserConfirmation: FlatLabel(boxLabel) {
 	minWidth: 240px;
 }
@@ -921,6 +927,14 @@ scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
 	}
 }
 scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
+scheduleRepeatDropdownLock: IconEmoji {
+	icon: icon {{ "emoji/premium_lock", windowActiveTextFg }};
+	padding: margins(-2px, 1px, 0px, 0px);
+}
+scheduleRepeatDropdownArrow: IconEmoji {
+	icon: icon {{ "intro_country_dropdown", windowActiveTextFg }};
+	padding: margins(3px, 6px, 3px, 0px);
+}
 
 muteBoxTimeField: InputField(scheduleDateField) {
 	textMargins: margins(0px, 0px, 0px, 0px);
@@ -990,9 +1004,8 @@ contactsWithStories: PeerList(peerListBox) {
 		statusPosition: point(70px, 27px);
 
 		checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
-			selectExtendTwice: 1px;
 			imageRadius: 21px;
-			imageSmallRadius: 19px;
+			imageSmallRadius: 18px;
 			check: RoundCheckbox(defaultPeerListCheck) {
 				size: 0px;
 			}

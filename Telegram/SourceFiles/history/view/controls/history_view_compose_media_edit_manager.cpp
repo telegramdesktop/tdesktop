@@ -36,7 +36,7 @@ void MediaEditManager::start(
 	_spoilered = spoilered.value_or(media->hasSpoiler());
 	_invertCaption = invertCaption.value_or(item->invertMedia());
 	_lifetime = item->history()->owner().itemRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> removed) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> removed) {
 		if (removed == _item) {
 			cancel();
 		}

@@ -42,9 +42,18 @@ class SessionController;
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareContactsBox(
 	not_null<Window::SessionController*> sessionController);
 [[nodiscard]] QBrush PeerListStoriesGradient(const style::PeerList &st);
+
+struct PeerListStoriesCounts {
+	int count = 0;
+	int unread = 0;
+	bool videoStream = false;
+
+	friend inline bool operator==(
+		const PeerListStoriesCounts &a,
+		const PeerListStoriesCounts &b) = default;
+};
 [[nodiscard]] std::vector<Ui::OutlineSegment> PeerListStoriesSegments(
-	int count,
-	int unread,
+	PeerListStoriesCounts counts,
 	const QBrush &unreadBrush);
 
 class PeerListRowWithLink : public PeerListRow {
@@ -211,17 +220,13 @@ public:
 	bool handleClick(not_null<PeerData*> peer);
 
 private:
-	struct Counts {
-		int count = 0;
-		int unread = 0;
-	};
+	using Counts = PeerListStoriesCounts;
 
 	void updateColors();
-	void updateFor(uint64 id, int count, int unread);
+	void updateFor(uint64 id, Counts counts);
 	void applyForRow(
 		not_null<PeerListRow*> row,
-		int count,
-		int unread,
+		Counts counts,
 		bool force = false);
 
 	const not_null<PeerListController*> _controller;

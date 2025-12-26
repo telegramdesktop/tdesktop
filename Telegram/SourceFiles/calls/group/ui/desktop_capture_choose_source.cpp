@@ -147,14 +147,14 @@ Source::Source(
 , _activeRect(ImageRoundRadius::Large, st::groupCallMuted1)
 , _source(source) {
 	_widget.paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		paint();
 	}, _widget.lifetime());
 
 	_label.setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	_widget.sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		const auto padding = st::desktopCapturePadding;
 		_label.resizeToNaturalWidth(
 			size.width() - padding.left() - padding.right());
@@ -237,7 +237,7 @@ void Source::paint() {
 void Source::setupPreview() {
 	_preview = std::make_unique<Preview>(_source);
 	_preview->track.renderNextFrame(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_preview->track.frameSize().isEmpty()) {
 			_preview->track.markFrameShown();
 		}
@@ -341,7 +341,7 @@ void ChooseSourceProcess::setupPanel() {
 	_window->setStaysOnTop(true);
 
 	_window->body()->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		QPainter(_window->body()).fillRect(clip, st::groupCallMembersBg);
 	}, _window->lifetime());
 
@@ -380,7 +380,7 @@ void ChooseSourceProcess::setupPanel() {
 		_finish->widthValue(),
 		_finish->shownValue(),
 		cancel->widthValue()
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			int submitWidth,
 			bool submitShown,
 			int finishWidth,
@@ -394,14 +394,14 @@ void ChooseSourceProcess::setupPanel() {
 	}, _bottom->lifetime());
 
 	_withAudio->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto top = (bottomHeight - _withAudio->heightNoMargins()) / 2;
 		_withAudio->moveToLeft(bottomSkip, top);
 	}, _withAudio->lifetime());
 
 	_withAudio->setChecked(_delegate->chooseSourceActiveWithAudio());
 	_withAudio->checkedChanges(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateButtonsVisibility();
 	}, _withAudio->lifetime());
 
@@ -410,7 +410,7 @@ void ChooseSourceProcess::setupPanel() {
 	_submit->setVisible(!sharing);
 
 	_window->body()->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		_scroll->setGeometry(
 			0,
 			0,
@@ -419,7 +419,7 @@ void ChooseSourceProcess::setupPanel() {
 	}, _scroll->lifetime());
 
 	_scroll->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto rows = int(std::ceil(_sources.size() / float(kColumns)));
 		const auto innerHeight = margins.top()
 			+ rows * st::desktopCaptureSourceSize.height()
@@ -435,7 +435,7 @@ void ChooseSourceProcess::setupPanel() {
 	_window->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
 		return e->type() == QEvent::Close;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		destroy();
 	}, _window->lifetime());
 }
@@ -481,7 +481,7 @@ void ChooseSourceProcess::fillSources() {
 		_sources.back()->activations(
 		) | rpl::filter([=] {
 			return (_selected != raw);
-		}) | rpl::start_with_next([=]{
+		}) | rpl::on_next([=]{
 			if (_selected) {
 				_selected->setActive(false);
 			}
@@ -524,7 +524,7 @@ void ChooseSourceProcess::setupSourcesGeometry() {
 		return;
 	}
 	_inner->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto rows = int(std::ceil(_sources.size() / float(kColumns)));
 		const auto margins = st::desktopCaptureMargins;
 		const auto skips = st::desktopCaptureSourceSkips;
@@ -554,7 +554,7 @@ void ChooseSourceProcess::setupSourcesGeometry() {
 	rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue()
-	) | rpl::start_with_next([=](int scrollTop, int scrollHeight) {
+	) | rpl::on_next([=](int scrollTop, int scrollHeight) {
 		const auto rows = int(std::ceil(_sources.size() / float(kColumns)));
 		const auto margins = st::desktopCaptureMargins;
 		const auto skips = st::desktopCaptureSourceSkips;

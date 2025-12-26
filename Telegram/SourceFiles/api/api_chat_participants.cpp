@@ -422,7 +422,7 @@ void ChatParticipants::requestForAdd(
 
 	_forAdd.channel = channel;
 	_forAdd.requestId = _api.request(MTPchannels_GetParticipants(
-		channel->inputChannel,
+		channel->inputChannel(),
 		MTP_channelParticipantsRecent(),
 		MTP_int(offset),
 		MTP_int(channel->session().serverConfig().chatSizeMax),
@@ -450,7 +450,7 @@ void ChatParticipants::requestLast(not_null<ChannelData*> channel) {
 	const auto offset = 0;
 	const auto participantsHash = uint64(0);
 	const auto requestId = _api.request(MTPchannels_GetParticipants(
-		channel->inputChannel,
+		channel->inputChannel(),
 		MTP_channelParticipantsRecent(),
 		MTP_int(offset),
 		MTP_int(channel->session().serverConfig().chatSizeMax),
@@ -480,7 +480,7 @@ void ChatParticipants::requestBots(not_null<ChannelData*> channel) {
 	const auto offset = 0;
 	const auto participantsHash = uint64(0);
 	const auto requestId = _api.request(MTPchannels_GetParticipants(
-		channel->inputChannel,
+		channel->inputChannel(),
 		MTP_channelParticipantsBots(),
 		MTP_int(offset),
 		MTP_int(channel->session().serverConfig().chatSizeMax),
@@ -516,7 +516,7 @@ void ChatParticipants::requestAdmins(not_null<ChannelData*> channel) {
 	const auto offset = 0;
 	const auto participantsHash = uint64(0);
 	const auto requestId = _api.request(MTPchannels_GetParticipants(
-		channel->inputChannel,
+		channel->inputChannel(),
 		MTP_channelParticipantsAdmins(),
 		MTP_int(offset),
 		MTP_int(channel->session().serverConfig().chatSizeMax),
@@ -555,8 +555,8 @@ void ChatParticipants::add(
 	if (const auto chat = peer->asChat()) {
 		for (const auto &user : users) {
 			_api.request(MTPmessages_AddChatUser(
-				chat->inputChat,
-				user->inputUser,
+				chat->inputChat(),
+				user->inputUser(),
 				MTP_int(passGroupHistory ? kForwardMessagesOnAdd : 0)
 			)).done([=](const MTPmessages_InvitedUsers &result) {
 				const auto &data = result.data();
@@ -587,7 +587,7 @@ void ChatParticipants::add(
 		const auto send = [&] {
 			const auto callback = base::take(done);
 			_api.request(MTPchannels_InviteToChannel(
-				channel->inputChannel,
+				channel->inputChannel(),
 				MTP_vector<MTPInputUser>(list)
 			)).done([=](const MTPmessages_InvitedUsers &result) {
 				const auto &data = result.data();
@@ -606,7 +606,7 @@ void ChatParticipants::add(
 			}).afterDelay(kSmallDelayMs).send();
 		};
 		for (const auto &user : users) {
-			list.push_back(user->inputUser);
+			list.push_back(user->inputUser());
 			if (list.size() == kMaxUsersPerInvite) {
 				send();
 				list.clear();
@@ -653,8 +653,8 @@ void ChatParticipants::Restrict(
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
 	channel->session().api().request(MTPchannels_EditBanned(
-		channel->inputChannel,
-		participant->input,
+		channel->inputChannel(),
+		participant->input(),
 		RestrictionsToMTP(newRights)
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
@@ -692,7 +692,7 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 	};
 	_selfParticipantRequests.emplace(channel);
 	_api.request(MTPchannels_GetParticipant(
-		channel->inputChannel,
+		channel->inputChannel(),
 		MTP_inputPeerSelf()
 	)).done([=](const MTPchannels_ChannelParticipant &result) {
 		_selfParticipantRequests.erase(channel);
@@ -742,8 +742,8 @@ void ChatParticipants::kick(
 
 	_api.request(MTPmessages_DeleteChatUser(
 		MTP_flags(0),
-		chat->inputChat,
-		participant->asUser()->inputUser
+		chat->inputChat(),
+		participant->asUser()->inputUser()
 	)).done([=](const MTPUpdates &result) {
 		chat->session().api().applyUpdates(result);
 	}).send();
@@ -758,8 +758,8 @@ void ChatParticipants::kick(
 
 	const auto rights = ChannelData::KickedRestrictedRights(participant);
 	const auto requestId = _api.request(MTPchannels_EditBanned(
-		channel->inputChannel,
-		participant->input,
+		channel->inputChannel(),
+		participant->input(),
 		RestrictionsToMTP(rights)
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
@@ -782,8 +782,8 @@ void ChatParticipants::unblock(
 	}
 
 	const auto requestId = _api.request(MTPchannels_EditBanned(
-		channel->inputChannel,
-		participant->input,
+		channel->inputChannel(),
+		participant->input(),
 		MTP_chatBannedRights(MTP_flags(0), MTP_int(0))
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
@@ -814,7 +814,7 @@ void ChatParticipants::loadSimilarPeers(not_null<PeerData*> peer) {
 		_similar[peer].requestId = _api.request(
 			MTPchannels_GetChannelRecommendations(
 				MTP_flags(Flag::f_channel),
-				channel->inputChannel)
+				channel->inputChannel())
 		).done([=](const MTPmessages_Chats &result) {
 			auto &similar = _similar[channel];
 			similar.requestId = 0;
@@ -832,7 +832,7 @@ void ChatParticipants::loadSimilarPeers(not_null<PeerData*> peer) {
 		}).send();
 	} else if (const auto bot = peer->asBot()) {
 		_similar[peer].requestId = _api.request(
-			MTPbots_GetBotRecommendations(bot->inputUser)
+			MTPbots_GetBotRecommendations(bot->inputUser())
 		).done([=](const MTPusers_Users &result) {
 			auto &similar = _similar[peer];
 			similar.requestId = 0;

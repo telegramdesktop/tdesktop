@@ -441,7 +441,7 @@ LinksController::LinksController(
 , _count(count)
 , _updateExpiringTimer([=] { expiringProgressTimer(); }) {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (auto &image : _icons) {
 			image = QImage();
 		}
@@ -450,7 +450,7 @@ LinksController::LinksController(
 	peer->session().api().inviteLinks().updates(
 		peer,
 		admin
-	) | rpl::start_with_next([=](const Api::InviteLinkUpdate &update) {
+	) | rpl::on_next([=](const Api::InviteLinkUpdate &update) {
 		const auto now = base::unixtime::now();
 		if (!update.now || update.now->revoked != _revoked) {
 			if (removeRow(update.was)) {
@@ -472,7 +472,7 @@ LinksController::LinksController(
 		peer->session().api().inviteLinks().allRevokedDestroyed(
 			peer,
 			admin
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_requesting = false;
 			_allLoaded = true;
 			while (delegate()->peerListFullRowsCount()) {
@@ -803,7 +803,7 @@ void AdminsController::prepare() {
 		return;
 	}
 	_requestId = session().api().request(MTPmessages_GetAdminsWithInvites(
-		_peer->input
+		_peer->input()
 	)).done([=](const MTPmessages_ChatAdminsWithInvites &result) {
 		result.match([&](const MTPDmessages_chatAdminsWithInvites &data) {
 			auto &owner = _peer->owner();
@@ -961,7 +961,7 @@ void ManageInviteLinksBox(
 	*countValue = controller->fullCountValue();
 
 	controller->permanentFound(
-	) | rpl::start_with_next([=](InviteLinkData &&data) {
+	) | rpl::on_next([=](InviteLinkData &&data) {
 		permanentFromList->fire(std::move(data));
 	}, container->lifetime());
 
@@ -1013,7 +1013,7 @@ void ManageInviteLinksBox(
 	rpl::combine(
 		revokedHeader->topValue(),
 		container->widthValue()
-	) | rpl::start_with_next([=](int top, int outerWidth) {
+	) | rpl::on_next([=](int top, int outerWidth) {
 		deleteAll->moveToRight(
 			st::inviteLinkRevokedTitlePadding.left(),
 			top + st::inviteLinkRevokedTitlePadding.top(),
@@ -1027,7 +1027,7 @@ void ManageInviteLinksBox(
 		list->heightValue(),
 		admins->heightValue(),
 		revoked->heightValue()
-	) | rpl::start_with_next([=](int list, int admins, int revoked) {
+	) | rpl::on_next([=](int list, int admins, int revoked) {
 		if (otherHeader) {
 			otherHeader->toggle(list > 0, anim::type::instant);
 		}
@@ -1058,7 +1058,7 @@ object_ptr<Ui::SettingsButton> MakeCreateLinkButton(
 	icon->resize(size, size);
 
 	raw->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		const auto &st = st::inviteLinkList.item;
 		icon->move(
 			st.photoPosition.x() + (st.photoSize - size) / 2,
@@ -1066,7 +1066,7 @@ object_ptr<Ui::SettingsButton> MakeCreateLinkButton(
 	}, icon->lifetime());
 
 	icon->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(icon);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::windowBgActive);

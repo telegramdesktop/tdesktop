@@ -137,7 +137,7 @@ Ui::RpWidget *TopBar::pushButton(base::unique_qptr<Ui::RpWidget> button) {
 	auto weak = wrapped.get();
 	_buttons.push_back(std::move(wrapped));
 	weak->widthValue(
-	) | rpl::start_with_next([this] {
+	) | rpl::on_next([this] {
 		updateControlsGeometry(width());
 	}, lifetime());
 	return weak;
@@ -177,6 +177,11 @@ public:
 	IntroWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> window);
+
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::Dialog;
+	}
+	QString accessibilityName() override;
 
 	void forceContentRepaint();
 
@@ -226,13 +231,13 @@ IntroWidget::IntroWidget(
 , _topShadow(this) {
 	_wrap->setAttribute(Qt::WA_OpaquePaintEvent);
 	_wrap->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(_wrap.data());
 		p.fillRect(clip, st::boxBg);
 	}, _wrap->lifetime());
 
 	_scrollTopSkip.changes(
-	) | rpl::start_with_next([this] {
+	) | rpl::on_next([this] {
 		updateControlsGeometry();
 	}, lifetime());
 
@@ -243,6 +248,10 @@ IntroWidget::IntroWidget(
 		) | rpl::filter([](bool shown) {
 			return true;
 		}));
+}
+
+QString IntroWidget::accessibilityName() {
+	return tr::lng_menu_settings(tr::now);
 }
 
 void IntroWidget::updateControlsGeometry() {
@@ -290,6 +299,7 @@ void IntroWidget::createTopBar(not_null<Window::Controller*> window) {
 		base::make_unique_q<Ui::IconButton>(
 			_topBar,
 			st::infoLayerTopBarClose));
+	close->setAccessibleName(tr::lng_close(tr::now));
 	close->addClickHandler([=] {
 		window->hideSettingsAndLayer();
 	});
@@ -312,7 +322,7 @@ void IntroWidget::setInnerWidget(object_ptr<Ui::RpWidget> content) {
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
 		_innerWrap->entity()->desiredHeightValue()
-	) | rpl::start_with_next([this](
+	) | rpl::on_next([this](
 			int top,
 			int height,
 			int desired) {
@@ -341,6 +351,14 @@ void IntroWidget::showContent(not_null<Window::Controller*> window) {
 }
 
 void IntroWidget::setInnerFocus() {
+	for (const auto childObject : _innerWrap->entity()->children()) {
+		const auto childWidget = static_cast<QWidget*>(childObject);
+		if (childObject->isWidgetType() && childWidget->focusPolicy() != Qt::NoFocus) {
+			childWidget->setFocus(Qt::OtherFocusReason);
+			return;
+		}
+	}
+
 	setFocus();
 }
 
@@ -419,11 +437,11 @@ void LayerWidget::setupHeightConsumers() {
 	_content->scrollTillBottomChanges(
 	) | rpl::filter([this] {
 		return !_inResize;
-	}) | rpl::start_with_next([this] {
+	}) | rpl::on_next([this] {
 		resizeToWidth(width());
 	}, lifetime());
 	_content->desiredHeightValue(
-	) | rpl::start_with_next([this](int height) {
+	) | rpl::on_next([this](int height) {
 		accumulate_max(_desiredHeight, height);
 		if (_content && !_inResize) {
 			resizeToWidth(width());

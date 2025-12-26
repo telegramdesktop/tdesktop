@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "info/info_flexible_scroll.h"
 #include "info/info_wrap_widget.h"
 #include "info/statistics/info_statistics_tag.h"
 #include "ui/controls/swipe_handler_data.h"
@@ -76,6 +77,7 @@ namespace Info {
 
 class ContentMemento;
 class Controller;
+struct FlexibleScrollData;
 
 class ContentWidget : public Ui::RpWidget {
 public:
@@ -154,6 +156,20 @@ protected:
 			doSetInnerWidget(std::move(inner)));
 	}
 
+	template <typename Widget>
+	Widget *setupFlexibleInnerWidget(
+			object_ptr<Widget> inner,
+			FlexibleScrollData &flexibleScroll,
+			Fn<void(Ui::RpWidget*)> customSetup = nullptr) {
+		if (!inner->hasFlexibleTopBar()) {
+			return setInnerWidget(std::move(inner));
+		}
+		return static_cast<Widget*>(doSetupFlexibleInnerWidget(
+			std::move(inner),
+			flexibleScroll,
+			std::move(customSetup)));
+	}
+
 	[[nodiscard]] not_null<Controller*> controller() const {
 		return _controller;
 	}
@@ -177,7 +193,12 @@ protected:
 	void setViewport(rpl::producer<not_null<QEvent*>> &&events) const;
 
 private:
-	RpWidget *doSetInnerWidget(object_ptr<RpWidget> inner);
+	Ui::RpWidget *doSetInnerWidget(object_ptr<Ui::RpWidget> inner);
+	Ui::RpWidget *doSetupFlexibleInnerWidget(
+		object_ptr<Ui::RpWidget> inner,
+		FlexibleScrollData &flexibleScroll,
+		Fn<void(Ui::RpWidget*)> customSetup);
+
 	void updateControlsGeometry();
 	void refreshSearchField(bool shown);
 	void setupSwipeHandler(not_null<Ui::RpWidget*> widget);

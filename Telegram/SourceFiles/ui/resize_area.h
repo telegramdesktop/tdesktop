@@ -23,7 +23,7 @@ public:
 	template <typename Callback>
 	void addMoveLeftCallback(Callback &&callback) {
 		moveLeft(
-		) | rpl::start_with_next(
+		) | rpl::on_next(
 			std::forward<Callback>(callback),
 			lifetime());
 	}
@@ -34,7 +34,7 @@ public:
 	template <typename Callback>
 	void addMoveFinishedCallback(Callback &&callback) {
 		moveFinished(
-		) | rpl::start_with_next(
+		) | rpl::on_next(
 			std::forward<Callback>(callback),
 			lifetime());
 	}

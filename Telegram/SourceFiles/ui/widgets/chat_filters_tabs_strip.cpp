@@ -116,7 +116,7 @@ void ShowMenu(
 				state->waitingSuggested = true;
 				filters->requestSuggested();
 				filters->suggestedUpdated(
-				) | rpl::take(1) | rpl::start_with_next([=] {
+				) | rpl::take(1) | rpl::on_next([=] {
 					controller->showSettings(Settings::Folders::Id());
 				}, parent->lifetime());
 			}
@@ -184,7 +184,7 @@ void ShowFiltersListMenu(
 		}
 		state->menu->addAction(std::move(item));
 	}
-	session->data().chatsFilters().changed() | rpl::start_with_next([=] {
+	session->data().chatsFilters().changed() | rpl::on_next([=] {
 		state->menu->hideMenu();
 	}, state->menu->lifetime());
 
@@ -228,13 +228,14 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				: st::chatsFiltersTabs));
 	const auto state = wrap->lifetime().make_state<State>();
 	const auto reassignUnreadValue = [=] {
+		state->reorderLifetime.destroy();
 		const auto &list = session->data().chatsFilters().list();
 		auto includeMuted = Data::IncludeMutedCounterFoldersValue();
 		for (auto i = 0; i < list.size(); i++) {
 			rpl::combine(
 				Data::UnreadStateValue(session, list[i].id()),
 				rpl::duplicate(includeMuted)
-			) | rpl::start_with_next([=](
+			) | rpl::on_next([=](
 					const Dialogs::UnreadState &state,
 					bool includeMuted) {
 				const auto chats = state.chats;
@@ -281,7 +282,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		};
 
 		state->reorder->updates(
-		) | rpl::start_with_next([=](const Reorder::Single &data) {
+		) | rpl::on_next([=](const Reorder::Single &data) {
 			if (data.state == Reorder::State::Started) {
 				slider->setReordering(slider->reordering() + 1);
 			} else {
@@ -290,7 +291,6 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				});
 				if (data.state == Reorder::State::Applied) {
 					applyReorder(data.oldPosition, data.newPosition);
-					state->reorderLifetime.destroy();
 					reassignUnreadValue();
 				}
 			}
@@ -373,7 +373,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			slider->setLockedFrom((premiumFrom >= list.size())
 				? 0
 				: premiumFrom);
-			slider->lockedClicked() | rpl::start_with_next([=] {
+			slider->lockedClicked() | rpl::on_next([=] {
 				controller->show(Box(FiltersLimitBox, session, std::nullopt));
 			}, state->rebuildLifetime);
 			if (state->reorder) {
@@ -416,7 +416,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		}();
 		if (trackActiveFilterAndUnreadAndReorder) {
 			controller->activeChatsFilter(
-			) | rpl::start_with_next([=](FilterId id) {
+			) | rpl::on_next([=](FilterId id) {
 				const auto &list = session->data().chatsFilters().list();
 				for (auto i = 0; i < list.size(); ++i) {
 					if (list[i].id() == id) {
@@ -431,7 +431,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		rpl::single(-1) | rpl::then(
 			slider->sectionActivated()
 		) | rpl::combine_previous(
-		) | rpl::start_with_next([=](int was, int index) {
+		) | rpl::on_next([=](int was, int index) {
 			if (slider->reordering()) {
 				return;
 			}
@@ -442,7 +442,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			}
 			applyFilter(filter);
 		}, state->rebuildLifetime);
-		slider->contextMenuRequested() | rpl::start_with_next([=](int index) {
+		slider->contextMenuRequested() | rpl::on_next([=](int index) {
 			if (trackActiveFilterAndUnreadAndReorder) {
 				ShowMenu(wrap, controller, state, index);
 			} else {
@@ -463,11 +463,11 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	rpl::combine(
 		session->data().chatsFilters().changed(),
 		Data::AmPremiumValue(session) | rpl::to_empty
-	) | rpl::start_with_next(rebuild, wrap->lifetime());
+	) | rpl::on_next(rebuild, wrap->lifetime());
 	rebuild();
 
 	session->data().chatsFilters().isChatlistChanged(
-	) | rpl::start_with_next([=](FilterId id) {
+	) | rpl::on_next([=](FilterId id) {
 		if (!id || !state->lastFilterId || (id != state->lastFilterId)) {
 			return;
 		}
@@ -482,7 +482,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	rpl::combine(
 		parent->widthValue() | rpl::filter(rpl::mappers::_1 > 0),
 		slider->heightValue() | rpl::filter(rpl::mappers::_1 > 0)
-	) | rpl::start_with_next([=](int w, int h) {
+	) | rpl::on_next([=](int w, int h) {
 		scroll->resize(w, h);
 		container->resize(w, h);
 		wrap->resize(w, h);

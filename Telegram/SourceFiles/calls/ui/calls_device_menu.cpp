@@ -116,7 +116,7 @@ Selector::Selector(
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
 	std::move(
 		chosen
-	) | rpl::start_with_next([=](Webrtc::DeviceResolvedId id) {
+	) | rpl::on_next([=](Webrtc::DeviceResolvedId id) {
 		const auto value = id.isDefault() ? 0 : registerId(id.value);
 		if (!group->hasValue() || group->current() != value) {
 			group->setValue(value);
@@ -138,7 +138,7 @@ Selector::Selector(
 
 	std::move(
 		devices
-	) | rpl::start_with_next([=](const std::vector<Webrtc::DeviceInfo> &v) {
+	) | rpl::on_next([=](const std::vector<Webrtc::DeviceInfo> &v) {
 		while (_list->count()) {
 			delete _list->widgetAt(0);
 		}

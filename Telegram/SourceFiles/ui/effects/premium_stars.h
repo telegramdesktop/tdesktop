@@ -77,6 +77,7 @@ private:
 
 	crl::time _nextBirthTime = 0;
 	bool _paused = false;
+	uint8_t _idleCounter : 3 = 0;
 
 	QRect _rectToUpdate;
 

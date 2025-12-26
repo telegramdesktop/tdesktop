@@ -228,7 +228,7 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 	} else {
 		themes->refreshChatThemes();
 		themes->chatThemesUpdated(
-		) | rpl::take(1) | rpl::start_with_next([=] {
+		) | rpl::take(1) | rpl::on_next([=] {
 			fill(themes->chatThemes());
 		}, lifetime());
 	}
@@ -244,7 +244,7 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 		tr::lng_chat_theme_title(),
 		st::boxTitle);
 	_wrap->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		QPainter(_wrap.get()).fillRect(clip, st::windowBg);
 	}, lifetime());
 
@@ -255,7 +255,7 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 	rpl::combine(
 		_wrap->widthValue(),
 		titleWrap->positionValue()
-	) | rpl::start_with_next([=](int width, QPoint position) {
+	) | rpl::on_next([=](int width, QPoint position) {
 		close->moveToRight(0, 0, width);
 	}, close->lifetime());
 
@@ -263,13 +263,13 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 	initList();
 
 	_inner->positionValue(
-	) | rpl::start_with_next([=](QPoint position) {
+	) | rpl::on_next([=](QPoint position) {
 		title->move(std::max(position.x(), 0), 0);
 	}, title->lifetime());
 
 	std::move(
 		outer
-	) | rpl::start_with_next([=](QSize outer) {
+	) | rpl::on_next([=](QSize outer) {
 		_wrap->resizeToWidth(outer.width());
 		_wrap->move(0, outer.height() - _wrap->height());
 		const auto line = st::lineWidth;
@@ -280,7 +280,7 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 		_shouldBeShown.value(),
 		_forceHidden.value(),
 		_1 && !_2
-	) | rpl::start_with_next([=](bool shown) {
+	) | rpl::on_next([=](bool shown) {
 		_wrap->setVisible(shown);
 		_topShadow->setVisible(shown);
 	}, lifetime());
@@ -308,7 +308,7 @@ void ChooseThemeController::initButtons() {
 		apply->widthValue(),
 		choose->widthValue(),
 		_chosen.value()
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			int outer,
 			int applyWidth,
 			int chooseWidth,
@@ -343,8 +343,8 @@ void ChooseThemeController::initButtons() {
 			Ui::ConfirmBox(box, {
 				.text = tr::lng_chat_theme_gift_replace(
 					lt_name,
-					rpl::single(Ui::Text::Bold(nowHasTheme->shortName())),
-					Ui::Text::WithEntities),
+					rpl::single(tr::bold(nowHasTheme->shortName())),
+					tr::marked),
 				.confirmed = confirmed,
 				.confirmText = tr::lng_box_yes(),
 			});
@@ -430,7 +430,7 @@ void ChooseThemeController::initList() {
 	_inner->setMouseTracking(true);
 
 	_inner->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(_inner.get());
 		for (const auto &entry : _entries) {
 			if (entry.preview.isNull() || !clip.intersects(entry.geometry)) {
@@ -457,7 +457,7 @@ void ChooseThemeController::initList() {
 		}
 	};
 	_inner->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> event) {
+	) | rpl::on_next([=](not_null<QEvent*> event) {
 		const auto type = event->type();
 		if (type == QEvent::MouseMove) {
 			const auto mouse = static_cast<QMouseEvent*>(event.get());
@@ -522,7 +522,7 @@ void ChooseThemeController::initList() {
 	}, lifetime());
 
 	_content->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> event) {
+	) | rpl::on_next([=](not_null<QEvent*> event) {
 		const auto type = event->type();
 		if (type == QEvent::KeyPress) {
 			const auto key = static_cast<QKeyEvent*>(event.get());
@@ -535,7 +535,7 @@ void ChooseThemeController::initList() {
 	rpl::combine(
 		_content->widthValue(),
 		_inner->widthValue()
-	) | rpl::start_with_next([=](int content, int inner) {
+	) | rpl::on_next([=](int content, int inner) {
 		if (!content || !inner) {
 			return;
 		} else if (!_entries.empty() && !_initialInnerLeftApplied) {
@@ -621,7 +621,7 @@ void ChooseThemeController::fill(
 		rpl::single(
 			rpl::empty
 		) | rpl::then(cloudThemes->myGiftThemesUpdated())
-	) | rpl::start_with_next([=](bool dark, auto) {
+	) | rpl::on_next([=](bool dark, auto) {
 		if (!cloudThemes->myGiftThemesReady()) {
 			return;
 		}
@@ -641,7 +641,7 @@ void ChooseThemeController::fill(
 		});
 		Assert(_entries.front().emoji != nullptr);
 		style::PaletteChanged(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_entries.front().preview = GenerateEmptyPreview();
 		}, _cachingLifetime);
 
@@ -691,7 +691,7 @@ void ChooseThemeController::fill(
 				return data && (data->key() == key);
 			}) | rpl::take(
 				1
-			) | rpl::start_with_next([=](std::shared_ptr<ChatTheme> &&data) {
+			) | rpl::on_next([=](std::shared_ptr<ChatTheme> &&data) {
 				const auto key = data->key();
 				const auto i = ranges::find(_entries, key, &Entry::key);
 				if (i == end(_entries)) {
@@ -721,7 +721,7 @@ void ChooseThemeController::fill(
 						&Entry::key);
 					return (i == end(_entries))
 						|| !i->theme->background().prepared.isNull();
-				}) | rpl::take(1) | rpl::start_with_next([=] {
+				}) | rpl::take(1) | rpl::on_next([=] {
 					const auto i = ranges::find(
 						_entries,
 						key,

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
 #include "lang/lang_keys.h"
+#include "ui/effects/round_checkbox.h"
 #include "ui/effects/outline_segments.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -65,7 +66,7 @@ constexpr auto kMaxTooltipNames = 3;
 		result.data(),
 		st::dialogsStoriesTooltipHide);
 	result->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		button->resize(button->width(), size.height());
 		button->moveToRight(0, 0, size.width());
 	}, button->lifetime());
@@ -105,7 +106,7 @@ List::List(
 , _st(st) {
 	setCursor(style::cur_default);
 
-	std::move(content) | rpl::start_with_next([=](Content &&content) {
+	std::move(content) | rpl::on_next([=](Content &&content) {
 		showContent(std::move(content));
 	}, lifetime());
 
@@ -146,6 +147,7 @@ void List::showContent(Content &&content) {
 			}
 			item.element.count = element.count;
 			item.element.unreadCount = element.unreadCount;
+			item.element.hasVideoStream = element.hasVideoStream;
 		} else {
 			_data.items.emplace_back(Item{ .element = element });
 		}
@@ -443,8 +445,15 @@ void List::paint(
 		return Single{ x, indexSmall, small, indexFull, full, y };
 	};
 	const auto hasUnread = [&](const Single &single) {
-		return (single.itemSmall && single.itemSmall->element.unreadCount)
-			|| (single.itemFull && single.itemFull->element.unreadCount);
+		const auto itemSmall = single.itemSmall;
+		const auto itemFull = single.itemFull;
+		return false
+			||(itemSmall
+				&& (itemSmall->element.unreadCount
+					|| itemSmall->element.hasVideoStream))
+			|| (itemFull
+				&& (itemFull->element.unreadCount
+					|| itemFull->element.hasVideoStream));
 	};
 	const auto enumerate = [&](auto &&paintGradient, auto &&paintOther) {
 		auto nextGradientPainted = false;
@@ -508,8 +517,15 @@ void List::paint(
 			photo);
 		const auto small = single.itemSmall;
 		const auto itemFull = single.itemFull;
-		const auto smallUnread = (small && small->element.unreadCount);
-		const auto fullUnreadCount = itemFull
+		const auto smallHasVideoStream = small
+			&& small->element.hasVideoStream;
+		const auto smallUnread = smallHasVideoStream
+			|| (small && small->element.unreadCount);
+		const auto fullHasVideoStream = itemFull
+			&& itemFull->element.hasVideoStream;
+		const auto fullUnreadCount = fullHasVideoStream
+			? 1
+			: itemFull
 			? itemFull->element.unreadCount
 			: 0;
 		const auto unreadOpacity = (smallUnread && fullUnreadCount)
@@ -527,7 +543,11 @@ void List::paint(
 			gradient.setStart(userpic.topRight());
 			gradient.setFinalStop(userpic.bottomLeft());
 			if (!fullUnreadCount) {
-				p.setPen(QPen(gradient, line));
+				if (smallHasVideoStream) {
+					p.setPen(QPen(st::attentionButtonFg->c, line));
+				} else {
+					p.setPen(QPen(gradient, line));
+				}
 				p.setBrush(Qt::NoBrush);
 				p.drawEllipse(outer);
 			} else {
@@ -551,10 +571,14 @@ void List::paint(
 			photo);
 		const auto small = single.itemSmall;
 		const auto itemFull = single.itemFull;
-		const auto smallUnread = small && small->element.unreadCount;
-		const auto fullUnreadCount = itemFull
-			? itemFull->element.unreadCount
-			: 0;
+		const auto smallUnread = small
+			&& (small->element.unreadCount
+				|| small->element.hasVideoStream);
+		const auto fullUnreadCount = !itemFull
+			? 0
+			: itemFull->element.hasVideoStream
+			? 1
+			: itemFull->element.unreadCount;
 		const auto fullCount = itemFull ? itemFull->element.count : 0;
 
 		// White circle with possible read gray line.
@@ -574,7 +598,9 @@ void List::paint(
 			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 		}
 		if (hasReadLine) {
-			if (small && !small->element.unreadCount) {
+			if (small
+				&& !small->element.unreadCount
+				&& !small->element.hasVideoStream) {
 				p.setOpacity(expandRatio);
 			}
 			validateSegments(
@@ -617,6 +643,19 @@ void List::paint(
 					itemFull->element.thumbnail->image(size));
 			}
 		}
+
+		if (const auto full = single.itemFull) {
+			if (full->element.hasVideoStream && expandRatio > 0.) {
+				p.setOpacity(expandRatio);
+				const auto skip = std::ceil(line + lineRead);
+				Ui::PaintLiveBadge(
+					p,
+					std::ceil(userpic.x() - skip),
+					std::ceil(userpic.y() - skip),
+					std::ceil(userpic.width() + 2 * skip),
+					st::windowBg->c);
+			}
+		}
 		p.setOpacity(1.);
 	});
 }
@@ -638,6 +677,16 @@ void List::validateSegments(
 		bool forUnread) {
 	const auto count = item->element.count;
 	const auto unread = item->element.unreadCount;
+	if (item->element.hasVideoStream) {
+		item->segments.resize(1);
+		if (forUnread) {
+			item->segments[0].width = line;
+			item->segments[0].brush = st::attentionButtonFg->b;
+		} else {
+			item->segments[0].width = 0.;
+		}
+		return;
+	}
 	if (int(item->segments.size()) != count) {
 		item->segments.resize(count);
 	}
@@ -877,7 +926,7 @@ TextWithEntities List::computeTooltipText() const {
 			break;
 		}
 	}
-	auto sequence = Ui::Text::Bold(names.front());
+	auto sequence = tr::bold(names.front());
 	if (names.size() > 1) {
 		for (auto i = 1; i + 1 != names.size(); ++i) {
 			sequence = tr::lng_stories_click_to_view_and_one(
@@ -885,22 +934,22 @@ TextWithEntities List::computeTooltipText() const {
 				lt_accumulated,
 				sequence,
 				lt_user,
-				Ui::Text::Bold(names[i]),
-				Ui::Text::WithEntities);
+				tr::bold(names[i]),
+				tr::marked);
 		}
 		sequence = tr::lng_stories_click_to_view_and_last(
 			tr::now,
 			lt_accumulated,
 			sequence,
 			lt_user,
-			Ui::Text::Bold(names.back()),
-			Ui::Text::WithEntities);
+			tr::bold(names.back()),
+			tr::marked);
 	}
 	return tr::lng_stories_click_to_view(
 		tr::now,
 		lt_users,
 		sequence,
-		Ui::Text::WithEntities);
+		tr::marked);
 }
 
 void List::setShowTooltip(
@@ -947,7 +996,7 @@ void List::setShowTooltip(
 			notEmpty
 		) | rpl::distinct_until_changed(),
 		tooltipParent->windowActiveValue()
-	) | rpl::start_with_next([=](bool, bool, bool active) {
+	) | rpl::on_next([=](bool, bool, bool active) {
 		_tooltipWindowActive = active;
 		if (!isHidden()) {
 			toggleTooltip(false);
@@ -955,7 +1004,7 @@ void List::setShowTooltip(
 	}, tooltip->lifetime());
 
 	shownValue(
-	) | rpl::skip(1) | rpl::start_with_next([=](bool shown) {
+	) | rpl::skip(1) | rpl::on_next([=](bool shown) {
 		toggleTooltip(true);
 	}, tooltip->lifetime());
 }

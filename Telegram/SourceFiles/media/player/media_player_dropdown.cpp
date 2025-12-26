@@ -106,7 +106,7 @@ SpeedSliderItem::SpeedSliderItem(
 	_slider->setAlwaysDisplayMarker(true);
 
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		const auto geometry = QRect(QPoint(), size);
 		const auto padding = _st.sliderPadding;
 		const auto inner = geometry - padding;
@@ -118,7 +118,7 @@ SpeedSliderItem::SpeedSliderItem(
 	}, lifetime());
 
 	paintRequest(
-	) | rpl::start_with_next([=](const QRect &clip) {
+	) | rpl::on_next([=](const QRect &clip) {
 		auto p = Painter(this);
 
 		p.fillRect(clip, _st.dropdown.menu.itemBg);
@@ -148,12 +148,12 @@ SpeedSliderItem::SpeedSliderItem(
 
 	std::move(
 		value
-	) | rpl::start_with_next([=](float64 external) {
+	) | rpl::on_next([=](float64 external) {
 		setExternalValue(external);
 	}, lifetime());
 
 	_last.value(
-	) | rpl::start_with_next([=](float64 value) {
+	) | rpl::on_next([=](float64 value) {
 		const auto text = QString::number(value, 'f', 1) + 'x';
 		if (_text.toString() != text) {
 			_text.setText(_st.sliderStyle, text);
@@ -185,7 +185,7 @@ void FillSpeedMenu(
 		rpl::duplicate(value));
 
 	slider->debouncedChanges(
-	) | rpl::start_with_next(callback, slider->lifetime());
+	) | rpl::on_next(callback, slider->lifetime());
 
 	struct State {
 		rpl::variable<float64> realtime;
@@ -259,12 +259,12 @@ void FillSpeedMenu(
 		const auto check = Ui::CreateChild<Ui::RpWidget>(raw);
 		check->resize(st.activeCheck.size());
 		check->paintRequest(
-		) | rpl::start_with_next([check, icon = &st.activeCheck] {
+		) | rpl::on_next([check, icon = &st.activeCheck] {
 			auto p = QPainter(check);
 			icon->paint(p, 0, 0, check->width());
 		}, check->lifetime());
 		raw->sizeValue(
-		) | rpl::start_with_next([=, skip = st.activeCheckSkip](QSize size) {
+		) | rpl::on_next([=, skip = st.activeCheckSkip](QSize size) {
 			check->moveToRight(
 				skip,
 				(size.height() - check->height()) / 2,
@@ -272,7 +272,7 @@ void FillSpeedMenu(
 		}, check->lifetime());
 		check->setAttribute(Qt::WA_TransparentForMouseEvents);
 		state->realtime.value(
-		) | rpl::start_with_next([=](float64 now) {
+		) | rpl::on_next([=](float64 now) {
 			const auto chosen = EqualSpeeds(speed, now);
 			const auto overriden = chosen ? iconActive : icon;
 			raw->setIcon(overriden, overriden);
@@ -335,7 +335,7 @@ Dropdown::Dropdown(QWidget *parent)
 	macWindowDeactivateEvents(
 	) | rpl::filter([=] {
 		return !isHidden();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		leaveEvent(nullptr);
 	}, lifetime());
 
@@ -505,7 +505,7 @@ WithDropdownController::WithDropdownController(
 	) | rpl::filter([=](not_null<QEvent*> e) {
 		return (e->type() == QEvent::Enter)
 			|| (e->type() == QEvent::Leave);
-	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+	}) | rpl::on_next([=](not_null<QEvent*> e) {
 		_overButton = (e->type() == QEvent::Enter);
 		if (_overButton) {
 			InvokeQueued(button, [=] {
@@ -585,7 +585,7 @@ void WithDropdownController::showMenu() {
 	_menu.emplace(_menuParent, _menuSt);
 	const auto raw = _menu.get();
 	_menu->events(
-	) | rpl::start_with_next([this](not_null<QEvent*> e) {
+	) | rpl::on_next([this](not_null<QEvent*> e) {
 		const auto type = e->type();
 		if (type == QEvent::Enter) {
 			_menuOverCallback(true);
@@ -645,7 +645,7 @@ OrderController::OrderController(
 	});
 
 	_appOrder.value(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateIcon();
 	}, button->lifetime());
 }
@@ -829,12 +829,12 @@ void SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
 		const auto check = Ui::CreateChild<Ui::RpWidget>(raw);
 		check->resize(st.activeCheck.size());
 		check->paintRequest(
-		) | rpl::start_with_next([check, icon = &st.activeCheck] {
+		) | rpl::on_next([check, icon = &st.activeCheck] {
 			auto p = QPainter(check);
 			icon->paint(p, 0, 0, check->width());
 		}, check->lifetime());
 		raw->sizeValue(
-		) | rpl::start_with_next([=, skip = st.activeCheckSkip](QSize size) {
+		) | rpl::on_next([=, skip = st.activeCheckSkip](QSize size) {
 			check->moveToRight(
 				skip,
 				(size.height() - check->height()) / 2,
@@ -842,7 +842,7 @@ void SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
 		}, check->lifetime());
 		check->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_quality.value(
-		) | rpl::start_with_next([=](VideoQuality now) {
+		) | rpl::on_next([=](VideoQuality now) {
 			const auto chosen = now.manual
 				? (now.height == quality)
 				: !quality;

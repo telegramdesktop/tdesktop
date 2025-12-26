@@ -112,7 +112,7 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 	const auto addIcon = [=](not_null<Ui::GenericBox*> box) {
 		const auto widget = box->addRow(object_ptr<Ui::RpWidget>(box));
 		widget->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			auto p = QPainter(widget);
 			p.setFont(st::boxTextFont);
 			p.setPen(st::windowSubTextFg);
@@ -139,7 +139,7 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 				const auto icon = owned.get();
 				widget->lifetime().add([kept = std::move(owned)]{});
 				widget->paintRequest(
-				) | rpl::start_with_next([=] {
+				) | rpl::on_next([=] {
 					auto p = QPainter(widget);
 					icon->paint(p, (widget->width() - icon->width()) / 2, 0);
 				}, widget->lifetime());
@@ -197,7 +197,7 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 							lt_count,
 							count)
 					: QString());
-			row->paintRequest() | rpl::start_with_next([=] {
+			row->paintRequest() | rpl::on_next([=] {
 				auto p = QPainter(row);
 				const auto &st = st::defaultPeerListItem;
 				const auto availableWidth = row->width()
@@ -317,7 +317,7 @@ void SetupMenuBots(
 		rpl::empty
 	) | rpl::then(
 		bots->attachBotsUpdates()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto width = container->widthNoMargins();
 		wrap->clear();
 		for (const auto &bot : bots->attachBots()) {
@@ -328,7 +328,7 @@ void SetupMenuBots(
 				if (!*iconLoadLifetime) {
 					auto &session = user->session();
 					*iconLoadLifetime = session.downloaderTaskFinished(
-					) | rpl::start_with_next([=] {
+					) | rpl::on_next([=] {
 						if (media->loaded()) {
 							iconLoadLifetime->destroy();
 							bots->notifyBotIconLoaded();
@@ -348,7 +348,7 @@ void SetupMenuBots(
 				button,
 				bot.media);
 			button->heightValue(
-			) | rpl::start_with_next([=](int height) {
+			) | rpl::on_next([=](int height) {
 				icon->move(
 					st::mainMenuButton.iconLeft,
 					(height - icon->height()) / 2);
@@ -357,7 +357,7 @@ void SetupMenuBots(
 			const auto show = controller->uiShow();
 			button->setAcceptBoth(true);
 			button->clicks(
-			) | rpl::start_with_next([=](Qt::MouseButton which) {
+			) | rpl::on_next([=](Qt::MouseButton which) {
 				if (which == Qt::LeftButton) {
 					bots->open({
 						.bot = user,

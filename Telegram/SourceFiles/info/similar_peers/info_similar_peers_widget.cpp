@@ -104,7 +104,7 @@ void ListController::prepare() {
 
 	Data::AmPremiumValue(
 		&_peer->session()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		participants->loadSimilarPeers(_peer);
 		rebuild();
 	}, lifetime());
@@ -112,7 +112,7 @@ void ListController::prepare() {
 	participants->similarLoaded(
 	) | rpl::filter(
 		rpl::mappers::_1 == _peer
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		rebuild();
 	}, lifetime());
 }
@@ -173,8 +173,9 @@ void ListController::setupUnlock() {
 				rpl::single(upto * 1.),
 				lt_link,
 				tr::lng_similar_channels_premium_all_link(
-				) | Ui::Text::ToBold() | Ui::Text::ToLink(),
-				Ui::Text::RichLangValue),
+					tr::bold
+				) | rpl::map(tr::link),
+				tr::rich),
 		st::similarChannelsLockAbout);
 	about->setClickHandlerFilter([=](const auto &...) {
 		const auto window = _controller->parentController();
@@ -187,7 +188,7 @@ void ListController::setupUnlock() {
 		(_peer->isBroadcast()
 			? tr::lng_similar_channels_show_more()
 			: tr::lng_similar_bots_show_more())
-	) | rpl::start_with_next([=](QSize size, const auto &) {
+	) | rpl::on_next([=](QSize size, const auto &) {
 		auto top = st::similarChannelsLockFade
 			+ st::similarChannelsLockPadding.top();
 		button->setGeometry(
@@ -223,7 +224,7 @@ void ListController::setupUnlock() {
 	_unlockHeight = _unlock->heightValue();
 
 	_unlock->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(_unlock);
 		const auto width = _unlock->width();
 		const auto fade = st::similarChannelsLockFade;
@@ -369,7 +370,7 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 		controller);
 	controller->setContentWidget(this);
 	result->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
 		auto addmin = (request.ymin < 0)
 			? 0
 			: st::infoCommonGroupsMargin.top();
@@ -382,13 +383,13 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 	}, result->lifetime());
 	result->moveToLeft(0, st::infoCommonGroupsMargin.top());
 	parent->widthValue(
-	) | rpl::start_with_next([list = result.data()](int newWidth) {
+	) | rpl::on_next([list = result.data()](int newWidth) {
 		list->resizeToWidth(newWidth);
 	}, result->lifetime());
 	rpl::combine(
 		result->heightValue(),
 		controller->unlockHeightValue()
-	) | rpl::start_with_next([=](int listHeight, int unlockHeight) {
+	) | rpl::on_next([=](int listHeight, int unlockHeight) {
 		auto newHeight = st::infoCommonGroupsMargin.top()
 			+ listHeight
 			+ (unlockHeight

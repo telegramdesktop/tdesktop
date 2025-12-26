@@ -79,12 +79,12 @@ void ConfirmSwitchBox::prepare() {
 		? tr::lng_language_switch_about_official
 		: tr::lng_language_switch_about_unofficial)(
 			lt_lang_name,
-			rpl::single(Ui::Text::Bold(_name)),
+			rpl::single(tr::bold(_name)),
 			lt_percent,
-			rpl::single(Ui::Text::Bold(QString::number(_percent))),
+			rpl::single(tr::bold(QString::number(_percent))),
 			lt_link,
-			tr::lng_language_switch_link() | Ui::Text::ToLink(_editLink),
-			Ui::Text::WithEntities);
+			tr::lng_language_switch_link(tr::url(_editLink)),
+			tr::marked);
 	const auto content = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
 		this,
 		object_ptr<Ui::FlatLabel>(
@@ -103,7 +103,7 @@ void ConfirmSwitchBox::prepare() {
 
 	content->resizeToWidth(st::boxWideWidth);
 	content->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setDimensions(st::boxWideWidth, height);
 	}, lifetime());
 }
@@ -120,10 +120,10 @@ void NotReadyBox::prepare() {
 
 	auto text = tr::lng_language_not_ready_about(
 		lt_lang_name,
-		rpl::single(_name) | Ui::Text::ToWithEntities(),
+		rpl::single(tr::marked(_name)),
 		lt_link,
-		tr::lng_language_not_ready_link() | Ui::Text::ToLink(_editLink),
-		Ui::Text::WithEntities);
+		tr::lng_language_not_ready_link(tr::url(_editLink)),
+		tr::marked);
 	const auto content = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
 		this,
 		object_ptr<Ui::FlatLabel>(
@@ -137,7 +137,7 @@ void NotReadyBox::prepare() {
 
 	content->resizeToWidth(st::boxWidth);
 	content->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setDimensions(st::boxWidth, height);
 	}, lifetime());
 }
@@ -162,9 +162,9 @@ CloudManager::CloudManager(Instance &langpack)
 	Core::App().domain().activeValue(
 	) | rpl::filter([=](Main::Account *account) {
 		return (account != nullptr);
-	}) | rpl::start_with_next_done([=](Main::Account *account) {
+	}) | rpl::on_next_done([=](Main::Account *account) {
 		*mtpLifetime = account->mtpMainSessionValue(
-		) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+		) | rpl::on_next([=](not_null<MTP::Instance*> instance) {
 			_api.emplace(instance);
 			resendRequests();
 		});
@@ -333,7 +333,7 @@ void CloudManager::offerSwitchLangPack() {
 
 	if (!showOfferSwitchBox()) {
 		languageListChanged(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			showOfferSwitchBox();
 		}, _lifetime);
 		requestLanguageList();
@@ -620,6 +620,62 @@ void CloudManager::changeIdAndReInitConnection(const Language &data) {
 	}
 }
 
+void CloudManager::getValueForLang(
+		const QString &key,
+		const QString &langId,
+		Fn<void(const QString &)> callback) {
+	const auto requestKey = langId + ':' + key;
+	auto &request = _getValueForLangRequests[requestKey];
+	request.callback = std::move(callback);
+	if (!_api) {
+		request.requestId = -1;
+		return;
+	}
+	_api->request(base::take(request.requestId)).cancel();
+	request.requestId = _api->request(
+		MTPlangpack_GetStrings(
+			MTP_string(Lang::CloudLangPackName()),
+			MTP_string(langId),
+			MTP_vector<MTPstring>(1, MTP_string(key))
+	)).done([=](const MTPVector<MTPLangPackString> &result) {
+		const auto it = _getValueForLangRequests.find(requestKey);
+		if (it != _getValueForLangRequests.end()) {
+			const auto onstack = it->second.callback;
+			_getValueForLangRequests.erase(it);
+			const auto values = Instance::ParseStrings(result);
+			for (const auto &[k, v] : values) {
+				onstack(v);
+				return;
+			}
+			onstack(QString());
+		}
+	}).fail([=] {
+		const auto it = _getValueForLangRequests.find(requestKey);
+		if (it != _getValueForLangRequests.end()) {
+			const auto onstack = it->second.callback;
+			_getValueForLangRequests.erase(it);
+			onstack(QString());
+		}
+	}).send();
+}
+
+void CloudManager::resendPendingValueRequests() {
+	if (!_api) {
+		return;
+	}
+	for (const auto &[requestKey, request] : _getValueForLangRequests) {
+		if (request.requestId == -1) {
+			const auto colonPos = requestKey.indexOf(':');
+			if (colonPos > 0) {
+				getValueForLang(
+					requestKey.mid(colonPos + 1),
+					requestKey.left(colonPos),
+					request.callback);
+			}
+		}
+	}
+}
+
 void CloudManager::resendRequests() {
 	if (packRequestId(Pack::Base)) {
 		requestLangPackDifference(Pack::Base);
@@ -633,6 +689,7 @@ void CloudManager::resendRequests() {
 	if (_switchingToLanguageRequest) {
 		sendSwitchingToLanguageRequest();
 	}
+	resendPendingValueRequests();
 }
 
 CloudManager &CurrentCloudManager() {

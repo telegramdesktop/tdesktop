@@ -30,12 +30,12 @@ BackButton::BackButton(
 
 	std::move(
 		oneColumnValue
-	) | rpl::start_with_next([=](bool oneColumn) {
+	) | rpl::on_next([=](bool oneColumn) {
 		if (!oneColumn) {
 			_unreadBadgeLifetime.destroy();
 		} else if (!_unreadBadgeLifetime) {
 			_session->data().unreadBadgeChanges(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				rtlupdate(
 					0,
 					0,

@@ -50,7 +50,7 @@ PinnedTracker::PinnedTracker(not_null<Data::Thread*> thread)
 			: nullptr),
 		_1 || _2
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool has) {
+	) | rpl::on_next([=](bool has) {
 		if (has) {
 			refreshViewer();
 		} else {
@@ -92,7 +92,7 @@ void PinnedTracker::refreshViewer() {
 			Storage::SharedMediaType::Pinned),
 		kLoadedLimit,
 		kLoadedLimit
-	) | rpl::start_with_next([=](const SparseIdsMergedSlice &result) {
+	) | rpl::on_next([=](const SparseIdsMergedSlice &result) {
 		_slice.fullCount = result.fullCount();
 		_slice.skippedBefore = result.skippedBefore();
 		_slice.skippedAfter = result.skippedAfter();

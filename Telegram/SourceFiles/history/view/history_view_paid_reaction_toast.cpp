@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_paid_reaction_toast.h"
 
+#include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_messages.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_message_reactions.h"
+#include "data/data_peer.h"
 #include "data/data_session.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
@@ -88,7 +91,7 @@ constexpr auto kPremiumToastDuration = 5 * crl::time(1000);
 		result->update();
 	};
 
-	result->paintRequest() | rpl::start_with_next([=] {
+	result->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(result);
 
 		const auto font = st::historyPremiumViewSet.style.font;
@@ -122,7 +125,7 @@ constexpr auto kPremiumToastDuration = 5 * crl::time(1000);
 	}, result->lifetime());
 	result->resize(width, st::historyPremiumViewSet.height);
 
-	std::move(finish) | rpl::start_with_next([=](crl::time value) {
+	std::move(finish) | rpl::on_next([=](crl::time value) {
 		state->finish = value;
 		state->update();
 	}, result->lifetime());
@@ -147,8 +150,24 @@ PaidReactionToast::PaidReactionToast(
 	_owner->viewPaidReactionSent(
 	) | rpl::filter(
 		std::move(mine)
-	) | rpl::start_with_next([=](not_null<const Element*> view) {
+	) | rpl::on_next([=](not_null<const Element*> view) {
 		maybeShowFor(view->data());
+	}, _lifetime);
+}
+
+PaidReactionToast::PaidReactionToast(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Data::Session*> owner,
+	rpl::producer<int> topOffset,
+	Fn<bool(not_null<Calls::GroupCall*> call)> mine)
+: _parent(parent)
+, _owner(owner)
+, _topOffset(std::move(topOffset)) {
+	_owner->callPaidReactionSent(
+	) | rpl::filter(
+		std::move(mine)
+	) | rpl::on_next([=](not_null<Calls::GroupCall*> call) {
+		maybeShowFor(call);
 	}, _lifetime);
 }
 
@@ -159,6 +178,17 @@ PaidReactionToast::~PaidReactionToast() {
 			delete strong->widget();
 		}
 	}
+}
+
+rpl::producer<FullMsgId> PaidReactionToast::shownForId() const {
+	return _shownForId.value();
+}
+
+rpl::producer<Calls::GroupCall*> PaidReactionToast::shownForCall() const {
+	return shownForId() | rpl::map([=](FullMsgId id) {
+		const auto i = _idsForCalls.find(id);
+		return (i != end(_idsForCalls)) ? i->second.get() : nullptr;
+	});
 }
 
 bool PaidReactionToast::maybeShowFor(not_null<HistoryItem*> item) {
@@ -174,6 +204,22 @@ bool PaidReactionToast::maybeShowFor(not_null<HistoryItem*> item) {
 		return false;
 	}
 	showFor(item->fullId(), count, shownPeer, at - ignore, total);
+	return true;
+}
+
+bool PaidReactionToast::maybeShowFor(not_null<Calls::GroupCall*> call) {
+	const auto count = call->messages()->reactionsPaidScheduled();
+	const auto shownPeer = call->messagesFrom()->id;
+	const auto at = _owner->reactions().sendingScheduledPaidAt(call);
+	if (!count || !at) {
+		return false;
+	}
+	const auto total = Data::Reactions::ScheduledPaidDelay();
+	const auto ignore = total % 1000;
+	if (at <= crl::now() + ignore) {
+		return false;
+	}
+	showFor(idForCall(call), count, shownPeer, at - ignore, total);
 	return true;
 }
 
@@ -213,15 +259,15 @@ void PaidReactionToast::showFor(
 			tr::lng_paid_react_toast_anonymous(
 				lt_count,
 				_count.value() | tr::to_count(),
-				Ui::Text::Bold),
+				tr::bold),
 			tr::lng_paid_react_toast(
 				lt_count,
 				_count.value() | tr::to_count(),
-				Ui::Text::Bold)),
+				tr::bold)),
 		tr::lng_paid_react_toast_text(
 			lt_count_decimal,
 			_count.value() | tr::to_count(),
-			Ui::Text::RichLangValue)
+			tr::rich)
 	) | rpl::map([](TextWithEntities &&title, TextWithEntities &&body) {
 		title.append('\n').append(body);
 		return std::move(title);
@@ -252,6 +298,7 @@ void PaidReactionToast::showFor(
 		.padding = rpl::single(QMargins(leftSkip, 0, rightSkip, 0)),
 		.st = &st,
 		.attach = RectPart::Top,
+		.addToAttachSide = _topOffset.value(),
 		.acceptinput = true,
 		.infinite = true,
 	});
@@ -259,11 +306,16 @@ void PaidReactionToast::showFor(
 	if (!strong) {
 		return;
 	}
+
+	_shownForId = itemId;
 	const auto widget = strong->widget();
 	const auto hideToast = [=, weak = _weak] {
 		if (const auto strong = weak.get()) {
 			if (strong == _weak.get()) {
 				_stack.erase(ranges::remove(_stack, itemId), end(_stack));
+				if (_shownForId.current() == itemId) {
+					_shownForId = FullMsgId();
+				}
 
 				_hiding.push_back(base::take(_weak));
 				strong->hideAnimated();
@@ -274,6 +326,9 @@ void PaidReactionToast::showFor(
 							break;
 						}
 					}
+					if (_shownForId.current() == _stack.back()) {
+						_shownForId = FullMsgId();
+					}
 					_stack.pop_back();
 				}
 			}
@@ -281,7 +336,12 @@ void PaidReactionToast::showFor(
 	};
 
 	const auto undo = [=] {
-		if (const auto item = _owner->message(itemId)) {
+		const auto i = _idsForCalls.find(itemId);
+		if (i != end(_idsForCalls)) {
+			if (const auto strong = i->second.get()) {
+				_owner->reactions().undoScheduledPaid(strong);
+			}
+		} else if (const auto item = _owner->message(itemId)) {
 			_owner->reactions().undoScheduledPaid(item);
 		}
 		hideToast();
@@ -298,7 +358,7 @@ void PaidReactionToast::showFor(
 	rpl::combine(
 		widget->sizeValue(),
 		button->sizeValue()
-	) | rpl::start_with_next([=](QSize outer, QSize inner) {
+	) | rpl::on_next([=](QSize outer, QSize inner) {
 		button->moveToRight(
 			0,
 			(outer.height() - inner.height()) / 2,
@@ -310,6 +370,24 @@ void PaidReactionToast::showFor(
 	preview->show();
 
 	setupLottiePreview(preview, size);
+}
+
+FullMsgId PaidReactionToast::idForCall(not_null<Calls::GroupCall*> call) {
+	for (auto i = begin(_idsForCalls); i != end(_idsForCalls);) {
+		const auto strong = i->second.get();
+		if (strong == call) {
+			return i->first;
+		} else if (!strong) {
+			i = _idsForCalls.erase(i);
+		} else {
+			++i;
+		}
+	}
+	const auto itemId = FullMsgId(
+		call->peer()->id,
+		call->peer()->owner().nextLocalMessageId());
+	_idsForCalls.emplace(itemId, call);
+	return itemId;
 }
 
 void PaidReactionToast::clearHiddenHiding() {
@@ -335,7 +413,7 @@ void PaidReactionToast::setupLottiePreview(
 		Lottie::Quality::Default);
 
 	widget->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (!player->ready()) {
 			return;
 		}
@@ -349,7 +427,7 @@ void PaidReactionToast::setupLottiePreview(
 	}, widget->lifetime());
 
 	player->updates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		widget->update();
 	}, widget->lifetime());
 }

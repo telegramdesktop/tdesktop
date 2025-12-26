@@ -36,29 +36,28 @@ namespace {
 rpl::producer<TextWithEntities> Text1() {
 	return tr::lng_about_text1(
 		lt_api_link,
-		tr::lng_about_text1_api(
-		) | Ui::Text::ToLink("https://core.telegram.org/api"),
-		Ui::Text::WithEntities);
+		tr::lng_about_text1_api(tr::url(u"https://core.telegram.org/api"_q)),
+		tr::marked);
 }
 
 rpl::producer<TextWithEntities> Text2() {
 	return tr::lng_about_text2(
 		lt_gpl_link,
-		rpl::single(Ui::Text::Link(
+		rpl::single(tr::link(
 			"GNU GPL",
 			"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE")),
 		lt_github_link,
-		rpl::single(Ui::Text::Link(
+		rpl::single(tr::link(
 			"GitHub",
 			"https://github.com/telegramdesktop/tdesktop")),
-		Ui::Text::WithEntities);
+		tr::marked);
 }
 
 rpl::producer<TextWithEntities> Text3() {
 	return tr::lng_about_text3(
 		lt_faq_link,
-		tr::lng_about_text3_faq() | Ui::Text::ToLink(telegramFaqLink()),
-		Ui::Text::WithEntities);
+		tr::lng_about_text3_faq(tr::url(telegramFaqLink())),
+		tr::marked);
 }
 
 } // namespace
@@ -186,7 +185,7 @@ void ArchiveHintBox(
 		owned->setNaturalWidth(rect.width());
 		const auto widget = box->addRow(std::move(owned), style::al_top);
 		widget->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			auto p = Painter(widget);
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
@@ -217,11 +216,11 @@ void ArchiveHintBox(
 						lt_emoji,
 						rpl::single(
 							Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
-						Ui::Text::RichLangValue
+						tr::rich
 					) | rpl::map([](TextWithEntities text) {
-						return Ui::Text::Link(std::move(text), 1);
+						return tr::link(std::move(text), 1);
 					}),
-					Ui::Text::RichLangValue),
+					tr::rich),
 				st::channelEarnHistoryRecipientLabel));
 		label->resizeToWidth(box->width()
 			- rect::m::sum::h(st::boxRowPadding));
@@ -263,13 +262,13 @@ void ArchiveHintBox(
 			const auto left = Ui::CreateChild<Ui::RpWidget>(
 				box->verticalLayout().get());
 			left->paintRequest(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				auto p = Painter(left);
 				icon.paint(p, 0, 0, left->width());
 			}, left->lifetime());
 			left->resize(icon.size());
 			top->geometryValue(
-			) | rpl::start_with_next([=](const QRect &g) {
+			) | rpl::on_next([=](const QRect &g) {
 				left->moveToLeft(
 					(g.left() - left->width()) / 2,
 					g.top() + st::channelEarnHistoryThreeSkip);

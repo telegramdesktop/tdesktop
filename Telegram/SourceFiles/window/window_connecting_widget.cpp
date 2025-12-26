@@ -91,6 +91,10 @@ public:
 		not_null<Main::Account*> account,
 		const Layout &layout);
 
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::Role::StatusBar;
+	}
+
 	void refreshRetryLink(bool hasRetry);
 	void setLayout(const Layout &layout);
 	void setProgressVisibility(bool visible);
@@ -152,7 +156,7 @@ ConnectionState::Widget::ProxyIcon::ProxyIcon(QWidget *parent) : RpWidget(parent
 			st::connectingProxyOn.height()));
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshCacheImages();
 	}, lifetime());
 
@@ -206,6 +210,7 @@ void ConnectionState::Widget::ProxyIcon::paintEvent(QPaintEvent *e) {
 bool ConnectionState::State::operator==(const State &other) const {
 	return (type == other.type)
 		&& (useProxy == other.useProxy)
+		&& (exposed == other.exposed)
 		&& (underCursor == other.underCursor)
 		&& (updateReady == other.updateReady)
 		&& (waitTillRetry == other.waitTillRetry);
@@ -222,7 +227,7 @@ ConnectionState::ConnectionState(
 	rpl::combine(
 		std::move(shown),
 		visibility()
-	) | rpl::start_with_next([=](bool shown, float64 visible) {
+	) | rpl::on_next([=](bool shown, float64 visible) {
 		if (!shown || visible == 0.) {
 			_widget = nullptr;
 		} else if (!_widget) {
@@ -235,7 +240,7 @@ ConnectionState::ConnectionState(
 		rpl::merge(
 			rpl::single(rpl::empty),
 			checker.ready()
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			refreshState();
 		}, _lifetime);
 	}
@@ -243,7 +248,7 @@ ConnectionState::ConnectionState(
 	rpl::combine(
 		Core::App().settings().proxy().connectionTypeValue(),
 		rpl::single(QRect()) | rpl::then(_parent->paintRequest())
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshState();
 	}, _lifetime);
 }
@@ -258,7 +263,7 @@ void ConnectionState::createWidget() {
 		visibility(),
 		_parent->heightValue(),
 		_bottomSkip.value()
-	) | rpl::start_with_next([=](float64 visible, int height, int skip) {
+	) | rpl::on_next([=](float64 visible, int height, int skip) {
 		_widget->moveToLeft(0, anim::interpolate(
 			height - st::connectingMargin.top(),
 			height - _widget->height() - skip,
@@ -266,7 +271,7 @@ void ConnectionState::createWidget() {
 	}, _widget->lifetime());
 
 	_widget->refreshStateRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshState();
 	}, _widget->lifetime());
 }
@@ -505,7 +510,7 @@ ConnectionState::Widget::Widget(
 	});
 
 	_progress->animationStepRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_refreshStateRequests.fire({});
 	}, _progress->lifetime());
 }
@@ -618,6 +623,7 @@ void ConnectionState::Widget::setLayout(const Layout &layout) {
 	_currentLayout = layout;
 	_proxyIcon->setToggled(_currentLayout.proxyEnabled);
 	refreshRetryLink(_currentLayout.hasRetry);
+	setAccessibleName(_currentLayout.text);
 }
 
 void ConnectionState::Widget::setProgressVisibility(bool visible) {

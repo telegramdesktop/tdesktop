@@ -98,7 +98,7 @@ void ListController::loadMoreRows() {
 		return;
 	}
 	_preloadRequestId = _api.request(MTPmessages_GetCommonChats(
-		_user->inputUser,
+		_user->inputUser(),
 		MTP_long(peerIsChat(_preloadGroupId)
 			? peerToChat(_preloadGroupId).bare
 			: peerToChannel(_preloadGroupId).bare),
@@ -204,7 +204,7 @@ InnerWidget::InnerWidget(
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
 
 	_controller->searchFieldController()->queryValue(
-	) | rpl::start_with_next([this](QString &&query) {
+	) | rpl::on_next([this](QString &&query) {
 		peerListScrollToTop();
 		content()->searchQueryChanged(std::move(query));
 	}, lifetime());
@@ -244,7 +244,7 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 		parent,
 		controller);
 	result->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
 		auto addmin = (request.ymin < 0)
 			? 0
 			: st::infoCommonGroupsMargin.top();
@@ -257,11 +257,11 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 	}, result->lifetime());
 	result->moveToLeft(0, st::infoCommonGroupsMargin.top());
 	parent->widthValue(
-	) | rpl::start_with_next([list = result.data()](int newWidth) {
+	) | rpl::on_next([list = result.data()](int newWidth) {
 		list->resizeToWidth(newWidth);
 	}, result->lifetime());
 	result->heightValue(
-	) | rpl::start_with_next([parent](int listHeight) {
+	) | rpl::on_next([parent](int listHeight) {
 		auto newHeight = st::infoCommonGroupsMargin.top()
 			+ listHeight
 			+ st::infoCommonGroupsMargin.bottom();

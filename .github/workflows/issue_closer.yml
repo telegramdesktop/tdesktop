@@ -6,7 +6,7 @@ on:
 
 jobs:
   comment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Process an issue.
         uses: desktop-app/action_issue_closer@master

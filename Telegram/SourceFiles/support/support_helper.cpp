@@ -17,12 +17,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "history/history.h"
 #include "boxes/abstract_box.h"
-#include "ui/toast/toast.h"
-#include "ui/widgets/fields/input_field.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_entity.h"
 #include "ui/text/text_options.h"
+#include "ui/toast/toast.h"
+#include "ui/widgets/fields/input_field.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "base/unixtime.h"
@@ -115,9 +116,9 @@ void EditInfoBox::prepare() {
 	addButton(tr::lng_settings_save(), save);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
-	_field->submits() | rpl::start_with_next(save, _field->lifetime());
+	_field->submits() | rpl::on_next(save, _field->lifetime());
 	_field->cancelled(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		closeBox();
 	}, _field->lifetime());
 	Ui::Emoji::SuggestionsController::Init(
@@ -130,14 +131,14 @@ void EditInfoBox::prepare() {
 	_field->setTextCursor(cursor);
 
 	widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		_field->resizeToWidth(
 			width - st::boxPadding.left() - st::boxPadding.right());
 		_field->moveToLeft(st::boxPadding.left(), st::boxPadding.bottom());
 	}, _field->lifetime());
 
 	_field->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setDimensions(
 			st::boxWideWidth,
 			st::boxPadding.bottom() + height + st::boxPadding.bottom());
@@ -166,7 +167,7 @@ Data::Draft OccupiedDraft(const QString &normalizedName) {
 			+ ";n:"
 			+ normalizedName },
 		FullReplyTo(),
-		SuggestPostOptions(),
+		SuggestOptions(),
 		MessageCursor(),
 		Data::WebPageDraft()
 	};
@@ -292,8 +293,32 @@ Helper::Helper(not_null<Main::Session*> session)
 
 std::unique_ptr<Helper> Helper::Create(not_null<Main::Session*> session) {
 	//return std::make_unique<Helper>(session); AssertIsDebug();
-	const auto valid = session->user()->phone().startsWith(u"424"_q);
-	return valid ? std::make_unique<Helper>(session) : nullptr;
+	return ShouldUse(session) ? std::make_unique<Helper>(session) : nullptr;
+}
+
+void Helper::CheckIfLost(not_null<Window::SessionController*> controller) {
+	static auto Checked = false;
+	if (Checked) {
+		return;
+	}
+	Checked = true;
+
+	const auto session = &controller->session();
+	if (!ShouldUse(session) || session->supportMode()) {
+		return;
+	}
+	session->local().writeSelf();
+	controller->show(Ui::MakeConfirmBox({
+		.text = u"This account should have support mode, "
+			"but it seems it was lost. Restart?"_q,
+		.confirmed = [=] { Core::Restart(); },
+		.confirmText = u"Restart"_q,
+		.title = u"Support Mode Lost"_q,
+	}));
+}
+
+bool Helper::ShouldUse(not_null<Main::Session*> session) {
+	return session->user()->phone().startsWith(u"424"_q);
 }
 
 void Helper::registerWindow(not_null<Window::SessionController*> controller) {
@@ -302,7 +327,7 @@ void Helper::registerWindow(not_null<Window::SessionController*> controller) {
 		const auto history = key.history();
 		return TrackHistoryOccupation(history) ? history : nullptr;
 	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](History *history) {
+	) | rpl::on_next([=](History *history) {
 		updateOccupiedHistory(controller, history);
 	}, controller->lifetime());
 }
@@ -415,7 +440,7 @@ bool Helper::isOccupiedBySomeone(History *history) const {
 
 void Helper::refreshInfo(not_null<UserData*> user) {
 	_api.request(MTPhelp_GetUserInfo(
-		user->inputUser
+		user->inputUser()
 	)).done([=](const MTPhelp_UserInfo &result) {
 		applyInfo(user, result);
 		if (const auto controller = _userInfoEditPending.take(user)) {
@@ -544,7 +569,7 @@ void Helper::saveInfo(
 		text.entities,
 		Api::ConvertOption::SkipLocal);
 	_userInfoSaving[user].requestId = _api.request(MTPhelp_EditUserInfo(
-		user->inputUser,
+		user->inputUser(),
 		MTP_string(text.text),
 		entities
 	)).done([=](const MTPhelp_UserInfo &result) {

@@ -70,11 +70,11 @@ using Channels = Api::ChatParticipants::Peers;
 						lt_count,
 						upto,
 						lt_link,
-						Ui::Text::Link(
-							Ui::Text::Bold(
+						tr::link(
+							tr::bold(
 								tr::lng_similar_channels_premium_all_link(
 									tr::now))),
-						Ui::Text::RichLangValue),
+						tr::rich),
 					u"similar_channels"_q);
 				return;
 			}

@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_step.h"
 #include "base/timer.h"
 
+namespace Ui {
+class LinkButton;
+} // namespace Ui
+
 namespace Intro {
 namespace details {
 
@@ -20,6 +24,9 @@ public:
 		QWidget *parent,
 		not_null<Main::Account*> account,
 		not_null<Data*> data);
+
+	QString accessibilityName() override;
+	QString accessibilityDescription() override;
 
 	void activate() override;
 	void finished() override;
@@ -36,6 +43,7 @@ private:
 
 	void sendCheckPasswordRequest();
 	void setupControls();
+	void setupPasskeyLink();
 	void refreshCode();
 	void checkForTokenUpdate(const MTPUpdates &updates);
 	void checkForTokenUpdate(const MTPUpdate &update);
@@ -46,6 +54,8 @@ private:
 	void done(const MTPauth_Authorization &authorization);
 
 	rpl::event_stream<QByteArray> _qrCodes;
+	Ui::LinkButton *_skip = nullptr;
+	Ui::LinkButton *_passkey = nullptr;
 	base::Timer _refreshTimer;
 	mtpRequestId _requestId = 0;
 	bool _forceRefresh = false;

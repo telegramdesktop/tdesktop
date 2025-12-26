@@ -128,7 +128,7 @@ QImage Sibling::LoaderPhoto::good() {
 		return image->original();
 	} else if (!_waitingLoading) {
 		_photo->session().downloaderTaskFinished(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (_media->loaded()) {
 				_update();
 			}
@@ -184,7 +184,7 @@ void Sibling::LoaderVideo::createStreamedPlayer() {
 		[] {}); // waitingCallback
 	_streamed->lockPlayer();
 	_streamed->player().updates(
-	) | rpl::start_with_next_error([=](Streaming::Update &&update) {
+	) | rpl::on_next_error([=](Streaming::Update &&update) {
 		v::match(update.data, [&](Streaming::Information &update) {
 			_update();
 		}, [](const auto &update) {
@@ -219,7 +219,7 @@ void Sibling::LoaderVideo::waitForGoodThumbnail() {
 			if (const auto strong = weak.get()) {
 				if (!strong->updateAfterGoodCheck()) {
 					strong->_video->session().downloaderTaskFinished(
-					) | rpl::start_with_next([=] {
+					) | rpl::on_next([=] {
 						strong->updateAfterGoodCheck();
 					}, strong->_waitingGoodGeneration);
 				}
@@ -275,6 +275,8 @@ void Sibling::checkStory() {
 		_loader = std::make_unique<LoaderVideo>(document, origin, [=] {
 			check();
 		});
+	}, [&](const std::shared_ptr<Data::GroupCall> &call) {
+		_loader = nullptr;
 	}, [&](v::null_t) {
 		_loader = nullptr;
 	});

@@ -17,6 +17,14 @@ class Session;
 
 namespace Data {
 
+enum class SetupEmailState {
+	None,
+	Setup,
+	SetupNoSkip,
+	SettingUp,
+	SettingUpNoSkip,
+};
+
 struct CustomSuggestion final {
 	QString suggestion;
 	TextWithEntities title;
@@ -30,13 +38,16 @@ struct CustomSuggestion final {
 
 class PromoSuggestions final {
 public:
-	explicit PromoSuggestions(not_null<Main::Session*> session);
+	explicit PromoSuggestions(
+		not_null<Main::Session*> session,
+		Fn<void()> firstPromoLoaded = nullptr);
 	~PromoSuggestions();
 
 	[[nodiscard]] bool current(const QString &key) const;
 	[[nodiscard]] std::optional<CustomSuggestion> custom() const;
 	[[nodiscard]] rpl::producer<> requested(const QString &key) const;
 	void dismiss(const QString &key);
+	void dismissSetupEmail(Fn<void()> done);
 
 	void refreshTopPromotion();
 
@@ -52,6 +63,10 @@ public:
 		-> std::optional<std::vector<UserId>>;
 
 	[[nodiscard]] static QString SugValidatePassword();
+
+	void setSetupEmailState(SetupEmailState state);
+	[[nodiscard]] SetupEmailState setupEmailState() const;
+	[[nodiscard]] rpl::producer<SetupEmailState> setupEmailStateValue() const;
 
 private:
 	void setTopPromoted(
@@ -78,7 +93,12 @@ private:
 	TimeId _topPromotionNextRequestTime = TimeId(0);
 	base::Timer _topPromotionTimer;
 
+	SetupEmailState _setupEmailState = SetupEmailState::None;
+
 	rpl::event_stream<> _refreshed;
+	rpl::event_stream<SetupEmailState> _setupEmailStateChanges;
+
+	Fn<void()> _firstPromoLoaded;
 
 	rpl::lifetime _lifetime;
 

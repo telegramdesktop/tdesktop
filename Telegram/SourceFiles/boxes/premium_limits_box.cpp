@@ -366,11 +366,11 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 		}
 		*once = true;
 		peer->session().api().request(MTPchannels_UpdateUsername(
-			peer->asChannel()->inputChannel,
+			peer->asChannel()->inputChannel(),
 			MTP_string()
 		)).done([=] {
 			peer->session().api().request(MTPchannels_DeactivateAllUsernames(
-				peer->asChannel()->inputChannel
+				peer->asChannel()->inputChannel()
 			)).done([=] {
 				closeBox();
 				close();
@@ -517,13 +517,13 @@ void SimplePinsLimitBox(
 		tr::lng_filter_pin_limit1(
 			lt_count,
 			rpl::single(premium ? premiumLimit : defaultLimit),
-			Ui::Text::RichLangValue),
+			tr::rich),
 		((premium || !premiumPossible)
 			? rpl::single(TextWithEntities())
 			: tr::lng_filter_pin_limit2(
 				lt_count,
 				rpl::single(premiumLimit),
-				Ui::Text::RichLangValue))
+				tr::rich))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return b.text.isEmpty()
 			? a
@@ -556,13 +556,13 @@ void ChannelsLimitBox(
 		tr::lng_channels_limit1(
 			lt_count,
 			rpl::single(current),
-			Ui::Text::RichLangValue),
+			tr::rich),
 		((premium || !premiumPossible)
-			? tr::lng_channels_limit2_final(Ui::Text::RichLangValue)
+			? tr::lng_channels_limit2_final(tr::rich)
 			: tr::lng_channels_limit2(
 				lt_count,
 				rpl::single(premiumLimit),
-				Ui::Text::RichLangValue))
+				tr::rich))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return a.append(QChar(' ')).append(std::move(b));
 	});
@@ -596,12 +596,12 @@ void ChannelsLimitBox(
 
 	using namespace rpl::mappers;
 	controller->countValue(
-	) | rpl::filter(_1 > 0) | rpl::start_with_next([=] {
+	) | rpl::filter(_1 > 0) | rpl::on_next([=] {
 		delete placeholder;
 	}, placeholder->lifetime());
 
 	delegate->selectedCountChanges(
-	) | rpl::start_with_next([=](int count) {
+	) | rpl::on_next([=](int count) {
 		const auto leave = [=](const base::flat_set<PeerListRowId> &ids) {
 			for (const auto rowId : ids) {
 				const auto id = peerToChannel(PeerId(rowId));
@@ -646,13 +646,13 @@ void PublicLinksLimitBox(
 		tr::lng_links_limit1(
 			lt_count,
 			rpl::single(current),
-			Ui::Text::RichLangValue),
+			tr::rich),
 		((premium || !premiumPossible)
-			? tr::lng_links_limit2_final(Ui::Text::RichLangValue)
+			? tr::lng_links_limit2_final(tr::rich)
 			: tr::lng_links_limit2(
 				lt_count,
 				rpl::single(premiumLimit),
-				Ui::Text::RichLangValue))
+				tr::rich))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return a.append(QChar(' ')).append(std::move(b));
 	});
@@ -687,7 +687,7 @@ void PublicLinksLimitBox(
 
 	using namespace rpl::mappers;
 	controller->countValue(
-	) | rpl::filter(_1 > 0) | rpl::start_with_next([=] {
+	) | rpl::filter(_1 > 0) | rpl::on_next([=] {
 		delete placeholder;
 	}, placeholder->lifetime());
 }
@@ -714,13 +714,13 @@ void FilterChatsLimitBox(
 			: tr::lng_filter_chats_exlude_limit1)(
 				lt_count,
 				rpl::single(premium ? premiumLimit : defaultLimit),
-				Ui::Text::RichLangValue),
+				tr::rich),
 		((premium || !premiumPossible)
 			? rpl::single(TextWithEntities())
 			: tr::lng_filter_chats_limit2(
 				lt_count,
 				rpl::single(premiumLimit),
-				Ui::Text::RichLangValue))
+				tr::rich))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return b.text.isEmpty()
 			? a
@@ -752,13 +752,13 @@ void FilterLinksLimitBox(
 		tr::lng_filter_links_limit1(
 			lt_count,
 			rpl::single(premium ? premiumLimit : defaultLimit),
-			Ui::Text::RichLangValue),
+			tr::rich),
 		((premium || !premiumPossible)
 			? rpl::single(TextWithEntities())
 			: tr::lng_filter_links_limit2(
 				lt_count,
 				rpl::single(premiumLimit),
-				Ui::Text::RichLangValue))
+				tr::rich))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return b.text.isEmpty()
 			? a
@@ -801,13 +801,13 @@ void FiltersLimitBox(
 		tr::lng_filters_limit1(
 			lt_count,
 			rpl::single(premium ? premiumLimit : defaultLimit),
-			Ui::Text::RichLangValue),
+			tr::rich),
 		((premium || !premiumPossible)
 			? rpl::single(TextWithEntities())
 			: tr::lng_filters_limit2(
 				lt_count,
 				rpl::single(premiumLimit),
-				Ui::Text::RichLangValue))
+				tr::rich))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return b.text.isEmpty()
 			? a
@@ -840,13 +840,13 @@ void ShareableFiltersLimitBox(
 		tr::lng_filter_shared_limit1(
 			lt_count,
 			rpl::single(premium ? premiumLimit : defaultLimit),
-			Ui::Text::RichLangValue),
+			tr::rich),
 		((premium || !premiumPossible)
 			? rpl::single(TextWithEntities())
 			: tr::lng_filter_shared_limit2(
 				lt_count,
 				rpl::single(premiumLimit),
-				Ui::Text::RichLangValue))
+				tr::rich))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return b.text.isEmpty()
 			? a
@@ -929,7 +929,7 @@ void ForumPinsLimitBox(
 	auto text = tr::lng_forum_pin_limit(
 		lt_count,
 		rpl::single(current),
-		Ui::Text::RichLangValue);
+		tr::rich);
 	SimpleLimitBox(
 		box,
 		nullptr,
@@ -962,13 +962,13 @@ void CaptionLimitBox(
 		tr::lng_caption_limit1(
 			lt_count,
 			rpl::single(currentLimit),
-			Ui::Text::RichLangValue),
+			tr::rich),
 		(!premiumPossible
 			? rpl::single(TextWithEntities())
 			: tr::lng_caption_limit2(
 				lt_count,
 				rpl::single(premiumLimit),
-				Ui::Text::RichLangValue))
+				tr::rich))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return b.text.isEmpty()
 			? a
@@ -1035,14 +1035,14 @@ void FileSizeLimitBox(
 	auto text = rpl::combine(
 		tr::lng_file_size_limit1(
 			lt_size,
-			rpl::single(Ui::Text::Bold(gb(showLimit))),
-			Ui::Text::RichLangValue),
+			rpl::single(tr::bold(gb(showLimit))),
+			tr::rich),
 		(!premiumPossible
 			? rpl::single(TextWithEntities())
 			: tr::lng_file_size_limit2(
 				lt_size,
-				rpl::single(Ui::Text::Bold(gb(premiumGb))),
-				Ui::Text::RichLangValue))
+				rpl::single(tr::bold(gb(premiumGb))),
+				tr::rich))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return a.append(QChar(' ')).append(std::move(b));
 	});
@@ -1090,10 +1090,10 @@ void AccountsLimitBox(
 		tr::lng_accounts_limit1(
 			lt_count,
 			rpl::single<float64>(current),
-			Ui::Text::RichLangValue),
+			tr::rich),
 		((!premiumPossible || current > premiumLimit)
 			? rpl::single(TextWithEntities())
-			: tr::lng_accounts_limit2(Ui::Text::RichLangValue))
+			: tr::lng_accounts_limit2(tr::rich))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return b.text.isEmpty()
 			? a
@@ -1162,7 +1162,7 @@ void AccountsLimitBox(
 			return;
 		}
 		*switchingLifetime = session->domain().activeSessionChanges(
-		) | rpl::start_with_next([=](Main::Session *session) mutable {
+		) | rpl::on_next([=](Main::Session *session) mutable {
 			if (session) {
 				Settings::ShowPremium(session, ref);
 			}

@@ -56,7 +56,7 @@ MessageBar::MessageBar(
 	setup();
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_topBarGradient = _bottomBarGradient = QPixmap();
 	}, _widget.lifetime());
 }
@@ -72,7 +72,7 @@ void MessageBar::customEmojiRepaint() {
 void MessageBar::setup() {
 	_widget.resize(0, st::historyReplyHeight);
 	_widget.paintRequest(
-	) | rpl::start_with_next([=](QRect rect) {
+	) | rpl::on_next([=](QRect rect) {
 		auto p = Painter(&_widget);
 		p.setInactive(_customEmojiPaused());
 		_customEmojiRepaintScheduled = false;
@@ -89,7 +89,7 @@ void MessageBar::set(rpl::producer<MessageBarContent> content) {
 	_contentLifetime.destroy();
 	std::move(
 		content
-	) | rpl::start_with_next([=](MessageBarContent &&content) {
+	) | rpl::on_next([=](MessageBarContent &&content) {
 		tweenTo(std::move(content));
 	}, _contentLifetime);
 }

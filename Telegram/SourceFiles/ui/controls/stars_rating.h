@@ -38,8 +38,13 @@ public:
 
 	void raise();
 	void moveTo(int x, int y);
+	void setOpacity(float64 opacity);
+	void setCustomColors(
+		std::optional<QColor> textColor,
+		std::optional<QColor> shapeColor);
 
 	[[nodiscard]] rpl::producer<int> widthValue() const;
+	[[nodiscard]] int width() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -53,12 +58,21 @@ private:
 	const std::shared_ptr<Ui::Show> _show;
 	const QString _name;
 
-	Ui::Text::String _collapsedText;
+	QString _collapsedText;
 
 	rpl::variable<Data::StarsRating> _value;
 	Fn<Data::StarsRatingPending()> _pending;
 	rpl::variable<int> _widthValue;
 	const style::LevelShape *_shape = nullptr;
+
+	QImage _cache;
+	int _cachedLevel = std::numeric_limits<int>::min();
+
+	int _currentLevel = 0;
+	float64 _opacity = 1.;
+
+	std::optional<QColor> _customTextColor;
+	std::optional<QColor> _customShapeColor;
 
 };
 

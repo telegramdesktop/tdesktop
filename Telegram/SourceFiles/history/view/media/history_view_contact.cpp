@@ -227,13 +227,6 @@ Contact::Contact(
 		st::webPageDescriptionStyle,
 		Ui::FormatPhone(data.phoneNumber),
 		Ui::WebpageTextTitleOptions());
-
-#if 0 // No info.
-	_infoLine.setText(
-		st::webPageDescriptionStyle,
-		phone,
-		Ui::WebpageTextTitleOptions());
-#endif
 }
 
 Contact::~Contact() {
@@ -322,10 +315,6 @@ QSize Contact::countOptimalSize() {
 		accumulate_max(maxWidth, lineLeft + _phoneLine.maxWidth());
 		textMinHeight += 1 * lineHeight;
 	}
-	if (!_infoLine.isEmpty()) {
-		accumulate_max(maxWidth, lineLeft + _infoLine.maxWidth());
-		textMinHeight += std::min(_infoLine.minHeight(), 1 * lineHeight);
-	}
 	minHeight = std::max(textMinHeight, st::contactsPhotoSize);
 
 	if (!_buttons.empty()) {
@@ -360,28 +349,41 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 		? _contact->colorIndex()
 		: Data::DecideColorIndex(
 			Data::FakePeerIdForJustName(_nameLine.toString()));
-	const auto cache = context.outbg
-		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
-		: st->coloredReplyCache(selected, colorIndex).get();
+	const auto &colorCollectible = _contact
+		? _contact->colorCollectible()
+		: nullptr;
+	const auto colorPattern = colorCollectible
+		? st->collectiblePatternIndex(colorCollectible)
+		: st->colorPatternIndex(colorIndex);
+	const auto useColorCollectible = colorCollectible && !context.outbg;
+	const auto useColorIndex = !context.outbg;
+	const auto cache = useColorCollectible
+		? st->collectibleReplyCache(selected, colorCollectible).get()
+		: useColorIndex
+		? st->coloredReplyCache(selected, colorIndex).get()
+		: stm->replyCache[colorPattern].get();
 	const auto backgroundEmojiId = _contact
 		? _contact->backgroundEmojiId()
 		: DocumentId();
-	const auto backgroundEmoji = backgroundEmojiId
-		? st->backgroundEmojiData(backgroundEmojiId).get()
+	const auto backgroundEmojiData = backgroundEmojiId
+		? st->backgroundEmojiData(backgroundEmojiId, colorCollectible).get()
 		: nullptr;
-	const auto backgroundEmojiCache = backgroundEmoji
-		? &backgroundEmoji->caches[Ui::BackgroundEmojiData::CacheIndex(
+	const auto backgroundEmojiCache = !backgroundEmojiData
+		? nullptr
+		: useColorCollectible
+		? &backgroundEmojiData->collectibleCaches[colorCollectible]
+		: &backgroundEmojiData->caches[Ui::BackgroundEmojiData::CacheIndex(
 			selected,
 			context.outbg,
 			true,
-			colorIndex + 1)]
-		: nullptr;
+			useColorIndex ? (colorIndex + 1) : 0)];
 	Ui::Text::ValidateQuotePaintCache(*cache, _st);
 	Ui::Text::FillQuotePaint(p, outer, *cache, _st);
-	if (backgroundEmoji) {
+	if (backgroundEmojiData) {
 		ValidateBackgroundEmoji(
 			backgroundEmojiId,
-			backgroundEmoji,
+			colorCollectible,
+			backgroundEmojiData,
 			backgroundEmojiCache,
 			cache,
 			view);
@@ -389,7 +391,12 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 			const auto end = rect::bottom(inner) + _st.padding.bottom();
 			const auto r = outer
 				- QMargins(0, 0, 0, rect::bottom(outer) - end);
-			FillBackgroundEmoji(p, r, false, *backgroundEmojiCache);
+			FillBackgroundEmoji(
+				p,
+				r,
+				false,
+				*backgroundEmojiCache,
+				backgroundEmojiData->firstGiftFrame);
 		}
 	}
 
@@ -435,9 +442,11 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 
 	{
 		p.setPen(cache->icon);
-		p.setTextPalette(context.outbg
-			? stm->semiboldPalette
-			: st->coloredTextPalette(selected, colorIndex));
+		p.setTextPalette(useColorCollectible
+			? st->collectibleTextPalette(selected, colorCollectible)
+			: useColorIndex
+			? st->coloredTextPalette(selected, colorIndex)
+			: stm->semiboldPalette);
 
 		const auto endskip = _nameLine.hasSkipBlock()
 			? _parent->skipBlockWidth()
@@ -479,26 +488,6 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 			false,
 			toTitleSelection(context.selection));
 		tshift += 1 * lineHeight;
-	}
-	if (!_infoLine.isEmpty()) {
-		tshift += st::lineWidth * 3; // Additional skip.
-		const auto endskip = _infoLine.hasSkipBlock()
-			? _parent->skipBlockWidth()
-			: 0;
-		_parent->prepareCustomEmojiPaint(p, context, _infoLine);
-		_infoLine.draw(p, {
-			.position = { lineLeft, tshift },
-			.outerWidth = width(),
-			.availableWidth = lineWidth,
-			.spoiler = Ui::Text::DefaultSpoilerCache(),
-			.now = context.now,
-			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
-			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
-			.selection = toDescriptionSelection(context.selection),
-			.elisionHeight = (1 * lineHeight),
-			.elisionRemoveFromEnd = endskip,
-		});
-		tshift += (1 * lineHeight);
 	}
 
 	if (!_buttons.empty()) {

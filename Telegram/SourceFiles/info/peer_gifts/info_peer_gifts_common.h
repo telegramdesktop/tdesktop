@@ -93,12 +93,25 @@ struct GiftTypeStars {
 		const GiftTypeStars&) = default;
 };
 
+[[nodiscard]] rpl::producer<std::vector<GiftTypeStars>> GiftsStars(
+	not_null<Main::Session*> session,
+	not_null<PeerData*> peer);
+
 struct GiftDescriptor : std::variant<GiftTypePremium, GiftTypeStars> {
 	using variant::variant;
 
 	[[nodiscard]] friend inline bool operator==(
 		const GiftDescriptor&,
 		const GiftDescriptor&) = default;
+};
+
+struct GiftSendDetails {
+	GiftDescriptor descriptor;
+	TextWithEntities text;
+	uint64 randomId = 0;
+	bool anonymous = false;
+	bool upgraded = false;
+	bool byStars = false;
 };
 
 struct GiftBadge {
@@ -129,6 +142,12 @@ enum class GiftButtonMode : uint8 {
 	Selection,
 };
 
+enum class GiftSelectionMode : uint8 {
+	Border,
+	Inset,
+	Check,
+};
+
 class GiftButtonDelegate {
 public:
 	[[nodiscard]] virtual TextWithEntities star() = 0;
@@ -137,7 +156,7 @@ public:
 	[[nodiscard]] virtual TextWithEntities ministar() = 0;
 	[[nodiscard]] virtual Ui::Text::MarkedContext textContext() = 0;
 	[[nodiscard]] virtual QSize buttonSize() = 0;
-	[[nodiscard]] virtual QMargins buttonExtend() = 0;
+	[[nodiscard]] virtual QMargins buttonExtend() const = 0;
 	[[nodiscard]] virtual auto buttonPatternEmoji(
 		not_null<Data::UniqueGift*> unique,
 		Fn<void()> repaint)
@@ -147,6 +166,8 @@ public:
 		const GiftDescriptor &descriptor) = 0;
 	[[nodiscard]] virtual not_null<StickerPremiumMark*> hiddenMark() = 0;
 	[[nodiscard]] virtual QImage cachedBadge(const GiftBadge &badge) = 0;
+	[[nodiscard]] virtual bool amPremium() = 0;
+	virtual void invalidateCache() = 0;
 };
 
 class GiftButton final : public Ui::AbstractButton {
@@ -160,16 +181,19 @@ public:
 
 	void toggleSelected(
 		bool selected,
+		GiftSelectionMode selectionMode = GiftSelectionMode::Border,
 		anim::type animated = anim::type::normal);
 
-	[[nodiscard]] rpl::producer<QPoint> contextMenuRequests() const {
-		return _contextMenuRequests.events();
-	}
+	[[nodiscard]] rpl::producer<QPoint> contextMenuRequests() const;
+	[[nodiscard]] rpl::producer<QMouseEvent*> mouseEvents();
 
 private:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 	void paintBackground(QPainter &p, const QImage &background);
 	void cacheUniqueBackground(
@@ -187,6 +211,7 @@ private:
 
 	const not_null<GiftButtonDelegate*> _delegate;
 	rpl::event_stream<QPoint> _contextMenuRequests;
+	rpl::event_stream<QMouseEvent*> _mouseEvents;
 	QImage _hiddenBgCache;
 	GiftDescriptor _descriptor;
 	Ui::Text::String _text;
@@ -202,10 +227,13 @@ private:
 	std::unique_ptr<Overview::Layout::Checkbox> _check;
 	int _resalePrice = 0;
 	GiftButtonMode _mode = GiftButtonMode::Full;
-	bool _subscribed = false;
-	bool _patterned = false;
-	bool _selected = false;
-	bool _locked = false;
+	GiftSelectionMode _selectionMode = GiftSelectionMode::Border;
+	bool _subscribed : 1 = false;
+	bool _patterned : 1 = false;
+	bool _selected : 1 = false;
+	bool _locked : 1 = false;
+
+	bool _mouseEventsAreListening = false;
 
 	base::Timer _lockedTimer;
 	TimeId _lockedUntilDate = 0;
@@ -234,7 +262,7 @@ public:
 	TextWithEntities ministar() override;
 	Ui::Text::MarkedContext textContext() override;
 	QSize buttonSize() override;
-	QMargins buttonExtend() override;
+	QMargins buttonExtend() const override;
 	auto buttonPatternEmoji(
 		not_null<Data::UniqueGift*> unique,
 		Fn<void()> repaint)
@@ -244,6 +272,8 @@ public:
 		const GiftDescriptor &descriptor) override;
 	not_null<StickerPremiumMark*> hiddenMark() override;
 	QImage cachedBadge(const GiftBadge &badge) override;
+	bool amPremium() override;
+	void invalidateCache() override;
 
 private:
 	const not_null<Main::Session*> _session;
@@ -266,7 +296,9 @@ private:
 	not_null<Main::Session*> session,
 	const GiftDescriptor &descriptor);
 
-[[nodiscard]] QImage ValidateRotatedBadge(const GiftBadge &badge, int added);
+[[nodiscard]] QImage ValidateRotatedBadge(
+	const GiftBadge &badge,
+	QMargins padding);
 
 void SelectGiftToUnpin(
 	std::shared_ptr<ChatHelpers::Show> show,

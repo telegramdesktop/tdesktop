@@ -345,7 +345,7 @@ std::unique_ptr<Ui::TabbedSearch> MakeSearch(
 	});
 
 	result->queryValue(
-	) | rpl::skip(1) | rpl::start_with_next(
+	) | rpl::skip(1) | rpl::on_next(
 		std::move(callback),
 		parent->lifetime());
 
@@ -439,7 +439,7 @@ TabbedSelector::TabbedSelector(
 		const auto widget = tab.widget();
 
 		widget->scrollToRequests(
-		) | rpl::start_with_next([=, tab = &tab](int y) {
+		) | rpl::on_next([=, tab = &tab](int y) {
 			if (tab == currentTab()) {
 				scrollToY(y);
 			} else {
@@ -448,7 +448,7 @@ TabbedSelector::TabbedSelector(
 		}, widget->lifetime());
 
 		widget->disableScrollRequests(
-		) | rpl::start_with_next([=, tab = &tab](bool disabled) {
+		) | rpl::on_next([=, tab = &tab](bool disabled) {
 			if (tab == currentTab()) {
 				_scroll->disableScroll(disabled);
 			}
@@ -458,9 +458,9 @@ TabbedSelector::TabbedSelector(
 	rpl::merge(
 		(hasStickersTab()
 			? stickers()->scrollUpdated() | rpl::map_to(0)
-			: rpl::never<int>() | rpl::type_erased()),
+			: rpl::never<int>() | rpl::type_erased),
 		_scroll->scrollTopChanges()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		handleScroll();
 	}, lifetime());
 
@@ -479,17 +479,22 @@ TabbedSelector::TabbedSelector(
 			Data::PeerUpdate::Flag::Rights
 		) | rpl::filter([=](const Data::PeerUpdate &update) {
 			return (update.peer.get() == _currentPeer);
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			checkRestrictedPeer();
 		}, lifetime());
 	}
 
 	if (hasStickersTab()) {
 		session().data().stickers().stickerSetInstalled(
-		) | rpl::start_with_next([=](uint64 setId) {
+		) | rpl::on_next([=](uint64 setId) {
 			_tabsSlider->setActiveSection(indexByType(SelectorTab::Stickers));
 			stickers()->showStickerSet(setId);
-			_showRequests.fire({});
+			if (_currentPeer
+				&& Data::CanSend(
+					_currentPeer,
+					ChatRestriction::SendStickers)) {
+				_showRequests.fire({});
+			}
 		}, lifetime());
 
 		rpl::merge(
@@ -497,13 +502,13 @@ TabbedSelector::TabbedSelector(
 			session().data().stickers().updated(hasMasksTab()
 				? Data::StickersType::Masks
 				: Data::StickersType::Stickers)
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			refreshStickers();
 		}, lifetime());
 	}
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_panelRounding = Ui::PrepareCornerPixmaps(
 			st::emojiPanRadius,
 			_st.bg);
@@ -514,10 +519,12 @@ TabbedSelector::TabbedSelector(
 
 	if (hasEmojiTab() && _mode == Mode::Full) {
 		session().data().stickers().emojiSetInstalled(
-		) | rpl::start_with_next([=](uint64 setId) {
+		) | rpl::on_next([=](uint64 setId) {
 			_tabsSlider->setActiveSection(indexByType(SelectorTab::Emoji));
 			emoji()->showSet(setId);
-			_showRequests.fire({});
+			if (_currentPeer && Data::CanSendTexts(_currentPeer)) {
+				_showRequests.fire({});
+			}
 		}, lifetime());
 	}
 	if (hasEmojiTab()) {
@@ -702,7 +709,7 @@ rpl::producer<FileChosen> TabbedSelector::customEmojiChosen() const {
 
 rpl::producer<FileChosen> TabbedSelector::fileChosen() const {
 	auto never = rpl::never<FileChosen>(
-	) | rpl::type_erased();
+	) | rpl::type_erased;
 	return rpl::merge(
 		hasStickersTab() ? stickers()->chosen() : never,
 		hasGifsTab() ? gifs()->fileChosen() : never,
@@ -1110,7 +1117,7 @@ void TabbedSelector::checkRestrictedPeer() {
 			_restrictedLabel.create(
 				this,
 				rpl::single(error.boostsToLift
-					? Ui::Text::Link(error.text)
+					? tr::link(error.text)
 					: TextWithEntities{ error.text }),
 				st::stickersRestrictedLabel);
 			const auto lifting = error.boostsToLift;
@@ -1204,7 +1211,7 @@ void TabbedSelector::createTabsSlider() {
 
 	_tabsSlider->setActiveSectionFast(indexByType(_currentTabType));
 	_tabsSlider->sectionActivated(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		switchTab();
 	}, lifetime());
 }

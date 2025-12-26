@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/unixtime.h"
+#include "boxes/transfer_gift_box.h"
 #include "chat_helpers/message_field.h"
 #include "core/click_handler_types.h"
 #include "data/components/credits.h"
@@ -44,7 +45,7 @@ void SendApproval(
 		not_null<HistoryItem*> item,
 		TimeId scheduleDate = 0) {
 	using Flag = MTPmessages_ToggleSuggestedPostApproval::Flag;
-	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+	const auto suggestion = item->Get<HistoryMessageSuggestion>();
 	if (!suggestion
 		|| suggestion->accepted
 		|| suggestion->rejected
@@ -56,7 +57,7 @@ void SendApproval(
 	const auto session = &show->session();
 	const auto finish = [=] {
 		if (const auto item = session->data().message(id)) {
-			const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+			const auto suggestion = item->Get<HistoryMessageSuggestion>();
 			if (suggestion) {
 				suggestion->requestId = 0;
 			}
@@ -65,7 +66,7 @@ void SendApproval(
 	suggestion->requestId = session->api().request(
 		MTPmessages_ToggleSuggestedPostApproval(
 			MTP_flags(scheduleDate ? Flag::f_schedule_date : Flag()),
-			item->history()->peer->input,
+			item->history()->peer->input(),
 			MTP_int(item->id.bare),
 			MTP_int(scheduleDate),
 			MTPstring()) // reject_comment
@@ -83,7 +84,7 @@ void ConfirmApproval(
 		not_null<HistoryItem*> item,
 		TimeId scheduleDate = 0,
 		Fn<void()> accepted = nullptr) {
-	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+	const auto suggestion = item->Get<HistoryMessageSuggestion>();
 	if (!suggestion
 		|| suggestion->accepted
 		|| suggestion->rejected
@@ -153,13 +154,13 @@ void ConfirmApproval(
 			? tr::lng_suggest_accept_text(
 				tr::now,
 				lt_from,
-				Ui::Text::Bold(item->from()->shortName()),
-				Ui::Text::WithEntities)
+				tr::bold(item->from()->shortName()),
+				tr::marked)
 			: tr::lng_suggest_accept_text_to(
 				tr::now,
 				lt_channel,
-				Ui::Text::Bold(channelName),
-				Ui::Text::WithEntities);
+				tr::bold(channelName),
+				tr::marked);
 		if (price) {
 			text.append("\n\n").append(admin
 				? (scheduleDate
@@ -170,12 +171,12 @@ void ConfirmApproval(
 							lt_count_decimal,
 							amount.value(),
 							lt_channel,
-							Ui::Text::Bold(channelName),
+							tr::bold(channelName),
 							lt_percent,
 							TextWithEntities{ commission },
 							lt_date,
-							Ui::Text::Bold(date),
-							Ui::Text::RichLangValue)
+							tr::bold(date),
+							tr::rich)
 					: (amount.stars()
 						? tr::lng_suggest_accept_receive_now_stars
 						: tr::lng_suggest_accept_receive_now_ton)(
@@ -183,10 +184,10 @@ void ConfirmApproval(
 							lt_count_decimal,
 							amount.value(),
 							lt_channel,
-							Ui::Text::Bold(channelName),
+							tr::bold(channelName),
 							lt_percent,
 							TextWithEntities{ commission },
-							Ui::Text::RichLangValue))
+							tr::rich))
 				: (scheduleDate
 					? (amount.stars()
 						? tr::lng_suggest_accept_pay_stars
@@ -195,25 +196,25 @@ void ConfirmApproval(
 							lt_count_decimal,
 							amount.value(),
 							lt_date,
-							Ui::Text::Bold(date),
-							Ui::Text::RichLangValue)
+							tr::bold(date),
+							tr::rich)
 					: (amount.stars()
 						? tr::lng_suggest_accept_pay_now_stars
 						: tr::lng_suggest_accept_pay_now_ton)(
 							tr::now,
 							lt_count_decimal,
 							amount.value(),
-							Ui::Text::RichLangValue)));
+							tr::rich)));
 			if (admin) {
 				text.append(' ').append(
 					tr::lng_suggest_accept_receive_if(
 						tr::now,
-						Ui::Text::RichLangValue));
+						tr::rich));
 				if (price.stars()) {
 					text.append("\n\n").append(
 						tr::lng_suggest_options_stars_warning(
 							tr::now,
-							Ui::Text::RichLangValue));
+							tr::rich));
 				}
 			}
 		}
@@ -244,7 +245,7 @@ void SendDecline(
 		not_null<HistoryItem*> item,
 		const QString &comment) {
 	using Flag = MTPmessages_ToggleSuggestedPostApproval::Flag;
-	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+	const auto suggestion = item->Get<HistoryMessageSuggestion>();
 	if (!suggestion
 		|| suggestion->accepted
 		|| suggestion->rejected
@@ -256,7 +257,7 @@ void SendDecline(
 	const auto session = &show->session();
 	const auto finish = [=] {
 		if (const auto item = session->data().message(id)) {
-			const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+			const auto suggestion = item->Get<HistoryMessageSuggestion>();
 			if (suggestion) {
 				suggestion->requestId = 0;
 			}
@@ -266,7 +267,7 @@ void SendDecline(
 		MTPmessages_ToggleSuggestedPostApproval(
 			MTP_flags(Flag::f_reject
 				| (comment.isEmpty() ? Flag() : Flag::f_reject_comment)),
-			item->history()->peer->input,
+			item->history()->peer->input(),
 			MTP_int(item->id.bare),
 			MTPint(), // schedule_date
 			MTP_string(comment))
@@ -320,12 +321,12 @@ void RequestDeclineComment(
 			.text = (admin
 				? tr::lng_suggest_decline_text(
 					lt_from,
-					rpl::single(Ui::Text::Bold(item->from()->shortName())),
-					Ui::Text::WithEntities)
+					rpl::single(tr::bold(item->from()->shortName())),
+					tr::marked)
 				: tr::lng_suggest_decline_text_to(
 					lt_channel,
-					rpl::single(Ui::Text::Bold(channelName)),
-					Ui::Text::WithEntities)),
+					rpl::single(tr::bold(channelName)),
+					tr::marked)),
 			.confirmed = [=](Fn<void()> close) { (*callback)(); close(); },
 			.confirmText = tr::lng_suggest_action_decline(),
 			.confirmStyle = &st::attentionBoxButton,
@@ -350,7 +351,7 @@ void RequestDeclineComment(
 			}
 		};
 		reason->submits(
-		) | rpl::start_with_next([=](Qt::KeyboardModifiers modifiers) {
+		) | rpl::on_next([=](Qt::KeyboardModifiers modifiers) {
 			if (!(modifiers & Qt::ShiftModifier)) {
 				(*callback)();
 			}
@@ -365,10 +366,10 @@ void SendSuggest(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item,
 		std::shared_ptr<SendSuggestState> state,
-		Fn<void(SuggestPostOptions&)> modify,
+		Fn<void(SuggestOptions&)> modify,
 		Fn<void()> done = nullptr,
 		int starsApproved = 0) {
-	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+	const auto suggestion = item->Get<HistoryMessageSuggestion>();
 	const auto id = item->fullId();
 	const auto withPaymentApproved = [=](int stars) {
 		if (const auto item = show->session().data().message(id)) {
@@ -416,7 +417,7 @@ void SendSuggest(
 void SuggestApprovalDate(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item) {
-	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+	const auto suggestion = item->Get<HistoryMessageSuggestion>();
 	if (!suggestion) {
 		return;
 	}
@@ -437,7 +438,7 @@ void SuggestApprovalDate(
 			show,
 			item,
 			state,
-			[=](SuggestPostOptions &options) { options.date = result; },
+			[=](SuggestOptions &options) { options.date = result; },
 			close);
 	};
 	using namespace HistoryView;
@@ -454,12 +455,12 @@ void SuggestApprovalDate(
 void SuggestOfferForMessage(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item,
-		SuggestPostOptions values,
+		SuggestOptions values,
 		HistoryView::SuggestMode mode) {
 	const auto id = item->fullId();
 	const auto state = std::make_shared<SendSuggestState>();
 	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
-	const auto done = [=](SuggestPostOptions result) {
+	const auto done = [=](SuggestOptions result) {
 		const auto item = show->session().data().message(id);
 		if (!item) {
 			return;
@@ -473,7 +474,7 @@ void SuggestOfferForMessage(
 			show,
 			item,
 			state,
-			[=](SuggestPostOptions &options) { options = result; },
+			[=](SuggestOptions &options) { options = result; },
 			close);
 	};
 	using namespace HistoryView;
@@ -490,7 +491,7 @@ void SuggestOfferForMessage(
 void SuggestApprovalPrice(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item) {
-	const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+	const auto suggestion = item->Get<HistoryMessageSuggestion>();
 	if (!suggestion) {
 		return;
 	}
@@ -502,6 +503,20 @@ void SuggestApprovalPrice(
 		.ton = uint32(suggestion->price.ton() ? 1 : 0),
 		.date = suggestion->date,
 	}, SuggestMode::Change);
+}
+
+void ConfirmGiftSaleAccept(
+		not_null<Window::SessionController*> window,
+		not_null<HistoryItem*> item,
+		not_null<HistoryMessageSuggestion*> suggestion) {
+	ShowGiftSaleAcceptBox(window, item, suggestion);
+}
+
+void ConfirmGiftSaleDecline(
+		not_null<Window::SessionController*> window,
+		not_null<HistoryItem*> item,
+		not_null<HistoryMessageSuggestion*> suggestion) {
+	ShowGiftSaleRejectBox(window, item, suggestion);
 }
 
 } // namespace
@@ -521,9 +536,11 @@ std::shared_ptr<ClickHandler> AcceptClickHandler(
 			return;
 		}
 		const auto show = controller->uiShow();
-		const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+		const auto suggestion = item->Get<HistoryMessageSuggestion>();
 		if (!suggestion) {
 			return;
+		} else if (suggestion->gift) {
+			ConfirmGiftSaleAccept(controller, item, suggestion);
 		} else if (!suggestion->date) {
 			RequestApprovalDate(show, item);
 		} else {
@@ -546,7 +563,12 @@ std::shared_ptr<ClickHandler> DeclineClickHandler(
 		if (!item) {
 			return;
 		}
-		RequestDeclineComment(controller->uiShow(), item);
+		const auto suggestion = item->Get<HistoryMessageSuggestion>();
+		if (suggestion && suggestion->gift) {
+			ConfirmGiftSaleDecline(controller, item, suggestion);
+		} else {
+			RequestDeclineComment(controller->uiShow(), item);
+		}
 	});
 }
 
@@ -573,7 +595,7 @@ std::shared_ptr<ClickHandler> SuggestChangesClickHandler(
 				if (!item) {
 					return;
 				}
-				const auto suggestion = item->Get<HistoryMessageSuggestedPost>();
+				const auto suggestion = item->Get<HistoryMessageSuggestion>();
 				if (!suggestion) {
 					return;
 				}
@@ -594,7 +616,7 @@ std::shared_ptr<ClickHandler> SuggestChangesClickHandler(
 						.messageId = FullMsgId(history->peer->id, item->id),
 						.monoforumPeerId = monoforumPeerId,
 					},
-					SuggestPostOptions{
+					SuggestOptions{
 						.exists = uint32(1),
 						.priceWhole = uint32(suggestion->price.whole()),
 						.priceNano = uint32(suggestion->price.nano()),

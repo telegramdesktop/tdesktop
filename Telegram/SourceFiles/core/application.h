@@ -270,9 +270,7 @@ public:
 	}
 
 	// Internal links.
-	void checkStartUrl();
-	void checkSendPaths();
-	void checkFileOpen();
+	void checkStartUrls();
 	bool openLocalUrl(const QString &url, QVariant context);
 	bool openInternalUrl(const QString &url, QVariant context);
 	[[nodiscard]] QString changelogLink() const;
@@ -305,6 +303,9 @@ public:
 	[[nodiscard]] bool passcodeLocked() const;
 	rpl::producer<bool> passcodeLockChanges() const;
 	rpl::producer<bool> passcodeLockValue() const;
+
+	void lockBySetupEmail();
+	void unlockSetupEmail();
 
 	void checkAutoLock(crl::time lastNonIdleTime = 0);
 	void checkAutoLockIn(crl::time time);
@@ -446,13 +447,13 @@ private:
 	bool _floatPlayerGifsPaused = false;
 
 	rpl::variable<bool> _passcodeLock;
+	rpl::variable<bool> _setupEmailLock;
 	bool _screenIsLocked = false;
 
 	crl::time _shouldLockAt = 0;
 	base::Timer _autoLockTimer;
 
-	QStringList _filesToOpen;
-	base::Timer _fileOpenTimer;
+	QList<QUrl> _urlsToOpen;
 
 	std::optional<base::Timer> _saveSettingsTimer;
 

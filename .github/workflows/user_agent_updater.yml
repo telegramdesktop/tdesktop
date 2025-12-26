@@ -9,7 +9,7 @@ on:
 
 jobs:
   User-agent:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: desktop-app/action_code_updater@master
         with:

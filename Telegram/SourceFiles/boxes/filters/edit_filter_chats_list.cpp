@@ -384,7 +384,7 @@ object_ptr<Ui::RpWidget> CreatePeerListSectionSubtitle(
 
 	const auto raw = result.data();
 	raw->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(raw);
 		p.fillRect(clip, st::searchedBarBg);
 	}, raw->lifetime());
@@ -394,7 +394,7 @@ object_ptr<Ui::RpWidget> CreatePeerListSectionSubtitle(
 		std::move(text),
 		st::windowFilterChatsSectionSubtitle);
 	raw->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto padding = st::windowFilterChatsSectionSubtitlePadding;
 		const auto available = width - padding.left() - padding.right();
 		label->resizeToNaturalWidth(available);
@@ -533,12 +533,12 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 		tr::lng_filters_edit_chats()));
 
 	controller->selectedChanges(
-	) | rpl::start_with_next([=](Flags selected) {
+	) | rpl::on_next([=](Flags selected) {
 		_selected = selected;
 	}, _lifetime);
 
 	controller->rowSelectionChanges(
-	) | rpl::start_with_next([=](RowSelectionChange update) {
+	) | rpl::on_next([=](RowSelectionChange update) {
 		this->delegate()->peerListSetForeignRowChecked(
 			update.row,
 			update.checked,

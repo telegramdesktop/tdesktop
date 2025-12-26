@@ -73,6 +73,7 @@ constexpr auto kFirstPage = 20;
 constexpr auto kPerPage = 100;
 // constexpr auto kShareQrSize = 768;
 // constexpr auto kShareQrPadding = 16;
+constexpr auto kMaxShownJoined = 3;
 
 using LinkData = Api::InviteLink;
 
@@ -379,11 +380,11 @@ void QrBox(
 	const auto button = Ui::CreateChild<Ui::AbstractButton>(container);
 	button->resize(size, size);
 	button->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		QPainter(button).drawImage(QRect(0, 0, size, size), qr);
 	}, button->lifetime());
 	container->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		button->move((width - size) / 2, st::inviteLinkQrSkip);
 	}, button->lifetime());
 	button->setClickedCallback(copyCallback);
@@ -506,7 +507,7 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 		st::inviteLinkFieldPadding);
 
 	label->clicks(
-	) | rpl::start_with_next(copyLink, label->lifetime());
+	) | rpl::on_next(copyLink, label->lifetime());
 
 	const auto reactivateWrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -566,7 +567,7 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	Ui::AddSkip(container);
 
 	dataValue(
-	) | rpl::start_with_next([=](const LinkData &data) {
+	) | rpl::on_next([=](const LinkData &data) {
 		const auto now = base::unixtime::now();
 		const auto expired = IsExpiredLink(data, now);
 		reactivateWrap->toggle(
@@ -641,7 +642,7 @@ not_null<Ui::SlideWrap<>*> Controller::addRequestedListBlock(
 	controller->setDelegate(delegate);
 
 	controller->processed(
-	) | rpl::start_with_next([=](Processed processed) {
+	) | rpl::on_next([=](Processed processed) {
 		updateWithProcessed(processed);
 	}, lifetime());
 
@@ -739,14 +740,14 @@ void Controller::setupAboveJoinedWidget() {
 					TextWithEntities{ .text = QString(QChar(0x00D7)) },
 					lt_total,
 					{ QString::number(current.usage) },
-					Ui::Text::WithEntities)
+					tr::marked)
 				: tr::lng_group_invite_subscription_info_title_none(
 					tr::now,
 					lt_emoji,
 					_creditsEmoji,
 					lt_price,
 					{ QString::number(current.subscription.credits) },
-					Ui::Text::WithEntities),
+					tr::marked),
 			kMarkupTextOptions,
 			_emojiHelper.context([=] { widget->update(); }));
 		auto &lifetime = widget->lifetime();
@@ -755,7 +756,7 @@ void Controller::setupAboveJoinedWidget() {
 		const auto currency = u"USD"_q;
 		const auto allCredits = current.subscription.credits * current.usage;
 		widget->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			auto p = Painter(widget);
 			p.setBrush(Qt::NoBrush);
 			p.setPen(st.nameFg);
@@ -864,7 +865,7 @@ void Controller::setupAboveJoinedWidget() {
 		std::move(remainingText),
 		st::inviteLinkTitleRight);
 	dataValue(
-	) | rpl::start_with_next([=](const LinkData &data) {
+	) | rpl::on_next([=](const LinkData &data) {
 		remaining->setTextColorOverride(
 			(data.usageLimit && (data.usageLimit <= data.usage)
 				? std::make_optional(st::boxTextFgError->c)
@@ -882,7 +883,7 @@ void Controller::setupAboveJoinedWidget() {
 		listTitle->positionValue(),
 		remaining->widthValue(),
 		listHeader->widthValue()
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			QPoint position,
 			int width,
 			int outerWidth) {
@@ -902,11 +903,11 @@ void Controller::loadMoreRows() {
 	_requestId = _api.request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(Flag::f_link
 			| (_role == Role::Requested ? Flag::f_requested : Flag(0))),
-		_peer->input,
+		_peer->input(),
 		MTP_string(_link),
 		MTPstring(), // q
 		MTP_int(_lastUser ? _lastUser->date : 0),
-		_lastUser ? _lastUser->user->inputUser : MTP_inputUserEmpty(),
+		_lastUser ? _lastUser->user->inputUser() : MTP_inputUserEmpty(),
 		MTP_int(_lastUser ? kPerPage : kFirstPage)
 	)).done([=](const MTPmessages_ChatInviteImporters &result) {
 		_requestId = 0;
@@ -997,7 +998,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 				_creditsEmoji,
 				lt_cost,
 				{ QString::number(data.subscription.credits) },
-				Ui::Text::WithEntities),
+				tr::marked),
 			_emojiHelper.context());
 		const auto subtitle2 = box->addRow(
 			object_ptr<Ui::FlatLabel>(
@@ -1006,7 +1007,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 			style::al_top);
 		session->credits().rateValue(
 			channel
-		) | rpl::start_with_next([=, currency = u"USD"_q](float64 rate) {
+		) | rpl::on_next([=, currency = u"USD"_q](float64 rate) {
 			subtitle2->setText(
 				tr::lng_credits_subscriber_subtitle(
 					tr::now,
@@ -1030,10 +1031,9 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 				box,
 				tr::lng_credits_box_out_about(
 					lt_link,
-					tr::lng_payments_terms_link(
-					) | Ui::Text::ToLink(
-						tr::lng_credits_box_out_about_link(tr::now)),
-					Ui::Text::WithEntities),
+					tr::lng_payments_terms_link(tr::url(
+						tr::lng_credits_box_out_about_link(tr::now))),
+					tr::marked),
 				st::creditsBoxAboutDivider),
 			style::al_top);
 
@@ -1103,8 +1103,8 @@ void Controller::processRequest(
 				: tr::lng_group_requests_was_added)(
 					tr::now,
 					lt_user,
-					Ui::Text::Bold(user->name()),
-					Ui::Text::WithEntities));
+					tr::bold(user->name()),
+					tr::marked));
 		}
 	});
 	const auto fail = crl::guard(this, [=] {
@@ -1169,7 +1169,7 @@ void SingleRowController::prepare() {
 	if (_status) {
 		std::move(
 			_status
-		) | rpl::start_with_next([=](const QString &status) {
+		) | rpl::on_next([=](const QString &status) {
 			raw->setCustomStatus(status);
 			delegate()->peerListUpdateRow(raw);
 		}, _lifetime);
@@ -1178,7 +1178,7 @@ void SingleRowController::prepare() {
 	delegate()->peerListRefreshRows();
 
 	if (topic) {
-		topic->destroyed() | rpl::start_with_next([=] {
+		topic->destroyed() | rpl::on_next([=] {
 			while (delegate()->peerListFullRowsCount()) {
 				delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
 			}
@@ -1275,7 +1275,7 @@ void AddPermanentLinkBlock(
 	} else {
 		rpl::duplicate(
 			fromList
-		) | rpl::start_with_next([=](const Api::InviteLink &link) {
+		) | rpl::on_next([=](const Api::InviteLink &link) {
 			*currentLinkFields = link;
 		}, container->lifetime());
 
@@ -1351,7 +1351,7 @@ void AddPermanentLinkBlock(
 		st::inviteLinkFieldPadding);
 
 	label->clicks(
-	) | rpl::start_with_next(copyLink, label->lifetime());
+	) | rpl::on_next(copyLink, label->lifetime());
 
 	AddCopyShareLinkButtons(container, copyLink, shareLink);
 
@@ -1388,9 +1388,10 @@ void AddPermanentLinkBlock(
 			data.link,
 			data.usage);
 	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](const Api::JoinedByLinkSlice &slice) {
+	) | rpl::on_next([=](const Api::JoinedByLinkSlice &slice) {
 		auto list = std::vector<HistoryView::UserpicInRow>();
-		list.reserve(slice.users.size());
+		const auto take = std::min(int(slice.users.size()), kMaxShownJoined);
+		list.reserve(take);
 		for (const auto &item : slice.users) {
 			const auto i = ranges::find(
 				state->list,
@@ -1401,6 +1402,9 @@ void AddPermanentLinkBlock(
 			} else {
 				list.push_back({ item.user });
 			}
+			if (list.size() == take) {
+				break;
+			}
 		}
 		state->count = slice.count;
 		state->list = std::move(list);
@@ -1410,7 +1414,7 @@ void AddPermanentLinkBlock(
 	peer->session().downloaderTaskFinished(
 	) | rpl::filter([=] {
 		return !state->allUserpicsLoaded;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		auto pushing = false;
 		state->allUserpicsLoaded = true;
 		for (const auto &element : state->list) {
@@ -1701,7 +1705,7 @@ object_ptr<Ui::BoxContent> ShowInviteLinkBox(
 		not_null<Ui::BoxContent*> box) {
 		rpl::duplicate(
 			data
-		) | rpl::start_with_next([=](const LinkData &link) {
+		) | rpl::on_next([=](const LinkData &link) {
 			if (ClosingLinkBox(link, revoked)) {
 				box->closeBox();
 				return;

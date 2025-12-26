@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reaction_id.h"
 #include "data/stickers/data_custom_emoji.h"
 
+namespace Calls {
+class GroupCall;
+} // namespace Calls
+
 namespace Ui {
 class AnimatedIcon;
 } // namespace Ui
@@ -61,6 +65,8 @@ struct PossibleItemReactions {
 [[nodiscard]] PossibleItemReactionsRef LookupPossibleReactions(
 	not_null<HistoryItem*> item,
 	bool paidInFront = false);
+[[nodiscard]] PossibleItemReactionsRef LookupPossibleReactions(
+	not_null<Main::Session*> session);
 
 struct MyTagInfo {
 	ReactionId id;
@@ -152,10 +158,17 @@ public:
 		SavedSublist *sublist = nullptr);
 
 	[[nodiscard]] bool isQuitPrevent();
+
 	void schedulePaid(not_null<HistoryItem*> item);
 	void undoScheduledPaid(not_null<HistoryItem*> item);
 	[[nodiscard]] crl::time sendingScheduledPaidAt(
 		not_null<HistoryItem*> item) const;
+
+	void schedulePaid(not_null<Calls::GroupCall*> call);
+	void undoScheduledPaid(not_null<Calls::GroupCall*> call);
+	[[nodiscard]] crl::time sendingScheduledPaidAt(
+		not_null<Calls::GroupCall*> call) const;
+
 	[[nodiscard]] static crl::time ScheduledPaidDelay();
 
 	[[nodiscard]] static bool HasUnread(const MTPMessageReactions &data);
@@ -352,6 +365,8 @@ private:
 	base::flat_map<not_null<HistoryItem*>, crl::time> _sendPaidItems;
 	base::flat_map<not_null<HistoryItem*>, mtpRequestId> _sendingPaid;
 	base::Timer _sendPaidTimer;
+
+	base::flat_map<not_null<Calls::GroupCall*>, crl::time> _sendPaidCalls;
 
 	mtpRequestId _saveFaveRequestId = 0;
 

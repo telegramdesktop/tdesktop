@@ -46,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/new_badges.h"
 #include "ui/vertical_list.h"
+#include "ui/controls/swipe_handler.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "api/api_premium.h"
@@ -193,7 +195,7 @@ void AddBusinessSummary(
 		const auto label = content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
-				std::move(entry.title) | Ui::Text::ToBold(),
+				std::move(entry.title) | rpl::map(tr::bold),
 				stLabel),
 			titlePadding);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -212,12 +214,12 @@ void AddBusinessSummary(
 		dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 		content->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
+		) | rpl::on_next([=](const QSize &s) {
 			dummy->resize(s.width(), iconSize.height());
 		}, dummy->lifetime());
 
 		label->geometryValue(
-		) | rpl::start_with_next([=](const QRect &r) {
+		) | rpl::on_next([=](const QRect &r) {
 			dummy->moveToLeft(0, r.y() + (r.height() - labelAscent));
 		}, dummy->lifetime());
 
@@ -225,7 +227,7 @@ void AddBusinessSummary(
 			content->widthValue(),
 			label->heightValue(),
 			description->heightValue()
-		) | rpl::start_with_next([=,
+		) | rpl::on_next([=,
 			topPadding = titlePadding,
 			bottomPadding = descriptionPadding](
 				int width,
@@ -241,7 +243,7 @@ void AddBusinessSummary(
 					+ bottomPadding.bottom());
 		}, button->lifetime());
 		label->topValue(
-		) | rpl::start_with_next([=, padding = titlePadding.top()](int top) {
+		) | rpl::on_next([=, padding = titlePadding.top()](int top) {
 			button->moveToLeft(0, top - padding);
 		}, button->lifetime());
 		const auto arrow = Ui::CreateChild<Ui::IconButton>(
@@ -252,7 +254,7 @@ void AddBusinessSummary(
 			&st::settingsPremiumArrowOver);
 		arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
 		button->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
+		) | rpl::on_next([=](const QSize &s) {
 			const auto &point = st::settingsPremiumArrowShift;
 			arrow->moveToRight(
 				-point.x(),
@@ -346,6 +348,7 @@ public:
 
 private:
 	void setupContent();
+	void setupSwipeBack();
 
 	const not_null<Window::SessionController*> _controller;
 
@@ -372,6 +375,7 @@ Business::Business(
 , _controller(controller)
 , _radioGroup(std::make_shared<Ui::RadiobuttonGroup>()) {
 	setupContent();
+	setupSwipeBack();
 	_controller->session().api().premium().reload();
 }
 
@@ -396,6 +400,46 @@ void Business::setStepDataReference(std::any &data) {
 		) | rpl::map_to(true);
 		_wrap = std::move(my->wrapValue);
 	}
+}
+
+void Business::setupSwipeBack() {
+	using namespace Ui::Controls;
+
+	auto swipeBackData = lifetime().make_state<SwipeBackResult>();
+
+	auto update = [=](SwipeContextData data) {
+		if (data.translation > 0) {
+			if (!swipeBackData->callback) {
+				(*swipeBackData) = SetupSwipeBack(
+					this,
+					[]() -> std::pair<QColor, QColor> {
+						return {
+							st::historyForwardChooseBg->c,
+							st::historyForwardChooseFg->c,
+						};
+					});
+			}
+			swipeBackData->callback(data);
+			return;
+		} else if (swipeBackData->lifetime) {
+			(*swipeBackData) = {};
+		}
+	};
+
+	auto init = [=](int, Qt::LayoutDirection direction) {
+		return (direction == Qt::RightToLeft)
+			? DefaultSwipeBackHandlerFinishData([=] {
+				_showBack.fire({});
+			})
+			: SwipeHandlerFinishData();
+	};
+
+	SetupSwipeHandler({
+		.widget = this,
+		.scroll = v::null,
+		.update = std::move(update),
+		.init = std::move(init),
+	});
 }
 
 void Business::setupContent() {
@@ -472,7 +516,7 @@ void Business::setupContent() {
 			owner->session().user(),
 			Data::PeerUpdate::Flag::FullInfo) | rpl::to_empty,
 		owner->session().api().chatLinks().loadedUpdates()
-	) | rpl::start_with_next(check, content->lifetime());
+	) | rpl::on_next(check, content->lifetime());
 
 	AddBusinessSummary(content, _controller, [=](PremiumFeature feature) {
 		if (!_controller->session().premium()) {
@@ -534,31 +578,30 @@ void Business::setupContent() {
 								lt_emoji,
 								rpl::single(Ui::Text::IconEmoji(
 									&st::textMoreIconEmoji)),
-								Ui::Text::RichLangValue),
+								tr::rich),
 							tr::lng_business_about_sponsored_url()
 						) | rpl::map([](TextWithEntities text, QString url) {
-							return Ui::Text::Link(text, url);
+							return tr::link(text, url);
 						}),
-						Ui::Text::RichLangValue),
+						tr::rich),
 					st::boxDividerLabel),
-				st::defaultBoxDividerLabelPadding,
-				RectPart::Top | RectPart::Bottom));
+				st::defaultBoxDividerLabelPadding));
 		}
 
 		const auto api = inner->lifetime().make_state<Api::SponsoredToggle>(
 			session);
 
 		api->toggled(
-		) | rpl::start_with_next([=](bool enabled) {
+		) | rpl::on_next([=](bool enabled) {
 			button->toggleOn(rpl::single(enabled));
 			wrap->toggle(true, anim::type::instant);
 			loading->toggle(false, anim::type::instant);
 
 			button->toggledChanges(
-			) | rpl::start_with_next([=](bool toggled) {
+			) | rpl::on_next([=](bool toggled) {
 				api->setToggled(
 					toggled
-				) | rpl::start_with_error_done([=](const QString &error) {
+				) | rpl::on_error_done([=](const QString &error) {
 					_controller->showToast(error);
 				}, [] {
 				}, button->lifetime());
@@ -570,7 +613,7 @@ void Business::setupContent() {
 	};
 	Data::AmPremiumValue(
 		&_controller->session()
-	) | rpl::start_with_next([=](bool isPremium) {
+	) | rpl::on_next([=](bool isPremium) {
 		sponsoredWrap->toggle(isPremium, anim::type::normal);
 		if (isPremium) {
 			fillSponsoredWrap();
@@ -586,9 +629,8 @@ base::weak_qptr<Ui::RpWidget> Business::createPinnedToTop(
 	auto about = [&]() -> rpl::producer<TextWithEntities> {
 		return rpl::conditional(
 			Data::AmPremiumValue(&_controller->session()),
-			tr::lng_business_unlocked(),
-			tr::lng_business_about()
-		) | Ui::Text::ToWithEntities();
+			tr::lng_business_unlocked(tr::marked),
+			tr::lng_business_about(tr::marked));
 	}();
 
 	const auto content = [&]() -> Ui::Premium::TopBarAbstract* {
@@ -617,7 +659,7 @@ base::weak_qptr<Ui::RpWidget> Business::createPinnedToTop(
 	};
 
 	_wrap.value(
-	) | rpl::start_with_next([=](Info::Wrap wrap) {
+	) | rpl::on_next([=](Info::Wrap wrap) {
 		content->setRoundEdges(wrap == Info::Wrap::Layer);
 	}, content->lifetime());
 
@@ -627,7 +669,7 @@ base::weak_qptr<Ui::RpWidget> Business::createPinnedToTop(
 	content->resize(content->width(), content->maximumHeight());
 
 	_wrap.value(
-	) | rpl::start_with_next([=](Info::Wrap wrap) {
+	) | rpl::on_next([=](Info::Wrap wrap) {
 		const auto isLayer = (wrap == Info::Wrap::Layer);
 		_back = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
 			content,
@@ -639,13 +681,13 @@ base::weak_qptr<Ui::RpWidget> Business::createPinnedToTop(
 			st::infoTopBarScale);
 		_back->setDuration(0);
 		_back->toggleOn(isLayer
-			? _backToggles.value() | rpl::type_erased()
+			? _backToggles.value() | rpl::type_erased
 			: rpl::single(true));
 		_back->entity()->addClickHandler([=] {
 			_showBack.fire({});
 		});
 		_back->toggledValue(
-		) | rpl::start_with_next([=](bool toggled) {
+		) | rpl::on_next([=](bool toggled) {
 			const auto &st = isLayer ? st::infoLayerTopBar : st::infoTopBar;
 			content->setTextPosition(
 				toggled ? st.back.width : st.titlePosition.x(),
@@ -663,7 +705,7 @@ base::weak_qptr<Ui::RpWidget> Business::createPinnedToTop(
 				_controller->parentController()->hideSpecialLayer();
 			});
 			content->widthValue(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				_close->moveToRight(0, 0);
 			}, _close->lifetime());
 		}
@@ -716,12 +758,12 @@ base::weak_qptr<Ui::RpWidget> Business::createPinnedToBottom(
 	}
 
 	_showFinished.events(
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::on_next([=] {
 		_subscribe->startGlareAnimation();
 	}, _subscribe->lifetime());
 
 	content->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto padding = st::settingsPremiumButtonPadding;
 		_subscribe->resizeToWidth(width - padding.left() - padding.right());
 	}, _subscribe->lifetime());
@@ -730,7 +772,7 @@ base::weak_qptr<Ui::RpWidget> Business::createPinnedToBottom(
 		_subscribe->heightValue(),
 		Data::AmPremiumValue(session),
 		session->premiumPossibleValue()
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			int buttonHeight,
 			bool premium,
 			bool premiumPossible) {

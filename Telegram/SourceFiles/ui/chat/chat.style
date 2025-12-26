@@ -29,6 +29,8 @@ msgShadow: 2px;
 msgSelectionOffset: 30px;
 msgSelectionBottomSkip: 5px;
 
+itemRevealDuration: 150;
+
 historyReplyTop: 2px;
 historyReplyBottom: 2px;
 historyReplyPreview: 32px;
@@ -320,8 +322,6 @@ historyPinOutIcon: icon {{ "history_pin", historyOutIconFg }};
 historyPinOutSelectedIcon: icon {{ "history_pin", historyOutIconFgSelected }};
 historyPinInvertedIcon: icon {{ "history_pin", historySendingInvertedIconFg }};
 
-historySendPadding: 9px;
-historySendRight: 2px;
 historyBotMenuSkip: 8px;
 historyBotMenuMaxWidth: 160px;
 historyBotMenuButton: RoundButton(defaultActiveButton) {
@@ -613,6 +613,10 @@ webPageSponsoredHintFont: font(10px);
 webPageDescriptionFont: normalFont;
 webPageDescriptionStyle: defaultTextStyle;
 webPagePhotoDelta: 8px;
+webPageAuctionTimerPadding: margins(8px, 4px, 8px, 4px);
+webPageAuctionTimeFont: font(11px);
+webPageAuctionSubtextFont: font(12px);
+webPageAuctionPreviewPadding: margins(10px, 30px, 10px, 5px);
 
 historyPollQuestionFont: semiboldFont;
 historyPollQuestionStyle: TextStyle(defaultTextStyle) {
@@ -668,6 +672,7 @@ historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSel
 
 historyChecklistTaskPadding: margins(32px, 12px, 0px, 12px);
 historyChecklistCheckedTop: 4px;
+historyChecklistBottomTop: -4px;
 
 historyViewButtonHeight: 48px;
 historyViewButtonMargins: margins(10px, 5px, 10px, 10px);
@@ -847,31 +852,6 @@ reactionsTabs: MultiSelect(defaultMultiSelect) {
 }
 reactionsTabIconSkip: 3px;
 
-SendAsButton {
-	width: pixels;
-	height: pixels;
-	size: pixels;
-	activeBg: color;
-	activeFg: color;
-	cross: CrossAnimation;
-	duration: int;
-}
-
-sendAsButton: SendAsButton {
-	width: 44px;
-	height: 46px;
-	size: 28px;
-	activeBg: activeButtonBg;
-	activeFg: activeButtonFg;
-	cross: CrossAnimation {
-		size: 28px;
-		skip: 10px;
-		stroke: 1.5;
-		minScale: 0.3;
-	}
-	duration: 150;
-}
-
 reactionInlinePadding: margins(5px, 2px, 7px, 2px);
 reactionInlineSize: 18px;
 reactionInlineImage: 32px;
@@ -882,6 +862,7 @@ reactionInlineTagRightRadius: 3px;
 reactionInlineTagArrow: 5px;
 reactionInlineTagDot: 5px;
 reactionInlineTagDotSkip: 2px;
+reactionInlineEmptySkip: 2px;
 reactionInlineTagFont: font(12px);
 reactionInlineTagNamePosition: point(26px, 2px);
 reactionInlineTagPromoPosition: point(20px, 2px);
@@ -938,14 +919,15 @@ msgServiceGiftPreview: 172px;
 msgServiceGiftBoxSize: size(236px, 231px); // Plus msgServiceGiftBoxTopSkip.
 msgServiceGiftBoxRadius: 20px;
 msgServiceGiftBoxTopSkip: 4px;
-msgServiceGiftBoxButtonHeight: 32px;
-msgServiceGiftBoxButtonPadding: margins(2px, 0px, 2px, 0px);
-msgServiceGiftBoxButtonMargins: margins(0px, 13px, 0px, 17px);
-msgServiceGiftBoxTitlePadding: margins(0px, 20px, 0px, 6px);
+msgServiceGiftBoxButtonHeight: 30px;
+msgServiceGiftBoxButtonPadding: margins(1px, 0px, 1px, 0px);
+msgServiceGiftBoxButtonMargins: margins(0px, 10px, 0px, 20px);
+msgServiceGiftBoxTitlePadding: margins(0px, 24px, 0px, 7px);
+msgServiceGiftBoxBadgeFont: font(11px semibold);
+msgServiceGiftBoxBadgePadding: margins(3px, 2px, 3px, 2px);
 msgServiceGiftBoxStickerTop: -19px;
 msgServiceGiftBoxStickerSize: 140px;
 msgServiceStarGiftBoxWidth: 224px;
-msgServiceStarGiftByWidth: 272px;
 msgServiceStarGiftStickerTop: 24px;
 msgServiceStarGiftStickerSize: 100px;
 msgServiceGiftThemeStickerSize: 64px;
@@ -1125,7 +1107,7 @@ chatIntroWidth: 224px;
 chatIntroTitleMargin: margins(11px, 16px, 11px, 4px);
 chatIntroMargin: margins(11px, 0px, 11px, 0px);
 chatIntroStickerPadding: margins(10px, 8px, 10px, 16px);
-chatGiftPreviewWidth: 264px;
+chatGiftPreviewWidth: 224px;
 
 liveLocationLongInIcon: icon {{ "chat/live_location_long", msgInServiceFg }};
 liveLocationLongInIconSelected: icon {{ "chat/live_location_long", msgInServiceFgSelected }};
@@ -1270,17 +1252,22 @@ botDownloadCancel: IconButton {
 	ripple: defaultRippleAnimationBgOver;
 }
 chatUniqueGiftBorder: 4px;
+chatUniqueGiftBadgePadding: margins(12px, 0px, 12px, 2px);
 
-chatUniqueStickerPadding: margins(10px, 30px, 10px, 9px);
+chatUniqueStickerPadding: margins(10px, 40px, 10px, 9px);
 chatUniquePreviewPadding: margins(10px, 30px, 10px, 32px);
 chatUniqueTitle: TextStyle(defaultTextStyle) {
-	font: font(16px semibold);
+	font: font(15px semibold);
 }
-chatUniqueTitlePadding: margins(12px, 12px, 12px, 2px);
-chatUniqueTextPadding: margins(12px, 2px, 12px, 8px);
+chatUniqueTitlePadding: margins(12px, 8px, 12px, 0px);
+chatUniqueTextPadding: margins(12px, 2px, 12px, 7px);
+chatUniqueTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+}
+chatUniqueAuthorSkip: 6px;
 chatUniqueTableSkip: 9px;
-chatUniqueRowSkip: 4px;
-chatUniqueButtonPadding: margins(12px, 4px, 12px, 16px);
+chatUniqueRowSkip: 2px;
+chatUniqueButtonPadding: margins(12px, 5px, 12px, 26px);
 
 markupWebview: icon {{ "chat/markup_webview", windowFg }};
 
@@ -1389,6 +1376,8 @@ chatTabsOutlineHorizontal: ChatTabsOutline {
 chatTabsOutlineVertical: ChatTabsOutline(chatTabsOutlineHorizontal) {
 }
 
+messageSendingAnimationTextFromOffset: point(-6px, 9px);
+
 suggestPriceBox: Box(defaultBox) {
 	buttonPadding: margins(22px, 22px, 22px, 22px);
 	buttonHeight: 42px;
@@ -1454,3 +1443,19 @@ saveMusicInfoMenu: Menu(defaultMenu) {
 	itemFgOver: windowFg;
 	itemPadding: margins(17px, 4px, 17px, 3px);
 }
+
+newBotThreadDown: icon {{ "history_down_arrow", msgServiceFg }};
+newBotThreadTopSkip: 24px;
+
+birthdaySuggestStickerWidth: 236px;
+birthdaySuggestStickerSize: 96px;
+birthdaySuggestStickerPadding: margins(10px, 16px, 10px, 4px);
+birthdaySuggestTextPadding: margins(10px, 4px, 10px, 8px);
+birthdaySuggestTablePadding: margins(2px, 4px, 2px, 12px);
+birthdaySuggestTableLastPadding: margins(2px, 4px, 2px, 24px);
+birthdaySuggestTableSkip: 2px;
+
+messageGiftIconSkip: 30px;
+
+newChatIcon: icon{{ "chat/new_topic", windowFgActive }};
+newChatIconPadding: margins(2px, 2px, 2px, 2px);

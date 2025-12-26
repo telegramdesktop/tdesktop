@@ -64,6 +64,7 @@ class Window;
 class Userpic;
 class SignalBars;
 class VideoBubble;
+class PanelBackground;
 struct DeviceSelection;
 struct ConferencePanelMigration;
 
@@ -140,6 +141,7 @@ private:
 	void stateChanged(State state);
 	void showControls();
 	void updateStatusText(State state);
+	void updateTextColors();
 	void startDurationUpdateTimer(crl::time currentDuration);
 	void setIncomingSize(QSize size);
 	void refreshIncomingGeometry();
@@ -213,6 +215,8 @@ private:
 	base::Timer _updateOuterRippleTimer;
 
 	rpl::event_stream<bool> _startOutgoingRequests;
+
+	std::unique_ptr<PanelBackground> _background;
 
 	rpl::lifetime _lifetime;
 

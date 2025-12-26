@@ -11,10 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <windows.h>
 
-namespace Data {
-class LocationPoint;
-} // namespace Data
-
 namespace Platform {
 
 inline void IgnoreApplicationActivationRightNow() {
@@ -73,5 +69,3 @@ inline QByteArray psDownloadPathBookmark(const QString &path) {
 }
 inline void psDownloadPathEnableAccess() {
 }
-
-bool psLaunchMaps(const Data::LocationPoint &point);

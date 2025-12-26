@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/integration.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/history.h"
@@ -457,6 +458,13 @@ void Selector::setSpecialExpandTopSkip(int skip) {
 	_specialExpandTopSkip = skip;
 }
 
+void Selector::setBubbleUp(bool bubbleUp) {
+	if (_bubbleUp == bubbleUp) {
+		return;
+	}
+	_bubbleUp = bubbleUp;
+}
+
 void Selector::initGeometry(int innerTop) {
 	const auto margins = marginsForShadow();
 	const auto parent = parentWidget()->rect();
@@ -491,7 +499,10 @@ void Selector::initGeometry(int innerTop) {
 	if (_about) {
 		_about->move(
 			_inner.x() + (_inner.width() - _about->width()) / 2,
-			_outer.y() + margins.top() + _st.aboutPadding.top());
+			_outer.y()
+				+ margins.top()
+				+ _st.aboutPadding.top()
+				- skipYBubbleUpShift());
 		_aboutCache = Ui::GrabWidgetToImage(_about.get());
 	}
 
@@ -568,7 +579,7 @@ void Selector::paintAppearing(QPainter &p) {
 	q.translate(_inner.topLeft() - QPoint(0, _outer.y()));
 	_strip->paint(
 		q,
-		{ _skipx, _skipy },
+		{ _skipx, _skipy - skipYBubbleUpShift() },
 		{ _size, 0 },
 		{ 0, 0, appearedWidth, _inner.height() },
 		1.,
@@ -622,6 +633,12 @@ void Selector::paintBackgroundToBuffer() {
 	_cachedRound.setShadowColor(st::shadowFg->c);
 
 	auto p = QPainter(&_paintBuffer);
+	if (_bubbleUp) {
+		const auto centerY = _paintBuffer.height() / (2. * factor);
+		p.translate(0, centerY);
+		p.scale(1., -1.);
+		p.translate(0, -centerY);
+	}
 	const auto radius = _inner.height() / 2.;
 	const auto frame = _cachedRound.validateFrame(0, 1., radius);
 	const auto outer = _outer.translated(0, -_outer.y());
@@ -630,6 +647,13 @@ void Selector::paintBackgroundToBuffer() {
 		p.fillRect(fill, _st.bg);
 	}
 	paintBubble(p, _inner.width());
+}
+
+int Selector::skipYBubbleUpShift() const {
+	if (!_bubbleUp) {
+		return 0;
+	}
+	return -_st.icons.stripBubble.height() + marginsForShadow().bottom();
 }
 
 void Selector::paintCollapsed(QPainter &p) {
@@ -645,7 +669,7 @@ void Selector::paintCollapsed(QPainter &p) {
 	}
 	_strip->paint(
 		p,
-		_inner.topLeft() + QPoint(_skipx, _skipy),
+		_inner.topLeft() + QPoint(_skipx, _skipy - skipYBubbleUpShift()),
 		{ _size, 0 },
 		_inner,
 		1.,
@@ -764,7 +788,7 @@ void Selector::paintFadingExpandIcon(QPainter &p, float64 progress) {
 	const auto expandIconRect = QRect(
 		expandIconPosition,
 		QSize(_size, _size)
-	).marginsRemoved({ sub, sub, sub, sub });
+	).marginsRemoved(Margins(sub)).translated(0, -skipYBubbleUpShift());
 	p.drawImage(expandIconRect, _expandIconCache);
 	p.setOpacity(1.);
 }
@@ -1051,6 +1075,8 @@ void Selector::createList() {
 			.customRecentFactory = _unifiedFactoryOwner->factory(),
 			.freeEffects = std::move(freeEffects),
 			.st = st,
+			.mediaPreviewParent = this,
+			.mediaPreviewMargins = marginsForShadow(),
 		}));
 	if (!_reactions.stickers.empty()) {
 		auto descriptors = ranges::views::all(
@@ -1080,7 +1106,7 @@ void Selector::createList() {
 		(_stickers
 			? _stickers->chosen()
 			: rpl::never<ChatHelpers::FileChosen>())
-	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
+	) | rpl::on_next([=](ChatHelpers::FileChosen data) {
 		_chosen.fire({
 			.id = _unifiedFactoryOwner->lookupReactionId(data.document->id),
 			.icon = data.messageSendingFrom.frame,
@@ -1089,7 +1115,7 @@ void Selector::createList() {
 	}, _list->lifetime());
 
 	_list->jumpedToPremium(
-	) | rpl::start_with_next(_jumpedToPremium, _list->lifetime());
+	) | rpl::on_next(_jumpedToPremium, _list->lifetime());
 
 	const auto inner = rect().marginsRemoved(marginsForShadow());
 	const auto footer = _reactions.customAllowed
@@ -1109,7 +1135,7 @@ void Selector::createList() {
 		rpl::combine(
 			_shadowTop.value(),
 			_shadowSkip.value()
-		) | rpl::start_with_next([=](int top, int skip) {
+		) | rpl::on_next([=](int top, int skip) {
 			_shadow->setGeometry(
 				inner.x() + skip,
 				top,
@@ -1130,10 +1156,10 @@ void Selector::createList() {
 		lists->setVisibleTopBottom(scrollTop, scrollBottom);
 	};
 	_scroll->scrollTopChanges(
-	) | rpl::start_with_next(updateVisibleTopBottom, lists->lifetime());
+	) | rpl::on_next(updateVisibleTopBottom, lists->lifetime());
 
 	_list->scrollToRequests(
-	) | rpl::start_with_next([=](int y) {
+	) | rpl::on_next([=](int y) {
 		_scroll->scrollToY(y);
 		if (_shadow) {
 			_shadow->update();
@@ -1151,28 +1177,28 @@ void Selector::createList() {
 		_stickers->setMinimalHeight(geometry.width(), 0);
 
 		_list->searchQueries(
-		) | rpl::start_with_next([=](std::vector<QString> &&query) {
+		) | rpl::on_next([=](std::vector<QString> &&query) {
 			_stickers->applySearchQuery(std::move(query));
 		}, _stickers->lifetime());
 
 		rpl::combine(
 			_list->heightValue(),
 			_stickers->heightValue()
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			InvokeQueued(lists, updateVisibleTopBottom);
 		}, _stickers->lifetime());
 
 		rpl::combine(
 			_list->recentShownCount(),
 			_stickers->recentShownCount()
-		) | rpl::start_with_next([=](int emoji, int stickers) {
+		) | rpl::on_next([=](int emoji, int stickers) {
 			_showEmptySearch = !emoji && !stickers;
 			_scroll->update();
 		}, _scroll->lifetime());
 
 		_scroll->paintRequest() | rpl::filter([=] {
 			return _showEmptySearch;
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			auto p = QPainter(_scroll);
 			p.setPen(st::windowSubTextFg);
 			p.setFont(st::normalFont);
@@ -1300,7 +1326,7 @@ AttachSelectorResult MakeJustSelectorMenu(
 	const auto selectorInnerTop = menu->preparedPadding().top()
 		- st::reactStripExtend.top();
 	menu->animatePhaseValue(
-	) | rpl::start_with_next([=](Ui::PopupMenu::AnimatePhase phase) {
+	) | rpl::on_next([=](Ui::PopupMenu::AnimatePhase phase) {
 		if (phase == Ui::PopupMenu::AnimatePhase::StartHide) {
 			selector->beforeDestroy();
 		}
@@ -1308,14 +1334,14 @@ AttachSelectorResult MakeJustSelectorMenu(
 	selector->initGeometry(selectorInnerTop);
 	selector->show();
 
-	selector->chosen() | rpl::start_with_next([=](ChosenReaction reaction) {
+	selector->chosen() | rpl::on_next([=](ChosenReaction reaction) {
 		menu->hideMenu();
 		chosen(std::move(reaction));
 	}, selector->lifetime());
 
 	const auto correctTop = selector->y();
 	menu->showStateValue(
-	) | rpl::start_with_next([=](Ui::PopupMenu::ShowState state) {
+	) | rpl::on_next([=](Ui::PopupMenu::ShowState state) {
 		const auto origin = menu->preparedOrigin();
 		using Origin = Ui::PanelAnimation::Origin;
 		if (origin == Origin::BottomLeft || origin == Origin::BottomRight) {
@@ -1369,13 +1395,13 @@ AttachSelectorResult AttachSelectorToMenu(
 	const auto selector = *result;
 	const auto itemId = item->fullId();
 
-	selector->chosen() | rpl::start_with_next([=](ChosenReaction reaction) {
+	selector->chosen() | rpl::on_next([=](ChosenReaction reaction) {
 		menu->hideMenu();
 		reaction.context = itemId;
 		chosen(std::move(reaction));
 	}, selector->lifetime());
 
-	selector->escapes() | rpl::start_with_next([=] {
+	selector->escapes() | rpl::on_next([=] {
 		menu->hideMenu();
 	}, selector->lifetime());
 
@@ -1426,7 +1452,7 @@ auto AttachSelectorToMenu(
 		? (menu->preparedPadding().top() - st::reactStripExtend.top())
 		: st::lineWidth;
 	menu->animatePhaseValue(
-	) | rpl::start_with_next([=](Ui::PopupMenu::AnimatePhase phase) {
+	) | rpl::on_next([=](Ui::PopupMenu::AnimatePhase phase) {
 		if (phase == Ui::PopupMenu::AnimatePhase::StartHide) {
 			selector->beforeDestroy();
 		}
@@ -1436,7 +1462,7 @@ auto AttachSelectorToMenu(
 
 	const auto correctTop = selector->y();
 	menu->showStateValue(
-	) | rpl::start_with_next([=](Ui::PopupMenu::ShowState state) {
+	) | rpl::on_next([=](Ui::PopupMenu::ShowState state) {
 		const auto origin = menu->preparedOrigin();
 		using Origin = Ui::PanelAnimation::Origin;
 		if (origin == Origin::BottomLeft || origin == Origin::BottomRight) {
@@ -1465,10 +1491,10 @@ TextWithEntities ItemReactionsAbout(not_null<HistoryItem*> item) {
 		: tr::lng_subscribe_tag_about(
 			tr::now,
 			lt_link,
-			Ui::Text::Link(
+			tr::link(
 				tr::lng_subscribe_tag_link(tr::now),
 				u"internal:about_tags"_q),
-			Ui::Text::WithEntities);
+			tr::marked);
 }
 
 } // namespace HistoryView::Reactions

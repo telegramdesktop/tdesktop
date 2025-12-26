@@ -7,19 +7,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Main {
+class Session;
+} // namespace Main
+
+namespace Ui {
+struct ColorCollectible;
+} // namespace Ui
+
 namespace Data {
 
 struct UniqueGiftAttribute {
 	QString name;
 	int rarityPermille = 0;
+
+	friend inline bool operator==(
+		const UniqueGiftAttribute &,
+		const UniqueGiftAttribute &) = default;
 };
 
 struct UniqueGiftModel : UniqueGiftAttribute {
 	not_null<DocumentData*> document;
+
+	friend inline bool operator==(
+		const UniqueGiftModel &,
+		const UniqueGiftModel &) = default;
 };
 
 struct UniqueGiftPattern : UniqueGiftAttribute {
 	not_null<DocumentData*> document;
+
+	friend inline bool operator==(
+		const UniqueGiftPattern &,
+		const UniqueGiftPattern &) = default;
 };
 
 struct UniqueGiftBackdrop : UniqueGiftAttribute {
@@ -28,6 +48,16 @@ struct UniqueGiftBackdrop : UniqueGiftAttribute {
 	QColor patternColor;
 	QColor textColor;
 	int id = 0;
+
+	friend inline bool operator==(
+		const UniqueGiftBackdrop &,
+		const UniqueGiftBackdrop &) = default;
+};
+
+struct UniqueGiftAttributes {
+	std::vector<UniqueGiftModel> models;
+	std::vector<UniqueGiftBackdrop> backdrops;
+	std::vector<UniqueGiftPattern> patterns;
 };
 
 struct UniqueGiftOriginalDetails {
@@ -40,6 +70,7 @@ struct UniqueGiftOriginalDetails {
 struct UniqueGiftValue {
 	QString currency;
 	int64 valuePrice = 0;
+	int64 valuePriceUsd = 0;
 	CreditsAmount initialPriceStars;
 	int64 initialSalePrice = 0;
 	TimeId initialSaleDate = 0;
@@ -58,14 +89,17 @@ struct UniqueGift {
 	uint64 initialGiftId = 0;
 	QString slug;
 	QString title;
+	QString giftAddress;
 	QString ownerAddress;
 	QString ownerName;
 	PeerId ownerId = 0;
+	PeerId hostId = 0;
 	PeerData *releasedBy = nullptr;
 	PeerData *themeUser = nullptr;
 	int64 nanoTonForResale = -1;
 	int starsForResale = -1;
 	int starsForTransfer = -1;
+	int starsMinOffer = -1;
 	int number = 0;
 	bool onlyAcceptTon = false;
 	bool canBeTheme = false;
@@ -77,9 +111,11 @@ struct UniqueGift {
 	UniqueGiftBackdrop backdrop;
 	UniqueGiftOriginalDetails originalDetails;
 	std::shared_ptr<UniqueGiftValue> value;
+	std::shared_ptr<Ui::ColorCollectible> peerColor;
 };
 
 [[nodiscard]] QString UniqueGiftName(const UniqueGift &gift);
+[[nodiscard]] QString UniqueGiftName(const QString &title, int number);
 
 [[nodiscard]] CreditsAmount UniqueGiftResaleStars(const UniqueGift &gift);
 [[nodiscard]] CreditsAmount UniqueGiftResaleTon(const UniqueGift &gift);
@@ -89,9 +125,25 @@ struct UniqueGift {
 [[nodiscard]] TextWithEntities FormatGiftResaleTon(const UniqueGift &gift);
 [[nodiscard]] TextWithEntities FormatGiftResaleAsked(const UniqueGift &gift);
 
+struct StarGiftBackground {
+	QColor center;
+	QColor edge;
+	QColor text;
+
+	[[nodiscard]] UniqueGiftBackdrop backdrop() const {
+		return {
+			.centerColor = center,
+			.edgeColor = edge,
+			.patternColor = edge,
+			.textColor = text,
+		};
+	}
+};
+
 struct StarGift {
 	uint64 id = 0;
 	std::shared_ptr<UniqueGift> unique;
+	std::shared_ptr<StarGiftBackground> background;
 	int64 stars = 0;
 	int64 starsConverted = 0;
 	int64 starsToUpgrade = 0;
@@ -100,18 +152,27 @@ struct StarGift {
 	PeerData *releasedBy = nullptr;
 	QString resellTitle;
 	int resellCount = 0;
+	QString auctionSlug;
+	int auctionGiftsPerRound = 0;
+	TimeId auctionStartDate = 0;
 	int limitedLeft = 0;
 	int limitedCount = 0;
 	int perUserTotal = 0;
 	int perUserRemains = 0;
+	int upgradeVariants = 0;
 	TimeId firstSaleDate = 0;
 	TimeId lastSaleDate = 0;
 	TimeId lockedUntilDate = 0;
 	bool resellTonOnly : 1 = false;
 	bool requirePremium : 1 = false;
+	bool peerColorAvailable : 1 = false;
 	bool upgradable : 1 = false;
 	bool birthday : 1 = false;
 	bool soldOut : 1 = false;
+
+	[[nodiscard]] bool auction() const {
+		return !auctionSlug.isEmpty();
+	}
 
 	friend inline bool operator==(
 		const StarGift &,
@@ -175,15 +236,47 @@ struct SavedStarGift {
 	TextWithEntities message;
 	int64 starsConverted = 0;
 	int64 starsUpgradedBySender = 0;
+	int64 starsForDetailsRemove = 0;
 	QString giftPrepayUpgradeHash;
 	PeerId fromId = 0;
 	TimeId date = 0;
+	int giftNum = 0;
 	bool upgradeSeparate = false;
 	bool upgradable = false;
 	bool anonymous = false;
 	bool pinned = false;
 	bool hidden = false;
 	bool mine = false;
+};
+
+struct GiftUpgradeSpinner {
+	enum class State {
+		Initial, // Didn't start the upgrade.
+		Preparing, // Upgraded, requested Cover to prepare the spinners.
+		Loading, // Cover started preparing the spinners.
+		Prepared, // Cover prepared the spinners, waiting for nextToUpgrade.
+		Started, // Started spinning animations.
+		FinishBackdrop, // Ready to animate to target backdrop.
+		FinishedBackdrop, // Backdrop finishes spinning.
+		FinishPattern, // Ready to animate to target pattern.
+		FinishedPattern, // Pattern finishes spinning.
+		FinishModel, // Ready to animate to target model.
+		FinishedModel, // All spinners finish animating or user pressed Skip.
+		Finished, // Animations finished, show fireworks.
+		Timeout, // Waited for Prepared for too long, skipping animations.
+	};
+
+	Data::UniqueGiftAttributes attributes;
+	std::shared_ptr<Data::UniqueGift> target;
+	rpl::variable<State> state;
+};
+
+struct GiftUpgradeResult {
+	StarGift info;
+	SavedStarGiftId manageId;
+	TimeId date = 0;
+	int starsForDetailsRemove = 0;
+	bool saved = false;
 };
 
 struct GiftCollection {
@@ -193,5 +286,92 @@ struct GiftCollection {
 	DocumentData *icon = nullptr;
 	uint64 hash = 0;
 };
+
+struct UniqueGiftModelCount {
+	UniqueGiftModel model;
+	int count = 0;
+};
+
+struct UniqueGiftBackdropCount {
+	UniqueGiftBackdrop backdrop;
+	int count = 0;
+};
+
+struct UniqueGiftPatternCount {
+	UniqueGiftPattern pattern;
+	int count = 0;
+};
+
+enum class ResaleGiftsSort {
+	Date,
+	Price,
+	Number,
+};
+
+enum class GiftAttributeIdType {
+	Model,
+	Pattern,
+	Backdrop,
+};
+
+struct GiftAttributeId {
+	uint64 value = 0;
+	GiftAttributeIdType type = GiftAttributeIdType::Model;
+
+	friend inline auto operator<=>(
+		GiftAttributeId,
+		GiftAttributeId) = default;
+	friend inline bool operator==(
+		GiftAttributeId,
+		GiftAttributeId) = default;
+};
+
+[[nodiscard]] GiftAttributeId IdFor(const UniqueGiftBackdrop &value);
+[[nodiscard]] GiftAttributeId IdFor(const UniqueGiftModel &value);
+[[nodiscard]] GiftAttributeId IdFor(const UniqueGiftPattern &value);
+
+struct MyGiftsDescriptor {
+	std::vector<SavedStarGift> list;
+	QString offset;
+};
+
+enum class MyUniqueType {
+	OwnedAndHosted,
+	OnlyOwned,
+};
+
+[[nodiscard]] rpl::producer<MyGiftsDescriptor> MyUniqueGiftsSlice(
+	not_null<Main::Session*> session,
+	MyUniqueType type,
+	QString offset = QString());
+
+struct ResaleGiftsDescriptor {
+	uint64 giftId = 0;
+	QString title;
+	QString offset;
+	std::vector<StarGift> list;
+	std::vector<UniqueGiftModelCount> models;
+	std::vector<UniqueGiftBackdropCount> backdrops;
+	std::vector<UniqueGiftPatternCount> patterns;
+	uint64 attributesHash = 0;
+	int count = 0;
+	ResaleGiftsSort sort = ResaleGiftsSort::Date;
+};
+
+struct ResaleGiftsFilter {
+	uint64 attributesHash = 0;
+	base::flat_set<GiftAttributeId> attributes;
+	ResaleGiftsSort sort = ResaleGiftsSort::Price;
+
+	friend inline bool operator==(
+		const ResaleGiftsFilter &,
+		const ResaleGiftsFilter &) = default;
+};
+
+[[nodiscard]] rpl::producer<ResaleGiftsDescriptor> ResaleGiftsSlice(
+	not_null<Main::Session*> session,
+	uint64 giftId,
+	ResaleGiftsFilter filter = {},
+	QString offset = QString());
 
 } // namespace Data

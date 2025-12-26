@@ -24,14 +24,8 @@ extern "C" {
 #include <libavutil/version.h>
 } // extern "C"
 
-#define DA_FFMPEG_NEW_CHANNEL_LAYOUT (LIBAVUTIL_VERSION_INT >= \
-	AV_VERSION_INT(57, 28, 100))
-
 #define DA_FFMPEG_CONST_WRITE_CALLBACK (LIBAVFORMAT_VERSION_INT >= \
 	AV_VERSION_INT(61, 01, 100))
-
-#define DA_FFMPEG_HAVE_DURATION (LIBAVUTIL_VERSION_INT >= \
-	AV_VERSION_INT(58, 02, 100))
 
 class QImage;
 
@@ -203,18 +197,10 @@ struct SwresampleDeleter {
 };
 using SwresamplePointer = std::unique_ptr<SwrContext, SwresampleDeleter>;
 [[nodiscard]] SwresamplePointer MakeSwresamplePointer(
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	AVChannelLayout *srcLayout,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-	uint64_t srcLayout,
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	AVSampleFormat srcFormat,
 	int srcRate,
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	AVChannelLayout *dstLayout,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-	uint64_t dstLayout,
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	AVSampleFormat dstFormat,
 	int dstRate,
 	SwresamplePointer *existing = nullptr);

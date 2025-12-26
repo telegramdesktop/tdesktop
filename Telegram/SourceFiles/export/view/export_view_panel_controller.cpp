@@ -68,7 +68,7 @@ void SuggestBox::prepare() {
 		tr::lng_export_suggest_text(tr::now),
 		st::boxLabel);
 	widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto contentWidth = width
 			- st::boxPadding.left()
 			- st::boxPadding.right();
@@ -76,7 +76,7 @@ void SuggestBox::prepare() {
 		content->moveToLeft(st::boxPadding.left(), 0);
 	}, content->lifetime());
 	content->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setDimensions(st::boxWidth, height + st::boxPadding.bottom());
 	}, content->lifetime());
 }
@@ -146,7 +146,7 @@ PanelController::PanelController(
 	ResolveSettings(session, *_settings);
 
 	_process->state(
-	) | rpl::start_with_next([=](State &&state) {
+	) | rpl::on_next([=](State &&state) {
 		updateState(std::move(state));
 	}, _lifetime);
 }
@@ -168,15 +168,18 @@ void PanelController::activatePanel() {
 
 void PanelController::createPanel() {
 	const auto singlePeer = _settings->onlySinglePeer();
+	const auto singleTopic = _settings->onlySingleTopic();
 	_panel = base::make_unique_q<Ui::SeparatePanel>(Ui::SeparatePanelArgs{
 		.onAllSpaces = true,
 	});
-	_panel->setTitle((singlePeer
+	_panel->setTitle((singleTopic
+		? tr::lng_export_header_topic
+		: singlePeer
 		? tr::lng_export_header_chats
 		: tr::lng_export_title)());
 	_panel->setInnerSize(st::exportPanelSize);
 	_panel->closeRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		LOG(("Export Info: Panel Hide By Close."));
 		_panel->hideGetDuration();
 	}, _panel->lifetime());
@@ -198,19 +201,19 @@ void PanelController::showSettings() {
 	});
 
 	settings->startClicks(
-	) | rpl::start_with_next([=]() {
+	) | rpl::on_next([=]() {
 		showProgress();
 		_process->startExport(*_settings, PrepareEnvironment(_session));
 	}, settings->lifetime());
 
 	settings->cancelClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		LOG(("Export Info: Panel Hide By Cancel."));
 		_panel->hideGetDuration();
 	}, settings->lifetime());
 
 	settings->changes(
-	) | rpl::start_with_next([=](Settings &&settings) {
+	) | rpl::on_next([=](Settings &&settings) {
 		*_settings = std::move(settings);
 	}, settings->lifetime());
 
@@ -267,7 +270,7 @@ void PanelController::showCriticalError(const QString &text) {
 			st::exportErrorLabel),
 		style::margins(0, st::exportPanelSize.height() / 4, 0, 0));
 	container->widthValue(
-	) | rpl::start_with_next([label = container->entity()](int width) {
+	) | rpl::on_next([label = container->entity()](int width) {
 		label->resize(width, label->height());
 	}, container->lifetime());
 
@@ -286,7 +289,7 @@ void PanelController::showError(const QString &text) {
 	weak->setCloseByEscape(false);
 	weak->setCloseByOutsideClick(false);
 	weak->boxClosing(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		LOG(("Export Info: Panel Hide By Error: %1.").arg(text));
 		_panel->hideGetDuration();
 	}, weak->lifetime());
@@ -309,17 +312,17 @@ void PanelController::showProgress() {
 		) | rpl::then(progressState()));
 
 	progress->skipFileClicks(
-	) | rpl::start_with_next([=](uint64 randomId) {
+	) | rpl::on_next([=](uint64 randomId) {
 		_process->skipFile(randomId);
 	}, progress->lifetime());
 
 	progress->cancelClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		stopWithConfirmation();
 	}, progress->lifetime());
 
 	progress->doneClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (const auto finished = std::get_if<FinishedState>(&_state)) {
 			File::ShowInFolder(finished->path);
 			LOG(("Export Info: Panel Hide By Done: %1."

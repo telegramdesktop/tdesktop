@@ -468,7 +468,8 @@ private:
 	History *_migrated = nullptr;
 	HistoryView::ElementDelegate *_migratedElementDelegate = nullptr;
 	int _contentWidth = 0;
-	int _historyPaddingTop = 0;
+	int _historyMarginTop = 0;
+	int _historyMarginBottom = 0;
 	int _revealHeight = 0;
 	int _forumThreadBarWidth = 0;
 	Ui::PeerUserpicView _forumThreadBarUserpicView;

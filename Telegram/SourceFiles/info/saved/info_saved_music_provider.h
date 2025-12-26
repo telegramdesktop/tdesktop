@@ -96,6 +96,7 @@ private:
 		not_null<const Media::BaseLayout*> item,
 		not_null<const Media::BaseLayout*> previous) override;
 
+	void itemRemoved(not_null<const HistoryItem*> item);
 	void markLayoutsStale();
 	void clearStaleLayouts();
 	void clear();
@@ -115,7 +116,9 @@ private:
 	int _idsLimit = kMinimalIdsLimit;
 	Data::SavedMusicSlice _slice;
 
-	std::unordered_map<not_null<HistoryItem*>, Media::CachedItem> _layouts;
+	std::unordered_map<
+		not_null<const HistoryItem*>,
+		Media::CachedItem> _layouts;
 	rpl::event_stream<not_null<Media::BaseLayout*>> _layoutRemoved;
 	rpl::event_stream<> _refreshed;
 

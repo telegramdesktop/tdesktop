@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "ui/unread_badge_paint.h"
 #include "styles/style_dialogs.h"
@@ -106,12 +107,23 @@ void DrawTextBadge(
 	p.setBrush(Qt::NoBrush);
 	p.drawRoundedRect(rect, st::dialogsScamRadius, st::dialogsScamRadius);
 	p.setFont(st::dialogsScamFont);
-	p.drawTextLeft(
-		rect.x() + st::dialogsScamPadding.left(),
-		rect.y() + st::dialogsScamPadding.top(),
-		outerWidth,
-		phrase,
-		phraseWidth);
+	if (style::DevicePixelRatio() > 1) {
+		p.drawText(
+			QRect(
+				rect.x() + st::dialogsScamPadding.left(),
+				rect.y() + st::dialogsScamPadding.top(),
+				rect.width() - rect::m::sum::h(st::dialogsScamPadding),
+				rect.height() - rect::m::sum::v(st::dialogsScamPadding)),
+			Qt::AlignCenter,
+			phrase);
+	} else {
+		p.drawTextLeft(
+			rect.x() + st::dialogsScamPadding.left(),
+			rect.y() + st::dialogsScamPadding.top(),
+			outerWidth,
+			phrase,
+			phraseWidth);
+	}
 }
 
 void DrawTextBadge(

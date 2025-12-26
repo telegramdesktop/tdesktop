@@ -60,7 +60,7 @@ Duisauteiruredolorinreprehenderitinvoluptate.");
 	//data.append("hi\n\nguys");
 	text->setMarkedText(st::defaultTextStyle, data);
 
-	body->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	body->paintRequest() | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(body);
 		auto hq = PainterHighQualityEnabler(p);
 

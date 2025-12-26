@@ -129,15 +129,15 @@ FixedBar::FixedBar(
 	_field->hide();
 	_filter->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_field->cancelled(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		cancelSearch();
 	}, _field->lifetime());
 	_field->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		searchUpdated();
 	}, _field->lifetime());
 	_field->submits(
-	) | rpl::start_with_next([=] { applySearch(); }, _field->lifetime());
+	) | rpl::on_next([=] { applySearch(); }, _field->lifetime());
 	_searchTimer.setCallback([=] { applySearch(); });
 
 	_cancel->hide(anim::type::instant);
@@ -296,15 +296,15 @@ Widget::Widget(
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->showFilterRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		showFilter();
 	}, lifetime());
 	_fixedBar->searchCancelRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		setInnerFocus();
 	}, lifetime());
 	_fixedBar->searchRequests(
-	) | rpl::start_with_next([=](const QString &query) {
+	) | rpl::on_next([=](const QString &query) {
 		_inner->applySearch(query);
 	}, lifetime());
 	_fixedBar->show();
@@ -312,28 +312,28 @@ Widget::Widget(
 	_fixedBarShadow->raise();
 
 	controller->adaptive().value(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateAdaptiveLayout();
 	}, lifetime());
 
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, channel));
 	_inner->showSearchSignal(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_fixedBar->showSearch();
 	}, lifetime());
 	_inner->cancelSignal(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_fixedBar->goBack();
 	}, lifetime());
 	_inner->scrollToSignal(
-	) | rpl::start_with_next([=](int top) {
+	) | rpl::on_next([=](int top) {
 		_scroll->scrollToY(top);
 	}, lifetime());
 
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
 	_scroll->scrolls(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		onScroll();
 	}, lifetime());
 
@@ -411,7 +411,7 @@ void Widget::setupShortcuts() {
 			&& Ui::InFocusChain(this)
 			&& !controller()->isLayerShown()
 			&& isActiveWindow();
-	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	}) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(Command::Search, 2) && request->handle([=] {
 			_fixedBar->showSearch();

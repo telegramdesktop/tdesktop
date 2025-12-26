@@ -66,9 +66,9 @@ struct Changes {
 		not_null<HistoryItem*> changed,
 		HistoryItem *original) {
 	const auto wasSuggest = original
-		? original->Get<HistoryMessageSuggestedPost>()
+		? original->Get<HistoryMessageSuggestion>()
 		: nullptr;
-	const auto nowSuggest = changed->Get<HistoryMessageSuggestedPost>();
+	const auto nowSuggest = changed->Get<HistoryMessageSuggestion>();
 	if (!wasSuggest || !nowSuggest) {
 		return {};
 	}
@@ -150,7 +150,7 @@ auto GenerateSuggestDecisionMedia(
 							? tr::lng_suggest_action_his_not_enough_ton
 							: tr::lng_suggest_action_his_not_enough_stars))(
 							tr::now,
-							Ui::Text::RichLangValue)),
+							tr::rich)),
 				st::chatSuggestInfoFullMargin,
 				style::al_top);
 		} else if (decision->rejected) {
@@ -163,8 +163,8 @@ auto GenerateSuggestDecisionMedia(
 						: tr::lng_suggest_action_declined)(
 							tr::now,
 							lt_from,
-							Ui::Text::Bold(broadcast->name()),
-							Ui::Text::WithEntities)),
+							tr::bold(broadcast->name()),
+							tr::marked)),
 				(withComment
 					? st::chatSuggestInfoTitleMargin
 					: st::chatSuggestInfoFullMargin));
@@ -186,7 +186,7 @@ auto GenerateSuggestDecisionMedia(
 			pushText(
 				TextWithEntities(
 				).append(Emoji(kAgreement)).append(' ').append(
-					Ui::Text::Bold(tr::lng_suggest_action_agreement(tr::now))
+					tr::bold(tr::lng_suggest_action_agreement(tr::now))
 				),
 				st::chatSuggestInfoTitleMargin,
 				style::al_top);
@@ -197,9 +197,9 @@ auto GenerateSuggestDecisionMedia(
 					tr::lng_suggest_action_agree_date(
 						tr::now,
 						lt_channel,
-						Ui::Text::Bold(broadcast->name()),
+						tr::bold(broadcast->name()),
 						lt_date,
-						Ui::Text::Bold(tr::lng_mediaview_date_time(
+						tr::bold(tr::lng_mediaview_date_time(
 							tr::now,
 							lt_date,
 							QLocale().toString(
@@ -209,7 +209,7 @@ auto GenerateSuggestDecisionMedia(
 							QLocale().toString(
 								date.time(),
 								QLocale::ShortFormat))),
-						Ui::Text::WithEntities)),
+						tr::marked)),
 				(price
 					? st::chatSuggestInfoMiddleMargin
 					: st::chatSuggestInfoLastMargin));
@@ -224,7 +224,7 @@ auto GenerateSuggestDecisionMedia(
 									tr::now,
 									lt_count_decimal,
 									price.value(),
-									Ui::Text::RichLangValue)
+									tr::rich)
 							: (price.stars()
 								? tr::lng_suggest_action_his_charged_stars
 								: tr::lng_suggest_action_his_charged_ton)(
@@ -232,8 +232,8 @@ auto GenerateSuggestDecisionMedia(
 									lt_count_decimal,
 									price.value(),
 									lt_from,
-									Ui::Text::Bold(sublistPeer->shortName()),
-									Ui::Text::RichLangValue))),
+									tr::bold(sublistPeer->shortName()),
+									tr::rich))),
 					st::chatSuggestInfoMiddleMargin);
 
 				pushText(
@@ -244,8 +244,8 @@ auto GenerateSuggestDecisionMedia(
 							: tr::lng_suggest_action_agree_receive_stars)(
 							tr::now,
 							lt_channel,
-							Ui::Text::Bold(broadcast->name()),
-							Ui::Text::WithEntities)),
+							tr::bold(broadcast->name()),
+							tr::marked)),
 					st::chatSuggestInfoMiddleMargin);
 
 				pushText(
@@ -256,8 +256,8 @@ auto GenerateSuggestDecisionMedia(
 							: tr::lng_suggest_action_agree_removed_stars)(
 							tr::now,
 							lt_channel,
-							Ui::Text::Bold(broadcast->name()),
-							Ui::Text::WithEntities)),
+							tr::bold(broadcast->name()),
+							tr::marked)),
 					st::chatSuggestInfoLastMargin);
 			}
 		}
@@ -266,7 +266,7 @@ auto GenerateSuggestDecisionMedia(
 
 auto GenerateSuggestRequestMedia(
 	not_null<Element*> parent,
-	not_null<const HistoryMessageSuggestedPost*> suggest)
+	not_null<const HistoryMessageSuggestion*> suggest)
 	-> Fn<void(
 		not_null<MediaGeneric*>,
 		Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
@@ -307,7 +307,7 @@ auto GenerateSuggestRequestMedia(
 			((!changes && from->isSelf())
 				? tr::lng_suggest_action_your(
 					tr::now,
-					Ui::Text::WithEntities)
+					tr::marked)
 				: (!changes
 					? tr::lng_suggest_action_his
 					: changes->message
@@ -319,8 +319,8 @@ auto GenerateSuggestRequestMedia(
 					: tr::lng_suggest_change_time)(
 						tr::now,
 						lt_from,
-						Ui::Text::Bold(from->shortName()),
-						Ui::Text::WithEntities)),
+						tr::bold(from->shortName()),
+						tr::marked)),
 			st::chatSuggestInfoTitleMargin,
 			style::al_top);
 
@@ -329,7 +329,7 @@ auto GenerateSuggestRequestMedia(
 			((changes && changes->price)
 				? tr::lng_suggest_change_price_label
 				: tr::lng_suggest_action_price_label)(tr::now),
-			Ui::Text::Bold(!suggest->price
+			tr::bold(!suggest->price
 				? tr::lng_suggest_action_price_free(tr::now)
 				: suggest->price.stars()
 				? tr::lng_suggest_stars_amount(
@@ -345,7 +345,7 @@ auto GenerateSuggestRequestMedia(
 			((changes && changes->date)
 				? tr::lng_suggest_change_time_label
 				: tr::lng_suggest_action_time_label)(tr::now),
-			Ui::Text::Bold(suggest->date
+			tr::bold(suggest->date
 				? Ui::FormatDateTime(base::unixtime::parse(suggest->date))
 				: tr::lng_suggest_action_time_any(tr::now)),
 		});
@@ -360,7 +360,7 @@ auto GenerateSuggestRequestMedia(
 			push(std::make_unique<TextPartColored>(
 				tr::lng_suggest_change_text_label(
 					tr::now,
-					Ui::Text::WithEntities),
+					tr::marked),
 				st::chatSuggestInfoLastMargin,
 				fadedFg));
 		}

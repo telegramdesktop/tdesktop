@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "media/stories/media_stories_view.h"
 #include "media/streaming/media_streaming_common.h"
+#include "media/view/media_view_video_stream.h"
 #include "platform/platform_overlay_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "core/crash_reports.h"
@@ -109,7 +110,7 @@ float roundedCorner() {
 OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 : _owner(owner) {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_controlsFadeImage.invalidate();
 		_radialImage.invalidate();
 		_documentBubbleImage.invalidate();
@@ -122,11 +123,11 @@ OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 
 	crl::on_main(this, [=] {
 		_owner->_storiesChanged.events(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (_owner->_storiesSession) {
 				Data::AmPremiumValue(
 					_owner->_storiesSession
-				) | rpl::start_with_next([=] {
+				) | rpl::on_next([=] {
 					invalidateControls();
 				}, _storiesLifetime);
 			} else {
@@ -137,9 +138,7 @@ OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 	});
 }
 
-void OverlayWidget::RendererGL::init(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f) {
+void OverlayWidget::RendererGL::init(QOpenGLFunctions &f) {
 	constexpr auto kQuads = 9;
 	constexpr auto kQuadVertices = kQuads * 4;
 	constexpr auto kQuadValues = kQuadVertices * 4;
@@ -243,9 +242,7 @@ void OverlayWidget::RendererGL::init(
 		renderer ? renderer : "[nullptr]");
 }
 
-void OverlayWidget::RendererGL::deinit(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions *f) {
+void OverlayWidget::RendererGL::deinit(QOpenGLFunctions *f) {
 	_textures.destroy(f);
 	_imageProgram = std::nullopt;
 	_texturedVertexShader = nullptr;
@@ -274,6 +271,9 @@ void OverlayWidget::RendererGL::paint(
 		QOpenGLFunctions &f) {
 	if (handleHideWorkaround(f)) {
 		return;
+	}
+	if (const auto stream = _owner->_videoStream.get()) {
+		stream->ensureBorrowedRenderer(f);
 	}
 	const auto factor = widget->devicePixelRatioF();
 	if (_factor != factor) {
@@ -337,6 +337,10 @@ void OverlayWidget::RendererGL::paintBackground() {
 			offset,
 			QColor(0, 0, 0));
 	}
+}
+
+void OverlayWidget::RendererGL::paintVideoStream() {
+	_owner->_videoStream->borrowedPaint(*_f);
 }
 
 void OverlayWidget::RendererGL::paintTransformedVideoFrame(
@@ -430,6 +434,15 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 
 	toggleBlending(geometry.roundRadius > 0.);
 	paintTransformedContent(program, geometry, false);
+
+	if (_owner->_recognitionResult.success
+		&& !_owner->_recognitionResult.items.empty()) {
+		const auto opacity = _owner->_recognitionAnimation.value(
+			_owner->_showRecognitionResults ? 1. : 0.);
+		if (opacity > 0.) {
+			paintRecognitionOverlay(data.image, geometry, opacity);
+		}
+	}
 }
 
 void OverlayWidget::RendererGL::paintTransformedStaticContent(
@@ -505,6 +518,16 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 	toggleBlending((geometry.roundRadius > 0.)
 		|| (semiTransparent && !fillTransparentBackground));
 	paintTransformedContent(&*program, geometry, fillTransparentBackground);
+
+	if (_owner->_recognitionResult.success
+		&& !_owner->_recognitionResult.items.empty()
+		&& !image.isNull()) {
+		const auto opacity = _owner->_recognitionAnimation.value(
+			_owner->_showRecognitionResults ? 1. : 0.);
+		if (opacity > 0.) {
+			paintRecognitionOverlay(image, geometry, opacity);
+		}
+	}
 }
 
 void OverlayWidget::RendererGL::paintTransformedContent(
@@ -753,6 +776,7 @@ auto OverlayWidget::RendererGL::controlMeta(Over control) const -> Control {
 	case Over::Share: return { 3, &st::mediaviewShare };
 	case Over::Rotate: return { 4, &st::mediaviewRotate };
 	case Over::More: return { 5, &st::mediaviewMore };
+	case Over::Recognize: return { 6, &st::mediaviewRecognize };
 	}
 	Unexpected("Control value in OverlayWidget::RendererGL::ControlIndex.");
 }
@@ -768,6 +792,7 @@ void OverlayWidget::RendererGL::validateControls() {
 		controlMeta(Over::Share),
 		controlMeta(Over::Rotate),
 		controlMeta(Over::More),
+		controlMeta(Over::Recognize),
 	};
 	auto maxWidth = 0;
 	auto fullHeight = 0;
@@ -1112,6 +1137,81 @@ Rect OverlayWidget::RendererGL::scaleRect(
 		unscaled.y() - addh / 2,
 		unscaled.width() + addw,
 		unscaled.height() + addh);
+}
+
+void OverlayWidget::RendererGL::paintRecognitionOverlay(
+		const QImage &image,
+		ContentGeometry geometry,
+		float64 opacity) {
+	const auto rect = scaleRect(
+		transformRect(geometry.rect),
+		geometry.scale);
+	const auto centerx = rect.x() + rect.width() / 2;
+	const auto centery = rect.y() + rect.height() / 2;
+	const auto radians = float(geometry.rotation * M_PI / 180.);
+	const auto rsin = std::sin(radians);
+	const auto rcos = std::cos(radians);
+	const auto rotated = [&](float x, float y) -> std::array<float, 2> {
+		x -= centerx;
+		y -= centery;
+		return std::array<float, 2>{
+			centerx + (x * rcos + y * rsin),
+			centery + (y * rcos - x * rsin)
+		};
+	};
+
+	const auto scale = rect.width() / float64(image.width());
+	const auto imageTopLeft = QPointF(rect.left(), rect.top());
+
+	_fillProgram->bind();
+	_fillProgram->setUniformValue("viewport", _uniformViewport);
+	_contentBuffer->bind();
+
+	_f->glEnable(GL_STENCIL_TEST);
+	_f->glClear(GL_STENCIL_BUFFER_BIT);
+	_f->glStencilFunc(GL_ALWAYS, 1, 0xFF);
+	_f->glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+	_f->glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+	for (const auto &item : _owner->_recognitionResult.items) {
+		const auto &r = item.rect;
+		const auto lightRect = QRectF(
+			imageTopLeft.x() + r.left() * _ifactor * scale,
+			imageTopLeft.y()
+				+ (image.height() - (r.y() + r.height()) * _ifactor) * scale,
+			r.width() * _ifactor * scale,
+			r.height() * _ifactor * scale);
+		const auto tl = rotated(lightRect.left(), lightRect.top());
+		const auto tr = rotated(lightRect.right(), lightRect.top());
+		const auto br = rotated(lightRect.right(), lightRect.bottom());
+		const auto bl = rotated(lightRect.left(), lightRect.bottom());
+		const GLfloat coords[] = {
+			tl[0], tl[1], tr[0], tr[1], br[0], br[1], bl[0], bl[1],
+		};
+		_contentBuffer->write(0, coords, sizeof(coords));
+		FillRectangle(*_f, &*_fillProgram, 0, QColor(255, 255, 255));
+	}
+
+	_f->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	_f->glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+	_f->glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+	_f->glEnable(GL_BLEND);
+	_f->glBlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE);
+
+	const auto tl = rotated(rect.left(), rect.top());
+	const auto tr = rotated(rect.right(), rect.top());
+	const auto br = rotated(rect.right(), rect.bottom());
+	const auto bl = rotated(rect.left(), rect.bottom());
+	const auto dark = int(150 + (255 - 150) * (1. - opacity));
+	const GLfloat darkRect[] = {
+		tl[0], tl[1], tr[0], tr[1], br[0], br[1], bl[0], bl[1],
+	};
+	_contentBuffer->write(0, darkRect, sizeof(darkRect));
+	FillRectangle(*_f, &*_fillProgram, 0, QColor(dark, dark, dark, 255));
+
+	_f->glDisable(GL_BLEND);
+	_f->glDisable(GL_STENCIL_TEST);
 }
 
 } // namespace Media::View

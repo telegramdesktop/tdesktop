@@ -149,7 +149,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		tr::lng_update_telegram(),
 		st::settingsUpdate);
 	update->hide();
-	check->widthValue() | rpl::start_with_next([=](int width) {
+	check->widthValue() | rpl::on_next([=](int width) {
 		update->resizeToWidth(width);
 		update->moveToLeft(0, 0);
 	}, update->lifetime());
@@ -157,7 +157,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	rpl::combine(
 		toggle->widthValue(),
 		label->widthValue()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		label->moveToLeft(
 			st::settingsUpdateStatePosition.x(),
 			st::settingsUpdateStatePosition.y());
@@ -192,7 +192,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	toggle->toggledValue(
 	) | rpl::filter([](bool toggled) {
 		return (toggled != cAutoUpdate());
-	}) | rpl::start_with_next([=](bool toggled) {
+	}) | rpl::on_next([=](bool toggled) {
 		cSetAutoUpdate(toggled);
 
 		Local::writeSettings();
@@ -210,7 +210,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		install->toggledValue(
 		) | rpl::filter([](bool toggled) {
 			return (toggled != cInstallBetaVersion());
-		}) | rpl::start_with_next([=](bool toggled) {
+		}) | rpl::on_next([=](bool toggled) {
 			cSetInstallBetaVersion(toggled);
 			Core::Launcher::Instance().writeInstallBetaVersionsSetting();
 
@@ -232,26 +232,26 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		return check && !downloading;
 	}));
 
-	checker.checking() | rpl::start_with_next([=] {
+	checker.checking() | rpl::on_next([=] {
 		options->setAttribute(Qt::WA_TransparentForMouseEvents);
 		texts->fire(tr::lng_settings_update_checking(tr::now));
 		downloading->fire(false);
 	}, options->lifetime());
-	checker.isLatest() | rpl::start_with_next([=] {
+	checker.isLatest() | rpl::on_next([=] {
 		options->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 		texts->fire(tr::lng_settings_latest_installed(tr::now));
 		downloading->fire(false);
 	}, options->lifetime());
 	checker.progress(
-	) | rpl::start_with_next([=](Core::UpdateChecker::Progress progress) {
+	) | rpl::on_next([=](Core::UpdateChecker::Progress progress) {
 		showDownloadProgress(progress.already, progress.size);
 	}, options->lifetime());
-	checker.failed() | rpl::start_with_next([=] {
+	checker.failed() | rpl::on_next([=] {
 		options->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 		texts->fire(tr::lng_settings_update_fail(tr::now));
 		downloading->fire(false);
 	}, options->lifetime());
-	checker.ready() | rpl::start_with_next([=] {
+	checker.ready() | rpl::on_next([=] {
 		options->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 		texts->fire(tr::lng_settings_update_ready(tr::now));
 		update->show();
@@ -301,7 +301,7 @@ void SetupSpellchecker(
 	button->toggledValue(
 	) | rpl::filter([=](bool enabled) {
 		return (enabled != settings->spellcheckerEnabled());
-	}) | rpl::start_with_next([=](bool enabled) {
+	}) | rpl::on_next([=](bool enabled) {
 		settings->setSpellcheckerEnabled(enabled);
 		Core::App().saveSettingsDelayed();
 	}, container->lifetime());
@@ -324,7 +324,7 @@ void SetupSpellchecker(
 	)->toggledValue(
 	) | rpl::filter([=](bool enabled) {
 		return (enabled != settings->autoDownloadDictionaries());
-	}) | rpl::start_with_next([=](bool enabled) {
+	}) | rpl::on_next([=](bool enabled) {
 		settings->setAutoDownloadDictionaries(enabled);
 		Core::App().saveSettingsDelayed();
 	}, sliding->entity()->lifetime());
@@ -340,7 +340,7 @@ void SetupSpellchecker(
 	});
 
 	button->toggledValue(
-	) | rpl::start_with_next([=](bool enabled) {
+	) | rpl::on_next([=](bool enabled) {
 		sliding->toggle(enabled, anim::type::normal);
 	}, container->lifetime());
 #endif // !TDESKTOP_DISABLE_SPELLCHECK
@@ -374,7 +374,7 @@ void SetupWindowTitleContent(
 		showChatName->checkedChanges(
 		) | rpl::filter([=](bool checked) {
 			return (checked == content().hideChatName);
-		}) | rpl::start_with_next([=](bool checked) {
+		}) | rpl::on_next([=](bool checked) {
 			auto updated = content();
 			updated.hideChatName = !checked;
 			settings->setWindowTitleContent(updated);
@@ -388,7 +388,7 @@ void SetupWindowTitleContent(
 			showAccountName->checkedChanges(
 			) | rpl::filter([=](bool checked) {
 				return (checked == content().hideAccountName);
-			}) | rpl::start_with_next([=](bool checked) {
+			}) | rpl::on_next([=](bool checked) {
 				auto updated = content();
 				updated.hideAccountName = !checked;
 				settings->setWindowTitleContent(updated);
@@ -402,7 +402,7 @@ void SetupWindowTitleContent(
 		showTotalUnread->checkedChanges(
 		) | rpl::filter([=](bool checked) {
 			return (checked == content().hideTotalUnread);
-		}) | rpl::start_with_next([=](bool checked) {
+		}) | rpl::on_next([=](bool checked) {
 			auto updated = content();
 			updated.hideTotalUnread = !checked;
 			settings->setWindowTitleContent(updated);
@@ -420,7 +420,7 @@ void SetupWindowTitleContent(
 		nativeFrame->checkedChanges(
 		) | rpl::filter([](bool checked) {
 			return (checked != Core::App().settings().nativeWindowFrame());
-		}) | rpl::start_with_next([=](bool checked) {
+		}) | rpl::on_next([=](bool checked) {
 			Core::App().settings().setNativeWindowFrame(checked);
 			Core::App().saveSettingsDelayed();
 		}, nativeFrame->lifetime());
@@ -477,7 +477,7 @@ void SetupSystemIntegrationContent(
 			monochrome->entity()->checkedChanges(
 			) | rpl::filter([=](bool value) {
 				return (value != settings->trayIconMonochrome());
-			}) | rpl::start_with_next([=](bool value) {
+			}) | rpl::on_next([=](bool value) {
 				settings->setTrayIconMonochrome(value);
 				Core::App().saveSettingsDelayed();
 			}, monochrome->lifetime());
@@ -512,7 +512,7 @@ void SetupSystemIntegrationContent(
 		tray->checkedChanges(
 		) | rpl::filter([=](bool checked) {
 			return (checked != trayEnabled());
-		}) | rpl::start_with_next([=](bool checked) {
+		}) | rpl::on_next([=](bool checked) {
 			if (!checked && taskbar && !taskbar->checked()) {
 				taskbar->setChecked(true);
 			} else {
@@ -527,7 +527,7 @@ void SetupSystemIntegrationContent(
 			taskbar->checkedChanges(
 			) | rpl::filter([=](bool checked) {
 				return (checked != taskbarEnabled());
-			}) | rpl::start_with_next([=](bool checked) {
+			}) | rpl::on_next([=](bool checked) {
 				if (!checked && !tray->checked()) {
 					tray->setChecked(true);
 				} else {
@@ -546,7 +546,7 @@ void SetupSystemIntegrationContent(
 	warnBeforeQuit->checkedChanges(
 	) | rpl::filter([=](bool checked) {
 		return (checked != settings->macWarnBeforeQuit());
-	}) | rpl::start_with_next([=](bool checked) {
+	}) | rpl::on_next([=](bool checked) {
 		settings->setMacWarnBeforeQuit(checked);
 		Core::App().saveSettingsDelayed();
 	}, warnBeforeQuit->lifetime());
@@ -562,7 +562,7 @@ void SetupSystemIntegrationContent(
 	roundIcon->checkedChanges(
 	) | rpl::filter([=](bool checked) {
 		return (checked != enabled());
-	}) | rpl::start_with_next([=](bool checked) {
+	}) | rpl::on_next([=](bool checked) {
 		const auto digest = checked
 			? base::Platform::SetCustomAppIcon(IconMacRound())
 			: std::optional<uint64>();
@@ -585,7 +585,7 @@ void SetupSystemIntegrationContent(
 		rpl::variable<bool>
 	>(false);
 	settings->workModeValue(
-	) | rpl::start_with_next([=](WorkMode workMode) {
+	) | rpl::on_next([=](WorkMode workMode) {
 		*closeToTaskbarShown = !Core::App().tray().has();
 	}, closeToTaskbar->lifetime());
 
@@ -595,7 +595,7 @@ void SetupSystemIntegrationContent(
 		return checked ? Behavior::CloseToTaskbar : Behavior::Quit;
 	}) | rpl::filter([=](Behavior value) {
 		return (settings->closeBehavior() != value);
-	}) | rpl::start_with_next([=](Behavior value) {
+	}) | rpl::on_next([=](Behavior value) {
 		settings->setCloseBehavior(value);
 		Local::writeSettings();
 	}, closeToTaskbar->lifetime());
@@ -617,7 +617,7 @@ void SetupSystemIntegrationContent(
 		autostart->checkedChanges(
 		) | rpl::filter([](bool checked) {
 			return (checked != cAutoStart());
-		}) | rpl::start_with_next([=](bool checked) {
+		}) | rpl::on_next([=](bool checked) {
 			const auto weak = base::make_weak(controller);
 			cSetAutoStart(checked);
 			Platform::AutostartToggle(checked, crl::guard(autostart, [=](
@@ -645,7 +645,7 @@ void SetupSystemIntegrationContent(
 		minimized->entity()->checkedChanges(
 		) | rpl::filter([=](bool checked) {
 			return (checked != minimizedToggled());
-		}) | rpl::start_with_next([=](bool checked) {
+		}) | rpl::on_next([=](bool checked) {
 			if (controller->session().domain().local().hasLocalPasscode()) {
 				minimized->entity()->setChecked(false);
 				controller->show(Ui::MakeInformBox(
@@ -657,7 +657,7 @@ void SetupSystemIntegrationContent(
 		}, minimized->lifetime());
 
 		controller->session().domain().local().localPasscodeChanged(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			minimized->entity()->setChecked(minimizedToggled());
 		}, minimized->lifetime());
 	}
@@ -670,7 +670,7 @@ void SetupSystemIntegrationContent(
 		sendto->checkedChanges(
 		) | rpl::filter([](bool checked) {
 			return (checked != cSendToMenu());
-		}) | rpl::start_with_next([](bool checked) {
+		}) | rpl::on_next([](bool checked) {
 			cSetSendToMenu(checked);
 			psSendToMenu(checked);
 			Local::writeSettings();
@@ -755,7 +755,7 @@ void ArchiveSettingsBox(
 		const auto current = privacy->unarchiveOnNewMessageCurrent();
 		state->foldersWrap->toggle(!toggled, anim::type::normal);
 		return toggled != (current == Unarchive::None);
-	}) | rpl::start_with_next([=](bool toggled) {
+	}) | rpl::on_next([=](bool toggled) {
 		privacy->updateUnarchiveOnNewMessage(toggled
 			? Unarchive::None
 			: state->folders->toggled()
@@ -786,7 +786,7 @@ void ArchiveSettingsBox(
 	) | rpl::filter([=](bool toggled) {
 		const auto current = privacy->unarchiveOnNewMessageCurrent();
 		return toggled != (current != Unarchive::AnyUnmuted);
-	}) | rpl::start_with_next([=](bool toggled) {
+	}) | rpl::on_next([=](bool toggled) {
 		const auto current = privacy->unarchiveOnNewMessageCurrent();
 		privacy->updateUnarchiveOnNewMessage(!toggled
 			? Unarchive::AnyUnmuted
@@ -820,7 +820,7 @@ void SetupHardwareAcceleration(not_null<Ui::VerticalLayout*> container) {
 	)->toggledValue(
 	) | rpl::filter([=](bool enabled) {
 		return (enabled != settings->hardwareAcceleratedVideo());
-	}) | rpl::start_with_next([=](bool enabled) {
+	}) | rpl::on_next([=](bool enabled) {
 		settings->setHardwareAcceleratedVideo(enabled);
 		Core::App().saveSettingsDelayed();
 	}, container->lifetime());
@@ -918,7 +918,7 @@ void SetupOpenGL(
 	button->toggledValue(
 	) | rpl::filter([](bool enabled) {
 		return (enabled == Core::App().settings().disableOpenGL());
-	}) | rpl::start_with_next([=](bool enabled) {
+	}) | rpl::on_next([=](bool enabled) {
 		const auto confirmed = crl::guard(button, [=] {
 			Core::App().settings().setDisableOpenGL(!enabled);
 			Local::writeSettings();
@@ -1001,7 +1001,7 @@ void SetupWindowCloseBehavior(
 
 	group->value() | rpl::filter([=](Behavior value) {
 		return (value != settings->closeBehavior());
-	}) | rpl::start_with_next([=](Behavior value) {
+	}) | rpl::on_next([=](Behavior value) {
 		settings->setCloseBehavior(value);
 		Local::writeSettings();
 	}, inner->lifetime());

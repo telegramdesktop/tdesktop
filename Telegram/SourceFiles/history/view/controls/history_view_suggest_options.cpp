@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "lang/lang_keys.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/choose_date_time.h"
+#include "ui/boxes/single_choice_box.h"
 #include "ui/controls/ton_common.h"
 #include "ui/widgets/fields/number_input.h"
 #include "ui/widgets/fields/input_field.h"
@@ -71,6 +73,19 @@ namespace {
 	) | rpl::filter([=](CreditsAmount amount) {
 		return amount.ton();
 	}));
+}
+
+[[nodiscard]] not_null<Ui::RpWidget*> AddMoneyInputIcon(
+		not_null<QWidget*> parent,
+		Ui::Text::PaletteDependentEmoji emoji) {
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto text = helper.paletteDependent(std::move(emoji));
+	return Ui::CreateChild<Ui::FlatLabel>(
+		parent,
+		rpl::single(std::move(text)),
+		st::defaultFlatLabel,
+		st::defaultPopupMenu,
+		helper.context());
 }
 
 } // namespace
@@ -118,8 +133,8 @@ void AddApproximateUsd(
 		}
 		const auto appConfig = &session->appConfig();
 		const auto rate = amount.ton()
-			? appConfig->currencyWithdrawRate()
-			: (appConfig->starsWithdrawRate() / 100.);
+			? appConfig->currencySellRate()
+			: (appConfig->starsSellRate() / 100.);
 		return Info::ChannelEarn::ToUsd(amount, rate, 2);
 	});
 	const auto usd = Ui::CreateChild<Ui::FlatLabel>(
@@ -135,7 +150,61 @@ void AddApproximateUsd(
 		}
 		return base::EventFilterResult::Continue;
 	});
-	usd->widthValue() | rpl::start_with_next(move, usd->lifetime());
+	usd->widthValue() | rpl::on_next(move, usd->lifetime());
+}
+
+not_null<Ui::NumberInput*> AddStarsInputField(
+		not_null<Ui::VerticalLayout*> container,
+		StarsInputFieldArgs &&args) {
+	const auto wrap = container->add(
+		object_ptr<Ui::FixedHeightWidget>(
+			container,
+			st::editTagField.heightMin),
+		st::boxRowPadding);
+	const auto result = Ui::CreateChild<Ui::NumberInput>(
+		wrap,
+		st::editTagField,
+		rpl::single(u"0"_q),
+		args.value ? QString::number(*args.value) : QString(),
+		args.max ? args.max : std::numeric_limits<int>::max());
+	const auto icon = AddMoneyInputIcon(
+		result,
+		Ui::Earn::IconCreditsEmoji());
+
+	wrap->widthValue() | rpl::on_next([=](int width) {
+		icon->move(st::starsFieldIconPosition);
+		result->move(0, 0);
+		result->resize(width, result->height());
+		wrap->resize(width, result->height());
+	}, wrap->lifetime());
+
+	return result;
+}
+
+not_null<Ui::InputField*> AddTonInputField(
+		not_null<Ui::VerticalLayout*> container,
+		TonInputFieldArgs &&args) {
+	const auto wrap = container->add(
+		object_ptr<Ui::FixedHeightWidget>(
+			container,
+			st::editTagField.heightMin),
+		st::boxRowPadding);
+	const auto result = Ui::CreateTonAmountInput(
+		wrap,
+		rpl::single('0' + Ui::TonAmountSeparator() + '0'),
+		args.value);
+	const auto icon = AddMoneyInputIcon(
+		result,
+		Ui::Earn::IconCurrencyEmoji());
+
+	wrap->widthValue() | rpl::on_next([=](int width) {
+		icon->move(st::tonFieldIconPosition);
+		result->move(0, 0);
+		result->resize(width, result->height());
+		wrap->resize(width, result->height());
+	}, wrap->lifetime());
+
+	return result;
 }
 
 StarsTonPriceInput AddStarsTonPriceInput(
@@ -153,18 +222,6 @@ StarsTonPriceInput AddStarsTonPriceInput(
 
 	const auto session = args.session;
 	const auto added = st::boxRowPadding - st::defaultSubsectionTitlePadding;
-	auto helper = Ui::Text::CustomEmojiHelper();
-	const auto makeIcon = [&](
-			not_null<QWidget*> parent,
-			Ui::Text::PaletteDependentEmoji emoji) {
-		auto text = helper.paletteDependent(std::move(emoji));
-		return Ui::CreateChild<Ui::FlatLabel>(
-			parent,
-			rpl::single(std::move(text)),
-			st::defaultFlatLabel,
-			st::defaultPopupMenu,
-			helper.context());
-	};
 
 	const auto starsWrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -181,30 +238,11 @@ StarsTonPriceInput AddStarsTonPriceInput(
 			added.right(),
 			-st::defaultSubsectionTitlePadding.bottom()));
 
-	const auto starsFieldWrap = starsInner->add(
-		object_ptr<Ui::FixedHeightWidget>(
-			starsInner,
-			st::editTagField.heightMin),
-		st::boxRowPadding);
-	auto ownedStarsField = object_ptr<Ui::NumberInput>(
-		starsFieldWrap,
-		st::editTagField,
-		rpl::single(u"0"_q),
-		((args.price && args.price.stars())
-			? QString::number(args.price.whole())
-			: QString()),
-		args.starsMax);
-	const auto starsField = ownedStarsField.data();
-	const auto starsIcon = makeIcon(
-		starsField,
-		Ui::Earn::IconCreditsEmoji());
-
-	starsFieldWrap->widthValue() | rpl::start_with_next([=](int width) {
-		starsIcon->move(st::starsFieldIconPosition);
-		starsField->move(0, 0);
-		starsField->resize(width, starsField->height());
-		starsFieldWrap->resize(width, starsField->height());
-	}, starsFieldWrap->lifetime());
+	const auto starsField = AddStarsInputField(starsInner, {
+		.value = ((args.price && args.price.stars())
+			? args.price.whole()
+			: std::optional<int64>()),
+	});
 
 	AddApproximateUsd(
 		starsField,
@@ -232,27 +270,11 @@ StarsTonPriceInput AddStarsTonPriceInput(
 			added.right(),
 			-st::defaultSubsectionTitlePadding.bottom()));
 
-	const auto tonFieldWrap = tonInner->add(
-		object_ptr<Ui::FixedHeightWidget>(
-			tonInner,
-			st::editTagField.heightMin),
-		st::boxRowPadding);
-	auto ownedTonField = object_ptr<Ui::InputField>::fromRaw(
-		Ui::CreateTonAmountInput(
-			tonFieldWrap,
-			rpl::single('0' + Ui::TonAmountSeparator() + '0'),
-			((args.price && args.price.ton())
-				? (args.price.whole() * Ui::kNanosInOne + args.price.nano())
-				: 0)));
-	const auto tonField = ownedTonField.data();
-	const auto tonIcon = makeIcon(tonField, Ui::Earn::IconCurrencyEmoji());
-
-	tonFieldWrap->widthValue() | rpl::start_with_next([=](int width) {
-		tonIcon->move(st::tonFieldIconPosition);
-		tonField->move(0, 0);
-		tonField->resize(width, tonField->height());
-		tonFieldWrap->resize(width, tonField->height());
-	}, tonFieldWrap->lifetime());
+	const auto tonField = AddTonInputField(tonInner, {
+		.value = (args.price && args.price.ton())
+			? (args.price.whole() * Ui::kNanosInOne + args.price.nano())
+			: 0,
+	});
 
 	AddApproximateUsd(
 		tonField,
@@ -271,30 +293,37 @@ StarsTonPriceInput AddStarsTonPriceInput(
 		anim::type::instant);
 
 	auto computeResult = [=]() -> std::optional<CreditsAmount> {
-		auto nanos = int64();
+		auto amount = CreditsAmount();
 		const auto ton = state->ton.current();
 		if (ton) {
 			const auto text = tonField->getLastText();
 			const auto now = Ui::ParseTonAmountString(text);
-			if (now
-				&& *now
-				&& ((*now < args.nanoTonMin) || (*now > args.nanoTonMax))) {
-				tonField->showError();
-				return {};
+			amount = CreditsAmount(
+				now.value_or(0) / Ui::kNanosInOne,
+				now.value_or(0) % Ui::kNanosInOne,
+				CreditsType::Ton);
+			const auto bad = (!now || !*now)
+				? (!args.allowEmpty)
+				: ((*now < args.nanoTonMin) || (*now > args.nanoTonMax));
+			if (!bad) {
+				return amount;
 			}
-			nanos = now.value_or(0);
+			tonField->showError();
 		} else {
 			const auto now = starsField->getLastText().toLongLong();
-			if (now && (now < args.starsMin || now > args.starsMax)) {
-				starsField->showError();
-				return {};
+			amount = CreditsAmount(now);
+			const auto bad = !now
+				? (!args.allowEmpty)
+				: ((now < args.starsMin) || (now > args.starsMax));
+			if (!bad) {
+				return amount;
 			}
-			nanos = now * Ui::kNanosInOne;
+			starsField->showError();
 		}
-		return CreditsAmount(
-			nanos / Ui::kNanosInOne,
-			nanos % Ui::kNanosInOne,
-			ton ? CreditsType::Ton : CreditsType::Stars);
+		if (const auto hook = args.errorHook) {
+			hook(amount);
+		}
+		return {};
 	};
 
 	const auto updatePrice = [=] {
@@ -324,7 +353,7 @@ StarsTonPriceInput AddStarsTonPriceInput(
 		}
 	});
 	tonField->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (state->ton.current()) {
 			updatePrice();
 			updateStarsFromTon();
@@ -332,7 +361,7 @@ StarsTonPriceInput AddStarsTonPriceInput(
 	}, tonField->lifetime());
 
 	state->ton.changes(
-	) | rpl::start_with_next(updatePrice, container->lifetime());
+	) | rpl::on_next(updatePrice, container->lifetime());
 	if (state->ton.current()) {
 		updateStarsFromTon();
 	} else {
@@ -381,9 +410,11 @@ void ChooseSuggestPriceBox(
 		rpl::event_stream<> fieldsChanges;
 		rpl::variable<CreditsAmount> price;
 		rpl::variable<TimeId> date;
+		rpl::variable<TimeId> offerDuration;
 		rpl::variable<bool> ton;
 		Fn<std::optional<CreditsAmount>()> computePrice;
 		Fn<void()> save;
+		std::optional<CreditsAmount> lastSmallPrice;
 		bool savePending = false;
 		bool inButton = false;
 	};
@@ -393,6 +424,10 @@ void ChooseSuggestPriceBox(
 	state->price = args.value.price();
 
 	const auto peer = args.peer;
+	[[maybe_unused]] const auto details = ComputePaymentDetails(peer, 1);
+
+	const auto mode = args.mode;
+	const auto gift = (mode == SuggestMode::Gift);
 	const auto admin = peer->amMonoforumAdmin();
 	const auto broadcast = peer->monoforumBroadcast();
 	const auto usePeer = broadcast ? broadcast : peer;
@@ -406,7 +441,9 @@ void ChooseSuggestPriceBox(
 
 	box->setStyle(st::suggestPriceBox);
 
-	auto title = (args.mode == SuggestMode::New)
+	auto title = gift
+		? tr::lng_gift_offer_title()
+		: (mode == SuggestMode::New)
 		? tr::lng_suggest_options_title()
 		: tr::lng_suggest_options_change();
 	if (admin) {
@@ -465,7 +502,7 @@ void ChooseSuggestPriceBox(
 	buttons->resize(buttons->width(), height);
 
 	buttons->setMouseTracking(true);
-	buttons->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+	buttons->events() | rpl::on_next([=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		switch (type) {
 		case QEvent::MouseMove: {
@@ -505,7 +542,7 @@ void ChooseSuggestPriceBox(
 		}
 	}, buttons->lifetime());
 
-	buttons->paintRequest() | rpl::start_with_next([=] {
+	buttons->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(buttons);
 		auto hq = PainterHighQualityEnabler(p);
 		const auto padding = st::giftBoxTabPadding;
@@ -547,25 +584,61 @@ void ChooseSuggestPriceBox(
 	auto starsAbout = admin
 		? rpl::combine(
 			youGet(StarsPriceValue(state->price.value()), true),
-			tr::lng_suggest_options_stars_warning(Ui::Text::RichLangValue)
+			tr::lng_suggest_options_stars_warning(tr::rich)
 		) | rpl::map([=](const QString &t1, const TextWithEntities &t2) {
 			return TextWithEntities{ t1 }.append("\n\n").append(t2);
 		})
-		: tr::lng_suggest_options_stars_price_about(Ui::Text::WithEntities);
+		: gift
+		? tr::lng_gift_offer_stars_about(
+			lt_name,
+			rpl::single(tr::marked(args.giftName)),
+			tr::rich)
+		: tr::lng_suggest_options_stars_price_about(tr::rich);
 	auto tonAbout = admin
 		? youGet(
 			TonPriceValue(state->price.value()),
 			false
-		) | Ui::Text::ToWithEntities()
-		: tr::lng_suggest_options_ton_price_about(Ui::Text::WithEntities);
+		) | rpl::map(tr::rich)
+		: gift
+		? tr::lng_gift_offer_ton_about(
+			lt_name,
+			rpl::single(tr::marked(args.giftName)),
+			tr::rich)
+		: tr::lng_suggest_options_ton_price_about(tr::rich);
+	const auto nanoTonMin = gift
+		? appConfig.giftResaleNanoTonMin()
+		: appConfig.suggestedPostNanoTonMin();
+	const auto nanoTonMax = gift
+		? appConfig.giftResaleNanoTonMax()
+		: appConfig.suggestedPostNanoTonMax();
+	const auto starsMin = gift
+		? appConfig.giftResaleStarsMin()
+		: appConfig.suggestedPostStarsMin();
+	const auto starsMax = gift
+		? appConfig.giftResaleStarsMax()
+		: appConfig.suggestedPostStarsMax();
+	const auto recordBadAmount = [=](CreditsAmount amount) {
+		if (false
+			|| (amount.ton()
+				&& (amount.value()
+					> (nanoTonMin + nanoTonMax) / (2. * Ui::kNanosInOne)))
+			|| (!amount.ton()
+				&& (amount.whole() >= starsMax))) {
+			state->lastSmallPrice = {};
+			return;
+		}
+		state->lastSmallPrice = amount;
+	};
 	auto priceInput = AddStarsTonPriceInput(container, {
 		.session = session,
 		.showTon = state->ton.value(),
 		.price = args.value.price(),
-		.starsMin = appConfig.suggestedPostStarsMin(),
-		.starsMax = appConfig.suggestedPostStarsMax(),
-		.nanoTonMin = appConfig.suggestedPostNanoTonMin(),
-		.nanoTonMax = appConfig.suggestedPostNanoTonMax(),
+		.starsMin = starsMin,
+		.starsMax = starsMax,
+		.nanoTonMin = nanoTonMin,
+		.nanoTonMax = nanoTonMax,
+		.allowEmpty = !gift,
+		.errorHook = recordBadAmount,
 		.starsAbout = std::move(starsAbout),
 		.tonAbout = std::move(tonAbout),
 	});
@@ -575,44 +648,112 @@ void ChooseSuggestPriceBox(
 
 	Ui::AddSkip(container);
 
-	const auto time = Settings::AddButtonWithLabel(
-		container,
-		tr::lng_suggest_options_date(),
-		state->date.value() | rpl::map([](TimeId date) {
-			return date
-				? langDateTime(base::unixtime::parse(date))
-				: tr::lng_suggest_options_date_any(tr::now);
-		}),
-		st::settingsButtonNoIcon);
-
-	time->setClickedCallback([=] {
-		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
-		const auto parentWeak = base::make_weak(box);
-		const auto done = [=](TimeId result) {
-			if (parentWeak) {
-				state->date = result;
-			}
-			if (const auto strong = weak->get()) {
-				strong->closeBox();
-			}
+	if (gift) {
+		const auto day = 86400;
+		auto durations = std::vector{
+			day / 4,
+			day / 2,
+			day,
+			day + day / 2,
+			day * 2,
+			day * 3,
 		};
-		auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
-			.session = session,
-			.done = done,
-			.value = state->date.current(),
-			.mode = args.mode,
-		});
-		*weak = dateBox.data();
-		box->uiShow()->show(std::move(dateBox));
-	});
+		if (peer->session().isTestMode()) {
+			durations.insert(begin(durations), 120);
+		}
+		const auto durationToText = [](TimeId date) {
+			return (date >= 3600)
+				? tr::lng_hours(tr::now, lt_count, date / 3600)
+				: tr::lng_minutes(tr::now, lt_count, date / 60);
+		};
+		state->offerDuration = day;
+		const auto duration = Settings::AddButtonWithLabel(
+			container,
+			tr::lng_gift_offer_duration(),
+			state->offerDuration.value() | rpl::map(durationToText),
+			st::settingsButtonNoIcon);
 
-	Ui::AddSkip(container);
-	Ui::AddDividerText(container, tr::lng_suggest_options_date_about());
+		duration->setClickedCallback([=] {
+			box->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
+				const auto save = [=](int index) {
+					state->offerDuration = durations[index];
+				};
+				auto options = durations
+					| ranges::views::transform(durationToText)
+					| ranges::to_vector;
+				const auto selected = ranges::find(
+					durations,
+					state->offerDuration.current());
+				SingleChoiceBox(box, {
+					.title = tr::lng_gift_offer_duration(),
+					.options = options,
+					.initialSelection = int(selected - begin(durations)),
+					.callback = save,
+				});
+			}));
+		});
+
+		Ui::AddSkip(container);
+		Ui::AddDividerText(
+			container,
+			tr::lng_gift_offer_duration_about(
+				lt_user,
+				rpl::single(peer->shortName())));
+	} else {
+		const auto time = Settings::AddButtonWithLabel(
+			container,
+			tr::lng_suggest_options_date(),
+			state->date.value() | rpl::map([](TimeId date) {
+				return date
+					? langDateTime(base::unixtime::parse(date))
+					: tr::lng_suggest_options_date_any(tr::now);
+			}),
+			st::settingsButtonNoIcon);
+
+		time->setClickedCallback([=] {
+			const auto weak = std::make_shared<
+				base::weak_qptr<Ui::BoxContent>
+			>();
+			const auto parentWeak = base::make_weak(box);
+			const auto done = [=](TimeId result) {
+				if (parentWeak) {
+					state->date = result;
+				}
+				if (const auto strong = weak->get()) {
+					strong->closeBox();
+				}
+			};
+			auto dateBox = Box(ChooseSuggestTimeBox, SuggestTimeBoxArgs{
+				.session = session,
+				.done = done,
+				.value = state->date.current(),
+				.mode = args.mode,
+			});
+			*weak = dateBox.data();
+			box->uiShow()->show(std::move(dateBox));
+		});
+
+		Ui::AddSkip(container);
+		Ui::AddDividerText(container, tr::lng_suggest_options_date_about());
+	}
 
 	state->save = [=] {
 		const auto ton = uint32(state->ton.current() ? 1 : 0);
 		const auto price = state->computePrice();
 		if (!price) {
+			if (const auto amount = state->lastSmallPrice) {
+				box->uiShow()->showToast(amount->ton()
+					? tr::lng_gift_sell_min_price_ton(
+						tr::now,
+						lt_count,
+						nanoTonMin / float64(Ui::kNanosInOne),
+						tr::rich)
+					: tr::lng_gift_sell_min_price(
+						tr::now,
+						lt_count,
+						starsMin,
+						tr::rich));
+			}
 			return;
 		}
 		const auto value = *price;
@@ -625,14 +766,15 @@ void ChooseSuggestPriceBox(
 				box->uiShow()->show(Box(InsufficientTonBox, usePeer, value));
 				return;
 			}
-		} else if (!admin) {
+		}
+		const auto requiredStars = peer->starsPerMessageChecked()
+			+ (ton ? 0 : int(base::SafeRound(value.value())));
+		if (!admin && requiredStars) {
 			if (!credits->loaded()) {
 				state->savePending = true;
 				return;
 			}
-			const auto required = peer->starsPerMessageChecked()
-				+ int(base::SafeRound(value.value()));
-			if (credits->balance() < CreditsAmount(required)) {
+			if (credits->balance() < CreditsAmount(requiredStars)) {
 				using namespace Settings;
 				const auto done = [=](SmallBalanceResult result) {
 					if (result == SmallBalanceResult::Success
@@ -640,10 +782,13 @@ void ChooseSuggestPriceBox(
 						state->save();
 					}
 				};
+				const auto source = gift
+					? Settings::SmallBalanceSource(SmallBalanceForOffer())
+					: SmallBalanceForSuggest{ usePeer->id };
 				MaybeRequestBalanceIncrease(
 					Main::MakeSessionShow(box->uiShow(), session),
-					required,
-					SmallBalanceForSuggest{ usePeer->id },
+					requiredStars,
+					source,
 					done);
 				return;
 			}
@@ -654,6 +799,7 @@ void ChooseSuggestPriceBox(
 			.priceNano = uint32(value.nano()),
 			.ton = ton,
 			.date = state->date.current(),
+			.offerDuration = state->offerDuration.current(),
 		});
 	};
 
@@ -663,7 +809,7 @@ void ChooseSuggestPriceBox(
 		credits->balanceValue()
 	) | rpl::filter([=] {
 		return state->savePending;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		state->savePending = false;
 		if (const auto onstack = state->save) {
 			onstack();
@@ -672,7 +818,7 @@ void ChooseSuggestPriceBox(
 
 	std::move(
 		priceInput.submits
-	) | rpl::start_with_next(state->save, box->lifetime());
+	) | rpl::on_next(state->save, box->lifetime());
 
 	auto helper = Ui::Text::CustomEmojiHelper();
 	const auto button = box->addButton(rpl::single(QString()), state->save);
@@ -684,31 +830,31 @@ void ChooseSuggestPriceBox(
 		if (args.mode == SuggestMode::Change) {
 			return tr::lng_suggest_options_update(
 				tr::now,
-				Ui::Text::WithEntities);
+				tr::marked);
 		} else if (price.empty()) {
 			return tr::lng_suggest_options_offer_free(
 				tr::now,
-				Ui::Text::WithEntities);
+				tr::marked);
 		} else if (price.ton()) {
 			return tr::lng_suggest_options_offer(
 				tr::now,
 				lt_amount,
 				Ui::Text::IconEmoji(&st::tonIconEmoji).append(
 					Lang::FormatCreditsAmountDecimal(price)),
-				Ui::Text::WithEntities);
+				tr::marked);
 		}
 		return tr::lng_suggest_options_offer(
 			tr::now,
 			lt_amount,
 			Ui::Text::IconEmoji(&st::starIconEmoji).append(
 				Lang::FormatCreditsAmountDecimal(price)),
-			Ui::Text::WithEntities);
+			tr::marked);
 	}));
 	const auto buttonWidth = st::boxWidth
 		- rect::m::sum::h(st::suggestPriceBox.buttonPadding);
 	button->widthValue() | rpl::filter([=] {
 		return (button->widthNoMargins() != buttonWidth);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		button->resizeToWidth(buttonWidth);
 	}, button->lifetime());
 
@@ -721,7 +867,7 @@ void ChooseSuggestPriceBox(
 			container,
 			st::boxTitleClose);
 		close->setClickedCallback([=] { box->closeBox(); });
-		container->widthValue() | rpl::start_with_next([=](int) {
+		container->widthValue() | rpl::on_next([=](int) {
 			close->moveToRight(0, 0);
 		}, close->lifetime());
 
@@ -738,7 +884,7 @@ void ChooseSuggestPriceBox(
 		rpl::combine(
 			balance->sizeValue(),
 			container->sizeValue()
-		) | rpl::start_with_next([=](const QSize &, const QSize &) {
+		) | rpl::on_next([=](const QSize &, const QSize &) {
 			balance->moveToLeft(
 				st::creditsHistoryRightSkip * 2,
 				st::creditsHistoryRightSkip);
@@ -757,7 +903,7 @@ bool CanAddOfferToMessage(not_null<HistoryItem*> item) {
 	const auto broadcast = history->peer->monoforumBroadcast();
 	return broadcast
 		&& !history->amMonoforumAdmin()
-		&& !item->Get<HistoryMessageSuggestedPost>()
+		&& !item->Get<HistoryMessageSuggestion>()
 		&& !item->groupId()
 		&& item->isRegular()
 		&& !item->isService()
@@ -801,7 +947,7 @@ void InsufficientTonBox(
 		box->verticalLayout(),
 		{
 			.name = u"diamond"_q,
-			.sizeOverride = Size(st::changePhoneIconSize),
+			.sizeOverride = st::normalBoxLottieSize,
 		},
 		{});
 	box->setShowFinishedCallback([animate = std::move(icon.animate)] {
@@ -821,7 +967,7 @@ void InsufficientTonBox(
 	const auto label = box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
-			tr::lng_suggest_low_ton_text(Ui::Text::RichLangValue),
+			tr::lng_suggest_low_ton_text(tr::rich),
 			st::lowTonText),
 		st::boxRowPadding + st::lowTonTextPadding,
 		style::al_top);
@@ -837,15 +983,15 @@ void InsufficientTonBox(
 		- rect::m::sum::h(st::suggestPriceBox.buttonPadding);
 	button->widthValue() | rpl::filter([=] {
 		return (button->widthNoMargins() != buttonWidth);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		button->resizeToWidth(buttonWidth);
 	}, button->lifetime());
 }
 
-SuggestOptions::SuggestOptions(
+SuggestOptionsBar::SuggestOptionsBar(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer,
-	SuggestPostOptions values,
+	SuggestOptions values,
 	SuggestMode mode)
 : _show(std::move(show))
 , _peer(peer)
@@ -854,21 +1000,29 @@ SuggestOptions::SuggestOptions(
 	updateTexts();
 }
 
-SuggestOptions::~SuggestOptions() = default;
+SuggestOptionsBar::~SuggestOptionsBar() = default;
 
-void SuggestOptions::paintIcon(QPainter &p, int x, int y, int outerWidth) {
+void SuggestOptionsBar::paintIcon(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth) {
 	st::historySuggestIconActive.paint(
 		p,
 		QPoint(x, y) + st::historySuggestIconPosition,
 		outerWidth);
 }
 
-void SuggestOptions::paintBar(QPainter &p, int x, int y, int outerWidth) {
+void SuggestOptionsBar::paintBar(QPainter &p, int x, int y, int outerWidth) {
 	paintIcon(p, x, y, outerWidth);
 	paintLines(p, x + st::historyReplySkip, y, outerWidth);
 }
 
-void SuggestOptions::paintLines(QPainter &p, int x, int y, int outerWidth) {
+void SuggestOptionsBar::paintLines(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth) {
 	auto available = outerWidth
 		- x
 		- st::historyReplyCancel.width
@@ -887,9 +1041,9 @@ void SuggestOptions::paintLines(QPainter &p, int x, int y, int outerWidth) {
 	});
 }
 
-void SuggestOptions::edit() {
+void SuggestOptionsBar::edit() {
 	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
-	const auto apply = [=](SuggestPostOptions values) {
+	const auto apply = [=](SuggestOptions values) {
 		_values = values;
 		updateTexts();
 		_updates.fire({});
@@ -905,21 +1059,24 @@ void SuggestOptions::edit() {
 	}));
 }
 
-void SuggestOptions::updateTexts() {
+void SuggestOptionsBar::updateTexts() {
 	_title.setText(
 		st::semiboldTextStyle,
 		((_mode == SuggestMode::New)
 			? tr::lng_suggest_bar_title(tr::now)
 			: tr::lng_suggest_options_change(tr::now)));
+
+	auto helper = Ui::Text::CustomEmojiHelper();
+	const auto text = composeText(helper);
 	_text.setMarkedText(
 		st::defaultTextStyle,
-		composeText(),
+		text,
 		kMarkupTextOptions,
-		Core::TextContext({ .session = &_peer->session() }));
+		helper.context());
 }
 
-TextWithEntities SuggestOptions::composeText() const {
-	auto helper = Ui::Text::CustomEmojiHelper();
+TextWithEntities SuggestOptionsBar::composeText(
+		Ui::Text::CustomEmojiHelper &helper) const {
 	const auto amount = _values.price().ton()
 		? helper.paletteDependent(Ui::Earn::IconCurrencyEmoji({
 			.size = st::suggestBarTonIconSize,
@@ -930,38 +1087,38 @@ TextWithEntities SuggestOptions::composeText() const {
 		).append(Lang::FormatCreditsAmountDecimal(_values.price()));
 	const auto date = langDateTime(base::unixtime::parse(_values.date));
 	if (!_values.price() && !_values.date) {
-		return tr::lng_suggest_bar_text(tr::now, Ui::Text::WithEntities);
+		return tr::lng_suggest_bar_text(tr::now, tr::marked);
 	} else if (!_values.date) {
 		return tr::lng_suggest_bar_priced(
 			tr::now,
 			lt_amount,
 			amount,
-			Ui::Text::WithEntities);
+			tr::marked);
 	} else if (!_values.price()) {
 		return tr::lng_suggest_bar_dated(
 			tr::now,
 			lt_date,
-			TextWithEntities{ date },
-			Ui::Text::WithEntities);
+			tr::marked(date),
+			tr::marked);
 	}
-	return TextWithEntities().append(
+	return tr::marked().append(
 		amount
 	).append("   ").append(
 		QString::fromUtf8("\xf0\x9f\x93\x86 ")
 	).append(date);
 }
 
-SuggestPostOptions SuggestOptions::values() const {
+SuggestOptions SuggestOptionsBar::values() const {
 	auto result = _values;
 	result.exists = 1;
 	return result;
 }
 
-rpl::producer<> SuggestOptions::updates() const {
+rpl::producer<> SuggestOptionsBar::updates() const {
 	return _updates.events();
 }
 
-rpl::lifetime &SuggestOptions::lifetime() {
+rpl::lifetime &SuggestOptionsBar::lifetime() {
 	return _lifetime;
 }
 

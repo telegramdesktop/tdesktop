@@ -87,7 +87,7 @@ void LoginEmailConfirm::setupContent() {
 		return;
 	}
 	cloudPassword().state(
-	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
 		if (state.loginEmailPattern.isEmpty()) {
 			setStepData(StepData());
 			showBack();
@@ -159,7 +159,7 @@ void LoginEmailConfirm::setupContent() {
 	};
 
 	newInput->codeCollected(
-	) | rpl::start_with_next([=](const QString &code) {
+	) | rpl::on_next([=](const QString &code) {
 		_collectedCode = code;
 		error->hide();
 		submit();

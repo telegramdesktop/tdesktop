@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_open_common.h"
 #include "media/media_common.h"
+#include "platform/platform_text_recognition.h"
 
 class History;
 
@@ -27,7 +28,12 @@ namespace anim {
 enum class activation : uchar;
 } // namespace anim
 
+namespace Calls {
+class GroupCall;
+} // namespace Calls
+
 namespace Data {
+class GroupCall;
 class PhotoMedia;
 class DocumentMedia;
 struct StoriesContext;
@@ -78,6 +84,7 @@ struct ContentLayout;
 
 namespace Media::View {
 
+class VideoStream;
 class PlaybackSponsored;
 class GroupThumbs;
 class Pip;
@@ -151,6 +158,7 @@ private:
 		Share,
 		Rotate,
 		More,
+		Recognize,
 		Icon,
 		Video,
 		Caption,
@@ -278,8 +286,11 @@ private:
 	void deleteMedia();
 	void showMediaOverview();
 	void copyMedia();
+	void recognize();
 	void receiveMouse();
 	void showAttachedStickers();
+	[[nodiscard]] auto scaledRecognitionRect(QPoint position)
+	const -> std::optional<Platform::TextRecognition::RectWithText>;
 	void showDropdown();
 	void handleTouchTimer();
 	void handleDocumentClick();
@@ -291,7 +302,8 @@ private:
 	void showSaveMsgToast(const QString &path, auto phrase);
 	void showSaveMsgToastWith(
 		const QString &path,
-		const TextWithEntities &text);
+		const TextWithEntities &text,
+		crl::time duration = 0);
 	void updateSaveMsg();
 
 	void clearBeforeHide();
@@ -299,6 +311,7 @@ private:
 
 	void assignMediaPointer(DocumentData *document);
 	void assignMediaPointer(not_null<PhotoData*> photo);
+	void assignMediaPointer(std::shared_ptr<Data::GroupCall> call);
 
 	void updateOver(QPoint mpos);
 	void initFullScreen();
@@ -385,6 +398,9 @@ private:
 		anim::activation activation = anim::activation::normal,
 		const Data::CloudTheme &cloud = Data::CloudTheme(),
 		const StartStreaming &startStreaming = StartStreaming());
+	void displayVideoStream(
+		const std::shared_ptr<Data::GroupCall> &call,
+		anim::activation activation = anim::activation::normal);
 	void displayFinished(anim::activation activation);
 	void redisplayContent();
 	void findCurrent();
@@ -577,6 +593,7 @@ private:
 	QRect _headerNav, _nameNav, _dateNav;
 	QRect _rotateNav, _rotateNavOver, _rotateNavIcon;
 	QRect _shareNav, _shareNavOver, _shareNavIcon;
+	QRect _recognizeNav, _recognizeNavOver, _recognizeNavIcon;
 	QRect _saveNav, _saveNavOver, _saveNavIcon;
 	QRect _moreNav, _moreNavOver, _moreNavIcon;
 	bool _leftNavVisible = false;
@@ -584,6 +601,7 @@ private:
 	bool _saveVisible = false;
 	bool _shareVisible = false;
 	bool _rotateVisible = false;
+	bool _recognizeVisible = false;
 	bool _headerHasLink = false;
 	QString _dateText;
 	QString _headerText;
@@ -646,6 +664,10 @@ private:
 	Main::Session *_storiesSession = nullptr;
 	rpl::event_stream<ChatHelpers::FileChosen> _storiesStickerOrEmojiChosen;
 	std::unique_ptr<Ui::LayerManager> _layerBg;
+
+	std::unique_ptr<VideoStream> _videoStream;
+	QString _callLinkSlug;
+	MsgId _callJoinMessageId;
 
 	const style::icon *_docIcon = nullptr;
 	style::color _docIconColor;
@@ -739,6 +761,10 @@ private:
 	rpl::event_stream<bool> _touchbarFullscreenToggled;
 
 	int _verticalWheelDelta = 0;
+
+	Platform::TextRecognition::Result _recognitionResult;
+	bool _showRecognitionResults = false;
+	Ui::Animations::Simple _recognitionAnimation;
 
 	bool _themePreviewShown = false;
 	uint64 _themePreviewId = 0;

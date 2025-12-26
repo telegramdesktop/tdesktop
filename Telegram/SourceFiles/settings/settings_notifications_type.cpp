@@ -148,7 +148,7 @@ void AddExceptionBoxController::prepareViewHook() {
 		Data::PeerUpdate::Flag::Notifications
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		return update.peer == _lastClickedPeer;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		if (const auto onstack = _done) {
 			onstack(_lastClickedPeer);
 		}
@@ -213,13 +213,13 @@ void ExceptionsController::prepare() {
 	refreshRows();
 
 	session().data().notifySettings().exceptionsUpdates(
-	) | rpl::filter(rpl::mappers::_1 == _type) | rpl::start_with_next([=] {
+	) | rpl::filter(rpl::mappers::_1 == _type) | rpl::on_next([=] {
 		refreshRows();
 	}, lifetime());
 
 	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::Notifications
-	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+	) | rpl::on_next([=](const Data::PeerUpdate &update) {
 		const auto peer = update.peer;
 		if (const auto row = delegate()->peerListFindRow(peer->id.value)) {
 			if (peer->notify().muteUntil().has_value()) {
@@ -473,11 +473,11 @@ void SetupChecks(
 	};
 	settings->defaultUpdates(
 		Notify::User
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		toneLabel->fire(label());
 	}, toneInner->lifetime());
 	session->api().ringtones().listUpdates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		toneLabel->fire(label());
 	}, toneInner->lifetime());
 
@@ -509,7 +509,7 @@ void SetupChecks(
 	enabled->toggledValue(
 	) | rpl::filter([=](bool value) {
 		return (value != NotificationsEnabledForType(session, type));
-	}) | rpl::start_with_next([=](bool value) {
+	}) | rpl::on_next([=](bool value) {
 		settings->defaultUpdate(type, Data::MuteValue{
 			.unmute = value,
 			.forever = !value,
@@ -520,7 +520,7 @@ void SetupChecks(
 	) | rpl::filter([=](bool enabled) {
 		const auto sound = settings->defaultSettings(type).sound();
 		return (!sound || !sound->none) != enabled;
-	}) | rpl::start_with_next([=](bool enabled) {
+	}) | rpl::on_next([=](bool enabled) {
 		const auto value = Data::NotifySound{ .none = !enabled };
 		settings->defaultUpdate(type, {}, {}, value);
 	}, sound->lifetime());

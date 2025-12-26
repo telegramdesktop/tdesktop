@@ -458,7 +458,7 @@ void Entry::updateChatListEntryHeight() {
 	session().changes().entryUpdated(this, Data::EntryUpdate::Flag::Height);
 }
 
-[[nodiscard]] bool Entry::hasChatsFilterTags(FilterId exclude) const {
+bool Entry::hasChatsFilterTags(FilterId exclude) const {
 	if (!owner().chatsFilters().tagsEnabled()) {
 		return false;
 	}

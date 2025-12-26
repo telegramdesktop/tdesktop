@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_view.h"
 
 #include "data/data_file_origin.h"
+#include "history/view/controls/compose_controls_common.h"
 #include "media/stories/media_stories_controller.h"
 #include "media/stories/media_stories_delegate.h"
 #include "media/stories/media_stories_header.h"
@@ -172,6 +173,18 @@ void View::showFullCaption() {
 
 std::shared_ptr<ChatHelpers::Show> View::uiShow() const {
 	return _controller->uiShow();
+}
+
+
+void View::updateVideoStream(not_null<Calls::GroupCall*> videoStream) {
+	_controller->updateVideoStream(videoStream);
+}
+
+rpl::producer<bool> View::commentsShownValue() const {
+	return _controller->commentsStateValue(
+	) | rpl::map([=](CommentsState state) {
+		return (state == CommentsState::Shown);
+	}) | rpl::distinct_until_changed();
 }
 
 rpl::lifetime &View::lifetime() {

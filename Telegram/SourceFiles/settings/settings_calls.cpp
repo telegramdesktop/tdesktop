@@ -142,7 +142,7 @@ Webrtc::VideoTrack *Calls::AddCameraSubsection(
 	rpl::combine(
 		std::move(bubbleWidth),
 		std::move(frameSize)
-	) | rpl::start_with_next([=](int width, QSize frame) {
+	) | rpl::on_next([=](int width, QSize frame) {
 		const auto useWidth = (width - 2 * padding);
 		const auto useHeight = std::min(
 			((useWidth * frame.height()) / frame.width()),
@@ -173,7 +173,7 @@ Webrtc::VideoTrack *Calls::AddCameraSubsection(
 		Core::App().calls().currentCallValue(),
 		Core::App().calls().currentGroupCallValue(),
 		_1 || _2
-	) | rpl::start_with_next([=](bool has) {
+	) | rpl::on_next([=](bool has) {
 		if (has) {
 			track->setState(VideoState::Inactive);
 			bubbleWrap->resize(bubbleWrap->width(), 0);
@@ -240,7 +240,7 @@ void Calls::setupContent() {
 		const auto empty = settings->callPlaybackDeviceId().isEmpty()
 			&& settings->callCaptureDeviceId().isEmpty();
 		return (empty != toggled);
-	}) | rpl::start_with_next([=](bool toggled) {
+	}) | rpl::on_next([=](bool toggled) {
 		if (toggled) {
 			settings->setCallPlaybackDeviceId(QString());
 			settings->setCallCaptureDeviceId(QString());
@@ -302,7 +302,7 @@ void Calls::setupContent() {
 	)->toggledChanges(
 	) | rpl::filter([=](bool value) {
 		return (value == api->authorizations().callsDisabledHere());
-	}) | start_with_next([=](bool value) {
+	}) | on_next([=](bool value) {
 		api->authorizations().toggleCallsDisabledHere(!value);
 	}, content->lifetime());
 
@@ -386,7 +386,7 @@ void Calls::initCaptureButton(
 			level->setValue(state->animation.value(state->level));
 		}, was, state->level, kMicTestAnimationDuration);
 	});
-	_testingMicrophone.value() | rpl::start_with_next([=](bool testing) {
+	_testingMicrophone.value() | rpl::on_next([=](bool testing) {
 		if (testing) {
 			state->deviceId = std::make_unique<Webrtc::DeviceResolver>(
 				&Core::App().mediaDevices(),
@@ -511,7 +511,7 @@ void ChooseMediaDeviceBox(
 	def->clicks(
 	) | rpl::filter([=] {
 		return !group->value();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		choose(kDefaultDeviceId);
 	}, def->lifetime());
 	const auto showUnavailable = [=](QString text) {
@@ -575,7 +575,7 @@ void ChooseMediaDeviceBox(
 
 	std::move(
 		devicesValue
-	) | rpl::start_with_next([=](std::vector<DeviceInfo> &&list) {
+	) | rpl::on_next([=](std::vector<DeviceInfo> &&list) {
 		auto count = buttons->count();
 		auto index = 1;
 		state->ids.clear();
@@ -609,7 +609,7 @@ void ChooseMediaDeviceBox(
 			button->clicks(
 			) | rpl::filter([=] {
 				return (group->current() == index);
-			}) | rpl::start_with_next([=] {
+			}) | rpl::on_next([=] {
 				choose(id);
 			}, button->lifetime());
 
@@ -630,7 +630,7 @@ void ChooseMediaDeviceBox(
 	}, box->lifetime());
 
 	state->currentId.changes(
-	) | rpl::start_with_next(selectCurrent, box->lifetime());
+	) | rpl::on_next(selectCurrent, box->lifetime());
 
 	def->finishAnimating();
 

@@ -32,7 +32,7 @@ Domain::Domain(const QString &dataName)
 : _dataName(dataName)
 , _local(std::make_unique<Storage::Domain>(this, dataName)) {
 	_active.changes(
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::on_next([=] {
 		// In case we had a legacy passcoded app we start settings here.
 		Core::App().startSettingsAndBackground();
 
@@ -52,7 +52,7 @@ Domain::Domain(const QString &dataName)
 				Data::PeerUpdate::Flag::Username)
 			: rpl::never<Data::PeerUpdate>();
 	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([](const Data::PeerUpdate &update) {
+	) | rpl::on_next([](const Data::PeerUpdate &update) {
 		CrashReports::SetAnnotation("Username", update.peer->username());
 	}, _lifetime);
 }
@@ -343,15 +343,15 @@ void Domain::watchSession(not_null<Account*> account) {
 	account->sessionValue(
 	) | rpl::filter([=](Session *session) {
 		return session != nullptr;
-	}) | rpl::start_with_next([=](Session *session) {
+	}) | rpl::on_next([=](Session *session) {
 		session->data().unreadBadgeChanges(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			scheduleUpdateUnreadBadge();
 		}, session->lifetime());
 
 		Data::AmPremiumValue(
 			session
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_lastMaxAccounts = maxAccounts();
 		}, session->lifetime());
 	}, account->lifetime());
@@ -359,7 +359,7 @@ void Domain::watchSession(not_null<Account*> account) {
 	account->sessionChanges(
 	) | rpl::filter([=](Session *session) {
 		return !session;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		scheduleUpdateUnreadBadge();
 		closeAccountWindows(account);
 		crl::on_main(&Core::App(), [=] {

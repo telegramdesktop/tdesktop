@@ -197,7 +197,7 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 
 	if (!_subscription) {
 		_subscription = Media::Player::Updated(
-		) | rpl::start_with_next([=](const AudioMsgId &id) {
+		) | rpl::on_next([=](const AudioMsgId &id) {
 			using State = Media::Player::State;
 			if (id != _audioId) {
 				return;

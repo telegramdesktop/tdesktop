@@ -58,7 +58,7 @@ Strip::Strip(
 , _finalSize(size)
 , _update(std::move(update)) {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		invalidateMainReactionImage();
 	}, _lifetime);
 }
@@ -394,7 +394,7 @@ void Strip::loadIcons() {
 		entry.media->checkStickerLarge();
 		if (!checkIconLoaded(entry) && !_loadCacheLifetime) {
 			document->session().downloaderTaskFinished(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				checkIcons();
 			}, _loadCacheLifetime);
 		}
@@ -454,22 +454,26 @@ void Strip::resolveMainReactionIcon() {
 	_mainReactionMedia = main->createMediaView();
 	_mainReactionMedia->checkStickerLarge();
 	if (_mainReactionMedia->loaded()) {
-		_mainReactionLifetime.destroy();
 		setMainReactionIcon();
 	} else if (!_mainReactionLifetime) {
 		main->session().downloaderTaskFinished(
 		) | rpl::filter([=] {
 			return _mainReactionMedia->loaded();
-		}) | rpl::take(1) | rpl::start_with_next([=] {
+		}) | rpl::take(1) | rpl::on_next([=] {
 			setMainReactionIcon();
 		}, _mainReactionLifetime);
 	}
 }
 
 void Strip::setMainReactionIcon() {
+	Expects(_mainReactionMedia->loaded());
+
 	_mainReactionLifetime.destroy();
 	ranges::fill(_validEmoji, false);
 	loadIcons();
+
+	Assert(_mainReactionMedia->loaded());
+
 	const auto i = _loadCache.find(_mainReactionMedia->owner());
 	if (i != end(_loadCache) && i->second.icon) {
 		const auto &icon = i->second.icon;
@@ -479,6 +483,8 @@ void Strip::setMainReactionIcon() {
 		}
 	}
 	_mainReactionImage = QImage();
+
+	Assert(_mainReactionMedia->loaded());
 	_mainReactionIcon = DefaultIconFactory(
 		_mainReactionMedia.get(),
 		MainReactionSize());

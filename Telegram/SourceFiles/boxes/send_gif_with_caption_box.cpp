@@ -76,7 +76,7 @@ namespace {
 				Qt::KeepAspectRatio).height()),
 		st::boxRowPadding);
 	widget->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(widget);
 		if (state->gif && state->gif->started()) {
 			p.drawImage(
@@ -121,8 +121,8 @@ namespace {
 		return true;
 	};
 	if (!updateThumbnail()) {
-		document->owner().session().downloaderTaskFinished(
-		) | rpl::start_with_next([=] {
+		document->session().downloaderTaskFinished(
+		) | rpl::on_next([=] {
 			if (updateThumbnail()) {
 				state->loadingLifetime.destroy();
 				widget->update();
@@ -175,11 +175,11 @@ namespace {
 		emojiPanel->hide();
 		emojiPanel->selector()->setCurrentPeer(controller->session().user());
 		emojiPanel->selector()->emojiChosen(
-		) | rpl::start_with_next([=](ChatHelpers::EmojiChosen data) {
+		) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
 			Ui::InsertEmojiAtCursor(input->textCursor(), data.emoji);
 		}, input->lifetime());
 		emojiPanel->selector()->customEmojiChosen(
-		) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
+		) | rpl::on_next([=](ChatHelpers::FileChosen data) {
 			const auto info = data.document->sticker();
 			if (info
 				&& info->setType == Data::StickersType::Emoji
@@ -212,7 +212,7 @@ namespace {
 					emojiButton,
 					style::al_top);
 				state->charsLimitation->show();
-				Data::AmPremiumValue(session) | rpl::start_with_next([=] {
+				Data::AmPremiumValue(session) | rpl::on_next([=] {
 					repeat(repeat);
 				}, state->charsLimitation->lifetime());
 			}
@@ -223,7 +223,7 @@ namespace {
 		}
 	};
 
-	input->changes() | rpl::start_with_next([=] {
+	input->changes() | rpl::on_next([=] {
 		checkCharsLimitation(checkCharsLimitation);
 	}, input->lifetime());
 
@@ -311,8 +311,17 @@ void CaptionBox(
 		}
 	}
 
-	const auto send = [=](Api::SendOptions options) {
-		done(std::move(options), input->getTextWithTags());
+	const auto send = [=, show = controller->uiShow()](
+			Api::SendOptions options) {
+		const auto textWithTags = input->getTextWithTags();
+		const auto remove = Ui::ComputeFieldCharacterCount(input)
+			- Data::PremiumLimits(&show->session()).captionLengthCurrent();
+		if (remove > 0) {
+			show->showToast(
+				tr::lng_edit_limit_reached(tr::now, lt_count, remove));
+			return;
+		}
+		done(std::move(options), textWithTags);
 	};
 	const auto confirm = box->addButton(
 		std::move(confirmText),
@@ -333,7 +342,7 @@ void CaptionBox(
 		box->closeBox();
 	});
 	input->submits(
-	) | rpl::start_with_next([=] { send({}); }, input->lifetime());
+	) | rpl::on_next([=] { send({}); }, input->lifetime());
 }
 
 } // namespace
@@ -369,7 +378,7 @@ void EditCaptionBox(
 	state->fullId = view->data()->fullId();
 
 	data->itemIdChanged(
-	) | rpl::start_with_next([=](Data::Session::IdChange event) {
+	) | rpl::on_next([=](Data::Session::IdChange event) {
 		if (event.oldId == state->fullId.msg) {
 			state->fullId = event.newId;
 		}
@@ -385,6 +394,16 @@ void EditCaptionBox(
 		}
 		if (!(item->media() && item->media()->allowsEditCaption())) {
 			show->showToast(tr::lng_edit_error(tr::now));
+			return;
+		}
+		const auto textLength = textWithTags.text.size();
+		const auto limit = Data::PremiumLimits(
+			&item->history()->session()).captionLengthCurrent();
+		if (textLength > limit) {
+			show->showToast(tr::lng_edit_limit_reached(
+				tr::now,
+				lt_count,
+				textLength - limit));
 			return;
 		}
 		auto text = TextWithEntities{

@@ -289,7 +289,7 @@ void LoadCloudFile(
 	};
 
 	file.loader->updates(
-	) | rpl::start_with_next_error_done([=] {
+	) | rpl::on_next_error_done([=] {
 		if (const auto onstack = progress) {
 			onstack();
 		}

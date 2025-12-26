@@ -21,6 +21,7 @@ class Session;
 
 namespace Data {
 
+class GroupCall;
 class Session;
 class Thread;
 class MediaPreload;
@@ -38,6 +39,7 @@ struct StoryIdDates {
 	StoryId id = 0;
 	TimeId date = 0;
 	TimeId expires = 0;
+	bool videoStream = false;
 
 	[[nodiscard]] bool valid() const {
 		return id != 0;
@@ -54,7 +56,8 @@ struct StoryMedia {
 	std::variant<
 		v::null_t,
 		not_null<PhotoData*>,
-		not_null<DocumentData*>> data;
+		not_null<DocumentData*>,
+		std::shared_ptr<GroupCall>> data;
 
 	friend inline bool operator==(StoryMedia, StoryMedia) = default;
 };
@@ -170,6 +173,7 @@ public:
 	[[nodiscard]] const StoryMedia &media() const;
 	[[nodiscard]] PhotoData *photo() const;
 	[[nodiscard]] DocumentData *document() const;
+	[[nodiscard]] const std::shared_ptr<GroupCall> &call() const;
 
 	[[nodiscard]] bool hasReplyPreview() const;
 	[[nodiscard]] Image *replyPreview() const;

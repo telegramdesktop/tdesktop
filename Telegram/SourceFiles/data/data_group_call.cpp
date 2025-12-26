@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "main/main_session.h"
 #include "calls/calls_instance.h"
 #include "calls/group/calls_group_call.h"
@@ -63,15 +64,17 @@ GroupCall::GroupCall(
 	uint64 accessHash,
 	TimeId scheduleDate,
 	bool rtmp,
-	bool conference)
+	GroupCallOrigin origin)
 : _id(id)
 , _accessHash(accessHash)
 , _peer(peer)
 , _reloadByQueuedUpdatesTimer([=] { reload(); })
 , _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); })
 , _scheduleDate(scheduleDate)
+, _savedSendAs(peer->session().user())
 , _rtmp(rtmp)
-, _conference(conference)
+, _conference(origin == GroupCallOrigin::Conference)
+, _videoStream(origin == GroupCallOrigin::VideoStream)
 , _listenersHidden(rtmp) {
 	if (_conference) {
 		session().data().registerGroupCall(this);
@@ -81,7 +84,7 @@ GroupCall::GroupCall(
 			return !update.now
 				&& !update.was->peer->isSelf()
 				&& !_participantsWithAccess.current().empty();
-		}) | rpl::start_with_next([=](const ParticipantUpdate &update) {
+		}) | rpl::on_next([=](const ParticipantUpdate &update) {
 			if (const auto id = peerToUser(update.was->peer->id)) {
 				if (_participantsWithAccess.current().contains(id)) {
 					_staleParticipantIds.fire({ id });
@@ -92,18 +95,20 @@ GroupCall::GroupCall(
 		_participantsWithAccess.changes(
 		) | rpl::filter([=](const base::flat_set<UserId> &list) {
 			return !list.empty();
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			if (_allParticipantsLoaded) {
 				checkStaleParticipants();
 			} else {
 				requestParticipants();
 			}
 		}, _checkStaleLifetime);
+	} else if (_videoStream) {
+		session().data().registerGroupCall(this);
 	}
 }
 
 GroupCall::~GroupCall() {
-	if (_conference) {
+	if (_conference || _videoStream) {
 		session().data().unregisterGroupCall(this);
 	}
 	api().request(_unknownParticipantPeersRequestId).cancel();
@@ -123,8 +128,27 @@ bool GroupCall::loaded() const {
 	return _version > 0;
 }
 
+rpl::producer<bool> GroupCall::loadedValue() const {
+	if (loaded()) {
+		return rpl::single(true);
+	}
+	return _loadedChanges.events_starting_with(false);
+}
+
 bool GroupCall::rtmp() const {
 	return _rtmp;
+}
+
+GroupCallOrigin GroupCall::origin() const {
+	return _conference
+		? GroupCallOrigin::Conference
+		: _videoStream
+		? GroupCallOrigin::VideoStream
+		: GroupCallOrigin::Group;
+}
+
+bool GroupCall::creator() const {
+	return _creator;
 }
 
 bool GroupCall::canManage() const {
@@ -450,10 +474,8 @@ void GroupCall::discard(const MTPDgroupCallDiscarded &data) {
 	Core::App().calls().applyGroupCallUpdateChecked(
 		&peer->session(),
 		MTP_updateGroupCall(
-			MTP_flags(MTPDupdateGroupCall::Flag::f_chat_id),
-			MTP_long(peer->isChat()
-				? peerToChat(peer->id).bare
-				: peerToChannel(peer->id).bare),
+			MTP_flags(MTPDupdateGroupCall::Flag::f_peer),
+			peerToMTP(peer->id),
 			MTP_groupCallDiscarded(
 				data.vid(),
 				data.vaccess_hash(),
@@ -501,6 +523,7 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 		"Set from groupCall %1 -> %2"
 		).arg(_version
 		).arg(data.vversion().v));
+	const auto initial = !_version;
 	_version = data.vversion().v;
 	if (!_version) {
 		LOG(("API Error: Got zero version in groupCall."));
@@ -509,8 +532,21 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	_rtmp = data.is_rtmp_stream();
 	_creator = data.is_creator();
 	_listenersHidden = data.is_listeners_hidden();
-	_joinMuted = data.is_join_muted();
-	_canChangeJoinMuted = data.is_can_change_join_muted();
+	if (data.is_conference()) {
+		_canChangeJoinMuted = false;
+		_joinMuted = false;
+		const auto enabled = data.is_messages_enabled();
+		_canChangeMessagesEnabled = enabled;
+		if (!enabled || initial) {
+			_messagesEnabled = enabled;
+		}
+	} else {
+		_canChangeJoinMuted = data.is_can_change_join_muted();
+		_joinMuted = data.is_join_muted();
+		_canChangeMessagesEnabled = data.is_can_change_messages_enabled();
+		_messagesEnabled = data.is_messages_enabled();
+	}
+	_messagesMinPrice = data.vsend_paid_messages_stars().value_or_empty();
 	_joinedToTop = !data.is_join_date_asc();
 	setServerParticipantsCount(data.vparticipants_count().v);
 	changePeerEmptyCallFlag();
@@ -525,6 +561,12 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	_allParticipantsLoaded
 		= (_serverParticipantsCount == _participants.size());
 	_conferenceInviteLink = qs(data.vinvite_link().value_or_empty());
+	if (const auto as = data.vdefault_send_as()) {
+		_savedSendAs = _peer->owner().peer(peerFromMTP(*as));
+	}
+	if (initial) {
+		_loadedChanges.fire(true);
+	}
 }
 
 void GroupCall::applyLocalUpdate(
@@ -1098,8 +1140,20 @@ bool GroupCall::joinedToTop() const {
 	return _joinedToTop;
 }
 
+void GroupCall::setMessagesEnabledLocally(bool enabled) {
+	_messagesEnabled = enabled;
+}
+
 ApiWrap &GroupCall::api() const {
 	return session().api();
+}
+
+void GroupCall::saveSendAs(not_null<PeerData*> peer) {
+	_savedSendAs = peer;
+	api().request(MTPphone_SaveDefaultSendAs(
+		input(),
+		peer->input()
+	)).send();
 }
 
 } // namespace Data

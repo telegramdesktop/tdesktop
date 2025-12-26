@@ -88,7 +88,7 @@ rpl::producer<SparseIdsSlice> HistoryViewer(
 			limitAfter);
 		using RequestAroundInfo = SparseIdsSliceBuilder::AroundData;
 		builder->insufficientAround(
-		) | rpl::start_with_next([=](const RequestAroundInfo &info) {
+		) | rpl::on_next([=](const RequestAroundInfo &info) {
 			if (!info.aroundId) {
 				// Ignore messages-count-only requests, because we perform
 				// them with non-zero limit of messages and end up adding
@@ -110,22 +110,22 @@ rpl::producer<SparseIdsSlice> HistoryViewer(
 		messages->sliceUpdated(
 		) | rpl::filter([=](const SliceUpdate &update) {
 			return builder->applyUpdate(update);
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		messages->oneRemoved(
 		) | rpl::filter([=](MsgId messageId) {
 			return builder->removeOne(messageId);
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		messages->allRemoved(
 		) | rpl::filter([=] {
 			return builder->removeAll();
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		messages->bottomInvalidated(
 		) | rpl::filter([=] {
 			return builder->invalidateBottom();
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		const auto snapshot = messages->snapshot({
 			aroundId,

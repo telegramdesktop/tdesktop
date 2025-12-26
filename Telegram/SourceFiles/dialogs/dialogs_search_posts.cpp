@@ -33,7 +33,7 @@ PostsSearch::PostsSearch(not_null<Main::Session*> session)
 , _api(&_session->api().instance())
 , _timer([=] { applyQuery(); })
 , _recheckTimer([=] { recheck(); }) {
-	Data::AmPremiumValue(_session) | rpl::start_with_next([=] {
+	Data::AmPremiumValue(_session) | rpl::on_next([=] {
 		maybePushPremiumUpdate();
 	}, _lifetime);
 }
@@ -185,7 +185,7 @@ void PostsSearch::requestSearch(const QString &query) {
 		MTP_string(), // hashtag
 		MTP_string(query),
 		MTP_int(entry.offsetRate),
-		(entry.offsetPeer ? entry.offsetPeer->input : MTP_inputPeerEmpty()),
+		(entry.offsetPeer ? entry.offsetPeer->input() : MTP_inputPeerEmpty()),
 		MTP_int(entry.offsetId),
 		MTP_int(kPerPage),
 		MTP_long(useStars)

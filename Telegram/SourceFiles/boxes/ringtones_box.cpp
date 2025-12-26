@@ -72,7 +72,7 @@ AudioCreator::AudioCreator()
 	});
 	base::timer_each(
 		kNoDetachTimeout
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Media::Audio::StopDetachIfNotUsedSafe();
 	}, _lifetime);
 }
@@ -210,7 +210,7 @@ void RingtonesBox(
 	};
 
 	session->api().ringtones().uploadFails(
-	) | rpl::start_with_next([=](const QString &error) {
+	) | rpl::on_next([=](const QString &error) {
 		if ((error == u"RINGTONE_DURATION_TOO_LONG"_q)) {
 			box->getDelegate()->show(Ui::MakeInformBox(
 				tr::lng_ringtones_error_max_duration(
@@ -274,10 +274,10 @@ void RingtonesBox(
 	};
 
 	session->api().ringtones().listUpdates(
-	) | rpl::start_with_next(rebuild, container->lifetime());
+	) | rpl::on_next(rebuild, container->lifetime());
 
 	session->api().ringtones().uploadDones(
-	) | rpl::start_with_next([=](DocumentId id) {
+	) | rpl::on_next([=](DocumentId id) {
 		state->chosen = Data::NotifySound{ .id = id };
 		rebuild();
 	}, container->lifetime());

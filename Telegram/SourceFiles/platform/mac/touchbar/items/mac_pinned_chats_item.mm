@@ -428,7 +428,7 @@ NSRect PeerRectByIndex(int index) {
 	_gestures.events(
 	) | rpl::filter([=] {
 		return !(*waitForFinish);
-	}) | rpl::start_with_next([=](
+	}) | rpl::on_next([=](
 			not_null<NSPressGestureRecognizer*> gesture) {
 		const auto currentPosition = [gesture locationInView:self].x;
 
@@ -444,7 +444,7 @@ NSRect PeerRectByIndex(int index) {
 	}, _lifetime);
 
 	_session->data().pinnedDialogsOrderUpdated(
-	) | rpl::start_with_next(cancelCurrent, _lifetime);
+	) | rpl::on_next(cancelCurrent, _lifetime);
 
 	_lifetime.add([=] {
 		for (const auto &pin : _pins) {
@@ -477,7 +477,7 @@ NSRect PeerRectByIndex(int index) {
 	// manually, before it leads to crashes.
 	std::move(
 		touchBarSwitches
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_lifetime.destroy();
 	}, _lifetime);
 
@@ -503,7 +503,7 @@ NSRect PeerRectByIndex(int index) {
 			kCircleDiameter)];
 	};
 	lastDialogsCount->changes(
-	) | rpl::start_with_next(updatePanelSize, _lifetime);
+	) | rpl::on_next(updatePanelSize, _lifetime);
 	const auto singleUserpic = [=](const auto &pin) {
 		if (IsSelfPeer(pin->peer)) {
 			pin->userpic = _savedMessages;
@@ -537,7 +537,7 @@ NSRect PeerRectByIndex(int index) {
 	};
 	const auto listenToDownloaderFinished = [=] {
 		_session->downloaderTaskFinished(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			const auto all = ranges::all_of(_pins, [=](const auto &pin) {
 				return (!pin->peer->hasUserpic())
 					|| (!Ui::PeerUserpicLoading(pin->userpicView));
@@ -578,7 +578,7 @@ NSRect PeerRectByIndex(int index) {
 				pin->peer,
 				UpdateFlag::OnlineStatus) | to_peer,
 			onlineChanges->events()
-		) | rpl::start_with_next([=](PeerData *peer) {
+		) | rpl::on_next([=](PeerData *peer) {
 			const auto it = ranges::find(_pins, peer, &Pin::peer);
 			if (it == end(_pins)) {
 				return;
@@ -644,7 +644,7 @@ NSRect PeerRectByIndex(int index) {
 			_session->changes().peerUpdates(
 				peer,
 				UpdateFlag::Photo
-			) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+			) | rpl::on_next([=](const Data::PeerUpdate &update) {
 				_pins[index]->userpicView = update.peer->createUserpicView();
 				listenToDownloaderFinished();
 			}, *peerChangedLifetime);
@@ -666,7 +666,7 @@ NSRect PeerRectByIndex(int index) {
 					peer,
 					UpdateFlag::Notifications
 				) | rpl::to_empty
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				updateBadge(_pins[index]);
 			}, *peerChangedLifetime);
 		}
@@ -676,7 +676,7 @@ NSRect PeerRectByIndex(int index) {
 
 	rpl::single(rpl::empty) | rpl::then(
 		_session->data().pinnedDialogsOrderUpdated()
-	) | rpl::start_with_next(updatePinnedChats, _lifetime);
+	) | rpl::on_next(updatePinnedChats, _lifetime);
 
 	const auto ArchiveId = Data::Folder::kId;
 	rpl::single(
@@ -685,7 +685,7 @@ NSRect PeerRectByIndex(int index) {
 		_session->data().chatsListChanges()
 	) | rpl::filter([](Data::Folder *folder) {
 		return folder && (folder->id() == ArchiveId);
-	}) | rpl::start_with_next([=](Data::Folder *folder) {
+	}) | rpl::on_next([=](Data::Folder *folder) {
 		_hasArchive = !folder->chatsList()->empty();
 		if (_archive.isNull()) {
 			_archive = ArchiveUserpic(folder);
@@ -706,7 +706,7 @@ NSRect PeerRectByIndex(int index) {
 	const auto localGuard = _lifetime.make_state<base::has_weak_ptr>();
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		crl::on_main(&(*localGuard), [=] {
 			updateOnlineColor();
 			if (const auto f = _session->data().folderLoaded(ArchiveId)) {

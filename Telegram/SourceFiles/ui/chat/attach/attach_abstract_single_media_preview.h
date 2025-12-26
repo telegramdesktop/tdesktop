@@ -36,8 +36,8 @@ public:
 	[[nodiscard]] rpl::producer<> deleteRequests() const override;
 	[[nodiscard]] rpl::producer<> editRequests() const override;
 	[[nodiscard]] rpl::producer<> modifyRequests() const override;
-	[[nodiscard]] rpl::producer<> editCoverRequests() const;
-	[[nodiscard]] rpl::producer<> clearCoverRequests() const;
+	[[nodiscard]] rpl::producer<> editCoverRequests() const override;
+	[[nodiscard]] rpl::producer<> clearCoverRequests() const override;
 
 	[[nodiscard]] bool isPhoto() const;
 

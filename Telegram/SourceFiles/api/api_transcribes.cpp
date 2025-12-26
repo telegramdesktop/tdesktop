@@ -41,7 +41,7 @@ void Transcribes::rate(not_null<HistoryItem*> item, bool isGood) {
 	for (const auto &[transcribeId, id] : _ids) {
 		if (id == fullId) {
 			_api.request(MTPmessages_RateTranscribedAudio(
-				item->history()->peer->input,
+				item->history()->peer->input(),
 				MTP_int(item->id),
 				MTP_long(transcribeId),
 				MTP_bool(isGood))).send();
@@ -158,7 +158,7 @@ void Transcribes::load(not_null<HistoryItem*> item) {
 	};
 	const auto id = item->fullId();
 	const auto requestId = _api.request(MTPmessages_TranscribeAudio(
-		item->history()->peer->input,
+		item->history()->peer->input(),
 		MTP_int(item->id)
 	)).done([=](const MTPmessages_TranscribedAudio &result) {
 		const auto &data = result.data();

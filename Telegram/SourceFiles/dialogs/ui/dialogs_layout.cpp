@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
+#include "data/data_thread.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "dialogs/dialogs_list.h"
@@ -44,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/unread_badge.h"
 #include "ui/unread_badge_paint.h"
+#include "ui/unread_counter_format.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
@@ -180,16 +182,10 @@ int PaintBadges(
 		st.active = context.active;
 		st.selected = context.selected;
 		st.muted = badgesState.unreadMuted;
-		const auto counter = (badgesState.unreadCounter <= 0)
-			? QString()
-			: !narrow
-			? QString::number(badgesState.unreadCounter)
-			: ((badgesState.mention || badgesState.reaction)
-				&& (badgesState.unreadCounter > 999))
-			? (u"99+"_q)
-			: (badgesState.unreadCounter > 999999)
-			? (u"99999+"_q)
-			: QString::number(badgesState.unreadCounter);
+		const auto counter = FormatUnreadCounter(
+			badgesState.unreadCounter,
+			badgesState.mention || badgesState.reaction,
+			narrow);
 		const auto badge = PaintUnreadBadge(p, counter, right, top, st);
 		right -= badge.width() + st.padding;
 	} else if (const auto used = PaintRightButton(p, context)) {
@@ -592,7 +588,7 @@ void PaintRow(
 							.entities = ConvertTextTagsToEntities(
 								draft->textWithTags.tags),
 						}),
-						Text::WithEntities);
+						tr::marked);
 				if (draft && draft->reply) {
 					draftText = Ui::Text::Colorized(
 						Ui::Text::IconEmoji(&st::dialogsMiniReplyIcon)
@@ -1203,20 +1199,20 @@ void RowPainter::Paint(
 }
 
 QRect RowPainter::SendActionAnimationRect(
-		not_null<const style::DialogRow*> st,
-		int animationLeft,
-		int animationWidth,
-		int animationHeight,
+		not_null<const Data::Thread*> thread,
+		FilterId filterId,
+		QRect rect,
 		int fullWidth,
 		bool textUpdated) {
-	const auto nameleft = st->nameLeft;
-	const auto namewidth = fullWidth - nameleft - st->padding.right();
-	const auto texttop = st->textTop;
+	const auto &st = Row::ComputeSt(thread, filterId);
+	const auto nameleft = st.nameLeft;
+	const auto namewidth = fullWidth - nameleft - st.padding.right();
+	const auto texttop = st.textTop;
 	return QRect(
-		nameleft + (textUpdated ? 0 : animationLeft),
-		texttop,
-		textUpdated ? namewidth : animationWidth,
-		animationHeight);
+		nameleft + (textUpdated ? 0 : rect.x()),
+		texttop + rect.y(),
+		textUpdated ? namewidth : rect.width(),
+		rect.height());
 }
 
 void PaintCollapsedRow(

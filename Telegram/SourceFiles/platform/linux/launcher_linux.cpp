@@ -14,12 +14,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QApplication>
 #include <glib/glib.hpp>
 
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif // __GLIBC__
+
 using namespace gi::repository;
 
 namespace Platform {
 
 Launcher::Launcher(int argc, char *argv[])
 : Core::Launcher(argc, argv) {
+#ifdef __GLIBC__
+	mallopt(M_ARENA_MAX, 1);
+#endif // __GLIBC__
 }
 
 int Launcher::exec() {

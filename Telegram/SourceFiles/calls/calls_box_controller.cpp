@@ -207,7 +207,7 @@ void ListController::prepare() {
 
 	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::GroupCall
-	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+	) | rpl::on_next([=](const Data::PeerUpdate &update) {
 		processPeer(update.peer);
 		finishProcess();
 	}, lifetime());
@@ -493,7 +493,7 @@ Main::Session &BoxController::session() const {
 
 void BoxController::prepare() {
 	session().data().itemRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		if (const auto row = rowForItem(item)) {
 			row->itemRemoved(item);
 			if (!row->hasItems()) {
@@ -511,7 +511,7 @@ void BoxController::prepare() {
 	) | rpl::filter([=](const Data::MessageUpdate &update) {
 		const auto media = update.item->media();
 		return (media != nullptr) && (media->call() != nullptr);
-	}) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+	}) | rpl::on_next([=](const Data::MessageUpdate &update) {
 		insertRow(update.item, InsertWay::Prepend);
 	}, lifetime());
 
@@ -783,14 +783,14 @@ void ClearCallsBox(
 			lt_count,
 			rpl::single(controller->session().appConfig().confcallSizeLimit()
 				* 1.),
-			Ui::Text::WithEntities));
+			tr::marked));
 
 	const auto icon = Ui::CreateChild<Info::Profile::FloatingIcon>(
 		result,
 		st::inviteViaLinkIcon,
 		QPoint());
 	result->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		icon->moveToLeft(
 			st::inviteViaLinkIconPosition.x(),
 			(height - st::inviteViaLinkIcon.height()) / 2);
@@ -846,7 +846,7 @@ void ShowCallsBox(not_null<::Window::SessionController*> window) {
 		button->events(
 		) | rpl::filter([=](not_null<QEvent*> e) {
 			return (e->type() == QEvent::Enter);
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			state->callsDelegate.peerListMouseLeftGeometry();
 		}, button->lifetime());
 
@@ -858,7 +858,7 @@ void ShowCallsBox(not_null<::Window::SessionController*> window) {
 
 		box->setWidth(state->callsController.contentWidth());
 		state->callsController.boxHeightValue(
-		) | rpl::start_with_next([=](int height) {
+		) | rpl::on_next([=](int height) {
 			box->setMinHeight(height);
 		}, box->lifetime());
 		box->setTitle(tr::lng_call_box_title());

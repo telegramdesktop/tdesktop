@@ -94,7 +94,7 @@ EditParticipantBox::Inner::Inner(
 , _hasAdminRights(hasAdminRights)
 , _rows(this) {
 	_rows->heightValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		resizeToWidth(width());
 	}, lifetime());
 
@@ -246,7 +246,8 @@ ChatAdminRightsInfo EditAdminBox::defaultRights() const {
 			| Flag::DeleteStories
 			| Flag::InviteByLinkOrAdd
 			| Flag::ManageCall
-			| Flag::ManageDirect) };
+			| Flag::ManageDirect
+			| Flag::BanUsers) };
 }
 
 void EditAdminBox::prepare() {
@@ -281,7 +282,7 @@ void EditAdminBox::prepare() {
 					true)),
 			st::rightsToggleMargin + (st::rightsDividerMargin / 2));
 		_addAsAdmin->checkedChanges(
-		) | rpl::start_with_next([=](bool checked) {
+		) | rpl::on_next([=](bool checked) {
 			_adminControlsWrap->toggle(checked, anim::type::normal);
 			refreshButtons();
 		}, _addAsAdmin->lifetime());
@@ -300,11 +301,11 @@ void EditAdminBox::prepare() {
 			tr::lng_rights_about_by(
 				lt_user,
 				rpl::single(_by
-					? Ui::Text::Link(_by->name(), 1)
+					? tr::link(_by->name(), 1)
 					: TextWithEntities{ QString::fromUtf8("\U0001F47B") }),
 				lt_date,
 				rpl::single(TextWithEntities{ langDateTimeFull(parsed) }),
-				Ui::Text::WithEntities));
+				tr::marked));
 		if (_by) {
 			label->setLink(1, _by->createOpenLink());
 		}
@@ -464,8 +465,8 @@ void EditAdminBox::prepare() {
 					phrase(
 						tr::now,
 						lt_group,
-						Ui::Text::Bold(peer()->name()),
-						Ui::Text::WithEntities),
+						tr::bold(peer()->name()),
+						tr::marked),
 					crl::guard(this, [=] { finishAddAdmin(); })
 				}));
 			} else {
@@ -529,7 +530,7 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput(
 	result->setMaxLength(kAdminRoleLimit);
 	result->setInstantReplaces(Ui::InstantReplaces::TextOnly());
 	result->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto text = result->getLastText();
 		const auto removed = TextUtilities::RemoveEmoji(text);
 		if (removed != text) {
@@ -591,7 +592,7 @@ void EditAdminBox::transferOwnership() {
 	}
 
 	const auto channel = peer()->isChannel()
-		? peer()->asChannel()->inputChannel
+		? peer()->asChannel()->inputChannel()
 		: MTP_inputChannelEmpty();
 	const auto api = &peer()->session().api();
 	api->cloudPassword().reload();
@@ -610,10 +611,10 @@ void EditAdminBox::transferOwnership() {
 				.text = tr::lng_rights_transfer_about(
 					tr::now,
 					lt_group,
-					Ui::Text::Bold(peer()->name()),
+					tr::bold(peer()->name()),
 					lt_user,
-					Ui::Text::Bold(user()->shortName()),
-					Ui::Text::RichLangValue),
+					tr::bold(user()->shortName()),
+					tr::rich),
 				.confirmed = callback,
 				.confirmText = tr::lng_rights_transfer_sure(),
 			}));
@@ -626,8 +627,8 @@ bool EditAdminBox::handleTransferPasswordError(const QString &error) {
 	auto about = tr::lng_rights_transfer_check_about(
 		tr::now,
 		lt_user,
-		Ui::Text::Bold(user()->shortName()),
-		Ui::Text::WithEntities);
+		tr::bold(user()->shortName()),
+		tr::marked);
 	if (auto box = PrePasswordErrorBox(error, session, std::move(about))) {
 		getDelegate()->show(std::move(box));
 		return true;
@@ -653,7 +654,7 @@ void EditAdminBox::requestTransferPassword(not_null<ChannelData*> channel) {
 	peer()->session().api().cloudPassword().state(
 	) | rpl::take(
 		1
-	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
 		auto fields = PasscodeBox::CloudFields::From(state);
 		fields.customTitle = tr::lng_rights_transfer_password_title();
 		fields.customDescription
@@ -679,8 +680,8 @@ void EditAdminBox::sendTransferRequestFrom(
 	const auto user = this->user();
 	const auto api = &channel->session().api();
 	_transferRequestId = api->request(MTPchannels_EditCreator(
-		channel->inputChannel,
-		user->inputUser,
+		channel->inputChannel(),
+		user->inputUser(),
 		result.result
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
@@ -836,11 +837,11 @@ void EditRestrictedBox::prepare() {
 				: tr::lng_rights_chat_restricted_by)(
 					lt_user,
 					rpl::single(_by
-						? Ui::Text::Link(_by->name(), 1)
+						? tr::link(_by->name(), 1)
 						: TextWithEntities{ QString::fromUtf8("\U0001F47B") }),
 					lt_date,
 					rpl::single(TextWithEntities{ langDateTimeFull(parsed) }),
-					Ui::Text::WithEntities));
+					tr::marked));
 		if (_by) {
 			label->setLink(1, _by->createOpenLink());
 		}

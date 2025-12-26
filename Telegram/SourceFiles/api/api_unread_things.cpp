@@ -111,7 +111,7 @@ void UnreadThings::requestMentions(
 	using Flag = MTPmessages_GetUnreadMentions::Flag;
 	const auto requestId = _api->request(MTPmessages_GetUnreadMentions(
 		MTP_flags(topic ? Flag::f_top_msg_id : Flag()),
-		history->peer->input,
+		history->peer->input(),
 		MTP_int(topic ? topic->rootId() : 0),
 		MTP_int(offsetId),
 		MTP_int(addOffset),
@@ -147,9 +147,9 @@ void UnreadThings::requestReactions(
 	const auto requestId = _api->request(MTPmessages_GetUnreadReactions(
 		MTP_flags((topic ? Flag::f_top_msg_id : Flag())
 			| (sublist ? Flag::f_saved_peer_id : Flag())),
-		history->peer->input,
+		history->peer->input(),
 		MTP_int(topic ? topic->rootId() : 0),
-		(sublist ? sublist->sublistPeer()->input : MTPInputPeer()),
+		(sublist ? sublist->sublistPeer()->input() : MTPInputPeer()),
 		MTP_int(offsetId),
 		MTP_int(addOffset),
 		MTP_int(limit),

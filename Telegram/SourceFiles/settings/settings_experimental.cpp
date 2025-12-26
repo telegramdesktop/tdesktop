@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_experimental.h"
 
+#include "data/components/passkeys.h"
+#include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
@@ -34,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "storage/localimageloader.h"
 #include "data/data_document_resolver.h"
+#include "info/info_flexible_scroll.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 
@@ -76,7 +79,7 @@ void AddOption(
 		});
 	}
 	button->toggledChanges(
-	) | rpl::start_with_next([=, &option](bool toggled) {
+	) | rpl::on_next([=, &option](bool toggled) {
 		if (!option.relevant() && toggled != option.defaultValue()) {
 			toggles->fire_copy(option.defaultValue());
 			window->showToast(
@@ -154,6 +157,8 @@ void SetupExperimental(
 	addToggle(Webview::kOptionWebviewDebugEnabled);
 	addToggle(Webview::kOptionWebviewLegacyEdge);
 	addToggle(kOptionAutoScrollInactiveChat);
+	addToggle(Window::Notifications::kOptionHideReplyButton);
+	addToggle(Window::Notifications::kOptionCustomNotification);
 	addToggle(Window::Notifications::kOptionGNotification);
 	addToggle(Core::kOptionFreeType);
 	addToggle(Core::kOptionSkipUrlSchemeRegister);
@@ -164,6 +169,11 @@ void SetupExperimental(
 		addToggle(kOptionFastButtonsMode);
 	}
 	addToggle(Window::kOptionDisableTouchbar);
+	addToggle(Info::kAlternativeScrollProcessing);
+
+#ifdef Q_OS_MAC
+	addToggle("text-recognition-mac");
+#endif // Q_OS_MAC
 }
 
 } // namespace

@@ -160,7 +160,11 @@ void Location::checkLiveFinish() {
 	const auto item = _parent->data();
 	const auto start = item->date();
 	if (_live->period != kUntilOffPeriod && now - start >= _live->period) {
+		const auto had = hasHeavyPart();
 		_live = nullptr;
+		if (had && !hasHeavyPart()) {
+			_parent->checkHeavyPart();
+		}
 		item->history()->owner().requestViewResize(_parent);
 	} else {
 		_parent->repaint();

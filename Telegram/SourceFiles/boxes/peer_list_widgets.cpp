@@ -25,7 +25,7 @@ PeerListWidgets::PeerListWidgets(
 , _controller(controller)
 , _st(controller->computeListSt()) {
 	_content = base::make_unique_q<Ui::VerticalLayout>(this);
-	parent->sizeValue() | rpl::start_with_next([this](const QSize &size) {
+	parent->sizeValue() | rpl::on_next([this](const QSize &size) {
 		_content->resizeToWidth(size.width());
 		resize(size.width(), _content->height());
 	}, lifetime());
@@ -129,7 +129,7 @@ void PeerListWidgets::appendRow(std::unique_ptr<PeerListRow> row) {
 					st.button.ripple,
 					st.button.textBgOver)));
 		widget->resize(widget->width(), st.height);
-		widget->paintRequest() | rpl::start_with_next([=, this] {
+		widget->paintRequest() | rpl::on_next([=, this] {
 			auto p = Painter(widget);
 			const auto selected = widget->isOver() || widget->isDown();
 			paintRow(p, crl::now(), selected, raw);

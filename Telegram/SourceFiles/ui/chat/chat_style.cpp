@@ -76,11 +76,15 @@ not_null<const MessageImageStyle*> ChatPaintContext::imageStyle() const {
 }
 
 not_null<Text::QuotePaintCache*> ChatPaintContext::quoteCache(
+		const std::shared_ptr<ColorCollectible> &colorCollectible,
 		uint8 colorIndex) const {
-	return !outbg
-		? st->coloredQuoteCache(selected(), colorIndex).get()
-		: messageStyle()->quoteCache[
-			st->colorPatternIndex(colorIndex)].get();
+	return outbg
+		? messageStyle()->quoteCache[colorCollectible
+			? 2
+			: st->colorPatternIndex(colorIndex)].get()
+		: colorCollectible
+		? st->collectibleQuoteCache(selected(), colorCollectible).get()
+		: st->coloredQuoteCache(selected(), colorIndex).get();
 }
 
 int HistoryServiceMsgRadius() {
@@ -158,11 +162,32 @@ int ColorPatternIndex(
 	return colors[2] ? 2 : colors[1] ? 1 : 0;
 }
 
+ChatStyle::ColoredPalette::ColoredPalette() = default;
+ChatStyle::ColoredPalette::ColoredPalette(const ColoredPalette &other)
+: linkFg(other.linkFg)
+, data(other.data) {
+	if (linkFg) {
+		data.linkFg = linkFg->color();
+		data.selectLinkFg = data.linkFg;
+	}
+}
+
+ChatStyle::ColoredPalette &ChatStyle::ColoredPalette::operator=(
+		const ColoredPalette &other) {
+	linkFg = other.linkFg;
+	data = other.data;
+	if (linkFg) {
+		data.linkFg = linkFg->color();
+		data.selectLinkFg = data.linkFg;
+	}
+	return *this;
+}
+
 ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 	if (colorIndices) {
 		_colorIndicesLifetime = std::move(
 			colorIndices
-		) | rpl::start_with_next([=](ColorIndicesCompressed &&indices) {
+		) | rpl::on_next([=](ColorIndicesCompressed &&indices) {
 			_colorIndices = std::move(indices);
 		});
 	}
@@ -576,7 +601,11 @@ void ChatStyle::updateDarkValue() {
 	const auto withBg = [&](const QColor &color) {
 		return CountContrast(windowBg()->c, color);
 	};
-	_dark = (withBg({ 0, 0, 0 }) < withBg({ 255, 255, 255 }));
+	const auto dark = (withBg({ 0, 0, 0 }) < withBg({ 255, 255, 255 }));
+	if (_dark != dark) {
+		_dark = dark;
+		_collectibleCaches.clear();
+	}
 }
 
 void ChatStyle::applyCustomPalette(const style::palette *palette) {
@@ -585,7 +614,7 @@ void ChatStyle::applyCustomPalette(const style::palette *palette) {
 		_defaultPaletteChangeLifetime.destroy();
 	} else {
 		style::PaletteChanged(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			assignPalette(style::main_palette::get());
 		}, _defaultPaletteChangeLifetime);
 	}
@@ -778,6 +807,14 @@ int ChatStyle::colorPatternIndex(uint8 colorIndex) const {
 	return colors[2] ? 2 : colors[1] ? 1 : 0;
 }
 
+int ChatStyle::collectiblePatternIndex(
+		const std::shared_ptr<ColorCollectible> &collectible) const {
+	const auto &strip = (_dark && !collectible->darkStrip.empty())
+		? collectible->darkStrip
+		: collectible->strip;
+	return std::clamp(int(strip.size()), 1, 3) - 1;
+}
+
 ColorIndexValues ChatStyle::computeColorIndexValues(
 		bool selected,
 		uint8 colorIndex) const {
@@ -825,9 +862,7 @@ ColorIndexValues ChatStyle::computeColorIndexValues(
 	}
 	const auto color = [&](int index) {
 		const auto v = colors[index];
-		return v
-			? QColor((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF)
-			: QColor(0, 0, 0, 0);
+		return v ? Ui::ColorFromSerialized(v) : QColor(0, 0, 0, 0);
 	};
 	auto result = ColorIndexValues{
 		.outlines = { color(0), color(1), color(2) }
@@ -871,6 +906,13 @@ const ColorIndexValues &ChatStyle::coloredValues(
 	return *result;
 }
 
+QColor ChatStyle::collectibleNameColor(
+		const std::shared_ptr<ColorCollectible> &collectible) const {
+	return (_dark && collectible->darkAccentColor.alpha() > 0)
+		? collectible->darkAccentColor
+		: collectible->accentColor;
+}
+
 const style::TextPalette &ChatStyle::coloredTextPalette(
 		bool selected,
 		uint8 colorIndex) const {
@@ -891,8 +933,28 @@ const style::TextPalette &ChatStyle::coloredTextPalette(
 	return result.data;
 }
 
+const style::TextPalette &ChatStyle::collectibleTextPalette(
+		bool selected,
+		const std::shared_ptr<ColorCollectible> &collectible) const {
+	auto &entry = resolveCollectibleCaches(collectible);
+	auto &result = selected ? entry.paletteSelected : entry.palette;
+	if (!result.linkFg) {
+		result.linkFg.emplace(collectibleNameColor(collectible));
+		make(
+			result.data,
+			(selected
+				? st::inReplyTextPaletteSelected
+				: st::inReplyTextPalette));
+		result.data.linkFg = result.linkFg->color();
+		result.data.selectLinkFg = result.data.linkFg;
+	}
+	return result.data;
+}
+
 not_null<BackgroundEmojiData*> ChatStyle::backgroundEmojiData(
-		uint64 id) const {
+		uint64 emojiId,
+		const std::shared_ptr<ColorCollectible> &collectible) const {
+	const auto id = collectible ? collectible->collectibleId : emojiId;
 	return &_backgroundEmojis[id];
 }
 
@@ -908,6 +970,24 @@ not_null<Text::QuotePaintCache*> ChatStyle::coloredReplyCache(
 	return coloredCache(_coloredReplyCaches, selected, colorIndex);
 }
 
+not_null<Text::QuotePaintCache*> ChatStyle::collectibleQuoteCache(
+		bool selected,
+		const std::shared_ptr<ColorCollectible> &collectible) const {
+	auto &entry = resolveCollectibleCaches(collectible);
+	return collectibleCache(
+		selected ? entry.quoteSelected : entry.quote,
+		collectible);
+}
+
+not_null<Text::QuotePaintCache*> ChatStyle::collectibleReplyCache(
+		bool selected,
+		const std::shared_ptr<ColorCollectible> &collectible) const {
+	auto &entry = resolveCollectibleCaches(collectible);
+	return collectibleCache(
+		selected ? entry.replySelected : entry.reply,
+		collectible);
+}
+
 not_null<Text::QuotePaintCache*> ChatStyle::coloredCache(
 		ColoredQuotePaintCaches &caches,
 		bool selected,
@@ -920,6 +1000,46 @@ not_null<Text::QuotePaintCache*> ChatStyle::coloredCache(
 		return coloredValues(selected, colorIndex);
 	});
 	return cache.get();
+}
+
+not_null<Text::QuotePaintCache*> ChatStyle::collectibleCache(
+		std::unique_ptr<Text::QuotePaintCache> &cache,
+		const std::shared_ptr<ColorCollectible> &collectible) const {
+	EnsureBlockquoteCache(cache, [&] {
+		const auto name = collectibleNameColor(collectible);
+		auto bg = name;
+		bg.setAlpha(kDefaultBgOpacity * 255);
+
+		const auto &strip = (_dark && !collectible->darkStrip.empty())
+			? collectible->darkStrip
+			: collectible->strip;
+		return ColorIndexValues{
+			.outlines = {
+				strip.empty() ? name : strip[0],
+				(strip.size() < 2) ? QColor(0, 0, 0, 0) : strip[1],
+				(strip.size() < 3) ? QColor(0, 0, 0, 0) : strip[2],
+			},
+			.name = name,
+			.bg = bg,
+		};
+	});
+	return cache.get();
+}
+
+ChatStyle::CollectibleColors &ChatStyle::resolveCollectibleCaches(
+		const std::shared_ptr<ColorCollectible> &collectible) const {
+	const auto i = _collectibleCaches.find(collectible);
+	if (i != end(_collectibleCaches)) {
+		return i->second;
+	}
+	for (auto i = begin(_collectibleCaches); i != end(_collectibleCaches);) {
+		if (i->first.expired()) {
+			i = _collectibleCaches.erase(i);
+		} else {
+			++i;
+		}
+	}
+	return _collectibleCaches.emplace(collectible).first->second;
 }
 
 const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCornersSmall() const {
@@ -1063,8 +1183,13 @@ uint8 ColorIndexToPaletteIndex(uint8 colorIndex) {
 QColor FromNameFg(
 		not_null<const ChatStyle*> st,
 		bool selected,
-		uint8 colorIndex) {
-	return st->coloredValues(selected, colorIndex).name;
+		uint8 colorIndex,
+		const std::shared_ptr<Ui::ColorCollectible> &colorCollectible) {
+	return !colorCollectible
+		? st->coloredValues(selected, colorIndex).name
+		: (st->dark() && (colorCollectible->darkAccentColor.alpha() > 0))
+		? colorCollectible->darkAccentColor
+		: colorCollectible->accentColor;
 }
 
 void FillComplexOverlayRect(

@@ -68,6 +68,8 @@ public:
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();
+	void setupSetupEmailLock();
+	void clearSetupEmailLock();
 
 	void showLogoutConfirmation();
 

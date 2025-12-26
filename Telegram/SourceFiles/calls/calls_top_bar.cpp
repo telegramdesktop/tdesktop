@@ -186,7 +186,7 @@ public:
 		installEventFilter(this);
 
 		style::PaletteChanged(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_crossLineMuteAnimation.invalidate();
 		}, lifetime());
 	}
@@ -319,12 +319,12 @@ void TopBar::initControls() {
 			_call->mutedValue() | rpl::map(mapToState),
 			rpl::single(GroupCall::InstanceState::Connected),
 			rpl::single(TimeId(0))
-		) | rpl::type_erased()
+		) | rpl::type_erased
 		: rpl::combine(
 			(_groupCall->mutedValue()
 				| MapPushToTalkToActive()
 				| rpl::distinct_until_changed()
-				| rpl::type_erased()),
+				| rpl::type_erased),
 			rpl::single(
 				_groupCall->instanceState()
 			) | rpl::then(_groupCall->instanceStateValue() | rpl::filter(
@@ -339,7 +339,7 @@ void TopBar::initControls() {
 		muted
 	) | rpl::map(
 		BarStateFromMuteState
-	) | rpl::start_with_next([=](BarState state) {
+	) | rpl::on_next([=](BarState state) {
 		_isGroupConnecting = (state == BarState::Connecting);
 		setMuted(state != BarState::Active);
 		update();
@@ -387,7 +387,7 @@ void TopBar::initControls() {
 		subscribeToMembersChanges(group);
 
 		_isGroupConnecting.value(
-		) | rpl::start_with_next([=](bool isConnecting) {
+		) | rpl::on_next([=](bool isConnecting) {
 			_mute->setAttribute(
 				Qt::WA_TransparentForMouseEvents,
 				isConnecting);
@@ -401,7 +401,7 @@ void TopBar::initControls() {
 		) | rpl::filter([=](const Data::PeerUpdate &update) {
 			// _user may change for the same Panel.
 			return (_call != nullptr) && (update.peer == _call->user());
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			updateInfoLabels();
 		}, lifetime());
 	}
@@ -491,7 +491,7 @@ void TopBar::initBlobsUnder(
 	});
 
 	group->stateValue(
-	) | rpl::start_with_next([=](Calls::GroupCall::State state) {
+	) | rpl::on_next([=](Calls::GroupCall::State state) {
 		if (state == Calls::GroupCall::State::HangingUp) {
 			_blobs->hide();
 		}
@@ -507,7 +507,7 @@ void TopBar::initBlobsUnder(
 	std::move(
 		hideBlobs
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool hide) {
+	) | rpl::on_next([=](bool hide) {
 		if (hide) {
 			state->paint.setLevel(0.);
 		}
@@ -530,7 +530,7 @@ void TopBar::initBlobsUnder(
 
 	std::move(
 		barGeometry
-	) | rpl::start_with_next([=](QRect rect) {
+	) | rpl::on_next([=](QRect rect) {
 		_blobs->resize(
 			rect.width(),
 			(int)state->paint.maxRadius());
@@ -538,12 +538,12 @@ void TopBar::initBlobsUnder(
 	}, lifetime());
 
 	shownValue(
-	) | rpl::start_with_next([=](bool shown) {
+	) | rpl::on_next([=](bool shown) {
 		_blobs->setVisible(shown);
 	}, lifetime());
 
 	_blobs->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		const auto hidden = state->hideAnimation.value(
 			state->hideLastTime ? 1. : 0.);
 		if (hidden == 1.) {
@@ -563,7 +563,7 @@ void TopBar::initBlobsUnder(
 	group->levelUpdates(
 	) | rpl::filter([=](const LevelUpdate &update) {
 		return !state->hideLastTime && (update.value > state->lastLevel);
-	}) | rpl::start_with_next([=](const LevelUpdate &update) {
+	}) | rpl::on_next([=](const LevelUpdate &update) {
 		if (state->lastLevel == 0.) {
 			state->levelTimer.callEach(kBlobUpdateInterval);
 		}
@@ -584,7 +584,7 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 	const auto group = _groupCall.get();
 	const auto conference = group && group->conference();
 	auto realValue = conference
-		? (rpl::single(group->conferenceCall().get()) | rpl::type_erased())
+		? (rpl::single(group->sharedCall().get()) | rpl::type_erased)
 		: peer->session().changes().peerFlagsValue(
 			peer,
 			Data::PeerUpdate::Flag::GroupCall
@@ -597,7 +597,7 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 	std::move(
 		realValue
 	) | rpl::before_next([=](not_null<Data::GroupCall*> real) {
-		real->titleValue() | rpl::start_with_next([=] {
+		real->titleValue() | rpl::on_next([=] {
 			updateInfoLabels();
 		}, lifetime());
 	}) | rpl::map([=](not_null<Data::GroupCall*> real) {
@@ -617,7 +617,7 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 			}
 		}
 		return false;
-	}) | rpl::start_with_next([=](const Ui::GroupCallBarContent &content) {
+	}) | rpl::on_next([=](const Ui::GroupCallBarContent &content) {
 		_users = content.users;
 		_usersCount = content.count;
 		for (auto &user : _users) {
@@ -630,7 +630,7 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 	}, lifetime());
 
 	_userpics->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		_userpicsWidth = width;
 		updateControlsGeometry();
 	}, lifetime());
@@ -641,7 +641,7 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 		// _peer may change for the same Panel.
 		const auto call = _groupCall.get();
 		return (call != nullptr) && (update.peer == call->peer());
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		updateInfoLabels();
 	}, lifetime());
 }

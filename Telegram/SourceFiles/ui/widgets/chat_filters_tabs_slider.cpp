@@ -43,7 +43,7 @@ ChatsFiltersTabs::ChatsFiltersTabs(
 		_cachedBadgeHeight = one.height();
 	}
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (auto &[index, unread] : _unreadCounts) {
 			unread.cache = cacheUnreadCount(unread.count, unread.muted);
 		}
@@ -152,7 +152,7 @@ void ChatsFiltersTabs::setLockedFrom(int index) {
 		return;
 	}
 	_paletteLifetime = style::PaletteChanged(
-	) | rpl::start_with_next([this] {
+	) | rpl::on_next([this] {
 		_lockCache.emplace(Ui::SideBarLockIcon(_st.labelFg));
 	});
 }

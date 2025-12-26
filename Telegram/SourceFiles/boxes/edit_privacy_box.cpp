@@ -8,37 +8,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/edit_privacy_box.h"
 
 #include "api/api_global_privacy.h"
+#include "apiwrap.h"
 #include "boxes/filters/edit_filter_chats_list.h"
-#include "ui/effects/premium_graphics.h"
-#include "ui/layers/generic_box.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/widgets/continuous_sliders.h"
-#include "ui/widgets/shadow.h"
-#include "ui/text/format_values.h"
-#include "ui/text/text_utilities.h"
-#include "ui/toast/toast.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/painter.h"
-#include "ui/vertical_list.h"
+#include "boxes/peers/edit_peer_invite_link.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_peer_values.h"
+#include "data/data_user.h"
 #include "history/history.h"
-#include "boxes/peer_list_controllers.h"
+#include "lang/lang_keys.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
 #include "settings/settings_premium.h"
 #include "settings/settings_privacy_controllers.h"
 #include "settings/settings_privacy_security.h"
-#include "calls/calls_instance.h"
-#include "lang/lang_keys.h"
-#include "apiwrap.h"
-#include "main/main_app_config.h"
-#include "main/main_session.h"
-#include "data/data_user.h"
-#include "data/data_chat.h"
-#include "data/data_channel.h"
-#include "data/data_peer_values.h"
+#include "ui/boxes/peer_qr_box.h"
+#include "ui/controls/invite_link_buttons.h"
+#include "ui/controls/invite_link_label.h"
+#include "ui/effects/premium_graphics.h"
+#include "ui/layers/generic_box.h"
+#include "ui/painter.h"
+#include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
+#include "ui/vertical_list.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/continuous_sliders.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/widgets/shadow.h"
+#include "ui/wrap/slide_wrap.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
-#include "styles/style_settings.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 #include "styles/style_window.h"
 
 namespace {
@@ -106,11 +111,11 @@ void CreateRadiobuttonLock(
 	lock->resize(st::defaultRadio.diameter, st::defaultRadio.diameter);
 
 	widget->sizeValue(
-	) | rpl::start_with_next([=, &st](QSize size) {
+	) | rpl::on_next([=, &st](QSize size) {
 		lock->move(st.checkPosition);
 	}, lock->lifetime());
 
-	lock->paintRequest() | rpl::start_with_next([=] {
+	lock->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(lock);
 		auto hq = PainterHighQualityEnabler(p);
 		const auto &icon = st::messagePrivacyLock;
@@ -133,7 +138,7 @@ void AddPremiumRequiredRow(
 	const auto row = Ui::CreateChild<Ui::AbstractButton>(widget.get());
 
 	widget->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		row->resize(s);
 	}, row->lifetime());
 	row->setClickedCallback(std::move(clickedCallback));
@@ -142,7 +147,7 @@ void AddPremiumRequiredRow(
 
 	Data::AmPremiumValue(
 		session
-	) | rpl::start_with_next([=](bool premium) {
+	) | rpl::on_next([=](bool premium) {
 		row->setVisible(!premium);
 		if (!premium) {
 			setDefaultOption();
@@ -377,7 +382,7 @@ auto PrivacyExceptionsBoxController::prepareSpecialRowList(
 		tr::lng_edit_privacy_users_and_groups()));
 
 	controller->specialChanges(
-	) | rpl::start_with_next([=](bool chosen) {
+	) | rpl::on_next([=](bool chosen) {
 		if (type == SpecialRowType::Premiums) {
 			_selected.premiums = chosen;
 		} else {
@@ -386,7 +391,7 @@ auto PrivacyExceptionsBoxController::prepareSpecialRowList(
 	}, lifetime);
 
 	controller->rowSelectionChanges(
-	) | rpl::start_with_next([=](RowSelectionChange update) {
+	) | rpl::on_next([=](RowSelectionChange update) {
 		this->delegate()->peerListSetForeignRowChecked(
 			update.row,
 			update.checked,
@@ -473,15 +478,15 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 	const auto labels = raw->add(object_ptr<Ui::RpWidget>(raw));
 	const auto min = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		QString::number(minValue),
+		Lang::FormatCountDecimal(minValue),
 		*labelStyle);
 	const auto max = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		QString::number(maxValue),
+		Lang::FormatCountDecimal(maxValue),
 		*labelStyle);
 	const auto current = Ui::CreateChild<Ui::FlatLabel>(
 		raw,
-		QString::number(value),
+		Lang::FormatCountDecimal(value),
 		*labelStyle);
 	min->setTextColorOverride(st::windowSubTextFg->c);
 	max->setTextColorOverride(st::windowSubTextFg->c);
@@ -511,7 +516,7 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 	};
 	const auto updateByValue = [=](int value) {
 		current->setText(value > 0
-			? tr::lng_action_gift_for_stars(tr::now, lt_count, value)
+			? tr::lng_action_gift_for_stars(tr::now, lt_count_decimal, value)
 			: tr::lng_manage_monoforum_free(tr::now));
 
 		state->index = 0;
@@ -538,7 +543,7 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 		updateByValue(value);
 		valueFinished(value);
 	};
-	style::PaletteChanged() | rpl::start_with_next([=] {
+	style::PaletteChanged() | rpl::on_next([=] {
 		min->setTextColorOverride(st::windowSubTextFg->c);
 		max->setTextColorOverride(st::windowSubTextFg->c);
 	}, raw->lifetime());
@@ -554,7 +559,7 @@ auto PrivacyExceptionsBoxController::createRow(not_null<History*> history)
 		state->indexMin);
 	slider->resize(slider->width(), sliderStyle->seekSize.height());
 
-	raw->widthValue() | rpl::start_with_next([=](int width) {
+	raw->widthValue() | rpl::on_next([=](int width) {
 		labels->resizeToWidth(width);
 		updateByIndex();
 	}, slider->lifetime());
@@ -902,7 +907,7 @@ void EditPrivacyBox::setupContent() {
 	const auto never = addExceptionLink(Exception::Never);
 	addLabel(
 		content,
-		_controller->exceptionsDescription() | Ui::Text::ToWithEntities(),
+		_controller->exceptionsDescription() | rpl::map(tr::marked),
 		st::defaultVerticalListSkip);
 
 	auto below = _controller->setupBelowWidget(
@@ -934,7 +939,7 @@ void EditPrivacyBox::setupContent() {
 		+ st::settingsButtonNoIcon.padding.bottom();
 
 	widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		content->resizeToWidth(width);
 	}, content->lifetime());
 
@@ -942,7 +947,7 @@ void EditPrivacyBox::setupContent() {
 	) | rpl::map([=](int height) {
 		return height - always->height() - never->height() + 2 * linkHeight;
 	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setDimensions(st::boxWideWidth, height);
 	}, content->lifetime());
 }
@@ -1071,7 +1076,7 @@ void EditMessagesPrivacyBox(
 				key
 			) | rpl::take(
 				1
-			) | rpl::start_with_next([=](const Api::UserPrivacy::Rule &value) {
+			) | rpl::on_next([=](const Api::UserPrivacy::Rule &value) {
 				EditNoPaidMessagesExceptions(controller, value);
 			});
 		});
@@ -1087,15 +1092,15 @@ void EditMessagesPrivacyBox(
 	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
 	const auto toast = std::make_shared<WeakToast>();
 	const auto showToast = [=] {
-		auto link = Ui::Text::Link(
-			Ui::Text::Semibold(
+		auto link = tr::link(
+			tr::semibold(
 				tr::lng_messages_privacy_premium_link(tr::now)));
 		(*toast) = controller->showToast({
 			.text = tr::lng_messages_privacy_premium(
 				tr::now,
 				lt_link,
 				link,
-				Ui::Text::WithEntities),
+				tr::marked),
 			.filter = crl::guard(&controller->session(), [=](
 					const ClickHandlerPtr &,
 					Qt::MouseButton button) {
@@ -1228,7 +1233,7 @@ rpl::producer<int> SetupChargeSlider(
 
 	const auto details = container->add(
 		object_ptr<Ui::VerticalLayout>(container));
-	state->stars.value() | rpl::start_with_next([=](int stars) {
+	state->stars.value() | rpl::on_next([=](int stars) {
 		while (details->count()) {
 			delete details->widgetAt(0);
 		}
@@ -1272,7 +1277,7 @@ void EditDirectMessagesPriceBox(
 		.lottieMargins = st::settingsFilterIconPadding,
 		.showFinished = box->showFinishes(),
 		.about = tr::lng_manage_monoforum_about(
-			Ui::Text::RichLangValue
+			tr::rich
 		),
 		.aboutMargins = st::settingsFilterDividerLabelPadding,
 	});
@@ -1308,9 +1313,61 @@ void EditDirectMessagesPriceBox(
 		savedValue,
 		channel->session().appConfig().paidMessageChannelStarsDefault(),
 		true
-	) | rpl::start_with_next([=](int stars) {
+	) | rpl::on_next([=](int stars) {
 		*result = stars;
 	}, box->lifetime());
+
+	if (const auto username = channel->username(); !username.isEmpty()) {
+		Ui::AddSkip(inner);
+		Ui::AddSubsectionTitle(
+			inner,
+			tr::lng_manage_monoforum_link_subtitle());
+
+		constexpr auto kDirectParam = "?direct"_cs;
+		const auto link = channel->session().createInternalLinkFull(username)
+			+ kDirectParam.utf8();
+		const auto copyLink = [=] {
+			TextUtilities::SetClipboardText(TextForMimeData::Simple(link));
+			box->uiShow()->showToast(tr::lng_group_invite_copied(tr::now));
+		};
+		const auto shareLink = [=] {
+			box->uiShow()->showBox(ShareInviteLinkBox(channel, link));
+		};
+		const auto createMenu = [=] {
+			auto result = base::make_unique_q<Ui::PopupMenu>(
+				inner,
+				st::popupMenuWithIcons);
+			result->addAction(
+				tr::lng_group_invite_context_qr(tr::now),
+				[=] {
+					box->uiShow()->showBox(Box([=](
+							not_null<Ui::GenericBox*> qrBox) {
+						Ui::FillPeerQrBox(qrBox, channel, link, nullptr);
+					}));
+				},
+				&st::menuIconQrCode);
+			return result;
+		};
+
+		auto linkText = Ui::Text::StripUrlProtocol(link);
+		const auto label = inner->lifetime().make_state<Ui::InviteLinkLabel>(
+			inner,
+			rpl::single(std::move(linkText)),
+			createMenu);
+		inner->add(
+			label->take(),
+			st::inviteLinkFieldPadding);
+
+		label->clicks() | rpl::on_next(copyLink, label->lifetime());
+
+		Ui::AddSkip(inner);
+
+		AddCopyShareLinkButtons(inner, copyLink, shareLink);
+		Ui::AddSkip(inner);
+		Ui::AddSkip(inner);
+
+		Ui::AddDivider(inner);
+	}
 
 	box->addButton(tr::lng_settings_save(), [=] {
 		const auto weak = base::make_weak(box);

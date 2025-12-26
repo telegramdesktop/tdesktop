@@ -110,6 +110,7 @@ public:
 	[[nodiscard]] int minimalHeight(int fullWidth) const;
 	[[nodiscard]] int countAppearedWidth(float64 progress) const;
 	void setSpecialExpandTopSkip(int skip);
+	void setBubbleUp(bool bubbleUp);
 	void initGeometry(int innerTop);
 	void beforeDestroy();
 
@@ -185,6 +186,8 @@ private:
 	ChosenReaction lookupChosen(const Data::ReactionId &id) const;
 	void preloadAllRecentsAnimations();
 
+	[[nodiscard]] int skipYBubbleUpShift() const;
+
 	const style::EmojiPan &_st;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const Data::PossibleItemReactions _reactions;
@@ -243,6 +246,7 @@ private:
 	bool _small = false;
 	bool _over = false;
 	bool _low = false;
+	bool _bubbleUp = false;
 
 };
 

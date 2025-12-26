@@ -21,7 +21,8 @@ struct HistoryMessageEdition {
 
 	bool isEditHide = false;
 	bool isMediaUnread = false;
-	int editDate = 0;
+	TimeId repeatPeriod = 0;
+	TimeId editDate = 0;
 	int views = -1;
 	int forwards = -1;
 	int ttl = 0;

@@ -80,7 +80,7 @@ NotifySettings::NotifySettings(not_null<Session*> owner)
 void NotifySettings::request(not_null<PeerData*> peer) {
 	if (peer->notify().settingsUnknown()) {
 		peer->session().api().requestNotifySettings(
-			MTP_inputNotifyPeer(peer->input));
+			MTP_inputNotifyPeer(peer->input()));
 	}
 	if (defaultSettings(peer).settingsUnknown()) {
 		peer->session().api().requestNotifySettings(peer->isUser()
@@ -96,7 +96,7 @@ void NotifySettings::request(not_null<Thread*> thread) {
 		if (topic->notify().settingsUnknown()) {
 			topic->session().api().requestNotifySettings(
 				MTP_inputNotifyForumTopic(
-					topic->channel()->input,
+					topic->peer()->input(),
 					MTP_int(topic->rootId())));
 		}
 	}
@@ -321,7 +321,7 @@ void NotifySettings::updateLocal(not_null<Thread*> thread) {
 		auto &lifetime = _mutedTopics.emplace(
 			topic,
 			rpl::lifetime()).first->second;
-		topic->destroyed() | rpl::start_with_next([=] {
+		topic->destroyed() | rpl::on_next([=] {
 			_mutedTopics.erase(topic);
 		}, lifetime);
 		unmuteByFinishedDelayed(changesIn);
@@ -385,7 +385,7 @@ void NotifySettings::cacheSound(const std::optional<NotifySound> &sound) {
 	}
 	// Not requested yet.
 	_owner->session().api().ringtones().listUpdates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (const auto id : base::take(_ringtones.pendingIds)) {
 			cacheSound(id);
 		}
@@ -507,7 +507,7 @@ bool NotifySettings::soundUnknown(not_null<const Thread*> thread) const {
 	const auto topic = thread->asTopic();
 	return (topic && topic->notify().settingsUnknown())
 		|| ((!topic || !topic->notify().sound().has_value())
-			&& soundUnknown(topic->channel()));
+			&& soundUnknown(topic->peer()));
 }
 
 bool NotifySettings::isMuted(

@@ -233,7 +233,6 @@ void AppendRecentStickers(
 		: 0;
 	if (cloudCount > 0) {
 		to.emplace_back(PickerScrubberItem(cloudIt->second->title));
-		auto count = 0;
 		for (const auto document : cloudIt->second->stickers) {
 			if (document->owner().stickers().isFaved(document)) {
 				continue;
@@ -582,7 +581,7 @@ void AppendEmojiPacks(
 				? Data::CanSend(topic, right)
 				: Data::CanSend(peer, right));
 	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool value) {
+	) | rpl::on_next([=](bool value) {
 		[self dismissPopover:nil];
 	}, _lifetime);
 
@@ -607,7 +606,7 @@ void AppendEmojiPacks(
 			Core::App().settings().recentEmojiUpdated(),
 			Ui::Emoji::Updated()
 		) | rpl::map_to(ScrubberItemType::Emoji)
-	) | rpl::start_with_next([=](ScrubberItemType type) {
+	) | rpl::on_next([=](ScrubberItemType type) {
 		_waitingForUpdate = type;
 	}, _lifetime);
 
@@ -629,7 +628,7 @@ void AppendEmojiPacks(
 			controller:_controller
 			items:_itemsDataSource] autorelease];
 		auto &lifetime = [item lifetime];
-		[item closeRequests] | rpl::start_with_next([=] {
+		[item closeRequests] | rpl::on_next([=] {
 			[self dismissPopover:nil];
 			[self updateStickers];
 		}, lifetime);
@@ -669,7 +668,7 @@ void AppendEmojiPacks(
 	const auto isPerformedOnMain = loadingLifetime->make_state<bool>(true);
 	const auto localGuard = loadingLifetime->make_state<base::has_weak_ptr>();
 	_session->downloaderTaskFinished(
-	) | rpl::start_with_next(crl::guard(&(*localGuard), [=] {
+	) | rpl::on_next(crl::guard(&(*localGuard), [=] {
 		if (*isPerformedOnMain) {
 			crl::on_main(&(*localGuard), [=] {
 				for (auto &sticker : _itemsDataSource->stickers) {

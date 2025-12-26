@@ -28,7 +28,7 @@ namespace Menu {
 Fn<void(bool)> RateTranscribeCallbackFactory(
 		not_null<HistoryItem*> item) {
 	return [item](bool good) {
-		item->history()->peer->owner().session().api().transcribes().rate(
+		item->history()->peer->session().api().transcribes().rate(
 			item,
 			good);
 	};
@@ -36,9 +36,9 @@ Fn<void(bool)> RateTranscribeCallbackFactory(
 
 bool HasRateTranscribeItem(not_null<HistoryItem*> item) {
 	const auto &peer = item->history()->peer;
-	if (!peer->owner().session().api().transcribes().entry(
+	if (!peer->session().api().transcribes().entry(
 			item).result.isEmpty()) {
-		return !peer->owner().session().api().transcribes().isRated(item);
+		return !peer->session().api().transcribes().isRated(item);
 	}
 	return false;
 }

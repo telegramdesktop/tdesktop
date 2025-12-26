@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/optional.h"
 #include "base/variant.h"
 #include "core/credits_amount.h"
+#include "data/data_birthday.h"
 #include "data/data_peer_id.h"
 
 #include <QtCore/QSize>
@@ -44,6 +45,8 @@ inline auto NumberToString(Type value, int length = 0, char filler = '0')
 		length,
 		filler).replace(',', '.');
 }
+
+using Birthday = ::Data::Birthday;
 
 struct TextPart {
 	enum class Type {
@@ -83,6 +86,10 @@ struct UserpicsInfo {
 };
 
 struct StoriesInfo {
+	int count = 0;
+};
+
+struct ProfileMusicInfo {
 	int count = 0;
 };
 
@@ -609,7 +616,7 @@ struct ActionWebViewDataSent {
 
 struct ActionGiftPremium {
 	Utf8String cost;
-	int months = 0;
+	int days = 0;
 };
 
 struct ActionTopicCreate {
@@ -634,7 +641,7 @@ struct ActionSetChatWallPaper {
 struct ActionGiftCode {
 	QByteArray code;
 	PeerId boostPeerId = 0;
-	int months = 0;
+	int days = 0;
 	bool viaGiveaway = false;
 	bool unclaimed = false;
 };
@@ -683,6 +690,13 @@ struct ActionStarGift {
 	std::vector<TextPart> text;
 	bool anonymous = false;
 	bool limited = false;
+
+	CreditsAmount offerPrice;
+	TimeId offerExpireAt = 0;
+	bool offer = false;
+	bool offerAccepted = false;
+	bool offerDeclined = false;
+	bool offerExpired = false;
 };
 
 struct ActionPaidMessagesRefunded {
@@ -718,6 +732,10 @@ struct ActionSuggestedPostSuccess {
 
 struct ActionSuggestedPostRefund {
 	bool payerInitiated = false;
+};
+
+struct ActionSuggestBirthday {
+	Birthday birthday;
 };
 
 struct ServiceAction {
@@ -772,7 +790,8 @@ struct ServiceAction {
 		ActionTodoAppendTasks,
 		ActionSuggestedPostApproval,
 		ActionSuggestedPostSuccess,
-		ActionSuggestedPostRefund> content;
+		ActionSuggestedPostRefund,
+		ActionSuggestBirthday> content;
 };
 
 ServiceAction ParseServiceAction(
@@ -920,6 +939,11 @@ struct StoriesSlice {
 StoriesSlice ParseStoriesSlice(
 	const MTPVector<MTPStoryItem> &data,
 	int baseIndex);
+
+struct ProfileMusicSlice {
+	std::vector<Message> list;
+	int skipped = 0;
+};
 
 Message ParseMessage(
 	ParseMediaContext &context,

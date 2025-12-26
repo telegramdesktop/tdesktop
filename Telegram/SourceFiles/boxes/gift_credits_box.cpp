@@ -69,9 +69,9 @@ void GiftCreditsBox(
 		auto link = tr::lng_credits_box_history_entry_gift_about_link(
 			lt_emoji,
 			rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
-			Ui::Text::RichLangValue
+			tr::rich
 		) | rpl::map([](TextWithEntities text) {
-			return Ui::Text::Link(
+			return tr::link(
 				std::move(text),
 				u"internal:stars_examples"_q);
 		});
@@ -83,7 +83,7 @@ void GiftCreditsBox(
 					rpl::single(TextWithEntities{ peer->shortName() }),
 					lt_link,
 					std::move(link),
-					Ui::Text::RichLangValue),
+					tr::rich),
 				st::creditsBoxAbout),
 			st::boxRowPadding,
 			style::al_top);

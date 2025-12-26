@@ -174,13 +174,13 @@ void SetupTopContent(
 		st::settingsFilterIconPadding);
 	std::move(
 		showFinished
-	) | rpl::start_with_next([animate = std::move(icon.animate)] {
+	) | rpl::on_next([animate = std::move(icon.animate)] {
 		animate(anim::repeat::loop);
 	}, verticalLayout->lifetime());
 	verticalLayout->add(std::move(icon.widget));
 
 	verticalLayout->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		divider->setGeometry(r);
 	}, divider->lifetime());
 
@@ -247,7 +247,7 @@ void GlobalTTL::showSure(TimeId ttl, bool rebuild) const {
 				tr::now,
 				lt_after_duration,
 				{ .text = ttlText },
-				Ui::Text::WithEntities));
+				tr::marked));
 			_show->hideLayer(); // Don't use close().
 		});
 		request(ttl);
@@ -313,7 +313,7 @@ void GlobalTTL::rebuildButtons(TimeId currentTTL) const {
 		radio->setAttribute(Qt::WA_TransparentForMouseEvents);
 		radio->show();
 		button->sizeValue(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			radio->moveToRight(0, radio->checkRect().top());
 		}, radio->lifetime());
 	}
@@ -341,7 +341,7 @@ void GlobalTTL::setupContent() {
 		};
 		rebuild(apiTTL.periodDefaultHistoryTTLCurrent());
 		apiTTL.periodDefaultHistoryTTL(
-		) | rpl::start_with_next(rebuild, content->lifetime());
+		) | rpl::on_next(rebuild, content->lifetime());
 	}
 
 	const auto show = _controller->uiShow();
@@ -371,8 +371,8 @@ void GlobalTTL::setupContent() {
 		tr::lng_settings_ttl_after_about(
 			lt_link,
 			tr::lng_settings_ttl_after_about_link(
-			) | rpl::map([](QString s) { return Ui::Text::Link(s, 1); }),
-			Ui::Text::WithEntities),
+			) | rpl::map([](QString s) { return tr::link(s, 1); }),
+			tr::marked),
 		st::boxDividerLabel);
 	footer->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 		const auto session = &_controller->session();
@@ -388,7 +388,7 @@ void GlobalTTL::setupContent() {
 				const auto ttl = apiTTL.periodDefaultHistoryTTLCurrent();
 				for (const auto &peer : peers) {
 					peer->session().api().request(MTPmessages_SetHistoryTTL(
-						peer->input,
+						peer->input(),
 						MTP_int(ttl)
 					)).done([=](const MTPUpdates &result) {
 						peer->session().api().applyUpdates(result);
@@ -401,12 +401,12 @@ void GlobalTTL::setupContent() {
 						peers.size(),
 						lt_duration,
 						{ .text = Ui::FormatTTL(ttl) },
-						Ui::Text::WithEntities)
+						tr::marked)
 					: tr::lng_settings_ttl_select_chats_disabled_toast(
 						tr::now,
 						lt_count,
 						peers.size(),
-						Ui::Text::WithEntities));
+						tr::marked));
 				box->closeBox();
 			}));
 			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });

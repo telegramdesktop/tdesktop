@@ -61,7 +61,7 @@ SublistsWidget::SublistsWidget(
 	_list->showSavedSublists();
 	_list->setNarrowRatio(0.);
 
-	_list->chosenRow() | rpl::start_with_next([=](Dialogs::ChosenRow row) {
+	_list->chosenRow() | rpl::on_next([=](Dialogs::ChosenRow row) {
 		if (const auto sublist = row.key.sublist()) {
 			using namespace Window;
 			using namespace HistoryView;
@@ -77,7 +77,7 @@ SublistsWidget::SublistsWidget(
 	}, _list->lifetime());
 
 	const auto saved = &controller->session().data().savedMessages();
-	_list->heightValue() | rpl::start_with_next([=] {
+	_list->heightValue() | rpl::on_next([=] {
 		if (!saved->supported()) {
 			crl::on_main(controller, [=] {
 				controller->showSection(

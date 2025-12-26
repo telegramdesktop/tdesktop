@@ -57,7 +57,7 @@ StreamedFileDownloader::StreamedFileDownloader(
 	_partIsSaved.resize(_partsCount, false);
 
 	_reader->partsForDownloader(
-	) | rpl::start_with_next([=](const LoadedPart &part) {
+	) | rpl::on_next([=](const LoadedPart &part) {
 		if (part.offset == LoadedPart::kFailedOffset) {
 			cancel(FailureReason::OtherFailure);
 		} else {

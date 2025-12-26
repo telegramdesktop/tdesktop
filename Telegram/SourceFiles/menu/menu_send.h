@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace style {
 struct ComposeIcons;
+struct PopupMenu;
 } // namespace style
 
 namespace ChatHelpers {
@@ -35,6 +36,7 @@ enum class Type : uchar {
 	Scheduled,
 	ScheduledToUser, // For "Send when online".
 	Reminder,
+	EditCommentPrice,
 };
 
 enum class SpoilerState : uchar {
@@ -53,7 +55,10 @@ struct Details {
 	Type type = Type::Disabled;
 	SpoilerState spoiler = SpoilerState::None;
 	CaptionState caption = CaptionState::None;
+	TextWithTags commentPreview;
+	QString commentStreamerName;
 	std::optional<uint64> price;
+	std::optional<uint64> commentPriceMin;
 	bool effectAllowed = false;
 };
 
@@ -84,7 +89,7 @@ struct Action {
 
 FillMenuResult FillSendMenu(
 	not_null<Ui::PopupMenu*> menu,
-	std::shared_ptr<ChatHelpers::Show> showForEffect,
+	std::shared_ptr<ChatHelpers::Show> maybeShow,
 	Details details,
 	Fn<void(Action, Details)> action,
 	const style::ComposeIcons *iconsOverride = nullptr,
@@ -99,9 +104,11 @@ FillMenuResult AttachSendMenuEffect(
 
 void SetupMenuAndShortcuts(
 	not_null<Ui::RpWidget*> button,
-	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<ChatHelpers::Show> maybeShow,
 	Fn<Details()> details,
-	Fn<void(Action, Details)> action);
+	Fn<void(Action, Details)> action,
+	const style::PopupMenu *stOverride = nullptr,
+	const style::ComposeIcons *iconsOverride = nullptr);
 
 void SetupUnreadMentionsMenu(
 	not_null<Ui::RpWidget*> button,

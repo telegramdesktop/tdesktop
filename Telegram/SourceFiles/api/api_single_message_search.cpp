@@ -99,7 +99,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByChannel(
 		ready();
 	};
 	_requestId = _session->api().request(MTPchannels_GetMessages(
-		channel->inputChannel,
+		channel->inputChannel(),
 		MTP_vector<MTPInputMessage>(1, MTP_inputMessageID(MTP_int(postId)))
 	)).done([=](const MTPmessages_Messages &result) {
 		const auto received = Api::ParseSearchResult(

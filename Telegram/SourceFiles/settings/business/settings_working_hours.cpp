@@ -143,31 +143,12 @@ void EditTimeBox(
 			int count,
 			int startIndex,
 			Fn<void(QPainter &p, QRectF rect, int index)> paint) {
-		auto paintCallback = [=](
-				QPainter &p,
-				int index,
-				float64 y,
-				float64 distanceFromCenter,
-				int outerWidth) {
-			const auto r = QRectF(0, y, outerWidth, itemHeight);
-			const auto progress = std::abs(distanceFromCenter);
-			const auto revProgress = 1. - progress;
-			p.save();
-			p.translate(r.center());
-			constexpr auto kMinYScale = 0.2;
-			const auto yScale = kMinYScale
-				+ (1. - kMinYScale) * anim::easeOutCubic(1., revProgress);
-			p.scale(1., yScale);
-			p.translate(-r.center());
-			p.setOpacity(revProgress);
-			p.setFont(font);
-			p.setPen(st::defaultFlatLabel.textFg);
-			paint(p, r, index);
-			p.restore();
-		};
 		return Ui::CreateChild<Ui::VerticalDrumPicker>(
 			content,
-			std::move(paintCallback),
+			Ui::VerticalDrumPicker::DefaultPaintCallback(
+				font,
+				itemHeight,
+				paint),
 			count,
 			itemHeight,
 			startIndex);
@@ -192,7 +173,7 @@ void EditTimeBox(
 	rpl::combine(
 		content->sizeValue(),
 		minutes->value()
-	) | rpl::start_with_next([=](QSize s, Ui::VerticalDrumPicker *minutes) {
+	) | rpl::on_next([=](QSize s, Ui::VerticalDrumPicker *minutes) {
 		const auto half = (s.width() - separatorWidth) / 2;
 		hours->setGeometry(0, 0, half, s.height());
 		if (minutes) {
@@ -203,7 +184,7 @@ void EditTimeBox(
 	Ui::SendPendingMoveResizeEvents(hours);
 
 	const auto minutesStart = content->lifetime().make_state<TimeId>();
-	hours->value() | rpl::start_with_next([=](int hoursIndex) {
+	hours->value() | rpl::on_next([=](int hoursIndex) {
 		const auto start = std::max(low, (hoursIndex + (low / 3600)) * 3600);
 		const auto end = std::min(high, ((start / 3600) * 60 + 59) * 60);
 		const auto minutesCount = (end - start + 60) / 60;
@@ -232,7 +213,7 @@ void EditTimeBox(
 	}, hours->lifetime());
 
 	content->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		auto p = QPainter(content);
 
 		p.fillRect(r, Qt::transparent);
@@ -372,7 +353,7 @@ void EditDayBox(
 	});
 
 	state->data.value(
-	) | rpl::start_with_next([=](const Data::WorkingIntervals &data) {
+	) | rpl::on_next([=](const Data::WorkingIntervals &data) {
 		const auto count = int(data.list.size());
 		for (auto i = 0; i != count; ++i) {
 			const auto min = (i == 0) ? 0 : (data.list[i - 1].end + 60);
@@ -543,13 +524,13 @@ void AddWeekButton(
 
 	const auto separator = Ui::CreateChild<Ui::RpWidget>(container.get());
 	separator->paintRequest(
-	) | rpl::start_with_next([=, bg = st.textBgOver] {
+	) | rpl::on_next([=, bg = st.textBgOver] {
 		auto p = QPainter(separator);
 		p.fillRect(separator->rect(), bg);
 	}, separator->lifetime());
 	const auto separatorHeight = st.height - 2 * st.toggle.border;
 	button->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		const auto w = st::rightsButtonToggleWidth;
 		toggleButton->setGeometry(
 			r.x() + r.width() - w,
@@ -566,12 +547,12 @@ void AddWeekButton(
 	const auto checkWidget = Ui::CreateChild<Ui::RpWidget>(toggleButton);
 	checkWidget->resize(checkView->getSize());
 	checkWidget->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(checkWidget);
 		checkView->paint(p, 0, 0, checkWidget->width());
 	}, checkWidget->lifetime());
 	toggleButton->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		checkWidget->moveToRight(
 			st.toggleSkip,
 			(s.height() - checkWidget->height()) / 2);
@@ -633,7 +614,7 @@ void WorkingHours::setupContent(
 		.lottieSize = st::settingsCloudPasswordIconSize,
 		.lottieMargins = st::peerAppearanceIconPadding,
 		.showFinished = showFinishes(),
-		.about = tr::lng_hours_about(Ui::Text::WithEntities),
+		.about = tr::lng_hours_about(tr::marked),
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 	});
 
@@ -667,7 +648,7 @@ void WorkingHours::setupContent(
 	state->timezones.value(
 	) | rpl::filter([=](const Data::Timezones &value) {
 		return !value.list.empty();
-	}) | rpl::start_with_next([=](const Data::Timezones &value) {
+	}) | rpl::on_next([=](const Data::Timezones &value) {
 		const auto now = _hours.current().timezoneId;
 		if (!ranges::contains(value.list, now, &Data::Timezone::id)) {
 			auto copy = _hours.current();
@@ -716,7 +697,7 @@ void WorkingHours::setupContent(
 		state->timezones.value(
 		) | rpl::filter([](const Data::Timezones &value) {
 			return !value.list.empty();
-		}) | rpl::start_with_next([=](const Data::Timezones &value) {
+		}) | rpl::on_next([=](const Data::Timezones &value) {
 			if (state->timezoneEditPending) {
 				state->timezoneEditPending = false;
 				editTimezone(value.list);

@@ -149,13 +149,13 @@ Instance::Instance()
 : _songData(AudioMsgId::Type::Song, SharedMediaType::MusicFile)
 , _voiceData(AudioMsgId::Type::Voice, SharedMediaType::RoundVoiceFile) {
 	Media::Player::Updated(
-	) | rpl::start_with_next([=](const AudioMsgId &audioId) {
+	) | rpl::on_next([=](const AudioMsgId &audioId) {
 		handleSongUpdate(audioId);
 	}, _lifetime);
 
 	repeatChanges(
 		&_songData
-	) | rpl::start_with_next([=](RepeatMode mode) {
+	) | rpl::on_next([=](RepeatMode mode) {
 		if (mode == RepeatMode::All) {
 			refreshPlaylist(&_songData);
 		}
@@ -163,7 +163,7 @@ Instance::Instance()
 
 	orderChanges(
 		&_songData
-	) | rpl::start_with_next([=](OrderMode mode) {
+	) | rpl::on_next([=](OrderMode mode) {
 		if (mode == OrderMode::Shuffle) {
 			validateShuffleData(&_songData);
 		} else {
@@ -176,7 +176,7 @@ Instance::Instance()
 		Core::App().calls().currentCallValue(),
 		Core::App().calls().currentGroupCallValue(),
 		_1 || _2
-	) | rpl::start_with_next([=](bool call) {
+	) | rpl::on_next([=](bool call) {
 		if (call) {
 			pauseOnCall(AudioMsgId::Type::Voice);
 			pauseOnCall(AudioMsgId::Type::Song);
@@ -268,7 +268,7 @@ void Instance::setSession(not_null<Data*> data, Main::Session *session) {
 	data->session = session;
 	if (session) {
 		session->account().sessionChanges(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			setSession(data, nullptr);
 		}, data->sessionLifetime);
 
@@ -276,7 +276,7 @@ void Instance::setSession(not_null<Data*> data, Main::Session *session) {
 		) | rpl::filter([=](not_null<DocumentData*> document) {
 			// Before refactoring it was called only for audio files.
 			return document->isAudioFile();
-		}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		}) | rpl::on_next([=](not_null<DocumentData*> document) {
 			const auto type = AudioMsgId::Type::Song;
 			emitUpdate(type, [&](const AudioMsgId &audioId) {
 				return (audioId.audio() == document);
@@ -286,7 +286,7 @@ void Instance::setSession(not_null<Data*> data, Main::Session *session) {
 		session->data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return (data->current.contextId() == item->fullId());
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			stopAndClear(data);
 		}, data->sessionLifetime);
 	} else {
@@ -396,7 +396,7 @@ void Instance::validatePlaylist(not_null<Data*> data) {
 			SharedMediaMergedKey(*key, data->overview),
 			kIdsLimit,
 			kIdsLimit
-		) | rpl::start_with_next([=](SparseIdsMergedSlice &&update) {
+		) | rpl::on_next([=](SparseIdsMergedSlice &&update) {
 			data->playlistSlice = std::move(update);
 			data->playlistSliceKey = key;
 			refreshOtherPlaylist(data);
@@ -456,7 +456,7 @@ void Instance::validateOtherPlaylist(not_null<Data*> data) {
 			SharedMediaMergedKey(*key, data->overview),
 			kIdsLimit,
 			kIdsLimit
-		) | rpl::start_with_next([=](SparseIdsMergedSlice &&update) {
+		) | rpl::on_next([=](SparseIdsMergedSlice &&update) {
 			data->playlistOtherSlice = std::move(update);
 			playlistUpdated(data);
 		}, data->playlistOtherLifetime);
@@ -840,7 +840,7 @@ void Instance::playStreamed(
 	data->streamed->instance.lockPlayer();
 
 	data->streamed->instance.player().updates(
-	) | rpl::start_with_next_error([=](Streaming::Update &&update) {
+	) | rpl::on_next_error([=](Streaming::Update &&update) {
 		handleStreamingUpdate(data, std::move(update));
 	}, [=](Streaming::Error &&error) {
 		handleStreamingError(data, std::move(error));
@@ -986,7 +986,7 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 			data->overview),
 		kIdsLimit,
 		kIdsLimit
-	) | rpl::start_with_next([=](SparseIdsMergedSlice &&update) {
+	) | rpl::on_next([=](SparseIdsMergedSlice &&update) {
 		raw->nextSliceLifetime.destroy();
 
 		const auto size = update.size();
@@ -1026,7 +1026,7 @@ void Instance::setupShuffleData(not_null<Data*> data) {
 			: MsgId(0);
 	}) | rpl::filter(
 		rpl::mappers::_1 != MsgId(0)
-	) | rpl::start_with_next([=](MsgId id) {
+	) | rpl::on_next([=](MsgId id) {
 		const auto i = ranges::find(raw->playlist, id);
 		if (i != end(raw->playlist)) {
 			raw->playlist.erase(i);
@@ -1283,7 +1283,7 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 
 void Instance::setupShortcuts() {
 	Shortcuts::Requests(
-	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(Command::MediaPlay) && request->handle([=] {
 			playPause();

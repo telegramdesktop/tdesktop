@@ -72,7 +72,7 @@ GiveawayTypeRow::GiveawayTypeRow(
 	}
 	std::move(
 		subtitle
-	) | rpl::start_with_next([=] (QString s) {
+	) | rpl::on_next([=] (QString s) {
 		_status.setText(
 			st::defaultTextStyle,
 			s.replace(QChar('>'), QString()),
@@ -80,7 +80,7 @@ GiveawayTypeRow::GiveawayTypeRow(
 	}, lifetime());
 	std::move(
 		title
-	) | rpl::start_with_next([=] (const QString &s) {
+	) | rpl::on_next([=] (const QString &s) {
 		_name.setText(_st.nameStyle, s, Ui::NameTextOptions());
 	}, lifetime());
 }

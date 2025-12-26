@@ -120,16 +120,16 @@ void ShowUserpicSuggestion(
 void ShowSetToast(
 		not_null<Window::SessionController*> controller,
 		const QImage &frame) {
-	const auto text = Ui::Text::Bold(
+	const auto text = tr::bold(
 		tr::lng_profile_changed_photo_title(tr::now)
 	).append('\n').append(
 		tr::lng_profile_changed_photo_about(
 			tr::now,
 			lt_link,
-			Ui::Text::Link(
+			tr::link(
 				tr::lng_profile_changed_photo_link(tr::now),
 				u"tg://settings/edit_profile"_q),
-			Ui::Text::WithEntities)
+			tr::marked)
 	);
 	auto st = std::make_shared<style::Toast>(st::historyPremiumToast);
 	const auto skip = st->padding.top();
@@ -159,7 +159,7 @@ void ShowSetToast(
 		preview->show();
 		preview->setAttribute(Qt::WA_TransparentForMouseEvents);
 		preview->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			QPainter(preview).drawImage(0, 0, copy);
 		}, preview->lifetime());
 	}

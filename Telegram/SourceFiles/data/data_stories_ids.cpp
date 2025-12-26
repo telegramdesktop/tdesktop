@@ -63,7 +63,7 @@ rpl::producer<StoriesIdsSlice> AlbumStoriesIds(
 				std::move(ids),
 				count,
 				(hasBefore - takeBefore),
-				count - hasBefore - added);
+				count - (hasBefore - takeBefore) - added);
 			consumer.put_next_copy(state->slice);
 		};
 		const auto schedule = [=] {
@@ -83,7 +83,7 @@ rpl::producer<StoriesIdsSlice> AlbumStoriesIds(
 		stories->albumIdsChanged(
 		) | rpl::filter(
 			rpl::mappers::_1 == Data::StoryAlbumIdsKey{ peerId, albumId }
-		) | rpl::start_with_next(schedule, lifetime);
+		) | rpl::on_next(schedule, lifetime);
 
 		if (!stories->albumIdsCountKnown(peerId, albumId)) {
 			stories->albumIdsLoadMore(peerId, albumId);

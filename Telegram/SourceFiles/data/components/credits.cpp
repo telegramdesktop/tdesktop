@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_credits.h"
 #include "data/data_user.h"
+#include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 
@@ -59,7 +60,7 @@ void Credits::load(bool force) {
 			apply(balance);
 			_loader = nullptr;
 		};
-		apiStats->request() | rpl::start_with_error_done([=] {
+		apiStats->request() | rpl::on_error_done([=] {
 			finish(false);
 		}, [=] {
 			finish(true);
@@ -255,4 +256,16 @@ MTPStarsAmount StarsAmountToTL(CreditsAmount amount) {
 	return amount.ton() ? MTP_starsTonAmount(
 		MTP_long(amount.whole() * uint64(1'000'000'000) + amount.nano())
 	) : MTP_starsAmount(MTP_long(amount.whole()), MTP_int(amount.nano()));
+}
+
+QString PrepareCreditsAmountText(CreditsAmount amount) {
+	return amount.stars()
+		? tr::lng_action_gift_for_stars(
+			tr::now,
+			lt_count_decimal,
+			amount.value())
+		: tr::lng_action_gift_for_ton(
+			tr::now,
+			lt_count_decimal,
+			amount.value());
 }

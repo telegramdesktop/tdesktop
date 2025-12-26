@@ -30,6 +30,7 @@ class Error;
 } // namespace MTP
 
 namespace Data {
+class ForumTopic;
 class PhotoMedia;
 struct SendError;
 } // namespace Data
@@ -99,6 +100,7 @@ struct FileChosen;
 namespace HistoryView {
 class StickerToast;
 class PaidReactionToast;
+class SelfForwardsTagger;
 class TopBarWidget;
 class PaysStatus;
 class ContactStatus;
@@ -109,7 +111,7 @@ class TranslateBar;
 class ComposeSearch;
 class SubsectionTabs;
 struct SelectedQuote;
-class SuggestOptions;
+class SuggestOptionsBar;
 enum class SuggestMode;
 } // namespace HistoryView
 
@@ -215,7 +217,7 @@ public:
 		not_null<PeerData*> peer);
 
 	[[nodiscard]] FullReplyTo replyTo() const;
-	[[nodiscard]] SuggestPostOptions suggestOptions(
+	[[nodiscard]] SuggestOptions suggestOptions(
 		bool skipNoAdminCheck = false) const;
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
 	bool lastForceReplyReplied() const;
@@ -684,7 +686,7 @@ private:
 	void refreshSendGiftToggle();
 	void refreshSuggestPostToggle();
 	void applySuggestOptions(
-		SuggestPostOptions suggest,
+		SuggestOptions suggest,
 		HistoryView::SuggestMode mode);
 	void setupSendAsToggle();
 	void refreshSendAsToggle();
@@ -719,7 +721,7 @@ private:
 	std::unique_ptr<Ui::SpoilerAnimation> _replySpoiler;
 	mutable base::Timer _updateEditTimeLeftDisplay;
 
-	std::unique_ptr<HistoryView::SuggestOptions> _suggestOptions;
+	std::unique_ptr<HistoryView::SuggestOptionsBar> _suggestOptions;
 
 	object_ptr<Ui::IconButton> _fieldBarCancel;
 
@@ -779,6 +781,7 @@ private:
 	QPointer<HistoryInner> _list;
 	History *_migrated = nullptr;
 	History *_history = nullptr;
+	mutable Data::ForumTopic *_creatingBotTopic = nullptr;
 	rpl::lifetime _historySponsoredPreloading;
 
 	// Initial updateHistoryGeometry() was called.
@@ -892,6 +895,7 @@ private:
 
 	HistoryView::InfoTooltip _topToast;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
+	std::unique_ptr<HistoryView::SelfForwardsTagger> _selfForwardsTagger;
 	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
 
 	std::unique_ptr<HistoryView::PaidReactionToast> _paidReactionToast;

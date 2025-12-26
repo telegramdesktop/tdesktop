@@ -132,7 +132,7 @@ JoinAsAction::JoinAsAction(
 	setClickedCallback(std::move(callback));
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Painter p(this);
 		paint(p);
 	}, lifetime());
@@ -182,7 +182,7 @@ void JoinAsAction::prepare() {
 	rpl::combine(
 		tr::lng_group_call_display_as_header(),
 		Info::Profile::NameValue(_peer)
-	) | rpl::start_with_next([=](QString text, QString name) {
+	) | rpl::on_next([=](QString text, QString name) {
 		const auto &padding = st::groupCallJoinAsPadding;
 		_text.setMarkedText(_st.itemStyle, { text }, MenuTextOptions);
 		_name.setMarkedText(_st.itemStyle, { name }, MenuTextOptions);
@@ -253,7 +253,7 @@ RecordingAction::RecordingAction(
 	+ st::groupCallRecordingTimerPadding.bottom()) {
 	std::move(
 		startAtValues
-	) | rpl::start_with_next([=](TimeId startAt) {
+	) | rpl::on_next([=](TimeId startAt) {
 		_startAt = startAt;
 		_startedAt = crl::now();
 		_refreshTimer.cancel();
@@ -266,7 +266,7 @@ RecordingAction::RecordingAction(
 	setClickedCallback(std::move(callback));
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Painter p(this);
 		paint(p);
 	}, lifetime());
@@ -344,7 +344,7 @@ void RecordingAction::prepare(rpl::producer<QString> text) {
 		_st.widthMax);
 	setMinWidth(w);
 
-	std::move(text) | rpl::start_with_next([=](QString text) {
+	std::move(text) | rpl::on_next([=](QString text) {
 		const auto &padding = _st.itemPadding;
 		_text.setMarkedText(_st.itemStyle, { text }, MenuTextOptions);
 		_textWidth = w - padding.left() - padding.right();
@@ -513,8 +513,7 @@ void FillMenu(
 	const auto addEditRecording = !conference
 		&& call->canManage()
 		&& !real->scheduleDate();
-	const auto addScreenCast = !wide
-		&& call->videoIsWorking()
+	const auto addScreenCast = call->videoIsWorking()
 		&& !real->scheduleDate();
 	if (addEditJoinAs) {
 		menu->addAction(MakeJoinAsAction(

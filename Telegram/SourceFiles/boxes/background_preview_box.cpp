@@ -225,18 +225,18 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	}
 	generateBackground();
 	_controller->session().downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 
 	_appNightMode.changes(
-	) | rpl::start_with_next([=](bool night) {
+	) | rpl::on_next([=](bool night) {
 		_boxDarkMode = night;
 		update();
 	}, lifetime());
 
 	_boxDarkMode.changes(
-	) | rpl::start_with_next([=](bool dark) {
+	) | rpl::on_next([=](bool dark) {
 		applyDarkMode(dark);
 	}, lifetime());
 
@@ -373,7 +373,7 @@ void BackgroundPreviewBox::createDimmingSlider(bool dark) {
 	_dimmingContent->resize(inner->size());
 
 	_dimmingContent->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(_dimmingContent);
 		const auto palette = (dark ? _darkPalette : _lightPalette).get();
 		p.fillRect(clip, equals ? st::boxBg : palette->boxBg());
@@ -386,13 +386,13 @@ void BackgroundPreviewBox::createDimmingSlider(bool dark) {
 			heightValue(),
 			_dimmingWrap->heightValue(),
 			rpl::mappers::_1 - rpl::mappers::_2
-		) | rpl::start_with_next([=](int top) {
+		) | rpl::on_next([=](int top) {
 			_dimmingWrap->move(0, top);
 		}, _dimmingWrap->lifetime());
 
 		_dimmingWrap->toggle(dark, anim::type::instant);
 		_dimmingHeight = _dimmingWrap->heightValue();
-		_dimmingHeight.changes() | rpl::start_with_next([=] {
+		_dimmingHeight.changes() | rpl::on_next([=] {
 			update();
 		}, _dimmingWrap->lifetime());
 	}
@@ -554,7 +554,7 @@ void BackgroundPreviewBox::recreateBlurCheckbox() {
 		sizeValue(),
 		_blur->sizeValue(),
 		_dimmingHeight.value()
-	) | rpl::start_with_next([=](QSize outer, QSize inner, int dimming) {
+	) | rpl::on_next([=](QSize outer, QSize inner, int dimming) {
 		const auto bottom = st::historyPaddingBottom;
 		_blur->move(
 			(outer.width() - inner.width()) / 2,
@@ -562,7 +562,7 @@ void BackgroundPreviewBox::recreateBlurCheckbox() {
 	}, _blur->lifetime());
 
 	_blur->checkedChanges(
-	) | rpl::start_with_next([=](bool checked) {
+	) | rpl::on_next([=](bool checked) {
 		checkBlurAnimationStart();
 		update();
 	}, _blur->lifetime());
@@ -607,7 +607,7 @@ void BackgroundPreviewBox::uploadForPeer(bool both) {
 		document->size);
 
 	session->uploader().documentProgress(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::on_next([=](const FullMsgId &fullId) {
 		if (fullId != _uploadId) {
 			return;
 		}
@@ -619,7 +619,7 @@ void BackgroundPreviewBox::uploadForPeer(bool both) {
 	}, _uploadLifetime);
 
 	session->uploader().documentReady(
-	) | rpl::start_with_next([=](const Storage::UploadedMedia &data) {
+	) | rpl::on_next([=](const Storage::UploadedMedia &data) {
 		if (data.fullId != _uploadId) {
 			return;
 		}
@@ -668,7 +668,7 @@ void BackgroundPreviewBox::setExistingForPeer(
 			| (_fromMessageId ? Flag() : Flag::f_wallpaper)
 			| (both ? Flag::f_for_both : Flag())
 			| Flag::f_settings),
-		_forPeer->input,
+		_forPeer->input(),
 		paper.mtpInput(&_controller->session()),
 		paper.mtpSettings(),
 		MTP_int(_fromMessageId.msg)
@@ -742,13 +742,13 @@ void BackgroundPreviewBox::applyForPeer() {
 		object_ptr<Ui::RpWidget>(this));
 	const auto overlay = _forBothOverlay->entity();
 
-	sizeValue() | rpl::start_with_next([=](QSize size) {
+	sizeValue() | rpl::on_next([=](QSize size) {
 		_forBothOverlay->setGeometry({ QPoint(), size });
 		overlay->setGeometry({ QPoint(), size });
 	}, _forBothOverlay->lifetime());
 
 	overlay->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(overlay);
 		p.drawImage(0, 0, bg);
 		p.fillRect(clip, QColor(0, 0, 0, 64));
@@ -787,7 +787,7 @@ void BackgroundPreviewBox::applyForPeer() {
 		const auto raw = _forBothOverlay.release();
 		raw->shownValue() | rpl::filter(
 			!rpl::mappers::_1
-		) | rpl::take(1) | rpl::start_with_next(crl::guard(raw, [=] {
+		) | rpl::take(1) | rpl::on_next(crl::guard(raw, [=] {
 			delete raw;
 		}), raw->lifetime());
 		raw->toggle(false, anim::type::normal);
@@ -797,7 +797,7 @@ void BackgroundPreviewBox::applyForPeer() {
 	cancel->setTextTransform(RoundButton::TextTransform::NoTransform);
 
 	overlay->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		const auto padding = st::backgroundConfirmPadding;
 		const auto width = size.width()
 			- padding.left()
@@ -1063,7 +1063,7 @@ void BackgroundPreviewBox::updateServiceBg(const std::vector<QColor> &bg) {
 	}
 
 	_serviceBgLifetime = _paletteServiceBg.value(
-	) | rpl::start_with_next([=](QColor color) {
+	) | rpl::on_next([=](QColor color) {
 		_serviceBg = Ui::ThemeAdjustedColor(
 			color,
 			QColor(red / count, green / count, blue / count));

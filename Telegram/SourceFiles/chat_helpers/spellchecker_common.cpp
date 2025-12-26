@@ -389,23 +389,23 @@ void Start(not_null<Main::Session*> session) {
 	if (Platform::Spellchecker::IsSystemSpellchecker()) {
 		Spellchecker::SupportedScriptsChanged()
 		| rpl::take(1)
-		| rpl::start_with_next(AddExceptions, lifetime);
+		| rpl::on_next(AddExceptions, lifetime);
 
 		return;
 	}
 
 	Spellchecker::SupportedScriptsChanged(
-	) | rpl::start_with_next(AddExceptions, lifetime);
+	) | rpl::on_next(AddExceptions, lifetime);
 
 	Spellchecker::SetWorkingDirPath(DictionariesPath());
 
 	settings->dictionariesEnabledChanges(
-	) | rpl::start_with_next([](auto dictionaries) {
+	) | rpl::on_next([](auto dictionaries) {
 		Platform::Spellchecker::UpdateLanguages(dictionaries);
 	}, lifetime);
 
 	settings->spellcheckerEnabledChanges(
-	) | rpl::start_with_next(onEnabled, lifetime);
+	) | rpl::on_next(onEnabled, lifetime);
 
 	const auto method = QGuiApplication::inputMethod();
 
@@ -433,7 +433,7 @@ void Start(not_null<Main::Session*> session) {
 
 	if (settings->autoDownloadDictionaries()) {
 		session->data().contactsLoaded().changes(
-		) | rpl::start_with_next([=](bool loaded) {
+		) | rpl::on_next([=](bool loaded) {
 			if (!loaded) {
 				return;
 			}
@@ -466,7 +466,7 @@ void Start(not_null<Main::Session*> session) {
 	rpl::combine(
 		settings->spellcheckerEnabledValue(),
 		settings->autoDownloadDictionariesValue()
-	) | rpl::start_with_next([=](bool spell, bool download) {
+	) | rpl::on_next([=](bool spell, bool download) {
 		if (spell && download) {
 			connectInput();
 			return;

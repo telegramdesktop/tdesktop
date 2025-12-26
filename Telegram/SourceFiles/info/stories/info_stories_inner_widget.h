@@ -22,6 +22,7 @@ class SubTabs;
 class PopupMenu;
 class VerticalLayout;
 class MultiSlideTracker;
+struct SubTabsReorderUpdate;
 } // namespace Ui
 
 namespace Info {
@@ -38,6 +39,10 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
+namespace MTP {
+class Sender;
+} // namespace MTP
+
 namespace Info::Stories {
 
 class Memento;
@@ -51,6 +56,8 @@ public:
 		rpl::producer<int> albumId,
 		int addingToAlbumId = 0);
 	~InnerWidget();
+
+	[[nodiscard]] rpl::producer<> backRequest() const;
 
 	bool showInternal(not_null<Memento*> memento);
 	void setIsStackBottom(bool isStackBottom) {
@@ -80,6 +87,15 @@ public:
 
 	[[nodiscard]] rpl::producer<int> albumIdChanges() const;
 	[[nodiscard]] rpl::producer<Data::StoryAlbumUpdate> changes() const;
+
+	bool hasFlexibleTopBar() const;
+	base::weak_qptr<Ui::RpWidget> createPinnedToTop(
+		not_null<Ui::RpWidget*> parent);
+	base::weak_qptr<Ui::RpWidget> createPinnedToBottom(
+		not_null<Ui::RpWidget*> parent);
+
+	void enableBackButton();
+	void showFinished();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -113,6 +129,9 @@ private:
 	void albumRenamed(int id, QString name);
 	void albumRemoved(int id);
 
+	void reorderAlbumsLocally(const Ui::SubTabsReorderUpdate &update);
+	void flushAlbumReorder();
+
 	const not_null<Controller*> _controller;
 	const not_null<PeerData*> _peer;
 	const int _addingToAlbumId = 0;
@@ -123,8 +142,11 @@ private:
 	Ui::RpWidget *_albumsWrap = nullptr;
 	std::unique_ptr<Ui::SubTabs> _albumsTabs;
 	rpl::variable<Data::StoryAlbumUpdate> _albumChanges;
+	bool _pendingAlbumReorder = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
+	std::unique_ptr<MTP::Sender> _api;
+	mtpRequestId _reorderRequestId = 0;
 
 	object_ptr<Ui::VerticalLayout> _top = { nullptr };
 	object_ptr<Media::ListWidget> _list = { nullptr };
@@ -140,6 +162,13 @@ private:
 	rpl::event_stream<rpl::producer<int>> _listTops;
 	rpl::variable<int> _topHeight;
 	rpl::variable<bool> _albumEmpty;
+
+	rpl::variable<bool> _backToggles;
+	rpl::event_stream<> _backClicks;
+	rpl::event_stream<> _showFinished;
+	rpl::variable<std::optional<QColor>> _topBarColor;
+
+	Ui::VisibleRange _visibleRange;
 
 };
 

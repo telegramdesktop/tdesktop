@@ -41,6 +41,7 @@ namespace Data {
 struct LastSpokeTimes;
 struct GroupCallParticipant;
 class GroupCall;
+enum class GroupCallOrigin : uchar;
 } // namespace Data
 
 namespace TdE2E {
@@ -48,9 +49,7 @@ class Call;
 class EncryptDecrypt;
 } // namespace TdE2E
 
-namespace Calls {
-
-namespace Group {
+namespace Calls::Group {
 struct MuteRequest;
 struct VolumeRequest;
 struct ParticipantState;
@@ -60,7 +59,10 @@ struct RejoinEvent;
 struct RtmpInfo;
 enum class VideoQuality;
 enum class Error;
-} // namespace Group
+class Messages;
+} // namespace Calls::Group
+
+namespace Calls {
 
 struct InviteRequest;
 struct InviteResult;
@@ -244,6 +246,10 @@ public:
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> joinAsValue() const {
 		return _joinAs.value();
 	}
+	[[nodiscard]] not_null<Group::Messages*> messages() const {
+		return _messages.get();
+	}
+	[[nodiscard]] not_null<PeerData*> messagesFrom() const;
 	[[nodiscard]] bool showChooseJoinAs() const;
 	[[nodiscard]] TimeId scheduleDate() const {
 		return _scheduleDate;
@@ -251,6 +257,8 @@ public:
 	[[nodiscard]] bool scheduleStartSubscribed() const;
 	[[nodiscard]] bool rtmp() const;
 	[[nodiscard]] bool conference() const;
+	[[nodiscard]] bool videoStream() const;
+	[[nodiscard]] Data::GroupCallOrigin origin() const;
 	[[nodiscard]] bool listenersHidden() const;
 	[[nodiscard]] bool emptyRtmp() const;
 	[[nodiscard]] rpl::producer<bool> emptyRtmpValue() const;
@@ -261,7 +269,7 @@ public:
 	void setRtmpInfo(const Group::RtmpInfo &value);
 
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
-	[[nodiscard]] std::shared_ptr<Data::GroupCall> conferenceCall() const;
+	[[nodiscard]] std::shared_ptr<Data::GroupCall> sharedCall() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
 	[[nodiscard]] rpl::producer<QByteArray> emojiHashValue() const;
 
@@ -278,6 +286,11 @@ public:
 	void handlePossibleCreateOrJoinResponse(const MTPDupdateGroupCall &data);
 	void handlePossibleCreateOrJoinResponse(
 		const MTPDupdateGroupCallConnection &data);
+	void handleIncomingMessage(const MTPDupdateGroupCallMessage &data);
+	void handleIncomingMessage(
+		const MTPDupdateGroupCallEncryptedMessage &data);
+	void handleDeleteMessages(const MTPDupdateDeleteGroupCallMessages &data);
+	void handleMessageSent(const MTPDupdateMessageID &data);
 	void changeTitle(const QString &title);
 	void toggleRecording(
 		bool enabled,
@@ -415,6 +428,12 @@ public:
 	[[nodiscard]] rpl::producer<bool> videoIsWorkingValue() const {
 		return _videoIsWorking.value();
 	}
+	[[nodiscard]] bool messagesEnabled() const {
+		return _messagesEnabled.current();
+	}
+	[[nodiscard]] rpl::producer<bool> messagesEnabledValue() const {
+		return _messagesEnabled.value();
+	}
 
 	[[nodiscard]] bool isSharingScreen() const;
 	[[nodiscard]] rpl::producer<bool> isSharingScreenValue() const;
@@ -445,6 +464,13 @@ public:
 
 	void pushToTalk(bool pressed, crl::time delay);
 	void setNotRequireARGB32();
+
+	[[nodiscard]] std::function<std::vector<uint8_t>(
+		std::vector<uint8_t> const &,
+		int64_t, bool,
+		int32_t)> e2eEncryptDecrypt() const;
+	void sendMessage(TextWithTags message);
+	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -577,6 +603,7 @@ private:
 	void saveDefaultJoinAs(not_null<PeerData*> as);
 	void subscribeToReal(not_null<Data::GroupCall*> real);
 	void setScheduledDate(TimeId date);
+	void setMessagesEnabled(bool enabled);
 	void rejoinPresentation();
 	void leavePresentation();
 	void checkNextJoinAction();
@@ -645,13 +672,13 @@ private:
 		Fn<not_null<InviteResult*>()> resultAddress,
 		Fn<void()> finishRequest);
 
+	[[nodiscard]] float64 singleSourceVolumeValue() const;
 	[[nodiscard]] int activeVideoSendersCount() const;
 
-	[[nodiscard]] MTPInputGroupCall inputCall() const;
 	[[nodiscard]] MTPInputGroupCall inputCallSafe() const;
 
 	const not_null<Delegate*> _delegate;
-	std::shared_ptr<Data::GroupCall> _conferenceCall;
+	std::shared_ptr<Data::GroupCall> _sharedCall;
 	std::unique_ptr<TdE2E::Call> _e2e;
 	std::shared_ptr<TdE2E::EncryptDecrypt> _e2eEncryptDecrypt;
 	rpl::variable<QByteArray> _emojiHash;
@@ -667,6 +694,7 @@ private:
 	base::flat_set<uint32> _unresolvedSsrcs;
 	rpl::event_stream<Error> _errors;
 	std::vector<Fn<void()>> _rejoinedCallbacks;
+	const std::unique_ptr<Group::Messages> _messages;
 	bool _recordingStoppedByMe = false;
 	bool _requestedVideoChannelsUpdateScheduled = false;
 
@@ -697,6 +725,7 @@ private:
 	rpl::variable<bool> _canManage = false;
 	rpl::variable<bool> _videoIsWorking = false;
 	rpl::variable<bool> _emptyRtmp = false;
+	rpl::variable<bool> _messagesEnabled = false;
 	bool _initialMuteStateSent = false;
 	bool _acceptFields = false;
 
@@ -772,7 +801,7 @@ private:
 	bool _listenersHidden = false;
 	bool _rtmp = false;
 	bool _reloadedStaleCall = false;
-	int _rtmpVolume = 0;
+	int _singleSourceVolume = 0;
 
 	SubChainState _subchains[kSubChainsCount];
 

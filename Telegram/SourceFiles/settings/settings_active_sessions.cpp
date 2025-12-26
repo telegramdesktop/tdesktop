@@ -145,7 +145,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 		Core::App().settings().setCustomDeviceModel(result);
 		Core::App().saveSettingsDelayed();
 	};
-	name->submits() | rpl::start_with_next(submit, name->lifetime());
+	name->submits() | rpl::on_next(submit, name->lifetime());
 	box->addButton(tr::lng_settings_save(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
@@ -378,7 +378,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 	if ((state->lottie = LottieForType(type))) {
 		std::move(
 			shown
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			state->lottie->animate(
 				[=] { result->update(); },
 				0,
@@ -387,7 +387,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 	}
 
 	result->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(result);
 		p.drawImage(QPoint(0, 0), state->background);
 		if (state->lottie) {
@@ -714,12 +714,12 @@ void SessionsContent::setupContent() {
 
 	_inner->heightValue(
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		resize(width(), height);
 	}, _inner->lifetime());
 
 	_inner->showRequests(
-	) | rpl::start_with_next([=](const EntryData &data) {
+	) | rpl::on_next([=](const EntryData &data) {
 		_controller->show(Box(
 			SessionInfoBox,
 			data,
@@ -727,22 +727,22 @@ void SessionsContent::setupContent() {
 	}, lifetime());
 
 	_inner->terminateOne(
-	) | rpl::start_with_next([=](uint64 hash) {
+	) | rpl::on_next([=](uint64 hash) {
 		terminateOne(hash);
 	}, lifetime());
 
 	_inner->terminateAll(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		terminateAll();
 	}, lifetime());
 
 	_loading.changes(
-	) | rpl::start_with_next([=](bool value) {
+	) | rpl::on_next([=](bool value) {
 		_inner->setVisible(!value);
 	}, lifetime());
 
 	_authorizations->listValue(
-	) | rpl::start_with_next([=](const Api::Authorizations::List &list) {
+	) | rpl::on_next([=](const Api::Authorizations::List &list) {
 		parse(list);
 	}, lifetime());
 
@@ -900,7 +900,7 @@ void SessionsContent::Inner::setupContent() {
 	rpl::combine(
 		content->sizeValue(),
 		header->positionValue()
-	) | rpl::start_with_next([=](QSize outer, QPoint position) {
+	) | rpl::on_next([=](QSize outer, QPoint position) {
 		const auto x = st::sessionTerminateSkip
 			+ st::sessionTerminate.iconPosition.x();
 		const auto y = st::defaultSubsectionTitlePadding.top()
@@ -1169,11 +1169,11 @@ void AddSessionInfoRow(
 	const auto widget = Ui::CreateChild<Ui::RpWidget>(container.get());
 	widget->resize(icon.size());
 
-	text->topValue() | rpl::start_with_next([=](int top) {
+	text->topValue() | rpl::on_next([=](int top) {
 		widget->move(st::sessionValueIconPosition + QPoint(0, top));
 	}, widget->lifetime());
 
-	widget->paintRequest() | rpl::start_with_next([=, &icon] {
+	widget->paintRequest() | rpl::on_next([=, &icon] {
 		auto p = QPainter(widget);
 		icon.paintInCenter(p, widget->rect());
 	}, widget->lifetime());

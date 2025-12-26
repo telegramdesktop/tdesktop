@@ -241,7 +241,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		std::move(links),
 		std::move(about),
 		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			int fontSize,
 			bool userpicToggled,
 			bool backgroundToggled,
@@ -261,7 +261,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		state->backgroundColors = backgroundColors;
 		state->text = username.toUpper();
 		state->textWidth = state->font->width(state->text);
-		{
+		if (!link.isEmpty()) {
 			const auto remainder = qrMaxSize % st::introQrPixel;
 			const auto downTo = remainder
 				? qrMaxSize - remainder
@@ -274,6 +274,13 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 					Size(qrMaxSize * style::DevicePixelRatio()),
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
+		} else {
+			auto image = QImage(
+				Size(qrMaxSize * style::DevicePixelRatio()),
+				QImage::Format_ARGB32_Premultiplied);
+			image.fill(Qt::white);
+			image.setDevicePixelRatio(style::DevicePixelRatio());
+			state->qrImage = std::move(image);
 		}
 		const auto resultWidth = qrMaxSize
 			+ rect::m::sum::h(state->backgroundMargins);
@@ -313,7 +320,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 				- st::defaultBoxDividerLabelPadding.top());
 	}, container->lifetime());
 	result->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(result);
 		const auto size = (state->qrImage.size() / style::DevicePixelRatio());
 		const auto qrRect = Rect(
@@ -375,7 +382,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		const auto dot = smallDots.back();
 		dot->resize(smallSize);
 		dot->setAttribute(Qt::WA_TransparentForMouseEvents);
-		dot->paintRequest() | rpl::start_with_next([=] {
+		dot->paintRequest() | rpl::on_next([=] {
 			auto p = QPainter(dot);
 			const auto fg = (slider->value() > (i / float64(count - 1)))
 				? st.activeFg
@@ -386,7 +393,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 	const auto bigDot = Ui::CreateChild<Ui::RpWidget>(slider->parentWidget());
 	bigDot->resize(st.seekSize);
 	bigDot->setAttribute(Qt::WA_TransparentForMouseEvents);
-	bigDot->paintRequest() | rpl::start_with_next([=] {
+	bigDot->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(bigDot);
 		auto hq = PainterHighQualityEnabler(p);
 		auto pen = st::boxBg->p;
@@ -450,7 +457,7 @@ void FillPeerQrBox(
 
 	const auto usernameValue = [=] {
 		return (customLink || !peer)
-			? (rpl::single(QString()) | rpl::type_erased())
+			? (rpl::single(QString()) | rpl::type_erased)
 			: Info::Profile::UsernameValue(peer, true) | rpl::map(
 				[](const auto &username) { return username.text; });
 	};
@@ -460,7 +467,7 @@ void FillPeerQrBox(
 			: peer
 			? Info::Profile::LinkValue(peer, true) | rpl::map(
 				[](const auto &link) { return link.text; })
-			: (rpl::single(QString()) | rpl::type_erased());
+			: (rpl::single(QString()) | rpl::type_erased);
 	};
 
 	const auto userpic = Ui::CreateChild<Ui::RpWidget>(box);
@@ -469,11 +476,21 @@ void FillPeerQrBox(
 	const auto userpicMedia = Ui::MakeUserpicThumbnail(peer
 		? peer
 		: controller->session().user().get());
-	userpicMedia->subscribeToUpdates([=] { userpic->update(); });
-	userpic->paintRequest() | rpl::start_with_next([=] {
+	userpicMedia->subscribeToUpdates(
+		crl::guard(userpic, [=] { userpic->update(); }));
+	userpic->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(userpic);
 		p.drawImage(0, 0, userpicMedia->image(userpicSize));
 	}, userpic->lifetime());
+
+	linkValue() | rpl::on_next([=](const QString &link) {
+		if (link.isEmpty()) {
+			box->showFinishes() | rpl::on_next([=] {
+				box->closeBox();
+			}, box->lifetime());
+			box->closeBox();
+		}
+	}, box->lifetime());
 
 	userpic->setVisible(peer != nullptr);
 	PrepareQrWidget(
@@ -584,7 +601,7 @@ void FillPeerQrBox(
 			state->chosen.value() | rpl::combine_previous(
 			) | rpl::filter([=](int i, int k) {
 				return i == counter || k == counter;
-			}) | rpl::start_with_next([=] {
+			}) | rpl::on_next([=] {
 				widget->update();
 			}, widget->lifetime());
 			widget->resize(size, size);
@@ -636,7 +653,7 @@ void FillPeerQrBox(
 				}
 				return result;
 			}();
-			widget->paintRequest() | rpl::start_with_next([=] {
+			widget->paintRequest() | rpl::on_next([=] {
 				auto p = QPainter(widget);
 				const auto rect = widget->rect() - Margins(activewidth * 2.5);
 				p.drawImage(rect.x(), rect.y(), back);
@@ -667,7 +684,7 @@ void FillPeerQrBox(
 	} else {
 		themes->refreshChatThemes();
 		themes->chatThemesUpdated(
-		) | rpl::take(1) | rpl::start_with_next([=] {
+		) | rpl::take(1) | rpl::on_next([=] {
 			fill(themes->chatThemes());
 		}, box->lifetime());
 	}
@@ -701,7 +718,7 @@ void FillPeerQrBox(
 			tr::lng_qr_box_quality3(),
 			labelSt);
 		labels->sizeValue(
-		) | rpl::start_with_next([=](const QSize &size) {
+		) | rpl::on_next([=](const QSize &size) {
 			left->moveToLeft(0, 0);
 			middle->moveToLeft((size.width() - middle->width()) / 2, 0);
 			right->moveToRight(0, 0);
@@ -735,7 +752,7 @@ void FillPeerQrBox(
 			st::settingsScale,
 			kMaxQualities);
 		slider->geometryValue(
-		) | rpl::start_with_next([=](const QRect &rect) {
+		) | rpl::on_next([=](const QRect &rect) {
 			updateGeometry(int(slider->value() * (kMaxQualities - 1)));
 		}, box->lifetime());
 
@@ -784,7 +801,7 @@ void FillPeerQrBox(
 			return kMinSize + index * kStep;
 		};
 		slider->geometryValue(
-		) | rpl::start_with_next([=](const QRect &rect) {
+		) | rpl::on_next([=](const QRect &rect) {
 			updateGeometry(fontSizeToIndex(state->fontSizeValue.current()));
 		}, box->lifetime());
 
@@ -967,6 +984,14 @@ void FillPeerQrBox(
 	}
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+}
+
+void DefaultShowFillPeerQrBoxCallback(
+		std::shared_ptr<Ui::Show> show,
+		PeerData *peer) {
+	if (peer && !peer->username().isEmpty()) {
+		show->show(Box(Ui::FillPeerQrBox, peer, std::nullopt, nullptr));
+	}
 }
 
 } // namespace Ui

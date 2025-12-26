@@ -221,7 +221,7 @@ ReactionView::ReactionView(
 	GenerateFakeItem(
 		delegate(),
 		session->data().history(PeerData::kServiceNotificationsId))) {
-	style::PaletteChanged() | rpl::start_with_next([=] {
+	style::PaletteChanged() | rpl::on_next([=] {
 		_background = QImage();
 	}, lifetime());
 
@@ -256,7 +256,7 @@ ReactionView::ReactionView(
 		- st::msgMargin.bottom();
 
 	session->data().viewRepaintRequest(
-	) | rpl::start_with_next([=](not_null<const Element*> element) {
+	) | rpl::on_next([=](not_null<const Element*> element) {
 		if (element == view) {
 			update();
 		}
@@ -374,7 +374,7 @@ void ReactionView::createEffectCanvas() {
 	const auto raw = _effectCanvas.get();
 	raw->setAttribute(Qt::WA_TransparentForMouseEvents);
 	raw->show();
-	raw->paintRequest() | rpl::start_with_next([=] {
+	raw->paintRequest() | rpl::on_next([=] {
 		if (!_effect || _effect->finished()) {
 			crl::on_main(_effectCanvas.get(), [=] {
 				_effect = nullptr;
@@ -544,7 +544,7 @@ WeatherView::WeatherView(
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	show();
 
-	std::move(weatherInCelsius) | rpl::start_with_next([=](bool celsius) {
+	std::move(weatherInCelsius) | rpl::on_next([=](bool celsius) {
 		_celsius = celsius;
 		_background = {};
 		update();
@@ -565,7 +565,7 @@ void WeatherView::watchForSticker() {
 			return document != nullptr;
 		}) | rpl::take(
 			1
-		) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		) | rpl::on_next([=](not_null<DocumentData*> document) {
 			setStickerFrom(document);
 			update();
 		}, lifetime());
@@ -656,10 +656,10 @@ void WeatherView::setStickerFrom(not_null<DocumentData*> document) {
 	media->goodThumbnailWanted();
 
 	rpl::single() | rpl::then(
-		document->owner().session().downloaderTaskFinished()
+		document->session().downloaderTaskFinished()
 	) | rpl::filter([=] {
 		return media->loaded();
-	}) | rpl::take(1) | rpl::start_with_next([=] {
+	}) | rpl::take(1) | rpl::on_next([=] {
 		const auto sticker = document->sticker();
 		if (sticker->isLottie()) {
 			_sticker = std::make_shared<HistoryView::LottiePlayer>(
@@ -733,34 +733,6 @@ void WeatherView::cacheBackground() {
 
 [[nodiscard]] Data::ReactionId HeartReactionId() {
 	return { QString() + QChar(10084) };
-}
-
-[[nodiscard]] Data::PossibleItemReactionsRef LookupPossibleReactions(
-		not_null<Main::Session*> session) {
-	auto result = Data::PossibleItemReactionsRef();
-	const auto reactions = &session->data().reactions();
-	const auto &full = reactions->list(Data::Reactions::Type::Active);
-	const auto &top = reactions->list(Data::Reactions::Type::Top);
-	const auto &recent = reactions->list(Data::Reactions::Type::Recent);
-	const auto premiumPossible = session->premiumPossible();
-	auto added = base::flat_set<Data::ReactionId>();
-	result.recent.reserve(full.size());
-	for (const auto &reaction : ranges::views::concat(top, recent, full)) {
-		if (premiumPossible || !reaction.id.custom()) {
-			if (added.emplace(reaction.id).second) {
-				result.recent.push_back(&reaction);
-			}
-		}
-	}
-	result.customAllowed = premiumPossible;
-	const auto i = ranges::find(
-		result.recent,
-		reactions->favoriteId(),
-		&Data::Reaction::id);
-	if (i != end(result.recent) && i != begin(result.recent)) {
-		std::rotate(begin(result.recent), i, i + 1);
-	}
-	return result;
 }
 
 HistoryView::Context ReactionView::elementContext() {
@@ -907,9 +879,11 @@ void Reactions::Panel::attachToReactionButton(
 }
 
 void Reactions::Panel::create() {
-	auto reactions = LookupPossibleReactions(
+	auto reactions = Data::LookupPossibleReactions(
 		&_controller->uiShow()->session());
-	if (reactions.recent.empty()) {
+	if (reactions.recent.empty()
+		|| (_mode.current() == Mode::Message
+			&& _controller->videoStream())) {
 		return;
 	}
 	_parent = std::make_unique<Ui::RpWidget>(_controller->wrap().get());
@@ -917,7 +891,7 @@ void Reactions::Panel::create() {
 
 	const auto mode = _mode.current();
 
-	_parent->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+	_parent->events() | rpl::on_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::MouseButtonPress) {
 			const auto event = static_cast<QMouseEvent*>(e.get());
 			if (event->button() == Qt::LeftButton) {
@@ -947,7 +921,7 @@ void Reactions::Panel::create() {
 		true);
 
 	_selector->chosen(
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			HistoryView::Reactions::ChosenReaction reaction) {
 		_chosen.fire({ .reaction = reaction, .mode = mode });
 		hide(mode);
@@ -965,7 +939,7 @@ void Reactions::Panel::create() {
 	rpl::combine(
 		_controller->layoutValue(),
 		_shownValue.value()
-	) | rpl::start_with_next([=](const Layout &layout, float64 shown) {
+	) | rpl::on_next([=](const Layout &layout, float64 shown) {
 		const auto story = _controller->story();
 		const auto viewsReactionsMode = story && story->peer()->isChannel();
 		const auto width = margins.left()
@@ -996,11 +970,11 @@ void Reactions::Panel::create() {
 	}, _selector->lifetime());
 
 	_selector->willExpand(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_expanded = true;
 	}, _selector->lifetime());
 
-	_selector->escapes() | rpl::start_with_next([=] {
+	_selector->escapes() | rpl::on_next([=] {
 		if (mode == Mode::Message) {
 			collapse(mode);
 		} else {
@@ -1021,7 +995,7 @@ void Reactions::Panel::fadeOutSelector() {
 	raw->widget.setGeometry(geometry);
 	raw->widget.show();
 	raw->widget.paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (const auto opacity = raw->animation.value(0.)) {
 			auto p = QPainter(&raw->widget);
 			p.setOpacity(opacity);
@@ -1057,7 +1031,7 @@ void Reactions::Panel::updateShowState() {
 Reactions::Reactions(not_null<Controller*> controller)
 : _controller(controller)
 , _panel(std::make_unique<Panel>(_controller)) {
-	_panel->chosen() | rpl::start_with_next([=](Chosen &&chosen) {
+	_panel->chosen() | rpl::on_next([=](Chosen &&chosen) {
 		_chosen.fire(std::move(chosen));
 	}, _lifetime);
 }
@@ -1101,7 +1075,7 @@ void Reactions::setReplyFieldState(
 		rpl::producer<bool> hasSendText) {
 	std::move(
 		focused
-	) | rpl::start_with_next([=](bool focused) {
+	) | rpl::on_next([=](bool focused) {
 		_replyFocused = focused;
 		if (!_replyFocused) {
 			_panel->hideIfCollapsed(Reactions::Mode::Message);
@@ -1112,7 +1086,7 @@ void Reactions::setReplyFieldState(
 
 	std::move(
 		hasSendText
-	) | rpl::start_with_next([=](bool has) {
+	) | rpl::on_next([=](bool has) {
 		_hasSendText = has;
 		if (_replyFocused) {
 			if (_hasSendText) {
@@ -1143,7 +1117,7 @@ auto Reactions::attachToMenu(
 	using namespace HistoryView::Reactions;
 
 	const auto story = _controller->story();
-	if (!story || story->peer()->isSelf()) {
+	if (!story || story->peer()->isSelf() || story->call()) {
 		return AttachStripResult::Skipped;
 	}
 
@@ -1153,14 +1127,14 @@ auto Reactions::attachToMenu(
 		desiredPosition,
 		st::storiesReactionsPan,
 		show,
-		LookupPossibleReactions(&show->session()),
+		Data::LookupPossibleReactions(&show->session()),
 		TextWithEntities());
 	if (!result) {
 		return result.error();
 	}
 	const auto selector = *result;
 
-	selector->chosen() | rpl::start_with_next([=](ChosenReaction reaction) {
+	selector->chosen() | rpl::on_next([=](ChosenReaction reaction) {
 		menu->hideMenu();
 		_chosen.fire({ reaction, ReactionsMode::Reaction });
 	}, selector->lifetime());
@@ -1186,7 +1160,7 @@ void Reactions::showLikeFrom(Data::Story *story) {
 	_likeFromLifetime = story->session().changes().storyUpdates(
 		story,
 		Data::StoryUpdate::Flag::Reaction
-	) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
+	) | rpl::on_next([=](const Data::StoryUpdate &update) {
 		setLikedIdFrom(update.story);
 	});
 }
@@ -1285,7 +1259,7 @@ void Reactions::initLikeIcon(
 	_likeIcon = std::make_unique<Ui::RpWidget>(_likeIconWidget);
 	const auto icon = _likeIcon.get();
 	icon->show();
-	_likeIconWidget->sizeValue() | rpl::start_with_next([=](QSize size) {
+	_likeIconWidget->sizeValue() | rpl::on_next([=](QSize size) {
 		icon->setGeometry(QRect(QPoint(), size));
 	}, icon->lifetime());
 
@@ -1352,7 +1326,7 @@ void Reactions::initLikeIcon(
 			});
 		}
 	};
-	icon->paintRequest() | rpl::start_with_next([=] {
+	icon->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(icon);
 		if (!fly->cache.isNull()) {
 			p.drawImage(0, 0, fly->cache);
@@ -1406,7 +1380,7 @@ void Reactions::waitForLikeIcon(
 	}) | rpl::flatten_latest(
 	) | rpl::filter(
 		rpl::mappers::_1
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::on_next([=] {
 		setLikedId(owner, id, true);
 
 		crl::on_main(&_likeIconGuard, [=] {
@@ -1454,7 +1428,7 @@ void Reactions::startReactionAnimation(
 		[] { return st::storiesComposeWhiteText->c; },
 		Data::CustomEmojiSizeTag::Isolated);
 	const auto layer = _reactionAnimation->layer();
-	wrap->paintRequest() | rpl::start_with_next([=] {
+	wrap->paintRequest() | rpl::on_next([=] {
 		if (!_reactionAnimation->paintBadgeFrame(target)) {
 			InvokeQueued(layer, [=] {
 				_reactionAnimation = nullptr;

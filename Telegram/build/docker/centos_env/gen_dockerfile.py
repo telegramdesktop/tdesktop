@@ -12,6 +12,7 @@ def main():
     print(Environment(loader=FileSystemLoader(dirname(__file__))).get_template("Dockerfile").render(
         DEBUG=checkEnv("DEBUG", True),
         LTO=checkEnv("LTO", True),
+        ASAN=checkEnv("ASAN", False),
         JOBS=checkEnv("JOBS", ""),
     ))
 

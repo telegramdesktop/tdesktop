@@ -121,7 +121,7 @@ RecordingInfo::RecordingInfo(not_null<Ui::RpWidget*> parent)
 : RpWidget(parent)
 , _container(this) {
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		_container->resizeToWidth(size.width());
 	}, _container->lifetime());
 }
@@ -140,7 +140,7 @@ void RecordingInfo::prepareAudio() {
 	audioIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		audioIcon->moveToLeft((size.width() - audioIcon->width()) / 2, 0);
 	}, lifetime());
 }
@@ -175,7 +175,7 @@ void RecordingInfo::prepareVideo() {
 	};
 	for (const auto icon : icons) {
 		icon->clicks(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			for (const auto &i : icons) {
 				i->setToggled(icon == i);
 			}
@@ -184,7 +184,7 @@ void RecordingInfo::prepareVideo() {
 	}
 
 	wrap->sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		const auto wHalf = size.width() / icons.size();
 		for (auto i = 0; i < icons.size(); i++) {
 			const auto &icon = icons[i];
@@ -213,7 +213,10 @@ Switcher::Switcher(
 	not_null<Ui::RpWidget*> parent,
 	rpl::producer<bool> &&toggled)
 : RpWidget(parent)
-, _background(this, st::groupCallRecordingInfoHeight, st::groupCallBg)
+, _background(
+	this,
+	st::groupCallRecordingInfoHeight,
+	st::groupCallDividerBar)
 , _audio(this)
 , _video(this) {
 	_audio->prepareAudio();
@@ -227,7 +230,7 @@ Switcher::Switcher(
 	};
 
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		_audio->resize(size.width(), size.height());
 		_video->resize(size.width(), size.height());
 
@@ -239,7 +242,7 @@ Switcher::Switcher(
 
 	std::move(
 		toggled
-	) | rpl::start_with_next([=](bool toggled) {
+	) | rpl::on_next([=](bool toggled) {
 		_toggled = toggled;
 		_animation.start(
 			updatePositions,
@@ -278,7 +281,7 @@ void EditGroupCallTitleBox(
 		box->closeBox();
 		done(result);
 	};
-	input->submits() | rpl::start_with_next(submit, input->lifetime());
+	input->submits() | rpl::on_next(submit, input->lifetime());
 	box->addButton(tr::lng_settings_save(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
@@ -337,7 +340,7 @@ void AddTitleGroupCallRecordingBox(
 		box->closeBox();
 		done(result);
 	};
-	input->submits() | rpl::start_with_next(submit, input->lifetime());
+	input->submits() | rpl::on_next(submit, input->lifetime());
 	box->addButton(tr::lng_group_call_recording_start_button(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

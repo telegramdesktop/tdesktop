@@ -40,6 +40,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QCoreApplication>
 
 namespace Info {
+namespace {
+
+class FlexibleFiller final : public Ui::RpWidget {
+public:
+	using RpWidget::RpWidget;
+
+	void setTargetWidget(base::unique_qptr<RpWidget> widget);
+
+private:
+	void visibleTopBottomUpdated(int visibleTop, int visibleBottom) override;
+
+	base::unique_qptr<RpWidget> _target;
+
+};
+
+void FlexibleFiller::setTargetWidget(base::unique_qptr<RpWidget> widget) {
+	Expects(!_target);
+
+	_target = std::move(widget);
+}
+
+void FlexibleFiller::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	if (const auto raw = _target.get()) {
+		raw->setVisibleTopBottom(visibleTop, visibleBottom);
+	}
+}
+
+} // namespace
 
 ContentWidget::ContentWidget(
 	QWidget *parent,
@@ -55,7 +85,7 @@ ContentWidget::ContentWidget(
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	_controller->wrapValue(
-	) | rpl::start_with_next([this](Wrap value) {
+	) | rpl::on_next([this](Wrap value) {
 		if (value != Wrap::Layer) {
 			applyAdditionalScroll(0);
 		}
@@ -70,14 +100,14 @@ ContentWidget::ContentWidget(
 			_controller->searchEnabledByContent(),
 			(_1 == Wrap::Layer) && _2
 		) | rpl::distinct_until_changed(
-		) | rpl::start_with_next([this](bool shown) {
+		) | rpl::on_next([this](bool shown) {
 			refreshSearchField(shown);
 		}, lifetime());
 	}
 	rpl::merge(
 		_scrollTopSkip.changes(),
 		_scrollBottomSkip.changes()
-	) | rpl::start_with_next([this] {
+	) | rpl::on_next([this] {
 		updateControlsGeometry();
 	}, lifetime());
 }
@@ -172,7 +202,7 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
 		_innerWrap->entity()->desiredHeightValue()
-	) | rpl::start_with_next([this](
+	) | rpl::on_next([this](
 			int top,
 			int height,
 			int desired) {
@@ -186,7 +216,7 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		_scroll->heightValue(),
 		_innerWrap->entity()->heightValue(),
 		_controller->wrapValue()
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			int scrollHeight,
 			int innerHeight,
 			Wrap wrap) {
@@ -201,6 +231,36 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 	updateInnerPadding();
 
 	return _innerWrap->entity();
+}
+
+Ui::RpWidget *ContentWidget::doSetupFlexibleInnerWidget(
+		object_ptr<Ui::RpWidget> inner,
+		FlexibleScrollData &flexibleScroll,
+		Fn<void(Ui::RpWidget*)> customSetup) {
+	const auto filler = setInnerWidget(object_ptr<FlexibleFiller>(this));
+	filler->resize(1, 1);
+
+	flexibleScroll.contentHeightValue.events(
+	) | rpl::on_next([=](int h) {
+		filler->resize(filler->width(), h);
+	}, filler->lifetime());
+
+	filler->widthValue(
+	) | rpl::start_to_stream(
+		flexibleScroll.fillerWidthValue,
+		filler->lifetime());
+
+	if (customSetup) {
+		customSetup(filler);
+	}
+
+	// ScrollArea -> PaddingWrap -> RpWidget.
+	const auto result = inner.release();
+	result->setParent(filler->parentWidget()->parentWidget());
+	result->raise();
+	filler->setTargetWidget(base::unique_qptr<Ui::RpWidget>(result));
+
+	return result;
 }
 
 int ContentWidget::scrollTillBottom(int forHeight) const {
@@ -352,7 +412,7 @@ void ContentWidget::setViewport(
 		rpl::producer<not_null<QEvent*>> &&events) const {
 	std::move(
 		events
-	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+	) | rpl::on_next([=](not_null<QEvent*> e) {
 		_scroll->viewportEvent(e);
 	}, _scroll->lifetime());
 }
@@ -377,14 +437,14 @@ void ContentWidget::refreshSearchField(bool shown) {
 
 		const auto view = _searchWrap.get();
 		widthValue(
-		) | rpl::start_with_next([=](int newWidth) {
+		) | rpl::on_next([=](int newWidth) {
 			view->resizeToWidth(newWidth);
 			view->moveToLeft(0, 0);
 		}, view->lifetime());
 		view->show();
 		_searchField->setFocus();
 		setScrollTopSkip(view->heightNoMargins() - st::lineWidth);
-	} else {
+	} else if (_searchWrap) {
 		if (Ui::InFocusChain(this)) {
 			setFocus();
 		}
@@ -518,7 +578,7 @@ ContentMemento::ContentMemento(
 , _sublist(sublist) {
 	if (_topic) {
 		_peer->owner().itemIdChanged(
-		) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
+		) | rpl::on_next([=](const Data::Session::IdChange &change) {
 			if (_topic->rootId() == change.oldId) {
 				_topic = _topic->forum()->topicFor(change.newId.msg);
 			}

@@ -138,6 +138,35 @@ private:
 
 };
 
+class NewBotThreadDottedLine final : public MediaGenericPart {
+public:
+	explicit NewBotThreadDottedLine(not_null<Element*> parent);
+
+	void draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const override;
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+private:
+	const not_null<Element*> _parent;
+
+};
+
+class NewBotThreadDownIcon final : public MediaGenericPart {
+public:
+	void draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const override;
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+};
+
 UserpicsList::UserpicsList(
 	std::vector<not_null<PeerData*>> peers,
 	const style::GroupCallUserpics &st,
@@ -198,6 +227,54 @@ int UserpicsList::width() const {
 	return _st.size + (shifted * (_st.size - _st.shift));
 }
 
+void NewBotThreadDownIcon::draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const {
+	auto color = context.st->msgServiceFg()->c;
+	color.setAlphaF(color.alphaF() * kLabelOpacity);
+	st::newBotThreadDown.paintInCenter(
+		p,
+		QRect(0, 0, outerWidth, st::newBotThreadDown.height()),
+		color);
+}
+
+QSize NewBotThreadDownIcon::countOptimalSize() {
+	return st::newBotThreadDown.size();
+}
+
+QSize NewBotThreadDownIcon::countCurrentSize(int newWidth) {
+	return st::newBotThreadDown.size();
+}
+
+NewBotThreadDottedLine::NewBotThreadDottedLine(not_null<Element*> parent)
+: _parent(parent) {
+}
+
+void NewBotThreadDottedLine::draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const {
+	const auto skip = st::monoforumBarUserpicSkip;
+	auto pen = context.st->msgServiceBg()->p;
+	pen.setWidthF(skip);
+	pen.setCapStyle(Qt::RoundCap);
+	pen.setDashPattern({ 2., 2. });
+	p.setPen(pen);
+	const auto top = -st::newBotThreadTopSkip / 2;
+	p.drawLine(context.viewport.x(), top, context.viewport.width(), top);
+}
+
+QSize NewBotThreadDottedLine::countOptimalSize() {
+	return { 0, 0 };
+}
+
+QSize NewBotThreadDottedLine::countCurrentSize(int newWidth) {
+	return { 0, 0 };
+}
+
 auto GenerateChatIntro(
 	not_null<Element*> parent,
 	Element *replacing,
@@ -229,7 +306,7 @@ auto GenerateChatIntro(
 		const auto description = data.customPhrases()
 			? data.description
 			: tr::lng_chat_intro_default_message(tr::now);
-		pushText(Ui::Text::Bold(title), st::chatIntroTitleMargin);
+		pushText(tr::bold(title), st::chatIntroTitleMargin);
 		pushText({ description }, title.isEmpty()
 			? st::chatIntroTitleMargin
 			: st::chatIntroMargin);
@@ -264,6 +341,41 @@ auto GenerateChatIntro(
 	};
 }
 
+auto GenerateNewBotThread(
+	not_null<Element*> parent,
+	Element *replacing)
+-> Fn<void(
+		not_null<MediaGeneric*>,
+		Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
+	return [=](
+			not_null<MediaGeneric*> media,
+			Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
+		auto pushText = [&](
+				TextWithEntities text,
+				QMargins margins = {},
+				const base::flat_map<uint16, ClickHandlerPtr> &links = {}) {
+			if (text.empty()) {
+				return;
+			}
+			push(std::make_unique<MediaGenericTextPart>(
+				std::move(text),
+				margins,
+				st::defaultTextStyle,
+				links));
+		};
+		const auto title = tr::lng_bot_new_thread_title(tr::now);
+		const auto description = tr::lng_bot_new_thread_about(tr::now);
+		push(std::make_unique<NewBotThreadDottedLine>(parent));
+		pushText(tr::bold(title), st::chatIntroTitleMargin);
+		pushText({ description }, st::chatIntroMargin);
+		push(std::make_unique<NewBotThreadDownIcon>());
+
+		parent->addVerticalMargins(
+			st::newBotThreadTopSkip - st::msgServiceMargin.top(),
+			st::msgServiceMargin.top());
+	};
+}
+
 auto GenerateNewPeerInfo(
 	not_null<Element*> parent,
 	Element *replacing,
@@ -284,10 +396,10 @@ auto GenerateNewPeerInfo(
 			return result;
 		};
 		push(std::make_unique<MediaGenericTextPart>(
-			Ui::Text::Bold(user->name()),
+			tr::bold(user->name()),
 			st::newPeerTitleMargin));
 		push(std::make_unique<TextPartColored>(
-			tr::lng_new_contact_not_contact(tr::now, Ui::Text::WithEntities),
+			tr::lng_new_contact_not_contact(tr::now, tr::marked),
 			st::newPeerSubtitleMargin,
 			fadedFg));
 
@@ -299,7 +411,7 @@ auto GenerateNewPeerInfo(
 			const auto flag = countries.flagEmojiByISO2(country);
 			entries.push_back({
 				tr::lng_new_contact_phone_number(tr::now),
-				Ui::Text::Bold(flag + QChar(0xA0) + name),
+				tr::bold(flag + QChar(0xA0) + name),
 			});
 		}
 		const auto month = user->registrationMonth();
@@ -307,7 +419,7 @@ auto GenerateNewPeerInfo(
 		if (month && year) {
 			entries.push_back({
 				tr::lng_new_contact_registration(tr::now),
-				Ui::Text::Bold(langMonthOfYearFull(month, year)),
+				tr::bold(langMonthOfYearFull(month, year)),
 			});
 		}
 
@@ -338,7 +450,7 @@ auto GenerateNewPeerInfo(
 						Ui::Text::SingleCustomEmoji(userpicsData),
 						lt_arrow,
 						Ui::Text::IconEmoji(&st::textMoreIconEmoji),
-						Ui::Text::Bold),
+						tr::bold),
 					EntityType::CustomUrl,
 					url),
 			});
@@ -513,6 +625,10 @@ HistoryItem *AboutView::item() const {
 	return nullptr;
 }
 
+bool AboutView::aboveHistory() const {
+	return !_history->peer->isBot() || !_history->isForum();
+}
+
 bool AboutView::refresh() {
 	if (_history->peer->isVerifyCodes()) {
 		if (_item) {
@@ -567,6 +683,12 @@ bool AboutView::refresh() {
 		}
 		_version = 0;
 		return false;
+	} else if (_history->peer->isForum()) {
+		if (_item) {
+			return false;
+		}
+		setItem(makeNewBotThread(), nullptr);
+		return true;
 	}
 	const auto version = info->descriptionVersion;
 	if (_version == version) {
@@ -708,7 +830,7 @@ void AboutView::loadCommonGroups() {
 	_commonGroups = cached.list;
 	const auto requestId = _history->session().api().request(
 		MTPmessages_GetCommonChats(
-			user->inputUser,
+			user->inputUser(),
 			MTP_long(0),
 			MTP_int(kMaxCommonChatsUserpics))
 	).done([=](const MTPmessages_Chats &result) {
@@ -779,7 +901,7 @@ AdminLog::OwnedItem AboutView::makeNewPeerInfo(not_null<UserData*> user) {
 
 AdminLog::OwnedItem AboutView::makeAboutVerifyCodes() {
 	return makeAboutSimple(
-		tr::lng_verification_codes_about(tr::now, Ui::Text::RichLangValue));
+		tr::lng_verification_codes_about(tr::now, tr::rich));
 }
 
 AdminLog::OwnedItem AboutView::makeAboutBot(not_null<BotInfo*> info) {
@@ -822,8 +944,8 @@ AdminLog::OwnedItem AboutView::makePremiumRequired() {
 	}, PreparedServiceText{ tr::lng_send_non_premium_text(
 		tr::now,
 		lt_user,
-		Ui::Text::Bold(_history->peer->shortName()),
-		Ui::Text::RichLangValue),
+		tr::bold(_history->peer->shortName()),
+		tr::rich),
 	});
 	auto result = AdminLog::OwnedItem(_delegate, item);
 	result->overrideMedia(std::make_unique<ServiceBox>(
@@ -835,10 +957,10 @@ AdminLog::OwnedItem AboutView::makePremiumRequired() {
 }
 
 AdminLog::OwnedItem AboutView::makeStarsPerMessage(int stars) {
-	auto name = Ui::Text::Bold(_history->peer->shortName());
+	auto name = tr::bold(_history->peer->shortName());
 	auto cost = Ui::Text::IconEmoji(
 		&st::starIconEmoji
-	).append(Ui::Text::Bold(Lang::FormatCountDecimal(stars)));
+	).append(tr::bold(Lang::FormatCountDecimal(stars)));
 	const auto item = _history->makeMessage({
 		.id = _history->nextNonHistoryEntryId(),
 		.flags = (MessageFlag::FakeAboutView
@@ -852,7 +974,7 @@ AdminLog::OwnedItem AboutView::makeStarsPerMessage(int stars) {
 			std::move(name),
 			lt_amount,
 			std::move(cost),
-			Ui::Text::RichLangValue)
+			tr::rich)
 		: stars
 		? tr::lng_send_charges_stars_channel(
 			tr::now,
@@ -860,12 +982,12 @@ AdminLog::OwnedItem AboutView::makeStarsPerMessage(int stars) {
 			std::move(name),
 			lt_amount,
 			std::move(cost),
-			Ui::Text::RichLangValue)
+			tr::rich)
 		: tr::lng_send_free_channel(
 			tr::now,
 			lt_channel,
 			std::move(name),
-			Ui::Text::RichLangValue),
+			tr::rich),
 	});
 	auto result = AdminLog::OwnedItem(_delegate, item);
 	result->overrideMedia(std::make_unique<ServiceBox>(
@@ -889,6 +1011,28 @@ AdminLog::OwnedItem AboutView::makeBlocked() {
 		{ tr::lng_chat_intro_default_title(tr::now) }
 	});
 	return AdminLog::OwnedItem(_delegate, item);
+}
+
+AdminLog::OwnedItem AboutView::makeNewBotThread() {
+	const auto item = _history->makeMessage({
+		.id = _history->nextNonHistoryEntryId(),
+		.flags = (MessageFlag::FakeAboutView
+			| MessageFlag::FakeHistoryItem
+			| MessageFlag::Local),
+		.from = _history->peer->id,
+	}, PreparedServiceText{
+		tr::lng_bot_new_thread_about(tr::now, tr::rich)
+	});
+	auto result = AdminLog::OwnedItem(_delegate, item);
+	result->overrideMedia(std::make_unique<MediaGeneric>(
+		result.get(),
+		GenerateNewBotThread(result.get(), _item.get()),
+		HistoryView::MediaGenericDescriptor{
+			.maxWidth = st::chatIntroWidth,
+			.service = true,
+			.hideServiceText = true,
+		}));
+	return result;
 }
 
 } // namespace HistoryView

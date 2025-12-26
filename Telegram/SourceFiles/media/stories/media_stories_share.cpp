@@ -48,6 +48,10 @@ namespace Media::Stories {
 		return { nullptr };
 	}
 	const auto canCopyLink = story->hasDirectLink();
+	const auto shareJustLink = (story->call() != nullptr);
+	if (!canCopyLink && shareJustLink) {
+		return { nullptr };
+	}
 
 	auto copyCallback = [=] {
 		const auto story = resolve();
@@ -70,6 +74,9 @@ namespace Media::Stories {
 				return true;
 			}
 		}
+		if (shareJustLink) {
+			return ::Data::CanSend(thread, ChatRestriction::SendOther);
+		}
 		return Data::CanSend(thread, ChatRestriction::SendPhotos)
 			&& Data::CanSend(thread, ChatRestriction::SendVideos);
 	};
@@ -77,7 +84,7 @@ namespace Media::Stories {
 		? Fn<void()>(std::move(copyCallback))
 		: Fn<void()>();
 	auto countMessagesCallback = [=](const TextWithTags &comment) {
-		return comment.text.isEmpty() ? 1 : 2;
+		return (shareJustLink || comment.text.isEmpty()) ? 1 : 2;
 	};
 	auto submitCallback = [=](
 			std::vector<not_null<Data::Thread*>> &&result,
@@ -95,15 +102,37 @@ namespace Media::Stories {
 		const auto peer = story->peer();
 		const auto error = GetErrorForSending(
 			result,
-			{ .story = story, .text = &comment });
+			{ .story = shareJustLink ? nullptr : story, .text = &comment });
 		if (error.error) {
 			show->showBox(MakeSendErrorBox(error, result.size() > 1));
 			return;
 		} else if (!checkPaid()) {
 			return;
+		} else if (shareJustLink) {
+			const auto url = session->api().exportDirectStoryLink(story);
+			if (!comment.text.isEmpty()) {
+				comment.text = url + "\n" + comment.text;
+				const auto add = url.size() + 1;
+				for (auto &tag : comment.tags) {
+					tag.offset += add;
+				}
+			} else {
+				comment.text = url;
+			}
+			auto &api = show->session().api();
+			for (const auto thread : result) {
+				auto message = Api::MessageToSend(
+					Api::SendAction(thread, options));
+				message.textWithTags = comment;
+				message.action.clearDraft = false;
+				api.sendMessage(std::move(message));
+			}
+			show->showToast(tr::lng_share_done(tr::now));
+			show->hideLayer();
+			return;
 		}
 
-		const auto api = &story->owner().session().api();
+		const auto api = &story->session().api();
 		auto &histories = story->owner().histories();
 		for (const auto thread : result) {
 			const auto action = Api::SendAction(thread, options);
@@ -128,6 +157,9 @@ namespace Media::Stories {
 			}
 			if (options.scheduled) {
 				sendFlags |= SendFlag::f_schedule_date;
+				if (options.scheduleRepeatPeriod) {
+					sendFlags |= SendFlag::f_schedule_repeat_period;
+				}
 			}
 			if (options.shortcutId) {
 				sendFlags |= SendFlag::f_quick_reply_shortcut;
@@ -162,14 +194,15 @@ namespace Media::Stories {
 				randomId,
 				Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 					MTP_flags(sendFlags),
-					threadPeer->input,
+					threadPeer->input(),
 					Data::Histories::ReplyToPlaceholder(),
-					MTP_inputMediaStory(peer->input, MTP_int(id.story)),
+					MTP_inputMediaStory(peer->input(), MTP_int(id.story)),
 					MTPstring(),
 					MTP_long(randomId),
 					MTPReplyMarkup(),
 					MTPVector<MTPMessageEntity>(),
 					MTP_int(options.scheduled),
+					MTP_int(options.scheduleRepeatPeriod),
 					MTP_inputPeerEmpty(),
 					Data::ShortcutIdToMTP(session, options.shortcutId),
 					MTP_long(options.effectId),

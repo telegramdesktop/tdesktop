@@ -113,7 +113,7 @@ void PeerListBox::createMultiSelect() {
 		tr::lng_participant_filter());
 	_select.create(this, std::move(entity));
 	_select->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { updateScrollSkips(); },
 		lifetime());
 	_select->entity()->setSubmittedCallback([=](Qt::KeyboardModifiers) {
@@ -191,7 +191,7 @@ void PeerListBox::prepare() {
 	_controller->setDelegate(this);
 
 	_controller->boxHeightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setDimensions(_controller->contentWidth(), height);
 	}, lifetime());
 
@@ -203,7 +203,7 @@ void PeerListBox::prepare() {
 	}
 
 	content()->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
 		scrollToY(request.ymin, request.ymax);
 	}, lifetime());
 
@@ -728,8 +728,8 @@ QString PeerListRow::generateShortName() {
 }
 
 Ui::PeerUserpicView &PeerListRow::ensureUserpicView() {
-	if (!_userpic.cloud && peer()->userpicPaintingPeer()->hasUserpic()) {
-		_userpic = peer()->userpicPaintingPeer()->createUserpicView();
+	if (!_userpic.cloud && peer()->hasUserpic()) {
+		_userpic = peer()->createUserpicView();
 	}
 	return _userpic;
 }
@@ -738,9 +738,9 @@ PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback(
 		bool forceRound) {
 	const auto saved = !_savedMessagesStatus.isEmpty();
 	const auto replies = _isRepliesMessagesChat;
-	const auto peer = this->peer()->userpicPaintingPeer();
+	const auto peer = this->peer();
 	auto userpic = saved ? Ui::PeerUserpicView() : ensureUserpicView();
-	if (forceRound && peer->isForum()) {
+	if (forceRound && (peer->isForum() || peer->isMonoforum())) {
 		return ForceRoundUserpicCallback(peer);
 	}
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
@@ -983,10 +983,11 @@ void PeerListRow::setCheckedInternal(bool checked, anim::type animated) {
 }
 
 void PeerListRow::setCustomizedCheckSegments(
-		std::vector<Ui::OutlineSegment> segments) {
+		std::vector<Ui::OutlineSegment> segments,
+		bool liveBadge) {
 	Expects(_checkbox != nullptr);
 
-	_checkbox->setCustomizedSegments(std::move(segments));
+	_checkbox->setCustomizedSegments(std::move(segments), liveBadge);
 }
 
 void PeerListRow::finishCheckedAnimation() {
@@ -1001,14 +1002,14 @@ PeerListContent::PeerListContent(
 , _controller(controller)
 , _rowHeight(_st.item.height) {
 	_controller->session().downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	_controller->session().changes().peerUpdates(
 		UpdateFlag::Name | UpdateFlag::Photo | UpdateFlag::EmojiStatus
-	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+	) | rpl::on_next([=](const Data::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::Name) {
 			handleNameChanged(update.peer);
 		}
@@ -1018,7 +1019,7 @@ PeerListContent::PeerListContent(
 	}, lifetime());
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		invalidatePixmapsCache();
 	}, lifetime());
 
@@ -1386,10 +1387,10 @@ void PeerListContent::initDecorateWidget(Ui::RpWidget *widget) {
 		widget->events(
 		) | rpl::filter([=](not_null<QEvent*> e) {
 			return (e->type() == QEvent::Enter) && widget->isVisible();
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			mouseLeftGeometry();
 		}, widget->lifetime());
-		widget->heightValue() | rpl::skip(1) | rpl::start_with_next([=] {
+		widget->heightValue() | rpl::skip(1) | rpl::on_next([=] {
 			resizeToWidth(width());
 		}, widget->lifetime());
 	}

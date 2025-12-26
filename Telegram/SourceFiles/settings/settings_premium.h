@@ -51,7 +51,7 @@ void ShowPremium(
 void ShowGiftPremium(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
-	int months,
+	int days,
 	bool me);
 void ShowEmojiStatusPremium(
 	not_null<Window::SessionController*> controller,

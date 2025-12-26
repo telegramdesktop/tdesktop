@@ -47,7 +47,7 @@ void ShowLayer(
 			st::userpicBuilderEmojiButton);
 		save->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 		content->sizeValue(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			const auto &p = st::userpicBuilderEmojiSavePosiiton;
 			save->moveToRight(p.x(), p.y());
 		}, save->lifetime());
@@ -63,7 +63,7 @@ void ShowLayer(
 			layerRaw->closeLayer();
 		});
 		content->sizeValue(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			const auto &p = st::userpicBuilderEmojiBackPosiiton;
 			back->moveToLeft(p.x(), p.y());
 		}, back->lifetime());

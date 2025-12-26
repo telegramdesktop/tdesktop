@@ -85,7 +85,7 @@ void Chatbots::save(
 		api->request(MTPaccount_UpdateConnectedBot(
 			MTP_flags(!settings.bot ? Flag::f_deleted : Flag::f_rights),
 			ToMTP(settings.permissions),
-			(settings.bot ? settings.bot : was.bot)->inputUser,
+			(settings.bot ? settings.bot : was.bot)->inputUser(),
 			ForBotsToMTP(settings.recipients)
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result);
@@ -117,7 +117,7 @@ void Chatbots::togglePaused(not_null<PeerData*> peer, bool paused) {
 		_sentRequests.erase(i);
 	}
 	const auto id = api->request(MTPaccount_ToggleConnectedBotPaused(
-		peer->input,
+		peer->input(),
 		MTP_bool(paused)
 	)).done([=] {
 		if (_sentRequests[peer].type != type) {
@@ -155,7 +155,7 @@ void Chatbots::removeFrom(not_null<PeerData*> peer) {
 		_sentRequests.erase(i);
 	}
 	const auto id = api->request(MTPaccount_DisablePeerConnectedBot(
-		peer->input
+		peer->input()
 	)).done([=] {
 		if (_sentRequests[peer].type != type) {
 			return;

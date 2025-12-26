@@ -90,7 +90,7 @@ void PeerListsBox::createMultiSelect() {
 		tr::lng_participant_filter());
 	_select.create(this, std::move(entity));
 	_select->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { updateScrollSkips(); },
 		lifetime());
 	_select->entity()->setSubmittedCallback([=](Qt::KeyboardModifiers) {
@@ -158,7 +158,7 @@ void PeerListsBox::prepare() {
 		list.controller->setDelegate(list.delegate.get());
 
 		content->scrollToRequests(
-		) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
+		) | rpl::on_next([=](Ui::ScrollToRequest request) {
 			const auto skip = content->y();
 			scrollToY(
 				skip + request.ymin,
@@ -168,7 +168,7 @@ void PeerListsBox::prepare() {
 		content->selectedIndexValue(
 		) | rpl::filter([=](int index) {
 			return (index >= 0);
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			for (const auto &list : _lists) {
 				if (list.content && list.content != content) {
 					list.content->clearSelection();

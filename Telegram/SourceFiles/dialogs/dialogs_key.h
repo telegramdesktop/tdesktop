@@ -121,7 +121,7 @@ struct EntryState {
 	Section section = Section::History;
 	FilterId filterId = 0;
 	FullReplyTo currentReplyTo;
-	SuggestPostOptions currentSuggest;
+	SuggestOptions currentSuggest;
 
 	friend inline auto operator<=>(
 		const EntryState&,

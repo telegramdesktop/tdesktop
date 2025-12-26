@@ -58,7 +58,7 @@ namespace Ui {
 
 void AddToggleUpDownArrowToMoreButton(not_null<Ui::RpWidget*> parent) {
 	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
-	arrow->paintRequest() | rpl::start_with_next([=](const QRect &r) {
+	arrow->paintRequest() | rpl::on_next([=](const QRect &r) {
 		auto p = QPainter(arrow);
 
 		const auto path = ToggleUpDownArrowPath(

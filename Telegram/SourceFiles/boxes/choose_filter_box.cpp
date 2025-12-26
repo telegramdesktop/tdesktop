@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/filter_icons.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/text/text_utilities.h" // Ui::Text::Bold
+#include "ui/text/text_utilities.h" // tr::bold
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/menu/menu_action.h"
@@ -99,7 +99,8 @@ protected:
 			p.drawImage(
 				width()
 					- size.width()
-					- st::menuWithIcons.itemPadding.right(),
+					- st::menuWithIcons.itemPadding.right()
+					- st::popupMenuWithIcons.shadow.extend.right(),
 				(height() - size.height()) / 2,
 				_icon);
 		}
@@ -178,10 +179,10 @@ void ChangeFilterById(
 						: tr::lng_filters_toast_remove)(
 							tr::now,
 							lt_chat,
-							Ui::Text::Bold(chat),
+							tr::bold(chat),
 							lt_folder,
 							Ui::Text::Wrapped(name.text, EntityType::Bold),
-							Ui::Text::WithEntities),
+							tr::marked),
 					.textContext = Core::TextContext({
 						.session = &history->session(),
 						.customEmojiLoopLimit = isStatic ? -1 : 0,
@@ -344,7 +345,7 @@ void FillChooseFilterMenu(
 	}
 
 	history->owner().chatsFilters().changed(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		menu->hideMenu();
 	}, menu->lifetime());
 }

@@ -70,6 +70,7 @@ public:
 	[[nodiscard]] Ui::RpWidget *widget() const;
 
 	void setPremiumClickCallback(Fn<void()> callback);
+	void setOverrideStyle(const style::InfoPeerBadge *st);
 	[[nodiscard]] rpl::producer<> updated() const;
 	void move(int left, int top, int bottom);
 
@@ -77,9 +78,11 @@ public:
 
 private:
 	void setContent(Content content);
+	[[nodiscard]] const style::InfoPeerBadge &st() const;
 
 	const not_null<QWidget*> _parent;
 	const style::InfoPeerBadge &_st;
+	const style::InfoPeerBadge *_overrideSt = nullptr;
 	const not_null<Main::Session*> _session;
 	EmojiStatusPanel *_emojiStatusPanel = nullptr;
 	const int _customStatusLoopsLimit = 0;
@@ -97,6 +100,8 @@ private:
 [[nodiscard]] rpl::producer<Badge::Content> BadgeContentForPeer(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<Badge::Content> VerifiedContentForPeer(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<Badge::Content> BotVerifyBadgeForPeer(
 	not_null<PeerData*> peer);
 
 } // namespace Info::Profile

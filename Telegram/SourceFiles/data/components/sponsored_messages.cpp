@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_media_preload.h"
+#include "data/data_peer_values.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -23,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/sponsored_message_bar.h"
-#include "ui/text/text_utilities.h" // Ui::Text::RichLangValue.
+#include "ui/text/text_utilities.h" // tr::rich.
 
 namespace Data {
 namespace {
@@ -55,6 +56,13 @@ template <typename Fields>
 SponsoredMessages::SponsoredMessages(not_null<Main::Session*> session)
 : _session(session)
 , _clearTimer([=] { clearOldRequests(); }) {
+	Data::AmPremiumValue(
+		_session
+	) | rpl::on_next([=](bool premium) {
+		if (premium) {
+			clear();
+		}
+	}, _lifetime);
 }
 
 SponsoredMessages::~SponsoredMessages() {
@@ -277,7 +285,7 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	request.requestId = _session->api().request(
 		MTPmessages_GetSponsoredMessages(
 			MTP_flags(0),
-			history->peer->input,
+			history->peer->input(),
 			MTPint()) // msg_id
 	).done([=](const MTPmessages_sponsoredMessages &result) {
 		parse(history, result);
@@ -338,7 +346,7 @@ void SponsoredMessages::requestForVideo(
 	request.requestId = _session->api().request(
 		MTPmessages_GetSponsoredMessages(
 			MTP_flags(Flag::f_msg_id),
-			peer->input,
+			peer->input(),
 			MTP_int(item->id.bare))
 	).done([=](const MTPmessages_sponsoredMessages &result) {
 		parseForVideo(peer, result);
@@ -535,12 +543,8 @@ void SponsoredMessages::append(
 			: PhotoId(0),
 		.mediaPhotoId = (mediaPhoto ? mediaPhoto->id : 0),
 		.mediaDocumentId = (mediaDocument ? mediaDocument->id : 0),
-		.backgroundEmojiId = data.vcolor().has_value()
-			? data.vcolor()->data().vbackground_emoji_id().value_or_empty()
-			: uint64(0),
-		.colorIndex = uint8(data.vcolor().has_value()
-			? data.vcolor()->data().vcolor().value_or_empty()
-			: 0),
+		.backgroundEmojiId = BackgroundEmojiIdFromColor(data.vcolor()),
+		.colorIndex = ColorIndexFromColor(data.vcolor()),
 		.isLinkInternal = !UrlRequiresConfirmation(qs(data.vurl())),
 		.isRecommended = data.is_recommended(),
 		.canReport = data.is_can_report(),
@@ -550,7 +554,7 @@ void SponsoredMessages::append(
 			tr::now,
 			lt_text,
 			{ .text = qs(*data.vsponsor_info()) },
-			Ui::Text::RichLangValue)
+			tr::rich)
 		: TextWithEntities();
 	auto additionalInfo = TextWithEntities::Simple(
 		data.vadditional_info() ? qs(*data.vadditional_info()) : QString());

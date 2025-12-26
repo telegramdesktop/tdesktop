@@ -48,7 +48,7 @@ void SectionWidget::init() {
 		_content->desiredHeightValue()
 	) | rpl::filter([=] {
 		return (_content != nullptr);
-	}) | rpl::start_with_next([=](QSize size, int) {
+	}) | rpl::on_next([=](QSize size, int) {
 		const auto expanding = false;
 		const auto full = !_content->scrollBottomSkip();
 		const auto additionalScroll = (full ? st::boxRadius : 0);
@@ -67,7 +67,7 @@ void SectionWidget::init() {
 		controller()->adaptive().oneColumnValue());
 
 	_content->contentChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_connecting->raise();
 	}, _connecting->lifetime());
 }

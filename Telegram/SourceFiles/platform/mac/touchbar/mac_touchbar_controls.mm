@@ -76,7 +76,7 @@ inline NSString *FormatTime(TimeId time) {
 		) | rpl::map([](const auto &state) {
 			return state.length / 1000;
 		}) | rpl::distinct_until_changed()
-	) | rpl::start_with_next([=](int position, int length) {
+	) | rpl::on_next([=](int position, int length) {
 		[_text setString:[NSString stringWithFormat:@"%@ / %@",
 			FormatTime(position),
 			FormatTime(length)]];
@@ -86,7 +86,7 @@ inline NSString *FormatTime(TimeId time) {
 	}, _lifetime);
 
 	textLength->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto size = [_text sizeWithAttributes:Attributes()];
 		_width = size.width + kPadding * 2;
 		_height = size.height;
@@ -182,7 +182,7 @@ NSButton *CreateTouchBarButtonWithTwoStates(
 
 	std::move(
 		stateChanged
-	) | rpl::start_with_next([=](bool isChangedToFirstState) {
+	) | rpl::on_next([=](bool isChangedToFirstState) {
 		button.image = isChangedToFirstState ? icon1 : icon2;
 	}, lifetime);
 
@@ -233,7 +233,7 @@ NSSliderTouchBarItem *CreateTouchBarSlider(
 
 	std::move(
 		stateChanged
-	) | rpl::start_with_next([=](const Media::Player::TrackState &state) {
+	) | rpl::on_next([=](const Media::Player::TrackState &state) {
 		const auto stop = Media::Player::IsStoppedOrStopping(state.state);
 		const auto duration = double(stop ? 0 : state.length);
 		auto slider = seekBar.slider;

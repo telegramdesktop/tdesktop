@@ -65,9 +65,9 @@ auto PlainPrimaryUsernameValue(not_null<PeerData*> peer) {
 		peer
 	) | rpl::map([=](std::vector<TextWithEntities> usernames) {
 		if (!usernames.empty()) {
-			return rpl::single(usernames.front().text) | rpl::type_erased();
+			return rpl::single(usernames.front().text) | rpl::type_erased;
 		} else {
-			return PlainUsernameValue(peer) | rpl::type_erased();
+			return PlainUsernameValue(peer) | rpl::type_erased;
 		}
 	}) | rpl::flatten_latest();
 }
@@ -130,8 +130,8 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 			user,
 			UpdateFlag::PhoneNumber) | rpl::to_empty
 	) | rpl::map([=] {
-		return Ui::FormatPhone(user->phone());
-	}) | Ui::Text::ToWithEntities();
+		return tr::marked(Ui::FormatPhone(user->phone()));
+	});
 }
 
 rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
@@ -146,9 +146,9 @@ rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
 			const QString &about,
 			const QString &hidden) {
 		if (phone.text.isEmpty() && username.isEmpty() && about.isEmpty()) {
-			return Ui::Text::WithEntities(hidden);
+			return tr::marked(hidden);
 		} else if (IsCollectiblePhone(user)) {
-			return Ui::Text::Link(phone, u"internal:collectible_phone/"_q
+			return tr::link(phone, u"internal:collectible_phone/"_q
 				+ user->phone() + '@' + QString::number(user->id.value));
 		} else {
 			return phone;
@@ -161,12 +161,12 @@ rpl::producer<TextWithEntities> UsernameValue(
 		bool primary) {
 	return (primary
 		? PlainPrimaryUsernameValue(peer)
-		: (PlainUsernameValue(peer) | rpl::type_erased())
+		: (PlainUsernameValue(peer) | rpl::type_erased)
 	) | rpl::map([](QString &&username) {
 		return username.isEmpty()
-			? QString()
-			: ('@' + username);
-	}) | Ui::Text::ToWithEntities();
+			? tr::marked()
+			: tr::marked('@' + username);
+	});
 }
 
 QString UsernameUrl(
@@ -192,7 +192,7 @@ rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
 		return ranges::views::all(
 			usernames
 		) | ranges::views::transform([&](const QString &u) {
-			return Ui::Text::Link(u, UsernameUrl(peer, u));
+			return tr::link(u, UsernameUrl(peer, u));
 		}) | ranges::to_vector;
 	};
 	auto value = rpl::merge(
@@ -243,11 +243,42 @@ rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 	});
 }
 
-rpl::producer<LinkWithUrl> LinkValue(not_null<PeerData*> peer, bool primary) {
+QString TopicLink(not_null<Data::ForumTopic*> topic, bool full) {
+	const auto channel = topic->channel();
+	const auto id = topic->rootId();
+	const auto base = channel->hasUsername()
+		? channel->username()
+		: "c/" + QString::number(peerToChannel(channel->id).bare);
+	return channel->session().createInternalLinkFull(full
+		? base + '/' + QString::number(id.bare)
+		: base);
+}
+
+rpl::producer<LinkWithUrl> LinkValue(
+		not_null<PeerData*> peer,
+		bool primary,
+		MsgId rootId) {
 	return (primary
 		? PlainPrimaryUsernameValue(peer)
-		: PlainUsernameValue(peer) | rpl::type_erased()
+		: PlainUsernameValue(peer) | rpl::type_erased
 	) | rpl::map([=](QString &&username) {
+		if (username.isEmpty()) {
+			if (const auto topic
+				= rootId ? peer->forumTopicFor(rootId) : nullptr) {
+				const auto link = TopicLink(topic, false);
+				return LinkWithUrl{
+					.text = link,
+					.url = link,
+				};
+			} else {
+				return LinkWithUrl{};
+			}
+		} else {
+			return LinkWithUrl{
+				.text = peer->session().createInternalLinkFull(username),
+				.url = UsernameUrl(peer, username, true),
+			};
+		}
 		return LinkWithUrl{
 			.text = (username.isEmpty()
 				? QString()
@@ -281,10 +312,10 @@ rpl::producer<bool> NotificationsEnabledValue(
 			Data::TopicUpdate::Flag::Notifications
 		) | rpl::to_empty,
 		topic->session().changes().peerUpdates(
-			topic->channel(),
+			topic->peer(),
 			UpdateFlag::Notifications
 		) | rpl::to_empty,
-		topic->owner().notifySettings().defaultUpdates(topic->channel())
+		topic->owner().notifySettings().defaultUpdates(topic->peer())
 	) | rpl::map([=] {
 		return !topic->owner().notifySettings().isMuted(topic);
 	}) | rpl::distinct_until_changed();

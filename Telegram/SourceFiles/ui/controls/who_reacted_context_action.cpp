@@ -218,7 +218,7 @@ Action::Action(
 
 	std::move(
 		content
-	) | rpl::start_with_next([=](WhoReadContent &&content) {
+	) | rpl::on_next([=](WhoReadContent &&content) {
 		checkAppeared();
 		const auto changed = (_content.participants != content.participants)
 			|| (_content.state != content.state);
@@ -240,20 +240,20 @@ Action::Action(
 	resolveMinWidth();
 
 	_userpics->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		_userpicsWidth = width;
 		refreshDimensions();
 		update();
 	}, lifetime());
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Painter p(this);
 		paint(p);
 	}, lifetime());
 
 	clicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_content.participants.size() == 1) {
 			if (const auto onstack = _participantChosen) {
 				onstack(_content.participants.front());
@@ -523,7 +523,7 @@ WhenAction::WhenAction(
 
 	std::move(
 		content
-	) | rpl::start_with_next([=](WhoReadContent &&content) {
+	) | rpl::on_next([=](WhoReadContent &&content) {
 		_content = content;
 		refreshText();
 		refreshDimensions();
@@ -539,13 +539,13 @@ WhenAction::WhenAction(
 	refreshDimensions();
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Painter p(this);
 		paint(p);
 	}, lifetime());
 
 	clicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_content.state == WhoReadState::MyHidden) {
 			if (const auto onstack = _showOrPremium) {
 				onstack();
@@ -739,7 +739,7 @@ WhoReactedEntryAction::WhoReactedEntryAction(
 	setData(std::move(data));
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		paint(Painter(this));
 	}, lifetime());
 

@@ -104,6 +104,7 @@ settingsPremiumIconPrivacy: icon {{ "settings/premium/privacy", settingsIconFg }
 settingsPremiumIconBusiness: icon {{ "settings/premium/market", settingsIconFg }};
 settingsPremiumIconEffects: icon {{ "settings/premium/effects", settingsIconFg }};
 settingsPremiumIconChecklist: icon {{ "settings/premium/checklist", settingsIconFg }};
+settingsPremiumIconPeerColors: icon {{ "settings/premium/peer_colors-24x24", settingsIconFg }};
 
 settingsStoriesIconOrder: icon {{ "settings/premium/stories_order", premiumButtonBg1 }};
 settingsStoriesIconStealth: icon {{ "menu/stealth", premiumButtonBg1 }};
@@ -310,6 +311,8 @@ settingsFilterDividerLabel: FlatLabel(boxDividerLabel) {
 settingsFilterDividerLabelPadding: margins(0px, 16px, 0px, 22px);
 settingsFilterIconSize: 74px;
 settingsFilterIconPadding: margins(0px, 17px, 0px, 5px);
+
+settingsFilterTagPreviewSkip: 14px;
 
 settingsDeviceName: InputField(defaultInputField) {
 	textBg: transparent;
@@ -587,6 +590,8 @@ filterLinkChatsList: PeerList(peerListBox) {
 	padding: margins(0px, 0px, 0px, membersMarginBottom);
 }
 
+settingsColorSampleCutout: 3px;
+settingsColorProfileSampleShift: 5px;
 settingsColorSampleSize: 20px;
 settingsColorSampleCenter: 6px;
 settingsColorSampleCenterRadius: 2px;
@@ -709,6 +714,11 @@ settingsCreditsButton: SettingsButton(settingsButton) {
 }
 settingsButtonIconGift: icon {{ "settings/gift", menuIconColor }};
 settingsButtonIconEarn: icon {{ "settings/earn", menuIconColor }};
+
+settingsIconPasskeys: icon {{ "menu/permissions", windowBgActive }};
+settingsIconPasskeysAboutIcon1: icon {{ "menu/permissions", boxTextFg }};
+settingsIconPasskeysAboutIcon2: icon {{ "menu/passcode_winhello", boxTextFg }};
+settingsIconPasskeysAboutIcon3: icon {{ "menu/lock", boxTextFg }};
 
 settingsAgeVerifyBox: Box(filterInviteBox) {
 	buttonPadding: margins(24px, 24px, 24px, 24px);

@@ -15,7 +15,7 @@ class HistoryItem;
 struct HistoryMessageEdited;
 struct HistoryMessageForwarded;
 struct HistoryMessageReplyMarkup;
-struct HistoryMessageSuggestedPost;
+struct HistoryMessageSuggestion;
 struct HistoryMessageReply;
 
 namespace Data {
@@ -113,7 +113,6 @@ public:
 		const TextState &reactionState) const override;
 	int reactionsOptimalWidth() const override;
 
-	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
 
 	// hasFromPhoto() returns true even if we don't display the photo
@@ -158,7 +157,6 @@ public:
 
 	void animateReaction(Ui::ReactionFlyAnimationArgs &&args) override;
 
-	void animateEffect(Ui::ReactionFlyAnimationArgs &&args) override;
 	auto takeEffectAnimation()
 	-> std::unique_ptr<Ui::ReactionFlyAnimation> override;
 
@@ -166,20 +164,20 @@ public:
 	QRect innerGeometry() const override;
 	[[nodiscard]] BottomRippleMask bottomRippleMask(int buttonHeight) const;
 
-protected:
-	void refreshDataIdHook() override;
-
 private:
 	struct CommentsButton;
 	struct FromNameStatus;
 	struct RightAction;
+
+	void refreshDataIdHook() override;
+	bool hasHeavyPart() const override;
 
 	bool updateBottomInfo();
 
 	void initPaidInformation();
 	void refreshSuggestedInfo(
 		not_null<HistoryItem*> item,
-		not_null<const HistoryMessageSuggestedPost*> suggest,
+		not_null<const HistoryMessageSuggestion*> suggest,
 		const HistoryMessageReply *reply);
 	void initLogEntryOriginal();
 	void initPsa();
@@ -294,7 +292,6 @@ private:
 	void refreshInfoSkipBlock(HistoryItem *textItem);
 	[[nodiscard]] int monospaceMaxWidth() const;
 
-	void validateInlineKeyboard(HistoryMessageReplyMarkup *markup);
 	void updateViewButtonExistence();
 	[[nodiscard]] int viewButtonHeight() const;
 

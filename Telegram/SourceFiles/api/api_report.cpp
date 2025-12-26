@@ -47,7 +47,7 @@ void SendPhotoReport(
 		const QString &comment,
 		not_null<PhotoData*> photo) {
 	peer->session().api().request(MTPaccount_ReportProfilePhoto(
-		peer->input,
+		peer->input(),
 		photo->mtpInput(),
 		ReasonToTL(reason),
 		MTP_string(comment)
@@ -125,7 +125,7 @@ auto CreateReportMessagesOrStoriesCallback(
 		if (!reportInput.stories.empty()) {
 			state->requestId = peer->session().api().request(
 				MTPstories_Report(
-					peer->input,
+					peer->input(),
 					MTP_vector<MTPint>(apiIds),
 					MTP_bytes(reportInput.optionId),
 					MTP_string(reportInput.comment))
@@ -133,7 +133,7 @@ auto CreateReportMessagesOrStoriesCallback(
 		} else {
 			state->requestId = peer->session().api().request(
 				MTPmessages_Report(
-					peer->input,
+					peer->input(),
 					MTP_vector<MTPint>(apiIds),
 					MTP_bytes(reportInput.optionId),
 					MTP_string(reportInput.comment))

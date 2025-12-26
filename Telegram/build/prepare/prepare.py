@@ -456,7 +456,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout a25a212644a8e42d9a5b1c7ba6489e11e92df813
+    git checkout 859556cab51d17585ff76d3db62ff1c7502bc850
 """)
 
 stage('msys64', """
@@ -467,7 +467,7 @@ win:
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
-    powershell -Command "iwr -OutFile ./msys64.exe https://github.com/msys2/msys2-installer/releases/download/2025-02-21/msys2-base-x86_64-20250221.sfx.exe"
+    powershell -Command "iwr -OutFile ./msys64.exe https://github.com/msys2/msys2-installer/releases/download/2025-08-30/msys2-base-x86_64-20250830.sfx.exe"
     msys64.exe
     del msys64.exe
 
@@ -518,7 +518,7 @@ if not mac or 'build-stackwalk' in options:
 win:
     git clone https://github.com/desktop-app/gyp.git
     cd gyp
-    git checkout 618958fdbe
+    git checkout 5e2425c47b
 mac:
     python3 -m pip install \\
         --ignore-installed \\
@@ -718,9 +718,9 @@ release:
 
 stage('libiconv', """
 mac:
-    VERSION=1.17
+    VERSION=1.18
     rm -f libiconv.tar.gz
-    wget -O libiconv.tar.gz ftp://ftp.gnu.org/gnu/libiconv/libiconv-$VERSION.tar.gz
+    wget --timeout=30 --tries=2 -O libiconv.tar.gz ftp://ftp.gnu.org/gnu/libiconv/libiconv-$VERSION.tar.gz || wget -O libiconv.tar.gz https://ftp.gnu.org/pub/gnu/libiconv/libiconv-$VERSION.tar.gz
     rm -rf libiconv-$VERSION
     tar -xvzf libiconv.tar.gz
     rm libiconv.tar.gz
@@ -995,6 +995,7 @@ win:
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DBUILD_SHARED_LIBS=OFF ^
+        -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON ^
         -DBUILD_TESTING=OFF ^
         -DENABLE_PLUGIN_LOADING=OFF ^
         -DWITH_LIBDE265=ON ^
@@ -1019,6 +1020,7 @@ mac:
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D BUILD_SHARED_LIBS=OFF \\
+        -D CMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \\
         -D BUILD_TESTING=OFF \\
         -D ENABLE_PLUGIN_LOADING=OFF \\
         -D WITH_AOM_ENCODER=OFF \\
@@ -1652,7 +1654,7 @@ mac:
     make install
 """)
 else: # qt > '6'
-    branch = 'v$QT' + ('-lts-lgpl' if qt < '6.3' else '')
+    branch = 'v$QT' + ('-lts-lgpl' if qt.startswith('6.2.') else '')
     stage('qt_' + qt, """
     git clone -b """ + branch + """ https://github.com/qt/qt5.git qt_$QT
     cd qt_$QT
@@ -1681,8 +1683,6 @@ mac:
         -I "$USED_PREFIX/include" \
         -no-feature-futimens \
         -no-feature-brotli \
-        -nomake examples \
-        -nomake tests \
         -platform macx-clang -- \
         -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
         -DCMAKE_PREFIX_PATH="$USED_PREFIX"
@@ -1712,13 +1712,10 @@ win:
         -static ^
         -static-runtime ^
         -feature-c++20 ^
-        -no-sbom ^
         -openssl linked ^
         -system-webp ^
         -system-zlib ^
         -system-libjpeg ^
-        -nomake examples ^
-        -nomake tests ^
         -platform win32-msvc ^
         -D ZLIB_WINAPI ^
         -- ^
@@ -1755,7 +1752,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 62321fd
+    git checkout 5c5c71258777d0196dbb3a09cc37d2f56ead28ab
     git submodule update --init --recursive
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg

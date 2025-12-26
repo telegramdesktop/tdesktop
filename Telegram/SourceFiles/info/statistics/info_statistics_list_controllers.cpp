@@ -882,11 +882,8 @@ void CreditsRow::init() {
 	const auto name = !isSpecial
 		? PeerListRow::generateName()
 		: Ui::GenerateEntryName(_entry).text;
-	_name = _entry.paidMessagesCount
-		? tr::lng_credits_paid_messages_fee(
-			tr::now,
-			lt_count,
-			_entry.paidMessagesCount)
+	_name = (_entry.isLiveStoryReaction() || _entry.paidMessagesCount)
+		? name
 		: _entry.postsSearch
 		? tr::lng_credits_box_history_entry_posts_search(tr::now)
 		: ((!_entry.subscriptionUntil.isNull() && !isSpecial)
@@ -901,8 +898,13 @@ void CreditsRow::init() {
 			tr::now,
 			lt_count_decimal,
 			_entry.floodSkip)
+		: _entry.isLiveStoryReaction()
+		? tr::lng_credits_paid_messages_fee_live_reaction(tr::now)
 		: _entry.paidMessagesCount
-		? name
+		? tr::lng_credits_paid_messages_fee(
+			tr::now,
+			lt_count,
+			_entry.paidMessagesCount)
 		: (!_entry.subscriptionUntil.isNull() && !_entry.title.isEmpty())
 		? _entry.title
 		: _entry.refunded

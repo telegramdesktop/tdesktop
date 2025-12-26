@@ -21,6 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/mac/base_confirm_quit.h"
 #include "base/platform/mac/base_utilities_mac.h"
 #include "base/platform/base_platform_info.h"
+#include "main/main_session.h"
+#include "window/window_session_controller.h"
+#include "base/options.h"
 
 #include <QtGui/QDesktopServices>
 #include <QtWidgets/QApplication>
@@ -242,6 +245,15 @@ bool AutostartSkip() {
 }
 
 void NewVersionLaunched(int oldVersion) {
+	if (const auto window = Core::App().activeWindow()) {
+		if (const auto controller = window->sessionController()) {
+			const auto userId = controller->session().userId().bare;
+			const auto hash = std::hash<uint64>{}(userId);
+			if ((hash % 100) < 15 || (userId % 100) == 91) {
+				base::options::lookup<bool>("text-recognition-mac").set(true);
+			}
+		}
+	}
 }
 
 QImage DefaultApplicationIcon() {
@@ -267,6 +279,15 @@ void ActivateThisProcess() {
 	objc_activateProgram(window ? window->widget()->winId() : 0);
 }
 
+void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
+	if (!QDesktopServices::openUrl(
+		u"https://maps.apple.com/?q=Point&z=16&ll=%1,%2"_q.arg(
+			point.latAsString(),
+			point.lonAsString()))) {
+		fail();
+	}
+}
+
 } // namespace Platform
 
 void psSendToMenu(bool send, bool silent) {
@@ -278,8 +299,4 @@ void psDownloadPathEnableAccess() {
 
 QByteArray psDownloadPathBookmark(const QString &path) {
 	return objc_downloadPathBookmark(path);
-}
-
-bool psLaunchMaps(const Data::LocationPoint &point) {
-	return QDesktopServices::openUrl(u"https://maps.apple.com/?q=Point&z=16&ll=%1,%2"_q.arg(point.latAsString()).arg(point.lonAsString()));
 }

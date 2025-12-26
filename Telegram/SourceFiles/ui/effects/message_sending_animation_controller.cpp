@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
-#include "history/view/history_view_list_widget.h" // kItemRevealDuration
 #include "history/view/media/history_view_media.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -21,7 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/animations.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
+#include "ui/power_saving.h"
+#include "ui/text/text_isolated_emoji.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 
@@ -58,6 +60,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const bool _crop;
+	const bool _isText;
 	MessageSendingAnimationController::SendingInfoTo _toInfo;
 	QRect _from;
 	QPoint _to;
@@ -84,10 +87,18 @@ Content::Content(
 : RpWidget(parent)
 , _controller(controller)
 , _crop(fromInfo.crop)
+, _isText(fromInfo.type == MessageSendingAnimationFrom::Type::Text)
 , _toInfo(std::move(to))
 , _from(parent->mapFromGlobal(fromInfo.globalStartGeometry))
-, _innerContentRect(maybeView()->media()->contentRectForReactions())
-, _minScale(float64(_from.height()) / _innerContentRect.height()) {
+, _innerContentRect(_isText
+	? [&] {
+		const auto g = maybeView()->innerGeometry();
+		return Rect(g.size()) + QMargins(0, g.top(), 0, 0);
+	}()
+	: maybeView()->media()->contentRectForReactions())
+, _minScale(!_isText
+	? float64(_from.height()) / _innerContentRect.height()
+	: 1.) {
 	Expects(_toInfo.view != nullptr);
 	Expects(_toInfo.paintContext != nullptr);
 
@@ -98,7 +109,7 @@ Content::Content(
 	base::take(
 		_toInfo.globalEndTopLeft
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](const std::optional<QPoint> &p) {
+	) | rpl::on_next([=](const std::optional<QPoint> &p) {
 		if (p) {
 			_to = parent->mapFromGlobal(*p);
 		} else {
@@ -107,7 +118,7 @@ Content::Content(
 	}, lifetime());
 
 	_controller->session().downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 
@@ -117,24 +128,42 @@ Content::Content(
 
 	auto animationCallback = [=](float64 value) {
 		auto resultFrom = rect();
-		resultFrom.moveCenter(_from.center());
+		if (_isText) {
+			resultFrom.moveTo(
+				style::RightToLeft()
+					? (rect::right(_from) - resultFrom.width())
+					: _from.left(),
+				_from.y());
+			// Calculating relative values for all possible cases
+			// is too complex, so we manually set the position
+			// for the simplest case.
+			resultFrom.translate(st::messageSendingAnimationTextFromOffset);
+		} else {
+			resultFrom.moveCenter(_from.center());
+		}
 
-		const auto resultTo = _to
-			+ innerGeometry.topLeft()
-			+ _innerContentRect.topLeft();
-		const auto x = anim::interpolate(resultFrom.x(), resultTo.x(), value);
+		const auto resultTo = _isText
+			? _to + innerGeometry.topLeft()
+			: _to + innerGeometry.topLeft() + _innerContentRect.topLeft();
+		const auto xEase = anim::easeOutQuint(1.0, value);
+		const auto x = anim::interpolate(resultFrom.x(), resultTo.x(), xEase);
 		const auto y = anim::interpolate(resultFrom.y(), resultTo.y(), value);
-		moveToLeft(x, y);
-		update();
+		if (!_isText) {
+			// Text-only messages are drawing only in _bubble.widget.
+			moveToLeft(x, y);
+			update();
+		} else {
+			setUpdatesEnabled(false);
+		}
 
-		if ((value > kSurroundingProgress)
+		if ((value > kSurroundingProgress || _isText)
 			&& !_surrounding
 			&& !_bubble.widget) {
 			const auto currentView = maybeView();
 			if (!checkView(currentView)) {
 				return;
 			}
-			if (currentView->hasBubble()) {
+			if (_isText || currentView->hasBubble()) {
 				createBubble();
 			} else {
 				createSurrounding();
@@ -166,7 +195,8 @@ Content::Content(
 		std::move(animationCallback),
 		0.,
 		1.,
-		HistoryView::ListWidget::kItemRevealDuration);
+		st::itemRevealDuration,
+		anim::easeOutQuint);
 }
 
 HistoryView::Element *Content::maybeView() const {
@@ -268,7 +298,7 @@ void Content::createSurrounding() {
 	stackUnder(_surrounding.get());
 
 	_surrounding->paintRequest(
-	) | rpl::start_with_next([=, size = surroundingSize](const QRect &r) {
+	) | rpl::on_next([=, size = surroundingSize](const QRect &r) {
 		Painter p(_surrounding);
 
 		p.fillRect(r, Qt::transparent);
@@ -280,12 +310,12 @@ void Content::createSurrounding() {
 		const auto alpha = (divider - revProgress) / divider;
 		p.setOpacity(alpha);
 
-	 	const auto scale = anim::interpolateF(_minScale, 1., progress);
+		const auto scale = anim::interpolateF(_minScale, 1., progress);
 
-	 	p.translate(
-	 		revProgress * OffsetMid(size.width() + offset.x(), _minScale),
-	 		revProgress * OffsetMid(size.height() + offset.y(), _minScale));
-	 	p.scale(scale, scale);
+		p.translate(
+			revProgress * OffsetMid(size.width() + offset.x(), _minScale),
+			revProgress * OffsetMid(size.height() + offset.y(), _minScale));
+		p.scale(scale, scale);
 
 		const auto currentView = maybeView();
 		if (!checkView(currentView)) {
@@ -312,7 +342,11 @@ void Content::createBubble() {
 
 	const auto tailWidth = st::historyBubbleTailOutLeft.width();
 	_bubble.offsetFromContent = QPoint(
-		currentView->hasOutLayout() ? 0 : tailWidth,
+		(currentView->hasOutLayout()
+			&& (currentView->delegate()->elementChatMode()
+				!= HistoryView::ElementChatMode::Wide))
+			? 0
+			: tailWidth,
 		innerGeometry.y());
 
 	const auto scaleOffset = QPoint(0, innerGeometry.y());
@@ -323,22 +357,26 @@ void Content::createBubble() {
 		|| currentView->data()->externalReply();
 	_bubble.widget->resize(innerGeometry.size()
 		+ QSize(
-			currentView->hasOutLayout() ? tailWidth : 0,
-			hasCommentsButton ? innerGeometry.y() : 0));
+			(currentView->hasOutLayout() ? tailWidth : 0)
+				+ (_isText && currentView->data()->isPost()
+					? rect::m::sum::h(st::msgPadding)
+						+ st::historyFastShareSize
+					: 0),
+			(hasCommentsButton || _isText) ? innerGeometry.y() : 0));
 	_bubble.widget->show();
 
 	_bubble.widget->stackUnder(this);
 
 	_bubble.widget->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
-		Painter p(_bubble.widget);
+	) | rpl::on_next([=, raw = _bubble.widget.get()](const QRect &r) {
+		auto p = Painter(raw);
 
 		p.fillRect(r, Qt::transparent);
 
 		const auto progress = _animation.value(0.);
 		const auto revProgress = 1. - progress;
 
-		const auto divider = 1. - kSurroundingProgress;
+		const auto divider = 1. - (_isText ? 0. : kSurroundingProgress);
 		const auto alpha = (divider - revProgress) / divider;
 		p.setOpacity(alpha);
 
@@ -358,10 +396,24 @@ void Content::createBubble() {
 		context.skipDrawingParts = Context::SkipDrawingParts::Content;
 		context.outbg = currentView->hasOutLayout();
 
-		context.translate(paintOffsetLeft, 0);
+		const auto diff = context.viewport.height() - raw->height();
+		auto bottom = anim::interpolate(_from.y(), _to.y(), progress);
+		if (bottom > diff) {
+			bottom = diff;
+		}
+		if (bottom < raw->height()) {
+			bottom = raw->height();
+		}
+		context.translate(paintOffsetLeft, -context.viewport.y() - bottom);
 		p.translate(-paintOffsetLeft, 0);
 
 		currentView->draw(p, context);
+		if (_isText) {
+			p.setOpacity(1.);
+			p.setClipRect(QRect(0, 0, 0, 0));
+			context.skipDrawingParts = Context::SkipDrawingParts::Bubble;
+			currentView->draw(p, context);
+		}
 	}, _bubble.widget->lifetime());
 }
 
@@ -375,12 +427,12 @@ MessageSendingAnimationController::MessageSendingAnimationController(
 
 void MessageSendingAnimationController::subscribeToDestructions() {
 	_controller->session().data().itemIdChanged(
-	) | rpl::start_with_next([=](Data::Session::IdChange change) {
+	) | rpl::on_next([=](Data::Session::IdChange change) {
 		_itemSendPending.remove(change.oldId);
 	}, _lifetime);
 
 	_controller->session().data().itemRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		_itemSendPending.remove(item->id);
 		_processing.remove(item);
 	}, _lifetime);
@@ -397,11 +449,13 @@ void MessageSendingAnimationController::appendSending(
 }
 
 void MessageSendingAnimationController::startAnimation(SendingInfoTo &&to) {
-	if (anim::Disabled()) {
+	if (anim::Disabled()
+		|| PowerSaving::On(PowerSaving::Flag::kChatEffects)) {
 		return;
 	}
 	const auto container = _controller->content();
-	const auto item = to.view()->data();
+	const auto view = to.view();
+	const auto item = view->data();
 
 	const auto it = _itemSendPending.find(item->fullId().msg);
 	if (it == end(_itemSendPending)) {
@@ -410,6 +464,10 @@ void MessageSendingAnimationController::startAnimation(SendingInfoTo &&to) {
 	auto from = std::move(it->second);
 	_itemSendPending.erase(it);
 
+	if (view->isolatedEmoji() || view->onlyCustomEmoji()) {
+		return;
+	}
+
 	auto content = base::make_unique_q<Content>(
 		container,
 		_controller,
@@ -417,7 +475,7 @@ void MessageSendingAnimationController::startAnimation(SendingInfoTo &&to) {
 		std::move(to));
 
 	content->destroyRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_processing.erase(item);
 	}, content->lifetime());
 
@@ -443,6 +501,7 @@ bool MessageSendingAnimationController::checkExpectedType(
 	const auto type = it->second.type;
 	const auto isSticker = type == MessageSendingAnimationFrom::Type::Sticker;
 	const auto isGif = type == MessageSendingAnimationFrom::Type::Gif;
+	const auto isText = type == MessageSendingAnimationFrom::Type::Text;
 	if (isSticker || isGif) {
 		if (item->emptyText()) {
 			if (const auto media = item->media()) {
@@ -454,6 +513,8 @@ bool MessageSendingAnimationController::checkExpectedType(
 				}
 			}
 		}
+	} else if (isText && !item->media()) {
+		return true;
 	}
 	_itemSendPending.erase(it);
 	return false;

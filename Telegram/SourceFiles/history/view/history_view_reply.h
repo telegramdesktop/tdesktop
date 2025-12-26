@@ -17,6 +17,7 @@ namespace Ui {
 class SpoilerAnimation;
 struct BackgroundEmojiData;
 struct BackgroundEmojiCache;
+struct ColorCollectible;
 } // namespace Ui
 
 namespace Ui::Text {
@@ -28,6 +29,7 @@ namespace HistoryView {
 
 void ValidateBackgroundEmoji(
 	DocumentId backgroundEmojiId,
+	const std::shared_ptr<Ui::ColorCollectible> &collectible,
 	not_null<Ui::BackgroundEmojiData*> data,
 	not_null<Ui::BackgroundEmojiCache*> cache,
 	not_null<Ui::Text::QuotePaintCache*> quote,
@@ -35,7 +37,6 @@ void ValidateBackgroundEmoji(
 
 // For this one data->firstFrameMask or data->emoji must be already set.
 void ValidateBackgroundEmoji(
-	DocumentId backgroundEmojiId,
 	not_null<Ui::BackgroundEmojiData*> data,
 	not_null<Ui::BackgroundEmojiCache*> cache,
 	not_null<Ui::Text::QuotePaintCache*> quote);
@@ -44,12 +45,18 @@ void ValidateBackgroundEmoji(
 	DocumentId backgroundEmojiId,
 	Fn<void()> repaint)
 -> std::unique_ptr<Ui::Text::CustomEmoji>;
+[[nodiscard]] auto CreateBackgroundGiftInstance(
+	not_null<Data::Session*> owner,
+	DocumentId giftEmojiId,
+	Fn<void()> repaint)
+-> std::unique_ptr<Ui::Text::CustomEmoji>;
 
 void FillBackgroundEmoji(
 	QPainter &p,
 	const QRect &rect,
 	bool quote,
-	const Ui::BackgroundEmojiCache &cache);
+	const Ui::BackgroundEmojiCache &cache,
+	const QImage &firstGiftFrame);
 
 class Reply final : public RuntimeComponent<Reply, Element> {
 public:

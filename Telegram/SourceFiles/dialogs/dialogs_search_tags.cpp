@@ -58,7 +58,7 @@ namespace {
 	const auto attempt = [&](const auto &phrase) {
 		result.setMarkedText(
 			st::dialogsSearchTagPromo,
-			phrase(tr::now, lt_arrow, emoji, Ui::Text::WithEntities),
+			phrase(tr::now, lt_arrow, emoji, tr::marked),
 			kMarkupTextOptions);
 		return result.maxWidth() < width;
 	};
@@ -92,7 +92,7 @@ SearchTags::SearchTags(
 	rpl::combine(
 		std::move(tags),
 		Data::AmPremiumValue(&owner->session())
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			const std::vector<Data::Reaction> &list,
 			bool premium) {
 		fill(list, premium);
@@ -107,7 +107,7 @@ SearchTags::SearchTags(
 	}
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_normalBg = _selectedBg = QImage();
 	}, _lifetime);
 }

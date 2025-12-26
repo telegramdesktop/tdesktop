@@ -129,6 +129,11 @@ dialogRowOpenBot: DialogRightButton {
 dialogRowOpenBotRecent: DialogRightButton(dialogRowOpenBot) {
 	margin: margins(0px, 32px, 16px, 0px);
 }
+dialogsTopBarRightButton: RoundButton(defaultActiveButton) {
+	width: -16px;
+	height: 22px;
+	textTop: 2px;
+}
 
 forumDialogJumpArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFg }};
 forumDialogJumpArrowOver: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgOver }};
@@ -837,6 +842,9 @@ dialogsTopBarSuggestionTitleStyle: TextStyle(defaultTextStyle) {
 dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }
+dialogsSuggestionDeniedAuthLottie: size(70px, 70px);
+dialogsSuggestionDeniedAuthLottieCircle: size(90px, 90px);
+dialogsSuggestionDeniedAuthLottieMargins: margins(10px, 10px, 10px, 10px);
 
 dialogsMiniQuoteIcon: icon{{ "chat/mini_quote", dialogsTextFg }};
 

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "info/info_content_widget.h"
+#include "ui/effects/animations.h"
 
 namespace Data {
 class ForumTopic;
@@ -78,6 +79,8 @@ public:
 		not_null<Memento*> memento);
 
 	void setInnerFocus() override;
+	void enableBackButton() override;
+	void showFinished() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<Dialogs::Stories::Content> titleStories() override;
@@ -88,7 +91,11 @@ private:
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
+	FlexibleScrollData _flexibleScroll;
 	InnerWidget *_inner = nullptr;
+	base::weak_qptr<Ui::RpWidget> _pinnedToTop;
+	base::weak_qptr<Ui::RpWidget> _pinnedToBottom;
+	std::unique_ptr<FlexibleScrollHelper> _flexibleScrollHelper;
 
 };
 

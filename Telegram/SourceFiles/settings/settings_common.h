@@ -220,4 +220,10 @@ struct SliderWithLabel {
 	int minLabelWidth = 0,
 	bool ignoreWheel = false);
 
+void AddLottieIconWithCircle(
+	not_null<Ui::VerticalLayout*>,
+	object_ptr<Ui::RpWidget> icon,
+	QMargins iconPadding,
+	QSize circleSize);
+
 } // namespace Settings

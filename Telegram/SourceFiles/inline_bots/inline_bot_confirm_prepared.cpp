@@ -109,13 +109,13 @@ PreviewWrap::PreviewWrap(
 
 	using namespace HistoryView;
 	_history->owner().viewRepaintRequest(
-	) | rpl::start_with_next([=](not_null<const Element*> view) {
+	) | rpl::on_next([=](not_null<const Element*> view) {
 		if (view == _item.get()) {
 			update();
 		}
 	}, lifetime());
 
-	_history->session().downloaderTaskFinished() | rpl::start_with_next([=] {
+	_history->session().downloaderTaskFinished() | rpl::on_next([=] {
 		update();
 	}, lifetime());
 
@@ -135,7 +135,7 @@ void PreviewWrap::prepare(not_null<HistoryItem*> item) {
 	widthValue(
 	) | rpl::filter([=](int width) {
 		return width >= st::msgMinWidth;
-	}) | rpl::start_with_next([=](int width) {
+	}) | rpl::on_next([=](int width) {
 		resizeTo(width);
 	}, lifetime());
 }
@@ -194,8 +194,7 @@ void PreparedPreviewBox(
 					container,
 					tr::lng_bot_share_prepared_about(lt_bot, rpl::single(name)),
 					st::boxDividerLabel),
-				st::defaultBoxDividerLabelPadding,
-				RectPart::Top | RectPart::Bottom)));
+				st::defaultBoxDividerLabelPadding)));
 	const auto row = container->add(object_ptr<Ui::VerticalLayout>(
 		container));
 
@@ -212,7 +211,7 @@ void PreparedPreviewBox(
 	const auto lifetime = box->lifetime().make_state<rpl::lifetime>();
 	std::move(
 		recipient
-	) | rpl::start_with_next([=](not_null<Data::Thread*> thread) {
+	) | rpl::on_next([=](not_null<Data::Thread*> thread) {
 		info->hide(anim::type::instant);
 		while (row->count()) {
 			delete row->widgetAt(0);
@@ -220,7 +219,7 @@ void PreparedPreviewBox(
 		AddSkip(row);
 		AddSinglePeerRow(row, thread, nullptr, choose);
 		if (const auto topic = thread->asTopic()) {
-			*lifetime = topic->destroyed() | rpl::start_with_next(reset);
+			*lifetime = topic->destroyed() | rpl::on_next(reset);
 		} else {
 			*lifetime = rpl::lifetime();
 		}
@@ -231,7 +230,7 @@ void PreparedPreviewBox(
 	}, info->lifetime());
 
 	item->history()->owner().itemRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> removed) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> removed) {
 		if (removed == item) {
 			box->closeBox();
 		}

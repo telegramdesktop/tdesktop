@@ -91,7 +91,7 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 				tr::lng_settings_power_turn_off(tr::now),
 				kForceDisableTooltipDuration);
 		});
-		disabler->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		disabler->paintRequest() | rpl::on_next([=](QRect clip) {
 			auto color = st::boxBg->c;
 			color.setAlpha(96);
 			QPainter(disabler).fillRect(clip, color);
@@ -99,7 +99,7 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 		rpl::combine(
 			subtitle->geometryValue(),
 			controlsRaw->geometryValue()
-		) | rpl::start_with_next([=](QRect subtitle, QRect controls) {
+		) | rpl::on_next([=](QRect subtitle, QRect controls) {
 			disabler->setGeometry(subtitle.united(controls));
 		}, disabler->lifetime());
 		disabler->showOn(state->forceDisabledMessage.value(

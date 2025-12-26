@@ -231,7 +231,7 @@ struct Labeled {
 					button->key.value(),
 					state->recording.value(),
 					button->removed.value()
-				) | rpl::start_with_next([=](
+				) | rpl::on_next([=](
 						int width,
 						const QString &button,
 						const QKeySequence &key,
@@ -244,7 +244,7 @@ struct Labeled {
 						- st.style.font->width(button)
 						- st::settingsButtonRightSkip;
 					keys->setMarkedText((recording == raw)
-						? Ui::Text::Italic(
+						? tr::italic(
 							tr::lng_shortcuts_recording(tr::now))
 						: key.isEmpty()
 						? TextWithEntities()
@@ -267,7 +267,7 @@ struct Labeled {
 
 				widget->setAcceptBoth(true);
 				widget->clicks(
-				) | rpl::start_with_next([=](Qt::MouseButton button) {
+				) | rpl::on_next([=](Qt::MouseButton button) {
 					if (const auto strong = *menu) {
 						strong->hideMenu();
 						return;

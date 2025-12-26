@@ -219,7 +219,7 @@ private:
 		updateByValue(value);
 		valueFinished(value);
 	};
-	style::PaletteChanged() | rpl::start_with_next([=] {
+	style::PaletteChanged() | rpl::on_next([=] {
 		updatePalette();
 	}, raw->lifetime());
 	updateByValue(value);
@@ -237,10 +237,10 @@ private:
 	if (state->indexMin > 0) {
 		const auto overlay = Ui::CreateChild<Ui::RpWidget>(slider);
 		overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
-		slider->sizeValue() | rpl::start_with_next([=](QSize size) {
+		slider->sizeValue() | rpl::on_next([=](QSize size) {
 			overlay->setGeometry(0, 0, size.width(), size.height());
 		}, slider->lifetime());
-		overlay->paintRequest() | rpl::start_with_next([=] {
+		overlay->paintRequest() | rpl::on_next([=] {
 			auto p = QPainter(overlay);
 			const auto sections = valuesCount - 1;
 			const auto shift = sliderStyle->seekSize.width();
@@ -258,7 +258,7 @@ private:
 		}, overlay->lifetime());
 	}
 
-	raw->widthValue() | rpl::start_with_next([=](int width) {
+	raw->widthValue() | rpl::on_next([=](int width) {
 		labels->resizeToWidth(width);
 		updateByIndex();
 	}, slider->lifetime());
@@ -298,7 +298,7 @@ private:
 			textByValue(valueByIndex(i)),
 			*labelStyle));
 	}
-	labels->widthValue() | rpl::start_with_next([=](int outer) {
+	labels->widthValue() | rpl::on_next([=](int outer) {
 		const auto shift = sliderStyle->seekSize.width() / 2;
 		const auto available = outer - sliderStyle->seekSize.width();
 		for (auto i = 0; i != state->labels.size(); ++i) {
@@ -358,7 +358,7 @@ private:
 		updateByValue(value);
 		valueFinished(value);
 	};
-	style::PaletteChanged() | rpl::start_with_next([=] {
+	style::PaletteChanged() | rpl::on_next([=] {
 		updatePalette();
 	}, raw->lifetime());
 	updateByValue(value);
@@ -376,10 +376,10 @@ private:
 	if (state->indexMin > 0) {
 		const auto overlay = Ui::CreateChild<Ui::RpWidget>(slider);
 		overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
-		slider->sizeValue() | rpl::start_with_next([=](QSize size) {
+		slider->sizeValue() | rpl::on_next([=](QSize size) {
 			overlay->setGeometry(0, 0, size.width(), size.height());
 		}, slider->lifetime());
-		overlay->paintRequest() | rpl::start_with_next([=] {
+		overlay->paintRequest() | rpl::on_next([=] {
 			auto p = QPainter(overlay);
 
 			const auto sections = valuesCount - 1;
@@ -417,7 +417,7 @@ private:
 		}, overlay->lifetime());
 	}
 
-	raw->widthValue() | rpl::start_with_next([=](int width) {
+	raw->widthValue() | rpl::on_next([=](int width) {
 		labels->resizeToWidth(width);
 		updateByIndex();
 	}, slider->lifetime());
@@ -452,7 +452,7 @@ private:
 	rpl::combine(
 		parent->widthValue(),
 		raw->widthValue()
-	) | rpl::start_with_next([=](int outer, int inner) {
+	) | rpl::on_next([=](int outer, int inner) {
 		const auto padding = st::starrefButtonMargin;
 		const auto added = padding.left() + padding.right();
 		if (outer > added && outer - added != inner) {
@@ -487,7 +487,7 @@ private:
 		raw->widthValue(),
 		state->label->widthValue(),
 		state->sublabel->widthValue()
-	) | rpl::start_with_next([=](int outer, int label, int sublabel) {
+	) | rpl::on_next([=](int outer, int label, int sublabel) {
 		if (sublabel > 0) {
 			state->label->moveToLeft(
 				(outer - label) / 2,
@@ -513,7 +513,7 @@ private:
 	};
 	updatePalette();
 	style::PaletteChanged(
-	) | rpl::start_with_next(updatePalette, raw->lifetime());
+	) | rpl::on_next(updatePalette, raw->lifetime());
 
 	state->update = [=] {
 		const auto set = [&](
@@ -532,7 +532,7 @@ private:
 			if (!state->lockedLifetime) {
 				state->lockedLifetime = base::timer_each(
 					100
-				) | rpl::start_with_next([=] {
+				) | rpl::on_next([=] {
 					state->update();
 				});
 				set(
@@ -757,7 +757,7 @@ void InnerWidget::setupEnd() {
 						.title = tr::lng_star_ref_ended_title(tr::now),
 						.text = tr::lng_star_ref_ended_text(
 							tr::now,
-							Ui::Text::RichLangValue),
+							tr::rich),
 						.duration = Ui::Toast::kDefaultDuration * 3,
 					});
 				}
@@ -778,7 +778,7 @@ object_ptr<Ui::RpWidget> InnerWidget::infoRow(
 	raw->add(
 		object_ptr<Ui::FlatLabel>(
 			raw,
-			std::move(title) | Ui::Text::ToBold(),
+			std::move(title) | rpl::map(tr::bold),
 			st::defaultFlatLabel),
 		st::settingsPremiumRowTitlePadding);
 	raw->add(
@@ -902,7 +902,7 @@ void Widget::restoreState(not_null<Memento*> memento) {
 
 std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	auto title = tr::lng_star_ref_title();
-	auto about = tr::lng_star_ref_about() | Ui::Text::ToWithEntities();
+	auto about = tr::lng_star_ref_about(tr::marked);
 
 	const auto controller = this->controller();
 	const auto weak = base::make_weak(controller->parentController());
@@ -925,7 +925,7 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	const auto raw = result.get();
 
 	controller->wrapValue(
-	) | rpl::start_with_next([=](Info::Wrap wrap) {
+	) | rpl::on_next([=](Info::Wrap wrap) {
 		raw->setRoundEdges(wrap == Info::Wrap::Layer);
 	}, raw->lifetime());
 
@@ -933,14 +933,14 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	raw->resize(width(), baseHeight);
 
 	raw->additionalHeight(
-	) | rpl::start_with_next([=](int additionalHeight) {
+	) | rpl::on_next([=](int additionalHeight) {
 		raw->setMaximumHeight(baseHeight + additionalHeight);
 		raw->setMinimumHeight(baseHeight + additionalHeight);
 		setPaintPadding({ 0, raw->height(), 0, 0 });
 	}, raw->lifetime());
 
 	controller->wrapValue(
-	) | rpl::start_with_next([=](Info::Wrap wrap) {
+	) | rpl::on_next([=](Info::Wrap wrap) {
 		const auto isLayer = (wrap == Info::Wrap::Layer);
 		_back = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
 			raw,
@@ -952,13 +952,13 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 			st::infoTopBarScale);
 		_back->setDuration(0);
 		_back->toggleOn(isLayer
-			? _backEnabled.value() | rpl::type_erased()
+			? _backEnabled.value() | rpl::type_erased
 			: rpl::single(true));
 		_back->entity()->addClickHandler([=] {
 			controller->showBackFromStack();
 		});
 		_back->toggledValue(
-		) | rpl::start_with_next([=](bool toggled) {
+		) | rpl::on_next([=](bool toggled) {
 			const auto &st = isLayer ? st::infoLayerTopBar : st::infoTopBar;
 			raw->setTextPosition(
 				toggled ? st.back.width : st.titlePosition.x(),
@@ -976,14 +976,14 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 				controller->parentController()->hideSpecialLayer();
 			});
 			raw->widthValue(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				_close->moveToRight(0, 0);
 			}, _close->lifetime());
 		}
 	}, raw->lifetime());
 
 	raw->move(0, 0);
-	widthValue() | rpl::start_with_next([=](int width) {
+	widthValue() | rpl::on_next([=](int width) {
 		raw->resizeToWidth(width);
 		setScrollTopSkip(raw->height());
 	}, raw->lifetime());
@@ -1008,8 +1008,8 @@ std::unique_ptr<Ui::RpWidget> Widget::setupBottom() {
 				: tr::lng_star_ref_start_info)(
 					lt_terms,
 					tr::lng_star_ref_button_link(
-					) | Ui::Text::ToLink(tr::lng_star_ref_tos_url(tr::now)),
-					Ui::Text::WithEntities),
+						tr::url(tr::lng_star_ref_tos_url(tr::now))),
+					tr::marked),
 			st::boxDividerLabel),
 		QMargins(margins.left(), 0, margins.right(), 0));
 	save->setClickedCallback([=] {
@@ -1032,21 +1032,21 @@ std::unique_ptr<Ui::RpWidget> Widget::setupBottom() {
 						? tr::lng_star_ref_updated_text
 						: tr::lng_star_ref_created_text)(
 							tr::now,
-							Ui::Text::RichLangValue),
+							tr::rich),
 					.duration = Ui::Toast::kDefaultDuration * 3,
 				});
 			});
 		});
 	});
 
-	widthValue() | rpl::start_with_next([=](int width) {
+	widthValue() | rpl::on_next([=](int width) {
 		raw->resizeToWidth(width);
 	}, raw->lifetime());
 
 	rpl::combine(
 		raw->heightValue(),
 		heightValue()
-	) | rpl::start_with_next([=](int height, int fullHeight) {
+	) | rpl::on_next([=](int height, int fullHeight) {
 		setScrollBottomSkip(height);
 		raw->move(0, fullHeight - height);
 	}, raw->lifetime());

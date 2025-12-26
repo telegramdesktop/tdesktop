@@ -236,7 +236,7 @@ void FilterRowButton::setup(
 	updateData(filter, true);
 	setState(_state, true);
 
-	sizeValue() | rpl::start_with_next([=](QSize size) {
+	sizeValue() | rpl::on_next([=](QSize size) {
 		const auto right = st::contactsPadding.right()
 			+ st::contactsCheckPosition.x();
 		const auto width = size.width();
@@ -463,11 +463,11 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		const auto button = wrap->add(
 			object_ptr<FilterRowButton>(wrap, session, filter));
 		button->removeRequests(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			remove(button);
 		}, button->lifetime());
 		button->restoreRequests(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (showLimitReached()) {
 				return;
 			}
@@ -503,7 +503,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		const auto id = filter.id();
 		if (ranges::contains(filters->list(), id, &Data::ChatFilter::id)) {
 			filters->chatsList(id)->fullSize().changes(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				const auto found = find(button);
 				if (found->postponedCountUpdate) {
 					return;
@@ -543,7 +543,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	}
 
 	session->data().chatsFilters().isChatlistChanged(
-	) | rpl::start_with_next([=](FilterId id) {
+	) | rpl::on_next([=](FilterId id) {
 		const auto filters = &session->data().chatsFilters();
 		const auto &list = filters->list();
 		const auto i = ranges::find(list, id, &Data::ChatFilter::id);
@@ -605,7 +605,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		}
 	};
 	tagsButtonEnabled->events() | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool value) {
+	) | rpl::on_next([=](bool value) {
 		state->tagsEnabledAnimation.stop();
 		state->tagsEnabledAnimation.start(
 			setTagsProgress,
@@ -623,7 +623,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		return !list.empty();
 	}) | rpl::take(
 		1
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			const std::vector<Data::SuggestedFilter> &suggestions) {
 		for (const auto &suggestion : suggestions) {
 			const auto &filter = suggestion.filter;
@@ -637,7 +637,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				filter,
 				suggestion.description));
 			button->addRequests(
-				) | rpl::start_with_next([=] {
+				) | rpl::on_next([=] {
 				if (showLimitReached()) {
 					return;
 				}
@@ -730,7 +730,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				auto inputs = ranges::views::all(
 					row.removePeers
 				) | ranges::views::transform([](not_null<PeerData*> peer) {
-					return MTPInputPeer(peer->input);
+					return MTPInputPeer(peer->input());
 				}) | ranges::to<QVector<MTPInputPeer>>();
 				removeChatlistRequests.push_back(
 					MTPchatlists_LeaveChatlist(
@@ -856,7 +856,7 @@ void SetupTopContent(
 		st::settingsFilterIconPadding);
 	std::move(
 		showFinished
-	) | rpl::start_with_next([animate = std::move(icon.animate)] {
+	) | rpl::on_next([animate = std::move(icon.animate)] {
 		animate(anim::repeat::once);
 	}, verticalLayout->lifetime());
 	verticalLayout->add(std::move(icon.widget));
@@ -870,7 +870,7 @@ void SetupTopContent(
 		style::al_top)->setTryMakeSimilarLines(true);
 
 	verticalLayout->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		divider->setGeometry(r);
 	}, divider->lifetime());
 
@@ -904,7 +904,7 @@ void SetupTagContent(
 			rpl::duplicate(premium),
 			rpl::mappers::_1 && rpl::mappers::_2),
 		state->tagsTurnOff.events()));
-	rpl::duplicate(premium) | rpl::start_with_next([=](bool value) {
+	rpl::duplicate(premium) | rpl::on_next([=](bool value) {
 		tagsButton->setToggleLocked(!value);
 	}, tagsButton->lifetime());
 
@@ -934,7 +934,7 @@ void SetupTagContent(
 			state->requestTimer.cancel();
 		}
 		return proceed;
-	}) | rpl::start_with_next([=](bool v) {
+	}) | rpl::on_next([=](bool v) {
 		state->sendCallback = [=] { send(v); };
 		state->requestTimer.cancel();
 		state->requestTimer.setCallback([=] { send(v); });
@@ -954,13 +954,13 @@ void SetupTagContent(
 		content,
 		rpl::conditional(
 			rpl::duplicate(premium),
-			tr::lng_filters_enable_tags_about(Ui::Text::RichLangValue),
+			tr::lng_filters_enable_tags_about(tr::rich),
 			tr::lng_filters_enable_tags_about_premium(
 				lt_link,
 				tr::lng_effect_premium_link() | rpl::map([](QString t) {
-					return Ui::Text::Link(std::move(t), u"internal:"_q);
+					return tr::link(std::move(t), u"internal:"_q);
 				}),
-				Ui::Text::RichLangValue)));
+				tr::rich)));
 	about->setClickHandlerFilter([=](const auto &...) {
 		Settings::ShowPremium(controller, u"folder_tags"_q);
 		return true;

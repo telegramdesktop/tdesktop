@@ -19,3 +19,8 @@ void EditContactBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> window,
 	not_null<UserData*> user);
+
+void EditContactNoteBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> window,
+	not_null<UserData*> user);

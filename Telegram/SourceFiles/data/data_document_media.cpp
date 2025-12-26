@@ -431,7 +431,7 @@ void DocumentMedia::GenerateGoodThumbnail(
 		document->setGoodThumbnailChecked(false);
 		return;
 	}
-	const auto guard = base::make_weak(&document->owner().session());
+	const auto guard = base::make_weak(&document->session());
 	crl::async([=, location = std::move(location)] {
 		const auto filepath = (location && location->accessEnable())
 			? location->name()

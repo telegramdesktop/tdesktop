@@ -123,7 +123,7 @@ void Location::setupPicker(not_null<Ui::VerticalLayout*> content) {
 		.lottieSize = st::settingsCloudPasswordIconSize,
 		.lottieMargins = st::peerAppearanceIconPadding,
 		.showFinished = showFinishes(),
-		.about = tr::lng_location_about(Ui::Text::WithEntities),
+		.about = tr::lng_location_about(tr::marked),
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 	});
 
@@ -137,11 +137,11 @@ void Location::setupPicker(not_null<Ui::VerticalLayout*> content) {
 		st::settingsChatbotsUsernameMargins);
 
 	_data.value(
-	) | rpl::start_with_next([=](const Data::BusinessLocation &location) {
+	) | rpl::on_next([=](const Data::BusinessLocation &location) {
 		address->setText(location.address);
 	}, address->lifetime());
 
-	address->changes() | rpl::start_with_next([=] {
+	address->changes() | rpl::on_next([=] {
 		auto copy = _data.current();
 		copy.address = address->getLastText();
 		_data = std::move(copy);
@@ -160,7 +160,7 @@ void Location::setupPicker(not_null<Ui::VerticalLayout*> content) {
 		return location.point.has_value();
 	}));
 
-	maptoggle->toggledValue() | rpl::start_with_next([=](bool toggled) {
+	maptoggle->toggledValue() | rpl::on_next([=](bool toggled) {
 		if (!toggled) {
 			auto copy = _data.current();
 			if (copy.point.has_value()) {
@@ -185,7 +185,7 @@ void Location::setupPicker(not_null<Ui::VerticalLayout*> content) {
 	map->resize(map->width(), st::locationSize.height());
 
 	_data.value(
-	) | rpl::start_with_next([=](const Data::BusinessLocation &location) {
+	) | rpl::on_next([=](const Data::BusinessLocation &location) {
 		const auto image = location.point.has_value()
 			? controller()->session().data().location(*location.point).get()
 			: nullptr;
@@ -197,7 +197,7 @@ void Location::setupPicker(not_null<Ui::VerticalLayout*> content) {
 		_map = image;
 	}, mapWrap->lifetime());
 
-	map->paintRequest() | rpl::start_with_next([=] {
+	map->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(map);
 
 		const auto left = (map->width() - st::locationSize.width()) / 2;
@@ -219,7 +219,7 @@ void Location::setupPicker(not_null<Ui::VerticalLayout*> content) {
 	}, map->lifetime());
 
 	controller()->session().downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		map->update();
 	}, map->lifetime());
 
@@ -227,7 +227,7 @@ void Location::setupPicker(not_null<Ui::VerticalLayout*> content) {
 		chooseOnMap();
 	});
 
-	showFinishes() | rpl::start_with_next([=] {
+	showFinishes() | rpl::on_next([=] {
 		address->setFocus();
 	}, address->lifetime());
 }
@@ -273,7 +273,7 @@ void Location::setupUnsupported(not_null<Ui::VerticalLayout*> content) {
 		.lottieSize = st::settingsCloudPasswordIconSize,
 		.lottieMargins = st::peerAppearanceIconPadding,
 		.showFinished = showFinishes(),
-		.about = tr::lng_location_fallback(Ui::Text::WithEntities),
+		.about = tr::lng_location_fallback(tr::marked),
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 		.parts = RectPart::Top,
 	});

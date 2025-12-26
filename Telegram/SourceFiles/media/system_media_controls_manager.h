@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_audio_msg_id.h"
 #include "media/player/media_player_instance.h"
 #include "media/media_common.h"
+#include "ui/userpic_view.h"
 
 namespace base::Platform {
 class SystemMediaControls;
@@ -40,6 +41,7 @@ private:
 	const std::unique_ptr<base::Platform::SystemMediaControls> _controls;
 
 	std::vector<std::shared_ptr<Data::DocumentMedia>> _cachedMediaView;
+	Ui::PeerUserpicView _cachedUserpicView;
 	std::unique_ptr<Streaming::Instance> _streamed;
 	AudioMsgId _lastAudioMsgId;
 	OrderMode _lastOrderMode = OrderMode::Default;

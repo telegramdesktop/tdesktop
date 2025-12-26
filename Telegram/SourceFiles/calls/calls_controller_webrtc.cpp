@@ -150,7 +150,7 @@ void WebrtcController::setOnStateUpdated(
 		Fn<void(TgVoipState)> onStateUpdated) {
 	_stateUpdatedLifetime.destroy();
 	_impl->state().changes(
-	) | rpl::start_with_next([=](CallState state) {
+	) | rpl::on_next([=](CallState state) {
 		onStateUpdated([&] {
 			switch (state) {
 			case CallState::Initializing: return TgVoipState::WaitInit;

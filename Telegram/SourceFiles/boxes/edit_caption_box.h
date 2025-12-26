@@ -39,7 +39,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
 		TextWithTags &&text,
-		SuggestPostOptions suggest,
+		SuggestOptions suggest,
 		bool spoilered,
 		bool invertCaption,
 		Ui::PreparedList &&list,
@@ -50,7 +50,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		FullMsgId itemId,
 		TextWithTags text,
-		SuggestPostOptions suggest,
+		SuggestOptions suggest,
 		bool spoilered,
 		bool invertCaption,
 		Fn<void()> saved);
@@ -59,7 +59,7 @@ public:
 		FullMsgId itemId,
 		Ui::PreparedList &&list,
 		TextWithTags text,
-		SuggestPostOptions suggest,
+		SuggestOptions suggest,
 		bool spoilered,
 		bool invertCaption,
 		Fn<void()> saved);
@@ -68,7 +68,7 @@ public:
 		std::shared_ptr<Data::PhotoMedia> media,
 		FullMsgId itemId,
 		TextWithTags text,
-		SuggestPostOptions suggest,
+		SuggestOptions suggest,
 		bool spoilered,
 		bool invertCaption,
 		Fn<void()> saved);
@@ -87,6 +87,8 @@ private:
 	void rebuildPreview();
 	void setupEditEventHandler();
 	void setupPhotoEditorEventHandler();
+	void setupEditCoverHandler();
+	void setupClearCoverHandler();
 	void setupField();
 	void setupFieldAutocomplete();
 	void setupControls();
@@ -115,7 +117,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<HistoryItem*> _historyItem;
-	const SuggestPostOptions _suggest;
+	const SuggestOptions _suggest;
 	const bool _isAllowedEditMedia;
 	const Ui::AlbumType _albumType;
 

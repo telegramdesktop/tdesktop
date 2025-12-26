@@ -27,12 +27,12 @@ MainList::MainList(
 
 	std::move(
 		pinnedLimit
-	) | rpl::start_with_next([=](int limit) {
+	) | rpl::on_next([=](int limit) {
 		_pinned.setLimit(std::max(limit, 1));
 	}, _lifetime);
 
 	session->changes().realtimeNameUpdates(
-	) | rpl::start_with_next([=](const Data::NameUpdate &update) {
+	) | rpl::on_next([=](const Data::NameUpdate &update) {
 		_all.peerNameChanged(_filterId, update.peer, update.oldFirstLetters);
 	}, _lifetime);
 }

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_qr.h"
 
 #include "boxes/abstract_box.h"
+#include "data/components/passkeys.h"
 #include "intro/intro_phone.h"
 #include "intro/intro_widget.h"
 #include "intro/intro_password_check.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
+#include "main/main_app_config.h"
 #include "main/main_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "core/application.h"
@@ -27,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "base/unixtime.h"
 #include "qr/qr_generate.h"
+#include "platform/platform_webauthn.h"
 #include "styles/style_intro.h"
 
 namespace Intro {
@@ -79,7 +82,19 @@ namespace {
 	auto palettes = rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
 	);
-	auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	class QrWidget final : public Ui::RpWidget {
+	public:
+		using RpWidget::RpWidget;
+
+		QAccessible::Role accessibilityRole() override {
+			return QAccessible::Role::Graphic;
+		}
+		QString accessibilityName() override {
+			return tr::lng_intro_qr_title(tr::now);
+		}
+
+	};
+	auto result = Ui::CreateChild<QrWidget>(parent.get());
 	const auto state = result->lifetime().make_state<State>(
 		[=] { result->update(); });
 	state->waiting.start();
@@ -90,7 +105,7 @@ namespace {
 		rpl::duplicate(palettes)
 	) | rpl::map([](const Qr::Data &code, const auto &) {
 		return TelegramQr(code, st::introQrPixel, st::introQrMaxSize);
-	}) | rpl::start_with_next([=](QImage &&image) {
+	}) | rpl::on_next([=](QImage &&image) {
 		state->previous = std::move(state->qr);
 		state->qr = std::move(image);
 		state->waiting.stop();
@@ -105,11 +120,11 @@ namespace {
 		palettes
 	) | rpl::map([] {
 		return TelegramLogoImage();
-	}) | rpl::start_with_next([=](QImage &&image) {
+	}) | rpl::on_next([=](QImage &&image) {
 		state->center = std::move(image);
 	}, result->lifetime());
 	result->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(result);
 		const auto has = !state->qr.isNull();
 		const auto shown = has ? state->shown.value(1.) : 0.;
@@ -185,16 +200,41 @@ QrWidget::QrWidget(
 	cancelNearestDcRequest();
 
 	account->mtpUpdates(
-	) | rpl::start_with_next([=](const MTPUpdates &updates) {
+	) | rpl::on_next([=](const MTPUpdates &updates) {
 		checkForTokenUpdate(updates);
 	}, lifetime());
 
 	setupControls();
 	account->mtp().mainDcIdValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		api().request(base::take(_requestId)).cancel();
 		refreshCode();
 	}, lifetime());
+
+	account->appConfig().value(
+	) | rpl::filter([=] {
+		return !_passkey;
+	}) | rpl::on_next([=] {
+		setupPasskeyLink();
+	}, lifetime());
+}
+
+QString QrWidget::accessibilityName() {
+	return tr::lng_intro_qr_title(tr::now);
+}
+
+QString QrWidget::accessibilityDescription() {
+	const auto phrases = {
+		tr::lng_intro_qr_step1,
+		tr::lng_intro_qr_step2,
+		tr::lng_intro_qr_step3,
+	};
+	auto result = QString();
+	auto index = 0;
+	for (const auto &phrase : phrases) {
+		result.append(QString::number(++index)).append(". ").append(phrase(tr::now)).append('\n');
+	}
+	return result;
 }
 
 int QrWidget::errorTop() const {
@@ -239,7 +279,7 @@ void QrWidget::setupControls() {
 	rpl::combine(
 		sizeValue(),
 		code->widthValue()
-	) | rpl::start_with_next([=](QSize size, int codeWidth) {
+	) | rpl::on_next([=](QSize size, int codeWidth) {
 		code->moveToLeft(
 			(size.width() - codeWidth) / 2,
 			contentTop() + st::introQrTop);
@@ -252,7 +292,7 @@ void QrWidget::setupControls() {
 	rpl::combine(
 		sizeValue(),
 		title->widthValue()
-	) | rpl::start_with_next([=](QSize size, int titleWidth) {
+	) | rpl::on_next([=](QSize size, int titleWidth) {
 		title->resizeToWidth(st::introQrTitleWidth);
 		const auto oneLine = st::introQrTitle.style.font->height;
 		const auto topDelta = (title->height() - oneLine);
@@ -272,17 +312,17 @@ void QrWidget::setupControls() {
 		const auto label = steps->add(
 			object_ptr<Ui::FlatLabel>(
 				steps,
-				text(Ui::Text::RichLangValue),
+				text(tr::rich),
 				st::introQrStep),
 			st::introQrStepMargins);
 		const auto number = Ui::CreateChild<Ui::FlatLabel>(
 			steps,
-			rpl::single(Ui::Text::Semibold(QString::number(++index) + ".")),
+			rpl::single(tr::semibold(QString::number(++index) + ".")),
 			st::defaultFlatLabel);
 		rpl::combine(
 			number->widthValue(),
 			label->positionValue()
-		) | rpl::start_with_next([=](int width, QPoint position) {
+		) | rpl::on_next([=](int width, QPoint position) {
 			number->moveToLeft(
 				position.x() - width - st::normalFont->spacew,
 				position.y());
@@ -292,25 +332,78 @@ void QrWidget::setupControls() {
 	rpl::combine(
 		sizeValue(),
 		steps->widthValue()
-	) | rpl::start_with_next([=](QSize size, int stepsWidth) {
+	) | rpl::on_next([=](QSize size, int stepsWidth) {
 		steps->moveToLeft(
 			(size.width() - stepsWidth) / 2,
 			contentTop() + st::introQrStepsTop);
 	}, steps->lifetime());
 
-	const auto skip = Ui::CreateChild<Ui::LinkButton>(
+	_skip = Ui::CreateChild<Ui::LinkButton>(
 		this,
-		tr::lng_intro_qr_skip(tr::now));
+		tr::lng_intro_qr_phone(tr::now));
 	rpl::combine(
 		sizeValue(),
-		skip->widthValue()
-	) | rpl::start_with_next([=](QSize size, int skipWidth) {
-		skip->moveToLeft(
+		_skip->widthValue()
+	) | rpl::on_next([=](QSize size, int skipWidth) {
+		_skip->moveToLeft(
 			(size.width() - skipWidth) / 2,
 			contentTop() + st::introQrSkipTop);
-	}, skip->lifetime());
+	}, _skip->lifetime());
 
-	skip->setClickedCallback([=] { submit(); });
+	_skip->setClickedCallback([=] { submit(); });
+}
+
+void QrWidget::setupPasskeyLink() {
+	Expects(!_passkey);
+
+	if (!account().appConfig().settingsDisplayPasskeys()
+		|| !Platform::WebAuthn::IsSupported()) {
+		return;
+	}
+	_passkey = Ui::CreateChild<Ui::LinkButton>(
+		this,
+		tr::lng_intro_qr_passkey(tr::now));
+	_passkey->show();
+	rpl::combine(
+		sizeValue(),
+		_passkey->widthValue()
+	) | rpl::on_next([=](QSize size, int passkeyWidth) {
+		_passkey->moveToLeft(
+			(size.width() - passkeyWidth) / 2,
+			(contentTop()
+				+ st::introQrSkipTop
+				+ 1.5 * st::normalFont->height));
+	}, _passkey->lifetime());
+
+	_passkey->setClickedCallback([=] {
+		const auto initialDc = api().instance().mainDcId();
+		::Data::InitPasskeyLogin(api(), [=](
+			const ::Data::Passkey::LoginData &loginData) {
+			Platform::WebAuthn::Login(loginData, [=](
+					Platform::WebAuthn::LoginResult result) {
+				if (result.userHandle.isEmpty()) {
+					using Error = Platform::WebAuthn::Error;
+					if (result.error == Error::UnsignedBuild) {
+						showError(
+							tr::lng_settings_passkeys_unsigned_error());
+					}
+					return;
+				}
+				::Data::FinishPasskeyLogin(
+					api(),
+					initialDc,
+					result,
+					[=](const MTPauth_Authorization &auth) { done(auth); },
+					[=](QString error) {
+						if (error == u"SESSION_PASSWORD_NEEDED"_q) {
+							sendCheckPasswordRequest();
+						} else {
+							showError(rpl::single(error));
+						}
+					});
+			});
+		});
+	});
 }
 
 void QrWidget::refreshCode() {
@@ -410,6 +503,10 @@ void QrWidget::sendCheckPasswordRequest() {
 void QrWidget::activate() {
 	Step::activate();
 	showChildren();
+
+	if (_skip) {
+		_skip->setFocus(Qt::OtherFocusReason);
+	}
 }
 
 void QrWidget::finished() {

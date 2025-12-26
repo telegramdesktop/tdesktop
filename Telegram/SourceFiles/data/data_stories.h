@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "data/data_story.h"
 
+namespace Data {
+class GroupCall;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -51,6 +55,7 @@ struct StoriesSourceInfo {
 	uint32 count : 15 = 0;
 	uint32 unreadCount : 15 = 0;
 	uint32 premium : 1 = 0;
+	uint32 hasVideoStream : 1 = 0;
 
 	friend inline bool operator==(
 		StoriesSourceInfo,
@@ -62,6 +67,7 @@ struct StoriesSource {
 	base::flat_set<StoryIdDates> ids;
 	StoryId readTill = 0;
 	bool hidden = false;
+	bool hasVideoStream = false;
 
 	[[nodiscard]] StoriesSourceInfo info() const;
 	[[nodiscard]] int unreadCount() const;
@@ -236,6 +242,13 @@ public:
 		Fn<void(StoryAlbum)> done,
 		Fn<void(QString)> fail);
 	void albumDelete(not_null<PeerData*> peer, int id);
+	void albumReorderStories(
+		not_null<PeerData*> peer,
+		int albumId,
+		int oldPosition,
+		int newPosition,
+		Fn<void()> done,
+		Fn<void()> fail);
 	void notifyAlbumUpdate(StoryAlbumUpdate &&update);
 	[[nodiscard]] rpl::producer<StoryAlbumUpdate> albumUpdates() const;
 
@@ -258,10 +271,11 @@ public:
 	struct PeerSourceState {
 		StoryId maxId = 0;
 		StoryId readTill = 0;
+		bool hasVideoStream = false;
 	};
 	[[nodiscard]] std::optional<PeerSourceState> peerSourceState(
 		not_null<PeerData*> peer,
-		StoryId storyMaxId);
+		const MTPRecentStory &recent);
 	[[nodiscard]] bool isUnread(not_null<Story*> story);
 
 	enum class Polling {
@@ -302,7 +316,10 @@ private:
 		uint64 hash = 0;
 		mtpRequestId requestId = 0;
 	};
-
+	struct RecentState {
+		StoryId maxId = 0;
+		bool hasVideoStream = false;
+	};
 	struct PollingSettings {
 		int chat = 0;
 		int viewer = 0;
@@ -327,7 +344,9 @@ private:
 		const QVector<MTPStoryItem> &list);
 	void sendResolveRequests();
 	void finalizeResolve(FullStoryId id);
-	void updatePeerStoriesState(not_null<PeerData*> peer);
+	void updatePeerStoriesState(
+		not_null<PeerData*> peer,
+		std::optional<RecentState> cachedRecentState = std::nullopt);
 
 	[[nodiscard]] Set *lookupArchive(not_null<PeerData*> peer);
 	void clearArchive(not_null<PeerData*> peer);
@@ -456,7 +475,7 @@ private:
 
 	base::flat_map<PeerId, StoryId> _readTill;
 	base::flat_set<FullStoryId> _pendingReadTillItems;
-	base::flat_map<not_null<PeerData*>, StoryId> _pendingPeerStateMaxId;
+	base::flat_map<not_null<PeerData*>, RecentState> _pendingPeerRecentState;
 	mtpRequestId _readTillsRequestId = 0;
 	bool _readTillReceived = false;
 
@@ -464,6 +483,8 @@ private:
 	base::flat_set<not_null<Story*>> _pollingViews;
 	base::Timer _pollingTimer;
 	base::Timer _pollingViewsTimer;
+
+	mtpRequestId _reorderStoriesRequestId = 0;
 
 	rpl::variable<StealthMode> _stealthMode;
 

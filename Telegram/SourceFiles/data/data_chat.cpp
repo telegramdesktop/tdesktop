@@ -27,10 +27,9 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 } // namespace
 
 ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
-: PeerData(owner, id)
-, inputChat(MTP_long(peerToChat(id).bare)) {
+: PeerData(owner, id) {
 	_flags.changes(
-	) | rpl::start_with_next([=](const Flags::Change &change) {
+	) | rpl::on_next([=](const Flags::Change &change) {
 		if (change.diff & Flag::CallNotEmpty) {
 			if (const auto history = this->owner().historyLoaded(this)) {
 				history->updateChatListEntry();
@@ -235,7 +234,7 @@ void ChatData::setGroupCall(
 			data.vaccess_hash().v,
 			scheduleDate,
 			rtmp,
-			false); // conference
+			Data::GroupCallOrigin::Group);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 		addFlags(Flag::CallActive);
@@ -311,6 +310,10 @@ void ChatData::setAllowedReactions(Data::AllowedReactions value) {
 
 const Data::AllowedReactions &ChatData::allowedReactions() const {
 	return _allowedReactions;
+}
+
+MTPlong ChatData::inputChat() const {
+	return MTP_long(peerToChat(id).bare);
 }
 
 namespace Data {

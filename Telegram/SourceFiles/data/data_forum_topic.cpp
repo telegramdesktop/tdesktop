@@ -222,7 +222,7 @@ TopicIconDescriptor ParseTopicIconEmojiEntity(QStringView entity) {
 		const auto parts = entity.mid(normal.size()).split(' ');
 		if (parts.size() == 2) {
 			return {
-				.title = parts[1].toString(),
+				.title = parts[1].isEmpty() ? u" "_q : parts[1].toString(),
 				.colorId = int32(parts[0].toUInt()),
 			};
 		}
@@ -250,7 +250,7 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 
 	if (isGeneral()) {
 		style::PaletteChanged(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_defaultIcon = QImage();
 		}, _lifetime);
 	}
@@ -265,7 +265,15 @@ std::shared_ptr<Data::RepliesList> ForumTopic::replies() const {
 	return _replies;
 }
 
-not_null<ChannelData*> ForumTopic::channel() const {
+not_null<PeerData*> ForumTopic::peer() const {
+	return _forum->peer();
+}
+
+UserData *ForumTopic::bot() const {
+	return _forum->bot();
+}
+
+ChannelData *ForumTopic::channel() const {
 	return _forum->channel();
 }
 
@@ -308,24 +316,28 @@ bool ForumTopic::my() const {
 }
 
 bool ForumTopic::canEdit() const {
-	return my() || channel()->canManageTopics();
+	return my() || peer()->canManageTopics();
 }
 
 bool ForumTopic::canDelete() const {
 	if (creating() || isGeneral()) {
 		return false;
-	} else if (channel()->canDeleteMessages()) {
+	} else if (bot()) {
 		return true;
+	} else if (const auto channel = this->channel()) {
+		if (channel->canDeleteMessages()) {
+			return true;
+		}
 	}
 	return my() && replies()->canDeleteMyTopic();
 }
 
 bool ForumTopic::canToggleClosed() const {
-	return !creating() && canEdit();
+	return !creating() && canEdit() && !_forum->peer()->isBot();
 }
 
 bool ForumTopic::canTogglePinned() const {
-	return !creating() && channel()->canManageTopics();
+	return !creating() && peer()->canManageTopics();
 }
 
 bool ForumTopic::creating() const {
@@ -362,7 +374,7 @@ void ForumTopic::subscribeToUnreadChanges() {
 	) | rpl::combine_previous(
 	) | rpl::filter([=] {
 		return inChatList();
-	}) | rpl::start_with_next([=](
+	}) | rpl::on_next([=](
 			std::optional<int> previous,
 			std::optional<int> now) {
 		if (previous.value_or(0) != now.value_or(0)) {
@@ -405,7 +417,7 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 			draft->match([&](const MTPDdraftMessage &data) {
 				Data::ApplyPeerCloudDraft(
 					&session(),
-					channel()->id,
+					peer()->id,
 					_rootId,
 					PeerId(),
 					data);
@@ -463,14 +475,14 @@ void ForumTopic::setClosedAndSave(bool closed) {
 
 	const auto api = &session().api();
 	const auto weak = base::make_weak(this);
-	api->request(MTPchannels_EditForumTopic(
-		MTP_flags(MTPchannels_EditForumTopic::Flag::f_closed),
-		channel()->inputChannel,
+	api->request(MTPmessages_EditForumTopic(
+		MTP_flags(MTPmessages_EditForumTopic::Flag::f_closed),
+		peer()->input(),
 		MTP_int(_rootId),
 		MTPstring(), // title
 		MTPlong(), // icon_emoji_id
 		MTP_bool(closed),
-		MTPBool() // hidden
+		MTPBool() // hiddenKO
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {
@@ -527,7 +539,7 @@ int ForumTopic::chatListNameVersion() const {
 void ForumTopic::applyTopicTopMessage(MsgId topMessageId) {
 	if (topMessageId) {
 		growLastKnownServerMessageId(topMessageId);
-		const auto itemId = FullMsgId(channel()->id, topMessageId);
+		const auto itemId = FullMsgId(peer()->id, topMessageId);
 		if (const auto item = owner().message(itemId)) {
 			setLastServerMessage(item);
 			resolveChatListMessageGroup();
@@ -824,6 +836,16 @@ void ForumTopic::applyColorId(int32 colorId) {
 	}
 }
 
+void ForumTopic::applyMaybeLast(not_null<HistoryItem*> item) {
+	if (!_lastServerMessage.value_or(nullptr)
+		|| (*_lastServerMessage)->id < item->id) {
+		setLastServerMessage(item);
+		resolveChatListMessageGroup();
+	} else {
+		growLastKnownServerMessageId(item->id);
+	}
+}
+
 void ForumTopic::applyItemAdded(not_null<HistoryItem*> item) {
 	if (item->isRegular()) {
 		setLastServerMessage(item);
@@ -895,7 +917,7 @@ Dialogs::BadgesState ForumTopic::chatListBadgesState() const {
 		Dialogs::CountInBadge::Messages,
 		Dialogs::IncludeInBadge::All);
 	if (!result.unread && _replies->inboxReadTillId() < 2) {
-		result.unread = channel()->amIn()
+		result.unread = (bot() || (channel() && channel()->amIn()))
 			&& (_lastKnownServerMessageId > history()->inboxReadTillId());
 		result.unreadMuted = muted();
 	}

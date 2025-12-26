@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "info/profile/info_profile_inner_widget.h"
 #include "info/profile/info_profile_members.h"
+#include "info/settings/info_settings_widget.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/ui_utility.h"
 #include "data/data_peer.h"
@@ -20,8 +21,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
+#include "styles/style_info.h"
+
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QScrollBar>
+
+namespace Info::Settings {
+struct SectionCustomTopBarData;
+} // namespace Info::Settings
 
 namespace Info::Profile {
+
+using Info::Settings::SectionCustomTopBarData;
 
 Memento::Memento(not_null<Controller*> controller)
 : Memento(
@@ -50,7 +61,7 @@ Memento::Memento(
 }
 
 Memento::Memento(not_null<Data::ForumTopic*> topic)
-: ContentMemento(topic->channel(), topic, nullptr, 0) {
+: ContentMemento(topic->peer(), topic, nullptr, 0) {
 }
 
 Memento::Memento(not_null<Data::SavedSublist*> sublist)
@@ -84,16 +95,18 @@ Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller,
 	Origin origin)
-: ContentWidget(parent, controller) {
+: ContentWidget(parent, controller)
+, _inner(
+	setupFlexibleInnerWidget(
+		object_ptr<InnerWidget>(this, controller, origin),
+		_flexibleScroll))
+, _pinnedToTop(_inner->createPinnedToTop(this))
+, _pinnedToBottom(_inner->createPinnedToBottom(this)) {
 	controller->setSearchEnabledByContent(false);
 
-	_inner = setInnerWidget(object_ptr<InnerWidget>(
-		this,
-		controller,
-		origin));
 	_inner->move(0, 0);
 	_inner->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
 		if (request.ymin < 0) {
 			scrollTopRestore(
 				qMin(scrollTopSave(), request.ymax));
@@ -101,15 +114,77 @@ Widget::Widget(
 			scrollTo(request);
 		}
 	}, lifetime());
+
+	_inner->backRequest() | rpl::on_next([=] {
+		checkBeforeClose([=] { controller->showBackFromStack(); });
+	}, _inner->lifetime());
+
+	if (_pinnedToTop) {
+		_inner->widthValue(
+		) | rpl::on_next([=](int w) {
+			_pinnedToTop->resizeToWidth(w);
+			setScrollTopSkip(_pinnedToTop->height());
+		}, _pinnedToTop->lifetime());
+
+		_pinnedToTop->heightValue(
+		) | rpl::on_next([=](int h) {
+			setScrollTopSkip(h);
+		}, _pinnedToTop->lifetime());
+	}
+
+	if (_pinnedToBottom) {
+		const auto processHeight = [=] {
+			setScrollBottomSkip(_pinnedToBottom->height());
+			_pinnedToBottom->moveToLeft(
+				_pinnedToBottom->x(),
+				height() - _pinnedToBottom->height());
+		};
+
+		_inner->sizeValue(
+		) | rpl::on_next([=](const QSize &s) {
+			_pinnedToBottom->resizeToWidth(s.width());
+		}, _pinnedToBottom->lifetime());
+
+		rpl::combine(
+			_pinnedToBottom->heightValue(),
+			heightValue()
+		) | rpl::on_next(processHeight, _pinnedToBottom->lifetime());
+	}
+
+	if (_pinnedToTop
+		&& _pinnedToTop->minimumHeight()
+		&& _inner->hasFlexibleTopBar()) {
+		_flexibleScrollHelper = std::make_unique<FlexibleScrollHelper>(
+			scroll(),
+			_inner,
+			_pinnedToTop.get(),
+			[=](QMargins margins) {
+				ContentWidget::setPaintPadding(std::move(margins));
+			},
+			[=](rpl::producer<not_null<QEvent*>> &&events) {
+				ContentWidget::setViewport(std::move(events));
+			},
+			_flexibleScroll);
+	}
 }
 
 void Widget::setInnerFocus() {
 	_inner->setFocus();
 }
 
+void Widget::enableBackButton() {
+	_inner->enableBackButton();
+}
+
+void Widget::showFinished() {
+	_inner->showFinished();
+}
+
 rpl::producer<QString> Widget::title() {
-	if (controller()->key().topic()) {
-		return tr::lng_info_topic_title();
+	if (const auto topic = controller()->key().topic()) {
+		return topic->peer()->isBot()
+			? tr::lng_info_thread_title()
+			: tr::lng_info_topic_title();
 	} else if (controller()->key().sublist()
 		&& controller()->key().sublist()->parentChat()) {
 		return tr::lng_profile_direct_messages();

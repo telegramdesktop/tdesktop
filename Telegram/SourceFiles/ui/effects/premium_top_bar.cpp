@@ -120,7 +120,7 @@ TopBar::TopBar(
 			: MiniStarsType::BiStars) {
 	std::move(
 		descriptor.title
-	) | rpl::start_with_next([=](QString text) {
+	) | rpl::on_next([=](QString text) {
 		_titlePath = QPainterPath();
 		_titlePath.addText(0, _titleFont->ascent, _titleFont, text);
 		update();
@@ -140,7 +140,7 @@ TopBar::TopBar(
 
 	rpl::single() | rpl::then(
 		style::PaletteChanged()
-	) | rpl::start_with_next([=, starSize = st.starSize] {
+	) | rpl::on_next([=, starSize = st.starSize] {
 		TopBarAbstract::computeIsDark();
 
 		if (_logo == u"dollar"_q) {
@@ -179,7 +179,7 @@ TopBar::TopBar(
 		const auto smallTopShadow = CreateChild<FadeShadow>(this);
 		smallTopShadow->setDuration(st::fadeWrapDuration);
 		sizeValue(
-		) | rpl::start_with_next([=](QSize size) {
+		) | rpl::on_next([=](QSize size) {
 			smallTopShadow->resizeToWidth(size.width());
 			smallTopShadow->moveToLeft(
 				0,
@@ -290,9 +290,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		_star.render(&p, _starRect);
 	}
 
-	const auto color = _light
-		? st::settingsPremiumUserTitle.textFg
-		: st::premiumButtonFg;
+	const auto color = _light ? st().titleFg : st::premiumButtonFg;
 	p.setPen(color);
 
 	const auto titlePathRect = _titlePath.boundingRect();

@@ -288,7 +288,7 @@ void LocalStorageBox::Show(not_null<Window::SessionController*> controller) {
 	rpl::combine(
 		controller->session().data().cache().statsOnMain(),
 		controller->session().data().cacheBigFile().statsOnMain()
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			Database::Stats &&stats,
 			Database::Stats &&statsBig) {
 		weak->update(std::move(stats), std::move(statsBig));
@@ -379,7 +379,7 @@ void LocalStorageBox::setupControls() {
 		const auto shown = (data.count && data.totalSize) || !tag;
 		result->toggle(shown, anim::type::instant);
 		result->entity()->clearRequests(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			clearByTag(tag);
 		}, result->lifetime());
 		_rows.emplace(tag, result);
@@ -431,7 +431,7 @@ void LocalStorageBox::setupControls() {
 	);
 	container->resizeToWidth(st::boxWidth);
 	container->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setDimensions(st::boxWidth, height);
 	}, container->lifetime());
 }

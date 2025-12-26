@@ -40,7 +40,7 @@ PasswordCheckWidget::PasswordCheckWidget(
 	Expects(_passwordState.hasPassword);
 
 	Lang::Updated(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshLang();
 	}, lifetime());
 
@@ -48,7 +48,7 @@ PasswordCheckWidget::PasswordCheckWidget(
 	_toPassword->addClickHandler([=] { toPassword(); });
 	connect(_pwdField, &Ui::PasswordInput::changed, [=] { hideError(); });
 	_codeField->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		hideError();
 	}, _codeField->lifetime());
 
@@ -233,7 +233,7 @@ void PasswordCheckWidget::codeSubmitDone(
 	const auto boxShared = std::make_shared<base::weak_qptr<PasscodeBox>>();
 
 	box->newAuthorization(
-	) | rpl::start_with_next([=](const MTPauth_Authorization &result) {
+	) | rpl::on_next([=](const MTPauth_Authorization &result) {
 		if (boxShared) {
 			(*boxShared)->closeBox();
 		}
@@ -316,7 +316,7 @@ void PasswordCheckWidget::toRecover() {
 		const auto box = Ui::show(
 			Ui::MakeInformBox(tr::lng_signin_no_email_forgot()));
 		box->boxClosing(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			showReset();
 		}, box->lifetime());
 	}
@@ -326,7 +326,7 @@ void PasswordCheckWidget::toPassword() {
 	const auto box = Ui::show(
 		Ui::MakeInformBox(tr::lng_signin_cant_email_forgot()));
 	box->boxClosing(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		showReset();
 	}, box->lifetime());
 }
@@ -354,8 +354,8 @@ void PasswordCheckWidget::updateDescriptionText() {
 		? tr::lng_signin_recover_desc(
 			lt_email,
 			rpl::single(Ui::Text::WrapEmailPattern(emailPattern)),
-			Ui::Text::WithEntities)
-		: tr::lng_signin_desc(Ui::Text::WithEntities));
+			tr::marked)
+		: tr::lng_signin_desc(tr::marked));
 }
 
 void PasswordCheckWidget::submit() {

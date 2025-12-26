@@ -73,6 +73,7 @@ ComposeIcons {
 	menuBelow: icon;
 	menuAbove: icon;
 	menuPrice: icon;
+	menuEditStars: icon;
 
 	stripBubble: icon;
 	stripExpandPanel: icon;
@@ -148,6 +149,8 @@ EmojiButton {
 }
 
 SendButton {
+	sendIconPosition: point;
+	sendIconFillPadding: pixels;
 	inner: IconButton;
 	stars: RoundButton;
 	record: icon;
@@ -198,16 +201,43 @@ ComposeFiles {
 	statusFg: color;
 }
 
+SendAsButton {
+	width: pixels;
+	height: pixels;
+	size: pixels;
+	activeBg: color;
+	activeFg: color;
+	cross: CrossAnimation;
+	duration: int;
+}
+
+ChooseSendAs {
+	button: SendAsButton;
+	label: FlatLabel;
+	list: PeerList;
+}
+
 ComposeControls {
 	bg: color;
 	radius: pixels;
+	padding: margins;
 
 	field: InputField;
+	fieldLeft: pixels;
 	send: SendButton;
 	attach: IconButton;
 	emoji: EmojiButton;
 	like: IconButton;
 	liked: icon;
+	editStars: IconButton;
+	commentsShow: IconButton;
+	commentsShown: icon;
+	commentsSkip: pixels;
+	commentsUnreadSize: pixels;
+	commentsUnreadMargin: pixels;
+	commentsUnreadPosition: point;
+	starsReactionCounter: RoundButton;
+	starsSkip: pixels;
 	suggestions: EmojiSuggestions;
 	tabbed: EmojiPan;
 	tabbedHeightMin: pixels;
@@ -218,6 +248,7 @@ ComposeControls {
 	boxField: InputField;
 	restrictionLabel: FlatLabel;
 	premiumRequired: ComposePremiumRequired;
+	chooseSendAs: ChooseSendAs;
 }
 
 ReportBox {
@@ -225,8 +256,7 @@ ReportBox {
 	noIconButton: SettingsButton;
 	label: FlatLabel;
 	field: InputField;
-	dividerBg: color;
-	dividerFg: color;
+	divider: DividerLabel;
 	spam: icon;
 	fake: icon;
 	violence: icon;
@@ -420,6 +450,9 @@ emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
 emojiPanArea: size(34px, 32px);
 emojiPanRadius: 8px;
+emojiPanReactionsPreviewPadding: margins(10px, 20px, 10px, 20px);
+emojiPanEmojiPreviewMinHeight: 160px;
+emojiPanEmojiPreviewRadius: 8px + 8px + 4px;
 
 defaultTabbedSearchCancel: CrossButton {
 	width: 33px;
@@ -814,6 +847,38 @@ reactPanelScrollRounded: ScrollArea(emojiScroll) {
 	deltat: 14px;
 	deltab: 14px;
 }
+selfForwardsTaggerStripSkip: 26px;
+selfForwardsTaggerIcon: size(32px, 32px);
+selfForwardsTaggerToast: Toast(defaultToast) {
+	minWidth: 160px;
+	maxWidth: 380px;
+	radius: 9px;
+	padding: margins(54px, 12px, 19px, 12px);
+	iconPosition: point(15px, 6px);
+}
+joinChatAddToFilterToast: Toast(defaultToast) {
+	minWidth: 160px;
+	maxWidth: 380px;
+	radius: 9px;
+	padding: margins(54px, 12px, 44px, 12px);
+	iconPosition: point(15px, 6px);
+}
+joinChatAddToFilterToastButton: IconButton(defaultIconButton) {
+	width: 40px;
+	height: 40px;
+
+	icon: icon{
+		{ "chat/reactions_round_small", windowBgRipple },
+		{ "chat/reactions_expand_panel", windowSubTextFg },
+	};
+	iconOver: icon{
+		{ "chat/reactions_round_small", windowBgRipple },
+		{ "chat/reactions_expand_panel", windowSubTextFg },
+	};
+	rippleAreaPosition: point(10px, 10px);
+	rippleAreaSize: 20px;
+	ripple: universalRippleAnimation;
+}
 
 choosePeerGroupIcon: icon {{ "info/edit/create_group", lightButtonFg }};
 choosePeerChannelIcon: icon {{ "info/edit/create_channel", lightButtonFg }};
@@ -1072,6 +1137,8 @@ historyComposeField: InputField(defaultInputField) {
 }
 historyComposeFieldMaxHeight: 224px;
 historyComposeFieldFadeHeight: 6px;
+historySendRight: 2px;
+historySendPadding: 9px;
 // historyMinHeight: 56px;
 
 historyAttach: IconButton(defaultIconButton) {
@@ -1191,7 +1258,6 @@ boxAttachEmojiTop: 20px;
 
 historySendIcon: icon {{ "chat/input_send", historySendIconFg }};
 historySendIconOver: icon {{ "chat/input_send", historySendIconFgOver }};
-historySendIconPosition: point(10px, 11px);
 historySendSize: size(44px, 46px);
 historyScheduleIcon: icon {{ "chat/input_schedule", historyComposeAreaBg }};
 historyScheduleIconPosition: point(7px, 8px);
@@ -1333,6 +1399,7 @@ defaultRecordBar: RecordBar {
 }
 
 historySend: SendButton {
+	sendIconPosition: point(10px, 11px);
 	inner: IconButton(historyAttach) {
 		icon: historySendIcon;
 		iconOver: historySendIconOver;
@@ -1388,9 +1455,46 @@ defaultRestrictionLabel: FlatLabel(defaultFlatLabel) {
 	textFg: placeholderFg;
 	align: align(top);
 }
+defaultSendAsButton: SendAsButton {
+	width: 44px;
+	height: 46px;
+	size: 28px;
+	activeBg: activeButtonBg;
+	activeFg: activeButtonFg;
+	cross: CrossAnimation {
+		size: 28px;
+		skip: 10px;
+		stroke: 1.5;
+		minScale: 0.3;
+	}
+	duration: 150;
+}
+defaultChooseSendAs: ChooseSendAs {
+	button: defaultSendAsButton;
+	label: FlatLabel(defaultFlatLabel) {
+		minWidth: 272px;
+	}
+	list: PeerList(peerListBox) {
+		item: PeerListItem(peerListBoxItem) {
+			height: 56px;
+			checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+				check: RoundCheckbox(defaultRoundCheckbox) {
+					size: 0px;
+				}
+				imageRadius: 19px;
+				imageSmallRadius: 15px;
+			}
+			photoSize: 38px;
+			photoPosition: point(24px, 9px);
+			namePosition: point(73px, 9px);
+			statusPosition: point(73px, 28px);
+		}
+	}
+}
 defaultComposeControls: ComposeControls {
 	bg: historyComposeAreaBg;
 	radius: 0px;
+	padding: margins(historySendRight, historySendPadding, historySendRight, historySendPadding);
 
 	field: historyComposeField;
 	send: historySend;
@@ -1405,6 +1509,7 @@ defaultComposeControls: ComposeControls {
 	premium: defaultPremiumLimits;
 	boxField: defaultInputField;
 	restrictionLabel: defaultRestrictionLabel;
+	chooseSendAs: defaultChooseSendAs;
 }
 
 moreChatsBarHeight: 48px;
@@ -1437,8 +1542,7 @@ defaultReportBox: ReportBox {
 	}
 	label: boxLabel;
 	field: newGroupDescription;
-	dividerBg: boxDividerBg;
-	dividerFg: windowSubTextFg;
+	divider: defaultDividerLabel;
 	spam: menuIconDelete;
 	fake: menuIconFake;
 	violence: menuIconViolence;

@@ -103,7 +103,7 @@ TextItem::TextItem(
 		+ st.itemIconPosition.x());
 
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		_label->moveToLeft(
 			st.itemIconPosition.x(),
 			(s.height() - _label->height()) / 2);
@@ -261,7 +261,7 @@ void SetupTTLMenu(
 	const auto state = parent->lifetime().make_state<State>();
 	std::move(
 		triggers
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (state->menu) {
 			return;
 		}

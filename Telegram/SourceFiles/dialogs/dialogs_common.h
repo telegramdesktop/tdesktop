@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#ifdef _DEBUG
+#include <QtCore/QDebug>
+#endif // _DEBUG
+
 namespace style {
 struct DialogRightButton;
 } // namespace style
@@ -80,6 +84,21 @@ inline UnreadState operator-(const UnreadState &a, const UnreadState &b) {
 	result -= b;
 	return result;
 }
+
+#ifdef _DEBUG
+inline QDebug operator<<(QDebug debug, const UnreadState &state) {
+	return debug.nospace() << "UnreadState(messages:" << state.messages
+	<< ", messagesMuted:" << state.messagesMuted
+	<< ", chats:" << state.chats
+	<< ", chatsMuted:" << state.chatsMuted
+	<< ", marks:" << state.marks
+	<< ", marksMuted:" << state.marksMuted
+	<< ", reactions:" << state.reactions
+	<< ", reactionsMuted:" << state.reactionsMuted
+	<< ", mentions:" << state.mentions
+	<< ", known:" << state.known << ")";
+}
+#endif // _DEBUG
 
 struct BadgesState {
 	int unreadCounter = 0;
