@@ -1069,9 +1069,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 				? !hasPrice()
 				: (type == Ui::AttachActionType::EditCover)
 				? (file.isVideoFile()
-					&& _captionToPeer
-					&& (_captionToPeer->isBroadcast()
-						|| _captionToPeer->isSelf()))
+					&& _captionToPeer)
 				: (file.videoCover != nullptr);
 		});
 	auto &block = _blocks.back();
