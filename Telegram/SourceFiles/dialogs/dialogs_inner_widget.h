@@ -232,6 +232,14 @@ public:
 	void prepareQuickAction(int64 key, Dialogs::Ui::QuickDialogAction);
 	void clearQuickActions();
 
+    [[nodiscard]] int getAccessibleChildCount() const;
+    [[nodiscard]] QString getAccessibleName(int index) const;
+    [[nodiscard]] QString getAccessibleDescription(int index) const;
+    [[nodiscard]] QRect getAccessibleRect(int index) const;
+    [[nodiscard]] bool isAccessibleRowSelected(int index) const;
+    [[nodiscard]] int currentAccessibleIndex() const;
+    [[nodiscard]] int getAccessibleIndexAt(int y) const;
+
 protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,

@@ -7478,4 +7478,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_mac_hold_to_quit" = "Hold {text} to Quit";
 
+"lng_acc_unread_count#one" = "{count} unread message. ";
+"lng_acc_unread_count#other" = "{count} unread messages. ";
+"lng_acc_sender_you" = "You: ";
+"lng_acc_read_more" = "... read more. ";
+"lng_acc_msg_sent" = "Sent";
+"lng_acc_msg_received" = "Received";
+"lng_acc_time_today" = ". {action} today at {time}";
+"lng_acc_time_date" = ". {action} at {time}, {day}{suffix} of {month}";
+"lng_acc_hashtag_result" = "Hashtag result";
+"lng_acc_global_result" = "Global search result. ";
+"lng_acc_chat_list" = "Chat list";
+
 // Keys finished

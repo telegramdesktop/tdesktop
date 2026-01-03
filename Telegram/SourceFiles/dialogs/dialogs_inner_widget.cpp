@@ -563,6 +563,74 @@ InnerWidget::InnerWidget(
 	setupShortcuts();
 }
 
+QString GenerateRowDescription(not_null<Dialogs::Entry*> entry, HistoryItem *item, bool isFiltered) {
+    QString result;
+
+    if (!isFiltered) {
+        if (const auto history = entry->asHistory()) {
+            const int unread = history->unreadCount();
+            if (unread > 0) {
+                result += tr::lng_acc_unread_count(tr::now, lt_count, unread);
+            }
+        } else if (const auto folder = entry->asFolder()) {
+            const int unread = folder->chatListBadgesState().unreadCounter;
+            if (unread > 0) {
+                result += tr::lng_acc_unread_count(tr::now, lt_count, unread);
+            }
+        }
+    }
+
+    if (item) {
+        const auto from = item->from();
+        const auto chatName = entry->chatListName();
+        
+        if (from && !from->isSelf() && from->name() != chatName) {
+            result += from->name() + ": ";
+        } else if (from && from->isSelf()) {
+            result += tr::lng_acc_sender_you(tr::now);
+        }
+
+        QString message = item->notificationText().text;
+        message = message.replace(QChar('\n'), QChar(' '));
+        
+        const int kLimit = 50; 
+        if (message.length() > kLimit) {
+            result += message.left(kLimit) + tr::lng_acc_read_more(tr::now);
+        } else if (!message.isEmpty()) {
+            result += message + ". ";
+        }
+
+        const auto timestamp = item->date();
+        const QDateTime dt = QDateTime::fromSecsSinceEpoch(timestamp);
+        const QDateTime now = QDateTime::currentDateTime();
+        const bool isToday = (dt.date() == now.date());
+        const QString timeStr = dt.time().toString("h:mm AP");
+
+        const QString action = item->out() 
+            ? tr::lng_acc_msg_sent(tr::now) 
+            : tr::lng_acc_msg_received(tr::now);
+
+        if (isToday) {
+            result += tr::lng_acc_time_today(tr::now, lt_action, action, lt_time, timeStr);
+        } else {
+            const int day = dt.date().day();
+            QString suffix = "th";
+            if (day == 1 || day == 21 || day == 31) suffix = "st";
+            else if (day == 2 || day == 22) suffix = "nd";
+            else if (day == 3 || day == 23) suffix = "rd";
+            
+            result += tr::lng_acc_time_date(
+                tr::now, 
+                lt_action, action, 
+                lt_time, timeStr, 
+                lt_day, QString::number(day), 
+                lt_suffix, suffix, 
+                lt_month, dt.date().toString("MMMM"));
+        }
+    }
+    return result;
+}
+
 bool InnerWidget::updateEntryHeight(not_null<Entry*> entry) {
 	if (!_geometryInited) {
 		return false;
@@ -5585,6 +5653,264 @@ void InnerWidget::deactivateQuickAction() {
 		_inactiveQuickActions.push_back(
 			QuickActionPtr{ _activeQuickAction.release() });
 	}
+}
+//Accessibility
+int InnerWidget::getAccessibleChildCount() const {
+	if (_state == WidgetState::Default) {
+		return _collapsedRows.size() + _shownList->size();
+	} else if (_state == WidgetState::Filtered) {
+		return _hashtagResults.size() 
+			+ _filterResults.size() 
+			+ _peerSearchResults.size() 
+			+ _previewResults.size() 
+			+ _searchResults.size();
+	}
+	return 0;
+}
+
+int InnerWidget::currentAccessibleIndex() const {
+    // Calculate which index is currently selected based on internal state variables
+	if (_state == WidgetState::Default) {
+		if (_collapsedSelected >= 0) return _collapsedSelected;
+		if (_selected) {
+            // Find index of _selected in _shownList
+			auto idx = 0;
+			for (auto it = _shownList->cbegin(); it != _shownList->cend(); ++it, ++idx) {
+				if (it->get() == _selected) return _collapsedRows.size() + idx;
+			}
+		}
+	} else if (_state == WidgetState::Filtered) {
+		int offset = 0;
+		if (_hashtagSelected >= 0) return offset + _hashtagSelected;
+		offset += _hashtagResults.size();
+		
+		if (_filteredSelected >= 0) return offset + _filteredSelected;
+		offset += _filterResults.size();
+		
+		if (_peerSearchSelected >= 0) return offset + _peerSearchSelected;
+		offset += _peerSearchResults.size();
+		
+		if (_previewSelected >= 0) return offset + _previewSelected;
+		offset += _previewResults.size();
+		
+		if (_searchedSelected >= 0) return offset + _searchedSelected;
+	}
+	return -1;
+}
+
+bool InnerWidget::isAccessibleRowSelected(int index) const {
+	return index == currentAccessibleIndex();
+}
+
+QRect InnerWidget::getAccessibleRect(int index) const {
+	int y = 0;
+	int h = 0;
+
+	if (_state == WidgetState::Default) {
+		if (index < _collapsedRows.size()) {
+			y = index * st::dialogsImportantBarHeight;
+			h = st::dialogsImportantBarHeight;
+		} else {
+			int listIndex = index - _collapsedRows.size();
+			auto it = _shownList->cbegin();
+			std::advance(it, listIndex); // Efficient iterator move
+			if (it != _shownList->cend()) {
+				Row* r = it->get();
+				y = dialogsOffset() + r->top();
+				// Add pinned offset
+				if (listIndex < _pinnedRows.size()) {
+					y += qRound(_pinnedRows[listIndex].yadd.current());
+				}
+				h = r->height();
+			}
+		}
+	} else if (_state == WidgetState::Filtered) {
+		int current = index;
+
+		if (current < _hashtagResults.size()) {
+			y = hashtagsOffset() + current * st::mentionHeight;
+			h = st::mentionHeight;
+            return QRect(0, y, width(), h);
+		}
+		current -= _hashtagResults.size();
+
+		if (current < _filterResults.size()) {
+			const auto &res = _filterResults[current];
+			y = filteredOffset() + res.top;
+			h = res.row->height();
+            return QRect(0, y, width(), h);
+		}
+		current -= _filterResults.size();
+
+		if (current < _peerSearchResults.size()) {
+			y = peerSearchOffset() + current * st::dialogsRowHeight;
+			h = st::dialogsRowHeight;
+            return QRect(0, y, width(), h);
+		}
+		current -= _peerSearchResults.size();
+
+		if (current < _previewResults.size()) {
+			y = previewOffset() + current * _st->height;
+			h = _st->height;
+            return QRect(0, y, width(), h);
+		}
+		current -= _previewResults.size();
+
+		if (current < _searchResults.size()) {
+			y = searchedOffset() + current * _st->height;
+			h = _st->height;
+            return QRect(0, y, width(), h);
+		}
+	}
+    
+    if (h > 0) return QRect(0, y, width(), h);
+	return QRect();
+}
+
+// Main Accessible Name Function
+
+QString InnerWidget::getAccessibleName(int index) const {
+	if (_state == WidgetState::Default) {
+		if (index < _collapsedRows.size()) {
+			return _collapsedRows[index]->folder->chatListName();
+		}
+		int listIndex = index - _collapsedRows.size();
+		auto it = _shownList->cbegin();
+		std::advance(it, listIndex);
+		if (it != _shownList->cend()) {
+			return it->get()->entry()->chatListName();
+		}
+	} else if (_state == WidgetState::Filtered) {
+		int current = index;
+		
+		if (current < _hashtagResults.size()) return "#" + _hashtagResults[current]->tag;
+		current -= _hashtagResults.size();
+		
+		if (current < _filterResults.size()) return _filterResults[current].row->entry()->chatListName();
+		current -= _filterResults.size();
+		
+		if (current < _peerSearchResults.size()) return _peerSearchResults[current]->peer->name();
+		current -= _peerSearchResults.size();
+		
+		if (current < _previewResults.size()) return _previewResults[current]->name().toString();
+		current -= _previewResults.size();
+		
+		if (current < _searchResults.size()) return _searchResults[current]->name().toString();
+	}
+	return QString();
+}
+
+// Main Accessible Description Function 
+QString InnerWidget::getAccessibleDescription(int index) const {
+	if (_state == WidgetState::Default) {
+		// 1. Collapsed Row (Archive)
+		if (index < _collapsedRows.size()) {
+			return GenerateRowDescription(_collapsedRows[index]->folder, nullptr, false);
+		}
+		
+		// 2. Main Chat List
+		int listIndex = index - _collapsedRows.size();
+		auto it = _shownList->cbegin();
+		std::advance(it, listIndex);
+		
+		if (it != _shownList->cend()) {
+			Row* r = it->get();
+			HistoryItem* lastMsg = r->history() ? r->history()->lastMessage() : nullptr;
+			return GenerateRowDescription(r->entry(), lastMsg, false);
+		}
+	} else if (_state == WidgetState::Filtered) {
+		int current = index;
+		
+		if (current < _hashtagResults.size()) return tr::lng_acc_hashtag_result(tr::now);
+		current -= _hashtagResults.size();
+		
+		if (current < _filterResults.size()) {
+			Row* r = _filterResults[current].row.get();
+			HistoryItem* lastMsg = r->history() ? r->history()->lastMessage() : nullptr;
+			return GenerateRowDescription(r->entry(), lastMsg, true);
+		}
+		current -= _filterResults.size();
+		
+		if (current < _peerSearchResults.size()) {
+			return tr::lng_acc_global_result(tr::now) + _peerSearchResults[current]->peer->username();
+		}
+		current -= _peerSearchResults.size();
+		
+		if (current < _previewResults.size()) {
+			return GenerateRowDescription(
+				_previewResults[current]->item()->history(), 
+				_previewResults[current]->item(), 
+				true);
+		}
+		current -= _previewResults.size();
+		
+		if (current < _searchResults.size()) {
+			return GenerateRowDescription(
+				_searchResults[current]->item()->history(), 
+				_searchResults[current]->item(), 
+				true);
+		}
+	}
+	return QString();
+}
+
+
+int InnerWidget::getAccessibleIndexAt(int y) const {
+	if (_state == WidgetState::Default) {
+		// 1. Check Collapsed Rows (Top)
+		const int collapsedHeight = _collapsedRows.size() * st::dialogsImportantBarHeight;
+		if (y < collapsedHeight) {
+			return y / st::dialogsImportantBarHeight;
+		}
+
+		// 2. Check Main List
+		int listY = y - dialogsOffset();
+		
+		if (listY >= 0 && listY < _shownList->height()) {
+			auto it = _shownList->findByY(listY);
+			if (it != _shownList->cend()) {
+				int indexInList = it->get()->index();
+				return _collapsedRows.size() + indexInList;
+			}
+		}
+	} else if (_state == WidgetState::Filtered) {
+		int currentY = 0;
+		int index = 0;
+
+		// Helper to iterate a list
+		auto checkList = [&](int count, int itemHeight) -> int {
+			int height = count * itemHeight;
+			if (y >= currentY && y < currentY + height) {
+				return index + (y - currentY) / itemHeight;
+			}
+			currentY += height;
+			index += count;
+			return -1;
+		};
+
+		int found = checkList(_hashtagResults.size(), st::mentionHeight);
+		if (found != -1) return found;
+
+		for (const auto &res : _filterResults) {
+			int h = res.row->height();
+			if (y >= currentY && y < currentY + h) return index;
+			currentY += h;
+			index++;
+		}
+
+		currentY = peerSearchOffset();
+		found = checkList(_peerSearchResults.size(), st::dialogsRowHeight);
+		if (found != -1) return found;
+
+		currentY = previewOffset();
+		found = checkList(_previewResults.size(), _st->height);
+		if (found != -1) return found;
+
+		currentY = searchedOffset();
+		found = checkList(_searchResults.size(), _st->height);
+		if (found != -1) return found;
+	}
+	return -1;
 }
 
 } // namespace Dialogs
