@@ -82,6 +82,8 @@ class ChatSearchIn;
 enum class HashOrCashtag : uchar;
 struct RightButton;
 enum class ChatTypeFilter : uchar;
+class AccessibleInnerWidget;
+class AccessibleRow;
 
 struct ChosenRow {
 	Key key;
@@ -232,6 +234,7 @@ public:
 	void prepareQuickAction(int64 key, Dialogs::Ui::QuickDialogAction);
 	void clearQuickActions();
 
+	void setupAccessibility();
     [[nodiscard]] int getAccessibleChildCount() const;
     [[nodiscard]] QString getAccessibleName(int index) const;
     [[nodiscard]] QString getAccessibleDescription(int index) const;
@@ -260,6 +263,8 @@ private:
 	struct SponsoredSearchResult;
 	struct PeerSearchResult;
 	struct TagCache;
+	friend class AccessibleInnerWidget;
+    friend class AccessibleRow;
 
 	enum class JumpSkip {
 		PreviousOrBegin,

@@ -89,6 +89,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
+#include "dialogs/dialogs_accessibility.h"
+#include <QAccessible>
 
 namespace Dialogs {
 namespace {
@@ -228,6 +230,13 @@ constexpr auto kPreviewPostsLimit = 3;
 }
 
 } // namespace
+
+QAccessibleInterface *InnerWidgetFactory(const QString &key, QObject *object) {
+    if (auto widget = dynamic_cast<InnerWidget*>(object)) {
+        return new AccessibleInnerWidget(widget);
+    }
+    return nullptr;
+}
 
 struct InnerWidget::CollapsedRow {
 	CollapsedRow(Data::Folder *folder) : folder(folder) {
@@ -561,6 +570,7 @@ InnerWidget::InnerWidget(
 	refreshWithCollapsedRows(true);
 
 	setupShortcuts();
+	setupAccessibility();
 }
 
 QString GenerateRowDescription(not_null<Dialogs::Entry*> entry, HistoryItem *item, bool isFiltered) {
@@ -4614,6 +4624,18 @@ void InnerWidget::selectSkip(int32 direction) {
 			scrollToItem(from, height);
 		}
 	}
+	if (const auto accessible = QAccessible::queryAccessibleInterface(this)) {
+    const auto index = currentAccessibleIndex();
+    if (index >= 0) {
+        if (QAccessibleInterface *child = accessible->child(index)) {
+            QAccessibleEvent focusEvent(child, QAccessible::Focus);
+            QAccessible::updateAccessibility(&focusEvent);
+            
+            QAccessibleEvent selectEvent(child, QAccessible::Selection);
+            QAccessible::updateAccessibility(&selectEvent);
+        }
+    }
+	}
 	update();
 }
 
@@ -4682,6 +4704,20 @@ void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 		}
 	}
 	scrollToDefaultSelected();
+	if (const auto accessible = QAccessible::queryAccessibleInterface(this)) {
+        const auto index = currentAccessibleIndex();
+        if (index >= 0) {
+            if (QAccessibleInterface *child = accessible->child(index)) {
+                // Notify that the focus has moved to the new row
+                QAccessibleEvent focusEvent(child, QAccessible::Focus);
+                QAccessible::updateAccessibility(&focusEvent);
+                
+                // Notify that the new row is officially selected
+                QAccessibleEvent selectEvent(child, QAccessible::Selection);
+                QAccessible::updateAccessibility(&selectEvent);
+            }
+        }
+    }
 	update();
 }
 
@@ -5655,6 +5691,10 @@ void InnerWidget::deactivateQuickAction() {
 	}
 }
 //Accessibility
+void InnerWidget::setupAccessibility() {
+	QAccessible::installFactory(InnerWidgetFactory);
+}
+
 int InnerWidget::getAccessibleChildCount() const {
 	if (_state == WidgetState::Default) {
 		return _collapsedRows.size() + _shownList->size();
