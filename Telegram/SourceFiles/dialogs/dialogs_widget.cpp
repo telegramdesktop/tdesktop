@@ -97,6 +97,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QTextBlock>
 #include <QtWidgets/QScrollBar>
 #include <QtWidgets/QTextEdit>
+#include <QTimer>
+#include <QAccessible>
+#include <QAccessibleEvent>
+#include <QAccessibleTableModelChangeEvent>
 
 namespace Dialogs {
 namespace {
@@ -1878,6 +1882,30 @@ void Widget::changeOpenedSubsection(
 	_showAnimation = nullptr;
 	destroyChildListCanvas();
 	change();
+	if (QAccessible::isActive()) {
+        QString name;
+        if (_openedForum) {
+            name = _openedForum->peer()->name();
+        } else if (_openedFolder) {
+            name = (_openedFolder->id() == Data::Folder::kId)
+                ? tr::lng_archived_name(tr::now)
+                : _openedFolder->chatListName();
+        } else {
+            name = tr::lng_acc_chat_list(tr::now);
+        }
+        if (_inner) {
+        _inner->setAccessibleName(name);
+		}
+
+        QTimer::singleShot(st::slideDuration, _inner, [=] {
+ 
+                QAccessibleEvent event(_inner, QAccessible::NameChanged);
+                QAccessible::updateAccessibility(&event);
+                
+                QAccessibleEvent focusEvent(_inner, QAccessible::Focus);
+                QAccessible::updateAccessibility(&focusEvent);
+            });
+    }
 	refreshTopBars();
 	updateControlsVisibility(true);
 	_peerSearch.clear();

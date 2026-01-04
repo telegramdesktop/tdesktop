@@ -11,7 +11,7 @@ QObject *AccessibleRow::object() const {
 }
 
 bool AccessibleRow::isValid() const {
-    if (!_parent) return false;
+    if (_parent.isNull()) return false;
     
     if (_index < 0) return false;
 
@@ -19,11 +19,16 @@ bool AccessibleRow::isValid() const {
 }
 
 QWindow *AccessibleRow::window() const {
-	return _parent ? _parent->window()->windowHandle() : nullptr;
+	if (_parent.isNull() || !_parent->window()) return nullptr;
+    return _parent->window()->windowHandle();
 }
 
 QAccessibleInterface *AccessibleRow::parent() const {
-	return QAccessible::queryAccessibleInterface(_parent);
+    if (_parent.isNull()) {
+        return nullptr;
+    }
+
+    return QAccessible::queryAccessibleInterface(_parent.data());
 }
 
 QAccessibleInterface *AccessibleRow::child(int index) const {

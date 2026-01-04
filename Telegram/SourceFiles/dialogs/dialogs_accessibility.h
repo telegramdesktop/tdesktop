@@ -3,6 +3,7 @@
 #include <QAccessibleWidget>
 #include <QAccessibleInterface>
 #include <QRect>
+#include <QtCore/QPointer>
 
 namespace Dialogs {
 
@@ -28,7 +29,7 @@ public:
     QAccessible::State state() const override;
 
 private:
-    InnerWidget *_parent = nullptr;
+    QPointer<InnerWidget> _parent;
     int _index = -1;
 };
 
@@ -44,7 +45,7 @@ public:
     QAccessible::State state() const override;
 
 private:
-    InnerWidget *_inner = nullptr;
+    QPointer<InnerWidget> _inner;
 };
 
 } // namespace Dialogs
