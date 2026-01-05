@@ -148,7 +148,10 @@ void PeerListsBox::updateScrollSkips() {
 void PeerListsBox::prepare() {
 	auto rows = setInnerWidget(
 		object_ptr<Ui::VerticalLayout>(this),
-		st::boxScroll);
+		st::boxScroll,
+		0,
+		0,
+		true /*alwaysKeepDimensionsToInner*/);
 	for (auto &list : _lists) {
 		const auto content = rows->add(object_ptr<PeerListContent>(
 			rows,

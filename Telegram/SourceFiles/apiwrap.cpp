@@ -548,6 +548,8 @@ void ApiWrap::sendMessageFail(
 			}
 		}
 		peer->updateFull();
+	} else if (show) {
+		show->showToast(error);
 	}
 	if (const auto item = _session->data().message(itemId)) {
 		Assert(randomId != 0);
@@ -1843,12 +1845,14 @@ void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
 			return PeerId(0);
 		}, [](const MTPDinputPeerChannel &data) {
 			return peerFromChannel(data.vchannel_id());
+		}, [](const MTPDinputPeerChannelFromMessage &data) {
+			return peerFromChannel(data.vchannel_id());
 		}, [](const MTPDinputPeerChat &data) {
 			return peerFromChat(data.vchat_id());
 		}, [](const MTPDinputPeerUser &data) {
 			return peerFromUser(data.vuser_id());
-		}, [](const auto &) -> PeerId {
-			Unexpected("Type in ApiRequest::requestNotifySettings peer.");
+		}, [](const MTPDinputPeerUserFromMessage &data) {
+			return peerFromUser(data.vuser_id());
 		});
 	};
 	const auto key = peer.match([](const MTPDinputNotifyUsers &) {

@@ -942,8 +942,10 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 		return;
 	}
 	if (!topic
-		&& ((chat && !chat->amCreator())
-			|| (channel && !channel->amCreator()))) {
+		&& ((chat && !chat->amCreator() && !chat->hasAdminRights())
+			|| (channel
+				&& !channel->amCreator()
+				&& !channel->hasAdminRights()))) {
 		const auto show = controller->uiShow();
 		const auto reportButton = Ui::CreateChild<TopBarActionButton>(
 			this,

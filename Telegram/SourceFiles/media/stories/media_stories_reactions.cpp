@@ -256,8 +256,8 @@ ReactionView::ReactionView(
 		- st::msgMargin.bottom();
 
 	session->data().viewRepaintRequest(
-	) | rpl::on_next([=](not_null<const Element*> element) {
-		if (element == view) {
+	) | rpl::on_next([=](Data::RequestViewRepaint data) {
+		if (data.view == view) {
 			update();
 		}
 	}, lifetime());

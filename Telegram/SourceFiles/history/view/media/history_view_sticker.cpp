@@ -289,6 +289,10 @@ DocumentData *Sticker::document() {
 	return _data;
 }
 
+bool Sticker::stoppedOnLastFrame() const {
+	return _stopOnLastFrame && (!_lastFrameCached.isNull() || atTheEnd());
+}
+
 void Sticker::stickerClearLoopPlayed() {
 	if (!_playingOnce) {
 		_oncePlayed = false;

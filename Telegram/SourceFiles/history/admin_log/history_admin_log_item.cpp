@@ -165,7 +165,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			| Flag::f_ttl_period
 			| Flag::f_factcheck
 			| Flag::f_report_delivery_until_date
-			| Flag::f_suggested_post;
+			| Flag::f_suggested_post
+			| Flag::f_summary_from_language;
 		return MTP_message(
 			MTP_flags(data.vflags().v & ~removeFlags),
 			data.vid(),
@@ -199,7 +200,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTPint(), // report_delivery_until_date
 			MTP_long(data.vpaid_message_stars().value_or_empty()),
 			MTPSuggestedPost(),
-			MTPint()); // schedule_repeat_period
+			MTPint(), // schedule_repeat_period
+			MTPstring()); // summary_from_language
 	});
 }
 

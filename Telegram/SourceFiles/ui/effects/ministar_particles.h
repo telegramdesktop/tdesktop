@@ -24,10 +24,12 @@ public:
 	void setSpeed(float speed);
 	void setVisible(float visible);
 	void setColor(const QColor &color);
-	void paint(QPainter &p, const QRect &rect, crl::time now);
+	void setColors(std::vector<QColor> colors);
+	void paint(QPainter &p, const QRect &rect, crl::time now, bool paused);
 
 private:
 	struct Particle {
+		int colorIndex = 0;
 		float x = 0.;
 		float y = 0.;
 		float vx = 0.;
@@ -47,10 +49,14 @@ private:
 	int _starSize = 0;
 	float _speed = 1.f;
 	float _visible = 1.f;
-	QColor _color = QColor(255, 200, 70);
+	std::vector<QColor> _colors = { QColor(255, 200, 70) };
+	std::vector<QImage> _paintedCaches;
 	std::vector<Particle> _particles;
 	base::flat_map<QRgb, QImage> _starCache;
 	crl::time _lastTime = 0;
+
+	crl::time _pausedAt = 0;
+	crl::time _pauseOffset = 0;
 };
 
 } // namespace Ui

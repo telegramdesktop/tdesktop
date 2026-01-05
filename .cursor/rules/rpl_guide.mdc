@@ -151,7 +151,7 @@ RPL provides functions to create new producers by transforming existing ones:
 You can combine multiple producers into one:
 
 *   `rpl::combine`: Combines the latest values from multiple producers whenever *any* of them emits a new value. Requires all producers to have emitted at least one value initially.
-    While it produces a `std::tuple`, subsequent operators like `map`, `filter`, and `start_with_next` can automatically unpack this tuple into separate lambda arguments.
+    While it produces a `std::tuple`, subsequent operators like `map`, `filter`, and `on_next` can automatically unpack this tuple into separate lambda arguments.
     ```cpp
     auto countProducer = rpl::single(1); // Type: rpl::producer<int>
     auto textProducer = rpl::single(u"hello"_q); // Type: rpl::producer<QString>

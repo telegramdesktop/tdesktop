@@ -506,7 +506,14 @@ void LoginEmailBox(
 	{
 		box->getDelegate()->setTitle(rpl::duplicate(
 			email
-		) | rpl::map(Ui::Text::WrapEmailPattern));
+		) | rpl::map([](QString email) {
+			if (email.contains(' ')) {
+				return tr::lng_settings_cloud_login_email_section_title(
+					tr::now,
+					tr::rich);
+			}
+			return Ui::Text::WrapEmailPattern(std::move(email));
+		}));
 		for (const auto &child : ranges::views::reverse(
 				box->parentWidget()->children())) {
 			if (child && child->isWidgetType()) {

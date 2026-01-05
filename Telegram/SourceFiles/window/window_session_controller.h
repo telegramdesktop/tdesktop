@@ -697,6 +697,7 @@ public:
 	void dropSubsectionTabs();
 
 	void showStarGiftAuction(const QString &slug);
+	void showStarGiftAuction(uint64 giftId);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;

@@ -268,8 +268,7 @@ QSize Gif::countOptimalSize() {
 		const auto &entry = _data->session().api().transcribes().entry(
 			_realParent);
 		_transcribe->setLoading(
-			entry.shown && (entry.requestId || entry.pending),
-			[=] { repaint(); });
+			entry.shown && (entry.requestId || entry.pending));
 	}
 
 	const auto minWidth = std::clamp(

@@ -154,6 +154,7 @@ void AddMessage(
 			state->style.get(),
 			widget->rect(),
 			widget->rect(),
+			widget->rect(),
 			controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::Layer));
 		context.outbg = view->hasOutLayout();

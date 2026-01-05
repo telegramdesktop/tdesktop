@@ -312,9 +312,12 @@ void GlobalTTL::rebuildButtons(TimeId currentTTL) const {
 			QString());
 		radio->setAttribute(Qt::WA_TransparentForMouseEvents);
 		radio->show();
+		const auto padding = button->st().padding;
 		button->sizeValue(
-		) | rpl::on_next([=] {
-			radio->moveToRight(0, radio->checkRect().top());
+		) | rpl::on_next([=](QSize s) {
+			radio->moveToLeft(
+				s.width() - radio->checkRect().width() - padding.left(),
+				radio->checkRect().top());
 		}, radio->lifetime());
 	}
 	_buttons->resizeToWidth(width());

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_chat_participants.h"
 #include "api/api_messages_search.h"
+#include "api/api_report.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -632,12 +633,7 @@ void DeleteMessagesBox::deleteAndClear() {
 				ChatRestrictionsInfo());
 		}
 		if (_reportSpam->checked()) {
-			_moderateInChannel->session().api().request(
-				MTPchannels_ReportSpam(
-					_moderateInChannel->inputChannel(),
-					_moderateFrom->input(),
-					MTP_vector<MTPint>(1, MTP_int(_ids[0].msg)))
-			).send();
+			Api::ReportSpam(_moderateFrom, { _ids[0] });
 		}
 		if (_deleteAll && _deleteAll->checked()) {
 			_moderateInChannel->session().api().deleteAllFromParticipant(

@@ -518,7 +518,8 @@ void GifsListWidget::selectInlineResult(
 			|| (media && media->image(PhotoSize::Large))) {
 			_photoChosen.fire({
 				.photo = photo,
-				.options = options });
+				.options = options
+			});
 		} else if (!photo->loading(PhotoSize::Thumbnail)) {
 			photo->load(PhotoSize::Thumbnail, Data::FileOrigin());
 		}

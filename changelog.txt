@@ -1,3 +1,7 @@
+6.4 (03.01.25)
+
+- AI Summaries for posts in channels.
+
 6.3.10 beta (22.12.25)
 
 - Fix user info showing from large group messages.

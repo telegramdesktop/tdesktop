@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "main/main_session.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "base/unixtime.h"
@@ -142,6 +143,56 @@ DocumentData *DicePacks::lookup(const QString &emoji, int value) {
 		key,
 		std::make_unique<DicePack>(_session, key)
 	).first->second->lookup(value);
+}
+
+void DicePacks::resolveGameOptions(
+		Fn<void(const Data::DiceGameOptions &)> done) {
+	_resolveGameOptionsCallback = std::move(done);
+	if (_resolveGameOptionsRequestId) {
+		return;
+	}
+
+	_resolveGameOptionsRequestId = _session->api().request(
+		MTPmessages_GetEmojiGameInfo()
+	).done([=](const MTPmessages_EmojiGameInfo &result) {
+		_resolveGameOptionsRequestId = 0;
+		if (const auto onstack = base::take(_resolveGameOptionsCallback)) {
+			onstack(result.match([&](
+					const MTPDmessages_emojiGameUnavailable &) {
+				return Data::DiceGameOptions();
+			}, [&](const MTPDmessages_emojiGameDiceInfo &data) {
+				auto jackpot = 0;
+				auto rewards = std::array<int, 6>{};
+				const auto &params = data.vparams().v;
+				const auto count = int(params.size());
+				for (auto i = 0; i != count; ++i) {
+					if (i < 6) {
+						rewards[i] = params[i].v;
+					} else if (i == 6) {
+						jackpot = params[i].v;
+					} else {
+						break;
+					}
+				}
+				return Data::DiceGameOptions{
+					.seedHash = data.vgame_hash().v,
+					.previousSteakNanoTon = int64(data.vprev_stake().v),
+					.milliRewards = rewards,
+					.jackpotMilliReward = jackpot,
+					.currentStreak = data.vcurrent_streak().v,
+					.playsLeft = data.vplays_left().value_or_empty(),
+				};
+			}));
+		}
+	}).fail([=] {
+		_resolveGameOptionsRequestId = 0;
+		if (const auto onstack = base::take(_resolveGameOptionsCallback)) {
+			onstack({});
+		}
+	}).send();
+}
+
+void DicePacks::apply(const MTPDupdateEmojiGameInfo &update) {
 }
 
 } // namespace Stickers

@@ -1493,12 +1493,15 @@ void TabbedSelector::Inner::checkHideWithBox(
 void TabbedSelector::Inner::paintEmptySearchResults(
 		Painter &p,
 		const style::icon &icon,
-		const QString &text) const {
+		const QString &text,
+		bool skipIcon) const {
 	const auto iconLeft = (width() - icon.width()) / 2;
 	const auto iconTop = std::max(
 		(height() / 3) - (icon.height() / 2),
 		st::normalFont->height);
-	icon.paint(p, iconLeft, iconTop, width());
+	if (!skipIcon) {
+		icon.paint(p, iconLeft, iconTop, width());
+	}
 
 	const auto textWidth = st::normalFont->width(text);
 	const auto textTop = std::min(

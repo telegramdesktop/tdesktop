@@ -17,8 +17,8 @@ LottieCustomEmoji::LottieCustomEmoji(Lottie::IconDescriptor &&descriptor)
 }
 
 LottieCustomEmoji::LottieCustomEmoji(
-		Lottie::IconDescriptor &&descriptor,
-		Fn<void()> repaint)
+	Lottie::IconDescriptor &&descriptor,
+	Fn<void()> repaint)
 : _entityData(!descriptor.name.isEmpty()
 	? descriptor.name
 	: !descriptor.path.isEmpty()

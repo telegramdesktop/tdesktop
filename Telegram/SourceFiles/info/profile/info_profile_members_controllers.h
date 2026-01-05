@@ -28,6 +28,7 @@ public:
 	};
 	struct Type {
 		Rights rights;
+		bool canRemove = false;
 		QString adminRank;
 	};
 
@@ -42,6 +43,7 @@ public:
 	not_null<UserData*> user() const;
 
 private:
+	[[nodiscard]] bool canRemove() const;
 	Type _type;
 
 };

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_text_recognition.h"
 
 #include "base/platform/mac/base_utilities_mac.h"
-#include "base/options.h"
 
 #import <Foundation/Foundation.h>
 #import <Vision/Vision.h>
@@ -17,21 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace TextRecognition {
 
-namespace {
-
-base::options::toggle TextRecognitionOption({
-	.id = "text-recognition-mac",
-	.name = "Text Recognition",
-	.description = "Enable text recognition from images on macOS 10.15+.",
-	.defaultValue = false,
-	.scope = base::options::macos,
-});
-
-} // namespace
-
 bool IsAvailable() {
 	if (@available(macOS 10.15, *)) {
-		return TextRecognitionOption.value();
+		return true;
 	}
 	return false;
 }
@@ -84,7 +71,11 @@ Result RecognizeText(const QImage &image) {
 							* imageSize.height;
 						result.items.push_back({
 							NS2QString(text),
-							QRect(x, y, width, height)
+							QRect(
+								style::ConvertScale(x),
+								style::ConvertScale(y),
+								style::ConvertScale(width),
+								style::ConvertScale(height))
 						});
 					}
 				}

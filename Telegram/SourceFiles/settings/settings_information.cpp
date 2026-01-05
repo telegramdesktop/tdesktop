@@ -931,7 +931,13 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 			return;
 		} else if (which != Qt::RightButton
 			|| !IsAltShift(button->clickModifiers())) {
+#ifdef _DEBUG
+			if (which != Qt::RightButton) {
+				return;
+			}
+#else // _DEBUG
 			return;
+#endif // !_DEBUG
 		}
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(_outer);
 		_contextMenu->addAction("Production Server", [=] {

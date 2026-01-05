@@ -36,31 +36,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_send.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/emoji_button_factory.h"
+#include "ui/effects/spoiler_mess.h"
+#include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
 #include "ui/rect.h"
 #include "ui/text/text_entity.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 
 namespace Ui {
 namespace {
 
-[[nodiscard]] not_null<Ui::RpWidget*> AddGifWidget(
+struct State final {
+	std::shared_ptr<Data::DocumentMedia> mediaView;
+	::Media::Clip::ReaderPointer gif;
+	std::unique_ptr<Ui::SpoilerAnimation> spoiler;
+	QImage firstFrame;
+	QImage blurredFrame;
+	bool hasSpoiler = false;
+	rpl::lifetime loadingLifetime;
+};
+
+[[nodiscard]] not_null<State*> AddGifWidget(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<DocumentData*> document,
 		int width) {
-	struct State final {
-		std::shared_ptr<Data::DocumentMedia> mediaView;
-		::Media::Clip::ReaderPointer gif;
-		rpl::lifetime loadingLifetime;
-	};
-
 	const auto state = container->lifetime().make_state<State>();
 	state->mediaView = document->createMediaView();
 	state->mediaView->automaticLoad(Data::FileOriginSavedGifs(), nullptr);
@@ -75,9 +83,40 @@ namespace {
 				std::numeric_limits<int>::max(),
 				Qt::KeepAspectRatio).height()),
 		st::boxRowPadding);
-	widget->paintRequest(
-	) | rpl::on_next([=] {
-		auto p = QPainter(widget);
+	widget->paintOn([=](QPainter &p) {
+		if (state->hasSpoiler) {
+			if (state->firstFrame.isNull()
+					&& state->gif
+					&& state->gif->ready()) {
+				state->firstFrame = state->gif->current(
+					{ .frame = widget->size() },
+					crl::now());
+				state->blurredFrame = Images::BlurLargeImage(
+					base::duplicate(state->firstFrame),
+					24);
+			}
+			if (!state->blurredFrame.isNull()) {
+				p.drawImage(0, 0, state->blurredFrame);
+			} else if (const auto thumb = state->mediaView->thumbnail()) {
+				p.drawImage(
+					widget->rect(),
+					thumb->pixNoCache(
+						widget->size() * style::DevicePixelRatio(),
+						{
+							.options = Images::Option::Blur,
+							.outer = widget->size(),
+						}).toImage());
+			}
+			if (!state->spoiler) {
+				state->spoiler = std::make_unique<Ui::SpoilerAnimation>(
+					[=] { widget->update(); });
+			}
+			const auto now = crl::now();
+			const auto index = state->spoiler->index(now, false);
+			const auto frame = Ui::DefaultImageSpoiler().frame(index);
+			Ui::FillSpoilerRect(p, widget->rect(), frame);
+			return;
+		}
 		if (state->gif && state->gif->started()) {
 			p.drawImage(
 				0,
@@ -99,7 +138,7 @@ namespace {
 						.outer = widget->size(),
 					}).toImage());
 		}
-	}, widget->lifetime());
+	});
 
 	const auto updateThumbnail = [=] {
 		if (document->dimensions.isEmpty()) {
@@ -130,7 +169,37 @@ namespace {
 		}, state->loadingLifetime);
 	}
 
-	return widget;
+	base::install_event_filter(widget, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ContextMenu) {
+			const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+				widget,
+				st::popupMenuWithIcons);
+			menu->addAction(
+				state->hasSpoiler
+					? tr::lng_context_disable_spoiler(tr::now)
+					: tr::lng_context_spoiler_effect(tr::now),
+				[=] {
+					state->hasSpoiler = !state->hasSpoiler;
+					if (!state->hasSpoiler) {
+						state->spoiler = nullptr;
+						state->firstFrame = QImage();
+						state->blurredFrame = QImage();
+						if (state->gif && state->gif->ready()) {
+							state->gif->start({ .frame = widget->size() });
+						}
+					}
+					widget->update();
+				},
+				state->hasSpoiler
+					? &st::menuIconSpoilerOff
+					: &st::menuIconSpoiler);
+			menu->popup(QCursor::pos());
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
+
+	return state;
 }
 
 [[nodiscard]] not_null<Ui::InputField*> AddInputField(
@@ -354,12 +423,17 @@ void SendGifWithCaptionBox(
 		const SendMenu::Details &details,
 		Fn<void(Api::SendOptions, TextWithTags)> c) {
 	box->setTitle(tr::lng_send_gif_with_caption());
-	[[maybe_unused]] const auto gifWidget = AddGifWidget(
+	const auto state = AddGifWidget(
 		box->verticalLayout(),
 		document,
 		st::boxWidth);
 	Ui::AddSkip(box->verticalLayout());
-	CaptionBox(box, tr::lng_send_button(), {}, peer, details, std::move(c));
+	const auto d = [=](Api::SendOptions o, TextWithTags t) {
+		o.mediaSpoiler = state->hasSpoiler;
+		document->owner().stickers().notifyGifWithCaptionSent();
+		c(std::move(o), std::move(t));
+	};
+	CaptionBox(box, tr::lng_send_button(), {}, peer, details, std::move(d));
 }
 
 void EditCaptionBox(

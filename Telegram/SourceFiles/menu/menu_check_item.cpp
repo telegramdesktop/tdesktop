@@ -24,12 +24,9 @@ void ItemWithCheck::init(bool checked) {
 	}, lifetime());
 
 	_checkView->setChecked(checked, anim::type::normal);
-	AbstractButton::clicks(
-	) | rpl::on_next([=] {
-		_checkView->setChecked(
-			!_checkView->checked(),
-			anim::type::normal);
-	}, lifetime());
+	ItemBase::setClickedCallback([=] {
+		_checkView->setChecked(!_checkView->checked(), anim::type::normal);
+	});
 }
 
 not_null<Ui::CheckView*> ItemWithCheck::checkView() const {

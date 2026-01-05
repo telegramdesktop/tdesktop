@@ -30,7 +30,9 @@ MemberListRow::MemberListRow(
 
 void MemberListRow::setType(Type type) {
 	_type = type;
-	PeerListRowWithLink::setActionLink(!_type.adminRank.isEmpty()
+	PeerListRowWithLink::setActionLink(_type.canRemove
+		? tr::lng_profile_delete_removed(tr::now)
+		: !_type.adminRank.isEmpty()
 		? _type.adminRank
 		: (_type.rights == Rights::Creator)
 		? tr::lng_owner_badge(tr::now)
@@ -44,11 +46,19 @@ MemberListRow::Type MemberListRow::type() const {
 }
 
 bool MemberListRow::rightActionDisabled() const {
-	return true;
+	return !canRemove();
 }
 
 QMargins MemberListRow::rightActionMargins() const {
 	const auto skip = st::contactsCheckPosition.x();
+	if (canRemove()) {
+		const auto &st = st::defaultPeerListItem;
+		return QMargins(
+			skip,
+			(st.height - st.nameStyle.font->height) / 2,
+			st.photoPosition.x() + skip,
+			0);
+	}
 	return QMargins(
 		skip,
 		st::defaultPeerListItem.namePosition.y(),
@@ -70,6 +80,10 @@ void MemberListRow::refreshStatus() {
 	} else {
 		PeerListRow::refreshStatus();
 	}
+}
+
+bool MemberListRow::canRemove() const {
+	return _type.canRemove;
 }
 
 std::unique_ptr<ParticipantsBoxController> CreateMembersController(

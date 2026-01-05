@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_unique_gift.h"
 #include "history/view/media/history_view_userpic_suggestion.h"
 #include "dialogs/ui/dialogs_message_view.h"
+#include "ui/boxes/emoji_stake_box.h"
 #include "ui/image/image.h"
 #include "ui/effects/spoiler_mess.h"
 #include "ui/text/format_song_document_name.h"
@@ -684,6 +685,10 @@ const GiveawayStart *Media::giveawayStart() const {
 
 const GiveawayResults *Media::giveawayResults() const {
 	return nullptr;
+}
+
+DiceGameOutcome Media::diceGameOutcome() const {
+	return {};
 }
 
 bool Media::uploading() const {
@@ -2420,14 +2425,19 @@ std::unique_ptr<HistoryView::Media> MediaTodoList::createView(
 		replacing);
 }
 
-MediaDice::MediaDice(not_null<HistoryItem*> parent, QString emoji, int value)
+MediaDice::MediaDice(
+	not_null<HistoryItem*> parent,
+	DiceGameOutcome outcome,
+	QString emoji,
+	int value)
 : Media(parent)
+, _outcome(outcome)
 , _emoji(emoji)
 , _value(value) {
 }
 
 std::unique_ptr<Media> MediaDice::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaDice>(parent, _emoji, _value);
+	return std::make_unique<MediaDice>(parent, _outcome, _emoji, _value);
 }
 
 QString MediaDice::emoji() const {
@@ -2436,6 +2446,10 @@ QString MediaDice::emoji() const {
 
 int MediaDice::value() const {
 	return _value;
+}
+
+DiceGameOutcome MediaDice::diceGameOutcome() const {
+	return _outcome;
 }
 
 bool MediaDice::allowsRevoke(TimeId now) const {
@@ -2470,8 +2484,19 @@ bool MediaDice::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaDice) {
 		return false;
 	}
-	_value = media.c_messageMediaDice().vvalue().v;
-	parent()->history()->owner().requestItemRepaint(parent());
+	const auto &data = media.c_messageMediaDice();
+	_value = data.vvalue().v;
+	if (const auto outcome = data.vgame_outcome()) {
+		const auto &data = outcome->data();
+		_outcome = Data::DiceGameOutcome{
+			.nanoTon = int64(data.vton_amount().v),
+			.stakeNanoTon = int64(data.vstake_ton_amount().v),
+			.seed = data.vseed().v,
+		};
+	} else {
+		_outcome = {};
+	}
+	parent()->history()->owner().notifyItemDataChange(parent());
 	return true;
 }
 
@@ -2504,39 +2529,83 @@ ClickHandlerPtr MediaDice::MakeHandler(
 		}
 	};
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
-		auto config = Ui::Toast::Config{
-			.text = { tr::lng_about_random(tr::now, lt_emoji, emoji) },
-			.st = &st::historyDiceToast,
-			.duration = Ui::Toast::kDefaultDuration * 2,
-		};
-		if (CanSend(history->peer, ChatRestriction::SendOther)) {
-			auto link = tr::link(tr::lng_about_random_send(tr::now));
-			link.entities.push_back(
-				EntityInText(EntityType::Semibold, 0, link.text.size()));
-			config.text.append(' ').append(std::move(link));
-			config.filter = crl::guard(&history->session(), [=](
-					const ClickHandlerPtr &handler,
-					Qt::MouseButton button) {
-				if (button == Qt::LeftButton && !ShownToast.empty()) {
-					auto message = Api::MessageToSend(
-						Api::SendAction(history));
-					message.action.clearDraft = false;
-					message.textWithTags.text = emoji;
-
-					Api::SendDice(message);
-					HideExisting();
-				}
-				return false;
-			});
-		}
-
-		HideExisting();
+		const auto found = Ui::Emoji::Find(emoji);
+		const auto id = found ? found->id() : QString();
+		const auto game = (id == QString::fromUtf8("\xf0\x9f\x8e\xb2"));
 		const auto my = context.other.value<ClickHandlerContext>();
 		const auto weak = my.sessionWindow;
-		if (const auto strong = weak.get()) {
-			ShownToast = strong->showToast(std::move(config));
+		const auto sendWith = [=](const QByteArray &hash, int64 nanoTon) {
+			auto message = Api::MessageToSend(
+				Api::SendAction(history));
+			message.textWithTags.text = emoji;
+
+			auto &action = message.action;
+			action.clearDraft = false;
+
+			auto &options = action.options;
+			options.stakeNanoTon = nanoTon;
+			options.stakeSeedHash = hash;
+
+			Api::SendDice(message);
+
+			HideExisting();
+		};
+		const auto sendAllowed = CanSend(
+			history->peer,
+			ChatRestriction::SendOther);
+		const auto showToast = [=](Ui::Toast::Config &&config) {
+			HideExisting();
+			if (const auto strong = weak.get()) {
+				ShownToast = strong->showToast(std::move(config));
+			} else {
+				ShownToast = Ui::Toast::Show(std::move(config));
+			}
+		};
+		const auto showSimple = [=] {
+			auto config = Ui::Toast::Config{
+				.text = { tr::lng_about_random(tr::now, lt_emoji, emoji) },
+				.st = &st::historyDiceToast,
+				.duration = Ui::Toast::kDefaultDuration * 2,
+			};
+			if (sendAllowed) {
+				auto link = tr::link(tr::lng_about_random_send(tr::now));
+				link.entities.push_back(
+					EntityInText(EntityType::Semibold, 0, link.text.size()));
+				config.text.append(' ').append(std::move(link));
+				config.filter = crl::guard(&history->session(), [=](
+						const ClickHandlerPtr &handler,
+						Qt::MouseButton button) {
+					if (button == Qt::LeftButton && !ShownToast.empty()) {
+						sendWith(QByteArray(), 0);
+					}
+					return false;
+				});
+			}
+			showToast(std::move(config));
+		};
+		if (!game || !sendAllowed) {
+			showSimple();
 		} else {
-			ShownToast = Ui::Toast::Show(std::move(config));
+			const auto pack = &history->session().diceStickersPacks();
+			pack->resolveGameOptions([=](
+					const Data::DiceGameOptions &options) {
+				const auto window = weak.get();
+				const auto seedHash = options.seedHash;
+				const auto sendWithStake = [=](int64 stakeNanoTon) {
+					sendWith(seedHash, stakeNanoTon);
+				};
+				if (!options || !window) {
+					showSimple();
+				} else {
+					showToast(Ui::MakeEmojiGameStakeToast(window->uiShow(), {
+						.session = &window->session(),
+						.currentStake = options.previousSteakNanoTon,
+						.milliRewards = options.milliRewards,
+						.jackpotMilliReward = options.jackpotMilliReward,
+						.submit = sendWithStake,
+					}));
+				}
+			});
 		}
 	});
 }

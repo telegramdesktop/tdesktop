@@ -454,6 +454,7 @@ void EffectPreview::repaintBackground() {
 			_chatStyle.get(),
 			rect,
 			rect,
+			rect,
 			false);
 		context.outbg = _item->hasOutLayout();
 		_item->draw(p, context);

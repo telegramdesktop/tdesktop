@@ -70,6 +70,7 @@ struct UniqueGiftCoverArgs {
 	rpl::producer<TextWithEntities> subtitle;
 	Fn<void()> subtitleClick;
 	bool subtitleLinkColored = false;
+	bool subtitleOutlined = false;
 	rpl::producer<CreditsAmount> resalePrice;
 	Fn<void()> resaleClick;
 	bool attributesInfo = false;
@@ -140,11 +141,6 @@ struct StarGiftUpgradeArgs {
 	bool addDetailsDefault = false;
 };
 void ShowStarGiftUpgradeBox(StarGiftUpgradeArgs &&args);
-
-void AddUniqueCloseButton(
-	not_null<GenericBox*> box,
-	Settings::CreditsEntryBoxStyleOverrides st,
-	Fn<void(not_null<PopupMenu*>)> fillMenu = nullptr);
 
 void SubmitStarsForm(
 	std::shared_ptr<Main::SessionShow> show,

@@ -188,6 +188,14 @@ rpl::producer<uint64> Stickers::stickerSetInstalled() const {
 	return _stickerSetInstalled.events();
 }
 
+void Stickers::notifyGifWithCaptionSent() {
+	_gifWithCaptionSent.fire({});
+}
+
+rpl::producer<> Stickers::gifWithCaptionSent() const {
+	return _gifWithCaptionSent.events();
+}
+
 void Stickers::notifyEmojiSetInstalled(uint64 setId) {
 	_emojiSetInstalled.fire(std::move(setId));
 }

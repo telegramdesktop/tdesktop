@@ -352,8 +352,8 @@ PreviewWrap::PreviewWrap(
 	_style->apply(_theme.get());
 
 	session->data().viewRepaintRequest(
-	) | rpl::on_next([=](not_null<const Element*> view) {
-		if (view == _view->view()) {
+	) | rpl::on_next([=](Data::RequestViewRepaint data) {
+		if (data.view == _view->view()) {
 			update();
 		}
 	}, lifetime());
@@ -415,6 +415,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 
 	auto context = _theme->preparePaintContext(
 		_style.get(),
+		rect(),
 		rect(),
 		e->rect(),
 		!window()->isActiveWindow());

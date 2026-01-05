@@ -517,7 +517,7 @@ emojiPanRemoveSkip: 10px;
 emojiPanRemoveTop: 10px;
 emojiPanColorAllSkip: 9px;
 
-emojiColorsPadding: 5px;
+emojiColorsPadding: 8px;
 emojiColorsSep: 1px;
 emojiColorsSepColor: shadowFg;
 
@@ -1248,6 +1248,7 @@ historyAttachEmoji: EmojiButton {
 	lineFgOver: historyEmojiCircleFgOver;
 }
 boxAttachEmoji: EmojiButton(historyAttachEmoji) {
+	bg: transparent;
 	inner: IconButton(historyAttachEmojiInner) {
 		width: 30px;
 		height: 30px;

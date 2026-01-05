@@ -142,6 +142,9 @@ PRIVATE
     editor/scene/scene_item_line.cpp
     editor/scene/scene_item_line.h
 
+    ui/boxes/about_cocoon_box.h
+    ui/boxes/about_cocoon_box.cpp
+
     history/admin_log/history_admin_log_filter_value.h
     history/history_view_top_toast.cpp
     history/history_view_top_toast.h
@@ -252,6 +255,9 @@ PRIVATE
     platform/platform_file_bookmark.h
     platform/platform_current_geo_location.h
     platform/platform_text_recognition.h
+
+    profile/profile_back_button.cpp
+    profile/profile_back_button.h
 
     settings/settings_common.cpp
     settings/settings_common.h

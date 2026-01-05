@@ -136,6 +136,7 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"show_scheduled"_q                , Command::ShowScheduled },
 	{ u"archive_chat"_q                  , Command::ArchiveChat },
 	{ u"record_round"_q                  , Command::RecordRound },
+	{ u"show_admin_log"_q                , Command::ShowAdminLog },
 	//
 };
 

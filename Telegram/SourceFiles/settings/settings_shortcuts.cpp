@@ -107,6 +107,8 @@ struct Labeled {
 		{ C::RecordVoice, tr::lng_shortcuts_record_voice_message() },
 		{ C::RecordRound, tr::lng_shortcuts_record_round_message() },
 		separator,
+		{ C::ShowAdminLog, tr::lng_shortcuts_admin_log() },
+		separator,
 		{ C::MediaViewerFullscreen, tr::lng_shortcuts_media_fullscreen() },
 		separator,
 		{ C::MediaPlay, tr::lng_shortcuts_media_play() },

@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/choose_date_time.h"
 #include "ui/layers/generic_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/boxes/emoji_stake_box.h" // InsufficientTonBox
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/popup_menu.h"
@@ -101,9 +102,9 @@ void ConfirmApproval(
 				credits->tonLoad();
 				return;
 			} else if (price > credits->tonBalance()) {
-				const auto peer = item->history()->peer;
+				const auto session = &item->history()->session();
 				show->show(
-					Box(HistoryView::InsufficientTonBox, peer, price));
+					Box(Ui::InsufficientTonBox, session, price));
 				return;
 			}
 		} else {

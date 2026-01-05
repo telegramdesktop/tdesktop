@@ -978,7 +978,7 @@ void CreditsRow::init() {
 			TextWithEntities()
 				.append(_entry.in ? QChar('+') : kMinus)
 				.append(isCurrency
-					? Info::ChannelEarn::MajorPart(_entry.credits)
+					? Info::ChannelEarn::MajorPart(_entry.credits.abs())
 					: Lang::FormatCreditsAmountDecimal(_entry.credits.abs()))
 				.append(QChar(' '))
 				.append(isCurrency

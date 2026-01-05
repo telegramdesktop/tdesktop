@@ -8,25 +8,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_translate_bar.h"
 
 #include "boxes/translate_box.h"
+#include "ui/boxes/about_cocoon_box.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/ui_integration.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
+#include "data/data_document.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_credits_graphics.h" // CreditsEntryBoxStyleOverrides
+#include "ui/widgets/labels.h"
+#include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/boxes/choose_language_box.h" // EditSkipTranslationLanguages.
 #include "ui/layers/box_content.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/menu/menu_item_base.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/widgets/shadow.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QtEvents>
@@ -476,6 +485,36 @@ void TranslateBar::showMenu(base::unique_qptr<Ui::PopupMenu> menu) {
 		tr::lng_translate_menu_hide(tr::now),
 		hideBar,
 		&st::menuIconCancel);
+	_menu->addSeparator();
+
+	const auto cocoon = ChatHelpers::GenerateLocalTgsSticker(
+		&_history->session(),
+		u"cocoon"_q);
+	cocoon->overrideEmojiUsesTextColor(true);
+	auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
+		_menu,
+		st::defaultMenu,
+		st::historyTranslateCocoonLabel,
+		QPoint(
+			st::defaultMenu.itemPadding.left(),
+			st::defaultMenu.itemPadding.top()),
+		tr::lng_translate_cocoon_menu(
+			tr::now,
+			lt_emoji,
+			Data::SingleCustomEmoji(cocoon),
+			lt_link,
+			tr::link(tr::lng_translate_cocoon_link(tr::now, tr::bold)),
+			tr::rich),
+		Core::TextContext({
+			.session = &_history->session(),
+			.customEmojiLoopLimit = -1,
+		}));
+	item->clicks(
+	) | rpl::on_next([controller = _controller] {
+		controller->show(Box(Ui::AboutCocoonBox));
+	}, item->lifetime());
+	_menu->addAction(std::move(item));
+
 	_menu->popup(_wrap.mapToGlobal(
 		QPoint(_wrap.width(), 0) + st::historyTranslateMenuPosition));
 }

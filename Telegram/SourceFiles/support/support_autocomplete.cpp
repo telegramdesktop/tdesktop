@@ -557,6 +557,7 @@ void ConfirmContactBox::paintEvent(QPaintEvent *e) {
 		_chatStyle.get(),
 		rect(),
 		rect(),
+		rect(),
 		controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer));
 	p.translate(st::boxPadding.left(), 0);
 	if (_comment) {

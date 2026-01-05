@@ -960,6 +960,7 @@ void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
 		_chatStyle.get(),
 		rect(),
 		rect(),
+		rect(),
 		_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer));
 	p.translate(0, textsTop());
 	if (_service) {

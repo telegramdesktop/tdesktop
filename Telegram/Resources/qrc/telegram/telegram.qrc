@@ -9,6 +9,7 @@
     <file alias="art/logo_256_no_margin.png">../../art/logo_256_no_margin.png</file>
     <file alias="art/themeimage.jpg">../../art/themeimage.jpg</file>
     <file alias="art/round_placeholder.jpg">../../art/round_placeholder.jpg</file>
+    <file alias="art/cocoon.webp">../../art/cocoon.webp</file>
     <file alias="day-blue.tdesktop-theme">../../day-blue.tdesktop-theme</file>
     <file alias="night.tdesktop-theme">../../night.tdesktop-theme</file>
     <file alias="night-green.tdesktop-theme">../../night-green.tdesktop-theme</file>
@@ -36,6 +37,12 @@
     <file alias="topic_icons/general.svg">../../art/topic_icons/general.svg</file>
     <file alias="links_subscription.svg">../../icons/info/edit/links_subscription.svg</file>
     <file alias="plane_white.svg">../../icons/plane_white.svg</file>
+    <file alias="dice/dice1.svg">../../art/dice/dice1.svg</file>
+    <file alias="dice/dice2.svg">../../art/dice/dice2.svg</file>
+    <file alias="dice/dice3.svg">../../art/dice/dice3.svg</file>
+    <file alias="dice/dice4.svg">../../art/dice/dice4.svg</file>
+    <file alias="dice/dice5.svg">../../art/dice/dice5.svg</file>
+    <file alias="dice/dice6.svg">../../art/dice/dice6.svg</file>
   </qresource>
   <qresource prefix="/icons">
     <file alias="calls/hands.lottie">../../icons/calls/hands.lottie</file>

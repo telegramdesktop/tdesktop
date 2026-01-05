@@ -133,6 +133,29 @@ struct GiveawayResults {
 	bool all = false;
 };
 
+struct DiceGameOptions {
+	QByteArray seedHash;
+	int64 previousSteakNanoTon = 0;
+	std::array<int, 6> milliRewards;
+	int jackpotMilliReward = 0;
+	int currentStreak = 0;
+	int playsLeft = 0;
+
+	explicit operator bool() const {
+		return !seedHash.isEmpty();
+	}
+};
+
+struct DiceGameOutcome {
+	int64 nanoTon = 0;
+	int64 stakeNanoTon = 0;
+	QByteArray seed;
+
+	explicit operator bool() const {
+		return stakeNanoTon != 0;
+	}
+};
+
 enum class GiftType : uchar {
 	Premium, // count - days
 	Credits, // count - credits
@@ -218,6 +241,7 @@ public:
 	virtual bool storyMention() const;
 	virtual const GiveawayStart *giveawayStart() const;
 	virtual const GiveawayResults *giveawayResults() const;
+	virtual DiceGameOutcome diceGameOutcome() const;
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -655,7 +679,11 @@ private:
 
 class MediaDice final : public Media {
 public:
-	MediaDice(not_null<HistoryItem*> parent, QString emoji, int value);
+	MediaDice(
+		not_null<HistoryItem*> parent,
+		DiceGameOutcome outcome,
+		QString emoji,
+		int value);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
@@ -667,6 +695,7 @@ public:
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
 	bool forceForwardedInfo() const override;
+	DiceGameOutcome diceGameOutcome() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -681,6 +710,7 @@ public:
 		const QString &emoji);
 
 private:
+	DiceGameOutcome _outcome;
 	QString _emoji;
 	int _value = 0;
 

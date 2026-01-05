@@ -660,6 +660,9 @@ void SetupLoginEmail(
 	) | rpl::map([](const State &state) { return state.loginEmailPattern; });
 	auto text = tr::lng_settings_cloud_login_email_section_title();
 	auto label = rpl::duplicate(email) | rpl::map([](QString email) {
+		if (email.contains(' ')) {
+			return tr::lng_settings_cloud_password_off(tr::now, tr::rich);
+		}
 		return Ui::Text::WrapEmailPattern(
 			email.replace(QRegularExpression("\\*{4,}"), "****"));
 	});

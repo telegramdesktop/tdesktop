@@ -280,6 +280,27 @@ bool AppConfig::settingsDisplayPasskeys() const {
 	return get<bool>(u"settings_display_passkeys"_q, false);
 }
 
+int64 AppConfig::stakeDiceNanoTonMin() const {
+	return get<int64>(u"ton_stakedice_stake_amount_min"_q, 100'000'000LL);
+}
+
+int64 AppConfig::stakeDiceNanoTonMax() const {
+	return get<int64>(u"ton_stakedice_stake_amount_max"_q, 50'000'000'000LL);
+}
+
+std::vector<int64> AppConfig::stakeDiceNanoTonSuggested() const {
+	return get<std::vector<int64>>(
+		u"ton_stakedice_stake_suggested_amounts"_q,
+		std::vector<int64>{
+			100'000'000LL,
+			1'000'000'000LL,
+			2'000'000'000LL,
+			5'000'000'000LL,
+			10'000'000'000LL,
+			20'000'000'000LL,
+		});
+}
+
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {
@@ -456,6 +477,27 @@ std::vector<int> AppConfig::getIntArray(
 				}
 				result.push_back(
 					int(base::SafeRound(entry.c_jsonNumber().vvalue().v)));
+			}
+			return result;
+		}, [&](const auto &data) {
+			return std::move(fallback);
+		});
+	});
+}
+
+std::vector<int64> AppConfig::getInt64Array(
+		const QString &key,
+		std::vector<int64> &&fallback) const {
+	return getValue(key, [&](const MTPJSONValue &value) {
+		return value.match([&](const MTPDjsonArray &data) {
+			auto result = std::vector<int64>();
+			result.reserve(data.vvalue().v.size());
+			for (const auto &entry : data.vvalue().v) {
+				if (entry.type() != mtpc_jsonNumber) {
+					return std::move(fallback);
+				}
+				result.push_back(
+					int64(base::SafeRound(entry.c_jsonNumber().vvalue().v)));
 			}
 			return result;
 		}, [&](const auto &data) {

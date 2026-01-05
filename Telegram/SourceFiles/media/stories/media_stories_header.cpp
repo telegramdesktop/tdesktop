@@ -549,7 +549,7 @@ void Header::setVideoStreamViewers(rpl::producer<int> viewers) {
 	auto helper = Ui::Text::CustomEmojiHelper();
 	const auto badge = helper.paletteDependent(
 		Ui::Text::CustomEmojiTextBadge(
-			tr::lng_video_stream_live(tr::now),
+			tr::lng_video_stream_live(tr::now).toUpper(),
 			st::groupCallMessageBadge,
 			st::groupCallMessageBadgeMargin));
 	const auto context = helper.context();

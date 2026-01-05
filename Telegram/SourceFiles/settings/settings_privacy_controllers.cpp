@@ -206,7 +206,8 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTPint(), // report_delivery_until_date
 		MTPlong(), // paid_message_stars
 		MTPSuggestedPost(),
-		MTPint() // schedule_repeat_period
+		MTPint(), // schedule_repeat_period
+		MTPstring() // summary_from_language
 	).match([&](const MTPDmessage &data) {
 		return history->makeMessage(
 			history->nextNonHistoryEntryId(),
@@ -1110,6 +1111,7 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 		const auto theme = controller->defaultChatTheme().get();
 		auto context = theme->preparePaintContext(
 			_chatStyle.get(),
+			widget->rect(),
 			widget->rect(),
 			widget->rect(),
 			controller->isGifPausedAtLeastFor(

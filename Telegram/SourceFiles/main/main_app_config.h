@@ -47,6 +47,8 @@ public:
 			return getStringMap(key, std::move(fallback));
 		} else if constexpr (std::is_same_v<Type, std::vector<int>>) {
 			return getIntArray(key, std::move(fallback));
+		} else if constexpr (std::is_same_v<Type, std::vector<int64>>) {
+			return getInt64Array(key, std::move(fallback));
 		} else if constexpr (std::is_same_v<Type, bool>) {
 			return getBool(key, fallback);
 		}
@@ -128,6 +130,10 @@ public:
 	[[nodiscard]] int passkeysAccountPasskeysMax() const;
 	[[nodiscard]] bool settingsDisplayPasskeys() const;
 
+	[[nodiscard]] int64 stakeDiceNanoTonMin() const;
+	[[nodiscard]] int64 stakeDiceNanoTonMax() const;
+	[[nodiscard]] std::vector<int64> stakeDiceNanoTonSuggested() const;
+
 	using StarsColoring = Calls::Group::Ui::StarsColoring;
 	[[nodiscard]] std::vector<StarsColoring> groupCallColorings() const;
 
@@ -159,6 +165,9 @@ private:
 	[[nodiscard]] std::vector<int> getIntArray(
 		const QString &key,
 		std::vector<int> &&fallback) const;
+	[[nodiscard]] std::vector<int64> getInt64Array(
+		const QString &key,
+		std::vector<int64> &&fallback) const;
 
 	void updateIgnoredRestrictionReasons(std::vector<QString> was);
 

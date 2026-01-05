@@ -411,14 +411,14 @@ void BubbleWidget::setupParticles(not_null<Ui::RpWidget*> parent) {
 
 		p.setClipPath(bubblePath);
 		_particles->setColor(st::premiumButtonFg->c);
-		_particles->paint(p, _particlesWidget->rect(), crl::now());
+		_particles->paint(p, _particlesWidget->rect(), crl::now(), false);
 		p.setClipping(false);
 
 		p.setClipPath(fullRect.subtracted(bubblePath));
 		_particles->setColor(_brushOverride
 			? st::groupCallMemberInactiveIcon->c
 			: st::creditsBg3->c);
-		_particles->paint(p, _particlesWidget->rect(), crl::now());
+		_particles->paint(p, _particlesWidget->rect(), crl::now(), false);
 	}, _particlesWidget->lifetime());
 
 	geometryValue() | rpl::on_next([=](QRect geometry) {

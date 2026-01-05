@@ -765,13 +765,13 @@ void InnerWidget::fill() {
 				creditsSecondLabel->resizeToWidth(
 					available - creditsSecondLabel->pos().x());
 				if (!showCredits) {
-					const auto x = std::numeric_limits<int>::max();
+					const auto x = std::numeric_limits<int>::max() / 2;
 					icon->moveToLeft(x, 0);
 					creditsLabel->moveToLeft(x, 0);
 					creditsSecondLabel->moveToLeft(x, 0);
 				}
 				if (!showCurrency) {
-					const auto x = std::numeric_limits<int>::max();
+					const auto x = std::numeric_limits<int>::max() / 2;
 					majorLabel->moveToLeft(x, 0);
 					minorLabel->moveToLeft(x, 0);
 					secondMinorLabel->moveToLeft(x, 0);
@@ -1502,19 +1502,23 @@ void AddEmojiToMajor(
 		value
 	) | rpl::on_next([=](CreditsAmount v) {
 		auto helper = Ui::Text::CustomEmojiHelper();
-		auto icon = helper.paletteDependent({ .factory = [=] {
-			return Ui::Earn::IconCurrencyColored(
-				st.style.font,
-				!isIn
-				? st::currencyFg->c
-				: (*isIn)
-				? st::boxTextFgGood->c
-				: st::menuIconAttentionColor->c);
-			}, .margin = margins
+		auto icon = helper.paletteDependent({
+			.factory = [=] {
+				return Ui::Earn::IconCurrencyColored(
+					st.style.font,
+					!isIn
+					? st::currencyFg->c
+					: (*isIn)
+					? st::boxTextFgGood->c
+					: st::menuIconAttentionColor->c);
+				},
+			.margin = margins
 				? *margins
-				: st::channelEarnCurrencyCommonMargins });
+				: st::channelEarnCurrencyCommonMargins
+		});
+		auto value = MajorPart(v.abs());
 		label->setMarkedText(
-			base::duplicate(prepended).append(icon).append(MajorPart(v)),
+			base::duplicate(prepended).append(icon).append(value),
 			helper.context());
 	}, label->lifetime());
 }

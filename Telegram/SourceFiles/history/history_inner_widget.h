@@ -129,6 +129,7 @@ public:
 
 	void repaintItem(const HistoryItem *item);
 	void repaintItem(const Element *view);
+	void repaintItem(const Element *view, QRect rect);
 
 	[[nodiscard]] bool canCopySelected() const;
 	[[nodiscard]] bool canDeleteSelected() const;

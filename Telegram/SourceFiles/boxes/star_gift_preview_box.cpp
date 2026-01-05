@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/boxes/about_cocoon_box.h" // Ui::AddUniqueCloseButton
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/widgets/buttons.h"
@@ -1375,7 +1376,7 @@ void StarGiftPreviewBox(
 		.repaintedHook = repaintedHook,
 	});
 
-	AddUniqueCloseButton(box, {});
+	Ui::AddUniqueCloseButton(box);
 
 	const auto container = box->verticalLayout();
 	state->list = container->add(object_ptr<AttributesList>(

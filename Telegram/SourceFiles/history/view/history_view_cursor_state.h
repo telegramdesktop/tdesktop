@@ -25,6 +25,7 @@ enum class CursorState : char {
 	Enlarge,
 	Forwarded,
 	FromPhoto,
+	LogAdminService,
 };
 
 struct TextState {

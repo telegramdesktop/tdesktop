@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
 #include "layout/layout_position.h"
-#include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "data/business/data_shortcut_messages.h"
@@ -641,7 +640,9 @@ void HistoryMessageReply::storyRemoved(
 void HistoryMessageReply::refreshReplyToMedia() {
 	replyToDocumentId = 0;
 	replyToWebPageId = 0;
-	if (const auto media = resolvedMessage ? resolvedMessage->media() : nullptr) {
+	if (const auto media = resolvedMessage
+			? resolvedMessage->media()
+			: nullptr) {
 		if (const auto document = media->document()) {
 			replyToDocumentId = document->id;
 		} else if (const auto webpage = media->webpage()) {
@@ -835,22 +836,23 @@ void ReplyKeyboard::resize(int width, int height) {
 		? float64(_st->buttonHeight())
 		: (float64(height + _st->buttonSkip()) / _rows.size());
 	for (auto &row : _rows) {
-		int s = row.size();
+		auto s = int(row.size());
 
-		int widthForButtons = _width - ((s - 1) * _st->buttonSkip());
-		int widthForText = widthForButtons;
-		int widthOfText = 0;
-		int maxMinButtonWidth = 0;
+		auto widthForButtons = _width - ((s - 1) * _st->buttonSkip());
+		auto widthForText = widthForButtons;
+		auto widthOfText = 0;
+		auto maxMinButtonWidth = 0;
 		for (const auto &button : row) {
 			widthOfText += qMax(button.text.maxWidth(), 1);
 			int minButtonWidth = _st->minButtonWidth(button.type);
 			widthForText -= minButtonWidth;
 			accumulate_max(maxMinButtonWidth, minButtonWidth);
 		}
-		bool exact = (widthForText == widthOfText);
-		bool enough = (widthForButtons - s * maxMinButtonWidth) >= widthOfText;
+		const auto exact = (widthForText == widthOfText);
+		const auto enough
+			= (widthForButtons - s * maxMinButtonWidth) >= widthOfText;
 
-		float64 x = 0;
+		auto x = 0.;
 		for (auto &button : row) {
 			int buttonw = qMax(button.text.maxWidth(), 1);
 			float64 textw = buttonw, minw = _st->minButtonWidth(button.type);
@@ -866,10 +868,17 @@ void ReplyKeyboard::resize(int width, int height) {
 				accumulate_max(w, 2 * float64(_st->buttonPadding()));
 			}
 
-			int rectx = static_cast<int>(std::floor(x));
-			int rectw = static_cast<int>(std::floor(x + w)) - rectx;
-			button.rect = QRect(rectx, qRound(y), rectw, qRound(buttonHeight - _st->buttonSkip()));
-			if (rtl()) button.rect.setX(_width - button.rect.x() - button.rect.width());
+			const auto rectx = static_cast<int>(std::floor(x));
+			const auto rectw = static_cast<int>(std::floor(x + w)) - rectx;
+			button.rect = QRect(
+				rectx,
+				qRound(y),
+				rectw,
+				qRound(buttonHeight - _st->buttonSkip()));
+			if (rtl()) {
+				button.rect.setX(
+					_width - button.rect.x() - button.rect.width());
+			}
 			x += w + _st->buttonSkip();
 
 			button.link->setFullDisplayed(textw >= buttonw);
@@ -878,10 +887,12 @@ void ReplyKeyboard::resize(int width, int height) {
 	}
 }
 
-bool ReplyKeyboard::isEnoughSpace(int width, const style::BotKeyboardButton &st) const {
+bool ReplyKeyboard::isEnoughSpace(
+		int width,
+		const style::BotKeyboardButton &st) const {
 	for (const auto &row : _rows) {
-		int s = row.size();
-		int widthLeft = width - ((s - 1) * st.margin + s * 2 * st.padding);
+		auto s = int(row.size());
+		auto widthLeft = width - ((s - 1) * st.margin + s * 2 * st.padding);
 		for (const auto &button : row) {
 			widthLeft -= qMax(button.text.maxWidth(), 1);
 			if (widthLeft < 0) {
@@ -925,7 +936,8 @@ int ReplyKeyboard::naturalWidth() const {
 }
 
 int ReplyKeyboard::naturalHeight() const {
-	return (_rows.size() - 1) * _st->buttonSkip() + _rows.size() * _st->buttonHeight();
+	return (_rows.size() - 1) * _st->buttonSkip()
+		+ _rows.size() * _st->buttonHeight();
 }
 
 void ReplyKeyboard::paint(
@@ -951,7 +963,9 @@ void ReplyKeyboard::paint(
 			}
 
 			// just ignore the buttons that didn't layout well
-			if (rect.x() + rect.width() > _width) break;
+			if (rect.x() + rect.width() > _width) {
+				break;
+			}
 
 			auto buttonRounding = Ui::BubbleRounding();
 			using Corner = Ui::BubbleCornerRounding;
@@ -996,9 +1010,15 @@ ClickHandlerPtr ReplyKeyboard::getLink(QPoint point) const {
 			QRect rect(button.rect);
 
 			// just ignore the buttons that didn't layout well
-			if (rect.x() + rect.width() > _width) break;
+			if (rect.x() + rect.width() > _width) {
+				break;
+			}
 
 			if (rect.contains(point)) {
+				if (_item->isAdminLogEntry()
+					&& button.type != HistoryMessageMarkupButton::Type::Url) {
+					return ClickHandlerPtr();
+				}
 				_savedCoords = point;
 				return button.link;
 			}
@@ -1020,8 +1040,12 @@ ClickHandlerPtr ReplyKeyboard::getLinkByIndex(int index) const {
 	return ClickHandlerPtr();
 }
 
-void ReplyKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	if (!p) return;
+void ReplyKeyboard::clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) {
+	if (!p) {
+		return;
+	}
 
 	_savedActive = active ? p : ClickHandlerPtr();
 	auto coords = findButtonCoordsByClickHandler(p);
@@ -1030,7 +1054,8 @@ void ReplyKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool act
 	}
 }
 
-ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(const ClickHandlerPtr &p) {
+ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(
+		const ClickHandlerPtr &p) {
 	for (int i = 0, rows = _rows.size(); i != rows; ++i) {
 		auto &row = _rows[i];
 		for (int j = 0, cols = row.size(); j != cols; ++j) {
@@ -1046,7 +1071,9 @@ void ReplyKeyboard::clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed,
 		Ui::BubbleRounding rounding) {
-	if (!handler) return;
+	if (!handler) {
+		return;
+	}
 
 	_savedPressed = pressed ? handler : ClickHandlerPtr();
 	auto coords = findButtonCoordsByClickHandler(handler);
@@ -1146,7 +1173,7 @@ void ReplyKeyboard::Style::paintButton(
 		int outerWidth,
 		const ReplyKeyboard::Button &button,
 		Ui::BubbleRounding rounding) const {
-	const QRect &rect = button.rect;
+	const auto &rect = button.rect;
 	paintButtonBg(p, st, rect, rounding, button.howMuchOver);
 	if (button.ripple) {
 		const auto color = st ? &st->msgBotKbRippleBg()->c : nullptr;
@@ -1394,7 +1421,7 @@ TextWithEntities ComposeTodoTasksList(
 }
 
 HistoryDocumentCaptioned::HistoryDocumentCaptioned()
-: caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
+: caption(st::msgFileMinWidth - rect::m::sum::h(st::msgPadding)) {
 }
 
 HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(

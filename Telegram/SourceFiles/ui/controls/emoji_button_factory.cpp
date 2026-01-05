@@ -28,7 +28,8 @@ namespace Ui {
 		not_null<Ui::BoxContent*> box,
 		not_null<Window::SessionController*> controller,
 		not_null<ChatHelpers::TabbedPanel*> emojiPanel,
-		QPoint shift) {
+		QPoint shift,
+		bool fadeOnFocusChange) {
 	const auto emojiToggle = Ui::CreateChild<Ui::EmojiButton>(
 		field->parentWidget(),
 		st::defaultComposeFiles.emoji);
@@ -47,20 +48,22 @@ namespace Ui {
 			}
 			fade->paint(p);
 		}, fadeTarget->lifetime());
-		rpl::single(false) | rpl::then(
-			field->focusedChanges()
-		) | rpl::on_next([=](bool shown) {
-			crl::on_main(emojiToggle, [=] {
-				if (!emojiToggle->isVisible()) {
-					return;
-				}
-				if (shown) {
-					fade->fadeIn(st::universalDuration);
-				} else {
-					fade->fadeOut(st::universalDuration);
-				}
-			});
-		}, emojiToggle->lifetime());
+		if (fadeOnFocusChange) {
+			rpl::single(false) | rpl::then(
+				field->focusedChanges()
+			) | rpl::on_next([=](bool shown) {
+				crl::on_main(emojiToggle, [=] {
+					if (!emojiToggle->isVisible()) {
+						return;
+					}
+					if (shown) {
+						fade->fadeIn(st::universalDuration);
+					} else {
+						fade->fadeOut(st::universalDuration);
+					}
+				});
+			}, emojiToggle->lifetime());
+		}
 		fade->fadeOut(1);
 		fade->finish();
 	}

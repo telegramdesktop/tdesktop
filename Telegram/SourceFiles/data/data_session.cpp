@@ -643,6 +643,12 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			result->setUnavailableReasons(Data::UnavailableReason::Extract(
 				data.vrestriction_reason()));
 		}
+
+		if (const auto accessHash = data.vaccess_hash()) {
+			if (!minimal || !result->accessHash()) {
+				result->setAccessHash(accessHash->v);
+			}
+		}
 		if (data.is_deleted()) {
 			if (!result->phone().isEmpty()) {
 				result->setPhone(QString());
@@ -652,12 +658,6 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			result->setPhoto(MTP_userProfilePhotoEmpty());
 			status = &emptyStatus;
 		} else {
-			if (const auto accessHash = data.vaccess_hash()) {
-				if (!minimal || !result->accessHash()) {
-					result->setAccessHash(accessHash->v);
-				}
-			}
-
 			// apply first_name and last_name from minimal user only if we don't have
 			// local values for first name and last name already, otherwise skip
 			const auto noLocalName = result->firstName.isEmpty()
@@ -1944,14 +1944,14 @@ rpl::producer<Session::IdChange> Session::itemIdChanged() const {
 	return _itemIdChanges.events();
 }
 
-void Session::requestItemRepaint(not_null<const HistoryItem*> item) {
+void Session::requestItemRepaint(not_null<const HistoryItem*> item, QRect r) {
 	_itemRepaintRequest.fire_copy(item);
 	auto repaintGroupLeader = false;
 	auto repaintView = [&](not_null<const ViewElement*> view) {
 		if (view->isHiddenByGroup()) {
 			repaintGroupLeader = true;
 		} else {
-			requestViewRepaint(view);
+			requestViewRepaint(view, r);
 		}
 	};
 	enumerateItemViews(item, repaintView);
@@ -1983,11 +1983,11 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemRepaintRequest() const 
 	return _itemRepaintRequest.events();
 }
 
-void Session::requestViewRepaint(not_null<const ViewElement*> view) {
-	_viewRepaintRequest.fire_copy(view);
+void Session::requestViewRepaint(not_null<const ViewElement*> view, QRect r) {
+	_viewRepaintRequest.fire_copy({ view, r });
 }
 
-rpl::producer<not_null<const ViewElement*>> Session::viewRepaintRequest() const {
+rpl::producer<RequestViewRepaint> Session::viewRepaintRequest() const {
 	return _viewRepaintRequest.events();
 }
 
@@ -2010,6 +2010,14 @@ void Session::requestViewResize(not_null<ViewElement*> view) {
 
 rpl::producer<not_null<ViewElement*>> Session::viewResizeRequest() const {
 	return _viewResizeRequest.events();
+}
+
+void Session::requestItemShowHighlight(not_null<HistoryItem*> item) {
+	_itemShowHighlightRequest.fire_copy(item);
+}
+
+rpl::producer<not_null<HistoryItem*>> Session::itemShowHighlightRequest() const {
+	return _itemShowHighlightRequest.events();
 }
 
 void Session::requestItemViewRefresh(not_null<const HistoryItem*> item) {
@@ -5125,7 +5133,8 @@ void Session::insertCheckedServiceNotification(
 				MTPint(), // report_delivery_until_date
 				MTPlong(), // paid_message_stars
 				MTPSuggestedPost(),
-				MTPint()), // schedule_repeat_period
+				MTPint(), // schedule_repeat_period
+				MTPstring()), // summary_from_language
 			localFlags,
 			NewMessageType::Unread);
 	}

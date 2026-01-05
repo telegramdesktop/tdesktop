@@ -163,10 +163,13 @@ Widget::Widget(
 		updateLabelsGeometry();
 	}, lifetime());
 
-	instance()->tracksFinished(
-	) | rpl::filter([=](AudioMsgId::Type type) {
-		return (type == AudioMsgId::Type::Voice);
-	}) | rpl::on_next([=](AudioMsgId::Type type) {
+	rpl::merge(
+		instance()->tracksFinished(
+		) | rpl::filter([=](AudioMsgId::Type type) {
+			return (type == AudioMsgId::Type::Voice);
+		}) | rpl::to_empty,
+		instance()->stops(AudioMsgId::Type::Voice)
+	) | rpl::on_next([=] {
 		_voiceIsActive = false;
 		const auto currentSong = instance()->current(AudioMsgId::Type::Song);
 		const auto songState = instance()->getState(AudioMsgId::Type::Song);

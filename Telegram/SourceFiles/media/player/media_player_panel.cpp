@@ -158,7 +158,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 		| RectPart::Bottom
 		| (rtl() ? RectPart::Left : RectPart::Right)
 		| RectPart::Top;
-	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
+	Ui::Shadow::paint(p, shadowedRect, width(), st::roundShadowRadius8px, shadowedSides);
 	Ui::FillRoundRect(p, shadowedRect, st::menuBg, Ui::MenuCorners);
 }
 

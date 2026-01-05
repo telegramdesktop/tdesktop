@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_report.h"
 
 #include "apiwrap.h"
+#include "data/data_session.h"
 #include "data/data_peer.h"
+#include "data/data_channel.h"
 #include "data/data_photo.h"
 #include "data/data_report.h"
 #include "data/data_user.h"
@@ -140,6 +142,31 @@ auto CreateReportMessagesOrStoriesCallback(
 			).done(received).fail(fail).send();
 		}
 	};
+}
+
+void ReportSpam(
+		not_null<PeerData*> sender,
+		const MessageIdsList &ids) {
+	if (ids.empty()) {
+		return;
+	}
+	const auto peer = sender->owner().peer(ids.front().peer);
+	const auto channel = peer->asChannel();
+	if (!channel) {
+		return;
+	}
+
+	auto msgIds = QVector<MTPint>();
+	msgIds.reserve(ids.size());
+	for (const auto &fullId : ids) {
+		msgIds.push_back(MTP_int(fullId.msg));
+	}
+
+	sender->session().api().request(MTPchannels_ReportSpam(
+		channel->inputChannel(),
+		sender->input(),
+		MTP_vector<MTPint>(msgIds)
+	)).send();
 }
 
 } // namespace Api

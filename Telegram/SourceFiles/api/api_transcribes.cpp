@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_transcribes.h"
 
 #include "apiwrap.h"
+#include "api/api_text_entities.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
@@ -15,9 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
+#include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "spellcheck/spellcheck_types.h"
 
 namespace Api {
 
@@ -103,7 +106,6 @@ void Transcribes::toggle(not_null<HistoryItem*> item) {
 	auto i = _map.find(id);
 	if (i == _map.end()) {
 		load(item);
-		//_session->data().requestItemRepaint(item);
 		_session->data().requestItemResize(item);
 	} else if (!i->second.requestId) {
 		i->second.shown = !i->second.shown;
@@ -114,11 +116,42 @@ void Transcribes::toggle(not_null<HistoryItem*> item) {
 	}
 }
 
+void Transcribes::toggleSummary(
+		not_null<HistoryItem*> item,
+		Fn<void()> onPremiumRequired) {
+	const auto id = item->fullId();
+	auto i = _summaries.find(id);
+	if (i == _summaries.end()) {
+		auto &entry = _summaries.emplace(id).first->second;
+		entry.onPremiumRequired = std::move(onPremiumRequired);
+		summarize(item);
+	} else if (!i->second.loading) {
+		auto &entry = i->second;
+		if (entry.result.empty()) {
+			entry.onPremiumRequired = std::move(onPremiumRequired);
+			summarize(item);
+		} else {
+			entry.shown = entry.premiumRequired ? false : !entry.shown;
+			_session->data().requestItemResize(item);
+			if (entry.shown) {
+				_session->data().requestItemShowHighlight(item);
+			}
+		}
+	}
+}
+
 const Transcribes::Entry &Transcribes::entry(
 		not_null<HistoryItem*> item) const {
 	static auto empty = Entry();
 	const auto i = _map.find(item->fullId());
 	return (i != _map.end()) ? i->second : empty;
+}
+
+const SummaryEntry &Transcribes::summary(
+		not_null<const HistoryItem*> item) const {
+	static const auto empty = SummaryEntry();
+	const auto i = _summaries.find(item->fullId());
+	return (i != _summaries.end()) ? i->second : empty;
 }
 
 void Transcribes::apply(const MTPDupdateTranscribedAudio &update) {
@@ -206,6 +239,80 @@ void Transcribes::load(not_null<HistoryItem*> item) {
 	entry.shown = true;
 	entry.failed = false;
 	entry.pending = false;
+}
+
+void Transcribes::summarize(not_null<HistoryItem*> item) {
+	if (!item->isHistoryEntry() || item->isLocal()) {
+		return;
+	}
+
+	const auto id = item->fullId();
+	const auto translatedTo = item->history()->translatedTo();
+	const auto langCode = translatedTo
+		? translatedTo.twoLetterCode()
+		: QString();
+	const auto requestId = _api.request(MTPmessages_SummarizeText(
+		langCode.isEmpty()
+			? MTP_flags(0)
+			: MTP_flags(MTPmessages_summarizeText::Flag::f_to_lang),
+		item->history()->peer->input(),
+		MTP_int(item->id),
+		langCode.isEmpty() ? MTPstring() : MTP_string(langCode)
+	)).done([=](const MTPTextWithEntities &result) {
+		const auto &data = result.data();
+		auto &entry = _summaries[id];
+		entry.requestId = 0;
+		entry.loading = false;
+		entry.premiumRequired = false;
+		entry.onPremiumRequired = nullptr;
+		entry.languageId = translatedTo;
+		entry.result = TextWithEntities(
+			qs(data.vtext()),
+			Api::EntitiesFromMTP(_session, data.ventities().v));
+		if (const auto item = _session->data().message(id)) {
+			_session->data().requestItemTextRefresh(item);
+			_session->data().requestItemShowHighlight(item);
+		}
+	}).fail([=](const MTP::Error &error) {
+		auto &entry = _summaries[id];
+		if (error.type() == u"SUMMARY_FLOOD_PREMIUM"_q) {
+			if (!entry.premiumRequired && entry.onPremiumRequired) {
+				entry.onPremiumRequired();
+			}
+			entry.premiumRequired = true;
+		}
+		entry.requestId = 0;
+		entry.shown = false;
+		entry.loading = false;
+		entry.onPremiumRequired = nullptr;
+		if (const auto item = _session->data().message(id)) {
+			_session->data().requestItemTextRefresh(item);
+		}
+	}).send();
+
+	auto &entry = _summaries.emplace(id).first->second;
+	entry.requestId = requestId;
+	entry.shown = true;
+	entry.loading = true;
+
+	item->setHasSummaryEntry();
+	_session->data().requestItemResize(item);
+}
+
+void Transcribes::checkSummaryToTranslate(FullMsgId id) {
+	const auto i = _summaries.find(id);
+	if (i == _summaries.end() || i->second.result.empty()) {
+		return;
+	}
+	const auto item = _session->data().message(id);
+	if (!item) {
+		return;
+	}
+	const auto translatedTo = item->history()->translatedTo();
+	if (i->second.languageId != translatedTo) {
+		i->second.result = tr::lng_contacts_loading(tr::now, tr::italic);
+		summarize(item);
+	}
 }
 
 } // namespace Api

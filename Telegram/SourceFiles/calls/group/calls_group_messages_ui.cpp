@@ -380,7 +380,7 @@ void MessagesUi::setupBadges() {
 	auto helper = Ui::Text::CustomEmojiHelper();
 	const auto liveText = helper.paletteDependent(
 		Ui::Text::CustomEmojiTextBadge(
-			tr::lng_video_stream_live(tr::now),
+			tr::lng_video_stream_live(tr::now).toUpper(),
 			st::groupCallMessageBadge,
 			st::groupCallMessageBadgeMargin));
 	_liveBadge.setMarkedText(

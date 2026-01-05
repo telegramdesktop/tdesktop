@@ -1554,7 +1554,7 @@ void GenericCreditsEntryBody(
 	if (uniqueGift) {
 		AddSkip(content, st::defaultVerticalListSkip * 2);
 
-		AddUniqueCloseButton(box, st, [=](not_null<Ui::PopupMenu*> menu) {
+		AddUniqueCloseMoreButton(box, st, [=](not_null<Ui::PopupMenu*> menu) {
 			const auto type = SavedStarGiftMenuType::View;
 			FillUniqueGiftMenu(show, menu, e, type, st);
 		});
@@ -3570,6 +3570,53 @@ void MaybeRequestBalanceIncrease(
 			}
 		}
 	}, state->lifetime);
+}
+
+void AddUniqueCloseMoreButton(
+		not_null<Ui::GenericBox*> box,
+		Settings::CreditsEntryBoxStyleOverrides st,
+		Fn<void(not_null<Ui::PopupMenu*>)> fillMenu) {
+	const auto close = Ui::CreateChild<Ui::IconButton>(
+		box,
+		st::uniqueCloseButton);
+	const auto menu = fillMenu
+		? Ui::CreateChild<Ui::IconButton>(box, st::uniqueMenuButton)
+		: nullptr;
+	close->show();
+	close->raise();
+	if (menu) {
+		menu->show();
+		menu->raise();
+	}
+	box->widthValue() | rpl::on_next([=](int width) {
+		close->moveToRight(0, 0, width);
+		close->raise();
+		if (menu) {
+			menu->moveToRight(close->width(), 0, width);
+			menu->raise();
+		}
+	}, close->lifetime());
+	close->setClickedCallback([=] {
+		box->closeBox();
+	});
+	if (menu) {
+		const auto state = menu->lifetime().make_state<
+			base::unique_qptr<Ui::PopupMenu>
+		>();
+		menu->setClickedCallback([=] {
+			if (*state) {
+				*state = nullptr;
+				return;
+			}
+			*state = base::make_unique_q<Ui::PopupMenu>(
+				menu,
+				st.menu ? *st.menu : st::popupMenuWithIcons);
+			fillMenu(state->get());
+			if (!(*state)->empty()) {
+				(*state)->popup(QCursor::pos());
+			}
+		});
+	}
 }
 
 } // namespace Settings

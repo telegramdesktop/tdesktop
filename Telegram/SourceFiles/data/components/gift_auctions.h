@@ -80,7 +80,8 @@ public:
 	explicit GiftAuctions(not_null<Main::Session*> session);
 	~GiftAuctions();
 
-	[[nodiscard]] rpl::producer<GiftAuctionState> state(const QString &slug);
+	[[nodiscard]] rpl::producer<GiftAuctionState> state(uint64 giftId);
+	void resolveSlug(const QString &slug, Fn<void(uint64)> done);
 
 	void apply(const MTPDupdateStarGiftAuctionState &data);
 	void apply(const MTPDupdateStarGiftAuctionUserState &data);
@@ -117,9 +118,15 @@ private:
 		Data::UniqueGiftAttributes lists;
 		std::vector<Fn<void()>> waiters;
 	};
+	struct SlugRequest {
+		std::vector<Fn<void(uint64)>> callbacks;
+	};
 
-	void request(const QString &slug);
+	void request(uint64 giftId);
 	Entry *find(uint64 giftId) const;
+	void applyStateResponse(
+		not_null<Entry*> entry,
+		const MTPpayments_StarGiftAuctionState &result);
 	void apply(
 		not_null<Entry*> entry,
 		const MTPStarGiftAuctionState &state);
@@ -142,7 +149,9 @@ private:
 	const not_null<Main::Session*> _session;
 
 	base::Timer _timer;
-	base::flat_map<QString, std::unique_ptr<Entry>> _map;
+	base::flat_map<uint64, std::unique_ptr<Entry>> _map;
+	base::flat_map<QString, SlugRequest> _slugRequests;
+	base::flat_map<QString, uint64> _slugToGiftId;
 	base::flat_map<uint64, Attributes> _attributes;
 
 	rpl::event_stream<> _activeChanged;

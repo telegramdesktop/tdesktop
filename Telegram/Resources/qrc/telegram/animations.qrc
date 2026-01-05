@@ -52,6 +52,7 @@
     <file alias="show_or_premium_readtime.tgs">../../animations/show_or_premium_readtime.tgs</file>
     <file alias="passkeys.tgs">../../animations/passkeys.tgs</file>
     <file alias="ban.tgs">../../animations/ban.tgs</file>
+    <file alias="cocoon.tgs">../../animations/cocoon.tgs</file>
 
     <file alias="profile_muting.tgs">../../animations/profile/profile_muting.tgs</file>
     <file alias="profile_unmuting.tgs">../../animations/profile/profile_unmuting.tgs</file>
@@ -66,6 +67,7 @@
     <file alias="slot_back.tgs">../../animations/dice/slot_back.tgs</file>
     <file alias="slot_pull.tgs">../../animations/dice/slot_pull.tgs</file>
     <file alias="winners.tgs">../../animations/dice/winners.tgs</file>
+    <file alias="dice_6.tgs">../../animations/dice/dice_6.tgs</file>
 
     <file alias="star_reaction_appear.tgs">../../animations/star_reaction/appear.tgs</file>
     <file alias="star_reaction_center.tgs">../../animations/star_reaction/center.tgs</file>

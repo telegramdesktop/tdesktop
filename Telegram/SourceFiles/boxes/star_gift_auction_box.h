@@ -34,7 +34,7 @@ class GenericBox;
 [[nodiscard]] rpl::lifetime ShowStarGiftAuction(
 	not_null<Window::SessionController*> controller,
 	PeerData *peer,
-	QString slug,
+	uint64 giftId,
 	Fn<void()> finishRequesting,
 	Fn<void()> boxClosed);
 
@@ -76,5 +76,7 @@ struct ManyAuctionsState {
 [[nodiscard]] Fn<void()> ActiveAuctionsCallback(
 	not_null<Window::SessionController*> window,
 	const Data::ActiveAuctions &auctions);
+
+[[nodiscard]] std::vector<int> RandomIndicesSubset(int total, int subset);
 
 } // namespace Ui

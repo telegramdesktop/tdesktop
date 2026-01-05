@@ -53,4 +53,8 @@ void SendPhotoReport(
 	not_null<PeerData*> peer)
 -> Fn<void(Data::ReportInput, Fn<void(ReportResult)>)>;
 
+void ReportSpam(
+	not_null<PeerData*> sender,
+	const MessageIdsList &ids);
+
 } // namespace Api

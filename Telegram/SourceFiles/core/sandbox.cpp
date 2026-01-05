@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/concurrent_timer.h"
 #include "base/invoke_queued.h"
+#include "base/options.h"
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
 #include "ui/ui_utility.h"
@@ -35,6 +36,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/qpa/qplatformscreen.h>
 
 namespace Core {
+namespace {
+
+base::options::toggle OptionDeadlockDetector({
+	.id = kOptionDeadlockDetector,
+	.name = "Deadlock Detector",
+	.description = "Check once every 30 seconds that main thread is still responsive.",
+	.restartRequired = true,
+});
+
+} // namespace
+
+const char kOptionDeadlockDetector[] = "deadlock-detector";
 
 bool Sandbox::QuitOnStartRequested = false;
 
@@ -149,12 +162,10 @@ void Sandbox::launchApplication() {
 		}
 		setupScreenScale();
 
-#ifndef _DEBUG
-		if (Logs::DebugEnabled()) {
+		if (OptionDeadlockDetector.value()) {
 			using DeadlockDetector::PingThread;
 			_deadlockDetector = std::make_unique<PingThread>(this);
 		}
-#endif // !_DEBUG
 
 		_application = std::make_unique<Application>();
 

@@ -659,20 +659,7 @@ auto AuctionBg(
 
 		if (state->particles) {
 			p.setClipRect(full);
-			if (context.paused) {
-				if (!state->pausedAt) {
-					state->pausedAt = crl::now();
-				}
-				const auto diff = state->pausedAt - state->pauseOffset;
-				state->particles->paint(p, full, diff);
-			} else {
-				if (state->pausedAt) {
-					state->pauseOffset += crl::now() - state->pausedAt;
-					state->pausedAt = 0;
-				}
-				const auto diff = context.now - state->pauseOffset;
-				state->particles->paint(p, full, diff);
-			}
+			state->particles->paint(p, full, context.now, context.paused);
 			p.setClipping(false);
 		}
 
