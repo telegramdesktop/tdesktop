@@ -93,6 +93,7 @@ void MacOverlayWidgetHelper::updateStyles(bool fullscreen) {
 		? NSNormalWindowLevel
 		: NSPopUpMenuWindowLevel;
 	[window setLevel:level];
+	[window setAnimationBehavior:NSWindowAnimationBehaviorNone];
 	[window setHidesOnDeactivate:!_data->window->testAttribute(Qt::WA_MacAlwaysShowToolWindow)];
 	[window setTitleVisibility:NSWindowTitleHidden];
 	[window setTitlebarAppearsTransparent:YES];
