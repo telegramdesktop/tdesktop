@@ -49,6 +49,9 @@ jobs:
 
     env:
       GIT: "https://github.com"
+      CMAKE_GENERATOR: "Ninja"
+      CMAKE_BUILD_TYPE: "Debug"
+      CMAKE_BUILD_PARALLEL_LEVEL: ""
       CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
       TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
       UPLOAD_ARTIFACT: "true"
@@ -72,6 +75,7 @@ jobs:
           brew upgrade || true
           brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtsvg xz
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
 
           xcodebuild -version > CACHE_KEY.txt
           brew list --versions >> CACHE_KEY.txt
@@ -121,14 +125,8 @@ jobs:
           git clone --depth=1 --recursive --shallow-submodules $GIT/desktop-app/tg_owt.git
           cd tg_owt
 
-          cmake -Bbuild -GNinja . \
-          -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_INSTALL_PREFIX=$LibrariesPath/local/tg_owt \
-          -DCMAKE_C_FLAGS_DEBUG="" \
-          -DCMAKE_CXX_FLAGS_DEBUG="" \
-          -DCMAKE_DISABLE_FIND_PACKAGE_absl=ON
-
-          cmake --build build --parallel
+          cmake -Bbuild . -DCMAKE_INSTALL_PREFIX=$LibrariesPath/local/tg_owt
+          cmake --build build
           cmake --install build
 
       - name: TDE2E cache.
@@ -148,14 +146,8 @@ jobs:
           git fetch --depth=1 origin $TDE2E
           git reset --hard FETCH_HEAD
 
-          cmake -Bbuild -GNinja . \
-          -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_INSTALL_PREFIX=$LibrariesPath/local/tde2e \
-          -DCMAKE_C_FLAGS_DEBUG="" \
-          -DCMAKE_CXX_FLAGS_DEBUG="" \
-          -DTD_E2E_ONLY=ON
-
-          cmake --build build --parallel
+          cmake -Bbuild . -DCMAKE_INSTALL_PREFIX=$LibrariesPath/local/tde2e -DTD_E2E_ONLY=ON
+          cmake --build build
           cmake --install build
 
       - name: Telegram Desktop build.
@@ -173,14 +165,8 @@ jobs:
             echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
           fi
 
-          cmake -Bbuild -GNinja . \
-          -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_C_FLAGS_DEBUG="" \
-          -DCMAKE_CXX_FLAGS_DEBUG="" \
-          -DTDESKTOP_API_TEST=ON \
-          $DEFINE
-
-          cmake --build build --parallel
+          cmake -Bbuild . -DTDESKTOP_API_TEST=ON $DEFINE
+          cmake --build build
           macdeployqt build/Telegram.app
           codesign --remove-signature build/Telegram.app
 
