@@ -50,6 +50,7 @@ jobs:
     env:
       GIT: "https://github.com"
       CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
+      TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
       UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
       MANUAL_CACHING: "1"
@@ -125,7 +126,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.LibrariesPath }}/tde2e
-          key: ${{ runner.OS }}-tde2e-${{ env.CACHE_KEY }}
+          key: ${{ runner.OS }}-tde2e-${{ env.TDE2E }}-${{ env.CACHE_KEY }}
       - name: TDE2E.
         if: steps.cache-tde2e.outputs.cache-hit != 'true'
         run: |
@@ -134,7 +135,7 @@ jobs:
           git init tde2e
           cd tde2e
           git remote add origin $GIT/tdlib/td.git
-          git fetch --depth=1 origin 51743dfd01dff6179e2d8f7095729caa4e2222e9
+          git fetch --depth=1 origin $TDE2E
           git reset --hard FETCH_HEAD
 
           cmake -Bbuild -GNinja . \
