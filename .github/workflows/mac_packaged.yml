@@ -172,21 +172,15 @@ jobs:
           $DEFINE
 
           cmake --build build --parallel
-
-          cd build
-          macdeployqt Telegram.app
-          codesign --remove-signature Telegram.app
-
-          mkdir dmgsrc
-          mv Telegram.app dmgsrc
-          hdiutil create -volname Telegram -srcfolder dmgsrc -ov -format UDZO Telegram.dmg
+          macdeployqt build/Telegram.app
+          codesign --remove-signature build/Telegram.app
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           cd $REPO_NAME/build
           mkdir artifact
-          mv Telegram.dmg artifact/
+          mv Telegram.app artifact/
       - uses: actions/upload-artifact@v6
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
