@@ -86,9 +86,17 @@ jobs:
           echo "MACOSX_DEPLOYMENT_TARGET=$(grep 'set(QT_SUPPORTED_MIN_MACOS_VERSION' /opt/homebrew/Cellar/qtbase/*/lib/cmake/Qt6/Qt6ConfigExtras.cmake | sed -E 's/^.*"(.*)"\)$/\1/')" >> $GITHUB_ENV
           echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
 
+          echo "RNNOISE=`curl -sSL --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/xiph/rnnoise/git/refs/heads/master | jq -r .object.sha`" >> $GITHUB_ENV
           echo "WEBRTC=`curl -sSL --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master | jq -r .object.sha`" >> $GITHUB_ENV
 
+      - name: RNNoise cache.
+        id: cache-rnnoise
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.LibrariesPath }}/local/rnnoise
+          key: ${{ runner.OS }}-rnnoise-${{ env.RNNOISE }}-${{ env.CACHE_KEY }}
       - name: RNNoise.
+        if: steps.cache-rnnoise.outputs.cache-hit != 'true'
         run: |
           cd $LibrariesPath
 
