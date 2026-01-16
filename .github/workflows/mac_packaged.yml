@@ -92,7 +92,7 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone --depth=1 https://gitlab.xiph.org/xiph/rnnoise.git
+          git clone --depth=1 $GIT/xiph/rnnoise.git
           cd rnnoise
           ./autogen.sh
           ./configure --disable-examples --disable-doc
