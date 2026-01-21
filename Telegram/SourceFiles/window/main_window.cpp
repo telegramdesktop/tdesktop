@@ -720,7 +720,7 @@ QRect MainWindow::countInitialGeometry(
 				return screen;
 			}
 		}
-		return nullptr;
+		return QGuiApplication::screenAt(position.rect().center());
 	}();
 	if (!screen) {
 		return initial.rect();
@@ -752,8 +752,10 @@ QRect MainWindow::countInitialGeometry(
 		).arg(spaceForInner.width()
 		).arg(spaceForInner.height()));
 
-	const auto x = spaceForInner.x() - screenGeometry.x();
-	const auto y = spaceForInner.y() - screenGeometry.y();
+	const auto x = spaceForInner.x()
+		- (position.moncrc ? screenGeometry.x() : 0);
+	const auto y = spaceForInner.y()
+		- (position.moncrc ? screenGeometry.y() : 0);
 	const auto w = spaceForInner.width();
 	const auto h = spaceForInner.height();
 	if (w < st::windowMinWidth || h < st::windowMinHeight) {
@@ -791,8 +793,10 @@ QRect MainWindow::countInitialGeometry(
 			position.h -= newDistance;
 		}
 	}
-	position.x += screenGeometry.x();
-	position.y += screenGeometry.y();
+	if (position.moncrc) {
+		position.x += screenGeometry.x();
+		position.y += screenGeometry.y();
+	}
 	if ((position.x + st::windowMinWidth
 		> screenGeometry.x() + screenGeometry.width())
 		|| (position.y + st::windowMinHeight
@@ -1113,9 +1117,6 @@ WindowPosition PositionWithScreen(
 		).arg(geometry.y()
 		).arg(geometry.width()
 		).arg(geometry.height()));
-	position.x -= geometry.x();
-	position.y -= geometry.y();
-	position.moncrc = Platform::ScreenNameChecksum(chosen->name());
 	return position;
 }
 
