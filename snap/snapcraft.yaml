@@ -323,6 +323,7 @@ parts:
     source-tag: v0.11.1
     plugin: cmake
     build-packages:
+      - curl
       - libhwy-dev
     cmake-generator: Ninja
     cmake-parameters:
