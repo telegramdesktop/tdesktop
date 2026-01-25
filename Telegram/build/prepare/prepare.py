@@ -457,9 +457,7 @@ stage('patches', """
 
 stage('msys64', """
 win:
-    SET PATH_BACKUP_=%PATH%
-    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
-
+    SET PATH=%THIRDPARTY_DIR%\\msys64\\usr\\bin;%PATH%
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
@@ -475,8 +473,6 @@ win:
         mingw-w64-x86_64-nasm ^
         mingw-w64-x86_64-perl ^
         mingw-w64-x86_64-pkgconf
-
-    SET PATH=%PATH_BACKUP_%
 """, 'ThirdParty')
 
 stage('python', """
@@ -730,7 +726,6 @@ win64:
 winarm:
     SET "TARGET=aarch64"
     SET "DAV1D_ASM_DISABLE="
-    SET "PATH_BACKUP_=%PATH%"
     SET "PATH=%LIBS_DIR%\\gas-preprocessor;%PATH%"
     echo armasm64 fails with 'syntax error in expression: tbnz x14, #4, 8f' as if this instruction is unknown/unsupported.
     git revert --no-edit d503bb0ccaf104b2f13da0f092e09cc9411b3297
@@ -759,8 +754,6 @@ release:
 win:
     copy %LIBS_DIR%\\local\\lib\\libdav1d.a %LIBS_DIR%\\local\\lib\\dav1d.lib
     deactivate
-winarm:
-    SET "PATH=%PATH_BACKUP_%"
 mac:
     buildOneArch() {
         arch=$1
@@ -795,7 +788,6 @@ win64:
     SET "TARGET=x86_64"
 winarm:
     SET "TARGET=aarch64"
-    SET "PATH_BACKUP_=%PATH%"
     SET "PATH=%LIBS_DIR%\\gas-preprocessor;%PATH%"
 win:
     set FILE=cross-file.txt
@@ -822,8 +814,6 @@ release:
 win:
     copy %LIBS_DIR%\\local\\lib\\libopenh264.a %LIBS_DIR%\\local\\lib\\openh264.lib
     deactivate
-winarm:
-    SET "PATH=%PATH_BACKUP_%"
 mac:
     buildOneArch() {
         arch=$1
@@ -1057,9 +1047,7 @@ depends:patches/libvpx/*.patch
 win:
     for /r %%i in (..\\patches\\libvpx\\*) do git apply %%i
 
-    SET PATH_BACKUP_=%PATH%
-    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
-
+    SET PATH=%THIRDPARTY_DIR%\\msys64\\usr\\bin;%PATH%
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
@@ -1072,8 +1060,6 @@ winarm:
 win:
 depends:patches/build_libvpx_win.sh
     bash --login ../patches/build_libvpx_win.sh
-
-    SET PATH=%PATH_BACKUP_%
 mac:
     find ../patches/libvpx -type f -print0 | sort -z | xargs -0 git apply
 
@@ -1167,9 +1153,7 @@ win:
 depends:patches/ffmpeg.patch
     git apply ../patches/ffmpeg.patch
 
-    SET PATH_BACKUP_=%PATH%
-    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
-
+    SET PATH=%THIRDPARTY_DIR%\\msys64\\usr\\bin;%PATH%
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
@@ -1179,8 +1163,6 @@ winarm:
 win:
 depends:patches/build_ffmpeg_win.sh
     bash --login ../patches/build_ffmpeg_win.sh
-
-    SET PATH=%PATH_BACKUP_%
 mac:
     export PKG_CONFIG_PATH=$USED_PREFIX/lib/pkgconfig
 
