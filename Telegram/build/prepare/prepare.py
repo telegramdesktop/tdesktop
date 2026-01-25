@@ -529,7 +529,6 @@ stage('xz', """
     cd xz
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
     cmake --build build
@@ -575,7 +574,6 @@ mac:
         -D CMAKE_SYSTEM_PROCESSOR=arm64 \\
         -D CMAKE_BUILD_TYPE=Release \\
         -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D WITH_JPEG8=ON \\
         -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
@@ -586,7 +584,6 @@ mac:
         -D CMAKE_SYSTEM_PROCESSOR=x86_64 \\
         -D CMAKE_BUILD_TYPE=Release \\
         -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D WITH_JPEG8=ON \\
         -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
@@ -655,7 +652,6 @@ win:
     cmake --install out --config Release
 mac:
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
     cmake --build build
@@ -678,7 +674,6 @@ release:
     cd Debug
     cmake ../.. \\
         -D CMAKE_BUILD_TYPE=Debug \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     cmake --build .
 release:
@@ -687,7 +682,6 @@ release:
     cd Release
     cmake ../.. \\
         -D CMAKE_BUILD_TYPE=Release \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     cmake --build .
 """)
@@ -873,7 +867,6 @@ release:
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D BUILD_SHARED_LIBS=OFF \\
         -D AVIF_ENABLE_WERROR=OFF \\
@@ -905,7 +898,6 @@ release:
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D DISABLE_SSE=ON \\
         -D ENABLE_SDL=OFF \\
@@ -933,7 +925,6 @@ mac:
         CFLAGS=$UNGUARDED cmake -B $folder . \\
             -D CMAKE_BUILD_TYPE=Release \\
             -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-            -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
             -D CMAKE_OSX_ARCHITECTURES=$arch \\
             -D WEBP_BUILD_ANIM_UTILS=OFF \\
             -D WEBP_BUILD_CWEBP=OFF \\
@@ -990,7 +981,6 @@ release:
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D BUILD_SHARED_LIBS=OFF \\
         -D CMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \\
@@ -1053,7 +1043,6 @@ release:
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         ${cmake_defines}
     cmake --build . --config MinSizeRel
@@ -1378,7 +1367,6 @@ mac:
         -D ALSOFT_UTILS=OFF \\
         -D ALSOFT_TESTS=OFF \\
         -D LIBTYPE:STRING=STATIC \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     cmake --build build
     cmake --install build
@@ -1742,7 +1730,6 @@ mac:
     cd Debug.x86_64
     cmake \
         -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1758,7 +1745,6 @@ mac:
     cd Debug.arm64
     cmake \
         -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1777,7 +1763,6 @@ release:
     cd Release.x86_64
     cmake \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1792,7 +1777,6 @@ release:
     cd Release.arm64
     cmake \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1822,7 +1806,6 @@ mac:
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
         -D ADA_TESTING=OFF \\
         -D ADA_TOOLS=OFF \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
     cmake --build build
@@ -1858,7 +1841,6 @@ win:
 #     mkdir build
 #     cd build
 #     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake .. \
-#         -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
 #         -Dprotobuf_BUILD_TESTS=OFF \
 #         -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
 #         -Dprotobuf_BUILD_LIBPROTOC=ON \
