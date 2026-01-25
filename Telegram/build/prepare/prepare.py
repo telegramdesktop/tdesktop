@@ -98,6 +98,7 @@ environment = {
     'LIBS_DIR': libsDir,
     'THIRDPARTY_DIR': thirdPartyDir,
     'PATH_PREFIX': pathPrefix,
+    'CMAKE_GENERATOR': 'Ninja Multi-Config',
 }
 if (win32):
     environment.update({
@@ -121,6 +122,7 @@ elif (mac):
         'MACOSX_DEPLOYMENT_TARGET': '10.13',
         'UNGUARDED': '-Werror=unguarded-availability-new',
         'MIN_VER': '-mmacosx-version-min=10.13',
+        'CMAKE_GENERATOR': 'Ninja',
     })
 
 ignoreInCacheForThirdParty = [
@@ -674,7 +676,7 @@ release:
 !win:
     mkdir Debug
     cd Debug
-    cmake -G Ninja ../.. \\
+    cmake ../.. \\
         -D CMAKE_BUILD_TYPE=Debug \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
@@ -683,7 +685,7 @@ release:
     cd ..
     mkdir Release
     cd Release
-    cmake -G Ninja ../.. \\
+    cmake ../.. \\
         -D CMAKE_BUILD_TYPE=Release \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
@@ -928,7 +930,7 @@ mac:
         arch=$1
         folder=$2
 
-        CFLAGS=$UNGUARDED cmake -B $folder -G Ninja . \\
+        CFLAGS=$UNGUARDED cmake -B $folder . \\
             -D CMAKE_BUILD_TYPE=Release \\
             -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
             -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
@@ -1454,7 +1456,7 @@ mac:
     cd out
     mkdir Debug.x86_64
     cd Debug.x86_64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1464,7 +1466,7 @@ mac:
     cd ..
     mkdir Debug.arm64
     cd Debug.arm64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1478,7 +1480,7 @@ mac:
 release:
     mkdir Release.x86_64
     cd Release.x86_64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1488,7 +1490,7 @@ release:
     cd ..
     mkdir Release.arm64
     cd Release.arm64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1770,7 +1772,7 @@ mac:
     cd out
     mkdir Debug.x86_64
     cd Debug.x86_64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
@@ -1786,7 +1788,7 @@ mac:
     cd ..
     mkdir Debug.arm64
     cd Debug.arm64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
@@ -1805,7 +1807,7 @@ mac:
 release:
     mkdir Release.x86_64
     cd Release.x86_64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
@@ -1820,7 +1822,7 @@ release:
     cd ..
     mkdir Release.arm64
     cd Release.arm64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
@@ -1903,6 +1905,7 @@ win:
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
+    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed -i "s/STREQUAL/MATCHES/" td/generate/CMakeLists.txt
     mkdir out
     cd out
     mkdir Debug
@@ -1914,6 +1917,7 @@ win:
         -DZLIB_FOUND=1 ^
         -DZLIB_INCLUDE_DIR=%ZLIB_LIBS_DIR% ^
         -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib" ^
+        -DCMAKE_CONFIGURATION_TYPES=Debug ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
         -DCMAKE_C_FLAGS="/DZLIB_WINAPI" ^
@@ -1935,6 +1939,7 @@ release:
         -DZLIB_FOUND=1 ^
         -DZLIB_INCLUDE_DIR=%ZLIB_LIBS_DIR% ^
         -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib" ^
+        -DCMAKE_CONFIGURATION_TYPES=Release ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
         -DCMAKE_C_FLAGS="/DZLIB_WINAPI" ^
@@ -1950,7 +1955,7 @@ mac:
         BUILD_CONFIG=$1
         mkdir -p out/$BUILD_CONFIG
         cd out/$BUILD_CONFIG
-        cmake -G Ninja \
+        cmake \
             -DCMAKE_BUILD_TYPE=$BUILD_CONFIG \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
             -DOPENSSL_FOUND=1 \
