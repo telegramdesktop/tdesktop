@@ -1048,7 +1048,7 @@ stage('libjxl', """
 """) + """
 win:
     cmake . ^
-        -A %WIN32X64% -T v143 ^
+        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
@@ -1370,7 +1370,7 @@ stage('openal-soft', """
 win:
     git checkout 291c0fdbbd
     cmake -B build . ^
-        -A %WIN32X64% -T v143 ^
+        -A %WIN32X64% ^
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON ^
         -D ALSOFT_UTILS=OFF ^
