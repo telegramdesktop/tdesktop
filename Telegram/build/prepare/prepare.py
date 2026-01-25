@@ -103,19 +103,16 @@ if (win32):
     environment.update({
         'SPECIAL_TARGET': 'win',
         'X8664': 'x86',
-        'WIN32X64': 'Win32',
     })
 elif (win64):
     environment.update({
         'SPECIAL_TARGET': 'win64',
         'X8664': 'x64',
-        'WIN32X64': 'x64',
     })
 elif (winarm):
     environment.update({
         'SPECIAL_TARGET': 'winarm',
         'X8664': 'ARM64',
-        'WIN32X64': 'ARM64',
     })
 elif (mac):
     environment.update({
@@ -131,7 +128,6 @@ ignoreInCacheForThirdParty = [
     'LIBS_DIR',
     'SPECIAL_TARGET',
     'X8664',
-    'WIN32X64',
 ]
 
 environmentKeyString = ''
@@ -543,7 +539,6 @@ stage('zlib', """
     cd zlib
 win:
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
         -DCMAKE_C_FLAGS="/DZLIB_WINAPI" ^
@@ -565,7 +560,6 @@ stage('mozjpeg', """
     cd mozjpeg
 win:
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
@@ -652,7 +646,6 @@ stage('opus', """
     cd opus
 win:
     cmake -B out . ^
-        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DOPUS_STATIC_RUNTIME=ON
     cmake --build out --config Debug --parallel
@@ -674,7 +667,7 @@ stage('rnnoise', """
     mkdir out
     cd out
 win:
-    cmake -A %WIN32X64% .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    cmake .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
     cmake --build . --config Debug --parallel
 release:
     cmake --build . --config Release --parallel
@@ -863,7 +856,6 @@ stage('libavif', """
     cd libavif
 win:
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
@@ -894,7 +886,6 @@ stage('libde265', """
     cd libde265
 win:
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
@@ -972,7 +963,6 @@ win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' heifio/CMakeLists.txt
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' heifio/CMakeLists.txt
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DBUILD_SHARED_LIBS=OFF ^
@@ -1048,7 +1038,6 @@ stage('libjxl', """
 """) + """
 win:
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
@@ -1370,7 +1359,6 @@ stage('openal-soft', """
 win:
     git checkout 291c0fdbbd
     cmake -B build . ^
-        -A %WIN32X64% ^
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON ^
         -D ALSOFT_UTILS=OFF ^
@@ -1854,7 +1842,6 @@ stage('ada', """
     cd ada
 win:
     cmake -B out . ^
-        -A %WIN32X64% ^
         -D ADA_TESTING=OFF ^
         -D ADA_TOOLS=OFF ^
         -D ADA_INCLUDE_URL_PATTERN=OFF ^
@@ -1883,7 +1870,6 @@ win:
     mkdir build
     cd build
     cmake .. ^
-        -A %WIN32X64% ^
         -Dprotobuf_BUILD_TESTS=OFF ^
         -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON ^
         -Dprotobuf_BUILD_LIBPROTOC=ON ^
@@ -1921,7 +1907,7 @@ win:
     cd out
     mkdir Debug
     cd Debug
-    cmake -A %WIN32X64% ^
+    cmake ^
         -DOPENSSL_FOUND=1 ^
         -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\\include ^
         -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib" ^
@@ -1942,7 +1928,7 @@ release:
     cd ..
     mkdir Release
     cd Release
-    cmake -A %WIN32X64% ^
+    cmake ^
         -DOPENSSL_FOUND=1 ^
         -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\\include ^
         -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%\\libcrypto.lib" ^
