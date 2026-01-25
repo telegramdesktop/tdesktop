@@ -1510,25 +1510,12 @@ win:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
     git checkout e3f59e8d0c
-    mkdir out
-    cd out
-    mkdir Debug
-    cd Debug
-    cmake -G Ninja ^
-        -DCMAKE_BUILD_TYPE=Debug ^
+    cmake -B out ^
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
-        -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
-    cmake --build .
+        -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib
+    cmake --build out --config Debug
 release:
-    cd ..
-    mkdir Release
-    cd Release
-    cmake -G Ninja ^
-        -DCMAKE_BUILD_TYPE=Release ^
-        -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
-        -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
-    cmake --build .
-    cd ..\\..\\..
+    cmake --build out --config Release
 """)
 
     stage('qt_' + qt, """
