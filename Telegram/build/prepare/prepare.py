@@ -1859,7 +1859,7 @@ win:
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
         -DTD_E2E_ONLY=ON ^
         ../..
-    cmake --build . --config Debug --target tde2e
+    cmake --build . --config Debug
 release:
     cd ..
     mkdir Release
@@ -1881,7 +1881,7 @@ release:
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
         -DTD_E2E_ONLY=ON ^
         ../..
-    cmake --build . --config Release --target tde2e
+    cmake --build . --config Release
 mac:
     buildTd() {
         BUILD_CONFIG=$1
@@ -1898,7 +1898,7 @@ mac:
             -DZLIB_LIBRARIES=$USED_PREFIX/lib/libz.a \
             -DTD_E2E_ONLY=ON \
             ../..
-        cmake --build . --config $BUILD_CONFIG --target tde2e
+        cmake --build .
         cd ../..
     }
 
