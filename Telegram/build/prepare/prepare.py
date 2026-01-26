@@ -1717,12 +1717,7 @@ win:
     SET LIBVPX_PATH=$USED_PREFIX/include
     SET OPENH264_PATH=$USED_PREFIX/include
     SET FFMPEG_PATH=$LIBS_DIR/ffmpeg
-    mkdir out
-    cd out
-    mkdir Debug
-    cd Debug
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
+    cmake -B out \
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1731,24 +1726,10 @@ win:
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    cmake --build .
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH
+    cmake --build out --config Debug
 release:
-    cd ..
-    mkdir Release
-    cd Release
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PATH \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    cmake --build .
+    cmake --build out --config Release
 mac:
     MOZJPEG_PATH=$USED_PREFIX/include
     OPUS_PATH=$USED_PREFIX/include/opus
