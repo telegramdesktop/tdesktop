@@ -251,6 +251,13 @@ TopBarWidget::TopBarWidget(
 	}, lifetime());
 
 	setCursor(style::cur_pointer);
+	_call->setAccessibleName(tr::lng_profile_action_short_call(tr::now));
+	_groupCall->setAccessibleName(tr::lng_group_call_title(tr::now));
+	_search->setAccessibleName(tr::lng_shortcuts_search(tr::now));
+	_infoToggle->setAccessibleName(tr::lng_settings_section_info(tr::now));
+	_menuToggle->setAccessibleName(tr::lng_chat_menu(tr::now));
+	_back->setAccessibleName(tr::lng_go_back(tr::now));
+	_cancelChoose->setAccessibleName(tr::lng_cancel(tr::now));
 }
 
 TopBarWidget::~TopBarWidget() = default;
@@ -965,6 +972,13 @@ void TopBarWidget::refreshInfoButton() {
 	}
 	if (_info) {
 		_info->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_info->setAccessibleName(tr::lng_settings_section_info(tr::now));
+		if (_back && _info) {
+			QWidget::setTabOrder(_back.data(), _info.data());
+		}
+		if (_info && _search) {
+			QWidget::setTabOrder(_info.data(), _search.data());
+		}
 	}
 }
 
