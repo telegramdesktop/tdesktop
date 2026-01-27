@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
+#include "lang/lang_keys.h"
+#include "ui/text/format_values.h"
 
 namespace Ui {
 namespace {
@@ -60,6 +62,28 @@ void SendButton::setState(State state) {
 			kMarkupTextOptions);
 	}
 	_state = state;
+
+	setAccessibleName([&] {
+		switch (_state.type) {
+		case Type::Send: return tr::lng_send_button(tr::now);
+		case Type::Record:
+			return tr::lng_shortcuts_record_voice_message(tr::now);
+		case Type::Round:
+			return tr::lng_shortcuts_record_round_message(tr::now);
+		case Type::Cancel: return tr::lng_cancel(tr::now);
+		case Type::Save: return tr::lng_settings_save(tr::now);
+		case Type::Slowmode:
+			return tr::lng_slowmode_enabled(
+				tr::now,
+				lt_left,
+				Ui::FormatDurationWordsSlowmode(_state.slowmodeDelay));
+		case Type::Schedule: return tr::lng_schedule_button(tr::now);
+		case Type::EditPrice:
+			return tr::lng_suggest_menu_edit_price(tr::now);
+		}
+		Unexpected("Send button type.");
+	}());
+
 	if (animate) {
 		_stateChangeFromWidth = width();
 		_stateChangeAnimation.stop();
