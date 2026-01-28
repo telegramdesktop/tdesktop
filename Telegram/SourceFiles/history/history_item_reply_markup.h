@@ -152,7 +152,7 @@ struct HistoryMessageSuggestInfo {
 	HistoryMessageSuggestInfo() = default;
 	explicit HistoryMessageSuggestInfo(const MTPSuggestedPost *data);
 	explicit HistoryMessageSuggestInfo(const Api::SendOptions &options);
-	explicit HistoryMessageSuggestInfo(SuggestPostOptions options);
+	explicit HistoryMessageSuggestInfo(SuggestOptions options);
 
 	CreditsAmount price;
 	TimeId date = 0;

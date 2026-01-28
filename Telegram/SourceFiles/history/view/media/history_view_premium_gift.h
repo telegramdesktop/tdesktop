@@ -60,6 +60,8 @@ private:
 	[[nodiscard]] bool gift() const;
 	[[nodiscard]] bool creditsPrize() const;
 	[[nodiscard]] int credits() const;
+	[[nodiscard]] int premiumDays() const;
+	[[nodiscard]] int premiumMonths() const;
 	void ensureStickerCreated() const;
 
 	const not_null<Element*> _parent;

@@ -68,7 +68,7 @@ void GlobalPrivacy::reload(Fn<void()> callback) {
 	}).send();
 
 	_session->appConfig().value(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_showArchiveAndMute = _session->appConfig().get<bool>(
 			u"autoarchive_setting_available"_q,
 			false);
@@ -262,6 +262,9 @@ void GlobalPrivacy::update(
 			: DisallowedFlag())
 		| ((disallowedGiftTypes & DisallowedGiftType::Unique)
 			? DisallowedFlag::f_disallow_unique_stargifts
+			: DisallowedFlag())
+		| ((disallowedGiftTypes & DisallowedGiftType::FromChannels)
+			? DisallowedFlag::f_disallow_stargifts_from_channels
 			: DisallowedFlag());
 	const auto typesWas = _disallowedGiftTypes.current();
 	const auto typesChanged = (typesWas != disallowedGiftTypes);
@@ -321,6 +324,9 @@ void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &settings) {
 				: DisallowedGiftType())
 			| (disallow.is_disallow_premium_gifts()
 				? DisallowedGiftType::Premium
+				: DisallowedGiftType())
+			| (disallow.is_disallow_stargifts_from_channels()
+				? DisallowedGiftType::FromChannels
 				: DisallowedGiftType())
 			| (data.is_display_gifts_button()
 				? DisallowedGiftType::SendHide

@@ -116,24 +116,24 @@ private:
 			tr::now,
 			lt_folder,
 			std::move(boldTitle),
-			Ui::Text::WithEntities)
+			tr::marked)
 		: (type == Type::AddingChats)
 		? tr::lng_filters_by_link_more_sure(
 			tr::now,
 			lt_folder,
 			std::move(boldTitle),
-			Ui::Text::WithEntities)
+			tr::marked)
 		: (type == Type::AllAdded)
 		? tr::lng_filters_by_link_already_about(
 			tr::now,
 			lt_folder,
 			std::move(boldTitle),
-			Ui::Text::WithEntities)
+			tr::marked)
 		: tr::lng_filters_by_link_remove_sure(
 			tr::now,
 			lt_folder,
 			std::move(boldTitle),
-			Ui::Text::WithEntities);
+			tr::marked);
 }
 
 void InitFilterLinkHeader(
@@ -174,13 +174,13 @@ void InitFilterLinkHeader(
 	box->setAddedTopScrollSkip(max);
 	std::move(
 		header.wheelEvents
-	) | rpl::start_with_next([=](not_null<QWheelEvent*> e) {
+	) | rpl::on_next([=](not_null<QWheelEvent*> e) {
 		box->sendScrollViewportEvent(e);
 	}, widget->lifetime());
 
 	std::move(
 		header.closeRequests
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		box->closeBox();
 	}, widget->lifetime());
 
@@ -193,7 +193,7 @@ void InitFilterLinkHeader(
 	box->scrolls(
 	) | rpl::filter([=] {
 		return !state->processing;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		state->processing = true;
 		const auto guard = gsl::finally([&] { state->processing = false; });
 
@@ -237,7 +237,7 @@ void ImportInvite(
 		fail(error.type());
 	};
 	auto inputs = peers | ranges::views::transform([](auto peer) {
-		return MTPInputPeer(peer->input);
+		return MTPInputPeer(peer->input());
 	}) | ranges::to<QVector<MTPInputPeer>>();
 	if (!slug.isEmpty()) {
 		api->request(MTPchatlists_JoinChatlistInvite(
@@ -470,7 +470,7 @@ void ToggleChatsController::adjust(
 void ToggleChatsController::setRealContentHeight(rpl::producer<int> value) {
 	std::move(
 		value
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		const auto desired = _desiredHeight.current();
 		if (height <= computeListSt().item.height) {
 			return;
@@ -547,7 +547,7 @@ void ShowImportToast(
 		? tr::lng_filters_added_title
 		: tr::lng_filters_updated_title;
 	auto text = Ui::Text::Wrapped(
-		phrase(tr::now, lt_folder, title.text, Ui::Text::WithEntities),
+		phrase(tr::now, lt_folder, title.text, tr::marked),
 		EntityType::Bold);
 	if (added > 0) {
 		const auto phrase = created
@@ -644,7 +644,7 @@ void ProcessFilterInvite(
 
 		const auto button = owned.data();
 		box->widthValue(
-		) | rpl::start_with_next([=](int width) {
+		) | rpl::on_next([=](int width) {
 			const auto &padding = st::filterInviteBox.buttonPadding;
 			button->resizeToWidth(width
 				- padding.left()
@@ -662,7 +662,7 @@ void ProcessFilterInvite(
 		const auto state = box->lifetime().make_state<State>();
 
 		raw->selectedValue(
-		) | rpl::start_with_next([=](
+		) | rpl::on_next([=](
 				base::flat_set<not_null<PeerData*>> &&peers) {
 			button->setClickedCallback([=] {
 				if (peers.empty()) {
@@ -777,7 +777,7 @@ void CheckFilterInvite(
 		if (notLoaded) {
 			const auto lifetime = std::make_shared<rpl::lifetime>();
 			owner.chatsFilters().changed(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				lifetime->destroy();
 				ProcessFilterInvite(
 					weak,
@@ -873,7 +873,7 @@ void ProcessFilterRemove(
 
 		const auto button = owned.data();
 		box->widthValue(
-		) | rpl::start_with_next([=](int width) {
+		) | rpl::on_next([=](int width) {
 			const auto &padding = st::filterInviteBox.buttonPadding;
 			button->resizeToWidth(width
 				- padding.left()
@@ -886,7 +886,7 @@ void ProcessFilterRemove(
 		HandleEnterInBox(box);
 
 		raw->selectedValue(
-		) | rpl::start_with_next([=](
+		) | rpl::on_next([=](
 				base::flat_set<not_null<PeerData*>> &&peers) {
 			button->setClickedCallback([=] {
 				done(peers | ranges::to_vector);

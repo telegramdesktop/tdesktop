@@ -38,7 +38,7 @@ int SendPreloadRequest(not_null<History*> history, Fn<void()> retry) {
 	auto &histories = history->owner().histories();
 	return histories.sendRequest(history, type, [=](Fn<void()> finish) {
 		return history->session().api().request(MTPmessages_GetHistory(
-			history->peer->input,
+			history->peer->input(),
 			MTP_int(offsetId),
 			MTP_int(offsetDate),
 			MTP_int(offset),

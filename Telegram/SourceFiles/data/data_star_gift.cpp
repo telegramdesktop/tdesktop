@@ -59,7 +59,11 @@ constexpr auto kResaleGiftsPerPage = 50;
 } // namespace
 
 QString UniqueGiftName(const UniqueGift &gift) {
-	return gift.title + u" #"_q + QString::number(gift.number);
+	return UniqueGiftName(gift.title, gift.number);
+}
+
+QString UniqueGiftName(const QString &title, int number) {
+	return title + u" #"_q + QString::number(number);
 }
 
 CreditsAmount UniqueGiftResaleStars(const UniqueGift &gift) {
@@ -133,7 +137,7 @@ rpl::producer<MyGiftsDescriptor> MyUniqueGiftsSlice(
 				| ((type == MyUniqueType::OnlyOwned)
 					? Flag::f_exclude_hosted
 					: Flag())),
-			user->input,
+			user->input(),
 			MTP_int(0), // collection_id
 			MTP_string(offset),
 			MTP_int(kMyGiftsPerPage)

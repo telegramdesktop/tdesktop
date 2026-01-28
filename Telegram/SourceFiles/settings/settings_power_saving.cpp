@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/power_saving.h"
 #include "ui/vertical_list.h"
+#include "settings/settings_common.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -27,7 +28,9 @@ constexpr auto kForceDisableTooltipDuration = 3 * crl::time(1000);
 
 } // namespace
 
-void PowerSavingBox(not_null<Ui::GenericBox*> box) {
+void PowerSavingBox(
+		not_null<Ui::GenericBox*> box,
+		PowerSaving::Flags highlightFlags) {
 	box->setStyle(st::layerBox);
 	box->setTitle(tr::lng_settings_power_title());
 	box->setWidth(st::boxWideWidth);
@@ -53,12 +56,14 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 		? tr::lng_settings_power_turn_off(tr::now)
 		: QString();
 
-	auto [checkboxes, getResult, changes] = CreateEditPowerSaving(
+	auto [checkboxes, getResult, changes, highlightWidget] = CreateEditPowerSaving(
 		box,
 		PowerSaving::kAll & ~PowerSaving::Current(),
-		state->forceDisabledMessage.value());
+		state->forceDisabledMessage.value(),
+		highlightFlags);
 
 	const auto controlsRaw = checkboxes.data();
+	const auto highlightWidgetRaw = highlightWidget.data();
 	box->addRow(std::move(checkboxes), style::margins());
 
 	auto automatic = (Ui::SettingsButton*)nullptr;
@@ -91,7 +96,7 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 				tr::lng_settings_power_turn_off(tr::now),
 				kForceDisableTooltipDuration);
 		});
-		disabler->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		disabler->paintRequest() | rpl::on_next([=](QRect clip) {
 			auto color = st::boxBg->c;
 			color.setAlpha(96);
 			QPainter(disabler).fillRect(clip, color);
@@ -99,7 +104,7 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 		rpl::combine(
 			subtitle->geometryValue(),
 			controlsRaw->geometryValue()
-		) | rpl::start_with_next([=](QRect subtitle, QRect controls) {
+		) | rpl::on_next([=](QRect subtitle, QRect controls) {
 			disabler->setGeometry(subtitle.united(controls));
 		}, disabler->lifetime());
 		disabler->showOn(state->forceDisabledMessage.value(
@@ -121,6 +126,13 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 		box->closeBox();
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+	if (highlightWidgetRaw) {
+		box->showFinishes(
+		) | rpl::take(1) | rpl::on_next([=] {
+			HighlightWidget(highlightWidgetRaw);
+		}, box->lifetime());
+	}
 }
 
 EditFlagsDescriptor<PowerSaving::Flags> PowerSavingLabels() {

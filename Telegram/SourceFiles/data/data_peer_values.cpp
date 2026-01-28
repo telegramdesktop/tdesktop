@@ -376,13 +376,15 @@ rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
 
 rpl::producer<bool> CanManageGroupCallValue(not_null<PeerData*> peer) {
 	const auto flag = ChatAdminRight::ManageCall;
-	if (const auto chat = peer->asChat()) {
+	if (const auto user = peer->asUser()) {
+		return rpl::single(user->isSelf());
+	} else if (const auto chat = peer->asChat()) {
 		return chat->amCreator()
-			? (rpl::single(true) | rpl::type_erased())
+			? (rpl::single(true) | rpl::type_erased)
 			: AdminRightValue(chat, flag);
 	} else if (const auto channel = peer->asChannel()) {
 		return channel->amCreator()
-			? (rpl::single(true) | rpl::type_erased())
+			? (rpl::single(true) | rpl::type_erased)
 			: AdminRightValue(channel, flag);
 	}
 	return rpl::single(false);
@@ -556,7 +558,7 @@ rpl::producer<QImage> PeerUserpicImageValue(
 
 			if (loading && !state->waiting) {
 				peer->session().downloaderTaskFinished(
-				) | rpl::start_with_next(state->push, state->waiting);
+				) | rpl::on_next(state->push, state->waiting);
 			} else if (!loading && state->waiting) {
 				state->waiting.destroy();
 			}
@@ -576,7 +578,7 @@ rpl::producer<QImage> PeerUserpicImageValue(
 		peer->session().changes().peerFlagsValue(
 			peer,
 			PeerUpdate::Flag::Photo
-		) | rpl::start_with_next(state->push, result);
+		) | rpl::on_next(state->push, result);
 		return result;
 	};
 }

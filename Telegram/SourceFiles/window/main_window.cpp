@@ -71,7 +71,7 @@ using Core::WindowPosition;
 
 base::options::toggle OptionNewWindowsSizeAsFirst({
 	.id = kOptionNewWindowsSizeAsFirst,
-	.name = "Adjust size of new chat windows.",
+	.name = "Adjust size of new chat windows",
 	.description = "Open new windows with a size of the main window.",
 });
 
@@ -370,19 +370,19 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 , _outdated(Ui::CreateOutdatedBar(body(), cWorkingDir()))
 , _body(body()) {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updatePalette();
 	}, lifetime());
 
 	Core::App().unreadBadgeChanges(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateTitle();
 		unreadCounterChangedHook();
 		Core::App().tray().updateIconCounters();
 	}, lifetime());
 
 	Core::App().settings().workModeChanges(
-	) | rpl::start_with_next([=](Core::Settings::WorkMode mode) {
+	) | rpl::on_next([=](Core::Settings::WorkMode mode) {
 		workmodeUpdated(mode);
 	}, lifetime());
 
@@ -391,27 +391,27 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 	}
 
 	windowActiveValue(
-	) | rpl::skip(1) | rpl::start_with_next([=](bool active) {
+	) | rpl::skip(1) | rpl::on_next([=](bool active) {
 		InvokeQueued(this, [=] {
 			handleActiveChanged(active);
 		});
 	}, lifetime());
 
 	shownValue(
-	) | rpl::skip(1) | rpl::start_with_next([=](bool visible) {
+	) | rpl::skip(1) | rpl::on_next([=](bool visible) {
 		InvokeQueued(this, [=] {
 			handleVisibleChanged(visible);
 		});
 	}, lifetime());
 
 	body()->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		updateControlsGeometry();
 	}, lifetime());
 
 	if (_outdated) {
 		_outdated->heightValue(
-		) | rpl::start_with_next([=](int height) {
+		) | rpl::on_next([=](int height) {
 			if (!height) {
 				crl::on_main(this, [=] { _outdated.destroy(); });
 			}
@@ -503,7 +503,7 @@ void MainWindow::init() {
 
 	if (Ui::Platform::NativeWindowFrameSupported()) {
 		Core::App().settings().nativeWindowFrameChanges(
-		) | rpl::start_with_next([=](bool native) {
+		) | rpl::on_next([=](bool native) {
 			refreshTitleWidget();
 			recountGeometryConstraints();
 		}, lifetime());
@@ -720,7 +720,7 @@ QRect MainWindow::countInitialGeometry(
 				return screen;
 			}
 		}
-		return nullptr;
+		return QGuiApplication::screenAt(position.rect().center());
 	}();
 	if (!screen) {
 		return initial.rect();
@@ -752,8 +752,10 @@ QRect MainWindow::countInitialGeometry(
 		).arg(spaceForInner.width()
 		).arg(spaceForInner.height()));
 
-	const auto x = spaceForInner.x() - screenGeometry.x();
-	const auto y = spaceForInner.y() - screenGeometry.y();
+	const auto x = spaceForInner.x()
+		- (position.moncrc ? screenGeometry.x() : 0);
+	const auto y = spaceForInner.y()
+		- (position.moncrc ? screenGeometry.y() : 0);
 	const auto w = spaceForInner.width();
 	const auto h = spaceForInner.height();
 	if (w < st::windowMinWidth || h < st::windowMinHeight) {
@@ -791,8 +793,10 @@ QRect MainWindow::countInitialGeometry(
 			position.h -= newDistance;
 		}
 	}
-	position.x += screenGeometry.x();
-	position.y += screenGeometry.y();
+	if (position.moncrc) {
+		position.x += screenGeometry.x();
+		position.y += screenGeometry.y();
+	}
 	if ((position.x + st::windowMinWidth
 		> screenGeometry.x() + screenGeometry.width())
 		|| (position.y + st::windowMinHeight
@@ -1113,9 +1117,6 @@ WindowPosition PositionWithScreen(
 		).arg(geometry.y()
 		).arg(geometry.width()
 		).arg(geometry.height()));
-	position.x -= geometry.x();
-	position.y -= geometry.y();
-	position.moncrc = Platform::ScreenNameChecksum(chosen->name());
 	return position;
 }
 

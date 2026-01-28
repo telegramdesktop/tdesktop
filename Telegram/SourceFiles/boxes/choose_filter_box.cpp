@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -22,13 +24,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/filter_icons.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/text/text_utilities.h" // Ui::Text::Bold
+#include "ui/text/text_utilities.h" // tr::bold
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "main/main_session_settings.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 #include "styles/style_menu_icons.h"
@@ -178,10 +181,10 @@ void ChangeFilterById(
 						: tr::lng_filters_toast_remove)(
 							tr::now,
 							lt_chat,
-							Ui::Text::Bold(chat),
+							tr::bold(chat),
 							lt_folder,
 							Ui::Text::Wrapped(name.text, EntityType::Bold),
-							Ui::Text::WithEntities),
+							tr::marked),
 					.textContext = Core::TextContext({
 						.session = &history->session(),
 						.customEmojiLoopLimit = isStatic ? -1 : 0,
@@ -285,7 +288,7 @@ void FillChooseFilterMenu(
 		const auto contains = filter.contains(history);
 		const auto title = filter.title();
 		auto item = base::make_unique_q<FilterAction>(
-			menu.get(),
+			menu->menu(),
 			menu->st().menu,
 			Ui::Menu::CreateAction(
 				menu.get(),
@@ -344,7 +347,114 @@ void FillChooseFilterMenu(
 	}
 
 	history->owner().chatsFilters().changed(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		menu->hideMenu();
 	}, menu->lifetime());
+}
+
+bool FillChooseFilterWithAdminedGroupsMenu(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::PopupMenu*> menu,
+		not_null<UserData*> user,
+		std::shared_ptr<rpl::event_stream<>> listUpdates,
+		std::vector<not_null<PeerData*>> common,
+		std::shared_ptr<std::vector<PeerId>> collectCommon) {
+	const auto weak = base::make_weak(controller);
+	const auto session = &controller->session();
+	const auto &list = session->data().chatsFilters().list();
+	const auto showColors = session->data().chatsFilters().tagsEnabled();
+	auto added = 0;
+	for (const auto &filter : list) {
+		const auto id = filter.id();
+		if (!id) {
+			continue;
+		}
+		auto canRestrictList = std::vector<not_null<PeerData*>>();
+		const auto maybeAppend = [&](not_null<History*> chat) {
+			const auto channel = chat->peer->asChannel();
+			if (channel && channel->canRestrictParticipant(user)) {
+				if (channel->isGroupAdmin(user) && !channel->amCreator()) {
+					return;
+				}
+				canRestrictList.push_back(chat->peer);
+			}
+		};
+		for (const auto &chat : filter.always()) {
+			maybeAppend(chat);
+		}
+		for (const auto &chat : filter.pinned()) {
+			maybeAppend(chat);
+		}
+		if (canRestrictList.empty()) {
+			continue;
+		}
+
+		const auto checked = std::make_shared<bool>(false);
+
+		const auto contains = false;
+		const auto title = filter.title();
+		auto item = base::make_unique_q<FilterAction>(
+			menu->menu(),
+			menu->st().menu,
+			new QAction(
+				Ui::Text::FixAmpersandInAction(title.text.text),
+				menu.get()),
+			contains ? &st::mediaPlayerMenuCheck : nullptr,
+			contains ? &st::mediaPlayerMenuCheck : nullptr);
+		const auto triggered = [=, raw = item.get()] {
+			*checked = !*checked;
+			if (*checked) {
+				for (const auto &peer : canRestrictList) {
+					if (ranges::contains(common, peer)) {
+						collectCommon->push_back(peer->id);
+					}
+				}
+			} else {
+				for (const auto &peer : canRestrictList) {
+					if (const auto i = ranges::find(*collectCommon, peer->id);
+							i != collectCommon->end()) {
+						collectCommon->erase(i);
+					}
+				}
+			}
+			raw->Ui::Menu::Action::setIcon(
+				*checked ? &st::mediaPlayerMenuCheck : nullptr,
+				*checked ? &st::mediaPlayerMenuCheck : nullptr);
+			listUpdates->fire({});
+		};
+		item->setActionTriggered([=] {
+			triggered();
+
+			auto groups = session->settings().moderateCommonGroups();
+			if (*checked && !ranges::contains(groups, id)) {
+				groups.push_back(id);
+			} else if (!*checked) {
+				groups.erase(ranges::remove(groups, id), groups.end());
+			}
+			session->settings().setModerateCommonGroups(groups);
+			session->saveSettingsDelayed();
+		});
+		if (ranges::contains(
+				session->settings().moderateCommonGroups(),
+				id)) {
+			triggered();
+		}
+		item->setPreventClose(true);
+		item->setMarkedText(title.text, QString(), Core::TextContext({
+			.session = session,
+			.repaint = [raw = item.get()] { raw->update(); },
+			.customEmojiLoopLimit = title.isStatic ? -1 : 0,
+		}));
+
+		item->setIcon(Icon(showColors ? filter : filter.withColorIndex({})));
+		menu->addAction(std::move(item));
+		added++;
+	}
+
+	session->data().chatsFilters().changed(
+	) | rpl::on_next([=] {
+		menu->hideMenu();
+	}, menu->lifetime());
+
+	return added;
 }

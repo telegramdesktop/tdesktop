@@ -108,8 +108,7 @@ DeclareSetting(bool, PasswordRecovered);
 DeclareSetting(int32, PasscodeBadTries);
 DeclareSetting(crl::time, PasscodeLastTry);
 
-DeclareSetting(QStringList, SendPaths);
-DeclareSetting(QString, StartUrl);
+DeclareRefSetting(QList<QUrl>, StartUrls);
 
 DeclareSetting(int, OtherOnline);
 

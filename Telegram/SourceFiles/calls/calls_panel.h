@@ -64,6 +64,7 @@ class Window;
 class Userpic;
 class SignalBars;
 class VideoBubble;
+class PanelBackground;
 struct DeviceSelection;
 struct ConferencePanelMigration;
 
@@ -78,6 +79,7 @@ public:
 	[[nodiscard]] not_null<UserData*> user() const;
 	[[nodiscard]] bool isVisible() const;
 	[[nodiscard]] bool isActive() const;
+	[[nodiscard]] QRect panelGeometry() const;
 
 	[[nodiscard]] ConferencePanelMigration migrationInfo() const;
 
@@ -85,6 +87,7 @@ public:
 	void minimize();
 	void toggleFullScreen();
 	void replaceCall(not_null<Call*> call);
+	void savePanelGeometry();
 	void closeBeforeDestroy(bool windowIsReused = false);
 
 	QWidget *chooseSourceParent() override;
@@ -140,6 +143,7 @@ private:
 	void stateChanged(State state);
 	void showControls();
 	void updateStatusText(State state);
+	void updateTextColors();
 	void startDurationUpdateTimer(crl::time currentDuration);
 	void setIncomingSize(QSize size);
 	void refreshIncomingGeometry();
@@ -214,6 +218,9 @@ private:
 
 	rpl::event_stream<bool> _startOutgoingRequests;
 
+	std::unique_ptr<PanelBackground> _background;
+
+	rpl::lifetime _geometryLifetime;
 	rpl::lifetime _lifetime;
 
 };

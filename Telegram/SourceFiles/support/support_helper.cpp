@@ -116,9 +116,9 @@ void EditInfoBox::prepare() {
 	addButton(tr::lng_settings_save(), save);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
-	_field->submits() | rpl::start_with_next(save, _field->lifetime());
+	_field->submits() | rpl::on_next(save, _field->lifetime());
 	_field->cancelled(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		closeBox();
 	}, _field->lifetime());
 	Ui::Emoji::SuggestionsController::Init(
@@ -131,14 +131,14 @@ void EditInfoBox::prepare() {
 	_field->setTextCursor(cursor);
 
 	widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		_field->resizeToWidth(
 			width - st::boxPadding.left() - st::boxPadding.right());
 		_field->moveToLeft(st::boxPadding.left(), st::boxPadding.bottom());
 	}, _field->lifetime());
 
 	_field->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setDimensions(
 			st::boxWideWidth,
 			st::boxPadding.bottom() + height + st::boxPadding.bottom());
@@ -167,7 +167,7 @@ Data::Draft OccupiedDraft(const QString &normalizedName) {
 			+ ";n:"
 			+ normalizedName },
 		FullReplyTo(),
-		SuggestPostOptions(),
+		SuggestOptions(),
 		MessageCursor(),
 		Data::WebPageDraft()
 	};
@@ -327,7 +327,7 @@ void Helper::registerWindow(not_null<Window::SessionController*> controller) {
 		const auto history = key.history();
 		return TrackHistoryOccupation(history) ? history : nullptr;
 	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](History *history) {
+	) | rpl::on_next([=](History *history) {
 		updateOccupiedHistory(controller, history);
 	}, controller->lifetime());
 }
@@ -440,7 +440,7 @@ bool Helper::isOccupiedBySomeone(History *history) const {
 
 void Helper::refreshInfo(not_null<UserData*> user) {
 	_api.request(MTPhelp_GetUserInfo(
-		user->inputUser
+		user->inputUser()
 	)).done([=](const MTPhelp_UserInfo &result) {
 		applyInfo(user, result);
 		if (const auto controller = _userInfoEditPending.take(user)) {
@@ -569,7 +569,7 @@ void Helper::saveInfo(
 		text.entities,
 		Api::ConvertOption::SkipLocal);
 	_userInfoSaving[user].requestId = _api.request(MTPhelp_EditUserInfo(
-		user->inputUser,
+		user->inputUser(),
 		MTP_string(text.text),
 		entities
 	)).done([=](const MTPhelp_UserInfo &result) {

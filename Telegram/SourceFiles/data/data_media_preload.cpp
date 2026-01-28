@@ -75,7 +75,7 @@ void PhotoPreload::start(FileOrigin origin) {
 		_photo->owner()->session().downloaderTaskFinished(
 		) | rpl::filter([=] {
 			return _photo->loaded();
-		}) | rpl::start_with_next([=] { callDone(); }, _lifetime);
+		}) | rpl::on_next([=] { callDone(); }, _lifetime);
 	}
 }
 

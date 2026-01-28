@@ -26,7 +26,7 @@ if [ ! -f "/usr/bin/cmake" ]; then
   ln -s cmake3 /usr/bin/cmake
 fi
 
-./configure.sh
+./configure.sh -DDESKTOP_APP_ENABLE_LTO=ON
 
 cd $ProjectPath
 cmake --build . --config Release --target Telegram

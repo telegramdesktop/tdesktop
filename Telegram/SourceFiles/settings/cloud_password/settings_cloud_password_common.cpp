@@ -53,11 +53,11 @@ BottomButton CreateBottomDisableButton(
 
 	Ui::AddSkip(content);
 
-	content->add(object_ptr<Button>(
+	const auto button = content->add(object_ptr<Button>(
 		content,
 		std::move(buttonText),
-		st::settingsAttentionButton
-	))->addClickHandler(std::move(callback));
+		st::settingsAttentionButton));
+	button->addClickHandler(std::move(callback));
 
 	const auto divider = Ui::CreateChild<OneEdgeBoxContentDivider>(
 		parent.get());
@@ -66,7 +66,7 @@ BottomButton CreateBottomDisableButton(
 		std::move(sectionGeometryValue),
 		parent->geometryValue(),
 		content->geometryValue()
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			const QRect &r,
 			const QRect &parentRect,
 			const QRect &bottomRect) {
@@ -81,6 +81,7 @@ BottomButton CreateBottomDisableButton(
 
 	return {
 		.content = base::make_weak(content),
+		.button = base::make_weak(button),
 		.isBottomFillerShown = divider->geometryValue(
 		) | rpl::map([](const QRect &r) {
 			return r.height() > 0;
@@ -119,7 +120,7 @@ void SetupHeader(
 		content->add(std::move(icon.widget));
 		std::move(
 			showFinished
-		) | rpl::start_with_next([animate = std::move(icon.animate)] {
+		) | rpl::on_next([animate = std::move(icon.animate)] {
 			animate(anim::repeat::once);
 		}, content->lifetime());
 	}
@@ -162,7 +163,7 @@ not_null<Ui::PasswordInput*> AddPasswordField(
 		text);
 
 	container->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		field->moveToLeft((r.width() - field->width()) / 2, 0);
 	}, container->lifetime());
 
@@ -191,12 +192,12 @@ not_null<Ui::LinkButton*> AddLinkButton(
 		QString());
 	std::move(
 		text
-	) | rpl::start_with_next([=](const QString &text) {
+	) | rpl::on_next([=](const QString &text) {
 		button->setText(text);
 	}, button->lifetime());
 
 	input->geometryValue(
-	) | rpl::start_with_next([=](QRect r) {
+	) | rpl::on_next([=](QRect r) {
 		button->moveToLeft(r.x(), r.y() + r.height() + st::passcodeTextLine);
 	}, button->lifetime());
 	return button;

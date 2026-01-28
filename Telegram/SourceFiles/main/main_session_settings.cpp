@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/components/promo_suggestions.h"
 
 namespace Main {
 namespace {
@@ -28,7 +29,8 @@ constexpr auto kVersion = 2;
 
 SessionSettings::SessionSettings()
 : _selectorTab(ChatHelpers::SelectorTab::Emoji)
-, _supportSwitch(Support::SwitchSettings::Next) {
+, _supportSwitch(Support::SwitchSettings::Next)
+, _setupEmailState(Data::SetupEmailState::None) {
 }
 
 QByteArray SessionSettings::serialize() const {
@@ -63,6 +65,9 @@ QByteArray SessionSettings::serialize() const {
 			+ Serialize::stringSize(auth.device)
 			+ Serialize::stringSize(auth.location);
 	}
+	size += sizeof(qint32); // _setupEmailState
+	size += sizeof(qint32) // _moderateCommonGroups size
+		+ (_moderateCommonGroups.size() * sizeof(qint32));
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -143,6 +148,11 @@ QByteArray SessionSettings::serialize() const {
 				<< auth.device
 				<< auth.location;
 		}
+		stream << qint32(static_cast<int>(_setupEmailState));
+		stream << qint32(_moderateCommonGroups.size());
+		for (const auto &filterId : _moderateCommonGroups) {
+			stream << qint32(filterId);
+		}
 	}
 
 	Ensures(result.size() == size);
@@ -214,6 +224,8 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	base::flat_map<ThreadId, ushort> ringtoneVolumes;
 	base::flat_set<uint64> ratedTranscriptions;
 	std::vector<Data::UnreviewedAuth> unreviewed;
+	qint32 setupEmailState = 0;
+	std::vector<int32> moderateCommonGroups;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -627,6 +639,26 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream >> setupEmailState;
+	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				qint32 filterId;
+				stream >> filterId;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"
+						"with moderateCommonGroups"));
+					return;
+				}
+				moderateCommonGroups.emplace_back(filterId);
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -678,6 +710,19 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_ringtoneVolumes = std::move(ringtoneVolumes);
 	_ratedTranscriptions = std::move(ratedTranscriptions);
 	_unreviewed = std::move(unreviewed);
+	auto uncheckedSetupEmailState = static_cast<Data::SetupEmailState>(
+		setupEmailState);
+	switch (uncheckedSetupEmailState) {
+	case Data::SetupEmailState::None:
+	case Data::SetupEmailState::Setup:
+	case Data::SetupEmailState::SetupNoSkip:
+	case Data::SetupEmailState::SettingUp:
+	case Data::SetupEmailState::SettingUpNoSkip:
+		_setupEmailState = uncheckedSetupEmailState;
+		break;
+	}
+
+	_moderateCommonGroups = std::move(moderateCommonGroups);
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);
@@ -904,6 +949,14 @@ void SessionSettings::setUnreviewed(std::vector<Data::UnreviewedAuth> auths) {
 
 const std::vector<Data::UnreviewedAuth> &SessionSettings::unreviewed() const {
 	return _unreviewed;
+}
+
+void SessionSettings::setSetupEmailState(Data::SetupEmailState state) {
+	_setupEmailState = state;
+}
+
+Data::SetupEmailState SessionSettings::setupEmailState() const {
+	return _setupEmailState;
 }
 
 } // namespace Main

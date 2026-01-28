@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 
 CoverItem::CoverItem(
-	not_null<RpWidget*> parent,
+	not_null<Ui::Menu::Menu*> parent,
 	const style::Menu &stMenu,
 	const style::ShortInfoCover &st,
 	rpl::producer<QString> name,
@@ -32,13 +32,13 @@ CoverItem::CoverItem(
 , _st(st) {
 	setPointerCursor(false);
 
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 	enableMouseSelecting();
 	enableMouseSelecting(_cover.widget());
 
 	_cover.widget()->move(0, 0);
 	_cover.moveRequests(
-	) | rpl::start_with_next(userpic.move, lifetime());
+	) | rpl::on_next(userpic.move, lifetime());
 }
 
 not_null<QAction*> CoverItem::action() const {
@@ -54,7 +54,7 @@ int CoverItem::contentHeight() const {
 }
 
 AboutItem::AboutItem(
-	not_null<RpWidget*> parent,
+	not_null<Ui::Menu::Menu*> parent,
 	const style::Menu &st,
 	TextWithEntities &&about)
 : Ui::Menu::ItemBase(parent, st)
@@ -66,7 +66,7 @@ AboutItem::AboutItem(
 , _dummyAction(new QAction(parent)) {
 	setPointerCursor(false);
 
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 	enableMouseSelecting();
 	enableMouseSelecting(_text.get());
 

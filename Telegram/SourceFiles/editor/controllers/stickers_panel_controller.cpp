@@ -60,7 +60,7 @@ void StickersPanelController::setShowRequestChanges(
 		rpl::producer<ShowRequest> &&showRequest) {
 	std::move(
 		showRequest
-	) | rpl::start_with_next([=](ShowRequest show) {
+	) | rpl::on_next([=](ShowRequest show) {
 		if (show == ShowRequest::ToggleAnimated) {
 			_stickersPanel->toggleAnimated();
 			_stickersPanel->raise();
@@ -79,7 +79,7 @@ void StickersPanelController::setMoveRequestChanges(
 		rpl::producer<QPoint> &&moveRequest) {
 	std::move(
 		moveRequest
-	) | rpl::start_with_next([=](const QPoint &point) {
+	) | rpl::on_next([=](const QPoint &point) {
 		_stickersPanel->moveBottomRight(
 			point.y(),
 			point.x() + _stickersPanel->width() / 2);

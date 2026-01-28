@@ -563,7 +563,7 @@ Fn<void()> SavePreparedTheme(
 		session->uploader().documentReady(
 		) | rpl::filter([=](const UploadedMedia &data) {
 			return (data.fullId == state->id) && data.info.thumb.has_value();
-		}) | rpl::start_with_next([=](const UploadedMedia &data) {
+		}) | rpl::on_next([=](const UploadedMedia &data) {
 			uploadTheme(data);
 		}, state->lifetime);
 
@@ -665,8 +665,8 @@ void CreateForExistingBox(
 	const auto amCreator = window->account().sessionExists()
 		&& (window->account().session().userId() == cloud.createdBy);
 	box->setTitle(amCreator
-		? (rpl::single(cloud.title) | Ui::Text::ToWithEntities())
-		: tr::lng_theme_editor_create_title(Ui::Text::WithEntities));
+		? (rpl::single(cloud.title) | rpl::map(tr::marked))
+		: tr::lng_theme_editor_create_title(tr::marked));
 
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
@@ -790,7 +790,7 @@ void SaveThemeBox(
 		? GenerateName(collected.accent)
 		: cloud.title;
 
-	box->setTitle(tr::lng_theme_editor_save_title(Ui::Text::WithEntities));
+	box->setTitle(tr::lng_theme_editor_save_title(tr::marked));
 
 	const auto name = box->addRow(object_ptr<Ui::InputField>(
 		box,
@@ -811,12 +811,12 @@ void SaveThemeBox(
 		cloud.slug.isEmpty() ? GenerateSlug() : cloud.slug,
 		window->account().session().createInternalLink(QString()));
 	linkWrap->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		link->resize(width, link->height());
 		link->moveToLeft(0, 0, width);
 	}, link->lifetime());
 	link->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		linkWrap->resize(linkWrap->width(), height);
 	}, link->lifetime());
 	link->setLinkPlaceholder(

@@ -8,22 +8,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 
 #include "api/api_common.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "data/data_peer.h"
+#include "data/data_peer_values.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "base/event_filter.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/padding_wrap.h"
+#include "main/main_session.h"
 #include "menu/menu_send.h"
+#include "settings/sections/settings_premium.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
+
+namespace HistoryView::details {
+
+not_null<Main::Session*> SessionFromShow(
+		const std::shared_ptr<ChatHelpers::Show> &show) {
+	return &show->session();
+}
+
+} // namespace HistoryView::details
 
 namespace HistoryView {
 namespace {
@@ -63,19 +77,23 @@ bool CanScheduleUntilOnline(not_null<PeerData*> peer) {
 		return !user->isSelf()
 			&& !user->isBot()
 			&& !user->lastseen().isHidden()
-			&& !user->starsPerMessageChecked();
+			&& !user->starsPerMessageChecked()
+			&& !user->isNotificationsUser();
 	}
 	return false;
 }
 
 void ScheduleBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<Main::Session*> session,
+		std::shared_ptr<ChatHelpers::Show> maybeShow,
 		const Api::SendOptions &initialOptions,
 		const SendMenu::Details &details,
 		Fn<void(Api::SendOptions)> done,
 		TimeId time,
 		ScheduleBoxStyleArgs style) {
+	const auto repeat = std::make_shared<TimeId>(
+		initialOptions.scheduleRepeatPeriod);
 	const auto submit = [=](Api::SendOptions options) {
 		if (!options.scheduled) {
 			return;
@@ -83,6 +101,9 @@ void ScheduleBox(
 		// Pro tip: Hold Ctrl key to send a silent scheduled message!
 		if (base::IsCtrlPressed()) {
 			options.silent = true;
+		}
+		if (repeat) {
+			options.scheduleRepeatPeriod = *repeat;
 		}
 		const auto copy = done;
 		box->closeBox();
@@ -102,6 +123,42 @@ void ScheduleBox(
 		.time = time,
 		.style = style.chooseDateTimeArgs,
 	});
+
+	if (repeat) {
+		const auto boxShow = box->uiShow();
+		const auto showPremiumPromo = [=] {
+			if (session->premium()) {
+				return false;
+			}
+			Settings::ShowPremiumPromoToast(
+				Main::MakeSessionShow(boxShow, session),
+				ChatHelpers::ResolveWindowDefault(),
+				tr::lng_schedule_repeat_promo(
+					tr::now,
+					lt_link,
+					tr::link(
+						tr::bold(
+							tr::lng_schedule_repeat_promo_link(tr::now))),
+					tr::rich),
+				u"schedule_repeat"_q);
+			return true;
+		};
+		auto locked = Data::AmPremiumValue(
+			session
+		) | rpl::map([=](bool premium) {
+			return !premium;
+		});
+		const auto row = box->addRow(Ui::ChooseRepeatPeriod(box, {
+			.value = session->premium() ? *repeat : TimeId(),
+			.locked = std::move(locked),
+			.filter = showPremiumPromo,
+			.changed = [=](TimeId value) { *repeat = value; },
+			.test = session->isTestMode(),
+		}), style::al_top);
+		std::move(descriptor.width) | rpl::on_next([=](int width) {
+			row->setNaturalWidth(width);
+		}, row->lifetime());
+	}
 
 	using namespace SendMenu;
 	const auto childType = (details.type == Type::Disabled)
@@ -125,7 +182,7 @@ void ScheduleBox(
 	});
 	SetupMenuAndShortcuts(
 		descriptor.submit.data(),
-		show,
+		maybeShow,
 		[=] { return childDetails; },
 		sendAction);
 

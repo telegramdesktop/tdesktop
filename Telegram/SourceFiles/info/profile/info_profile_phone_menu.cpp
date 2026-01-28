@@ -26,7 +26,7 @@ namespace {
 class TextItem final : public Ui::Menu::ItemBase {
 public:
 	TextItem(
-		not_null<Ui::RpWidget*> parent,
+		not_null<Ui::Menu::Menu*> parent,
 		const style::Menu &st,
 		rpl::producer<TextWithEntities> &&text);
 
@@ -67,7 +67,7 @@ private:
 }
 
 TextItem::TextItem(
-	not_null<Ui::RpWidget*> parent,
+	not_null<Ui::Menu::Menu*> parent,
 	const style::Menu &st,
 	rpl::producer<TextWithEntities> &&text)
 : ItemBase(parent, st)
@@ -84,7 +84,7 @@ TextItem::TextItem(
 	setMinWidth(std::max(min1, min2) + added);
 
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		if (s.width() <= added) {
 			return;
 		}
@@ -95,7 +95,7 @@ TextItem::TextItem(
 	}, lifetime());
 
 	_label->resizeToWidth(parent->width() - added);
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 }
 
 not_null<QAction*> TextItem::action() const {
@@ -129,7 +129,7 @@ void AddPhoneMenu(not_null<Ui::PopupMenu*> menu, not_null<UserData*> user) {
 		return;
 	} else if (const auto url = AppConfig::FragmentLink(&user->session())) {
 		menu->addSeparator(&st::expandedMenuSeparator);
-		const auto link = Ui::Text::Link(
+		const auto link = tr::link(
 			tr::lng_info_mobile_context_menu_fragment_about_link(tr::now),
 			*url);
 		menu->addAction(base::make_unique_q<TextItem>(
@@ -138,7 +138,7 @@ void AddPhoneMenu(not_null<Ui::PopupMenu*> menu, not_null<UserData*> user) {
 			tr::lng_info_mobile_context_menu_fragment_about(
 				lt_link,
 				rpl::single(link),
-				Ui::Text::RichLangValue)));
+				tr::rich)));
 	}
 }
 

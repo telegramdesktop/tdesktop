@@ -25,7 +25,7 @@ void RestrictSponsored(
 		bool restricted,
 		Fn<void(QString)> failed) {
 	channel->session().api().request(MTPchannels_RestrictSponsoredMessages(
-		channel->inputChannel,
+		channel->inputChannel(),
 		MTP_bool(restricted))
 	).done([=](const MTPUpdates &updates) {
 		channel->session().api().applyUpdates(updates);
@@ -69,7 +69,7 @@ void HandleWithdrawalButton(
 		state->lifetime = session->api().cloudPassword().state(
 		) | rpl::take(
 			1
-		) | rpl::start_with_next([=](const Core::CloudPasswordState &pass) {
+		) | rpl::on_next([=](const Core::CloudPasswordState &pass) {
 			state->loading = false;
 
 			auto fields = PasscodeBox::CloudFields::From(pass);
@@ -105,8 +105,8 @@ void HandleWithdrawalButton(
 								? F::f_ton
 								: F::f_amount),
 							currencyReceiver
-								? currencyReceiver->input
-								: creditsReceiver->input,
+								? currencyReceiver->input()
+								: creditsReceiver->input(),
 							MTP_long(creditsReceiver
 								? receiver.creditsAmount()
 								: 0),
@@ -145,8 +145,8 @@ void HandleWithdrawalButton(
 						? F::f_ton
 						: F::f_amount),
 					currencyReceiver
-						? currencyReceiver->input
-						: creditsReceiver->input,
+						? currencyReceiver->input()
+						: creditsReceiver->input(),
 					MTP_long(creditsReceiver
 						? receiver.creditsAmount()
 						: 0),

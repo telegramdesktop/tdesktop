@@ -164,7 +164,7 @@ void SavedMessages::requestSomeStale() {
 		i = _stalePeers.erase(i);
 
 		peers.push_back(peer);
-		peerIds.push_back(peer->input);
+		peerIds.push_back(peer->input());
 		if (peerIds.size() == kStalePerRequest) {
 			break;
 		}
@@ -192,7 +192,7 @@ void SavedMessages::requestSomeStale() {
 		return session().api().request(
 			MTPmessages_GetSavedDialogsByID(
 				MTP_flags(Flag::f_parent_peer),
-				_parentChat->input,
+				_parentChat->input(),
 				MTP_vector<MTPInputPeer>(peerIds))
 		).done([=](const MTPmessages_SavedDialogs &result) {
 			_staleRequestId = 0;
@@ -276,10 +276,10 @@ void SavedMessages::sendLoadMore() {
 		MTPmessages_GetSavedDialogs(
 			MTP_flags(Flag::f_exclude_pinned
 				| (_parentChat ? Flag::f_parent_peer : Flag(0))),
-			_parentChat ? _parentChat->input : MTPInputPeer(),
+			_parentChat ? _parentChat->input() : MTPInputPeer(),
 			MTP_int(_offset.date),
 			MTP_int(_offset.id),
-			_offset.peer ? _offset.peer->input : MTP_inputPeerEmpty(),
+			_offset.peer ? _offset.peer->input() : MTP_inputPeerEmpty(),
 			MTP_int(_offset.id ? kListPerPage : kListFirstPerPage),
 			MTP_long(0)) // hash
 	).done([=](const MTPmessages_SavedDialogs &result) {

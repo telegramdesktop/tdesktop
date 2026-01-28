@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "base/unixtime.h"
 #include "boxes/send_credits_box.h" // SetButtonMarkedLabel
-#include "boxes/star_gift_box.h"
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
@@ -36,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_thumbnails.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/painter.h"
+#include "ui/top_background_gradient.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
@@ -53,7 +53,12 @@ constexpr auto kGiftsPerRow = 3;
 		not_null<PeerData*> peer) {
 	using Type = Api::DisallowedGiftType;
 	const auto user = peer->asUser();
-	if (!user || user->isSelf()) {
+	if (!user) {
+		return gift.resale
+			|| (!gift.info.requirePremium
+				&& !gift.info.auction()
+				&& !gift.info.limitedCount);
+	} else if (user->isSelf()) {
 		return true;
 	}
 	const auto disallowedTypes = user ? user->disallowedGiftTypes() : Type();
@@ -123,7 +128,7 @@ rpl::producer<std::vector<GiftTypeStars>> GiftsStars(
 		using namespace Api;
 		const auto api = lifetime.make_state<PremiumGiftCodeOptions>(peer);
 		api->requestStarGifts(
-		) | rpl::start_with_error_done([=](QString error) {
+		) | rpl::on_error_done([=](QString error) {
 			consumer.put_next({});
 		}, [=] {
 			auto list = std::vector<GiftTypeStars>();
@@ -159,6 +164,10 @@ GiftButton::GiftButton(
 : AbstractButton(parent)
 , _delegate(delegate)
 , _lockedTimer([=] { refreshLocked(); }) {
+	style::PaletteChanged() | rpl::on_next([=] {
+		_delegate->invalidateCache();
+		update();
+	}, lifetime());
 }
 
 GiftButton::~GiftButton() {
@@ -205,6 +214,11 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 			: Lang::FormatCountDecimal(number);
 	};
 
+	const auto auctionStartDate = v::is<GiftTypeStars>(descriptor)
+		? v::get<GiftTypeStars>(descriptor).info.auctionStartDate
+		: TimeId();
+	const auto upcomingAuction = (auctionStartDate > base::unixtime::now());
+
 	_descriptor = descriptor;
 	_resalePrice = resalePrice;
 	const auto resale = (_resalePrice > 0);
@@ -213,7 +227,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 		_text = Ui::Text::String(st::giftBoxGiftHeight / 4);
 		_text.setMarkedText(
 			st::defaultTextStyle,
-			Ui::Text::Bold(
+			tr::bold(
 				tr::lng_months(tr::now, lt_count, months)
 			).append('\n').append(
 				tr::lng_gift_premium_label(tr::now)
@@ -232,7 +246,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 					tr::now,
 					lt_amount,
 					_delegate->ministar().append(' ' + starsText),
-					Ui::Text::WithEntities),
+					tr::marked),
 				kMarkupTextOptions,
 				_delegate->textContext());
 		}
@@ -274,9 +288,11 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 				: (small() && unique && unique->starsForResale)
 				? Data::FormatGiftResaleAsked(*unique)
 				: unique
-				? tr::lng_gift_transfer_button(
-					tr::now,
-					Ui::Text::WithEntities)
+				? tr::lng_gift_transfer_button(tr::now, tr::marked)
+				: data.info.auction()
+				? ((data.info.soldOut || upcomingAuction)
+					? tr::lng_gift_stars_auction_view
+					: tr::lng_gift_stars_auction_join)(tr::now, tr::marked)
 				: _delegate->star().append(' ' + format(data.info.stars))),
 			kMarkupTextOptions,
 			_delegate->textContext());
@@ -298,7 +314,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 			_stars->setColorOverride(
 				Ui::Premium::CreditsIconGradientStops());
 		}
-		_lockedUntilDate = data.info.lockedUntilDate;
+		_lockedUntilDate = data.resale ? 0 : data.info.lockedUntilDate;
 	});
 
 	refreshLocked();
@@ -306,7 +322,7 @@ void GiftButton::setDescriptor(const GiftDescriptor &descriptor, Mode mode) {
 	_resolvedDocument = nullptr;
 	_documentLifetime = _delegate->sticker(
 		descriptor
-	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+	) | rpl::on_next([=](not_null<DocumentData*> document) {
 		_documentLifetime.destroy();
 		setDocument(document);
 	});
@@ -374,10 +390,10 @@ void GiftButton::setDocument(not_null<DocumentData*> document) {
 	const auto destroyed = base::take(_player);
 	_playerDocument = nullptr;
 	_mediaLifetime = rpl::single() | rpl::then(
-		document->owner().session().downloaderTaskFinished()
+		document->session().downloaderTaskFinished()
 	) | rpl::filter([=] {
 		return media->loaded();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		_mediaLifetime.destroy();
 
 		auto result = std::unique_ptr<HistoryView::StickerPlayer>();
@@ -538,27 +554,45 @@ void GiftButton::contextMenuEvent(QContextMenuEvent *e) {
 }
 
 void GiftButton::mousePressEvent(QMouseEvent *e) {
-	_mouseEvents.fire_copy(e);
-	if (e->isAccepted()) {
-		return;
+	if (_mouseEventsAreListening) {
+		if (e->button() != Qt::LeftButton) {
+			return;
+		}
+		_mouseEvents.fire_copy(e);
+	} else {
+		AbstractButton::mousePressEvent(e);
 	}
-	AbstractButton::mousePressEvent(e);
 }
 
 void GiftButton::mouseMoveEvent(QMouseEvent *e) {
-	_mouseEvents.fire_copy(e);
-	if (e->isAccepted()) {
-		return;
+	if (_mouseEventsAreListening) {
+		if (e->button() != Qt::LeftButton) {
+			return;
+		}
+		_mouseEvents.fire_copy(e);
+	} else {
+		AbstractButton::mouseMoveEvent(e);
 	}
-	AbstractButton::mouseMoveEvent(e);
 }
 
 void GiftButton::mouseReleaseEvent(QMouseEvent *e) {
-	_mouseEvents.fire_copy(e);
-	if (e->isAccepted()) {
-		return;
+	if (_mouseEventsAreListening) {
+		if (e->button() != Qt::LeftButton) {
+			return;
+		}
+		_mouseEvents.fire_copy(e);
+	} else {
+		AbstractButton::mouseReleaseEvent(e);
 	}
-	AbstractButton::mouseReleaseEvent(e);
+}
+
+rpl::producer<QPoint> GiftButton::contextMenuRequests() const {
+	return _contextMenuRequests.events();
+}
+
+rpl::producer<QMouseEvent*> GiftButton::mouseEvents() {
+	_mouseEventsAreListening = true;
+	return _mouseEvents.events();
 }
 
 void GiftButton::cacheUniqueBackground(
@@ -602,9 +636,9 @@ void GiftButton::cacheUniqueBackground(
 		auto p = QPainter(&_uniqueBackgroundCache);
 		p.setClipRect(inner);
 		const auto skip = inner.width() / 3;
-		Ui::PaintPoints(
+		Ui::PaintBgPoints(
 			p,
-			Ui::PatternPointsSmall(),
+			Ui::PatternBgPointsSmall(),
 			_uniquePatternCache,
 			_uniquePatternEmoji.get(),
 			*unique,
@@ -614,16 +648,24 @@ void GiftButton::cacheUniqueBackground(
 
 void GiftButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
-	const auto unique = v::is<GiftTypeStars>(_descriptor)
-		? v::get<GiftTypeStars>(_descriptor).info.unique.get()
-		: nullptr;
+	const auto stargift = std::get_if<GiftTypeStars>(&_descriptor);
+	const auto unique = stargift ? stargift->info.unique.get() : nullptr;
 	const auto onsale = unique && unique->starsForResale && small();
-	const auto requirePremium = v::is<GiftTypeStars>(_descriptor)
-		&& !v::get<GiftTypeStars>(_descriptor).userpic
-		&& !v::get<GiftTypeStars>(_descriptor).info.unique
-		&& v::get<GiftTypeStars>(_descriptor).info.requirePremium;
-	const auto hidden = v::is<GiftTypeStars>(_descriptor)
-		&& v::get<GiftTypeStars>(_descriptor).hidden;
+	const auto requirePremium = stargift
+		&& !stargift->userpic
+		&& !stargift->info.unique
+		&& stargift->info.requirePremium;
+	const auto auction = stargift
+		&& !stargift->userpic
+		&& !stargift->info.unique
+		&& stargift->info.auction();
+	const auto hidden = stargift && stargift->hidden;
+	const auto soldOut = stargift
+		&& !(stargift->pinned || stargift->pinnedSelection)
+		&& !unique
+		&& !stargift->userpic
+		&& stargift->info.limitedCount
+		&& !stargift->info.limitedLeft;
 	const auto extend = currentExtend();
 	const auto position = QPoint(extend.left(), extend.top());
 	const auto background = _delegate->background();
@@ -633,7 +675,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	if (unique) {
 		cacheUniqueBackground(unique, width, background.height() / dpr);
 		p.drawImage(extend.left(), extend.top(), _uniqueBackgroundCache);
-	} else if (requirePremium) {
+	} else if (requirePremium || auction) {
 		auto hq = PainterHighQualityEnabler(p);
 		auto pen = st::creditsFg->p;
 		pen.setWidth(style::ConvertScaleExact(2.));
@@ -665,7 +707,7 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 				progress * (thickness * 2 + st::giftBoxUserpicSkip)));
 		}
 	}
-	if (_locked) {
+	if (_locked && !soldOut) {
 		st::giftBoxLockIcon.paint(
 			p,
 			position + st::giftBoxLockIconPosition,
@@ -761,11 +803,10 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 	}, [&](const GiftTypeStars &data) {
 		const auto count = data.info.limitedCount;
 		const auto pinned = data.pinned || data.pinnedSelection;
+		const auto now = base::unixtime::now();
+		const auto upcomingAuction = (data.info.auctionStartDate > 0)
+			&& (data.info.auctionStartDate > now);
 		if (count || pinned) {
-			const auto soldOut = !pinned
-				&& !unique
-				&& !data.userpic
-				&& !data.info.limitedLeft;
 			const auto yourLeft = data.info.perUserTotal
 				? (data.info.perUserRemains
 					? tr::lng_gift_stars_your_left(
@@ -783,6 +824,10 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 					? tr::lng_gift_stars_resale(tr::now)
 					: soldOut
 					? tr::lng_gift_stars_sold_out(tr::now)
+					: (!unique && data.info.auction())
+					? (upcomingAuction
+						? tr::lng_gift_stars_auction_soon
+						: tr::lng_gift_stars_auction)(tr::now)
 					: (!data.userpic
 						&& !data.info.unique
 						&& data.info.requirePremium)
@@ -809,7 +854,8 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 					? st::boxTextFgGood->c
 					: soldOut
 					? st::attentionButtonFg->c
-					: (!data.userpic && data.info.requirePremium)
+					: (!data.userpic
+						&& (data.info.auction() || data.info.requirePremium))
 					? st::creditsFg->c
 					: st::windowActiveTextFg->c),
 				.bg2 = (onsale
@@ -1093,6 +1139,11 @@ bool Delegate::amPremium() {
 	return _session->premium();
 }
 
+void Delegate::invalidateCache() {
+	_bg = QImage();
+	_badges.clear();
+}
+
 DocumentData *LookupGiftSticker(
 		not_null<Main::Session*> session,
 		const GiftDescriptor &descriptor) {
@@ -1114,7 +1165,7 @@ rpl::producer<not_null<DocumentData*>> GiftStickerValue(
 		packs.load();
 		if (const auto result = packs.lookup(months)) {
 			return result->sticker()
-				? (rpl::single(not_null(result)) | rpl::type_erased())
+				? (rpl::single(not_null(result)) | rpl::type_erased)
 				: rpl::never<not_null<DocumentData*>>();
 		}
 		return packs.updated(
@@ -1124,9 +1175,9 @@ rpl::producer<not_null<DocumentData*>> GiftStickerValue(
 			return document && document->sticker();
 		}) | rpl::take(1) | rpl::map([=](DocumentData *document) {
 			return not_null(document);
-		}) | rpl::type_erased();
+		}) | rpl::type_erased;
 	}, [&](GiftTypeStars data) {
-		return rpl::single(data.info.document) | rpl::type_erased();
+		return rpl::single(data.info.document) | rpl::type_erased;
 	});
 }
 
@@ -1275,12 +1326,12 @@ void SelectGiftToUnpin(
 
 		state->selected.value(
 		) | rpl::combine_previous(
-		) | rpl::start_with_next([=](int old, int now) {
+		) | rpl::on_next([=](int old, int now) {
 			if (old >= 0) state->buttons[old]->toggleSelected(false);
 			if (now >= 0) state->buttons[now]->toggleSelected(true);
 		}, gifts->lifetime());
 
-		gifts->widthValue() | rpl::start_with_next([=](int width) {
+		gifts->widthValue() | rpl::on_next([=](int width) {
 			const auto singleMin = state->delegate.buttonSize();
 			if (width < singleMin.width()) {
 				return;
@@ -1329,12 +1380,12 @@ void SelectGiftToUnpin(
 		});
 		const auto label = Ui::SetButtonMarkedLabel(
 			button,
-			tr::lng_context_unpin_from_top(Ui::Text::WithEntities),
+			tr::lng_context_unpin_from_top(tr::marked),
 			&show->session(),
 			st::creditsBoxButtonLabel,
 			&st::giftTooManyPinnedBox.button.textFg);
 
-		state->selected.value() | rpl::start_with_next([=](int value) {
+		state->selected.value() | rpl::on_next([=](int value) {
 			const auto has = (value >= 0);
 			label->setOpacity(has ? 1. : 0.5);
 			button->setAttribute(Qt::WA_TransparentForMouseEvents, !has);
@@ -1345,7 +1396,7 @@ void SelectGiftToUnpin(
 			- buttonPadding.left()
 			- buttonPadding.right();
 		button->resizeToWidth(buttonWidth);
-		button->widthValue() | rpl::start_with_next([=](int width) {
+		button->widthValue() | rpl::on_next([=](int width) {
 			if (width != buttonWidth) {
 				button->resizeToWidth(buttonWidth);
 			}

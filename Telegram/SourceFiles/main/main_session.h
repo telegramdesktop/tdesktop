@@ -32,6 +32,7 @@ class FastButtonsBots;
 namespace Data {
 class Session;
 class Changes;
+class GiftAuctions;
 class RecentPeers;
 class RecentSharedMediaGifts;
 class ScheduledMessages;
@@ -41,7 +42,12 @@ class Factchecks;
 class LocationPickers;
 class Credits;
 class PromoSuggestions;
+class Passkeys;
 } // namespace Data
+
+namespace Settings {
+class FaqSuggestions;
+} // namespace Settings
 
 namespace HistoryView::Reactions {
 class CachedIconFactory;
@@ -137,6 +143,9 @@ public:
 	[[nodiscard]] Data::RecentSharedMediaGifts &recentSharedGifts() const {
 		return *_recentSharedGifts;
 	}
+	[[nodiscard]] Data::GiftAuctions &giftAuctions() const {
+		return *_giftAuctions;
+	}
 	[[nodiscard]] Data::SponsoredMessages &sponsoredMessages() const {
 		return *_sponsoredMessages;
 	}
@@ -196,6 +205,12 @@ public:
 	}
 	[[nodiscard]] Data::PromoSuggestions &promoSuggestions() const {
 		return *_promoSuggestions;
+	}
+	[[nodiscard]] Data::Passkeys &passkeys() const {
+		return *_passkeys;
+	}
+	[[nodiscard]] Settings::FaqSuggestions &faqSuggestions() const {
+		return *_faqSuggestions;
 	}
 	[[nodiscard]] auto cachedReactionIconFactory() const
 	-> HistoryView::Reactions::CachedIconFactory & {
@@ -292,6 +307,7 @@ private:
 	const std::unique_ptr<InlineBots::AttachWebView> _attachWebView;
 	const std::unique_ptr<Data::RecentPeers> _recentPeers;
 	const std::unique_ptr<Data::RecentSharedMediaGifts> _recentSharedGifts;
+	const std::unique_ptr<Data::GiftAuctions> _giftAuctions;
 	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;
 	const std::unique_ptr<Data::SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Data::TopPeers> _topPeers;
@@ -300,6 +316,8 @@ private:
 	const std::unique_ptr<Data::LocationPickers> _locationPickers;
 	const std::unique_ptr<Data::Credits> _credits;
 	const std::unique_ptr<Data::PromoSuggestions> _promoSuggestions;
+	const std::unique_ptr<Data::Passkeys> _passkeys;
+	const std::unique_ptr<Settings::FaqSuggestions> _faqSuggestions;
 
 	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
 	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;

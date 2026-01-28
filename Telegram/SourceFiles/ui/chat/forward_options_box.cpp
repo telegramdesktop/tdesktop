@@ -46,7 +46,7 @@ void FillForwardOptions(
 		});
 	};
 	names->checkedChanges(
-	) | rpl::start_with_next([=](bool showNames) {
+	) | rpl::on_next([=](bool showNames) {
 		if (showNames && captions && !captions->checked()) {
 			captions->setChecked(true, anim::type::normal);
 		} else {
@@ -55,7 +55,7 @@ void FillForwardOptions(
 	}, lifetime);
 	if (captions) {
 		captions->checkedChanges(
-		) | rpl::start_with_next([=](bool showCaptions) {
+		) | rpl::on_next([=](bool showCaptions) {
 			if (!showCaptions && names->checked()) {
 				names->setChecked(false, anim::type::normal);
 			} else {

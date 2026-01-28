@@ -179,13 +179,13 @@ Selector::Selector(
 , _rowHeight(_st.height + _st.padding.top() + _st.padding.bottom()) {
 	setMouseTracking(true);
 
-	std::move(filter) | rpl::start_with_next([=](const QString &query) {
+	std::move(filter) | rpl::on_next([=](const QString &query) {
 		applyFilter(query);
 	}, _lifetime);
 
 	std::move(
 		submits
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_selected >= 0) {
 			choose(shownRowAt(_selected));
 		} else if (searching() && !_filtered.empty()) {
@@ -803,14 +803,14 @@ void PreviewPainter::layout() {
 	const auto state = raw->lifetime().make_state<State>();
 
 	state->bg = generatePreviewBg();
-	style::PaletteChanged() | rpl::start_with_next([=] {
+	style::PaletteChanged() | rpl::on_next([=] {
 		state->bg = generatePreviewBg();
 	}, raw->lifetime());
 
 	rpl::combine(
 		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged()),
 		std::move(family)
-	) | rpl::start_with_next([=](const auto &, QString family) {
+	) | rpl::on_next([=](const auto &, QString family) {
 		state->family = family;
 		if (state->preview.isNull()) {
 			state->preview = GeneratePreview(
@@ -840,7 +840,7 @@ void PreviewPainter::layout() {
 		}
 	}, raw->lifetime());
 
-	raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	raw->paintRequest() | rpl::on_next([=](QRect clip) {
 		QPainter(raw).drawImage(0, 0, state->preview);
 	}, raw->lifetime());
 
@@ -922,7 +922,7 @@ void ChooseFontBox(
 	rpl::combine(
 		box->heightValue(),
 		top->heightValue()
-	) | rpl::start_with_next([=](int box, int top) {
+	) | rpl::on_next([=](int box, int top) {
 		selector->setMinHeight(box - top);
 	}, selector->lifetime());
 
@@ -953,7 +953,7 @@ void ChooseFontBox(
 		});
 	};
 	state->family.value(
-	) | rpl::start_with_next(refreshButtons, box->lifetime());
+	) | rpl::on_next(refreshButtons, box->lifetime());
 
 	box->setFocusCallback([=] {
 		filter->setInnerFocus();

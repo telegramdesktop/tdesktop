@@ -378,10 +378,8 @@ connectionPortInputField: InputField(defaultInputField) {
 	width: 55px;
 }
 connectionUserInputField: InputField(defaultInputField) {
-	width: 95px;
 }
 connectionPasswordInputField: InputField(defaultInputField) {
-	width: 120px;
 }
 connectionIPv6Skip: 11px;
 
@@ -537,7 +535,6 @@ changePhoneDescription: FlatLabel(defaultFlatLabel) {
 }
 changePhoneDescriptionPadding: margins(0px, 1px, 0px, 8px);
 changePhoneIconPadding: margins(0px, 39px, 0px, 5px);
-changePhoneIconSize: 120px;
 changePhoneLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 275px;
 	textFg: windowSubTextFg;
@@ -545,6 +542,8 @@ changePhoneLabel: FlatLabel(defaultFlatLabel) {
 changePhoneError: FlatLabel(changePhoneLabel) {
 	textFg: boxTextFgError;
 }
+
+normalBoxLottieSize: size(120px, 120px);
 
 adminLogFilterUserpicLeft: 15px;
 adminLogFilterLittleSkip: 16px;
@@ -656,8 +655,8 @@ proxyCheckingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) 
 	thickness: 1px;
 	size: size(8px, 8px);
 }
-proxyDropdownDownPosition: point(-2px, 35px);
-proxyDropdownUpPosition: point(-2px, 20px);
+proxyDropdownDownPosition: point(2px, 35px);
+proxyDropdownUpPosition: point(2px, 20px);
 
 proxyAboutPadding: margins(22px, 7px, 22px, 14px);
 proxyAboutSponsorPadding: margins(22px, 7px, 22px, 0px);
@@ -687,7 +686,7 @@ themesMenuToggle: IconButton(defaultIconButton) {
 	rippleAreaSize: 36px;
 	ripple: defaultRippleAnimationBgOver;
 }
-themesMenuPosition: point(-2px, 25px);
+themesMenuPosition: point(2px, 25px);
 
 createPollField: InputField(defaultInputField) {
 	textMargins: margins(0px, 4px, 0px, 4px);
@@ -928,6 +927,14 @@ scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
 	}
 }
 scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
+scheduleRepeatDropdownLock: IconEmoji {
+	icon: icon {{ "emoji/premium_lock", windowActiveTextFg }};
+	padding: margins(-2px, 1px, 0px, 0px);
+}
+scheduleRepeatDropdownArrow: IconEmoji {
+	icon: icon {{ "intro_country_dropdown", windowActiveTextFg }};
+	padding: margins(3px, 6px, 3px, 0px);
+}
 
 muteBoxTimeField: InputField(scheduleDateField) {
 	textMargins: margins(0px, 0px, 0px, 0px);
@@ -997,9 +1004,8 @@ contactsWithStories: PeerList(peerListBox) {
 		statusPosition: point(70px, 27px);
 
 		checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
-			selectExtendTwice: 1px;
 			imageRadius: 21px;
-			imageSmallRadius: 19px;
+			imageSmallRadius: 18px;
 			check: RoundCheckbox(defaultPeerListCheck) {
 				size: 0px;
 			}
@@ -1158,4 +1164,21 @@ fakeUserpicButton: UserpicButton(defaultUserpicButton) {
 	photoSize: 1px;
 	changeIcon: icon {{ "settings/photo", transparent }};
 	uploadBg: transparent;
+}
+
+moderateCommonGroupsCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+	imageRadius: 12px;
+	imageSmallRadius: 11px;
+	selectWidth: 2px;
+	check: RoundCheckbox(defaultPeerListCheck) {
+		size: 16px;
+		sizeSmall: 0.3;
+		bgInactive: overviewCheckBg;
+		bgActive: overviewCheckBgActive;
+		check: icon {{
+			"default_checkbox_check",
+			overviewCheckFgActive,
+			point(1px, 4px)
+		}};
+	}
 }

@@ -77,7 +77,7 @@ void TopBar::updateData(Content &&content) {
 	}
 	const auto &row = content.rows[0];
 	_infoLeft->setMarkedText(
-		tr::lng_export_progress_title(tr::now, Ui::Text::Bold)
+		tr::lng_export_progress_title(tr::now, tr::bold)
 			.append(' ')
 			.append(QChar(0x2013)));
 	_infoMiddle->setText(row.label);

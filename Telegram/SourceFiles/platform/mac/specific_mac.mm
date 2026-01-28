@@ -267,6 +267,15 @@ void ActivateThisProcess() {
 	objc_activateProgram(window ? window->widget()->winId() : 0);
 }
 
+void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
+	if (!QDesktopServices::openUrl(
+		u"https://maps.apple.com/?q=Point&z=16&ll=%1,%2"_q.arg(
+			point.latAsString(),
+			point.lonAsString()))) {
+		fail();
+	}
+}
+
 } // namespace Platform
 
 void psSendToMenu(bool send, bool silent) {
@@ -278,8 +287,4 @@ void psDownloadPathEnableAccess() {
 
 QByteArray psDownloadPathBookmark(const QString &path) {
 	return objc_downloadPathBookmark(path);
-}
-
-bool psLaunchMaps(const Data::LocationPoint &point) {
-	return QDesktopServices::openUrl(u"https://maps.apple.com/?q=Point&z=16&ll=%1,%2"_q.arg(point.latAsString()).arg(point.lonAsString()));
 }

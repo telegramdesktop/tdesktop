@@ -83,7 +83,7 @@ rpl::producer<StoriesIdsSlice> AlbumStoriesIds(
 		stories->albumIdsChanged(
 		) | rpl::filter(
 			rpl::mappers::_1 == Data::StoryAlbumIdsKey{ peerId, albumId }
-		) | rpl::start_with_next(schedule, lifetime);
+		) | rpl::on_next(schedule, lifetime);
 
 		if (!stories->albumIdsCountKnown(peerId, albumId)) {
 			stories->albumIdsLoadMore(peerId, albumId);

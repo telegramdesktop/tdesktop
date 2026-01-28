@@ -68,7 +68,7 @@ void CloudPassword::clearUnconfirmedPassword() {
 rpl::producer<Core::CloudPasswordState> CloudPassword::state() const {
 	return _state
 		? _stateChanges.events_starting_with_copy(*_state)
-		: (_stateChanges.events() | rpl::type_erased());
+		: (_stateChanges.events() | rpl::type_erased);
 }
 
 auto CloudPassword::stateCurrent() const

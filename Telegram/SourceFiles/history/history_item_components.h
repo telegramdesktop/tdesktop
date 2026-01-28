@@ -62,6 +62,7 @@ enum class SuggestionActions : uchar {
 	None,
 	Decline,
 	AcceptAndDecline,
+	GiftOfferActions,
 };
 
 struct HistoryMessageVia : RuntimeComponent<HistoryMessageVia, HistoryItem> {
@@ -164,6 +165,7 @@ struct HistoryMessageForwarded
 
 	PeerData *savedFromPeer = nullptr;
 	MsgId savedFromMsgId = 0;
+	TimeId savedFromDate = 0;
 
 	PeerData *savedFromSender = nullptr;
 	std::unique_ptr<HiddenSenderInfo> savedFromHiddenSenderInfo;
@@ -622,8 +624,9 @@ struct HistoryMessageFactcheck
 	bool requested = false;
 };
 
-struct HistoryMessageSuggestedPost
-: RuntimeComponent<HistoryMessageSuggestedPost, HistoryItem> {
+struct HistoryMessageSuggestion
+: RuntimeComponent<HistoryMessageSuggestion, HistoryItem> {
+	std::shared_ptr<Data::UniqueGift> gift;
 	CreditsAmount price;
 	TimeId date = 0;
 	mtpRequestId requestId = 0;
@@ -713,12 +716,13 @@ enum class SuggestRefundType {
 	None,
 	User,
 	Admin,
+	Expired,
 };
 
 struct HistoryServiceSuggestFinish
 : RuntimeComponent<HistoryServiceSuggestFinish, HistoryItem>
 , HistoryServiceDependentData {
-	CreditsAmount successPrice;
+	CreditsAmount price;
 	SuggestRefundType refundType = SuggestRefundType::None;
 };
 
@@ -868,4 +872,9 @@ private:
 	mutable int _seekingStart = 0;
 	mutable int _seekingCurrent = 0;
 
+};
+
+struct HistoryMessageSchedulePeriod
+: RuntimeComponent<HistoryMessageSchedulePeriod, HistoryItem> {
+	TimeId schedulePeriod = 0;
 };

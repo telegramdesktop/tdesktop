@@ -200,7 +200,7 @@ void ListController::loadMoreRows() {
 	const auto limit = _offset.isEmpty() ? kFirstPage : kPerPage;
 	_loadRequestId = _api.request(MTPmessages_GetPollVotes(
 		MTP_flags(flags),
-		item->history()->peer->input,
+		item->history()->peer->input(),
 		MTP_int(item->id),
 		MTP_bytes(_option),
 		MTP_string(_offset),
@@ -449,7 +449,7 @@ ListController *CreateAnswerRows(
 		st::infoCommonGroupsList));
 
 	controller->count(
-	) | rpl::filter(_1 > 0) | rpl::start_with_next([=] {
+	) | rpl::filter(_1 > 0) | rpl::on_next([=] {
 		delete placeholder;
 	}, placeholder->lifetime());
 
@@ -488,7 +488,7 @@ ListController *CreateAnswerRows(
 	rpl::combine(
 		controller->fullCount(),
 		controller->count()
-	) | rpl::start_with_next([=](int fullCount, int count) {
+	) | rpl::on_next([=](int fullCount, int count) {
 		const auto many = (fullCount > kFirstPage)
 			&& (count > kFirstPage - kLeavePreloaded);
 		collapse->setVisible(many);
@@ -496,7 +496,7 @@ ListController *CreateAnswerRows(
 	}, collapse->lifetime());
 
 	headerWrap->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		header->resizeToWidth(width);
 		votes->moveToRight(
 			st::pollResultsHeaderPadding.right(),
@@ -509,7 +509,7 @@ ListController *CreateAnswerRows(
 	}, header->lifetime());
 
 	header->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		headerWrap->resize(headerWrap->width(), height);
 	}, header->lifetime());
 
@@ -524,13 +524,13 @@ ListController *CreateAnswerRows(
 				tr::lng_polls_show_more(
 					lt_count_decimal,
 					controller->loadMoreCount() | rpl::map(_1 + 0.),
-					Ui::Text::Upper),
+					tr::upper),
 				st::pollResultsShowMore)));
 	more->entity()->setClickedCallback([=] {
 		controller->allowLoadMore();
 	});
 	controller->loadMoreCount(
-	) | rpl::map(_1 > 0) | rpl::start_with_next([=](bool visible) {
+	) | rpl::map(_1 > 0) | rpl::on_next([=](bool visible) {
 		more->toggle(visible, anim::type::instant);
 	}, more->lifetime());
 
@@ -544,7 +544,7 @@ ListController *CreateAnswerRows(
 		moreTop->topValue()
 	) | rpl::filter([=](int, QRect headerRect, int moreTop) {
 		return moreTop >= headerRect.y() + headerRect.height();
-	}) | rpl::start_with_next([=](
+	}) | rpl::on_next([=](
 			int visibleTop,
 			QRect headerRect,
 			int moreTop) {
@@ -644,19 +644,19 @@ void InnerWidget::setupContent() {
 			_showPeerInfoRequests,
 			lifetime());
 		controller->scrollToRequests(
-		) | rpl::start_with_next([=](int y) {
+		) | rpl::on_next([=](int y) {
 			_scrollToRequests.fire({ y, -1 });
 		}, lifetime());
 		_sections.emplace(answer.option, controller);
 	}
 
 	widthValue(
-	) | rpl::start_with_next([=](int newWidth) {
+	) | rpl::on_next([=](int newWidth) {
 		_content->resizeToWidth(newWidth);
 	}, _content->lifetime());
 
 	_content->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		resize(width(), height);
 	}, _content->lifetime());
 }

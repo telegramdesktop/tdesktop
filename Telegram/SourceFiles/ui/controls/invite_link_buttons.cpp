@@ -52,7 +52,7 @@ void AddCopyShareLinkButtons(
 	share->setClickedCallback(shareLink);
 
 	wrap->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto buttonWidth = (width - st::inviteLinkButtonsSkip) / 2;
 		copy->setFullWidth(buttonWidth);
 		share->setFullWidth(buttonWidth);
@@ -109,7 +109,7 @@ not_null<AbstractButton*> AddJoinedCountButton(
 	const auto state = result->lifetime().make_state<State>();
 	std::move(
 		content
-	) | rpl::start_with_next([=](JoinedCountContent &&content) {
+	) | rpl::on_next([=](JoinedCountContent &&content) {
 		state->content = std::move(content);
 		wrap->toggle(state->content.count > 0, anim::type::instant);
 		if (state->content.count <= 0) {
@@ -143,7 +143,7 @@ not_null<AbstractButton*> AddJoinedCountButton(
 	}, result->lifetime());
 
 	result->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(result);
 		if (!state->content.userpics.isNull()) {
 			p.drawImage(0, 0, state->content.userpics);
@@ -161,7 +161,7 @@ not_null<AbstractButton*> AddJoinedCountButton(
 	}, result->lifetime());
 
 	wrap->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		result->move((width - result->width()) / 2, 0);
 	}, wrap->lifetime());
 

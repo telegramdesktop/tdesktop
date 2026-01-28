@@ -23,9 +23,7 @@ class SendActionManager final {
 public:
 	struct AnimationUpdate {
 		not_null<Thread*> thread;
-		int left = 0;
-		int width = 0;
-		int height = 0;
+		QRect rect;
 		bool textUpdated = false;
 	};
 	explicit SendActionManager();

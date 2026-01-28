@@ -211,12 +211,12 @@ void BackgroundBox::prepare() {
 	setInnerTopSkip(st::lineWidth);
 
 	_inner->chooseEvents(
-	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
+	) | rpl::on_next([=](const Data::WallPaper &paper) {
 		chosen(paper);
 	}, _inner->lifetime());
 
 	_inner->removeRequests(
-	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
+	) | rpl::on_next([=](const Data::WallPaper &paper) {
 		removePaper(paper);
 	}, _inner->lifetime());
 }
@@ -337,7 +337,7 @@ void BackgroundBox::resetForPeer() {
 	const auto api = &_controller->session().api();
 	api->request(MTPmessages_SetChatWallPaper(
 		MTP_flags(0),
-		_forPeer->input,
+		_forPeer->input(),
 		MTPInputWallPaper(),
 		MTPWallPaperSettings(),
 		MTPint()
@@ -396,30 +396,30 @@ BackgroundBox::Inner::Inner(
 			+ st::backgroundPadding));
 
 	Window::Theme::IsNightModeValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updatePapers();
 	}, lifetime());
 	requestPapers();
 
 	_session->downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_check->invalidateCache();
 	}, lifetime());
 
 	if (forChannel()) {
 		_session->data().cloudThemes().chatThemesUpdated(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			updatePapers();
 		}, lifetime());
 	} else {
 		using Update = Window::Theme::BackgroundUpdate;
 		Window::Theme::Background()->updates(
-		) | rpl::start_with_next([=](const Update &update) {
+		) | rpl::on_next([=](const Update &update) {
 			if (update.type == Update::Type::New) {
 				sortPapers();
 				requestPapers();

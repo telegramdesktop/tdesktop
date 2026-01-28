@@ -51,7 +51,7 @@ Provider::Provider(not_null<AbstractController*> controller)
 , _albumId(controller->key().storiesAlbumId())
 , _addingToAlbumId(controller->key().storiesAddToAlbumId()) {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (auto &layout : _layouts) {
 			layout.second.item->invalidateCache();
 		}
@@ -61,7 +61,7 @@ Provider::Provider(not_null<AbstractController*> controller)
 		Data::StoryUpdate::Flag::Destroyed
 	) | rpl::filter([=](const Data::StoryUpdate &update) {
 		return update.story->peer() == _peer;
-	}) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
+	}) | rpl::on_next([=](const Data::StoryUpdate &update) {
 		storyRemoved(update.story);
 	}, _lifetime);
 }
@@ -183,7 +183,7 @@ void Provider::refreshViewer() {
 	auto ids = Data::AlbumStoriesIds(_peer, _albumId, aroundId, _idsLimit);
 	std::move(
 		ids
-	) | rpl::start_with_next([=](Data::StoriesIdsSlice &&slice) {
+	) | rpl::on_next([=](Data::StoriesIdsSlice &&slice) {
 		if (!slice.fullCount()) {
 			// Don't display anything while full count is unknown.
 			return;

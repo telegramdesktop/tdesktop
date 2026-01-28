@@ -440,6 +440,18 @@ QString UiIntegration::phraseQuoteHeaderCopy() {
 	return tr::lng_code_block_header_copy(tr::now);
 }
 
+QString UiIntegration::phraseMinimize() {
+	return tr::lng_minimize_window(tr::now);
+}
+
+QString UiIntegration::phraseMaximize() {
+	return tr::lng_maximize_window(tr::now);
+}
+
+QString UiIntegration::phraseRestore() {
+	return tr::lng_restore_window(tr::now);
+}
+
 bool OpenGLLastCheckFailed() {
 	return QFile::exists(OpenGLCheckFilePath());
 }

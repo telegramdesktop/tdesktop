@@ -291,7 +291,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 
 		using ParticipantUpdate = Data::GroupCall::ParticipantUpdate;
 		call->participantUpdated(
-		) | rpl::start_with_next([=](const ParticipantUpdate &update) {
+		) | rpl::on_next([=](const ParticipantUpdate &update) {
 			const auto participantPeer = update.now
 				? update.now->peer
 				: update.was->peer;
@@ -341,12 +341,12 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 		call->participantsReloaded(
 		) | rpl::filter([=] {
 			return RegenerateUserpics(state, call, userpicSize);
-		}) | rpl::start_with_next(pushNext, lifetime);
+		}) | rpl::on_next(pushNext, lifetime);
 
 		call->peer()->session().downloaderTaskFinished(
 		) | rpl::filter([=] {
 			return state->someUserpicsNotLoaded;
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			for (const auto &userpic : state->userpics) {
 				if (userpic.peer->userpicUniqueKey(userpic.view)
 					!= userpic.uniqueKey) {
@@ -363,7 +363,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 			call->titleValue(),
 			call->scheduleDateValue(),
 			call->fullCountValue()
-		) | rpl::start_with_next([=](
+		) | rpl::on_next([=](
 				const QString &title,
 				TimeId scheduleDate,
 				int count) {
@@ -389,7 +389,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByPeer(
 			Data::PeerUpdate::Flag::GroupCall),
 		Core::App().calls().currentGroupCallValue(),
 		((showInForum || !channel)
-			? (rpl::single(false) | rpl::type_erased())
+			? (rpl::single(false) | rpl::type_erased)
 			: Data::PeerFlagValue(channel, ChannelData::Flag::Forum))
 	) | rpl::map([=](auto, Calls::GroupCall *current, bool hiddenByForum) {
 		const auto call = peer->groupCall();

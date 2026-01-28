@@ -57,6 +57,8 @@ public:
 		int addingToAlbumId = 0);
 	~InnerWidget();
 
+	[[nodiscard]] rpl::producer<> backRequest() const;
+
 	bool showInternal(not_null<Memento*> memento);
 	void setIsStackBottom(bool isStackBottom) {
 		_isStackBottom = isStackBottom;
@@ -85,6 +87,15 @@ public:
 
 	[[nodiscard]] rpl::producer<int> albumIdChanges() const;
 	[[nodiscard]] rpl::producer<Data::StoryAlbumUpdate> changes() const;
+
+	bool hasFlexibleTopBar() const;
+	base::weak_qptr<Ui::RpWidget> createPinnedToTop(
+		not_null<Ui::RpWidget*> parent);
+	base::weak_qptr<Ui::RpWidget> createPinnedToBottom(
+		not_null<Ui::RpWidget*> parent);
+
+	void enableBackButton();
+	void showFinished();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -151,6 +162,13 @@ private:
 	rpl::event_stream<rpl::producer<int>> _listTops;
 	rpl::variable<int> _topHeight;
 	rpl::variable<bool> _albumEmpty;
+
+	rpl::variable<bool> _backToggles;
+	rpl::event_stream<> _backClicks;
+	rpl::event_stream<> _showFinished;
+	rpl::variable<std::optional<QColor>> _topBarColor;
+
+	Ui::VisibleRange _visibleRange;
 
 };
 

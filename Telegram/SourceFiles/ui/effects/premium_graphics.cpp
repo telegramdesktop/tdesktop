@@ -233,7 +233,7 @@ Line::Line(
 	const auto set = [&](
 			Ui::Text::String &label,
 			rpl::producer<QString> &text) {
-		std::move(text) | rpl::start_with_next([=, &label](QString text) {
+		std::move(text) | rpl::on_next([=, &label](QString text) {
 			label = { st::semiboldTextStyle, text };
 			_recaches.fire({});
 		}, lifetime());
@@ -243,7 +243,7 @@ Line::Line(
 	set(_rightLabel, labels.rightLabel);
 	set(_rightText, labels.rightCount);
 
-	std::move(state) | rpl::start_with_next([=](LimitRowState state) {
+	std::move(state) | rpl::on_next([=](LimitRowState state) {
 		_dynamic = state.dynamic;
 		if (width() > 0) {
 			const auto from = state.animateFromZero
@@ -263,7 +263,7 @@ Line::Line(
 		_recaches.events_starting_with({})
 	) | rpl::filter([](const QSize &size, int parentWidth, auto) {
 		return !size.isEmpty() && parentWidth;
-	}) | rpl::start_with_next([=](const QSize &size, auto, auto) {
+	}) | rpl::on_next([=](const QSize &size, auto, auto) {
 		recache(size);
 		update();
 	}, lifetime());
@@ -514,7 +514,7 @@ void AddLimitRow(
 	if (color) {
 		line->setColorOverride(color());
 
-		style::PaletteChanged() | rpl::start_with_next([=] {
+		style::PaletteChanged() | rpl::on_next([=] {
 			line->setColorOverride(color());
 		}, line->lifetime());
 	}
@@ -593,7 +593,7 @@ void AddAccountsRow(
 			anim::type::instant);
 
 		widget->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			Painter p(widget);
 			const auto width = widget->width();
 			const auto photoLeft = (width - (imageRadius * 2)) / 2;
@@ -630,7 +630,7 @@ void AddAccountsRow(
 	}
 
 	container->sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		const auto count = state->accounts.size();
 		const auto columnWidth = size.width() / count;
 		for (auto i = 0; i < count; i++) {
@@ -756,7 +756,7 @@ void ShowListBox(
 		const auto title = content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
-				base::take(entry.title) | Ui::Text::ToBold(),
+				base::take(entry.title) | rpl::map(tr::bold),
 				stLabel),
 			entry.icon ? iconTitlePadding : titlePadding);
 		content->add(
@@ -773,11 +773,11 @@ void ShowListBox(
 			icons->push_back(QColor());
 			const auto icon = Ui::CreateChild<Ui::RpWidget>(content.get());
 			icon->resize(outlined->size());
-			title->topValue() | rpl::start_with_next([=](int y) {
+			title->topValue() | rpl::on_next([=](int y) {
 				const auto shift = st::settingsPremiumPreviewIconPosition;
 				icon->move(QPoint(0, y) + shift);
 			}, icon->lifetime());
-			icon->paintRequest() | rpl::start_with_next([=] {
+			icon->paintRequest() | rpl::on_next([=] {
 				auto p = QPainter(icon);
 				outlined->paintInCenter(p, icon->rect(), (*icons)[index]);
 			}, icon->lifetime());
@@ -901,7 +901,7 @@ void AddGiftOptions(
 		}
 
 		row->sizeValue(
-		) | rpl::start_with_next([=, margins = stCheckbox.margin](
+		) | rpl::on_next([=, margins = stCheckbox.margin](
 				const QSize &s) {
 			const auto radioHeight = radio->height()
 				- margins.top()
@@ -916,7 +916,7 @@ void AddGiftOptions(
 			row->paintRequest(
 			) | rpl::take(
 				1
-			) | rpl::start_with_next([=]() mutable {
+			) | rpl::on_next([=]() mutable {
 				const auto from = edges->top->y();
 				const auto to = edges->bottom->y() + edges->bottom->height();
 				auto partialGradient = PartialGradient(from, to, stops);
@@ -934,7 +934,7 @@ void AddGiftOptions(
 			return s.replace(kStar, QChar());
 		};
 		const auto &costPerMonthFont = st::shareBoxListItem.nameStyle.font;
-		const auto &costTotalFont = st::normalFont;
+		const auto &costPerYearFont = st::normalFont;
 		const auto costPerMonthIcon = info.costPerMonth.startsWith(kStar)
 			? GenerateStars(costPerMonthFont->height, 1)
 			: QImage();
@@ -951,14 +951,14 @@ void AddGiftOptions(
 					? info.costPerMonth
 					: removedStar(info.costPerMonth)));
 
-		const auto costTotalEntry = [&] {
-			if (!info.costTotal.startsWith(kStar)) {
+		const auto costPerYearEntry = [&] {
+			if (!info.costPerYear.startsWith(kStar)) {
 				return QImage();
 			}
-			const auto text = removedStar(info.costTotal);
-			const auto icon = GenerateStars(costTotalFont->height, 1);
+			const auto text = removedStar(info.costPerYear);
+			const auto icon = GenerateStars(costPerYearFont->height, 1);
 			auto result = QImage(
-				QSize(costTotalFont->spacew + costTotalFont->width(text), 0)
+				QSize(costPerYearFont->spacew + costPerYearFont->width(text), 0)
 					* style::DevicePixelRatio()
 					+ icon.size(),
 				QImage::Format_ARGB32_Premultiplied);
@@ -968,8 +968,8 @@ void AddGiftOptions(
 				auto p = QPainter(&result);
 				p.drawImage(0, 0, icon);
 				p.setPen(st::windowSubTextFg);
-				p.setFont(costTotalFont);
-				auto copy = info.costTotal;
+				p.setFont(costPerYearFont);
+				auto copy = info.costPerYear;
 				p.drawText(
 					Rect(result.size() / style::DevicePixelRatio()),
 					text,
@@ -979,7 +979,7 @@ void AddGiftOptions(
 		}();
 
 		row->paintRequest(
-		) | rpl::start_with_next([=](const QRect &r) {
+		) | rpl::on_next([=](const QRect &r) {
 			auto p = QPainter(row);
 			auto hq = PainterHighQualityEnabler(p);
 
@@ -1077,12 +1077,12 @@ void AddGiftOptions(
 					: (costPerMonthFont->spacew
 						+ costPerMonthIcon.width()
 							/ style::DevicePixelRatio());
-				const auto costTotalWidth = costTotalFont->width(
-					info.costTotal);
+				const auto costPerYearWidth = costPerYearFont->width(
+					info.costPerYear);
 				const auto pos = perRect.translated(left, 0).topLeft();
 				const auto availableWidth = row->width()
 					- pos.x()
-					- costTotalWidth;
+					- costPerYearWidth;
 				costPerMonthLabel->draw(p, {
 					.position = pos,
 					.outerWidth = availableWidth,
@@ -1094,16 +1094,16 @@ void AddGiftOptions(
 
 			const auto totalRect = row->rect()
 				- QMargins(0, 0, st.rowMargins.right(), 0);
-			if (costTotalEntry.isNull()) {
-				p.setFont(costTotalFont);
-				p.drawText(totalRect, info.costTotal, style::al_right);
+			if (costPerYearEntry.isNull()) {
+				p.setFont(costPerYearFont);
+				p.drawText(totalRect, info.costPerYear, style::al_right);
 			} else {
-				const auto size = costTotalEntry.size()
+				const auto size = costPerYearEntry.size()
 					/ style::DevicePixelRatio();
 				p.drawImage(
 					totalRect.width() - size.width(),
 					(row->height() - size.height()) / 2,
-					costTotalEntry);
+					costPerYearEntry);
 			}
 		}, row->lifetime());
 

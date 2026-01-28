@@ -24,6 +24,7 @@ struct GiveawayStart;
 struct GiveawayResults;
 struct SubscriptionEntry;
 struct UniqueGift;
+struct GiftUpgradeSpinner;
 } // namespace Data
 
 namespace Main {
@@ -44,8 +45,8 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
-[[nodiscard]] rpl::producer<QString> GiftDurationValue(int months);
-[[nodiscard]] QString GiftDuration(int months);
+[[nodiscard]] rpl::producer<QString> GiftDurationValue(int days);
+[[nodiscard]] QString GiftDuration(int days);
 
 void GiftCodeBox(
 	not_null<Ui::GenericBox*> box,
@@ -77,8 +78,9 @@ void AddStarGiftTable(
 	not_null<Ui::VerticalLayout*> container,
 	Settings::CreditsEntryBoxStyleOverrides st,
 	const Data::CreditsHistoryEntry &entry,
+	std::shared_ptr<Data::GiftUpgradeSpinner> spinner,
 	Fn<void()> convertToStars,
-	Fn<void()> startUpgrade,
+	bool canStartUpgrade,
 	Fn<void(Fn<void()> removed)> removeDetails);
 void AddTransferGiftTable(
 	std::shared_ptr<ChatHelpers::Show> show,

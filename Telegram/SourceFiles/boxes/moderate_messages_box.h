@@ -17,6 +17,8 @@ namespace Ui {
 class GenericBox;
 } // namespace Ui
 
+extern const char kModerateCommonGroups[];
+
 void CreateModerateMessagesBox(
 	not_null<Ui::GenericBox*> box,
 	const HistoryItemsList &items,

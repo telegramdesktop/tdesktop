@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
+#include "ui/power_saving.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
@@ -108,7 +109,7 @@ Content::Content(
 	base::take(
 		_toInfo.globalEndTopLeft
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](const std::optional<QPoint> &p) {
+	) | rpl::on_next([=](const std::optional<QPoint> &p) {
 		if (p) {
 			_to = parent->mapFromGlobal(*p);
 		} else {
@@ -117,7 +118,7 @@ Content::Content(
 	}, lifetime());
 
 	_controller->session().downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 
@@ -144,7 +145,8 @@ Content::Content(
 		const auto resultTo = _isText
 			? _to + innerGeometry.topLeft()
 			: _to + innerGeometry.topLeft() + _innerContentRect.topLeft();
-		const auto x = anim::interpolate(resultFrom.x(), resultTo.x(), value);
+		const auto xEase = anim::easeOutQuint(1.0, value);
+		const auto x = anim::interpolate(resultFrom.x(), resultTo.x(), xEase);
 		const auto y = anim::interpolate(resultFrom.y(), resultTo.y(), value);
 		if (!_isText) {
 			// Text-only messages are drawing only in _bubble.widget.
@@ -296,7 +298,7 @@ void Content::createSurrounding() {
 	stackUnder(_surrounding.get());
 
 	_surrounding->paintRequest(
-	) | rpl::start_with_next([=, size = surroundingSize](const QRect &r) {
+	) | rpl::on_next([=, size = surroundingSize](const QRect &r) {
 		Painter p(_surrounding);
 
 		p.fillRect(r, Qt::transparent);
@@ -358,6 +360,7 @@ void Content::createBubble() {
 			(currentView->hasOutLayout() ? tailWidth : 0)
 				+ (_isText && currentView->data()->isPost()
 					? rect::m::sum::h(st::msgPadding)
+						+ st::historyFastShareSize
 					: 0),
 			(hasCommentsButton || _isText) ? innerGeometry.y() : 0));
 	_bubble.widget->show();
@@ -365,8 +368,8 @@ void Content::createBubble() {
 	_bubble.widget->stackUnder(this);
 
 	_bubble.widget->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
-		Painter p(_bubble.widget);
+	) | rpl::on_next([=, raw = _bubble.widget.get()](const QRect &r) {
+		auto p = Painter(raw);
 
 		p.fillRect(r, Qt::transparent);
 
@@ -393,7 +396,15 @@ void Content::createBubble() {
 		context.skipDrawingParts = Context::SkipDrawingParts::Content;
 		context.outbg = currentView->hasOutLayout();
 
-		context.translate(paintOffsetLeft, -context.viewport.y());
+		const auto diff = context.viewport.height() - raw->height();
+		auto bottom = anim::interpolate(_from.y(), _to.y(), progress);
+		if (bottom > diff) {
+			bottom = diff;
+		}
+		if (bottom < raw->height()) {
+			bottom = raw->height();
+		}
+		context.translate(paintOffsetLeft, -context.viewport.y() - bottom);
 		p.translate(-paintOffsetLeft, 0);
 
 		currentView->draw(p, context);
@@ -416,12 +427,12 @@ MessageSendingAnimationController::MessageSendingAnimationController(
 
 void MessageSendingAnimationController::subscribeToDestructions() {
 	_controller->session().data().itemIdChanged(
-	) | rpl::start_with_next([=](Data::Session::IdChange change) {
+	) | rpl::on_next([=](Data::Session::IdChange change) {
 		_itemSendPending.remove(change.oldId);
 	}, _lifetime);
 
 	_controller->session().data().itemRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		_itemSendPending.remove(item->id);
 		_processing.remove(item);
 	}, _lifetime);
@@ -438,7 +449,8 @@ void MessageSendingAnimationController::appendSending(
 }
 
 void MessageSendingAnimationController::startAnimation(SendingInfoTo &&to) {
-	if (anim::Disabled()) {
+	if (anim::Disabled()
+		|| PowerSaving::On(PowerSaving::Flag::kChatEffects)) {
 		return;
 	}
 	const auto container = _controller->content();
@@ -463,7 +475,7 @@ void MessageSendingAnimationController::startAnimation(SendingInfoTo &&to) {
 		std::move(to));
 
 	content->destroyRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_processing.erase(item);
 	}, content->lifetime());
 

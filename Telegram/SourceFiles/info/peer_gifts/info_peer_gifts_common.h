@@ -105,6 +105,15 @@ struct GiftDescriptor : std::variant<GiftTypePremium, GiftTypeStars> {
 		const GiftDescriptor&) = default;
 };
 
+struct GiftSendDetails {
+	GiftDescriptor descriptor;
+	TextWithEntities text;
+	uint64 randomId = 0;
+	bool anonymous = false;
+	bool upgraded = false;
+	bool byStars = false;
+};
+
 struct GiftBadge {
 	QString text;
 	QColor bg1;
@@ -158,6 +167,7 @@ public:
 	[[nodiscard]] virtual not_null<StickerPremiumMark*> hiddenMark() = 0;
 	[[nodiscard]] virtual QImage cachedBadge(const GiftBadge &badge) = 0;
 	[[nodiscard]] virtual bool amPremium() = 0;
+	virtual void invalidateCache() = 0;
 };
 
 class GiftButton final : public Ui::AbstractButton {
@@ -174,13 +184,8 @@ public:
 		GiftSelectionMode selectionMode = GiftSelectionMode::Border,
 		anim::type animated = anim::type::normal);
 
-	[[nodiscard]] rpl::producer<QPoint> contextMenuRequests() const {
-		return _contextMenuRequests.events();
-	}
-
-	[[nodiscard]] rpl::producer<QMouseEvent*> mouseEvents() const {
-		return _mouseEvents.events();
-	}
+	[[nodiscard]] rpl::producer<QPoint> contextMenuRequests() const;
+	[[nodiscard]] rpl::producer<QMouseEvent*> mouseEvents();
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -228,6 +233,8 @@ private:
 	bool _selected : 1 = false;
 	bool _locked : 1 = false;
 
+	bool _mouseEventsAreListening = false;
+
 	base::Timer _lockedTimer;
 	TimeId _lockedUntilDate = 0;
 
@@ -266,6 +273,7 @@ public:
 	not_null<StickerPremiumMark*> hiddenMark() override;
 	QImage cachedBadge(const GiftBadge &badge) override;
 	bool amPremium() override;
+	void invalidateCache() override;
 
 private:
 	const not_null<Main::Session*> _session;

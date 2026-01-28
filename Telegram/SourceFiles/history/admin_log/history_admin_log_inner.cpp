@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/sticker_set_box.h"
+#include "boxes/translate_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_key_modifiers.h"
@@ -32,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_chat_participants.h"
 #include "api/api_attached_stickers.h"
+#include "api/api_report.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -264,7 +266,7 @@ InnerWidget::InnerWidget(
 	Window::ChatThemeValueFromPeer(
 		controller,
 		channel
-	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
+	) | rpl::on_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
 		_theme = std::move(theme);
 		controller->setChatStyleTheme(_theme);
 	}, lifetime());
@@ -272,25 +274,25 @@ InnerWidget::InnerWidget(
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([=] { scrollDateHideByTimer(); });
 	session().data().viewRepaintRequest(
-	) | rpl::start_with_next([=](auto view) {
-		if (myView(view)) {
-			repaintItem(view);
+	) | rpl::on_next([=](Data::RequestViewRepaint data) {
+		if (myView(data.view)) {
+			repaintItem(data.view, data.rect);
 		}
 	}, lifetime());
 	session().data().viewResizeRequest(
-	) | rpl::start_with_next([=](auto view) {
+	) | rpl::on_next([=](auto view) {
 		if (myView(view)) {
 			resizeItem(view);
 		}
 	}, lifetime());
 	session().data().itemViewRefreshRequest(
-	) | rpl::start_with_next([=](auto item) {
+	) | rpl::on_next([=](auto item) {
 		if (const auto view = viewForItem(item)) {
 			refreshItem(view);
 		}
 	}, lifetime());
 	session().data().viewLayoutChanged(
-	) | rpl::start_with_next([=](auto view) {
+	) | rpl::on_next([=](auto view) {
 		if (myView(view)) {
 			if (view->isUnderCursor()) {
 				updateSelected();
@@ -298,7 +300,7 @@ InnerWidget::InnerWidget(
 		}
 	}, lifetime());
 	session().data().itemDataChanges(
-	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+	) | rpl::on_next([=](not_null<HistoryItem*> item) {
 		if (const auto view = viewForItem(item)) {
 			view->itemDataChanged();
 		}
@@ -309,7 +311,7 @@ InnerWidget::InnerWidget(
 		return (_history == query.item->history())
 			&& query.item->isAdminLogEntry()
 			&& isVisible();
-	}) | rpl::start_with_next([=](
+	}) | rpl::on_next([=](
 			const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			auto top = itemTop(view);
@@ -322,7 +324,7 @@ InnerWidget::InnerWidget(
 	}, lifetime());
 
 	controller->adaptive().chatWideValue(
-	) | rpl::start_with_next([=](bool wide) {
+	) | rpl::on_next([=](bool wide) {
 		_isChatWide = wide;
 	}, lifetime());
 
@@ -465,7 +467,7 @@ void InnerWidget::requestAdmins() {
 	const auto offset = 0;
 	const auto participantsHash = uint64(0);
 	_api.request(MTPchannels_GetParticipants(
-		_channel->inputChannel,
+		_channel->inputChannel(),
 		MTP_channelParticipantsAdmins(),
 		MTP_int(offset),
 		MTP_int(kMaxChannelAdmins),
@@ -549,7 +551,7 @@ void InnerWidget::showFilter(Fn<void(FilterValue &&filter)> callback) {
 				box->verticalLayout(),
 				tr::lng_admin_log_filter_actions_admins_section(
 					tr::now,
-					Ui::Text::WithEntities),
+					tr::marked),
 				checkedPeerId.size() == admins.size(),
 				st::defaultBoxCheckbox));
 		using Controller = Ui::ExpandablePeerListController;
@@ -602,7 +604,7 @@ void InnerWidget::clearAndRequestLog() {
 void InnerWidget::updateEmptyText() {
 	auto hasSearch = !_searchQuery.isEmpty();
 	auto hasFilter = _filter.flags || _filter.admins;
-	auto text = Ui::Text::Semibold((hasSearch || hasFilter)
+	auto text = tr::semibold((hasSearch || hasFilter)
 		? tr::lng_admin_log_no_results_title(tr::now)
 		: tr::lng_admin_log_no_events_title(tr::now));
 	auto description = hasSearch
@@ -620,8 +622,9 @@ void InnerWidget::updateEmptyText() {
 }
 
 QString InnerWidget::tooltipText() const {
-	if (_mouseCursorState == CursorState::Date
-		&& _mouseAction == MouseAction::None) {
+	if (_mouseAction == MouseAction::None
+		&& (_mouseCursorState == CursorState::Date
+			|| _mouseCursorState == CursorState::LogAdminService)) {
 		if (const auto view = Element::Hovered()) {
 			auto dateText = HistoryView::DateTooltipText(view);
 
@@ -719,7 +722,7 @@ bool InnerWidget::elementAnimationsPaused() {
 }
 
 bool InnerWidget::elementHideReply(not_null<const Element*> view) {
-	return true;
+	return false;
 }
 
 bool InnerWidget::elementShownUnread(not_null<const Element*> view) {
@@ -859,7 +862,7 @@ void InnerWidget::preloadMore(Direction direction) {
 		if (!_filter.admins->empty()) {
 			admins.reserve(_filter.admins->size());
 			for (const auto &admin : (*_filter.admins)) {
-				admins.push_back(admin->inputUser);
+				admins.push_back(admin->inputUser());
 			}
 		}
 		flags |= MTPchannels_GetAdminLog::Flag::f_admins;
@@ -869,7 +872,7 @@ void InnerWidget::preloadMore(Direction direction) {
 	auto perPage = _items.empty() ? kEventsFirstPage : kEventsPerPage;
 	requestId = _api.request(MTPchannels_GetAdminLog(
 		MTP_flags(flags),
-		_channel->inputChannel,
+		_channel->inputChannel(),
 		MTP_string(_searchQuery),
 		MTP_channelAdminLogEventsFilter(MTP_flags(filter)),
 		MTP_vector<MTPInputUser>(admins),
@@ -915,6 +918,7 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 		: newItemsForDownDirection;
 	addToItems.reserve(oldItemsCount + events.size() * 2);
 
+	const auto canRestrict = InnerWidget::canRestrict();
 	const auto antiSpamUserId = _antiSpamValidator.userId();
 	for (const auto &event : events) {
 		const auto &data = event.data();
@@ -935,10 +939,15 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 			}
 			_eventIds.emplace(id);
 			_itemsByData.emplace(item->data(), item.get());
-			if (rememberRealMsgId && realId) {
-				_antiSpamValidator.addEventMsgId(
-					item->data()->fullId(),
-					realId);
+			if (realId) {
+				if (rememberRealMsgId) {
+					_antiSpamValidator.addEventMsgId(
+						item->data()->fullId(),
+						realId);
+				}
+				if (canRestrict) {
+					_realIdsForReport[item->data()->fullId()] = realId;
+				}
 			}
 			addToItems.push_back(std::move(item));
 			++count;
@@ -1047,6 +1056,7 @@ Ui::ChatPaintContext InnerWidget::preparePaintContext(QRect clip) const {
 		.visibleAreaPositionGlobal = mapToGlobal(QPoint(0, _visibleTop)),
 		.visibleAreaTop = _visibleTop,
 		.visibleAreaWidth = width(),
+		.visibleAreaHeight = _visibleBottom - _visibleTop,
 	});
 }
 
@@ -1381,7 +1391,15 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	} else if (fromId) { // suggest to block
 		if (const auto participant = session().data().peer(fromId)) {
-			suggestRestrictParticipant(participant);
+			const auto item = view ? view->data().get() : nullptr;
+			auto realId = FullMsgId();
+			if (const auto itemId = item ? item->fullId() : FullMsgId()) {
+				const auto it = _realIdsForReport.find(itemId);
+				if (it != _realIdsForReport.end()) {
+					realId = FullMsgId(_channel->id, it->second);
+				}
+			}
+			suggestRestrictParticipant(participant, realId);
 		}
 	} else { // maybe cursor on some text history item?
 		const auto item = view ? view->data().get() : nullptr;
@@ -1394,6 +1412,17 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				tr::lng_context_copy_selected(tr::now),
 				[this] { copySelectedText(); },
 				&st::menuIconCopy);
+			if (item && !Ui::SkipTranslate(getSelectedText().rich)) {
+				const auto peer = item->history()->peer;
+				_menu->addAction(tr::lng_context_translate_selected({}), [=] {
+					_controller->show(Box(
+						Ui::TranslateBox,
+						peer,
+						MsgId(),
+						getSelectedText().rich,
+						false));
+				}, &st::menuIconTranslate);
+			}
 		} else {
 			if (item && !isUponSelected) {
 				const auto media = view->media();
@@ -1414,6 +1443,17 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
 					}, &st::menuIconCopy);
+				}
+				if (!item->isService() && !Ui::SkipTranslate(item->originalText())) {
+					const auto peer = item->history()->peer;
+					_menu->addAction(tr::lng_context_translate({}), [=] {
+						_controller->show(Box(
+							Ui::TranslateBox,
+							peer,
+							MsgId(),
+							item->originalText(),
+							false));
+					}, &st::menuIconTranslate);
 				}
 			}
 		}
@@ -1509,12 +1549,11 @@ void InnerWidget::copyContextText(FullMsgId itemId) {
 }
 
 void InnerWidget::suggestRestrictParticipant(
-		not_null<PeerData*> participant) {
+		not_null<PeerData*> participant,
+		FullMsgId realId) {
 	Expects(_menu != nullptr);
 
-	if (!_channel->isMegagroup()
-		|| !_channel->canBanMembers()
-		|| _admins.empty()) {
+	if (!canRestrict()) {
 		return;
 	}
 	if (ranges::contains(_admins, participant)) {
@@ -1575,8 +1614,8 @@ void InnerWidget::suggestRestrictParticipant(
 			editRestrictions(true, {}, nullptr, 0);
 		} else {
 			_api.request(MTPchannels_GetParticipant(
-				_channel->inputChannel,
-				user->input
+				_channel->inputChannel(),
+				user->input()
 			)).done([=](const MTPchannels_ChannelParticipant &result) {
 				user->owner().processUsers(result.data().vusers());
 
@@ -1607,7 +1646,7 @@ void InnerWidget::suggestRestrictParticipant(
 			participant->session().changes().peerUpdates(
 				_channel,
 				Data::PeerUpdate::Flag::Members
-			) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+			) | rpl::on_next([=](const Data::PeerUpdate &update) {
 				_downLoaded = false;
 				preloadMore(Direction::Down);
 				lifetime->destroy();
@@ -1617,12 +1656,26 @@ void InnerWidget::suggestRestrictParticipant(
 				participant,
 				{ _channel->restrictions(), 0 });
 		};
-		Ui::Menu::CreateAddActionCallback(_menu)({
+		const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+		addAction({
 			.text = tr::lng_context_ban_user(tr::now),
-			.handler = std::move(handler),
+			.handler = handler,
 			.icon = &st::menuIconBlockAttention,
 			.isAttention = true,
 		});
+
+		if (realId) {
+			addAction({
+				.text = tr::lng_report_and_ban(tr::now),
+				.handler = [=, show = _controller->uiShow()] {
+					Api::ReportSpam(participant, { realId });
+					handler();
+					show->showToast(tr::lng_report_spam_done(tr::now));
+				},
+				.icon = &st::menuIconReportAttention,
+				.isAttention = true,
+			});
+		}
 	}
 }
 
@@ -1657,6 +1710,12 @@ void InnerWidget::restrictParticipantDone(
 	}
 	_downLoaded = false;
 	checkPreloadMore();
+}
+
+bool InnerWidget::canRestrict() const {
+	return _channel->isMegagroup()
+		&& _channel->canBanMembers()
+		&& !_admins.empty();
 }
 
 void InnerWidget::mousePressEvent(QMouseEvent *e) {
@@ -1895,6 +1954,9 @@ void InnerWidget::updateSelected() {
 		}
 		dragState = view->textState(itemPoint, request);
 		lnkhost = view;
+		if (item->isService()) {
+			dragState.cursor = CursorState::LogAdminService;
+		}
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 			if (!item->isService() && view->hasFromPhoto()) {
 				enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
@@ -1920,7 +1982,8 @@ void InnerWidget::updateSelected() {
 	}
 	if (dragState.link
 		|| dragState.cursor == CursorState::Date
-		|| dragState.cursor == CursorState::Forwarded) {
+		|| dragState.cursor == CursorState::Forwarded
+		|| dragState.cursor == CursorState::LogAdminService) {
 		Ui::Tooltip::Show(1000, this);
 	}
 
@@ -2091,6 +2154,17 @@ void InnerWidget::repaintItem(const Element *view) {
 	const auto top = itemTop(view);
 	const auto range = view->verticalRepaintRange();
 	update(0, top + range.top, width(), range.height);
+}
+
+void InnerWidget::repaintItem(const Element *view, QRect rect) {
+	if (rect.isNull()) {
+		return repaintItem(view);
+	}
+	if (!view) {
+		return;
+	}
+	const auto top = itemTop(view);
+	update(rect.translated(0, top));
 }
 
 void InnerWidget::resizeItem(not_null<Element*> view) {

@@ -33,6 +33,10 @@ public:
 		not_null<HistoryItem*> data,
 		Element *replacing);
 
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) override;
+
 	int marginTop() const override;
 	int marginBottom() const override;
 	bool isHidden() const override;

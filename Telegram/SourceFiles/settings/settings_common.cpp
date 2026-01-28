@@ -7,17 +7,304 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_common.h"
 
+#include "base/timer.h"
 #include "lottie/lottie_icon.h"
+#include "ui/effects/animations.h"
+#include "ui/effects/premium_graphics.h"
+#include "ui/effects/premium_top_bar.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/continuous_sliders.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
+#include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
+#include "styles/style_widgets.h"
 
 #include <QAction>
 
 namespace Settings {
+namespace {
+
+[[nodiscard]] HighlightArgs MaybeFillFromRipple(
+		not_null<QWidget*> target,
+		HighlightArgs args) {
+	if (!args.rippleShape) {
+		return args;
+	}
+	const auto widget = target.get();
+	if (const auto icon = dynamic_cast<Ui::IconButton*>(widget)) {
+		const auto &st = icon->st();
+		args.shape = HighlightShape::Ellipse;
+		args.margin = QMargins(
+			st.rippleAreaPosition.x(),
+			st.rippleAreaPosition.y(),
+			st.width - st.rippleAreaPosition.x() - st.rippleAreaSize,
+			st.height - st.rippleAreaPosition.y() - st.rippleAreaSize);
+	} else if (const auto round = dynamic_cast<Ui::RoundButton*>(widget)) {
+		const auto &st = round->st();
+		args.shape = HighlightShape::Rect;
+		args.radius = st.radius ? st.radius : st::buttonRadius;
+	}
+	return args;
+}
+
+class HighlightOverlay final : public Ui::RpWidget {
+public:
+	HighlightOverlay(not_null<QWidget*> target, HighlightArgs &&args);
+
+protected:
+	bool eventFilter(QObject *o, QEvent *e) override;
+
+private:
+	enum class Phase {
+		Wait,
+		FadeIn,
+		Shown,
+		FadeOut,
+	};
+
+	void updateGeometryFromTarget();
+	void updateZOrder();
+	void startFadeIn();
+	void startFadeOut();
+	void nextPhase();
+	void nextPhaseIn(crl::time delay);
+	void finish();
+
+	const QPointer<QWidget> _target;
+	const HighlightArgs _args;
+	const style::color &_color;
+
+	Ui::Animations::Simple _animation;
+	base::Timer _phaseTimer;
+	Phase _phase = Phase::Wait;
+	bool _finishing = false;
+
+};
+
+HighlightOverlay::HighlightOverlay(
+	not_null<QWidget*> target,
+	HighlightArgs &&args)
+: RpWidget(target->parentWidget())
+, _target(target.get())
+, _args(MaybeFillFromRipple(target, std::move(args)))
+, _color(_args.color ? *_args.color : st::windowBgActive)
+, _phaseTimer([=] { nextPhase(); }) {
+	setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	target->installEventFilter(this);
+
+	QObject::connect(
+		target.get(),
+		&QObject::destroyed,
+		this,
+		[this] { finish(); });
+
+	updateGeometryFromTarget();
+	updateZOrder();
+
+	paintRequest() | rpl::on_next([=](QRect clip) {
+		auto p = QPainter(this);
+
+		const auto progress = _animation.value(
+			(_phase == Phase::Wait || _phase == Phase::FadeOut) ? 0. : 1.);
+		const auto alpha = _args.opacity * progress;
+
+		auto color = _color->c;
+		color.setAlphaF(color.alphaF() * alpha);
+
+		p.setPen(Qt::NoPen);
+		p.setBrush(color);
+
+		const auto r = rect();
+		switch (_args.shape) {
+		case HighlightShape::Rect:
+			if (_args.radius > 0) {
+				PainterHighQualityEnabler hq(p);
+				p.drawRoundedRect(r, _args.radius, _args.radius);
+			} else {
+				p.drawRect(r);
+			}
+			break;
+		case HighlightShape::Ellipse:
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(r);
+			break;
+		}
+	}, lifetime());
+
+	hide();
+	nextPhaseIn(_args.showDelay);
+}
+
+bool HighlightOverlay::eventFilter(QObject *o, QEvent *e) {
+	if (o != _target.data()) {
+		return false;
+	}
+	switch (e->type()) {
+	case QEvent::Move:
+	case QEvent::Resize:
+		updateGeometryFromTarget();
+		break;
+	case QEvent::ZOrderChange:
+		updateZOrder();
+		break;
+	case QEvent::Show:
+	case QEvent::Hide:
+		setVisible(!_target->isHidden());
+		break;
+	default:
+		break;
+	}
+	return false;
+}
+
+void HighlightOverlay::updateGeometryFromTarget() {
+	if (_target) {
+		setGeometry(_target->geometry().marginsRemoved(_args.margin));
+	}
+}
+
+void HighlightOverlay::updateZOrder() {
+	if (!_target) {
+		return;
+	}
+	if (_args.below) {
+		stackUnder(_target);
+	} else {
+		const auto parent = _target->parentWidget();
+		const auto siblings = parent ? parent->children() : QObjectList();
+		const auto it = ranges::find(siblings, _target.data());
+		const auto next = (it != siblings.end()) ? (it + 1) : it;
+		if (next != siblings.end()) {
+			if (const auto widget = qobject_cast<QWidget*>(*next)) {
+				stackUnder(widget);
+				return;
+			}
+		}
+		raise();
+	}
+}
+
+void HighlightOverlay::startFadeIn() {
+	show();
+
+	_phase = Phase::FadeIn;
+	_animation.start([=] {
+		update();
+		if (!_animation.animating()) {
+			_phase = Phase::Shown;
+			nextPhaseIn(_args.shownDuration);
+		}
+	}, 0., 1., _args.showDuration, anim::easeOutCubic);
+}
+
+void HighlightOverlay::startFadeOut() {
+	_phase = Phase::FadeOut;
+	_animation.start([=] {
+		update();
+		if (!_animation.animating()) {
+			finish();
+		}
+	}, 1., 0., _args.hideDuration, anim::easeInCubic);
+}
+
+void HighlightOverlay::nextPhase() {
+	switch (_phase) {
+	case Phase::Wait:
+		startFadeIn();
+		break;
+	case Phase::Shown:
+		startFadeOut();
+		break;
+	default:
+		Unexpected("Next phase called during Fade phase.");
+	}
+}
+
+void HighlightOverlay::nextPhaseIn(crl::time delay) {
+	if (!delay) {
+		_phaseTimer.cancel();
+		nextPhase();
+	} else {
+		_phaseTimer.callOnce(delay);
+	}
+}
+
+void HighlightOverlay::finish() {
+	if (_finishing) {
+		return;
+	}
+	_finishing = true;
+	_phaseTimer.cancel();
+	_animation.stop();
+	deleteLater();
+}
+
+} // namespace
+
+void HighlightWidget(QWidget *target, HighlightArgs &&args) {
+	if (!target) {
+		return;
+	}
+	if (args.scroll) {
+		ScrollToWidget(target);
+	}
+	new HighlightOverlay(target, std::move(args));
+}
+
+void ScrollToWidget(not_null<QWidget*> target) {
+	const auto scrollIn = [&](auto &&scroll) {
+		if (const auto inner = scroll->widget()) {
+			const auto globalPosition = target->mapToGlobal(QPoint(0, 0));
+			const auto localPosition = inner->mapFromGlobal(globalPosition);
+			const auto localTop = localPosition.y();
+			const auto targetHeight = target->height();
+			const auto scrollHeight = scroll->height();
+			const auto centered = localTop - (scrollHeight - targetHeight) / 2;
+			const auto top = std::clamp(centered, 0, scroll->scrollTopMax());
+			scroll->scrollToY(top);
+		}
+	};
+	for (auto parent = target->parentWidget()
+		; parent
+		; parent = parent->parentWidget()) {
+		if (const auto scroll = dynamic_cast<Ui::ScrollArea*>(parent)) {
+			scrollIn(scroll);
+			return;
+		}
+		if (const auto scroll = dynamic_cast<Ui::ElasticScroll*>(parent)) {
+			scrollIn(scroll);
+			return;
+		}
+	}
+}
+
+HighlightArgs SubsectionTitleHighlight() {
+	const auto radius = st::roundRadiusSmall;
+	return { .margin = { -radius, 0, -radius, 0 }, .radius = radius };
+}
+
+AbstractSection::AbstractSection(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
+}
+
+void AbstractSection::build(
+		not_null<Ui::VerticalLayout*> container,
+		SectionBuildMethod method) {
+	method(
+		container,
+		_controller,
+		showOtherMethod(),
+		_showFinished.events());
+}
 
 Icon::Icon(IconDescriptor descriptor) : _icon(descriptor.icon) {
 	const auto background = [&]() -> const style::color* {
@@ -91,14 +378,14 @@ void AddButtonIcon(
 	icon->widget.resize(icon->icon.size());
 	icon->widget.show();
 	button->sizeValue(
-	) | rpl::start_with_next([=, left = st.iconLeft](QSize size) {
+	) | rpl::on_next([=, left = st.iconLeft](QSize size) {
 		icon->widget.moveToLeft(
 			left,
 			(size.height() - icon->widget.height()) / 2,
 			size.width());
 	}, icon->widget.lifetime());
 	icon->widget.paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(&icon->widget);
 		icon->icon.paint(p, 0, 0);
 	}, icon->widget.lifetime());
@@ -145,7 +432,7 @@ void CreateRightLabel(
 			button->widthValue(),
 			std::move(buttonText),
 			v::text::take_plain(std::move(label))
-		) | rpl::start_with_next([=, &st](
+		) | rpl::on_next([=, &st](
 				int width,
 				const QString &button,
 				const QString &text) {
@@ -163,7 +450,7 @@ void CreateRightLabel(
 			button->widthValue(),
 			std::move(buttonText),
 			v::text::take_marked(std::move(label))
-		) | rpl::start_with_next([=, &st](
+		) | rpl::on_next([=, &st](
 				int width,
 				const QString &button,
 				const TextWithEntities &text) {
@@ -201,7 +488,7 @@ void AddDividerTextWithLottie(
 	const auto divider = Ui::CreateChild<Ui::BoxContentDivider>(
 		container.get(),
 		0,
-		st::boxDividerBg,
+		st::defaultDividerBar,
 		descriptor.parts);
 	const auto verticalLayout = container->add(
 		object_ptr<Ui::VerticalLayout>(container.get()));
@@ -219,7 +506,7 @@ void AddDividerTextWithLottie(
 			anim::repeat::once);
 		std::move(
 			descriptor.showFinished
-		) | rpl::start_with_next([animate = std::move(icon.animate), repeat] {
+		) | rpl::on_next([animate = std::move(icon.animate), repeat] {
 			animate(repeat);
 		}, verticalLayout->lifetime());
 	}
@@ -237,7 +524,7 @@ void AddDividerTextWithLottie(
 	}
 
 	verticalLayout->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		divider->setGeometry(r);
 	}, divider->lifetime());
 }
@@ -275,7 +562,7 @@ LottieIcon CreateLottieIcon(
 		start();
 	};
 	raw->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(raw);
 		const auto left = (raw->width() - width) / 2;
 		icon->paint(p, left, padding.top(), colorOverride
@@ -311,7 +598,7 @@ SliderWithLabel MakeSliderWithLabel(
 	rpl::combine(
 		raw->sizeValue(),
 		label->sizeValue()
-	) | rpl::start_with_next([=](QSize outer, QSize size) {
+	) | rpl::on_next([=](QSize outer, QSize size) {
 		const auto right = std::max(size.width(), minLabelWidth) + skip;
 		label->moveToRight(0, (outer.height() - size.height()) / 2);
 		const auto width = std::max(
@@ -325,6 +612,110 @@ SliderWithLabel MakeSliderWithLabel(
 		.slider = slider,
 		.label = label,
 	};
+}
+
+void AddLottieIconWithCircle(
+		not_null<Ui::VerticalLayout*> layout,
+		object_ptr<Ui::RpWidget> icon,
+		QMargins iconPadding,
+		QSize circleSize) {
+	const auto iconRow = layout->add(
+		std::move(icon),
+		iconPadding,
+		style::al_top);
+
+	const auto circle = Ui::CreateChild<Ui::RpWidget>(
+		iconRow->parentWidget());
+	circle->lower();
+	circle->paintOn([=](QPainter &p) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto left = (circle->width() - circleSize.width()) / 2;
+		const auto top = (circle->height() - circleSize.height()) / 2;
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::activeButtonBg);
+		p.drawEllipse(QRect(QPoint(left, top), circleSize));
+	});
+
+	iconRow->geometryValue() | rpl::on_next([=](const QRect &g) {
+		circle->setGeometry(g);
+	}, circle->lifetime());
+}
+
+void AddPremiumStar(
+		not_null<Button*> button,
+		bool credits,
+		Fn<bool()> isPaused) {
+	const auto stops = credits
+		? Ui::Premium::CreditsIconGradientStops()
+		: Ui::Premium::ButtonGradientStops();
+
+	const auto ministarsContainer = Ui::CreateChild<Ui::RpWidget>(button);
+	const auto &buttonSt = button->st();
+	const auto fullHeight = buttonSt.height
+		+ rect::m::sum::v(buttonSt.padding);
+	using MiniStars = Ui::Premium::ColoredMiniStars;
+	const auto ministars = button->lifetime().make_state<MiniStars>(
+		ministarsContainer,
+		false);
+	ministars->setColorOverride(stops);
+
+	const auto isPausedValue
+		= button->lifetime().make_state<rpl::variable<bool>>(isPaused());
+	isPausedValue->value() | rpl::on_next([=](bool value) {
+		ministars->setPaused(value);
+	}, ministarsContainer->lifetime());
+
+	ministarsContainer->paintRequest(
+	) | rpl::on_next([=] {
+		(*isPausedValue) = isPaused();
+		auto p = QPainter(ministarsContainer);
+		{
+			constexpr auto kScale = 0.35;
+			const auto r = ministarsContainer->rect();
+			p.translate(r.center());
+			p.scale(kScale, kScale);
+			p.translate(-r.center());
+		}
+		ministars->paint(p);
+	}, ministarsContainer->lifetime());
+
+	const auto badge = Ui::CreateChild<Ui::RpWidget>(button.get());
+
+	auto star = [&] {
+		const auto factor = style::DevicePixelRatio();
+		const auto size = Size(st::settingsButtonNoIcon.style.font->ascent);
+		auto image = QImage(
+			size * factor,
+			QImage::Format_ARGB32_Premultiplied);
+		image.setDevicePixelRatio(factor);
+		image.fill(Qt::transparent);
+		{
+			auto p = QPainter(&image);
+			auto star = QSvgRenderer(Ui::Premium::ColorizedSvg(stops));
+			star.render(&p, Rect(size));
+		}
+		return image;
+	}();
+	badge->resize(star.size() / style::DevicePixelRatio());
+	badge->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(badge);
+		p.drawImage(0, 0, star);
+	}, badge->lifetime());
+
+	button->sizeValue(
+	) | rpl::on_next([=](const QSize &s) {
+		badge->moveToLeft(
+			button->st().iconLeft
+				+ (st::menuIconShop.width() - badge->width()) / 2,
+			(s.height() - badge->height()) / 2);
+		ministarsContainer->moveToLeft(
+			badge->x() - (fullHeight - badge->height()) / 2,
+			0);
+	}, badge->lifetime());
+
+	ministarsContainer->resize(fullHeight, fullHeight);
+	ministars->setCenter(ministarsContainer->rect());
 }
 
 } // namespace Settings

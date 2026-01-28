@@ -18,6 +18,12 @@ class CodeInput final : public Ui::RpWidget {
 public:
 	CodeInput(QWidget *parent);
 
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::EditableText;
+	}
+	QString accessibilityName() override;
+	QString accessibilityValue() const override;
+
 	void setDigitsCountMax(int digitsCount);
 
 	void setCode(QString code);

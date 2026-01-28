@@ -51,7 +51,7 @@ Changelogs::Changelogs(not_null<Main::Session*> session, int oldVersion)
 	_session->data().chatsListChanges(
 	) | rpl::filter([](Data::Folder *folder) {
 		return !folder;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		requestCloudLogs();
 	}, _chatsSubscription);
 }
@@ -135,7 +135,7 @@ void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 	}
 	const auto text = [&] {
 		static const auto simple = u"\n- "_q;
-		static const auto separator = QString::fromUtf8("\n\xE2\x80\xA2 ");
+		static const auto separator = '\n' + Ui::kQBullet + ' ';
 		auto result = QString::fromUtf8(changes).trimmed();
 		if (result.startsWith(base::StringViewMid(simple, 1))) {
 			result = separator.mid(1) + result.mid(simple.size() - 1);

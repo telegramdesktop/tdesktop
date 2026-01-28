@@ -41,9 +41,9 @@ inline auto PreviewPath(int i) {
 
 const auto kSets = {
 	Set{ { 0,    0,         0, "Mac" },       PreviewPath(0) },
-	Set{ { 1, 2290, 8'306'943, "Android" },   PreviewPath(1) },
-	Set{ { 2, 2291, 5'694'303, "Twemoji" },   PreviewPath(2) },
-	Set{ { 3, 2292, 7'261'223, "JoyPixels" }, PreviewPath(3) },
+	Set{ { 1, 2774, 8'455'034, "Android" },   PreviewPath(1) },
+	Set{ { 2, 2775, 5'713'503, "Twemoji" },   PreviewPath(2) },
+	Set{ { 3, 2776, 7'347'332, "JoyPixels" }, PreviewPath(3) },
 };
 
 using Loading = MTP::DedicatedLoader::Progress;
@@ -391,7 +391,7 @@ void Row::setupHandler() {
 		const auto &state = _state.current();
 		return !_switching && (v::is<Ready>(state)
 			|| v::is<Available>(state));
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		if (v::is<Available>(_state.current())) {
 			load();
 			return;
@@ -410,7 +410,7 @@ void Row::setupHandler() {
 	_state.value(
 	) | rpl::map([=](const SetState &state) {
 		return v::is<Ready>(state) || v::is<Available>(state);
-	}) | rpl::start_with_next([=](bool active) {
+	}) | rpl::on_next([=](bool active) {
 		setDisabled(!active);
 		setPointerCursor(active);
 	}, lifetime());
@@ -435,7 +435,7 @@ void Row::setupLabels(const Set &set) {
 	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		const auto left = st::manageEmojiPreviewPadding.left()
 			+ st::manageEmojiPreviewWidth
 			+ st::manageEmojiPreviewPadding.right();
@@ -487,7 +487,7 @@ void Row::setupAnimation() {
 	using namespace rpl::mappers;
 
 	_state.value(
-	) | rpl::start_with_next([=](const SetState &state) {
+	) | rpl::on_next([=](const SetState &state) {
 		update();
 	}, lifetime());
 
@@ -495,7 +495,7 @@ void Row::setupAnimation() {
 	) | rpl::map(
 		_1 == SetState{ Active() }
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool toggled) {
+	) | rpl::on_next([=](bool toggled) {
 		_toggled.start(
 			[=] { updateStatusColorOverride(); update(); },
 			toggled ? 0. : 1.,
@@ -507,7 +507,7 @@ void Row::setupAnimation() {
 	) | rpl::map([](const SetState &state) {
 		return v::is<Loading>(state) || v::is<Active>(state);
 	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool active) {
+	) | rpl::on_next([=](bool active) {
 		_active.start(
 			[=] { update(); },
 			active ? 0. : 1.,
@@ -519,7 +519,7 @@ void Row::setupAnimation() {
 	) | rpl::map([](const SetState &state) {
 		return std::get_if<Loading>(&state);
 	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](const Loading *loading) {
+	) | rpl::on_next([=](const Loading *loading) {
 		if (loading && !_loading) {
 			_loading = std::make_unique<Ui::RadialAnimation>(
 				[=](crl::time now) { radialAnimationCallback(now); });

@@ -20,6 +20,10 @@ namespace ChatHelpers {
 enum class SelectorTab;
 } // namespace ChatHelpers
 
+namespace Data {
+enum class SetupEmailState;
+} // namespace Data
+
 namespace Main {
 
 class SessionSettings final {
@@ -169,6 +173,16 @@ public:
 	void setUnreviewed(std::vector<Data::UnreviewedAuth> auths);
 	[[nodiscard]] const std::vector<Data::UnreviewedAuth> &unreviewed() const;
 
+	void setSetupEmailState(Data::SetupEmailState state);
+	[[nodiscard]] Data::SetupEmailState setupEmailState() const;
+
+	void setModerateCommonGroups(std::vector<int32> groups) {
+		_moderateCommonGroups = std::move(groups);
+	}
+	[[nodiscard]] const std::vector<int32> &moderateCommonGroups() const {
+		return _moderateCommonGroups;
+	}
+
 private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
 	static constexpr auto kPhotoEditorHintMaxShowsCount = 5;
@@ -212,6 +226,10 @@ private:
 	base::flat_set<uint64> _ratedTranscriptions;
 
 	std::vector<Data::UnreviewedAuth> _unreviewed;
+
+	Data::SetupEmailState _setupEmailState;
+
+	std::vector<int32> _moderateCommonGroups;
 
 };
 

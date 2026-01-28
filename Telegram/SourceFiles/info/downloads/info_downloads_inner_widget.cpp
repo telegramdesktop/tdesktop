@@ -43,7 +43,7 @@ EmptyWidget::EmptyWidget(QWidget *parent)
 void EmptyWidget::setFullHeight(rpl::producer<int> fullHeightValue) {
 	std::move(
 		fullHeightValue
-	) | rpl::start_with_next([this](int fullHeight) {
+	) | rpl::on_next([this](int fullHeight) {
 		// Make icon center be on 1/3 height.
 		auto iconCenter = fullHeight / 3;
 		auto iconHeight = st::infoEmptyFile.height();
@@ -87,7 +87,7 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _empty(this) {
 	_empty->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { refreshHeight(); },
 		_empty->lifetime());
 	_list = setupList();
@@ -110,7 +110,7 @@ bool InnerWidget::showInternal(not_null<Memento*> memento) {
 object_ptr<Media::ListWidget> InnerWidget::setupList() {
 	auto result = object_ptr<Media::ListWidget>(this, _controller);
 	result->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { refreshHeight(); },
 		result->lifetime());
 	using namespace rpl::mappers;
@@ -126,7 +126,7 @@ object_ptr<Media::ListWidget> InnerWidget::setupList() {
 	_selectedLists.fire(result->selectedListValue());
 	_listTops.fire(result->topValue());
 	_controller->searchQueryValue(
-	) | rpl::start_with_next([this](const QString &query) {
+	) | rpl::on_next([this](const QString &query) {
 		_empty->setSearchQuery(query);
 	}, result->lifetime());
 	return result;

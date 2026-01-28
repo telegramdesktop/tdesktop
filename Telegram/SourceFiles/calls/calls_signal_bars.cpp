@@ -24,7 +24,7 @@ SignalBars::SignalBars(
 		_st.width + (_st.width + _st.skip) * (Call::kSignalBarCount - 1),
 		_st.max);
 	call->signalBarCountValue(
-	) | rpl::start_with_next([=](int count) {
+	) | rpl::on_next([=](int count) {
 		changed(count);
 	}, lifetime());
 }

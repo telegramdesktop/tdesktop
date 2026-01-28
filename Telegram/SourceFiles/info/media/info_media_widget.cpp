@@ -70,6 +70,8 @@ Memento::Memento(not_null<Controller*> controller)
 		? controller->peer()
 		: controller->storiesPeer()
 		? controller->storiesPeer()
+		: controller->musicPeer()
+		? controller->musicPeer()
 		: controller->parentController()->session().user()),
 	controller->topic(),
 	controller->sublist(),
@@ -78,6 +80,8 @@ Memento::Memento(not_null<Controller*> controller)
 		? Type::File
 		: controller->section().type() == Section::Type::Stories
 		? Type::PhotoVideo
+		: controller->section().type() == Section::Type::SavedMusic
+		? Type::MusicFile
 		: controller->section().mediaType())) {
 }
 
@@ -135,7 +139,7 @@ Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 		controller));
 	_inner->setScrollHeightValue(scrollHeightValue());
 	_inner->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
 		scrollTo(request);
 	}, _inner->lifetime());
 }

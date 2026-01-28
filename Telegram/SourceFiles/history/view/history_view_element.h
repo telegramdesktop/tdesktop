@@ -18,6 +18,7 @@ class HistoryBlock;
 class HistoryItem;
 struct HistoryMessageReply;
 struct PreparedServiceText;
+struct HistoryMessageReplyMarkup;
 
 namespace Data {
 class Thread;
@@ -316,7 +317,8 @@ struct ServicePreMessage : RuntimeComponent<ServicePreMessage, Element> {
 		not_null<Element*> view,
 		PreparedServiceText string,
 		ClickHandlerPtr fullClickHandler,
-		std::unique_ptr<Media> media = nullptr);
+		std::unique_ptr<Media> media,
+		bool below);
 
 	int resizeToWidth(int newWidth, ElementChatMode mode);
 
@@ -335,6 +337,7 @@ struct ServicePreMessage : RuntimeComponent<ServicePreMessage, Element> {
 	ClickHandlerPtr handler;
 	int width = 0;
 	int height = 0;
+	bool below = false;
 
 };
 
@@ -394,6 +397,7 @@ public:
 		TopicRootReply           = 0x0400,
 		MediaOverriden           = 0x0800,
 		HeavyCustomEmoji         = 0x1000,
+		SummaryShown             = 0x2000,
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -479,6 +483,10 @@ public:
 	// For blocks context this should be called only from recountDisplayDate().
 	void setDisplayDate(bool displayDate);
 	void setServicePreMessage(
+		PreparedServiceText text,
+		ClickHandlerPtr fullClickHandler = nullptr,
+		std::unique_ptr<Media> media = nullptr);
+	void setServicePostMessage(
 		PreparedServiceText text,
 		ClickHandlerPtr fullClickHandler = nullptr,
 		std::unique_ptr<Media> media = nullptr);
@@ -594,7 +602,6 @@ public:
 	void itemTextUpdated();
 	void blockquoteExpandChanged();
 
-	[[nodiscard]] virtual bool hasHeavyPart() const;
 	virtual void unloadHeavyPart();
 	void checkHeavyPart();
 
@@ -634,7 +641,7 @@ public:
 		const Reactions::InlineList &reactions) const;
 	void clearCustomEmojiRepaint() const;
 	void hideSpoilers();
-	void repaint() const;
+	void repaint(QRect r = QRect()) const;
 
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
 		return fromLink();
@@ -687,12 +694,14 @@ protected:
 
 	[[nodiscard]] ClickHandlerPtr fromLink() const;
 
+	[[nodiscard]] virtual bool hasHeavyPart() const;
 	virtual void refreshDataIdHook();
 
 	[[nodiscard]] const Ui::Text::String &text() const;
 	[[nodiscard]] int textHeightFor(int textWidth);
 	void validateText();
 	void validateTextSkipBlock(bool has, int width, int height);
+	void validateInlineKeyboard(HistoryMessageReplyMarkup *markup);
 
 	void clearSpecialOnlyEmoji();
 	void checkSpecialOnlyEmoji();

@@ -44,9 +44,10 @@ constexpr auto kContactsPriority = 2;
 constexpr auto kFrequentContactsPriority = 3;
 constexpr auto kUserpicsPriority = 4;
 constexpr auto kStoriesPriority = 5;
-constexpr auto kSessionsPriority = 6;
-constexpr auto kWebSessionsPriority = 7;
-constexpr auto kOtherPriority = 8;
+constexpr auto kProfileMusicPriority = 6;
+constexpr auto kSessionsPriority = 7;
+constexpr auto kWebSessionsPriority = 8;
+constexpr auto kOtherPriority = 9;
 
 const auto kLineBreak = QByteArrayLiteral("<br>");
 
@@ -538,6 +539,12 @@ public:
 		const std::vector<Data::TextPart> &caption,
 		const QString &internalLinksDomain,
 		const QString &link = QString());
+	[[nodiscard]] QByteArray pushAudioEntry(
+		const QByteArray &name,
+		const QByteArray &info,
+		const QByteArrayList &details,
+		const QByteArray &duration,
+		const QString &link = QString());
 	[[nodiscard]] QByteArray pushSessionListEntry(
 		int apiId,
 		const QByteArray &name,
@@ -866,6 +873,54 @@ QByteArray HtmlWriter::Wrap::pushStoriesListEntry(
 		result.append(pushDiv("text"));
 		result.append(text);
 		result.append(popTag());
+	}
+	for (const auto &detail : details) {
+		result.append(pushDiv("details_entry details"));
+		result.append(SerializeString(detail));
+		result.append(popTag());
+	}
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
+QByteArray HtmlWriter::Wrap::pushAudioEntry(
+		const QByteArray &name,
+		const QByteArray &info,
+		const QByteArrayList &details,
+		const QByteArray &duration,
+		const QString &link) {
+	auto result = pushDiv("entry clearfix");
+	if (!link.isEmpty()) {
+		result.append(pushTag("a", {
+			{ "class", "pull_left userpic_wrap" },
+			{ "href", relativePath(link).toUtf8() + "#allow_back" },
+		}));
+	} else {
+		result.append(pushDiv("pull_left userpic_wrap"));
+	}
+	result.append(pushDiv("userpic audio_icon"));
+	result.append(popTag());
+	result.append(popTag());
+	result.append(pushDiv("body"));
+	if (!duration.isEmpty()) {
+		result.append(pushDiv("pull_right info details"));
+		result.append(SerializeString(duration));
+		result.append(popTag());
+	}
+	if (!info.isEmpty()) {
+		if (!link.isEmpty()) {
+			result.append(pushTag("a", {
+				{ "class", "block_link expanded" },
+				{ "href", relativePath(link).toUtf8() + "#allow_back" },
+			}));
+		}
+		result.append(pushDiv("name bold"));
+		result.append(SerializeString(info));
+		result.append(popTag());
+		if (!link.isEmpty()) {
+			result.append(popTag());
+		}
 	}
 	for (const auto &detail : details) {
 		result.append(pushDiv("details_entry details"));
@@ -1271,15 +1326,15 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ SerializeString(data.text)
 			+ "&raquo; button to the bot";
 	}, [&](const ActionGiftPremium &data) {
-		if (!data.months || data.cost.isEmpty()) {
+		if (!data.days || data.cost.isEmpty()) {
 			return serviceFrom + " sent you a gift.";
 		}
 		return serviceFrom
 			+ " sent you a gift for "
 			+ data.cost
 			+ ": Telegram Premium for "
-			+ QString::number(data.months).toUtf8()
-			+ " months.";
+			+ QString::number(data.days).toUtf8()
+			+ " days.";
 	}, [&](const ActionTopicCreate &data) {
 		return serviceFrom
 			+ " created topic &laquo;"
@@ -1312,17 +1367,17 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionGiftCode &data) {
 		return data.unclaimed
 			? ("This is an unclaimed Telegram Premium for "
-				+ NumberToString(data.months)
-				+ (data.months > 1 ? " months" : "month")
+				+ NumberToString(data.days)
+				+ (data.days > 1 ? " days" : " day")
 				+ " prize in a giveaway organized by a channel.")
 			: data.viaGiveaway
 			? ("You won a Telegram Premium for "
-				+ NumberToString(data.months)
-				+ (data.months > 1 ? " months" : "month")
+				+ NumberToString(data.days)
+				+ (data.days > 1 ? " days" : " day")
 				+ " prize in a giveaway organized by a channel.")
 			: ("You've received a Telegram Premium for "
-				+ NumberToString(data.months)
-				+ (data.months > 1 ? " months" : "month")
+				+ NumberToString(data.days)
+				+ (data.days > 1 ? " days" : " day")
 				+ " gift from a channel.");
 	}, [&](const ActionGiveawayLaunch &data) {
 		return serviceFrom + " just started a giveaway "
@@ -2706,6 +2761,7 @@ Result HtmlWriter::start(
 		"images/section_chats.png",
 		"images/section_contacts.png",
 		"images/section_frequent.png",
+		"images/section_music.png",
 		"images/section_other.png",
 		"images/section_photos.png",
 		"images/section_sessions.png",
@@ -3001,6 +3057,93 @@ Result HtmlWriter::writeStoriesEnd() {
 	return Result::Success();
 }
 
+Result HtmlWriter::writeProfileMusicStart(const Data::ProfileMusicInfo &data) {
+	Expects(_summary != nullptr);
+	Expects(_profileMusic == nullptr);
+
+	_profileMusicCount = data.count;
+	if (!_profileMusicCount) {
+		return Result::Success();
+	}
+	_profileMusic = fileWithRelativePath(profileMusicFilePath());
+
+	auto block = _profileMusic->pushHeader(
+		"Profile Music",
+		mainFileRelativePath());
+	block.append(_profileMusic->pushDiv("page_body list_page"));
+	block.append(_profileMusic->pushDiv("entry_list"));
+	if (const auto result = _profileMusic->writeBlock(block); !result) {
+		return result;
+	}
+	return Result::Success();
+}
+
+Result HtmlWriter::writeProfileMusicSlice(const Data::ProfileMusicSlice &data) {
+	Expects(_profileMusic != nullptr);
+
+	_profileMusicCount -= data.skipped;
+	if (data.list.empty()) {
+		return Result::Success();
+	}
+	auto block = QByteArray();
+	for (const auto &message : data.list) {
+		if (!v::is<Data::Document>(message.media.content)) {
+			continue;
+		}
+		const auto &doc = v::get<Data::Document>(message.media.content);
+		if (!doc.isAudioFile) {
+			continue;
+		}
+		using SkipReason = Data::File::SkipReason;
+		const auto &file = doc.file;
+		Assert(!file.relativePath.isEmpty()
+			|| file.skipReason != SkipReason::None);
+		auto status = QByteArrayList();
+		status.append([&]() -> Data::Utf8String {
+			switch (file.skipReason) {
+			case SkipReason::Unavailable:
+				return "(File unavailable, please try again later)";
+			case SkipReason::FileSize:
+				return "(File exceeds maximum size. "
+					"Change data exporting settings to download.)";
+			case SkipReason::FileType:
+				return "(File not included. "
+					"Change data exporting settings to download.)";
+			case SkipReason::None: return Data::FormatFileSize(file.size);
+			}
+			Unexpected("Skip reason while writing profile music path.");
+		}());
+		const auto &path = file.relativePath;
+		const auto title = !doc.songTitle.isEmpty()
+			? doc.songTitle
+			: !doc.name.isEmpty()
+			? doc.name
+			: Data::Utf8String("Unknown Track");
+		const auto performer = !doc.songPerformer.isEmpty()
+			? doc.songPerformer
+			: Data::Utf8String("Unknown Artist");
+		const auto info = performer + " - " + title;
+		const auto duration = doc.duration > 0
+			? Data::FormatDuration(doc.duration)
+			: QByteArray();
+		block.append(_profileMusic->pushAudioEntry(
+			(path.isEmpty() ? QString("File unavailable") : path).toUtf8(),
+			info,
+			status,
+			duration,
+			path));
+	}
+	return _profileMusic->writeBlock(block);
+}
+
+Result HtmlWriter::writeProfileMusicEnd() {
+	pushProfileMusicSection();
+	if (_profileMusic) {
+		return base::take(_profileMusic)->close();
+	}
+	return Result::Success();
+}
+
 QString HtmlWriter::storiesFilePath() const {
 	return "lists/stories.html";
 }
@@ -3012,6 +3155,19 @@ void HtmlWriter::pushStoriesSection() {
 		"stories",
 		_storiesCount,
 		storiesFilePath());
+}
+
+QString HtmlWriter::profileMusicFilePath() const {
+	return "lists/profile_music.html";
+}
+
+void HtmlWriter::pushProfileMusicSection() {
+	pushSection(
+		kProfileMusicPriority,
+		"Profile Music",
+		"music",
+		_profileMusicCount,
+		profileMusicFilePath());
 }
 
 Result HtmlWriter::writeContactsList(const Data::ContactsList &data) {

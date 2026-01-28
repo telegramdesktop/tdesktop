@@ -112,7 +112,7 @@ void PinMessageBox(
 		}
 		state->requestId = api->request(MTPmessages_UpdatePinnedMessage(
 			MTP_flags(flags),
-			peer->input,
+			peer->input(),
 			MTP_int(msgId)
 		)).done([=](const MTPUpdates &result) {
 			peer->session().api().applyUpdates(result);

@@ -87,7 +87,7 @@ void AddSaveDocumentAction(
 		menu->addSeparator(&st::expandedMenuSeparator);
 
 		auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
-			menu,
+			menu->menu(),
 			st::saveMusicInfoMenu,
 			st::historyHasCustomEmoji,
 			QPoint(

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/emoji_config.h"
 #include "ui/image/image.h"
+#include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
@@ -45,12 +46,12 @@ MediaPreviewWidget::MediaPreviewWidget(
 , _emojiSize(Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	_controller->session().downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_document && _document->emojiUsesTextColor()) {
 			_cache = QPixmap();
 		}
@@ -78,19 +79,12 @@ QRect MediaPreviewWidget::updateArea() const {
 void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	if (_cornersSkip > 0) {
+	if (_customRadius > 0) {
+		auto hq = PainterHighQualityEnabler(p);
 		const auto r = rect() - _backgroundMargins;
-		auto clipRegion = QRegion(r);
-		const auto skip = _cornersSkip;
-		clipRegion -= QRect(r.x(), r.y(), skip, skip);
-		clipRegion -= QRect(r.x() + r.width() - skip, r.y(), skip, skip);
-		clipRegion -= QRect(r.x(), r.y() + r.height() - skip, skip, skip);
-		clipRegion -= QRect(
-			r.x() + r.width() - skip,
-			r.y() + r.height() - skip,
-			skip,
-			skip);
-		p.setClipRegion(clipRegion);
+		auto path = QPainterPath();
+		path.addRoundedRect(r, _customRadius, _customRadius);
+		p.setClipPath(path);
 	}
 
 	const auto r = e->rect();
@@ -249,7 +243,10 @@ void MediaPreviewWidget::startShow() {
 				Window::GifPauseReason::MediaPreview);
 		}
 		_hiding = false;
-		_a_shown.start([=] { update(); }, 0., 1., st::stickerPreviewDuration);
+		const auto duration = _customDuration
+			? _customDuration
+			: st::stickerPreviewDuration;
+		_a_shown.start([=] { update(); }, 0., 1., duration);
 	} else {
 		update();
 	}
@@ -263,7 +260,10 @@ void MediaPreviewWidget::hidePreview() {
 		_cache = currentImage();
 	}
 	_hiding = true;
-	_a_shown.start([=] { update(); }, 1., 0., st::stickerPreviewDuration);
+	const auto duration = _customDuration
+		? _customDuration
+		: st::stickerPreviewDuration;
+	_a_shown.start([=] { update(); }, 1., 0., duration);
 	_photo = nullptr;
 	_photoMedia = nullptr;
 	_document = nullptr;
@@ -310,9 +310,13 @@ void MediaPreviewWidget::setBackgroundMargins(const QMargins &margins) {
 	update();
 }
 
-void MediaPreviewWidget::setCornersSkip(int pixels) {
-	_cornersSkip = pixels;
+void MediaPreviewWidget::setCustomRadius(int radius) {
+	_customRadius = radius;
 	update();
+}
+
+void MediaPreviewWidget::setCustomDuration(crl::time duration) {
+	_customDuration = duration;
 }
 
 QSize MediaPreviewWidget::currentDimensions() const {
@@ -362,6 +366,10 @@ QSize MediaPreviewWidget::currentDimensions() const {
 	} else {
 		result = result.scaled(box, Qt::KeepAspectRatio);
 	}
+
+	result = QSize(
+		std::max(result.width(), 1),
+		std::max(result.height(), 1));
 
 	if (_photo) {
 		_cachedSize = result;
@@ -420,9 +428,9 @@ void MediaPreviewWidget::setupLottie() {
 		});
 	};
 
-	_lottie->updates() | rpl::start_with_next(handler, lifetime());
+	_lottie->updates() | rpl::on_next(handler, lifetime());
 	if (_effect) {
-		_effect->updates() | rpl::start_with_next(handler, lifetime());
+		_effect->updates() | rpl::on_next(handler, lifetime());
 	}
 }
 

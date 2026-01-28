@@ -30,7 +30,7 @@ SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 	setMouseTracking(true);
 
 	clicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		setChecked(!_checked);
 		Ui::Tooltip::Show(0, this);
 		_channel->owner().notifySettings().update(_channel, {}, _checked);

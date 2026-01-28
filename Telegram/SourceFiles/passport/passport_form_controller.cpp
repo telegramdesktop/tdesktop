@@ -1005,7 +1005,7 @@ void FormController::recoverPassword() {
 			pattern,
 			fields));
 		box->newPasswordSet(
-		) | rpl::start_with_next([=](const QByteArray &password) {
+		) | rpl::on_next([=](const QByteArray &password) {
 			if (password.isEmpty()) {
 				reloadPassword();
 			} else {
@@ -1014,7 +1014,7 @@ void FormController::recoverPassword() {
 		}, box->lifetime());
 
 		box->recoveryExpired(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			box->closeBox();
 		}, box->lifetime());
 	}).fail([=](const MTP::Error &error) {
@@ -1300,7 +1300,7 @@ void FormController::fillNativeFromFallback() {
 		scheme.additionalShown
 	) | rpl::take(
 		1
-	) | rpl::start_with_next([=](Scheme::AdditionalVisibility v) {
+	) | rpl::on_next([=](Scheme::AdditionalVisibility v) {
 		if (v != Scheme::AdditionalVisibility::OnlyIfError) {
 			return;
 		}
@@ -1558,17 +1558,17 @@ void FormController::subscribeToUploader() {
 	using namespace Storage;
 
 	session().uploader().secureReady(
-	) | rpl::start_with_next([=](const UploadSecureDone &data) {
+	) | rpl::on_next([=](const UploadSecureDone &data) {
 		scanUploadDone(data);
 	}, _uploaderSubscriptions);
 
 	session().uploader().secureProgress(
-	) | rpl::start_with_next([=](const UploadSecureProgress &data) {
+	) | rpl::on_next([=](const UploadSecureProgress &data) {
 		scanUploadProgress(data);
 	}, _uploaderSubscriptions);
 
 	session().uploader().secureFailed(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::on_next([=](const FullMsgId &fullId) {
 		scanUploadFail(fullId);
 	}, _uploaderSubscriptions);
 }
@@ -1809,7 +1809,7 @@ void FormController::loadFile(File &file) {
 			Data::kImageCacheTag));
 	const auto loader = j->second.get();
 	loader->updates(
-	) | rpl::start_with_next_error_done([=] {
+	) | rpl::on_next_error_done([=] {
 		fileLoadProgress(key, loader->currentOffset());
 	}, [=](FileLoader::Error error) {
 		fileLoadFail(key);

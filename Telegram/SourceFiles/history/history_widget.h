@@ -111,7 +111,7 @@ class TranslateBar;
 class ComposeSearch;
 class SubsectionTabs;
 struct SelectedQuote;
-class SuggestOptions;
+class SuggestOptionsBar;
 enum class SuggestMode;
 } // namespace HistoryView
 
@@ -217,7 +217,7 @@ public:
 		not_null<PeerData*> peer);
 
 	[[nodiscard]] FullReplyTo replyTo() const;
-	[[nodiscard]] SuggestPostOptions suggestOptions(
+	[[nodiscard]] SuggestOptions suggestOptions(
 		bool skipNoAdminCheck = false) const;
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
 	bool lastForceReplyReplied() const;
@@ -686,7 +686,7 @@ private:
 	void refreshSendGiftToggle();
 	void refreshSuggestPostToggle();
 	void applySuggestOptions(
-		SuggestPostOptions suggest,
+		SuggestOptions suggest,
 		HistoryView::SuggestMode mode);
 	void setupSendAsToggle();
 	void refreshSendAsToggle();
@@ -721,7 +721,7 @@ private:
 	std::unique_ptr<Ui::SpoilerAnimation> _replySpoiler;
 	mutable base::Timer _updateEditTimeLeftDisplay;
 
-	std::unique_ptr<HistoryView::SuggestOptions> _suggestOptions;
+	std::unique_ptr<HistoryView::SuggestOptionsBar> _suggestOptions;
 
 	object_ptr<Ui::IconButton> _fieldBarCancel;
 

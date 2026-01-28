@@ -78,7 +78,7 @@ private:
 
 ServiceCheck::Generator::Generator() {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		invalidate();
 	}, _lifetime);
 }
@@ -249,7 +249,7 @@ void SetupBackground(not_null<Checkbox*> checkbox, Fn<QColor()> bg) {
 		bg ? bg : [] { return st::msgServiceBg->c; }
 	) | rpl::filter([=](const QColor &color) {
 		return color.alpha() > 0;
-	}) | rpl::start_with_next([=](const QColor &color) {
+	}) | rpl::on_next([=](const QColor &color) {
 		auto p = QPainter(checkbox);
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);

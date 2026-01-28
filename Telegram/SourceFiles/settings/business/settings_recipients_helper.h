@@ -23,33 +23,6 @@ class SessionController;
 
 namespace Settings {
 
-template <typename SectionType>
-class BusinessSection : public Section<SectionType> {
-public:
-	BusinessSection(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller)
-	: Section<SectionType>(parent)
-	, _controller(controller) {
-	}
-
-	[[nodiscard]] not_null<Window::SessionController*> controller() const {
-		return _controller;
-	}
-	[[nodiscard]] rpl::producer<> showFinishes() const {
-		return _showFinished.events();
-	}
-
-private:
-	void showFinished() override {
-		_showFinished.fire({});
-	}
-
-	const not_null<Window::SessionController*> _controller;
-	rpl::event_stream<> _showFinished;
-
-};
-
 struct BusinessChatsDescriptor {
 	Data::BusinessChats current;
 	Fn<void(const Data::BusinessChats&)> save;

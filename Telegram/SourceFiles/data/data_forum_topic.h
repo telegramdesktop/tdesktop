@@ -160,6 +160,7 @@ public:
 	void applyCreator(PeerId creatorId);
 	void applyCreationDate(TimeId date);
 	void applyIsMy(bool my);
+	void applyMaybeLast(not_null<HistoryItem*> item);
 	void applyItemAdded(not_null<HistoryItem*> item);
 	void applyItemRemoved(MsgId id);
 	void maybeSetLastMessage(not_null<HistoryItem*> item);

@@ -37,6 +37,9 @@ public:
 	[[nodiscard]] not_null<MembersRow*> row() const {
 		return _track.row;
 	}
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		return _peer;
+	}
 	[[nodiscard]] bool rtmp() const {
 		return _rtmp;
 	}
@@ -113,8 +116,9 @@ private:
 
 	const VideoEndpoint _endpoint;
 	const Fn<void()> _update;
+	const VideoTileTrack _track;
+	const not_null<PeerData*> _peer;
 
-	VideoTileTrack _track;
 	QRect _geometry;
 	TileAnimation _animation;
 	rpl::variable<QSize> _trackSize;

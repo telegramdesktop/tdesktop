@@ -518,15 +518,19 @@ void MainWindow::createGlobalMenu() {
 		QKeySequence::SelectAll);
 	psSelectAll->setShortcutContext(Qt::WidgetShortcut);
 
-	edit->addSeparator();
-	edit->addAction(
-		tr::lng_mac_menu_emoji_and_symbols(
-			tr::now,
-			Ui::Text::FixAmpersandInAction),
-		this,
-		[] { [NSApp orderFrontCharacterPalette:nil]; },
-		QKeySequence(Qt::MetaModifier | Qt::ControlModifier | Qt::Key_Space)
-	)->setShortcutContext(Qt::WidgetShortcut);
+	if (!Platform::IsMac26_0OrGreater()) {
+		edit->addSeparator();
+		edit->addAction(
+			tr::lng_mac_menu_emoji_and_symbols(
+				tr::now,
+				Ui::Text::FixAmpersandInAction),
+			this,
+			[] { [NSApp orderFrontCharacterPalette:nil]; },
+			QKeySequence(Qt::MetaModifier
+				| Qt::ControlModifier
+				| Qt::Key_Space)
+		)->setShortcutContext(Qt::WidgetShortcut);
+	}
 
 	QMenu *window = psMainMenu.addMenu(tr::lng_mac_menu_window(tr::now));
 

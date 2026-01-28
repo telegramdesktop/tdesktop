@@ -59,7 +59,7 @@ jobs:
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -71,6 +71,7 @@ jobs:
           poetry install
           DOCKERFILE=$(DEBUG= LTO= poetry run gen_dockerfile)
           echo "$DOCKERFILE" > Dockerfile
+          rm -rf __pycache__
 
       - name: Free up some disk space.
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
@@ -81,7 +82,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Libraries cache.
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/.buildx-cache
           key: ${{ runner.OS }}-libs-${{ hashFiles('Telegram/build/docker/centos_env/**') }}
@@ -108,7 +109,7 @@ jobs:
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo Define from matrix: $DEFINE
-            echo "ARTIFACT_NAME=Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
+            echo "ARTIFACT_NAME=Telegram ${{ matrix.defines }}" >> $GITHUB_ENV
           else
             echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
           fi
@@ -148,7 +149,7 @@ jobs:
           cd out/Debug
           mkdir artifact
           mv {Telegram,Updater} artifact/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:

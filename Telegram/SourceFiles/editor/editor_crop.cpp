@@ -79,7 +79,7 @@ Crop::Crop(
 	setMouseTracking(true);
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(this);
 
 		p.fillPath(_painterPath, st::photoCropFadeBg);

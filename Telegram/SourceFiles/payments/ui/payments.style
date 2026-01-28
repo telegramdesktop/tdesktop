@@ -128,7 +128,7 @@ paymentsToProviderLabel: paymentsShippingPrice;
 paymentsToProviderPadding: margins(28px, 6px, 28px, 6px);
 
 paymentsCriticalError: FlatLabel(boxLabel) {
-	minWidth: 370px;
+	minWidth: 340px;
 	align: align(top);
 	textFg: windowSubTextFg;
 }

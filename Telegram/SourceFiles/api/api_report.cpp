@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_report.h"
 
 #include "apiwrap.h"
+#include "data/data_session.h"
 #include "data/data_peer.h"
+#include "data/data_channel.h"
 #include "data/data_photo.h"
 #include "data/data_report.h"
 #include "data/data_user.h"
@@ -47,7 +49,7 @@ void SendPhotoReport(
 		const QString &comment,
 		not_null<PhotoData*> photo) {
 	peer->session().api().request(MTPaccount_ReportProfilePhoto(
-		peer->input,
+		peer->input(),
 		photo->mtpInput(),
 		ReasonToTL(reason),
 		MTP_string(comment)
@@ -125,7 +127,7 @@ auto CreateReportMessagesOrStoriesCallback(
 		if (!reportInput.stories.empty()) {
 			state->requestId = peer->session().api().request(
 				MTPstories_Report(
-					peer->input,
+					peer->input(),
 					MTP_vector<MTPint>(apiIds),
 					MTP_bytes(reportInput.optionId),
 					MTP_string(reportInput.comment))
@@ -133,13 +135,38 @@ auto CreateReportMessagesOrStoriesCallback(
 		} else {
 			state->requestId = peer->session().api().request(
 				MTPmessages_Report(
-					peer->input,
+					peer->input(),
 					MTP_vector<MTPint>(apiIds),
 					MTP_bytes(reportInput.optionId),
 					MTP_string(reportInput.comment))
 			).done(received).fail(fail).send();
 		}
 	};
+}
+
+void ReportSpam(
+		not_null<PeerData*> sender,
+		const MessageIdsList &ids) {
+	if (ids.empty()) {
+		return;
+	}
+	const auto peer = sender->owner().peer(ids.front().peer);
+	const auto channel = peer->asChannel();
+	if (!channel) {
+		return;
+	}
+
+	auto msgIds = QVector<MTPint>();
+	msgIds.reserve(ids.size());
+	for (const auto &fullId : ids) {
+		msgIds.push_back(MTP_int(fullId.msg));
+	}
+
+	sender->session().api().request(MTPchannels_ReportSpam(
+		channel->inputChannel(),
+		sender->input(),
+		MTP_vector<MTPint>(msgIds)
+	)).send();
 }
 
 } // namespace Api

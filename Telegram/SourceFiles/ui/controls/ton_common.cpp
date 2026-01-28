@@ -217,7 +217,7 @@ not_null<Ui::InputField*> CreateTonAmountInput(
 			? FormatTonAmount(amount, TonFormatFlag::Simple).full
 			: QString()));
 	const auto lastAmountValue = std::make_shared<QString>();
-	result->changes() | rpl::start_with_next([=] {
+	result->changes() | rpl::on_next([=] {
 		Ui::PostponeCall(result, [=] {
 			const auto position = result->textCursor().position();
 			const auto now = result->getLastText();

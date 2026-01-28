@@ -91,7 +91,7 @@ void SendBotCallbackData(
 	const auto show = controller->uiShow();
 	button->requestId = api->request(MTPmessages_GetBotCallbackAnswer(
 		MTP_flags(flags),
-		history->peer->input,
+		history->peer->input(),
 		MTP_int(item->id),
 		MTP_bytes(sendData),
 		password ? password->result : MTP_inputCheckPasswordEmpty()
@@ -218,7 +218,7 @@ void SendBotCallbackDataWithPassword(
 			session,
 			tr::lng_bots_password_confirm_check_about(
 				tr::now,
-				Ui::Text::WithEntities));
+				tr::marked));
 		if (box) {
 			show->showBox(std::move(box), Ui::LayerOption::CloseOther);
 		} else {
@@ -227,7 +227,7 @@ void SendBotCallbackDataWithPassword(
 			api->cloudPassword().state(
 			) | rpl::take(
 				1
-			) | rpl::start_with_next([=](const Core::CloudPasswordState &state) mutable {
+			) | rpl::on_next([=](const Core::CloudPasswordState &state) mutable {
 				if (lifetime) {
 					base::take(lifetime)->destroy();
 				}
@@ -400,7 +400,7 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			}
 		}
 		const auto replyTo = FullReplyTo();
-		const auto suggest = SuggestPostOptions();
+		const auto suggest = SuggestOptions();
 		Window::PeerMenuCreatePoll(
 			controller,
 			item->history()->peer,
@@ -421,13 +421,13 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 		const auto id = int32(button->buttonId);
 		const auto chosen = [=](std::vector<not_null<PeerData*>> result) {
 			peer->session().api().request(MTPmessages_SendBotRequestedPeer(
-				peer->input,
+				peer->input(),
 				MTP_int(itemId),
 				MTP_int(id),
 				MTP_vector_from_range(
 					result | ranges::views::transform([](
 							not_null<PeerData*> peer) {
-						return MTPInputPeer(peer->input);
+						return MTPInputPeer(peer->input());
 					}))
 			)).done([=](const MTPUpdates &result) {
 				peer->session().api().applyUpdates(result);

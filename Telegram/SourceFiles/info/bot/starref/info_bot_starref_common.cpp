@@ -57,8 +57,8 @@ void ConnectStarRef(
 		Fn<void(ConnectedBot)> done,
 		Fn<void(const QString &)> fail) {
 	bot->session().api().request(MTPpayments_ConnectStarRefBot(
-		peer->input,
-		bot->inputUser
+		peer->input(),
+		bot->inputUser()
 	)).done([=](const MTPpayments_ConnectedStarRefBots &result) {
 		const auto parsed = Parse(&bot->session(), result);
 		if (parsed.empty()) {
@@ -119,7 +119,7 @@ void ConnectStarRef(
 		st::starrefLinkCountFont->height);
 	const auto badgeRect = badge.marginsAdded(st::starrefLinkCountPadding);
 
-	raw->paintRequest() | rpl::start_with_next([=] {
+	raw->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(raw);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::windowBgActive);
@@ -234,16 +234,16 @@ QString FormatProgramDuration(int durationMonths) {
 rpl::producer<TextWithEntities> FormatForProgramDuration(
 		int durationMonths) {
 	return !durationMonths
-		? tr::lng_star_ref_one_about_for_forever(Ui::Text::RichLangValue)
+		? tr::lng_star_ref_one_about_for_forever(tr::rich)
 		: (durationMonths < 12)
 		? tr::lng_star_ref_one_about_for_months(
 			lt_count,
 			rpl::single(durationMonths * 1.),
-			Ui::Text::RichLangValue)
+			tr::rich)
 		: tr::lng_star_ref_one_about_for_years(
 			lt_count,
 			rpl::single((durationMonths / 12) * 1.),
-			Ui::Text::RichLangValue);
+			tr::rich);
 }
 
 not_null<Ui::AbstractButton*> AddViewListButton(
@@ -264,7 +264,7 @@ not_null<Ui::AbstractButton*> AddViewListButton(
 	const auto label = parent->add(
 		object_ptr<Ui::FlatLabel>(
 			parent,
-			std::move(title) | Ui::Text::ToBold(),
+			std::move(title) | rpl::map(tr::bold),
 			stLabel),
 		titlePadding);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -285,12 +285,12 @@ not_null<Ui::AbstractButton*> AddViewListButton(
 	dummy->show();
 
 	parent->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		dummy->resize(s.width(), iconSize.height());
 	}, dummy->lifetime());
 
 	button->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		dummy->moveToLeft(0, r.y() + (r.height() - iconSize.height()) / 2);
 	}, dummy->lifetime());
 
@@ -303,7 +303,7 @@ not_null<Ui::AbstractButton*> AddViewListButton(
 		parent->widthValue(),
 		label->heightValue(),
 		description->heightValue()
-	) | rpl::start_with_next([=,
+	) | rpl::on_next([=,
 		topPadding = titlePadding,
 		bottomPadding = descriptionPadding](
 			int width,
@@ -319,7 +319,7 @@ not_null<Ui::AbstractButton*> AddViewListButton(
 			+ bottomPadding.bottom());
 	}, button->lifetime());
 	label->topValue(
-	) | rpl::start_with_next([=, padding = titlePadding.top()](int top) {
+	) | rpl::on_next([=, padding = titlePadding.top()](int top) {
 		button->moveToLeft(0, top - padding);
 	}, button->lifetime());
 	const auto arrow = Ui::CreateChild<Ui::IconButton>(
@@ -330,7 +330,7 @@ not_null<Ui::AbstractButton*> AddViewListButton(
 		&st::settingsPremiumArrowOver);
 	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
 	button->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		const auto &point = st::settingsPremiumArrowShift;
 		arrow->moveToRight(
 			-point.x(),
@@ -338,34 +338,6 @@ not_null<Ui::AbstractButton*> AddViewListButton(
 	}, arrow->lifetime());
 
 	return button;
-}
-
-not_null<Ui::RoundButton*> AddFullWidthButton(
-		not_null<Ui::BoxContent*> box,
-		rpl::producer<QString> text,
-		Fn<void()> callback,
-		const style::RoundButton *stOverride) {
-	const auto &boxSt = box->getDelegate()->style();
-	const auto result = box->addButton(
-		std::move(text),
-		std::move(callback),
-		stOverride ? *stOverride : boxSt.button);
-	rpl::combine(
-		box->widthValue(),
-		result->widthValue()
-	) | rpl::start_with_next([=](int width, int buttonWidth) {
-		const auto correct = width
-			- boxSt.buttonPadding.left()
-			- boxSt.buttonPadding.right();
-		if (correct > 0 && buttonWidth != correct) {
-			result->resizeToWidth(correct);
-			result->moveToLeft(
-				boxSt.buttonPadding.left(),
-				boxSt.buttonPadding.top(),
-				width);
-		}
-	}, result->lifetime());
-	return result;
 }
 
 void AddFullWidthButtonFooter(
@@ -377,7 +349,7 @@ void AddFullWidthButtonFooter(
 		std::move(text),
 		st::starrefJoinFooter);
 	footer->setTryMakeSimilarLines(true);
-	button->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+	button->geometryValue() | rpl::on_next([=](QRect geometry) {
 		footer->resizeToWidth(geometry.width());
 		const auto &st = box->getDelegate()->style();
 		const auto top = geometry.y() + geometry.height();
@@ -402,7 +374,7 @@ object_ptr<Ui::AbstractButton> MakeLinkLabel(
 	const auto raw = result.data();
 
 	raw->resize(height, height);
-	raw->paintRequest() | rpl::start_with_next([=] {
+	raw->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(raw);
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
@@ -457,13 +429,13 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 					? tr::lng_star_ref_link_about_user
 					: tr::lng_star_ref_link_about_channel)(
 						lt_amount,
-						rpl::single(Ui::Text::Bold(
+						rpl::single(tr::bold(
 							FormatCommission(program.commission))),
 						lt_app,
-						rpl::single(Ui::Text::Bold(bot->name())),
+						rpl::single(tr::bold(bot->name())),
 						lt_duration,
 						FormatForProgramDuration(program.durationMonths),
-						Ui::Text::WithEntities),
+						tr::marked),
 				st::starrefCenteredText),
 			style::al_top);
 
@@ -494,11 +466,11 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 			};
 		};
 		preview->setClickedCallback(copy(false));
-		const auto button = AddFullWidthButton(
-			box,
+		const auto button = box->addButton(
 			tr::lng_star_ref_link_copy(),
-			copy(true),
-			&st::starrefCopyButton);
+			[=] { copy(true); },
+			st::starrefCopyButton);
+
 		const auto name = TextWithEntities{ bot->name() };
 		AddFullWidthButtonFooter(
 			box,
@@ -509,11 +481,11 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 					rpl::single(row.state.users * 1.),
 					lt_app,
 					rpl::single(name),
-					Ui::Text::WithEntities)
+					tr::marked)
 				: tr::lng_star_ref_link_copy_none(
 					lt_app,
 					rpl::single(name),
-					Ui::Text::WithEntities)));
+					tr::marked)));
 	});
 }
 
@@ -557,7 +529,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 			QMargins());
 
 		state->recipient.value(
-		) | rpl::start_with_next([=](not_null<PeerData*> recipient) {
+		) | rpl::on_next([=](not_null<PeerData*> recipient) {
 			while (userpicsWrap->count()) {
 				delete userpicsWrap->widgetAt(0);
 			}
@@ -583,13 +555,13 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 				box,
 				tr::lng_star_ref_one_about(
 					lt_app,
-					rpl::single(Ui::Text::Bold(bot->name())),
+					rpl::single(tr::bold(bot->name())),
 					lt_amount,
-					rpl::single(Ui::Text::Bold(
+					rpl::single(tr::bold(
 						FormatCommission(program.commission))),
 					lt_duration,
 					FormatForProgramDuration(program.durationMonths),
-					Ui::Text::WithEntities),
+					tr::marked),
 				st::starrefCenteredText),
 			style::al_top);
 
@@ -605,7 +577,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 						lt_amount,
 						rpl::single(
 							Ui::Text::Wrapped(text, EntityType::Bold)),
-						Ui::Text::WithEntities),
+						tr::marked),
 					st::starrefRevenueText,
 					st::defaultPopupMenu),
 				st::boxRowPadding,
@@ -638,7 +610,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 				object_ptr<Ui::VerticalLayout>(box),
 				QMargins());
 			state->recipient.value(
-			) | rpl::start_with_next([=](not_null<PeerData*> recipient) {
+			) | rpl::on_next([=](not_null<PeerData*> recipient) {
 				while (recipientWrap->count()) {
 					delete recipientWrap->widgetAt(0);
 				}
@@ -656,7 +628,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 					const auto height = st::chatGiveawayPeerSize
 						- st::chatGiveawayPeerPadding.top() * 2;
 					right->resize(skip + icon->width(), height);
-					right->paintRequest() | rpl::start_with_next([=] {
+					right->paintRequest() | rpl::on_next([=] {
 						auto p = QPainter(right);
 						icon->paint(
 							p,
@@ -712,8 +684,7 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 				show->showToast(u"Failed: "_q + error);
 			});
 		};
-		const auto button = AddFullWidthButton(
-			box,
+		const auto button = box->addButton(
 			tr::lng_star_ref_one_join(),
 			send);
 		AddFullWidthButtonFooter(
@@ -722,8 +693,8 @@ object_ptr<Ui::BoxContent> JoinStarRefBox(
 			tr::lng_star_ref_one_join_text(
 				lt_terms,
 				tr::lng_star_ref_button_link(
-				) | Ui::Text::ToLink(tr::lng_star_ref_tos_url(tr::now)),
-				Ui::Text::WithEntities));
+					tr::url(tr::lng_star_ref_tos_url(tr::now))),
+				tr::marked));
 	});
 }
 
@@ -735,7 +706,7 @@ object_ptr<Ui::BoxContent> ConfirmEndBox(Fn<void()> finish) {
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
-				tr::lng_star_ref_warning_if_end(Ui::Text::RichLangValue),
+				tr::lng_star_ref_warning_if_end(tr::rich),
 				st::boxLabel),
 			margins);
 		const auto addPoint = [&](tr::phrase<> text) {
@@ -744,11 +715,11 @@ object_ptr<Ui::BoxContent> ConfirmEndBox(Fn<void()> finish) {
 					box,
 					object_ptr<Ui::FlatLabel>(
 						box,
-						text(Ui::Text::RichLangValue),
+						text(tr::rich),
 						st::blockUserConfirmation),
 					QMargins(st::boxTextFont->height, 0, 0, 0)),
 				margins);
-			padded->paintRequest() | rpl::start_with_next([=] {
+			padded->paintRequest() | rpl::on_next([=] {
 				auto p = QPainter(padded);
 				auto hq = PainterHighQualityEnabler(p);
 				const auto size = st::starrefEndBulletSize;
@@ -893,7 +864,7 @@ std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 	rpl::combine(
 		raw->sizeValue(),
 		std::move(rightWidth)
-	) | rpl::start_with_next([=](QSize outer, int rwidth) {
+	) | rpl::on_next([=](QSize outer, int rwidth) {
 		const auto full = outer.width();
 		const auto decorations = size
 			+ padding.left()
@@ -918,7 +889,7 @@ std::unique_ptr<Ui::AbstractButton> MakePeerBubbleButton(
 				outer.width());
 		}
 	}, raw->lifetime());
-	raw->paintRequest() | rpl::start_with_next([=] {
+	raw->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(raw);
 		const auto left = (raw->width() - *width) / 2;
 		const auto skip = size / 2;
@@ -943,7 +914,7 @@ void ConfirmUpdate(
 		Ui::ConfirmBox(box, {
 			.text = (exists
 				? tr::lng_star_ref_warning_change
-				: tr::lng_star_ref_warning_text)(Ui::Text::RichLangValue),
+				: tr::lng_star_ref_warning_text)(tr::rich),
 			.confirmed = [=](Fn<void()> close) {
 				if (*sent) {
 					return;
@@ -1002,7 +973,7 @@ void UpdateProgram(
 		MTP_flags((program.commission > 0 && program.durationMonths > 0)
 			? Flag::f_duration_months
 			: Flag()),
-		bot->inputUser,
+		bot->inputUser(),
 		MTP_int(program.commission),
 		MTP_int(program.durationMonths)
 	)).done([=](const MTPStarRefProgram &result) {

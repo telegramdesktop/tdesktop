@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/show.h"
 #include "ui/painter.h"
-#include "ui/text/text_utilities.h" // Ui::Text::RichLangValue.
+#include "ui/text/text_utilities.h" // tr::rich.
 #include "ui/toast/toast.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
@@ -131,7 +131,7 @@ UsernamesList::Row::Row(
 
 	_rightAction->setVisible(data.active);
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		_rightAction->moveToLeft(
 			s.width() - _rightAction->width() - st::inviteLinkThreeDotsSkip,
 			(s.height() - _rightAction->height()) / 2);
@@ -219,7 +219,7 @@ UsernamesList::UsernamesList(
 		peer->session().changes().peerFlagsValue(
 			peer,
 			Data::PeerUpdate::Flag::Usernames)
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		load();
 	}, lifetime());
 }
@@ -227,7 +227,7 @@ UsernamesList::UsernamesList(
 void UsernamesList::load() {
 	_loadLifetime = _peer->session().api().usernames().loadUsernames(
 		_peer
-	) | rpl::start_with_next([=](const Data::Usernames &usernames) {
+	) | rpl::on_next([=](const Data::Usernames &usernames) {
 		if (usernames.empty()) {
 			_container = nullptr;
 			resize(0, 0);
@@ -320,13 +320,13 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 					_toggleLifetime = api.usernames().reorder(
 						_peer,
 						order()
-					) | rpl::start_with_done([=] {
+					) | rpl::on_done([=] {
 						auto &api = _peer->session().api();
 						_toggleLifetime = api.usernames().toggle(
 							_peer,
 							username.username,
 							!username.active
-						) | rpl::start_with_error_done([=](
+						) | rpl::on_error_done([=](
 								Api::Usernames::Error error) {
 							if (error == Api::Usernames::Error::TooMuch) {
 								constexpr auto kMaxUsernames = 10.;
@@ -335,7 +335,7 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 										tr::lng_usernames_activate_error(
 											lt_count,
 											rpl::single(kMaxUsernames),
-											Ui::Text::RichLangValue)));
+											tr::rich)));
 							}
 							if (error == Api::Usernames::Error::Flood) {
 								_show->showToast(
@@ -378,7 +378,7 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 	_reorder->start();
 
 	_reorder->updates(
-	) | rpl::start_with_next([=](Ui::VerticalLayoutReorder::Single data) {
+	) | rpl::on_next([=](Ui::VerticalLayoutReorder::Single data) {
 		using State = Ui::VerticalLayoutReorder::State;
 		if (data.state == State::Started) {
 			++_reordering;

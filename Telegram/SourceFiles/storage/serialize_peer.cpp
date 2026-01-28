@@ -190,7 +190,7 @@ void writePeer(QDataStream &stream, not_null<PeerData*> peer) {
 	} else if (const auto channel = peer->asChannel()) {
 		stream
 			<< channel->name()
-			<< quint64(channel->access)
+			<< quint64(channel->accessHash())
 			<< qint32(channel->date)
 			<< qint32(0) // legacy - version
 			<< qint32(0)
@@ -298,14 +298,6 @@ PeerData *readPeer(
 			if (!inlinePlaceholder.isEmpty() && user->isBot()) {
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;
 			}
-
-			if (user->id == selfId) {
-				user->input = MTP_inputPeerSelf();
-				user->inputUser = MTP_inputUserSelf();
-			} else {
-				user->input = MTP_inputPeerUser(MTP_long(peerToUser(user->id).bare), MTP_long(user->accessHash()));
-				user->inputUser = MTP_inputUser(MTP_long(peerToUser(user->id).bare), MTP_long(user->accessHash()));
-			}
 		}
 	} else if (const auto chat = result->asChat()) {
 		QString name, inviteLink;
@@ -373,8 +365,6 @@ PeerData *readPeer(
 
 			chat->creator = creator;
 			chat->setInviteLink(inviteLink);
-
-			chat->input = MTP_inputPeerChat(MTP_long(peerToChat(chat->id).bare));
 		}
 	} else if (const auto channel = result->asChannel()) {
 		QString name, inviteLink;
@@ -394,7 +384,7 @@ PeerData *readPeer(
 
 		if (apply) {
 			channel->setName(name, QString());
-			channel->access = access;
+			channel->setAccessHash(access);
 			channel->date = date;
 
 			if (streamAppVersion >= 2008007) {
@@ -440,9 +430,6 @@ PeerData *readPeer(
 			}
 
 			channel->setInviteLink(inviteLink);
-
-			channel->input = MTP_inputPeerChannel(MTP_long(peerToChannel(channel->id).bare), MTP_long(access));
-			channel->inputChannel = MTP_inputChannel(MTP_long(peerToChannel(channel->id).bare), MTP_long(access));
 		}
 	}
 	if (apply) {

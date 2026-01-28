@@ -64,6 +64,7 @@ object_ptr<Ui::BoxContent> ReassignBoostsBox(
 enum class UserpicsTransferType {
 	BoostReplace,
 	StarRefJoin,
+	AuctionRecipient,
 };
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 	not_null<Ui::RpWidget*> parent,

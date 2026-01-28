@@ -12,7 +12,7 @@ RUN dnf -y install epel-release \
 	&& dnf config-manager --set-enabled powertools \
 	&& dnf -y install cmake autoconf automake libtool pkgconfig make patch git \
 		python3.11-pip python3.11-devel gperf flex bison clang clang-tools-extra \
-		lld nasm yasm file which wget perl-open perl-XML-Parser perl-IPC-Cmd \
+		lld nasm file which wget perl-open perl-XML-Parser perl-IPC-Cmd \
 		xorg-x11-util-macros $TOOLSET-gcc $TOOLSET-gcc-c++ $TOOLSET-binutils \
 		$TOOLSET-gdb $TOOLSET-libasan-devel libffi-devel fontconfig-devel \
 		freetype-devel libX11-devel wayland-devel alsa-lib-devel \
@@ -33,8 +33,8 @@ exec /usr/bin/pkg-config --static "\$@"
 EOF
 RUN sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/")/ -O0 {% if LTO %}-fno-lto -fno-use-linker-plugin{% endif %} -fuse-ld=lld")/' /usr/share/cmake/Modules/Compiler/GNU.cmake
 RUN sed -i 's/NO_DEFAULT_PATH//g; s/PKG_CONFIG_ALLOW_SYSTEM_LIBS/PKG_CONFIG_IS_DUMB/g' /usr/share/cmake/Modules/FindPkgConfig.cmake
-RUN sed -i 's/set(OpenGL_GL_PREFERENCE "")/set(OpenGL_GL_PREFERENCE "LEGACY")/' /usr/share/cmake/Modules/FindOpenGL.cmake
 RUN sed -i '/Requires.private: valgrind/d' /usr/lib64/pkgconfig/libdrm.pc
+RUN sed -i '/Requires.private: gl/s/gl/opengl glx/' /usr/lib64/pkgconfig/epoxy.pc
 RUN sed -i 's/-lharfbuzz//' /usr/lib64/pkgconfig/harfbuzz.pc
 RUN sed -i 's/-lpng16//' /usr/lib64/pkgconfig/libpng16.pc
 RUN echo set debuginfod enabled on > /opt/rh/$TOOLSET/root/etc/gdbinit.d/00-debuginfod.gdb
@@ -76,6 +76,8 @@ RUN git init Implib.so \
 	&& implib /usr/lib64/libva-drm.so \
 	&& implib /usr/lib64/libva.so \
 	&& implib /usr/lib64/libEGL.so \
+	&& implib /usr/lib64/libGLX.so \
+	&& implib /usr/lib64/libOpenGL.so \
 	&& implib /usr/lib64/libGL.so \
 	&& implib /usr/lib64/libdrm.so \
 	&& implib /usr/lib64/libwayland-egl.so \
@@ -91,7 +93,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin https://github.com/desktop-app/patches.git \
-	&& git fetch --depth=1 origin a25a212644a8e42d9a5b1c7ba6489e11e92df813 \
+	&& git fetch --depth=1 origin 6eee01a2c24ed9a2bd4510a5087b489ab842d00e \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -294,6 +296,7 @@ COPY --link --from=highway /usr/src/highway-cache /
 RUN git clone -b v0.11.1 --depth=1 https://github.com/libjxl/libjxl.git \
 	&& cd libjxl \
 	&& git submodule update --init --recursive --depth=1 third_party/libjpeg-turbo \
+	&& curl -sSL https://github.com/libjxl/libjxl/commit/ee3955b1553bcc10304d45b85dfef9afa9349d72.patch | sed 's/offset + t/offset + i/' | git apply \
 	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DBUILD_TESTING=OFF \
@@ -662,8 +665,8 @@ RUN git clone -b 0.3.62 --depth=1 https://github.com/PipeWire/pipewire.git \
 		--buildtype=plain \
 		-Dtests=disabled \
 		-Dexamples=disabled \
-		-Dsession-managers=media-session \
 		-Dspa-plugins=disabled \
+		-Dsession-managers= \
 	&& meson compile -C build \
 	&& DESTDIR=/usr/src/pipewire-cache meson install -C build \
 	&& cd .. \
@@ -731,7 +734,7 @@ COPY --link --from=xcb-cursor /usr/src/xcb-cursor-cache /
 COPY --link --from=openssl /usr/src/openssl-cache /
 COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
 
-ENV QT=6.9.2
+ENV QT=6.10.1
 RUN git clone -b v$QT --depth=1 https://github.com/qt/qt5.git \
 	&& cd qt5 \
 	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools \

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_content_widget.h"
 #include "info/info_controller.h"
+#include "info/info_flexible_scroll.h"
 
 namespace Settings {
 class AbstractSection;
@@ -98,11 +99,7 @@ private:
 	not_null<UserData*> _self;
 	Type _type = Type();
 
-	struct {
-		rpl::event_stream<int> contentHeightValue;
-		rpl::event_stream<int> fillerWidthValue;
-		rpl::event_stream<> backButtonEnables;
-	} _flexibleScroll;
+	FlexibleScrollData _flexibleScroll;
 	not_null<::Settings::AbstractSection*> _inner;
 	base::weak_qptr<Ui::RpWidget> _pinnedToTop;
 	base::weak_qptr<Ui::RpWidget> _pinnedToBottom;

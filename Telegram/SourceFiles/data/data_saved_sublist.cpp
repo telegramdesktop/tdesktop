@@ -145,13 +145,13 @@ rpl::producer<MessagesSlice> SavedSublist::source(
 		history->session().changes().historyUpdates(
 			history,
 			HistoryUpdate::Flag::ClientSideMessages
-		) | rpl::start_with_next(pushDelayed, lifetime);
+		) | rpl::on_next(pushDelayed, lifetime);
 
 		_listChanges.events(
-		) | rpl::start_with_next(pushDelayed, lifetime);
+		) | rpl::on_next(pushDelayed, lifetime);
 
 		_instantChanges.events(
-		) | rpl::start_with_next(pushInstant, lifetime);
+		) | rpl::on_next(pushInstant, lifetime);
 
 		pushInstant();
 		return lifetime;
@@ -187,12 +187,13 @@ rpl::producer<> SavedSublist::destroyed() const {
 		) | rpl::to_empty);
 }
 
-void SavedSublist::applyMaybeLast(not_null<HistoryItem*> item, bool added) {
-	growLastKnownServerMessageId(item->id);
+void SavedSublist::applyMaybeLast(not_null<HistoryItem*> item) {
 	if (!_lastServerMessage.value_or(nullptr)
 		|| (*_lastServerMessage)->id < item->id) {
 		setLastServerMessage(item);
 		resolveChatListMessageGroup();
+	} else {
+		growLastKnownServerMessageId(item->id);
 	}
 }
 
@@ -676,8 +677,8 @@ void SavedSublist::sendReadTillRequest() {
 
 	_sentReadTill = computeInboxReadTillFull();
 	_readRequestId = api->request(MTPmessages_ReadSavedHistory(
-		parentChat->input,
-		sublistPeer()->input,
+		parentChat->input(),
+		sublistPeer()->input(),
 		MTP_int(_sentReadTill.bare)
 	)).done(crl::guard(this, [=] {
 		_readRequestId = 0;
@@ -706,7 +707,7 @@ void SavedSublist::subscribeToUnreadChanges() {
 	) | rpl::combine_previous(
 	) | rpl::filter([=] {
 		return inChatList();
-	}) | rpl::start_with_next([=](
+	}) | rpl::on_next([=](
 			std::optional<int> previous,
 			std::optional<int> now) {
 		if (previous.value_or(0) != now.value_or(0)) {
@@ -1111,8 +1112,8 @@ void SavedSublist::loadAround(MsgId id) {
 		const auto parentChat = _parent->parentChat();
 		return session().api().request(MTPmessages_GetSavedHistory(
 			MTP_flags(parentChat ? Flag::f_parent_peer : Flag(0)),
-			parentChat ? parentChat->input : MTPInputPeer(),
-			sublistPeer()->input,
+			parentChat ? parentChat->input() : MTPInputPeer(),
+			sublistPeer()->input(),
 			MTP_int(id), // offset_id
 			MTP_int(0), // offset_date
 			MTP_int(id ? (-kMessagesPerPage / 2) : 0), // add_offset
@@ -1183,8 +1184,8 @@ void SavedSublist::loadBefore() {
 		const auto parentChat = _parent->parentChat();
 		return session().api().request(MTPmessages_GetSavedHistory(
 			MTP_flags(parentChat ? Flag::f_parent_peer : Flag(0)),
-			parentChat ? parentChat->input : MTPInputPeer(),
-			sublistPeer()->input,
+			parentChat ? parentChat->input() : MTPInputPeer(),
+			sublistPeer()->input(),
 			MTP_int(last), // offset_id
 			MTP_int(0), // offset_date
 			MTP_int(0), // add_offset
@@ -1230,8 +1231,8 @@ void SavedSublist::loadAfter() {
 		const auto parentChat = _parent->parentChat();
 		return session().api().request(MTPmessages_GetSavedHistory(
 			MTP_flags(parentChat ? Flag::f_parent_peer : Flag(0)),
-			parentChat ? parentChat->input : MTPInputPeer(),
-			sublistPeer()->input,
+			parentChat ? parentChat->input() : MTPInputPeer(),
+			sublistPeer()->input(),
 			MTP_int(first + 1), // offset_id
 			MTP_int(0), // offset_date
 			MTP_int(-kMessagesPerPage), // add_offset

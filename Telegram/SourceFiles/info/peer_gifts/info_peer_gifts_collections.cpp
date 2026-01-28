@@ -106,7 +106,7 @@ void EditCollectionBox(
 			using Flag = MTPpayments_UpdateStarGiftCollection::Flag;
 			session->api().request(MTPpayments_UpdateStarGiftCollection(
 				MTP_flags(Flag::f_title),
-				peer->input,
+				peer->input(),
 				MTP_int(id),
 				MTP_string(text),
 				MTPVector<MTPInputSavedStarGift>(),
@@ -115,13 +115,13 @@ void EditCollectionBox(
 			)).done(done).fail(fail).send();
 		} else {
 			session->api().request(MTPpayments_CreateStarGiftCollection(
-				peer->input,
+				peer->input(),
 				MTP_string(text),
 				MTP_vector<MTPInputSavedStarGift>(ids)
 			)).done(done).fail(fail).send();
 		}
 	};
-	title->submits() | rpl::start_with_next(submit, title->lifetime());
+	title->submits() | rpl::on_next(submit, title->lifetime());
 	auto text = id
 		? tr::lng_settings_save()
 		: tr::lng_gift_collection_new_create();

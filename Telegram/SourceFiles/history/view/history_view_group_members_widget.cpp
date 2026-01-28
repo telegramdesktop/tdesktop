@@ -51,12 +51,12 @@ void GroupMembersWidget::setupList() {
 	_listController->setStyleOverrides(&st::groupMembersWidgetList);
 	_listController->setStoriesShown(true);
 	_list = object_ptr<PeerListContent>(this, _listController.get());
-	widthValue() | rpl::start_with_next([this](int newWidth) {
+	widthValue() | rpl::on_next([this](int newWidth) {
 		if (newWidth > 0) {
 			_list->resizeToWidth(newWidth);
 		}
 	}, _list->lifetime());
-	_list->heightValue() | rpl::start_with_next([=](int listHeight) {
+	_list->heightValue() | rpl::on_next([=](int listHeight) {
 		if (const auto newHeight = topSkip + listHeight; newHeight > 0) {
 			resize(width(), newHeight);
 		}

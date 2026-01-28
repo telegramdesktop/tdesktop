@@ -47,7 +47,7 @@ CharactersLimitLabel::CharactersLimitLabel(
 	rpl::combine(
 		Ui::RpWidget::heightValue(),
 		widgetToAlign->geometryValue()
-	) | rpl::start_with_next(_position, lifetime());
+	) | rpl::on_next(_position, lifetime());
 }
 
 void CharactersLimitLabel::setLeft(int value) {

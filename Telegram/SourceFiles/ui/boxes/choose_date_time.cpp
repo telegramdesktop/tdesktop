@@ -10,8 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/event_filter.h"
 #include "ui/boxes/calendar_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/time_input.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
@@ -56,6 +58,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		ChooseDateTimeBoxArgs &&args) {
 	struct State {
 		rpl::variable<QDate> date;
+		rpl::variable<int> width;
 		not_null<InputField*> day;
 		not_null<TimeInput*> time;
 		not_null<FlatLabel*> at;
@@ -64,7 +67,8 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	box->setWidth(st::boxWideWidth);
 
 	const auto content = box->addRow(
-		object_ptr<FixedHeightWidget>(box, st::scheduleHeight));
+		object_ptr<FixedHeightWidget>(box, st::scheduleHeight),
+		style::al_top);
 	if (args.description) {
 		box->addRow(object_ptr<FlatLabel>(
 			box,
@@ -91,7 +95,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	});
 
 	state->date.value(
-	) | rpl::start_with_next([=](QDate date) {
+	) | rpl::on_next([=](QDate date) {
 		state->day->setText(DayString(date));
 		state->time->setFocusFast();
 	}, state->day->lifetime());
@@ -125,8 +129,18 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		return base::EventFilterResult::Continue;
 	});
 
+	state->at->widthValue() | rpl::on_next([=](int width) {
+		const auto full = st::scheduleDateWidth
+			+ st::scheduleAtSkip
+			+ width
+			+ st::scheduleAtSkip
+			+ st::scheduleTimeWidth;
+		content->setNaturalWidth(full);
+		state->width = full;
+	}, state->at->lifetime());
+
 	content->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto paddings = width
 			- state->at->width()
 			- 2 * st::scheduleAtSkip
@@ -150,7 +164,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		= content->lifetime().make_state<base::weak_qptr<CalendarBox>>();
 	const auto calendarStyle = args.style.calendarStyle;
 	state->day->focusedChanges(
-	) | rpl::start_with_next([=](bool focused) {
+	) | rpl::on_next([=](bool focused) {
 		if (*calendar || !focused) {
 			return;
 		}
@@ -167,7 +181,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 				.stColors = *calendarStyle,
 			}));
 		(*calendar)->boxClosing(
-		) | rpl::start_with_next(crl::guard(state->time, [=] {
+		) | rpl::on_next(crl::guard(state->time, [=] {
 			state->time->setFocusFast();
 		}), (*calendar)->lifetime());
 	}, state->day->lifetime());
@@ -196,10 +210,11 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		}
 	};
 	state->time->submitRequests(
-	) | rpl::start_with_next(save, state->time->lifetime());
+	) | rpl::on_next(save, state->time->lifetime());
 
 	auto result = ChooseDateTimeBoxDescriptor();
 	box->setFocusCallback([=] { state->time->setFocusFast(); });
+	result.width = state->width.value();
 	result.submit = box->addButton(std::move(args.submit), save);
 	result.collect = [=] {
 		if (const auto result = collect()) {
@@ -213,6 +228,112 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		state->time->value()
 	) | rpl::map(collect);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+	return result;
+}
+
+object_ptr<Ui::RpWidget> ChooseRepeatPeriod(
+		not_null<Ui::RpWidget*> parent,
+		ChooseRepeatPeriodArgs &&args) {
+	auto result = object_ptr<Ui::RpWidget>(parent.get());
+	const auto raw = result.data();
+
+	struct Entry {
+		TimeId value = 0;
+		QString text;
+	};
+	auto map = std::vector<Entry>{
+		{ 0, tr::lng_schedule_repeat_never(tr::now) },
+		{ 24 * 60 * 60, tr::lng_schedule_repeat_daily(tr::now) },
+		{ 7 * 24 * 60 * 60, tr::lng_schedule_repeat_weekly(tr::now) },
+		{ 14 * 24 * 60 * 60, tr::lng_schedule_repeat_biweekly(tr::now) },
+		{ 30 * 24 * 60 * 60, tr::lng_schedule_repeat_monthly(tr::now) },
+		{
+			91 * 24 * 60 * 60,
+			tr::lng_schedule_repeat_every_month(tr::now, lt_count, 3)
+		},
+		{
+			182 * 24 * 60 * 60,
+			tr::lng_schedule_repeat_every_month(tr::now, lt_count, 6)
+		},
+		{ 365 * 24 * 60 * 60, tr::lng_schedule_repeat_yearly(tr::now) },
+	};
+	if (args.test) {
+		map.insert(begin(map) + 1, Entry{ 300, u"Every 5 minutes"_q });
+		map.insert(begin(map) + 1, Entry{ 60, u"Every minute"_q });
+	}
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(raw, QString());
+	rpl::combine(
+		raw->widthValue(),
+		label->naturalWidthValue()
+	) | rpl::on_next([=](int outer, int natural) {
+		label->resizeToWidth(std::min(outer, natural));
+	}, raw->lifetime());
+	label->heightValue() | rpl::on_next([=](int height) {
+		raw->resize(raw->width(), height);
+	}, label->lifetime());
+
+	struct State {
+		rpl::variable<TimeId> value;
+		rpl::variable<bool> locked;
+		std::unique_ptr<Ui::PopupMenu> menu;
+	};
+	const auto state = raw->lifetime().make_state<State>(State{
+		.value = args.value,
+		.locked = std::move(args.locked),
+	});
+
+	rpl::combine(
+		state->value.value(),
+		state->locked.value()
+	) | rpl::on_next([=](TimeId value, bool locked) {
+		auto result = tr::lng_schedule_repeat_label(
+			tr::now,
+			tr::marked);
+
+		const auto text = [&] {
+			const auto i = ranges::lower_bound(
+				map,
+				value,
+				ranges::less{},
+				&Entry::value);
+			return (i != end(map)) ? i->text : map.back().text;
+		}();
+
+		label->setMarkedText(result.append(' ').append(tr::link(
+			tr::bold(text).append(
+				Ui::Text::IconEmoji(locked
+					? &st::scheduleRepeatDropdownLock
+					: &st::scheduleRepeatDropdownArrow))
+		)));
+		return result;
+	}, label->lifetime());
+
+	label->setClickHandlerFilter([=](const auto &...) {
+		if (args.filter && args.filter()) {
+			return false;
+		}
+		const auto changed = args.changed;
+
+		state->menu = std::make_unique<Ui::PopupMenu>(label);
+		const auto menu = state->menu.get();
+
+		menu->setDestroyedCallback(crl::guard(label, [=] {
+			if (state->menu.get() == menu) {
+				state->menu.release();
+			}
+		}));
+		for (const auto &entry : map) {
+			const auto value = entry.value;
+			menu->addAction(entry.text, [=] {
+				state->value = value;
+				changed(value);
+			});
+		}
+		menu->popup(QCursor::pos());
+		return false;
+	});
 
 	return result;
 }

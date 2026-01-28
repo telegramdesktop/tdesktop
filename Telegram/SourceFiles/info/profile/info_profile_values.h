@@ -75,9 +75,13 @@ struct LinkWithUrl {
 	QString text;
 	QString url;
 };
+[[nodiscard]] QString TopicLink(
+	not_null<Data::ForumTopic*> topic,
+	bool full);
 [[nodiscard]] rpl::producer<LinkWithUrl> LinkValue(
 	not_null<PeerData*> peer,
-	bool primary = false);
+	bool primary = false,
+	MsgId topicRootId = 0);
 
 [[nodiscard]] rpl::producer<const ChannelLocation*> LocationValue(
 	not_null<ChannelData*> channel);

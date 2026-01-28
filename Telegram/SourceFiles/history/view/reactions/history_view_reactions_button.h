@@ -55,6 +55,7 @@ struct ButtonParameters {
 	QPoint center;
 	QPoint pointer;
 	QPoint globalPointer;
+	int reactionsHeight = 0;
 	int reactionsCount = 1;
 	int visibleTop = 0;
 	int visibleBottom = 0;

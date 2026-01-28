@@ -51,7 +51,7 @@ ItemSingleFilePreview::ItemSingleFilePreview(
 
 	rpl::single(rpl::empty) | rpl::then(
 		document->session().downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_documentMedia->thumbnail()) {
 			_lifetimeDownload.destroy();
 		}

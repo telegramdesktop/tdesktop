@@ -139,8 +139,9 @@ private:
 	mutable PeerData *_externalSender = nullptr;
 	mutable PeerData *_colorPeer = nullptr;
 	mutable struct {
-		mutable std::unique_ptr<Ui::RippleAnimation> animation;
+		std::unique_ptr<Ui::RippleAnimation> animation;
 		QPoint lastPoint;
+		QPoint lastPaintedPoint;
 	} _ripple;
 	mutable Ui::Text::String _name;
 	mutable Ui::Text::String _text;

@@ -71,7 +71,7 @@ RepliesList::RepliesList(
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
 	if (_owningTopic) {
 		_owningTopic->destroyed(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_owningTopic = nullptr;
 			subscribeToUpdates();
 		}, _lifetime);
@@ -96,7 +96,7 @@ void RepliesList::subscribeToUpdates() {
 	) | rpl::filter([=](const RepliesReadTillUpdate &update) {
 		return (update.id.msg == _rootId)
 			&& (update.id.peer == _history->peer->id);
-	}) | rpl::start_with_next([=](const RepliesReadTillUpdate &update) {
+	}) | rpl::on_next([=](const RepliesReadTillUpdate &update) {
 		apply(update);
 	}, _lifetime);
 
@@ -105,18 +105,18 @@ void RepliesList::subscribeToUpdates() {
 		| MessageUpdate::Flag::NewMaybeAdded
 		| MessageUpdate::Flag::ReplyToTopAdded
 		| MessageUpdate::Flag::Destroyed
-	) | rpl::start_with_next([=](const MessageUpdate &update) {
+	) | rpl::on_next([=](const MessageUpdate &update) {
 		apply(update);
 	}, _lifetime);
 
 	_history->session().changes().topicUpdates(
 		TopicUpdate::Flag::Creator
-	) | rpl::start_with_next([=](const TopicUpdate &update) {
+	) | rpl::on_next([=](const TopicUpdate &update) {
 		apply(update);
 	}, _lifetime);
 
 	_history->owner().channelDifferenceTooLong(
-	) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
+	) | rpl::on_next([=](not_null<ChannelData*> channel) {
 		if (channel == _history->peer) {
 			applyDifferenceTooLong();
 		}
@@ -194,19 +194,19 @@ rpl::producer<MessagesSlice> RepliesList::source(
 		_history->session().changes().historyUpdates(
 			_history,
 			HistoryUpdate::Flag::ClientSideMessages
-		) | rpl::start_with_next(pushDelayed, lifetime);
+		) | rpl::on_next(pushDelayed, lifetime);
 
 		_history->session().changes().messageUpdates(
 			MessageUpdate::Flag::Destroyed
 		) | rpl::filter([=](const MessageUpdate &update) {
 			return applyItemDestroyed(viewer, update.item);
-		}) | rpl::start_with_next(pushDelayed, lifetime);
+		}) | rpl::on_next(pushDelayed, lifetime);
 
 		_listChanges.events(
-		) | rpl::start_with_next(pushDelayed, lifetime);
+		) | rpl::on_next(pushDelayed, lifetime);
 
 		_instantChanges.events(
-		) | rpl::start_with_next(pushInstant, lifetime);
+		) | rpl::on_next(pushInstant, lifetime);
 
 		pushInstant();
 		return lifetime;
@@ -534,7 +534,7 @@ void RepliesList::loadAround(MsgId id) {
 
 	const auto send = [=](Fn<void()> finish) {
 		return _history->session().api().request(MTPmessages_GetReplies(
-			_history->peer->input,
+			_history->peer->input(),
 			MTP_int(_rootId),
 			MTP_int(id), // offset_id
 			MTP_int(0), // offset_date
@@ -591,7 +591,7 @@ void RepliesList::loadBefore() {
 	const auto last = _list.back();
 	const auto send = [=](Fn<void()> finish) {
 		return _history->session().api().request(MTPmessages_GetReplies(
-			_history->peer->input,
+			_history->peer->input(),
 			MTP_int(_rootId),
 			MTP_int(last), // offset_id
 			MTP_int(0), // offset_date
@@ -635,7 +635,7 @@ void RepliesList::loadAfter() {
 	const auto first = _list.front();
 	const auto send = [=](Fn<void()> finish) {
 		return _history->session().api().request(MTPmessages_GetReplies(
-			_history->peer->input,
+			_history->peer->input(),
 			MTP_int(_rootId),
 			MTP_int(first + 1), // offset_id
 			MTP_int(0), // offset_date
@@ -940,7 +940,7 @@ void RepliesList::requestUnreadCount() {
 	};
 	_reloadUnreadCountRequestId = session->api().request(
 		MTPmessages_GetDiscussionMessage(
-			_history->peer->input,
+			_history->peer->input(),
 			MTP_int(_rootId))
 	).done([=](const MTPmessages_DiscussionMessage &result) {
 		if (weak) {
@@ -1004,7 +1004,7 @@ void RepliesList::sendReadTillRequest() {
 	api->request(base::take(_readRequestId)).cancel();
 
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
-		_history->peer->input,
+		_history->peer->input(),
 		MTP_int(_rootId),
 		MTP_int(computeInboxReadTillFull())
 	)).done(crl::guard(this, [=] {

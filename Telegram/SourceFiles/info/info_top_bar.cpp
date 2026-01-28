@@ -188,7 +188,7 @@ Ui::FadeWrap<Ui::RpWidget> *TopBar::pushButton(
 		!selectionMode() && !_searchModeEnabled,
 		anim::type::instant);
 	weak->widthValue(
-	) | rpl::start_with_next([this] {
+	) | rpl::on_next([this] {
 		updateControlsGeometry(width());
 	}, lifetime());
 	return weak;
@@ -257,7 +257,7 @@ void TopBar::createSearchView(
 			*focusLifetime = field->shownValue()
 				| rpl::filter([](bool shown) { return shown; })
 				| rpl::take(1)
-				| rpl::start_with_next([=] { field->setFocus(); });
+				| rpl::on_next([=] { field->setFocus(); });
 		} else {
 			focusLifetime->destroy();
 		}
@@ -290,7 +290,7 @@ void TopBar::createSearchView(
 	});
 
 	wrap->widthValue(
-	) | rpl::start_with_next([=](int newWidth) {
+	) | rpl::on_next([=](int newWidth) {
 		auto availableWidth = newWidth
 			- _st.searchRow.fieldCancelSkip;
 		fieldWrap->resizeToWidth(availableWidth);
@@ -301,7 +301,7 @@ void TopBar::createSearchView(
 	}, wrap->lifetime());
 
 	widthValue(
-	) | rpl::start_with_next([=](int newWidth) {
+	) | rpl::on_next([=](int newWidth) {
 		auto left = _back
 			? _st.back.width
 			: _st.titlePosition.x();
@@ -314,7 +314,7 @@ void TopBar::createSearchView(
 	}, wrap->lifetime());
 
 	field->alive(
-	) | rpl::start_with_done([=] {
+	) | rpl::on_done([=] {
 		field->setParent(nullptr);
 		removeButton(search);
 		clearSearchField();
@@ -325,7 +325,7 @@ void TopBar::createSearchView(
 
 	std::move(
 		shown
-	) | rpl::start_with_next([=](bool visible) {
+	) | rpl::on_next([=](bool visible) {
 		auto alreadyInSearch = !field->getLastText().isEmpty();
 		_searchModeAvailable = visible || alreadyInSearch;
 		updateControlsVisibility(anim::type::instant);
@@ -534,7 +534,7 @@ void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
 		stories->setAttribute(Qt::WA_TransparentForMouseEvents);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents);
 		stories->geometryValue(
-		) | rpl::start_with_next([=](QRect geometry) {
+		) | rpl::on_next([=](QRect geometry) {
 			const auto skip = _st.title.style.font->spacew;
 			label->move(
 				geometry.x() + geometry.width() + skip,
@@ -543,7 +543,7 @@ void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
 		rpl::combine(
 			_storiesWrap->positionValue(),
 			label->geometryValue()
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			button->resize(
 				label->x() + label->width() + _st.titlePosition.x(),
 				_st.height);
@@ -559,7 +559,7 @@ void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
 
 		rpl::duplicate(
 			last
-		) | rpl::start_with_next([=](const Content &content) {
+		) | rpl::on_next([=](const Content &content) {
 			const auto count = content.total;
 			if (_storiesCount != count) {
 				const auto was = (_storiesCount > 0);
@@ -681,7 +681,7 @@ void TopBar::createSelectionControls() {
 	_selectionText->setDuration(st::infoTopBarDuration);
 	_selectionText->entity()->resize(0, _st.height);
 	_selectionText->naturalWidthValue(
-	) | rpl::skip(1) | rpl::start_with_next([=] {
+	) | rpl::skip(1) | rpl::on_next([=] {
 		updateSelectionControlsGeometry(width());
 	}, _selectionText->lifetime());
 

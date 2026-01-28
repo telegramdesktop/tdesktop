@@ -37,7 +37,7 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _empty(this) {
 	_empty->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { refreshHeight(); },
 		_empty->lifetime());
 	_list = setupList();
@@ -63,7 +63,7 @@ void InnerWidget::createOtherTypes() {
 
 	_otherTypes->resizeToWidth(width());
 	_otherTypes->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { refreshHeight(); },
 		_otherTypes->lifetime());
 }
@@ -147,7 +147,7 @@ bool InnerWidget::showInternal(not_null<Memento*> memento) {
 object_ptr<ListWidget> InnerWidget::setupList() {
 	auto result = object_ptr<ListWidget>(this, _controller);
 	result->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { refreshHeight(); },
 		result->lifetime());
 	using namespace rpl::mappers;
@@ -164,7 +164,7 @@ object_ptr<ListWidget> InnerWidget::setupList() {
 	_listTops.fire(result->topValue());
 	_empty->setType(_controller->section().mediaType());
 	_controller->mediaSourceQueryValue(
-	) | rpl::start_with_next([this](const QString &query) {
+	) | rpl::on_next([this](const QString &query) {
 		_empty->setSearchQuery(query);
 	}, result->lifetime());
 	return result;

@@ -36,7 +36,9 @@ Data::PremiumSubscriptionOption CreateSubscriptionOption(
 		.costNoDiscount = Ui::FillAmountAndCurrency(
 			monthlyAmount * months,
 			currency),
-		.costTotal = Ui::FillAmountAndCurrency(amount, currency),
+		.costPerYear = Ui::FillAmountAndCurrency(
+			amount / float64(months / 12.),
+			currency),
 		.botUrl = botUrl,
 	};
 }

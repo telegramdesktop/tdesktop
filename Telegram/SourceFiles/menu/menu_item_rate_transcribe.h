@@ -29,10 +29,20 @@ public:
 
 protected:
 	int contentHeight() const override;
+	void handleKeyPress(not_null<QKeyEvent*> e) override;
 
 private:
+	enum class SelectedButton {
+		None,
+		Left,
+		Right,
+	};
+
 	int _desiredHeight = 0;
 	not_null<QAction*> _dummyAction;
+	not_null<Ui::RippleButton*> _leftButton;
+	not_null<Ui::RippleButton*> _rightButton;
+	SelectedButton _selectedButton = SelectedButton::None;
 
 };
 

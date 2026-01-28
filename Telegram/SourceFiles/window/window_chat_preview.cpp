@@ -39,7 +39,7 @@ bool ChatPreviewManager::show(
 	cancelScheduled();
 	_topicLifetime.destroy();
 	if (const auto topic = row.key.topic()) {
-		_topicLifetime = topic->destroyed() | rpl::start_with_next([=] {
+		_topicLifetime = topic->destroyed() | rpl::on_next([=] {
 			_menu = nullptr;
 		});
 	} else if (!row.key) {
@@ -59,7 +59,7 @@ bool ChatPreviewManager::show(
 	const auto weakController = base::make_weak(_controller);
 	std::move(
 		preview.actions
-	) | rpl::start_with_next([=](HistoryView::ChatPreviewAction action) {
+	) | rpl::on_next([=](HistoryView::ChatPreviewAction action) {
 		if (const auto controller = weakController.get()) {
 			if (const auto thread = weakThread.get()) {
 				const auto itemId = action.openItemId;
@@ -109,7 +109,7 @@ bool ChatPreviewManager::schedule(
 	cancelScheduled();
 	_topicLifetime.destroy();
 	if (const auto topic = row.key.topic()) {
-		_topicLifetime = topic->destroyed() | rpl::start_with_next([=] {
+		_topicLifetime = topic->destroyed() | rpl::on_next([=] {
 			cancelScheduled();
 			_menu = nullptr;
 		});

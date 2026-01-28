@@ -160,7 +160,7 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 	};
 
 	container->sizeValue(
-	) | rpl::start_with_next(updateAttachGeometry, lifetime);
+	) | rpl::on_next(updateAttachGeometry, lifetime);
 
 	const auto resetDragStateIfNeeded = [=] {
 		if (*attachDragState != DragState::None
@@ -220,7 +220,7 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 	container->events(
 	) | rpl::filter([=](not_null<QEvent*> event) {
 		return ranges::contains(kDragAreaEvents, event->type());
-	}) | rpl::start_with_next([=](not_null<QEvent*> event) {
+	}) | rpl::on_next([=](not_null<QEvent*> event) {
 		const auto type = event->type();
 
 		if (processDragEvents(event)) {

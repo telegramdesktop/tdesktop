@@ -145,7 +145,7 @@ const base::flat_map<QString, GeoBounds> &CountryBounds() {
 		{ u"PY"_q, GeoBounds{ -62.69, -27.55, -54.29, -19.34 } },
 		{ u"QA"_q, GeoBounds{ 50.74, 24.56, 51.61, 26.11 } },
 		{ u"RO"_q, GeoBounds{ 20.22, 43.69, 29.63, 48.22 } },
-		{ u"RU"_q, GeoBounds{ -180.0, 41.15, 180.0, 81.25 } },
+		{ u"RU"_q, GeoBounds{ -18.0, 41.15, 180.0, 81.25 } },
 		{ u"RW"_q, GeoBounds{ 29.02, -2.92, 30.82, -1.13 } },
 		{ u"SA"_q, GeoBounds{ 34.63, 16.35, 55.67, 32.16 } },
 		{ u"SD"_q, GeoBounds{ 21.94, 8.62, 38.41, 22.0 } },

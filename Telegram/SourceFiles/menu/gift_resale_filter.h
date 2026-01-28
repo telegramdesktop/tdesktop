@@ -15,7 +15,7 @@ namespace Ui {
 class GiftResaleFilterAction final : public Menu::Action {
 public:
 	GiftResaleFilterAction(
-		not_null<RpWidget*> parent,
+		not_null<Menu::Menu*> parent,
 		const style::Menu &st,
 		const TextWithEntities &text,
 		const Text::MarkedContext &context,

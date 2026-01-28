@@ -53,7 +53,7 @@ base::flat_map<not_null<Main::Session*>, SessionProcesses> Processes;
 	const auto j = Processes.emplace(session).first;
 	auto &result = j->second;
 	session->account().sessionChanges(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Processes.erase(session);
 	}, result.lifetime);
 	return result;
@@ -325,17 +325,17 @@ CheckoutProcess::CheckoutProcess(
 , _reactivate(std::move(reactivate))
 , _nonPanelPaymentFormProcess(std::move(nonPanelPaymentFormProcess)) {
 	_form->updates(
-	) | rpl::start_with_next([=](const FormUpdate &update) {
+	) | rpl::on_next([=](const FormUpdate &update) {
 		handleFormUpdate(update);
 	}, _lifetime);
 
 	_panel->savedMethodChosen(
-	) | rpl::start_with_next([=](QString id) {
+	) | rpl::on_next([=](QString id) {
 		_form->chooseSavedMethod(id);
 	}, _panel->lifetime());
 
 	_panel->backRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		panelCancelEdit();
 	}, _panel->lifetime());
 	if (!_nonPanelPaymentFormProcess) {
@@ -345,7 +345,7 @@ CheckoutProcess::CheckoutProcess(
 
 	if (mode == Mode::Payment) {
 		_session->api().cloudPassword().state(
-		) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+		) | rpl::on_next([=](const Core::CloudPasswordState &state) {
 			_form->setHasPassword(state.hasPassword);
 		}, _lifetime);
 	}
@@ -878,12 +878,12 @@ void CheckoutProcess::panelSetPassword() {
 		rpl::merge(
 			box->newPasswordSet() | rpl::to_empty,
 			box->passwordReloadNeeded()
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_session->api().cloudPassword().reload();
 		}, box->lifetime());
 
 		box->clearUnconfirmedPassword(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_session->api().cloudPassword().clearUnconfirmedPassword();
 		}, box->lifetime());
 
@@ -903,7 +903,7 @@ void CheckoutProcess::getPasswordState(
 		return;
 	}
 	_session->api().cloudPassword().state(
-	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
 		_gettingPasswordState.destroy();
 		callback(state);
 	}, _gettingPasswordState);

@@ -90,13 +90,13 @@ Fn<TimeId()> TimePickerBox(
 		startIndex);
 
 	content->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		picker->resize(maxPhraseWidth, s.height());
 		picker->moveToLeft((s.width() - picker->width()) / 2, 0);
 	}, content->lifetime());
 
 	content->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		auto p = QPainter(content);
 
 		p.fillRect(r, Qt::transparent);

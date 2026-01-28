@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_content_widget.h"
 #include "info/media/info_media_widget.h"
 #include "info/stories/info_stories_common.h"
+#include "ui/effects/animations.h"
 
 namespace Ui {
 template <typename Widget>
@@ -50,6 +51,7 @@ class Widget final : public ContentWidget {
 public:
 	Widget(QWidget *parent, not_null<Controller*> controller);
 
+	void setInnerFocus() override;
 	void setIsStackBottom(bool isStackBottom) override;
 
 	bool showInternal(
@@ -77,12 +79,15 @@ private:
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
+	FlexibleScrollData _flexibleScroll;
 	rpl::variable<int> _albumId;
 	InnerWidget *_inner = nullptr;
+	base::weak_qptr<Ui::RpWidget> _pinnedToTop;
 	QPointer<Ui::SlideWrap<Ui::RpWidget>> _pinnedToBottom;
 	rpl::variable<bool> _hasPinnedToBottom;
 	rpl::variable<bool> _emptyAlbumShown;
 	bool _shown = false;
+	std::unique_ptr<FlexibleScrollHelper> _flexibleScrollHelper;
 
 };
 

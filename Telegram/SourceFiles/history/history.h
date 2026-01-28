@@ -249,6 +249,7 @@ public:
 	[[nodiscard]] bool lastMessageKnown() const;
 	[[nodiscard]] bool lastServerMessageKnown() const;
 	void unknownMessageDeleted(MsgId messageId);
+	[[nodiscard]] bool isUnknownMessageDeleted(MsgId messageId) const;
 	void applyDialogTopMessage(MsgId topMessageId);
 	void applyDialog(Data::Folder *requestFolder, const MTPDdialog &data);
 	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
@@ -667,6 +668,8 @@ private:
 	base::flat_map<Data::DraftKey, TimeId> _acceptCloudDraftsAfter;
 	base::flat_map<Data::DraftKey, int> _savingCloudDraftRequests;
 	base::flat_map<Data::DraftKey, Data::ForwardDraft> _forwardDrafts;
+
+	base::flat_map<MsgId, TimeId> _unknownDeletedMessages;
 
 	QString _topPromotedMessage;
 	QString _topPromotedType;

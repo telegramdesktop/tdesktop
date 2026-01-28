@@ -68,6 +68,7 @@ enum class StickerLottieSize : uint8 {
 	EmojiInteractionReserved7,
 	ChatIntroHelloSticker,
 	StickerEmojiSize,
+	PinnedProfileUniqueGiftSize,
 };
 [[nodiscard]] uint8 LottieCacheKeyShift(
 	uint8 replacementsTag,

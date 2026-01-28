@@ -66,7 +66,7 @@ Ringtones::Ringtones(not_null<ApiWrap*> api)
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
 		_session->uploader().documentReady(
-		) | rpl::start_with_next([=](const Storage::UploadedMedia &data) {
+		) | rpl::on_next([=](const Storage::UploadedMedia &data) {
 			ready(data.fullId, data.info.file);
 		}, _session->lifetime());
 	});

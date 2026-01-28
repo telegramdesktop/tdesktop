@@ -18,6 +18,8 @@ class QLockFile;
 
 namespace Core {
 
+extern const char kOptionDeadlockDetector[];
+
 class UpdateChecker;
 class Application;
 

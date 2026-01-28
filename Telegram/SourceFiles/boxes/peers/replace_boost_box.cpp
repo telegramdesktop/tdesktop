@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "boxes/peer_list_box.h"
-#include "boxes/star_gift_box.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_premium_limits.h"
 #include "data/data_channel.h"
@@ -36,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
+#include "ui/top_background_gradient.h"
 #include "styles/style_boxes.h"
 #include "styles/style_credits.h"
 #include "styles/style_premium.h"
@@ -217,13 +217,13 @@ void Controller::prepare() {
 			above.data(),
 			tr::lng_boost_reassign_text(
 				lt_channel,
-				rpl::single(Ui::Text::Bold(_to->name())),
+				rpl::single(tr::bold(_to->name())),
 				lt_gift,
 				tr::lng_boost_reassign_gift(
 					lt_count,
 					rpl::single(1. * BoostsForGift(session)),
-					Ui::Text::RichLangValue),
-				Ui::Text::RichLangValue),
+					tr::rich),
+				tr::rich),
 			st::boostReassignText),
 		st::boxRowPadding,
 		style::al_top);
@@ -278,7 +278,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 				tr::now,
 				lt_count,
 				BoostsForGift(&session()),
-				Ui::Text::RichLangValue),
+				tr::rich),
 			.adaptive = true,
 		});
 		return;
@@ -331,14 +331,14 @@ object_ptr<Ui::BoxContent> ReassignBoostFloodBox(int seconds, bool group) {
 			? tr::lng_boost_error_flood_text_group
 			: tr::lng_boost_error_flood_text)(
 				lt_left,
-				rpl::single(Ui::Text::Bold((days > 1)
+				rpl::single(tr::bold((days > 1)
 					? tr::lng_days(tr::now, lt_count, days)
 					: (hours > 1)
 					? tr::lng_hours(tr::now, lt_count, hours)
 					: (minutes > 1)
 					? tr::lng_minutes(tr::now, lt_count, minutes)
 					: tr::lng_seconds(tr::now, lt_count, seconds))),
-				Ui::Text::RichLangValue),
+				tr::rich),
 		.title = tr::lng_boost_error_flood_title(),
 	});
 }
@@ -362,10 +362,10 @@ object_ptr<Ui::BoxContent> ReassignBoostSingleBox(
 		Ui::ConfirmBox(box, {
 			.text = tr::lng_boost_now_instead(
 				lt_channel,
-				rpl::single(Ui::Text::Bold(peer->name())),
+				rpl::single(tr::bold(peer->name())),
 				lt_other,
-				rpl::single(Ui::Text::Bold(to->name())),
-				Ui::Text::WithEntities),
+				rpl::single(tr::bold(to->name())),
+				tr::marked),
 			.confirmed = confirmed,
 			.confirmText = tr::lng_boost_now_replace(),
 			.labelPadding = st::boxRowPadding,
@@ -382,7 +382,7 @@ object_ptr<Ui::BoxContent> ReassignBoostSingleBox(
 
 	result->boxClosing() | rpl::filter([=] {
 		return !*reassigned;
-	}) | rpl::start_with_next(cancel, result->lifetime());
+	}) | rpl::on_next(cancel, result->lifetime());
 
 	return result;
 }
@@ -433,6 +433,7 @@ Ui::BoostCounters ParseBoostCounters(
 Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
 	auto nameColorsByLevel = base::flat_map<int, int>();
 	auto linkStylesByLevel = base::flat_map<int, int>();
+	auto profileColorsByLevel = base::flat_map<int, int>();
 	const auto group = channel->isMegagroup();
 	const auto peerColors = &channel->session().api().peerColors();
 	const auto &list = group
@@ -445,6 +446,29 @@ Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
 		}
 		++linkStylesByLevel[level];
 	}
+	{
+		const auto profileIndices = peerColors->profileColorIndices();
+		auto lowestNonZeroLevel = std::numeric_limits<int>::max();
+		auto levels = std::vector<int>();
+		levels.reserve(profileIndices.size());
+
+		for (const auto index : profileIndices) {
+			const auto level = peerColors->requiredLevelFor(
+				channel->id,
+				index,
+				group,
+				true);
+			levels.push_back(level);
+			if (level) {
+				lowestNonZeroLevel = std::min(lowestNonZeroLevel, level);
+			}
+		}
+
+		for (const auto level : levels) {
+			++profileColorsByLevel[std::max(level, lowestNonZeroLevel)];
+		}
+	}
+
 	const auto &themes = channel->owner().cloudThemes().chatThemes();
 	if (themes.empty()) {
 		channel->owner().cloudThemes().refreshChatThemes();
@@ -453,7 +477,11 @@ Ui::BoostFeatures LookupBoostFeatures(not_null<ChannelData*> channel) {
 	return Ui::BoostFeatures{
 		.nameColorsByLevel = std::move(nameColorsByLevel),
 		.linkStylesByLevel = std::move(linkStylesByLevel),
+		.profileColorsByLevel = std::move(profileColorsByLevel),
 		.linkLogoLevel = group ? 0 : levelLimits.channelBgIconLevelMin(),
+		.profileIconLevel = group
+			? levelLimits.groupProfileBgIconLevelMin()
+			: levelLimits.channelProfileBgIconLevelMin(),
 		.autotranslateLevel = group ? 0 : levelLimits.channelAutoTranslateLevelMin(),
 		.transcribeLevel = group ? levelLimits.groupTranscribeLevelMin() : 0,
 		.emojiPackLevel = group ? levelLimits.groupEmojiStickersLevelMin() : 0,
@@ -523,7 +551,7 @@ object_ptr<Ui::BoxContent> ReassignBoostsBox(
 	const auto raw = controller.get();
 	auto initBox = [=](not_null<Ui::BoxContent*> box) {
 		raw->selectedValue(
-		) | rpl::start_with_next([=](std::vector<int> slots) {
+		) | rpl::on_next([=](std::vector<int> slots) {
 			box->clearButtons();
 			if (!slots.empty()) {
 				const auto sources = SourcesCount(to, from, slots);
@@ -539,7 +567,7 @@ object_ptr<Ui::BoxContent> ReassignBoostsBox(
 
 		box->boxClosing() | rpl::filter([=] {
 			return !*reassigned;
-		}) | rpl::start_with_next(cancel, box->lifetime());
+		}) | rpl::on_next(cancel, box->lifetime());
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(initBox));
 }
@@ -549,6 +577,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 		rpl::producer<std::vector<not_null<PeerData*>>> from,
 		not_null<PeerData*> to,
 		UserpicsTransferType type) {
+	using Type = UserpicsTransferType;
 	struct State {
 		std::vector<not_null<PeerData*>> from;
 		std::vector<std::unique_ptr<Ui::UserpicButton>> buttons;
@@ -568,7 +597,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 	const auto state = raw->lifetime().make_state<State>();
 	std::move(
 		from
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			const std::vector<not_null<PeerData*>> &list) {
 		auto was = base::take(state->from);
 		auto buttons = base::take(state->buttons);
@@ -599,7 +628,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 	rpl::combine(
 		raw->widthValue(),
 		state->count.value()
-	) | rpl::start_with_next([=](int width, int count) {
+	) | rpl::on_next([=](int width, int count) {
 		const auto skip = st::boostReplaceUserpicsSkip;
 		const auto left = width - 2 * right->width() - skip;
 		const auto shift = std::min(
@@ -622,7 +651,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 	overlay->paintRequest(
 	) | rpl::filter([=] {
 		return !state->buttons.empty();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		const auto outerw = overlay->width();
 		const auto ratio = style::DevicePixelRatio();
 		if (state->layer.size() != QSize(outerw, full) * ratio) {
@@ -648,27 +677,28 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 			button->render(&q, position, QRegion(), QWidget::DrawChildren);
 		}
 		state->painting = false;
-		const auto boosting = (type == UserpicsTransferType::BoostReplace);
 		const auto last = state->buttons.back().get();
-		const auto back = boosting ? last : right;
-		const auto add = st::boostReplaceIconAdd;
-		const auto &icon = boosting
-			? st::boostReplaceIcon
-			: st::starrefJoinIcon;
-		const auto skip = boosting ? st::boostReplaceIconSkip : 0;
-		const auto w = icon.width() + 2 * skip;
-		const auto h = icon.height() + 2 * skip;
-		const auto x = back->x() + back->width() - w + add.x();
-		const auto y = back->y() + back->height() - h + add.y();
+		if (type != Type::AuctionRecipient) {
+			const auto boosting = (type == Type::BoostReplace);
+			const auto back = boosting ? last : right;
+			const auto add = st::boostReplaceIconAdd;
+			const auto &icon = boosting
+				? st::boostReplaceIcon
+				: st::starrefJoinIcon;
+			const auto skip = boosting ? st::boostReplaceIconSkip : 0;
+			const auto w = icon.width() + 2 * skip;
+			const auto h = icon.height() + 2 * skip;
+			const auto x = back->x() + back->width() - w + add.x();
+			const auto y = back->y() + back->height() - h + add.y();
 
-		auto brush = QLinearGradient(QPointF(x + w, y + h), QPointF(x, y));
-		brush.setStops(Ui::Premium::ButtonGradientStops());
-		q.setBrush(brush);
-		pen.setWidthF(stroke);
-		q.setPen(pen);
-		q.drawEllipse(x - half, y - half, w + stroke, h + stroke);
-		icon.paint(q, x + skip, y + skip, outerw);
-
+			auto brush = QLinearGradient(QPointF(x + w, y + h), QPointF(x, y));
+			brush.setStops(Ui::Premium::ButtonGradientStops());
+			q.setBrush(brush);
+			pen.setWidthF(stroke);
+			q.setPen(pen);
+			q.drawEllipse(x - half, y - half, w + stroke, h + stroke);
+			icon.paint(q, x + skip, y + skip, outerw);
+		}
 		const auto size = st::boostReplaceArrow.size();
 		st::boostReplaceArrow.paint(
 			q,
@@ -677,7 +707,6 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 				+ (st::boostReplaceUserpicsSkip - size.width()) / 2),
 			(last->height() - size.height()) / 2,
 			outerw);
-
 		q.end();
 
 		auto p = QPainter(overlay);
@@ -708,7 +737,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 	const auto state = raw->lifetime().make_state<State>();
 	std::move(
 		peers
-	) | rpl::start_with_next([=, &st](
+	) | rpl::on_next([=, &st](
 			const std::vector<not_null<PeerData*>> &list) {
 		auto was = base::take(state->from);
 		auto buttons = base::take(state->buttons);
@@ -745,7 +774,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 	rpl::combine(
 		raw->widthValue(),
 		state->count.value()
-	) | rpl::start_with_next([=, &st](int width, int count) {
+	) | rpl::on_next([=, &st](int width, int count) {
 		const auto single = st.button.size.width();
 		const auto left = width - single;
 		const auto used = std::min(count, int(state->buttons.size()));
@@ -764,7 +793,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 	overlay->paintRequest(
 	) | rpl::filter([=] {
 		return !state->buttons.empty();
-	}) | rpl::start_with_next([=, &st] {
+	}) | rpl::on_next([=, &st] {
 		const auto outerw = overlay->width();
 		const auto ratio = style::DevicePixelRatio();
 		if (state->layer.size() != QSize(outerw, full) * ratio) {
@@ -895,9 +924,9 @@ public:
 			auto p = QPainter(&_backgroundCache);
 			p.setClipRect(inner);
 			const auto skip = inner.width() / 3;
-			Ui::PaintPoints(
+			Ui::PaintBgPoints(
 				p,
-				Ui::PatternPointsSmall(),
+				Ui::PatternBgPointsSmall(),
 				_patternCache,
 				_patternEmoji.get(),
 				*_unique,
@@ -957,7 +986,7 @@ object_ptr<Ui::RpWidget> CreateGiftTransfer(
 	overlay->update();
 
 	raw->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto skip = st::boostReplaceUserpicsSkip;
 		const auto total = right->width() + skip + right->width();
 		auto x = (width - total) / 2;
@@ -968,7 +997,7 @@ object_ptr<Ui::RpWidget> CreateGiftTransfer(
 	}, raw->lifetime());
 
 	overlay->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto outerw = overlay->width();
 		const auto ratio = style::DevicePixelRatio();
 		if (state->layer.size() != QSize(outerw, full) * ratio) {

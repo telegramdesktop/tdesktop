@@ -105,10 +105,10 @@ void MessagesSearch::searchRequest() {
 				| (savedPeer ? Flag::f_saved_peer_id : Flag())
 				| (_request.topMsgId ? Flag::f_top_msg_id : Flag())
 				| (_request.tags.empty() ? Flag() : Flag::f_saved_reaction)),
-			_history->peer->input,
+			_history->peer->input(),
 			MTP_string(_request.query),
-			(fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
-			(savedPeer ? savedPeer->input : MTP_inputPeerEmpty()),
+			(fromPeer ? fromPeer->input() : MTP_inputPeerEmpty()),
+			(savedPeer ? savedPeer->input() : MTP_inputPeerEmpty()),
 			MTP_vector_from_range(_request.tags | ranges::views::transform(
 				Data::ReactionToMTP
 			)),

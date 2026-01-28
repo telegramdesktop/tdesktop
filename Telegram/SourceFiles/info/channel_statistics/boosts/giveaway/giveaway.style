@@ -161,16 +161,19 @@ giveawayGiftCodeFooter: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 }
 giveawayGiftCodeFooterMargin: margins(0px, 9px, 0px, 4px);
+giveawayGiftCodeBoxButton: RoundButton(defaultActiveButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
 giveawayGiftCodeBox: Box(defaultBox) {
 	buttonPadding: margins(22px, 11px, 22px, 22px);
 	buttonHeight: 42px;
 	buttonWide: true;
-	button: RoundButton(defaultActiveButton) {
-		height: 42px;
-		textTop: 12px;
-		style: semiboldTextStyle;
-	}
+	button: giveawayGiftCodeBoxButton;
 	shadowIgnoreTopSkip: true;
+}
+giveawayGiftCodeBoxUpgradeNext: RoundButton(defaultLightButton, giveawayGiftCodeBoxButton) {
 }
 giveawayRefundedLabel: FlatLabel(boxLabel) {
 	align: align(top);
@@ -235,6 +238,7 @@ darkGiftHide: icon {{ "menu/stealth", groupCallMembersFg }};
 darkGiftShow: icon {{ "menu/show_in_chat", groupCallMembersFg }};
 darkGiftPin: icon {{ "menu/pin", groupCallMembersFg }};
 darkGiftUnpin: icon {{ "menu/unpin", groupCallMembersFg }};
+darkGiftOffer: icon {{ "menu/earn", groupCallMembersFg }};
 darkGiftPalette: TextPalette(defaultTextPalette) {
 	linkFg: mediaviewTextLinkFg;
 	monoFg: groupCallMembersFg;

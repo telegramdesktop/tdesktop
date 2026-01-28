@@ -132,6 +132,7 @@ struct JoinInfo {
 enum class PanelMode {
 	Default,
 	Wide,
+	VideoStream,
 };
 
 enum class VideoQuality {
@@ -161,6 +162,10 @@ using StickedTooltips = base::flags<StickedTooltip>;
 
 [[nodiscard]] object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox();
 
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeRoundActiveLogo(
+	not_null<QWidget*> parent,
+	const style::icon &icon,
+	const style::margins &padding);
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeJoinCallLogo(
 	not_null<QWidget*> parent);
 

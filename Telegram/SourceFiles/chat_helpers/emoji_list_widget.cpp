@@ -47,9 +47,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "emoji_suggestions_helper.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "mainwidget.h"
 #include "core/core_settings.h"
 #include "core/application.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "styles/style_chat_helpers.h"
@@ -517,7 +518,7 @@ EmojiListWidget::EmojiListWidget(
 	if (_mode == Mode::ChannelStatus) {
 		session().api().peerPhoto().emojiListValue(
 			Api::PeerPhoto::EmojiListType::NoChannelStatus
-		) | rpl::start_with_next([=](const std::vector<DocumentId> &list) {
+		) | rpl::on_next([=](const std::vector<DocumentId> &list) {
 			_restrictedCustomList = { begin(list), end(list) };
 			if (!_custom.empty()) {
 				refreshCustom();
@@ -525,7 +526,7 @@ EmojiListWidget::EmojiListWidget(
 		}, lifetime());
 	} else if (_mode == Mode::EmojiStatus && _features.collectibleStatus) {
 		session().data().emojiStatuses().collectiblesUpdates(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			refreshCustom();
 		}, lifetime());
 	}
@@ -542,12 +543,12 @@ EmojiListWidget::EmojiListWidget(
 	}
 
 	_picker->chosen(
-	) | rpl::start_with_next([=](EmojiChosen data) {
+	) | rpl::on_next([=](EmojiChosen data) {
 		colorChosen(data);
 	}, lifetime());
 
 	_picker->hidden(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		pickerHidden();
 	}, lifetime());
 
@@ -555,14 +556,14 @@ EmojiListWidget::EmojiListWidget(
 		Data::PeerUpdate::Flag::EmojiSet
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		return (update.peer.get() == _megagroupSet);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		refreshCustom();
 		resizeToWidth(width());
 	}, lifetime());
 
 	session().data().stickers().updated(
 		Data::StickersType::Emoji
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshCustom();
 		resizeToWidth(width());
 	}, lifetime());
@@ -570,7 +571,7 @@ EmojiListWidget::EmojiListWidget(
 	rpl::combine(
 		Data::AmPremiumValue(&session()),
 		session().premiumPossibleValue()
-	) | rpl::skip(1) | rpl::start_with_next([=] {
+	) | rpl::skip(1) | rpl::on_next([=] {
 		refreshCustom();
 		resizeToWidth(width());
 	}, lifetime());
@@ -579,7 +580,7 @@ EmojiListWidget::EmojiListWidget(
 		rpl::empty
 	) | rpl::then(
 		style::PaletteChanged()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		initButton(_add, tr::lng_stickers_featured_add(tr::now), false);
 		initButton(_unlock, tr::lng_emoji_featured_unlock(tr::now), true);
 		initButton(_restore, tr::lng_emoji_premium_restore(tr::now), true);
@@ -710,12 +711,22 @@ void EmojiListWidget::ensureMediaPreview() {
 		? controller->sessionController()
 		: nullptr;
 	if (sessionController) {
-		_mediaPreview.create(_mediaPreviewParent, sessionController);
-		_mediaPreview->setCustomPadding(st::emojiPanReactionsPreviewPadding);
-		_mediaPreview->setBackgroundMargins(_mediaPreviewMargins);
-		_mediaPreview->setCornersSkip(st::emojiPanRadius - st::lineWidth);
+		const auto tooSmall = _mediaPreviewParent->height()
+			< st::emojiPanEmojiPreviewMinHeight;
+		const auto parent = tooSmall
+			? sessionController->content()
+			: _mediaPreviewParent;
+		_mediaPreview = base::make_unique_q<Window::MediaPreviewWidget>(
+			parent,
+			sessionController);
+		if (!tooSmall) {
+			_mediaPreview->setCustomPadding(
+				st::emojiPanReactionsPreviewPadding);
+			_mediaPreview->setBackgroundMargins(_mediaPreviewMargins);
+			_mediaPreview->setCustomRadius(st::emojiPanEmojiPreviewRadius);
+		}
 		_mediaPreview->show();
-		_mediaPreview->setGeometry(_mediaPreviewParent->geometry());
+		_mediaPreview->setGeometry(parent->geometry());
 		_mediaPreview->raise();
 	}
 }
@@ -931,7 +942,7 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 	_footer = result;
 
 	_footer->setChosen(
-	) | rpl::start_with_next([=](uint64 setId) {
+	) | rpl::on_next([=](uint64 setId) {
 		showSet(setId);
 	}, _footer->lifetime());
 
@@ -1052,7 +1063,7 @@ void EmojiListWidget::setColorAllForceRippled(bool force) {
 		_colorAllRippleForcedLifetime = style::PaletteChanged(
 		) | rpl::filter([=] {
 			return _colorAllRipple != nullptr;
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			_colorAllRipple->forceRepaint();
 		});
 		if (!_colorAllRipple) {

@@ -354,9 +354,36 @@ not_null<DocumentData*> GenerateLocalSticker(
 not_null<DocumentData*> GenerateLocalTgsSticker(
 		not_null<Main::Session*> session,
 		const QString &name) {
+	const auto cache = [&] {
+		struct Session {
+			base::weak_ptr<Main::Session> session;
+			base::flat_map<QString, not_null<DocumentData*>> cache;
+		};
+		static auto Map = std::vector<Session>();
+		for (auto i = begin(Map); i != end(Map);) {
+			if (const auto strong = i->session.get()) {
+				if (strong == session) {
+					return &i->cache;
+				}
+				++i;
+			} else {
+				i = Map.erase(i);
+			}
+		}
+		Map.push_back({ .session = session });
+		return &Map.back().cache;
+	}();
+
+	const auto i = cache->find(name);
+	if (i != end(*cache)) {
+		return i->second;
+	}
+
 	const auto result = GenerateLocalSticker(
 		session,
 		u":/animations/"_q + name + u".tgs"_q);
+
+	cache->emplace(name, result);
 
 	Ensures(result->sticker()->isLottie());
 	return result;

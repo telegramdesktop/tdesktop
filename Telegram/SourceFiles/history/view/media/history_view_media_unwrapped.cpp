@@ -580,7 +580,10 @@ QPoint UnwrappedMedia::resolveCustomInfoRightBottom() const {
 	const auto fullRight = calculateFullRight(inner);
 	const auto skipx = st::msgDateImgPadding.x();
 	const auto skipy = st::msgDateImgPadding.y();
-	return QPoint(fullRight - skipx, fullBottom - skipy);
+	const auto infoWidth = _parent->infoWidth()
+		+ st::msgDateImgPadding.x() * 2
+		+ st::msgReplyPadding.left();
+	return QPoint(fullRight - skipx - infoWidth, fullBottom - skipy);
 }
 
 std::unique_ptr<StickerPlayer> UnwrappedMedia::stickerTakePlayer(

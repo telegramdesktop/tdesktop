@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #endif
 #include "base/random.h"
+#include "base/qt_connection.h"
 
 #include <QtCore/QAbstractEventDispatcher>
 
@@ -147,6 +148,10 @@ private:
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 	base::Platform::XDP::SettingWatcher _darkModeWatcher;
 #endif // Qt < 6.5.0
+#ifdef __GLIBC__
+	base::qt_connection _memoryTrim;
+	crl::time _memoryTrimmed = 0;
+#endif // __GLIBC__
 };
 
 LinuxIntegration::LinuxIntegration()
@@ -172,15 +177,13 @@ LinuxIntegration::LinuxIntegration()
 	}
 
 #ifdef __GLIBC__
-	mallopt(M_ARENA_MAX, 1);
-	QObject::connect(
+	_memoryTrim = QObject::connect(
 		QCoreApplication::eventDispatcher(),
 		&QAbstractEventDispatcher::aboutToBlock,
-		[] {
-			static auto since = crl::now();
-			if (crl::now() - since >= 10000) {
+		[=] {
+			if (crl::now() - _memoryTrimmed >= 10000) {
 				malloc_trim(0);
-				since = crl::now();
+				_memoryTrimmed = crl::now();
 			}
 		});
 #endif // __GLIBC__

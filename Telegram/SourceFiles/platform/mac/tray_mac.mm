@@ -260,11 +260,11 @@ NativeIcon::NativeIcon()
 			| NSKeyValueObservingOptionInitial
 		context:nil];
 
-	[_delegate closes] | rpl::start_with_next([=] {
+	[_delegate closes] | rpl::on_next([=] {
 		_status.menu = nil;
 	}, _lifetime);
 
-	[_delegate appearanceChanges] | rpl::start_with_next([=] {
+	[_delegate appearanceChanges] | rpl::on_next([=] {
 		updateIcon();
 	}, _lifetime);
 
@@ -336,7 +336,7 @@ void Tray::createIcon() {
 		// On macOS we are activating the window on click
 		// instead of showing the menu, when the window is not activated.
 		_nativeIcon->clicks(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (IsAnyActiveForTrayMenu()) {
 				_nativeIcon->showMenu(_menu.get());
 			} else {
@@ -379,7 +379,7 @@ void Tray::addAction(rpl::producer<QString> text, Fn<void()> &&callback) {
 	const auto action = _menu->addAction(QString(), std::move(callback));
 	std::move(
 		text
-	) | rpl::start_with_next([=](const QString &text) {
+	) | rpl::on_next([=](const QString &text) {
 		action->setText(text);
 	}, _actionsLifetime);
 }

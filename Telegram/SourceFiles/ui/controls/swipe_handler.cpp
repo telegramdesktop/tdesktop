@@ -101,14 +101,14 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 	if (args.dontStart) {
 		std::move(
 			args.dontStart
-		) | rpl::start_with_next([=](bool dontStart) {
+		) | rpl::on_next([=](bool dontStart) {
 			state->dontStart = dontStart;
 		}, state->lifetime);
 	} else {
 		v::match(scroll, [](v::null_t) {
 		}, [&](const auto &scroll) {
 			scroll->touchMaybePressing(
-			) | rpl::start_with_next([=](bool maybePressing) {
+			) | rpl::on_next([=](bool maybePressing) {
 				state->dontStart = maybePressing;
 			}, state->lifetime);
 		});
@@ -176,7 +176,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 	};
 	v::match(scroll, [](v::null_t) {
 	}, [&](const auto &scroll) {
-		scroll->scrolls() | rpl::start_with_next([=] {
+		scroll->scrolls() | rpl::on_next([=] {
 			if (state->orientation != Qt::Vertical) {
 				processEnd();
 			}
@@ -481,7 +481,7 @@ SwipeBackResult SetupSwipeBack(
 				state->back = base::make_unique_q<Ui::RpWidget>(widget);
 				const auto raw = state->back.get();
 				raw->paintRequest(
-				) | rpl::start_with_next(paintCallback(), raw->lifetime());
+				) | rpl::on_next(paintCallback(), raw->lifetime());
 				raw->setAttribute(Qt::WA_TransparentForMouseEvents);
 				raw->resize(Size(st::swipeBackSize));
 				raw->show();

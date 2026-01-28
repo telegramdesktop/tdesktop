@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_bar.h"
 #include "core/click_handler_types.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
@@ -24,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -225,8 +228,13 @@ void InlineList::setButtonCount(Button &button, int count) {
 	button.userpics = nullptr;
 	button.count = count;
 	button.tag = false;
-	button.text = Lang::FormatCountToShort(count).string;
-	button.textWidth = st::semiboldFont->width(button.text);
+	if (count == 0) {
+		button.text = QString();
+		button.textWidth = 0;
+	} else {
+		button.text = Lang::FormatCountToShort(count).string;
+		button.textWidth = st::semiboldFont->width(button.text);
+	}
 }
 
 void InlineList::setButtonUserpics(
@@ -305,6 +313,8 @@ QSize InlineList::countOptimalSize() {
 				+ (button.textWidth ? st::reactionInlineSkip : 0))
 			: button.userpics
 			? (widthBaseUserpics + userpicsWidth(button))
+			: button.count == 0
+			? (rect::m::sum::h(padding) + size - st::reactionInlineEmptySkip)
 			: (widthBaseCount + button.textWidth);
 		button.geometry.setSize({ width, height });
 		x += width + between;
@@ -828,6 +838,33 @@ InlineListData InlineListDataFromMessage(not_null<Element*> view) {
 	const auto item = view->data();
 	auto result = InlineListData();
 	result.reactions = item->reactionsWithLocal();
+
+	const auto shouldAddEmptyPaidButton = [&] {
+		if (view->context() == Context::ChatPreview) {
+			return false;
+		}
+		if (result.reactions.empty()) {
+			return false;
+		}
+		const auto hasPaidReaction = ranges::any_of(
+			result.reactions,
+			[](const MessageReaction &r) { return r.id.paid(); });
+		if (hasPaidReaction) {
+			return false;
+		}
+		if (const auto channel = item->history()->peer->asChannel()) {
+			return channel->allowedReactions().paidEnabled;
+		} else if (const auto chat = item->history()->peer->asChat()) {
+			return chat->allowedReactions().paidEnabled;
+		}
+		return false;
+	}();
+
+	if (shouldAddEmptyPaidButton) {
+		result.reactions.insert(
+			result.reactions.begin(),
+			MessageReaction{ .id = ReactionId::Paid(), .count = 0 });
+	}
 	if (const auto user = item->history()->peer->asUser()) {
 		// Always show userpics, we have all information.
 		result.recent.reserve(result.reactions.size());

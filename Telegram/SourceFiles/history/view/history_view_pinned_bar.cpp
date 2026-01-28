@@ -260,7 +260,7 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 			id
 		) | rpl::filter([=](PinnedId current) {
 			return current.message && (current.message != state->resolvedId);
-		}) | rpl::start_with_next([=](PinnedId current) {
+		}) | rpl::on_next([=](PinnedId current) {
 			const auto fullId = current.message;
 			state->lifetime.destroy();
 			state->resolvedId = fullId;
@@ -273,7 +273,7 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 					(Update::Flag::ReplyMarkup
 						| Update::Flag::Edited
 						| Update::Flag::Destroyed)
-				) | rpl::start_with_next([=](const Update &update) {
+				) | rpl::on_next([=](const Update &update) {
 					if (update.flags & Update::Flag::Destroyed) {
 						state->lifetime.destroy();
 						invalidate_weak_ptrs(&state->guard);

@@ -234,7 +234,7 @@ void Controller::createContent() {
 				_controls.joinToWrite->toggleOn(
 					rpl::single(_dataSavedValue->joinToWrite)
 				)->toggledValue(
-				) | rpl::start_with_next([=](bool toggled) {
+				) | rpl::on_next([=](bool toggled) {
 					_dataSavedValue->joinToWrite = toggled;
 				}, wrap->lifetime());
 			} else {
@@ -261,7 +261,7 @@ void Controller::createContent() {
 			_controls.requestToJoin->toggleOn(
 				rpl::single(_dataSavedValue->requestToJoin)
 			)->toggledValue(
-			) | rpl::start_with_next([=](bool toggled) {
+			) | rpl::on_next([=](bool toggled) {
 				_dataSavedValue->requestToJoin = toggled;
 			}, wrap->lifetime());
 
@@ -287,7 +287,7 @@ void Controller::createContent() {
 		_controls.noForwards->toggleOn(
 			rpl::single(_dataSavedValue->noForwards)
 		)->toggledValue(
-		) | rpl::start_with_next([=](bool toggled) {
+		) | rpl::on_next([=](bool toggled) {
 			_dataSavedValue->noForwards = toggled;
 		}, _wrap->lifetime());
 		Ui::AddSkip(_wrap.get());
@@ -441,11 +441,11 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 			username,
 			_peer->session().createInternalLink(QString())));
 	_controls.usernameInput->heightValue(
-	) | rpl::start_with_next([placeholder](int height) {
+	) | rpl::on_next([placeholder](int height) {
 		placeholder->resize(placeholder->width(), height);
 	}, placeholder->lifetime());
 	placeholder->widthValue(
-	) | rpl::start_with_next([this](int width) {
+	) | rpl::on_next([this](int width) {
 		_controls.usernameInput->resize(
 			width,
 			_controls.usernameInput->height());
@@ -553,7 +553,7 @@ void Controller::checkUsernameAvailability() {
 	const auto channel = _peer->migrateToOrMe()->asChannel();
 	const auto username = channel ? channel->editableUsername() : QString();
 	_checkUsernameRequestId = _api.request(MTPchannels_CheckUsername(
-		channel ? channel->inputChannel : MTP_inputChannelEmpty(),
+		channel ? channel->inputChannel() : MTP_inputChannelEmpty(),
 		MTP_string(checking)
 	)).done([=](const MTPBool &result) {
 		_checkUsernameRequestId = 0;
@@ -739,11 +739,11 @@ void EditPeerTypeBox::prepare() {
 		_useLocationPhrases,
 		_dataSavedValue);
 	controller->scrollToRequests(
-	) | rpl::start_with_next([=, raw = content.data()](int y) {
+	) | rpl::on_next([=, raw = content.data()](int y) {
 		scrollToY(raw->y() + y);
 	}, lifetime());
 	_focusRequests.events(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[=] {
 			controller->setFocusUsername();
 			if (_usernameError.has_value()) {

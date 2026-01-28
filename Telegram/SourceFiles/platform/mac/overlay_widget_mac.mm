@@ -182,12 +182,12 @@ object_ptr<Ui::AbstractButton> MacOverlayWidgetHelper::create(
 	rpl::merge(
 		_data->masterOpacity.changes() | rpl::to_empty,
 		_data->maximized.changes() | rpl::to_empty
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		raw->update();
 	}, raw->lifetime());
 
 	_data->clearStateRequests.events(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		raw->clearState();
 		raw->update();
 		state->over = raw->isOver();
@@ -273,7 +273,7 @@ object_ptr<Ui::AbstractButton> MacOverlayWidgetHelper::create(
 	};
 
 	raw->paintRequest(
-	) | rpl::start_with_next([=, padding = info.padding] {
+	) | rpl::on_next([=, padding = info.padding] {
 		updateOver();
 		prepareFrame();
 

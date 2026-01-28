@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "history/history.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 
 namespace Data {
 namespace {
@@ -42,11 +43,14 @@ constexpr auto kTopPromotionMinDelay = TimeId(10);
 
 } // namespace
 
-PromoSuggestions::PromoSuggestions(not_null<Main::Session*> session)
+PromoSuggestions::PromoSuggestions(
+	not_null<Main::Session*> session,
+	Fn<void()> firstPromoLoaded)
 : _session(session)
-, _topPromotionTimer([=] { refreshTopPromotion(); }) {
+, _topPromotionTimer([=] { refreshTopPromotion(); })
+, _firstPromoLoaded(std::move(firstPromoLoaded)) {
 	Core::App().settings().proxy().connectionTypeValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshTopPromotion();
 	}, _lifetime);
 }
@@ -100,6 +104,16 @@ void PromoSuggestions::refreshTopPromotion() {
 			) | ranges::views::transform([](const auto &suggestion) {
 				return qs(suggestion);
 			}) | ranges::to_vector;
+			for (const auto &suggestion : pendingSuggestions) {
+				if (suggestion == u"SETUP_LOGIN_EMAIL_NOSKIP"_q) {
+					_setupEmailState = SetupEmailState::SetupNoSkip;
+					break;
+				}
+				if (suggestion == u"SETUP_LOGIN_EMAIL"_q) {
+					_setupEmailState = SetupEmailState::Setup;
+					break;
+				}
+			}
 			if (!ranges::equal(_pendingSuggestions, pendingSuggestions)) {
 				_pendingSuggestions = std::move(pendingSuggestions);
 				changedPendingSuggestions = true;
@@ -146,6 +160,9 @@ void PromoSuggestions::refreshTopPromotion() {
 				_refreshed.fire({});
 			}
 		});
+		if (_firstPromoLoaded) {
+			base::take(_firstPromoLoaded)();
+		}
 	}).fail([=] {
 		_topPromotionRequestId = 0;
 		const auto now = base::unixtime::now();
@@ -226,6 +243,24 @@ void PromoSuggestions::dismiss(const QString &key) {
 		MTP_inputPeerEmpty(),
 		MTP_string(key)
 	)).send();
+}
+
+void PromoSuggestions::dismissSetupEmail(Fn<void()> done) {
+	auto key = QString();
+	if (_setupEmailState == SetupEmailState::SettingUp) {
+		key = u"SETUP_LOGIN_EMAIL"_q;
+	} else if (_setupEmailState == SetupEmailState::SettingUpNoSkip) {
+		key = u"SETUP_LOGIN_EMAIL_NOSKIP"_q;
+	} else {
+		return;
+	}
+	_session->api().request(MTPhelp_DismissSuggestion(
+		MTP_inputPeerEmpty(),
+		MTP_string(key)
+	)).done([=](const MTPBool &) {
+		_setupEmailState = SetupEmailState::None;
+		done();
+	}).send();
 }
 
 void PromoSuggestions::invalidate() {
@@ -309,6 +344,21 @@ std::optional<UserIds> PromoSuggestions::knownBirthdaysToday() const {
 QString PromoSuggestions::SugValidatePassword() {
 	static const auto key = u"VALIDATE_PASSWORD"_q;
 	return key;
+}
+
+void PromoSuggestions::setSetupEmailState(SetupEmailState state) {
+	if (_setupEmailState != state) {
+		_setupEmailState = state;
+		_setupEmailStateChanges.fire_copy(state);
+	}
+}
+
+SetupEmailState PromoSuggestions::setupEmailState() const {
+	return _setupEmailState;
+}
+
+rpl::producer<SetupEmailState> PromoSuggestions::setupEmailStateValue() const {
+	return _setupEmailStateChanges.events_starting_with_copy(_setupEmailState);
 }
 
 } // namespace Data

@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "api/api_chat_invite.h"
 #include "api/api_invite_links.h"
 #include "apiwrap.h"
@@ -115,8 +116,6 @@ std::unique_ptr<Data::SavedMessages> MegagroupInfo::takeMonoforumData() {
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
-, inputChannel(
-	MTP_inputChannel(MTP_long(peerToChannel(id).bare), MTP_long(0)))
 , _ptsWaiter(&owner->session().updates()) {
 }
 
@@ -175,13 +174,7 @@ bool ChannelData::isUsernameEditable(QString username) const {
 }
 
 void ChannelData::setAccessHash(uint64 accessHash) {
-	access = accessHash;
-	input = MTP_inputPeerChannel(
-		MTP_long(peerToChannel(id).bare),
-		MTP_long(accessHash));
-	inputChannel = MTP_inputChannel(
-		MTP_long(peerToChannel(id).bare),
-		MTP_long(accessHash));
+	_accessHash = accessHash;
 }
 
 void ChannelData::setFlags(ChannelDataFlags which) {
@@ -603,7 +596,7 @@ void ChannelData::markForbidden() {
 			? MTPDchannelForbidden::Flag::f_megagroup
 			: MTPDchannelForbidden::Flag::f_broadcast),
 		MTP_long(peerToChannel(id).bare),
-		MTP_long(access),
+		MTP_long(_accessHash),
 		MTP_string(name()),
 		MTPint()));
 }
@@ -763,9 +756,7 @@ bool ChannelData::canEditEmoji() const {
 }
 
 bool ChannelData::canDelete() const {
-	constexpr auto kDeleteChannelMembersLimit = 1000;
-	return amCreator()
-		&& (membersCount() <= kDeleteChannelMembersLimit);
+	return amCreator();
 }
 
 bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
@@ -1010,7 +1001,7 @@ rpl::producer<bool> ChannelData::unrestrictedByBoostsValue() const {
 	return mgInfo
 		? mgInfo->unrestrictedByBoostsChanges.events_starting_with(
 			unrestrictedByBoosts())
-		: (rpl::single(false) | rpl::type_erased());
+		: (rpl::single(false) | rpl::type_erased);
 }
 
 void ChannelData::setBoostsUnrestrict(int applied, int unrestrict) {
@@ -1099,7 +1090,7 @@ void ChannelData::setGroupCall(
 			data.vaccess_hash().v,
 			scheduleDate,
 			rtmp,
-			false); // conference
+			Data::GroupCallOrigin::Group);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 		addFlags(Flag::CallActive);
@@ -1158,20 +1149,34 @@ bool ChannelData::hasUnreadStories() const {
 	return flags() & Flag::HasUnreadStories;
 }
 
+bool ChannelData::hasActiveVideoStream() const {
+	return flags() & Flag::HasActiveVideoStream;
+}
+
 void ChannelData::setStoriesState(StoriesState state) {
 	Expects(state != StoriesState::Unknown);
 
 	const auto was = flags();
 	switch (state) {
 	case StoriesState::None:
-		_flags.remove(Flag::HasActiveStories | Flag::HasUnreadStories);
+		_flags.remove(Flag::HasActiveStories
+			| Flag::HasUnreadStories
+			| Flag::HasActiveVideoStream);
 		break;
 	case StoriesState::HasRead:
-		_flags.set(
-			(flags() & ~Flag::HasUnreadStories) | Flag::HasActiveStories);
+		_flags.set(Flag::HasActiveStories
+			| (was
+				& ~(Flag::HasUnreadStories | Flag::HasActiveVideoStream)));
 		break;
 	case StoriesState::HasUnread:
-		_flags.add(Flag::HasActiveStories | Flag::HasUnreadStories);
+		_flags.set((was & ~Flag::HasActiveVideoStream)
+			| Flag::HasActiveStories
+			| Flag::HasUnreadStories);
+		break;
+	case StoriesState::HasVideoStream:
+		_flags.set((was & ~Flag::HasUnreadStories)
+			| Flag::HasActiveStories
+			| Flag::HasActiveVideoStream);
 		break;
 	}
 	if (flags() != was) {
@@ -1196,6 +1201,19 @@ TimeId ChannelData::subscriptionUntilDate() const {
 
 void ChannelData::updateSubscriptionUntilDate(TimeId subscriptionUntilDate) {
 	_subscriptionUntilDate = subscriptionUntilDate;
+}
+
+MTPInputChannel ChannelData::inputChannel() const {
+	const auto item = isLoaded() ? nullptr : owner().messageWithPeer(id);
+	if (item) {
+		return MTP_inputChannelFromMessage(
+			item->history()->peer->input(),
+			MTP_int(item->id.bare),
+			MTP_long(peerToChannel(id).bare));
+	}
+	return MTP_inputChannel(
+		MTP_long(peerToChannel(id).bare),
+		MTP_long(_accessHash));
 }
 
 namespace Data {
@@ -1464,7 +1482,7 @@ void ApplyChannelUpdate(
 			}
 			creditsLoadLifetime->destroy();
 		});
-		base::timer_once(kTimeout) | rpl::start_with_next([=] {
+		base::timer_once(kTimeout) | rpl::on_next([=] {
 			creditsLoadLifetime->destroy();
 		}, *creditsLoadLifetime);
 		const auto currencyLoadLifetime = std::make_shared<rpl::lifetime>();
@@ -1476,13 +1494,13 @@ void ApplyChannelUpdate(
 			}
 			currencyLoadLifetime->destroy();
 		};
-		currencyLoad->request() | rpl::start_with_error_done(
+		currencyLoad->request() | rpl::on_error_done(
 			[=](const QString &error) {
 				apply(CreditsAmount(0, CreditsType::Ton));
 			},
 			[=] { apply(currencyLoad->data().currentBalance); },
 			*currencyLoadLifetime);
-		base::timer_once(kTimeout) | rpl::start_with_next([=] {
+		base::timer_once(kTimeout) | rpl::on_next([=] {
 			currencyLoadLifetime->destroy();
 		}, *currencyLoadLifetime);
 	}

@@ -29,7 +29,7 @@ void EditPeerHistoryVisibilityBox(
 			HistoryVisibility v) {
 		const auto button = Ui::CreateChild<Ui::AbstractButton>(inner.get());
 		inner->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
+		) | rpl::on_next([=](const QSize &s) {
 			button->resize(s);
 		}, button->lifetime());
 		button->setClickedCallback([=] { historyVisibility->setValue(v); });

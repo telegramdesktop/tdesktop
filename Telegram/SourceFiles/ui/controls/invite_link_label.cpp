@@ -33,7 +33,7 @@ InviteLinkLabel::InviteLinkLabel(
 		: (IconButton*)(nullptr);
 
 	_outer->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		const auto margin = st::inviteLinkFieldMargin;
 		const auto labelWidth = width - margin.left() - margin.right();
 		label->resizeToWidth(labelWidth);
@@ -48,7 +48,7 @@ InviteLinkLabel::InviteLinkLabel(
 	}, _outer->lifetime());
 
 	_outer->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(_outer.get());
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::filterInputInactiveBg);
@@ -72,7 +72,7 @@ InviteLinkLabel::InviteLinkLabel(
 					&& (static_cast<QMouseEvent*>(event.get())->button()
 						== Qt::RightButton);
 			}) | rpl::to_empty
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (_menu) {
 				_menu = nullptr;
 			} else if ((_menu = createMenu())) {

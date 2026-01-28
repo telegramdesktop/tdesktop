@@ -41,6 +41,7 @@ namespace Data {
 struct LastSpokeTimes;
 struct GroupCallParticipant;
 class GroupCall;
+enum class GroupCallOrigin : uchar;
 } // namespace Data
 
 namespace TdE2E {
@@ -48,9 +49,7 @@ class Call;
 class EncryptDecrypt;
 } // namespace TdE2E
 
-namespace Calls {
-
-namespace Group {
+namespace Calls::Group {
 struct MuteRequest;
 struct VolumeRequest;
 struct ParticipantState;
@@ -61,7 +60,9 @@ struct RtmpInfo;
 enum class VideoQuality;
 enum class Error;
 class Messages;
-} // namespace Group
+} // namespace Calls::Group
+
+namespace Calls {
 
 struct InviteRequest;
 struct InviteResult;
@@ -248,6 +249,7 @@ public:
 	[[nodiscard]] not_null<Group::Messages*> messages() const {
 		return _messages.get();
 	}
+	[[nodiscard]] not_null<PeerData*> messagesFrom() const;
 	[[nodiscard]] bool showChooseJoinAs() const;
 	[[nodiscard]] TimeId scheduleDate() const {
 		return _scheduleDate;
@@ -255,6 +257,8 @@ public:
 	[[nodiscard]] bool scheduleStartSubscribed() const;
 	[[nodiscard]] bool rtmp() const;
 	[[nodiscard]] bool conference() const;
+	[[nodiscard]] bool videoStream() const;
+	[[nodiscard]] Data::GroupCallOrigin origin() const;
 	[[nodiscard]] bool listenersHidden() const;
 	[[nodiscard]] bool emptyRtmp() const;
 	[[nodiscard]] rpl::producer<bool> emptyRtmpValue() const;
@@ -265,7 +269,7 @@ public:
 	void setRtmpInfo(const Group::RtmpInfo &value);
 
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
-	[[nodiscard]] std::shared_ptr<Data::GroupCall> conferenceCall() const;
+	[[nodiscard]] std::shared_ptr<Data::GroupCall> sharedCall() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
 	[[nodiscard]] rpl::producer<QByteArray> emojiHashValue() const;
 
@@ -285,6 +289,8 @@ public:
 	void handleIncomingMessage(const MTPDupdateGroupCallMessage &data);
 	void handleIncomingMessage(
 		const MTPDupdateGroupCallEncryptedMessage &data);
+	void handleDeleteMessages(const MTPDupdateDeleteGroupCallMessages &data);
+	void handleMessageSent(const MTPDupdateMessageID &data);
 	void changeTitle(const QString &title);
 	void toggleRecording(
 		bool enabled,
@@ -666,12 +672,13 @@ private:
 		Fn<not_null<InviteResult*>()> resultAddress,
 		Fn<void()> finishRequest);
 
+	[[nodiscard]] float64 singleSourceVolumeValue() const;
 	[[nodiscard]] int activeVideoSendersCount() const;
 
 	[[nodiscard]] MTPInputGroupCall inputCallSafe() const;
 
 	const not_null<Delegate*> _delegate;
-	std::shared_ptr<Data::GroupCall> _conferenceCall;
+	std::shared_ptr<Data::GroupCall> _sharedCall;
 	std::unique_ptr<TdE2E::Call> _e2e;
 	std::shared_ptr<TdE2E::EncryptDecrypt> _e2eEncryptDecrypt;
 	rpl::variable<QByteArray> _emojiHash;
@@ -687,7 +694,7 @@ private:
 	base::flat_set<uint32> _unresolvedSsrcs;
 	rpl::event_stream<Error> _errors;
 	std::vector<Fn<void()>> _rejoinedCallbacks;
-	std::unique_ptr<Group::Messages> _messages;
+	const std::unique_ptr<Group::Messages> _messages;
 	bool _recordingStoppedByMe = false;
 	bool _requestedVideoChannelsUpdateScheduled = false;
 
@@ -794,7 +801,7 @@ private:
 	bool _listenersHidden = false;
 	bool _rtmp = false;
 	bool _reloadedStaleCall = false;
-	int _rtmpVolume = 0;
+	int _singleSourceVolume = 0;
 
 	SubChainState _subchains[kSubChainsCount];
 

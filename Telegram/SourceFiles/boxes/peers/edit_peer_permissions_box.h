@@ -69,6 +69,7 @@ struct EditFlagsControl {
 	object_ptr<Ui::RpWidget> widget;
 	Fn<Flags()> value;
 	rpl::producer<Flags> changes;
+	QPointer<Ui::RpWidget> highlightWidget;
 };
 
 template <typename Flags>
@@ -83,6 +84,7 @@ struct EditFlagsDescriptor {
 	base::flat_map<Flags, QString> disabledMessages;
 	const style::SettingsButton *st = nullptr;
 	rpl::producer<QString> forceDisabledMessage;
+	Flags highlightFlags = Flags();
 };
 
 using RestrictionLabel = EditFlagsLabel<ChatRestrictions>;
@@ -117,7 +119,8 @@ using AdminRightLabel = EditFlagsLabel<ChatAdminRights>;
 [[nodiscard]] auto CreateEditPowerSaving(
 	QWidget *parent,
 	PowerSaving::Flags flags,
-	rpl::producer<QString> forceDisabledMessage
+	rpl::producer<QString> forceDisabledMessage,
+	PowerSaving::Flags highlightFlags = PowerSaving::Flags()
 ) -> EditFlagsControl<PowerSaving::Flags>;
 
 [[nodiscard]] auto CreateEditAdminLogFilter(

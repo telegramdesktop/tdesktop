@@ -195,7 +195,7 @@ void CornerButtons::pushReplyReturn(not_null<HistoryItem*> item) {
 	if (!_replyReturnStarted) {
 		_replyReturnStarted = true;
 		item->history()->owner().itemRemoved(
-		) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+		) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 			while (item == _replyReturn) {
 				calculateNextReplyReturn();
 			}

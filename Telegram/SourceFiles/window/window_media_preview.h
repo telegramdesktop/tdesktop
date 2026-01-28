@@ -40,7 +40,8 @@ public:
 	void hidePreview();
 	void setCustomPadding(const QMargins &padding = QMargins());
 	void setBackgroundMargins(const QMargins &margins = QMargins());
-	void setCornersSkip(int pixels);
+	void setCustomRadius(int radius);
+	void setCustomDuration(crl::time duration);
 
 	~MediaPreviewWidget();
 
@@ -92,7 +93,8 @@ private:
 	mutable QSize _cachedSize;
 	QMargins _customPadding;
 	QMargins _backgroundMargins;
-	int _cornersSkip = 0;
+	int _customRadius = 0;
+	crl::time _customDuration = 0;
 
 };
 

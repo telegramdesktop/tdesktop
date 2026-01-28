@@ -16,6 +16,7 @@ HistoryMessageEdition::HistoryMessageEdition(
 : suggest(HistoryMessageSuggestInfo(message.vsuggested_post())) {
 	isEditHide = message.is_edit_hide();
 	isMediaUnread = message.is_media_unread();
+	repeatPeriod = message.vschedule_repeat_period().value_or_empty();
 	editDate = message.vedit_date().value_or(-1);
 	textWithEntities = TextWithEntities{
 		qs(message.vmessage()),

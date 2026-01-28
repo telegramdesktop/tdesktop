@@ -64,3 +64,6 @@ settings.local.json
 # Cursor IDE local settings (but keep .cursor/rules/)
 .cursor/*
 !.cursor/rules/
+
+# AI work folder (session-specific, not for version control)
+docs/ai/work/

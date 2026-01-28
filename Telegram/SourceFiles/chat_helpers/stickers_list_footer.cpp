@@ -248,7 +248,7 @@ bool StickersListFooter::ScrollState::animationCallback(crl::time now) {
 
 GradientPremiumStar::GradientPremiumStar() {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_image = QImage();
 	}, _lifetime);
 }
@@ -302,7 +302,7 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 	_iconsRight = st().iconSkip;
 
 	_session->downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 }
@@ -1199,7 +1199,7 @@ void StickersListFooter::validateIconLottieAnimation(
 
 	const auto id = icon.setId;
 	icon.lottie->updates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateSetIcon(id);
 	}, icon.lifetime);
 }

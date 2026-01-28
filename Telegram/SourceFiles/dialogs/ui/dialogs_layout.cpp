@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
+#include "data/data_thread.h"
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "dialogs/dialogs_list.h"
@@ -587,7 +588,7 @@ void PaintRow(
 							.entities = ConvertTextTagsToEntities(
 								draft->textWithTags.tags),
 						}),
-						Text::WithEntities);
+						tr::marked);
 				if (draft && draft->reply) {
 					draftText = Ui::Text::Colorized(
 						Ui::Text::IconEmoji(&st::dialogsMiniReplyIcon)
@@ -1198,20 +1199,20 @@ void RowPainter::Paint(
 }
 
 QRect RowPainter::SendActionAnimationRect(
-		not_null<const style::DialogRow*> st,
-		int animationLeft,
-		int animationWidth,
-		int animationHeight,
+		not_null<const Data::Thread*> thread,
+		FilterId filterId,
+		QRect rect,
 		int fullWidth,
 		bool textUpdated) {
-	const auto nameleft = st->nameLeft;
-	const auto namewidth = fullWidth - nameleft - st->padding.right();
-	const auto texttop = st->textTop;
+	const auto &st = Row::ComputeSt(thread, filterId);
+	const auto nameleft = st.nameLeft;
+	const auto namewidth = fullWidth - nameleft - st.padding.right();
+	const auto texttop = st.textTop;
 	return QRect(
-		nameleft + (textUpdated ? 0 : animationLeft),
-		texttop,
-		textUpdated ? namewidth : animationWidth,
-		animationHeight);
+		nameleft + (textUpdated ? 0 : rect.x()),
+		texttop + rect.y(),
+		textUpdated ? namewidth : rect.width(),
+		rect.height());
 }
 
 void PaintCollapsedRow(

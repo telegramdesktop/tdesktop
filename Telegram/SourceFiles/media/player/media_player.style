@@ -160,8 +160,8 @@ mediaPlayerCancelIcon: icon{
 
 mediaPlayerMenu: DropdownMenu(defaultDropdownMenu) {
 	wrap: InnerDropdown(defaultInnerDropdown) {
-		scrollPadding: margins(0px, 4px, 0px, 4px);
-		padding: margins(10px, 2px, 10px, 10px);
+		scrollPadding: margins(0px, 6px, 0px, 6px);
+		padding: margins(10px, 10px, 10px, 10px);
 	}
 }
 mediaPlayerMenuCheck: icon {{ "player/player_check", mediaPlayerActiveFg }};

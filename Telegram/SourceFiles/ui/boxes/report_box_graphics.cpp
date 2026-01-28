@@ -159,7 +159,7 @@ void ReportDetailsBox(
 		const auto text = details->getLastText();
 		done(text);
 	};
-	details->submits() | rpl::start_with_next(submit, details->lifetime());
+	details->submits() | rpl::on_next(submit, details->lifetime());
 	box->addButton(tr::lng_report_button(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
@@ -183,11 +183,11 @@ not_null<Ui::AbstractButton*> AddReportOptionButton(
 	label->setTextColorOverride(textFg);
 	const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
 	icon->resize(st::settingsPremiumArrow.size());
-	icon->paintRequest() | rpl::start_with_next([=, w = icon->width()] {
+	icon->paintRequest() | rpl::on_next([=, w = icon->width()] {
 		auto p = Painter(icon);
 		st::settingsPremiumArrow.paint(p, 0, 0, w, textFg);
 	}, icon->lifetime());
-	button->sizeValue() | rpl::start_with_next([=](const QSize &size) {
+	button->sizeValue() | rpl::on_next([=](const QSize &size) {
 		const auto left = button->st().padding.left();
 		const auto right = button->st().padding.right();
 		icon->moveToRight(right, (size.height() - icon->height()) / 2);
@@ -211,7 +211,7 @@ void AddReportDetailsIconButton(not_null<GenericBox*> box) {
 		box->verticalLayout(),
 		{
 			.name = u"blocked_peers_empty"_q,
-			.sizeOverride = Size(st::changePhoneIconSize),
+			.sizeOverride = st::normalBoxLottieSize,
 		},
 		{});
 	box->setShowFinishedCallback([animate = std::move(icon.animate)] {

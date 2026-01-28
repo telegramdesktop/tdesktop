@@ -58,7 +58,7 @@ object_ptr<Ui::RpWidget> CreateValidateGoodIcon(
 			size),
 		1,
 		true);
-	widget->paintRequest() | rpl::start_with_next([=] {
+	widget->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(widget);
 		state->emoji->paint(p, Ui::Text::CustomEmojiPaintContext{
 			.textColor = st::windowFg->c,

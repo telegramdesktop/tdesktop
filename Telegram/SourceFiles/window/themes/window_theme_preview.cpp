@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_three_state_icon.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "platform/platform_window_title.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -565,7 +566,13 @@ void Generator::paintComposeArea() {
 		: st::historyAttach.iconPosition.y();
 	st::historyAttach.icon[_palette].paint(*_p, _composeArea.x() + attachIconLeft, controlsTop + attachIconTop, _rect.width());
 	auto right = st::historySendRight + st::historySendSize.width();
-	st::historyRecordVoice[_palette].paintInCenter(*_p, QRect(_composeArea.x() + _composeArea.width() - right, controlsTop, st::historySendSize.width(), st::historySendSize.height()));
+
+	const auto recordIcon = Lottie::MakeIcon({
+		.path = u":/animations/chat/voice_to_video.tgs"_q,
+		.sizeOverride = st::historySend.recordSize,
+		.colorizeUsingAlpha = true,
+	});
+	recordIcon->paintInCenter(*_p, QRect(_composeArea.x() + _composeArea.width() - right, controlsTop, st::historySendSize.width(), st::historySendSize.height()), st::historyRecordVoiceFg[_palette]->c);
 
 	const auto &emojiButton = st::historyAttachEmoji.inner;
 	const auto emojiIconLeft = (emojiButton.iconPosition.x() < 0)

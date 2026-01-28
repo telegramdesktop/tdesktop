@@ -21,6 +21,8 @@ struct UserpicsInfo;
 struct UserpicsSlice;
 struct StoriesInfo;
 struct StoriesSlice;
+struct ProfileMusicInfo;
+struct ProfileMusicSlice;
 struct ContactsList;
 struct SessionsList;
 struct DialogsInfo;
@@ -50,6 +52,7 @@ public:
 	struct StartInfo {
 		int userpicsCount = 0;
 		int storiesCount = 0;
+		int profileMusicCount = 0;
 		int dialogsCount = 0;
 	};
 	void startExport(
@@ -86,6 +89,12 @@ public:
 		Fn<bool(Data::StoriesSlice&&)> slice,
 		FnMut<void()> finish);
 
+	void requestProfileMusic(
+		FnMut<bool(Data::ProfileMusicInfo&&)> start,
+		Fn<bool(DownloadProgress)> progress,
+		Fn<bool(Data::ProfileMusicSlice&&)> slice,
+		FnMut<void()> finish);
+
 	void requestContacts(FnMut<void(Data::ContactsList&&)> done);
 
 	void requestSessions(FnMut<void(Data::SessionsList&&)> done);
@@ -93,6 +102,15 @@ public:
 	void requestMessages(
 		const Data::DialogInfo &info,
 		FnMut<bool(const Data::DialogInfo &)> start,
+		Fn<bool(DownloadProgress)> progress,
+		Fn<bool(Data::MessagesSlice&&)> slice,
+		FnMut<void()> done);
+
+	void requestTopicMessages(
+		PeerId peerId,
+		MTPInputPeer inputPeer,
+		int32 topicRootId,
+		FnMut<bool(int count)> start,
 		Fn<bool(DownloadProgress)> progress,
 		Fn<bool(Data::MessagesSlice&&)> slice,
 		FnMut<void()> done);
@@ -109,18 +127,22 @@ private:
 	struct ContactsProcess;
 	struct UserpicsProcess;
 	struct StoriesProcess;
+	struct ProfileMusicProcess;
 	struct OtherDataProcess;
 	struct FileProcess;
 	struct FileProgress;
 	struct ChatsProcess;
 	struct LeftChannelsProcess;
 	struct DialogsProcess;
+	struct AbstractMessagesProcess;
 	struct ChatProcess;
+	struct TopicProcess;
 
 	void startMainSession(FnMut<void()> done);
 	void sendNextStartRequest();
 	void requestUserpicsCount();
 	void requestStoriesCount();
+	void requestProfileMusicCount();
 	void requestSplitRanges();
 	void requestDialogsCount();
 	void requestLeftChannelsCount();
@@ -145,6 +167,16 @@ private:
 	void loadStoryThumbDone(const QString &relativePath);
 	void finishStoriesSlice();
 	void finishStories();
+
+	void handleProfileMusicSlice(const MTPusers_SavedMusic &result);
+	void loadProfileMusicFiles(Data::ProfileMusicSlice &&slice);
+	void loadNextProfileMusic();
+	bool loadProfileMusicProgress(FileProgress value);
+	void loadProfileMusicDone(const QString &relativePath);
+	bool loadProfileMusicThumbProgress(FileProgress value);
+	void loadProfileMusicThumbDone(const QString &relativePath);
+	void finishProfileMusicSlice();
+	void finishProfileMusic();
 
 	void otherDataDone(const QString &relativePath);
 
@@ -181,6 +213,12 @@ private:
 		int addOffset,
 		int limit,
 		FnMut<void(MTPmessages_Messages&&)> done);
+	void requestTopicMessagesSlice();
+	void requestTopicReplies(
+		int offsetId,
+		int addOffset,
+		int limit,
+		FnMut<void(MTPmessages_Messages&&)> done);
 	void collectMessagesCustomEmoji(const Data::MessagesSlice &slice);
 	void resolveCustomEmoji();
 	void loadMessagesFiles(Data::MessagesSlice &&slice);
@@ -195,6 +233,17 @@ private:
 	void loadMessageEmojiDone(uint64 id, const QString &relativePath);
 	void finishMessagesSlice();
 	void finishMessages();
+
+	void loadTopicMessagesFiles(Data::MessagesSlice &&slice);
+	void resolveTopicCustomEmoji();
+	void loadNextTopicMessageFile();
+	bool loadTopicEmojiProgress(FileProgress progress);
+	void loadCustomEmojiDone(uint64 id, const QString &relativePath);
+	void loadTopicMessageFileOrThumbDone(
+		Data::File &file,
+		const QString &relativePath);
+	void finishTopicMessagesSlice();
+	void finishTopicMessages();
 
 	[[nodiscard]] Data::Message *currentFileMessage() const;
 	[[nodiscard]] Data::FileOrigin currentFileMessageOrigin() const;
@@ -258,11 +307,13 @@ private:
 	std::unique_ptr<ContactsProcess> _contactsProcess;
 	std::unique_ptr<UserpicsProcess> _userpicsProcess;
 	std::unique_ptr<StoriesProcess> _storiesProcess;
+	std::unique_ptr<ProfileMusicProcess> _profileMusicProcess;
 	std::unique_ptr<OtherDataProcess> _otherDataProcess;
 	std::unique_ptr<FileProcess> _fileProcess;
 	std::unique_ptr<LeftChannelsProcess> _leftChannelsProcess;
 	std::unique_ptr<DialogsProcess> _dialogsProcess;
 	std::unique_ptr<ChatProcess> _chatProcess;
+	std::unique_ptr<TopicProcess> _topicProcess;
 	base::flat_set<uint64> _unresolvedCustomEmoji;
 	base::flat_map<uint64, Data::Document> _resolvedCustomEmoji;
 	QVector<MTPMessageRange> _splits;

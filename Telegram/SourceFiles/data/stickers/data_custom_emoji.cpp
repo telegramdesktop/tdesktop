@@ -259,7 +259,7 @@ void CustomEmojiLoader::load(Fn<void(LoadResult)> loaded) {
 				check();
 			} else {
 				load->document->session().downloaderTaskFinished(
-				) | rpl::start_with_next([=] {
+				) | rpl::on_next([=] {
 					check();
 				}, load->process->lifetime);
 			}
@@ -463,7 +463,7 @@ CustomEmojiManager::CustomEmojiManager(not_null<Session*> owner)
 	appConfig->value(
 	) | rpl::take_while([=] {
 		return !_coloredSetId;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		const auto setId = appConfig->get<QString>(
 			"default_emoji_statuses_stickerset_id",
 			QString()).toULongLong();
@@ -879,15 +879,15 @@ void CustomEmojiManager::repaintLater(
 		not_null<Ui::CustomEmoji::Instance*> instance,
 		Ui::CustomEmoji::RepaintRequest request) {
 	auto &bunch = _repaints[request.duration];
-	if (bunch.when < request.when) {
-		if (bunch.when > 0) {
-			for (const auto &already : bunch.instances) {
-				if (already.get() == instance) {
-					// Still waiting for full bunch repaint, don't bump.
-					return;
-				}
+	if (bunch.when > 0) {
+		for (const auto &already : bunch.instances) {
+			if (already.get() == instance) {
+				// Still waiting for full bunch repaint, don't bump.
+				return;
 			}
 		}
+	}
+	if (bunch.when < request.when) {
 		bunch.when = request.when;
 #if 0 // inject-to-on_main
 		_repaintsLastAdded = request.when;
@@ -917,7 +917,7 @@ void CustomEmojiManager::scheduleRepaintTimer() {
 #if 0 // inject-to-on_main
 	if (!_repaintsLifetime) {
 		crl::on_main_update_requests(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			invokeRepaints();
 		}, _repaintsLifetime);
 	}

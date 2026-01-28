@@ -157,7 +157,7 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 , _stopSessionsTimer([=] { stopSessions(); }) {
 	const auto session = &_api->session();
 	photoReady(
-	) | rpl::start_with_next([=](UploadedMedia &&data) {
+	) | rpl::on_next([=](UploadedMedia &&data) {
 		if (data.edit) {
 			const auto item = session->data().message(data.fullId);
 			Api::EditMessageWithUploadedPhoto(
@@ -173,7 +173,7 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	}, _lifetime);
 
 	documentReady(
-	) | rpl::start_with_next([=](UploadedMedia &&data) {
+	) | rpl::on_next([=](UploadedMedia &&data) {
 		if (data.edit) {
 			const auto item = session->data().message(data.fullId);
 			Api::EditMessageWithUploadedDocument(
@@ -189,27 +189,27 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	}, _lifetime);
 
 	photoProgress(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::on_next([=](const FullMsgId &fullId) {
 		processPhotoProgress(fullId);
 	}, _lifetime);
 
 	photoFailed(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::on_next([=](const FullMsgId &fullId) {
 		processPhotoFailed(fullId);
 	}, _lifetime);
 
 	documentProgress(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::on_next([=](const FullMsgId &fullId) {
 		processDocumentProgress(fullId);
 	}, _lifetime);
 
 	documentFailed(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::on_next([=](const FullMsgId &fullId) {
 		processDocumentFailed(fullId);
 	}, _lifetime);
 
 	_api->instance().nonPremiumDelayedRequests(
-	) | rpl::start_with_next([=](mtpRequestId id) {
+	) | rpl::on_next([=](mtpRequestId id) {
 		const auto i = _requests.find(id);
 		if (i != end(_requests)) {
 			i->second.nonPremiumDelayed = true;
@@ -970,7 +970,7 @@ void Uploader::uploadCoverAsPhoto(
 	_api->request(MTPmessages_UploadMedia(
 		MTP_flags(0),
 		MTPstring(), // business_connection_id
-		session().data().peer(videoId.peer)->input,
+		session().data().peer(videoId.peer)->input(),
 		MTP_inputMediaUploadedPhoto(
 			MTP_flags(0),
 			cover.info.file,

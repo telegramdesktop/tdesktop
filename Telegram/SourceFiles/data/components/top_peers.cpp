@@ -72,7 +72,7 @@ void TopPeers::loadAfterChats() {
 	using namespace rpl::mappers;
 	crl::on_main(_session, [=] {
 		_session->data().chatsListLoadedEvents(
-		) | rpl::filter(_1 == nullptr) | rpl::start_with_next([=] {
+		) | rpl::filter(_1 == nullptr) | rpl::on_next([=] {
 			crl::on_main(_session, [=] {
 				request();
 			});
@@ -109,7 +109,7 @@ void TopPeers::remove(not_null<PeerData*> peer) {
 
 	_requestId = _session->api().request(MTPcontacts_ResetTopPeerRating(
 		TypeToCategory(_type),
-		peer->input
+		peer->input()
 	)).send();
 }
 

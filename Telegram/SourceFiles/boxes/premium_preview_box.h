@@ -73,6 +73,8 @@ enum class PremiumFeature {
 	Effects,
 	FilterTags,
 	TodoLists,
+	PeerColors,
+	Gifts,
 
 	// Business features.
 	BusinessLocation,

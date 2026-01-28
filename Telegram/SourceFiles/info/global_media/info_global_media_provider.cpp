@@ -111,12 +111,12 @@ Provider::Provider(not_null<AbstractController*> controller)
 , _type(_controller->section().mediaType())
 , _slice(sliceKey(_aroundId)) {
 	_controller->session().data().itemRemoved(
-	) | rpl::start_with_next([this](auto item) {
+	) | rpl::on_next([this](auto item) {
 		itemRemoved(item);
 	}, _lifetime);
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (auto &layout : _layouts) {
 			layout.second.item->invalidateCache();
 		}
@@ -341,7 +341,7 @@ void Provider::refreshViewer() {
 			_idsLimit,
 			_idsLimit);
 	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](GlobalMediaSlice &&slice) {
+	) | rpl::on_next([=](GlobalMediaSlice &&slice) {
 		if (!slice.fullCount()) {
 			// Don't display anything while full count is unknown.
 			return;

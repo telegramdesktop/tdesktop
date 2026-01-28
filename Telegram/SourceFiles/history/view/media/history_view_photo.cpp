@@ -946,7 +946,7 @@ bool Photo::createStreamingObjects() {
 			_data,
 			_realParent->fullId())));
 	_streamed->instance.player().updates(
-	) | rpl::start_with_next_error([=](Update &&update) {
+	) | rpl::on_next_error([=](Update &&update) {
 		handleStreamingUpdate(std::move(update));
 	}, [=](Error &&error) {
 		handleStreamingError(std::move(error));

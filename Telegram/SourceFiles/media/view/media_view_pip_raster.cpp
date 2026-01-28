@@ -70,7 +70,7 @@ Pip::RendererSW::RendererSW(not_null<Pip*> owner)
 }
 
 void Pip::RendererSW::paintFallback(
-		Painter &&p,
+		Painter &p,
 		const QRegion &clip,
 		Ui::GL::Backend backend) {
 	_p = &p;

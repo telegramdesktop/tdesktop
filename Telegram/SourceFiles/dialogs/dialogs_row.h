@@ -87,6 +87,10 @@ public:
 	Row(Key key, int index, int top);
 	~Row();
 
+	[[nodiscard]] static const style::DialogRow &ComputeSt(
+		not_null<const Entry*> entry,
+		FilterId filterId);
+
 	[[nodiscard]] int top() const {
 		return _top;
 	}
@@ -178,9 +182,10 @@ private:
 		QImage frame;
 		QImage cacheTTL;
 		int frameIndex = -1;
-		uint32 paletteVersion : 17 = 0;
+		uint32 paletteVersion : 16 = 0;
 		uint32 storiesCount : 7 = 0;
 		uint32 storiesUnreadCount : 7 = 0;
+		uint32 storiesHasVideoStream : 1 = 0;
 		uint32 active : 1 = 0;
 	};
 

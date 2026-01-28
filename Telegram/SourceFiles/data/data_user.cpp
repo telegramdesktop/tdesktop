@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_wall_paper.h"
 #include "data/notify/data_notify_settings.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
@@ -235,20 +236,34 @@ bool UserData::hasUnreadStories() const {
 	return flags() & Flag::HasUnreadStories;
 }
 
+bool UserData::hasActiveVideoStream() const {
+	return flags() & Flag::HasActiveVideoStream;
+}
+
 void UserData::setStoriesState(StoriesState state) {
 	Expects(state != StoriesState::Unknown);
 
 	const auto was = flags();
 	switch (state) {
 	case StoriesState::None:
-		_flags.remove(Flag::HasActiveStories | Flag::HasUnreadStories);
+		_flags.remove(Flag::HasActiveStories
+			| Flag::HasUnreadStories
+			| Flag::HasActiveVideoStream);
 		break;
 	case StoriesState::HasRead:
-		_flags.set(
-			(flags() & ~Flag::HasUnreadStories) | Flag::HasActiveStories);
+		_flags.set(Flag::HasActiveStories
+			| (was
+				& ~(Flag::HasUnreadStories | Flag::HasActiveVideoStream)));
 		break;
 	case StoriesState::HasUnread:
-		_flags.add(Flag::HasActiveStories | Flag::HasUnreadStories);
+		_flags.set((was & ~Flag::HasActiveVideoStream)
+			| Flag::HasActiveStories
+			| Flag::HasUnreadStories);
+		break;
+	case StoriesState::HasVideoStream:
+		_flags.set((was & ~Flag::HasUnreadStories)
+			| Flag::HasActiveStories
+			| Flag::HasActiveVideoStream);
 		break;
 	}
 	if (flags() != was) {
@@ -301,6 +316,24 @@ void UserData::setPersonalChannel(ChannelId channelId, MsgId messageId) {
 		_personalChannelMessageId = messageId;
 		session().changes().peerUpdated(this, UpdateFlag::PersonalChannel);
 	}
+}
+
+MTPInputUser UserData::inputUser() const {
+	const auto item = isLoaded() ? nullptr : owner().messageWithPeer(id);
+	if (item) {
+		const auto peer = item->history()->peer;
+		Assert(peer.get() != this);
+
+		return MTP_inputUserFromMessage(
+			item->history()->peer->input(),
+			MTP_int(item->id.bare),
+			MTP_long(peerToUser(id).bare));
+	} else if (isSelf()) {
+		return MTP_inputUserSelf();
+	}
+	return MTP_inputUser(
+		MTP_long(peerToUser(id).bare),
+		MTP_long(_accessHash));
 }
 
 void UserData::setName(
@@ -903,7 +936,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 				}
 				creditsLoadLifetime->destroy();
 			});
-			base::timer_once(kTimeout) | rpl::start_with_next([=] {
+			base::timer_once(kTimeout) | rpl::on_next([=] {
 				creditsLoadLifetime->destroy();
 			}, *creditsLoadLifetime);
 			const auto currencyLoadLifetime
@@ -916,13 +949,13 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 				}
 				currencyLoadLifetime->destroy();
 			};
-			currencyLoad->request() | rpl::start_with_error_done(
+			currencyLoad->request() | rpl::on_error_done(
 				[=](const QString &error) {
 					apply(CreditsAmount(0, CreditsType::Ton));
 				},
 				[=] { apply(currencyLoad->data().currentBalance); },
 				*currencyLoadLifetime);
-			base::timer_once(kTimeout) | rpl::start_with_next([=] {
+			base::timer_once(kTimeout) | rpl::on_next([=] {
 				currencyLoadLifetime->destroy();
 			}, *currencyLoadLifetime);
 		}
@@ -975,6 +1008,9 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 				: Api::DisallowedGiftType())
 			| (data.is_disallow_premium_gifts()
 				? Api::DisallowedGiftType::Premium
+				: Api::DisallowedGiftType())
+			| (data.is_disallow_stargifts_from_channels()
+				? Api::DisallowedGiftType::FromChannels
 				: Api::DisallowedGiftType())
 			| (update.is_display_gifts_button()
 				? Api::DisallowedGiftType::SendHide

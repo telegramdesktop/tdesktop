@@ -89,6 +89,10 @@ struct StoriesInfo {
 	int count = 0;
 };
 
+struct ProfileMusicInfo {
+	int count = 0;
+};
+
 struct FileLocation {
 	int dcId = 0;
 	MTPInputFileLocation data;
@@ -612,7 +616,7 @@ struct ActionWebViewDataSent {
 
 struct ActionGiftPremium {
 	Utf8String cost;
-	int months = 0;
+	int days = 0;
 };
 
 struct ActionTopicCreate {
@@ -637,7 +641,7 @@ struct ActionSetChatWallPaper {
 struct ActionGiftCode {
 	QByteArray code;
 	PeerId boostPeerId = 0;
-	int months = 0;
+	int days = 0;
 	bool viaGiveaway = false;
 	bool unclaimed = false;
 };
@@ -686,6 +690,13 @@ struct ActionStarGift {
 	std::vector<TextPart> text;
 	bool anonymous = false;
 	bool limited = false;
+
+	CreditsAmount offerPrice;
+	TimeId offerExpireAt = 0;
+	bool offer = false;
+	bool offerAccepted = false;
+	bool offerDeclined = false;
+	bool offerExpired = false;
 };
 
 struct ActionPaidMessagesRefunded {
@@ -928,6 +939,11 @@ struct StoriesSlice {
 StoriesSlice ParseStoriesSlice(
 	const MTPVector<MTPStoryItem> &data,
 	int baseIndex);
+
+struct ProfileMusicSlice {
+	std::vector<Message> list;
+	int skipped = 0;
+};
 
 Message ParseMessage(
 	ParseMediaContext &context,

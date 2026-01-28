@@ -349,7 +349,7 @@ void Call::startOutgoing() {
 		: MTPphone_RequestCall::Flag(0);
 	_api.request(MTPphone_RequestCall(
 		MTP_flags(flags),
-		_user->inputUser,
+		_user->inputUser(),
 		MTP_int(base::RandomValue<int32>()),
 		MTP_bytes(_gaHash),
 		MTP_phoneCallProtocol(
@@ -530,7 +530,7 @@ void Call::setupMediaDevices() {
 
 	_playbackDeviceId.changes() | rpl::filter([=] {
 		return _instance && _setDeviceIdCallback;
-	}) | rpl::start_with_next([=](const Webrtc::DeviceResolvedId &deviceId) {
+	}) | rpl::on_next([=](const Webrtc::DeviceResolvedId &deviceId) {
 		_setDeviceIdCallback(deviceId);
 
 		// Value doesn't matter here, just trigger reading of the new value.
@@ -539,7 +539,7 @@ void Call::setupMediaDevices() {
 
 	_captureDeviceId.changes() | rpl::filter([=] {
 		return _instance && _setDeviceIdCallback;
-	}) | rpl::start_with_next([=](const Webrtc::DeviceResolvedId &deviceId) {
+	}) | rpl::on_next([=](const Webrtc::DeviceResolvedId &deviceId) {
 		_setDeviceIdCallback(deviceId);
 
 		// Value doesn't matter here, just trigger reading of the new value.
@@ -557,7 +557,7 @@ void Call::setupOutgoingVideo() {
 		_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 	}
 	_videoOutgoing->stateValue(
-	) | rpl::start_with_next([=](Webrtc::VideoState state) {
+	) | rpl::on_next([=](Webrtc::VideoState state) {
 		if (state != Webrtc::VideoState::Inactive
 			&& cameraId().isEmpty()
 			&& !_videoCaptureIsScreencast) {
@@ -598,7 +598,7 @@ void Call::setupOutgoingVideo() {
 	_cameraDeviceId.changes(
 	) | rpl::filter([=] {
 		return !_videoCaptureIsScreencast;
-	}) | rpl::start_with_next([=](Webrtc::DeviceResolvedId deviceId) {
+	}) | rpl::on_next([=](Webrtc::DeviceResolvedId deviceId) {
 		const auto &id = deviceId.value;
 		_videoCaptureDeviceId = id;
 		if (_videoCapture) {
@@ -822,7 +822,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			box->sends(
 			) | rpl::take(
 				1 // Instead of keeping requestId.
-			) | rpl::start_with_next([=](const Ui::RateCallBox::Result &r) {
+			) | rpl::on_next([=](const Ui::RateCallBox::Result &r) {
 				sender->request(MTPphone_SetCallRating(
 					MTP_flags(0),
 					MTP_inputPhoneCall(
@@ -1196,7 +1196,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	raw->setIncomingVideoOutput(_videoIncoming->sink());
 	raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 
-	_state.value() | rpl::start_with_next([=](State state) {
+	_state.value() | rpl::on_next([=](State state) {
 		const auto track = (state != State::FailedHangingUp)
 			&& (state != State::Failed)
 			&& (state != State::HangingUp)
@@ -1207,13 +1207,13 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		Core::App().mediaDevices().setCaptureMuteTracker(this, track);
 	}, _instanceLifetime);
 
-	_muted.value() | rpl::start_with_next([=](bool muted) {
+	_muted.value() | rpl::on_next([=](bool muted) {
 		Core::App().mediaDevices().setCaptureMuted(muted);
 	}, _instanceLifetime);
 
 #if 0
 	Core::App().batterySaving().value(
-	) | rpl::start_with_next([=](bool isSaving) {
+	) | rpl::on_next([=](bool isSaving) {
 		crl::on_main(weak, [=] {
 			if (_instance) {
 				_instance->setIsLowBatteryLevel(isSaving);

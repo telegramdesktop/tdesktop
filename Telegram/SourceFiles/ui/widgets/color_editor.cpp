@@ -930,7 +930,7 @@ void ColorEditor::prepare() {
 		(_hueSlider ? _hueSlider->changed() : rpl::never<>()),
 		(_opacitySlider ? _opacitySlider->changed() : rpl::never<>()),
 		(_lightnessSlider ? _lightnessSlider->changed() : rpl::never<>())
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateFromControls();
 	}, lifetime());
 

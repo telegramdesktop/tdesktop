@@ -76,7 +76,7 @@ void CreateMaskCorners() {
 }
 
 void CreatePaletteCorners() {
-	PrepareCorners(MenuCorners, st::roundRadiusSmall, st::menuBg);
+	PrepareCorners(MenuCorners, st::innerDropdownRadius, st::menuBg);
 	PrepareCorners(BoxCorners, st::boxRadius, st::boxBg);
 	PrepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
 	PrepareCorners(OverviewVideoCorners, st::overviewVideoStatusRadius, st::msgDateImgBg);
@@ -100,7 +100,7 @@ void StartCachedCorners() {
 	CreatePaletteCorners();
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		CreatePaletteCorners();
 	}, PaletteChangedLifetime);
 }

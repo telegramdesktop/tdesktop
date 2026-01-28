@@ -32,7 +32,6 @@ public:
 enum LogDataType {
 	LogDataMain,
 	LogDataDebug,
-	LogDataTcp,
 	LogDataMtp,
 
 	LogDataCount
@@ -54,7 +53,6 @@ QString _logsFilePath(LogDataType type, const QString &postfix = QString()) {
 	switch (type) {
 	case LogDataMain: path += u"log"_q + postfix + u".txt"_q; break;
 	case LogDataDebug: path += u"DebugLogs/log"_q + postfix + u".txt"_q; break;
-	case LogDataTcp: path += u"DebugLogs/tcp"_q + postfix + u".txt"_q; break;
 	case LogDataMtp: path += u"DebugLogs/mtp"_q + postfix + u".txt"_q; break;
 	}
 	return path;
@@ -245,7 +243,6 @@ NEW LOGGING INSTANCE STARTED!!!\n\
 		QString postfix = QString("_%4_%5").arg((part * switchEach) / 60, 2, 10, QChar('0')).arg((part * switchEach) % 60, 2, 10, QChar('0'));
 
 		reopen(LogDataDebug, dayIndex, postfix);
-		reopen(LogDataTcp, dayIndex, postfix);
 		reopen(LogDataMtp, dayIndex, postfix);
 	}
 
@@ -518,11 +515,6 @@ void writeDebug(const QString &v) {
 #elif defined _DEBUG
 	//std::cout << msg.toUtf8().constData();
 #endif
-}
-
-void writeTcp(const QString &v) {
-	const auto msg = QString("%1 %2\n").arg(_logsEntryStart(), v);
-	_logsWrite(LogDataTcp, msg);
 }
 
 void writeMtp(int32 dc, const QString &v) {

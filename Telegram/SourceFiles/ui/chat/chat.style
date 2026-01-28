@@ -322,8 +322,6 @@ historyPinOutIcon: icon {{ "history_pin", historyOutIconFg }};
 historyPinOutSelectedIcon: icon {{ "history_pin", historyOutIconFgSelected }};
 historyPinInvertedIcon: icon {{ "history_pin", historySendingInvertedIconFg }};
 
-historySendPadding: 9px;
-historySendRight: 2px;
 historyBotMenuSkip: 8px;
 historyBotMenuMaxWidth: 160px;
 historyBotMenuButton: RoundButton(defaultActiveButton) {
@@ -546,6 +544,14 @@ historyTranscribeOutLockSelected: icon {{ "chat/mini_lock", msgFileOutBgSelected
 historyTranscribeLockPos: point(17px, 9px);
 historyTranscribeLockOverlayPos: point(19px, 11px);
 historyTranscribeLockOverlaySize: size(5px, 10px);
+historyTranscribeRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	linearPeriod: 700;
+	sinePeriod: 2400;
+	sineDuration: 700;
+	sineShift: 1100;
+	arcMin: 0.0625;
+	arcMax: 0.35;
+}
 
 historyVideoMessageMute: icon {{ "volume_mute", historyFileThumbIconFg }};
 historyVideoMessageMuteSelected: icon {{ "volume_mute", historyFileThumbIconFgSelected }};
@@ -576,8 +582,14 @@ historyAdminLogCancelSearch: CrossButton {
 }
 historyAdminLogSearchTop: 11px;
 historyAdminLogSearchSlideDuration: 150;
+historyAdminLogTopBarLeft: 17px;
+historyAdminLogTopBarUserpicSkip: 35px;
+historyAdminLogWhatIsThis: IconButton(historyAttach) {
+	icon: icon {{ "menu/faq", windowActiveTextFg }};
+	iconOver: icon {{ "menu/faq", windowActiveTextFg }};
+}
 
-historyFastShareSize: 31px;
+historyFastShareSize: topPeersSelectorUserpicSize;
 historyFastShareLeft: 13px;
 historyFastShareBottom: 5px;
 historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};
@@ -585,10 +597,11 @@ historyGoToOriginalIcon: icon {{ "filled_go_to_message", msgServiceFg, point(0px
 historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
 historyFastCloseSize: 30px;
 historyFastCloseIcon: icon {{ "box_button_close", msgServiceFg }};
-historyFastMoreIcon: icon {{ "title_menu_dots", msgServiceFg, point(0px, -2px)  }};
+historyFastMoreIcon: icon {{ "title_menu_dots", msgServiceFg, point(0px, -2px) }};
 historyFastTranscribeIcon: icon {{ "chat/voice_to_text", msgServiceFg }};
 historyFastTranscribeLock: icon {{ "chat/mini_lock", msgServiceFg }};
 historyFastTranscribeLockPos: point(18px, 13px);
+historyFastSummaryLockPos: point(13px, 13px);
 historyFastTranscribeLockOverlayPos: point(21px, 13px);
 historyFastTranscribeLockOverlaySize: size(6px, 10px);
 
@@ -615,6 +628,10 @@ webPageSponsoredHintFont: font(10px);
 webPageDescriptionFont: normalFont;
 webPageDescriptionStyle: defaultTextStyle;
 webPagePhotoDelta: 8px;
+webPageAuctionTimerPadding: margins(8px, 4px, 8px, 4px);
+webPageAuctionTimeFont: font(11px);
+webPageAuctionSubtextFont: font(12px);
+webPageAuctionPreviewPadding: margins(10px, 30px, 10px, 5px);
 
 historyPollQuestionFont: semiboldFont;
 historyPollQuestionStyle: TextStyle(defaultTextStyle) {
@@ -850,31 +867,6 @@ reactionsTabs: MultiSelect(defaultMultiSelect) {
 }
 reactionsTabIconSkip: 3px;
 
-SendAsButton {
-	width: pixels;
-	height: pixels;
-	size: pixels;
-	activeBg: color;
-	activeFg: color;
-	cross: CrossAnimation;
-	duration: int;
-}
-
-sendAsButton: SendAsButton {
-	width: 44px;
-	height: 46px;
-	size: 28px;
-	activeBg: activeButtonBg;
-	activeFg: activeButtonFg;
-	cross: CrossAnimation {
-		size: 28px;
-		skip: 10px;
-		stroke: 1.5;
-		minScale: 0.3;
-	}
-	duration: 150;
-}
-
 reactionInlinePadding: margins(5px, 2px, 7px, 2px);
 reactionInlineSize: 18px;
 reactionInlineImage: 32px;
@@ -885,6 +877,7 @@ reactionInlineTagRightRadius: 3px;
 reactionInlineTagArrow: 5px;
 reactionInlineTagDot: 5px;
 reactionInlineTagDotSkip: 2px;
+reactionInlineEmptySkip: 2px;
 reactionInlineTagFont: font(12px);
 reactionInlineTagNamePosition: point(26px, 2px);
 reactionInlineTagPromoPosition: point(20px, 2px);
@@ -993,6 +986,32 @@ historyTranslateSettings: IconButton(defaultIconButton) {
 	}
 }
 historyTranslateMenuPosition: point(-6px, 30px);
+historyTranslateCocoonLabel: FlatLabel(historyHasCustomEmoji) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+	margin: margins(4px, 8px, 4px, 8px);
+}
+
+cocoonLogoTop: 32px;
+cocoonLogoSize: 96px;
+cocoonTitleFont: font(36px semibold);
+cocoonTitleTop: 12px;
+cocoonSubtitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 120px;
+	align: align(top);
+}
+cocoonSubtitleTop: 8px;
+cocoonSubtitleBottom: 16px;
+cocoonJoinSeparatorPadding: margins(24px, 4px, 24px, 12px);
+cocoonJoinLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+	textFg: windowSubTextFg;
+	minWidth: 120px;
+	align: align(top);
+}
 
 historySponsoredAboutMenuLabelPosition: point(54px, 4px);
 
@@ -1481,3 +1500,35 @@ messageGiftIconSkip: 30px;
 
 newChatIcon: icon{{ "chat/new_topic", windowFgActive }};
 newChatIconPadding: margins(2px, 2px, 2px, 2px);
+
+stakeBox: Box(defaultBox) {
+	buttonPadding: margins(24px, 12px, 24px, 24px);
+	buttonHeight: 42px;
+	buttonWide: true;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+	shadowIgnoreTopSkip: true;
+}
+stakeEmojiSize: 20px;
+stakeEmojiTop: 8px;
+stakeEmojiIcon: IconEmoji {
+	icon: icon{{ "chat/mini_roll-18x18", activeButtonFg }};
+	padding: margins(1px, 2px, 1px, 0px);
+}
+stakeIconEmojiSize: 12px;
+stakeIconEmojiTop: 3px;
+stakePresetButton: RoundButton(defaultLightButton) {
+	textBg: lightButtonBgOver;
+}
+stakePresetButtonSkip: point(8px, 8px);
+stakeChangeBadge: RoundButton(defaultTableSmallButton) {
+	textFg: mediaviewTextLinkFg;
+	textFgOver: mediaviewTextLinkFg;
+}
+stateChangeBadgeMargin: margins(0px, 1px, 0px, 0px);
+
+historySummaryHeaderIconSize: 30px;
+historySummaryHeaderIconSizeInner: 5px;

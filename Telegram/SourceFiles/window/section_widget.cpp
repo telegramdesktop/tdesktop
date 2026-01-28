@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "main/main_session.h"
 #include "window/section_memento.h"
 #include "window/window_slide_animation.h"
@@ -116,7 +116,7 @@ struct ResolvedPaper {
 
 		consumer.put_next_copy(rpl::empty);
 		style::PaletteChanged(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (state->scheduled) {
 				return;
 			}
@@ -232,7 +232,7 @@ AbstractSectionWidget::AbstractSectionWidget(
 				theme->repaintBackgroundRequests()
 			);
 		}) | rpl::flatten_latest();
-	}) | rpl::flatten_latest() | rpl::start_with_next([=] {
+	}) | rpl::flatten_latest() | rpl::on_next([=] {
 		update();
 	}, lifetime());
 }

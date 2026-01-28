@@ -95,7 +95,7 @@ Close::Close(
 
 	std::move(
 		allowCloseAt
-	) | rpl::start_with_next([=](crl::time at) {
+	) | rpl::on_next([=](crl::time at) {
 		const auto now = crl::now();
 		if (!at) {
 			updateProgress(now);
@@ -358,7 +358,7 @@ void PlaybackSponsored::Message::fadeIn() {
 	_photo->owner()->session().downloaderTaskFinished(
 	) | rpl::filter([=] {
 		return _photo->loaded();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		_photoLifetime.destroy();
 		startFadeIn();
 	}, _photoLifetime);
@@ -694,14 +694,14 @@ void PlaybackSponsored::show(const Data::SponsoredMessage &data) {
 		_allowCloseAt.value());
 	const auto raw = _widget.get();
 
-	_controlsGeometry.value() | rpl::start_with_next([=](QRect controls) {
+	_controlsGeometry.value() | rpl::on_next([=](QRect controls) {
 		raw->resizeToWidth(controls.width());
 		raw->setFinalPosition(
 			controls.x(),
 			controls.y() - st::mediaSponsoredSkip - raw->height());
 	}, raw->lifetime());
 
-	raw->actions() | rpl::start_with_next([=](Action action) {
+	raw->actions() | rpl::on_next([=](Action action) {
 		switch (action) {
 		case Action::Close: hide(crl::now()); break;
 		case Action::PromotePremium: showPremiumPromo(); break;

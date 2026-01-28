@@ -14,6 +14,8 @@ class Painter;
 namespace Data {
 class MediaGiftBox;
 struct UniqueGift;
+struct UniqueGiftBackdrop;
+struct StarGift;
 class Birthday;
 } // namespace Data
 
@@ -50,6 +52,26 @@ class MediaGenericPart;
 -> Fn<void(
 	not_null<MediaGeneric*>,
 	Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
+
+[[nodiscard]] auto GenerateAuctionPreview(
+	not_null<Element*> parent,
+	Element *replacing,
+	std::shared_ptr<Data::StarGift> gift,
+	Data::UniqueGiftBackdrop backdrop)
+-> Fn<void(
+	not_null<MediaGeneric*>,
+	Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
+
+[[nodiscard]] auto AuctionBg(
+	not_null<Element*> view,
+	Data::UniqueGiftBackdrop backdrop,
+	std::shared_ptr<Data::StarGift> gift,
+	TimeId startDate,
+	TimeId endDate)
+-> Fn<void(
+	Painter&,
+	const Ui::ChatPaintContext&,
+	not_null<const MediaGeneric*>)>;
 
 [[nodiscard]] std::unique_ptr<MediaGenericPart> MakeGenericButtonPart(
 	const QString &text,

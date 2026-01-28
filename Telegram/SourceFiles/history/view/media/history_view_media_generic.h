@@ -29,6 +29,12 @@ class MediaGeneric;
 
 class MediaGenericPart : public Object {
 public:
+	using PaintBg = Fn<void(
+		Painter&,
+		const PaintContext&,
+		not_null<const MediaGeneric*>)>;
+	using PaintBgFactory = Fn<PaintBg()>;
+
 	virtual ~MediaGenericPart() = default;
 
 	virtual void draw(
@@ -53,10 +59,7 @@ public:
 
 struct MediaGenericDescriptor {
 	int maxWidth = 0;
-	Fn<void(
-		Painter&,
-		const PaintContext&,
-		not_null<const MediaGeneric*>)> paintBg;
+	MediaGenericPart::PaintBgFactory paintBgFactory;
 	ClickHandlerPtr fullAreaLink;
 	bool service = false;
 	bool hideServiceText = false;
@@ -124,10 +127,8 @@ private:
 	[[nodiscard]] QMargins inBubblePadding() const;
 
 	std::vector<Entry> _entries;
-	Fn<void(
-		Painter&,
-		const PaintContext&,
-		not_null<const MediaGeneric*>)> _paintBg;
+	Part::PaintBgFactory _paintBgFactory;
+	mutable Part::PaintBg _paintBg;
 	ClickHandlerPtr _fullAreaLink;
 	int _maxWidthCap = 0;
 	int _marginTop = 0;

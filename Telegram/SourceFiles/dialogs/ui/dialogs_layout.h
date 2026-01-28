@@ -22,6 +22,7 @@ extern const style::DialogRow &defaultDialogRow;
 namespace Data {
 class Forum;
 class Folder;
+class Thread;
 } // namespace Data
 
 namespace Dialogs {
@@ -95,10 +96,9 @@ public:
 		not_null<const FakeRow*> row,
 		const PaintContext &context);
 	static QRect SendActionAnimationRect(
-		not_null<const style::DialogRow*> st,
-		int animationLeft,
-		int animationWidth,
-		int animationHeight,
+		not_null<const Data::Thread*> thread,
+		FilterId filterId,
+		QRect rect,
 		int fullWidth,
 		bool textUpdated);
 };

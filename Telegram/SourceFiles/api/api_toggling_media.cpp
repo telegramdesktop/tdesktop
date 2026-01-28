@@ -24,7 +24,7 @@ void ToggleExistingMedia(
 		Data::FileOrigin origin,
 		ToggleRequestCallback toggleRequest,
 		DoneCallback &&done) {
-	const auto api = &document->owner().session().api();
+	const auto api = &document->session().api();
 
 	auto performRequest = [=](const auto &repeatRequest) -> void {
 		const auto usedFileReference = document->fileReference();

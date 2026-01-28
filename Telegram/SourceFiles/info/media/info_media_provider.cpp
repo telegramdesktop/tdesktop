@@ -50,19 +50,19 @@ Provider::Provider(not_null<AbstractController*> controller)
 , _type(_controller->section().mediaType())
 , _slice(sliceKey(_universalAroundId)) {
 	_controller->session().data().itemRemoved(
-	) | rpl::start_with_next([this](auto item) {
+	) | rpl::on_next([this](auto item) {
 		itemRemoved(item);
 	}, _lifetime);
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (auto &layout : _layouts) {
 			layout.second.item->invalidateCache();
 		}
 	}, _lifetime);
 
 	_controller->session().appConfig().ignoredRestrictionReasonsChanges(
-	) | rpl::start_with_next([=](std::vector<QString> &&changed) {
+	) | rpl::on_next([=](std::vector<QString> &&changed) {
 		const auto sensitive = Data::UnavailableReason::Sensitive();
 		if (ranges::contains(changed, sensitive.reason)) {
 			for (auto &[id, layout] : _layouts) {
@@ -100,7 +100,7 @@ rpl::producer<bool> Provider::hasSelectRestrictionChanges() {
 		: Data::PeerFlagValue(
 			channel,
 			ChannelDataFlag::NoForwards
-		) | rpl::type_erased();
+		) | rpl::type_erased;
 
 	auto rights = chat
 		? chat->adminRightsValue()
@@ -257,7 +257,7 @@ void Provider::refreshViewer() {
 		idForViewer,
 		_idsLimit,
 		_idsLimit
-	) | rpl::start_with_next([=](SparseIdsMergedSlice &&slice) {
+	) | rpl::on_next([=](SparseIdsMergedSlice &&slice) {
 		if (!slice.fullCount()) {
 			// Don't display anything while full count is unknown.
 			return;

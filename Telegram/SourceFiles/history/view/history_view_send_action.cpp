@@ -387,14 +387,17 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 	if (force
 		|| sendActionChanged
 		|| (sendActionResult && !anim::Disabled())) {
-		const auto height = std::max(
-			st::normalFont->height,
-			st::dialogsMiniPreviewTop + st::dialogsMiniPreview);
+		const auto left = 0;
+		const auto top = Ui::Emoji::GetCustomSkipNormal();
+		const auto width = _sendActionAnimation.width() + _animationLeft;
+		const auto height = std::max({
+			st::normalFont->height - top,
+			st::dialogsMiniPreviewTop + st::dialogsMiniPreview - top,
+			Ui::Emoji::GetCustomSizeNormal(),
+		});
 		_history->peer->owner().sendActionManager().updateAnimation({
 			_topic ? ((Data::Thread*)_topic) : _history,
-			0,
-			_sendActionAnimation.width() + _animationLeft,
-			height,
+			{ left, top, width, height },
 			(force || sendActionChanged)
 		});
 	}

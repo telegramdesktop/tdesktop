@@ -222,7 +222,7 @@ TopicIconDescriptor ParseTopicIconEmojiEntity(QStringView entity) {
 		const auto parts = entity.mid(normal.size()).split(' ');
 		if (parts.size() == 2) {
 			return {
-				.title = parts[1].toString(),
+				.title = parts[1].isEmpty() ? u" "_q : parts[1].toString(),
 				.colorId = int32(parts[0].toUInt()),
 			};
 		}
@@ -250,7 +250,7 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 
 	if (isGeneral()) {
 		style::PaletteChanged(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_defaultIcon = QImage();
 		}, _lifetime);
 	}
@@ -374,7 +374,7 @@ void ForumTopic::subscribeToUnreadChanges() {
 	) | rpl::combine_previous(
 	) | rpl::filter([=] {
 		return inChatList();
-	}) | rpl::start_with_next([=](
+	}) | rpl::on_next([=](
 			std::optional<int> previous,
 			std::optional<int> now) {
 		if (previous.value_or(0) != now.value_or(0)) {
@@ -477,7 +477,7 @@ void ForumTopic::setClosedAndSave(bool closed) {
 	const auto weak = base::make_weak(this);
 	api->request(MTPmessages_EditForumTopic(
 		MTP_flags(MTPmessages_EditForumTopic::Flag::f_closed),
-		peer()->input,
+		peer()->input(),
 		MTP_int(_rootId),
 		MTPstring(), // title
 		MTPlong(), // icon_emoji_id
@@ -833,6 +833,16 @@ void ForumTopic::applyColorId(int32 colorId) {
 	if (_colorId != colorId) {
 		_colorId = colorId;
 		session().changes().topicUpdated(this, UpdateFlag::ColorId);
+	}
+}
+
+void ForumTopic::applyMaybeLast(not_null<HistoryItem*> item) {
+	if (!_lastServerMessage.value_or(nullptr)
+		|| (*_lastServerMessage)->id < item->id) {
+		setLastServerMessage(item);
+		resolveChatListMessageGroup();
+	} else {
+		growLastKnownServerMessageId(item->id);
 	}
 }
 

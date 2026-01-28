@@ -355,7 +355,7 @@ StickersBox::CounterWidget::CounterWidget(
 
 	std::move(
 		count
-	) | rpl::start_with_next([=](int count) {
+	) | rpl::on_next([=](int count) {
 		setCounter(count);
 		update();
 	}, lifetime());
@@ -447,7 +447,7 @@ StickersBox::StickersBox(
 , _installed(0, this, _show, megagroup, isEmoji)
 , _megagroupSet(megagroup) {
 	_installed.widget()->scrollsToY(
-	) | rpl::start_with_next([=](int y) {
+	) | rpl::on_next([=](int y) {
 		scrollToY(y);
 	}, lifetime());
 }
@@ -607,7 +607,7 @@ void StickersBox::prepare() {
 		_tabs->sectionActivated(
 		) | rpl::filter([=] {
 			return !_ignoreTabActivation;
-		}) | rpl::start_with_next(
+		}) | rpl::on_next(
 			[this] { switchTab(); },
 			lifetime());
 		refreshTabs();
@@ -700,7 +700,7 @@ void StickersBox::prepare() {
 		: _isMasks
 		? Data::StickersType::Masks
 		: Data::StickersType::Stickers
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		handleStickersUpdated();
 	}, lifetime());
 
@@ -715,13 +715,13 @@ void StickersBox::prepare() {
 	for (const auto &widget : { _installed.widget(), _masks.widget() }) {
 		if (widget) {
 			widget->draggingScrollDelta(
-			) | rpl::start_with_next([=](int delta) {
+			) | rpl::on_next([=](int delta) {
 				scrollByDraggingDelta(delta);
 			}, widget->lifetime());
 		}
 	}
 	if (!_megagroupSet) {
-		boxClosing() | rpl::start_with_next([=] {
+		boxClosing() | rpl::on_next([=] {
 			saveChanges();
 		}, lifetime());
 	}
@@ -750,28 +750,28 @@ void StickersBox::refreshTabs() {
 		sections.push_back(tr::lng_stickers_masks_tab(tr::now));
 		_tabIndices.push_back(Section::Masks);
 	}
-	if (!stickers.featuredSetsOrder().isEmpty() && _featured.widget()) {
+	const auto showFeatured = _featured.widget()
+		&& (!stickers.featuredSetsOrder().isEmpty()
+			|| _section == Section::Featured);
+	if (showFeatured) {
 		sections.push_back(tr::lng_stickers_featured_tab(tr::now));
 		_tabIndices.push_back(Section::Featured);
 	}
-	if (!archivedSetsOrder().isEmpty() && _archived.widget()) {
+	const auto showArchived = _archived.widget()
+		&& (!archivedSetsOrder().isEmpty()
+			|| _section == Section::Archived);
+	if (showArchived) {
 		sections.push_back(tr::lng_stickers_archived_tab(tr::now));
 		_tabIndices.push_back(Section::Archived);
 	}
 	_tabs->setSections(sections);
-	if ((_tab == &_archived && !_tabIndices.contains(Section::Archived))
-		|| (_tab == &_featured && !_tabIndices.contains(Section::Featured))
-		|| (_tab == &_masks && !_tabIndices.contains(Section::Masks))) {
+	if ((_section == Section::Archived && !_tabIndices.contains(Section::Archived))
+		|| (_section == Section::Featured && !_tabIndices.contains(Section::Featured))
+		|| (_section == Section::Masks && !_tabIndices.contains(Section::Masks))) {
 		switchTab();
 	} else {
 		_ignoreTabActivation = true;
-		_tabs->setActiveSectionFast(_tabIndices.indexOf((_tab == &_archived)
-			? Section::Archived
-			: (_tab == &_featured)
-			? Section::Featured
-			: (_tab == &_masks)
-			? Section::Masks
-			: Section::Installed));
+		_tabs->setActiveSectionFast(_tabIndices.indexOf(_section));
 		_ignoreTabActivation = false;
 	}
 	updateTabsGeometry();
@@ -1305,7 +1305,7 @@ Main::Session &StickersBox::Inner::session() const {
 
 void StickersBox::Inner::setup() {
 	session().downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 		readVisibleSets();
 	}, lifetime());
@@ -1580,7 +1580,7 @@ void StickersBox::Inner::validateLottieAnimation(not_null<Row*> row) {
 	}
 	row->lottie = std::move(player);
 	row->lottie->updates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateRowThumbnail(row);
 	}, lifetime());
 }

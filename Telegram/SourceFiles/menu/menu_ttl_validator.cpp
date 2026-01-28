@@ -76,7 +76,7 @@ Args TTLValidator::createArgs() const {
 		}
 		state->savingPeriod = period;
 		state->savingRequestId = api.request(MTPmessages_SetHistoryTTL(
-			peer->input,
+			peer->input(),
 			MTP_int(period)
 		)).done([=](const MTPUpdates &result) {
 			peer->session().api().applyUpdates(result);
@@ -96,9 +96,9 @@ Args TTLValidator::createArgs() const {
 		lt_link,
 		tr::lng_ttl_edit_about2_link(
 		) | rpl::map([=](const QString &s) {
-			return Ui::Text::Link(s, "tg://settings/auto_delete");
+			return tr::link(s, "tg://settings/auto_delete");
 		}),
-		Ui::Text::WithEntities);
+		tr::marked);
 	auto about = rpl::combine(
 		std::move(about1),
 		std::move(about2)

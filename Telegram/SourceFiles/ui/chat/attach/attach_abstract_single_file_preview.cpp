@@ -60,6 +60,14 @@ rpl::producer<> AbstractSingleFilePreview::modifyRequests() const {
 	return rpl::never<>();
 }
 
+rpl::producer<> AbstractSingleFilePreview::editCoverRequests() const {
+	return rpl::never<>();
+}
+
+rpl::producer<> AbstractSingleFilePreview::clearCoverRequests() const {
+	return rpl::never<>();
+}
+
 void AbstractSingleFilePreview::prepareThumbFor(
 		Data &data,
 		const QImage &preview) {

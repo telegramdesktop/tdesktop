@@ -72,7 +72,7 @@ void RequestResolveBankCard(
 class ResolveBankCardAction final : public Ui::Menu::ItemBase {
 public:
 	ResolveBankCardAction(
-		not_null<Ui::RpWidget*> parent,
+		not_null<Ui::Menu::Menu*> parent,
 		const style::Menu &st);
 
 	void setStatus(Status status);
@@ -98,14 +98,14 @@ private:
 };
 
 ResolveBankCardAction::ResolveBankCardAction(
-	not_null<Ui::RpWidget*> parent,
+	not_null<Ui::Menu::Menu*> parent,
 	const style::Menu &st)
 : ItemBase(parent, st)
 , _dummyAction(Ui::CreateChild<QAction>(parent))
 , _st(st)
 , _height(st::groupCallJoinAsPhotoSize) {
 	setAcceptBoth(true);
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 	setStatus(Status::Loading);
 }
 
@@ -199,7 +199,7 @@ void BankCardClickHandler::onClick(ClickContext context) const {
 		&st::menuIconCopy);
 
 	auto resolveBankCardAction = base::make_unique_q<ResolveBankCardAction>(
-		menu,
+		menu->menu(),
 		menu->st().menu);
 	const auto resolveBankCardRaw = resolveBankCardAction.get();
 
@@ -209,12 +209,12 @@ void BankCardClickHandler::onClick(ClickContext context) const {
 
 	const auto addTitle = [=](const QString &name) {
 		auto button = base::make_unique_q<Ui::Menu::MultilineAction>(
-			menu,
+			menu->menu(),
 			menu->st().menu,
 			st::historyHasCustomEmoji,
 			st::historyBankCardMenuMultilinePosition,
 			TextWithEntities{ name });
-		button->setClickedCallback(copy);
+		button->setActionTriggered(copy);
 		menu->addAction(std::move(button));
 	};
 

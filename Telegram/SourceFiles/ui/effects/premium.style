@@ -27,6 +27,8 @@ PremiumBubble {
 	font: font;
 	additionalStyle: TextStyle;
 	additionalSkip: pixels;
+	subtextStyle: TextStyle;
+	subtextPadding: margins;
 }
 PremiumCover {
 	bg: color;
@@ -34,6 +36,7 @@ PremiumCover {
 	starTopSkip: pixels;
 	titlePadding: margins;
 	titleFont: font;
+	titleFg: color;
 	about: FlatLabel;
 	aboutMaxWidth: pixels;
 	additionalShadowForDarkThemes: bool;
@@ -58,6 +61,7 @@ defaultPremiumCover: PremiumCover {
 	starTopSkip: 37px;
 	titlePadding: margins(0px, 18px, 0px, 11px);
 	titleFont: boxTitleFont;
+	titleFg: windowBoldFg;
 	about: FlatLabel(defaultFlatLabel) {
 		style: premiumAboutTextStyle;
 		palette: TextPalette(defaultTextPalette) {
@@ -261,6 +265,10 @@ boostBubble: PremiumBubble(defaultPremiumBubble) {
 		font: font(14px semibold);
 	}
 	additionalSkip: 2px;
+	subtextStyle: TextStyle(defaultTextStyle) {
+		font: font(10px);
+	}
+	subtextPadding: margins(11px, -5px, 11px, 0px);
 }
 starRatingBubble: PremiumBubble(boostBubble) {
 	font: font(16px semibold);
@@ -287,10 +295,16 @@ boostTitleBadgeSkip: 6px;
 boostCenteredTitle: FlatLabel(boostTitle) {
 	align: align(top);
 }
+darkEditStarsCenteredTitle: FlatLabel(boostCenteredTitle) {
+	textFg: groupCallMembersFg;
+}
 boostTextSkip: 5px;
 boostText: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	align: align(top);
+}
+darkEditStarsText: FlatLabel(boostText) {
+	textFg: groupCallMembersFg;
 }
 boostTextPending: FlatLabel(boostText) {
 	textFg: windowSubTextFg;
@@ -311,6 +325,13 @@ boostBox: Box(premiumPreviewDoubledLimitsBox) {
 		height: 42px;
 		textTop: 12px;
 		style: semiboldTextStyle;
+	}
+}
+darkEditStarsClose: IconButton(boxTitleClose) {
+	icon: icon {{ "box_button_close", groupCallMemberInactiveIcon }};
+	iconOver: icon {{ "box_button_close", groupCallMemberInactiveIcon }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: groupCallMembersBgOver;
 	}
 }
 
@@ -334,11 +355,7 @@ boostReplaceUserpicsRow: UserpicsRow {
 	complex: true;
 }
 
-showOrIconLastSeen: icon{{ "settings/premium/large_lastseen", windowFgActive }};
-showOrIconReadTime: icon{{ "settings/premium/large_readtime", windowFgActive }};
-showOrIconBg: windowBgActive;
-showOrIconPadding: margins(12px, 12px, 12px, 12px);
-showOrIconMargin: margins(0px, 28px, 0px, 12px);
+showOrTitleIconMargin: 8px;
 showOrTitlePadding: margins(0px, 0px, 0px, 5px);
 showOrAboutPadding: margins(0px, 0px, 0px, 16px);
 showOrShowButton: RoundButton(defaultActiveButton) {
@@ -388,28 +405,46 @@ boostFeatureStories: icon{{ "settings/premium/features/feature_stories", windowB
 boostFeatureTranscribe: icon{{ "settings/premium/features/feature_voice", windowBgActive }};
 boostFeatureAutoTranslate: icon{{ "menu/translate", windowBgActive }};
 boostFeatureOffSponsored: icon{{ "settings/premium/features/feature_off_sponsored", windowBgActive }};
+boostFeatureProfileColor: icon{{ "settings/premium/features/feature_color_profile", windowBgActive }};
+boostFeatureProfileIcon: icon{{ "settings/premium/features/feature_profile_cover", windowBgActive }};
 
 paidReactBox: Box(boostBox) {
 	buttonPadding: margins(22px, 22px, 22px, 22px);
-	buttonHeight: 42px;
 	button: RoundButton(defaultActiveButton) {
 		height: 42px;
 		textTop: 12px;
 		style: semiboldTextStyle;
 	}
 }
+paidReactBoxCheckbox: Checkbox(defaultCheckbox) {
+	width: 0px;
+}
+darkEditStarsBox: Box(paidReactBox) {
+	bg: groupCallMembersBg;
+	title: FlatLabel(boxTitle) {
+		textFg: groupCallMembersFg;
+		align: align(top);
+	}
+}
 paidReactBubbleIcon: icon{{ "settings/premium/star", premiumButtonFg }};
 paidReactBubbleTop: 5px;
 paidReactSliderTop: 5px;
 paidReactSlider: MediaSlider(defaultContinuousSlider) {
-	activeFg: creditsBg3;
-	inactiveFg: creditsBg2;
-	activeFgOver: creditsBg3;
-	inactiveFgOver: creditsBg2;
-	activeFgDisabled: creditsBg3;
-	inactiveFgDisabled: creditsBg2;
-	width: 6px;
+	activeFg: windowBgOver;
+	inactiveFg: windowBgOver;
+	activeFgOver: windowBgOver;
+	inactiveFgOver: windowBgOver;
+	activeFgDisabled: windowBgOver;
+	inactiveFgDisabled: windowBgOver;
+	width: 16px;
 	seekSize: size(16px, 16px);
+	borderFg: creditsBg3;
+	borderWidth: 2px;
+}
+darkEditStarsSlider: MediaSlider(paidReactSlider) {
+	inactiveFg: groupCallMembersBgOver;
+	inactiveFgOver: groupCallMembersBgOver;
+	inactiveFgDisabled: groupCallMembersBgOver;
 }
 paidReactTitleSkip: 23px;
 paidReactTopTitleMargin: margins(10px, 26px, 10px, 12px);
@@ -417,6 +452,13 @@ paidReactTopMargin: margins(0px, 12px, 0px, 11px);
 paidReactTopUserpic: 42px;
 paidReactTopNameSkip: 47px;
 paidReactTopBadgeSkip: 32px;
+paidReactCrown: icon{{ "calls/filled_stream_crown-24x24", premiumButtonFg }};
+paidReactCrownTop: 7px;
+paidReactCrownSkip: 12px;
+paidReactCrownOutline: 1px;
+paidReactCrownSmall: icon{{ "calls/filled_stream_crown-20x20", premiumButtonFg }};
+paidReactCrownSmallTop: 4px;
+paidReactCrownMargin: margins(0px, 0px, 0px, 0px);
 paidReactToastLabel: FlatLabel(defaultFlatLabel) {
 	textFg: toastFg;
 	palette: defaultToastPalette;
@@ -452,6 +494,7 @@ starrefFooterButton: RoundButton(defaultActiveButton) {
 starrefFooterBox: Box(defaultBox) {
 	buttonPadding: margins(22px, 11px, 22px, 54px);
 	buttonHeight: 42px;
+	buttonWide: true;
 	button: starrefFooterButton;
 	shadowIgnoreTopSkip: true;
 }
@@ -522,4 +565,28 @@ starrefPopupMenu: PopupMenu(defaultPopupMenu) {
 		widthMin: 156px;
 		widthMax: 200px;
 	}
+}
+
+starSelectInfoPadding: margins(12px, 8px, 12px, 8px);
+starSelectInfoTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	textFg: windowBoldFg;
+	align: align(top);
+	style: TextStyle(boxTextStyle) {
+		font: font(18px semibold);
+	}
+}
+starSelectInfoSubtext: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	textFg: windowFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(10px);
+	}
+}
+videoStreamInfoTitle: FlatLabel(starSelectInfoTitle) {
+	textFg: groupCallMembersFg;
+}
+videoStreamInfoSubtext: FlatLabel(starSelectInfoSubtext) {
+	textFg: groupCallMembersFg;
 }

@@ -65,11 +65,11 @@ SubsectionTabs::SubsectionTabs(
 	refreshSlice();
 	setup(parent);
 
-	session().data().pinnedDialogsOrderUpdated() | rpl::start_with_next([=] {
+	session().data().pinnedDialogsOrderUpdated() | rpl::on_next([=] {
 		_refreshed.fire({});
 	}, _lifetime);
 
-	dataChanged() | rpl::start_with_next([=] {
+	dataChanged() | rpl::on_next([=] {
 		if (_loading) {
 			_loading = false;
 			refreshSlice();
@@ -146,14 +146,14 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 	});
 
 	_horizontal->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		const auto togglew = toggle->width();
 		const auto height = size.height();
 		scroll->setGeometry(togglew, 0, size.width() - togglew, height);
 		shadow->setGeometry(togglew, 0, st::lineWidth, height);
 	}, scroll->lifetime());
 
-	_horizontal->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	_horizontal->paintRequest() | rpl::on_next([=](QRect clip) {
 		QPainter(_horizontal).fillRect(
 			clip.intersected(
 				_horizontal->rect().marginsRemoved(
@@ -208,14 +208,14 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 		_vertical->height());
 
 	_vertical->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		const auto toggleh = toggle->height();
 		const auto width = size.width();
 		scroll->setGeometry(0, toggleh, width, size.height() - toggleh);
 		shadow->setGeometry(0, toggleh, width, st::lineWidth);
 	}, scroll->lifetime());
 
-	_vertical->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	_vertical->paintRequest() | rpl::on_next([=](QRect clip) {
 		QPainter(_vertical).fillRect(clip, st::windowBg);
 	}, _vertical->lifetime());
 
@@ -228,7 +228,7 @@ void SubsectionTabs::setupSlider(
 		not_null<Ui::ScrollArea*> scroll,
 		not_null<Ui::SubsectionSlider*> slider,
 		bool vertical) {
-	slider->sectionActivated() | rpl::start_with_next([=](int active) {
+	slider->sectionActivated() | rpl::on_next([=](int active) {
 		if (_reordering) {
 			return;
 		}
@@ -251,7 +251,7 @@ void SubsectionTabs::setupSlider(
 	}, slider->lifetime());
 
 	_reorder->updates(
-	) | rpl::start_with_next([=](Ui::SubsectionSliderReorder::Single data) {
+	) | rpl::on_next([=](Ui::SubsectionSliderReorder::Single data) {
 		using State = Ui::SubsectionSliderReorder::State;
 		if (data.state == State::Started) {
 			++_reordering;
@@ -270,14 +270,14 @@ void SubsectionTabs::setupSlider(
 		return _reordering > 0;
 	});
 
-	slider->sectionContextMenu() | rpl::start_with_next([=](int index) {
+	slider->sectionContextMenu() | rpl::on_next([=](int index) {
 		if (index >= 0 && index < _slice.size()) {
 			showThreadContextMenu(_slice[index].thread);
 		}
 	}, slider->lifetime());
 
 	slider->requestShown(
-	) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
+	) | rpl::on_next([=](Ui::ScrollToRequest request) {
 		const auto full = vertical ? scroll->height() : scroll->width();
 		const auto tab = request.ymax - request.ymin;
 		if (tab < full) {
@@ -315,7 +315,7 @@ void SubsectionTabs::startScrollChecking(
 		(vertical
 			? scroll->heightValue()
 			: scroll->widthValue()) | rpl::skip(1) | rpl::map_to(rpl::empty)
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto full = vertical ? scroll->height() : scroll->width();
 		const auto scrollValue = vertical
 			? scroll->scrollTop()
@@ -350,7 +350,7 @@ void SubsectionTabs::startScrollChecking(
 		Data::PeerUpdate::Flag::Rights
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		return (update.peer == _history->peer);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		if (_reorder) {
 			_reorder->cancel();
 			if (_history->peer->canManageTopics()) {
@@ -374,7 +374,7 @@ void SubsectionTabs::startFillingSlider(
 
 	_refreshed.events_starting_with_copy(
 		rpl::empty
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto manager = &_history->owner().customEmojiManager();
 		const auto paused = [=] {
 			return _controller->isGifPausedAtLeastFor(
@@ -453,16 +453,23 @@ void SubsectionTabs::startFillingSlider(
 						).append(' ').append(peer->shortName()),
 					});
 				}
-			} else if (item.thread->peer()->isBot()) {
-				sections.push_back({
-					.text = { tr::lng_bot_new_chat(tr::now) },
-					.userpic = Ui::MakeNewChatSubsectionsThumbnail(textFg),
-				});
+			// } else if (item.thread->peer()->isBot()) {
+			// 	sections.push_back({
+			// 		.text = { tr::lng_bot_new_chat(tr::now) },
+			// 	});
+			// 	if (vertical) {
+			// 		auto &last = sections.back();
+			// 		last.userpic = Ui::MakeNewChatSubsectionsThumbnail(
+			// 			textFg);
+			// 	}
 			} else {
 				sections.push_back({
 					.text = { tr::lng_filters_all_short(tr::now) },
-					.userpic = Ui::MakeAllSubsectionsThumbnail(textFg),
 				});
+				if (vertical) {
+					auto &last = sections.back();
+					last.userpic = Ui::MakeAllSubsectionsThumbnail(textFg);
+				}
 			}
 			auto &section = sections.back();
 			section.badges = item.badges;
@@ -714,7 +721,7 @@ void SubsectionTabs::track() {
 	using Event = Data::Session::ChatListEntryRefresh;
 	if (const auto forum = _history->peer->forum()) {
 		forum->topicDestroyed(
-		) | rpl::start_with_next([=](not_null<Data::ForumTopic*> topic) {
+		) | rpl::on_next([=](not_null<Data::ForumTopic*> topic) {
 			if (_around == topic) {
 				_around = _history;
 				refreshSlice();
@@ -722,7 +729,7 @@ void SubsectionTabs::track() {
 		}, _lifetime);
 
 		forum->topicsList()->unreadStateChanges(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			scheduleRefresh();
 		}, _lifetime);
 
@@ -730,7 +737,7 @@ void SubsectionTabs::track() {
 		) | rpl::filter([=](const Event &event) {
 			const auto topic = event.filterId ? nullptr : event.key.topic();
 			return (topic && topic->forum() == forum);
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			scheduleRefresh();
 		}, _lifetime);
 
@@ -740,12 +747,12 @@ void SubsectionTabs::track() {
 			| Data::TopicUpdate::Flag::ColorId
 		) | rpl::filter([=](const Data::TopicUpdate &update) {
 			return update.topic->forum() == forum;
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			scheduleRefresh();
 		}, _lifetime);
 	} else if (const auto monoforum = _history->peer->monoforum()) {
 		monoforum->sublistDestroyed(
-		) | rpl::start_with_next([=](not_null<Data::SavedSublist*> sublist) {
+		) | rpl::on_next([=](not_null<Data::SavedSublist*> sublist) {
 			if (_around == sublist) {
 				_around = _history;
 				refreshSlice();
@@ -753,7 +760,7 @@ void SubsectionTabs::track() {
 		}, _lifetime);
 
 		monoforum->chatsList()->unreadStateChanges(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			scheduleRefresh();
 		}, _lifetime);
 
@@ -763,7 +770,7 @@ void SubsectionTabs::track() {
 				? nullptr
 				: event.key.sublist();
 			return (sublist && sublist->parent() == monoforum);
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			scheduleRefresh();
 		}, _lifetime);
 	} else {

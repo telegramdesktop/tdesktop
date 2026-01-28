@@ -422,7 +422,8 @@ protected:
 	void paintEmptySearchResults(
 		Painter &p,
 		const style::icon &icon,
-		const QString &text) const;
+		const QString &text,
+		bool skipIcon = false) const;
 
 private:
 	const style::EmojiPan &_st;

@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_element.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "styles/style_chat.h"
 
@@ -42,9 +44,66 @@ Dice::Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice)
 	if (_showLastFrame) {
 		_drawingEnd = true;
 	}
+	if (const auto outcome = _dice->diceGameOutcome()) {
+		_outcomeSet = true;
+		_outcomeValue = _dice->value();
+		_outcomeNanoTon = outcome.nanoTon;
+		_outcomeStakeNanoTon = outcome.stakeNanoTon;
+		_outcomeStartedUnknown = (_outcomeValue == 0);
+		updateOutcomeMessage();
+	}
 }
 
 Dice::~Dice() = default;
+
+void Dice::updateOutcomeMessage() {
+	if ((_outcomeStartedUnknown && !_outcomeLastPainted)
+		|| (!_outcomeValue && !_outcomeNanoTon)) {
+		_parent->setServicePostMessage({});
+		return;
+	}
+	const auto item = _parent->data();
+	const auto forwarded = item->Get<HistoryMessageForwarded>();
+	const auto originalSender = forwarded
+		? forwarded->originalSender
+		: nullptr;
+	const auto from = originalSender ? originalSender : item->from().get();
+	const auto originalPostAuthor = item->originalPostAuthor();
+	const auto fromName = !originalPostAuthor.isEmpty()
+		? originalPostAuthor
+		: forwarded && forwarded->originalHiddenSenderInfo
+		? forwarded->originalHiddenSenderInfo->name
+		: from->name();
+	const auto out = (item->out() || from->isSelf()) && !forwarded;
+	const auto won = (_outcomeNanoTon - _outcomeStakeNanoTon);
+	const auto amount = tr::marked(QString::fromUtf8("\xf0\x9f\x92\x8e")
+		+ " "
+		+ QString::number(std::abs(won) / 1e9));
+	const auto text = out
+		? (won >= 0
+			? tr::lng_action_stake_game_won_you
+			: tr::lng_action_stake_game_lost_you)(
+				tr::now,
+				lt_amount,
+				amount,
+				tr::marked)
+		: (won >= 0
+			? tr::lng_action_stake_game_won
+			: tr::lng_action_stake_game_lost)(
+				tr::now,
+				lt_from,
+				tr::link(st::wrap_rtl(fromName), 1),
+				lt_amount,
+				amount,
+				tr::marked);
+	auto prepared = PreparedServiceText{ text };
+	if (!out) {
+		if (const auto link = forwarded ? originalSender : from) {
+			prepared.links.push_back(link->createOpenLink());
+		}
+	}
+	_parent->setServicePostMessage(prepared, _link);
+}
 
 QSize Dice::countOptimalSize() {
 	return _start ? _start->countOptimalSize() : Sticker::EmojiSize();
@@ -52,6 +111,28 @@ QSize Dice::countOptimalSize() {
 
 ClickHandlerPtr Dice::link() {
 	return _link;
+}
+
+bool Dice::updateItemData() {
+	const auto outcome = _dice->diceGameOutcome();
+	const auto outcomeSet = !!outcome;
+	const auto outcomeNanoTon = outcomeSet ? outcome.nanoTon : 0;
+	const auto outcomeStakeNanoTon = outcomeSet ? outcome.stakeNanoTon : 0;
+	const auto outcomeValue = _dice->value();
+	if (_outcomeSet == outcomeSet
+		&& _outcomeNanoTon == outcomeNanoTon
+		&& _outcomeStakeNanoTon == outcomeStakeNanoTon
+		&& _outcomeValue == outcomeValue) {
+		return false;
+	}
+	_outcomeSet = outcomeSet;
+	_outcomeNanoTon = outcomeNanoTon;
+	_outcomeStakeNanoTon = outcomeStakeNanoTon;
+	_outcomeValue = outcomeValue;
+	if (_outcomeSet) {
+		updateOutcomeMessage();
+	}
+	return true;
 }
 
 void Dice::draw(Painter &p, const PaintContext &context, const QRect &r) {
@@ -76,6 +157,15 @@ void Dice::draw(Painter &p, const PaintContext &context, const QRect &r) {
 	}
 	if (_drawingEnd) {
 		_end->draw(p, context, r);
+		if (!_outcomeLastPainted && _end->stoppedOnLastFrame()) {
+			_outcomeLastPainted = true;
+			if (_outcomeSet) {
+				crl::on_main(this, [=] {
+					updateOutcomeMessage();
+					_parent->history()->owner().requestViewResize(_parent);
+				});
+			}
+		}
 	} else if (_start) {
 		_start->draw(p, context, r);
 		if (_end

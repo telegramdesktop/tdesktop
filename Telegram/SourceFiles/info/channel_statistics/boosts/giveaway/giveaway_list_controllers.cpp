@@ -313,7 +313,7 @@ SelectedChannelsListController::SelectedChannelsListController(
 void SelectedChannelsListController::setTopStatus(rpl::producer<QString> s) {
 	_statusLifetime = std::move(
 		s
-	) | rpl::start_with_next([=](const QString &t) {
+	) | rpl::on_next([=](const QString &t) {
 		if (delegate()->peerListFullRowsCount() > 0) {
 			delegate()->peerListRowAt(0)->setCustomStatus(t);
 		}

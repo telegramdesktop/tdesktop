@@ -343,7 +343,7 @@ void EditInviteLinkBox(
 					: QString::number(state->usageValue)),
 				200'000);
 			wrap->widthValue(
-			) | rpl::start_with_next([=](int width) {
+			) | rpl::on_next([=](int width) {
 				input->resize(width, input->height());
 				input->moveToLeft(0, st::boxPadding.bottom());
 			}, input->lifetime());

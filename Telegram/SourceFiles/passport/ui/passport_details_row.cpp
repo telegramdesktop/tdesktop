@@ -272,7 +272,7 @@ AbstractTextRow<Input>::AbstractTextRow(
 	_field->setMaxLength(limit);
 	if constexpr (std::is_same<Input, Ui::InputField>::value) {
 		_field->changes(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_value = valueCurrent();
 		}, _field->lifetime());
 	} else {
@@ -332,7 +332,7 @@ CountryRow::CountryRow(
 , _link(this, CountryString(value), st::boxLinkButton)
 , _value(value) {
 	_value.changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		hideCountryError();
 	}, lifetime());
 
@@ -405,7 +405,7 @@ void CountryRow::chooseCountry() {
 		CountrySelectBox::Type::Countries);
 	const auto raw = box.data();
 	raw->countryChosen(
-	) | rpl::start_with_next([=](QString iso) {
+	) | rpl::on_next([=](QString iso) {
 		_value = iso;
 		_link->setText(CountryString(iso));
 		hideCountryError();
@@ -594,18 +594,18 @@ DateRow::DateRow(
 	connect(_month, &MaskedInputField::changed, changed);
 	connect(_year, &MaskedInputField::changed, changed);
 	_day->setMaxValue(31);
-	_day->putNext() | rpl::start_with_next([=](QChar ch) {
+	_day->putNext() | rpl::on_next([=](QChar ch) {
 		putNext(_month, ch);
 	}, lifetime());
 	_month->setMaxValue(12);
-	_month->putNext() | rpl::start_with_next([=](QChar ch) {
+	_month->putNext() | rpl::on_next([=](QChar ch) {
 		putNext(_year, ch);
 	}, lifetime());
-	_month->erasePrevious() | rpl::start_with_next([=] {
+	_month->erasePrevious() | rpl::on_next([=] {
 		erasePrevious(_day);
 	}, lifetime());
 	_year->setMaxValue(2999);
-	_year->erasePrevious() | rpl::start_with_next([=] {
+	_year->erasePrevious() | rpl::on_next([=] {
 		erasePrevious(_month);
 	}, lifetime());
 	_separator1->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -613,7 +613,7 @@ DateRow::DateRow(
 	setMouseTracking(true);
 
 	_value.changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		setErrorShown(false);
 	}, lifetime());
 }
@@ -1065,7 +1065,7 @@ void PanelDetailsRow::showError(std::optional<QString> error) {
 		_errorHideSubscription = true;
 
 		value(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			hideError();
 		}, lifetime());
 	}
@@ -1090,7 +1090,7 @@ void PanelDetailsRow::showError(std::optional<QString> error) {
 			_error->entity()->setText(*error);
 		}
 		_error->heightValue(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			resizeToWidth(width());
 		}, _error->lifetime());
 		_error->show(anim::type::normal);

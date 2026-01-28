@@ -26,8 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_reaction_preview.h"
 #include "history/view/history_view_quick_action.h"
 #include "history/view/history_view_emoji_interactions.h"
+#include "history/view/history_view_top_peers_selector.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
 #include "payments/payments_reaction_process.h"
@@ -342,7 +344,7 @@ HistoryInner::HistoryInner(
 	Window::ChatThemeValueFromPeer(
 		controller,
 		_peer
-	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
+	) | rpl::on_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
 		_theme = std::move(theme);
 		controller->setChatStyleTheme(_theme);
 	}, lifetime());
@@ -354,7 +356,7 @@ HistoryInner::HistoryInner(
 
 	setMouseTracking(true);
 	_controller->gifPauseLevelChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (!elementAnimationsPaused()) {
 			update();
 		}
@@ -365,32 +367,32 @@ HistoryInner::HistoryInner(
 	) | rpl::filter([=](const PlayRequest &request) {
 		return (request.item->history() == _history)
 			&& _controller->widget()->isActive();
-	}) | rpl::start_with_next([=](PlayRequest &&request) {
+	}) | rpl::on_next([=](PlayRequest &&request) {
 		if (const auto view = viewByItem(request.item)) {
 			_emojiInteractions->play(std::move(request), view);
 		}
 	}, lifetime());
 	_emojiInteractions->playStarted(
-	) | rpl::start_with_next([=](QString &&emoji) {
+	) | rpl::on_next([=](QString &&emoji) {
 		_controller->emojiInteractions().playStarted(_peer, std::move(emoji));
 	}, lifetime());
 
 	_reactionsManager->chosen(
-	) | rpl::start_with_next([=](ChosenReaction reaction) {
+	) | rpl::on_next([=](ChosenReaction reaction) {
 		_reactionsManager->updateButton({});
 		reactionChosen(reaction);
 	}, lifetime());
 
 	session().data().peerDecorationsUpdated(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 	session().data().itemRemoved(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this](auto item) { itemRemoved(item); },
 		lifetime());
 	session().data().viewRemoved(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this](auto view) { viewRemoved(view); },
 		lifetime());
 	rpl::merge(
@@ -398,22 +400,22 @@ HistoryInner::HistoryInner(
 		session().data().historyCleared()
 	) | rpl::filter([this](not_null<const History*> history) {
 		return (_history == history);
-	}) | rpl::start_with_next([this] {
+	}) | rpl::on_next([this] {
 		mouseActionCancel();
 	}, lifetime());
 	session().data().viewRepaintRequest(
-	) | rpl::start_with_next([this](not_null<const Element*> view) {
-		repaintItem(view);
+	) | rpl::on_next([this](Data::RequestViewRepaint data) {
+		repaintItem(data.view, data.rect);
 	}, lifetime());
 	session().data().viewLayoutChanged(
 	) | rpl::filter([=](not_null<const Element*> view) {
 		return (view == viewByItem(view->data())) && view->isUnderCursor();
-	}) | rpl::start_with_next([=](not_null<const Element*> view) {
+	}) | rpl::on_next([=](not_null<const Element*> view) {
 		mouseActionUpdate();
 	}, lifetime());
 
 	session().data().itemDataChanges(
-	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+	) | rpl::on_next([=](not_null<HistoryItem*> item) {
 		if (const auto view = viewByItem(item)) {
 			view->itemDataChanged();
 		}
@@ -423,7 +425,7 @@ HistoryInner::HistoryInner(
 		_history,
 		(Data::HistoryUpdate::Flag::OutboxRead
 			| Data::HistoryUpdate::Flag::TranslatedTo)
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 
@@ -432,7 +434,7 @@ HistoryInner::HistoryInner(
 		_reactionsItem.value());
 
 	Core::App().settings().cornerReactionValue(
-	) | rpl::start_with_next([=](bool value) {
+	) | rpl::on_next([=](bool value) {
 		_useCornerReaction = value;
 		if (!value) {
 			_reactionsManager->updateButton({});
@@ -440,12 +442,12 @@ HistoryInner::HistoryInner(
 	}, lifetime());
 
 	controller->adaptive().chatWideValue(
-	) | rpl::start_with_next([=](bool wide) {
+	) | rpl::on_next([=](bool wide) {
 		_isChatWide = wide;
 	}, lifetime());
 
 	_selectScroll.scrolls(
-	) | rpl::start_with_next([=](int d) {
+	) | rpl::on_next([=](int d) {
 		_scroll->scrollToY(_scroll->scrollTop() + d);
 	}, _scroll->lifetime());
 
@@ -508,7 +510,7 @@ void HistoryInner::setupSharingDisallowed() {
 		: Data::PeerFlagValue(
 			channel,
 			ChannelDataFlag::NoForwards
-		) | rpl::type_erased();
+		) | rpl::type_erased;
 
 	auto rights = chat
 		? chat->adminRightsValue()
@@ -525,7 +527,7 @@ void HistoryInner::setupSharingDisallowed() {
 		std::move(canDelete)
 	) | rpl::filter([=](bool disallowed, bool canDelete) {
 		return hasSelectRestriction() && !getSelectedItems().empty();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		_widget->clearSelected();
 		if (_mouseAction == MouseAction::PrepareSelect) {
 			mouseActionCancel();
@@ -713,6 +715,19 @@ void HistoryInner::repaintItem(const Element *view) {
 		if (const auto area = _reactionsManager->lookupEffectArea(id)) {
 			update(*area);
 		}
+	}
+}
+
+void HistoryInner::repaintItem(const Element *view, QRect rect) {
+	if (rect.isNull()) {
+		return repaintItem(view);
+	}
+	if (_widget->skipItemRepaint()) {
+		return;
+	}
+	const auto top = itemTop(view);
+	if (top >= 0) {
+		update(rect.translated(0, top));
 	}
 }
 
@@ -1063,6 +1078,7 @@ Ui::ChatPaintContext HistoryInner::preparePaintContext(
 		.visibleAreaPositionGlobal = visibleAreaPositionGlobal,
 		.visibleAreaTop = _visibleAreaTop,
 		.visibleAreaWidth = width(),
+		.visibleAreaHeight = _visibleAreaBottom - _visibleAreaTop,
 	});
 }
 
@@ -2292,6 +2308,28 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			e,
 			session().data().reactions().favoriteId())) {
 		return;
+	} else if (link && link->property(kFastShareProperty).value<bool>()) {
+		if (const auto item = _dragStateItem) {
+			const auto view = viewByItem(item);
+			const auto rightSize = view->rightActionSize().value_or(QSize());
+			const auto reactionsSkip = view->embedReactionsInBubble()
+				? 0
+				: view->reactionButtonParameters({}, {}).reactionsHeight;
+			const auto top = itemTop(view)
+				+ view->height()
+				- reactionsSkip
+				- _visibleAreaTop
+				- rightSize.height();
+			const auto right = rect::right(view->innerGeometry())
+				- st::historyFastShareLeft
+				- rightSize.width();
+			HistoryView::ShowTopPeersSelector(
+				this,
+				_controller->uiShow(),
+				item->fullId(),
+				parentWidget()->mapToGlobal(QPoint(right, top)));
+			return;
+		}
 	}
 	auto selectedState = getSelectionState();
 
@@ -2351,20 +2389,36 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		: 0;
 	const auto session = &this->session();
 	_whoReactedMenuLifetime.destroy();
-	if (!clickedReaction.empty()
-		&& leaderOrSelf
-		&& Api::WhoReactedExists(leaderOrSelf, Api::WhoReactedList::One)) {
-		HistoryView::ShowWhoReactedMenu(
-			&_menu,
-			e->globalPos(),
-			this,
-			leaderOrSelf,
-			clickedReaction,
-			_controller,
-			_whoReactedMenuLifetime);
-		e->accept();
-		return;
-	} else if (!linkPhoneNumber.isEmpty()) {
+	if (!clickedReaction.empty() && leaderOrSelf) {
+		if (clickedReaction.paid()) {
+			Payments::ShowPaidReactionDetails(
+				_controller,
+				leaderOrSelf,
+				viewByItem(leaderOrSelf),
+				HistoryReactionSource::Selector);
+			e->accept();
+			return;
+		} else if (Api::WhoReactedExists(
+				leaderOrSelf,
+				Api::WhoReactedList::One)) {
+			HistoryView::ShowWhoReactedMenu(
+				&_menu,
+				e->globalPos(),
+				this,
+				leaderOrSelf,
+				clickedReaction,
+				_controller,
+				_whoReactedMenuLifetime);
+			e->accept();
+			return;
+		} else if (HistoryView::ShowReactionPreview(
+				_controller,
+				leaderOrSelf->fullId(),
+				clickedReaction)) {
+			return;
+		}
+	}
+	if (!linkPhoneNumber.isEmpty()) {
 		PhoneClickHandler(session, linkPhoneNumber).onClick(
 			prepareClickContext(
 				Qt::LeftButton,
@@ -2376,8 +2430,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		_widget->fillSenderUserpicMenu(
 			_menu.get(),
 			session->data().peer(PeerId(linkUserpicPeerId)));
-		_menu->popup(e->globalPos());
-		e->accept();
+		if (_menu->empty()) {
+			_menu = nullptr;
+		} else {
+			_menu->popup(e->globalPos());
+			e->accept();
+		}
 		return;
 	}
 	const auto controller = _controller;
@@ -3055,14 +3113,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addSeparator(&st::expandedMenuSeparator);
 				}
 				auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
-					_menu,
+					_menu->menu(),
 					st::menuWithIcons,
 					st::historyHasCustomEmoji,
 					st::historySponsoredAboutMenuLabelPosition,
 					TextWithEntities{ tr::lng_sponsored_title(tr::now) },
 					&st::menuIconInfo);
 				item->clicks(
-				) | rpl::start_with_next([=] {
+				) | rpl::on_next([=] {
 					controller->show(Box(Ui::AboutSponsoredBox));
 				}, item->lifetime());
 				_menu->addAction(std::move(item));
@@ -4371,6 +4429,7 @@ void HistoryInner::mouseActionUpdate() {
 						// stop enumeration if we've found a userpic under the cursor
 						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
 							dragState = TextState(nullptr, view->fromPhotoLink());
+							dragState.cursor = CursorState::FromPhoto;
 							dragStateUserpic = true;
 							_dragStateItem = nullptr;
 							lnkhost = view;
@@ -4390,6 +4449,7 @@ void HistoryInner::mouseActionUpdate() {
 	if (dragState.link
 		|| dragState.cursor == CursorState::Date
 		|| dragState.cursor == CursorState::Forwarded
+		|| dragState.cursor == CursorState::FromPhoto
 		|| dragState.customTooltip) {
 		Ui::Tooltip::Show(1000, this);
 	}
@@ -4655,7 +4715,7 @@ void HistoryInner::refreshAboutView(bool force) {
 			_aboutView = std::make_unique<HistoryView::AboutView>(
 				_history,
 				_history->delegateMixin()->delegate());
-			_aboutView->refreshRequests() | rpl::start_with_next([=] {
+			_aboutView->refreshRequests() | rpl::on_next([=] {
 				updateBotInfo();
 			}, _aboutView->lifetime());
 			_aboutView->sendIntroSticker() | rpl::start_to_stream(
@@ -5028,6 +5088,11 @@ QString HistoryInner::tooltipText() const {
 		}
 	}
 	if (const auto view = Element::Moused()) {
+		if (_mouseCursorState == CursorState::FromPhoto) {
+			if (const auto from = view->data()->displayFrom()) {
+				return from->name();
+			}
+		}
 		StateRequest request;
 		const auto local = mapFromGlobal(_mousePosition);
 		const auto point = _widget->clampMousePosition(local);

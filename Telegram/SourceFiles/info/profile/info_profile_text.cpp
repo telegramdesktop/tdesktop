@@ -48,7 +48,7 @@ TextWithLabel CreateTextWithLabel(
 		layout,
 		std::move(nonEmptyText),
 		textSt));
-	std::move(text) | rpl::start_with_next([=] {
+	std::move(text) | rpl::on_next([=] {
 		labeled->resizeToWidth(layout->width());
 	}, labeled->lifetime());
 	labeled->setSelectable(true);

@@ -212,7 +212,7 @@ void CloudThemes::setupReload() {
 		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	}) | rpl::map([=] {
 		return needReload();
-	}) | rpl::start_with_next([=](bool need) {
+	}) | rpl::on_next([=](bool need) {
 		install();
 		if (need) {
 			scheduleReload();
@@ -375,7 +375,7 @@ void CloudThemes::loadDocumentAndInvoke(
 		_session->downloaderTaskFinished(
 		) | rpl::filter([=, &value] {
 			return value.documentMedia->loaded();
-		}) | rpl::start_with_next([=, &value] {
+		}) | rpl::on_next([=, &value] {
 			invokeForLoaded(value);
 		}, value.subscription);
 	}

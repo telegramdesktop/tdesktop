@@ -43,7 +43,7 @@ public:
 
 UnreadBadgeStyleData::UnreadBadgeStyleData() {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (auto &data : sizes) {
 			for (auto &left : data.left) {
 				left = QPixmap();

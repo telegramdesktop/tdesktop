@@ -280,7 +280,7 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 	Qt::SolidLine,
 	Qt::RoundCap) {
 	sizeValue(
-	) | rpl::take(2) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::take(2) | rpl::on_next([=](const QSize &s) {
 		const auto current = xPercentageLimits();
 		if (current.min == current.max) {
 			setXPercentageLimits({ 0., 1. });
@@ -288,7 +288,7 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 	}, lifetime());
 
 	mouseStateChanged(
-	) | rpl::start_with_next([=](const RpMouseWidget::State &state) {
+	) | rpl::on_next([=](const RpMouseWidget::State &state) {
 		if (_moveCenterAnimation.animating()) {
 			return;
 		}
@@ -839,7 +839,7 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 	}
 }) {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_chartData) {
 			FillLineColorsByKey(_chartData);
 		}
@@ -928,7 +928,7 @@ QRect ChartWidget::chartAreaRect() const {
 
 void ChartWidget::setupChartArea() {
 	_chartArea->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		auto p = QPainter(_chartArea.get());
 
 		const auto now = crl::now();
@@ -1112,7 +1112,7 @@ void ChartWidget::setupFooter() {
 	});
 
 	_animationController.addRulerRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_rulersView.add(
 			_animationController.finalHeightLimits(),
 			true);
@@ -1120,7 +1120,7 @@ void ChartWidget::setupFooter() {
 	}, _footer->lifetime());
 
 	_footer->xPercentageLimitsChange(
-	) | rpl::start_with_next([=](Limits xPercentageLimits) {
+	) | rpl::on_next([=](Limits xPercentageLimits) {
 		if (!_chartView) {
 			return;
 		}
@@ -1176,14 +1176,14 @@ void ChartWidget::setupDetails() {
 	});
 
 	_details.widget->shownValue(
-	) | rpl::start_with_next([=](bool shown) {
+	) | rpl::on_next([=](bool shown) {
 		if (shown && _details.widget->xIndex() < 0) {
 			_details.widget->hide();
 		}
 	}, _details.widget->lifetime());
 
 	_chartArea->mouseStateChanged(
-	) | rpl::start_with_next([=](const RpMouseWidget::State &state) {
+	) | rpl::on_next([=](const RpMouseWidget::State &state) {
 		if (_animationController.animating()) {
 			return;
 		}
@@ -1284,7 +1284,7 @@ void ChartWidget::processLocalZoom(int xIndex) {
 	const auto header = headerOwned->get();
 	header->show();
 	_header->geometryValue(
-	) | rpl::start_with_next([=](const QRect &g) {
+	) | rpl::on_next([=](const QRect &g) {
 		header->setGeometry(g);
 	}, header->lifetime());
 	header->setTitle(_header->title());
@@ -1303,7 +1303,7 @@ void ChartWidget::processLocalZoom(int xIndex) {
 		) | rpl::filter([](not_null<QEvent*> event) {
 			return (event->type() == QEvent::MouseMove)
 				|| (event->type() == QEvent::Leave);
-		}) | rpl::start_with_next([=](not_null<QEvent*> event) {
+		}) | rpl::on_next([=](not_null<QEvent*> event) {
 			auto pos = QPoint();
 			if (event->type() == QEvent::MouseMove) {
 				const auto e = static_cast<QMouseEvent*>(event.get());
@@ -1359,7 +1359,7 @@ void ChartWidget::processLocalZoom(int xIndex) {
 	const auto finish = [=](const Limits &zoomLimitIndices) {
 		createMouseTracking();
 		_footer->xPercentageLimitsChange(
-		) | rpl::start_with_next([=](const Limits &l) {
+		) | rpl::on_next([=](const Limits &l) {
 			const auto r = FindStackXIndicesFromRawXPercentages(
 				_chartData,
 				l,
@@ -1425,7 +1425,7 @@ void ChartWidget::setupFilterButtons() {
 	}
 
 	_filterButtons->buttonEnabledChanges(
-	) | rpl::start_with_next([=](const ChartLinesFilterWidget::Entry &e) {
+	) | rpl::on_next([=](const ChartLinesFilterWidget::Entry &e) {
 		const auto now = crl::now();
 		_linesFilterController->setEnabled(e.id, e.enabled, now);
 
@@ -1443,7 +1443,7 @@ void ChartWidget::setChartData(
 		ChartViewType type) {
 	if (width() < st::statisticsChartHeight) {
 		sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
+		) | rpl::on_next([=](const QSize &s) {
 			if (s.width() > st::statisticsChartHeight) {
 				setChartData(chartData, type);
 				_waitingSizeLifetime.destroy();
@@ -1494,7 +1494,7 @@ void ChartWidget::setChartData(
 void ChartWidget::setTitle(rpl::producer<QString> &&title) {
 	std::move(
 		title
-	) | rpl::start_with_next([=](QString t) {
+	) | rpl::on_next([=](QString t) {
 		_header->setTitle(std::move(t));
 		_header->update();
 	}, _header->lifetime());
@@ -1507,7 +1507,7 @@ void ChartWidget::setZoomedChartData(
 	_zoomedChartWidget = base::make_unique_q<ChartWidget>(
 		dynamic_cast<Ui::RpWidget*>(parentWidget()));
 	geometryValue(
-	) | rpl::start_with_next([=](const QRect &geometry) {
+	) | rpl::on_next([=](const QRect &geometry) {
 		_zoomedChartWidget->moveToLeft(geometry.x(), geometry.y());
 	}, _zoomedChartWidget->lifetime());
 	_zoomedChartWidget->show();
@@ -1541,7 +1541,7 @@ void ChartWidget::setZoomedChartData(
 		(customHeader->height() - zoomOutButton->height()) / 2);
 	zoomOutButton->setClickedCallback([=] {
 		shownValue(
-		) | rpl::start_with_next([=](bool shown) {
+		) | rpl::on_next([=](bool shown) {
 			if (shown) {
 				_zoomedChartWidget = nullptr;
 			}
@@ -1558,6 +1558,14 @@ rpl::producer<float64> ChartWidget::zoomRequests() {
 	_zoomEnabled = true;
 	setupDetails();
 	return _zoomRequests.events();
+}
+
+void FixCacheForHighDPIChartWidget(not_null<Ui::RpWidget*> container) {
+	if (style::DevicePixelRatio() != 1) {
+		container->paintRequest() | rpl::take(2) | rpl::on_next([=] {
+			container->update();
+		}, container->lifetime());
+	}
 }
 
 } // namespace Statistic

@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/numbers_animation.h"
+#include "ui/effects/ministar_particles.h"
+#include "ui/abstract_button.h"
 #include "ui/rp_widget.h"
 
 enum lngtag_count : int;
@@ -54,18 +56,24 @@ public:
 	[[nodiscard]] int height() const;
 	[[nodiscard]] int width() const;
 	[[nodiscard]] int bubbleRadius() const;
-	[[nodiscard]] int countMaxWidth(int maxPossibleCounter) const;
 	[[nodiscard]] int countTargetWidth(int targetCounter) const;
+	[[nodiscard]] QRect bubbleGeometry(const QRect &r) const;
 
 	void setCounter(int value);
 	void setTailEdge(EdgeProgress edge);
 	void setFlipHorizontal(bool value);
 	void paintBubble(QPainter &p, const QRect &r, const QBrush &brush);
+	[[nodiscard]] QPainterPath bubblePath(const QRect &r) const;
+	void setSubtext(QString subtext);
+
+	void finishAnimating();
 
 	[[nodiscard]] rpl::producer<> widthChanges() const;
 
 private:
 	[[nodiscard]] int filledWidth() const;
+	[[nodiscard]] int topTextWidth() const;
+	[[nodiscard]] int bottomTextWidth() const;
 
 	const style::PremiumBubble &_st;
 
@@ -75,8 +83,8 @@ private:
 	const style::icon *_icon;
 	NumbersAnimation _numberAnimation;
 	Text::String _additional;
+	Text::String _subtext;
 	const int _height;
-	const int _textTop;
 	const bool _hasTail;
 
 	std::optional<int> _counter;
@@ -103,7 +111,7 @@ enum class BubbleType : uchar {
 	Credits,
 };
 
-class BubbleWidget final : public Ui::RpWidget {
+class BubbleWidget final : public Ui::AbstractButton {
 public:
 	BubbleWidget(
 		not_null<Ui::RpWidget*> parent,
@@ -115,10 +123,16 @@ public:
 		const style::icon *icon,
 		const style::margins &outerPadding);
 
+	void setBrushOverride(std::optional<QBrush> brushOverride);
+	void setSubtext(QString subtext);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void setupParticles(not_null<Ui::RpWidget*> parent);
+
 	struct GradientParams {
 		int left = 0;
 		int width = 0;
@@ -136,10 +150,12 @@ private:
 	float64 _animatingFromBubbleEdge = 0.;
 	rpl::variable<BubbleRowState> _state;
 	Bubble _bubble;
+	std::optional<QBrush> _brushOverride;
 	const BubbleType _type;
 	const style::margins _outerPadding;
 
 	Ui::Animations::Simple _appearanceAnimation;
+	Fn<void(float64)> _appearanceCallback;
 	QSize _spaceForDeflection;
 
 	QLinearGradient _cachedGradient;
@@ -151,9 +167,13 @@ private:
 	float64 _stepBeforeDeflection;
 	float64 _stepAfterDeflection;
 
+	RpWidget *_particlesWidget = nullptr;
+	std::optional<StarParticles> _particles;
+	Ui::Animations::Basic _particlesAnimation;
+
 };
 
-void AddBubbleRow(
+not_null<BubbleWidget*> AddBubbleRow(
 	not_null<Ui::VerticalLayout*> parent,
 	const style::PremiumBubble &st,
 	rpl::producer<> showFinishes,
@@ -164,7 +184,7 @@ void AddBubbleRow(
 	std::optional<tr::phrase<lngtag_count>> phrase,
 	const style::icon *icon);
 
-void AddBubbleRow(
+not_null<BubbleWidget*> AddBubbleRow(
 	not_null<Ui::VerticalLayout*> parent,
 	const style::PremiumBubble &st,
 	rpl::producer<> showFinishes,

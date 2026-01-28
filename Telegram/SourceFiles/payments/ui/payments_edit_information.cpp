@@ -106,7 +106,7 @@ not_null<RpWidget*> EditInformation::setupContent() {
 		object_ptr<VerticalLayout>(this));
 
 	_scroll->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		inner->resizeToWidth(width);
 	}, inner->lifetime());
 
@@ -209,7 +209,7 @@ not_null<RpWidget*> EditInformation::setupContent() {
 
 	if (last) {
 		last->submitted(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_delegate->panelValidateInformation(collect());
 		}, lifetime());
 	}

@@ -575,20 +575,20 @@ PanelController::PanelController(not_null<FormController*> form)
 : _form(form)
 , _scopes(ComputeScopes(_form->form())) {
 	_form->secretReadyEvents(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		ensurePanelCreated();
 		_panel->showForm();
 	}, lifetime());
 
 	_form->verificationNeeded(
-	) | rpl::start_with_next([=](not_null<const Value*> value) {
+	) | rpl::on_next([=](not_null<const Value*> value) {
 		processVerificationNeeded(value);
 	}, lifetime());
 
 	_form->verificationUpdate(
 	) | rpl::filter([=](not_null<const Value*> field) {
 		return (field->verification.codeLength == 0);
-	}) | rpl::start_with_next([=](not_null<const Value*> field) {
+	}) | rpl::on_next([=](not_null<const Value*> field) {
 		_verificationBoxes.erase(field);
 	}, lifetime());
 }
@@ -704,7 +704,7 @@ void PanelController::setupPassword() {
 
 	auto box = show(Box<PasscodeBox>(&_form->window()->session(), fields));
 	box->newPasswordSet(
-	) | rpl::start_with_next([=](const QByteArray &password) {
+	) | rpl::on_next([=](const QByteArray &password) {
 		if (password.isEmpty()) {
 			_form->reloadPassword();
 		} else {
@@ -713,12 +713,12 @@ void PanelController::setupPassword() {
 	}, box->lifetime());
 
 	box->passwordReloadNeeded(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_form->reloadPassword();
 	}, box->lifetime());
 
 	box->clearUnconfirmedPassword(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_form->cancelPassword();
 	}, box->lifetime());
 }
@@ -741,13 +741,13 @@ void PanelController::validateRecoveryEmail() {
 
 	std::move(
 		validation.reloadRequests
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_form->reloadPassword();
 	}, validation.box->lifetime());
 
 	std::move(
 		validation.cancelRequests
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_form->cancelPassword();
 	}, validation.box->lifetime());
 
@@ -1265,12 +1265,12 @@ void PanelController::startScopeEdit(
 	_panel->setBackAllowed(true);
 
 	_panel->backRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		cancelEditScope();
 	}, content->lifetime());
 
 	_form->valueSaveFinished(
-	) | rpl::start_with_next([=](not_null<const Value*> value) {
+	) | rpl::on_next([=](not_null<const Value*> value) {
 		processValueSaveFinished(value);
 	}, content->lifetime());
 
@@ -1343,7 +1343,7 @@ void PanelController::processVerificationNeeded(
 					return field->verification.call != nullptr;
 				}) | rpl::map([=](not_null<const Value*> field) {
 					return field->verification.call->getText();
-				})) : (rpl::single(QString()) | rpl::type_erased()),
+				})) : (rpl::single(QString()) | rpl::type_erased),
 
 				rpl::duplicate(
 					update
@@ -1351,7 +1351,7 @@ void PanelController::processVerificationNeeded(
 					return field->verification.error;
 				}) | rpl::distinct_until_changed()));
 			box->boxClosing(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				account->setHandleLoginCode(nullptr);
 			}, box->lifetime());
 			return box;
@@ -1375,7 +1375,7 @@ void PanelController::processVerificationNeeded(
 	}();
 
 	box->boxClosing(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_form->cancelValueVerification(value);
 	}, lifetime());
 

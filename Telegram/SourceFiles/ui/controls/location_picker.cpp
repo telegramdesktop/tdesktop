@@ -186,10 +186,10 @@ private:
 	const auto raw = result.data();
 	raw->resize(0, skip + st::pickLocationPromoHeight);
 	const auto shadow = CreateChild<PlainShadow>(raw);
-	raw->widthValue() | rpl::start_with_next([=](int width) {
+	raw->widthValue() | rpl::on_next([=](int width) {
 		shadow->setGeometry(0, skip, width, st::lineWidth);
 	}, raw->lifetime());
-	raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	raw->paintRequest() | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(raw);
 		p.fillRect(clip, st::windowBg);
 		p.setPen(st::windowSubTextFg);
@@ -213,7 +213,7 @@ VenuesController::VenuesController(
 
 void VenuesController::prepare() {
 	_rows.value(
-	) | rpl::start_with_next([=](const std::vector<VenueData> &rows) {
+	) | rpl::on_next([=](const std::vector<VenueData> &rows) {
 		rebuild(rows);
 	}, _lifetime);
 }
@@ -447,7 +447,7 @@ void VenuesController::rowPaintIcon(
 		st->photoPosition.y(),
 		st->photoSize,
 		st->photoSize);
-	icon->paintRequest() | rpl::start_with_next([=] {
+	icon->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(icon);
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
@@ -484,7 +484,7 @@ void VenuesController::rowPaintIcon(
 	rpl::combine(
 		result->widthValue(),
 		std::move(statusText)
-	) | rpl::start_with_next([=](int width, const QString &statusText) {
+	) | rpl::on_next([=](int width, const QString &statusText) {
 		const auto available = width
 			- st->namePosition.x()
 			- st->button.padding.right();
@@ -546,7 +546,7 @@ void SetupEmptyView(
 		(query ? Icon::NoResults : Icon::Search),
 		(query
 			? tr::lng_maps_no_places
-			: tr::lng_maps_choose_to_search)(Text::WithEntities));
+			: tr::lng_maps_choose_to_search)(tr::marked));
 	view->setMinimalHeight(st::recentPeersEmptyHeightMin);
 	view->show();
 
@@ -566,7 +566,7 @@ void SetupVenues(
 	const auto other = otherWrap->entity();
 	rpl::duplicate(
 		value
-	) | rpl::start_with_next([=](const PickerVenueState &state) {
+	) | rpl::on_next([=](const PickerVenueState &state) {
 		while (!other->children().isEmpty()) {
 			delete other->children()[0];
 		}
@@ -603,7 +603,7 @@ void SetupVenues(
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
-	show->session().downloaderTaskFinished() | rpl::start_with_next([=] {
+	show->session().downloaderTaskFinished() | rpl::on_next([=] {
 		content->update();
 	}, content->lifetime());
 }
@@ -659,7 +659,7 @@ not_null<RpWidget*> SetupMapPlaceholder(
 	icon->lifetime().add([kept = std::move(ownedLottie)] {});
 
 	icon->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(icon);
 		const auto left = (icon->width() - iconSize) / 2;
 		const auto scale = icon->height() / float64(iconSize);
@@ -690,7 +690,7 @@ not_null<RpWidget*> SetupMapPlaceholder(
 	button->setTextTransform(RoundButton::TextTransform::NoTransform);
 	button->setClickedCallback(choose);
 
-	parent->sizeValue() | rpl::start_with_next([=](QSize size) {
+	parent->sizeValue() | rpl::on_next([=](QSize size) {
 		result->setGeometry(QRect(QPoint(), size));
 
 		const auto width = size.width();
@@ -759,7 +759,7 @@ LocationPicker::LocationPicker(Descriptor &&descriptor)
 , _venueRecipient(descriptor.recipient) {
 	std::move(
 		descriptor.closeRequests
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_window = nullptr;
 		delete this;
 	}, _lifetime);
@@ -801,7 +801,7 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 	const auto window = _window.get();
 
 	window->setWindowFlag(Qt::WindowStaysOnTopHint, false);
-	window->closeRequests() | rpl::start_with_next([=] {
+	window->closeRequests() | rpl::on_next([=] {
 		close();
 	}, _lifetime);
 
@@ -849,7 +849,7 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 		_body->sizeValue(),
 		_scroll->scrollTopValue(),
 		_venuesSearchShown.value()
-	) | rpl::start_with_next([=](QSize size, int scrollTop, bool search) {
+	) | rpl::on_next([=](QSize size, int scrollTop, bool search) {
 		const auto width = size.width();
 		const auto height = size.height();
 		const auto sub = std::min(
@@ -866,7 +866,7 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 		toppad->resize(width, sub);
 	}, _container->lifetime());
 
-	_container->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	_container->paintRequest() | rpl::on_next([=](QRect clip) {
 		QPainter(_container).fillRect(clip, st::windowBg);
 	}, _container->lifetime());
 
@@ -904,7 +904,7 @@ void LocationPicker::setupWebview() {
 
 	_mapLoading = CreateChild<RpWidget>(_body.get());
 
-	_container->geometryValue() | rpl::start_with_next([=](QRect rect) {
+	_container->geometryValue() | rpl::on_next([=](QRect rect) {
 		_mapLoading->setGeometry(rect);
 	}, _mapLoading->lifetime());
 
@@ -917,6 +917,7 @@ void LocationPicker::setupWebview() {
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
 			.storageId = _webviewStorageId,
+			.safe = true,
 		});
 	const auto raw = _webview.get();
 
@@ -925,7 +926,7 @@ void LocationPicker::setupWebview() {
 	});
 
 	window->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+	) | rpl::on_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close) {
 			close();
 		} else if (e->type() == QEvent::KeyPress) {
@@ -938,7 +939,7 @@ void LocationPicker::setupWebview() {
 	raw->widget()->show();
 
 	_container->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		raw->widget()->setGeometry(QRect(QPoint(), size));
 	}, _container->lifetime());
 
@@ -1026,7 +1027,7 @@ void LocationPicker::setupWebview() {
 			rpl::merge(
 				Lang::Updated(),
 				style::PaletteChanged()
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				_updateStyles.call();
 			}, _webview->lifetime());
 		}
@@ -1177,8 +1178,8 @@ void LocationPicker::venuesSendRequest() {
 	}
 	_venuesRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(MTPmessages_GetInlineBotResults::Flag::f_geo_point),
-		_venuesBot->inputUser,
-		(_venueRecipient ? _venueRecipient->input : MTP_inputPeerEmpty()),
+		_venuesBot->inputUser(),
+		(_venueRecipient ? _venueRecipient->input() : MTP_inputPeerEmpty()),
 		MTP_inputGeoPoint(
 			MTP_flags(0),
 			MTP_double(_venuesRequestLocation.point.x()),

@@ -51,7 +51,8 @@ void SetupMuteMenu(
 	not_null<Ui::RpWidget*> parent,
 	rpl::producer<> triggers,
 	Fn<std::optional<Descriptor>()> makeDescriptor,
-	std::shared_ptr<Ui::Show> show);
+	std::shared_ptr<Ui::Show> show,
+	Fn<QPoint()> positionCallback = nullptr);
 
 inline void FillMuteMenu(
 		not_null<Ui::PopupMenu*> menu,
@@ -64,13 +65,14 @@ inline void SetupMuteMenu(
 		not_null<Ui::RpWidget*> parent,
 		rpl::producer<> triggers,
 		Fn<Data::Thread*()> makeThread,
-		std::shared_ptr<Ui::Show> show) {
+		std::shared_ptr<Ui::Show> show,
+		Fn<QPoint()> positionCallback = nullptr) {
 	SetupMuteMenu(parent, std::move(triggers), [=] {
 		const auto thread = makeThread();
 		return thread
 			? ThreadDescriptor(thread)
 			: std::optional<Descriptor>();
-	}, std::move(show));
+	}, std::move(show), positionCallback);
 }
 
 } // namespace MuteMenu

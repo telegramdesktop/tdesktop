@@ -53,18 +53,18 @@ Widget::Widget(
 	_inner->moveToLeft(0, 0, _scroll->width());
 
 	_scroll->scrolls(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		onScroll();
 	}, lifetime());
 
 	_inner->inlineRowsCleared(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		hideAnimated();
 		_inner->clearInlineRowsPanel();
 	}, lifetime());
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_innerRounding = Ui::PrepareCornerPixmaps(
 			ImageRoundRadius::Small,
 			st::emojiPanBg);
@@ -73,7 +73,7 @@ Widget::Widget(
 	macWindowDeactivateEvents(
 	) | rpl::filter([=] {
 		return !isHidden();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		leaveEvent(nullptr);
 	}, lifetime());
 
@@ -465,8 +465,8 @@ void Widget::onInlineRequest() {
 	_requesting.fire(true);
 	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(0),
-		_inlineBot->inputUser,
-		_inlineQueryPeer->input,
+		_inlineBot->inputUser(),
+		_inlineQueryPeer->input(),
 		MTPInputGeoPoint(),
 		MTP_string(_inlineQuery),
 		MTP_string(nextOffset)

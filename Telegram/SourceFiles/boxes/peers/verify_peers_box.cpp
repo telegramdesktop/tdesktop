@@ -58,8 +58,8 @@ void Setup(
 		MTP_flags(Flag::f_bot
 			| Flag::f_enabled
 			| (description.isEmpty() ? Flag() : Flag::f_custom_description)),
-		bot->inputUser,
-		peer->input,
+		bot->inputUser(),
+		peer->input(),
 		MTP_string(description)
 	)).done([=] {
 		done(QString());
@@ -74,8 +74,8 @@ void Remove(
 		Fn<void(QString)> done) {
 	bot->session().api().request(MTPbots_SetCustomVerification(
 		MTP_flags(MTPbots_SetCustomVerification::Flag::f_bot),
-		bot->inputUser,
-		peer->input,
+		bot->inputUser(),
+		peer->input(),
 		MTPstring()
 	)).done([=] {
 		done(QString());
@@ -138,8 +138,8 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 						.text = PeerVerifyPhrases(peer).sent(
 							tr::now,
 							lt_name,
-							Ui::Text::Bold(peer->shortName()),
-							Ui::Text::WithEntities),
+							tr::bold(peer->shortName()),
+							tr::marked),
 						.duration = kSetupVerificationToastDuration,
 					});
 				} else {
@@ -153,8 +153,8 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 		Ui::ConfirmBox(box, {
 			.text = phrases.text(
 				lt_name,
-				rpl::single(Ui::Text::Bold(peer->shortName())),
-				Ui::Text::WithEntities),
+				rpl::single(tr::bold(peer->shortName())),
+				tr::marked),
 			.confirmed = send,
 			.confirmText = phrases.submit(),
 			.title = phrases.title(),
@@ -183,7 +183,7 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 
 		Ui::AddSkip(box->verticalLayout());
 
-		field->changes() | rpl::start_with_next([=] {
+		field->changes() | rpl::on_next([=] {
 			state->description = field->getLastText();
 		}, field->lifetime());
 

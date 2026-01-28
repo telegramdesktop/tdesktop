@@ -670,24 +670,13 @@ QImage DefaultApplicationIcon() {
 	return Window::Logo();
 }
 
-} // namespace Platform
-
-void psSendToMenu(bool send, bool silent) {
-	ManageAppLink(
-		send,
-		silent,
-		FOLDERID_SendTo,
-		L"-sendpath",
-		L"Telegram send to link.\n"
-		"You can disable send to menu item in Telegram settings.");
-}
-
-bool psLaunchMaps(const Data::LocationPoint &point) {
+void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
 	const auto aar = base::WinRT::TryCreateInstance<
 		IApplicationAssociationRegistration
 	>(CLSID_ApplicationAssociationRegistration);
 	if (!aar) {
-		return false;
+		fail();
+		return;
 	}
 
 	auto handler = base::CoTaskMemString();
@@ -700,12 +689,27 @@ bool psLaunchMaps(const Data::LocationPoint &point) {
 		|| !handler
 		|| !handler.data()
 		|| std::wstring(handler.data()) == L"bingmaps") {
-		return false;
+		fail();
+		return;
 	}
 
 	const auto url = u"bingmaps:?lvl=16&collection=point.%1_%2_Point"_q;
-	return QDesktopServices::openUrl(
-		url.arg(point.latAsString()).arg(point.lonAsString()));
+	if (!QDesktopServices::openUrl(
+		url.arg(point.latAsString(), point.lonAsString()))) {
+		fail();
+	}
+}
+
+} // namespace Platform
+
+void psSendToMenu(bool send, bool silent) {
+	ManageAppLink(
+		send,
+		silent,
+		FOLDERID_SendTo,
+		L"--",
+		L"Telegram send to link.\n"
+		"You can disable send to menu item in Telegram settings.");
 }
 
 // Stub while we still support Windows 7.

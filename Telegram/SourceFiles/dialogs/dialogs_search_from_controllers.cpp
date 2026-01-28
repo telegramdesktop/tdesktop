@@ -41,7 +41,7 @@ object_ptr<Ui::BoxContent> SearchFromBox(
 					box->closeBox();
 				});
 			});
-		box->boxClosing() | rpl::start_with_next(
+		box->boxClosing() | rpl::on_next(
 			std::move(closedCallback),
 			*subscription);
 		return box;

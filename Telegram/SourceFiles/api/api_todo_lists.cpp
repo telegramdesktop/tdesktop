@@ -66,6 +66,9 @@ void TodoLists::create(
 	}
 	if (action.options.scheduled) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+		if (action.options.scheduleRepeatPeriod) {
+			sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_repeat_period;
+		}
 	}
 	if (action.options.shortcutId) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
@@ -92,7 +95,7 @@ void TodoLists::create(
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
-			peer->input,
+			peer->input(),
 			Data::Histories::ReplyToPlaceholder(),
 			TodoListDataToInputMedia(&data),
 			MTP_string(),
@@ -100,7 +103,8 @@ void TodoLists::create(
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
-			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+			MTP_int(action.options.scheduleRepeatPeriod),
+			(sendAs ? sendAs->input() : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
 			MTP_long(action.options.effectId),
 			MTP_long(starsPaid),
@@ -160,7 +164,7 @@ void TodoLists::add(
 	}
 	const auto session = _session;
 	_session->api().request(MTPmessages_AppendTodoList(
-		item->history()->peer->input,
+		item->history()->peer->input(),
 		MTP_int(item->id.bare),
 		TodoListItemsToMTP(&item->history()->session(), items)
 	)).done([=](const MTPUpdates &result) {
@@ -226,7 +230,7 @@ void TodoLists::send(FullMsgId itemId, Accumulated &entry) {
 	auto incompleted = entry.incompleted
 		| ranges::views::transform([](int id) { return MTP_int(id); });
 	entry.requestId = _api.request(MTPmessages_ToggleTodoCompleted(
-		item->history()->peer->input,
+		item->history()->peer->input(),
 		MTP_int(item->id),
 		MTP_vector_from_range(completed),
 		MTP_vector_from_range(incompleted)

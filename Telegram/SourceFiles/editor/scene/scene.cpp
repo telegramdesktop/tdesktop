@@ -33,7 +33,7 @@ Scene::Scene(const QRectF &rect)
 	_canvas->clearPixmap();
 
 	_canvas->grabContentRequests(
-	) | rpl::start_with_next([=](ItemCanvas::Content &&content) {
+	) | rpl::on_next([=](ItemCanvas::Content &&content) {
 		const auto item = std::make_shared<ItemLine>(
 			std::move(content.pixmap));
 		item->setPos(content.position);
@@ -125,6 +125,7 @@ std::shared_ptr<float64> Scene::lastZ() const {
 }
 
 void Scene::updateZoom(float64 zoom) {
+	_canvas->updateZoom(zoom);
 	for (const auto &item : items()) {
 		if (item->type() >= ItemBase::Type) {
 			static_cast<ItemBase*>(item.get())->updateZoom(zoom);

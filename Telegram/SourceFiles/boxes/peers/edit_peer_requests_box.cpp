@@ -362,11 +362,11 @@ void RequestsBoxController::loadMoreRows() {
 	using Flag = MTPmessages_GetChatInviteImporters::Flag;
 	_loadRequestId = _api.request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(Flag::f_requested),
-		_peer->input,
+		_peer->input(),
 		MTPstring(), // link
 		MTPstring(), // q
 		MTP_int(_offsetDate),
-		_offsetUser ? _offsetUser->inputUser : MTP_inputUserEmpty(),
+		_offsetUser ? _offsetUser->inputUser() : MTP_inputUserEmpty(),
 		MTP_int(limit)
 	)).done([=](const MTPmessages_ChatInviteImporters &result) {
 		const auto firstLoad = !_offsetDate;
@@ -436,8 +436,8 @@ void RequestsBoxController::processRequest(
 				: tr::lng_group_requests_was_added)(
 					tr::now,
 					lt_user,
-					Ui::Text::Bold(user->name()),
-					Ui::Text::WithEntities));
+					tr::bold(user->name()),
+					tr::marked));
 		}
 	});
 	const auto fail = crl::guard(this, remove);
@@ -681,11 +681,11 @@ bool RequestsBoxSearchController::loadMoreRows() {
 	using Flag = MTPmessages_GetChatInviteImporters::Flag;
 	_requestId = _api.request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(Flag::f_requested | Flag::f_q),
-		_peer->input,
+		_peer->input(),
 		MTPstring(), // link
 		MTP_string(_query),
 		MTP_int(_offsetDate),
-		_offsetUser ? _offsetUser->inputUser : MTP_inputUserEmpty(),
+		_offsetUser ? _offsetUser->inputUser() : MTP_inputUserEmpty(),
 		MTP_int(limit)
 	)).done([=](
 			const MTPmessages_ChatInviteImporters &result,

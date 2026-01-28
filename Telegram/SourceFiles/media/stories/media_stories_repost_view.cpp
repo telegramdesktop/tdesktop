@@ -46,7 +46,7 @@ RepostView::RepostView(
 	}
 
 	_story->session().colorIndicesValue(
-	) | rpl::start_with_next([=](Ui::ColorIndicesCompressed &&indices) {
+	) | rpl::on_next([=](Ui::ColorIndicesCompressed &&indices) {
 		_colorIndices = std::move(indices);
 		if (_maxWidth) {
 			_controller->repaint();

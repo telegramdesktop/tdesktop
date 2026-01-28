@@ -111,7 +111,7 @@ VerticalDrumPicker::VerticalDrumPicker(
 	Expects(_paintCallback != nullptr);
 
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		_itemsVisible.count = std::ceil(float64(s.height()) / _itemHeight);
 		_itemsVisible.centerOffset = _itemsVisible.count / 2;
 		if ((_pendingStartIndex >= 0) && _itemsVisible.count) {
@@ -129,7 +129,7 @@ VerticalDrumPicker::VerticalDrumPicker(
 	}, lifetime());
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(this);
 
 		const auto outerWidth = width();
@@ -151,7 +151,7 @@ VerticalDrumPicker::VerticalDrumPicker(
 	}, lifetime());
 
 	_animation.updates(
-	) | rpl::start_with_next([=](PickerAnimation::Shift shift) {
+	) | rpl::on_next([=](PickerAnimation::Shift shift) {
 		increaseShift(shift);
 	}, lifetime());
 }

@@ -28,7 +28,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme_editor.h"
 #include "ui/boxes/confirm_box.h"
+#include "data/components/promo_suggestions.h"
 #include "data/data_thread.h"
+#include "settings/settings_common.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "styles/style_layers.h"
 
@@ -167,13 +169,13 @@ void Controller::showAccount(
 
 	if (!isPrimary()) {
 		_id.account->sessionChanges(
-		) | rpl::start_with_next([=](Main::Session *session) {
+		) | rpl::on_next([=](Main::Session *session) {
 			Core::App().closeWindow(this);
 		}, _accountLifetime);
 	}
 
 	_id.account->sessionValue(
-	) | rpl::start_with_next([=](Main::Session *session) {
+	) | rpl::on_next([=](Main::Session *session) {
 		const auto was = base::take(_sessionController);
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
@@ -189,12 +191,12 @@ void Controller::showAccount(
 			session->updates().isIdleValue(
 			) | rpl::filter([=](bool idle) {
 				return !idle;
-			}) | rpl::start_with_next([=] {
+			}) | rpl::on_next([=] {
 				widget()->checkActivation();
 			}, _sessionController->lifetime());
 
 			session->termsLockValue(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				checkLockByTerms();
 				_widget.updateGlobalMenu();
 			}, _sessionController->lifetime());
@@ -202,10 +204,15 @@ void Controller::showAccount(
 			widget()->setInnerFocus();
 
 			_sessionController->activeChatChanges(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				_widget.updateTitle();
 			}, _sessionController->lifetime());
 			_widget.updateTitle();
+
+			if (session->promoSuggestions().setupEmailState()
+				!= Data::SetupEmailState::None) {
+				_widget.setupSetupEmailLock();
+			}
 
 			session->updates().updateOnline(crl::now());
 		} else {
@@ -225,7 +232,7 @@ void Controller::setupSideBar() {
 		return;
 	}
 	_sessionController->filtersMenuChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		sideBarChanged();
 	}, _sessionController->lifetime());
 
@@ -259,7 +266,7 @@ void Controller::checkLockByTerms() {
 
 	const auto id = data->id;
 	box->agreeClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto mention = box ? box->lastClickedMention() : QString();
 		box->closeBox();
 		if (const auto session = account().maybeSession()) {
@@ -272,7 +279,7 @@ void Controller::checkLockByTerms() {
 	}, box->lifetime());
 
 	box->cancelClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		showTermsDecline();
 	}, box->lifetime());
 
@@ -291,7 +298,7 @@ void Controller::showTermsDecline() {
 		true));
 
 	box->agreeClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (box) {
 			box->closeBox();
 		}
@@ -299,7 +306,7 @@ void Controller::showTermsDecline() {
 	}, box->lifetime());
 
 	box->cancelClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (box) {
 			box->closeBox();
 		}
@@ -346,7 +353,7 @@ auto Controller::sessionControllerChanges() const
 }
 
 bool Controller::locked() const {
-	if (Core::App().passcodeLocked()) {
+	if (Core::App().passcodeLocked()/* || Core::App().setupEmailLocked()*/) {
 		return true;
 	} else if (const auto controller = sessionController()) {
 		return controller->session().termsLocked().has_value();
@@ -372,6 +379,19 @@ void Controller::clearPasscodeLock() {
 	} else {
 		_widget.clearPasscodeLock();
 	}
+}
+
+void Controller::setupSetupEmailLock() {
+	if (const auto &session = _sessionController) {
+		if (session->session().promoSuggestions().setupEmailState()
+			!= Data::SetupEmailState::None) {
+			_widget.setupSetupEmailLock();
+		}
+	}
+}
+
+void Controller::clearSetupEmailLock() {
+	_widget.clearSetupEmailLock();
 }
 
 void Controller::setupIntro(QPixmap oldContentCache) {
@@ -594,6 +614,35 @@ auto Controller::floatPlayerDelegateValue() const
 
 std::shared_ptr<Ui::Show> Controller::uiShow() {
 	return std::make_shared<Show>(this);
+}
+
+void Controller::setHighlightControlId(const QString &id) {
+	_highlightControlId = id;
+}
+
+QString Controller::highlightControlId() const {
+	return _highlightControlId;
+}
+
+bool Controller::takeHighlightControlId(const QString &id) {
+	if (_highlightControlId == id) {
+		_highlightControlId = QString();
+		return true;
+	}
+	return false;
+}
+
+void Controller::checkHighlightControl(
+		const QString &id,
+		QWidget *widget,
+		Settings::HighlightArgs &&args) {
+	if (widget && takeHighlightControlId(id)) {
+		Settings::HighlightWidget(widget, std::move(args));
+	}
+}
+
+void Controller::checkHighlightControl(const QString &id, QWidget *widget) {
+	checkHighlightControl(id, widget, {});
 }
 
 rpl::lifetime &Controller::lifetime() {

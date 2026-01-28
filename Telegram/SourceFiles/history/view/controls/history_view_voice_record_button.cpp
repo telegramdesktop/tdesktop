@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/controls/history_view_voice_record_button.h"
 
+#include "lottie/lottie_icon.h"
 #include "ui/paint/blobs.h"
 #include "ui/painter.h"
 #include "styles/style_chat.h"
@@ -24,6 +25,8 @@ constexpr auto kBlobAlpha = 76. / 255.;
 constexpr auto kBlobMaxSpeed = 5.0;
 constexpr auto kLevelDuration = 100. + 500. * 0.33;
 constexpr auto kBlobsScaleEnterDuration = crl::time(250);
+constexpr auto kVoiceIconIndex = 0;
+constexpr auto kRoundIconIndex = 1;
 
 auto Blobs() {
 	return std::vector<Ui::Paint::Blobs::BlobData>{
@@ -80,7 +83,7 @@ void VoiceRecordButton::init() {
 		anim::Disabled()
 	) | rpl::then(
 		anim::Disables()
-	) | rpl::start_with_next([=](bool hide) {
+	) | rpl::on_next([=](bool hide) {
 		if (hide) {
 			_blobs->setLevel(0.);
 		}
@@ -94,7 +97,7 @@ void VoiceRecordButton::init() {
 	const auto mainRadiusDiff = st::historyRecordMainBlobMaxRadius
 		- mainRadiusMin;
 	paintRequest(
-	) | rpl::start_with_next([=](const QRect &clip) {
+	) | rpl::on_next([=](const QRect &clip) {
 		auto p = QPainter(this);
 
 		const auto hideProgress = _blobsHideLastTime
@@ -135,22 +138,28 @@ void VoiceRecordButton::init() {
 				p.scale(scale, scale);
 			}
 			const auto state = *currentState;
-			const auto icon = (state == Type::Send)
-				? st::historySendIcon
-				: (state == Type::Record)
-				? st::historyRecordVoiceActive
-				: st::historyRecordRoundActive;
-			const auto position = (state == Type::Send)
-				? st::historyRecordSendIconPosition
-				: (state == Type::Record)
-				? QPoint(0, 0)
-				: st::historyRecordRoundIconPosition;
-			icon.paint(
-				p,
-				-icon.width() / 2 + position.x(),
-				-icon.height() / 2 + position.y(),
-				0,
-				st::historyRecordVoiceFgActiveIcon->c);
+			if (state == Type::Send) {
+				const auto icon = st::historySendIcon;
+				const auto position = st::historyRecordSendIconPosition;
+				icon.paint(
+					p,
+					-icon.width() / 2 + position.x(),
+					-icon.height() / 2 + position.y(),
+					0,
+					st::historyRecordVoiceFgActiveIcon->c);
+			} else {
+				const auto index = (state == Type::Record)
+					? kVoiceIconIndex
+					: kRoundIconIndex;
+				auto &icon = _voiceRoundIcons[index];
+				if (!icon) {
+					initVoiceRoundIcon(index);
+				}
+				icon->paintInCenter(
+					p,
+					rect().translated(-_center, -_center),
+					st::historyRecordVoiceFgActiveIcon->c);
+			}
 		}
 	}, lifetime());
 
@@ -170,7 +179,7 @@ void VoiceRecordButton::init() {
 		shownValue(),
 		_showProgress.value(
 		) | rpl::map(rpl::mappers::_1 != 0.) | rpl::distinct_until_changed()
-	) | rpl::start_with_next([=](bool show) {
+	) | rpl::on_next([=](bool show) {
 		setVisible(show);
 		setMouseTracking(show);
 		if (!show) {
@@ -187,12 +196,12 @@ void VoiceRecordButton::init() {
 
 	actives(
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool active) {
+	) | rpl::on_next([=](bool active) {
 		setPointerCursor(active);
 	}, lifetime());
 
 	_state.changes(
-	) | rpl::start_with_next([=](Type newState) {
+	) | rpl::on_next([=](Type newState) {
 		const auto to = 1.;
 		auto callback = [=](float64 value) {
 			if (value >= (to * .5)) {
@@ -203,6 +212,18 @@ void VoiceRecordButton::init() {
 		constexpr auto kDuration = st::universalDuration * 2;
 		_stateChangedAnimation.start(std::move(callback), 0., to, kDuration);
 	}, lifetime());
+}
+
+void VoiceRecordButton::initVoiceRoundIcon(int index) {
+	Expects(index >= 0 && index < 2);
+
+	_voiceRoundIcons[index] = Lottie::MakeIcon({
+		.path = ((index == kVoiceIconIndex)
+			? u":/animations/chat/voice_to_video.tgs"_q
+			: u":/animations/chat/video_to_voice.tgs"_q),
+		.sizeOverride = st::historySend.recordSize,
+		.colorizeUsingAlpha = true,
+	});
 }
 
 rpl::producer<bool> VoiceRecordButton::actives() const {

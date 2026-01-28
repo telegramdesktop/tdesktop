@@ -21,7 +21,7 @@ HistoryHider::HistoryHider(QWidget *parent, const QString &text)
 : RpWidget(parent)
 , _text(text) {
 	Lang::Updated(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshLang();
 	}, lifetime());
 

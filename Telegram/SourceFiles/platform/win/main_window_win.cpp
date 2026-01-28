@@ -393,7 +393,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 	using namespace rpl::mappers;
 	Core::App().appDeactivatedValue(
 	) | rpl::distinct_until_changed(
-	) | rpl::filter(_1) | rpl::start_with_next([=] {
+	) | rpl::filter(_1) | rpl::on_next([=] {
 		_lastDeactivateTime = crl::now();
 	}, lifetime());
 
@@ -402,7 +402,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 
 void MainWindow::setupPreviewPasscodeLock() {
 	Core::App().passcodeLockValue(
-	) | rpl::start_with_next([=](bool locked) {
+	) | rpl::on_next([=](bool locked) {
 		// Use iconic bitmap instead of the window content if passcoded.
 		BOOL fForceIconic = locked ? TRUE : FALSE;
 		BOOL fHasIconicBitmap = fForceIconic;
@@ -429,7 +429,7 @@ void MainWindow::setupNativeWindowFrame() {
 	rpl::combine(
 		std::move(nativeFrame),
 		Window::Theme::IsNightModeValue()
-	) | rpl::skip(1) | rpl::start_with_next([=](bool native, bool night) {
+	) | rpl::skip(1) | rpl::on_next([=](bool native, bool night) {
 		validateWindowTheme(native, night);
 	}, lifetime());
 }

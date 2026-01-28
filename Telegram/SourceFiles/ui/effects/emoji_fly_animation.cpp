@@ -45,12 +45,12 @@ EmojiFlyAnimation::EmojiFlyAnimation(
 	_flySize,
 	tag)
 , _layer(body) {
-	body->sizeValue() | rpl::start_with_next([=](QSize size) {
+	body->sizeValue() | rpl::on_next([=](QSize size) {
 		_layer.setGeometry(QRect(QPoint(), size));
 	}, _layer.lifetime());
 
 	_layer.paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		const auto target = _target.data();
 		if (!target || !target->isVisible()) {
 			return;

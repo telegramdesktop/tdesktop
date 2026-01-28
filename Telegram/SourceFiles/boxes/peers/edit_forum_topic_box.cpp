@@ -73,7 +73,7 @@ DefaultIconEmoji::DefaultIconEmoji(
 	Fn<void()> repaint,
 	Data::CustomEmojiSizeTag tag)
 : _tag(tag) {
-	std::move(value) | rpl::start_with_next([=](DefaultIcon value) {
+	std::move(value) | rpl::on_next([=](DefaultIcon value) {
 		_icon = value;
 		_image = QImage();
 		if (repaint) {
@@ -164,7 +164,7 @@ bool DefaultIconEmoji::readyInDefaultState() {
 
 	std::move(
 		iconId
-	) | rpl::start_with_next([=](DocumentId id) {
+	) | rpl::on_next([=](DocumentId id) {
 		const auto owner = &controller->session().data();
 		state->icon = id
 			? owner->customEmojiManager().create(
@@ -177,7 +177,7 @@ bool DefaultIconEmoji::readyInDefaultState() {
 
 	std::move(
 		defaultIcon
-	) | rpl::start_with_next([=](DefaultIcon icon) {
+	) | rpl::on_next([=](DefaultIcon icon) {
 		state->defaultIcon = Data::ForumTopicIconFrame(
 			icon.colorId,
 			icon.title,
@@ -189,7 +189,7 @@ bool DefaultIconEmoji::readyInDefaultState() {
 	result->paintRequest(
 	) | rpl::filter([=] {
 		return !paintIconFrame(result);
-	}) | rpl::start_with_next([=](QRect clip) {
+	}) | rpl::on_next([=](QRect clip) {
 		auto args = Ui::Text::CustomEmoji::Context{
 			.textColor = st::windowFg->c,
 			.now = crl::now(),
@@ -222,7 +222,7 @@ bool DefaultIconEmoji::readyInDefaultState() {
 
 	rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		state->frame = Data::ForumTopicGeneralIconFrame(
 			st::largeForumTopicIcon.size,
 			st::windowSubTextFg->c);
@@ -231,7 +231,7 @@ bool DefaultIconEmoji::readyInDefaultState() {
 
 	result->resize(size, size);
 	result->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(result);
 		const auto skip = (size - st::largeForumTopicIcon.size) / 2;
 		p.drawImage(skip, skip, state->frame);
@@ -300,7 +300,7 @@ struct IconSelector {
 
 	icons->requestDefaultIfUnknown();
 	icons->defaultUpdates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		selector->provideRecent(DocumentListToRecent(recent()));
 	}, selector->lifetime());
 
@@ -312,14 +312,14 @@ struct IconSelector {
 	rpl::combine(
 		rpl::duplicate(coverHeight),
 		selector->widthValue()
-	) | rpl::start_with_next([=](int top, int width) {
+	) | rpl::on_next([=](int top, int width) {
 		shadow->setGeometry(0, top, width, st::lineWidth);
 	}, shadow->lifetime());
 
 	selector->refreshEmoji();
 
 	selector->scrollToRequests(
-	) | rpl::start_with_next([=](int y) {
+	) | rpl::on_next([=](int y) {
 		box->scrollToY(y);
 		shadow->update();
 	}, selector->lifetime());
@@ -328,7 +328,7 @@ struct IconSelector {
 		box->heightValue(),
 		std::move(coverHeight),
 		rpl::mappers::_1 - rpl::mappers::_2
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		selector->setMinimalHeight(selector->width(), height);
 	}, body->lifetime());
 
@@ -345,7 +345,7 @@ struct IconSelector {
 	};
 
 	selector->customChosen(
-	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
+	) | rpl::on_next([=](ChatHelpers::FileChosen data) {
 		const auto owner = &controller->session().data();
 		const auto document = data.document;
 		const auto id = document->id;
@@ -465,14 +465,14 @@ void EditForumTopicBox(
 			paintIconFrame);
 
 	title->geometryValue(
-	) | rpl::start_with_next([=](QRect geometry) {
+	) | rpl::on_next([=](QRect geometry) {
 		icon->move(
 			st::editTopicIconPosition.x(),
 			st::editTopicIconPosition.y());
 	}, icon->lifetime());
 
 	state->iconId.value(
-	) | rpl::start_with_next([=](DocumentId iconId) {
+	) | rpl::on_next([=](DocumentId iconId) {
 		icon->setAttribute(
 			Qt::WA_TransparentForMouseEvents,
 			created || (iconId != 0));
@@ -486,13 +486,13 @@ void EditForumTopicBox(
 		};
 	});
 	title->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		state->defaultIcon = DefaultIcon{
 			title->getLastText().trimmed(),
 			state->defaultIcon.current().colorId,
 		};
 	}, title->lifetime());
-	title->submits() | rpl::start_with_next([box] {
+	title->submits() | rpl::on_next([box] {
 		box->triggerButton(0);
 	}, title->lifetime());
 
@@ -515,7 +515,7 @@ void EditForumTopicBox(
 		state->paintIconFrame = std::move(selector.paintIconFrame);
 		std::move(
 			selector.iconIdValue
-		) | rpl::start_with_next([=](DocumentId iconId) {
+		) | rpl::on_next([=](DocumentId iconId) {
 			state->iconId = (iconId != kDefaultIconId) ? iconId : 0;
 		}, box->lifetime());
 	}
@@ -565,7 +565,7 @@ void EditForumTopicBox(
 			state->requestId = api->request(MTPmessages_EditForumTopic(
 				MTP_flags(Flag::f_title
 					| (topic->isGeneral() ? Flag() : Flag::f_icon_emoji_id)),
-				topic->peer()->input,
+				topic->peer()->input(),
 				MTP_int(rootId),
 				MTP_string(title->getLastText().trimmed()),
 				MTP_long(state->iconId.current()),

@@ -8,11 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_service_box.h"
 
 #include "core/ui_integration.h"
+#include "data/data_session.h"
 #include "history/view/media/history_view_sticker_player_abstract.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_text_helper.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/animation_value.h"
@@ -100,7 +102,7 @@ ServiceBox::ServiceBox(
 	InitElementTextPart(_parent, _subtitle);
 	if (auto text = _content->button()) {
 		_button.repaint = [=] { repaint(); };
-		std::move(text) | rpl::start_with_next([=](QString value) {
+		std::move(text) | rpl::on_next([=](QString value) {
 			_button.text.setText(st::semiboldTextStyle, value);
 			const auto height = st::msgServiceGiftBoxButtonHeight;
 			const auto &padding = st::msgServiceGiftBoxButtonPadding;
@@ -122,9 +124,50 @@ ServiceBox::ServiceBox(
 			*type);
 		_button.lastFg = std::make_unique<QColor>();
 	}
+
+	if (auto changes = _content->changes()) {
+		std::move(changes) | rpl::on_next([=] {
+			applyContentChanges();
+		}, _lifetime);
+	}
 }
 
 ServiceBox::~ServiceBox() = default;
+
+void ServiceBox::applyContentChanges() {
+	const auto subtitleWas = _subtitle.countHeight(_maxWidth);
+
+	const auto parent = _parent;
+	_subtitle = Ui::Text::String(
+		st::premiumPreviewAbout.style,
+		Ui::Text::Filtered(
+			_content->subtitle(),
+			{
+				EntityType::Bold,
+				EntityType::StrikeOut,
+				EntityType::Underline,
+				EntityType::Italic,
+				EntityType::Spoiler,
+				EntityType::CustomEmoji,
+			}),
+			kMarkupTextOptions,
+			_maxWidth,
+			Core::TextContext({
+				.session = &parent->history()->session(),
+				.repaint = [parent] { parent->customEmojiRepaint(); },
+			}));
+	InitElementTextPart(parent, _subtitle);
+	const auto subtitleNow = _subtitle.countHeight(_maxWidth);
+	if (subtitleNow != subtitleWas) {
+		_size.setHeight(_size.height() - subtitleWas + subtitleNow);
+		_innerSize = _size - QSize(0, st::msgServiceGiftBoxTopSkip);
+
+		const auto item = parent->data();
+		item->history()->owner().requestItemResize(item);
+	} else {
+		parent->repaint();
+	}
+}
 
 QSize ServiceBox::countOptimalSize() {
 	return _size;
@@ -138,10 +181,22 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 	p.translate(0, st::msgServiceGiftBoxTopSkip);
 
 	PainterHighQualityEnabler hq(p);
-	const auto radius = st::msgServiceGiftBoxRadius;
 	p.setPen(Qt::NoPen);
 	p.setBrush(context.st->msgServiceBg());
-	p.drawRoundedRect(Rect(_innerSize), radius, radius);
+
+	const auto radius = st::msgServiceGiftBoxRadius;
+	if (_parent->data()->inlineReplyKeyboard()) {
+		const auto r = Rect(_innerSize);
+		const auto half = r.height() / 2;
+		p.setClipRect(r - QMargins(0, 0, 0, half));
+		p.drawRoundedRect(r, radius, radius);
+		p.setClipRect(r - QMargins(0, r.height() - half, 0, 0));
+		const auto small = Ui::BubbleRadiusSmall();
+		p.drawRoundedRect(r, small, small);
+		p.setClipping(false);
+	} else {
+		p.drawRoundedRect(Rect(_innerSize), radius, radius);
+	}
 
 	if (_button.stars) {
 		const auto &c = context.st->msgServiceFg()->c;

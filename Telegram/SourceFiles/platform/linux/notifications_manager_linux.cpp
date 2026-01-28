@@ -60,10 +60,10 @@ std::vector<std::string> CurrentCapabilities;
 	return ranges::contains(CurrentCapabilities, value);
 }
 
-std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
+std::optional<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 	auto connection = Gio::bus_get_sync(Gio::BusType::SESSION_, nullptr);
 	if (!connection) {
-		return nullptr;
+		return {};
 	}
 
 	const auto activatable = [&] {
@@ -78,7 +78,7 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 		return ranges::contains(*names, kService);
 	}();
 
-	return std::make_unique<base::Platform::DBus::ServiceWatcher>(
+	return std::make_optional<base::Platform::DBus::ServiceWatcher>(
 		connection.gobj_(),
 		kService,
 		[=](
@@ -263,19 +263,26 @@ void Create(Window::Notifications::System *system) {
 		kService,
 		kObjectPath,
 		[=](GObject::Object, Gio::AsyncResult res) {
-			auto proxy =
-				XdgNotifications::NotificationsProxy::new_for_bus_finish(
-					res,
-					nullptr);
+			auto result =
+				XdgNotifications::NotificationsProxy::new_for_bus_finish(res);
 
-			ServiceRegistered = proxy ? bool(proxy.get_name_owner()) : false;
+			if (result) {
+				ServiceRegistered = bool(result->get_name_owner());
+			} else {
+				Gio::DBusErrorNS_::strip_remote_error(result.error());
+				LOG(("Native Notification Error: %1").arg(
+					result.error().message_().c_str()));
+				ServiceRegistered = false;
+			}
+
 			if (!ServiceRegistered) {
 				CurrentServerInformation = {};
 				CurrentCapabilities = {};
-				managerSetter(proxy);
+				managerSetter({});
 				return;
 			}
 
+			auto proxy = *result;
 			auto interface = XdgNotifications::Notifications(proxy);
 
 			interface.call_get_server_information([=](
@@ -375,10 +382,8 @@ Manager::Private::Private(not_null<Manager*> manager)
 			};
 		};
 
-		auto activate = gi::wrap(
-			G_SIMPLE_ACTION(
-				actionMap.lookup_action("notification-activate").gobj_()),
-			gi::transfer_none);
+		auto activate = gi::object_cast<Gio::SimpleAction>(
+			actionMap.lookup_action("notification-activate"));
 
 		const auto activateSig = activate.signal_activate().connect([=](
 				Gio::SimpleAction,
@@ -393,10 +398,8 @@ Manager::Private::Private(not_null<Manager*> manager)
 			activate.disconnect(activateSig);
 		});
 
-		auto markAsRead = gi::wrap(
-			G_SIMPLE_ACTION(
-				actionMap.lookup_action("notification-mark-as-read").gobj_()),
-			gi::transfer_none);
+		auto markAsRead = gi::object_cast<Gio::SimpleAction>(
+			actionMap.lookup_action("notification-mark-as-read"));
 
 		const auto markAsReadSig = markAsRead.signal_activate().connect([=](
 				Gio::SimpleAction,

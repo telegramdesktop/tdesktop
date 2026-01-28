@@ -487,7 +487,7 @@ private:
 	bool _previewShown = false;
 
 
-	object_ptr<Window::MediaPreviewWidget> _mediaPreview = { nullptr };
+	base::unique_qptr<Window::MediaPreviewWidget> _mediaPreview;
 
 	rpl::event_stream<EmojiChosen> _chosen;
 	rpl::event_stream<FileChosen> _customChosen;

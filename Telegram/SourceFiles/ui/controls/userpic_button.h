@@ -111,6 +111,8 @@ public:
 	void showSource(Source source);
 	void showCustomOnChosen();
 
+	[[nodiscard]] PopupMenu *showChangePhotoMenu();
+
 	void overrideHasPersonalPhoto(bool has);
 	[[nodiscard]] rpl::producer<> resetPersonalRequests() const;
 
@@ -132,7 +134,7 @@ private:
 	void processNewPeerPhoto();
 	void startNewPhotoShowing();
 	void prepareUserpicPixmap();
-	void fillShape(QPainter &p, const style::color &color) const;
+	void fillShape(QPainter &p, QBrush brush) const;
 	[[nodiscard]] QPoint countPhotoPosition() const;
 	void startChangeOverlayAnimation();
 	void updateCursorInChangeOverlay(QPoint localPos);

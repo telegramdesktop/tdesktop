@@ -217,7 +217,7 @@ Controller::Controller(
 		switches
 	) | rpl::filter([=](const ReactionId &reaction) {
 		return (_shownReaction != reaction);
-	}) | rpl::start_with_next([=](const ReactionId &reaction) {
+	}) | rpl::on_next([=](const ReactionId &reaction) {
 		showReaction(reaction);
 	}, lifetime());
 }
@@ -372,7 +372,7 @@ void Controller::loadMore(const ReactionId &reaction) {
 		| (reaction.empty() ? Flag(0) : Flag::f_reaction);
 	_loadRequestId = _api.request(MTPmessages_GetMessageReactionsList(
 		MTP_flags(flags),
-		_peer->input,
+		_peer->input(),
 		MTP_int(_itemId.msg),
 		Data::ReactionToMTP(reaction),
 		MTP_string(offset),

@@ -35,7 +35,6 @@ public:
 	void setStepDataReference(std::any &data) override;
 
 protected:
-	[[nodiscard]] not_null<Window::SessionController*> controller() const;
 	[[nodiscard]] Api::CloudPassword &cloudPassword();
 
 	[[nodiscard]] virtual rpl::producer<Types> removeTypes();
@@ -53,8 +52,6 @@ protected:
 	void setStepData(StepData data);
 
 private:
-	const not_null<Window::SessionController*> _controller;
-
 	Fn<void()> _setInnerFocusCallback;
 
 	rpl::event_stream<> _showFinished;

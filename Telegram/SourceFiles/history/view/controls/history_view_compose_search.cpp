@@ -161,7 +161,7 @@ ListController::ListController(not_null<History*> history)
 }
 
 Main::Session &ListController::session() const {
-	return _history->owner().session();
+	return _history->session();
 }
 
 void ListController::prepare() {
@@ -250,12 +250,12 @@ List CreateList(
 		object_ptr<PeerListContent>(scroll, list.controller.get()));
 
 	list.controller->resetScrollRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		scroll->scrollToY(0);
 	}, scroll->lifetime());
 
 	scroll->scrolls(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto top = scroll->scrollTop();
 		content->setVisibleTopBottom(top, top + scroll->height());
 	}, scroll->lifetime());
@@ -264,13 +264,13 @@ List CreateList(
 	list.controller->setDelegate(delegate);
 
 	list.container->sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		content->resize(size.width(), content->height());
 		scroll->resize(size);
 	}, list.container->lifetime());
 
 	list.container->paintRequest(
-	) | rpl::start_with_next([weak = base::make_weak(list.container.get())](
+	) | rpl::on_next([weak = base::make_weak(list.container.get())](
 			const QRect &r) {
 		auto p = QPainter(weak.get());
 		p.fillRect(r, st::dialogsBg);
@@ -357,12 +357,12 @@ TopBar::TopBar(
 	moveToLeft(0, 0);
 
 	parent->geometryValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateSize();
 	}, lifetime());
 
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		const auto height = st::topBarHeight;
 		_cancel->moveToLeft(0, (height - _cancel->height()) / 2);
 
@@ -373,7 +373,7 @@ TopBar::TopBar(
 	}, lifetime());
 
 	paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		auto p = QPainter(this);
 		p.fillRect(r, st::dialogsBg);
 	}, lifetime());
@@ -464,12 +464,12 @@ void TopBar::refreshTags() {
 	parent->show();
 
 	_searchTags->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		updateSize();
 		shadow->setVisible(height > 0);
 	}, _searchTags->lifetime());
 
-	geometryValue() | rpl::start_with_next([=](QRect geometry) {
+	geometryValue() | rpl::on_next([=](QRect geometry) {
 		shadow->setGeometry(
 			geometry.x(),
 			geometry.y() + geometry.height(),
@@ -478,13 +478,13 @@ void TopBar::refreshTags() {
 	}, shadow->lifetime());
 
 	_searchTags->selectedChanges(
-	) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
+	) | rpl::on_next([=](std::vector<Data::ReactionId> &&list) {
 		_searchTagsSelected = std::move(list);
 		requestSearch(false);
 	}, _searchTags->lifetime());
 
 	_searchTags->menuRequests(
-	) | rpl::start_with_next([=](Data::ReactionId id) {
+	) | rpl::on_next([=](Data::ReactionId id) {
 		ShowTagInListMenu(
 			&_menu,
 			_mouseGlobalPosition.value_or(QCursor::pos()),
@@ -502,11 +502,11 @@ void TopBar::refreshTags() {
 	const auto padding = st::searchInChatTagsPadding;
 	const auto position = QPoint(padding.left(), padding.top());
 
-	_searchTags->repaintRequests() | rpl::start_with_next([=] {
+	_searchTags->repaintRequests() | rpl::on_next([=] {
 		parent->update();
 	}, _searchTags->lifetime());
 
-	widthValue() | rpl::start_with_next([=](int width) {
+	widthValue() | rpl::on_next([=](int width) {
 		width -= padding.left() + padding.right();
 		_searchTags->resizeToWidth(width);
 	}, _searchTags->lifetime());
@@ -514,19 +514,19 @@ void TopBar::refreshTags() {
 	rpl::combine(
 		widthValue(),
 		_searchTags->heightValue()
-	) | rpl::start_with_next([=](int width, int height) {
+	) | rpl::on_next([=](int width, int height) {
 		height += padding.top() + padding.bottom();
 		parent->setGeometry(0, st::topBarHeight, width, height);
 	}, _searchTags->lifetime());
 
-	parent->paintRequest() | rpl::start_with_next([=](const QRect &r) {
+	parent->paintRequest() | rpl::on_next([=](const QRect &r) {
 		auto p = Painter(parent);
 		p.fillRect(r, st::dialogsBg);
 		_searchTags->paint(p, position, crl::now(), false);
 	}, parent->lifetime());
 
 	parent->setMouseTracking(true);
-	parent->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+	parent->events() | rpl::on_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::MouseMove) {
 			const auto mouse = static_cast<QMouseEvent*>(e.get());
 			_mouseGlobalPosition = mouse->globalPos();
@@ -685,7 +685,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 	_chooseFromUser->setVisible(fastShowChooseFrom);
 
 	parent->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		const auto height = st::historyComposeButton.height;
 		resize(r.width(), height);
 		moveToLeft(0, r.height() - height);
@@ -697,7 +697,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 		_chooseFromUser->shownValue() | mapSize,
 		_counter->sizeValue() | mapSize,
 		sizeValue()
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		_showList->setGeometry(QRect(QPoint(), s));
 		_previous->moveToRight(0, (s.height() - _previous->height()) / 2);
 		_next->moveToRight(
@@ -719,13 +719,13 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 	}, lifetime());
 
 	paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		auto p = QPainter(this);
 		p.fillRect(r, st::dialogsBg);
 	}, lifetime());
 
 	_current.value(
-	) | rpl::start_with_next([=](int current) {
+	) | rpl::on_next([=](int current) {
 		const auto nextDisabled = (current <= 0) || (current >= _total);
 		const auto prevDisabled = (current <= 1);
 		_next.enabled = !nextDisabled;
@@ -750,7 +750,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 	rpl::merge(
 		_next->clicks() | rpl::map_to(1),
 		_previous->clicks() | rpl::map_to(-1)
-	) | rpl::start_with_next([=](int way) {
+	) | rpl::on_next([=](int way) {
 		_current = _current.current() + way;
 	}, lifetime());
 }
@@ -826,7 +826,7 @@ rpl::producer<> BottomBar::showListRequests() const {
 void BottomBar::buttonFromToggleOn(rpl::producer<bool> &&visible) {
 	std::move(
 		visible
-	) | rpl::start_with_next([=](bool value) {
+	) | rpl::on_next([=](bool value) {
 		_chooseFromUser->setVisible(value);
 	}, _chooseFromUser->lifetime());
 }
@@ -834,7 +834,7 @@ void BottomBar::buttonFromToggleOn(rpl::producer<bool> &&visible) {
 void BottomBar::buttonCalendarToggleOn(rpl::producer<bool> &&visible) {
 	std::move(
 		visible
-	) | rpl::start_with_next([=](bool value) {
+	) | rpl::on_next([=](bool value) {
 		_jumpToDate->setVisible(value);
 	}, _jumpToDate->lifetime());
 }
@@ -904,21 +904,21 @@ ComposeSearch::Inner::Inner(
 	rpl::combine(
 		_topBar->geometryValue(),
 		_bottomBar->geometryValue()
-	) | rpl::start_with_next([=](const QRect &top, const QRect &bottom) {
+	) | rpl::on_next([=](const QRect &top, const QRect &bottom) {
 		_list.container->setGeometry(QRect(
 			top.topLeft() + QPoint(0, top.height()),
 			bottom.topLeft() + QPoint(bottom.width(), 0)));
 	}, _list.container->lifetime());
 
 	_topBar->keyEvents(
-	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
+	) | rpl::on_next([=](not_null<QKeyEvent*> e) {
 		if (!_bottomBar->handleKeyPress(e)) {
 			_topBar->handleKeyPress(e);
 		}
 	}, _topBar->lifetime());
 
 	_topBar->searchRequests(
-	) | rpl::start_with_next([=](SearchRequest search) {
+	) | rpl::on_next([=](SearchRequest search) {
 		if (search.query.isEmpty() && search.tags.empty()) {
 			if (!search.from || _history->peer->isSelf()) {
 				return;
@@ -933,17 +933,17 @@ ComposeSearch::Inner::Inner(
 	}, _topBar->lifetime());
 
 	_topBar->queryChanges(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		hideList();
 	}, _topBar->lifetime());
 
 	_topBar->closeRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		hideAnimated();
 	}, _topBar->lifetime());
 
 	_topBar->cancelRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (!_list.container->isHidden()) {
 			Ui::Animations::HideWidgets({ _list.container.get() });
 		} else {
@@ -952,7 +952,7 @@ ComposeSearch::Inner::Inner(
 	}, _topBar->lifetime());
 
 	_apiSearch.newFounds(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto &apiData = _apiSearch.messages();
 		const auto weak = base::make_weak(_bottomBar.get());
 		_bottomBar->setTotal(apiData.total);
@@ -963,7 +963,7 @@ ComposeSearch::Inner::Inner(
 	}, _topBar->lifetime());
 
 	_apiSearch.nextFounds(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_pendingJump.data.token == _apiSearch.messages().nextToken) {
 			_pendingJump.jumps.fire_copy(_pendingJump.data.index);
 		}
@@ -973,7 +973,7 @@ ComposeSearch::Inner::Inner(
 	rpl::merge(
 		_pendingJump.jumps.events() | rpl::filter(rpl::mappers::_1 >= 0),
 		_bottomBar->showItemRequests()
-	) | rpl::start_with_next([=](BottomBar::Index index) {
+	) | rpl::on_next([=](BottomBar::Index index) {
 		const auto &apiData = _apiSearch.messages();
 		const auto &messages = apiData.messages;
 		const auto size = int(messages.size());
@@ -996,7 +996,7 @@ ComposeSearch::Inner::Inner(
 	}, _bottomBar->lifetime());
 
 	_list.controller->showItemRequests(
-	) | rpl::start_with_next([=](const FullMsgId &id) {
+	) | rpl::on_next([=](const FullMsgId &id) {
 		const auto &messages = _apiSearch.messages().messages;
 		const auto it = ranges::find(messages, id);
 		if (it != end(messages)) {
@@ -1005,7 +1005,7 @@ ComposeSearch::Inner::Inner(
 	}, _list.container->lifetime());
 
 	_list.controller->searchMoreRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto &apiData = _apiSearch.messages();
 		if (int(apiData.messages.size()) != apiData.total) {
 			_apiSearch.searchMore();
@@ -1013,13 +1013,13 @@ ComposeSearch::Inner::Inner(
 	}, _list.container->lifetime());
 
 	_bottomBar->showCalendarRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		hideList();
 		_window->showCalendar({ _history }, QDate());
 	}, _bottomBar->lifetime());
 
 	_bottomBar->showBoxFromRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto peer = _history->peer;
 		auto box = Dialogs::SearchFromBox(
 			peer,
@@ -1033,7 +1033,7 @@ ComposeSearch::Inner::Inner(
 	}, _bottomBar->lifetime());
 
 	_bottomBar->showListRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_list.container->isHidden()) {
 			Ui::Animations::ShowWidgets({ _list.container.get() });
 		} else {

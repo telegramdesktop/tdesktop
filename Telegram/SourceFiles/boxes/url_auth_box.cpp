@@ -38,7 +38,7 @@ void UrlAuthBox::Activate(
 		return;
 	}
 	const auto session = &message->history()->session();
-	const auto inputPeer = message->history()->peer->input;
+	const auto inputPeer = message->history()->peer->input();
 	const auto buttonId = button->buttonId;
 	const auto url = QString::fromUtf8(button->data);
 
@@ -127,7 +127,7 @@ void UrlAuthBox::Request(
 		return;
 	}
 	const auto session = &message->history()->session();
-	const auto inputPeer = message->history()->peer->input;
+	const auto inputPeer = message->history()->peer->input();
 	const auto buttonId = button->buttonId;
 	const auto url = QString::fromUtf8(button->data);
 
@@ -276,23 +276,23 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 		tr::lng_url_auth_login_option(
 			tr::now,
 			lt_domain,
-			Ui::Text::Bold(domain),
+			tr::bold(domain),
 			lt_user,
-			Ui::Text::Bold(session->user()->name()),
-			Ui::Text::WithEntities));
+			tr::bold(session->user()->name()),
+			tr::marked));
 	const auto allow = bot
 		? addCheckbox(tr::lng_url_auth_allow_messages(
 			tr::now,
 			lt_bot,
-			Ui::Text::Bold(bot->firstName),
-			Ui::Text::WithEntities))
+			tr::bold(bot->firstName),
+			tr::marked))
 		: nullptr;
 	if (allow) {
 		rpl::single(
 			auth->checked()
 		) | rpl::then(
 			auth->checkedChanges()
-		) | rpl::start_with_next([=](bool checked) {
+		) | rpl::on_next([=](bool checked) {
 			if (!checked) {
 				allow->setChecked(false);
 			}

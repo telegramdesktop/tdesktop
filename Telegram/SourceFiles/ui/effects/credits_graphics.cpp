@@ -156,7 +156,7 @@ not_null<RpWidget*> CreateSingleStarWidget(
 	const auto image = GenerateStars(height, 1);
 	widget->resize(image.size() / style::DevicePixelRatio());
 	widget->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(widget);
 		p.drawImage(0, 0, image);
 	}, widget->lifetime());
@@ -184,7 +184,7 @@ not_null<MaskedInputField*> AddInputFieldForCredits(
 		currentValue.current().whole());
 	rpl::duplicate(
 		value
-	) | rpl::start_with_next([=](CreditsAmount v) {
+	) | rpl::on_next([=](CreditsAmount v) {
 		input->changeLimit(v.whole());
 		input->setText(QString::number(v.whole()));
 	}, input->lifetime());
@@ -192,7 +192,7 @@ not_null<MaskedInputField*> AddInputFieldForCredits(
 		inputContainer,
 		st.style.font->height);
 	inputContainer->sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		input->resize(
 			size.width() - rect::m::sum::h(st::boxRowPadding),
 			st.heightMin);
@@ -341,8 +341,8 @@ PaintRoundImageCallback GenerateCreditsPaintEntryCallback(
 	photo->load(Data::PhotoSize::Large, {});
 
 	rpl::single(rpl::empty_value()) | rpl::then(
-		photo->owner().session().downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
+		photo->session().downloaderTaskFinished()
+	) | rpl::on_next([=] {
 		using Size = Data::PhotoSize;
 		if (const auto large = state->view->image(Size::Large)) {
 			state->imagePtr = large;
@@ -391,8 +391,8 @@ PaintRoundImageCallback GenerateCreditsPaintEntryCallback(
 	video->loadThumbnail({});
 
 	rpl::single(rpl::empty_value()) | rpl::then(
-		video->owner().session().downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
+		video->session().downloaderTaskFinished()
+	) | rpl::on_next([=] {
 		if (const auto thumbnail = state->view->thumbnail()) {
 			state->imagePtr = thumbnail;
 		}
@@ -568,6 +568,10 @@ TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 			TextWithEntities{
 				Info::BotStarRef::FormatCommission(entry.starrefCommission)
 			},
+			TextWithEntities::Simple)
+		: entry.isLiveStoryReaction()
+		? tr::lng_credits_paid_messages_fee_live_reaction(
+			tr::now,
 			TextWithEntities::Simple)
 		: entry.paidMessagesCount
 		? tr::lng_credits_paid_messages_fee(

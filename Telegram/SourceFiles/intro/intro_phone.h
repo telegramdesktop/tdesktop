@@ -28,6 +28,8 @@ public:
 		not_null<Main::Account*> account,
 		not_null<Data*> data);
 
+	QString accessibilityName() override;
+
 	void selectCountry(const QString &country);
 
 	void setInnerFocus() override;

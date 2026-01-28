@@ -62,7 +62,8 @@ MediaGeneric::MediaGeneric(
 		Fn<void(std::unique_ptr<Part>)>)> generate,
 	MediaGenericDescriptor &&descriptor)
 : Media(parent)
-, _paintBg(std::move(descriptor.paintBg))
+, _paintBgFactory(std::move(descriptor.paintBgFactory))
+, _paintBg(_paintBgFactory ? _paintBgFactory() : nullptr)
 , _fullAreaLink(descriptor.fullAreaLink)
 , _maxWidthCap(descriptor.maxWidth)
 , _service(descriptor.service)
@@ -110,7 +111,11 @@ void MediaGeneric::draw(Painter &p, const PaintContext &context) const {
 	const auto outer = width();
 	if (outer < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return;
-	} else if (_paintBg) {
+	}
+	if (!_paintBg && _paintBgFactory) {
+		_paintBg = _paintBgFactory();
+	}
+	if (_paintBg) {
 		_paintBg(p, context, this);
 	} else if (_service) {
 		PainterHighQualityEnabler hq(p);
@@ -208,6 +213,7 @@ bool MediaGeneric::hasHeavyPart() const {
 }
 
 void MediaGeneric::unloadHeavyPart() {
+	_paintBg = nullptr;
 	for (const auto &entry : _entries) {
 		entry.object->unloadHeavyPart();
 	}

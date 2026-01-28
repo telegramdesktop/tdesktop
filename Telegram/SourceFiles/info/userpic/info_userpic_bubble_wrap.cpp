@@ -76,7 +76,7 @@ not_null<Ui::RpWidget*> AddBubbleWrap(
 	}
 
 	bubble->paintRequest(
-	) | rpl::start_with_next([bubble, cached = std::move(cached)] {
+	) | rpl::on_next([bubble, cached = std::move(cached)] {
 		auto p = QPainter(bubble);
 		p.drawImage(0, 0, cached);
 	}, bubble->lifetime());

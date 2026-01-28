@@ -153,7 +153,7 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
 		_session->uploader().photoReady(
-		) | rpl::start_with_next([=](const Storage::UploadedMedia &data) {
+		) | rpl::on_next([=](const Storage::UploadedMedia &data) {
 			ready(data.fullId, data.info.file, std::nullopt);
 		}, _session->lifetime());
 	});
@@ -243,12 +243,16 @@ void PeerPhoto::suggest(not_null<PeerData*> peer, UserPhoto &&photo) {
 void PeerPhoto::clear(not_null<PhotoData*> photo) {
 	const auto self = _session->user();
 	if (self->userpicPhotoId() == photo->id) {
+		const auto photoId = photo->id;
+		const auto peerId = self->id;
 		_api.request(MTPphotos_UpdateProfilePhoto(
 			MTP_flags(0),
 			MTPInputUser(), // bot
 			MTP_inputPhotoEmpty()
 		)).done([=](const MTPphotos_Photo &result) {
 			self->setPhoto(MTP_userProfilePhotoEmpty());
+			_session->storage().remove(
+				Storage::UserPhotosRemoveOne(peerToUser(peerId), photoId));
 		}).send();
 	} else if (photo->peer && photo->peer->userpicPhotoId() == photo->id) {
 		const auto applier = [=](const MTPUpdates &result) {
@@ -256,12 +260,12 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 		};
 		if (const auto chat = photo->peer->asChat()) {
 			_api.request(MTPmessages_EditChatPhoto(
-				chat->inputChat,
+				chat->inputChat(),
 				MTP_inputChatPhotoEmpty()
 			)).done(applier).send();
 		} else if (const auto channel = photo->peer->asChannel()) {
 			_api.request(MTPchannels_EditPhoto(
-				channel->inputChannel,
+				channel->inputChannel(),
 				MTP_inputChatPhotoEmpty()
 			)).done(applier).send();
 		}
@@ -290,7 +294,7 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 void PeerPhoto::clearPersonal(not_null<UserData*> user) {
 	_api.request(MTPphotos_UploadContactProfilePhoto(
 		MTP_flags(MTPphotos_UploadContactProfilePhoto::Flag::f_save),
-		user->inputUser,
+		user->inputUser(),
 		MTPInputFile(),
 		MTPInputFile(), // video
 		MTPdouble(), // video_start_ts
@@ -314,15 +318,20 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 		return;
 	}
 	if (peer == _session->user()) {
+		const auto photoId = photo->id;
+		const auto peerId = peer->id;
 		_api.request(MTPphotos_UpdateProfilePhoto(
 			MTP_flags(0),
 			MTPInputUser(), // bot
 			photo->mtpInput()
 		)).done([=](const MTPphotos_Photo &result) {
-			result.match([&](const MTPDphotos_photo &data) {
-				_session->data().processPhoto(data.vphoto());
-				_session->data().processUsers(data.vusers());
-			});
+			const auto newPhoto = _session->data().processPhoto(
+				result.data().vphoto());
+			_session->data().processUsers(result.data().vusers());
+			_session->storage().replace(Storage::UserPhotosReplace(
+				peerToUser(peerId),
+				photoId,
+				newPhoto->id));
 		}).send();
 	} else {
 		const auto applier = [=](const MTPUpdates &result) {
@@ -330,12 +339,12 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 		};
 		if (const auto chat = peer->asChat()) {
 			_api.request(MTPmessages_EditChatPhoto(
-				chat->inputChat,
+				chat->inputChat(),
 				MTP_inputChatPhoto(photo->mtpInput())
 			)).done(applier).send();
 		} else if (const auto channel = peer->asChannel()) {
 			_api.request(MTPchannels_EditPhoto(
-				channel->inputChannel,
+				channel->inputChannel(),
 				MTP_inputChatPhoto(photo->mtpInput())
 			)).done(applier).send();
 		}
@@ -362,7 +371,7 @@ void PeerPhoto::ready(
 	const auto botUserInput = [&] {
 		const auto user = peer->asUser();
 		return (user && user->botInfo && user->botInfo->canEditInformation)
-			? std::make_optional<MTPInputUser>(user->inputUser)
+			? std::make_optional<MTPInputUser>(user->inputUser())
 			: std::nullopt;
 	}();
 	if (peer->isSelf() || botUserInput) {
@@ -386,6 +395,10 @@ void PeerPhoto::ready(
 				_session->storage().add(Storage::UserPhotosSetBack(
 					peerToUser(peer->id),
 					photoId));
+			} else {
+				_session->storage().add(Storage::UserPhotosAddNew(
+					peerToUser(peer->id),
+					photoId));
 			}
 			if (done) {
 				done();
@@ -396,7 +409,7 @@ void PeerPhoto::ready(
 		using Flag = MTPDinputChatUploadedPhoto::Flag;
 		const auto none = MTPDinputChatUploadedPhoto::Flags(0);
 		history->sendRequestId = _api.request(MTPmessages_EditChatPhoto(
-			chat->inputChat,
+			chat->inputChat(),
 			MTP_inputChatUploadedPhoto(
 				MTP_flags((file ? Flag::f_file : none)
 					| (videoSize ? Flag::f_video_emoji_markup : none)),
@@ -410,7 +423,7 @@ void PeerPhoto::ready(
 		const auto none = MTPDinputChatUploadedPhoto::Flags(0);
 		const auto history = _session->data().history(channel);
 		history->sendRequestId = _api.request(MTPchannels_EditPhoto(
-			channel->inputChannel,
+			channel->inputChannel(),
 			MTP_inputChatUploadedPhoto(
 				MTP_flags((file ? Flag::f_file : none)
 					| (videoSize ? Flag::f_video_emoji_markup : none)),
@@ -428,7 +441,7 @@ void PeerPhoto::ready(
 				| ((type == UploadType::Suggestion)
 					? Flag::f_suggest
 					: Flag::f_save)),
-			user->inputUser,
+			user->inputUser(),
 			file ? (*file) : MTPInputFile(),
 			MTPInputFile(), // video
 			MTPdouble(), // video_start_ts
@@ -456,7 +469,7 @@ void PeerPhoto::requestUserPhotos(
 	}
 
 	const auto requestId = _api.request(MTPphotos_GetUserPhotos(
-		user->inputUser,
+		user->inputUser(),
 		MTP_int(0),
 		MTP_long(afterId),
 		MTP_int(kSharedMediaLimit)

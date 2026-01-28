@@ -37,6 +37,7 @@ struct Element {
 	std::shared_ptr<Ui::DynamicImage> thumbnail;
 	uint32 count : 15 = 0;
 	uint32 unreadCount : 15 = 0;
+	uint32 hasVideoStream : 1 = 0;
 	uint32 skipSmall : 1 = 0;
 
 	friend inline bool operator==(
@@ -99,6 +100,9 @@ public:
 
 	[[nodiscard]] auto verticalScrollEvents() const
 		-> rpl::producer<not_null<QWheelEvent*>>;
+
+	[[nodiscard]] bool toggledHidden() const;
+	void setToggledHidden(bool hiddenInstant, bool hiddenAnimated);
 
 private:
 	struct Layout;
@@ -195,8 +199,11 @@ private:
 
 	Ui::Animations::Simple _expandedAnimation;
 	Ui::Animations::Simple _expandCatchUpAnimation;
+	Ui::Animations::Simple _hiddenAnimation;
 	float64 _lastRatio = 0.;
 	int _lastExpandedHeight = 0;
+	bool _hiddenAnimated : 1 = false;
+	bool _hiddenInstant : 1 = false;
 	bool _expandIgnored : 1 = false;
 	bool _expanded : 1 = false;
 

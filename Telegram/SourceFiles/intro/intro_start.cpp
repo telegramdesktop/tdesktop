@@ -38,5 +38,18 @@ rpl::producer<QString> StartWidget::nextButtonText() const {
 	return tr::lng_start_msgs();
 }
 
+rpl::producer<> StartWidget::nextButtonFocusRequests() const {
+	return _nextButtonFocusRequests.events();
+}
+
+void StartWidget::activate() {
+	Step::activate();
+	setInnerFocus();
+}
+
+void StartWidget::setInnerFocus() {
+	_nextButtonFocusRequests.fire({});
+}
+
 } // namespace details
 } // namespace Intro

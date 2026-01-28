@@ -88,12 +88,8 @@ PRIVATE
     v2/SignalingConnection.h
     v2/SignalingEncryption.cpp
     v2/SignalingEncryption.h
-    v2/SignalingKcpConnection.cpp
-    v2/SignalingKcpConnection.h
     v2/SignalingSctpConnection.cpp
     v2/SignalingSctpConnection.h
-    v2/ikcp.cpp
-    v2/ikcp.h
 
     # Desktop capturer
     desktop_capturer/DesktopCaptureSource.h

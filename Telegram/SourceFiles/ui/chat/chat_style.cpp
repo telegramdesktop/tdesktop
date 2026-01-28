@@ -187,7 +187,7 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 	if (colorIndices) {
 		_colorIndicesLifetime = std::move(
 			colorIndices
-		) | rpl::start_with_next([=](ColorIndicesCompressed &&indices) {
+		) | rpl::on_next([=](ColorIndicesCompressed &&indices) {
 			_colorIndices = std::move(indices);
 		});
 	}
@@ -614,7 +614,7 @@ void ChatStyle::applyCustomPalette(const style::palette *palette) {
 		_defaultPaletteChangeLifetime.destroy();
 	} else {
 		style::PaletteChanged(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			assignPalette(style::main_palette::get());
 		}, _defaultPaletteChangeLifetime);
 	}
@@ -862,9 +862,7 @@ ColorIndexValues ChatStyle::computeColorIndexValues(
 	}
 	const auto color = [&](int index) {
 		const auto v = colors[index];
-		return v
-			? QColor((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF)
-			: QColor(0, 0, 0, 0);
+		return v ? Ui::ColorFromSerialized(v) : QColor(0, 0, 0, 0);
 	};
 	auto result = ColorIndexValues{
 		.outlines = { color(0), color(1), color(2) }

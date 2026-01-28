@@ -475,7 +475,7 @@ private:
 Manager::Private::Private(Manager *instance)
 : _guarded(std::make_shared<Manager*>(instance)) {
 	ToastActivations(
-	) | rpl::start_with_next([=](const ToastActivation &activation) {
+	) | rpl::on_next([=](const ToastActivation &activation) {
 		handleActivation(activation);
 	}, _lifetime);
 }
