@@ -1,19 +1,19 @@
-6.4.3 beta (28.01.25)
+6.4.3 beta (28.01.26)
 
 - Search in Settings.
 
-6.4.2 (08.01.25)
+6.4.2 (08.01.26)
 
 - Fix non-closing popup menu items.
 - Fix crash in my profile section resize.
 - Fix some text glitches because of render optimizations.
 
-6.4.1 (05.01.25)
+6.4.1 (05.01.26)
 
 - Fix context menu double activations.
 - Fix text rendering in animating bubbles.
 
-6.4 (03.01.25)
+6.4 (03.01.26)
 
 - AI Summaries for posts in channels.
 
