@@ -177,22 +177,20 @@ QRect Panel::panelGeometry() const {
 	const auto center = Core::App().getPointForCallPanelCenter();
 	const auto simple = QRect(0, 0, st::callWidth, st::callHeight);
 	const auto initial = simple.translated(center - simple.center());
-	auto result = initial;
-	if (const auto window = Core::App().activeWindow()) {
-		const auto initialPosition = Core::WindowPosition{
-			.moncrc = 0,
-			.scale = cScale(),
-			.x = initial.x(),
-			.y = initial.y(),
-			.w = initial.width(),
-			.h = initial.height(),
-		};
-		result = window->widget()->countInitialGeometry(
-			adjusted,
-			initialPosition,
-			{ st::callWidthMin, st::callHeightMin });
-	}
-	return result;
+	const auto initialPosition = Core::WindowPosition{
+		.moncrc = 0,
+		.scale = cScale(),
+		.x = initial.x(),
+		.y = initial.y(),
+		.w = initial.width(),
+		.h = initial.height(),
+	};
+	return ::Window::CountInitialGeometry(
+		window(),
+		adjusted,
+		initialPosition,
+		{ st::callWidthMin, st::callHeightMin },
+		u"Call"_q);
 }
 
 ConferencePanelMigration Panel::migrationInfo() const {
