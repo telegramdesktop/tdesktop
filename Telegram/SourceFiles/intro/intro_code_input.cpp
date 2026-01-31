@@ -69,6 +69,7 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
 	Shaker _shaker;
@@ -155,6 +156,11 @@ void CodeDigit::paintEvent(QPaintEvent *e) {
 	p.setFont(st::introCodeDigitFont);
 	p.setPen(st::windowFg);
 	p.drawText(rect(), QString::number(_viewDigit), style::al_center);
+}
+
+void CodeDigit::mouseReleaseEvent(QMouseEvent *e) {
+	QGuiApplication::inputMethod()->show();
+	Ui::AbstractButton::mouseReleaseEvent(e);
 }
 
 CodeInput::CodeInput(QWidget *parent)
@@ -294,6 +300,10 @@ void CodeInput::keyPressEvent(QKeyEvent *e) {
 	} else if (key == Qt::Key_End || key == Qt::Key_PageDown) {
 		unfocusAll(_currentIndex = (_digits.size() - 1));
 	}
+}
+
+void CodeInput::keyReleaseEvent(QKeyEvent *e) {
+	QGuiApplication::inputMethod()->show();
 }
 
 void CodeInput::contextMenuEvent(QContextMenuEvent *e) {
