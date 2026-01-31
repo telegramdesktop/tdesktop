@@ -165,6 +165,7 @@ EditFlagsDescriptor<PowerSaving::Flags> PowerSavingLabels() {
 		},
 		{ kChatSpoiler, tr::lng_settings_power_chat_spoiler(tr::now) },
 		{ kChatEffects, tr::lng_settings_power_chat_effects(tr::now) },
+		{ kChatMedia, tr::lng_settings_power_chat_media(tr::now) },
 	};
 	auto calls = std::vector<Label>{
 		{

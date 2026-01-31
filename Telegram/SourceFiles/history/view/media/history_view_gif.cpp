@@ -537,7 +537,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		== PaintContext::SkipDrawingParts::Content;
 	const auto drawStreamed = streamed && (shouldBePlaying || !_videoCover);
 	if (drawStreamed && !skipDrawingContent && !fullHiddenBySpoiler) {
-		auto paused = context.paused || !shouldBePlaying;
+		auto paused = context.paused || !shouldBePlaying || On(PowerSaving::kChatMedia);
 		auto request = ::Media::Streaming::FrameRequest{
 			.outer = QSize(usew, painth) * style::DevicePixelRatio(),
 			.blurredBackground = true,
