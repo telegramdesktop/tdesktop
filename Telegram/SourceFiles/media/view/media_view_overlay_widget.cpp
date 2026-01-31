@@ -980,7 +980,7 @@ void OverlayWidget::savePosition() {
 		realPosition.maximized = 1;
 		realPosition.moncrc = 0;
 		DEBUG_LOG(("Viewer Pos: Saving maximized position."));
-	} else if (!_wasWindowedMode && !Platform::IsMac()) {
+	} else if (!_wasWindowedMode) {
 		return;
 	} else {
 		auto r = _normalGeometry = _window->body()->mapToGlobal(
