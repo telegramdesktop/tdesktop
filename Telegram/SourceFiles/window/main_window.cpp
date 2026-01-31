@@ -985,7 +985,8 @@ WindowPosition MainWindow::withScreenInPosition(
 	return PositionWithScreen(
 		position,
 		this,
-		{ st::windowMinWidth, st::windowMinHeight });
+		{ st::windowMinWidth, st::windowMinHeight },
+		u"Window"_q);
 }
 
 bool MainWindow::minimizeToTray() {
@@ -1094,7 +1095,8 @@ int32 DefaultScreenNameChecksum(const QString &name) {
 WindowPosition PositionWithScreen(
 		WindowPosition position,
 		const QScreen *chosen,
-		QSize minimal) {
+		QSize minimal,
+		const QString &name) {
 	if (!chosen) {
 		return position;
 	}
@@ -1112,7 +1114,8 @@ WindowPosition PositionWithScreen(
 		position.y = available.y() + available.height() - position.h;
 	}
 	const auto geometry = chosen->geometry();
-	DEBUG_LOG(("Window Pos: Screen found, geometry: %1, %2, %3, %4"
+	DEBUG_LOG(("%1 Pos: Screen found, geometry: %2, %3, %4, %5"
+		).arg(name
 		).arg(geometry.x()
 		).arg(geometry.y()
 		).arg(geometry.width()
@@ -1123,12 +1126,14 @@ WindowPosition PositionWithScreen(
 WindowPosition PositionWithScreen(
 		WindowPosition position,
 		not_null<const QWidget*> widget,
-		QSize minimal) {
+		QSize minimal,
+		const QString &name) {
 	const auto screen = widget->screen();
 	return PositionWithScreen(
 		position,
 		screen ? screen : QGuiApplication::primaryScreen(),
-		minimal);
+		minimal,
+		name);
 }
 
 } // namespace Window

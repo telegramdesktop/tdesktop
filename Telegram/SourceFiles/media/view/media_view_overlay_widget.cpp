@@ -1003,7 +1003,8 @@ void OverlayWidget::savePosition() {
 	realPosition = Window::PositionWithScreen(
 		realPosition,
 		_window,
-		{ st::mediaviewMinWidth, st::mediaviewMinHeight });
+		{ st::mediaviewMinWidth, st::mediaviewMinHeight },
+		u"Viewer"_q);
 	if (realPosition.w >= st::mediaviewMinWidth
 		&& realPosition.h >= st::mediaviewMinHeight
 		&& realPosition != savedPosition) {

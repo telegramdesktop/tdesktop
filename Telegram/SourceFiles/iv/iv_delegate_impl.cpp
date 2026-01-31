@@ -100,7 +100,8 @@ void DelegateImpl::ivSaveGeometry(not_null<Ui::RpWindow*> window) {
 	realPosition = Window::PositionWithScreen(
 		realPosition,
 		window,
-		{ st::ivWidthMin, st::ivHeightMin });
+		{ st::ivWidthMin, st::ivHeightMin },
+		u"IV"_q);
 	if (realPosition.w >= st::ivWidthMin
 		&& realPosition.h >= st::ivHeightMin
 		&& realPosition != savedPosition) {

@@ -259,7 +259,8 @@ void Panel::savePanelGeometry() {
 	realPosition = ::Window::PositionWithScreen(
 		realPosition,
 		window(),
-		{ st::callWidthMin, st::callHeightMin });
+		{ st::callWidthMin, st::callHeightMin },
+		u"Call"_q);
 	if (realPosition.w >= st::callWidthMin
 		&& realPosition.h >= st::callHeightMin
 		&& realPosition != savedPosition) {
