@@ -718,6 +718,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_keyboard_show" = "Show bot keyboard";
 "lng_bot_keyboard_hide" = "Hide bot keyboard";
 "lng_bot_commands_start" = "Bot commands start";
+"lng_broadcast_silent" = "Silent broadcast";
 
 "lng_settings_chat_reactions_title" = "Quick Reaction";
 "lng_settings_chat_reactions_subtitle" = "Choose your favorite reaction";
