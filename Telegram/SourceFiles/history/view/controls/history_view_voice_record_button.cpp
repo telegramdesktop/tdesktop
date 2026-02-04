@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
+#include "lang/lang_keys.h"
 
 #include <QtMath>
 
@@ -259,6 +260,19 @@ void VoiceRecordButton::requestPaintColor(float64 progress) {
 
 void VoiceRecordButton::setType(Type state) {
 	_state = state;
+
+	setAccessibleName([&] {
+		switch (state) {
+		case Type::Send:
+			return tr::lng_send_button(tr::now);
+		case Type::Record:
+			return tr::lng_send_action_record_round(tr::now);
+		case Type::Round:
+			return tr::lng_send_action_record_round(tr::now);
+		}
+		Unexpected("Voice record button type.");
+	}());
+
 }
 
 } // namespace HistoryView::Controls
