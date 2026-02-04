@@ -712,6 +712,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_shortcuts_record_round_message" = "Record Round Message";
 "lng_shortcuts_admin_log" = "Group/Channel Recent Actions";
 
+"lng_attach" = "Add attachment";
+"lng_attach_replace" = "Replace attachment";
+"lng_emoji_sticker_gif" = "Choose emoji, sticker or gif";
+"lng_bot_keyboard_show" = "Show bot keyboard";
+"lng_bot_keyboard_hide" = "Hide bot keyboard";
+"lng_bot_commands_start" = "Bot commands start";
+
 "lng_settings_chat_reactions_title" = "Quick Reaction";
 "lng_settings_chat_reactions_subtitle" = "Choose your favorite reaction";
 "lng_settings_chat_message_reply_from" = "Bob Harris";

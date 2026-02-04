@@ -1053,6 +1053,14 @@ HistoryWidget::HistoryWidget(
 	setupSendAsToggle();
 	orderWidgets();
 	setupShortcuts();
+
+	_attachToggle->setAccessibleName(tr::lng_attach(tr::now));
+	_tabbedSelectorToggle->setAccessibleName(tr::lng_emoji_sticker_gif(tr::now));
+	_botKeyboardShow->setAccessibleName(tr::lng_bot_keyboard_show(tr::now));
+	_botKeyboardHide->setAccessibleName(tr::lng_bot_keyboard_hide(tr::now));
+	_botCommandStart->setAccessibleName(tr::lng_bot_commands_start(tr::now));
+	_fieldBarCancel->setAccessibleName(tr::lng_cancel(tr::now));
+
 }
 
 void HistoryWidget::setGeometryWithTopMoved(
@@ -2186,6 +2194,7 @@ void HistoryWidget::setupGiftToChannelButton() {
 	_giftToChannel = Ui::CreateChild<Ui::IconButton>(
 		_muteUnmute.data(),
 		st::historyGiftToChannel);
+	_giftToChannel->setAccessibleName(tr::lng_gift_channel_title(tr::now));
 	widthValue() | rpl::on_next([=](int width) {
 		_giftToChannel->moveToRight(0, 0, width);
 	}, _giftToChannel->lifetime());
@@ -2213,6 +2222,7 @@ void HistoryWidget::setupDirectMessageButton() {
 	_directMessage = Ui::CreateChild<Ui::IconButton>(
 		_muteUnmute.data(),
 		st::historyDirectMessage);
+		_directMessage->setAccessibleName(tr::lng_profile_direct_messages(tr::now));
 	widthValue() | rpl::on_next([=](int width) {
 		_directMessage->moveToLeft(0, 0, width);
 	}, _directMessage->lifetime());
@@ -3107,6 +3117,9 @@ bool HistoryWidget::updateReplaceMediaButton() {
 	_replaceMedia.create(
 		this,
 		_canReplaceMedia ? st::historyReplaceMedia : st::historyAddMedia);
+	_replaceMedia->setAccessibleName(_canReplaceMedia
+		? tr::lng_attach_replace(tr::now)
+		: tr::lng_attach(tr::now));
 	const auto hideDuration = st::historyReplaceMedia.ripple.hideDuration;
 	_replaceMedia->setClickedCallback([=] {
 		base::call_delayed(hideDuration, this, [=] {
@@ -3218,6 +3231,7 @@ void HistoryWidget::refreshScheduledToggle() {
 		&& (session().scheduledMessages().count(_history) > 0);
 	if (!_scheduled && has) {
 		_scheduled.create(this, st::historyScheduledToggle);
+		_scheduled->setAccessibleName(tr::lng_scheduled_messages(tr::now));
 		_scheduled->show();
 		_scheduled->addClickHandler([=] {
 			controller()->showSection(
@@ -3248,6 +3262,7 @@ void HistoryWidget::refreshSendGiftToggle() {
 		&& ((disallowed & all) != all);
 	if (!_giftToUser && has) {
 		_giftToUser.create(this, st::historyGiftToUser);
+		_giftToUser->setAccessibleName(tr::lng_gift_send_title(tr::now));
 		_giftToUser->show();
 		_giftToUser->addClickHandler([=] {
 			Ui::ShowStarGiftBox(controller(), _peer);
@@ -3330,6 +3345,7 @@ void HistoryWidget::refreshSendAsToggle() {
 	}
 	const auto &st = st::defaultComposeControls.chooseSendAs;
 	_sendAs.create(this, st.button);
+	_sendAs->setAccessibleName(tr::lng_send_as_title(tr::now));
 	Ui::SetupSendAsButton(_sendAs.data(), st, controller());
 }
 
@@ -7820,6 +7836,8 @@ bool HistoryWidget::showSlowmodeError() {
 void HistoryWidget::fieldTabbed() {
 	if (_supportAutocomplete) {
 		_supportAutocomplete->activate(_field.data());
+	}else{
+		focusNextPrevChild(true);
 	}
 }
 
