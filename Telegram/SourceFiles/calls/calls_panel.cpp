@@ -145,11 +145,17 @@ Panel::Panel(not_null<Call*> call)
 , _controlsShownForceTimer([=] { controlsShownForce(false); }) {
 	_decline->setDuration(st::callPanelDuration);
 	_decline->entity()->setText(tr::lng_call_decline());
+	_decline->entity()->setAccessibleName(tr::lng_call_decline(tr::now));
 	_cancel->setDuration(st::callPanelDuration);
 	_cancel->entity()->setText(tr::lng_call_cancel());
+	_cancel->entity()->setAccessibleName(tr::lng_call_cancel(tr::now));
 	_screencast->setDuration(st::callPanelDuration);
+	_screencast->entity()->setAccessibleName(tr::lng_call_screencast(tr::now));
 	_addPeople->setDuration(st::callPanelDuration);
 	_addPeople->entity()->setText(tr::lng_call_add_people());
+	_addPeople->entity()->setAccessibleName(tr::lng_call_add_people(tr::now));
+	_camera->setAccessibleName(tr::lng_call_start_video(tr::now));
+	_mute->entity()->setAccessibleName(tr::lng_call_mute_audio(tr::now));
 
 	initWindow();
 	initWidget();
@@ -732,6 +738,9 @@ void Panel::reinitWithCall(Call *call) {
 		_mute->entity()->setText(mute
 			? tr::lng_call_unmute_audio()
 			: tr::lng_call_mute_audio());
+		_mute->entity()->setAccessibleName(mute
+			? tr::lng_call_unmute_audio(tr::now)
+			: tr::lng_call_mute_audio(tr::now));
 	}, _callLifetime);
 
 	_call->videoOutgoing()->stateValue(
@@ -742,6 +751,9 @@ void Panel::reinitWithCall(Call *call) {
 			_camera->setText(active
 				? tr::lng_call_stop_video()
 				: tr::lng_call_start_video());
+			_camera->setAccessibleName(active
+				? tr::lng_call_stop_video(tr::now)
+				: tr::lng_call_start_video(tr::now));
 		}
 		{
 			const auto active = _call->isSharingScreen();
@@ -1030,12 +1042,14 @@ void Panel::initMediaDeviceToggles() {
 			{ Webrtc::DeviceType::Camera, _call->cameraDeviceIdValue() },
 		});
 	});
+	_cameraDeviceToggle->setAccessibleName(tr::lng_settings_call_camera(tr::now));
 	_audioDeviceToggle->setClickedCallback([=] {
 		showDevicesMenu(_audioDeviceToggle, {
 			{ Webrtc::DeviceType::Playback, _call->playbackDeviceIdValue() },
 			{ Webrtc::DeviceType::Capture, _call->captureDeviceIdValue() },
 		});
 	});
+	_audioDeviceToggle->setAccessibleName(tr::lng_settings_call_section_output(tr::now));
 }
 
 void Panel::showDevicesMenu(
@@ -1381,6 +1395,7 @@ void Panel::stateChanged(State state) {
 				st::callStartVideo);
 			_startVideo->show();
 			_startVideo->setText(tr::lng_call_start_video());
+			_startVideo->setAccessibleName(tr::lng_call_start_video(tr::now));
 			_startVideo->clicks() | rpl::map_to(true) | rpl::start_to_stream(
 				_startOutgoingRequests,
 				_startVideo->lifetime());
@@ -1444,6 +1459,15 @@ void Panel::refreshAnswerHangupRedialLabel() {
 		case AnswerHangupRedialState::Hangup: return tr::lng_call_end_call();
 		case AnswerHangupRedialState::Redial: return tr::lng_call_redial();
 		case AnswerHangupRedialState::StartCall: return tr::lng_call_start();
+		}
+		Unexpected("AnswerHangupRedialState value.");
+	}());
+	_answerHangupRedial->setAccessibleName([&] {
+		switch (*_answerHangupRedialState) {
+		case AnswerHangupRedialState::Answer: return tr::lng_call_accept(tr::now);
+		case AnswerHangupRedialState::Hangup: return tr::lng_call_end_call(tr::now);
+		case AnswerHangupRedialState::Redial: return tr::lng_call_redial(tr::now);
+		case AnswerHangupRedialState::StartCall: return tr::lng_call_start(tr::now);
 		}
 		Unexpected("AnswerHangupRedialState value.");
 	}());
