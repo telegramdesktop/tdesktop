@@ -45,7 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_form.h"
 #include "settings/settings_credits_graphics.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
 #include "ui/boxes/boost_box.h" // StartFireworks.
 #include "ui/boxes/confirm_box.h"

@@ -45,26 +45,16 @@ namespace {
 
 } // namespace
 
-void DelegateImpl::ivSetLastSourceWindow(not_null<QWidget*> window) {
-	_lastSourceWindow = window;
-}
-
-QRect DelegateImpl::ivGeometry() const {
-	const auto found = _lastSourceWindow
-		? Core::App().findWindow(_lastSourceWindow)
-		: nullptr;
-
+QRect DelegateImpl::ivGeometry(not_null<Ui::RpWindow*> window) const {
 	const auto saved = Core::App().settings().ivPosition();
 	const auto adjusted = Core::AdjustToScale(saved, u"IV"_q);
 	const auto initial = DefaultPosition();
-	auto result = initial.rect();
-	if (const auto window = found ? found : Core::App().activeWindow()) {
-		result = window->widget()->countInitialGeometry(
-			adjusted,
-			initial,
-			{ st::ivWidthMin, st::ivHeightMin });
-	}
-	return result;
+	return Window::CountInitialGeometry(
+		window,
+		adjusted,
+		initial,
+		{ st::ivWidthMin, st::ivHeightMin },
+		u"IV"_q);
 }
 
 void DelegateImpl::ivSaveGeometry(not_null<Ui::RpWindow*> window) {
@@ -100,7 +90,8 @@ void DelegateImpl::ivSaveGeometry(not_null<Ui::RpWindow*> window) {
 	realPosition = Window::PositionWithScreen(
 		realPosition,
 		window,
-		{ st::ivWidthMin, st::ivHeightMin });
+		{ st::ivWidthMin, st::ivHeightMin },
+		u"IV"_q);
 	if (realPosition.w >= st::ivWidthMin
 		&& realPosition.h >= st::ivHeightMin
 		&& realPosition != savedPosition) {

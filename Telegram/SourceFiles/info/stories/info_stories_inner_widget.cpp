@@ -545,6 +545,21 @@ void InnerWidget::enableBackButton() {
 
 void InnerWidget::showFinished() {
 	_showFinished.fire({});
+
+	const auto window = _controller->parentController();
+	window->checkHighlightControl(u"my-profile/posts"_q, _albumsWrap);
+	if (window->highlightControlId() == u"my-profile/posts/add-album"_q) {
+		window->setHighlightControlId(QString());
+		if (_albumsWrap) {
+			::Settings::HighlightWidget(_albumsWrap);
+		}
+		_controller->uiShow()->show(Box(
+			NewAlbumBox,
+			_controller,
+			_peer,
+			StoryId(),
+			[=](Data::StoryAlbum album) { albumAdded(album); }));
+	}
 }
 
 void InnerWidget::finalizeTop() {

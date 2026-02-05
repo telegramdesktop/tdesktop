@@ -312,9 +312,10 @@ QString UsernameEditor::getName() const {
 
 } // namespace
 
-void UsernamesBox(
+void FillUsernamesBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		Fn<void()> onSaved) {
 	const auto isBot = peer && peer->isUser() && peer->asUser()->isBot();
 	box->setTitle(isBot
 		? tr::lng_bot_username_title()
@@ -373,6 +374,9 @@ void UsernamesBox(
 		) | rpl::on_done([=] {
 			editor->save(
 			) | rpl::on_done([=] {
+				if (onSaved) {
+					onSaved();
+				}
 				box->closeBox();
 			}, box->lifetime());
 		}, box->lifetime());
@@ -386,6 +390,19 @@ void UsernamesBox(
 		box->addButton(tr::lng_settings_save(), finish);
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}
+}
+
+void UsernamesBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> peer) {
+	FillUsernamesBox(box, peer, nullptr);
+}
+
+void UsernamesBoxWithCallback(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> peer,
+		Fn<void()> onSaved) {
+	FillUsernamesBox(box, peer, std::move(onSaved));
 }
 
 void AddUsernameCheckLabel(

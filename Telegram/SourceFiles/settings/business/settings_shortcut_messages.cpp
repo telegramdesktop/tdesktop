@@ -330,7 +330,7 @@ ShortcutMessages::ShortcutMessages(
 	not_null<Ui::ScrollArea*> scroll,
 	rpl::producer<Container> containerValue,
 	BusinessShortcutId shortcutId)
-: AbstractSection(parent)
+: AbstractSection(parent, controller)
 , WindowListDelegate(controller)
 , _controller(controller)
 , _session(&controller->session())

@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/controls/feature_list.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"

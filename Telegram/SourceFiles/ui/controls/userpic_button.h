@@ -111,6 +111,8 @@ public:
 	void showSource(Source source);
 	void showCustomOnChosen();
 
+	[[nodiscard]] PopupMenu *showChangePhotoMenu();
+
 	void overrideHasPersonalPhoto(bool has);
 	[[nodiscard]] rpl::producer<> resetPersonalRequests() const;
 

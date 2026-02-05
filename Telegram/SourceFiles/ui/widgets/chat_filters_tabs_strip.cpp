@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_folders.h"
+#include "settings/sections/settings_folders.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
@@ -111,13 +111,13 @@ void ShowMenu(
 		auto openFiltersSettings = [=] {
 			const auto filters = &session->data().chatsFilters();
 			if (filters->suggestedLoaded()) {
-				controller->showSettings(Settings::Folders::Id());
+				controller->showSettings(Settings::FoldersId());
 			} else if (!state->waitingSuggested) {
 				state->waitingSuggested = true;
 				filters->requestSuggested();
 				filters->suggestedUpdated(
 				) | rpl::take(1) | rpl::on_next([=] {
-					controller->showSettings(Settings::Folders::Id());
+					controller->showSettings(Settings::FoldersId());
 				}, parent->lifetime());
 			}
 		};

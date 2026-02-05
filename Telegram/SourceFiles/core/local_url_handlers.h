@@ -33,6 +33,10 @@ struct LocalUrlHandler {
 		const QVariant &context)> handler;
 };
 
+[[nodiscard]] bool TryRouterForLocalUrl(
+	Window::SessionController *controller,
+	const QString &command);
+
 [[nodiscard]] const std::vector<LocalUrlHandler> &LocalUrlHandlers();
 [[nodiscard]] const std::vector<LocalUrlHandler> &InternalUrlHandlers();
 

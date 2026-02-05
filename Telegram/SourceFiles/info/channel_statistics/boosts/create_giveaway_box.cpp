@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h" // Payments::CheckoutProcess
 #include "payments/payments_form.h" // Payments::InvoicePremiumGiftCode
 #include "settings/settings_common.h"
-#include "settings/settings_premium.h" // Settings::ShowPremium
+#include "settings/sections/settings_premium.h" // Settings::ShowPremium
 #include "ui/boxes/choose_date_time.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/credits_graphics.h"

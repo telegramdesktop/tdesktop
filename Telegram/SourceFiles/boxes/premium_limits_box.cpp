@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_premium_limits.h"
 #include "lang/lang_keys.h"
-#include "settings/settings_premium.h" // ShowPremium.
+#include "settings/sections/settings_premium.h" // ShowPremium.
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "styles/style_premium.h"

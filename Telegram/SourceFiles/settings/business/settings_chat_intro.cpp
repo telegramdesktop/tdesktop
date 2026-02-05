@@ -119,7 +119,7 @@ private:
 
 };
 
-class ChatIntro final : public BusinessSection<ChatIntro> {
+class ChatIntro final : public Section<ChatIntro> {
 public:
 	ChatIntro(
 		QWidget *parent,
@@ -497,7 +497,7 @@ void StickerPanel::create(const Descriptor &descriptor) {
 ChatIntro::ChatIntro(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: BusinessSection(parent, controller) {
+: Section(parent, controller) {
 	setupContent(controller);
 }
 

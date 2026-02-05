@@ -45,7 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "window/themes/window_theme.h" // IsNightMode.
@@ -3249,6 +3249,7 @@ Reactions::ButtonParameters Message::reactionButtonParameters(
 	const auto reactionsHeight = (_reactions && !embedReactionsInBubble())
 		? (st::mediaInBubbleSkip + _reactions->height())
 		: 0;
+	result.reactionsHeight = reactionsHeight;
 	const auto innerHeight = geometry.height()
 		- keyboardHeight
 		- reactionsHeight;
@@ -4017,7 +4018,17 @@ ClickHandlerPtr Message::prepareRightActionLink() const {
 			}
 		};
 	};
-	return std::make_shared<LambdaClickHandler>([=](
+
+	class FastShareClickHandler : public LambdaClickHandler {
+	public:
+		FastShareClickHandler(Fn<void(ClickContext)> handler)
+			: LambdaClickHandler(std::move(handler)) {}
+		QString tooltip() const override {
+			return tr::lng_fast_share_tooltip(tr::now);
+		}
+	};
+
+	const auto result = std::make_shared<FastShareClickHandler>([=](
 			ClickContext context) {
 		const auto controller = ExtractController(context);
 		if (!controller || controller->session().uniqueId() != sessionId) {
@@ -4039,6 +4050,8 @@ ClickHandlerPtr Message::prepareRightActionLink() const {
 			}
 		}
 	});
+	result->setProperty(kFastShareProperty, QVariant::fromValue(true));
+	return result;
 }
 
 ClickHandlerPtr Message::fastReplyLink() const {

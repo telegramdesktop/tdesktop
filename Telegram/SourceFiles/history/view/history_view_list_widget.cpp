@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_translate_tracker.h"
+#include "history/view/history_view_top_peers_selector.h"
 #include "history/view/history_view_quick_action.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
@@ -55,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "boxes/delete_messages_box.h"
@@ -2849,6 +2851,30 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		: _overElement
 		? _overElement->data().get()
 		: nullptr;
+	if (link
+		&& link->property(kFastShareProperty).value<bool>()
+		&& overItem) {
+		if (const auto view = viewForItem(overItem)) {
+			const auto rightSize = view->rightActionSize().value_or(QSize());
+			const auto reactionsSkip = view->embedReactionsInBubble()
+				? 0
+				: view->reactionButtonParameters({}, {}).reactionsHeight;
+			const auto top = itemTop(view)
+				+ view->height()
+				- reactionsSkip
+				- _visibleTop
+				- rightSize.height();
+			const auto right = rect::right(view->innerGeometry())
+				- st::historyFastShareLeft
+				- rightSize.width();
+			ShowTopPeersSelector(
+				this,
+				controller()->uiShow(),
+				overItem->fullId(),
+				parentWidget()->mapToGlobal(QPoint(right, top)));
+			return;
+		}
+	}
 	const auto clickedReaction = Reactions::ReactionIdOfLink(link);
 	const auto linkPhoneNumber = link
 		? link->property(kPhoneNumberLinkProperty).toString()

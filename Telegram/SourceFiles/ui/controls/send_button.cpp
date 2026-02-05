@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/send_button.h"
 
 #include "lang/lang_tag.h"
+#include "lottie/lottie_icon.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
@@ -21,7 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-constexpr int kWideScale = 5;
+constexpr auto kWideScale = 5;
+constexpr auto kVoiceToRoundIndex = 0;
+constexpr auto kRoundToVoiceIndex = 1;
 
 } // namespace
 
@@ -31,19 +34,34 @@ SendButton::SendButton(QWidget *parent, const style::SendButton &st)
 	updateSize();
 }
 
+SendButton::~SendButton() = default;
+
 void SendButton::setState(State state) {
 	if (_state == state) {
 		return;
 	}
+
+	const auto previousType = _state.type;
+	const auto newType = state.type;
+	const auto voiceRoundTransition = isVoiceRoundTransition(
+		previousType,
+		newType);
+
 	const auto hasSlowmode = (_state.slowmodeDelay > 0);
 	const auto hasSlowmodeChanged = hasSlowmode != (state.slowmodeDelay > 0);
 	auto withSameSlowmode = state;
 	withSameSlowmode.slowmodeDelay = _state.slowmodeDelay;
 	const auto animate = hasSlowmodeChanged
 		|| (!hasSlowmode && withSameSlowmode != _state);
-	if (animate) {
+
+	if (animate && !voiceRoundTransition) {
 		_contentFrom = grabContent();
 	}
+
+	if (_voiceRoundAnimating && !voiceRoundTransition) {
+		_voiceRoundAnimating = false;
+	}
+
 	if (_state.slowmodeDelay != state.slowmodeDelay) {
 		const auto seconds = state.slowmodeDelay;
 		const auto minutes = seconds / 60;
@@ -84,7 +102,28 @@ void SendButton::setState(State state) {
 		Unexpected("Send button type.");
 	}());
 
-	if (animate) {
+	if (voiceRoundTransition) {
+		_voiceRoundAnimating = true;
+
+		const auto toRound = (newType == Type::Round);
+		const auto index = toRound ? kVoiceToRoundIndex : kRoundToVoiceIndex;
+		auto &icon = _voiceRoundIcons[index];
+		if (!icon) {
+			initVoiceRoundIcon(index);
+		}
+		icon->animate([=, raw = icon.get()] {
+			update();
+			if (!raw->animating()) {
+				_voiceRoundAnimating = false;
+			}
+		}, 0, icon->framesCount() - 1);
+		auto &after = _voiceRoundIcons[1 - index];
+		if (!after) {
+			initVoiceRoundIcon(1 - index);
+		} else if (after->frameIndex() != 0) {
+			after->jumpTo(0, nullptr);
+		}
+	} else if (animate) {
 		_stateChangeFromWidth = width();
 		_stateChangeAnimation.stop();
 		updateSize();
@@ -110,6 +149,12 @@ void SendButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
 	auto over = (isDown() || isOver());
+
+	if (_voiceRoundAnimating) {
+		paintVoiceRoundIcon(p, over);
+		return;
+	}
+
 	auto changed = _stateChangeAnimation.value(1.);
 	if (changed < 1.) {
 		PainterHighQualityEnabler hq(p);
@@ -177,11 +222,7 @@ void SendButton::paintRecord(QPainter &p, bool over) {
 			(width() - _st.inner.rippleAreaSize) / 2,
 			_st.inner.rippleAreaPosition.y());
 	}
-
-	const auto &icon = (isDisabled() || !over)
-		? _st.record
-		: _st.recordOver;
-	icon.paintInCenter(p, rect());
+	paintLottieIcon(p, kVoiceToRoundIndex, over);
 }
 
 void SendButton::paintRound(QPainter &p, bool over) {
@@ -191,11 +232,20 @@ void SendButton::paintRound(QPainter &p, bool over) {
 			(width() - _st.inner.rippleAreaSize) / 2,
 			_st.inner.rippleAreaPosition.y());
 	}
+	paintLottieIcon(p, kRoundToVoiceIndex, over);
+}
 
-	const auto &icon = (isDisabled() || !over)
-		? _st.round
-		: _st.roundOver;
-	icon.paintInCenter(p, rect());
+void SendButton::paintLottieIcon(QPainter &p, int index, bool over) {
+	auto &icon = _voiceRoundIcons[index];
+	if (!icon) {
+		initVoiceRoundIcon(index);
+	} else if (!_voiceRoundAnimating && icon->frameIndex() != 0) {
+		icon->jumpTo(0, [=] { update(); });
+	}
+	const auto color = (isDisabled() || !over)
+		? st::historyRecordVoiceFg->c
+		: st::historyRecordVoiceFgOver->c;
+	icon->paintInCenter(p, rect(), color);
 }
 
 void SendButton::paintSave(QPainter &p, bool over) {
@@ -352,6 +402,39 @@ QPoint SendButton::prepareRippleStartPosition() const {
 	const auto size = _st.inner.rippleAreaSize;
 	const auto y = (height() - _st.inner.rippleAreaSize) / 2;
 	return real - QPoint((width() - size) / 2, y);
+}
+
+void SendButton::initVoiceRoundIcon(int index) {
+	Expects(index >= 0 && index < 2);
+
+	_voiceRoundIcons[index] = Lottie::MakeIcon({
+		.path = ((index == kVoiceToRoundIndex)
+			? u":/animations/chat/voice_to_video.tgs"_q
+			: u":/animations/chat/video_to_voice.tgs"_q),
+		.sizeOverride = _st.recordSize,
+		.colorizeUsingAlpha = true,
+	});
+}
+
+void SendButton::paintVoiceRoundIcon(QPainter &p, bool over) {
+	if (!isDisabled()) {
+		paintRipple(
+			p,
+			(width() - _st.inner.rippleAreaSize) / 2,
+			_st.inner.rippleAreaPosition.y());
+	}
+
+	const auto color = (isDisabled() || !over)
+		? st::historyRecordVoiceFg->c
+		: st::historyRecordVoiceFgOver->c;
+	const auto toVideo = (_state.type == Type::Round);
+	const auto index = toVideo ? kVoiceToRoundIndex : kRoundToVoiceIndex;
+	_voiceRoundIcons[index]->paintInCenter(p, rect(), color);
+}
+
+bool SendButton::isVoiceRoundTransition(Type from, Type to) {
+	return (from == Type::Record && to == Type::Round)
+		|| (from == Type::Round && to == Type::Record);
 }
 
 SendStarButton::SendStarButton(

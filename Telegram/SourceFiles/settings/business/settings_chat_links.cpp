@@ -56,7 +56,7 @@ constexpr auto kChangesDebounceTimeout = crl::time(1000);
 
 using ChatLinkData = Api::ChatLink;
 
-class ChatLinks final : public BusinessSection<ChatLinks> {
+class ChatLinks final : public Section<ChatLinks> {
 public:
 	ChatLinks(
 		QWidget *parent,
@@ -698,7 +698,7 @@ void LinksController::rowPaintIcon(
 ChatLinks::ChatLinks(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: BusinessSection(parent, controller)
+: Section(parent, controller)
 , _bottomSkipRounding(st::boxRadius, st::boxDividerBg) {
 	setupContent(controller);
 }

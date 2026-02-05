@@ -247,6 +247,9 @@ void PinnedBar::move(int x, int y) {
 
 void PinnedBar::resizeToWidth(int width) {
 	_wrap.entity()->resizeToWidth(width);
+	if (!_wrap.width()) {
+		_wrap.resizeToWidth(width);
+	}
 }
 
 int PinnedBar::height() const {

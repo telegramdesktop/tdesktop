@@ -589,7 +589,7 @@ historyAdminLogWhatIsThis: IconButton(historyAttach) {
 	iconOver: icon {{ "menu/faq", windowActiveTextFg }};
 }
 
-historyFastShareSize: 31px;
+historyFastShareSize: topPeersSelectorUserpicSize;
 historyFastShareLeft: 13px;
 historyFastShareBottom: 5px;
 historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};

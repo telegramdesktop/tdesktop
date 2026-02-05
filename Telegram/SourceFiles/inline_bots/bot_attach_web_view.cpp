@@ -57,7 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_non_panel_process.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
 #include "ui/basic_click_handlers.h"
@@ -1954,7 +1954,7 @@ void WebViewInstance::botSendPreparedMessage(
 				if (!checked) {
 					return;
 				}
-				state->send = nullptr;
+				[[maybe_unused]] const auto ongoing = base::take(state->send);
 				send({ strong }, options);
 			};
 			state->send({});

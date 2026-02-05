@@ -615,7 +615,7 @@ void Controller::createWindow() {
 		updateTitleGeometry(width);
 	}, _subtitle->lifetime());
 
-	window->setGeometry(_delegate->ivGeometry());
+	window->setGeometry(_delegate->ivGeometry(window));
 	window->setMinimumSize({ st::windowMinWidth, st::windowMinHeight });
 
 	window->geometryValue(

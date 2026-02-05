@@ -11,7 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h" // MessageMoneyRestriction.
 #include "base/random.h"
 #include "boxes/filters/edit_filter_chats_list.h"
-#include "settings/settings_premium.h"
+#include "settings/settings_common.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/text/text_utilities.h"
@@ -62,7 +63,7 @@ constexpr auto kSearchPerPage = 50;
 } // namespace
 
 object_ptr<Ui::BoxContent> PrepareContactsBox(
-		not_null<Window::SessionController*> sessionController) {
+		not_null<Window::SessionController*> window) {
 	using Mode = ContactsBoxController::SortMode;
 	class Controller final : public ContactsBoxController {
 	public:
@@ -90,7 +91,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 
 	};
 	auto controller = std::make_unique<Controller>(
-		&sessionController->session());
+		&window->session());
 	controller->setStyleOverrides(&st::contactsWithStories);
 	controller->setStoriesShown(true);
 	const auto raw = controller.get();
@@ -105,7 +106,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 		box->addLeftButton(
 			tr::lng_profile_add_contact(),
-			[=] { sessionController->showAddContact(); });
+			[=] { window->showAddContact(); });
 		state->toggleSort = box->addTopButton(st::contactsSortButton, [=] {
 			const auto online = (state->mode.current() == Mode::Online);
 			const auto mode = online ? Mode::Alphabet : Mode::Online;
@@ -118,8 +119,15 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		raw->setSortMode(Mode::Online);
 
 		raw->wheelClicks() | rpl::on_next([=](not_null<PeerData*> p) {
-			sessionController->showInNewWindow(p);
+			window->showInNewWindow(p);
 		}, box->lifetime());
+
+		raw->setShowFinishedCallback([=] {
+			window->checkHighlightControl(
+				u"contacts/sort"_q,
+				state->toggleSort,
+				{ .rippleShape = true });
+		});
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(init));
 }

@@ -47,7 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -1096,7 +1096,12 @@ void Apply(
 	return result;
 }
 
-Fn<void()> AddColorGiftTabs(
+struct ColorGiftTabsResult {
+	Fn<void()> switchToNext;
+	QPointer<Ui::SubTabs> tabs;
+};
+
+ColorGiftTabsResult AddColorGiftTabs(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Main::Session*> session,
 		Fn<void(uint64 giftId)> chosen,
@@ -1163,14 +1168,17 @@ Fn<void()> AddColorGiftTabs(
 		container->resizeToWidth(container->width());
 	}, container->lifetime());
 
-	return [=]() {
-		const auto &list = state->list.current();
-		if (!list.empty()) {
-			if (state->tabs) {
-				state->tabs->setActiveTab(QString::number(list.front().id));
+	return {
+		.switchToNext = [=]() {
+			const auto &list = state->list.current();
+			if (!list.empty()) {
+				if (state->tabs) {
+					state->tabs->setActiveTab(QString::number(list.front().id));
+				}
+				chosen(list.front().id);
 			}
-			chosen(list.front().id);
-		}
+		},
+		.tabs = state->tabs,
 	};
 }
 
@@ -1721,6 +1729,12 @@ void AddLevelBadge(
 	}, badge->lifetime());
 }
 
+struct ColorSectionHighlights {
+	QPointer<Ui::SettingsButton> emojiButton;
+	QPointer<Ui::SettingsButton> resetButton;
+	QPointer<Ui::SubTabs> giftTabs;
+};
+
 void EditPeerColorSection(
 		not_null<Ui::GenericBox*> box,
 		not_null<Ui::VerticalLayout*> container,
@@ -1728,7 +1742,8 @@ void EditPeerColorSection(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer,
 		std::shared_ptr<Ui::ChatStyle> style,
-		std::shared_ptr<Ui::ChatTheme> theme) {
+		std::shared_ptr<Ui::ChatTheme> theme,
+		ColorSectionHighlights *highlights) {
 	ProcessButton(button);
 	const auto group = peer->isMegagroup();
 
@@ -1939,7 +1954,7 @@ void EditPeerColorSection(
 		const auto iconInner = iconWrap->entity();
 
 		Ui::AddSkip(iconInner, st::settingsColorSampleSkip);
-		iconInner->add(CreateEmojiIconButton(
+		const auto emojiButton = iconInner->add(CreateEmojiIconButton(
 			iconInner,
 			show,
 			style,
@@ -1948,6 +1963,9 @@ void EditPeerColorSection(
 			state->emojiId.value(),
 			[=](DocumentId id) { state->emojiId = id; },
 			false));
+		if (highlights) {
+			highlights->emojiButton = emojiButton;
+		}
 
 		Ui::AddSkip(iconInner, st::settingsColorSampleSkip);
 		Ui::AddDividerText(
@@ -2035,11 +2053,14 @@ void EditPeerColorSection(
 		Ui::AddSkip(container, st::settingsColorSampleSkip);
 
 		const auto session = &peer->session();
-		const auto switchToNextTab = AddColorGiftTabs(
+		const auto giftTabs = AddColorGiftTabs(
 			container,
 			session,
 			[=](uint64 giftId) { state->showingGiftId = giftId; },
 			false);
+		if (highlights) {
+			highlights->giftTabs = giftTabs.tabs;
+		}
 
 		auto showingGiftId = state->showingGiftId.value();
 		AddGiftSelector(
@@ -2066,7 +2087,7 @@ void EditPeerColorSection(
 			}),
 			false,
 			rpl::single(uint64(0)),
-			switchToNextTab);
+			giftTabs.switchToNext);
 	}
 
 	button->setClickedCallback([=] {
@@ -2178,7 +2199,8 @@ void EditPeerProfileColorSection(
 		not_null<PeerData*> peer,
 		std::shared_ptr<Ui::ChatStyle> style,
 		std::shared_ptr<Ui::ChatTheme> theme,
-		Fn<void()> aboutCallback) {
+		Fn<void()> aboutCallback,
+		ColorSectionHighlights *highlights) {
 	Expects(peer->isSelf());
 
 	ProcessButton(button);
@@ -2219,7 +2241,9 @@ void EditPeerProfileColorSection(
 			? std::nullopt
 			: std::make_optional(state->patternEmojiId.current()));
 	};
-	setIndex(peer->colorProfileIndex().value_or(kUnsetColorIndex));
+	setIndex(peer->emojiStatusId().collectible
+		? kUnsetColorIndex
+		: peer->colorProfileIndex().value_or(kUnsetColorIndex));
 
 	const auto margin = st::settingsColorRadioMargin;
 	const auto skip = st::settingsColorRadioSkip;
@@ -2236,7 +2260,7 @@ void EditPeerProfileColorSection(
 		{ margin, skip, margin, skip });
 
 	Ui::AddSkip(container, st::settingsColorSampleSkip);
-	container->add(CreateEmojiIconButton(
+	const auto emojiButton = container->add(CreateEmojiIconButton(
 		container,
 		show,
 		style,
@@ -2249,6 +2273,9 @@ void EditPeerProfileColorSection(
 			resetUnique();
 		},
 		true));
+	if (highlights) {
+		highlights->emojiButton = emojiButton;
+	}
 
 	const auto resetWrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -2262,6 +2289,9 @@ void EditPeerProfileColorSection(
 			resetInner,
 			tr::lng_settings_color_reset(),
 			st::settingsButtonLightNoIcon));
+	if (highlights) {
+		highlights->resetButton = resetButton;
+	}
 	resetButton->setClickedCallback([=] {
 		state->index = kUnsetColorIndex;
 		state->patternEmojiId = 0;
@@ -2305,11 +2335,14 @@ void EditPeerProfileColorSection(
 		Ui::AddSkip(container, st::settingsColorSampleSkip);
 
 		const auto session = &peer->session();
-		const auto switchToNextTab = AddColorGiftTabs(
+		const auto giftTabs = AddColorGiftTabs(
 			container,
 			session,
 			[=](uint64 giftId) { state->showingGiftId = giftId; },
 			true);
+		if (highlights) {
+			highlights->giftTabs = giftTabs.tabs;
+		}
 
 		auto showingGiftId = state->showingGiftId.value();
 		AddGiftSelector(
@@ -2337,7 +2370,7 @@ void EditPeerProfileColorSection(
 			}),
 			true,
 			state->selectedGiftId.value(),
-			switchToNextTab);
+			giftTabs.switchToNext);
 	}
 
 	struct ProfileState {
@@ -2434,10 +2467,21 @@ void EditPeerProfileColorSection(
 
 void EditPeerColorBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		std::shared_ptr<Ui::ChatStyle> style,
-		std::shared_ptr<Ui::ChatTheme> theme) {
+		std::shared_ptr<Ui::ChatTheme> theme,
+		PeerColorTab initialTab) {
+	const auto show = controller->uiShow();
+	if (!style) {
+		style = std::make_shared<Ui::ChatStyle>(
+			peer->session().colorIndicesValue());
+	}
+	if (!theme) {
+		theme = std::shared_ptr<Ui::ChatTheme>(
+			Window::Theme::DefaultChatThemeOn(box->lifetime()));
+		style->apply(theme.get());
+	}
 	box->setTitle(peer->isSelf()
 		? tr::lng_settings_color_title()
 		: tr::lng_edit_channel_color());
@@ -2450,7 +2494,7 @@ void EditPeerColorBox(
 		const auto button = box->addButton(
 			tr::lng_settings_color_apply(),
 			[] {});
-		EditPeerColorSection(box, box->verticalLayout(), button, show, peer, style, theme);
+		EditPeerColorSection(box, box->verticalLayout(), button, show, peer, style, theme, nullptr);
 		return;
 	}
 	const auto buttonContainer = box->addButton(
@@ -2516,6 +2560,12 @@ void EditPeerColorBox(
 	content->add(std::move(profileOwned));
 	content->add(std::move(nameOwned));
 
+	struct HighlightState {
+		ColorSectionHighlights profile;
+		ColorSectionHighlights name;
+	};
+	const auto highlightState = box->lifetime().make_state<HighlightState>();
+
 	EditPeerProfileColorSection(
 		box,
 		profile,
@@ -2524,9 +2574,38 @@ void EditPeerColorBox(
 		peer,
 		style,
 		theme,
-		[=] { switchTab(1); });
+		[=] { switchTab(1); },
+		&highlightState->profile);
 
-	EditPeerColorSection(box, name, nameButton, show, peer, style, theme);
+	EditPeerColorSection(
+		box,
+		name,
+		nameButton,
+		show,
+		peer,
+		style,
+		theme,
+		&highlightState->name);
+
+	if (initialTab == PeerColorTab::Name) {
+		switchTab(1);
+	}
+
+	box->setShowFinishedCallback([=] {
+		const auto isProfileTab = (initialTab == PeerColorTab::Profile);
+		const auto &highlights = isProfileTab
+			? highlightState->profile
+			: highlightState->name;
+		controller->checkHighlightControl(
+			u"profile-color/add-icons"_q,
+			highlights.emojiButton.data());
+		controller->checkHighlightControl(
+			u"profile-color/use-gift"_q,
+			highlights.giftTabs.data());
+		controller->checkHighlightControl(
+			u"profile-color/reset"_q,
+			highlights.resetButton.data());
+	});
 }
 
 void SetupPeerColorSample(
@@ -2716,7 +2795,7 @@ void SetupPeerColorSample(
 	emojiStatusWidget->setAttribute(Qt::WA_TransparentForMouseEvents);
 }
 
-void AddPeerColorButton(
+not_null<Ui::SettingsButton*> AddPeerColorButton(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer,
@@ -2767,8 +2846,17 @@ void AddPeerColorButton(
 	}
 
 	button->setClickedCallback([=] {
-		show->show(Box(EditPeerColorBox, show, peer, style, theme));
+		if (const auto controller = show->resolveWindow()) {
+			controller->show(Box(
+				EditPeerColorBox,
+				controller,
+				peer,
+				style,
+				theme,
+				PeerColorTab::Profile));
+		}
 	});
+	return button;
 }
 
 void CheckBoostLevel(

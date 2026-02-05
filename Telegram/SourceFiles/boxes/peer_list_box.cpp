@@ -358,6 +358,16 @@ const style::MultiSelect &PeerListController::computeSelectSt() const {
 	return _selectSt ? *_selectSt : st::defaultMultiSelect;
 }
 
+void PeerListController::showFinished() {
+	if (const auto onstack = _showFinished) {
+		onstack();
+	}
+}
+
+void PeerListController::setShowFinishedCallback(Fn<void()> callback) {
+	_showFinished = std::move(callback);
+}
+
 bool PeerListController::hasComplexSearch() const {
 	return (_searchController != nullptr);
 }

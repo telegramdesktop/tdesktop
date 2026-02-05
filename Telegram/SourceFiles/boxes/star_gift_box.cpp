@@ -74,9 +74,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_form.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_non_panel_process.h"
-#include "settings/settings_credits.h"
+#include "settings/sections/settings_credits.h"
 #include "settings/settings_credits_graphics.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/boxes/about_cocoon_box.h" // Ui::AddUniqueCloseButton
 #include "ui/boxes/boost_box.h"
 #include "ui/boxes/confirm_box.h"

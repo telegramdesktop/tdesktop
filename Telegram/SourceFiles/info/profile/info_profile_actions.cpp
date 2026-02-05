@@ -1802,12 +1802,14 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupPersonalChannel(
 		) | rpl::map([](TextWithEntities &&text, ChannelData *channel) {
 			const auto count = channel ? channel->membersCount() : 0;
 			if (count > 1) {
-				text.append(
-					QString::fromUtf8(" \xE2\x80\xA2 ")
-				).append(tr::lng_chat_status_subscribers(
-					tr::now,
-					lt_count_decimal,
-					count));
+				text.append(' ')
+				.append(Ui::kQBullet)
+				.append(' ')
+				.append(
+					tr::lng_chat_status_subscribers(
+						tr::now,
+						lt_count_decimal,
+						count));
 			}
 			return text;
 		});
@@ -2632,7 +2634,7 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 		tr::lng_profile_bot_privacy(),
 		rpl::single(true),
 		openPrivacyPolicy,
-		nullptr);
+		&st::infoIconPrivacyPolicy);
 }
 
 void ActionsFiller::addReportAction() {

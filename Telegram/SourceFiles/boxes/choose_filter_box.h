@@ -43,3 +43,11 @@ void FillChooseFilterMenu(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::PopupMenu*> menu,
 	not_null<History*> history);
+
+bool FillChooseFilterWithAdminedGroupsMenu(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::PopupMenu*> menu,
+	not_null<UserData*> user,
+	std::shared_ptr<rpl::event_stream<>> listUpdates,
+	std::vector<not_null<PeerData*>> common,
+	std::shared_ptr<std::vector<PeerId>> collectCommon);

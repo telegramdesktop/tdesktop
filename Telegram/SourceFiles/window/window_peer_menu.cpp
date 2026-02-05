@@ -77,7 +77,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
-#include "settings/settings_advanced.h"
+#include "settings/sections/settings_advanced.h"
 #include "support/support_helper.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"

@@ -34,8 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_premium.h"
-#include "settings/settings_privacy_security.h"
+#include "settings/sections/settings_premium.h"
+#include "settings/sections/settings_privacy_security.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -692,11 +692,13 @@ object_ptr<Ui::RpWidget> LastSeenPrivacyController::setupBelowWidget(
 	Ui::AddSkip(content);
 
 	const auto privacy = &controller->session().api().globalPrivacy();
-	content->add(object_ptr<Ui::SettingsButton>(
+	const auto hideReadTimeButton = content->add(object_ptr<Ui::SettingsButton>(
 		content,
 		tr::lng_edit_lastseen_hide_read_time(),
 		st::settingsButtonNoIcon
-	))->toggleOn(privacy->hideReadTime())->toggledValue(
+	));
+	_hideReadTimeButton = hideReadTimeButton;
+	hideReadTimeButton->toggleOn(privacy->hideReadTime())->toggledValue(
 	) | rpl::on_next([=](bool value) {
 		_hideReadTime = value;
 	}, content->lifetime());
@@ -770,6 +772,13 @@ void LastSeenPrivacyController::saveAdditional() {
 	if (privacy->hideReadTimeCurrent() != _hideReadTime) {
 		privacy->updateHideReadTime(_hideReadTime);
 	}
+}
+
+void LastSeenPrivacyController::checkHighlightControls(
+		not_null<Window::SessionController*> controller) {
+	controller->checkHighlightControl(
+		u"privacy/hide-read-time"_q,
+		_hideReadTimeButton.data());
 }
 
 UserPrivacy::Key GroupsInvitePrivacyController::key() const {
@@ -1201,6 +1210,7 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupMiddleWidget(
 		state->setUserpicButtonText.value(),
 		st::settingsButtonLight,
 		{ &st::menuBlueIconPhotoSet });
+	_setPublicButton = setUserpicButton;
 	const auto &stRemoveButton = st::settingsAttentionButtonWithIcon;
 	const auto removeButton = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
@@ -1209,6 +1219,7 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupMiddleWidget(
 				parent,
 				tr::lng_edit_privacy_profile_photo_public_remove(),
 				stRemoveButton)));
+	_removePublicButton = removeButton->entity();
 	Ui::AddSkip(container);
 	Ui::AddDividerText(
 		container,
@@ -1303,6 +1314,19 @@ void ProfilePhotoPrivacyController::saveAdditional() {
 	if (const auto onstack = _saveAdditional) {
 		onstack();
 	}
+}
+
+void ProfilePhotoPrivacyController::checkHighlightControls(
+		not_null<Window::SessionController*> controller) {
+	controller->checkHighlightControl(
+		u"privacy/set-public"_q,
+		_setPublicButton.data());
+	controller->checkHighlightControl(
+		u"privacy/update-public"_q,
+		_setPublicButton.data());
+	controller->checkHighlightControl(
+		u"privacy/remove-public"_q,
+		_removePublicButton.data());
 }
 
 auto ProfilePhotoPrivacyController::exceptionButtonTextKey(
@@ -1689,6 +1713,7 @@ object_ptr<Ui::RpWidget> GiftsAutoSavePrivacyController::setupAboveWidget(
 		content,
 		tr::lng_edit_privacy_gifts_show_icon(),
 		st::settingsButtonNoIconLocked));
+	_showIconButton = icon;
 	icon->toggleOn(rpl::single(
 		session->premium() && (_state->disallowed & Type::SendHide)
 	) | rpl::then(_state->disables.events() | rpl::map([=] {
@@ -1734,9 +1759,10 @@ object_ptr<Ui::RpWidget> GiftsAutoSavePrivacyController::setupBelowWidget(
 	auto premium = Data::AmPremiumValue(session);
 
 	Ui::AddSkip(content, st::settingsPeerToPeerSkip);
-	Ui::AddSubsectionTitle(
+	const auto typesTitle = Ui::AddSubsectionTitle(
 		content,
 		tr::lng_edit_privacy_gifts_types());
+	_acceptedTypesTitle = typesTitle;
 	const auto types = base::flat_map<Type, rpl::producer<QString>>{
 		{ Type::Limited, tr::lng_edit_privacy_gifts_limited() },
 		{ Type::Unlimited, tr::lng_edit_privacy_gifts_unlimited() },
@@ -1777,6 +1803,17 @@ void GiftsAutoSavePrivacyController::saveAdditional() {
 	if (const auto onstack = _state->save) {
 		onstack();
 	}
+}
+
+void GiftsAutoSavePrivacyController::checkHighlightControls(
+		not_null<Window::SessionController*> controller) {
+	controller->checkHighlightControl(
+		u"privacy/show-icon"_q,
+		_showIconButton.data());
+	controller->checkHighlightControl(
+		u"privacy/accepted-types"_q,
+		_acceptedTypesTitle.data(),
+		SubsectionTitleHighlight());
 }
 
 UserPrivacy::Key SavedMusicPrivacyController::key() const {

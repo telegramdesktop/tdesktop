@@ -53,7 +53,7 @@ struct BotState {
 	return Data::ChatbotsPermission::ViewMessages;
 }
 
-class Chatbots final : public BusinessSection<Chatbots> {
+class Chatbots final : public Section<Chatbots> {
 public:
 	Chatbots(
 		QWidget *parent,
@@ -393,7 +393,7 @@ Main::Session &PreviewController::session() const {
 Chatbots::Chatbots(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: BusinessSection(parent, controller)
+: Section(parent, controller)
 , _bottomSkipRounding(st::boxRadius, st::boxDividerBg) {
 	setupContent();
 }

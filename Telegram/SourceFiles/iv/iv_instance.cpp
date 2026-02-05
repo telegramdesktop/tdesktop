@@ -829,7 +829,6 @@ void Instance::show(
 		not_null<Window::SessionController*> controller,
 		not_null<Data*> data,
 		QString hash) {
-	_delegate->ivSetLastSourceWindow(controller->widget());
 	show(controller->uiShow(), data, hash);
 }
 

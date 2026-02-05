@@ -352,7 +352,7 @@ void ChoosePeerBoxController::prepareRestrictions() {
 			tr::lng_request_peer_requirements(),
 			{ 0, st::membersMarginTop, 0, 0 });
 		const auto skip = st::defaultSubsectionTitlePadding.left();
-		auto separator = QString::fromUtf8("\n\xE2\x80\xA2 ");
+		auto separator = '\n' + Ui::kQBullet + ' ';
 		raw->add(
 			object_ptr<Ui::FlatLabel>(
 				raw,

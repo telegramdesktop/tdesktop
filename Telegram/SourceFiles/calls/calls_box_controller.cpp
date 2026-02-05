@@ -42,7 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "apiwrap.h"
 #include "info/profile/info_profile_icon.h"
-#include "settings/settings_calls.h"
+#include "settings/sections/settings_calls.h"
+#include "settings/settings_common.h"
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h" // st::boxLabel.
 #include "styles/style_calls.h"
@@ -612,7 +613,7 @@ void BoxController::rowRightActionClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Assert(user != nullptr);
 
-	Core::App().calls().startOutgoingCall(user, false);
+	Core::App().calls().startOutgoingCall(user, {});
 }
 
 void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
@@ -803,7 +804,9 @@ void ClearCallsBox(
 	return result;
 }
 
-void ShowCallsBox(not_null<::Window::SessionController*> window) {
+void ShowCallsBox(
+		not_null<::Window::SessionController*> window,
+		bool highlightStartCall) {
 	struct State {
 		State(not_null<::Window::SessionController*> window)
 		: callsController(window)
@@ -872,7 +875,7 @@ void ShowCallsBox(not_null<::Window::SessionController*> window) {
 				st::popupMenuWithIcons);
 			const auto showSettings = [=] {
 				window->showSettings(
-					Settings::Calls::Id(),
+					Settings::CallsId(),
 					::Window::SectionShow(anim::type::instant));
 			};
 			const auto clearAll = crl::guard(box, [=] {
@@ -893,6 +896,13 @@ void ShowCallsBox(not_null<::Window::SessionController*> window) {
 			state->menu->popup(QCursor::pos());
 			return true;
 		});
+
+		if (highlightStartCall) {
+			box->showFinishes(
+			) | rpl::take(1) | rpl::on_next([=] {
+				Settings::HighlightWidget(button);
+			}, box->lifetime());
+		}
 	}));
 }
 

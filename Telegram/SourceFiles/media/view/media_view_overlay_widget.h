@@ -590,7 +590,7 @@ private:
 
 	QRect _leftNav, _leftNavOver, _leftNavIcon;
 	QRect _rightNav, _rightNavOver, _rightNavIcon;
-	QRect _headerNav, _nameNav, _dateNav;
+	QRect _headerNav, _nameNav, _dateNav, _separatorNav;
 	QRect _rotateNav, _rotateNavOver, _rotateNavIcon;
 	QRect _shareNav, _shareNavOver, _shareNavIcon;
 	QRect _recognizeNav, _recognizeNavOver, _recognizeNavIcon;

@@ -122,7 +122,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 859556cab51d17585ff76d3db62ff1c7502bc850
+    source-commit: b8c3a8ffc1514861837b9213383133c63023e0de
     plugin: nil
     override-pull: |
       craftctl default
@@ -323,6 +323,7 @@ parts:
     source-tag: v0.11.1
     plugin: cmake
     build-packages:
+      - curl
       - libhwy-dev
     cmake-generator: Ninja
     cmake-parameters:
@@ -402,7 +403,7 @@ parts:
   qt:
     source: https://github.com/qt/qt5.git
     source-depth: 1
-    source-tag: v6.10.1
+    source-tag: v6.10.2
     source-submodules:
       - qtbase
       - qtdeclarative

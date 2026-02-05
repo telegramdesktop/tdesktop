@@ -55,6 +55,11 @@ struct DhConfig;
 struct InviteRequest;
 struct StartConferenceInfo;
 
+struct StartOutgoingCallArgs {
+	bool video = false;
+	bool isConfirmed = false;
+};
+
 struct StartGroupCallArgs {
 	enum class JoinConfirm {
 		None,
@@ -80,7 +85,7 @@ public:
 	Instance();
 	~Instance();
 
-	void startOutgoingCall(not_null<UserData*> user, bool video);
+	void startOutgoingCall(not_null<UserData*> user, StartOutgoingCallArgs);
 	void startOrJoinGroupCall(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
@@ -159,7 +164,10 @@ private:
 	not_null<Media::Audio::Track*> ensureSoundLoaded(const QString &key);
 	void playSoundOnce(const QString &key);
 
-	void createCall(not_null<UserData*> user, CallType type, bool isVideo);
+	void createCall(
+		not_null<UserData*> user,
+		CallType type,
+		StartOutgoingCallArgs);
 	void destroyCall(not_null<Call*> call);
 	void finishConferenceInvitations(const StartConferenceInfo &args);
 

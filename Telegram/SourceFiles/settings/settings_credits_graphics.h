@@ -66,12 +66,12 @@ struct SubscriptionRightLabel {
 	QSize size;
 };
 SubscriptionRightLabel PaintSubscriptionRightLabelCallback(
-	not_null<Main::Session*> session,
+	not_null<::Main::Session*> session,
 	const style::PeerListItem &st,
 	int amount);
 
 void FillCreditOptions(
-	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<::Main::SessionShow> show,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	CreditsAmount minCredits,
@@ -83,7 +83,7 @@ void FillCreditOptions(
 
 [[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Main::Session*> session,
+	not_null<::Main::Session*> session,
 	rpl::producer<CreditsAmount> balanceValue,
 	bool rightAlign,
 	rpl::producer<float64> opacityValue = nullptr,
@@ -200,7 +200,7 @@ void GlobalStarGiftBox(
 	not_null<PeerData*> owner,
 	const Data::SavedStarGift &data);
 [[nodiscard]] Data::SavedStarGiftId EntryToSavedStarGiftId(
-	not_null<Main::Session*> session,
+	not_null<::Main::Session*> session,
 	const Data::CreditsHistoryEntry &entry);
 void ShowSavedStarGiftBox(
 	not_null<Window::SessionController*> controller,
@@ -292,7 +292,7 @@ struct SmallBalanceSource : std::variant<
 
 void SmallBalanceBox(
 	not_null<Ui::GenericBox*> box,
-	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<::Main::SessionShow> show,
 	uint64 wholeCredits,
 	SmallBalanceSource source,
 	Fn<void()> paid);
@@ -305,7 +305,7 @@ enum class SmallBalanceResult {
 };
 
 void MaybeRequestBalanceIncrease(
-	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<::Main::SessionShow> show,
 	uint64 credits,
 	SmallBalanceSource source,
 	Fn<void(SmallBalanceResult)> done);

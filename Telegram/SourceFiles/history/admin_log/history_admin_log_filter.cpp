@@ -104,7 +104,7 @@ Fn<FilterValue::Flags()> FillFilterValueList(
 		not_null<Ui::VerticalLayout*> container,
 		bool isChannel,
 		const FilterValue &filter) {
-	auto [checkboxes, getResult, changes] = CreateEditAdminLogFilter(
+	auto [checkboxes, getResult, changes, highlightWidget] = CreateEditAdminLogFilter(
 		container,
 		filter.flags ? (*filter.flags) : ~FilterValue::Flags(0),
 		isChannel);

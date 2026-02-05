@@ -215,6 +215,7 @@ mediaviewTextStyle: defaultTextStyle;
 
 mediaviewTextLeft: 14px;
 mediaviewTextSkip: 10px;
+mediaviewTextSkipHalf: 5px;
 mediaviewHeaderTop: 47px;
 mediaviewTextTop: 26px;
 
@@ -492,10 +493,6 @@ storiesLike: IconButton(storiesAttach) {
 	icon: icon {{ "chat/input_like", storiesComposeGrayIcon }};
 	iconOver: icon {{ "chat/input_like", storiesComposeGrayIcon }};
 }
-storiesRecordVoice: icon {{ "chat/input_record", storiesComposeGrayIcon }};
-storiesRecordVoiceOver: icon {{ "chat/input_record", storiesComposeGrayIcon }};
-storiesRecordRound: icon {{ "chat/input_video", storiesComposeGrayIcon }};
-storiesRecordRoundOver: icon {{ "chat/input_video", storiesComposeGrayIcon }};
 storiesEditStars: IconButton(storiesAttach) {
 	icon: icon{{ "chat/input_paid", storiesComposeGrayIcon }};
 	iconOver: icon{{ "chat/input_paid", storiesComposeGrayIcon }};
@@ -726,10 +723,6 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 			rippleAreaSize: 40px;
 			rippleAreaPosition: point(1px, 1px);
 		}
-		record: storiesRecordVoice;
-		recordOver: storiesRecordVoiceOver;
-		round: storiesRecordRound;
-		roundOver: storiesRecordRoundOver;
 		sendDisabledFg: storiesComposeGrayText;
 	}
 	attach: storiesAttach;

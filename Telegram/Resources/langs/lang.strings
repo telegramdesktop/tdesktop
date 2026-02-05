@@ -796,6 +796,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_username_add" = "Add username";
 "lng_settings_username_about" = "Username lets people contact you on Telegram without needing your phone number.";
 "lng_settings_birthday_label" = "Date of Birth";
+"lng_settings_birthday_title" = "Set your Birthday";
 "lng_settings_birthday_add" = "Add";
 "lng_settings_birthday_about" = "Choose who can see your birthday in {link}.";
 "lng_settings_birthday_about_link" = "Settings";
@@ -1256,6 +1257,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_faq_button" = "Go to FAQ";
 "lng_settings_ask_ok" = "Ask a Volunteer";
 "lng_settings_faq" = "Telegram FAQ";
+"lng_settings_faq_subtitle" = "FAQ";
 "lng_settings_faq_link" = "https://telegram.org/faq#general-questions";
 "lng_settings_features" = "Telegram Features";
 "lng_settings_credits" = "My Stars";
@@ -2722,6 +2724,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_badge" = "channel";
 "lng_topic_author_badge" = "Topic Creator";
 "lng_fast_reply" = "Reply";
+"lng_fast_share_tooltip" = "Right-click to select a Recent Contact.";
 "lng_cancel_edit_post_sure" = "Cancel editing?";
 "lng_cancel_edit_post_yes" = "Yes";
 "lng_cancel_edit_post_no" = "No";

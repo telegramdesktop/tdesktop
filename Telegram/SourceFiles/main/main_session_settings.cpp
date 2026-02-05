@@ -67,7 +67,7 @@ QByteArray SessionSettings::serialize() const {
 	}
 	size += sizeof(qint32); // _setupEmailState
 	size += sizeof(qint32) // _moderateCommonGroups size
-		+ (_moderateCommonGroups.size() * sizeof(quint64));
+		+ (_moderateCommonGroups.size() * sizeof(qint32));
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -150,8 +150,8 @@ QByteArray SessionSettings::serialize() const {
 		}
 		stream << qint32(static_cast<int>(_setupEmailState));
 		stream << qint32(_moderateCommonGroups.size());
-		for (const auto &peerId : _moderateCommonGroups) {
-			stream << SerializePeerId(peerId);
+		for (const auto &filterId : _moderateCommonGroups) {
+			stream << qint32(filterId);
 		}
 	}
 
@@ -225,7 +225,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	base::flat_set<uint64> ratedTranscriptions;
 	std::vector<Data::UnreviewedAuth> unreviewed;
 	qint32 setupEmailState = 0;
-	std::vector<PeerId> moderateCommonGroups;
+	std::vector<int32> moderateCommonGroups;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -647,15 +647,15 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		stream >> count;
 		if (stream.status() == QDataStream::Ok) {
 			for (auto i = 0; i != count; ++i) {
-				quint64 peerId;
-				stream >> peerId;
+				qint32 filterId;
+				stream >> filterId;
 				if (stream.status() != QDataStream::Ok) {
 					LOG(("App Error: "
 						"Bad data for SessionSettings::addFromSerialized()"
 						"with moderateCommonGroups"));
 					return;
 				}
-				moderateCommonGroups.emplace_back(DeserializePeerId(peerId));
+				moderateCommonGroups.emplace_back(filterId);
 			}
 		}
 	}

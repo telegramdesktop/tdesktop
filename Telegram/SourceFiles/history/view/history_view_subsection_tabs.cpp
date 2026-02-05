@@ -453,15 +453,15 @@ void SubsectionTabs::startFillingSlider(
 						).append(' ').append(peer->shortName()),
 					});
 				}
-			} else if (item.thread->peer()->isBot()) {
-				sections.push_back({
-					.text = { tr::lng_bot_new_chat(tr::now) },
-				});
-				if (vertical) {
-					auto &last = sections.back();
-					last.userpic = Ui::MakeNewChatSubsectionsThumbnail(
-						textFg);
-				}
+			// } else if (item.thread->peer()->isBot()) {
+			// 	sections.push_back({
+			// 		.text = { tr::lng_bot_new_chat(tr::now) },
+			// 	});
+			// 	if (vertical) {
+			// 		auto &last = sections.back();
+			// 		last.userpic = Ui::MakeNewChatSubsectionsThumbnail(
+			// 			textFg);
+			// 	}
 			} else {
 				sections.push_back({
 					.text = { tr::lng_filters_all_short(tr::now) },

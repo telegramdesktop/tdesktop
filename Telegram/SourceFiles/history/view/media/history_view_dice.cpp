@@ -63,8 +63,18 @@ void Dice::updateOutcomeMessage() {
 		return;
 	}
 	const auto item = _parent->data();
-	const auto from = item->from();
-	const auto out = item->out() || from->isSelf();
+	const auto forwarded = item->Get<HistoryMessageForwarded>();
+	const auto originalSender = forwarded
+		? forwarded->originalSender
+		: nullptr;
+	const auto from = originalSender ? originalSender : item->from().get();
+	const auto originalPostAuthor = item->originalPostAuthor();
+	const auto fromName = !originalPostAuthor.isEmpty()
+		? originalPostAuthor
+		: forwarded && forwarded->originalHiddenSenderInfo
+		? forwarded->originalHiddenSenderInfo->name
+		: from->name();
+	const auto out = (item->out() || from->isSelf()) && !forwarded;
 	const auto won = (_outcomeNanoTon - _outcomeStakeNanoTon);
 	const auto amount = tr::marked(QString::fromUtf8("\xf0\x9f\x92\x8e")
 		+ " "
@@ -82,13 +92,15 @@ void Dice::updateOutcomeMessage() {
 			: tr::lng_action_stake_game_lost)(
 				tr::now,
 				lt_from,
-				tr::link(st::wrap_rtl(from->name()), 1),
+				tr::link(st::wrap_rtl(fromName), 1),
 				lt_amount,
 				amount,
 				tr::marked);
 	auto prepared = PreparedServiceText{ text };
 	if (!out) {
-		prepared.links.push_back(from->createOpenLink());
+		if (const auto link = forwarded ? originalSender : from) {
+			prepared.links.push_back(link->createOpenLink());
+		}
 	}
 	_parent->setServicePostMessage(prepared, _link);
 }

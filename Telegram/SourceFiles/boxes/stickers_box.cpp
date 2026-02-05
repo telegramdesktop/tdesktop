@@ -750,28 +750,28 @@ void StickersBox::refreshTabs() {
 		sections.push_back(tr::lng_stickers_masks_tab(tr::now));
 		_tabIndices.push_back(Section::Masks);
 	}
-	if (!stickers.featuredSetsOrder().isEmpty() && _featured.widget()) {
+	const auto showFeatured = _featured.widget()
+		&& (!stickers.featuredSetsOrder().isEmpty()
+			|| _section == Section::Featured);
+	if (showFeatured) {
 		sections.push_back(tr::lng_stickers_featured_tab(tr::now));
 		_tabIndices.push_back(Section::Featured);
 	}
-	if (!archivedSetsOrder().isEmpty() && _archived.widget()) {
+	const auto showArchived = _archived.widget()
+		&& (!archivedSetsOrder().isEmpty()
+			|| _section == Section::Archived);
+	if (showArchived) {
 		sections.push_back(tr::lng_stickers_archived_tab(tr::now));
 		_tabIndices.push_back(Section::Archived);
 	}
 	_tabs->setSections(sections);
-	if ((_tab == &_archived && !_tabIndices.contains(Section::Archived))
-		|| (_tab == &_featured && !_tabIndices.contains(Section::Featured))
-		|| (_tab == &_masks && !_tabIndices.contains(Section::Masks))) {
+	if ((_section == Section::Archived && !_tabIndices.contains(Section::Archived))
+		|| (_section == Section::Featured && !_tabIndices.contains(Section::Featured))
+		|| (_section == Section::Masks && !_tabIndices.contains(Section::Masks))) {
 		switchTab();
 	} else {
 		_ignoreTabActivation = true;
-		_tabs->setActiveSectionFast(_tabIndices.indexOf((_tab == &_archived)
-			? Section::Archived
-			: (_tab == &_featured)
-			? Section::Featured
-			: (_tab == &_masks)
-			? Section::Masks
-			: Section::Installed));
+		_tabs->setActiveSectionFast(_tabIndices.indexOf(_section));
 		_ignoreTabActivation = false;
 	}
 	updateTabsGeometry();

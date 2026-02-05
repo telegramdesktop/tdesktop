@@ -25,4 +25,17 @@ TimeId ExtractVideoTimestamp(not_null<HistoryItem*> item) {
 	return 0;
 }
 
+TextWithEntities StripQuoteEntities(TextWithEntities text) {
+	for (auto i = text.entities.begin(); i != text.entities.end();) {
+		if (i->type() == EntityType::Blockquote) {
+			i = text.entities.erase(i);
+			continue;
+		} else if (i->type() == EntityType::Pre) {
+			*i = EntityInText(EntityType::Code, i->offset(), i->length());
+		}
+		++i;
+	}
+	return text;
+}
+
 } // namespace Media::View

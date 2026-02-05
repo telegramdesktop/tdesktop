@@ -19,9 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
-#include "settings/settings_premium.h"
+#include "settings/settings_common.h"
+#include "settings/sections/settings_premium.h"
 #include "settings/settings_privacy_controllers.h"
-#include "settings/settings_privacy_security.h"
+#include "settings/sections/settings_privacy_security.h"
 #include "ui/boxes/peer_qr_box.h"
 #include "ui/controls/invite_link_buttons.h"
 #include "ui/controls/invite_link_label.h"
@@ -905,6 +906,8 @@ void EditPrivacyBox::setupContent() {
 		{ 0, st::settingsPrivacySkipTop, 0, 0 });
 	const auto always = addExceptionLink(Exception::Always);
 	const auto never = addExceptionLink(Exception::Never);
+	_always = always->entity();
+	_never = never->entity();
 	addLabel(
 		content,
 		_controller->exceptionsDescription() | rpl::map(tr::marked),
@@ -952,9 +955,16 @@ void EditPrivacyBox::setupContent() {
 	}, content->lifetime());
 }
 
+void EditPrivacyBox::showFinished() {
+	_window->checkHighlightControl(u"privacy/always"_q, _always.data());
+	_window->checkHighlightControl(u"privacy/never"_q, _never.data());
+	_controller->checkHighlightControls(_window);
+}
+
 void EditMessagesPrivacyBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller) {
+		not_null<Window::SessionController*> controller,
+		const QString &highlightControlId) {
 	box->setTitle(tr::lng_messages_privacy_title());
 	box->setWidth(st::boxWideWidth);
 
@@ -970,6 +980,9 @@ void EditMessagesPrivacyBox(
 	const auto privacy = &session->api().globalPrivacy();
 	const auto inner = box->verticalLayout();
 	inner->add(object_ptr<Ui::PlainShadow>(box));
+
+	auto highlightCharged = (Ui::RpWidget*)nullptr;
+	auto highlightRemoveFee = (Ui::RpWidget*)nullptr;
 
 	Ui::AddSkip(inner, st::messagePrivacyTopSkip);
 	Ui::AddSubsectionTitle(inner, tr::lng_messages_privacy_subtitle());
@@ -1020,6 +1033,7 @@ void EditMessagesPrivacyBox(
 				0,
 				st::messagePrivacyBottomSkip))
 		: nullptr;
+	highlightCharged = charged;
 
 	struct State {
 		rpl::variable<int> stars;
@@ -1069,6 +1083,7 @@ void EditMessagesPrivacyBox(
 			tr::lng_messages_privacy_remove_fee(),
 			std::move(label),
 			st::settingsButtonNoIcon);
+		highlightRemoveFee = exceptions;
 
 		const auto shower = exceptions->lifetime().make_state<rpl::lifetime>();
 		exceptions->setClickedCallback([=] {
@@ -1165,6 +1180,18 @@ void EditMessagesPrivacyBox(
 		box->addButton(tr::lng_cancel(), [=] {
 			box->closeBox();
 		});
+	}
+
+	if (!highlightControlId.isEmpty()) {
+		box->showFinishes() | rpl::take(1) | rpl::on_next([=] {
+			if (highlightControlId == u"privacy/set-price"_q) {
+				Settings::HighlightWidget(
+					highlightCharged,
+					{ .radius = st::boxRadius });
+			} else if (highlightControlId == u"privacy/remove-fee"_q) {
+				Settings::HighlightWidget(highlightRemoveFee);
+			}
+		}, box->lifetime());
 	}
 }
 

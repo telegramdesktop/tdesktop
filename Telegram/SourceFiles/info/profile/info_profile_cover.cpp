@@ -48,7 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"

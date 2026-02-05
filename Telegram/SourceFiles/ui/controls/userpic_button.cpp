@@ -38,7 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
-#include "settings/settings_calls.h" // Calls::AddCameraSubsection.
+#include "settings/sections/settings_calls.h" // AddCameraSubsection.
 #include "settings/settings_privacy_controllers.h"
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
@@ -74,7 +74,7 @@ void CameraBox(
 		Fn<void(QImage &&image)> &&doneCallback) {
 	using namespace Webrtc;
 
-	const auto track = Settings::Calls::AddCameraSubsection(
+	const auto track = Settings::AddCameraSubsection(
 		box->uiShow(),
 		box->verticalLayout(),
 		false);
@@ -96,7 +96,7 @@ void CameraBox(
 			done(std::move(image));
 		};
 		const auto useForumShape = forceForumShape
-			|| (peer && peer->isForum());
+			|| (peer && peer->isForum() && !peer->isBot());
 		PrepareProfilePhoto(
 			box,
 			controller,
@@ -360,7 +360,7 @@ void UserpicButton::choosePhotoLocally() {
 				? Api::PeerPhoto::EmojiListType::Profile
 				: Api::PeerPhoto::EmojiListType::Group),
 			done,
-			_peer ? _peer->isForum() : false);
+			_peer ? (_peer->isForum() && !_peer->isBot()) : false);
 	};
 	const auto addFromClipboard = [=](ChosenType type, tr::phrase<> text) {
 		if (const auto data = QGuiApplication::clipboard()->mimeData()) {
@@ -449,7 +449,10 @@ void UserpicButton::choosePhotoLocally() {
 			}, &st::menuIconProfile);
 		}
 	}
-	_menu->popup(QCursor::pos());
+	const auto position = rect().contains(mapFromGlobal(QCursor::pos()))
+		? QCursor::pos()
+		: mapToGlobal(rect().center());
+	_menu->popup(position);
 }
 
 auto UserpicButton::makeResetToOriginalAction()
@@ -479,6 +482,11 @@ auto UserpicButton::makeResetToOriginalAction()
 			(st::menuIconRemove.width() - icon->width()) / 2,
 			(st::menuIconRemove.height() - icon->height()) / 2));
 	return item;
+}
+
+PopupMenu *UserpicButton::showChangePhotoMenu() {
+	choosePhotoLocally();
+	return _menu.get();
 }
 
 void UserpicButton::openPeerPhoto() {
@@ -929,7 +937,10 @@ void UserpicButton::processNewPeerPhoto() {
 
 bool UserpicButton::useForumShape() const {
 	return (_shape == PeerUserpicShape::Forum)
-		|| (_peer && _peer->isForum() && _shape == PeerUserpicShape::Auto);
+		|| (_peer
+			&& _peer->isForum()
+			&& _shape == PeerUserpicShape::Auto
+			&& !_peer->isBot());
 }
 
 void UserpicButton::grabOldUserpic() {

@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "data/components/promo_suggestions.h"
 #include "data/data_thread.h"
+#include "settings/settings_common.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "styles/style_layers.h"
 
@@ -613,6 +614,35 @@ auto Controller::floatPlayerDelegateValue() const
 
 std::shared_ptr<Ui::Show> Controller::uiShow() {
 	return std::make_shared<Show>(this);
+}
+
+void Controller::setHighlightControlId(const QString &id) {
+	_highlightControlId = id;
+}
+
+QString Controller::highlightControlId() const {
+	return _highlightControlId;
+}
+
+bool Controller::takeHighlightControlId(const QString &id) {
+	if (_highlightControlId == id) {
+		_highlightControlId = QString();
+		return true;
+	}
+	return false;
+}
+
+void Controller::checkHighlightControl(
+		const QString &id,
+		QWidget *widget,
+		Settings::HighlightArgs &&args) {
+	if (widget && takeHighlightControlId(id)) {
+		Settings::HighlightWidget(widget, std::move(args));
+	}
+}
+
+void Controller::checkHighlightControl(const QString &id, QWidget *widget) {
+	checkHighlightControl(id, widget, {});
 }
 
 rpl::lifetime &Controller::lifetime() {

@@ -62,7 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_form.h"
 #include "payments/payments_non_panel_process.h"
 #include "settings/settings_common_session.h"
-#include "settings/settings_credits.h"
+#include "settings/sections/settings_credits.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/button_labels.h"

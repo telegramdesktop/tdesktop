@@ -153,10 +153,7 @@ SendButton {
 	sendIconFillPadding: pixels;
 	inner: IconButton;
 	stars: RoundButton;
-	record: icon;
-	recordOver: icon;
-	round: icon;
-	roundOver: icon;
+	recordSize: size;
 	sendDisabledFg: color;
 }
 
@@ -1287,18 +1284,11 @@ historyRecordVoiceFgOver: historyComposeIconFgOver;
 historyRecordVoiceFgInactive: attentionButtonFg;
 historyRecordVoiceFgActive: windowBgActive;
 historyRecordVoiceFgActiveIcon: windowFgActive;
-historyRecordVoice: icon {{ "chat/input_record", historyRecordVoiceFg }};
-historyRecordVoiceOver: icon {{ "chat/input_record", historyRecordVoiceFgOver }};
 historyRecordVoiceOnceBg: icon {{ "voice_lock/audio_once_bg", historySendIconFg }};
 historyRecordVoiceOnceBgOver: icon {{ "voice_lock/audio_once_bg", historySendIconFgOver }};
 historyRecordVoiceOnceFg: icon {{ "voice_lock/audio_once_number", windowFgActive }};
 historyRecordVoiceOnceFgOver: icon {{ "voice_lock/audio_once_number", windowFgActive }};
 historyRecordVoiceOnceInactive: icon {{ "chat/audio_once", windowSubTextFg }};
-historyRecordVoiceActive: icon {{ "chat/input_record_filled", historyRecordVoiceFgActiveIcon }};
-historyRecordRound: icon {{ "chat/input_video", historyRecordVoiceFg }};
-historyRecordRoundOver: icon {{ "chat/input_video", historyRecordVoiceFgOver }};
-historyRecordRoundActive: icon {{ "chat/input_video", historyRecordVoiceFgActiveIcon }};
-historyRecordRoundIconPosition: point(0px, 0px);
 historyRecordSendIconPosition: point(2px, 0px);
 historyRecordVoiceRippleBgActive: lightButtonBgOver;
 historyRecordSignalRadius: 5px;
@@ -1411,12 +1401,10 @@ historySend: SendButton {
 		textTop: 5px;
 		width: -8px;
 	}
-	record: historyRecordVoice;
-	recordOver: historyRecordVoiceOver;
-	round: historyRecordRound;
-	roundOver: historyRecordRoundOver;
+	recordSize: size(26px, 26px);
 	sendDisabledFg: historyComposeIconFg;
 }
+historyRecordFrameIndex: 30;
 
 defaultComposeFilesMenu: IconButton(defaultIconButton) {
 	width: 48px;
@@ -1746,3 +1734,19 @@ menuTranscribeDummyButton: IconButton(defaultIconButton) {
 }
 
 roundVideoFont: font(14px semibold);
+
+topPeersSelectorUserpicSize: 31px;
+topPeersSelectorUserpicGap: 8px;
+topPeersSelectorPadding: 6px;
+topPeersSelectorUserpicExpand: 0.1;
+topPeersSelectorSkip: point(9px, -5px);
+
+topPeersSelectorImportantTooltip: ImportantTooltip(defaultImportantTooltip) {
+	bg: msgServiceBg;
+	radius: 9px;
+}
+topPeersSelectorImportantTooltipLabel: FlatLabel(defaultImportantTooltipLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(semibold 12px);
+	}
+}

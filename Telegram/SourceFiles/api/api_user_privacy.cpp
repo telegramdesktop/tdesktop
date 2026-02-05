@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
-#include "settings/settings_premium.h" // Settings::ShowPremium.
+#include "settings/sections/settings_premium.h" // Settings::ShowPremium.
 
 namespace Api {
 namespace {

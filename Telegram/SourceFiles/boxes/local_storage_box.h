@@ -44,10 +44,13 @@ public:
 		not_null<Main::Session*> session,
 		CreateTag);
 
-	static void Show(not_null<Window::SessionController*> controller);
+	static void Show(
+		not_null<Window::SessionController*> controller,
+		const QString &highlightId = QString());
 
 protected:
 	void prepare() override;
+	void showFinished() override;
 
 private:
 	class Row;
@@ -102,5 +105,6 @@ private:
 	int64 _mediaSizeLimit = 0;
 	size_type _timeLimit = 0;
 	bool _limitsChanged = false;
+	QString _highlightId;
 
 };

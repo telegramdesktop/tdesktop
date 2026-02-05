@@ -1203,7 +1203,6 @@ void Controller::refreshForumToggleLocked() {
 void Controller::fillColorIndexButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
-	const auto show = _navigation->uiShow();
 	AddPeerColorButton(
 		_controls.buttonsLayout,
 		_navigation->uiShow(),

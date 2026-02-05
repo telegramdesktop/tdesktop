@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/integration.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
@@ -59,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/power_save_blocker.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "window/main_window.h"
+#include "window/window_controller.h"
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
@@ -169,6 +171,28 @@ bool Panel::isActive() const {
 	return window()->isActiveWindow() && isVisible();
 }
 
+QRect Panel::panelGeometry() const {
+	const auto saved = Core::App().settings().callPanelPosition();
+	const auto adjusted = Core::AdjustToScale(saved, u"Call"_q);
+	const auto center = Core::App().getPointForCallPanelCenter();
+	const auto simple = QRect(0, 0, st::callWidth, st::callHeight);
+	const auto initial = simple.translated(center - simple.center());
+	const auto initialPosition = Core::WindowPosition{
+		.moncrc = 0,
+		.scale = cScale(),
+		.x = initial.x(),
+		.y = initial.y(),
+		.w = initial.width(),
+		.h = initial.height(),
+	};
+	return ::Window::CountInitialGeometry(
+		window(),
+		adjusted,
+		initialPosition,
+		{ st::callWidthMin, st::callHeightMin },
+		u"Call"_q);
+}
+
 ConferencePanelMigration Panel::migrationInfo() const {
 	return ConferencePanelMigration{ .window = _window };
 }
@@ -205,6 +229,42 @@ void Panel::toggleFullScreen() {
 void Panel::replaceCall(not_null<Call*> call) {
 	reinitWithCall(call);
 	updateControlsGeometry();
+}
+
+void Panel::savePanelGeometry() {
+	if (!window()->windowHandle()) {
+		return;
+	}
+	const auto state = window()->windowHandle()->windowState();
+	if (state == Qt::WindowMinimized) {
+		return;
+	}
+	const auto &savedPosition = Core::App().settings().callPanelPosition();
+	auto realPosition = savedPosition;
+	if (state == Qt::WindowMaximized) {
+		realPosition.maximized = 1;
+		realPosition.moncrc = 0;
+	} else {
+		auto r = window()->body()->mapToGlobal(window()->body()->rect());
+		realPosition.x = r.x();
+		realPosition.y = r.y();
+		realPosition.w = r.width();
+		realPosition.h = r.height();
+		realPosition.scale = cScale();
+		realPosition.maximized = 0;
+		realPosition.moncrc = 0;
+	}
+	realPosition = ::Window::PositionWithScreen(
+		realPosition,
+		window(),
+		{ st::callWidthMin, st::callHeightMin },
+		u"Call"_q);
+	if (realPosition.w >= st::callWidthMin
+		&& realPosition.h >= st::callHeightMin
+		&& realPosition != savedPosition) {
+		Core::App().settings().setCallPanelPosition(realPosition);
+		Core::App().saveSettingsDelayed();
+	}
 }
 
 void Panel::initWindow() {
@@ -946,12 +1006,15 @@ rpl::lifetime &Panel::lifetime() {
 }
 
 void Panel::initGeometry() {
-	const auto center = Core::App().getPointForCallPanelCenter();
-	const auto initRect = QRect(0, 0, st::callWidth, st::callHeight);
-	window()->setGeometry(initRect.translated(center - initRect.center()));
+	window()->setGeometry(panelGeometry());
 	window()->setMinimumSize({ st::callWidthMin, st::callHeightMin });
 	window()->show();
 	updateControlsGeometry();
+
+	_geometryLifetime = window()->geometryValue(
+	) | rpl::skip(1) | rpl::on_next([=](QRect r) {
+		savePanelGeometry();
+	});
 }
 
 void Panel::initMediaDeviceToggles() {

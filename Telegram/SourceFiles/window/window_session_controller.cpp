@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_session_controller.h"
 
+#include "apiwrap.h"
+#include "api/api_cloud_password.h"
 #include "api/api_text_entities.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
@@ -105,9 +107,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller_link_info.h"
-#include "settings/settings_main.h"
-#include "settings/settings_premium.h"
-#include "settings/settings_privacy_security.h"
+#include "settings/cloud_password/settings_cloud_password_input.h"
+#include "settings/cloud_password/settings_cloud_password_start.h"
+#include "settings/cloud_password/settings_cloud_password_email_confirm.h"
+#include "settings/sections/settings_main.h"
+#include "settings/sections/settings_premium.h"
+#include "settings/sections/settings_privacy_security.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
@@ -1455,7 +1460,7 @@ void SessionNavigation::showSettings(
 }
 
 void SessionNavigation::showSettings(const SectionShow &params) {
-	showSettings(Settings::Main::Id(), params);
+	showSettings(Settings::MainId(), params);
 }
 
 void SessionNavigation::showPollResults(
@@ -1729,7 +1734,7 @@ void SessionController::suggestArchiveAndMute() {
 			tr::lng_suggest_hide_new_about(tr::rich),
 			st::boxLabel));
 		box->addButton(tr::lng_suggest_hide_new_to_settings(), [=] {
-			showSettings(Settings::PrivacySecurity::Id());
+			showSettings(Settings::PrivacySecurityId());
 		});
 		box->setCloseByOutsideClick(false);
 		box->boxClosing(
@@ -3678,6 +3683,65 @@ void SessionController::showStarGiftAuction(uint64 giftId) {
 		giftId,
 		[] {},
 		[=] { _starGiftAuctionLifetime.destroy(); });
+}
+
+void SessionController::showCloudPassword(const QString &highlight) {
+	if (!highlight.isEmpty()) {
+		setHighlightControlId(highlight);
+	}
+	session().api().cloudPassword().reload();
+
+	enum class PasswordState {
+		Loading,
+		On,
+		Off,
+		Unconfirmed,
+	};
+	_showCloudPasswordLifetime = rpl::single(
+		PasswordState::Loading
+	) | rpl::then(session().api().cloudPassword().state(
+	) | rpl::map([](const Core::CloudPasswordState &state) {
+		return (!state.unconfirmedPattern.isEmpty())
+			? PasswordState::Unconfirmed
+			: state.hasPassword
+			? PasswordState::On
+			: PasswordState::Off;
+	})) | rpl::distinct_until_changed() | rpl::filter(
+		rpl::mappers::_1 != PasswordState::Loading
+	) | rpl::take(1) | rpl::on_next([=](PasswordState state) {
+		if (state == PasswordState::On) {
+			showSettings(Settings::CloudPasswordInputId());
+		} else if (state == PasswordState::Off) {
+			showSettings(Settings::CloudPasswordStartId());
+		} else if (state == PasswordState::Unconfirmed) {
+			showSettings(Settings::CloudPasswordEmailConfirmId());
+		}
+	});
+}
+
+void SessionController::setHighlightControlId(const QString &id) {
+	_window->setHighlightControlId(id);
+}
+
+QString SessionController::highlightControlId() const {
+	return _window->highlightControlId();
+}
+
+bool SessionController::takeHighlightControlId(const QString &id) {
+	return _window->takeHighlightControlId(id);
+}
+
+void SessionController::checkHighlightControl(
+		const QString &id,
+		QWidget *widget,
+		Settings::HighlightArgs &&args) {
+	_window->checkHighlightControl(id, widget, std::move(args));
+}
+
+void SessionController::checkHighlightControl(
+		const QString &id,
+		QWidget *widget) {
+	_window->checkHighlightControl(id, widget);
 }
 
 SessionController::~SessionController() {

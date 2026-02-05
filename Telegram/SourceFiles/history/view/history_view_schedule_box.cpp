@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "main/main_session.h"
 #include "menu/menu_send.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat.h"

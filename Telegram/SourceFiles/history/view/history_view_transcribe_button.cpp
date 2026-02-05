@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"

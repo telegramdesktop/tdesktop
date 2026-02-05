@@ -169,6 +169,7 @@ infoTopBarMenu: IconButton(infoTopBarBack) {
 	iconPosition: point(18px, -1px);
 	rippleAreaPosition: point(1px, 6px);
 }
+infoTopBarMenuActive: icon {{ "title_menu_dots", windowActiveTextFg, point(0px, 0px) }};
 infoTopBarCall: IconButton(infoTopBarMenu) {
 	width: 42px;
 	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
@@ -288,6 +289,12 @@ infoLayerTopBarQr: IconButton(infoLayerTopBarClose) {
 	icon: icon {{ "menu/qr_code", boxTitleCloseFg }};
 	iconOver: icon {{ "menu/qr_code", boxTitleCloseFgOver }};
 	iconPosition: point(8px, -1px);
+}
+infoLayerTopBarSearch: IconButton(infoLayerTopBarClose) {
+	width: 48px;
+	icon: icon {{ "top_bar_search", boxTitleCloseFg }};
+	iconOver: icon {{ "top_bar_search", boxTitleCloseFgOver }};
+	iconPosition: point(7px, -1px);
 }
 infoLayerTopBarEdit: IconButton(infoLayerTopBarClose) {
 	width: 44px;
@@ -637,6 +644,7 @@ infoProfileLabeledButtonQr: IconButton(defaultIconButton) {
 	ripple: defaultRippleAnimation;
 }
 infoProfileLabeledButtonQrRightSkip: 0px;
+infoProfileLabeledButtonQrInset: 5px;
 
 infoIconInformation: icon {{ "info/info_information", infoIconFg }};
 infoIconAddMember: icon {{ "info/info_add_member", infoIconFg }};
@@ -667,6 +675,7 @@ infoIconReport: icon {{ "info/info_report", attentionButtonFg }};
 infoIconLeave: icon {{ "info/info_leave", infoIconFg }};
 infoIconBlock: icon {{ "info/info_block", attentionButtonFg }};
 infoIconMembers: icon {{ "info/info_members", infoIconFg }};
+infoIconPrivacyPolicy: icon {{ "menu/2sv_off", infoIconFg, point(4px, 4px) }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaButtonIconPosition: point(20px, 3px);

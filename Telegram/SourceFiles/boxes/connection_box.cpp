@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
+#include "main/main_session.h"
 #include "mtproto/facade.h"
 #include "settings/settings_common.h"
 #include "storage/localstorage.h"
@@ -352,10 +353,12 @@ public:
 	ProxiesBox(
 		QWidget*,
 		not_null<ProxiesBoxController*> controller,
-		Core::SettingsProxy &settings);
+		Core::SettingsProxy &settings,
+		const QString &highlightId = QString());
 
 protected:
 	void prepare() override;
+	void showFinished() override;
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
@@ -380,6 +383,10 @@ private:
 	int _currentProxySupportsCallsId = 0;
 
 	base::flat_map<int, base::unique_qptr<ProxyRow>> _rows;
+
+	QPointer<Ui::RpWidget> _addProxyButton;
+	QPointer<Ui::RpWidget> _shareListButton;
+	QString _highlightId;
 
 };
 
@@ -749,10 +756,12 @@ void ProxyRow::showMenu() {
 ProxiesBox::ProxiesBox(
 	QWidget*,
 	not_null<ProxiesBoxController*> controller,
-	Core::SettingsProxy &settings)
+	Core::SettingsProxy &settings,
+	const QString &highlightId)
 : _controller(controller)
 , _settings(settings)
-, _initialWrap(this) {
+, _initialWrap(this)
+, _highlightId(highlightId) {
 	_controller->views(
 	) | rpl::on_next([=](View &&view) {
 		applyView(std::move(view));
@@ -774,11 +783,27 @@ void ProxiesBox::keyPressEvent(QKeyEvent *e) {
 void ProxiesBox::prepare() {
 	setTitle(tr::lng_proxy_settings());
 
-	addButton(tr::lng_proxy_add(), [=] { addNewProxy(); });
+	_addProxyButton = addButton(tr::lng_proxy_add(), [=] { addNewProxy(); });
 	addButton(tr::lng_close(), [=] { closeBox(); });
 
 	setupTopButton();
 	setupContent();
+}
+
+void ProxiesBox::showFinished() {
+	if (_highlightId == u"proxy/add-proxy"_q) {
+		if (_addProxyButton) {
+			_highlightId = QString();
+			Settings::HighlightWidget(
+				_addProxyButton,
+				{ .rippleShape = true });
+		}
+	} else if (_highlightId == u"proxy/share-list"_q) {
+		if (_shareListButton) {
+			_highlightId = QString();
+			Settings::HighlightWidget(_shareListButton);
+		}
+	}
 }
 
 void ProxiesBox::setupTopButton() {
@@ -790,7 +815,8 @@ void ProxiesBox::setupTopButton() {
 		*menu = base::make_unique_q<Ui::PopupMenu>(
 			top,
 			st::popupMenuWithIcons);
-		const auto addAction = Ui::Menu::CreateAddActionCallback(*menu);
+		const auto raw = menu->get();
+		const auto addAction = Ui::Menu::CreateAddActionCallback(raw);
 		addAction({
 			.text = tr::lng_proxy_add_from_clipboard(tr::now),
 			.handler = [=] { AddProxyFromClipboard(_controller, uiShow()); },
@@ -804,7 +830,16 @@ void ProxiesBox::setupTopButton() {
 				.isAttention = true,
 			});
 		}
-		(*menu)->popup(QCursor::pos());
+		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+		top->setForceRippled(true);
+		raw->setDestroyedCallback([=] {
+			if (const auto strong = top.data()) {
+				strong->setForceRippled(false);
+			}
+		});
+		raw->popup(
+			top->mapToGlobal(
+				QPoint(top->width(), top->height() - st::lineWidth * 3)));
 		return true;
 	});
 }
@@ -913,6 +948,7 @@ void ProxiesBox::setupContent() {
 			tr::lng_proxy_edit_share_list_button(),
 			st::settingsButton,
 			{ &st::menuIconCopy });
+		_shareListButton = shareList;
 		shareList->setClickedCallback([=] {
 			_controller->shareItems();
 		});
@@ -1504,15 +1540,17 @@ void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
 }
 
 object_ptr<Ui::BoxContent> ProxiesBoxController::CreateOwningBox(
-		not_null<Main::Account*> account) {
+		not_null<Main::Account*> account,
+		const QString &highlightId) {
 	auto controller = std::make_unique<ProxiesBoxController>(account);
-	auto box = controller->create();
+	auto box = controller->create(highlightId);
 	Ui::AttachAsChild(box, std::move(controller));
 	return box;
 }
 
-object_ptr<Ui::BoxContent> ProxiesBoxController::create() {
-	auto result = Box<ProxiesBox>(this, _settings);
+object_ptr<Ui::BoxContent> ProxiesBoxController::create(
+		const QString &highlightId) {
+	auto result = Box<ProxiesBox>(this, _settings, highlightId);
 	_show = result->uiShow();
 	for (const auto &item : _list) {
 		updateView(item);
@@ -1836,6 +1874,13 @@ void ProxiesBoxController::share(const ProxyData &proxy, bool qr) {
 	}
 	QGuiApplication::clipboard()->setText(link);
 	_show->showToast(tr::lng_username_copied(tr::now));
+}
+
+void ProxiesBoxController::Show(
+		not_null<Window::SessionController*> controller,
+		const QString &highlightId) {
+	controller->show(
+		CreateOwningBox(&controller->session().account(), highlightId));
 }
 
 ProxiesBoxController::~ProxiesBoxController() {

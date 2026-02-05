@@ -1107,6 +1107,21 @@ void Application::checkStartUrls() {
 }
 
 bool Application::openLocalUrl(const QString &url, QVariant context) {
+	const auto urlTrimmed = url.trimmed();
+	const auto protocol = u"tg://"_q;
+	if (urlTrimmed.startsWith(protocol, Qt::CaseInsensitive)
+		&& !passcodeLocked()) {
+		const auto command = urlTrimmed.mid(protocol.size());
+		const auto my = context.value<ClickHandlerContext>();
+		const auto controller = my.sessionWindow.get()
+			? my.sessionWindow.get()
+			: _lastActivePrimaryWindow
+			? _lastActivePrimaryWindow->sessionController()
+			: nullptr;
+		if (TryRouterForLocalUrl(controller, command)) {
+			return true;
+		}
+	}
 	return openCustomUrl("tg://", LocalUrlHandlers(), url, context);
 }
 

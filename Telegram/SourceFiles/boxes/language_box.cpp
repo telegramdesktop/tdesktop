@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "settings/settings_common.h"
 #include "spellcheck/spellcheck_types.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -1102,8 +1103,12 @@ Ui::ScrollToRequest Content::jump(int rows) {
 
 } // namespace
 
-LanguageBox::LanguageBox(QWidget*, Window::SessionController *controller)
-: _controller(controller) {
+LanguageBox::LanguageBox(
+	QWidget*,
+	Window::SessionController *controller,
+	const QString &highlightId)
+: _controller(controller)
+, _highlightId(highlightId) {
 }
 
 void LanguageBox::prepare() {
@@ -1176,6 +1181,22 @@ void LanguageBox::prepare() {
 	};
 }
 
+void LanguageBox::showFinished() {
+	if (_controller && !_highlightId.isEmpty()) {
+		if (const auto window = Core::App().findWindow(this)) {
+			window->checkHighlightControl(
+				u"language/show-button"_q,
+				_showButtonToggle.data());
+			window->checkHighlightControl(
+				u"language/translate-chats"_q,
+				_translateChatsToggle.data());
+			window->checkHighlightControl(
+				u"language/do-not-translate"_q,
+				_doNotTranslateButton.data());
+		}
+	}
+}
+
 void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 	if (!_controller) {
 		return;
@@ -1186,6 +1207,7 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 			tr::lng_translate_settings_show(),
 			st::settingsButtonNoIcon))->toggleOn(
 				rpl::single(Core::App().settings().translateButtonEnabled()));
+	_showButtonToggle = translateEnabled;
 
 	translateEnabled->toggledValue(
 	) | rpl::filter([](bool checked) {
@@ -1207,6 +1229,7 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 			rpl::duplicate(premium),
 			_1 && _2),
 		_translateChatTurnOff.events()));
+	_translateChatsToggle = translateChat;
 	std::move(premium) | rpl::on_next([=](bool value) {
 		translateChat->setToggleLocked(!value);
 	}, translateChat->lifetime());
@@ -1249,6 +1272,7 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 				: Ui::LanguageName(list.front());
 		}),
 		st::settingsButtonNoIcon);
+	_doNotTranslateButton = translateSkip;
 
 	translateSkip->setClickedCallback([=] {
 		uiShow()->showBox(Ui::EditSkipTranslationLanguages());
@@ -1288,7 +1312,9 @@ void LanguageBox::setInnerFocus() {
 	_setInnerFocus();
 }
 
-base::binary_guard LanguageBox::Show(Window::SessionController *controller) {
+base::binary_guard LanguageBox::Show(
+		Window::SessionController *controller,
+		const QString &highlightId) {
 	auto result = base::binary_guard();
 
 	auto &manager = Lang::CurrentCloudManager();
@@ -1306,11 +1332,11 @@ base::binary_guard LanguageBox::Show(Window::SessionController *controller) {
 				base::take(lifetime)->destroy();
 			}
 			if (show) {
-				Ui::show(Box<LanguageBox>(weak.get()));
+				Ui::show(Box<LanguageBox>(weak.get(), highlightId));
 			}
 		}, *lifetime);
 	} else {
-		Ui::show(Box<LanguageBox>(controller));
+		Ui::show(Box<LanguageBox>(controller, highlightId));
 	}
 	manager.requestLanguageList();
 

@@ -60,6 +60,8 @@ void MediaEditManager::apply(SendMenu::Action action) {
 void MediaEditManager::cancel() {
 	_menu = nullptr;
 	_item = nullptr;
+	_spoilered = false;
+	_invertCaption = false;
 	_lifetime.destroy();
 }
 

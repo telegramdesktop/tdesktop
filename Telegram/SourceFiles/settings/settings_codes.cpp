@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_editor.h"
 #include "window/window_session_controller.h"
 #include "media/audio/media_audio_track.h"
-#include "settings/settings_folders.h"
+#include "settings/sections/settings_folders.h"
 #include "storage/storage_account.h"
 #include "api/api_updates.h"
 #include "base/qt/qt_common_adapters.h"
@@ -161,7 +161,7 @@ auto GenerateCodes() {
 	});
 	codes.emplace(u"folders"_q, [](SessionController *window) {
 		if (window) {
-			window->showSettings(Settings::Folders::Id());
+			window->showSettings(Settings::FoldersId());
 		}
 	});
 	codes.emplace(u"registertg"_q, [](SessionController *window) {

@@ -33,8 +33,8 @@ exec /usr/bin/pkg-config --static "\$@"
 EOF
 RUN sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/")/ -O0 {% if LTO %}-fno-lto -fno-use-linker-plugin{% endif %} -fuse-ld=lld")/' /usr/share/cmake/Modules/Compiler/GNU.cmake
 RUN sed -i 's/NO_DEFAULT_PATH//g; s/PKG_CONFIG_ALLOW_SYSTEM_LIBS/PKG_CONFIG_IS_DUMB/g' /usr/share/cmake/Modules/FindPkgConfig.cmake
-RUN sed -i 's/set(OpenGL_GL_PREFERENCE "")/set(OpenGL_GL_PREFERENCE "LEGACY")/' /usr/share/cmake/Modules/FindOpenGL.cmake
 RUN sed -i '/Requires.private: valgrind/d' /usr/lib64/pkgconfig/libdrm.pc
+RUN sed -i '/Requires.private: gl/s/gl/opengl glx/' /usr/lib64/pkgconfig/epoxy.pc
 RUN sed -i 's/-lharfbuzz//' /usr/lib64/pkgconfig/harfbuzz.pc
 RUN sed -i 's/-lpng16//' /usr/lib64/pkgconfig/libpng16.pc
 RUN echo set debuginfod enabled on > /opt/rh/$TOOLSET/root/etc/gdbinit.d/00-debuginfod.gdb
@@ -76,6 +76,8 @@ RUN git init Implib.so \
 	&& implib /usr/lib64/libva-drm.so \
 	&& implib /usr/lib64/libva.so \
 	&& implib /usr/lib64/libEGL.so \
+	&& implib /usr/lib64/libGLX.so \
+	&& implib /usr/lib64/libOpenGL.so \
 	&& implib /usr/lib64/libGL.so \
 	&& implib /usr/lib64/libdrm.so \
 	&& implib /usr/lib64/libwayland-egl.so \
@@ -91,7 +93,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin https://github.com/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 859556cab51d17585ff76d3db62ff1c7502bc850 \
+	&& git fetch --depth=1 origin b8c3a8ffc1514861837b9213383133c63023e0de \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -732,7 +734,7 @@ COPY --link --from=xcb-cursor /usr/src/xcb-cursor-cache /
 COPY --link --from=openssl /usr/src/openssl-cache /
 COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
 
-ENV QT=6.10.1
+ENV QT=6.10.2
 RUN git clone -b v$QT --depth=1 https://github.com/qt/qt5.git \
 	&& cd qt5 \
 	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools \

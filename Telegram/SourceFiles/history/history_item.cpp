@@ -1947,7 +1947,9 @@ void HistoryItem::destroy() {
 not_null<Data::Thread*> HistoryItem::notificationThread() const {
 	if (const auto rootId = topicRootId()) {
 		if (const auto forum = _history->asForum()) {
-			return forum->enforceTopicFor(rootId);
+			if (!_history->peer->isBot()) {
+				return forum->enforceTopicFor(rootId);
+			}
 		}
 	}
 	return _history;

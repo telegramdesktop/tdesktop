@@ -53,16 +53,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 
+#include "window/window_session_controller.h"
+#include "window/window_controller.h"
+#include "boxes/choose_filter_box.h"
 #include "boxes/peer_list_box.h"
 #include "main/main_session_settings.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_action.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "ui/effects/round_checkbox.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_info.h"
+#include "styles/style_media_player.h" // mediaPlayerMenuCheck
 
 base::options::toggle ModerateCommonGroups({
 	.id = kModerateCommonGroups,
@@ -160,7 +168,9 @@ using CollectCommon = std::shared_ptr<std::vector<PeerId>>;
 void FillMenuModerateCommonGroups(
 		not_null<Ui::PopupMenu*> menu,
 		CommonGroups common,
-		CollectCommon collectCommon) {
+		CollectCommon collectCommon,
+		not_null<UserData*> user,
+		Fn<void()> onDestroyedCallback) {
 	const auto resultList
 		= menu->lifetime().make_state<base::flat_set<PeerId>>();
 	const auto rememberCheckbox = Ui::CreateChild<Ui::Checkbox>(
@@ -172,18 +182,15 @@ void FillMenuModerateCommonGroups(
 		st::historyHasCustomEmoji,
 		st::historyHasCustomEmojiPosition,
 		tr::lng_restrict_users_kick_from_common_group(tr::now, tr::rich));
-	multiline->setDisabled(true);
 	multiline->setAttribute(Qt::WA_TransparentForMouseEvents);
 	menu->addAction(std::move(multiline));
 	const auto session = &common.front()->session();
+	const auto settingsOnStart = session->settings().moderateCommonGroups();
+	const auto checkboxesUpdate = std::make_shared<rpl::event_stream<>>();
 	const auto save = [=] {
 		auto result = std::vector<PeerId>(
 			resultList->begin(),
 			resultList->end());
-		if (rememberCheckbox->checked()) {
-			session->settings().setModerateCommonGroups(result);
-			session->saveSettingsDelayed();
-		}
 		*collectCommon = std::move(result);
 	};
 	for (const auto &group : common) {
@@ -201,17 +208,22 @@ void FillMenuModerateCommonGroups(
 			nullptr,
 			nullptr);
 		const auto state = item->lifetime().make_state<State>();
-		item->AbstractButton::setDisabled(true);
-		item->setActionTriggered([=, peerId = group->id] {
-			state->checkbox->setChecked(!state->checkbox->checked());
+		const auto setChecked = [=, peerId = group->id](bool checked) {
+			state->checkbox->setChecked(checked);
 			if (state->checkbox->checked()) {
 				resultList->insert(peerId);
 			} else {
 				resultList->erase(peerId);
 			}
 			save();
+		};
+		item->setActionTriggered([=] {
+			setChecked(!state->checkbox->checked());
 		});
 		const auto raw = item.get();
+		checkboxesUpdate->events() | rpl::on_next([=, peerId = group->id] {
+			setChecked(ranges::contains(*collectCommon, peerId));
+		}, raw->lifetime());
 		state->checkboxWidget = Ui::CreateChild<Ui::RpWidget>(raw);
 		state->checkboxWidget->setAttribute(Qt::WA_TransparentForMouseEvents);
 		state->checkboxWidget->resize(item->width() * 2, item->height());
@@ -224,10 +236,10 @@ void FillMenuModerateCommonGroups(
 				? int(size * Ui::ForumUserpicRadiusMultiplier())
 				: std::optional<int>(); });
 		state->checkbox->setChecked(
-			ranges::contains(
+			/*ranges::contains(
 				session->settings().moderateCommonGroups(),
 				group->id)
-			|| (collectCommon
+			|| */(collectCommon
 				&& ranges::contains(*collectCommon, group->id)),
 			anim::type::instant);
 		state->checkboxWidget->paintOn([=](QPainter &p) {
@@ -241,6 +253,29 @@ void FillMenuModerateCommonGroups(
 		menu->addAction(std::move(item));
 	}
 	menu->addSeparator();
+	if (const auto window = Core::App().findWindow(menu->parentWidget())) {
+		auto hasActions = false;
+		Ui::Menu::CreateAddActionCallback(menu)(Ui::Menu::MenuCallback::Args{
+			.text = tr::lng_restrict_users_kick_from_common_group(tr::now),
+			.handler = nullptr,
+			.icon = &st::menuIconAddToFolder,
+			.fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
+				hasActions = FillChooseFilterWithAdminedGroupsMenu(
+					window->sessionController(),
+					menu,
+					user,
+					checkboxesUpdate,
+					common,
+					collectCommon);
+			},
+			.submenuSt = &st::foldersMenu,
+		});
+		if (!hasActions) {
+			menu->removeAction(menu->actions().size() - 1);
+			menu->removeAction(menu->actions().size() - 1); // Separator.
+		}
+	}
+	menu->addSeparator();
 	{
 		auto item = base::make_unique_q<Ui::Menu::Action>(
 			menu->menu(),
@@ -251,7 +286,7 @@ void FillMenuModerateCommonGroups(
 				[] {}),
 			nullptr,
 			nullptr);
-		item->AbstractButton::setDisabled(true);
+		item->setPreventClose(true);
 		item->setActionTriggered([=] {
 			rememberCheckbox->setChecked(!rememberCheckbox->checked());
 		});
@@ -261,11 +296,18 @@ void FillMenuModerateCommonGroups(
 		rememberCheckbox->show();
 		menu->addAction(std::move(item));
 	}
+	menu->setDestroyedCallback([=] {
+		onDestroyedCallback();
+		if (!rememberCheckbox->checked()) {
+			session->settings().setModerateCommonGroups(settingsOnStart);
+			session->saveSettingsDelayed();
+		}
+	});
 }
 
 void ProccessCommonGroups(
 		const HistoryItemsList &items,
-		Fn<void(CommonGroups)> processHas) {
+		Fn<void(CommonGroups, not_null<UserData*>)> processHas) {
 	const auto moderateOptions = CalculateModerateOptions(items);
 	if (moderateOptions.participants.size() != 1
 		|| !moderateOptions.allCanBan) {
@@ -298,7 +340,7 @@ void ProccessCommonGroups(
 		}
 
 		if (!filtered.empty()) {
-			processHas(filtered);
+			processHas(filtered, user);
 		}
 	});
 }
@@ -342,24 +384,79 @@ void CreateModerateMessagesBox(
 	if (ModerateCommonGroups.value() || session->supportMode()) {
 	ProccessCommonGroups(
 		items,
-		crl::guard(box, [=](CommonGroups groups) {
+		crl::guard(box, [=](CommonGroups groups, not_null<UserData*> user) {
 			using namespace Ui;
 			const auto top = box->addTopButton(st::infoTopBarMenu);
 			auto &lifetime = top->lifetime();
 			const auto menu
 				= lifetime.make_state<base::unique_qptr<Ui::PopupMenu>>();
 
+			{
+				const auto was = collectCommon->size();
+				*menu = base::make_unique_q<Ui::PopupMenu>(
+					top,
+					st::popupMenuExpandedSeparator);
+				FillMenuModerateCommonGroups(
+					*menu,
+					groups,
+					collectCommon,
+					user,
+					[]{});
+				*menu = nullptr;
+				if (was != collectCommon->size()) {
+					top->setIconOverride(
+						&st::infoTopBarMenuActive,
+						&st::infoTopBarMenuActive);
+					const auto minicheck = Ui::CreateChild<Ui::RpWidget>(top);
+					minicheck->paintRequest() | rpl::on_next([=] {
+						auto p = Painter(minicheck);
+						const auto rect = minicheck->rect();
+						const auto iconSize = QSize(
+							st::mediaPlayerMenuCheck.width(),
+							st::mediaPlayerMenuCheck.height());
+						const auto scale = std::min(
+							rect.width() / float64(iconSize.width()),
+							rect.height() / float64(iconSize.height()));
+						if (scale < 1.0) {
+							p.save();
+							p.translate(rect.center());
+							p.scale(scale, scale);
+							p.translate(-rect.center());
+						}
+						st::mediaPlayerMenuCheck.paintInCenter(
+							p,
+							rect,
+							st::windowActiveTextFg->c);
+						if (scale < 1.0) {
+							p.restore();
+						}
+					}, minicheck->lifetime());
+					minicheck->resize(
+						st::mediaPlayerMenuCheck.width() / 1.5,
+						st::mediaPlayerMenuCheck.width() / 1.5);
+					minicheck->show();
+					minicheck->moveToLeft(
+						top->width() - st::lineWidth * 26,
+						top->height() - st::lineWidth * 29);
+				}
+			}
+
 			top->setClickedCallback([=] {
 				top->setForceRippled(true);
 				*menu = base::make_unique_q<Ui::PopupMenu>(
 					top,
 					st::popupMenuExpandedSeparator);
-				(*menu)->setDestroyedCallback([=, weak = top] {
+				const auto onDestroyedCallback = [=, weak = top] {
 					if (const auto strong = weak.data()) {
 						strong->setForceRippled(false);
 					}
-				});
-				FillMenuModerateCommonGroups(*menu, groups, collectCommon);
+				};
+				FillMenuModerateCommonGroups(
+					*menu,
+					groups,
+					collectCommon,
+					user,
+					onDestroyedCallback);
 				(*menu)->setForcedOrigin(PanelAnimation::Origin::TopRight);
 				const auto point = QPoint(top->width(), top->height());
 				(*menu)->popup(top->mapToGlobal(point));
@@ -727,7 +824,7 @@ void CreateModerateMessagesBox(
 					tr::lng_restrict_users_part_header(
 						lt_count,
 						rpl::single(participants.size()) | tr::to_count())));
-			auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
+			auto [checkboxes, getRestrictions, changes, highlightWidget] = CreateEditRestrictions(
 				box,
 				prepareFlags,
 				disabledMessages,
@@ -752,6 +849,9 @@ void CreateModerateMessagesBox(
 				const auto request = [=](
 						not_null<PeerData*> peer,
 						not_null<ChannelData*> channel) {
+					if (base::IsAltPressed() || base::IsCtrlPressed()) {
+						return;
+					}
 					if (!kick) {
 						Api::ChatParticipants::Restrict(
 							channel,

@@ -1191,7 +1191,7 @@ object_ptr<Ui::BoxContent> PrepareCreateCallBox(
 				const auto &invite = selected.front();
 				Core::App().calls().startOutgoingCall(
 					invite.user,
-					invite.video);
+					{ invite.video });
 			}
 			finished(true);
 		};

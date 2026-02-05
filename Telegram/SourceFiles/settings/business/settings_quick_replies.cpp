@@ -33,7 +33,7 @@ namespace {
 
 constexpr auto kShortcutLimit = 32;
 
-class QuickReplies : public BusinessSection<QuickReplies> {
+class QuickReplies : public Section<QuickReplies> {
 public:
 	QuickReplies(
 		QWidget *parent,
@@ -52,7 +52,7 @@ private:
 QuickReplies::QuickReplies(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: BusinessSection(parent, controller) {
+: Section(parent, controller) {
 	setupContent(controller);
 }
 
