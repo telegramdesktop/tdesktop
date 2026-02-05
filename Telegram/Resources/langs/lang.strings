@@ -5960,7 +5960,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_confcall_e2e_about" = "These four emoji represent the call's encryption key. They must match for all participants and change when someone joins or leaves.";
 
 "lng_no_mic_permission" = "Telegram needs microphone access so that you can make calls and record voice messages.";
-
 "lng_player_message_today" = "today at {time}";
 "lng_player_message_yesterday" = "yesterday at {time}";
 "lng_player_message_date" = "{date} at {time}";
@@ -7602,4 +7601,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_rename_file" = "Rename file";
 
+"lng_sr_playback_order" = "Playback order";
+"lng_sr_player_close" = "Close media player";
 // Keys finished
