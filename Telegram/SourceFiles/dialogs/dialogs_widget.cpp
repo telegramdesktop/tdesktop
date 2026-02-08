@@ -364,6 +364,7 @@ Widget::Widget(
 	object_ptr<Ui::IconButton>(this, st::dialogsLock))
 , _scroll(this)
 , _scrollToTop(_scroll, st::dialogsToUp)
+// a good change
 , _stories(nullptr)
 , _searchTimer([=] { search(); })
 , _peerSearch(&controller->session(), Api::PeerSearch::Type::WithSponsored)
