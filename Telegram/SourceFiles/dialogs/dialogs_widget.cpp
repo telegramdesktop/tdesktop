@@ -364,8 +364,12 @@ Widget::Widget(
 	object_ptr<Ui::IconButton>(this, st::dialogsLock))
 , _scroll(this)
 , _scrollToTop(_scroll, st::dialogsToUp)
-// a good change
-, _stories(nullptr)
+, _stories((_layout != Layout::Child)
+	? std::make_unique<Stories::List>(
+		this,
+		st::dialogsStoriesList,
+		_storiesContents.events() | rpl::flatten_latest())
+	: nullptr)
 , _searchTimer([=] { search(); })
 , _peerSearch(&controller->session(), Api::PeerSearch::Type::WithSponsored)
 , _singleMessageSearch(&controller->session()) {
@@ -1343,125 +1347,14 @@ void Widget::setupMainMenuToggle() {
 }
 
 void Widget::setupStories() {
-	_stories->verticalScrollEvents(
-	) | rpl::on_next([=](not_null<QWheelEvent*> e) {
-		_scroll->viewportEvent(e);
-	}, _stories->lifetime());
-
-	if (!Core::App().settings().storiesClickTooltipHidden()) {
-		// Don't create tooltip
-		// until storiesClickTooltipHidden can be returned to false.
-		const auto hideTooltip = [=] {
-			Core::App().settings().setStoriesClickTooltipHidden(true);
-			Core::App().saveSettingsDelayed();
-		};
-		InvokeQueued(_stories.get(), [=] {
-			_stories->setShowTooltip(
-				controller()->content(),
-				rpl::combine(
-					Core::App().settings().storiesClickTooltipHiddenValue(),
-					shownValue(),
-					!rpl::mappers::_1 && rpl::mappers::_2),
-				hideTooltip);
-		});
+	if (!_stories) {
+		return;
 	}
-
-	_storiesContents.fire(Stories::ContentForSession(
-		&controller()->session(),
-		Data::StorySourcesList::NotHidden));
-
-	const auto currentSource = [=] {
-		using List = Data::StorySourcesList;
-		return _openedFolder ? List::Hidden : List::NotHidden;
-	};
-
-	rpl::combine(
-		_scroll->positionValue(),
-		_scroll->movementValue(),
-		_storiesExplicitExpandValue.value()
-	) | rpl::on_next([=](
-			Ui::ElasticScrollPosition position,
-			Ui::ElasticScrollMovement movement,
-			int explicitlyExpanded) {
-		if (_stories->isHidden()) {
-			return;
-		}
-		const auto overscrollTop = std::max(-position.overscroll, 0);
-		if (overscrollTop > 0 && _storiesExplicitExpand) {
-			_scroll->setOverscrollDefaults(
-				-st::dialogsStoriesFull.height,
-				0,
-				true);
-		}
-		if (explicitlyExpanded > 0 && explicitlyExpanded < overscrollTop) {
-			_storiesExplicitExpandAnimation.stop();
-			_storiesExplicitExpand = false;
-			_storiesExplicitExpandValue = 0;
-			return;
-		}
-		const auto above = std::max(explicitlyExpanded, overscrollTop);
-		if (_aboveScrollAdded != above) {
-			_aboveScrollAdded = above;
-			if (_updateScrollGeometryCached) {
-				_updateScrollGeometryCached();
-			}
-		}
-		using Phase = Ui::ElasticScrollMovement;
-		_stories->setExpandedHeight(
-			_aboveScrollAdded,
-			((movement == Phase::Momentum || movement == Phase::Returning)
-				&& (explicitlyExpanded < above)));
-		if (position.overscroll > 0
-			|| (position.value
-				> (_storiesExplicitExpandScrollTop
-					+ st::dialogsRowHeight))) {
-			storiesToggleExplicitExpand(false);
-		}
-		updateLockUnlockPosition();
-	}, lifetime());
-
-	_stories->collapsedGeometryChanged(
-	) | rpl::on_next([=] {
-		updateLockUnlockPosition();
-	}, lifetime());
-
-	_stories->clicks(
-	) | rpl::on_next([=](uint64 id) {
-		controller()->openPeerStories(PeerId(int64(id)), currentSource());
-	}, lifetime());
-
-	_stories->showMenuRequests(
-	) | rpl::on_next([=](const Stories::ShowMenuRequest &request) {
-		FillSourceMenu(controller(), request);
-	}, lifetime());
-
-	_stories->loadMoreRequests(
-	) | rpl::on_next([=] {
-		session().data().stories().loadMore(currentSource());
-	}, lifetime());
-
-	_stories->toggleExpandedRequests(
-	) | rpl::on_next([=](bool expanded) {
-		const auto position = _scroll->position();
-		if (!expanded) {
-			_scroll->setOverscrollDefaults(0, 0);
-		} else if (position.value > 0 || position.overscroll >= 0) {
-			storiesToggleExplicitExpand(true);
-			_scroll->setOverscrollDefaults(0, 0);
-		} else {
-			_scroll->setOverscrollDefaults(
-				-st::dialogsStoriesFull.height,
-				0);
-		}
-	}, lifetime());
-
-	_stories->emptyValue() | rpl::skip(1) | rpl::on_next([=] {
-		updateStoriesVisibility();
-	}, lifetime());
-
-	_stories->widthValue() | rpl::on_next([=] {
-		updateLockUnlockPosition();
-	}, lifetime());
+	_stories->setToggledHidden(true, false);
+	_scroll->setOverscrollDefaults(0, 0);
+	_scroll->setOverscrollTypes(
+		Ui::ElasticScroll::OverscrollType::Real,
+		Ui::ElasticScroll::OverscrollType::Real);
 }
 
 void Widget::storiesToggleExplicitExpand(bool expand) {

@@ -502,89 +502,9 @@ void TopBar::updateControlsVisibility(anim::type animated) {
 void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
 	_storiesLifetime.destroy();
 	delete _storiesWrap.data();
-	if (content) {
-		using namespace Dialogs::Stories;
-
-		auto last = std::move(
-			content
-		) | rpl::start_spawning(_storiesLifetime);
-
-		_storiesWrap = _storiesLifetime.make_state<
-			Ui::FadeWrap<Ui::AbstractButton>
-		>(this, object_ptr<Ui::AbstractButton>(this), st::infoTopBarScale);
-		registerToggleControlCallback(
-			_storiesWrap.data(),
-			[this] { return _storiesCount > 0; });
-		_storiesWrap->toggle(false, anim::type::instant);
-		_storiesWrap->setDuration(st::infoTopBarDuration);
-
-		const auto button = _storiesWrap->entity();
-		const auto stories = Ui::CreateChild<List>(
-			button,
-			st::dialogsStoriesListInfo,
-			rpl::duplicate(
-				last
-			) | rpl::filter([](const Content &content) {
-				return !content.elements.empty();
-			}));
-		const auto label = Ui::CreateChild<Ui::FlatLabel>(
-			button,
-			QString(),
-			_st.title);
-		stories->setAttribute(Qt::WA_TransparentForMouseEvents);
-		label->setAttribute(Qt::WA_TransparentForMouseEvents);
-		stories->geometryValue(
-		) | rpl::on_next([=](QRect geometry) {
-			const auto skip = _st.title.style.font->spacew;
-			label->move(
-				geometry.x() + geometry.width() + skip,
-				_st.titlePosition.y());
-		}, label->lifetime());
-		rpl::combine(
-			_storiesWrap->positionValue(),
-			label->geometryValue()
-		) | rpl::on_next([=] {
-			button->resize(
-				label->x() + label->width() + _st.titlePosition.x(),
-				_st.height);
-		}, button->lifetime());
-
-		_stories = stories;
-		_stories->clicks(
-		) | rpl::start_to_stream(_storyClicks, _stories->lifetime());
-
-		button->setClickedCallback([=] {
-			_storyClicks.fire({});
-		});
-
-		rpl::duplicate(
-			last
-		) | rpl::on_next([=](const Content &content) {
-			const auto count = content.total;
-			if (_storiesCount != count) {
-				const auto was = (_storiesCount > 0);
-				_storiesCount = count;
-				const auto now = (_storiesCount > 0);
-				if (was != now) {
-					updateControlsVisibility(anim::type::normal);
-				}
-				if (now) {
-					label->setText(
-						tr::lng_contacts_stories_status(
-							tr::now,
-							lt_count,
-							_storiesCount));
-				}
-				updateControlsGeometry(width());
-			}
-		}, _storiesLifetime);
-
-		_storiesLifetime.add([weak = base::make_weak(label)] {
-			delete weak.get();
-		});
-	} else {
-		_storiesCount = 0;
-	}
+	_storiesWrap = nullptr;
+	_stories = nullptr;
+	_storiesCount = 0;
 	updateControlsVisibility(anim::type::instant);
 }
 
