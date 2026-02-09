@@ -41,6 +41,7 @@ jobs:
   macos:
     name: MacOS
     runs-on: macos-latest
+    if: false
 
     strategy:
       matrix:

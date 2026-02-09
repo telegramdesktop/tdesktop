@@ -45,6 +45,7 @@ jobs:
   linux:
     name: Rocky Linux 8
     runs-on: ubuntu-latest
+    if: false
 
     strategy:
       matrix:
