@@ -134,6 +134,7 @@ void TopBar::enableBackButton() {
 		st::infoTopBarScale);
 	_back->setDuration(st::infoTopBarDuration);
 	_back->toggle(!selectionMode(), anim::type::instant);
+	_back->entity()->setAccessibleName(tr::lng_go_back(tr::now));
 	_back->entity()->clicks(
 	) | rpl::to_empty
 	| rpl::start_to_stream(_backClicks, _back->lifetime());
@@ -265,6 +266,7 @@ void TopBar::createSearchView(
 
 	auto button = base::make_unique_q<Ui::IconButton>(this, _st.search);
 	auto search = button.get();
+	search->setAccessibleName(tr::lng_dlg_filter(tr::now));
 	search->addClickHandler([=] { showSearch(); });
 	auto searchWrap = pushButton(std::move(button));
 	registerToggleControlCallback(searchWrap, [=] {
@@ -276,9 +278,20 @@ void TopBar::createSearchView(
 	auto cancel = Ui::CreateChild<Ui::CrossButton>(
 		wrap,
 		_st.searchRow.fieldCancel);
+	cancel->setAccessibleName(tr::lng_sr_cancel_search(tr::now));
 	registerToggleControlCallback(cancel, [=] {
 		return !selectionMode() && searchMode();
 	});
+
+	const auto updateCancelName = [=] {
+		const auto hasText = !field->getLastText().isEmpty();
+		cancel->setAccessibleName(hasText
+			? tr::lng_sr_clear_search(tr::now)
+			: tr::lng_sr_cancel_search(tr::now));
+	};
+	field->changes(
+	) | rpl::on_next(updateCancelName, cancel->lifetime());
+	updateCancelName();
 
 	cancel->addClickHandler([=] {
 		if (!field->getLastText().isEmpty()) {
@@ -637,6 +650,12 @@ void TopBar::updateSelectionState() {
 		(_allStoriesInProfile
 			? &_st.storiesArchive.iconOver
 			: &_st.storiesSave.iconOver));
+	_toggleStoryInProfile->entity()->setAccessibleName(_allStoriesInProfile
+		? tr::lng_mediaview_archive_story(tr::now)
+		: tr::lng_mediaview_save_to_profile(tr::now));
+	_toggleStoryPin->entity()->setAccessibleName(_canUnpinStories
+		? tr::lng_context_unpin_from_top(tr::now)
+		: tr::lng_context_pin_to_top(tr::now));
 	_toggleStoryPin->toggle(_canToggleStoryPin, anim::type::instant);
 	_toggleStoryPin->entity()->setIconOverride(
 		_canUnpinStories ? &_st.storiesUnpin.icon : nullptr,
@@ -663,6 +682,8 @@ void TopBar::createSelectionControls() {
 		object_ptr<Ui::IconButton>(this, _st.mediaCancel),
 		st::infoTopBarScale));
 	_cancelSelection->setDuration(st::infoTopBarDuration);
+	_cancelSelection->entity()->setAccessibleName(
+		tr::lng_context_clear_selection(tr::now));
 	_cancelSelection->entity()->clicks(
 	) | rpl::map_to(
 		SelectionAction::Clear
@@ -693,6 +714,8 @@ void TopBar::createSelectionControls() {
 		_forward.data(),
 		[this] { return selectionMode() && _canForward; });
 	_forward->setDuration(st::infoTopBarDuration);
+	_forward->entity()->setAccessibleName(
+		tr::lng_context_forward_selected(tr::now));
 	_forward->entity()->clicks(
 	) | rpl::map_to(
 		SelectionAction::Forward
@@ -709,6 +732,8 @@ void TopBar::createSelectionControls() {
 		_delete.data(),
 		[this] { return selectionMode() && _canDelete; });
 	_delete->setDuration(st::infoTopBarDuration);
+	_delete->entity()->setAccessibleName(
+		tr::lng_context_delete_selected(tr::now));
 	_delete->entity()->clicks(
 	) | rpl::map_to(
 		SelectionAction::Delete
@@ -728,6 +753,9 @@ void TopBar::createSelectionControls() {
 		_toggleStoryInProfile.data(),
 		[this] { return selectionMode() && _canToggleStoryPin; });
 	_toggleStoryInProfile->setDuration(st::infoTopBarDuration);
+	_toggleStoryInProfile->entity()->setAccessibleName(_allStoriesInProfile
+		? tr::lng_mediaview_archive_story(tr::now)
+		: tr::lng_mediaview_save_to_profile(tr::now));
 	_toggleStoryInProfile->entity()->clicks(
 	) | rpl::map([=] {
 		return _allStoriesInProfile
@@ -754,6 +782,9 @@ void TopBar::createSelectionControls() {
 		_toggleStoryPin.data(),
 		[this] { return selectionMode() && _canToggleStoryPin; });
 	_toggleStoryPin->setDuration(st::infoTopBarDuration);
+	_toggleStoryPin->entity()->setAccessibleName(_canUnpinStories
+		? tr::lng_context_unpin_from_top(tr::now)
+		: tr::lng_context_pin_to_top(tr::now));
 	_toggleStoryPin->entity()->clicks(
 	) | rpl::map_to(
 		SelectionAction::ToggleStoryPin

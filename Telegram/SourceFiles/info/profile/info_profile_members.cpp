@@ -131,6 +131,7 @@ void Members::setupHeader() {
 	_openMembers = Ui::CreateChild<Ui::SettingsButton>(
 		parent,
 		rpl::single(QString()));
+	// _openMembers->setAccessibleName(tr::lng_manage_peer_members(tr::now));
 
 	object_ptr<FloatingIcon>(
 		parent,
@@ -142,12 +143,14 @@ void Members::setupHeader() {
 	_addMember = Ui::CreateChild<Ui::IconButton>(
 		_openMembers,
 		st::infoMembersAddMember);
+	_addMember->setAccessibleName(tr::lng_channel_add_members(tr::now));
 	//_searchField = _controller->searchFieldController()->createField(
 	//	parent,
 	//	st::infoMembersSearchField);
 	_search = Ui::CreateChild<Ui::IconButton>(
 		_openMembers,
 		st::infoMembersSearch);
+	_search->setAccessibleName(tr::lng_participant_filter(tr::now));
 	//_cancelSearch = Ui::CreateChild<Ui::CrossButton>(
 	//	parent,
 	//	st::infoMembersCancelSearch);
@@ -169,15 +172,19 @@ object_ptr<Ui::FlatLabel> Members::setupTitle() {
 	auto visible = _peer->isMegagroup()
 		? CanViewParticipantsValue(_peer->asMegagroup())
 		: rpl::single(true);
+	auto text = rpl::conditional(
+		std::move(visible),
+		tr::lng_chat_status_members(
+			lt_count_decimal,
+			MembersCountValue(_peer) | tr::to_count(),
+			tr::upper),
+		tr::lng_channel_admins(tr::upper));
+	rpl::duplicate(text) | rpl::on_next([=](const QString &v) {
+		_openMembers->setAccessibleName(v);
+	}, _openMembers->lifetime());
 	auto result = object_ptr<Ui::FlatLabel>(
 		_titleWrap,
-		rpl::conditional(
-			std::move(visible),
-			tr::lng_chat_status_members(
-				lt_count_decimal,
-				MembersCountValue(_peer) | tr::to_count(),
-				tr::upper),
-			tr::lng_channel_admins(tr::upper)),
+		std::move(text),
 		st::infoBlockHeaderLabel);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return result;

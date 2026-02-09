@@ -41,6 +41,7 @@ void MusicButton::updateData(MusicButtonData data) {
 	_title.setText(
 		st::defaultTextStyle,
 		result.text.mid(performerLength, result.text.size()));
+	setAccessibleName(result.text);
 	update();
 }
 
