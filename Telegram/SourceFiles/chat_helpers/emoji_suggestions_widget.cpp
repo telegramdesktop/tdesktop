@@ -1140,5 +1140,9 @@ void SuggestionsController::raise() {
 	_container->raise();
 }
 
+bool SuggestionsController::isHidden() const {
+	return !_shown;
+}
+
 } // namespace Emoji
 } // namespace Ui

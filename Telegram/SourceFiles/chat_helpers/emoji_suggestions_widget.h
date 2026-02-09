@@ -60,6 +60,8 @@ public:
 		const QString &replacement,
 		const QString &customEmojiData)> callback);
 
+	[[nodiscard]] bool isHidden() const;
+
 	static not_null<SuggestionsController*> Init(
 			not_null<QWidget*> outer,
 			not_null<Ui::InputField*> field,

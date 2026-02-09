@@ -7884,7 +7884,11 @@ bool HistoryWidget::showSlowmodeError() {
 void HistoryWidget::fieldTabbed() {
 	if (_supportAutocomplete) {
 		_supportAutocomplete->activate(_field.data());
-	}else{
+	} else if ((_autocomplete && !_autocomplete->isHidden())
+		|| (_emojiSuggestions && !_emojiSuggestions->isHidden())
+		|| (_inlineResults && !_inlineResults->isHidden())) {
+		return;
+	} else {
 		focusNextPrevChild(true);
 	}
 }
