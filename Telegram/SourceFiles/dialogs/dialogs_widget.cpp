@@ -364,12 +364,7 @@ Widget::Widget(
 	object_ptr<Ui::IconButton>(this, st::dialogsLock))
 , _scroll(this)
 , _scrollToTop(_scroll, st::dialogsToUp)
-, _stories((_layout != Layout::Child)
-	? std::make_unique<Stories::List>(
-		this,
-		st::dialogsStoriesList,
-		_storiesContents.events() | rpl::flatten_latest())
-	: nullptr)
+, _stories(nullptr)
 , _searchTimer([=] { search(); })
 , _peerSearch(&controller->session(), Api::PeerSearch::Type::WithSponsored)
 , _singleMessageSearch(&controller->session()) {
@@ -1824,13 +1819,15 @@ void Widget::storiesExplicitCollapse() {
 	_storiesExplicitExpandAnimation.stop();
 	_storiesExplicitExpandValue = 0;
 
-	using List = Data::StorySourcesList;
-	collectStoriesUserpicsViews(_openedFolder
-		? List::NotHidden
-		: List::Hidden);
-	_storiesContents.fire(Stories::ContentForSession(
-		&session(),
-		_openedFolder ? List::Hidden : List::NotHidden));
+	if (_stories) {
+		using List = Data::StorySourcesList;
+		collectStoriesUserpicsViews(_openedFolder
+			? List::NotHidden
+			: List::Hidden);
+		_storiesContents.fire(Stories::ContentForSession(
+			&session(),
+			_openedFolder ? List::Hidden : List::NotHidden));
+	}
 }
 
 void Widget::collectStoriesUserpicsViews(Data::StorySourcesList list) {
