@@ -449,6 +449,7 @@ void ChatSearchIn::updateSection(
 
 		const auto st = &st::dialogsCancelSearchInPeer;
 		section->cancel = std::make_unique<Ui::IconButton>(raw, *st);
+		section->cancel->setAccessibleName(tr::lng_cancel(tr::now));
 		section->cancel->show();
 		raw->sizeValue() | rpl::on_next([=](QSize size) {
 			const auto left = size.width() - section->cancel->width();

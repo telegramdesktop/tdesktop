@@ -7604,4 +7604,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sr_playback_order" = "Playback order";
 "lng_sr_player_close" = "Close media player";
 "lng_sr_group_call_menu" = "Video chat menu";
+"lng_sr_search_date" = "Search by date";
+"lng_sr_cancel_search" = "Cancel search";
+"lng_sr_clear_search" = "Clear search";
+"lng_sr_scroll_to_top" = "Scroll to top";
+
 // Keys finished
