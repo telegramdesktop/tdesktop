@@ -75,7 +75,8 @@ void AttachGiftSenderBadge(
 	not_null<GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> from,
-	const QDateTime &date);
+	const QDateTime &date,
+	bool crafted);
 
 void ShowUniqueGiftWearBox(
 	std::shared_ptr<ChatHelpers::Show> show,

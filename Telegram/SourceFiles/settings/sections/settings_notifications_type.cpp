@@ -772,6 +772,9 @@ void NotificationsType::setupContent(
 			not_null<Window::SessionController*> controller,
 			Fn<void(Type)> showOther,
 			rpl::producer<> showFinished) {
+		auto &lifetime = container->lifetime();
+		const auto highlights = lifetime.make_state<HighlightRegistry>();
+
 		auto builder = SectionBuilder(WidgetContext{
 			.container = container,
 			.controller = controller,
@@ -779,8 +782,20 @@ void NotificationsType::setupContent(
 			.isPaused = Window::PausedIn(
 				controller,
 				Window::GifPauseReason::Layer),
+			.highlights = highlights,
 		});
 		BuildNotificationsTypeContent(builder, type);
+
+		std::move(showFinished) | rpl::on_next([=] {
+			for (const auto &[id, entry] : *highlights) {
+				if (entry.widget) {
+					controller->checkHighlightControl(
+						id,
+						entry.widget,
+						base::duplicate(entry.args));
+				}
+			}
+		}, lifetime);
 	};
 
 	build(container, buildMethod);

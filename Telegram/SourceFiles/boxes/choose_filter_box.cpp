@@ -216,6 +216,17 @@ bool ChooseFilterValidator::canAdd() const {
 	return false;
 }
 
+bool ChooseFilterValidator::canAdd(FilterId filterId) const {
+	Expects(filterId != 0);
+
+	const auto list = _history->owner().chatsFilters().list();
+	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
+	if (i != end(list)) {
+		return !i->contains(_history);
+	}
+	return false;
+}
+
 bool ChooseFilterValidator::canRemove(FilterId filterId) const {
 	Expects(filterId != 0);
 
@@ -457,4 +468,91 @@ bool FillChooseFilterWithAdminedGroupsMenu(
 	}, menu->lifetime());
 
 	return added;
+}
+
+void SetupFilterDragAndDrop(
+		not_null<Ui::RpWidget*> outer,
+		not_null<Main::Session*> session,
+		Fn<std::optional<FilterId>(QPoint)> filterIdAtPosition,
+		Fn<FilterId()> activeFilterId) {
+	const auto mimeFormat = u"application/x-telegram-dialog"_q;
+	const auto peerIdFromMime = [=](const QMimeData *mimeData) {
+		auto peerId = int64(-1);
+		auto isTestMode = false;
+		if (mimeData->hasFormat(mimeFormat)) {
+			auto stream = QDataStream(mimeData->data(mimeFormat));
+			stream >> peerId;
+			stream >> isTestMode;
+			if (isTestMode != session->isTestMode()) {
+				return int64(-1);
+			}
+		}
+		return peerId;
+	};
+	const auto historyFromMime = [=](const QMimeData *mime) {
+		return session->data().historyLoaded(PeerId(peerIdFromMime(mime)));
+	};
+	const auto hasAction = [=](not_null<QDropEvent*> drop, bool perform) {
+		const auto mimeData = drop->mimeData();
+		const auto filterId = filterIdAtPosition(
+			outer->mapToGlobal(drop->pos()));
+		if (!filterId) {
+			return false;
+		}
+		const auto id = *filterId;
+		if (const auto h = historyFromMime(mimeData)) {
+			auto v = ChooseFilterValidator(h);
+			if (id) {
+				if (v.canAdd(id)) {
+					if (!v.limitReached(id, true).reached) {
+						if (perform) {
+							v.add(id);
+						}
+						return true;
+					}
+				}
+			} else {
+				if (const auto active = activeFilterId();
+						active && v.canRemove(active)) {
+					if (perform) {
+						v.remove(active);
+					}
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+	outer->setAcceptDrops(true);
+	outer->events(
+	) | rpl::filter([](not_null<QEvent*> e) {
+		return e->type() == QEvent::DragEnter
+			|| e->type() == QEvent::DragMove
+			|| e->type() == QEvent::DragLeave
+			|| e->type() == QEvent::Drop;
+	}) | rpl::on_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::DragEnter) {
+			const auto de = static_cast<QDragEnterEvent*>(e.get());
+			if (hasAction(de, false)) {
+				de->acceptProposedAction();
+			} else {
+				de->ignore();
+			}
+		} else if (e->type() == QEvent::DragMove) {
+			const auto dm = static_cast<QDragMoveEvent*>(e.get());
+			if (hasAction(dm, false)) {
+				dm->acceptProposedAction();
+			} else {
+				dm->ignore();
+			}
+		} else if (e->type() == QEvent::DragLeave) {
+		} else if (e->type() == QEvent::Drop) {
+			const auto drop = static_cast<QDropEvent*>(e.get());
+			if (hasAction(drop, true)) {
+				drop->acceptProposedAction();
+			} else {
+				drop->ignore();
+			}
+		}
+	}, outer->lifetime());
 }

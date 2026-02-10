@@ -1365,7 +1365,8 @@ void GenericCreditsEntryCover(
 		if (e.bareGiftOwnerId == session->userPeerId().value) {
 			if (const auto fromId = PeerId(e.barePeerId)) {
 				const auto from = session->data().peer(fromId);
-				AttachGiftSenderBadge(box, show, from, e.date);
+				const auto crafted = uniqueGift->crafted;
+				AttachGiftSenderBadge(box, show, from, e.date, crafted);
 			}
 		}
 	} else if (const auto callback = Ui::PaintPreviewCallback(session, e)) {

@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "boxes/filters/edit_filter_box.h"
+#include "boxes/choose_filter_box.h"
 #include "boxes/premium_limits_box.h"
 #include "settings/sections/settings_folders.h"
 #include "storage/storage_media_prepare.h"
@@ -65,6 +66,7 @@ FiltersMenu::FiltersMenu(
 FiltersMenu::~FiltersMenu() = default;
 
 void FiltersMenu::setup() {
+	setupDragAndDrop();
 	setupMainMenuIcon();
 	_menu.setAccessibleName(tr::lng_main_menu(tr::now));
 
@@ -125,6 +127,25 @@ void FiltersMenu::setup() {
 	_menu.setClickedCallback([=] {
 		_session->widget()->showMainMenu();
 	});
+}
+
+void FiltersMenu::setupDragAndDrop() {
+	SetupFilterDragAndDrop(
+		&_outer,
+		&_session->session(),
+		[=](QPoint globalPos) -> std::optional<FilterId> {
+			if (!_list) {
+				return std::nullopt;
+			}
+			const auto localPos = _list->mapFromGlobal(globalPos);
+			for (const auto &[id, button] : _filters) {
+				if (button->geometry().contains(localPos)) {
+					return id;
+				}
+			}
+			return std::nullopt;
+		},
+		[=] { return _activeFilterId; });
 }
 
 void FiltersMenu::setupMainMenuIcon() {

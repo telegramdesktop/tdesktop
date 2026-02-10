@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_flexible_scroll.h"
 
+#include <any>
+
 namespace Settings {
 class AbstractSection;
 } // namespace Settings
@@ -48,8 +50,16 @@ public:
 
 	~Memento();
 
+	void setSectionState(std::any state) {
+		_sectionState = std::move(state);
+	}
+	[[nodiscard]] const std::any &sectionState() const {
+		return _sectionState;
+	}
+
 private:
 	Type _type = Type();
+	std::any _sectionState;
 
 };
 

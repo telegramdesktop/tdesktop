@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "settings/settings_type.h"
 
+#include <any>
+
 namespace anim {
 enum class repeat : uchar;
 } // namespace anim
@@ -145,6 +147,10 @@ public:
 		return false;
 	}
 	virtual void setStepDataReference(std::any &data) {
+	}
+	virtual void sectionSaveState(std::any &state) {
+	}
+	virtual void sectionRestoreState(const std::any &state) {
 	}
 
 	[[nodiscard]] virtual auto selectedListValue()

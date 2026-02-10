@@ -8,8 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 
 #include "core/deep_links/deep_links_router.h"
-#include "api/api_authorizations.h"
-#include "api/api_cloud_password.h"
 #include "api/api_confirm_phone.h"
 #include "api/api_chat_filters.h"
 #include "api/api_chat_invite.h"
@@ -55,17 +53,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
 #include "payments/payments_checkout_process.h"
-#include "settings/cloud_password/settings_cloud_password_login_email.h"
-#include "settings/sections/settings_active_sessions.h"
 #include "settings/sections/settings_credits.h"
 #include "settings/settings_credits_graphics.h"
-#include "settings/sections/settings_information.h"
-#include "settings/sections/settings_global_ttl.h"
-#include "settings/sections/settings_folders.h"
-#include "settings/sections/settings_main.h"
 #include "settings/settings_privacy_controllers.h"
-#include "settings/sections/settings_privacy_security.h"
-#include "settings/sections/settings_chat.h"
 #include "settings/sections/settings_premium.h"
 #include "storage/storage_account.h"
 #include "mainwidget.h"
@@ -308,42 +298,6 @@ void ShowLanguagesBox(Window::SessionController *controller) {
 	Guard = LanguageBox::Show(controller);
 }
 
-void ShowPhonePrivacyBox(Window::SessionController *controller) {
-	static auto Guard = base::binary_guard();
-	auto guard = base::binary_guard();
-
-	using Privacy = Api::UserPrivacy;
-	const auto key = Privacy::Key::PhoneNumber;
-	controller->session().api().userPrivacy().reload(key);
-
-	const auto weak = base::make_weak(controller);
-	auto shared = std::make_shared<base::binary_guard>(
-		guard.make_guard());
-	auto lifetime = std::make_shared<rpl::lifetime>();
-	controller->session().api().userPrivacy().value(
-		key
-	) | rpl::take(
-		1
-	) | rpl::on_next([=](const Privacy::Rule &value) mutable {
-		using namespace ::Settings;
-		const auto show = shared->alive();
-		if (lifetime) {
-			base::take(lifetime)->destroy();
-		}
-		if (show) {
-			if (const auto controller = weak.get()) {
-				controller->show(Box<EditPrivacyBox>(
-					controller,
-					std::make_unique<PhoneNumberPrivacyController>(
-						controller),
-					value));
-			}
-		}
-	}, *lifetime);
-
-	Guard = std::move(guard);
-}
-
 bool SetLanguage(
 		Window::SessionController *controller,
 		const Match &match,
@@ -499,40 +453,6 @@ bool ShowWallPaper(
 		params);
 	controller->window().activate();
 	return result;
-}
-
-void LoginEmailBox(
-		not_null<Ui::GenericBox*> box,
-		rpl::producer<QString> email,
-		Fn<void()> callback) {
-	{
-		box->getDelegate()->setTitle(rpl::duplicate(
-			email
-		) | rpl::map([](QString email) {
-			if (email.contains(' ')) {
-				return tr::lng_settings_cloud_login_email_section_title(
-					tr::now,
-					tr::rich);
-			}
-			return Ui::Text::WrapEmailPattern(std::move(email));
-		}));
-		for (const auto &child : ranges::views::reverse(
-				box->parentWidget()->children())) {
-			if (child && child->isWidgetType()) {
-				(static_cast<QWidget*>(child))->setAttribute(
-					Qt::WA_TransparentForMouseEvents);
-				break;
-			}
-		}
-	}
-	Ui::ConfirmBox(box, Ui::ConfirmBoxArgs{
-		.text = tr::lng_settings_cloud_login_email_box_about(),
-		.confirmed = [=](Fn<void()> close) {
-			callback();
-			close();
-		},
-		.confirmText = tr::lng_settings_cloud_login_email_box_ok(),
-	});
 }
 
 [[nodiscard]] ChatAdminRights ParseRequestedAdminRights(
@@ -804,68 +724,6 @@ bool ResolvePrivatePost(
 		.clickFromBotWebviewContext = my.botWebviewContext,
 	});
 	controller->window().activate();
-	return true;
-}
-
-void ShowLoginEmailSettings(Window::SessionController *controller) {
-	controller->session().api().cloudPassword().reload();
-	controller->uiShow()->show(Box(
-		LoginEmailBox,
-		controller->session().api().cloudPassword().state(
-		) | rpl::map([](const Core::CloudPasswordState &state) {
-			return state.loginEmailPattern;
-		}),
-		[=] {
-			controller->showSettings(
-				::Settings::CloudLoginEmailId());
-			controller->window().activate();
-		}));
-}
-
-bool ResolveSettings(
-		Window::SessionController *controller,
-		const Match &match,
-		const QVariant &context) {
-	const auto section = match->captured(1).mid(1).toLower();
-	const auto type = [&]() -> std::optional<::Settings::Type> {
-		if (section == u"language"_q) {
-			ShowLanguagesBox(controller);
-			return {};
-		} else if (section == u"phone_privacy"_q) {
-			ShowPhonePrivacyBox(controller);
-			return {};
-		} else if (section == u"devices"_q) {
-			return ::Settings::SessionsId();
-		} else if (section == u"folders"_q) {
-			return ::Settings::FoldersId();
-		} else if (section == u"privacy"_q) {
-			return ::Settings::PrivacySecurityId();
-		} else if (section == u"themes"_q) {
-			return ::Settings::ChatId();
-		} else if (section == u"change_number"_q) {
-			controller->show(
-				Ui::MakeInformBox(tr::lng_change_phone_error()));
-			return {};
-		} else if (section == u"auto_delete"_q) {
-			return ::Settings::GlobalTTLId();
-		} else if (section == u"information"_q) {
-			return ::Settings::InformationId();
-		} else if (section == u"login_email"_q) {
-			ShowLoginEmailSettings(controller);
-			return {};
-		}
-		return ::Settings::MainId();
-	}();
-
-	if (type.has_value()) {
-		if (!controller) {
-			return false;
-		} else if (*type == ::Settings::SessionsId()) {
-			controller->session().api().authorizations().reload();
-		}
-		controller->showSettings(*type);
-		controller->window().activate();
-	}
 	return true;
 }
 
@@ -1806,10 +1664,6 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^privatepost/?\\?(.+)(#|$)"_q,
 			ResolvePrivatePost
-		},
-		{
-			u"^settings(/language|/devices|/folders|/privacy|/themes|/change_number|/auto_delete|/information|/edit_profile|/phone_privacy|/login_email)?$"_q,
-			ResolveSettings
 		},
 		{
 			u"^test_chat_theme/?\\?(.+)(#|$)"_q,

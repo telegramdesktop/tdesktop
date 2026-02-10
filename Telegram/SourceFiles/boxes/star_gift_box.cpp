@@ -2514,17 +2514,20 @@ void AttachGiftSenderBadge(
 		not_null<GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> from,
-		const QDateTime &date) {
+		const QDateTime &date,
+		bool crafted) {
 	const auto parent = box->getDelegate()->outerContainer();
 
 	const auto dateText = tr::bold(langDayOfMonth(date.date()));
 	const auto badge = CreateChild<FlatLabel>(
 		parent,
 		(from->isSelf()
-			? tr::lng_gift_unique_sender_you(
-				lt_date,
-				rpl::single(dateText),
-				tr::marked)
+			? (crafted
+				? tr::lng_gift_unique_crafter_you
+				: tr::lng_gift_unique_sender_you)(
+					lt_date,
+					rpl::single(dateText),
+					tr::marked)
 			: tr::lng_gift_unique_sender(
 				lt_from,
 				rpl::single(tr::link(tr::bold(from->shortName()), 1)),

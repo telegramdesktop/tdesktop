@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/chat_filters_tabs_strip.h"
 
 #include "api/api_chat_filters_remove_manager.h"
+#include "boxes/choose_filter_box.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/premium_limits_box.h"
 #include "core/application.h"
@@ -295,6 +296,29 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				}
 			}
 		}, slider->lifetime());
+
+		SetupFilterDragAndDrop(
+			slider,
+			session,
+			[=](QPoint pos) -> std::optional<FilterId> {
+				const auto local = slider->mapFromGlobal(pos);
+				const auto x = local.x();
+				const auto count = slider->sectionsCount();
+				for (auto i = 0; i < count; ++i) {
+					const auto left = slider->lookupSectionLeft(i);
+					const auto right = (i + 1 < count)
+						? slider->lookupSectionLeft(i + 1)
+						: slider->width();
+					if (x >= left && x < right) {
+						const auto &list = session->data().chatsFilters().list();
+						return (i < list.size())
+							? list[i].id()
+							: FilterId();
+					}
+				}
+				return std::nullopt;
+			},
+			[=] { return state->lastFilterId.value_or(FilterId()); });
 	}
 	wrap->toggle(false, anim::type::instant);
 	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {

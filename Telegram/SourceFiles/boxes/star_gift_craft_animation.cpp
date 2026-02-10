@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker_player.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_tag.h"
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
@@ -1963,13 +1964,17 @@ void StartCraftAnimation(
 			using Result = std::shared_ptr<Data::GiftUpgradeResult>;
 			state->craftResult = v::get<Result>(result);
 			if (const auto result = state->craftResult->get()) {
+				auto numberText = (result->info.unique && result->info.unique->number > 0)
+					? rpl::single(u"#"_q + Lang::FormatCountDecimal(result->info.unique->number))
+					: rpl::producer<QString>();
+
 				state->successAnimation = std::make_unique<
 					CraftDoneAnimation
 				>(CraftDoneAnimation{
 					.owned = MakeUniqueGiftCover(
 						container,
 						rpl::single(UniqueGiftCover{ *result->info.unique }),
-						{}),
+						{ .numberText = std::move(numberText) }),
 				});
 				const auto success = state->successAnimation.get();
 

@@ -121,6 +121,7 @@ struct CreditsHistoryEntry final {
 	bool giftResale : 1 = false;
 	bool giftResaleForceTon : 1 = false;
 	bool giftPinned : 1 = false;
+	bool giftCrafted : 1 = false;
 	bool savedToProfile : 1 = false;
 	bool fromGiftsList : 1 = false;
 	bool fromGiftSlug : 1 = false;

@@ -303,8 +303,6 @@ Tasks::Task::Task(
 	_field->show();
 	if (locked) {
 		_field->setDisabled(true);
-	} else {
-		_field->customTab(true);
 	}
 
 	_wrap->hide(anim::type::instant);
@@ -766,13 +764,14 @@ void Tasks::initTaskField(not_null<Task*> task, TextWithEntities text) {
 		_scrollToWidget.fire_copy(field);
 	}, field->lifetime());
 	field->tabbed(
-	) | rpl::on_next([=] {
+	) | rpl::on_next([=](not_null<bool*> handled) {
 		const auto index = findField(field);
 		if (index + 1 < _list.size()) {
 			_list[index + 1]->setFocus();
 		} else {
 			_tabbed.fire({});
 		}
+		*handled = true;
 	}, field->lifetime());
 	base::install_event_filter(field, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::KeyPress
@@ -933,7 +932,6 @@ not_null<Ui::InputField*> EditTodoListBox::setupTitle(
 	InitField(getDelegate()->outerContainer(), title, session);
 	title->setMaxLength(_titleLimit + kErrorLimit);
 	title->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
-	title->customTab(true);
 
 	if (isPremium) {
 		_emojiPanel = MakeEmojiPanel(
@@ -1044,8 +1042,9 @@ object_ptr<Ui::RpWidget> EditTodoListBox::setupContent() {
 			st::createPollLimitPadding));
 
 	title->tabbed(
-	) | rpl::on_next([=] {
+	) | rpl::on_next([=](not_null<bool*> handled) {
 		tasks->focusFirst();
+		*handled = true;
 	}, title->lifetime());
 
 	Ui::AddSkip(container);

@@ -257,9 +257,13 @@ void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 
 void Widget::saveState(not_null<Memento*> memento) {
 	memento->setScrollTop(scrollTopSave());
+	auto sectionState = std::any();
+	_inner->sectionSaveState(sectionState);
+	memento->setSectionState(std::move(sectionState));
 }
 
 void Widget::restoreState(not_null<Memento*> memento) {
+	_inner->sectionRestoreState(memento->sectionState());
 	scrollTopRestore(memento->scrollTop());
 }
 

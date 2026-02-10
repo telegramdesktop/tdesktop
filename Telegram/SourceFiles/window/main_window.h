@@ -117,7 +117,10 @@ public:
 		return _body.data();
 	}
 
-	void launchDrag(std::unique_ptr<QMimeData> data, Fn<void()> &&callback);
+	void launchDrag(
+		std::unique_ptr<QMimeData> data,
+		Fn<void()> &&callback,
+		QPixmap pixmap = QPixmap());
 
 	[[nodiscard]] rpl::producer<> leaveEvents() const;
 	[[nodiscard]] rpl::producer<> imeCompositionStarts() const;

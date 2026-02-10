@@ -21,11 +21,6 @@ namespace Settings {
 
 [[nodiscard]] Type PrivacySecurityId();
 
-void SetupSensitiveContent(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<> updateTrigger);
-
 int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions);
 
 bool CheckEditCloudPassword(not_null<::Main::Session*> session);
@@ -60,34 +55,5 @@ void SetupArchiveAndMute(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container,
 	HighlightRegistry *highlights = nullptr);
-
-void SetupSecurity(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<> updateTrigger,
-	Fn<void(Type)> showOther);
-
-void SetupPrivacy(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<> updateTrigger);
-
-void SetupBotsAndWebsites(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container,
-	HighlightRegistry *highlights = nullptr);
-
-void SetupConfirmationExtensions(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container);
-
-void SetupTopPeers(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container);
-
-void SetupSelfDestruction(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<> updateTrigger);
 
 } // namespace Settings

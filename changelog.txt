@@ -1,3 +1,11 @@
+6.5.1 (09.02.26)
+
+- Drag-n-drop chats to folders.
+- Fix crash in adding Recommended folders.
+- Fix crash in crafting gifts selection layer.
+- Fix disappeared Login Email button in Settings.
+- Fix Tab focusing chats search when autocompleting hashtags or mentions.
+
 6.5 (06.02.26)
 
 - Leaving Groups to a New Admin.

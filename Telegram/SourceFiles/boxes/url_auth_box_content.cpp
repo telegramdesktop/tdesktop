@@ -270,6 +270,12 @@ void ShowDetails(
 	}
 
 	const auto domainUrl = qthelp::validate_url(domain);
+	const auto userpicButtonWidth = st::restoreUserpicIcon.photoSize;
+	const auto titlePadding = style::margins(
+		st::boxRowPadding.left(),
+		st::boxRowPadding.top(),
+		st::boxRowPadding.right() + userpicButtonWidth,
+		st::boxRowPadding.bottom());
 	content->add(
 		object_ptr<Ui::FlatLabel>(
 			content,
@@ -280,7 +286,7 @@ void ShowDetails(
 					rpl::single(Ui::Text::Link(domain, domainUrl)),
 					tr::marked),
 			st::boxTitle),
-		st::boxRowPadding,
+		titlePadding,
 		style::al_top);
 	Ui::AddSkip(content);
 

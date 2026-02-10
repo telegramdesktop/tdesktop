@@ -55,6 +55,7 @@ private:
 	void showMenu(QPoint position, FilterId id);
 	void scrollToButton(not_null<Ui::RpWidget*> widget);
 	void openFiltersSettings();
+	void setupDragAndDrop();
 
 	const not_null<SessionController*> _session;
 	const not_null<Ui::RpWidget*> _parent;
