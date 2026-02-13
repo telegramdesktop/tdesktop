@@ -735,17 +735,18 @@ rpl::producer<QString> BirthdayLabelText(
 }
 
 rpl::producer<QString> BirthdayValueText(
-		rpl::producer<Data::Birthday> birthday) {
+		rpl::producer<Data::Birthday> birthday,
+		bool fullMonth) {
 	return std::move(
 		birthday
-	) | rpl::map([](Data::Birthday value) -> rpl::producer<QString> {
+	) | rpl::map([=](Data::Birthday value) -> rpl::producer<QString> {
 		if (!value) {
 			return rpl::single(QString());
 		}
 		return Data::IsBirthdayTodayValue(
 			value
 		) | rpl::map([=](bool today) {
-			auto text = Data::BirthdayText(value);
+			auto text = Data::BirthdayText(value, fullMonth);
 			if (const auto age = Data::BirthdayAge(value)) {
 				text = (today
 					? tr::lng_info_birthday_today_years

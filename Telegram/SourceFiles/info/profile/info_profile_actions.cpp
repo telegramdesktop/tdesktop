@@ -928,6 +928,14 @@ void DeleteContactNote(
 		giftIcon->setVisible(!disable);
 	}, result->lifetime());
 
+	BirthdayValueText(
+		rpl::duplicate(birthday),
+		true
+	) | rpl::on_next([=](const QString &accessibleText) {
+		button->setAccessibleName(
+			tr::lng_info_birthday_label(tr::now) + ": " + accessibleText);
+	}, button->lifetime());
+
 	auto nonEmptyText = std::move(
 		text
 	) | rpl::before_next([slide = result.data()](

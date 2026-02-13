@@ -38,7 +38,7 @@ private:
 
 };
 
-[[nodiscard]] QString BirthdayText(Birthday date);
+[[nodiscard]] QString BirthdayText(Birthday date, bool fullMonth = false);
 [[nodiscard]] QString BirthdayCake();
 [[nodiscard]] int BirthdayAge(Birthday date);
 [[nodiscard]] bool IsBirthdayToday(Birthday date);
