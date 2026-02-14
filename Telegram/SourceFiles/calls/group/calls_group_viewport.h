@@ -97,6 +97,7 @@ public:
 	[[nodiscard]] rpl::producer<int> fullHeightValue() const;
 	[[nodiscard]] rpl::producer<bool> pinToggled() const;
 	[[nodiscard]] rpl::producer<VideoEndpoint> clicks() const;
+	[[nodiscard]] rpl::producer<VideoEndpoint> doubleClicks() const;
 	[[nodiscard]] rpl::producer<VideoQualityRequest> qualityRequests() const;
 	[[nodiscard]] rpl::producer<bool> mouseInsideValue() const;
 
@@ -179,6 +180,7 @@ private:
 	void setPressed(Selection value);
 
 	void handleMousePress(QPoint position, Qt::MouseButton button);
+	void handleMouseDoubleClick(QPoint position, Qt::MouseButton button);
 	void handleMouseRelease(QPoint position, Qt::MouseButton button);
 	void handleMouseMove(QPoint position);
 	void updateSelected(QPoint position);
@@ -201,6 +203,7 @@ private:
 	int _scrollTop = 0;
 	QImage _shadow;
 	rpl::event_stream<VideoEndpoint> _clicks;
+	rpl::event_stream<VideoEndpoint> _doubleClicks;
 	rpl::event_stream<bool> _pinToggles;
 	rpl::event_stream<VideoQualityRequest> _qualityRequests;
 	float64 _controlsShownRatio = 1.;
@@ -211,6 +214,7 @@ private:
 	Layout _finishTilesLayout;
 	Selection _selected;
 	Selection _pressed;
+	bool _skipNextMouseRelease = false;
 	rpl::variable<bool> _mouseInside = false;
 
 	Ui::RpWidgetWrap * const _borrowed = nullptr;
