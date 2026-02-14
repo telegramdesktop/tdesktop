@@ -55,6 +55,10 @@ public:
 		-> rpl::producer<Group::MuteRequest>;
 	[[nodiscard]] auto changeVolumeRequests() const
 		-> rpl::producer<Group::VolumeRequest>;
+	[[nodiscard]] auto toggleScreenMuteRequests() const
+		-> rpl::producer<Group::MuteRequest>;
+	[[nodiscard]] auto changeScreenVolumeRequests() const
+		-> rpl::producer<Group::VolumeRequest>;
 	[[nodiscard]] auto kickParticipantRequests() const
 		-> rpl::producer<not_null<PeerData*>>;
 	[[nodiscard]] rpl::producer<> addMembersRequests() const {
