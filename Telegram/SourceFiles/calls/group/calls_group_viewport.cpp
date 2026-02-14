@@ -126,6 +126,10 @@ void Viewport::setup() {
 			handleMousePress(
 				static_cast<QMouseEvent*>(e.get())->pos(),
 				static_cast<QMouseEvent*>(e.get())->button());
+		} else if (type == QEvent::MouseButtonDblClick) {
+			handleMouseDoubleClick(
+				static_cast<QMouseEvent*>(e.get())->pos(),
+				static_cast<QMouseEvent*>(e.get())->button());
 		} else if (type == QEvent::MouseButtonRelease) {
 			handleMouseRelease(
 				static_cast<QMouseEvent*>(e.get())->pos(),
@@ -208,10 +212,29 @@ void Viewport::handleMousePress(QPoint position, Qt::MouseButton button) {
 	setPressed(_selected);
 }
 
+void Viewport::handleMouseDoubleClick(
+		QPoint position,
+		Qt::MouseButton button) {
+	handleMouseMove(position);
+	if (button != Qt::LeftButton || videoStream()) {
+		return;
+	}
+	const auto tile = _selected.tile;
+	if (!tile) {
+		return;
+	}
+	_skipNextMouseRelease = true;
+	_doubleClicks.fire_copy(tile->endpoint());
+}
+
 void Viewport::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 	handleMouseMove(position);
 	const auto pressed = _pressed;
 	setPressed({});
+	if (_skipNextMouseRelease && button == Qt::LeftButton) {
+		_skipNextMouseRelease = false;
+		return;
+	}
 	if (const auto tile = pressed.tile) {
 		if (pressed == _selected) {
 			if (videoStream()) {
@@ -963,6 +986,10 @@ rpl::producer<bool> Viewport::pinToggled() const {
 
 rpl::producer<VideoEndpoint> Viewport::clicks() const {
 	return _clicks.events();
+}
+
+rpl::producer<VideoEndpoint> Viewport::doubleClicks() const {
+	return _doubleClicks.events();
 }
 
 rpl::producer<VideoQualityRequest> Viewport::qualityRequests() const {

@@ -1450,7 +1450,7 @@ void Viewport::RendererGL::validateNoiseTexture(
 void Viewport::RendererGL::validateOutlineAnimation(
 		not_null<VideoTile*> tile,
 		TileData &data) {
-	const auto outline = tile->row()->speaking();
+	const auto outline = !_owner->_fullscreen && tile->row()->speaking();
 	if (data.outline == outline) {
 		return;
 	}
