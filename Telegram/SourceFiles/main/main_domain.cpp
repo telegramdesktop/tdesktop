@@ -244,7 +244,11 @@ void Domain::notifyUnreadBadgeChanged() {
 void Domain::updateUnreadBadge() {
 	_unreadBadge = 0;
 	_unreadBadgeMuted = true;
+	const auto notifyFromAll = Core::App().settings().notifyFromAll();
 	for (const auto &[index, account] : _accounts) {
+		if (!notifyFromAll && account.get() != _active.current()) {
+			continue;
+		}
 		if (const auto session = account->maybeSession()) {
 			const auto data = &session->data();
 			_unreadBadge += data->unreadBadge();
@@ -485,6 +489,9 @@ void Domain::activate(not_null<Main::Account*> account) {
 			crl::on_main(&Core::App(), [=] {
 				removeRedundantAccounts();
 			});
+		}
+		if (!Core::App().settings().notifyFromAll()) {
+			scheduleUpdateUnreadBadge();
 		}
 	}
 }

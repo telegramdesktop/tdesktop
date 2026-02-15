@@ -847,6 +847,7 @@ void BuildMultiAccountSection(SectionBuilder &builder) {
 		}) | rpl::on_next([=](bool checked) {
 			Core::App().settings().setNotifyFromAll(checked);
 			Core::App().saveSettingsDelayed();
+			Core::App().domain().notifyUnreadBadgeChanged();
 			if (!checked) {
 				auto &notifications = Core::App().notifications();
 				const auto &list = Core::App().domain().accounts();
