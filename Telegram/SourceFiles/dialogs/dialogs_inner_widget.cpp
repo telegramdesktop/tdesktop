@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_subsection_tabs.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/shortcuts.h"
@@ -30,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
+#include "ui/text/format_values.h"
 #include "ui/dynamic_thumbnails.h"
 #include "ui/vertical_list.h"
 #include "ui/painter.h"
@@ -55,8 +58,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_stories.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_send_action.h"
+#include "data/notify/data_notify_settings.h"
 #include "base/unixtime.h"
 #include "base/options.h"
+#include "base/screen_reader_state.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "settings/settings_common.h"
@@ -89,8 +94,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h"
 #include "styles/style_menu_icons.h"
 
+#include "ui/accessible/ui_accessible_item.h"
+
 #include <QtWidgets/QApplication>
 #include <QtCore/QMimeData>
+#include <QAccessible>
+#include <unordered_map>
 
 namespace Dialogs {
 namespace {
@@ -149,6 +158,26 @@ constexpr auto kPreviewPostsLimit = 3;
 		}
 	}
 	return nullptr;
+}
+
+[[nodiscard]] QString ChatTypeString(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		if (user->isInaccessible()) {
+			return tr::lng_accessibility_chat_deleted(tr::now);
+		} else if (user->isSelf()) {
+			return tr::lng_accessibility_chat_saved(tr::now);
+		} else if (user->isServiceUser()) {
+			return tr::lng_accessibility_chat_service(tr::now);
+		} else if (user->isBot()) {
+			return tr::lng_accessibility_chat_bot(tr::now);
+		}
+		// Regular users (including Premium) - no type prefix
+	} else if (peer->isBroadcast()) {
+		return tr::lng_accessibility_chat_channel(tr::now);
+	} else if (peer->isMegagroup() || peer->isChat()) {
+		return tr::lng_accessibility_chat_group(tr::now);
+	}
+	return QString();
 }
 
 [[nodiscard]] object_ptr<SearchEmpty> MakeSearchEmpty(
@@ -292,6 +321,18 @@ InnerWidget::InnerWidget(
 	+ st::defaultDialogRow.padding.left())
 , _childListShown(std::move(childListShown)) {
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
+	setAccessibleName(tr::lng_chat_list(tr::now));
+
+	// Force early creation of accessible interface so FocusManager can
+	// register this widget and set TabFocus policy when screen reader is active.
+	QAccessible::queryAccessibleInterface(this);
+
+	// Explicitly manage focus policy based on screen reader state to ensure
+	// proper Tab order (screen readers need TabFocus for keyboard navigation).
+	base::ScreenReaderState::Instance()->activeValue(
+	) | rpl::on_next([this](bool active) {
+		setFocusPolicy(active ? Qt::TabFocus : Qt::NoFocus);
+	}, lifetime());
 
 	style::PaletteChanged(
 	) | rpl::on_next([=] {
@@ -617,7 +658,7 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 	const auto inMainMenu = session().settings().archiveInMainMenu();
 	if (archive && (session().settings().archiveCollapsed() || inMainMenu)) {
 		if (_selected && _selected->folder() == archive) {
-			_selected = nullptr;
+			setSelectedRow(nullptr);
 		}
 		if (_pressed && _pressed->folder() == archive) {
 			clearPressed();
@@ -1775,7 +1816,7 @@ void InnerWidget::clearIrrelevantState() {
 	} else if (_state == WidgetState::Filtered) {
 		_collapsedSelected = -1;
 		setCollapsedPressed(-1);
-		_selected = nullptr;
+		setSelectedRow(nullptr);
 		clearPressed();
 	}
 }
@@ -1861,7 +1902,7 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 			|| _selectedTopicJump != selectedTopicJump
 			|| _selectedRightButton != selectedRightButton) {
 			updateSelectedRow();
-			_selected = selected;
+			setSelectedRow(selected);
 			_selectedTopicJump = selectedTopicJump;
 			_selectedRightButton = selectedRightButton;
 			_collapsedSelected = collapsedSelected;
@@ -2794,7 +2835,7 @@ void InnerWidget::dialogRowReplaced(
 		}
 	}
 	if (_selected == oldRow) {
-		_selected = newRow;
+		setSelectedRow(newRow);
 	}
 	if (_pressed == oldRow) {
 		setPressed(newRow, _pressedTopicJump, _pressedRightButton);
@@ -2849,7 +2890,7 @@ void InnerWidget::handleChatListEntryRefreshes() {
 					InvokeQueued(this, [=] { _menu = nullptr; });
 				}
 				if (_selected && _selected->key() == key) {
-					_selected = nullptr;
+					setSelectedRow(nullptr);
 				}
 				if (_pressed && _pressed->key() == key) {
 					clearPressed();
@@ -3067,6 +3108,47 @@ Row *InnerWidget::shownRowByKey(Key key) {
 	return links ? links->main.get() : nullptr;
 }
 
+int InnerWidget::indexOfRow(Row *row) const {
+	if (!row) {
+		return -1;
+	}
+	int index = 0;
+	for (auto it = _shownList->cbegin(); it != _shownList->cend(); ++it, ++index) {
+		if (it->get() == row) {
+			return index;
+		}
+	}
+	return -1;
+}
+
+bool InnerWidget::hasEffectiveFocus() const {
+	if (hasFocus()) {
+		return true;
+	}
+	// Check if any parent uses this widget as focus proxy and has focus.
+	for (auto *p = parentWidget(); p; p = p->parentWidget()) {
+		if (p->focusProxy() == this && p->hasFocus()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void InnerWidget::setSelectedRow(Row *row) {
+	if (_selected == row) {
+		return;
+	}
+	_selected = row;
+
+	// Notify screen readers of selection change.
+	if (row && base::ScreenReaderState::Instance()->active()) {
+		if (const auto index = indexOfRow(row); index >= 0) {
+			accessibilityChildNameChanged(index);
+			accessibilityChildFocused(index);
+		}
+	}
+}
+
 void InnerWidget::updateSelectedRow(Key key) {
 	if (_state == WidgetState::Default) {
 		if (key) {
@@ -3148,7 +3230,7 @@ void InnerWidget::clearSelection() {
 		_collapsedSelected = -1;
 		_selectedMorePosts = false;
 		_selectedChatTypeFilter = false;
-		_selected = nullptr;
+		setSelectedRow(nullptr);
 		_filteredSelected
 			= _searchedSelected
 			= _previewSelected
@@ -3320,6 +3402,96 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 	} else {
 		_menu->popup(e->globalPos());
 		e->accept();
+	}
+}
+
+void InnerWidget::focusInEvent(QFocusEvent *e) {
+	if (_state != WidgetState::Default) {
+		RpWidget::focusInEvent(e);
+		return;
+	}
+
+	// Select first row if nothing is selected.
+	if (!_selected && !_shownList->empty()) {
+		setSelectedRow(_shownList->cbegin()->get());
+	}
+
+	RpWidget::focusInEvent(e);
+
+	// Announce the selected item to screen readers after focus enters the list.
+	if (_selected && base::ScreenReaderState::Instance()->active()) {
+		const auto row = _selected;
+		InvokeQueued(this, [=] {
+			if (_selected != row || !hasEffectiveFocus()) {
+				return;
+			}
+			const auto index = indexOfRow(row);
+			if (index < 0) {
+				return;
+			}
+			accessibilityChildStateChanged(index, { .focused = true });
+			accessibilityChildFocused(index);
+		});
+	}
+}
+
+void InnerWidget::keyPressEvent(QKeyEvent *e) {
+	switch (e->key()) {
+	case Qt::Key_Down:
+		selectSkip(1);
+		break;
+	case Qt::Key_Up:
+		selectSkip(-1);
+		break;
+	case Qt::Key_PageDown:
+		selectSkipPage(_visibleBottom - _visibleTop, 1);
+		break;
+	case Qt::Key_PageUp:
+		selectSkipPage(_visibleBottom - _visibleTop, -1);
+		break;
+	case Qt::Key_Return:
+	case Qt::Key_Enter:
+		chooseRow();
+		break;
+	case Qt::Key_Space:
+		toggleRowSelection();
+		break;
+	case Qt::Key_Home:
+		selectSkip(-(1 << 20));
+		break;
+	case Qt::Key_End:
+		selectSkip(1 << 20);
+		break;
+	default:
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	e->accept();
+}
+
+void InnerWidget::toggleRowSelection() {
+	if (!_selected) {
+		return;
+	}
+
+	const auto key = _selected->key();
+	const auto wasSelected = _selectedForAction.contains(key);
+
+	if (wasSelected) {
+		_selectedForAction.remove(key);
+	} else {
+		_selectedForAction.insert(key);
+	}
+
+	// Update visual state.
+	updateSelectedRow(key);
+
+	// Announce state change to screen readers.
+	if (base::ScreenReaderState::Instance()->active()) {
+		if (const auto index = indexOfRow(_selected); index >= 0) {
+			accessibilityChildStateChanged(index, { .selected = true });
+			accessibilityChildNameChanged(index);
+		}
 	}
 }
 
@@ -4338,7 +4510,7 @@ void InnerWidget::clearMouseSelection(bool clearSelection) {
 	if (clearSelection) {
 		if (_state == WidgetState::Default) {
 			_collapsedSelected = -1;
-			_selected = nullptr;
+			setSelectedRow(nullptr);
 		} else if (_state == WidgetState::Filtered) {
 			_filteredSelected
 				= _peerSearchSelected
@@ -4505,7 +4677,7 @@ void InnerWidget::selectSkip(int32 direction) {
 			if (!_collapsedRows.empty()) {
 				_collapsedSelected = 0;
 			} else {
-				_selected = (_shownList->cbegin() + skip)->get();
+				setSelectedRow((_shownList->cbegin() + skip)->get());
 			}
 		} else {
 			auto cur = (_collapsedSelected >= 0)
@@ -4523,10 +4695,10 @@ void InnerWidget::selectSkip(int32 direction) {
 					- 1));
 			if (cur < _collapsedRows.size()) {
 				_collapsedSelected = cur;
-				_selected = nullptr;
+				setSelectedRow(nullptr);
 			} else {
 				_collapsedSelected = -1;
-				_selected = *(_shownList->cbegin() + skip + cur - _collapsedRows.size());
+				setSelectedRow(*(_shownList->cbegin() + skip + cur - _collapsedRows.size()));
 			}
 		}
 		scrollToDefaultSelected();
@@ -4663,27 +4835,30 @@ void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 	const auto skip = _skipTopDialog ? 1 : 0;
 	if (!_selected) {
 		if (direction > 0 && _shownList->size() > skip) {
-			_selected = (_shownList->cbegin() + skip)->get();
+			setSelectedRow((_shownList->cbegin() + skip)->get());
 			_collapsedSelected = -1;
 		} else {
 			return;
 		}
 	}
 	if (direction > 0) {
-		for (auto i = _shownList->cfind(_selected), end = _shownList->cend()
-			; i != end && (toSkip--)
-			; ++i) {
-			_selected = *i;
+		auto target = _shownList->cfind(_selected);
+		auto end = _shownList->cend();
+		for (auto i = target; i != end && (toSkip--); ++i) {
+			target = i;
 		}
+		setSelectedRow(*target);
 	} else {
-		for (auto i = _shownList->cfind(_selected), b = _shownList->cbegin()
-			; i != b && (*i)->index() > skip && (toSkip--)
-			;) {
-			_selected = *(--i);
+		auto i = _shownList->cfind(_selected);
+		auto b = _shownList->cbegin();
+		for (; i != b && (*i)->index() > skip && (toSkip--);) {
+			--i;
 		}
-		if (toSkip && !_collapsedRows.empty()) {
+		if (toSkip > 0 && !_collapsedRows.empty()) {
 			_collapsedSelected = std::max(int(_collapsedRows.size()) - toSkip, 0);
-			_selected = nullptr;
+			setSelectedRow(nullptr);
+		} else {
+			setSelectedRow(*i);
 		}
 	}
 	scrollToDefaultSelected();
@@ -5658,6 +5833,691 @@ void InnerWidget::deactivateQuickAction() {
 		_inactiveQuickActions.push_back(
 			QuickActionPtr{ _activeQuickAction.release() });
 	}
+}
+
+QString InnerWidget::accessibilityName() {
+	return tr::lng_chat_list(tr::now);
+}
+
+Ui::AccessibilityState InnerWidget::accessibilityState() const {
+	// Mark the List container as non-focusable so screen readers
+	// drill down to the focusable child items (ListItem rows).
+	return { .focusable = 0 };
+}
+
+int InnerWidget::accessibilityChildCount() const {
+	// Return actual count so NVDA object navigation can see all items.
+	return _shownList->size();
+}
+
+QString InnerWidget::accessibilityChildName(int index) const {
+	if (index < 0 || index >= _shownList->size()) {
+		return {};
+	}
+
+	// Get the row at this index.
+	auto it = _shownList->cbegin();
+	std::advance(it, index);
+	const auto row = it->get();
+
+	if (const auto topic = row->topic()) {
+		const auto title = topic->isGeneral()
+			? Data::ForumGeneralIconTitle()
+			: topic->title();
+		return tr::lng_accessibility_chat_topic(tr::now) + u" "_q + title;
+	}
+
+	if (const auto folder = row->folder()) {
+		return tr::lng_accessibility_chat_folder(tr::now)
+			+ u" "_q
+			+ folder->chatListName();
+	}
+
+	if (const auto sublist = row->sublist()) {
+		return tr::lng_accessibility_chat_saved(tr::now)
+			+ u" "_q
+			+ sublist->sublistPeer()->name();
+	}
+
+	const auto history = row->history();
+	if (!history) {
+		return {};
+	}
+
+	const auto peer = history->peer;
+	if (!peer) {
+		return {};
+	}
+
+	QStringList parts;
+
+	// 1. Chat type (Bot/Channel/Group/Saved/etc.)
+	const auto type = ChatTypeString(peer);
+	if (!type.isEmpty()) {
+		parts << type;
+	}
+
+	// 2. Name
+	parts << peer->name();
+
+	// 3. Scam/Fake (critical safety warnings - announce early)
+	if (peer->isScam()) {
+		parts << tr::lng_accessibility_chat_scam(tr::now);
+	} else if (peer->isFake()) {
+		parts << tr::lng_accessibility_chat_fake(tr::now);
+	}
+
+	// 4. Premium
+	if (const auto user = peer->asUser()) {
+		if (user->isPremium()) {
+			parts << tr::lng_accessibility_chat_premium(tr::now);
+		}
+	}
+
+	// 5. Verified
+	if (peer->isVerified()) {
+		parts << tr::lng_accessibility_chat_verified(tr::now);
+	}
+
+	// 6. Presence slot: Active action OR Online status (for users only)
+	// If user has an active action (typing, recording, etc.), announce it
+	// Otherwise, if user is online, announce "Online"
+	if (const auto user = peer->asUser()) {
+		bool hasAction = false;
+		if (const auto sendAction = history->sendActionPainter()) {
+			if (sendAction->updateNeedsAnimating(crl::now())) {
+				const auto actionText = sendAction->actionText();
+				if (!actionText.isEmpty()) {
+					parts << actionText;
+					hasAction = true;
+				}
+			}
+		}
+		if (!hasAction && Data::IsUserOnline(user)) {
+			parts << tr::lng_accessibility_chat_online(tr::now);
+		}
+	}
+
+	// 7. Muted
+	if (peer->owner().notifySettings().isMuted(peer)) {
+		parts << tr::lng_accessibility_chat_muted(tr::now);
+	}
+
+	// 8. Pinned
+	if (row->entry()->isPinnedDialog(_filterId)) {
+		parts << tr::lng_accessibility_chat_pinned(tr::now);
+	}
+
+	// 9. Draft
+	if (const auto draft = history->cloudDraft(MsgId(0), PeerId(0))) {
+		if (!draft->textWithTags.text.isEmpty()) {
+			parts << tr::lng_accessibility_chat_draft(tr::now);
+		}
+	} else if (const auto localDraft = history->localDraft(MsgId(0), PeerId(0))) {
+		if (!localDraft->textWithTags.text.isEmpty()) {
+			parts << tr::lng_accessibility_chat_draft(tr::now);
+		}
+	}
+
+	// 10. Typing/action indicator (for groups only - private chats handled in section 6)
+	if (peer->isChat() || peer->isMegagroup()) {
+		if (const auto sendAction = history->sendActionPainter()) {
+			if (sendAction->updateNeedsAnimating(crl::now())) {
+				const auto actionText = sendAction->actionText();
+				if (!actionText.isEmpty()) {
+					parts << actionText;
+				}
+			}
+		}
+	}
+
+	// 11. Badges (unread, mention, reaction)
+	const auto badges = row->entry()->chatListBadgesState();
+	if (badges.unreadCounter > 0) {
+		parts << tr::lng_accessibility_chat_unread(
+			tr::now,
+			lt_count,
+			badges.unreadCounter);
+	} else if (badges.unread) {
+		parts << tr::lng_accessibility_chat_unread_mark(tr::now);
+	}
+
+	if (badges.mention) {
+		parts << tr::lng_accessibility_chat_mention(tr::now);
+	}
+
+	// 12. Last message snippet with status and timestamp
+	// Format varies by status:
+	// - Read/Sending/Failed: [Sender]: [Status], [Message], [Reactions], [Time]
+	// - Sent/Received: [Sender]: [Message], [Reactions], [Status], [Time]
+	if (const auto item = history->chatListMessage()) {
+		if (!item->isService()) {
+			const auto dateTime = ItemDateTime(item);
+
+			// Determine message status and where it should appear
+			QString status;
+			bool statusBeforeMessage = false;
+			if (item->out()) {
+				// Outgoing message: pick single most accurate status
+				if (item->isSending()) {
+					status = tr::lng_accessibility_chat_sending(tr::now);
+					statusBeforeMessage = true;
+				} else if (item->hasFailed()) {
+					status = tr::lng_accessibility_chat_failed(tr::now);
+					statusBeforeMessage = true;
+				} else if (item->unread(history)) {
+					// Single checkmark: not seen yet
+					status = tr::lng_accessibility_message_not_seen(tr::now);
+					statusBeforeMessage = true;
+				} else {
+					// Double checkmark: seen by recipient
+					status = tr::lng_accessibility_message_seen(tr::now);
+					statusBeforeMessage = true;
+				}
+			} else {
+				// Incoming message
+				status = tr::lng_accessibility_chat_received(tr::now);
+				statusBeforeMessage = false; // Received goes after message
+			}
+
+			auto messageText = item->notificationText().text;
+			if (!messageText.isEmpty()) {
+				// Limit message length for accessibility
+				constexpr auto kMaxMessageLength = 100;
+				if (messageText.size() > kMaxMessageLength) {
+					messageText = messageText.left(kMaxMessageLength) + u"..."_q;
+				}
+				// For group chats with incoming messages, prepend sender name
+				if (peer->isChat() || peer->isMegagroup()) {
+					if (const auto from = item->from()) {
+						if (!item->out()) {
+							// Incoming in group: "Sender: Message" (status added later)
+							messageText = from->shortName()
+								+ u": "_q
+								+ messageText;
+						}
+					}
+				}
+				// Add status before message if applicable
+				if (statusBeforeMessage) {
+					messageText = status + u", "_q + messageText;
+				}
+				parts << messageText;
+			}
+
+			// Add reactions to the last message
+			// e.g., "Reactions: thumbs up 3, heart 2"
+			const auto &reactions = item->reactions();
+			if (!reactions.empty()) {
+				QStringList reactionParts;
+				for (const auto &reaction : reactions) {
+					QString reactionText;
+					if (reaction.id.paid()) {
+						reactionText = tr::lng_accessibility_chat_reaction_star(tr::now);
+					} else if (const auto emoji = reaction.id.emoji(); !emoji.isEmpty()) {
+						reactionText = emoji;
+					} else {
+						// Custom sticker reaction
+						reactionText = tr::lng_accessibility_chat_reaction_custom(tr::now);
+					}
+					if (reaction.count > 1) {
+						reactionText += u" "_q + QString::number(reaction.count);
+					}
+					reactionParts << reactionText;
+				}
+				if (!reactionParts.isEmpty()) {
+					parts << tr::lng_accessibility_chat_message_reactions(
+						tr::now,
+						lt_reactions,
+						reactionParts.join(u", "_q));
+				}
+			}
+
+			// Add status after message if applicable (Sent, Received)
+			if (!statusBeforeMessage) {
+				parts << status;
+			}
+
+			// Add timestamp
+			// For today: just time (e.g., "7:35 AM")
+			// For other days: full format (e.g., "yesterday at 4:37 PM")
+			if (dateTime.isValid()) {
+				const auto now = QDateTime::currentDateTime();
+				QString timeText;
+				if (dateTime.date() == now.date()) {
+					// Today: just the time, no "today" prefix
+					timeText = tr::lng_schedule_at(tr::now)
+						+ u" "_q
+						+ QLocale().toString(
+							dateTime.time(),
+							QLocale::ShortFormat);
+				} else {
+					// Not today: use full format (yesterday, date, etc.)
+					timeText = Ui::FormatDateTime(dateTime);
+				}
+				parts << timeText;
+			}
+		}
+	}
+
+	return parts.join(u", "_q);
+}
+
+QAccessible::State InnerWidget::accessibilityChildState(int index) const {
+	QAccessible::State state;
+	state.selectable = true;
+	state.focusable = true;
+
+	if (index < 0 || index >= _shownList->size()) {
+		return state;
+	}
+
+	// Get the row at this index.
+	auto it = _shownList->cbegin();
+	std::advance(it, index);
+	const auto row = it->get();
+
+	// Check if this row is multi-selected (Space key toggle).
+	if (_selectedForAction.contains(row->key())) {
+		state.selected = true;
+	}
+
+	// Check if this is the currently focused/selected row.
+	if (row == _selected) {
+		state.active = true;
+		if (base::ScreenReaderState::Instance()->active()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+QAccessible::Role InnerWidget::accessibilityChildRole() const {
+	return QAccessible::Role::ListItem;
+}
+
+QRect InnerWidget::accessibilityChildRect(int index) const {
+	if (index < 0 || index >= _shownList->size()) {
+		return QRect();
+	}
+	auto it = _shownList->cbegin();
+	std::advance(it, index);
+	const auto row = it->get();
+	return QRect(0, row->top(), width(), row->height());
+}
+
+int InnerWidget::accessibilityChildColumnCount(int row) const {
+	return computeActiveColumns(row).size();
+}
+
+QAccessible::Role InnerWidget::accessibilityChildSubItemRole() const {
+	return QAccessible::Cell;
+}
+
+QString InnerWidget::accessibilityChildSubItemName(int row, int column) const {
+	const auto &active = computeActiveColumns(row);
+	if (column < 0 || column >= active.size()) {
+		return {};
+	}
+	switch (active[column]) {
+	case 0: return tr::lng_accessibility_chat_column_type(tr::now);
+	case 1: return tr::lng_accessibility_chat_column_name(tr::now);
+	case 2: return tr::lng_accessibility_chat_column_warning(tr::now);
+	case 3: return tr::lng_accessibility_chat_column_premium(tr::now);
+	case 4: return tr::lng_accessibility_chat_column_verified(tr::now);
+	case 5: return tr::lng_accessibility_chat_column_activity(tr::now);
+	case 6: return tr::lng_accessibility_chat_column_muted(tr::now);
+	case 7: return tr::lng_accessibility_chat_column_pinned(tr::now);
+	case 8: return tr::lng_accessibility_chat_column_draft(tr::now);
+	case 9: return tr::lng_accessibility_chat_column_unread(tr::now);
+	case 10: return tr::lng_accessibility_chat_column_mention(tr::now);
+	case 11: return tr::lng_accessibility_chat_column_sender(tr::now);
+	case 12: return tr::lng_accessibility_chat_column_message(tr::now);
+	case 13: return tr::lng_accessibility_chat_column_delivery(tr::now);
+	case 14: return tr::lng_accessibility_chat_column_reactions(tr::now);
+	case 15: return tr::lng_accessibility_chat_column_time(tr::now);
+	case 16: return tr::lng_accessibility_chat_column_sponsored(tr::now);
+	case 17: return tr::lng_accessibility_chat_column_stories(tr::now);
+	case 18: return tr::lng_accessibility_chat_column_autodelete(tr::now);
+	case 19: return tr::lng_accessibility_chat_column_subscription(tr::now);
+	case 20: return tr::lng_accessibility_chat_column_closed(tr::now);
+	case 21: return tr::lng_accessibility_chat_column_forward(tr::now);
+	case 22: return tr::lng_accessibility_chat_column_folders(tr::now);
+	}
+	return {};
+}
+
+QString InnerWidget::accessibilityChildSubItemValue(int row, int column) const {
+	const auto &active = computeActiveColumns(row);
+	if (column < 0 || column >= active.size()) {
+		return {};
+	}
+	return computeSubItemValue(row, active[column]);
+}
+
+const QVector<int> &InnerWidget::computeActiveColumns(int row) const {
+	if (_activeColumnsRow == row) {
+		return _activeColumns;
+	}
+	_activeColumnsRow = row;
+	_activeColumns.clear();
+	constexpr auto kTotalColumns = 23;
+	for (auto i = 0; i != kTotalColumns; ++i) {
+		if (!computeSubItemValue(row, i).isEmpty()) {
+			_activeColumns.push_back(i);
+		}
+	}
+	return _activeColumns;
+}
+
+QString InnerWidget::computeSubItemValue(int row, int column) const {
+	if (row < 0 || row >= _shownList->size()) {
+		return {};
+	}
+
+	auto it = _shownList->cbegin();
+	std::advance(it, row);
+	const auto rowData = it->get();
+
+	if (const auto topic = rowData->topic()) {
+		switch (column) {
+		case 0:
+			return tr::lng_accessibility_chat_topic(tr::now);
+		case 1:
+			return topic->isGeneral()
+				? Data::ForumGeneralIconTitle()
+				: topic->title();
+		case 20:
+			if (topic->closed()) {
+				return tr::lng_accessibility_chat_closed(tr::now);
+			}
+			return {};
+		}
+		return {};
+	}
+
+	if (const auto folder = rowData->folder()) {
+		switch (column) {
+		case 0:
+			return tr::lng_accessibility_chat_folder(tr::now);
+		case 1:
+			return folder->chatListName();
+		}
+		return {};
+	}
+
+	if (const auto sublist = rowData->sublist()) {
+		switch (column) {
+		case 0:
+			return tr::lng_accessibility_chat_saved(tr::now);
+		case 1:
+			return sublist->sublistPeer()->name();
+		}
+		return {};
+	}
+
+	const auto history = rowData->history();
+	if (!history) {
+		return {};
+	}
+
+	const auto peer = history->peer;
+	if (!peer) {
+		return {};
+	}
+
+	switch (column) {
+	case 0:
+		return ChatTypeString(peer);
+	case 1:
+		return peer->name();
+	case 2:
+		if (peer->isScam()) {
+			return tr::lng_accessibility_chat_scam(tr::now);
+		} else if (peer->isFake()) {
+			return tr::lng_accessibility_chat_fake(tr::now);
+		}
+		return {};
+	case 3:
+		if (const auto user = peer->asUser()) {
+			if (user->isPremium()) {
+				return tr::lng_accessibility_chat_premium(tr::now);
+			}
+		}
+		return {};
+	case 4:
+		if (peer->isVerified()) {
+			return tr::lng_accessibility_chat_verified(tr::now);
+		}
+		return {};
+	case 5: {
+		if (const auto user = peer->asUser()) {
+			if (const auto sendAction = history->sendActionPainter()) {
+				if (sendAction->updateNeedsAnimating(crl::now())) {
+					const auto actionText = sendAction->actionText();
+					if (!actionText.isEmpty()) {
+						return actionText;
+					}
+				}
+			}
+			if (Data::IsUserOnline(user)) {
+				return tr::lng_accessibility_chat_online(tr::now);
+			}
+		} else if (peer->isChat() || peer->isMegagroup()) {
+			if (const auto sendAction = history->sendActionPainter()) {
+				if (sendAction->updateNeedsAnimating(crl::now())) {
+					const auto actionText = sendAction->actionText();
+					if (!actionText.isEmpty()) {
+						return actionText;
+					}
+				}
+			}
+		}
+		return {};
+	}
+	case 6:
+		if (peer->owner().notifySettings().isMuted(peer)) {
+			return tr::lng_accessibility_chat_muted(tr::now);
+		}
+		return {};
+	case 7:
+		if (rowData->entry()->isPinnedDialog(_filterId)) {
+			return tr::lng_accessibility_chat_pinned(tr::now);
+		}
+		return {};
+	case 8:
+		if (const auto draft = history->cloudDraft(MsgId(0), PeerId(0))) {
+			if (!draft->textWithTags.text.isEmpty()) {
+				return tr::lng_accessibility_chat_draft(tr::now);
+			}
+		} else if (const auto localDraft = history->localDraft(MsgId(0), PeerId(0))) {
+			if (!localDraft->textWithTags.text.isEmpty()) {
+				return tr::lng_accessibility_chat_draft(tr::now);
+			}
+		}
+		return {};
+	case 9: {
+		const auto badges = rowData->entry()->chatListBadgesState();
+		if (badges.unreadCounter > 0) {
+			return tr::lng_accessibility_chat_unread(
+				tr::now,
+				lt_count,
+				badges.unreadCounter);
+		} else if (badges.unread) {
+			return tr::lng_accessibility_chat_unread_mark(tr::now);
+		}
+		return {};
+	}
+	case 10: {
+		const auto badges = rowData->entry()->chatListBadgesState();
+		if (badges.mention) {
+			return tr::lng_accessibility_chat_mention(tr::now);
+		}
+		return {};
+	}
+	case 11: {
+		const auto item = history->chatListMessage();
+		if (!item || item->isService() || item->out()) {
+			return {};
+		}
+		if (peer->isChat() || peer->isMegagroup()) {
+			if (const auto from = item->from()) {
+				return from->shortName();
+			}
+		}
+		return {};
+	}
+	case 12: {
+		const auto item = history->chatListMessage();
+		if (!item || item->isService()) {
+			return {};
+		}
+		auto messageText = item->notificationText().text;
+		if (messageText.isEmpty()) {
+			return {};
+		}
+		constexpr auto kMaxMessageLength = 100;
+		if (messageText.size() > kMaxMessageLength) {
+			messageText = messageText.left(kMaxMessageLength)
+				+ u"..."_q;
+		}
+		return messageText;
+	}
+	case 13: {
+		const auto item = history->chatListMessage();
+		if (!item || item->isService()) {
+			return {};
+		}
+		if (item->out()) {
+			if (item->isSending()) {
+				return tr::lng_accessibility_chat_sending(tr::now);
+			} else if (item->hasFailed()) {
+				return tr::lng_accessibility_chat_failed(tr::now);
+			} else if (item->unread(history)) {
+				return tr::lng_accessibility_message_not_seen(tr::now);
+			} else {
+				return tr::lng_accessibility_message_seen(tr::now);
+			}
+		}
+		return tr::lng_accessibility_chat_received(tr::now);
+	}
+	case 14: {
+		const auto item = history->chatListMessage();
+		if (!item || item->isService()) {
+			return {};
+		}
+		const auto &reactions = item->reactions();
+		if (reactions.empty()) {
+			return {};
+		}
+		QStringList reactionParts;
+		for (const auto &reaction : reactions) {
+			QString reactionText;
+			if (reaction.id.paid()) {
+				reactionText = tr::lng_accessibility_chat_reaction_star(tr::now);
+			} else if (const auto emoji = reaction.id.emoji(); !emoji.isEmpty()) {
+				reactionText = emoji;
+			} else {
+				reactionText = tr::lng_accessibility_chat_reaction_custom(tr::now);
+			}
+			if (reaction.count > 1) {
+				reactionText += u" "_q + QString::number(reaction.count);
+			}
+			reactionParts << reactionText;
+		}
+		return reactionParts.join(u", "_q);
+	}
+	case 15: {
+		const auto item = history->chatListMessage();
+		if (!item || item->isService()) {
+			return {};
+		}
+		const auto dateTime = ItemDateTime(item);
+		if (!dateTime.isValid()) {
+			return {};
+		}
+		const auto now = QDateTime::currentDateTime();
+		if (dateTime.date() == now.date()) {
+			return QLocale().toString(
+				dateTime.time(),
+				QLocale::ShortFormat);
+		}
+		return Ui::FormatDateTime(dateTime);
+	}
+	case 16: {
+		if (history->useTopPromotion()) {
+			const auto type = history->topPromotionType();
+			if (type.isEmpty()) {
+				return tr::lng_accessibility_chat_sponsored(tr::now);
+			}
+			const auto custom = Lang::GetNonDefaultValue(
+				"cloud_lng_badge_psa_" + type.toUtf8());
+			return custom.isEmpty()
+				? tr::lng_badge_psa_default(tr::now)
+				: custom;
+		}
+		return {};
+	}
+	case 17: {
+		if (peer->hasActiveStories()) {
+			if (peer->hasUnreadStories()) {
+				const auto source = peer->owner().stories().source(
+					peer->id);
+				const auto count = source
+					? int(source->unreadCount())
+					: 1;
+				return tr::lng_accessibility_chat_stories_unread(
+					tr::now,
+					lt_count,
+					count);
+			}
+			return tr::lng_accessibility_chat_stories_read(tr::now);
+		}
+		return {};
+	}
+	case 18:
+		if (peer->messagesTTL()) {
+			return tr::lng_accessibility_chat_autodelete(tr::now);
+		}
+		return {};
+	case 19:
+		if (Data::ChannelHasSubscriptionUntilDate(peer->asChannel())) {
+			return tr::lng_accessibility_chat_subscribed(tr::now);
+		}
+		return {};
+	case 20:
+		return {};
+	case 21: {
+		const auto item = history->chatListMessage();
+		if (!item || item->isService()) {
+			return {};
+		}
+		if (item->Get<HistoryMessageForwarded>()) {
+			return tr::lng_accessibility_chat_forwarded(tr::now);
+		}
+		if (item->replyToStory().valid()) {
+			return tr::lng_accessibility_chat_story_reply(tr::now);
+		}
+		return {};
+	}
+	case 22: {
+		const auto entry = rowData->entry();
+		if (!entry->hasChatsFilterTags(_filterId)) {
+			return {};
+		}
+		QStringList tags;
+		const auto &list = session().data().chatsFilters().list();
+		for (const auto &filter : list) {
+			if (!entry->inChatList(filter.id())
+				|| (filter.id() == _filterId)) {
+				continue;
+			}
+			tags << filter.title().text.text;
+		}
+		return tags.join(u", "_q);
+	}
+	}
+	return {};
 }
 
 } // namespace Dialogs

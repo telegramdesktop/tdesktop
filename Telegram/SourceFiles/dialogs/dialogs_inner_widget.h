@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dragging_scroll_manager.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
+#include "lang/lang_keys.h"
 #include "ui/userpic_view.h"
 
 namespace style {
@@ -148,6 +149,7 @@ public:
 	void showSavedSublists();
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
+	void toggleRowSelection();
 
 	void dragLeft();
 	void setNarrowRatio(float64 narrowRatio);
@@ -232,6 +234,26 @@ public:
 	void prepareQuickAction(int64 key, Dialogs::Ui::QuickDialogAction);
 	void clearQuickActions();
 
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::Role::List;
+	}
+	QString accessibilityName() override;
+	Ui::AccessibilityState accessibilityState() const override;
+	int accessibilityChildCount() const override;
+	QString accessibilityChildName(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QRect accessibilityChildRect(int index) const override;
+	int accessibilityChildColumnCount(int row) const override;
+	QAccessible::Role accessibilityChildSubItemRole() const override;
+	QString accessibilityChildSubItemName(int row, int column) const override;
+	QString accessibilityChildSubItemValue(int row, int column) const override;
+
+	[[nodiscard]] QString computeSubItemValue(
+		int row, int column) const;
+	[[nodiscard]] const QVector<int> &computeActiveColumns(
+		int row) const;
+
 protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
@@ -245,6 +267,8 @@ protected:
 	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	struct CollapsedRow;
@@ -473,6 +497,9 @@ private:
 	Ui::VideoUserpic *validateVideoUserpic(not_null<History*> history);
 
 	Row *shownRowByKey(Key key);
+	int indexOfRow(Row *row) const;
+	[[nodiscard]] bool hasEffectiveFocus() const;
+	void setSelectedRow(Row *row);
 	void clearSearchResults(bool alsoPeerSearchResults = true);
 	void clearPeerSearchResults();
 	void clearPreviewResults();
@@ -568,6 +595,11 @@ private:
 	std::vector<PinnedRow> _pinnedRows;
 	Ui::Animations::Basic _pinnedShiftAnimation;
 	base::flat_set<Key> _pinnedOnDragStart;
+
+	// Multi-selection tracking for accessibility.
+	base::flat_set<Key> _selectedForAction;
+	mutable int _activeColumnsRow = -1;
+	mutable QVector<int> _activeColumns;
 
 	// Remember the last currently dragged row top shift for updating area.
 	int _aboveTopShift = -1;
