@@ -57,6 +57,10 @@ public:
 		const MTPSendMessageAction &action);
 	void clear(not_null<UserData*> from);
 
+	[[nodiscard]] QString actionText() const {
+		return _sendActionString;
+	}
+
 private:
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;

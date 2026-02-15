@@ -3429,7 +3429,6 @@ void InnerWidget::focusInEvent(QFocusEvent *e) {
 			if (index < 0) {
 				return;
 			}
-			accessibilityChildStateChanged(index, { .focused = true });
 			accessibilityChildFocused(index);
 		});
 	}
@@ -5842,7 +5841,7 @@ QString InnerWidget::accessibilityName() {
 Ui::AccessibilityState InnerWidget::accessibilityState() const {
 	// Mark the List container as non-focusable so screen readers
 	// drill down to the focusable child items (ListItem rows).
-	return { .focusable = 0 };
+	return {};
 }
 
 int InnerWidget::accessibilityChildCount() const {

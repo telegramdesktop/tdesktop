@@ -92,7 +92,7 @@ public:
 	}
 
 	Ui::AccessibilityState accessibilityState() const override {
-		return { .readOnly = true, .focusable = 0 };
+		return { .readOnly = true };
 	}
 
 	QAccessible::Role accessibilityChildRole() const override {
@@ -396,7 +396,6 @@ void Rows::focusInEvent(QFocusEvent *e) {
 				if (selected() != index || !hasFocus()) {
 					return;
 				}
-				accessibilityChildStateChanged(index, { .focused = true });
 				accessibilityChildFocused(index);
 			});
 		}
