@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer_values.h"
 #include "lang/lang_keys.h"
+#include "base/screen_reader_state.h"
+#include "ui/accessible/ui_accessible_item.h"
 #include "ui/boxes/choose_language_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -51,6 +53,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
+#include <unordered_map>
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
@@ -71,11 +75,13 @@ public:
 
 	int count() const;
 	int selected() const;
+	int chosenIndex() const;
 	void setSelected(int selected);
 	rpl::producer<bool> hasSelection() const;
 	rpl::producer<bool> isEmpty() const;
 
 	void activateSelected();
+	void selectSkip(int dir);
 	rpl::producer<Language> activations() const;
 	void changeChosen(const QString &chosen);
 
@@ -83,10 +89,87 @@ public:
 
 	static int DefaultRowHeight();
 
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::List;
+	}
+
+	QAccessible::Role accessibilityChildRole() const override {
+		return QAccessible::RadioButton;
+	}
+
+	QAccessible::State accessibilityChildState(int index) const override {
+		QAccessible::State state;
+		if (base::ScreenReaderState::Instance()->active()) {
+			state.focusable = true;
+		}
+		state.checkable = true;
+		state.checked = (index == chosenIndex());
+		if (index == selected()) {
+			state.active = true;
+			if (hasFocus()) {
+				state.focused = true;
+			}
+		}
+		return state;
+	}
+
+	int accessibilityChildCount() const override {
+		return count();
+	}
+
+	QString accessibilityChildName(int index) const override {
+		if (index < 0 || index >= count()) {
+			return {};
+		}
+		const auto &row = rowByIndex(index);
+		// Announce native name followed by English name.
+		return row.data.nativeName + u", "_q + row.data.name;
+	}
+
+	QRect accessibilityChildRect(int index) const override {
+		if (index < 0 || index >= count()) {
+			return QRect();
+		}
+		const auto &row = rowByIndex(index);
+		return QRect(0, row.top, width(), row.height);
+	}
+
+	int accessibilityChildColumnCount(int row) const override {
+		return 2;
+	}
+
+	QAccessible::Role accessibilityChildSubItemRole() const override {
+		return QAccessible::Cell;
+	}
+
+	QString accessibilityChildSubItemName(int row, int column) const override {
+		if (column == 0) {
+			return tr::lng_sr_languages_column_native(tr::now);
+		} else if (column == 1) {
+			return tr::lng_sr_languages_column_name(tr::now);
+		}
+		return {};
+	}
+
+	QString accessibilityChildSubItemValue(int row, int column) const override {
+		if (row < 0 || row >= count()) {
+			return {};
+		}
+		const auto &data = rowByIndex(row).data;
+		if (column == 0) {
+			return data.nativeName;
+		} else if (column == 1) {
+			return data.name;
+		}
+		return {};
+	}
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 
+	void focusInEvent(QFocusEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -288,6 +371,63 @@ Rows::Rows(
 	resizeToWidth(width());
 	setAttribute(Qt::WA_MouseTracking);
 	update();
+
+	setAccessibleName(tr::lng_languages(tr::now));
+
+	base::ScreenReaderState::Instance()->activeValue(
+	) | rpl::on_next([=](bool active) {
+		setFocusPolicy(active ? Qt::TabFocus : Qt::NoFocus);
+	}, lifetime());
+}
+
+void Rows::focusInEvent(QFocusEvent *e) {
+	// Select first item or chosen item when focus enters.
+	if (selected() < 0 && count() > 0) {
+		const auto chosen = chosenIndex();
+		setSelected(chosen >= 0 ? chosen : 0);
+	}
+
+	RpWidget::focusInEvent(e);
+
+	if (base::ScreenReaderState::Instance()->active()) {
+		const auto index = selected();
+		if (index >= 0) {
+			InvokeQueued(this, [=] {
+				if (selected() != index || !hasFocus()) {
+					return;
+				}
+				accessibilityChildFocused(index);
+			});
+		}
+	}
+}
+
+void Rows::keyPressEvent(QKeyEvent *e) {
+	const auto key = e->key();
+	if (key == Qt::Key_Down) {
+		selectSkip(1);
+	} else if (key == Qt::Key_Up) {
+		selectSkip(-1);
+	} else if (key == Qt::Key_PageDown || key == Qt::Key_PageUp) {
+		const auto visibleHeight = visibleRegion().boundingRect().height();
+		const auto rowsPerPage = std::max(visibleHeight / DefaultRowHeight(), 1);
+		selectSkip(key == Qt::Key_PageDown ? rowsPerPage : -rowsPerPage);
+	} else if (key == Qt::Key_Home) {
+		if (count() > 0) {
+			setSelected(0);
+		}
+	} else if (key == Qt::Key_End) {
+		if (count() > 0) {
+			setSelected(count() - 1);
+		}
+	} else if (!e->isAutoRepeat()
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)) {
+		activateSelected();
+	} else {
+		RpWidget::keyPressEvent(e);
+	}
 }
 
 void Rows::mouseMoveEvent(QMouseEvent *e) {
@@ -555,7 +695,12 @@ void Rows::setForceRippled(not_null<Row*> row, bool rippled) {
 }
 
 void Rows::activateByIndex(int index) {
+	_chosen = rowByIndex(index).data.id;
 	_activations.fire_copy(rowByIndex(index).data);
+	if (base::ScreenReaderState::Instance()->active()) {
+		accessibilityChildStateChanged(index, { .checked = true });
+		accessibilityChildNameChanged(index);
+	}
 }
 
 void Rows::leaveEventHook(QEvent *e) {
@@ -631,10 +776,40 @@ int Rows::selected() const {
 	return indexFromSelection(_selected);
 }
 
+int Rows::chosenIndex() const {
+	for (auto i = 0, n = count(); i < n; ++i) {
+		if (rowByIndex(i).data.id == _chosen) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 void Rows::activateSelected() {
 	const auto index = selected();
 	if (index >= 0) {
 		activateByIndex(index);
+	}
+}
+
+void Rows::selectSkip(int dir) {
+	const auto limit = count();
+	auto now = selected();
+	// If no keyboard selection, start from the checked item.
+	if (now < 0) {
+		now = chosenIndex();
+	}
+	if (now >= 0) {
+		const auto changed = now + dir;
+		if (changed < 0) {
+			setSelected(0);
+		} else if (changed >= limit) {
+			setSelected(limit - 1);
+		} else {
+			setSelected(changed);
+		}
+	} else if (dir > 0) {
+		setSelected(0);
 	}
 }
 
@@ -643,8 +818,17 @@ rpl::producer<Language> Rows::activations() const {
 }
 
 void Rows::changeChosen(const QString &chosen) {
+	const auto oldIndex = chosenIndex();
+	_chosen = chosen;
 	for (const auto &row : _rows) {
 		row.check->setChecked(row.data.id == chosen, anim::type::normal);
+	}
+	if (base::ScreenReaderState::Instance()->active()) {
+		const auto newIndex = chosenIndex();
+		if (newIndex != oldIndex && newIndex >= 0) {
+			accessibilityChildStateChanged(newIndex, { .checked = true });
+			accessibilityChildNameChanged(newIndex);
+		}
 	}
 }
 
@@ -655,6 +839,11 @@ void Rows::setSelected(int selected) {
 		updateSelected(RowSelection{ selected });
 	} else {
 		updateSelected({});
+	}
+	if (selected >= 0 && selected < limit
+		&& base::ScreenReaderState::Instance()->active()) {
+		accessibilityChildNameChanged(selected);
+		accessibilityChildFocused(selected);
 	}
 }
 
