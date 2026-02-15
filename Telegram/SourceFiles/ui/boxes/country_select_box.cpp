@@ -8,16 +8,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/country_select_box.h"
 
 #include "lang/lang_keys.h"
+#include "base/screen_reader_state.h"
+#include "ui/accessible/ui_accessible_item.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
+#include "base/invoke_queued.h"
 #include "countries/countries_instance.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 
+#include <unordered_map>
+
 #include <QtCore/QRegularExpression>
+#include <QtWidgets/QApplication>
 
 namespace Ui {
 namespace {
@@ -48,8 +54,87 @@ public:
 		return _mustScrollTo.events();
 	}
 
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::List;
+	}
+
+	QAccessible::Role accessibilityChildRole() const override {
+		return QAccessible::ListItem;
+	}
+
+	QAccessible::State accessibilityChildState(int index) const override {
+		QAccessible::State state;
+		state.selectable = true;
+		if (base::ScreenReaderState::Instance()->active()) {
+			state.focusable = true;
+		}
+		if (index == _selected) {
+			state.selected = true;
+			state.active = true;
+			if (hasFocus()) {
+				state.focused = true;
+			}
+		}
+		return state;
+	}
+
+	int accessibilityChildCount() const override {
+		return int(current().size());
+	}
+
+	QString accessibilityChildName(int index) const override {
+		const auto &list = current();
+		if (index < 0 || index >= int(list.size())) {
+			return {};
+		}
+		if (_type == Type::Phones) {
+			return list[index].country + u", +"_q + list[index].code;
+		}
+		return list[index].country;
+	}
+
+	QRect accessibilityChildRect(int index) const override {
+		const auto &list = current();
+		if (index < 0 || index >= int(list.size())) {
+			return QRect();
+		}
+		return QRect(0, st::countriesSkip + index * _rowHeight, width(), _rowHeight);
+	}
+
+	int accessibilityChildColumnCount(int row) const override {
+		return (_type == Type::Phones) ? 2 : 1;
+	}
+
+	QAccessible::Role accessibilityChildSubItemRole() const override {
+		return QAccessible::Cell;
+	}
+
+	QString accessibilityChildSubItemName(int row, int column) const override {
+		if (column == 0) {
+			return tr::lng_sr_country_column_name(tr::now);
+		} else if (column == 1 && _type == Type::Phones) {
+			return tr::lng_country_code(tr::now);
+		}
+		return {};
+	}
+
+	QString accessibilityChildSubItemValue(int row, int column) const override {
+		const auto &list = current();
+		if (row < 0 || row >= int(list.size())) {
+			return {};
+		}
+		if (column == 0) {
+			return list[row].country;
+		} else if (column == 1 && _type == Type::Phones) {
+			return u"+"_q + list[row].code;
+		}
+		return {};
+	}
+
 protected:
+	void focusInEvent(QFocusEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -203,6 +288,13 @@ CountrySelectBox::Inner::Inner(
 		_filter = u"a"_q;
 		updateFilter(filter);
 	}, lifetime());
+
+	setAccessibleName(tr::lng_country_select(tr::now));
+
+	base::ScreenReaderState::Instance()->activeValue(
+	) | rpl::on_next([=](bool active) {
+		setFocusPolicy(active ? Qt::TabFocus : Qt::NoFocus);
+	}, lifetime());
 }
 
 void CountrySelectBox::Inner::init() {
@@ -262,6 +354,27 @@ void CountrySelectBox::Inner::init() {
 	}
 }
 
+void CountrySelectBox::Inner::focusInEvent(QFocusEvent *e) {
+	// Select first item when focus enters.
+	const auto &list = current();
+	if (_selected < 0 && !list.empty()) {
+		_selected = 0;
+		updateSelectedRow();
+	}
+
+	RpWidget::focusInEvent(e);
+
+	if (_selected >= 0 && base::ScreenReaderState::Instance()->active()) {
+		const auto index = _selected;
+		InvokeQueued(this, [=] {
+			if (_selected != index || !hasFocus()) {
+				return;
+			}
+			accessibilityChildFocused(index);
+		});
+	}
+}
+
 void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	QRect r(e->rect());
@@ -313,6 +426,50 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 			p.setPen(selected ? st::countryRowCodeFgOver : st::countryRowCodeFg);
 			p.drawTextLeft(st::countryRowPadding.left() + nameWidth + st::countryRowPadding.right(), y + st::countryRowPadding.top(), width(), code);
 		}
+	}
+}
+
+void CountrySelectBox::Inner::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Down) {
+		selectSkip(1);
+	} else if (e->key() == Qt::Key_Up) {
+		selectSkip(-1);
+	} else if (e->key() == Qt::Key_PageDown || e->key() == Qt::Key_PageUp) {
+		const auto visibleHeight = visibleRegion().boundingRect().height();
+		const auto rowsPerPage = std::max(visibleHeight / _rowHeight, 1);
+		selectSkip(e->key() == Qt::Key_PageDown ? rowsPerPage : -rowsPerPage);
+	} else if (e->key() == Qt::Key_Home) {
+		const auto &list = current();
+		if (!list.empty()) {
+			_selected = 0;
+			_mustScrollTo.fire(ScrollToRequest(
+				st::countriesSkip,
+				st::countriesSkip + _rowHeight));
+			update();
+			if (base::ScreenReaderState::Instance()->active()) {
+				accessibilityChildNameChanged(_selected);
+				accessibilityChildFocused(_selected);
+			}
+		}
+	} else if (e->key() == Qt::Key_End) {
+		const auto &list = current();
+		if (!list.empty()) {
+			_selected = int(list.size()) - 1;
+			_mustScrollTo.fire(ScrollToRequest(
+				st::countriesSkip + _selected * _rowHeight,
+				st::countriesSkip + (_selected + 1) * _rowHeight));
+			update();
+			if (base::ScreenReaderState::Instance()->active()) {
+				accessibilityChildNameChanged(_selected);
+				accessibilityChildFocused(_selected);
+			}
+		}
+	} else if (!e->isAutoRepeat()
+		&& (e->key() == Qt::Key_Return
+			|| e->key() == Qt::Key_Enter)) {
+		chooseCountry();
+	} else {
+		RpWidget::keyPressEvent(e);
 	}
 }
 
@@ -426,6 +583,10 @@ void CountrySelectBox::Inner::selectSkip(int32 dir) {
 			st::countriesSkip + (_selected + 1) * _rowHeight));
 	}
 	update();
+	if (_selected >= 0 && base::ScreenReaderState::Instance()->active()) {
+		accessibilityChildNameChanged(_selected);
+		accessibilityChildFocused(_selected);
+	}
 }
 
 void CountrySelectBox::Inner::selectSkipPage(int32 h, int32 dir) {
@@ -457,6 +618,10 @@ void CountrySelectBox::Inner::updateSelected(QPoint localPos) {
 		updateSelectedRow();
 		_selected = selected;
 		updateSelectedRow();
+		if (_selected >= 0 && base::ScreenReaderState::Instance()->active()) {
+			accessibilityChildNameChanged(_selected);
+			accessibilityChildFocused(_selected);
+		}
 	}
 }
 
