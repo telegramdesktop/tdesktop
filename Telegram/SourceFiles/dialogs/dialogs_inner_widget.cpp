@@ -163,19 +163,19 @@ constexpr auto kPreviewPostsLimit = 3;
 [[nodiscard]] QString ChatTypeString(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
 		if (user->isInaccessible()) {
-			return tr::lng_accessibility_chat_deleted(tr::now);
+			return tr::lng_deleted(tr::now);
 		} else if (user->isSelf()) {
-			return tr::lng_accessibility_chat_saved(tr::now);
+			return tr::lng_saved_messages(tr::now);
 		} else if (user->isServiceUser()) {
-			return tr::lng_accessibility_chat_service(tr::now);
+			return tr::lng_sr_chat_service(tr::now);
 		} else if (user->isBot()) {
-			return tr::lng_accessibility_chat_bot(tr::now);
+			return tr::lng_sr_chat_bot(tr::now);
 		}
 		// Regular users (including Premium) - no type prefix
 	} else if (peer->isBroadcast()) {
-		return tr::lng_accessibility_chat_channel(tr::now);
+		return tr::lng_sr_chat_channel(tr::now);
 	} else if (peer->isMegagroup() || peer->isChat()) {
-		return tr::lng_accessibility_chat_group(tr::now);
+		return tr::lng_sr_chat_group(tr::now);
 	}
 	return QString();
 }
@@ -5863,17 +5863,17 @@ QString InnerWidget::accessibilityChildName(int index) const {
 		const auto title = topic->isGeneral()
 			? Data::ForumGeneralIconTitle()
 			: topic->title();
-		return tr::lng_accessibility_chat_topic(tr::now) + u" "_q + title;
+		return tr::lng_sr_chat_topic(tr::now) + u" "_q + title;
 	}
 
 	if (const auto folder = row->folder()) {
-		return tr::lng_accessibility_chat_folder(tr::now)
+		return tr::lng_sr_chat_folder(tr::now)
 			+ u" "_q
 			+ folder->chatListName();
 	}
 
 	if (const auto sublist = row->sublist()) {
-		return tr::lng_accessibility_chat_saved(tr::now)
+		return tr::lng_saved_messages(tr::now)
 			+ u" "_q
 			+ sublist->sublistPeer()->name();
 	}
@@ -5901,21 +5901,21 @@ QString InnerWidget::accessibilityChildName(int index) const {
 
 	// 3. Scam/Fake (critical safety warnings - announce early)
 	if (peer->isScam()) {
-		parts << tr::lng_accessibility_chat_scam(tr::now);
+		parts << tr::lng_sr_chat_scam(tr::now);
 	} else if (peer->isFake()) {
-		parts << tr::lng_accessibility_chat_fake(tr::now);
+		parts << tr::lng_sr_chat_fake(tr::now);
 	}
 
 	// 4. Premium
 	if (const auto user = peer->asUser()) {
 		if (user->isPremium()) {
-			parts << tr::lng_accessibility_chat_premium(tr::now);
+			parts << tr::lng_premium(tr::now);
 		}
 	}
 
 	// 5. Verified
 	if (peer->isVerified()) {
-		parts << tr::lng_accessibility_chat_verified(tr::now);
+		parts << tr::lng_sr_chat_verified(tr::now);
 	}
 
 	// 6. Presence slot: Active action OR Online status (for users only)
@@ -5933,28 +5933,28 @@ QString InnerWidget::accessibilityChildName(int index) const {
 			}
 		}
 		if (!hasAction && Data::IsUserOnline(user)) {
-			parts << tr::lng_accessibility_chat_online(tr::now);
+			parts << tr::lng_sr_chat_online(tr::now);
 		}
 	}
 
 	// 7. Muted
 	if (peer->owner().notifySettings().isMuted(peer)) {
-		parts << tr::lng_accessibility_chat_muted(tr::now);
+		parts << tr::lng_notification_exceptions_muted(tr::now);
 	}
 
 	// 8. Pinned
 	if (row->entry()->isPinnedDialog(_filterId)) {
-		parts << tr::lng_accessibility_chat_pinned(tr::now);
+		parts << tr::lng_sr_chat_pinned(tr::now);
 	}
 
 	// 9. Draft
 	if (const auto draft = history->cloudDraft(MsgId(0), PeerId(0))) {
 		if (!draft->textWithTags.text.isEmpty()) {
-			parts << tr::lng_accessibility_chat_draft(tr::now);
+			parts << tr::lng_from_draft(tr::now);
 		}
 	} else if (const auto localDraft = history->localDraft(MsgId(0), PeerId(0))) {
 		if (!localDraft->textWithTags.text.isEmpty()) {
-			parts << tr::lng_accessibility_chat_draft(tr::now);
+			parts << tr::lng_from_draft(tr::now);
 		}
 	}
 
@@ -5973,16 +5973,16 @@ QString InnerWidget::accessibilityChildName(int index) const {
 	// 11. Badges (unread, mention, reaction)
 	const auto badges = row->entry()->chatListBadgesState();
 	if (badges.unreadCounter > 0) {
-		parts << tr::lng_accessibility_chat_unread(
+		parts << tr::lng_sr_chat_unread(
 			tr::now,
 			lt_count,
 			badges.unreadCounter);
 	} else if (badges.unread) {
-		parts << tr::lng_accessibility_chat_unread_mark(tr::now);
+		parts << tr::lng_settings_quick_dialog_action_unread(tr::now);
 	}
 
 	if (badges.mention) {
-		parts << tr::lng_accessibility_chat_mention(tr::now);
+		parts << tr::lng_sr_chat_mention(tr::now);
 	}
 
 	// 12. Last message snippet with status and timestamp
@@ -5999,23 +5999,23 @@ QString InnerWidget::accessibilityChildName(int index) const {
 			if (item->out()) {
 				// Outgoing message: pick single most accurate status
 				if (item->isSending()) {
-					status = tr::lng_accessibility_chat_sending(tr::now);
+					status = tr::lng_sr_chat_sending(tr::now);
 					statusBeforeMessage = true;
 				} else if (item->hasFailed()) {
-					status = tr::lng_accessibility_chat_failed(tr::now);
+					status = tr::lng_sr_chat_failed(tr::now);
 					statusBeforeMessage = true;
 				} else if (item->unread(history)) {
 					// Single checkmark: not seen yet
-					status = tr::lng_accessibility_message_not_seen(tr::now);
+					status = tr::lng_sr_message_not_seen(tr::now);
 					statusBeforeMessage = true;
 				} else {
 					// Double checkmark: seen by recipient
-					status = tr::lng_accessibility_message_seen(tr::now);
+					status = tr::lng_sr_message_seen(tr::now);
 					statusBeforeMessage = true;
 				}
 			} else {
 				// Incoming message
-				status = tr::lng_accessibility_chat_received(tr::now);
+				status = tr::lng_sr_chat_received(tr::now);
 				statusBeforeMessage = false; // Received goes after message
 			}
 
@@ -6052,12 +6052,12 @@ QString InnerWidget::accessibilityChildName(int index) const {
 				for (const auto &reaction : reactions) {
 					QString reactionText;
 					if (reaction.id.paid()) {
-						reactionText = tr::lng_accessibility_chat_reaction_star(tr::now);
+						reactionText = tr::lng_sr_chat_reaction_star(tr::now);
 					} else if (const auto emoji = reaction.id.emoji(); !emoji.isEmpty()) {
 						reactionText = emoji;
 					} else {
 						// Custom sticker reaction
-						reactionText = tr::lng_accessibility_chat_reaction_custom(tr::now);
+						reactionText = tr::lng_sr_chat_reaction_custom(tr::now);
 					}
 					if (reaction.count > 1) {
 						reactionText += u" "_q + QString::number(reaction.count);
@@ -6065,7 +6065,7 @@ QString InnerWidget::accessibilityChildName(int index) const {
 					reactionParts << reactionText;
 				}
 				if (!reactionParts.isEmpty()) {
-					parts << tr::lng_accessibility_chat_message_reactions(
+					parts << tr::lng_sr_chat_message_reactions(
 						tr::now,
 						lt_reactions,
 						reactionParts.join(u", "_q));
@@ -6159,29 +6159,29 @@ QString InnerWidget::accessibilityChildSubItemName(int row, int column) const {
 		return {};
 	}
 	switch (active[column]) {
-	case 0: return tr::lng_accessibility_chat_column_type(tr::now);
-	case 1: return tr::lng_accessibility_chat_column_name(tr::now);
-	case 2: return tr::lng_accessibility_chat_column_warning(tr::now);
-	case 3: return tr::lng_accessibility_chat_column_premium(tr::now);
-	case 4: return tr::lng_accessibility_chat_column_verified(tr::now);
-	case 5: return tr::lng_accessibility_chat_column_activity(tr::now);
-	case 6: return tr::lng_accessibility_chat_column_muted(tr::now);
-	case 7: return tr::lng_accessibility_chat_column_pinned(tr::now);
-	case 8: return tr::lng_accessibility_chat_column_draft(tr::now);
-	case 9: return tr::lng_accessibility_chat_column_unread(tr::now);
-	case 10: return tr::lng_accessibility_chat_column_mention(tr::now);
-	case 11: return tr::lng_accessibility_chat_column_sender(tr::now);
-	case 12: return tr::lng_accessibility_chat_column_message(tr::now);
-	case 13: return tr::lng_accessibility_chat_column_delivery(tr::now);
-	case 14: return tr::lng_accessibility_chat_column_reactions(tr::now);
-	case 15: return tr::lng_accessibility_chat_column_time(tr::now);
-	case 16: return tr::lng_accessibility_chat_column_sponsored(tr::now);
-	case 17: return tr::lng_accessibility_chat_column_stories(tr::now);
-	case 18: return tr::lng_accessibility_chat_column_autodelete(tr::now);
-	case 19: return tr::lng_accessibility_chat_column_subscription(tr::now);
-	case 20: return tr::lng_accessibility_chat_column_closed(tr::now);
-	case 21: return tr::lng_accessibility_chat_column_forward(tr::now);
-	case 22: return tr::lng_accessibility_chat_column_folders(tr::now);
+	case 0: return tr::lng_sr_chat_column_type(tr::now);
+	case 1: return tr::lng_sr_chat_column_name(tr::now);
+	case 2: return tr::lng_sr_chat_column_warning(tr::now);
+	case 3: return tr::lng_sr_chat_column_premium(tr::now);
+	case 4: return tr::lng_sr_chat_column_verified(tr::now);
+	case 5: return tr::lng_sr_chat_column_activity(tr::now);
+	case 6: return tr::lng_sr_chat_column_muted(tr::now);
+	case 7: return tr::lng_sr_chat_column_pinned(tr::now);
+	case 8: return tr::lng_sr_chat_column_draft(tr::now);
+	case 9: return tr::lng_sr_chat_column_unread(tr::now);
+	case 10: return tr::lng_sr_chat_column_mention(tr::now);
+	case 11: return tr::lng_sr_chat_column_sender(tr::now);
+	case 12: return tr::lng_sr_chat_column_message(tr::now);
+	case 13: return tr::lng_sr_chat_column_delivery(tr::now);
+	case 14: return tr::lng_sr_chat_column_reactions(tr::now);
+	case 15: return tr::lng_sr_chat_column_time(tr::now);
+	case 16: return tr::lng_sr_chat_column_sponsored(tr::now);
+	case 17: return tr::lng_sr_chat_column_stories(tr::now);
+	case 18: return tr::lng_sr_chat_column_autodelete(tr::now);
+	case 19: return tr::lng_sr_chat_column_subscription(tr::now);
+	case 20: return tr::lng_sr_chat_column_closed(tr::now);
+	case 21: return tr::lng_sr_chat_column_forward(tr::now);
+	case 22: return tr::lng_sr_chat_column_folders(tr::now);
 	}
 	return {};
 }
@@ -6221,14 +6221,14 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 	if (const auto topic = rowData->topic()) {
 		switch (column) {
 		case 0:
-			return tr::lng_accessibility_chat_topic(tr::now);
+			return tr::lng_sr_chat_topic(tr::now);
 		case 1:
 			return topic->isGeneral()
 				? Data::ForumGeneralIconTitle()
 				: topic->title();
 		case 20:
 			if (topic->closed()) {
-				return tr::lng_accessibility_chat_closed(tr::now);
+				return tr::lng_hours_closed(tr::now);
 			}
 			return {};
 		}
@@ -6238,7 +6238,7 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 	if (const auto folder = rowData->folder()) {
 		switch (column) {
 		case 0:
-			return tr::lng_accessibility_chat_folder(tr::now);
+			return tr::lng_sr_chat_folder(tr::now);
 		case 1:
 			return folder->chatListName();
 		}
@@ -6248,7 +6248,7 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 	if (const auto sublist = rowData->sublist()) {
 		switch (column) {
 		case 0:
-			return tr::lng_accessibility_chat_saved(tr::now);
+			return tr::lng_saved_messages(tr::now);
 		case 1:
 			return sublist->sublistPeer()->name();
 		}
@@ -6272,21 +6272,21 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 		return peer->name();
 	case 2:
 		if (peer->isScam()) {
-			return tr::lng_accessibility_chat_scam(tr::now);
+			return tr::lng_sr_chat_scam(tr::now);
 		} else if (peer->isFake()) {
-			return tr::lng_accessibility_chat_fake(tr::now);
+			return tr::lng_sr_chat_fake(tr::now);
 		}
 		return {};
 	case 3:
 		if (const auto user = peer->asUser()) {
 			if (user->isPremium()) {
-				return tr::lng_accessibility_chat_premium(tr::now);
+				return tr::lng_premium(tr::now);
 			}
 		}
 		return {};
 	case 4:
 		if (peer->isVerified()) {
-			return tr::lng_accessibility_chat_verified(tr::now);
+			return tr::lng_sr_chat_verified(tr::now);
 		}
 		return {};
 	case 5: {
@@ -6300,7 +6300,7 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 				}
 			}
 			if (Data::IsUserOnline(user)) {
-				return tr::lng_accessibility_chat_online(tr::now);
+				return tr::lng_sr_chat_online(tr::now);
 			}
 		} else if (peer->isChat() || peer->isMegagroup()) {
 			if (const auto sendAction = history->sendActionPainter()) {
@@ -6316,41 +6316,41 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 	}
 	case 6:
 		if (peer->owner().notifySettings().isMuted(peer)) {
-			return tr::lng_accessibility_chat_muted(tr::now);
+			return tr::lng_notification_exceptions_muted(tr::now);
 		}
 		return {};
 	case 7:
 		if (rowData->entry()->isPinnedDialog(_filterId)) {
-			return tr::lng_accessibility_chat_pinned(tr::now);
+			return tr::lng_sr_chat_pinned(tr::now);
 		}
 		return {};
 	case 8:
 		if (const auto draft = history->cloudDraft(MsgId(0), PeerId(0))) {
 			if (!draft->textWithTags.text.isEmpty()) {
-				return tr::lng_accessibility_chat_draft(tr::now);
+				return tr::lng_from_draft(tr::now);
 			}
 		} else if (const auto localDraft = history->localDraft(MsgId(0), PeerId(0))) {
 			if (!localDraft->textWithTags.text.isEmpty()) {
-				return tr::lng_accessibility_chat_draft(tr::now);
+				return tr::lng_from_draft(tr::now);
 			}
 		}
 		return {};
 	case 9: {
 		const auto badges = rowData->entry()->chatListBadgesState();
 		if (badges.unreadCounter > 0) {
-			return tr::lng_accessibility_chat_unread(
+			return tr::lng_sr_chat_unread(
 				tr::now,
 				lt_count,
 				badges.unreadCounter);
 		} else if (badges.unread) {
-			return tr::lng_accessibility_chat_unread_mark(tr::now);
+			return tr::lng_settings_quick_dialog_action_unread(tr::now);
 		}
 		return {};
 	}
 	case 10: {
 		const auto badges = rowData->entry()->chatListBadgesState();
 		if (badges.mention) {
-			return tr::lng_accessibility_chat_mention(tr::now);
+			return tr::lng_sr_chat_mention(tr::now);
 		}
 		return {};
 	}
@@ -6389,16 +6389,16 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 		}
 		if (item->out()) {
 			if (item->isSending()) {
-				return tr::lng_accessibility_chat_sending(tr::now);
+				return tr::lng_sr_chat_sending(tr::now);
 			} else if (item->hasFailed()) {
-				return tr::lng_accessibility_chat_failed(tr::now);
+				return tr::lng_sr_chat_failed(tr::now);
 			} else if (item->unread(history)) {
-				return tr::lng_accessibility_message_not_seen(tr::now);
+				return tr::lng_sr_message_not_seen(tr::now);
 			} else {
-				return tr::lng_accessibility_message_seen(tr::now);
+				return tr::lng_sr_message_seen(tr::now);
 			}
 		}
-		return tr::lng_accessibility_chat_received(tr::now);
+		return tr::lng_sr_chat_received(tr::now);
 	}
 	case 14: {
 		const auto item = history->chatListMessage();
@@ -6413,11 +6413,11 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 		for (const auto &reaction : reactions) {
 			QString reactionText;
 			if (reaction.id.paid()) {
-				reactionText = tr::lng_accessibility_chat_reaction_star(tr::now);
+				reactionText = tr::lng_sr_chat_reaction_star(tr::now);
 			} else if (const auto emoji = reaction.id.emoji(); !emoji.isEmpty()) {
 				reactionText = emoji;
 			} else {
-				reactionText = tr::lng_accessibility_chat_reaction_custom(tr::now);
+				reactionText = tr::lng_sr_chat_reaction_custom(tr::now);
 			}
 			if (reaction.count > 1) {
 				reactionText += u" "_q + QString::number(reaction.count);
@@ -6447,7 +6447,7 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 		if (history->useTopPromotion()) {
 			const auto type = history->topPromotionType();
 			if (type.isEmpty()) {
-				return tr::lng_accessibility_chat_sponsored(tr::now);
+				return tr::lng_sr_chat_sponsored(tr::now);
 			}
 			const auto custom = Lang::GetNonDefaultValue(
 				"cloud_lng_badge_psa_" + type.toUtf8());
@@ -6465,23 +6465,23 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 				const auto count = source
 					? int(source->unreadCount())
 					: 1;
-				return tr::lng_accessibility_chat_stories_unread(
+				return tr::lng_sr_chat_stories_unread(
 					tr::now,
 					lt_count,
 					count);
 			}
-			return tr::lng_accessibility_chat_stories_read(tr::now);
+			return tr::lng_sr_chat_stories_read(tr::now);
 		}
 		return {};
 	}
 	case 18:
 		if (peer->messagesTTL()) {
-			return tr::lng_accessibility_chat_autodelete(tr::now);
+			return tr::lng_sr_chat_autodelete(tr::now);
 		}
 		return {};
 	case 19:
 		if (Data::ChannelHasSubscriptionUntilDate(peer->asChannel())) {
-			return tr::lng_accessibility_chat_subscribed(tr::now);
+			return tr::lng_sr_chat_subscribed(tr::now);
 		}
 		return {};
 	case 20:
@@ -6492,10 +6492,10 @@ QString InnerWidget::computeSubItemValue(int row, int column) const {
 			return {};
 		}
 		if (item->Get<HistoryMessageForwarded>()) {
-			return tr::lng_accessibility_chat_forwarded(tr::now);
+			return tr::lng_sr_chat_forwarded(tr::now);
 		}
 		if (item->replyToStory().valid()) {
-			return tr::lng_accessibility_chat_story_reply(tr::now);
+			return tr::lng_sr_chat_story_reply(tr::now);
 		}
 		return {};
 	}

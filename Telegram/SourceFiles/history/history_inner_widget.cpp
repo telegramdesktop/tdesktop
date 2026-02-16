@@ -362,7 +362,7 @@ HistoryInner::HistoryInner(
 
 	setAttribute(Qt::WA_AcceptTouchEvents);
 
-	setAccessibleName(tr::lng_accessibility_message_list(tr::now));
+	setAccessibleName(tr::lng_sr_message_list(tr::now));
 	QAccessible::queryAccessibleInterface(this);
 	base::ScreenReaderState::Instance()->activeValue(
 	) | rpl::on_next([this](bool active) {
@@ -5427,20 +5427,20 @@ QString HistoryInner::accessibilityChildName(int index) const {
 	// Line 1: Seen/not seen (only for outgoing).
 	if (item->out()) {
 		lines.push_back(item->unread(_history)
-			? tr::lng_accessibility_message_not_seen(tr::now)
-			: tr::lng_accessibility_message_seen(tr::now));
+			? tr::lng_sr_message_not_seen(tr::now)
+			: tr::lng_sr_message_seen(tr::now));
 	}
 
 	// Line 2: Sender.
 	if (item->out()) {
-		lines.push_back(tr::lng_accessibility_from_me(tr::now));
+		lines.push_back(tr::lng_sr_from_me(tr::now));
 	} else if (const auto from = item->displayFrom()) {
 		lines.push_back(from->name());
 	}
 
 	// Line 3: Via bot.
 	if (const auto bot = item->viaBot()) {
-		lines.push_back(tr::lng_accessibility_message_via_bot(
+		lines.push_back(tr::lng_sr_message_via_bot(
 			tr::now,
 			lt_bot,
 			bot->username()));
@@ -5455,11 +5455,11 @@ QString HistoryInner::accessibilityChildName(int index) const {
 				: QString();
 			const auto replyText = message->inReplyText().text;
 			if (!replyName.isEmpty() || !replyText.isEmpty()) {
-				lines.push_back(tr::lng_accessibility_message_reply_to(
+				lines.push_back(tr::lng_sr_message_reply_to(
 					tr::now,
 					lt_name,
 					replyName.isEmpty()
-						? tr::lng_accessibility_from_me(tr::now)
+						? tr::lng_sr_from_me(tr::now)
 						: replyName,
 					lt_text,
 					replyText));
@@ -5508,21 +5508,21 @@ QString HistoryInner::accessibilityChildName(int index) const {
 			// Download status.
 			if (document->loading()) {
 				mediaParts.push_back(
-					tr::lng_accessibility_message_downloading(tr::now));
+					tr::lng_sr_message_downloading(tr::now));
 			} else if (!document->filepath(true).isEmpty()
 					|| document->loadedInMediaCache()) {
 				mediaParts.push_back(
-					tr::lng_accessibility_message_downloaded(tr::now));
+					tr::lng_emoji_set_ready(tr::now));
 			} else {
 				mediaParts.push_back(
-					tr::lng_accessibility_message_not_downloaded(tr::now));
+					tr::lng_sr_message_not_downloaded(tr::now));
 			}
 			// Played/not played.
 			if (document->isVoiceMessage()
 				|| document->isVideoMessage()) {
 				mediaParts.push_back(item->isUnreadMedia()
-					? tr::lng_accessibility_message_not_played(tr::now)
-					: tr::lng_accessibility_message_played(tr::now));
+					? tr::lng_sr_message_not_played(tr::now)
+					: tr::lng_sr_message_played(tr::now));
 			}
 			// Song: artist and title.
 			if (const auto song = document->song()) {
@@ -5565,7 +5565,7 @@ QString HistoryInner::accessibilityChildName(int index) const {
 			mediaParts.push_back(tr::lng_in_dlg_photo(tr::now));
 			if (media->hasSpoiler()) {
 				mediaParts.push_back(
-					tr::lng_accessibility_message_spoiler(tr::now));
+					tr::lng_sr_message_spoiler(tr::now));
 			}
 			const auto large = photo->size(
 				Data::PhotoSize::Large);
@@ -5584,16 +5584,16 @@ QString HistoryInner::accessibilityChildName(int index) const {
 			}
 		} else if (const auto poll = media->poll()) {
 			mediaParts.push_back(poll->quiz()
-				? tr::lng_accessibility_message_poll_quiz(tr::now)
-				: tr::lng_accessibility_message_poll_poll(tr::now));
+				? tr::lng_polls_public_quiz(tr::now)
+				: tr::lng_polls_public(tr::now));
 			if (!poll->question.text.isEmpty()) {
 				mediaParts.push_back(poll->question.text);
 			}
 			if (poll->closed()) {
 				mediaParts.push_back(
-					tr::lng_accessibility_message_poll_closed(tr::now));
+					tr::lng_hours_closed(tr::now));
 			}
-			mediaParts.push_back(tr::lng_accessibility_message_poll_votes(
+			mediaParts.push_back(tr::lng_sr_message_poll_votes(
 				tr::now,
 				lt_count,
 				poll->totalVoters));
@@ -5628,7 +5628,7 @@ QString HistoryInner::accessibilityChildName(int index) const {
 			switch (gift->type) {
 			case Data::GiftType::Premium:
 				mediaParts.push_back(
-					tr::lng_accessibility_message_gift_premium(
+					tr::lng_sr_message_gift_premium(
 						tr::now,
 						lt_count,
 						gift->count));
@@ -5636,7 +5636,7 @@ QString HistoryInner::accessibilityChildName(int index) const {
 			case Data::GiftType::Credits:
 			case Data::GiftType::StarGift:
 				mediaParts.push_back(
-					tr::lng_accessibility_message_gift_credits(
+					tr::lng_sr_message_gift_credits(
 						tr::now,
 						lt_count,
 						gift->count));
@@ -5699,25 +5699,25 @@ QString HistoryInner::accessibilityChildName(int index) const {
 
 	// Pinned.
 	if (item->isPinned()) {
-		lines.push_back(tr::lng_accessibility_message_pinned(tr::now));
+		lines.push_back(tr::lng_sr_message_pinned(tr::now));
 	}
 
 	// Line: Status + edited + time + views (one line, space-separated).
 	QStringList statusParts;
 	if (item->out()) {
 		if (item->isSending()) {
-			statusParts.push_back(tr::lng_accessibility_chat_sending(tr::now));
+			statusParts.push_back(tr::lng_sr_chat_sending(tr::now));
 		} else if (item->hasFailed()) {
-			statusParts.push_back(tr::lng_accessibility_chat_failed(tr::now));
+			statusParts.push_back(tr::lng_sr_chat_failed(tr::now));
 		} else {
-			statusParts.push_back(tr::lng_accessibility_chat_sent(tr::now));
+			statusParts.push_back(tr::lng_sr_chat_sent(tr::now));
 		}
 	} else {
-		statusParts.push_back(tr::lng_accessibility_chat_received(tr::now));
+		statusParts.push_back(tr::lng_sr_chat_received(tr::now));
 	}
 	if (item->Get<HistoryMessageEdited>()) {
 		statusParts.push_back(
-			tr::lng_accessibility_message_edited(tr::now));
+			tr::lng_sr_message_edited(tr::now));
 	}
 	const auto dateTime = view->dateTime();
 	statusParts.push_back(
@@ -5729,7 +5729,7 @@ QString HistoryInner::accessibilityChildName(int index) const {
 			statusParts.push_back(
 				QString::number(views->views.count)
 				+ u" "_q
-				+ tr::lng_accessibility_message_column_views(tr::now));
+				+ tr::lng_sr_message_column_views(tr::now));
 		}
 	}
 	if (const auto signed_ = item->Get<HistoryMessageSigned>()) {
@@ -5750,7 +5750,7 @@ QString HistoryInner::accessibilityChildName(int index) const {
 					const auto doc = item->history()->owner().document(
 						customId);
 					if (const auto sticker = doc->sticker()) {
-						text = tr::lng_accessibility_message_custom_emoji(
+						text = tr::lng_sr_message_custom_emoji(
 							tr::now,
 							lt_emoji,
 							sticker->alt);
@@ -5767,7 +5767,7 @@ QString HistoryInner::accessibilityChildName(int index) const {
 			}
 		}
 		if (!reactionParts.isEmpty()) {
-			lines.push_back(tr::lng_accessibility_message_reactions(
+			lines.push_back(tr::lng_sr_message_reactions(
 				tr::now,
 				lt_list,
 				reactionParts.join(u", "_q)));
@@ -5868,52 +5868,52 @@ QString HistoryInner::accessibilityChildSubItemName(
 	}
 	const auto realColumn = active[column];
 	switch (realColumn) {
-	case 0: return tr::lng_accessibility_message_column_seen(tr::now);
-	case 1: return tr::lng_accessibility_message_column_sender(tr::now);
-	case 2: return tr::lng_accessibility_message_column_via_bot(tr::now);
-	case 3: return tr::lng_accessibility_message_column_reply(tr::now);
-	case 4: return tr::lng_accessibility_message_column_forward(tr::now);
-	case 5: return tr::lng_accessibility_message_column_media_type(tr::now);
-	case 6: return tr::lng_accessibility_message_column_download(tr::now);
-	case 7: return tr::lng_accessibility_message_column_played(tr::now);
-	case 8: return tr::lng_accessibility_message_column_artist(tr::now);
-	case 9: return tr::lng_accessibility_message_column_title(tr::now);
-	case 10: return tr::lng_accessibility_message_column_filename(tr::now);
-	case 11: return tr::lng_accessibility_message_column_duration(tr::now);
-	case 12: return tr::lng_accessibility_message_column_dimensions(tr::now);
-	case 13: return tr::lng_accessibility_message_column_file_size(tr::now);
-	case 14: return tr::lng_accessibility_message_column_message(tr::now);
-	case 15: return tr::lng_accessibility_message_column_delivery(tr::now);
-	case 16: return tr::lng_accessibility_message_column_edited(tr::now);
-	case 17: return tr::lng_accessibility_message_column_time(tr::now);
-	case 18: return tr::lng_accessibility_message_column_reactions(tr::now);
-	case 19: return tr::lng_accessibility_message_column_views(tr::now);
-	case 20: return tr::lng_accessibility_message_column_signature(tr::now);
-	case 21: return tr::lng_accessibility_message_column_pinned(tr::now);
-	case 22: return tr::lng_accessibility_message_column_web_site(tr::now);
-	case 23: return tr::lng_accessibility_message_column_web_title(tr::now);
-	case 24: return tr::lng_accessibility_message_column_web_description(tr::now);
-	case 25: return tr::lng_accessibility_message_column_poll_question(tr::now);
-	case 26: return tr::lng_accessibility_message_column_poll_options(tr::now);
-	case 27: return tr::lng_accessibility_message_column_poll_status(tr::now);
-	case 28: return tr::lng_accessibility_message_column_contact_name(tr::now);
-	case 29: return tr::lng_accessibility_message_column_contact_phone(tr::now);
-	case 30: return tr::lng_accessibility_message_column_location(tr::now);
-	case 31: return tr::lng_accessibility_message_column_sticker_emoji(tr::now);
-	case 32: return tr::lng_accessibility_message_column_game_title(tr::now);
-	case 33: return tr::lng_accessibility_message_column_game_description(tr::now);
-	case 34: return tr::lng_accessibility_message_column_invoice_title(tr::now);
-	case 35: return tr::lng_accessibility_message_column_invoice_amount(tr::now);
-	case 36: return tr::lng_accessibility_message_column_spoiler(tr::now);
-	case 37: return tr::lng_accessibility_message_column_dice(tr::now);
-	case 38: return tr::lng_accessibility_message_column_giveaway(tr::now);
-	case 39: return tr::lng_accessibility_message_column_gift(tr::now);
-	case 40: return tr::lng_accessibility_message_column_todo_title(tr::now);
-	case 41: return tr::lng_accessibility_message_column_todo_items(tr::now);
-	case 42: return tr::lng_accessibility_message_column_factcheck(tr::now);
-	case 43: return tr::lng_accessibility_message_column_forward_date(tr::now);
-	case 44: return tr::lng_accessibility_message_column_forward_author(tr::now);
-	case 45: return tr::lng_accessibility_message_column_paid_reactions(tr::now);
+	case 0: return tr::lng_sr_message_column_seen(tr::now);
+	case 1: return tr::lng_sr_message_column_sender(tr::now);
+	case 2: return tr::lng_sr_message_column_via_bot(tr::now);
+	case 3: return tr::lng_sr_message_column_reply(tr::now);
+	case 4: return tr::lng_sr_message_column_forward(tr::now);
+	case 5: return tr::lng_sr_message_column_media_type(tr::now);
+	case 6: return tr::lng_sr_message_column_download(tr::now);
+	case 7: return tr::lng_sr_message_column_played(tr::now);
+	case 8: return tr::lng_sr_message_column_artist(tr::now);
+	case 9: return tr::lng_sr_message_column_title(tr::now);
+	case 10: return tr::lng_sr_message_column_filename(tr::now);
+	case 11: return tr::lng_sr_message_column_duration(tr::now);
+	case 12: return tr::lng_sr_message_column_dimensions(tr::now);
+	case 13: return tr::lng_sr_message_column_file_size(tr::now);
+	case 14: return tr::lng_sr_message_column_message(tr::now);
+	case 15: return tr::lng_sr_message_column_delivery(tr::now);
+	case 16: return tr::lng_sr_message_column_edited(tr::now);
+	case 17: return tr::lng_sr_message_column_time(tr::now);
+	case 18: return tr::lng_sr_message_column_reactions(tr::now);
+	case 19: return tr::lng_sr_message_column_views(tr::now);
+	case 20: return tr::lng_sr_message_column_signature(tr::now);
+	case 21: return tr::lng_sr_message_column_pinned(tr::now);
+	case 22: return tr::lng_sr_message_column_web_site(tr::now);
+	case 23: return tr::lng_sr_message_column_web_title(tr::now);
+	case 24: return tr::lng_sr_message_column_web_description(tr::now);
+	case 25: return tr::lng_sr_message_column_poll_question(tr::now);
+	case 26: return tr::lng_sr_message_column_poll_options(tr::now);
+	case 27: return tr::lng_sr_message_column_poll_status(tr::now);
+	case 28: return tr::lng_sr_message_column_contact_name(tr::now);
+	case 29: return tr::lng_sr_message_column_contact_phone(tr::now);
+	case 30: return tr::lng_sr_message_column_location(tr::now);
+	case 31: return tr::lng_sr_message_column_sticker_emoji(tr::now);
+	case 32: return tr::lng_sr_message_column_game_title(tr::now);
+	case 33: return tr::lng_sr_message_column_game_description(tr::now);
+	case 34: return tr::lng_sr_message_column_invoice_title(tr::now);
+	case 35: return tr::lng_sr_message_column_invoice_amount(tr::now);
+	case 36: return tr::lng_sr_message_column_spoiler(tr::now);
+	case 37: return tr::lng_sr_message_column_dice(tr::now);
+	case 38: return tr::lng_sr_message_column_giveaway(tr::now);
+	case 39: return tr::lng_sr_message_column_gift(tr::now);
+	case 40: return tr::lng_sr_message_column_todo_title(tr::now);
+	case 41: return tr::lng_sr_message_column_todo_items(tr::now);
+	case 42: return tr::lng_sr_message_column_factcheck(tr::now);
+	case 43: return tr::lng_sr_message_column_forward_date(tr::now);
+	case 44: return tr::lng_sr_message_column_forward_author(tr::now);
+	case 45: return tr::lng_sr_message_column_paid_reactions(tr::now);
 	}
 	return {};
 }
@@ -5978,20 +5978,20 @@ QString HistoryInner::computeSubItemValue(
 	case 0: // Seen.
 		if (item->out()) {
 			return item->unread(_history)
-				? tr::lng_accessibility_message_not_seen(tr::now)
-				: tr::lng_accessibility_message_seen(tr::now);
+				? tr::lng_sr_message_not_seen(tr::now)
+				: tr::lng_sr_message_seen(tr::now);
 		}
 		return {};
 	case 1: // Sender.
 		if (item->out()) {
-			return tr::lng_accessibility_from_me(tr::now);
+			return tr::lng_sr_from_me(tr::now);
 		} else if (const auto from = item->displayFrom()) {
 			return from->name();
 		}
 		return {};
 	case 2: // Via bot.
 		if (const auto bot = item->viaBot()) {
-			return tr::lng_accessibility_message_via_bot(
+			return tr::lng_sr_message_via_bot(
 				tr::now,
 				lt_bot,
 				bot->username());
@@ -6006,11 +6006,11 @@ QString HistoryInner::computeSubItemValue(
 					: QString();
 				const auto replyText = message->inReplyText().text;
 				if (!replyName.isEmpty() || !replyText.isEmpty()) {
-					return tr::lng_accessibility_message_reply_to(
+					return tr::lng_sr_message_reply_to(
 						tr::now,
 						lt_name,
 						replyName.isEmpty()
-							? tr::lng_accessibility_from_me(tr::now)
+							? tr::lng_sr_from_me(tr::now)
 							: replyName,
 						lt_text,
 						replyText);
@@ -6070,12 +6070,12 @@ QString HistoryInner::computeSubItemValue(
 			return {};
 		}
 		if (document->loading()) {
-			return tr::lng_accessibility_message_downloading(tr::now);
+			return tr::lng_sr_message_downloading(tr::now);
 		} else if (!document->filepath(true).isEmpty()
 			|| document->loadedInMediaCache()) {
-			return tr::lng_accessibility_message_downloaded(tr::now);
+			return tr::lng_emoji_set_ready(tr::now);
 		}
-		return tr::lng_accessibility_message_not_downloaded(tr::now);
+		return tr::lng_sr_message_not_downloaded(tr::now);
 	}
 	case 7: { // Played.
 		const auto media = item->media();
@@ -6089,8 +6089,8 @@ QString HistoryInner::computeSubItemValue(
 		if (document->isVoiceMessage()
 			|| document->isVideoMessage()) {
 			return item->isUnreadMedia()
-				? tr::lng_accessibility_message_not_played(tr::now)
-				: tr::lng_accessibility_message_played(tr::now);
+				? tr::lng_sr_message_not_played(tr::now)
+				: tr::lng_sr_message_played(tr::now);
 		}
 		return {};
 	}
@@ -6194,16 +6194,16 @@ QString HistoryInner::computeSubItemValue(
 	case 15: // Delivery.
 		if (item->out()) {
 			if (item->isSending()) {
-				return tr::lng_accessibility_chat_sending(tr::now);
+				return tr::lng_sr_chat_sending(tr::now);
 			} else if (item->hasFailed()) {
-				return tr::lng_accessibility_chat_failed(tr::now);
+				return tr::lng_sr_chat_failed(tr::now);
 			}
-			return tr::lng_accessibility_chat_sent(tr::now);
+			return tr::lng_sr_chat_sent(tr::now);
 		}
-		return tr::lng_accessibility_chat_received(tr::now);
+		return tr::lng_sr_chat_received(tr::now);
 	case 16: // Edited.
 		if (item->Get<HistoryMessageEdited>()) {
-			return tr::lng_accessibility_message_edited(tr::now);
+			return tr::lng_sr_message_edited(tr::now);
 		}
 		return {};
 	case 17: { // Time.
@@ -6225,7 +6225,7 @@ QString HistoryInner::computeSubItemValue(
 					const auto doc = item->history()->owner().document(
 						customId);
 					if (const auto sticker = doc->sticker()) {
-						text = tr::lng_accessibility_message_custom_emoji(
+						text = tr::lng_sr_message_custom_emoji(
 							tr::now,
 							lt_emoji,
 							sticker->alt);
@@ -6259,7 +6259,7 @@ QString HistoryInner::computeSubItemValue(
 	}
 	case 21: // Pinned.
 		if (item->isPinned()) {
-			return tr::lng_accessibility_message_pinned(tr::now);
+			return tr::lng_sr_message_pinned(tr::now);
 		}
 		return {};
 	case 22: { // Web page site name.
@@ -6348,13 +6348,13 @@ QString HistoryInner::computeSubItemValue(
 		}
 		QStringList parts;
 		parts.push_back(poll->quiz()
-			? tr::lng_accessibility_message_poll_quiz(tr::now)
-			: tr::lng_accessibility_message_poll_poll(tr::now));
+			? tr::lng_polls_public_quiz(tr::now)
+			: tr::lng_polls_public(tr::now));
 		if (poll->closed()) {
 			parts.push_back(
-				tr::lng_accessibility_message_poll_closed(tr::now));
+				tr::lng_hours_closed(tr::now));
 		}
-		parts.push_back(tr::lng_accessibility_message_poll_votes(
+		parts.push_back(tr::lng_sr_message_poll_votes(
 			tr::now,
 			lt_count,
 			poll->totalVoters));
@@ -6460,11 +6460,11 @@ QString HistoryInner::computeSubItemValue(
 			+ QString::number(invoice->amount / 100.0, 'f', 2);
 		if (invoice->receiptMsgId) {
 			result += u" ("_q
-				+ tr::lng_accessibility_message_invoice_paid(tr::now)
+				+ tr::lng_sr_message_invoice_paid(tr::now)
 				+ u")"_q;
 		} else {
 			result += u" ("_q
-				+ tr::lng_accessibility_message_invoice_unpaid(tr::now)
+				+ tr::lng_sr_message_invoice_unpaid(tr::now)
 				+ u")"_q;
 		}
 		return result;
@@ -6472,7 +6472,7 @@ QString HistoryInner::computeSubItemValue(
 	case 36: { // Media spoiler.
 		const auto media = item->media();
 		if (media && media->hasSpoiler()) {
-			return tr::lng_accessibility_message_spoiler(tr::now);
+			return tr::lng_sr_message_spoiler(tr::now);
 		}
 		return {};
 	}
@@ -6553,13 +6553,13 @@ QString HistoryInner::computeSubItemValue(
 		}
 		switch (gift->type) {
 		case Data::GiftType::Premium:
-			return tr::lng_accessibility_message_gift_premium(
+			return tr::lng_sr_message_gift_premium(
 				tr::now,
 				lt_count,
 				gift->count);
 		case Data::GiftType::Credits:
 		case Data::GiftType::StarGift:
-			return tr::lng_accessibility_message_gift_credits(
+			return tr::lng_sr_message_gift_credits(
 				tr::now,
 				lt_count,
 				gift->count);
@@ -6595,8 +6595,8 @@ QString HistoryInner::computeSubItemValue(
 			auto line = todoItem.text.text;
 			line += u" ("_q;
 			line += todoItem.completedBy
-				? tr::lng_accessibility_message_todo_completed(tr::now)
-				: tr::lng_accessibility_message_todo_not_completed(tr::now);
+				? tr::lng_sr_message_todo_completed(tr::now)
+				: tr::lng_sr_message_todo_not_completed(tr::now);
 			line += u")"_q;
 			items.push_back(line);
 		}
