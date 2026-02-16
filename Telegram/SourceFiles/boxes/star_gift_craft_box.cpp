@@ -571,7 +571,6 @@ void AddCraftGiftsList(
 	struct State {
 		rpl::event_stream<> updated;
 		Data::CraftGiftsDescriptor data;
-		QString offset;
 		rpl::variable<bool> empty = true;
 		rpl::lifetime loading;
 	};
@@ -604,7 +603,7 @@ void AddCraftGiftsList(
 	});
 	const auto peer = window->session().user();
 	const auto loadMore = [=] {
-		if (!state->offset.isEmpty() && !state->loading) {
+		if (!state->data.offset.isEmpty() && !state->loading) {
 			state->loading = Data::CraftGiftsSlice(
 				&peer->session(),
 				state->data.giftId,

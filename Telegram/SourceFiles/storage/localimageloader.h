@@ -193,6 +193,7 @@ struct FilePrepareResult {
 	PreparedPhotoThumbs photoThumbs;
 	TextWithTags caption;
 	bool spoiler = false;
+	bool forceFile = false;
 
 	std::vector<MTPInputDocument> attachedStickers;
 
@@ -230,6 +231,7 @@ public:
 		const TextWithTags &caption,
 		bool spoiler,
 		std::shared_ptr<SendingAlbum> album = nullptr,
+		bool forceFile = false,
 		uint64 idOverride = 0);
 	FileLoadTask(
 		not_null<Main::Session*> session,
@@ -292,6 +294,7 @@ private:
 	SendMediaType _type;
 	TextWithTags _caption;
 	bool _spoiler = false;
+	bool _forceFile = false;
 
 	std::shared_ptr<FilePrepareResult> _result;
 

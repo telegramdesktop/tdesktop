@@ -495,11 +495,13 @@ WithDropdownController::WithDropdownController(
 	not_null<QWidget*> menuParent,
 	const style::DropdownMenu &menuSt,
 	Qt::Alignment menuAlign,
+	QPoint menuPosition,
 	Fn<void(bool)> menuOverCallback)
 : _button(button)
 , _menuParent(menuParent)
 , _menuSt(menuSt)
 , _menuAlign(menuAlign)
+, _menuPosition(menuPosition)
 , _menuOverCallback(std::move(menuOverCallback)) {
 	button->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
@@ -534,8 +536,8 @@ void WithDropdownController::updateDropdownGeometry() {
 	const auto mwidth = _menu->width();
 	const auto mheight = _menu->height();
 	const auto padding = _menuSt.wrap.padding;
-	const auto x = st::mediaPlayerMenuPosition.x();
-	const auto y = st::mediaPlayerMenuPosition.y();
+	const auto x = _menuPosition.x();
+	const auto y = _menuPosition.y();
 	const auto position = _menu->parentWidget()->mapFromGlobal(
 		_button->mapToGlobal(QPoint())
 	) + [&] {
@@ -636,6 +638,7 @@ OrderController::OrderController(
 	menuParent,
 	st::mediaPlayerMenu,
 	style::al_topright,
+	st::mediaPlayerMenuPosition,
 	std::move(menuOverCallback))
 , _button(button)
 , _appOrder(std::move(value))
@@ -724,6 +727,7 @@ SpeedController::SpeedController(
 	menuParent,
 	st.menu.dropdown,
 	st.menuAlign,
+	st.menuPosition,
 	std::move(menuOverCallback))
 , _st(st)
 , _lookup(std::move(value))

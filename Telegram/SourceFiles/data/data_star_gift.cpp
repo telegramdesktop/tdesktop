@@ -314,7 +314,7 @@ rpl::producer<CraftGiftsDescriptor> CraftGiftsSlice(
 		const auto requestId = session->api().request(
 			MTPpayments_GetCraftStarGifts(
 				MTP_long(giftId),
-				MTP_string(),
+				MTP_string(offset),
 				MTP_int(kCraftGiftsPerPage))
 		).done([=](const MTPpayments_SavedStarGifts &result) {
 			const auto user = session->user();

@@ -928,6 +928,7 @@ void Uploader::finishFront() {
 				.file = file,
 				.thumb = thumb,
 				.attachedStickers = attachedStickers,
+				.forceFile = entry.file->forceFile,
 			},
 			.options = options,
 			.edit = edit,

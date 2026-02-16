@@ -477,6 +477,7 @@ FileLoadTask::FileLoadTask(
 	const TextWithTags &caption,
 	bool spoiler,
 	std::shared_ptr<SendingAlbum> album,
+	bool forceFile,
 	uint64 idOverride)
 : _id(idOverride ? idOverride : base::RandomValue<uint64>())
 , _session(session)
@@ -489,7 +490,8 @@ FileLoadTask::FileLoadTask(
 , _information(std::move(information))
 , _type(type)
 , _caption(caption)
-, _spoiler(spoiler) {
+, _spoiler(spoiler)
+, _forceFile(forceFile) {
 	Expects(to.options.scheduled
 		|| to.options.shortcutId
 		|| !to.replaceMediaOf
@@ -885,22 +887,24 @@ void FileLoadTask::process(Args &&args) {
 			isVideo = true;
 			auto coverWidth = video->thumbnail.width();
 			auto coverHeight = video->thumbnail.height();
-			if (video->isGifv && !_album) {
-				attributes.push_back(MTP_documentAttributeAnimated());
+			if (!_forceFile) {
+				if (video->isGifv && !_album) {
+					attributes.push_back(MTP_documentAttributeAnimated());
+				}
+				auto flags = MTPDdocumentAttributeVideo::Flags(0);
+				if (video->supportsStreaming) {
+					flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
+				}
+				const auto realSeconds = video->duration / 1000.;
+				attributes.push_back(MTP_documentAttributeVideo(
+					MTP_flags(flags),
+					MTP_double(realSeconds),
+					MTP_int(coverWidth),
+					MTP_int(coverHeight),
+					MTPint(),
+					MTPdouble(),
+					MTPstring()));
 			}
-			auto flags = MTPDdocumentAttributeVideo::Flags(0);
-			if (video->supportsStreaming) {
-				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
-			}
-			const auto realSeconds = video->duration / 1000.;
-			attributes.push_back(MTP_documentAttributeVideo(
-				MTP_flags(flags),
-				MTP_double(realSeconds),
-				MTP_int(coverWidth),
-				MTP_int(coverHeight),
-				MTPint(), // preload_prefix_size
-				MTPdouble(), // video_start_ts
-				MTPstring())); // video_codec
 
 			if (args.generateGoodThumbnail) {
 				goodThumbnail = video->thumbnail;
@@ -1062,6 +1066,7 @@ void FileLoadTask::process(Args &&args) {
 	_result->photo = photo;
 	_result->document = document;
 	_result->photoThumbs = photoThumbs;
+	_result->forceFile = _forceFile;
 }
 
 void FileLoadTask::finish() {

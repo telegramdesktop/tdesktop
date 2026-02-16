@@ -64,6 +64,7 @@ MediaSpeedButton {
 	rippleRadius: pixels;
 	menu: MediaSpeedMenu;
 	menuAlign: align;
+	menuPosition: point;
 }
 
 mediaPlayerButton: MediaPlayerButton {
@@ -228,6 +229,7 @@ mediaPlayerSpeedButton: MediaSpeedButton {
 	rippleRadius: 4px;
 	menu: mediaPlayerSpeedMenu;
 	menuAlign: align(topright);
+	menuPosition: point(-2px, -1px);
 }
 
 mediaPlayerVolumeIcon0: icon {

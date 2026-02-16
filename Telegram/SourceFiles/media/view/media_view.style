@@ -369,6 +369,7 @@ mediaviewSpeedButton: MediaSpeedButton(mediaPlayerSpeedButton) {
 	rippleRadius: 16px;
 	menu: mediaviewSpeedMenu;
 	menuAlign: align(bottomright);
+	menuPosition: point(-2px, 31px);
 }
 
 themePreviewSize: size(903px, 584px);

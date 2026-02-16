@@ -927,7 +927,7 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 			return GiftBadge{
 				.text = (onsale
 					? tr::lng_gift_stars_on_sale(tr::now)
-					: (unique && (data.resale || pinned))
+					: (unique && (data.resale || pinned || data.mine))
 					? ('#' + Lang::FormatCountDecimal(unique->number))
 					: data.resale
 					? tr::lng_gift_stars_resale(tr::now)

@@ -841,7 +841,9 @@ void EditCaptionBox::setupDragArea() {
 	auto computeState = [=](const QMimeData *data) {
 		using DragState = Storage::MimeDataState;
 		const auto state = Storage::ComputeMimeDataState(data);
-		return (state == DragState::PhotoFiles || state == DragState::Image)
+		return (state == DragState::PhotoFiles
+			|| state == DragState::Image
+			|| state == DragState::MediaFiles)
 			? (_asFile ? DragState::Files : DragState::Image)
 			: state;
 	};

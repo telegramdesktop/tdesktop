@@ -235,9 +235,13 @@ bool PreparedList::hasGroupOption(bool slowmode) const {
 
 bool PreparedList::hasSendImagesAsPhotosOption(bool slowmode) const {
 	using Type = PreparedFile::Type;
-	return slowmode
-		? ((files.size() == 1) && (files.front().type == Type::Photo))
-		: ranges::contains(files, Type::Photo, &PreparedFile::type);
+	if (slowmode) {
+		const auto t = files.front().type;
+		return (files.size() == 1)
+			&& (t == Type::Photo || t == Type::Video);
+	}
+	return ranges::contains(files, Type::Photo, &PreparedFile::type)
+		|| ranges::contains(files, Type::Video, &PreparedFile::type);
 }
 
 bool PreparedList::canHaveEditorHintLabel() const {

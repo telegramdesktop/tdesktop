@@ -127,7 +127,7 @@ private:
 			CacheKey) = default;
 	};
 	mutable base::flat_map<CacheKey, CachedBg> _cachedBg;
-	mutable base::flat_map<BubbleRoundingKey, QPainterPath> _cachedOutline;
+	mutable base::flat_map<CacheKey, QPainterPath> _cachedOutline;
 	mutable std::unique_ptr<Ui::GlareEffect> _glare;
 	Fn<void()> _repaint;
 
@@ -189,7 +189,8 @@ void KeyboardStyle::paintButtonBg(
 	Expects(st != nullptr);
 
 	using Corner = Ui::BubbleCornerRounding;
-	auto &cachedBg = _cachedBg[CacheKey{ rounding.key(), color }];
+	const auto key = CacheKey{ rounding.key(), color };
+	auto &cachedBg = _cachedBg[key];
 
 	const auto sti = &st->imageStyle(false);
 	const auto ratio = style::DevicePixelRatio();
@@ -238,7 +239,7 @@ void KeyboardStyle::paintButtonBg(
 					: Ui::CachedCornerRadius::BubbleSmall);
 			}
 			const auto r = Rect(rect.size());
-			_cachedOutline[rounding.key()] = Ui::ComplexRoundedRectPath(
+			_cachedOutline[key] = Ui::ComplexRoundedRectPath(
 				r - Margins(st::lineWidth),
 				radiuses[0],
 				radiuses[1],
@@ -312,8 +313,8 @@ void KeyboardStyle::paintButtonLoading(
 		return;
 	}
 
-	const auto cacheKey = rounding.key();
-	auto &cachedBg = _cachedBg[CacheKey{ cacheKey, color }];
+	const auto key = CacheKey{ rounding.key(), color };
+	auto &cachedBg = _cachedBg[key];
 	if (!cachedBg.image.isNull()) {
 		if (_glare && _glare->glare.birthTime) {
 			const auto progress = _glare->progress(crl::now());
@@ -331,7 +332,7 @@ void KeyboardStyle::paintButtonLoading(
 
 				auto path = QPainterPath();
 				path.addRect(Rect(rect.size()));
-				path -= _cachedOutline[cacheKey];
+				path -= _cachedOutline[key];
 
 				constexpr auto kBgOutlineAlpha = 0.5;
 				constexpr auto kFgOutlineAlpha = 0.8;

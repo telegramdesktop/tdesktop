@@ -186,7 +186,15 @@ api().request(MTPnamespace_MethodName(
 **Key points:**
 - Always refer to `api.tl` for method signatures and return types
 - Use generated `MTP...` types for parameters (`MTP_int`, `MTP_string`, etc.)
-- For multiple constructors, use `.match()` or check `.type()` then `.c_constructor()`
+- For multiple constructors, use `.match()` or check `.type()` against `mtpc_` constants then call `.c_constructorName()`:
+  ```cpp
+  // Using match:
+  result.match([&](const MTPDuser &data) { ... }, [&](const MTPDuserEmpty &data) { ... });
+  // Or explicit type check:
+  if (result.type() == mtpc_user) {
+      const auto &data = result.c_user(); // asserts on type mismatch
+  }
+  ```
 - For single constructors, use `.data()` shortcut
 - Include `.handleFloodErrors()` before `.send()` in rare cases where you want special case flood error handling
 
@@ -218,7 +226,8 @@ primaryButton: MyButtonStyle(defaultButton) {
 ```
 
 **Built-in types:**
-- `int` - Integer numbers
+- `int` - Integer numbers (e.g., `maxLines: 3;`)
+- `bool` - Boolean values (e.g., `useShadow: true;`)
 - `pixels` - Pixel values with `px` suffix (e.g., `10px`)
 - `color` - Named colors from `ui/colors.palette`
 - `icon` - Inline icon definition: `icon{{ "path/stem", color }}`
@@ -228,6 +237,22 @@ primaryButton: MyButtonStyle(defaultButton) {
 - `align` - Alignment: `align(center)`, `align(left)`
 - `font` - Font: `font(14px semibold)`
 - `double` - Floating point
+
+**Multi-part icons** (layers drawn bottom-up):
+```style
+myComplexIcon: icon{
+  { "gui/icons/background", iconBgColor },
+  { "gui/icons/foreground", iconFgColor }
+};
+```
+
+**Borders** are typically separate fields, not a single property:
+```style
+chatInput {
+  border: 1px;                       // width
+  borderFg: defaultInputFieldBorder; // color
+}
+```
 
 **Never hardcode sizes in code:**
 
@@ -311,6 +336,20 @@ auto filesTextProducer = tr::lng_files_selected(
 - Placeholders use `lt_tag_name, value` pattern
 - For `{count}`: immediate uses `int`, reactive uses `rpl::producer<float64>` with `| tr::to_count()`
 - Move producers with `std::move` when passing to placeholders
+- Rich text projectors — pass as the last argument to produce `TextWithEntities` instead of `QString`. These are smart objects with multiple `operator()` overloads:
+  - `tr::marked` — basic projection, converts `QString` to `TextWithEntities`
+  - `tr::rich` — interprets `**bold**`/`__italic__` markup in the string
+  - `tr::bold`, `tr::italic`, `tr::underline` — wrap text in that formatting
+  - `tr::link` — wrap as a clickable link
+  - `tr::url(u"https://..."_q)` — returns a projection that converts text to a link pointing to the given URL; can be passed to `rpl::map` or directly to a `tr::lng_...` call
+  ```cpp
+  auto title = tr::lng_export_progress_title(tr::now, tr::bold);
+  auto text = tr::lng_proxy_incorrect_secret(tr::now, tr::rich);
+  auto linked = tr::lng_settings_birthday_contacts(
+      lt_link,
+      tr::lng_settings_birthday_contacts_link(tr::url(link)),
+      tr::marked);
+  ```
 
 ## RPL (Reactive Programming Library)
 
@@ -370,9 +409,16 @@ std::move(merged) | rpl::on_next([=](QString &&value) {
 }, lifetime);
 ```
 
+**Other pipeline starters** — besides `rpl::on_next`, there are:
+- `rpl::on_error([=](Error &&e) { ... }, lifetime)` — handle errors
+- `rpl::on_done([=] { ... }, lifetime)` — handle stream completion
+- `rpl::on_next_error_done(nextCb, errorCb, doneCb, lifetime)` — handle all three
+
+The `Error` template parameter defaults to `rpl::no_error`: `rpl::producer<Type, Error = no_error>`.
+
 **Key points:**
 - Explicitly `std::move` producers when starting pipelines
 - Pass `rpl::lifetime` to `on_...` methods or store returned lifetime
 - Use `rpl::duplicate(producer)` to reuse a producer multiple times
-- Combined producers automatically unpack tuples in lambdas
+- Combined producers automatically unpack tuples in lambdas (works with `rpl::map`, `rpl::filter`, and `rpl::on_next`)
 

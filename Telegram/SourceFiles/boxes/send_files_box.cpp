@@ -264,14 +264,16 @@ SendFilesBox::Block::Block(
 			});
 		_preview.reset(preview);
 	} else {
-		const auto media = Ui::SingleMediaPreview::Create(
-			parent,
-			st,
-			gifPaused,
-			first,
-			[=](Ui::AttachActionType type) {
-				return actionAllowed((*_items)[from], type);
-			});
+		const auto media = way.sendImagesAsPhotos()
+			? Ui::SingleMediaPreview::Create(
+				parent,
+				st,
+				gifPaused,
+				first,
+				[=](Ui::AttachActionType type) {
+					return actionAllowed((*_items)[from], type);
+				})
+			: nullptr;
 		if (media) {
 			_isSingleMedia = true;
 			_preview.reset(media);
@@ -633,7 +635,9 @@ void SendFilesBox::setupDragArea() {
 	auto computeState = [=](const QMimeData *data) {
 		using DragState = Storage::MimeDataState;
 		const auto state = Storage::ComputeMimeDataState(data);
-		return (state == DragState::PhotoFiles || state == DragState::Image)
+		return (state == DragState::PhotoFiles
+			|| state == DragState::Image
+			|| state == DragState::MediaFiles)
 			? (_sendWay.current().sendImagesAsPhotos()
 				? DragState::Image
 				: DragState::Files)
@@ -973,11 +977,11 @@ void SendFilesBox::initSendWay() {
 		const auto was = hidden();
 		updateCaptionPlaceholder();
 		updateEmojiPanelGeometry();
-		for (auto &block : _blocks) {
-			block.setSendWay(value);
-		}
-		refreshButtons();
-		refreshPriceTag();
+		applyBlockChanges();
+		generatePreviewFrom(0);
+		_inner->resizeToWidth(st::boxWideWidth);
+		refreshControls();
+		captionResized();
 		if (was != hidden()) {
 			updateBoxSize();
 			updateControlsGeometry();
@@ -1296,15 +1300,15 @@ void SendFilesBox::setupSendWayControls() {
 		_st.files.check);
 	_sendImagesAsPhotos.create(
 		this,
-		tr::lng_send_compressed(tr::now),
-		_sendWay.current().sendImagesAsPhotos(),
+		tr::lng_send_as_documents(tr::now),
+		!_sendWay.current().sendImagesAsPhotos(),
 		_st.files.checkbox,
 		_st.files.check);
 
 	_sendWay.changes(
 	) | rpl::on_next([=](SendFilesWay value) {
 		_groupFiles->setChecked(value.groupFiles());
-		_sendImagesAsPhotos->setChecked(value.sendImagesAsPhotos());
+		_sendImagesAsPhotos->setChecked(!value.sendImagesAsPhotos());
 	}, lifetime());
 
 	_groupFiles->checkedChanges(
@@ -1326,10 +1330,10 @@ void SendFilesBox::setupSendWayControls() {
 	_sendImagesAsPhotos->checkedChanges(
 	) | rpl::on_next([=](bool checked) {
 		auto sendWay = _sendWay.current();
-		if (sendWay.sendImagesAsPhotos() == checked) {
+		if (sendWay.sendImagesAsPhotos() == !checked) {
 			return;
 		}
-		sendWay.setSendImagesAsPhotos(checked);
+		sendWay.setSendImagesAsPhotos(!checked);
 		if (checkWithWay(sendWay)) {
 			_sendWay = sendWay;
 		} else {
@@ -1349,9 +1353,10 @@ void SendFilesBox::setupSendWayControls() {
 	rpl::combine(
 		_groupFiles->checkedValue(),
 		_sendImagesAsPhotos->checkedValue()
-	) | rpl::on_next([=](bool groupFiles, bool asPhoto) {
+	) | rpl::on_next([=](bool groupFiles, bool asDocuments) {
 		_wayRemember->setVisible(
-			(groupFiles != groupFilesFirst) || (asPhoto != asPhotosFirst));
+			(groupFiles != groupFilesFirst)
+				|| ((!asDocuments) != asPhotosFirst));
 		captionResized();
 	}, lifetime());
 
@@ -1388,8 +1393,8 @@ void SendFilesBox::updateSendWayControls() {
 	_sendImagesAsPhotos->setVisible(
 		_list.hasSendImagesAsPhotosOption(onlyOne));
 	_sendImagesAsPhotos->setText((_list.files.size() > 1)
-		? tr::lng_send_compressed(tr::now)
-		: tr::lng_send_compressed_one(tr::now));
+		? tr::lng_send_as_documents(tr::now)
+		: tr::lng_send_as_documents_one(tr::now));
 
 	_hintLabel->setVisible(
 		_show->session().settings().photoEditorHintShown()

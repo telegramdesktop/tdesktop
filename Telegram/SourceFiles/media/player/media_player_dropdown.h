@@ -73,6 +73,7 @@ public:
 		not_null<QWidget*> menuParent,
 		const style::DropdownMenu &menuSt,
 		Qt::Alignment menuAlign,
+		QPoint menuPosition,
 		Fn<void(bool)> menuOverCallback);
 	virtual ~WithDropdownController() = default;
 
@@ -95,6 +96,7 @@ private:
 	const not_null<QWidget*> _menuParent;
 	const style::DropdownMenu &_menuSt;
 	const Qt::Alignment _menuAlign = Qt::AlignTop | Qt::AlignRight;
+	const QPoint _menuPosition;
 	const Fn<void(bool)> _menuOverCallback;
 	base::unique_qptr<Ui::DropdownMenu> _menu;
 	rpl::variable<bool> _menuToggled;
