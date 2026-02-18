@@ -88,7 +88,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "ui/accessible/ui_accessible_factory.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/controls/location_picker.h"
 #include "styles/style_window.h"
 
 #include <QtCore/QStandardPaths>
@@ -324,11 +323,6 @@ void Application::run() {
 
 	// Create mime database, so it won't be slow later.
 	QMimeDatabase().mimeTypeForName(u"text/plain"_q);
-
-	// Check now to avoid re-entrance later.
-	[[maybe_unused]] const auto ivSupported = Iv::ShowButton();
-	[[maybe_unused]] const auto lpAvailable = Ui::LocationPicker::Available(
-		{});
 
 	_windows.emplace(nullptr, std::make_unique<Window::Controller>());
 	setLastActiveWindow(_windows.front().second.get());

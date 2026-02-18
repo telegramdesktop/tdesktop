@@ -772,12 +772,10 @@ std::shared_ptr<Main::SessionShow> LocationPicker::uiShow() {
 }
 
 bool LocationPicker::Available(const LocationPickerConfig &config) {
-	static const auto Supported = [&] {
-		const auto availability = Webview::Availability();
-		return availability.customSchemeRequests
-			&& availability.customReferer;
-	}();
-	return Supported && !config.mapsToken.isEmpty();
+	const auto availability = Webview::Availability();
+	return availability.customSchemeRequests
+		&& availability.customReferer
+		&& !config.mapsToken.isEmpty();
 }
 
 void LocationPicker::setup(const Descriptor &descriptor) {
