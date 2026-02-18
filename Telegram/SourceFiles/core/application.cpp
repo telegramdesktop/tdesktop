@@ -92,6 +92,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 
 #include <QtCore/QStandardPaths>
+#include "ui/widgets/fields/input_field.h"
+
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
@@ -324,6 +326,9 @@ void Application::run() {
 
 	// Create mime database, so it won't be slow later.
 	QMimeDatabase().mimeTypeForName(u"text/plain"_q);
+
+	// Pre-warm InstantReplaces trie on background thread.
+	crl::async([] { Ui::InstantReplaces::Default(); });
 
 	// Check now to avoid re-entrance later.
 	[[maybe_unused]] const auto ivSupported = Iv::ShowButton();
