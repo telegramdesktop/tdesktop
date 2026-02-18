@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "base/timer.h"
 
+#include <map>
+
 class StickerPremiumMark;
 
 namespace style {
@@ -438,7 +440,7 @@ private:
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
 	base::flat_set<DocumentId> _restrictedCustomList;
-	base::flat_map<EmojiStatusId, CustomEmojiInstance> _customEmoji;
+	std::map<EmojiStatusId, CustomEmojiInstance> _customEmoji;
 	base::flat_map<
 		DocumentId,
 		std::unique_ptr<Ui::Text::CustomEmoji>> _customRecent;
