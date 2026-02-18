@@ -4148,6 +4148,8 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 		} else {
 			_inner->selectSkipPage(_scroll->height(), -1);
 		}
+	} else if (e->key() == Qt::Key_Space && !_suggestions) {
+		_inner->toggleRowSelection();
 	} else if (redirectKeyToSearch(e)) {
 		// This delay in search focus processing allows us not to create
 		// _suggestions in case the event inserts some non-whitespace search
