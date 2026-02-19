@@ -95,6 +95,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Dialogs {
 namespace {
 
+constexpr auto kFreezeTimeout = crl::time(5000);
 constexpr auto kHashtagResultsLimit = 5;
 constexpr auto kStartReorderThreshold = 30;
 constexpr auto kStartDragToFilterThresholdX = kStartReorderThreshold;
@@ -291,7 +292,8 @@ InnerWidget::InnerWidget(
 , _narrowWidth(st::defaultDialogRow.padding.left()
 	+ st::defaultDialogRow.photoSize
 	+ st::defaultDialogRow.padding.left())
-, _childListShown(std::move(childListShown)) {
+, _childListShown(std::move(childListShown))
+, _freezeTimer([=] { _shownList->unfreeze(); update(); }) {
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 
 	style::PaletteChanged(
@@ -1677,6 +1679,13 @@ void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 		return;
 	}
 
+	if (_lastMousePosition && *_lastMousePosition != globalPosition) {
+		if (!_freezeTimer.isActive()) {
+			_shownList->freeze();
+		}
+		_freezeTimer.callOnce(kFreezeTimeout);
+	}
+
 	if (_pressed && (e->buttons() & Qt::LeftButton)) {
 		const auto local = e->pos();
 		const auto outside = _dragging ? false : true;
@@ -3051,6 +3060,8 @@ void InnerWidget::updateDialogRow(
 
 void InnerWidget::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
+	_shownList->freeze();
+	_freezeTimer.callOnce(kFreezeTimeout);
 }
 
 Row *InnerWidget::shownRowByKey(Key key) {
@@ -3133,6 +3144,7 @@ void InnerWidget::refreshShownList() {
 		? session().data().chatsFilters().chatsList(_filterId)->indexed()
 		: session().data().chatsList(_openedFolder)->indexed();
 	if (_shownList != list) {
+		_shownList->unfreeze();
 		_shownList = list;
 		_shownList->updateHeights(_narrowRatio);
 	}
@@ -3140,7 +3152,10 @@ void InnerWidget::refreshShownList() {
 
 void InnerWidget::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
+	_freezeTimer.cancel();
+	_shownList->unfreeze();
 	clearSelection();
+	update();
 }
 
 void InnerWidget::dragLeft() {

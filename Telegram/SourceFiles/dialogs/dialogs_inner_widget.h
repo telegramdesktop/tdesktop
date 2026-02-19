@@ -678,6 +678,7 @@ private:
 	rpl::event_stream<> _touchCancelRequests;
 
 	rpl::variable<ChildListShown> _childListShown;
+	base::Timer _freezeTimer;
 	float64 _narrowRatio = 0.;
 	bool _geometryInited = false;
 

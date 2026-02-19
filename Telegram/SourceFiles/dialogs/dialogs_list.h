@@ -52,6 +52,8 @@ public:
 	not_null<Row*> addByName(Key key);
 	bool moveToTop(Key key);
 	void adjustByDate(not_null<Row*> row);
+	void freeze();
+	void unfreeze();
 	bool updateHeight(Key key, float64 narrowRatio);
 	bool updateHeights(float64 narrowRatio);
 	bool remove(Key key, Row *replacedBy = nullptr);
@@ -82,8 +84,10 @@ private:
 	SortMode _sortMode = SortMode();
 	FilterId _filterId = 0;
 	float64 _narrowRatio = 0.;
+	bool _frozen = false;
 	std::vector<not_null<Row*>> _rows;
 	std::map<Key, std::unique_ptr<Row>> _rowByKey;
+	base::flat_set<not_null<Row*>> _pendingAdjust;
 
 };
 

@@ -84,6 +84,11 @@ void List::adjustByName(not_null<Row*> row) {
 void List::adjustByDate(not_null<Row*> row) {
 	Expects(_sortMode == SortMode::Date);
 
+	if (_frozen) {
+		_pendingAdjust.emplace(row);
+		return;
+	}
+
 	const auto key = row->sortKey(_filterId);
 	const auto index = row->index();
 	const auto i = _rows.begin() + index;
@@ -100,6 +105,17 @@ void List::adjustByDate(not_null<Row*> row) {
 		if (after != i) {
 			rotate(after, i, i + 1);
 		}
+	}
+}
+
+void List::freeze() {
+	_frozen = true;
+}
+
+void List::unfreeze() {
+	_frozen = false;
+	for (const auto &row : base::take(_pendingAdjust)) {
+		adjustByDate(row);
 	}
 }
 
@@ -170,6 +186,7 @@ bool List::remove(Key key, Row *replacedBy) {
 	}
 
 	const auto row = i->second.get();
+	_pendingAdjust.remove(row);
 	row->entry()->owner().dialogsRowReplaced({ row, replacedBy });
 
 	auto top = row->top();
