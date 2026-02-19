@@ -320,7 +320,7 @@ parts:
   jpegli:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
-    source-tag: v0.11.1
+    source-tag: v0.11.2
     plugin: cmake
     build-packages:
       - curl

@@ -174,7 +174,7 @@ RUN git clone -b v1.5.2 --depth=1 https://github.com/xiph/opus.git \
 	&& rm -rf opus
 
 FROM builder AS dav1d
-RUN git clone -b 1.5.1 --depth=1 https://github.com/videolan/dav1d.git \
+RUN git clone -b 1.5.3 --depth=1 https://github.com/videolan/dav1d.git \
 	&& cd dav1d \
 	&& meson build \
 		--buildtype=plain \
@@ -231,7 +231,7 @@ RUN git init libvpx \
 	&& rm -rf libvpx
 
 FROM builder AS webp
-RUN git clone -b v1.5.0 --depth=1 https://github.com/webmproject/libwebp.git \
+RUN git clone -b v1.6.0 --depth=1 https://github.com/webmproject/libwebp.git \
 	&& cd libwebp \
 	&& cmake -B build . \
 		-DWEBP_BUILD_ANIM_UTILS=OFF \
@@ -265,7 +265,7 @@ RUN git clone -b v1.3.0 --depth=1 https://github.com/AOMediaCodec/libavif.git \
 FROM builder AS heif
 COPY --link --from=de265 /usr/src/de265-cache /
 
-RUN git clone -b v1.19.8 --depth=1 https://github.com/strukturag/libheif.git \
+RUN git clone -b v1.21.2 --depth=1 https://github.com/strukturag/libheif.git \
 	&& cd libheif \
 	&& cmake -B build . \
 		-DBUILD_SHARED_LIBS=OFF \
@@ -275,6 +275,7 @@ RUN git clone -b v1.19.8 --depth=1 https://github.com/strukturag/libheif.git \
 		-DWITH_X265=OFF \
 		-DWITH_AOM_DECODER=OFF \
 		-DWITH_AOM_ENCODER=OFF \
+		-DWITH_X264=OFF \
 		-DWITH_OpenH264_DECODER=OFF \
 		-DWITH_RAV1E=OFF \
 		-DWITH_RAV1E_PLUGIN=OFF \
@@ -293,7 +294,7 @@ COPY --link --from=lcms2 /usr/src/lcms2-cache /
 COPY --link --from=brotli /usr/src/brotli-cache /
 COPY --link --from=highway /usr/src/highway-cache /
 
-RUN git clone -b v0.11.1 --depth=1 https://github.com/libjxl/libjxl.git \
+RUN git clone -b v0.11.2 --depth=1 https://github.com/libjxl/libjxl.git \
 	&& cd libjxl \
 	&& git submodule update --init --recursive --depth=1 third_party/libjpeg-turbo \
 	&& curl -sSL https://github.com/libjxl/libjxl/commit/ee3955b1553bcc10304d45b85dfef9afa9349d72.patch | sed 's/offset + t/offset + i/' | git apply \

@@ -715,7 +715,7 @@ win:
 
 # Somehow in x86 Debug build dav1d crashes on AV1 10bpc videos.
 stage('dav1d', """
-    git clone -b 1.5.1 https://code.videolan.org/videolan/dav1d.git
+    git clone -b 1.5.3 https://code.videolan.org/videolan/dav1d.git
     cd dav1d
 win32:
     SET "TARGET=x86"
@@ -899,7 +899,7 @@ mac:
 """)
 
 stage('libwebp', """
-    git clone -b v1.5.0 https://github.com/webmproject/libwebp.git
+    git clone -b v1.6.0 https://github.com/webmproject/libwebp.git
     cd libwebp
 win:
     nmake /f Makefile.vc CFG=debug-static OBJDIR=out RTLIBCFG=static all
@@ -938,7 +938,7 @@ mac:
 """)
 
 stage('libheif', """
-    git clone -b v1.19.8 https://github.com/strukturag/libheif.git
+    git clone -b v1.21.2 https://github.com/strukturag/libheif.git
     cd libheif
 win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
@@ -953,6 +953,7 @@ win:
         -DBUILD_TESTING=OFF ^
         -DENABLE_PLUGIN_LOADING=OFF ^
         -DWITH_LIBDE265=ON ^
+        -DWITH_X264=OFF ^
         -DWITH_OpenH264_DECODER=OFF ^
         -DWITH_SvtEnc=OFF ^
         -DWITH_SvtEnc_PLUGIN=OFF ^
@@ -979,6 +980,7 @@ mac:
         -D WITH_AOM_ENCODER=OFF \\
         -D WITH_AOM_DECODER=OFF \\
         -D WITH_X265=OFF \\
+        -D WITH_X264=OFF \\
         -D WITH_OpenH264_DECODER=OFF \\
         -D WITH_SvtEnc=OFF \\
         -D WITH_RAV1E=OFF \\
@@ -996,7 +998,7 @@ mac:
 """)
 
 stage('libjxl', """
-    git clone -b v0.11.1 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    git clone -b v0.11.2 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
     cd libjxl
 """ + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
