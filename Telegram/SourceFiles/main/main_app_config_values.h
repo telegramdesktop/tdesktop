@@ -14,5 +14,6 @@ class Session;
 namespace AppConfig {
 
 [[nodiscard]] std::optional<QString> FragmentLink(not_null<Main::Session*>);
+[[nodiscard]] std::optional<QString> ChainSimLink(not_null<Main::Session*>);
 
 } // namespace AppConfig

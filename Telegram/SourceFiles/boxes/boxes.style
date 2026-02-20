@@ -281,6 +281,9 @@ membersAbout: FlatLabel(defaultFlatLabel) {
 fragmentBoxButton: RoundButton(introFragmentButton) {
 	width: 256px;
 }
+chainSimBoxButton: RoundButton(introChainSimButton) {
+	width: 256px;
+}
 
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;

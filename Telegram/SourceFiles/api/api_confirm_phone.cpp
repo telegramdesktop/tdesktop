@@ -52,6 +52,8 @@ void ConfirmPhone::resolve(
 				return data.vlength().v;
 			}, [&](const MTPDauth_sentCodeTypeFragmentSms &data) {
 				return data.vlength().v;
+			}, [&](const MTPDauth_sentCodeTypeChainSimSms &data) {
+				return data.vlength().v;
 			}, [&](const MTPDauth_sentCodeTypeCall &data) {
 				return data.vlength().v;
 			}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
@@ -71,6 +73,8 @@ void ConfirmPhone::resolve(
 			});
 			const auto fragmentUrl = data.vtype().match([](
 					const MTPDauth_sentCodeTypeFragmentSms &data) {
+				return qs(data.vurl());
+			}, [](const MTPDauth_sentCodeTypeChainSimSms &data) {
 				return qs(data.vurl());
 			}, [](const auto &) { return QString(); });
 			const auto phoneHash = qs(data.vphone_code_hash());

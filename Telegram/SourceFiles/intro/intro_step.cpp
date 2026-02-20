@@ -358,6 +358,7 @@ void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 	};
 	getData()->codeByTelegram = false;
 	getData()->codeByFragmentUrl = QString();
+	getData()->codeByChainSimUrl = QString();
 	data.vtype().match([&](const MTPDauth_sentCodeTypeApp &data) {
 		getData()->codeByTelegram = true;
 		getData()->codeLength = data.vlength().v;
@@ -365,6 +366,9 @@ void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 		getData()->codeLength = data.vlength().v;
 	}, [&](const MTPDauth_sentCodeTypeFragmentSms &data) {
 		getData()->codeByFragmentUrl = qs(data.vurl());
+		getData()->codeLength = data.vlength().v;
+	}, [&](const MTPDauth_sentCodeTypeChainSimSms &data) {
+		getData()->codeByChainSimUrl = qs(data.vurl());
 		getData()->codeLength = data.vlength().v;
 	}, [&](const MTPDauth_sentCodeTypeCall &data) {
 		getData()->codeLength = data.vlength().v;

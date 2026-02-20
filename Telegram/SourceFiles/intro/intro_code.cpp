@@ -49,11 +49,13 @@ CodeWidget::CodeWidget(
 	_code->setDigitsCountMax(getData()->codeLength);
 
 	updateDescText();
-	setTitleText(_isFragment.value(
-	) | rpl::map([=](bool isFragment) {
-		return !isFragment
-			? rpl::single(Ui::FormatPhone(getData()->phone))
-			: tr::lng_intro_fragment_title();
+	setTitleText(rpl::combine(
+		_isFragment.value(),
+		_isChainSim.value()
+	) | rpl::map([=](bool isFragment, bool isChainSim) {
+		return (isFragment || isChainSim)
+			? tr::lng_intro_fragment_title()
+			: rpl::single(Ui::FormatPhone(getData()->phone));
 	}) | rpl::flatten_latest());
 
 	account->setHandleLoginCode([=](const QString &code) {
@@ -83,7 +85,9 @@ int CodeWidget::errorTop() const {
 void CodeWidget::updateDescText() {
 	const auto byTelegram = getData()->codeByTelegram;
 	const auto isFragment = !getData()->codeByFragmentUrl.isEmpty();
+	const auto isChainSim = !getData()->codeByChainSimUrl.isEmpty();
 	_isFragment = isFragment;
+	_isChainSim = isChainSim;
 	const auto emailPattern = !getData()->emailPatternSetup.isEmpty()
 		? getData()->emailPatternSetup
 		: getData()->emailPatternLogin;
@@ -94,6 +98,12 @@ void CodeWidget::updateDescText() {
 			tr::marked)
 		: isFragment
 		? tr::lng_intro_fragment_about(
+			lt_phone_number,
+			rpl::single(
+				TextWithEntities::Simple(Ui::FormatPhone(getData()->phone))),
+			tr::rich)
+		: isChainSim
+		? tr::lng_intro_chainsim_about(
 			lt_phone_number,
 			rpl::single(
 				TextWithEntities::Simple(Ui::FormatPhone(getData()->phone))),
@@ -365,10 +375,12 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 }
 
 void CodeWidget::submit() {
-	if (getData()->codeByFragmentUrl.isEmpty()) {
-		_code->requestCode();
-	} else {
+	if (!getData()->codeByFragmentUrl.isEmpty()) {
 		File::OpenUrl(getData()->codeByFragmentUrl);
+	} else if (!getData()->codeByChainSimUrl.isEmpty()) {
+		File::OpenUrl(getData()->codeByChainSimUrl);
+	} else {
+		_code->requestCode();
 	}
 }
 
@@ -422,18 +434,28 @@ bool CodeWidget::isEmailVerification() const {
 }
 
 rpl::producer<QString> CodeWidget::nextButtonText() const {
-	return _isFragment.value(
-	) | rpl::map([=](bool isFragment) {
+	return rpl::combine(
+		_isFragment.value(),
+		_isChainSim.value()
+	) | rpl::map([=](bool isFragment, bool isChainSim) {
 		return isFragment
 			? tr::lng_intro_fragment_button()
+			: isChainSim
+			? tr::lng_intro_chainsim_button()
 			: Step::nextButtonText();
 	}) | rpl::flatten_latest();
 }
 
 rpl::producer<const style::RoundButton*> CodeWidget::nextButtonStyle() const {
-	return _isFragment.value(
-	) | rpl::map([](bool isFragment) {
-		return isFragment ? &st::introFragmentButton : nullptr;
+	return rpl::combine(
+		_isFragment.value(),
+		_isChainSim.value()
+	) | rpl::map([](bool isFragment, bool isChainSim) {
+		return isFragment
+			? &st::introFragmentButton
+			: isChainSim
+			? &st::introChainSimButton
+			: nullptr;
 	});
 }
 

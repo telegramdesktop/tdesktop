@@ -2210,6 +2210,10 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 				value->verification.codeLength = data.vlength().v;
 				value->verification.fragmentUrl = qs(data.vurl());
 				value->verification.call = nullptr;
+			}, [&](const MTPDauth_sentCodeTypeChainSimSms &data) {
+				value->verification.codeLength = data.vlength().v;
+				value->verification.fragmentUrl = qs(data.vurl());
+				value->verification.call = nullptr;
 			}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
 				bad("FlashCall");
 			}, [&](const MTPDauth_sentCodeTypeMissedCall &) {

@@ -92,6 +92,13 @@ introFragmentButton: RoundButton(introNextButton) {
 	iconOver: introFragmentIconOver;
 	iconPosition: point(-10px, 9px);
 }
+introChainSimIcon: icon{{ "chainsim", activeButtonFg }};
+introChainSimIconOver: icon{{ "chainsim", activeButtonFgOver }};
+introChainSimButton: RoundButton(introNextButton) {
+	icon: introChainSimIcon;
+	iconOver: introChainSimIconOver;
+	iconPosition: point(-10px, 9px);
+}
 
 introStepFieldTop: 96px;
 introPhoneTop: 6px;

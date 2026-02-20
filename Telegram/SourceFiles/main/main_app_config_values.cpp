@@ -26,4 +26,18 @@ std::optional<QString> FragmentLink(not_null<Main::Session*> session) {
 		: std::make_optional<QString>(*it);
 }
 
+std::optional<QString> ChainSimLink(not_null<Main::Session*> session) {
+	using Strings = std::vector<QString>;
+	const auto domains = session->appConfig().get<Strings>(
+		u"whitelisted_domains"_q,
+		std::vector<QString>());
+	const auto proj = [&, domain = u"chainsim"_q](const QString &p) {
+		return p.contains(domain);
+	};
+	const auto it = ranges::find_if(domains, proj);
+	return (it == end(domains))
+		? std::nullopt
+		: std::make_optional<QString>(*it);
+}
+
 } // namespace AppConfig

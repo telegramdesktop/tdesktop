@@ -114,14 +114,18 @@ int TextItem::contentHeight() const {
 
 bool IsCollectiblePhone(not_null<UserData*> user) {
 	using Strings = std::vector<QString>;
-	const auto prefixes = user->session().appConfig().get<Strings>(
+	const auto fragmentPrefixes = user->session().appConfig().get<Strings>(
 		u"fragment_prefixes"_q,
 		Strings{ u"888"_q });
+	const auto chainSimPrefixes = user->session().appConfig().get<Strings>(
+		u"chainsim_prefixes"_q,
+		Strings{ u"000"_q });
 	const auto phone = user->phone();
 	const auto proj = [&](const QString &p) {
 		return phone.startsWith(p);
 	};
-	return ranges::any_of(prefixes, proj);
+	return ranges::any_of(fragmentPrefixes, proj)
+		|| ranges::any_of(chainSimPrefixes, proj);
 }
 
 void AddPhoneMenu(not_null<Ui::PopupMenu*> menu, not_null<UserData*> user) {

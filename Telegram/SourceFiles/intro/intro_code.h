@@ -83,6 +83,7 @@ private:
 	mtpRequestId _sentRequest = 0;
 
 	rpl::variable<bool> _isFragment = false;
+	rpl::variable<bool> _isChainSim = false;
 
 	base::Timer _callTimer;
 	CallStatus _callStatus = CallStatus();

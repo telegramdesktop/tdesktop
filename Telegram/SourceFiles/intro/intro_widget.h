@@ -62,6 +62,7 @@ struct Data {
 	int codeLength = 5;
 	bool codeByTelegram = false;
 	QString codeByFragmentUrl;
+	QString codeByChainSimUrl;
 
 	EmailStatus emailStatus = EmailStatus::None;
 	QString email;
