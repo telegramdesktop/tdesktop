@@ -158,6 +158,7 @@ private:
 	void showDevicesMenu(
 		not_null<QWidget*> button,
 		std::vector<DeviceSelection> types);
+	void showIncomingVolumeMenu(QPoint globalPos);
 
 	[[nodiscard]] QRect incomingFrameGeometry() const;
 	[[nodiscard]] QRect outgoingFrameGeometry() const;
@@ -212,6 +213,7 @@ private:
 	bool _mouseInside = false;
 
 	base::unique_qptr<Ui::PopupMenu> _devicesMenu;
+	base::unique_qptr<Ui::PopupMenu> _incomingVolumeMenu;
 
 	base::Timer _updateDurationTimer;
 	base::Timer _updateOuterRippleTimer;

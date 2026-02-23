@@ -520,7 +520,12 @@ rpl::producer<Webrtc::DeviceResolvedId> Call::captureMuteDeviceId() {
 
 void Call::setMuted(bool mute) {
 	_muted = mute;
-	if (_instance) {
+	if (_screenWithAudio && _screenAudioControl) {
+		_screenAudioControl->setMicrophoneMuted(mute);
+		if (_instance) {
+			_instance->setMuteMicrophone(false);
+		}
+	} else if (_instance) {
 		_instance->setMuteMicrophone(mute);
 	}
 }
@@ -1080,6 +1085,13 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		});
 	};
 
+	_screenAudioControl = std::make_shared<Webrtc::MixingAudioControl>();
+	auto admCreator = Webrtc::AudioDeviceModuleCreator(
+		saveSetDeviceIdCallback);
+	auto audioDeviceModuleCreator = Webrtc::MixingAudioDeviceModuleCreator(
+		std::move(admCreator),
+		_screenAudioControl);
+
 	tgcalls::Descriptor descriptor = {
 		.version = versionString,
 		.config = tgcalls::Config{
@@ -1139,8 +1151,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 				sendSignalingData(bytes);
 			});
 		},
-		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
-			saveSetDeviceIdCallback),
+		.createAudioDeviceModule = std::move(audioDeviceModuleCreator),
 	};
 	if (Logs::DebugEnabled()) {
 		const auto callLogFolder = cWorkingDir() + u"DebugLogs"_q;
@@ -1381,6 +1392,48 @@ void Call::setState(State state) {
 //	}
 //}
 
+void Call::setPlaybackVolume(int volume) {
+	_playbackVolume = std::clamp(volume, 0, 20000);
+	const auto level = _playbackMuted.current()
+		? 0.f
+		: (_playbackVolume.current() / 10000.f);
+	if (_instance) {
+		_instance->setOutputVolume(level);
+	}
+	if (_screenAudioControl) {
+		_screenAudioControl->setPlaybackVolume(level);
+	}
+}
+
+int Call::playbackVolume() const {
+	return _playbackVolume.current();
+}
+
+void Call::setPlaybackMuted(bool muted) {
+	_playbackMuted = muted;
+	const auto level = muted
+		? 0.f
+		: (_playbackVolume.current() / 10000.f);
+	if (_instance) {
+		_instance->setOutputVolume(level);
+	}
+	if (_screenAudioControl) {
+		_screenAudioControl->setPlaybackVolume(level);
+	}
+}
+
+bool Call::playbackMuted() const {
+	return _playbackMuted.current();
+}
+
+rpl::producer<int> Call::playbackVolumeValue() const {
+	return _playbackVolume.value();
+}
+
+rpl::producer<bool> Call::playbackMutedValue() const {
+	return _playbackMuted.value();
+}
+
 void Call::setAudioDuckingEnabled(bool enabled) {
 	if (_instance) {
 		_instance->setAudioOutputDuckingEnabled(enabled);
@@ -1397,6 +1450,10 @@ bool Call::isSharingCamera() const {
 
 bool Call::isSharingScreen() const {
 	return _videoCaptureIsScreencast && isSharingVideo();
+}
+
+bool Call::screenSharingWithAudio() const {
+	return isSharingScreen() && _screenWithAudio;
 }
 
 QString Call::cameraSharingDeviceId() const {
@@ -1445,6 +1502,13 @@ void Call::toggleScreenSharing(
 		}
 		_videoCaptureDeviceId = QString();
 		_videoCaptureIsScreencast = false;
+		if (_screenWithAudio && _screenAudioControl) {
+			_screenAudioControl->setMicrophoneMuted(false);
+			_screenAudioControl->setLoopbackEnabled(false);
+			if (_muted.current() && _instance) {
+				_instance->setMuteMicrophone(true);
+			}
+		}
 		_screenWithAudio = false;
 		if (_systemAudioCapture) {
 			_systemAudioCapture->stop();
@@ -1459,6 +1523,15 @@ void Call::toggleScreenSharing(
 	_videoCaptureIsScreencast = true;
 	_videoCaptureDeviceId = *uniqueId;
 	_screenWithAudio = withAudio;
+	if (_screenAudioControl) {
+		_screenAudioControl->setLoopbackEnabled(withAudio);
+		if (withAudio && _muted.current()) {
+			_screenAudioControl->setMicrophoneMuted(true);
+			if (_instance) {
+				_instance->setMuteMicrophone(false);
+			}
+		}
+	}
 	if (_videoCapture) {
 		_videoCapture->switchToDevice(uniqueId->toStdString(), true);
 		if (_instance) {
@@ -1647,6 +1720,7 @@ void Call::handleControllerError(const QString &error) {
 }
 
 void Call::destroyController() {
+	_screenAudioControl = nullptr;
 	_instanceLifetime.destroy();
 	Core::App().mediaDevices().setCaptureMuteTracker(this, false);
 	if (_systemAudioCapture) {
