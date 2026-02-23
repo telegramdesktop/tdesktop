@@ -31,7 +31,7 @@ jobs:
         run: python .github/scripts/generate_changelog.py
 
       - name: Upload pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: docs
 
