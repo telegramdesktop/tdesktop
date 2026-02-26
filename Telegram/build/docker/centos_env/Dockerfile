@@ -44,7 +44,7 @@ WORKDIR /usr/src
 ENV AR=gcc-ar
 ENV RANLIB=gcc-ranlib
 ENV NM=gcc-nm
-ENV CFLAGS='{% if DEBUG %}-g{% endif %} -O3 {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened'
+ENV CFLAGS='{% if DEBUG %}-g{% endif %} {% if MINSIZE %}-Os{% else %}-O3{% endif %} {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened'
 ENV CXXFLAGS=$CFLAGS
 ENV LDFLAGS='-static-libstdc++ -static-libgcc -static-libasan -pthread -Wl,--push-state,--no-as-needed,-ldl,--pop-state -Wl,--as-needed -Wl,-z,muldefs'
 
@@ -527,6 +527,9 @@ RUN git clone -b n6.1.1 --depth=1 https://github.com/FFmpeg/FFmpeg.git \
 		--disable-network \
 		--disable-autodetect \
 		--disable-everything \
+{%- if MINSIZE %}
+		--enable-small \
+{%- endif %}
 		--enable-libdav1d \
 		--enable-libopenh264 \
 		--enable-libopus \
