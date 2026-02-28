@@ -252,7 +252,7 @@ TopBarWidget::TopBarWidget(
 	_search->setAccessibleName(tr::lng_shortcuts_search(tr::now));
 	_infoToggle->setAccessibleName(tr::lng_settings_section_info(tr::now));
 	_menuToggle->setAccessibleName(tr::lng_chat_menu(tr::now));
-	_back->setAccessibleName(tr::lng_go_back(tr::now));
+	_back->setAccessibleName(tr::lng_sr_go_back(tr::now));
 	_cancelChoose->setAccessibleName(tr::lng_cancel(tr::now));
 }
 

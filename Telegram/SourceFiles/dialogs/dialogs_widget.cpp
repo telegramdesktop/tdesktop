@@ -1346,7 +1346,7 @@ void Widget::setupMainMenuToggle() {
 	});
 	_mainMenu.under->stackUnder(_mainMenu.toggle);
 	_mainMenu.toggle->setClickedCallback([=] { showMainMenu(); });
-	_mainMenu.toggle->setAccessibleName(tr::lng_main_menu(tr::now));
+	_mainMenu.toggle->setAccessibleName(tr::lng_sr_main_menu(tr::now));
 
 	rpl::single(rpl::empty) | rpl::then(
 		controller()->filtersMenuChanged()

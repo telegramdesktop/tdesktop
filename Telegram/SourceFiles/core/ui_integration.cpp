@@ -447,15 +447,15 @@ QString UiIntegration::phraseQuoteHeaderCopy() {
 }
 
 QString UiIntegration::phraseMinimize() {
-	return tr::lng_minimize_window(tr::now);
+	return tr::lng_sr_minimize_window(tr::now);
 }
 
 QString UiIntegration::phraseMaximize() {
-	return tr::lng_maximize_window(tr::now);
+	return tr::lng_sr_maximize_window(tr::now);
 }
 
 QString UiIntegration::phraseRestore() {
-	return tr::lng_restore_window(tr::now);
+	return tr::lng_sr_restore_window(tr::now);
 }
 
 bool OpenGLLastCheckFailed() {

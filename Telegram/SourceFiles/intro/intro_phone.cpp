@@ -63,7 +63,7 @@ PhoneWidget::PhoneWidget(
 	[](const QString &s) { return Countries::Groups(s); })
 , _checkRequestTimer([=] { checkRequest(); }) {
 	_code->setAccessibleName(tr::lng_country_code(tr::now));
-	_phone->setAccessibleName(tr::lng_phone_number(tr::now));
+	_phone->setAccessibleName(tr::lng_new_contact_phone_number(tr::now));
 	_phone->frontBackspaceEvent(
 	) | rpl::on_next([=](not_null<QKeyEvent*> e) {
 		_code->startErasing(e);

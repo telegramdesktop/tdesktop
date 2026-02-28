@@ -68,7 +68,7 @@ FiltersMenu::~FiltersMenu() = default;
 void FiltersMenu::setup() {
 	setupDragAndDrop();
 	setupMainMenuIcon();
-	_menu.setAccessibleName(tr::lng_main_menu(tr::now));
+	_menu.setAccessibleName(tr::lng_sr_main_menu(tr::now));
 
 	_outer.setAttribute(Qt::WA_OpaquePaintEvent);
 	_outer.show();
@@ -324,7 +324,7 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 				: QString::number(count);
 			raw->setBadge(string, includeMuted && (count == muted));
 			raw->setAccessibleName(count
-				? tr::lng_filter_unread_chats(
+				? tr::lng_sr_filter_unread_chats(
 					tr::now,
 					lt_count,
 					count,
