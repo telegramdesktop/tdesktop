@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "data/data_document_resolver.h"
 #include "info/info_flexible_scroll.h"
+#include "chat_helpers/stickers_list_widget.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 
@@ -177,6 +178,7 @@ void SetupExperimental(
 	addToggle(Info::kAlternativeScrollProcessing);
 	addToggle(kModerateCommonGroups);
 	addToggle(kForceComposeSearchOneColumn);
+	addToggle(ChatHelpers::kOptionUnlimitedRecentStickers);
 }
 
 } // namespace
