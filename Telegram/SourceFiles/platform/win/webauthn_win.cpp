@@ -160,7 +160,7 @@ void RegisterKey(
 	|| defined(WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS_VERSION_7) \
 	|| defined(WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS_VERSION_8) \
 	|| defined(WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS_VERSION_9)
-	options.bPreferResidentKey = FALSE;
+	options.bPreferResidentKey = TRUE;
 #endif
 
 	auto hwnd = (HWND)(nullptr);
