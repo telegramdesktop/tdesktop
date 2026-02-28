@@ -78,6 +78,15 @@ bool PruneDestroyedAndSet(
 	return {};
 }
 
+[[nodiscard]] HistoryItem *LookupContext(
+		not_null<Session*> owner,
+		const FileOrigin &origin) {
+	if (const auto message = std::get_if<FileOriginMessage>(&origin.data)) {
+		return owner->message(*message);
+	}
+	return nullptr;
+}
+
 } // namespace
 
 Streaming::Streaming(not_null<Session*> owner)
@@ -92,6 +101,7 @@ template <typename Data>
 		base::flat_map<not_null<Data*>, std::weak_ptr<Reader>> &readers,
 		not_null<Data*> data,
 		FileOrigin origin,
+		HistoryItem *context,
 		bool forceRemoteLoader) {
 	const auto i = readers.find(data);
 	if (i != end(readers)) {
@@ -101,7 +111,10 @@ template <typename Data>
 			}
 		}
 	}
-	auto loader = data->createStreamingLoader(origin, forceRemoteLoader);
+	auto loader = data->createStreamingLoader(
+		origin,
+		forceRemoteLoader,
+		context);
 	if (!loader) {
 		return nullptr;
 	}
@@ -133,7 +146,7 @@ template <typename Data>
 			return result;
 		}
 	}
-	auto reader = sharedReader(readers, data, origin);
+	auto reader = sharedReader(readers, data, origin, context);
 	if (!reader) {
 		return nullptr;
 	}
@@ -175,18 +188,25 @@ std::shared_ptr<Streaming::Reader> Streaming::sharedReader(
 		not_null<DocumentData*> document,
 		FileOrigin origin,
 		bool forceRemoteLoader) {
-	return sharedReader(_fileReaders, document, origin, forceRemoteLoader);
+	const auto context = LookupContext(_owner, origin);
+	return sharedReader(
+		_fileReaders,
+		document,
+		origin,
+		context,
+		forceRemoteLoader);
 }
 
 std::shared_ptr<Streaming::Document> Streaming::sharedDocument(
 		not_null<DocumentData*> document,
 		FileOrigin origin) {
+	const auto context = LookupContext(_owner, origin);
 	return sharedDocument(
 		_fileDocuments,
 		_fileReaders,
 		document,
 		nullptr,
-		nullptr,
+		context,
 		origin);
 }
 
@@ -208,18 +228,25 @@ std::shared_ptr<Streaming::Reader> Streaming::sharedReader(
 		not_null<PhotoData*> photo,
 		FileOrigin origin,
 		bool forceRemoteLoader) {
-	return sharedReader(_photoReaders, photo, origin, forceRemoteLoader);
+	const auto context = LookupContext(_owner, origin);
+	return sharedReader(
+		_photoReaders,
+		photo,
+		origin,
+		context,
+		forceRemoteLoader);
 }
 
 std::shared_ptr<Streaming::Document> Streaming::sharedDocument(
 		not_null<PhotoData*> photo,
 		FileOrigin origin) {
+	const auto context = LookupContext(_owner, origin);
 	return sharedDocument(
 		_photoDocuments,
 		_photoReaders,
 		photo,
 		nullptr,
-		nullptr,
+		context,
 		origin);
 }
 

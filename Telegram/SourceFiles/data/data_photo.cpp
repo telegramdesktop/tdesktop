@@ -565,7 +565,8 @@ bool PhotoData::videoCanBePlayed() const {
 
 auto PhotoData::createStreamingLoader(
 	Data::FileOrigin origin,
-	bool forceRemoteLoader) const
+	bool forceRemoteLoader,
+	HistoryItem *item) const
 -> std::unique_ptr<Media::Streaming::Loader> {
 	if (!hasVideo()) {
 		return nullptr;

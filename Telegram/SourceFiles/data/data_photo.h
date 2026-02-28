@@ -150,7 +150,8 @@ public:
 	[[nodiscard]] bool videoCanBePlayed() const;
 	[[nodiscard]] auto createStreamingLoader(
 		Data::FileOrigin origin,
-		bool forceRemoteLoader) const
+		bool forceRemoteLoader,
+		HistoryItem *item) const
 	-> std::unique_ptr<Media::Streaming::Loader>;
 
 	[[nodiscard]] bool hasAttachedStickers() const;

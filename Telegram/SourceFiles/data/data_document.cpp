@@ -547,7 +547,7 @@ void DocumentData::setVideoQualities(
 		return document->isVideoFile()
 			&& !document->dimensions.isEmpty()
 			&& !document->inappPlaybackFailed()
-			&& document->useStreamingLoader()
+			&& document->useStreamingLoader(nullptr)
 			&& document->canBeStreamed(nullptr);
 	};
 	ranges::sort(
@@ -1533,29 +1533,35 @@ bool DocumentData::hasRemoteLocation() const {
 	return (_dc != 0 && _access != 0);
 }
 
-bool DocumentData::useStreamingLoader() const {
+bool DocumentData::canVideoBeStreamed(HistoryItem *item) const {
+	if (!isVideoFile()) {
+		return false;
+	}
+	// Streaming couldn't be used with external player
+	// Maybe someone brave will implement this once upon a time...
+	static const auto &ExternalVideoPlayer = base::options::lookup<bool>(
+		Data::kOptionExternalVideoPlayer);
+	return storyMedia()
+		|| !ExternalVideoPlayer.value()
+		|| (item && !item->allowsForward());
+}
+
+bool DocumentData::useStreamingLoader(HistoryItem *item) const {
 	if (size <= 0) {
 		return false;
 	} else if (const auto info = sticker()) {
 		return info->isWebm();
 	}
 	return isAnimation()
-		|| isVideoFile()
+		|| canVideoBeStreamed(item)
 		|| isAudioFile()
 		|| isVoiceMessage();
 }
 
 bool DocumentData::canBeStreamed(HistoryItem *item) const {
-	// Streaming couldn't be used with external player
-	// Maybe someone brave will implement this once upon a time...
-	static const auto &ExternalVideoPlayer = base::options::lookup<bool>(
-		Data::kOptionExternalVideoPlayer);
 	return hasRemoteLocation()
 		&& supportsStreaming()
-		&& (!isVideoFile()
-			|| storyMedia()
-			|| !ExternalVideoPlayer.value()
-			|| (item && !item->allowsForward()));
+		&& (!isVideoFile() || canVideoBeStreamed(item));
 }
 
 void DocumentData::setInappPlaybackFailed() {
@@ -1585,9 +1591,10 @@ StorageFileLocation DocumentData::videoPreloadLocation() const {
 
 auto DocumentData::createStreamingLoader(
 	Data::FileOrigin origin,
-	bool forceRemoteLoader) const
+	bool forceRemoteLoader,
+	HistoryItem *item) const
 -> std::unique_ptr<Media::Streaming::Loader> {
-	if (!useStreamingLoader()) {
+	if (!useStreamingLoader(item)) {
 		return nullptr;
 	}
 	if (!forceRemoteLoader) {
