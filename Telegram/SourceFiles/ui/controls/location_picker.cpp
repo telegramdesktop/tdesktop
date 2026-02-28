@@ -1095,7 +1095,7 @@ void LocationPicker::mapReady() {
 
 	delete base::take(_mapLoading);
 
-	const auto token = _config.mapsToken.toUtf8();
+	const auto token = EscapeForScriptString(_config.mapsToken.toUtf8());
 	const auto center = DefaultCenter(_initialProvided);
 	const auto bounds = DefaultBounds();
 	const auto params = "token: '" + token + "'"

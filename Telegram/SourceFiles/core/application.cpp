@@ -93,6 +93,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QStandardPaths>
 #include <QtCore/QMimeDatabase>
+#include <QtGui/QFontDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
 #include <QtGui/QWindow>
@@ -264,6 +265,19 @@ void Application::run() {
 
 	style::SetCustomFont(settings().customFontFamily());
 	style::internal::StartFonts();
+
+	// Ethiopic (Amharic) font fallback on Windows. Fixes #30184, #30230.
+#ifdef Q_OS_WIN
+	if (QFontDatabase::addApplicationFont(
+			u":/gui/fonts/AbyssinicaSIL-Regular.ttf"_q) >= 0) {
+		QFont::insertSubstitutions(u"Open Sans"_q, QStringList{
+			u"Vazirmatn UI NL"_q,
+			u"Abyssinica SIL"_q,
+			u"Segoe UI"_q,
+			u"Arial"_q,
+		});
+	}
+#endif
 
 	ValidateScale();
 

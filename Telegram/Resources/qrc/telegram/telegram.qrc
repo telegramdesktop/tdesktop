@@ -43,6 +43,7 @@
     <file alias="dice/dice4.svg">../../art/dice/dice4.svg</file>
     <file alias="dice/dice5.svg">../../art/dice/dice5.svg</file>
     <file alias="dice/dice6.svg">../../art/dice/dice6.svg</file>
+    <file alias="fonts/AbyssinicaSIL-Regular.ttf">../../fonts/AbyssinicaSIL-Regular.ttf</file>
   </qresource>
   <qresource prefix="/icons">
     <file alias="calls/hands.lottie">../../icons/calls/hands.lottie</file>
