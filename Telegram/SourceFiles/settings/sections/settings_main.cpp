@@ -208,6 +208,7 @@ Cover::Cover(
 	}, _name->lifetime());
 
 	_qrButton.create(this, st::infoProfileLabeledButtonQr);
+	_qrButton->setAccessibleName(tr::lng_group_invite_context_qr(tr::now));
 	_qrButton->setClickedCallback([=, show = controller->uiShow()] {
 		Ui::DefaultShowFillPeerQrBoxCallback(show, _user);
 	});
