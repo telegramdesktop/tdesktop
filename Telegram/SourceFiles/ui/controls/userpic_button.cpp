@@ -236,6 +236,12 @@ void UserpicButton::prepare() {
 		prepareUserpicPixmap();
 	}
 	setClickHandlerByRole();
+
+	if (_role == Role::OpenPhoto) {
+		setAccessibleName(tr::lng_mediaview_profile_photo(tr::now));
+	} else if (_role == Role::ChangePhoto || _role == Role::ChoosePhoto) {
+		setAccessibleName(tr::lng_profile_set_photo_for(tr::now));
+	}
 }
 
 void UserpicButton::showCustomOnChosen() {
