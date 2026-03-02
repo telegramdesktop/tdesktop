@@ -2,7 +2,7 @@
 
 FROM rockylinux:8 AS builder
 ENV LANG=C.UTF-8
-ENV TOOLSET=gcc-toolset-14
+ENV TOOLSET=gcc-toolset-15
 ENV PATH=/opt/rh/$TOOLSET/root/usr/bin:$PATH
 ENV LIBRARY_PATH=/opt/rh/$TOOLSET/root/usr/lib64:/opt/rh/$TOOLSET/root/usr/lib:/usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
 ENV LD_LIBRARY_PATH=$LIBRARY_PATH
