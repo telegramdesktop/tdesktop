@@ -317,6 +317,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> slowmodeAppliedValue() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;
 	[[nodiscard]] bool canManageGroupCall() const;
+	[[nodiscard]] bool canManageRanks() const;
 	[[nodiscard]] bool amMonoforumAdmin() const;
 
 	[[nodiscard]] int starsPerMessage() const;
@@ -677,6 +678,6 @@ void SetTopPinnedMessageId(
 [[nodiscard]] uint64 BackgroundEmojiIdFromColor(const MTPPeerColor *color);
 [[nodiscard]] std::optional<uint8> ColorIndexFromColor(const MTPPeerColor *);
 
-[[nodiscard]] bool IsBotCanManageTopics(not_null<PeerData*>);
+[[nodiscard]] bool IsBotUserCreatesTopics(not_null<PeerData*>);
 
 } // namespace Data

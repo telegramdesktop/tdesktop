@@ -32,6 +32,7 @@ public:
 	[[nodiscard]] rpl::producer<> modifyRequests() const override;
 	[[nodiscard]] rpl::producer<> editCoverRequests() const override;
 	[[nodiscard]] rpl::producer<> clearCoverRequests() const override;
+	virtual void setDisplayName(const QString &displayName);
 
 protected:
 	struct Data {

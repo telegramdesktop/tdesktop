@@ -75,6 +75,7 @@ enum class PremiumFeature {
 	TodoLists,
 	PeerColors,
 	Gifts,
+	NoForwards,
 
 	// Business features.
 	BusinessLocation,

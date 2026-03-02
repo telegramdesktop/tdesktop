@@ -173,7 +173,7 @@ Do exactly ONE task per iteration.
 ## Steps
 
 1. Read tasks.json and find the most suitable task to implement (it can be first uncompleted task or it can be some task in the middle, if it is better suited to be implemented right now, respecting dependencies)
-2. Use /ultrathink to plan the implementation carefully
+2. Plan the implementation carefully
 3. Implement that ONE task only
 4. After successful implementation:
 $AfterImplementation

@@ -68,6 +68,13 @@ rpl::producer<> AbstractSingleFilePreview::clearCoverRequests() const {
 	return rpl::never<>();
 }
 
+void AbstractSingleFilePreview::setDisplayName(const QString &displayName) {
+	auto data = _data;
+	data.name = displayName;
+	setData(data);
+	update();
+}
+
 void AbstractSingleFilePreview::prepareThumbFor(
 		Data &data,
 		const QImage &preview) {

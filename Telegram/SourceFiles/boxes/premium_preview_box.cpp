@@ -144,6 +144,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_peer_colors();
 	case PremiumFeature::Gifts:
 		return tr::lng_premium_summary_subtitle_gifts();
+	case PremiumFeature::NoForwards:
+		return tr::lng_premium_summary_subtitle_no_forwards();
 
 	case PremiumFeature::BusinessLocation:
 		return tr::lng_business_subtitle_location();
@@ -215,6 +217,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_peer_colors();
 	case PremiumFeature::Gifts:
 		return tr::lng_premium_summary_about_gifts();
+	case PremiumFeature::NoForwards:
+		return tr::lng_premium_summary_about_no_forwards();
 
 	case PremiumFeature::BusinessLocation:
 		return tr::lng_business_about_location();
@@ -558,6 +562,7 @@ struct VideoPreviewDocument {
 		case PremiumFeature::TodoLists: return "todo";
 		case PremiumFeature::PeerColors: return "peer_colors";
 		case PremiumFeature::Gifts: return "gifts";
+		case PremiumFeature::NoForwards: return "no_forwards";
 
 		case PremiumFeature::BusinessLocation: return "business_location";
 		case PremiumFeature::BusinessHours: return "business_hours";

@@ -159,13 +159,13 @@ var IV = {
 		return false;
 	},
 	initPreBlocks: function() {
-		if (!hljs) {
+		if (!window.hljs) {
 			return;
 		}
 		var pres = document.getElementsByTagName('pre');
 		for (var i = 0; i < pres.length; i++) {
 			if (pres[i].hasAttribute('data-language')) {
-				hljs.highlightBlock(pres[i]);
+				window.hljs.highlightBlock(pres[i]);
 			}
 		}
 	},

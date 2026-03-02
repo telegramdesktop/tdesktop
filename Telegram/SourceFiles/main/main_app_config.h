@@ -71,6 +71,7 @@ public:
 
 	[[nodiscard]] int quoteLengthMax() const;
 	[[nodiscard]] int stargiftConvertPeriodMax() const;
+	[[nodiscard]] int noForwardsRequestExpirePeriod() const;
 
 	[[nodiscard]] const std::vector<QString> &startRefPrefixes();
 	[[nodiscard]] bool starrefSetupAllowed() const;

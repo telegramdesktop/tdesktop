@@ -78,12 +78,33 @@ void EmptyWidget::setSearchQuery(const QString &query) {
 	resizeToWidth(width());
 }
 
+void EmptyWidget::setLoading(bool loading) {
+	if (_loading == loading) {
+		return;
+	}
+	_loading = loading;
+	resizeToWidth(width());
+	update();
+}
+
+bool EmptyWidget::loading() const {
+	return _loading;
+}
+
 void EmptyWidget::paintEvent(QPaintEvent *e) {
-	if (!_icon) {
+	auto p = QPainter(this);
+
+	if (_loading) {
+		p.setFont(st::normalFont);
+		p.setPen(st::windowSubTextFg);
+		p.drawText(rect(), tr::lng_contacts_loading(tr::now),
+			QTextOption(Qt::AlignCenter));
 		return;
 	}
 
-	auto p = QPainter(this);
+	if (!_icon) {
+		return;
+	}
 
 	auto iconLeft = (width() - _icon->width()) / 2;
 	auto iconTop = height() - st::infoEmptyIconTop;
@@ -91,12 +112,14 @@ void EmptyWidget::paintEvent(QPaintEvent *e) {
 }
 
 int EmptyWidget::resizeGetHeight(int newWidth) {
-	auto labelTop = _height - st::infoEmptyLabelTop;
-	auto labelWidth = newWidth - 2 * st::infoEmptyLabelSkip;
-	_text->resizeToNaturalWidth(labelWidth);
+	if (!_loading) {
+		auto labelTop = _height - st::infoEmptyLabelTop;
+		auto labelWidth = newWidth - 2 * st::infoEmptyLabelSkip;
+		_text->resizeToNaturalWidth(labelWidth);
 
-	auto labelLeft = (newWidth - _text->width()) / 2;
-	_text->moveToLeft(labelLeft, labelTop, newWidth);
+		auto labelLeft = (newWidth - _text->width()) / 2;
+		_text->moveToLeft(labelLeft, labelTop, newWidth);
+	}
 
 	update();
 	return _height;

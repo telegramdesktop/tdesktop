@@ -21,13 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
 #include "lang/lang_keys.h"
-#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "ui/rect.h"
 #include "ui/effects/show_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast_widget.h"
 #include "ui/toast/toast.h"
+#include "ui/toast/toast_lottie_icon.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
@@ -245,28 +245,11 @@ void SelfForwardsTagger::showToast(
 void SelfForwardsTagger::createLottieIcon(
 		not_null<QWidget*> widget,
 		const QString &name) {
-	const auto lottieWidget = Ui::CreateChild<Ui::RpWidget>(widget);
-	struct State {
-		std::unique_ptr<Lottie::Icon> lottieIcon;
-	};
-	const auto state = lottieWidget->lifetime().make_state<State>();
-	state->lottieIcon = Lottie::MakeIcon({
-		.name = name,
-		.sizeOverride = st::selfForwardsTaggerIcon,
-	});
-	const auto icon = state->lottieIcon.get();
-	lottieWidget->resize(st::selfForwardsTaggerIcon);
-	lottieWidget->move(st::selfForwardsTaggerToast.iconPosition);
-	lottieWidget->show();
-	lottieWidget->raise();
-	icon->animate(
-		[=] { lottieWidget->update(); },
-		0,
-		icon->framesCount() - 1);
-	lottieWidget->paintRequest() | rpl::on_next([=] {
-		auto p = QPainter(lottieWidget);
-		icon->paint(p, 0, 0);
-	}, lottieWidget->lifetime());
+	Ui::AddLottieToToast(
+		widget,
+		st::selfForwardsTaggerToast,
+		st::selfForwardsTaggerIcon,
+		name);
 }
 
 void SelfForwardsTagger::showTaggedToast(DocumentId reaction) {

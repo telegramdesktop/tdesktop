@@ -1553,6 +1553,14 @@ auto HtmlWriter::Wrap::pushMessage(
 			}() + (data.birthday.year()
 				? (' ' + QByteArray::number(data.birthday.year()))
 				: QByteArray());
+	}, [&](const ActionNoForwardsToggle &data) {
+		return serviceFrom
+			+ (data.newValue
+				? " disabled sharing in this chat"
+				: " enabled sharing in this chat");
+	}, [&](const ActionNoForwardsRequest &data) {
+		return serviceFrom
+			+ " requested to enable sharing in this chat";
 	}, [&](const ActionNewCreatorPending &data) {
 		return peers.wrapUserName(data.newCreatorId)
 			+ " will become the new main admin in 7 days if "

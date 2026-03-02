@@ -1164,6 +1164,8 @@ bool OverlayWidget::showCopyMediaRestriction(bool skipPRemiumCheck) {
 	} else if (_history) {
 		uiShow()->showToast(_history->peer->isBroadcast()
 			? tr::lng_error_nocopy_channel(tr::now)
+			: _history->peer->isUser()
+			? tr::lng_error_nocopy_user(tr::now)
 			: tr::lng_error_nocopy_group(tr::now));
 	}
 	return true;
@@ -2025,7 +2027,9 @@ void OverlayWidget::waitingAnimationCallback() {
 }
 
 void OverlayWidget::updateCursor() {
-	setCursor((_controlsState == ControlsHidden)
+	setCursor((_clickHandlerActive || _clickHandlerPressed)
+		? style::cur_pointer
+		: (_controlsState == ControlsHidden)
 		? Qt::BlankCursor
 		: (_over == Over::None || (_over == Over::Video && _stories))
 		? style::cur_default
@@ -2495,18 +2499,16 @@ void OverlayWidget::assignMediaPointer(
 void OverlayWidget::clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
 		bool active) {
-	setCursor((active || ClickHandler::getPressed())
-		? style::cur_pointer
-		: style::cur_default);
+	_clickHandlerActive = active;
+	updateCursor();
 	update(QRegion(_saveMsg) + captionGeometry());
 }
 
 void OverlayWidget::clickHandlerPressedChanged(
 		const ClickHandlerPtr &p,
 		bool pressed) {
-	setCursor((pressed || ClickHandler::getActive())
-		? style::cur_pointer
-		: style::cur_default);
+	_clickHandlerPressed = pressed;
+	updateCursor();
 	update(QRegion(_saveMsg) + captionGeometry());
 }
 

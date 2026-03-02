@@ -570,8 +570,10 @@ ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item) {
 			}).fail([=](const MTP::Error &error) {
 				*requesting = false;
 				if (const auto window = weak.get()) {
-					window->showToast(error.type());
-					quick(window);
+					if (!Ui::ShowGiftErrorToast(window->uiShow(), error)) {
+						window->showToast(error.type());
+						quick(window);
+					}
 				}
 			}).send();
 		};

@@ -25,6 +25,7 @@ namespace {
 constexpr auto kWideScale = 5;
 constexpr auto kVoiceToRoundIndex = 0;
 constexpr auto kRoundToVoiceIndex = 1;
+constexpr auto kForbiddenOpacity = 0.5;
 
 } // namespace
 
@@ -216,23 +217,35 @@ void SendButton::paintEvent(QPaintEvent *e) {
 }
 
 void SendButton::paintRecord(QPainter &p, bool over) {
-	if (!isDisabled()) {
+	if (!isDisabled() && !_state.forbidden) {
 		paintRipple(
 			p,
 			(width() - _st.inner.rippleAreaSize) / 2,
 			_st.inner.rippleAreaPosition.y());
 	}
+	if (_state.forbidden) {
+		p.setOpacity(kForbiddenOpacity);
+	}
 	paintLottieIcon(p, kVoiceToRoundIndex, over);
+	if (_state.forbidden) {
+		p.setOpacity(1.);
+	}
 }
 
 void SendButton::paintRound(QPainter &p, bool over) {
-	if (!isDisabled()) {
+	if (!isDisabled() && !_state.forbidden) {
 		paintRipple(
 			p,
 			(width() - _st.inner.rippleAreaSize) / 2,
 			_st.inner.rippleAreaPosition.y());
 	}
+	if (_state.forbidden) {
+		p.setOpacity(kForbiddenOpacity);
+	}
 	paintLottieIcon(p, kRoundToVoiceIndex, over);
+	if (_state.forbidden) {
+		p.setOpacity(1.);
+	}
 }
 
 void SendButton::paintLottieIcon(QPainter &p, int index, bool over) {
@@ -417,19 +430,25 @@ void SendButton::initVoiceRoundIcon(int index) {
 }
 
 void SendButton::paintVoiceRoundIcon(QPainter &p, bool over) {
-	if (!isDisabled()) {
+	if (!isDisabled() && !_state.forbidden) {
 		paintRipple(
 			p,
 			(width() - _st.inner.rippleAreaSize) / 2,
 			_st.inner.rippleAreaPosition.y());
 	}
 
+	if (_state.forbidden) {
+		p.setOpacity(kForbiddenOpacity);
+	}
 	const auto color = (isDisabled() || !over)
 		? st::historyRecordVoiceFg->c
 		: st::historyRecordVoiceFgOver->c;
 	const auto toVideo = (_state.type == Type::Round);
 	const auto index = toVideo ? kVoiceToRoundIndex : kRoundToVoiceIndex;
 	_voiceRoundIcons[index]->paintInCenter(p, rect(), color);
+	if (_state.forbidden) {
+		p.setOpacity(1.);
+	}
 }
 
 bool SendButton::isVoiceRoundTransition(Type from, Type to) {

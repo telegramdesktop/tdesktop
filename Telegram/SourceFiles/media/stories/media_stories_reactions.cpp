@@ -74,6 +74,7 @@ public:
 		const Data::SuggestedReaction &reaction);
 
 	void setAreaGeometry(QRect geometry, float64 radius) override;
+	void setContentRect(QRect rect, int radius) override;
 	void updateReactionsCount(int count) override;
 	void playEffect() override;
 	bool contains(QPoint point) override;
@@ -129,6 +130,7 @@ private:
 	std::unique_ptr<Ui::ReactionFlyAnimation> _effect;
 	std::vector<Stopping> _effectStopping;
 	QRect _effectTarget;
+	QRect _contentRect;
 
 };
 
@@ -141,6 +143,7 @@ public:
 		rpl::producer<bool> weatherInCelsius);
 
 	void setAreaGeometry(QRect geometry, float64 radius) override;
+	void setContentRect(QRect rect, int radius) override;
 	void updateReactionsCount(int count) override;
 	void playEffect() override;
 	bool contains(QPoint point) override;
@@ -168,6 +171,7 @@ private:
 
 	std::shared_ptr<HistoryView::StickerPlayer> _sticker;
 	rpl::lifetime _lifetime;
+	QRect _contentRect;
 
 };
 
@@ -203,6 +207,18 @@ private:
 		+ (0.7152 * bg.greenF())
 		+ (0.0722 * bg.blueF());
 	return (luminance > 0.705) ? QColor(0, 0, 0) : QColor(255, 255, 255);
+}
+
+void ClipToContentRect(
+		QPainter &p,
+		QRect contentRect,
+		QRect widgetGeometry) {
+	if (contentRect.isEmpty()
+		|| contentRect.contains(widgetGeometry)) {
+		return;
+	}
+	p.setClipRect(QRectF(
+		contentRect.translated(-widgetGeometry.topLeft())));
 }
 
 ReactionView::ReactionView(
@@ -294,6 +310,10 @@ void ReactionView::setAreaGeometry(QRect geometry, float64 radius) {
 	updateEffectGeometry();
 }
 
+void ReactionView::setContentRect(QRect rect, int radius) {
+	_contentRect = rect;
+}
+
 void ReactionView::updateReactionsCount(int count) {
 	if (_data.count == count) {
 		return;
@@ -350,6 +370,9 @@ void ReactionView::playEffect() {
 }
 
 bool ReactionView::contains(QPoint point) {
+	if (!_contentRect.isEmpty() && !_contentRect.contains(point)) {
+		return false;
+	}
 	const auto circle = _apiGeometry;
 	const auto radius = std::min(circle.width(), circle.height()) / 2;
 	const auto delta = circle.center() - point;
@@ -386,6 +409,7 @@ void ReactionView::createEffectCanvas() {
 		const auto now = crl::now();
 		auto p = QPainter(raw);
 		auto hq = PainterHighQualityEnabler(p);
+		ClipToContentRect(p, _contentRect, raw->geometry());
 		_effectStopping.erase(ranges::remove_if(_effectStopping, [&](
 				const Stopping &stopping) {
 			if (!stopping.animation.animating()
@@ -428,7 +452,9 @@ void ReactionView::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 	if (!_size) {
 		return;
-	} else if (_background.size() != size() * style::DevicePixelRatio()) {
+	}
+	ClipToContentRect(p, _contentRect, geometry());
+	if (_background.size() != size() * style::DevicePixelRatio()) {
 		cacheBackground();
 	}
 	p.drawImage(0, 0, _background);
@@ -594,6 +620,10 @@ void WeatherView::setAreaGeometry(QRect geometry, float64 radius) {
 	_background = {};
 }
 
+void WeatherView::setContentRect(QRect rect, int radius) {
+	_contentRect = rect;
+}
+
 void WeatherView::updateReactionsCount(int count) {
 	Unexpected("WeatherView::updateRactionsCount.");
 }
@@ -603,6 +633,9 @@ void WeatherView::playEffect() {
 }
 
 bool WeatherView::contains(QPoint point) {
+	if (!_contentRect.isEmpty() && !_contentRect.contains(point)) {
+		return false;
+	}
 	const auto geometry = _rect.translated(pos()).toRect();
 	const auto angle = -_data.area.rotation;
 	return geometry.contains(Rotated(point, geometry.center(), angle));
@@ -610,6 +643,7 @@ bool WeatherView::contains(QPoint point) {
 
 void WeatherView::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
+	ClipToContentRect(p, _contentRect, geometry());
 	if (_background.size() != size() * style::DevicePixelRatio()) {
 		cacheBackground();
 	}

@@ -41,4 +41,5 @@ struct HistoryMessageEdition {
 	const MTPMessageMedia *mtpMedia = nullptr;
 	const MTPMessageReactions *mtpReactions = nullptr;
 	const MTPFactCheck *mtpFactcheck = nullptr;
+	QString fromRank;
 };

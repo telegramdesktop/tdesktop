@@ -336,15 +336,25 @@ auto filesTextProducer = tr::lng_files_selected(
 - Placeholders use `lt_tag_name, value` pattern
 - For `{count}`: immediate uses `int`, reactive uses `rpl::producer<float64>` with `| tr::to_count()`
 - Move producers with `std::move` when passing to placeholders
-- Rich text projectors — pass as the last argument to produce `TextWithEntities` instead of `QString`. These are smart objects with multiple `operator()` overloads:
+- Rich text projectors — these `tr::` helpers serve double duty: as the **last argument** (projector) they set the return type to `TextWithEntities`, and as **placeholder values** they wrap individual substitutions in formatting. Always prefer them over `Ui::Text::Bold()`, `Ui::Text::RichLangValue`, etc. — see REVIEW.md for the full mapping.
   - `tr::marked` — basic projection, converts `QString` to `TextWithEntities`
   - `tr::rich` — interprets `**bold**`/`__italic__` markup in the string
   - `tr::bold`, `tr::italic`, `tr::underline` — wrap text in that formatting
   - `tr::link` — wrap as a clickable link
   - `tr::url(u"https://..."_q)` — returns a projection that converts text to a link pointing to the given URL; can be passed to `rpl::map` or directly to a `tr::lng_...` call
   ```cpp
+  // As last argument (projector):
   auto title = tr::lng_export_progress_title(tr::now, tr::bold);
   auto text = tr::lng_proxy_incorrect_secret(tr::now, tr::rich);
+  // As placeholder value wrapper + projector:
+  auto desc = tr::lng_some_key(
+      tr::now,
+      lt_name,
+      tr::bold(userName),
+      lt_group,
+      tr::bold(groupName),
+      tr::rich);
+  // Nested tr::lng as placeholder:
   auto linked = tr::lng_settings_birthday_contacts(
       lt_link,
       tr::lng_settings_birthday_contacts_link(tr::url(link)),

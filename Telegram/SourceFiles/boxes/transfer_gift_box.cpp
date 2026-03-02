@@ -484,7 +484,9 @@ void TransferGift(
 					ShowTransferGiftLater(strong->uiShow(), gift);
 				}
 			} else if (const auto strong = weak.get()) {
-				strong->showToast(error.type());
+				if (!Ui::ShowGiftErrorToast(strong->uiShow(), error)) {
+					strong->showToast(type);
+				}
 			}
 		}).send();
 	} else {
@@ -512,7 +514,9 @@ void ResolveGiftSaleOffer(
 		session->api().applyUpdates(result);
 		done(true);
 	}).fail([=](const MTP::Error &error) {
-		show->showToast(error.type());
+		if (!Ui::ShowGiftErrorToast(show, error)) {
+			show->showToast(error.type());
+		}
 		done(false);
 	}).send();
 }

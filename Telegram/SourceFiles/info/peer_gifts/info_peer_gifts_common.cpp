@@ -727,10 +727,12 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 	const auto onsale = unique && unique->starsForResale && small();
 	const auto requirePremium = stargift
 		&& !stargift->userpic
+		&& !stargift->resale
 		&& !stargift->info.unique
 		&& stargift->info.requirePremium;
 	const auto auction = stargift
 		&& !stargift->userpic
+		&& !stargift->resale
 		&& !stargift->info.unique
 		&& stargift->info.auction();
 	const auto hidden = stargift && stargift->hidden;

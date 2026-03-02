@@ -636,7 +636,7 @@ bool AboutView::aboveHistory() const {
 		return true;
 	}
 	const auto info = _history->peer->asUser()->botInfo.get();
-	return !(info->canManageTopics
+	return !(info->userCreatesTopics
 		&& info->startToken.isEmpty()
 		&& (!_history->isEmpty() || _history->lastMessage()));
 }
@@ -696,7 +696,7 @@ bool AboutView::refresh() {
 		_version = 0;
 		return false;
 	} else if (_history->peer->isForum()
-			&& info->canManageTopics
+			&& info->userCreatesTopics
 			&& info->startToken.isEmpty()
 			&& (!_history->isEmpty() || _history->lastMessage())) {
 		if (_item) {

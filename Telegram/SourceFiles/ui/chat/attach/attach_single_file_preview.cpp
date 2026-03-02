@@ -27,6 +27,10 @@ SingleFilePreview::SingleFilePreview(
 	preparePreview(file);
 }
 
+void SingleFilePreview::setDisplayName(const QString &displayName) {
+	AbstractSingleFilePreview::setDisplayName(displayName);
+}
+
 void SingleFilePreview::preparePreview(const PreparedFile &file) {
 	AbstractSingleFilePreview::Data data;
 
@@ -41,13 +45,18 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 	prepareThumbFor(data, preview);
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
-		auto filename = "image.png";
-		data.name = filename;
+		const auto fallbackName = u"image.png"_q;
+		const auto displayName = file.displayName.isEmpty()
+			? fallbackName
+			: file.displayName;
+		data.name = displayName;
 		data.statusText = FormatImageSizeText(file.originalDimensions);
 		data.fileIsImage = true;
 	} else {
 		auto fileinfo = QFileInfo(filepath);
-		auto filename = fileinfo.fileName();
+		auto filename = file.displayName.isEmpty()
+			? fileinfo.fileName()
+			: file.displayName;
 		data.fileIsImage = Core::FileIsImage(
 			filename,
 			Core::MimeTypeForFile(fileinfo).name());

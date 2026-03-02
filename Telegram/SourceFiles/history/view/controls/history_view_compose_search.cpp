@@ -1015,7 +1015,7 @@ ComposeSearch::Inner::Inner(
 	_bottomBar->showCalendarRequests(
 	) | rpl::on_next([=] {
 		hideList();
-		_window->showCalendar({ _history }, QDate());
+		_window->showCalendar({ Dialogs::Key(_history) });
 	}, _bottomBar->lifetime());
 
 	_bottomBar->showBoxFromRequests(

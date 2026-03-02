@@ -310,7 +310,8 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 						? slider->lookupSectionLeft(i + 1)
 						: slider->width();
 					if (x >= left && x < right) {
-						const auto &list = session->data().chatsFilters().list();
+						const auto &list
+							= session->data().chatsFilters().list();
 						return (i < list.size())
 							? list[i].id()
 							: FilterId();
@@ -318,7 +319,17 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				}
 				return std::nullopt;
 			},
-			[=] { return state->lastFilterId.value_or(FilterId()); });
+			[=] { return state->lastFilterId.value_or(FilterId()); },
+			[=](FilterId id) {
+				const auto &list = session->data().chatsFilters().list();
+				for (auto i = 0; i < list.size(); i++) {
+					if (list[i].id() == id) {
+						slider->selectSection(i);
+						return;
+					}
+				}
+				slider->selectSection(-1);
+			});
 	}
 	wrap->toggle(false, anim::type::instant);
 	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {

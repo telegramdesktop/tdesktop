@@ -79,6 +79,7 @@ struct PreparedFile {
 	[[nodiscard]] bool isGifv() const;
 
 	QString path;
+	QString displayName;
 	QByteArray content;
 	int64 size = 0;
 	std::unique_ptr<PreparedFileInformation> information;
@@ -151,6 +152,12 @@ struct PreparedGroup {
 
 [[nodiscard]] std::vector<PreparedGroup> DivideByGroups(
 	PreparedList &&list,
+	SendFilesWay way,
+	bool slowmode);
+[[nodiscard]] bool CaptionWillBeAttached(
+	const std::vector<PreparedGroup> &groups);
+[[nodiscard]] bool CaptionWillBeAttached(
+	const PreparedList &list,
 	SendFilesWay way,
 	bool slowmode);
 

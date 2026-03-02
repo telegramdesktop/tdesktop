@@ -1803,7 +1803,8 @@ rpl::producer<std::optional<bool>> ComposeControls::attachRequests() const {
 }
 
 void ComposeControls::setMimeDataHook(MimeDataHook hook) {
-	_field->setMimeDataHook(std::move(hook));
+	_field->setMimeDataHook(
+		WrappedMessageFieldMimeHook(std::move(hook), _field));
 }
 
 bool ComposeControls::confirmMediaEdit(Ui::PreparedList &list) {
@@ -3301,6 +3302,18 @@ SendMenu::Details ComposeControls::sendButtonMenuDetails() const {
 void ComposeControls::updateSendButtonType() {
 	using Type = Ui::SendButton::Type;
 	const auto type = computeSendButtonType();
+	const auto forbidden = [&] {
+		if (type != Type::Record && type != Type::Round) {
+			return false;
+		}
+		if (!_history) {
+			return false;
+		}
+		const auto restriction = (type == Type::Record)
+			? ChatRestriction::SendVoiceMessages
+			: ChatRestriction::SendVideoMessages;
+		return !!Data::RestrictionError(_history->peer, restriction);
+	}();
 	const auto delay = [&] {
 		return (type != Type::Cancel && type != Type::Save)
 			? _slowmodeSecondsLeft.current()
@@ -3317,6 +3330,7 @@ void ComposeControls::updateSendButtonType() {
 			: QColor()),
 		.slowmodeDelay = delay,
 		.starsToSend = shownStarsPerMessage(),
+		.forbidden = forbidden,
 	});
 	_send->setDisabled(_sendDisabledBySlowmode.current()
 		&& (type == Type::Send
@@ -3954,6 +3968,7 @@ void ComposeControls::initWebpageProcess() {
 		if (flags & Data::PeerUpdate::Flag::Rights) {
 			_preview->checkNow(false);
 			updateFieldPlaceholder();
+			updateSendButtonType();
 		}
 		if (flags & Data::PeerUpdate::Flag::Notifications) {
 			updateSilentBroadcast();
@@ -3965,6 +3980,7 @@ void ComposeControls::initWebpageProcess() {
 			updateFieldPlaceholder();
 		}
 		if (flags & Data::PeerUpdate::Flag::FullInfo) {
+			updateSendButtonType();
 			if (updateBotCommandShown()) {
 				updateControlsVisibility();
 				updateControlsGeometry(_wrap->size());

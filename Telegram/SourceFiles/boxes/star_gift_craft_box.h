@@ -43,4 +43,8 @@ void ShowCraftLaterError(
 	std::shared_ptr<Show> show,
 	TimeId when);
 
+[[nodiscard]] bool ShowCraftAddressError(
+	std::shared_ptr<Show> show,
+	std::shared_ptr<Data::UniqueGift> gift);
+
 } // namespace Ui

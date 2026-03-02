@@ -202,6 +202,11 @@ menuIconTools: icon{{ "menu/craft_tools-24x24", menuIconColor }};
 menuIconCraftTraits: icon{{ "menu/craft_random-24x24", menuIconColor }};
 menuIconCraftChance: icon{{ "menu/craft_chance-24x24", menuIconColor }};
 menuIconCraft: icon{{ "menu/craft_start-24x24", menuIconColor }};
+menuIconTagAdd: icon{{ "menu/tag_add-24x24", menuIconColor }};
+menuIconTagEdit: icon{{ "menu/tag_edit-24x24", menuIconColor }};
+menuIconDownloadOff: icon {{ "menu/download_off-24x24", menuIconColor }};
+menuIconShareOff: icon {{ "menu/share_off-24x24", menuIconColor }};
+menuIconShareOn: icon {{ "menu/share_on-24x24", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

@@ -38,6 +38,8 @@ Project structure:
 
 ## Phase 0: Setup
 
+**Record the current time now** (using `Get-Date` in PowerShell or equivalent) and store it as `$START_TIME`. You will use this at the end to display total elapsed time.
+
 ⚠️ **CRITICAL: Follow-up detection MUST happen FIRST, before anything else.**
 
 ### Step 0a: Follow-up detection (MANDATORY — do this BEFORE understanding the task)
@@ -80,10 +82,10 @@ You are a context-gathering agent for a large C++ codebase (Telegram Desktop).
 
 TASK: <paste the user's task description here>
 
-YOUR JOB: Read CLAUDE.md, inspect the codebase, find ALL files and code relevant to this task, and write two documents.
+YOUR JOB: Read AGENTS.md, inspect the codebase, find ALL files and code relevant to this task, and write two documents.
 
 Steps:
-1. Read CLAUDE.md for project conventions and build instructions.
+1. Read AGENTS.md for project conventions and build instructions.
 2. Search the codebase for files, classes, functions, and patterns related to the task.
 3. Read all potentially relevant files. Be thorough - read more rather than less.
 4. For each relevant file, note:
@@ -140,7 +142,7 @@ NEW TASK: <paste the follow-up task description here>
 YOUR JOB: Read the existing project state, gather any additional context needed, and produce fresh documents for the new task.
 
 Steps:
-1. Read CLAUDE.md for project conventions and build instructions.
+1. Read AGENTS.md for project conventions and build instructions.
 2. Read .ai/<project-name>/about.md — this is the project-level blueprint describing everything done so far.
 3. Read .ai/<project-name>/<previous-letter>/context.md — this is the previous task's gathered context.
 4. Understand what has already been implemented by reading the actual source files referenced in about.md and the previous context.
@@ -201,7 +203,7 @@ Read these files:
 - .ai/<project-name>/<letter>/context.md - Contains all gathered context for this task
 - Then read the specific source files referenced in context.md to understand the code deeply.
 
-Use /ultrathink to reason carefully about the implementation approach.
+Think carefully about the implementation approach.
 
 Create a detailed plan in: .ai/<project-name>/<letter>/plan.md
 
@@ -262,11 +264,11 @@ Read these files:
 - .ai/<project-name>/<letter>/plan.md
 - Then read the actual source files referenced to verify the plan makes sense.
 
-Use /ultrathink to assess the plan:
+Carefully assess the plan:
 
 1. **Correctness**: Are the file paths and line references accurate? Does the plan reference real functions and types?
 2. **Completeness**: Are there missing steps? Edge cases not handled?
-3. **Code quality**: Will the plan minimize code duplication? Does it follow existing codebase patterns from CLAUDE.md?
+3. **Code quality**: Will the plan minimize code duplication? Does it follow existing codebase patterns from AGENTS.md?
 4. **Design**: Could the approach be improved? Are there better patterns already used in the codebase?
 5. **Phase sizing**: Each phase should be implementable by a single agent in one session. If a phase has more than ~8-10 substantive code changes, split it further.
 
@@ -303,7 +305,7 @@ YOUR TASK: Implement ONLY Phase <N> from the plan:
 
 Rules:
 - Follow the plan precisely
-- Follow CLAUDE.md coding conventions (no comments except complex algorithms, use auto, empty line before closing brace, etc.)
+- Follow AGENTS.md coding conventions (no comments except complex algorithms, use auto, empty line before closing brace, etc.)
 - Do NOT modify .ai/ files except to update the Status section in plan.md
 - When done, update plan.md Status section: change `- [ ] Phase <N>: ...` to `- [x] Phase <N>: ...`
 - Do NOT work on other phases
@@ -332,18 +334,18 @@ Read these files:
 The implementation is complete. Your job is to build the project and fix any build errors.
 
 Steps:
-1. Run: cmake --build "c:\Telegram\tdesktop\out" --config Debug --target Telegram
+1. Run (from repository root): cmake --build ./out --config Debug --target Telegram
 2. If the build succeeds, update plan.md: change `- [ ] Build verification` to `- [x] Build verification`
 3. If the build fails:
    a. Read the error messages carefully
    b. Read the relevant source files
-   c. Fix the errors in accordance with the plan and CLAUDE.md conventions
+   c. Fix the errors in accordance with the plan and AGENTS.md conventions
    d. Rebuild and repeat until the build passes
    e. Update plan.md status when done
 
 Rules:
 - Only fix build errors, do not refactor or improve code
-- Follow CLAUDE.md conventions
+- Follow AGENTS.md conventions
 - If build fails with file-locked errors (C1041, LNK1104), STOP and report - do not retry
 
 When finished, report the build result.
@@ -391,7 +393,7 @@ Then run `git diff` to see all uncommitted changes made by the implementation. I
 
 Then read the modified source files in full to understand changes in context.
 
-Use /ultrathink to perform a thorough code review.
+Perform a thorough code review.
 
 REVIEW CRITERIA (in order of importance):
 
@@ -409,7 +411,7 @@ REVIEW CRITERIA (in order of importance):
 
 7. **Module structure**: Only in exceptional cases — if a large amount of newly added code (hundreds of lines) is logically distinct from the rest of its host module, suggest extracting it into a new module. But do NOT suggest new modules lightly: every module adds significant build overhead due to PCH and heavy template usage. Only suggest this when the new code is both large enough AND logically separated enough to justify it. At the same time, don't let modules grow into multi-thousand-line monoliths either.
 
-8. **Style compliance**: Verify adherence to REVIEW.md rules (empty line before closing brace, operators at start of continuation lines, minimize type checks with direct cast instead of is+as, no if-with-initializer when simpler alternatives exist) and CLAUDE.md conventions (no unnecessary comments, `auto` usage, no hardcoded sizes — must use .style definitions), etc.
+8. **Style compliance**: Verify adherence to REVIEW.md rules (empty line before closing brace, operators at start of continuation lines, minimize type checks with direct cast instead of is+as, no if-with-initializer when simpler alternatives exist) and AGENTS.md conventions (no unnecessary comments, `auto` usage, no hardcoded sizes — must use .style definitions), etc.
 
 IMPORTANT GUIDELINES:
 - Review ONLY the changes made, not pre-existing code in the repository.
@@ -472,13 +474,13 @@ For each issue in the review:
 3. Verify the change makes sense in context.
 
 After all changes are made:
-1. Build: cmake --build "c:\Telegram\tdesktop\out" --config Debug --target Telegram
+1. Build (from repository root): cmake --build ./out --config Debug --target Telegram
 2. If the build fails, fix build errors and rebuild until it passes.
 3. If build fails with file-locked errors (C1041, LNK1104), STOP and report - do not retry.
 
 Rules:
 - Implement exactly the changes from the review, nothing more.
-- Follow CLAUDE.md coding conventions.
+- Follow AGENTS.md coding conventions.
 - Do NOT modify .ai/ files.
 
 When finished, report what changes were made.
@@ -493,7 +495,8 @@ When all phases including build verification and code review are done:
 2. Show which files were modified/created.
 3. Note any issues encountered during implementation.
 4. Summarize code review iterations: how many rounds, what was found and fixed, or if it was approved on first pass.
-5. Remind the user of the project name so they can use `/task <project-name> <follow-up description>` for follow-up changes.
+5. Calculate and display the total elapsed time since `$START_TIME` (format as `Xh Ym Zs`, omitting zero components — e.g. `12m 34s` or `1h 5m 12s`).
+6. Remind the user of the project name so they can use `/task <project-name> <follow-up description>` for follow-up changes.
 
 ## Error Handling
 

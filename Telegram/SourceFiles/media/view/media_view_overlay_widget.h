@@ -738,6 +738,8 @@ private:
 
 	bool _receiveMouse = true;
 	bool _processingKeyPress = false;
+	bool _clickHandlerActive = false;
+	bool _clickHandlerPressed = false;
 
 	bool _touchPress = false;
 	bool _touchMove = false;

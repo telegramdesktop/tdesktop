@@ -34,6 +34,9 @@ HistoryMessageEdition::HistoryMessageEdition(
 		replies = HistoryMessageRepliesData(mtpReplies);
 	}
 	invertMedia = message.is_invert_media();
+	if (const auto rank = message.vfrom_rank()) {
+		fromRank = qs(*rank);
+	}
 
 	const auto period = message.vttl_period();
 	ttl = (period && period->v > 0) ? (message.vdate().v + period->v) : 0;

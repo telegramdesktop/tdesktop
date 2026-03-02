@@ -1500,14 +1500,14 @@ void AddSpecialBoxController::showAdmin(
 		_peer,
 		user,
 		currentRights,
-		_additional.adminRank(user),
+		_additional.memberRank(user),
 		_additional.adminPromotedSince(user),
 		_additional.adminPromotedBy(user));
 	const auto show = delegate()->peerListUiShow();
 	if (_additional.canAddOrEditAdmin(user)) {
 		const auto done = crl::guard(this, [=](
 				ChatAdminRightsInfo newRights,
-				const QString &rank) {
+				const std::optional<QString> &rank) {
 			editAdminDone(user, newRights, rank);
 		});
 		const auto fail = crl::guard(this, [=] {
@@ -1524,12 +1524,15 @@ void AddSpecialBoxController::showAdmin(
 void AddSpecialBoxController::editAdminDone(
 		not_null<UserData*> user,
 		ChatAdminRightsInfo rights,
-		const QString &rank) {
+		const std::optional<QString> &rank) {
 	if (_editParticipantBox) {
 		_editParticipantBox->closeBox();
 	}
 
-	_additional.applyAdminLocally(user, rights, rank);
+	_additional.applyAdminLocally(
+		user,
+		rights,
+		rank.value_or(_additional.memberRank(user)));
 	// _adminDoneCallback should call changes().chatAdminUpdated.
 	if (const auto callback = _adminDoneCallback) {
 		callback(user, rights, rank);
@@ -1582,6 +1585,7 @@ void AddSpecialBoxController::showRestricted(
 		user,
 		_additional.adminRights(user).has_value(),
 		currentRights,
+		_additional.memberRank(user),
 		_additional.restrictedBy(user),
 		_additional.restrictedSince(user));
 	if (_additional.canRestrictParticipant(user)) {
@@ -1594,8 +1598,9 @@ void AddSpecialBoxController::showRestricted(
 				_editParticipantBox->closeBox();
 			}
 		});
+		const auto show = delegate()->peerListUiShow();
 		box->setSaveCallback(
-			SaveRestrictedCallback(_peer, user, done, fail));
+			SaveRestrictedCallback(show, _peer, user, done, fail));
 	}
 	_editParticipantBox = showBox(std::move(box));
 }
@@ -1668,7 +1673,9 @@ void AddSpecialBoxController::kickUser(
 	const auto fail = crl::guard(this, [=] {
 		_editBox = nullptr;
 	});
+	const auto show = delegate()->peerListUiShow();
 	const auto callback = SaveRestrictedCallback(
+		show,
 		_peer,
 		participant,
 		done,

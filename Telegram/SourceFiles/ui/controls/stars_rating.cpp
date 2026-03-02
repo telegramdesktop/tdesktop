@@ -467,6 +467,7 @@ void StarsRating::updateData(Data::StarsRating rating) {
 		_currentLevel = rating.level;
 	}
 	updateWidth();
+	_widget->setAccessibleName(tr::lng_boost_level(tr::now, lt_count, rating.level));
 }
 
 void StarsRating::updateWidth() {

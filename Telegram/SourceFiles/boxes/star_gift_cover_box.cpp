@@ -699,8 +699,12 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 			+ st::uniqueAttributePadding.bottom();
 		_state->attrs->resize(_state->attrs->width(), attrsHeight);
 		_state->attrs->paintOn([this, astate, attrsHeight](QPainter &p) {
+			const auto boxPadding = st::giftBoxPadding;
 			const auto skip = st::giftBoxGiftSkip.x();
-			const auto available = _state->attrs->width() - 2 * skip;
+			const auto available = _state->attrs->width()
+				- boxPadding.left()
+				- boxPadding.right()
+				- 2 * skip;
 			const auto single = available / 3;
 			if (single <= 0) {
 				return;
@@ -753,10 +757,10 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 					.position = percent.topLeft(),
 				});
 			};
-			auto left = 0;
+			auto left = boxPadding.left();
 			paint(left, astate->model);
 			paint(left + single + skip, astate->backdrop);
-			paint(_state->attrs->width() - single - left, astate->pattern);
+			paint(_state->attrs->width() - single - boxPadding.right(), astate->pattern);
 		});
 	}
 	_state->updateAttrs(*_state->now.gift);
@@ -810,10 +814,8 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 		top += subtitleHeight + (skip / 2);
 
 		if (_state->attrs) {
-			_state->attrs->resizeToWidth(width
-				- st::giftBoxPadding.left()
-				- st::giftBoxPadding.right());
-			_state->attrs->moveToLeft(st::giftBoxPadding.left(), top);
+			_state->attrs->resizeToWidth(width);
+			_state->attrs->moveToLeft(0, top);
 			top += _state->attrs->height() + (skip / 2);
 		} else {
 			top += (skip / 2);

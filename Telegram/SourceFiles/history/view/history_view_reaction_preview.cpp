@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_reaction_preview.h"
 
 #include "base/call_delayed.h"
+#include "base/event_filter.h"
 #include "boxes/sticker_set_box.h"
 #include "data/data_document.h"
 #include "data/data_message_reactions.h"
@@ -34,7 +35,8 @@ namespace HistoryView {
 bool ShowReactionPreview(
 		not_null<Window::SessionController*> controller,
 		FullMsgId origin,
-		Data::ReactionId reactionId) {
+		Data::ReactionId reactionId,
+		bool emojiPreview) {
 	auto document = (DocumentData*)(nullptr);
 	if (const auto custom = reactionId.custom()) {
 		document = controller->session().data().document(custom);
@@ -51,6 +53,14 @@ bool ShowReactionPreview(
 		base::unique_qptr<Ui::AbstractButton> clickable;
 		base::unique_qptr<Ui::AbstractButton> background;
 		base::unique_qptr<Ui::FlatLabel> label;
+
+		void clear() {
+			mediaPreview.reset();
+			clickable.reset();
+			background.reset();
+			label.reset();
+		};
+
 	};
 	const auto state = std::make_shared<State>();
 
@@ -71,11 +81,21 @@ bool ShowReactionPreview(
 		}
 		base::call_delayed(
 			st::defaultToggle.duration,
-			crl::guard(state->clickable.get(), [=] {
-				state->clickable.reset();
-			}));
+			[=] { state->clear(); });
 	};
 	state->clickable->setClickedCallback(hideAll);
+	base::install_event_filter(QCoreApplication::instance(), [=](
+			not_null<QEvent*> e) {
+		if (e->type() == QEvent::KeyPress
+			&& state->clickable->window()->isActiveWindow()) {
+			const auto k = static_cast<QKeyEvent*>(e.get());
+			if (k->key() == Qt::Key_Escape) {
+				hideAll();
+				return base::EventFilterResult::Cancel;
+			}
+		}
+		return base::EventFilterResult::Continue;
+	}, state->clickable->lifetime());
 	state->mediaPreview->showPreview(origin, document);
 	state->clickable->show();
 	const auto mediaPreviewRaw = state->mediaPreview.get();
@@ -99,10 +119,12 @@ bool ShowReactionPreview(
 			});
 			state->label = base::make_unique_q<Ui::FlatLabel>(
 				state->background.get(),
-				tr::lng_context_animated_reaction(
-					lt_name,
-					rpl::single(Ui::Text::Colorized(packName)),
-					tr::rich));
+				(emojiPreview
+					? tr::lng_context_animated_emoji_preview
+					: tr::lng_context_animated_reaction)(
+						lt_name,
+						rpl::single(Ui::Text::Colorized(packName)),
+						tr::rich));
 			state->label->setAttribute(Qt::WA_TransparentForMouseEvents);
 			const auto backgroundRaw = state->background.get();
 			const auto labelRaw = state->label.get();
@@ -134,8 +156,6 @@ bool ShowReactionPreview(
 
 	mainwidget->sizeValue() | rpl::on_next([=](QSize size) {
 		mediaPreviewRaw->setGeometry(Rect(size));
-		clickableRaw->setGeometry(Rect(size));
-		clickableRaw->raise();
 
 		if (backgroundRaw && labelRaw) {
 			const auto maxLabelWidth = labelRaw->textMaxWidth() / 2;
@@ -158,6 +178,11 @@ bool ShowReactionPreview(
 			backgroundRaw->raise();
 		}
 	}, mediaPreviewRaw->lifetime());
+
+	mainwidget->sizeValue() | rpl::on_next([=](QSize size) {
+		clickableRaw->setGeometry(Rect(size));
+		clickableRaw->raise();
+	}, clickableRaw->lifetime());
 	return true;
 }
 

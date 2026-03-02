@@ -67,3 +67,6 @@ settings.local.json
 
 # AI work folder (session-specific, not for version control)
 .ai
+
+# Generated changelog page (built by CI, deployed to GitHub Pages)
+/docs/changelog/

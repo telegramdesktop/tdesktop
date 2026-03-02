@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class ChannelData;
 class PeerData;
 class UserData;
 
@@ -18,5 +17,5 @@ class Show;
 
 void SelectFutureOwnerbox(
 	not_null<Ui::GenericBox*> box,
-	not_null<ChannelData*> channel,
+	not_null<PeerData*> peer,
 	not_null<UserData*> user);

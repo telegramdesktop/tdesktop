@@ -177,6 +177,9 @@ void Provider::checkPreload(
 void Provider::setSearchQuery(QString query) {
 }
 
+void Provider::jumpToMessage(MsgId messageId, Fn<void(FullMsgId)>) {
+}
+
 void Provider::refreshViewer() {
 	_viewerLifetime.destroy();
 	const auto aroundId = _aroundId;

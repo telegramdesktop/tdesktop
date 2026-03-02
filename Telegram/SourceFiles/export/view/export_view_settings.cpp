@@ -617,11 +617,11 @@ void SettingsWidget::editDateLimit(
 			}
 		}));
 	};
-	const auto callback = crl::guard(this, [=](const QDate &date) {
+	const auto callback = crl::guard(this, [=](
+			const QDate &date,
+			Fn<void()> close) {
 		done(base::unixtime::serialize(date.startOfDay()));
-		if (const auto weak = shared->get()) {
-			weak->closeBox();
-		}
+		close();
 	});
 	auto box = Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
 		.month = month,

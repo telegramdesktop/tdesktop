@@ -79,6 +79,7 @@ public:
 	QString phraseFormattingBlockquote() override;
 	QString phraseFormattingMonospace() override;
 	QString phraseFormattingSpoiler() override;
+	QString phraseFormattingDate() override;
 	QString phraseButtonOk() override;
 	QString phraseButtonClose() override;
 	QString phraseButtonCancel() override;

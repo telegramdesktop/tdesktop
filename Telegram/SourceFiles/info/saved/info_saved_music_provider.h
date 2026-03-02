@@ -50,6 +50,7 @@ public:
 	rpl::producer<> refreshed() override;
 
 	void setSearchQuery(QString query) override;
+	void jumpToMessage(MsgId, Fn<void(FullMsgId)> done) override;
 
 	std::vector<Media::ListSection> fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) override;

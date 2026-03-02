@@ -11,10 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
-namespace Lottie {
-class Icon;
-} // namespace Lottie
-
 namespace Data {
 class Session;
 } // namespace Data

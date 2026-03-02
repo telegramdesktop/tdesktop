@@ -49,6 +49,8 @@ public:
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void selectionAction(SelectionAction action);
 
+	void jumpToMessage(MsgId msgId);
+
 	~InnerWidget();
 
 protected:
@@ -82,6 +84,9 @@ private:
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 	rpl::event_stream<rpl::producer<int>> _listTops;
+
+	int _emptyHeightThreshold = 0;
+	rpl::lifetime _emptyLoadingLifetime;
 
 };
 

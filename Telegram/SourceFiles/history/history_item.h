@@ -604,6 +604,8 @@ public:
 		return _boostsApplied;
 	}
 
+	[[nodiscard]] QString fromRank() const;
+
 	MsgId id;
 
 private:
@@ -681,7 +683,7 @@ private:
 	void setReactions(const MTPMessageReactions *reactions);
 	[[nodiscard]] bool changeReactions(const MTPMessageReactions *reactions);
 	void setServiceMessageByAction(const MTPmessageAction &action);
-	void applyAction(const MTPMessageAction &action);
+	void processAction(const MTPMessageAction &action);
 	void refreshMedia(const MTPMessageMedia *media);
 	void refreshSentMedia(const MTPMessageMedia *media);
 	void createServiceFromMtp(const MTPDmessage &message);

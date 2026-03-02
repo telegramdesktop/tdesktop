@@ -45,6 +45,7 @@ public:
 		QColor fillBgOverride;
 		int slowmodeDelay = 0;
 		int starsToSend = 0;
+		bool forbidden = false;
 
 		friend inline bool operator==(State, State) = default;
 	};

@@ -460,6 +460,15 @@ using Order = std::vector<QString>;
 				true,
 			},
 		},
+		{
+			u"no_forwards"_q,
+			Entry{
+				&st::settingsPremiumIconNoForwards,
+				tr::lng_premium_summary_subtitle_no_forwards(),
+				tr::lng_premium_summary_about_no_forwards(),
+				PremiumFeature::NoForwards,
+			},
+		},
 	};
 }
 
@@ -1021,6 +1030,8 @@ void TopBarWithSticker::resizeEvent(QResizeEvent *e) {
 		return tr::lng_premium_summary_subtitle_effects(tr::now);
 	} else if (key == u"todo"_q) {
 		return tr::lng_premium_summary_subtitle_todo_lists(tr::now);
+	} else if (key == u"no_forwards"_q) {
+		return tr::lng_premium_summary_subtitle_no_forwards(tr::now);
 	}
 	return QString();
 }
@@ -2097,6 +2108,8 @@ std::vector<PremiumFeature> PremiumFeaturesOrder(
 			return PremiumFeature::PeerColors;
 		} else if (s == u"gifts"_q) {
 			return PremiumFeature::Gifts;
+		} else if (s == u"no_forwards"_q) {
+			return PremiumFeature::NoForwards;
 		}
 		return PremiumFeature::kCount;
 	}) | ranges::views::filter([](PremiumFeature type) {

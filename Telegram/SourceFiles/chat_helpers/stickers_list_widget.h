@@ -56,6 +56,8 @@ struct FlatLabel;
 
 namespace ChatHelpers {
 
+extern const char kOptionUnlimitedRecentStickers[];
+
 struct StickerIcon;
 enum class ValidateIconAnimations;
 class StickersListFooter;

@@ -7,17 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/click_handler_types.h"
 
+#include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "chat_helpers/bot_command.h"
 #include "core/application.h"
 #include "core/local_url_handlers.h"
+#include "core/file_utilities.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/toast/toast.h"
+#include "ui/toast/toast_lottie_icon.h"
 #include "ui/widgets/popup_menu.h"
 #include "base/qthelp_regex.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/random.h"
 #include "storage/storage_account.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
@@ -29,10 +33,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_session_controller_link_info.h"
+#include "apiwrap.h"
+#include "history/view/history_view_schedule_box.h"
+#include "history/view/history_view_scheduled_section.h"
+#include "menu/menu_send.h"
+#include "data/data_types.h"
 #include "styles/style_calls.h" // groupCallBoxLabel
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
+
+#include <QtCore/QDateTime>
+#include <QtCore/QLocale>
 
 namespace {
+
+constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
 
 [[nodiscard]] TextWithEntities BoldDomainInUrl(const QString &url) {
 	auto result = TextWithEntities{ .text = url };
@@ -93,6 +109,98 @@ void SearchByHashtag(ClickContext context, const QString &tag) {
 			: Dialogs::Key());
 }
 
+void ExportToCalendar(TimeId date, const QString &messageText) {
+	const auto start = QDateTime::fromSecsSinceEpoch(
+		date,
+		Qt::UTC);
+	const auto end = QDateTime::fromSecsSinceEpoch(
+		date + 3600,
+		Qt::UTC);
+	const auto now = QDateTime::currentDateTimeUtc();
+	const auto format = u"yyyyMMdd'T'HHmmss'Z'"_q;
+	const auto locale = QLocale();
+	const auto raw = locale.toString(
+		base::unixtime::parse(date),
+		QLocale::LongFormat);
+	auto summary = raw;
+	summary.replace('\\', u"\\\\"_q);
+	summary.replace(';', u"\\;"_q);
+	summary.replace(',', u"\\,"_q);
+	summary.replace('\n', u"\\n"_q);
+	auto description = messageText;
+	description.replace('\\', u"\\\\"_q);
+	description.replace(';', u"\\;"_q);
+	description.replace(',', u"\\,"_q);
+	description.replace('\n', u"\\n"_q);
+	const auto uid = base::RandomValue<uint64>();
+	const auto content = u"BEGIN:VCALENDAR\r\n"
+		"VERSION:2.0\r\n"
+		"PRODID:-//Telegram Desktop//EN\r\n"
+		"BEGIN:VEVENT\r\n"
+		"DTSTART:%1\r\n"
+		"DTEND:%2\r\n"
+		"DTSTAMP:%3\r\n"
+		"UID:telegram-%4-%7@telegram.org\r\n"
+		"SUMMARY:%5\r\n"
+		"DESCRIPTION:%6\r\n"
+		"END:VEVENT\r\n"
+		"END:VCALENDAR\r\n"_q
+			.arg(start.toString(format))
+			.arg(end.toString(format))
+			.arg(now.toString(format))
+			.arg(date)
+			.arg(summary)
+			.arg(description)
+			.arg(uid, 0, 16);
+	const auto dir = cWorkingDir() + u"tdata/temp"_q;
+	QDir().mkpath(dir);
+	const auto path = u"%1/event_%2.ics"_q
+		.arg(dir)
+		.arg(date);
+	auto file = QFile(path);
+	if (file.open(QIODevice::WriteOnly)) {
+		file.write(content.toUtf8());
+		file.close();
+		File::Launch(path);
+	}
+}
+
+void DoneSetReminder(std::shared_ptr<ChatHelpers::Show> show) {
+	if (!show->valid()) {
+		return;
+	}
+	const auto text = tr::lng_reminder_scheduled_in(
+		tr::now,
+		lt_link,
+		tr::link(tr::bold(tr::lng_saved_messages(tr::now))),
+		tr::marked);
+	const auto session = &show->session();
+	const auto filter = [=](
+			const ClickHandlerPtr &,
+			Qt::MouseButton) {
+		if (const auto controller = show->resolveWindow()) {
+			controller->showSection(
+				std::make_shared<HistoryView::ScheduledMemento>(
+					session->data().history(session->user())));
+		}
+		return false;
+	};
+	const auto toast = show->showToast({
+		.text = text,
+		.filter = filter,
+		.st = &st::selfForwardsTaggerToast,
+		.attach = RectPart::Top,
+		.duration = kReminderSetToastDuration,
+	});
+	if (const auto strong = toast.get()) {
+		Ui::AddLottieToToast(
+			strong->widget(),
+			st::selfForwardsTaggerToast,
+			st::selfForwardsTaggerIcon,
+			u"toast/saved_messages"_q);
+	}
+};
+
 } // namespace
 
 bool UrlRequiresConfirmation(const QUrl &url) {
@@ -134,7 +242,7 @@ QString HiddenUrlClickHandler::dragText() const {
 
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	url = Core::TryConvertUrlToLocal(url);
-	if (Core::InternalPassportLink(url)) {
+	if (Core::InternalPassportOrOAuthLink(url)) {
 		return;
 	}
 
@@ -231,7 +339,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 
 void BotGameUrlClickHandler::onClick(ClickContext context) const {
 	const auto url = Core::TryConvertUrlToLocal(this->url());
-	if (Core::InternalPassportLink(url)) {
+	if (Core::InternalPassportOrOAuthLink(url)) {
 		return;
 	}
 	const auto openLink = [=] {
@@ -437,4 +545,94 @@ auto MonospaceClickHandler::getTextEntity() const -> TextEntity {
 
 QString MonospaceClickHandler::url() const {
 	return _text;
+}
+
+FormattedDateClickHandler::FormattedDateClickHandler(
+	int32 date,
+	FormattedDateFlags flags)
+: _date(date)
+, _entityData(SerializeFormattedDateData(date, flags)) {
+}
+
+void FormattedDateClickHandler::onClick(ClickContext context) const {
+	if (context.button != Qt::LeftButton) {
+		return;
+	}
+	const auto my = context.other.value<ClickHandlerContext>();
+	const auto controller = my.sessionWindow.get();
+	if (!controller) {
+		return;
+	}
+	const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+		controller->content(),
+		st::popupMenuWithIcons);
+
+	const auto date = _date;
+	const auto show = controller->uiShow();
+
+	menu->addAction(
+		tr::lng_context_copy_date(tr::now),
+		[date, show] {
+			const auto text = QLocale().toString(
+				base::unixtime::parse(date),
+				QLocale::LongFormat);
+			TextUtilities::SetClipboardText(TextForMimeData::Simple(text));
+			show->showToast(tr::lng_date_copied(tr::now));
+		},
+		&st::menuIconCopy);
+
+	const auto itemId = my.itemId;
+	const auto &owner = controller->session().data();
+	const auto item = owner.message(itemId);
+
+	const auto messageText = item ? item->originalText().text : QString();
+	menu->addAction(
+		tr::lng_context_add_to_calendar(tr::now),
+		[date, messageText] { ExportToCalendar(date, messageText); },
+		&st::menuIconSchedule);
+
+	const auto canForward = item
+		&& !item->forbidsForward()
+		&& item->history()->peer->allowsForwarding();
+	if (canForward) {
+		menu->addAction(
+			tr::lng_context_set_reminder(tr::now),
+			[itemId, show] {
+				const auto session = &show->session();
+				const auto item = session->data().message(itemId);
+				if (!item) {
+					return;
+				}
+				const auto self = session->user();
+				const auto history = self->owner().history(self);
+				show->showBox(HistoryView::PrepareScheduleBox(
+					session,
+					show,
+					SendMenu::Details{ .type = SendMenu::Type::Reminder },
+					[=](Api::SendOptions options) {
+						auto action = Api::SendAction(history, options);
+						action.clearDraft = false;
+						action.generateLocal = false;
+						session->api().forwardMessages(
+							Data::ResolvedForwardDraft{
+								.items = { item },
+							},
+							action,
+							[=] { DoneSetReminder(show); });
+					}));
+			},
+			&st::menuIconNotifications);
+	}
+
+	menu->popup(QCursor::pos());
+}
+
+auto FormattedDateClickHandler::getTextEntity() const -> TextEntity {
+	return { EntityType::FormattedDate, _entityData };
+}
+
+QString FormattedDateClickHandler::tooltip() const {
+	return QLocale().toString(
+		base::unixtime::parse(_date),
+		QLocale::LongFormat);
 }

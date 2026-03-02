@@ -87,6 +87,7 @@ public:
 	void discardCreatingId(MsgId rootId);
 	[[nodiscard]] bool creating(MsgId rootId) const;
 	void created(MsgId rootId, MsgId realId);
+	[[nodiscard]] ForumTopic *reserveNewBotTopic();
 
 	void clearAllUnreadMentions();
 	void clearAllUnreadReactions();

@@ -747,7 +747,9 @@ std::unique_ptr<PeerListRow> InviteController::createRow(
 		|| user->isInaccessible()) {
 		return nullptr;
 	}
-	auto result = std::make_unique<PeerListRow>(user);
+	auto result = std::make_unique<Row>(
+		user,
+		Type{ .chatStyle = _chatStyle.get(), .circleCache = &_pillCircleCache });
 	_rowAdded.fire_copy(user);
 	_inGroup.emplace(user);
 	if (isAlreadyIn(user)) {

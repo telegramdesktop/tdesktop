@@ -743,6 +743,15 @@ QByteArray SerializeMessage(
 		if (const auto year = data.birthday.year()) {
 			push("year", year);
 		}
+	}, [&](const ActionNoForwardsToggle &data) {
+		pushActor();
+		pushAction("no_forwards_toggle");
+		push("new_value", data.newValue);
+	}, [&](const ActionNoForwardsRequest &data) {
+		pushActor();
+		pushAction("no_forwards_request");
+		push("expired", data.expired);
+		push("new_value", data.newValue);
 	}, [&](const ActionNewCreatorPending &data) {
 		pushActor();
 		pushAction("new_creator_pending");

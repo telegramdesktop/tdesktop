@@ -23,6 +23,32 @@ msgMinWidth: 160px;
 msgPhotoSize: 33px;
 msgPhotoSkip: 40px;
 msgPadding: margins(11px, 8px, 11px, 8px);
+msgTagBadgePadding: margins(5px, -1px, 5px, 0px);
+msgTagBadgeBoostSkip: 2px;
+
+tagInfoIcon: icon {{ "chat/large_user_tag-48x48", windowFgActive }};
+tagInfoIconPadding: margins(8px, 8px, 8px, 8px);
+tagInfoPreviewHeight: 80px;
+tagInfoPreviewGap: 8px;
+tagInfoPreviewBubbleRadius: 8px;
+tagInfoPreviewLineHeight: 6px;
+tagInfoPreviewLineSpacing: 4px;
+tagInfoPreviewBubblePadding: margins(10px, 8px, 10px, 8px);
+tagInfoPreviewRadius: 8px;
+tagInfoPreviewBubbleRightMargin: 10px;
+tagInfoPreviewFadeWidth: 24px;
+tagInfoPreviewBadgeTop: 6px;
+tagInfoPreviewPadding: margins(0px, 16px, 0px, 0px);
+tagInfoAdminsOnlyPadding: margins(0px, 8px, 0px, 0px);
+tagInfoAdminsOnlyLabel: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 40px;
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+
 msgMargin: margins(16px, 6px, 56px, 2px);
 msgMarginTopAttached: 0px;
 msgShadow: 2px;
@@ -914,6 +940,11 @@ reactionMainAppearShift: 20px;
 reactionCollapseFadeThreshold: 40px;
 reactionFlyUp: 50px;
 
+replyCornerHeight: 20px;
+replyCornerShadow: margins(4px, 8px, 4px, 8px);
+replyCornerCenter: point(7px, -2px);
+replyCornerTextPadding: margins(6px, 0px, 6px, 0px);
+
 effectInfoImage: 12px;
 
 searchInChatMultiSelectItem: MultiSelectItem(defaultMultiSelectItem) {
@@ -1098,6 +1129,7 @@ chatSuggestInfoWidth: 272px;
 chatSuggestInfoTitleMargin: margins(16px, 16px, 16px, 6px);
 chatSuggestInfoMiddleMargin: margins(16px, 4px, 16px, 4px);
 chatSuggestInfoLastMargin: margins(16px, 4px, 16px, 16px);
+chatSuggestBulletLeftExtra: 16px;
 chatSuggestTableMiddleMargin: margins(8px, 4px, 8px, 4px);
 chatSuggestTableLastMargin: margins(8px, 4px, 8px, 16px);
 chatSuggestInfoFullMargin: margins(16px, 16px, 16px, 16px);

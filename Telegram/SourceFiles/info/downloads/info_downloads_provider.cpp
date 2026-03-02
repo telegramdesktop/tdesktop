@@ -115,6 +115,9 @@ void Provider::setSearchQuery(QString query) {
 	_refreshed.fire({});
 }
 
+void Provider::jumpToMessage(MsgId messageId, Fn<void(FullMsgId)>) {
+}
+
 void Provider::refreshViewer() {
 	if (_started) {
 		return;

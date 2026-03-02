@@ -48,6 +48,9 @@ namespace {
 			| (data.is_delete_stories() ? Flag::DeleteStories : Flag())
 			| (data.is_manage_direct_messages()
 				? Flag::ManageDirect
+				: Flag())
+			| (data.is_manage_ranks()
+				? Flag::ManageRanks
 				: Flag());
 	});
 }
@@ -73,7 +76,8 @@ namespace {
 			| (data.is_change_info() ? Flag::ChangeInfo : Flag())
 			| (data.is_invite_users() ? Flag::AddParticipants : Flag())
 			| (data.is_pin_messages() ? Flag::PinMessages : Flag())
-			| (data.is_manage_topics() ? Flag::CreateTopics : Flag());
+			| (data.is_manage_topics() ? Flag::CreateTopics : Flag())
+			| (data.is_edit_rank() ? Flag::EditRank : Flag());
 	});
 }
 
@@ -112,6 +116,9 @@ MTPChatAdminRights AdminRightsToMTP(ChatAdminRightsInfo info) {
 		| ((flags & R::DeleteStories) ? Flag::f_delete_stories : Flag())
 		| ((flags & R::ManageDirect)
 			? Flag::f_manage_direct_messages
+			: Flag())
+		| ((flags & R::ManageRanks)
+			? Flag::f_manage_ranks
 			: Flag())));
 }
 
@@ -143,7 +150,8 @@ MTPChatBannedRights RestrictionsToMTP(ChatRestrictionsInfo info) {
 			| ((flags & R::ChangeInfo) ? Flag::f_change_info : Flag())
 			| ((flags & R::AddParticipants) ? Flag::f_invite_users : Flag())
 			| ((flags & R::PinMessages) ? Flag::f_pin_messages : Flag())
-			| ((flags & R::CreateTopics) ? Flag::f_manage_topics : Flag())),
+			| ((flags & R::CreateTopics) ? Flag::f_manage_topics : Flag())
+			| ((flags & R::EditRank) ? Flag::f_edit_rank : Flag())),
 		MTP_int(info.until));
 }
 

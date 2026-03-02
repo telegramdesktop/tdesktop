@@ -23,6 +23,7 @@ class SlideWrap;
 } // namespace Ui
 
 class ChannelOwnershipTransfer;
+class EditTagControl;
 
 class EditParticipantBox : public Ui::BoxContent {
 public:
@@ -47,6 +48,8 @@ protected:
 
 	template <typename Widget>
 	Widget *addControl(object_ptr<Widget> widget, QMargins margin = {});
+
+	void setCoverMode(bool enabled);
 
 	bool hasAdminRights() const {
 		return _hasAdminRights;
@@ -83,7 +86,7 @@ public:
 			Fn<void(
 				ChatAdminRightsInfo,
 				ChatAdminRightsInfo,
-				const QString &rank)> callback) {
+				const std::optional<QString> &rank)> callback) {
 		_saveCallback = std::move(callback);
 	}
 
@@ -93,15 +96,13 @@ protected:
 private:
 	[[nodiscard]] ChatAdminRightsInfo defaultRights() const;
 
-	not_null<Ui::InputField*> addRankInput(
-		not_null<Ui::VerticalLayout*> container);
 	void transferOwnership();
-	bool canSave() const {
+	[[nodiscard]] bool canSave() const {
 		return _saveCallback != nullptr;
 	}
 	void finishAddAdmin();
 	void refreshButtons();
-	bool canTransferOwnership() const;
+	[[nodiscard]] bool canTransferOwnership() const;
 	not_null<Ui::SlideWrap<Ui::RpWidget>*> setupTransferButton(
 		not_null<Ui::VerticalLayout*> container,
 		bool isGroup);
@@ -111,12 +112,12 @@ private:
 	Fn<void(
 		ChatAdminRightsInfo,
 		ChatAdminRightsInfo,
-		const QString &rank)> _saveCallback;
+		const std::optional<QString> &rank)> _saveCallback;
 
 	base::weak_qptr<Ui::BoxContent> _confirmBox;
 	Ui::Checkbox *_addAsAdmin = nullptr;
 	Ui::SlideWrap<Ui::VerticalLayout> *_adminControlsWrap = nullptr;
-	Ui::InputField *_rank = nullptr;
+	EditTagControl *_tagControl = nullptr;
 
 	Fn<void()> _save, _finishSave;
 
@@ -139,6 +140,7 @@ public:
 		not_null<UserData*> user,
 		bool hasAdminRights,
 		ChatRestrictionsInfo rights,
+		const QString &rank,
 		UserData *by,
 		TimeId since);
 
@@ -164,6 +166,8 @@ private:
 	TimeId getRealUntilValue() const;
 
 	const ChatRestrictionsInfo _oldRights;
+	const QString _oldRank;
+	EditTagControl *_tagControl = nullptr;
 	UserData *_by = nullptr;
 	TimeId _since = 0;
 	TimeId _until = 0;

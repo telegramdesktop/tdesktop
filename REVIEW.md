@@ -4,7 +4,7 @@ This file contains style and formatting rules that the review subagent must chec
 
 ## Empty line before closing brace
 
-Always add an empty line before the closing brace of a class (after all private fields):
+Always add an empty line before the closing brace of a **class** (which has one or more sections like `public:` / `private:`). Plain **structs** with just data members do NOT get a trailing empty line — they are compact: `struct Foo { data lines; };`.
 
 ```cpp
 // BAD:
@@ -93,6 +93,82 @@ if (const auto peer = session().data().peerLoaded(peerId)
 // GOOD - simple nested ifs when direct lookup isn't available:
 if (const auto peer = session().data().peerLoaded(peerId)) {
 	if (const auto user = peer->asUser()) {
+
+## Always initialize variables of basic types
+
+Never leave variables of basic types (`int`, `float`, `bool`, pointers, etc.) uninitialized. Custom types with constructors are fine — they initialize themselves. But for any basic type, always provide a default value (`= 0`, `= false`, `= nullptr`, etc.). This applies especially to class fields, where uninitialized members are a persistent source of bugs.
+
+The only exception is performance-critical hot paths where you can prove no read-from-uninitialized-memory occurs. For class fields there is no such exception — always initialize.
+
+```cpp
+// BAD:
+int _bulletLeft;
+int _bulletTop;
+bool _expanded;
+SomeType *_pointer;
+
+// GOOD:
+int _bulletLeft = 0;
+int _bulletTop = 0;
+bool _expanded = false;
+SomeType *_pointer = nullptr;
+```
+
+## Prefer tr:: projections over Ui::Text:: in localization calls
+
+Inside `tr::lng_...()` calls, always use the `tr::` projection helpers instead of their `Ui::Text::` equivalents. The `tr::` helpers are shorter and work uniformly as both placeholder wrappers and final projectors.
+
+| Instead of | Use |
+|---|---|
+| `Ui::Text::Bold(x)` | `tr::bold(x)` |
+| `Ui::Text::Italic(x)` | `tr::italic(x)` |
+| `Ui::Text::RichLangValue` | `tr::rich` |
+| `Ui::Text::WithEntities` | `tr::marked` |
+
+```cpp
+// BAD - verbose Ui::Text:: functions:
+tr::lng_some_key(
+    tr::now,
+    lt_name,
+    Ui::Text::Bold(name),
+    lt_group,
+    Ui::Text::Bold(group),
+    Ui::Text::RichLangValue)
+
+// GOOD - concise tr:: helpers:
+tr::lng_some_key(
+    tr::now,
+    lt_name,
+    tr::bold(name),
+    lt_group,
+    tr::bold(group),
+    tr::rich)
+```
+
+## Multi-line calls — one argument per line
+
+When a function call doesn't fit on one line, put each argument on its own line. Don't group "logical pairs" on the same line — it creates inconsistent line lengths and makes diffs noisier.
+
+```cpp
+// BAD - pairs of arguments sharing lines:
+tr::lng_some_key(
+    tr::now,
+    lt_name, tr::bold(name),
+    lt_group, tr::bold(group),
+    tr::rich)
+
+// GOOD - one argument per line:
+tr::lng_some_key(
+    tr::now,
+    lt_name,
+    tr::bold(name),
+    lt_group,
+    tr::bold(group),
+    tr::rich)
+
+// Single-line is fine when everything fits:
+auto text = tr::lng_settings_title(tr::now);
+```
 
 ## std::optional access — avoid value()
 

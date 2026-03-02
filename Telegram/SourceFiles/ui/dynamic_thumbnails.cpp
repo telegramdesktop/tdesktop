@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/userpic_view.h"
 
 namespace Ui {
@@ -213,6 +214,7 @@ public:
 	EmojiThumbnail(
 		not_null<Data::Session*> owner,
 		const QString &data,
+		int loopLimit,
 		Fn<bool()> paused,
 		Fn<QColor()> textColor);
 
@@ -224,6 +226,7 @@ public:
 private:
 	const not_null<Data::Session*> _owner;
 	const QString _data;
+	const int _loopLimit = 0;
 	std::unique_ptr<Ui::Text::CustomEmoji> _emoji;
 	Fn<bool()> _paused;
 	Fn<QColor()> _textColor;
@@ -615,10 +618,12 @@ void IconThumbnail::subscribeToUpdates(Fn<void()> callback) {
 EmojiThumbnail::EmojiThumbnail(
 	not_null<Data::Session*> owner,
 	const QString &data,
+	int loopLimit,
 	Fn<bool()> paused,
 	Fn<QColor()> textColor)
 : _owner(owner)
 , _data(data)
+, _loopLimit(loopLimit)
 , _paused(std::move(paused))
 , _textColor(std::move(textColor)) {
 }
@@ -628,10 +633,15 @@ void EmojiThumbnail::subscribeToUpdates(Fn<void()> callback) {
 		_emoji = nullptr;
 		return;
 	}
-	_emoji = _owner->customEmojiManager().create(
+	auto emoji = _owner->customEmojiManager().create(
 		_data,
 		std::move(callback),
 		Data::CustomEmojiSizeTag::Large);
+	_emoji = (_loopLimit > 0)
+		? std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+			std::move(emoji),
+			_loopLimit)
+		: std::move(emoji);
 
 	Ensures(_emoji != nullptr);
 }
@@ -640,6 +650,7 @@ std::shared_ptr<DynamicImage> EmojiThumbnail::clone() {
 	return std::make_shared<EmojiThumbnail>(
 		_owner,
 		_data,
+		_loopLimit,
 		_paused,
 		_textColor);
 }
@@ -716,10 +727,12 @@ std::shared_ptr<DynamicImage> MakeEmojiThumbnail(
 		not_null<Data::Session*> owner,
 		const QString &data,
 		Fn<bool()> paused,
-		Fn<QColor()> textColor) {
+		Fn<QColor()> textColor,
+		int loopLimit) {
 	return std::make_shared<EmojiThumbnail>(
 		owner,
 		data,
+		loopLimit,
 		std::move(paused),
 		std::move(textColor));
 }

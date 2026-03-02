@@ -1,3 +1,11 @@
+6.6 (01.03.26)
+
+- Member Tags in groups.
+- Disable Sharing in Private Chats.
+- Timestamps for Polls.
+- Log In With Telegram.
+- Time and Date Formatting.
+
 6.5.1 (09.02.26)
 
 - Drag-n-drop chats to folders.

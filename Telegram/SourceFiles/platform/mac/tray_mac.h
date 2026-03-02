@@ -12,6 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 
 class QMenu;
+class QIcon;
+
+namespace Ui {
+class DynamicImage;
+} // namespace Ui
 
 namespace Platform {
 
@@ -38,6 +43,16 @@ public:
 	void destroyMenu();
 
 	void addAction(rpl::producer<QString> text, Fn<void()> &&callback);
+	void addAction(
+		rpl::producer<QString> text,
+		Fn<void()> &&callback,
+		const QIcon &icon);
+	void addAction(
+		rpl::producer<QString> text,
+		Fn<void()> &&callback,
+		std::shared_ptr<Ui::DynamicImage> icon,
+		int size);
+	void addSeparator();
 
 	void showTrayMessage() const;
 	[[nodiscard]] bool hasTrayMessageSupport() const;

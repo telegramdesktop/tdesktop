@@ -67,6 +67,7 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			MTPint(), // from_boosts_applied
+			MTPstring(), // from_rank
 			data.vpeer_id(),
 			data.vsaved_peer_id() ? *data.vsaved_peer_id() : MTPPeer(),
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),

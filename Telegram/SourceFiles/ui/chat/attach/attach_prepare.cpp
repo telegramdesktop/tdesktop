@@ -15,14 +15,101 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "core/mime_type.h"
 
+#include <QFileInfo>
+
 namespace Ui {
 namespace {
 
 constexpr auto kMaxAlbumCount = 10;
 
+struct GroupRange {
+	int from = 0;
+	int till = 0;
+	AlbumType type = AlbumType::None;
+
+	[[nodiscard]] int size() const {
+		return till - from;
+	}
+	[[nodiscard]] bool sentWithCaption() const {
+		return (size() == 1) || (type == AlbumType::PhotoVideo);
+	}
+};
+
+[[nodiscard]] AlbumType GroupTypeForFile(
+		PreparedFile::Type type,
+		bool groupFiles,
+		bool sendImagesAsPhotos) {
+	using Type = PreparedFile::Type;
+	return (type == Type::Music)
+		? (groupFiles ? AlbumType::Music : AlbumType::None)
+		: (type == Type::Video)
+		? (groupFiles ? AlbumType::PhotoVideo : AlbumType::None)
+		: (type == Type::Photo)
+		? ((groupFiles && sendImagesAsPhotos)
+			? AlbumType::PhotoVideo
+			: (groupFiles && !sendImagesAsPhotos)
+			? AlbumType::File
+			: AlbumType::None)
+		: (type == Type::File)
+		? (groupFiles ? AlbumType::File : AlbumType::None)
+		: AlbumType::None;
+}
+
+[[nodiscard]] std::vector<GroupRange> GroupRanges(
+		const std::vector<PreparedFile> &files,
+		SendFilesWay way,
+		bool slowmode) {
+	const auto sendImagesAsPhotos = way.sendImagesAsPhotos();
+	const auto groupFiles = way.groupFiles() || slowmode;
+
+	auto result = std::vector<GroupRange>();
+	if (files.empty()) {
+		return result;
+	}
+	auto from = 0;
+	auto groupType = AlbumType::None;
+	for (auto i = 0; i != int(files.size()); ++i) {
+		const auto fileGroupType = GroupTypeForFile(
+			files[i].type,
+			groupFiles,
+			sendImagesAsPhotos);
+		const auto count = (i - from);
+		if ((i > from && groupType != fileGroupType)
+			|| ((groupType != AlbumType::None) && (count == kMaxAlbumCount))) {
+			result.push_back(GroupRange{
+				.from = from,
+				.till = i,
+				.type = (count > 1) ? groupType : AlbumType::None,
+			});
+			from = i;
+		}
+		groupType = fileGroupType;
+	}
+	const auto till = int(files.size());
+	const auto count = (till - from);
+	result.push_back(GroupRange{
+		.from = from,
+		.till = till,
+		.type = (count > 1) ? groupType : AlbumType::None,
+	});
+	return result;
+}
+
+[[nodiscard]] bool CaptionWillBeAttachedFromRanges(
+		const std::vector<GroupRange> &ranges,
+		int filesCount) {
+	const auto hasGroupedFileAlbum = ranges::any_of(ranges, [](const auto &r) {
+		return (r.size() > 1) && (r.type == AlbumType::File);
+	});
+	return ((filesCount > 1) && hasGroupedFileAlbum)
+		|| ((ranges.size() == 1) && ranges.front().sentWithCaption());
+}
+
 } // namespace
 
 PreparedFile::PreparedFile(const QString &path) : path(path) {
+	const auto fileInfo = QFileInfo(path);
+	displayName = fileInfo.fileName();
 }
 
 PreparedFile::PreparedFile(PreparedFile &&other) = default;
@@ -270,6 +357,33 @@ bool PreparedList::hasSpoilerMenu(bool compress) const {
 	return allAreVideo || (allAreMedia && compress);
 }
 
+bool AttachCaptionToFirstAsFile(
+		const std::vector<PreparedGroup> &groups) {
+	auto filesCount = 0;
+	auto hasGroupedFileAlbum = false;
+	for (const auto &group : groups) {
+		filesCount += group.list.files.size();
+		hasGroupedFileAlbum = hasGroupedFileAlbum
+			|| ((group.list.files.size() > 1)
+			&& (group.type == AlbumType::File));
+	}
+	const auto result = (filesCount > 1) && hasGroupedFileAlbum;
+	return result;
+}
+
+bool CaptionWillBeAttached(const std::vector<PreparedGroup> &groups) {
+	return AttachCaptionToFirstAsFile(groups)
+		|| ((groups.size() == 1) && groups.front().sentWithCaption());
+}
+
+bool CaptionWillBeAttached(
+		const PreparedList &list,
+		SendFilesWay way,
+		bool slowmode) {
+	const auto ranges = GroupRanges(list.files, way, slowmode);
+	return CaptionWillBeAttachedFromRanges(ranges, int(list.files.size()));
+}
+
 std::shared_ptr<PreparedBundle> PrepareFilesBundle(
 		std::vector<PreparedGroup> groups,
 		SendFilesWay way,
@@ -279,8 +393,9 @@ std::shared_ptr<PreparedBundle> PrepareFilesBundle(
 	for (const auto &group : groups) {
 		totalCount += group.list.files.size();
 	}
+	const auto captionAttached = CaptionWillBeAttached(groups);
 	const auto sendComment = !caption.text.isEmpty()
-		&& (groups.size() != 1 || !groups.front().sentWithCaption());
+		&& !captionAttached;
 	return std::make_shared<PreparedBundle>(PreparedBundle{
 		.groups = std::move(groups),
 		.way = way,
@@ -306,49 +421,19 @@ std::vector<PreparedGroup> DivideByGroups(
 		PreparedList &&list,
 		SendFilesWay way,
 		bool slowmode) {
-	const auto sendImagesAsPhotos = way.sendImagesAsPhotos();
-	const auto groupFiles = way.groupFiles() || slowmode;
-
-	auto group = Ui::PreparedList();
-
-	using Type = Ui::PreparedFile::Type;
-	auto groupType = AlbumType::None;
-
+	const auto ranges = GroupRanges(list.files, way, slowmode);
 	auto result = std::vector<PreparedGroup>();
-	auto pushGroup = [&] {
-		const auto type = (group.files.size() > 1)
-			? groupType
-			: AlbumType::None;
-		result.push_back(PreparedGroup{
-			.list = base::take(group),
-			.type = type,
-		});
-	};
-	for (auto i = 0; i != list.files.size(); ++i) {
-		auto &file = list.files[i];
-		const auto fileGroupType = (file.type == Type::Music)
-			? (groupFiles ? AlbumType::Music : AlbumType::None)
-			: (file.type == Type::Video)
-			? (groupFiles ? AlbumType::PhotoVideo : AlbumType::None)
-			: (file.type == Type::Photo)
-			? ((groupFiles && sendImagesAsPhotos)
-				? AlbumType::PhotoVideo
-				: (groupFiles && !sendImagesAsPhotos)
-				? AlbumType::File
-				: AlbumType::None)
-			: (file.type == Type::File)
-			? (groupFiles ? AlbumType::File : AlbumType::None)
-			: AlbumType::None;
-		if ((!group.files.empty() && groupType != fileGroupType)
-			|| ((groupType != AlbumType::None)
-				&& (group.files.size() == Ui::MaxAlbumItems()))) {
-			pushGroup();
+	result.reserve(ranges.size());
+	for (const auto &range : ranges) {
+		auto grouped = Ui::PreparedList();
+		grouped.files.reserve(range.size());
+		for (auto i = range.from; i != range.till; ++i) {
+			grouped.files.push_back(std::move(list.files[i]));
 		}
-		group.files.push_back(std::move(file));
-		groupType = fileGroupType;
-	}
-	if (!group.files.empty()) {
-		pushGroup();
+		result.push_back(PreparedGroup{
+			.list = std::move(grouped),
+			.type = range.type,
+		});
 	}
 	return result;
 }

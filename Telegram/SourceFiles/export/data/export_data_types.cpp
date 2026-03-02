@@ -303,7 +303,8 @@ std::vector<TextPart> ParseText(
 				return Type::Blockquote; },
 			[](const MTPDmessageEntityBankCard&) { return Type::BankCard; },
 			[](const MTPDmessageEntitySpoiler&) { return Type::Spoiler; },
-			[](const MTPDmessageEntityCustomEmoji&) { return Type::CustomEmoji; });
+			[](const MTPDmessageEntityCustomEmoji&) { return Type::CustomEmoji; },
+			[](const MTPDmessageEntityFormattedDate&) { return Type::Unknown; });
 		part.text = mid(start, length);
 		part.additional = entity.match(
 		[](const MTPDmessageEntityPre &data) {
@@ -1856,6 +1857,15 @@ ServiceAction ParseServiceAction(
 	}, [&](const MTPDmessageActionChangeCreator &data) {
 		auto content = ActionChangeCreator();
 		content.newCreatorId = data.vnew_creator_id().v;
+		result.content = content;
+	}, [&](const MTPDmessageActionNoForwardsToggle &data) {
+		auto content = ActionNoForwardsToggle();
+		content.newValue = (data.vnew_value().type() == mtpc_boolTrue);
+		result.content = content;
+	}, [&](const MTPDmessageActionNoForwardsRequest &data) {
+		auto content = ActionNoForwardsRequest();
+		content.expired = data.is_expired();
+		content.newValue = (data.vnew_value().type() == mtpc_boolTrue);
 		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;

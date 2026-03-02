@@ -17,9 +17,10 @@ class SessionController;
 
 namespace HistoryView {
 
-[[nodiscard]] bool ShowReactionPreview(
+bool ShowReactionPreview(
 	not_null<Window::SessionController*> controller,
 	FullMsgId origin,
-	Data::ReactionId reactionId);
+	Data::ReactionId reactionId,
+	bool emojiPreview = false);
 
 } // namespace HistoryView

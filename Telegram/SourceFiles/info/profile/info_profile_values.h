@@ -143,6 +143,7 @@ enum class BadgeType : uchar;
 [[nodiscard]] rpl::producer<QString> BirthdayLabelText(
 	rpl::producer<Data::Birthday> birthday);
 [[nodiscard]] rpl::producer<QString> BirthdayValueText(
-	rpl::producer<Data::Birthday> birthday);
+	rpl::producer<Data::Birthday> birthday,
+	bool fullMonth = false);
 
 } // namespace Info::Profile

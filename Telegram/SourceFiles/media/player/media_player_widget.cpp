@@ -81,6 +81,10 @@ Widget::Widget(
 	_speedController->realtimeValue(
 	) | rpl::on_next([=](float64 speed) {
 		_speedToggle->setSpeed(speed);
+		_speedToggle->setAccessibleName(tr::lng_mediaview_playback_speed(
+			tr::now,
+			lt_speed,
+			QString::number(base::SafeRound(speed * 10) / 10.) + "x"));
 	}, _speedToggle->lifetime());
 	_speedToggle->finishAnimating();
 
@@ -89,6 +93,11 @@ Widget::Widget(
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
 
 	setupRightControls();
+
+	_volumeToggle->setAccessibleName(tr::lng_ringtones_box_volume(tr::now));
+	_repeatToggle->setAccessibleName(tr::lng_schedule_repeat_label(tr::now));
+	_orderToggle->setAccessibleName(tr::lng_sr_playback_order(tr::now));
+	_close->setAccessibleName(tr::lng_sr_player_close(tr::now));
 
 	_nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -633,6 +642,9 @@ void Widget::handleSongUpdate(const TrackState &state) {
 		: showPause
 		? &st::mediaPlayerPauseIcon
 		: nullptr);
+	_playPause->setAccessibleName(showPause
+		? tr::lng_shortcuts_media_pause(tr::now)
+		: tr::lng_shortcuts_media_play(tr::now));
 
 	updateTimeText(state);
 }
@@ -728,11 +740,13 @@ void Widget::createPrevNextButtons() {
 		_previousTrack->setClickedCallback([=]() {
 			instance()->previous(_type);
 		});
+		_previousTrack->setAccessibleName(tr::lng_shortcuts_media_previous(tr::now));
 		_nextTrack.create(this, st::mediaPlayerNextButton);
 		_nextTrack->show();
 		_nextTrack->setClickedCallback([=]() {
 			instance()->next(_type);
 		});
+		_nextTrack->setAccessibleName(tr::lng_shortcuts_media_next(tr::now));
 		hidePlaylistOn(_previousTrack);
 		hidePlaylistOn(_nextTrack);
 		updatePlayPrevNextPositions();

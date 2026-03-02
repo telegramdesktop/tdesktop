@@ -125,6 +125,11 @@ void TranscribeButton::paint(
 			}
 		}
 
+		const auto state = _animation
+			? _animation->computeState()
+			: Ui::RadialState();
+		const auto staticLoading = anim::Disabled() && state.shown > 0;
+
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(context.st->msgServiceBg());
@@ -159,13 +164,15 @@ void TranscribeButton::paint(
 					}
 				});
 			}
-			(_item->history()->session().api().transcribes().summary(
-					_item).shown
-				? st::mediaviewFullScreenButton.icon
-				: st::mediaviewFullScreenOutIcon).paintInCenter(
-					p,
-					r,
-					st::msgServiceFg->c);
+			if (!staticLoading) [[likely]] {
+				(_item->history()->session().api().transcribes().summary(
+						_item).shown
+					? st::mediaviewFullScreenButton.icon
+					: st::mediaviewFullScreenOutIcon).paintInCenter(
+						p,
+						r,
+						st::msgServiceFg->c);
+			}
 		} else if (!_loading && hasLock()) {
 			ClipPainterForLock(p, true, r);
 			context.st->historyFastTranscribeIcon().paintInCenter(p, r);
@@ -178,14 +185,10 @@ void TranscribeButton::paint(
 			context.st->historyFastTranscribeIcon().paintInCenter(p, r);
 		}
 
-		const auto state = _animation
-			? _animation->computeState()
-			: Ui::RadialState();
-
 		auto pen = QPen(st::msgServiceFg);
 		pen.setCapStyle(Qt::RoundCap);
 		p.setPen(pen);
-		if (_animation && state.shown > 0 && anim::Disabled()) {
+		if (staticLoading) [[unlikely]] {
 			const auto _st = &st::defaultRadio;
 			anim::DrawStaticLoading(
 				p,

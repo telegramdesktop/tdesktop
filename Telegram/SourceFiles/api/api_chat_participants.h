@@ -113,7 +113,7 @@ public:
 		ChatRestrictionsInfo oldRights,
 		ChatRestrictionsInfo newRights,
 		Fn<void()> onDone,
-		Fn<void()> onFail);
+		Fn<void(const QString&)> onFail);
 	void add(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,

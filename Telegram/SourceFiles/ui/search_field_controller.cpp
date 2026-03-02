@@ -42,6 +42,7 @@ auto SearchFieldController::createRowView(
 		return !value.isEmpty();
 	}) | rpl::on_next([cancel](bool shown) {
 		cancel->toggle(shown, anim::type::normal);
+		cancel->setAccessibleName(tr::lng_sr_clear_search(tr::now));
 	}, cancel->lifetime());
 	cancel->finishAnimating();
 

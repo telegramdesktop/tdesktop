@@ -60,6 +60,7 @@ ChatAdminRightsInfo ChatData::defaultAdminRights(not_null<UserData*> user) {
 		| Flag::InviteByLinkOrAdd
 		| Flag::PinMessages
 		| Flag::ManageCall
+		| Flag::ManageRanks
 		| (isCreator ? Flag::AddAdmins : Flag(0)));
 }
 
@@ -439,6 +440,32 @@ void ApplyChatUpdate(
 
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
+		const MTPDupdateChatParticipantRank &update) {
+	if (chat->applyUpdateVersion(update.vversion().v)
+		!= ChatData::UpdateStatus::Good) {
+		return;
+	}
+	const auto rank = qs(update.vrank().v);
+	const auto userId = UserId(update.vuser_id().v);
+	if (rank.isEmpty()) {
+		chat->memberRanks.remove(userId);
+	} else {
+		chat->memberRanks[userId] = rank;
+	}
+	if (userId != chat->session().userId()) {
+		if (const auto history = chat->owner().historyLoaded(chat)) {
+			auto changes = base::flat_set<UserId>();
+			changes.emplace(userId);
+			history->applyGroupAdminChanges(changes);
+		}
+	}
+	chat->session().changes().peerUpdated(
+		chat,
+		Data::PeerUpdate::Flag::Members);
+}
+
+void ApplyChatUpdate(
+		not_null<ChatData*> chat,
 		const MTPDupdateChatDefaultBannedRights &update) {
 	if (chat->applyUpdateVersion(update.vversion().v)
 		!= ChatData::UpdateStatus::Good) {
@@ -532,6 +559,7 @@ void ApplyChatUpdate(
 		chat->participants.clear();
 		chat->invitedByMe.clear();
 		chat->admins.clear();
+		chat->memberRanks.clear();
 		chat->setAdminRights(ChatAdminRights());
 		const auto selfUserId = session->userId();
 		for (const auto &participant : list) {
@@ -558,13 +586,25 @@ void ApplyChatUpdate(
 
 			participant.match([&](const MTPDchatParticipantCreator &data) {
 				chat->creator = userId;
+				const auto rank = qs(data.vrank().value_or_empty());
+				if (!rank.isEmpty()) {
+					chat->memberRanks[userId] = rank;
+				}
 			}, [&](const MTPDchatParticipantAdmin &data) {
 				chat->admins.emplace(user);
 				if (user->isSelf()) {
 					chat->setAdminRights(
 						chat->defaultAdminRights(user).flags);
 				}
-			}, [](const MTPDchatParticipant &) {
+				const auto rank = qs(data.vrank().value_or_empty());
+				if (!rank.isEmpty()) {
+					chat->memberRanks[userId] = rank;
+				}
+			}, [&](const MTPDchatParticipant &data) {
+				const auto rank = qs(data.vrank().value_or_empty());
+				if (!rank.isEmpty()) {
+					chat->memberRanks[userId] = rank;
+				}
 			});
 		}
 		if (chat->participants.empty()) {

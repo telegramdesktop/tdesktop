@@ -68,6 +68,7 @@ QByteArray SessionSettings::serialize() const {
 	size += sizeof(qint32); // _setupEmailState
 	size += sizeof(qint32) // _moderateCommonGroups size
 		+ (_moderateCommonGroups.size() * sizeof(qint32));
+	size += sizeof(qint32);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -153,6 +154,7 @@ QByteArray SessionSettings::serialize() const {
 		for (const auto &filterId : _moderateCommonGroups) {
 			stream << qint32(filterId);
 		}
+		stream << qint32(_disableSharingBoxShowsCount);
 	}
 
 	Ensures(result.size() == size);
@@ -226,6 +228,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	std::vector<Data::UnreviewedAuth> unreviewed;
 	qint32 setupEmailState = 0;
 	std::vector<int32> moderateCommonGroups;
+	qint32 disableSharingBoxShowsCount = 0;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -659,6 +662,9 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream >> disableSharingBoxShowsCount;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -723,6 +729,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	}
 
 	_moderateCommonGroups = std::move(moderateCommonGroups);
+	_disableSharingBoxShowsCount = disableSharingBoxShowsCount;
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);
@@ -879,6 +886,20 @@ void SessionSettings::incrementPhotoEditorHintShown() {
 	if (photoEditorHintShown()) {
 		_photoEditorHintShowsCount++;
 	}
+}
+
+bool SessionSettings::shouldShowDisableSharingBox() const {
+	return _disableSharingBoxShowsCount < kDisableSharingBoxMaxShowsCount;
+}
+
+void SessionSettings::incrementDisableSharingBoxShown() {
+	if (shouldShowDisableSharingBox()) {
+		_disableSharingBoxShowsCount++;
+	}
+}
+
+void SessionSettings::resetDisableSharingBoxShown() {
+	_disableSharingBoxShowsCount = 0;
 }
 
 std::vector<TimeId> SessionSettings::mutePeriods() const {

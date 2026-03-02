@@ -2745,9 +2745,12 @@ void Controller::saveForwards() {
 		|| *_savingData.noForwards != _peer->allowsForwarding()) {
 		return continueSave();
 	}
+	using Flag = MTPmessages_ToggleNoForwards::Flag;
 	_api.request(MTPmessages_ToggleNoForwards(
+		MTP_flags(Flag()),
 		_peer->input(),
-		MTP_bool(*_savingData.noForwards)
+		MTP_bool(*_savingData.noForwards),
+		MTPint()
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 		continueSave();

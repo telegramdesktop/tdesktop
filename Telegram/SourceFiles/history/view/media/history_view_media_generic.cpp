@@ -123,11 +123,17 @@ void MediaGeneric::draw(Painter &p, const PaintContext &context) const {
 		p.setPen(Qt::NoPen);
 		p.setBrush(context.st->msgServiceBg());
 		const auto rect = QRect(0, 0, width(), height());
-		p.drawRoundedRect(rect, radius, radius);
-		//if (context.selected()) {
-		//	p.setBrush(context.st->serviceTextPalette().selectBg);
-		//	p.drawRoundedRect(rect, radius, radius);
-		//}
+		if (parent()->data()->inlineReplyKeyboard()) {
+			const auto half = rect.height() / 2;
+			p.setClipRect(rect - QMargins(0, 0, 0, half));
+			p.drawRoundedRect(rect, radius, radius);
+			p.setClipRect(rect - QMargins(0, rect.height() - half, 0, 0));
+			const auto small = Ui::BubbleRadiusSmall();
+			p.drawRoundedRect(rect, small, small);
+			p.setClipping(false);
+		} else {
+			p.drawRoundedRect(rect, radius, radius);
+		}
 	}
 
 	auto translated = 0;

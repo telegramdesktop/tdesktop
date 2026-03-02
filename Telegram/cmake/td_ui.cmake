@@ -513,6 +513,8 @@ PRIVATE
     ui/widgets/horizontal_fit_container.h
     ui/widgets/level_meter.cpp
     ui/widgets/level_meter.h
+    ui/widgets/middle_click_autoscroll.cpp
+    ui/widgets/middle_click_autoscroll.h
     ui/widgets/multi_select.cpp
     ui/widgets/multi_select.h
     ui/widgets/sent_code_field.cpp

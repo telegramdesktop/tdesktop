@@ -105,6 +105,7 @@ settingsPremiumIconBusiness: icon {{ "settings/premium/market", settingsIconFg }
 settingsPremiumIconEffects: icon {{ "settings/premium/effects", settingsIconFg }};
 settingsPremiumIconChecklist: icon {{ "settings/premium/checklist", settingsIconFg }};
 settingsPremiumIconPeerColors: icon {{ "settings/premium/peer_colors-24x24", settingsIconFg }};
+settingsPremiumIconNoForwards: icon {{ "menu/share_off-24x24", settingsIconFg }};
 
 settingsStoriesIconOrder: icon {{ "settings/premium/stories_order", premiumButtonBg1 }};
 settingsStoriesIconStealth: icon {{ "menu/stealth", premiumButtonBg1 }};

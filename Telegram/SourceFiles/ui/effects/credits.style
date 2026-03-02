@@ -624,6 +624,7 @@ craftPattern: IconEmoji {
 	padding: margins(0px, 0px, 0px, 0px);
 }
 craftAddIcon: icon {{ "settings/plus", windowFgActive }};
+craftReplaceIcon: icon {{ "mini_replace-12x12", windowFgActive }};
 craftPreviewPadding: margins(24px, 8px, 40px, 8px);
 craftBoxButtonPadding: margins(22px, 12px, 22px, 22px);
 craftAttributesMargin: margins(22px, 12px, 22px, 16px);

@@ -510,6 +510,17 @@ void ChannelData::applyEditAdmin(
 	session().changes().peerUpdated(this, UpdateFlag::Admins);
 }
 
+void ChannelData::applyEditMemberRank(
+		not_null<UserData*> user,
+		const QString &rank) {
+	if (!mgInfo) {
+		return;
+	}
+	const auto userId = peerToUser(user->id);
+	Data::ChannelMemberRankChanges changes(this);
+	changes.feed(userId, rank);
+}
+
 void ChannelData::applyEditBanned(
 		not_null<PeerData*> participant,
 		ChatRestrictionsInfo oldRights,

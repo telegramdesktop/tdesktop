@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h" // InputSavedStarGiftId
 #include "api/api_premium.h"
 #include "apiwrap.h"
+#include "boxes/star_gift_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
@@ -145,7 +146,9 @@ void RecentSharedMediaGifts::updatePinnedOrder(
 			done();
 		}
 	}).fail([=](const MTP::Error &error) {
-		show->showToast(error.type());
+		if (!Ui::ShowGiftErrorToast(show, error)) {
+			show->showToast(error.type());
+		}
 	}).send();
 }
 

@@ -46,9 +46,14 @@ struct ButtonParameters;
 class InlineList;
 } // namespace HistoryView::Reactions
 
+namespace HistoryView::ReplyButton {
+struct ButtonParameters;
+} // namespace HistoryView::ReplyButton
+
 namespace HistoryView {
 
 using PaintContext = Ui::ChatPaintContext;
+enum class BadgeRole : uchar;
 enum class PointState : char;
 enum class InfoDisplayType : char;
 struct StateRequest;
@@ -541,6 +546,9 @@ public:
 	[[nodiscard]] virtual auto reactionButtonParameters(
 		QPoint position,
 		const TextState &reactionState) const -> Reactions::ButtonParameters;
+	[[nodiscard]] virtual auto replyButtonParameters(
+		QPoint position,
+		const TextState &replyState) const -> ReplyButton::ButtonParameters;
 	[[nodiscard]] virtual int reactionsOptimalWidth() const;
 
 	// ClickHandlerHost interface.
@@ -661,6 +669,7 @@ public:
 	-> std::unique_ptr<Ui::ReactionFlyAnimation>;
 
 	void overrideMedia(std::unique_ptr<Media> media);
+	void overrideRightBadge(const QString &text, BadgeRole role);
 
 	[[nodiscard]] not_null<PurchasedTag*> enforcePurchasedTag();
 

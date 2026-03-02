@@ -286,6 +286,11 @@ public:
 	void watchForOffline(not_null<UserData*> user, TimeId now = 0);
 	void maybeStopWatchForOffline(not_null<UserData*> user);
 
+	void recordSharingDisabledTime(not_null<UserData*> user);
+	[[nodiscard]] bool sharingRecentlyDisabledByMe(
+		not_null<UserData*> user) const;
+	void clearSharingDisabledTime(not_null<UserData*> user);
+
 	[[nodiscard]] auto invitedToCallUsers(CallId callId) const
 		-> const base::flat_map<not_null<UserData*>, bool> &;
 	void registerInvitedToCallUser(
@@ -469,6 +474,7 @@ public:
 	void applyUpdate(const MTPDupdateChatParticipantAdd &update);
 	void applyUpdate(const MTPDupdateChatParticipantDelete &update);
 	void applyUpdate(const MTPDupdateChatParticipantAdmin &update);
+	void applyUpdate(const MTPDupdateChatParticipantRank &update);
 	void applyUpdate(const MTPDupdateChatDefaultBannedRights &update);
 
 	void applyDialogs(
@@ -526,6 +532,10 @@ public:
 
 	void registerMessageTTL(TimeId when, not_null<HistoryItem*> item);
 	void unregisterMessageTTL(TimeId when, not_null<HistoryItem*> item);
+
+	void registerFormattedDateUpdate(
+		TimeId when,
+		not_null<HistoryView::Element*> view);
 
 	// Returns true if item found and it is not detached.
 	bool updateExistingMessage(const MTPDmessage &data);
@@ -957,6 +967,9 @@ private:
 	void scheduleNextTTLs();
 	void checkTTLs();
 
+	void scheduleNextFormattedDateUpdate();
+	void checkFormattedDateUpdates();
+
 	int computeUnreadBadge(const Dialogs::UnreadState &state) const;
 	bool computeUnreadBadgeMuted(const Dialogs::UnreadState &state) const;
 
@@ -1146,6 +1159,9 @@ private:
 	std::map<TimeId, base::flat_set<not_null<HistoryItem*>>> _ttlMessages;
 	base::Timer _ttlCheckTimer;
 
+	std::map<TimeId, std::vector<base::weak_ptr<HistoryView::Element>>> _formattedDateUpdates;
+	base::Timer _formattedDateTimer;
+
 	std::unordered_map<MsgId, not_null<HistoryItem*>> _nonChannelMessages;
 
 	base::flat_map<uint64, FullMsgId> _messageByRandomId;
@@ -1274,6 +1290,7 @@ private:
 
 	base::flat_map<not_null<UserData*>, TimeId> _watchingForOffline;
 	base::Timer _watchForOfflineTimer;
+	base::flat_map<not_null<UserData*>, TimeId> _sharingDisabledTimes;
 
 	base::flat_map<not_null<PeerData*>, MTP::DcId> _peerStatsDcIds;
 

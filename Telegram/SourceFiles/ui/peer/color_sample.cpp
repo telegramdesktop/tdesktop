@@ -33,15 +33,17 @@ ColorSample::ColorSample(
 	std::shared_ptr<Ui::ChatStyle> style,
 	rpl::producer<uint8> colorIndex,
 	rpl::producer<std::shared_ptr<Ui::ColorCollectible>> collectible,
-	const QString &name)
+	rpl::producer<QString> name)
 : AbstractButton(parent)
 , _style(style) {
 	rpl::combine(
 		std::move(colorIndex),
-		std::move(collectible)
+		std::move(collectible),
+		std::move(name)
 	) | rpl::on_next([=](
 			uint8 index,
-			std::shared_ptr<Ui::ColorCollectible> collectible) {
+			std::shared_ptr<Ui::ColorCollectible> collectible,
+			const QString &nameValue) {
 		_index = index;
 		_collectible = std::move(collectible);
 		if (const auto raw = _collectible.get()) {
@@ -53,7 +55,7 @@ ColorSample::ColorSample(
 				kMarkupTextOptions,
 				std::move(context));
 		} else {
-			_name.setText(st::semiboldTextStyle, name);
+			_name.setText(st::semiboldTextStyle, nameValue);
 		}
 		setNaturalWidth([&] {
 			if (_name.isEmpty() || _style->colorPatternIndex(_index)) {

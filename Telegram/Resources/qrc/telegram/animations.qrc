@@ -56,6 +56,7 @@
     <file alias="ban.tgs">../../animations/ban.tgs</file>
     <file alias="cocoon.tgs">../../animations/cocoon.tgs</file>
     <file alias="craft_failed.tgs">../../animations/craft_failed.tgs</file>
+    <file alias="stop.tgs">../../animations/stop.tgs</file>
 
     <file alias="profile_muting.tgs">../../animations/profile/profile_muting.tgs</file>
     <file alias="profile_unmuting.tgs">../../animations/profile/profile_unmuting.tgs</file>

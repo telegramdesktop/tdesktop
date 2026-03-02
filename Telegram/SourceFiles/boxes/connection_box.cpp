@@ -1116,6 +1116,30 @@ void ProxyBox::prepare() {
 		}
 	}, _port->lifetime());
 
+	const auto submit = [=] {
+		if (_host->hasFocus()
+			&& !_host->getLastText().trimmed().isEmpty()) {
+			_port->setFocus();
+		} else if (_port->hasFocus()
+			&& !_port->getLastText().trimmed().isEmpty()) {
+			if (_type->current() == Type::Mtproto) {
+				_secret->setFocus();
+			} else {
+				_user->setFocus();
+			}
+		} else if (_user->hasFocus()) {
+			_password->setFocus();
+		} else {
+			save();
+		}
+	};
+	connect(_host.data(), &Ui::MaskedInputField::submitted, submit);
+	connect(_port.data(), &Ui::MaskedInputField::submitted, submit);
+	_user->submits(
+	) | rpl::on_next(submit, _user->lifetime());
+	connect(_password.data(), &Ui::MaskedInputField::submitted, submit);
+	connect(_secret.data(), &Ui::MaskedInputField::submitted, submit);
+
 	refreshButtons();
 	setDimensionsToContent(st::boxWideWidth, _content);
 }
@@ -1421,7 +1445,7 @@ void ProxiesBoxController::ShowApplyConfirmation(
 		} else if (type == Type::Mtproto) {
 			add(proxy.password, tr::lng_proxy_box_secret);
 		}
-		box->addButton(tr::lng_sure_enable(), [=] {
+		const auto enableButton = box->addButton(tr::lng_sure_enable(), [=] {
 			auto &proxies = Core::App().settings().proxy().list();
 			if (!ranges::contains(proxies, proxy)) {
 				proxies.push_back(proxy);
@@ -1431,6 +1455,16 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			box->closeBox();
 		});
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		box->events(
+		) | rpl::on_next([=](not_null<QEvent*> e) {
+			if ((e->type() != QEvent::KeyPress) || !enableButton) {
+				return;
+			}
+			const auto k = static_cast<QKeyEvent*>(e.get());
+			if (k->key() == Qt::Key_Enter || k->key() == Qt::Key_Return) {
+				enableButton->clicked(Qt::KeyboardModifiers(), Qt::LeftButton);
+			}
+		}, box->lifetime());
 	};
 	if (controller) {
 		controller->uiShow()->showBox(Box(box));

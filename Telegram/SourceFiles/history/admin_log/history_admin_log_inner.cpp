@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/translate_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "base/platform/base_platform_info.h"
+#include "base/qt/qt_common_adapters.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -262,7 +263,9 @@ InnerWidget::InnerWidget(
 		st::historyAdminLogEmptyWidth
 		- st::historyAdminLogEmptyPadding.left()
 		- st::historyAdminLogEmptyPadding.left())
-, _antiSpamValidator(_controller, _channel) {
+, _antiSpamValidator(_controller, _channel)
+, _touchSelectTimer([=] { onTouchSelect(); })
+, _touchScrollTimer([=] { onTouchScrollTimer(); }) {
 	Window::ChatThemeValueFromPeer(
 		controller,
 		channel
@@ -271,6 +274,7 @@ InnerWidget::InnerWidget(
 		controller->setChatStyleTheme(_theme);
 	}, lifetime());
 
+	setAttribute(Qt::WA_AcceptTouchEvents);
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([=] { scrollDateHideByTimer(); });
 	session().data().viewRepaintRequest(
@@ -852,7 +856,8 @@ void InnerWidget::preloadMore(Direction direction) {
 			| ((f & LocalFlag::GroupCall) ? Flag::f_group_call : empty)
 			| ((f & LocalFlag::Invites) ? Flag::f_invites : empty)
 			| ((f & LocalFlag::Topics) ? Flag::f_forums : empty)
-			| ((f & LocalFlag::SubExtend) ? Flag::f_sub_extend : empty);
+			| ((f & LocalFlag::SubExtend) ? Flag::f_sub_extend : empty)
+			| ((f & LocalFlag::EditRank) ? Flag::f_edit_rank : empty);
 	}();
 	if (_filter.flags != 0) {
 		flags |= MTPchannels_GetAdminLog::Flag::f_events_filter;
@@ -1575,6 +1580,7 @@ void InnerWidget::suggestRestrictParticipant(
 				user,
 				hasAdminRights,
 				currentRights,
+				QString(),
 				by,
 				since);
 			box->setSaveCallback([=](
@@ -1687,6 +1693,7 @@ void InnerWidget::restrictParticipant(
 		restrictParticipantDone(participant, newRights);
 	};
 	const auto callback = SaveRestrictedCallback(
+		_controller->uiShow(),
 		_channel,
 		participant,
 		crl::guard(this, done),
@@ -2180,6 +2187,241 @@ QPoint InnerWidget::mapPointToItem(QPoint point, const Element *view) const {
 		return QPoint();
 	}
 	return point - QPoint(0, itemTop(view));
+}
+
+bool InnerWidget::eventHook(QEvent *e) {
+	if (e->type() == QEvent::TouchBegin
+		|| e->type() == QEvent::TouchUpdate
+		|| e->type() == QEvent::TouchEnd
+		|| e->type() == QEvent::TouchCancel) {
+		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
+		if (ev->device()->type() == base::TouchDevice::TouchScreen) {
+			touchEvent(ev);
+			return true;
+		}
+	}
+	return RpWidget::eventHook(e);
+}
+
+void InnerWidget::onTouchSelect() {
+	_touchSelect = true;
+	mouseActionStart(_touchPos, Qt::LeftButton);
+}
+
+void InnerWidget::onTouchScrollTimer() {
+	auto nowTime = crl::now();
+	if (_touchScrollState == Ui::TouchScrollState::Acceleration
+		&& _touchWaitingAcceleration
+		&& (nowTime - _touchAccelerationTime) > 40) {
+		_touchScrollState = Ui::TouchScrollState::Manual;
+		touchResetSpeed();
+	} else if (_touchScrollState == Ui::TouchScrollState::Auto
+		|| _touchScrollState == Ui::TouchScrollState::Acceleration) {
+		int32 elapsed = int32(nowTime - _touchTime);
+		QPoint delta = _touchSpeed * elapsed / 1000;
+		bool hasScrolled = !delta.isNull();
+
+		if (_touchSpeed.isNull() || !hasScrolled) {
+			_touchScrollState = Ui::TouchScrollState::Manual;
+			_touchScroll = false;
+			_touchScrollTimer.cancel();
+		} else {
+			_touchTime = nowTime;
+		}
+		touchDeaccelerate(elapsed);
+	}
+}
+
+void InnerWidget::touchUpdateSpeed() {
+	const auto nowTime = crl::now();
+	if (_touchPrevPosValid) {
+		const int elapsed = nowTime - _touchSpeedTime;
+		if (elapsed) {
+			const QPoint newPixelDiff = (_touchPos - _touchPrevPos);
+			const QPoint pixelsPerSecond = newPixelDiff * (1000 / elapsed);
+
+			const int newSpeedY = (qAbs(pixelsPerSecond.y())
+					> Ui::kFingerAccuracyThreshold)
+				? pixelsPerSecond.y()
+				: 0;
+			const int newSpeedX = (qAbs(pixelsPerSecond.x())
+					> Ui::kFingerAccuracyThreshold)
+				? pixelsPerSecond.x()
+				: 0;
+			if (_touchScrollState == Ui::TouchScrollState::Auto) {
+				const int oldSpeedY = _touchSpeed.y();
+				const int oldSpeedX = _touchSpeed.x();
+				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
+					&& (oldSpeedX <= 0 && newSpeedX <= 0)) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
+					_touchSpeed.setY(std::clamp(
+						(oldSpeedY + (newSpeedY / 4)),
+						-Ui::kMaxScrollAccelerated,
+						+Ui::kMaxScrollAccelerated));
+					_touchSpeed.setX(std::clamp(
+						(oldSpeedX + (newSpeedX / 4)),
+						-Ui::kMaxScrollAccelerated,
+						+Ui::kMaxScrollAccelerated));
+				} else {
+					_touchSpeed = QPoint();
+				}
+			} else {
+				if (!_touchSpeed.isNull()) {
+					_touchSpeed.setX(std::clamp(
+						(_touchSpeed.x() / 4) + (newSpeedX * 3 / 4),
+						-Ui::kMaxScrollFlick,
+						+Ui::kMaxScrollFlick));
+					_touchSpeed.setY(std::clamp(
+						(_touchSpeed.y() / 4) + (newSpeedY * 3 / 4),
+						-Ui::kMaxScrollFlick,
+						+Ui::kMaxScrollFlick));
+				} else {
+					_touchSpeed = QPoint(newSpeedX, newSpeedY);
+				}
+			}
+		}
+	} else {
+		_touchPrevPosValid = true;
+	}
+	_touchSpeedTime = nowTime;
+	_touchPrevPos = _touchPos;
+}
+
+void InnerWidget::touchResetSpeed() {
+	_touchSpeed = QPoint();
+	_touchPrevPosValid = false;
+}
+
+void InnerWidget::touchDeaccelerate(int32 elapsed) {
+	int32 x = _touchSpeed.x();
+	int32 y = _touchSpeed.y();
+	_touchSpeed.setX((x == 0)
+		? x
+		: (x > 0)
+		? qMax(0, x - elapsed)
+		: qMin(0, x + elapsed));
+	_touchSpeed.setY((y == 0)
+		? y
+		: (y > 0)
+		? qMax(0, y - elapsed)
+		: qMin(0, y + elapsed));
+}
+
+void InnerWidget::touchEvent(QTouchEvent *e) {
+	if (e->type() == QEvent::TouchCancel) {
+		if (!_touchInProgress) {
+			return;
+		}
+		_touchInProgress = false;
+		_touchSelectTimer.cancel();
+		_touchScroll = _touchSelect = false;
+		_touchScrollState = Ui::TouchScrollState::Manual;
+		mouseActionCancel();
+		return;
+	}
+
+	if (!e->touchPoints().isEmpty()) {
+		_touchPrevPos = _touchPos;
+		_touchPos = e->touchPoints().cbegin()->screenPos().toPoint();
+	}
+
+	switch (e->type()) {
+	case QEvent::TouchBegin: {
+		if (_menu) {
+			e->accept();
+			return;
+		}
+		if (_touchInProgress || e->touchPoints().isEmpty()) {
+			return;
+		}
+
+		_touchInProgress = true;
+		if (_touchScrollState == Ui::TouchScrollState::Auto) {
+			_touchScrollState = Ui::TouchScrollState::Acceleration;
+			_touchWaitingAcceleration = true;
+			_touchAccelerationTime = crl::now();
+			touchUpdateSpeed();
+			_touchStart = _touchPos;
+		} else {
+			_touchScroll = false;
+			_touchSelectTimer.callOnce(QApplication::startDragTime());
+		}
+		_touchSelect = false;
+		_touchStart = _touchPrevPos = _touchPos;
+	} break;
+
+	case QEvent::TouchUpdate: {
+		if (!_touchInProgress) {
+			return;
+		} else if (_touchSelect) {
+			mouseActionUpdate(_touchPos);
+		} else if (!_touchScroll
+				&& (_touchPos - _touchStart).manhattanLength()
+					>= QApplication::startDragDistance()) {
+			_touchSelectTimer.cancel();
+			_touchScroll = true;
+			touchUpdateSpeed();
+		}
+		if (_touchScroll) {
+			if (_touchScrollState == Ui::TouchScrollState::Manual) {
+				touchScrollUpdated(_touchPos);
+			} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
+				touchUpdateSpeed();
+				_touchAccelerationTime = crl::now();
+				if (_touchSpeed.isNull()) {
+					_touchScrollState = Ui::TouchScrollState::Manual;
+				}
+			}
+		}
+	} break;
+
+	case QEvent::TouchEnd: {
+		if (!_touchInProgress) {
+			return;
+		}
+		_touchInProgress = false;
+		const auto notMoved = (_touchPos - _touchStart).manhattanLength()
+			< QApplication::startDragDistance();
+		auto weak = base::make_weak(this);
+		if (_touchSelect) {
+			if (notMoved) {
+				mouseActionFinish(_touchPos, Qt::RightButton);
+				auto contextMenu = QContextMenuEvent(
+					QContextMenuEvent::Mouse,
+					mapFromGlobal(_touchPos),
+					_touchPos);
+				showContextMenu(&contextMenu, true);
+			}
+			_touchScroll = false;
+		} else if (_touchScroll) {
+			if (_touchScrollState == Ui::TouchScrollState::Manual) {
+				_touchScrollState = Ui::TouchScrollState::Auto;
+				_touchPrevPosValid = false;
+				_touchScrollTimer.callEach(15);
+				_touchTime = crl::now();
+			} else if (_touchScrollState == Ui::TouchScrollState::Auto) {
+				_touchScrollState = Ui::TouchScrollState::Manual;
+				_touchScroll = false;
+				touchResetSpeed();
+			} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
+				_touchScrollState = Ui::TouchScrollState::Auto;
+				_touchWaitingAcceleration = false;
+				_touchPrevPosValid = false;
+			}
+		} else if (notMoved) {
+			mouseActionStart(_touchPos, Qt::LeftButton);
+			mouseActionFinish(_touchPos, Qt::LeftButton);
+		}
+		if (weak) {
+			_touchSelectTimer.cancel();
+			_touchSelect = false;
+		}
+	} break;
+	}
+}
+
+void InnerWidget::touchScrollUpdated(const QPoint &screenPos) {
+	_touchPos = screenPos;
+	touchUpdateSpeed();
 }
 
 InnerWidget::~InnerWidget() = default;

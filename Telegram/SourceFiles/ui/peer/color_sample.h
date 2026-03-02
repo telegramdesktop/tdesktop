@@ -29,7 +29,7 @@ public:
 		std::shared_ptr<ChatStyle> style,
 		rpl::producer<uint8> colorIndex,
 		rpl::producer<std::shared_ptr<ColorCollectible>> collectible,
-		const QString &name);
+		rpl::producer<QString> name);
 	ColorSample(
 		not_null<QWidget*> parent,
 		std::shared_ptr<ChatStyle> style,

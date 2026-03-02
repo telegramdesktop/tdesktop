@@ -452,7 +452,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b8c3a8ffc1514861837b9213383133c63023e0de
+    git checkout bfbc264ea8a9b39405f2f0ec549481bbd39d1b91
 """)
 
 stage('msys64', """

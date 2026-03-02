@@ -1143,7 +1143,9 @@ void InnerWidget::addGiftToCollection(
 			refreshCollectionsTabs();
 		}
 	}).fail([=, show = _window->uiShow()](const MTP::Error &error) {
-		show->showToast(error.type());
+		if (!Ui::ShowGiftErrorToast(show, error)) {
+			show->showToast(error.type());
+		}
 	}).send();
 }
 
@@ -1460,7 +1462,9 @@ void InnerWidget::editCollectionGifts(int id) {
 			}).fail([=](const MTP::Error &error) {
 				if (const auto strong = weakBox.get()) {
 					state->saving = false;
-					strong->uiShow()->showToast(error.type());
+					if (!Ui::ShowGiftErrorToast(strong->uiShow(), error)) {
+						strong->uiShow()->showToast(error.type());
+					}
 				}
 			}).send();
 		});
@@ -1650,7 +1654,9 @@ void InnerWidget::removeGiftFromCollection(
 			refreshCollectionsTabs();
 		}
 	}).fail([=, show = _window->uiShow()](const MTP::Error &error) {
-		show->showToast(error.type());
+		if (!Ui::ShowGiftErrorToast(show, error)) {
+			show->showToast(error.type());
+		}
 	}).send();
 }
 
@@ -2301,7 +2307,9 @@ void InnerWidget::requestReorder(int fromIndex, int toIndex) {
 				refreshCollectionsTabs();
 			}
 		}).fail([show = _window->uiShow()](const MTP::Error &error) {
-			show->showToast(error.type());
+			if (!Ui::ShowGiftErrorToast(show, error)) {
+				show->showToast(error.type());
+			}
 		}).send();
 	} else {
 		_window->session().recentSharedGifts().reorderPinned(

@@ -637,7 +637,10 @@ void EditorBlock::checkCopiesChanged(int startIndex, QStringList names, QColor v
 }
 
 void EditorBlock::cancelEditing() {
-	if (_editing >= 0) {
+	// The only place we need to check for _editing < _data.size(),
+	// because we could remove the row that was edited in New block,
+	// and it could be the last row, making _editing inconsistent.
+	if (_editing >= 0 && _editing < _data.size()) {
 		updateRow(_data[_editing]);
 	}
 	_editing = -1;

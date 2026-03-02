@@ -542,9 +542,14 @@ public:
 	void removeLayerBlackout();
 	[[nodiscard]] bool isLayerShown() const;
 
-	void showCalendar(
-		Dialogs::Key chat,
-		QDate requestedDate);
+	struct ShowCalendarDescriptor {
+		Dialogs::Key chat;
+		QDate date;
+		bool mediaPhoto = false;
+		bool mediaVideo = false;
+		Fn<void(MsgId, Fn<void()>)> customJump;
+	};
+	void showCalendar(ShowCalendarDescriptor &&descriptor);
 
 	void showAddContact();
 	void showNewGroup();

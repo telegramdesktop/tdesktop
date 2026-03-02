@@ -37,16 +37,8 @@ ls .ai/
 
 Suggest a name to the user or let them specify one directly via $ARGUMENTS.
 
-### 3. Use /ultrathink for Planning
 
-Before writing the prompt, use `/ultrathink` to carefully plan:
-- The structure of the prompt
-- What context the autonomous agent needs
-- How tasks should be broken down
-- What patterns/examples to include
-- Edge cases and error handling
-
-### 4. Create the Folder and Files
+### 3. Create the Folder and Files
 
 Create `.ai/<featurename>/`:
 
@@ -91,7 +83,7 @@ IMPORTANT: Never try to commit files in .ai/
 }
 ```
 
-### 5. Iterate with the User
+### 4. Iterate with the User
 
 After creating initial files, the user may want to:
 - Add more tasks to tasks.json

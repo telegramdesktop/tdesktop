@@ -13,9 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "ui/painter.h"
+#include "ui/dynamic_image.h"
 #include "styles/style_window.h"
 
 #include <QtWidgets/QMenu>
+#include <QtGui/QIcon>
 
 #import <AppKit/NSMenu.h>
 #import <AppKit/NSStatusItem.h>
@@ -81,6 +83,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 
 namespace {
+
+enum class TrayClickType {
+	Left,
+	Right,
+};
 
 [[nodiscard]] bool IsAnyActiveForTrayMenu() {
 	for (const NSWindow *w in [[NSApplication sharedApplication] windows]) {
@@ -233,14 +240,14 @@ public:
 	void showMenu(not_null<QMenu*> menu);
 	void deactivateButton();
 
-	[[nodiscard]] rpl::producer<> clicks() const;
+	[[nodiscard]] rpl::producer<TrayClickType> clicks() const;
 	[[nodiscard]] rpl::producer<> aboutToShowRequests() const;
 
 private:
 	CommonDelegate *_delegate;
 	NSStatusItem *_status;
 
-	rpl::event_stream<> _clicks;
+	rpl::event_stream<TrayClickType> _clicks;
 
 	rpl::lifetime _lifetime;
 
@@ -276,12 +283,17 @@ NativeIcon::NativeIcon()
 	[_status.button sendActionOn:masks];
 
 	id buttonCallback = [^{
-		const auto type = NSApp.currentEvent.type;
+		const auto event = NSApp.currentEvent;
+		const auto type = event.type;
 
-		if ((type == NSEventTypeLeftMouseDown)
-			|| (type == NSEventTypeRightMouseDown)) {
+		if (type == NSEventTypeLeftMouseDown) {
 			Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-				_clicks.fire({});
+				_clicks.fire(TrayClickType::Left);
+			});
+		} else if (type == NSEventTypeRightMouseDown
+			|| type == NSEventTypeRightMouseUp) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+				_clicks.fire(TrayClickType::Right);
 			});
 		}
 	} copy];
@@ -319,7 +331,7 @@ void NativeIcon::deactivateButton() {
 	[_status.button highlight:false];
 }
 
-rpl::producer<> NativeIcon::clicks() const {
+rpl::producer<TrayClickType> NativeIcon::clicks() const {
 	return _clicks.events();
 }
 
@@ -336,8 +348,13 @@ void Tray::createIcon() {
 		// On macOS we are activating the window on click
 		// instead of showing the menu, when the window is not activated.
 		_nativeIcon->clicks(
-		) | rpl::on_next([=] {
-			if (IsAnyActiveForTrayMenu()) {
+		) | rpl::on_next([=](TrayClickType type) {
+			if (!_menu) {
+				return;
+			}
+			if (type == TrayClickType::Right) {
+				_nativeIcon->showMenu(_menu.get());
+			} else if (IsAnyActiveForTrayMenu()) {
 				_nativeIcon->showMenu(_menu.get());
 			} else {
 				_nativeIcon->deactivateButton();
@@ -372,16 +389,61 @@ void Tray::destroyMenu() {
 }
 
 void Tray::addAction(rpl::producer<QString> text, Fn<void()> &&callback) {
+	addAction(std::move(text), std::move(callback), QIcon());
+}
+
+void Tray::addAction(
+		rpl::producer<QString> text,
+		Fn<void()> &&callback,
+		const QIcon &icon) {
 	if (!_menu) {
 		return;
 	}
 
 	const auto action = _menu->addAction(QString(), std::move(callback));
+	action->setIcon(icon);
 	std::move(
 		text
 	) | rpl::on_next([=](const QString &text) {
 		action->setText(text);
 	}, _actionsLifetime);
+}
+
+void Tray::addAction(
+		rpl::producer<QString> text,
+		Fn<void()> &&callback,
+		std::shared_ptr<Ui::DynamicImage> icon,
+		int size) {
+	if (!_menu) {
+		return;
+	}
+
+	const auto action = _menu->addAction(QString(), std::move(callback));
+	if (icon) {
+		const auto updateIcon = crl::guard(action, [=] {
+			action->setIcon(QIcon(QPixmap::fromImage(icon->image(size))));
+		});
+		icon->subscribeToUpdates([=] {
+			Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+				updateIcon();
+			});
+		});
+		updateIcon();
+		_actionsLifetime.add([icon = std::move(icon)] {
+			icon->subscribeToUpdates(nullptr);
+		});
+	}
+	std::move(
+		text
+	) | rpl::on_next([=](const QString &text) {
+		action->setText(text);
+	}, _actionsLifetime);
+}
+
+void Tray::addSeparator() {
+	if (_menu) {
+		_menu->addSeparator();
+	}
 }
 
 void Tray::showTrayMessage() const {

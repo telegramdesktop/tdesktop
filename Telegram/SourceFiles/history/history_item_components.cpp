@@ -783,7 +783,10 @@ ReplyKeyboard::ReplyKeyboard(
 					auto result = TextWithEntities();
 					if (const auto iconId = row[j].visual.iconId) {
 						using namespace Data;
-						result.append(SingleCustomEmoji(iconId)).append(' ');
+						result.append(SingleCustomEmoji(iconId));
+						if (!text.isEmpty()) {
+							result.append(' ');
+						}
 					}
 					if (type == Type::Buy) {
 						auto firstPart = true;
@@ -1281,7 +1284,8 @@ bool HistoryMessageReplyMarkup::hiddenBy(Data::Media *media) const {
 void HistoryMessageReplyMarkup::updateSuggestControls(
 		SuggestionActions actions) {
 	if (actions == SuggestionActions::AcceptAndDecline
-		|| actions == SuggestionActions::GiftOfferActions) {
+		|| actions == SuggestionActions::GiftOfferActions
+		|| actions == SuggestionActions::NoForwardsRequest) {
 		data.flags |= ReplyMarkupFlag::SuggestionAccept;
 	} else {
 		data.flags &= ~ReplyMarkupFlag::SuggestionAccept;
@@ -1314,6 +1318,19 @@ void HistoryMessageReplyMarkup::updateSuggestControls(
 			{
 				Type::SuggestAccept,
 				tr::lng_action_gift_offer_accept(tr::now),
+				Visual(),
+			},
+		});
+	} else if (actions == SuggestionActions::NoForwardsRequest) {
+		data.rows.push_back({
+			{
+				Type::SuggestDecline,
+				tr::lng_action_no_forwards_reject(tr::now),
+				Visual(),
+			},
+			{
+				Type::SuggestAccept,
+				tr::lng_action_no_forwards_accept(tr::now),
 				Visual(),
 			},
 		});

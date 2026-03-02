@@ -220,37 +220,44 @@ public:
 		QByteArray content = {},
 		QByteArray format = {});
 
-	FileLoadTask(
-		not_null<Main::Session*> session,
-		const QString &filepath,
-		const QByteArray &content,
-		std::unique_ptr<Ui::PreparedFileInformation> information,
-		std::unique_ptr<FileLoadTask> videoCover,
-		SendMediaType type,
-		const FileLoadTo &to,
-		const TextWithTags &caption,
-		bool spoiler,
-		std::shared_ptr<SendingAlbum> album = nullptr,
-		bool forceFile = false,
-		uint64 idOverride = 0);
-	FileLoadTask(
-		not_null<Main::Session*> session,
-		const QByteArray &voice,
-		crl::time duration,
-		const VoiceWaveform &waveform,
-		bool video,
-		const FileLoadTo &to,
-		const TextWithTags &caption);
+	struct Args {
+		not_null<Main::Session*> session;
+		QString filepath;
+		QByteArray content;
+		std::unique_ptr<Ui::PreparedFileInformation> information;
+		std::unique_ptr<FileLoadTask> videoCover;
+		SendMediaType type;
+		FileLoadTo to;
+		TextWithTags caption;
+		bool spoiler = false;
+		std::shared_ptr<SendingAlbum> album;
+		bool forceFile = false;
+		uint64 idOverride = 0;
+		QString displayName;
+	};
+
+	struct VoiceArgs {
+		not_null<Main::Session*> session;
+		QByteArray voice;
+		crl::time duration = 0;
+		VoiceWaveform waveform;
+		bool video = false;
+		FileLoadTo to;
+		TextWithTags caption;
+	};
+
+	explicit FileLoadTask(Args &&args);
+	explicit FileLoadTask(VoiceArgs &&args);
 	~FileLoadTask();
 
 	uint64 fileid() const {
 		return _id;
 	}
 
-	struct Args {
+	struct ProcessArgs {
 		bool generateGoodThumbnail = true;
 	};
-	void process(Args &&args);
+	void process(ProcessArgs &&args);
 
 	void process() override {
 		process({});
@@ -286,6 +293,7 @@ private:
 	FileLoadTo _to;
 	const std::shared_ptr<SendingAlbum> _album;
 	QString _filepath;
+	QString _displayName;
 	QByteArray _content;
 	std::unique_ptr<FileLoadTask> _videoCover;
 	std::unique_ptr<Ui::PreparedFileInformation> _information;

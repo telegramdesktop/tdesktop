@@ -354,8 +354,8 @@ class ChooseTopicBoxController final
 public:
 	ChooseTopicBoxController(
 		not_null<Data::Forum*> forum,
-		FnMut<void(not_null<Data::ForumTopic*>)> callback,
-		Fn<bool(not_null<Data::ForumTopic*>)> filter = nullptr);
+		FnMut<void(not_null<Data::Thread*>)> callback,
+		Fn<bool(not_null<Data::Thread*>)> filter = nullptr);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -391,13 +391,36 @@ private:
 
 	};
 
+	class AllMessagesRow final : public PeerListRow {
+	public:
+		explicit AllMessagesRow(bool userCreatesTopics);
+
+		QString generateName() override;
+		QString generateShortName() override;
+		PaintRoundImageCallback generatePaintUserpicCallback(
+			bool forceRound) override;
+
+		auto generateNameFirstLetters() const
+			-> const base::flat_set<QChar> & override;
+		auto generateNameWords() const
+			-> const base::flat_set<QString> & override;
+
+	private:
+		[[nodiscard]] QString name() const;
+
+		base::flat_set<QChar> _nameFirstLetters;
+		base::flat_set<QString> _nameWords;
+		bool _userCreatesTopics = false;
+
+	};
+
 	void refreshRows(bool initial = false);
 	[[nodiscard]] std::unique_ptr<Row> createRow(
 		not_null<Data::ForumTopic*> topic);
 
 	const not_null<Data::Forum*> _forum;
-	FnMut<void(not_null<Data::ForumTopic*>)> _callback;
-	Fn<bool(not_null<Data::ForumTopic*>)> _filter;
+	FnMut<void(not_null<Data::Thread*>)> _callback;
+	Fn<bool(not_null<Data::Thread*>)> _filter;
 
 };
 

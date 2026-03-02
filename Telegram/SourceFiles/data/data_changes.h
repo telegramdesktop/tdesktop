@@ -282,6 +282,12 @@ struct ChatAdminChange {
 	QString rank;
 };
 
+struct ChatMemberRankChange {
+	not_null<PeerData*> peer;
+	not_null<UserData*> user;
+	QString rank;
+};
+
 class Changes final {
 public:
 	explicit Changes(not_null<Main::Session*> session);
@@ -401,6 +407,12 @@ public:
 		QString rank);
 	[[nodiscard]] rpl::producer<ChatAdminChange> chatAdminChanges() const;
 
+	void chatMemberRankChanged(
+		not_null<PeerData*> peer,
+		not_null<UserData*> user,
+		QString rank);
+	[[nodiscard]] rpl::producer<ChatMemberRankChange> chatMemberRankChanges() const;
+
 	void sendNotifications();
 
 private:
@@ -454,6 +466,7 @@ private:
 	Manager<Dialogs::Entry, EntryUpdate> _entryChanges;
 	Manager<Story, StoryUpdate> _storyChanges;
 	rpl::event_stream<ChatAdminChange> _chatAdminChanges;
+	rpl::event_stream<ChatMemberRankChange> _chatMemberRankChanges;
 
 	bool _notify = false;
 

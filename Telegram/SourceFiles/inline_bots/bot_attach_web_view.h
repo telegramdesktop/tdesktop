@@ -273,6 +273,7 @@ private:
 	-> Fn<void(Payments::NonPanelPaymentForm)>;
 
 	Webview::ThemeParams botThemeParams() override;
+	Ui::Text::MarkedContext botTextContext() override;
 	auto botDownloads(bool forceCheck = false)
 		-> const std::vector<Ui::BotWebView::DownloadsEntry> & override;
 	void botDownloadsAction(

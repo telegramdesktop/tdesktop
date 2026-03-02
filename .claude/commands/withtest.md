@@ -100,7 +100,7 @@ YOUR JOB:
    - [ ] Testing
    Assessed: yes
 
-Use /ultrathink to reason carefully. The follow-up plan should be self-contained enough that an implementation agent can execute it by reading context.md and the updated plan.md.
+Reason carefully. The follow-up plan should be self-contained enough that an implementation agent can execute it by reading context.md and the updated plan.md.
 ```
 
 After this agent completes, read `plan.md` to verify the follow-up plan was written. Then proceed to Phase 4 (Implementation), using the follow-up phases (F1, F2, etc.) instead of the original phases. After implementation and build verification, proceed to Stage 2 (Testing Loop) as normal.
@@ -163,7 +163,7 @@ Read these files:
 - .ai/<feature-name>/context.md - Contains all gathered context
 - Then read the specific source files referenced in context.md to understand the code deeply.
 
-Use /ultrathink to reason carefully about the implementation approach.
+Think carefully about the implementation approach.
 
 Create a detailed plan in: .ai/<feature-name>/plan.md
 
@@ -224,7 +224,7 @@ Read these files:
 - .ai/<feature-name>/plan.md
 - Then read the actual source files referenced to verify the plan makes sense.
 
-Use /ultrathink to assess the plan:
+Carefully assess the plan:
 
 1. **Correctness**: Are the file paths and line references accurate? Does the plan reference real functions and types?
 2. **Completeness**: Are there missing steps? Edge cases not handled?
@@ -367,7 +367,7 @@ YOUR TASKS:
    - Decide: reuse/modify existing test code or start fresh.
 
 3. **Plan the test code.**
-   Use /ultrathink to design test code that will verify the implementation works correctly.
+   Carefully design test code that will verify the implementation works correctly.
 
    The test code must:
    - Be wrapped in `#ifdef _DEBUG` blocks so it only runs in Debug builds
@@ -530,7 +530,7 @@ Read these files:
 - .ai/<feature-name>/result<N>.md
 <if N > 1, also read previous test/result pairs for history>
 
-Use /ultrathink to carefully analyze the test results.
+Carefully analyze the test results.
 
 DECIDE one of three outcomes:
 

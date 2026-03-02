@@ -42,7 +42,7 @@ struct LocalUrlHandler {
 
 [[nodiscard]] QString TryConvertUrlToLocal(QString url);
 
-[[nodiscard]] bool InternalPassportLink(const QString &url);
+[[nodiscard]] bool InternalPassportOrOAuthLink(const QString &url);
 
 [[nodiscard]] bool StartUrlRequiresActivate(const QString &url);
 

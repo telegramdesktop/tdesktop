@@ -296,6 +296,7 @@ void Controller::createContent() {
 			(_isGroup
 				? tr::lng_manage_peer_no_forwards_about
 				: tr::lng_manage_peer_no_forwards_about_channel)());
+
 	}
 	if (_linkOnly) {
 		_controls.inviteLinkWrap->show(anim::type::instant);

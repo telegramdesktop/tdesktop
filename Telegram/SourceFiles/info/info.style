@@ -354,7 +354,7 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	radius: boxRadius;
 }
 
-infoLayerTopBarMenuPosition: point(40px, 37px);
+infoLayerTopBarMenuPosition: point(48px, 37px);
 
 infoTopBarColoredBack: IconButton(infoTopBarBack) {
 	icon: icon {{ "info/info_back", groupCallMembersFg }};
@@ -1458,3 +1458,5 @@ earnTonIconMargin: margins(0px, 2px, 0px, 0px);
 
 infoMusicButtonRipple: universalRippleAnimation;
 infoMusicButtonPadding: margins(16px, 6px, 13px, 6px);
+
+memberTagPillPadding: margins(5px, -1px, 5px, 0px);

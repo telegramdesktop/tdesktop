@@ -43,7 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "base/unixtime.h"
 #include "base/random.h"
-#include "base/qt/qt_common_adapters.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "boxes/sticker_set_box.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
@@ -516,7 +516,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					_channel->session().api().chatParticipants().requestAdmins(_channel);
 				} else {
 					mrows.reserve(mrows.size() + _channel->mgInfo->admins.size());
-					for (const auto &[userId, rank] : _channel->mgInfo->admins) {
+					for (const auto &userId : _channel->mgInfo->admins) {
 						if (const auto user = _channel->owner().userLoaded(userId)) {
 							if (user->isInaccessible()) continue;
 							if (!listAllSuggestions && filterNotPassedByName(user)) continue;
@@ -1666,7 +1666,9 @@ void InitFieldAutocomplete(
 	raw->mentionChosen(
 	) | rpl::on_next([=](FieldAutocomplete::MentionChosen data) {
 		const auto user = data.user;
-		if (data.mention.isEmpty()) {
+		const auto ctrlClick = base::IsCtrlPressed()
+			&& data.method == FieldAutocomplete::ChooseMethod::ByClick;
+		if (data.mention.isEmpty() || ctrlClick) {
 			field->insertTag(
 				user->firstName.isEmpty() ? user->name() : user->firstName,
 				PrepareMentionTag(user));

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_cloud_password.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "dialogs/ui/chat_search_empty.h"
 #include "boxes/peers/channel_ownership_transfer.h"
 #include "data/data_session.h"
@@ -44,58 +45,25 @@ enum class ParticipantType {
 	Members
 };
 
-class ParticipantsController : public PeerListController {
+class FutureOwnerController : public PeerListController {
 public:
-	ParticipantsController(
-		not_null<Window::SessionController*> window,
-		not_null<ChannelData*> channel,
-		ParticipantType type);
-
-	Main::Session &session() const override;
-	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
-	void loadMoreRows() override;
 	void itemDeselectedHook(not_null<PeerData*> peer) override;
 
 	void setOnRowClicked(Fn<void()> callback);
 	rpl::producer<> itemDeselected() const;
 
 private:
-	const not_null<Window::SessionController*> _window;
-	const not_null<ChannelData*> _channel;
-	const ParticipantType _type;
-	MTP::Sender _api;
 	Fn<void()> _onRowClicked;
 	rpl::event_stream<> _itemDeselected;
 
-	mtpRequestId _loadRequestId = 0;
-	int _offset = 0;
-	bool _allLoaded = false;
 };
 
-ParticipantsController::ParticipantsController(
-	not_null<Window::SessionController*> window,
-	not_null<ChannelData*> channel,
-	ParticipantType type)
-: _window(window)
-, _channel(channel)
-, _type(type)
-, _api(&channel->session().mtp()) {
-}
-
-Main::Session &ParticipantsController::session() const {
-	return _channel->session();
-}
-
-void ParticipantsController::setOnRowClicked(Fn<void()> callback) {
+void FutureOwnerController::setOnRowClicked(Fn<void()> callback) {
 	_onRowClicked = callback;
 }
 
-void ParticipantsController::prepare() {
-	loadMoreRows();
-}
-
-void ParticipantsController::rowClicked(not_null<PeerListRow*> row) {
+void FutureOwnerController::rowClicked(not_null<PeerListRow*> row) {
 	delegate()->peerListSetRowChecked(
 		row,
 		!delegate()->peerListIsRowChecked(row));
@@ -110,12 +78,49 @@ void ParticipantsController::rowClicked(not_null<PeerListRow*> row) {
 	}
 }
 
-void ParticipantsController::itemDeselectedHook(not_null<PeerData*> peer) {
+void FutureOwnerController::itemDeselectedHook(not_null<PeerData*> peer) {
 	_itemDeselected.fire({});
 }
 
-rpl::producer<> ParticipantsController::itemDeselected() const {
+rpl::producer<> FutureOwnerController::itemDeselected() const {
 	return _itemDeselected.events();
+}
+
+class ParticipantsController : public FutureOwnerController {
+public:
+	ParticipantsController(
+		not_null<ChannelData*> channel,
+		ParticipantType type);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void loadMoreRows() override;
+
+private:
+	const not_null<ChannelData*> _channel;
+	const ParticipantType _type;
+	MTP::Sender _api;
+
+	mtpRequestId _loadRequestId = 0;
+	int _offset = 0;
+	bool _allLoaded = false;
+
+};
+
+ParticipantsController::ParticipantsController(
+	not_null<ChannelData*> channel,
+	ParticipantType type)
+: _channel(channel)
+, _type(type)
+, _api(&channel->session().mtp()) {
+}
+
+Main::Session &ParticipantsController::session() const {
+	return _channel->session();
+}
+
+void ParticipantsController::prepare() {
+	loadMoreRows();
 }
 
 void ParticipantsController::loadMoreRows() {
@@ -191,13 +196,71 @@ void ParticipantsController::loadMoreRows() {
 	}).send();
 }
 
+class LegacyParticipantsController : public FutureOwnerController {
+public:
+	LegacyParticipantsController(
+		not_null<ChatData*> chat,
+		ParticipantType type);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void loadMoreRows() override;
+
+private:
+	const not_null<ChatData*> _chat;
+	const ParticipantType _type;
+
+};
+
+LegacyParticipantsController::LegacyParticipantsController(
+	not_null<ChatData*> chat,
+	ParticipantType type)
+: _chat(chat)
+, _type(type) {
+}
+
+Main::Session &LegacyParticipantsController::session() const {
+	return _chat->session();
+}
+
+void LegacyParticipantsController::prepare() {
+	if (_chat->noParticipantInfo()) {
+		_chat->updateFullForced();
+	}
+	const auto &source = (_type == ParticipantType::Admins)
+		? _chat->admins
+		: _chat->participants;
+	for (const auto &user : source) {
+		if (user->isBot()) {
+			continue;
+		}
+		if (user->id == peerFromUser(_chat->creator)) {
+			continue;
+		}
+		if (_type == ParticipantType::Members
+			&& _chat->admins.contains(user)) {
+			continue;
+		}
+		delegate()->peerListAppendRow(
+			std::make_unique<PeerListRow>(user));
+	}
+	delegate()->peerListRefreshRows();
+}
+
+void LegacyParticipantsController::loadMoreRows() {
+}
+
 } // namespace
 
 void SelectFutureOwnerbox(
 		not_null<Ui::GenericBox*> box,
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user) {
 	const auto content = box->verticalLayout();
+	const auto channel = peer->asChannel();
+	const auto chat = peer->asChat();
+	const auto isGroup = peer->isMegagroup() || peer->isChat();
+	const auto isLegacy = (chat != nullptr);
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
 	content->add(
@@ -205,7 +268,7 @@ void SelectFutureOwnerbox(
 			content,
 			rpl::single(std::vector<not_null<PeerData*>>{
 				user->session().user(),
-				channel,
+				peer,
 			}),
 			user,
 			UserpicsTransferType::ChannelFutureOwner),
@@ -215,24 +278,36 @@ void SelectFutureOwnerbox(
 	content->add(
 		object_ptr<Ui::FlatLabel>(
 			content,
-			channel->isMegagroup()
+			isGroup
 				? tr::lng_leave_next_owner_box_title_group()
 				: tr::lng_leave_next_owner_box_title(),
 			box->getDelegate()->style().title),
 		st::boxRowPadding);
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
-	const auto adminsAreEqual = (channel->adminsCount() <= 1);
+	const auto adminsCount = [&] {
+		if (channel) {
+			return channel->adminsCount();
+		} else if (chat) {
+			return int(chat->admins.size()) + 1;
+		}
+		return 0;
+	}();
+	const auto adminsAreEqual = (adminsCount <= 1);
 	content->add(
 		object_ptr<Ui::FlatLabel>(
 			content,
-			(adminsAreEqual
-				? tr::lng_leave_next_owner_box_about
-				: tr::lng_leave_next_owner_box_about_admin)(
+			(isLegacy
+				? (adminsAreEqual
+					? tr::lng_leave_next_owner_box_about_legacy
+					: tr::lng_leave_next_owner_box_about_admin_legacy)
+				: (adminsAreEqual
+					? tr::lng_leave_next_owner_box_about
+					: tr::lng_leave_next_owner_box_about_admin))(
 					lt_user,
 					Info::Profile::NameValue(user) | rpl::map(tr::marked),
 					lt_chat,
-					Info::Profile::NameValue(channel) | rpl::map(tr::marked),
+					Info::Profile::NameValue(peer) | rpl::map(tr::marked),
 					tr::rich),
 			st::boxLabel),
 		st::boxRowPadding);
@@ -264,14 +339,14 @@ void SelectFutureOwnerbox(
 	const auto leave = content->add(
 		object_ptr<Ui::RoundButton>(
 			content,
-			channel->isMegagroup()
+			isGroup
 				? tr::lng_profile_leave_group()
 				: tr::lng_profile_leave_channel(),
 			st::attentionBoxButton),
 		st::boxRowPadding,
 		style::al_justify);
 	leave->setClickedCallback([=, revoke = false] {
-		channel->session().api().deleteConversation(channel, revoke);
+		peer->session().api().deleteConversation(peer, revoke);
 		box->closeBox();
 	});
 	select->setClickedCallback([=] {
@@ -283,16 +358,31 @@ void SelectFutureOwnerbox(
 			return;
 		}
 
-		auto adminsOwned = std::make_unique<ParticipantsController>(
-			sessionController,
-			channel,
-			ParticipantType::Admins);
-
-		auto membersOwned = std::make_unique<ParticipantsController>(
-			sessionController,
-			channel,
-			ParticipantType::Members);
-
+		using Pair = std::pair<
+			std::unique_ptr<FutureOwnerController>,
+			std::unique_ptr<FutureOwnerController>>;
+		auto makeControllers = [&]() -> Pair {
+			if (channel) {
+				return {
+					std::make_unique<ParticipantsController>(
+						channel,
+						ParticipantType::Admins),
+					std::make_unique<ParticipantsController>(
+						channel,
+						ParticipantType::Members),
+				};
+			} else {
+				return {
+					std::make_unique<LegacyParticipantsController>(
+						chat,
+						ParticipantType::Admins),
+					std::make_unique<LegacyParticipantsController>(
+						chat,
+						ParticipantType::Members),
+				};
+			}
+		};
+		auto [adminsOwned, membersOwned] = makeControllers();
 		const auto admins = adminsOwned.get();
 		const auto members = membersOwned.get();
 
@@ -331,14 +421,14 @@ void SelectFutureOwnerbox(
 				0,
 				CreatePeerListSectionSubtitle(
 					selectBox,
-					!channel->isMegagroup()
+					!isGroup
 						? tr::lng_select_next_owner_box_sub_admins()
 						: tr::lng_select_next_owner_box_sub_admins_group()));
 			const auto separatorMembers = selectBox->addSeparatorBefore(
 				1,
 				CreatePeerListSectionSubtitle(
 					selectBox,
-					!channel->isMegagroup()
+					!isGroup
 						? tr::lng_select_next_owner_box_sub_members()
 						: tr::lng_select_next_owner_box_sub_members_group()));
 			rpl::combine(
@@ -407,13 +497,13 @@ void SelectFutureOwnerbox(
 					if (const auto user = selected.front()->asUser()) {
 						auto &lifetime = selectBox->lifetime();
 						lifetime.make_state<ChannelOwnershipTransfer>(
-							channel,
+							peer,
 							user,
 							selectBox->uiShow(),
 							[=](std::shared_ptr<Ui::Show> show) {
 								const auto revoke = false;
-								channel->session().api().deleteConversation(
-									channel,
+								peer->session().api().deleteConversation(
+									peer,
 									revoke);
 								show->hideLayer();
 							})->start();

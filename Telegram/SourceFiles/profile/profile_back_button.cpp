@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "profile/profile_back_button.h"
 
-#include "ui/painter.h"
+#include "ui/text/text.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_profile.h"
@@ -24,13 +24,13 @@ BackButton::BackButton(QWidget *parent) : Ui::AbstractButton(parent) {
 }
 
 void BackButton::setText(const QString &text) {
-	_text = text;
+	_text.setText(st::semiboldTextStyle, text);
 	_cachedWidth = -1;
 	update();
 }
 
 void BackButton::setSubtext(const QString &subtext) {
-	_subtext = subtext;
+	_subtext.setText(st::defaultTextStyle, subtext);
 	_cachedWidth = -1;
 	update();
 }
@@ -80,18 +80,13 @@ void BackButton::updateCache() {
 	const auto availableWidth = width()
 		- st::historyAdminLogTopBarLeft
 		- widgetWidth;
-	_cachedElidedText = st::semiboldFont->elided(
-		_text,
-		availableWidth);
-	_cachedElidedSubtext = st::dialogsTextFont->elided(
-		_subtext,
-		availableWidth);
+	_elisionWidth = availableWidth;
 }
 
 void BackButton::paintEvent(QPaintEvent *e) {
 	updateCache();
 
-	auto p = Painter(this);
+	auto p = QPainter(this);
 
 	p.fillRect(e->rect(), st::profileBg);
 	st::topBarBack.paint(
@@ -112,18 +107,24 @@ void BackButton::paintEvent(QPaintEvent *e) {
 		: 0;
 	const auto textX = st::historyAdminLogTopBarLeft + widgetWidth;
 
-	p.setFont(st::semiboldFont);
+	const auto context = Ui::Text::PaintContext{
+		.position = QPoint{ textX, startY },
+		.outerWidth = width(),
+		.availableWidth = _elisionWidth,
+		.elisionLines = 1,
+	};
 	p.setPen(st::dialogsNameFg);
-	p.drawTextLeft(textX, startY, width(), _cachedElidedText);
+	_text.draw(p, context);
 
 	if (!_subtext.isEmpty()) {
-		p.setFont(st::dialogsTextFont);
+		const auto subtextContext = Ui::Text::PaintContext{
+			.position = { textX, startY + textHeight + st::lineWidth * 2 },
+			.outerWidth = width(),
+			.availableWidth = _elisionWidth,
+			.elisionLines = 1,
+		};
 		p.setPen(st::historyStatusFg);
-		p.drawTextLeft(
-			textX,
-			startY + textHeight + st::lineWidth * 2,
-			width(),
-			_cachedElidedSubtext);
+		_subtext.draw(p, subtextContext);
 	}
 }
 

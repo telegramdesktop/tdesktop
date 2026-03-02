@@ -20,6 +20,7 @@ public:
 		const style::ComposeControls &st,
 		const PreparedFile &file,
 		AttachControls::Type type = AttachControls::Type::Full);
+	void setDisplayName(const QString &displayName) override;
 
 private:
 	void preparePreview(const PreparedFile &file);

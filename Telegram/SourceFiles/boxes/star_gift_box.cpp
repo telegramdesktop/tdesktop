@@ -1332,7 +1332,9 @@ void SendStarsFormRequest(
 				done(Payments::CheckoutResult::Failed, nullptr);
 			});
 		}).fail([=](const MTP::Error &error) {
-			show->showToast(error.type());
+			if (!ShowGiftErrorToast(show, error)) {
+				show->showToast(error.type());
+			}
 			done(Payments::CheckoutResult::Failed, nullptr);
 		}).send();
 	} else if (result == BalanceResult::Cancelled) {
@@ -1379,7 +1381,9 @@ void UpgradeGift(
 			formDone(Payments::CheckoutResult::Paid, &result);
 		}).fail([=](const MTP::Error &error) {
 			if (const auto strong = weak.get()) {
-				strong->showToast(error.type());
+				if (!ShowGiftErrorToast(strong->uiShow(), error)) {
+					strong->showToast(error.type());
+				}
 			}
 			formDone(Payments::CheckoutResult::Failed, nullptr);
 		}).send();
@@ -2860,7 +2864,7 @@ void UpdateGiftSellPrice(
 			const auto newAvailableAt = base::unixtime::now() + seconds;
 			unique->canResellAt = newAvailableAt;
 			ShowResaleGiftLater(show, unique);
-		} else {
+		} else if (!ShowGiftErrorToast(show, error)) {
 			show->showToast(type);
 		}
 	}).send();
@@ -3061,9 +3065,10 @@ void SendOfferBuyGift(
 		show->session().api().applyUpdates(result);
 		done(true);
 	}).fail([=](const MTP::Error &error) {
-		if (error.type() == u""_q) {
-		} else {
-			show->showToast(error.type());
+		const auto type = error.type();
+		if (type == u""_q) {
+		} else if (!ShowGiftErrorToast(show, error)) {
+			show->showToast(type);
 		}
 		done(false);
 	}).send();
@@ -4297,7 +4302,9 @@ void RequestOurForm(
 			show->showToast(tr::lng_edit_privacy_gifts_restricted(tr::now));
 			fail(Payments::CheckoutResult::Cancelled);
 		} else {
-			show->showToast(type);
+			if (!ShowGiftErrorToast(show, error)) {
+				show->showToast(type);
+			}
 			fail(Payments::CheckoutResult::Failed);
 		}
 	}).send();
@@ -4336,6 +4343,16 @@ void ShowGiftTransferredToast(
 				tr::marked),
 		.duration = kUpgradeDoneToastDuration,
 	});
+}
+
+bool ShowGiftErrorToast(
+		std::shared_ptr<Ui::Show> show,
+		const MTP::Error &error) {
+	if (error.type() == u"STARGIFT_ALREADY_BURNED"_q) {
+		show->showToast(tr::lng_gift_burned_message(tr::now));
+		return true;
+	}
+	return false;
 }
 
 CreditsAmount StarsFromTon(

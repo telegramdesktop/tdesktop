@@ -24,6 +24,8 @@ public:
 	void setFullHeight(rpl::producer<int> fullHeightValue);
 	void setType(Type type);
 	void setSearchQuery(const QString &query);
+	void setLoading(bool loading);
+	[[nodiscard]] bool loading() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -35,6 +37,7 @@ private:
 	Type _type = Type::kCount;
 	const style::icon *_icon = nullptr;
 	int _height = 0;
+	bool _loading = false;
 
 };
 

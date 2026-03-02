@@ -229,6 +229,7 @@ private:
 	void setPaper(const Data::WallPaper &paper);
 
 	[[nodiscard]] bool adjustPaletteRequired();
+	void applyDefaultThemeAccentColorizer();
 	void adjustPaletteUsingBackground(const QImage &image);
 	void adjustPaletteUsingColors(const std::vector<QColor> &colors);
 	void adjustPaletteUsingColor(QColor color);

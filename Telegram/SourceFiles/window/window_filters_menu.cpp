@@ -145,7 +145,12 @@ void FiltersMenu::setupDragAndDrop() {
 			}
 			return std::nullopt;
 		},
-		[=] { return _activeFilterId; });
+		[=] { return _activeFilterId; },
+		[=](FilterId filterId) {
+			for (const auto &[id, button] : _filters) {
+				button->setForceRippled(id == filterId);
+			}
+		});
 }
 
 void FiltersMenu::setupMainMenuIcon() {

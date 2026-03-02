@@ -47,6 +47,7 @@ public:
 	virtual ~StoryAreaView() = default;
 
 	virtual void setAreaGeometry(QRect geometry, float64 radius) = 0;
+	virtual void setContentRect(QRect rect, int radius) = 0;
 	virtual void updateReactionsCount(int count) = 0;
 	virtual void playEffect() = 0;
 	virtual bool contains(QPoint point) = 0;

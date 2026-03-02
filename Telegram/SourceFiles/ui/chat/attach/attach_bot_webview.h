@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect_part.h"
 #include "ui/round_rect.h"
 #include "webview/webview_common.h"
+#include <crl/crl_time.h>
 
 class QJsonObject;
 class QJsonValue;
@@ -31,6 +32,10 @@ using LayerOptions = base::flags<LayerOption>;
 namespace Webview {
 struct Available;
 } // namespace Webview
+
+namespace Ui::Text {
+struct MarkedContext;
+} // namespace Ui::Text
 
 namespace Ui::BotWebView {
 
@@ -77,6 +82,7 @@ struct SendPreparedMessageRequest {
 class Delegate {
 public:
 	[[nodiscard]] virtual Webview::ThemeParams botThemeParams() = 0;
+	[[nodiscard]] virtual Ui::Text::MarkedContext botTextContext() = 0;
 	[[nodiscard]] virtual auto botDownloads(bool forceCheck = false)
 		-> const std::vector<DownloadsEntry> & = 0;
 	virtual void botDownloadsAction(uint32 id, DownloadsAction type) = 0;
@@ -250,6 +256,7 @@ private:
 	rpl::lifetime _bottomBarColorLifetime;
 	rpl::event_stream<> _downloadsUpdated;
 	rpl::variable<bool> _fullscreen = false;
+	crl::time _lastWebviewInteraction = 0;
 	bool _layerShown : 1 = false;
 	bool _webviewProgress : 1 = false;
 	bool _themeUpdateScheduled : 1 = false;

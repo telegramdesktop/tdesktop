@@ -165,6 +165,7 @@ public:
 		not_null<DocumentData*> document) = 0;
 
 	virtual void setSearchQuery(QString query) = 0;
+	virtual void jumpToMessage(MsgId messageId, Fn<void(FullMsgId)>) = 0;
 
 	[[nodiscard]] virtual int64 scrollTopStatePosition(
 		not_null<HistoryItem*> item) = 0;

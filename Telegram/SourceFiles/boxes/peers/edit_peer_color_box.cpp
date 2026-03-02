@@ -2637,7 +2637,10 @@ void SetupPeerColorSample(
 	) | rpl::map([=] {
 		return peer->emojiStatusId();
 	});
-	const auto name = peer->shortName();
+	auto name = peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::Name
+	) | rpl::map([=] { return peer->shortName(); });
 
 	const auto sampleSize = st::settingsColorSampleSize;
 
@@ -2648,7 +2651,7 @@ void SetupPeerColorSample(
 		style,
 		rpl::duplicate(colorIndexValue),
 		rpl::duplicate(colorCollectibleValue),
-		name);
+		rpl::duplicate(name));
 	sample->show();
 
 	struct ProfileSampleState {
@@ -2681,13 +2684,15 @@ void SetupPeerColorSample(
 		rpl::duplicate(label),
 		rpl::duplicate(colorIndexValue),
 		rpl::duplicate(colorProfileIndexValue),
-		rpl::duplicate(emojiStatusIdValue)
+		rpl::duplicate(emojiStatusIdValue),
+		rpl::duplicate(name)
 	) | rpl::on_next([=](
 			int width,
 			const QString &buttonText,
 			int colorIndex,
 			std::optional<uint8> profileIndex,
-			EmojiStatusId emojiStatusId) {
+			EmojiStatusId emojiStatusId,
+			const QString &name) {
 		const auto available = width
 			- st::settingsButton.padding.left()
 			- (st::settingsColorButton.padding.right() - sampleSize)

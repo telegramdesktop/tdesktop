@@ -566,6 +566,9 @@ void Controller::rebuildActiveAreas(const Layout &layout) const {
 		area.radius = scale.width() * area.radiusOriginal / 100.;
 		if (const auto view = area.view.get()) {
 			view->setAreaGeometry(area.geometry, area.radius);
+			view->setContentRect(
+				layout.content,
+				st::storiesRadius);
 		}
 	}
 }

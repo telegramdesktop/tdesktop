@@ -654,28 +654,31 @@ bool MainWidget::sendPaths(
 
 bool MainWidget::filesOrForwardDrop(
 		not_null<Data::Thread*> thread,
-		not_null<const QMimeData*> data) {
-	if (const auto forum = thread->asForum()) {
-		Window::ShowDropMediaBox(
-			_controller,
-			Core::ShareMimeMediaData(data),
-			forum);
-		if (_hider) {
-			_hider->startHide();
-			clearHider(_hider);
+		not_null<const QMimeData*> data,
+		bool forumResolved) {
+	if (!forumResolved) {
+		if (const auto forum = thread->asForum()) {
+			Window::ShowDropMediaBox(
+				_controller,
+				Core::ShareMimeMediaData(data),
+				forum);
+			if (_hider) {
+				_hider->startHide();
+				clearHider(_hider);
+			}
+			return true;
+		} else if (const auto history = thread->asHistory()
+			; history && history->peer->monoforum()) {
+			Window::ShowDropMediaBox(
+				_controller,
+				Core::ShareMimeMediaData(data),
+				history->peer->monoforum());
+			if (_hider) {
+				_hider->startHide();
+				clearHider(_hider);
+			}
+			return true;
 		}
-		return true;
-	} else if (const auto history = thread->asHistory()
-		; history && history->peer->monoforum()) {
-		Window::ShowDropMediaBox(
-			_controller,
-			Core::ShareMimeMediaData(data),
-			history->peer->monoforum());
-		if (_hider) {
-			_hider->startHide();
-			clearHider(_hider);
-		}
-		return true;
 	}
 	if (data->hasFormat(u"application/x-td-forward"_q)) {
 		auto draft = Data::ForwardDraft{

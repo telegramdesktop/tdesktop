@@ -1421,6 +1421,7 @@ defaultComposeFilesMenu: IconButton(defaultIconButton) {
 defaultComposeFilesField: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 31px, 4px);
 	heightMax: 158px;
+	style: historyTextStyle;
 }
 defaultComposeFiles: ComposeFiles {
 	check: defaultCheck;

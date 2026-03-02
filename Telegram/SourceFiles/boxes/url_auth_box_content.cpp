@@ -9,13 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/qthelp_url.h"
 #include "lang/lang_keys.h"
+#include "ui/dynamic_image.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/horizontal_fit_container.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/emoji_config.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/ui_utility.h"
 #include "styles/style_boxes.h"
@@ -26,7 +29,183 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace UrlAuthBox {
 namespace {
 
+constexpr auto kEmojiAnimationActiveFor = crl::time(250);
+
+void PrepareFullWidthRoundButton(
+		not_null<Ui::RoundButton*> button,
+		not_null<Ui::VerticalLayout*> content,
+		const style::margins &padding) {
+	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	button->setFullRadius(true);
+	const auto paddingHorizontal = padding.left() + padding.right();
+	content->widthValue() | rpl::on_next([=](int w) {
+		button->resize(w - paddingHorizontal, button->height());
+	}, button->lifetime());
+}
+
 } // namespace
+
+void ShowMatchCodesBox(
+		not_null<Ui::GenericBox*> box,
+		Fn<std::shared_ptr<Ui::DynamicImage>(QString)> emojiImageFactory,
+		const QString &domain,
+		const QStringList &codes,
+		Fn<void(QString)> callback) {
+	box->setWidth(st::boxWidth);
+	box->setStyle(st::urlAuthBox);
+
+	const auto content = box->verticalLayout();
+
+	Ui::AddSkip(content);
+	content->add(
+		object_ptr<Ui::FlatLabel>(
+			content,
+			tr::lng_url_auth_match_code_title(),
+			st::urlAuthCodesTitle),
+		st::boxRowPadding,
+		style::al_top);
+
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+
+	const auto buttons = content->add(
+		object_ptr<Ui::HorizontalFitContainer>(
+			content,
+			st::boxRowPadding.left() * 2),
+		st::boxRowPadding);
+	buttons->resize(0, st::urlAuthCodesButton.height);
+
+	for (const auto &code : codes) {
+		auto emojiLength = 0;
+		const auto emoji = Ui::Emoji::Find(code, &emojiLength);
+		const auto emojiCode = (emoji && (emojiLength == code.size()));
+		const auto button = Ui::CreateChild<Ui::RoundButton>(
+			buttons,
+			rpl::single(emojiCode ? QString() : code),
+			st::urlAuthCodesButton);
+		if (emojiCode) {
+			button->setTextFgOverride(QColor(Qt::transparent));
+			const auto overlay = Ui::CreateChild<Ui::RpWidget>(button);
+			overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+			overlay->show();
+			struct State {
+				std::shared_ptr<Ui::DynamicImage> image;
+				bool hovered = false;
+				crl::time lastFrameUpdate = 0;
+			};
+			const auto state = overlay->lifetime().make_state<State>();
+			const auto animationActive = [=] {
+				return state->lastFrameUpdate
+					&& (crl::now() - state->lastFrameUpdate
+						<= kEmojiAnimationActiveFor);
+			};
+			const auto refreshImage = [=] {
+				if (state->image) {
+					state->image->subscribeToUpdates(nullptr);
+				}
+				state->image = emojiImageFactory
+					? emojiImageFactory(code)
+					: nullptr;
+				if (state->image) {
+					state->image->subscribeToUpdates([=] {
+						state->lastFrameUpdate = crl::now();
+						overlay->update();
+					});
+				}
+				overlay->update();
+			};
+			refreshImage();
+			overlay->lifetime().add([=] {
+				if (state->image) {
+					state->image->subscribeToUpdates(nullptr);
+				}
+			});
+			button->events() | rpl::on_next([=](not_null<QEvent*> e) {
+				switch (e->type()) {
+				case QEvent::Enter:
+					if (!state->hovered) {
+						state->hovered = true;
+						if (!animationActive()) {
+							refreshImage();
+						}
+					}
+					break;
+				case QEvent::Leave:
+					state->hovered = false;
+					break;
+				default:
+					break;
+				}
+			}, overlay->lifetime());
+			button->sizeValue() | rpl::on_next([=](QSize size) {
+				overlay->resize(size);
+			}, overlay->lifetime());
+			overlay->paintOn([=](QPainter &p) {
+				if (state->image) {
+					const auto side = st::urlAuthCodesButton.height;
+					const auto frame = state->image->image(side);
+					const auto visible = frame.isNull()
+						? 0
+						: (frame.width() / frame.devicePixelRatio());
+					p.drawImage(
+						QPoint(
+							(overlay->width() - visible) / 2,
+							(overlay->height() - visible) / 2),
+						frame);
+					return;
+				}
+				const auto size = Ui::Emoji::GetSizeLarge();
+				const auto visible = size / style::DevicePixelRatio();
+				Ui::Emoji::Draw(
+					p,
+					emoji,
+					size,
+					(overlay->width() - visible) / 2,
+					(overlay->height() - visible) / 2);
+			});
+		}
+		button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		button->setFullRadius(true);
+		button->setClickedCallback([=] {
+			callback(code);
+			box->closeBox();
+		});
+		buttons->add(button);
+	}
+
+	Ui::AddSkip(content);
+
+	const auto domainUrl = qthelp::validate_url(domain);
+	if (!domainUrl.isEmpty()) {
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+		content->add(
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_url_auth_login_title(
+					lt_domain,
+					rpl::single(Ui::Text::Link(domain, domainUrl)),
+					tr::marked),
+				st::urlAuthCheckboxAbout),
+			st::boxRowPadding,
+			style::al_top);
+	}
+	Ui::AddSkip(content);
+	Ui::AddSkip(content);
+	{
+		const auto &padding = st::boxRowPadding;
+		const auto button = content->add(
+			object_ptr<Ui::RoundButton>(
+				content,
+				tr::lng_cancel(),
+				st::attentionBoxButton),
+			padding);
+		PrepareFullWidthRoundButton(button, content, padding);
+		button->setClickedCallback([=] {
+			box->closeBox();
+		});
+	}
+}
 
 SwitchableUserpicButton::SwitchableUserpicButton(
 	not_null<Ui::RpWidget*> parent,
@@ -246,14 +425,17 @@ void ShowDetails(
 		not_null<Ui::GenericBox*> box,
 		const QString &url,
 		const QString &domain,
+		Fn<std::shared_ptr<Ui::DynamicImage>(QString)> emojiImageFactory,
 		Fn<void(Result)> callback,
 		object_ptr<Ui::RpWidget> userpicOwned,
 		rpl::producer<QString> botName,
 		const QString &browser,
 		const QString &platform,
 		const QString &ip,
-		const QString &region) {
+		const QString &region,
+		rpl::producer<QStringList> matchCodes) {
 	box->setWidth(st::boxWidth);
+	box->setStyle(st::urlAuthBox);
 
 	const auto content = box->verticalLayout();
 
@@ -342,13 +524,64 @@ void ShowDetails(
 		Ui::AddSkip(content);
 	}
 
-	box->addButton(tr::lng_url_auth_login_button(), [=] {
-		callback({
-			.auth = true,
-			.allowWrite = (allowMessages && allowMessages->toggled()),
+	struct State {
+		QStringList matchCodes;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	std::move(matchCodes) | rpl::on_next([=](const QStringList &codes) {
+		state->matchCodes = codes;
+	}, box->lifetime());
+
+	Ui::AddSkip(content);
+	{
+		const auto &padding = st::boxRowPadding;
+		const auto button = content->add(
+			object_ptr<Ui::RoundButton>(
+				content,
+				tr::lng_url_auth_login_button(),
+				st::defaultLightButton),
+			padding);
+		PrepareFullWidthRoundButton(button, content, padding);
+		button->setClickedCallback([=] {
+			if (state->matchCodes.isEmpty()) {
+				callback({
+					.auth = true,
+					.allowWrite = (allowMessages && allowMessages->toggled()),
+				});
+				return;
+			}
+			box->uiShow()->show(Box([=](
+					not_null<Ui::GenericBox*> matchCodesBox) {
+				ShowMatchCodesBox(
+					matchCodesBox,
+					emojiImageFactory,
+					domain,
+					state->matchCodes,
+					[=](QString matchCode) {
+						callback({
+							.auth = true,
+							.allowWrite = (allowMessages
+								&& allowMessages->toggled()),
+							.matchCode = std::move(matchCode),
+						});
+					});
+			}));
 		});
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}
+	Ui::AddSkip(content);
+	{
+		const auto &padding = st::boxRowPadding;
+		const auto button = content->add(
+			object_ptr<Ui::RoundButton>(
+				content,
+				tr::lng_suggest_action_decline(),
+				st::attentionBoxButton),
+			padding);
+		PrepareFullWidthRoundButton(button, content, padding);
+		button->setClickedCallback([=] {
+			box->closeBox();
+		});
+	}
 }
 
 } // namespace UrlAuthBox

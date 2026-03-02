@@ -423,6 +423,10 @@ void Provider::setSearchQuery(QString query) {
 	Unexpected("Media::Provider::setSearchQuery.");
 }
 
+void Provider::jumpToMessage(MsgId messageId, Fn<void(FullMsgId)>) {
+	Unexpected("GlobalMedia::Provider::jumpToMessage.");
+}
+
 GlobalMediaKey Provider::sliceKey(Data::MessagePosition aroundId) const {
 	return GlobalMediaKey{ aroundId };
 }

@@ -172,6 +172,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			MTPint(), // from_boosts_applied
+			MTPstring(), // from_rank
 			data.vpeer_id(),
 			MTPPeer(), // saved_peer_id
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
@@ -292,6 +293,7 @@ TextWithEntities GenerateAdminChangeText(
 		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
 		{ Flag::ManageCall, tr::lng_admin_log_admin_manage_calls },
 		{ Flag::ManageDirect, tr::lng_admin_log_admin_manage_direct },
+		{ Flag::ManageRanks, tr::lng_admin_log_admin_manage_ranks },
 		{ Flag::AddAdmins, tr::lng_admin_log_admin_add_admins },
 		{ Flag::Anonymous, tr::lng_admin_log_admin_remain_anonymous },
 	};
@@ -311,11 +313,12 @@ TextWithEntities GenerateAdminChangeText(
 
 QString GeneratePermissionsChangeText(
 		ChatRestrictionsInfo newRights,
-		ChatRestrictionsInfo prevRights) {
+		ChatRestrictionsInfo prevRights,
+		bool isUserSpecific = false) {
 	using Flag = ChatRestriction;
 	using Flags = ChatRestrictions;
 
-	static auto phraseMap = std::map<Flags, tr::phrase<>>{
+	auto phraseMap = std::map<Flags, tr::phrase<>>{
 		{ Flag::ViewMessages, tr::lng_admin_log_banned_view_messages },
 		{ Flag::SendOther, tr::lng_admin_log_banned_send_messages },
 		{ Flag::SendPhotos, tr::lng_admin_log_banned_send_photos },
@@ -338,6 +341,9 @@ QString GeneratePermissionsChangeText(
 		{ Flag::AddParticipants, tr::lng_admin_log_admin_invite_users },
 		{ Flag::CreateTopics, tr::lng_admin_log_admin_create_topics },
 		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
+		{ Flag::EditRank, isUserSpecific
+			? tr::lng_admin_log_banned_edit_rank_single
+			: tr::lng_admin_log_banned_edit_rank },
 	};
 	return CollectChanges(phraseMap, prevRights.flags, newRights.flags);
 }
@@ -394,7 +400,10 @@ TextWithEntities GeneratePermissionsChangeText(
 		lt_until,
 		TextWithEntities { untilText },
 		tr::marked);
-	const auto changes = GeneratePermissionsChangeText(newRights, prevRights);
+	const auto changes = GeneratePermissionsChangeText(
+		newRights,
+		prevRights,
+		true);
 	if (!changes.isEmpty()) {
 		result.text.append('\n' + changes);
 	}
@@ -849,6 +858,7 @@ void GenerateItems(
 	using LogToggleSignatureProfiles = MTPDchannelAdminLogEventActionToggleSignatureProfiles;
 	using LogParticipantSubExtend = MTPDchannelAdminLogEventActionParticipantSubExtend;
 	using LogToggleAutotranslation = MTPDchannelAdminLogEventActionToggleAutotranslation;
+	using LogParticipantEditRank = MTPDchannelAdminLogEventActionParticipantEditRank;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -2153,6 +2163,81 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
+	const auto createParticipantEditRank = [&](const LogParticipantEditRank &action) {
+		const auto user = history->owner().user(action.vuser_id().v);
+		const auto prevRank = qs(action.vprev_rank());
+		const auto newRank = qs(action.vnew_rank());
+		const auto isSelf = (user == from);
+		const auto text = [&] {
+			if (isSelf) {
+				if (newRank.isEmpty()) {
+					return tr::lng_admin_log_removed_own_rank(
+						tr::now,
+						lt_from,
+						fromLinkText,
+						lt_previous,
+						{ prevRank },
+						tr::marked);
+				} else if (prevRank.isEmpty()) {
+					return tr::lng_admin_log_set_own_rank(
+						tr::now,
+						lt_from,
+						fromLinkText,
+						lt_tag,
+						{ newRank },
+						tr::marked);
+				}
+				return tr::lng_admin_log_changed_own_rank_from(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_previous,
+					{ prevRank },
+					lt_tag,
+					{ newRank },
+					tr::marked);
+			}
+			const auto userLinkText = tr::link(user->name(), QString());
+			if (newRank.isEmpty()) {
+				return tr::lng_admin_log_removed_rank(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_user,
+					userLinkText,
+					lt_previous,
+					{ prevRank },
+					tr::marked);
+			} else if (prevRank.isEmpty()) {
+				return tr::lng_admin_log_set_rank(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_user,
+					userLinkText,
+					lt_tag,
+					{ newRank },
+					tr::marked);
+			}
+			return tr::lng_admin_log_changed_rank_from(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_user,
+				userLinkText,
+				lt_previous,
+				{ prevRank },
+				lt_tag,
+				{ newRank },
+				tr::marked);
+		}();
+		if (isSelf) {
+			addSimpleServiceMessage(text);
+		} else {
+			addServiceMessageWithLink(text, user->createOpenLink());
+		}
+	};
+
 	action.match(
 		createChangeTitle,
 		createChangeAbout,
@@ -2204,7 +2289,8 @@ void GenerateItems(
 		createChangeEmojiStatus,
 		createToggleSignatureProfiles,
 		createParticipantSubExtend,
-		createToggleAutotranslation);
+		createToggleAutotranslation,
+		createParticipantEditRank);
 }
 
 } // namespace AdminLog

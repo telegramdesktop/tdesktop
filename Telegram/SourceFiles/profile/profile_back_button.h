@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/abstract_button.h"
+#include "ui/text/text.h"
 
 class QGraphicsOpacityEffect;
 
@@ -32,13 +33,12 @@ private:
 	void updateCache();
 
 	rpl::lifetime _unreadBadgeLifetime;
-	QString _text;
-	QString _subtext;
+	Ui::Text::String _text;
+	Ui::Text::String _subtext;
 	Ui::RpWidget *_widget = nullptr;
 
 	int _cachedWidth = -1;
-	QString _cachedElidedText;
-	QString _cachedElidedSubtext;
+	int _elisionWidth = 0;
 
 	float64 _opacity = 1.0;
 	QGraphicsOpacityEffect *_opacityEffect = nullptr;

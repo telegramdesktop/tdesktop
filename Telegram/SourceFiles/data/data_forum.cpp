@@ -527,6 +527,15 @@ MsgId Forum::reserveCreatingId(
 	return result;
 }
 
+ForumTopic *Forum::reserveNewBotTopic() {
+	const auto &colors = ForumTopicColorIds();
+	const auto colorId = colors[base::RandomIndex(colors.size())];
+	return topicFor(reserveCreatingId(
+		tr::lng_bot_new_chat(tr::now),
+		colorId,
+		DocumentId()));
+}
+
 void Forum::discardCreatingId(MsgId rootId) {
 	Expects(creating(rootId));
 

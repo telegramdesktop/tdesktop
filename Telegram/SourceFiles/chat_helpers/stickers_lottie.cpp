@@ -324,18 +324,14 @@ QSize ComputeStickerSize(not_null<DocumentData*> document, QSize box) {
 not_null<DocumentData*> GenerateLocalSticker(
 		not_null<Main::Session*> session,
 		const QString &path) {
-	auto task = FileLoadTask(
-		session,
-		path,
-		QByteArray(),
-		nullptr,
-		nullptr,
-		SendMediaType::File,
-		FileLoadTo(0, {}, {}, 0),
-		{},
-		false,
-		nullptr,
-		LocalStickerId(path));
+	auto task = FileLoadTask(FileLoadTask::Args{
+		.session = session,
+		.filepath = path,
+		.type = SendMediaType::File,
+		.to = FileLoadTo(0, {}, {}, 0),
+		.caption = {},
+		.idOverride = LocalStickerId(path),
+	});
 	task.process({ .generateGoodThumbnail = false });
 	const auto result = task.peekResult();
 	Assert(result != nullptr);

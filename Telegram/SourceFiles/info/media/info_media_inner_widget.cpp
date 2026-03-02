@@ -221,7 +221,7 @@ int InnerWidget::recountHeight() {
 		listHeight = _list->heightNoMargins();
 		top += listHeight;
 	}
-	if (listHeight > 0) {
+	if (listHeight > _emptyHeightThreshold && !_empty->loading()) {
 		_empty->hide();
 	} else {
 		_empty->show();
@@ -243,6 +243,20 @@ void InnerWidget::setScrollHeightValue(rpl::producer<int> value) {
 
 rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
 	return _scrollToRequests.events();
+}
+
+void InnerWidget::jumpToMessage(MsgId msgId) {
+	_empty->setLoading(true);
+	_emptyHeightThreshold = st::semiboldFont->height;
+	_list->jumpToMessage(msgId);
+	_emptyLoadingLifetime = _list->heightValue(
+	) | rpl::skip(1) | rpl::filter(
+		rpl::mappers::_1 > _emptyHeightThreshold
+	) | rpl::take(1) | rpl::on_next([=](int height) {
+		_empty->setLoading(false);
+		_emptyHeightThreshold = 0;
+		recountHeight();
+	});
 }
 
 } // namespace Media

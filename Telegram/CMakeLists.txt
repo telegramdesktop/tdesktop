@@ -119,6 +119,8 @@ PRIVATE
     api/api_chat_participants.h
     api/api_cloud_password.cpp
     api/api_cloud_password.h
+    data/data_search_calendar.h
+    data/data_search_calendar.cpp
     api/api_common.cpp
     api/api_common.h
     api/api_confirm_phone.cpp
@@ -226,6 +228,8 @@ PRIVATE
     boxes/peers/edit_members_visible.h
     boxes/peers/edit_participant_box.cpp
     boxes/peers/edit_participant_box.h
+    boxes/peers/edit_tag_control.cpp
+    boxes/peers/edit_tag_control.h
     boxes/peers/edit_participants_box.cpp
     boxes/peers/edit_participants_box.h
     boxes/peers/edit_peer_color_box.cpp
@@ -253,6 +257,8 @@ PRIVATE
     boxes/peers/prepare_short_info_box.h
     boxes/peers/replace_boost_box.cpp
     boxes/peers/replace_boost_box.h
+    boxes/peers/tag_info_box.cpp
+    boxes/peers/tag_info_box.h
     boxes/peers/verify_peers_box.cpp
     boxes/peers/verify_peers_box.h
     boxes/about_box.cpp
@@ -856,6 +862,8 @@ PRIVATE
     history/view/media/history_view_media_spoiler.h
     history/view/media/history_view_media_unwrapped.cpp
     history/view/media/history_view_media_unwrapped.h
+    history/view/media/history_view_no_forwards_request.cpp
+    history/view/media/history_view_no_forwards_request.h
     history/view/media/history_view_photo.cpp
     history/view/media/history_view_photo.h
     history/view/media/history_view_poll.cpp
@@ -951,6 +959,8 @@ PRIVATE
     history/view/history_view_reaction_preview.h
     history/view/history_view_reply.cpp
     history/view/history_view_reply.h
+    history/view/history_view_reply_button.cpp
+    history/view/history_view_reply_button.h
     history/view/history_view_requests_bar.cpp
     history/view/history_view_requests_bar.h
     history/view/history_view_schedule_box.cpp
@@ -1714,6 +1724,8 @@ PRIVATE
     ui/image/image_location_factory.h
     ui/text/format_song_document_name.cpp
     ui/text/format_song_document_name.h
+    ui/toast/toast_lottie_icon.cpp
+    ui/toast/toast_lottie_icon.h
     ui/widgets/expandable_peer_list.cpp
     ui/widgets/expandable_peer_list.h
     ui/widgets/chat_filters_tabs_strip.cpp
@@ -1812,9 +1824,22 @@ PRIVATE
     settings.cpp
     settings.h
     stdafx.h
+    tray_accounts_menu.h
     tray.cpp
     tray.h
 )
+
+if (APPLE)
+    nice_target_sources(Telegram ${src_loc}
+    PRIVATE
+        tray_accounts_menu.cpp
+    )
+else()
+    nice_target_sources(Telegram ${src_loc}
+    PRIVATE
+        tray_accounts_menu_dummy.cpp
+    )
+endif()
 
 if (NOT build_winstore)
     remove_target_sources(Telegram ${src_loc}
@@ -2220,12 +2245,19 @@ if (LINUX AND DESKTOP_APP_USE_PACKAGED)
     generate_appstream_changelog(Telegram "${CMAKE_SOURCE_DIR}/changelog.txt" "${CMAKE_CURRENT_BINARY_DIR}/org.telegram.desktop.metainfo.xml")
     install(TARGETS Telegram RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}")
     install(FILES "Resources/art/icon16.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16/apps" RENAME "org.telegram.desktop.png")
+    install(FILES "Resources/art/icon16@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16@2/apps" RENAME "org.telegram.desktop.png")
     install(FILES "Resources/art/icon32.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32/apps" RENAME "org.telegram.desktop.png")
+    install(FILES "Resources/art/icon32@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32@2/apps" RENAME "org.telegram.desktop.png")
     install(FILES "Resources/art/icon48.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48/apps" RENAME "org.telegram.desktop.png")
+    install(FILES "Resources/art/icon48@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48@2/apps" RENAME "org.telegram.desktop.png")
     install(FILES "Resources/art/icon64.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/64x64/apps" RENAME "org.telegram.desktop.png")
+    install(FILES "Resources/art/icon64@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/64x64@2/apps" RENAME "org.telegram.desktop.png")
     install(FILES "Resources/art/icon128.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128/apps" RENAME "org.telegram.desktop.png")
+    install(FILES "Resources/art/icon128@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128@2/apps" RENAME "org.telegram.desktop.png")
     install(FILES "Resources/art/icon256.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps" RENAME "org.telegram.desktop.png")
+    install(FILES "Resources/art/icon256@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256@2/apps" RENAME "org.telegram.desktop.png")
     install(FILES "Resources/art/icon512.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/512x512/apps" RENAME "org.telegram.desktop.png")
+    install(FILES "Resources/art/icon512@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/512x512@2/apps" RENAME "org.telegram.desktop.png")
     install(FILES "Resources/icons/tray_monochrome.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/symbolic/apps" RENAME "org.telegram.desktop-symbolic.svg")
     install(FILES "Resources/icons/tray_monochrome_attention.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/symbolic/apps" RENAME "org.telegram.desktop-attention-symbolic.svg")
     install(FILES "Resources/icons/tray_monochrome_mute.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/symbolic/apps" RENAME "org.telegram.desktop-mute-symbolic.svg")

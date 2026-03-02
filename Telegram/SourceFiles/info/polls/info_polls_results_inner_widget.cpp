@@ -19,10 +19,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
+#include "ui/painter.h"
+#include "base/unixtime.h"
 #include "boxes/peer_list_box.h"
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_info.h"
 
@@ -88,6 +91,128 @@ std::shared_ptr<Main::SessionShow> ListDelegate::peerListUiShow() {
 	Unexpected("...ListDelegate::peerListUiShow");
 }
 
+class VoterRow final : public PeerListRow {
+public:
+	VoterRow(not_null<PeerData*> peer, TimeId date);
+
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	bool rightActionDisabled() const override;
+	void rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+
+private:
+	void computeTexts();
+
+	TimeId _date = 0;
+	QString _timeText;
+	QString _dateText;
+	int _timeWidth = 0;
+	int _dateWidth = 0;
+
+};
+
+VoterRow::VoterRow(not_null<PeerData*> peer, TimeId date)
+: PeerListRow(peer)
+, _date(date) {
+	computeTexts();
+}
+
+void VoterRow::computeTexts() {
+	if (!_date) {
+		return;
+	}
+	const auto parsed = base::unixtime::parse(_date);
+	const auto nowDate = base::unixtime::parse(
+		base::unixtime::now()).date();
+	const auto voteDate = parsed.date();
+	_timeText = QLocale().toString(
+		parsed.time(),
+		QLocale::ShortFormat);
+	_timeWidth = st::pollResultsVoteTimeFont->width(_timeText);
+	if (voteDate == nowDate) {
+		return;
+	} else if (voteDate.addDays(1) == nowDate) {
+		_dateText = tr::lng_polls_vote_yesterday(tr::now);
+	} else {
+		_dateText = langDayOfMonthShort(voteDate);
+	}
+	_dateWidth = st::pollResultsVoteTimeDateFont->width(_dateText);
+}
+
+QSize VoterRow::rightActionSize() const {
+	if (!_date) {
+		return QSize();
+	}
+	const auto &timeFont = st::pollResultsVoteTimeFont;
+	if (_dateText.isEmpty()) {
+		return QSize(_timeWidth, timeFont->height);
+	}
+	const auto &dateFont = st::pollResultsVoteTimeDateFont;
+	return QSize(
+		std::max(_timeWidth, _dateWidth),
+		dateFont->height + st::pollResultsVoteTimeGap + timeFont->height);
+}
+
+QMargins VoterRow::rightActionMargins() const {
+	if (!_date) {
+		return QMargins();
+	}
+	const auto size = rightActionSize();
+	return QMargins(
+		st::pollResultsVoteTimeLeftSkip,
+		(st::infoCommonGroupsListItem.height - size.height()) / 2,
+		st::pollResultsVoteTimeRightSkip,
+		0);
+}
+
+bool VoterRow::rightActionDisabled() const {
+	return true;
+}
+
+void VoterRow::rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (!_date) {
+		return;
+	}
+	const auto &timeFont = st::pollResultsVoteTimeFont;
+	const auto size = rightActionSize();
+	if (_dateText.isEmpty()) {
+		p.setFont(timeFont);
+		p.setPen(st::windowFg);
+		p.drawText(
+			x + size.width() - _timeWidth,
+			y + timeFont->ascent,
+			_timeText);
+	} else {
+		const auto &dateFont = st::pollResultsVoteTimeDateFont;
+		p.setFont(dateFont);
+		p.setPen(st::windowSubTextFg);
+		p.drawText(
+			x + size.width() - _dateWidth,
+			y + dateFont->ascent,
+			_dateText);
+		p.setFont(timeFont);
+		p.setPen(st::windowFg);
+		p.drawText(
+			x + size.width() - _timeWidth,
+			y + dateFont->height
+				+ st::pollResultsVoteTimeGap
+				+ timeFont->ascent,
+			_timeText);
+	}
+}
+
 } // namespace
 
 class ListController final : public PeerListController {
@@ -127,12 +252,15 @@ private:
 		QString loadForOffset;
 		int leftToLoad = 0;
 		int fullCount = 0;
-		std::vector<not_null<PeerData*>> preloaded;
+		std::vector<std::pair<not_null<PeerData*>, TimeId>> preloaded;
 		bool wasLoading = false;
+		base::flat_map<PeerId, TimeId> dates;
 	};
 
-	bool appendRow(not_null<PeerData*> peer);
-	std::unique_ptr<PeerListRow> createRow(not_null<PeerData*> peer) const;
+	bool appendRow(not_null<PeerData*> peer, TimeId date);
+	std::unique_ptr<PeerListRow> createRow(
+		not_null<PeerData*> peer,
+		TimeId date) const;
 	void addPreloaded();
 	bool addPreloadedPage();
 	void preloadedAdded();
@@ -147,7 +275,8 @@ private:
 	QString _offset;
 	mtpRequestId _loadRequestId = 0;
 	QString _loadForOffset;
-	std::vector<not_null<PeerData*>> _preloaded;
+	std::vector<std::pair<not_null<PeerData*>, TimeId>> _preloaded;
+	base::flat_map<PeerId, TimeId> _dates;
 	rpl::variable<int> _count = 0;
 	rpl::variable<int> _fullCount;
 	rpl::variable<int> _leftToLoad;
@@ -216,12 +345,14 @@ void ListController::loadMoreRows() {
 			for (const auto &vote : data.vvotes().v) {
 				vote.match([&](const auto &data) {
 					const auto peer = owner.peer(peerFromMTP(data.vpeer()));
+					const auto date = data.vdate().v;
 					if (peer->isMinimalLoaded()) {
+						_dates[peer->id] = date;
 						if (add) {
-							appendRow(peer);
+							appendRow(peer, date);
 							--add;
 						} else {
-							_preloaded.push_back(peer);
+							_preloaded.emplace_back(peer, date);
 						}
 					}
 				});
@@ -262,7 +393,10 @@ void ListController::collapse() {
 	_preloaded.reserve(_preloaded.size() + remove);
 	for (auto i = 0; i != remove; ++i) {
 		const auto row = delegate()->peerListRowAt(count - i - 1);
-		_preloaded.push_back(row->peer());
+		const auto peerId = row->peer()->id;
+		const auto it = _dates.find(peerId);
+		const auto date = (it != end(_dates)) ? it->second : TimeId(0);
+		_preloaded.emplace_back(row->peer(), date);
 		delegate()->peerListRemoveRow(row);
 	}
 	ranges::actions::reverse(_preloaded);
@@ -274,8 +408,8 @@ void ListController::collapse() {
 }
 
 void ListController::addPreloaded() {
-	for (const auto peer : base::take(_preloaded)) {
-		appendRow(peer);
+	for (const auto &[peer, date] : base::take(_preloaded)) {
+		appendRow(peer, date);
 	}
 	preloadedAdded();
 }
@@ -287,7 +421,7 @@ bool ListController::addPreloadedPage() {
 	const auto from = begin(_preloaded);
 	const auto till = from + kPerPage;
 	for (auto i = from; i != till; ++i) {
-		appendRow(*i);
+		appendRow(i->first, i->second);
 	}
 	_preloaded.erase(from, till);
 	preloadedAdded();
@@ -339,6 +473,7 @@ auto ListController::saveState() const -> std::unique_ptr<PeerListState> {
 	my->preloaded = _preloaded;
 	my->wasLoading = (_loadRequestId != 0);
 	my->loadForOffset = _loadForOffset;
+	my->dates = _dates;
 	result->controllerState = std::move(my);
 
 	return result;
@@ -359,6 +494,7 @@ void ListController::restoreState(std::unique_ptr<PeerListState> state) {
 		_count = int(state->list.size());
 		_fullCount = my->fullCount;
 		_leftToLoad = my->leftToLoad;
+		_dates = std::move(my->dates);
 		if (my->wasLoading) {
 			loadMoreRows();
 		}
@@ -368,24 +504,27 @@ void ListController::restoreState(std::unique_ptr<PeerListState> state) {
 
 std::unique_ptr<PeerListRow> ListController::createRestoredRow(
 		not_null<PeerData*> peer) {
-	return createRow(peer);
+	const auto it = _dates.find(peer->id);
+	const auto date = (it != end(_dates)) ? it->second : TimeId(0);
+	return createRow(peer, date);
 }
 
 void ListController::rowClicked(not_null<PeerListRow*> row) {
 	_showPeerInfoRequests.fire(row->peer());
 }
 
-bool ListController::appendRow(not_null<PeerData*> peer) {
+bool ListController::appendRow(not_null<PeerData*> peer, TimeId date) {
 	if (delegate()->peerListFindRow(peer->id.value)) {
 		return false;
 	}
-	delegate()->peerListAppendRow(createRow(peer));
+	delegate()->peerListAppendRow(createRow(peer, date));
 	return true;
 }
 
 std::unique_ptr<PeerListRow> ListController::createRow(
-		not_null<PeerData*> peer) const {
-	auto row = std::make_unique<PeerListRow>(peer);
+		not_null<PeerData*> peer,
+		TimeId date) const {
+	auto row = std::make_unique<VoterRow>(peer, date);
 	row->setCustomStatus(QString());
 	return row;
 }

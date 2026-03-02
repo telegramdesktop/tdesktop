@@ -422,7 +422,7 @@ private:
 	void messageDataReceived(not_null<PeerData*> peer, MsgId msgId);
 
 	[[nodiscard]] Api::SendAction prepareSendAction(
-		Api::SendOptions options) const;
+		Api::SendOptions options);
 	void sendVoice(const VoiceToSend &data);
 	void send(Api::SendOptions options);
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);

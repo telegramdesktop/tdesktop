@@ -68,7 +68,7 @@ Version **1.8.15** was the last that supports older systems
 
 ## Build instructions
 
-* Windows [(32-bit)][win32] [(64-bit)][win64]
+* [Windows (32-bit and 64-bit)][win]
 * [macOS][mac]
 * [GNU/Linux using Docker][linux]
 
@@ -78,8 +78,7 @@ Version **1.8.15** was the last that supports older systems
 [telegram_api]: https://core.telegram.org
 [telegram_proto]: https://core.telegram.org/mtproto
 [license]: LICENSE
-[win32]: docs/building-win.md
-[win64]: docs/building-win-x64.md
+[win]: docs/building-win.md
 [mac]: docs/building-mac.md
 [linux]: docs/building-linux.md
 [preview_image]: https://github.com/telegramdesktop/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop"

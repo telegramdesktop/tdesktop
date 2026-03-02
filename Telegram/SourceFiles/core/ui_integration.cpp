@@ -32,6 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
+#include "base/unixtime.h"
+
+#include <QtCore/QDateTime>
+#include <QtCore/QLocale>
 
 namespace Core {
 namespace {
@@ -114,6 +118,117 @@ const auto kBadPrefix = u"http://"_q;
 	return cWorkingDir() + "tdata/angle_backend";
 }
 
+[[nodiscard]] Ui::Text::FormattedDateResult FormatDateRelative(TimeId date) {
+	const auto now = base::unixtime::now();
+	const auto delta = int64(date) - int64(now);
+	const auto absDelta = std::abs(delta);
+	const auto future = (delta > 0);
+	auto text = QString();
+	auto nextUpdate = int32(0);
+
+	if (absDelta < 1) {
+		text = tr::lng_date_relative_now(tr::now);
+		nextUpdate = now + 1;
+	} else if (absDelta < 60) {
+		const auto count = int(absDelta);
+		text = (future
+			? tr::lng_date_relative_in_seconds
+			: tr::lng_date_relative_seconds_ago)(tr::now, lt_count, count);
+		nextUpdate = now + 1;
+	} else if (absDelta < 3600) {
+		const auto count = int(absDelta / 60);
+		text = (future
+			? tr::lng_date_relative_in_minutes
+			: tr::lng_date_relative_minutes_ago)(tr::now, lt_count, count);
+		nextUpdate = future
+			? ((count > 1)
+				? (date - (count - 1) * 60)
+				: (date - 59))
+			: (date + (count + 1) * 60);
+	} else if (absDelta < 86400) {
+		const auto count = int(absDelta / 3600);
+		text = (future
+			? tr::lng_date_relative_in_hours
+			: tr::lng_date_relative_hours_ago)(tr::now, lt_count, count);
+		nextUpdate = future
+			? ((count > 1)
+				? (date - (count - 1) * 3600)
+				: (date - 3599))
+			: (date + (count + 1) * 3600);
+	} else if (absDelta < 30 * 86400) {
+		const auto count = int(absDelta / 86400);
+		text = (future
+			? tr::lng_date_relative_in_days
+			: tr::lng_date_relative_days_ago)(tr::now, lt_count, count);
+		nextUpdate = future
+			? ((count > 1)
+				? (date - (count - 1) * 86400)
+				: (date - 86399))
+			: (date + (count + 1) * 86400);
+	} else if (absDelta < 365 * 86400) {
+		const auto count = int(absDelta / (30 * 86400));
+		text = (future
+			? tr::lng_date_relative_in_months
+			: tr::lng_date_relative_months_ago)(tr::now, lt_count, count);
+		nextUpdate = future
+			? ((count > 1)
+				? (date - (count - 1) * 30 * 86400)
+				: (date - 30 * 86400 + 1))
+			: (date + (count + 1) * 30 * 86400);
+	} else {
+		const auto count = int(absDelta / (365 * 86400));
+		text = (future
+			? tr::lng_date_relative_in_years
+			: tr::lng_date_relative_years_ago)(tr::now, lt_count, count);
+		nextUpdate = future
+			? ((count > 1)
+				? (date - (count - 1) * 365 * 86400)
+				: (date - 365 * 86400 + 1))
+			: (date + (count + 1) * 365 * 86400);
+	}
+	return { text, nextUpdate };
+}
+
+[[nodiscard]] Ui::Text::FormattedDateResult FormatDateWithFlags(
+		TimeId date,
+		FormattedDateFlags flags) {
+	if (flags & FormattedDateFlag::Relative) {
+		return FormatDateRelative(date);
+	}
+	const auto dateTime = base::unixtime::parse(date);
+	const auto locale = QLocale();
+	auto parts = QStringList();
+	const auto hasDayOfWeek = (flags & FormattedDateFlag::DayOfWeek);
+	const auto hasShortDate = (flags & FormattedDateFlag::ShortDate);
+	const auto hasLongDate = (flags & FormattedDateFlag::LongDate);
+	const auto hasShortTime = (flags & FormattedDateFlag::ShortTime);
+	const auto hasLongTime = (flags & FormattedDateFlag::LongTime);
+	if (hasDayOfWeek) {
+		parts.push_back(hasLongDate
+			? langDayOfWeekFull(dateTime.date())
+			: langDayOfWeek(dateTime.date()));
+	}
+	if (hasLongDate) {
+		parts.push_back(langDayOfMonthFull(dateTime.date()));
+	} else if (hasShortDate) {
+		parts.push_back(langDayOfMonth(dateTime.date()));
+	}
+	if (hasLongTime) {
+		parts.push_back(locale.toString(
+			dateTime.time(),
+			QLocale::LongFormat));
+	} else if (hasShortTime) {
+		parts.push_back(locale.toString(
+			dateTime.time(),
+			QLocale::ShortFormat));
+	}
+	auto text = parts.join(u" "_q);
+	if (text.isEmpty()) {
+		text = locale.toString(dateTime, QLocale::ShortFormat);
+	}
+	return { text, 0 };
+}
+
 } // namespace
 
 Ui::Text::MarkedContext TextContext(TextContextArgs &&args) {
@@ -146,6 +261,7 @@ Ui::Text::MarkedContext TextContext(TextContextArgs &&args) {
 	return {
 		.repaint = std::move(args.repaint),
 		.customEmojiFactory = std::move(factory),
+		.formattedDateFactory = FormatDateWithFlags,
 		.other = std::move(args.details),
 	};
 }
@@ -267,6 +383,12 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		return (my && my->session)
 			? std::make_shared<BankCardClickHandler>(my->session, data.text)
 			: nullptr;
+	case EntityType::FormattedDate: {
+		const auto [date, flags] = DeserializeFormattedDateData(data.data);
+		if (date) {
+			return std::make_shared<FormattedDateClickHandler>(date, flags);
+		}
+	} break;
 	}
 	return Integration::createLinkHandler(data, context);
 }
@@ -275,7 +397,7 @@ bool UiIntegration::handleUrlClick(
 		const QString &url,
 		const QVariant &context) {
 	const auto local = Core::TryConvertUrlToLocal(url);
-	if (Core::InternalPassportLink(local)) {
+	if (Core::InternalPassportOrOAuthLink(local)) {
 		return true;
 	}
 
@@ -392,6 +514,10 @@ QString UiIntegration::phraseFormattingMonospace() {
 
 QString UiIntegration::phraseFormattingSpoiler() {
 	return tr::lng_menu_formatting_spoiler(tr::now);
+}
+
+QString UiIntegration::phraseFormattingDate() {
+	return tr::lng_menu_formatting_date(tr::now);
 }
 
 QString UiIntegration::phraseButtonOk() {

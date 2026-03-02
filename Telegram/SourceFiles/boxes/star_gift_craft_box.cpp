@@ -292,13 +292,12 @@ AbstractButton *MakeRemoveButton(
 		int size,
 		const GiftForCraft &gift,
 		Fn<void()> onClick,
-		rpl::producer<QColor> edgeColor) {
+		rpl::producer<QColor> edgeColor,
+		const style::icon &icon) {
 	auto remove = object_ptr<RpWidget>(parent);
-	const auto &icon = st::stickerPanDeleteIconFg;
 	const auto add = (size - icon.width()) / 2;
 	remove->resize(icon.size() + QSize(add, add) * 2);
-	remove->paintOn([=](QPainter &p) {
-		const auto &icon = st::stickerPanDeleteIconFg;
+	remove->paintOn([=, &icon](QPainter &p) {
 		icon.paint(p, add, add, add * 2 + icon.width(), st::white->c);
 	});
 	remove->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -381,13 +380,9 @@ AbstractButton *MakeRemoveButton(
 				},
 			}, GiftButton::Mode::CraftPreview);
 			entry.button->show();
-			if (index > 0) {
-				entry.button->setClickedCallback([=] {
-					state->editRequests.fire_copy(index);
-				});
-			} else {
-				entry.button->setAttribute(Qt::WA_TransparentForMouseEvents);
-			}
+			entry.button->setClickedCallback([=] {
+				state->editRequests.fire_copy(index);
+			});
 			entry.button->setGeometry(
 				geometry,
 				state->delegate.buttonExtend());
@@ -423,19 +418,32 @@ AbstractButton *MakeRemoveButton(
 			nullptr,
 			&Entry::button);
 		const auto canRemove = (count > 1);
+		const auto secondHasAddress = state->entries[1].gift
+			&& !state->entries[1].gift.unique->giftAddress.isEmpty();
 		for (auto i = 0; i != 4; ++i) {
 			auto &entry = state->entries[i];
 			if (entry.button) {
-				if (!canRemove) {
-					delete base::take(entry.remove);
-				} else if (!entry.remove) {
+				delete base::take(entry.remove);
+				if (canRemove) {
+					const auto needReplace = (i == 0) && secondHasAddress;
+					const auto callback = [=] {
+						if (needReplace) {
+							state->editRequests.fire_copy(0);
+						} else {
+							state->removeRequests.fire_copy(i);
+						}
+					};
+					const auto &icon = needReplace
+						? st::craftReplaceIcon
+						: st::stickerPanDeleteIconFg;
 					entry.remove = MakeRemoveButton(
 						raw,
 						entry.button,
 						entry.percent->height(),
 						entry.gift,
-						[=] { state->removeRequests.fire_copy(i); },
-						state->edgeColor.value());
+						callback,
+						state->edgeColor.value(),
+						icon);
 				}
 			}
 		}
@@ -664,7 +672,8 @@ void ShowSelectGiftBox(
 		uint64 giftId,
 		Fn<void(GiftForCraft)> chosen,
 		std::vector<GiftForCraft> selected,
-		Fn<void()> boxClosed) {
+		Fn<void()> boxClosed,
+		bool firstSlot) {
 	struct Entry {
 		Data::SavedStarGift gift;
 		GiftButton *button = nullptr;
@@ -694,10 +703,13 @@ void ShowSelectGiftBox(
 
 		const auto got = crl::guard(box, [=](
 				std::shared_ptr<Data::UniqueGift> gift) {
-			if (!ShowCraftLaterError(box->uiShow(), gift)) {
-				chosen(GiftForCraft{ .unique = gift });
-				box->closeBox();
+			if (ShowCraftLaterError(box->uiShow(), gift)
+				|| (firstSlot
+					&& ShowCraftAddressError(box->uiShow(), gift))) {
+				return;
 			}
+			chosen(GiftForCraft{ .unique = gift });
+			box->closeBox();
 		});
 
 		AddCraftGiftsList(
@@ -1194,7 +1206,7 @@ void Craft(
 		ShowSelectGiftBox(controller, giftId, [=](GiftForCraft chosen) {
 			ShowGiftCraftBox(controller, { chosen }, false);
 			closeCurrent();
-		}, {}, [=] { *requested = false; });
+		}, {}, [=] { *requested = false; }, true);
 	};
 	StartCraftAnimation(
 		box,
@@ -1419,12 +1431,14 @@ void MakeCraftContent(
 			}
 			state->chosen = std::move(copy);
 		};
+		const auto first = (state->requestingIndex == 0);
 		ShowSelectGiftBox(
 			controller,
 			giftId,
 			crl::guard(raw, callback),
 			state->chosen.current(),
-			crl::guard(raw, [=] { state->requestingIndex = -1; }));
+			crl::guard(raw, [=] { state->requestingIndex = -1; }),
+			first);
 	}, raw->lifetime());
 
 	auto fullName = state->chosen.value(
@@ -1501,10 +1515,14 @@ void MakeCraftContent(
 		if (state->crafting) {
 			return;
 		}
+		const auto &gifts = state->chosen.current();
+		if (!gifts.empty()
+			&& ShowCraftAddressError(box->uiShow(), gifts.front().unique)) {
+			return;
+		}
 		state->crafting = true;
 
 		const auto &cs = state->craftState;
-		const auto &gifts = state->chosen.current();
 		cs->giftName = state->name.current();
 		cs->successPermille = state->successPercentPermille.current();
 
@@ -1733,6 +1751,19 @@ void ShowCraftLaterError(
 			tr::marked),
 		.title = tr::lng_gift_craft_unavailable(),
 	}));
+}
+
+bool ShowCraftAddressError(
+		std::shared_ptr<Show> show,
+		std::shared_ptr<Data::UniqueGift> gift) {
+	if (gift->giftAddress.isEmpty()) {
+		return false;
+	}
+	show->show(MakeInformBox({
+		.text = tr::lng_gift_craft_address_error(tr::marked),
+		.title = tr::lng_gift_craft_unavailable(),
+	}));
+	return true;
 }
 
 } // namespace Ui

@@ -466,57 +466,39 @@ std::shared_ptr<FilePrepareResult> MakePreparedFile(
 	return std::make_shared<FilePrepareResult>(std::move(descriptor));
 }
 
-FileLoadTask::FileLoadTask(
-	not_null<Main::Session*> session,
-	const QString &filepath,
-	const QByteArray &content,
-	std::unique_ptr<Ui::PreparedFileInformation> information,
-	std::unique_ptr<FileLoadTask> videoCover,
-	SendMediaType type,
-	const FileLoadTo &to,
-	const TextWithTags &caption,
-	bool spoiler,
-	std::shared_ptr<SendingAlbum> album,
-	bool forceFile,
-	uint64 idOverride)
-: _id(idOverride ? idOverride : base::RandomValue<uint64>())
-, _session(session)
-, _dcId(session->mainDcId())
-, _to(to)
-, _album(std::move(album))
-, _filepath(filepath)
-, _content(content)
-, _videoCover(std::move(videoCover))
-, _information(std::move(information))
-, _type(type)
-, _caption(caption)
-, _spoiler(spoiler)
-, _forceFile(forceFile) {
-	Expects(to.options.scheduled
-		|| to.options.shortcutId
-		|| !to.replaceMediaOf
-		|| IsServerMsgId(to.replaceMediaOf));
+FileLoadTask::FileLoadTask(Args &&args)
+: _id(args.idOverride ? args.idOverride : base::RandomValue<uint64>())
+, _session(args.session)
+, _dcId(args.session->mainDcId())
+, _to(std::move(args.to))
+, _album(std::move(args.album))
+, _filepath(std::move(args.filepath))
+, _displayName(std::move(args.displayName))
+, _content(std::move(args.content))
+, _videoCover(std::move(args.videoCover))
+, _information(std::move(args.information))
+, _type(args.type)
+, _caption(std::move(args.caption))
+, _spoiler(args.spoiler)
+, _forceFile(args.forceFile) {
+	Expects(_to.options.scheduled
+		|| _to.options.shortcutId
+		|| !_to.replaceMediaOf
+		|| IsServerMsgId(_to.replaceMediaOf));
 
 	SendLargePhotosAtomic = SendLargePhotos.value();
 }
 
-FileLoadTask::FileLoadTask(
-	not_null<Main::Session*> session,
-	const QByteArray &voice,
-	crl::time duration,
-	const VoiceWaveform &waveform,
-	bool video,
-	const FileLoadTo &to,
-	const TextWithTags &caption)
+FileLoadTask::FileLoadTask(VoiceArgs &&args)
 : _id(base::RandomValue<uint64>())
-, _session(session)
-, _dcId(session->mainDcId())
-, _to(to)
-, _content(voice)
-, _duration(duration)
-, _waveform(waveform)
-, _type(video ? SendMediaType::Round : SendMediaType::Audio)
-, _caption(caption) {
+, _session(args.session)
+, _dcId(args.session->mainDcId())
+, _to(std::move(args.to))
+, _content(std::move(args.voice))
+, _duration(args.duration)
+, _waveform(std::move(args.waveform))
+, _type(args.video ? SendMediaType::Round : SendMediaType::Audio)
+, _caption(std::move(args.caption)) {
 }
 
 FileLoadTask::~FileLoadTask() = default;
@@ -686,7 +668,7 @@ bool FileLoadTask::FillImageInformation(
 	return true;
 }
 
-void FileLoadTask::process(Args &&args) {
+void FileLoadTask::process(ProcessArgs &&args) {
 	_result = MakePreparedFile({
 		.taskId = id(),
 		.id = _id,
@@ -829,7 +811,11 @@ void FileLoadTask::process(Args &&args) {
 	QImage goodThumbnail;
 	QByteArray goodThumbnailBytes;
 
-	QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(filename)));
+	auto attributes = QVector<MTPDocumentAttribute>(
+		1,
+		MTP_documentAttributeFilename(MTP_string(_displayName.isEmpty()
+			? filename
+			: _displayName)));
 
 	auto thumbnail = PreparedFileThumbnail();
 

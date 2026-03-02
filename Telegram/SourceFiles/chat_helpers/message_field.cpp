@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "ui/chat/chat_style.h"
 #include "ui/layers/generic_box.h"
+#include "ui/boxes/calendar_box.h"
+#include "ui/boxes/choose_date_time.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/rect.h"
 #include "core/shortcuts.h"
@@ -408,8 +410,68 @@ Fn<bool(
 			QString link,
 			EditLinkAction action) {
 		if (action == EditLinkAction::Check) {
-			return Ui::InputField::IsValidMarkdownLink(link)
-				&& !TextUtilities::IsMentionLink(link);
+			return (Ui::InputField::IsValidMarkdownLink(link)
+					&& !TextUtilities::IsMentionLink(link))
+				|| Ui::InputField::IsCustomDateLink(link);
+		}
+		if (Ui::InputField::IsCustomDateLink(link)) {
+			const auto dateStr = link.mid(
+				Ui::InputField::kCustomDateTagStart.size());
+			const auto existingDate = dateStr.toInt();
+			auto callback = [=](
+					const TextWithTags &t,
+					const QString &l) {
+				if (const auto strong = weak.get()) {
+					strong->commitMarkdownLinkEdit(selection, t, l);
+				}
+			};
+			const auto savedCallback = std::make_shared<
+				Fn<void(const TextWithTags &, const QString &)>>(
+					std::move(callback));
+			const auto savedText = std::make_shared<TextWithTags>(text);
+			const auto showDateTimeBox = [=](TimeId time) {
+				const auto dateBox = std::make_shared<
+					base::weak_qptr<Ui::GenericBox>>();
+				*dateBox = show->show(Box(
+					Ui::ChooseDateTimeBox,
+					Ui::ChooseDateTimeBoxArgs{
+						.title = tr::lng_formatting_date_title(),
+						.submit = tr::lng_settings_save(),
+						.done = [=](TimeId result) {
+							const auto dateLink
+								= Ui::InputField::kCustomDateTagStart
+								+ QString::number(result);
+							(*savedCallback)(
+								*savedText,
+								dateLink);
+							if (const auto box = dateBox->get()) {
+								box->closeBox();
+							}
+						},
+						.min = [] { return TimeId(1); },
+						.time = time,
+						.max = [] { return TimeId(2114380800); },
+					}));
+			};
+			if (existingDate > 0) {
+				showDateTimeBox(existingDate);
+			} else {
+				show->show(Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
+					.month = QDate::currentDate(),
+					.highlighted = QDate::currentDate(),
+					.callback = [=](QDate chosen, Fn<void()> close) {
+						close();
+						const auto midday = QDateTime(
+							chosen,
+							QTime(12, 0));
+						showDateTimeBox(
+							base::unixtime::serialize(midday));
+					},
+					.minDate = QDate(1970, 1, 1),
+					.maxDate = QDate(2036, 12, 31),
+				}));
+			}
+			return true;
 		}
 		auto callback = [=](const TextWithTags &text, const QString &link) {
 			if (const auto strong = weak.get()) {
@@ -1503,4 +1565,23 @@ void FrozenInfoBox(
 	}) | rpl::on_next([=] {
 		button->resizeToWidth(buttonWidth);
 	}, button->lifetime());
+}
+
+Ui::InputField::MimeDataHook WrappedMessageFieldMimeHook(
+		Ui::InputField::MimeDataHook original,
+		not_null<Ui::InputField*> field) {
+	return [field, originalHook = std::move(original)](
+			not_null<const QMimeData*> data,
+			Ui::InputField::MimeAction action) {
+		if (data->hasFormat(u"application/x-telegram-input-field"_q)) {
+			if (action == Ui::InputField::MimeAction::Check) {
+				return true;
+			}
+			const auto text = QString::fromUtf8(
+				data->data(u"application/x-telegram-input-field"_q));
+			field->textCursor().insertText(text);
+			return true;
+		}
+		return originalHook ? originalHook(data, action) : false;
+	};
 }

@@ -17,8 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
 #include "history/view/media/history_view_custom_emoji.h"
+#include "history/view/media/history_view_no_forwards_request.h"
 #include "history/view/media/history_view_suggest_decision.h"
 #include "history/view/reactions/history_view_reactions_button.h"
+#include "history/view/history_view_reply_button.h"
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_reply.h"
@@ -209,10 +211,10 @@ void KeyboardStyle::paintButtonBg(
 			using Color = HistoryMessageMarkupButton::Color;
 			const auto normal = (color == Color::Normal);
 			const auto colored = style::owned_color((color == Color::Primary)
-				? QColor(0x37, 0x8e, 0xae)
+				? st::botKbInlinePrimaryBg->c
 				: (color == Color::Danger)
-				? QColor(0xc9, 0x54, 0x3e)
-				: QColor(0x48, 0x9d, 0x38));
+				? st::botKbInlineDangerBg->c
+				: st::botKbInlineSuccessBg->c);
 			const auto smallColored = normal
 				? Ui::CornersPixmaps()
 				: Ui::PrepareCornerPixmaps(
@@ -442,20 +444,24 @@ int KeyboardStyle::minButtonWidth(
 			break;
 		}
 		if (modification.added) {
-			++result.to;
+			result.to += modification.added;
 		}
 		const auto shiftTo = std::min(
 			int(modification.skipped),
 			result.to - modification.position);
 		result.to -= shiftTo;
-		if (modification.position <= result.from) {
+		if (modification.position < result.from) {
 			if (modification.added) {
-				++result.from;
+				result.from += modification.added;
 			}
 			const auto shiftFrom = std::min(
 				int(modification.skipped),
 				result.from - modification.position);
 			result.from -= shiftFrom;
+		} else if (modification.position == result.from) {
+			if (!modification.skipped) {
+				result.from += modification.added;
+			}
 		}
 	}
 	return result;
@@ -1421,6 +1427,40 @@ void Element::overrideMedia(std::unique_ptr<Media> media) {
 	_flags |= Flag::MediaOverriden;
 }
 
+void Element::overrideRightBadge(const QString &text, BadgeRole role) {
+	if (text.isEmpty()) {
+		if (Has<RightBadge>()) {
+			Get<RightBadge>()->overridden = false;
+			RemoveComponents(RightBadge::Bit());
+		}
+		return;
+	}
+	if (!Has<RightBadge>()) {
+		AddComponents(RightBadge::Bit());
+	}
+	const auto badge = Get<RightBadge>();
+	badge->overridden = true;
+	badge->role = role;
+	badge->tag.setMarkedText(
+		st::defaultTextStyle,
+		{ text },
+		Ui::NameTextOptions());
+	badge->boosts.clear();
+	if (role == BadgeRole::User) {
+		badge->width = badge->tag.maxWidth();
+	} else {
+		const auto &padding = st::msgTagBadgePadding;
+		const auto tagTextWidth = badge->tag.maxWidth();
+		const auto contentWidth = padding.left()
+			+ tagTextWidth
+			+ padding.right();
+		const auto pillHeight = padding.top()
+			+ st::msgFont->height
+			+ padding.bottom();
+		badge->width = std::max(contentWidth, pillHeight);
+	}
+}
+
 not_null<PurchasedTag*> Element::enforcePurchasedTag() {
 	if (const auto purchased = Get<PurchasedTag>()) {
 		return purchased;
@@ -1508,6 +1548,16 @@ void Element::refreshMedia(Element *replacing) {
 				this,
 				std::make_unique<LargeEmoji>(this, emoji));
 		}
+	} else if (const auto nfr = item->Get<HistoryServiceNoForwardsRequest>()
+		; nfr && (!nfr->expired || nfr->actionTaken)) {
+		_media = std::make_unique<MediaGeneric>(
+			this,
+			GenerateNoForwardsRequestMedia(this, nfr),
+			MediaGenericDescriptor{
+				.maxWidth = st::chatSuggestInfoWidth,
+				.service = true,
+				.hideServiceText = true,
+			});
 	} else if (const auto decision = item->Get<HistoryServiceSuggestDecision>()) {
 		_media = std::make_unique<MediaGeneric>(
 			this,
@@ -1820,6 +1870,9 @@ void Element::setTextWithLinks(
 		}
 	}
 	InitElementTextPart(this, _text);
+	if (const auto next = _text.nextFormattedDateUpdate()) {
+		history()->session().data().registerFormattedDateUpdate(next, this);
+	}
 	_textWidth = -1;
 	_textHeight = 0;
 }
@@ -2618,16 +2671,23 @@ SelectedQuote Element::FindSelectedQuote(
 	for (const auto &modification : text.modifications()) {
 		if (modification.position >= selection.to) {
 			break;
-		} else if (modification.position <= selection.from) {
+		} else if (modification.position < selection.from) {
 			modified.from += modification.skipped;
-			if (modification.added
-				&& modification.position < selection.from) {
-				--modified.from;
+			if (modification.added) {
+				modified.from = uint16(std::max(
+					0,
+					int(modified.from) - int(modification.added)));
+			}
+		} else if (modification.position == selection.from) {
+			if (!modification.added) {
+				modified.from += modification.skipped;
 			}
 		}
 		modified.to += modification.skipped;
 		if (modification.added && modified.to > modified.from) {
-			--modified.to;
+			modified.to = uint16(std::max(
+				int(modified.from),
+				int(modified.to) - int(modification.added)));
 		}
 	}
 	auto result = item->originalText();
@@ -2650,6 +2710,7 @@ SelectedQuote Element::FindSelectedQuote(
 		EntityType::StrikeOut,
 		EntityType::Spoiler,
 		EntityType::CustomEmoji,
+		EntityType::FormattedDate,
 	};
 	for (auto i = result.entities.begin(); i != result.entities.end();) {
 		const auto offset = i->offset();
@@ -2753,6 +2814,12 @@ TextSelection Element::FindSelectionFromQuote(
 Reactions::ButtonParameters Element::reactionButtonParameters(
 		QPoint position,
 		const TextState &reactionState) const {
+	return {};
+}
+
+ReplyButton::ButtonParameters Element::replyButtonParameters(
+		QPoint position,
+		const TextState &replyState) const {
 	return {};
 }
 

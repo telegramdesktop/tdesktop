@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_profile.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_menu_icons.h"
 
 namespace {
 
@@ -852,7 +853,7 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
 	if (const auto forum = peer->forum()) {
 		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
-		auto callback = [=](not_null<Data::ForumTopic*> topic) {
+		auto callback = [=](not_null<Data::Thread*> thread) {
 			const auto exists = guard.get();
 			if (!exists) {
 				if (*weak) {
@@ -861,15 +862,15 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 				return;
 			}
 			auto onstack = std::move(_callback);
-			onstack(topic);
+			onstack(thread);
 			if (guard) {
 				_callback = std::move(onstack);
 			} else if (*weak) {
 				(*weak)->closeBox();
 			}
 		};
-		const auto filter = [=](not_null<Data::ForumTopic*> topic) {
-			return guard && (!_filter || _filter(topic));
+		const auto filter = [=](not_null<Data::Thread*> thread) {
+			return guard && (!_filter || _filter(thread));
 		};
 		auto owned = Box<PeerListBox>(
 			std::make_unique<ChooseTopicBoxController>(
@@ -1095,10 +1096,62 @@ auto ChooseTopicBoxController::Row::generateNameWords() const
 	return _topic->chatListNameWords();
 }
 
+QString ChooseTopicBoxController::AllMessagesRow::name() const {
+	return _userCreatesTopics
+		? tr::lng_forum_create_new_topic(tr::now)
+		: tr::lng_forum_all_messages(tr::now);
+}
+
+ChooseTopicBoxController::AllMessagesRow::AllMessagesRow(bool userCreatesTopics)
+: PeerListRow(PeerListRowId(0))
+, _userCreatesTopics(userCreatesTopics) {
+	const auto words = TextUtilities::PrepareSearchWords(name());
+	for (const auto &word : words) {
+		_nameWords.emplace(word);
+		_nameFirstLetters.emplace(word[0]);
+	}
+}
+
+QString ChooseTopicBoxController::AllMessagesRow::generateName() {
+	return name();
+}
+
+QString ChooseTopicBoxController::AllMessagesRow::generateShortName() {
+	return name();
+}
+
+auto ChooseTopicBoxController::AllMessagesRow::generatePaintUserpicCallback(
+	bool forceRound)
+-> PaintRoundImageCallback {
+	return [userCreatesTopics = _userCreatesTopics](
+			Painter &p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) {
+		const auto &icon = userCreatesTopics
+			? st::menuIconDiscussion
+			: st::menuIconChats;
+		icon.paintInCenter(
+			p,
+			QRect(x, y - st::lineWidth, size, size));
+	};
+}
+
+auto ChooseTopicBoxController::AllMessagesRow::generateNameFirstLetters() const
+-> const base::flat_set<QChar> & {
+	return _nameFirstLetters;
+}
+
+auto ChooseTopicBoxController::AllMessagesRow::generateNameWords() const
+-> const base::flat_set<QString> & {
+	return _nameWords;
+}
+
 ChooseTopicBoxController::ChooseTopicBoxController(
 	not_null<Data::Forum*> forum,
-	FnMut<void(not_null<Data::ForumTopic*>)> callback,
-	Fn<bool(not_null<Data::ForumTopic*>)> filter)
+	FnMut<void(not_null<Data::Thread*>)> callback,
+	Fn<bool(not_null<Data::Thread*>)> filter)
 : PeerListController(std::make_unique<ChooseTopicSearchController>(forum))
 , _forum(forum)
 , _callback(std::move(callback))
@@ -1127,7 +1180,11 @@ Main::Session &ChooseTopicBoxController::session() const {
 void ChooseTopicBoxController::rowClicked(not_null<PeerListRow*> row) {
 	const auto weak = base::make_weak(this);
 	auto onstack = base::take(_callback);
-	onstack(static_cast<Row*>(row.get())->topic());
+	if (row->id() == PeerListRowId(0)) {
+		onstack(_forum->history());
+	} else {
+		onstack(static_cast<Row*>(row.get())->topic());
+	}
 	if (weak) {
 		_callback = std::move(onstack);
 	}
@@ -1155,6 +1212,15 @@ void ChooseTopicBoxController::prepare() {
 
 void ChooseTopicBoxController::refreshRows(bool initial) {
 	auto added = false;
+	if (_forum->bot()
+		&& !delegate()->peerListFindRow(PeerListRowId(0))
+		&& (!_filter || _filter(_forum->history()))) {
+		const auto userCreatesTopics = Data::IsBotUserCreatesTopics(
+			_forum->peer());
+		delegate()->peerListAppendRow(
+			std::make_unique<AllMessagesRow>(userCreatesTopics));
+		added = true;
+	}
 	for (const auto &row : _forum->topicsList()->indexed()->all()) {
 		if (const auto topic = row->topic()) {
 			const auto id = topic->rootId().bare;

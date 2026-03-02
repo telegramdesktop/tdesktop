@@ -35,7 +35,8 @@ class DynamicImage;
 	not_null<Data::Session*> owner,
 	const QString &data,
 	Fn<bool()> paused = nullptr,
-	Fn<QColor()> textColor = nullptr);
+	Fn<QColor()> textColor = nullptr,
+	int loopLimit = 0);
 [[nodiscard]] std::shared_ptr<DynamicImage> MakePhotoThumbnail(
 	not_null<PhotoData*> photo,
 	FullMsgId fullId);

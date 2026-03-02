@@ -66,6 +66,12 @@ int AppConfig::stargiftConvertPeriodMax() const {
 		_account->mtp().isTestMode() ? 300 : (90 * 86400));
 }
 
+int AppConfig::noForwardsRequestExpirePeriod() const {
+	return get<int>(
+		u"no_forwards_request_expire_period"_q,
+		_account->mtp().isTestMode() ? 300 : 86400);
+}
+
 const std::vector<QString> &AppConfig::startRefPrefixes() {
 	if (_startRefPrefixes.empty()) {
 		_startRefPrefixes = get<std::vector<QString>>(

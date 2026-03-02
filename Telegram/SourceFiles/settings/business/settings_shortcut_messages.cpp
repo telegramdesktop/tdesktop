@@ -1374,6 +1374,9 @@ bool ShortcutMessages::confirmSendingFiles(
 	}));
 	box->setCancelledCallback(_composeControls->restoreTextCallback(
 		insertTextOnCancel));
+	box->takeTextWithTagsRequests() | rpl::on_next([=](TextWithTags &&text) {
+		_composeControls->setText(std::move(text));
+	}, box->lifetime());
 
 	//ActivateWindow(_controller);
 	_controller->show(std::move(box));
@@ -1413,13 +1416,13 @@ void ShortcutMessages::sendingFilesConfirmed(
 		std::move(list),
 		way,
 		_history->peer->slowmodeApplied());
+	const auto captionAttached = CaptionWillBeAttached(groups);
 	const auto type = way.sendImagesAsPhotos()
 		? SendMediaType::Photo
 		: SendMediaType::File;
 	auto action = prepareSendAction(options);
 	action.clearDraft = false;
-	if ((groups.size() != 1 || !groups.front().sentWithCaption())
-		&& !caption.text.isEmpty()) {
+	if (!captionAttached && !caption.text.isEmpty()) {
 		auto message = Api::MessageToSend(action);
 		message.textWithTags = base::take(caption);
 		_session->api().sendMessage(std::move(message));

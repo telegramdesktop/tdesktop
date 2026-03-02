@@ -58,6 +58,27 @@ void DiscreteSlider::finishAnimating() {
 	}
 }
 
+void DiscreteSlider::selectSection(int index) {
+	if (index < 0 || index >= _sections.size()) {
+		for (auto &other : _sections) {
+			if (other.ripple) {
+				other.ripple->lastStop();
+			}
+		}
+		return;
+	}
+	auto &section = _sections[index];
+	if (section.ripple && !section.ripple->empty()) {
+		return;
+	}
+	for (auto &other : _sections) {
+		if (other.ripple) {
+			other.ripple->lastStop();
+		}
+	}
+	startRipple(index);
+}
+
 void DiscreteSlider::setAdditionalContentWidthToSection(int index, int w) {
 	if (index >= 0 && index < _sections.size()) {
 		auto &section = _sections[index];

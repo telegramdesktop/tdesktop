@@ -112,10 +112,10 @@ void Style::paintButtonBg(
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush((color == Color::Primary)
-			? QColor(0x29, 0x8a, 0xcf)
+			? st::botKbPrimaryBg->c
 			: (color == Color::Danger)
-			? QColor(0xe0, 0x53, 0x56)
-			: QColor(0x61, 0xc7, 0x52));
+			? st::botKbDangerBg->c
+			: st::botKbSuccessBg->c);
 		const auto radius = st::roundRadiusSmall;
 		p.drawRoundedRect(rect, radius, radius);
 	}
