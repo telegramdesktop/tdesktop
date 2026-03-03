@@ -2285,11 +2285,13 @@ void Controller::saveUsernamesOrder() {
 		_api.request(MTPchannels_DeactivateAllUsernames(
 			channel->inputChannel()
 		)).done([=] {
-			channel->setUsernames(channel->editableUsername().isEmpty()
-				? Data::Usernames()
-				: Data::Usernames{
+			if (channel->editableUsername().isEmpty()) {
+				channel->setUsernames({});
+			} else {
+				channel->setUsernames({
 					{ channel->editableUsername(), true, true }
 				});
+			}
 			continueSave();
 		}).send();
 	} else {
