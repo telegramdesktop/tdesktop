@@ -121,8 +121,8 @@ jobs:
           $IMAGE_TAG \
           /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
           -D CMAKE_CONFIGURATION_TYPES=Debug \
-          -D CMAKE_C_FLAGS_DEBUG="-O0" \
-          -D CMAKE_CXX_FLAGS_DEBUG="-O0" \
+          -D CMAKE_C_FLAGS_DEBUG="-O0 -fuse-ld=lld" \
+          -D CMAKE_CXX_FLAGS_DEBUG="-O0 -fuse-ld=lld" \
           -D CMAKE_COMPILE_WARNING_AS_ERROR=ON \
           -D TDESKTOP_API_TEST=ON \
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
