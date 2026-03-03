@@ -64,6 +64,7 @@ public:
 	void updatePlayback(const Player::TrackState &state);
 	void setLoadingProgress(int64 ready, int64 total);
 	void setInFullScreen(bool inFullScreen);
+	void updatePlaybackSpeed(float64 speed);
 	[[nodiscard]] bool hasMenu() const;
 	[[nodiscard]] bool dragging() const;
 
@@ -84,7 +85,6 @@ private:
 	[[nodiscard]] float64 countDownloadedTillPercent(
 		const Player::TrackState &state) const;
 
-	void updatePlaybackSpeed(float64 speed);
 	void updateVolumeToggleIcon();
 	void updateDownloadProgressPosition();
 

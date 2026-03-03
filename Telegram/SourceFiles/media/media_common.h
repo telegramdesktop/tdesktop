@@ -39,6 +39,7 @@ struct VideoQuality {
 
 inline constexpr auto kSpeedMin = 0.5;
 inline constexpr auto kSpeedMax = 2.5;
+inline constexpr auto kSpeedDefault = 1.0;
 inline constexpr auto kSpedUpDefault = 1.7;
 
 [[nodiscard]] inline bool EqualSpeeds(float64 a, float64 b) {

@@ -75,10 +75,32 @@ PlaybackControls::PlaybackControls(
 		: 1.);
 	updateSpeedToggleQuality();
 
+	if (_speedToggle) {
+		_speedToggle->setAcceptBoth(true);
+		_speedToggle->setContextMenuPolicy(Qt::PreventContextMenu);
+		_speedToggle->clicks(
+		) | rpl::filter([](Qt::MouseButton button) {
+			return button == Qt::RightButton;
+		}) | rpl::on_next([=] {
+			if (_speedController) {
+				_speedController->toggleDefault();
+			} else {
+				updatePlaybackSpeed(Media::kSpeedDefault);
+			}
+		}, _speedToggle->lifetime());
+	}
+
 	if (const auto controller = _speedController.get()) {
 		controller->menuToggledValue(
 		) | rpl::on_next([=](bool toggled) {
 			_speedToggle->setActive(toggled);
+		}, _speedToggle->lifetime());
+
+		controller->realtimeValue(
+		) | rpl::on_next([=](float64 speed) {
+			_speedToggle->setSpeed(speed);
+			_delegate->playbackControlsSpeedChanged(speed);
+			resizeEvent(nullptr);
 		}, _speedToggle->lifetime());
 	}
 
@@ -229,6 +251,12 @@ void PlaybackControls::updateSpeedToggleQuality() {
 
 void PlaybackControls::updatePlaybackSpeed(float64 speed) {
 	DEBUG_LOG(("Media playback speed: update to %1.").arg(speed));
+	if (_speedToggle) {
+		_speedToggle->setSpeed(speed);
+	}
+	if (_speedController) {
+		_speedController->updateSpeedFromOutside(speed);
+	}
 	_delegate->playbackControlsSpeedChanged(speed);
 	resizeEvent(nullptr);
 }

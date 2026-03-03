@@ -779,6 +779,10 @@ void SpeedController::toggleDefault() {
 	_speedChanged.fire(speed());
 }
 
+void SpeedController::updateSpeedFromOutside(float64 newSpeed) {
+	setSpeed(newSpeed);
+}
+
 void SpeedController::setSpeed(float64 newSpeed) {
 	if (!(_isDefault = EqualSpeeds(newSpeed, 1.))) {
 		_speed = newSpeed;

@@ -139,6 +139,8 @@ public:
 
 	[[nodiscard]] rpl::producer<> saved() const;
 	[[nodiscard]] rpl::producer<float64> realtimeValue() const;
+	void updateSpeedFromOutside(float64 newSpeed);
+	void toggleDefault();
 
 private:
 	void fillMenu(not_null<Ui::DropdownMenu*> menu) override;
@@ -146,7 +148,6 @@ private:
 	[[nodiscard]] float64 speed() const;
 	[[nodiscard]] bool isDefault() const;
 	[[nodiscard]] float64 lastNonDefaultSpeed() const;
-	void toggleDefault();
 	void setSpeed(float64 newSpeed);
 	void setQuality(VideoQuality quality);
 	void save();
