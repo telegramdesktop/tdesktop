@@ -437,13 +437,16 @@ void SettingsButton::prepareFrame() {
 			: u"%1X"_q.arg(rounded / 10);
 		paintBadge(p, text, RectPart::TopLeft, color);
 	}
-	const auto text = (!_quality)
+	const auto displayQuality = (_quality >= Media::kVideoQualityOriginalOffset)
+		? (_quality - Media::kVideoQualityOriginalOffset)
+		: _quality;
+	const auto text = (!displayQuality)
 		? QString()
-		: (_quality > 2000)
+		: (displayQuality > 2000)
 		? u"4K"_q
-		: (_quality > 1000)
+		: (displayQuality > 1000)
 		? u"FHD"_q
-		: (_quality > 700)
+		: (displayQuality > 700)
 		? u"HD"_q
 		: u"SD"_q;
 	if (!text.isEmpty()) {

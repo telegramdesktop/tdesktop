@@ -99,6 +99,7 @@ struct VoiceData : public DocumentAdditionalData {
 struct VideoData : public DocumentAdditionalData {
 	QString codec;
 	std::vector<not_null<DocumentData*>> qualities;
+	QSize realVideoSize;
 };
 
 using RoundData = VoiceData;

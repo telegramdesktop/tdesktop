@@ -115,7 +115,13 @@ void LogPosition(const WindowPosition &position, const QString &name) {
 	auto result = Media::VideoQuality();
 	const auto data = static_cast<void*>(&result);
 	memcpy(data, &value, sizeof(result));
-	return (result.height <= 4320) ? result : Media::VideoQuality();
+
+	const auto height = result.height;
+	const auto offset = Media::kVideoQualityOriginalOffset;
+	const auto max = 4320;
+	return (height <= max || (height >= offset && height <= offset + max))
+		? result
+		: Media::VideoQuality();
 }
 
 } // namespace

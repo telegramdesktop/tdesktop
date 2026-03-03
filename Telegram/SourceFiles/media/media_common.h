@@ -41,6 +41,8 @@ inline constexpr auto kSpeedMin = 0.5;
 inline constexpr auto kSpeedMax = 2.5;
 inline constexpr auto kSpedUpDefault = 1.7;
 
+inline constexpr auto kVideoQualityOriginalOffset = 1000000;
+
 [[nodiscard]] inline bool EqualSpeeds(float64 a, float64 b) {
 	return int(base::SafeRound(a * 10.)) == int(base::SafeRound(b * 10.));
 }

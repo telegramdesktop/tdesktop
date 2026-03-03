@@ -826,7 +826,13 @@ void SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
 
 	const auto add = [&](int quality) {
 		const auto automatic = tr::lng_mediaview_quality_auto(tr::now);
-		const auto text = quality ? u"%1p"_q.arg(quality) : automatic;
+		const auto offset = Media::kVideoQualityOriginalOffset;
+		// Quality is height-based, except for Original which uses offset
+		const auto text = !quality
+			? automatic
+			: (quality >= offset)
+			? u"Original (%1p)"_q.arg(std::clamp(quality - offset, 0, 4320))
+			: u"%1p"_q.arg(quality);
 		auto action = base::make_unique_q<Ui::Menu::Action>(
 			raw,
 			st.qualityMenu,
@@ -836,15 +842,15 @@ void SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
 				[=] { _changeQuality(quality); }),
 			nullptr,
 			nullptr);
-		const auto raw = action.get();
-		const auto check = Ui::CreateChild<Ui::RpWidget>(raw);
+		const auto rawAction = action.get();
+		const auto check = Ui::CreateChild<Ui::RpWidget>(rawAction);
 		check->resize(st.activeCheck.size());
 		check->paintRequest(
 		) | rpl::on_next([check, icon = &st.activeCheck] {
 			auto p = QPainter(check);
 			icon->paint(p, 0, 0, check->width());
 		}, check->lifetime());
-		raw->sizeValue(
+		rawAction->sizeValue(
 		) | rpl::on_next([=, skip = st.activeCheckSkip](QSize size) {
 			check->moveToRight(
 				skip,
@@ -857,13 +863,19 @@ void SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
 			const auto chosen = now.manual
 				? (now.height == quality)
 				: !quality;
-			raw->action()->setEnabled(!chosen);
+			rawAction->action()->setEnabled(!chosen);
 			if (!quality) {
-				raw->action()->setText(automatic
-					+ (now.manual ? QString() : u"\t%1p"_q.arg(now.height)));
+				const auto offset = Media::kVideoQualityOriginalOffset;
+				const auto displayHeight = (now.height >= offset)
+					? std::clamp(int(now.height - offset), 0, 4320)
+					: now.height;
+				const auto suffix = now.manual
+					? QString()
+					: u"\t%1p"_q.arg(displayHeight);
+				rawAction->action()->setText(automatic + suffix);
 			}
 			check->setVisible(chosen);
-		}, raw->lifetime());
+		}, rawAction->lifetime());
 		menu->addAction(std::move(action));
 	};
 

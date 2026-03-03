@@ -59,6 +59,7 @@ struct TrackState {
 struct VideoInformation {
 	TrackState state;
 	QSize size;
+	QSize realSize;
 	QImage cover;
 	int rotation = 0;
 	float64 fps = 0.;
