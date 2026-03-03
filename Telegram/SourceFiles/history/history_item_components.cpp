@@ -71,6 +71,12 @@ base::options::toggle FastButtonsModeOption({
 	.description = "Trigger inline keyboard buttons by 1-9 keyboard keys.",
 });
 
+base::options::toggle ShowForwardsCountOption({
+	.id = kOptionShowForwardsCount,
+	.name = "Show forwards count in channels",
+	.description = "Display forwards count for channel posts.",
+});
+
 [[nodiscard]] TextWithEntities ComposeTodoTasksList(
 		int fullCount,
 		const std::vector<TextWithEntities> &names) {
@@ -106,9 +112,14 @@ base::options::toggle FastButtonsModeOption({
 } // namespace
 
 const char kOptionFastButtonsMode[] = "fast-buttons-mode";
+const char kOptionShowForwardsCount[] = "show-forwards-count";
 
 bool FastButtonsMode() {
 	return FastButtonsModeOption.value();
+}
+
+bool ShowForwardsCountEnabled() {
+	return ShowForwardsCountOption.value();
 }
 
 void HistoryMessageVia::create(
