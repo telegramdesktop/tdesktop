@@ -62,7 +62,7 @@ void CloseInWindows(not_null<Data::Thread*> thread) {
 	using WindowPointer = base::weak_ptr<Window::SessionController>;
 	auto closing = std::vector<WindowPointer>();
 	auto clearing = std::vector<WindowPointer>();
-	for (const auto window : thread->session().windows()) {
+	for (const auto &window : thread->session().windows()) {
 		if (window->windowId().chat() == thread) {
 			closing.push_back(base::make_weak(window));
 		} else if (window->activeChatCurrent().thread() == thread) {

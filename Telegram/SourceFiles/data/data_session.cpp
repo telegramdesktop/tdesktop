@@ -1709,7 +1709,7 @@ void Session::enumerateItemViews(
 		not_null<const HistoryItem*> item,
 		Method method) {
 	if (const auto i = _views.find(item); i != _views.end()) {
-		for (const auto view : i->second) {
+		for (const auto &view : i->second) {
 			method(view);
 		}
 	}
@@ -2297,7 +2297,7 @@ void Session::unloadHeavyViewParts(
 				remove.push_back(view);
 			}
 		}
-		for (const auto view : remove) {
+		for (const auto &view : remove) {
 			view->unloadHeavyPart();
 		}
 	}
@@ -2317,7 +2317,7 @@ void Session::unloadHeavyViewParts(
 			remove.push_back(view);
 		}
 	}
-	for (const auto view : remove) {
+	for (const auto &view : remove) {
 		view->unloadHeavyPart();
 	}
 }
@@ -4679,7 +4679,7 @@ void Session::registerContactItem(
 	}
 
 	if (const auto i = _views.find(item); i != _views.end()) {
-		for (const auto view : i->second) {
+		for (const auto &view : i->second) {
 			if (const auto media = view->media()) {
 				media->updateSharedContactUserId(contactId);
 			}
@@ -4746,7 +4746,7 @@ void Session::unregisterStoryItem(
 void Session::refreshStoryItemViews(FullStoryId id) {
 	const auto i = _storyItems.find(id);
 	if (i != _storyItems.end()) {
-		for (const auto item : i->second) {
+		for (const auto &item : i->second) {
 			if (const auto media = item->media()) {
 				if (media->storyMention()) {
 					item->updateStoryMentionText();

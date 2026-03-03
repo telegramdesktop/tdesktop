@@ -1929,7 +1929,7 @@ void ApiWrap::updateNotifySettingsDelayed(Data::DefaultNotify type) {
 
 void ApiWrap::sendNotifySettingsUpdates() {
 	_updateNotifyQueueLifetime.destroy();
-	for (const auto topic : base::take(_updateNotifyTopics)) {
+	for (const auto &topic : base::take(_updateNotifyTopics)) {
 		request(MTPaccount_UpdateNotifySettings(
 			MTP_inputNotifyForumTopic(
 				topic->peer()->input(),
@@ -1937,7 +1937,7 @@ void ApiWrap::sendNotifySettingsUpdates() {
 			topic->notify().serialize()
 		)).afterDelay(kSmallDelayMs).send();
 	}
-	for (const auto peer : base::take(_updateNotifyPeers)) {
+	for (const auto &peer : base::take(_updateNotifyPeers)) {
 		request(MTPaccount_UpdateNotifySettings(
 			MTP_inputNotifyPeer(peer->input()),
 			peer->notify().serialize()
@@ -3621,7 +3621,7 @@ void ApiWrap::forwardMessages(
 
 	ids.reserve(count);
 	randomIds.reserve(count);
-	for (const auto item : draft.items) {
+	for (const auto &item : draft.items) {
 		const auto randomId = base::RandomValue<uint64>();
 		if (genClientSideMessage) {
 			const auto newId = FullMsgId(

@@ -836,7 +836,7 @@ void WrapWidget::showFinishedHook() {
 			showTopBarMenu(false);
 			if (_topBarMenu) {
 				const auto menu = _topBarMenu->menu();
-				for (const auto action : menu->actions()) {
+				for (const auto &action : menu->actions()) {
 					const auto controlId = "highlight-control-id";
 					if (action->property(controlId).toString() == highlightId) {
 						if (const auto item = menu->itemForAction(action)) {

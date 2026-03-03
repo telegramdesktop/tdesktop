@@ -721,7 +721,7 @@ void Main::showFinished() {
 	if (controller()->takeHighlightControlId(emojiId)) {
 		if (const auto popupMenu = _userpic->showChangePhotoMenu()) {
 			const auto menu = popupMenu->menu();
-			for (const auto action : menu->actions()) {
+			for (const auto &action : menu->actions()) {
 				const auto controlId = "highlight-control-id";
 				if (action->property(controlId).toString() == emojiId) {
 					if (const auto item = menu->itemForAction(action)) {

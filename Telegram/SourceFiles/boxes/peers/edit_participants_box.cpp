@@ -614,7 +614,7 @@ void ParticipantsAdditionalData::fillFromChannel(
 	if (information->creator) {
 		_creator = information->creator;
 	}
-	for (const auto user : information->lastParticipants) {
+	for (const auto &user : information->lastParticipants) {
 		const auto admin = information->lastAdmins.find(user);
 		const auto rank = information->memberRanks.find(peerToUser(user->id));
 		const auto restricted = information->lastRestricted.find(user);
@@ -1575,7 +1575,7 @@ void ParticipantsBoxController::rebuildChatAdmins(
 		delegate()->peerListRemoveRow(
 			delegate()->peerListRowAt(0));
 	}
-	for (const auto user : list) {
+	for (const auto &user : list) {
 		if (auto row = createRow(user)) {
 			const auto raw = row.get();
 			delegate()->peerListAppendRow(std::move(row));
@@ -1732,7 +1732,7 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 
 	auto added = false;
 	_additional.fillFromPeer();
-	for (const auto user : info->lastParticipants) {
+	for (const auto &user : info->lastParticipants) {
 		if (appendRow(user)) {
 			added = true;
 		}

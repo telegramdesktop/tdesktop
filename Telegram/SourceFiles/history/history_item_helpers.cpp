@@ -179,7 +179,7 @@ Data::SendError GetErrorForSending(
 Data::SendErrorWithThread GetErrorForSending(
 		const std::vector<not_null<Data::Thread*>> &threads,
 		SendingErrorRequest request) {
-	for (const auto thread : threads) {
+	for (const auto &thread : threads) {
 		const auto error = GetErrorForSending(thread, request);
 		if (error) {
 			return Data::SendErrorWithThread{ error, thread };

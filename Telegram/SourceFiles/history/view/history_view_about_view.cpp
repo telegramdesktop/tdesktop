@@ -201,7 +201,7 @@ void UserpicsList::subscribeToUpdates(Fn<void()> callback) {
 		return;
 	}
 	_subscribed = std::make_unique<Subscribed>(std::move(callback));
-	for (const auto peer : _peers) {
+	for (const auto &peer : _peers) {
 		_subscribed->list.push_back({ .peer = peer });
 	}
 }

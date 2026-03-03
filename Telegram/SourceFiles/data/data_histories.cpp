@@ -984,7 +984,7 @@ void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
 		document->owner().savedMusic().remove(document);
 	}
 
-	for (const auto item : remove) {
+	for (const auto &item : remove) {
 		const auto history = item->history();
 		const auto wasLast = (history->lastMessage() == item);
 		const auto wasInChats = (history->chatListMessage() == item);

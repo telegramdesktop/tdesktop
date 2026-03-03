@@ -5214,7 +5214,7 @@ void HistoryInner::applyDragSelection(
 				toRemove.emplace_back(item.first);
 			}
 		}
-		for (const auto item : toRemove) {
+		for (const auto &item : toRemove) {
 			changeSelectionAsGroup(toItems, item, SelectAction::Deselect);
 		}
 	}

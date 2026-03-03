@@ -638,7 +638,7 @@ void History::destroyMessagesByDates(TimeId minDate, TimeId maxDate) {
 			toDestroy.push_back(message.get());
 		}
 	}
-	for (const auto item : toDestroy) {
+	for (const auto &item : toDestroy) {
 		item->destroy();
 	}
 }
@@ -651,7 +651,7 @@ void History::destroyMessagesByTopic(MsgId topicRootId) {
 			toDestroy.push_back(message.get());
 		}
 	}
-	for (const auto item : toDestroy) {
+	for (const auto &item : toDestroy) {
 		item->destroy();
 	}
 }
@@ -665,7 +665,7 @@ void History::destroyMessagesBySublist(not_null<PeerData*> sublistPeer) {
 			toDestroy.push_back(message.get());
 		}
 	}
-	for (const auto item : toDestroy) {
+	for (const auto &item : toDestroy) {
 		item->destroy();
 	}
 }
@@ -4043,7 +4043,7 @@ void History::clearUpTill(MsgId availableMinId) {
 			remove.push_back(item.get());
 		}
 	}
-	for (const auto item : remove) {
+	for (const auto &item : remove) {
 		item->destroy();
 	}
 	requestChatListMessage();
