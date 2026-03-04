@@ -58,7 +58,7 @@ For `win64` (64-bit):
 
     configure.bat x64 -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH
 
-* Open ***BuildPath*\\tdesktop\\out\\Telegram.sln** in Visual Studio 2026
+* Open ***BuildPath*\\tdesktop\\out\\Telegram.slnx** in Visual Studio 2026
 * Select Telegram project and press Build > Build Telegram (Debug and Release configurations)
 * The result Telegram.exe will be located in **D:\TBuild\tdesktop\out\Debug** (and **Release**)
 
