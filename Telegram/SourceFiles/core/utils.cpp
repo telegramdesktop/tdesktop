@@ -29,7 +29,9 @@ extern "C" {
 #include <time.h>
 #endif
 
-uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
+// For general-purpose storage, only the types “array of N unsigned char” or “array of N std::byte” are allowed.
+// https://eel.is/c++draft/intro.object#3
+alignas(uint64) std::byte _SharedMemoryLocation[4*sizeof(uint64)];
 
 // Base types compile-time check
 static_assert(sizeof(char) == 1, "Basic types size check failed");
