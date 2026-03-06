@@ -2278,7 +2278,7 @@ bool OverlayWidget::radialAnimationCallback(crl::time now) {
 		update(radialRect());
 	}
 	const auto ready = _document && _documentMedia->loaded();
-	const auto streamVideo = ready && _documentMedia->canBePlayed(_message);
+	const auto streamVideo = ready && _documentMedia->canBePlayed();
 	const auto tryOpenImage = ready
 		&& (_document->size < Images::kReadBytesLimit);
 	if (ready && ((tryOpenImage && !_radial.animating()) || streamVideo)) {
@@ -2947,7 +2947,7 @@ void OverlayWidget::downloadMedia() {
 void OverlayWidget::saveCancel() {
 	if (_document && _document->loading()) {
 		_document->cancel();
-		if (_documentMedia->canBePlayed(_message)) {
+		if (_documentMedia->canBePlayed()) {
 			redisplayContent();
 		}
 	}
@@ -3885,7 +3885,7 @@ void OverlayWidget::displayDocument(
 			}
 		} else {
 			initSponsoredButton();
-			if (_documentMedia->canBePlayed(_message)
+			if (_documentMedia->canBePlayed()
 				&& initStreaming(startStreaming)) {
 			} else if (_document->isVideoFile()) {
 				_documentMedia->automaticLoad(fileOrigin(), _message);
@@ -4094,7 +4094,7 @@ void OverlayWidget::showAndActivate() {
 }
 
 bool OverlayWidget::canInitStreaming() const {
-	return (_document && _documentMedia->canBePlayed(_message))
+	return (_document && _documentMedia->canBePlayed())
 		|| (_photo && _photo->videoCanBePlayed());
 }
 
@@ -6246,7 +6246,7 @@ void OverlayWidget::preloadData(int delta) {
 			const auto &[i, ok] = documents.emplace(
 				(*document)->createMediaView());
 			(*i)->thumbnailWanted(fileOrigin(entity));
-			if (!(*i)->canBePlayed(entity.item)) {
+			if (!(*i)->canBePlayed()) {
 				(*i)->automaticLoad(fileOrigin(entity), entity.item);
 			}
 		}

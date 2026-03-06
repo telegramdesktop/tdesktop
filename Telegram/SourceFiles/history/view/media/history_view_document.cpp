@@ -637,7 +637,7 @@ void Document::draw(
 
 	const auto cornerDownload = downloadInCorner();
 
-	if (!_dataMedia->canBePlayed(_realParent)) {
+	if (!_dataMedia->canBePlayed()) {
 		_dataMedia->automaticLoad(_realParent->fullId(), _realParent);
 	}
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
@@ -773,8 +773,8 @@ void Document::draw(
 				return _data->isSongWithCover()
 					? sti->historyFileThumbPause
 					: stm->historyFilePause;
-			} else if (loaded || _dataMedia->canBePlayed(_realParent)) {
-				return _dataMedia->canBePlayed(_realParent)
+			} else if (loaded || _dataMedia->canBePlayed()) {
+				return _dataMedia->canBePlayed()
 					? (_data->isSongWithCover()
 						? sti->historyFileThumbPlay
 						: stm->historyFilePlay)
@@ -1064,7 +1064,7 @@ void Document::ensureDataMediaCreated() const {
 bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
 		&& _realParent->allowsForward()
-		&& _data->canBeStreamed(_realParent)
+		&& _data->canBeStreamed()
 		&& !_data->inappPlaybackFailed();
 }
 
@@ -1293,7 +1293,7 @@ TextState Document::textState(
 		&& (!_data->loading() || downloadInCorner())
 		&& !_data->uploading()
 		&& !_data->isNull()) {
-		if (loaded || _dataMedia->canBePlayed(_realParent)) {
+		if (loaded || _dataMedia->canBePlayed()) {
 			result.link = _openl;
 		} else {
 			result.link = _savel;
