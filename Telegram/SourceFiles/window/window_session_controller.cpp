@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_click_handler.h"
+#include "data/data_photo_media.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_forum.h"
@@ -1677,6 +1678,18 @@ SessionController::SessionController(
 		File::Launch(document->filepath());
 	}, _lifetime);
 
+	session->downloaderTaskFinished(
+	) | rpl::filter([=] {
+		return _pendingOpenPhoto.media && _pendingOpenPhoto.media->loaded();
+	}) | rpl::on_next([=] {
+		if (_pendingOpenPhoto.media->saveToFile(_pendingOpenPhoto.filepath)) {
+			_pendingOpenPhoto.data->setLocation(
+				Core::FileLocation(_pendingOpenPhoto.filepath));
+			File::Launch(_pendingOpenPhoto.filepath);
+		}
+		_pendingOpenPhoto = {};
+	}, _lifetime);
+
 	session->api().globalPrivacy().suggestArchiveAndMute(
 	) | rpl::take(1) | rpl::on_next([=] {
 		session->api().globalPrivacy().reload(crl::guard(this, [=] {
@@ -3184,12 +3197,49 @@ void SessionController::hideLayer(anim::type animated) {
 	_window->hideLayer(animated);
 }
 
+bool SessionController::openPhotoExternal(
+		not_null<PhotoData*> photo,
+		Data::FileOrigin origin) {
+	if (!OptionExternalMediaViewer.value()) {
+		return false;
+	}
+	const auto media = photo->createMediaView();
+	const auto existing = photo->location(true).name();
+	if (!existing.isEmpty()) {
+		File::Launch(existing);
+		return true;
+	}
+	const auto filepath = FileNameForSave(
+		&session(),
+		tr::lng_save_photo(tr::now),
+		u"JPEG Image (*.jpg);;"_q + FileDialog::AllFilesFilter(),
+		u"photo"_q,
+		u".jpg"_q,
+		false);
+	if (media->loaded()) {
+		if (media->saveToFile(filepath)) {
+			photo->setLocation(Core::FileLocation(filepath));
+			File::Launch(filepath);
+		}
+		return true;
+	}
+	_pendingOpenPhoto = { photo, media, filepath };
+	photo->load(origin, LoadFromCloudOrLocal, true);
+	return true;
+}
+
 void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
 		MessageContext message,
 		const Data::StoriesContext *stories) {
 	const auto item = session().data().message(message.id);
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
+		return;
+	}
+	const auto origin = item
+		? Data::FileOrigin(item->fullId())
+		: Data::FileOrigin();
+	if (openPhotoExternal(photo, origin)) {
 		return;
 	}
 	_window->openInMediaView(Media::View::OpenRequest(
@@ -3203,6 +3253,14 @@ void SessionController::openPhoto(
 void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
 		not_null<PeerData*> peer) {
+	const auto origin = peer->isUser()
+		? Data::FileOrigin(Data::FileOriginUserPhoto(
+			peerToUser(peer->id),
+			photo->id))
+		: Data::FileOrigin(Data::FileOriginPeerPhoto(peer->id));
+	if (openPhotoExternal(photo, origin)) {
+		return;
+	}
 	_window->openInMediaView(Media::View::OpenRequest(this, photo, peer));
 }
 

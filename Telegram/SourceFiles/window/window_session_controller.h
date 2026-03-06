@@ -75,6 +75,7 @@ struct ChatPaintContextArgs;
 namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
+class PhotoMedia;
 class Thread;
 class Forum;
 class ForumTopic;
@@ -776,6 +777,10 @@ private:
 		not_null<Data::Forum*> forum,
 		const SectionShow &params);
 
+	[[nodiscard]] bool openPhotoExternal(
+		not_null<PhotoData*> photo,
+		Data::FileOrigin origin);
+
 	const not_null<Controller*> _window;
 	const std::unique_ptr<ChatHelpers::EmojiInteractions> _emojiInteractions;
 	const std::unique_ptr<ChatPreviewManager> _chatPreviewManager;
@@ -836,6 +841,11 @@ private:
 	std::unique_ptr<ChatSwitchProcess> _chatSwitchProcess;
 
 	DocumentId _pendingOpenDocumentId = 0;
+	struct PendingOpenPhoto {
+		PhotoData *data = nullptr;
+		std::shared_ptr<Data::PhotoMedia> media;
+		QString filepath;
+	} _pendingOpenPhoto;
 
 	base::has_weak_ptr _storyOpenGuard;
 
