@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_file_click_handler.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_forum.h"
@@ -132,8 +133,7 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 base::options::toggle OptionExternalVideoPlayer({
 	.id = kOptionExternalVideoPlayer,
 	.name = "External video player",
-	.description = "Use system video player instead of the internal one. "
-		"This disabes video playback in messages.",
+	.description = "Use system video player instead of the internal one.",
 });
 
 class MainWindowShow final : public ChatHelpers::Show {
@@ -3207,10 +3207,15 @@ void SessionController::openDocument(
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	} else if (showInMediaView) {
-		const auto filepath = document->filepath();
-		if (OptionExternalVideoPlayer.value()
-			&& document->isVideoFile()
-			&& !filepath.isEmpty()) {
+		if (OptionExternalVideoPlayer.value() && document->isVideoFile()) {
+			const auto filepath = document->filepath();
+			if (filepath.isEmpty()) {
+				DocumentSaveClickHandler::Save(
+					message.id,
+					document,
+					DocumentSaveClickHandler::Mode::ToFile);
+				return;
+			}
 			File::Launch(filepath);
 			return;
 		}
