@@ -476,10 +476,7 @@ void Shown::streamFile(
 		requestFail(std::move(request));
 		return;
 	}
-	auto loader = document->createStreamingLoader(
-		fileOrigin(page),
-		false,
-		nullptr);
+	auto loader = document->createStreamingLoader(fileOrigin(page), false);
 	if (!loader) {
 		if (document->size >= Storage::kMaxFileInMemory) {
 			requestFail(std::move(request));
