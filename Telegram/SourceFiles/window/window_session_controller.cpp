@@ -3216,7 +3216,7 @@ void SessionController::openDocument(
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	} else if (showInMediaView) {
-		if (OptionExternalMediaViewer.value() && document->isVideoFile()) {
+		if (OptionExternalMediaViewer.value() && !document->isTheme()) {
 			const auto filepath = document->filepath();
 			if (filepath.isEmpty()) {
 				if (document->loadedInMediaCache()) {
