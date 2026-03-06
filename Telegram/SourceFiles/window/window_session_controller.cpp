@@ -130,10 +130,10 @@ namespace {
 constexpr auto kCustomThemesInMemory = 5;
 constexpr auto kMaxChatEntryHistorySize = 50;
 
-base::options::toggle OptionExternalVideoPlayer({
-	.id = kOptionExternalVideoPlayer,
-	.name = "External video player",
-	.description = "Use system video player instead of the internal one.",
+base::options::toggle OptionExternalMediaViewer({
+	.id = kOptionExternalMediaViewer,
+	.name = "External media viewer",
+	.description = "Use system media viewer instead of the internal one.",
 });
 
 class MainWindowShow final : public ChatHelpers::Show {
@@ -322,7 +322,7 @@ void MainWindowShow::processChosenSticker(
 
 } // namespace
 
-const char kOptionExternalVideoPlayer[] = "external-video-player";
+const char kOptionExternalMediaViewer[] = "external-media-viewer";
 
 void ActivateWindow(not_null<SessionController*> controller) {
 	Ui::ActivateWindow(controller->widget());
@@ -3216,7 +3216,7 @@ void SessionController::openDocument(
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	} else if (showInMediaView) {
-		if (OptionExternalVideoPlayer.value() && document->isVideoFile()) {
+		if (OptionExternalMediaViewer.value() && document->isVideoFile()) {
 			const auto filepath = document->filepath();
 			if (filepath.isEmpty()) {
 				if (document->loadedInMediaCache()) {

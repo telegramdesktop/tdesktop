@@ -167,7 +167,7 @@ void SetupExperimental(
 	addToggle(Core::kOptionFreeType);
 	addToggle(Core::kOptionSkipUrlSchemeRegister);
 	addToggle(Core::kOptionDeadlockDetector);
-	addToggle(Window::kOptionExternalVideoPlayer);
+	addToggle(Window::kOptionExternalMediaViewer);
 	addToggle(Window::kOptionNewWindowsSizeAsFirst);
 	addToggle(MTP::details::kOptionPreferIPv6);
 	if (base::options::lookup<bool>(kOptionFastButtonsMode).value()) {

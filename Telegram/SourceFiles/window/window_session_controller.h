@@ -108,7 +108,7 @@ class ChatSwitchProcess;
 struct PeerByLinkInfo;
 struct SeparateId;
 
-extern const char kOptionExternalVideoPlayer[];
+extern const char kOptionExternalMediaViewer[];
 
 struct PeerThemeOverride {
 	PeerData *peer = nullptr;
