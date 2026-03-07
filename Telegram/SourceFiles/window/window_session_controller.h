@@ -835,6 +835,8 @@ private:
 
 	std::unique_ptr<ChatSwitchProcess> _chatSwitchProcess;
 
+	DocumentId _pendingOpenDocumentId = 0;
+
 	base::has_weak_ptr _storyOpenGuard;
 
 	QString _premiumRef;

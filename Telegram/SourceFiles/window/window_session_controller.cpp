@@ -1668,6 +1668,15 @@ SessionController::SessionController(
 		}
 	}, lifetime());
 
+	session->data().documentLoadProgress(
+	) | rpl::filter([=](not_null<DocumentData*> document) {
+		return _pendingOpenDocumentId == document->id
+			&& !document->filepath().isEmpty();
+	}) | rpl::on_next([=](not_null<DocumentData*> document) {
+		_pendingOpenDocumentId = {};
+		File::Launch(document->filepath());
+	}, _lifetime);
+
 	session->api().globalPrivacy().suggestArchiveAndMute(
 	) | rpl::take(1) | rpl::on_next([=] {
 		session->api().globalPrivacy().reload(crl::guard(this, [=] {
@@ -3210,6 +3219,9 @@ void SessionController::openDocument(
 		if (OptionExternalVideoPlayer.value() && document->isVideoFile()) {
 			const auto filepath = document->filepath();
 			if (filepath.isEmpty()) {
+				if (document->loadedInMediaCache()) {
+					_pendingOpenDocumentId = document->id;
+				}
 				DocumentSaveClickHandler::Save(
 					message.id,
 					document,
