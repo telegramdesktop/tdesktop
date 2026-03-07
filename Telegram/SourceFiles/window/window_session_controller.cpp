@@ -69,7 +69,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/file_utilities.h"
 #include "core/ui_integration.h"
+#include "base/options.h"
 #include "base/unixtime.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "ui/controls/userpic_button.h"
@@ -126,6 +128,13 @@ namespace {
 
 constexpr auto kCustomThemesInMemory = 5;
 constexpr auto kMaxChatEntryHistorySize = 50;
+
+base::options::toggle OptionExternalVideoPlayer({
+	.id = kOptionExternalVideoPlayer,
+	.name = "External video player",
+	.description = "Use system video player instead of the internal one. "
+		"This disabes video playback in messages.",
+});
 
 class MainWindowShow final : public ChatHelpers::Show {
 public:
@@ -312,6 +321,8 @@ void MainWindowShow::processChosenSticker(
 }
 
 } // namespace
+
+const char kOptionExternalVideoPlayer[] = "external-video-player";
 
 void ActivateWindow(not_null<SessionController*> controller) {
 	Ui::ActivateWindow(controller->widget());
@@ -3196,6 +3207,13 @@ void SessionController::openDocument(
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	} else if (showInMediaView) {
+		const auto filepath = document->filepath();
+		if (OptionExternalVideoPlayer.value()
+			&& document->isVideoFile()
+			&& !filepath.isEmpty()) {
+			File::Launch(filepath);
+			return;
+		}
 		using namespace Media::View;
 		const auto saved = session().local().mediaLastPlaybackPosition(
 			document->id);

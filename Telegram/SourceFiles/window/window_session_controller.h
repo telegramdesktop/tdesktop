@@ -108,6 +108,8 @@ class ChatSwitchProcess;
 struct PeerByLinkInfo;
 struct SeparateId;
 
+extern const char kOptionExternalVideoPlayer[];
+
 struct PeerThemeOverride {
 	PeerData *peer = nullptr;
 	std::shared_ptr<Ui::ChatTheme> theme;

@@ -20,8 +20,6 @@ namespace Data {
 
 class DocumentMedia;
 
-extern const char kOptionExternalVideoPlayer[];
-
 base::binary_guard ReadBackgroundImageAsync(
 	not_null<Data::DocumentMedia*> media,
 	FnMut<QImage(QImage)> postprocess,

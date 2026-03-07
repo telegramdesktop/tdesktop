@@ -38,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/notifications_manager.h"
 #include "storage/localimageloader.h"
-#include "data/data_document_resolver.h"
 #include "info/info_flexible_scroll.h"
 #include "chat_helpers/stickers_list_widget.h"
 #include "styles/style_settings.h"
@@ -168,7 +167,7 @@ void SetupExperimental(
 	addToggle(Core::kOptionFreeType);
 	addToggle(Core::kOptionSkipUrlSchemeRegister);
 	addToggle(Core::kOptionDeadlockDetector);
-	addToggle(Data::kOptionExternalVideoPlayer);
+	addToggle(Window::kOptionExternalVideoPlayer);
 	addToggle(Window::kOptionNewWindowsSizeAsFirst);
 	addToggle(MTP::details::kOptionPreferIPv6);
 	if (base::options::lookup<bool>(kOptionFastButtonsMode).value()) {
