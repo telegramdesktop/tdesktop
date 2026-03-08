@@ -280,6 +280,7 @@ FieldHeader::FieldHeader(
 	std::make_unique<ForwardPanel>([=] { customEmojiRepaint(); }))
 , _data(&_show->session().data())
 , _cancel(Ui::CreateChild<Ui::IconButton>(this, st::historyReplyCancel)) {
+	_cancel->setAccessibleName(tr::lng_cancel(tr::now));
 	resize(QSize(parent->width(), st::historyReplyHeight));
 	init();
 }
@@ -1997,6 +1998,11 @@ void ComposeControls::show() {
 }
 
 void ComposeControls::init() {
+	if (_attachToggle) {
+		_attachToggle->setAccessibleName(tr::lng_attach(tr::now));
+	}
+	_tabbedSelectorToggle->setAccessibleName(tr::lng_emoji_sticker_gif(tr::now));
+
 	initField();
 	initTabbedSelector();
 	initSendButton();
@@ -2015,6 +2021,7 @@ void ComposeControls::init() {
 	}, _wrap->lifetime());
 
 	if (_botCommandStart) {
+		_botCommandStart->setAccessibleName(tr::lng_bot_commands_start(tr::now));
 		_botCommandStart->setClickedCallback([=] { setText({ "/" }); });
 	}
 
@@ -3803,6 +3810,9 @@ bool ComposeControls::updateReplaceMediaButton() {
 	_replaceMedia = std::make_unique<Ui::IconButton>(
 		_wrap.get(),
 		_canReplaceMedia ? st::historyReplaceMedia : st::historyAddMedia);
+	_replaceMedia->setAccessibleName(_canReplaceMedia
+		? tr::lng_attach_replace(tr::now)
+		: tr::lng_attach(tr::now));
 	const auto hideDuration = st::historyReplaceMedia.ripple.hideDuration;
 	_replaceMedia->setClickedCallback([=] {
 		base::call_delayed(hideDuration, _wrap.get(), [=] {
