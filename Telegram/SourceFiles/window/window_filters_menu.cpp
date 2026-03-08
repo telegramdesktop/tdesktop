@@ -68,6 +68,7 @@ FiltersMenu::~FiltersMenu() = default;
 void FiltersMenu::setup() {
 	setupDragAndDrop();
 	setupMainMenuIcon();
+	_menu.setIsMenuButton(true);
 	_menu.setAccessibleName(tr::lng_main_menu(tr::now));
 
 	_outer.setAttribute(Qt::WA_OpaquePaintEvent);
