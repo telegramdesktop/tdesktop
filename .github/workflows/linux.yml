@@ -89,7 +89,7 @@ jobs:
           restore-keys: ${{ runner.OS }}-libs-
 
       - name: Libraries.
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: Telegram/build/docker/centos_env
           load: ${{ env.ONLY_CACHE == 'false' }}
