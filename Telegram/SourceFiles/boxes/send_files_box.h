@@ -171,6 +171,7 @@ private:
 		[[nodiscard]] rpl::producer<int> itemDeleteRequest() const;
 		[[nodiscard]] rpl::producer<int> itemReplaceRequest() const;
 		[[nodiscard]] rpl::producer<int> itemModifyRequest() const;
+		[[nodiscard]] rpl::producer<int> itemRenameRequest() const;
 		[[nodiscard]] rpl::producer<int> itemEditCoverRequest() const;
 		[[nodiscard]] rpl::producer<int> itemClearCoverRequest() const;
 		[[nodiscard]] rpl::producer<> orderUpdated() const;
@@ -182,6 +183,7 @@ private:
 		[[nodiscard]] QImage generatePriceTagBackground() const;
 		[[nodiscard]] bool setSingleFileDisplayName(
 			const QString &displayName);
+		[[nodiscard]] bool handlesRenameByContextMenu() const;
 		[[nodiscard]] bool setSingleFileCaption(
 			int index,
 			const TextWithTags &caption);

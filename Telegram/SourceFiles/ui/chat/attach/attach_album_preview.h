@@ -52,6 +52,9 @@ public:
 	[[nodiscard]] rpl::producer<int> thumbModified() const {
 		return _thumbModified.events();
 	}
+	[[nodiscard]] rpl::producer<int> thumbRenameRequested() const {
+		return _thumbRenameRequested.events();
+	}
 	[[nodiscard]] rpl::producer<int> thumbEditCoverRequested() const {
 		return _thumbEditCoverRequested.events();
 	}
@@ -132,6 +135,7 @@ private:
 	rpl::event_stream<int> _thumbDeleted;
 	rpl::event_stream<int> _thumbChanged;
 	rpl::event_stream<int> _thumbModified;
+	rpl::event_stream<int> _thumbRenameRequested;
 	rpl::event_stream<int> _thumbEditCoverRequested;
 	rpl::event_stream<int> _thumbClearCoverRequested;
 	rpl::event_stream<> _orderUpdated;

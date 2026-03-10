@@ -37,7 +37,9 @@ ItemSingleMediaPreview::ItemSingleMediaPreview(
 	not_null<HistoryItem*> item,
 	AttachControls::Type type)
 : AbstractSingleMediaPreview(parent, st, type, [=](AttachActionType type) {
-	if (type == AttachActionType::EditCover) {
+	if (type == AttachActionType::Rename) {
+		return false;
+	} else if (type == AttachActionType::EditCover) {
 		return _isVideoFile;
 	}
 	return true;

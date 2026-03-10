@@ -13,6 +13,7 @@ namespace Ui {
 
 enum class AttachActionType {
 	ToggleSpoiler,
+	Rename,
 	EditCover,
 	ClearCover,
 };

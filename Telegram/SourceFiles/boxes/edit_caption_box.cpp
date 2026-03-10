@@ -489,7 +489,9 @@ void EditCaptionBox::rebuildPreview() {
 			gifPaused,
 			file,
 			[=](Ui::AttachActionType type) {
-				return (type != Ui::AttachActionType::EditCover) || _isVideo;
+				return (type == Ui::AttachActionType::Rename)
+					? false
+					: (type != Ui::AttachActionType::EditCover) || _isVideo;
 			},
 			Ui::AttachControls::Type::EditOnly);
 		_isPhoto = (media && media->isPhoto());
