@@ -8220,6 +8220,9 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 	auto button = object_ptr<Ui::IconButton>(
 		this,
 		close ? st::historyReplyCancel : st::historyPinnedShowAll);
+	button->setAccessibleName(close
+		? tr::lng_cancel(tr::now)
+		: tr::lng_settings_events_pinned(tr::now));
 	button->clicks(
 	) | rpl::on_next([=] {
 		if (close) {
