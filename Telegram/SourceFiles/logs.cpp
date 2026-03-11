@@ -155,19 +155,19 @@ private:
 
 				files[type]->close();
 
-				const auto reopenStart = [&] {
-					files[type]->setFileName(startName);
-					files[type]->open(mode | QIODevice::Append);
+				const auto reopenStart = [&](const QString &name) {
+					files[type]->setFileName(name);
+					return files[type]->open(mode | QIODevice::Append);
 				};
 
 				auto source = QFile(startName);
 				if (!source.rename(targetName)) {
-					reopenStart();
-					LOG(("Could not rename '%1' to '%2' to start new logging: %3").arg(startName, targetName, source.errorString()));
+					if (reopenStart(startName)) {
+						LOG(("Could not rename '%1' to '%2' to start new logging: %3").arg(startName, targetName, source.errorString()));
+					}
 					return false;
 				}
-				files[type]->setFileName(targetName);
-				if (!files[type]->open(mode | QIODevice::Append)) {
+				if (!reopenStart(targetName)) {
 					LOG(("Could not open '%1' file to start new logging: %2").arg(targetName, files[type]->errorString()));
 					return false;
 				}
