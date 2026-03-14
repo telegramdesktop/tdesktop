@@ -19,7 +19,7 @@ RUN dnf -y install epel-release \
 		pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
 		libdrm-devel vulkan-devel libva-devel libvdpau-devel libselinux-devel \
 		libmount-devel systemd-devel glib2-devel gobject-introspection-devel \
-		at-spi2-core-devel gtk3-devel boost1.78-devel \
+		at-spi2-core-devel gtk3-devel \
 	&& dnf clean all
 
 RUN alternatives --set python3 /usr/bin/python3.11
@@ -767,6 +767,14 @@ RUN git clone -b v$QT-rc1 --depth=1 https://github.com/qt/qt5.git \
 	&& cd .. \
 	&& rm -rf qt5
 
+FROM builder AS boost
+RUN curl -sSL https://archives.boost.io/release/1.90.0/source/boost_1_90_0.tar.gz | tar -xz \
+	&& cd boost_* \
+	&& ./bootstrap.sh --prefix=/usr/src/boost-cache/usr/local --with-libraries=regex \
+	&& ./b2 release link=static install \
+	&& cd .. \
+	&& rm -rf boost_*
+
 FROM builder AS breakpad
 RUN git clone -b v2024.02.16 --depth=1 https://chromium.googlesource.com/breakpad/breakpad.git \
 	&& cd breakpad \
@@ -873,6 +881,7 @@ COPY --link --from=openal /usr/src/openal-cache /
 COPY --link --from=openssl /usr/src/openssl-cache /
 COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
 COPY --link --from=qt /usr/src/qt-cache /
+COPY --link --from=boost /usr/src/boost-cache /
 COPY --link --from=breakpad /usr/src/breakpad-cache /
 COPY --link --from=webrtc /usr/src/webrtc-cache /
 COPY --link --from=ada /usr/src/ada-cache /
@@ -882,9 +891,6 @@ COPY --link --from=patches /usr/src/patches patches
 RUN patch -p1 -d /usr/lib64/gobject-introspection -i $PWD/patches/gobject-introspection.patch && rm -rf patches
 
 WORKDIR /usr/src/tdesktop
-ENV BOOST_INCLUDEDIR=/usr/include/boost1.78
-ENV BOOST_LIBRARYDIR=/usr/lib64/boost1.78
-
 USER user
 VOLUME [ "/usr/src/tdesktop" ]
 CMD [ "/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh" ]
