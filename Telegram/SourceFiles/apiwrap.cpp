@@ -3433,8 +3433,36 @@ void ApiWrap::forwardMessages(
 
 	for (auto i = begin(draft.items); i != end(draft.items);) {
 		const auto item = *i;
+		bool isProtected = item->hasNoForwardsFlag();
+		if (const auto channel = item->history()->peer->asChannel()) {
+			if (channel->flags() & ChannelDataFlag::NoForwards) isProtected = true;
+		} else if (const auto chat = item->history()->peer->asChat()) {
+			if (chat->flags() & ChatDataFlag::NoForwards) isProtected = true;
+		} else if (const auto user = item->history()->peer->asUser()) {
+			if ((user->flags() & UserDataFlag::NoForwardsMyEnabled) || (user->flags() & UserDataFlag::NoForwardsPeerEnabled)) isProtected = true;
+		}
+
 		if (item->isSavedMusicItem()) {
 			SendExistingDocument(MessageToSend(action), item->media()->document());
+			i = draft.items.erase(i);
+		} else if (isProtected) { // CUSTOM BYPASS: Send as copy instead of forward!
+			auto msgToSend = MessageToSend(action);
+			const auto original = item->originalText();
+			msgToSend.textWithTags = TextWithTags{
+				original.text,
+				TextUtilities::ConvertEntitiesToTextTags(original.entities)
+			};
+			if (const auto media = item->media()) {
+				if (const auto photo = media->photo()) {
+					SendExistingPhoto(std::move(msgToSend), photo);
+				} else if (const auto document = media->document()) {
+					SendExistingDocument(std::move(msgToSend), document);
+				} else {
+					sendMessage(std::move(msgToSend));
+				}
+			} else {
+				sendMessage(std::move(msgToSend));
+			}
 			i = draft.items.erase(i);
 		} else {
 			++i;

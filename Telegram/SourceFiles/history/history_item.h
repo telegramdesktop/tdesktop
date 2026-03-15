@@ -449,6 +449,7 @@ public:
 	[[nodiscard]] bool canStopPoll() const;
 	[[nodiscard]] bool forbidsForward() const;
 	[[nodiscard]] bool forbidsSaving() const;
+	[[nodiscard]] bool hasNoForwardsFlag() const; // CUSTOM BYPASS CHECK
 	[[nodiscard]] bool allowsSendNow() const;
 	[[nodiscard]] bool allowsReschedule() const;
 	[[nodiscard]] bool allowsForward() const;

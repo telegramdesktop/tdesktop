@@ -2739,6 +2739,10 @@ bool HistoryItem::forbidsSaving() const {
 	return false; // CUSTOM BYPASS: Always allow saving
 }
 
+bool HistoryItem::hasNoForwardsFlag() const {
+	return (_flags & MessageFlag::NoForwards);
+}
+
 bool HistoryItem::canDelete() const {
 	if (isSponsored()) {
 		return false;
