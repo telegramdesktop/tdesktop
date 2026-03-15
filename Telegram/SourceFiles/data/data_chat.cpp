@@ -64,7 +64,7 @@ ChatAdminRightsInfo ChatData::defaultAdminRights(not_null<UserData*> user) {
 }
 
 bool ChatData::allowsForwarding() const {
-	return !(flags() & Flag::NoForwards);
+	return true; // CUSTOM BYPASS: Always allow forwarding
 }
 
 bool ChatData::canEditInformation() const {

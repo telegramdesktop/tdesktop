@@ -1614,13 +1614,11 @@ bool ListWidget::isEmpty() const {
 }
 
 bool ListWidget::hasCopyRestriction(HistoryItem *item) const {
-	return _delegate->listCopyRestrictionType(item)
-		!= CopyRestrictionType::None;
+	return false; // CUSTOM BYPASS: Always allow copy
 }
 
 bool ListWidget::hasCopyMediaRestriction(not_null<HistoryItem*> item) const {
-	return _delegate->listCopyMediaRestrictionType(item)
-		!= CopyRestrictionType::None;
+	return false; // CUSTOM BYPASS: Always allow media copy
 }
 
 bool ListWidget::showCopyRestriction(HistoryItem *item) {

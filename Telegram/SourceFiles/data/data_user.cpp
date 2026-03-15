@@ -647,8 +647,7 @@ bool UserData::readDatesPrivate() const {
 }
 
 bool UserData::allowsForwarding() const {
-	return !(flags() & Flag::NoForwardsMyEnabled)
-		&& !(flags() & Flag::NoForwardsPeerEnabled);
+	return true; // CUSTOM BYPASS: Always allow forwarding
 }
 
 void UserData::setNoForwardsFlags(bool myEnabled, bool peerEnabled) {

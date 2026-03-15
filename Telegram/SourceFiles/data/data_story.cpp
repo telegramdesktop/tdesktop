@@ -408,7 +408,7 @@ StoryPrivacy Story::privacy() const {
 }
 
 bool Story::forbidsForward() const {
-	return _noForwards;
+	return false; // CUSTOM BYPASS: Always allow forwarding
 }
 
 bool Story::edited() const {

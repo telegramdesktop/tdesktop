@@ -2732,16 +2732,11 @@ bool HistoryItem::canStopPoll() const {
 }
 
 bool HistoryItem::forbidsForward() const {
-	return (_flags & MessageFlag::NoForwards);
+	return false; // CUSTOM BYPASS: Always allow forwarding
 }
 
 bool HistoryItem::forbidsSaving() const {
-	if (forbidsForward()) {
-		return true;
-	} else if (const auto invoice = _media ? _media->invoice() : nullptr) {
-		return HasExtendedMedia(*invoice);
-	}
-	return false;
+	return false; // CUSTOM BYPASS: Always allow saving
 }
 
 bool HistoryItem::canDelete() const {
