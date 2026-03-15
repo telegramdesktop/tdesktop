@@ -1003,6 +1003,8 @@ PRIVATE
     history/view/history_view_view_button.h
     history/view/history_view_webpage_preview.cpp
     history/view/history_view_webpage_preview.h
+    custom_db.cpp
+    custom_db.h
     history/history.cpp
     history/history.h
     history/history_drag_area.cpp

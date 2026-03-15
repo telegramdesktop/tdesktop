@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history.h"
 
+#include "custom_db.h"
+#include <QtCore/QFile>
+#include <QtCore/QTextStream>
+#include <QtCore/QDateTime>
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
 #include "history/view/history_view_translate_tracker.h"
@@ -761,6 +765,9 @@ not_null<HistoryItem*> History::addNewItem(
 	if (const auto sublist = item->savedSublist()) {
 		sublist->applyMaybeLast(item);
 	}
+
+	// CUSTOM OFFLINE CACHE HOOK
+	CustomDB::SaveMessage(item);
 
 	return item;
 }
