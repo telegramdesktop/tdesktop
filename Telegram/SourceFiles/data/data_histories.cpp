@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_histories.h"
 
+#include <QtCore/QSettings>
 #include "api/api_text_entities.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
@@ -700,24 +701,27 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 	DEBUG_LOG(("Reading: sending request now with till %1."
 		).arg(tillId.bare));
 
-	// CUSTOM GHOST MODE START: Pretend we sent it, but actually don't
-	const auto statePtr = lookup(history);
-	if (statePtr) {
-		if (statePtr->sentReadTill == tillId) {
-			statePtr->sentReadDone = true;
-			if (history->unreadCountRefreshNeeded(tillId)) {
-				requestDialogEntry(history);
+	QSettings customSettings("CustomMod", "TelegramDesktop");
+	if (customSettings.value("ghost_mode", true).toBool()) {
+		// CUSTOM GHOST MODE START: Pretend we sent it, but actually don't
+		const auto statePtr = lookup(history);
+		if (statePtr) {
+			if (statePtr->sentReadTill == tillId) {
+				statePtr->sentReadDone = true;
+				if (history->unreadCountRefreshNeeded(tillId)) {
+					requestDialogEntry(history);
+				} else {
+					statePtr->sentReadTill = 0;
+				}
 			} else {
-				statePtr->sentReadTill = 0;
+				Assert(!statePtr->sentReadTill || statePtr->sentReadTill > tillId);
 			}
-		} else {
-			Assert(!statePtr->sentReadTill || statePtr->sentReadTill > tillId);
 		}
+		history->validateMonoAndForumUnread(tillId);
+		sendReadRequests();
+		return;
+		// CUSTOM GHOST MODE END
 	}
-	history->validateMonoAndForumUnread(tillId);
-	sendReadRequests();
-	return;
-	// CUSTOM GHOST MODE END
 
 	sendRequest(history, RequestType::ReadInbox, [=](Fn<void()> finish) {
 		DEBUG_LOG(("Reading: sending request invoked with till %1."

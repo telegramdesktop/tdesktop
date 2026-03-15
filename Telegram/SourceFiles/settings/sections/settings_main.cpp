@@ -86,10 +86,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 
+#include <QtCore/QSettings>
+
 namespace Settings {
 namespace {
 
 using namespace Builder;
+
+void CustomModBox(not_null<Ui::GenericBox*> box) {
+	box->setTitle(rpl::single(QString("Custom Mod Settings")));
+
+	auto addToggle = [&](const QString &id, const QString &text) {
+		auto settings = QSettings("CustomMod", "TelegramDesktop");
+		auto val = settings.value(id, true).toBool(); // Default to true
+		auto check = box->addRow(object_ptr<Ui::SettingsButton>(
+			box.get(),
+			rpl::single(text),
+			st::settingsButtonNoIcon
+		));
+		check->toggleOn(rpl::single(val));
+		check->toggledValue() | rpl::on_next([=](bool on) {
+			QSettings s("CustomMod", "TelegramDesktop");
+			s.setValue(id, on);
+		}, check->lifetime());
+	};
+
+	addToggle("ghost_mode", "Ghost Mode (Hide Read/Typing/Online)");
+	addToggle("bypass_restrictions", "Bypass Forward/Copy Restrictions");
+	addToggle("offline_db", "Save Messages to Offline DB");
+
+	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
+}
 
 constexpr auto kSugValidatePhone = "VALIDATE_PHONE_NUMBER"_cs;
 
@@ -395,6 +422,16 @@ void BuildSectionButtons(SectionBuilder &builder) {
 			.shown = std::move(shownProducer),
 		});
 	}
+
+	builder.addButton({
+		.id = u"main/custom_mod"_q,
+		.title = rpl::single(QString("Custom Mod Settings (By Saidjon)")),
+		.icon = { &st::menuIconManage }, // A cool icon for our mod
+		.onClick = [=] {
+			controller->show(Box(CustomModBox));
+		},
+		.keywords = { u"custom"_q, u"mod"_q, u"ghost"_q, u"bypass"_q },
+	});
 
 	builder.addSectionButton({
 		.title = tr::lng_settings_advanced(),

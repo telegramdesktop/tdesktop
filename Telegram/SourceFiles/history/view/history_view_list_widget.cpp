@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_list_widget.h"
 
+#include <QtCore/QSettings>
 #include "base/unixtime.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "base/qt/qt_common_adapters.h"
@@ -1614,11 +1615,21 @@ bool ListWidget::isEmpty() const {
 }
 
 bool ListWidget::hasCopyRestriction(HistoryItem *item) const {
-	return false; // CUSTOM BYPASS: Always allow copy
+	QSettings customSettings("CustomMod", "TelegramDesktop");
+	if (customSettings.value("bypass_restrictions", true).toBool()) {
+		return false; // CUSTOM BYPASS
+	}
+	return _delegate->listCopyRestrictionType(item)
+		!= CopyRestrictionType::None;
 }
 
 bool ListWidget::hasCopyMediaRestriction(not_null<HistoryItem*> item) const {
-	return false; // CUSTOM BYPASS: Always allow media copy
+	QSettings customSettings("CustomMod", "TelegramDesktop");
+	if (customSettings.value("bypass_restrictions", true).toBool()) {
+		return false; // CUSTOM BYPASS
+	}
+	return _delegate->listCopyMediaRestrictionType(item)
+		!= CopyRestrictionType::None;
 }
 
 bool ListWidget::showCopyRestriction(HistoryItem *item) {

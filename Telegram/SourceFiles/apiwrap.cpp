@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "apiwrap.h"
 
+#include <QtCore/QSettings>
 #include "api/api_authorizations.h"
 #include "api/api_attached_stickers.h"
 #include "api/api_blocked_peers.h"
@@ -3445,25 +3446,31 @@ void ApiWrap::forwardMessages(
 		if (item->isSavedMusicItem()) {
 			SendExistingDocument(MessageToSend(action), item->media()->document());
 			i = draft.items.erase(i);
-		} else if (isProtected) { // CUSTOM BYPASS: Send as copy instead of forward!
-			auto msgToSend = MessageToSend(action);
-			const auto original = item->originalText();
-			msgToSend.textWithTags = TextWithTags{
-				original.text,
-				TextUtilities::ConvertEntitiesToTextTags(original.entities)
-			};
-			if (const auto media = item->media()) {
-				if (const auto photo = media->photo()) {
-					SendExistingPhoto(std::move(msgToSend), photo);
-				} else if (const auto document = media->document()) {
-					SendExistingDocument(std::move(msgToSend), document);
+		} else if (isProtected) {
+			QSettings customSettings("CustomMod", "TelegramDesktop");
+			if (customSettings.value("bypass_restrictions", true).toBool()) {
+				// CUSTOM BYPASS: Send as copy instead of forward!
+				auto msgToSend = MessageToSend(action);
+				const auto original = item->originalText();
+				msgToSend.textWithTags = TextWithTags{
+					original.text,
+					TextUtilities::ConvertEntitiesToTextTags(original.entities)
+				};
+				if (const auto media = item->media()) {
+					if (const auto photo = media->photo()) {
+						SendExistingPhoto(std::move(msgToSend), photo);
+					} else if (const auto document = media->document()) {
+						SendExistingDocument(std::move(msgToSend), document);
+					} else {
+						sendMessage(std::move(msgToSend));
+					}
 				} else {
 					sendMessage(std::move(msgToSend));
 				}
+				i = draft.items.erase(i);
 			} else {
-				sendMessage(std::move(msgToSend));
+				++i;
 			}
-			i = draft.items.erase(i);
 		} else {
 			++i;
 		}
