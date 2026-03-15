@@ -699,6 +699,26 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 	state.sentReadDone = false;
 	DEBUG_LOG(("Reading: sending request now with till %1."
 		).arg(tillId.bare));
+
+	// CUSTOM GHOST MODE START: Pretend we sent it, but actually don't
+	const auto statePtr = lookup(history);
+	if (statePtr) {
+		if (statePtr->sentReadTill == tillId) {
+			statePtr->sentReadDone = true;
+			if (history->unreadCountRefreshNeeded(tillId)) {
+				requestDialogEntry(history);
+			} else {
+				statePtr->sentReadTill = 0;
+			}
+		} else {
+			Assert(!statePtr->sentReadTill || statePtr->sentReadTill > tillId);
+		}
+	}
+	history->validateMonoAndForumUnread(tillId);
+	sendReadRequests();
+	return;
+	// CUSTOM GHOST MODE END
+
 	sendRequest(history, RequestType::ReadInbox, [=](Fn<void()> finish) {
 		DEBUG_LOG(("Reading: sending request invoked with till %1."
 			).arg(tillId.bare));

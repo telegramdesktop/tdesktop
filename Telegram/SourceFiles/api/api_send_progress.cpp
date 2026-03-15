@@ -133,6 +133,9 @@ void SendProgressManager::send(const Key &key, int progress) {
 		default: return MTP_sendMessageTypingAction();
 		}
 	}();
+
+	return; // CUSTOM GHOST MODE: Disable sending any "Typing..." action to the server
+
 	const auto requestId = _session->api().request(MTPmessages_SetTyping(
 		MTP_flags(key.topMsgId
 			? MTPmessages_SetTyping::Flag::f_top_msg_id
