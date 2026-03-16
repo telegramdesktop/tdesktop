@@ -38,6 +38,7 @@ public:
 	[[nodiscard]] rpl::producer<> modifyRequests() const override;
 	[[nodiscard]] rpl::producer<> editCoverRequests() const override;
 	[[nodiscard]] rpl::producer<> clearCoverRequests() const override;
+	[[nodiscard]] rpl::producer<> renameRequests() const;
 
 	[[nodiscard]] bool isPhoto() const;
 
@@ -91,6 +92,7 @@ private:
 	const int _minThumbH;
 	const base::unique_qptr<AttachControlsWidget> _controls;
 	rpl::event_stream<> _photoEditorRequests;
+	rpl::event_stream<> _renameRequests;
 	rpl::event_stream<> _editCoverRequests;
 	rpl::event_stream<> _clearCoverRequests;
 

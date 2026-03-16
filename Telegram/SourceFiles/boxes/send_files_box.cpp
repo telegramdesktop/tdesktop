@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
 
+#include <QtCore/QFileInfo>
 #include <QtCore/QMimeData>
 
 namespace {
@@ -460,6 +461,19 @@ rpl::producer<int> SendFilesBox::Block::itemModifyRequest() const {
 	}
 }
 
+rpl::producer<int> SendFilesBox::Block::itemRenameRequest() const {
+	using namespace rpl::mappers;
+
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
+		return album->thumbRenameRequested() | rpl::map(_1 + _from);
+	} else if (_isSingleMedia) {
+		const auto media = static_cast<Ui::SingleMediaPreview*>(_preview.get());
+		return media->renameRequests() | rpl::map_to(_from);
+	}
+	return rpl::never<int>();
+}
+
 rpl::producer<int> SendFilesBox::Block::itemEditCoverRequest() const {
 	using namespace rpl::mappers;
 
@@ -588,6 +602,10 @@ bool SendFilesBox::Block::setSingleFileDisplayName(
 	const auto single = static_cast<Ui::SingleFilePreview*>(_preview.get());
 	single->setDisplayName(displayName);
 	return true;
+}
+
+bool SendFilesBox::Block::handlesRenameByContextMenu() const {
+	return !_isAlbum && !_isSingleMedia;
 }
 
 bool SendFilesBox::Block::setSingleFileCaption(
@@ -1217,12 +1235,17 @@ void SendFilesBox::pushBlock(int from, int till) {
 		[=](const Ui::PreparedFile &file, Ui::AttachActionType type) {
 			return (type == Ui::AttachActionType::ToggleSpoiler)
 				? !hasPrice()
+				: (type == Ui::AttachActionType::Rename)
+				? (file.isVideoFile() || !_sendWay.current().sendImagesAsPhotos())
 				: (type == Ui::AttachActionType::EditCover)
-				? (file.isVideoFile()
+				? (_sendWay.current().sendImagesAsPhotos()
+					&& file.isVideoFile()
 					&& (_toPeer->isBroadcast() || _toPeer->isSelf()))
-				: (file.videoCover != nullptr);
+				: (_sendWay.current().sendImagesAsPhotos()
+					&& file.videoCover != nullptr);
 		});
 	auto &block = _blocks.back();
+	const auto handlesRenameByContextMenu = block.handlesRenameByContextMenu();
 	const auto widget = _inner->add(
 		block.takeWidget(),
 		QMargins(0, _inner->count() ? st::sendMediaRowSkip : 0, 0, 0));
@@ -1336,6 +1359,20 @@ void SendFilesBox::pushBlock(int from, int till) {
 	}, widget->lifetime());
 
 	const auto openedOnce = widget->lifetime().make_state<bool>(false);
+	block.itemRenameRequest(
+	) | rpl::on_next([=](int index) {
+		applyBlockChanges();
+
+		auto &file = _list.files[index];
+		_show->show(Box(RenameFileBox, file.displayName, [=](QString newName) {
+			const auto displayName = std::move(newName);
+			_list.files[index].displayName = displayName;
+			if (!setDisplayNameInSingleFilePreview(index, displayName)) {
+				refreshAllAfterChanges(from);
+			}
+		}));
+	}, widget->lifetime());
+
 	block.itemModifyRequest(
 	) | rpl::on_next([=, show = _show](int index) {
 		applyBlockChanges();
@@ -1440,7 +1477,9 @@ void SendFilesBox::pushBlock(int from, int till) {
 			not_null<QEvent*> e) {
 		if (e->type() == QEvent::ContextMenu) {
 			const auto mouse = static_cast<QContextMenuEvent*>(e.get());
-			if (from >= till || from >= _list.files.size()) {
+			if (!handlesRenameByContextMenu
+				|| from >= till
+				|| from >= _list.files.size()) {
 				return base::EventFilterResult::Continue;
 			}
 			auto fileIndex = from;

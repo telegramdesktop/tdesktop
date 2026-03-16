@@ -623,6 +623,11 @@ void AlbumPreview::showContextMenu(
 		st::popupMenuWithIcons);
 
 	const auto index = orderIndex(thumb);
+	if (_actionAllowed(index, AttachActionType::Rename)) {
+		_menu->addAction(tr::lng_rename_file(tr::now), [=] {
+			_thumbRenameRequested.fire_copy(index);
+		}, &st::menuIconEdit);
+	}
 	if (_actionAllowed(index, AttachActionType::ToggleSpoiler)
 		&& _sendWay.sendImagesAsPhotos()) {
 		const auto spoilered = thumb->hasSpoiler();

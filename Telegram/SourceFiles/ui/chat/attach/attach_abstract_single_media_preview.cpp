@@ -65,6 +65,10 @@ rpl::producer<> AbstractSingleMediaPreview::clearCoverRequests() const {
 	return _clearCoverRequests.events();
 }
 
+rpl::producer<> AbstractSingleMediaPreview::renameRequests() const {
+	return _renameRequests.events();
+}
+
 void AbstractSingleMediaPreview::setSendWay(SendFilesWay way) {
 	_sendWay = way;
 	update();
@@ -286,6 +290,11 @@ void AbstractSingleMediaPreview::showContextMenu(QPoint position) {
 		_st.tabbed.menu);
 
 	const auto &icons = _st.tabbed.icons;
+	if (_actionAllowed(AttachActionType::Rename)) {
+		_menu->addAction(tr::lng_rename_file(tr::now), [=] {
+			_renameRequests.fire({});
+		}, &st::menuIconEdit);
+	}
 	if (_actionAllowed(AttachActionType::ToggleSpoiler)
 		&& _sendWay.sendImagesAsPhotos()
 		&& supportsSpoilers()) {
