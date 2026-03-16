@@ -118,6 +118,63 @@ constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 constexpr auto kMaxStarSendEffects = 4;
 constexpr auto kMaxStarEffects = 4;
 constexpr auto kStarEffectDuration = 2 * crl::time(1000);
+
+[[nodiscard]] bool ExtractCurrentQuote(
+		not_null<HistoryItem*> item,
+		const FullReplyTo &reply,
+		TextWithEntities &result) {
+	if (reply.quote.empty()) {
+		return false;
+	}
+	const auto &quote = reply.quote.text;
+	auto text = item->originalText();
+	const auto &original = text.text;
+	const auto offset = reply.quoteOffset;
+	const auto length = quote.size();
+	if (!((offset >= 0)
+		&& (length > 0)
+		&& (offset + length <= original.size())
+		&& (QStringView(original).mid(offset, length) == quote))) {
+		return false;
+	}
+	const auto till = offset + length;
+	text.text = text.text.mid(offset, length);
+	const auto allowed = std::array{
+		EntityType::Bold,
+		EntityType::Italic,
+		EntityType::Underline,
+		EntityType::StrikeOut,
+		EntityType::Spoiler,
+		EntityType::CustomEmoji,
+		EntityType::FormattedDate,
+	};
+	for (auto i = text.entities.begin(); i != text.entities.end();) {
+		const auto entityOffset = i->offset();
+		const auto entityTill = entityOffset + i->length();
+		if ((entityTill <= offset)
+			|| (entityOffset >= till)
+			|| !ranges::contains(allowed, i->type())) {
+			i = text.entities.erase(i);
+		} else {
+			if (entityTill > till) {
+				i->shrinkFromRight(entityTill - till);
+			}
+			if (entityOffset < offset) {
+				const auto shrink = offset - entityOffset;
+				*i = EntityInText(
+					i->type(),
+					0,
+					i->length() - shrink,
+					i->data());
+			} else {
+				i->shiftLeft(offset);
+			}
+			++i;
+		}
+	}
+	result = std::move(text);
+	return true;
+}
 constexpr auto kStarEffectRotationMax = 12;
 constexpr auto kStarEffectScaleMin = 0.3;
 constexpr auto kStarEffectScaleMax = 0.7;
@@ -357,7 +414,12 @@ void FieldHeader::init() {
 		Data::MessageUpdate::Flag::Edited
 		| Data::MessageUpdate::Flag::Destroyed
 	) | rpl::filter([=](const Data::MessageUpdate &update) {
-		return (update.item == _shownMessage);
+		const auto editId = _editMsgId.current();
+		if (editId) {
+			return (update.item->fullId() == editId);
+		}
+		const auto replyId = _replyTo.current().messageId;
+		return replyId && (update.item->fullId() == replyId);
 	}) | rpl::on_next([=](const Data::MessageUpdate &update) {
 		if (update.flags & Data::MessageUpdate::Flag::Destroyed) {
 			if (_editMsgId.current() == update.item->fullId()) {
@@ -367,7 +429,29 @@ void FieldHeader::init() {
 				_replyCancelled.fire({});
 			}
 		} else {
-			updateShownMessageText();
+			const auto reply = _replyTo.current();
+			if ((reply.messageId == update.item->fullId())
+				&& !reply.quote.empty()) {
+				auto refreshedQuote = TextWithEntities();
+				if (!ExtractCurrentQuote(update.item, reply, refreshedQuote)) {
+					auto updated = reply;
+					updated.quote = TextWithEntities();
+					updated.quoteOffset = 0;
+					_replyTo = updated;
+					_saveDraftRequests.fire({});
+				} else if (!(refreshedQuote == reply.quote)) {
+					auto updated = reply;
+					updated.quote = std::move(refreshedQuote);
+					_replyTo = updated;
+					_saveDraftRequests.fire({});
+				}
+			}
+			const auto current = _data->message(update.item->fullId());
+			if (_shownMessage != current) {
+				setShownMessage(current);
+			} else if (_shownMessage) {
+				updateShownMessageText();
+			}
 		}
 	}, lifetime());
 
@@ -535,14 +619,15 @@ void FieldHeader::resolveMessageData() {
 		const auto now = isEditingMessage()
 			? _editMsgId.current()
 			: _replyTo.current().messageId;
-		if (now == id && !_shownMessage) {
-			if (const auto message = _data->message(peer, itemId)) {
-				setShownMessage(message);
-			} else if (isEditingMessage()) {
-				_editCancelled.fire({});
-			} else {
-				_replyCancelled.fire({});
-			}
+		if (now != id) {
+			return;
+		}
+		if (const auto message = _data->message(peer, itemId)) {
+			setShownMessage(message);
+		} else if (isEditingMessage()) {
+			_editCancelled.fire({});
+		} else {
+			_replyCancelled.fire({});
 		}
 	});
 	_data->session().api().requestMessageData(peer, itemId, callback);
