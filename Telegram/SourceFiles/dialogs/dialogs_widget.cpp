@@ -906,7 +906,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 			controller()->showThread(
 				topicJump,
 				ShowAtUnreadMsgId,
-				Window::SectionShow::Way::ClearStack);
+				Window::SectionShow::Way::Forward);
 		}
 		return;
 	} else if (sublistJump) {
@@ -920,8 +920,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 		}
 		return;
 	} else if (const auto topic = row.key.topic()) {
-		auto params = Window::SectionShow(
-			Window::SectionShow::Way::ClearStack);
+		auto params = Window::SectionShow(Window::SectionShow::Way::Forward);
 		params.highlight = Window::SearchHighlightId(_searchState.query);
 		if (row.newWindow) {
 			controller()->showInNewWindow(
@@ -956,13 +955,13 @@ void Widget::chosenRow(const ChosenRow &row) {
 			controller()->showForum(
 				forum,
 				Window::SectionShow(
-					Window::SectionShow::Way::ClearStack).withChildColumn());
+					Window::SectionShow::Way::Forward).withChildColumn());
 			if (controller()->shownForum().current() == forum
 				&& forum->peer()->viewForumAsMessages()) {
 				controller()->showThread(
 					history,
 					ShowAtUnreadMsgId,
-					Window::SectionShow::Way::ClearStack);
+					Window::SectionShow::Way::Forward);
 			}
 		}
 		return;
@@ -3423,7 +3422,9 @@ void Widget::showForum(
 		changeOpenedForum(forum, params.animated);
 		return;
 	}
-	cancelSearch({ .forceFullCancel = true });
+	if (_searchState.query.isEmpty()) {
+		cancelSearch({ .forceFullCancel = true });
+	}
 	openChildList(forum, params);
 }
 
