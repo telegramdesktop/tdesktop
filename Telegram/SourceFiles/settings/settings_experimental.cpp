@@ -233,6 +233,7 @@ void SetupExperimental(
 	addToggle(kModerateCommonGroups);
 	addToggle(kForceComposeSearchOneColumn);
 	addToggle(ChatHelpers::kOptionUnlimitedRecentStickers);
+	addToggle(kOptionShowForwardsCount);
 }
 
 } // namespace

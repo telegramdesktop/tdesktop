@@ -92,6 +92,7 @@ private:
 	void layout();
 	void layoutDateText();
 	void layoutViewsText();
+	void layoutForwardsText();
 	void layoutRepliesText();
 	void layoutEffectText();
 
@@ -119,6 +120,7 @@ private:
 	Data _data;
 	Ui::Text::String _authorEditedDate;
 	Ui::Text::String _views;
+	Ui::Text::String _forwards;
 	Ui::Text::String _replies;
 	std::unique_ptr<Effect> _effect;
 	mutable ClickHandlerPtr _replayLink;

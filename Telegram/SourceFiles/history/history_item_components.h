@@ -56,7 +56,9 @@ struct BotKeyboardButton;
 } // namespace style
 
 extern const char kOptionFastButtonsMode[];
+extern const char kOptionShowForwardsCount[];
 [[nodiscard]] bool FastButtonsMode();
+[[nodiscard]] bool ShowForwardsCountEnabled();
 
 enum class SuggestionActions : uchar {
 	None,
