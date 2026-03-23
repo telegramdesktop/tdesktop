@@ -403,7 +403,7 @@ parts:
   qt:
     source: https://github.com/qt/qt5.git
     source-depth: 1
-    source-tag: v6.11.0-rc1
+    source-tag: v6.11.0
     source-submodules:
       - qtbase
       - qtdeclarative
