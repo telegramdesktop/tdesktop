@@ -1136,7 +1136,7 @@ void TopBar::setupUserpicButton(
 			: _peer->name();
 		const auto phrase = (type == ChosenType::Suggest)
 			? &tr::lng_profile_suggest_sure
-			: (user && !user->isSelf())
+			: (user && !user->isSelf() && !_peer->isBot())
 			? &tr::lng_profile_set_personal_sure
 			: nullptr;
 		return Editor::EditorData{
