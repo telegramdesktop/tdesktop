@@ -61,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_utility.h"
 #include "window/main_window.h"
 #include "window/window_controller.h"
+#include "webrtc/webrtc_create_adm.h"
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
@@ -401,6 +402,13 @@ void Panel::initControls() {
 		} else if (const auto source = env->uniqueDesktopCaptureSource()) {
 			if (!chooseSourceActiveDeviceId().isEmpty()) {
 				chooseSourceStop();
+			} else if (chooseSourceWithAudioSupported()) {
+				const auto sourceId = *source;
+				Group::ShowUniqueCaptureOptions(
+					uiShow(),
+					crl::guard(this, [=](bool audio) {
+						chooseSourceAccepted(sourceId, audio);
+					}));
 			} else {
 				chooseSourceAccepted(*source, false);
 			}
@@ -570,15 +578,11 @@ QString Panel::chooseSourceActiveDeviceId() {
 }
 
 bool Panel::chooseSourceActiveWithAudio() {
-	return false;// _call->screenSharingWithAudio();
+	return _call->screenSharingWithAudio();
 }
 
 bool Panel::chooseSourceWithAudioSupported() {
-//#ifdef Q_OS_WIN
-//	return true;
-//#else // Q_OS_WIN
-	return false;
-//#endif // Q_OS_WIN
+	return Webrtc::LoopbackAudioCaptureSupported();
 }
 
 rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
@@ -595,7 +599,7 @@ rpl::producer<bool> Panel::startOutgoingRequests() const {
 void Panel::chooseSourceAccepted(
 		const QString &deviceId,
 		bool withAudio) {
-	_call->toggleScreenSharing(deviceId/*, withAudio*/);
+	_call->toggleScreenSharing(deviceId, withAudio);
 }
 
 void Panel::chooseSourceStop() {

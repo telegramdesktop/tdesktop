@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
 #include "core/phone_click_handler.h"
+#include "data/data_chat_participant_status.h"
 #include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
@@ -447,6 +448,14 @@ HistoryInner::HistoryInner(
 		_useCornerReaction = value;
 		if (!value) {
 			_reactionsManager->updateButton({});
+		}
+	}, lifetime());
+
+	Core::App().settings().cornerReplyValue(
+	) | rpl::on_next([=](bool value) {
+		_useCornerReply = value;
+		if (!value) {
+			_replyButtonManager->updateButton({});
 		}
 	}, lifetime());
 
@@ -1837,7 +1846,7 @@ void HistoryInner::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::MiddleButton) {
 		mouseActionCancel();
 		ClickHandler::unpressed();
-		_middleClickAutoscroll.start(e->globalPos());
+		_middleClickAutoscroll.toggleOrBeginHold(e->globalPos());
 		e->accept();
 		return;
 	}
@@ -2262,6 +2271,10 @@ void HistoryInner::mouseActionFinish(
 }
 
 void HistoryInner::mouseReleaseEvent(QMouseEvent *e) {
+	if (_middleClickAutoscroll.finishHold(e->button())) {
+		e->accept();
+		return;
+	}
 	if (_middleClickAutoscroll.active()) {
 		e->accept();
 		return;
@@ -4145,14 +4158,23 @@ void HistoryInner::elementShowPollResults(
 void HistoryInner::elementOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
-	_controller->openPhoto(photo, { context });
+	const auto draw = Data::CanSendAnyOf(
+		_history->peer,
+		Data::FilesSendRestrictions());
+	_controller->openPhoto(photo, { .id = context, .showDrawButton = draw });
 }
 
 void HistoryInner::elementOpenDocument(
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) {
-	_controller->openDocument(document, showInMediaView, { context });
+	const auto showDrawButton = Data::CanSendAnyOf(
+		_history->peer,
+		Data::FilesSendRestrictions());
+	_controller->openDocument(
+		document,
+		showInMediaView,
+		{ .id = context, .showDrawButton = showDrawButton });
 }
 
 void HistoryInner::elementCancelUpload(const FullMsgId &context) {
@@ -4324,6 +4346,9 @@ auto HistoryInner::replyButtonParameters(
 	QPoint position,
 	const HistoryView::TextState &replyState) const
 -> HistoryView::ReplyButton::ButtonParameters {
+	if (!_useCornerReply) {
+		return {};
+	}
 	const auto top = itemTop(view);
 	if (top < 0
 		|| _mouseAction == MouseAction::Dragging
@@ -4432,7 +4457,7 @@ void HistoryInner::mouseActionUpdate() {
 		lnkhost = reactionView;
 	} else if (overReplyBtn) {
 		dragState = replyBtnState;
-		lnkhost = replyBtnView;
+		lnkhost = _replyButtonManager.get();
 	} else if (item) {
 		if (item != _mouseActionItem || ((m + selectionViewOffset) - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
@@ -5203,7 +5228,7 @@ void HistoryInner::applyDragSelection(
 				toRemove.emplace_back(item.first);
 			}
 		}
-		for (const auto item : toRemove) {
+		for (const auto &item : toRemove) {
 			changeSelectionAsGroup(toItems, item, SelectAction::Deselect);
 		}
 	}

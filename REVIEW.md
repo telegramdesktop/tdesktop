@@ -173,4 +173,111 @@ auto text = tr::lng_settings_title(tr::now);
 ## std::optional access — avoid value()
 
 Do not call `std::optional::value()` because it throws an exception that is not available on older macOS targets. Use `has_value()`, `value_or()`, `operator bool()`, or `operator*` instead.
+
+## Sort includes alphabetically, nested folders first
+
+After the file's own header, sort `#include` directives alphabetically with two special rules:
+
+1. **Nested folders before files** in the same directory — like Finder / File Explorer (folders first, then files). E.g. `ui/controls/button.h` sorts before `ui/abstract_button.h`.
+2. **Style includes (`styles/style_*.h`) always go last**, separated from the rest.
+
+```cpp
+// BAD - arbitrary order, style mixed in:
+#include "media/audio/media_audio.h"
+#include "styles/style_media_player.h"
+#include "data/data_document.h"
+#include "apiwrap.h"
+
+// GOOD - alphabetical, folders first, styles last:
+#include "apiwrap.h"
+#include "data/data_document.h"
+#include "media/audio/media_audio.h"
+
+#include "styles/style_media_player.h"
+```
+
+## Use C++17 nested namespace syntax
+
+Use `namespace A::B {` instead of nesting `namespace A { namespace B {`. The closing comment mirrors the opening: `} // namespace A::B`.
+
+```cpp
+// BAD - old-style nesting:
+namespace Media {
+namespace Player {
+...
+} // namespace Player
+} // namespace Media
+
+// GOOD - C++17 nested:
+namespace Media::Player {
+...
+} // namespace Media::Player
+```
+
+## Merge consecutive branches with identical bodies
+
+When two or more consecutive `if` / `else if` branches execute the same code, combine their conditions into a single branch.
+
+```cpp
+// BAD - duplicated body:
+if (!document) {
+    finalize();
+    return;
+}
+if (!document->isSong()) {
+    finalize();
+    return;
+}
+
+// GOOD - combined:
+if (!document || !document->isSong()) {
+    finalize();
+    return;
+}
+```
+
+## Use base::take for read-and-reset
+
+When you need to read a variable's current value and reset it in one step, use `base::take(var)` instead of manually copying and clearing. `base::take` returns the old value and resets the variable to its default-constructed state.
+
+```cpp
+// BAD - manual read + reset:
+if (_playing) {
+    _listenedMs += crl::now() - _playStartedAt;
+    _playing = false;
+}
+
+// GOOD:
+if (base::take(_playing)) {
+    _listenedMs += crl::now() - _playStartedAt;
+}
+
+// BAD - copy fields then clear them one by one:
+const auto document = _document;
+const auto contextId = _contextId;
+_document = nullptr;
+_listenedMs = 0;
+if (!document) {
+    return;
+}
+
+// GOOD - take everything upfront, then validate:
+const auto document = base::take(_document);
+const auto contextId = base::take(_contextId);
+const auto duration = static_cast<int>(base::take(_listenedMs) / 1000);
+if (!document || duration <= 0) {
+    return;
+}
+```
+
+## Static member functions use PascalCase
+
+Non-static member functions use camelCase (`startBatch`, `finalize`). Static member functions use PascalCase (`ShouldTrack`, `Parse`, `Create`), matching the convention for free functions.
+
+```cpp
+// BAD - camelCase for static method:
+[[nodiscard]] static bool shouldTrack(not_null<HistoryItem*> item);
+
+// GOOD - PascalCase for static method:
+[[nodiscard]] static bool ShouldTrack(not_null<HistoryItem*> item);
 ```

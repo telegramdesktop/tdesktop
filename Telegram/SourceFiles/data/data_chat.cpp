@@ -60,7 +60,6 @@ ChatAdminRightsInfo ChatData::defaultAdminRights(not_null<UserData*> user) {
 		| Flag::InviteByLinkOrAdd
 		| Flag::PinMessages
 		| Flag::ManageCall
-		| Flag::ManageRanks
 		| (isCreator ? Flag::AddAdmins : Flag(0)));
 }
 

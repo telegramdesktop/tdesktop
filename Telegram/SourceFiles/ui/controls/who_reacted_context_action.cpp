@@ -186,6 +186,13 @@ TextParseOptions MenuTextOptions = {
 	).text;
 }
 
+[[nodiscard]] QString FormatReactionsCountString(int count) {
+	return tr::lng_context_seen_reactions_count(
+		tr::now,
+		lt_count_short,
+		count);
+}
+
 Action::Action(
 	not_null<PopupMenu*> parentMenu,
 	rpl::producer<WhoReadContent> content,
@@ -294,7 +301,15 @@ void Action::resolveMinWidth() {
 				lt_count_short,
 				_content.fullReactionsCount))
 		: QString();
-	const auto maxTextWidth = std::max(width(maxText), width(maxReacted));
+	const auto maxReactionsCount = (_content.fullReactionsCount
+			> _content.fullReadCount)
+		? FormatReactionsCountString(_content.fullReactionsCount)
+		: QString();
+	const auto maxTextWidth = std::max({
+		width(maxText),
+		width(maxReacted),
+		width(maxReactionsCount),
+	});
 	const auto maxWidth = st::defaultWhoRead.itemPadding.left()
 		+ maxIconWidth
 		+ maxTextWidth
@@ -434,10 +449,12 @@ void Action::refreshText() {
 				|| (count > 0 && _content.fullReactionsCount > usersCount)
 				|| (count > 0 && onlySeenCount == 0))
 			? (count
-				? tr::lng_context_seen_reacted(
-					tr::now,
-					lt_count_short,
-					count)
+				? ((_content.fullReactionsCount > _content.fullReadCount)
+					? FormatReactionsCountString(_content.fullReactionsCount)
+					: tr::lng_context_seen_reacted(
+						tr::now,
+						lt_count_short,
+						count))
 				: tr::lng_context_seen_reacted_none(tr::now))
 			: (_content.type == WhoReadType::Watched)
 			? (count

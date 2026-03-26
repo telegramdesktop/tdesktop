@@ -145,6 +145,7 @@ private:
 
 	base::Timer _checkChangedTimer;
 	bool _isPhoto = false;
+	bool _isVideo = false;
 	bool _asFile = false;
 
 	QString _error;

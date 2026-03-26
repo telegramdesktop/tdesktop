@@ -89,8 +89,12 @@ PhotoEditorContent::PhotoEditorContent(
 		auto p = QPainter(this);
 
 		p.fillRect(clip, Qt::transparent);
-		p.setTransform(_imageMatrix);
-		p.drawPixmap(_imageRect, _photo->pix(_imageRect.size()));
+		if (_mode.mode == PhotoEditorMode::Mode::Paint) {
+			_paint->paintImage(p, _photo->pix(_photoSize));
+		} else {
+			p.setTransform(_imageMatrix);
+			p.drawPixmap(_imageRect, _photo->pix(_imageRect.size()));
+		}
 	}, lifetime());
 
 	setupDragArea();
@@ -125,6 +129,8 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 	_paint->setAttribute(Qt::WA_TransparentForMouseEvents, isTransform);
 	if (!isTransform) {
 		_paint->updateUndoState();
+	} else {
+		_paint->resetView();
 	}
 
 	if (mode.action == PhotoEditorMode::Action::Discard) {
@@ -133,6 +139,7 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 		_paint->keepResult();
 	}
 	_mode = mode;
+	update();
 }
 
 void PhotoEditorContent::applyBrush(const Brush &brush) {

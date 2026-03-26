@@ -1136,13 +1136,17 @@ void TopBar::setupUserpicButton(
 			: _peer->name();
 		const auto phrase = (type == ChosenType::Suggest)
 			? &tr::lng_profile_suggest_sure
-			: &tr::lng_profile_set_personal_sure;
+			: (user && !user->isSelf() && !_peer->isBot())
+			? &tr::lng_profile_set_personal_sure
+			: nullptr;
 		return Editor::EditorData{
-			.about = (*phrase)(
-				tr::now,
-				lt_user,
-				tr::bold(name),
-				tr::marked),
+			.about = (phrase
+				? (*phrase)(
+					tr::now,
+					lt_user,
+					tr::bold(name),
+					tr::marked)
+				: TextWithEntities()),
 			.confirm = ((type == ChosenType::Suggest)
 				? tr::lng_profile_suggest_button(tr::now)
 				: tr::lng_profile_set_photo_button(tr::now)),
@@ -1192,12 +1196,10 @@ void TopBar::setupUserpicButton(
 				this,
 				st::popupMenuWithIcons);
 
-			if (_hasStories) {
-				(*menu)->addAction(
-					tr::lng_profile_open_photo(tr::now),
-					openPhoto,
-					&st::menuIconPhoto);
-			}
+			(*menu)->addAction(
+				tr::lng_profile_open_photo(tr::now),
+				openPhoto,
+				&st::menuIconPhoto);
 
 			if (canReport()) {
 				(*menu)->addAction(

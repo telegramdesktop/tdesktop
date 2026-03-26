@@ -26,6 +26,7 @@ public:
 		const MTPDsendMessageTextDraftAction &data);
 
 	void applyItemAdded(not_null<HistoryItem*> item);
+	void applyItemRemoved(not_null<HistoryItem*> item);
 
 private:
 	struct Draft {

@@ -158,6 +158,7 @@ private:
 		Share,
 		Rotate,
 		More,
+		Draw,
 		Recognize,
 		Icon,
 		Video,
@@ -287,6 +288,7 @@ private:
 	void showMediaOverview();
 	void copyMedia();
 	void recognize();
+	void draw();
 	void receiveMouse();
 	void showAttachedStickers();
 	[[nodiscard]] auto scaledRecognitionRect(QPoint position)
@@ -514,6 +516,7 @@ private:
 
 	void validatePhotoImage(Image *image, bool blurred);
 	void validatePhotoCurrentImage();
+	void tryStartTextRecognition();
 
 	[[nodiscard]] bool hasCopyMediaRestriction(
 		bool skipPremiumCheck = false) const;
@@ -593,6 +596,7 @@ private:
 	QRect _headerNav, _nameNav, _dateNav, _separatorNav;
 	QRect _rotateNav, _rotateNavOver, _rotateNavIcon;
 	QRect _shareNav, _shareNavOver, _shareNavIcon;
+	QRect _drawNav, _drawNavOver, _drawNavIcon;
 	QRect _recognizeNav, _recognizeNavOver, _recognizeNavIcon;
 	QRect _saveNav, _saveNavOver, _saveNavIcon;
 	QRect _moreNav, _moreNavOver, _moreNavIcon;
@@ -601,6 +605,8 @@ private:
 	bool _saveVisible = false;
 	bool _shareVisible = false;
 	bool _rotateVisible = false;
+	bool _drawButtonEnabled = true;
+	bool _drawVisible = false;
 	bool _recognizeVisible = false;
 	bool _headerHasLink = false;
 	QString _dateText;
@@ -765,6 +771,9 @@ private:
 	int _verticalWheelDelta = 0;
 
 	Platform::TextRecognition::Result _recognitionResult;
+	uint64 _recognitionPendingSessionUniqueId = 0;
+	PhotoId _recognitionPendingPhotoId = 0;
+	bool _recognitionRetryOnLarge = false;
 	bool _showRecognitionResults = false;
 	Ui::Animations::Simple _recognitionAnimation;
 

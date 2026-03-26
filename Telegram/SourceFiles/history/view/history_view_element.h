@@ -707,7 +707,7 @@ protected:
 	virtual void refreshDataIdHook();
 
 	[[nodiscard]] const Ui::Text::String &text() const;
-	[[nodiscard]] int textHeightFor(int textWidth);
+	[[nodiscard]] int textHeightFor(int textWidth) const;
 	void validateText();
 	void validateTextSkipBlock(bool has, int width, int height);
 	void validateInlineKeyboard(HistoryMessageReplyMarkup *markup);
@@ -743,8 +743,11 @@ private:
 
 	virtual QSize performCountOptimalSize() = 0;
 	virtual QSize performCountCurrentSize(int newWidth) = 0;
+	virtual void invalidateTextDependentCache() {
+	}
 
 	void refreshMedia(Element *replacing);
+	void invalidateTextSizeCache();
 	void setTextWithLinks(
 		const TextWithEntities &text,
 		const std::vector<ClickHandlerPtr> &links = {});

@@ -195,7 +195,7 @@ const auto kBadPrefix = u"http://"_q;
 	if (flags & FormattedDateFlag::Relative) {
 		return FormatDateRelative(date);
 	}
-	const auto dateTime = base::unixtime::parse(date);
+	const auto dateTime = QDateTime::fromSecsSinceEpoch(date);
 	const auto locale = QLocale();
 	auto parts = QStringList();
 	const auto hasDayOfWeek = (flags & FormattedDateFlag::DayOfWeek);

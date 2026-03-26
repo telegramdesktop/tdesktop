@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/text/text.h"
 #include "base/timer.h"
 
 namespace style {
@@ -28,11 +29,14 @@ public:
 		QWidget *parent,
 		const style::ComposeControls &st,
 		gsl::span<Ui::PreparedFile> items,
+		const Text::MarkedContext &captionContext,
 		SendFilesWay way,
 		Fn<bool(int, AttachActionType)> actionAllowed);
 	~AlbumPreview();
 
 	void setSendWay(SendFilesWay way);
+	void setCaption(int index, const TextWithTags &caption);
+	[[nodiscard]] int indexFromPoint(QPoint position) const;
 
 	[[nodiscard]] base::flat_set<int> collectSpoileredIndices();
 	[[nodiscard]] bool canHaveSpoiler(int index) const;
@@ -103,6 +107,7 @@ private:
 	void showContextMenu(not_null<AlbumThumbnail*> thumb, QPoint position);
 
 	const style::ComposeControls &_st;
+	const Text::MarkedContext _captionContext;
 	SendFilesWay _sendWay;
 	Fn<bool(int, AttachActionType)> _actionAllowed;
 	style::cursor _cursor = style::cur_default;

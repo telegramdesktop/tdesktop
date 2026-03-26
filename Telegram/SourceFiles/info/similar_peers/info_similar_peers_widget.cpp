@@ -128,7 +128,7 @@ rpl::producer<int> ListController::unlockHeightValue() const {
 void ListController::rebuild() {
 	const auto participants = &_peer->session().api().chatParticipants();
 	const auto &list = participants->similar(_peer);
-	for (const auto peer : list.list) {
+	for (const auto &peer : list.list) {
 		if (!delegate()->peerListFindRow(peer->id.value)) {
 			delegate()->peerListAppendRow(createRow(peer));
 		}

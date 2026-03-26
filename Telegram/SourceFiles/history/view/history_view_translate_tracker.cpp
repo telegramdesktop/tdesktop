@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_translate_tracker.h"
 
 #include "apiwrap.h"
-#include "api/api_text_entities.h"
 #include "api/api_transcribes.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -21,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
+#include "lang/translate_provider.h"
 #include "main/main_session.h"
 #include "spellcheck/platform/platform_language.h"
 
@@ -37,6 +37,7 @@ constexpr auto kRequestCountLimit = 20;
 
 TranslateTracker::TranslateTracker(not_null<History*> history)
 : _history(history)
+, _provider(Ui::CreateTranslateProvider(&_history->session()))
 , _limit(kEnoughForRecognition) {
 	setup();
 }
@@ -236,19 +237,20 @@ void TranslateTracker::cancelToRequest() {
 }
 
 void TranslateTracker::cancelSentRequest() {
-	if (_requestId) {
+	if (_requestInProcess) {
 		const auto owner = &_history->owner();
 		for (const auto &id : base::take(_requested)) {
 			if (const auto item = owner->message(id)) {
 				item->translationShowRequiresRequest({});
 			}
 		}
-		_history->session().api().request(base::take(_requestId)).cancel();
+		++_requestToken;
+		_requestInProcess = false;
 	}
 }
 
 void TranslateTracker::requestSome() {
-	if (_requestId || _itemsToRequest.empty()) {
+	if (_requestInProcess || _itemsToRequest.empty()) {
 		return;
 	}
 	const auto to = _history->translatedTo();
@@ -260,60 +262,69 @@ void TranslateTracker::requestSome() {
 	_requested.reserve(_itemsToRequest.size());
 	const auto session = &_history->session();
 	const auto peerId = _itemsToRequest.back().first.peer;
-	auto peer = (peerId == _history->peer->id)
-		? _history->peer
-		: session->data().peer(peerId);
 	auto length = 0;
-	auto list = QVector<MTPint>();
-	list.reserve(_itemsToRequest.size());
 	for (auto i = _itemsToRequest.end(); i != _itemsToRequest.begin();) {
 		if ((--i)->first.peer != peerId) {
 			break;
 		}
 		length += i->second.length;
 		_requested.push_back(i->first);
-		list.push_back(MTP_int(i->first.msg));
 		i = _itemsToRequest.erase(i);
-		if (list.size() >= kRequestCountLimit
+		if (_requested.size() >= kRequestCountLimit
 			|| length >= kRequestLengthLimit) {
 			break;
 		}
 	}
-	using Flag = MTPmessages_TranslateText::Flag;
-	_requestId = session->api().request(MTPmessages_TranslateText(
-		MTP_flags(Flag::f_peer | Flag::f_id),
-		peer->input(),
-		MTP_vector<MTPint>(list),
-		MTPVector<MTPTextWithEntities>(),
-		MTP_string(to.twoLetterCode())
-	)).done([=](const MTPmessages_TranslatedText &result) {
-		requestDone(to, result.data().vresult().v);
-	}).fail([=] {
-		requestDone(to, {});
-	}).send();
-}
-
-void TranslateTracker::requestDone(
-		LanguageId to,
-		const QVector<MTPTextWithEntities> &list) {
-	auto index = 0;
-	const auto session = &_history->session();
-	const auto owner = &session->data();
-	for (const auto &id : base::take(_requested)) {
-		if (const auto item = owner->message(id)) {
-			const auto data = (index >= list.size())
-				? nullptr
-				: &list[index].data();
-			auto text = data ? TextWithEntities{
-				qs(data->vtext()),
-				Api::EntitiesFromMTP(session, data->ventities().v)
-			} : TextWithEntities();
-			item->translationDone(to, std::move(text));
-		}
-		++index;
+	if (_requested.empty()) {
+		return;
 	}
-	_requestId = 0;
-	requestSome();
+	const auto owner = &session->data();
+	auto requests = std::vector<Ui::TranslateProviderRequest>();
+	requests.reserve(_requested.size());
+	auto ids = std::vector<FullMsgId>();
+	ids.reserve(_requested.size());
+	for (const auto &id : _requested) {
+		if (const auto item = owner->message(id)) {
+			requests.push_back(Ui::PrepareTranslateProviderRequest(
+				_provider.get(),
+				session->data().peer(id.peer),
+				id.msg,
+				item->originalText()));
+			ids.push_back(id);
+		}
+	}
+	_requested = std::move(ids);
+	if (_requested.empty()) {
+		requestSome();
+		return;
+	}
+	_requestInProcess = true;
+	const auto requestToken = ++_requestToken;
+	_provider->requestBatch(
+		std::move(requests),
+		to,
+		[=](int index, Ui::TranslateProviderResult result) {
+			if (!_requestInProcess || (_requestToken != requestToken)) {
+				return;
+			}
+			if (index < 0 || index >= _requested.size()) {
+				return;
+			}
+			const auto &id = _requested[index];
+			if (const auto item = owner->message(id)) {
+				item->translationDone(
+					to,
+					result.text.value_or(TextWithEntities()));
+			}
+		},
+		[=] {
+			if (!_requestInProcess || (_requestToken != requestToken)) {
+				return;
+			}
+			_requestInProcess = false;
+			_requested.clear();
+			requestSome();
+		});
 }
 
 void TranslateTracker::applyLimit() {

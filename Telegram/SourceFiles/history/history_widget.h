@@ -32,6 +32,7 @@ class Error;
 namespace Data {
 class ForumTopic;
 class PhotoMedia;
+struct DrawToReplyRequest;
 struct SendError;
 } // namespace Data
 
@@ -466,6 +467,7 @@ private:
 	void sendButtonClicked();
 	void newItemAdded(not_null<HistoryItem*> item);
 	void maybeMarkReactionsRead(not_null<HistoryItem*> item);
+	void handleDrawToReplyRequest(Data::DrawToReplyRequest request);
 
 	bool canSendFiles(not_null<const QMimeData*> data) const;
 	bool confirmSendingFiles(
@@ -484,21 +486,14 @@ private:
 		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Ui::PreparedList &list) const;
-	bool showSendingFilesError(
-		const Ui::PreparedList &list,
-		std::optional<bool> compress) const;
+	bool showSendingFilesError(const Ui::PreparedBundle &bundle) const;
+
 	bool showSendMessageError(
 		const TextWithTags &textWithTags,
 		bool ignoreSlowmodeCountdown,
 		Fn<void(int starsApproved)> withPaymentApproved = nullptr,
 		Api::SendOptions options = {});
 
-	void sendingFilesConfirmed(
-		Ui::PreparedList &&list,
-		Ui::SendFilesWay way,
-		TextWithTags &&caption,
-		Api::SendOptions options,
-		bool ctrlShiftEnter);
 	void sendingFilesConfirmed(
 		std::shared_ptr<Ui::PreparedBundle> bundle,
 		Api::SendOptions options);

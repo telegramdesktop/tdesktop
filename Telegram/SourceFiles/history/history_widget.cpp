@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "history/view/history_view_draw_to_reply.h"
 #include "ui/emoji_config.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/choose_theme_controller.h"
@@ -72,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_todo_list.h"
 #include "data/data_web_page.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_channel.h"
@@ -645,6 +647,11 @@ HistoryWidget::HistoryWidget(
 		return !_list && (item->mainView() != nullptr);
 	}) | rpl::on_next([=](not_null<HistoryItem*> item) {
 		item->mainView()->itemDataChanged();
+	}, lifetime());
+
+	session().data().drawToReplyRequests(
+	) | rpl::on_next([=](Data::DrawToReplyRequest request) {
+		handleDrawToReplyRequest(std::move(request));
 	}, lifetime());
 
 	Core::App().settings().largeEmojiChanges(
@@ -1764,10 +1771,16 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 					InlineBots::ResultSelected result) {
 				if (result.open) {
 					const auto request = result.result->openRequest();
+					const auto showDrawButton = canWriteMessage();
 					if (const auto photo = request.photo()) {
-						controller()->openPhoto(photo, {});
+						controller()->openPhoto(
+							photo,
+							{ .showDrawButton = showDrawButton });
 					} else if (const auto document = request.document()) {
-						controller()->openDocument(document, false, {});
+						controller()->openDocument(
+							document,
+							false,
+							{ .showDrawButton = showDrawButton });
 					}
 				} else {
 					sendInlineResult(result);
@@ -3844,6 +3857,36 @@ void HistoryWidget::maybeMarkReactionsRead(not_null<HistoryItem*> item) {
 		return;
 	}
 	session().api().markContentsRead(item);
+}
+
+void HistoryWidget::handleDrawToReplyRequest(
+		Data::DrawToReplyRequest request) {
+	if (!_peer || request.messageId.peer != _peer->id) {
+		return;
+	}
+	auto image = HistoryView::ResolveDrawToReplyImage(
+		&session().data(),
+		request);
+	if (image.isNull()) {
+		return;
+	}
+	const auto replyTo = request.messageId;
+	HistoryView::OpenDrawToReplyEditor(
+		controller(),
+		std::move(image),
+		crl::guard(this, [=](QImage &&result) {
+			if (result.isNull()) {
+				return;
+			}
+			if (replyTo) {
+				replyToMessage({ .messageId = replyTo });
+			}
+			auto list = Storage::PrepareMediaFromImage(
+				std::move(result),
+				QByteArray(),
+				st::sendMediaPreviewSize);
+			confirmSendingFiles(std::move(list));
+		}));
 }
 
 void HistoryWidget::unreadCountUpdated() {
@@ -6331,47 +6374,13 @@ void HistoryWidget::updateFieldPlaceholder() {
 
 bool HistoryWidget::showSendingFilesError(
 		const Ui::PreparedList &list) const {
-	return showSendingFilesError(list, std::nullopt);
+	const auto show = controller()->uiShow();
+	return Data::ShowSendError(show, _peer, list, std::nullopt);
 }
 
 bool HistoryWidget::showSendingFilesError(
-		const Ui::PreparedList &list,
-		std::optional<bool> compress) const {
-	const auto error = [&]() -> Data::SendError {
-		const auto error = _peer
-			? Data::FileRestrictionError(_peer, list, compress)
-			: Data::SendError();
-		if (!_peer || error) {
-			return error;
-		} else if (const auto left = _peer->slowmodeSecondsLeft()) {
-			return tr::lng_slowmode_enabled(
-				tr::now,
-				lt_left,
-				Ui::FormatDurationWordsSlowmode(left));
-		}
-		using Error = Ui::PreparedList::Error;
-		switch (list.error) {
-		case Error::None: return QString();
-		case Error::EmptyFile:
-		case Error::Directory:
-		case Error::NonLocalUrl: return tr::lng_send_image_empty(
-			tr::now,
-			lt_name,
-			list.errorData);
-		case Error::TooLargeFile: return u"(toolarge)"_q;
-		}
-		return tr::lng_forward_send_files_cant(tr::now);
-	}();
-	if (!error) {
-		return false;
-	} else if (error.text == u"(toolarge)"_q) {
-		const auto fileSize = list.files.back().size;
-		controller()->show(
-			Box(FileSizeLimitBox, &session(), fileSize, nullptr));
-		return true;
-	}
-	Data::ShowSendErrorToast(controller(), _peer, error);
-	return true;
+		const Ui::PreparedBundle &bundle) const {
+	return Data::ShowSendError(controller()->uiShow(), _peer, bundle);
 }
 
 MsgId HistoryWidget::resolveReplyToTopicRootId() {
@@ -6467,7 +6476,7 @@ bool HistoryWidget::confirmSendingFiles(
 		}
 		controller()->showToast(tr::lng_edit_caption_attach(tr::now));
 		return false;
-	} else if (showSendingFilesError(list)) {
+	} else if (!_peer || showSendingFilesError(list)) {
 		return false;
 	}
 
@@ -6484,17 +6493,9 @@ bool HistoryWidget::confirmSendingFiles(
 		sendMenuDetails());
 	_field->setTextWithTags({});
 	box->setConfirmedCallback(crl::guard(this, [=](
-			Ui::PreparedList &&list,
-			Ui::SendFilesWay way,
-			TextWithTags &&caption,
-			Api::SendOptions options,
-			bool ctrlShiftEnter) {
-		sendingFilesConfirmed(
-			std::move(list),
-			way,
-			std::move(caption),
-			options,
-			ctrlShiftEnter);
+			std::shared_ptr<Ui::PreparedBundle> bundle,
+			Api::SendOptions options) {
+		sendingFilesConfirmed(std::move(bundle), options);
 	}));
 	box->setCancelledCallback(crl::guard(this, [=] {
 		_field->setTextWithTags(text);
@@ -6519,33 +6520,12 @@ bool HistoryWidget::confirmSendingFiles(
 }
 
 void HistoryWidget::sendingFilesConfirmed(
-		Ui::PreparedList &&list,
-		Ui::SendFilesWay way,
-		TextWithTags &&caption,
-		Api::SendOptions options,
-		bool ctrlShiftEnter) {
-	Expects(list.filesToProcess.empty());
-
-	const auto compress = way.sendImagesAsPhotos();
-	if (showSendingFilesError(list, compress)) {
+		std::shared_ptr<Ui::PreparedBundle> bundle,
+		Api::SendOptions options) {
+	if (!_peer || showSendingFilesError(*bundle)) {
 		return;
 	}
 
-	auto groups = DivideByGroups(
-		std::move(list),
-		way,
-		_peer->slowmodeApplied());
-	auto bundle = PrepareFilesBundle(
-		std::move(groups),
-		way,
-		std::move(caption),
-		ctrlShiftEnter);
-	sendingFilesConfirmed(std::move(bundle), options);
-}
-
-void HistoryWidget::sendingFilesConfirmed(
-		std::shared_ptr<Ui::PreparedBundle> bundle,
-		Api::SendOptions options) {
 	const auto compress = bundle->way.sendImagesAsPhotos();
 	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
 	auto action = prepareSendAction(options);
@@ -6564,21 +6544,12 @@ void HistoryWidget::sendingFilesConfirmed(
 		return;
 	}
 
-	if (bundle->sendComment) {
-		auto message = Api::MessageToSend(action);
-		message.textWithTags = base::take(bundle->caption);
-		session().api().sendMessage(std::move(message));
-	}
+	auto &api = session().api();
 	for (auto &group : bundle->groups) {
 		const auto album = (group.type != Ui::AlbumType::None)
 			? std::make_shared<SendingAlbum>()
 			: nullptr;
-		session().api().sendFiles(
-			std::move(group.list),
-			type,
-			base::take(bundle->caption),
-			album,
-			action);
+		api.sendFiles(std::move(group.list), type, album, action);
 	}
 }
 
@@ -7177,10 +7148,11 @@ void HistoryWidget::updateHistoryGeometry(
 			const auto media = item ? item->media() : nullptr;
 			const auto document = media ? media->document() : nullptr;
 			if (document && document->isVideoFile()) {
+				const auto draw = canWriteMessage();
 				controller()->openDocument(
 					document,
 					true,
-					{ item->fullId() },
+					{ .id = item->fullId(), .showDrawButton = draw },
 					nullptr,
 					timestamp);
 			}
@@ -8292,6 +8264,9 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 	auto button = object_ptr<Ui::IconButton>(
 		this,
 		close ? st::historyReplyCancel : st::historyPinnedShowAll);
+	button->setAccessibleName(close
+		? tr::lng_cancel(tr::now)
+		: tr::lng_settings_events_pinned(tr::now));
 	button->clicks(
 	) | rpl::on_next([=] {
 		if (close) {

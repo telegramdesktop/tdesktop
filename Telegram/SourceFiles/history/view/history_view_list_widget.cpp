@@ -527,6 +527,16 @@ ListWidget::ListWidget(
 		}, lifetime());
 	}
 
+	if (_replyButtonManager) {
+		Core::App().settings().cornerReplyValue(
+		) | rpl::on_next([=](bool value) {
+			_useCornerReply = value;
+			if (!value) {
+				_replyButtonManager->updateButton({});
+			}
+		}, lifetime());
+	}
+
 	_delegate->listChatWideValue(
 	) | rpl::on_next([=](bool wide) {
 		_isChatWide = wide;
@@ -3042,7 +3052,7 @@ void ListWidget::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::MiddleButton) {
 		mouseActionCancel();
 		ClickHandler::unpressed();
-		_middleClickAutoscroll.start(e->globalPos());
+		_middleClickAutoscroll.toggleOrBeginHold(e->globalPos());
 		e->accept();
 		return;
 	}
@@ -3274,6 +3284,10 @@ void ListWidget::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void ListWidget::mouseReleaseEvent(QMouseEvent *e) {
+	if (_middleClickAutoscroll.finishHold(e->button())) {
+		e->accept();
+		return;
+	}
 	if (_middleClickAutoscroll.active()) {
 		e->accept();
 		return;
@@ -3626,6 +3640,9 @@ ReplyButton::ButtonParameters ListWidget::replyButtonParameters(
 		not_null<const Element*> view,
 		QPoint position,
 		const TextState &replyState) const {
+	if (!_useCornerReply) {
+		return {};
+	}
 	const auto top = itemTop(view);
 	if (top < 0
 		|| _mouseAction == MouseAction::Dragging
@@ -3859,7 +3876,7 @@ void ListWidget::mouseActionUpdate() {
 		lnkhost = reactionView;
 	} else if (overReplyBtn) {
 		dragState = replyBtnState;
-		lnkhost = replyBtnView;
+		lnkhost = _replyButtonManager.get();
 	} else if (view) {
 		auto cursorDeltaLength = [&] {
 			auto cursorDelta = (_overState.point - _pressState.point);

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/color_contrast.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "styles/style_settings.h"
@@ -137,12 +138,23 @@ void ColorSample::paintEvent(QPaintEvent *e) {
 		if (selected > 0) {
 			const auto line = st::settingsColorRadioStroke * 1.;
 			const auto thickness = selected * line;
-			auto pen = st::boxBg->p;
-			pen.setWidthF(thickness);
-			p.setBrush(Qt::NoBrush);
-			p.setPen(pen);
 			const auto skip = 1.5 * line;
-			p.drawEllipse(full.marginsRemoved({ skip, skip, skip, skip }));
+			const auto rect = full - Margins(skip);
+			if (_selectionCutout) {
+				p.save();
+				p.setCompositionMode(QPainter::CompositionMode_Clear);
+				auto pen = QPen(Qt::transparent, thickness);
+				p.setBrush(Qt::NoBrush);
+				p.setPen(pen);
+				p.drawEllipse(rect);
+				p.restore();
+			} else {
+				auto pen = st::boxBg->p;
+				pen.setWidthF(thickness);
+				p.setBrush(Qt::NoBrush);
+				p.setPen(pen);
+				p.drawEllipse(rect);
+			}
 		}
 		return;
 	}
@@ -254,12 +266,23 @@ void ColorSample::paintEvent(QPaintEvent *e) {
 		if (selected > 0) {
 			const auto line = st::settingsColorRadioStroke * 1.;
 			const auto thickness = selected * line;
-			auto pen = st::boxBg->p;
-			pen.setWidthF(thickness);
-			p.setBrush(Qt::NoBrush);
-			p.setPen(pen);
 			const auto skip = 1.5 * line;
-			p.drawEllipse(full.marginsRemoved({ skip, skip, skip, skip }));
+			const auto rect = full - Margins(skip);
+			if (_selectionCutout) {
+				p.save();
+				p.setCompositionMode(QPainter::CompositionMode_Clear);
+				auto pen = QPen(Qt::transparent, thickness);
+				p.setBrush(Qt::NoBrush);
+				p.setPen(pen);
+				p.drawEllipse(rect);
+				p.restore();
+			} else {
+				auto pen = st::boxBg->p;
+				pen.setWidthF(thickness);
+				p.setBrush(Qt::NoBrush);
+				p.setPen(pen);
+				p.drawEllipse(rect);
+			}
 		}
 	}
 }
@@ -281,6 +304,15 @@ void ColorSample::setForceCircle(bool force) {
 		return;
 	}
 	_forceCircle = force;
+	update();
+}
+
+void ColorSample::setSelectionCutout(bool cutout) {
+	if (_selectionCutout == cutout) {
+		return;
+	}
+	_selectionCutout = cutout;
+	setAttribute(Qt::WA_TranslucentBackground, cutout);
 	update();
 }
 

@@ -1417,8 +1417,7 @@ void Element::overrideMedia(std::unique_ptr<Media> media) {
 	Expects(!history()->owner().groups().find(data()));
 
 	_text = Ui::Text::String(st::msgMinWidth);
-	_textWidth = -1;
-	_textHeight = 0;
+	invalidateTextSizeCache();
 
 	_media = std::move(media);
 	if (!pendingResize()) {
@@ -1603,8 +1602,8 @@ OnlyEmojiAndSpaces Element::isOnlyEmojiAndSpaces() const {
 	}
 }
 
-int Element::textHeightFor(int textWidth) {
-	validateText();
+int Element::textHeightFor(int textWidth) const {
+	const_cast<Element*>(this)->validateText();
 	if (_textWidth != textWidth) {
 		_textWidth = textWidth;
 		_textHeight = _text.countHeight(textWidth);
@@ -1873,20 +1872,17 @@ void Element::setTextWithLinks(
 	if (const auto next = _text.nextFormattedDateUpdate()) {
 		history()->session().data().registerFormattedDateUpdate(next, this);
 	}
-	_textWidth = -1;
-	_textHeight = 0;
+	invalidateTextSizeCache();
 }
 
 void Element::validateTextSkipBlock(bool has, int width, int height) {
 	validateText();
 	if (!has) {
 		if (_text.removeSkipBlock()) {
-			_textWidth = -1;
-			_textHeight = 0;
+			invalidateTextSizeCache();
 		}
 	} else if (_text.updateSkipBlock(width, height)) {
-		_textWidth = -1;
-		_textHeight = 0;
+		invalidateTextSizeCache();
 	}
 }
 
@@ -2519,17 +2515,21 @@ void Element::itemTextUpdated() {
 	_flags &= ~Flag::SummaryShown;
 	clearSpecialOnlyEmoji();
 	_text = Ui::Text::String(st::msgMinWidth);
-	_textWidth = -1;
-	_textHeight = 0;
+	invalidateTextSizeCache();
 	if (_media && !data()->media()) {
 		refreshMedia(nullptr);
 	}
 }
 
 void Element::blockquoteExpandChanged() {
+	invalidateTextSizeCache();
+	history()->owner().requestViewResize(this);
+}
+
+void Element::invalidateTextSizeCache() {
 	_textWidth = -1;
 	_textHeight = 0;
-	history()->owner().requestViewResize(this);
+	invalidateTextDependentCache();
 }
 
 void Element::unloadHeavyPart() {

@@ -1071,8 +1071,8 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 		|| HideReplyButtonOption.value();
 	result.spoilerLoginCode = item
 		&& !item->out()
-		&& peer->isNotificationsUser()
-		&& Core::App().isSharingScreen();
+		&& (peer->isNotificationsUser()
+			|| peer->isVerifyCodes());
 	return result;
 }
 

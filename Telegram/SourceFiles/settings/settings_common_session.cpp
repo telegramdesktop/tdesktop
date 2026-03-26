@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common_session.h"
 
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
+#include "settings/settings_experimental.h"
 #include "settings/sections/settings_chat.h"
 #include "settings/sections/settings_main.h"
 
@@ -16,7 +17,8 @@ namespace Settings {
 bool HasMenu(Type type) {
 	return (type == ::Settings::CloudPasswordEmailConfirmId())
 		|| (type == MainId())
-		|| (type == ChatId());
+		|| (type == ChatId())
+		|| (type == Experimental::Id());
 }
 
 } // namespace Settings

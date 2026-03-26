@@ -78,6 +78,8 @@ struct RightBadge : RuntimeComponent<RightBadge, Element> {
 	BadgeRole role = BadgeRole::User;
 	bool overridden = false;
 	bool special = false;
+	mutable std::unique_ptr<Ui::RippleAnimation> ripple;
+	mutable QPoint lastPoint;
 };
 
 struct BottomRippleMask {
@@ -191,6 +193,7 @@ public:
 
 private:
 	struct CommentsButton;
+	struct LinkRipple;
 	struct FromNameStatus;
 	struct RightAction;
 
@@ -219,7 +222,29 @@ private:
 	void toggleTopicButtonRipple(bool pressed);
 	void createTopicButtonRipple();
 
+	void toggleLinkRipple(bool pressed);
+	void recordLinkRipplePoint(
+		QPoint point,
+		QPoint textOrigin) const;
+	void paintLinkRipple(
+		Painter &p,
+		const ClickHandlerPtr &handler,
+		QRect linkRect,
+		QPoint textPosition) const;
+	void createLinkRippleMask(
+		const QPainterPath &path,
+		QPoint textPosition,
+		int useWidth,
+		style::margins padding,
+		int radius) const;
+	void createLinkRippleMask(
+		QRect linkRect,
+		QPoint textPosition,
+		style::margins padding,
+		int radius) const;
+
 	void toggleRightActionRipple(bool pressed);
+	void toggleBadgeRipple(bool pressed);
 
 	void toggleReplyRipple(bool pressed);
 	void toggleSummaryHeaderRipple(bool pressed);
@@ -324,6 +349,8 @@ private:
 	void refreshTopicButton();
 	void refreshInfoSkipBlock(HistoryItem *textItem);
 	[[nodiscard]] int monospaceMaxWidth() const;
+	[[nodiscard]] int bubbleTextWidth(int bubbleWidth) const;
+	[[nodiscard]] int bubbleTextualWidth() const;
 
 	void ensureSummarizeButton() const;
 	void paintSummarize(
@@ -343,6 +370,7 @@ private:
 	[[nodiscard]] ClickHandlerPtr createGoToCommentsLink() const;
 	[[nodiscard]] ClickHandlerPtr psaTooltipLink() const;
 	void psaTooltipToggled(bool shown) const;
+	void invalidateTextDependentCache() override;
 
 	void refreshRightBadge();
 	[[nodiscard]] int rightBadgeWidth() const;
@@ -353,6 +381,8 @@ private:
 	mutable ClickHandlerPtr _fastReplyLink;
 	mutable std::unique_ptr<ViewButton> _viewButton;
 	std::unique_ptr<TopicButton> _topicButton;
+	mutable std::unique_ptr<LinkRipple> _linkRipple;
+	mutable QPoint _linkRippleLastPoint;
 	mutable std::unique_ptr<CommentsButton> _comments;
 	mutable std::unique_ptr<TranscribeButton> _summarize;
 
@@ -360,6 +390,8 @@ private:
 	mutable std::unique_ptr<FromNameStatus> _fromNameStatus;
 	mutable std::unique_ptr<Ui::RoundCheckbox> _selectionRoundCheckbox;
 	mutable int _fromNameVersion = 0;
+	mutable int _bubbleTextualWidthMinimum : 16 = -1;
+	mutable int _bubbleTextualWidthCache : 16 = 0;
 	uint32 _bubbleWidthLimit : 27 = 0;
 	uint32 _invertMedia : 1 = 0;
 	uint32 _hideReply : 1 = 0;

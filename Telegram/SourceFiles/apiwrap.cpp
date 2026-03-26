@@ -1929,7 +1929,7 @@ void ApiWrap::updateNotifySettingsDelayed(Data::DefaultNotify type) {
 
 void ApiWrap::sendNotifySettingsUpdates() {
 	_updateNotifyQueueLifetime.destroy();
-	for (const auto topic : base::take(_updateNotifyTopics)) {
+	for (const auto &topic : base::take(_updateNotifyTopics)) {
 		request(MTPaccount_UpdateNotifySettings(
 			MTP_inputNotifyForumTopic(
 				topic->peer()->input(),
@@ -1937,7 +1937,7 @@ void ApiWrap::sendNotifySettingsUpdates() {
 			topic->notify().serialize()
 		)).afterDelay(kSmallDelayMs).send();
 	}
-	for (const auto peer : base::take(_updateNotifyPeers)) {
+	for (const auto &peer : base::take(_updateNotifyPeers)) {
 		request(MTPaccount_UpdateNotifySettings(
 			MTP_inputNotifyPeer(peer->input()),
 			peer->notify().serialize()
@@ -3621,7 +3621,7 @@ void ApiWrap::forwardMessages(
 
 	ids.reserve(count);
 	randomIds.reserve(count);
-	for (const auto item : draft.items) {
+	for (const auto &item : draft.items) {
 		const auto randomId = base::RandomValue<uint64>();
 		if (genClientSideMessage) {
 			const auto newId = FullMsgId(
@@ -3835,32 +3835,8 @@ void ApiWrap::editMedia(
 void ApiWrap::sendFiles(
 		Ui::PreparedList &&list,
 		SendMediaType type,
-		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
 		const SendAction &action) {
-	const auto haveCaption = !caption.text.isEmpty();
-	const auto captionAttached = !haveCaption
-		? false
-		: (list.files.size() == 1)
-		? list.canAddCaption(
-			album != nullptr,
-			type == SendMediaType::Photo)
-		: Ui::CaptionWillBeAttached(
-			list,
-			[&] {
-				auto way = Ui::SendFilesWay();
-				way.setGroupFiles(album != nullptr);
-				way.setSendImagesAsPhotos(type == SendMediaType::Photo);
-				return way;
-			}(),
-			false);
-	if (haveCaption && !captionAttached) {
-		auto message = MessageToSend(action);
-		message.textWithTags = base::take(caption);
-		message.action.clearDraft = false;
-		sendMessage(std::move(message));
-	}
-
 	const auto to = FileLoadTaskOptions(action);
 	if (album) {
 		album->options = to.options;
@@ -3899,14 +3875,13 @@ void ApiWrap::sendFiles(
 				: nullptr),
 			.type = uploadWithType,
 			.to = to,
-			.caption = caption,
+			.caption = std::move(file.caption),
 			.spoiler = file.spoiler,
 			.album = album,
 			.forceFile = forceFile,
 			.idOverride = 0,
 			.displayName = file.displayName,
 		}));
-		caption = TextWithTags();
 	}
 	if (album) {
 		_sendingAlbums.emplace(album->groupId, album);

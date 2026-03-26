@@ -30,9 +30,6 @@ struct GroupRange {
 	[[nodiscard]] int size() const {
 		return till - from;
 	}
-	[[nodiscard]] bool sentWithCaption() const {
-		return (size() == 1) || (type == AlbumType::PhotoVideo);
-	}
 };
 
 [[nodiscard]] AlbumType GroupTypeForFile(
@@ -42,9 +39,7 @@ struct GroupRange {
 	using Type = PreparedFile::Type;
 	return (type == Type::Music)
 		? (groupFiles ? AlbumType::Music : AlbumType::None)
-		: (type == Type::Video)
-		? (groupFiles ? AlbumType::PhotoVideo : AlbumType::None)
-		: (type == Type::Photo)
+		: (type == Type::Video || type == Type::Photo)
 		? ((groupFiles && sendImagesAsPhotos)
 			? AlbumType::PhotoVideo
 			: (groupFiles && !sendImagesAsPhotos)
@@ -93,16 +88,6 @@ struct GroupRange {
 		.type = (count > 1) ? groupType : AlbumType::None,
 	});
 	return result;
-}
-
-[[nodiscard]] bool CaptionWillBeAttachedFromRanges(
-		const std::vector<GroupRange> &ranges,
-		int filesCount) {
-	const auto hasGroupedFileAlbum = ranges::any_of(ranges, [](const auto &r) {
-		return (r.size() > 1) && (r.type == AlbumType::File);
-	});
-	return ((filesCount > 1) && hasGroupedFileAlbum)
-		|| ((ranges.size() == 1) && ranges.front().sentWithCaption());
 }
 
 } // namespace
@@ -173,7 +158,9 @@ bool CanBeInAlbumType(PreparedFile::Type type, AlbumType album) {
 	case AlbumType::Music:
 		return (type == Type::Music);
 	case AlbumType::File:
-		return (type == Type::Photo) || (type == Type::File);
+		return (type == Type::Photo)
+			|| (type == Type::Video)
+			|| (type == Type::File);
 	}
 	Unexpected("AlbumType in CanBeInAlbumType.");
 }
@@ -254,45 +241,33 @@ bool PreparedList::canBeSentInSlowmodeWith(const PreparedList &other) const {
 	return !hasNonGrouping && (!hasFiles || !hasVideos);
 }
 
-bool PreparedList::canAddCaption(bool sendingAlbum, bool compress) const {
-	if (!filesToProcess.empty()
-		|| files.empty()
-		|| files.size() > kMaxAlbumCount) {
+bool PreparedList::canAddCaption(bool compress) const {
+	if (files.empty()) {
 		return false;
 	}
-	if (files.size() == 1) {
-		Assert(files.front().information != nullptr);
-		const auto isSticker = (!compress
-				&& Core::IsMimeSticker(files.front().information->filemime))
-			|| files.front().path.endsWith(u".tgs"_q, Qt::CaseInsensitive);
-		return !isSticker;
-	} else if (!sendingAlbum) {
-		return false;
-	}
-	const auto hasFiles = ranges::contains(
-		files,
-		PreparedFile::Type::File,
-		&PreparedFile::type);
-	const auto hasMusic = ranges::contains(
-		files,
-		PreparedFile::Type::Music,
-		&PreparedFile::type);
-	const auto hasNotGrouped = ranges::contains(
-		files,
-		PreparedFile::Type::None,
-		&PreparedFile::type);
-	return !hasFiles && !hasMusic && !hasNotGrouped;
+	const auto &last = files.back();
+	const auto isSticker = last.path.endsWith(u".tgs"_q, Qt::CaseInsensitive)
+		|| (!compress
+			&& last.information
+			&& Core::IsMimeSticker(last.information->filemime));
+	return !isSticker;
 }
 
 bool PreparedList::canMoveCaption(bool sendingAlbum, bool compress) const {
-	if (!canAddCaption(sendingAlbum, compress)) {
+	if (!canAddCaption(compress)) {
 		return false;
-	} else if (files.size() != 1) {
-		return true;
+	} else if (files.size() > kMaxAlbumCount) {
+		return false;
+	} else if (!sendingAlbum || !compress) {
+		return (files.size() == 1);
 	}
-	const auto &file = files.front();
-	return (file.type == PreparedFile::Type::Video)
-		|| (file.type == PreparedFile::Type::Photo && compress);
+	for (const auto &file : files) {
+		if (file.type != PreparedFile::Type::Photo
+			&& file.type != PreparedFile::Type::Video) {
+			return false;
+		}
+	}
+	return true;
 }
 
 bool PreparedList::canChangePrice(bool sendingAlbum, bool compress) const {
@@ -357,51 +332,18 @@ bool PreparedList::hasSpoilerMenu(bool compress) const {
 	return allAreVideo || (allAreMedia && compress);
 }
 
-bool AttachCaptionToFirstAsFile(
-		const std::vector<PreparedGroup> &groups) {
-	auto filesCount = 0;
-	auto hasGroupedFileAlbum = false;
-	for (const auto &group : groups) {
-		filesCount += group.list.files.size();
-		hasGroupedFileAlbum = hasGroupedFileAlbum
-			|| ((group.list.files.size() > 1)
-			&& (group.type == AlbumType::File));
-	}
-	const auto result = (filesCount > 1) && hasGroupedFileAlbum;
-	return result;
-}
-
-bool CaptionWillBeAttached(const std::vector<PreparedGroup> &groups) {
-	return AttachCaptionToFirstAsFile(groups)
-		|| ((groups.size() == 1) && groups.front().sentWithCaption());
-}
-
-bool CaptionWillBeAttached(
-		const PreparedList &list,
-		SendFilesWay way,
-		bool slowmode) {
-	const auto ranges = GroupRanges(list.files, way, slowmode);
-	return CaptionWillBeAttachedFromRanges(ranges, int(list.files.size()));
-}
-
 std::shared_ptr<PreparedBundle> PrepareFilesBundle(
 		std::vector<PreparedGroup> groups,
 		SendFilesWay way,
-		TextWithTags caption,
 		bool ctrlShiftEnter) {
 	auto totalCount = 0;
 	for (const auto &group : groups) {
 		totalCount += group.list.files.size();
 	}
-	const auto captionAttached = CaptionWillBeAttached(groups);
-	const auto sendComment = !caption.text.isEmpty()
-		&& !captionAttached;
 	return std::make_shared<PreparedBundle>(PreparedBundle{
 		.groups = std::move(groups),
 		.way = way,
-		.caption = std::move(caption),
-		.totalCount = totalCount + (sendComment ? 1 : 0),
-		.sendComment = sendComment,
+		.totalCount = totalCount,
 		.ctrlShiftEnter = ctrlShiftEnter,
 	});
 }

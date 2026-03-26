@@ -234,7 +234,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		const auto done = [=](
 				ChatAdminRightsInfo newRights,
 				const std::optional<QString> &rank) {
-			if (scope == Scope::GroupAdmin) {
+			if (scope == Scope::GroupAdmin && !token.isEmpty()) {
 				chat->session().api().sendBotStart(show, bot, chat, token);
 			}
 			close();

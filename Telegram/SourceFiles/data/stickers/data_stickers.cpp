@@ -261,7 +261,7 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 				set->emoji[emoji].push_front(document);
 			}
 		} else if (!removedFromEmoji.empty()) {
-			for (const auto emoji : removedFromEmoji) {
+			for (const auto &emoji : removedFromEmoji) {
 				set->emoji[emoji].push_front(document);
 			}
 		} else {
@@ -1465,7 +1465,7 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		const auto others = session().api().stickersByEmoji(key);
 		if (others) {
 			result.reserve(result.size() + others->size());
-			for (const auto document : *others) {
+			for (const auto &document : *others) {
 				add(document, CreateOtherSortKey(document));
 			}
 		} else if (!forceAllResults) {

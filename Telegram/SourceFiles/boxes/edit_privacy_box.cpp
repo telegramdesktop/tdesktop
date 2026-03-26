@@ -585,7 +585,7 @@ void EditNoPaidMessagesExceptions(
 			setTo.premiums = false;
 			setTo.miniapps = false;
 			auto &removeFrom = copy.never;
-			for (const auto peer : setTo.peers) {
+			for (const auto &peer : setTo.peers) {
 				removeFrom.peers.erase(
 					ranges::remove(removeFrom.peers, peer),
 					end(removeFrom.peers));
@@ -671,7 +671,7 @@ void EditPrivacyBox::editExceptions(
 				Unexpected("Invalid exception value.");
 			}();
 			auto &removeFrom = exceptions(type);
-			for (const auto peer : exceptions(exception).peers) {
+			for (const auto &peer : exceptions(exception).peers) {
 				removeFrom.peers.erase(
 					ranges::remove(removeFrom.peers, peer),
 					end(removeFrom.peers));

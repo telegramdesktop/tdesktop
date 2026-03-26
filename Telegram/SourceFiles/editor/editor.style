@@ -30,6 +30,8 @@ photoEditorButtonIconFgOver: mediaviewPipControlsFgOver;
 
 photoEditorButtonIconFgActive: lightButtonFg;
 photoEditorButtonIconFgInactive: mediaviewPipPlaybackInactive;
+photoEditorEdgeButtonBg: shadowFg;
+photoEditorEdgeButtonMargins: margins(4px, 4px, 4px, 4px);
 
 photoEditorButtonBarHeight: 48px;
 photoEditorButtonBarWidth: 422px;
@@ -90,13 +92,42 @@ photoEditorStickersIconActive: icon {{ "settings/settings_stickers", photoEditor
 photoEditorUndoButtonInactive: icon {{ "photo_editor/undo", photoEditorButtonIconFgInactive }};
 photoEditorRedoButtonInactive: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgInactive }};
 
-photoEditorColorPickerWidth: 250px;
-photoEditorColorPickerLineHeight: 10px;
-photoEditorColorPickerCanvasHeight: 300px;
-photoEditorColorPickerCircleSize: 24px;
-photoEditorColorPickerCircleBigSize: 50px;
+photoEditorColorButtonSize: 24px;
+photoEditorColorButtonBorder: 1px;
+photoEditorColorButtonBorderFg: mediaviewCaptionFg;
+photoEditorColorPaletteItemSize: 20px;
+photoEditorColorPaletteGap: 6px;
+photoEditorColorPaletteSelectionWidth: 2px;
+photoEditorColorPaletteSelectionFg: mediaviewCaptionFg;
+photoEditorColorPalettePlusLine: 2px;
+photoEditorColorPalettePlusFg: mediaviewCaptionFg;
 
-photoEditorColorPickerCircleSkip: 50px;
+photoEditorToolButtonSize: 20px;
+photoEditorToolButtonIconSize: 20px;
+photoEditorToolButtonGap: 18px;
+photoEditorToolButtonHoverDuration: 350;
+photoEditorToolButtonSelectDuration: 120;
+photoEditorToolButtonSelectedFg: mediaviewCaptionFg;
+photoEditorToolButtonSelectedWidth: 2px;
+photoEditorToolButtonSelectedPadding: 2px;
+photoEditorToolButtonSelectedOpacity: 0.35;
+photoEditorToolButtonSelectedExtra: 8px;
+
+photoEditorMarkerOpacity: 0.35;
+photoEditorMarkerSizeMultiplier: 2.5;
+photoEditorArrowHeadLengthFactor: 2.5;
+photoEditorArrowHeadMinDistanceFactor: 1.5;
+photoEditorArrowHeadAngleDegrees: 26;
+photoEditorEraserPreviewOpacity: 0.25;
+
+photoEditorBrushSizeControlLeftSkip: 0px;
+photoEditorBrushSizeControlHeight: 280px;
+photoEditorBrushSizeControlCollapsedWidth: 2px;
+photoEditorBrushSizeControlExpandedTopWidth: 25px;
+photoEditorBrushSizeControlExpandedBottomWidth: 4px;
+photoEditorBrushSizeControlExpandShift: 14px;
+photoEditorBrushSizeControlHitPadding: 24px;
+photoEditorBrushSizeControlTopInset: 1px;
 
 photoEditorCropPointSize: 10px;
 photoEditorCropMinSize: 20px;

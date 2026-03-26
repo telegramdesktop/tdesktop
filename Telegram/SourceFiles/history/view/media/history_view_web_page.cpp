@@ -533,6 +533,7 @@ QSize WebPage::countOptimalSize() {
 					.paintBgFactory = [=] {
 						return UniqueGiftBg(_parent, _data->uniqueGift);
 					},
+					.expandCurrentWidth = true,
 				});
 	} else if (!_attach && _data->auction) {
 		const auto &gift = _data->auction->auctionGift;
@@ -556,6 +557,7 @@ QSize WebPage::countOptimalSize() {
 						_data->auction->auctionGift->auctionStartDate,
 						_data->auction->endDate);
 				},
+				.expandCurrentWidth = true,
 			});
 	} else if (!_attach && !_asArticle) {
 		_attach = CreateAttach(
@@ -1621,6 +1623,15 @@ bool WebPage::enforceBubbleWidth() const {
 	return (_attach != nullptr)
 		&& (_data->document != nullptr)
 		&& (_data->document->isWallPaper() || _data->document->isTheme());
+}
+
+bool WebPage::allowsNarrowBubble() const {
+	return (_attach != nullptr)
+		&& (_data->uniqueGift != nullptr || _data->auction != nullptr);
+}
+
+int WebPage::minBubbleWidthForNarrowBubble() const {
+	return allowsNarrowBubble() ? maxWidth() : 0;
 }
 
 void WebPage::playAnimation(bool autoplay) {

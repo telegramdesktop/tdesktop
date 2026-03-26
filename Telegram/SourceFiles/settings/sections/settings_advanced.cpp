@@ -535,6 +535,22 @@ void BuildSystemIntegrationSection(SectionBuilder &builder) {
 		}, warnBeforeQuit->lifetime());
 	}
 
+	const auto systemReplace = builder.addCheckbox({
+		.id = u"advanced/system_text_replace"_q,
+		.title = tr::lng_settings_system_text_replace(),
+		.checked = settings->systemTextReplace(),
+		.keywords = { u"text"_q, u"replace"_q, u"system"_q },
+	});
+	if (systemReplace) {
+		systemReplace->checkedChanges(
+		) | rpl::filter([=](bool checked) {
+			return (checked != settings->systemTextReplace());
+		}) | rpl::on_next([=](bool checked) {
+			settings->setSystemTextReplace(checked);
+			Core::App().saveSettingsDelayed();
+		}, systemReplace->lifetime());
+	}
+
 #ifndef OS_MAC_STORE
 	const auto roundIconEnabled = [=] {
 		const auto digest = base::Platform::CurrentCustomAppIconDigest();

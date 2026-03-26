@@ -106,7 +106,7 @@ public:
 		resetLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		reset->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 		reset->setClickedCallback([this] {
-			_delegate->ivSetZoom(kDefaultZoom);
+			_delegate->ivSetZoom(0);
 		});
 		reset->show();
 		const auto plus = Ui::CreateSimpleCircleButton(
@@ -699,7 +699,7 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 					_delegate->ivSetZoom(_delegate->ivZoom() - kZoomStep);
 					return base::EventFilterResult::Cancel;
 				} else if (event->key() == Qt::Key_0) {
-					_delegate->ivSetZoom(kDefaultZoom);
+					_delegate->ivSetZoom(0);
 					return base::EventFilterResult::Cancel;
 				}
 			}
@@ -1016,7 +1016,7 @@ void Controller::processKey(const QString &key, const QString &modifier) {
 	} else if (key == u"q"_q && modifier == ctrl) {
 		quit();
 	} else if (key == u"0"_q && modifier == ctrl) {
-		_delegate->ivSetZoom(kDefaultZoom);
+		_delegate->ivSetZoom(0);
 	}
 }
 

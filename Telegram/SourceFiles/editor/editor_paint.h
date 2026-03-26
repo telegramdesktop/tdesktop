@@ -29,6 +29,7 @@ public:
 		PhotoModifications &modifications,
 		const QSize &imageSize,
 		std::shared_ptr<Controllers> controllers);
+	~Paint() override;
 
 	[[nodiscard]] std::shared_ptr<Scene> saveScene() const;
 	void restoreScene();
@@ -40,27 +41,45 @@ public:
 	void updateUndoState();
 
 	void handleMimeData(const QMimeData *data);
+	void paintImage(QPainter &p, const QPixmap &image) const;
+	void resetView();
 
 private:
+	bool eventFilter(QObject *obj, QEvent *e) override;
+	void updateViewGeometry();
+
 	struct SavedItem {
 		std::shared_ptr<QGraphicsItem> item;
 		bool undid = false;
 	};
 
 	ItemBase::Data itemBaseData() const;
+	void applyViewTransform();
 
 	void clearRedoList();
 
 	const std::shared_ptr<Controllers> _controllers;
 	const std::shared_ptr<Scene> _scene;
 	const base::unique_qptr<QGraphicsView> _view;
+	QPointer<QWidget> _viewport;
 	const QSize _imageSize;
+	QRect _imageGeometry;
+	QRect _outerGeometry;
 
 	struct {
 		int angle = 0;
 		bool flipped = false;
 		float64 zoom = 0.;
+		float64 fitZoom = 0.;
+		float64 ratioW = 0.;
+		float64 ratioH = 0.;
+		float64 userZoom = 1.;
 	} _transform;
+
+	struct {
+		bool active = false;
+		QPoint point;
+	} _pan;
 
 	rpl::variable<bool> _hasUndo = true;
 	rpl::variable<bool> _hasRedo = true;

@@ -456,16 +456,16 @@ bool RepliesList::applyItemDestroyed(
 bool RepliesList::applyUpdate(const MessageUpdate &update) {
 	using Flag = MessageUpdate::Flag;
 
-	if (update.item->history() != _history
-		|| !update.item->isRegular()
-		|| !update.item->inThread(_rootId)) {
+	if (update.item->history() != _history || !update.item->isRegular()) {
 		return false;
 	}
+
 	const auto id = update.item->id;
+	const auto inThread = update.item->inThread(_rootId);
 	const auto added = (update.flags & Flag::ReplyToTopAdded);
 	const auto i = ranges::lower_bound(_list, id, std::greater<>());
 	if (update.flags & Flag::Destroyed) {
-		if (!added) {
+		if (!added && inThread) {
 			changeUnreadCountByPost(id, -1);
 		}
 		if (i == end(_list) || *i != id) {
@@ -480,6 +480,8 @@ bool RepliesList::applyUpdate(const MessageUpdate &update) {
 			}
 		}
 		return true;
+	} else if (!inThread) {
+		return false;
 	}
 	if (added) {
 		changeUnreadCountByPost(id, 1);

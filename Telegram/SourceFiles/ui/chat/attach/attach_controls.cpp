@@ -7,21 +7,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_controls.h"
 
+#include "ui/painter.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {
-
-AttachControls::AttachControls()
-: _rect(st::sendBoxAlbumGroupRadius, st::roundedBg) {
-}
 
 void AttachControls::paint(QPainter &p, int x, int y) {
 	const auto groupWidth = width();
 	const auto groupHeight = height();
 	const auto full = (_type == Type::Full);
 
-	QRect groupRect(x, y, groupWidth, groupHeight);
-	_rect.paint(p, groupRect);
+	const auto groupRect = QRect(x, y, groupWidth, groupHeight);
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::roundedBg);
+		if (_type == Type::EditOnly) {
+			const auto desired = st::sendBoxAlbumSmallGroupCircleSize;
+			const auto available = std::min(groupWidth, groupHeight);
+			const auto side = std::min(desired, available);
+			const auto circleRect = QRect(
+				x + ((groupWidth - side) / 2),
+				y + ((groupHeight - side) / 2),
+				side,
+				side);
+			p.drawEllipse(circleRect);
+		} else {
+			const auto radius = std::min(groupWidth, groupHeight) / 2.;
+			p.drawRoundedRect(groupRect, radius, radius);
+		}
+	}
 
 	if (full) {
 		const auto groupHalfWidth = groupWidth / 2;
@@ -29,13 +44,13 @@ void AttachControls::paint(QPainter &p, int x, int y) {
 		const auto editRect = _vertical
 			? QRect(x, y, groupWidth, groupHalfHeight)
 			: QRect(x, y, groupHalfWidth, groupHeight);
-		st::sendBoxAlbumGroupButtonMediaEdit.paintInCenter(p, editRect);
+		st::sendBoxAlbumGroupButtonMediaMore.paintInCenter(p, editRect);
 		const auto deleteRect = _vertical
 			? QRect(x, y + groupHalfHeight, groupWidth, groupHalfHeight)
 			: QRect(x + groupHalfWidth, y, groupHalfWidth, groupHeight);
 		st::sendBoxAlbumGroupButtonMediaDelete.paintInCenter(p, deleteRect);
 	} else if (_type == Type::EditOnly) {
-		st::sendBoxAlbumButtonMediaEdit.paintInCenter(p, groupRect);
+		st::sendBoxAlbumButtonMediaMore.paintInCenter(p, groupRect);
 	}
 }
 
@@ -45,7 +60,10 @@ int AttachControls::width() const {
 			? st::sendBoxAlbumGroupSizeVertical.width()
 			: st::sendBoxAlbumGroupSize.width())
 		: (_type == Type::EditOnly)
-		? st::sendBoxAlbumSmallGroupSize.width()
+		? ((st::sendBoxAlbumSmallGroupSize.width()
+			> st::sendBoxAlbumSmallGroupCircleSize)
+			? st::sendBoxAlbumSmallGroupSize.width()
+			: st::sendBoxAlbumSmallGroupCircleSize)
 		: 0;
 }
 
@@ -55,7 +73,10 @@ int AttachControls::height() const {
 			? st::sendBoxAlbumGroupSizeVertical.height()
 			: st::sendBoxAlbumGroupSize.height())
 		: (_type == Type::EditOnly)
-		? st::sendBoxAlbumSmallGroupSize.height()
+		? ((st::sendBoxAlbumSmallGroupSize.height()
+			> st::sendBoxAlbumSmallGroupCircleSize)
+			? st::sendBoxAlbumSmallGroupSize.height()
+			: st::sendBoxAlbumSmallGroupCircleSize)
 		: 0;
 }
 
@@ -86,17 +107,16 @@ AttachControlsWidget::AttachControlsWidget(
 	_controls.setType(type);
 
 	const auto w = _controls.width();
-	resize(w, _controls.height());
+	const auto h = _controls.height();
+	resize(w, h);
 
 	if (type == AttachControls::Type::Full) {
-		_edit->resize(w / 2, _controls.height());
-		_delete->resize(w / 2, _controls.height());
-
-		_edit->moveToLeft(0, 0, w);
-		_delete->moveToRight(0, 0, w);
+		const auto leftWidth = w / 2;
+		const auto rightWidth = w - leftWidth;
+		_edit->setGeometryToLeft(0, 0, leftWidth, h, w);
+		_delete->setGeometryToLeft(leftWidth, 0, rightWidth, h, w);
 	} else if (type == AttachControls::Type::EditOnly) {
-		_edit->resize(w, _controls.height());
-		_edit->moveToLeft(0, 0, w);
+		_edit->setGeometryToLeft(0, 0, w, h, w);
 	}
 
 	paintRequest(

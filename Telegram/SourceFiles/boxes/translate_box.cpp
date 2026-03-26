@@ -6,8 +6,9 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/translate_box.h"
+#include "boxes/translate_box_content.h"
+#include "lang/translate_provider.h"
 
-#include "api/api_text_entities.h" // Api::EntitiesToMTP / EntitiesFromMTP.
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/ui_integration.h"
@@ -17,78 +18,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "mtproto/sender.h"
 #include "spellcheck/platform/platform_language.h"
 #include "ui/boxes/choose_language_box.h"
-#include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
-#include "ui/text/text_utilities.h"
-#include "ui/vertical_list.h"
-#include "ui/painter.h"
-#include "ui/power_saving.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
-#include "ui/wrap/fade_wrap.h"
-#include "ui/wrap/slide_wrap.h"
-#include "styles/style_boxes.h"
-#include "styles/style_chat_helpers.h"
-#include "styles/style_info.h" // inviteLinkListItem.
-#include "styles/style_layers.h"
-
-#include <QLocale>
+#include "ui/text/text_utilities.h"
 
 namespace Ui {
 namespace {
 
 constexpr auto kSkipAtLeastOneDuration = 3 * crl::time(1000);
-
-class ShowButton final : public RpWidget {
-public:
-	ShowButton(not_null<Ui::RpWidget*> parent);
-
-	[[nodiscard]] rpl::producer<Qt::MouseButton> clicks() const;
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	LinkButton _button;
-
-};
-
-ShowButton::ShowButton(not_null<Ui::RpWidget*> parent)
-: RpWidget(parent)
-, _button(this, tr::lng_usernames_activate_confirm(tr::now)) {
-	_button.sizeValue(
-	) | rpl::on_next([=](const QSize &s) {
-		resize(
-			s.width() + st::defaultEmojiSuggestions.fadeRight.width(),
-			s.height());
-		_button.moveToRight(0, 0);
-	}, lifetime());
-	_button.show();
-}
-
-void ShowButton::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
-	const auto clip = e->rect();
-
-	const auto &icon = st::defaultEmojiSuggestions.fadeRight;
-	const auto fade = QRect(0, 0, icon.width(), height());
-	if (fade.intersects(clip)) {
-		icon.fill(p, fade);
-	}
-	const auto fill = clip.intersected(
-		{ icon.width(), 0, width() - icon.width(), height() });
-	if (!fill.isEmpty()) {
-		p.fillRect(fill, st::boxBg);
-	}
-}
-
-rpl::producer<Qt::MouseButton> ShowButton::clicks() const {
-	return _button.clicks();
-}
 
 } // namespace
 
@@ -98,174 +37,53 @@ void TranslateBox(
 		MsgId msgId,
 		TextWithEntities text,
 		bool hasCopyRestriction) {
-	box->setWidth(st::boxWideWidth);
-	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
-	const auto container = box->verticalLayout();
-
 	struct State {
-		State(not_null<Main::Session*> session) : api(&session->mtp()) {
+		State(not_null<Main::Session*> session)
+		: provider(CreateTranslateProvider(session)) {
 		}
 
-		MTP::Sender api;
+		std::unique_ptr<TranslateProvider> provider;
 		rpl::variable<LanguageId> to;
 	};
 	const auto state = box->lifetime().make_state<State>(&peer->session());
 	state->to = ChooseTranslateTo(peer->owner().history(peer));
+	const auto request = std::make_shared<TranslateProviderRequest>(
+		PrepareTranslateProviderRequest(
+			state->provider.get(),
+			peer,
+			msgId,
+			std::move(text)));
 
-	if (!IsServerMsgId(msgId)) {
-		msgId = 0;
-	}
-
-	using Flag = MTPmessages_TranslateText::Flag;
-	const auto flags = msgId
-		? (Flag::f_peer | Flag::f_id)
-		: !text.text.isEmpty()
-		? Flag::f_text
-		: Flag(0);
-
-	const auto &stLabel = st::aboutLabel;
-	const auto lineHeight = stLabel.style.lineHeight;
-
-	Ui::AddSkip(container);
-	// Ui::AddSubsectionTitle(
-	// 	container,
-	// 	tr::lng_translate_box_original());
-
-	const auto animationsPaused = [] {
-		using Which = FlatLabel::WhichAnimationsPaused;
-		const auto emoji = On(PowerSaving::kEmojiChat);
-		const auto spoiler = On(PowerSaving::kChatSpoiler);
-		return emoji
-			? (spoiler ? Which::All : Which::CustomEmoji)
-			: (spoiler ? Which::Spoiler : Which::None);
-	};
-	const auto original = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
-		box,
-		object_ptr<FlatLabel>(box, stLabel)));
-	{
-		if (hasCopyRestriction) {
-			original->entity()->setContextMenuHook([](auto&&) {
-			});
-		}
-		original->entity()->setAnimationsPausedCallback(animationsPaused);
-		original->entity()->setMarkedText(
-			text,
-			Core::TextContext({ .session = &peer->session() }));
-		original->setMinimalHeight(lineHeight);
-		original->hide(anim::type::instant);
-
-		const auto show = Ui::CreateChild<FadeWrap<ShowButton>>(
-			container.get(),
-			object_ptr<ShowButton>(container));
-		show->hide(anim::type::instant);
-		rpl::combine(
-			container->widthValue(),
-			original->geometryValue()
-		) | rpl::on_next([=](int width, const QRect &rect) {
-			show->moveToLeft(
-				width - show->width() - st::boxRowPadding.right(),
-				rect.y() + std::abs(lineHeight - show->height()) / 2);
-		}, show->lifetime());
-		original->entity()->heightValue(
-		) | rpl::filter([](int height) {
-			return height > 0;
-		}) | rpl::take(1) | rpl::on_next([=](int height) {
-			if (height > lineHeight) {
-				show->show(anim::type::instant);
-			}
-		}, show->lifetime());
-		show->toggleOn(show->entity()->clicks() | rpl::map_to(false));
-		original->toggleOn(show->entity()->clicks() | rpl::map_to(true));
-	}
-	Ui::AddSkip(container);
-	Ui::AddSkip(container);
-	Ui::AddDivider(container);
-	Ui::AddSkip(container);
-
-	{
-		const auto padding = st::defaultSubsectionTitlePadding;
-		const auto subtitle = Ui::AddSubsectionTitle(
-			container,
-			state->to.value() | rpl::map(LanguageName));
-
-		// Workaround.
-		state->to.value() | rpl::on_next([=] {
-			subtitle->resizeToWidth(container->width()
-				- padding.left()
-				- padding.right());
-		}, subtitle->lifetime());
-	}
-
-	const auto translated = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
-		box,
-		object_ptr<FlatLabel>(box, stLabel)));
-	translated->entity()->setSelectable(!hasCopyRestriction);
-	translated->entity()->setAnimationsPausedCallback(animationsPaused);
-
-	constexpr auto kMaxLines = 3;
-	container->resizeToWidth(box->width());
-	const auto loading = box->addRow(object_ptr<SlideWrap<RpWidget>>(
-		box,
-		CreateLoadingTextWidget(
-			box,
-			st::aboutLabel.style,
-			std::min(original->entity()->height() / lineHeight, kMaxLines),
-			state->to.value() | rpl::map([=](LanguageId id) {
-				return id.locale().textDirection() == Qt::RightToLeft;
-			}))));
-
-	const auto showText = [=](TextWithEntities text) {
-		const auto label = translated->entity();
-		label->setMarkedText(
-			text,
-			Core::TextContext({ .session = &peer->session() }));
-		translated->show(anim::type::instant);
-		loading->hide(anim::type::instant);
-	};
-
-	const auto send = [=](LanguageId to) {
-		loading->show(anim::type::instant);
-		translated->hide(anim::type::instant);
-		state->api.request(MTPmessages_TranslateText(
-			MTP_flags(flags),
-			msgId ? peer->input() : MTP_inputPeerEmpty(),
-			(msgId
-				? MTP_vector<MTPint>(1, MTP_int(msgId))
-				: MTPVector<MTPint>()),
-			(msgId
-				? MTPVector<MTPTextWithEntities>()
-				: MTP_vector<MTPTextWithEntities>(1, MTP_textWithEntities(
-					MTP_string(text.text),
-					Api::EntitiesToMTP(
-						&peer->session(),
-						text.entities,
-						Api::ConvertOption::SkipLocal)))),
-			MTP_string(to.twoLetterCode())
-		)).done([=](const MTPmessages_TranslatedText &result) {
-			const auto &data = result.data();
-			const auto &list = data.vresult().v;
-			if (list.isEmpty()) {
-				showText(
-					tr::italic(tr::lng_translate_box_error(tr::now)));
-			} else {
-				showText(Api::ParseTextWithEntities(
-					&peer->session(),
-					list.front()));
-			}
-		}).fail([=](const MTP::Error &error) {
-			showText(
-				tr::italic(tr::lng_translate_box_error(tr::now)));
-		}).send();
-	};
-	state->to.value() | rpl::on_next(send, box->lifetime());
-
-	box->addLeftButton(tr::lng_settings_language(), [=] {
-		if (loading->toggled()) {
-			return;
-		}
-		box->uiShow()->showBox(ChooseTranslateToBox(
-			state->to.current(),
-			crl::guard(box, [=](LanguageId id) { state->to = id; })));
+	TranslateBoxContent(box, {
+		.text = request->text,
+		.hasCopyRestriction = hasCopyRestriction,
+		.textContext = Core::TextContext({ .session = &peer->session() }),
+		.to = state->to.value(),
+		.chooseTo = [=] {
+			box->uiShow()->showBox(ChooseTranslateToBox(
+				state->to.current(),
+				crl::guard(box, [=](LanguageId id) { state->to = id; })));
+		},
+		.request = [=](
+				LanguageId to,
+				Fn<void(TranslateBoxContentResult)> done) {
+			state->provider->request(
+				*request,
+				to,
+				[done = std::move(done)](TranslateProviderResult result) {
+					using ProviderError = TranslateProviderError;
+					using UiError = TranslateBoxContentError;
+					done(TranslateBoxContentResult{
+						.text = std::move(result.text),
+						.error = (result.error
+								== ProviderError::LocalLanguagePackMissing)
+							? UiError::LocalLanguagePackMissing
+							: (result.error == ProviderError::None)
+							? UiError::None
+							: UiError::Unknown,
+					});
+				});
+		},
 	});
 }
 

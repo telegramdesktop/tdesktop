@@ -111,7 +111,7 @@ void Controller::prepare() {
 	if (_chat) {
 		appendRow(_chat);
 	} else {
-		for (const auto chat : _chats) {
+		for (const auto &chat : _chats) {
 			appendRow(chat);
 		}
 		if (_chats.size() >= kEnableSearchRowsCount) {

@@ -693,7 +693,8 @@ void SetupBio(
 	bio->changes() | rpl::on_next(updated, bio->lifetime());
 	bio->setInstantReplaces(Ui::InstantReplaces::Default());
 	bio->setInstantReplacesEnabled(
-		Core::App().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue(),
+		Core::App().settings().systemTextReplaceValue());
 	Ui::Emoji::SuggestionsController::Init(
 		container->window(),
 		bio,

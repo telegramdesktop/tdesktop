@@ -29,9 +29,11 @@ public:
 	AlbumThumbnail(
 		const style::ComposeControls &st,
 		const PreparedFile &file,
+		const Text::MarkedContext &captionContext,
 		const GroupMediaLayout &layout,
 		QWidget *parent,
 		Fn<void()> repaint,
+		Fn<void(QRect)> repaintRect,
 		Fn<void()> editCallback,
 		Fn<void()> deleteCallback);
 
@@ -40,6 +42,7 @@ public:
 	void resetLayoutAnimation();
 
 	void setSpoiler(bool spoiler);
+	void setCaption(const TextWithTags &caption);
 	[[nodiscard]] bool hasSpoiler() const;
 
 	[[nodiscard]] int photoHeight() const;
@@ -101,8 +104,11 @@ private:
 	QPixmap _fileThumb;
 	QString _name;
 	QString _status;
+	Text::String _caption;
+	Text::MarkedContext _captionContext;
 	int _nameWidth = 0;
 	int _statusWidth = 0;
+	int _captionAvailableWidth = 0;
 	float64 _suggestedMove = 0.;
 	Animations::Simple _suggestedMoveAnimation;
 	int _lastShrinkValue = 0;
@@ -112,9 +118,11 @@ private:
 	std::unique_ptr<SpoilerAnimation> _spoiler;
 	QImage _cornerCache;
 	Fn<void()> _repaint;
+	Fn<void(QRect)> _repaintRect;
 
 	QRect _lastRectOfModify;
 	QRect _lastRectOfButtons;
+	QRect _lastRectOfCaption;
 
 	object_ptr<IconButton> _editMedia = { nullptr };
 	object_ptr<IconButton> _deleteMedia = { nullptr };

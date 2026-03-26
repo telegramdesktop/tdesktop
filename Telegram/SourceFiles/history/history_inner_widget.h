@@ -537,6 +537,7 @@ private:
 	bool _dragStateUserpic = false;
 	bool _pressWasInactive = false;
 	bool _recountedAfterPendingResizedItems = false;
+	bool _useCornerReply = false;
 	bool _useCornerReaction = false;
 	bool _acceptsHorizontalScroll = false;
 	bool _horizontalScrollLocked = false;

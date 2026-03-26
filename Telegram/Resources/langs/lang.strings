@@ -660,6 +660,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji automatically";
+"lng_settings_system_text_replace" = "System text replacements";
 "lng_settings_suggest_emoji" = "Suggest emoji replacements";
 "lng_settings_suggest_animated_emoji" = "Suggest animated emoji";
 "lng_settings_suggest_by_emoji" = "Suggest popular stickers by emoji";
@@ -670,6 +671,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_send_cmdenter" = "Send with Cmd+Enter";
 "lng_settings_chat_quick_action_reply" = "Reply with double click";
 "lng_settings_chat_quick_action_react" = "Send reaction with double click";
+"lng_settings_chat_corner_reply" = "Reply button on messages";
 "lng_settings_chat_corner_reaction" = "Reaction button on messages";
 
 "lng_settings_shortcuts" = "Keyboard shortcuts";
@@ -828,6 +830,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_theme_tinted" = "Tinted";
 "lng_settings_theme_night" = "Night";
 "lng_settings_theme_accent_title" = "Choose accent color";
+"lng_settings_theme_system_accent_color" = "System accent color";
 "lng_settings_data_storage" = "Data and storage";
 "lng_settings_information" = "Edit profile";
 "lng_settings_my_account" = "My Account";
@@ -4947,6 +4950,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_quote_and_reply" = "Quote & Reply";
 "lng_context_reply_to_task" = "Reply to Task";
 "lng_context_edit_msg" = "Edit";
+"lng_context_draw" = "Draw";
 "lng_context_add_factcheck" = "Add Fact Check";
 "lng_context_edit_factcheck" = "Edit Fact Check";
 "lng_context_add_offer" = "Add Offer";
@@ -4983,6 +4987,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_seen_watched_none" = "Nobody Listened";
 "lng_context_seen_reacted#one" = "{count} Reacted";
 "lng_context_seen_reacted#other" = "{count} Reacted";
+"lng_context_seen_reactions_count#one" = "{count} Reaction";
+"lng_context_seen_reactions_count#other" = "{count} Reactions";
 "lng_context_seen_reacted_none" = "Nobody Reacted";
 "lng_context_seen_reacted_all" = "Show All Reactions";
 "lng_context_sent_by" = "Sent by {user}";
@@ -5784,6 +5790,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_screen_share_stop" = "Stop Sharing";
 "lng_group_call_screen_title" = "Screen {index}";
 "lng_group_call_screen_share_audio" = "Share System Audio";
+"lng_group_call_sharing_screen_options" = "Sharing Options";
+"lng_group_call_choose_source" = "Choose Source";
 "lng_group_call_unmute" = "Unmute";
 "lng_group_call_unmute_sub" = "Hold space bar to temporarily unmute.";
 "lng_group_call_you_are_live" = "You are Live";
@@ -6770,9 +6778,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_language_not_ready_link" = "translation platform";
 
 "lng_translate_box_error" = "Translate failed.";
+"lng_translate_box_error_language_pack_not_installed" = "Translation requires a local language pack. Download it in System Settings.";
 
 "lng_translate_settings_subtitle" = "Translate Messages";
 "lng_translate_settings_show" = "Show Translate Button";
+"lng_translate_settings_use_platform_mac" = "Use Apple Translations";
+"lng_translate_settings_use_platform_mac_about" = "Translation on macOS won't work until you download local language packs in System Settings.";
+"lng_translate_settings_use_platform_linux" = "Use KDE's Crow Translate";
 "lng_translate_settings_chat" = "Translate Entire Chats";
 "lng_translate_settings_choose" = "Do Not Translate";
 "lng_translate_settings_about" = "The 'Translate' button will appear in the context menu of messages containing text.";

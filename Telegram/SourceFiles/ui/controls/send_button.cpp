@@ -31,7 +31,8 @@ constexpr auto kForbiddenOpacity = 0.5;
 
 SendButton::SendButton(QWidget *parent, const style::SendButton &st)
 : RippleButton(parent, st.inner.ripple)
-, _st(st) {
+, _st(st)
+, _lastRippleShape(currentRippleShape()) {
 	updateSize();
 }
 
@@ -81,6 +82,12 @@ void SendButton::setState(State state) {
 			kMarkupTextOptions);
 	}
 	_state = state;
+
+	const auto newShape = currentRippleShape();
+	if (_lastRippleShape != newShape) {
+		_lastRippleShape = newShape;
+		RippleButton::finishAnimating();
+	}
 
 	setAccessibleName([&] {
 		switch (_state.type) {
@@ -262,6 +269,15 @@ void SendButton::paintLottieIcon(QPainter &p, int index, bool over) {
 }
 
 void SendButton::paintSave(QPainter &p, bool over) {
+	if (!isDisabled()) {
+		auto color = _st.sendIconFg->c;
+		color.setAlpha(25);
+		paintRipple(
+			p,
+			(width() - _st.inner.rippleAreaSize) / 2,
+			_st.inner.rippleAreaPosition.y(),
+			&color);
+	}
 	const auto &saveIcon = over
 		? st::historyEditSaveIconOver
 		: st::historyEditSaveIcon;
@@ -283,16 +299,30 @@ void SendButton::paintCancel(QPainter &p, bool over) {
 void SendButton::paintSend(QPainter &p, bool over) {
 	const auto &sendIcon = over ? _st.inner.iconOver : _st.inner.icon;
 	if (const auto padding = _st.sendIconFillPadding; padding > 0) {
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		if (_state.fillBgOverride.isValid()) {
-			p.setBrush(_state.fillBgOverride);
-		} else {
-			p.setBrush(st::windowBgActive);
+		const auto ellipse = sendEllipseRect();
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			if (_state.fillBgOverride.isValid()) {
+				p.setBrush(_state.fillBgOverride);
+			} else {
+				p.setBrush(st::windowBgActive);
+			}
+			p.drawEllipse(ellipse);
 		}
-		p.drawEllipse(
-			QRect(_st.sendIconPosition, sendIcon.size()).marginsAdded(
-				{ padding, padding, padding, padding }));
+		if (!isDisabled()) {
+			auto color = _st.sendIconFg->c;
+			color.setAlpha(25);
+			paintRipple(p, ellipse.topLeft(), &color);
+		}
+	} else if (!isDisabled()) {
+		auto color = _st.sendIconFg->c;
+		color.setAlpha(25);
+		paintRipple(
+			p,
+			(width() - _st.inner.rippleAreaSize) / 2,
+			_st.inner.rippleAreaPosition.y(),
+			&color);
 	}
 	if (isDisabled()) {
 		const auto color = st::historyRecordVoiceFg->c;
@@ -315,6 +345,11 @@ void SendButton::paintStarsToSend(QPainter &p, bool over) {
 		const auto radius = geometry.rounded.height() / 2;
 		p.drawRoundedRect(geometry.rounded, radius, radius);
 	}
+	if (!isDisabled()) {
+		auto color = _st.stars.textFg->c;
+		color.setAlpha(25);
+		paintRipple(p, geometry.rounded.topLeft(), &color);
+	}
 	p.setPen(over ? _st.stars.textFgOver : _st.stars.textFg);
 	_starsToSendText.draw(p, {
 		.position = geometry.inner.topLeft(),
@@ -324,15 +359,17 @@ void SendButton::paintStarsToSend(QPainter &p, bool over) {
 }
 
 void SendButton::paintSchedule(QPainter &p, bool over) {
+	const auto ellipse = scheduleEllipseRect();
 	{
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(over ? st::historySendIconFgOver : st::historySendIconFg);
-		p.drawEllipse(
-			st::historyScheduleIconPosition.x(),
-			st::historyScheduleIconPosition.y(),
-			st::historyScheduleIcon.width(),
-			st::historyScheduleIcon.height());
+		p.drawEllipse(ellipse);
+	}
+	if (!isDisabled()) {
+		auto color = st::historyComposeAreaBg->c;
+		color.setAlpha(25);
+		paintRipple(p, ellipse.topLeft(), &color);
 	}
 	st::historyScheduleIcon.paint(
 		p,
@@ -375,6 +412,43 @@ SendButton::StarsGeometry SendButton::starsGeometry() const {
 	};
 }
 
+SendButton::RippleShape SendButton::currentRippleShape() const {
+	switch (_state.type) {
+	case Type::Send:
+		if (!_starsToSendText.isEmpty()) {
+			return RippleShape::StarsRoundRect;
+		} else if (_st.sendIconFillPadding > 0) {
+			return RippleShape::SendEllipse;
+		}
+		return RippleShape::InnerEllipse;
+	case Type::Schedule:
+		return RippleShape::ScheduleEllipse;
+	case Type::Save:
+	case Type::Record:
+	case Type::Round:
+	case Type::Cancel:
+	case Type::Slowmode:
+	case Type::EditPrice:
+		return RippleShape::InnerEllipse;
+	}
+	Unexpected("Type in SendButton::currentRippleShape.");
+}
+
+QRect SendButton::sendEllipseRect() const {
+	const auto &sendIcon = _st.inner.icon;
+	const auto padding = _st.sendIconFillPadding;
+	return QRect(_st.sendIconPosition, sendIcon.size()).marginsAdded(
+		{ padding, padding, padding, padding });
+}
+
+QRect SendButton::scheduleEllipseRect() const {
+	return QRect(
+		st::historyScheduleIconPosition,
+		QSize(
+			st::historyScheduleIcon.width(),
+			st::historyScheduleIcon.height()));
+}
+
 void SendButton::updateSize() {
 	if (_state.type == Type::EditPrice) {
 		resize(0, _st.inner.height);
@@ -406,15 +480,44 @@ QPixmap SendButton::grabContent() {
 }
 
 QImage SendButton::prepareRippleMask() const {
-	const auto size = _st.inner.rippleAreaSize;
-	return RippleAnimation::EllipseMask(QSize(size, size));
+	switch (_lastRippleShape) {
+	case RippleShape::InnerEllipse: {
+		const auto size = _st.inner.rippleAreaSize;
+		return RippleAnimation::EllipseMask(QSize(size, size));
+	}
+	case RippleShape::SendEllipse: {
+		const auto r = sendEllipseRect();
+		return RippleAnimation::EllipseMask(r.size());
+	}
+	case RippleShape::StarsRoundRect: {
+		const auto r = starsGeometry().rounded;
+		const auto radius = r.height() / 2;
+		return RippleAnimation::RoundRectMask(r.size(), radius);
+	}
+	case RippleShape::ScheduleEllipse: {
+		const auto r = scheduleEllipseRect();
+		return RippleAnimation::EllipseMask(r.size());
+	}
+	}
+	Unexpected("RippleShape in SendButton::prepareRippleMask.");
 }
 
 QPoint SendButton::prepareRippleStartPosition() const {
 	const auto real = mapFromGlobal(QCursor::pos());
-	const auto size = _st.inner.rippleAreaSize;
-	const auto y = (height() - _st.inner.rippleAreaSize) / 2;
-	return real - QPoint((width() - size) / 2, y);
+	switch (_lastRippleShape) {
+	case RippleShape::InnerEllipse: {
+		const auto size = _st.inner.rippleAreaSize;
+		const auto y = (height() - size) / 2;
+		return real - QPoint((width() - size) / 2, y);
+	}
+	case RippleShape::SendEllipse:
+		return real - sendEllipseRect().topLeft();
+	case RippleShape::StarsRoundRect:
+		return real - starsGeometry().rounded.topLeft();
+	case RippleShape::ScheduleEllipse:
+		return real - scheduleEllipseRect().topLeft();
+	}
+	Unexpected("RippleShape in SendButton::prepareRippleStartPosition.");
 }
 
 void SendButton::initVoiceRoundIcon(int index) {

@@ -56,7 +56,6 @@ void HistoryStreamedDrafts::apply(
 			.flags = MessageFlag::Local | MessageFlag::HasReplyInfo,
 			.from = fromId,
 			.replyTo = {
-				.messageId = { _history->peer->id, rootId },
 				.topicRootId = rootId,
 			},
 			.date = when,
@@ -83,10 +82,8 @@ bool HistoryStreamedDrafts::update(
 }
 
 void HistoryStreamedDrafts::clear(MsgId rootId) {
-	const auto i = _drafts.find(rootId);
-	if (i != end(_drafts)) {
-		i->second.message->destroy();
-		_drafts.erase(i);
+	if (const auto draft = _drafts.take(rootId)) {
+		draft->message->destroy();
 	}
 	if (_drafts.empty()) {
 		scheduleDestroy();
@@ -102,13 +99,26 @@ void HistoryStreamedDrafts::applyItemAdded(not_null<HistoryItem*> item) {
 	clear(rootId);
 }
 
+void HistoryStreamedDrafts::applyItemRemoved(not_null<HistoryItem*> item) {
+	for (auto i = begin(_drafts); i != end(_drafts); ++i) {
+		if (i->second.message == item) {
+			_drafts.erase(i);
+			if (_drafts.empty()) {
+				scheduleDestroy();
+			}
+			return;
+		}
+	}
+}
+
 void HistoryStreamedDrafts::check() {
 	auto closest = crl::time();
 	const auto now = crl::now();
 	for (auto i = begin(_drafts); i != end(_drafts);) {
 		if (now - i->second.updated >= kClearTimeout) {
-			i->second.message->destroy();
+			const auto message = i->second.message;
 			i = _drafts.erase(i);
+			message->destroy();
 		} else {
 			if (!closest || closest > i->second.updated) {
 				closest = i->second.updated;

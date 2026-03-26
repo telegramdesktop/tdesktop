@@ -208,6 +208,7 @@ Cover::Cover(
 	}, _name->lifetime());
 
 	_qrButton.create(this, st::infoProfileLabeledButtonQr);
+	_qrButton->setAccessibleName(tr::lng_group_invite_context_qr(tr::now));
 	_qrButton->setClickedCallback([=, show = controller->uiShow()] {
 		Ui::DefaultShowFillPeerQrBoxCallback(show, _user);
 	});
@@ -721,7 +722,7 @@ void Main::showFinished() {
 	if (controller()->takeHighlightControlId(emojiId)) {
 		if (const auto popupMenu = _userpic->showChangePhotoMenu()) {
 			const auto menu = popupMenu->menu();
-			for (const auto action : menu->actions()) {
+			for (const auto &action : menu->actions()) {
 				const auto controlId = "highlight-control-id";
 				if (action->property(controlId).toString() == emojiId) {
 					if (const auto item = menu->itemForAction(action)) {

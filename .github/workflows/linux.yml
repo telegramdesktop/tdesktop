@@ -80,7 +80,7 @@ jobs:
           tool-cache: true
 
       - name: Set up Docker Buildx.
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Libraries cache.
         uses: actions/cache@v5
@@ -90,7 +90,7 @@ jobs:
           restore-keys: ${{ runner.OS }}-libs-
 
       - name: Libraries.
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: Telegram/build/docker/centos_env
           load: ${{ env.ONLY_CACHE == 'false' }}
@@ -122,8 +122,8 @@ jobs:
           $IMAGE_TAG \
           /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
           -D CMAKE_CONFIGURATION_TYPES=Debug \
-          -D CMAKE_C_FLAGS_DEBUG="-O0" \
-          -D CMAKE_CXX_FLAGS_DEBUG="-O0" \
+          -D CMAKE_C_FLAGS_DEBUG="-O0 -fuse-ld=lld" \
+          -D CMAKE_CXX_FLAGS_DEBUG="-O0 -fuse-ld=lld" \
           -D CMAKE_COMPILE_WARNING_AS_ERROR=ON \
           -D TDESKTOP_API_TEST=ON \
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
@@ -150,7 +150,7 @@ jobs:
           cd out/Debug
           mkdir artifact
           mv {Telegram,Updater} artifact/
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:

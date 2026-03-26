@@ -359,8 +359,7 @@ void RecentViews::setupViewsReactions() {
 	}) | rpl::on_next([=] {
 		auto p = QPainter(_viewsWrap.get());
 		const auto &icon = st::storiesViewsIcon;
-		const auto top = (_viewsWrap->height() - icon.height()) / 2;
-		icon.paint(p, 0, top, _viewsWrap->width());
+		icon.paint(p, 0, st::storiesViewsIconTop, _viewsWrap->width());
 	}, _viewsWrap->lifetime());
 
 	_likeIcon->move(0, 0);
@@ -406,7 +405,7 @@ void RecentViews::updatePartsGeometry() {
 	const auto skip = st::storiesRecentViewsSkip;
 	const auto full = _userpicsWidth + skip + _text.maxWidth();
 	const auto add = (_data.type == RecentViewsType::Channel)
-		? st::storiesViewsTextPosition.y()
+		? st::storiesChannelReactionsTextTop
 		: 0;
 	const auto use = std::min(full, _outer.width());
 	const auto ux = _outer.x() + (_outer.width() - use) / 2;

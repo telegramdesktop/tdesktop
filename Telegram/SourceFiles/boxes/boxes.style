@@ -857,7 +857,7 @@ boostsUnrestrictLabel: FlatLabel(defaultFlatLabel) {
 }
 
 customBadgeField: InputField(defaultInputField) {
-	textMargins: margins(2px, 7px, 2px, 0px);
+	textMargins: margins(2px, 0px, 2px, 0px);
 
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;
@@ -865,6 +865,9 @@ customBadgeField: InputField(defaultInputField) {
 	placeholderMargins: margins(0px, 0px, 0px, 0px);
 	placeholderScale: 0.;
 	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
 
 	heightMin: 32px;
 }

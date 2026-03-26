@@ -65,6 +65,8 @@ PRIVATE
 
     boxes/url_auth_box_content.cpp
     boxes/url_auth_box_content.h
+    boxes/translate_box_content.cpp
+    boxes/translate_box_content.h
 
     calls/group/ui/calls_group_recording_box.cpp
     calls/group/ui/calls_group_recording_box.h

@@ -307,9 +307,11 @@ Fn<void(
 		if (const auto chat = peer->asChatNotMigrated()) {
 			const auto saveChatAdmin = [&](bool isAdmin) {
 				SaveChatAdmin(show, chat, user, isAdmin, done, onFail);
+				if (rank) {
+					SaveMemberRank(show, chat, user, *rank, [] {}, [] {});
+				}
 			};
-			if (newRights.flags == chat->defaultAdminRights(user).flags
-				&& (!rank.has_value() || rank->isEmpty())) {
+			if (newRights.flags == chat->defaultAdminRights(user).flags) {
 				saveChatAdmin(true);
 			} else if (!newRights.flags) {
 				saveChatAdmin(false);
@@ -598,6 +600,9 @@ void ParticipantsAdditionalData::fillFromChat(not_null<ChatData*> chat) {
 	}
 	_members = chat->participants;
 	_admins = chat->admins;
+	for (const auto &[uid, rank] : chat->memberRanks) {
+		_memberRanks[chat->owner().user(uid)] = rank;
+	}
 }
 
 void ParticipantsAdditionalData::fillFromChannel(
@@ -609,7 +614,7 @@ void ParticipantsAdditionalData::fillFromChannel(
 	if (information->creator) {
 		_creator = information->creator;
 	}
-	for (const auto user : information->lastParticipants) {
+	for (const auto &user : information->lastParticipants) {
 		const auto admin = information->lastAdmins.find(user);
 		const auto rank = information->memberRanks.find(peerToUser(user->id));
 		const auto restricted = information->lastRestricted.find(user);
@@ -1570,7 +1575,7 @@ void ParticipantsBoxController::rebuildChatAdmins(
 		delegate()->peerListRemoveRow(
 			delegate()->peerListRowAt(0));
 	}
-	for (const auto user : list) {
+	for (const auto &user : list) {
 		if (auto row = createRow(user)) {
 			const auto raw = row.get();
 			delegate()->peerListAppendRow(std::move(row));
@@ -1727,7 +1732,7 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 
 	auto added = false;
 	_additional.fillFromPeer();
-	for (const auto user : info->lastParticipants) {
+	for (const auto &user : info->lastParticipants) {
 		if (appendRow(user)) {
 			added = true;
 		}
@@ -2379,7 +2384,7 @@ auto ParticipantsBoxController::computeType(
 	} break;
 	}
 
-	if (user && !channel->isBroadcast()) {
+	if (user && !_peer->isBroadcast()) {
 		const auto isSelf = user->isSelf();
 		const auto canEditSelf = isSelf
 			&& !_peer->amRestricted(ChatRestriction::EditRank);

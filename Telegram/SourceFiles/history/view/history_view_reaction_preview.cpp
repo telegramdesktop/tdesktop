@@ -155,6 +155,11 @@ bool ShowReactionPreview(
 	const auto labelRaw = state->label.get();
 
 	mainwidget->sizeValue() | rpl::on_next([=](QSize size) {
+		clickableRaw->setGeometry(Rect(size));
+		clickableRaw->raise();
+	}, clickableRaw->lifetime());
+
+	mainwidget->sizeValue() | rpl::on_next([=](QSize size) {
 		mediaPreviewRaw->setGeometry(Rect(size));
 
 		if (backgroundRaw && labelRaw) {
@@ -178,11 +183,6 @@ bool ShowReactionPreview(
 			backgroundRaw->raise();
 		}
 	}, mediaPreviewRaw->lifetime());
-
-	mainwidget->sizeValue() | rpl::on_next([=](QSize size) {
-		clickableRaw->setGeometry(Rect(size));
-		clickableRaw->raise();
-	}, clickableRaw->lifetime());
 	return true;
 }
 

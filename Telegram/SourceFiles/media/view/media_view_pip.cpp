@@ -1356,7 +1356,7 @@ void Pip::setupStreaming() {
 
 void Pip::applyVideoQuality(VideoQuality value) {
 	if (_quality == value
-		|| !_dataMedia->canBePlayed(_context)) {
+		|| !_dataMedia->canBePlayed()) {
 		return;
 	}
 	const auto resolved = _data->chooseQuality(_context, value);

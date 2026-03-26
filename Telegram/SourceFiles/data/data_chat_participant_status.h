@@ -14,6 +14,7 @@ class Show;
 namespace Ui {
 struct PreparedList;
 struct PreparedFile;
+struct PreparedBundle;
 } // namespace Ui
 
 namespace Window {
@@ -258,5 +259,17 @@ void ShowSendErrorToast(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer,
 	SendError error);
+
+bool ShowSendError(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
+	const Ui::PreparedList &list,
+	std::optional<bool> compress,
+	bool ignoreSlowmodeLeft = false);
+bool ShowSendError(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
+	const Ui::PreparedBundle &bundle,
+	bool ignoreSlowmodeLeft = false);
 
 } // namespace Data

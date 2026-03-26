@@ -72,7 +72,21 @@ Use the phase prompt templates in `PROMPTS.md`.
 
 Run `codex exec --json` child sessions for each phase. Wait for each to finish before starting the next. After each phase, validate that the expected artifact file exists and has substantive content.
 
-Phases that require elevated reasoning (Planning, Plan Assessment, Code Review) must use `-c model_reasoning_effort="xhigh"`. See example commands in `PROMPTS.md`.
+Every child session must use:
+- `--model gpt-5.4`
+- `-c model_reasoning_effort="xhigh"`
+
+Do not pass long or complex phase prompts as a quoted command-line argument. Instead:
+- Write the full phase prompt to a per-phase prompt file under `.ai/<project-name>/<letter>/logs/`
+- Pipe that file into `codex exec` with `Get-Content -Raw <prompt-file> | codex exec ... -`
+- Save the JSONL transcript to the matching `phase-*.jsonl` log file
+
+When running inside Codex desktop on Windows, a child `codex exec` may fail inside the normal agent sandbox with `Access is denied` even though the command itself is valid. If that happens:
+- Re-run the same `codex exec` invocation through an escalated shell tool call
+- Do not treat the first sandboxed launch failure as a phase failure
+- Fall back to direct main-session execution only if escalated child execution is unavailable or denied
+
+Use the phase prompt templates and runner patterns in `PROMPTS.md`.
 
 ## Verification Rules
 

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "editor/photo_editor_inner_common.h"
 #include "ui/painter.h"
 
 #include <QGraphicsItem>
@@ -20,12 +21,13 @@ public:
 	struct Content {
 		QPixmap pixmap;
 		QPointF position;
+		bool clear = false;
 	};
 
 	ItemCanvas();
 	~ItemCanvas();
 
-	void applyBrush(const QColor &color, float size);
+	void applyBrush(const QColor &color, float size, Brush::Tool tool);
 	void clearPixmap();
 	void cancelDrawing();
 	void updateZoom(float64 zoom);
@@ -60,11 +62,15 @@ private:
 	void computeContentRect(const QPointF &p);
 	void addStrokePoint(const QPointF &point, int64 time);
 	void drawIncrementalStroke();
+	void drawArrowHead();
 	std::vector<StrokePoint> smoothStroke(
 		const std::vector<StrokePoint> &points) const;
 	void renderSegment(
 		const std::vector<StrokePoint> &points,
 		int startIdx);
+	[[nodiscard]] float64 strokeWidth(float64 pressure) const;
+	[[nodiscard]] QColor strokeColor() const;
+	[[nodiscard]] float64 arrowHeadLength() const;
 
 	bool _drawing = false;
 	std::vector<StrokePoint> _currentStroke;
@@ -87,6 +93,7 @@ private:
 	struct {
 		float size = 1.;
 		QColor color;
+		Brush::Tool tool = Brush::Tool::Pen;
 	} _brushData;
 
 	rpl::event_stream<Content> _grabContentRequests;

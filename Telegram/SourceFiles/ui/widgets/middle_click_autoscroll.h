@@ -25,6 +25,8 @@ public:
 		return _active;
 	}
 
+	void toggleOrBeginHold(const QPoint &globalPosition);
+	[[nodiscard]] bool finishHold(Qt::MouseButton button);
 	void start(const QPoint &globalPosition);
 	void stop();
 
@@ -44,7 +46,9 @@ private:
 	Fn<void()> _restoreCursor;
 	Fn<bool()> _shouldContinue;
 	bool _active = false;
+	bool _middlePressed = false;
 	QPoint _startPosition;
+	crl::time _middlePressedAt = 0;
 	crl::time _time = 0;
 	base::Timer _timer;
 

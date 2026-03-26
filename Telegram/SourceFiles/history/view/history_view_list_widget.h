@@ -788,6 +788,7 @@ private:
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
 	rpl::variable<HistoryItem*> _reactionsItem;
+	bool _useCornerReply = false;
 	bool _useCornerReaction = false;
 
 	std::unique_ptr<ReplyButton::Manager> _replyButtonManager;

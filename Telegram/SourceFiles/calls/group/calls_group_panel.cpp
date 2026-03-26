@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_audio_input_tester.h"
+#include "webrtc/webrtc_create_adm.h"
 #include "styles/style_calls.h"
 #include "styles/style_layers.h"
 
@@ -356,11 +357,7 @@ bool Panel::chooseSourceActiveWithAudio() {
 }
 
 bool Panel::chooseSourceWithAudioSupported() {
-#ifdef Q_OS_WIN
-	return true;
-#else // Q_OS_WIN
-	return false;
-#endif // Q_OS_WIN
+	return Webrtc::LoopbackAudioCaptureSupported();
 }
 
 rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
@@ -1543,6 +1540,13 @@ void Panel::chooseShareScreenSource() {
 		} else if (const auto source = env->uniqueDesktopCaptureSource()) {
 			if (_call->isSharingScreen()) {
 				_call->toggleScreenSharing(std::nullopt);
+			} else if (chooseSourceWithAudioSupported()) {
+				const auto sourceId = *source;
+				ShowUniqueCaptureOptions(
+					uiShow(),
+					crl::guard(this, [=](bool audio) {
+						chooseSourceAccepted(sourceId, audio);
+					}));
 			} else {
 				chooseSourceAccepted(*source, false);
 			}

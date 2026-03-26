@@ -19,6 +19,81 @@ namespace {
 
 using ItemPtr = std::shared_ptr<NumberedItem>;
 
+class ItemEraser final : public NumberedItem {
+public:
+	struct Target {
+		std::shared_ptr<ItemLine> item;
+		QPixmap before;
+	};
+
+	ItemEraser(
+		QPixmap mask,
+		QPointF maskPos,
+		std::vector<Target> targets)
+	: _mask(std::move(mask))
+	, _maskPos(maskPos)
+	, _targets(std::move(targets)) {
+	}
+
+	void apply() {
+		for (const auto &target : _targets) {
+			target.item->applyEraser(_mask, _maskPos);
+		}
+	}
+
+	void revert() {
+		for (const auto &target : _targets) {
+			target.item->setPixmap(target.before);
+		}
+	}
+
+	QRectF boundingRect() const override {
+		return QRectF();
+	}
+
+	void paint(
+			QPainter *,
+			const QStyleOptionGraphicsItem *,
+			QWidget *) override {
+	}
+
+	bool hasState(SaveState state) const override {
+		const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
+		return saved.saved;
+	}
+
+	void save(SaveState state) override {
+		auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
+		saved = {
+			.saved = true,
+			.status = status(),
+		};
+	}
+
+	void restore(SaveState state) override {
+		if (!hasState(state)) {
+			return;
+		}
+		const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
+		setStatus(saved.status);
+		if (saved.status == Status::Normal) {
+			apply();
+		} else if (saved.status == Status::Undid) {
+			revert();
+		}
+	}
+
+private:
+	QPixmap _mask;
+	QPointF _maskPos;
+	std::vector<Target> _targets;
+
+	struct {
+		bool saved = false;
+		NumberedItem::Status status;
+	} _saved, _keeped;
+};
+
 bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 	return event->isAccepted() || (event->button() == Qt::RightButton);
 }
@@ -34,6 +109,52 @@ Scene::Scene(const QRectF &rect)
 
 	_canvas->grabContentRequests(
 	) | rpl::on_next([=](ItemCanvas::Content &&content) {
+		if (content.clear) {
+			auto mask = std::move(content.pixmap);
+			if (mask.isNull()) {
+				return;
+			}
+			const auto maskPos = content.position;
+			const auto maskSize = mask.size()
+				/ float64(mask.devicePixelRatio());
+			const auto maskRect = QRectF(maskPos, maskSize);
+			auto targets = std::vector<ItemEraser::Target>();
+			const auto hits = QGraphicsScene::items(
+				maskRect,
+				Qt::IntersectsItemBoundingRect,
+				Qt::DescendingOrder);
+			for (auto *raw : hits) {
+				const auto it = _itemsByPointer.find(raw);
+				if (it == end(_itemsByPointer)) {
+					continue;
+				}
+				const auto &item = it->second;
+				if (!item->isNormalStatus()) {
+					continue;
+				}
+				const auto line = std::dynamic_pointer_cast<ItemLine>(item);
+				if (!line) {
+					continue;
+				}
+				auto before = line->pixmap();
+				if (!line->applyEraser(mask, maskPos)) {
+					continue;
+				}
+				targets.push_back({
+					.item = line,
+					.before = std::move(before),
+				});
+			}
+			if (!targets.empty()) {
+				const auto eraser = std::make_shared<ItemEraser>(
+					std::move(mask),
+					maskPos,
+					std::move(targets));
+				addItem(eraser);
+				_canvas->setZValue(++_lastLineZ);
+			}
+			return;
+		}
 		const auto item = std::make_shared<ItemLine>(
 			std::move(content.pixmap));
 		item->setPos(content.position);
@@ -52,7 +173,9 @@ void Scene::addItem(ItemPtr item) {
 	}
 	item->setNumber(_itemNumber++);
 	QGraphicsScene::addItem(item.get());
+	const auto raw = item.get();
 	_items.push_back(std::move(item));
+	_itemsByPointer.emplace(raw, _items.back());
 	_addsItem.fire({});
 }
 
@@ -73,7 +196,7 @@ void Scene::removeItem(const ItemPtr &item) {
 
 void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	QGraphicsScene::mousePressEvent(event);
-	if (SkipMouseEvent(event)) {
+	if (SkipMouseEvent(event) || !sceneRect().contains(event->scenePos())) {
 		return;
 	}
 	_canvas->handleMousePressEvent(event);
@@ -95,8 +218,8 @@ void Scene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 	_canvas->handleMouseMoveEvent(event);
 }
 
-void Scene::applyBrush(const QColor &color, float size) {
-	_canvas->applyBrush(color, size);
+void Scene::applyBrush(const QColor &color, float size, Brush::Tool tool) {
+	_canvas->applyBrush(color, size, tool);
 }
 
 rpl::producer<> Scene::addsItem() const {
@@ -146,6 +269,9 @@ void Scene::performUndo() {
 
 	const auto it = ranges::find_if(filtered, &NumberedItem::isNormalStatus);
 	if (it != filtered.end()) {
+		if (const auto eraser = dynamic_cast<ItemEraser*>(it->get())) {
+			eraser->revert();
+		}
 		(*it)->setStatus(NumberedItem::Status::Undid);
 	}
 }
@@ -155,6 +281,9 @@ void Scene::performRedo() {
 
 	const auto it = ranges::find_if(filtered, &NumberedItem::isUndidStatus);
 	if (it != filtered.end()) {
+		if (const auto eraser = dynamic_cast<ItemEraser*>(it->get())) {
+			eraser->apply();
+		}
 		(*it)->setStatus(NumberedItem::Status::Normal);
 	}
 }
@@ -172,6 +301,10 @@ void Scene::removeIf(Fn<bool(const ItemPtr &)> proj) {
 		}
 	}
 	_items = std::move(copy);
+	_itemsByPointer.clear();
+	for (const auto &item : _items) {
+		_itemsByPointer.emplace(item.get(), item);
+	}
 }
 
 void Scene::clearRedoList() {

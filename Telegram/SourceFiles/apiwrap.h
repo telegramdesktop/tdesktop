@@ -337,7 +337,6 @@ public:
 	void sendFiles(
 		Ui::PreparedList &&list,
 		SendMediaType type,
-		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
 		const SendAction &action);
 	void sendFile(

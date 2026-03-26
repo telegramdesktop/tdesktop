@@ -942,20 +942,27 @@ void EditRestrictedBox::prepare() {
 			if (!_saveCallback) {
 				return;
 			}
+			const auto show = uiShow();
+			const auto rankPeer = peer();
+			const auto rankUser = user();
+			const auto rank = _tagControl
+				? _tagControl->currentRank()
+				: _oldRank;
+			const auto saveRank = (rank != _oldRank);
+
+			// May destroy the box.
 			_saveCallback(
 				_oldRights,
 				ChatRestrictionsInfo{ value(), getRealUntilValue() });
-			if (_tagControl) {
-				const auto rank = _tagControl->currentRank();
-				if (rank != _oldRank) {
-					SaveMemberRank(
-						uiShow(),
-						peer(),
-						user(),
-						rank,
-						nullptr,
-						nullptr);
-				}
+
+			if (saveRank) {
+				SaveMemberRank(
+					show,
+					rankPeer,
+					rankUser,
+					rank,
+					nullptr,
+					nullptr);
 			}
 		};
 		addButton(tr::lng_settings_save(), save);

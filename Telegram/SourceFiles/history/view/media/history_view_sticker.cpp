@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_sticker.h"
 
+#include "base/options.h"
 #include "boxes/sticker_set_box.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
@@ -45,6 +46,11 @@ constexpr auto kMaxEmojiSizeFixed = 256;
 constexpr auto kPremiumMultiplier = (1 + 0.245 * 2);
 constexpr auto kEmojiMultiplier = 3;
 constexpr auto kMessageEffectMultiplier = 2;
+
+base::options::option<int> OptionStickerSize({
+	.id = "sticker-size",
+	.name = "Sticker size",
+});
 
 [[nodiscard]] QImage CacheDiceImage(
 		const QString &emoji,
@@ -193,6 +199,13 @@ bool Sticker::readyToDrawAnimationFrame() {
 
 QSize Sticker::Size() {
 	const auto side = std::min(st::maxStickerSize, kMaxSizeFixed);
+	if (OptionStickerSize.value() > 0) [[unlikely]] {
+		const auto scaled = std::clamp(
+			OptionStickerSize.value(),
+			style::ConvertScale(50),
+			side);
+		return { scaled, scaled };
+	}
 	return { side, side };
 }
 

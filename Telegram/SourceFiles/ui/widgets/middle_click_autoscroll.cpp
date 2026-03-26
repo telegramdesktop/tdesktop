@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/middle_click_autoscroll.h"
 
+#include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "ui/effects/animation_value.h"
 #include "ui/rect.h"
@@ -15,17 +16,10 @@ namespace Ui {
 namespace {
 
 constexpr auto kDelay = 15;
+constexpr auto kHoldToToggleThreshold = crl::time(220);
 
 [[nodiscard]] int Deadzone() {
 	return std::max(1, int(std::lround(style::ConvertFloatScale(6.))));
-}
-
-[[nodiscard]] float64 SpeedScale() {
-	return style::ConvertFloatScale(30.);
-}
-
-[[nodiscard]] float64 MaxSpeed() {
-	return style::ConvertFloatScale(3600.);
 }
 
 [[nodiscard]] QImage PaintCursorImage(
@@ -106,6 +100,27 @@ MiddleClickAutoscroll::MiddleClickAutoscroll(
 , _timer([=] { onTimer(); }) {
 }
 
+void MiddleClickAutoscroll::toggleOrBeginHold(const QPoint &globalPosition) {
+	if (_active) {
+		stop();
+		return;
+	}
+	_middlePressed = true;
+	_middlePressedAt = crl::now();
+	start(globalPosition);
+}
+
+bool MiddleClickAutoscroll::finishHold(Qt::MouseButton button) {
+	if (!_middlePressed || (button != Qt::MiddleButton)) {
+		return false;
+	}
+	_middlePressed = false;
+	if ((crl::now() - _middlePressedAt) >= kHoldToToggleThreshold) {
+		stop();
+	}
+	return true;
+}
+
 void MiddleClickAutoscroll::start(const QPoint &globalPosition) {
 	if (_active) {
 		stop();
@@ -121,6 +136,7 @@ void MiddleClickAutoscroll::stop() {
 	if (!_active) {
 		return;
 	}
+	_middlePressed = false;
 	_active = false;
 	_timer.cancel();
 	if (_restoreCursor) {
@@ -213,8 +229,8 @@ void MiddleClickAutoscroll::onTimer() {
 		return;
 	}
 	const auto speed = std::min(
-		absolute * SpeedScale(),
-		MaxSpeed());
+		absolute * float64(st::middleClickAutoscrollSpeedScale),
+		float64(st::middleClickAutoscrollMaxSpeed));
 	auto scroll = int(std::lround((speed * elapsed) / 1000.));
 	if (scroll <= 0) {
 		scroll = 1;

@@ -2145,7 +2145,7 @@ Controller::Controller(not_null<Main::Session*> session, PickCallback pick)
 				return aBirthday.day() < bBirthday.day();
 			});
 
-			for (const auto user : usersWithBirthdays) {
+			for (const auto &user : usersWithBirthdays) {
 				auto row = std::make_unique<PeerRow>(user);
 				if (auto s = status(user->birthday()); !s.isEmpty()) {
 					row->setCustomStatus(std::move(s));

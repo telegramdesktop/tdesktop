@@ -153,7 +153,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 			+ (emojiCount - 1) * st::stickerEmojiSkip;
 		auto emojiLeft = (width() - emojiWidth) / 2;
 		const auto esize = Ui::Emoji::GetSizeLarge();
-		for (const auto emoji : _emojiList) {
+		for (const auto &emoji : _emojiList) {
 			Ui::Emoji::Draw(
 				p,
 				emoji,

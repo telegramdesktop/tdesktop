@@ -53,6 +53,89 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 namespace Ui {
+
+void SetupCaptionFieldInBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::InputField*> field,
+		PeerData *panelPeer,
+		Fn<bool(not_null<DocumentData*>)> allowWithoutPremium,
+		PremiumFeature premiumFeature) {
+	using Limit = HistoryView::Controls::CharactersLimitLabel;
+	struct State final {
+		base::unique_qptr<ChatHelpers::TabbedPanel> emojiPanel;
+		base::unique_qptr<Limit> charsLimitation;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	const auto container = box->getDelegate()->outerContainer();
+	using Selector = ChatHelpers::TabbedSelector;
+	state->emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
+		container,
+		controller,
+		object_ptr<Selector>(
+			nullptr,
+			controller->uiShow(),
+			Window::GifPauseReason::Layer,
+			Selector::Mode::EmojiOnly));
+	const auto emojiPanel = state->emojiPanel.get();
+	emojiPanel->setDesiredHeightValues(
+		1.,
+		st::emojiPanMinHeight / 2,
+		st::emojiPanMinHeight);
+	emojiPanel->hide();
+	emojiPanel->selector()->setCurrentPeer(
+		panelPeer ? panelPeer : controller->session().user());
+	emojiPanel->selector()->emojiChosen(
+	) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
+		Ui::InsertEmojiAtCursor(field->textCursor(), data.emoji);
+	}, field->lifetime());
+	emojiPanel->selector()->customEmojiChosen(
+	) | rpl::on_next([=](ChatHelpers::FileChosen data) {
+		const auto info = data.document->sticker();
+		if (info
+			&& info->setType == Data::StickersType::Emoji
+			&& !allowWithoutPremium(data.document)
+			&& !controller->session().premium()) {
+			ShowPremiumPreviewBox(controller, premiumFeature);
+		} else {
+			Data::InsertCustomEmoji(field, data.document);
+		}
+	}, field->lifetime());
+
+	const auto emojiButton = Ui::AddEmojiToggleToField(
+		field,
+		box,
+		controller,
+		emojiPanel,
+		st::sendGifWithCaptionEmojiPosition);
+	emojiButton->show();
+
+	const auto session = &controller->session();
+	const auto checkCharsLimitation = [=](auto repeat) -> void {
+		const auto remove = Ui::ComputeFieldCharacterCount(field)
+			- Data::PremiumLimits(session).captionLengthCurrent();
+		if (remove > 0) {
+			if (!state->charsLimitation) {
+				state->charsLimitation = base::make_unique_q<Limit>(
+					field,
+					emojiButton,
+					style::al_top);
+				state->charsLimitation->show();
+				Data::AmPremiumValue(session) | rpl::on_next([=] {
+					repeat(repeat);
+				}, state->charsLimitation->lifetime());
+			}
+			state->charsLimitation->setLeft(remove);
+			state->charsLimitation->show();
+		} else {
+			state->charsLimitation = nullptr;
+		}
+	};
+	field->changes() | rpl::on_next([=] {
+		checkCharsLimitation(checkCharsLimitation);
+	}, field->lifetime());
+}
+
 namespace {
 
 struct State final {
@@ -205,8 +288,6 @@ struct State final {
 [[nodiscard]] not_null<Ui::InputField*> AddInputField(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller) {
-	using Limit = HistoryView::Controls::CharactersLimitLabel;
-
 	const auto bottomContainer = box->setPinnedToBottomContent(
 		object_ptr<Ui::VerticalLayout>(box));
 	const auto wrap = bottomContainer->add(
@@ -218,83 +299,15 @@ struct State final {
 		Ui::InputField::Mode::MultiLine,
 		tr::lng_photo_caption());
 	Ui::ResizeFitChild(wrap, input);
-
-	struct State final {
-		base::unique_qptr<ChatHelpers::TabbedPanel> emojiPanel;
-		base::unique_qptr<Limit> charsLimitation;
-	};
-	const auto state = box->lifetime().make_state<State>();
-
-	{
-		const auto container = box->getDelegate()->outerContainer();
-		using Selector = ChatHelpers::TabbedSelector;
-		state->emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
-			container,
-			controller,
-			object_ptr<Selector>(
-				nullptr,
-				controller->uiShow(),
-				Window::GifPauseReason::Layer,
-				Selector::Mode::EmojiOnly));
-		const auto emojiPanel = state->emojiPanel.get();
-		emojiPanel->setDesiredHeightValues(
-			1.,
-			st::emojiPanMinHeight / 2,
-			st::emojiPanMinHeight);
-		emojiPanel->hide();
-		emojiPanel->selector()->setCurrentPeer(controller->session().user());
-		emojiPanel->selector()->emojiChosen(
-		) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
-			Ui::InsertEmojiAtCursor(input->textCursor(), data.emoji);
-		}, input->lifetime());
-		emojiPanel->selector()->customEmojiChosen(
-		) | rpl::on_next([=](ChatHelpers::FileChosen data) {
-			const auto info = data.document->sticker();
-			if (info
-				&& info->setType == Data::StickersType::Emoji
-				&& !controller->session().premium()) {
-				ShowPremiumPreviewBox(
-					controller,
-					PremiumFeature::AnimatedEmoji);
-			} else {
-				Data::InsertCustomEmoji(input, data.document);
-			}
-		}, input->lifetime());
-	}
-
-	const auto emojiButton = Ui::AddEmojiToggleToField(
-		input,
+	SetupCaptionFieldInBox(
 		box,
 		controller,
-		state->emojiPanel.get(),
-		st::sendGifWithCaptionEmojiPosition);
-	emojiButton->show();
-
-	const auto session = &controller->session();
-	const auto checkCharsLimitation = [=](auto repeat) -> void {
-		const auto remove = Ui::ComputeFieldCharacterCount(input)
-			- Data::PremiumLimits(session).captionLengthCurrent();
-		if (remove > 0) {
-			if (!state->charsLimitation) {
-				state->charsLimitation = base::make_unique_q<Limit>(
-					input,
-					emojiButton,
-					style::al_top);
-				state->charsLimitation->show();
-				Data::AmPremiumValue(session) | rpl::on_next([=] {
-					repeat(repeat);
-				}, state->charsLimitation->lifetime());
-			}
-			state->charsLimitation->setLeft(remove);
-			state->charsLimitation->show();
-		} else {
-			state->charsLimitation = nullptr;
-		}
-	};
-
-	input->changes() | rpl::on_next([=] {
-		checkCharsLimitation(checkCharsLimitation);
-	}, input->lifetime());
+		input,
+		controller->session().user(),
+		[](not_null<DocumentData*>) {
+			return false;
+		},
+		PremiumFeature::AnimatedEmoji);
 
 	return input;
 }

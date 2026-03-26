@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_document_resolver.h"
 
-#include "base/options.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/abstract_box.h" // Ui::show().
 #include "chat_helpers/ttl_media_layer_widget.h"
@@ -38,13 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 namespace {
-
-base::options::toggle OptionExternalVideoPlayer({
-	.id = kOptionExternalVideoPlayer,
-	.name = "External video player",
-	.description = "Use system video player instead of the internal one. "
-		"This disabes video playback in messages.",
-});
 
 void ConfirmDontWarnBox(
 		not_null<Ui::GenericBox*> box,
@@ -153,8 +145,6 @@ void LaunchWithWarning(
 
 } // namespace
 
-const char kOptionExternalVideoPlayer[] = "external-video-player";
-
 base::binary_guard ReadBackgroundImageAsync(
 		not_null<Data::DocumentMedia*> media,
 		FnMut<QImage(QImage)> postprocess,
@@ -192,22 +182,19 @@ void ResolveDocument(
 		not_null<DocumentData*> document,
 		HistoryItem *item,
 		MsgId topicRootId,
-		PeerId monoforumPeerId) {
+		PeerId monoforumPeerId,
+		bool showDrawButton) {
 	if (document->isNull()) {
 		return;
 	}
 	const auto msgId = item ? item->fullId() : FullMsgId();
 
 	const auto showDocument = [&] {
-		if (OptionExternalVideoPlayer.value()
-			&& document->isVideoFile()
-			&& !document->filepath().isEmpty()) {
-			File::Launch(document->location(false).fname);
-		} else if (controller) {
+		if (controller) {
 			controller->openDocument(
 				document,
 				true,
-				{ msgId, topicRootId, monoforumPeerId });
+				{ msgId, topicRootId, monoforumPeerId, showDrawButton });
 		}
 	};
 
@@ -243,7 +230,7 @@ void ResolveDocument(
 	if (document->isTheme() && media->loaded(true)) {
 		showDocument();
 		location.accessDisable();
-	} else if (media->canBePlayed(item)) {
+	} else if (media->canBePlayed()) {
 		if (document->isAudioFile()
 			|| document->isVoiceMessage()
 			|| document->isVideoMessage()) {

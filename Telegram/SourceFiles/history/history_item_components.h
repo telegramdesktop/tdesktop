@@ -673,6 +673,11 @@ struct HistoryServicePinned
 , HistoryServiceDependentData {
 };
 
+struct HistoryServiceClearHistory
+: RuntimeComponent<HistoryServiceClearHistory, HistoryItem>
+, HistoryServiceDependentData {
+};
+
 struct HistoryServiceTopicInfo
 : RuntimeComponent<HistoryServiceTopicInfo, HistoryItem>
 , HistoryServiceDependentData {

@@ -319,6 +319,12 @@ settingsFilterIconPadding: margins(0px, 17px, 0px, 5px);
 
 settingsFilterTagPreviewSkip: 14px;
 
+settingsFilterAddRecommended: RoundButton(defaultActiveButton) {
+	width: -32px;
+	height: 26px;
+	textTop: 4px;
+}
+
 settingsDeviceName: InputField(defaultInputField) {
 	textBg: transparent;
 	textMargins: margins(1px, 3px, 1px, 4px);

@@ -70,10 +70,21 @@ private:
 		QRect rounded;
 		QRect outer;
 	};
+	enum class RippleShape : uchar {
+		InnerEllipse,
+		SendEllipse,
+		StarsRoundRect,
+		ScheduleEllipse,
+	};
+
 	[[nodiscard]] QPixmap grabContent();
 	void updateSize();
 
 	[[nodiscard]] StarsGeometry starsGeometry() const;
+
+	[[nodiscard]] RippleShape currentRippleShape() const;
+	[[nodiscard]] QRect sendEllipseRect() const;
+	[[nodiscard]] QRect scheduleEllipseRect() const;
 
 	void paintRecord(QPainter &p, bool over);
 	void paintRound(QPainter &p, bool over);
@@ -102,6 +113,7 @@ private:
 
 	std::array<std::unique_ptr<Lottie::Icon>, 2> _voiceRoundIcons;
 	bool _voiceRoundAnimating = false;
+	RippleShape _lastRippleShape = RippleShape::SendEllipse;
 
 };
 
