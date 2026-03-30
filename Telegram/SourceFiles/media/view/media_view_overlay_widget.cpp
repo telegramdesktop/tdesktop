@@ -5919,9 +5919,7 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 			handleDocumentClick();
 		}
 	} else if (key == Qt::Key_Left) {
-		if (_controlsHideTimer.isActive()) {
-			activateControls();
-		}
+		activateControls();
 		moveToNext(-1);
 	} else if (key == Qt::Key_H && !_stories) {
 		if (_flip & Qt::Horizontal) {
@@ -5944,9 +5942,7 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 			redisplayContent();
 		}
 	} else if (key == Qt::Key_Right) {
-		if (_controlsHideTimer.isActive()) {
-			activateControls();
-		}
+		activateControls();
 		if (!moveToNext(1) && _stories) {
 			storiesClose();
 		}
@@ -7051,6 +7047,7 @@ void OverlayWidget::clearBeforeHide() {
 	_controlsState = ControlsShown;
 	_controlsOpacity = anim::value(1);
 	_helper->setControlsOpacity(1.);
+	setCursor(style::cur_default);
 	_groupThumbs = nullptr;
 	_groupThumbsRect = QRect();
 	_sponsoredButton = nullptr;
