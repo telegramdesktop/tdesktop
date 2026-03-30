@@ -116,10 +116,9 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 				maxH = limitH;
 			}
 		}
-		const auto ratio = style::DevicePixelRatio();
 		preview = Images::Prepare(
 			std::move(preview),
-			QSize(maxW, maxH) * ratio,
+			style::DevicePixels(QSize(maxW, maxH)),
 			{ .outer = { maxW, maxH } });
 	}
 	auto originalWidth = preview.width();
@@ -148,8 +147,8 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 	}
 
 	preview = std::move(preview).scaled(
-		_previewWidth * style::DevicePixelRatio(),
-		_previewHeight * style::DevicePixelRatio(),
+		style::DevicePixels(_previewWidth),
+		style::DevicePixels(_previewHeight),
 		Qt::IgnoreAspectRatio,
 		Qt::SmoothTransformation);
 	preview = Images::Opaque(std::move(preview));

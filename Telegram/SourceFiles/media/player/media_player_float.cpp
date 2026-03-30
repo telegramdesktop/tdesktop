@@ -44,12 +44,12 @@ bool RoundPainter::fillFrame(const QSize &size) {
 	const auto ratio = style::DevicePixelRatio();
 	if (creating) {
 		_frame = QImage(
-			size * ratio,
+			style::DevicePixels(size),
 			QImage::Format_ARGB32_Premultiplied);
 		_frame.setDevicePixelRatio(ratio);
 	}
 	auto frameInner = [&] {
-		return QRect(QPoint(), _frame.size() / ratio);
+		return QRect(QPoint(), _frame.size() / style::DevicePixelRatio());
 	};
 	if (const auto streamed = instance()->roundVideoStreamed(_item)) {
 		auto request = Streaming::FrameRequest::NonStrict();
@@ -213,7 +213,7 @@ void Float::detach() {
 void Float::prepareShadow() {
 	const auto ratio = style::DevicePixelRatio();
 	auto shadow = QImage(
-		size() * ratio,
+		style::DevicePixels(size()),
 		QImage::Format_ARGB32_Premultiplied);
 	shadow.fill(Qt::transparent);
 	shadow.setDevicePixelRatio(ratio);

@@ -156,7 +156,7 @@ void CollectibleEmoji::prepareFrame() {
 	const auto clip = QSize(_size, _size);
 	if (_frame.isNull()) {
 		const auto ratio = style::DevicePixelRatio();
-		_frame = QImage(clip * ratio, QImage::Format_ARGB32_Premultiplied);
+		_frame = QImage(style::DevicePixels(clip), QImage::Format_ARGB32_Premultiplied);
 		_frame.setDevicePixelRatio(ratio);
 	}
 	_frame.fill(Qt::transparent);

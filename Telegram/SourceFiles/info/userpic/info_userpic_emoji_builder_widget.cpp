@@ -67,7 +67,7 @@ void AlignChildren(not_null<Ui::RpWidget*> widget, int fullWidth) {
 		const std::vector<QColor> colors) {
 	if (colors.empty()) {
 		auto image = QImage(
-			Size(size * style::DevicePixelRatio()),
+			Size(style::DevicePixels(size )),
 			QImage::Format_ARGB32_Premultiplied);
 		image.setDevicePixelRatio(style::DevicePixelRatio());
 		image.fill(Qt::transparent);

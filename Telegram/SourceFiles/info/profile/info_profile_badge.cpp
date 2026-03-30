@@ -134,8 +134,8 @@ void Badge::setContent(Content content) {
 					_customStatusLoopsLimit);
 			}
 		}
-		const auto width = emoji + (icon ? icon->width() : 0);
-		const auto height = std::max(emoji, icon ? icon->height() : 0);
+		const auto width = qRound(emoji) + (icon ? icon->width() : 0);
+		const auto height = std::max(qRound(emoji), icon ? icon->height() : 0);
 		_view->resize(width, height);
 		_view->paintRequest(
 		) | rpl::on_next([=, check = _view.data()]{

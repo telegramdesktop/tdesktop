@@ -73,10 +73,11 @@ private:
 QPixmap PrepareOuterWide(const style::RoundCheckbox *st) {
 	const auto size = st->size;
 	const auto wideSize = size * kWideScale;
+	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(wideSize, wideSize) * style::DevicePixelRatio(),
+		QSize(qRound(wideSize * ratio), qRound(wideSize * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
+	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 	{
 		auto p = QPainter(&result);
@@ -96,10 +97,11 @@ QPixmap PrepareOuterWide(const style::RoundCheckbox *st) {
 
 QPixmap PrepareInner(const style::RoundCheckbox *st, bool displayInactive) {
 	const auto size = st->size;
+	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(size, size) * style::DevicePixelRatio(),
+		QSize(qRound(size * ratio), qRound(size * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
+	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 	{
 		auto p = QPainter(&result);
@@ -119,10 +121,11 @@ QPixmap PrepareInner(const style::RoundCheckbox *st, bool displayInactive) {
 
 QPixmap PrepareCheck(const style::RoundCheckbox *st) {
 	const auto size = st->size;
+	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(size, size) * style::DevicePixelRatio(),
+		QSize(qRound(size * ratio), qRound(size * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
+	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 	{
 		auto p = QPainter(&result);
@@ -199,8 +202,12 @@ QPixmap CheckCaches::paintFrame(
 	const auto size = st->size;
 	const auto wideSize = size * kWideScale;
 	const auto skip = (wideSize - size) / 2;
-	auto result = QImage(wideSize * style::DevicePixelRatio(), wideSize * style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		qRound(wideSize * ratio),
+		qRound(wideSize * ratio),
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 
 	const auto roundProgress = (progress >= st->bgDuration)
@@ -220,7 +227,7 @@ QPixmap CheckCaches::paintFrame(
 			const auto outerTo = WideDestRect(st, skip, skip, outerScale);
 			const auto outerFrom = QRect(
 				QPoint(0, 0),
-				QSize(wideSize, wideSize) * style::DevicePixelRatio());
+				QSize(qRound(wideSize * ratio), qRound(wideSize * ratio)));
 			p.drawPixmap(outerTo, frames.outerWide, outerFrom);
 		}
 		p.drawPixmap(skip, skip, frames.inner);
@@ -229,7 +236,7 @@ QPixmap CheckCaches::paintFrame(
 		const auto checkTo = QRect(skip, skip, divider, st->size);
 		const auto checkFrom = QRect(
 			QPoint(0, 0),
-			QSize(divider, st->size) * style::DevicePixelRatio());
+			QSize(qRound(divider * ratio), qRound(st->size * ratio)));
 		p.drawPixmap(checkTo, frames.check, checkFrom);
 
 		p.setCompositionMode(QPainter::CompositionMode_Source);
@@ -271,7 +278,7 @@ void RoundCheckbox::paint(QPainter &p, int x, int y, int outerWidth, float64 mas
 		return;
 	}
 
-	auto cacheSize = kWideScale * _st.size * style::DevicePixelRatio();
+	auto cacheSize = style::DevicePixels(kWideScale * _st.size);
 	auto cacheFrom = QRect(0, 0, cacheSize, cacheSize);
 	auto inactiveTo = WideDestRect(&_st, x, y, masterScale);
 
@@ -336,8 +343,12 @@ void RoundCheckbox::prepareInactiveCache() {
 	auto wideSize = _st.size * kWideScale;
 	auto ellipse = QRect((wideSize - _st.size) / 2, (wideSize - _st.size) / 2, _st.size, _st.size);
 
-	auto cacheBg = QImage(wideSize * style::DevicePixelRatio(), wideSize * style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
-	cacheBg.setDevicePixelRatio(style::DevicePixelRatio());
+	const auto ratio = style::DevicePixelRatio();
+	auto cacheBg = QImage(
+		qRound(wideSize * ratio),
+		qRound(wideSize * ratio),
+		QImage::Format_ARGB32_Premultiplied);
+	cacheBg.setDevicePixelRatio(ratio);
 	cacheBg.fill(Qt::transparent);
 	auto cacheFg = cacheBg;
 	if (_st.bgInactive) {

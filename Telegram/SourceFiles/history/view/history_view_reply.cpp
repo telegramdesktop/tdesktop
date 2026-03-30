@@ -46,7 +46,7 @@ constexpr auto kNonExpandedLinesLimit = 5;
 	const auto size = 2 * line + diameter;
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(size, size) * ratio,
+		QSize(qRound(size * ratio), qRound(size * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
 	result.setDevicePixelRatio(ratio);
@@ -77,7 +77,7 @@ constexpr auto kNonExpandedLinesLimit = 5;
 	const auto size = 2 * line + diameter;
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(size, size) * ratio,
+		QSize(qRound(size * ratio), qRound(size * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(black);
 	result.setDevicePixelRatio(ratio);

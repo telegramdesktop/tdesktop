@@ -359,7 +359,9 @@ PaintRoundImageCallback ChatRow::generatePaintUserpicCallback(
 			int outerWidth,
 			int size) mutable {
 		const auto wide = size + style::ConvertScale(3);
-		const auto full = QSize(wide, wide) * style::DevicePixelRatio();
+		const auto full = QSize(
+			style::DevicePixels(wide),
+			style::DevicePixels(wide));
 		auto repaint = false;
 		if (_disabledFrame.size() != full) {
 			repaint = true;
@@ -967,7 +969,7 @@ void LinksController::rowPaintIcon(
 	auto &icon = _icons[int(color)];
 	if (icon.isNull()) {
 		icon = QImage(
-			QSize(inner, inner) * style::DevicePixelRatio(),
+			style::DevicePixels(QSize(inner, inner)),
 			QImage::Format_ARGB32_Premultiplied);
 		icon.fill(Qt::transparent);
 		icon.setDevicePixelRatio(style::DevicePixelRatio());

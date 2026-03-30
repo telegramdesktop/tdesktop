@@ -1404,7 +1404,11 @@ void MessagesUi::setupMessagesWidget() {
 		QPainter(_messages).drawImage(
 			QRect(QPoint(0, start), scroll->size()),
 			_canvas,
-			QRect(QPoint(), scroll->size() * ratio));
+			QRect(
+				QPoint(),
+				QSize(
+					qRound(scroll->width() * ratio),
+					qRound(scroll->height() * ratio))));
 	}, _messages->lifetime());
 
 	scroll->show();
@@ -1577,10 +1581,13 @@ void MessagesUi::setupPinnedWidget() {
 		const auto end = start + scroll->width();
 		const auto ratio = style::DevicePixelRatio();
 
-		if ((_pinnedCanvas.width() < scroll->width() * ratio)
-			|| (_pinnedCanvas.height() < scroll->height() * ratio)) {
+		const auto pixelSize = QSize(
+			qRound(scroll->width() * ratio),
+			qRound(scroll->height() * ratio));
+		if ((_pinnedCanvas.width() < pixelSize.width())
+			|| (_pinnedCanvas.height() < pixelSize.height())) {
 			_pinnedCanvas = QImage(
-				scroll->size() * ratio,
+				pixelSize,
 				QImage::Format_ARGB32_Premultiplied);
 			_pinnedCanvas.setDevicePixelRatio(ratio);
 		}
@@ -1697,7 +1704,7 @@ void MessagesUi::setupPinnedWidget() {
 		QPainter(_pinned).drawImage(
 			QRect(QPoint(start, 0), scroll->size()),
 			_pinnedCanvas,
-			QRect(QPoint(), scroll->size() * ratio));
+			QRect(QPoint(), pixelSize));
 	}, _pinned->lifetime());
 
 	_pinned->setMouseTracking(true);

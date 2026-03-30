@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
-
 #include <rpl/range.h>
 
 namespace Window {

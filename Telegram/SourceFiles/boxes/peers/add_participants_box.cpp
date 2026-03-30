@@ -337,7 +337,10 @@ PaintRoundImageCallback ForbiddenRow::generatePaintUserpicCallback(
 			int outerWidth,
 			int size) mutable {
 		const auto wide = size + style::ConvertScale(3);
-		const auto full = QSize(wide, wide) * style::DevicePixelRatio();
+		const auto ratio = style::DevicePixelRatio();
+		const auto full = QSize(
+			qRound(wide * ratio),
+			qRound(wide * ratio));
 		auto repaint = false;
 		if (_disabledFrame.size() != full) {
 			repaint = true;

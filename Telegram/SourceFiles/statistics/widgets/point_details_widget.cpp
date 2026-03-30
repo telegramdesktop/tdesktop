@@ -143,10 +143,13 @@ PointDetailsWidget::PointDetailsWidget(
 			const auto w = st::statisticsDetailsArrowShift;
 			const auto stroke = style::ConvertScaleExact(
 				st::statisticsDetailsArrowStroke);
+			const auto ratio = style::DevicePixelRatio();
 			_arrow = QImage(
-				QSize(w + stroke, w * 2 + stroke) * style::DevicePixelRatio(),
+				QSize(
+					qRound((w + stroke) * ratio),
+					qRound((w * 2 + stroke) * ratio)),
 				QImage::Format_ARGB32_Premultiplied);
-			_arrow.setDevicePixelRatio(style::DevicePixelRatio());
+			_arrow.setDevicePixelRatio(ratio);
 			_arrow.fill(Qt::transparent);
 			{
 				auto p = QPainter(&_arrow);
@@ -265,7 +268,7 @@ PointDetailsWidget::PointDetailsWidget(
 		const auto fullRect = s.isNull()
 			? Rect(Size(calculatedWidth))
 			: Rect(s);
-		_innerRect = fullRect - st::statisticsDetailsPopupPadding;
+		_innerRect = (fullRect - st::statisticsDetailsPopupPadding).toAlignedRect();
 		_textRect = _innerRect - st::statisticsDetailsPopupMargins;
 		invalidateCache();
 	}, lifetime());
@@ -442,7 +445,7 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 
 	if (_cache.isNull()) {
 		_cache = QImage(
-			size() * style::DevicePixelRatio(),
+			style::DevicePixels(size()),
 			QImage::Format_ARGB32_Premultiplied);
 		_cache.setDevicePixelRatio(style::DevicePixelRatio());
 		_cache.fill(Qt::transparent);

@@ -687,7 +687,7 @@ struct VideoPreviewDocument {
 					| Option::RoundSkipTopRight);
 			state->blurred = Images::Prepare(
 				image->original(),
-				QSize(width, height) * style::DevicePixelRatio(),
+				style::DevicePixels(QSize(width, height)),
 				{ .options = (Option::Blur | Option::RoundLarge | corners) });
 		}
 	}
@@ -747,7 +747,7 @@ struct VideoPreviewDocument {
 		check();
 		const auto ready = state->instance.player().ready()
 			&& !state->instance.player().videoSize().isEmpty();
-		const auto size = QSize(width, height) * style::DevicePixelRatio();
+		const auto size = style::DevicePixels(QSize(width, height));
 
 		using namespace Images;
 		auto rounding = CornersMaskRef(

@@ -646,9 +646,9 @@ void StickerWithBadgePart::validateBadge(
 	const auto inner = QRect(0, 0, width, font->height);
 	const auto rect = inner + st::chatGiveawayBadgePadding;
 	const auto size = rect.size();
-	const auto ratio = style::DevicePixelRatio();
-	_badge = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
-	_badge.setDevicePixelRatio(ratio);
+	_badge = QImage(style::DevicePixels(size),
+		QImage::Format_ARGB32_Premultiplied);
+	_badge.setDevicePixelRatio(style::DevicePixelRatio());
 	_badge.fill(Qt::transparent);
 
 	auto p = QPainter(&_badge);

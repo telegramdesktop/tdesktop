@@ -1211,7 +1211,7 @@ void Viewport::RendererGL::validateDatas() {
 		bool updating = false;
 	};
 	auto requests = std::vector<Request>();
-	auto available = std::max(_names.image().width(), pausedWidth);
+	auto available = std::max(_names.image().width(), qRound(pausedWidth));
 	for (auto &data : _tileData) {
 		data.stale = true;
 	}
@@ -1225,7 +1225,7 @@ void Viewport::RendererGL::validateDatas() {
 		if (hasWidth < 1) {
 			return 0;
 		}
-		return std::clamp(row->name().maxWidth(), 1, hasWidth) * factor;
+		return qRound(std::clamp(row->name().maxWidth(), 1, hasWidth) * factor);
 	};
 	for (auto i = 0; i != count; ++i) {
 		tiles[i]->row()->lazyInitialize(st::groupCallMembersListItem);

@@ -1189,7 +1189,7 @@ void RoundVideoRecorder::progressTo(float64 progress) {
 
 void RoundVideoRecorder::preparePlaceholder(const QImage &placeholder) {
 	const auto ratio = style::DevicePixelRatio();
-	const auto full = QSize(_side, _side) * ratio;
+	const auto full = style::DevicePixels(QSize(_side, _side));
 	_framePlaceholder = Images::Circle(
 		(placeholder.isNull()
 			? QImage(u":/gui/art/round_placeholder.jpg"_q)
@@ -1238,7 +1238,7 @@ void RoundVideoRecorder::prepareFrame(bool blurred) {
 		_placeholderUpdates.fire(std::move(image));
 	} else {
 		auto scaled = copy.scaled(
-			QSize(_side, _side) * ratio,
+			style::DevicePixels(QSize(_side, _side)),
 			Qt::KeepAspectRatio,
 			Qt::SmoothTransformation).mirrored(true, false);
 		_framePrepared = Images::Circle(std::move(scaled));
@@ -1252,7 +1252,7 @@ void RoundVideoRecorder::createImages() {
 
 	const auto side = _side + 2 * _extent;
 	_shadow = QImage(
-		QSize(side, side) * ratio,
+		style::DevicePixels(QSize(side, side)),
 		QImage::Format_ARGB32_Premultiplied);
 	_shadow.fill(Qt::transparent);
 	_shadow.setDevicePixelRatio(ratio);

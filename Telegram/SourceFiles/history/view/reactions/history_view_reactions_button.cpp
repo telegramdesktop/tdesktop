@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "ui/chat/chat_style.h"
+#include "ui/style/style_core_scale.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
@@ -719,7 +720,11 @@ void Manager::paintButton(
 		p.drawImage(
 			geometry,
 			_expandedBuffer,
-			QRect(QPoint(), size * style::DevicePixelRatio()));
+			QRect(
+				QPoint(),
+				QSize(
+					qRound(size.width() * style::DevicePixelRatio()),
+					qRound(size.height() * style::DevicePixelRatio()))));
 	}
 	if (opacity != 1.) {
 		p.setOpacity(1.);

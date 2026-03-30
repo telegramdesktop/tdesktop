@@ -205,12 +205,12 @@ QImage PrepareWithBlurredBackground(
 		QImage blurred) {
 	const auto ratio = style::DevicePixelRatio();
 	if (resize.expanding) {
-		return Images::Prepare(std::move(large), resize.result * ratio, {
+		return Images::Prepare(std::move(large), style::DevicePixels(resize.result), {
 			.outer = outer,
 		});
 	}
 	auto background = QImage(
-		outer * ratio,
+		style::DevicePixels(outer),
 		QImage::Format_ARGB32_Premultiplied);
 	background.setDevicePixelRatio(ratio);
 	if (blurred.isNull()) {
@@ -226,7 +226,7 @@ QImage PrepareWithBlurredBackground(
 	}
 	if (!large.isNull()) {
 		auto image = large.scaled(
-			resize.result * ratio,
+			style::DevicePixels(resize.result),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
 		image.setDevicePixelRatio(ratio);

@@ -154,7 +154,7 @@ void ConfirmSubscriptionBox(
 			creditsIconSize,
 			1.5);
 	state->frame = QImage(
-		Size(photoSize * style::DevicePixelRatio()),
+		Size(style::DevicePixels(photoSize)),
 		QImage::Format_ARGB32_Premultiplied);
 	state->frame.setDevicePixelRatio(style::DevicePixelRatio());
 	const auto options = Images::Option::RoundCircle;

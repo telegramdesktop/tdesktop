@@ -102,8 +102,8 @@ void PaintUnreadBadge(QPainter &p, const QRect &rect, const UnreadBadgeStyle &st
 		? styles.reactionBg[index]
 		: styles.bg[index];
 	if (badgeData->left[index].isNull()) {
-		const auto ratio = style::DevicePixelRatio();
-		int imgsize = size * ratio, imgsizehalf = sizehalf * ratio;
+		const auto imgsize = style::DevicePixels(size);
+		const auto imgsizehalf = style::DevicePixels(sizehalf);
 		CreateCircleMask(badgeData, size);
 		badgeData->left[index] = PixmapFromImage(
 			ColorizeCircleHalf(badgeData, imgsize, imgsizehalf, 0, bg));

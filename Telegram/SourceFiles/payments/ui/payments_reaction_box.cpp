@@ -700,7 +700,7 @@ QImage GenerateSmallBadgeImage(
 	const auto add = borderSt ? borderSt->width : 0;
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		(rect + QMargins(add, add, add, add)).size() * ratio,
+		style::DevicePixels((rect + QMargins(add, add, add, add)).size()),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);

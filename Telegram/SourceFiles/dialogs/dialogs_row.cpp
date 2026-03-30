@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "ui/style/style_core_scale.h"
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
 #include "dialogs/ui/dialogs_layout.h"
@@ -121,10 +122,14 @@ constexpr auto kBlurRadius = 24;
 	const auto &partSize = partRect.width();
 	const auto partSkip = fullSize - partSize;
 	auto result = Images::Circle(BlurredDarkenedPart(
-		PeerData::GenerateUserpicImage(peer, view, fullSize * ratio, 0),
+		PeerData::GenerateUserpicImage(peer, view, qRound(fullSize * ratio), 0),
 		QRect(
-			QPoint(partSkip, partSkip) * ratio,
-			QSize(partSize, partSize) * ratio)));
+			QPoint(
+				qRound(partSkip * ratio),
+				qRound(partSkip * ratio)),
+			QSize(
+				qRound(partSize * ratio),
+				qRound(partSize * ratio)))));
 	result.setDevicePixelRatio(ratio);
 
 	auto q = QPainter(&result);
@@ -589,8 +594,8 @@ void Row::paintUserpic(
 		-st::dialogsCallBadgeSkip.x(),
 		-st::dialogsCallBadgeSkip.y(),
 		st::lineWidth * 2 });
-	const auto frameSide = (2 * framePadding + context.st->photoSize)
-		* ratio;
+	const auto frameSide = qRound(
+		(2 * framePadding + context.st->photoSize) * ratio);
 	const auto frameSize = QSize(frameSide, frameSide);
 	const auto storiesSource = (storiesHas && storiesPeer)
 		? storiesPeer->owner().stories().source(storiesPeer->id)

@@ -316,7 +316,7 @@ Media *GroupedMedia::lookupSpoilerTagMedia() const {
 QImage GroupedMedia::generateSpoilerTagBackground(QRect full) const {
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		full.size() * ratio,
+		style::DevicePixels(full.size()),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 	auto p = QPainter(&result);

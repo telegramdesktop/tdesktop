@@ -53,7 +53,7 @@ QImage IconCurrencyColored(int size, const QColor &c) {
 	const auto s = Size(size);
 	auto svg = QSvgRenderer(CurrencySvg(c));
 	auto image = QImage(
-		s * style::DevicePixelRatio(),
+		style::DevicePixels(s),
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);
@@ -76,7 +76,7 @@ QByteArray CurrencySvgColored(const QColor &c) {
 
 QImage MenuIconCurrency(const QSize &size) {
 	auto image = QImage(
-		size * style::DevicePixelRatio(),
+		style::DevicePixels(size),
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);
@@ -132,7 +132,7 @@ QImage MenuIconCredits() {
 		+ Margins(style::ConvertScale(kStrokeWidth)));
 
 	auto image = QImage(
-		st::menuIconLinks.size() * style::DevicePixelRatio(),
+		style::DevicePixels(st::menuIconLinks.size()),
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);

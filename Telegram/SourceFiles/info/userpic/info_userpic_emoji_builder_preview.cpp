@@ -82,7 +82,7 @@ void PreviewPainter::setDocument(
 			return;
 		}
 		_lifetime.destroy();
-		const auto emojiSize = Size(_size * style::DevicePixelRatio());
+		const auto emojiSize = Size(style::DevicePixels(_size ));
 		if (sticker->isLottie()) {
 			_player = std::make_unique<HistoryView::LottiePlayer>(
 				ChatHelpers::LottiePlayerFromDocument(

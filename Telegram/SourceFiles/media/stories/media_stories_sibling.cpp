@@ -383,7 +383,7 @@ QImage Sibling::nameImage(const SiblingLayout &layout) {
 			const auto h = _nameStyle->font->height;
 			const auto ratio = style::DevicePixelRatio();
 			_nameImage = QImage(
-				QSize(w, h) * ratio,
+				style::DevicePixels(QSize(w, h)),
 				QImage::Format_ARGB32_Premultiplied);
 			_nameImage.setDevicePixelRatio(ratio);
 			_nameImage.fill(Qt::transparent);

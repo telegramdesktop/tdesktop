@@ -98,7 +98,7 @@ constexpr auto kTextLinesAlpha = 0.1;
 		const auto ratio = style::DevicePixelRatio();
 
 		auto result = QImage(
-			QSize(imgWidth, imgHeight) * ratio,
+			style::DevicePixels(QSize(imgWidth, imgHeight)),
 			QImage::Format_ARGB32_Premultiplied);
 		result.setDevicePixelRatio(ratio);
 		result.fill(Qt::transparent);

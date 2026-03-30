@@ -94,11 +94,10 @@ void LayerWidget::start() {
 }
 
 void LayerWidget::checkBackgroundStale() {
-	const auto ratio = style::DevicePixelRatio();
 	const auto &ready = _backgroundNext.isNull()
 		? _background
 		: _backgroundNext;
-	if (ready.size() == size() * ratio
+	if (ready.size() == style::DevicePixels(size())
 		&& _backgroundNight == IsNightMode()) {
 		_backgroundTimer.cancel();
 	} else if (!_backgroundCaching && !_backgroundTimer.isActive()) {
@@ -113,7 +112,7 @@ QImage LayerWidget::renderBackground() {
 	Ui::SendPendingMoveResizeEvents(target);
 
 	const auto ratio = style::DevicePixelRatio();
-	auto image = QImage(size() * ratio, QImage::Format_ARGB32_Premultiplied);
+	auto image = QImage(style::DevicePixels(size()), QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(ratio);
 
 	const auto shown = !parent->isHidden();
@@ -172,7 +171,7 @@ void LayerWidget::cacheBackground() {
 void LayerWidget::backgroundReady(QImage background, bool night) {
 	_backgroundCaching = false;
 
-	const auto required = size() * style::DevicePixelRatio();
+	const auto required = style::DevicePixels(size());
 	if (background.size() == required && night == IsNightMode()) {
 		_backgroundNext = std::move(background);
 		_backgroundNight = night;

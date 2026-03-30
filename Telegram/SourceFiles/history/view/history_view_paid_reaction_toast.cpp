@@ -405,10 +405,9 @@ void PaidReactionToast::setupLottiePreview(
 
 	const auto bytes = document->createMediaView()->bytes();
 	const auto filepath = document->filepath();
-	const auto ratio = style::DevicePixelRatio();
 	const auto player = widget->lifetime().make_state<Lottie::SinglePlayer>(
 		Lottie::ReadContent(bytes, filepath),
-		Lottie::FrameRequest{ QSize(size, size) * ratio },
+		Lottie::FrameRequest{ style::DevicePixels(QSize(size, size)) },
 		Lottie::Quality::Default);
 
 	widget->paintRequest(
@@ -417,8 +416,13 @@ void PaidReactionToast::setupLottiePreview(
 			return;
 		}
 		const auto image = player->frame();
+		const auto imageRatio = image.devicePixelRatio();
 		QPainter(widget).drawImage(
-			QRect(QPoint(), image.size() / ratio),
+			QRect(
+				QPoint(),
+				QSize(
+					qRound(image.width() / imageRatio),
+					qRound(image.height() / imageRatio))),
 			image);
 		if (player->frameIndex() + 1 != player->framesCount()) {
 			player->markFrameShown();

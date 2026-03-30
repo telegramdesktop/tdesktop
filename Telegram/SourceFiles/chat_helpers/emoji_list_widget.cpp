@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_premium.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "ui/style/style_core_scale.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
@@ -282,7 +283,8 @@ void EmojiColorPicker::setSingleSize(QSize size) {
 	_areaPosition = QPoint(
 		(_singleSize.width() - area.width()) / 2,
 		(_singleSize.height() - area.height()) / 2);
-	const auto esize = Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio();
+	const auto esize = qRound(
+		Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio());
 	_innerPosition = QPoint(
 		(area.width() - esize) / 2,
 		(area.height() - esize) / 2);
@@ -1048,7 +1050,8 @@ void EmojiListWidget::setSingleSize(QSize size) {
 	_areaPosition = QPoint(
 		(_singleSize.width() - area.width()) / 2,
 		(_singleSize.height() - area.height()) / 2);
-	const auto esize = Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio();
+	const auto esize = qRound(
+		Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio());
 	_innerPosition = QPoint(
 		(area.width() - esize) / 2,
 		(area.height() - esize) / 2);
@@ -1559,7 +1562,9 @@ void EmojiListWidget::drawRecent(
 		if (_premiumMarkFrameCache.isNull()) {
 			const auto ratio = style::DevicePixelRatio();
 			_premiumMarkFrameCache = QImage(
-				QSize(_customSingleSize, _customSingleSize) * ratio,
+				QSize(
+					qRound(_customSingleSize * ratio),
+					qRound(_customSingleSize * ratio)),
 				QImage::Format_ARGB32_Premultiplied);
 			_premiumMarkFrameCache.setDevicePixelRatio(ratio);
 		}
@@ -2834,7 +2839,9 @@ void EmojiListWidget::initButton(
 	const auto factor = style::DevicePixelRatio();
 	auto prepare = [&](QColor bg, QBrush fg) {
 		auto image = QImage(
-			QSize(width, height) * factor,
+			QSize(
+				qRound(width * factor),
+				qRound(height * factor)),
 			QImage::Format_ARGB32_Premultiplied);
 		image.setDevicePixelRatio(factor);
 		image.fill(Qt::transparent);

@@ -28,7 +28,8 @@ rpl::lifetime PaletteChangedLifetime;
 std::array<std::array<QImage, 4>, kCachedCornerRadiusCount> CachedMasks;
 
 [[nodiscard]] std::array<QImage, 4> PrepareCorners(int32 radius, const QBrush &brush, const style::color *shadow = nullptr) {
-	int32 r = radius * style::DevicePixelRatio(), s = st::msgShadow * style::DevicePixelRatio();
+	const auto r = style::DevicePixels(radius );
+	const auto s = style::DevicePixels(st::msgShadow );
 	QImage rect(r * 3, r * 3 + (shadow ? s : 0), QImage::Format_ARGB32_Premultiplied);
 	rect.fill(Qt::transparent);
 	{
@@ -108,6 +109,11 @@ void StartCachedCorners() {
 void FinishCachedCorners() {
 	Corners.clear();
 	PaletteChangedLifetime.destroy();
+}
+
+void RefreshCachedCorners() {
+	FinishCachedCorners();
+	StartCachedCorners();
 }
 
 void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corners) {
@@ -241,7 +247,7 @@ CornersPixmaps PrepareCornerPixmaps(ImageRoundRadius radius, style::color bg, co
 }
 
 CornersPixmaps PrepareInvertedCornerPixmaps(int radius, style::color bg) {
-	const auto size = radius * style::DevicePixelRatio();
+	const auto size = style::DevicePixels(radius );
 	auto circle = style::colorizeImage(
 		style::createInvertedCircleMask(radius * 2),
 		bg);

@@ -657,7 +657,7 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 		} else if (!paper.data.backgroundColors().empty()) {
 			paper.thumbnail = Ui::PixmapFromImage(
 				Ui::GenerateBackgroundImage(
-					st::backgroundSize * style::DevicePixelRatio(),
+					style::DevicePixels(st::backgroundSize),
 					paper.data.backgroundColors(),
 					paper.data.gradientRotation()));
 			paper.thumbnail.setDevicePixelRatio(style::DevicePixelRatio());

@@ -368,11 +368,10 @@ void Item::prepareCache() {
 	if (!_cache.isNull()) return;
 
 	Assert(!_visibility.animating());
-	auto cacheWidth = _width * kWideScale * style::DevicePixelRatio();
-	auto cacheHeight = _st.height * kWideScale * style::DevicePixelRatio();
+	auto cacheWidth = style::DevicePixels(_width * kWideScale);
 	auto data = QImage(
 		cacheWidth,
-		cacheHeight,
+		style::DevicePixels(_st.height * kWideScale),
 		QImage::Format_ARGB32_Premultiplied);
 	data.fill(Qt::transparent);
 	data.setDevicePixelRatio(style::DevicePixelRatio());

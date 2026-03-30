@@ -412,7 +412,7 @@ void SimilarChannels::validateCounterBg(const Channel &channel) const {
 	const auto height = channel.counterRect.height();
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		channel.counterRect.size() * ratio,
+		style::DevicePixels(channel.counterRect.size()),
 		QImage::Format_ARGB32_Premultiplied);
 	auto color = channel.more
 		? QColor(kMinLightness, kMinLightness, kMinLightness)
@@ -465,15 +465,14 @@ ClickHandlerPtr SimilarChannels::ensureToggleLink() const {
 }
 
 void SimilarChannels::ensureCacheReady(QSize size) const {
-	const auto ratio = style::DevicePixelRatio();
-	if (_roundedCache.size() != size * ratio) {
-		_roundedCache = QImage(
-			size * ratio,
-			QImage::Format_ARGB32_Premultiplied);
-		_roundedCache.setDevicePixelRatio(ratio);
+	const auto full = style::DevicePixels(size);
+	if (_roundedCache.size() != full) {
+		_roundedCache = QImage(full, QImage::Format_ARGB32_Premultiplied);
+		_roundedCache.setDevicePixelRatio(style::DevicePixelRatio());
 	}
 	const auto radius = st::bubbleRadiusLarge;
-	if (_roundedCorners.front().size() != QSize(radius, radius) * ratio) {
+	const auto corner = style::DevicePixels(QSize(radius, radius));
+	if (_roundedCorners.front().size() != corner) {
 		_roundedCorners = Images::CornersMask(radius);
 	}
 }

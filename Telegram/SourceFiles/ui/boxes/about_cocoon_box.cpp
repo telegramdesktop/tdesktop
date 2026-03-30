@@ -43,7 +43,7 @@ void AddCocoonBoxCover(not_null<Ui::VerticalLayout*> container) {
 	const auto logoSize = st::cocoonLogoSize;
 	const auto ratio = style::DevicePixelRatio();
 	auto logo = QImage(u":/gui/art/cocoon.webp"_q).scaled(
-		QSize(logoSize, logoSize) * ratio,
+		style::DevicePixels(QSize(logoSize, logoSize)),
 		Qt::IgnoreAspectRatio,
 		Qt::SmoothTransformation);
 	logo.setDevicePixelRatio(ratio);

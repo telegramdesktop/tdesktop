@@ -2075,8 +2075,9 @@ void StickerSetBox::Inner::paintSticker(
 		});
 	} else if (element.lottie && element.lottie->ready()) {
 		lottieFrame = element.lottie->frame();
+		const auto factor = lottieFrame.devicePixelRatio();
 		p.drawImage(
-			QRect(ppos, lottieFrame.size() / style::DevicePixelRatio()),
+			QRect(ppos, lottieFrame.size() / factor),
 			lottieFrame);
 
 		_lottiePlayer->unpause(element.lottie);

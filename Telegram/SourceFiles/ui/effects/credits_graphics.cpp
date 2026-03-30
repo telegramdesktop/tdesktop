@@ -59,7 +59,7 @@ PaintRoundImageCallback MultiThumbnail(
 		}
 		const auto smaller = size - shift;
 		const auto ratio = style::DevicePixelRatio();
-		const auto full = QSize(size, size) * ratio;
+		const auto full = style::DevicePixels(QSize(size, size));
 		if (cache->size() != full) {
 			*cache = QImage(full, QImage::Format_ARGB32_Premultiplied);
 			cache->setDevicePixelRatio(ratio);
@@ -468,7 +468,7 @@ PaintRoundImageCallback GeneratePaidPhotoPaintCallback(
 			const auto media = photo->createMediaView();
 			const auto thumbnail = media->thumbnailInline();
 			const auto ratio = style::DevicePixelRatio();
-			const auto scaled = QSize(size, size) * ratio;
+			const auto scaled = style::DevicePixels(QSize(size, size));
 			auto image = thumbnail
 				? Images::Blur(thumbnail->original(), true)
 				: QImage(scaled, QImage::Format_ARGB32_Premultiplied);

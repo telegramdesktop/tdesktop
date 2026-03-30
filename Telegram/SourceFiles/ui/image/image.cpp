@@ -11,11 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "ui/ui_utility.h"
-
 using namespace Images;
 
 namespace Images {
 namespace {
+
 
 [[nodiscard]] uint64 PixKey(int width, int height, Options options) {
 	return static_cast<uint64>(width)
@@ -58,7 +58,7 @@ Image::Image(QImage &&data)
 
 not_null<Image*> Image::Empty() {
 	static auto result = Image([] {
-		const auto factor = style::DevicePixelRatio();
+		const auto factor = style::DevicePixels(1);
 		auto data = QImage(
 			factor,
 			factor,
@@ -72,7 +72,7 @@ not_null<Image*> Image::Empty() {
 
 not_null<Image*> Image::BlankMedia() {
 	static auto result = Image([] {
-		const auto factor = style::DevicePixelRatio();
+		const auto factor = style::DevicePixels(1);
 		auto data = QImage(
 			factor,
 			factor,
@@ -93,18 +93,17 @@ const QPixmap &Image::cached(
 		int h,
 		const Images::PrepareArgs &args,
 		bool single) const {
-	const auto ratio = style::DevicePixelRatio();
 	if (w <= 0 || !width() || !height()) {
 		w = width();
 	} else if (h <= 0) {
-		h = std::max(int(int64(height()) * w / width()), 1) * ratio;
-		w *= ratio;
+		h = style::DevicePixels(std::max(int(int64(height()) * w / width()), 1));
+		w = style::DevicePixels(w);
 	} else {
-		w *= ratio;
-		h *= ratio;
+		w = style::DevicePixels(w);
+		h = style::DevicePixels(h);
 	}
 	const auto outer = args.outer;
-	const auto size = outer.isEmpty() ? QSize(w, h) : outer * ratio;
+	const auto size = outer.isEmpty() ? QSize(w, h) : style::DevicePixels(outer);
 	const auto k = single ? SinglePixKey(args) : PixKey(w, h, args);
 	const auto i = _cache.find(k);
 	return (i != _cache.cend() && i->second.size() == size)
@@ -126,8 +125,8 @@ QPixmap Image::prepare(int w, int h, const Images::PrepareArgs &args) const {
 	}
 
 	const auto ratio = style::DevicePixelRatio();
-	const auto outerw = outer.width() * ratio;
-	const auto outerh = outer.height() * ratio;
+	const auto outerw = style::DevicePixels(outer.width());
+	const auto outerh = style::DevicePixels(outer.height());
 
 	auto result = QImage(
 		QSize(outerw, outerh),

@@ -144,7 +144,8 @@ OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 		_documentBubbleImage.invalidate();
 		_themePreviewImage.invalidate();
 		_saveMsgImage.invalidate();
-		_footerImage.invalidate();
+		_footerHeaderImage.invalidate();
+		_footerMetaImage.invalidate();
 		_captionImage.invalidate();
 		invalidateControls();
 	}, _lifetime);
@@ -285,7 +286,8 @@ void OverlayWidget::RendererGL::deinit(QOpenGLFunctions *f) {
 	_documentBubbleImage.destroy(f);
 	_themePreviewImage.destroy(f);
 	_saveMsgImage.destroy(f);
-	_footerImage.destroy(f);
+	_footerHeaderImage.destroy(f);
+	_footerMetaImage.destroy(f);
 	_captionImage.destroy(f);
 	_groupThumbsImage.destroy(f);
 	_controlsImage.destroy(f);
@@ -308,6 +310,14 @@ void OverlayWidget::RendererGL::paint(
 		_factor = factor;
 		_ifactor = int(std::ceil(factor));
 		_controlsImage.invalidate();
+		_footerHeaderImage.invalidate();
+		_footerMetaImage.invalidate();
+		_captionImage.invalidate();
+		_groupThumbsImage.invalidate();
+		_saveMsgImage.invalidate();
+		_documentBubbleImage.invalidate();
+		_themePreviewImage.invalidate();
+		_radialImage.invalidate();
 
 		// We use the fact that fade texture atlas
 		// takes exactly full texture size. In case we
@@ -922,10 +932,65 @@ void OverlayWidget::RendererGL::validateControlsFade() {
 }
 
 void OverlayWidget::RendererGL::paintFooter(QRect outer, float64 opacity) {
-	paintUsingRaster(_footerImage, outer, [&](Painter &&p) {
-		const auto newOuter = QRect(QPoint(), outer.size());
-		_owner->paintFooterContent(p, newOuter, newOuter, opacity);
-	}, kFooterOffset, true);
+	const auto shift = outer.topLeft() - _owner->_headerNav.topLeft();
+	const auto header = _owner->_headerNav.translated(shift);
+	if (header.isValid()) {
+		paintUsingRaster(_footerHeaderImage, header, [&](Painter &&p) {
+			p.setPen(st::mediaviewControlFg);
+			auto o = _owner->_headerHasLink ? _owner->overLevel(Over::Header) : 0.;
+			p.setFont((o > 0.)
+				? st::mediaviewThickFont->underline()
+				: st::mediaviewThickFont);
+			p.setOpacity(_owner->controlOpacity(o) * opacity);
+			p.drawText(
+				0,
+				st::mediaviewThickFont->ascent,
+				_owner->_headerText);
+		}, kFooterOffset, true);
+	}
+	const auto meta = _owner->_nameNav.united(
+		_owner->_separatorNav).united(_owner->_dateNav).translated(shift);
+	if (meta.isValid()) {
+		paintUsingRaster(_footerMetaImage, meta, [&](Painter &&p) {
+			p.setPen(st::mediaviewControlFg);
+			p.setFont(st::mediaviewFont);
+			const auto name = _owner->_nameNav.translated(shift)
+				.translated(-meta.topLeft());
+			const auto separator = _owner->_separatorNav.translated(shift)
+				.translated(-meta.topLeft());
+			const auto date = _owner->_dateNav.translated(shift)
+				.translated(-meta.topLeft());
+			if (_owner->_nameNav.isValid()) {
+				const auto o = _owner->_from ? _owner->overLevel(Over::Name) : 0.;
+				p.setFont((o > 0.)
+					? st::mediaviewFont->underline()
+					: st::mediaviewFont);
+				p.setOpacity(_owner->controlOpacity(o) * opacity);
+				_owner->_fromNameLabel.drawElided(
+					p,
+					name.left(),
+					name.top(),
+					name.width());
+			}
+			if (_owner->_separatorNav.isValid()) {
+				p.setFont(st::mediaviewFont);
+				p.setOpacity(_owner->controlOpacity(0.) * opacity);
+				p.drawText(
+					separator.left(),
+					separator.top() + st::mediaviewFont->ascent,
+					Ui::kQBullet);
+			}
+			const auto o = _owner->overLevel(Over::Date);
+			p.setFont((o > 0.)
+				? st::mediaviewFont->underline()
+				: st::mediaviewFont);
+			p.setOpacity(_owner->controlOpacity(o) * opacity);
+			p.drawText(
+				date.left(),
+				date.top() + st::mediaviewFont->ascent,
+				_owner->_dateText);
+		}, kFooterOffset, true);
+	}
 }
 
 void OverlayWidget::RendererGL::paintCaption(QRect outer, float64 opacity) {
@@ -1094,18 +1159,20 @@ void OverlayWidget::RendererGL::paintUsingRaster(
 		int bufferOffset,
 		bool transparent) {
 	auto raster = image.takeImage();
-	const auto size = rect.size() * _ifactor;
+	const auto size = QSize(
+		std::max(qRound(rect.width() * _factor), 1),
+		std::max(qRound(rect.height() * _factor), 1));
 	if (raster.width() < size.width() || raster.height() < size.height()) {
 		raster = QImage(size, QImage::Format_ARGB32_Premultiplied);
 		Assert(!raster.isNull());
-		raster.setDevicePixelRatio(_ifactor);
+		raster.setDevicePixelRatio(_factor);
 		if (!transparent
 			&& (raster.width() > size.width()
 				|| raster.height() > size.height())) {
 			raster.fill(Qt::transparent);
 		}
-	} else if (raster.devicePixelRatio() != _ifactor) {
-		raster.setDevicePixelRatio(_ifactor);
+	} else if (qAbs(raster.devicePixelRatio() - _factor) > 0.001) {
+		raster.setDevicePixelRatio(_factor);
 	}
 
 	if (transparent) {
@@ -1118,7 +1185,12 @@ void OverlayWidget::RendererGL::paintUsingRaster(
 	image.setImage(std::move(raster), size);
 	image.bind(*_f);
 
-	const auto textured = image.texturedRect(rect, QRect(QPoint(), size));
+	const auto logical = QRectF(
+		rect.topLeft(),
+		QSizeF(size.width() / _factor, size.height() / _factor));
+	const auto textured = image.texturedRect(
+		logical,
+		QRectF(QPointF(), QSizeF(size)));
 	const auto geometry = transformRect(textured.geometry);
 	const GLfloat coords[] = {
 		geometry.left(), geometry.top(),

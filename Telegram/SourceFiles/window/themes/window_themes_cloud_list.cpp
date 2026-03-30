@@ -130,7 +130,9 @@ CloudListColors ColorsFromScheme(const EmbeddedScheme &scheme) {
 	result.radiobuttonActive = scheme.radiobuttonActive;
 	result.radiobuttonInactive = scheme.radiobuttonInactive;
 	result.background = QImage(
-		QSize(1, 1) * style::DevicePixelRatio(),
+		QSize(
+			qRound(style::DevicePixelRatio()),
+			qRound(style::DevicePixelRatio())),
 		QImage::Format_ARGB32_Premultiplied);
 	result.background.fill(scheme.background);
 	return result;
@@ -183,9 +185,10 @@ void CloudListCheck::ensureContrast() {
 	const auto y = getSize().height()
 		- radio.height()
 		- st::settingsThemeRadioBottom;
+	const auto ratio = style::DevicePixelRatio();
 	const auto under = QRect(
-		QPoint(x, y) * style::DevicePixelRatio(),
-		radio * style::DevicePixelRatio());
+		QPoint(qRound(x * ratio), qRound(y * ratio)),
+		QSize(qRound(radio.width() * ratio), qRound(radio.height() * ratio)));
 	const auto image = _backgroundFull.copy(under).convertToFormat(
 		QImage::Format_ARGB32_Premultiplied);
 	const auto active = style::internal::EnsureContrast(

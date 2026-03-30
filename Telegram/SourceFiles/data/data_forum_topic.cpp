@@ -86,7 +86,7 @@ QImage ForumTopicIconBackground(int32 colorId, int size) {
 	const auto ratio = style::DevicePixelRatio();
 	auto svg = QSvgRenderer(ForumTopicIconPath(ForumTopicIcon(colorId)));
 	auto result = QImage(
-		QSize(size, size) * ratio,
+		style::DevicePixels(QSize(size, size)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
@@ -148,7 +148,7 @@ QImage ForumTopicGeneralIconFrame(int size, const QColor &color) {
 	const auto ratio = style::DevicePixelRatio();
 	auto svg = QSvgRenderer(ForumTopicIconPath(u"general"_q));
 	auto result = QImage(
-		QSize(size, size) * ratio,
+		style::DevicePixels(QSize(size, size)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);

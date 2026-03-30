@@ -1740,7 +1740,7 @@ void TopBar::paintUserpic(QPainter &p, const QRect &geometry) {
 	if (_userpicUniqueKey != key) {
 		_userpicUniqueKey = key;
 		const auto fullSize = st::infoProfileTopBarPhotoSize;
-		const auto scaled = fullSize * style::DevicePixelRatio();
+		const auto scaled = style::DevicePixels(fullSize);
 		auto image = QImage();
 		if (const auto broadcast = _peer->monoforumBroadcast()) {
 			image = PeerData::GenerateUserpicImage(
@@ -2130,7 +2130,7 @@ void TopBar::paintAnimatedPattern(
 		const auto scale = 0.910;
 		const auto size = st::emojiSize;
 		_basePatternImage = QImage(
-			QSize(size, size) * ratio,
+			style::DevicePixels(QSize(size, size)),
 			QImage::Format_ARGB32_Premultiplied);
 		_basePatternImage.setDevicePixelRatio(ratio);
 		_basePatternImage.fill(Qt::transparent);

@@ -144,7 +144,8 @@ private:
 	Ui::GL::Image _documentBubbleImage;
 	Ui::GL::Image _themePreviewImage;
 	Ui::GL::Image _saveMsgImage;
-	Ui::GL::Image _footerImage;
+	Ui::GL::Image _footerHeaderImage;
+	Ui::GL::Image _footerMetaImage;
 	Ui::GL::Image _captionImage;
 	Ui::GL::Image _groupThumbsImage;
 	Ui::GL::Image _controlsImage;

@@ -347,8 +347,11 @@ void Line::recache(const QSize &s) {
 		return QRect(0, 0, width, s.height());
 	};
 	const auto pixmap = [&](int width) {
-		auto result = QPixmap(r(width).size() * style::DevicePixelRatio());
-		result.setDevicePixelRatio(style::DevicePixelRatio());
+		const auto ratio = style::DevicePixelRatio();
+		auto result = QPixmap(QSize(
+			qRound(r(width).width() * ratio),
+			qRound(r(width).height() * ratio)));
+		result.setDevicePixelRatio(ratio);
 		result.fill(Qt::transparent);
 		return result;
 	};
@@ -549,8 +552,11 @@ void AddAccountsRow(
 			+ QSize(
 				padding.left() + padding.right(),
 				padding.top() + padding.bottom());
-		auto badge = QPixmap(size * style::DevicePixelRatio());
-		badge.setDevicePixelRatio(style::DevicePixelRatio());
+		const auto ratio = style::DevicePixelRatio();
+		auto badge = QPixmap(QSize(
+			qRound(size.width() * ratio),
+			qRound(size.height() * ratio)));
+		badge.setDevicePixelRatio(ratio);
 		badge.fill(Qt::transparent);
 
 		auto p = QPainter(&badge);

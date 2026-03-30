@@ -1763,8 +1763,9 @@ void InnerWidget::performDrag() {
 	}
 
 	const auto &st = st::defaultDialogRow;
-	auto pixmap = QPixmap(Size(st.height * style::DevicePixelRatio()));
-	pixmap.setDevicePixelRatio(style::DevicePixelRatio());
+	const auto ratio = style::DevicePixelRatio();
+	auto pixmap = QPixmap(Size(qRound(st.height * ratio)));
+	pixmap.setDevicePixelRatio(ratio);
 	pixmap.fill(Qt::transparent);
 	if (const auto draw = PaintUserpicCallback(history->peer, true)) {
 		auto p = Painter(&pixmap);
