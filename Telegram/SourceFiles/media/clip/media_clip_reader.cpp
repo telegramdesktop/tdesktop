@@ -13,9 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "core/file_location.h"
 #include "base/random.h"
+#include "base/algorithm.h"
 #include "base/invoke_queued.h"
-#include "logs.h"
-
 #include <QtCore/QBuffer>
 #include <QtCore/QAbstractEventDispatcher>
 #include <QtCore/QCoreApplication>
@@ -36,6 +35,16 @@ namespace {
 constexpr auto kClipThreadsCount = 8;
 constexpr auto kAverageGifSize = 320 * 240;
 constexpr auto kWaitBeforeGifPause = crl::time(200);
+
+[[nodiscard]] int DevicePixels(int value, double factor) {
+	return std::max(int(base::SafeRound(value * factor)), 1);
+}
+
+[[nodiscard]] QSize DevicePixels(QSize size, double factor) {
+	return QSize(
+		DevicePixels(size.width(), factor),
+		DevicePixels(size.height(), factor));
+}
 
 QImage PrepareFrame(
 		const FrameRequest &request,
@@ -71,24 +80,30 @@ QImage PrepareFrame(
 		const auto outerw = size.width();
 		const auto frameh = request.frame.height();
 		const auto outerh = size.height();
+		const auto logicalOuterWidth = cache.width() / factor;
+		const auto logicalOuterHeight = cache.height() / factor;
+		const auto logicalFrameWidth = framew / factor;
+		const auto logicalFrameHeight = frameh / factor;
+		const auto logicalDeltaX = (outerw - framew) / (2. * factor);
+		const auto logicalDeltaY = (outerh - frameh) / (2. * factor);
 		if (needNewCache && (!hasAlpha || !request.keepAlpha)) {
 			if (framew < outerw) {
-				p.fillRect(0, 0, (outerw - framew) / (2 * factor), cache.height() / factor, st::imageBg);
-				p.fillRect((outerw - framew) / (2 * factor) + (framew / factor), 0, (cache.width() / factor) - ((outerw - framew) / (2 * factor) + (framew / factor)), cache.height() / factor, st::imageBg);
+				p.fillRect(0., 0., logicalDeltaX, logicalOuterHeight, st::imageBg);
+				p.fillRect(logicalDeltaX + logicalFrameWidth, 0., logicalOuterWidth - (logicalDeltaX + logicalFrameWidth), logicalOuterHeight, st::imageBg);
 			}
 			if (frameh < outerh) {
-				p.fillRect(qMax(0, (outerw - framew) / (2 * factor)), 0, qMin(cache.width(), framew) / factor, (outerh - frameh) / (2 * factor), st::imageBg);
-				p.fillRect(qMax(0, (outerw - framew) / (2 * factor)), (outerh - frameh) / (2 * factor) + (frameh / factor), qMin(cache.width(), framew) / factor, (cache.height() / factor) - ((outerh - frameh) / (2 * factor) + (frameh / factor)), st::imageBg);
+				p.fillRect(std::max(0., logicalDeltaX), 0., std::min(logicalOuterWidth, logicalFrameWidth), logicalDeltaY, st::imageBg);
+				p.fillRect(std::max(0., logicalDeltaX), logicalDeltaY + logicalFrameHeight, std::min(logicalOuterWidth, logicalFrameWidth), logicalOuterHeight - (logicalDeltaY + logicalFrameHeight), st::imageBg);
 			}
 		}
 		if (hasAlpha && !request.keepAlpha) {
-			p.fillRect(qMax(0, (outerw - framew) / (2 * factor)), qMax(0, (outerh - frameh) / (2 * factor)), qMin(cache.width(), framew) / factor, qMin(cache.height(), frameh) / factor, st::imageBgTransparent);
+			p.fillRect(std::max(0., logicalDeltaX), std::max(0., logicalDeltaY), std::min(logicalOuterWidth, logicalFrameWidth), std::min(logicalOuterHeight, logicalFrameHeight), st::imageBgTransparent);
 		}
-		const auto position = QPoint((outerw - framew) / (2 * factor), (outerh - frameh) / (2 * factor));
+		const auto position = QPointF(logicalDeltaX, logicalDeltaY);
 		if (needResize) {
 			PainterHighQualityEnabler hq(p);
 
-			const auto dst = QRect(position, QSize(framew / factor, frameh / factor));
+			const auto dst = QRectF(position, QSizeF(logicalFrameWidth, logicalFrameHeight));
 			const auto src = QRect(0, 0, original.width(), original.height());
 			p.drawImage(dst, original, src, Qt::ColorOnly);
 		} else {
@@ -316,9 +331,9 @@ void Reader::start(FrameRequest request) {
 	}
 	const auto factor = style::DevicePixelRatio();
 	request.factor = factor;
-	request.frame *= factor;
+	request.frame = DevicePixels(request.frame, factor);
 	if (request.outer.isValid()) {
-		request.outer *= factor;
+		request.outer = DevicePixels(request.outer, factor);
 	}
 	_frames[0].request = _frames[1].request = _frames[2].request = request;
 	moveToNextShow();
@@ -350,9 +365,9 @@ Reader::FrameInfo Reader::frameInfo(FrameRequest request, crl::time now) {
 
 	const auto factor = style::DevicePixelRatio();
 	request.factor = factor;
-	request.frame *= factor;
+	request.frame = DevicePixels(request.frame, factor);
 	if (request.outer.isValid()) {
-		request.outer *= factor;
+		request.outer = DevicePixels(request.outer, factor);
 	}
 	const auto size = request.outer.isValid()
 		? request.outer

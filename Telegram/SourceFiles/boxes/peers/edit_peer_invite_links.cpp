@@ -708,7 +708,7 @@ void LinksController::rowPaintIcon(
 	auto &icon = _icons[int(color)];
 	if (icon.isNull()) {
 		icon = QImage(
-			QSize(inner, inner) * style::DevicePixelRatio(),
+			style::DevicePixels(QSize(inner, inner)),
 			QImage::Format_ARGB32_Premultiplied);
 		icon.fill(Qt::transparent);
 		icon.setDevicePixelRatio(style::DevicePixelRatio());

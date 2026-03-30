@@ -642,10 +642,11 @@ void StickersListFooter::paint(
 	paintSelectionBg(p, context);
 
 	const auto iconCacheSize = QSize(_singleWidth, st().footer);
-	const auto full = iconCacheSize * style::DevicePixelRatio();
+	const auto factor = style::DevicePixelRatio();
+	const auto full = iconCacheSize * factor;
 	if (_setIconCache.size() != full) {
 		_setIconCache = QImage(full, QImage::Format_ARGB32_Premultiplied);
-		_setIconCache.setDevicePixelRatio(style::DevicePixelRatio());
+		_setIconCache.setDevicePixelRatio(factor);
 	}
 
 	const auto now = crl::now();
@@ -1190,7 +1191,9 @@ void StickersListFooter::validateIconLottieAnimation(
 		icon.thumbnailMedia.get(),
 		icon.stickerMedia.get(),
 		StickerLottieSize::StickersFooter,
-		QSize(icon.pixw, icon.pixh) * style::DevicePixelRatio(),
+		QSize(
+			style::DevicePixels(icon.pixw ),
+			style::DevicePixels(icon.pixh )),
 		_renderer());
 	if (!player) {
 		return;
@@ -1359,8 +1362,6 @@ void StickersListFooter::paintSetIconToCache(
 			const auto size = frame.size() / style::DevicePixelRatio();
 			if (icon.savedFrame.isNull()) {
 				icon.savedFrame = frame;
-				icon.savedFrame.setDevicePixelRatio(
-					style::DevicePixelRatio());
 			}
 			p.drawImage(
 				QRect(

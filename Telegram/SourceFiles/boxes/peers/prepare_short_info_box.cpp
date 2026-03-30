@@ -62,7 +62,9 @@ void GenerateImage(
 	state->current.photo = Images::Round(
 		Images::Prepare(
 			std::move(image),
-			QSize(size, size) * ratio,
+			QSize(
+				qRound(size * ratio),
+				qRound(size * ratio)),
 			{ .options = options, .outer = { size, size } }),
 		state->roundMask,
 		RectPart::TopLeft | RectPart::TopRight);

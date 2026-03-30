@@ -273,7 +273,7 @@ const QImage &MemberListRow::ensurePillCircle(const QColor &color) const {
 	const auto h = pillHeight();
 	const auto ratio = style::DevicePixelRatio();
 	auto image = QImage(
-		QSize(h, h) * ratio,
+		style::DevicePixels(QSize(h, h)),
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(ratio);
 	image.fill(Qt::transparent);
@@ -295,13 +295,12 @@ void MemberListRow::paintPill(
 		const QColor &bgColor) const {
 	const auto h = pillHeight();
 	const auto &circle = ensurePillCircle(bgColor);
-	const auto ratio = style::DevicePixelRatio();
 	const auto half = h / 2;
 	const auto otherHalf = h - half;
 	p.drawImage(
 		QRect(x, y, half, h),
 		circle,
-		QRect(0, 0, half * ratio, h * ratio));
+		style::DevicePixels(QRect(0, 0, half, h)));
 	if (width > h) {
 		p.fillRect(
 			x + half,
@@ -313,7 +312,7 @@ void MemberListRow::paintPill(
 	p.drawImage(
 		QRect(x + width - otherHalf, y, otherHalf, h),
 		circle,
-		QRect(half * ratio, 0, otherHalf * ratio, h * ratio));
+		style::DevicePixels(QRect(half, 0, otherHalf, h)));
 }
 
 void MemberListRow::paintColoredPill(

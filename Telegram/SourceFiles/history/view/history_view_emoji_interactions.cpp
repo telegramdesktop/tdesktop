@@ -434,7 +434,7 @@ void EmojiInteractions::paint(not_null<QWidget*> layer, QRect clip) {
 			continue;
 		}
 		auto request = Lottie::FrameRequest();
-		request.box = play.outer * factor;
+		request.box = style::DevicePixels(play.outer);
 		const auto rightAligned = play.view->hasRightLayout();
 		if (!rightAligned) {
 			request.mirrorHorizontal = true;
@@ -454,7 +454,7 @@ void EmojiInteractions::paint(not_null<QWidget*> layer, QRect clip) {
 			play.started = true;
 		}
 		p.drawImage(
-			QRect(target.topLeft(), frame.image.size() / factor),
+			QRect(target.topLeft(), play.outer),
 			frame.image);
 		play.lottie->markFrameShown();
 		play.lastTarget = target.translated(_layerShift);

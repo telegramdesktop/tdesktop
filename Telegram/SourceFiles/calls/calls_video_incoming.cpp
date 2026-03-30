@@ -465,9 +465,9 @@ void Panel::Incoming::RendererSW::paintFallback(
 }
 
 void Panel::Incoming::RendererSW::initBottomShadow() {
-	auto image = QImage(
-		QSize(1, st::callBottomShadowSize) * style::DevicePixelRatio(),
+	auto image = QImage(style::DevicePixels(QSize(1, st::callBottomShadowSize)),
 		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	const auto colorFrom = uint32(0);
 	const auto colorTill = uint32(kBottomShadowAlphaMax);
 	const auto rows = image.height();

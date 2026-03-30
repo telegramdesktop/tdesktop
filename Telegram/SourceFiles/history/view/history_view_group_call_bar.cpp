@@ -39,9 +39,10 @@ void GenerateUserpicsInRow(
 	const auto shift = st.shift;
 	const auto width = single + (limit - 1) * (single - shift);
 	const auto ratio = style::DevicePixelRatio();
-	if (result.width() != width * ratio) {
+	const auto full = style::DevicePixels(QSize(width, single));
+	if (result.size() != full) {
 		result = QImage(
-			QSize(width, single) * ratio,
+			full,
 			QImage::Format_ARGB32_Premultiplied);
 	}
 	result.fill(Qt::transparent);

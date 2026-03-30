@@ -237,11 +237,16 @@ void Widget::startShowAnimation() {
 
 		_showAnimation = std::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, Ui::PanelAnimation::Origin::BottomLeft);
 		auto inner = rect().marginsRemoved(st::emojiPanMargins);
+		const auto pixelRatio = style::DevicePixelRatio();
 		_showAnimation->setFinalImage(
 			std::move(image),
 			QRect(
-				inner.topLeft() * style::DevicePixelRatio(),
-				inner.size() * style::DevicePixelRatio()));
+				QPoint(
+					base::SafeRound(inner.x() * pixelRatio),
+					base::SafeRound(inner.y() * pixelRatio)),
+				QSize(
+					base::SafeRound(inner.width() * pixelRatio),
+					base::SafeRound(inner.height() * pixelRatio))));
 		_showAnimation->setCornerMasks(Images::CornersMask(ImageRoundRadius::Small));
 		_showAnimation->start();
 	}

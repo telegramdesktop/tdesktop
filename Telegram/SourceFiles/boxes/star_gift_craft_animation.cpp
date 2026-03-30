@@ -164,7 +164,9 @@ const auto kGiftAnimations = std::array<GiftAnimationConfig, 7>{{ {
 		QSize size,
 		const Data::UniqueGiftBackdrop &backdrop) {
 	const auto ratio = style::DevicePixelRatio();
-	auto result = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	auto result = QImage(
+		QSize(qRound(size.width() * ratio), qRound(size.height() * ratio)),
+		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 
 	auto p = QPainter(&result);
@@ -1333,7 +1335,9 @@ void CraftState::updateForGiftCount(int count, Fn<void()> repaint) {
 CraftState::EmptySide CraftState::prepareEmptySide(int index) const {
 	const auto size = forgeRect.size();
 	const auto ratio = style::DevicePixelRatio();
-	auto result = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	auto result = QImage(
+		QSize(qRound(size.width() * ratio), qRound(size.height() * ratio)),
+		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 
 	const auto bg = anim::color(forgeBg1, forgeBg2, index / 5.);

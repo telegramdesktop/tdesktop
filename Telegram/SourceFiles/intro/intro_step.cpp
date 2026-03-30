@@ -417,12 +417,16 @@ void Step::paintContentSnapshot(QPainter &p, const QPixmap &snapshot, float64 al
 void Step::prepareCoverMask() {
 	if (!_coverMask.isNull()) return;
 
-	auto maskWidth = style::DevicePixelRatio();
-	auto maskHeight = st::introCoverHeight * style::DevicePixelRatio();
+	const auto maskWidth = std::max(
+		1,
+		int(base::SafeRound(style::DevicePixelRatio())));
+	const auto maskHeight = std::max(
+		1,
+		int(base::SafeRound(st::introCoverHeight * style::DevicePixelRatio())));
 	auto mask = QImage(maskWidth, maskHeight, QImage::Format_ARGB32_Premultiplied);
 	auto maskInts = reinterpret_cast<uint32*>(mask.bits());
 	Assert(mask.depth() == (sizeof(uint32) << 3));
-	auto maskIntsPerLineAdded = (mask.bytesPerLine() >> 2) - maskWidth;
+	const auto maskIntsPerLineAdded = (mask.bytesPerLine() >> 2) - maskWidth;
 	Assert(maskIntsPerLineAdded >= 0);
 	auto realHeight = static_cast<float64>(maskHeight - 1);
 	for (auto y = 0; y != maskHeight; ++y) {

@@ -155,10 +155,11 @@ int BackgroundSelector::resizeGetHeight(int newWidth) {
 
 void BackgroundSelector::updateThumbnail() {
 	const auto size = _thumbnailSize;
+	const auto ratio = style::DevicePixelRatio();
 	auto back = QImage(
-		QSize(size, size) * style::DevicePixelRatio(),
+		QSize(qRound(size * ratio), qRound(size * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
-	back.setDevicePixelRatio(style::DevicePixelRatio());
+	back.setDevicePixelRatio(ratio);
 	{
 		Painter p(&back);
 		PainterHighQualityEnabler hq(p);

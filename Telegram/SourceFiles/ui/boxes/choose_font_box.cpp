@@ -307,7 +307,7 @@ void Selector::validateCache(Entry &row) {
 	if (row.cache.isNull()) {
 		const auto ratio = style::DevicePixelRatio();
 		row.cache = QImage(
-			QSize(width(), _rowHeight) * ratio,
+			style::DevicePixels(QSize(width(), _rowHeight)),
 			QImage::Format_ARGB32_Premultiplied);
 		row.cache.setDevicePixelRatio(ratio);
 	} else if (row.paletteVersion == version) {
@@ -596,11 +596,10 @@ PreviewPainter::PreviewPainter(const QImage &bg, PreviewRequest request)
 
 	layout();
 
-	const auto ratio = style::DevicePixelRatio();
 	_result = QImage(
-		_outer * ratio,
+		style::DevicePixels(_outer),
 		QImage::Format_ARGB32_Premultiplied);
-	_result.setDevicePixelRatio(ratio);
+	_result.setDevicePixelRatio(style::DevicePixelRatio());
 
 	auto p = Painter(&_result);
 	p.drawImage(0, 0, bg);

@@ -107,7 +107,9 @@ void ShowUserpicSuggestion(
 	}
 	const auto ratio = style::DevicePixelRatio();
 	auto frame = QImage(
-		QSize(strong->width(), strong->height()) * ratio,
+		QSize(
+			qRound(strong->width() * ratio),
+			qRound(strong->height() * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
 	frame.fill(Qt::transparent);
 	frame.setDevicePixelRatio(ratio);
@@ -134,12 +136,11 @@ void ShowSetToast(
 	auto st = std::make_shared<style::Toast>(st::historyPremiumToast);
 	const auto skip = st->padding.top();
 	const auto size = st->style.font->height * 2;
-	const auto ratio = style::DevicePixelRatio();
 	auto copy = frame.scaled(
-		QSize(size, size) * ratio,
+		style::DevicePixels(QSize(size, size)),
 		Qt::IgnoreAspectRatio,
 		Qt::SmoothTransformation);
-	copy.setDevicePixelRatio(ratio);
+	copy.setDevicePixelRatio(style::DevicePixelRatio());
 	st->padding.setLeft(skip + size + skip);
 	st->palette.linkFg = st->palette.selectLinkFg = st::mediaviewTextLinkFg;
 

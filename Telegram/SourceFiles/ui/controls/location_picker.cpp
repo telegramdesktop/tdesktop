@@ -290,7 +290,7 @@ void VenuesController::rowPaintIcon(
 			data.icon = Images::Read({ .content = bytes }).image;
 			if (!data.icon.isNull()) {
 				data.icon = data.icon.scaled(
-					QSize(inner, inner) * ratio,
+					style::DevicePixels(QSize(inner, inner)),
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
 				if (!data.icon.isNull()) {
@@ -300,7 +300,7 @@ void VenuesController::rowPaintIcon(
 			}
 		}
 
-		const auto full = QSize(size, size) * ratio;
+		const auto full = style::DevicePixels(QSize(size, size));
 		auto image = (data.image.size() == full)
 			? base::take(data.image)
 			: QImage(full, QImage::Format_ARGB32_Premultiplied);

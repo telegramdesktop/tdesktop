@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker_player.h"
 
 #include "core/file_location.h"
-
 namespace HistoryView {
 namespace {
 
@@ -47,11 +46,11 @@ int LottiePlayer::framesCount() {
 LottiePlayer::FrameInfo LottiePlayer::frame(
 		QSize size,
 		QColor colored,
-		bool mirrorHorizontal,
-		crl::time now,
-		bool paused) {
+	bool mirrorHorizontal,
+	crl::time now,
+	bool paused) {
 	auto request = Lottie::FrameRequest();
-	request.box = size * style::DevicePixelRatio();
+	request.box = style::DevicePixels(size);
 	request.colored = colored;
 	request.mirrorHorizontal = mirrorHorizontal;
 	const auto info = _lottie->frameInfo(request);
@@ -108,7 +107,7 @@ WebmPlayer::FrameInfo WebmPlayer::frame(
 		QColor colored,
 		bool mirrorHorizontal,
 		crl::time now,
-		bool paused) {
+	bool paused) {
 	auto request = ::Media::Clip::FrameRequest();
 	request.frame = size;
 	request.factor = style::DevicePixelRatio();
@@ -133,7 +132,7 @@ StaticStickerPlayer::StaticStickerPlayer(
 	if (!_frame.isNull()) {
 		size = _frame.size().scaled(size, Qt::KeepAspectRatio);
 		const auto ratio = style::DevicePixelRatio();
-		_frame = Images::Prepare(std::move(_frame), size * ratio, {});
+		_frame = Images::Prepare(std::move(_frame), style::DevicePixels(size), {});
 		_frame.setDevicePixelRatio(ratio);
 	}
 }

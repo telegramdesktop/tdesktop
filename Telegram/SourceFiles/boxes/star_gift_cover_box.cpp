@@ -951,8 +951,11 @@ QRect UniqueGiftCoverWidget::prepareCraftFrame(
 	const auto full = this->size();
 	const auto ratio = style::DevicePixelRatio();
 
-	if (canvas.size() != full * ratio) {
-		canvas = QImage(full * ratio, QImage::Format_ARGB32_Premultiplied);
+	const auto fullPixels = QSize(
+		qRound(full.width() * ratio),
+		qRound(full.height() * ratio));
+	if (canvas.size() != fullPixels) {
+		canvas = QImage(fullPixels, QImage::Format_ARGB32_Premultiplied);
 		canvas.setDevicePixelRatio(ratio);
 	}
 
@@ -1020,7 +1023,9 @@ QRect UniqueGiftCoverWidget::prepareCraftFrame(
 		.patternAreaHeight = pointsHeight,
 	}, bgProgress);
 
-	return QRect(QPoint(), size * ratio);
+	return QRect(
+		QPoint(),
+		QSize(qRound(size.width() * ratio), qRound(size.height() * ratio)));
 }
 
 bool UniqueGiftCoverWidget::paintGift(
@@ -1196,15 +1201,15 @@ void UniqueGiftCoverWidget::paintSpinnerAnimation(
 				{ 0., QColor(255, 255, 255, 255) },
 				{ 1., QColor(255, 255, 255, 0) },
 			});
-			const auto ratio = int(faded.devicePixelRatio());
-			const auto imgHeight = faded.height() / ratio;
+			const auto ratio = faded.devicePixelRatio();
+			const auto imgHeight = qRound(faded.height() / ratio);
 			q.fillRect(from, 0, fade, imgHeight, brush);
 			q.end();
 
 			p.drawImage(
 				QRect(0, 0, till, imgHeight),
 				faded,
-				QRect(0, 0, till * ratio, faded.height()));
+				QRect(0, 0, qRound(till * ratio), faded.height()));
 		}
 	}
 

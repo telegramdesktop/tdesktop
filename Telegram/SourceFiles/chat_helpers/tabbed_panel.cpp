@@ -384,12 +384,10 @@ void TabbedPanel::startShowAnimation() {
 			(_dropDown
 				? Ui::PanelAnimation::Origin::TopRight
 				: Ui::PanelAnimation::Origin::BottomRight));
-		auto inner = rect().marginsRemoved(st::emojiPanMargins);
+		const auto inner = rect().marginsRemoved(st::emojiPanMargins);
 		_showAnimation->setFinalImage(
 			std::move(image),
-			QRect(
-				inner.topLeft() * style::DevicePixelRatio(),
-				inner.size() * style::DevicePixelRatio()));
+			style::DevicePixels(inner));
 		_showAnimation->setCornerMasks(Images::CornersMask(st::emojiPanRadius));
 		_showAnimation->start();
 	}
@@ -407,7 +405,7 @@ QImage TabbedPanel::grabForAnimation() {
 	Ui::SendPendingMoveResizeEvents(this);
 
 	auto result = QImage(
-		size() * style::DevicePixelRatio(),
+		style::DevicePixels(size()),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);

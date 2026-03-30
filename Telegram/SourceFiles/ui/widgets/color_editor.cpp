@@ -71,10 +71,11 @@ QCursor ColorEditor::Picker::generateCursor() {
 	const auto line = style::ConvertScale(1);
 	const auto size = ((diameter + 2 * line) >= 32) ? 64 : 32;
 	const auto diff = (size - diameter) / 2;
+	const auto ratio = style::DevicePixelRatio();
 	auto cursor = QImage(
-		QSize(size, size) * style::DevicePixelRatio(),
+		QSize(qRound(size * ratio), qRound(size * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
-	cursor.setDevicePixelRatio(style::DevicePixelRatio());
+	cursor.setDevicePixelRatio(ratio);
 	cursor.fill(Qt::transparent);
 	{
 		auto p = QPainter(&cursor);
@@ -437,11 +438,12 @@ void ColorEditor::Slider::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void ColorEditor::Slider::generatePixmap() {
-	const auto size = (isHorizontal() ? width() : height())
-		* style::DevicePixelRatio();
+	const auto deviceRatio = std::max(1, qRound(style::DevicePixelRatio()));
+	const auto size = qRound((isHorizontal() ? width() : height())
+		* style::DevicePixelRatio());
 	auto image = QImage(
 		size,
-		style::DevicePixelRatio(),
+		deviceRatio,
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(style::DevicePixelRatio());
 	auto ints = reinterpret_cast<uint32*>(image.bits());
@@ -456,7 +458,7 @@ void ColorEditor::Slider::generatePixmap() {
 		for (auto x = 0; x != size; ++x) {
 			const auto color = QColor::fromHsv(x * 360 / size, 255, 255);
 			const auto value = anim::getPremultiplied(color.toRgb());
-			for (auto y = 0; y != style::DevicePixelRatio(); ++y) {
+			for (auto y = 0; y != deviceRatio; ++y) {
 				ints[y * intsPerLine] = value;
 			}
 			++ints;
@@ -469,7 +471,7 @@ void ColorEditor::Slider::generatePixmap() {
 	} else if (_type == Type::Opacity) {
 		auto color = anim::shifted(QColor(255, 255, 255, 255));
 		auto transparent = anim::shifted(QColor(255, 255, 255, 0));
-		for (auto y = 0; y != style::DevicePixelRatio(); ++y) {
+		for (auto y = 0; y != deviceRatio; ++y) {
 			auto xAccumulated = 0;
 			for (auto x = 0; x != size; ++x, xAccumulated += part) {
 				const auto xRatio = xAccumulated >> (kLargeBit - 8);

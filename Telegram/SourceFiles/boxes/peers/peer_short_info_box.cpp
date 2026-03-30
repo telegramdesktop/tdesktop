@@ -151,8 +151,7 @@ PeerShortInfoCover::PeerShortInfoCover(
 
 	refreshLabelsGeometry();
 
-	_roundedTopImage = QImage(
-		QSize(_st.size, _st.radius) * style::DevicePixelRatio(),
+	_roundedTopImage = QImage(style::DevicePixels(QSize(_st.size, _st.radius)),
 		QImage::Format_ARGB32_Premultiplied);
 	_roundedTopImage.setDevicePixelRatio(style::DevicePixelRatio());
 	_roundedTopImage.fill(Qt::transparent);
@@ -196,7 +195,7 @@ void PeerShortInfoCover::paint(QPainter &p) {
 			RectPart::TopLeft | RectPart::TopRight);
 	} else if (_userpicImage.isNull()) {
 		auto image = QImage(
-			_widget->size() * style::DevicePixelRatio(),
+			style::DevicePixels(_widget->size()),
 			QImage::Format_ARGB32_Premultiplied);
 		image.fill(Qt::black);
 		_userpicImage = Images::Round(
@@ -602,9 +601,10 @@ void PeerShortInfoCover::refreshBarImages() {
 	_largeWidth = _smallWidth + 1;
 	const auto makeBar = [&](int size) {
 		const auto radius = _st.line / 2.;
-		auto result = QImage(
-			QSize(size, _st.line) * style::DevicePixelRatio(),
-			QImage::Format_ARGB32_Premultiplied);
+		const auto resultSize = QSize(
+			style::DevicePixels(size),
+			style::DevicePixels(_st.line));
+		auto result = QImage(resultSize, QImage::Format_ARGB32_Premultiplied);
 		result.setDevicePixelRatio(style::DevicePixelRatio());
 		result.fill(Qt::transparent);
 		auto p = QPainter(&result);
@@ -733,7 +733,7 @@ void PeerShortInfoBox::prepare() {
 	}, _topRoundBackground->lifetime());
 
 	_roundedTop = QImage(
-		_topRoundBackground->size() * style::DevicePixelRatio(),
+		style::DevicePixels(_topRoundBackground->size()),
 		QImage::Format_ARGB32_Premultiplied);
 	_roundedTop.setDevicePixelRatio(style::DevicePixelRatio());
 	refreshRoundedTopImage(getDelegate()->style().bg->c);

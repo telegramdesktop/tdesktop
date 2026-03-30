@@ -802,7 +802,10 @@ void WhoReactedEntryAction::setData(Data &&data) {
 	const auto goodWidth = st::defaultWhoRead.nameLeft
 		+ textWidth
 		+ rightSkip;
-	const auto w = std::clamp(goodWidth, _st.widthMin, _st.widthMax);
+	const auto w = std::clamp(
+		qRound(goodWidth),
+		_st.widthMin,
+		_st.widthMax);
 	_textWidth = w - (goodWidth - textWidth);
 	setMinWidth(w);
 	update();

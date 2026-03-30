@@ -48,6 +48,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
+#include "ui/style/style_core.h"
+#include "ui/style/style_core_icon.h"
+#include "ui/style/style_core_scale.h"
+#include "ui/cached_round_corners.h"
 
 #include <QtGui/QWindow>
 
@@ -76,6 +80,25 @@ base::options::toggle AutoScrollInactiveChat({
 	.description = "Mark new messages as read and scroll the chat "
 		"even when the window is not in focus.",
 });
+
+void RefreshDevicePixelRatioFromWindow(not_null<QWidget*> widget) {
+	const auto handle = widget->windowHandle();
+	if (!handle) {
+		return;
+	}
+	const auto ratio = std::clamp(handle->devicePixelRatio(), 1., 3.);
+	if (qAbs(style::DevicePixelRatio() - ratio) < 0.001
+		&& qAbs(style::DevicePixelRatio() - ratio) < 0.001) {
+		return;
+	}
+	style::SetDevicePixelRatio(ratio);
+	style::internal::ResetIcons();
+	style::NotifyPaletteChanged();
+	Ui::Tooltip::Hide();
+	Ui::RefreshCachedCorners();
+	Ui::Emoji::Refresh();
+	Ui::ForceFullRepaint(widget);
+}
 
 } // namespace
 
@@ -155,6 +178,17 @@ void MainWindow::finishFirstShow() {
 	} else if (!_passcodeLock && !_setupEmailLock && _intro) {
 		_intro->setInnerFocus();
 	}
+	InvokeQueued(this, [=] {
+		if (!isVisible()) {
+			return;
+		}
+		RefreshDevicePixelRatioFromWindow(this);
+		InvokeQueued(this, [=] {
+			if (isVisible()) {
+				RefreshDevicePixelRatioFromWindow(this);
+			}
+		});
+	});
 }
 
 void MainWindow::clearWidgetsHook() {
@@ -679,6 +713,7 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 			positionUpdated();
 		}
 	} break;
+
 	}
 
 	return Platform::MainWindow::eventFilter(object, e);

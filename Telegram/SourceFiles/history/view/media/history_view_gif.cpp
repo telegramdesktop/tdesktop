@@ -539,7 +539,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	if (drawStreamed && !skipDrawingContent && !fullHiddenBySpoiler) {
 		auto paused = context.paused || !shouldBePlaying;
 		auto request = ::Media::Streaming::FrameRequest{
-			.outer = QSize(usew, painth) * style::DevicePixelRatio(),
+			.outer = style::DevicePixels(QSize(usew, painth)),
 			.blurredBackground = true,
 		};
 		if (isRound) {
@@ -1022,7 +1022,10 @@ void Gif::validateThumbCache(
 			&& (normal->height() < kUseNonBlurredThreshold))
 		: !videothumb;
 	const auto ratio = style::DevicePixelRatio();
-	if (_thumbCache.size() == (outer * ratio)
+	const auto target = QSize(
+		int(base::SafeRound(outer.width() * ratio)),
+		int(base::SafeRound(outer.height() * ratio)));
+	if (_thumbCache.size() == target
 		&& _thumbCacheRounding == rounding
 		&& _thumbCacheBlurred == blurred
 		&& _thumbIsEllipse == isEllipse) {
@@ -1082,7 +1085,10 @@ void Gif::validateSpoilerImageCache(
 	Expects(_spoiler != nullptr);
 
 	const auto ratio = style::DevicePixelRatio();
-	if (_spoiler->background.size() == (outer * ratio)
+	const auto target = QSize(
+		int(base::SafeRound(outer.width() * ratio)),
+		int(base::SafeRound(outer.height() * ratio)));
+	if (_spoiler->background.size() == target
 		&& _spoiler->backgroundRounding == rounding) {
 		return;
 	}
@@ -1461,8 +1467,16 @@ void Gif::drawGrouped(
 			{ originalWidth, originalHeight },
 			{ geometry.width(), geometry.height() });
 		auto request = ::Media::Streaming::FrameRequest{
-			.resize = pixSize * style::DevicePixelRatio(),
-			.outer = geometry.size() * style::DevicePixelRatio(),
+			.resize = QSize(
+				int(base::SafeRound(pixSize.width()
+					* style::DevicePixelRatio())),
+				int(base::SafeRound(pixSize.height()
+					* style::DevicePixelRatio()))),
+			.outer = QSize(
+				int(base::SafeRound(geometry.width()
+					* style::DevicePixelRatio())),
+				int(base::SafeRound(geometry.height()
+					* style::DevicePixelRatio()))),
 			.rounding = MediaRoundingMask(rounding),
 		};
 		if (activeOwnPlaying->instance.playerLocked()) {
@@ -1841,12 +1855,10 @@ void Gif::validateGroupedCache(
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
-	const auto ratio = style::DevicePixelRatio();
-
 	*cacheKey = key;
 	auto scaled = Images::Prepare(
 		(image ? image : Image::BlankMedia().get())->original(),
-		pixSize * ratio,
+		style::DevicePixels(pixSize),
 		{ .options = options, .outer = { width, height } });
 	auto rounded = Images::Round(
 		std::move(scaled),

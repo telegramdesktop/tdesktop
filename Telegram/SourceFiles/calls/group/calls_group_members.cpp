@@ -2100,8 +2100,8 @@ void Members::updateControlsGeometry() {
 void Members::setupFakeRoundCorners() {
 	const auto size = st::roundRadiusLarge;
 	const auto full = 3 * size;
-	const auto imagePartSize = size * style::DevicePixelRatio();
-	const auto imageSize = full * style::DevicePixelRatio();
+	const auto imagePartSize = style::DevicePixels(size);
+	const auto imageSize = style::DevicePixels(full);
 	const auto image = std::make_shared<QImage>(
 		QImage(imageSize, imageSize, QImage::Format_ARGB32_Premultiplied));
 	image->setDevicePixelRatio(style::DevicePixelRatio());

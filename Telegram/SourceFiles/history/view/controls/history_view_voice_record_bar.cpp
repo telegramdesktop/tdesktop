@@ -115,7 +115,7 @@ QImage SoundedPreview::image(int size) {
 		return {};
 	}
 
-	const auto full = QSize(size, size) * style::DevicePixelRatio();
+	const auto full = style::DevicePixels(QSize(size, size));
 	if (_roundingMask.size() != full) {
 		_roundingMask = Images::EllipseMask(full);
 	}

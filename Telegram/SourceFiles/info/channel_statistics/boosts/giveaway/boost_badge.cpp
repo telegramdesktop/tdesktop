@@ -86,11 +86,12 @@ QImage CreateBadge(
 	const auto badgeh = 0 + badgeHeight;
 	const auto badgew = badgeTextWidth
 		+ rect::m::sum::h(textPadding);
+	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(badgew, badgeh) * style::DevicePixelRatio(),
+		QSize(qRound(badgew * ratio), qRound(badgeh * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
+	result.setDevicePixelRatio(ratio);
 	{
 		auto p = Painter(&result);
 

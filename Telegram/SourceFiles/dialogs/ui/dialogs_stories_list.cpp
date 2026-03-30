@@ -773,7 +773,9 @@ void List::validateName(not_null<Item*> item) {
 	const auto ratio = style::DevicePixelRatio();
 	item->nameCacheColor = color->c;
 	item->nameCache = QImage(
-		QSize(available, font->height) * ratio,
+		QSize(
+			qRound(available * ratio),
+			qRound(font->height * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
 	item->nameCache.setDevicePixelRatio(ratio);
 	item->nameCache.fill(Qt::transparent);

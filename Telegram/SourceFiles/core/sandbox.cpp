@@ -180,7 +180,7 @@ void Sandbox::launchApplication() {
 }
 
 void Sandbox::setupScreenScale() {
-	const auto ratio = devicePixelRatio();
+	auto ratio = devicePixelRatio();
 	LOG(("Global devicePixelRatio: %1").arg(ratio));
 	const auto logEnv = [](const char *name) {
 		const auto value = qEnvironmentVariable(name);
@@ -198,7 +198,7 @@ void Sandbox::setupScreenScale() {
 	logEnv("QT_USE_PHYSICAL_DPI");
 	logEnv("QT_FONT_DPI");
 
-	const auto useRatio = std::clamp(qCeil(ratio), 1, 3);
+	const auto useRatio = std::clamp(ratio, 1., 3.);
 	style::SetDevicePixelRatio(useRatio);
 
 	const auto screen = Sandbox::primaryScreen();
@@ -211,13 +211,14 @@ void Sandbox::setupScreenScale() {
 	LOG(("Computed screen scale: %1").arg(screenScale));
 	if (Platform::IsMac()) {
 		// 110% for Retina screens by default.
-		cSetScreenScale((useRatio == 2) ? 110 : style::kScaleDefault);
+		cSetScreenScale((useRatio >= 1.99) ? 110 : style::kScaleDefault);
 	} else {
 		cSetScreenScale(std::clamp(
 			screenScale,
 			style::kScaleMin,
 			style::MaxScaleForRatio(useRatio)));
 	}
+	LOG(("DevicePixelRatio: %1").arg(style::DevicePixelRatio()));
 	LOG(("DevicePixelRatio: %1").arg(useRatio));
 	LOG(("ScreenScale: %1").arg(cScreenScale()));
 }

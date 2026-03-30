@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
+#include "ui/style/style_core_scale.h"
 #include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "styles/style_chat.h"
@@ -664,7 +665,9 @@ QImage InlineList::PrepareTagBg(QColor tagBg, QColor dotBg) {
 	const auto ratio = style::DevicePixelRatio();
 
 	auto result = QImage(
-		QSize(width, height) * ratio,
+		QSize(
+			qRound(width * ratio),
+			qRound(height * ratio)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 
@@ -721,13 +724,13 @@ void InlineList::paintSingleBg(
 	validateTagBg(color);
 	const auto ratio = style::DevicePixelRatio();
 	const auto left = st::reactionInlineTagLeftRadius;
-	const auto right = (_tagBg.width() / ratio) - left;
+	const auto right = qRound(_tagBg.width() / ratio) - left;
 	Assert(right > 0);
 	const auto useLeft = std::min(fill.width(), left);
 	p.drawImage(
 		QRect(fill.x(), fill.y(), useLeft, fill.height()),
 		_tagBg,
-		QRect(0, 0, useLeft * ratio, _tagBg.height()));
+		QRect(0, 0, qRound(useLeft * ratio), _tagBg.height()));
 	const auto middle = fill.width() - left - right;
 	if (middle > 0) {
 		p.fillRect(fill.x() + left, fill.y(), middle, fill.height(), color);
@@ -740,9 +743,9 @@ void InlineList::paintSingleBg(
 				useRight,
 				fill.height()),
 			_tagBg,
-			QRect(_tagBg.width() - useRight * ratio,
+			QRect(_tagBg.width() - qRound(useRight * ratio),
 				0,
-				useRight * ratio,
+				qRound(useRight * ratio),
 				_tagBg.height()));
 	}
 }
@@ -878,7 +881,9 @@ void InlineList::paintCustomFrame(
 		const auto factor = style::DevicePixelRatio();
 		const auto adjusted = AdjustCustomEmojiSize(size);
 		_customCache = QImage(
-			QSize(adjusted, adjusted) * factor,
+			QSize(
+				qRound(adjusted * factor),
+				qRound(adjusted * factor)),
 			QImage::Format_ARGB32_Premultiplied);
 		_customCache.setDevicePixelRatio(factor);
 		_customSkip = (size - adjusted) / 2;

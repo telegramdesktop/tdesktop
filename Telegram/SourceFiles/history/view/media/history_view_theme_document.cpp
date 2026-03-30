@@ -373,7 +373,7 @@ QImage ThemeDocument::finishServiceThumbnail(QImage image) const {
 
 void ThemeDocument::generateThumbnail() const {
 	auto image = Ui::GenerateBackgroundImage(
-		QSize(_pixw, _pixh) * style::DevicePixelRatio(),
+		style::DevicePixels(QSize(_pixw, _pixh)),
 		_background,
 		_gradientRotation,
 		_patternOpacity);
@@ -408,7 +408,7 @@ void ThemeDocument::prepareThumbnailFrom(
 		: QSize(_pixw, (_pixw * th) / tw);
 	original = Images::Prepare(
 		std::move(original),
-		resizeTo * ratio,
+		style::DevicePixels(resizeTo),
 		{ .options = options, .outer = { _pixw, _pixh } });
 	if (isPattern) {
 		original = Ui::PreparePatternImage(
@@ -797,9 +797,9 @@ void GiftServiceBox::cacheUniqueBackground(int width, int height) {
 	}
 	const auto inner = QRect(0, 0, width, height);
 	const auto ratio = style::DevicePixelRatio();
-	if (_backgroundCache.size() != inner.size() * ratio) {
+	if (_backgroundCache.size() != style::DevicePixels(inner.size())) {
 		_backgroundCache = QImage(
-			inner.size() * ratio,
+			style::DevicePixels(inner.size()),
 			QImage::Format_ARGB32_Premultiplied);
 		_backgroundCache.fill(Qt::transparent);
 		_backgroundCache.setDevicePixelRatio(ratio);

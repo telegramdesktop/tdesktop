@@ -78,5 +78,6 @@ enum class CachedCornerRadius {
 
 void StartCachedCorners();
 void FinishCachedCorners();
+void RefreshCachedCorners();
 
 } // namespace Ui

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/who_reacted_context_action.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
+#include "ui/style/style_core_scale.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 
@@ -68,7 +69,9 @@ not_null<Ui::AbstractButton*> CreateTab(
 		const auto icon = QRect(skip, 0, height, height);
 		if (state->cache.isNull()) {
 			state->cache = QImage(
-				result->size() * factor,
+				QSize(
+					qRound(result->width() * factor),
+					qRound(result->height() * factor)),
 				QImage::Format_ARGB32_Premultiplied);
 			state->cache.setDevicePixelRatio(factor);
 			state->cache.fill(Qt::transparent);
@@ -109,7 +112,7 @@ not_null<Ui::AbstractButton*> CreateTab(
 		p.drawImage(0, 0, state->cache);
 		if (const auto custom = state->custom.get()) {
 			using namespace Ui::Text;
-			const auto size = Ui::Emoji::GetSizeNormal() / factor;
+			const auto size = qRound(Ui::Emoji::GetSizeNormal() / factor);
 			const auto shift = (height - size) / 2;
 			const auto skip = (size - AdjustCustomEmojiSize(size)) / 2;
 			custom->paint(p, {

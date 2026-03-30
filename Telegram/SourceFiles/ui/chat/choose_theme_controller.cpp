@@ -81,12 +81,17 @@ struct Preview {
 		if (inverted) {
 			small = Ui::InvertPatternImage(std::move(small));
 		}
+		const auto ratio = style::DevicePixelRatio();
 		p.drawImage(
-			QRect(QPoint(), size * style::DevicePixelRatio()),
+			QRect(
+				QPoint(),
+				QSize(qRound(size.width() * ratio), qRound(size.height() * ratio))),
 			small);
 	};
 	auto userpic = QRect();
-	const auto fullsize = size * style::DevicePixelRatio();
+	const auto fullsize = QSize(
+		qRound(size.width() * style::DevicePixelRatio()),
+		qRound(size.height() * style::DevicePixelRatio()));
 	auto result = background.waitingForNegativePattern()
 		? QImage(
 			fullsize,

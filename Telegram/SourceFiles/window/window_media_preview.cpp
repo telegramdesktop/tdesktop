@@ -109,8 +109,11 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	//	: 1;
 	const auto pixmap = image.isNull() ? currentImage() : QPixmap();
 	const auto size = image.isNull() ? pixmap.size() : image.size();
-	const auto w = size.width() / factor;
-	const auto h = size.height() / factor;
+	const auto sizeFactor = image.isNull()
+		? pixmap.devicePixelRatio()
+		: factor;
+	const auto w = int(base::SafeRound(size.width() / sizeFactor));
+	const auto h = int(base::SafeRound(size.height() / sizeFactor));
 	const auto shown = _a_shown.value(_hiding ? 0. : 1.);
 	if (!_a_shown.animating()) {
 		if (_hiding) {

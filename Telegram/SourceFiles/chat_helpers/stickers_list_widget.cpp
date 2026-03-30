@@ -1723,11 +1723,12 @@ void StickersListWidget::paintSticker(
 		request.box = boundingBoxSize() * style::DevicePixelRatio();
 		lottieFrame = sticker.lottie->frame(request);
 		p.drawImage(
-			QRect(ppos, lottieFrame.size() / style::DevicePixelRatio()),
+			QRect(
+				ppos,
+				lottieFrame.size() / style::DevicePixelRatio()),
 			lottieFrame);
 		if (sticker.savedFrame.isNull()) {
 			sticker.savedFrame = lottieFrame;
-			sticker.savedFrame.setDevicePixelRatio(style::DevicePixelRatio());
 			sticker.savedFrameFor = _singleSize;
 		}
 		set.lottiePlayer->unpause(sticker.lottie);

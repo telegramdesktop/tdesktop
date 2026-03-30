@@ -2787,9 +2787,8 @@ void SetupThemeSettings(
 			Window::Theme::DefaultChatThemeOn(container->lifetime()));
 		const auto generateBg = [=] {
 			const auto size = st::boxWidth;
-			const auto ratio = style::DevicePixelRatio();
 			auto result = QImage(
-				QSize(size, size) * ratio,
+				style::DevicePixels(QSize(size, size)),
 				QImage::Format_ARGB32_Premultiplied);
 			auto p = QPainter(&result);
 			Window::SectionWidget::PaintBackground(

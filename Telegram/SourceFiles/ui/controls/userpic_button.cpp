@@ -118,9 +118,10 @@ void CameraBox(
 
 template <typename Callback>
 QPixmap CreateSquarePixmap(int width, Callback &&paintCallback) {
-	const auto size = QSize(width, width) * style::DevicePixelRatio();
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = QSize(qRound(width * ratio), qRound(width * ratio));
 	auto image = QImage(size, QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(style::DevicePixelRatio());
+	image.setDevicePixelRatio(ratio);
 	image.fill(Qt::transparent);
 	{
 		Painter p(&image);
@@ -1158,9 +1159,8 @@ void UserpicButton::prepareUserpicPixmap() {
 			} else if (_nonPersonalView) {
 				using Size = Data::PhotoSize;
 				if (const auto full = _nonPersonalView->image(Size::Large)) {
-					const auto ratio = style::DevicePixelRatio();
 					auto image = full->original().scaled(
-						QSize(size, size) * ratio,
+						style::DevicePixels(QSize(size, size)),
 						Qt::IgnoreAspectRatio,
 						Qt::SmoothTransformation);
 					image = useForumShape()

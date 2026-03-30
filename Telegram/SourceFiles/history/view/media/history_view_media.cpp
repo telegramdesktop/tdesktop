@@ -389,7 +389,7 @@ void Media::drawSpoilerTag(
 		const auto ratio = style::DevicePixelRatio();
 		auto bg = generateBackground();
 		if (bg.isNull()) {
-			bg = QImage(ratio, ratio, QImage::Format_ARGB32_Premultiplied);
+			bg = QImage(style::DevicePixels(1), style::DevicePixels(1), QImage::Format_ARGB32_Premultiplied);
 			bg.fill(Qt::black);
 		}
 
@@ -418,7 +418,7 @@ void Media::drawSpoilerTag(
 		const auto size = outer.size();
 		const auto radius = std::min(size.width(), size.height()) / 2;
 		auto cache = QImage(
-			size * ratio,
+			style::DevicePixels(size),
 			QImage::Format_ARGB32_Premultiplied);
 		cache.setDevicePixelRatio(ratio);
 		cache.fill(Qt::black);

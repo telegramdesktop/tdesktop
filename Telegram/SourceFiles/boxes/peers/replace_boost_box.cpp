@@ -669,9 +669,12 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 	}) | rpl::on_next([=] {
 		const auto outerw = overlay->width();
 		const auto ratio = style::DevicePixelRatio();
-		if (state->layer.size() != QSize(outerw, full) * ratio) {
+		const auto layerSize = QSize(
+			qRound(outerw * ratio),
+			qRound(full * ratio));
+		if (state->layer.size() != layerSize) {
 			state->layer = QImage(
-				QSize(outerw, full) * ratio,
+				layerSize,
 				QImage::Format_ARGB32_Premultiplied);
 			state->layer.setDevicePixelRatio(ratio);
 		}
@@ -822,9 +825,12 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 	}) | rpl::on_next([=, &st] {
 		const auto outerw = overlay->width();
 		const auto ratio = style::DevicePixelRatio();
-		if (state->layer.size() != QSize(outerw, full) * ratio) {
+		const auto layerSize = QSize(
+			qRound(outerw * ratio),
+			qRound(full * ratio));
+		if (state->layer.size() != layerSize) {
 			state->layer = QImage(
-				QSize(outerw, full) * ratio,
+				layerSize,
 				QImage::Format_ARGB32_Premultiplied);
 			state->layer.setDevicePixelRatio(ratio);
 		}
@@ -1005,9 +1011,12 @@ private:
 		const auto ideal = st::boostReplaceUserpic.photoSize;
 		const auto scale = size / float64(ideal);
 		const auto ratio = style::DevicePixelRatio();
-		if (state->layer.size() != QSize(ideal, ideal) * ratio) {
+		const auto layerSize = QSize(
+			qRound(ideal * ratio),
+			qRound(ideal * ratio));
+		if (state->layer.size() != layerSize) {
 			state->layer = QImage(
-				QSize(ideal, ideal) * ratio,
+				layerSize,
 				QImage::Format_ARGB32_Premultiplied);
 			state->layer.setDevicePixelRatio(ratio);
 		}
@@ -1075,9 +1084,12 @@ object_ptr<Ui::RpWidget> CreateGiftTransfer(
 	) | rpl::on_next([=] {
 		const auto outerw = overlay->width();
 		const auto ratio = style::DevicePixelRatio();
-		if (state->layer.size() != QSize(outerw, full) * ratio) {
+		const auto layerSize = QSize(
+			qRound(outerw * ratio),
+			qRound(full * ratio));
+		if (state->layer.size() != layerSize) {
 			state->layer = QImage(
-				QSize(outerw, full) * ratio,
+				layerSize,
 				QImage::Format_ARGB32_Premultiplied);
 			state->layer.setDevicePixelRatio(ratio);
 		}
@@ -1108,4 +1120,3 @@ object_ptr<Ui::RpWidget> CreateGiftTransfer(
 	}, overlay->lifetime());
 	return result;
 }
-

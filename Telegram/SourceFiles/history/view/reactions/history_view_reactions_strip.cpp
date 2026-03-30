@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/frame_generator.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
+#include "ui/style/style_core_scale.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
@@ -522,9 +523,15 @@ Ui::ImageSubrect Strip::validateEmoji(int frameIndex, float64 scale) {
 
 	auto p = QPainter(result.image);
 	const auto ratio = style::DevicePixelRatio();
-	const auto position = result.rect.topLeft() / ratio;
+	const auto position = QPoint(
+		qRound(result.rect.x() / ratio),
+		qRound(result.rect.y() / ratio));
 	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.fillRect(QRect(position, result.rect.size() / ratio), Qt::transparent);
+	p.fillRect(QRect(
+		position,
+		QSize(
+			qRound(result.rect.width() / ratio),
+			qRound(result.rect.height() / ratio))), Qt::transparent);
 	if (_mainReactionImage.isNull()
 		&& _mainReactionIcon) {
 		_mainReactionImage = base::take(_mainReactionIcon)->frame(
@@ -539,7 +546,9 @@ Ui::ImageSubrect Strip::validateEmoji(int frameIndex, float64 scale) {
 		).translated(position);
 
 		p.drawImage(target, _mainReactionImage.scaled(
-			target.size() * ratio,
+			QSize(
+				qRound(target.width() * ratio),
+				qRound(target.height() * ratio)),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation));
 	}

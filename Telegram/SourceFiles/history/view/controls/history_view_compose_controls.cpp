@@ -945,12 +945,11 @@ ComposeControls::StarEffect::StarEffect(
 	const auto width = widthSkip + price.maxWidth();
 	const auto priceLeft = leftSkip;
 
-	const auto ratio = style::DevicePixelRatio();
 	badge = QImage(
-		QSize(width, height) * ratio,
+		style::DevicePixels(QSize(width, height)),
 		QImage::Format_ARGB32_Premultiplied);
 	badge.fill(Qt::transparent);
-	badge.setDevicePixelRatio(ratio);
+	badge.setDevicePixelRatio(style::DevicePixelRatio());
 
 	auto p = QPainter(&badge);
 	auto hq = PainterHighQualityEnabler(p);
