@@ -2586,6 +2586,7 @@ void OverlayWidget::activateControls() {
 	}
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
 		_controlsState = ControlsShowing;
+		updateCursor();
 		_controlsAnimStarted = crl::now();
 		_controlsOpacity.start(1);
 		if (!_stateAnimation.animating()) {
@@ -5078,6 +5079,7 @@ void OverlayWidget::playbackToggleFullScreen() {
 		_streamed->controls->setInFullScreen(_fullScreenVideo);
 	}
 	_touchbarFullscreenToggled.fire_copy(_fullScreenVideo);
+	activateControls();
 	updateControls();
 	update();
 }
