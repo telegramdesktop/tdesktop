@@ -153,7 +153,7 @@ jobs:
       - name: Read configuration matrix.
         shell: bash
         run: |
-          ARTIFACT_NAME="Telegram"
+          ARTIFACT_NAME="TeleForge"
 
           ARCH=""
           if [ -n "${{ matrix.arch }}" ]; then
@@ -226,8 +226,13 @@ jobs:
         run: |
           set OUT=%TBUILD%\%REPO_NAME%\out\Debug
           mkdir artifact
-          move %OUT%\Telegram.exe artifact/
+          move %OUT%\TeleForge.exe artifact/
           move %OUT%\Updater.exe artifact/
+          if exist %OUT%\modules\d3d\d3dcompiler_47.dll (
+            mkdir artifact\modules
+            mkdir artifact\modules\d3d
+            move %OUT%\modules\d3d\d3dcompiler_47.dll artifact\modules\d3d\
+          )
       - uses: actions/upload-artifact@v7
         name: Upload artifact.
         if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
