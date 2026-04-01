@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component type="desktop">
-    <id>com.ayugram.desktop</id>
+    <id>com.teleforge.desktop</id>
     <metadata_license>CC0-1.0</metadata_license>
     <project_license>GPL-3.0</project_license>
-    <name>AyuGram Desktop</name>
-    <summary>Desktop version of AyuGram - ToS breaking Telegram client</summary>
+    <name>TeleForge Desktop</name>
+    <summary>Desktop version of TeleForge</summary>
     <description>
         <p>Telegram Desktop with Ghost Mode, Anti-Recall and cool design.</p>
     </description>
@@ -14,12 +14,12 @@
     </categories>
     <update_contact>helpdesk_at_radolyn.com</update_contact>
     <developer_name>Radolyn Labs</developer_name>
-    <url type="homepage">https://ayugram.one/</url>
-    <url type="faq">https://t.me/AyuGramFAQ</url>
+    <url type="homepage">https://tele-forge.ru/</url>
+    <url type="faq">https://tele-forge.ru/</url>
     <url type="bugtracker">https://t.me/ayugramchat/1262</url>
     <url type="translate">https://crowdin.com/project/ayugram</url>
-    <url type="vcs-browser">https://github.com/AyuGram/AyuGramDesktop</url>
-    <url type="contribute">https://github.com/AyuGram/AyuGramDesktop/blob/dev/.github/CONTRIBUTING.md</url>
+    <url type="vcs-browser">https://github.com/lavrentijav/TeleForge</url>
+    <url type="contribute">https://github.com/lavrentijav/TeleForge</url>
     <screenshots>
       <screenshot type="default">
         <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png</image>
@@ -34,7 +34,7 @@
         <keyword>chat</keyword>
         <keyword>sms</keyword>
         <keyword>im</keyword>
-        <keyword>ayugram</keyword>
+        <keyword>teleforge</keyword>
     </keywords>
     <requires>
         <display_length compare="ge">medium</display_length>
@@ -75,8 +75,8 @@
         <content_attribute id="money-gambling">none</content_attribute>
         <content_attribute id="money-advertising">moderate</content_attribute>
     </content_rating>
-    <launchable type="desktop-id">com.ayugram.desktop.desktop</launchable>
+    <launchable type="desktop-id">com.teleforge.desktop.desktop</launchable>
     <provides>
-        <binary>AyuGram</binary>
+        <binary>TeleForge</binary>
     </provides>
 </component>

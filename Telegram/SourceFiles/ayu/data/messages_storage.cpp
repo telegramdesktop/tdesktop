@@ -17,7 +17,27 @@
 #include "history/history_item_components.h"
 #include "main/main_session.h"
 
+#include <algorithm>
+
 namespace AyuMessages {
+
+namespace {
+
+[[nodiscard]] std::string PrependStageLabel(
+		const std::string &label,
+		const std::string &text) {
+	return text.empty() ? label : (label + "\n" + text);
+}
+
+[[nodiscard]] AyuMessageBase WithStageLabel(
+		AyuMessageBase message,
+		const std::string &label) {
+	message.text = PrependStageLabel(label, message.text);
+	message.textEntities.clear();
+	return message;
+}
+
+} // namespace
 
 template<typename DerivedMessage>
 std::vector<AyuMessageBase> convertToBase(const std::vector<DerivedMessage> &messages) {
@@ -132,6 +152,46 @@ getDeletedMessages(not_null<PeerData*> peer, ID topicId, ID minId, ID maxId, int
 bool hasDeletedMessages(not_null<PeerData*> peer, ID topicId) {
 	const ID userId = peer->session().userId().bare & PeerId::kChatTypeMask;
 	return AyuDatabase::hasDeletedMessages(userId, getDialogIdFromPeer(peer), topicId);
+}
+
+std::vector<AyuMessageBase> buildDeletedMessageTimeline(
+		not_null<PeerData*> peer,
+		const AyuMessageBase &deletedMessage,
+		int totalLimit) {
+	const ID userId = peer->session().userId().bare & PeerId::kChatTypeMask;
+	const auto dialogId = getDialogIdFromPeer(peer);
+	auto revisions = AyuDatabase::getEditedMessages(
+		userId,
+		dialogId,
+		deletedMessage.messageId,
+		0,
+		0,
+		totalLimit);
+	std::reverse(revisions.begin(), revisions.end());
+
+	auto result = std::vector<AyuMessageBase>();
+	result.reserve(revisions.size() + 2);
+
+	for (auto i = 0; i != revisions.size(); ++i) {
+		const auto label = (i == 0)
+			? std::string("[Original]")
+			: std::string("[Edit ") + std::to_string(i) + "]";
+		result.push_back(WithStageLabel(
+			static_cast<AyuMessageBase>(revisions[i]),
+			label));
+	}
+
+	const auto lastRevisionLabel = revisions.empty()
+		? std::string("[Original]")
+		: std::string("[Edit ") + std::to_string(revisions.size()) + "]";
+	result.push_back(WithStageLabel(deletedMessage, lastRevisionLabel));
+
+	auto deletedMarker = deletedMessage;
+	deletedMarker.text = "[DELETED]";
+	deletedMarker.textEntities.clear();
+	result.push_back(std::move(deletedMarker));
+
+	return result;
 }
 
 }

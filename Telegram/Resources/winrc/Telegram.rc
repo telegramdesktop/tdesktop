@@ -61,10 +61,10 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "Radolyn Labs"
-            VALUE "FileDescription", "AyuGram Desktop"
+            VALUE "FileDescription", "TeleForge Desktop"
             VALUE "FileVersion", "6.6.2.0"
             VALUE "LegalCopyright", "Copyright (C) 2014-2026"
-            VALUE "ProductName", "AyuGram Desktop"
+            VALUE "ProductName", "TeleForge Desktop"
             VALUE "ProductVersion", "6.6.2.0"
         END
     END

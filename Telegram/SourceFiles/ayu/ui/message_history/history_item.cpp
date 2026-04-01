@@ -9,6 +9,7 @@
 #include "history/history_item.h"
 #include "api/api_text_entities.h"
 #include "ayu/data/entities.h"
+#include "ayu/data/messages_storage.h"
 #include "ayu/ui/message_history/history_inner.h"
 #include "ayu/utils/ayu_mapper.h"
 #include "base/unixtime.h"
@@ -23,6 +24,8 @@
 #include "history/view/history_view_element.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/text/text_utilities.h"
+
+#include <vector>
 
 namespace MessageHistory {
 
@@ -65,60 +68,66 @@ void GenerateItems(
 	not_null<HistoryView::ElementDelegate*> delegate,
 	not_null<History*> history,
 	AyuMessageBase message,
+	bool deletedView,
 	Fn<void(OwnedItem item, TimeId sentDate, MsgId)> callback) {
-	PeerData *from = history->owner().userLoaded(message.fromId);
-	if (!from) {
-		from = history->owner().channelLoaded(message.fromId);
-	}
-	if (!from) {
-		from = reinterpret_cast<PeerData*>(history->owner().chatLoaded(message.fromId));
-	}
-	const auto date = message.entityCreateDate;
 	const auto addPart = [&](
 		not_null<HistoryItem*> item,
 		TimeId sentDate = 0,
-		MsgId realId = MsgId())
-	{
+		MsgId realId = MsgId()) {
 		return callback(OwnedItem(delegate, item), sentDate, realId);
 	};
 
-	const auto makeSimpleTextMessage = [&](TextWithEntities &&text)
-	{
+	const auto addSimpleTextMessage = [&](
+		const AyuMessageBase &sourceMessage) {
+		PeerData *from = history->owner().userLoaded(sourceMessage.fromId);
+		if (!from) {
+			from = history->owner().channelLoaded(sourceMessage.fromId);
+		}
+		if (!from) {
+			from = reinterpret_cast<PeerData*>(history->owner().chatLoaded(sourceMessage.fromId));
+		}
+		const auto date = sourceMessage.entityCreateDate;
 		base::flags<MessageFlag> flags = MessageFlag::AdminLogEntry;
 		if (from) {
 			flags |= MessageFlag::HasFromId;
 		} else {
 			flags |= MessageFlag::HasPostAuthor;
 		}
-		if (!message.postAuthor.empty()) {
+		if (!sourceMessage.postAuthor.empty()) {
 			flags |= MessageFlag::HasPostAuthor;
 		}
 
-		return history->makeMessage({
-										.id = history->nextNonHistoryEntryId(),
-										.flags = flags,
-										.from = from ? from->id : 0,
-										.date = date,
-										.postAuthor = !message.postAuthor.empty()
-														  ? QString::fromStdString(message.postAuthor)
-														  : from
-																? QString()
-																: QString("unknown user: %1").arg(message.fromId),
-									},
-									std::move(text),
-									MTP_messageMediaEmpty());
+		auto text = Ui::Text::WithEntities(QString::fromStdString(sourceMessage.text));
+		const auto entities = AyuMapper::deserializeTextWithEntities(sourceMessage.textEntities);
+		text.entities = Api::EntitiesFromMTP(&history->session(), entities.v);
+
+		addPart(history->makeMessage({
+				.id = history->nextNonHistoryEntryId(),
+				.flags = flags,
+				.from = from ? from->id : 0,
+				.date = date,
+				.postAuthor = !sourceMessage.postAuthor.empty()
+					? QString::fromStdString(sourceMessage.postAuthor)
+					: from
+						? QString()
+						: QString("unknown user: %1").arg(sourceMessage.fromId),
+			},
+			std::move(text),
+			MTP_messageMediaEmpty()));
 	};
 
-	const auto addSimpleTextMessage = [&](TextWithEntities &&text)
-	{
-		addPart(makeSimpleTextMessage(std::move(text)));
-	};
-
-	const auto text = QString::fromStdString(message.text);
-	auto textAndEntities = Ui::Text::WithEntities(text);
-	const auto entities = AyuMapper::deserializeTextWithEntities(message.textEntities);
-	textAndEntities.entities = Api::EntitiesFromMTP(&history->session(), entities.v);
-	addSimpleTextMessage(std::move(textAndEntities));
+	if (deletedView) {
+		const auto timeline = AyuMessages::buildDeletedMessageTimeline(
+			history->peer,
+			message);
+		if (!timeline.empty()) {
+			for (const auto &entry : timeline) {
+				addSimpleTextMessage(entry);
+			}
+			return;
+		}
+	}
+	addSimpleTextMessage(message);
 }
 
 } // namespace MessageHistory

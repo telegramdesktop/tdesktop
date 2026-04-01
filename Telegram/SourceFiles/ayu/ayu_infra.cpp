@@ -11,6 +11,7 @@
 #include "ayu/ayu_ui_settings.h"
 #include "ayu/ayu_worker.h"
 #include "ayu/data/ayu_database.h"
+#include "ayu/features/teleforge/teleforge_bootstrap.h"
 #include "ayu/ui/ayu_logo.h"
 #include "features/translator/ayu_translator.h"
 #include "lang/lang_instance.h"
@@ -46,6 +47,10 @@ void initDatabase() {
 	AyuDatabase::initialize();
 }
 
+void initTeleForge() {
+	TeleForge::initialize();
+}
+
 void initWorker() {
 	AyuWorker::initialize();
 }
@@ -68,6 +73,7 @@ void initIcon() {
 void init() {
 	initLang();
 	initDatabase();
+	initTeleForge();
 	initUiSettings();
 	initIcon();
 	initWorker();

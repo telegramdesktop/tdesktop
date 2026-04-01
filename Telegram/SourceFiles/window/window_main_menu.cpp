@@ -391,8 +391,8 @@ MainMenu::MainMenu(
 	parentResized();
 
 	_telegram->setMarkedText(tr::link(
-		u"AyuGram Desktop"_q,
-		u"https://ayugram.one"_q));
+		u"TeleForge Desktop"_q,
+		u"https://tele-forge.ru"_q));
 	_telegram->setLinksTrusted();
 	_version->setMarkedText(
 		tr::link(

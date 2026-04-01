@@ -61,6 +61,6 @@
   </qresource>
   <qresource prefix="/misc">
     <file alias="default_shortcuts-custom.json">../../default_shortcuts-custom.json</file>
-    <file alias="com.ayugram.desktop.desktop">../../../../lib/xdg/com.ayugram.desktop.desktop</file>
+    <file alias="com.teleforge.desktop.desktop">../../../../lib/xdg/com.teleforge.desktop.desktop</file>
   </qresource>
 </RCC>

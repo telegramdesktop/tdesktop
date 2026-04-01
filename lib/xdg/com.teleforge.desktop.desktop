@@ -1,11 +1,11 @@
 [Desktop Entry]
-Name=AyuGram Desktop
-Comment=Desktop version of AyuGram - ToS breaking Telegram client
-TryExec=AyuGram
-Exec=env DESKTOPINTEGRATION=1 AyuGram -- %U
-Icon=com.ayugram.desktop
+Name=TeleForge Desktop
+Comment=Desktop version of TeleForge
+TryExec=TeleForge
+Exec=env DESKTOPINTEGRATION=1 TeleForge -- %U
+Icon=com.teleforge.desktop
 Terminal=false
-StartupWMClass=AyuGram
+StartupWMClass=TeleForge
 Type=Application
 Categories=Chat;Network;InstantMessaging;Qt;
 MimeType=x-scheme-handler/tg;x-scheme-handler/tonsite;
@@ -17,6 +17,6 @@ X-GNOME-UsesNotifications=true
 X-GNOME-SingleWindow=true
 
 [Desktop Action quit]
-Exec=AyuGram -quit
-Name=Quit AyuGram
+Exec=TeleForge -quit
+Name=Quit TeleForge
 Icon=application-exit

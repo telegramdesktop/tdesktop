@@ -19,7 +19,7 @@ static QImage LAST_LOADED_PAD;
 namespace AyuAssets {
 
 QString appIcoPath() {
-	return cWorkingDir() + u"tdata/AyuGram.ico"_q;
+	return cWorkingDir() + u"tdata/TeleForge.ico"_q;
 }
 
 void loadAppIco() {

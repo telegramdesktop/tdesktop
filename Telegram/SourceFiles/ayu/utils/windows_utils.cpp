@@ -49,9 +49,9 @@ void processIcon(QString shortcut, QString iconPath) {
 
 void processLegacy(const QString &iconPath) {
 	const auto appdata = QDir::fromNativeSeparators(qgetenv("APPDATA"));
-	auto shortcut = appdata + "/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/AyuGram Desktop.lnk";
+	auto shortcut = appdata + "/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/TeleForge Desktop.lnk";
 	if (!QFile::exists(shortcut)) {
-		shortcut = appdata + "/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/AyuGram.lnk";
+		shortcut = appdata + "/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/TeleForge.lnk";
 	}
 	if (!QFile::exists(shortcut)) {
 		return;
@@ -141,7 +141,7 @@ void processNewShortcuts(const QString &iconPath) {
 		return;
 	}
 
-	const auto shortcut = path + u"AyuGram Desktop/AyuGram.lnk"_q;
+	const auto shortcut = path + u"TeleForge Desktop/TeleForge.lnk"_q;
 	const auto native = QDir::toNativeSeparators(path).toStdWString();
 
 	DWORD attributes = GetFileAttributes(native.c_str());
