@@ -51,6 +51,7 @@ jobs:
         arch: [x64_x86, x64, arm64]
         qt: ["", qt6]
         generator: ["", "Ninja Multi-Config"]
+        config: [Debug, Release]
         exclude:
           - arch: arm64
             qt: ""
@@ -175,6 +176,8 @@ jobs:
             ARTIFACT_NAME="${ARTIFACT_NAME} ${{ matrix.qt }}"
           fi
 
+          ARTIFACT_NAME="${ARTIFACT_NAME} ${{ matrix.config }}"
+
           GENERATOR=""
           if [ -n "${{ matrix.generator }}" ]; then
             GENERATOR="-G \"${{ matrix.generator }}\""
@@ -196,11 +199,14 @@ jobs:
 
           echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
 
-          API="-D TDESKTOP_API_TEST=ON"
-          if [ $GITHUB_REF == 'refs/heads/nightly' ]; then
-            echo "Use the open credentials."
-            API="-D TDESKTOP_API_ID=611335 -D TDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c"
+          APP_ID='${{ secrets.APP_ID }}'
+          APP_HASH='${{ secrets.APP_HASH }}'
+          if [ -z "$APP_ID" ] || [ -z "$APP_HASH" ]; then
+            echo "Missing APP_ID or APP_HASH GitHub secrets."
+            exit 1
           fi
+
+          API="-D TDESKTOP_API_ID=$APP_ID -D TDESKTOP_API_HASH=$APP_HASH"
           echo "TDESKTOP_BUILD_API=$API" >> $GITHUB_ENV
 
       - name: Free up some disk space.
@@ -217,7 +223,7 @@ jobs:
           %TDESKTOP_BUILD_ARCH% ^
           ${{ matrix.qt }} ^
           %TDESKTOP_BUILD_API% ^
-          -D CMAKE_CONFIGURATION_TYPES=Debug ^
+          -D CMAKE_CONFIGURATION_TYPES=${{ matrix.config }} ^
           -D CMAKE_COMPILE_WARNING_AS_ERROR=ON ^
           -D CMAKE_C_COMPILER_LAUNCHER=sccache ^
           -D CMAKE_CXX_COMPILER_LAUNCHER=sccache ^
@@ -226,7 +232,7 @@ jobs:
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
           %TDESKTOP_BUILD_DEFINE%
 
-          cmake --build ..\out --config Debug --parallel
+          cmake --build ..\out --config ${{ matrix.config }} --parallel
 
       - name: sccache stats.
         if: always()
@@ -236,15 +242,9 @@ jobs:
       - name: Move artifact.
         if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
         run: |
-          set OUT=%TBUILD%\%REPO_NAME%\out\Debug
+          set OUT=%TBUILD%\%REPO_NAME%\out\${{ matrix.config }}
           mkdir artifact
           move %OUT%\TeleForge.exe artifact/
-          move %OUT%\Updater.exe artifact/
-          if exist %OUT%\modules\d3d\d3dcompiler_47.dll (
-            mkdir artifact\modules
-            mkdir artifact\modules\d3d
-            move %OUT%\modules\d3d\d3dcompiler_47.dll artifact\modules\d3d\
-          )
       - uses: actions/upload-artifact@v7
         name: Upload artifact.
         if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
