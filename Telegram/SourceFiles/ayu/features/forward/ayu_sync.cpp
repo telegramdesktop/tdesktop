@@ -269,10 +269,21 @@ void sendDocumentSync(not_null<Main::Session*> session,
 	auto groupId = std::make_shared<SendingAlbum>();
 	groupId->groupId = base::RandomValue<uint64>();
 
-	crl::on_main([=, lst = std::move(group.list), caption = std::move(caption)]() mutable
+	crl::on_main([=, group = std::move(group), caption = std::move(caption)]() mutable
 	{
-		auto size = lst.files.size();
-		session->api().sendFiles(std::move(lst), type, std::move(caption), size > 1 ? groupId : nullptr, action);
+		auto &files = group.list.files;
+		if (!files.empty()) {
+			auto &captioned = (group.type == Ui::AlbumType::PhotoVideo)
+				? files.front()
+				: files.back();
+			captioned.caption = std::move(caption);
+		}
+		const auto size = group.list.files.size();
+		session->api().sendFiles(
+			std::move(group.list),
+			type,
+			size > 1 ? groupId : nullptr,
+			action);
 	});
 
 	waitForMsgSync(session, action);

@@ -67,7 +67,7 @@ namespace {
 		.creativity = core.weights.creativity,
 		.systemPrompt = core.systemPrompt.toStdString(),
 		.sourceDevice = core.sourceDevice.toStdString(),
-		.updatedAt = core.updatedAt.toSecsSinceEpoch(),
+		.updatedAt = static_cast<int>(core.updatedAt.toSecsSinceEpoch()),
 	};
 }
 

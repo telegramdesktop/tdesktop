@@ -423,7 +423,6 @@ void forwardMessages(
 			auto bundle = Ui::PrepareFilesBundle(
 				std::move(groups),
 				way,
-				message.textWithTags,
 				false);
 			sendMedia(session, bundle, media, std::move(message), way.sendImagesAsPhotos());
 		}
