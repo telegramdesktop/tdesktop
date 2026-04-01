@@ -677,6 +677,7 @@ infoIconLeave: icon {{ "info/info_leave", infoIconFg }};
 infoIconBlock: icon {{ "info/info_block", attentionButtonFg }};
 infoIconMembers: icon {{ "info/info_members", infoIconFg }};
 infoIconPrivacyPolicy: icon {{ "menu/2sv_off", infoIconFg, point(4px, 4px) }};
+infoIconSettings: icon {{ "menu/manage", infoIconFg, point(4px, 4px) }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaButtonIconPosition: point(20px, 3px);

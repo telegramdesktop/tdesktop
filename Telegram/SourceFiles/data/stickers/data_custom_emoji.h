@@ -149,7 +149,7 @@ private:
 	const not_null<Session*> _owner;
 
 	std::array<
-		base::flat_map<
+		std::unordered_map<
 			DocumentId,
 			std::unique_ptr<Ui::CustomEmoji::Instance>>,
 		kSizeCount> _instances;

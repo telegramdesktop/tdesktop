@@ -152,7 +152,7 @@ private:
 	static constexpr auto kStoriesSiblingPartsCount = 4;
 	Ui::GL::Image _storiesSiblingParts[kStoriesSiblingPartsCount];
 
-	static constexpr auto kControlsCount = 7;
+	static constexpr auto kControlsCount = 8;
 	[[nodiscard]] Control controlMeta(Over control) const;
 
 	// Last one is for the over circle image.

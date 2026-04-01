@@ -102,7 +102,8 @@ template <typename T>
 }
 
 [[nodiscard]] TextWithEntities SpoilerLoginCode(TextWithEntities text) {
-	const auto r = QRegularExpression(u"(?<!#)([\\d\\-]{4,8})"_q);
+	const auto r = QRegularExpression(
+		u"(?<![\\w\\-#])(\\d[\\d\\-]{2,6}\\d)(?!\\w\\-)"_q);
 	const auto m = r.match(text.text);
 	if (!m.hasMatch()) {
 		return text;
@@ -874,6 +875,8 @@ bool HistoryItem::awaitingVideoProcessing() const {
 HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
 	if (const auto pinned = Get<HistoryServicePinned>()) {
 		return pinned;
+	} else if (const auto clear = Get<HistoryServiceClearHistory>()) {
+		return clear;
 	} else if (const auto gamescore = Get<HistoryServiceGameScore>()) {
 		return gamescore;
 	} else if (const auto payment = Get<HistoryServicePayment>()) {
@@ -2409,14 +2412,23 @@ void HistoryItem::updateForwardedInfo(const MTPMessageFwdHeader *fwd) {
 }
 
 void HistoryItem::applyEditionToHistoryCleared() {
+	const auto rootId = topicRootId();
+	const auto topicPost = (rootId != Data::ForumTopic::kGeneralId);
+	auto action = Api::SendAction(history());
+	action.replyTo = FullReplyTo{
+		.messageId = FullMsgId(_history->peer->id, topicPost ? rootId : 0),
+		.topicRootId = rootId,
+	};
+	using Flag = MTPDmessageService::Flag;
 	applyEdition(
 		MTP_messageService(
-			MTP_flags(0),
+			MTP_flags(Flag()
+				| (topicPost ? Flag::f_reply_to : Flag())),
 			MTP_int(id),
 			peerToMTP(PeerId(0)), // from_id
 			peerToMTP(_history->peer->id),
 			MTPPeer(), // saved_peer_id
-			MTPMessageReplyHeader(),
+			NewMessageReplyHeader(action),
 			MTP_int(date()),
 			MTP_messageActionHistoryClear(),
 			MTPMessageReactions(),
@@ -4935,6 +4947,8 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 	const auto type = action.type();
 	if (type == mtpc_messageActionPinMessage) {
 		UpdateComponents(HistoryServicePinned::Bit());
+	} else if (type == mtpc_messageActionHistoryClear) {
+		UpdateComponents(HistoryServiceClearHistory::Bit());
 	} else if (type == mtpc_messageActionTopicCreate
 		|| type == mtpc_messageActionTopicEdit) {
 		UpdateComponents(HistoryServiceTopicInfo::Bit());

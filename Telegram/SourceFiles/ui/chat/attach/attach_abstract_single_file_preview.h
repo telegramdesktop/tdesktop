@@ -24,7 +24,8 @@ public:
 	AbstractSingleFilePreview(
 		QWidget *parent,
 		const style::ComposeControls &st,
-		AttachControls::Type type);
+		AttachControls::Type type,
+		const Text::MarkedContext &captionContext);
 	~AbstractSingleFilePreview();
 
 	[[nodiscard]] rpl::producer<> deleteRequests() const override;
@@ -33,31 +34,40 @@ public:
 	[[nodiscard]] rpl::producer<> editCoverRequests() const override;
 	[[nodiscard]] rpl::producer<> clearCoverRequests() const override;
 	virtual void setDisplayName(const QString &displayName);
+	virtual void setCaption(const TextWithTags &caption);
 
 protected:
 	struct Data {
 		QPixmap fileThumb;
 		QString name;
 		QString statusText;
+		Text::String caption;
 		int nameWidth = 0;
 		int statusWidth = 0;
+		int captionAvailableWidth = 0;
 		bool fileIsAudio = false;
 		bool fileIsImage = false;
 	};
 
 	void prepareThumbFor(Data &data, const QImage &preview);
-	bool isThumbedLayout(Data &data) const;
+	bool isThumbedLayout(const Data &data) const;
+	[[nodiscard]] const Text::MarkedContext &captionContext() const {
+		return _captionContext;
+	}
 
-	void setData(const Data &data);
+	void setData(Data data);
 
 private:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 	void updateTextWidthFor(Data &data);
+	void updateDataGeometry();
+	[[nodiscard]] QRect captionRect() const;
 
 	const style::ComposeControls &_st;
 	const AttachControls::Type _type;
+	Text::MarkedContext _captionContext;
 
 	Data _data;
 

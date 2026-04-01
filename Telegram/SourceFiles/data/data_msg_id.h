@@ -107,7 +107,7 @@ static_assert(-(SpecialMsgIdShift + 0xFF) > ServerMaxMsgId);
 	return MsgId(StartClientMsgId.bare + index);
 }
 
-[[nodiscrd]] constexpr inline bool IsStoryMsgId(MsgId id) noexcept {
+[[nodiscard]] constexpr inline bool IsStoryMsgId(MsgId id) noexcept {
 	return (id >= StartStoryMsgId && id < EndStoryMsgId);
 }
 [[nodiscard]] constexpr inline StoryId StoryIdFromMsgId(MsgId id) noexcept {

@@ -332,8 +332,9 @@ void MessageField::createControls(PeerData *peer) {
 		Ui::InputField::Mode::MultiLine,
 		tr::lng_message_ph());
 	_field->setMaxLength(_limit + kErrorLimit);
-	_field->setMinHeight(
-		st::historySendSize.height() - 2 * st::historySendPadding);
+	_field->setMinHeight(st.attach.height
+		- st.padding.top()
+		- st.padding.bottom());
 	_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 	_field->setDocumentMargin(4.);
 	_field->setAdditionalMargin(style::ConvertScale(4) - 4);
@@ -468,15 +469,13 @@ void MessageField::createControls(PeerData *peer) {
 	) | rpl::filter(
 		rpl::mappers::_1 > 0
 	) | rpl::on_next([=](int newWidth) {
+		const auto &st = st::storiesComposeControls;
 		const auto fieldWidth = newWidth
-			- st::historySendPadding
+			- st.padding.top()
 			- _emojiToggle->width()
 			- _send->width();
 		_field->resizeToWidth(fieldWidth);
-		_field->moveToLeft(
-			st::historySendPadding,
-			st::historySendPadding,
-			newWidth);
+		_field->moveToLeft(st.padding.top(), st.padding.top(), newWidth);
 		updateWrapSize(newWidth);
 	}, _lifetime);
 
@@ -487,8 +486,10 @@ void MessageField::createControls(PeerData *peer) {
 		if (width <= 0) {
 			return;
 		}
-		const auto minHeight = st::historySendSize.height()
-			- 2 * st::historySendPadding;
+		const auto &st = st::storiesComposeControls;
+		const auto minHeight = st.attach.height
+			- st.padding.top()
+			- st.padding.bottom();
 		_send->moveToRight(0, height - minHeight, width);
 		_emojiToggle->moveToRight(_send->width(), height - minHeight, width);
 		updateWrapSize();
@@ -499,7 +500,8 @@ void MessageField::createControls(PeerData *peer) {
 	}, _lifetime);
 
 	const auto updateLimitPosition = [=](QSize parent, QSize label) {
-		const auto skip = st::historySendPadding;
+		const auto &st = st::storiesComposeControls;
+		const auto skip = st.padding.top();
 		return QPoint(parent.width() - label.width() - skip, skip);
 	};
 	Ui::AddLengthLimitLabel(_field, _limit, {
@@ -528,7 +530,8 @@ void MessageField::updateEmojiPanelGeometry() {
 
 void MessageField::setupBackground() {
 	_wrap->paintRequest() | rpl::on_next([=] {
-		const auto radius = st::historySendSize.height() / 2.;
+		const auto &st = st::storiesComposeControls;
+		const auto radius = st.attach.height / 2.;
 		auto p = QPainter(_wrap.get());
 		auto hq = PainterHighQualityEnabler(p);
 
@@ -609,8 +612,11 @@ void MessageField::raise() {
 }
 
 void MessageField::updateWrapSize(int widthOverride) {
+	const auto &st = st::storiesComposeControls;
 	const auto width = widthOverride ? widthOverride : _wrap->width();
-	const auto height = _field->height() + 2 * st::historySendPadding;
+	const auto height = _field->height()
+		+ st.padding.top()
+		+ st.padding.bottom();
 	_wrap->resize(width, height);
 	updateHeight();
 }

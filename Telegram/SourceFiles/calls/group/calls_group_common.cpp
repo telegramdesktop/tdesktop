@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tde2e/tde2e_integration.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/layers/generic_box.h"
@@ -75,6 +76,28 @@ object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox() {
 #else // Q_OS_MAC
 	return { nullptr };
 #endif // Q_OS_MAC
+}
+
+void ShowUniqueCaptureOptions(
+		std::shared_ptr<Ui::Show> show,
+		Fn<void(bool withAudio)> done) {
+	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_group_call_sharing_screen_options());
+		const auto withAudio = box->addRow(
+			object_ptr<Ui::Checkbox>(
+				box,
+				tr::lng_group_call_screen_share_audio(tr::now),
+				false,
+				st::groupCallCheckbox));
+		box->addButton(
+			tr::lng_group_call_choose_source(),
+			[=] {
+				const auto audio = withAudio->checked();
+				box->closeBox();
+				done(audio);
+			});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}));
 }
 
 object_ptr<Ui::RpWidget> MakeRoundActiveLogo(

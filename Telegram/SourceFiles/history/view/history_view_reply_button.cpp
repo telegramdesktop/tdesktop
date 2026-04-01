@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_cursor_state.h"
 #include "ui/chat/chat_style.h"
+#include "ui/effects/ripple_animation.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
+#include "styles/style_widgets.h"
 
 namespace HistoryView::ReplyButton {
 namespace {
@@ -182,8 +184,10 @@ void Manager::updateButton(ButtonParameters parameters) {
 		}
 		_buttonShowTimer.cancel();
 		_scheduledParameters = std::nullopt;
+		_ripple = nullptr;
 	}
 	_buttonContext = parameters.context;
+	_lastPointer = parameters.pointer;
 	if (parameters.link) {
 		_link = parameters.link;
 	}
@@ -279,6 +283,19 @@ void Manager::paintButton(
 		radius);
 	p.drawImage(position, *frame.image, frame.rect);
 
+	if (_ripple && !_ripple->empty() && _button && button == _button.get()) {
+		const auto color = context.st->windowBgOver()->c;
+		_ripple->paint(
+			p,
+			position.x() + _inner.x(),
+			position.y() + _inner.y(),
+			_inner.width(),
+			&color);
+		if (_ripple->empty()) {
+			_ripple.reset();
+		}
+	}
+
 	const auto textLeft = position.x()
 		+ _inner.x()
 		+ st::replyCornerTextPadding.left();
@@ -334,6 +351,30 @@ void Manager::remove(FullMsgId context) {
 	if (_buttonContext == context) {
 		_buttonContext = {};
 		_button = nullptr;
+		_ripple = nullptr;
+	}
+}
+
+void Manager::clickHandlerPressedChanged(
+		const ClickHandlerPtr &action,
+		bool pressed) {
+	if (action != _link || !_button) {
+		return;
+	}
+	if (pressed) {
+		const auto inner = buttonInner();
+		if (!_ripple) {
+			const auto mask = Ui::RippleAnimation::RoundRectMask(
+				inner.size(),
+				inner.height() / 2);
+			_ripple = std::make_unique<Ui::RippleAnimation>(
+				st::defaultRippleAnimation,
+				mask,
+				[=] { if (_button) _buttonUpdate(_button->geometry()); });
+		}
+		_ripple->add(_lastPointer - inner.topLeft());
+	} else if (_ripple) {
+		_ripple->lastStop();
 	}
 }
 

@@ -81,6 +81,11 @@
     <file alias="star_reaction_effect2.tgs">../../animations/star_reaction/effect2.tgs</file>
     <file alias="star_reaction_effect3.tgs">../../animations/star_reaction/effect3.tgs</file>
 
+    <file alias="photo_editor_pen.tgs">../../animations/photo_editor/pen.tgs</file>
+    <file alias="photo_editor_arrow.tgs">../../animations/photo_editor/arrow.tgs</file>
+    <file alias="photo_editor_marker.tgs">../../animations/photo_editor/marker.tgs</file>
+    <file alias="photo_editor_eraser.tgs">../../animations/photo_editor/eraser.tgs</file>
+
     <file alias="swipe_archive.tgs">../../animations/swipe_action/archive.tgs</file>
     <file alias="swipe_unarchive.tgs">../../animations/swipe_action/unarchive.tgs</file>
     <file alias="swipe_delete.tgs">../../animations/swipe_action/delete.tgs</file>

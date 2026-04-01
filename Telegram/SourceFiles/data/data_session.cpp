@@ -2022,6 +2022,14 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemRepaintRequest() const 
 	return _itemRepaintRequest.events();
 }
 
+void Session::requestDrawToReply(DrawToReplyRequest request) {
+	_drawToReplyRequests.fire_copy(std::move(request));
+}
+
+rpl::producer<DrawToReplyRequest> Session::drawToReplyRequests() const {
+	return _drawToReplyRequests.events();
+}
+
 void Session::requestViewRepaint(not_null<const ViewElement*> view, QRect r) {
 	_viewRepaintRequest.fire_copy({ view, r });
 }

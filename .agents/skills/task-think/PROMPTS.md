@@ -437,18 +437,44 @@ When all phases including build verification and code review are done:
 - If build errors persist after the build phase's attempts, report the remaining errors to the user.
 - If a review fix phase introduces new build errors that it cannot resolve, report to the user.
 
-## Reasoning Effort
+## Model And Reasoning
 
-Phases 2 (Plan), 3 (Assessment), and 6a (Review) require elevated reasoning. Pass `-c model_reasoning_effort="xhigh"` on those `codex exec` invocations. All other phases use the default reasoning effort.
+All child sessions must use:
+- `--model gpt-5.4`
+- `-c model_reasoning_effort="xhigh"`
+
+Use the same settings for every phase, including setup, implementation, build verification, and review-fix runs.
+
+## Prompt Delivery
+
+Phase prompts can be large and contain complex formatting. Do not inline them as a quoted CLI argument. For each phase:
+1. Write the full prompt to a file in `.ai/<PROJECT>/<LETTER>/logs/phase-<name>.prompt.md`
+2. Pipe the file contents into `codex exec` with `Get-Content -Raw <prompt-file> | codex exec ... -`
+3. Save the JSONL stream to the matching `phase-<name>.jsonl`
+
+If a sandboxed child launch fails with `Access is denied` in Codex desktop, retry the same command through an escalated shell invocation before falling back to same-session execution.
 
 ## Example Runner Commands
 
 ```powershell
-codex exec --json -C <REPO_ROOT> "<PHASE_PROMPT>" | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-1-context.jsonl
-codex exec --json -C <REPO_ROOT> -c model_reasoning_effort="xhigh" "<PHASE_PROMPT>" | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-2-plan.jsonl
-codex exec --json -C <REPO_ROOT> -c model_reasoning_effort="xhigh" "<PHASE_PROMPT>" | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-3-assess.jsonl
-codex exec --json -C <REPO_ROOT> "<PHASE_PROMPT>" | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-4-impl-N.jsonl
-codex exec --json -C <REPO_ROOT> "<PHASE_PROMPT>" | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-5-build.jsonl
-codex exec --json -C <REPO_ROOT> -c model_reasoning_effort="xhigh" "<PHASE_PROMPT>" | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-6a-review-R.jsonl
-codex exec --json -C <REPO_ROOT> "<PHASE_PROMPT>" | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-6b-fix-R.jsonl
+$PromptFile = ".ai/<PROJECT>/<LETTER>/logs/phase-1-context.prompt.md"
+Get-Content -Raw $PromptFile | codex exec --json --full-auto --model gpt-5.4 -c model_reasoning_effort="xhigh" -C <REPO_ROOT> - | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-1-context.jsonl
+
+$PromptFile = ".ai/<PROJECT>/<LETTER>/logs/phase-2-plan.prompt.md"
+Get-Content -Raw $PromptFile | codex exec --json --full-auto --model gpt-5.4 -c model_reasoning_effort="xhigh" -C <REPO_ROOT> - | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-2-plan.jsonl
+
+$PromptFile = ".ai/<PROJECT>/<LETTER>/logs/phase-3-assess.prompt.md"
+Get-Content -Raw $PromptFile | codex exec --json --full-auto --model gpt-5.4 -c model_reasoning_effort="xhigh" -C <REPO_ROOT> - | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-3-assess.jsonl
+
+$PromptFile = ".ai/<PROJECT>/<LETTER>/logs/phase-4-impl-N.prompt.md"
+Get-Content -Raw $PromptFile | codex exec --json --full-auto --model gpt-5.4 -c model_reasoning_effort="xhigh" -C <REPO_ROOT> - | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-4-impl-N.jsonl
+
+$PromptFile = ".ai/<PROJECT>/<LETTER>/logs/phase-5-build.prompt.md"
+Get-Content -Raw $PromptFile | codex exec --json --full-auto --model gpt-5.4 -c model_reasoning_effort="xhigh" -C <REPO_ROOT> - | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-5-build.jsonl
+
+$PromptFile = ".ai/<PROJECT>/<LETTER>/logs/phase-6a-review-R.prompt.md"
+Get-Content -Raw $PromptFile | codex exec --json --full-auto --model gpt-5.4 -c model_reasoning_effort="xhigh" -C <REPO_ROOT> - | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-6a-review-R.jsonl
+
+$PromptFile = ".ai/<PROJECT>/<LETTER>/logs/phase-6b-fix-R.prompt.md"
+Get-Content -Raw $PromptFile | codex exec --json --full-auto --model gpt-5.4 -c model_reasoning_effort="xhigh" -C <REPO_ROOT> - | Tee-Object .ai/<PROJECT>/<LETTER>/logs/phase-6b-fix-R.jsonl
 ```

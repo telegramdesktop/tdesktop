@@ -1433,7 +1433,9 @@ void Call::toggleCameraSharing(bool enabled) {
 	}), true);
 }
 
-void Call::toggleScreenSharing(std::optional<QString> uniqueId) {
+void Call::toggleScreenSharing(
+		std::optional<QString> uniqueId,
+		bool withAudio) {
 	if (!uniqueId) {
 		if (isSharingScreen()) {
 			if (_videoCapture) {
@@ -1443,13 +1445,20 @@ void Call::toggleScreenSharing(std::optional<QString> uniqueId) {
 		}
 		_videoCaptureDeviceId = QString();
 		_videoCaptureIsScreencast = false;
+		_screenWithAudio = false;
+		if (_systemAudioCapture) {
+			_systemAudioCapture->stop();
+			_systemAudioCapture = nullptr;
+		}
 		return;
-	} else if (screenSharingDeviceId() == *uniqueId) {
+	} else if (screenSharingDeviceId() == *uniqueId
+		&& _screenWithAudio == withAudio) {
 		return;
 	}
 	toggleCameraSharing(false);
 	_videoCaptureIsScreencast = true;
 	_videoCaptureDeviceId = *uniqueId;
+	_screenWithAudio = withAudio;
 	if (_videoCapture) {
 		_videoCapture->switchToDevice(uniqueId->toStdString(), true);
 		if (_instance) {
@@ -1457,6 +1466,29 @@ void Call::toggleScreenSharing(std::optional<QString> uniqueId) {
 		}
 	}
 	_videoOutgoing->setState(Webrtc::VideoState::Active);
+
+	if (_systemAudioCapture) {
+		_systemAudioCapture->stop();
+		_systemAudioCapture = nullptr;
+	}
+	if (withAudio && Webrtc::SystemAudioCaptureSupported()) {
+		_systemAudioCapture = Webrtc::CreateSystemAudioCapture(
+			[weak = base::make_weak(this)](std::vector<uint8_t> &&samples) {
+				crl::on_main(
+					weak,
+					[weak, samples = std::move(samples)]() mutable {
+						if (const auto strong = weak.get(); strong
+							&& strong->_instance
+							&& strong->_screenWithAudio) {
+							strong->_instance->addExternalAudioSamples(
+								std::move(samples));
+						}
+					});
+			});
+		if (_systemAudioCapture) {
+			_systemAudioCapture->start();
+		}
+	}
 }
 
 auto Call::peekVideoCapture() const
@@ -1617,6 +1649,10 @@ void Call::handleControllerError(const QString &error) {
 void Call::destroyController() {
 	_instanceLifetime.destroy();
 	Core::App().mediaDevices().setCaptureMuteTracker(this, false);
+	if (_systemAudioCapture) {
+		_systemAudioCapture->stop();
+		_systemAudioCapture = nullptr;
+	}
 
 	if (_instance) {
 		_instance->stop([](tgcalls::FinalState) {

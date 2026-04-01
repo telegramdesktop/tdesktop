@@ -52,6 +52,7 @@ public:
 	[[nodiscard]] not_null<SavedSublist*> sublist(not_null<PeerData*> peer);
 	[[nodiscard]] SavedSublist *sublistLoaded(not_null<PeerData*> peer);
 	void requestSublist(not_null<PeerData*> peer, Fn<void()> done = nullptr);
+	void refreshPinned();
 
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
@@ -127,6 +128,7 @@ private:
 
 	mtpRequestId _loadMoreRequestId = 0;
 	mtpRequestId _pinnedRequestId = 0;
+	bool _refreshPinnedAfterRequest = false;
 
 	SavedMessagesOffsets _offset;
 

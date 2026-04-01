@@ -261,6 +261,9 @@ ContactStatus::Bar::Bar(
 		st::historyContactStatusMinSkip,
 		st::topBarArrowPadding.top()))
 , _emojiStatusShadow(this) {
+	_close->setAccessibleName(tr::lng_cancel(tr::now));
+	_unarchiveIcon->setAccessibleName(tr::lng_new_contact_unarchive(tr::now));
+	_reportIcon->setAccessibleName(tr::lng_report_spam(tr::now));
 	_requestChatInfo->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_emojiStatusInfo->paintRequest(
 	) | rpl::on_next([=, raw = _emojiStatusInfo.data()](QRect clip) {

@@ -566,6 +566,28 @@ void ChatBackground::start() {
 	) | rpl::on_next([](bool dark) {
 		Core::App().settings().setSystemDarkMode(dark);
 	}, _lifetime);
+
+	rpl::single(
+		QGuiApplication::palette()
+	) | rpl::then(
+		base::qt_signal_producer(
+			qApp,
+			&QGuiApplication::paletteChanged
+		)
+	) | rpl::on_next([=] {
+		const auto &settings = Core::App().settings();
+		if (!settings.systemAccentColorEnabled()
+			|| _themeObject.cloud.id
+			|| editingTheme()) {
+			return;
+		}
+		const auto path = _themeObject.pathAbsolute;
+		if (!IsEmbeddedTheme(path)) {
+			return;
+		}
+		ApplyDefaultWithPath(path);
+		KeepApplied();
+	}, _lifetime);
 }
 
 void ChatBackground::refreshThemeWatcher() {

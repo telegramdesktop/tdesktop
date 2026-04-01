@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -65,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtCore/QMimeData>
 
@@ -711,12 +713,70 @@ void EditCaptionBox::setupControls() {
 }
 
 void EditCaptionBox::setupEditEventHandler() {
+	const auto menu
+		= lifetime().make_state<base::unique_qptr<Ui::PopupMenu>>();
 	_editMediaClicks.events(
 	) | rpl::on_next([=] {
-		ChooseReplacement(_controller, _albumType, crl::guard(this, [=](
-				Ui::PreparedList &&list) {
-			setPreparedList(std::move(list));
-		}));
+		*menu = base::make_unique_q<Ui::PopupMenu>(
+			this,
+			st::popupMenuWithIcons);
+		(*menu)->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+		if (_isAllowedEditMedia) {
+			(*menu)->addAction(tr::lng_attach_replace(tr::now), [=] {
+				ChooseReplacement(
+					_controller,
+					_albumType,
+					crl::guard(this, [=](Ui::PreparedList &&list) {
+						setPreparedList(std::move(list));
+					}));
+			}, &st::menuIconReplace);
+		}
+		using Type = Ui::PreparedFile::Type;
+		const auto canDraw = !_preparedList.files.empty()
+			? (_preparedList.files.front().type == Type::Photo)
+			: (_isPhoto && !_asFile);
+		if (canDraw) {
+			(*menu)->addAction(tr::lng_context_draw(tr::now), [=] {
+				_photoEditorOpens.fire({});
+			}, &st::menuIconDraw);
+		}
+		if (!_asFile && (_isPhoto || _isVideo)) {
+			if (_preparedList.hasSpoilerMenu(!_asFile)) {
+				const auto spoilered = hasSpoiler();
+				auto text = spoilered
+					? tr::lng_context_disable_spoiler(tr::now)
+					: tr::lng_context_spoiler_effect(tr::now);
+				auto callback = [=] {
+					_mediaEditManager.apply({ .type = spoilered
+						? SendMenu::ActionType::SpoilerOff
+						: SendMenu::ActionType::SpoilerOn
+					});
+					rebuildPreview();
+				};
+				(*menu)->addAction(
+					std::move(text),
+					std::move(callback),
+					spoilered
+						? &st::menuIconSpoilerOff
+						: &st::menuIconSpoiler);
+			}
+			if (_isVideo && !_preparedList.files.empty()) {
+				(*menu)->addAction(tr::lng_context_edit_cover(tr::now), [=] {
+					setupEditCoverHandler();
+				}, &st::menuIconEdit);
+				if (_preparedList.files.front().videoCover != nullptr) {
+					(*menu)->addAction(
+						tr::lng_context_clear_cover(tr::now),
+						[=] { setupClearCoverHandler(); },
+						&st::menuIconCancel);
+				}
+			}
+		}
+		if ((*menu)->empty()) {
+			*menu = nullptr;
+		} else {
+			(*menu)->popup(QCursor::pos());
+		}
 	}, lifetime());
 }
 

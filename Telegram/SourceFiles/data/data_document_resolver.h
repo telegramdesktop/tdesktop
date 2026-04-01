@@ -20,8 +20,6 @@ namespace Data {
 
 class DocumentMedia;
 
-extern const char kOptionExternalVideoPlayer[];
-
 base::binary_guard ReadBackgroundImageAsync(
 	not_null<Data::DocumentMedia*> media,
 	FnMut<QImage(QImage)> postprocess,
@@ -32,6 +30,7 @@ void ResolveDocument(
 	not_null<DocumentData*> document,
 	HistoryItem *item,
 	MsgId topicRootId,
-	PeerId monoforumPeerId);
+	PeerId monoforumPeerId,
+	bool showDrawButton);
 
 } // namespace Data

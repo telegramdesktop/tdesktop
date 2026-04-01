@@ -2404,7 +2404,7 @@ TextForMimeData MediaTodoList::clipboardText() const {
 }
 
 bool MediaTodoList::allowsEdit() const {
-	return parent()->out();
+	return parent()->out() || parent()->history()->peer->isSelf();
 }
 
 bool MediaTodoList::updateInlineResultMedia(const MTPMessageMedia &media) {

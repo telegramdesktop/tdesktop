@@ -1,0 +1,87 @@
+name: Snap.
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/snap.yml'
+      - 'Telegram/build/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/mac/**'
+      - 'Telegram/Telegram/**'
+      - 'Telegram/configure.bat'
+      - 'Telegram/Telegram.plist'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/snap.yml'
+      - 'Telegram/build/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/mac/**'
+      - 'Telegram/Telegram/**'
+      - 'Telegram/configure.bat'
+      - 'Telegram/Telegram.plist'
+
+jobs:
+
+  snap:
+    name: Ubuntu
+    runs-on: ubuntu-latest
+
+    env:
+      UPLOAD_ARTIFACT: "true"
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: First set up.
+        run: |
+          sudo iptables -P FORWARD ACCEPT
+          sudo snap install --classic snapcraft
+          sudo usermod -aG lxd $USER
+          sudo lxd init --auto
+          sudo lxd waitready
+
+      - name: Free up some disk space.
+        uses: samueldr/more-space-action@97048bd0df83fb05b5257887bdbaffc848887673
+        with:
+          enable-remove-default-apt-patterns: false
+          enable-lvm-span: true
+          lvm-span-mountpoint: /var/snap/lxd/common/lxd/storage-pools/default/containers
+
+      - name: Telegram Desktop snap build.
+        run: sudo -u $USER snap run snapcraft --verbosity=debug
+
+      - name: Move artifact.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          artifact_name=$(echo telegram-desktop_*.snap)
+          echo "ARTIFACT_NAME=$artifact_name" >> $GITHUB_ENV
+
+          mkdir artifact
+          mv $artifact_name artifact
+
+      - uses: actions/upload-artifact@v7
+        if: env.UPLOAD_ARTIFACT == 'true'
+        name: Upload artifact.
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: artifact

@@ -1,0 +1,184 @@
+name: MacOS Packaged.
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/mac_packaged.yml'
+      - 'lib/xdg/**'
+      - 'snap/**'
+      - 'Telegram/build/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/linux/**'
+      - 'Telegram/configure.bat'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/mac_packaged.yml'
+      - 'lib/xdg/**'
+      - 'snap/**'
+      - 'Telegram/build/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/linux/**'
+      - 'Telegram/configure.bat'
+
+jobs:
+
+  macos:
+    name: MacOS
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        defines:
+          - ""
+
+    env:
+      GIT: "https://github.com"
+      CMAKE_GENERATOR: "Ninja"
+      CMAKE_BUILD_TYPE: "Debug"
+      CMAKE_BUILD_PARALLEL_LEVEL: ""
+      CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
+      TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
+      UPLOAD_ARTIFACT: "true"
+      ONLY_CACHE: "false"
+      MANUAL_CACHING: "1"
+      AUTO_CACHING: "1"
+
+    steps:
+      - name: Get repository name.
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          path: ${{ env.REPO_NAME }}
+
+      - name: First set up.
+        run: |
+          brew update
+          brew upgrade || true
+          brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtsvg xz
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
+
+          xcodebuild -version > CACHE_KEY.txt
+          brew list --versions >> CACHE_KEY.txt
+          echo $MANUAL_CACHING >> CACHE_KEY.txt
+          echo "$GITHUB_WORKSPACE" >> CACHE_KEY.txt
+          if [ "$AUTO_CACHING" = "1" ]; then
+            thisFile=$REPO_NAME/.github/workflows/mac_packaged.yml
+            echo `md5 -q $thisFile` >> CACHE_KEY.txt
+          fi
+          echo "CACHE_KEY=`md5 -q CACHE_KEY.txt`" >> $GITHUB_ENV
+
+          echo "MACOSX_DEPLOYMENT_TARGET=$(grep 'set(QT_SUPPORTED_MIN_MACOS_VERSION' /opt/homebrew/Cellar/qtbase/*/lib/cmake/Qt6/Qt6ConfigExtras.cmake | sed -E 's/^.*"(.*)"\)$/\1/')" >> $GITHUB_ENV
+          echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
+
+          echo "RNNOISE=`curl -sSL --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/xiph/rnnoise/git/refs/heads/master | jq -r .object.sha`" >> $GITHUB_ENV
+          echo "WEBRTC=`curl -sSL --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master | jq -r .object.sha`" >> $GITHUB_ENV
+
+      - name: RNNoise cache.
+        id: cache-rnnoise
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.LibrariesPath }}/local/rnnoise
+          key: ${{ runner.OS }}-rnnoise-${{ env.RNNOISE }}-${{ env.CACHE_KEY }}
+      - name: RNNoise.
+        if: steps.cache-rnnoise.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          git clone --depth=1 $GIT/xiph/rnnoise.git
+          cd rnnoise
+          ./autogen.sh
+          ./configure --prefix=$LibrariesPath/local/rnnoise --disable-examples --disable-doc
+          make -j$(sysctl -n hw.logicalcpu)
+          make install
+
+      - name: WebRTC cache.
+        id: cache-webrtc
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.LibrariesPath }}/local/tg_owt
+          key: ${{ runner.OS }}-webrtc-${{ env.WEBRTC }}-${{ env.CACHE_KEY }}
+      - name: WebRTC.
+        if: steps.cache-webrtc.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          git clone --depth=1 --recursive --shallow-submodules $GIT/desktop-app/tg_owt.git
+          cd tg_owt
+
+          cmake -Bbuild . -DCMAKE_INSTALL_PREFIX=$LibrariesPath/local/tg_owt
+          cmake --build build
+          cmake --install build
+
+      - name: TDE2E cache.
+        id: cache-tde2e
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.LibrariesPath }}/local/tde2e
+          key: ${{ runner.OS }}-tde2e-${{ env.TDE2E }}-${{ env.CACHE_KEY }}
+      - name: TDE2E.
+        if: steps.cache-tde2e.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          git init tde2e
+          cd tde2e
+          git remote add origin $GIT/tdlib/td.git
+          git fetch --depth=1 origin $TDE2E
+          git reset --hard FETCH_HEAD
+
+          cmake -Bbuild . -DCMAKE_INSTALL_PREFIX=$LibrariesPath/local/tde2e -DTD_E2E_ONLY=ON
+          cmake --build build
+          cmake --install build
+
+      - name: Telegram Desktop build.
+        if: env.ONLY_CACHE == 'false'
+        run: |
+          cd $REPO_NAME
+          export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
+
+          DEFINE=""
+          if [ -n "${{ matrix.defines }}" ]; then
+            DEFINE="-D ${{ matrix.defines }}=ON"
+            echo Define from matrix: $DEFINE
+            echo "ARTIFACT_NAME=Telegram ${{ matrix.defines }}" >> $GITHUB_ENV
+          else
+            echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
+          fi
+
+          cmake -Bbuild . -DTDESKTOP_API_TEST=ON $DEFINE
+          cmake --build build
+          macdeployqt build/Telegram.app
+          codesign --remove-signature build/Telegram.app
+
+      - name: Move artifact.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          cd $REPO_NAME/build
+          mkdir artifact
+          mv Telegram.app artifact/
+      - uses: actions/upload-artifact@v7
+        if: env.UPLOAD_ARTIFACT == 'true'
+        name: Upload artifact.
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.REPO_NAME }}/build/artifact/

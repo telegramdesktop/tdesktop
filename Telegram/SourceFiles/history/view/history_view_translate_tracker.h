@@ -11,6 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 class HistoryItem;
+namespace Ui {
+class TranslateProvider;
+} // namespace Ui
 
 namespace HistoryView {
 
@@ -54,11 +57,8 @@ private:
 	void cancelSentRequest();
 	void switchTranslation(not_null<HistoryItem*> item, LanguageId id);
 
-	void requestDone(
-		LanguageId to,
-		const QVector<MTPTextWithEntities> &list);
-
 	const not_null<History*> _history;
+	const std::unique_ptr<Ui::TranslateProvider> _provider;
 	rpl::variable<bool> _trackingLanguage = false;
 	base::flat_map<FullMsgId, ItemForRecognize> _itemsForRecognize;
 	uint64 _generation = 0;
@@ -70,7 +70,8 @@ private:
 	base::flat_map<not_null<HistoryItem*>, LanguageId> _switchTranslations;
 	base::flat_map<FullMsgId, ItemToRequest> _itemsToRequest;
 	std::vector<FullMsgId> _requested;
-	mtpRequestId _requestId = 0;
+	uint64 _requestToken = 0;
+	bool _requestInProcess = false;
 
 	rpl::lifetime _trackingLifetime;
 	rpl::lifetime _lifetime;

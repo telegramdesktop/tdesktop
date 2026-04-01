@@ -37,10 +37,12 @@ AlbumPreview::AlbumPreview(
 	QWidget *parent,
 	const style::ComposeControls &st,
 	gsl::span<Ui::PreparedFile> items,
+	const Text::MarkedContext &captionContext,
 	SendFilesWay way,
 	Fn<bool(int, AttachActionType)> actionAllowed)
 : RpWidget(parent)
 , _st(st)
+, _captionContext(captionContext)
 , _sendWay(way)
 , _actionAllowed(std::move(actionAllowed))
 , _dragTimer([=] { switchToDrag(); }) {
@@ -60,6 +62,37 @@ void AlbumPreview::setSendWay(SendFilesWay way) {
 	updateSize();
 	updateFileRows();
 	update();
+}
+
+void AlbumPreview::setCaption(int index, const TextWithTags &caption) {
+	if (index < 0 || index >= _thumbs.size()) {
+		return;
+	}
+	const auto realIndex = _order[index];
+	const auto oldHeight = _thumbs[realIndex]->fileHeight();
+	_thumbs[realIndex]->setCaption(caption);
+	const auto newHeight = _thumbs[realIndex]->fileHeight();
+	if (oldHeight == newHeight) {
+		return;
+	}
+	const auto firstFileHeight = _thumbs.front()->fileHeight();
+	_hasMixedFileHeights = ranges::any_of(
+		_thumbs,
+		[=](const auto &thumb) {
+			return thumb->fileHeight() != firstFileHeight;
+		});
+	_filesHeight = ranges::accumulate(ranges::views::all(
+		_thumbs
+	) | ranges::views::transform([](const auto &thumb) {
+		return thumb->fileHeight();
+	}), 0) + (int(_thumbs.size()) - 1) * st::sendMediaRowSkip;
+	updateSize();
+	updateFileRows();
+}
+
+int AlbumPreview::indexFromPoint(QPoint position) const {
+	const auto thumb = findThumb(position);
+	return thumb ? orderIndex(thumb) : -1;
 }
 
 void AlbumPreview::updateFileRows() {
@@ -148,9 +181,11 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 		_thumbs.push_back(std::make_unique<AlbumThumbnail>(
 			_st,
 			items[i],
+			_captionContext,
 			layout[i],
 			this,
 			[=] { update(); },
+			[=](QRect rect) { update(rect); },
 			[=] { changeThumbByIndex(orderIndex(thumbUnderCursor())); },
 			[=] { deleteThumbByIndex(orderIndex(thumbUnderCursor())); }));
 		if (_thumbs.back()->isCompressedSticker()) {
@@ -164,16 +199,17 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 		return thumb->photoHeight();
 	}), 0) + (count - 1) * st::sendMediaRowSkip;
 
-	if (!_hasMixedFileHeights) {
-		_filesHeight = count * _thumbs.front()->fileHeight()
-			+ (count - 1) * st::sendMediaRowSkip;
-	} else {
-		_filesHeight = ranges::accumulate(ranges::views::all(
-			_thumbs
-		) | ranges::views::transform([](const auto &thumb) {
-			return thumb->fileHeight();
-		}), 0) + (count - 1) * st::sendMediaRowSkip;
-	}
+	const auto firstFileHeight = _thumbs.front()->fileHeight();
+	_hasMixedFileHeights = _hasMixedFileHeights || ranges::any_of(
+		_thumbs,
+		[=](const auto &thumb) {
+			return thumb->fileHeight() != firstFileHeight;
+		});
+	_filesHeight = ranges::accumulate(ranges::views::all(
+		_thumbs
+	) | ranges::views::transform([](const auto &thumb) {
+		return thumb->fileHeight();
+	}), 0) + (count - 1) * st::sendMediaRowSkip;
 }
 
 int AlbumPreview::contentLeft() const {
@@ -375,7 +411,7 @@ void AlbumPreview::paintFiles(Painter &p, QRect clip) const {
 	const auto left = (st::boxWideWidth - st::sendMediaPreviewSize) / 2;
 	const auto outerWidth = width();
 	if (!_hasMixedFileHeights) {
-		const auto fileHeight = st::attachPreviewThumbLayout.thumbSize
+		const auto fileHeight = _thumbs.front()->fileHeight()
 			+ st::sendMediaRowSkip;
 		const auto bottom = clip.y() + clip.height();
 		const auto from = std::clamp(

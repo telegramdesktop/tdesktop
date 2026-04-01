@@ -66,7 +66,7 @@ bool IsItemGoodForType(const not_null<HistoryItem*> item, Type type) {
 		|| ((videoType || photoVideoType) && videoDoc)
 		|| (fileType && (document->isTheme()
 			|| document->isImage()
-			|| !document->canBeStreamed(item)));
+			|| !document->canBeStreamed()));
 }
 
 } // namespace

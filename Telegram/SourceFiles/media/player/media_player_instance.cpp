@@ -974,7 +974,10 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 	const auto last = raw->playlist.empty()
 		? MsgId(ServerMaxMsgId - 1)
 		: raw->playlist.back();
-	SharedMediaMergedViewer(
+	const auto sharedMediaViewer = raw->savedMusic
+		? SavedMusicMediaViewer
+		: SharedMediaMergedViewer;
+	sharedMediaViewer(
 		&raw->history->session(),
 		SharedMediaMergedKey(
 			SliceKey(

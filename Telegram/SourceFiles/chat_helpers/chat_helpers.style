@@ -156,6 +156,7 @@ SendButton {
 	stars: RoundButton;
 	recordSize: size;
 	sendDisabledFg: color;
+	sendIconFg: color;
 }
 
 RecordBarLock {
@@ -588,7 +589,7 @@ emojiEmpty: icon {{ "emoji_empty", windowSubTextFg }};
 
 editMediaButtonSize: 32px;
 
-editMediaButtonIconFile: icon {{ "send_media/send_media_replace", menuIconFg }};
+editMediaButtonIconFile: icon {{ "send_media/send_media_more", menuIconFg }};
 editMediaButton: IconButton(defaultIconButton) {
 	width: editMediaButtonSize;
 	height: editMediaButtonSize;
@@ -602,10 +603,10 @@ editMediaButton: IconButton(defaultIconButton) {
 sendBoxAlbumGroupEditInternalSkip: 8px;
 sendBoxAlbumGroupSkipRight: 5px;
 sendBoxAlbumGroupSkipTop: 5px;
-sendBoxAlbumGroupRadius: 4px;
-sendBoxAlbumGroupSize: size(62px, 25px);
+sendBoxAlbumGroupSize: size(48px, 26px);
 sendBoxAlbumGroupSizeVertical: size(30px, 50px);
 sendBoxAlbumSmallGroupSize: size(30px, 25px);
+sendBoxAlbumSmallGroupCircleSize: 27px;
 
 sendBoxFileGroupSkipTop: 2px;
 sendBoxFileGroupSkipRight: 5px;
@@ -617,11 +618,11 @@ sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
 	}
 }
 sendBoxAlbumGroupEditButtonIconFile: editMediaButtonIconFile;
-sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "send_media/send_media_delete", menuIconFg }};
+sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "send_media/send_media_cross", menuIconFg }};
 
-sendBoxAlbumButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg }};
-sendBoxAlbumGroupButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg, point(4px, 1px) }};
-sendBoxAlbumGroupButtonMediaDelete: icon {{ "send_media/send_media_delete", roundedFg }};
+sendBoxAlbumButtonMediaMore: icon {{ "send_media/send_media_more", roundedFg }};
+sendBoxAlbumGroupButtonMediaMore: icon {{ "send_media/send_media_more", roundedFg, point(4px, 1px) }};
+sendBoxAlbumGroupButtonMediaDelete: icon {{ "send_media/send_media_cross", roundedFg, point(-2px, 1px) }};
 
 defaultComposeIcons: ComposeIcons {
 	settings: icon {{ "emoji/emoji_settings", emojiIconFg }};
@@ -1346,8 +1347,21 @@ historyRecordDelete: IconButton(historyAttach) {
 }
 historyRecordWaveformRightSkip: 10px;
 historyRecordWaveformBgMargins: margins(5px, 8px, 5px, 9px);
+historyRecordWaveformBgRadius: 7px;
+historyRecordWaveformOutsideAlpha: 0.6;
+historyRecordWaveformInactiveAlpha: 0.7;
+historyRecordCenterControlHeight: 18px;
+historyRecordCenterControlIconScale: 0.6;
+historyRecordCenterControlPadding: 4px;
+historyRecordCenterControlTextSkip: 2px;
+historyRecordCenterControlMinimumProgressPadding: 5px;
 
 historyRecordWaveformBar: 3px;
+historyRecordTrimFrameRadius: 5px;
+historyRecordTrimFrameBorder: 1px;
+historyRecordTrimHandleWidth: 10px;
+historyRecordTrimHandleInnerSize: size(2px, 8px);
+historyRecordTrimHandleInnerSkip: 2px;
 
 historyRecordLockPosition: point(1px, 22px);
 
@@ -1405,6 +1419,7 @@ historySend: SendButton {
 	}
 	recordSize: size(26px, 26px);
 	sendDisabledFg: historyComposeIconFg;
+	sendIconFg: historySendIconFg;
 }
 historyRecordFrameIndex: 30;
 

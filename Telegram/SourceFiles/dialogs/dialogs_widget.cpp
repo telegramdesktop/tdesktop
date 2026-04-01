@@ -185,9 +185,11 @@ base::options::toggle OptionForumHideChatsList({
 
 [[nodiscard]] QImage UpdateIcon() {
 	const auto iconSize = st::dialogsInstallUpdateIconSize;
+	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		Size(iconSize) * style::DevicePixelRatio(),
+		Size(iconSize) * ratio,
 		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 	{
 		auto p = QPainter(&result);
@@ -1408,6 +1410,7 @@ void Widget::setupMainMenuToggle() {
 	});
 	_mainMenu.under->stackUnder(_mainMenu.toggle);
 	_mainMenu.toggle->setClickedCallback([=] { showMainMenu(); });
+	_mainMenu.toggle->setIsMenuButton(true);
 	_mainMenu.toggle->setAccessibleName(tr::lng_main_menu(tr::now));
 
 	rpl::single(rpl::empty) | rpl::then(

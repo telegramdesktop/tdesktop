@@ -119,6 +119,7 @@ mediaviewShare: icon {{ "mediaview/viewer_share", mediaviewControlFg }};
 mediaviewRotate: icon {{ "mediaview/rotate", mediaviewControlFg }};
 mediaviewMore: icon {{ "title_menu_dots", mediaviewControlFg }};
 mediaviewRecognize: icon {{ "mediaview/recognize", mediaviewControlFg }};
+mediaviewDraw: icon {{ "mediaview/draw", mediaviewControlFg }};
 
 mediaviewFileRed: icon {
 	{ size(25px, 25px), mediaviewFileBg },
@@ -223,8 +224,8 @@ mediaviewControlSize: 90px;
 mediaviewIconSize: size(46px, 54px);
 mediaviewIconOver: 36px;
 
-mediaviewWaitHide: 2000;
-mediaviewHideDuration: 1000;
+mediaviewWaitHide: 1100;
+mediaviewHideDuration: 600;
 mediaviewShowDuration: 200;
 mediaviewFadeDuration: 150;
 
@@ -726,6 +727,7 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 			rippleAreaPosition: point(1px, 1px);
 		}
 		sendDisabledFg: storiesComposeGrayText;
+		sendIconFg: windowFgActive;
 	}
 	attach: storiesAttach;
 	emoji: storiesAttachEmoji;

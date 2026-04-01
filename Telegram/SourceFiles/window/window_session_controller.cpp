@@ -52,6 +52,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_file_click_handler.h"
+#include "data/data_photo_media.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_forum.h"
@@ -69,7 +71,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/file_utilities.h"
 #include "core/ui_integration.h"
+#include "base/options.h"
 #include "base/unixtime.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "ui/controls/userpic_button.h"
@@ -130,6 +134,12 @@ namespace {
 
 constexpr auto kCustomThemesInMemory = 5;
 constexpr auto kMaxChatEntryHistorySize = 50;
+
+base::options::toggle OptionExternalMediaViewer({
+	.id = kOptionExternalMediaViewer,
+	.name = "External media viewer",
+	.description = "Use system media viewer instead of the internal one.",
+});
 
 class MainWindowShow final : public ChatHelpers::Show {
 public:
@@ -316,6 +326,8 @@ void MainWindowShow::processChosenSticker(
 }
 
 } // namespace
+
+const char kOptionExternalMediaViewer[] = "external-media-viewer";
 
 void ActivateWindow(not_null<SessionController*> controller) {
 	Ui::ActivateWindow(controller->widget());
@@ -620,6 +632,14 @@ void SessionNavigation::showPeerByLinkResolved(
 	using Scope = AddBotToGroupBoxController::Scope;
 	const auto user = peer->asUser();
 	const auto bot = (user && user->isBot()) ? user : nullptr;
+	const auto applyBotStartToken = [&] {
+		if (bot && bot->botInfo->startToken != info.startToken) {
+			bot->botInfo->startToken = info.startToken;
+			bot->session().changes().peerUpdated(
+				bot,
+				Data::PeerUpdate::Flag::BotStartToken);
+		}
+	};
 
 	// t.me/username/012345 - we thought it was a channel post link, but
 	// after resolving the username we found out it is a bot.
@@ -628,6 +648,16 @@ void SessionNavigation::showPeerByLinkResolved(
 		&& info.resolveType == ResolveType::Default)
 		? ResolveType::BotApp
 		: info.resolveType;
+
+	// Show specific posts only in channels / supergroups.
+	const auto useRequestedMessageId = peer->isChannel();
+	const auto msgId = useRequestedMessageId
+		? info.messageId
+		: info.startAutoSubmit
+		? ShowAndStartBotMsgId
+		: (bot && !info.startToken.isEmpty())
+		? ShowAndMaybeStartBotMsgId
+		: ShowAtUnreadMsgId;
 
 	const auto &replies = info.repliesInfo;
 	if (const auto threadId = std::get_if<ThreadId>(&replies)) {
@@ -641,40 +671,14 @@ void SessionNavigation::showPeerByLinkResolved(
 				controller->showForum(forum);
 			}
 		}
-		showRepliesForMessage(
-			history,
-			threadId->id,
-			info.messageId,
-			params);
+		showRepliesForMessage(history, threadId->id, msgId, params);
 	} else if (const auto commentId = std::get_if<CommentId>(&replies)) {
-		showRepliesForMessage(
-			session().data().history(peer),
-			info.messageId,
-			commentId->id,
-			params);
+		const auto history = peer->owner().history(peer);
+		showRepliesForMessage(history, msgId, commentId->id, params);
 	} else if (resolveType == ResolveType::Profile) {
 		showPeerInfo(peer, params);
 	} else if (resolveType == ResolveType::HashtagSearch) {
 		searchMessages(info.text, peer->owner().history(peer));
-	} else if (peer->isForum() && resolveType != ResolveType::Boost) {
-		const auto itemId = info.messageId;
-		if (!itemId) {
-			parentController()->showForum(peer->forum(), params);
-		} else if (const auto item = peer->owner().message(peer, itemId)) {
-			showMessageByLinkResolved(item, info);
-		} else {
-			const auto callback = crl::guard(this, [=] {
-				if (const auto item = peer->owner().message(peer, itemId)) {
-					showMessageByLinkResolved(item, info);
-				} else {
-					showPeerHistory(peer, params, itemId);
-				}
-			});
-			peer->session().api().requestMessageData(
-				peer,
-				info.messageId,
-				callback);
-		}
 	} else if (info.storyParam == u"live"_q) {
 		parentController()->openPeerStories(peer->id, std::nullopt, true);
 	} else if (const auto storyId = info.storyParam.toInt()) {
@@ -738,6 +742,24 @@ void SessionNavigation::showPeerByLinkResolved(
 			scope,
 			info.startToken,
 			info.startAdminRights);
+	} else if (resolveType == ResolveType::Boost && peer->isChannel()) {
+		resolveBoostState(peer->asChannel());
+	} else if (peer->isForum()) {
+		if (!msgId || !useRequestedMessageId) {
+			applyBotStartToken();
+			parentController()->showForum(peer->forum(), params, msgId);
+		} else if (const auto item = peer->owner().message(peer, msgId)) {
+			showMessageByLinkResolved(item, info);
+		} else {
+			const auto callback = crl::guard(this, [=] {
+				if (const auto item = peer->owner().message(peer, msgId)) {
+					showMessageByLinkResolved(item, info);
+				} else {
+					showPeerHistory(peer, params, msgId);
+				}
+			});
+			peer->session().api().requestMessageData(peer, msgId, callback);
+		}
 	} else if (resolveType == ResolveType::Mention) {
 		if (bot || peer->isChannel()) {
 			crl::on_main(this, [=] {
@@ -746,8 +768,6 @@ void SessionNavigation::showPeerByLinkResolved(
 		} else {
 			showPeerInfo(peer, params);
 		}
-	} else if (resolveType == ResolveType::Boost && peer->isChannel()) {
-		resolveBoostState(peer->asChannel());
 	} else if (resolveType == ResolveType::ChannelDirect
 		&& !peer->isFullLoaded()) {
 		_waitingDirectChannel = peer;
@@ -756,21 +776,8 @@ void SessionNavigation::showPeerByLinkResolved(
 		; monoforum && resolveType == ResolveType::ChannelDirect) {
 		showPeerHistory(monoforum, params, ShowAtUnreadMsgId);
 	} else {
-		// Show specific posts only in channels / supergroups.
-		const auto msgId = peer->isChannel()
-			? info.messageId
-			: info.startAutoSubmit
-			? ShowAndStartBotMsgId
-			: (bot && !info.startToken.isEmpty())
-			? ShowAndMaybeStartBotMsgId
-			: ShowAtUnreadMsgId;
 		const auto attachBotUsername = info.attachBotUsername;
-		if (bot && bot->botInfo->startToken != info.startToken) {
-			bot->botInfo->startToken = info.startToken;
-			bot->session().changes().peerUpdated(
-				bot,
-				Data::PeerUpdate::Flag::BotStartToken);
-		}
+		applyBotStartToken();
 		if (!attachBotUsername.isEmpty()) {
 			crl::on_main(this, [=] {
 				const auto history = peer->owner().history(peer);
@@ -1661,6 +1668,27 @@ SessionController::SessionController(
 		}
 	}, lifetime());
 
+	session->data().documentLoadProgress(
+	) | rpl::filter([=](not_null<DocumentData*> document) {
+		return _pendingOpenDocumentId == document->id
+			&& !document->filepath().isEmpty();
+	}) | rpl::on_next([=](not_null<DocumentData*> document) {
+		_pendingOpenDocumentId = {};
+		File::Launch(document->filepath());
+	}, _lifetime);
+
+	session->downloaderTaskFinished(
+	) | rpl::filter([=] {
+		return _pendingOpenPhoto.media && _pendingOpenPhoto.media->loaded();
+	}) | rpl::on_next([=] {
+		if (_pendingOpenPhoto.media->saveToFile(_pendingOpenPhoto.filepath)) {
+			_pendingOpenPhoto.data->setLocation(
+				Core::FileLocation(_pendingOpenPhoto.filepath));
+			File::Launch(_pendingOpenPhoto.filepath);
+		}
+		_pendingOpenPhoto = {};
+	}, _lifetime);
+
 	session->api().globalPrivacy().suggestArchiveAndMute(
 	) | rpl::take(1) | rpl::on_next([=] {
 		session->api().globalPrivacy().reload(crl::guard(this, [=] {
@@ -2029,12 +2057,13 @@ void SessionController::closeFolder() {
 
 bool SessionController::showForumInDifferentWindow(
 		not_null<Data::Forum*> forum,
-		const SectionShow &params) {
+		const SectionShow &params,
+		MsgId showAtMsgId) {
 	const auto window = Core::App().windowForShowingForum(forum);
 	if (window == _window) {
 		return false;
 	} else if (window) {
-		window->sessionController()->showForum(forum, params);
+		window->sessionController()->showForum(forum, params, showAtMsgId);
 		window->activate();
 		return true;
 	} else if (windowId().hasChatsList()) {
@@ -2047,7 +2076,7 @@ bool SessionController::showForumInDifferentWindow(
 		primary = Core::App().separateWindowFor(account);
 	}
 	if (primary && &primary->account() == account) {
-		primary->sessionController()->showForum(forum, params);
+		primary->sessionController()->showForum(forum, params, showAtMsgId);
 		primary->activate();
 	}
 	return true;
@@ -2055,15 +2084,19 @@ bool SessionController::showForumInDifferentWindow(
 
 void SessionController::showForum(
 		not_null<Data::Forum*> forum,
-		const SectionShow &params) {
+		const SectionShow &params,
+		MsgId showAtMsgId) {
 	const auto forced = params.forceTopicsList;
-	if (showForumInDifferentWindow(forum, params)) {
+	if (showForumInDifferentWindow(forum, params, showAtMsgId)) {
 		return;
 	} else if (!forced && forum->peer()->useSubsectionTabs()) {
-		if (const auto active = forum->activeSubsectionThread()) {
-			showThread(active, ShowAtUnreadMsgId, params);
+		const auto active = (showAtMsgId == ShowAtUnreadMsgId)
+			? forum->activeSubsectionThread()
+			: nullptr;
+		if (active) {
+			showThread(active, showAtMsgId, params);
 		} else {
-			showPeerHistory(forum->peer(), params);
+			showPeerHistory(forum->peer(), params, showAtMsgId);
 		}
 		return;
 	}
@@ -3172,6 +3205,37 @@ void SessionController::hideLayer(anim::type animated) {
 	_window->hideLayer(animated);
 }
 
+bool SessionController::openPhotoExternal(
+		not_null<PhotoData*> photo,
+		Data::FileOrigin origin) {
+	if (!OptionExternalMediaViewer.value()) {
+		return false;
+	}
+	const auto media = photo->createMediaView();
+	const auto existing = photo->location(true).name();
+	if (!existing.isEmpty()) {
+		File::Launch(existing);
+		return true;
+	}
+	const auto filepath = FileNameForSave(
+		&session(),
+		tr::lng_save_photo(tr::now),
+		u"JPEG Image (*.jpg);;"_q + FileDialog::AllFilesFilter(),
+		u"photo"_q,
+		u".jpg"_q,
+		false);
+	if (media->loaded()) {
+		if (media->saveToFile(filepath)) {
+			photo->setLocation(Core::FileLocation(filepath));
+			File::Launch(filepath);
+		}
+		return true;
+	}
+	_pendingOpenPhoto = { photo, media, filepath };
+	photo->load(origin, LoadFromCloudOrLocal, true);
+	return true;
+}
+
 void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
 		MessageContext message,
@@ -3180,17 +3244,32 @@ void SessionController::openPhoto(
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	}
+	const auto origin = item
+		? Data::FileOrigin(item->fullId())
+		: Data::FileOrigin();
+	if (openPhotoExternal(photo, origin)) {
+		return;
+	}
 	_window->openInMediaView(Media::View::OpenRequest(
 		this,
 		photo,
 		item,
 		message.topicRootId,
-		message.monoforumPeerId));
+		message.monoforumPeerId,
+		message.showDrawButton));
 }
 
 void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
 		not_null<PeerData*> peer) {
+	const auto origin = peer->isUser()
+		? Data::FileOrigin(Data::FileOriginUserPhoto(
+			peerToUser(peer->id),
+			photo->id))
+		: Data::FileOrigin(Data::FileOriginPeerPhoto(peer->id));
+	if (openPhotoExternal(photo, origin)) {
+		return;
+	}
 	_window->openInMediaView(Media::View::OpenRequest(this, photo, peer));
 }
 
@@ -3204,6 +3283,21 @@ void SessionController::openDocument(
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	} else if (showInMediaView) {
+		if (OptionExternalMediaViewer.value() && !document->isTheme()) {
+			const auto filepath = document->filepath();
+			if (filepath.isEmpty()) {
+				if (document->loadedInMediaCache()) {
+					_pendingOpenDocumentId = document->id;
+				}
+				DocumentSaveClickHandler::Save(
+					message.id,
+					document,
+					DocumentSaveClickHandler::Mode::ToFile);
+				return;
+			}
+			File::Launch(filepath);
+			return;
+		}
 		using namespace Media::View;
 		const auto saved = session().local().mediaLastPlaybackPosition(
 			document->id);
@@ -3222,7 +3316,8 @@ void SessionController::openDocument(
 			message.topicRootId,
 			message.monoforumPeerId,
 			false,
-			usedTimestamp));
+			usedTimestamp,
+			message.showDrawButton));
 		return;
 	}
 	Data::ResolveDocument(
@@ -3230,7 +3325,8 @@ void SessionController::openDocument(
 		document,
 		item,
 		message.topicRootId,
-		message.monoforumPeerId);
+		message.monoforumPeerId,
+		message.showDrawButton);
 }
 
 bool SessionController::openSharedStory(HistoryItem *item) {

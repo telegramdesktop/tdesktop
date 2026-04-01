@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 
 namespace Ui {
+class RippleAnimation;
 struct ChatPaintContext;
 } // namespace Ui
 
@@ -93,7 +94,9 @@ private:
 
 };
 
-class Manager final : public base::has_weak_ptr {
+class Manager final
+	: public base::has_weak_ptr
+	, public ClickHandlerHost {
 public:
 	Manager(Fn<void(QRect)> buttonUpdate);
 	~Manager();
@@ -102,6 +105,11 @@ public:
 	void paint(QPainter &p, const PaintContext &context);
 	[[nodiscard]] TextState buttonTextState(QPoint position) const;
 	void remove(FullMsgId context);
+
+protected:
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &action,
+		bool pressed) override;
 
 private:
 	void showButtonDelayed();
@@ -136,6 +144,8 @@ private:
 	std::vector<std::unique_ptr<Button>> _buttonHiding;
 
 	Ui::Text::String _text;
+	std::unique_ptr<Ui::RippleAnimation> _ripple;
+	QPoint _lastPointer;
 
 };
 

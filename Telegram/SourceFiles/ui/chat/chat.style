@@ -56,6 +56,8 @@ msgSelectionOffset: 30px;
 msgSelectionBottomSkip: 5px;
 
 itemRevealDuration: 150;
+middleClickAutoscrollSpeedScale: 30px;
+middleClickAutoscrollMaxSpeed: 7200px;
 
 historyReplyTop: 2px;
 historyReplyBottom: 2px;
@@ -149,6 +151,10 @@ priceTagTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: creditsBg1;
 }
 fwdTextUserpicPadding: margins(0px, 1px, 3px, 0px);
+nameRippleRadius: 4px;
+nameRipplePadding: margins(3px, 1px, 3px, 1px);
+linkRippleRadius: 3px;
+linkRipplePadding: margins(3px, 0px, 3px, 0px);
 fwdTextStyle: TextStyle(semiboldTextStyle) {
 	linkUnderline: kLinkUnderlineNever;
 }
@@ -534,6 +540,8 @@ attachPreviewThumbLayout: HistoryFileLayout {
 	thumbSize: 64px;
 	thumbSkip: 10px;
 }
+attachPreviewCaptionTopOffset: 6px;
+attachPreviewCaptionRepaintMargin: margins(0px, 2px, 0px, 2px);
 
 msgFileMinWidth: 268px;
 msgFileTopMinus: 6px;

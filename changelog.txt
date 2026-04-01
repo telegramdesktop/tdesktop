@@ -1,3 +1,17 @@
+6.6.4 beta (16.03.26)
+
+- Fix launch on Linux.
+
+6.6.3 beta (12.03.26)
+
+- Drawing tools in image editor (brush, marker, eraser, arrow).
+- Draw-to-reply button in media viewer.
+- Trim recorded voice messages.
+- Per-file captions when sending multiple files.
+- Audio sharing in calls on Linux.
+- Ripple effects for reactions, send and reply buttons.
+- Fix saved music shuffled playing.
+
 6.6.2 (03.03.26)
 
 - Fix editing of media files.

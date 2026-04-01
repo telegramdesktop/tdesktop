@@ -22,12 +22,26 @@ namespace Ui {
 AbstractSingleFilePreview::AbstractSingleFilePreview(
 	QWidget *parent,
 	const style::ComposeControls &st,
-	AttachControls::Type type)
+	AttachControls::Type type,
+	const Text::MarkedContext &captionContext)
 : AbstractSinglePreview(parent)
 , _st(st)
 , _type(type)
+, _captionContext(captionContext)
 , _editMedia(this, _st.files.buttonFile)
 , _deleteMedia(this, _st.files.buttonFile) {
+	const auto repaint = _captionContext.repaint;
+	_captionContext.repaint = [=] {
+		if (repaint) {
+			repaint();
+		}
+		const auto rect = captionRect();
+		if (rect.isEmpty()) {
+			update();
+		} else {
+			update(rect);
+		}
+	};
 
 	_editMedia->setIconOverride(&_st.files.buttonFileEdit);
 	_deleteMedia->setIconOverride(&_st.files.buttonFileDelete);
@@ -69,9 +83,25 @@ rpl::producer<> AbstractSingleFilePreview::clearCoverRequests() const {
 }
 
 void AbstractSingleFilePreview::setDisplayName(const QString &displayName) {
-	auto data = _data;
-	data.name = displayName;
-	setData(data);
+	_data.name = displayName;
+	updateTextWidthFor(_data);
+	updateDataGeometry();
+	update();
+}
+
+void AbstractSingleFilePreview::setCaption(const TextWithTags &caption) {
+	auto marked = TextWithEntities{
+		caption.text,
+		TextUtilities::ConvertTextTagsToEntities(caption.tags),
+	};
+	marked = TextUtilities::SingleLine(marked);
+	_data.caption.setMarkedText(
+		st::defaultTextStyle,
+		marked,
+		kMarkupTextOptions,
+		_captionContext);
+	updateTextWidthFor(_data);
+	updateDataGeometry();
 	update();
 }
 
@@ -151,6 +181,23 @@ void AbstractSingleFilePreview::paintEvent(QPaintEvent *e) {
 		width(),
 		_data.statusText,
 		_data.statusWidth);
+	if (!_data.caption.isEmpty()) {
+		p.setPen(_st.files.nameFg);
+		const auto captionTop = y
+			+ st.thumbSize
+			+ st::attachPreviewCaptionTopOffset;
+		_data.caption.draw(p, {
+			.position = {
+				x,
+				captionTop,
+			},
+			.outerWidth = width(),
+			.availableWidth = _data.captionAvailableWidth,
+			.align = style::al_left,
+			.elisionLines = 1,
+			.elisionBreakEverywhere = true,
+		});
+	}
 }
 
 void AbstractSingleFilePreview::resizeEvent(QResizeEvent *e) {
@@ -167,7 +214,7 @@ void AbstractSingleFilePreview::resizeEvent(QResizeEvent *e) {
 	_editMedia->moveToRight(right, top);
 }
 
-bool AbstractSingleFilePreview::isThumbedLayout(Data &data) const {
+bool AbstractSingleFilePreview::isThumbedLayout(const Data &data) const {
 	return (!data.fileThumb.isNull() && !data.fileIsAudio);
 }
 
@@ -187,6 +234,10 @@ void AbstractSingleFilePreview::updateTextWidthFor(Data &data) {
 		- _st.files.buttonFile.width * buttonsCount
 		- st::sendBoxAlbumGroupEditInternalSkip * buttonsCount
 		- st::sendBoxAlbumGroupSkipRight;
+	const auto availableCaptionWidth = st::sendMediaPreviewSize
+		- _st.files.buttonFile.width * buttonsCount
+		- st::sendBoxAlbumGroupEditInternalSkip * buttonsCount
+		- st::sendBoxAlbumGroupSkipRight;
 	data.nameWidth = st::semiboldFont->width(data.name);
 	if (data.nameWidth > availableFileWidth) {
 		data.name = st::semiboldFont->elided(
@@ -196,17 +247,44 @@ void AbstractSingleFilePreview::updateTextWidthFor(Data &data) {
 		data.nameWidth = st::semiboldFont->width(data.name);
 	}
 	data.statusWidth = st::normalFont->width(data.statusText);
+	data.captionAvailableWidth = availableCaptionWidth;
 }
 
-void AbstractSingleFilePreview::setData(const Data &data) {
-	_data = data;
-
-	updateTextWidthFor(_data);
-
+void AbstractSingleFilePreview::updateDataGeometry() {
 	const auto &st = !isThumbedLayout(_data)
 		? st::attachPreviewLayout
 		: st::attachPreviewThumbLayout;
-	resize(width(), st.thumbSize);
+	const auto height = st.thumbSize + (_data.caption.isEmpty()
+		? 0
+		: (st::attachPreviewCaptionTopOffset + _data.caption.lineHeight()));
+	resize(width(), height);
+}
+
+QRect AbstractSingleFilePreview::captionRect() const {
+	if (_data.caption.isEmpty()) {
+		return {};
+	}
+	const auto w = width()
+		- st::boxPhotoPadding.left()
+		- st::boxPhotoPadding.right();
+	const auto &st = !isThumbedLayout(_data)
+		? st::attachPreviewLayout
+		: st::attachPreviewThumbLayout;
+	const auto x = (width() - w) / 2;
+	const auto captionLineHeight = _data.caption.lineHeight();
+	const auto top = st.thumbSize
+		+ st::attachPreviewCaptionTopOffset;
+	return QRect(
+		x,
+		top,
+		_data.captionAvailableWidth,
+		captionLineHeight) + st::attachPreviewCaptionRepaintMargin;
+}
+
+void AbstractSingleFilePreview::setData(Data data) {
+	_data = std::move(data);
+	updateTextWidthFor(_data);
+	updateDataGeometry();
 }
 
 } // namespace Ui

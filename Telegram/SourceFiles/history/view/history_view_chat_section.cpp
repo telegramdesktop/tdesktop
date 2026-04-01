@@ -1180,17 +1180,9 @@ bool ChatWidget::confirmSendingFiles(
 		[=](const TextWithTags &text) { _composeControls->setText(text); });
 
 	box->setConfirmedCallback(crl::guard(this, [=](
-			Ui::PreparedList &&list,
-			Ui::SendFilesWay way,
-			TextWithTags &&caption,
-			Api::SendOptions options,
-			bool ctrlShiftEnter) {
-		sendingFilesConfirmed(
-			std::move(list),
-			way,
-			std::move(caption),
-			options,
-			ctrlShiftEnter);
+			std::shared_ptr<Ui::PreparedBundle> bundle,
+			Api::SendOptions options) {
+		sendingFilesConfirmed(std::move(bundle), options);
 	}));
 	box->setCancelledCallback(_composeControls->restoreTextCallback(
 		insertTextOnCancel));
@@ -1202,29 +1194,6 @@ bool ChatWidget::confirmSendingFiles(
 	controller()->show(std::move(box));
 
 	return true;
-}
-
-void ChatWidget::sendingFilesConfirmed(
-		Ui::PreparedList &&list,
-		Ui::SendFilesWay way,
-		TextWithTags &&caption,
-		Api::SendOptions options,
-		bool ctrlShiftEnter) {
-	Expects(list.filesToProcess.empty());
-
-	if (showSendingFilesError(list, way.sendImagesAsPhotos())) {
-		return;
-	}
-	auto groups = DivideByGroups(
-		std::move(list),
-		way,
-		_peer->slowmodeApplied());
-	auto bundle = PrepareFilesBundle(
-		std::move(groups),
-		way,
-		std::move(caption),
-		ctrlShiftEnter);
-	sendingFilesConfirmed(std::move(bundle), options);
 }
 
 bool ChatWidget::checkSendPayment(
@@ -1242,6 +1211,10 @@ bool ChatWidget::checkSendPayment(
 void ChatWidget::sendingFilesConfirmed(
 		std::shared_ptr<Ui::PreparedBundle> bundle,
 		Api::SendOptions options) {
+	if (showSendingFilesError(*bundle)) {
+		return;
+	}
+
 	const auto withPaymentApproved = [=](int approved) {
 		auto copy = options;
 		copy.starsApproved = approved;
@@ -1259,21 +1232,12 @@ void ChatWidget::sendingFilesConfirmed(
 	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
 	auto action = prepareSendAction(options);
 	action.clearDraft = false;
-	if (bundle->sendComment) {
-		auto message = Api::MessageToSend(action);
-		message.textWithTags = base::take(bundle->caption);
-		session().api().sendMessage(std::move(message));
-	}
+	auto &api = session().api();
 	for (auto &group : bundle->groups) {
 		const auto album = (group.type != Ui::AlbumType::None)
 			? std::make_shared<SendingAlbum>()
 			: nullptr;
-		session().api().sendFiles(
-			std::move(group.list),
-			type,
-			base::take(bundle->caption),
-			album,
-			action);
+		api.sendFiles(std::move(group.list), type, album, action);
 	}
 	if (_composeControls->replyingToMessage().messageId
 			== action.replyTo.messageId) {
@@ -1354,47 +1318,13 @@ void ChatWidget::uploadFile(
 
 bool ChatWidget::showSendingFilesError(
 		const Ui::PreparedList &list) const {
-	return showSendingFilesError(list, std::nullopt);
+	const auto show = controller()->uiShow();
+	return Data::ShowSendError(show, _peer, list, std::nullopt);
 }
 
 bool ChatWidget::showSendingFilesError(
-		const Ui::PreparedList &list,
-		std::optional<bool> compress) const {
-	const auto error = [&]() -> Data::SendError {
-		const auto peer = _peer;
-		const auto error = Data::FileRestrictionError(peer, list, compress);
-		if (error) {
-			return error;
-		} else if (const auto left = _peer->slowmodeSecondsLeft()) {
-			return tr::lng_slowmode_enabled(
-				tr::now,
-				lt_left,
-				Ui::FormatDurationWordsSlowmode(left));
-		}
-		using Error = Ui::PreparedList::Error;
-		switch (list.error) {
-		case Error::None: return QString();
-		case Error::EmptyFile:
-		case Error::Directory:
-		case Error::NonLocalUrl: return tr::lng_send_image_empty(
-			tr::now,
-			lt_name,
-			list.errorData);
-		case Error::TooLargeFile: return u"(toolarge)"_q;
-		}
-		return tr::lng_forward_send_files_cant(tr::now);
-	}();
-	if (!error) {
-		return false;
-	} else if (error.text == u"(toolarge)"_q) {
-		const auto fileSize = list.files.back().size;
-		controller()->show(
-			Box(FileSizeLimitBox, &session(), fileSize, nullptr));
-		return true;
-	}
-
-	Data::ShowSendErrorToast(controller(), _peer, error);
-	return true;
+		const Ui::PreparedBundle &bundle) const {
+	return Data::ShowSendError(controller()->uiShow(), _peer, bundle);
 }
 
 Api::SendAction ChatWidget::prepareSendAction(
@@ -2234,6 +2164,9 @@ void ChatWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 	auto button = object_ptr<Ui::IconButton>(
 		this,
 		close ? st::historyReplyCancel : st::historyPinnedShowAll);
+	button->setAccessibleName(close
+		? tr::lng_cancel(tr::now)
+		: tr::lng_settings_events_pinned(tr::now));
 	button->clicks(
 	) | rpl::on_next([=] {
 		if (close) {
@@ -3284,19 +3217,25 @@ void ChatWidget::listShowPremiumToast(not_null<DocumentData*> document) {
 void ChatWidget::listOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
+	const auto showDrawButton = _topic
+		? Data::CanSendAnyOf(_topic, Data::FilesSendRestrictions())
+		: Data::CanSendAnyOf(_peer, Data::FilesSendRestrictions());
 	controller()->openPhoto(
 		photo,
-		{ context, _repliesRootId, _monoforumPeerId });
+		{ context, _repliesRootId, _monoforumPeerId, showDrawButton });
 }
 
 void ChatWidget::listOpenDocument(
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) {
+	const auto showDrawButton = _topic
+		? Data::CanSendAnyOf(_topic, Data::FilesSendRestrictions())
+		: Data::CanSendAnyOf(_peer, Data::FilesSendRestrictions());
 	controller()->openDocument(
 		document,
 		showInMediaView,
-		{ context, _repliesRootId, _monoforumPeerId });
+		{ context, _repliesRootId, _monoforumPeerId, showDrawButton });
 }
 
 void ChatWidget::listPaintEmpty(

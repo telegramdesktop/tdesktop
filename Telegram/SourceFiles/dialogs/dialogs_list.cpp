@@ -84,6 +84,16 @@ void List::adjustByName(not_null<Row*> row) {
 void List::adjustByDate(not_null<Row*> row) {
 	Expects(_sortMode == SortMode::Date);
 
+	if (_frozen) {
+		const auto canAdjustWhileFrozen = _pendingAdjust.empty()
+			&& (row->entry()->fixedOnTopIndex()
+				|| row->entry()->isPinnedDialog(_filterId));
+		if (!canAdjustWhileFrozen) {
+			_pendingAdjust.emplace(row);
+			return;
+		}
+	}
+
 	const auto key = row->sortKey(_filterId);
 	const auto index = row->index();
 	const auto i = _rows.begin() + index;
@@ -100,6 +110,53 @@ void List::adjustByDate(not_null<Row*> row) {
 		if (after != i) {
 			rotate(after, i, i + 1);
 		}
+	}
+}
+
+void List::freeze() {
+	_frozen = true;
+}
+
+void List::unfreeze() {
+	_frozen = false;
+	auto pending = base::take(_pendingAdjust);
+	if (pending.empty()) {
+		return;
+	} else if (pending.size() == 1) {
+		adjustByDate(*pending.begin());
+		return;
+	}
+	for (const auto &row : pending) {
+		adjustByDate(row);
+	}
+	if (!sortedByDate()) {
+		sortByDate();
+	}
+}
+
+bool List::sortedByDate() const {
+	Expects(_sortMode == SortMode::Date);
+
+	for (auto i = 1, count = int(_rows.size()); i != count; ++i) {
+		if (_rows[i - 1]->sortKey(_filterId) < _rows[i]->sortKey(_filterId)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void List::sortByDate() {
+	Expects(_sortMode == SortMode::Date);
+
+	ranges::stable_sort(_rows, [&](Row *a, Row *b) {
+		return a->sortKey(_filterId) > b->sortKey(_filterId);
+	});
+	auto top = 0;
+	for (auto i = 0, count = int(_rows.size()); i != count; ++i) {
+		const auto row = _rows[i];
+		row->_index = i;
+		row->_top = top;
+		top += row->height();
 	}
 }
 
@@ -170,6 +227,7 @@ bool List::remove(Key key, Row *replacedBy) {
 	}
 
 	const auto row = i->second.get();
+	_pendingAdjust.remove(row);
 	row->entry()->owner().dialogsRowReplaced({ row, replacedBy });
 
 	auto top = row->top();

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/middle_click_autoscroll.h"
 
+#include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "ui/effects/animation_value.h"
 #include "ui/rect.h"
@@ -19,14 +20,6 @@ constexpr auto kHoldToToggleThreshold = crl::time(220);
 
 [[nodiscard]] int Deadzone() {
 	return std::max(1, int(std::lround(style::ConvertFloatScale(6.))));
-}
-
-[[nodiscard]] float64 SpeedScale() {
-	return style::ConvertFloatScale(30.);
-}
-
-[[nodiscard]] float64 MaxSpeed() {
-	return style::ConvertFloatScale(3600.);
 }
 
 [[nodiscard]] QImage PaintCursorImage(
@@ -236,8 +229,8 @@ void MiddleClickAutoscroll::onTimer() {
 		return;
 	}
 	const auto speed = std::min(
-		absolute * SpeedScale(),
-		MaxSpeed());
+		absolute * float64(st::middleClickAutoscrollSpeedScale),
+		float64(st::middleClickAutoscrollMaxSpeed));
 	auto scroll = int(std::lround((speed * elapsed) / 1000.));
 	if (scroll <= 0) {
 		scroll = 1;
