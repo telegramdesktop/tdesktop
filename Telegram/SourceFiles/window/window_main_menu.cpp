@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_main_menu.h"
 
+#include "ayu/utils/official_resources.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
@@ -392,7 +393,8 @@ MainMenu::MainMenu(
 
 	_telegram->setMarkedText(tr::link(
 		u"TeleForge Desktop"_q,
-		u"https://tele-forge.ru"_q));
+		QString::fromLatin1(
+			TeleForge::OfficialResources::kEntries.back().url)));
 	_telegram->setLinksTrusted();
 	_version->setMarkedText(
 		tr::link(

@@ -30,8 +30,8 @@ inChannelBadgeSelectedIcon: icon {{ "ayu/channel", msgInDateFgSelected }};
 outChannelBadgeIcon: icon {{ "ayu/channel", msgOutDateFg }};
 outChannelBadgeSelectedIcon: icon {{ "ayu/channel", msgOutDateFgSelected }};
 
-infoExteraOfficialBadge: icon {{ "ayu/extera_official", profileVerifiedCheckBg }};
-infoExteraSupporterBadge: icon {{ "ayu/extera_badge", profileVerifiedCheckBg }};
+infoExteraOfficialBadge: icon {{ "profile_verified_star", profileVerifiedCheckBg }};
+infoExteraSupporterBadge: icon {{ "profile_verified_star", profileVerifiedCheckBg }};
 
 winEnterWithGuestIcon: icon {{ "ayu/ghost_tray", windowFg }};
 
@@ -54,12 +54,12 @@ burntIcon: IconEmoji{
 }
 
 dialogsExteraOfficialIcon: ThreeStateIcon {
-	icon: icon {{ "ayu/dialogs_extera_official", dialogsVerifiedIconBg }};
-	over: icon {{ "ayu/dialogs_extera_official", dialogsVerifiedIconBgOver }};
-	active: icon {{ "ayu/dialogs_extera_official", dialogsVerifiedIconBgActive }};
+	icon: icon {{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg }};
+	over: icon {{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBgOver }};
+	active: icon {{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBgActive }};
 }
 dialogsExteraSupporterIcon: ThreeStateIcon {
-	icon: icon {{ "ayu/dialogs_extera_supporter", dialogsVerifiedIconBg }};
-	over: icon {{ "ayu/dialogs_extera_supporter", dialogsVerifiedIconBgOver }};
-	active: icon {{ "ayu/dialogs_extera_supporter", dialogsVerifiedIconBgActive }};
+	icon: icon {{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg }};
+	over: icon {{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBgOver }};
+	active: icon {{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBgActive }};
 }

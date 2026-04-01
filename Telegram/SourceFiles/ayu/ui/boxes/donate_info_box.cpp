@@ -7,20 +7,14 @@
 #include "ayu/ui/boxes/donate_info_box.h"
 
 #include "lang_auto.h"
-#include "ayu/utils/rc_manager.h"
+#include "ayu/utils/official_resources.h"
 #include "core/ui_integration.h"
-#include "data/data_session.h"
-#include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_icon.h"
 #include "lang/lang_text_entity.h"
-#include "main/main_session.h"
 #include "styles/style_ayu_styles.h"
 #include "styles/style_boxes.h"
-#include "styles/style_channel_earn.h"
-#include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_premium.h"
 #include "styles/style_settings.h"
 #include "styles/style_widgets.h"
 #include "ui/painter.h"
@@ -29,18 +23,14 @@
 #include "ui/vertical_list.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "window/window_session_controller.h"
-
-#include <QSvgRenderer>
 
 namespace Ui {
 namespace {
 
 QImage MakeSupportLogo() {
 	const auto s = Size(st::supportLogoSize);
-	auto svg = QSvgRenderer(QString(":/gui/icons/ayu/donates/support_logo.svg"));
 	auto image = QImage(
 		s * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
@@ -48,7 +38,7 @@ QImage MakeSupportLogo() {
 	image.fill(Qt::transparent);
 	{
 		auto p = QPainter(&image);
-		svg.render(&p, Rect(s));
+		p.fillRect(Rect(s), st::windowBgOver);
 	}
 	return image;
 }
@@ -91,11 +81,9 @@ object_ptr<Ui::RpWidget> CreateTopLogoWidget(
 
 object_ptr<Ui::RpWidget> InfoRow(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Main::Session*> session,
 	const QString &title,
-	const TextWithEntities &text,
-	not_null<const style::icon*> icon,
-	const Text::MarkedContext &context) {
+	const QString &text,
+	not_null<const style::icon*> icon) {
 	auto row = object_ptr<Ui::VerticalLayout>(parent);
 	const auto raw = row.data();
 
@@ -106,16 +94,12 @@ object_ptr<Ui::RpWidget> InfoRow(
 			st::defaultFlatLabel),
 		st::settingsPremiumRowTitlePadding);
 
-	const auto label = raw->add(
+	raw->add(
 		object_ptr<Ui::FlatLabel>(
 			raw,
+			rpl::single(text),
 			st::boxDividerLabel),
 		st::settingsPremiumRowAboutPadding);
-
-	label->setMarkedText(
-		text,
-		std::move(context)
-	);
 
 	object_ptr<Info::Profile::FloatingIcon>(
 		raw,
@@ -128,7 +112,7 @@ object_ptr<Ui::RpWidget> InfoRow(
 } // namespace
 
 void FillDonateInfoBox(not_null<Ui::GenericBox*> box, not_null<Window::SessionController*> controller) {
-	// box->setStyle(st::starrefFooterBox);
+	Q_UNUSED(controller);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 	box->setWidth(int(st::aboutWidth * 1.1));
@@ -141,7 +125,6 @@ void FillDonateInfoBox(not_null<Ui::GenericBox*> box, not_null<Window::SessionCo
 
 	const auto logoWidget = box->verticalLayout()->add(
 		CreateTopLogoWidget(box->verticalLayout()));
-
 	logoWidget->resize(st::supportLogoSize, st::supportLogoSize);
 
 	Ui::AddSkip(box->verticalLayout());
@@ -163,76 +146,30 @@ void FillDonateInfoBox(not_null<Ui::GenericBox*> box, not_null<Window::SessionCo
 
 	Ui::AddSkip(box->verticalLayout());
 	Ui::AddSkip(box->verticalLayout());
-	Ui::AddSkip(box->verticalLayout());
 
-	auto emojiHelper = Ui::Text::CustomEmojiHelper();
-	const auto tonSymbol = emojiHelper.paletteDependent({
-		.factory = [=]
-		{
-			return Ui::Earn::IconCurrencyColored(
-				st::boxDividerLabel.style.font,
-				st::boxDividerLabel.textFg->c);
-		},
-		.margin = st::channelEarnCurrencyLearnMargins
-	});
-
-	const auto dollarAmount = RCManager::getInstance().donateAmountUsd().prepend("$");
-	const auto tonAmount = RCManager::getInstance().donateAmountTon();
-	const auto rubleAmount = RCManager::getInstance().donateAmountRub().append("₽");
-
-	const auto innerText = TextWithEntities{}.append(tonSymbol).append(tonAmount).append(", ").append(rubleAmount);
-	const auto str = tr::ayu_SupportBoxMakeDonationInfo(
-		tr::now,
-		lt_amount1,
-		TextWithEntities{dollarAmount},
-		lt_amount2,
-		innerText,
-		tr::rich
-	);
-
-	box->verticalLayout()->add(InfoRow(
-		box->verticalLayout(),
-		&controller->session(),
-		tr::ayu_SupportBoxMakeDonationHeader(tr::now),
-		str,
-		&st::menuIconEarn,
-		emojiHelper.context()));
-
-	Ui::AddSkip(box->verticalLayout());
-
-	const auto username = RCManager::getInstance().donateUsername();
-	auto usernameTrimmed = username;
-	if (usernameTrimmed.startsWith('@')) {
-		usernameTrimmed.remove(0, 1);
+	for (const auto &entry : TeleForge::OfficialResources::kEntries) {
+		const auto title = [&] {
+			using Type = TeleForge::OfficialResources::Type;
+			if (entry.type == Type::Channel) {
+				return tr::ayu_SupportBoxMakeDonationHeader(tr::now);
+			} else if (entry.type == Type::Chat) {
+				return tr::ayu_SupportBoxSendProofHeader(tr::now);
+			}
+			return tr::ayu_SupportBoxReceiveBadgeHeader(tr::now);
+		}();
+		const auto text = QString::fromLatin1(entry.label);
+		box->verticalLayout()->add(InfoRow(
+			box->verticalLayout(),
+			title,
+			text,
+			entry.type == TeleForge::OfficialResources::Type::Channel
+				? &st::menuIconChannel
+				: (entry.type == TeleForge::OfficialResources::Type::Chat
+					? &st::menuIconChats
+					: &st::menuIconIpAddress)));
 	}
-	const TextWithEntities proofText = tr::ayu_SupportBoxSendProofInfo(
-		tr::now,
-		lt_item,
-		Ui::Text::Link(username, controller->session().createInternalLinkFull(usernameTrimmed)),
-		tr::rich);
-	box->verticalLayout()->add(InfoRow(
-		box->verticalLayout(),
-		&controller->session(),
-		tr::ayu_SupportBoxSendProofHeader(tr::now),
-		proofText,
-		&st::menuIconPhoto,
-		Core::TextContext({
-			.session = std::move(&controller->session()),
-		})));
 
 	Ui::AddSkip(box->verticalLayout());
-
-	box->verticalLayout()->add(InfoRow(
-		box->verticalLayout(),
-		&controller->session(),
-		tr::ayu_SupportBoxReceiveBadgeHeader(tr::now),
-		TextWithEntities{
-			tr::ayu_SupportBoxReceiveBadgeInfo(tr::now)
-		},
-		&st::menuIconStarRefShare,
-		Core::TextContext({
-			.session = std::move(&controller->session()),
-		})));
 
 	const auto closeButton = box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 	const auto buttonWidth = box->width()

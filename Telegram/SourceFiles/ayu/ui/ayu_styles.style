@@ -59,11 +59,11 @@ topBarRecentActions: IconButton {
 	}
 }
 
-exteraBadgeToast: Toast(defaultToast) {
+teleforgeBadgeToast: Toast(defaultToast) {
 	minWidth: 40px;
 	maxWidth: 480px;
 	padding: margins(54px, 13px, 19px, 12px);
-	icon: icon {{ "ayu/extera_badge", toastFg }};
+	icon: icon {{ "dialogs/dialogs_verified_star", toastFg }};
 	iconPosition: point(13px, 13px);
 }
 

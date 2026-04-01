@@ -6,6 +6,7 @@
 // Copyright @Radolyn, 2026
 #include "ayu/ui/components/avatar_corners_preview.h"
 
+#include "ayu/utils/official_resources.h"
 #include "apiwrap.h"
 #include "data/data_peer.h"
 #include "data/data_peer_id.h"
@@ -21,6 +22,22 @@
 #include "window/window_session_controller.h"
 #include "window/window_session_controller_link_info.h"
 
+namespace {
+
+[[nodiscard]] const auto &OfficialChannel() {
+	return TeleForge::OfficialResources::kEntries.front();
+}
+
+[[nodiscard]] QString OfficialChannelLabel() {
+	return QString::fromLatin1(OfficialChannel().label);
+}
+
+[[nodiscard]] QString OfficialChannelUsername() {
+	return QString::fromLatin1(OfficialChannel().usernameOrId);
+}
+
+} // namespace
+
 AvatarCornersPreview::AvatarCornersPreview(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
@@ -30,7 +47,7 @@ AvatarCornersPreview::AvatarCornersPreview(
 	Ui::EmptyUserpic::UserpicColor(
 		Data::DecideColorIndex(
 			peerFromChannel(ChannelId(2331068091)))),
-	u"AyuGram Releases"_q) {
+	OfficialChannelLabel()) {
 	const auto &row = st::defaultDialogRow;
 	setFixedHeight(row.height);
 	setCursor(Qt::PointingHandCursor);
@@ -63,7 +80,7 @@ void AvatarCornersPreview::paintEvent(QPaintEvent *e) {
 		_emptyUserpic.paintCircle(p, userpicX, userpicY, width(), photoSize);
 	}
 
-	const auto nameText = u"AyuGram Releases"_q;
+	const auto nameText = OfficialChannelLabel();
 	p.setPen(st::dialogsNameFg);
 	p.setFont(st::semiboldFont);
 	p.drawText(row.nameLeft + xShift, row.nameTop + st::semiboldFont->ascent, nameText);
@@ -96,14 +113,14 @@ void AvatarCornersPreview::mouseReleaseEvent(QMouseEvent *e) {
 	}
 	if (e->button() == Qt::LeftButton && rect().contains(e->pos())) {
 		_controller->showPeerByLink(Window::PeerByLinkInfo{
-			.usernameOrId = u"AyuGramReleases"_q,
+			.usernameOrId = OfficialChannelUsername(),
 		});
 	}
 }
 
 void AvatarCornersPreview::resolveChannel() {
 	const auto session = &_controller->session();
-	_peer = session->data().peerByUsername(u"AyuGramReleases"_q);
+	_peer = session->data().peerByUsername(OfficialChannelUsername());
 	if (_peer) {
 		_peer->loadUserpic();
 		subscribeToUpdates();
@@ -112,7 +129,7 @@ void AvatarCornersPreview::resolveChannel() {
 	const auto weak = base::make_weak(this);
 	session->api().request(MTPcontacts_ResolveUsername(
 		MTP_flags(0),
-		MTP_string(u"AyuGramReleases"_q),
+		MTP_string(OfficialChannelUsername()),
 		MTP_string()
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
 		if (const auto strong = weak.get()) {

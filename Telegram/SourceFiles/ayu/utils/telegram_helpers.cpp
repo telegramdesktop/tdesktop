@@ -16,6 +16,7 @@
 #include "ayu/data/messages_storage.h"
 #include "ayu/features/filters/filters_controller.h"
 #include "ayu/utils/rc_manager.h"
+#include "ayu/utils/official_resources.h"
 #include "base/unixtime.h"
 #include "core/mime_type.h"
 #include "data/data_channel.h"
@@ -59,10 +60,10 @@ const auto usernameResolverBotUsername = QString("tgdb_search_bot");
 const auto usernameResolverEmpty = QString("Error, username or id invalid/not found.");
 
 constexpr auto regDateBotId = 8083294286L;
-const auto regDateBotUsername = QString("exteraAuthBot");
+const auto regDateBotUsername = QString();
 
 constexpr auto regDateBotFallbackId = 6247153446L;
-const auto regDateBotFallbackUsername = QString("ayugrambot");
+const auto regDateBotFallbackUsername = QString();
 
 const auto kZalgoPattern = QStringLiteral(
 	"\\p{Mn}{3,}|[\\x{202A}-\\x{202E}\\x{2066}-\\x{2069}\\x{200E}\\x{200F}\\x{061C}]");
@@ -112,40 +113,41 @@ ID getBareID(not_null<PeerData*> peer) {
 }
 
 bool isExteraPeer(ID peerId) {
-	return RCManager::getInstance().developers().contains(peerId) || RCManager::getInstance().channels().
-		contains(peerId);
+	Q_UNUSED(peerId);
+	return false;
 }
 
 bool isSupporterPeer(ID peerId) {
-	return RCManager::getInstance().supporters().contains(peerId) || RCManager::getInstance().supporterChannels().
-		contains(peerId);
+	Q_UNUSED(peerId);
+	return false;
 }
 
 bool isCustomBadgePeer(ID peerId) {
-	return RCManager::getInstance().supporterCustomBadges().contains(peerId);
+	Q_UNUSED(peerId);
+	return false;
 }
 
 CustomBadge getCustomBadge(ID peerId) {
-	const auto &badges = RCManager::getInstance().supporterCustomBadges();
-	if (const auto it = badges.find(peerId); it != badges.end()) {
-		return it->second;
-	}
+	Q_UNUSED(peerId);
 	return {};
 }
 
+bool isTeleForgeOfficialResource(not_null<PeerData*> peer) {
+	const auto usernames = peer->usernames();
+	for (const auto &username : usernames) {
+		if (TeleForge::OfficialResources::IsOfficialUsername(username)) {
+			return true;
+		}
+	}
+	const auto username = peer->username();
+	return !username.isEmpty()
+		&& TeleForge::OfficialResources::IsOfficialUsername(username);
+}
+
 rpl::producer<Info::Profile::Badge::Content> ExteraBadgeTypeFromPeer(not_null<PeerData*> peer) {
-	if (isCustomBadgePeer(getBareID(peer))) {
-		return rpl::single(Info::Profile::Badge::Content{
-			.badge = Info::Profile::BadgeType::ExteraCustom,
-			.emojiStatusId = getCustomBadge(getBareID(peer)).emojiStatusId
-		});
-	} else if (isExteraPeer(getBareID(peer))) {
+	if (isTeleForgeOfficialResource(peer)) {
 		return rpl::single(Info::Profile::Badge::Content{
 			.badge = Info::Profile::BadgeType::Extera
-		});
-	} else if (isSupporterPeer(getBareID(peer))) {
-		return rpl::single(Info::Profile::Badge::Content{
-			.badge = Info::Profile::BadgeType::ExteraSupporter
 		});
 	}
 	return rpl::single(Info::Profile::Badge::Content{Info::Profile::BadgeType::None});
@@ -154,51 +156,19 @@ rpl::producer<Info::Profile::Badge::Content> ExteraBadgeTypeFromPeer(not_null<Pe
 Fn<void()> badgeClickHandler(not_null<PeerData*> peer) {
 	return [=]
 	{
-		const auto isCustomBadge = isCustomBadgePeer(getBareID(peer));
-		const auto isExtera = isExteraPeer(getBareID(peer));
-		const auto isSupporter = isSupporterPeer(getBareID(peer));
-
-		TextWithEntities text;
-		if (isCustomBadge) {
-			const auto custom = getCustomBadge(getBareID(peer));
-			text = custom.text.isEmpty()
-					   ? (isExtera
-							  ? tr::ayu_DeveloperPopup(
-								  tr::now,
-								  lt_item,
-								  TextWithEntities{peer->name()},
-								  tr::rich)
-							  : tr::ayu_SupporterPopup(
-								  tr::now,
-								  lt_item,
-								  TextWithEntities{peer->name()},
-								  tr::rich))
-					   : tr::rich(custom.text);
-		} else if (isExtera) {
-			text = peer->isUser()
-					   ? tr::ayu_DeveloperPopup(
-						   tr::now,
-						   lt_item,
-						   TextWithEntities{peer->name()},
-						   tr::rich)
-					   : tr::ayu_OfficialResourcePopup(
-						   tr::now,
-						   lt_item,
-						   TextWithEntities{peer->name()},
-						   tr::rich);
-		} else if (isSupporter) {
-			text = tr::ayu_SupporterPopup(
-				tr::now,
-				lt_item,
-				TextWithEntities{peer->name()},
-				tr::rich);
-		} else {
+		if (!isTeleForgeOfficialResource(peer)) {
 			return;
 		}
 
+		const auto text = tr::ayu_OfficialResourcePopup(
+			tr::now,
+			lt_item,
+			TextWithEntities{peer->name()},
+			tr::rich);
+
 		Ui::Toast::Show({
 			.text = text,
-			.st = &st::exteraBadgeToast,
+			.st = &st::teleforgeBadgeToast,
 			.adaptive = true,
 			.duration = 3 * crl::time(1000),
 		});
@@ -1379,25 +1349,8 @@ void getUserRegistrationDateInner(
 }
 
 void getUserRegistrationDate(not_null<UserData*> user, Fn<void(TextWithEntities)> callback) {
-	const auto session = &user->session();
-	const auto selfId = getDialogIdFromPeer(session->user());
-	const auto isSupporter = isSupporterPeer(selfId) || isExteraPeer(selfId);
-
-	const auto botId = isSupporter ? regDateBotId : regDateBotFallbackId;
-	const auto botUsername = isSupporter ? regDateBotUsername : regDateBotFallbackUsername;
-
-	if (session->data().userLoaded(botId)) {
-		getUserRegistrationDateInner(user, botId, callback);
-	} else {
-		resolvePeer(
-			QString::number(botId),
-			botUsername,
-			session,
-			[=](const QString &title, PeerData *data)
-			{
-				getUserRegistrationDateInner(user, botId, callback);
-			});
-	}
+	Q_UNUSED(user);
+	callback(TextWithEntities{});
 }
 
 void getChannelJoinOrCreateDate(not_null<ChannelData*> channel, Fn<void(TextWithEntities)> callback) {

@@ -7,6 +7,7 @@
 #include "ayu/ui/components/message_preview.h"
 
 #include "ayu/ayu_settings.h"
+#include "ayu/utils/official_resources.h"
 #include "base/unixtime.h"
 #include "data/data_session.h"
 #include "history/history.h"
@@ -26,6 +27,14 @@
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
+
+namespace {
+
+[[nodiscard]] QString OfficialChannelLabel() {
+	return QString::fromLatin1(TeleForge::OfficialResources::kEntries.front().label);
+}
+
+} // namespace
 
 class MessagePreview::PreviewDelegate final
 	: public HistoryView::SimpleElementDelegate {
@@ -70,15 +79,15 @@ MessagePreview::MessagePreview(
 		FullMsgId(),
 		u"Update wehn?"_q);
 
-	const auto ayugramUser = HistoryView::GenerateUser(
+	const auto previewUser = HistoryView::GenerateUser(
 		history,
-		u"AyuGram Releases"_q);
+		OfficialChannelLabel());
 	const auto messageItem = history->addNewLocalMessage({
 		.id = history->nextNonHistoryEntryId(),
 		.flags = (MessageFlag::FakeHistoryItem
 			| MessageFlag::HasFromId
 			| MessageFlag::HasReplyInfo),
-		.from = ayugramUser,
+		.from = previewUser,
 		.replyTo = FullReplyTo{
 			.messageId = _state->reply->data()->fullId(),
 		},

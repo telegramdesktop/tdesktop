@@ -9,6 +9,7 @@
 #include "lang_auto.h"
 #include "mainwindow.h"
 #include "ayu/ui/settings/settings_main.h"
+#include "ayu/utils/official_resources.h"
 #include "ayu/utils/telegram_helpers.h"
 #include "base/qthelp_url.h"
 #include "boxes/abstract_box.h"
@@ -18,7 +19,6 @@
 #include "main/main_session.h"
 #include "settings/settings_builder.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/boxes/donate_info_box.h"
 #include "window/window_controller.h"
 
 #include <QDesktopServices>
@@ -138,10 +138,8 @@ bool HandleSupport(
 	if (!controller) {
 		return false;
 	}
-	auto box = Box(
-		Ui::FillDonateInfoBox,
-		controller);
-	Ui::show(std::move(box));
+	QDesktopServices::openUrl(QUrl(
+		QString::fromLatin1(TeleForge::OfficialResources::kEntries.back().url)));
 	return true;
 }
 
