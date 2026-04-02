@@ -7,7 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_panel.h"
 
+#include "ui/widgets/checkbox.h"
+#include "webrtc/webrtc_create_adm.h"
+
 #include "boxes/peers/replace_boost_box.h" // CreateUserpicsWithMoreBadge
+#include "calls/group/calls_volume_item.h"
+#include "calls/group/calls_group_common.h"
 #include "calls/calls_panel_background.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -16,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
-#include "calls/group/calls_group_common.h"
 #include "calls/group/calls_group_invite_controller.h"
 #include "calls/ui/calls_device_menu.h"
 #include "calls/calls_emoji_fingerprint.h"
@@ -382,6 +386,21 @@ void Panel::initWidget() {
 	) | rpl::skip(1) | rpl::on_next([=] {
 		updateControlsGeometry();
 	}, lifetime());
+
+	base::install_event_filter(widget(), widget(), [=](
+			not_null<QEvent*> e) {
+		if (e->type() == QEvent::ContextMenu) {
+			const auto event = static_cast<QContextMenuEvent*>(e.get());
+			const auto pos = event->pos();
+			if (_incoming
+				&& _incoming->widget()->isVisible()
+				&& incomingFrameGeometry().contains(pos)) {
+				showIncomingVolumeMenu(event->globalPos());
+				return base::EventFilterResult::Cancel;
+			}
+		}
+		return base::EventFilterResult::Continue;
+	});
 }
 
 void Panel::initControls() {
@@ -1054,6 +1073,71 @@ void Panel::initMediaDeviceToggles() {
 		});
 	});
 	_audioDeviceToggle->setAccessibleName(tr::lng_settings_call_section_output(tr::now));
+}
+
+void Panel::showIncomingVolumeMenu(QPoint globalPos) {
+	if (!_call || _incomingVolumeMenu) {
+		return;
+	}
+
+	_incomingVolumeMenu = base::make_unique_q<Ui::PopupMenu>(
+		widget(),
+		st::groupCallPopupMenuWithVolume);
+
+	const auto menu = _incomingVolumeMenu.get();
+	const auto call = _call;
+	const auto peer = _user;
+	const auto startVolume = call->playbackVolume();
+	const auto startMuted = call->playbackMuted();
+
+	auto stateProducer = rpl::combine(
+		call->playbackVolumeValue(),
+		call->playbackMutedValue()
+	) | rpl::map([peer](int volume, bool muted) {
+		return Group::ParticipantState{
+			.peer = peer,
+			.volume = volume,
+			.mutedByMe = muted,
+		};
+	});
+
+	auto volumeItem = base::make_unique_q<MenuVolumeItem>(
+		menu->menu(),
+		st::groupCallPopupVolumeMenu,
+		st::groupCallMenuVolumeSlider,
+		std::move(stateProducer),
+		startVolume,
+		Group::kMaxVolume,
+		startMuted,
+		st::groupCallMenuVolumePadding);
+
+	volumeItem->toggleMuteRequests(
+	) | rpl::on_next([=](bool muted) {
+		call->setPlaybackMuted(muted);
+		if (muted) {
+			crl::on_main(menu, [=] {
+				menu->hideMenu();
+			});
+		}
+	}, volumeItem->lifetime());
+
+	volumeItem->toggleMuteLocallyRequests(
+	) | rpl::on_next([=](bool muted) {
+		call->setPlaybackMuted(muted);
+	}, volumeItem->lifetime());
+
+	volumeItem->changeVolumeRequests(
+	) | rpl::on_next([=](int volume) {
+		call->setPlaybackVolume(volume);
+	}, volumeItem->lifetime());
+
+	volumeItem->changeVolumeLocallyRequests(
+	) | rpl::on_next([=](int volume) {
+		call->setPlaybackVolume(volume);
+	}, volumeItem->lifetime());
+
+	menu->addAction(std::move(volumeItem));
+	_incomingVolumeMenu->popup(globalPos);
 }
 
 void Panel::showDevicesMenu(
