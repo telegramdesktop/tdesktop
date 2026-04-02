@@ -223,8 +223,10 @@ using BigNumContext = openssl::Context;
 		StartPermutationElement(); {
 			S("\xfe\x0d"_q);
 			OpenScope();
-			S("\x00\x01\x00\x01"_q);
+			S("\x00\x00\x01\x00\x01"_q);
 			R(1);
+			S("\x00\x20"_q);
+			R(32);
 			OpenScope();
 			K();
 			CloseScope();
