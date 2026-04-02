@@ -32,6 +32,22 @@ constexpr auto kClientPartSize = 2878;
 const auto kClientPrefix = qstr("\x14\x03\x03\x00\x01\x01");
 const auto kClientHeader = qstr("\x17\x03\x03");
 
+[[nodiscard]] int PaddingExtensionLength(int currentSize) {
+	constexpr auto kTlsRecordHeaderSize = 5;
+
+	if (currentSize <= kTlsRecordHeaderSize) {
+		return 0;
+	}
+
+	const auto messageLength = currentSize - kTlsRecordHeaderSize;
+	if (messageLength <= 0xFF || messageLength >= 0x200) {
+		return 0;
+	}
+
+	const auto paddingLength = 0x200 - messageLength;
+	return (paddingLength >= 5) ? (paddingLength - 4) : 1;
+}
+
 using BigNum = openssl::BigNum;
 using BigNumContext = openssl::Context;
 
@@ -205,12 +221,13 @@ using BigNumContext = openssl::Context;
 			S("\x44\xcd\x00\x05\x00\x03\x02\x68\x32"_q);
 		}
 		StartPermutationElement(); {
-			S("\xfe\x02"_q);
+			S("\xfe\x0d"_q);
 			OpenScope();
-			S("\x00\x00\x01\x00\x01"_q);
+			S("\x00\x01\x00\x01"_q);
 			R(1);
-			S("\x00\x20"_q);
-			R(20);
+			OpenScope();
+			K();
+			CloseScope();
 			OpenScope();
 			E();
 			CloseScope();
@@ -511,9 +528,9 @@ void Generator::Part::writeBlock(const MTPDtlsBlockE &data) {
 }
 
 void Generator::Part::writeBlock(const MTPDtlsBlockPadding &data) {
-	const auto length = int(_result.size());
-	if (length < 513) {
-		const auto zero = MTP_tlsBlockZero(MTP_int(513 - length));
+	const auto length = PaddingExtensionLength(_result.size());
+	if (length > 0) {
+		const auto zero = MTP_tlsBlockZero(MTP_int(length));
 		writeBlock(MTP_tlsBlockString(MTP_bytes("\x00\x15"_q)));
 		writeBlock(MTP_tlsBlockScope(MTP_vector<MTPTlsBlock>(1, zero)));
 	}
