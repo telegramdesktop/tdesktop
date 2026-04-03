@@ -28,7 +28,8 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		PhotoModifications &modifications,
 		const QSize &imageSize,
-		std::shared_ptr<Controllers> controllers);
+		std::shared_ptr<Controllers> controllers,
+		Fn<QImage(QRect)> blurSource);
 	~Paint() override;
 
 	[[nodiscard]] std::shared_ptr<Scene> saveScene() const;

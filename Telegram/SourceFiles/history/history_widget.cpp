@@ -104,6 +104,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_section.h"
 #include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_compose_ai_button.h"
+#include "history/view/controls/history_view_compose_ai_tooltip.h"
 #include "history/view/controls/history_view_compose_search.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
@@ -167,7 +168,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/widgets/tooltip.h"
 #include "ui/item_text_options.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -214,7 +214,6 @@ constexpr auto kSaveDraftTimeout = crl::time(1000);
 constexpr auto kSaveDraftAnywayTimeout = 5 * crl::time(1000);
 constexpr auto kSaveCloudDraftIdleTimeout = 14 * crl::time(1000);
 constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
-constexpr auto kAiComposeTooltipHiddenPref = "ai_compose_tooltip_hidden"_cs;
 constexpr auto kCommonModifiers = 0
 	| Qt::ShiftModifier
 	| Qt::MetaModifier
@@ -1294,35 +1293,17 @@ void HistoryWidget::initAiButton() {
 	_aiButton->hide();
 	_aiButton->setAccessibleName(tr::lng_ai_compose_title(tr::now));
 	_aiButton->setClickedCallback([=] {
-		if (!Core::App().settings().readPref<bool>(kAiComposeTooltipHiddenPref)) {
-			Core::App().settings().writePref<bool>(kAiComposeTooltipHiddenPref, true);
-		}
-		if (_aiTooltip) {
-			_aiTooltipShown = false;
-			_aiTooltip->toggleAnimated(false);
+		if (_aiTooltipManager) {
+			_aiTooltipManager->hideAndRemember();
 		}
 		updateAiButtonVisibility();
 		showAiComposeBox();
 	});
 
-	_aiTooltip.reset(Ui::CreateChild<Ui::ImportantTooltip>(
+	_aiTooltipManager = std::make_unique<HistoryView::Controls::AiTooltipManager>(
 		this,
-		object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-			this,
-			Ui::MakeNiceTooltipLabel(
-				this,
-				tr::lng_ai_compose_tooltip(tr::rich),
-				st::historyMessagesTTLLabel.minWidth,
-				st::ttlMediaImportantTooltipLabel),
-			st::defaultImportantTooltip.padding),
-		st::historyRecordTooltip));
-	_aiTooltip->toggleFast(false);
-	_aiButton->geometryValue(
-	) | rpl::on_next([=](const QRect &geometry) {
-		if (!geometry.isEmpty()) {
-			updateAiTooltipGeometry();
-		}
-	}, _aiTooltip->lifetime());
+		_aiButton,
+		[=] { return width(); });
 }
 
 void HistoryWidget::initTabbedSelector() {
@@ -1888,8 +1869,8 @@ void HistoryWidget::orderWidgets() {
 	if (_attachBotsMenu) {
 		_attachBotsMenu->raise();
 	}
-	if (_aiTooltip) {
-		_aiTooltip->raise();
+	if (_aiTooltipManager) {
+		_aiTooltipManager->raise();
 	}
 	_attachDragAreas.document->raise();
 	_attachDragAreas.photo->raise();
@@ -6295,17 +6276,8 @@ void HistoryWidget::updateAiButtonVisibility() {
 	if (shown) {
 		updateAiButtonGeometry();
 	}
-	if (_aiTooltip) {
-		const auto showTooltip = shown
-			&& !Core::App().settings().readPref<bool>(kAiComposeTooltipHiddenPref);
-		if (showTooltip) {
-			updateAiTooltipGeometry();
-		}
-		if ((_aiTooltipShown != showTooltip)
-			|| (showTooltip && _aiTooltip->isHidden())) {
-			_aiTooltipShown = showTooltip;
-			_aiTooltip->toggleAnimated(showTooltip);
-		}
+	if (_aiTooltipManager) {
+		_aiTooltipManager->updateVisibility(shown);
 	}
 }
 
@@ -6315,23 +6287,9 @@ void HistoryWidget::updateAiButtonGeometry() {
 	}
 	const auto x = _send->x() + _send->width() - _aiButton->width();
 	_aiButton->move(QPoint(x, _field->y()) + st::historyAiComposeButtonPosition);
-	updateAiTooltipGeometry();
-}
-
-void HistoryWidget::updateAiTooltipGeometry() {
-	if (!_aiTooltip || _aiButton->isHidden()) {
-		return;
+	if (_aiTooltipManager) {
+		_aiTooltipManager->updateGeometry();
 	}
-	const auto geometry = _aiButton->geometry();
-	const auto countPosition = [=](QSize size) {
-		const auto left = geometry.x()
-			+ geometry.width()
-			- size.width();
-		return QPoint(
-			std::clamp(left, 0, width() - size.width()),
-			geometry.y() - size.height() - st::historyAiComposeTooltipSkip);
-	};
-	_aiTooltip->pointAt(geometry, RectPart::Top, countPosition);
 }
 
 void HistoryWidget::moveFieldControls() {
@@ -6515,6 +6473,7 @@ void HistoryWidget::fieldResized() {
 void HistoryWidget::fieldFocused() {
 	if (_list) {
 		_list->clearSelected(true);
+		_list->hideElementOverlay();
 	}
 }
 

@@ -31,6 +31,7 @@ struct Brush {
 		Arrow,
 		Marker,
 		Eraser,
+		Blur,
 	};
 	float64 sizeRatio = 0.;
 	QColor color;

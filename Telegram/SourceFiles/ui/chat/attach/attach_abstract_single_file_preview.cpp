@@ -74,14 +74,6 @@ rpl::producer<> AbstractSingleFilePreview::modifyRequests() const {
 	return rpl::never<>();
 }
 
-rpl::producer<> AbstractSingleFilePreview::editCoverRequests() const {
-	return rpl::never<>();
-}
-
-rpl::producer<> AbstractSingleFilePreview::clearCoverRequests() const {
-	return rpl::never<>();
-}
-
 void AbstractSingleFilePreview::setDisplayName(const QString &displayName) {
 	_data.name = displayName;
 	updateTextWidthFor(_data);

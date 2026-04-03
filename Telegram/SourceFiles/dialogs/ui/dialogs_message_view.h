@@ -99,6 +99,7 @@ private:
 	mutable const style::DialogsMiniIcon *_leftIcon = nullptr;
 	mutable QImage _cornersCache;
 	mutable bool _hasPlainLinkAtBegin = false;
+	mutable bool _unreadMedia = false;
 
 };
 

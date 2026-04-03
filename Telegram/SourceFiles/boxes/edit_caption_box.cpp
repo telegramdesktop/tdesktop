@@ -508,21 +508,11 @@ void EditCaptionBox::rebuildPreview() {
 			st::defaultComposeControls,
 			gifPaused,
 			file,
-			[=](Ui::AttachActionType type) {
-				return (type != Ui::AttachActionType::EditCover) || _isVideo;
-			},
 			Ui::AttachControls::Type::EditOnly);
 		_isPhoto = (media && media->isPhoto());
 		if (media && !_asFile) {
 			media->setSendWay(currentSendWay());
 			media->setCanShowHighQualityBadge(file.canUseHighQualityPhoto());
-			media->spoileredChanges(
-			) | rpl::on_next([=](bool spoilered) {
-				_mediaEditManager.apply({ .type = spoilered
-					? SendMenu::ActionType::SpoilerOn
-					: SendMenu::ActionType::SpoilerOff
-				});
-			}, media->lifetime());
 			_content.reset(media);
 		} else {
 			_content.reset(Ui::CreateChild<Ui::SingleFilePreview>(
@@ -551,14 +541,6 @@ void EditCaptionBox::rebuildPreview() {
 
 	_content->modifyRequests(
 	) | rpl::start_to_stream(_photoEditorOpens, _content->lifetime());
-
-	_content->editCoverRequests() | rpl::on_next([=] {
-		setupEditCoverHandler();
-	}, _content->lifetime());
-
-	_content->clearCoverRequests() | rpl::on_next([=] {
-		setupClearCoverHandler();
-	}, _content->lifetime());
 
 	_content->heightValue(
 	) | rpl::start_to_stream(_contentHeight, _content->lifetime());

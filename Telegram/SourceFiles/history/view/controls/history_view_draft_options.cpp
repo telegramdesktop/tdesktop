@@ -454,7 +454,9 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 
 		entry.view->draw(p, context);
 
-		p.translate(0, entry.view->height());
+		const auto height = entry.view->height();
+		p.translate(0, height);
+		context.translate(0, -height);
 	}
 	const auto top = _entries.empty() ? nullptr : _entries.back().view.get();
 	if (top && top->displayFromPhoto()) {

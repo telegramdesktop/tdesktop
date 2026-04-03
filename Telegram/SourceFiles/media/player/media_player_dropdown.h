@@ -139,6 +139,7 @@ public:
 
 	[[nodiscard]] rpl::producer<> saved() const;
 	[[nodiscard]] rpl::producer<float64> realtimeValue() const;
+	void reloadFromLookup();
 
 private:
 	void fillMenu(not_null<Ui::DropdownMenu*> menu) override;

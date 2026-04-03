@@ -56,7 +56,6 @@ private:
 	void startStreamedPlayer();
 
 	const Fn<bool()> _gifPaused;
-	const bool _isVideoFile;
 	const FullMsgId _fullId;
 
 	std::shared_ptr<::Data::PhotoMedia> _photoMedia;

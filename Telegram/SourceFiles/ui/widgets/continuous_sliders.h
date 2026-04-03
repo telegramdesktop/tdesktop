@@ -236,8 +236,15 @@ public:
 		});
 	}
 
+	enum class DividerStyle : uchar {
+		Marks,
+		Gaps,
+	};
+
 	void setColorOverrides(ColorOverrides overrides);
 	void addDivider(float64 atValue, const QSize &size);
+	void clearDividers();
+	void setDividerStyle(DividerStyle style);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -250,12 +257,16 @@ private:
 
 	QSize getSeekDecreaseSize() const override;
 	float64 getOverDuration() const override;
+	void rebuildDividerExclusion();
 
 	const style::MediaSlider &_st;
 	bool _alwaysDisplayMarker = false;
 	bool _paintDisabled = false;
 
 	std::vector<Divider> _dividers;
+	DividerStyle _dividerStyle = DividerStyle::Marks;
+	QRegion _dividerExclusion;
+	QSize _dividerExclusionSize;
 	ColorOverrides _overrides;
 
 };

@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_line.h"
 #include "editor/scene/scene_item_sticker.h"
+#include "ui/image/image_prepare.h"
 #include "ui/rp_widget.h"
+#include "styles/style_editor.h"
 
 #include <QGraphicsSceneMouseEvent>
 
@@ -155,6 +157,80 @@ Scene::Scene(const QRectF &rect)
 			}
 			return;
 		}
+		if (content.blur) {
+			auto mask = std::move(content.pixmap);
+			if (mask.isNull() || !_blurSource) {
+				return;
+			}
+			const auto maskPos = content.position;
+			const auto maskSize = mask.size()
+				/ float64(mask.devicePixelRatio());
+			const auto sourceRect = QRectF(maskPos, maskSize);
+			const auto expandedRect = sourceRect.toAlignedRect().adjusted(
+				-st::photoEditorBlurRadius,
+				-st::photoEditorBlurRadius,
+				st::photoEditorBlurRadius,
+				st::photoEditorBlurRadius);
+			const auto captureRect = expandedRect.intersected(
+				sceneRect().toAlignedRect());
+			if (captureRect.isEmpty()) {
+				return;
+			}
+			auto source = _blurSource(captureRect);
+			if (source.isNull()) {
+				return;
+			}
+			const auto sourceDpr = source.devicePixelRatio();
+			if (source.format() != QImage::Format_ARGB32_Premultiplied) {
+				source = source.convertToFormat(
+					QImage::Format_ARGB32_Premultiplied);
+				source.setDevicePixelRatio(sourceDpr);
+			}
+			const auto canvasVisible = _canvas->isVisible();
+			_canvas->setVisible(false);
+			{
+				auto p = QPainter(&source);
+				render(
+					&p,
+					QRectF(QPointF(), QSizeF(captureRect.size())),
+					QRectF(captureRect),
+					Qt::IgnoreAspectRatio);
+			}
+			_canvas->setVisible(canvasVisible);
+			auto blurred = Images::BlurLargeImage(
+				std::move(source),
+				st::photoEditorBlurRadius);
+			if (blurred.isNull()) {
+				return;
+			}
+			blurred.setDevicePixelRatio(sourceDpr);
+			auto result = QImage(
+				mask.size(),
+				QImage::Format_ARGB32_Premultiplied);
+			result.setDevicePixelRatio(mask.devicePixelRatio());
+			result.fill(Qt::transparent);
+			{
+				auto p = QPainter(&result);
+				p.drawImage(
+					QRectF(QPointF(), maskSize),
+					blurred,
+					QRectF(
+						sourceRect.x() - captureRect.x(),
+						sourceRect.y() - captureRect.y(),
+						sourceRect.width(),
+						sourceRect.height()));
+				p.setCompositionMode(
+					QPainter::CompositionMode_DestinationIn);
+				p.drawPixmap(0, 0, mask);
+			}
+			auto blurPixmap = QPixmap::fromImage(std::move(result));
+			const auto item = std::make_shared<ItemLine>(
+				std::move(blurPixmap));
+			item->setPos(maskPos);
+			addItem(item);
+			_canvas->setZValue(++_lastLineZ);
+			return;
+		}
 		const auto item = std::make_shared<ItemLine>(
 			std::move(content.pixmap));
 		item->setPos(content.position);
@@ -220,6 +296,10 @@ void Scene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 
 void Scene::applyBrush(const QColor &color, float size, Brush::Tool tool) {
 	_canvas->applyBrush(color, size, tool);
+}
+
+void Scene::setBlurSource(Fn<QImage(QRect)> source) {
+	_blurSource = std::move(source);
 }
 
 rpl::producer<> Scene::addsItem() const {

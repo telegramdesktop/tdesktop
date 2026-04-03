@@ -1036,8 +1036,8 @@ void EmojiListWidget::showSearchResults() {
 	_searchSets.clear();
 	_searchEmoji.clear();
 
+	auto plain = collectPlainSearchResults();
 	if (_mode == Mode::Full) {
-		auto plain = collectPlainSearchResults();
 		for (const auto emoji : plain) {
 			_searchResults.push_back({
 				.id = { emoji },

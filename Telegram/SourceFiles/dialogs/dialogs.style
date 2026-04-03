@@ -540,6 +540,10 @@ dialogsScamFont: font(9px semibold);
 dialogsScamSkip: 4px;
 dialogsScamRadius: 2px;
 
+dialogsUnreadMediaSize: 5px;
+dialogsUnreadMediaSkip: 4px;
+dialogsUnreadMediaTop: 7px;
+
 dialogsMiniPreviewTop: 1px;
 dialogsMiniPreview: 16px;
 dialogsMiniPreviewRadius: 2px;
@@ -834,15 +838,6 @@ dialogsStoriesTooltip: ImportantTooltip(defaultImportantTooltip) {
 }
 dialogsStoriesTooltipLabel: defaultImportantTooltipLabel;
 dialogsStoriesTooltipMaxWidth: 200px;
-dialogsStoriesTooltipHide: IconButton(defaultIconButton) {
-	width: 34px;
-	height: 20px;
-	iconPosition: point(-1px, -1px);
-	icon: icon {{ "calls/video_tooltip", importantTooltipFg }};
-	iconOver: icon {{ "calls/video_tooltip", importantTooltipFg }};
-	ripple: emptyRippleAnimation;
-}
-
 searchedBarHeight: 28px;
 searchedBarFont: normalFont;
 searchedBarPosition: point(14px, 5px);

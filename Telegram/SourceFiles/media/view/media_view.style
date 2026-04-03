@@ -29,6 +29,7 @@ mediaviewPlayback: MediaSlider {
 	seekSize: size(12px, 12px);
 	duration: mediaviewOverDuration;
 }
+mediaviewPlaybackTimestamp: size(2px, 10px);
 mediaviewPlaybackTop: 49px;
 mediaviewPlayProgressTop: 46px;
 
@@ -41,6 +42,12 @@ mediaviewControlsButton: IconButton {
 }
 
 mediaviewControllerSize: size(480px, 72px);
+mediaviewTimestampLabelTop: 63px;
+mediaviewTimestampLabelHeight: 10px;
+mediaviewTimestampLabel: LabelSimple(defaultLabelSimple) {
+	font: font(12px);
+	textFg: mediaviewPlaybackProgressFg;
+}
 mediaviewPlayProgressLabel: LabelSimple(defaultLabelSimple) {
 	font: font(12px semibold);
 	textFg: mediaviewPlaybackProgressFg;

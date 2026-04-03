@@ -65,14 +65,11 @@ Use this exact format (date is today in DD.MM.YY):
 
 Prepend the new entry at the very top of `changelog.txt`, separated by a blank line from the previous first entry. Use the Edit tool.
 
-### 8. Show the entry and wait for approval
+### 8. Wait for approval
 
-Print the full changelog entry in chat and ask the user to review it. Tell them they can:
-- Approve as-is.
-- Edit `changelog.txt` directly in the IDE and tell you to continue.
-- Tell you what to change in chat.
+After writing the entry to `changelog.txt` (step 7), tell the user the changelog has been updated and ask them to review it in the IDE. They can edit it directly and tell you to continue, or tell you what to change in chat. Do **not** print the full entry in chat — the file itself is the review surface.
 
-**Do NOT proceed until the user explicitly approves.** If they request changes, apply them and show the updated entry again.
+**Do NOT proceed until the user explicitly approves.**
 
 ### 9. Run set_version
 
@@ -96,7 +93,7 @@ Stage all changes and create a commit. The commit message format:
 - For stable: `Version <major>.<minor>.` if patch is 0, otherwise `Version <major>.<minor>.<patch>.`
 - For beta: `Beta version <major>.<minor>.<patch>.`
 
-**Then an empty line, then the changelog bullets.** Each bullet line (starting with `- `) must be wrapped at around 77-78 characters. When wrapping, break at logically correct places (between words/phrases) and indent continuation lines with two spaces.
+**Then an empty line, then the changelog bullets.** Copy bullet lines from the changelog as-is. Only wrap lines that exceed 72 characters; shorter lines must stay on a single line. When wrapping is needed, break at logically correct places (between words/phrases) and indent continuation lines with two spaces.
 
 Example commit message:
 ```

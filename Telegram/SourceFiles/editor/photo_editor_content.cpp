@@ -30,7 +30,19 @@ PhotoEditorContent::PhotoEditorContent(
 	this,
 	modifications,
 	_photoSize,
-	std::move(controllers)))
+	std::move(controllers),
+	[photo](QRect rect) {
+		const auto &img = photo->original();
+		const auto dpr = img.devicePixelRatio();
+		const auto pixelRect = QRect(
+			int(rect.x() * dpr),
+			int(rect.y() * dpr),
+			int(rect.width() * dpr),
+			int(rect.height() * dpr));
+		auto result = img.copy(pixelRect.intersected(img.rect()));
+		result.setDevicePixelRatio(dpr);
+		return result;
+	}))
 , _crop(base::make_unique_q<Crop>(
 	this,
 	modifications,

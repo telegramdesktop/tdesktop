@@ -53,7 +53,8 @@ Paint::Paint(
 	not_null<Ui::RpWidget*> parent,
 	PhotoModifications &modifications,
 	const QSize &imageSize,
-	std::shared_ptr<Controllers> controllers)
+	std::shared_ptr<Controllers> controllers,
+	Fn<QImage(QRect)> blurSource)
 : RpWidget(parent)
 , _controllers(controllers)
 , _scene(EnsureScene(modifications, imageSize))
@@ -61,6 +62,8 @@ Paint::Paint(
 , _viewport(_view->viewport())
 , _imageSize(imageSize) {
 	Expects(modifications.paint != nullptr);
+
+	_scene->setBlurSource(std::move(blurSource));
 
 	keepResult();
 

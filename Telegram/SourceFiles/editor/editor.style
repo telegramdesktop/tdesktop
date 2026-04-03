@@ -131,6 +131,9 @@ photoEditorArrowHeadLengthFactor: 2.5;
 photoEditorArrowHeadMinDistanceFactor: 1.5;
 photoEditorArrowHeadAngleDegrees: 26;
 photoEditorEraserPreviewOpacity: 0.25;
+photoEditorBlurSizeMultiplier: 3.0;
+photoEditorBlurPreviewOpacity: 0.25;
+photoEditorBlurRadius: 20;
 
 photoEditorBrushSizeControlLeftSkip: 0px;
 photoEditorBrushSizeControlHeight: 280px;

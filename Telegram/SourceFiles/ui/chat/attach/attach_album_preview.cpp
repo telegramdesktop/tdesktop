@@ -7,17 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_album_preview.h"
 
-#include "menu/menu_checked_action.h"
 #include "ui/chat/attach/attach_album_thumbnail.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/effects/spoiler_mess.h"
-#include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
-#include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
-#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 
@@ -39,13 +35,11 @@ AlbumPreview::AlbumPreview(
 	const style::ComposeControls &st,
 	gsl::span<Ui::PreparedFile> items,
 	const Text::MarkedContext &captionContext,
-	SendFilesWay way,
-	Fn<bool(int, AttachActionType)> actionAllowed)
+	SendFilesWay way)
 : RpWidget(parent)
 , _st(st)
 , _captionContext(captionContext)
 , _sendWay(way)
-, _actionAllowed(std::move(actionAllowed))
 , _dragTimer([=] { switchToDrag(); }) {
 	setMouseTracking(true);
 	prepareThumbs(items);
@@ -624,52 +618,11 @@ void AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 	} else if (const auto thumb = base::take(_pressedThumb)) {
 		const auto was = _pressedButtonType;
 		const auto now = thumb->buttonTypeFromPoint(e->pos());
-		if (e->button() == Qt::RightButton) {
-			showContextMenu(thumb, e->globalPos());
-		} else if (was == now) {
+		if (e->button() != Qt::RightButton && was == now) {
 			thumbButtonsCallback(thumb, now);
 		}
 	}
 	_pressedButtonType = AttachButtonType::None;
-}
-
-void AlbumPreview::showContextMenu(
-		not_null<AlbumThumbnail*> thumb,
-		QPoint position) {
-	_menu = base::make_unique_q<Ui::PopupMenu>(
-		this,
-		st::popupMenuWithIcons);
-
-	const auto index = orderIndex(thumb);
-	if (_actionAllowed(index, AttachActionType::ToggleSpoiler)
-		&& _sendWay.sendImagesAsPhotos()) {
-		const auto spoilered = thumb->hasSpoiler();
-		::Menu::AddCheckedAction(
-			_menu.get(),
-			tr::lng_context_spoiler_effect(tr::now),
-			[=] {
-				thumb->setSpoiler(!spoilered);
-			},
-			&st::menuIconSpoiler,
-			spoilered);
-	}
-	if (_actionAllowed(index, AttachActionType::EditCover)) {
-		_menu->addAction(tr::lng_context_edit_cover(tr::now), [=] {
-			_thumbEditCoverRequested.fire_copy(index);
-		}, &st::menuIconEdit);
-
-		if (_actionAllowed(index, AttachActionType::ClearCover)) {
-			_menu->addAction(tr::lng_context_clear_cover(tr::now), [=] {
-				_thumbClearCoverRequested.fire_copy(index);
-			}, &st::menuIconCancel);
-		}
-	}
-
-	if (_menu->empty()) {
-		_menu = nullptr;
-	} else {
-		_menu->popup(position);
-	}
 }
 
 void AlbumPreview::switchToDrag() {

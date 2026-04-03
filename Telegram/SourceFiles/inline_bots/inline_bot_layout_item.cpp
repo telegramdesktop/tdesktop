@@ -99,11 +99,18 @@ std::unique_ptr<ItemBase> ItemBase::createLayout(
 
 	if (gallery.has_value()) {
 		if (!*gallery) {
-			// Force list mode: render all types as Article.
-			return std::make_unique<internal::Article>(
-				context,
-				std::move(result),
-				forceThumb);
+			// Force list mode: render gallery types as Article.
+			switch (result->_type) {
+			case Type::Photo:
+			case Type::Sticker:
+			case Type::Gif:
+				return std::make_unique<internal::Article>(
+					context,
+					std::move(result),
+					forceThumb);
+			default:
+				break;
+			}
 		} else {
 			// Force gallery mode: render list types as Thumbnail.
 			switch (result->_type) {

@@ -731,7 +731,7 @@ void ShowSelectGiftBox(
 				session->user(),
 				box->verticalLayout(),
 				state->resale,
-				rpl::single(false),
+				nullptr,
 				got,
 				true);
 		}

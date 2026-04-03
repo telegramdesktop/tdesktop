@@ -3830,6 +3830,10 @@ void OverlayWidget::refreshCaption() {
 		return TextWithEntities();
 	}());
 	if (caption.text.isEmpty()) {
+		if (_streamed && _streamed->controls) {
+			_streamed->controls->setTimestamps({});
+			refreshClipControllerGeometry();
+		}
 		return;
 	}
 
@@ -3853,11 +3857,13 @@ void OverlayWidget::refreshCaption() {
 			: &_message->history()->session()),
 		.repaint = captionRepaint,
 	});
+	auto captionText = base.isEmpty()
+		? caption
+		: AddTimestampLinks(caption, duration, base);
+	refreshTimestampDividers(captionText, duration);
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,
-		(base.isEmpty()
-			? caption
-			: AddTimestampLinks(caption, duration, base)),
+		std::move(captionText),
 		(_message
 			? Ui::ItemTextOptions(_message)
 			: Ui::ItemTextDefaultOptions()),
@@ -3868,6 +3874,57 @@ void OverlayWidget::refreshCaption() {
 			return (weak != nullptr);
 		});
 	}
+}
+
+void OverlayWidget::refreshTimestampDividers(
+		const TextWithEntities &caption,
+		TimeId duration) {
+	if (!_streamed || !_streamed->controls || duration <= 0) {
+		return;
+	}
+	using Data = PlaybackControls::TimestampData;
+	auto timestamps = std::vector<Data>();
+	for (const auto &entity : caption.entities) {
+		if (entity.type() != EntityType::CustomUrl
+			|| !entity.data().startsWith(
+				u"internal:media_timestamp"_q)) {
+			continue;
+		}
+		const auto tPos = entity.data().lastIndexOf(u"&t="_q);
+		if (tPos < 0) {
+			continue;
+		}
+		auto ok = false;
+		const auto time = entity.data().mid(tPos + 3).toInt(&ok);
+		if (!ok || time < 0 || time > duration) {
+			continue;
+		}
+		const auto offset = entity.offset();
+		const auto atLineStart = (offset == 0)
+			|| (caption.text[offset - 1] == '\n');
+		auto label = QString();
+		if (atLineStart) {
+			const auto entityEnd = offset + entity.length();
+			const auto nl = caption.text.indexOf('\n', entityEnd);
+			const auto lineEnd = (nl >= 0)
+				? nl
+				: caption.text.size();
+			label = caption.text.mid(
+				entityEnd,
+				lineEnd - entityEnd).trimmed();
+			if (label.startsWith(u"- "_q)) {
+				label = label.mid(2).trimmed();
+			} else if (label.startsWith(u"-"_q)) {
+				label = label.mid(1).trimmed();
+			}
+		}
+		timestamps.push_back({
+			.position = float64(time) / duration,
+			.label = std::move(label),
+		});
+	}
+	_streamed->controls->setTimestamps(std::move(timestamps));
+	refreshClipControllerGeometry();
 }
 
 void OverlayWidget::refreshGroupThumbs() {
@@ -4899,9 +4956,11 @@ void OverlayWidget::refreshClipControllerGeometry() {
 	const auto controllerWidth = std::min(
 		st::mediaviewControllerSize.width(),
 		width() - 2 * skip);
-	_streamed->controls->resize(
-		controllerWidth,
-		st::mediaviewControllerSize.height());
+	const auto controllerHeight = st::mediaviewControllerSize.height()
+		+ (_streamed->controls->hasTimestamps()
+			? st::mediaviewTimestampLabelHeight
+			: 0);
+	_streamed->controls->resize(controllerWidth, controllerHeight);
 	_streamed->controls->move(
 		(width() - controllerWidth) / 2,
 		(controllerBottom // Duplicated in recountSkipTop().

@@ -144,6 +144,7 @@ bool MessageView::prepared(
 		Data::Forum *forum,
 		Data::SavedMessages *monoforum) const {
 	return (_textCachedFor == item.get())
+		&& (_unreadMedia == item->isUnreadMedia())
 		&& ((!forum && !monoforum)
 			|| (_topics
 				&& _topics->forum() == forum
@@ -176,6 +177,7 @@ void MessageView::prepare(
 		}
 	}
 	if (_textCachedFor == item.get()) {
+		_unreadMedia = item->isUnreadMedia();
 		return;
 	}
 	options.existing = &_imagesCache;
@@ -310,6 +312,7 @@ void MessageView::prepare(
 		DialogTextOptions(),
 		std::move(context));
 	_textCachedFor = item;
+	_unreadMedia = item->isUnreadMedia();
 	_imagesCache = std::move(preview.images);
 	if (!ranges::any_of(_imagesCache, &ItemPreviewImage::hasSpoiler)) {
 		_spoiler = nullptr;
@@ -378,6 +381,9 @@ int MessageView::countWidth() const {
 		result += (_imagesCache.size()
 			* (st::dialogsMiniPreview + st::dialogsMiniPreviewSkip))
 			+ st::dialogsMiniPreviewRight;
+	}
+	if (_unreadMedia) {
+		result += st::dialogsUnreadMediaSize + st::dialogsUnreadMediaSkip;
 	}
 	return result + _textCache.maxWidth();
 }
@@ -502,6 +508,31 @@ void MessageView::paint(
 		rect.setLeft(rect.x() + st::dialogsMiniPreviewRight);
 	}
 	// Style of _textCache.
+	if (_unreadMedia && rect.width()
+		>= st::dialogsUnreadMediaSize + st::dialogsUnreadMediaSkip) {
+		{
+			PainterHighQualityEnabler hq(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(context.active
+				? st::dialogsTextFgServiceActive
+				: context.selected
+				? st::dialogsTextFgServiceOver
+				: st::dialogsTextFgService);
+			p.drawEllipse(
+				rect.x(),
+				rect.y() + st::dialogsUnreadMediaTop,
+				st::dialogsUnreadMediaSize,
+				st::dialogsUnreadMediaSize);
+		}
+		p.setPen(context.active
+			? st::dialogsTextFgActive
+			: context.selected
+			? st::dialogsTextFgOver
+			: st::dialogsTextFg);
+		rect.setLeft(rect.x()
+			+ st::dialogsUnreadMediaSize
+			+ st::dialogsUnreadMediaSkip);
+	}
 	static const auto ellipsisWidth = st::dialogsTextStyle.font->width(
 		kQEllipsis);
 	if (rect.width() > ellipsisWidth) {

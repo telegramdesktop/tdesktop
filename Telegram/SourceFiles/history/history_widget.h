@@ -63,7 +63,6 @@ namespace Ui {
 class InnerDropdown;
 class DropdownMenu;
 class PlainShadow;
-class ImportantTooltip;
 class IconButton;
 class EmojiButton;
 class RpWidget;
@@ -129,6 +128,7 @@ class WebpageProcessor;
 class CharactersLimitLabel;
 class PhotoEditSpoilerManager;
 class ComposeAiButton;
+class AiTooltipManager;
 struct VoiceToSend;
 } // namespace HistoryView::Controls
 
@@ -528,7 +528,6 @@ private:
 	void initAiButton();
 	void updateAiButtonVisibility();
 	void updateAiButtonGeometry();
-	void updateAiTooltipGeometry();
 	void showAiComposeBox();
 	[[nodiscard]] bool canSendAiComposeDirect() const;
 
@@ -867,9 +866,8 @@ private:
 	std::unique_ptr<HistoryView::SubsectionTabs> _subsectionTabs;
 	rpl::lifetime _subsectionTabsLifetime;
 	rpl::lifetime _subsectionCheckLifetime;
-	base::unique_qptr<Ui::ImportantTooltip> _aiTooltip;
+	std::unique_ptr<HistoryView::Controls::AiTooltipManager> _aiTooltipManager;
 	std::shared_ptr<Ui::ChatStyle> _fieldChatStyle;
-	bool _aiTooltipShown = false;
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;
 	base::unique_qptr<Ui::RpWidget> _fieldDisabled;

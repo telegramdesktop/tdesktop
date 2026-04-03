@@ -24,7 +24,7 @@ public:
 	ColorPicker(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<Ui::Show> show,
-		const std::array<Brush, 4> &savedBrushes,
+		const std::array<Brush, 5> &savedBrushes,
 		Brush::Tool savedTool);
 
 	void moveLine(const QPoint &position);
@@ -86,7 +86,7 @@ private:
 	Brush _brush;
 	QColor _colorButtonFrom;
 	QColor _colorButtonTo;
-	std::array<Brush, 4> _toolBrushes;
+	std::array<Brush, 5> _toolBrushes;
 
 	Ui::Animations::Simple _sizeControlAnimation;
 	Ui::Animations::Simple _sizeControlPositionAnimation;

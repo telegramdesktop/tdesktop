@@ -46,7 +46,7 @@ void AddResaleGiftsList(
 	not_null<PeerData*> peer,
 	not_null<VerticalLayout*> container,
 	Data::ResaleGiftsDescriptor descriptor,
-	rpl::producer<bool> forceTon,
+	rpl::variable<bool> *starsOnly = nullptr,
 	Fn<void(std::shared_ptr<Data::UniqueGift>)> bought = nullptr,
 	bool forCraft = false,
 	Fn<void(int)> countChanged = nullptr);

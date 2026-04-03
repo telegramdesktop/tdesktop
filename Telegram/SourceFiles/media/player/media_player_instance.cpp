@@ -62,6 +62,18 @@ base::options::toggle OptionDisableAutoplayNext({
 		"Audio file / Voice Message / Video message.",
 });
 
+[[nodiscard]] float64 LookupPlaybackSpeed(const AudioMsgId &audioId) {
+	if (!audioId.changeablePlaybackSpeed()) {
+		return 1.;
+	}
+	const auto document = audioId.audio();
+	return (document
+		&& !document->isVoiceMessage()
+		&& !document->isVideoMessage())
+		? Core::App().settings().audioPlaybackSpeed()
+		: Core::App().settings().voicePlaybackSpeed();
+}
+
 } // namespace
 
 const char kOptionDisableAutoplayNext[] = "disable-autoplay-next";
@@ -864,9 +876,7 @@ Streaming::PlaybackOptions Instance::streamingOptions(
 	result.mode = (document && document->isVideoMessage())
 		? Streaming::Mode::Both
 		: Streaming::Mode::Audio;
-	result.speed = audioId.changeablePlaybackSpeed()
-		? Core::App().settings().voicePlaybackSpeed()
-		: 1.;
+	result.speed = LookupPlaybackSpeed(audioId);
 	result.audioId = audioId;
 	if (position >= 0) {
 		result.position = position;
@@ -1170,14 +1180,13 @@ void Instance::cancelSeeking(AudioMsgId::Type type) {
 	_seekingChanges.fire({ .seeking = Seeking::Cancel, .type = type });
 }
 
-void Instance::updateVoicePlaybackSpeed() {
+void Instance::updatePlaybackSpeed() {
 	if (const auto data = getData(getActiveType())) {
 		if (!data->current.changeablePlaybackSpeed()) {
 			return;
 		}
 		if (const auto streamed = data->streamed.get()) {
-			streamed->instance.setSpeed(
-				Core::App().settings().voicePlaybackSpeed());
+			streamed->instance.setSpeed(LookupPlaybackSpeed(data->current));
 		}
 	}
 }

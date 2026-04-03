@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_common.h"
 
 namespace Ui {
+class CrossFadeLabel;
 class LabelSimple;
 class FadeAnimation;
 class IconButton;
@@ -55,6 +56,11 @@ public:
 		virtual void playbackControlsRotate() = 0;
 	};
 
+	struct TimestampData {
+		float64 position = 0.;
+		QString label;
+	};
+
 	PlaybackControls(QWidget *parent, not_null<Delegate*> delegate);
 	~PlaybackControls();
 
@@ -63,7 +69,9 @@ public:
 
 	void updatePlayback(const Player::TrackState &state);
 	void setLoadingProgress(int64 ready, int64 total);
+	void setTimestamps(std::vector<TimestampData> timestamps);
 	void setInFullScreen(bool inFullScreen);
+	[[nodiscard]] bool hasTimestamps() const;
 	[[nodiscard]] bool hasMenu() const;
 	[[nodiscard]] bool dragging() const;
 
@@ -97,6 +105,7 @@ private:
 
 	void saveQuality(int quality);
 	void updateSpeedToggleQuality();
+	void updateTimestampLabel();
 
 	const not_null<Delegate*> _delegate;
 
@@ -125,6 +134,9 @@ private:
 	object_ptr<Ui::LabelSimple> _playedAlready;
 	object_ptr<Ui::LabelSimple> _toPlayLeft;
 	object_ptr<Ui::LabelSimple> _downloadProgress = { nullptr };
+	object_ptr<Ui::CrossFadeLabel> _timestampLabel = { nullptr };
+	std::vector<TimestampData> _timestamps;
+	int _currentTimestampIndex = -1;
 	std::unique_ptr<Player::SpeedController> _speedController;
 	std::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
 

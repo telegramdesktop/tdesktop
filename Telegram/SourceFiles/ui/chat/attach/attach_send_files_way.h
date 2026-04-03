@@ -11,12 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-enum class AttachActionType {
-	ToggleSpoiler,
-	EditCover,
-	ClearCover,
-};
-
 enum class AttachButtonType {
 	Edit,
 	Delete,

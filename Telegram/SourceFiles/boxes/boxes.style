@@ -23,6 +23,8 @@ UserpicButton {
 	uploadBg: color;
 	uploadIcon: icon;
 	uploadIconPosition: point;
+	uploadProgressLine: pixels;
+	uploadProgressMargin: pixels;
 }
 UserpicsRow {
 	button: UserpicButton;
@@ -72,6 +74,8 @@ defaultUserpicButton: UserpicButton {
 	uploadBg: msgDateImgBgOver;
 	uploadIcon: defaultUploadUserpicIcon;
 	uploadIconPosition: point(-1px, 1px);
+	uploadProgressLine: 3px;
+	uploadProgressMargin: 8px;
 }
 uploadUserpicSize: 32px;
 uploadUserpicButton: UserpicButton(defaultUserpicButton) {
@@ -81,6 +85,7 @@ uploadUserpicButton: UserpicButton(defaultUserpicButton) {
 	changeIconPosition: point(4px, 4px);
 }
 uploadUserpicButtonBorder: 2px;
+userpicUploadCancel: icon {{ "history_file_cancel", historyFileThumbIconFg }};
 restoreUserpicIcon: UserpicButton(defaultUserpicButton) {
 	size: size(22px, 22px);
 	photoSize: 22px;

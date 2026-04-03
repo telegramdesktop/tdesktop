@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 #include "data/data_location.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_tag.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
@@ -1460,6 +1461,9 @@ struct Poll::Options : public Poll::Part {
 	[[nodiscard]] int countAnswerContentWidth(
 		const Answer &answer,
 		int innerWidth) const;
+	[[nodiscard]] int countVotesExtraHeight(
+		const Answer &answer,
+		int textWidth) const;
 	[[nodiscard]] int countAnswerHeight(
 		const Answer &answer,
 		int innerWidth) const;
@@ -1499,6 +1503,7 @@ struct Poll::Options : public Poll::Part {
 		int topPadding,
 		int width,
 		int contentWidth,
+		int contentHeight,
 		const PaintContext &context) const;
 	[[nodiscard]] bool checkAnimationStart() const;
 	[[nodiscard]] bool answerVotesChanged() const;
@@ -1933,6 +1938,36 @@ int Poll::Options::countAnswerContentWidth(
 	return std::max(1, answerWidth - mediaWidth);
 }
 
+int Poll::Options::countVotesExtraHeight(
+		const Answer &answer,
+		int textWidth) const {
+	if (answer.votesCountString.isEmpty()
+		&& answer.recentVoters.empty()) {
+		return 0;
+	}
+	const auto lineWidths = answer.text.countLineWidths(textWidth);
+	if (lineWidths.empty()) {
+		return 0;
+	}
+	const auto voterCount = int(answer.recentVoters.size());
+	const auto &ust = st::historyPollAnswerUserpics;
+	const auto userpicsWidth = voterCount
+		? (ust.size + (voterCount - 1) * (ust.size - ust.shift))
+		: 0;
+	const auto userpicsExtra = userpicsWidth
+		? (st::historyPollAnswerUserpicsSkip + userpicsWidth)
+		: 0;
+	const auto votesWidth = answer.votesCountWidth
+		+ userpicsExtra
+		+ st::historyPollFillingRight
+		+ st::historyPollPercentSkip;
+	const auto lastLineWidth = lineWidths.back();
+	if (lastLineWidth + votesWidth <= textWidth) {
+		return 0;
+	}
+	return st::normalFont->height;
+}
+
 int Poll::Options::countAnswerHeight(
 		const Answer &answer,
 		int innerWidth) const {
@@ -1941,15 +1976,23 @@ int Poll::Options::countAnswerHeight(
 	const auto &padding = answer.thumbnail
 		? st::historyPollAnswerPadding
 		: st::historyPollAnswerPaddingNoMedia;
-	const auto fillingWithChoice = (_owner->showVotes() && media)
-		? (st::historyPollPercentFont->height
+	const auto textHeight = answer.text.countHeight(textWidth);
+	const auto multiline = (textHeight
+		> st::historyPollPercentFont->height);
+	const auto votesExtra = _owner->showVotes()
+		? countVotesExtraHeight(answer, textWidth)
+		: 0;
+	const auto fillingWithChoice = (_owner->showVotes()
+		&& (media || multiline || votesExtra))
+		? (std::max(textHeight, st::historyPollPercentFont->height)
+			+ votesExtra
 			+ st::historyPollFillingTop
 			+ (st::historyPollFillingHeight
 				+ st::historyPollChoiceRight.height()) / 2)
 		: 0;
 	return padding.top()
 		+ std::max({
-			answer.text.countHeight(textWidth),
+			textHeight,
 			media,
 			fillingWithChoice,
 		})
@@ -2738,7 +2781,7 @@ void Poll::Options::updateAnswerVotesFromOriginal(
 	answer.votes = original.votes;
 	answer.filling = answer.votes / float64(maxVotes);
 	if (_owner->showVotes() && answer.votes) {
-		answer.votesCountString = QString::number(answer.votes);
+		answer.votesCountString = Lang::FormatCountDecimal(answer.votes);
 		answer.votesCountWidth = st::normalFont->width(
 			answer.votesCountString);
 	} else {
@@ -3058,7 +3101,17 @@ int Poll::Options::paintAnswer(
 	if (!context.highlight.pollOption.isEmpty()
 		&& context.highlight.pollOption == answer.option
 		&& context.highlight.collapsion > 0.) {
-		const auto fillingExtra = (_owner->showVotes() && !answer.thumbnail)
+		const auto hlTextWidth = countAnswerContentWidth(answer, width);
+		const auto hlTextHeight = answer.text.countHeight(hlTextWidth);
+		const auto hlMultiline = (hlTextHeight
+			> st::historyPollPercentFont->height);
+		const auto hlVotesExtra = countVotesExtraHeight(
+			answer,
+			hlTextWidth);
+		const auto fillingExtra = (_owner->showVotes()
+			&& !answer.thumbnail
+			&& !hlMultiline
+			&& !hlVotesExtra)
 			? (st::historyPollChoiceRight.height() / 2)
 			: 0;
 		const auto absoluteTop = top
@@ -3094,6 +3147,15 @@ int Poll::Options::paintAnswer(
 		- st::historyPollAnswerPadding.right();
 	const auto media = answer.thumbnail ? PollAnswerMediaSize() : 0;
 	const auto textWidth = countAnswerContentWidth(answer, width);
+	const auto textContentHeight = answer.text.countHeight(textWidth);
+	const auto multilineAnswer = (textContentHeight
+		> st::historyPollPercentFont->height);
+	const auto votesExtraHeight = countVotesExtraHeight(
+		answer,
+		textWidth);
+	const auto fillingContentHeight = (multilineAnswer || votesExtraHeight)
+		? (textContentHeight + votesExtraHeight)
+		: textContentHeight;
 	const auto anyMediaWidth = _anyAnswerHasMedia
 		? (PollAnswerMediaSize() + PollAnswerMediaSkip())
 		: 0;
@@ -3145,7 +3207,11 @@ int Poll::Options::paintAnswer(
 		const auto countX = rightEdge
 			- answer.votesCountWidth
 			- userpicsExtra;
-		const auto atop = top + answerPadding.top();
+		const auto atop = top + answerPadding.top()
+			+ ((multilineAnswer || votesExtraHeight)
+				? (textContentHeight
+					- (votesExtraHeight ? 0 : st::normalFont->height))
+				: 0);
 		p.setOpacity(opacity);
 		p.setFont(st::normalFont);
 		p.setPen(stm->msgDateFg);
@@ -3197,6 +3263,7 @@ int Poll::Options::paintAnswer(
 				answerPadding.top(),
 				width,
 				barContentWidth,
+				fillingContentHeight,
 				context);
 			p.setOpacity(1.);
 		}
@@ -3223,6 +3290,7 @@ int Poll::Options::paintAnswer(
 			answerPadding.top(),
 			width,
 			barContentWidth,
+			fillingContentHeight,
 			context);
 	}
 
@@ -3297,7 +3365,7 @@ void Poll::Options::paintRadio(
 	const auto over = ClickHandler::showAsActive(answer.handler);
 	const auto &regular = stm->msgDateFg;
 
-	const auto chosen = answer.chosen && !_owner->showVotes();
+	const auto chosen = answer.chosen;
 	const auto checkmark = chosen
 		? 1.
 		: answer.selectedAnimation.value(answer.selected ? 1. : 0.);
@@ -3393,6 +3461,7 @@ void Poll::Options::paintFilling(
 		int topPadding,
 		int width,
 		int contentWidth,
+		int contentHeight,
 		const PaintContext &context) const {
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
@@ -3405,7 +3474,7 @@ void Poll::Options::paintFilling(
 	const auto size = anim::interpolate(st::historyPollFillingMin, max, filling);
 	const auto radius = st::historyPollFillingRadius;
 	const auto ftop = top
-		+ st::historyPollPercentFont->height
+		+ std::max(st::historyPollPercentFont->height, contentHeight)
 		+ st::historyPollFillingTop;
 
 	enum class Style {

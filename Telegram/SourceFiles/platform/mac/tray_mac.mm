@@ -174,7 +174,7 @@ void UpdateIcon(const NSStatusItem *status) {
 		return;
 	}
 
-	const auto appearance = status.button.effectiveAppearance;
+	const auto appearance = [NSApp effectiveAppearance];
 	const auto darkMode = [[appearance.name lowercaseString]
 		containsString:@"dark"];
 

@@ -990,7 +990,18 @@ void ReplyKeyboard::paint(
 
 			auto buttonRounding = Ui::BubbleRounding();
 			using Corner = Ui::BubbleCornerRounding;
-			buttonRounding.topLeft = buttonRounding.topRight = Corner::Small;
+			buttonRounding.topLeft = ((!y)
+				&& !x
+				&& !st
+				&& (rounding.topLeft == Corner::Large))
+				? Corner::Large
+				: Corner::Small;
+			buttonRounding.topRight = ((!y)
+				&& (x + 1 == count)
+				&& !st
+				&& (rounding.topRight == Corner::Large))
+				? Corner::Large
+				: Corner::Small;
 			buttonRounding.bottomLeft = ((y + 1 == rowsCount)
 				&& !x
 				&& (rounding.bottomLeft == Corner::Large))

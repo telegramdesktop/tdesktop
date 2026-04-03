@@ -516,11 +516,11 @@ rpl::producer<> PhotoEditorControls::cancelRequests() const {
 		_transformCancel->clicks() | rpl::to_empty,
 		_paintCancel->clicks() | rpl::to_empty,
 		_keyPresses.events(
-		) | rpl::filter([=](not_null<QKeyEvent*> e) {
-			const auto key = e->key();
-			return (key == Qt::Key_Escape)
-				&& !_toggledBarAnimation.animating();
-		}) | rpl::to_empty);
+	) | rpl::filter([=](not_null<QKeyEvent*> e) {
+		const auto key = e->key();
+		return (key == Qt::Key_Escape)
+			&& !_toggledBarAnimation.animating();
+	}) | rpl::to_empty);
 }
 
 rpl::producer<float64> PhotoEditorControls::aspectRatioChanges() const {

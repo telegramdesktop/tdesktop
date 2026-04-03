@@ -188,6 +188,7 @@ Cover::Cover(
 			Ui::UserpicButton::ChosenImage chosen) {
 		auto &image = chosen.image;
 		_userpic->showCustom(base::duplicate(image));
+		const auto isMarkup = (chosen.markup.documentId != 0);
 		_user->session().api().peerPhoto().upload(
 			_user,
 			{
@@ -195,6 +196,9 @@ Cover::Cover(
 				chosen.markup.documentId,
 				chosen.markup.colors,
 			});
+		if (!isMarkup) {
+			_userpic->showUploadProgress();
+		}
 	});
 
 	_badge.setPremiumClickCallback([=] {

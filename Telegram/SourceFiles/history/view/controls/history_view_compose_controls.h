@@ -68,7 +68,6 @@ class EmojiButton;
 class SendAsButton;
 class SilentToggle;
 class DropdownMenu;
-class ImportantTooltip;
 struct PreparedList;
 struct SendStarButtonState;
 class ReactionFlyAnimation;
@@ -103,6 +102,7 @@ class TTLButton;
 class WebpageProcessor;
 class CharactersLimitLabel;
 class ComposeAiButton;
+class AiTooltipManager;
 } // namespace HistoryView::Controls
 
 namespace HistoryView {
@@ -328,7 +328,6 @@ private:
 	void updateControlsGeometry(QSize size);
 	void updateAiButtonVisibility();
 	void updateAiButtonGeometry();
-	void updateAiTooltipGeometry();
 	void setupSendMenu(
 		not_null<Ui::RpWidget*> button,
 		Fn<void(Api::SendOptions)> send);
@@ -476,8 +475,7 @@ private:
 	friend class FieldHeader;
 	const std::unique_ptr<FieldHeader> _header;
 	const std::unique_ptr<Controls::VoiceRecordBar> _voiceRecordBar;
-	base::unique_qptr<Ui::ImportantTooltip> _aiTooltip;
-	bool _aiTooltipShown = false;
+	std::unique_ptr<Controls::AiTooltipManager> _aiTooltipManager;
 	std::shared_ptr<Ui::ChatStyle> _chatStyle;
 
 	const Fn<SendMenu::Details()> _sendMenuDetails;

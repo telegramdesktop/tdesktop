@@ -1444,6 +1444,14 @@ historyAiComposeButtonStar1: icon{{ "chat/ai_star1-20x20", historyComposeIconFg 
 historyAiComposeButtonStar2: icon{{ "chat/ai_star2-20x20", historyComposeIconFg }};
 historyAiComposeButtonPosition: point(-8px, -4px);
 historyAiComposeTooltipSkip: 8px;
+importantTooltipHide: IconButton(defaultIconButton) {
+	width: 34px;
+	height: 20px;
+	iconPosition: point(-1px, -1px);
+	icon: icon {{ "calls/video_tooltip", importantTooltipFg }};
+	iconOver: icon {{ "calls/video_tooltip", importantTooltipFg }};
+	ripple: emptyRippleAnimation;
+}
 boxAiComposeButtonPosition: point(0px, -4px);
 historyRecordFrameIndex: 30;
 

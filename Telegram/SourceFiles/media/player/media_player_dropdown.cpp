@@ -762,6 +762,13 @@ rpl::producer<float64> SpeedController::realtimeValue() const {
 	return _speedChanged.events_starting_with(speed());
 }
 
+void SpeedController::reloadFromLookup() {
+	if (const auto lookup = _lookup) {
+		setSpeed(lookup(false));
+		_speed = lookup(true);
+	}
+}
+
 float64 SpeedController::speed() const {
 	return _isDefault ? 1. : _speed;
 }

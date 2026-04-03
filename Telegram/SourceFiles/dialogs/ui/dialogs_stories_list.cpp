@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 
 #include <QtWidgets/QApplication>
@@ -45,33 +46,6 @@ constexpr auto kMaxTooltipNames = 3;
 	const auto &font = full.nameStyle.font;
 	const auto skip = font->spacew;
 	return full.photoLeft * 2 + full.photo - 2 * skip;
-}
-
-[[nodiscard]] object_ptr<Ui::RpWidget> MakeTooltipContent(
-		not_null<QWidget*> parent,
-		rpl::producer<TextWithEntities> text,
-		Fn<void()> hide) {
-	const auto size = st::dialogsStoriesTooltipHide.width;
-	const auto skip = st::defaultImportantTooltip.padding.right();
-	auto result = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-		parent,
-		Ui::MakeNiceTooltipLabel(
-			parent,
-			std::move(text),
-			st::dialogsStoriesTooltipMaxWidth,
-			st::dialogsStoriesTooltipLabel),
-		(st::defaultImportantTooltip.padding
-			+ QMargins(0, 0, skip + size, 0)));
-	const auto button = Ui::CreateChild<Ui::IconButton>(
-		result.data(),
-		st::dialogsStoriesTooltipHide);
-	result->sizeValue(
-	) | rpl::on_next([=](QSize size) {
-		button->resize(button->width(), size.height());
-		button->moveToRight(0, 0, size.width());
-	}, button->lifetime());
-	button->setClickedCallback(std::move(hide));
-	return result;
 }
 
 } // namespace
@@ -1006,9 +980,13 @@ void List::setShowTooltip(
 	};
 	_tooltip = std::make_unique<Ui::ImportantTooltip>(
 		tooltipParent,
-		MakeTooltipContent(
+		Ui::MakeTooltipWithClose(
 			tooltipParent,
 			_tooltipText.value() | rpl::filter(notEmpty),
+			st::dialogsStoriesTooltipMaxWidth,
+			st::dialogsStoriesTooltipLabel,
+			st::importantTooltipHide,
+			st::defaultImportantTooltip.padding,
 			_tooltipHide),
 		st::dialogsStoriesTooltip);
 	const auto tooltip = _tooltip.get();

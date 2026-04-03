@@ -15,13 +15,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "main/main_session.h"
 #include "ui/cached_round_corners.h"
+#include "ui/chat/chat_style_radius.h"
 #include "ui/painter.h"
+#include "ui/round_rect.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 
 namespace {
+
+const auto kBotKeyboardRounding = Ui::BubbleRounding{
+	Ui::BubbleCornerRounding::Large,
+	Ui::BubbleCornerRounding::Large,
+	Ui::BubbleCornerRounding::Large,
+	Ui::BubbleCornerRounding::Large,
+};
 
 class Style : public ReplyKeyboard::Style {
 public:
@@ -95,7 +104,26 @@ Images::CornersMaskRef Style::buttonRounding(
 		Ui::BubbleRounding outer,
 		RectParts sides) const {
 	using namespace Images;
-	return CornersMaskRef(CornersMask(ImageRoundRadius::Small));
+	using namespace Ui;
+	using Radius = CachedCornerRadius;
+	using Corner = BubbleCornerRounding;
+	auto result = CornersMaskRef(CachedCornersMasks(Radius::BubbleSmall));
+	const auto &large = CachedCornersMasks(Radius::BubbleLarge);
+	const auto round = [&](
+			RectPart vertSide,
+			RectPart horizSide,
+			int index) {
+		if ((sides & vertSide)
+			&& (sides & horizSide)
+			&& (outer[index] == Corner::Large)) {
+			result.p[index] = &large[index];
+		}
+	};
+	round(RectPart::Top, RectPart::Left, kTopLeft);
+	round(RectPart::Top, RectPart::Right, kTopRight);
+	round(RectPart::Bottom, RectPart::Left, kBottomLeft);
+	round(RectPart::Bottom, RectPart::Right, kBottomRight);
+	return result;
 }
 
 void Style::paintButtonBg(
@@ -106,19 +134,29 @@ void Style::paintButtonBg(
 		Ui::BubbleRounding rounding,
 		float64 howMuchOver) const {
 	using Color = HistoryMessageMarkupButton::Color;
-	if (color == Color::Normal) {
-		Ui::FillRoundRect(p, rect, st::botKbBg, Ui::BotKeyboardCorners);
-	} else {
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush((color == Color::Primary)
-			? st::botKbPrimaryBg->c
-			: (color == Color::Danger)
-			? st::botKbDangerBg->c
-			: st::botKbSuccessBg->c);
-		const auto radius = st::roundRadiusSmall;
-		p.drawRoundedRect(rect, radius, radius);
-	}
+	using Corner = Ui::BubbleCornerRounding;
+	const auto bg = (color == Color::Normal)
+		? st::botKbBg->c
+		: (color == Color::Primary)
+		? st::botKbPrimaryBg->c
+		: (color == Color::Danger)
+		? st::botKbDangerBg->c
+		: st::botKbSuccessBg->c;
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(bg);
+	const auto large = Ui::BubbleRadiusLarge();
+	const auto small = Ui::BubbleRadiusSmall();
+	const auto radius = [&](int index) {
+		return (rounding[index] == Corner::Large) ? large : small;
+	};
+	p.drawPath(
+		Ui::ComplexRoundedRectPath(
+			rect,
+			radius(0),
+			radius(1),
+			radius(2),
+			radius(3)));
 }
 
 void Style::paintButtonIcon(
@@ -170,7 +208,7 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 		_impl->paint(
 			p,
 			nullptr,
-			Ui::BubbleRounding(),
+			kBotKeyboardRounding,
 			width(),
 			clip.translated(-x, -st::botKbScroll.deltat),
 			_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any));
@@ -279,7 +317,7 @@ void BotKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool activ
 
 void BotKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
 	if (!_impl) return;
-	_impl->clickHandlerPressedChanged(p, pressed, Ui::BubbleRounding());
+	_impl->clickHandlerPressedChanged(p, pressed, kBotKeyboardRounding);
 }
 
 bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {

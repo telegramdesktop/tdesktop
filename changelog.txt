@@ -1,3 +1,15 @@
+6.7.2 (03.04.26)
+
+- System audio capture for desktop sharing on macOS.
+- Split voice and audio playback speeds.
+- Unread media dot for voice messages in dialog list.
+- Add 'x' button to AI Tools promo toast.
+- Fix long forward messages preview in box.
+- Fix custom emoji reaction search by category.
+- Fix double context menu in photo sending confirmation.
+- Fix possible crash in middle-elision.
+- Fix possible crash in GIFs search.
+
 6.7.1 (01.04.26)
 
 - Fix crash in emoji panel animation.

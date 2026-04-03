@@ -1538,3 +1538,6 @@ historySummaryHeaderIconSizeInner: 5px;
 
 toastCheckIcon: icon {{ "toast/check-36x36", toastFg }};
 toastCheckIconPadding: margins(12px, 8px, 12px, 8px);
+
+historySummaryStars: icon {{ "chat/summary_stars-24x24", msgServiceFg }};
+historySummaryArrows: icon {{ "chat/summary_arrows-24x24", msgServiceFg }};

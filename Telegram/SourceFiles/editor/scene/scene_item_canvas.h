@@ -22,6 +22,7 @@ public:
 		QPixmap pixmap;
 		QPointF position;
 		bool clear = false;
+		bool blur = false;
 	};
 
 	ItemCanvas();
