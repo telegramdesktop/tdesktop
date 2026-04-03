@@ -460,7 +460,9 @@ bool ShowWallPaper(
 		const QString &value) {
 	auto result = ChatAdminRights();
 	for (const auto &element : value.split(QRegularExpression(u"[+ ]"_q))) {
-		if (element == u"change_info"_q) {
+		if (element.isEmpty()) {
+			continue;
+		} else if (element == u"change_info"_q) {
 			result |= ChatAdminRight::ChangeInfo;
 		} else if (element == u"post_messages"_q) {
 			result |= ChatAdminRight::PostMessages;
@@ -478,6 +480,12 @@ bool ShowWallPaper(
 			result |= ChatAdminRight::PinMessages;
 		} else if (element == u"promote_members"_q) {
 			result |= ChatAdminRight::AddAdmins;
+		} else if (element == u"post_stories"_q) {
+			result |= ChatAdminRight::PostStories;
+		} else if (element == u"edit_stories"_q) {
+			result |= ChatAdminRight::EditStories;
+		} else if (element == u"delete_stories"_q) {
+			result |= ChatAdminRight::DeleteStories;
 		} else if (element == u"manage_video_chats"_q) {
 			result |= ChatAdminRight::ManageCall;
 		} else if (element == u"manage_direct_messages"_q) {
@@ -487,7 +495,7 @@ bool ShowWallPaper(
 		} else if (element == u"manage_chat"_q) {
 			result |= ChatAdminRight::Other;
 		} else {
-			return {};
+			continue;
 		}
 	}
 	return result;

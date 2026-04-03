@@ -217,7 +217,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		controller->hideLayer();
 		controller->showPeerHistory(chat, Way::ClearStack, ShowAtUnreadMsgId);
 	};
-	const auto rights = requestedAddAdmin
+	const auto rights = (requestedAddAdmin && _requestedRights != 0)
 		? _requestedRights
 		: (chat->isBroadcast()
 			&& chat->asBroadcast()->canAddAdmins())
