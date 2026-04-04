@@ -904,8 +904,9 @@ void TlsSocket::write(bytes::const_span prefix, bytes::const_span buffer) {
 		_socket.write(kClientPrefix.data(), kClientPrefix.size());
 	}
 	while (!buffer.empty()) {
+		const auto cap = 2048 + int(base::RandomIndex(2048));
 		const auto write = std::min(
-			kClientPartSize - prefix.size(),
+			size_t(cap) - prefix.size(),
 			buffer.size());
 		_socket.write(kClientHeader.data(), kClientHeader.size());
 		const auto size = qToBigEndian(uint16(prefix.size() + write));
