@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/qthelp_url.h"
 
+#include <QTimer>
+
 namespace MTP {
 namespace details {
 namespace {
@@ -440,7 +442,21 @@ void TcpConnection::sendData(mtpBuffer &&buffer) {
 	CONNECTION_LOG_INFO(u"TCP Info: write packet %1 bytes."_q
 		.arg(bytes.size()));
 	aesCtrEncrypt(bytes, _sendKey, &_sendState);
-	_socket->write(connectionStartPrefix, bytes);
+
+	if (!connectionStartPrefix.empty() || _protocolForFiles) {
+		_socket->write(connectionStartPrefix, bytes);
+		return;
+	}
+
+	_pendingEncrypted.append(
+		reinterpret_cast<const char*>(bytes.data()),
+		bytes.size());
+
+	if (!_flushScheduled) {
+		_flushScheduled = true;
+		const auto delay = 5 + int(base::RandomIndex(26));
+		QTimer::singleShot(delay, this, [=] { flushPending(); });
+	}
 }
 
 bytes::const_span TcpConnection::prepareConnectionStartPrefix(
@@ -493,11 +509,24 @@ bytes::const_span TcpConnection::prepareConnectionStartPrefix(
 	return buffer;
 }
 
+void TcpConnection::flushPending() {
+	_flushScheduled = false;
+	if (!_socket || _pendingEncrypted.isEmpty()) {
+		return;
+	}
+	_socket->write(
+		bytes::const_span(),
+		bytes::make_detached_span(_pendingEncrypted));
+	_pendingEncrypted.clear();
+}
+
 void TcpConnection::disconnectFromServer() {
 	if (_status == Status::Finished) {
 		return;
 	}
 	_status = Status::Finished;
+	_pendingEncrypted.clear();
+	_flushScheduled = false;
 	_connectedLifetime.destroy();
 	_lifetime.destroy();
 	_socket = nullptr;
@@ -532,6 +561,7 @@ void TcpConnection::connectToServer(
 		ToNetworkProxy(_proxy),
 		protocolForFiles);
 	_protocolDcId = protocolDcId;
+	_protocolForFiles = protocolForFiles;
 
 	const auto postfix = _socket->debugPostfix();
 	_debugId = u"%1(dc:%2,%3%4:%5%6)"_q

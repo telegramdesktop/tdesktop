@@ -92,6 +92,11 @@ private:
 	QString _address;
 	int32 _port = 0;
 	crl::time _pingTime = 0;
+	bool _protocolForFiles = false;
+
+	QByteArray _pendingEncrypted;
+	bool _flushScheduled = false;
+	void flushPending();
 
 	rpl::lifetime _connectedLifetime;
 	rpl::lifetime _lifetime;
