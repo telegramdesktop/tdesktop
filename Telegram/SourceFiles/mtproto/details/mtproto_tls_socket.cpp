@@ -511,9 +511,10 @@ void Generator::Part::writeBlock(const MTPDtlsBlockE &data) {
 }
 
 void Generator::Part::writeBlock(const MTPDtlsBlockPadding &data) {
+	const auto target = 512 + int(base::RandomIndex(51));
 	const auto length = int(_result.size());
-	if (length < 513) {
-		const auto zero = MTP_tlsBlockZero(MTP_int(513 - length));
+	if (length < target) {
+		const auto zero = MTP_tlsBlockZero(MTP_int(target - length));
 		writeBlock(MTP_tlsBlockString(MTP_bytes("\x00\x15"_q)));
 		writeBlock(MTP_tlsBlockScope(MTP_vector<MTPTlsBlock>(1, zero)));
 	}
