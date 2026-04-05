@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <xxhash.h> // XXH64.
 #include <QtWidgets/QApplication>
+#include "ui/screen_reader_mode.h"
 
 [[nodiscard]] PeerListRowId UniqueRowIdFromString(const QString &d) {
 	return XXH64(d.data(), d.size() * sizeof(ushort), 0);
@@ -225,13 +226,13 @@ void PeerListBox::prepare() {
 
 void PeerListBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Down) {
-		content()->selectSkip(1);
+		content()->selectSkip(1, PeerListContent::Announce::Always);
 	} else if (e->key() == Qt::Key_Up) {
-		content()->selectSkip(-1);
+		content()->selectSkip(-1, PeerListContent::Announce::Always);
 	} else if (e->key() == Qt::Key_PageDown) {
-		content()->selectSkipPage(height(), 1);
+		content()->selectSkipPage(height(), 1, PeerListContent::Announce::Always);
 	} else if (e->key() == Qt::Key_PageUp) {
-		content()->selectSkipPage(height(), -1);
+		content()->selectSkipPage(height(), -1, PeerListContent::Announce::Always);
 	} else if (e->key() == Qt::Key_Escape
 			&& _select
 			&& !_select->entity()->getQuery().isEmpty()) {
@@ -455,6 +456,10 @@ std::unique_ptr<PeerListRow> PeerListController::createSearchRow(
 	return nullptr;
 }
 
+QString PeerListController::accessibilityName() const {
+	return u"Peer list"_q;
+}
+
 std::unique_ptr<PeerListState> PeerListController::saveState() const {
 	return delegate()->peerListSaveState();
 }
@@ -602,6 +607,10 @@ PeerListRow::PeerListRow(PeerListRowId id)
 }
 
 PeerListRow::~PeerListRow() = default;
+
+bool PeerListRow::checkable() const {
+	return _checkbox != nullptr;
+}
 
 bool PeerListRow::checked() const {
 	return _checkbox && _checkbox->checked();
@@ -1153,6 +1162,12 @@ void PeerListContent::changeCheckState(
 	row->setChecked(checked, _st.item.checkbox, animated, [=] {
 		updateRow(row);
 	});
+	if (const auto index = findRowIndex(row, RowIndex()); index.value >= 0) {
+		accessibilityChildStateChanged(index.value, {
+			.checked = true,
+			.selected = true,
+		});
+	}
 }
 
 void PeerListContent::setRowHidden(not_null<PeerListRow*> row, bool hidden) {
@@ -1642,6 +1657,65 @@ int PeerListContent::resizeGetHeight(int newWidth) {
 	return belowTop + _belowHeight;
 }
 
+void PeerListContent::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Up) {
+		selectSkip(-1);
+		e->accept();
+	} else if (e->key() == Qt::Key_Down) {
+		selectSkip(1);
+		e->accept();
+	} else if (e->key() == Qt::Key_PageDown) {
+		const auto pageHeight = (_visibleBottom > _visibleTop)
+			? (_visibleBottom - _visibleTop)
+			: parentWidget() ? parentWidget()->height() : height();
+		selectSkipPage(pageHeight, 1);
+		e->accept();
+	} else if (e->key() == Qt::Key_PageUp) {
+		const auto pageHeight = (_visibleBottom > _visibleTop)
+			? (_visibleBottom - _visibleTop)
+			: parentWidget() ? parentWidget()->height() : height();
+		selectSkipPage(pageHeight, -1);
+		e->accept();
+	} else if (e->key() == Qt::Key_Home && shownRowsCount() > 0) {
+		selectSkip(-shownRowsCount());
+		e->accept();
+	} else if (e->key() == Qt::Key_End && shownRowsCount() > 0) {
+		selectLast();
+		e->accept();
+	} else if (!e->isAutoRepeat()
+			&& (e->key() == Qt::Key_Return
+				|| e->key() == Qt::Key_Enter
+				|| e->key() == Qt::Key_Space)) {
+		submitted();
+		e->accept();
+	} else {
+		e->ignore();
+	}
+}
+
+void PeerListContent::focusInEvent(QFocusEvent *e) {
+	RpWidget::focusInEvent(e);
+	if (!Ui::ScreenReaderModeActive()) {
+		return;
+	}
+	InvokeQueued(this, [=] {
+		if (!hasFocus()) {
+			return;
+		}
+		const auto count = shownRowsCount();
+		if (count <= 0) {
+			return;
+		}
+		const auto current = _selectedIndex.current();
+		if (current >= 0 && current < count) {
+			accessibilityChildFocused(current);
+			return;
+		}
+		setSelected({ RowIndex(0), 0 });
+		accessibilityChildFocused(0);
+	});
+}
+
 void PeerListContent::enterEventHook(QEnterEvent *e) {
 	setMouseTracking(true);
 }
@@ -1992,7 +2066,9 @@ crl::time PeerListContent::paintRow(
 	return refreshStatusIn;
 }
 
-PeerListContent::SkipResult PeerListContent::selectSkip(int direction) {
+PeerListContent::SkipResult PeerListContent::selectSkip(
+		int direction,
+		Announce announce) {
 	if (hasPressed()) {
 		return { _selected.index.value, _selected.index.value };
 	}
@@ -2060,6 +2136,7 @@ PeerListContent::SkipResult PeerListContent::selectSkip(int direction) {
 		return { _selected.index.value, _selected.index.value };
 	}
 
+	const auto changed = (_selected.index.value != newSelectedIndex);
 	_selected.index.value = newSelectedIndex;
 	_selected.element = 0;
 	if (newSelectedIndex >= 0) {
@@ -2076,20 +2153,27 @@ PeerListContent::SkipResult PeerListContent::selectSkip(int direction) {
 
 	_selectedIndex = _selected.index.value;
 	result.reallyMovedTo = _selected.index.value;
+	const auto shouldAnnounce = (announce == Announce::Always)
+		|| (announce == Announce::OnChange && changed);
+	if (shouldAnnounce && newSelectedIndex >= 0 && Ui::ScreenReaderModeActive()) {
+		accessibilityChildNameChanged(newSelectedIndex);
+		accessibilityChildFocused(newSelectedIndex);
+	}
 	return result;
 }
 
-void PeerListContent::selectSkipPage(int height, int direction) {
+void PeerListContent::selectSkipPage(int height, int direction, Announce announce) {
 	auto rowsToSkip = height / _rowHeight;
 	if (!rowsToSkip) {
 		return;
 	}
-	selectSkip(rowsToSkip * direction);
+	selectSkip(rowsToSkip * direction, announce);
 }
 
-void PeerListContent::selectLast() {
+void PeerListContent::selectLast(Announce announce) {
 	const auto rowsCount = shownRowsCount();
 	const auto newSelectedIndex = rowsCount - 1;
+	const auto changed = (_selected.index.value != newSelectedIndex);
 	_selected.index.value = newSelectedIndex;
 	_selected.element = 0;
 	if (newSelectedIndex >= 0) {
@@ -2101,6 +2185,12 @@ void PeerListContent::selectLast() {
 	update();
 
 	_selectedIndex = _selected.index.value;
+	const auto shouldAnnounce = (announce == Announce::Always)
+		|| (announce == Announce::OnChange && changed);
+	if (shouldAnnounce && newSelectedIndex >= 0 && Ui::ScreenReaderModeActive()) {
+		accessibilityChildNameChanged(newSelectedIndex);
+		accessibilityChildFocused(newSelectedIndex);
+	}
 }
 
 rpl::producer<int> PeerListContent::selectedIndexValue() const {
@@ -2491,6 +2581,19 @@ PeerListRow *PeerListContent::getRow(RowIndex index) {
 	return nullptr;
 }
 
+const PeerListRow *PeerListContent::getRow(RowIndex index) const {
+	if (index.value >= 0) {
+		if (showingSearch()) {
+			if (index.value < _filterResults.size()) {
+				return _filterResults[index.value];
+			}
+		} else if (index.value < _rows.size()) {
+			return _rows[index.value].get();
+		}
+	}
+	return nullptr;
+}
+
 PeerListContent::RowIndex PeerListContent::findRowIndex(
 		not_null<PeerListRow*> row,
 		RowIndex hint) {
@@ -2538,4 +2641,111 @@ void PeerListContentDelegate::peerListShowRowMenu(
 		bool highlightRow,
 		Fn<void(not_null<Ui::PopupMenu *>)> destroyed) {
 	_content->showRowMenu(row, highlightRow, std::move(destroyed));
+}
+
+Qt::FocusPolicy PeerListContent::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+QAccessible::Role PeerListContent::accessibilityRole() {
+	return QAccessible::List;
+}
+
+QString PeerListContent::accessibilityName() {
+	const auto fromUi = accessibleName();
+	return fromUi.isEmpty() ? _controller->accessibilityName() : fromUi;
+}
+
+Ui::AccessibilityState PeerListContent::accessibilityState() const {
+	return {};
+}
+
+int PeerListContent::accessibilityChildCount() const {
+	return shownRowsCount();
+}
+
+QAccessible::Role PeerListContent::accessibilityChildRole() const {
+	return QAccessible::ListItem;
+}
+
+QString PeerListContent::accessibilityChildName(int index) const {
+	if (index < 0 || index >= shownRowsCount()) {
+		return {};
+	}
+	const auto row = getRow(RowIndex(index));
+	if (!row) {
+		return {};
+	}
+	const_cast<PeerListRow*>(row)->lazyInitialize(_st.item);
+	auto result = row->name().isEmpty()
+		? const_cast<PeerListRow*>(row)->generateName()
+		: row->name().toString();
+	const auto statusStr = row->status().toString();
+	if (!statusStr.isEmpty()) {
+		result += u", "_q + statusStr;
+	}
+	return result;
+}
+
+QAccessible::State PeerListContent::accessibilityChildState(int index) const {
+	auto state = QAccessible::State();
+	if (index >= 0 && index < shownRowsCount()) {
+		if (Ui::ScreenReaderModeActive()) {
+			state.focusable = true;
+		}
+		state.selectable = true;
+
+		const auto row = getRow(RowIndex(index));
+		if (row->checkable() && !row->special()) {
+			state.checkable = true;
+			state.checked = row->checked();
+			if (row->checked()) {
+				state.selected = true;
+			}
+		}
+		const auto top = getRowTop(RowIndex(index));
+		const auto bottom = top + _rowHeight;
+		if (bottom <= _visibleTop || top >= _visibleBottom) {
+			state.invisible = true;
+		}
+		if (index == _selectedIndex.current()) {
+			state.active = true;
+			state.selected = true;
+			if (hasFocus()) {
+				state.focused = true;
+			}
+			state.invisible = false;
+		}
+	}
+	return state;
+}
+
+QRect PeerListContent::accessibilityChildRect(int index) const {
+	if (index >= 0 && index < shownRowsCount()) {
+		const auto top = getRowTop(RowIndex(index));
+		return QRect(0, top, width(), _rowHeight);
+	}
+	return QRect();
+}
+
+int PeerListContent::accessibilityChildColumnCount(int row) const {
+	return 0;
+}
+
+QAccessible::Role PeerListContent::accessibilityChildSubItemRole() const {
+	return QAccessible::Cell;
+}
+
+QString PeerListContent::accessibilityChildSubItemName(int row, int column) const {
+	if (column == 0) {
+		return _controller->accessibilityName();
+	}
+	return QString();
+}
+
+QString PeerListContent::accessibilityChildSubItemValue(int row, int column) const {
+	if (column == 0) {
+		return accessibilityChildName(row);
+	}
+	return QString();
 }

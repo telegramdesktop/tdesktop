@@ -228,6 +228,8 @@ public:
 	[[nodiscard]] rpl::producer<int> onlineCountValue() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
 
+	[[nodiscard]] QString accessibilityName() const override;
+
 	void setStoriesShown(bool shown);
 
 protected:

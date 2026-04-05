@@ -75,6 +75,7 @@ public:
 	// not by the row itself, so there is no setChecked() method.
 	// We can query the checked state from row, but before it is
 	// added to the box it is always false.
+	[[nodiscard]] bool checkable() const;
 	[[nodiscard]] bool checked() const;
 
 	[[nodiscard]] bool special() const {
@@ -194,6 +195,9 @@ public:
 	};
 	virtual void refreshStatus();
 	crl::time refreshStatusTime() const;
+	const Ui::Text::String &status() const {
+		return _status;
+	}
 
 	void setAbsoluteIndex(int index) {
 		_absoluteIndex = index;
@@ -608,6 +612,8 @@ public:
 		return _lifetime;
 	}
 
+	[[nodiscard]] virtual QString accessibilityName() const;
+
 	virtual ~PeerListController() = default;
 
 protected:
@@ -660,9 +666,14 @@ public:
 		int shouldMoveTo = 0;
 		int reallyMovedTo = 0;
 	};
-	SkipResult selectSkip(int direction);
-	void selectSkipPage(int height, int direction);
-	void selectLast();
+	enum class Announce {
+		No,
+		OnChange,
+		Always,
+	};
+	SkipResult selectSkip(int direction, Announce announce = Announce::OnChange);
+	void selectSkipPage(int height, int direction, Announce announce = Announce::OnChange);
+	void selectLast(Announce announce = Announce::OnChange);
 
 	enum class Mode {
 		Default,
@@ -754,6 +765,20 @@ public:
 
 	~PeerListContent();
 
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	QAccessible::Role accessibilityRole() override;
+	QString accessibilityName() override;
+	Ui::AccessibilityState accessibilityState() const override;
+	int accessibilityChildCount() const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QString accessibilityChildName(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	int accessibilityChildColumnCount(int row) const override;
+	QAccessible::Role accessibilityChildSubItemRole() const override;
+	QString accessibilityChildSubItemName(int row, int column) const override;
+	QString accessibilityChildSubItemValue(int row, int column) const override;
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void visibleTopBottomUpdated(
@@ -761,6 +786,8 @@ protected:
 		int visibleBottom) override;
 
 	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
 	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -833,6 +860,7 @@ private:
 	void updateRow(RowIndex row);
 	int getRowTop(RowIndex row) const;
 	PeerListRow *getRow(RowIndex element);
+	const PeerListRow *getRow(RowIndex element) const;
 	RowIndex findRowIndex(
 		not_null<PeerListRow*> row,
 		RowIndex hint = RowIndex());
@@ -1059,7 +1087,7 @@ public:
 		Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr) override;
 
 	void peerListSelectSkip(int direction) override {
-		_content->selectSkip(direction);
+		_content->selectSkip(direction, PeerListContent::Announce::Always);
 	}
 
 	void peerListPressLeftToContextMenu(bool shown) override {
@@ -1139,7 +1167,13 @@ public:
 	[[nodiscard]] rpl::producer<> noSearchSubmits() const;
 
 	void peerListSetTitle(rpl::producer<QString> title) override {
-		setTitle(std::move(title));
+		auto shared = rpl::duplicate(title);
+		setTitle(std::move(shared));
+		if (const auto c = content()) {
+			std::move(title) | rpl::on_next([=](const QString &t) {
+				c->setAccessibleName(t);
+			}, c->lifetime());
+		}
 	}
 	void peerListSetAdditionalTitle(rpl::producer<QString> title) override {
 		setAdditionalTitle(std::move(title));
