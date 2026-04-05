@@ -76,7 +76,7 @@ using ProxyData = MTP::ProxyData;
 
 [[nodiscard]] QString ProxyDataToString(const ProxyData &proxy) {
 	using Type = ProxyData::Type;
-	return u"https://t.me/"_q
+	return u"tg://"_q
 		+ (proxy.type == Type::Socks5 ? "socks" : "proxy")
 		+ "?server=" + proxy.host + "&port=" + QString::number(proxy.port)
 		+ ((proxy.type == Type::Socks5 && !proxy.user.isEmpty())
