@@ -40,7 +40,7 @@ jobs:
 
   macos:
     name: MacOS
-    runs-on: macos-latest
+    runs-on: ${{ (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')) && 'depot-macos-latest' || 'macos-latest' }}
 
     strategy:
       matrix:
