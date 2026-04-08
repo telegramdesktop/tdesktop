@@ -40,7 +40,7 @@ jobs:
 
   snap:
     name: Ubuntu
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest-16
 
     env:
       UPLOAD_ARTIFACT: "true"
