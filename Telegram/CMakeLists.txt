@@ -2144,7 +2144,7 @@ if (MSVC)
     target_link_options(Telegram
     PRIVATE
         /guard:cf
-        /CETCOMPAT
+        $<$<NOT:$<BOOL:${build_winarm}>>:/CETCOMPAT>
         /DYNAMICBASE
         /DELAYLOAD:secur32.dll
         /DELAYLOAD:winmm.dll
