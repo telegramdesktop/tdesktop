@@ -179,7 +179,7 @@ using BigNumContext = openssl::Context;
 			S("\x00\x17\x00\x00"_q);
 		}
 		StartPermutationElement(); {
-			S("\x00\x1b\x00\x03\x02\x00\x02"_q);
+			S("\x00\x1b\x00\x05\x04\x00\x01\x00\x02"_q);
 		}
 		StartPermutationElement(); {
 			S("\x00\x23\x00\x00"_q);
