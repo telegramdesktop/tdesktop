@@ -2135,12 +2135,17 @@ endif()
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
 if (MSVC)
+    target_compile_options(Telegram PRIVATE /guard:cf /sdl)
+
     target_link_libraries(Telegram
     PRIVATE
         delayimp
     )
     target_link_options(Telegram
     PRIVATE
+        /guard:cf
+        /CETCOMPAT
+        /DYNAMICBASE
         /DELAYLOAD:secur32.dll
         /DELAYLOAD:winmm.dll
         /DELAYLOAD:ws2_32.dll
