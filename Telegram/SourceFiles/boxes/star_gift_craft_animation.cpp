@@ -55,7 +55,6 @@ constexpr auto kSuccessFadeInDuration = crl::time(300);
 constexpr auto kSuccessExpandDuration = crl::time(400);
 constexpr auto kSuccessExpandStart = crl::time(100);
 constexpr auto kProgressFadeInDuration = crl::time(300);
-constexpr auto kFailureFadeInDuration = crl::time(300);
 
 [[nodiscard]] QString FormatPercent(int permille) {
 	const auto rounded = (permille + 5) / 10;

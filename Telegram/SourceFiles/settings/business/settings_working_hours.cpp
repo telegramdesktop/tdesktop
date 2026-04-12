@@ -35,7 +35,6 @@ namespace Settings {
 namespace {
 
 constexpr auto kDay = Data::WorkingInterval::kDay;
-constexpr auto kWeek = Data::WorkingInterval::kWeek;
 constexpr auto kInNextDayMax = Data::WorkingInterval::kInNextDayMax;
 
 class WorkingHours : public Section<WorkingHours> {

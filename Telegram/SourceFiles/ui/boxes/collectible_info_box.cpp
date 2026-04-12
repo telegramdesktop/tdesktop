@@ -30,8 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-constexpr auto kTonMultiplier = uint64(1000000000);
-
 [[nodiscard]] QString FormatEntity(CollectibleType type, QString entity) {
 	switch (type) {
 	case CollectibleType::Phone: {

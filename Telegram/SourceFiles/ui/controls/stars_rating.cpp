@@ -37,8 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-constexpr auto kAutoCollapseTimeout = 4 * crl::time(1000);
-
 using Counters = Data::StarsRating;
 
 [[nodiscard]] Counters AdjustByReached(Counters data) {

@@ -32,8 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kPremiumToastDuration = 5 * crl::time(1000);
-
 [[nodiscard]] not_null<Ui::AbstractButton*> MakeUndoButton(
 		not_null<QWidget*> parent,
 		int width,

@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::GlobalMedia {
 namespace {
 
-constexpr auto kPerPage = 50;
 constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;

@@ -48,7 +48,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui::BotWebView {
 namespace {
 
-constexpr auto kProcessClickTimeout = crl::time(1000);
 constexpr auto kClipboardReadTimeout = crl::time(10000);
 constexpr auto kProgressDuration = crl::time(200);
 constexpr auto kProgressOpacity = 0.3;

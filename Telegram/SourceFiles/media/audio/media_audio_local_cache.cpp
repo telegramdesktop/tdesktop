@@ -14,7 +14,6 @@ namespace Media::Audio {
 namespace {
 
 constexpr auto kMaxDuration = 3 * crl::time(1000);
-constexpr auto kMaxStreams = 2;
 constexpr auto kFrameSize = 4096;
 
 [[nodiscard]] QByteArray ConvertAndCut(const QByteArray &bytes) {

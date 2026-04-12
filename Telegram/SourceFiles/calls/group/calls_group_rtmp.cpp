@@ -37,8 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls::Group {
 namespace {
 
-constexpr auto kPasswordCharAmount = 24;
-
 void StartWithBox(
 		not_null<Ui::GenericBox*> box,
 		Fn<void()> done,

@@ -22,7 +22,6 @@ namespace Ui {
 namespace {
 
 constexpr auto kSelectAnimationDuration = crl::time(150);
-constexpr auto kUnsetColorIndex = uint8(0xFF);
 constexpr auto kProfileColorIndexCount = uint8(8);
 
 } // namespace

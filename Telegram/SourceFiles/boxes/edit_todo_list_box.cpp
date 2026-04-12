@@ -53,7 +53,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kMaxOptionsCount = TodoListData::kMaxOptions;
 constexpr auto kWarnTitleLimit = 12;
 constexpr auto kWarnTaskLimit = 24;
 constexpr auto kErrorLimit = 99;
