@@ -416,13 +416,12 @@ using SpinnerState = Data::GiftUpgradeSpinner::State;
 				return;
 			}
 		}
-		const auto ratio = style::DevicePixelRatio();
 		const auto h = raw->height();
-		if (state->fading.height() != h * ratio) {
-			state->fading = QImage(
-				QSize(1, h) * ratio,
+		const auto pixelHeight = style::DevicePixels(h);
+		if (state->fading.height() != pixelHeight) {
+			state->fading = QImage(style::DevicePixels(QSize(1, h)),
 				QImage::Format_ARGB32_Premultiplied);
-			state->fading.setDevicePixelRatio(ratio);
+			state->fading.setDevicePixelRatio(style::DevicePixelRatio());
 			state->fading.fill(Qt::transparent);
 			auto q = QPainter(&state->fading);
 			auto brush = QLinearGradient(0, 0, 0, margin.top());
@@ -439,7 +438,7 @@ using SpinnerState = Data::GiftUpgradeSpinner::State;
 		auto &now = state->rows[state->nowIndex];
 		const auto validate = [&](Row &row) {
 			const auto size = row.widget->size();
-			if (row.frame.size() != size * ratio) {
+			if (row.frame.size() != style::DevicePixels(size)) {
 				row.frame = Ui::GrabWidgetToImage(row.widget.get());
 			}
 		};

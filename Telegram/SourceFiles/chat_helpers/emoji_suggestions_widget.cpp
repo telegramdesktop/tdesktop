@@ -430,7 +430,7 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 		const auto &row = _rows[i];
 		const auto emoji = row.emoji;
 		const auto esize = Ui::Emoji::GetSizeLarge();
-		const auto size = esize / style::DevicePixelRatio();
+		const auto size = qRound(esize / style::DevicePixelRatio());
 		const auto x = i * _oneWidth + (_oneWidth - size) / 2;
 		const auto y = (_oneWidth - size) / 2;
 		if (row.custom) {

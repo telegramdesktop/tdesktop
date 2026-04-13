@@ -204,11 +204,14 @@ QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 				BareId(qHash(_result->_id)))),
 			_result->getLayoutTitle()
 		).generate(width);
-		if (result.height() != height * style::DevicePixelRatio()) {
+		const auto ratio = style::DevicePixelRatio();
+		if (result.height() != style::DevicePixels(height)
+			|| result.devicePixelRatio() != ratio) {
 			result = result.scaled(
-				QSize(width, height) * style::DevicePixelRatio(),
+				style::DevicePixels(QSize(width, height)),
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
+			result.setDevicePixelRatio(ratio);
 		}
 		return result;
 	}

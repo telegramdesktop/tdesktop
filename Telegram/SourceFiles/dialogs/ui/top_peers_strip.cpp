@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
+#include "ui/style/style_core_scale.h"
 #include "ui/unread_badge_paint.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
@@ -804,17 +805,16 @@ void TopPeersStrip::paintUserpic(
 		return;
 	}
 	const auto simple = entry.userpic->image(size);
-	const auto ratio = style::DevicePixelRatio();
 	const auto renderFrame = (online > 0) || entry.badge || entry.unread;
 	if (!renderFrame) {
 		entry.userpicFrame = QImage();
 		p.drawImage(rect, simple);
 		return;
-	} else if (entry.userpicFrame.size() != QSize(size, size) * ratio) {
+	} else if (entry.userpicFrame.size() != style::DevicePixels(QSize(size, size))) {
 		entry.userpicFrame = QImage(
-			QSize(size, size) * ratio,
+			style::DevicePixels(QSize(size, size)),
 			QImage::Format_ARGB32_Premultiplied);
-		entry.userpicFrame.setDevicePixelRatio(ratio);
+		entry.userpicFrame.setDevicePixelRatio(style::DevicePixelRatio());
 	}
 	entry.userpicFrame.fill(Qt::transparent);
 	entry.userpicFrameDirty = 0;

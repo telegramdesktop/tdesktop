@@ -163,9 +163,9 @@ const auto kGiftAnimations = std::array<GiftAnimationConfig, 7>{{ {
 [[nodiscard]] QImage CreateBgGradient(
 		QSize size,
 		const Data::UniqueGiftBackdrop &backdrop) {
-	const auto ratio = style::DevicePixelRatio();
-	auto result = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(ratio);
+	auto result = QImage(style::DevicePixels(size),
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 
 	auto p = QPainter(&result);
 	auto hq = PainterHighQualityEnabler(p);
@@ -1230,10 +1230,9 @@ void CraftState::paint(
 		float64 slideProgress) {
 	const auto width = size.width();
 	const auto getBackdrop = [&](BackdropView &backdrop) {
-		const auto ratio = style::DevicePixelRatio();
 		const auto gradientSize = size;
 		auto &gradient = backdrop.gradient;
-		if (gradient.size() != gradientSize * ratio) {
+		if (gradient.size() != style::DevicePixels(gradientSize)) {
 			gradient = CreateBgGradient(gradientSize, backdrop.colors);
 		}
 		return gradient;
@@ -1333,7 +1332,9 @@ void CraftState::updateForGiftCount(int count, Fn<void()> repaint) {
 CraftState::EmptySide CraftState::prepareEmptySide(int index) const {
 	const auto size = forgeRect.size();
 	const auto ratio = style::DevicePixelRatio();
-	auto result = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	auto result = QImage(
+		style::DevicePixels(size),
+		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 
 	const auto bg = anim::color(forgeBg1, forgeBg2, index / 5.);
@@ -1672,11 +1673,10 @@ void StartCraftAnimation(
 			shared->paint(p, craftingSize, craftingHeight, slideProgress);
 		} else {
 			if (shared->craftBg.isNull()) {
-				const auto ratio = style::DevicePixelRatio();
 				shared->craftBg = QImage(
-					craftingSize * ratio,
+					style::DevicePixels(craftingSize),
 					QImage::Format_ARGB32_Premultiplied);
-				shared->craftBg.setDevicePixelRatio(ratio);
+				shared->craftBg.setDevicePixelRatio(style::DevicePixelRatio());
 				shared->craftBg.fill(Qt::transparent);
 
 				auto q = QPainter(&shared->craftBg);

@@ -383,11 +383,10 @@ void List::paintEvent(QPaintEvent *e) {
 }
 
 void List::ensureLayer() {
-	const auto ratio = style::DevicePixelRatio();
-	const auto layer = size() * ratio;
+	const auto layer = style::DevicePixels(size());
 	if (_layer.size() != layer) {
 		_layer = QImage(layer, QImage::Format_ARGB32_Premultiplied);
-		_layer.setDevicePixelRatio(ratio);
+		_layer.setDevicePixelRatio(style::DevicePixelRatio());
 	}
 	_layer.fill(Qt::transparent);
 }
@@ -744,12 +743,11 @@ void List::validateName(not_null<Item*> item) {
 		? element.name
 		: my;
 	const auto text = Ui::Text::String(full.nameStyle, use);
-	const auto ratio = style::DevicePixelRatio();
 	item->nameCacheColor = color->c;
 	item->nameCache = QImage(
-		QSize(available, font->height) * ratio,
+		style::DevicePixels(QSize(available, font->height)),
 		QImage::Format_ARGB32_Premultiplied);
-	item->nameCache.setDevicePixelRatio(ratio);
+	item->nameCache.setDevicePixelRatio(style::DevicePixelRatio());
 	item->nameCache.fill(Qt::transparent);
 	auto p = Painter(&item->nameCache);
 	p.setPen(color);

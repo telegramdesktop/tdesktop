@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_photo.h"
 
+#include "base/debug_log.h"
+
 #include "boxes/send_credits_box.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
@@ -447,9 +449,9 @@ void Photo::drawSpoilerTag(
 void Photo::validateUserpicImageCache(QSize size, bool forum) const {
 	const auto forumValue = forum ? 1 : 0;
 	const auto large = _dataMedia->image(PhotoSize::Large);
-	const auto ratio = style::DevicePixelRatio();
 	const auto blurredValue = large ? 0 : 1;
-	if (_imageCache.size() == (size * ratio)
+	const auto target = style::DevicePixels(size);
+	if (_imageCache.size() == target
 		&& _imageCacheForum == forumValue
 		&& _imageCacheBlurred == blurredValue) {
 		return;
@@ -473,7 +475,7 @@ void Photo::validateUserpicImageCache(QSize size, bool forum) const {
 	if (blurredValue) {
 		args = args.blurred();
 	}
-	original = Images::Prepare(std::move(original), size * ratio, args);
+	original = Images::Prepare(std::move(original), target, args);
 	if (forumValue) {
 		original = Images::Round(
 			std::move(original),
@@ -491,16 +493,33 @@ void Photo::validateImageCache(
 		QSize outer,
 		std::optional<Ui::BubbleRounding> rounding) const {
 	const auto large = _dataMedia->image(PhotoSize::Large);
-	const auto ratio = style::DevicePixelRatio();
 	const auto blurredValue = large ? 0 : 1;
-	if (_imageCache.size() == (outer * ratio)
-		&& _imageCacheRounding == rounding
-		&& _imageCacheBlurred == blurredValue) {
+	const auto target = style::DevicePixels(outer);
+	const auto sizeMatch = (_imageCache.size() == target);
+	const auto roundingMatch = (_imageCacheRounding == rounding);
+	const auto blurMatch = (_imageCacheBlurred == blurredValue);
+	if (sizeMatch && roundingMatch && blurMatch) {
 		return;
 	}
+	LOG(("Photo::validateImageCache MISS"
+		" outer=%1x%2"
+		" target=%3x%4"
+		" cache=%5x%6"
+		" sizeMatch=%7 roundingMatch=%8 blurMatch=%9"
+		" dpr=%10"
+	).arg(outer.width()).arg(outer.height())
+	 .arg(target.width()).arg(target.height())
+	 .arg(_imageCache.width()).arg(_imageCache.height())
+	 .arg(sizeMatch).arg(roundingMatch).arg(blurMatch)
+	 .arg(style::DevicePixelRatio()));
 	_imageCache = Images::Round(
 		prepareImageCache(outer),
 		MediaRoundingMask(rounding));
+	LOG(("Photo::validateImageCache rebuilt"
+		" -> cache=%1x%2 target=%3x%4 match=%5"
+	).arg(_imageCache.width()).arg(_imageCache.height())
+	 .arg(target.width()).arg(target.height())
+	 .arg(_imageCache.size() == target));
 	_imageCacheRounding = rounding;
 	_imageCacheBlurred = blurredValue;
 }
@@ -510,14 +529,31 @@ void Photo::validateSpoilerImageCache(
 		std::optional<Ui::BubbleRounding> rounding) const {
 	Expects(_spoiler != nullptr);
 
-	const auto ratio = style::DevicePixelRatio();
-	if (_spoiler->background.size() == (outer * ratio)
-		&& _spoiler->backgroundRounding == rounding) {
+	const auto target = style::DevicePixels(outer);
+	const auto sizeMatch = (_spoiler->background.size() == target);
+	const auto roundingMatch = (_spoiler->backgroundRounding == rounding);
+	if (sizeMatch && roundingMatch) {
 		return;
 	}
+	LOG(("Photo::validateSpoilerImageCache MISS"
+		" outer=%1x%2"
+		" target=%3x%4"
+		" cache=%5x%6"
+		" sizeMatch=%7 roundingMatch=%8"
+		" dpr=%9"
+	).arg(outer.width()).arg(outer.height())
+	 .arg(target.width()).arg(target.height())
+	 .arg(_spoiler->background.width()).arg(_spoiler->background.height())
+	 .arg(sizeMatch).arg(roundingMatch)
+	 .arg(style::DevicePixelRatio()));
 	_spoiler->background = Images::Round(
 		prepareImageCacheWithLarge(outer, nullptr),
 		MediaRoundingMask(rounding));
+	LOG(("Photo::validateSpoilerImageCache rebuilt"
+		" -> cache=%1x%2 target=%3x%4 match=%5"
+	).arg(_spoiler->background.width()).arg(_spoiler->background.height())
+	 .arg(target.width()).arg(target.height())
+	 .arg(_spoiler->background.size() == target));
 	_spoiler->backgroundRounding = rounding;
 }
 
@@ -565,13 +601,13 @@ void Photo::paintUserpicFrame(
 	if (_streamed
 		&& _streamed->instance.player().ready()
 		&& !_streamed->instance.player().videoSize().isEmpty()) {
-		const auto ratio = style::DevicePixelRatio();
 		auto request = ::Media::Streaming::FrameRequest();
-		request.outer = request.resize = size * ratio;
+		request.outer = request.resize = style::DevicePixels(size);
 		if (forum) {
 			const auto radius = int(std::min(size.width(), size.height())
 				* Ui::ForumUserpicRadiusMultiplier());
-			if (_streamed->roundingCorners[0].width() != radius * ratio) {
+			if (_streamed->roundingCorners[0].width()
+				!= style::DevicePixels(radius)) {
 				_streamed->roundingCorners = Images::CornersMask(radius);
 			}
 			request.rounding = Images::CornersMaskRef(
@@ -926,7 +962,6 @@ void Photo::validateGroupedCache(
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
-	const auto ratio = style::DevicePixelRatio();
 	const auto image = _dataMedia->image(PhotoSize::Large)
 		? _dataMedia->image(PhotoSize::Large)
 		: _dataMedia->image(PhotoSize::Thumbnail)
@@ -940,7 +975,7 @@ void Photo::validateGroupedCache(
 	*cacheKey = key;
 	auto scaled = Images::Prepare(
 		image->original(),
-		pixSize * ratio,
+		style::DevicePixels(pixSize),
 		{ .options = options, .outer = { width, height } });
 	auto rounded = Images::Round(
 		std::move(scaled),

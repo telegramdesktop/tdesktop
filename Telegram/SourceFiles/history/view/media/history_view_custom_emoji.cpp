@@ -273,7 +273,7 @@ void CustomEmoji::paintCustom(
 	const auto paused = context.paused || On(PowerSaving::kEmojiChat);
 	if (context.selected()) {
 		const auto factor = style::DevicePixelRatio();
-		const auto size = QSize(_singleSize, _singleSize) * factor;
+		const auto size = style::DevicePixels(QSize(_singleSize, _singleSize));
 		if (_selectedFrame.size() != size) {
 			_selectedFrame = QImage(
 				size,

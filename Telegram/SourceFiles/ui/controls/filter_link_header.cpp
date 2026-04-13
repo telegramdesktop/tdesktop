@@ -172,7 +172,7 @@ private:
 	const auto size = st::filterLinkPreview;
 	const auto ratio = style::DevicePixelRatio();
 	const auto radius = st::filterLinkPreviewRadius;
-	const auto full = QSize(size, size) * ratio;
+	const auto full = style::DevicePixels(QSize(size, size));
 	auto &result = state->bg;
 	result = QImage(full, QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);

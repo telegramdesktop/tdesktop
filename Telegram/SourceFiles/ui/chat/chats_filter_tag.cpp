@@ -87,7 +87,7 @@ void ScaledSimpleEmoji::paint(QPainter &p, const Context &context) {
 		p.end();
 
 		_frame = _frame.scaled(
-			QSize(width(), width()) * ratio,
+			style::DevicePixels(QSize(width(), width())),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
 	}
@@ -126,8 +126,8 @@ void ScaledCustomEmoji::paint(QPainter &p, const Context &context) {
 		}
 		const auto ratio = style::DevicePixelRatio();
 		const auto large = Emoji::GetSizeLarge();
-		const auto largeadjust = Text::AdjustCustomEmojiSize(large / ratio);
-		const auto size = QSize(largeadjust, largeadjust) * ratio;
+		const auto largeadjust = Text::AdjustCustomEmojiSize(base::SafeRound(large / ratio));
+		const auto size = style::DevicePixels(QSize(largeadjust, largeadjust));
 		_frame = QImage(size, QImage::Format_ARGB32_Premultiplied);
 		_frame.setDevicePixelRatio(ratio);
 		_frame.fill(Qt::transparent);
@@ -142,7 +142,7 @@ void ScaledCustomEmoji::paint(QPainter &p, const Context &context) {
 
 		const auto smalladjust = Text::AdjustCustomEmojiSize(width());
 		_frame = _frame.scaled(
-			QSize(smalladjust, smalladjust) * ratio,
+			style::DevicePixels(QSize(smalladjust, smalladjust)),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
 		_wrapped->unload();

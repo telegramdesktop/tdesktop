@@ -43,7 +43,7 @@ MediaPreviewWidget::MediaPreviewWidget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _emojiSize(Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio()) {
+, _emojiSize(style::LogicalPixels(Ui::Emoji::GetSizeLarge())) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	_controller->session().downloaderTaskFinished(
 	) | rpl::on_next([=] {
@@ -92,14 +92,14 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	const auto dimensions = currentDimensions();
 	const auto frame = (_lottie && _lottie->ready())
 		? _lottie->frameInfo({
-			.box = dimensions * factor,
+			.box = style::DevicePixels(dimensions),
 			.colored = ((_document && _document->emojiUsesTextColor())
 				? st::windowFg->c
 				: QColor(0, 0, 0, 0)),
 		})
 		: Lottie::Animation::FrameInfo();
 	const auto effect = (_effect && _effect->ready())
-		? _effect->frameInfo({ dimensions * kPremiumMultiplier * factor })
+		? _effect->frameInfo({ style::DevicePixels(dimensions, kPremiumMultiplier * factor) })
 		: Lottie::Animation::FrameInfo();
 	const auto image = frame.image;
 	const auto effectImage = effect.image;
@@ -109,8 +109,11 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	//	: 1;
 	const auto pixmap = image.isNull() ? currentImage() : QPixmap();
 	const auto size = image.isNull() ? pixmap.size() : image.size();
-	const auto w = size.width() / factor;
-	const auto h = size.height() / factor;
+	const auto sizeFactor = image.isNull()
+		? pixmap.devicePixelRatio()
+		: factor;
+	const auto w = int(base::SafeRound(size.width() / sizeFactor));
+	const auto h = int(base::SafeRound(size.height() / sizeFactor));
 	const auto shown = _a_shown.value(_hiding ? 0. : 1.);
 	if (!_a_shown.animating()) {
 		if (_hiding) {
@@ -175,6 +178,11 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 
 void MediaPreviewWidget::resizeEvent(QResizeEvent *e) {
 	update();
+}
+
+void MediaPreviewWidget::devicePixelRatioChangedEvent() {
+	_cache = QPixmap();
+	resetGifAndCache();
 }
 
 QPoint MediaPreviewWidget::innerPosition(QSize size) const {

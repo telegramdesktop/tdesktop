@@ -537,10 +537,12 @@ void MessageBar::ensureGradientsCreated(int size) {
 	if (!_topBarGradient.isNull()) {
 		return;
 	}
-	const auto rows = size * style::DevicePixelRatio() - 2;
+	const auto pixelHeight = std::max(style::DevicePixels(size), 1);
+	const auto rows = std::max(pixelHeight - 2, 1);
 	auto bottomMask = QImage(
-		QSize(1, size) * style::DevicePixelRatio(),
+		QSize(1, pixelHeight),
 		QImage::Format_ARGB32_Premultiplied);
+	bottomMask.setDevicePixelRatio(style::DevicePixelRatio());
 	const auto step = ((1ULL << 24) - 1) / rows;
 	const auto limit = step * rows;
 	auto bits = bottomMask.bits();

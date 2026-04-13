@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
+#include "ui/style/style_core_scale.h"
 #include "base/unixtime.h"
 #include "base/random.h"
 #include "base/qt/qt_key_modifiers.h"
@@ -116,6 +117,7 @@ public:
 private:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void devicePixelRatioChangedEvent() override;
 
 	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
@@ -991,7 +993,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 					p.drawImage(
 						QRect(
 							ppos,
-							lottieFrame.size() / style::DevicePixelRatio()),
+							style::LogicalPixels(lottieFrame.size())),
 						lottieFrame);
 					if (!paused) {
 						sticker.lottie->markFrameShown();
@@ -1176,6 +1178,15 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 
 void FieldAutocomplete::Inner::resizeEvent(QResizeEvent *e) {
 	_stickersPerRow = qMax(1, int32(width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width()));
+}
+
+void FieldAutocomplete::Inner::devicePixelRatioChangedEvent() {
+	_stickersLifetime.destroy();
+	for (auto &sticker : *_srows) {
+		sticker.lottie = nullptr;
+		sticker.webm = nullptr;
+		sticker.premiumLock = QImage();
+	}
 }
 
 void FieldAutocomplete::Inner::mouseMoveEvent(QMouseEvent *e) {

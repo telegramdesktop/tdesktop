@@ -371,8 +371,10 @@ void SearchTags::paintBackground(
 		QRect geometry,
 		const Tag &tag) const {
 	const auto &image = validateBg(tag.selected, tag.promo);
-	const auto ratio = int(image.devicePixelRatio());
-	const auto size = image.size() / ratio;
+	const auto ratio = image.devicePixelRatio();
+	const auto size = QSize(
+		qRound(image.width() / ratio),
+		qRound(image.height() / ratio));
 	if (const auto fill = geometry.width() - size.width(); fill > 0) {
 		const auto left = size.width() / 2;
 		const auto right = size.width() - left;
@@ -381,14 +383,18 @@ void SearchTags::paintBackground(
 		p.drawImage(
 			QRect(x, y, left, size.height()),
 			image,
-			QRect(QPoint(), QSize(left, size.height()) * ratio));
+			style::DevicePixels(QRect(
+				QPoint(),
+				QSize(left, size.height())),
+				ratio));
 		p.fillRect(
 			QRect(x + left, y, fill, size.height()),
 			bgColor(tag.selected, tag.promo));
 		p.drawImage(
 			QRect(x + left + fill, y, right, size.height()),
 			image,
-			QRect(left * ratio, 0, right * ratio, size.height() * ratio));
+			style::DevicePixels(QRect(
+				left, 0, right, size.height()), ratio));
 	} else {
 		p.drawImage(geometry.topLeft(), image);
 	}

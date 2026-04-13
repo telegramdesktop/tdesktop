@@ -1007,9 +1007,8 @@ void SetupInterfaceScale(
 	const auto scaleMax = style::MaxScaleForRatio(ratio);
 	const auto scaleConfig = cConfigScale();
 	const auto step = 5;
-	Assert(!((scaleMax - scaleMin) % step));
 	auto values = std::vector<int>();
-	for (auto i = scaleMin; i != scaleMax; i += step) {
+	for (auto i = scaleMin; i < scaleMax; i += step) {
 		values.push_back(i);
 		if (scaleConfig > i && scaleConfig < i + step) {
 			values.push_back(scaleConfig);

@@ -25,9 +25,9 @@ namespace Info::Profile {
 
 QMargins LargeCustomEmojiMargins() {
 	const auto ratio = style::DevicePixelRatio();
-	const auto emoji = Ui::Emoji::GetSizeLarge() / ratio;
-	const auto size = Data::FrameSizeFromTag(Data::CustomEmojiSizeTag::Large)
-		/ ratio;
+	const auto emoji = qRound(Ui::Emoji::GetSizeLarge() / ratio);
+	const auto size = qRound(
+		Data::FrameSizeFromTag(Data::CustomEmojiSizeTag::Large) / ratio);
 	const auto left = (size - emoji) / 2;
 	const auto right = size - emoji - left;
 	return { left, left, right, right };

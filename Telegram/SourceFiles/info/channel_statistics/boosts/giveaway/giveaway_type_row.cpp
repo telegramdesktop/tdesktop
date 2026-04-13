@@ -135,7 +135,7 @@ void GiveawayTypeRow::paintEvent(QPaintEvent *e) {
 	const auto namey = _st.namePosition.y();
 	const auto namew = outerWidth - namex - skipRight;
 
-	const auto badgew = _badge.width() / style::DevicePixelRatio();
+	const auto badgew = qRound(_badge.width() / style::DevicePixelRatio());
 
 	p.setPen(_st.nameFg);
 	_name.drawLeftElided(p, namex, namey, namew - badgew, width());

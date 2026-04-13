@@ -256,11 +256,10 @@ void ShowDeleteMessageConfirmation(
 [[nodiscard]] QImage CrownMask(int place) {
 	const auto &icon = st::paidReactCrownSmall;
 	const auto size = icon.size();
-	const auto ratio = style::DevicePixelRatio();
-	const auto full = size * ratio;
+	const auto full = style::DevicePixels(size);
 	auto result = QImage(full, QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
-	result.setDevicePixelRatio(ratio);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 
 	auto p = QPainter(&result);
 	icon.paint(p, 0, 0, size.width(), QColor(255, 255, 255));
@@ -617,8 +616,7 @@ void MessagesUi::updatePinnedSize(PinnedView &entry) {
 	const auto skip = st::groupCallMessageSkip;
 	entry.realWidth = skip + leftSkip + inner + padding.right();
 
-	const auto ratio = style::DevicePixelRatio();
-	entry.requiresSmooth = (entry.realWidth * ratio * 1000 > entry.duration);
+	entry.requiresSmooth = (style::DevicePixels(entry.realWidth) * 1000 > entry.duration);
 }
 
 bool MessagesUi::updatePinnedWidth(PinnedView &entry) {
@@ -1180,16 +1178,15 @@ void MessagesUi::setupMessagesWidget() {
 	_messages->paintRequest() | rpl::on_next([=](QRect clip) {
 		const auto start = scroll->scrollTop();
 		const auto end = start + scroll->height();
-		const auto ratio = style::DevicePixelRatio();
 		const auto session = &_show->session();
 		const auto &colorings = session->appConfig().groupCallColorings();
 
-		if ((_canvas.width() < scroll->width() * ratio)
-			|| (_canvas.height() < scroll->height() * ratio)) {
+		if ((_canvas.width() < style::DevicePixels(scroll->width()))
+			|| (_canvas.height() < style::DevicePixels(scroll->height()))) {
 			_canvas = QImage(
-				scroll->size() * ratio,
+				style::DevicePixels(scroll->size()),
 				QImage::Format_ARGB32_Premultiplied);
-			_canvas.setDevicePixelRatio(ratio);
+			_canvas.setDevicePixelRatio(style::DevicePixelRatio());
 		}
 		auto p = Painter(&_canvas);
 
@@ -1404,7 +1401,9 @@ void MessagesUi::setupMessagesWidget() {
 		QPainter(_messages).drawImage(
 			QRect(QPoint(0, start), scroll->size()),
 			_canvas,
-			QRect(QPoint(), scroll->size() * ratio));
+			QRect(
+				QPoint(),
+				style::DevicePixels(scroll->size())));
 	}, _messages->lifetime());
 
 	scroll->show();
@@ -1575,14 +1574,14 @@ void MessagesUi::setupPinnedWidget() {
 		const auto &colorings = session->appConfig().groupCallColorings();
 		const auto start = scroll->scrollLeft();
 		const auto end = start + scroll->width();
-		const auto ratio = style::DevicePixelRatio();
 
-		if ((_pinnedCanvas.width() < scroll->width() * ratio)
-			|| (_pinnedCanvas.height() < scroll->height() * ratio)) {
+		const auto pixelSize = style::DevicePixels(scroll->size());
+		if ((_pinnedCanvas.width() < pixelSize.width())
+			|| (_pinnedCanvas.height() < pixelSize.height())) {
 			_pinnedCanvas = QImage(
-				scroll->size() * ratio,
+				pixelSize,
 				QImage::Format_ARGB32_Premultiplied);
-			_pinnedCanvas.setDevicePixelRatio(ratio);
+			_pinnedCanvas.setDevicePixelRatio(style::DevicePixelRatio());
 		}
 		auto p = Painter(&_pinnedCanvas);
 
@@ -1697,7 +1696,7 @@ void MessagesUi::setupPinnedWidget() {
 		QPainter(_pinned).drawImage(
 			QRect(QPoint(start, 0), scroll->size()),
 			_pinnedCanvas,
-			QRect(QPoint(), scroll->size() * ratio));
+			QRect(QPoint(), pixelSize));
 	}, _pinned->lifetime());
 
 	_pinned->setMouseTracking(true);

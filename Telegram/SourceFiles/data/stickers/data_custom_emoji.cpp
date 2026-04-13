@@ -85,18 +85,16 @@ private:
 	case SizeTag::Normal: return Ui::Emoji::GetSizeNormal();
 	case SizeTag::Large: return Ui::Emoji::GetSizeLarge();
 	case SizeTag::Isolated:
-		return (st::largeEmojiSize + 2 * st::largeEmojiOutline)
-			* style::DevicePixelRatio();
+		return style::DevicePixels(st::largeEmojiSize + 2 * st::largeEmojiOutline);
 	case SizeTag::SetIcon:
-		return int(style::ConvertScale(18 * 7 / 6., style::Scale()))
-			* style::DevicePixelRatio();
+		return style::DevicePixels(style::ConvertScale(18 * 7 / 6., style::Scale()));
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-SizeFromTag.");
 }
 
 [[nodiscard]] int FrameSizeFromTag(SizeTag tag, int sizeOverride) {
 	return sizeOverride
-		? (sizeOverride * style::DevicePixelRatio())
+		? style::DevicePixels(sizeOverride)
 		: FrameSizeFromTag(tag);
 }
 
@@ -567,7 +565,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			create(original, std::move(update), tag, sizeOverride));
 	} else if (data.startsWith(UserpicEmojiPrefix())) {
 		const auto ratio = style::DevicePixelRatio();
-		const auto size = EmojiSizeFromTag(tag) / ratio;
+		const auto size = base::SafeRound(EmojiSizeFromTag(tag) / ratio);
 		return userpic(data, std::move(update), size);
 	} else if (data.startsWith(CollectiblePrefix())) {
 		const auto id = data.mid(CollectiblePrefix().size()).toULongLong();
@@ -582,7 +580,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			info->edgeColor,
 			std::move(inner),
 			std::move(update),
-			FrameSizeFromTag(tag) / style::DevicePixelRatio());
+			base::SafeRound(FrameSizeFromTag(tag) / style::DevicePixelRatio()));
 	} else if (const auto parsed = Data::ParseTopicIconEmojiEntity(data)) {
 		return MakeTopicIconEmoji(parsed, std::move(update), tag);
 	}
@@ -1011,7 +1009,8 @@ uint64 CustomEmojiManager::coloredSetId() const {
 int FrameSizeFromTag(SizeTag tag) {
 	const auto emoji = EmojiSizeFromTag(tag);
 	const auto factor = style::DevicePixelRatio();
-	return Ui::Text::AdjustCustomEmojiSize(emoji / factor) * factor;
+	return style::DevicePixels(
+		Ui::Text::AdjustCustomEmojiSize(base::SafeRound(emoji / factor)));
 }
 
 QString SerializeCustomEmojiId(DocumentId id) {
@@ -1088,7 +1087,8 @@ Ui::Text::CustomEmojiFactory ReactedMenuFactory(
 				const auto size = st::emojiSize * (i->centerIcon ? 2 : 1);
 				const auto tag = Data::CustomEmojiManager::SizeTag::Normal;
 				const auto ratio = style::DevicePixelRatio();
-				const auto skip = (Data::FrameSizeFromTag(tag) / ratio - size) / 2;
+				const auto skip = (
+					base::SafeRound(Data::FrameSizeFromTag(tag) / ratio) - size) / 2;
 				return std::make_unique<Ui::Text::FirstFrameEmoji>(
 					std::make_unique<Ui::Text::ShiftedEmoji>(
 						owner->customEmojiManager().create(

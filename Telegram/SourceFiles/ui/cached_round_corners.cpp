@@ -28,7 +28,8 @@ rpl::lifetime PaletteChangedLifetime;
 std::array<std::array<QImage, 4>, kCachedCornerRadiusCount> CachedMasks;
 
 [[nodiscard]] std::array<QImage, 4> PrepareCorners(int32 radius, const QBrush &brush, const style::color *shadow = nullptr) {
-	int32 r = radius * style::DevicePixelRatio(), s = st::msgShadow * style::DevicePixelRatio();
+	const auto r = radius * style::DevicePixelRatio();
+	const auto s = st::msgShadow * style::DevicePixelRatio();
 	QImage rect(r * 3, r * 3 + (shadow ? s : 0), QImage::Format_ARGB32_Premultiplied);
 	rect.fill(Qt::transparent);
 	{
@@ -110,17 +111,13 @@ void FinishCachedCorners() {
 	PaletteChangedLifetime.destroy();
 }
 
+void RefreshCachedCorners() {
+	FinishCachedCorners();
+	StartCachedCorners();
+}
+
 void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corners) {
 	using namespace Images;
-
-	const auto fillBg = [&](QRect rect) {
-		p.fillRect(rect, bg);
-	};
-	const auto fillCorner = [&](int x, int y, int index) {
-		if (const auto &pix = corners.p[index]; !pix.isNull()) {
-			p.drawPixmap(x, y, pix);
-		}
-	};
 
 	if (corners.p[kTopLeft].isNull()
 		&& corners.p[kTopRight].isNull()
@@ -130,54 +127,68 @@ void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color
 		return;
 	}
 	const auto ratio = style::DevicePixelRatio();
-	const auto cornerSize = [&](int index) {
-		return corners.p[index].isNull()
-			? 0
-			: (corners.p[index].width() / ratio);
+	const auto dx = qRound(x * ratio);
+	const auto dy = qRound(y * ratio);
+	const auto dw = qRound(w * ratio);
+	const auto dh = qRound(h * ratio);
+
+	const auto devSize = [&](int index) {
+		return corners.p[index].isNull() ? 0 : corners.p[index].width();
 	};
-	const auto verticalSkip = [&](int left, int right) {
-		return std::max(cornerSize(left), cornerSize(right));
+	const auto topLeft = devSize(kTopLeft);
+	const auto topRight = devSize(kTopRight);
+	const auto bottomLeft = devSize(kBottomLeft);
+	const auto bottomRight = devSize(kBottomRight);
+	const auto topDev = std::max(topLeft, topRight);
+	const auto bottomDev = std::max(bottomLeft, bottomRight);
+
+	const auto fillBg = [&](int fdx, int fdy, int fdw, int fdh) {
+		if (fdw <= 0 || fdh <= 0) {
+			return;
+		}
+		p.fillRect(QRectF(fdx / ratio, fdy / ratio, fdw / ratio, fdh / ratio), bg);
 	};
-	const auto top = verticalSkip(kTopLeft, kTopRight);
-	const auto bottom = verticalSkip(kBottomLeft, kBottomRight);
-	if (top) {
-		const auto left = cornerSize(kTopLeft);
-		const auto right = cornerSize(kTopRight);
-		if (left) {
-			fillCorner(x, y, kTopLeft);
-			if (const auto add = top - left) {
-				fillBg({ x, y + left, left, add });
+	const auto fillCorner = [&](int cdx, int cdy, int index) {
+		if (const auto &pix = corners.p[index]; !pix.isNull()) {
+			p.drawPixmap(QPointF(cdx / ratio, cdy / ratio), pix);
+		}
+	};
+
+	if (topDev > 0) {
+		if (topLeft > 0) {
+			fillCorner(dx, dy, kTopLeft);
+			if (const auto add = topDev - topLeft; add > 0) {
+				fillBg(dx, dy + topLeft, topLeft, add);
 			}
 		}
-		if (const auto fill = w - left - right; fill > 0) {
-			fillBg({ x + left, y, fill, top });
+		if (const auto fill = dw - topLeft - topRight; fill > 0) {
+			fillBg(dx + topLeft, dy, fill, topDev);
 		}
-		if (right) {
-			fillCorner(x + w - right, y, kTopRight);
-			if (const auto add = top - right) {
-				fillBg({ x + w - right, y + right, right, add });
+		if (topRight > 0) {
+			fillCorner(dx + dw - topRight, dy, kTopRight);
+			if (const auto add = topDev - topRight; add > 0) {
+				fillBg(dx + dw - topRight, dy + topRight, topRight, add);
 			}
 		}
 	}
-	if (const auto fill = h - top - bottom; fill > 0) {
-		fillBg({ x, y + top, w, fill });
+	if (const auto fill = dh - topDev - bottomDev; fill > 0) {
+		fillBg(dx, dy + topDev, dw, fill);
 	}
-	if (bottom) {
-		const auto left = cornerSize(kBottomLeft);
-		const auto right = cornerSize(kBottomRight);
-		if (left) {
-			fillCorner(x, y + h - left, kBottomLeft);
-			if (const auto add = bottom - left) {
-				fillBg({ x, y + h - bottom, left, add });
+	if (bottomDev > 0) {
+		const auto byDev = dy + dh - bottomDev;
+		if (bottomLeft > 0) {
+			fillCorner(dx, byDev + (bottomDev - bottomLeft), kBottomLeft);
+			if (const auto add = bottomDev - bottomLeft; add > 0) {
+				fillBg(dx, byDev, bottomLeft, add);
 			}
 		}
-		if (const auto fill = w - left - right; fill > 0) {
-			fillBg({ x + left, y + h - bottom, fill, bottom });
+		if (const auto fill = dw - bottomLeft - bottomRight; fill > 0) {
+			fillBg(dx + bottomLeft, byDev, fill, bottomDev);
 		}
-		if (right) {
-			fillCorner(x + w - right, y + h - right, kBottomRight);
-			if (const auto add = bottom - right) {
-				fillBg({ x + w - right, y + h - bottom, right, add });
+		if (bottomRight > 0) {
+			fillCorner(dx + dw - bottomRight, byDev + (bottomDev - bottomRight), kBottomRight);
+			if (const auto add = bottomDev - bottomRight; add > 0) {
+				fillBg(dx + dw - bottomRight, byDev, bottomRight, add);
 			}
 		}
 	}
@@ -241,7 +252,7 @@ CornersPixmaps PrepareCornerPixmaps(ImageRoundRadius radius, style::color bg, co
 }
 
 CornersPixmaps PrepareInvertedCornerPixmaps(int radius, style::color bg) {
-	const auto size = radius * style::DevicePixelRatio();
+	const auto size = style::DevicePixels(radius );
 	auto circle = style::colorizeImage(
 		style::createInvertedCircleMask(radius * 2),
 		bg);

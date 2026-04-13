@@ -928,7 +928,9 @@ void Video::prepareThumbnail(QSize size) const {
 			}
 		}
 		_thumb = thumb->pixNoCache(
-			QSize(w, h) * style::DevicePixelRatio(),
+			QSize(
+				style::DevicePixels(w ),
+				style::DevicePixels(h )),
 			{
 				.options = Images::Option::TransparentBackground,
 				.outer = size,
@@ -1263,7 +1265,7 @@ void Contact::prepareThumbnail(int width, int height) const {
 		width,
 		height);
 	_thumb = Image(base::duplicate(*thumb)).pixNoCache(
-		scaled * style::DevicePixelRatio(),
+		style::DevicePixels(scaled),
 		{
 			.options = Images::Option::TransparentBackground,
 			.outer = { width, height },
@@ -1571,7 +1573,7 @@ void Article::prepareThumbnail(int width, int height) const {
 		width,
 		height);
 	_thumb = Image(base::duplicate(*thumb)).pixNoCache(
-		scaled * style::DevicePixelRatio(),
+		style::DevicePixels(scaled),
 		{
 			.options = Images::Option::TransparentBackground,
 			.outer = { width, height },
@@ -1847,7 +1849,9 @@ void Game::validateThumbnail(Image *image, QSize size, bool good) const {
 	}
 	_thumbGood = good;
 	_thumb = image->pixNoCache(
-		QSize(w, h) * style::DevicePixelRatio(),
+		QSize(
+			style::DevicePixels(w ),
+			style::DevicePixels(h )),
 		{
 			.options = (Images::Option::TransparentBackground
 				| (good ? Images::Option() : Images::Option::Blur)),

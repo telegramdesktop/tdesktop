@@ -811,38 +811,46 @@ QImage Reactions::resolveImageFor(const ReactionId &id) {
 		preloadImageFor(id);
 		i = _images.find(id);
 		Assert(i != end(_images));
+	} else if (!i->second.image.isNull()
+		&& qAbs(i->second.image.devicePixelRatio()
+			- style::DevicePixelRatio()) >= 0.001) {
+		_images.erase(i);
+		preloadImageFor(id);
+		i = _images.find(id);
+		Assert(i != end(_images));
 	}
 	auto &set = i->second;
 	set.effect = (id.custom() != 0);
 
 	const auto resolve = [&](QImage &image, int size) {
-		const auto factor = style::DevicePixelRatio();
 		const auto frameSize = set.fromSelectAnimation
 			? (size / 2)
 			: size;
 		// Must not be colored to text.
 		image = set.icon->frame(QColor()).scaled(
-			frameSize * factor,
-			frameSize * factor,
+			style::DevicePixels(frameSize),
+			style::DevicePixels(frameSize),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
+		image.setDevicePixelRatio(style::DevicePixelRatio());
+
 		if (set.fromSelectAnimation) {
 			auto result = QImage(
-				size * factor,
-				size * factor,
+				style::DevicePixels(size),
+				style::DevicePixels(size),
 				QImage::Format_ARGB32_Premultiplied);
 			result.fill(Qt::transparent);
+			result.setDevicePixelRatio(style::DevicePixelRatio());
 
 			auto p = QPainter(&result);
 			p.drawImage(
-				(size - frameSize) * factor / 2,
-				(size - frameSize) * factor / 2,
+				(size - frameSize) / 2,
+				(size - frameSize) / 2,
 				image);
 			p.end();
 
 			std::swap(result, image);
 		}
-		image.setDevicePixelRatio(factor);
 	};
 	if (set.image.isNull() && set.icon) {
 		resolve(
@@ -937,7 +945,7 @@ void Reactions::generateImage(ImageSet &set, const QString &emoji) {
 		Ui::Emoji::Draw(p, e, large, 0, 0);
 	}
 	const auto size = st::effectInfoImage;
-	set.image = image.scaled(size * factor, size * factor);
+	set.image = image.scaled(style::DevicePixels(size), style::DevicePixels(size));
 	set.image.setDevicePixelRatio(factor);
 }
 

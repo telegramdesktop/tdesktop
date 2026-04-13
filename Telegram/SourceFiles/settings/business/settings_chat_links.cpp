@@ -676,11 +676,12 @@ void LinksController::rowPaintIcon(
 	const auto inner = size - 2 * skip;
 	const auto bg = &st::msgFile1Bg;
 	if (_icon.isNull()) {
+		const auto ratio = style::DevicePixelRatio();
 		_icon = QImage(
-			QSize(inner, inner) * style::DevicePixelRatio(),
+			style::DevicePixels(QSize(inner, inner)),
 			QImage::Format_ARGB32_Premultiplied);
 		_icon.fill(Qt::transparent);
-		_icon.setDevicePixelRatio(style::DevicePixelRatio());
+		_icon.setDevicePixelRatio(ratio);
 
 		auto p = QPainter(&_icon);
 		p.setPen(Qt::NoPen);

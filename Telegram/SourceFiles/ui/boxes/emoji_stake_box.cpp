@@ -70,7 +70,7 @@ namespace {
 	const auto ratio = style::DevicePixelRatio();
 	auto svg = QSvgRenderer(path);
 	auto result = QImage(
-		QSize(size, size) * ratio,
+		style::DevicePixels(QSize(size, size)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);

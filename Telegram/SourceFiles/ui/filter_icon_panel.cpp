@@ -376,9 +376,7 @@ void FilterIconPanel::startShowAnimation() {
 		auto inner = rect().marginsRemoved(st::emojiPanMargins);
 		_showAnimation->setFinalImage(
 			std::move(image),
-			QRect(
-				inner.topLeft() * style::DevicePixelRatio(),
-				inner.size() * style::DevicePixelRatio()),
+			style::DevicePixels(inner),
 			st::emojiPanRadius);
 		_showAnimation->setCornerMasks(Images::CornersMask(ImageRoundRadius::Small));
 		_showAnimation->start();

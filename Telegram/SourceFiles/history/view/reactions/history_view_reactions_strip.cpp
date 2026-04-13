@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/frame_generator.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
+#include "ui/style/style_core_scale.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
@@ -507,6 +508,11 @@ bool Strip::onlyMainEmojiVisible() const {
 Ui::ImageSubrect Strip::validateEmoji(int frameIndex, float64 scale) {
 	const auto area = _inner.size();
 	const auto size = int(base::SafeRound(_finalSize * scale));
+	const auto ratio = style::DevicePixelRatio();
+	if (!_emojiParts.isNull() && _emojiParts.devicePixelRatio() != ratio) {
+		_emojiParts = QImage();
+		invalidateMainReactionImage();
+	}
 	const auto result = Ui::ImageSubrect{
 		&_emojiParts,
 		Ui::RoundAreaWithShadow::FrameCacheRect(
@@ -521,10 +527,11 @@ Ui::ImageSubrect Strip::validateEmoji(int frameIndex, float64 scale) {
 	}
 
 	auto p = QPainter(result.image);
-	const auto ratio = style::DevicePixelRatio();
-	const auto position = result.rect.topLeft() / ratio;
+	const auto position = style::LogicalPixels(result.rect.topLeft());
 	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.fillRect(QRect(position, result.rect.size() / ratio), Qt::transparent);
+	p.fillRect(QRect(
+		position,
+		style::LogicalPixels(result.rect.size())), Qt::transparent);
 	if (_mainReactionImage.isNull()
 		&& _mainReactionIcon) {
 		_mainReactionImage = base::take(_mainReactionIcon)->frame(
@@ -539,7 +546,7 @@ Ui::ImageSubrect Strip::validateEmoji(int frameIndex, float64 scale) {
 		).translated(position);
 
 		p.drawImage(target, _mainReactionImage.scaled(
-			target.size() * ratio,
+			style::DevicePixels(target.size()),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation));
 	}

@@ -82,11 +82,13 @@ struct Preview {
 			small = Ui::InvertPatternImage(std::move(small));
 		}
 		p.drawImage(
-			QRect(QPoint(), size * style::DevicePixelRatio()),
+			QRect(
+				QPoint(),
+				style::DevicePixels(size)),
 			small);
 	};
 	auto userpic = QRect();
-	const auto fullsize = size * style::DevicePixelRatio();
+	const auto fullsize = style::DevicePixels(size);
 	auto result = background.waitingForNegativePattern()
 		? QImage(
 			fullsize,
@@ -121,7 +123,7 @@ struct Preview {
 		p.setPen(Qt::NoPen);
 		if (const auto pattern = theme->bubblesBackgroundPattern()) {
 			auto bubble = pattern->pixmap.toImage().scaled(
-				sent.size() * style::DevicePixelRatio(),
+				style::DevicePixels(sent.size()),
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation
 			).convertToFormat(QImage::Format_ARGB32_Premultiplied);
@@ -159,7 +161,7 @@ struct Preview {
 
 [[nodiscard]] QImage GenerateEmptyPreview() {
 	auto result = QImage(
-		st::chatThemePreviewSize * style::DevicePixelRatio(),
+		style::DevicePixels(st::chatThemePreviewSize),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(st::settingsThemeNotSupportedBg->c);
 	result.setDevicePixelRatio(style::DevicePixelRatio());
@@ -387,7 +389,7 @@ void ChooseThemeController::paintEntry(QPainter &p, const Entry &entry) {
 
 	const auto size = Ui::Emoji::GetSizeLarge();
 	const auto factor = style::DevicePixelRatio();
-	const auto esize = size / factor;
+	const auto esize = qRound(size / factor);
 	const auto emojiLeft = geometry.x() + (geometry.width() - esize) / 2;
 	const auto emojiTop = geometry.y()
 		+ geometry.height()

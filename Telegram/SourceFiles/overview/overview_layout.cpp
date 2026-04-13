@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "overview/overview_layout.h"
 
+#include "base/debug_log.h"
+
 #include "overview/overview_checkbox.h"
 #include "overview/overview_layout_delegate.h"
 #include "core/ui_integration.h" // TextContext
@@ -72,29 +74,29 @@ constexpr auto kStoryRatio = 1.46;
 
 [[nodiscard]] QImage CropMediaFrame(QImage image, int width, int height) {
 	const auto ratio = style::DevicePixelRatio();
-	width *= ratio;
-	height *= ratio;
+	const auto w = style::DevicePixels(width);
+	const auto h = style::DevicePixels(height);
 	const auto finalize = [&](QImage result) {
 		result = result.scaled(
-			width,
-			height,
+			w,
+			h,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
 		result.setDevicePixelRatio(ratio);
 		return result;
 	};
-	if (image.width() * height == image.height() * width) {
-		if (image.width() != width) {
+	if (image.width() * h == image.height() * w) {
+		if (image.width() != w) {
 			return finalize(std::move(image));
 		}
 		image.setDevicePixelRatio(ratio);
 		return image;
-	} else if (image.width() * height > image.height() * width) {
-		const auto use = (image.height() * width) / height;
+	} else if (image.width() * h > image.height() * w) {
+		const auto use = (image.height() * w) / h;
 		const auto skip = (image.width() - use) / 2;
 		return finalize(image.copy(skip, 0, use, image.height()));
 	} else {
-		const auto use = (image.width() * height) / width;
+		const auto use = (image.width() * h) / w;
 		const auto skip = (image.height() - use) / 2;
 		return finalize(image.copy(0, skip, image.width(), use));
 	}
@@ -347,8 +349,7 @@ int32 Photo::resizeGetHeight(int32 width) {
 
 void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	const auto selected = (selection == FullSelection);
-	const auto widthChanged = (_pix.width()
-		!= (_width * style::DevicePixelRatio()));
+	const auto widthChanged = (_pix.width() != style::DevicePixels(_width));
 	if (!_goodLoaded || widthChanged) {
 		ensureDataMediaCreated();
 		const auto good = !_spoiler
@@ -573,7 +574,7 @@ void Video::paint(
 	const auto radialOpacity = radial ? _radial->opacity() : 0.;
 
 	if ((blurred || thumbnail || good)
-		&& ((_pix.width() != _width * style::DevicePixelRatio())
+		&& ((_pix.width() != style::DevicePixels(_width))
 			|| (_pixBlurred && (thumbnail || good)))) {
 		auto img = good
 			? good->original()
@@ -1326,7 +1327,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 								: Images::Option::Blur);
 						const auto image = thumbnail ? thumbnail : blurred;
 						_thumb = image->pixNoCache(
-							_thumbw * style::DevicePixelRatio(),
+							style::DevicePixels(_thumbw),
 							{
 								.options = options,
 								.outer = QSize(
@@ -1981,8 +1982,9 @@ void Link::validateThumbnail() {
 		_documentMedia = nullptr;
 		delegate()->unregisterHeavyItem(this);
 	} else {
-		const auto size = QSize(st::linksPhotoSize, st::linksPhotoSize);
-		_thumbnail = QPixmap(size * style::DevicePixelRatio());
+		const auto size = style::DevicePixels(QSize(st::linksPhotoSize, st::linksPhotoSize));
+		_thumbnail = QPixmap(size);
+		_thumbnail.setDevicePixelRatio(style::DevicePixelRatio());
 		_thumbnail.fill(Qt::transparent);
 		auto p = Painter(&_thumbnail);
 		const auto index = _letter.isEmpty()
@@ -2227,13 +2229,13 @@ void Gif::validateThumbnail(
 		bool good) {
 	if (!image || (_thumbGood && !good)) {
 		return;
-	} else if ((_thumb.size() == size * style::DevicePixelRatio())
+	} else if ((_thumb.size() == style::DevicePixels(size))
 		&& (_thumbGood || !good)) {
 		return;
 	}
 	_thumbGood = good;
 	_thumb = image->pixNoCache(
-		frame * style::DevicePixelRatio(),
+		style::DevicePixels(frame),
 		{
 			.options = (good ? Images::Option() : Images::Option::Blur),
 			.outer = size,

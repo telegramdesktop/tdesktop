@@ -1228,10 +1228,14 @@ ChatThemeBackground PrepareBackgroundImage(
 		&& !data.isPattern
 		&& data.forDarkMode
 		&& data.darkModeDimming > 0) {
-		const auto ratio = int(prepared.devicePixelRatio());
+		const auto ratio = prepared.devicePixelRatio();
 		auto p = QPainter(&prepared);
 		p.fillRect(
-			QRect(0, 0, prepared.width() / ratio, prepared.height() / ratio),
+			QRect(
+				0,
+				0,
+				base::SafeRound(prepared.width() / ratio),
+				base::SafeRound(prepared.height() / ratio)),
 			QColor(0, 0, 0, 255 * data.darkModeDimming / 100));
 	}
 	const auto imageMonoColor = (data.colors.size() < 2)
@@ -1269,10 +1273,10 @@ ChatThemeBackground PrepareBackgroundImage(
 		return QImage();
 	}
 	const auto ratio = style::DevicePixelRatio();
-	const auto esize = Ui::Emoji::GetSizeLarge() / ratio;
+	const auto esize = base::SafeRound(Ui::Emoji::GetSizeLarge() / ratio);
 	const auto customSize = Ui::Text::AdjustCustomEmojiSize(esize);
 	auto result = QImage(
-		QSize(customSize, customSize) * ratio,
+		style::DevicePixels(QSize(customSize, customSize)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
+#include "ui/style/style_core_scale.h"
 #include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "styles/style_chat.h"
@@ -464,6 +465,9 @@ void InlineList::paint(
 		QRect target;
 	};
 	std::vector<SingleAnimation> animations;
+	if (_dprKey != currentDprKey()) {
+		resetOnDevicePixelRatioChange();
+	}
 
 	auto finished = std::vector<std::unique_ptr<Ui::ReactionFlyAnimation>>();
 	const auto st = context.st;
@@ -649,6 +653,23 @@ void InlineList::paint(
 	}
 }
 
+void InlineList::resetOnDevicePixelRatioChange() const {
+	_dprKey = currentDprKey();
+	_tagBg = QImage();
+	_customCache = QImage();
+	_ripple.reset();
+	for (auto &button : _buttons) {
+		button.image = QImage();
+		if (button.userpics) {
+			button.userpics->image = QImage();
+		}
+	}
+}
+
+int InlineList::currentDprKey() const {
+	return qRound(style::DevicePixelRatio() * 1000.);
+}
+
 float64 InlineList::TagDotAlpha() {
 	return 0.6;
 }
@@ -664,7 +685,7 @@ QImage InlineList::PrepareTagBg(QColor tagBg, QColor dotBg) {
 	const auto ratio = style::DevicePixelRatio();
 
 	auto result = QImage(
-		QSize(width, height) * ratio,
+		style::DevicePixels(QSize(width , height)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 
@@ -721,13 +742,13 @@ void InlineList::paintSingleBg(
 	validateTagBg(color);
 	const auto ratio = style::DevicePixelRatio();
 	const auto left = st::reactionInlineTagLeftRadius;
-	const auto right = (_tagBg.width() / ratio) - left;
+	const auto right = qRound(_tagBg.width() / ratio) - left;
 	Assert(right > 0);
 	const auto useLeft = std::min(fill.width(), left);
 	p.drawImage(
 		QRect(fill.x(), fill.y(), useLeft, fill.height()),
 		_tagBg,
-		QRect(0, 0, useLeft * ratio, _tagBg.height()));
+		QRect(0, 0, style::DevicePixels(useLeft), _tagBg.height()));
 	const auto middle = fill.width() - left - right;
 	if (middle > 0) {
 		p.fillRect(fill.x() + left, fill.y(), middle, fill.height(), color);
@@ -740,10 +761,8 @@ void InlineList::paintSingleBg(
 				useRight,
 				fill.height()),
 			_tagBg,
-			QRect(_tagBg.width() - useRight * ratio,
-				0,
-				useRight * ratio,
-				_tagBg.height()));
+			QRect(_tagBg.width() - style::DevicePixels(useRight),
+				0, style::DevicePixels(useRight), _tagBg.height()));
 	}
 }
 
@@ -862,7 +881,7 @@ void InlineList::paintCustomFrame(
 		const auto factor = style::DevicePixelRatio();
 		const auto adjusted = AdjustCustomEmojiSize(size);
 		_customCache = QImage(
-			QSize(adjusted, adjusted) * factor,
+			style::DevicePixels(QSize(adjusted , adjusted)),
 			QImage::Format_ARGB32_Premultiplied);
 		_customCache.setDevicePixelRatio(factor);
 		_customSkip = (size - adjusted) / 2;

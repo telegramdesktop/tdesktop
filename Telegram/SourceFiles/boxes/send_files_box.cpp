@@ -1073,7 +1073,8 @@ QImage SendFilesBox::preparePriceTagBg(QSize size) const {
 		bg.fill(Qt::black);
 	}
 
-	auto result = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	auto result = QImage(style::DevicePixels(size),
+		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::black);
 	auto p = QPainter(&result);

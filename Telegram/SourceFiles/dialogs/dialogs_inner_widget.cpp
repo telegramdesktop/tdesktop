@@ -931,8 +931,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						more++;
 						continue;
 					}
-					const auto tagWidth = tag->width()
-						/ style::DevicePixelRatio();
+					const auto tagWidth = style::LogicalPixels(tag->width());
 					if (availableWidth < tagWidth) {
 						more++;
 					} else {
@@ -944,8 +943,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 			if (more) {
 				if (const auto tag = cacheChatsFilterTag({}, more, a)) {
-					const auto tagWidth = tag->width()
-						/ style::DevicePixelRatio();
+					const auto tagWidth = style::LogicalPixels(tag->width());
 					if (availableWidth < tagWidth) {
 						more++;
 						if (!chatsFilterTags.empty()) {
@@ -1379,7 +1377,7 @@ void InnerWidget::fillRightButton(
 		st.button.height);
 	const auto generateBg = [&](const style::color &c) {
 		auto bg = QImage(
-			style::DevicePixelRatio() * size,
+			style::DevicePixels(size),
 			QImage::Format_ARGB32_Premultiplied);
 		bg.setDevicePixelRatio(style::DevicePixelRatio());
 		bg.fill(Qt::transparent);
@@ -1763,7 +1761,7 @@ void InnerWidget::performDrag() {
 	}
 
 	const auto &st = st::defaultDialogRow;
-	auto pixmap = QPixmap(Size(st.height * style::DevicePixelRatio()));
+	auto pixmap = QPixmap(style::DevicePixels(QSize(st.height, st.height)));
 	pixmap.setDevicePixelRatio(style::DevicePixelRatio());
 	pixmap.fill(Qt::transparent);
 	if (const auto draw = PaintUserpicCallback(history->peer, true)) {
@@ -1843,7 +1841,7 @@ bool InnerWidget::lookupIsInRightButton(
 		return false;
 	}
 
-	const auto s = button.bg.size() / style::DevicePixelRatio();
+	const auto s = style::LogicalPixels(button.bg.size());
 	const auto r = QRect(
 		width() - s.width() - button.st->margin.right(),
 		button.st->margin.top(),
@@ -2186,8 +2184,7 @@ bool InnerWidget::addRightButtonRipple(QPoint origin, Fn<void()> updateCallback)
 	if (!(_pressedRightButton && _pressedRightButtonData)) {
 		return false;
 	}
-	const auto size = _pressedRightButtonData->bg.size()
-		/ style::DevicePixelRatio();
+	const auto size = style::LogicalPixels(_pressedRightButtonData->bg.size());
 	if (!_pressedRightButtonData->ripple) {
 		_pressedRightButtonData->ripple = std::make_unique<Ui::RippleAnimation>(
 			_pressedRightButtonData->st->button.ripple,

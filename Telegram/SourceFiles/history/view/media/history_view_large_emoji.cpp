@@ -139,7 +139,7 @@ void LargeEmoji::paintCustom(
 	auto &textst = context.st->messageStyle(false, false);
 	if (context.selected()) {
 		const auto factor = style::DevicePixelRatio();
-		const auto size = QSize(outer, outer) * factor;
+		const auto size = style::DevicePixels(QSize(outer, outer));
 		if (_selectedFrame.size() != size) {
 			_selectedFrame = QImage(
 				size,

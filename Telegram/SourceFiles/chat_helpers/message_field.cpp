@@ -737,8 +737,9 @@ void InitMessageFieldFade(
 
 	const auto generateFade = [=] {
 		const auto size = QSize(1, st::historyComposeFieldFadeHeight);
-		auto fade = QPixmap(size * style::DevicePixelRatio());
-		fade.setDevicePixelRatio(style::DevicePixelRatio());
+		const auto ratio = style::DevicePixelRatio();
+		auto fade = QPixmap(style::DevicePixels(size));
+		fade.setDevicePixelRatio(ratio);
 		fade.fill(Qt::transparent);
 		{
 			auto p = QPainter(&fade);

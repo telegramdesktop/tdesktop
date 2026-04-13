@@ -1202,10 +1202,10 @@ void Viewport::RendererGL::validateDatas() {
 	const auto &st = st::groupCallVideoTile;
 	const auto count = int(tiles.size());
 	const auto factor = style::DevicePixelRatio();
-	const auto nameHeight = st::semiboldFont->height * factor;
+	const auto nameHeight =  style::DevicePixels(st::semiboldFont->height);
 	const auto pausedText = tr::lng_group_call_video_paused(tr::now);
 	const auto pausedBottom = nameHeight;
-	const auto pausedWidth = st::semiboldFont->width(pausedText) * factor;
+	const auto pausedWidth = style::DevicePixels(st::semiboldFont->width(pausedText));
 	struct Request {
 		int index = 0;
 		bool updating = false;
@@ -1225,7 +1225,7 @@ void Viewport::RendererGL::validateDatas() {
 		if (hasWidth < 1) {
 			return 0;
 		}
-		return std::clamp(row->name().maxWidth(), 1, hasWidth) * factor;
+		return style::DevicePixels(std::clamp(row->name().maxWidth(), 1, hasWidth));
 	};
 	for (auto i = 0; i != count; ++i) {
 		tiles[i]->row()->lazyInitialize(st::groupCallMembersListItem);
@@ -1317,18 +1317,18 @@ void Viewport::RendererGL::validateDatas() {
 			p.drawImage(0, 0, image);
 			if (paintToImage.width() > image.width()) {
 				p.fillRect(
-					image.width() / factor,
+					qRound(image.width() / factor),
 					0,
 					(paintToImage.width() - image.width()) / factor,
-					image.height() / factor,
+					qRound(image.height() / factor),
 					Qt::transparent);
 			}
 			if (paintToImage.height() > image.height()) {
 				p.fillRect(
 					0,
-					image.height() / factor,
-					paintToImage.width() / factor,
-					(paintToImage.height() - image.height()) / factor,
+					qRound(image.height() / factor),
+					qRound(paintToImage.width() / factor),
+					qRound((paintToImage.height() - image.height()) / factor),
 					Qt::transparent);
 			}
 			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
@@ -1348,18 +1348,18 @@ void Viewport::RendererGL::validateDatas() {
 				p.setCompositionMode(QPainter::CompositionMode_Source);
 				p.fillRect(
 					0,
-					data.nameRect.y() / factor,
-					paintToImage.width() / factor,
-					nameHeight / factor,
+					qRound(data.nameRect.y() / factor),
+					qRound(paintToImage.width() / factor),
+					qRound(nameHeight / factor),
 					Qt::transparent);
 				p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 			}
 			row->name().drawLeftElided(
 				p,
 				0,
-				data.nameRect.y() / factor,
-				data.nameRect.width() / factor,
-				paintToImage.width() / factor);
+				qRound(data.nameRect.y() / factor),
+				qRound(data.nameRect.width() / factor),
+				qRound(paintToImage.width() / factor));
 		}
 	}
 	_names.setImage(std::move(paintToImage));

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/who_reacted_context_action.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/painter.h"
+#include "ui/style/style_core_scale.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_message_reaction_id.h"
 #include "main/main_session.h"
@@ -159,7 +160,8 @@ Row::Row(
 }
 
 QSize Row::rightActionSize() const {
-	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
+	const auto size = qRound(
+		Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio());
 	return _custom ? QSize(size, size) : QSize();
 }
 
@@ -167,7 +169,8 @@ QMargins Row::rightActionMargins() const {
 	if (!_custom) {
 		return QMargins();
 	}
-	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
+	const auto size = qRound(
+		Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio());
 	return QMargins(
 		size / 2,
 		(st::defaultPeerList.item.height - size) / 2,
@@ -189,7 +192,8 @@ void Row::rightActionPaint(
 	if (!_custom) {
 		return;
 	}
-	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
+	const auto size = qRound(
+		Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio());
 	const auto skip = (size - Ui::Text::AdjustCustomEmojiSize(size)) / 2;
 	_custom->paint(p, {
 		.textColor = st::windowFg->c,

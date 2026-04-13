@@ -48,12 +48,11 @@ constexpr auto kNonExpandedLinesLimit = 5;
 	const auto diameter = st::normalFont->ascent;
 	const auto line = st::historyPollRadio.thickness;
 	const auto size = 2 * line + diameter;
-	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(size, size) * ratio,
+		style::DevicePixels(QSize(size, size)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
-	result.setDevicePixelRatio(ratio);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 
 	auto p = QPainter(&result);
 	PainterHighQualityEnabler hq(p);
@@ -80,12 +79,11 @@ template <typename PaintShape>
 	const auto diameter = st::normalFont->ascent;
 	const auto line = st::historyPollRadio.thickness;
 	const auto size = 2 * line + diameter;
-	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(size, size) * ratio,
+		style::DevicePixels(QSize(size, size)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(black);
-	result.setDevicePixelRatio(ratio);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 
 	auto p = QPainter(&result);
 	PainterHighQualityEnabler hq(p);

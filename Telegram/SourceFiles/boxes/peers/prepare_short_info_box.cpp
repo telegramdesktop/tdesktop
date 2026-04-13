@@ -57,12 +57,11 @@ void GenerateImage(
 		bool blurred = false) {
 	using namespace Images;
 	const auto size = state->size;
-	const auto ratio = style::DevicePixelRatio();
 	const auto options = blurred ? Option::Blur : Option();
 	state->current.photo = Images::Round(
 		Images::Prepare(
 			std::move(image),
-			QSize(size, size) * ratio,
+			style::DevicePixels(QSize(size, size)),
 			{ .options = options, .outer = { size, size } }),
 		state->roundMask,
 		RectPart::TopLeft | RectPart::TopRight);

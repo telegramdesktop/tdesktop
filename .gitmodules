@@ -24,10 +24,10 @@
 	url = https://github.com/desktop-app/codegen.git
 [submodule "Telegram/lib_ui"]
 	path = Telegram/lib_ui
-	url = https://github.com/desktop-app/lib_ui.git
+	url = git@github.com:zvova7890/lib_ui.git
 [submodule "Telegram/lib_lottie"]
 	path = Telegram/lib_lottie
-	url = https://github.com/desktop-app/lib_lottie.git
+	url = git@github.com:zvova7890/lib_lottie.git
 [submodule "Telegram/lib_tl"]
 	path = Telegram/lib_tl
 	url = https://github.com/desktop-app/lib_tl.git

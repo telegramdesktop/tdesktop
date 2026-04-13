@@ -121,8 +121,9 @@ constexpr auto kMaxWallPaperSlugLength = 255;
 	const auto takeHeight = (width > height)
 		? size
 		: (height * size / width);
-	const auto ratio = style::DevicePixelRatio();
-	return Images::Prepare(image, QSize(takeWidth, takeHeight) * ratio, {
+	return Images::Prepare(image, QSize(
+		style::DevicePixels(takeWidth),
+		style::DevicePixels(takeHeight)), {
 		.options = Images::Option::TransparentBackground | blur,
 		.outer = { size, size },
 	});
@@ -725,7 +726,7 @@ void BackgroundPreviewBox::applyForPeer() {
 	} else if (_forBothOverlay) {
 		return;
 	}
-	const auto size = this->size() * style::DevicePixelRatio();
+	const auto size = style::DevicePixels(this->size());
 	const auto bg = Images::DitherImage(
 		Images::BlurLargeImage(
 			Ui::GrabWidgetToImage(this).scaled(

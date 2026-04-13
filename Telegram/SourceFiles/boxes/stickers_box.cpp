@@ -1574,7 +1574,7 @@ void StickersBox::Inner::validateLottieAnimation(not_null<Row*> row) {
 		row->thumbnailMedia.get(),
 		row->stickerMedia.get(),
 		ChatHelpers::StickerLottieSize::SetsListThumbnail,
-		QSize(_st.photoSize, _st.photoSize) * style::DevicePixelRatio());
+		style::DevicePixels(QSize(_st.photoSize, _st.photoSize)));
 	if (!player) {
 		return;
 	}

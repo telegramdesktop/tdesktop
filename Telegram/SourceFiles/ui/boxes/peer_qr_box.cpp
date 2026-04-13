@@ -267,17 +267,23 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 			const auto downTo = remainder
 				? qrMaxSize - remainder
 				: qrMaxSize;
+			const auto scaledQrSide = int(base::SafeRound(
+				qrMaxSize * style::DevicePixelRatio()));
+			const auto scaledQrSize = QSize(scaledQrSide, scaledQrSide);
 			state->qrImage = TelegramQr(
 				Qr::Encode(link.toUtf8(), Qr::Redundancy::Default),
 				st::introQrPixel,
 				downTo,
 				backgroundToggled).scaled(
-					Size(qrMaxSize * style::DevicePixelRatio()),
+					scaledQrSize,
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
 		} else {
+			const auto scaledQrSide = int(base::SafeRound(
+				qrMaxSize * style::DevicePixelRatio()));
+			const auto scaledQrSize = QSize(scaledQrSide, scaledQrSide);
 			auto image = QImage(
-				Size(qrMaxSize * style::DevicePixelRatio()),
+				scaledQrSize,
 				QImage::Format_ARGB32_Premultiplied);
 			image.fill(Qt::white);
 			image.setDevicePixelRatio(style::DevicePixelRatio());
@@ -349,11 +355,14 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 			return;
 		}
 		const auto photoSize = state->photoSize;
+		const auto scaledPhotoSide = int(base::SafeRound(
+			photoSize * style::DevicePixelRatio()));
+		const auto scaledPhotoSize = QSize(scaledPhotoSide, scaledPhotoSide);
 		const auto top = Ui::GrabWidget(
 			topWidget,
 			QRect(),
 			Qt::transparent).scaled(
-				Size(photoSize * style::DevicePixelRatio()),
+				scaledPhotoSize,
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		p.drawPixmap((result->width() - photoSize) / 2, -photoSize / 2, top);

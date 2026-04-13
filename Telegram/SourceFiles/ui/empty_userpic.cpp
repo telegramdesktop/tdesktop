@@ -243,10 +243,11 @@ void PaintInaccessibleAccountInner(
 }
 
 [[nodiscard]] QImage Generate(int size, Fn<void(QPainter&)> callback) {
+	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(size, size) * style::DevicePixelRatio(),
+		style::DevicePixels(QSize(size, size)),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
+	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 	{
 		Painter p(&result);
@@ -585,10 +586,11 @@ std::pair<uint64, uint64> EmptyUserpic::uniqueKey() const {
 }
 
 QPixmap EmptyUserpic::generate(int size) {
+	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(size, size) * style::DevicePixelRatio(),
+		style::DevicePixels(QSize(size, size)),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
+	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 	{
 		auto p = QPainter(&result);

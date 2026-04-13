@@ -247,7 +247,7 @@ base::unique_qptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 
 	// Paint.
 	const auto background = raw->lifetime().make_state<QImage>(
-		fullSize * style::DevicePixelRatio(),
+		style::DevicePixels(fullSize),
 		QImage::Format_ARGB32_Premultiplied);
 	background->setDevicePixelRatio(style::DevicePixelRatio());
 	rpl::merge(
@@ -639,11 +639,10 @@ void SetupFingerprintTooltip(not_null<Ui::RpWidget*> widget) {
 }
 
 QImage MakeVerticalShadow(int height) {
-	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		QSize(1, height) * ratio,
+		style::DevicePixels(QSize(1, height)),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(ratio);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	auto p = QPainter(&result);
 	auto g = QLinearGradient(0, 0, 0, height);
 	auto color = st::groupCallMembersBg->c;
@@ -698,7 +697,7 @@ void SetupFingerprintBadgeWidget(
 		if (label->textMaxWidth() > available) {
 			label->setText(tr::lng_confcall_e2e_badge_small(tr::now));
 		}
-		const auto use = std::min(available, label->textMaxWidth());
+		const auto use = std::min(qRound(available), label->textMaxWidth());
 		label->resizeToWidth(use);
 
 		const auto ontheleft = kEmojiInFingerprint / 2;
@@ -788,7 +787,7 @@ void PaintFingerprintEntry(
 		return;
 	}
 	const auto ratio = style::DevicePixelRatio();
-	const auto size = esize / ratio;
+	const auto size = qRound(esize / ratio);
 	const auto add = 4;
 	const auto height = size + 2 * add;
 	const auto validateCache = [&](int index, EmojiPtr e) {
@@ -800,7 +799,7 @@ void PaintFingerprintEntry(
 		if (emoji.ptr != e) {
 			emoji.ptr = e;
 			emoji.image = QImage(
-				QSize(size, height) * ratio,
+				style::DevicePixels(QSize(size, height)),
 				QImage::Format_ARGB32_Premultiplied);
 			emoji.image.setDevicePixelRatio(ratio);
 			emoji.image.fill(Qt::transparent);

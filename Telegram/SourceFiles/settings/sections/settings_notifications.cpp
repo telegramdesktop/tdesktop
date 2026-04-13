@@ -412,10 +412,11 @@ int NotificationsCount::resizeGetHeight(int newWidth) {
 void NotificationsCount::prepareNotificationSampleSmall() {
 	auto width = st::notificationSampleSize.width();
 	auto height = st::notificationSampleSize.height();
+	const auto ratio = style::DevicePixelRatio();
 	auto sampleImage = QImage(
-		QSize(width, height) * style::DevicePixelRatio(),
+		style::DevicePixels(QSize(width, height)),
 		QImage::Format_ARGB32_Premultiplied);
-	sampleImage.setDevicePixelRatio(style::DevicePixelRatio());
+	sampleImage.setDevicePixelRatio(ratio);
 	sampleImage.fill(st::notificationBg->c);
 	{
 		Painter p(&sampleImage);

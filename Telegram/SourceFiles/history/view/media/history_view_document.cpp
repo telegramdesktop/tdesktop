@@ -1023,14 +1023,14 @@ void Document::validateThumbnail(
 		return;
 	}
 	const auto outer = QSize(size, size);
-	if ((thumbed->thumbnail.size() == outer * style::DevicePixelRatio())
+	if ((thumbed->thumbnail.size() == style::DevicePixels(outer))
 		&& (thumbed->blurred == !normal)
 		&& (thumbed->rounding == rounding)) {
 		return;
 	}
 	const auto small = (rounding == Ui::BubbleRounding());
 	auto image = normal ? normal : blurred;
-	const auto imageWidth = thumbed->thumbw * style::DevicePixelRatio();
+	const auto imageWidth = style::DevicePixels(thumbed->thumbw);
 	auto thumbnail = Images::Prepare(image->original(), imageWidth, {
 		.options = (normal ? Images::Option() : Images::Option::Blur)
 			| (small ? Images::Option::RoundSmall : Images::Option()),

@@ -93,8 +93,7 @@ using TLStickerSet = MTPmessages_StickerSet;
 	auto sg = int64();
 	auto sb = int64();
 	auto sa = int64();
-	const auto factor = style::DevicePixelRatio();
-	const auto size = lockIcon.size() * factor;
+	const auto size = style::DevicePixels(lockIcon.size());
 	const auto width = std::min(frame.width(), size.width());
 	const auto height = std::min(frame.height(), size.height());
 	const auto radius = st::roundRadiusSmall;
@@ -159,7 +158,7 @@ void ValidatePremiumLockBg(
 	const auto factor = style::DevicePixelRatio();
 	const auto size = lockIcon.size();
 	image = QImage(
-		size * factor,
+		style::DevicePixels(size),
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(factor);
 	auto p = QPainter(&image);
@@ -179,7 +178,7 @@ void ValidatePremiumStarFg(const style::icon &lockIcon, QImage &image) {
 	const auto factor = style::DevicePixelRatio();
 	const auto size = lockIcon.size();
 	image = QImage(
-		size * factor,
+		style::DevicePixels(size),
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(factor);
 	image.fill(Qt::transparent);
@@ -242,14 +241,13 @@ void StickerPremiumMark::paint(
 		int outerWidth) {
 	validateLock(frame, backCache);
 	const auto &bg = frame.isNull() ? _lockGray : backCache;
-	const auto factor = style::DevicePixelRatio();
 	const auto radius = st::roundRadiusSmall;
 	const auto shiftx = (_part == RectPart::Center)
-		? (singleSize.width() - (bg.width() / factor)) / 2
-		: (singleSize.width() - (bg.width() / factor) - radius);
+		? (singleSize.width() - style::LogicalPixels(bg.width())) / 2
+		: (singleSize.width() - style::LogicalPixels(bg.width()) - radius);
 	const auto shifty = (_part == RectPart::Center)
-		? (singleSize.height() - (bg.height() / factor)) / 2
-		: (singleSize.height() - (bg.height() / factor) - radius);
+		? (singleSize.height() - style::LogicalPixels(bg.height())) / 2
+		: (singleSize.height() - style::LogicalPixels(bg.height()) - radius);
 	const auto point = position + QPoint(shiftx, shifty);
 	p.drawImage(point, bg);
 	if (_premium && _part != RectPart::Center) {
@@ -1809,8 +1807,8 @@ uint64 StickerSetBox::Inner::setId() const {
 QSize StickerSetBox::Inner::boundingBoxSize() const {
 	if (isEmojiSet()) {
 		using namespace Data;
-		const auto size = FrameSizeFromTag(CustomEmojiSizeTag::Large)
-			/ style::DevicePixelRatio();
+		const auto size = qRound(FrameSizeFromTag(CustomEmojiSizeTag::Large)
+			/ style::DevicePixelRatio());
 		return { size, size };
 	}
 	return QSize(
@@ -1871,7 +1869,7 @@ void StickerSetBox::Inner::setupLottie(int index) {
 		getLottiePlayer(),
 		element.documentMedia.get(),
 		ChatHelpers::StickerLottieSize::StickerSet,
-		boundingBoxSize() * style::DevicePixelRatio());
+		style::DevicePixels(boundingBoxSize()));
 }
 
 void StickerSetBox::Inner::setupWebm(int index) {
@@ -2075,8 +2073,9 @@ void StickerSetBox::Inner::paintSticker(
 		});
 	} else if (element.lottie && element.lottie->ready()) {
 		lottieFrame = element.lottie->frame();
+		const auto factor = lottieFrame.devicePixelRatio();
 		p.drawImage(
-			QRect(ppos, lottieFrame.size() / style::DevicePixelRatio()),
+			QRect(ppos, lottieFrame.size() / factor),
 			lottieFrame);
 
 		_lottiePlayer->unpause(element.lottie);

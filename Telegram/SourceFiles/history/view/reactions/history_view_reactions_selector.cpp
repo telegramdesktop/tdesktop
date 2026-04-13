@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/integration.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/style/style_core_scale.h"
 #include "ui/ui_utility.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/history.h"
@@ -566,8 +567,8 @@ void Selector::paintAppearing(QPainter &p) {
 	Expects(_strip != nullptr);
 
 	p.setOpacity(_appearOpacity);
-	const auto factor = style::DevicePixelRatio();
-	if (_paintBuffer.size() != _outerWithBubble.size() * factor) {
+	const auto bufferSize = style::DevicePixels(_outerWithBubble.size());
+	if (_paintBuffer.size() != bufferSize) {
 		_paintBuffer = _cachedRound.PrepareImage(_outerWithBubble.size());
 	}
 	_paintBuffer.fill(_st.bg->c);
@@ -599,7 +600,12 @@ void Selector::paintAppearing(QPainter &p) {
 		1.);
 	q.setCompositionMode(QPainter::CompositionMode_Source);
 	q.fillRect(
-		QRect{ 0, size.height(), width(), height() - size.height() },
+		QRect{
+			0,
+			size.height(),
+			_outerWithBubble.width(),
+			_outerWithBubble.height() - size.height()
+		},
 		Qt::transparent);
 	q.setCompositionMode(QPainter::CompositionMode_SourceOver);
 	paintBubble(q, appearedWidth);
@@ -608,7 +614,9 @@ void Selector::paintAppearing(QPainter &p) {
 	p.drawImage(
 		_outer.topLeft(),
 		_paintBuffer,
-		QRect(QPoint(), QSize(fullWidth, height()) * factor));
+		QRect(
+			QPoint(),
+			style::DevicePixels(QSize(fullWidth, _outerWithBubble.height()))));
 
 	const auto aboutRight = _inner.x() + appearedWidth;
 	if (_about && _about->isHidden() && aboutRight > _about->x()) {
@@ -616,7 +624,9 @@ void Selector::paintAppearing(QPainter &p) {
 		p.drawImage(
 			_about->geometry().topLeft(),
 			_aboutCache,
-			QRect(QPoint(), QSize(aboutWidth, _about->height()) * factor));
+			QRect(
+				QPoint(),
+				style::DevicePixels(QSize(aboutWidth, _about->height()))));
 	}
 }
 
@@ -625,7 +635,8 @@ void Selector::paintBackgroundToBuffer() {
 		return;
 	}
 	const auto factor = style::DevicePixelRatio();
-	if (_paintBuffer.size() != _outerWithBubble.size() * factor) {
+	const auto bufferSize = style::DevicePixels(_outerWithBubble.size());
+	if (_paintBuffer.size() != bufferSize) {
 		_paintBuffer = _cachedRound.PrepareImage(_outerWithBubble.size());
 	}
 	_paintBuffer.fill(Qt::transparent);

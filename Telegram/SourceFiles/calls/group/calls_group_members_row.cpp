@@ -367,9 +367,9 @@ void MembersRow::ensureUserpicCache(
 
 	const auto user = peer();
 	const auto key = user->userpicUniqueKey(view);
-	const auto full = QSize(size, size)
-		* kWideScale
-		* style::DevicePixelRatio();
+	const auto full = style::DevicePixels(
+		QSize(size, size),
+		kWideScale * style::DevicePixelRatio());
 	auto &cache = _blobsAnimation->userpicCache;
 	if (cache.isNull()) {
 		cache = QImage(full, QImage::Format_ARGB32_Premultiplied);

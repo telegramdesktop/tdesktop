@@ -555,12 +555,12 @@ void Location::validateImageCache(
 		return;
 	}
 	const auto ratio = style::DevicePixelRatio();
-	if (cache.size() == (outer * ratio) && cacheRounding == rounding) {
+	if (cache.size() == style::DevicePixels(outer) && cacheRounding == rounding) {
 		return;
 	}
 	cache = Images::Round(
 		source.scaled(
-			outer * ratio,
+			style::DevicePixels(outer),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation),
 		MediaRoundingMask(rounding));

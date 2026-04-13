@@ -48,7 +48,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
+#include "ui/style/style_core.h"
+#include "ui/style/style_core_icon.h"
+#include "ui/style/style_core_scale.h"
+#include "ui/cached_round_corners.h"
 
+#include <QtGui/QWindow>
 #include <QtGui/QWindow>
 
 namespace {
@@ -76,6 +81,26 @@ base::options::toggle AutoScrollInactiveChat({
 	.description = "Mark new messages as read and scroll the chat "
 		"even when the window is not in focus.",
 });
+
+void RefreshDevicePixelRatioFromWindow(not_null<QWidget*> widget) {
+	const auto handle = widget->windowHandle();
+	if (!handle) {
+		return;
+	}
+	const auto ratio = std::clamp(handle->devicePixelRatio(), 1., 3.);
+	if (qAbs(style::DevicePixelRatio() - ratio) < 0.001) {
+		return;
+	}
+
+	LOG(("New DevicePixelRatio: %1").arg(ratio));
+	style::SetDevicePixelRatio(ratio);
+	style::internal::ResetIcons();
+	style::NotifyPaletteChanged();
+	Ui::Tooltip::Hide();
+	Ui::RefreshCachedCorners();
+	Ui::Emoji::Refresh();
+	Ui::ForceFullRepaint(widget);
+}
 
 } // namespace
 
@@ -679,8 +704,14 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 			positionUpdated();
 		}
 	} break;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+	case QEvent::DevicePixelRatioChange: {
+		if (object == this) {
+			RefreshDevicePixelRatioFromWindow(this);
+		}
+	} break;
 	}
-
+#endif
 	return Platform::MainWindow::eventFilter(object, e);
 }
 

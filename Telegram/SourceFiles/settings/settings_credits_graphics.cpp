@@ -626,7 +626,7 @@ void FillCreditOptions(
 			};
 			const auto stars = getStars();
 			const auto textLeft = diffBetweenTextAndStar
-				+ stars.width() / style::DevicePixelRatio();
+				+ qRound(stars.width() / style::DevicePixelRatio());
 			inner->paintRequest(
 			) | rpl::on_next([=](const QRect &rect) {
 				auto p = QPainter(inner);

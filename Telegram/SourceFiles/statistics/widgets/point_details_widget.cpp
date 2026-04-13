@@ -144,7 +144,7 @@ PointDetailsWidget::PointDetailsWidget(
 			const auto stroke = style::ConvertScaleExact(
 				st::statisticsDetailsArrowStroke);
 			_arrow = QImage(
-				QSize(w + stroke, w * 2 + stroke) * style::DevicePixelRatio(),
+				style::DevicePixels(QSize(w + stroke, w * 2 + stroke)),
 				QImage::Format_ARGB32_Premultiplied);
 			_arrow.setDevicePixelRatio(style::DevicePixelRatio());
 			_arrow.fill(Qt::transparent);
@@ -265,7 +265,7 @@ PointDetailsWidget::PointDetailsWidget(
 		const auto fullRect = s.isNull()
 			? Rect(Size(calculatedWidth))
 			: Rect(s);
-		_innerRect = fullRect - st::statisticsDetailsPopupPadding;
+		_innerRect = (fullRect - st::statisticsDetailsPopupPadding).toAlignedRect();
 		_textRect = _innerRect - st::statisticsDetailsPopupMargins;
 		invalidateCache();
 	}, lifetime());
@@ -442,7 +442,7 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 
 	if (_cache.isNull()) {
 		_cache = QImage(
-			size() * style::DevicePixelRatio(),
+			style::DevicePixels(size()),
 			QImage::Format_ARGB32_Premultiplied);
 		_cache.setDevicePixelRatio(style::DevicePixelRatio());
 		_cache.fill(Qt::transparent);

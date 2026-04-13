@@ -2374,8 +2374,8 @@ void Poll::Header::validateTopMediaCache(QSize size) const {
 	}
 	const auto sw = source.width();
 	const auto sh = source.height();
-	const auto tw = size.width() * ratio;
-	const auto th = size.height() * ratio;
+	const auto tw = style::DevicePixels(size.width());
+	const auto th = style::DevicePixels(size.height());
 	if (sw * th != sh * tw) {
 		const auto cropW = std::min(sw, sh * tw / th);
 		const auto cropH = std::min(sh, sw * th / tw);

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "ui/chat/chat_style.h"
+#include "ui/style/style_core_scale.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
@@ -335,6 +336,7 @@ Manager::Manager(
 	_expandedBuffer = _cachedRound.PrepareImage(QSize(
 		_outer.width(),
 		_outer.height() + st::reactionCornerAddedHeightMax));
+	_expandedBuffer.setDevicePixelRatio(style::DevicePixelRatio());
 	if (wheelEventsTarget) {
 		stealWheelEvents(wheelEventsTarget);
 	}
@@ -350,6 +352,20 @@ Manager::Manager(
 }
 
 Manager::~Manager() = default;
+
+void Manager::resetBackgroundCaches() {
+	_cachedRound = Ui::RoundAreaWithShadow(
+		st::reactionCornerSize,
+		st::reactionCornerShadow,
+		_inner.width());
+	_expandedBuffer = _cachedRound.PrepareImage(QSize(
+		_outer.width(),
+		_outer.height() + st::reactionCornerAddedHeightMax));
+	_expandedBuffer.setDevicePixelRatio(style::DevicePixelRatio());
+	_gradientBackground = QColor();
+	_topGradient = QImage();
+	_bottomGradient = QImage();
+}
 
 ChosenReaction Manager::lookupChosen(const ReactionId &id) const {
 	auto result = ChosenReaction{
@@ -613,6 +629,10 @@ void Manager::paintButton(
 	if (opacity == 0.) {
 		return;
 	}
+	if (!_expandedBuffer.isNull()
+		&& _expandedBuffer.devicePixelRatio() != style::DevicePixelRatio()) {
+		resetBackgroundCaches();
+	}
 
 	const auto geometry = button->geometry();
 	const auto position = geometry.topLeft();
@@ -719,7 +739,9 @@ void Manager::paintButton(
 		p.drawImage(
 			geometry,
 			_expandedBuffer,
-			QRect(QPoint(), size * style::DevicePixelRatio()));
+			QRect(
+				QPoint(),
+				style::DevicePixels(size)));
 	}
 	if (opacity != 1.) {
 		p.setOpacity(1.);

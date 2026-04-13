@@ -36,7 +36,7 @@ void PrepareImage(
 	const auto ratio = style::DevicePixelRatio();
 	const auto size = Emoji::GetSizeNormal() / ratio;
 	image = QImage(
-		2 * QSize(size, size) * ratio,
+		2 * style::DevicePixels(QSize(size, size)),
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(ratio);
 	image.fill(Qt::transparent);
@@ -65,7 +65,7 @@ QImage CreateTopBgGradient(
 		bool rounded,
 		QPoint offset) {
 	const auto ratio = style::DevicePixelRatio();
-	auto result = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	auto result = QImage(style::DevicePixels(size), QImage::Format_ARGB32_Premultiplied);
 	if (!rounded) {
 		result.fill(Qt::transparent);
 	}

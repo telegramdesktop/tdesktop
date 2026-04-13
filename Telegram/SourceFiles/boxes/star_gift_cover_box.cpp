@@ -869,11 +869,10 @@ UniqueGiftCoverWidget::~UniqueGiftCoverWidget() = default;
 QImage UniqueGiftCoverWidget::prepareBackdrop(
 		BackdropView &backdrop,
 		const PaintContext &context) {
-	const auto ratio = style::DevicePixelRatio();
 	const auto gradientSize = QSize(
 		context.width,
 		std::max(height(), _state->heightFinal));
-	if (backdrop.gradient.size() != gradientSize * ratio) {
+	if (backdrop.gradient.size() != style::DevicePixels(gradientSize)) {
 		backdrop.gradient = CreateTopBgGradient(
 			gradientSize,
 			backdrop.colors);
@@ -949,11 +948,11 @@ QRect UniqueGiftCoverWidget::prepareCraftFrame(
 		QImage &canvas,
 		const CraftContext &context) {
 	const auto full = this->size();
-	const auto ratio = style::DevicePixelRatio();
 
-	if (canvas.size() != full * ratio) {
-		canvas = QImage(full * ratio, QImage::Format_ARGB32_Premultiplied);
-		canvas.setDevicePixelRatio(ratio);
+	const auto fullPixels = QSize(style::DevicePixels(full));
+	if (canvas.size() != fullPixels) {
+		canvas = QImage(fullPixels, QImage::Format_ARGB32_Premultiplied);
+		canvas.setDevicePixelRatio(style::DevicePixelRatio());
 	}
 
 	LOG(("FULL: %1x%2").arg(full.width()).arg(full.height()));
@@ -1020,7 +1019,9 @@ QRect UniqueGiftCoverWidget::prepareCraftFrame(
 		.patternAreaHeight = pointsHeight,
 	}, bgProgress);
 
-	return QRect(QPoint(), size * ratio);
+	return QRect(
+		QPoint(),
+		style::DevicePixels(size));
 }
 
 bool UniqueGiftCoverWidget::paintGift(
@@ -1196,15 +1197,15 @@ void UniqueGiftCoverWidget::paintSpinnerAnimation(
 				{ 0., QColor(255, 255, 255, 255) },
 				{ 1., QColor(255, 255, 255, 0) },
 			});
-			const auto ratio = int(faded.devicePixelRatio());
-			const auto imgHeight = faded.height() / ratio;
+			const auto ratio = faded.devicePixelRatio();
+			const auto imgHeight = qRound(faded.height() / ratio);
 			q.fillRect(from, 0, fade, imgHeight, brush);
 			q.end();
 
 			p.drawImage(
 				QRect(0, 0, till, imgHeight),
 				faded,
-				QRect(0, 0, till * ratio, faded.height()));
+				QRect(0, 0, style::DevicePixels(till, ratio), faded.height()));
 		}
 	}
 

@@ -160,7 +160,7 @@ QCursor MiddleClickAutoscroll::makeCursor(CursorMode mode) {
 	struct CachedCursor {
 		CursorMode mode = CursorMode::Neutral;
 		int size = 0;
-		int factor = 0;
+		qreal factor = 0;
 		QColor inner;
 		QColor indicator;
 		QCursor cursor;

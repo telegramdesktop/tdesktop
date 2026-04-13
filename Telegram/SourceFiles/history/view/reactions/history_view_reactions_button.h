@@ -201,6 +201,7 @@ private:
 		not_null<Button*> button,
 		int scroll,
 		float64 expandRatio);
+	void resetBackgroundCaches();
 
 	void clearAppearAnimations();
 

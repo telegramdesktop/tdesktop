@@ -307,7 +307,7 @@ void OverlayWidget::RendererGL::paint(
 	const auto factor = widget->devicePixelRatioF();
 	if (_factor != factor) {
 		_factor = factor;
-		_ifactor = int(std::ceil(factor));
+		//_ifactor = int(std::ceil(factor));
 		_controlsImage.invalidate();
 
 		// We use the fact that fade texture atlas
@@ -856,19 +856,19 @@ void OverlayWidget::RendererGL::validateControls() {
 	maxWidth = std::max(st::mediaviewIconOver, maxWidth);
 	fullHeight += st::mediaviewIconOver;
 	auto image = QImage(
-		QSize(maxWidth, fullHeight) * _ifactor,
+		style::DevicePixels(QSize(maxWidth, fullHeight), _factor),
 		QImage::Format_ARGB32_Premultiplied);
 	image.fill(Qt::transparent);
-	image.setDevicePixelRatio(_ifactor);
+	image.setDevicePixelRatio(_factor);
 	{
 		auto p = QPainter(&image);
 		auto index = 0;
 		auto height = 0;
 		for (const auto &meta : metas) {
 			meta.icon->paint(p, 0, height, maxWidth);
-			_controlsTextures[index++] = QRect(
-				QPoint(0, height) * _ifactor,
-				meta.icon->size() * _ifactor);
+			_controlsTextures[index++] = style::DevicePixels(QRect(
+				QPoint(0, height),
+				meta.icon->size()), _factor);
 			height += meta.icon->height();
 		}
 		auto hq = PainterHighQualityEnabler(p);
@@ -876,9 +876,9 @@ void OverlayWidget::RendererGL::validateControls() {
 		p.setBrush(OverBackgroundColor());
 		p.drawEllipse(
 			QRect(0, height, st::mediaviewIconOver, st::mediaviewIconOver));
-		_controlsTextures[index++] = QRect(
-			QPoint(0, height) * _ifactor,
-			QSize(st::mediaviewIconOver, st::mediaviewIconOver) * _ifactor);
+		_controlsTextures[index++] = style::DevicePixels(QRect(
+			QPoint(0, height),
+			QSize(st::mediaviewIconOver, st::mediaviewIconOver)), _factor);
 		height += st::mediaviewIconOver;
 	}
 	_controlsImage.setImage(std::move(image));
@@ -910,10 +910,10 @@ void OverlayWidget::RendererGL::validateControlsFade() {
 	const auto height = bottomTop + bottom.height();
 
 	auto image = QImage(
-		QSize(width, height) * _ifactor,
+		style::DevicePixels(QSize(width, height), _factor),
 		QImage::Format_ARGB32_Premultiplied);
 	image.fill(Qt::transparent);
-	image.setDevicePixelRatio(_ifactor);
+	image.setDevicePixelRatio(_factor);
 
 	auto p = QPainter(&image);
 	top.paint(p, 0, 0, width);
@@ -1102,18 +1102,18 @@ void OverlayWidget::RendererGL::paintUsingRaster(
 		int bufferOffset,
 		bool transparent) {
 	auto raster = image.takeImage();
-	const auto size = rect.size() * _ifactor;
+	const auto size = style::DevicePixels(rect.size(), _factor);
 	if (raster.width() < size.width() || raster.height() < size.height()) {
 		raster = QImage(size, QImage::Format_ARGB32_Premultiplied);
 		Assert(!raster.isNull());
-		raster.setDevicePixelRatio(_ifactor);
+		raster.setDevicePixelRatio(_factor);
 		if (!transparent
 			&& (raster.width() > size.width()
 				|| raster.height() > size.height())) {
 			raster.fill(Qt::transparent);
 		}
-	} else if (raster.devicePixelRatio() != _ifactor) {
-		raster.setDevicePixelRatio(_ifactor);
+	} else if (raster.devicePixelRatio() != _factor) {
+		raster.setDevicePixelRatio(_factor);
 	}
 
 	if (transparent) {
@@ -1229,11 +1229,11 @@ void OverlayWidget::RendererGL::paintRecognitionOverlay(
 	for (const auto &item : _owner->_recognitionResult.items) {
 		const auto &r = item.rect;
 		const auto lightRect = QRectF(
-			imageTopLeft.x() + r.left() * _ifactor * scale,
+			imageTopLeft.x() + r.left() * _factor * scale,
 			imageTopLeft.y()
-				+ (image.height() - (r.y() + r.height()) * _ifactor) * scale,
-			r.width() * _ifactor * scale,
-			r.height() * _ifactor * scale);
+				+ (image.height() - (r.y() + r.height()) * _factor) * scale,
+			r.width() * _factor * scale,
+			r.height() * _factor * scale);
 		const auto tl = rotated(lightRect.left(), lightRect.top());
 		const auto tr = rotated(lightRect.right(), lightRect.top());
 		const auto br = rotated(lightRect.right(), lightRect.bottom());

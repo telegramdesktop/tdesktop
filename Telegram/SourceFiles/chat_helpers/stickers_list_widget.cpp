@@ -1718,16 +1718,19 @@ void StickersListWidget::paintSticker(
 		(_singleSize.height() - size.height()) / 2);
 
 	auto lottieFrame = QImage();
+	if (!sticker.savedFrame.isNull()
+		&& qAbs(sticker.savedFrame.devicePixelRatio()
+			- style::DevicePixelRatio()) >= 0.001) {
+		sticker.savedFrame = QImage();
+		sticker.savedFrameFor = QSize();
+	}
 	if (sticker.lottie && sticker.lottie->ready()) {
 		auto request = Lottie::FrameRequest();
-		request.box = boundingBoxSize() * style::DevicePixelRatio();
+		request.box = style::DevicePixels(boundingBoxSize());
 		lottieFrame = sticker.lottie->frame(request);
-		p.drawImage(
-			QRect(ppos, lottieFrame.size() / style::DevicePixelRatio()),
-			lottieFrame);
+		p.drawImage(QRect(ppos, size), lottieFrame);
 		if (sticker.savedFrame.isNull()) {
 			sticker.savedFrame = lottieFrame;
-			sticker.savedFrame.setDevicePixelRatio(style::DevicePixelRatio());
 			sticker.savedFrameFor = _singleSize;
 		}
 		set.lottiePlayer->unpause(sticker.lottie);
@@ -1740,7 +1743,7 @@ void StickersListWidget::paintSticker(
 			sticker.savedFrame.setDevicePixelRatio(style::DevicePixelRatio());
 			sticker.savedFrameFor = _singleSize;
 		}
-		p.drawImage(ppos, frame);
+		p.drawImage(QRect(ppos, size), frame);
 	} else {
 		const auto image = media->getStickerSmall();
 		const auto useSavedFrame = !sticker.savedFrame.isNull()
@@ -1756,11 +1759,13 @@ void StickersListWidget::paintSticker(
 			if (sticker.savedFrame.isNull()) {
 				sticker.savedFrame = pixmap.toImage().convertToFormat(
 					QImage::Format_ARGB32_Premultiplied);
+				sticker.savedFrame.setDevicePixelRatio(style::DevicePixelRatio());
 				sticker.savedFrameFor = _singleSize;
 			}
 			if (premium) {
 				lottieFrame = pixmap.toImage().convertToFormat(
 					QImage::Format_ARGB32_Premultiplied);
+				lottieFrame.setDevicePixelRatio(style::DevicePixelRatio());
 			}
 		} else {
 			p.setOpacity(1.);
@@ -1802,7 +1807,9 @@ void StickersListWidget::paintSticker(
 			const auto radius = st::roundRadiusSmall;
 			const auto position = pos
 				+ QPoint(_singleSize.width(), _singleSize.height())
-				- QPoint(size / ratio + radius, size / ratio + radius);
+				- QPoint(
+					base::SafeRound(size / ratio) + radius,
+					base::SafeRound(size / ratio) + radius);
 			Ui::Emoji::Draw(p, emoji, size, position.x(), position.y());
 			cornerPainted = true;
 		}

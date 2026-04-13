@@ -8,20 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge_paint.h"
 
 #include "ui/ui_utility.h"
+#include "ui/painter.h"
 #include "styles/style_dialogs.h"
 
 namespace Ui {
 namespace {
 
-struct UnreadBadgeSizeData {
-	QImage circle;
-	QPixmap left[6], right[6];
-};
 class UnreadBadgeStyleData {
 public:
-	UnreadBadgeStyleData();
-
-	UnreadBadgeSizeData sizes[static_cast<int>(UnreadBadgeSize::kCount)];
 	style::color bg[6] = {
 		st::dialogsUnreadBg,
 		st::dialogsUnreadBgOver,
@@ -69,7 +63,8 @@ UnreadBadgeStyleData &UnreadBadgeStyles() {
 }
 
 void CreateCircleMask(UnreadBadgeSizeData *data, int size) {
-	if (!data->circle.isNull()) {
+	if (!data->circle.isNull()
+		&& qAbs(data->circle.devicePixelRatio() - style::DevicePixelRatio()) < 0.001) {
 		return;
 	}
 	data->circle = style::createCircleMask(size);
@@ -98,8 +93,7 @@ void PaintUnreadBadge(QPainter &p, const QRect &rect, const UnreadBadgeStyle &st
 	Assert(rect.height() == st.size);
 
 	int index = (st.muted ? 0x03 : 0x00) + (st.active ? 0x02 : (st.selected ? 0x01 : 0x00));
-	int size = st.size, sizehalf = size / 2;
-
+	int size = st.size;
 	auto &styles = UnreadBadgeStyles();
 	auto badgeData = styles.sizes;
 	if (st.sizeId > UnreadBadgeSize()) {
@@ -111,9 +105,12 @@ void PaintUnreadBadge(QPainter &p, const QRect &rect, const UnreadBadgeStyle &st
 		: (st.sizeId == UnreadBadgeSize::PollInDialogs)
 		? styles.pollBg[index]
 		: styles.bg[index];
-	if (badgeData->left[index].isNull()) {
-		const auto ratio = style::DevicePixelRatio();
-		int imgsize = size * ratio, imgsizehalf = sizehalf * ratio;
+	if (badgeData->left[index].isNull()
+		|| qAbs(
+			badgeData->left[index].devicePixelRatio()
+				- style::DevicePixelRatio()) >= 0.001) {
+		const auto imgsize = style::DevicePixels(size);
+		const auto imgsizehalf = style::DevicePixels(sizehalf);
 		CreateCircleMask(badgeData, size);
 		badgeData->left[index] = PixmapFromImage(
 			ColorizeCircleHalf(badgeData, imgsize, imgsizehalf, 0, bg));

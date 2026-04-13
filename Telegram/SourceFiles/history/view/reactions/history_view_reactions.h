@@ -139,6 +139,8 @@ private:
 		float64 opacity) const;
 
 	void validateTagBg(const QColor &color) const;
+	void resetOnDevicePixelRatioChange() const;
+	[[nodiscard]] int currentDprKey() const;
 
 	QSize countOptimalSize() override;
 	[[nodiscard]] Dimension countDimension(int width) const;
@@ -153,6 +155,7 @@ private:
 	mutable QColor _tagBgColor;
 	mutable QImage _customCache;
 	mutable int _customSkip = 0;
+	mutable int _dprKey = 0;
 	bool _hasCustomEmoji = false;
 	mutable std::unique_ptr<RippleEffect> _ripple;
 	mutable QPoint _lastPoint;

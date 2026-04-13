@@ -54,15 +54,15 @@ AlbumThumbnail::AlbumThumbnail(
 	const auto previewWidth = _fullPreview.width();
 	const auto previewHeight = _fullPreview.height();
 	const auto imageWidth = std::max(
-		previewWidth / style::DevicePixelRatio(),
+		previewWidth ,
 		st::minPhotoSize);
 	const auto imageHeight = std::max(
-		previewHeight / style::DevicePixelRatio(),
+		previewHeight ,
 		st::minPhotoSize);
 	_photo = PixmapFromImage(Images::Prepare(
 		_fullPreview,
 		QSize(previewWidth, previewHeight),
-		{
+		Images::PrepareArgs{
 			.options = Option::RoundLarge,
 			.outer = { imageWidth, imageHeight },
 		}));
@@ -344,12 +344,13 @@ void AlbumThumbnail::prepareCache(QSize size, int shrink) {
 	const auto height = std::max(
 		_layout.geometry.height(),
 		_animateFromGeometry ? _animateFromGeometry->height() : 0);
-	const auto cacheSize = QSize(width, height) * style::DevicePixelRatio();
+	const auto ratio = style::DevicePixelRatio();
+	const auto cacheSize = style::DevicePixels(QSize(width, height));
 
 	if (_albumCache.width() < cacheSize.width()
 		|| _albumCache.height() < cacheSize.height()) {
 		_albumCache = QImage(cacheSize, QImage::Format_ARGB32_Premultiplied);
-		_albumCache.setDevicePixelRatio(style::DevicePixelRatio());
+		_albumCache.setDevicePixelRatio(ratio);
 	}
 	_albumCache.fill(Qt::transparent);
 	{
@@ -363,7 +364,9 @@ void AlbumThumbnail::prepareCache(QSize size, int shrink) {
 		std::move(_albumCache),
 		ImageRoundRadius::Large,
 		_albumCorners,
-		QRect(QPoint(), size * style::DevicePixelRatio()));
+		QRect(
+			QPoint(),
+			style::DevicePixels(QSize(width, height))));
 }
 
 void AlbumThumbnail::drawSimpleFrame(QPainter &p, QRect to, QSize size) const {

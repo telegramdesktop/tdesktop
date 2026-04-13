@@ -614,7 +614,7 @@ void BackgroundRow::radialAnimationCallback(crl::time now) {
 
 void BackgroundRow::updateImage() {
 	const auto size = st::settingsBackgroundThumb;
-	const auto fullsize = size * style::DevicePixelRatio();
+	const auto fullsize = qRound(size * style::DevicePixelRatio());
 
 	const auto &background = *Window::Theme::Background();
 	const auto &paper = background.paper();
@@ -2787,9 +2787,8 @@ void SetupThemeSettings(
 			Window::Theme::DefaultChatThemeOn(container->lifetime()));
 		const auto generateBg = [=] {
 			const auto size = st::boxWidth;
-			const auto ratio = style::DevicePixelRatio();
 			auto result = QImage(
-				QSize(size, size) * ratio,
+				style::DevicePixels(QSize(size, size)),
 				QImage::Format_ARGB32_Premultiplied);
 			auto p = QPainter(&result);
 			Window::SectionWidget::PaintBackground(

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/stickers_emoji_image_loader.h"
 
+#include "base/algorithm.h"
 #include "styles/style_chat.h"
 
 #include <QtCore/QtMath>
@@ -33,8 +34,9 @@ QImage EmojiImageLoader::prepare(EmojiPtr emoji) const {
 	const auto factor = style::DevicePixelRatio();
 	const auto side = st::largeEmojiSize + 2 * st::largeEmojiOutline;
 	auto tinted = QImage(
-		QSize(st::largeEmojiSize, st::largeEmojiSize) * factor,
+		style::DevicePixels(QSize(st::largeEmojiSize, st::largeEmojiSize)),
 		QImage::Format_ARGB32_Premultiplied);
+	tinted.setDevicePixelRatio(factor);
 	tinted.fill(Qt::white);
 	if (loaded) {
 		QPainter p(&tinted);
@@ -42,17 +44,18 @@ QImage EmojiImageLoader::prepare(EmojiPtr emoji) const {
 		_images->draw(
 			p,
 			emoji,
-			st::largeEmojiSize * factor,
+			style::DevicePixels(st::largeEmojiSize),
 			0,
 			0);
 	}
 	auto result = QImage(
-		QSize(side, side) * factor,
+		style::DevicePixels(QSize(side, side)),
 		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(factor);
 	result.fill(Qt::transparent);
 	if (loaded) {
 		QPainter p(&result);
-		const auto delta = st::largeEmojiOutline * factor;
+		const auto delta = style::DevicePixels(st::largeEmojiOutline);
 		const auto planar = std::array<QPoint, 4>{ {
 			{ 0, -1 },
 			{ -1, 0 },
@@ -79,7 +82,7 @@ QImage EmojiImageLoader::prepare(EmojiPtr emoji) const {
 		_images->draw(
 			p,
 			emoji,
-			st::largeEmojiSize * factor,
+			style::DevicePixels(st::largeEmojiSize),
 			delta,
 			delta);
 	}

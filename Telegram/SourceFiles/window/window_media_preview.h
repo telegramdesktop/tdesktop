@@ -51,6 +51,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void devicePixelRatioChangedEvent() override;
 
 private:
 	void validateGifAnimation();

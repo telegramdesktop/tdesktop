@@ -159,6 +159,7 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void devicePixelRatioChangedEvent() override;
 	bool eventHook(QEvent *e) override;
 
 	void processHideFinished() override;

@@ -652,10 +652,9 @@ void ShowSentToast(
 
 	const auto bytes = document->createMediaView()->bytes();
 	const auto filepath = document->filepath();
-	const auto ratio = style::DevicePixelRatio();
 	const auto player = preview->lifetime().make_state<Lottie::SinglePlayer>(
 		Lottie::ReadContent(bytes, filepath),
-		Lottie::FrameRequest{ QSize(size, size) * ratio },
+		Lottie::FrameRequest{ style::DevicePixels(QSize(size, size)) },
 		Lottie::Quality::Default);
 
 	preview->paintRequest(
@@ -665,7 +664,11 @@ void ShowSentToast(
 		}
 		const auto image = player->frame();
 		QPainter(preview).drawImage(
-			QRect(QPoint(), image.size() / ratio),
+			QRect(
+				QPoint(),
+				QSize(
+					style::LogicalPixels(image.width()),
+					style::LogicalPixels(image.height()))),
 			image);
 		if (player->frameIndex() + 1 != player->framesCount()) {
 			player->markFrameShown();
@@ -2488,8 +2491,7 @@ void AddWearGiftCover(
 
 		const auto width = cover->width();
 		const auto pointsHeight = st::uniqueGiftSubtitleTop;
-		const auto ratio = style::DevicePixelRatio();
-		if (state->gradient.size() != cover->size() * ratio) {
+		if (state->gradient.size() != style::DevicePixels(cover->size())) {
 			state->gradient = Ui::CreateTopBgGradient(
 				cover->size(),
 				state->gift);

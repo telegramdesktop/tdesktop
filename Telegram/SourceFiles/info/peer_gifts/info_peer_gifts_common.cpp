@@ -602,8 +602,8 @@ bool GiftButton::makeCraftFrameIsFinal(
 		QImage &frame,
 		float64 progress) {
 	const auto ratio = style::DevicePixelRatio();
-	if (frame.size() != size() * ratio) {
-		frame = QImage(size() * ratio, QImage::Format_ARGB32_Premultiplied);
+	if (frame.size() != style::DevicePixels(size())) {
+		frame = QImage(style::DevicePixels(size()), QImage::Format_ARGB32_Premultiplied);
 		frame.setDevicePixelRatio(ratio);
 	}
 	if (progress < 1.) {
@@ -632,9 +632,9 @@ void GiftButton::cacheUniqueBackground(
 		extend
 	).translated(-extend.left(), -extend.top());
 	const auto ratio = style::DevicePixelRatio();
-	if (_uniqueBackgroundCache.size() != inner.size() * ratio) {
+	if (_uniqueBackgroundCache.size() != style::DevicePixels(inner.size())) {
 		_uniqueBackgroundCache = QImage(
-			inner.size() * ratio,
+			style::DevicePixels(inner.size()),
 			QImage::Format_ARGB32_Premultiplied);
 		_uniqueBackgroundCache.fill(Qt::transparent);
 		_uniqueBackgroundCache.setDevicePixelRatio(ratio);
@@ -701,16 +701,15 @@ void GiftButton::paintEvent(QPaintEvent *e) {
 		paint(p);
 		return;
 	}
-	const auto ratio = style::DevicePixelRatio();
-	const auto w = width() * ratio;
-	const auto h = height() * ratio;
+	const auto w = style::DevicePixels(width());
+	const auto h = style::DevicePixels(height());
 	auto cache = _delegate->craftUnavailableFrameCache(this, canCraftAt);
 	if (cache.width() < w || cache.height() < h) {
 		cache = QImage(
 			std::max(w, cache.width()),
 			std::max(h, cache.height()),
 			QImage::Format_ARGB32_Premultiplied);
-		cache.setDevicePixelRatio(ratio);
+		cache.setDevicePixelRatio(style::DevicePixelRatio());
 	}
 	cache.fill(Qt::transparent);
 	auto q = QPainter(&cache);
@@ -1403,13 +1402,13 @@ QImage ValidateRotatedBadge(
 	}
 
 	auto scaled = image.scaled(
-		QSize(size, size) * ratio,
+		style::DevicePixels(QSize(size, size)),
 		Qt::IgnoreAspectRatio,
 		Qt::SmoothTransformation);
 	scaled.setDevicePixelRatio(ratio);
 
 	auto result = QImage(
-		QSize(size, size) * ratio,
+		style::DevicePixels(QSize(size, size)),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);

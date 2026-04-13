@@ -109,19 +109,19 @@ int PaintRightButtonImpl(QPainter &p, const PaintContext &context) {
 	if (const auto rightButton = context.rightButton) {
 		Assert(rightButton->st != nullptr);
 
-		const auto size = rightButton->bg.size() / style::DevicePixelRatio();
+		const auto bg = context.active
+			? rightButton->activeBg
+			: context.selected
+			? rightButton->selectedBg
+			: rightButton->bg;
+		const auto size = QSize(
+			qRound(bg.width() / bg.devicePixelRatio()),
+			qRound(bg.height() / bg.devicePixelRatio()));
 		const auto left = context.width
 			- size.width()
 			- rightButton->st->margin.right();
 		const auto top = rightButton->st->margin.top();
-		p.drawImage(
-			left,
-			top,
-			context.active
-				? rightButton->activeBg
-				: context.selected
-				? rightButton->selectedBg
-				: rightButton->bg);
+		p.drawImage(left, top, bg);
 		if (rightButton->ripple) {
 			rightButton->ripple->paint(
 				p,
@@ -624,7 +624,7 @@ void PaintRow(
 				availableWidth,
 				context.width,
 				color,
-				context.paused)) {
+				context.now)) {
 			auto &cache = thread->cloudDraftTextCache();
 			if (cache.isEmpty()) {
 				using namespace TextUtilities;
@@ -927,7 +927,7 @@ void PaintRow(
 		for (const auto &tag : *tags) {
 			p.drawImage(left, context.st->tagTop, *tag);
 			left += st::dialogRowFilterTagSkip
-				+ (tag->width() / style::DevicePixelRatio());
+				+ qRound(tag->width() / tag->devicePixelRatio());
 		}
 	}
 	if (swipeTranslation) {

@@ -91,11 +91,12 @@ auto ServiceCheck::Generator::framesForStyle(
 	const auto result = &_data.emplace(st, Frames()).first->second;
 	const auto size = st->diameter;
 	const auto count = (st->duration / kAnimationTimerDelta) + 2;
+	const auto ratio = style::DevicePixelRatio();
 	result->image = QImage(
-		QSize(count * size, size) * style::DevicePixelRatio(),
+		style::DevicePixels(QSize(count * size, size)),
 		QImage::Format_ARGB32_Premultiplied);
 	result->image.fill(Qt::transparent);
-	result->image.setDevicePixelRatio(style::DevicePixelRatio());
+	result->image.setDevicePixelRatio(ratio);
 	result->ready.resize(count);
 	return result;
 }

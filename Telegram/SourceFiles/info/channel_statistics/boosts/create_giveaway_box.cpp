@@ -595,7 +595,7 @@ void CreateGiveawayBox(
 				(i + 1));
 			const auto textLeft = st.photoPosition.x()
 				+ (st.nameStyle.font->spacew * 2)
-				+ (stars.width() / style::DevicePixelRatio());
+				+ qRound(stars.width() / style::DevicePixelRatio());
 			state->sliderValue.value(
 			) | rpl::on_next([=](int users) {
 				const auto option = creditsOption(i);

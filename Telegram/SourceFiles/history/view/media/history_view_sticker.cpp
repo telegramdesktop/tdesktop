@@ -349,7 +349,7 @@ void Sticker::paintAnimationFrame(
 			base::duplicate(image),
 			context.st->msgStickerOverlay()->c)
 		: image;
-	const auto size = prepared.size() / style::DevicePixelRatio();
+	const auto size = _size;
 	p.drawImage(
 		QRect(
 			QPoint(
@@ -452,7 +452,8 @@ QPixmap Sticker::paintedPixmap(const PaintContext &context) const {
 	const auto sticker = _data->sticker();
 	const auto ratio = style::DevicePixelRatio();
 	const auto adjust = [&](int side) {
-		return (((side * ratio) / 8) * 8) / ratio;
+		const auto scaled = style::DevicePixels(side, ratio);
+		return qRound(((scaled / 8) * 8) / ratio);
 	};
 	const auto useSize = (sticker && sticker->type == StickerType::Tgs)
 		? QSize(adjust(_size.width()), adjust(_size.height()))
@@ -625,7 +626,8 @@ void Sticker::setupPlayer() {
 				_dataMedia.get(),
 				_replacements,
 				_cachingTag,
-				countOptimalSize() * style::DevicePixelRatio(),
+				QSize(style::DevicePixels(
+					countOptimalSize())),
 				Lottie::Quality::High));
 	} else if (_data->sticker()->isWebm()) {
 		_player = std::make_unique<WebmPlayer>(

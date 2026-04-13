@@ -343,9 +343,9 @@ void StickersListFooter::paintExpanding(
 }
 
 int StickersListFooter::IconFrameSize() {
-	return Data::FrameSizeFromTag(
+	return style::LogicalPixels(Data::FrameSizeFromTag(
 		Data::CustomEmojiManager::SizeTag::SetIcon
-	) / style::DevicePixelRatio();
+	));
 }
 
 void StickersListFooter::enumerateVisibleIcons(
@@ -642,7 +642,7 @@ void StickersListFooter::paint(
 	paintSelectionBg(p, context);
 
 	const auto iconCacheSize = QSize(_singleWidth, st().footer);
-	const auto full = iconCacheSize * style::DevicePixelRatio();
+	const auto full = style::DevicePixels(iconCacheSize);
 	if (_setIconCache.size() != full) {
 		_setIconCache = QImage(full, QImage::Format_ARGB32_Premultiplied);
 		_setIconCache.setDevicePixelRatio(style::DevicePixelRatio());
@@ -933,6 +933,22 @@ bool StickersListFooter::eventHook(QEvent *e) {
 	return InnerFooter::eventHook(e);
 }
 
+void StickersListFooter::devicePixelRatioChangedEvent() {
+	_setIconCache = QImage();
+	_fadeLeftCache = QImage();
+	_fadeRightCache = QImage();
+	_fadeMask = QImage();
+	for (auto &icon : _icons) {
+		if (icon.custom) {
+			icon.custom->unload();
+			icon.custom.reset();
+		}
+	}
+	_iconState.animation.stop();
+	_subiconState.animation.stop();
+	update();
+}
+
 void StickersListFooter::scrollByWheelEvent(
 		not_null<QWheelEvent*> e) {
 	auto horizontal = (e->angleDelta().x() != 0);
@@ -1190,7 +1206,7 @@ void StickersListFooter::validateIconLottieAnimation(
 		icon.thumbnailMedia.get(),
 		icon.stickerMedia.get(),
 		StickerLottieSize::StickersFooter,
-		QSize(icon.pixw, icon.pixh) * style::DevicePixelRatio(),
+		style::DevicePixels(QSize(icon.pixw, icon.pixh)),
 		_renderer());
 	if (!player) {
 		return;
@@ -1356,11 +1372,9 @@ void StickersListFooter::paintSetIconToCache(
 			});
 		} else if (icon.lottie && icon.lottie->ready()) {
 			const auto frame = icon.lottie->frame();
-			const auto size = frame.size() / style::DevicePixelRatio();
+			const auto size = style::LogicalPixels(frame.size());
 			if (icon.savedFrame.isNull()) {
 				icon.savedFrame = frame;
-				icon.savedFrame.setDevicePixelRatio(
-					style::DevicePixelRatio());
 			}
 			p.drawImage(
 				QRect(
@@ -1382,6 +1396,10 @@ void StickersListFooter::paintSetIconToCache(
 					style::DevicePixelRatio());
 			}
 			p.drawImage(x, y, frame);
+		} else if (!icon.savedFrame.isNull()
+			&& qAbs(icon.savedFrame.devicePixelRatio()
+				- style::DevicePixelRatio()) >= 0.001) {
+			icon.savedFrame = QImage();
 		} else if (!icon.savedFrame.isNull()) {
 			p.drawImage(x, y, icon.savedFrame);
 		} else if (thumb) {

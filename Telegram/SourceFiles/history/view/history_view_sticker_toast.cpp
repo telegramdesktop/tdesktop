@@ -328,10 +328,9 @@ void StickerToast::setupLottiePreview(not_null<Ui::RpWidget*> widget, int size) 
 
 	const auto bytes = _for->createMediaView()->bytes();
 	const auto filepath = _for->filepath();
-	const auto ratio = style::DevicePixelRatio();
 	const auto player = widget->lifetime().make_state<Lottie::SinglePlayer>(
 		Lottie::ReadContent(bytes, filepath),
-		Lottie::FrameRequest{ QSize(size, size) * ratio },
+		Lottie::FrameRequest{ style::DevicePixels(QSize(size, size)) },
 		Lottie::Quality::Default);
 
 	widget->paintRequest(
@@ -340,8 +339,13 @@ void StickerToast::setupLottiePreview(not_null<Ui::RpWidget*> widget, int size) 
 			return;
 		}
 		const auto image = player->frame();
+		const auto imageRatio = image.devicePixelRatio();
 		QPainter(widget).drawImage(
-			QRect(QPoint(), image.size() / ratio),
+			QRect(
+				QPoint(),
+				QSize(
+					qRound(image.width() / imageRatio),
+					qRound(image.height() / imageRatio))),
 			image);
 		player->markFrameShown();
 	}, widget->lifetime());

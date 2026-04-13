@@ -244,11 +244,10 @@ void Row::refreshStatus() {
 	const auto width = font->width(text);
 	const auto inner = QRect(0, 0, width, font->height);
 	const auto outer = inner.marginsAdded(padding);
-	const auto ratio = style::DevicePixelRatio();
 	_badge = QImage(
-		outer.size() * ratio,
+		style::DevicePixels(outer.size()),
 		QImage::Format_ARGB32_Premultiplied);
-	_badge.setDevicePixelRatio(ratio);
+	_badge.setDevicePixelRatio(style::DevicePixelRatio());
 	_badge.fill(Qt::transparent);
 
 	auto p = QPainter(&_badge);
@@ -323,7 +322,7 @@ void ListController::setupLinkBadge() {
 	const auto size = QSize(side, side);
 	const auto ratio = style::DevicePixelRatio();
 
-	_linkBadge = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	_linkBadge = QImage(style::DevicePixels(size), QImage::Format_ARGB32_Premultiplied);
 	_linkBadge.setDevicePixelRatio(ratio);
 	_linkBadge.fill(Qt::transparent);
 

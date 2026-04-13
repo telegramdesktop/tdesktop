@@ -1039,10 +1039,11 @@ void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString le
 	auto userpic = Ui::EmptyUserpic(colors, letters);
 
 	const auto size = st::defaultDialogRow.photoSize;
+	const auto ratio = style::DevicePixelRatio();
 	auto image = QImage(
-		QSize(size, size) * style::DevicePixelRatio(),
+		style::DevicePixels(QSize(size, size)),
 		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(style::DevicePixelRatio());
+	image.setDevicePixelRatio(ratio);
 	image.fill(Qt::transparent);
 	{
 		Painter p(&image);
@@ -1175,10 +1176,13 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 		currentInt = *lastLineInts;
 		++maxSize;
 	}
-	if (maxSize % style::DevicePixelRatio()) {
-		maxSize -= (maxSize % style::DevicePixelRatio());
+	const auto ratio = std::max(
+		1,
+		int(base::SafeRound(style::DevicePixelRatio())));
+	if (maxSize % ratio) {
+		maxSize -= (maxSize % ratio);
 	}
-	auto size = maxSize / style::DevicePixelRatio();
+	auto size = maxSize / ratio;
 	auto bottom = size;
 	auto left = size - st::windowShadowShift;
 	auto right = left;

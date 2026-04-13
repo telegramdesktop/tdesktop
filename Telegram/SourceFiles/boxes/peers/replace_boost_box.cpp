@@ -668,12 +668,12 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 		return !state->buttons.empty();
 	}) | rpl::on_next([=] {
 		const auto outerw = overlay->width();
-		const auto ratio = style::DevicePixelRatio();
-		if (state->layer.size() != QSize(outerw, full) * ratio) {
+		const auto layerSize = style::DevicePixels(QSize(outerw, full));
+		if (state->layer.size() != layerSize) {
 			state->layer = QImage(
-				QSize(outerw, full) * ratio,
+				layerSize,
 				QImage::Format_ARGB32_Premultiplied);
-			state->layer.setDevicePixelRatio(ratio);
+			state->layer.setDevicePixelRatio(style::DevicePixelRatio());
 		}
 		state->layer.fill(Qt::transparent);
 
@@ -821,12 +821,12 @@ object_ptr<Ui::RpWidget> CreateUserpicsWithMoreBadge(
 		return !state->buttons.empty();
 	}) | rpl::on_next([=, &st] {
 		const auto outerw = overlay->width();
-		const auto ratio = style::DevicePixelRatio();
-		if (state->layer.size() != QSize(outerw, full) * ratio) {
+		const auto layerSize = style::DevicePixels(QSize(outerw, full));
+		if (state->layer.size() != layerSize) {
 			state->layer = QImage(
-				QSize(outerw, full) * ratio,
+				layerSize,
 				QImage::Format_ARGB32_Premultiplied);
-			state->layer.setDevicePixelRatio(ratio);
+			state->layer.setDevicePixelRatio(style::DevicePixelRatio());
 		}
 		state->layer.fill(Qt::transparent);
 
@@ -922,13 +922,12 @@ public:
 			[[maybe_unused]] const auto preload = _patternEmoji->ready();
 		}
 		const auto inner = QRect(0, 0, size, size);
-		const auto ratio = style::DevicePixelRatio();
-		if (_backgroundCache.size() != inner.size() * ratio) {
+		if (_backgroundCache.size() != style::DevicePixels(inner.size())) {
 			_backgroundCache = QImage(
-				inner.size() * ratio,
+				style::DevicePixels(inner.size()),
 				QImage::Format_ARGB32_Premultiplied);
 			_backgroundCache.fill(Qt::transparent);
-			_backgroundCache.setDevicePixelRatio(ratio);
+			_backgroundCache.setDevicePixelRatio(style::DevicePixelRatio());
 
 			const auto radius = st::giftBoxGiftRadius;
 			auto p = QPainter(&_backgroundCache);
@@ -1005,9 +1004,10 @@ private:
 		const auto ideal = st::boostReplaceUserpic.photoSize;
 		const auto scale = size / float64(ideal);
 		const auto ratio = style::DevicePixelRatio();
-		if (state->layer.size() != QSize(ideal, ideal) * ratio) {
+		const auto layerSize = style::DevicePixels(QSize(ideal, ideal));
+		if (state->layer.size() != layerSize) {
 			state->layer = QImage(
-				QSize(ideal, ideal) * ratio,
+				layerSize,
 				QImage::Format_ARGB32_Premultiplied);
 			state->layer.setDevicePixelRatio(ratio);
 		}
@@ -1074,12 +1074,12 @@ object_ptr<Ui::RpWidget> CreateGiftTransfer(
 	overlay->paintRequest(
 	) | rpl::on_next([=] {
 		const auto outerw = overlay->width();
-		const auto ratio = style::DevicePixelRatio();
-		if (state->layer.size() != QSize(outerw, full) * ratio) {
+		const auto layerSize = style::DevicePixels(QSize(outerw, full));
+		if (state->layer.size() != layerSize) {
 			state->layer = QImage(
-				QSize(outerw, full) * ratio,
+				layerSize,
 				QImage::Format_ARGB32_Premultiplied);
-			state->layer.setDevicePixelRatio(ratio);
+			state->layer.setDevicePixelRatio(style::DevicePixelRatio());
 		}
 		state->layer.fill(Qt::transparent);
 
@@ -1108,4 +1108,3 @@ object_ptr<Ui::RpWidget> CreateGiftTransfer(
 	}, overlay->lifetime());
 	return result;
 }
-

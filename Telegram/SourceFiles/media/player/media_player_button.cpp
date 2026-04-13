@@ -397,12 +397,10 @@ void SettingsButton::paintEvent(QPaintEvent *e) {
 }
 
 void SettingsButton::prepareFrame() {
-	const auto ratio = style::DevicePixelRatio();
-	if (_frameCache.size() != _st.size * ratio) {
-		_frameCache = QImage(
-			_st.size * ratio,
-			QImage::Format_ARGB32_Premultiplied);
-		_frameCache.setDevicePixelRatio(ratio);
+	const auto size = style::DevicePixels(_st.size);
+	if (_frameCache.size() != size) {
+		_frameCache = QImage(size, QImage::Format_ARGB32_Premultiplied);
+		_frameCache.setDevicePixelRatio(style::DevicePixelRatio());
 	}
 	_frameCache.fill(Qt::transparent);
 	auto p = QPainter(&_frameCache);

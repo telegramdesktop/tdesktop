@@ -74,6 +74,7 @@ public:
 private:
 	int resizeGetHeight(int newWidth) override;
 	void wheelEvent(QWheelEvent *e) override;
+	void devicePixelRatioChangedEvent() override;
 
 	[[nodiscard]] int clampGroupsLeft(int width, int desiredLeft) const;
 	void moveGroupsBy(int width, int delta);

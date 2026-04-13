@@ -58,10 +58,11 @@ void GradientButton::paintGlare(QPainter &p) {
 	if (x > edgeWidth && x < (width() - edgeWidth)) {
 		p.drawTiledPixmap(x, 0, _glare.width, h, _glare.pixmap, 0, 0);
 	} else {
+		const auto ratio = style::DevicePixelRatio();
 		auto frame = QImage(
-			QSize(_glare.width, h) * style::DevicePixelRatio(),
+			style::DevicePixels(QSize(_glare.width, h)),
 			QImage::Format_ARGB32_Premultiplied);
-		frame.setDevicePixelRatio(style::DevicePixelRatio());
+		frame.setDevicePixelRatio(ratio);
 		frame.fill(Qt::transparent);
 
 		{

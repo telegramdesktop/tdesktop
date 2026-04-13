@@ -2827,9 +2827,9 @@ void CheckBoostLevel(
 ButtonWithEmoji ButtonStyleWithRightEmoji(
 		not_null<Ui::RpWidget*> parent,
 		const QString &noneString,
-		const style::SettingsButton &parentSt) {
+	const style::SettingsButton &parentSt) {
 	const auto ratio = style::DevicePixelRatio();
-	const auto emojiWidth = Data::FrameSizeFromTag({}) / ratio;
+	const auto emojiWidth = qRound(Data::FrameSizeFromTag({}) / ratio);
 
 	const auto noneWidth = st::normalFont->width(noneString);
 

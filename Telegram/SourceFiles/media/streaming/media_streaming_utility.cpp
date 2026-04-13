@@ -312,10 +312,9 @@ QImage PrepareBlurredBackground(QSize outer, QImage frame) {
 void FillBlurredBackground(QPainter &p, QSize outer, QImage bg) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto rect = QRect(QPoint(), outer);
-	const auto ratio = p.device()->devicePixelRatio();
 	p.drawImage(
 		rect,
-		PrepareBlurredBackground(outer * ratio, std::move(bg)));
+		PrepareBlurredBackground(style::DevicePixels(outer), std::move(bg)));
 	p.fillRect(rect, QColor(0, 0, 0, 48));
 }
 

@@ -26,7 +26,17 @@ void EnsureCorners(
 		int radius,
 		const style::color &color,
 		const style::color *shadow = nullptr) {
-	if (corners.p[0].isNull()) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto mismatch = [&] {
+		for (const auto &pix : corners.p) {
+			if (!pix.isNull()
+				&& qAbs(pix.devicePixelRatio() - ratio) >= 0.001) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	if (corners.p[0].isNull() || mismatch) {
 		corners = PrepareCornerPixmaps(radius, color, shadow);
 	}
 }
@@ -1201,7 +1211,7 @@ void FillComplexOverlayRect(
 	using namespace Images;
 
 	const auto pix = corners.p;
-	const auto fillRect = [&](QRect rect) {
+	const auto fillRect = [&](QRectF rect) {
 		p.fillRect(rect, color);
 	};
 	if (pix[kTopLeft].isNull()
@@ -1212,13 +1222,12 @@ void FillComplexOverlayRect(
 		return;
 	}
 
-	const auto ratio = style::DevicePixelRatio();
-	const auto fillCorner = [&](int left, int top, int index) {
-		p.drawPixmap(left, top, pix[index]);
+	const auto fillCorner = [&](qreal left, qreal top, int index) {
+		p.drawPixmap(QPointF(left, top), pix[index]);
 	};
 	const auto cornerSize = [&](int index) {
 		const auto &p = pix[index];
-		return p.isNull() ? 0 : p.width() / ratio;
+		return p.isNull() ? 0. : p.deviceIndependentSize().width();
 	};
 	const auto verticalSkip = [&](int left, int right) {
 		return std::max(cornerSize(left), cornerSize(right));
@@ -1230,19 +1239,19 @@ void FillComplexOverlayRect(
 		const auto right = cornerSize(kTopRight);
 		if (left) {
 			fillCorner(rect.left(), rect.top(), kTopLeft);
-			if (const auto add = top - left) {
-				fillRect({ rect.left(), rect.top() + left, left, add });
+			if (const auto add = top - left; add > 0.) {
+				fillRect({ qreal(rect.left()), rect.top() + left, left, add });
 			}
 		}
 		if (const auto fill = rect.width() - left - right; fill > 0) {
-			fillRect({ rect.left() + left, rect.top(), fill, top });
+			fillRect({ rect.left() + left, qreal(rect.top()), fill, top });
 		}
 		if (right) {
 			fillCorner(
 				rect.left() + rect.width() - right,
 				rect.top(),
 				kTopRight);
-			if (const auto add = top - right) {
+			if (const auto add = top - right; add > 0.) {
 				fillRect({
 					rect.left() + rect.width() - right,
 					rect.top() + right,
@@ -1253,7 +1262,7 @@ void FillComplexOverlayRect(
 		}
 	}
 	if (const auto h = rect.height() - top - bottom; h > 0) {
-		fillRect({ rect.left(), rect.top() + top, rect.width(), h });
+		fillRect({ qreal(rect.left()), rect.top() + top, qreal(rect.width()), h });
 	}
 	if (bottom) {
 		const auto left = cornerSize(kBottomLeft);
@@ -1263,9 +1272,9 @@ void FillComplexOverlayRect(
 				rect.left(),
 				rect.top() + rect.height() - left,
 				kBottomLeft);
-			if (const auto add = bottom - left) {
+			if (const auto add = bottom - left; add > 0.) {
 				fillRect({
-					rect.left(),
+					qreal(rect.left()),
 					rect.top() + rect.height() - bottom,
 					left,
 					add,
@@ -1285,7 +1294,7 @@ void FillComplexOverlayRect(
 				rect.left() + rect.width() - right,
 				rect.top() + rect.height() - right,
 				kBottomRight);
-			if (const auto add = bottom - right) {
+			if (const auto add = bottom - right; add > 0.) {
 				fillRect({
 					rect.left() + rect.width() - right,
 					rect.top() + rect.height() - bottom,

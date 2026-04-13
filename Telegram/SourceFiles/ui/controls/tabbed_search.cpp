@@ -54,11 +54,14 @@ private:
 
 	void init(rpl::producer<std::vector<EmojiGroup>> groups);
 	void set(std::vector<EmojiGroup> list);
+	[[nodiscard]] std::unique_ptr<Text::CustomEmoji> makeIcon(
+		const QString &iconId);
 
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void devicePixelRatioChangedEvent() override;
 
 	void fireChosenGroup();
 
@@ -126,32 +129,15 @@ void GroupsStrip::set(std::vector<EmojiGroup> list) {
 		? _buttons[_chosen].group.iconId
 		: QString();
 	auto existing = std::move(_buttons);
-	const auto updater = [=](const QString &iconId) {
-		return [=] {
-			const auto i = FindById(_buttons, iconId);
-			if (i != end(_buttons)) {
-				const auto index = i - begin(_buttons);
-				const auto single = _st.groupWidth;
-				update(index * single, 0, single, height());
-			}
-		};
-	};
 	for (auto &group : list) {
 		const auto i = FindById(existing, group.iconId);
 		if (i != end(existing)) {
 			_buttons.push_back(std::move(*i));
 			existing.erase(i);
 		} else {
-			const auto loopCount = 1;
-			const auto stopAtLastFrame = true;
 			_buttons.push_back({
 				.iconId = group.iconId,
-				.icon = std::make_unique<Text::LimitedLoopsEmoji>(
-					_factory(
-						group.iconId,
-						{ .repaint = updater(group.iconId) }),
-					loopCount,
-					stopAtLastFrame),
+				.icon = makeIcon(group.iconId),
 			});
 		}
 		_buttons.back().group = std::move(group);
@@ -167,6 +153,24 @@ void GroupsStrip::set(std::vector<EmojiGroup> list) {
 		}
 	}
 	update();
+}
+
+std::unique_ptr<Text::CustomEmoji> GroupsStrip::makeIcon(
+		const QString &iconId) {
+	const auto updater = [=] {
+		const auto i = FindById(_buttons, iconId);
+		if (i != end(_buttons)) {
+			const auto index = i - begin(_buttons);
+			const auto single = _st.groupWidth;
+			update(index * single, 0, single, height());
+		}
+	};
+	const auto loopCount = 1;
+	const auto stopAtLastFrame = true;
+	return std::make_unique<Text::LimitedLoopsEmoji>(
+		_factory(iconId, { .repaint = updater }),
+		loopCount,
+		stopAtLastFrame);
 }
 
 void GroupsStrip::paintEvent(QPaintEvent *e) {
@@ -260,6 +264,16 @@ void GroupsStrip::mouseReleaseEvent(QMouseEvent *e) {
 		fireChosenGroup();
 		update();
 	}
+}
+
+void GroupsStrip::devicePixelRatioChangedEvent() {
+	for (auto &button : _buttons) {
+		if (button.icon) {
+			button.icon->unload();
+			button.icon = makeIcon(button.iconId);
+		}
+	}
+	update();
 }
 
 void GroupsStrip::fireChosenGroup() {
@@ -527,6 +541,20 @@ void SearchWithGroups::ensureRounding(int size, float64 ratio) {
 		p.drawRoundedRect(QRect(QPoint(), full), rounded / 2., rounded / 2.);
 	}
 	_rounding.setDevicePixelRatio(ratio);
+}
+
+void SearchWithGroups::devicePixelRatioChangedEvent() {
+	_rounding = QImage();
+	_search->entity()->update();
+	_search->update();
+	_back->entity()->update();
+	_back->update();
+	_cancel->update();
+	_field->update();
+	_groups->entity()->update();
+	_groups->update();
+	_fade->update();
+	update();
 }
 
 rpl::producer<> SearchWithGroups::escapes() const {

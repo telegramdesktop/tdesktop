@@ -309,7 +309,8 @@ std::shared_ptr<DynamicImage> PeerUserpic::clone() {
 QImage PeerUserpic::image(int size) {
 	Expects(_subscribed != nullptr);
 
-	const auto good = (_frame.width() == size * _frame.devicePixelRatio());
+	const auto expected = style::DevicePixels(size);
+	const auto good = (_frame.width() == expected);
 	const auto key = _peer->userpicUniqueKey(_subscribed->view);
 	const auto paletteVersion = style::PaletteVersion();
 	if (!good
@@ -322,7 +323,7 @@ QImage PeerUserpic::image(int size) {
 		const auto ratio = style::DevicePixelRatio();
 		if (!good) {
 			_frame = QImage(
-				QSize(size, size) * ratio,
+				style::DevicePixels(QSize(size, size)),
 				QImage::Format_ARGB32_Premultiplied);
 			_frame.setDevicePixelRatio(ratio);
 		}
@@ -392,10 +393,11 @@ MediaThumbnail::MediaThumbnail(
 
 QImage MediaThumbnail::image(int size) {
 	const auto ratio = style::DevicePixelRatio();
-	if (_prepared.width() != size * ratio) {
+	const auto expected = style::DevicePixels(size);
+	if (_prepared.width() != expected) {
 		if (_full.isNull()) {
 			_prepared = QImage(
-				QSize(size, size) * ratio,
+				style::DevicePixels(QSize(size, size)),
 				QImage::Format_ARGB32_Premultiplied);
 			_prepared.fill(Qt::black);
 		} else {
@@ -411,7 +413,7 @@ QImage MediaThumbnail::image(int size) {
 				source = QRect(0, skip, width, width);
 			}
 			_prepared = _full.copy(source).scaled(
-				QSize(size, size) * ratio,
+				style::DevicePixels(QSize(size, size)),
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		}
@@ -545,7 +547,7 @@ std::shared_ptr<DynamicImage> CallThumbnail::clone() {
 
 QImage CallThumbnail::image(int size) {
 	const auto ratio = style::DevicePixelRatio();
-	const auto full = QSize(size, size) * ratio;
+	const auto full = style::DevicePixels(QSize(size, size));
 	if (_prepared.size() != full) {
 		_prepared = QImage(full, QImage::Format_ARGB32_Premultiplied);
 		_prepared.fill(Qt::black);
@@ -567,7 +569,7 @@ QImage EmptyThumbnail::image(int size) {
 	const auto ratio = style::DevicePixelRatio();
 	if (_cached.width() != size * ratio) {
 		_cached = QImage(
-			QSize(size, size) * ratio,
+			style::DevicePixels(QSize(size, size)),
 			QImage::Format_ARGB32_Premultiplied);
 		_cached.fill(Qt::black);
 		_cached.setDevicePixelRatio(ratio);
@@ -591,7 +593,7 @@ QImage SavedMessagesUserpic::image(int size) {
 		const auto ratio = style::DevicePixelRatio();
 		if (!good) {
 			_frame = QImage(
-				QSize(size, size) * ratio,
+				style::DevicePixels(QSize(size, size)),
 				QImage::Format_ARGB32_Premultiplied);
 			_frame.setDevicePixelRatio(ratio);
 		}
@@ -622,7 +624,7 @@ QImage RepliesUserpic::image(int size) {
 		const auto ratio = style::DevicePixelRatio();
 		if (!good) {
 			_frame = QImage(
-				QSize(size, size) * ratio,
+				style::DevicePixels(QSize(size, size)),
 				QImage::Format_ARGB32_Premultiplied);
 			_frame.setDevicePixelRatio(ratio);
 		}
@@ -653,7 +655,7 @@ QImage HiddenAuthorUserpic::image(int size) {
 		const auto ratio = style::DevicePixelRatio();
 		if (!good) {
 			_frame = QImage(
-				QSize(size, size) * ratio,
+				style::DevicePixels(QSize(size, size)),
 				QImage::Format_ARGB32_Premultiplied);
 			_frame.setDevicePixelRatio(ratio);
 		}
@@ -687,7 +689,7 @@ QImage IconThumbnail::image(int size) {
 		const auto ratio = style::DevicePixelRatio();
 		if (!good) {
 			_frame = QImage(
-				QSize(size, size) * ratio,
+				style::DevicePixels(QSize(size, size)),
 				QImage::Format_ARGB32_Premultiplied);
 			_frame.setDevicePixelRatio(ratio);
 		}
@@ -752,7 +754,7 @@ QImage EmojiThumbnail::image(int size) {
 	const auto good = (_frame.width() == size * _frame.devicePixelRatio());
 	if (!good) {
 		_frame = QImage(
-			QSize(size, size) * ratio,
+			style::DevicePixels(QSize(size, size)),
 			QImage::Format_ARGB32_Premultiplied);
 		_frame.setDevicePixelRatio(ratio);
 	}

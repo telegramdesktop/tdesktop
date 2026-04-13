@@ -111,7 +111,7 @@ LabeledEmojiTabs::Button::Button(
 		const auto labelWidth = st::aiComposeStyleLabelFont->width(
 			_descriptor.label);
 		const auto emojiWidth = (_custom || _descriptor.emoji)
-			? (Emoji::GetSizeLarge() / style::DevicePixelRatio())
+			? qRound(Emoji::GetSizeLarge() / style::DevicePixelRatio())
 			: 0;
 		return padding.left()
 			+ std::max(labelWidth, emojiWidth)
@@ -157,7 +157,7 @@ void LabeledEmojiTabs::Button::paintEvent(QPaintEvent *e) {
 	paintRipple(p, 0, 0, &ripple);
 
 	if (_custom) {
-		const auto size = Emoji::GetSizeLarge() / style::DevicePixelRatio();
+		const auto size = qRound(Emoji::GetSizeLarge() / style::DevicePixelRatio());
 		const auto adjusted = Text::AdjustCustomEmojiSize(size);
 		const auto skip = (size - adjusted) / 2;
 		const auto left = (width() - size) / 2;
