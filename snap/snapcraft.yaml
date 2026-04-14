@@ -38,7 +38,7 @@ parts:
     source-type: git
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-ldav1d,-lhwy,--pop-state -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-ldav1d,--pop-state -s
     build-packages:
       - clang
       - libboost-regex-dev
@@ -87,7 +87,7 @@ parts:
       - ada
       - avif
       - ffmpeg
-      - jpegli
+      - mozjpeg
       - openal
       - protobuf
       - qt
@@ -317,46 +317,18 @@ parts:
     after:
       - nv-codec-headers
 
-  jpegli:
-    source: https://github.com/libjxl/libjxl.git
+  mozjpeg:
+    source: https://github.com/mozilla/mozjpeg.git
     source-depth: 1
-    source-tag: v0.11.2
+    source-tag: v4.1.5
     plugin: cmake
-    build-packages:
-      - curl
-      - libhwy-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_SHARED_LIBS=OFF
-      - -DBUILD_TESTING=OFF
-      - -DJPEGXL_ENABLE_DEVTOOLS=OFF
-      - -DJPEGXL_ENABLE_TOOLS=OFF
-      - -DJPEGXL_INSTALL_JPEGLI_LIBJPEG=ON
-      - -DJPEGXL_ENABLE_DOXYGEN=OFF
-      - -DJPEGXL_ENABLE_MANPAGES=OFF
-      - -DJPEGXL_ENABLE_BENCHMARK=OFF
-      - -DJPEGXL_ENABLE_EXAMPLES=OFF
-      - -DJPEGXL_ENABLE_JNI=OFF
-      - -DJPEGXL_ENABLE_SJPEG=OFF
-      - -DJPEGXL_ENABLE_OPENEXR=OFF
-      - -DJPEGXL_ENABLE_SKCMS=OFF
-      - -DJPEGXL_FORCE_SYSTEM_BROTLI=ON
-      - -DJPEGXL_FORCE_SYSTEM_LCMS2=ON
-      - -DJPEGXL_FORCE_SYSTEM_HWY=ON
-    override-pull: |
-      craftctl default
-      curl -sSL https://github.com/libjxl/libjxl/commit/ee3955b1553bcc10304d45b85dfef9afa9349d72.patch | sed 's/offset + t/offset + i/' | git apply
-    override-build: |
-      craftctl default
-      cp lib/libjpegli-static.a "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
-      ar rcs "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o
-    stage:
-      - ./usr/include/jconfig.h
-      - ./usr/include/jmorecfg.h
-      - ./usr/include/jpeglib.h
-      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
+      - -DENABLE_SHARED=OFF
+      - -DWITH_JPEG8=ON
+      - -DPNG_SUPPORTED=OFF
     prime: [-./*]
 
   openal:
@@ -412,8 +384,6 @@ parts:
       - qtsvg
       - qtwayland
     plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-lhwy,--pop-state
     build-packages:
       - libssl-dev
       - libxcb-cursor-dev
@@ -448,7 +418,7 @@ parts:
       cd ..
     prime: [-./*]
     after:
-      - jpegli
+      - mozjpeg
       - patches
 
   rnnoise:
@@ -503,4 +473,4 @@ parts:
     prime: [-./*]
     after:
       - ffmpeg
-      - jpegli
+      - mozjpeg
