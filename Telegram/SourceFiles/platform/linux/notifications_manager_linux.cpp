@@ -382,10 +382,19 @@ Manager::Private::Private(not_null<Manager*> manager)
 			};
 		};
 
-		auto activate = gi::object_cast<Gio::SimpleAction>(
-			actionMap.lookup_action("notification-activate"));
+		const auto notificationIdVariantType = GLib::VariantType::new_(
+			"a{sv}");
 
-		const auto activateSig = activate.signal_activate().connect([=](
+		auto activate = Gio::SimpleAction::new_(
+			"notification-activate",
+			notificationIdVariantType);
+
+		actionMap.add_action(activate);
+		_lifetime.add([=]() mutable {
+			actionMap.remove_action("notification-activate");
+		});
+
+		activate.signal_activate().connect([=](
 				Gio::SimpleAction,
 				GLib::Variant parameter) {
 			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
@@ -394,14 +403,16 @@ Manager::Private::Private(not_null<Manager*> manager)
 			});
 		});
 
+		auto markAsRead = Gio::SimpleAction::new_(
+			"notification-mark-as-read",
+			notificationIdVariantType);
+
+		actionMap.add_action(markAsRead);
 		_lifetime.add([=]() mutable {
-			activate.disconnect(activateSig);
+			actionMap.remove_action("notification-mark-as-read");
 		});
 
-		auto markAsRead = gi::object_cast<Gio::SimpleAction>(
-			actionMap.lookup_action("notification-mark-as-read"));
-
-		const auto markAsReadSig = markAsRead.signal_activate().connect([=](
+		markAsRead.signal_activate().connect([=](
 				Gio::SimpleAction,
 				GLib::Variant parameter) {
 			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
@@ -409,10 +420,6 @@ Manager::Private::Private(not_null<Manager*> manager)
 					dictToNotificationId(GLib::VariantDict::new_(parameter)),
 					{});
 			});
-		});
-
-		_lifetime.add([=]() mutable {
-			markAsRead.disconnect(markAsReadSig);
 		});
 	}
 }
