@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 #include <QtGui/QTextDocument>
+#include <ksandbox.h>
 
 namespace Platform {
 namespace {
@@ -22,6 +23,15 @@ namespace {
 		u"org.kde.CrowTranslate"_q,
 	};
 	const auto it = ranges::find_if(commands, [](const auto &command) {
+		if (KSandbox::isInside()) {
+			QProcess process;
+			process.setProgram("which");
+			process.setArguments({command});
+			KSandbox::startHostProcess(process);
+			process.waitForFinished();
+			return process.exitStatus() == QProcess::NormalExit
+				&& process.exitCode() == 0;
+		}
 		return !QStandardPaths::findExecutable(command).isEmpty();
 	});
 	return it != end(commands) ? *it : QString();
@@ -58,7 +68,7 @@ public:
 			);
 			delete process;
 		});
-		process->start();
+		KSandbox::startHostProcess(*process);
 		process->write(request.text.text.toUtf8());
 		process->closeWriteChannel();
 	}

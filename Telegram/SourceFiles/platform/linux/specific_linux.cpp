@@ -807,6 +807,21 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		add("pavucontrol");
 		add("alsamixergui");
 		return ranges::any_of(options, [](const Command &command) {
+			if (KSandbox::isInside()) {
+				QProcess process;
+				process.setProgram("which");
+				process.setArguments({command.command});
+				KSandbox::startHostProcess(process);
+				process.waitForFinished();
+				if (process.exitStatus() != QProcess::NormalExit
+						|| process.exitCode() != 0) {
+					return false;
+				}
+				process.setProgram(command.command);
+				process.setArguments(command.arguments);
+				KSandbox::startHostProcess(process);
+				return true;
+			}
 			return QProcess::startDetached(
 				command.command,
 				command.arguments);
