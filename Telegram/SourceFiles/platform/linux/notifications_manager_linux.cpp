@@ -432,8 +432,8 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			for (const auto &[key, notifications] : _notifications) {
 				for (const auto &[msgId, notification] : notifications) {
-					const auto &nid = notification->id;
-					if (v::is<uint>(nid) && v::get<uint>(nid) == id) {
+					const auto nid = std::get_if<uint>(&notification->id);
+					if (nid && id == *nid) {
 						if (actionName == "default") {
 							_manager->notificationActivated({ key, msgId });
 						} else if (actionName == "mail-mark-read") {
@@ -457,8 +457,8 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			for (const auto &[key, notifications] : _notifications) {
 				for (const auto &[msgId, notification] : notifications) {
-					const auto &nid = notification->id;
-					if (v::is<uint>(nid) && v::get<uint>(nid) == id) {
+					const auto nid = std::get_if<uint>(&notification->id);
+					if (nid && id == *nid) {
 						_manager->notificationReplied(
 							{ key, msgId },
 							{ QString::fromStdString(text), {} });
@@ -479,8 +479,8 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 			std::string token) {
 		for (const auto &[key, notifications] : _notifications) {
 			for (const auto &[msgId, notification] : notifications) {
-				const auto &nid = notification->id;
-				if (v::is<uint>(nid) && v::get<uint>(nid) == id) {
+				const auto nid = std::get_if<uint>(&notification->id);
+				if (nid && id == *nid) {
 					GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
 					return;
 				}
@@ -513,8 +513,8 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 					* In all other cases we keep the notification reference so that we may clear the notification later from history,
 					* if the message for that notification is read (e.g. chat is opened or read from another device).
 					*/
-					const auto &nid = notification->id;
-					if (v::is<uint>(nid) && v::get<uint>(nid) == id && reason == 2) {
+					const auto nid = std::get_if<uint>(&notification->id);
+					if (nid && id == *nid && reason == 2) {
 						clearNotification({ key, msgId });
 						return;
 					}
