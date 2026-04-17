@@ -432,7 +432,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		return;
 	}
 
-	const auto actionInvoked = _interface.signal_action_invoked().connect([=](
+	_interface.signal_action_invoked().connect([=](
 			XdgNotifications::Notifications,
 			uint id,
 			std::string actionName) {
@@ -453,11 +453,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		});
 	});
 
-	_lifetime.add([=] {
-		_interface.disconnect(actionInvoked);
-	});
-
-	const auto replied = _interface.signal_notification_replied().connect([=](
+	_interface.signal_notification_replied().connect([=](
 			XdgNotifications::Notifications,
 			uint id,
 			std::string text) {
@@ -476,11 +472,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		});
 	});
 
-	_lifetime.add([=] {
-		_interface.disconnect(replied);
-	});
-
-	const auto tokenSignal = _interface.signal_activation_token().connect([=](
+	_interface.signal_activation_token().connect([=](
 			XdgNotifications::Notifications,
 			uint id,
 			std::string token) {
@@ -495,11 +487,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		}
 	});
 
-	_lifetime.add([=] {
-		_interface.disconnect(tokenSignal);
-	});
-
-	const auto closed = _interface.signal_notification_closed().connect([=](
+	_interface.signal_notification_closed().connect([=](
 			XdgNotifications::Notifications,
 			uint id,
 			uint reason) {
@@ -528,10 +516,6 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 				}
 			}
 		});
-	});
-
-	_lifetime.add([=] {
-		_interface.disconnect(closed);
 	});
 }
 
