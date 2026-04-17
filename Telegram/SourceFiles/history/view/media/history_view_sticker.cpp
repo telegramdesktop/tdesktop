@@ -201,7 +201,7 @@ QSize Sticker::Size() {
 	const auto side = std::min(st::maxStickerSize, kMaxSizeFixed);
 	if (OptionStickerSize.value() > 0) [[unlikely]] {
 		const auto scaled = std::clamp(
-			OptionStickerSize.value(),
+			style::ConvertScale(OptionStickerSize.value()),
 			style::ConvertScale(50),
 			side);
 		return { scaled, scaled };
