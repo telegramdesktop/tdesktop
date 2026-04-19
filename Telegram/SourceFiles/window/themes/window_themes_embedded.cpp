@@ -184,12 +184,7 @@ std::optional<QColor> SystemAccentColor() {
 		return std::nullopt;
 	}
 #endif // Qt < 6.0.0
-#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
-	constexpr auto kAccentRole = QPalette::Accent;
-#else
-	constexpr auto kAccentRole = QPalette::Highlight;
-#endif
-	const auto accent = QPalette().color(kAccentRole);
+	const auto accent = QPalette().color(QPalette::Highlight);
 	return accent.isValid() ? std::make_optional(accent) : std::nullopt;
 }
 
