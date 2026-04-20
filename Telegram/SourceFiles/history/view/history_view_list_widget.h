@@ -504,6 +504,8 @@ public:
 		-> const std::vector<Ui::CollapseGap> &;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
+	void setAboutView(AboutView *view);
+	void updateSize();
 	void overrideChatMode(std::optional<ElementChatMode> mode);
 
 	// Accessibility.
@@ -702,8 +704,9 @@ private:
 	void checkMoveToOtherViewer();
 	void updateVisibleTopItem();
 	void updateItemsGeometry();
-	void updateSize();
 	[[nodiscard]] int collapseGapsTotal() const;
+	[[nodiscard]] AboutView *aboutView() const;
+	[[nodiscard]] int countBottomPadding() const;
 	[[nodiscard]] int countItemsTop() const;
 	void setItemsTop(int top);
 	void refreshAttachmentsFromTill(int from, int till);
@@ -897,6 +900,7 @@ private:
 	QPainterPath _highlightPathCache;
 
 	base::unique_qptr<Ui::RpWidget> _emptyInfo = nullptr;
+	AboutView *_aboutView = nullptr;
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
 	rpl::variable<HistoryItem*> _reactionsItem;

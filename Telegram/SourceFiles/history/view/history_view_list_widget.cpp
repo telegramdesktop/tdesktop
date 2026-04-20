@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_list_widget.h"
 
+#include "history/view/history_view_about_view.h"
 #include "base/unixtime.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "base/qt/qt_common_adapters.h"
@@ -2398,7 +2399,7 @@ void ListWidget::revealItemsCallback() {
 		const auto nowHeight = _itemsTop
 			+ _itemsHeight
 			+ collapseGapTotal
-			+ st::historyPaddingBottom;
+			+ countBottomPadding();
 		if (wasHeight != nowHeight) {
 			resize(width(), nowHeight);
 		}
@@ -2437,16 +2438,24 @@ int ListWidget::resizeGetHeight(int newWidth) {
 		_thanosController->clearRemovalHeight();
 	}
 	const auto collapseGapTotal = collapseGapsTotal();
+	const auto about = aboutView();
+	const auto aboutAboveHistory = about
+		&& about->aboveHistory();
+	if (about && about->view()) {
+		about->height = about->view()->resizeGetHeight(newWidth);
+	} else if (about) {
+		about->top = about->height = 0;
+	}
 	setItemsTop(countItemsTop());
-	if (const auto about = _delegate->listAboutView()) {
-		if (const auto view = about->view()) {
-			about->height = view->resizeGetHeight(newWidth);
-			setItemsTop(std::max(_itemsTop, about->height));
+	if (about && about->view()) {
+		if (aboutAboveHistory) {
 			about->top = std::min(
 				_itemsTop - about->height,
 				std::max(0, (_minHeight - about->height) / 2));
 		} else {
-			about->top = about->height = 0;
+			about->top = std::max(
+				std::max(0, (_minHeight - about->height) / 2),
+				_itemsTop + _itemsHeight + collapseGapTotal);
 		}
 	}
 	if (_emptyInfo) {
@@ -2455,7 +2464,7 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	return _itemsTop
 		+ _itemsHeight
 		+ collapseGapTotal
-		+ st::historyPaddingBottom;
+		+ countBottomPadding();
 }
 
 void ListWidget::restoreScrollPosition() {
@@ -2632,17 +2641,25 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 
 	auto context = preparePaintContext(clip);
 	context.highlightPathCache = &_highlightPathCache;
-	if (const auto about = _delegate->listAboutView()) {
-		if (const auto view = about->view()) {
-			const auto top = about->top;
-			if (clip.y() < top + about->height
-				&& clip.y() + clip.height() > top) {
-				p.translate(0, top);
-				view->draw(p, context.translated(0, -top));
-				p.translate(0, -top);
-			}
+	const auto about = _aboutView
+		? _aboutView
+		: _delegate->listAboutView();
+	const auto drawAboutView = [&] {
+		if (!about || !about->view()) {
+			return;
 		}
-	}
+		if (clip.y() >= about->top + about->height
+			|| clip.y() + clip.height() <= about->top) {
+			return;
+		}
+		const auto top = about->top;
+		auto aboutContext = context.translated(0, -top);
+		aboutContext.selection = TextSelection();
+		p.translate(0, top);
+		about->view()->draw(p, aboutContext);
+		p.translate(0, -top);
+	};
+	drawAboutView();
 	if (from == end(_items)) {
 		_delegate->listPaintEmpty(p, context);
 		return;
@@ -4822,11 +4839,26 @@ int ListWidget::collapseGapsTotal() const {
 	return result;
 }
 
+AboutView *ListWidget::aboutView() const {
+	return _aboutView ? _aboutView : _delegate->listAboutView();
+}
+
+int ListWidget::countBottomPadding() const {
+	const auto about = aboutView();
+	return (about && about->view() && !about->aboveHistory())
+		? std::max(st::historyPaddingBottom, about->height)
+		: st::historyPaddingBottom;
+}
+
 int ListWidget::countItemsTop() const {
 	const auto full = _itemsHeight
 		+ collapseGapsTotal()
-		+ st::historyPaddingBottom;
-	return (_minHeight > full) ? (_minHeight - full) : 0;
+		+ countBottomPadding();
+	const auto result = (_minHeight > full) ? (_minHeight - full) : 0;
+	const auto about = aboutView();
+	return (about && about->view() && about->aboveHistory())
+		? std::max(result, about->height)
+		: result;
 }
 
 void ListWidget::setItemsTop(int top) {
@@ -4844,7 +4876,7 @@ void ListWidget::collapseGapsUpdated() {
 	const auto nowHeight = _itemsTop
 		+ _itemsHeight
 		+ gapTotal
-		+ st::historyPaddingBottom;
+		+ countBottomPadding();
 	if (height() != nowHeight) {
 		resize(width(), nowHeight);
 	}
@@ -5011,7 +5043,7 @@ void ListWidget::viewHeightAdjusted(not_null<Element*> view) {
 		_itemsTop
 			+ _itemsHeight
 			+ collapseGapsTotal()
-			+ st::historyPaddingBottom);
+			+ countBottomPadding());
 	restoreScrollPosition();
 	updateVisibleTopItem();
 	update();
@@ -5262,6 +5294,16 @@ void ListWidget::setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w) {
 	if (_emptyInfo) {
 		_emptyInfo->setVisible(isEmpty());
 	}
+}
+
+void ListWidget::setAboutView(AboutView *view) {
+	if (_aboutView == view) {
+		return;
+	}
+	// TODO: port hit-test delegation from HistoryInner.
+	_aboutView = view;
+	updateSize();
+	update();
 }
 
 void ListWidget::overrideChatMode(std::optional<ElementChatMode> mode) {
