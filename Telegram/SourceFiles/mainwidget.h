@@ -99,6 +99,7 @@ class Changelogs;
 } // namespace Core
 
 extern const char kForceComposeSearchOneColumn[];
+extern const char kOptionUseNewChatView[];
 
 class MainWidget final
 	: public Ui::RpWidget

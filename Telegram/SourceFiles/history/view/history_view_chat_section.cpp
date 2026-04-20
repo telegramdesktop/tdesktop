@@ -72,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/recent_inline_bots.h"
 #include "data/components/scheduled_messages.h"
 #include "data/data_histories.h"
+#include "data/data_history_messages.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
@@ -3380,7 +3381,7 @@ rpl::producer<Data::MessagesSlice> ChatWidget::listSource(
 	} else if (_sublist) {
 		return sublistSource(aroundId, limitBefore, limitAfter);
 	}
-	Unexpected("ChatWidget::listSource in unknown mode");
+	return historySource(aroundId, limitBefore, limitAfter);
 }
 
 rpl::producer<Data::MessagesSlice> ChatWidget::repliesSource(
@@ -3414,6 +3415,20 @@ rpl::producer<Data::MessagesSlice> ChatWidget::sublistSource(
 					tr::now,
 					lt_count_decimal,
 					*result.fullCount));
+		markLoaded();
+	});
+}
+
+rpl::producer<Data::MessagesSlice> ChatWidget::historySource(
+		Data::MessagePosition aroundId,
+		int limitBefore,
+		int limitAfter) {
+	return Data::HistoryMessagesViewer(
+		_history,
+		aroundId,
+		limitBefore,
+		limitAfter
+	) | rpl::before_next([=] { // after_next makes a copy of value.
 		markLoaded();
 	});
 }

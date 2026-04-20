@@ -250,6 +250,10 @@ private:
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter);
+	[[nodiscard]] rpl::producer<Data::MessagesSlice> historySource(
+		Data::MessagePosition aroundId,
+		int limitBefore,
+		int limitAfter);
 
 	void onScroll();
 	void closeCurrent();

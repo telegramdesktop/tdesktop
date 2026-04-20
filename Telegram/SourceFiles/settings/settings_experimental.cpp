@@ -390,6 +390,7 @@ void SetupExperimental(
 				Dialogs::kOptionForumHideChatsList,
 				Dialogs::kOptionDialogsUnreadOnTop,
 				Dialogs::Ui::kOptionDialogsMuteIcon,
+				kOptionUseNewChatView,
 				kOptionAutoScrollInactiveChat,
 				kModerateCommonGroups,
 				Info::kClassicProfileScroll,
@@ -515,7 +516,7 @@ void SetupExperimental(
 		});
 	}
 
-	addCategory(u"Other"_q, [&](
+	addCategory(u"Other"_q, [&]( 
 			not_null<Ui::VerticalLayout*> inner,
 			std::vector<QString> &searchable) {
 		if (base::options::lookup<bool>(kOptionFastButtonsMode).value()) {

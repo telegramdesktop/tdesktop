@@ -118,9 +118,16 @@ base::options::toggle ForceComposeSearchOneColumn({
 	.description = "Force in one-column mode the embedded search in chats.",
 });
 
+base::options::toggle OptionUseNewChatView({
+	.id = kOptionUseNewChatView,
+	.name = "New chat view",
+	.description = "Open chats through the new section."
+});
+
 } // namespace
 
 const char kForceComposeSearchOneColumn[] = "force-compose-search-one-column";
+const char kOptionUseNewChatView[] = "use-new-chat-view";
 
 enum StackItemType {
 	HistoryStackItem,
@@ -1427,6 +1434,17 @@ void MainWidget::showHistory(
 	if (peerId && params.activation != anim::activation::background) {
 		Core::App().hideMediaView();
 		_controller->window().activate();
+	}
+
+	if (peerId && OptionUseNewChatView.value()) {
+		const auto history = session().data().history(peerId);
+		using namespace HistoryView;
+		auto memento = std::make_shared<ChatMemento>(
+			ChatViewId{ .history = history },
+			showAtMsgId,
+			params.highlight);
+		showSection(std::move(memento), params);
+		return;
 	}
 
 	const auto alreadyThatPeer = _history->peer()
