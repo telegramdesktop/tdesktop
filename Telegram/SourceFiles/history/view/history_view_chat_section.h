@@ -38,6 +38,7 @@ namespace Ui {
 class ElasticScroll;
 class PlainShadow;
 class FlatButton;
+class IconButton;
 class PinnedBar;
 struct PreparedList;
 struct PreparedBundle;
@@ -82,6 +83,8 @@ class PullToNextChannel;
 class TranslateBar;
 class SubsectionTabs;
 class SelfForwardsTagger;
+class SuggestOptionsBar;
+enum class SuggestMode;
 
 struct ChatViewId {
 	not_null<History*> history;
@@ -227,6 +230,13 @@ public:
 	bool cornerButtonsHas(CornerButtonType type) override;
 
 private:
+	enum class Mode {
+		Sublist,
+		Replies,
+		History,
+	};
+	[[nodiscard]] Mode mode() const;
+
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
@@ -333,6 +343,14 @@ private:
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const override;
 	bool processChosenSticker(ChatHelpers::FileChosen &&chosen) override;
 	[[nodiscard]] FullReplyTo replyTo() const;
+	[[nodiscard]] SuggestOptions suggestOptions(
+		bool skipNoAdminCheck = false) const;
+	void applySuggestOptions(
+		SuggestOptions suggest,
+		SuggestMode suggestMode);
+	bool cancelSuggestPost();
+	void refreshSuggestPostToggle();
+	void refreshSuggestFromDraft();
 	[[nodiscard]] HistoryItem *lookupRepliesRoot() const;
 	[[nodiscard]] Data::ForumTopic *lookupTopic();
 	[[nodiscard]] bool computeAreComments() const;
@@ -429,6 +447,8 @@ private:
 	object_ptr<Ui::PlainShadow> _topBarShadow;
 	std::unique_ptr<Ui::RpWidget> _topBars;
 	std::unique_ptr<ComposeControls> _composeControls;
+	std::unique_ptr<SuggestOptionsBar> _suggestOptions;
+	object_ptr<Ui::IconButton> _toggleSuggestPost = { nullptr };
 	std::unique_ptr<ComposeSearch> _composeSearch;
 	std::unique_ptr<Ui::FlatButton> _joinGroup;
 	std::unique_ptr<Ui::FlatButton> _payForMessage;
@@ -478,6 +498,7 @@ private:
 	int _lastScrollTop = 0;
 	int _topicReopenBarHeight = 0;
 	int _scrollTopDelta = 0;
+	int _composeControlsTop = 0;
 
 	bool _choosingAttach = false;
 

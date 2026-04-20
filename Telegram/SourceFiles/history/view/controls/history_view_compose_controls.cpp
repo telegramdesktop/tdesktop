@@ -1155,6 +1155,7 @@ ComposeControls::ComposeControls(
 		.lockFromBottom = descriptor.voiceLockFromBottom,
 	}))
 , _sendMenuDetails(descriptor.sendMenuDetails)
+, _currentSuggest(descriptor.currentSuggest)
 , _unavailableEmojiPasted(std::move(descriptor.unavailableEmojiPasted))
 , _saveDraftTimer([=] { saveDraft(); })
 , _saveCloudDraftTimer([=] { saveCloudDraft(); }) {
@@ -2161,20 +2162,23 @@ void ComposeControls::saveFieldToHistoryLocalDraft() {
 		return;
 	}
 	const auto id = _header->getDraftReply();
+	const auto suggest = _currentSuggest
+		? _currentSuggest()
+		: SuggestOptions();
 	if (shouldShowRichDraftPreview()) {
-		_history->clearDraft(draftKeyCurrent());
-	} else if (_preview && (id || !_field->empty())) {
-		const auto key = draftKeyCurrent();
+		_history->clearDraft(key);
+	} else if (_preview && (id || suggest.exists || !_field->empty())) {
 		_history->setDraft(
 			key,
 			std::make_unique<Data::Draft>(
 				_field,
 				id,
-				SuggestOptions(),
+				suggest,
 				_preview->draft()));
 	} else {
-		_history->clearDraft(draftKeyCurrent());
+		_history->clearDraft(key);
 	}
+	saveDraftWithTextNow();
 }
 
 Data::Draft *ComposeControls::cloudDraft() const {
@@ -3037,7 +3041,11 @@ void ComposeControls::registerDraftSource() {
 		const auto draft = [=] {
 			return Storage::MessageDraft{
 				_header->getDraftReply(),
-				_header->suggestOptions(),
+				(_header->suggestOptions().exists
+					? _header->suggestOptions()
+					: _currentSuggest
+					? _currentSuggest()
+					: SuggestOptions()),
 				_field->getTextWithTags(),
 				_preview->draft(),
 			};

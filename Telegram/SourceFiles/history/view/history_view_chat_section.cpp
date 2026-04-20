@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_compose_controls.h"
 #include "history/view/controls/history_view_compose_search.h"
 #include "history/view/controls/history_view_draft_options.h"
+#include "history/view/controls/history_view_suggest_options.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/view/history_view_sticker_toast.h"
@@ -41,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/message_sending_animation_controller.h"
+#include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
@@ -84,6 +86,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_replies_list.h"
 #include "data/data_peer_values.h"
 #include "data/data_changes.h"
+#include "data/data_drafts.h"
 #include "data/data_shared_media.h"
 #include "data/data_send_action.h"
 #include "data/data_premium_limits.h"
@@ -279,6 +282,7 @@ ChatWidget::ChatWidget(
 				return session().scheduledMessages().hasFor(_topic);
 			}) | rpl::type_erased
 			: rpl::single(false),
+		.currentSuggest = [=] { return suggestOptions(); },
 	}))
 , _translateBar(
 	std::make_unique<TranslateBar>(_topBars.get(), controller, _history))
@@ -503,6 +507,16 @@ ChatWidget::ChatWidget(
 	setupTopicViewer();
 	setupComposeControls();
 	setupSwipeReplyAndBack();
+
+	session().changes().peerFlagsValue(
+		_peer,
+		Data::PeerUpdate::Flag::FullInfo
+	) | rpl::on_next([=] {
+		refreshSuggestPostToggle();
+	}, lifetime());
+
+	refreshSuggestFromDraft();
+
 	orderWidgets();
 
 	if (_pinnedBar) {
@@ -511,6 +525,7 @@ ChatWidget::ChatWidget(
 }
 
 ChatWidget::~ChatWidget() {
+	_suggestOptions = nullptr;
 	base::take(_sendAction);
 	if (_repliesRootId) {
 		controller()->sendingAnimation().clear();
@@ -556,6 +571,9 @@ void ChatWidget::orderWidgets() {
 	_topBar->raise();
 	_topBarShadow->raise();
 	_composeControls->raisePanels();
+	if (_toggleSuggestPost) {
+		_toggleSuggestPost->raise();
+	}
 }
 
 void ChatWidget::setupRoot() {
@@ -689,6 +707,7 @@ void ChatWidget::subscribeToTopic() {
 		}
 		if (update.flags & Flag::CloudDraft) {
 			_composeControls->applyCloudDraft();
+			refreshSuggestFromDraft();
 		}
 	}, _topicLifetime);
 
@@ -1447,6 +1466,7 @@ Api::SendAction ChatWidget::prepareSendAction(
 	auto result = Api::SendAction(_history, options);
 	result.replyTo = replyTo();
 	result.options.sendAs = _composeControls->sendAsPeer();
+	result.options.suggest = suggestOptions();
 	result.clearDraft = !Iv::Editor::IsComposeBoxOpen(
 		&session(),
 		_peer->id,
@@ -2096,15 +2116,24 @@ SendMenu::Details ChatWidget::sendMenuDetails() const {
 		.isEphemeralBotReply(replyTo().messageId);
 	const auto type = ephemeralReply
 		? Type::Disabled
-		: (_topic && !_peer->starsPerMessageChecked())
-		? Type::Scheduled
-		: Type::SilentOnly;
+		: (mode() != Mode::History)
+		? ((_topic && !_peer->starsPerMessageChecked())
+			? Type::Scheduled
+			: Type::SilentOnly)
+		: _peer->starsPerMessageChecked()
+		? Type::SilentOnly
+		: _peer->isSelf()
+		? Type::Reminder
+		: HistoryView::CanScheduleUntilOnline(_peer)
+		? Type::ScheduledToUser
+		: Type::Scheduled;
 	return SendMenu::Details{
 		.type = type,
 		.barePeerId = (_sublist
 			? _sublist->owningHistory()
 			: _history)->peer->id.value,
 		.bareTopicRootId = _topic ? _topic->rootId().bare : 0,
+		.effectAllowed = _peer->isUser(),
 	};
 }
 
@@ -2137,22 +2166,122 @@ FullReplyTo ChatWidget::replyTo() const {
 	};
 }
 
+SuggestOptions ChatWidget::suggestOptions(bool skipNoAdminCheck) const {
+	const auto checked = skipNoAdminCheck
+		|| _history->suggestDraftAllowed();
+	return (checked && _suggestOptions)
+		? _suggestOptions->values()
+		: SuggestOptions();
+}
+
+void ChatWidget::applySuggestOptions(
+		SuggestOptions suggest,
+		SuggestMode suggestMode) {
+	Expects(suggest.exists);
+
+	_suggestOptions = std::make_unique<SuggestOptionsBar>(
+		controller()->uiShow(),
+		_peer,
+		suggest,
+		suggestMode);
+	_suggestOptions->updates() | rpl::on_next([=] {
+		update();
+		_composeControls->saveFieldToHistoryLocalDraft();
+		refreshTopBarActiveChat();
+	}, _suggestOptions->lifetime());
+	_composeControls->saveFieldToHistoryLocalDraft();
+	if (_toggleSuggestPost) {
+		_toggleSuggestPost->setVisible(!_suggestOptions);
+	}
+	updateControlsGeometry();
+	update();
+	refreshTopBarActiveChat();
+}
+
+bool ChatWidget::cancelSuggestPost() {
+	if (!_suggestOptions) {
+		return false;
+	}
+	_suggestOptions = nullptr;
+	updateControlsGeometry();
+	_composeControls->saveFieldToHistoryLocalDraft();
+	if (_toggleSuggestPost) {
+		_toggleSuggestPost->setVisible(!_suggestOptions);
+	}
+	update();
+	refreshTopBarActiveChat();
+	return true;
+}
+
+void ChatWidget::refreshSuggestPostToggle() {
+	const auto has = _history->suggestDraftAllowed();
+	if (!_toggleSuggestPost && has) {
+		_toggleSuggestPost.create(this, st::historySuggestPostToggle);
+		_toggleSuggestPost->setVisible(!_suggestOptions);
+		_toggleSuggestPost->addClickHandler([=] {
+			applySuggestOptions(
+				{ .exists = 1 },
+				SuggestMode::New);
+			_composeControls->cancelReplyMessage();
+			updateControlsGeometry();
+		});
+		updateControlsGeometry();
+	} else if (_toggleSuggestPost && !has) {
+		_toggleSuggestPost.destroy();
+		cancelSuggestPost();
+	}
+}
+
+void ChatWidget::refreshSuggestFromDraft() {
+	if (!_history->suggestDraftAllowed()) {
+		return;
+	}
+	const auto topicRootId = _topic ? _topic->rootId() : MsgId();
+	const auto draft = _history->localDraft(
+		topicRootId,
+		_monoforumPeerId);
+	if (draft && draft->suggest.exists) {
+		applySuggestOptions(draft->suggest, SuggestMode::New);
+	} else {
+		cancelSuggestPost();
+	}
+}
+
+ChatWidget::Mode ChatWidget::mode() const {
+	if (_sublist) {
+		return Mode::Sublist;
+	} else if (_repliesRootId) {
+		return Mode::Replies;
+	}
+	return Mode::History;
+}
+
 void ChatWidget::refreshTopBarActiveChat() {
 	using namespace Dialogs;
 
-	const auto state = EntryState{
-		.key = (_sublist
-			? Key{ _sublist }
-			: _topic
-			? Key{ _topic }
-			: Key{ _history }),
-		.section = _sublist
-			? EntryState::Section::SavedSublist
-			: EntryState::Section::Replies,
+	auto state = EntryState{
 		.currentReplyTo = replyTo(),
-		.currentSuggest = SuggestOptions(),
+		.currentSuggest = suggestOptions(),
 	};
-	_topBar->setActiveChat(state, _sendAction.get());
+	auto painter = (HistoryView::SendActionPainter*)nullptr;
+	switch (mode()) {
+	case Mode::Sublist:
+		state.key = Key{ _sublist };
+		state.section = EntryState::Section::SavedSublist;
+		painter = _sendAction.get();
+		break;
+	case Mode::Replies:
+		state.key = _topic ? Key{ _topic } : Key{ _history };
+		state.section = EntryState::Section::Replies;
+		painter = _sendAction.get();
+		break;
+	case Mode::History:
+		state.key = _topic ? Key{ _topic } : Key{ _history };
+		state.section = EntryState::Section::History;
+		painter = _history->sendActionPainter();
+		break;
+	}
+	_topBar->setActiveChat(state, painter);
 	_composeControls->setCurrentDialogsEntryState(state);
 	controller()->setDialogsEntryState(state);
 }
@@ -2760,6 +2889,7 @@ bool ChatWidget::showInternal(
 			if (params.reapplyLocalDraft) {
 				_composeControls->applyDraft(
 					ComposeControls::FieldHistoryAction::NewEntry);
+				refreshSuggestFromDraft();
 			} else {
 				restoreState(logMemento);
 				if (!logMemento->highlightId()) {
@@ -2972,6 +3102,7 @@ void ChatWidget::subscribeToSublist() {
 		}
 		if (update.flags & Flag::CloudDraft) {
 			_composeControls->applyCloudDraft();
+			refreshSuggestFromDraft();
 		}
 	}, lifetime());
 
@@ -3119,6 +3250,9 @@ void ChatWidget::updateControlsGeometry() {
 	}
 	const auto composeTop = bottom;
 	bottom -= tabsBottomSkip;
+	if (_suggestOptions) {
+		bottom -= st::historyReplyHeight;
+	}
 
 	_topBars->resize(innerWidth, top + st::lineWidth);
 	top += _topBars->y();
@@ -3142,6 +3276,14 @@ void ChatWidget::updateControlsGeometry() {
 	}
 	_composeControls->move(0, composeTop);
 	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
+	_composeControlsTop = composeTop;
+
+	if (_toggleSuggestPost) {
+		const auto bottom = composeTop + _composeControls->heightCurrent();
+		_toggleSuggestPost->moveToRight(
+			0,
+			bottom - _toggleSuggestPost->height());
+	}
 
 	if (!animatingShow()) {
 		updateSubsectionTabsGeometry();
@@ -3176,6 +3318,23 @@ void ChatWidget::paintEvent(QPaintEvent *e) {
 	const auto bg = e->rect().intersected(
 		QRect(0, aboveHeight, width(), height() - aboveHeight));
 	SectionWidget::PaintBackground(controller(), _theme.get(), this, bg);
+
+	if (_suggestOptions) {
+		auto p = Painter(this);
+		const auto backy = _composeControlsTop
+			- st::historyReplyHeight;
+		const auto backh = st::historyReplyHeight;
+		p.fillRect(
+			myrtlrect(0, backy, width(), backh),
+			st::historyReplyBg);
+		_suggestOptions->paintIcon(p, 0, backy, width());
+		_suggestOptions->paintLines(
+			p,
+			st::historyReplySkip,
+			backy,
+			width());
+		_suggestOptions->paintBar(p, 0, backy, width());
+	}
 }
 
 bool ChatWidget::emptyShown() const {

@@ -138,6 +138,7 @@ struct ComposeControlsDescriptor {
 	bool voiceLockFromBottom = false;
 	ChatHelpers::ComposeFeatures features;
 	rpl::producer<bool> scheduledToggleValue;
+	Fn<SuggestOptions()> currentSuggest;
 };
 
 class ComposeControls final {
@@ -294,6 +295,8 @@ public:
 	void applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 
+	void saveFieldToHistoryLocalDraft();
+
 	Fn<void()> restoreTextCallback(const QString &insertTextOnCancel) const;
 
 	[[nodiscard]] Ui::InputField *fieldForMention() const;
@@ -447,7 +450,6 @@ private:
 	void clearFieldText(
 		TextUpdateEvents events = 0,
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
-	void saveFieldToHistoryLocalDraft();
 
 	void unregisterDraftSources();
 	void registerDraftSource();
@@ -552,6 +554,7 @@ private:
 	std::shared_ptr<Ui::ChatStyle> _chatStyle;
 
 	const Fn<SendMenu::Details()> _sendMenuDetails;
+	const Fn<SuggestOptions()> _currentSuggest;
 	const Fn<void(not_null<DocumentData*>)> _unavailableEmojiPasted;
 
 	rpl::event_stream<Api::SendOptions> _sendCustomRequests;
