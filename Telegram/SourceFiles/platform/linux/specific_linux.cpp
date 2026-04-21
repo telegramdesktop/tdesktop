@@ -807,8 +807,8 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		add("pavucontrol");
 		add("alsamixergui");
 		return ranges::any_of(options, [](const Command &command) {
+			QProcess process;
 			if (KSandbox::isInside()) {
-				QProcess process;
 				process.setProgram("which");
 				process.setArguments({command.command});
 				KSandbox::startHostProcess(process);
@@ -817,14 +817,13 @@ bool OpenSystemSettings(SystemSettingsType type) {
 						|| process.exitCode() != 0) {
 					return false;
 				}
-				process.setProgram(command.command);
-				process.setArguments(command.arguments);
-				KSandbox::startHostProcess(process);
-				return true;
 			}
-			return QProcess::startDetached(
-				command.command,
-				command.arguments);
+			process.setProgram(command.command);
+			process.setArguments(command.arguments);
+			const auto hostContext = KSandbox::makeHostContext(process);
+			process.setProgram(hostContext.program);
+			process.setArguments(hostContext.arguments);
+			return process.startDetached();
 		});
 	}
 	return true;
