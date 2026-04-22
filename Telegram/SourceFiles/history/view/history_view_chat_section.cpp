@@ -78,6 +78,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/scheduled_messages.h"
 #include "data/data_histories.h"
 #include "data/data_history_messages.h"
+#include "data/data_msg_id.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
@@ -143,11 +144,14 @@ ChatMemento::ChatMemento(
 	MsgId highlightId,
 	MessageHighlightId highlight)
 : _id(id)
-, _highlightId(highlightId)
-, _highlight(std::move(highlight)) {
-	if (highlightId || _id.sublist) {
+, _highlightId((highlightId == ShowForChooseMessagesMsgId)
+	? MsgId(0)
+	: highlightId)
+, _highlight(std::move(highlight))
+, _activateChooseForReport(highlightId == ShowForChooseMessagesMsgId) {
+	if (_highlightId || _id.sublist) {
 		_list.setAroundPosition({
-			.fullId = FullMsgId(_id.history->peer->id, highlightId),
+			.fullId = FullMsgId(_id.history->peer->id, _highlightId),
 			.date = TimeId(0),
 		});
 	}
@@ -368,6 +372,10 @@ ChatWidget::ChatWidget(
 	_topBar->clearSelectionRequest(
 	) | rpl::on_next([=] {
 		clearSelected();
+	}, _topBar->lifetime());
+	_topBar->cancelChooseForReportRequest(
+	) | rpl::on_next([=] {
+		this->controller()->clearChooseReportMessages();
 	}, _topBar->lifetime());
 	_topBar->searchRequest(
 	) | rpl::on_next([=] {
@@ -2054,7 +2062,88 @@ void ChatWidget::toggleMuteUnmute() {
 	session().data().notifySettings().update(_peer, muteForSeconds);
 }
 
+void ChatWidget::setChooseReportMessagesDetails(
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> callback) {
+	if (!callback) {
+		const auto refresh = _chooseForReport
+			&& _chooseForReport->active;
+		_chooseForReport = nullptr;
+		if (_inner) {
+			_inner->clearChooseReportReason();
+		}
+		if (refresh) {
+			_bottom->setInReportMode(false);
+			_topBar->clearChooseMessagesForReport();
+			clearSelected();
+			updateControlsVisibility();
+			updateControlsGeometry();
+		}
+	} else {
+		_chooseForReport = std::make_unique<ChooseMessagesForReport>(
+			ChooseMessagesForReport{
+				.reportInput = std::move(reportInput),
+				.callback = std::move(callback) });
+	}
+}
+
+void ChatWidget::activateChooseForReport() {
+	if (!_chooseForReport) {
+		return;
+	}
+	_chooseForReport->active = true;
+	if (_inner) {
+		_inner->setChooseReportReason(_chooseForReport->reportInput);
+	}
+	clearSelected();
+	_bottom->setInReportMode(true);
+	updateTopBarChooseForReport();
+}
+
+bool ChatWidget::showChooseReportMessages(
+		not_null<PeerData*> peer,
+		Data::ReportInput &&reportInput,
+		Fn<void(std::vector<MsgId>)> &&done) {
+	if (peer != _peer) {
+		return false;
+	}
+	setChooseReportMessagesDetails(std::move(reportInput), std::move(done));
+	activateChooseForReport();
+	return true;
+}
+
+bool ChatWidget::clearChooseReportMessages() {
+	setChooseReportMessagesDetails({}, nullptr);
+	return true;
+}
+
+void ChatWidget::updateTopBarChooseForReport() {
+	if (_chooseForReport && _chooseForReport->active) {
+		_topBar->showChooseMessagesForReport(
+			_chooseForReport->reportInput);
+	} else {
+		_topBar->clearChooseMessagesForReport();
+	}
+	updateControlsVisibility();
+	updateControlsGeometry();
+}
+
 void ChatWidget::reportSelectedMessages() {
+	if (!_inner || !_chooseForReport) {
+		return;
+	}
+	auto ids = _inner->getSelectedIds();
+	if (ids.empty()) {
+		return;
+	}
+	const auto done = _chooseForReport->callback;
+	clearSelected();
+	controller()->clearChooseReportMessages();
+	if (done) {
+		done(ranges::views::all(
+			ids
+		) | ranges::views::transform(&FullMsgId::msg) | ranges::to_vector);
+	}
 }
 
 void ChatWidget::updateControlsVisibility() {
@@ -3219,6 +3308,9 @@ void ChatWidget::restoreState(not_null<ChatMemento*> memento) {
 			.date = TimeId(0),
 		}, {}, params);
 	}
+	if (memento->activateChooseForReport()) {
+		activateChooseForReport();
+	}
 }
 
 void ChatWidget::resizeEvent(QResizeEvent *e) {
@@ -3528,6 +3620,10 @@ bool ChatWidget::listScrollTo(int top, bool syntetic) {
 }
 
 void ChatWidget::listCancelRequest() {
+	if (_chooseForReport && _chooseForReport->active) {
+		controller()->clearChooseReportMessages();
+		return;
+	}
 	if (_composeSearch) {
 		if (_inner &&
 			(!_inner->getSelectedItems().empty()
@@ -3655,6 +3751,9 @@ void ChatWidget::listSelectionChanged(SelectedItems &&items) {
 		}
 	}
 	_topBar->showSelected(state);
+	if (_chooseForReport && _chooseForReport->active) {
+		_bottom->updateReportMessagesText(state.count);
+	}
 	if ((state.count > 0) && _composeSearch) {
 		_composeSearch->hideAnimated();
 	}

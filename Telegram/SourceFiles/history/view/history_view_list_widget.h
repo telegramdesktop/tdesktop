@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "mtproto/sender.h"
 #include "data/data_messages.h"
+#include "data/data_report.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_keyboard_text_selection.h"
@@ -356,6 +357,8 @@ public:
 	void selectItem(not_null<HistoryItem*> item);
 	void selectItemAsGroup(not_null<HistoryItem*> item);
 	void showEditCaptionUploadLayer(not_null<HistoryItem*> item);
+	void setChooseReportReason(Data::ReportInput reportInput);
+	void clearChooseReportReason();
 
 	void touchScrollUpdated(const QPoint &screenPos);
 	[[nodiscard]] rpl::producer<bool> touchMaybeSelectingValue() const;
@@ -961,6 +964,7 @@ private:
 	bool _dragSelectDirectionUp = false;
 	// Was some text selected in current drag action.
 	bool _wasSelectedText = false;
+	std::optional<Data::ReportInput> _chooseForReportReason;
 	Qt::CursorShape _cursor = style::cur_default;
 
 	bool _isChatWide = false;

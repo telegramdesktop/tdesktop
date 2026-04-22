@@ -1441,6 +1441,7 @@ bool ListWidget::hasSelectedItems() const {
 SelectionModeResult ListWidget::inSelectionMode() const {
 	const auto now = hasSelectedItems()
 		|| !_dragSelected.empty()
+		|| _chooseForReportReason.has_value()
 		|| (_mouseAction == MouseAction::Selecting && _lastInSelectionMode);
 	if (_lastInSelectionMode != now) {
 		_lastInSelectionMode = now;
@@ -1656,6 +1657,14 @@ bool ListWidget::isPressInSelectedText(
 void ListWidget::cancelSelection() {
 	clearSelected();
 	clearTextSelection();
+}
+
+void ListWidget::setChooseReportReason(Data::ReportInput reportInput) {
+	_chooseForReportReason = std::move(reportInput);
+}
+
+void ListWidget::clearChooseReportReason() {
+	_chooseForReportReason = std::nullopt;
 }
 
 void ListWidget::selectItem(not_null<HistoryItem*> item) {
@@ -4197,10 +4206,10 @@ void ListWidget::mouseActionStart(
 			|| _overState.pointState == PointState::Outside
 			|| !_overElement->allowTextSelectionByHandler(pressed))) {
 		_mouseAction = MouseAction::PrepareDrag;
-	} else if (hasSelectedItems()) {
+	} else if (inSelectionMode().inSelectionMode) {
 		if (overSelectedItems()) {
 			_mouseAction = MouseAction::PrepareDrag;
-		} else if (!_pressWasInactive && !hasSelectRestriction()) {
+		} else if (!_pressWasInactive) {
 			_mouseAction = MouseAction::PrepareSelect;
 		}
 	}
@@ -4345,7 +4354,7 @@ void ListWidget::mouseActionFinish(
 			|| _mouseAction == MouseAction::PrepareDrag);
 	auto needItemSelectionToggle = simpleSelectionChange
 		&& (!activated || toggleByHandler(activated))
-		&& hasSelectedItems();
+		&& inSelectionMode().inSelectionMode;
 	auto needTextSelectionClear = simpleSelectionChange
 		&& hasSelectedText();
 

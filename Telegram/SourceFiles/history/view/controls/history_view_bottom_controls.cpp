@@ -71,6 +71,37 @@ void BottomControls::setTopic(Data::ForumTopic *topic) {
 	updateControlsVisibility();
 }
 
+void BottomControls::setInReportMode(bool value) {
+	if (_inReportMode == value) {
+		return;
+	}
+	_inReportMode = value;
+	updateReportMessagesText(0);
+	updateControlsVisibility();
+}
+
+void BottomControls::updateReportMessagesText(int selectedCount) {
+	if (!_reportMessages) {
+		return;
+	}
+	const auto transparent = Qt::WA_TransparentForMouseEvents;
+	if (selectedCount == 0) {
+		_reportMessages->clearState();
+		_reportMessages->setAttribute(transparent);
+		_reportMessages->setColorOverride(st::windowSubTextFg->c);
+	} else if (_reportMessages->testAttribute(transparent)) {
+		_reportMessages->setAttribute(transparent, false);
+		_reportMessages->setColorOverride(std::nullopt);
+	}
+	_reportMessages->setText(selectedCount
+		? tr::lng_report_messages_count(
+			tr::now,
+			lt_count,
+			selectedCount,
+			tr::upper)
+		: tr::lng_report_messages_none(tr::now, tr::upper));
+}
+
 void BottomControls::applyPeerUpdate(Data::PeerUpdate::Flags flags) {
 	using Flag = Data::PeerUpdate::Flag;
 	if (flags & Flag::IsBlocked) {
@@ -600,7 +631,7 @@ bool BottomControls::isMuteUnmute() const {
 }
 
 bool BottomControls::isReportMessages() const {
-	return false;
+	return (_mode == BottomControlsMode::History) && _inReportMode;
 }
 
 bool BottomControls::isChoosingTheme() const {

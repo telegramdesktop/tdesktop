@@ -27,6 +27,7 @@ struct Details;
 
 namespace Data {
 struct ReactionId;
+struct ReportInput;
 class ForumTopic;
 class WallPaper;
 class Session;
@@ -163,6 +164,16 @@ public:
 			QString query,
 			Dialogs::Key chat,
 			PeerData *searchFrom = nullptr) {
+		return false;
+	}
+
+	virtual bool showChooseReportMessages(
+			not_null<PeerData*> peer,
+			Data::ReportInput &&reportInput,
+			Fn<void(std::vector<MsgId>)> &&done) {
+		return false;
+	}
+	virtual bool clearChooseReportMessages() {
 		return false;
 	}
 

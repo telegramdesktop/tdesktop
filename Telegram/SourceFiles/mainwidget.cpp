@@ -1326,16 +1326,33 @@ void MainWidget::showChooseReportMessages(
 		not_null<PeerData*> peer,
 		Data::ReportInput reportInput,
 		Fn<void(std::vector<MsgId>)> done) {
-	_history->setChooseReportMessagesDetails(reportInput, std::move(done));
-	_controller->showPeerHistory(
-		peer,
-		SectionShow::Way::Forward,
-		ShowForChooseMessagesMsgId);
+	_controller->window().hideSettingsAndLayer();
+	if (!_mainSection
+		|| !_mainSection->showChooseReportMessages(
+			peer,
+			std::move(reportInput),
+			std::move(done))) {
+		_controller->showPeerHistory(
+			peer,
+			SectionShow::Way::Forward,
+			ShowForChooseMessagesMsgId);
+		if (!_mainSection
+			|| !_mainSection->showChooseReportMessages(
+				peer,
+				std::move(reportInput),
+				std::move(done))) {
+			_history->setChooseReportMessagesDetails(
+				std::move(reportInput),
+				std::move(done));
+		}
+	}
 	controller()->showToast(tr::lng_report_please_select_messages(tr::now));
 }
 
 void MainWidget::clearChooseReportMessages() {
-	_history->setChooseReportMessagesDetails({}, nullptr);
+	if (!_mainSection || !_mainSection->clearChooseReportMessages()) {
+		_history->setChooseReportMessagesDetails({}, nullptr);
+	}
 }
 
 void MainWidget::toggleChooseChatTheme(

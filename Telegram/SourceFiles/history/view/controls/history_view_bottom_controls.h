@@ -65,6 +65,8 @@ public:
 	void setTopic(Data::ForumTopic *topic);
 	void applyPeerUpdate(Data::PeerUpdate::Flags flags);
 	void updateControlsVisibility();
+	void setInReportMode(bool value);
+	void updateReportMessagesText(int selectedCount);
 
 	[[nodiscard]] bool isButtonActive() const;
 	[[nodiscard]] bool canSendTexts() const;
@@ -141,6 +143,7 @@ private:
 
 	bool _canSendMessages = false;
 	bool _canSendTexts = false;
+	bool _inReportMode = false;
 
 };
 

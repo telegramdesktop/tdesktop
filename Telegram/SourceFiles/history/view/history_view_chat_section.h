@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 #include "history/history_item_helpers.h"
 #include "data/data_messages.h"
+#include "data/data_report.h"
 #include "ui/controls/swipe_handler_data.h"
 #include "base/timer.h"
 
@@ -108,6 +109,9 @@ public:
 	[[nodiscard]] ChatViewId id() const {
 		return _id;
 	}
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		return _peer;
+	}
 	Dialogs::RowDescriptor activeChat() const override;
 	bool preventsClose(Fn<void()> &&continueCallback) const override;
 
@@ -138,6 +142,12 @@ public:
 
 	bool confirmSendingFiles(const QStringList &files) override;
 	bool confirmSendingFiles(not_null<const QMimeData*> data) override;
+
+	bool showChooseReportMessages(
+		not_null<PeerData*> peer,
+		Data::ReportInput &&reportInput,
+		Fn<void(std::vector<MsgId>)> &&done) override;
+	bool clearChooseReportMessages() override;
 
 	void setInternalState(
 		const QRect &geometry,
@@ -236,6 +246,11 @@ private:
 		History,
 	};
 	[[nodiscard]] Mode mode() const;
+
+	void setChooseReportMessagesDetails(
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> callback);
+	void activateChooseForReport();
 
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
@@ -426,6 +441,7 @@ private:
 	void joinGroupAction();
 	void toggleMuteUnmute();
 	void reportSelectedMessages();
+	void updateTopBarChooseForReport();
 	[[nodiscard]] bool emptyShown() const;
 	[[nodiscard]] bool showSlowmodeError();
 
@@ -440,6 +456,13 @@ private:
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::lifetime _repliesLifetime;
 	rpl::variable<bool> _areComments = false;
+
+	struct ChooseMessagesForReport {
+		Data::ReportInput reportInput;
+		Fn<void(std::vector<MsgId>)> callback;
+		bool active = false;
+	};
+	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
 
 	Data::SavedSublist *_sublist = nullptr;
 	PeerId _monoforumPeerId;
@@ -568,6 +591,9 @@ public:
 	[[nodiscard]] const MessageHighlightId &highlight() const {
 		return _highlight;
 	}
+	[[nodiscard]] bool activateChooseForReport() const {
+		return _activateChooseForReport;
+	}
 
 private:
 	void setupTopicViewer();
@@ -578,6 +604,7 @@ private:
 	ListMemento _list;
 	std::shared_ptr<Data::RepliesList> _replies;
 	QVector<FullMsgId> _replyReturns;
+	bool _activateChooseForReport = false;
 
 	rpl::lifetime _lifetime;
 
