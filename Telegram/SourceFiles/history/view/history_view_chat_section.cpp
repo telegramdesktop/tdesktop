@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_chat_section.h"
 
+#include "history/view/controls/history_view_bottom_controls.h"
 #include "history/view/controls/history_view_compose_controls.h"
 #include "history/view/controls/history_view_compose_search.h"
 #include "history/view/controls/history_view_draft_options.h"
@@ -60,7 +61,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "boxes/send_files_box.h"
 #include "boxes/premium_limits_box.h"
-#include "boxes/star_gift_box.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
@@ -287,6 +287,22 @@ ChatWidget::ChatWidget(
 			}) | rpl::type_erased
 			: rpl::single(false),
 		.currentSuggest = [=] { return suggestOptions(); },
+		.suggestPostToggleShown = _suggestPostToggleShown.value(),
+		.suggestPostToggleActive = _suggestPostToggleActive.value(),
+	}))
+, _bottom(std::make_unique<BottomControls>(
+	this,
+	BottomControlsDescriptor{
+		.controller = controller,
+		.history = _history.get(),
+		.repliesRootId = _repliesRootId,
+		.topic = _topic,
+		.sublist = _sublist,
+		.mode = (_sublist
+			? BottomControlsMode::Sublist
+			: _repliesRootId
+			? BottomControlsMode::Replies
+			: BottomControlsMode::History),
 	}))
 , _translateBar(
 	std::make_unique<TranslateBar>(_topBars.get(), controller, _history))
@@ -321,8 +337,6 @@ ChatWidget::ChatWidget(
 
 	setupRoot();
 	setupRootView();
-	setupOpenChatButton();
-	setupAboutHiddenAuthor();
 	setupShortcuts();
 	setupTranslateBar();
 
@@ -390,7 +404,7 @@ ChatWidget::ChatWidget(
 
 	_inner->editMessageRequested(
 	) | rpl::filter([=] {
-		return !isBottomBarButtonActive();
+		return !_bottom->isButtonActive();
 	}) | rpl::on_next([=](auto fullId) {
 		if (const auto item = session().data().message(fullId)) {
 			const auto media = item->media();
@@ -412,7 +426,7 @@ ChatWidget::ChatWidget(
 		const auto &to = request.to;
 		const auto still = _history->owner().message(to.messageId);
 		const auto allowInAnotherChat = still && still->allowsForward();
-		const auto bottomBarActive = isBottomBarButtonActive();
+		const auto bottomBarActive = _bottom->isButtonActive();
 		if (allowInAnotherChat
 			&& (bottomBarActive
 				|| !canSendReply
@@ -513,13 +527,42 @@ ChatWidget::ChatWidget(
 
 	setupTopicViewer();
 	setupComposeControls();
-	setupBottomBarButtons();
 	setupSwipeReplyAndBack();
+
+	_bottom->actionRequests(
+	) | rpl::on_next([=](BottomControlsAction action) {
+		switch (action) {
+		case BottomControlsAction::Unblock:
+			unblockUser();
+			break;
+		case BottomControlsAction::BotStart:
+			sendBotStartCommand();
+			break;
+		case BottomControlsAction::JoinChannel:
+			joinChannelAction();
+			break;
+		case BottomControlsAction::JoinGroup:
+			joinGroupAction();
+			break;
+		case BottomControlsAction::MuteUnmute:
+			toggleMuteUnmute();
+			break;
+		case BottomControlsAction::Report:
+			reportSelectedMessages();
+			break;
+		}
+	}, lifetime());
+
+	_bottom->contentHeightValue(
+	) | rpl::on_next([=] {
+		updateControlsGeometry();
+	}, lifetime());
 
 	Data::CanSendAnythingValue(
 		_peer
 	) | rpl::on_next([=](bool can) {
 		_canSendMessages = can;
+		_bottom->setCanSendMessages(can);
 		updateControlsVisibility();
 	}, lifetime());
 
@@ -536,22 +579,11 @@ ChatWidget::ChatWidget(
 			| PeerUpdateFlag::ManagedBot
 			| PeerUpdateFlag::StarsPerMessage
 	) | rpl::on_next([=](const Data::PeerUpdate &update) {
-		if (update.flags & PeerUpdateFlag::IsBlocked) {
-			refreshUnblockText();
-		}
-		if (update.flags & PeerUpdateFlag::ChannelAmIn) {
-			refreshJoinChannelText();
-		}
-		if (update.flags & (PeerUpdateFlag::ChannelAmIn
-			| PeerUpdateFlag::Rights)) {
-			refreshJoinGroupText();
-		}
+		_bottom->applyPeerUpdate(update.flags);
 		if (update.flags & (PeerUpdateFlag::FullInfo
 			| PeerUpdateFlag::Rights
 			| PeerUpdateFlag::ChannelAmIn
 			| PeerUpdateFlag::StarsPerMessage)) {
-			refreshGiftToChannelShown();
-			refreshDirectMessageShown();
 			refreshSuggestPostToggle();
 		}
 		if (update.flags & (PeerUpdateFlag::FullInfo
@@ -561,20 +593,6 @@ ChatWidget::ChatWidget(
 			| PeerUpdateFlag::StarsPerMessage)) {
 			refreshAboutView();
 		}
-		if (update.flags & PeerUpdateFlag::Notifications) {
-			refreshMuteUnmuteText();
-		}
-		updateControlsVisibility();
-	}, lifetime());
-
-	using DefaultNotify = Data::DefaultNotify;
-	rpl::merge(
-		session().data().notifySettings().defaultUpdates(DefaultNotify::User),
-		session().data().notifySettings().defaultUpdates(DefaultNotify::Group),
-		session().data().notifySettings().defaultUpdates(
-			DefaultNotify::Broadcast)
-	) | rpl::on_next([=] {
-		refreshMuteUnmuteText();
 		updateControlsVisibility();
 	}, lifetime());
 
@@ -643,31 +661,8 @@ void ChatWidget::orderWidgets() {
 	}
 	_topBar->raise();
 	_topBarShadow->raise();
-	if (_unblock) {
-		_unblock->raise();
-	}
-	if (_botStart) {
-		_botStart->raise();
-	}
-	if (_joinChannel) {
-		_joinChannel->raise();
-	}
-	if (_joinGroup) {
-		_joinGroup->raise();
-	}
-	if (_muteUnmute) {
-		_muteUnmute->raise();
-	}
-	if (_reportMessages) {
-		_reportMessages->raise();
-	}
-	if (_sendRestriction) {
-		_sendRestriction->raise();
-	}
+	_bottom->raise();
 	_composeControls->raisePanels();
-	if (_toggleSuggestPost) {
-		_toggleSuggestPost->raise();
-	}
 }
 
 void ChatWidget::setupRoot() {
@@ -855,6 +850,7 @@ void ChatWidget::setTopic(Data::ForumTopic *topic) {
 	_topicLifetime.destroy();
 	_topic = topic;
 	_pullToNext->setTopic(topic);
+	_bottom->setTopic(topic);
 	refreshReplies();
 	refreshTopBarActiveChat();
 	validateSubsectionTabs();
@@ -929,7 +925,7 @@ void ChatWidget::setupComposeControls() {
 			auto,
 			auto,
 			Data::SendError topicRestriction) {
-		if (isBottomBarButtonActive()) {
+		if (_bottom->isButtonActive()) {
 			return Controls::WriteRestriction();
 		}
 		if (info) {
@@ -980,7 +976,7 @@ void ChatWidget::setupComposeControls() {
 
 	_composeControls->height(
 	) | rpl::filter([=] {
-		return !isBottomBarButtonActive();
+		return !_bottom->isButtonActive();
 	}) | rpl::on_next([=] {
 		const auto wasMax = (_scroll->scrollTop() >= _scroll->scrollTopMax());
 		updateControlsGeometry();
@@ -1110,6 +1106,14 @@ void ChatWidget::setupComposeControls() {
 				: std::make_shared<HistoryView::ScheduledMemento>(_history));
 	}, lifetime());
 
+	_composeControls->suggestPostToggleClicks(
+	) | rpl::on_next([=] {
+		applySuggestOptions(
+			{ .exists = 1 },
+			SuggestMode::New);
+		_composeControls->cancelReplyMessage();
+	}, lifetime());
+
 	_composeControls->setPasteToastParent(_scroll.get());
 	_composeControls->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
@@ -1145,7 +1149,7 @@ void ChatWidget::setupSwipeReplyAndBack() {
 			? Data::CanSendAnything(_topic)
 			: Data::CanSendAnything(_peer);
 		const auto allowInAnotherChat = still && still->allowsForward();
-		const auto bottomBarActive = isBottomBarButtonActive();
+		const auto bottomBarActive = _bottom->isButtonActive();
 		if (allowInAnotherChat && (bottomBarActive || !canSendReply)) {
 			return true;
 		} else if (!bottomBarActive && canSendReply) {
@@ -2004,280 +2008,6 @@ void ChatWidget::validateSubsectionTabs() {
 	orderWidgets();
 }
 
-void ChatWidget::refreshJoinGroupText() {
-	if (!_joinGroup) {
-		return;
-	}
-	if (const auto channel = _peer->asChannel()) {
-		_joinGroup->setText((channel->isBroadcast()
-			? tr::lng_profile_join_channel(tr::now)
-			: (channel->requestToJoin() && !channel->amCreator())
-			? tr::lng_profile_apply_to_join_group(tr::now)
-			: tr::lng_profile_join_group(tr::now)).toUpper());
-	}
-	_canSendTexts = !isJoinGroup();
-}
-
-void ChatWidget::setupBottomBarButtons() {
-	const auto m = mode();
-	if (m == Mode::History) {
-		_unblock = std::make_unique<Ui::FlatButton>(
-			this,
-			tr::lng_unblock_button(tr::now).toUpper(),
-			st::historyUnblock);
-		_botStart = std::make_unique<Ui::FlatButton>(
-			this,
-			tr::lng_bot_start(tr::now).toUpper(),
-			st::historyComposeButton);
-		_joinChannel = std::make_unique<Ui::FlatButton>(
-			this,
-			tr::lng_profile_join_channel(tr::now).toUpper(),
-			st::historyComposeButton);
-		_muteUnmute = std::make_unique<Ui::FlatButton>(
-			this,
-			tr::lng_channel_mute(tr::now).toUpper(),
-			st::historyComposeButton);
-		_reportMessages = std::make_unique<Ui::FlatButton>(
-			this,
-			QString(),
-			st::historyComposeButton);
-		_unblock->hide();
-		_botStart->hide();
-		_joinChannel->hide();
-		_muteUnmute->hide();
-		_reportMessages->hide();
-		_unblock->setClickedCallback([=] { unblockUser(); });
-		_botStart->setClickedCallback([=] { sendBotStartCommand(); });
-		_joinChannel->setClickedCallback([=] { joinChannelAction(); });
-		_muteUnmute->setClickedCallback([=] { toggleMuteUnmute(); });
-		_reportMessages->setClickedCallback([=] {
-			reportSelectedMessages();
-		});
-		setupGiftToChannelButton();
-		setupDirectMessageButton();
-		refreshJoinChannelText();
-		refreshGiftToChannelShown();
-		refreshDirectMessageShown();
-		refreshMuteUnmuteText();
-	} else if (m == Mode::Replies && _peer->isChannel()) {
-		_joinGroup = std::make_unique<Ui::FlatButton>(
-			this,
-			QString(),
-			st::historyComposeButton);
-		_joinGroup->hide();
-		_joinGroup->setClickedCallback([=] { joinGroupAction(); });
-		refreshJoinGroupText();
-	}
-}
-
-void ChatWidget::setupGiftToChannelButton() {
-	_giftToChannel = Ui::CreateChild<Ui::IconButton>(
-		_muteUnmute.get(),
-		st::historyGiftToChannel);
-	_giftToChannel->setAccessibleName(tr::lng_gift_channel_title(tr::now));
-	widthValue() | rpl::on_next([=](int width) {
-		_giftToChannel->moveToRight(0, 0, width);
-	}, _giftToChannel->lifetime());
-	_giftToChannel->setClickedCallback([=] {
-		Ui::ShowStarGiftBox(controller(), _peer);
-	});
-	rpl::combine(
-		_muteUnmute->shownValue(),
-		_joinChannel->shownValue()
-	) | rpl::on_next([=](bool muteUnmute, bool joinChannel) {
-		const auto newParent = (muteUnmute && !joinChannel)
-			? _muteUnmute.get()
-			: (joinChannel && !muteUnmute)
-			? _joinChannel.get()
-			: nullptr;
-		if (newParent) {
-			_giftToChannel->setParent(newParent);
-			_giftToChannel->moveToRight(0, 0);
-			refreshGiftToChannelShown();
-		}
-	}, _giftToChannel->lifetime());
-}
-
-void ChatWidget::setupDirectMessageButton() {
-	_directMessage = Ui::CreateChild<Ui::IconButton>(
-		_muteUnmute.get(),
-		st::historyDirectMessage);
-	_directMessage->setAccessibleName(
-		tr::lng_profile_direct_messages(tr::now));
-	widthValue() | rpl::on_next([=](int width) {
-		_directMessage->moveToLeft(0, 0, width);
-	}, _directMessage->lifetime());
-	_directMessage->setClickedCallback([=] {
-		if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
-			if (channel->invitePeekExpires()) {
-				controller()->showToast(
-					tr::lng_channel_invite_private(tr::now));
-			} else if (const auto monoforum = channel->monoforumLink()) {
-				controller()->showPeerHistory(
-					monoforum,
-					Window::SectionShow::Way::Forward);
-			}
-		}
-	});
-	rpl::combine(
-		_muteUnmute->shownValue(),
-		_joinChannel->shownValue()
-	) | rpl::on_next([=](bool muteUnmute, bool joinChannel) {
-		const auto newParent = (muteUnmute && !joinChannel)
-			? _muteUnmute.get()
-			: (joinChannel && !muteUnmute)
-			? _joinChannel.get()
-			: nullptr;
-		if (newParent) {
-			_directMessage->setParent(newParent);
-			_directMessage->moveToLeft(0, 0);
-			refreshDirectMessageShown();
-		}
-	}, _directMessage->lifetime());
-}
-
-void ChatWidget::refreshJoinChannelText() {
-	if (!_joinChannel) {
-		return;
-	}
-	if (const auto channel = _peer->asChannel()) {
-		_joinChannel->setText((channel->isBroadcast()
-			? tr::lng_profile_join_channel(tr::now)
-			: (channel->requestToJoin() && !channel->amCreator())
-			? tr::lng_profile_apply_to_join_group(tr::now)
-			: tr::lng_profile_join_group(tr::now)).toUpper());
-	}
-}
-
-void ChatWidget::refreshGiftToChannelShown() {
-	if (!_giftToChannel) {
-		return;
-	}
-	const auto channel = _peer->asChannel();
-	_giftToChannel->setVisible(channel
-		&& channel->isBroadcast()
-		&& channel->stargiftsAvailable());
-}
-
-void ChatWidget::refreshDirectMessageShown() {
-	if (!_directMessage) {
-		return;
-	}
-	const auto channel = _peer->asChannel();
-	const auto monoforum = channel ? channel->broadcastMonoforum() : nullptr;
-	const auto visible = monoforum && !monoforum->monoforumDisabled();
-	_directMessage->setVisible(visible);
-	if (visible) {
-		using Flags = Data::Flags<ChannelDataFlags>;
-		_directMessageLifetime = monoforum->flagsValue(
-		) | rpl::skip(
-			1
-		) | rpl::on_next([=](Flags::Change change) {
-			if (change.diff & ChannelDataFlag::MonoforumDisabled) {
-				refreshDirectMessageShown();
-			}
-		});
-	}
-}
-
-void ChatWidget::refreshUnblockText() {
-	if (!_unblock) {
-		return;
-	}
-	_unblock->setText(((_peer->isUser()
-		&& _peer->asUser()->isBot()
-		&& !_peer->asUser()->isSupport())
-			? tr::lng_restart_button(tr::now)
-			: tr::lng_unblock_button(tr::now)).toUpper());
-}
-
-void ChatWidget::refreshMuteUnmuteText() {
-	if (!_muteUnmute) {
-		return;
-	}
-	_muteUnmute->setText((_history->muted()
-		? tr::lng_channel_unmute(tr::now)
-		: tr::lng_channel_mute(tr::now)).toUpper());
-}
-
-bool ChatWidget::isBotStart() const {
-	if (mode() != Mode::History) {
-		return false;
-	}
-	const auto user = _peer->asUser();
-	if (!user || !user->isBot() || !_canSendMessages) {
-		return false;
-	} else if (!user->botInfo->startToken.isEmpty()) {
-		return true;
-	} else if (_history->isEmpty() && !_history->lastMessage()) {
-		return true;
-	}
-	return false;
-}
-
-bool ChatWidget::isBlocked() const {
-	if (mode() != Mode::History) {
-		return false;
-	}
-	return _peer->isUser() && _peer->asUser()->isBlocked();
-}
-
-bool ChatWidget::isJoinChannel() const {
-	if (mode() != Mode::History) {
-		return false;
-	}
-	if (const auto channel = _peer->asChannel()) {
-		return !channel->amIn() && !channel->isMonoforum();
-	}
-	return false;
-}
-
-bool ChatWidget::isJoinGroup() const {
-	if (mode() != Mode::Replies) {
-		return false;
-	}
-	const auto channel = _peer->asChannel();
-	if (!channel) {
-		return false;
-	}
-	const auto canSend = !channel->isForum()
-		? Data::CanSendAnything(channel)
-		: (_topic && Data::CanSendAnything(_topic));
-	return !channel->amIn() && !canSend;
-}
-
-bool ChatWidget::isMuteUnmute() const {
-	if (mode() != Mode::History) {
-		return false;
-	}
-	return (_peer->isBroadcast() && !_peer->asChannel()->canPostMessages())
-		|| (_peer->isGigagroup() && !Data::CanSendAnything(_peer))
-		|| _peer->isRepliesChat()
-		|| _peer->isVerifyCodes();
-}
-
-bool ChatWidget::isReportMessages() const {
-	return false;
-}
-
-bool ChatWidget::isChoosingTheme() const {
-	return false;
-}
-
-bool ChatWidget::isBottomBarButtonActive() const {
-	const auto m = mode();
-	if (m == Mode::History) {
-		return isBlocked()
-			|| isJoinChannel()
-			|| isMuteUnmute()
-			|| isBotStart()
-			|| isReportMessages();
-	} else if (m == Mode::Replies) {
-		return isJoinGroup();
-	}
-	return false;
-}
-
 void ChatWidget::unblockUser() {
 	if (const auto user = _peer->asUser()) {
 		const auto show = controller()->uiShow();
@@ -2300,19 +2030,19 @@ void ChatWidget::sendBotStartCommand() {
 }
 
 void ChatWidget::joinChannelAction() {
-	if (!_peer->isChannel() || !isJoinChannel()) {
+	if (const auto channel = _peer->asChannel()) {
+		session().api().joinChannel(channel);
+	} else {
 		updateControlsVisibility();
-		return;
 	}
-	session().api().joinChannel(_peer->asChannel());
 }
 
 void ChatWidget::joinGroupAction() {
-	if (!_peer->isChannel() || !isJoinGroup()) {
+	if (const auto channel = _peer->asChannel()) {
+		session().api().joinChannel(channel);
+	} else {
 		updateControlsVisibility();
-		return;
 	}
-	session().api().joinChannel(_peer->asChannel());
 }
 
 void ChatWidget::toggleMuteUnmute() {
@@ -2328,122 +2058,20 @@ void ChatWidget::reportSelectedMessages() {
 }
 
 void ChatWidget::updateControlsVisibility() {
-	if (!_unblock && !_joinGroup) {
-		updateSendRestriction();
-		return;
-	}
-	const auto toggle = [&](Ui::FlatButton *shown) {
-		const auto toggleOne = [&](Ui::FlatButton *button) {
-			if (!button) {
-				return;
-			}
-			if (button != shown) {
-				button->hide();
-			} else if (button->isHidden()) {
-				button->clearState();
-				button->show();
-			}
-		};
-		toggleOne(_reportMessages.get());
-		toggleOne(_joinChannel.get());
-		toggleOne(_joinGroup.get());
-		toggleOne(_muteUnmute.get());
-		toggleOne(_botStart.get());
-		toggleOne(_unblock.get());
-	};
-	if (isBottomBarButtonActive()) {
-		if (isReportMessages()) {
-			toggle(_reportMessages.get());
-		} else if (isBlocked()) {
-			toggle(_unblock.get());
-		} else if (isJoinChannel()) {
-			toggle(_joinChannel.get());
-		} else if (isJoinGroup()) {
-			toggle(_joinGroup.get());
-		} else if (isMuteUnmute()) {
-			toggle(_muteUnmute.get());
-		} else if (isBotStart()) {
-			toggle(_botStart.get());
-		} else {
-			toggle(nullptr);
-		}
-		if (!_openChatButton && !_aboutHiddenAuthor) {
+	_bottom->updateControlsVisibility();
+	const auto active = _bottom->isButtonActive();
+	const auto hasSublistReplacement = _bottom->hasOpenChatButton()
+		|| _bottom->hasAboutHiddenAuthor();
+	if (active) {
+		if (!hasSublistReplacement) {
 			_composeControls->hide();
 		}
-		if (_toggleSuggestPost) {
-			_toggleSuggestPost->hide();
-		}
-		if (_sendRestriction) {
-			_sendRestriction->hide();
-		}
 	} else {
-		toggle(nullptr);
-		updateSendRestriction();
-		if (!_openChatButton && !_aboutHiddenAuthor) {
+		if (!hasSublistReplacement) {
 			_composeControls->show();
-		}
-		if (_toggleSuggestPost) {
-			const auto now = !_suggestOptions;
-			if (_toggleSuggestPost->isVisible() != now) {
-				_toggleSuggestPost->setVisible(now);
-			}
 		}
 	}
 	updateControlsGeometry();
-}
-
-Data::SendError ChatWidget::computeSendRestriction() const {
-	if (mode() != Mode::History) {
-		return Data::SendError();
-	}
-	if (!_canSendMessages
-		&& _peer->amMonoforumAdmin()
-		&& !_peer->asChannel()->monoforumDisabled()) {
-		return Data::SendError({
-			.text = tr::lng_monoforum_choose_to_reply(tr::now),
-			.monoforumAdmin = true,
-		});
-	}
-	const auto allWithoutPolls = Data::AllSendRestrictions()
-		& ~ChatRestriction::SendPolls;
-	return !Data::CanSendAnyOf(_peer, allWithoutPolls)
-		? Data::RestrictionError(_peer, ChatRestriction::SendOther)
-		: Data::SendError();
-}
-
-void ChatWidget::updateSendRestriction() {
-	const auto restriction = computeSendRestriction();
-	if (_sendRestrictionKey == restriction.text) {
-		return;
-	}
-	_sendRestrictionKey = restriction.text;
-	if (!restriction) {
-		_sendRestriction = nullptr;
-	} else if (restriction.frozen) {
-		const auto show = controller()->uiShow();
-		_sendRestriction = FrozenWriteRestriction(
-			this,
-			show,
-			FrozenWriteRestrictionType::MessageField);
-	} else if (restriction.premiumToLift) {
-		_sendRestriction = PremiumRequiredSendRestriction(
-			this,
-			_peer->asUser(),
-			controller());
-	} else if (const auto lifting = restriction.boostsToLift) {
-		const auto show = controller()->uiShow();
-		_sendRestriction = BoostsToLiftWriteRestriction(
-			this,
-			show,
-			_peer,
-			lifting);
-	} else {
-		_sendRestriction = TextErrorSendRestriction(this, restriction.text);
-	}
-	if (_sendRestriction) {
-		_sendRestriction->show();
-		updateControlsGeometry();
-	}
 }
 
 bool ChatWidget::sendExistingDocument(
@@ -2667,9 +2295,7 @@ void ChatWidget::applySuggestOptions(
 		refreshTopBarActiveChat();
 	}, _suggestOptions->lifetime());
 	_composeControls->saveFieldToHistoryLocalDraft();
-	if (_toggleSuggestPost) {
-		_toggleSuggestPost->setVisible(!_suggestOptions);
-	}
+	_suggestPostToggleActive = (_suggestOptions != nullptr);
 	updateControlsGeometry();
 	update();
 	refreshTopBarActiveChat();
@@ -2682,9 +2308,7 @@ bool ChatWidget::cancelSuggestPost() {
 	_suggestOptions = nullptr;
 	updateControlsGeometry();
 	_composeControls->saveFieldToHistoryLocalDraft();
-	if (_toggleSuggestPost) {
-		_toggleSuggestPost->setVisible(!_suggestOptions);
-	}
+	_suggestPostToggleActive = (_suggestOptions != nullptr);
 	update();
 	refreshTopBarActiveChat();
 	return true;
@@ -2692,20 +2316,8 @@ bool ChatWidget::cancelSuggestPost() {
 
 void ChatWidget::refreshSuggestPostToggle() {
 	const auto has = _history->suggestDraftAllowed();
-	if (!_toggleSuggestPost && has) {
-		_toggleSuggestPost.create(this, st::historySuggestPostToggle);
-		_toggleSuggestPost->setVisible(!_suggestOptions);
-		_toggleSuggestPost->addClickHandler([=] {
-			applySuggestOptions(
-				{ .exists = 1 },
-				SuggestMode::New);
-			_composeControls->cancelReplyMessage();
-			updateControlsVisibility();
-			updateControlsGeometry();
-		});
-		updateControlsGeometry();
-	} else if (_toggleSuggestPost && !has) {
-		_toggleSuggestPost.destroy();
+	_suggestPostToggleShown = has;
+	if (!has && _suggestOptions) {
 		cancelSuggestPost();
 	}
 }
@@ -2813,53 +2425,6 @@ void ChatWidget::checkLastPinnedClickedIdReset(
 		_minPinnedId = std::nullopt;
 		updatePinnedViewer();
 	}
-}
-
-void ChatWidget::setupOpenChatButton() {
-	if (!_sublist || _sublist->sublistPeer()->isSavedHiddenAuthor()) {
-		return;
-	} else if (_sublist->parentChat()) {
-		_canSendTexts = true;
-		return;
-	}
-	_openChatButton = std::make_unique<Ui::FlatButton>(
-		this,
-		(_sublist->sublistPeer()->isBroadcast()
-			? tr::lng_saved_open_channel(tr::now)
-			: _sublist->sublistPeer()->isUser()
-			? tr::lng_saved_open_chat(tr::now)
-			: tr::lng_saved_open_group(tr::now)),
-		st::historyComposeButton);
-
-	_openChatButton->setClickedCallback([=] {
-		controller()->showPeerHistory(
-			_sublist->sublistPeer(),
-			Window::SectionShow::Way::Forward);
-	});
-}
-
-void ChatWidget::setupAboutHiddenAuthor() {
-	if (!_sublist || !_sublist->sublistPeer()->isSavedHiddenAuthor()) {
-		return;
-	} else if (_sublist->parentChat()) {
-		_canSendTexts = true;
-		return;
-	}
-	_aboutHiddenAuthor = std::make_unique<Ui::RpWidget>(this);
-	_aboutHiddenAuthor->paintRequest() | rpl::on_next([=] {
-		auto p = QPainter(_aboutHiddenAuthor.get());
-		auto rect = _aboutHiddenAuthor->rect();
-
-		p.fillRect(rect, st::historyReplyBg);
-
-		p.setFont(st::normalFont);
-		p.setPen(st::windowSubTextFg);
-		p.drawText(
-			rect.marginsRemoved(
-				QMargins(st::historySendPadding, 0, st::historySendPadding, 0)),
-			tr::lng_saved_about_hidden(tr::now),
-			style::al_center);
-	}, _aboutHiddenAuthor->lifetime());
 }
 
 void ChatWidget::setupTranslateBar() {
@@ -3324,7 +2889,7 @@ QPixmap ChatWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	if (hideTopBarShadow) {
 		_topBarShadow->hide();
 	}
-	if (isBottomBarButtonActive()) {
+	if (_bottom->isButtonActive()) {
 		_composeControls->hide();
 	} else {
 		_composeControls->showForGrab();
@@ -3712,43 +3277,10 @@ void ChatWidget::updateControlsGeometry() {
 	top += _translateBarHeight;
 
 	auto bottom = height();
-	if (_openChatButton) {
-		_openChatButton->resizeToWidth(width());
-		bottom -= _openChatButton->height();
-		_openChatButton->move(0, bottom);
-	} else if (_aboutHiddenAuthor) {
-		_aboutHiddenAuthor->resize(width(), st::historyUnblock.height);
-		bottom -= _aboutHiddenAuthor->height();
-		_aboutHiddenAuthor->move(0, bottom);
-	} else if (isBottomBarButtonActive()) {
-		const auto fullRect = myrtlrect(
-			0,
-			bottom - st::historyComposeButton.height,
-			width(),
-			st::historyComposeButton.height);
-		if (_botStart) {
-			_botStart->setGeometry(fullRect);
-		}
-		if (_unblock) {
-			_unblock->setGeometry(fullRect);
-		}
-		if (_joinChannel) {
-			_joinChannel->setGeometry(fullRect);
-		}
-		if (_joinGroup) {
-			_joinGroup->setGeometry(fullRect);
-		}
-		if (_muteUnmute) {
-			_muteUnmute->setGeometry(fullRect);
-		}
-		if (_reportMessages) {
-			_reportMessages->setGeometry(fullRect);
-		}
-		bottom -= st::historyComposeButton.height;
-	} else if (_sendRestriction) {
-		_sendRestriction->resize(width(), _sendRestriction->height());
-		bottom -= _sendRestriction->height();
-		_sendRestriction->move(0, bottom);
+	const auto bottomHeight = _bottom->contentHeight();
+	if (bottomHeight > 0) {
+		_bottom->setGeometry(0, bottom - bottomHeight, width(), bottomHeight);
+		bottom -= bottomHeight;
 	} else {
 		bottom -= _composeControls->heightCurrent();
 	}
@@ -3781,13 +3313,6 @@ void ChatWidget::updateControlsGeometry() {
 	_composeControls->move(0, composeTop);
 	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
 	_composeControlsTop = composeTop;
-
-	if (_toggleSuggestPost) {
-		const auto bottom = composeTop + _composeControls->heightCurrent();
-		_toggleSuggestPost->moveToRight(
-			0,
-			bottom - _toggleSuggestPost->height());
-	}
 
 	if (!animatingShow()) {
 		updateSubsectionTabsGeometry();
@@ -3823,7 +3348,7 @@ void ChatWidget::paintEvent(QPaintEvent *e) {
 		QRect(0, aboveHeight, width(), height() - aboveHeight));
 	SectionWidget::PaintBackground(controller(), _theme.get(), this, bg);
 
-	if (_suggestOptions && !isBottomBarButtonActive()) {
+	if (_suggestOptions && !_bottom->isButtonActive()) {
 		auto p = Painter(this);
 		const auto backy = _composeControlsTop
 			- st::historyReplyHeight;
@@ -3940,9 +3465,10 @@ void ChatWidget::showAnimatedHook(
 
 void ChatWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
-	if (_openChatButton
-		|| _aboutHiddenAuthor
-		|| isBottomBarButtonActive()) {
+	const auto replaced = _bottom->hasOpenChatButton()
+		|| _bottom->hasAboutHiddenAuthor()
+		|| _bottom->isButtonActive();
+	if (replaced) {
 		if (Ui::InFocusChain(this)) {
 			_inner->setFocus();
 		}
@@ -4304,7 +3830,7 @@ void ChatWidget::listSearch(
 }
 
 void ChatWidget::listHandleViaClick(not_null<UserData*> bot) {
-	if (_canSendTexts) {
+	if (_bottom->canSendTexts()) {
 		_composeControls->setText({ '@' + bot->username() + ' ' });
 	}
 }

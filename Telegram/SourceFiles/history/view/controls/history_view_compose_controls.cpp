@@ -1190,11 +1190,48 @@ ComposeControls::ComposeControls(
 			}
 		}, _wrap->lifetime());
 	}
+	if (descriptor.suggestPostToggleShown) {
+		std::move(
+			descriptor.suggestPostToggleShown
+		) | rpl::on_next([=](bool has) {
+			if (!_toggleSuggestPost && has) {
+				_toggleSuggestPost = base::make_unique_q<Ui::IconButton>(
+					_wrap.get(),
+					st::historySuggestPostToggle);
+				_toggleSuggestPost->setVisible(!_suggestPostActive);
+				_toggleSuggestPost->clicks(
+				) | rpl::filter(
+					rpl::mappers::_1 == Qt::LeftButton
+				) | rpl::to_empty | rpl::start_to_stream(
+					_suggestPostToggleClicks,
+					_toggleSuggestPost->lifetime());
+				orderControls();
+				updateControlsVisibility();
+				updateControlsGeometry(_wrap->size());
+			} else if (_toggleSuggestPost && !has) {
+				_toggleSuggestPost = nullptr;
+			}
+		}, _wrap->lifetime());
+	}
+	if (descriptor.suggestPostToggleActive) {
+		std::move(
+			descriptor.suggestPostToggleActive
+		) | rpl::on_next([=](bool active) {
+			_suggestPostActive = active;
+			if (_toggleSuggestPost) {
+				_toggleSuggestPost->setVisible(!_suggestPostActive);
+			}
+		}, _wrap->lifetime());
+	}
 	init();
 }
 
 rpl::producer<> ComposeControls::showScheduledRequests() const {
 	return _showScheduledRequests.events();
+}
+
+rpl::producer<> ComposeControls::suggestPostToggleClicks() const {
+	return _suggestPostToggleClicks.events();
 }
 
 ComposeControls::~ComposeControls() {
@@ -4312,6 +4349,7 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		- (_likeShown ? _like->width() : 0)
 		- (_botCommandShown ? _botCommandStart->width() : 0)
 		- ((_silent && !_silent->isHidden()) ? _silent->width() : 0)
+		- (_toggleSuggestPost ? _toggleSuggestPost->width() : 0)
 		- ((_scheduled && !_scheduled->isHidden())
 			? _scheduled->width()
 			: 0)
@@ -4407,6 +4445,10 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 			right += _silent->width();
 		}
 	}
+	if (_toggleSuggestPost) {
+		_toggleSuggestPost->moveToRight(right, buttonsTop);
+		right += _toggleSuggestPost->width();
+	}
 	if (_scheduled) {
 		_scheduled->moveToRight(right, buttonsTop);
 		if (!_scheduled->isHidden()) {
@@ -4452,6 +4494,9 @@ void ComposeControls::updateControlsVisibility() {
 	}
 	if (_scheduled) {
 		_scheduled->setVisible(!isEditingMessage() && !hide);
+	}
+	if (_toggleSuggestPost) {
+		_toggleSuggestPost->setVisible(!_suggestPostActive);
 	}
 	if (_commentsShown) {
 		_commentsShown->setVisible(!_commentsShownHidden.current());

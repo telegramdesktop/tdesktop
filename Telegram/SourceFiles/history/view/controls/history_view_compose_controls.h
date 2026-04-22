@@ -139,6 +139,9 @@ struct ComposeControlsDescriptor {
 	ChatHelpers::ComposeFeatures features;
 	rpl::producer<bool> scheduledToggleValue;
 	Fn<SuggestOptions()> currentSuggest;
+
+	rpl::producer<bool> suggestPostToggleShown;
+	rpl::producer<bool> suggestPostToggleActive;
 };
 
 class ComposeControls final {
@@ -224,6 +227,7 @@ public:
 	-> rpl::producer<ReplyNextRequest>;
 	[[nodiscard]] rpl::producer<> focusRequests() const;
 	[[nodiscard]] rpl::producer<> showScheduledRequests() const;
+	[[nodiscard]] rpl::producer<> suggestPostToggleClicks() const;
 	[[nodiscard]] rpl::producer<> scrollToMaxRequests() const;
 
 	using MimeDataHook = Fn<bool(
@@ -539,6 +543,8 @@ private:
 	std::unique_ptr<Controls::TTLButton> _ttlInfo;
 	base::unique_qptr<Controls::CharactersLimitLabel> _charsLimitation;
 	base::unique_qptr<Ui::IconButton> _scheduled;
+	base::unique_qptr<Ui::IconButton> _toggleSuggestPost;
+	bool _suggestPostActive = false;
 
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
@@ -572,6 +578,7 @@ private:
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
 	rpl::event_stream<> _focusRequests;
 	rpl::event_stream<> _showScheduledRequests;
+	rpl::event_stream<> _suggestPostToggleClicks;
 	rpl::event_stream<> _commentsShownToggles;
 	rpl::event_stream<StarReactionIncrement> _starsReactionIncrements;
 	rpl::variable<std::vector<StarReactionTop>> _starsReactionTop;

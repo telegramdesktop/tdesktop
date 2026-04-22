@@ -37,8 +37,6 @@ namespace Storage {
 namespace Ui {
 class ElasticScroll;
 class PlainShadow;
-class FlatButton;
-class IconButton;
 class PinnedBar;
 struct PreparedList;
 struct PreparedBundle;
@@ -85,6 +83,7 @@ class SubsectionTabs;
 class SelfForwardsTagger;
 class SuggestOptionsBar;
 class AboutView;
+class BottomControls;
 enum class SuggestMode;
 
 struct ChatViewId {
@@ -298,9 +297,6 @@ private:
 	void subscribeToPinnedMessages();
 	void setTopic(Data::ForumTopic *topic);
 
-	void setupOpenChatButton();
-	void setupAboutHiddenAuthor();
-
 	void setupDragArea();
 	void setupShortcuts();
 	void setupTranslateBar();
@@ -423,32 +419,13 @@ private:
 	void updateSubsectionTabsGeometry();
 	void setupEmptyPainter();
 	void refreshAboutView(bool force = false);
-	void refreshJoinGroupText();
-	void setupBottomBarButtons();
-	void setupGiftToChannelButton();
-	void setupDirectMessageButton();
-	void refreshGiftToChannelShown();
-	void refreshDirectMessageShown();
-	void refreshJoinChannelText();
-	void refreshUnblockText();
-	void refreshMuteUnmuteText();
 	void updateControlsVisibility();
-	void updateSendRestriction();
-	[[nodiscard]] Data::SendError computeSendRestriction() const;
 	void unblockUser();
 	void sendBotStartCommand();
 	void joinChannelAction();
 	void joinGroupAction();
 	void toggleMuteUnmute();
 	void reportSelectedMessages();
-	[[nodiscard]] bool isBotStart() const;
-	[[nodiscard]] bool isBlocked() const;
-	[[nodiscard]] bool isJoinChannel() const;
-	[[nodiscard]] bool isJoinGroup() const;
-	[[nodiscard]] bool isMuteUnmute() const;
-	[[nodiscard]] bool isReportMessages() const;
-	[[nodiscard]] bool isChoosingTheme() const;
-	[[nodiscard]] bool isBottomBarButtonActive() const;
 	[[nodiscard]] bool emptyShown() const;
 	[[nodiscard]] bool showSlowmodeError();
 
@@ -473,33 +450,20 @@ private:
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
 	std::unique_ptr<Ui::RpWidget> _topBars;
+	rpl::variable<bool> _suggestPostToggleShown = false;
+	rpl::variable<bool> _suggestPostToggleActive = false;
 	std::unique_ptr<ComposeControls> _composeControls;
 	std::unique_ptr<SuggestOptionsBar> _suggestOptions;
-	object_ptr<Ui::IconButton> _toggleSuggestPost = { nullptr };
 	std::unique_ptr<ComposeSearch> _composeSearch;
-	std::unique_ptr<Ui::FlatButton> _joinGroup;
-	std::unique_ptr<Ui::FlatButton> _payForMessage;
+	std::unique_ptr<HistoryView::BottomControls> _bottom;
 	std::unique_ptr<TopicReopenBar> _topicReopenBar;
-	std::unique_ptr<Ui::FlatButton> _openChatButton;
-	std::unique_ptr<Ui::RpWidget> _aboutHiddenAuthor;
 	std::unique_ptr<HistoryView::AboutView> _aboutView;
-	std::unique_ptr<Ui::FlatButton> _unblock;
-	std::unique_ptr<Ui::FlatButton> _botStart;
-	std::unique_ptr<Ui::FlatButton> _joinChannel;
-	std::unique_ptr<Ui::FlatButton> _muteUnmute;
-	std::unique_ptr<Ui::FlatButton> _reportMessages;
-	QPointer<Ui::IconButton> _giftToChannel;
-	QPointer<Ui::IconButton> _directMessage;
-	rpl::lifetime _directMessageLifetime;
-	std::unique_ptr<Ui::RpWidget> _sendRestriction;
-	QString _sendRestrictionKey;
 	std::unique_ptr<EmptyPainter> _emptyPainter;
 	std::unique_ptr<SubsectionTabs> _subsectionTabs;
 	rpl::lifetime _subsectionTabsLifetime;
 	rpl::lifetime _subsectionCheckLifetime;
 	rpl::lifetime _subsectionTopicsLifetime;
 	bool _canSendMessages = false;
-	bool _canSendTexts = false;
 	bool _skipScrollEvent = false;
 	bool _synteticScrollEvent = false;
 
