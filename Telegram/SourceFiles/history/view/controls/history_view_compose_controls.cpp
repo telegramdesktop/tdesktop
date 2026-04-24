@@ -195,6 +195,7 @@ public:
 		SuggestOptions suggest,
 		bool photoEditAllowed = false);
 	void replyToMessage(FullReplyTo id);
+	void replyToMessageExternal(FullReplyTo id);
 	void updateForwarding(
 		Data::Thread *thread,
 		Data::ResolvedForwardDraft items);
@@ -210,9 +211,17 @@ public:
 	[[nodiscard]] const HistoryItemsList &forwardItems() const;
 	[[nodiscard]] const Data::ResolvedForwardDraft &forwardDraft() const;
 	[[nodiscard]] FullReplyTo replyingToMessage() const;
+	[[nodiscard]] rpl::producer<FullReplyTo> replyingToMessageValue() const;
+	[[nodiscard]] FullReplyTo replyingToMessageExternal() const;
+	[[nodiscard]] rpl::producer<FullReplyTo> replyingToMessageExternalValue()
+		const {
+		return _replyToExternal.value();
+	}
+	[[nodiscard]] FullReplyTo displayedReplyingToMessage() const;
+	[[nodiscard]] rpl::producer<FullReplyTo> displayedReplyingToMessageValue()
+		const;
 	[[nodiscard]] FullMsgId editMsgId() const;
 	[[nodiscard]] rpl::producer<FullMsgId> editMsgIdValue() const;
-	[[nodiscard]] rpl::producer<FullReplyTo> replyingToMessageValue() const;
 	[[nodiscard]] rpl::producer<FullReplyTo> jumpToItemRequests() const;
 	[[nodiscard]] rpl::producer<> editPhotoRequests() const;
 	[[nodiscard]] rpl::producer<> editOptionsRequests() const;
@@ -226,6 +235,9 @@ public:
 	}
 	[[nodiscard]] rpl::producer<> replyCancelled() const {
 		return _replyCancelled.events();
+	}
+	[[nodiscard]] rpl::producer<> replyCancelledExternal() const {
+		return _replyCancelledExternally.events();
 	}
 	[[nodiscard]] rpl::producer<> forwardCancelled() const {
 		return _forwardCancelled.events();
@@ -272,6 +284,7 @@ private:
 	Preview _preview;
 	rpl::event_stream<> _editCancelled;
 	rpl::event_stream<> _replyCancelled;
+	rpl::event_stream<> _replyCancelledExternally;
 	rpl::event_stream<> _forwardCancelled;
 	rpl::event_stream<> _previewCancelled;
 	rpl::event_stream<> _saveDraftRequests;
@@ -279,6 +292,7 @@ private:
 
 	rpl::variable<FullMsgId> _editMsgId;
 	rpl::variable<FullReplyTo> _replyTo;
+	rpl::variable<FullReplyTo> _replyToExternal;
 	std::unique_ptr<ForwardPanel> _forwardPanel;
 	std::unique_ptr<SuggestOptionsBar> _suggestOptions;
 	rpl::producer<> _toForwardUpdated;
@@ -351,6 +365,12 @@ void FieldHeader::init() {
 		updateVisible();
 	}, lifetime());
 
+	const auto updateDisplayedReply = [=] {
+		if (!_editMsgId.current()) {
+			setShownMessage(_data->message(displayedReplyingToMessage().messageId));
+		}
+	};
+
 	paintRequest(
 	) | rpl::on_next([=] {
 		Painter p(this);
@@ -364,7 +384,7 @@ void FieldHeader::init() {
 			st::historyLinkIcon.paint(p, position, width());
 		} else if (isEditingMessage()) {
 			st::historyEditIcon.paint(p, position, width());
-		} else if (const auto reply = replyingToMessage(); reply.replying()) {
+		} else if (const auto reply = displayedReplyingToMessage(); reply.replying()) {
 			if (!reply.quote.empty()) {
 				st::historyQuoteIcon.paint(p, position, width());
 			} else {
@@ -378,7 +398,7 @@ void FieldHeader::init() {
 			paintWebPage(
 				p,
 				_history ? _history->peer : _data->session().user());
-		} else if (isEditingMessage() || replyingToMessage()) {
+		} else if (isEditingMessage() || displayedReplyingToMessage()) {
 			paintEditOrReplyToMessage(p);
 		} else if (readyToForward()) {
 			paintForwardInfo(p);
@@ -387,31 +407,45 @@ void FieldHeader::init() {
 
 	_editMsgId.value(
 	) | rpl::on_next([=](FullMsgId value) {
-		const auto shown = value ? value : _replyTo.current().messageId;
+		const auto shown = value ? value : displayedReplyingToMessage().messageId;
 		setShownMessage(_data->message(shown));
 	}, lifetime());
 
 	_replyTo.value(
-	) | rpl::on_next([=](const FullReplyTo &value) {
-		if (!_editMsgId.current()) {
-			setShownMessage(_data->message(value.messageId));
-		}
+	) | rpl::on_next([=](const FullReplyTo &) {
+		updateDisplayedReply();
+	}, lifetime());
+
+	_replyToExternal.value(
+	) | rpl::on_next([=](const FullReplyTo &) {
+		updateDisplayedReply();
 	}, lifetime());
 
 	_data->session().changes().messageUpdates(
 		Data::MessageUpdate::Flag::Edited
 		| Data::MessageUpdate::Flag::Destroyed
 	) | rpl::filter([=](const Data::MessageUpdate &update) {
-		return (update.item == _shownMessage);
+		const auto fullId = update.item->fullId();
+		return (update.item == _shownMessage)
+			|| (_replyTo.current().messageId == fullId)
+			|| (_replyToExternal.current().messageId == fullId);
 	}) | rpl::on_next([=](const Data::MessageUpdate &update) {
+		const auto fullId = update.item->fullId();
+		const auto realReply = _replyTo.current();
+		const auto externalReply = _replyToExternal.current();
 		if (update.flags & Data::MessageUpdate::Flag::Destroyed) {
-			if (_editMsgId.current() == update.item->fullId()) {
+			if (_editMsgId.current() == fullId) {
 				_editCancelled.fire({});
 			}
-			if (_replyTo.current().messageId == update.item->fullId()) {
+			if (realReply.messageId == fullId) {
 				_replyCancelled.fire({});
 			}
-		} else {
+			if (externalReply.messageId == fullId && realReply.messageId != fullId) {
+				_replyCancelledExternally.fire({});
+			} else if (externalReply.messageId == fullId) {
+				_replyToExternal = {};
+			}
+		} else if (update.item == _shownMessage) {
 			updateShownMessageText();
 		}
 	}, lifetime());
@@ -424,6 +458,8 @@ void FieldHeader::init() {
 			_editCancelled.fire({});
 		} else if (_replyTo.current()) {
 			_replyCancelled.fire({});
+		} else if (_replyToExternal.current()) {
+			_replyCancelledExternally.fire({});
 		} else if (readyToForward()) {
 			_forwardCancelled.fire({});
 		}
@@ -439,7 +475,7 @@ void FieldHeader::init() {
 		return (ranges::contains(kMouseEvents, type) || leaving)
 			&& (isEditingMessage()
 				|| readyToForward()
-				|| replyingToMessage()
+				|| displayedReplyingToMessage()
 				|| _preview.parsed);
 	}) | rpl::on_next([=](not_null<QEvent*> event) {
 		const auto updateOver = [&](bool inClickable, bool inPhotoEdit) {
@@ -479,7 +515,7 @@ void FieldHeader::init() {
 			if (isLeftButton && inPhotoEdit) {
 				_editPhotoRequests.fire({});
 			} else if (isLeftButton && inPreviewRect) {
-				const auto reply = replyingToMessage();
+				const auto reply = displayedReplyingToMessage();
 				if (_preview.parsed) {
 					_editOptionsRequests.fire({});
 				} else if (isEditingMessage()) {
@@ -502,7 +538,7 @@ void FieldHeader::init() {
 						[=] { update(); },
 						_hasSendText(),
 						_show);
-				} else if (const auto reply = replyingToMessage()) {
+				} else if (const auto reply = displayedReplyingToMessage()) {
 					_jumpToItemRequests.fire_copy(reply);
 				} else if (readyToForward()) {
 					_forwardPanel->editToNextOption();
@@ -519,7 +555,7 @@ void FieldHeader::updateShownMessageText() {
 		.session = &_data->session(),
 		.repaint = [=] { customEmojiRepaint(); },
 	});
-	const auto reply = replyingToMessage();
+	const auto reply = displayedReplyingToMessage();
 	_shownMessageText.setMarkedText(
 		st::messageTextStyle,
 		((isEditingMessage() || reply.quote.empty())
@@ -555,7 +591,7 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 			.session = &_history->session(),
 			.customEmojiLoopLimit = 1,
 		});
-		const auto replyTo = _replyTo.current();
+		const auto replyTo = displayedReplyingToMessage();
 		_shownMessageName.setMarkedText(
 			st::fwdTextStyle,
 			HistoryView::Reply::ComposePreviewName(_history, item, replyTo),
@@ -571,7 +607,7 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 void FieldHeader::resolveMessageData() {
 	const auto id = isEditingMessage()
 		? _editMsgId.current()
-		: _replyTo.current().messageId;
+		: displayedReplyingToMessage().messageId;
 	if (!id) {
 		return;
 	}
@@ -580,7 +616,7 @@ void FieldHeader::resolveMessageData() {
 	const auto callback = crl::guard(this, [=] {
 		const auto now = isEditingMessage()
 			? _editMsgId.current()
-			: _replyTo.current().messageId;
+			: displayedReplyingToMessage().messageId;
 		if (now == id && !_shownMessage) {
 			if (const auto message = _data->message(peer, itemId)) {
 				setShownMessage(message);
@@ -684,7 +720,7 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 
 	const auto media = _shownMessage->media();
 	const auto poll = media ? media->poll() : nullptr;
-	const auto reply = replyingToMessage();
+	const auto reply = displayedReplyingToMessage();
 	const auto pollAnswer = poll
 		? poll->answerByOption(reply.pollOption)
 		: nullptr;
@@ -804,7 +840,7 @@ rpl::producer<bool> FieldHeader::visibleChanged() {
 bool FieldHeader::isDisplayed() const {
 	return isEditingMessage()
 		|| readyToForward()
-		|| replyingToMessage()
+		|| displayedReplyingToMessage()
 		|| hasPreview();
 }
 
@@ -830,6 +866,26 @@ const Data::ResolvedForwardDraft &FieldHeader::forwardDraft() const {
 
 FullReplyTo FieldHeader::replyingToMessage() const {
 	return _replyTo.current();
+}
+
+FullReplyTo FieldHeader::replyingToMessageExternal() const {
+	return _replyToExternal.current();
+}
+
+FullReplyTo FieldHeader::displayedReplyingToMessage() const {
+	const auto reply = replyingToMessage();
+	return reply.replying()
+		? reply
+		: replyingToMessageExternal();
+}
+
+rpl::producer<FullReplyTo> FieldHeader::displayedReplyingToMessageValue() const {
+	return rpl::combine(
+		_replyTo.value(),
+		_replyToExternal.value()
+	) | rpl::map([](const FullReplyTo &reply, const FullReplyTo &external) {
+		return reply.replying() ? reply : external;
+	});
 }
 
 bool FieldHeader::hasPreview() const {
@@ -915,6 +971,11 @@ void FieldHeader::cancelSuggestPost() {
 void FieldHeader::replyToMessage(FullReplyTo id) {
 	id.monoforumPeerId = 0;
 	_replyTo = id;
+}
+
+void FieldHeader::replyToMessageExternal(FullReplyTo id) {
+	id.monoforumPeerId = 0;
+	_replyToExternal = id;
 }
 
 void FieldHeader::updateForwarding(
@@ -1115,9 +1176,7 @@ ComposeControls::ComposeControls(
 		_wrap.get(),
 		_st.field,
 		Ui::InputField::Mode::MultiLine,
-		(_fieldCustomPlaceholder
-			? rpl::duplicate(_fieldCustomPlaceholder)
-			: tr::lng_message_ph())))
+		tr::lng_message_ph()))
 , _richDraftPreview(std::make_unique<Controls::RichDraftPreview>(
 	_wrap.get(),
 	_session,
@@ -1162,6 +1221,7 @@ ComposeControls::ComposeControls(
 	if (_st.radius > 0) {
 		_backgroundRect.emplace(_st.radius, _st.bg);
 	}
+	updateFieldPlaceholder();
 	if (descriptor.stickerOrEmojiChosen) {
 		std::move(
 			descriptor.stickerOrEmojiChosen
@@ -1223,6 +1283,69 @@ ComposeControls::ComposeControls(
 			}
 		}, _wrap->lifetime());
 	}
+	if (descriptor.botKeyboardShownToggleShown) {
+		std::move(
+			descriptor.botKeyboardShownToggleShown
+		) | rpl::on_next([=](bool has) {
+			if (!_botKeyboardShow && has) {
+				_botKeyboardShow = base::make_unique_q<Ui::IconButton>(
+					_wrap.get(),
+					st::historyBotKeyboardShow);
+				_botKeyboardShow->setAccessibleName(
+					tr::lng_bot_keyboard_show(tr::now));
+				_botKeyboardShow->show();
+				_botKeyboardShow->clicks(
+				) | rpl::filter(
+					rpl::mappers::_1 == Qt::LeftButton
+				) | rpl::to_empty | rpl::start_to_stream(
+					_botKeyboardToggleClicks,
+					_botKeyboardShow->lifetime());
+				orderControls();
+				updateControlsVisibility();
+				updateControlsGeometry(_wrap->size());
+			} else if (_botKeyboardShow && !has) {
+				_botKeyboardShow = nullptr;
+				updateControlsGeometry(_wrap->size());
+			}
+		}, _wrap->lifetime());
+	}
+	if (descriptor.botKeyboardHideToggleShown) {
+		std::move(
+			descriptor.botKeyboardHideToggleShown
+		) | rpl::on_next([=](bool has) {
+			if (!_botKeyboardHide && has) {
+				_botKeyboardHide = base::make_unique_q<Ui::IconButton>(
+					_wrap.get(),
+					st::historyBotKeyboardHide);
+				_botKeyboardHide->setAccessibleName(
+					tr::lng_bot_keyboard_hide(tr::now));
+				_botKeyboardHide->show();
+				_botKeyboardHide->clicks(
+				) | rpl::filter(
+					rpl::mappers::_1 == Qt::LeftButton
+				) | rpl::to_empty | rpl::start_to_stream(
+					_botKeyboardToggleClicks,
+					_botKeyboardHide->lifetime());
+				orderControls();
+				updateControlsVisibility();
+				updateControlsGeometry(_wrap->size());
+			} else if (_botKeyboardHide && !has) {
+				_botKeyboardHide = nullptr;
+				updateControlsGeometry(_wrap->size());
+			}
+		}, _wrap->lifetime());
+	}
+	if (descriptor.botCommandStartShownExtraGuard) {
+		std::move(
+			descriptor.botCommandStartShownExtraGuard
+		) | rpl::on_next([=](bool allow) {
+			_botCommandStartExtraGuard = allow;
+			if (updateBotCommandShown()) {
+				updateControlsVisibility();
+				updateControlsGeometry(_wrap->size());
+			}
+		}, _wrap->lifetime());
+	}
 	init();
 }
 
@@ -1232,6 +1355,10 @@ rpl::producer<> ComposeControls::showScheduledRequests() const {
 
 rpl::producer<> ComposeControls::suggestPostToggleClicks() const {
 	return _suggestPostToggleClicks.events();
+}
+
+rpl::producer<> ComposeControls::botKeyboardToggleClicks() const {
+	return _botKeyboardToggleClicks.events();
 }
 
 ComposeControls::~ComposeControls() {
@@ -1511,6 +1638,23 @@ int ComposeControls::heightCurrent() const {
 	return (_writeRestriction.current() || _hidden.current())
 		? _st.attach.height
 		: _wrap->height();
+}
+
+int ComposeControls::fieldHeightCurrent() const {
+	return _field->height();
+}
+
+bool ComposeControls::fieldHeaderShownCurrent() const {
+	return _header->isDisplayed();
+}
+
+void ComposeControls::setFieldMaxHeight(int height) {
+	const auto oldFieldHeight = _field->height();
+	_field->setMaxHeight(height);
+	updateControlsGeometry(_wrap->size());
+	if (_field->height() != oldFieldHeight) {
+		updateControlsGeometry(_wrap->size());
+	}
 }
 
 const HistoryItemsList &ComposeControls::forwardItems() const {
@@ -1867,6 +2011,14 @@ rpl::producer<bool> ComposeControls::tabbedPanelShownValue() const {
 
 rpl::producer<> ComposeControls::cancelRequests() const {
 	return _cancelRequests.events();
+}
+
+rpl::producer<> ComposeControls::replyCancelled() const {
+	return _replyCancelled.events();
+}
+
+rpl::producer<> ComposeControls::replyCancelledExternal() const {
+	return _replyCancelledExternally.events();
 }
 
 auto ComposeControls::scrollKeyEvents() const
@@ -2560,6 +2712,11 @@ void ComposeControls::init() {
 		cancelReplyMessage();
 	}, _wrap->lifetime());
 
+	_header->replyCancelledExternal(
+	) | rpl::on_next([=] {
+		cancelReplyMessageExternal();
+	}, _wrap->lifetime());
+
 	_header->forwardCancelled(
 	) | rpl::on_next([=] {
 		cancelForward();
@@ -2872,11 +3029,9 @@ void ComposeControls::updateFieldPlaceholder() {
 
 	const auto ephemeralReply = session().ephemeralMessages()
 		.isEphemeralBotReply(replyingToMessage().messageId);
-	_field->setPlaceholder([&] {
+	auto normal = [&] {
 		const auto peer = _history ? _history->peer.get() : nullptr;
-		if (_fieldCustomPlaceholder) {
-			return rpl::duplicate(_fieldCustomPlaceholder);
-		} else if (isEditingMessage()) {
+		if (isEditingMessage()) {
 			return tr::lng_edit_message_text();
 		} else if (!peer) {
 			return tr::lng_message_ph();
@@ -2899,7 +3054,13 @@ void ComposeControls::updateFieldPlaceholder() {
 		} else {
 			return tr::lng_message_ph();
 		}
-	}());
+	}();
+	_field->setPlaceholder(rpl::combine(
+		_fieldCustomPlaceholder.value(),
+		std::move(normal)
+	) | rpl::map([](const QString &custom, const QString &normal) {
+		return custom.isEmpty() ? normal : custom;
+	}));
 	updateSendButtonType();
 }
 
@@ -4353,6 +4514,8 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		- ((_scheduled && !_scheduled->isHidden())
 			? _scheduled->width()
 			: 0)
+		- (_botKeyboardShow ? _botKeyboardShow->width() : 0)
+		- (_botKeyboardHide ? _botKeyboardHide->width() : 0)
 		- ((_ttlInfo && _ttlInfo->isVisible()) ? _ttlInfo->width() : 0)
 		- (_starsReaction
 			? (_st.starsSkip + _starsReaction->width())
@@ -4444,6 +4607,14 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		if (!_silent->isHidden()) {
 			right += _silent->width();
 		}
+	}
+	if (_botKeyboardShow) {
+		_botKeyboardShow->moveToRight(right, buttonsTop);
+		right += _botKeyboardShow->width();
+	}
+	if (_botKeyboardHide) {
+		_botKeyboardHide->moveToRight(right, buttonsTop);
+		right += _botKeyboardHide->width();
 	}
 	if (_toggleSuggestPost) {
 		_toggleSuggestPost->moveToRight(right, buttonsTop);
@@ -4744,7 +4915,10 @@ bool ComposeControls::textExceedsMaxSize() const {
 bool ComposeControls::updateBotCommandShown() {
 	auto shown = false;
 	const auto peer = _history ? _history->peer.get() : nullptr;
-	if (_botCommandStart && peer) {
+	if (_botCommandStart
+			&& peer
+			&& _botCommandStartExtraGuard.current()
+			&& !isEditingMessage()) {
 		const auto hasBotCommands = [&] {
 			if (peer->isChat()) {
 				return !peer->asChat()->botCommands().empty();
@@ -5173,6 +5347,16 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 	saveDraftWithTextNow();
 }
 
+void ComposeControls::replyToMessageExternal(FullReplyTo id) {
+	id.topicRootId = _topicRootId;
+	id.monoforumPeerId = _monoforumPeerId;
+	if (!id) {
+		cancelReplyMessageExternal();
+		return;
+	}
+	_header->replyToMessageExternal(id);
+}
+
 void ComposeControls::cancelReplyMessage() {
 	const auto wasReply = replyingToMessage();
 	_header->replyToMessage({});
@@ -5190,6 +5374,17 @@ void ComposeControls::cancelReplyMessage() {
 		if (wasReply) {
 			saveDraftWithTextNow();
 		}
+	}
+	if (wasReply) {
+		_replyCancelled.fire({});
+	}
+}
+
+void ComposeControls::cancelReplyMessageExternal() {
+	const auto wasReply = replyingToMessageExternal();
+	_header->replyToMessageExternal({});
+	if (wasReply) {
+		_replyCancelledExternally.fire({});
 	}
 }
 
@@ -5340,6 +5535,31 @@ rpl::producer<FullMsgId> ComposeControls::editMsgIdValue() const {
 
 FullReplyTo ComposeControls::replyingToMessage() const {
 	auto result = _header->replyingToMessage();
+	result.topicRootId = _topicRootId;
+	result.monoforumPeerId = _monoforumPeerId;
+	return result;
+}
+
+rpl::producer<FullReplyTo> ComposeControls::replyingToMessageExternalValue() const {
+	return _header->replyingToMessageExternalValue(
+	) | rpl::map([=](FullReplyTo value) {
+		value.topicRootId = _topicRootId;
+		value.monoforumPeerId = _monoforumPeerId;
+		return value;
+	});
+}
+
+rpl::producer<FullReplyTo> ComposeControls::replyingToMessageValue() const {
+	return _header->replyingToMessageValue(
+	) | rpl::map([=](FullReplyTo value) {
+		value.topicRootId = _topicRootId;
+		value.monoforumPeerId = _monoforumPeerId;
+		return value;
+	});
+}
+
+FullReplyTo ComposeControls::replyingToMessageExternal() const {
+	auto result = _header->replyingToMessageExternal();
 	result.topicRootId = _topicRootId;
 	result.monoforumPeerId = _monoforumPeerId;
 	return result;

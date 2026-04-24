@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h" // GetErrorForSending.
 #include "history/history_view_pull_to_next_channel.h"
+#include "history/history_item_reply_markup.h"
 #include "iv/iv_rich_message_serializer.h"
 #include "iv/iv_rich_page.h"
 #include "ui/chat/pinned_bar.h"
@@ -56,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "ui/boxes/confirm_box.h"
+#include "chat_helpers/bot_keyboard.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "boxes/delete_messages_box.h"
@@ -283,6 +285,7 @@ ChatWidget::ChatWidget(
 		.sendMenuDetails = [=] { return sendMenuDetails(); },
 		.regularWindow = controller,
 		.stickerOrEmojiChosen = controller->stickerOrEmojiChosen(),
+		.customPlaceholder = _botKeyboardPlaceholder.value(),
 		.scheduledToggleValue = _topic
 			? rpl::single(rpl::empty_value()) | rpl::then(
 				session().scheduledMessages().updates(_topic->owningHistory())
@@ -293,6 +296,12 @@ ChatWidget::ChatWidget(
 		.currentSuggest = [=] { return suggestOptions(); },
 		.suggestPostToggleShown = _suggestPostToggleShown.value(),
 		.suggestPostToggleActive = _suggestPostToggleActive.value(),
+		.botKeyboardShownToggleShown
+			= _botKeyboardShownToggleShown.value(),
+		.botKeyboardHideToggleShown
+			= _botKeyboardHideToggleShown.value(),
+		.botCommandStartShownExtraGuard
+			= _botCommandStartExtraGuard.value(),
 	}))
 , _bottom(std::make_unique<BottomControls>(
 	this,
@@ -492,6 +501,15 @@ ChatWidget::ChatWidget(
 		}
 	}, lifetime());
 
+	_history->session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::Destroyed
+	) | rpl::on_next([=](const Data::MessageUpdate &update) {
+		if (_kbReplyTo == update.item) {
+			_kbReplyTo = nullptr;
+			updateBotKeyboard();
+		}
+	}, lifetime());
+
 	if (_sublist) {
 		subscribeToSublist();
 	} else if (!_topic) {
@@ -536,6 +554,19 @@ ChatWidget::ChatWidget(
 	setupTopicViewer();
 	setupComposeControls();
 	setupSwipeReplyAndBack();
+
+	if (mode() != Mode::Sublist) {
+		_kbScroll = base::make_unique_q<Ui::ScrollArea>(
+			this,
+			st::botKbScroll);
+		_kbScroll->hide();
+		_keyboard = _kbScroll->setOwnedWidget(
+			object_ptr<BotKeyboard>(controller, _kbScroll.get()));
+		_keyboard->sendCommandRequests(
+		) | rpl::on_next([=](Bot::SendCommandRequest r) {
+			sendBotCommand(std::move(r), {});
+		}, lifetime());
+	}
 
 	_bottom->actionRequests(
 	) | rpl::on_next([=](BottomControlsAction action) {
@@ -604,6 +635,50 @@ ChatWidget::ChatWidget(
 		updateControlsVisibility();
 	}, lifetime());
 
+	if (mode() == Mode::History) {
+		using HistoryUpdateFlag = Data::HistoryUpdate::Flag;
+		session().changes().historyUpdates(
+			_history,
+			HistoryUpdateFlag::BotKeyboard
+		) | rpl::on_next([=] {
+			updateBotKeyboard();
+		}, lifetime());
+	}
+
+	if (mode() == Mode::History || mode() == Mode::Replies) {
+		using MessageUpdateFlag = Data::MessageUpdate::Flag;
+		session().changes().messageUpdates(
+			MessageUpdateFlag::ReplyMarkup
+				| MessageUpdateFlag::BotCallbackSent
+		) | rpl::on_next([=](const Data::MessageUpdate &update) {
+			const auto flags = update.flags;
+			const auto inRepliesRoot = (update.item->history() == _history)
+				&& _repliesRootId
+				&& update.item->inThread(_repliesRootId);
+			if (flags & MessageUpdateFlag::ReplyMarkup) {
+				if (mode() == Mode::History) {
+					if (_keyboard
+							&& _keyboard->forMsgId()
+								== update.item->fullId()) {
+						updateBotKeyboard(update.item->history(), true);
+					}
+				} else if (inRepliesRoot) {
+					if (keyboardSourceId() == update.item->fullId()) {
+						updateBotKeyboard(update.item->history(), true);
+					} else if (_repliesLastSlice) {
+						maybeUpdateLastKeyboardFromSlice(*_repliesLastSlice);
+					} else {
+						updateBotKeyboard(update.item->history(), true);
+					}
+				}
+			}
+			if ((flags & MessageUpdateFlag::BotCallbackSent)
+				&& (mode() == Mode::History || inRepliesRoot)) {
+				botCallbackSent(update.item);
+			}
+		}, lifetime());
+	}
+
 	refreshSuggestFromDraft();
 
 	orderWidgets();
@@ -617,6 +692,8 @@ ChatWidget::ChatWidget(
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
+
+	updateBotKeyboard();
 }
 
 ChatWidget::~ChatWidget() {
@@ -669,6 +746,9 @@ void ChatWidget::orderWidgets() {
 	}
 	_topBar->raise();
 	_topBarShadow->raise();
+	if (_kbScroll) {
+		_kbScroll->raise();
+	}
 	_bottom->raise();
 	_composeControls->raisePanels();
 }
@@ -747,6 +827,7 @@ void ChatWidget::setupTopicViewer() {
 		if (_repliesRootId == change.oldId) {
 			_repliesRootId = _id.repliesRootId = change.newId.msg;
 			_composeControls->updateTopicRootId(_repliesRootId);
+			resetRepliesKeyboardState();
 			_sendAction = owner->sendActionManager().repliesPainter(
 				_history,
 				_repliesRootId);
@@ -998,6 +1079,25 @@ void ChatWidget::setupComposeControls() {
 		listCancelRequest();
 	}, lifetime());
 
+	_composeControls->replyingToMessageValue(
+	) | rpl::skip(1) | rpl::on_next([=](FullReplyTo) {
+		updateBotKeyboard();
+	}, lifetime());
+
+	_composeControls->editMsgIdValue(
+	) | rpl::skip(1) | rpl::on_next([=](FullMsgId) {
+		updateBotKeyboard();
+	}, lifetime());
+
+	_composeControls->replyCancelledExternal(
+	) | rpl::on_next([=] {
+		if (_ignoreReplyCancelledExternal
+			|| !_keyboardReplyExternalVisible) {
+			return;
+		}
+		toggleBotKeyboard(true);
+	}, lifetime());
+
 	_composeControls->sendRequests(
 	) | rpl::on_next([=](Api::SendOptions options) {
 		send(options);
@@ -1120,6 +1220,25 @@ void ChatWidget::setupComposeControls() {
 			{ .exists = 1 },
 			SuggestMode::New);
 		_composeControls->cancelReplyMessage();
+	}, lifetime());
+
+	_composeControls->botKeyboardToggleClicks(
+	) | rpl::on_next([=] {
+		toggleBotKeyboard(true);
+	}, lifetime());
+
+	_composeControls->hasSendTextValue(
+	) | rpl::on_next([=](bool has) {
+		const auto had = _fieldHasSendText;
+		if (had == has) {
+			return;
+		}
+		_fieldHasSendText = has;
+		if (!had && has && _kbShown && keyboardRowsVisible()) {
+			toggleBotKeyboard(true);
+		} else {
+			updateBotKeyboard();
+		}
 	}, lifetime());
 
 	_composeControls->setPasteToastParent(_scroll.get());
@@ -2160,7 +2279,11 @@ void ChatWidget::updateControlsVisibility() {
 			_composeControls->show();
 		}
 	}
-	updateControlsGeometry();
+	if (_keyboard) {
+		updateBotKeyboard();
+	} else {
+		updateControlsGeometry();
+	}
 }
 
 bool ChatWidget::sendExistingDocument(
@@ -2351,6 +2474,9 @@ FullReplyTo ChatWidget::replyTo() const {
 			return custom;
 		}
 	}
+	if (const auto keyboard = keyboardReplyTo()) {
+		return keyboard;
+	}
 	return FullReplyTo{
 		.messageId = (_repliesRootId
 			? FullMsgId(_peer->id, _repliesRootId)
@@ -2358,6 +2484,228 @@ FullReplyTo ChatWidget::replyTo() const {
 		.topicRootId = _repliesRootId,
 		.monoforumPeerId = _monoforumPeerId,
 	};
+}
+
+FullReplyTo ChatWidget::keyboardReplyTo() const {
+	if (!_kbReplyTo) {
+		return {};
+	}
+	return FullReplyTo{
+		.messageId = _kbReplyTo->fullId(),
+		.topicRootId = _repliesRootId,
+		.monoforumPeerId = _monoforumPeerId,
+	};
+}
+
+bool ChatWidget::realReplyOrEditActive() const {
+	return _composeControls->isEditingMessage()
+		|| _composeControls->replyingToMessage().replying();
+}
+
+FullMsgId ChatWidget::keyboardSourceId() const {
+	if (mode() == Mode::History) {
+		return _history->lastKeyboardId
+			? FullMsgId(_peer->id, _history->lastKeyboardId)
+			: FullMsgId();
+	} else if (mode() == Mode::Replies) {
+		return (_repliesKeyboardInited
+				&& (_repliesKeyboardRootId == _repliesRootId)
+				&& _repliesKeyboardId)
+			? FullMsgId(_peer->id, _repliesKeyboardId)
+			: FullMsgId();
+	}
+	return FullMsgId();
+}
+
+HistoryItem *ChatWidget::keyboardSourceItem() const {
+	const auto id = keyboardSourceId();
+	const auto item = id ? session().data().message(_peer, id.msg) : nullptr;
+	return (item && itemBelongsToKeyboardView(item)) ? item : nullptr;
+}
+
+FullMsgId ChatWidget::keyboardSourceIdForHiddenState() const {
+	if (!_keyboard) {
+		return {};
+	}
+	const auto source = keyboardSourceId();
+	if (source && source == _keyboard->forMsgId()) {
+		return source;
+	}
+	const auto reply = _composeControls->replyingToMessage();
+	const auto replyItem = reply
+		? session().data().message(reply.messageId)
+		: nullptr;
+	return (replyItem
+		&& itemBelongsToKeyboardView(replyItem)
+		&& (_keyboard->forMsgId() == replyItem->fullId()))
+		? replyItem->fullId()
+		: FullMsgId();
+}
+
+bool ChatWidget::keyboardUiSuppressedByReplyOrEdit() const {
+	if (_composeControls->isEditingMessage()) {
+		return true;
+	}
+	const auto reply = _composeControls->replyingToMessage();
+	if (!reply) {
+		return false;
+	}
+	const auto replyItem = session().data().message(reply.messageId);
+	return !(replyItem
+		&& itemBelongsToKeyboardView(replyItem)
+		&& _keyboard
+		&& (_keyboard->forMsgId() == replyItem->fullId())
+		&& _keyboard->hasMarkup());
+}
+
+MsgId ChatWidget::keyboardHiddenId() const {
+	if (mode() == Mode::History) {
+		return _history->lastKeyboardHiddenId;
+	} else if (mode() == Mode::Replies
+		&& (_repliesKeyboardRootId == _repliesRootId)) {
+		return _repliesKeyboardHiddenId;
+	}
+	return 0;
+}
+
+void ChatWidget::setKeyboardHiddenId(MsgId id) {
+	if (mode() == Mode::History) {
+		_history->lastKeyboardHiddenId = id;
+	} else if (mode() == Mode::Replies) {
+		_repliesKeyboardRootId = _repliesRootId;
+		_repliesKeyboardHiddenId = id;
+	}
+}
+
+void ChatWidget::clearKeyboardHiddenId() {
+	setKeyboardHiddenId(0);
+}
+
+bool ChatWidget::keyboardUsed() const {
+	const auto sourceId = keyboardSourceIdForHiddenState();
+	if (!sourceId) {
+		return false;
+	}
+	if (sourceId == keyboardSourceId()) {
+		if (mode() == Mode::History) {
+			return _history->lastKeyboardUsed;
+		} else if (mode() == Mode::Replies
+			&& (_repliesKeyboardRootId == _repliesRootId)) {
+			return _repliesKeyboardUsed;
+		}
+		return false;
+	}
+	return keyboardHiddenId() == sourceId.msg;
+}
+
+void ChatWidget::markKeyboardUsed() {
+	const auto sourceId = keyboardSourceIdForHiddenState();
+	if (!sourceId) {
+		return;
+	}
+	if (sourceId == keyboardSourceId()) {
+		if (mode() == Mode::History) {
+			_history->lastKeyboardUsed = true;
+		} else if (mode() == Mode::Replies) {
+			_repliesKeyboardRootId = _repliesRootId;
+			_repliesKeyboardUsed = true;
+		}
+	} else {
+		setKeyboardHiddenId(sourceId.msg);
+	}
+}
+
+void ChatWidget::showKeyboardReplyToExternal() {
+	if (!_kbReplyTo) {
+		hideKeyboardReplyToExternal();
+		return;
+	}
+	_keyboardReplyExternalVisible = true;
+	_composeControls->replyToMessageExternal(
+		FullReplyTo{ .messageId = _kbReplyTo->fullId() });
+}
+
+void ChatWidget::hideKeyboardReplyToExternal() {
+	_keyboardReplyExternalVisible = false;
+	if (!_composeControls->replyingToMessageExternal()) {
+		return;
+	}
+	_ignoreReplyCancelledExternal = true;
+	_composeControls->cancelReplyMessageExternal();
+	_ignoreReplyCancelledExternal = false;
+}
+
+bool ChatWidget::keyboardRowsVisible() const {
+	return _kbScroll && !_kbScroll->isHidden();
+}
+
+void ChatWidget::updateKeyboardUiState(bool hasMarkup, bool suppress) {
+	const auto rowsVisible = keyboardRowsVisible();
+	const auto replyVisible = _keyboardReplyExternalVisible;
+	const auto canShow = _canSendMessages && !_bottom->isButtonActive();
+	_botKeyboardShownToggleShown = hasMarkup
+		&& canShow
+		&& !rowsVisible
+		&& !suppress;
+	_botKeyboardHideToggleShown = rowsVisible
+		&& !suppress
+		&& (!_peer->isUser() || !_keyboard->persistent());
+	_botCommandStartExtraGuard = !hasMarkup && !replyVisible && !suppress;
+	_botKeyboardPlaceholder = ((rowsVisible || replyVisible)
+		&& !suppress
+		&& !_keyboard->placeholder().isEmpty())
+		? _keyboard->placeholder()
+		: QString();
+}
+
+bool ChatWidget::itemBelongsToKeyboardView(
+		not_null<const HistoryItem*> item) const {
+	if (mode() == Mode::Sublist || item->history() != _history) {
+		return false;
+	}
+	if (mode() == Mode::Replies) {
+		return _replies && item->inThread(_repliesRootId);
+	}
+	return true;
+}
+
+int ChatWidget::computeMaxFieldHeightForKeyboard(
+		int contentTop,
+		int bottom) const {
+	const auto available = bottom - contentTop
+		- (_composeControls->fieldHeaderShownCurrent()
+			? st::historyReplyHeight
+			: 0)
+		- (2 * st::historySendPadding)
+		- st::historyReplyHeight;
+	return std::min(
+		st::historyComposeFieldMaxHeight,
+		std::max(0, available));
+}
+
+void ChatWidget::resetRepliesKeyboardState() {
+	_repliesKeyboardRootId = _repliesRootId;
+	_repliesKeyboardId = 0;
+	_repliesKeyboardHiddenId = 0;
+	_repliesKeyboardInited = false;
+	_repliesKeyboardUsed = false;
+	_repliesLastSlice = nullptr;
+}
+
+void ChatWidget::clearRepliesKeyboardState() {
+	if (_repliesKeyboardId == _repliesKeyboardHiddenId) {
+		_repliesKeyboardHiddenId = 0;
+	}
+	_repliesKeyboardRootId = _repliesRootId;
+	_repliesKeyboardId = 0;
+	_repliesKeyboardInited = true;
+}
+
+void ChatWidget::setRepliesKeyboardState(MsgId id) {
+	_repliesKeyboardRootId = _repliesRootId;
+	_repliesKeyboardId = id;
+	_repliesKeyboardInited = true;
+	_repliesKeyboardUsed = false;
 }
 
 SuggestOptions ChatWidget::suggestOptions(bool skipNoAdminCheck) const {
@@ -2904,6 +3252,12 @@ void ChatWidget::finishSending() {
 	doSetInnerFocus();
 	showAtEnd();
 	refreshTopBarActiveChat();
+	if (_keyboard
+			&& !_keyboard->hasMarkup()
+			&& _keyboard->forceReply()
+			&& !_kbReplyTo) {
+		toggleBotKeyboard(true);
+	}
 }
 
 void ChatWidget::showAtPosition(
@@ -3112,12 +3466,37 @@ bool ChatWidget::showMessage(
 
 Window::SectionActionResult ChatWidget::sendBotCommand(
 		Bot::SendCommandRequest request) {
-	if (!_repliesRootId) {
-		return Window::SectionActionResult::Fallback;
-	} else if (request.peer != _peer) {
+	if (request.peer != _peer) {
 		return Window::SectionActionResult::Ignore;
 	}
-	listSendBotCommand(request.command, request.context);
+	sendBotCommand(std::move(request), {});
+	return Window::SectionActionResult::Handle;
+}
+
+Window::SectionActionResult ChatWidget::hideSingleUseKeyboard(
+		FullMsgId replyToId) {
+	if (replyToId.peer != _peer->id) {
+		return Window::SectionActionResult::Ignore;
+	}
+	const auto reply = _composeControls->replyingToMessage();
+	const auto replyMatches = (reply.messageId == replyToId);
+	const auto sourceId = keyboardSourceIdForHiddenState();
+	const auto sourceMatches = (sourceId == replyToId);
+	if (!replyMatches && !sourceMatches) {
+		return Window::SectionActionResult::Fallback;
+	}
+	if (replyMatches) {
+		cancelReply();
+	}
+	if (sourceMatches
+		&& _keyboard
+		&& _keyboard->singleUse()
+		&& _keyboard->hasMarkup()) {
+		if (keyboardRowsVisible() || _keyboardReplyExternalVisible) {
+			toggleBotKeyboard(false);
+		}
+		markKeyboardUsed();
+	}
 	return Window::SectionActionResult::Handle;
 }
 
@@ -3160,10 +3539,12 @@ void ChatWidget::refreshReplies() {
 	if (old) {
 		_inner->refreshViewer();
 	}
+	updateBotKeyboard();
 }
 
 void ChatWidget::setReplies(std::shared_ptr<Data::RepliesList> replies) {
 	_replies = std::move(replies);
+	resetRepliesKeyboardState();
 	_repliesLifetime.destroy();
 
 	_replies->unreadCountValue(
@@ -3311,6 +3692,7 @@ void ChatWidget::restoreState(not_null<ChatMemento*> memento) {
 	if (memento->activateChooseForReport()) {
 		activateChooseForReport();
 	}
+	updateBotKeyboard();
 }
 
 void ChatWidget::resizeEvent(QResizeEvent *e) {
@@ -3373,14 +3755,40 @@ void ChatWidget::updateControlsGeometry() {
 	if (bottomHeight > 0) {
 		_bottom->setGeometry(0, bottom - bottomHeight, width(), bottomHeight);
 		bottom -= bottomHeight;
-	} else {
-		bottom -= _composeControls->heightCurrent();
 	}
-	const auto composeTop = bottom;
 	bottom -= tabsBottomSkip;
 	if (_suggestOptions) {
 		bottom -= st::historyReplyHeight;
 	}
+	const auto maxFieldHeight = computeMaxFieldHeightForKeyboard(
+		top + _topBars->y(),
+		bottom);
+	if (_kbScroll && keyboardRowsVisible() && _keyboard) {
+		_keyboard->resizeToWidth(innerWidth, maxFieldHeight);
+		const auto keyboardReserve = std::min(
+			_keyboard->height(),
+			maxFieldHeight - (maxFieldHeight / 2));
+		_composeControls->setFieldMaxHeight(
+			maxFieldHeight - keyboardReserve);
+		const auto maxKbHeight = keyboardReserve;
+		_keyboard->resizeToWidth(innerWidth, maxKbHeight);
+		const auto kbHeight = std::min(
+			_keyboard->height(),
+			maxKbHeight);
+		_kbScroll->setGeometry(
+			tabsLeftSkip,
+			bottom - kbHeight,
+			innerWidth,
+			kbHeight);
+		bottom -= kbHeight;
+	} else {
+		_composeControls->setFieldMaxHeight(
+			st::historyComposeFieldMaxHeight);
+	}
+	if (!bottomHeight) {
+		bottom -= _composeControls->heightCurrent();
+	}
+	const auto composeTop = bottom;
 
 	_topBars->resize(innerWidth, top + st::lineWidth);
 	top += _topBars->y();
@@ -3681,8 +4089,10 @@ rpl::producer<Data::MessagesSlice> ChatWidget::repliesSource(
 		aroundId,
 		limitBefore,
 		limitAfter
-	) | rpl::before_next([=] { // after_next makes a copy of value.
+	) | rpl::before_next([=](const Data::MessagesSlice &slice) {
+		_repliesLastSlice = std::make_unique<Data::MessagesSlice>(slice);
 		markLoaded();
+		maybeUpdateLastKeyboardFromSlice(slice);
 	});
 }
 
@@ -3708,6 +4118,66 @@ rpl::producer<Data::MessagesSlice> ChatWidget::sublistSource(
 	});
 }
 
+void ChatWidget::maybeUpdateLastKeyboardFromSlice(
+		const Data::MessagesSlice &slice) {
+	if (mode() == Mode::Sublist) {
+		return;
+	}
+	if (slice.skippedAfter.value_or(1) != 0) {
+		return;
+	}
+	const auto currentId = keyboardSourceId();
+	const auto inited = (mode() == Mode::History)
+		? _history->lastKeyboardInited
+		: _repliesKeyboardInited;
+	using Flag = ReplyMarkupFlag;
+	for (auto i = slice.ids.rbegin(); i != slice.ids.rend(); ++i) {
+		const auto item = session().data().message(*i);
+		if (!item
+				|| !itemBelongsToKeyboardView(item)
+				|| item->isService()
+				|| item->out()
+				|| !item->definesReplyKeyboard()) {
+			continue;
+		}
+		const auto flags = item->replyKeyboardFlags();
+		if ((flags & Flag::Selective) && !item->mentionsMe()) {
+			continue;
+		}
+		if (flags & Flag::None) {
+			if (mode() == Mode::History) {
+				if (currentId || !inited) {
+					_history->clearLastKeyboard();
+				}
+			} else {
+				if (currentId || !inited) {
+					clearRepliesKeyboardState();
+					updateBotKeyboard();
+				}
+			}
+			return;
+		}
+		if (currentId == item->fullId()) {
+			return;
+		}
+		if (mode() == Mode::History) {
+			item->history()->setLastKeyboard(item->id, item->author()->id);
+		} else {
+			setRepliesKeyboardState(item->id);
+			updateBotKeyboard();
+		}
+		return;
+	}
+	if (currentId || !inited) {
+		if (mode() == Mode::History) {
+			_history->clearLastKeyboard();
+		} else {
+			clearRepliesKeyboardState();
+			updateBotKeyboard();
+		}
+	}
+}
+
 rpl::producer<Data::MessagesSlice> ChatWidget::historySource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -3717,8 +4187,9 @@ rpl::producer<Data::MessagesSlice> ChatWidget::historySource(
 		aroundId,
 		limitBefore,
 		limitAfter
-	) | rpl::before_next([=] { // after_next makes a copy of value.
+	) | rpl::before_next([=](const Data::MessagesSlice &slice) {
 		markLoaded();
+		maybeUpdateLastKeyboardFromSlice(slice);
 	});
 }
 
@@ -3915,6 +4386,278 @@ void ChatWidget::sendBotCommandWithOptions(
 
 	session().api().sendMessage(std::move(message));
 	finishSending();
+}
+
+void ChatWidget::sendBotCommand(
+		Bot::SendCommandRequest request,
+		Api::SendOptions options) {
+	if (_peer != request.peer.get() || showSlowmodeError()) {
+		return;
+	}
+	const auto withPaymentApproved = [=, request = request](int approved) {
+		auto copy = options;
+		copy.starsApproved = approved;
+		sendBotCommand(request, copy);
+	};
+	const auto action = prepareSendAction(options);
+	const auto checked = checkSendPayment(
+		1,
+		action.options,
+		withPaymentApproved);
+	if (!checked) {
+		return;
+	}
+	const auto keyboardId = keyboardSourceIdForHiddenState();
+	const auto lastKeyboardUsed = keyboardId
+		&& (keyboardId == request.replyTo.messageId);
+	const auto outgoingReplyTo = request.replyTo
+		? (!_peer->isUser() ? request.replyTo : replyTo())
+		: FullReplyTo();
+	const auto toSend = request.replyTo
+		? request.command
+		: Bot::WrapCommandInChat(_peer, request.command, request.context);
+	auto message = Api::MessageToSend(action);
+	message.textWithTags = { toSend, TextWithTags::Tags() };
+	message.action.replyTo = outgoingReplyTo;
+	session().api().sendMessage(std::move(message));
+	if (request.replyTo) {
+		const auto replyMatches = (_composeControls->replyingToMessage()
+			.messageId == outgoingReplyTo.messageId);
+		if (replyMatches) {
+			cancelReply();
+		}
+		if (_keyboard
+				&& _keyboard->singleUse()
+				&& _keyboard->hasMarkup()
+				&& lastKeyboardUsed) {
+			if (_kbShown) {
+				toggleBotKeyboard(false);
+			}
+			markKeyboardUsed();
+		}
+	}
+	finishSending();
+}
+
+void ChatWidget::updateBotKeyboard(History *h, bool force) {
+	if (!_keyboard) {
+		return;
+	}
+	if (h && h != _history) {
+		return;
+	}
+
+	const auto rowsWereVisible = _kbShown && keyboardRowsVisible();
+	const auto wasMsgId = _keyboard->forMsgId();
+	auto changed = false;
+	const auto reply = _composeControls->replyingToMessage();
+	auto replyItem = reply
+		? session().data().message(reply.messageId)
+		: nullptr;
+	if (replyItem && !itemBelongsToKeyboardView(replyItem)) {
+		replyItem = nullptr;
+	}
+	const auto editing = _composeControls->isEditingMessage();
+	const auto realReplySource = reply && replyItem;
+	const auto missingReplySource = reply && !replyItem;
+	if (editing || missingReplySource) {
+		changed = _keyboard->updateMarkup(nullptr, force);
+	} else if (realReplySource) {
+		changed = _keyboard->updateMarkup(replyItem, force);
+	} else {
+		changed = _keyboard->updateMarkup(keyboardSourceItem(), force);
+	}
+	if (changed && _keyboard->forMsgId() != wasMsgId) {
+		_kbScroll->scrollTo({ 0, 0 });
+	}
+
+	const auto hasMarkup = _keyboard->hasMarkup();
+	const auto sourceId = keyboardSourceIdForHiddenState();
+	if (_keyboard->singleUse()
+		&& hasMarkup
+		&& (sourceId == _keyboard->forMsgId())
+		&& keyboardUsed()) {
+		setKeyboardHiddenId(sourceId.msg);
+	}
+	const auto forceReply = _keyboard->forceReply() && !realReplySource;
+	const auto canShow = _canSendMessages
+		&& !_bottom->isButtonActive();
+	const auto rowsFromRealReply = realReplySource && hasMarkup;
+	const auto suppressKeyboardUi = editing || (reply && !rowsFromRealReply);
+	const auto shouldShowRows = canShow
+		&& hasMarkup
+		&& !editing
+		&& !missingReplySource
+		&& !kbWasHidden()
+		&& (rowsFromRealReply
+			|| rowsWereVisible
+			|| (!reply && !_fieldHasSendText));
+	const auto shouldShowFakeReply = canShow
+		&& !realReplyOrEditActive()
+		&& (forceReply
+			|| (shouldShowRows
+				&& (_peer->isChat() || _peer->isChannel())));
+	if (hasMarkup || forceReply) {
+		if (canShow && (shouldShowRows || shouldShowFakeReply)) {
+			if (shouldShowRows) {
+				_kbScroll->show();
+			} else {
+				_kbScroll->hide();
+			}
+			_kbShown = shouldShowRows;
+			_kbReplyTo = shouldShowFakeReply
+				? session().data().message(_keyboard->forMsgId())
+				: nullptr;
+			if (_kbReplyTo) {
+				showKeyboardReplyToExternal();
+			} else {
+				hideKeyboardReplyToExternal();
+			}
+		} else {
+			_kbScroll->hide();
+			if (canShow && !suppressKeyboardUi) {
+				_kbShown = false;
+				_kbReplyTo = nullptr;
+			}
+			hideKeyboardReplyToExternal();
+		}
+	} else {
+		_kbScroll->hide();
+		_kbShown = false;
+		_kbReplyTo = nullptr;
+		hideKeyboardReplyToExternal();
+	}
+
+	updateKeyboardUiState(hasMarkup, suppressKeyboardUi);
+	updateControlsGeometry();
+	update();
+}
+
+void ChatWidget::toggleBotKeyboard(bool manual) {
+	if (!_keyboard) {
+		return;
+	}
+	const auto fieldEnabled = _canSendMessages && !_bottom->isButtonActive();
+	const auto rowsVisible = keyboardRowsVisible();
+	const auto externalVisible = _keyboardReplyExternalVisible;
+	const auto hiddenStateSourceId = keyboardSourceIdForHiddenState();
+	if (rowsVisible) {
+		if (manual && hiddenStateSourceId) {
+			setKeyboardHiddenId(hiddenStateSourceId.msg);
+		}
+		_kbScroll->hide();
+		_kbShown = false;
+		_kbReplyTo = nullptr;
+		hideKeyboardReplyToExternal();
+	} else if (externalVisible) {
+		if (manual) {
+			if (mode() == Mode::History) {
+				_history->clearLastKeyboard();
+			} else if (mode() == Mode::Replies) {
+				clearRepliesKeyboardState();
+			}
+		}
+		_kbScroll->hide();
+		_kbShown = false;
+		_kbReplyTo = nullptr;
+		hideKeyboardReplyToExternal();
+	} else if (_kbShown || _kbReplyTo) {
+		updateBotKeyboard();
+		return;
+	} else if (!_keyboard->hasMarkup() && _keyboard->forceReply()) {
+		_kbScroll->hide();
+		_kbShown = false;
+		_kbReplyTo = (_peer->isChat()
+				|| _peer->isChannel()
+				|| _keyboard->forceReply())
+			? session().data().message(_keyboard->forMsgId())
+			: nullptr;
+		if (_kbReplyTo
+				&& fieldEnabled
+				&& !realReplyOrEditActive()) {
+			showKeyboardReplyToExternal();
+		} else {
+			hideKeyboardReplyToExternal();
+		}
+		if (manual && hiddenStateSourceId) {
+			clearKeyboardHiddenId();
+		}
+	} else if (fieldEnabled) {
+		_kbScroll->show();
+		_kbShown = true;
+		_kbReplyTo = (_peer->isChat()
+				|| _peer->isChannel()
+				|| _keyboard->forceReply())
+			? session().data().message(_keyboard->forMsgId())
+			: nullptr;
+		if (_kbReplyTo && !realReplyOrEditActive()) {
+			showKeyboardReplyToExternal();
+		} else {
+			hideKeyboardReplyToExternal();
+		}
+		if (manual && hiddenStateSourceId) {
+			clearKeyboardHiddenId();
+		}
+	}
+	updateKeyboardUiState(
+		_keyboard->hasMarkup(),
+		keyboardUiSuppressedByReplyOrEdit());
+	updateControlsGeometry();
+	update();
+}
+
+void ChatWidget::botCallbackSent(not_null<HistoryItem*> item) {
+	if (!item->isRegular() || !_keyboard || _peer != item->history()->peer) {
+		return;
+	}
+	const auto keyId = keyboardSourceIdForHiddenState();
+	const auto lastKeyboardUsed = (keyId == FullMsgId(_peer->id, item->id));
+	session().data().requestItemRepaint(item);
+	const auto reply = _composeControls->replyingToMessage();
+	if (reply.messageId == item->fullId()) {
+		cancelReply();
+	}
+	if (_keyboard->singleUse()
+			&& _keyboard->hasMarkup()
+			&& lastKeyboardUsed) {
+		if (keyboardRowsVisible()) {
+			toggleBotKeyboard(false);
+		}
+		markKeyboardUsed();
+	}
+}
+
+bool ChatWidget::kbWasHidden() const {
+	return _keyboard
+		&& (keyboardSourceIdForHiddenState()
+			== FullMsgId(_peer->id, keyboardHiddenId()));
+}
+
+bool ChatWidget::lastForceReplyReplied() const {
+	return _keyboard
+		&& _keyboard->forceReply()
+		&& _keyboard->forMsgId() == replyTo().messageId
+		&& (_keyboard->forMsgId() == keyboardSourceId());
+}
+
+void ChatWidget::cancelReply(bool lastKeyboardUsed) {
+	if (_composeControls->replyingToMessage()) {
+		_composeControls->cancelReplyMessage();
+		updateBotKeyboard();
+		refreshTopBarActiveChat();
+		updateControlsVisibility();
+		updateControlsGeometry();
+		update();
+	}
+	if (!_composeControls->isEditingMessage()
+			&& _keyboard
+			&& _keyboard->singleUse()
+			&& _keyboard->forceReply()
+			&& lastKeyboardUsed) {
+		if (_kbReplyTo) {
+			toggleBotKeyboard(false);
+		}
+	}
 }
 
 void ChatWidget::listSearch(

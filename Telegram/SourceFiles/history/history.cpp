@@ -190,6 +190,14 @@ void History::clearLastKeyboard() {
 	lastKeyboardFrom = 0;
 }
 
+void History::setLastKeyboard(MsgId id, PeerId from) {
+	lastKeyboardInited = true;
+	lastKeyboardId = id;
+	lastKeyboardFrom = from;
+	lastKeyboardUsed = false;
+	session().changes().historyUpdated(this, UpdateFlag::BotKeyboard);
+}
+
 int History::height() const {
 	return _height;
 }
@@ -1205,10 +1213,7 @@ not_null<HistoryItem*> History::addNewToBack(
 				if (botNotInChat) {
 					clearLastKeyboard();
 				} else {
-					lastKeyboardInited = true;
-					lastKeyboardId = item->id;
-					lastKeyboardFrom = from->id;
-					lastKeyboardUsed = false;
+					setLastKeyboard(item->id, from->id);
 				}
 			}
 		}

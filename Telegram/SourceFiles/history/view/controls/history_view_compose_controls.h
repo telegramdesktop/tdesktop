@@ -142,6 +142,9 @@ struct ComposeControlsDescriptor {
 
 	rpl::producer<bool> suggestPostToggleShown;
 	rpl::producer<bool> suggestPostToggleActive;
+	rpl::producer<bool> botKeyboardShownToggleShown;
+	rpl::producer<bool> botKeyboardHideToggleShown;
+	rpl::producer<bool> botCommandStartShownExtraGuard;
 };
 
 class ComposeControls final {
@@ -180,6 +183,9 @@ public:
 	void setAutocompleteBoundingRect(QRect rect);
 	[[nodiscard]] rpl::producer<int> height() const;
 	[[nodiscard]] int heightCurrent() const;
+	[[nodiscard]] int fieldHeightCurrent() const;
+	[[nodiscard]] bool fieldHeaderShownCurrent() const;
+	void setFieldMaxHeight(int height);
 
 	void setupCommentsShownNewDot();
 	void setToggleCommentsButton(rpl::producer<ToggleCommentsState> state);
@@ -202,6 +208,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> focusedValue() const;
 	[[nodiscard]] rpl::producer<bool> tabbedPanelShownValue() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
+	[[nodiscard]] rpl::producer<> replyCancelled() const;
+	[[nodiscard]] rpl::producer<> replyCancelledExternal() const;
 	[[nodiscard]] rpl::producer<Api::SendOptions> sendRequests() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<QString> sendCommandRequests() const;
@@ -228,6 +236,7 @@ public:
 	[[nodiscard]] rpl::producer<> focusRequests() const;
 	[[nodiscard]] rpl::producer<> showScheduledRequests() const;
 	[[nodiscard]] rpl::producer<> suggestPostToggleClicks() const;
+	[[nodiscard]] rpl::producer<> botKeyboardToggleClicks() const;
 	[[nodiscard]] rpl::producer<> scrollToMaxRequests() const;
 
 	using MimeDataHook = Fn<bool(
@@ -247,6 +256,11 @@ public:
 	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] const HistoryItemsList &forwardItems() const;
 	[[nodiscard]] FullReplyTo replyingToMessage() const;
+	[[nodiscard]] rpl::producer<FullReplyTo> replyingToMessageValue() const;
+	void replyToMessageExternal(FullReplyTo id);
+	void cancelReplyMessageExternal();
+	[[nodiscard]] FullReplyTo replyingToMessageExternal() const;
+	[[nodiscard]] rpl::producer<FullReplyTo> replyingToMessageExternalValue() const;
 
 	[[nodiscard]] bool preventsClose(Fn<void()> &&continueCallback) const;
 
@@ -531,7 +545,7 @@ private:
 	std::unique_ptr<Ui::RpWidget> _starEffectsCanvas;
 	std::unique_ptr<Ui::IconButton> _replaceMedia;
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
-	rpl::producer<QString> _fieldCustomPlaceholder;
+	rpl::variable<QString> _fieldCustomPlaceholder;
 	QPointer<QWidget> _pasteToastParent;
 	std::shared_ptr<QMimeData> _pendingRichPaste;
 	const not_null<Ui::InputField*> _field;
@@ -545,6 +559,9 @@ private:
 	base::unique_qptr<Ui::IconButton> _scheduled;
 	base::unique_qptr<Ui::IconButton> _toggleSuggestPost;
 	bool _suggestPostActive = false;
+	base::unique_qptr<Ui::IconButton> _botKeyboardShow;
+	base::unique_qptr<Ui::IconButton> _botKeyboardHide;
+	rpl::variable<bool> _botCommandStartExtraGuard = true;
 
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
@@ -565,6 +582,7 @@ private:
 
 	rpl::event_stream<Api::SendOptions> _sendCustomRequests;
 	rpl::event_stream<> _cancelRequests;
+	rpl::event_stream<> _replyCancelledExternally;
 	rpl::event_stream<FileChosen> _fileChosen;
 	rpl::event_stream<PhotoChosen> _photoChosen;
 	rpl::event_stream<InlineChosen> _inlineResultChosen;
@@ -576,9 +594,11 @@ private:
 	Fn<void(std::shared_ptr<Ui::PreparedBundle>, Api::SendOptions)> _sendAsFileConfirmed;
 	rpl::event_stream<> _likeToggled;
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
+	rpl::event_stream<> _replyCancelled;
 	rpl::event_stream<> _focusRequests;
 	rpl::event_stream<> _showScheduledRequests;
 	rpl::event_stream<> _suggestPostToggleClicks;
+	rpl::event_stream<> _botKeyboardToggleClicks;
 	rpl::event_stream<> _commentsShownToggles;
 	rpl::event_stream<StarReactionIncrement> _starsReactionIncrements;
 	rpl::variable<std::vector<StarReactionTop>> _starsReactionTop;

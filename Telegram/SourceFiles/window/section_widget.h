@@ -188,6 +188,10 @@ public:
 		return SectionActionResult::Ignore;
 	}
 
+	virtual SectionActionResult hideSingleUseKeyboard(FullMsgId replyToId) {
+		return SectionActionResult::Fallback;
+	}
+
 	virtual bool confirmSendingFiles(const QStringList &files) {
 		return false;
 	}

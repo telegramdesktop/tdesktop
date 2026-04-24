@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class History;
+class BotKeyboard;
 enum class SendMediaType;
 struct SendingAlbum;
 
@@ -39,6 +40,7 @@ namespace Ui {
 class ElasticScroll;
 class PlainShadow;
 class PinnedBar;
+class ScrollArea;
 struct PreparedList;
 struct PreparedBundle;
 class SendFilesWay;
@@ -134,6 +136,8 @@ public:
 
 	Window::SectionActionResult sendBotCommand(
 		Bot::SendCommandRequest request) override;
+	Window::SectionActionResult hideSingleUseKeyboard(
+		FullMsgId replyToId) override;
 
 	bool searchInChatEmbedded(
 		QString query,
@@ -355,12 +359,46 @@ private:
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const override;
 	bool processChosenSticker(ChatHelpers::FileChosen &&chosen) override;
 	[[nodiscard]] FullReplyTo replyTo() const;
+	[[nodiscard]] FullReplyTo keyboardReplyTo() const;
 	[[nodiscard]] SuggestOptions suggestOptions(
 		bool skipNoAdminCheck = false) const;
 	void applySuggestOptions(
 		SuggestOptions suggest,
 		SuggestMode suggestMode);
 	bool cancelSuggestPost();
+	[[nodiscard]] bool realReplyOrEditActive() const;
+	[[nodiscard]] FullMsgId keyboardSourceId() const;
+	[[nodiscard]] HistoryItem *keyboardSourceItem() const;
+	[[nodiscard]] bool keyboardRowsVisible() const;
+	[[nodiscard]] FullMsgId keyboardSourceIdForHiddenState() const;
+	[[nodiscard]] bool keyboardUiSuppressedByReplyOrEdit() const;
+	[[nodiscard]] int computeMaxFieldHeightForKeyboard(
+		int contentTop,
+		int bottom) const;
+	[[nodiscard]] bool itemBelongsToKeyboardView(
+		not_null<const HistoryItem*> item) const;
+	[[nodiscard]] MsgId keyboardHiddenId() const;
+	void setKeyboardHiddenId(MsgId id);
+	void clearKeyboardHiddenId();
+	[[nodiscard]] bool keyboardUsed() const;
+	void markKeyboardUsed();
+	void showKeyboardReplyToExternal();
+	void hideKeyboardReplyToExternal();
+	void updateKeyboardUiState(bool hasMarkup, bool suppress);
+	void resetRepliesKeyboardState();
+	void clearRepliesKeyboardState();
+	void setRepliesKeyboardState(MsgId id);
+	void updateBotKeyboard(History *h = nullptr, bool force = false);
+	void toggleBotKeyboard(bool manual = true);
+	void maybeUpdateLastKeyboardFromSlice(
+		const Data::MessagesSlice &slice);
+	void botCallbackSent(not_null<HistoryItem*> item);
+	[[nodiscard]] bool kbWasHidden() const;
+	[[nodiscard]] bool lastForceReplyReplied() const;
+	void cancelReply(bool lastKeyboardUsed = false);
+	void sendBotCommand(
+		Bot::SendCommandRequest request,
+		Api::SendOptions options);
 	void refreshSuggestPostToggle();
 	void refreshSuggestFromDraft();
 	[[nodiscard]] HistoryItem *lookupRepliesRoot() const;
@@ -450,12 +488,17 @@ private:
 	ChatViewId _id;
 
 	MsgId _repliesRootId = 0;
+	MsgId _repliesKeyboardRootId = 0;
+	MsgId _repliesKeyboardId = 0;
+	MsgId _repliesKeyboardHiddenId = 0;
 	HistoryItem *_repliesRoot = nullptr;
 	Data::ForumTopic *_topic = nullptr;
 	mutable bool _newTopicDiscarded = false;
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::lifetime _repliesLifetime;
 	rpl::variable<bool> _areComments = false;
+	bool _repliesKeyboardInited = false;
+	bool _repliesKeyboardUsed = false;
 
 	struct ChooseMessagesForReport {
 		Data::ReportInput reportInput;
@@ -475,6 +518,10 @@ private:
 	std::unique_ptr<Ui::RpWidget> _topBars;
 	rpl::variable<bool> _suggestPostToggleShown = false;
 	rpl::variable<bool> _suggestPostToggleActive = false;
+	rpl::variable<bool> _botKeyboardShownToggleShown = false;
+	rpl::variable<bool> _botKeyboardHideToggleShown = false;
+	rpl::variable<bool> _botCommandStartExtraGuard = true;
+	rpl::variable<QString> _botKeyboardPlaceholder;
 	std::unique_ptr<ComposeControls> _composeControls;
 	std::unique_ptr<SuggestOptionsBar> _suggestOptions;
 	std::unique_ptr<ComposeSearch> _composeSearch;
@@ -510,6 +557,14 @@ private:
 
 	std::unique_ptr<Ui::ElasticScroll> _scroll;
 	std::unique_ptr<PullToNextChannel> _pullToNext;
+	base::unique_qptr<Ui::ScrollArea> _kbScroll;
+	BotKeyboard *_keyboard = nullptr;
+	HistoryItem *_kbReplyTo = nullptr;
+	bool _keyboardReplyExternalVisible = false;
+	std::unique_ptr<Data::MessagesSlice> _repliesLastSlice;
+	bool _ignoreReplyCancelledExternal = false;
+	bool _kbShown = false;
+	bool _fieldHasSendText = false;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 
 	FullMsgId _lastShownAt;

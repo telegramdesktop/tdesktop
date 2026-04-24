@@ -802,7 +802,12 @@ void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
 }
 
 void MainWidget::hideSingleUseKeyboard(FullMsgId replyToId) {
-	_history->hideSingleUseKeyboard(replyToId);
+	const auto type = _mainSection
+		? _mainSection->hideSingleUseKeyboard(replyToId)
+		: Window::SectionActionResult::Fallback;
+	if (type == Window::SectionActionResult::Fallback) {
+		_history->hideSingleUseKeyboard(replyToId);
+	}
 }
 
 void MainWidget::searchMessages(

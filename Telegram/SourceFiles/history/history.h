@@ -301,6 +301,7 @@ public:
 	}
 
 	void clearLastKeyboard();
+	void setLastKeyboard(MsgId id, PeerId from);
 	void clearUnreadMentionsFor(MsgId topicRootId);
 	void clearUnreadReactionsFor(
 		MsgId topicRootId,
