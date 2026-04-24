@@ -799,6 +799,9 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 
 	pruneAccessibilityIdentities();
 
+	if (scrolledTillEnd && addedToEndCount > 0) {
+		_delegate->listItemsAddedToEnd(_items, addedToEndCount);
+	}
 	const auto markLastAsRead = (scrolledTillEnd && markingMessagesRead());
 	checkUnreadBarCreation(markLastAsRead);
 	restoreScrollState();
@@ -1029,13 +1032,7 @@ void ListWidget::showAtPosition(
 
 	if (showAtUnread) {
 		showAroundPosition(position, [=] {
-			if (_bar.element) {
-				_bar.element->destroyUnreadBar();
-				const auto i = ranges::find(_items, not_null{ _bar.element });
-				Assert(i != end(_items));
-				refreshAttachmentsAtIndex(i - begin(_items));
-				_bar = {};
-			}
+			clearUnreadBar();
 			checkUnreadBarCreation();
 			return showAtPositionNow(position, params, done);
 		});
@@ -1044,6 +1041,17 @@ void ListWidget::showAtPosition(
 			return showAtPositionNow(position, params, done);
 		});
 	}
+}
+
+void ListWidget::clearUnreadBar() {
+	if (!_bar.element) {
+		return;
+	}
+	_bar.element->destroyUnreadBar();
+	const auto i = ranges::find(_items, not_null{ _bar.element });
+	Assert(i != end(_items));
+	refreshAttachmentsAtIndex(i - begin(_items));
+	_bar = {};
 }
 
 bool ListWidget::showAtPositionNow(
@@ -2605,7 +2613,9 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	}
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
+	auto startEffects = base::flat_set<not_null<const Element*>>();
 	const auto markingAsViewed = markingMessagesRead();
+	const auto markingContentRead = markingContentsRead();
 	const auto guard = gsl::finally([&] {
 		if (_translateTracker) {
 			_delegate->listAddTranslatedItems(_translateTracker.get());
@@ -2614,10 +2624,15 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		if (metricsStale) {
 			_readMetricsTracker->endBatch();
 		}
+		if (!startEffects.empty()) {
+			for (const auto &view : startEffects) {
+				_emojiInteractions->playEffectOnRead(view);
+			}
+		}
 		if (markingAsViewed && readTill) {
 			_delegate->listMarkReadTill(readTill);
 		}
-		if (!readContents.empty() && markingContentsRead()) {
+		if (!readContents.empty() && markingContentRead) {
 			_delegate->listMarkContentsRead(readContents);
 		}
 		_userpicsCache.clear();
@@ -2747,6 +2762,11 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				session->sponsoredMessages().view(item->fullId());
 			} else if (isUnread) {
 				readTill = item;
+			}
+			if (markingContentRead
+				&& item->hasUnwatchedEffect()
+				&& _delegate->listAllowsReadEffect(view)) {
+				startEffects.emplace(view);
 			}
 			if (markingAsViewed && item->hasViews()) {
 				session->api().views().scheduleIncrement(item);

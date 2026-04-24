@@ -131,8 +131,15 @@ public:
 		not_null<HistoryItem*> second) = 0;
 	virtual void listSelectionChanged(SelectedItems &&items) = 0;
 	virtual void listMarkReadTill(not_null<HistoryItem*> item) = 0;
+	virtual void listItemsAddedToEnd(
+		const std::vector<not_null<Element*>> &,
+		int) {
+	}
 	virtual void listMarkContentsRead(
 		const base::flat_set<not_null<HistoryItem*>> &items) = 0;
+	virtual bool listAllowsReadEffect(not_null<const Element*>) {
+		return false;
+	}
 	virtual MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements,
 		bool markLastAsRead) = 0;
@@ -376,6 +383,7 @@ public:
 	[[nodiscard]] bool markingMessagesRead() const;
 	void showFinished();
 	void checkActivation();
+	void clearUnreadBar();
 
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
 	[[nodiscard]] bool hasCopyMediaRestriction(

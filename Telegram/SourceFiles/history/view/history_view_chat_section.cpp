@@ -4234,10 +4234,49 @@ void ChatWidget::listSelectionChanged(SelectedItems &&items) {
 }
 
 void ChatWidget::listMarkReadTill(not_null<HistoryItem*> item) {
+	_inner->clearUnreadBar();
 	if (_replies) {
 		_replies->readTill(item);
 	} else if (_sublist) {
 		_sublist->readTill(item);
+	} else {
+		session().data().histories().readInboxTill(item);
+	}
+}
+
+void ChatWidget::listItemsAddedToEnd(
+		const std::vector<not_null<Element*>> &items,
+		int addedCount) {
+	if (!_inner->markingMessagesRead()) {
+		return;
+	}
+	const auto count = std::min(addedCount, int(items.size()));
+	if (!count) {
+		return;
+	}
+	auto readTill = (HistoryItem*)nullptr;
+	for (auto i = end(items) - count; i != end(items); ++i) {
+		const auto view = *i;
+		const auto item = view->data();
+		if (item->isRegular()
+			&& !item->out()
+			&& item->showNotification()
+			&& listElementShownUnread(view)) {
+			readTill = item;
+		}
+	}
+	if (!readTill) {
+		return;
+	}
+	if (readTill->isUnreadMention() && !readTill->isUnreadMedia()) {
+		session().api().markContentsRead(readTill);
+	}
+	if (_replies || _sublist) {
+		readTill->markClientSideAsRead();
+		listMarkReadTill(readTill);
+	} else {
+		_inner->clearUnreadBar();
+		session().data().histories().readInboxOnNewMessage(readTill);
 	}
 }
 
@@ -4246,46 +4285,99 @@ void ChatWidget::listMarkContentsRead(
 	session().api().markContentsRead(items);
 }
 
+bool ChatWidget::listAllowsReadEffect(not_null<const Element*>) {
+	return true;
+}
+
 MessagesBarData ChatWidget::listMessagesBar(
 		const std::vector<not_null<Element*>> &elements,
 		bool markLastAsRead) {
-	if ((!_sublist && !_replies) || elements.empty()) {
+	if (elements.empty()) {
 		return {};
 	} else if (_sublist && !_sublist->parentChat()) {
 		return {};
 	}
-	const auto till = _replies
+	const auto repliesTill = _replies
 		? _replies->computeInboxReadTillFull()
-		: _sublist->computeInboxReadTillFull();
-	const auto hidden = (till < 2);
+		: MsgId();
+	const auto sublistTill = _sublist
+		? _sublist->computeInboxReadTillFull()
+		: MsgId();
+	const auto migrated = (_replies || _sublist)
+		? nullptr
+		: _history->migrateFrom();
+	const auto migratedTill = (migrated && migrated->unreadCount() > 0)
+		? migrated->inboxReadTillId()
+		: 0;
+	const auto historyTill = (_replies
+		|| _sublist
+		|| !_history->unreadCount()
+		|| _history->amMonoforumAdmin())
+		? 0
+		: _history->inboxReadTillId();
+	if (!_replies && !_sublist && !migratedTill && !historyTill) {
+		return {};
+	}
+	const auto hidden = (_replies && (repliesTill < 2))
+		|| (_sublist && (sublistTill < 2));
+	auto skippedReadIncoming = false;
 	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
 		const auto item = elements[i]->data();
-		if (item->isRegular() && item->id > till) {
-			if (markLastAsRead
-				|| item->out()
-				|| (_replies && !item->replyToId())) {
-				if (markLastAsRead) {
-					if (item->isUnreadMention() && !item->isUnreadMedia()) {
-						session().api().markContentsRead(item);
-					}
-					item->markClientSideAsRead();
-				}
-				if (_replies) {
-					_replies->readTill(item);
-				} else {
-					_sublist->readTill(item);
-				}
-			} else {
-				return {
-					.bar = {
-						.element = elements[i],
-						.hidden = hidden,
-						.focus = true,
-					},
-					.text = tr::lng_unread_bar_some(),
-				};
-			}
+		if (!item->isRegular()
+			|| (_replies && !item->replyToId())
+			|| (_sublist && !item->sublistPeerId())) {
+			continue;
 		}
+		const auto inHistory = (item->history() == _history);
+		const auto unread = (_replies && item->id > repliesTill)
+			|| (_sublist && item->id > sublistTill)
+			|| (migratedTill && (inHistory || item->id > migratedTill))
+			|| (historyTill && inHistory && item->id > historyTill);
+		if (unread
+			&& (_replies || _sublist)
+			&& (markLastAsRead
+				|| item->out()
+				|| (_replies && !item->replyToId()))) {
+			if (markLastAsRead) {
+				if (item->isUnreadMention() && !item->isUnreadMedia()) {
+					session().api().markContentsRead(item);
+				}
+				item->markClientSideAsRead();
+			}
+			if (_replies) {
+				_replies->readTill(item);
+			} else {
+				_sublist->readTill(item);
+			}
+			continue;
+		}
+		if (!item->out() && !unread) {
+			skippedReadIncoming = true;
+		}
+		if (item->out()) {
+			continue;
+		}
+		if (!unread) {
+			continue;
+		}
+		if (markLastAsRead) {
+			if (item->isUnreadMention() && !item->isUnreadMedia()) {
+				session().api().markContentsRead(item);
+			}
+			listMarkReadTill(item);
+			continue;
+		}
+		if (!skippedReadIncoming) {
+			return {};
+		}
+		return {
+			.bar = {
+				.element = elements[i],
+				.hidden = hidden,
+				.focus = true,
+			},
+			.text = tr::lng_unread_bar_some(),
+		};
 	}
 	return {};
 }
