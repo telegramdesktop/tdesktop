@@ -1469,6 +1469,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 		0, // offset_id
 		0, // add_offset
 		1, // limit
+		0, // offset_date
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
@@ -1513,6 +1514,7 @@ void ApiWrap::checkFirstMessageDate(int localSplitIndex, int count) {
 		1, // offset_id
 		-1, // add_offset
 		1, // limit
+		0, // offset_date
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
@@ -1875,11 +1877,47 @@ void ApiWrap::requestMessagesSlice() {
 		loadMessagesFiles({});
 		return;
 	}
+	if (_chatProcess->largestIdPlusOne == 1
+		&& _settings->singlePeerFrom > 0) {
+		requestChatMessages(
+			_chatProcess->info.splits[_chatProcess->localSplitIndex],
+			0, // offset_id
+			-1, // add_offset
+			1, // limit
+			_settings->singlePeerFrom - 1, // offset_date
+			[=](const MTPmessages_Messages &result) {
+			Expects(_chatProcess != nullptr);
+
+			const auto firstId = result.match([](
+					const MTPDmessages_messagesNotModified &) {
+				return 0;
+			}, [](const auto &data) {
+				const auto &list = data.vmessages().v;
+				if (list.isEmpty()) {
+					return 0;
+				}
+				return list[0].match([](const MTPDmessageEmpty &) {
+					return 0;
+				}, [](const auto &data) {
+					return data.vid().v;
+				});
+			});
+			if (!firstId) {
+				_chatProcess->lastSlice = true;
+				loadMessagesFiles({});
+				return;
+			}
+			_chatProcess->largestIdPlusOne = firstId;
+			requestMessagesSlice();
+		});
+		return;
+	}
 	requestChatMessages(
 		_chatProcess->info.splits[_chatProcess->localSplitIndex],
 		_chatProcess->largestIdPlusOne,
 		-kMessagesSliceLimit,
 		kMessagesSliceLimit,
+		0, // offset_date
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
@@ -1889,12 +1927,18 @@ void ApiWrap::requestMessagesSlice() {
 			if constexpr (MTPDmessages_messages::Is<decltype(data)>()) {
 				_chatProcess->lastSlice = true;
 			}
-			loadMessagesFiles(Data::ParseMessagesSlice(
+			auto slice = Data::ParseMessagesSlice(
 				_chatProcess->context,
 				data.vmessages(),
 				data.vusers(),
 				data.vchats(),
-				_chatProcess->info.relativePath));
+				_chatProcess->info.relativePath);
+			if (_settings->singlePeerTill > 0
+				&& !slice.list.empty()
+				&& slice.list.back().date >= _settings->singlePeerTill) {
+				_chatProcess->lastSlice = true;
+			}
+			loadMessagesFiles(std::move(slice));
 		});
 	});
 }
@@ -1904,6 +1948,7 @@ void ApiWrap::requestChatMessages(
 		int offsetId,
 		int addOffset,
 		int limit,
+		int offsetDate,
 		FnMut<void(MTPmessages_Messages&&)> done) {
 	Expects(_chatProcess != nullptr);
 
@@ -1924,6 +1969,10 @@ void ApiWrap::requestChatMessages(
 		? splitIndex
 		: (splitsCount + splitIndex);
 	if (_chatProcess->info.onlyMyMessages) {
+		const auto minDate = _settings->singlePeerFrom;
+		const auto maxDate = (_settings->singlePeerTill > 0)
+			? (_settings->singlePeerTill - 1)
+			: 0;
 		splitRequest(realSplitIndex, MTPmessages_Search(
 			MTP_flags(MTPmessages_Search::Flag::f_from_id),
 			realPeerInput,
@@ -1933,8 +1982,8 @@ void ApiWrap::requestChatMessages(
 			MTPVector<MTPReaction>(), // saved_reaction
 			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
-			MTP_int(0), // min_date
-			MTP_int(0), // max_date
+			MTP_int(minDate), // min_date
+			MTP_int(maxDate), // max_date
 			MTP_int(offsetId),
 			MTP_int(addOffset),
 			MTP_int(limit),
@@ -1946,7 +1995,7 @@ void ApiWrap::requestChatMessages(
 		splitRequest(realSplitIndex, MTPmessages_GetHistory(
 			realPeerInput,
 			MTP_int(offsetId),
-			MTP_int(0), // offset_date
+			MTP_int(offsetDate),
 			MTP_int(addOffset),
 			MTP_int(limit),
 			MTP_int(0), // max_id
@@ -1967,6 +2016,7 @@ void ApiWrap::requestChatMessages(
 						offsetId,
 						addOffset,
 						limit,
+						offsetDate,
 						base::take(_chatProcess->requestDone));
 					return true;
 				}
@@ -2376,6 +2426,7 @@ void ApiWrap::requestTopicMessages(
 			0,
 			0,
 			kMessagesSliceLimit,
+			0, // offset_date
 			[=](const MTPmessages_Messages &result) {
 				Expects(_topicProcess != nullptr);
 
@@ -2414,6 +2465,40 @@ void ApiWrap::requestTopicMessages(
 void ApiWrap::requestTopicMessagesSlice() {
 	Expects(_topicProcess != nullptr);
 
+	if (_topicProcess->offsetId == 0
+		&& _settings->singlePeerFrom > 0) {
+		requestTopicReplies(
+			0, // offset_id
+			-1, // add_offset
+			1, // limit
+			_settings->singlePeerFrom - 1, // offset_date
+			[=](const MTPmessages_Messages &result) {
+			Expects(_topicProcess != nullptr);
+
+			const auto firstId = result.match([](
+					const MTPDmessages_messagesNotModified &) {
+				return 0;
+			}, [](const auto &data) {
+				const auto &list = data.vmessages().v;
+				if (list.isEmpty()) {
+					return 0;
+				}
+				return list[0].match([](const MTPDmessageEmpty &) {
+					return 0;
+				}, [](const auto &data) {
+					return data.vid().v;
+				});
+			});
+			if (!firstId) {
+				_topicProcess->lastSlice = true;
+				loadTopicMessagesFiles({});
+				return;
+			}
+			_topicProcess->offsetId = firstId - 1;
+			requestTopicMessagesSlice();
+		});
+		return;
+	}
 	const auto offsetId = (_topicProcess->offsetId == 0)
 		? 1
 		: (_topicProcess->offsetId + 1);
@@ -2421,6 +2506,7 @@ void ApiWrap::requestTopicMessagesSlice() {
 		offsetId,
 		-kMessagesSliceLimit,
 		kMessagesSliceLimit,
+		0, // offset_date
 		[=](const MTPmessages_Messages &result) {
 			Expects(_topicProcess != nullptr);
 
@@ -2439,6 +2525,11 @@ void ApiWrap::requestTopicMessagesSlice() {
 				if (slice.list.empty()) {
 					_topicProcess->lastSlice = true;
 				}
+				if (_settings->singlePeerTill > 0
+					&& !slice.list.empty()
+					&& slice.list.back().date >= _settings->singlePeerTill) {
+					_topicProcess->lastSlice = true;
+				}
 				loadTopicMessagesFiles(std::move(slice));
 			});
 		});
@@ -2448,6 +2539,7 @@ void ApiWrap::requestTopicReplies(
 		int offsetId,
 		int addOffset,
 		int limit,
+		int offsetDate,
 		FnMut<void(MTPmessages_Messages&&)> done) {
 	Expects(_topicProcess != nullptr);
 
@@ -2461,7 +2553,7 @@ void ApiWrap::requestTopicReplies(
 		_topicProcess->inputPeer,
 		MTP_int(_topicProcess->topicRootId),
 		MTP_int(offsetId),
-		MTP_int(0),
+		MTP_int(offsetDate),
 		MTP_int(addOffset),
 		MTP_int(limit),
 		MTP_int(0),
@@ -2552,6 +2644,9 @@ void ApiWrap::loadNextTopicMessageFile() {
 		; _topicProcess->fileIndex < list.size()
 		; ++_topicProcess->fileIndex) {
 		auto &message = list[_topicProcess->fileIndex];
+		if (Data::SkipMessageByDate(message, *_settings)) {
+			continue;
+		}
 		if (!messageCustomEmojiReady(message)) {
 			return;
 		}

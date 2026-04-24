@@ -2607,7 +2607,7 @@ bool SingleMessageAfter(
 		const MTPmessages_Messages &data,
 		TimeId date) {
 	const auto single = SingleMessageDate(data);
-	return (single > 0 && single > date);
+	return (single > 0 && single >= date);
 }
 
 bool SkipMessageByDate(const Message &message, const Settings &settings) {
