@@ -351,6 +351,31 @@ inviteViaLinkButton: SettingsButton(defaultSettingsButton) {
 	ripple: defaultRippleAnimation;
 }
 communityEditAddChatIconPosition: point(25px, 16px);
+
+musicAttachChooseFromFilesButton: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+
+	ripple: defaultRippleAnimation;
+}
+musicAttachChooseFromFilesIcon: icon {{ "menu/file", lightButtonFg }};
+musicAttachShowAllButton: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	ripple: defaultRippleAnimation;
+}
+musicAttachShowAllIcon: icon {{ "menu/export", lightButtonFg }};
+musicAttachGlobalSearchTopSkip: 10px;
+
 peerListSingleRow: PeerList(peerListBox) {
 	padding: margins(0px, 0px, 0px, 0px);
 }

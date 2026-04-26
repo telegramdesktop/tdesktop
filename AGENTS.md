@@ -214,9 +214,11 @@ Both app-level (`Core::Settings`) and session-level (`Main::SessionSettings`) us
 
 ## Coding Style
 
-**Do NOT write comments in code:**
+**Do NOT write useless comments in code:**
 
 This is important! Do not write single-line comments that describe what the next line does - they are bloat. Comments are allowed ONLY to describe complex algorithms in detail, when the explanation requires at least 4-5 lines. Self-documenting code with clear variable and function names is preferred.
+
+Do not remove existing comments just to satisfy this rule. Preserve comments unless your change makes them incorrect or truly obsolete; when moving or refactoring code, move the useful comment with it. Inline comments that label positional arguments for generated or schema-driven APIs (for example TL/MTP constructors) are useful because the field names are not visible in the call itself.
 
 ```cpp
 // BAD - don't do this:

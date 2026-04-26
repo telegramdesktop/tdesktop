@@ -807,6 +807,9 @@ HistoryItem::HistoryItem(
 	not_null<DocumentData*> document,
 	const TextWithEntities &caption)
 : HistoryItem(history, fields) {
+	const auto mediaSpoiler = fields.mediaSpoiler;
+	const auto groupedId = fields.groupedId;
+	const auto scheduled = (fields.flags & MessageFlag::IsOrWasScheduled);
 	createComponentsHelper(std::move(fields));
 
 	const auto video = document->video();
@@ -814,9 +817,15 @@ HistoryItem::HistoryItem(
 	_media = std::make_unique<Data::MediaFile>(this, document, Args{
 		.hasQualitiesList = video && !video->qualities.empty(),
 		.skipPremiumEffect = !history->session().premium(),
-		.spoiler = fields.mediaSpoiler,
+		.spoiler = mediaSpoiler,
 	});
 	setText(caption);
+	if (groupedId) {
+		setGroupId(MessageGroupId::FromRaw(
+			history->peer->id,
+			groupedId,
+			scheduled));
+	}
 }
 
 HistoryItem::HistoryItem(
@@ -825,13 +834,22 @@ HistoryItem::HistoryItem(
 	not_null<PhotoData*> photo,
 	const TextWithEntities &caption)
 : HistoryItem(history, fields) {
+	const auto mediaSpoiler = fields.mediaSpoiler;
+	const auto groupedId = fields.groupedId;
+	const auto scheduled = (fields.flags & MessageFlag::IsOrWasScheduled);
 	createComponentsHelper(std::move(fields));
 
 	_media = std::make_unique<Data::MediaPhoto>(
 		this,
 		photo,
-		Data::MediaPhoto::Args{ .spoiler = fields.mediaSpoiler });
+		Data::MediaPhoto::Args{ .spoiler = mediaSpoiler });
 	setText(caption);
+	if (groupedId) {
+		setGroupId(MessageGroupId::FromRaw(
+			history->peer->id,
+			groupedId,
+			scheduled));
+	}
 }
 
 HistoryItem::HistoryItem(

@@ -59,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
+#include "data/data_peer.h"
 #include "data/data_web_page.h"
 #include "storage/storage_account.h"
 #include "styles/style_chat.h"
@@ -104,6 +105,13 @@ using ::Media::ValidFrameSize;
 	return (runtime && runtime->forcedFor == media)
 		? runtime->forcedSize
 		: QSize();
+}
+
+[[nodiscard]] bool AllowsMediaDownloadControls(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	return !item->forbidsSaving()
+		&& item->history()->peer->allowsForwarding()
+		&& (!media || media->allowsForward());
 }
 
 [[nodiscard]] int GifMaxStatusWidth(not_null<DocumentData*> document) {
@@ -512,7 +520,7 @@ void Gif::validateRoundingMask(QSize size) const {
 bool Gif::downloadInCorner() const {
 	return _data->isVideoFile()
 		&& (_data->loading() || !autoplayEnabled())
-		&& _realParent->allowsForward()
+		&& AllowsMediaDownloadControls(_realParent)
 		&& _data->canBeStreamed()
 		&& !_data->inappPlaybackFailed();
 }

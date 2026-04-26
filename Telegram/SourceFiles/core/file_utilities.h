@@ -96,6 +96,7 @@ void GetFolder(
 [[nodiscard]] QString PhotoVideoFilesFilter();
 [[nodiscard]] QString PhotoVideoAudioFilesFilter();
 [[nodiscard]] QString AudioFilesFilter();
+[[nodiscard]] QString MusicFilesFilter();
 [[nodiscard]] const QString &Tmp();
 
 namespace internal {

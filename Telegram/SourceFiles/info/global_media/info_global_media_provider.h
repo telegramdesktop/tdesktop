@@ -127,6 +127,10 @@ private:
 		GlobalMediaSlice slice;
 		bool notEnough = false;
 	};
+	struct SliceUpdate {
+		QString query;
+		GlobalMediaSlice slice;
+	};
 	struct List {
 		std::vector<Data::MessagePosition> list;
 		Data::MessagePosition offsetPosition;
@@ -141,7 +145,7 @@ private:
 		not_null<const BaseLayout*> item,
 		not_null<const BaseLayout*> previous) override;
 
-	[[nodiscard]] rpl::producer<GlobalMediaSlice> source(
+	[[nodiscard]] rpl::producer<SliceUpdate> source(
 		Type type,
 		Data::MessagePosition aroundId,
 		QString query,
@@ -162,12 +166,13 @@ private:
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void markLayoutsStale();
 	void clearStaleLayouts();
-	[[nodiscard]] List *currentList();
+	[[nodiscard]] List *listForQuery(const QString &query);
 	[[nodiscard]] FillResult fillRequest(
+		const QString &query,
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter);
-	mtpRequestId requestMore(Fn<void()> loaded);
+	mtpRequestId requestMore(QString query, Fn<void()> loaded);
 
 	const not_null<AbstractController*> _controller;
 	const Type _type = {};
@@ -182,6 +187,7 @@ private:
 	rpl::event_stream<> _refreshed;
 
 	QString _totalListQuery;
+	QString _sliceQuery;
 	base::flat_map<QString, List> _totalLists;
 
 	rpl::lifetime _lifetime;

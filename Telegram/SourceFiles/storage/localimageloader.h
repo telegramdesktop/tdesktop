@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "api/api_common.h"
 
+#include <memory>
+
 namespace Ui {
 struct PreparedFileInformation;
 } // namespace Ui
@@ -17,6 +19,8 @@ struct PreparedFileInformation;
 namespace Main {
 class Session;
 } // namespace Main
+
+struct FilePrepareResult;
 
 // Load files up to 2'000 MB.
 constexpr auto kFileSizeLimit = 2'000 * int64(1024 * 1024);
@@ -113,9 +117,16 @@ struct SendingAlbum {
 		uint64 randomId = 0;
 		FullMsgId msgId;
 		std::optional<MTPInputSingleMedia> media;
+		std::shared_ptr<FilePrepareResult> prepared;
 	};
 
 	SendingAlbum();
+
+	[[nodiscard]] bool preparedMusicBatching() const;
+	[[nodiscard]] bool preparedMusicReady() const;
+	[[nodiscard]] std::shared_ptr<FilePrepareResult> preparedMusicSample() const;
+	[[nodiscard]] std::vector<std::shared_ptr<FilePrepareResult>>
+		takePreparedMusic();
 
 	void fillMedia(
 		not_null<HistoryItem*> item,
@@ -123,10 +134,12 @@ struct SendingAlbum {
 		uint64 randomId);
 	void refreshMediaCaption(not_null<HistoryItem*> item);
 	void removeItem(not_null<HistoryItem*> item);
+	void removeTask(TaskId taskId);
 
 	uint64 groupId = 0;
 	std::vector<Item> items;
 	Api::SendOptions options;
+	bool musicPreparedBatching = false;
 	bool sent = false;
 
 };

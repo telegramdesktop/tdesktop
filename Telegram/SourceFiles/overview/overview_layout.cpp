@@ -137,6 +137,13 @@ private:
 
 };
 
+[[nodiscard]] bool AllowsMediaDownloadControls(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	return !item->forbidsSaving()
+		&& item->history()->peer->allowsForwarding()
+		&& (!media || media->allowsForward());
+}
+
 [[nodiscard]] QImage CropMediaFrame(QImage image, int width, int height) {
 	const auto ratio = style::DevicePixelRatio();
 	width *= ratio;
@@ -226,6 +233,10 @@ void ItemBase::invalidateCache() {
 	if (_check) {
 		_check->invalidateCache();
 	}
+}
+
+bool ItemBase::selectionConsumesClick(QPoint) const {
+	return true;
 }
 
 void ItemBase::paintCheckbox(
@@ -1381,7 +1392,7 @@ Document::Document(
 
 bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
-		&& parent()->allowsForward()
+		&& AllowsMediaDownloadControls(parent())
 		&& _data->canBeStreamed()
 		&& !_data->inappPlaybackFailed();
 }
@@ -1839,6 +1850,23 @@ TextState Document::getState(
 		}
 	}
 	return {};
+}
+
+bool Document::selectionConsumesClick(QPoint point) const {
+	if (!songLayout()) {
+		return true;
+	}
+	if (const auto state = cornerDownloadTextState(point, StateRequest());
+		state.link) {
+		return false;
+	}
+	const auto inner = style::rtlrect(
+		_st.songPadding.left(),
+		_st.songPadding.top(),
+		_st.songThumbSize,
+		_st.songThumbSize,
+		_width);
+	return !inner.contains(point);
 }
 
 const style::RoundCheckbox &Document::checkboxStyle() const {

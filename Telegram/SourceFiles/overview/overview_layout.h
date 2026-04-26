@@ -69,6 +69,8 @@ public:
 		return _parent;
 	}
 
+	[[nodiscard]] virtual bool selectionConsumesClick(QPoint point) const;
+
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
@@ -448,6 +450,7 @@ public:
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
+	[[nodiscard]] bool selectionConsumesClick(QPoint point) const override;
 
 	void clearHeavyPart() override;
 

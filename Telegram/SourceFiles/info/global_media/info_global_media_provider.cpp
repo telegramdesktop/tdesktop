@@ -165,7 +165,9 @@ bool Provider::isPossiblyMyItem(not_null<const HistoryItem*> item) {
 }
 
 std::optional<int> Provider::fullCount() {
-	return _slice.fullCount();
+	return (_sliceQuery == _totalListQuery)
+		? _slice.fullCount()
+		: std::nullopt;
 }
 
 void Provider::restart() {
@@ -173,6 +175,7 @@ void Provider::restart() {
 	_aroundId = Data::MaxMessagePosition;
 	_idsLimit = kMinimalIdsLimit;
 	_slice = GlobalMediaSlice(sliceKey(_aroundId));
+	_sliceQuery = QString();
 	refreshViewer();
 }
 
@@ -226,7 +229,7 @@ void Provider::checkPreload(
 	}
 }
 
-rpl::producer<GlobalMediaSlice> Provider::source(
+rpl::producer<Provider::SliceUpdate> Provider::source(
 		Type type,
 		Data::MessagePosition aroundId,
 		QString query,
@@ -234,7 +237,6 @@ rpl::producer<GlobalMediaSlice> Provider::source(
 		int limitAfter) {
 	Expects(_type == type);
 
-	_totalListQuery = query;
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 		const auto session = &_controller->session();
@@ -254,13 +256,20 @@ rpl::producer<GlobalMediaSlice> Provider::source(
 		const auto guard = base::make_weak(state);
 
 		state->pushAndLoadMore = [=] {
-			auto result = fillRequest(aroundId, limitBefore, limitAfter);
+			auto result = fillRequest(
+				query,
+				aroundId,
+				limitBefore,
+				limitAfter);
 
 			// May destroy 'state' by calling source() with different args.
-			consumer.put_next(std::move(result.slice));
+			consumer.put_next(SliceUpdate{
+				query,
+				std::move(result.slice),
+			});
 
-			if (guard && !currentList()->loaded && result.notEnough) {
-				state->requestId = requestMore(state->pushAndLoadMore);
+			if (guard && !listForQuery(query)->loaded && result.notEnough) {
+				state->requestId = requestMore(query, state->pushAndLoadMore);
 			}
 		};
 		state->pushAndLoadMore();
@@ -269,9 +278,9 @@ rpl::producer<GlobalMediaSlice> Provider::source(
 	};
 }
 
-mtpRequestId Provider::requestMore(Fn<void()> loaded) {
+mtpRequestId Provider::requestMore(QString query, Fn<void()> loaded) {
 	const auto done = [=](const Api::GlobalMediaResult &result) {
-		const auto list = currentList();
+		const auto list = listForQuery(query);
 		if (result.messageIds.empty()) {
 			list->loaded = true;
 			list->fullCount = list->list.size();
@@ -291,20 +300,21 @@ mtpRequestId Provider::requestMore(Fn<void()> loaded) {
 		}
 		loaded();
 	};
-	const auto list = currentList();
+	const auto list = listForQuery(query);
 	return _controller->session().api().requestGlobalMedia(
 		_type,
-		_totalListQuery,
+		query,
 		list->offsetRate,
 		list->offsetPosition,
 		done);
 }
 
 Provider::FillResult Provider::fillRequest(
+		const QString &query,
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
-	const auto list = currentList();
+	const auto list = listForQuery(query);
 	const auto i = ranges::lower_bound(
 		list->list,
 		aroundId,
@@ -333,6 +343,7 @@ void Provider::refreshViewer() {
 	_viewerLifetime.destroy();
 	_controller->searchQueryValue(
 	) | rpl::map([=](QString query) {
+		_totalListQuery = query;
 		return source(
 			_type,
 			sliceKey(_aroundId).aroundId,
@@ -340,12 +351,15 @@ void Provider::refreshViewer() {
 			_idsLimit,
 			_idsLimit);
 	}) | rpl::flatten_latest(
-	) | rpl::on_next([=](GlobalMediaSlice &&slice) {
-		if (!slice.fullCount()) {
+	) | rpl::on_next([=](SliceUpdate &&update) {
+		if (update.query != _totalListQuery) {
+			return;
+		} else if (!update.slice.fullCount()) {
 			// Don't display anything while full count is unknown.
 			return;
 		}
-		_slice = std::move(slice);
+		_sliceQuery = update.query;
+		_slice = std::move(update.slice);
 		if (auto nearest = _slice.nearest(_aroundId)) {
 			_aroundId = *nearest;
 		}
@@ -394,8 +408,8 @@ void Provider::clearStaleLayouts() {
 	}
 }
 
-Provider::List *Provider::currentList() {
-	return &_totalLists[_totalListQuery];
+Provider::List *Provider::listForQuery(const QString &query) {
+	return &_totalLists[query];
 }
 
 rpl::producer<not_null<Media::BaseLayout*>> Provider::layoutRemoved() {

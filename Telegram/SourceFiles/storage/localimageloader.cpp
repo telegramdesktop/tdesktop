@@ -362,6 +362,37 @@ void TaskQueueWorker::onTaskAdded() {
 SendingAlbum::SendingAlbum() : groupId(base::RandomValue<uint64>()) {
 }
 
+bool SendingAlbum::preparedMusicBatching() const {
+	return musicPreparedBatching;
+}
+
+bool SendingAlbum::preparedMusicReady() const {
+	return preparedMusicBatching()
+		&& !items.empty()
+		&& ranges::all_of(items, [](const Item &item) {
+			return item.prepared != nullptr;
+		});
+}
+
+std::shared_ptr<FilePrepareResult> SendingAlbum::preparedMusicSample() const {
+	const auto it = ranges::find_if(items, [](const Item &item) {
+		return item.prepared != nullptr;
+	});
+	return (it == end(items)) ? nullptr : it->prepared;
+}
+
+std::vector<std::shared_ptr<FilePrepareResult>> SendingAlbum::takePreparedMusic() {
+	auto result = std::vector<std::shared_ptr<FilePrepareResult>>();
+	if (!preparedMusicReady()) {
+		return result;
+	}
+	result.reserve(items.size());
+	for (auto &item : items) {
+		result.push_back(std::move(item.prepared));
+	}
+	return result;
+}
+
 void SendingAlbum::fillMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
@@ -405,6 +436,12 @@ void SendingAlbum::removeItem(not_null<HistoryItem*> item) {
 			refreshMediaCaption(first);
 		}
 	}
+}
+
+void SendingAlbum::removeTask(TaskId taskId) {
+	const auto i = ranges::find(items, taskId, &Item::taskId);
+	Assert(i != end(items));
+	items.erase(i);
 }
 
 SendingAlbum::Item::Item(TaskId taskId)
@@ -1061,6 +1098,14 @@ void FileLoadTask::finish() {
 			Box(FileSizeLimitBox, session, _result->filesize, nullptr),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
+	} else if (_album && _album->preparedMusicBatching()) {
+		const auto it = ranges::find(_album->items, id(), &SendingAlbum::Item::taskId);
+		Assert(it != _album->items.end());
+
+		it->prepared = _result;
+		if (_album->preparedMusicReady()) {
+			Api::SendConfirmedFile(session, _result);
+		}
 	} else {
 		Api::SendConfirmedFile(session, _result);
 	}
@@ -1079,11 +1124,11 @@ void FileLoadTask::removeFromAlbum() {
 	if (!_album) {
 		return;
 	}
-	const auto proj = [](const SendingAlbum::Item &item) {
-		return item.taskId;
-	};
-	const auto it = ranges::find(_album->items, id(), proj);
-	Assert(it != _album->items.end());
-
-	_album->items.erase(it);
+	_album->removeTask(id());
+	if (const auto session = _session.get()
+		; _album->preparedMusicReady()) {
+		if (const auto sample = _album->preparedMusicSample()) {
+			Api::SendConfirmedFile(session, sample);
+		}
+	}
 }

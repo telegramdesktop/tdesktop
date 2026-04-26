@@ -363,9 +363,47 @@ rpl::producer<int> ListWidget::scrollToRequests() const {
 	return _scrollToRequests.events();
 }
 
+std::optional<int> ListWidget::fullCount() const {
+	return _provider->fullCount();
+}
+
+rpl::producer<std::optional<int>> ListWidget::fullCountValue() const {
+	return _fullCountUpdates.events_starting_with(fullCount());
+}
+
 rpl::producer<SelectedItems> ListWidget::selectedListValue() const {
 	return _selectedListStream.events_starting_with(
 		collectSelectedItems());
+}
+
+int ListWidget::heightForFirstRows(int count) const {
+	if (count <= 0) {
+		return 0;
+	} else if (_sections.empty()) {
+		return heightNoMargins();
+	}
+	for (const auto &section : _sections) {
+		if (!section.isOneColumn()) {
+			return heightNoMargins();
+		}
+	}
+	auto result = 0;
+	auto remaining = count;
+	for (const auto &section : _sections) {
+		const auto &items = section.items();
+		const auto rows = int(items.size());
+		if (rows <= remaining) {
+			result += section.height();
+			remaining -= rows;
+			if (!remaining) {
+				return result;
+			}
+			continue;
+		}
+		const auto item = items[remaining - 1];
+		return result + item->position() + item->height();
+	}
+	return result;
 }
 
 void ListWidget::selectionAction(SelectionAction action) {
@@ -380,6 +418,24 @@ void ListWidget::selectionAction(SelectionAction action) {
 		toggleStoryInProfileSelected(false);
 		return;
 	case SelectionAction::ToggleStoryPin: toggleStoryPinSelected(); return;
+	}
+}
+
+void ListWidget::setSelectOnClick(bool enabled) {
+	_selectOnClick = enabled;
+}
+
+void ListWidget::setSelectedLimit(int limit) {
+	_selectedLimit = std::max(limit, 0);
+}
+
+void ListWidget::setPreloadEnabled(bool enabled) {
+	if (_preloadEnabled == enabled) {
+		return;
+	}
+	_preloadEnabled = enabled;
+	if (_preloadEnabled) {
+		checkMoveToOtherViewer();
 	}
 }
 
@@ -731,11 +787,11 @@ void ListWidget::refreshRows() {
 		markStoryMsgsSelected();
 	}
 
-	if (const auto count = _provider->fullCount()) {
-		if (*count > kMediaCountForSearch) {
-			_controller->setSearchEnabledByContent(true);
-		}
+	const auto count = _provider->fullCount();
+	if (count && *count > kMediaCountForSearch) {
+		_controller->setSearchEnabledByContent(true);
 	}
+	_fullCountUpdates.fire_copy(count);
 
 	resizeToWidth(width());
 	restoreScrollState();
@@ -896,6 +952,9 @@ void ListWidget::toggleScrollDateShown() {
 }
 
 void ListWidget::checkMoveToOtherViewer() {
+	if (!_preloadEnabled) {
+		return;
+	}
 	const auto visibleHeight = std::max(
 		_visibleBottom - _visibleTop,
 		_externalViewportHeight);
@@ -2188,13 +2247,16 @@ void ListWidget::mouseActionStart(
 								selStatus);
 							_mouseAction = MouseAction::Selecting;
 							repaintItem(pressLayout);
-						} else if (!_provider->hasSelectRestriction()) {
+						} else if (
+							!_provider->hasSelectRestriction()
+							|| _selectOnClick) {
 							_mouseAction = MouseAction::PrepareSelect;
 						}
 					}
 				}
 			} else if (!_pressWasInactive
-				&& !_provider->hasSelectRestriction()) {
+				&& (!_provider->hasSelectRestriction()
+					|| _selectOnClick)) {
 				_mouseAction = MouseAction::PrepareSelect; // start items select
 			}
 		}
@@ -2264,6 +2326,14 @@ void ListWidget::performDrag() {
 		std::move(pixmap));
 }
 
+bool ListWidget::selectionConsumesClick(const MouseState &state) const {
+	if (!_selectOnClick || !state.item || !state.inside) {
+		return false;
+	}
+	const auto layout = _provider->lookupLayout(state.item);
+	return layout ? layout->selectionConsumesClick(state.cursor) : true;
+}
+
 void ListWidget::mouseActionFinish(
 		const QPoint &globalPosition,
 		Qt::MouseButton button) {
@@ -2273,6 +2343,7 @@ void ListWidget::mouseActionFinish(
 	repaintItem(pressState.item);
 
 	const auto selectionMode = hasSelectedItems() || _storiesAddToAlbumId;
+	const auto clickStartsSelection = selectionConsumesClick(pressState);
 	const auto simpleSelectionChange = pressState.item
 		&& pressState.inside
 		&& !_pressWasInactive
@@ -2287,7 +2358,11 @@ void ListWidget::mouseActionFinish(
 		_reorderState = {};
 		_mouseAction = MouseAction::PrepareDrag;
 	}
-	const auto needSelectionToggle = simpleSelectionChange && selectionMode;
+	const auto needSelectionToggle = simpleSelectionChange
+		&& ((
+			selectionMode
+			&& (!_selectOnClick || clickStartsSelection))
+			|| (_selectOnClick && clickStartsSelection));
 	const auto needSelectionClear = simpleSelectionChange
 		&& hasSelectedText();
 

@@ -54,6 +54,15 @@ public:
 	QString getId() const {
 		return _id;
 	}
+	DocumentData *document() const {
+		return _document;
+	}
+	const QString &contentUrl() const {
+		return _content_url;
+	}
+	bool isAudioResult() const {
+		return (_type == Type::Audio);
+	}
 
 	// This is real SendClickHandler::onClick implementation for the specified
 	// inline bot result. If it returns true you need to send this result.

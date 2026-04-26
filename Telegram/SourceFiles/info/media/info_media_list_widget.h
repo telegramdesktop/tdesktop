@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_common.h"
 #include "overview/overview_layout_delegate.h"
 
+#include <optional>
+
 class DeleteMessagesBox;
 
 namespace Main {
@@ -70,8 +72,14 @@ public:
 	void restart();
 
 	rpl::producer<int> scrollToRequests() const;
+	[[nodiscard]] std::optional<int> fullCount() const;
+	[[nodiscard]] rpl::producer<std::optional<int>> fullCountValue() const;
 	rpl::producer<SelectedItems> selectedListValue() const;
+	void setPreloadEnabled(bool enabled);
+	[[nodiscard]] int heightForFirstRows(int count) const;
 	void selectionAction(SelectionAction action);
+	void setSelectOnClick(bool enabled);
+	void setSelectedLimit(int limit);
 
 	struct ReorderDescriptor {
 		Fn<void(int old, int pos, Fn<void()> done, Fn<void()> fail)> save;
@@ -305,6 +313,8 @@ private:
 		Qt::MouseButton button);
 	void mouseActionCancel();
 	void performDrag();
+	[[nodiscard]] bool selectionConsumesClick(
+		const MouseState &state) const;
 	[[nodiscard]] style::cursor computeMouseCursor() const;
 	void showContextMenu(
 		QContextMenuEvent *e,
@@ -351,8 +361,10 @@ private:
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
+	bool _preloadEnabled = true;
 	ListScrollTopState _scrollTopState;
 	rpl::event_stream<int> _scrollToRequests;
+	rpl::event_stream<std::optional<int>> _fullCountUpdates;
 
 	std::unique_ptr<ListZoom> _zoom;
 
@@ -372,6 +384,7 @@ private:
 	style::cursor _cursor = style::cur_default;
 	DragSelectAction _dragSelectAction = DragSelectAction::None;
 	bool _wasSelectedText = false; // was some text selected in current drag action
+	bool _selectOnClick = false;
 
 	const std::unique_ptr<DateBadge> _dateBadge;
 	int _topOverlayHeight = 0;

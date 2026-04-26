@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
+#include "boxes/music_attach_box.h"
 #include "boxes/peers/choose_peer_box.h"
 #include "boxes/peers/create_managed_bot_box.h"
 #include "boxes/peer_list_controllers.h"
@@ -3065,6 +3066,12 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 			Ui::PreventDelayedActivation();
 			ChooseAndSendLocation(controller, config, actionFactory());
 		}, &st::menuIconAddress);
+	}
+	if (Data::CanSend(peer, ChatRestriction::SendMusic, false)) {
+		++minimal;
+		raw->addAction(tr::lng_all_music(tr::now), [=] {
+			controller->show(Box(MusicAttachBox, controller, peer, actionFactory));
+		}, &st::menuIconSoundOn);
 	}
 	const auto addBots = Data::CanSend(peer, ChatRestriction::SendInline, false)
 		&& !peer->starsPerMessageChecked();
