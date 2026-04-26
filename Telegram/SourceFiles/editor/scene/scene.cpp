@@ -111,7 +111,6 @@ constexpr auto kPaddingFactor = 0.4;
 constexpr auto kMaxWidthFactor = 0.8;
 constexpr auto kMinWidthFactor = 0.16;
 constexpr auto kIdealWidthExtra = 2;
-constexpr auto kDefaultFontSizeDivisor = 15.;
 constexpr auto kScaleThreshold = 0.01;
 
 class TextEditProxy final : public QGraphicsTextItem {

@@ -32,8 +32,6 @@ namespace Ui {
 namespace {
 
 constexpr auto kMinTextWidth = 120;
-constexpr auto kMaxTextWidth = 320;
-constexpr auto kMaxTextLines = 3;
 
 struct PreviewRequest {
 	QString family;

@@ -60,9 +60,6 @@ struct TopReactorKey {
 	friend inline auto operator<=>(
 		const TopReactorKey &,
 		const TopReactorKey &) = default;
-	friend inline bool operator==(
-		const TopReactorKey &,
-		const TopReactorKey &) = default;
 };
 
 [[nodiscard]] QImage GenerateBadgeImage(

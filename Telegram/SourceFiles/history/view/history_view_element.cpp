@@ -126,9 +126,6 @@ private:
 		friend inline constexpr auto operator<=>(
 			CacheKey,
 			CacheKey) = default;
-		friend inline constexpr bool operator==(
-			CacheKey,
-			CacheKey) = default;
 	};
 	mutable base::flat_map<CacheKey, CachedBg> _cachedBg;
 	mutable base::flat_map<CacheKey, QPainterPath> _cachedOutline;
