@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
+#include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
 #include "data/data_document.h"
@@ -1221,7 +1222,12 @@ ComposeControls::ComposeControls(
 	if (_st.radius > 0) {
 		_backgroundRect.emplace(_st.radius, _st.bg);
 	}
-	updateFieldPlaceholder();
+	rpl::combine(
+		replyingToMessageValue(),
+		replyingToMessageExternalValue()
+	) | rpl::on_next([=] {
+		updateFieldPlaceholder();
+	}, _wrap->lifetime());
 	if (descriptor.stickerOrEmojiChosen) {
 		std::move(
 			descriptor.stickerOrEmojiChosen
@@ -1381,6 +1387,7 @@ void ComposeControls::updateTopicRootId(MsgId topicRootId) {
 	registerDraftSource();
 	updateFieldVisibility();
 	updateSendButtonType();
+	updateFieldPlaceholder();
 }
 
 void ComposeControls::updateShortcutId(BusinessShortcutId shortcutId) {
@@ -3029,7 +3036,7 @@ void ComposeControls::updateFieldPlaceholder() {
 
 	const auto ephemeralReply = session().ephemeralMessages()
 		.isEphemeralBotReply(replyingToMessage().messageId);
-	auto normal = [&] {
+	auto normal = [&]() -> rpl::producer<QString> {
 		const auto peer = _history ? _history->peer.get() : nullptr;
 		if (isEditingMessage()) {
 			return tr::lng_edit_message_text();
@@ -3042,7 +3049,44 @@ void ComposeControls::updateFieldPlaceholder() {
 				lt_count,
 				rpl::single(stars * 1.));
 		} else if (const auto channel = peer->asChannel()) {
-			if (channel->isBroadcast()) {
+			const auto realReplyTo = replyingToMessage();
+			const auto replyTo = realReplyTo.replying()
+				? realReplyTo
+				: replyingToMessageExternal();
+			const auto replyToMessage = (replyTo.messageId.peer == peer->id)
+				? session().data().message(replyTo.messageId)
+				: nullptr;
+			const auto topicRootId = replyToMessage
+				? replyToMessage->topicRootId()
+				: replyTo.topicRootId;
+			if (channel->isForum() && topicRootId) {
+				auto topic = static_cast<Data::ForumTopic*>(nullptr);
+				if (const auto forum = channel->forum()) {
+					topic = forum->enforceTopicFor(topicRootId);
+				}
+				const auto topicTitle = [=](const Data::ForumTopic *topic) {
+					return (topic && !topic->title().isEmpty())
+						? topic->title()
+						: (topicRootId == Data::ForumTopic::kGeneralId)
+						? u"General"_q
+						: u"Topic"_q;
+				};
+				auto title = rpl::single(topicTitle(topic))
+					| rpl::then(session().changes().topicUpdates(
+						Data::TopicUpdate::Flag::Title
+					) | rpl::filter([=](const Data::TopicUpdate &update) {
+						return (update.topic->peer() == channel)
+							&& (update.topic->rootId() == topicRootId);
+					}) | rpl::map([=](const Data::TopicUpdate &update) {
+						return topicTitle(update.topic);
+					}));
+				const auto phrase = replyTo.messageId
+					? tr::lng_forum_reply_in
+					: tr::lng_forum_message_in;
+				return phrase(
+					lt_topic,
+					std::move(title));
+			} else if (channel->isBroadcast()) {
 				return session().data().notifySettings().silentPosts(channel)
 					? tr::lng_broadcast_silent_ph()
 					: tr::lng_broadcast_ph();

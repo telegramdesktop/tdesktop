@@ -358,6 +358,12 @@ private:
 	bool processChosenSticker(ChatHelpers::FileChosen &&chosen) override;
 	[[nodiscard]] FullReplyTo replyTo() const;
 	[[nodiscard]] FullReplyTo keyboardReplyTo() const;
+	[[nodiscard]] MsgId resolveTopicRootId(const FullReplyTo &replyTo) const;
+	[[nodiscard]] MsgId resolvedTopicRootId() const;
+	[[nodiscard]] Data::ForumTopic *resolvedTopic();
+	void refreshCanSendMessages();
+	void refreshResolvedTopicRootState();
+	void setKeyboardReplyTo(HistoryItem *item);
 	[[nodiscard]] SuggestOptions suggestOptions(
 		bool skipNoAdminCheck = false) const;
 	void applySuggestOptions(
@@ -521,6 +527,7 @@ private:
 	rpl::lifetime _subsectionCheckLifetime;
 	rpl::lifetime _subsectionTopicsLifetime;
 	bool _canSendMessages = false;
+	rpl::lifetime _canSendMessagesLifetime;
 	bool _skipScrollEvent = false;
 	bool _synteticScrollEvent = false;
 
@@ -529,6 +536,7 @@ private:
 	base::unique_qptr<Ui::ScrollArea> _kbScroll;
 	BotKeyboard *_keyboard = nullptr;
 	HistoryItem *_kbReplyTo = nullptr;
+	rpl::event_stream<> _kbReplyToChanges;
 	bool _keyboardReplyExternalVisible = false;
 	std::unique_ptr<Data::MessagesSlice> _repliesLastSlice;
 	bool _ignoreReplyCancelledExternal = false;

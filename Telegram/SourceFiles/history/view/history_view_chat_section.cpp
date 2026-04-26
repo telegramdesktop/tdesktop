@@ -114,6 +114,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
+namespace {
+
+enum class SendPermission {
+	Anything,
+	Files,
+};
+
+[[nodiscard]] bool CanSendResolved(
+		not_null<PeerData*> peer,
+		Data::ForumTopic *topic,
+		SendPermission permission) {
+	switch (permission) {
+	case SendPermission::Anything:
+		return topic
+			? Data::CanSendAnything(topic)
+			: Data::CanSendAnything(peer);
+	case SendPermission::Files:
+		return topic
+			? Data::CanSendAnyOf(topic, Data::FilesSendRestrictions())
+			: Data::CanSendAnyOf(peer, Data::FilesSendRestrictions());
+	}
+	return false;
+}
+
+} // namespace
+
 ChatMemento::ChatMemento(
 	ChatViewId id,
 	MsgId highlightId,
@@ -438,9 +464,10 @@ ChatWidget::ChatWidget(
 
 	_inner->replyToMessageRequested(
 	) | rpl::on_next([=](ListWidget::ReplyToMessageRequest request) {
-		const auto canSendReply = _topic
-			? Data::CanSendAnything(_topic)
-			: Data::CanSendAnything(_peer);
+		const auto canSendReply = CanSendResolved(
+			_peer,
+			resolvedTopic(),
+			SendPermission::Anything);
 		const auto &to = request.to;
 		const auto still = _history->owner().message(to.messageId);
 		const auto allowInAnotherChat = still && still->allowsForward();
@@ -506,7 +533,7 @@ ChatWidget::ChatWidget(
 		Data::MessageUpdate::Flag::Destroyed
 	) | rpl::on_next([=](const Data::MessageUpdate &update) {
 		if (_kbReplyTo == update.item) {
-			_kbReplyTo = nullptr;
+			setKeyboardReplyTo(nullptr);
 			updateBotKeyboard();
 		}
 	}, lifetime());
@@ -601,13 +628,7 @@ ChatWidget::ChatWidget(
 		updateControlsGeometry();
 	}, lifetime());
 
-	Data::CanSendAnythingValue(
-		_peer
-	) | rpl::on_next([=](bool can) {
-		_canSendMessages = can;
-		_bottom->setCanSendMessages(can);
-		updateControlsVisibility();
-	}, lifetime());
+	refreshCanSendMessages();
 
 	using PeerUpdateFlag = Data::PeerUpdate::Flag;
 	session().changes().peerUpdates(
@@ -623,6 +644,10 @@ ChatWidget::ChatWidget(
 			| PeerUpdateFlag::StarsPerMessage
 	) | rpl::on_next([=](const Data::PeerUpdate &update) {
 		_bottom->applyPeerUpdate(update.flags);
+		if (update.flags & (PeerUpdateFlag::FullInfo
+			| PeerUpdateFlag::Rights)) {
+			refreshCanSendMessages();
+		}
 		if (update.flags & (PeerUpdateFlag::FullInfo
 			| PeerUpdateFlag::Rights
 			| PeerUpdateFlag::ChannelAmIn
@@ -775,23 +800,21 @@ void ChatWidget::setupTopicViewer() {
 	) | rpl::on_next([=](const Data::Session::IdChange &change) {
 		if (_repliesRootId == change.oldId) {
 			_repliesRootId = _id.repliesRootId = change.newId.msg;
-			if (_topControls) {
-				_topControls->setRepliesRootId(_repliesRootId);
-			}
-			_composeControls->updateTopicRootId(_repliesRootId);
 			resetRepliesKeyboardState();
 			_sendAction = owner->sendActionManager().repliesPainter(
 				_history,
 				_repliesRootId);
 			_repliesRoot = lookupRepliesRoot();
 			if (_topic && _topic->rootId() == change.oldId) {
-				setTopic(_topic->forum()->topicFor(change.newId.msg));
+				setTopic(_topic->forum()->enforceTopicFor(change.newId.msg));
 			} else {
+				refreshResolvedTopicRootState();
 				refreshReplies();
 				refreshTopBarActiveChat();
 				if (_topic) {
 					_topControls->subscribeToPinnedMessages();
 				}
+				refreshCanSendMessages();
 			}
 			_inner->update();
 		}
@@ -811,6 +834,7 @@ void ChatWidget::subscribeToTopic() {
 		(Flag::UnreadMentions
 			| Flag::UnreadReactions
 			| Flag::UnreadPollVotes
+			| Flag::Closed
 			| Flag::CloudDraft)
 	) | rpl::on_next([=](const Data::TopicUpdate &update) {
 		if (update.flags
@@ -818,6 +842,9 @@ void ChatWidget::subscribeToTopic() {
 				| Flag::UnreadReactions
 				| Flag::UnreadPollVotes)) {
 			_cornerButtons.updateUnreadThingsVisibility();
+		}
+		if (update.flags & Flag::Closed) {
+			refreshCanSendMessages();
 		}
 		if (update.flags & Flag::CloudDraft) {
 			_composeControls->applyCloudDraft();
@@ -863,12 +890,14 @@ void ChatWidget::setTopic(Data::ForumTopic *topic) {
 		_topControls->setTopic(topic);
 	}
 	_bottom->setTopic(topic);
+	refreshResolvedTopicRootState();
 	refreshReplies();
 	refreshTopBarActiveChat();
 	validateSubsectionTabs();
 	if (_topic) {
 		subscribeToTopic();
 	}
+	refreshCanSendMessages();
 	if (_topic && emptyShown()) {
 		setupEmptyPainter();
 	} else {
@@ -899,39 +928,121 @@ Data::ForumTopic *ChatWidget::lookupTopic() {
 	return nullptr;
 }
 
+MsgId ChatWidget::resolveTopicRootId(const FullReplyTo &replyTo) const {
+	const auto replyToMessage = (replyTo.messageId.peer == _peer->id)
+		? session().data().message(replyTo.messageId)
+		: nullptr;
+	return replyToMessage
+		? replyToMessage->topicRootId()
+		: replyTo.topicRootId;
+}
+
+MsgId ChatWidget::resolvedTopicRootId() const {
+	const auto custom = _composeControls->replyingToMessage();
+	if (custom.messageId || custom.topicRootId) {
+		if (const auto result = resolveTopicRootId(custom)) {
+			return result;
+		}
+	} else if (_kbReplyTo) {
+		if (const auto result = resolveTopicRootId(FullReplyTo{
+			.messageId = _kbReplyTo->fullId(),
+			.topicRootId = _repliesRootId,
+			.monoforumPeerId = _monoforumPeerId,
+		})) {
+			return result;
+		}
+	}
+	return _repliesRootId
+		? _repliesRootId
+		: (_history->asForum() && !_history->peer->isBot())
+		? Data::ForumTopic::kGeneralId
+		: MsgId();
+}
+
+Data::ForumTopic *ChatWidget::resolvedTopic() {
+	const auto rootId = resolvedTopicRootId();
+	if (!rootId) {
+		return nullptr;
+	} else if (_topic && (_topic->rootId() == rootId)) {
+		return _topic;
+	}
+	const auto forum = _history->asForum();
+	if (!forum) {
+		return nullptr;
+	}
+	return forum->enforceTopicFor(rootId);
+}
+
+void ChatWidget::refreshCanSendMessages() {
+	_canSendMessagesLifetime.destroy();
+	const auto apply = [=](bool can) {
+		const auto changed = (_canSendMessages != can);
+		_canSendMessages = can;
+		_bottom->setCanSendMessages(can);
+		if (changed) {
+			updateControlsVisibility();
+		}
+	};
+	if (const auto topic = resolvedTopic()) {
+		Data::CanSendAnythingValue(
+			topic
+		) | rpl::on_next(std::move(apply), _canSendMessagesLifetime);
+	} else {
+		Data::CanSendAnythingValue(
+			_peer
+		) | rpl::on_next(std::move(apply), _canSendMessagesLifetime);
+	}
+}
+
+void ChatWidget::refreshResolvedTopicRootState() {
+	const auto topicRootId = resolvedTopicRootId();
+	if (_topControls) {
+		_topControls->setRepliesRootId((_topic || _repliesRootId)
+			? topicRootId
+			: MsgId());
+	}
+	_composeControls->updateTopicRootId(topicRootId);
+}
+
+void ChatWidget::setKeyboardReplyTo(HistoryItem *item) {
+	if (_kbReplyTo == item) {
+		return;
+	}
+	_kbReplyTo = item;
+	refreshResolvedTopicRootState();
+	refreshCanSendMessages();
+	_kbReplyToChanges.fire({});
+}
+
 bool ChatWidget::computeAreComments() const {
 	return _repliesRoot && _repliesRoot->isDiscussionPost();
 }
 
 void ChatWidget::setupComposeControls() {
-	auto topicWriteRestrictions = rpl::single(
+	auto replyThreadChanges = rpl::merge(
+		_composeControls->replyingToMessageValue() | rpl::to_empty,
+		_kbReplyToChanges.events() | rpl::to_empty);
+	auto topicClosedChanges = rpl::single(
 	) | rpl::then(session().changes().topicUpdates(
 		Data::TopicUpdate::Flag::Closed
 	) | rpl::filter([=](const Data::TopicUpdate &update) {
 		return (update.topic->history() == _history)
-			&& (update.topic->rootId() == _repliesRootId);
-	}) | rpl::to_empty) | rpl::map([=] {
-		const auto topic = _topic
-			? _topic
-			: _peer->forumTopicFor(_repliesRootId);
-		return (!topic || topic->canToggleClosed() || !topic->closed())
-			? Data::SendError()
-			: tr::lng_forum_topic_closed(tr::now);
-	});
+			&& (update.topic->rootId() == resolvedTopicRootId());
+	}) | rpl::to_empty);
 	auto writeRestriction = rpl::combine(
 		session().frozenValue(),
 		session().changes().peerFlagsValue(
 			_peer,
 			Data::PeerUpdate::Flag::Rights),
 		Data::CanSendAnythingValue(_peer),
-		(_repliesRootId
-			? std::move(topicWriteRestrictions)
-			: (rpl::single(Data::SendError()) | rpl::type_erased))
+		std::move(replyThreadChanges),
+		std::move(topicClosedChanges)
 	) | rpl::map([=](
 			const Main::FreezeInfo &info,
 			auto,
 			auto,
-			Data::SendError topicRestriction) {
+			auto,
+			auto) {
 		if (_bottom->isButtonActive()) {
 			return Controls::WriteRestriction();
 		}
@@ -942,9 +1053,16 @@ void ChatWidget::setupComposeControls() {
 		}
 		const auto allWithoutPolls = Data::AllSendRestrictions()
 			& ~ChatRestriction::SendPolls;
-		const auto canSendAnything = _topic
-			? Data::CanSendAnyOf(_topic, allWithoutPolls)
+		const auto topic = resolvedTopic();
+		const auto canSendAnything = topic
+			? Data::CanSendAnyOf(topic, allWithoutPolls)
 			: Data::CanSendAnyOf(_peer, allWithoutPolls);
+		auto topicRestriction = (!resolvedTopicRootId()
+			|| !topic
+			|| topic->canToggleClosed()
+			|| !topic->closed())
+			? Data::SendError()
+			: tr::lng_forum_topic_closed(tr::now);
 		const auto restriction = Data::RestrictionError(
 			_peer,
 			ChatRestriction::SendOther);
@@ -966,7 +1084,7 @@ void ChatWidget::setupComposeControls() {
 
 	_composeControls->setHistory({
 		.history = _history.get(),
-		.topicRootId = _topic ? _topic->rootId() : MsgId(),
+		.topicRootId = resolvedTopicRootId(),
 		.monoforumPeerId = _monoforumPeerId,
 		.showSlowmodeError = [=] { return showSlowmodeError(); },
 		.sendActionFactory = [=] { return prepareSendAction({}); },
@@ -999,6 +1117,7 @@ void ChatWidget::setupComposeControls() {
 
 	_composeControls->replyingToMessageValue(
 	) | rpl::skip(1) | rpl::on_next([=](FullReplyTo) {
+		refreshCanSendMessages();
 		updateBotKeyboard();
 	}, lifetime());
 
@@ -1190,9 +1309,10 @@ void ChatWidget::setupComposeControls() {
 
 void ChatWidget::setupSwipeReplyAndBack() {
 	const auto can = [=](not_null<HistoryItem*> still) {
-		const auto canSendReply = _topic
-			? Data::CanSendAnything(_topic)
-			: Data::CanSendAnything(_peer);
+		const auto canSendReply = CanSendResolved(
+			_peer,
+			resolvedTopic(),
+			SendPermission::Anything);
 		const auto allowInAnotherChat = still && still->allowsForward();
 		const auto bottomBarActive = _bottom->isButtonActive();
 		if (allowInAnotherChat && (bottomBarActive || !canSendReply)) {
@@ -2386,8 +2506,9 @@ FullReplyTo ChatWidget::replyTo() const {
 		if (!item
 			|| !_monoforumPeerId
 			|| (sublistPeerId == _monoforumPeerId)) {
+			const auto topicRootId = resolvedTopicRootId();
 			// Never answer to a message in a wrong monoforum peer id.
-			custom.topicRootId = _repliesRootId;
+			custom.topicRootId = topicRootId;
 			custom.monoforumPeerId = _monoforumPeerId;
 			return custom;
 		}
@@ -2395,11 +2516,12 @@ FullReplyTo ChatWidget::replyTo() const {
 	if (const auto keyboard = keyboardReplyTo()) {
 		return keyboard;
 	}
+	const auto topicRootId = resolvedTopicRootId();
 	return FullReplyTo{
-		.messageId = (_repliesRootId
-			? FullMsgId(_peer->id, _repliesRootId)
+		.messageId = (topicRootId
+			? FullMsgId(_peer->id, topicRootId)
 			: FullMsgId()),
-		.topicRootId = _repliesRootId,
+		.topicRootId = topicRootId,
 		.monoforumPeerId = _monoforumPeerId,
 	};
 }
@@ -2408,9 +2530,10 @@ FullReplyTo ChatWidget::keyboardReplyTo() const {
 	if (!_kbReplyTo) {
 		return {};
 	}
+	const auto topicRootId = resolvedTopicRootId();
 	return FullReplyTo{
 		.messageId = _kbReplyTo->fullId(),
-		.topicRootId = _repliesRootId,
+		.topicRootId = topicRootId,
 		.monoforumPeerId = _monoforumPeerId,
 	};
 }
@@ -3518,11 +3641,17 @@ QRect ChatWidget::floatPlayerAvailableRect() {
 }
 
 Context ChatWidget::listContext() {
-	return !_sublist
-		? Context::Replies
-		: _sublist->parentChat()
-		? Context::Monoforum
-		: Context::SavedSublist;
+	switch (mode()) {
+	case Mode::History:
+		return Context::History;
+	case Mode::Replies:
+		return Context::Replies;
+	case Mode::Sublist:
+		return _sublist->parentChat()
+			? Context::Monoforum
+			: Context::SavedSublist;
+	}
+	Unexpected("Mode in ChatWidget::listContext().");
 }
 
 bool ChatWidget::listScrollTo(int top, bool syntetic) {
@@ -3920,6 +4049,8 @@ bool ChatWidget::listElementHideReply(not_null<const Element*> view) {
 			: _peer->id;
 		if (reply->fields().manualQuote) {
 			return false;
+		} else if (view->isTopicRootReply()) {
+			return true;
 		} else if (replyToPeerId == _peer->id) {
 			return (_repliesRootId && reply->messageId() == _repliesRootId);
 		} else if (const auto root = _repliesRoot) {
@@ -4108,9 +4239,9 @@ void ChatWidget::updateBotKeyboard(History *h, bool force) {
 				_kbScroll->hide();
 			}
 			_kbShown = shouldShowRows;
-			_kbReplyTo = shouldShowFakeReply
+			setKeyboardReplyTo(shouldShowFakeReply
 				? session().data().message(_keyboard->forMsgId())
-				: nullptr;
+				: nullptr);
 			if (_kbReplyTo) {
 				showKeyboardReplyToExternal();
 			} else {
@@ -4120,14 +4251,14 @@ void ChatWidget::updateBotKeyboard(History *h, bool force) {
 			_kbScroll->hide();
 			if (canShow && !suppressKeyboardUi) {
 				_kbShown = false;
-				_kbReplyTo = nullptr;
+				setKeyboardReplyTo(nullptr);
 			}
 			hideKeyboardReplyToExternal();
 		}
 	} else {
 		_kbScroll->hide();
 		_kbShown = false;
-		_kbReplyTo = nullptr;
+		setKeyboardReplyTo(nullptr);
 		hideKeyboardReplyToExternal();
 	}
 
@@ -4150,7 +4281,7 @@ void ChatWidget::toggleBotKeyboard(bool manual) {
 		}
 		_kbScroll->hide();
 		_kbShown = false;
-		_kbReplyTo = nullptr;
+		setKeyboardReplyTo(nullptr);
 		hideKeyboardReplyToExternal();
 	} else if (externalVisible) {
 		if (manual) {
@@ -4162,7 +4293,7 @@ void ChatWidget::toggleBotKeyboard(bool manual) {
 		}
 		_kbScroll->hide();
 		_kbShown = false;
-		_kbReplyTo = nullptr;
+		setKeyboardReplyTo(nullptr);
 		hideKeyboardReplyToExternal();
 	} else if (_kbShown || _kbReplyTo) {
 		updateBotKeyboard();
@@ -4170,11 +4301,11 @@ void ChatWidget::toggleBotKeyboard(bool manual) {
 	} else if (!_keyboard->hasMarkup() && _keyboard->forceReply()) {
 		_kbScroll->hide();
 		_kbShown = false;
-		_kbReplyTo = (_peer->isChat()
+		setKeyboardReplyTo((_peer->isChat()
 				|| _peer->isChannel()
 				|| _keyboard->forceReply())
 			? session().data().message(_keyboard->forMsgId())
-			: nullptr;
+			: nullptr);
 		if (_kbReplyTo
 				&& fieldEnabled
 				&& !realReplyOrEditActive()) {
@@ -4188,11 +4319,11 @@ void ChatWidget::toggleBotKeyboard(bool manual) {
 	} else if (fieldEnabled) {
 		_kbScroll->show();
 		_kbShown = true;
-		_kbReplyTo = (_peer->isChat()
+		setKeyboardReplyTo((_peer->isChat()
 				|| _peer->isChannel()
 				|| _keyboard->forceReply())
 			? session().data().message(_keyboard->forMsgId())
-			: nullptr;
+			: nullptr);
 		if (_kbReplyTo && !realReplyOrEditActive()) {
 			showKeyboardReplyToExternal();
 		} else {
@@ -4349,25 +4480,39 @@ bool ChatWidget::handleDrawToReplyRequest(Data::DrawToReplyRequest request) {
 void ChatWidget::listOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
-	const auto showDrawButton = _topic
-		? Data::CanSendAnyOf(_topic, Data::FilesSendRestrictions())
-		: Data::CanSendAnyOf(_peer, Data::FilesSendRestrictions());
+	const auto item = session().data().message(context);
+	const auto showDrawButton = CanSendResolved(
+		_peer,
+		resolvedTopic(),
+		SendPermission::Files);
 	controller()->openPhoto(
 		photo,
-		{ context, _repliesRootId, _monoforumPeerId, showDrawButton });
+		{
+			context,
+			item ? item->topicRootId() : _repliesRootId,
+			_monoforumPeerId,
+			showDrawButton,
+		});
 }
 
 void ChatWidget::listOpenDocument(
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) {
-	const auto showDrawButton = _topic
-		? Data::CanSendAnyOf(_topic, Data::FilesSendRestrictions())
-		: Data::CanSendAnyOf(_peer, Data::FilesSendRestrictions());
+	const auto item = session().data().message(context);
+	const auto showDrawButton = CanSendResolved(
+		_peer,
+		resolvedTopic(),
+		SendPermission::Files);
 	controller()->openDocument(
 		document,
 		showInMediaView,
-		{ context, _repliesRootId, _monoforumPeerId, showDrawButton });
+		{
+			context,
+			item ? item->topicRootId() : _repliesRootId,
+			_monoforumPeerId,
+			showDrawButton,
+		});
 }
 
 void ChatWidget::listPaintEmpty(
@@ -4531,9 +4676,10 @@ void ChatWidget::setupDragArea() {
 		if (!_history || _composeControls->isRecording()) {
 			return false;
 		}
-		return _topic
-			? Data::CanSendAnyOf(_topic, Data::FilesSendRestrictions())
-			: Data::CanSendAnyOf(_peer, Data::FilesSendRestrictions());
+		return CanSendResolved(
+			_peer,
+			resolvedTopic(),
+			SendPermission::Files);
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(
 		this,

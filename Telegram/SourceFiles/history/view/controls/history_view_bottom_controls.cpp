@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat_participant_status.h"
+#include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h"
@@ -553,6 +554,15 @@ Data::SendError BottomControls::computeSendRestriction() const {
 	}
 	const auto allWithoutPolls = Data::AllSendRestrictions()
 		& ~ChatRestriction::SendPolls;
+	if (const auto forum = _peer->forum()) {
+		auto topic = _topic;
+		if (!topic && !_peer->isBot()) {
+			topic = forum->enforceTopicFor(Data::ForumTopic::kGeneralId);
+		}
+		return (topic && !Data::CanSendAnyOf(topic, allWithoutPolls))
+			? Data::RestrictionError(_peer, ChatRestriction::SendOther)
+			: Data::SendError();
+	}
 	return !Data::CanSendAnyOf(_peer, allWithoutPolls)
 		? Data::RestrictionError(_peer, ChatRestriction::SendOther)
 		: Data::SendError();
