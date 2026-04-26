@@ -39,7 +39,6 @@ namespace Storage {
 namespace Ui {
 class ElasticScroll;
 class PlainShadow;
-class PinnedBar;
 class ScrollArea;
 struct PreparedList;
 struct PreparedBundle;
@@ -75,13 +74,11 @@ class TopBarWidget;
 class ChatMemento;
 class ComposeControls;
 class ComposeSearch;
+class TopControls;
 class SendActionPainter;
 class StickerToast;
-class TopicReopenBar;
 class EmptyPainter;
-class PinnedTracker;
 class PullToNextChannel;
-class TranslateBar;
 class SubsectionTabs;
 class SelfForwardsTagger;
 class SuggestOptionsBar;
@@ -313,16 +310,13 @@ private:
 	void setupSwipeReplyAndBack();
 
 	void setupRoot();
-	void setupRootView();
 	void setupTopicViewer();
 	void subscribeToTopic();
 	void subscribeToSublist();
-	void subscribeToPinnedMessages();
 	void setTopic(Data::ForumTopic *topic);
 
 	void setupDragArea();
 	void setupShortcuts();
-	void setupTranslateBar();
 
 	void searchRequested();
 	void searchInTopic();
@@ -417,16 +411,6 @@ private:
 	void refreshTopBarActiveChat();
 	void refreshUnreadCountBadge(std::optional<int> count);
 
-	void hidePinnedMessage();
-	void updatePinnedViewer();
-	void setupPinnedTracker();
-	void checkPinnedBarState();
-	void clearHidingPinnedBar();
-	void refreshPinnedBarButton(bool many, HistoryItem *item);
-	void checkLastPinnedClickedIdReset(
-		int wasScrollTop,
-		int nowScrollTop);
-
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(
 		QImage &&image,
@@ -519,7 +503,7 @@ private:
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
-	std::unique_ptr<Ui::RpWidget> _topBars;
+	std::unique_ptr<HistoryView::TopControls> _topControls;
 	rpl::variable<bool> _suggestPostToggleShown = false;
 	rpl::variable<bool> _suggestPostToggleActive = false;
 	rpl::variable<bool> _botKeyboardShownToggleShown = false;
@@ -530,7 +514,6 @@ private:
 	std::unique_ptr<SuggestOptionsBar> _suggestOptions;
 	std::unique_ptr<ComposeSearch> _composeSearch;
 	std::unique_ptr<HistoryView::BottomControls> _bottom;
-	std::unique_ptr<TopicReopenBar> _topicReopenBar;
 	std::unique_ptr<HistoryView::AboutView> _aboutView;
 	std::unique_ptr<EmptyPainter> _emptyPainter;
 	std::unique_ptr<SubsectionTabs> _subsectionTabs;
@@ -540,24 +523,6 @@ private:
 	bool _canSendMessages = false;
 	bool _skipScrollEvent = false;
 	bool _synteticScrollEvent = false;
-
-	std::unique_ptr<TranslateBar> _translateBar;
-	int _translateBarHeight = 0;
-
-	std::unique_ptr<PinnedTracker> _pinnedTracker;
-	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
-	std::unique_ptr<Ui::PinnedBar> _hidingPinnedBar;
-	int _pinnedBarHeight = 0;
-	FullMsgId _pinnedClickedId;
-	std::optional<FullMsgId> _minPinnedId;
-	bool _pinnedBarHasCustomButton = false;
-	HistoryItem *_shownPinnedItem = nullptr;
-
-	std::unique_ptr<Ui::PinnedBar> _repliesRootView;
-	int _repliesRootViewHeight = 0;
-	bool _repliesRootViewInited = false;
-	bool _repliesRootViewInitScheduled = false;
-	rpl::variable<bool> _repliesRootVisible = false;
 
 	std::unique_ptr<Ui::ElasticScroll> _scroll;
 	std::unique_ptr<PullToNextChannel> _pullToNext;
@@ -581,7 +546,6 @@ private:
 	SendPaymentHelper _sendPayment;
 
 	int _lastScrollTop = 0;
-	int _topicReopenBarHeight = 0;
 	int _scrollTopDelta = 0;
 	int _composeControlsTop = 0;
 
