@@ -5136,16 +5136,12 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	}
 	const auto overrideDuration = _stories
 		|| (_chosenQuality && _chosenQuality != _document);
-	const auto durationDocument = (_chosenQuality && _chosenQuality != _document)
-		? _chosenQuality
-		: _document;
-
 	auto options = Streaming::PlaybackOptions{
 		.position = position,
 		.durationOverride = ((overrideDuration
-			&& durationDocument
-			&& durationDocument->hasDuration())
-			? durationDocument->duration()
+			&& _document
+			&& _document->hasDuration())
+			? _document->duration()
 			: crl::time(0)),
 		.hwAllowed = Core::App().settings().hardwareAcceleratedVideo(),
 		.seekable = !_stories,
