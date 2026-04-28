@@ -1,0 +1,247 @@
+name: Windows Canary.
+
+# Push-triggered benchmark workflow: builds the release/SPECIAL_TARGET
+# configuration on Depot runners to gauge how much horsepower a full Windows
+# release link (especially with LTO) actually needs. Nothing here is signed
+# or deployed — the DesktopPrivate headers are fabricated with random RSA
+# keys at runtime so the SPECIAL_TARGET path compiles end-to-end without
+# real secrets. To re-run, push (any commit, including empty) to a branch
+# matching the patterns below.
+
+on:
+  push:
+    branches:
+      - 'win-canary'
+      - 'win-canary/**'
+      - 'win-canary-**'
+
+jobs:
+
+  windows:
+    name: ${{ matrix.runner }} ${{ matrix.arch }} LTO=${{ matrix.lto }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [depot-windows-2022-32, depot-windows-2022-64]
+        arch: [x86, x64]
+        lto: [ON, OFF]
+
+    env:
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Print runner info.
+        shell: bash
+        run: |
+          echo "Runner label: ${{ matrix.runner }}"
+          echo "Arch: ${{ matrix.arch }}"
+          echo "LTO: ${{ matrix.lto }}"
+          echo "Logical CPUs: $(nproc 2>/dev/null || echo unknown)"
+          systeminfo 2>/dev/null | grep -E "Total Physical Memory|Available Physical Memory" || true
+
+          # A short slug (matrix.runner with non-alnum collapsed) used for
+          # cache keys and artifact names so the four combos × N runners
+          # don't clash.
+          SLUG="$(echo '${{ matrix.runner }}' | tr -c '[:alnum:]' '-' | sed 's/^-*//;s/-*$//')"
+          echo "RUNNER_SLUG=$SLUG" >> $GITHUB_ENV
+
+      - name: Map matrix to MSVC arch and special target.
+        shell: bash
+        run: |
+          case "${{ matrix.arch }}" in
+            x64) MSVC_ARCH="x64";       SPECIAL_TARGET="win64" ;;
+            x86) MSVC_ARCH="x64_x86";   SPECIAL_TARGET="win"   ;;
+            *) echo "Unsupported arch: ${{ matrix.arch }}"; exit 1 ;;
+          esac
+          echo "MSVC_ARCH=$MSVC_ARCH"           >> $GITHUB_ENV
+          echo "SPECIAL_TARGET=$SPECIAL_TARGET" >> $GITHUB_ENV
+
+      - name: Prepare directories.
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries${{ matrix.arch == 'x64' && '\win64' || '' }}>>%GITHUB_ENV
+
+      - name: Get repository name.
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: Generate fake DesktopPrivate (random RSA keys + test API).
+        shell: bash
+        run: |
+          set -e
+          DPDIR="$TBUILD/DesktopPrivate"
+          mkdir -p "$DPDIR"
+
+          # Three independent 1024-bit RSA keys. Packer enforces RSA_size == 128
+          # bytes (see Telegram/SourceFiles/_other/packer.cpp), so the modulus
+          # length is fixed. -traditional emits PKCS#1 ("BEGIN RSA PRIVATE
+          # KEY") which is what PEM_read_bio_RSAPrivateKey expects.
+          openssl genrsa -traditional 1024 > "$DPDIR/private_stable.pem"
+          openssl genrsa -traditional 1024 > "$DPDIR/private_beta.pem"
+          openssl genrsa -traditional 1024 > "$DPDIR/private_alpha.pem"
+
+          embed_key() {
+            local var="$1" file="$2"
+            printf 'const char *%s = R"PEM(\n' "$var"
+            cat "$file"
+            printf ')PEM";\n'
+          }
+
+          {
+            echo '#pragma once'
+            embed_key "PrivateKey"     "$DPDIR/private_stable.pem"
+            embed_key "PrivateBetaKey" "$DPDIR/private_beta.pem"
+          } > "$DPDIR/packer_private.h"
+
+          {
+            echo '#pragma once'
+            embed_key "AlphaPrivateKey" "$DPDIR/private_alpha.pem"
+          } > "$DPDIR/alpha_private.h"
+
+          # Open test credentials — same values used in telegram_options.cmake
+          # under TDESKTOP_API_TEST. Format must match the regex in
+          # Telegram/configure.py (ApiId = N ; ApiHash = "hex").
+          cat > "$DPDIR/custom_api_id.h" <<'EOF'
+          #pragma once
+          static const int ApiId = 17349;
+          static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
+          EOF
+
+          # Mark the official target so configure.py turns on the SPECIAL_TARGET
+          # codepath (Packer build, /WX, alpha headers, etc.).
+          echo "$SPECIAL_TARGET" > "$TBUILD/$REPO_NAME/Telegram/build/target"
+
+          rm -f "$DPDIR"/private_*.pem
+          ls -la "$DPDIR"
+
+      - name: First set up.
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+
+          sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+
+          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+      - uses: ilammy/msvc-dev-cmd@v1.13.0
+        name: Native Tools Command Prompt.
+        with:
+          arch: ${{ env.MSVC_ARCH }}
+          sdk: ${{ env.SDK }}
+
+      - name: NuGet sources.
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: ThirdParty cache.
+        id: cache-third-party
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-${{ runner.arch }}-third-party-release-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ runner.arch }}-third-party-release-
+
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-release-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-release-
+
+      - name: Qt cache.
+        id: cache-qt
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-${{ matrix.arch }}-qt-release-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-qt-release-
+
+      - name: Libraries (with release-mode artifacts).
+        env:
+          GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\'
+          GYP_MSVS_VERSION: 2022
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent
+
+      - name: Free up some disk space.
+        shell: bash
+        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
+
+      - name: Disk and memory before build.
+        shell: bash
+        run: |
+          echo "=== Free disk ==="
+          df -h 2>/dev/null || true
+          echo "=== Memory ==="
+          systeminfo 2>/dev/null | grep -E "Total Physical Memory|Available Physical Memory" || true
+
+      - name: Configure (Release, SPECIAL_TARGET=${{ env.SPECIAL_TARGET }}, LTO=${{ matrix.lto }}).
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+          call configure.bat ^
+          -D CMAKE_CONFIGURATION_TYPES=Release ^
+          -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
+          -D DESKTOP_APP_ENABLE_LTO=${{ matrix.lto }}
+
+      - name: Build Release.
+        run: |
+          cd %TBUILD%\%REPO_NAME%
+          cmake --build out --config Release --parallel
+
+      - name: Disk and memory after build.
+        if: always()
+        shell: bash
+        run: |
+          echo "=== Free disk ==="
+          df -h 2>/dev/null || true
+          echo "=== Memory ==="
+          systeminfo 2>/dev/null | grep -E "Total Physical Memory|Available Physical Memory" || true
+          echo "=== Release artifacts ==="
+          ls -la "$TBUILD/$REPO_NAME/out/Release/"*.exe 2>/dev/null || true
+          ls -la "$TBUILD/$REPO_NAME/out/Release/"*.pdb 2>/dev/null || true
+
+      - name: Stage artifact.
+        run: |
+          set OUT=%TBUILD%\%REPO_NAME%\out\Release
+          mkdir artifact
+          if exist %OUT%\Telegram.exe move %OUT%\Telegram.exe artifact\
+          if exist %OUT%\Updater.exe move %OUT%\Updater.exe artifact\
+          if exist %OUT%\Packer.exe  move %OUT%\Packer.exe  artifact\
+          if exist %OUT%\Telegram.pdb move %OUT%\Telegram.pdb artifact\
+          if exist %OUT%\Updater.pdb move %OUT%\Updater.pdb artifact\
+          if exist %OUT%\Packer.pdb  move %OUT%\Packer.pdb  artifact\
+
+      - uses: actions/upload-artifact@v7
+        name: Upload artifact.
+        with:
+          name: Telegram-${{ env.RUNNER_SLUG }}-${{ matrix.arch }}-LTO-${{ matrix.lto }}
+          path: artifact\
