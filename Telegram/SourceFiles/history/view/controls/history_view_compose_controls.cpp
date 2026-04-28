@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "base/weak_ptr.h"
+#include "boxes/star_gift_box.h"
 #include "boxes/compose_ai_box.h"
 #include "boxes/edit_caption_box.h"
 #include "boxes/premium_preview_box.h"
@@ -38,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "data/components/ephemeral_messages.h"
 #include "data/notify/data_notify_settings.h"
+#include "data/data_birthday.h"
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_group_call.h"
@@ -61,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
 #include "storage/storage_account.h"
+#include "api/api_global_privacy.h"
 #include "apiwrap.h"
 #include "api/api_chat_participants.h"
 #include "api/api_compose_with_ai.h"
@@ -88,6 +91,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/bot_attach_web_view.h"
 #include "inline_bots/inline_results_widget.h"
 #include "inline_bots/inline_bot_result.h"
+#include "info/profile/info_profile_values.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
@@ -100,6 +104,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_checked_action.h"
 #include "menu/menu_send.h"
 #include "settings/sections/settings_premium.h"
+#include "support/support_common.h"
 #include "ui/item_text_options.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -1432,6 +1437,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	updateBotCommandShown();
 	updateLikeShown();
 	updateMessagesTTLShown();
+	refreshSendGiftToggle();
 	updateControlsGeometry(_wrap->size());
 	updateControlsVisibility();
 	updateFieldPlaceholder();
@@ -2055,14 +2061,26 @@ auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
 		return (sendRequestType == requestType);
 	});
 	auto map = rpl::map_to(Api::SendOptions());
+	auto submit = rpl::map([=](Qt::KeyboardModifiers modifiers) {
+		return adjustedSupportSendOptions(modifiers);
+	});
 	return rpl::merge(
 		_send->clicks() | rpl::filter([=] {
 			return sendButtonSends();
 		}) | filter | map,
 		_field->submits() | rpl::filter([=] {
 			return submitSends();
-		}) | filter | map,
+		}) | filter | submit,
 		_sendCustomRequests.events());
+}
+
+Api::SendOptions ComposeControls::adjustedSupportSendOptions(
+		Qt::KeyboardModifiers modifiers) const {
+	auto options = Api::SendOptions();
+	if (session().supportMode()) {
+		options.handleSupportSwitch = Support::HandleSwitch(modifiers);
+	}
+	return options;
 }
 
 rpl::producer<> ComposeControls::scrollToMaxRequests() const {
@@ -3136,9 +3154,17 @@ void ComposeControls::fieldChanged() {
 		&& !_header->isEditingMessage()
 		&& (_textUpdateEvents & TextUpdateEvent::SendTyping)
 		&& !suppressSendAction());
+	const auto giftToUserVisible = _giftToUser
+		&& !_giftToUser->isHidden();
 	updateSendButtonType();
 	_hasSendText = _field->isVisible() && HasSendText(_field);
-	if (updateBotCommandShown() || updateLikeShown()) {
+	const auto refreshControls = updateBotCommandShown()
+		|| updateLikeShown()
+		|| (giftToUserVisible != (_giftToUser
+			&& (_mode == Mode::Normal)
+			&& !isEditingMessage()
+			&& !textExceedsMaxSize()));
+	if (refreshControls) {
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());
 	}
@@ -3387,9 +3413,12 @@ void ComposeControls::writeDrafts() {
 }
 
 void ComposeControls::applyCloudDraft() {
-	if (!isEditingMessage() && !bypassNormalDraftHandling()) {
-		applyDraft(Ui::InputField::HistoryAction::NewEntry);
+	if (session().supportMode()
+		|| isEditingMessage()
+		|| bypassNormalDraftHandling()) {
+		return;
 	}
+	applyDraft(Ui::InputField::HistoryAction::NewEntry);
 }
 
 void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
@@ -3988,6 +4017,7 @@ void ComposeControls::initWriteRestriction() {
 
 	_writeRestriction.value(
 	) | rpl::on_next([=] {
+		refreshSendGiftToggle();
 		updateWrappingVisibility();
 	}, _writeRestricted->lifetime());
 }
@@ -4540,6 +4570,8 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		: _field->height();
 	const auto commentsShown = _commentsShown
 		&& !_commentsShown->isHidden();
+	const auto giftToUser = _giftToUser
+		&& !_giftToUser->isHidden();
 	const auto fieldWidth = size.width()
 		- (commentsShown
 			? (_commentsShown->width() + _st.commentsSkip)
@@ -4555,6 +4587,7 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		- (_botCommandShown ? _botCommandStart->width() : 0)
 		- ((_silent && !_silent->isHidden()) ? _silent->width() : 0)
 		- (_toggleSuggestPost ? _toggleSuggestPost->width() : 0)
+		- (giftToUser ? _giftToUser->width() : 0)
 		- ((_scheduled && !_scheduled->isHidden())
 			? _scheduled->width()
 			: 0)
@@ -4664,6 +4697,10 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		_toggleSuggestPost->moveToRight(right, buttonsTop);
 		right += _toggleSuggestPost->width();
 	}
+	if (giftToUser) {
+		_giftToUser->moveToRight(right, buttonsTop);
+		right += _giftToUser->width();
+	}
 	if (_scheduled) {
 		_scheduled->moveToRight(right, buttonsTop);
 		if (!_scheduled->isHidden()) {
@@ -4686,6 +4723,9 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 
 void ComposeControls::updateControlsVisibility() {
 	const auto hide = hideExtraButtons();
+	const auto showGiftToUser = (_mode == Mode::Normal)
+		&& !isEditingMessage()
+		&& !textExceedsMaxSize();
 	if (_botCommandStart) {
 		_botCommandStart->setVisible(_botCommandShown);
 	}
@@ -4709,6 +4749,9 @@ void ComposeControls::updateControlsVisibility() {
 	}
 	if (_scheduled) {
 		_scheduled->setVisible(!isEditingMessage() && !hide);
+	}
+	if (_giftToUser) {
+		_giftToUser->setVisible(showGiftToUser && !hide);
 	}
 	if (_toggleSuggestPost) {
 		_toggleSuggestPost->setVisible(!_suggestPostActive);
@@ -5024,6 +5067,42 @@ void ComposeControls::updateMessagesTTLShown() {
 			_show,
 			peer);
 		orderControls();
+		updateControlsVisibility();
+		updateControlsGeometry(_wrap->size());
+	}
+}
+
+void ComposeControls::refreshSendGiftToggle() {
+	using Type = Api::DisallowedGiftType;
+	const auto user = _history ? _history->peer->asUser() : nullptr;
+	const auto disallowed = user ? user->disallowedGiftTypes() : Type();
+	const auto all = Type::Premium
+		| Type::Unlimited
+		| Type::Limited
+		| Type::Unique;
+	const auto has = _regularWindow
+		&& user
+		&& !_writeRestriction.current()
+		&& !user->isServiceUser()
+		&& !user->isSelf()
+		&& !user->isBot()
+		&& ((disallowed & Type::SendHide)
+			|| (session().user()->disallowedGiftTypes() & Type::SendHide)
+			|| Data::IsBirthdayToday(user->birthday()))
+		&& ((disallowed & all) != all);
+	if (!_giftToUser && has) {
+		_giftToUser = base::make_unique_q<Ui::IconButton>(
+			_wrap.get(),
+			st::historyGiftToUser);
+		_giftToUser->setAccessibleName(tr::lng_gift_send_title(tr::now));
+		_giftToUser->setClickedCallback([=] {
+			Ui::ShowStarGiftBox(_regularWindow, user);
+		});
+		orderControls();
+		updateControlsVisibility();
+		updateControlsGeometry(_wrap->size());
+	} else if (_giftToUser && !has) {
+		_giftToUser = nullptr;
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());
 	}
@@ -5497,6 +5576,7 @@ void ComposeControls::initWebpageProcess() {
 		| Data::PeerUpdate::Flag::MessagesTTL
 		| Data::PeerUpdate::Flag::FullInfo
 		| Data::PeerUpdate::Flag::StarsPerMessage
+		| Data::PeerUpdate::Flag::GiftSettings
 	) | rpl::filter([peer = _history->peer](const Data::PeerUpdate &update) {
 		return (update.peer.get() == peer);
 	}) | rpl::map([](const Data::PeerUpdate &update) {
@@ -5516,6 +5596,11 @@ void ComposeControls::initWebpageProcess() {
 		if (flags & Data::PeerUpdate::Flag::StarsPerMessage) {
 			updateFieldPlaceholder();
 		}
+		if (flags & (Data::PeerUpdate::Flag::Rights
+			| Data::PeerUpdate::Flag::FullInfo
+			| Data::PeerUpdate::Flag::GiftSettings)) {
+			refreshSendGiftToggle();
+		}
 		if (flags & Data::PeerUpdate::Flag::FullInfo) {
 			updateSendButtonType();
 			if (updateBotCommandShown()) {
@@ -5534,6 +5619,25 @@ void ComposeControls::initWebpageProcess() {
 			updateControlsGeometry(_wrap->size());
 		}
 	}, _historyLifetime);
+
+	session().changes().peerUpdates(
+		session().user(),
+		Data::PeerUpdate::Flag::GiftSettings
+	) | rpl::on_next([=] {
+		refreshSendGiftToggle();
+	}, _historyLifetime);
+
+	if (const auto user = _history->peer->asUser()) {
+		Info::Profile::BirthdayValue(
+			user
+		) | rpl::map(
+			Data::IsBirthdayTodayValue
+		) | rpl::flatten_latest(
+		) | rpl::distinct_until_changed(
+		) | rpl::on_next([=] {
+			refreshSendGiftToggle();
+		}, _historyLifetime);
+	}
 
 	_header->previewReady(_preview->parsedValue());
 }

@@ -38,6 +38,7 @@ namespace Storage {
 
 namespace Ui {
 class ElasticScroll;
+class InnerDropdown;
 class PlainShadow;
 class ScrollArea;
 struct PreparedList;
@@ -85,6 +86,7 @@ class SelfForwardsTagger;
 class SuggestOptionsBar;
 class AboutView;
 class BottomControls;
+class PaidReactionToast;
 enum class SuggestMode;
 
 struct ChatViewId {
@@ -277,6 +279,11 @@ private:
 		Fn<void(int)> withPaymentApproved);
 
 	void markLoaded();
+	void requestMessageData(MsgId msgId);
+	void messageDataReceived(not_null<PeerData*> peer, MsgId msgId);
+	void clearSupportPreloadRequest();
+	void checkSupportPreload(bool force = false);
+	void handleSupportSwitch(not_null<History*> updated);
 	[[nodiscard]] rpl::producer<Data::MessagesSlice> repliesSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -414,6 +421,9 @@ private:
 	[[nodiscard]] HistoryItem *lookupRepliesRoot() const;
 	[[nodiscard]] Data::ForumTopic *lookupTopic();
 	[[nodiscard]] bool computeAreComments() const;
+	void setMembersShowAreaActive(bool active);
+	void showMembersDropdown();
+	[[nodiscard]] int countMembersDropdownHeightMax() const;
 	void orderWidgets();
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
@@ -517,6 +527,9 @@ private:
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
+	object_ptr<Ui::InnerDropdown> _membersDropdown = { nullptr };
+	base::Timer _membersDropdownShowTimer;
+	std::unique_ptr<HistoryView::PaidReactionToast> _paidReactionToast;
 	std::unique_ptr<HistoryView::TopControls> _topControls;
 	rpl::variable<bool> _suggestPostToggleShown = false;
 	rpl::variable<bool> _suggestPostToggleActive = false;
@@ -568,6 +581,8 @@ private:
 	bool _choosingAttach = false;
 
 	bool _loaded = false;
+	History *_supportPreloadHistory = nullptr;
+	int _supportPreloadRequest = 0;
 
 	std::unique_ptr<HistoryView::SelfForwardsTagger> _selfForwardsTagger;
 

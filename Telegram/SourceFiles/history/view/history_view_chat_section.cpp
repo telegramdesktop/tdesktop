@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_draft_options.h"
 #include "history/view/controls/history_view_suggest_options.h"
 #include "history/view/history_view_about_view.h"
+#include "history/view/history_view_group_members_widget.h"
+#include "history/view/history_view_paid_reaction_toast.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/view/history_view_sticker_toast.h"
@@ -42,7 +44,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/elastic_scroll.h"
+#include "ui/widgets/inner_dropdown.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/message_sending_animation_controller.h"
@@ -100,6 +104,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "storage/localimageloader.h"
+#include "support/support_common.h"
+#include "support/support_preload.h"
 #include "inline_bots/inline_bot_result.h"
 #include "info/profile/info_profile_values.h"
 #include "iv/editor/iv_editor_session.h"
@@ -111,6 +117,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
+#include <limits>
 #include <QtCore/QMimeData>
 
 namespace HistoryView {
@@ -121,6 +128,8 @@ enum class SendPermission {
 	Anything,
 	Files,
 };
+
+constexpr auto kShowMembersDropdownTimeoutMs = 300;
 
 [[nodiscard]] bool CanSendResolved(
 		not_null<PeerData*> peer,
@@ -203,8 +212,30 @@ void ChatMemento::setFromTopic(not_null<Data::ForumTopic*> topic) {
 void ChatMemento::setFromHistory(not_null<History*> history) {
 	const auto migrated = history->migrateFrom();
 	const auto showAtMsgId = history->showAtMsgId;
-	if (showAtMsgId == ShowAtUnreadMsgId) {
-		_list.setAroundPosition(Data::UnreadMessagePosition);
+	const auto scrollTopState = [&]() -> std::optional<ListMemento::ScrollTopState> {
+		if (const auto scrollTopItem = history->scrollTopItem) {
+			return ListMemento::ScrollTopState{
+				.item = scrollTopItem->data()->position(),
+				.shift = history->scrollTopOffset,
+			};
+		} else if (migrated && migrated->scrollTopItem) {
+			return ListMemento::ScrollTopState{
+				.item = migrated->scrollTopItem->data()->position(),
+				.shift = migrated->scrollTopOffset,
+			};
+		}
+		return std::nullopt;
+	}();
+	if (scrollTopState) {
+		_list.setAroundPosition(scrollTopState->item);
+	} else if (showAtMsgId == ShowAtUnreadMsgId) {
+		if (history->session().supportMode()) {
+			_list.setAroundPosition(Data::MaxMessagePosition);
+		} else if (!history->trackUnreadMessages()) {
+			_list.setAroundPosition(Data::MaxMessagePosition);
+		} else {
+			_list.setAroundPosition(Data::UnreadMessagePosition);
+		}
 	} else if (showAtMsgId == ShowAtTheEndMsgId) {
 		_list.setAroundPosition(Data::MaxMessagePosition);
 	} else if (IsServerMsgId(showAtMsgId) || IsClientMsgId(showAtMsgId)) {
@@ -218,16 +249,8 @@ void ChatMemento::setFromHistory(not_null<History*> history) {
 			.date = TimeId(0),
 		});
 	}
-	if (const auto scrollTopItem = history->scrollTopItem) {
-		_list.setScrollTopState(ListMemento::ScrollTopState{
-			.item = scrollTopItem->data()->position(),
-			.shift = history->scrollTopOffset,
-		});
-	} else if (migrated && migrated->scrollTopItem) {
-		_list.setScrollTopState(ListMemento::ScrollTopState{
-			.item = migrated->scrollTopItem->data()->position(),
-			.shift = migrated->scrollTopOffset,
-		});
+	if (scrollTopState) {
+		_list.setScrollTopState(*scrollTopState);
 	}
 }
 
@@ -328,6 +351,19 @@ ChatWidget::ChatWidget(
 	: nullptr)
 , _topBar(this, controller)
 , _topBarShadow(this)
+, _membersDropdownShowTimer([=] { showMembersDropdown(); })
+, _paidReactionToast(std::make_unique<HistoryView::PaidReactionToast>(
+	this,
+	&session().data(),
+	rpl::single(0),
+	[=](not_null<const HistoryView::Element*> view) {
+		return _inner
+			&& (view->delegate().get() == _inner.data())
+			&& !_inner->elementIntersectsRange(
+				view,
+				std::numeric_limits<int>::lowest(),
+				0);
+	}))
 , _composeControls(std::make_unique<ComposeControls>(
 	this,
 	ComposeControlsDescriptor{
@@ -435,6 +471,10 @@ ChatWidget::ChatWidget(
 	_topBar->searchRequest(
 	) | rpl::on_next([=] {
 		searchRequested();
+	}, _topBar->lifetime());
+	_topBar->membersShowAreaActive(
+	) | rpl::on_next([=](bool active) {
+		setMembersShowAreaActive(active);
 	}, _topBar->lifetime());
 	if (_sublist) {
 		_topBar->setCustomTitle(tr::lng_contacts_loading(tr::now));
@@ -628,6 +668,15 @@ ChatWidget::ChatWidget(
 		}
 	}, lifetime());
 	if (mode() == Mode::History) {
+		session().api().sendActions(
+		) | rpl::filter([=](const Api::SendAction &action) {
+			return (action.history == _history)
+				&& action.options.handleSupportSwitch;
+		}) | rpl::on_next([=](const Api::SendAction &action) {
+			handleSupportSwitch(action.history);
+		}, lifetime());
+	}
+	if (mode() == Mode::History) {
 		_topControls->subscribeToPinnedMessages();
 	}
 
@@ -637,6 +686,12 @@ ChatWidget::ChatWidget(
 		[=] { return _inner.data(); },
 		_scroll.get(),
 		[=] { return _history; });
+	if ((mode() == Mode::History) && session().supportMode()) {
+		session().data().chatListEntryRefreshes(
+		) | rpl::on_next([=] {
+			crl::on_main(this, [=] { checkSupportPreload(true); });
+		}, lifetime());
+	}
 
 	setupTopicViewer();
 	setupComposeControls();
@@ -804,6 +859,8 @@ ChatWidget::~ChatWidget() {
 	_suggestOptions = nullptr;
 	_chooseTheme = nullptr;
 	base::take(_sendAction);
+	clearSupportPreloadRequest();
+	_supportPreloadHistory = nullptr;
 	if (_repliesRootId) {
 		controller()->sendingAnimation().clear();
 	}
@@ -849,26 +906,90 @@ void ChatWidget::orderWidgets() {
 	}
 	_bottom->raise();
 	_composeControls->raisePanels();
+	if (_membersDropdown) {
+		_membersDropdown->raise();
+	}
 	if (_chooseTheme) {
 		_chooseTheme->raise();
 	}
 }
 
+void ChatWidget::setMembersShowAreaActive(bool active) {
+	if (!active) {
+		_membersDropdownShowTimer.cancel();
+	}
+	if (active && (_peer->isChat() || _peer->isMegagroup())) {
+		if (_membersDropdown) {
+			_membersDropdown->otherEnter();
+		} else if (!_membersDropdownShowTimer.isActive()) {
+			_membersDropdownShowTimer.callOnce(kShowMembersDropdownTimeoutMs);
+		}
+	} else if (_membersDropdown) {
+		_membersDropdown->otherLeave();
+	}
+}
+
+void ChatWidget::showMembersDropdown() {
+	if (!(_peer->isChat() || _peer->isMegagroup())) {
+		return;
+	}
+	if (!_membersDropdown) {
+		_membersDropdown.create(this, st::membersInnerDropdown);
+		_membersDropdown->setOwnedWidget(
+			object_ptr<HistoryView::GroupMembersWidget>(
+				this,
+				controller(),
+				_peer));
+		_membersDropdown->resizeToWidth(st::membersInnerWidth);
+		_membersDropdown->setHiddenCallback([this] {
+			_membersDropdown.destroyDelayed();
+		});
+		orderWidgets();
+	}
+	_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
+	_membersDropdown->moveToLeft(0, _topBar->height());
+	_membersDropdown->otherEnter();
+}
+
+int ChatWidget::countMembersDropdownHeightMax() const {
+	auto result = height() - rect::m::sum::v(st::membersInnerDropdown.padding);
+	result -= (_bottom->contentHeight() > 0)
+		? _bottom->contentHeight()
+		: _composeControls->heightCurrent();
+	accumulate_min(result, st::membersInnerHeightMax);
+	return result;
+}
+
 void ChatWidget::setupRoot() {
 	if (_repliesRootId && !_repliesRoot) {
-		const auto done = crl::guard(this, [=] {
-			_repliesRoot = lookupRepliesRoot();
-			if (_repliesRoot) {
-				_areComments = computeAreComments();
-				_inner->update();
-			}
-			updatePinnedVisibility();
-		});
-		_history->session().api().requestMessageData(
-			_peer,
-			_repliesRootId,
-			done);
+		requestMessageData(_repliesRootId);
 	}
+}
+
+void ChatWidget::requestMessageData(MsgId msgId) {
+	if (!msgId) {
+		return;
+	}
+	const auto peer = _peer;
+	const auto callback = crl::guard(this, [=] {
+		messageDataReceived(peer, msgId);
+	});
+	session().api().requestMessageData(_peer, msgId, callback);
+}
+
+void ChatWidget::messageDataReceived(
+		not_null<PeerData*> peer,
+		MsgId msgId) {
+	if ((_peer == peer)
+		&& msgId
+		&& (_repliesRootId == msgId)) {
+		_repliesRoot = lookupRepliesRoot();
+		_areComments = computeAreComments();
+		if (_repliesRoot) {
+			_inner->update();
+		}
+	}
+	updatePinnedVisibility();
 }
 
 void ChatWidget::setupTopicViewer() {
@@ -3675,6 +3796,10 @@ void ChatWidget::updateControlsGeometry() {
 
 	_cornerButtons.updatePositions();
 	_pullToNext->updateGeometry();
+	if (_membersDropdown) {
+		_membersDropdown->moveToLeft(0, _topBar->height());
+		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
+	}
 }
 
 void ChatWidget::updateSubsectionTabsGeometry() {
@@ -3921,6 +4046,63 @@ void ChatWidget::markLoaded() {
 		crl::on_main(this, [=] {
 			updatePinnedVisibility();
 		});
+		if ((mode() == Mode::History) && session().supportMode()) {
+			crl::on_main(this, [=] { checkSupportPreload(); });
+		}
+	}
+}
+
+void ChatWidget::clearSupportPreloadRequest() {
+	if (_supportPreloadRequest) {
+		_history->owner().histories().cancelRequest(_supportPreloadRequest);
+		_supportPreloadRequest = 0;
+	}
+}
+
+void ChatWidget::checkSupportPreload(bool force) {
+	if ((mode() != Mode::History)
+		|| !session().supportMode()
+		|| !_loaded
+		|| (controller()->activeChatEntryCurrent().key != activeChat().key)) {
+		return;
+	}
+
+	const auto setting = session().settings().supportSwitch();
+	const auto command = Support::GetSwitchCommand(setting);
+	const auto descriptor = !command
+		? Dialogs::RowDescriptor()
+		: (*command == Shortcuts::Command::ChatNext)
+		? controller()->resolveChatNext()
+		: controller()->resolveChatPrevious();
+	const auto history = descriptor.key.history();
+	if (!history) {
+		clearSupportPreloadRequest();
+		_supportPreloadHistory = nullptr;
+		return;
+	} else if (_supportPreloadRequest
+		&& (_supportPreloadHistory == history)
+		&& !force) {
+		return;
+	} else if (_supportPreloadHistory == history) {
+		return;
+	}
+	clearSupportPreloadRequest();
+	_supportPreloadHistory = history;
+	_supportPreloadRequest = Support::SendPreloadRequest(history, [=] {
+		_supportPreloadRequest = 0;
+		_supportPreloadHistory = nullptr;
+		crl::on_main(this, [=] { checkSupportPreload(); });
+	});
+}
+
+void ChatWidget::handleSupportSwitch(not_null<History*> updated) {
+	if ((_history != updated) || !session().supportMode()) {
+		return;
+	}
+
+	const auto setting = session().settings().supportSwitch();
+	if (auto method = Support::GetSwitchMethod(setting)) {
+		crl::on_main(this, std::move(method));
 	}
 }
 
@@ -4935,6 +5117,13 @@ void ChatWidget::setupShortcuts() {
 			searchRequested();
 			return true;
 		});
+		if ((mode() == Mode::History) && session().supportMode()) {
+			request->check(Command::SupportToggleMuted)
+				&& request->handle([=] {
+					toggleMuteUnmute();
+					return true;
+				});
+		}
 	}, lifetime());
 }
 

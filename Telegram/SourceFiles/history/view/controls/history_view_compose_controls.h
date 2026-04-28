@@ -361,6 +361,7 @@ private:
 	void updateAttachBotsMenu();
 	void updateHeight();
 	void updateWrappingVisibility();
+	void refreshSendGiftToggle();
 	void updateControlsVisibility();
 	void updateControlsGeometry(QSize size);
 	void updateAiButtonVisibility();
@@ -398,6 +399,8 @@ private:
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 	[[nodiscard]] SendMenu::Details saveMenuDetails() const;
 	[[nodiscard]] SendMenu::Details sendButtonMenuDetails() const;
+	[[nodiscard]] Api::SendOptions adjustedSupportSendOptions(
+		Qt::KeyboardModifiers modifiers) const;
 
 	[[nodiscard]] auto sendContentRequests(
 		SendRequestType requestType = SendRequestType::Text) const;
@@ -557,6 +560,7 @@ private:
 	std::unique_ptr<Controls::TTLButton> _ttlInfo;
 	base::unique_qptr<Controls::CharactersLimitLabel> _charsLimitation;
 	base::unique_qptr<Ui::IconButton> _scheduled;
+	base::unique_qptr<Ui::IconButton> _giftToUser;
 	base::unique_qptr<Ui::IconButton> _toggleSuggestPost;
 	bool _suggestPostActive = false;
 	base::unique_qptr<Ui::IconButton> _botKeyboardShow;
