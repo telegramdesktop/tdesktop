@@ -1363,7 +1363,9 @@ void MainWidget::clearChooseReportMessages() {
 void MainWidget::toggleChooseChatTheme(
 		not_null<PeerData*> peer,
 		std::optional<bool> show) {
-	_history->toggleChooseChatTheme(peer, show);
+	if (!_mainSection || !_mainSection->toggleChooseChatTheme(peer, show)) {
+		_history->toggleChooseChatTheme(peer, show);
+	}
 }
 
 bool MainWidget::showHistoryInDifferentWindow(
@@ -1713,6 +1715,11 @@ PeerData *MainWidget::peer() const {
 }
 
 Ui::ChatTheme *MainWidget::customChatTheme() const {
+	if (_mainSection) {
+		if (const auto custom = _mainSection->customChatTheme()) {
+			return custom;
+		}
+	}
 	return _history->customChatTheme();
 }
 

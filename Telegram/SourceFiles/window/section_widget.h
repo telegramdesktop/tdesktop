@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "window/window_section_common.h"
 
+#include <optional>
+
 class PeerData;
 
 namespace ChatHelpers {
@@ -175,6 +177,14 @@ public:
 	}
 	virtual bool clearChooseReportMessages() {
 		return false;
+	}
+	virtual bool toggleChooseChatTheme(
+			not_null<PeerData*> peer,
+			std::optional<bool> show = std::nullopt) {
+		return false;
+	}
+	[[nodiscard]] virtual Ui::ChatTheme *customChatTheme() const {
+		return nullptr;
 	}
 
 	[[nodiscard]] virtual bool preventsClose(

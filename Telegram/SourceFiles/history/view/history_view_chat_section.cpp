@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_reply_markup.h"
 #include "iv/iv_rich_message_serializer.h"
 #include "iv/iv_rich_page.h"
+#include "ui/chat/choose_theme_controller.h"
 #include "ui/chat/pinned_bar.h"
 #include "ui/chat/chat_style.h"
 #include "ui/controls/swipe_handler.h"
@@ -138,6 +139,27 @@ enum class SendPermission {
 	return false;
 }
 
+[[nodiscard]] std::optional<MsgId> ShowAtMsgIdFromPosition(
+		not_null<History*> history,
+		Data::MessagePosition position) {
+	const auto migrated = history->migrateFrom();
+	if (position == Data::UnreadMessagePosition) {
+		return ShowAtUnreadMsgId;
+	} else if (position == Data::MaxMessagePosition) {
+		return ShowAtTheEndMsgId;
+	}
+	const auto fullId = position.fullId;
+	if ((fullId.peer == history->peer->id)
+		&& (IsServerMsgId(fullId.msg) || IsClientMsgId(fullId.msg))) {
+		return fullId.msg;
+	} else if (migrated
+		&& (fullId.peer == migrated->peer->id)
+		&& IsServerMsgId(fullId.msg)) {
+		return -fullId.msg;
+	}
+	return std::nullopt;
+}
+
 } // namespace
 
 ChatMemento::ChatMemento(
@@ -156,6 +178,9 @@ ChatMemento::ChatMemento(
 			.date = TimeId(0),
 		});
 	}
+	if (!_highlightId && !_id.repliesRootId && !_id.sublist) {
+		setFromHistory(_id.history);
+	}
 }
 
 ChatMemento::ChatMemento(
@@ -172,6 +197,37 @@ void ChatMemento::setFromTopic(not_null<Data::ForumTopic*> topic) {
 	_replies = topic->replies();
 	if (!_list.aroundPosition()) {
 		_list = *topic->listMemento();
+	}
+}
+
+void ChatMemento::setFromHistory(not_null<History*> history) {
+	const auto migrated = history->migrateFrom();
+	const auto showAtMsgId = history->showAtMsgId;
+	if (showAtMsgId == ShowAtUnreadMsgId) {
+		_list.setAroundPosition(Data::UnreadMessagePosition);
+	} else if (showAtMsgId == ShowAtTheEndMsgId) {
+		_list.setAroundPosition(Data::MaxMessagePosition);
+	} else if (IsServerMsgId(showAtMsgId) || IsClientMsgId(showAtMsgId)) {
+		_list.setAroundPosition({
+			.fullId = FullMsgId(history->peer->id, showAtMsgId),
+			.date = TimeId(0),
+		});
+	} else if (migrated && IsServerMsgId(-showAtMsgId)) {
+		_list.setAroundPosition({
+			.fullId = FullMsgId(migrated->peer->id, -showAtMsgId),
+			.date = TimeId(0),
+		});
+	}
+	if (const auto scrollTopItem = history->scrollTopItem) {
+		_list.setScrollTopState(ListMemento::ScrollTopState{
+			.item = scrollTopItem->data()->position(),
+			.shift = history->scrollTopOffset,
+		});
+	} else if (migrated && migrated->scrollTopItem) {
+		_list.setScrollTopState(ListMemento::ScrollTopState{
+			.item = migrated->scrollTopItem->data()->position(),
+			.shift = migrated->scrollTopOffset,
+		});
 	}
 }
 
@@ -669,8 +725,23 @@ ChatWidget::ChatWidget(
 		session().changes().historyUpdates(
 			_history,
 			HistoryUpdateFlag::BotKeyboard
-		) | rpl::on_next([=] {
-			updateBotKeyboard();
+				| HistoryUpdateFlag::UnreadMentions
+				| HistoryUpdateFlag::UnreadReactions
+				| HistoryUpdateFlag::UnreadPollVotes
+				| HistoryUpdateFlag::UnreadView
+		) | rpl::on_next([=](const Data::HistoryUpdate &update) {
+			const auto flags = update.flags;
+			if (flags & HistoryUpdateFlag::BotKeyboard) {
+				updateBotKeyboard();
+			}
+			if ((flags & HistoryUpdateFlag::UnreadMentions)
+				|| (flags & HistoryUpdateFlag::UnreadReactions)
+				|| (flags & HistoryUpdateFlag::UnreadPollVotes)) {
+				_cornerButtons.updateUnreadThingsVisibility();
+			}
+			if (flags & HistoryUpdateFlag::UnreadView) {
+				unreadCountUpdated();
+			}
 		}, lifetime());
 	}
 
@@ -731,6 +802,7 @@ ChatWidget::~ChatWidget() {
 	}
 	_aboutView = nullptr;
 	_suggestOptions = nullptr;
+	_chooseTheme = nullptr;
 	base::take(_sendAction);
 	if (_repliesRootId) {
 		controller()->sendingAnimation().clear();
@@ -738,6 +810,11 @@ ChatWidget::~ChatWidget() {
 	if (_subsectionTabs && !_subsectionTabs->dying()) {
 		_subsectionTabsLifetime.destroy();
 		controller()->saveSubsectionTabs(base::take(_subsectionTabs));
+	}
+	if (mode() == Mode::History) {
+		auto state = ListMemento();
+		_inner->saveState(&state);
+		saveHistoryScrollState(state);
 	}
 	if (_topic) {
 		if (_topic->creating()) {
@@ -772,6 +849,9 @@ void ChatWidget::orderWidgets() {
 	}
 	_bottom->raise();
 	_composeControls->raisePanels();
+	if (_chooseTheme) {
+		_chooseTheme->raise();
+	}
 }
 
 void ChatWidget::setupRoot() {
@@ -2274,6 +2354,49 @@ bool ChatWidget::clearChooseReportMessages() {
 	return true;
 }
 
+bool ChatWidget::toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show) {
+	const auto update = [=] {
+		updateControlsVisibility();
+		updateControlsGeometry();
+	};
+	if (peer != _peer) {
+		return false;
+	} else if (_chooseTheme) {
+		if (isChoosingTheme() && !show.value_or(false)) {
+			const auto was = base::take(_chooseTheme);
+			if (Ui::InFocusChain(this)) {
+				setInnerFocus();
+			}
+			update();
+			updateControlsVisibility();
+			updateControlsGeometry();
+		}
+		return true;
+	} else if (!show.value_or(true)) {
+		return true;
+	} else if (_composeControls->isRecording()) {
+		controller()->showToast(tr::lng_chat_theme_cant_voice(tr::now));
+		return true;
+	}
+	_chooseTheme = std::make_unique<Ui::ChooseThemeController>(
+		this,
+		controller(),
+		peer);
+	_chooseTheme->shouldBeShownValue(
+	) | rpl::on_next(update, _chooseTheme->lifetime());
+	orderWidgets();
+	updateControlsVisibility();
+	updateControlsGeometry();
+	update();
+	return true;
+}
+
+Ui::ChatTheme *ChatWidget::customChatTheme() const {
+	return _theme.get();
+}
+
 void ChatWidget::updateTopBarChooseForReport() {
 	if (_chooseForReport && _chooseForReport->active) {
 		_topBar->showChooseMessagesForReport(
@@ -2306,9 +2429,22 @@ void ChatWidget::reportSelectedMessages() {
 void ChatWidget::updateControlsVisibility() {
 	_bottom->updateControlsVisibility();
 	const auto active = _bottom->isButtonActive();
+	const auto choosingTheme = isChoosingTheme();
 	const auto hasSublistReplacement = _bottom->hasOpenChatButton()
 		|| _bottom->hasAboutHiddenAuthor();
-	if (active) {
+	if (choosingTheme) {
+		_chooseTheme->show();
+		setInnerFocus();
+	} else if (_chooseTheme) {
+		_chooseTheme->hide();
+	}
+	if (choosingTheme && _kbScroll) {
+		_kbScroll->hide();
+		_kbShown = false;
+		setKeyboardReplyTo(nullptr);
+		hideKeyboardReplyToExternal();
+	}
+	if (active || choosingTheme) {
 		if (!hasSublistReplacement) {
 			_composeControls->hide();
 		}
@@ -3030,6 +3166,8 @@ void ChatWidget::doSetInnerFocus() {
 		&& _inner->getSelectedText().rich.text.isEmpty()
 		&& _inner->getSelectedItems().empty()) {
 		_composeSearch->setInnerFocus();
+	} else if (isChoosingTheme()) {
+		_chooseTheme->setFocus();
 	} else if (!_inner->getSelectedText().rich.text.isEmpty()
 		|| !_inner->getSelectedItems().empty()
 		|| !_composeControls->focus()) {
@@ -3048,9 +3186,6 @@ bool ChatWidget::showInternal(
 				refreshSuggestFromDraft();
 			} else {
 				restoreState(logMemento);
-				if (!logMemento->highlightId()) {
-					showAtPosition(Data::UnreadMessagePosition);
-				}
 			}
 			return true;
 		}
@@ -3191,10 +3326,62 @@ void ChatWidget::replyToMessage(FullReplyTo id) {
 	refreshTopBarActiveChat();
 }
 
+void ChatWidget::saveHistoryScrollState(const ListMemento &state) {
+	if (mode() != Mode::History || !_inner) {
+		return;
+	}
+	const auto migrated = _history->migrateFrom();
+	const auto aroundPosition = state.aroundPosition();
+	const auto scrollTopState = state.scrollTopState();
+	const auto useAroundPosition = scrollTopState.item
+		|| (aroundPosition == Data::UnreadMessagePosition)
+		|| (aroundPosition == Data::MaxMessagePosition);
+	_history->showAtMsgId = (useAroundPosition
+		? ShowAtMsgIdFromPosition(_history, aroundPosition)
+		: std::nullopt).value_or((_lastShownAt
+		&& migrated
+		&& (_lastShownAt.peer == migrated->peer->id)
+		&& IsServerMsgId(_lastShownAt.msg))
+		? -_lastShownAt.msg
+		: _lastShownAt
+		? _lastShownAt.msg
+		: ShowAtUnreadMsgId);
+	const auto atBottom = (_scroll->scrollTop() >= _scroll->scrollTopMax())
+		&& _inner->loadedAtBottomKnown()
+		&& _inner->loadedAtBottom();
+	if (atBottom) {
+		_history->forgetScrollState();
+		if (migrated) {
+			migrated->forgetScrollState();
+		}
+	} else {
+		const auto useMigrated = migrated
+			&& (scrollTopState.item.fullId.peer == migrated->peer->id);
+		if (useMigrated) {
+			_history->forgetScrollState();
+			if (const auto item = session().data().message(scrollTopState.item.fullId)) {
+				migrated->scrollTopItem = item->mainView();
+				migrated->scrollTopOffset = scrollTopState.shift;
+				if (!migrated->scrollTopItem) {
+					migrated->forgetScrollState();
+				}
+			} else {
+				migrated->forgetScrollState();
+			}
+		} else {
+			_history->countScrollState(_scroll->scrollTop());
+			if (migrated) {
+				migrated->forgetScrollState();
+			}
+		}
+	}
+}
+
 void ChatWidget::saveState(not_null<ChatMemento*> memento) {
 	memento->setReplies(_replies);
 	memento->setReplyReturns(_cornerButtons.replyReturns());
 	_inner->saveState(memento->list());
+	saveHistoryScrollState(*memento->list());
 }
 
 void ChatWidget::refreshReplies() {
@@ -3299,7 +3486,15 @@ void ChatWidget::subscribeToSublist() {
 }
 
 void ChatWidget::unreadCountUpdated() {
-	if (_sublist && _sublist->unreadMark()) {
+	if (mode() == Mode::History) {
+		const auto hideCounter = _history->isForum()
+			|| !_history->trackUnreadMessages();
+		refreshUnreadCountBadge(hideCounter
+			? 0
+			: _history->amMonoforumAdmin()
+			? _history->chatListUnreadState().messages
+			: _history->chatListBadgesState().unreadCounter);
+	} else if (_sublist && _sublist->unreadMark()) {
 		crl::on_main(this, [=] {
 			const auto guard = base::make_weak(this);
 			controller()->showPeerHistory(_sublist->owningHistory());
@@ -3362,6 +3557,9 @@ void ChatWidget::restoreState(not_null<ChatMemento*> memento) {
 		activateChooseForReport();
 	}
 	updateBotKeyboard();
+	if (mode() == Mode::History) {
+		unreadCountUpdated();
+	}
 }
 
 void ChatWidget::resizeEvent(QResizeEvent *e) {
@@ -3413,36 +3611,40 @@ void ChatWidget::updateControlsGeometry() {
 		bottom -= bottomHeight;
 	}
 	bottom -= tabsBottomSkip;
-	if (_suggestOptions) {
-		bottom -= st::historyReplyHeight;
-	}
-	const auto maxFieldHeight = computeMaxFieldHeightForKeyboard(
-		top,
-		bottom);
-	if (_kbScroll && keyboardRowsVisible() && _keyboard) {
-		_keyboard->resizeToWidth(innerWidth, maxFieldHeight);
-		const auto keyboardReserve = std::min(
-			_keyboard->height(),
-			maxFieldHeight - (maxFieldHeight / 2));
-		_composeControls->setFieldMaxHeight(
-			maxFieldHeight - keyboardReserve);
-		const auto maxKbHeight = keyboardReserve;
-		_keyboard->resizeToWidth(innerWidth, maxKbHeight);
-		const auto kbHeight = std::min(
-			_keyboard->height(),
-			maxKbHeight);
-		_kbScroll->setGeometry(
-			tabsLeftSkip,
-			bottom - kbHeight,
-			innerWidth,
-			kbHeight);
-		bottom -= kbHeight;
+	if (isChoosingTheme()) {
+		bottom -= _chooseTheme->height();
 	} else {
-		_composeControls->setFieldMaxHeight(
-			st::historyComposeFieldMaxHeight);
-	}
-	if (!bottomHeight) {
-		bottom -= _composeControls->heightCurrent();
+		if (_suggestOptions) {
+			bottom -= st::historyReplyHeight;
+		}
+		const auto maxFieldHeight = computeMaxFieldHeightForKeyboard(
+			top,
+			bottom);
+		if (_kbScroll && keyboardRowsVisible() && _keyboard) {
+			_keyboard->resizeToWidth(innerWidth, maxFieldHeight);
+			const auto keyboardReserve = std::min(
+				_keyboard->height(),
+				maxFieldHeight - (maxFieldHeight / 2));
+			_composeControls->setFieldMaxHeight(
+				maxFieldHeight - keyboardReserve);
+			const auto maxKbHeight = keyboardReserve;
+			_keyboard->resizeToWidth(innerWidth, maxKbHeight);
+			const auto kbHeight = std::min(
+				_keyboard->height(),
+				maxKbHeight);
+			_kbScroll->setGeometry(
+				tabsLeftSkip,
+				bottom - kbHeight,
+				innerWidth,
+				kbHeight);
+			bottom -= kbHeight;
+		} else {
+			_composeControls->setFieldMaxHeight(
+				st::historyComposeFieldMaxHeight);
+		}
+		if (!bottomHeight) {
+			bottom -= _composeControls->heightCurrent();
+		}
 	}
 	const auto composeTop = bottom;
 
@@ -3525,6 +3727,10 @@ bool ChatWidget::emptyShown() const {
 			|| (_topic->lastKnownServerMessageId() == _repliesRootId));
 }
 
+bool ChatWidget::isChoosingTheme() const {
+	return _chooseTheme && _chooseTheme->shouldBeShown();
+}
+
 void ChatWidget::onScroll() {
 	if (_skipScrollEvent) {
 		return;
@@ -3542,6 +3748,11 @@ void ChatWidget::updateInnerVisibleArea() {
 	_topControls->updatePinnedViewer();
 	_cornerButtons.updateJumpDownVisibility();
 	_cornerButtons.updateUnreadThingsVisibility();
+	if (mode() == Mode::History) {
+		auto state = ListMemento();
+		_inner->saveState(&state);
+		saveHistoryScrollState(state);
+	}
 	if (_lastScrollTop != scrollTop) {
 		if (!_synteticScrollEvent) {
 			_topControls->checkLastPinnedClickedIdReset(
@@ -3680,6 +3891,10 @@ void ChatWidget::listCancelRequest() {
 		} else {
 			_composeSearch->hideAnimated();
 		}
+		return;
+	}
+	if (isChoosingTheme()) {
+		toggleChooseChatTheme(_peer, false);
 		return;
 	}
 	if (_inner && !_inner->getSelectedItems().empty()) {
@@ -4216,6 +4431,16 @@ void ChatWidget::updateBotKeyboard(History *h, bool force) {
 	const auto forceReply = _keyboard->forceReply() && !realReplySource;
 	const auto canShow = _canSendMessages
 		&& !_bottom->isButtonActive();
+	if (isChoosingTheme()) {
+		_kbScroll->hide();
+		_kbShown = false;
+		setKeyboardReplyTo(nullptr);
+		hideKeyboardReplyToExternal();
+		updateKeyboardUiState(hasMarkup, true);
+		updateControlsGeometry();
+		update();
+		return;
+	}
 	const auto rowsFromRealReply = realReplySource && hasMarkup;
 	const auto suppressKeyboardUi = editing || (reply && !rowsFromRealReply);
 	const auto shouldShowRows = canShow

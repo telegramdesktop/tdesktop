@@ -43,6 +43,7 @@ class ScrollArea;
 struct PreparedList;
 struct PreparedBundle;
 class SendFilesWay;
+class ChooseThemeController;
 } // namespace Ui
 
 namespace Profile {
@@ -149,6 +150,10 @@ public:
 		Data::ReportInput &&reportInput,
 		Fn<void(std::vector<MsgId>)> &&done) override;
 	bool clearChooseReportMessages() override;
+	bool toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show = std::nullopt) override;
+	[[nodiscard]] Ui::ChatTheme *customChatTheme() const override;
 
 	void setInternalState(
 		const QRect &geometry,
@@ -291,6 +296,7 @@ private:
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();
 	void updateAdaptiveLayout();
+	void saveHistoryScrollState(const ListMemento &state);
 	void saveState(not_null<ChatMemento*> memento);
 	void restoreState(not_null<ChatMemento*> memento);
 	void setReplies(std::shared_ptr<Data::RepliesList> replies);
@@ -474,6 +480,7 @@ private:
 	void toggleMuteUnmute();
 	void reportSelectedMessages();
 	void updateTopBarChooseForReport();
+	[[nodiscard]] bool isChoosingTheme() const;
 	[[nodiscard]] bool emptyShown() const;
 	[[nodiscard]] bool showSlowmodeError();
 
@@ -500,6 +507,7 @@ private:
 		bool active = false;
 	};
 	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
+	std::unique_ptr<Ui::ChooseThemeController> _chooseTheme;
 
 	Data::SavedSublist *_sublist = nullptr;
 	PeerId _monoforumPeerId;
@@ -602,6 +610,7 @@ public:
 	}
 
 	void setFromTopic(not_null<Data::ForumTopic*> topic);
+	void setFromHistory(not_null<History*> history);
 
 	void setReplyReturns(const QVector<FullMsgId> &list) {
 		_replyReturns = list;
