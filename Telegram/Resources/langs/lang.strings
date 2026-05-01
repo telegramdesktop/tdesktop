@@ -7981,6 +7981,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ai_compose_tone_saved_limit_link" = "Premium";
 "lng_ai_compose_tone_saved_limit_final#one" = "You can save up to **{count}** style. Delete one to add another.";
 "lng_ai_compose_tone_saved_limit_final#other" = "You can save up to **{count}** styles. Delete one to add another.";
+"lng_sr_ai_compose_info" = "About AI Editor";
+"lng_sr_ai_compose_copy_result" = "Copy result";
+"lng_sr_ai_compose_expand_original" = "Expand original";
+"lng_sr_ai_compose_collapse_original" = "Collapse original";
 
 "lng_send_as_file_tooltip" = "Send text as a file.";
 

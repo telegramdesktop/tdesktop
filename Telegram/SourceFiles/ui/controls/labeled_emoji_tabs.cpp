@@ -110,6 +110,7 @@ LabeledEmojiTabs::Button::Button(
 		{ .repaint = [this] { update(); } })
 	: nullptr) {
 	setCursor(style::cur_pointer);
+	setAccessibleName(_descriptor.label);
 	setNaturalWidth([&] {
 		const auto padding = st::aiComposeStyleButtonPadding;
 		const auto labelWidth = st::aiComposeStyleLabelFont->width(

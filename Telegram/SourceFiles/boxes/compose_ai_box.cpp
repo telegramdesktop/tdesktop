@@ -457,6 +457,7 @@ ComposeAiModeButton::ComposeAiModeButton(
 , _mode(mode)
 , _label(std::move(label)) {
 	setCursor(style::cur_pointer);
+	setAccessibleName(_label);
 }
 
 void ComposeAiModeButton::setSelected(bool selected) {
@@ -663,6 +664,7 @@ ComposeAiPreviewCard::ComposeAiPreviewCard(
 			_copyCallback();
 		}
 	});
+	_copy->setAccessibleName(tr::lng_sr_ai_compose_copy_result(tr::now));
 	_emojify->checkedChanges(
 	) | rpl::on_next([=](bool checked) {
 		if (_emojifyChanged) {
@@ -945,6 +947,9 @@ void ComposeAiPreviewCard::updateOriginalToggleIcon() {
 	_originalToggle->setIconOverride(
 		_originalExpanded ? &st::aiComposeCollapseIcon : nullptr,
 		_originalExpanded ? &st::aiComposeCollapseIcon : nullptr);
+	_originalToggle->setAccessibleName(_originalExpanded
+		? tr::lng_sr_ai_compose_collapse_original(tr::now)
+		: tr::lng_sr_ai_compose_expand_original(tr::now));
 }
 
 // ComposeAiContent
@@ -1599,10 +1604,10 @@ void ComposeAiBox(not_null<Ui::GenericBox*> box, ComposeAiBoxArgs &&args) {
 	const auto session = args.session;
 	box->addTopButton(st::aiComposeBoxClose, [=] {
 		box->closeBox();
-	});
+	})->setAccessibleName(tr::lng_close(tr::now));
 	box->addTopButton(st::aiComposeBoxInfoButton, [=] {
 		box->uiShow()->show(Box(Ui::AboutCocoonBox));
-	});
+	})->setAccessibleName(tr::lng_sr_ai_compose_info(tr::now));
 
 	const auto body = box->verticalLayout();
 	const auto tabsSkip = QMargins(0, 0, 0, st::aiComposeBoxStyleTabsSkip);
@@ -1784,10 +1789,10 @@ void ComposeAiBox(not_null<Ui::GenericBox*> box, ComposeAiBoxArgs &&args) {
 		box->clearButtons();
 		box->addTopButton(st::aiComposeBoxClose, [=] {
 			box->closeBox();
-		});
+		})->setAccessibleName(tr::lng_close(tr::now));
 		box->addTopButton(st::aiComposeBoxInfoButton, [=] {
 			box->uiShow()->show(Box(Ui::AboutCocoonBox));
-		});
+		})->setAccessibleName(tr::lng_sr_ai_compose_info(tr::now));
 
 		if (*premiumFlooded) {
 			auto helper = Ui::Text::CustomEmojiHelper();
@@ -1837,6 +1842,7 @@ void ComposeAiBox(not_null<Ui::GenericBox*> box, ComposeAiBoxArgs &&args) {
 					btn->parentWidget(),
 					st::aiComposeSendButton);
 				send->setState({ .type = Ui::SendButton::Type::Send });
+				send->setAccessibleName(tr::lng_send_button(tr::now));
 				send->show();
 				btn->geometryValue(
 				) | rpl::on_next([=](QRect geometry) {
