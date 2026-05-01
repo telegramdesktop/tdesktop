@@ -11,22 +11,11 @@ using "ui/widgets/widgets.style";
 using "ui/effects/premium.style";
 using "settings/settings.style";
 
-creditsSettingsBigBalance: FlatLabel(defaultFlatLabel) {
-	style: TextStyle(defaultTextStyle) {
-		font: font(24px semibold);
-	}
-}
-creditsSettingsBigBalanceSkip: 4px;
 creditsSettingsBigBalanceButton: RoundButton(defaultActiveButton) {
 	width: 240px;
 	height: 40px;
 	textTop: 11px;
 	style: semiboldTextStyle;
-}
-creditsSettingsBigBalanceButtonGift: RoundButton(defaultLightButton) {
-	height: 42px;
-	textTop: 12px;
-	style: defaultTextStyle;
 }
 
 creditsPremiumCover: PremiumCover(defaultPremiumCover) {
@@ -210,8 +199,6 @@ giftBoxByStarsStyle: TextStyle(defaultTextStyle) {
 }
 giftBoxByStarsSkip: 2px;
 giftBoxByStarsStarTop: 3px;
-giftBoxPremiumIconSize: 64px;
-giftBoxPremiumIconTop: 10px;
 giftBoxPremiumTextTop: 84px;
 giftBoxPremiumTextTopByStars: 78px;
 giftBoxButtonBottomSmall: 4px;
@@ -309,8 +296,6 @@ uniqueGiftNumber: FlatLabel(uniqueGiftTitle) {
 uniqueGiftResalePrice: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 }
-uniqueGiftResalePadding: margins(4px, 4px, 8px, 4px);
-uniqueGiftResaleMargin: margins(10px, 10px, 10px, 10px);
 uniqueGiftTitleTop: 140px;
 uniqueGiftSubtitle: FlatLabel(defaultFlatLabel) {
 	minWidth: 64px;
@@ -361,7 +346,6 @@ uniqueGiftSenderBadge: FlatLabel(defaultFlatLabel) {
 }
 
 uniqueAttributeTop: 10px;
-uniqueAttributeSkip: 8px;
 uniqueAttributePadding: margins(6px, 8px, 6px, 8px);
 uniqueAttributeName: TextStyle(semiboldTextStyle) {
 	font: font(12px semibold);
@@ -549,8 +533,6 @@ videoStreamStarsCover: PremiumCover(creditsLowBalancePremiumCover) {
 	}
 }
 
-auctionInfoPreviewMargin: margins(0px, 24px, 0px, 8px);
-auctionInfoSubtitleSkip: 8px;
 auctionInfoTableMargin: margins(0px, 12px, 0px, 12px);
 auctionInfoValueMultiline: FlatLabel(defaultTableValue) {
 	minWidth: 96px;

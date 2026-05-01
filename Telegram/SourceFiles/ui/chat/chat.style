@@ -222,9 +222,6 @@ maxWallPaperWidth: 160px;
 maxWallPaperHeight: 240px;
 historyThemeSize: size(272px, 176px);
 
-extendedPreviewButtonPadding: margins(20px, 10px, 20px, 10px);
-extendedPreviewButtonMargin: 20px;
-
 historyMinimalWidth: 380px;
 
 reactionMenu: PopupMenu(defaultPopupMenu) {
@@ -282,7 +279,6 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 0px, 3px);
 }
-membersInnerItem: defaultPeerListItem;
 
 historyFileOutImage: icon {{ "history_file_image", historyFileOutIconFg }};
 historyFileOutImageSelected: icon {{ "history_file_image", historyFileOutIconFgSelected }};
@@ -682,7 +678,6 @@ webPageDescriptionStyle: defaultTextStyle;
 webPagePhotoDelta: 8px;
 webPageAuctionTimerPadding: margins(8px, 4px, 8px, 4px);
 webPageAuctionTimeFont: font(11px);
-webPageAuctionSubtextFont: font(12px);
 webPageAuctionPreviewPadding: margins(10px, 30px, 10px, 5px);
 
 historyChecklistTaskPadding: margins(32px, 12px, 0px, 12px);
@@ -894,9 +889,7 @@ reactionInlineUserpics: GroupCallUserpics {
 }
 
 reactionInfoSize: 15px;
-reactionInfoImage: 30px;
 reactionInfoSkip: 3px;
-reactionInfoDigitSkip: 6px;
 reactionInfoBetween: 3px;
 
 reactionCornerSize: size(36px, 32px);
@@ -1058,7 +1051,6 @@ storyMentionReadStrokeTwice: 3px;
 storyMentionButtonSkip: 5px;
 
 chatGiveawayWidth: 292px;
-chatGiveawayStickerTop: -16px;
 chatGiveawayStickerPadding: margins(14px, -2px, 14px, 14px);
 chatGiveawayWinnersTopSkip: 25px;
 chatGiveawayBadgeFont: font(12px bold);
@@ -1078,7 +1070,6 @@ chatGiveawayPeerPadding: margins(5px, 7px, 12px, 0px);
 chatGiveawayPeerSkip: 8px;
 chatGiveawayCreditsIconHeight: 19px;
 
-chatSimilarRadius: 12px;
 chatSimilarArrowSize: 6px;
 chatSimilarTitle: semiboldFont;
 chatSimilarTitlePosition: point(15px, 9px);
@@ -1124,7 +1115,6 @@ chatSuggestChangeIcon: IconEmoji {
 
 premiumRequiredWidth: 186px;
 premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
-premiumRequiredCircle: 60px;
 directMessagesIcon: icon{{ "chat/large_messages", msgServiceFg }};
 starsPerMessageWidth: 226px;
 
@@ -1442,20 +1432,6 @@ suggestPriceEstimate: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 suggestPriceEstimateTop: 12px;
-tonInput: InputField(defaultInputField) {
-	textBg: transparent;
-	textMargins: margins(0px, 7px, 0px, 7px);
-
-	placeholderFg: placeholderFg;
-	placeholderFgActive: placeholderFgActive;
-	placeholderFgError: placeholderFgActive;
-	placeholderMargins: margins(0px, 0px, 0px, 0px);
-	placeholderScale: 0.;
-	placeholderFont: boxTextFont;
-
-	heightMin: 34px;
-	heightMax: 100px;
-}
 starsFieldIconPosition: point(0px, 10px);
 tonFieldIconSize: 16px;
 tonFieldIconPosition: point(2px, 11px);
@@ -1552,7 +1528,6 @@ historySummaryHeaderIconSize: 30px;
 historySummaryHeaderIconSizeInner: 5px;
 
 toastCheckIcon: icon {{ "toast/check-36x36", toastFg }};
-toastCheckIconPadding: margins(12px, 8px, 12px, 8px);
 
 historySummaryStars: icon {{ "chat/summary_stars-24x24", msgServiceFg }};
 historySummaryArrows: icon {{ "chat/summary_arrows-24x24", msgServiceFg }};

@@ -65,15 +65,6 @@ defaultSubTabs: SubTabs {
 
 infoMediaHeaderFg: windowFg;
 
-infoToggle: InfoToggle {
-	color: menuIconFg;
-	duration: slideWrapDuration;
-	size: 24px;
-	skip: 5px;
-	stroke: 2px;
-	rippleAreaPadding: 8px;
-}
-
 infoMediaSearch: SearchFieldRow {
 	height: 44px;
 	padding: margins(8px, 6px, 8px, 6px);
@@ -371,16 +362,6 @@ infoTopBarColoredClose: IconButton(infoTopBarClose) {
 	iconOver: icon {{ "info/info_close", groupCallMembersFg }};
 	ripple: universalRippleAnimation;
 }
-infoTopBarColoredMenu: IconButton(infoTopBarMenu) {
-	icon: icon {{ "title_menu_dots", groupCallMembersFg }};
-	iconOver: icon {{ "title_menu_dots", groupCallMembersFg }};
-	ripple: universalRippleAnimation;
-}
-infoLayerTopBarColoredMenu: IconButton(infoLayerTopBarMenu) {
-	icon: icon {{ "title_menu_dots", groupCallMembersFg }};
-	iconOver: icon {{ "title_menu_dots", groupCallMembersFg }};
-	ripple: universalRippleAnimation;
-}
 infoTopBarColoredEdit: IconButton(infoTopBarEdit) {
 	icon: icon {{ "menu/edit", groupCallMembersFg }};
 	iconOver: icon {{ "menu/edit", groupCallMembersFg }};
@@ -594,7 +575,6 @@ infoEditContactCover: InfoProfileCover(infoProfileCover) {
 	nameTop: 33px;
 	statusTop: 57px;
 }
-infoEditContactPersonalLeft: 6px;
 
 infoRatingDeductedBadge: RoundButton(customEmojiTextBadge) {
 	textBg: windowSubTextFg;
@@ -649,8 +629,6 @@ infoProfileLabeledButtonQrInset: 5px;
 
 infoIconInformation: icon {{ "info/info_information", infoIconFg }};
 infoIconAddMember: icon {{ "info/info_add_member", infoIconFg }};
-infoIconBotBalance: icon {{ "menu/earn", infoIconFg, point(5px, 5px) }};
-infoIconNotifications: icon {{ "info/info_notifications", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info/info_media_photo", infoIconFg }};
 infoIconMediaVideo: icon {{ "info/info_media_video", infoIconFg }};
 infoIconMediaGif: icon {{ "info/info_media_gif", infoIconFg }};
@@ -679,8 +657,6 @@ infoIconBlock: icon {{ "info/info_block", attentionButtonFg }};
 infoIconMembers: icon {{ "info/info_members", infoIconFg }};
 infoIconPrivacyPolicy: icon {{ "menu/2sv_off", infoIconFg, point(4px, 4px) }};
 infoIconSettings: icon {{ "menu/manage", infoIconFg, point(4px, 4px) }};
-infoInformationIconPosition: point(25px, 12px);
-infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaButtonIconPosition: point(20px, 3px);
 infoGroupMembersIconPosition: point(20px, 10px);
 infoChannelMembersIconPosition: point(20px, 4px);
@@ -968,7 +944,6 @@ editPeerTopButtonsLayoutSkipCustomBottom: 5px;
 editPeerHistoryVisibilityTopSkip: 8px;
 
 editPeerPhotoMargins: margins(22px, 8px, 22px, 8px);
-editPeerTitle: defaultInputField;
 editPeerTitleMargins: margins(27px, 13px, 22px, 8px);
 editPeerTitleEmojiPosition: point(0px, 23px);
 editPeerTitleField: InputField(defaultInputField) {
@@ -1004,14 +979,6 @@ editPeerPrivacyBoxCheckbox: Checkbox(defaultBoxCheckbox) {
 editPeerPrivacyLabelMargins: margins(42px, 0px, 34px, 0px);
 editPeerPreHistoryLabelMargins: margins(34px, 0px, 34px, 0px);
 editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 0px);
-editPeerUsername: setupChannelLink;
-editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
-	textFg: boxTextFgGood;
-	style: boxTextStyle;
-}
-
-editPeerReactionsPreview: 24px;
-editPeerReactionsIconLeft: 21px;
 
 historyTopBarBack: IconButton(infoTopBarBack) {
 	width: 52px;
@@ -1022,10 +989,6 @@ topBarMenuGroupCallSkip: 20px;
 topBarBack: icon {{ "title_back", lightButtonFg }};
 topBarArrowPadding: margins(39px, 8px, 17px, 8px);
 topBarNameRightPadding: 3px;
-topBarButton: RoundButton(defaultLightButton) {
-	width: -18px;
-	padding: margins(0px, 10px, 12px, 10px);
-}
 topBarClearButton: RoundButton(defaultLightButton) {
 	width: -18px;
 }
@@ -1318,10 +1281,6 @@ similarChannelsLockFade: 58px;
 similarChannelsLock: RoundButton(defaultActiveButton) {
 	height: 44px;
 	textTop: 12px;
-	style: semiboldTextStyle;
-}
-similarChannelsLockLabel: FlatLabel(defaultFlatLabel) {
-	textFg: premiumButtonFg;
 	style: semiboldTextStyle;
 }
 similarChannelsLockPadding: margins(12px, 12px, 12px, 12px);

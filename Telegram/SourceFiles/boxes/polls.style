@@ -77,7 +77,6 @@ historyPollExplanationTitleSkip: 4px;
 historyPollExplanationCloseSize: 20px;
 historyPollExplanationCloseIconSize: 8px;
 historyPollExplanationCloseStroke: 2px;
-historyPollExplanationMediaMaxHeight: 300px;
 historyPollExplanationMediaSkip: 6px;
 historyPollChoiceRight: icon {{ "poll_choice_right", activeButtonFg }};
 historyPollChoiceWrong: icon {{ "poll_choice_wrong", activeButtonFg }};
@@ -91,7 +90,6 @@ historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
 historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
 historyPollAddOptionTop: 3px;
-historyPollAddOptionHeight: 32px;
 historyPollAddOptionButtonSize: 26px;
 historyPollAddOptionEmojiLeft: -4px;
 historyPollAddOptionField: InputField(defaultInputField) {
@@ -129,9 +127,7 @@ historyPollAddOptionAttach: IconButton(defaultIconButton) {
 	ripple: defaultRippleAnimationBgOver;
 }
 
-pollBoxOutlinePollEmojiIcon: icon{{ "poll/general/outline_poll_emoji", activeButtonFg }};
 pollBoxOutlinePollAddIcon: icon{{ "poll/general/outline_poll_add-18x18", activeButtonFg }};
-pollBoxOutlinePollAttachIcon: icon{{ "poll/general/outline_poll_attach", activeButtonFg }};
 pollBoxMenuPollOrderIcon: icon{{ "poll/general/menu_poll_order-24x24", historyComposeIconFg }};
 pollBoxFilledPollDeadlineIcon: icon{{ "poll/filled/filled_poll_deadline", activeButtonFg }};
 pollBoxFilledPollViewIcon: icon{{ "poll/filled/filled_poll_view", activeButtonFg }};
@@ -145,7 +141,6 @@ pollAttachTextSkip: 28px;
 pollAttachProgressMargin: 4px;
 pollAttachCancel: icon {{ "history_audio_cancel", historyFileThumbIconFg }};
 pollAttachView: icon {{ "mediaview/views", historyFileThumbIconFg }};
-pollAttachShift: point(-11px, -2px);
 
 createPollField: InputField(defaultInputField) {
 	textMargins: margins(0px, 4px, 0px, 4px);

@@ -531,9 +531,6 @@ dialogsSearchInMenu: PopupMenu(defaultPopupMenu) {
 dialogsSearchInCheck: icon {{ "player/player_check", mediaPlayerActiveFg }};
 dialogsSearchInCheckSkip: 8px;
 dialogsSearchFromStyle: defaultTextStyle;
-dialogsSearchFromPalette: TextPalette(defaultTextPalette) {
-	linkFg: dialogsNameFg;
-}
 
 dialogsScamPadding: margins(2px, 0px, 2px, 0px);
 dialogsScamFont: font(9px semibold);

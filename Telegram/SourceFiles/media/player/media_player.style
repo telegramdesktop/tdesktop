@@ -298,11 +298,6 @@ mediaPlayerPanelMarginLeft: 10px;
 mediaPlayerPanelMarginBottom: 10px;
 mediaPlayerPanelWidth: 344px;
 
-mediaPlayerPanelNextButton: IconButton(mediaPlayerRepeatButton) {
-	width: 37px;
-	icon: icon {{ "player/player_forward", mediaPlayerActiveFg, point(6px, 4px) }};
-}
-
 mediaPlayerPanelPlaybackPadding: 8px;
 mediaPlayerPanelPlayback: defaultContinuousSlider;
 

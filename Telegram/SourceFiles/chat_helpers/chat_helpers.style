@@ -447,7 +447,6 @@ stickersAddCellBgRadius: 28px;
 
 stickersEmojiPickerExpandedRadius: 20px;
 stickersEmojiPickerBg: emojiPanBg;
-stickersEmojiPickerShadow: windowShadowFg;
 stickersEmojiPickerPadding: margins(12px, 8px, 12px, 0px);
 stickersEmojiPickerItemSize: 30px;
 stickersEmojiPickerItemSkip: 4px;
@@ -459,8 +458,6 @@ stickersEmojiPickerStripBubble: icon{
 };
 stickersEmojiPickerStripBubbleRight: 20px;
 stickersEmojiPickerSelectedBg: windowBgActive;
-stickersEmojiPickerSelectedFg: windowBgActive;
-stickersEmojiPickerHeaderFg: windowSubTextFg;
 stickersEmojiPickerScroll: ScrollArea(boxScroll) {
 	width: 14px;
 	deltax: 5px;
@@ -473,14 +470,6 @@ stickersEmojiPickerAbout: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(12px);
-	}
-}
-stickersEmojiPickerSectionHeader: FlatLabel(defaultFlatLabel) {
-	minWidth: 10px;
-	align: align(topleft);
-	textFg: windowSubTextFg;
-	style: TextStyle(defaultTextStyle) {
-		font: font(12px semibold);
 	}
 }
 stickersEmojiPickerExpandIcon: icon {{ "intro_country_dropdown", windowSubTextFg }};
@@ -1011,10 +1000,6 @@ historyComposeButton: FlatButton {
 		color: historyComposeButtonBgRipple;
 	}
 }
-historyComposeButtonText: FlatLabel(defaultFlatLabel) {
-	style: semiboldTextStyle;
-	textFg: windowActiveTextFg;
-}
 historyGiftToChannel: IconButton(defaultIconButton) {
 	width: 46px;
 	height: 46px;
@@ -1293,7 +1278,6 @@ historyAddMedia: IconButton(historyAttach) {
 }
 
 historyAttachEmojiActive: icon {{ "chat/input_smile_face", windowBgActive }};
-historyEmojiCircle: size(20px, 20px);
 historyEmojiCircleLine: 1.5;
 historyEmojiCircleFg: historyComposeIconFg;
 historyEmojiCircleFgOver: historyComposeIconFgOver;
@@ -1329,25 +1313,6 @@ historySuggestPostToggle: IconButton(historyAttach) {
 }
 historySuggestIconPosition: point(4px, 4px);
 historySuggestIconActive: icon{{ "chat/input_paid", windowActiveTextFg }};
-
-suggestOptionsPrice: InputField(defaultInputField) {
-	textBg: transparent;
-	textMargins: margins(2px, 20px, 2px, 0px);
-
-	placeholderFg: placeholderFg;
-	placeholderFgActive: placeholderFgActive;
-	placeholderFgError: placeholderFgActive;
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
-	placeholderScale: 0.;
-	placeholderFont: normalFont;
-
-	border: 0px;
-	borderActive: 0px;
-
-	heightMin: 32px;
-
-	style: defaultTextStyle;
-}
 
 historyAttachEmojiInner: IconButton(historyAttach) {
 	icon: icon {{ "chat/input_smile_face", historyComposeIconFg }};
@@ -1400,9 +1365,7 @@ historyRecordVoiceFgInactive: attentionButtonFg;
 historyRecordVoiceFgActive: windowBgActive;
 historyRecordVoiceFgActiveIcon: windowFgActive;
 historyRecordVoiceOnceBg: icon {{ "voice_lock/audio_once_bg", historySendIconFg }};
-historyRecordVoiceOnceBgOver: icon {{ "voice_lock/audio_once_bg", historySendIconFgOver }};
 historyRecordVoiceOnceFg: icon {{ "voice_lock/audio_once_number", windowFgActive }};
-historyRecordVoiceOnceFgOver: icon {{ "voice_lock/audio_once_number", windowFgActive }};
 historyRecordVoiceOnceInactive: icon {{ "chat/audio_once", windowSubTextFg }};
 historyRecordSendIconPosition: point(2px, 0px);
 historyRecordVoiceRippleBgActive: lightButtonBgOver;
@@ -1412,7 +1375,6 @@ historyRecordCancelActive: historySendIconFg;
 historyRecordFont: font(13px);
 historyRecordDurationSkip: 12px;
 historyRecordDurationFg: historyComposeAreaFg;
-historyRecordTTLLineWidth: 2px;
 
 historyRecordMainBlobMinRadius: 23px;
 historyRecordMainBlobMaxRadius: 37px;
@@ -1457,7 +1419,6 @@ historyRecordDelete: IconButton(historyAttach) {
 	iconOver: icon {{ "voice_lock/recorded_delete", historyComposeIconFgOver }};
 	iconPosition: point(10px, 11px);
 }
-historyRecordWaveformRightSkip: 10px;
 historyRecordWaveformBgMargins: margins(5px, 8px, 5px, 9px);
 historyRecordWaveformBgRadius: 7px;
 historyRecordWaveformOutsideAlpha: 0.6;
@@ -1469,16 +1430,12 @@ historyRecordCenterControlTextSkip: 2px;
 historyRecordCenterControlMinimumProgressPadding: 5px;
 
 historyRecordWaveformBar: 3px;
-historyRecordTrimFrameRadius: 5px;
-historyRecordTrimFrameBorder: 1px;
 historyRecordTrimHandleWidth: 10px;
 historyRecordTrimHandleInnerSize: size(2px, 8px);
-historyRecordTrimHandleInnerSkip: 2px;
 
 historyRecordLockPosition: point(1px, 22px);
 
 historyRecordCancelButtonWidth: 100px;
-historyRecordCancelButtonFg: lightButtonFg;
 
 historyRecordTooltipSkip: 8px;
 historyRecordTooltip: ImportantTooltip(defaultImportantTooltip) {
@@ -1557,7 +1514,6 @@ importantTooltipHide: IconButton(defaultIconButton) {
 	ripple: emptyRippleAnimation;
 }
 boxAiComposeButtonPosition: point(0px, -4px);
-historyRecordFrameIndex: 30;
 
 defaultComposeFilesMenu: IconButton(defaultIconButton) {
 	width: 48px;

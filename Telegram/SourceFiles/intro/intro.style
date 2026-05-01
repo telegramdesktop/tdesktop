@@ -113,7 +113,6 @@ introPhone: InputField(introCountry) {
 	width: 225px;
 }
 introQrLoginLinkTop: 368px;
-introCode: introCountry;
 introName: introCountry;
 introPassword: introCountry;
 introPasswordTop: 74px;

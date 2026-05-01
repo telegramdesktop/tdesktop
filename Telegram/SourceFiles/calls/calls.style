@@ -538,10 +538,6 @@ callTitle: WindowTitle(defaultWindowTitle) {
 callTitleShadowRight: icon {{ "calls/calls_shadow_controls", windowShadowFg }};
 callTitleShadowLeft: icon {{ "calls/calls_shadow_controls-flip_horizontal", windowShadowFg }};
 
-callErrorToast: Toast(defaultToast) {
-	minWidth: 240px;
-}
-
 groupCallWidth: 380px;
 groupCallHeight: 520px;
 groupCallWidthRtmp: 720px;
@@ -1488,8 +1484,6 @@ groupCallAttentionBoxButton: RoundButton(groupCallBoxButton) {
 groupCallRtmpUrlSkip: 1px;
 groupCallRtmpKeySubsectionTitleSkip: 8px;
 groupCallRtmpSubsectionTitleAddPadding: margins(0px, -1px, 0px, -4px);
-groupCallRtmpShowButtonPosition: point(21px, -5px);
-groupCallDividerBg: groupCallMembersBgRipple;
 
 groupCallScheduleDateField: InputField(groupCallField) {
 	textMargins: margins(2px, 0px, 2px, 0px);

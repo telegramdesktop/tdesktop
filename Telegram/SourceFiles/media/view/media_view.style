@@ -80,7 +80,6 @@ mediaviewPipButton: IconButton(mediaviewControlsButton) {
 	iconPosition: point(4px, 4px);
 }
 
-mediaviewPipMargins: callShadowExtend;
 mediaviewPipShadow: callShadow;
 
 mediaviewFullScreenButtonSkip: 4px;
@@ -469,8 +468,6 @@ pipVolumeIcon1: icon {{ "player/player_volume_small", mediaviewPipControlsFg }};
 pipVolumeIcon1Over: icon {{ "player/player_volume_small", mediaviewPipControlsFgOver }};
 pipVolumeIcon2: icon {{ "player/player_volume_on", mediaviewPipControlsFg }};
 pipVolumeIcon2Over: icon {{ "player/player_volume_on", mediaviewPipControlsFgOver }};
-
-speedSliderDividerSize: size(2px, 8px);
 
 storiesMaxSize: size(540px, 960px);
 storiesSiblingWidthMin: 200px; // Try making sibling not less than this.

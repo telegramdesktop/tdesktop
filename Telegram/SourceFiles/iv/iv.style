@@ -28,14 +28,6 @@ ivBack: IconButton(ivMenuToggle) {
 	rippleAreaPosition: point(12px, 6px);
 }
 ivZoomButtonsSize: 26px;
-ivPlusMinusZoom: IconButton(ivMenuToggle) {
-	width: ivZoomButtonsSize;
-	height: ivZoomButtonsSize;
-
-	rippleAreaPosition: point(0px, 0px);
-	rippleAreaSize: ivZoomButtonsSize;
-	ripple: defaultRippleAnimationBgOver;
-}
 ivResetZoomStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
 }

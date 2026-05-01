@@ -59,7 +59,6 @@ boxPhotoTitlePosition: point(28px, 20px);
 boxPhotoPadding: margins(28px, 28px, 28px, 18px);
 boxPhotoCompressedSkip: 20px;
 boxPhotoCaptionSkip: 8px;
-boxPhotoCaptionReplyOverlap: 5px;
 
 defaultChangeUserpicIcon: icon {{ "new_chat_photo", activeButtonFg }};
 defaultUploadUserpicIcon: icon {{ "upload_chat_photo", msgDateImgFg }};
@@ -115,10 +114,8 @@ confirmInviteStatus: FlatLabel(confirmInviteAbout) {
 }
 confirmInviteAboutPadding: margins(36px, 4px, 36px, 10px);
 confirmInviteAboutRequestsPadding: margins(36px, 9px, 36px, 15px);
-confirmInviteTitleTop: 141px;
 confirmInvitePhotoSize: 96px;
 confirmInvitePhotoTop: 33px;
-confirmInviteStatusTop: 164px;
 confirmInviteUserHeight: 100px;
 confirmInviteUserPhotoSize: 50px;
 confirmInviteUserPhotoTop: 210px;
@@ -349,7 +346,6 @@ themeWarningHeight: 150px;
 themeWarningTextTop: 60px;
 
 aboutWidth: 390px;
-aboutVersionTop: -3px;
 aboutVersionLink: LinkButton(defaultLinkButton) {
 	color: windowSubTextFg;
 	overColor: windowSubTextFg;
@@ -386,7 +382,6 @@ connectionUserInputField: InputField(defaultInputField) {
 }
 connectionPasswordInputField: InputField(defaultInputField) {
 }
-connectionIPv6Skip: 11px;
 
 autolockWidth: 256px;
 autolockButton: Checkbox(defaultBoxCheckbox) {
@@ -529,7 +524,6 @@ colorResultInput: InputField(colorValueInput) {
 changePhoneButton: RoundButton(defaultActiveButton) {
 	width: 256px;
 }
-changePhoneButtonPadding: margins(0px, 32px, 0px, 44px);
 changePhoneTitle: FlatLabel(boxTitle) {
 }
 changePhoneTitlePadding: margins(0px, 8px, 0px, 8px);
@@ -550,18 +544,6 @@ changePhoneError: FlatLabel(changePhoneLabel) {
 
 normalBoxLottieSize: size(120px, 120px);
 
-adminLogFilterUserpicLeft: 15px;
-adminLogFilterLittleSkip: 16px;
-adminLogFilterCheckbox: Checkbox(defaultBoxCheckbox) {
-	style: TextStyle(boxTextStyle) {
-		font: font(boxFontSize semibold);
-	}
-}
-adminLogFilterSkip: 32px;
-adminLogFilterUserCheckbox: Checkbox(defaultBoxCheckbox) {
-	margin: margins(8px, 6px, 8px, 6px);
-	checkPosition: point(8px, 6px);
-}
 rightsCheckbox: Checkbox(defaultCheckbox) {
 	textPosition: point(10px, 1px);
 	rippleBg: attentionButtonBgOver;
@@ -588,7 +570,6 @@ rightsButtonToggleWidth: 70px;
 rightsDividerMargin: margins(0px, 0px, 0px, 20px);
 rightsHeaderMargin: margins(22px, 13px, 22px, 7px);
 rightsToggleMargin: margins(22px, 8px, 22px, 8px);
-rightsAboutMargin: margins(22px, 8px, 22px, 8px);
 rightsPhotoButton: UserpicButton(defaultUserpicButton) {
 	size: size(60px, 60px);
 	photoSize: 60px;
@@ -1001,8 +982,6 @@ contactsWithStories: PeerList(peerListBox) {
 		nameFgChecked: contactsNameFg;
 	}
 }
-storiesReadLineTwice: 2px;
-storiesUnreadLineTwice: 4px;
 requestsAcceptButton: RoundButton(defaultActiveButton) {
 	width: -28px;
 	height: 30px;
@@ -1087,7 +1066,6 @@ collectibleHeaderPadding: margins(24px, 16px, 24px, 12px);
 collectibleOwnerPadding: margins(24px, 4px, 24px, 8px);
 collectibleInfo: inviteForbiddenInfo;
 collectibleInfoPadding: margins(24px, 12px, 24px, 12px);
-collectibleInfoTonMargins: margins(0px, 3px, 0px, 0px);
 collectibleMore: RoundButton(defaultActiveButton) {
 	height: 36px;
 	textTop: 9px;
@@ -1134,7 +1112,6 @@ moderateBoxDividerLabel: FlatLabel(boxDividerLabel) {
 }
 
 profileQrFont: font(fsize bold);
-profileQrCenterSize: 34px;
 profileQrBackgroundRadius: 12px;
 profileQrIcon: icon{{ "qr_mini", windowActiveTextFg }};
 profileQrBackgroundMargins: margins(36px, 12px, 36px, 12px);
@@ -1145,13 +1122,6 @@ foldersMenu: PopupMenu(popupMenuWithIcons) {
 	menu: Menu(menuWithIcons) {
 		itemPadding: margins(54px, 8px, 44px, 8px);
 	}
-}
-
-fakeUserpicButton: UserpicButton(defaultUserpicButton) {
-	size: size(1px, 1px);
-	photoSize: 1px;
-	changeIcon: icon {{ "settings/photo", transparent }};
-	uploadBg: transparent;
 }
 
 moderateCommonGroupsCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
@@ -1213,7 +1183,6 @@ createBotStatusLabel: FlatLabel(aboutRevokePublicLabel) {
 	maxHeight: 20px;
 }
 
-aiComposeBoxSectionSkip: 8px;
 aiComposeBoxStyleTabsSkip: 8px;
 aiComposeContentMargin: margins(16px, 0px, 16px, 0px);
 
@@ -1282,7 +1251,6 @@ aiComposeCardRadius: 22px;
 aiComposeCardPadding: margins(12px, 16px, 16px, 16px);
 aiComposeCardDivider: shadowFg;
 aiComposeCardSectionSkip: 12px;
-aiComposeCardTextSkip: 0px;
 aiComposeCardControlSkip: 8px;
 aiComposeCardTitle: FlatLabel(defaultSubsectionTitle) {
 	textFg: windowFg;

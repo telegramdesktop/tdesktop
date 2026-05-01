@@ -83,7 +83,6 @@ notifySendReply: IconButton {
 notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 titleUnreadCounterTop: 6px;
-titleUnreadCounterRight: 35px;
 
 mainMenuWidth: 274px;
 mainMenuCoverHeight: 134px;
