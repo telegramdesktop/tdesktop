@@ -1697,6 +1697,8 @@ QImage Document::dragPreviewImage() {
 void Document::drawCornerDownload(QPainter &p, bool selected, const PaintContext *context) const {
 	if (dataLoaded()
 		|| _data->loadedInMediaCache()
+		|| selected
+		|| context->selecting
 		|| !downloadInCorner()) {
 		return;
 	}
