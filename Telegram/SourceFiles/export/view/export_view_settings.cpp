@@ -462,17 +462,15 @@ void SettingsWidget::addLimitsLabel(
 		std::move(fromLink),
 		lt_till,
 		std::move(tillLink),
-		tr::marked
-	) | rpl::after_next([=] {
-		container->resizeToWidth(container->width());
-	});
+		tr::marked);
 
 	const auto label = container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			std::move(datesText),
 			st::boxLabel),
-		st::exportLimitsPadding);
+		st::exportLimitsPadding,
+		style::al_justify);
 
 	const auto removeTime = [](TimeId dateTime) {
 		return base::unixtime::serialize(
