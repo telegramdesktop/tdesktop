@@ -354,27 +354,18 @@ void Manager::buildEditMenu(QMenu *edit) {
 		[] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
 		QKeySequence::Cut);
 	_cut->setShortcutContext(Qt::WidgetShortcut);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-	_cut->setMenuRole(QAction::CutRole);
-#endif // Qt >= 6.8.0
 	_copy = edit->addAction(
 		u"Copy"_q,
 		receiver,
 		[] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
 		QKeySequence::Copy);
 	_copy->setShortcutContext(Qt::WidgetShortcut);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-	_copy->setMenuRole(QAction::CopyRole);
-#endif // Qt >= 6.8.0
 	_paste = edit->addAction(
 		u"Paste"_q,
 		receiver,
 		[] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
 		QKeySequence::Paste);
 	_paste->setShortcutContext(Qt::WidgetShortcut);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-	_paste->setMenuRole(QAction::PasteRole);
-#endif // Qt >= 6.8.0
 	_delete = edit->addAction(
 		u"Delete"_q,
 		receiver,
@@ -449,9 +440,6 @@ void Manager::buildEditMenu(QMenu *edit) {
 		[] { SendKeySequence(Qt::Key_A, Qt::ControlModifier); },
 		QKeySequence::SelectAll);
 	_selectAll->setShortcutContext(Qt::WidgetShortcut);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-	_selectAll->setMenuRole(QAction::SelectAllRole);
-#endif // Qt >= 6.8.0
 
 	if (!Platform::IsMac26_0OrGreater()) {
 		edit->addSeparator();
