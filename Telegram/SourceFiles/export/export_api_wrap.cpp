@@ -2768,7 +2768,9 @@ bool ApiWrap::processFileLoad(
 		: story
 		? story->file().size
 		: file.size;
-	if (message && Data::SkipMessageByDate(*message, *_settings)) {
+	if (message
+		&& message->date > 0
+		&& Data::SkipMessageByDate(*message, *_settings)) {
 		file.skipReason = SkipReason::DateLimits;
 		return true;
 	} else if (!story && (_settings->media.types & type) != type) {
