@@ -2008,7 +2008,7 @@ void ApiWrap::requestChatMessages(
 			MTPVector<MTPReaction>(), // saved_reaction
 			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
-			MTP_int(_settings->singlePeerFrom), // min_date
+			MTP_int(SinglePeerLowerBoundOffsetDate(*_settings)), // min_date
 			MTP_int(_settings->singlePeerTill), // max_date
 			MTP_int(offsetId),
 			MTP_int(addOffset),
