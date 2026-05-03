@@ -1,0 +1,264 @@
+name: IWYU updater.
+
+# Runs the include-what-you-use cleanup pipeline end-to-end and opens a
+# pull request authored by `github-actions[bot]`. By default:
+#   1. configure + build the Telegram target inside the centos_env image,
+#   2. analyze with iwyu_tool.py against the (PCH-stripped) compile DB,
+#   3. apply removes via iwyu_remove_only.py with --verify (per-file
+#      `-fsyntax-only`, header dependents through `ninja -t deps`),
+#   4. confirm a clean cmake build,
+#   5. push branch + open PR via `gh pr create`.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Cleanup mode."
+        type: choice
+        default: "cleanup-only"
+        options:
+          - "cleanup-only"   # --no-adds --verify (deletions only, per-file checked)
+          - "full-iwyu"      # add + remove + reorder via fix_includes.py
+      skip_current_platform:
+        description: "Skip current-platform-specific files (linux/* and *_linux.*)."
+        type: boolean
+        default: false
+      branch_name:
+        description: "Override the branch name (default: iwyu/cleanup-<run id>)."
+        type: string
+        default: ""
+  schedule:
+    # First day of every month at 04:00 UTC.
+    - cron: "0 4 1 * *"
+  push:
+    # Dedicated end-to-end test channel — pushing to this branch fires
+    # the full pipeline + PR step, so the workflow itself can be
+    # exercised without waiting for the cron or trapping a manual
+    # dispatch run.
+    branches:
+      - iwyu-test
+
+jobs:
+  iwyu:
+    name: include-what-you-use cleanup
+    # Depot runners. The IWYU pipeline does two full Telegram builds
+    # (one for compile_commands.json + analyze, one for the post-cleanup
+    # gate) plus parallel -fsyntax-only over ~1k files. The default
+    # depot tier (2 vCPU, ~7 GB RAM) OOM-kills `cc1plus` on the
+    # generated `lang_auto.cpp`, so the workflow runs on the 16-core
+    # tier — 64 GB RAM comfortably handles cc1plus, and the wider
+    # parallelism cuts the analyze stage from ~90 min to ~10.
+    runs-on: depot-ubuntu-24.04-16
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    env:
+      IMAGE_TAG: tdesktop:centos_env
+      # The base centos_env image is shared with linux.yml and does not
+      # ship include-what-you-use. We layer IWYU on top in this workflow
+      # only (see "Layer IWYU on top." below) so the upstream image
+      # stays untouched and other workflows do not pay for the extra
+      # package.
+      IWYU_IMAGE_TAG: tdesktop:centos_env-iwyu
+      # Schedule-triggered runs do not pass `inputs.*`; fall back to the
+      # cleanup-only mode (the safe one) and a run-id-based branch name.
+      MODE: ${{ inputs.mode || 'cleanup-only' }}
+      SKIP_CURRENT_PLATFORM: ${{ inputs.skip_current_platform || 'false' }}
+      BRANCH_NAME: ${{ inputs.branch_name != '' && inputs.branch_name || format('iwyu/cleanup-{0}', github.run_id) }}
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: First set up.
+        run: |
+          sudo apt update
+          curl -sSL https://install.python-poetry.org | python3 -
+          cd Telegram/build/docker/centos_env
+          poetry install
+          DOCKERFILE=$(DEBUG= LTO= poetry run gen_dockerfile)
+          echo "$DOCKERFILE" > Dockerfile
+          rm -rf __pycache__
+
+      - name: Free up some disk space.
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
+
+      - name: Set up Docker Buildx.
+        uses: docker/setup-buildx-action@v4
+
+      - name: Libraries cache.
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/.buildx-cache
+          key: ${{ runner.OS }}-libs-${{ hashFiles('Telegram/build/docker/centos_env/**') }}
+          restore-keys: ${{ runner.OS }}-libs-
+
+      - name: Libraries.
+        uses: docker/build-push-action@v7
+        with:
+          context: Telegram/build/docker/centos_env
+          load: true
+          tags: ${{ env.IMAGE_TAG }}
+          cache-from: type=local,src=${{ runner.temp }}/.buildx-cache
+          cache-to: type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
+
+      - name: Move cache.
+        run: |
+          rm -rf ${{ runner.temp }}/.buildx-cache
+          mv ${{ runner.temp }}/.buildx-cache{-new,}
+
+      - name: Layer IWYU on top.
+        # Rocky 8's repos (BaseOS/AppStream/PowerTools/EPEL) do not ship
+        # `include-what-you-use`, so we build it from source in a thin
+        # extra layer pinned to the major clang version installed in
+        # centos_env. The base centos_env image stays identical to what
+        # linux.yml uses; this workflow is the only consumer of the
+        # IWYU-enriched image.
+        run: |
+          IWYU_DOCKERFILE=$(mktemp)
+          cat > "$IWYU_DOCKERFILE" <<'EOF'
+          FROM tdesktop:centos_env
+          USER 0:0
+          RUN set -eux; \
+              dnf -y install \
+                  llvm-devel clang-devel zlib-devel ninja-build git \
+              && dnf clean all; \
+              LLVM_VER=$(llvm-config --version | cut -d. -f1); \
+              echo "Building IWYU for clang $LLVM_VER"; \
+              git clone --depth 1 -b "clang_${LLVM_VER}" \
+                  https://github.com/include-what-you-use/include-what-you-use \
+                  /opt/iwyu/src \
+              || git clone --depth 1 \
+                  https://github.com/include-what-you-use/include-what-you-use \
+                  /opt/iwyu/src; \
+              cmake -S /opt/iwyu/src -B /opt/iwyu/build -G Ninja \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -DCMAKE_PREFIX_PATH="$(llvm-config --prefix)" \
+                  -DCMAKE_INSTALL_PREFIX=/usr/local; \
+              cmake --build /opt/iwyu/build; \
+              cmake --install /opt/iwyu/build; \
+              rm -rf /opt/iwyu; \
+              include-what-you-use --version
+          EOF
+          docker build -t "$IWYU_IMAGE_TAG" -f "$IWYU_DOCKERFILE" .
+          rm -f "$IWYU_DOCKERFILE"
+
+      - name: Run IWYU pipeline inside container.
+        run: |
+          PLATFORM_FLAG=""
+          if [ "$SKIP_CURRENT_PLATFORM" = "true" ]; then
+            PLATFORM_FLAG="--skip-platform=auto"
+          fi
+          MODE_FLAG=""
+          if [ "$MODE" = "cleanup-only" ]; then
+            MODE_FLAG="--no-adds --verify"
+          fi
+          docker run --rm \
+            -u $(id -u) \
+            -v $PWD:/usr/src/tdesktop \
+            -e CONFIG=Debug \
+            $IWYU_IMAGE_TAG \
+            bash -lc "
+              set -e
+              cd /usr/src/tdesktop
+              if ! command -v include-what-you-use >/dev/null 2>&1; then
+                echo 'include-what-you-use is not present in the build image.'
+                echo 'Install it as part of the centos_env image and re-run.'
+                exit 1
+              fi
+              python3 scripts/iwyu/run_iwyu.py \
+                --build-dir out/iwyu \
+                --target Telegram \
+                ${PLATFORM_FLAG} ${MODE_FLAG} \
+                -- \
+                -DCMAKE_CONFIGURATION_TYPES=Debug \
+                -DCMAKE_C_FLAGS_DEBUG=-O0 \
+                -DCMAKE_CXX_FLAGS_DEBUG=-O0 \
+                -DTDESKTOP_API_TEST=ON \
+                -DDESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
+                -DDESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+            "
+
+      - name: Show diff stats.
+        run: |
+          git -c color.ui=always diff --stat -- Telegram/SourceFiles/ || true
+
+      - name: Stop here if nothing changed.
+        id: diff
+        run: |
+          if git diff --quiet -- Telegram/SourceFiles/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "no IWYU edits — finishing without a PR"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Confirm build still passes.
+        if: steps.diff.outputs.changed == 'true'
+        # Belt-and-suspenders: --verify already syntax-checks each TU and
+        # every header dependent, but a real link of the Telegram target
+        # is the canonical proof the cleanup did not break anything.
+        run: |
+          docker run --rm \
+            -u $(id -u) \
+            -v $PWD:/usr/src/tdesktop \
+            $IWYU_IMAGE_TAG \
+            bash -lc "
+              set -e
+              cd /usr/src/tdesktop
+              cmake --build out/iwyu --target Telegram --parallel \$(nproc)
+            "
+
+      - name: Commit and push to a fresh branch.
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          python3 scripts/iwyu/iwyu_commit.py \
+            --branch "$BRANCH_NAME" --push
+
+      - name: Open pull request.
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BASE="${{ github.event.repository.default_branch }}"
+          BODY=$(cat <<EOF
+          Automated cleanup of unused \`#include\` directives.
+
+          - Mode: \`$MODE\`.
+          - Pipeline: \`scripts/iwyu/run_iwyu.py --no-adds --verify\` —
+            applies \`should remove\` blocks only, then runs
+            \`-fsyntax-only\` per modified TU, plus checks every header
+            dependent through \`ninja -t deps\`. Files whose syntax check
+            fails are auto-restored.
+          - Build gate: \`cmake --build out/iwyu --target Telegram\`
+            ran clean before this PR was opened.
+
+          See \`scripts/iwyu/README.md\` for the tuning model and how to
+          repeat the run locally.
+          EOF
+          )
+          # PR creation is idempotent in spirit: the branch name is
+          # unique per run, so each cycle opens its own PR. If a previous
+          # cycle's PR is still open, close it manually before merging
+          # this one to avoid the cleanup churn stacking.
+          gh pr create \
+            --base "$BASE" \
+            --head "$BRANCH_NAME" \
+            --title "Removed unused includes via include-what-you-use." \
+            --body "$BODY"
+
+      - name: Upload IWYU output as artifact.
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: iwyu-output
+          path: |
+            iwyu.out
+            iwyu.filtered.out
+          if-no-files-found: ignore

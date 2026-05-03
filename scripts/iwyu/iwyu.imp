@@ -1,0 +1,207 @@
+#
+# IWYU mapping file for Telegram Desktop.
+#
+# Tells include-what-you-use which headers are project-internal "private"
+# wrappers, and which public headers should be suggested instead. Keep this
+# file conservative: a missing entry produces a noisy suggestion which we can
+# review and add here, but a wrong entry silently hides real findings.
+#
+# Format reference: https://github.com/include-what-you-use/include-what-you-use/blob/master/docs/IWYUMappings.md
+#
+# The file has three layers:
+#   1. PCH                     — stdafx.h is invisible to IWYU.
+#   2. Qt private → public     — qXxx.h is replaced by <QXxx>;
+#                                forward-decl helpers are pinned via
+#                                symbol mappings so qcontainerfwd resolves
+#                                to the concrete container header.
+#   3. Submodule umbrellas     — range/v3/detail/*, crl/*, rpl/*, gsl/*
+#                                map to their public umbrella header.
+#
+[
+    # ---- PCH --------------------------------------------------------------
+    # stdafx.h is invisible to IWYU; any "include stdafx.h" suggestion is
+    # silently dropped (the PCH is force-included by the build).
+    { "include": [ "@\"stdafx.h\"", "private", "<QtGlobal>", "public" ] },
+    { "include": [ "@<stdafx.h>",   "private", "<QtGlobal>", "public" ] },
+
+    # ---- Qt private aggregate headers ------------------------------------
+    { "include": [ "@<QtCore/private/.*>",    "private", "<QtCore>",    "public" ] },
+    { "include": [ "@<QtGui/private/.*>",     "private", "<QtGui>",     "public" ] },
+    { "include": [ "@<QtWidgets/private/.*>", "private", "<QtWidgets>", "public" ] },
+    { "include": [ "@<QtNetwork/private/.*>", "private", "<QtNetwork>", "public" ] },
+
+    # ---- Qt forward-decl symbols -----------------------------------------
+    # qcontainerfwd.h forward-declares QString/QList/etc. With these symbol
+    # mappings IWYU prefers the concrete public header over the fwd helper.
+    { "symbol": [ "QString",     "private", "<QString>",     "public" ] },
+    { "symbol": [ "QStringList", "private", "<QStringList>", "public" ] },
+    { "symbol": [ "QStringRef",  "private", "<QStringRef>",  "public" ] },
+    { "symbol": [ "QStringView", "private", "<QStringView>", "public" ] },
+    { "symbol": [ "QByteArray",  "private", "<QByteArray>",  "public" ] },
+    { "symbol": [ "QList",       "private", "<QList>",       "public" ] },
+    { "symbol": [ "QVector",     "private", "<QVector>",     "public" ] },
+    { "symbol": [ "QStack",      "private", "<QStack>",      "public" ] },
+    { "symbol": [ "QQueue",      "private", "<QQueue>",      "public" ] },
+    { "symbol": [ "QSet",        "private", "<QSet>",        "public" ] },
+    { "symbol": [ "QHash",       "private", "<QHash>",       "public" ] },
+    { "symbol": [ "QMultiHash",  "private", "<QMultiHash>",  "public" ] },
+    { "symbol": [ "QMap",        "private", "<QMap>",        "public" ] },
+    { "symbol": [ "QMultiMap",   "private", "<QMultiMap>",   "public" ] },
+    { "symbol": [ "QPair",       "private", "<QPair>",       "public" ] },
+    { "symbol": [ "QChar",       "private", "<QChar>",       "public" ] },
+    # qcontainerfwd fallback — used only when no symbol mapping applies.
+    { "include": [ "<qcontainerfwd.h>", "private", "<QtCore>", "public" ] },
+
+    # ---- Qt lowercase headers (alphabetical) -----------------------------
+    { "include": [ "<qabstractnativeeventfilter.h>", "private", "<QAbstractNativeEventFilter>", "public" ] },
+    { "include": [ "<qaccessible.h>",                "private", "<QAccessible>",       "public" ] },
+    { "include": [ "<qaction.h>",                    "private", "<QAction>",           "public" ] },
+    { "include": [ "<qapplication.h>",               "private", "<QApplication>",      "public" ] },
+    { "include": [ "<qatomic.h>",                    "private", "<QAtomicInt>",        "public" ] },
+    { "include": [ "<qbasicatomic.h>",               "private", "<QAtomicInt>",        "public" ] },
+    { "include": [ "<qbrush.h>",                     "private", "<QBrush>",            "public" ] },
+    { "include": [ "<qbuffer.h>",                    "private", "<QBuffer>",           "public" ] },
+    { "include": [ "<qbytearray.h>",                 "private", "<QByteArray>",        "public" ] },
+    { "include": [ "<qbytearrayview.h>",             "private", "<QByteArrayView>",    "public" ] },
+    { "include": [ "<qchar.h>",                      "private", "<QChar>",             "public" ] },
+    { "include": [ "<qcheckbox.h>",                  "private", "<QCheckBox>",         "public" ] },
+    { "include": [ "<qclipboard.h>",                 "private", "<QClipboard>",        "public" ] },
+    { "include": [ "<qcolor.h>",                     "private", "<QColor>",            "public" ] },
+    { "include": [ "<qcoreapplication.h>",           "private", "<QCoreApplication>",  "public" ] },
+    { "include": [ "<qcoreevent.h>",                 "private", "<QEvent>",            "public" ] },
+    { "include": [ "<qcursor.h>",                    "private", "<QCursor>",           "public" ] },
+    { "include": [ "<qdatastream.h>",                "private", "<QDataStream>",       "public" ] },
+    { "include": [ "<qdatetime.h>",                  "private", "<QDateTime>",         "public" ] },
+    { "include": [ "<qdebug.h>",                     "private", "<QDebug>",            "public" ] },
+    { "include": [ "<qdesktopservices.h>",           "private", "<QDesktopServices>",  "public" ] },
+    { "include": [ "<qdir.h>",                       "private", "<QDir>",              "public" ] },
+    { "include": [ "<qevent.h>",                     "private", "<QEvent>",            "public" ] },
+    { "include": [ "<qeventloop.h>",                 "private", "<QEventLoop>",        "public" ] },
+    { "include": [ "<qeventpoint.h>",                "private", "<QEventPoint>",       "public" ] },
+    { "include": [ "<qfile.h>",                      "private", "<QFile>",             "public" ] },
+    { "include": [ "<qfiledevice.h>",                "private", "<QFileDevice>",       "public" ] },
+    { "include": [ "<qfiledialog.h>",                "private", "<QFileDialog>",       "public" ] },
+    { "include": [ "<qfileinfo.h>",                  "private", "<QFileInfo>",         "public" ] },
+    { "include": [ "<qflags.h>",                     "private", "<QFlags>",            "public" ] },
+    { "include": [ "<qfont.h>",                      "private", "<QFont>",             "public" ] },
+    { "include": [ "<qfontinfo.h>",                  "private", "<QFontInfo>",         "public" ] },
+    { "include": [ "<qfontmetrics.h>",               "private", "<QFontMetrics>",      "public" ] },
+    { "include": [ "<qframe.h>",                     "private", "<QFrame>",            "public" ] },
+    { "include": [ "<qglobal.h>",                    "private", "<QtGlobal>",          "public" ] },
+    { "include": [ "<qgraphicsitem.h>",              "private", "<QGraphicsItem>",     "public" ] },
+    { "include": [ "<qgraphicsscene.h>",             "private", "<QGraphicsScene>",    "public" ] },
+    { "include": [ "<qgraphicssceneevent.h>",        "private", "<QGraphicsSceneEvent>", "public" ] },
+    { "include": [ "<qgraphicsview.h>",              "private", "<QGraphicsView>",     "public" ] },
+    { "include": [ "<qguiapplication.h>",            "private", "<QGuiApplication>",   "public" ] },
+    { "include": [ "<qhash.h>",                      "private", "<QHash>",             "public" ] },
+    { "include": [ "<qhashfunctions.h>",             "private", "<QHash>",             "public" ] },
+    { "include": [ "<qicon.h>",                      "private", "<QIcon>",             "public" ] },
+    { "include": [ "<qimage.h>",                     "private", "<QImage>",            "public" ] },
+    { "include": [ "<qimagereader.h>",               "private", "<QImageReader>",      "public" ] },
+    { "include": [ "<qinputdevice.h>",               "private", "<QInputDevice>",      "public" ] },
+    { "include": [ "<qinputmethod.h>",               "private", "<QInputMethod>",      "public" ] },
+    { "include": [ "<qiodevice.h>",                  "private", "<QIODevice>",         "public" ] },
+    { "include": [ "<qjsonarray.h>",                 "private", "<QJsonArray>",        "public" ] },
+    { "include": [ "<qjsondocument.h>",              "private", "<QJsonDocument>",     "public" ] },
+    { "include": [ "<qjsonobject.h>",                "private", "<QJsonObject>",       "public" ] },
+    { "include": [ "<qjsonvalue.h>",                 "private", "<QJsonValue>",        "public" ] },
+    { "include": [ "<qkeysequence.h>",               "private", "<QKeySequence>",      "public" ] },
+    { "include": [ "<qlabel.h>",                     "private", "<QLabel>",            "public" ] },
+    { "include": [ "<qlibraryinfo.h>",               "private", "<QLibraryInfo>",      "public" ] },
+    { "include": [ "<qline.h>",                      "private", "<QLine>",             "public" ] },
+    { "include": [ "<qlineedit.h>",                  "private", "<QLineEdit>",         "public" ] },
+    { "include": [ "<qlist.h>",                      "private", "<QList>",             "public" ] },
+    { "include": [ "<qlocale.h>",                    "private", "<QLocale>",           "public" ] },
+    { "include": [ "<qlockfile.h>",                  "private", "<QLockFile>",         "public" ] },
+    { "include": [ "<qlogging.h>",                   "private", "<QtGlobal>",          "public" ] },
+    { "include": [ "<qloggingcategory.h>",           "private", "<QLoggingCategory>",  "public" ] },
+    { "include": [ "<qmap.h>",                       "private", "<QMap>",              "public" ] },
+    { "include": [ "<qmargins.h>",                   "private", "<QMargins>",          "public" ] },
+    { "include": [ "<qmath.h>",                      "private", "<QtMath>",            "public" ] },
+    { "include": [ "<qmenu.h>",                      "private", "<QMenu>",             "public" ] },
+    { "include": [ "<qmetatype.h>",                  "private", "<QMetaType>",         "public" ] },
+    { "include": [ "<qmimedata.h>",                  "private", "<QMimeData>",         "public" ] },
+    { "include": [ "<qmimedatabase.h>",              "private", "<QMimeDatabase>",     "public" ] },
+    { "include": [ "<qmimetype.h>",                  "private", "<QMimeType>",         "public" ] },
+    { "include": [ "<qmutex.h>",                     "private", "<QMutex>",            "public" ] },
+    { "include": [ "<qnamespace.h>",                 "private", "<Qt>",                "public" ] },
+    { "include": [ "<qobject.h>",                    "private", "<QObject>",           "public" ] },
+    { "include": [ "<qobjectdefs.h>",                "private", "<QObject>",           "public" ] },
+    { "include": [ "<qopenglbuffer.h>",              "private", "<QOpenGLBuffer>",     "public" ] },
+    { "include": [ "<qopenglcontext.h>",             "private", "<QOpenGLContext>",    "public" ] },
+    { "include": [ "<qopenglfunctions.h>",           "private", "<QOpenGLFunctions>",  "public" ] },
+    { "include": [ "<qopenglshaderprogram.h>",       "private", "<QOpenGLShaderProgram>", "public" ] },
+    { "include": [ "<qopenglwidget.h>",              "private", "<QOpenGLWidget>",     "public" ] },
+    { "include": [ "<qpainter.h>",                   "private", "<QPainter>",          "public" ] },
+    { "include": [ "<qpainterpath.h>",               "private", "<QPainterPath>",      "public" ] },
+    { "include": [ "<qpair.h>",                      "private", "<QPair>",             "public" ] },
+    { "include": [ "<qpalette.h>",                   "private", "<QPalette>",          "public" ] },
+    { "include": [ "<qpen.h>",                       "private", "<QPen>",              "public" ] },
+    { "include": [ "<qpixmap.h>",                    "private", "<QPixmap>",           "public" ] },
+    { "include": [ "<qpoint.h>",                     "private", "<QPoint>",            "public" ] },
+    { "include": [ "<qpointer.h>",                   "private", "<QPointer>",          "public" ] },
+    { "include": [ "<qpolygon.h>",                   "private", "<QPolygon>",          "public" ] },
+    { "include": [ "<qpushbutton.h>",                "private", "<QPushButton>",       "public" ] },
+    { "include": [ "<qrect.h>",                      "private", "<QRect>",             "public" ] },
+    { "include": [ "<qregion.h>",                    "private", "<QRegion>",           "public" ] },
+    { "include": [ "<qregularexpression.h>",         "private", "<QRegularExpression>", "public" ] },
+    { "include": [ "<qrgb.h>",                       "private", "<QColor>",            "public" ] },
+    { "include": [ "<qscreen.h>",                    "private", "<QScreen>",           "public" ] },
+    { "include": [ "<qscrollbar.h>",                 "private", "<QScrollBar>",        "public" ] },
+    { "include": [ "<qsessionmanager.h>",            "private", "<QSessionManager>",   "public" ] },
+    { "include": [ "<qset.h>",                       "private", "<QSet>",              "public" ] },
+    { "include": [ "<qsize.h>",                      "private", "<QSize>",             "public" ] },
+    { "include": [ "<qstack.h>",                     "private", "<QStack>",            "public" ] },
+    { "include": [ "<qstandardpaths.h>",             "private", "<QStandardPaths>",    "public" ] },
+    { "include": [ "<qstring.h>",                    "private", "<QString>",           "public" ] },
+    { "include": [ "<qstringliteral.h>",             "private", "<QString>",           "public" ] },
+    { "include": [ "<qstringview.h>",                "private", "<QStringView>",       "public" ] },
+    { "include": [ "<qstyle.h>",                     "private", "<QStyle>",            "public" ] },
+    { "include": [ "<qstyleoption.h>",               "private", "<QStyleOption>",      "public" ] },
+    { "include": [ "<qsvgrenderer.h>",               "private", "<QSvgRenderer>",      "public" ] },
+    { "include": [ "<qsystemdetection.h>",           "private", "<QtGlobal>",          "public" ] },
+    { "include": [ "<qtextcursor.h>",                "private", "<QTextCursor>",       "public" ] },
+    { "include": [ "<qtextdocument.h>",              "private", "<QTextDocument>",     "public" ] },
+    { "include": [ "<qtextedit.h>",                  "private", "<QTextEdit>",         "public" ] },
+    { "include": [ "<qtextformat.h>",                "private", "<QTextFormat>",       "public" ] },
+    { "include": [ "<qtextlayout.h>",                "private", "<QTextLayout>",       "public" ] },
+    { "include": [ "<qtextobject.h>",                "private", "<QTextDocument>",     "public" ] },
+    { "include": [ "<qtextoption.h>",                "private", "<QTextOption>",       "public" ] },
+    { "include": [ "<qtextstream.h>",                "private", "<QTextStream>",       "public" ] },
+    { "include": [ "<qthread.h>",                    "private", "<QThread>",           "public" ] },
+    { "include": [ "<qtimer.h>",                     "private", "<QTimer>",            "public" ] },
+    { "include": [ "<qtransform.h>",                 "private", "<QTransform>",        "public" ] },
+    { "include": [ "<qurl.h>",                       "private", "<QUrl>",              "public" ] },
+    { "include": [ "<qvariant.h>",                   "private", "<QVariant>",          "public" ] },
+    { "include": [ "<qvector.h>",                    "private", "<QVector>",           "public" ] },
+    { "include": [ "<qvectornd.h>",                  "private", "<QVector3D>",         "public" ] },
+    { "include": [ "<qversionnumber.h>",             "private", "<QVersionNumber>",    "public" ] },
+    { "include": [ "<qwidget.h>",                    "private", "<QWidget>",           "public" ] },
+    { "include": [ "<qwindow.h>",                    "private", "<QWindow>",           "public" ] },
+
+    # ---- libc++ / SDK internals ------------------------------------------
+    # IWYU's clang infers some symbols come from internal libc++ or macOS
+    # SDK headers that should never be included directly. Redirect them to
+    # the canonical public headers.
+    #
+    # NOTE: libc++ and stdlib headers IWYU already knows about (e.g. <math>,
+    # <cmath>, the bare <__memory/*> family) cannot be re-declared here —
+    # IWYU asserts on conflicting visibility. Stick to entries IWYU does
+    # NOT have in its built-in table.
+    { "include": [ "<_stdlib.h>",     "private", "<cstdlib>",       "public" ] },
+    { "include": [ "<_string.h>",     "private", "<cstring>",       "public" ] },
+
+    # ---- Project conventions ---------------------------------------------
+    # Generated lang strings: lang_auto.h is private; the public umbrella
+    # is lang/lang_keys.h, which adds project-side helpers and the tr::
+    # placeholder mappings.
+    { "include": [ "<lang_auto.h>", "private", "\"lang/lang_keys.h\"", "public" ] },
+    # Generated MTProto scheme: project always quotes the include.
+    { "include": [ "<scheme.h>",    "private", "\"scheme.h\"",          "public" ] },
+    # Generated emoji table: project always quotes the include.
+    { "include": [ "<emoji.h>",     "private", "\"emoji.h\"",           "public" ] },
+
+    # ---- Submodule umbrellas ---------------------------------------------
+    { "include": [ "@<range/v3/detail/.*>", "private", "<range/v3/all.hpp>", "public" ] },
+    { "include": [ "@<gsl/.*>",             "private", "<gsl/gsl>",          "public" ] }
+]
