@@ -1014,7 +1014,7 @@ void Rows::paintEvent(QPaintEvent *e) {
 }
 
 QAccessible::Role Rows::accessibilityRole() {
-	return QAccessible::List;
+	return QAccessible::Grouping;
 }
 
 Qt::FocusPolicy Rows::accessibilityFocusPolicy() {
