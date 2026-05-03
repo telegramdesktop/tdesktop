@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "smartglocal/smartglocal_card.h"
 
-#include <QtCore/QDateTime>
 
 class QJsonObject;
 

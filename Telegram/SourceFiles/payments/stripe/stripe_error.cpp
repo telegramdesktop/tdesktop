@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "stripe/stripe_error.h"
 
-#include "stripe/stripe_decode.h"
 
 namespace Stripe {
 

@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <cstdio>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
 #include <pwd.h>

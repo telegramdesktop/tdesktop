@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "stripe/stripe_form_encoder.h"
 
-#include <QStringList>
 #include <QUrl>
 #include <vector>
 

@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/qt/qt_string_view.h"
 
-#include <QtCore/QDate>
 #include <QtCore/QRegularExpression>
 
 namespace Stripe {

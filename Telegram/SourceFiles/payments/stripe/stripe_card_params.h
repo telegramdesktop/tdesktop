@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "stripe/stripe_form_encodable.h"
 
 namespace Stripe {
 
