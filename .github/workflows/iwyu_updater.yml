@@ -10,10 +10,6 @@ on:
         options:
           - "cleanup-only"
           - "full-iwyu"
-      skip_current_platform:
-        description: "Skip current-platform-specific files (linux/* and *_linux.*)."
-        type: boolean
-        default: false
       branch_name:
         description: "Override the branch name (default: iwyu/cleanup-<run id>)."
         type: string
@@ -24,22 +20,19 @@ on:
     branches:
       - iwyu-test
 
+env:
+  MODE: ${{ inputs.mode || 'cleanup-only' }}
+  BRANCH_NAME: ${{ inputs.branch_name != '' && inputs.branch_name || format('iwyu/cleanup-{0}', github.run_id) }}
+
 jobs:
-  iwyu:
-    name: include-what-you-use cleanup
+  analyze-linux:
+    name: Analyse on Linux.
     # 16-core tier — the default 2 vCPU OOM-kills cc1plus on lang_auto.cpp.
     runs-on: depot-ubuntu-24.04-16
-
-    permissions:
-      contents: write
-      pull-requests: write
 
     env:
       IMAGE_TAG: tdesktop:centos_env
       IWYU_IMAGE_TAG: tdesktop:centos_env-iwyu
-      MODE: ${{ inputs.mode || 'cleanup-only' }}
-      SKIP_CURRENT_PLATFORM: ${{ inputs.skip_current_platform || 'false' }}
-      BRANCH_NAME: ${{ inputs.branch_name != '' && inputs.branch_name || format('iwyu/cleanup-{0}', github.run_id) }}
 
     steps:
       - name: Clone.
@@ -118,16 +111,8 @@ jobs:
           docker build -t "$IWYU_IMAGE_TAG" -f "$IWYU_DOCKERFILE" .
           rm -f "$IWYU_DOCKERFILE"
 
-      - name: Run IWYU pipeline inside container.
+      - name: Run IWYU analysis.
         run: |
-          PLATFORM_FLAG=""
-          if [ "$SKIP_CURRENT_PLATFORM" = "true" ]; then
-            PLATFORM_FLAG="--skip-platform=auto"
-          fi
-          MODE_FLAG=""
-          if [ "$MODE" = "cleanup-only" ]; then
-            MODE_FLAG="--no-adds --verify"
-          fi
           docker run --rm \
             -u $(id -u) \
             -v $PWD:/usr/src/tdesktop \
@@ -136,15 +121,11 @@ jobs:
             bash -lc "
               set -e
               cd /usr/src/tdesktop
-              if ! command -v include-what-you-use >/dev/null 2>&1; then
-                echo 'include-what-you-use is not present in the build image.'
-                echo 'Install it as part of the centos_env image and re-run.'
-                exit 1
-              fi
               python3 scripts/iwyu/run_iwyu.py \
                 --build-dir out/iwyu \
                 --target Telegram \
-                ${PLATFORM_FLAG} ${MODE_FLAG} \
+                --raw-output iwyu_raw_linux.out \
+                --skip-filter --skip-apply \
                 -- \
                 -DCMAKE_CONFIGURATION_TYPES=Debug \
                 -DCMAKE_C_FLAGS_DEBUG=-O0 \
@@ -153,6 +134,258 @@ jobs:
                 -DDESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
                 -DDESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
             "
+
+      - name: Upload Linux raw IWYU output.
+        uses: actions/upload-artifact@v7
+        with:
+          name: iwyu_raw_linux
+          path: iwyu_raw_linux.out
+          if-no-files-found: error
+
+  analyze-macos:
+    name: Analyse on macOS.
+    runs-on: macos-latest
+
+    env:
+      REPO_NAME: tdesktop
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          path: tdesktop
+
+      - name: First set up.
+        run: |
+          sudo chown -R `whoami`:admin /usr/local/share
+          brew update
+          brew upgrade || true
+          brew install automake meson nasm ninja pkg-config include-what-you-use
+          sudo mdutil -a -i off
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
+
+      - name: Libraries cache.
+        uses: actions/cache@v5
+        with:
+          path: |
+            Libraries
+            ThirdParty
+          key: ${{ runner.OS }}-libs-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH)) }}
+          restore-keys: ${{ runner.OS }}-libs-
+
+      - name: Libraries.
+        run: ./$REPO_NAME/Telegram/build/prepare/mac.sh skip-release silent
+
+      - name: Free up some disk space.
+        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -perm +111 ')' -type f ')' -o -empty ')' -delete
+
+      - name: Run IWYU analysis.
+        working-directory: tdesktop
+        run: |
+          python3 scripts/iwyu/run_iwyu.py \
+            --build-dir out/iwyu \
+            --target Telegram \
+            --raw-output iwyu_raw_macos.out \
+            --skip-filter --skip-apply \
+            -- \
+            -DCMAKE_CONFIGURATION_TYPES=Debug \
+            -DCMAKE_C_FLAGS_DEBUG=-O0 \
+            -DCMAKE_CXX_FLAGS_DEBUG=-O0 \
+            -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
+            -DTDESKTOP_API_TEST=ON \
+            -DDESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
+            -DDESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+
+      - name: Upload macOS raw IWYU output.
+        uses: actions/upload-artifact@v7
+        with:
+          name: iwyu_raw_macos
+          path: tdesktop/iwyu_raw_macos.out
+          if-no-files-found: error
+
+  analyze-windows:
+    name: Analyse on Windows.
+    runs-on: windows-latest
+
+    env:
+      UPLOAD_ARTIFACT: "false"
+      ONLY_CACHE: "false"
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Prepare directories.
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Get repository name.
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: First set up.
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+          sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+      - uses: Eden-CI/msvc-dev-cmd@master
+        name: Native Tools Command Prompt.
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+
+      - name: NuGet sources.
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: ThirdParty cache.
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ runner.arch }}-third-party-
+
+      - name: Libraries cache.
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-x64-libs-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-x64-libs-
+
+      - name: Qt cache.
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-x64-qt-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-x64-qt-
+
+      - name: Libraries.
+        env:
+          GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\'
+          GYP_MSVS_VERSION: 2022
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
+
+      - name: Install LLVM and build IWYU from source.
+        # Windows has no prebuilt include-what-you-use; build it against
+        # the LLVM/clang headers shipped with Visual Studio's Clang
+        # component or the LLVM installer.
+        shell: pwsh
+        run: |
+          choco install llvm --no-progress --yes
+          $llvm = "C:\Program Files\LLVM"
+          echo "$llvm\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          $env:PATH = "$llvm\bin;$env:PATH"
+          $llvmVer = (& clang --version | Select-String -Pattern 'version (\d+)').Matches[0].Groups[1].Value
+          Write-Host "Building IWYU for clang $llvmVer"
+          git clone --depth 1 -b "clang_$llvmVer" `
+            https://github.com/include-what-you-use/include-what-you-use `
+            $env:RUNNER_TEMP\iwyu_src
+          if ($LASTEXITCODE -ne 0) {
+            git clone --depth 1 `
+              https://github.com/include-what-you-use/include-what-you-use `
+              $env:RUNNER_TEMP\iwyu_src
+          }
+          cmake -S $env:RUNNER_TEMP\iwyu_src -B $env:RUNNER_TEMP\iwyu_build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_PREFIX_PATH="$llvm" `
+            -DCMAKE_INSTALL_PREFIX="$env:RUNNER_TEMP\iwyu_install"
+          cmake --build $env:RUNNER_TEMP\iwyu_build
+          cmake --install $env:RUNNER_TEMP\iwyu_build
+          echo "$env:RUNNER_TEMP\iwyu_install\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          & "$env:RUNNER_TEMP\iwyu_install\bin\include-what-you-use.exe" --version
+
+      - name: Run IWYU analysis.
+        # clang-cl drives the IWYU configure: it emits MSVC-ABI compile
+        # commands that IWYU's clang frontend can parse, while the rest
+        # of the project keeps using Visual Studio's runtime/SDK.
+        run: |
+          cd %TBUILD%\%REPO_NAME%
+          python scripts\iwyu\run_iwyu.py ^
+            --build-dir out\iwyu ^
+            --target Telegram ^
+            --raw-output iwyu_raw_windows.out ^
+            --skip-filter --skip-apply ^
+            -- ^
+            -G Ninja ^
+            -DCMAKE_C_COMPILER=clang-cl ^
+            -DCMAKE_CXX_COMPILER=clang-cl ^
+            -DCMAKE_CONFIGURATION_TYPES=Debug ^
+            -DTDESKTOP_API_TEST=ON ^
+            -DDESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
+            -DDESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+
+      - name: Upload Windows raw IWYU output.
+        uses: actions/upload-artifact@v7
+        with:
+          name: iwyu_raw_windows
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\iwyu_raw_windows.out
+          if-no-files-found: error
+
+  apply:
+    name: Aggregate, intersect and apply.
+    needs: [analyze-linux, analyze-macos, analyze-windows]
+    runs-on: depot-ubuntu-24.04-16
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Download per-platform raw IWYU outputs.
+        uses: actions/download-artifact@v6
+        with:
+          path: iwyu_raws
+          pattern: iwyu_raw_*
+          merge-multiple: true
+
+      - name: Intersect, filter, apply.
+        run: |
+          ls -la iwyu_raws/
+          python3 scripts/iwyu/iwyu_intersect.py \
+            iwyu_raws/iwyu_raw_linux.out \
+            iwyu_raws/iwyu_raw_macos.out \
+            iwyu_raws/iwyu_raw_windows.out \
+            -o iwyu.merged.out
+          python3 scripts/iwyu/run_iwyu.py \
+            --skip-configure --skip-build --skip-analyze \
+            --raw-output iwyu.merged.out \
+            --filtered-output iwyu.filtered.out \
+            --no-adds
 
       - name: Show diff stats.
         run: |
@@ -167,19 +400,6 @@ jobs:
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Confirm build still passes.
-        if: steps.diff.outputs.changed == 'true'
-        run: |
-          docker run --rm \
-            -u $(id -u) \
-            -v $PWD:/usr/src/tdesktop \
-            $IWYU_IMAGE_TAG \
-            bash -lc "
-              set -e
-              cd /usr/src/tdesktop
-              cmake --build out/iwyu --target Telegram --parallel \$(nproc)
-            "
 
       - name: Commit and push to a fresh branch.
         if: steps.diff.outputs.changed == 'true'
@@ -196,8 +416,10 @@ jobs:
           BODY=$(cat <<EOF
           Automated cleanup of unused \`#include\` directives.
 
-          Mode: \`$MODE\`. See \`scripts/iwyu/README.md\` for the
-          pipeline and how to repeat the run locally.
+          Mode: \`$MODE\`. Removes intersected across Linux, macOS and
+          Windows IWYU runs — only includes flagged unused on every
+          platform that analysed the file are dropped. See
+          \`scripts/iwyu/README.md\` for pipeline details.
           EOF
           )
           gh pr create \
@@ -206,12 +428,12 @@ jobs:
             --title "Removed unused includes via include-what-you-use." \
             --body "$BODY"
 
-      - name: Upload IWYU output as artifact.
+      - name: Upload merged outputs as artifact.
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: iwyu-output
+          name: iwyu-merged
           path: |
-            iwyu.out
+            iwyu.merged.out
             iwyu.filtered.out
           if-no-files-found: ignore
