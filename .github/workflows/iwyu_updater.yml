@@ -362,6 +362,8 @@ jobs:
         # narrowing in switch cases, lambda implicit captures); the
         # IWYU pre-processor swaps cl.exe → clang-cl in the analysis
         # compile_commands.json so IWYU's clang frontend can parse it.
+        # CMAKE_*_COMPILER=cl is required because the LLVM tarball put
+        # clang.exe ahead of cl.exe on PATH for the IWYU build step.
         run: |
           cd %TBUILD%\%REPO_NAME%
           python scripts\iwyu\run_iwyu.py ^
@@ -371,6 +373,9 @@ jobs:
             --skip-filter --skip-apply ^
             -- ^
             -G Ninja ^
+            -DCMAKE_C_COMPILER=cl ^
+            -DCMAKE_CXX_COMPILER=cl ^
+            -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
             -DCMAKE_CONFIGURATION_TYPES=Debug ^
             -DTDESKTOP_API_TEST=ON ^
             -DDESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
