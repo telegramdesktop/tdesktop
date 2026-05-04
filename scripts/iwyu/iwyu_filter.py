@@ -373,20 +373,16 @@ _FULL_LIST_HEADER = re.compile(r"^The full include-list for (?P<path>.+):$")
 _SEPARATOR = re.compile(r"^---\s*$")
 
 
-_PLATFORM_DISPATCH_RE = re.compile(
-    r'^- #include [<"]platform/(?:win|winrc|windows|mac|darwin|osx|linux|posix)/'
-)
-
-
 def filter_iwyu_output(
     iwyu_text: str,
     iwyu_filter: IwyuFilter,
     drop_adds: bool = False,
 ) -> tuple[str, dict[str, int]]:
-    """Drop blocks for out-of-scope/submodule/platform paths, and inside
-    surviving blocks drop `- #include "platform/<X>/..."` removals (those
-    are platform-dispatch lines IWYU misreads per platform). Returns the
-    filtered text and a `{reason: count}` summary."""
+    """Drop blocks for out-of-scope/submodule/platform paths. Returns
+    the filtered text and a `{reason: count}` summary. Per-platform
+    misreads of `#ifdef`-dispatched includes are pruned upstream by
+    iwyu_intersect.py — every native platform sees its own block as
+    needed, so the intersection drops the false-positive remove."""
     blocks: list[list[str]] = []
     current: list[str] = []
     for line in iwyu_text.splitlines():
@@ -409,36 +405,8 @@ def filter_iwyu_output(
             counts[why] = counts.get(why, 0) + 1
             continue
         kept = _drop_add_section(block) if drop_adds else list(block)
-        kept, dropped = _drop_platform_dispatch_removes(kept)
-        if dropped:
-            counts["platform-dispatch include kept"] = (
-                counts.get("platform-dispatch include kept", 0) + dropped
-            )
         accepted.extend(kept)
     return "\n".join(accepted) + ("\n" if accepted else ""), counts
-
-
-def _drop_platform_dispatch_removes(block: list[str]) -> tuple[list[str], int]:
-    out: list[str] = []
-    dropped = 0
-    in_remove = False
-    for line in block:
-        stripped = line.rstrip()
-        if stripped.endswith("should remove these lines:"):
-            in_remove = True
-            out.append(line)
-            continue
-        if (stripped.endswith("should add these lines:")
-                or stripped.startswith("The full include-list for ")
-                or _SEPARATOR.match(line)):
-            in_remove = False
-            out.append(line)
-            continue
-        if in_remove and _PLATFORM_DISPATCH_RE.match(stripped):
-            dropped += 1
-            continue
-        out.append(line)
-    return out, dropped
 
 
 def _drop_add_section(block: list[str]) -> list[str]:
