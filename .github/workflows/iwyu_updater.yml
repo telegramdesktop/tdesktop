@@ -187,6 +187,10 @@ jobs:
 
       - name: Run IWYU analysis.
         working-directory: tdesktop
+        # DESKTOP_APP_DISABLE_SWIFT6: Ninja's Swift autodetection fails
+        # under non-Xcode generators; lib_translate has an INTERFACE-only
+        # branch when this is on, sidestepping the issue (we only analyse
+        # Telegram/SourceFiles anyway).
         run: |
           python3 scripts/iwyu/run_iwyu.py \
             --build-dir out/iwyu \
@@ -198,6 +202,7 @@ jobs:
             -DCMAKE_C_FLAGS_DEBUG=-O0 \
             -DCMAKE_CXX_FLAGS_DEBUG=-O0 \
             -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
+            -DDESKTOP_APP_DISABLE_SWIFT6=ON \
             -DTDESKTOP_API_TEST=ON \
             -DDESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
             -DDESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
@@ -321,6 +326,16 @@ jobs:
           Write-Host "LLVM unpacked at $llvm"
           echo "$llvm\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           $env:PATH = "$llvm\bin;$env:PATH"
+          # The official LLVM tarball was built against VS 2019; its
+          # cmake exports hardcode that DIA SDK path. The runner only
+          # has VS 2022, so mirror the expected path before building.
+          $vs2019DiaLib = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\DIA SDK\lib\amd64"
+          $vs2022DiaLib = "$env:VSINSTALLDIR\DIA SDK\lib\amd64"
+          if (-not (Test-Path $vs2019DiaLib) -and (Test-Path $vs2022DiaLib)) {
+            New-Item -ItemType Directory -Force $vs2019DiaLib | Out-Null
+            Copy-Item "$vs2022DiaLib\diaguids.lib" $vs2019DiaLib
+            Write-Host "Mirrored diaguids.lib from $vs2022DiaLib to $vs2019DiaLib"
+          }
           Write-Host "Building IWYU for clang $major"
           git clone --depth 1 -b "clang_$major" `
             https://github.com/include-what-you-use/include-what-you-use `
