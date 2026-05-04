@@ -169,8 +169,9 @@ def _detect_macos_sysroot() -> str | None:
 def _detect_compiler_system_includes(build_dir: Path) -> list[str]:
     """Pin IWYU to the same stdlib gcc sees. Without this, IWYU's clang
     falls back to system /usr/include/c++/<old>, missing C++20 headers
-    when the build uses a newer gcc-toolset."""
-    if platform.system() == "Darwin":
+    when the build uses a newer gcc-toolset. macOS uses -isysroot;
+    Windows clang-cl picks up MSVC headers from $INCLUDE."""
+    if platform.system() != "Linux":
         return []
     compiler = _read_cmake_compiler(build_dir)
     try:
@@ -212,11 +213,17 @@ _GCC_ONLY_FLAG_PREFIXES = (
 )
 
 
+_MSVC_PCH_FLAG_PREFIXES = (
+    "/Yu", "/Yc", "/Fp",
+    "-Yu", "-Yc", "-Fp",
+)
+
+
 def _strip_pch_from_command(tokens: list[str]) -> list[str]:
-    """Drop the `-Xclang -include-pch <path>` triple (IWYU rejects loaded
-    PCH binaries) and any gcc-only flags clang cannot parse. The
-    `-Xclang -include <header>` triple is kept, so PCH-provided
-    declarations stay visible."""
+    """Drop loaded-PCH directives (IWYU rejects PCH binaries) and any
+    compiler-only flags clang cannot parse. Text-include forms
+    (`-Xclang -include <header>`, `/FI<header>`) are kept so
+    PCH-provided declarations stay visible."""
     out: list[str] = []
     i = 0
     while i < len(tokens):
@@ -229,6 +236,9 @@ def _strip_pch_from_command(tokens: list[str]) -> list[str]:
             continue
         if t == "-include-pch" and i + 1 < len(tokens):
             i += 2
+            continue
+        if any(t.startswith(p) for p in _MSVC_PCH_FLAG_PREFIXES):
+            i += 1
             continue
         if t in _GCC_ONLY_FLAGS_EXACT \
                 or any(t.startswith(p) for p in _GCC_ONLY_FLAG_PREFIXES):
