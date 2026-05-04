@@ -285,6 +285,18 @@ def _maybe_swap_msvc_to_clang_cl(tokens: list[str]) -> list[str]:
     return out
 
 
+def _strip_outer_quotes(tokens: list[str]) -> list[str]:
+    """Non-POSIX shlex keeps surrounding quotes on each token; remove
+    them so `Path(t).name` and downstream prefix matches behave."""
+    out: list[str] = []
+    for t in tokens:
+        if len(t) >= 2 and t[0] == t[-1] and t[0] in ('"', "'"):
+            out.append(t[1:-1])
+        else:
+            out.append(t)
+    return out
+
+
 def _make_iwyu_compile_db(build_dir: Path) -> Path:
     src = build_dir / "compile_commands.json"
     if not src.exists():
@@ -295,17 +307,27 @@ def _make_iwyu_compile_db(build_dir: Path) -> Path:
         entries = json.load(fh)
 
     import shlex
+    use_posix = platform.system() != "Windows"
     fixed: list[dict] = []
     for entry in entries:
         e = dict(entry)
+        tokens: list[str] | None = None
         if "arguments" in e and isinstance(e["arguments"], list):
-            tokens = _strip_pch_from_command(list(e["arguments"]))
-            e["arguments"] = _maybe_swap_msvc_to_clang_cl(tokens)
+            tokens = list(e["arguments"])
         elif "command" in e and isinstance(e["command"], str):
-            tokens = shlex.split(e["command"], posix=True)
-            tokens = _strip_pch_from_command(tokens)
-            tokens = _maybe_swap_msvc_to_clang_cl(tokens)
-            e["command"] = " ".join(shlex.quote(t) for t in tokens)
+            # POSIX shlex treats backslashes as escape, mangling Windows
+            # paths; non-POSIX mode keeps them verbatim. Always emit
+            # `arguments` so we never round-trip through shell quoting.
+            tokens = shlex.split(e["command"], posix=use_posix)
+            if not use_posix:
+                tokens = _strip_outer_quotes(tokens)
+        if tokens is None:
+            fixed.append(e)
+            continue
+        tokens = _strip_pch_from_command(tokens)
+        tokens = _maybe_swap_msvc_to_clang_cl(tokens)
+        e.pop("command", None)
+        e["arguments"] = tokens
         fixed.append(e)
     (dst_dir / "compile_commands.json").write_text(
         json.dumps(fixed, indent=2), encoding="utf-8"
