@@ -149,6 +149,9 @@ jobs:
     env:
       REPO_NAME: tdesktop
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+      # Telegram's cmake refuses to configure without QT set (mirrors what
+      # Telegram/build/qt_version.py would have exported via configure.sh).
+      QT: "6.2.13"
 
     steps:
       - name: Clone.
@@ -214,6 +217,11 @@ jobs:
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+      # Mirrors qt_version.py's default for Windows builds.
+      QT: "5.15.18"
+      # Pin LLVM/IWYU to a single major version so the IWYU branch tag
+      # (clang_$LLVM_VER) matches and dev files line up.
+      LLVM_VERSION: "20.1.8"
 
     defaults:
       run:
@@ -295,21 +303,30 @@ jobs:
           %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
 
       - name: Install LLVM and build IWYU from source.
-        # Windows has no prebuilt include-what-you-use; build it against
-        # the LLVM/clang headers shipped with Visual Studio's Clang
-        # component or the LLVM installer.
+        # The runner's preinstalled LLVM ships only binaries — no dev
+        # headers, no LLVMConfig.cmake — so IWYU's `find_package(LLVM)`
+        # fails. Pull the official tarball that includes both, then
+        # build IWYU against it.
         shell: pwsh
         run: |
-          choco install llvm --no-progress --yes
-          $llvm = "C:\Program Files\LLVM"
+          $ErrorActionPreference = 'Stop'
+          $llvmVer = "$env:LLVM_VERSION"
+          $major = $llvmVer.Split('.')[0]
+          $tar = "$env:RUNNER_TEMP\llvm.tar.xz"
+          $extract = "$env:RUNNER_TEMP\llvm_extract"
+          New-Item -ItemType Directory -Force $extract | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVer/clang+llvm-$llvmVer-x86_64-pc-windows-msvc.tar.xz" -OutFile $tar
+          tar -xJf $tar -C $extract
+          $llvm = (Get-ChildItem $extract -Directory)[0].FullName
+          Write-Host "LLVM unpacked at $llvm"
           echo "$llvm\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           $env:PATH = "$llvm\bin;$env:PATH"
-          $llvmVer = (& clang --version | Select-String -Pattern 'version (\d+)').Matches[0].Groups[1].Value
-          Write-Host "Building IWYU for clang $llvmVer"
-          git clone --depth 1 -b "clang_$llvmVer" `
+          Write-Host "Building IWYU for clang $major"
+          git clone --depth 1 -b "clang_$major" `
             https://github.com/include-what-you-use/include-what-you-use `
             $env:RUNNER_TEMP\iwyu_src
           if ($LASTEXITCODE -ne 0) {
+            Remove-Item -Recurse -Force $env:RUNNER_TEMP\iwyu_src -ErrorAction SilentlyContinue
             git clone --depth 1 `
               https://github.com/include-what-you-use/include-what-you-use `
               $env:RUNNER_TEMP\iwyu_src
