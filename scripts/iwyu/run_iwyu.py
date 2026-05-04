@@ -297,7 +297,8 @@ def _strip_outer_quotes(tokens: list[str]) -> list[str]:
     return out
 
 
-def _make_iwyu_compile_db(build_dir: Path) -> Path:
+def _make_iwyu_compile_db(build_dir: Path,
+                          in_scope: set[str] | None = None) -> Path:
     src = build_dir / "compile_commands.json"
     if not src.exists():
         sys.exit(f"{src} not found — run the configure stage first.")
@@ -311,6 +312,15 @@ def _make_iwyu_compile_db(build_dir: Path) -> Path:
     fixed: list[dict] = []
     for entry in entries:
         e = dict(entry)
+        if in_scope is not None:
+            f = e.get("file")
+            d = Path(e.get("directory", "."))
+            try:
+                f_abs = (d / f).resolve() if f else None
+            except OSError:
+                f_abs = None
+            if f_abs is None or str(f_abs) not in in_scope:
+                continue
         tokens: list[str] | None = None
         if "arguments" in e and isinstance(e["arguments"], list):
             tokens = list(e["arguments"])
@@ -341,9 +351,11 @@ def analyze(build_dir: Path, files: list[str], output_file: Path,
     if not files:
         sys.exit("No source files in scope — nothing to analyze.")
     iwyu_tool = _which_tool("iwyu_tool.py", "iwyu_tool", env_var="IWYU_TOOL")
-    db_dir = _make_iwyu_compile_db(build_dir)
+    # Filter the IWYU compile DB to in-scope files instead of passing
+    # them on argv: 1100+ absolute paths blow past Windows' ~32K
+    # CreateProcess command-line limit.
+    db_dir = _make_iwyu_compile_db(build_dir, in_scope=set(files))
     cmd = list(iwyu_tool) + ["-p", str(db_dir), "-j", str(jobs), "-o", "iwyu"]
-    cmd.extend(files)
     cmd.append("--")
     cmd += ["-Xiwyu", "--no_fwd_decls"]
     cmd += ["-Xiwyu", "--cxx17ns"]
