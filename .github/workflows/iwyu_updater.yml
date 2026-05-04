@@ -218,7 +218,9 @@ jobs:
 
   analyze-windows:
     name: Analyse on Windows.
-    runs-on: windows-latest
+    # windows-latest is 2 vCPU; iwyu_tool.py over 1100 files takes
+    # hours there. depot's 16-core tier matches Linux turnaround.
+    runs-on: depot-windows-2022-16
 
     env:
       UPLOAD_ARTIFACT: "false"
