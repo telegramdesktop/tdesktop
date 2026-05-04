@@ -144,7 +144,9 @@ jobs:
 
   analyze-macos:
     name: Analyse on macOS.
-    runs-on: macos-latest
+    # macos-latest is 3 vCPU and takes ~90 min; depot's larger tier
+    # finishes the build in ~25 min so the matrix doesn't hold apply.
+    runs-on: depot-macos-15
 
     env:
       REPO_NAME: tdesktop
@@ -356,9 +358,10 @@ jobs:
           & "$env:RUNNER_TEMP\iwyu_install\bin\include-what-you-use.exe" --version
 
       - name: Run IWYU analysis.
-        # clang-cl drives the IWYU configure: it emits MSVC-ABI compile
-        # commands that IWYU's clang frontend can parse, while the rest
-        # of the project keeps using Visual Studio's runtime/SDK.
+        # Build uses cl.exe (Telegram code is not clang-cl clean —
+        # narrowing in switch cases, lambda implicit captures); the
+        # IWYU pre-processor swaps cl.exe → clang-cl in the analysis
+        # compile_commands.json so IWYU's clang frontend can parse it.
         run: |
           cd %TBUILD%\%REPO_NAME%
           python scripts\iwyu\run_iwyu.py ^
@@ -368,8 +371,6 @@ jobs:
             --skip-filter --skip-apply ^
             -- ^
             -G Ninja ^
-            -DCMAKE_C_COMPILER=clang-cl ^
-            -DCMAKE_CXX_COMPILER=clang-cl ^
             -DCMAKE_CONFIGURATION_TYPES=Debug ^
             -DTDESKTOP_API_TEST=ON ^
             -DDESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^

@@ -218,6 +218,17 @@ _MSVC_PCH_FLAG_PREFIXES = (
     "-Yu", "-Yc", "-Fp",
 )
 
+# clang-cl is stricter than cl.exe: -Wc++11-narrowing fires on signed→
+# unsigned switch cases that scheme.h/mtproto generators emit, and the
+# lambda-capture rule rejects accesses cl.exe lets through. Demote both
+# to non-fatal so IWYU can finish parsing the affected TUs.
+_CLANG_CL_LENIENT_FLAGS = (
+    "-Wno-c++11-narrowing",
+    "-Wno-microsoft-exception-spec",
+    "-Wno-deprecated-anon-enum-enum-conversion",
+    "-Wno-error",
+)
+
 
 def _strip_pch_from_command(tokens: list[str]) -> list[str]:
     """Drop loaded-PCH directives (IWYU rejects PCH binaries) and any
@@ -249,6 +260,25 @@ def _strip_pch_from_command(tokens: list[str]) -> list[str]:
     return out
 
 
+def _maybe_swap_msvc_to_clang_cl(tokens: list[str]) -> list[str]:
+    """If the entry's compiler driver is cl.exe, swap to clang-cl so
+    IWYU's clang frontend can parse the MSVC-style flags. Lets the
+    actual build run under cl.exe (which Telegram supports) while IWYU
+    sees a clang-driveable invocation."""
+    if not tokens:
+        return tokens
+    # Split manually so this works whether the host runs Windows or not.
+    name = tokens[0].replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if name not in ("cl.exe", "cl"):
+        return tokens
+    clang_cl = shutil.which("clang-cl") or shutil.which("clang-cl.exe")
+    if not clang_cl:
+        return tokens
+    out = [clang_cl] + tokens[1:]
+    out.extend(_CLANG_CL_LENIENT_FLAGS)
+    return out
+
+
 def _make_iwyu_compile_db(build_dir: Path) -> Path:
     src = build_dir / "compile_commands.json"
     if not src.exists():
@@ -263,10 +293,12 @@ def _make_iwyu_compile_db(build_dir: Path) -> Path:
     for entry in entries:
         e = dict(entry)
         if "arguments" in e and isinstance(e["arguments"], list):
-            e["arguments"] = _strip_pch_from_command(list(e["arguments"]))
+            tokens = _strip_pch_from_command(list(e["arguments"]))
+            e["arguments"] = _maybe_swap_msvc_to_clang_cl(tokens)
         elif "command" in e and isinstance(e["command"], str):
             tokens = shlex.split(e["command"], posix=True)
             tokens = _strip_pch_from_command(tokens)
+            tokens = _maybe_swap_msvc_to_clang_cl(tokens)
             e["command"] = " ".join(shlex.quote(t) for t in tokens)
         fixed.append(e)
     (dst_dir / "compile_commands.json").write_text(
