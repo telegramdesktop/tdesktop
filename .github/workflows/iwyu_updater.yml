@@ -311,23 +311,37 @@ jobs:
         run: |
           %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
 
+      - name: LLVM dev kit cache.
+        id: llvm-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}\llvm_extract
+          key: ${{ runner.OS }}-llvm-${{ env.LLVM_VERSION }}-msvc
+
       - name: Install LLVM and build IWYU from source.
         # The runner's preinstalled LLVM ships only binaries — no dev
         # headers, no LLVMConfig.cmake — so IWYU's `find_package(LLVM)`
-        # fails. Pull the official tarball that includes both, then
-        # build IWYU against it.
+        # fails. Pull the official tarball that includes both. curl.exe
+        # transfers ~3 GB much faster than Invoke-WebRequest.
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $llvmVer = "$env:LLVM_VERSION"
           $major = $llvmVer.Split('.')[0]
-          $tar = "$env:RUNNER_TEMP\llvm.tar.xz"
           $extract = "$env:RUNNER_TEMP\llvm_extract"
-          New-Item -ItemType Directory -Force $extract | Out-Null
-          Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVer/clang+llvm-$llvmVer-x86_64-pc-windows-msvc.tar.xz" -OutFile $tar
-          tar -xJf $tar -C $extract
+          if (-not (Test-Path "$extract\clang+llvm-$llvmVer-x86_64-pc-windows-msvc")) {
+            $tar = "$env:RUNNER_TEMP\llvm.tar.xz"
+            New-Item -ItemType Directory -Force $extract | Out-Null
+            Write-Host "Downloading LLVM $llvmVer..."
+            curl.exe -fLsS --retry 3 -o $tar "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVer/clang+llvm-$llvmVer-x86_64-pc-windows-msvc.tar.xz"
+            Write-Host "Extracting..."
+            tar -xJf $tar -C $extract
+            Remove-Item $tar
+          } else {
+            Write-Host "Using cached LLVM at $extract"
+          }
           $llvm = (Get-ChildItem $extract -Directory)[0].FullName
-          Write-Host "LLVM unpacked at $llvm"
+          Write-Host "LLVM at $llvm"
           echo "$llvm\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           $env:PATH = "$llvm\bin;$env:PATH"
           # The official LLVM tarball was built against VS 2019; its
