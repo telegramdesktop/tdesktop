@@ -58,12 +58,18 @@ def _quote(s: str) -> str:
 
 
 def _which_tool(*names: str, env_var: str | None = None) -> list[str]:
+    """Find a CLI tool, returning argv ready for subprocess. On Windows
+    .py files have no shebang and can't be CreateProcess'd directly,
+    so prepend the current interpreter for those."""
+    def _argv(path: str) -> list[str]:
+        return [sys.executable, path] if path.endswith(".py") else [path]
+
     if env_var and os.environ.get(env_var):
-        return [os.environ[env_var]]
+        return _argv(os.environ[env_var])
     for name in names:
         found = shutil.which(name)
         if found:
-            return [found]
+            return _argv(found)
     sys.exit(
         f"Could not find any of {list(names)} on PATH"
         + (f" (override with ${env_var})" if env_var else "")

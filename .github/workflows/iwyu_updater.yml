@@ -356,6 +356,10 @@ jobs:
           cmake --install $env:RUNNER_TEMP\iwyu_build
           echo "$env:RUNNER_TEMP\iwyu_install\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           & "$env:RUNNER_TEMP\iwyu_install\bin\include-what-you-use.exe" --version
+          # iwyu_tool.py either goes uninstalled or lacks shebang on
+          # Windows; pin run_iwyu.py to the source copy and let the
+          # script prepend `python` for .py invocations.
+          echo "IWYU_TOOL=$env:RUNNER_TEMP\iwyu_src\iwyu_tool.py" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Run IWYU analysis.
         # Build uses cl.exe (Telegram code is not clang-cl clean —
