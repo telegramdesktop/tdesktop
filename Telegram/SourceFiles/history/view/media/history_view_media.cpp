@@ -135,6 +135,20 @@ TextWithEntities AddTimestampLinks(
 		"(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)"
 		"(?![^\\s\\(\\)\\[\\]\",\\.\\-\\+])");
 	const auto &string = text.text;
+	const auto canContainTimestamp = [](EntityType type) {
+		switch (type) {
+		case EntityType::Bold:
+		case EntityType::Semibold:
+		case EntityType::Italic:
+		case EntityType::Underline:
+		case EntityType::StrikeOut:
+		case EntityType::Spoiler:
+		case EntityType::Blockquote:
+			return true;
+		default:
+			return false;
+		}
+	};
 	auto offset = 0;
 	while (true) {
 		const auto m = expression.match(string, offset);
@@ -163,7 +177,7 @@ TextWithEntities AddTimestampLinks(
 			&EntityInText::offset);
 		while (i != entities.end()
 			&& i->offset() < till
-			&& i->type() == EntityType::Spoiler) {
+			&& canContainTimestamp(i->type())) {
 			++i;
 		}
 		if (i != entities.end() && i->offset() < till) {
@@ -172,7 +186,7 @@ TextWithEntities AddTimestampLinks(
 
 		const auto intersects = [&](const EntityInText &entity) {
 			return (entity.offset() + entity.length() > from)
-				&& (entity.type() != EntityType::Spoiler);
+				&& !canContainTimestamp(entity.type());
 		};
 		auto j = std::make_reverse_iterator(i);
 		const auto e = std::make_reverse_iterator(entities.begin());
