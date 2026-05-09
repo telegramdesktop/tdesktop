@@ -376,8 +376,23 @@ bool FileLoader::writeResultPart(int64 offset, bytes::const_span buffer) {
 			_skippedBytes += offset - fsize;
 		}
 		_file.seek(offset);
-		if (_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size()) != qint64(buffer.size())) {
-			cancel(FailureReason::FileWriteFailure);
+		auto result = _file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+		auto writtenBytes = result;
+		while (writtenBytes != qint64(buffer.size()) && result > 0) {
+			if (_file.error() == QFile::ResourceError) {
+				cancel(FailureReason::NoDiskSpaceFailure);
+				return false;
+			} else if (_file.error() != QFile::NoError) {
+				cancel(FailureReason::FileWriteFailure);
+				return false;
+			}
+			result = _file.write(reinterpret_cast<const char*>(buffer.data()) + writtenBytes, buffer.size() - writtenBytes);
+			writtenBytes += result;
+		}
+		if (writtenBytes != qint64(buffer.size())) {
+			cancel(_file.error() == QFile::ResourceError
+				? FailureReason::NoDiskSpaceFailure
+				: FailureReason::FileWriteFailure);
 			return false;
 		}
 		return true;

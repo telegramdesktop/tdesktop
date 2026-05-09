@@ -1286,10 +1286,17 @@ void DocumentData::handleLoaderUpdates() {
 				Ui::hideLayer();
 				save(origin, failedFileName);
 			};
-			Ui::show(Ui::MakeConfirmBox({
-				tr::lng_download_finish_failed(),
-				crl::guard(&session(), retry)
-			}));
+			if (error.failureReason == FailureReason::NoDiskSpaceFailure) {
+				Ui::show(Ui::MakeConfirmBox({
+					tr::lng_download_no_disk_space_failed(),
+					crl::guard(&session(), retry)
+				}));
+			} else {
+				Ui::show(Ui::MakeConfirmBox({
+					tr::lng_download_finish_failed(),
+					crl::guard(&session(), retry)
+				}));
+			}
 		} else if (error.failureReason == FailureReason::FileWriteFailure) {
 			if (!Core::App().settings().downloadPath().isEmpty()) {
 				Core::App().settings().setDownloadPathBookmark(QByteArray());

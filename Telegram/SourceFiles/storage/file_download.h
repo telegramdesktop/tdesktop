@@ -55,6 +55,7 @@ public:
 	enum class FailureReason {
 		NoFailure,
 		FileWriteFailure,
+		NoDiskSpaceFailure,
 		OtherFailure,
 	};
 

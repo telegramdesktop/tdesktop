@@ -1125,6 +1125,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_download_path_choose" = "Choose download path";
 "lng_download_path_failed" = "File download could not be started.\n\nThis might be because your selected download location is invalid. Try changing it in Settings > Advanced > Download Path.";
 "lng_download_finish_failed" = "File download could not be completed.\n\nWould you like to try again?";
+"lng_download_no_disk_space_failed" = "Not enough disk space to download this file.\n\nWould you like to try again?";
 
 "lng_settings_section_privacy" = "Privacy and Security";
 
