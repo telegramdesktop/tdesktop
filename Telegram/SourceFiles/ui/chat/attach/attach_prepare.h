@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect_part.h"
 
 #include <QtCore/QSemaphore>
+#include <QtCore/QSize>
 #include <deque>
 
 class QPainter;
@@ -44,6 +45,7 @@ struct PreparedFileInformation {
 		bool isWebmSticker = false;
 		bool supportsStreaming = false;
 		crl::time duration = -1;
+		QSize dimensions;
 		QImage thumbnail;
 	};
 

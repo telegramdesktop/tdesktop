@@ -40,6 +40,7 @@ public:
 	// Get current frame real and presentation time.
 	virtual crl::time frameRealTime() const = 0;
 	virtual crl::time framePresentationTime() const = 0;
+	virtual QSize frameSize() const = 0;
 
 	// Render current frame to an image with specific size.
 	virtual bool renderFrame(

@@ -35,6 +35,7 @@ namespace {
 
 constexpr auto kClipThreadsCount = 8;
 constexpr auto kAverageGifSize = 320 * 240;
+constexpr auto kPreparedVideoThumbnailSide = 320;
 constexpr auto kWaitBeforeGifPause = crl::time(200);
 
 QImage PrepareFrame(
@@ -493,13 +494,12 @@ public:
 				if (reader->start(internal::ReaderImplementation::Mode::Silent, firstFramePositionMs)) {
 					auto firstFrameReadResult = reader->readFramesTill(-1, ms);
 					if (firstFrameReadResult == internal::ReaderImplementation::ReadResult::Success) {
-						if (reader->renderFrame(frame()->original, frame()->alpha, frame()->index, QSize())) {
-							frame()->original.fill(QColor(0, 0, 0));
-
+						const auto dimensions = reader->frameSize();
+						if (!dimensions.isEmpty()) {
 							frame()->positionMs = _seekPositionMs;
 
-							_width = frame()->original.width();
-							_height = frame()->original.height();
+							_width = dimensions.width();
+							_height = dimensions.height();
 							_durationMs = _implementation->durationMs();
 							return ProcessResult::Started;
 						}
@@ -510,13 +510,14 @@ public:
 			} else if (readResult != internal::ReaderImplementation::ReadResult::Success) { // Read the first frame.
 				return error();
 			}
-			if (!_implementation->renderFrame(frame()->original, frame()->alpha, frame()->index, QSize())) {
+			const auto dimensions = _implementation->frameSize();
+			if (dimensions.isEmpty()) {
 				return error();
 			}
 			frame()->positionMs = _implementation->frameRealTime();
 
-			_width = frame()->original.width();
-			_height = frame()->original.height();
+			_width = dimensions.width();
+			_height = dimensions.height();
 			_durationMs = _implementation->durationMs();
 			return ProcessResult::Started;
 		}
@@ -784,6 +785,8 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, c
 
 	if (result == ProcessResult::Started) {
 		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - kAverageGifSize);
+		it.key()->_width = reader->_width;
+		it.key()->_height = reader->_height;
 		it.key()->_durationMs = reader->_durationMs;
 	}
 	// See if we need to pause GIF because it is not displayed right now.
@@ -990,7 +993,13 @@ Ui::PreparedFileInformation PrepareForSending(
 			auto hasAlpha = false;
 			auto readResult = reader->readFramesTill(-1, crl::now());
 			auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
-			if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, index, QSize())) {
+			const auto dimensions = reader->frameSize();
+			result.dimensions = dimensions;
+			const auto thumbnailSize = dimensions.scaled(
+				kPreparedVideoThumbnailSide,
+				kPreparedVideoThumbnailSide,
+				Qt::KeepAspectRatio);
+			if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, index, thumbnailSize)) {
 				if (hasAlpha && !result.isWebmSticker) {
 					result.thumbnail = Images::Opaque(std::move(result.thumbnail));
 				}

@@ -18,7 +18,7 @@ namespace {
 
 constexpr auto kSkipInvalidDataPackets = 10;
 constexpr auto kMaxInlineArea = 1280 * 720;
-constexpr auto kMaxSendingArea = 3840 * 2160; // usual 4K
+constexpr auto kMaxSendingArea = 7680 * 4320; // usual 8K
 
 [[nodiscard]] auto MaxAreaForMode(ReaderImplementation::Mode mode) {
 	return (mode == ReaderImplementation::Mode::Inspecting)
@@ -166,6 +166,14 @@ crl::time FFMpegReaderImplementation::frameRealTime() const {
 
 crl::time FFMpegReaderImplementation::framePresentationTime() const {
 	return qMax(_frameTime + _frameTimeCorrection, crl::time(0));
+}
+
+QSize FFMpegReaderImplementation::frameSize() const {
+	auto result = QSize(_frame->width, _frame->height);
+	if (rotationSwapWidthHeight()) {
+		result.transpose();
+	}
+	return result;
 }
 
 crl::time FFMpegReaderImplementation::durationMs() const {

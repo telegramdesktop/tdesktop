@@ -32,6 +32,7 @@ public:
 
 	crl::time frameRealTime() const override;
 	crl::time framePresentationTime() const override;
+	QSize frameSize() const override;
 
 	bool renderFrame(
 		QImage &to,

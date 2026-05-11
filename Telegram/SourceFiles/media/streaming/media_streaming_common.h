@@ -23,7 +23,7 @@ bool SupportsSpeedControl();
 
 namespace Streaming {
 
-inline constexpr auto kMaxFrameArea = 3840 * 2160;
+inline constexpr auto kMaxFrameArea = 7680 * 4320;
 
 inline bool SupportsSpeedControl() {
 	return Media::Audio::SupportsSpeedControl();

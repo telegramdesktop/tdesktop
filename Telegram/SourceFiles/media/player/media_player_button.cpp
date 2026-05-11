@@ -440,6 +440,8 @@ void SettingsButton::prepareFrame() {
 	const auto height = _quality.height;
 	const auto text = !height
 		? QString()
+		: (height > 4000)
+		? u"8K"_q
 		: (height > 2000)
 		? u"4K"_q
 		: (height > 1000)

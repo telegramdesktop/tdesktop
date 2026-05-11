@@ -94,6 +94,13 @@ struct PreparedFileThumbnail {
 	return result;
 }
 
+[[nodiscard]] QSize VideoDimensions(
+		const Ui::PreparedFileInformation::Video &video) {
+	return video.dimensions.isEmpty()
+		? video.thumbnail.size()
+		: video.dimensions;
+}
+
 [[nodiscard]] bool FileThumbnailUploadRequired(
 		const QString &filemime,
 		int64 filesize) {
@@ -815,8 +822,9 @@ void FileLoadTask::process(ProcessArgs &&args) {
 		if (auto video = std::get_if<Ui::PreparedFileInformation::Video>(
 			&_information->media)) {
 			isVideo = true;
-			auto coverWidth = video->thumbnail.width();
-			auto coverHeight = video->thumbnail.height();
+			const auto dimensions = VideoDimensions(*video);
+			auto coverWidth = dimensions.width();
+			auto coverHeight = dimensions.height();
 			if (video->isGifv && !_album) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			}
@@ -859,8 +867,9 @@ void FileLoadTask::process(ProcessArgs &&args) {
 		} else if (auto video = std::get_if<Ui::PreparedFileInformation::Video>(
 				&_information->media)) {
 			isVideo = true;
-			auto coverWidth = video->thumbnail.width();
-			auto coverHeight = video->thumbnail.height();
+			const auto dimensions = VideoDimensions(*video);
+			auto coverWidth = dimensions.width();
+			auto coverHeight = dimensions.height();
 			if (!_forceFile) {
 				if (video->isGifv && !_album) {
 					attributes.push_back(MTP_documentAttributeAnimated());
