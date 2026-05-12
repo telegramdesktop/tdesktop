@@ -1,3 +1,79 @@
+6.8.2 (12.05.26)
+
+- Fix non-premium sending of existing custom reactions.
+- Fix sending reactions to groups you're not part of.
+- Fix viewing emoji packs from emoji search results.
+- Fix portrait 4K video playback.
+- Fix lost caption on forwarded polls.
+- Fix possible crash in reaction reports.
+- Fix possible crash in gift message display.
+- Return "Chatbots" to Telegram Business.
+- Separate badge background color keys for sidebar buttons.
+
+6.8.1 (08.05.26)
+
+- Fix crash in anonymous group admins messages.
+- Fix reactions sending in channels.
+
+6.8.0 (07.05.26)
+
+- Get answers from AI bots in any chat by tagging their @username.
+- Connect a bot to your profile with the new Chat Automation.
+- Custom AI styles in text editor with cloud-based tones and sharing.
+- Advanced emoji and stickers search by keywords.
+- Poll statistics chart and subscriber/country-based vote restrictions.
+- Delete specific reactions and restrict reactions in groups.
+- Image editor improvements: brush size, text style cycling, sticker quality.
+- Fix tg:// link handling on cold start and login widget window activation.
+- Copy and paste formatting to and from HTML.
+
+6.7.8 (24.04.26)
+
+- Proxy auto-rotation option.
+- Allow seeking in video messages.
+- Styled text items with emoji support in image editor.
+- Wheel zoom and middle-button panning in image editor.
+- Manage owned custom emoji packs and delete owned sticker sets.
+- Add-to-Sticker-Set and Add-to-Emoji-Set submenus for foreign packs.
+- Reply header with preview in send files box.
+- Bring back original video quality option.
+- Screen reader support for language list and country select box.
+- Fix screen reader false-positive reporting on X11.
+- Fix stories in albums with reorder enabled.
+- Fix crash in proxy sharing before auth.
+- Fix layout for RTL messages.
+
+6.7.7 beta (20.04.26)
+
+- Proxy auto-rotation option.
+- Allow seeking in video messages.
+- Styled text items with emoji support in image editor.
+- Wheel zoom and middle-button panning in image editor.
+- Reply header with preview in send files box.
+- Bring back original video quality option.
+- Delete owned sticker set from sticker set box.
+- Add-to-Sticker-Set and Add-to-Emoji-Set submenus for foreign packs.
+- Screen reader support for language list and country select box.
+- Fix stories in albums with reorder enabled.
+- Fix layout for RTL messages.
+
+6.7.6 (14.04.26)
+
+- Gradient-reveal animation for text appearing in messages.
+- Support draw-to-reply from shared media.
+- Frame-by-frame stepping and hold-to-speedup hotkeys in media view.
+- Fix loading stickers and emoji search results.
+- Custom emoji picker for premium quick reaction.
+- Search in section of pinned messages.
+- Recent search entries in settings search.
+- Hide phone number in main settings section.
+- Suggest sending large texts as files.
+- Allow creating polls with single answer option.
+- Bring menus and fullscreen media viewer to active space on macOS.
+- Fix several poll display and voting menu issues.
+- Fix possible crashes in chats list, url auth and others.
+
+>>>>>>> b8e95a1a7d (Version 6.8.2.)
 6.7.5 (07.04.26)
 
 - Support for gradual appearing of bot reply messages.
