@@ -27,8 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-constexpr auto kPerPage = 50;
-constexpr auto kFirstPerPage = 10;
 constexpr auto kListPerPage = 100;
 constexpr auto kListFirstPerPage = 20;
 constexpr auto kLoadedSublistsMinCount = 20;
