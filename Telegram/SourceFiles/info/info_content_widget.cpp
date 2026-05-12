@@ -517,8 +517,8 @@ void ContentWidget::setupSwipeHandler(not_null<Ui::RpWidget*> widget) {
 		}
 	};
 
-	auto init = [=](int, Qt::LayoutDirection direction) {
-		return (direction == Qt::RightToLeft && _controller->hasBackButton())
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
+		return (data.direction == Qt::RightToLeft && _controller->hasBackButton())
 			? Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				checkBeforeClose(crl::guard(this, [=] {
 					_controller->parentController()->hideLayer();

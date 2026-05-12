@@ -1633,12 +1633,12 @@ Ui::Controls::SwipeHandlerArgs Suggestions::generateIncompleteSwipeArgs() {
 			_swipeBackData = {};
 		}
 	};
-	auto init = [=](int, Qt::LayoutDirection direction) {
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
 		if (!_tabs) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		const auto activeSection = _tabs->activeSection();
-		const auto isToLeft = direction == Qt::RightToLeft;
+		const auto isToLeft = data.direction == Qt::RightToLeft;
 		if ((isToLeft && activeSection > 0)
 			|| (!isToLeft && activeSection < _tabKeys.size() - 1)) {
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {

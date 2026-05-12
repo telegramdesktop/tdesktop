@@ -771,14 +771,14 @@ void Widget::setupSwipeBack() {
 		}
 	};
 
-	auto init = [=](int top, Qt::LayoutDirection direction) {
-		top -= _inner->y();
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
+		const auto top = data.cursorPosition.y() - _inner->y();
 		_swipeBackIconMirrored = false;
 		_swipeBackMirrored = false;
 		if (_childListShown.current()) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
-		const auto isRightToLeft = direction == Qt::RightToLeft;
+		const auto isRightToLeft = data.direction == Qt::RightToLeft;
 		const auto action = Core::App().settings().quickDialogAction();
 		const auto isDisabled = action == Ui::QuickDialogAction::Disabled;
 		if (_inner) {

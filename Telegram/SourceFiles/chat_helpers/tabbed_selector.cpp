@@ -561,12 +561,12 @@ void TabbedSelector::reinstallSwipe(not_null<Ui::RpWidget*> widget) {
 		}
 	};
 
-	auto init = [=](int, Qt::LayoutDirection direction) {
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
 		if (!_tabsSlider) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		const auto activeSection = _tabsSlider->activeSection();
-		const auto isToLeft = direction == Qt::RightToLeft;
+		const auto isToLeft = data.direction == Qt::RightToLeft;
 		if ((isToLeft && activeSection > 0)
 			|| (!isToLeft && activeSection < _tabs.size() - 1)) {
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {

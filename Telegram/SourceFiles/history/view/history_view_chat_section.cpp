@@ -1049,9 +1049,8 @@ void ChatWidget::setupSwipeReplyAndBack() {
 	};
 
 	auto init = [=, show = controller()->uiShow()](
-			int cursorTop,
-			Qt::LayoutDirection direction) {
-		if (direction == Qt::RightToLeft) {
+			Ui::Controls::SwipeHandlerInitData data) {
+		if (data.direction == Qt::RightToLeft) {
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				controller()->showBackFromStack();
 			});
@@ -1060,27 +1059,41 @@ void ChatWidget::setupSwipeReplyAndBack() {
 		if (_inner->elementInSelectionMode(nullptr).inSelectionMode) {
 			return result;
 		}
-		const auto view = _inner->lookupItemByY(cursorTop);
+		const auto view = _inner->lookupItemByY(data.cursorPosition.y());
 		if (!view
 			|| !view->data()->isRegular()
 			|| view->data()->isService()) {
 			return result;
 		}
-		if (!can(view->data())) {
+		const auto item = _inner->lookupItemByPoint(
+			data.cursorPosition,
+			view);
+		if (!can(item)) {
 			return result;
 		}
 
 		_inner->hideElementOverlay();
-		result.msgBareId = view->data()->fullId().msg.bare;
-		result.callback = [=, itemId = view->data()->fullId()] {
-			const auto still = show->session().data().message(itemId);
-			const auto view = _inner->viewByPosition(still->position());
-			const auto selected = view
+		const auto viewItemId = view->data()->fullId();
+		const auto itemId = item->fullId();
+		result.msgBareId = viewItemId.msg.bare;
+		result.callback = [=] {
+			const auto still = show->session().data().message(viewItemId);
+			const auto view = still
+				? _inner->viewByPosition(still->position())
+				: nullptr;
+			const auto selected = (still && view)
 				? view->selectedQuote(_inner->getSelectedTextRange(still))
 				: SelectedQuote();
-			const auto replyToItemId = (selected.item
-				? selected.item
-				: still)->fullId();
+			const auto replyToItemId = [&]() -> FullMsgId {
+				if (selected.item) {
+					return selected.item->fullId();
+				}
+				const auto exact = show->session().data().message(itemId);
+				return exact ? exact->fullId() : FullMsgId();
+			}();
+			if (!replyToItemId) {
+				return;
+			}
 			_inner->replyToMessageRequestNotify({
 				.messageId = replyToItemId,
 				.quote = selected.highlight.quote,

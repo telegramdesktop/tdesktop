@@ -739,8 +739,8 @@ void Business::setupSwipeBack() {
 		}
 	};
 
-	auto init = [=](int, Qt::LayoutDirection direction) {
-		return (direction == Qt::RightToLeft)
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
+		return (data.direction == Qt::RightToLeft)
 			? DefaultSwipeBackHandlerFinishData([=] {
 				_showBack.fire({});
 			})

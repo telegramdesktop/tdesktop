@@ -86,6 +86,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		int directionInt = 1.;
 		QPointF startAt;
 		QPointF delta;
+		QPoint cursorPosition;
 		int cursorTop = 0;
 		bool dontStart = false;
 		bool started = false;
@@ -197,9 +198,10 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 			state->directionInt = (state->direction == Qt::LeftToRight)
 				? 1
 				: -1;
-			state->finishByTopData = generateFinish(
-				state->cursorTop,
-				*state->direction);
+			state->finishByTopData = generateFinish({
+				.cursorPosition = state->cursorPosition,
+				.direction = *state->direction,
+			});
 			state->threshold = style::ConvertFloatScale(kThresholdWidth)
 				* state->finishByTopData.speedRatio;
 			if (!state->finishByTopData.callback
@@ -213,7 +215,8 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 			state->data.reachRatio = 0.;
 			state->touch = args.touch;
 			state->startAt = args.position;
-			state->cursorTop = widget->mapFromGlobal(args.globalCursor).y();
+			state->cursorPosition = widget->mapFromGlobal(args.globalCursor);
+			state->cursorTop = state->cursorPosition.y();
 			if (!state->touch) {
 				// args.delta already is valid.
 				fillFinishByTop();

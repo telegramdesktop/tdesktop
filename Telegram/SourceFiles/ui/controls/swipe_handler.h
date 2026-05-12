@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QPoint>
+
 namespace Ui {
 class ElasticScroll;
 class RpWidget;
@@ -27,6 +29,11 @@ struct SwipeHandlerFinishData {
 	bool provideReachOutRatio = false;
 };
 
+struct SwipeHandlerInitData final {
+	QPoint cursorPosition;
+	Qt::LayoutDirection direction = Qt::LeftToRight;
+};
+
 using Scroll = std::variant<
 	v::null_t,
 	not_null<Ui::ScrollArea*>,
@@ -36,7 +43,7 @@ struct SwipeHandlerArgs {
 	not_null<Ui::RpWidget*> widget;
 	Scroll scroll;
 	Fn<void(SwipeContextData)> update;
-	Fn<SwipeHandlerFinishData(int, Qt::LayoutDirection)> init;
+	Fn<SwipeHandlerFinishData(SwipeHandlerInitData)> init;
 	rpl::producer<bool> dontStart = nullptr;
 	rpl::lifetime *onLifetime = nullptr;
 };
