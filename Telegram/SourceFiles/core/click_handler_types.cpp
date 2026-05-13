@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "data/data_game.h"
+#include "api/api_crm_forwarder.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "window/window_controller.h"
@@ -410,6 +411,7 @@ void MentionClickHandler::onClick(ClickContext context) const {
 				.usernameOrId = _tag.mid(1),
 				.resolveType = Window::ResolveType::Mention,
 			});
+			use->session().crmForwarder().resolveAndRegisterUsername(_tag);
 		}
 	}
 }

@@ -500,8 +500,8 @@ void ConfirmEmojiStatusAccessBox(
 
 	const auto statusIcon = ChatHelpers::GenerateLocalTgsSticker(
 		&bot->session(),
-		u"hello_status"_q);
-	statusIcon->overrideEmojiUsesTextColor(true);
+		u"hello_status"_q,
+		true);
 
 	auto ownedSet = MakeEmojiSetStatusPreview(
 		box,

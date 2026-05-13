@@ -49,12 +49,14 @@ private:
 	bool add(not_null<HistoryItem*> item, bool skipDependencies);
 	void recognizeCollected();
 	void trackSkipLanguages();
+	void trackTranslationDisabled();
 	void checkRecognized();
 	void checkRecognized(const std::vector<LanguageId> &skip);
 	void applyLimit();
 	void requestSome();
 	void cancelToRequest();
 	void cancelSentRequest();
+	void stopAndRevert();
 	void switchTranslation(not_null<HistoryItem*> item, LanguageId id);
 
 	const not_null<History*> _history;

@@ -194,8 +194,6 @@ private:
 
 	bool _restorePinnedWhenNonEmpty = false;
 
-	mtpRequestId _reloadUnreadCountRequestId = 0;
-
 	rpl::lifetime _lifetime;
 
 };

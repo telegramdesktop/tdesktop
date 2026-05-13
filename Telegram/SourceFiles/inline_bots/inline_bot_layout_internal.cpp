@@ -678,11 +678,10 @@ void Photo::initDimensions() {
 	const auto photo = getShownPhoto();
 	int32 w = photo->width(), h = photo->height();
 	if (w <= 0 || h <= 0) {
-		_maxw = 0;
-	} else {
-		w = w * st::inlineMediaHeight / h;
-		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
+		w = h = 1;
 	}
+	w = w * st::inlineMediaHeight / h;
+	_maxw = qMax(w, int32(st::inlineResultsMinWidth));
 	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
 }
 
@@ -723,6 +722,22 @@ PhotoData *Photo::getShownPhoto() const {
 QSize Photo::countFrameSize() const {
 	const auto photo = getShownPhoto();
 	int32 framew = photo->width(), frameh = photo->height(), height = st::inlineMediaHeight;
+	if ((framew <= 0 || frameh <= 0) && _photoMedia) {
+		using PhotoSize = Data::PhotoSize;
+		if (const auto image = _photoMedia->image(PhotoSize::Thumbnail)) {
+			framew = image->width();
+			frameh = image->height();
+		} else if (const auto image = _photoMedia->image(PhotoSize::Small)) {
+			framew = image->width();
+			frameh = image->height();
+		} else if (const auto image = _photoMedia->thumbnailInline()) {
+			framew = image->width();
+			frameh = image->height();
+		}
+	}
+	if (framew <= 0 || frameh <= 0) {
+		return { _width, height };
+	}
 	if (framew * height > frameh * _width) {
 		if (framew < st::maxStickerSize || frameh > height) {
 			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {

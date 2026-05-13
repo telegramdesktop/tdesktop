@@ -58,7 +58,21 @@ constexpr auto kSearchPerPage = 50;
 			result += u"emoji"_q + tag.emoji();
 		}
 	}
+	switch (request.filter) {
+	case SearchFilter::NoFilter: break;
+	case SearchFilter::Pinned: result += u"\npinned"_q; break;
+	}
 	return result;
+}
+
+[[nodiscard]] MTPMessagesFilter PrepareFilter(SearchFilter filter) {
+	switch (filter) {
+	case SearchFilter::Pinned:
+		return MTP_inputMessagesFilterPinned();
+	case SearchFilter::NoFilter:
+		return MTP_inputMessagesFilterEmpty();
+	}
+	return MTP_inputMessagesFilterEmpty();
 }
 
 } // namespace
@@ -113,7 +127,7 @@ void MessagesSearch::searchRequest() {
 				Data::ReactionToMTP
 			)),
 			MTP_int(_request.topMsgId), // top_msg_id
-			MTP_inputMessagesFilterEmpty(),
+			PrepareFilter(_request.filter),
 			MTP_int(0), // min_date
 			MTP_int(0), // max_date
 			MTP_int(_offsetId), // offset_id

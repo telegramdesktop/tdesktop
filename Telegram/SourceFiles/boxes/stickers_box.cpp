@@ -414,8 +414,7 @@ StickersBox::StickersBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	Section section,
 	bool masks)
-: _st(st::stickersRowItem)
-, _show(std::move(show))
+: _show(std::move(show))
 , _session(&_show->session())
 , _api(&_session->mtp())
 , _tabs(this, st::stickersTabs)
@@ -437,8 +436,7 @@ StickersBox::StickersBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<ChannelData*> megagroup,
 	bool isEmoji)
-: _st(st::stickersRowItem)
-, _show(std::move(show))
+: _show(std::move(show))
 , _session(&_show->session())
 , _api(&_session->mtp())
 , _section(Section::Installed)
@@ -456,8 +454,7 @@ StickersBox::StickersBox(
 	QWidget*,
 	std::shared_ptr<ChatHelpers::Show> show,
 	const QVector<MTPStickerSetCovered> &attachedSets)
-: _st(st::stickersRowItem)
-, _show(std::move(show))
+: _show(std::move(show))
 , _session(&_show->session())
 , _api(&_session->mtp())
 , _section(Section::Attached)
@@ -472,8 +469,7 @@ StickersBox::StickersBox(
 	QWidget*,
 	std::shared_ptr<ChatHelpers::Show> show,
 	const std::vector<StickerSetIdentifier> &emojiSets)
-: _st(st::stickersRowItem)
-, _show(std::move(show))
+: _show(std::move(show))
 , _session(&_show->session())
 , _api(&_session->mtp())
 , _section(Section::Attached)

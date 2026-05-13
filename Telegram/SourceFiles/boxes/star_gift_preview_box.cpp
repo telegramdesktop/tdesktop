@@ -120,7 +120,6 @@ private:
 	QColor _patternColor;
 	Ui::Animations::Simple _selectedAnimation;
 	bool _selected : 1 = false;
-	bool _patterned : 1 = false;
 
 	QMargins _extend;
 

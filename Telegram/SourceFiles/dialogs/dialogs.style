@@ -540,10 +540,6 @@ dialogsScamFont: font(9px semibold);
 dialogsScamSkip: 4px;
 dialogsScamRadius: 2px;
 
-dialogsUnreadMediaSize: 5px;
-dialogsUnreadMediaSkip: 4px;
-dialogsUnreadMediaTop: 7px;
-
 dialogsMiniPreviewTop: 1px;
 dialogsMiniPreview: 16px;
 dialogsMiniPreviewRadius: 2px;

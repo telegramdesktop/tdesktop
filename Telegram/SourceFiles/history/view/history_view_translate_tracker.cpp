@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_flags.h"
+#include "data/data_peer.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_session.h"
 #include "history/history.h"
@@ -74,12 +75,10 @@ void TranslateTracker::setup() {
 		if (tracking) {
 			recognizeCollected();
 			trackSkipLanguages();
+			trackTranslationDisabled();
 		} else {
 			checkRecognized({});
-			_history->translateTo({});
-			if (const auto migrated = _history->migrateFrom()) {
-				migrated->translateTo({});
-			}
+			stopAndRevert();
 		}
 	}, _lifetime);
 }
@@ -249,6 +248,24 @@ void TranslateTracker::cancelSentRequest() {
 	}
 }
 
+void TranslateTracker::stopAndRevert() {
+	cancelToRequest();
+	cancelSentRequest();
+	const auto owner = &_history->owner();
+	for (const auto &[id, entry] : _itemsForRecognize) {
+		if (const auto item = owner->message(id)) {
+			if (item->translation()
+				&& item->translationShowRequiresCheck({})) {
+				item->translationShowRequiresRequest({});
+			}
+		}
+	}
+	_history->translateTo({});
+	if (const auto migrated = _history->migrateFrom()) {
+		migrated->translateTo({});
+	}
+}
+
 void TranslateTracker::requestSome() {
 	if (_requestInProcess || _itemsToRequest.empty()) {
 		return;
@@ -369,7 +386,28 @@ void TranslateTracker::recognizeCollected() {
 void TranslateTracker::trackSkipLanguages() {
 	Core::App().settings().skipTranslationLanguagesValue(
 	) | rpl::on_next([=](const std::vector<LanguageId> &skip) {
+		const auto wasOfferedFrom = _history->translateOfferedFrom();
+		const auto wasTranslatedTo = _history->translatedTo();
 		checkRecognized(skip);
+		if (wasTranslatedTo
+			&& wasOfferedFrom
+			&& !_history->translateOfferedFrom()) {
+			stopAndRevert();
+		}
+	}, _trackingLifetime);
+}
+
+void TranslateTracker::trackTranslationDisabled() {
+	using PeerFlag = Data::PeerUpdate::Flag;
+	_history->session().changes().peerFlagsValue(
+		_history->peer,
+		PeerFlag::TranslationDisabled
+	) | rpl::skip(1) | rpl::on_next([=] {
+		using TranslationFlag = PeerData::TranslationFlag;
+		if (_history->peer->translationFlag() == TranslationFlag::Disabled
+			&& _history->translatedTo()) {
+			stopAndRevert();
+		}
 	}, _trackingLifetime);
 }
 

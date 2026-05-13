@@ -31,6 +31,7 @@ namespace HistoryView {
 
 class Element;
 class TopBarWidget;
+class ComposeSearch;
 class PinnedMemento;
 class TranslateBar;
 
@@ -170,6 +171,8 @@ private:
 
 	void setupClearButton();
 	void setupTranslateBar();
+	void setupShortcuts();
+	void searchInPinned();
 
 	void confirmDeleteSelected();
 	void confirmForwardSelected();
@@ -193,6 +196,7 @@ private:
 	bool _skipScrollEvent = false;
 	std::unique_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<Ui::FlatButton> _clearButton;
+	std::unique_ptr<ComposeSearch> _composeSearch;
 
 	CornerButtons _cornerButtons;
 

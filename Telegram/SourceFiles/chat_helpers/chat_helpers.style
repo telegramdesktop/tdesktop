@@ -1443,6 +1443,10 @@ historyAiComposeButtonLetters: icon{{ "chat/ai_letters-20x20", historyComposeIco
 historyAiComposeButtonStar1: icon{{ "chat/ai_star1-20x20", historyComposeIconFg }};
 historyAiComposeButtonStar2: icon{{ "chat/ai_star2-20x20", historyComposeIconFg }};
 historyAiComposeButtonPosition: point(-8px, -4px);
+historySendAsFileButton: IconButton(historyAiComposeButton) {
+	icon: icon {{ "chat/text_to_file-18x18", historyComposeIconFg }};
+	iconOver: icon {{ "chat/text_to_file-18x18", historyComposeIconFgOver }};
+}
 historyAiComposeTooltipSkip: 8px;
 importantTooltipHide: IconButton(defaultIconButton) {
 	width: 34px;

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/const_string.h"
 #include "base/unique_qptr.h"
 
 namespace Ui {
@@ -16,13 +17,13 @@ class RpWidget;
 
 namespace HistoryView::Controls {
 
-class ComposeAiButton;
-
-class AiTooltipManager final {
+class ComposeTooltipManager final {
 public:
-	AiTooltipManager(
+	ComposeTooltipManager(
 		not_null<QWidget*> parent,
-		not_null<ComposeAiButton*> button,
+		not_null<Ui::RpWidget*> button,
+		rpl::producer<TextWithEntities> text,
+		base::const_string prefKey,
 		Fn<int()> widthProvider);
 
 	void hideAndRemember();
@@ -31,11 +32,14 @@ public:
 	void raise();
 
 private:
-	const not_null<ComposeAiButton*> _button;
+	const not_null<Ui::RpWidget*> _button;
+	const base::const_string _prefKey;
 	const Fn<int()> _widthProvider;
 	base::unique_qptr<Ui::ImportantTooltip> _tooltip;
 	bool _shown = false;
 
 };
+
+using AiTooltipManager = ComposeTooltipManager;
 
 } // namespace HistoryView::Controls

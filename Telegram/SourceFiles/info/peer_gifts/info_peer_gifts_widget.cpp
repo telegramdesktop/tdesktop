@@ -267,7 +267,6 @@ private:
 	mtpRequestId _loadMoreRequestId = 0;
 	Fn<void()> _collectionsLoadedCallback;
 	QString _offset;
-	bool _reloading = false;
 	bool _collectionsLoaded = false;
 
 	rpl::event_stream<Descriptor> _descriptorChanges;

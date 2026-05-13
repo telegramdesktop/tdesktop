@@ -655,6 +655,18 @@ historyGroupRadialLine: 3px;
 historyMapPoint: icon {{ "map_point", mapPointDrop }};
 historyMapPointInner: icon {{ "map_point_inner", mapPointDot }};
 
+historyMapPinRadius: 28px;
+historyMapPinUserpicSize: 52px;
+historyMapPinTailHeight: 12px;
+historyMapPinTailHalfWidth: 12px;
+historyMapPinDotRadius: 4px;
+historyMapPinDotStroke: 2px;
+historyMapPinShadow: BoxShadow {
+	blurRadius: 6px;
+	offset: point(0px, 2px);
+	opacity: 0.29;
+}
+
 historyPsaForwardPalette: TextPalette(defaultTextPalette) {
 	linkFg: boxTextFgGood;
 }

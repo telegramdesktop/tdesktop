@@ -1222,6 +1222,11 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 		} else if (_document->isVoiceMessage()) {
 			return (item->media() && item->media()->ttlSeconds())
 				? tr::lng_in_dlg_voice_message_ttl(tr::now)
+				: item->isUnreadMedia()
+				? tr::lng_in_dlg_audio_unread(
+					tr::now,
+					lt_emoji,
+					QChar(0x25CF))
 				: tr::lng_in_dlg_audio(tr::now);
 		} else if (const auto name = FormatSongNameFor(_document).string();
 				!name.isEmpty()) {

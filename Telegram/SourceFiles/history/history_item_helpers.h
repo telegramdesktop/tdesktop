@@ -45,6 +45,8 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
+struct HistoryMessageMarkupData;
+
 struct PreparedServiceText {
 	TextWithEntities text;
 	std::vector<ClickHandlerPtr> links;
@@ -98,6 +100,7 @@ void CheckPollVoteNotificationSchedule(
 [[nodiscard]] TextWithEntities EnsureNonEmpty(
 	const TextWithEntities &text = TextWithEntities());
 [[nodiscard]] TextWithEntities UnsupportedMessageText();
+[[nodiscard]] HistoryMessageMarkupData UnsupportedMessageMarkup();
 
 void RequestDependentMessageItem(
 	not_null<HistoryItem*> item,

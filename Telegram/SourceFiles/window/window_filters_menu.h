@@ -75,9 +75,6 @@ private:
 
 	Api::RemoveComplexChatFilter _removeApi;
 
-	FilterId _removingId = 0;
-	mtpRequestId _removingRequestId = 0;
-
 	base::unique_qptr<Ui::PopupMenu> _popupMenu;
 	struct {
 		base::Timer timer;

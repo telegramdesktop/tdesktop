@@ -59,7 +59,6 @@ private:
 
 	std::unique_ptr<Private> _private;
 
-	mutable bool psIdle;
 	mutable QTimer psIdleTimer;
 
 	base::Timer _hideAfterFullScreenTimer;

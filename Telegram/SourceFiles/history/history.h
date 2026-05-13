@@ -93,6 +93,7 @@ public:
 	[[nodiscard]] Data::HistoryMessages *maybeMessages();
 
 	[[nodiscard]] HistoryStreamedDrafts &streamedDrafts();
+	[[nodiscard]] HistoryStreamedDrafts *streamedDraftsIfExists() const;
 
 	[[nodiscard]] HistoryItem *joinedMessageInstance() const;
 	void checkLocalMessages();

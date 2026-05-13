@@ -111,8 +111,6 @@ private:
 	const bool _isUser = false;
 	Data::CreditsEarnStatistics _data;
 
-	mtpRequestId _requestId = 0;
-
 };
 
 [[nodiscard]] rpl::producer<not_null<PeerData*>> PremiumPeerBot(

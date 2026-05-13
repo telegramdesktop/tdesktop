@@ -596,7 +596,6 @@ private:
 
 	Fn<bool(not_null<PeerData*>)> _filterOut;
 	rpl::producer<> _filterOutRefreshes;
-	History *_activeHistory = nullptr;
 	bool _requested = false;
 	rpl::lifetime _lifetime;
 

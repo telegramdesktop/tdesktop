@@ -551,7 +551,7 @@ public:
 		QDate date;
 		bool mediaPhoto = false;
 		bool mediaVideo = false;
-		Fn<void(MsgId, Fn<void()>)> customJump;
+		Fn<void(FullMsgId, Fn<void()>)> customJump;
 	};
 	void showCalendar(ShowCalendarDescriptor &&descriptor);
 

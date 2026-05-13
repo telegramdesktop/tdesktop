@@ -107,8 +107,6 @@ private:
 	rpl::event_stream<int> _onlineCount;
 	rpl::event_stream<> _showFinished;
 
-	PeerData *_reactionGroup = nullptr;
-
 	std::shared_ptr<Data::PhotoMedia> _nonPersonalView;
 
 	rpl::variable<std::optional<QColor>> _topBarColor;

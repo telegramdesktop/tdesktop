@@ -68,6 +68,7 @@ class EmojiButton;
 class SendAsButton;
 class SilentToggle;
 class DropdownMenu;
+struct PreparedBundle;
 struct PreparedList;
 struct SendStarButtonState;
 class ReactionFlyAnimation;
@@ -102,7 +103,8 @@ class TTLButton;
 class WebpageProcessor;
 class CharactersLimitLabel;
 class ComposeAiButton;
-class AiTooltipManager;
+class ComposeTooltipManager;
+using AiTooltipManager = ComposeTooltipManager;
 } // namespace HistoryView::Controls
 
 namespace HistoryView {
@@ -196,6 +198,10 @@ public:
 	[[nodiscard]] rpl::producer<QString> sendCommandRequests() const;
 	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
 	[[nodiscard]] rpl::producer<std::optional<bool>> attachRequests() const;
+	void setSendAsFileConfirmed(
+		Fn<void(
+			std::shared_ptr<Ui::PreparedBundle>,
+			Api::SendOptions)> confirmed);
 	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
 	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
 	[[nodiscard]] rpl::producer<FullReplyTo> jumpToItemRequests() const;
@@ -328,6 +334,15 @@ private:
 	void updateControlsGeometry(QSize size);
 	void updateAiButtonVisibility();
 	void updateAiButtonGeometry();
+	void initSendAsFileButton();
+	void fireSendTextAsFile(
+		const QString &fileText,
+		Fn<void()> restoreText);
+	[[nodiscard]] bool checkLargeTextPaste(
+		not_null<const QMimeData*> data,
+		Ui::InputField::MimeAction action);
+	void updateSendAsFileVisibility();
+	void updateSendAsFileGeometry();
 	void setupSendMenu(
 		not_null<Ui::RpWidget*> button,
 		Fn<void(Api::SendOptions)> send);
@@ -363,6 +378,7 @@ private:
 	bool updateBotCommandShown();
 	bool updateLikeShown();
 	[[nodiscard]] bool hasEnoughLinesForAi() const;
+	[[nodiscard]] bool textExceedsMaxSize() const;
 
 	void cancelInlineBot();
 	void clearInlineBot();
@@ -441,6 +457,7 @@ private:
 
 	const std::shared_ptr<Ui::SendButton> _send;
 	Controls::ComposeAiButton * const _aiButton = nullptr;
+	Ui::IconButton * const _sendAsFile = nullptr;
 	Ui::IconButton *_editStars = nullptr;
 	Ui::IconButton *_like = nullptr;
 	rpl::variable<int> _minStarsCount;
@@ -476,6 +493,7 @@ private:
 	const std::unique_ptr<FieldHeader> _header;
 	const std::unique_ptr<Controls::VoiceRecordBar> _voiceRecordBar;
 	std::unique_ptr<Controls::AiTooltipManager> _aiTooltipManager;
+	std::unique_ptr<Controls::AiTooltipManager> _sendAsFileTooltipManager;
 	std::shared_ptr<Ui::ChatStyle> _chatStyle;
 
 	const Fn<SendMenu::Details()> _sendMenuDetails;
@@ -491,6 +509,7 @@ private:
 	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
 	rpl::event_stream<not_null<QKeyEvent*>> _editLastMessageRequests;
 	rpl::event_stream<std::optional<bool>> _attachRequests;
+	Fn<void(std::shared_ptr<Ui::PreparedBundle>, Api::SendOptions)> _sendAsFileConfirmed;
 	rpl::event_stream<> _likeToggled;
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
 	rpl::event_stream<> _focusRequests;

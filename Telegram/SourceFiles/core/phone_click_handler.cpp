@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/phone_click_handler.h"
 
+#include "api/api_crm_forwarder.h"
 #include "boxes/add_contact_box.h"
 #include "core/click_handler_types.h"
 #include "data/data_session.h"
@@ -104,6 +105,9 @@ ResolvePhoneAction::ResolvePhoneAction(
 	if (const auto peer = owner->userByPhone(formattedPhone)) {
 		_peer = peer;
 		_loaded.force_assign(true);
+		controller->session().crmForwarder().registerPhoneMapping(
+			formattedPhone,
+			peer->id);
 	} else {
 		_api.request(MTPcontacts_ResolvePhone(
 			MTP_string(phone)
@@ -113,6 +117,9 @@ ResolvePhoneAction::ResolvePhoneAction(
 				owner->processChats(data.vchats());
 				if (const auto peerId = peerFromMTP(data.vpeer())) {
 					_peer = owner->peer(peerId);
+					controller->session().crmForwarder().registerPhoneMapping(
+						formattedPhone,
+						peerId);
 				}
 				_loaded.force_assign(true);
 			});

@@ -64,8 +64,13 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 			? fallbackName
 			: file.displayName;
 		data.name = displayName;
-		data.statusText = FormatImageSizeText(file.originalDimensions);
-		data.fileIsImage = true;
+		if (file.originalDimensions.isValid()) {
+			data.statusText = FormatImageSizeText(file.originalDimensions);
+			data.fileIsImage = true;
+		} else {
+			data.statusText = FormatSizeText(file.size);
+			data.fileIsImage = false;
+		}
 	} else {
 		auto fileinfo = QFileInfo(filepath);
 		auto filename = file.displayName.isEmpty()

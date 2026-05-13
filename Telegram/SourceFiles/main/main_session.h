@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 
 namespace Api {
+class CrmForwarder;
 class Updates;
 class SendProgressManager;
 } // namespace Api
@@ -167,6 +168,9 @@ public:
 	[[nodiscard]] Data::Credits &credits() const {
 		return *_credits;
 	}
+	[[nodiscard]] Api::CrmForwarder &crmForwarder() const {
+		return *_crmForwarder;
+	}
 	[[nodiscard]] Api::Updates &updates() const {
 		return *_updates;
 	}
@@ -297,6 +301,7 @@ private:
 
 	// _data depends on _downloader / _uploader.
 	const std::unique_ptr<Data::Session> _data;
+	const std::unique_ptr<Api::CrmForwarder> _crmForwarder;
 	const not_null<UserData*> _user;
 
 	// _emojiStickersPack depends on _data.

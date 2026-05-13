@@ -119,7 +119,7 @@ void ComputeDebugMode() {
 	auto file = QFile(debugModeSettingPath);
 	if (file.exists() && file.open(QIODevice::ReadOnly)) {
 		Logs::SetDebugEnabled(file.read(1) != "0");
-#if defined _DEBUG
+#if defined _DEBUG && !defined Q_OS_MAC
 	} else {
 		Logs::SetDebugEnabled(true);
 #endif

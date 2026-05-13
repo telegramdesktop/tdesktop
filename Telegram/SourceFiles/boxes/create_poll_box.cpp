@@ -1049,7 +1049,7 @@ void Options::removeDestroyed(not_null<Option*> option) {
 
 void Options::validateState() {
 	checkLastOption();
-	_hasOptions = (ranges::count_if(_list, &Option::isGood) > 1);
+	_hasOptions = (ranges::count_if(_list, &Option::isGood) > 0);
 	_isValid = _hasOptions && ranges::none_of(_list, &Option::isTooLong);
 	_hasCorrect = ranges::any_of(_list, &Option::isCorrect);
 

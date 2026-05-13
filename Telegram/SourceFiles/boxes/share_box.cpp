@@ -2026,16 +2026,18 @@ void FastShareMessageToSelf(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<HistoryItem*> item) {
 	const auto self = show->session().user();
+	auto &owner = self->owner();
+	const auto items = owner.idsToItems(owner.itemOrItsGroup(item));
 	const auto donePhraseArgs = ChatHelpers::ForwardedMessagePhraseArgs{
 		.toCount = 1,
-		.singleMessage = true,
+		.singleMessage = (items.size() == 1),
 		.to1 = self,
 		.to2 = nullptr,
 	};
-	auto sendAction = Api::SendAction(self->owner().history(self));
+	auto sendAction = Api::SendAction(owner.history(self));
 	sendAction.clearDraft = false;
 	show->session().api().forwardMessages(
-		Data::ResolvedForwardDraft{ .items = {item} },
+		Data::ResolvedForwardDraft{ .items = items },
 		std::move(sendAction),
 		[=] {
 			auto phrase = rpl::variable<TextWithEntities>(

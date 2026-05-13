@@ -9,30 +9,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "history/view/controls/history_view_compose_ai_button.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/tooltip.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_widgets.h"
 
 namespace HistoryView::Controls {
-namespace {
 
-constexpr auto kAiComposeTooltipHiddenPref = "ai_compose_tooltip_hidden"_cs;
-
-} // namespace
-
-AiTooltipManager::AiTooltipManager(
+ComposeTooltipManager::ComposeTooltipManager(
 	not_null<QWidget*> parent,
-	not_null<ComposeAiButton*> button,
+	not_null<Ui::RpWidget*> button,
+	rpl::producer<TextWithEntities> text,
+	base::const_string prefKey,
 	Fn<int()> widthProvider)
 : _button(button)
+, _prefKey(prefKey)
 , _widthProvider(std::move(widthProvider)) {
 	_tooltip.reset(Ui::CreateChild<Ui::ImportantTooltip>(
 		parent,
 		Ui::MakeTooltipWithClose(
 			parent,
-			tr::lng_ai_compose_tooltip(tr::rich),
+			std::move(text),
 			st::historyMessagesTTLLabel.minWidth,
 			st::ttlMediaImportantTooltipLabel,
 			st::importantTooltipHide,
@@ -48,21 +45,17 @@ AiTooltipManager::AiTooltipManager(
 	}, _tooltip->lifetime());
 }
 
-void AiTooltipManager::hideAndRemember() {
-	if (!Core::App().settings().readPref<bool>(
-			kAiComposeTooltipHiddenPref)) {
-		Core::App().settings().writePref<bool>(
-			kAiComposeTooltipHiddenPref,
-			true);
+void ComposeTooltipManager::hideAndRemember() {
+	if (!Core::App().settings().readPref<bool>(_prefKey)) {
+		Core::App().settings().writePref<bool>(_prefKey, true);
 	}
 	_shown = false;
 	_tooltip->toggleAnimated(false);
 }
 
-void AiTooltipManager::updateVisibility(bool buttonShown) {
+void ComposeTooltipManager::updateVisibility(bool buttonShown) {
 	const auto showTooltip = buttonShown
-		&& !Core::App().settings().readPref<bool>(
-			kAiComposeTooltipHiddenPref);
+		&& !Core::App().settings().readPref<bool>(_prefKey);
 	if (showTooltip) {
 		updateGeometry();
 	}
@@ -73,7 +66,7 @@ void AiTooltipManager::updateVisibility(bool buttonShown) {
 	}
 }
 
-void AiTooltipManager::updateGeometry() {
+void ComposeTooltipManager::updateGeometry() {
 	if (_button->isHidden()) {
 		return;
 	}
@@ -90,7 +83,7 @@ void AiTooltipManager::updateGeometry() {
 	_tooltip->pointAt(geometry, RectPart::Top, countPosition);
 }
 
-void AiTooltipManager::raise() {
+void ComposeTooltipManager::raise() {
 	_tooltip->raise();
 }
 

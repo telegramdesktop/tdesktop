@@ -75,8 +75,6 @@ private:
 
 	Data::PublicForwardsSlice _firstSlice;
 
-	mtpRequestId _requestId = 0;
-
 };
 
 class EarnStatistics final : public StatisticsRequestSender {

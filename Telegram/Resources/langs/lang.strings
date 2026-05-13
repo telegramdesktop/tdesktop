@@ -339,6 +339,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_invalid" = "The proxy link is invalid.";
 "lng_proxy_unsupported" = "Your Telegram Desktop version doesn't support this proxy type or the proxy link is invalid. Please update Telegram Desktop to the latest version.";
 "lng_proxy_incorrect_secret" = "This proxy link uses invalid **secret** parameter. Please contact the proxy provider and ask him to update MTProxy source code and configure it with a correct **secret** value. Then let him provide a new link.";
+"lng_proxy_check_ip_warning_title" = "Warning";
+"lng_proxy_check_ip_warning" = "This will expose your IP address to the admin of the proxy server.";
+"lng_proxy_check_ip_proceed" = "Proceed";
 
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_limit_reached#one" = "You've reached the message text limit. Please make the text shorter by {count} character.";
@@ -4506,6 +4509,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_audio_file" = "Audio file";
 "lng_in_dlg_contact" = "Contact";
 "lng_in_dlg_audio" = "Voice message";
+"lng_in_dlg_audio_unread" = "{emoji} Voice message";
 "lng_in_dlg_video_message" = "Video message";
 "lng_in_dlg_voice_message_ttl" = "One-time Voice Message";
 "lng_in_dlg_video_message_ttl" = "One-time Video Message";
@@ -7837,6 +7841,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ai_compose_select_style" = "Select Style";
 "lng_ai_compose_apply_style" = "Apply Style";
 "lng_ai_compose_style_tooltip" = "Choose Style";
+
+"lng_send_as_file_tooltip" = "Send text as a file.";
 
 // Wnd specific
 

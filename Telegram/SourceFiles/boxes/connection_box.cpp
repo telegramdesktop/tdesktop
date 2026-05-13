@@ -1647,7 +1647,22 @@ void ProxiesBoxController::ShowApplyConfirmation(
 				}
 			};
 			statusLabel->setClickHandlerFilter([=](const auto &...) {
-				runCheck();
+				auto &proxy = Core::App().settings().proxy();
+				if (proxy.checkIpWarningShown()) {
+					runCheck();
+				} else {
+					box->uiShow()->showBox(Ui::MakeConfirmBox({
+						.text = tr::lng_proxy_check_ip_warning(),
+						.confirmed = [=] {
+							auto &proxy = Core::App().settings().proxy();
+							proxy.setCheckIpWarningShown(true);
+							Local::writeSettings();
+							runCheck();
+						},
+						.confirmText = tr::lng_proxy_check_ip_proceed(),
+						.title = tr::lng_proxy_check_ip_warning_title(),
+					}));
+				}
 				return false;
 			});
 		}

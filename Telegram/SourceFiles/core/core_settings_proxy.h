@@ -35,6 +35,9 @@ public:
 	[[nodiscard]] MTP::ProxyData selected() const;
 	void setSelected(MTP::ProxyData value);
 
+	[[nodiscard]] bool checkIpWarningShown() const;
+	void setCheckIpWarningShown(bool value);
+
 	[[nodiscard]] const std::vector<MTP::ProxyData> &list() const;
 	[[nodiscard]] std::vector<MTP::ProxyData> &list();
 
@@ -44,6 +47,7 @@ public:
 private:
 	bool _tryIPv6 = false;
 	bool _useProxyForCalls = false;
+	bool _checkIpWarningShown = false;
 	MTP::ProxyData::Settings _settings = MTP::ProxyData::Settings::System;
 	MTP::ProxyData _selected;
 	std::vector<MTP::ProxyData> _list;

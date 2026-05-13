@@ -281,6 +281,12 @@ void OverlayWidget::RendererSW::paintChapter(QRect outer) {
 	}
 }
 
+void OverlayWidget::RendererSW::paintSpeedBoost(QRect outer) {
+	if (outer.intersects(_clipOuter)) {
+		_owner->paintSpeedBoostContent(*_p, outer, _clipOuter);
+	}
+}
+
 void OverlayWidget::RendererSW::paintControlsStart() {
 }
 

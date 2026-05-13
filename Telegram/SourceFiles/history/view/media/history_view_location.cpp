@@ -16,6 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
+#include "ui/dynamic_thumbnails.h"
+#include "ui/dynamic_image.h"
+#include "ui/widgets/shadow.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
 #include "ui/cached_round_corners.h"
@@ -96,7 +99,8 @@ Location::Location(
 , _live(CreateLiveTracker(parent, livePeriod))
 , _title(st::msgMinWidth)
 , _description(st::msgMinWidth)
-, _link(std::make_shared<LocationClickHandler>(point)) {
+, _link(std::make_shared<LocationClickHandler>(point))
+, _liveLocation(livePeriod > 0) {
 	if (_live) {
 		_title.setText(
 			st::webPageTitleStyle,
@@ -161,6 +165,8 @@ void Location::checkLiveFinish() {
 	const auto start = item->date();
 	if (_live->period != kUntilOffPeriod && now - start >= _live->period) {
 		const auto had = hasHeavyPart();
+		_title.clear();
+		_description.clear();
 		_live = nullptr;
 		if (had && !hasHeavyPart()) {
 			_parent->checkHeavyPart();
@@ -244,13 +250,19 @@ QImage Location::locationTakeImage() {
 
 void Location::unloadHeavyPart() {
 	_media = nullptr;
+	if (_userpic) {
+		_userpic->subscribeToUpdates(nullptr);
+		_userpic = nullptr;
+	}
 	if (_live) {
 		_live->previous = QImage();
 	}
 }
 
 bool Location::hasHeavyPart() const {
-	return (_media != nullptr) || (_live && !_live->previous.isNull());
+	return (_media != nullptr)
+		|| (_userpic != nullptr)
+		|| (_live && !_live->previous.isNull());
 }
 
 void Location::ensureMediaCreated() const {
@@ -259,6 +271,18 @@ void Location::ensureMediaCreated() const {
 	}
 	_media = _data->createView();
 	_data->load(&history()->session(), _parent->data()->fullId());
+	history()->owner().registerHeavyViewPart(_parent);
+}
+
+void Location::ensureUserpicCreated() const {
+	if (_userpic) {
+		return;
+	}
+	const auto peer = _parent->data()->from();
+	_userpic = Ui::MakeUserpicThumbnail(peer, true);
+	_userpic->subscribeToUpdates([parent = _parent] {
+		parent->repaint();
+	});
 	history()->owner().registerHeavyViewPart(_parent);
 }
 
@@ -417,15 +441,80 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 				.rounding = rounding,
 			});
 	}
-	const auto paintMarker = [&](const style::icon &icon) {
-		icon.paint(
+	if (_liveLocation) {
+		ensureUserpicCreated();
+
+		const auto pinRadius = st::historyMapPinRadius;
+		const auto userpicSize = st::historyMapPinUserpicSize;
+		const auto tailHeight = st::historyMapPinTailHeight;
+		const auto tailHalfWidth = st::historyMapPinTailHalfWidth;
+
+		const auto cx = float64(rthumb.x() + rthumb.width() / 2);
+		const auto tipY = float64(rthumb.y() + rthumb.height() / 2);
+		const auto circleY = tipY - tailHeight - pinRadius;
+
+		const auto r = float64(pinRadius);
+		const auto w = float64(tailHalfWidth);
+		const auto attachAngle = std::asin(w / r) * 180.0 / M_PI;
+
+		const auto circleRect = QRectF(cx - r, circleY - r, 2.0 * r, 2.0 * r);
+
+		auto pin = QPainterPath();
+		pin.arcMoveTo(circleRect, 270.0 - attachAngle);
+		pin.arcTo(
+			circleRect,
+			270.0 - attachAngle,
+			-(360.0 - 2.0 * attachAngle));
+		pin.lineTo(cx, tipY);
+		pin.closeSubpath();
+
+		if (!_pinShadow) {
+			_pinShadow = std::make_unique<Ui::BoxShadow>(
+				st::historyMapPinShadow);
+		}
+		_pinShadow->paint(
 			p,
-			rthumb.x() + ((rthumb.width() - icon.width()) / 2),
-			rthumb.y() + (rthumb.height() / 2) - icon.height(),
-			width());
-	};
-	paintMarker(st->historyMapPoint());
-	paintMarker(st->historyMapPointInner());
+			circleRect.toAlignedRect(),
+			pinRadius);
+
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+
+		const auto dotRadius = st::historyMapPinDotRadius;
+		const auto dotStroke = st::historyMapPinDotStroke;
+		p.setBrush(st::mapPointDot);
+		p.drawEllipse(
+			QPointF(cx, tipY + dotRadius + dotStroke),
+			dotRadius + dotStroke,
+			dotRadius + dotStroke);
+		p.setBrush(st::mapPointDrop);
+		p.drawEllipse(
+			QPointF(cx, tipY + dotRadius + dotStroke),
+			dotRadius,
+			dotRadius);
+
+		p.setBrush(st::mapPointDot);
+		p.drawPath(pin);
+
+		const auto userpicImage = _userpic->image(userpicSize);
+		p.drawImage(
+			QRectF(
+				cx - userpicSize / 2.0,
+				circleY - userpicSize / 2.0,
+				userpicSize,
+				userpicSize),
+			userpicImage);
+	} else {
+		const auto paintMarker = [&](const style::icon &icon) {
+			icon.paint(
+				p,
+				rthumb.x() + ((rthumb.width() - icon.width()) / 2),
+				rthumb.y() + (rthumb.height() / 2) - icon.height(),
+				width());
+		};
+		paintMarker(st->historyMapPoint());
+		paintMarker(st->historyMapPointInner());
+	}
 	if (context.selected()) {
 		fillImageOverlay(p, rthumb, rounding, context);
 	}

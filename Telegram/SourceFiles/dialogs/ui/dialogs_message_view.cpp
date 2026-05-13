@@ -382,9 +382,6 @@ int MessageView::countWidth() const {
 			* (st::dialogsMiniPreview + st::dialogsMiniPreviewSkip))
 			+ st::dialogsMiniPreviewRight;
 	}
-	if (_unreadMedia) {
-		result += st::dialogsUnreadMediaSize + st::dialogsUnreadMediaSkip;
-	}
 	return result + _textCache.maxWidth();
 }
 
@@ -508,31 +505,6 @@ void MessageView::paint(
 		rect.setLeft(rect.x() + st::dialogsMiniPreviewRight);
 	}
 	// Style of _textCache.
-	if (_unreadMedia && rect.width()
-		>= st::dialogsUnreadMediaSize + st::dialogsUnreadMediaSkip) {
-		{
-			PainterHighQualityEnabler hq(p);
-			p.setPen(Qt::NoPen);
-			p.setBrush(context.active
-				? st::dialogsTextFgServiceActive
-				: context.selected
-				? st::dialogsTextFgServiceOver
-				: st::dialogsTextFgService);
-			p.drawEllipse(
-				rect.x(),
-				rect.y() + st::dialogsUnreadMediaTop,
-				st::dialogsUnreadMediaSize,
-				st::dialogsUnreadMediaSize);
-		}
-		p.setPen(context.active
-			? st::dialogsTextFgActive
-			: context.selected
-			? st::dialogsTextFgOver
-			: st::dialogsTextFg);
-		rect.setLeft(rect.x()
-			+ st::dialogsUnreadMediaSize
-			+ st::dialogsUnreadMediaSkip);
-	}
 	static const auto ellipsisWidth = st::dialogsTextStyle.font->width(
 		kQEllipsis);
 	if (rect.width() > ellipsisWidth) {

@@ -93,6 +93,18 @@ void MacOverlayWidgetHelper::updateStyles(bool fullscreen) {
 		? NSNormalWindowLevel
 		: NSPopUpMenuWindowLevel;
 	[window setLevel:level];
+
+	// Fullscreen overlay: follow the currently active Space on activation.
+	// Windowed overlay: behave like a normal tool panel, so the user can move
+	// it to another desktop and it stays there.
+	auto behavior = [window collectionBehavior];
+	if (fullscreen) {
+		behavior |= NSWindowCollectionBehaviorMoveToActiveSpace;
+	} else {
+		behavior &= ~NSWindowCollectionBehaviorMoveToActiveSpace;
+	}
+	[window setCollectionBehavior:behavior];
+
 	[window setHidesOnDeactivate:!_data->window->testAttribute(Qt::WA_MacAlwaysShowToolWindow)];
 	[window setTitleVisibility:NSWindowTitleHidden];
 	[window setTitlebarAppearsTransparent:YES];

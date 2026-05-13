@@ -107,7 +107,8 @@ QByteArray SettingsProxy::serialize() const {
 			serializedList,
 			0,
 			ranges::plus(),
-			&Serialize::bytearraySize);
+			&Serialize::bytearraySize)
+		+ 1 * sizeof(qint32); // _checkIpWarningShown
 	auto stream = Serialize::ByteArrayWriter(size);
 	stream
 		<< qint32(_tryIPv6 ? 1 : 0)
@@ -118,6 +119,7 @@ QByteArray SettingsProxy::serialize() const {
 	for (const auto &i : serializedList) {
 		stream << i;
 	}
+	stream << qint32(_checkIpWarningShown ? 1 : 0);
 	return std::move(stream).result();
 }
 
@@ -150,6 +152,11 @@ bool SettingsProxy::setFromSerialized(const QByteArray &serialized) {
 		}
 	}
 
+	auto checkIpWarningShown = qint32(0);
+	if (!stream.atEnd()) {
+		stream >> checkIpWarningShown;
+	}
+
 	if (!stream.ok()) {
 		LOG(("App Error: "
 			"Bad data for Core::SettingsProxy::setFromSerialized()"));
@@ -158,6 +165,7 @@ bool SettingsProxy::setFromSerialized(const QByteArray &serialized) {
 
 	_tryIPv6 = (tryIPv6 == 1);
 	_useProxyForCalls = (useProxyForCalls == 1);
+	_checkIpWarningShown = (checkIpWarningShown == 1);
 	_settings = IntToProxySettings(settings);
 	_selected = DeserializeProxyData(selectedProxy);
 
@@ -174,6 +182,14 @@ bool SettingsProxy::isSystem() const {
 
 bool SettingsProxy::isDisabled() const {
 	return _settings == MTP::ProxyData::Settings::Disabled;
+}
+
+bool SettingsProxy::checkIpWarningShown() const {
+	return _checkIpWarningShown;
+}
+
+void SettingsProxy::setCheckIpWarningShown(bool value) {
+	_checkIpWarningShown = value;
 }
 
 bool SettingsProxy::tryIPv6() const {

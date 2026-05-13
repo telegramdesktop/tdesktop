@@ -163,7 +163,6 @@ private:
 	base::flat_map<QByteArray, QByteArray> _embeds;
 	base::flat_map<QString, MapPreview> _maps;
 	std::vector<QByteArray> _resources;
-	int _resource = -1;
 
 	rpl::event_stream<Controller::Event> _events;
 

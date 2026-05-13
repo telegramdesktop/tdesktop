@@ -123,8 +123,6 @@ private:
 	rpl::event_stream<not_null<Media::BaseLayout*>> _layoutRemoved;
 	rpl::event_stream<> _refreshed;
 
-	bool _started = false;
-
 	rpl::lifetime _lifetime;
 	rpl::lifetime _viewerLifetime;
 

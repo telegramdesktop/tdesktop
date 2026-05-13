@@ -261,12 +261,16 @@ void SubsectionTabs::setupSlider(
 		if (_reordering) {
 			return;
 		}
+		const auto guard = base::make_weak(slider);
 		const auto newWindow = base::IsCtrlPressed();
 		if (active >= 0 && active < _slice.size()) {
 			const auto thread = _slice[active].thread;
 			if (newWindow) {
 				_controller->showInNewWindow(Window::SeparateId(thread));
-				_refreshed.fire({}); // This should activate current section.
+				if (guard) {
+					// This should activate current section.
+					_refreshed.fire({});
+				}
 			} else {
 				auto params = Window::SectionShow();
 				params.way = Window::SectionShow::Way::ClearStack;
@@ -274,7 +278,9 @@ void SubsectionTabs::setupSlider(
 				_controller->showThread(thread, ShowAtUnreadMsgId, params);
 			}
 		}
-		_reorder->finishReordering();
+		if (guard) {
+			_reorder->finishReordering();
+		}
 	}, slider->lifetime());
 
 	_reorder->updates(

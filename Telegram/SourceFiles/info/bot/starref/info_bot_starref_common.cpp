@@ -93,9 +93,9 @@ void ConnectStarRef(
 	const auto state = raw->lifetime().make_state<State>(State{
 		.icon = ChatHelpers::GenerateLocalTgsSticker(
 			session,
-			u"starref_link"_q),
+			u"starref_link"_q,
+			true),
 	});
-	state->icon->overrideEmojiUsesTextColor(true);
 	state->media = state->icon->createMediaView();
 	state->player = std::make_unique<HistoryView::LottiePlayer>(
 		ChatHelpers::LottiePlayerFromDocument(

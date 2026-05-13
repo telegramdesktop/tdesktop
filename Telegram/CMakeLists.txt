@@ -132,6 +132,8 @@ PRIVATE
     api/api_common.h
     api/api_confirm_phone.cpp
     api/api_confirm_phone.h
+    api/api_crm_forwarder.cpp
+    api/api_crm_forwarder.h
     api/api_compose_with_ai.cpp
     api/api_compose_with_ai.h
     api/api_credits.cpp
