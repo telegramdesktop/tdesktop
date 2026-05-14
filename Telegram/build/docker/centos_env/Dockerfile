@@ -93,7 +93,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin https://github.com/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 4519c85c924b9da81f29d4aac045886f896ee479 \
+	&& git fetch --depth=1 origin 3128a5b5879c450f686f240cc9602ad7f4a054b4 \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -743,7 +743,7 @@ COPY --link --from=xcb-cursor /usr/src/xcb-cursor-cache /
 COPY --link --from=openssl /usr/src/openssl-cache /
 COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
 
-ENV QT=6.11.0
+ENV QT=6.11.1
 RUN git clone -b v$QT --depth=1 https://github.com/qt/qt5.git \
 	&& cd qt5 \
 	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools \
