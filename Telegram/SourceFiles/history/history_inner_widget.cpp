@@ -96,8 +96,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_suggest_post.h"
 #include "api/api_stickers_creator.h"
 #include "api/api_toggling_media.h"
+#include "media/player/media_player_instance.h"
 #include "api/api_who_reacted.h"
 #include "api/api_views.h"
+#include "base/screen_reader_state.h"
+#include "ui/accessible/ui_accessible_item.h"
+#include "ui/text/format_values.h"
 #include "lang/lang_keys.h"
 #include "data/components/factchecks.h"
 #include "data/components/sponsored_messages.h"
@@ -105,12 +109,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/data_photo.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
 #include "data/data_photo_media.h"
 #include "data/data_peer_values.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_message_reaction_id.h"
+#include "data/data_web_page.h"
+#include "data/data_poll.h"
+#include "data/data_game.h"
+#include "data/data_todo_list.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
@@ -391,6 +401,13 @@ HistoryInner::HistoryInner(
 	Assert(_theme != nullptr);
 
 	setAttribute(Qt::WA_AcceptTouchEvents);
+
+	setAccessibleName(tr::lng_sr_message_list(tr::now));
+	QAccessible::queryAccessibleInterface(this);
+	base::ScreenReaderState::Instance()->activeValue(
+	) | rpl::on_next([this](bool active) {
+		setFocusPolicy(active ? Qt::TabFocus : Qt::NoFocus);
+	}, lifetime());
 
 	refreshAboutView();
 
@@ -2448,6 +2465,11 @@ void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
 void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		mouseActionUpdate(e->globalPos());
+	} else if (e->reason() == QContextMenuEvent::Keyboard
+		&& base::ScreenReaderState::Instance()->active()) {
+		if (_accessibilityFocusedItem) {
+			_dragStateItem = _accessibilityFocusedItem;
+		}
 	}
 
 	const auto link = ClickHandler::getActive();
@@ -3117,7 +3139,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	} else { // maybe cursor on some text history item?
 		const auto albumPartItem = _dragStateItem;
-		const auto item = [&] {
+		const auto item = [&]() -> HistoryItem* {
+			if (e->reason() == QContextMenuEvent::Keyboard
+				&& _dragStateItem) {
+				return groupLeaderOrSelf(_dragStateItem);
+			}
 			const auto result = Element::Hovered()
 				? Element::Hovered()->data().get()
 				: Element::HoveredLink()
@@ -3746,6 +3772,138 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		_middleClickAutoscroll.stop();
 		return;
 	}
+
+	if (base::ScreenReaderState::Instance()->active()) {
+		const auto count = accessibilityChildCount();
+		if (count > 0) {
+			// Revalidate index if the list has changed.
+			if (_accessibilityFocusedItem
+				&& _accessibilityFocusedIndex >= 0) {
+				const auto elements = accessibleElements();
+				const auto barIndex
+					= accessibilityUnreadBarIndex();
+				const auto elementIndex = (barIndex >= 0
+					&& _accessibilityFocusedIndex > barIndex)
+					? (_accessibilityFocusedIndex - 1)
+					: _accessibilityFocusedIndex;
+				if (elementIndex < 0
+					|| elementIndex >= int(elements.size())
+					|| elements[elementIndex]->data().get()
+						!= _accessibilityFocusedItem) {
+					// Item moved — find it.
+					for (auto i = 0, n = int(elements.size());
+						i < n; ++i) {
+						if (elements[i]->data().get()
+							== _accessibilityFocusedItem) {
+							_accessibilityFocusedIndex =
+								(barIndex >= 0 && i >= barIndex)
+								? (i + 1)
+								: i;
+							break;
+						}
+					}
+				}
+			}
+			auto newIndex = _accessibilityFocusedIndex;
+			switch (e->key()) {
+			case Qt::Key_Down:
+				newIndex = std::min(
+					(newIndex < 0) ? (count - 1) : (newIndex + 1),
+					count - 1);
+				break;
+			case Qt::Key_Up:
+				newIndex = std::max(
+					(newIndex < 0) ? (count - 1) : (newIndex - 1),
+					0);
+				break;
+			case Qt::Key_PageDown: {
+				const auto pageHeight = _visibleAreaBottom
+					- _visibleAreaTop;
+				auto remaining = pageHeight;
+				while (newIndex + 1 < count && remaining > 0) {
+					++newIndex;
+					const auto rect = accessibilityChildRect(
+						newIndex);
+					remaining -= rect.height();
+				}
+				break;
+			}
+			case Qt::Key_PageUp: {
+				const auto pageHeight = _visibleAreaBottom
+					- _visibleAreaTop;
+				auto remaining = pageHeight;
+				while (newIndex - 1 >= 0 && remaining > 0) {
+					--newIndex;
+					const auto rect = accessibilityChildRect(
+						newIndex);
+					remaining -= rect.height();
+				}
+				break;
+			}
+			case Qt::Key_Home:
+				newIndex = 0;
+				break;
+			case Qt::Key_End:
+				newIndex = count - 1;
+				break;
+			default:
+				break;
+			}
+			if (newIndex != _accessibilityFocusedIndex
+				&& newIndex >= 0
+				&& newIndex < count) {
+				_accessibilityFocusedIndex = newIndex;
+				const auto elements = accessibleElements();
+				const auto barIndex
+					= accessibilityUnreadBarIndex();
+				const auto elementIndex = (barIndex >= 0
+					&& newIndex > barIndex)
+					? (newIndex - 1)
+					: newIndex;
+				_accessibilityFocusedItem = (elementIndex >= 0
+					&& elementIndex < int(elements.size()))
+					? elements[elementIndex]->data().get()
+					: nullptr;
+				accessibilityChildFocused(newIndex);
+
+				// Scroll to make the focused item visible.
+				const auto rect = accessibilityChildRect(newIndex);
+				if (!rect.isEmpty()) {
+					if (rect.top() < _visibleAreaTop) {
+						_scroll->scrollToY(rect.top());
+					} else if (rect.bottom() > _visibleAreaBottom) {
+						_scroll->scrollToY(
+							rect.bottom()
+								- (_visibleAreaBottom
+									- _visibleAreaTop));
+					}
+				}
+
+				// Mark messages as read up to the focused item.
+				if (_widget->markingMessagesRead()
+					&& (barIndex < 0 || newIndex != barIndex)
+					&& elementIndex >= 0
+					&& elementIndex < int(elements.size())) {
+					session().data().histories().readInboxTill(
+						elements[elementIndex]->data());
+				}
+
+				e->accept();
+				return;
+			}
+
+			if (e->key() == Qt::Key_Space) {
+				if (hasSelectedItems()) {
+					toggleMessageSelection();
+				} else {
+					playPauseFocusedMedia();
+				}
+				e->accept();
+				return;
+			}
+		}
+	}
+
 	if (e->key() == Qt::Key_Escape) {
 		_widget->escape();
 	} else if (e == QKeySequence::Copy && !_selected.empty()) {
@@ -5280,6 +5438,62 @@ void HistoryInner::changeSelectionAsGroup(
 	}
 }
 
+void HistoryInner::toggleMessageSelection() {
+	if (!hasSelectedItems() || _accessibilityFocusedIndex < 0) {
+		return;
+	}
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex >= 0 && _accessibilityFocusedIndex == barIndex) {
+		return;
+	}
+	const auto elements = accessibleElements();
+	const auto elementIndex = (barIndex >= 0
+		&& _accessibilityFocusedIndex > barIndex)
+		? (_accessibilityFocusedIndex - 1)
+		: _accessibilityFocusedIndex;
+	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
+		return;
+	}
+	const auto item = elements[elementIndex]->data();
+	changeSelectionAsGroup(&_selected, item, SelectAction::Invert);
+	repaintItem(item);
+	_widget->updateTopBarSelection();
+	accessibilityChildStateChanged(
+		_accessibilityFocusedIndex,
+		{ .selected = true });
+	accessibilityChildNameChanged(_accessibilityFocusedIndex);
+}
+
+void HistoryInner::playPauseFocusedMedia() {
+	if (_accessibilityFocusedIndex < 0) {
+		return;
+	}
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex >= 0 && _accessibilityFocusedIndex == barIndex) {
+		return;
+	}
+	const auto elements = accessibleElements();
+	const auto elementIndex = (barIndex >= 0
+		&& _accessibilityFocusedIndex > barIndex)
+		? (_accessibilityFocusedIndex - 1)
+		: _accessibilityFocusedIndex;
+	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
+		return;
+	}
+	const auto item = elements[elementIndex]->data();
+	if (const auto media = item->media()) {
+		if (const auto document = media->document()) {
+			if (document->isVoiceMessage()
+				|| document->isSong()
+				|| document->isAudioFile()
+				|| document->isVideoMessage()) {
+				::Media::Player::instance()->playPause(
+					{ document, item->fullId() });
+			}
+		}
+	}
+}
+
 void HistoryInner::forwardItem(FullMsgId itemId) {
 	Window::ShowForwardMessagesBox(_controller, { 1, itemId });
 }
@@ -5589,4 +5803,1361 @@ bool CanSendReply(not_null<const HistoryItem*> item) {
 		return channel->amIn();
 	}
 	return true;
+}
+
+// Accessibility.
+
+std::vector<HistoryView::Element*> HistoryInner::accessibleElements() const {
+	std::vector<Element*> result;
+	const auto gather = [&](not_null<History*> history) {
+		for (const auto &block : history->blocks) {
+			for (const auto &message : block->messages) {
+				if (!message->isHidden()) {
+					result.push_back(message.get());
+				}
+			}
+		}
+	};
+	if (_migrated) {
+		gather(_migrated);
+	}
+	gather(_history);
+	return result;
+}
+
+int HistoryInner::accessibilityUnreadBarIndex() const {
+	auto *barElement = _history->unreadBar();
+	if (!barElement && _migrated) {
+		barElement = _migrated->unreadBar();
+	}
+	if (!barElement) {
+		return -1;
+	}
+	const auto elements = accessibleElements();
+	for (auto i = 0, count = int(elements.size()); i < count; ++i) {
+		if (elements[i] == barElement) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int HistoryInner::accessibilityChildCount() const {
+	const auto barIndex = accessibilityUnreadBarIndex();
+	return int(accessibleElements().size()) + (barIndex >= 0 ? 1 : 0);
+}
+
+QString HistoryInner::accessibilityChildName(int index) const {
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex >= 0 && index == barIndex) {
+		auto *barElement = _history->unreadBar();
+		if (!barElement && _migrated) {
+			barElement = _migrated->unreadBar();
+		}
+		if (const auto bar = barElement
+			? barElement->Get<HistoryView::UnreadBar>()
+			: nullptr) {
+			return bar->text;
+		}
+		return tr::lng_unread_bar_some(tr::now);
+	}
+
+	const auto elements = accessibleElements();
+	const auto elementIndex = (barIndex >= 0 && index > barIndex)
+		? (index - 1)
+		: index;
+	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
+		return {};
+	}
+
+	const auto view = elements[elementIndex];
+	const auto item = view->data();
+
+	// Service messages: just return the service text.
+	if (item->isService()) {
+		const auto text = item->notificationText().text;
+		return text.isEmpty() ? QString() : text;
+	}
+
+	QStringList lines;
+
+	// Line 1: Seen/not seen (only for outgoing).
+	if (item->out()) {
+		lines.push_back(item->unread(_history)
+			? tr::lng_sr_message_not_seen(tr::now)
+			: tr::lng_sr_message_seen(tr::now));
+	}
+
+	// Line 2: Sender.
+	if (item->out()) {
+		lines.push_back(tr::lng_sr_from_me(tr::now));
+	} else if (const auto from = item->displayFrom()) {
+		lines.push_back(from->name());
+	}
+
+	// Line 3: Via bot.
+	if (const auto bot = item->viaBot()) {
+		lines.push_back(tr::lng_sr_message_via_bot(
+			tr::now,
+			lt_bot,
+			bot->username()));
+	}
+
+	// Line 4: Reply to.
+	if (const auto reply = item->Get<HistoryMessageReply>()) {
+		if (const auto message = reply->resolvedMessage.get()) {
+			const auto replyFrom = message->displayFrom();
+			const auto replyName = replyFrom
+				? replyFrom->name()
+				: QString();
+			const auto replyText = message->inReplyText().text;
+			if (!replyName.isEmpty() || !replyText.isEmpty()) {
+				lines.push_back(tr::lng_sr_message_reply_to(
+					tr::now,
+					lt_name,
+					replyName.isEmpty()
+						? tr::lng_sr_from_me(tr::now)
+						: replyName,
+					lt_text,
+					replyText));
+			}
+		}
+	}
+
+	// Line 5: Forwarded from.
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		if (forwarded->originalSender) {
+			lines.push_back(tr::lng_forwarded(
+				tr::now,
+				lt_user,
+				forwarded->originalSender->name()));
+		} else if (forwarded->originalHiddenSenderInfo) {
+			lines.push_back(tr::lng_forwarded(
+				tr::now,
+				lt_user,
+				forwarded->originalHiddenSenderInfo->name));
+		}
+	}
+
+	// Line 6: Media type + metadata (one line, comma-separated).
+	if (const auto media = item->media()) {
+		QStringList mediaParts;
+		if (const auto document = media->document()) {
+			// Media type.
+			if (document->isVoiceMessage()) {
+				mediaParts.push_back(tr::lng_in_dlg_audio(tr::now));
+			} else if (document->isVideoMessage()) {
+				mediaParts.push_back(tr::lng_in_dlg_video_message(tr::now));
+			} else if (document->isSong()) {
+				mediaParts.push_back(tr::lng_in_dlg_audio_file(tr::now));
+			} else if (document->isVideoFile()) {
+				mediaParts.push_back(tr::lng_in_dlg_video(tr::now));
+			} else if (document->isAnimation()) {
+				mediaParts.push_back(u"GIF"_q);
+			} else if (const auto sticker = document->sticker()) {
+				mediaParts.push_back(tr::lng_in_dlg_sticker(tr::now));
+				if (!sticker->alt.isEmpty()) {
+					mediaParts.push_back(sticker->alt);
+				}
+			} else {
+				mediaParts.push_back(tr::lng_in_dlg_file(tr::now));
+			}
+			// Download status.
+			if (document->loading()) {
+				mediaParts.push_back(
+					tr::lng_sr_message_downloading(tr::now));
+			} else if (!document->filepath(true).isEmpty()
+					|| document->loadedInMediaCache()) {
+				mediaParts.push_back(
+					tr::lng_emoji_set_ready(tr::now));
+			} else {
+				mediaParts.push_back(
+					tr::lng_sr_message_not_downloaded(tr::now));
+			}
+			// Played/not played.
+			if (document->isVoiceMessage()
+				|| document->isVideoMessage()) {
+				mediaParts.push_back(item->isUnreadMedia()
+					? tr::lng_sr_message_not_played(tr::now)
+					: tr::lng_sr_message_played(tr::now));
+			}
+			// Song: artist and title.
+			if (const auto song = document->song()) {
+				if (!song->performer.isEmpty()) {
+					mediaParts.push_back(song->performer);
+				}
+				if (!song->title.isEmpty()) {
+					mediaParts.push_back(song->title);
+				}
+			}
+			// Filename.
+			if (!document->isSong()
+				&& !document->isVoiceMessage()
+				&& !document->isVideoMessage()
+				&& !document->sticker()) {
+				const auto name = document->filename();
+				if (!name.isEmpty()) {
+					mediaParts.push_back(name);
+				}
+			}
+			// Duration.
+			const auto duration = document->duration();
+			if (duration > 0) {
+				mediaParts.push_back(
+					Ui::FormatDurationText(duration / 1000));
+			}
+			// Dimensions.
+			if (!document->dimensions.isEmpty()
+				&& (document->isVideoFile()
+					|| document->isImage())) {
+				mediaParts.push_back(
+					Ui::FormatImageSizeText(document->dimensions));
+			}
+			// File size.
+			if (document->size > 0) {
+				mediaParts.push_back(
+					Ui::FormatSizeText(document->size));
+			}
+		} else if (const auto photo = media->photo()) {
+			mediaParts.push_back(tr::lng_in_dlg_photo(tr::now));
+			if (media->hasSpoiler()) {
+				mediaParts.push_back(
+					tr::lng_sr_message_spoiler(tr::now));
+			}
+			const auto large = photo->size(
+				Data::PhotoSize::Large);
+			if (large && !large->isEmpty()) {
+				mediaParts.push_back(
+					Ui::FormatImageSizeText(*large));
+			}
+		} else if (const auto call = media->call()) {
+			const auto notification = item->notificationText().text;
+			if (!notification.isEmpty()) {
+				mediaParts.push_back(notification);
+			}
+			if (call->duration > 0) {
+				mediaParts.push_back(
+					Ui::FormatDurationText(call->duration));
+			}
+		} else if (const auto poll = media->poll()) {
+			mediaParts.push_back(poll->quiz()
+				? tr::lng_polls_public_quiz(tr::now)
+				: tr::lng_polls_public(tr::now));
+			if (!poll->question.text.isEmpty()) {
+				mediaParts.push_back(poll->question.text);
+			}
+			if (poll->closed()) {
+				mediaParts.push_back(
+					tr::lng_hours_closed(tr::now));
+			}
+			mediaParts.push_back(tr::lng_sr_message_poll_votes(
+				tr::now,
+				lt_count,
+				poll->totalVoters));
+		} else if (const auto contact = media->sharedContact()) {
+			auto contactName = contact->firstName;
+			if (!contact->lastName.isEmpty()) {
+				if (!contactName.isEmpty()) {
+					contactName += u" "_q;
+				}
+				contactName += contact->lastName;
+			}
+			if (!contactName.isEmpty()) {
+				mediaParts.push_back(contactName);
+			}
+			if (!contact->phoneNumber.isEmpty()) {
+				mediaParts.push_back(contact->phoneNumber);
+			}
+		} else if (media->location()) {
+			mediaParts.push_back(item->notificationText().text);
+		} else if (const auto game = media->game()) {
+			if (!game->title.isEmpty()) {
+				mediaParts.push_back(game->title);
+			}
+		} else if (const auto invoice = media->invoice()) {
+			if (!invoice->title.isEmpty()) {
+				mediaParts.push_back(invoice->title);
+			}
+			mediaParts.push_back(invoice->currency
+				+ u" "_q
+				+ QString::number(invoice->amount / 100.0, 'f', 2));
+		} else if (const auto gift = media->gift()) {
+			switch (gift->type) {
+			case Data::GiftType::Premium:
+				mediaParts.push_back(
+					tr::lng_sr_message_gift_premium(
+						tr::now,
+						lt_count,
+						gift->count));
+				break;
+			case Data::GiftType::Credits:
+			case Data::GiftType::StarGift:
+				mediaParts.push_back(
+					tr::lng_sr_message_gift_credits(
+						tr::now,
+						lt_count,
+						gift->count));
+				break;
+			default:
+				if (!gift->giftTitle.isEmpty()) {
+					mediaParts.push_back(gift->giftTitle);
+				}
+				break;
+			}
+		} else if (const auto todolist = media->todolist()) {
+			if (!todolist->title.text.isEmpty()) {
+				mediaParts.push_back(todolist->title.text);
+			}
+		} else if (media->giveawayStart() || media->giveawayResults()) {
+			mediaParts.push_back(item->notificationText().text);
+		} else {
+			const auto notification = item->notificationText().text;
+			if (!notification.isEmpty()) {
+				mediaParts.push_back(notification);
+			}
+		}
+		if (!mediaParts.isEmpty()) {
+			lines.push_back(mediaParts.join(u", "_q));
+		}
+		// Web page preview.
+		if (const auto webpage = media->webpage()) {
+			QStringList webParts;
+			if (!webpage->siteName.isEmpty()) {
+				webParts.push_back(webpage->siteName);
+			}
+			if (!webpage->title.isEmpty()) {
+				webParts.push_back(webpage->title);
+			}
+			if (!webpage->description.text.isEmpty()) {
+				webParts.push_back(webpage->description.text);
+			}
+			if (!webParts.isEmpty()) {
+				lines.push_back(webParts.join(u": "_q));
+			}
+		}
+		// Caption.
+		const auto &caption = item->originalText().text;
+		if (!caption.isEmpty()) {
+			lines.push_back(caption);
+		}
+	} else {
+		// Plain text message.
+		const auto &text = item->originalText().text;
+		if (!text.isEmpty()) {
+			lines.push_back(text);
+		}
+	}
+
+	// Factcheck.
+	const auto factcheck = item->factcheckText();
+	if (!factcheck.empty()) {
+		lines.push_back(factcheck.text);
+	}
+
+	// Pinned.
+	if (item->isPinned()) {
+		lines.push_back(tr::lng_sr_message_pinned(tr::now));
+	}
+
+	// Line: Status + edited + time + views (one line, space-separated).
+	QStringList statusParts;
+	if (item->out()) {
+		if (item->isSending()) {
+			statusParts.push_back(tr::lng_sr_chat_sending(tr::now));
+		} else if (item->hasFailed()) {
+			statusParts.push_back(tr::lng_sr_chat_failed(tr::now));
+		} else {
+			statusParts.push_back(tr::lng_sr_chat_sent(tr::now));
+		}
+	} else {
+		statusParts.push_back(tr::lng_sr_chat_received(tr::now));
+	}
+	if (item->Get<HistoryMessageEdited>()) {
+		statusParts.push_back(
+			tr::lng_sr_message_edited(tr::now));
+	}
+	const auto dateTime = view->dateTime();
+	statusParts.push_back(
+		tr::lng_schedule_at(tr::now)
+		+ u" "_q
+		+ QLocale().toString(dateTime.time(), QLocale::ShortFormat));
+	if (const auto views = item->Get<HistoryMessageViews>()) {
+		if (views->views.count >= 0) {
+			statusParts.push_back(
+				QString::number(views->views.count)
+				+ u" "_q
+				+ tr::lng_sr_message_column_views(tr::now));
+		}
+	}
+	if (const auto signed_ = item->Get<HistoryMessageSigned>()) {
+		if (!signed_->author.isEmpty()) {
+			statusParts.push_back(signed_->author);
+		}
+	}
+	lines.push_back(statusParts.join(u" "_q));
+
+	// Line: Reactions.
+	const auto &reactions = item->reactions();
+	if (!reactions.empty()) {
+		QStringList reactionParts;
+		for (const auto &reaction : reactions) {
+			auto text = reaction.id.emoji();
+			if (text.isEmpty()) {
+				if (const auto customId = reaction.id.custom()) {
+					const auto doc = item->history()->owner().document(
+						customId);
+					if (const auto sticker = doc->sticker()) {
+						text = tr::lng_sr_message_custom_emoji(
+							tr::now,
+							lt_emoji,
+							sticker->alt);
+					}
+				}
+			}
+			if (!text.isEmpty()) {
+				if (reaction.count > 1) {
+					reactionParts.push_back(
+						text + u" "_q + QString::number(reaction.count));
+				} else {
+					reactionParts.push_back(text);
+				}
+			}
+		}
+		if (!reactionParts.isEmpty()) {
+			lines.push_back(tr::lng_sr_message_reactions(
+				tr::now,
+				lt_list,
+				reactionParts.join(u", "_q)));
+		}
+	}
+
+	return lines.join(u"\n"_q);
+}
+
+QAccessible::State HistoryInner::accessibilityChildState(int index) const {
+	QAccessible::State state;
+	state.focusable = true;
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex < 0 || index != barIndex) {
+		state.selectable = true;
+		const auto elements = accessibleElements();
+		const auto elementIndex = (barIndex >= 0 && index > barIndex)
+			? (index - 1)
+			: index;
+		if (elementIndex >= 0
+			&& elementIndex < int(elements.size())) {
+			const auto item = elements[elementIndex]->data();
+			const auto it = _selected.find(item);
+			if (it != _selected.cend()
+				&& it->second == FullSelection) {
+				state.selected = true;
+			}
+		}
+	}
+	if (index == _accessibilityFocusedIndex) {
+		state.focused = true;
+		state.active = true;
+	}
+	return state;
+}
+
+QAccessible::Role HistoryInner::accessibilityChildRole() const {
+	return QAccessible::Role::ListItem;
+}
+
+QRect HistoryInner::accessibilityChildRect(int index) const {
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex >= 0 && index == barIndex) {
+		auto *barElement = _history->unreadBar();
+		if (!barElement && _migrated) {
+			barElement = _migrated->unreadBar();
+		}
+		if (barElement) {
+			const auto top = itemTop(barElement);
+			if (top >= 0) {
+				return QRect(
+					0,
+					top,
+					width(),
+					HistoryView::UnreadBar::height());
+			}
+		}
+		return QRect();
+	}
+
+	const auto elements = accessibleElements();
+	const auto elementIndex = (barIndex >= 0 && index > barIndex)
+		? (index - 1)
+		: index;
+	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
+		return QRect();
+	}
+	const auto view = elements[elementIndex];
+	const auto top = itemTop(view);
+	if (top < 0) {
+		return QRect();
+	}
+	if (barIndex >= 0 && elementIndex == barIndex) {
+		const auto barHeight = HistoryView::UnreadBar::height();
+		return QRect(0, top + barHeight, width(), view->height() - barHeight);
+	}
+	return QRect(0, top, width(), view->height());
+}
+
+int HistoryInner::accessibilityChildColumnCount(int row) const {
+	return computeActiveColumns(row).size();
+}
+
+QAccessible::Role HistoryInner::accessibilityChildSubItemRole() const {
+	return QAccessible::Cell;
+}
+
+QString HistoryInner::accessibilityChildSubItemName(
+		int row,
+		int column) const {
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex >= 0 && row == barIndex) {
+		return {};
+	}
+	const auto &active = computeActiveColumns(row);
+	if (column < 0 || column >= active.size()) {
+		return {};
+	}
+	const auto realColumn = active[column];
+	switch (realColumn) {
+	case 0: return tr::lng_sr_message_column_seen(tr::now);
+	case 1: return tr::lng_sr_message_column_sender(tr::now);
+	case 2: return tr::lng_sr_message_column_via_bot(tr::now);
+	case 3: return tr::lng_sr_message_column_reply(tr::now);
+	case 4: return tr::lng_sr_message_column_forward(tr::now);
+	case 5: return tr::lng_sr_message_column_media_type(tr::now);
+	case 6: return tr::lng_sr_message_column_download(tr::now);
+	case 7: return tr::lng_sr_message_column_played(tr::now);
+	case 8: return tr::lng_sr_message_column_artist(tr::now);
+	case 9: return tr::lng_sr_message_column_title(tr::now);
+	case 10: return tr::lng_sr_message_column_filename(tr::now);
+	case 11: return tr::lng_sr_message_column_duration(tr::now);
+	case 12: return tr::lng_sr_message_column_dimensions(tr::now);
+	case 13: return tr::lng_sr_message_column_file_size(tr::now);
+	case 14: return tr::lng_sr_message_column_message(tr::now);
+	case 15: return tr::lng_sr_message_column_delivery(tr::now);
+	case 16: return tr::lng_sr_message_column_edited(tr::now);
+	case 17: return tr::lng_sr_message_column_time(tr::now);
+	case 18: return tr::lng_sr_message_column_reactions(tr::now);
+	case 19: return tr::lng_sr_message_column_views(tr::now);
+	case 20: return tr::lng_sr_message_column_signature(tr::now);
+	case 21: return tr::lng_sr_message_column_pinned(tr::now);
+	case 22: return tr::lng_sr_message_column_web_site(tr::now);
+	case 23: return tr::lng_sr_message_column_web_title(tr::now);
+	case 24: return tr::lng_sr_message_column_web_description(tr::now);
+	case 25: return tr::lng_sr_message_column_poll_question(tr::now);
+	case 26: return tr::lng_sr_message_column_poll_options(tr::now);
+	case 27: return tr::lng_sr_message_column_poll_status(tr::now);
+	case 28: return tr::lng_sr_message_column_contact_name(tr::now);
+	case 29: return tr::lng_sr_message_column_contact_phone(tr::now);
+	case 30: return tr::lng_sr_message_column_location(tr::now);
+	case 31: return tr::lng_sr_message_column_sticker_emoji(tr::now);
+	case 32: return tr::lng_sr_message_column_game_title(tr::now);
+	case 33: return tr::lng_sr_message_column_game_description(tr::now);
+	case 34: return tr::lng_sr_message_column_invoice_title(tr::now);
+	case 35: return tr::lng_sr_message_column_invoice_amount(tr::now);
+	case 36: return tr::lng_sr_message_column_spoiler(tr::now);
+	case 37: return tr::lng_sr_message_column_dice(tr::now);
+	case 38: return tr::lng_sr_message_column_giveaway(tr::now);
+	case 39: return tr::lng_sr_message_column_gift(tr::now);
+	case 40: return tr::lng_sr_message_column_todo_title(tr::now);
+	case 41: return tr::lng_sr_message_column_todo_items(tr::now);
+	case 42: return tr::lng_sr_message_column_factcheck(tr::now);
+	case 43: return tr::lng_sr_message_column_forward_date(tr::now);
+	case 44: return tr::lng_sr_message_column_forward_author(tr::now);
+	case 45: return tr::lng_sr_message_column_paid_reactions(tr::now);
+	}
+	return {};
+}
+
+QString HistoryInner::accessibilityChildSubItemValue(
+		int row,
+		int column) const {
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex >= 0 && row == barIndex) {
+		return {};
+	}
+	const auto &active = computeActiveColumns(row);
+	if (column < 0 || column >= active.size()) {
+		return {};
+	}
+	return computeSubItemValue(row, active[column]);
+}
+
+const QVector<int> &HistoryInner::computeActiveColumns(int row) const {
+	if (_activeColumnsRow == row) {
+		return _activeColumns;
+	}
+	_activeColumnsRow = row;
+	_activeColumns.clear();
+	constexpr auto kTotalColumns = 46;
+	for (auto i = 0; i != kTotalColumns; ++i) {
+		if (!computeSubItemValue(row, i).isEmpty()) {
+			_activeColumns.push_back(i);
+		}
+	}
+	return _activeColumns;
+}
+
+QString HistoryInner::computeSubItemValue(
+		int row,
+		int column) const {
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex >= 0 && row == barIndex) {
+		return {};
+	}
+
+	const auto elements = accessibleElements();
+	const auto elementRow = (barIndex >= 0 && row > barIndex)
+		? (row - 1)
+		: row;
+	if (elementRow < 0 || elementRow >= int(elements.size())) {
+		return {};
+	}
+
+	const auto view = elements[elementRow];
+	const auto item = view->data();
+
+	// Service messages: only return text in the message column.
+	if (item->isService()) {
+		if (column == 14) {
+			return item->notificationText().text;
+		}
+		return {};
+	}
+
+	switch (column) {
+	case 0: // Seen.
+		if (item->out()) {
+			return item->unread(_history)
+				? tr::lng_sr_message_not_seen(tr::now)
+				: tr::lng_sr_message_seen(tr::now);
+		}
+		return {};
+	case 1: // Sender.
+		if (item->out()) {
+			return tr::lng_sr_from_me(tr::now);
+		} else if (const auto from = item->displayFrom()) {
+			return from->name();
+		}
+		return {};
+	case 2: // Via bot.
+		if (const auto bot = item->viaBot()) {
+			return tr::lng_sr_message_via_bot(
+				tr::now,
+				lt_bot,
+				bot->username());
+		}
+		return {};
+	case 3: // Reply.
+		if (const auto reply = item->Get<HistoryMessageReply>()) {
+			if (const auto message = reply->resolvedMessage.get()) {
+				const auto replyFrom = message->displayFrom();
+				const auto replyName = replyFrom
+					? replyFrom->name()
+					: QString();
+				const auto replyText = message->inReplyText().text;
+				if (!replyName.isEmpty() || !replyText.isEmpty()) {
+					return tr::lng_sr_message_reply_to(
+						tr::now,
+						lt_name,
+						replyName.isEmpty()
+							? tr::lng_sr_from_me(tr::now)
+							: replyName,
+						lt_text,
+						replyText);
+				}
+			}
+		}
+		return {};
+	case 4: // Forward.
+		if (const auto fwd = item->Get<HistoryMessageForwarded>()) {
+			if (fwd->originalSender) {
+				return tr::lng_forwarded(
+					tr::now,
+					lt_user,
+					fwd->originalSender->name());
+			} else if (fwd->originalHiddenSenderInfo) {
+				return tr::lng_forwarded(
+					tr::now,
+					lt_user,
+					fwd->originalHiddenSenderInfo->name);
+			}
+		}
+		return {};
+	case 5: { // Media type.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		if (const auto document = media->document()) {
+			if (document->isVoiceMessage()) {
+				return tr::lng_in_dlg_audio(tr::now);
+			} else if (document->isVideoMessage()) {
+				return tr::lng_in_dlg_video_message(tr::now);
+			} else if (document->isSong()) {
+				return tr::lng_in_dlg_audio_file(tr::now);
+			} else if (document->isVideoFile()) {
+				return tr::lng_in_dlg_video(tr::now);
+			} else if (document->isAnimation()) {
+				return u"GIF"_q;
+			} else if (document->sticker()) {
+				return tr::lng_in_dlg_sticker(tr::now);
+			}
+			return tr::lng_in_dlg_file(tr::now);
+		} else if (media->photo()) {
+			return tr::lng_in_dlg_photo(tr::now);
+		} else if (media->call()) {
+			return item->notificationText().text;
+		}
+		return item->notificationText().text;
+	}
+	case 6: { // Download.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto document = media->document();
+		if (!document) {
+			return {};
+		}
+		if (document->loading()) {
+			return tr::lng_sr_message_downloading(tr::now);
+		} else if (!document->filepath(true).isEmpty()
+			|| document->loadedInMediaCache()) {
+			return tr::lng_emoji_set_ready(tr::now);
+		}
+		return tr::lng_sr_message_not_downloaded(tr::now);
+	}
+	case 7: { // Played.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto document = media->document();
+		if (!document) {
+			return {};
+		}
+		if (document->isVoiceMessage()
+			|| document->isVideoMessage()) {
+			return item->isUnreadMedia()
+				? tr::lng_sr_message_not_played(tr::now)
+				: tr::lng_sr_message_played(tr::now);
+		}
+		return {};
+	}
+	case 8: { // Artist.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto document = media->document();
+		if (!document) {
+			return {};
+		}
+		if (const auto song = document->song()) {
+			return song->performer;
+		}
+		return {};
+	}
+	case 9: { // Title.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto document = media->document();
+		if (!document) {
+			return {};
+		}
+		if (const auto song = document->song()) {
+			return song->title;
+		}
+		return {};
+	}
+	case 10: { // Filename.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto document = media->document();
+		if (!document
+			|| document->isSong()
+			|| document->isVoiceMessage()
+			|| document->isVideoMessage()
+			|| document->sticker()) {
+			return {};
+		}
+		return document->filename();
+	}
+	case 11: { // Duration.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		if (const auto document = media->document()) {
+			const auto duration = document->duration();
+			if (duration > 0) {
+				return Ui::FormatDurationText(duration / 1000);
+			}
+		} else if (const auto call = media->call()) {
+			if (call->duration > 0) {
+				return Ui::FormatDurationText(call->duration);
+			}
+		}
+		return {};
+	}
+	case 12: { // Dimensions.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		if (const auto document = media->document()) {
+			if (!document->dimensions.isEmpty()
+				&& (document->isVideoFile()
+					|| document->isImage())) {
+				return Ui::FormatImageSizeText(document->dimensions);
+			}
+		} else if (const auto photo = media->photo()) {
+			const auto large = photo->size(
+				Data::PhotoSize::Large);
+			if (large && !large->isEmpty()) {
+				return Ui::FormatImageSizeText(*large);
+			}
+		}
+		return {};
+	}
+	case 13: { // File size.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto document = media->document();
+		if (!document || document->size <= 0) {
+			return {};
+		}
+		return Ui::FormatSizeText(document->size);
+	}
+	case 14: { // Message.
+		if (item->media()) {
+			return item->originalText().text;
+		}
+		return item->originalText().text;
+	}
+	case 15: // Delivery.
+		if (item->out()) {
+			if (item->isSending()) {
+				return tr::lng_sr_chat_sending(tr::now);
+			} else if (item->hasFailed()) {
+				return tr::lng_sr_chat_failed(tr::now);
+			}
+			return tr::lng_sr_chat_sent(tr::now);
+		}
+		return tr::lng_sr_chat_received(tr::now);
+	case 16: // Edited.
+		if (item->Get<HistoryMessageEdited>()) {
+			return tr::lng_sr_message_edited(tr::now);
+		}
+		return {};
+	case 17: { // Time.
+		const auto dateTime = view->dateTime();
+		return tr::lng_schedule_at(tr::now)
+			+ u" "_q
+			+ QLocale().toString(dateTime.time(), QLocale::ShortFormat);
+	}
+	case 18: { // Reactions.
+		const auto &reactions = item->reactions();
+		if (reactions.empty()) {
+			return {};
+		}
+		QStringList reactionParts;
+		for (const auto &reaction : reactions) {
+			auto text = reaction.id.emoji();
+			if (text.isEmpty()) {
+				if (const auto customId = reaction.id.custom()) {
+					const auto doc = item->history()->owner().document(
+						customId);
+					if (const auto sticker = doc->sticker()) {
+						text = tr::lng_sr_message_custom_emoji(
+							tr::now,
+							lt_emoji,
+							sticker->alt);
+					}
+				}
+			}
+			if (!text.isEmpty()) {
+				if (reaction.count > 1) {
+					reactionParts.push_back(
+						text + u" "_q + QString::number(reaction.count));
+				} else {
+					reactionParts.push_back(text);
+				}
+			}
+		}
+		return reactionParts.join(u", "_q);
+	}
+	case 19: { // Views.
+		const auto views = item->Get<HistoryMessageViews>();
+		if (views && views->views.count >= 0) {
+			return QString::number(views->views.count);
+		}
+		return {};
+	}
+	case 20: { // Signature.
+		const auto signed_ = item->Get<HistoryMessageSigned>();
+		if (signed_ && !signed_->author.isEmpty()) {
+			return signed_->author;
+		}
+		return {};
+	}
+	case 21: // Pinned.
+		if (item->isPinned()) {
+			return tr::lng_sr_message_pinned(tr::now);
+		}
+		return {};
+	case 22: { // Web page site name.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto webpage = media->webpage();
+		if (webpage) {
+			return webpage->siteName;
+		}
+		return {};
+	}
+	case 23: { // Web page title.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto webpage = media->webpage();
+		if (webpage) {
+			return webpage->title;
+		}
+		return {};
+	}
+	case 24: { // Web page description.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto webpage = media->webpage();
+		if (webpage) {
+			return webpage->description.text;
+		}
+		return {};
+	}
+	case 25: { // Poll question.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto poll = media->poll();
+		if (poll) {
+			return poll->question.text;
+		}
+		return {};
+	}
+	case 26: { // Poll options.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto poll = media->poll();
+		if (!poll) {
+			return {};
+		}
+		QStringList options;
+		for (const auto &answer : poll->answers) {
+			auto line = answer.text.text;
+			if (poll->totalVoters > 0 && answer.votes > 0) {
+				const auto percent = (answer.votes * 100)
+					/ poll->totalVoters;
+				line += u" ("_q
+					+ QString::number(percent)
+					+ u"%, "_q
+					+ QString::number(answer.votes)
+					+ u")"_q;
+			}
+			if (answer.chosen) {
+				line += u" \u2713"_q;
+			}
+			if (answer.correct) {
+				line += u" \u2714"_q;
+			}
+			options.push_back(line);
+		}
+		return options.join(u"; "_q);
+	}
+	case 27: { // Poll status.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto poll = media->poll();
+		if (!poll) {
+			return {};
+		}
+		QStringList parts;
+		parts.push_back(poll->quiz()
+			? tr::lng_polls_public_quiz(tr::now)
+			: tr::lng_polls_public(tr::now));
+		if (poll->closed()) {
+			parts.push_back(
+				tr::lng_hours_closed(tr::now));
+		}
+		parts.push_back(tr::lng_sr_message_poll_votes(
+			tr::now,
+			lt_count,
+			poll->totalVoters));
+		return parts.join(u", "_q);
+	}
+	case 28: { // Contact name.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto contact = media->sharedContact();
+		if (!contact) {
+			return {};
+		}
+		auto name = contact->firstName;
+		if (!contact->lastName.isEmpty()) {
+			if (!name.isEmpty()) {
+				name += u" "_q;
+			}
+			name += contact->lastName;
+		}
+		return name;
+	}
+	case 29: { // Contact phone.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto contact = media->sharedContact();
+		if (contact) {
+			return contact->phoneNumber;
+		}
+		return {};
+	}
+	case 30: { // Location.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		if (media->location()) {
+			return item->notificationText().text;
+		}
+		return {};
+	}
+	case 31: { // Sticker emoji.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto document = media->document();
+		if (!document) {
+			return {};
+		}
+		if (const auto sticker = document->sticker()) {
+			return sticker->alt;
+		}
+		return {};
+	}
+	case 32: { // Game title.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto game = media->game();
+		if (game) {
+			return game->title;
+		}
+		return {};
+	}
+	case 33: { // Game description.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto game = media->game();
+		if (game) {
+			return game->description;
+		}
+		return {};
+	}
+	case 34: { // Invoice title.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto invoice = media->invoice();
+		if (invoice) {
+			return invoice->title;
+		}
+		return {};
+	}
+	case 35: { // Invoice amount.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto invoice = media->invoice();
+		if (!invoice) {
+			return {};
+		}
+		auto result = invoice->currency
+			+ u" "_q
+			+ QString::number(invoice->amount / 100.0, 'f', 2);
+		if (invoice->receiptMsgId) {
+			result += u" ("_q
+				+ tr::lng_sr_message_invoice_paid(tr::now)
+				+ u")"_q;
+		} else {
+			result += u" ("_q
+				+ tr::lng_sr_message_invoice_unpaid(tr::now)
+				+ u")"_q;
+		}
+		return result;
+	}
+	case 36: { // Media spoiler.
+		const auto media = item->media();
+		if (media && media->hasSpoiler()) {
+			return tr::lng_sr_message_spoiler(tr::now);
+		}
+		return {};
+	}
+	case 37: { // Dice.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto notification = item->notificationText().text;
+		if (media->game() || media->poll()) {
+			return {};
+		}
+		// Dice messages have no document/photo/etc, just emoji + value.
+		if (!media->document()
+			&& !media->photo()
+			&& !media->sharedContact()
+			&& !media->location()
+			&& !media->invoice()
+			&& !media->giveawayStart()
+			&& !media->giveawayResults()
+			&& !media->gift()
+			&& !media->todolist()
+			&& !media->game()
+			&& !media->poll()
+			&& !media->webpage()
+			&& !notification.isEmpty()) {
+			return notification;
+		}
+		return {};
+	}
+	case 38: { // Giveaway.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		if (const auto giveaway = media->giveawayStart()) {
+			QStringList parts;
+			if (giveaway->quantity > 0) {
+				parts.push_back(QString::number(giveaway->quantity)
+					+ u" winners"_q);
+			}
+			if (giveaway->months > 0) {
+				parts.push_back(QString::number(giveaway->months)
+					+ u" months Premium"_q);
+			}
+			if (giveaway->credits > 0) {
+				parts.push_back(QString::number(giveaway->credits)
+					+ u" stars"_q);
+			}
+			if (!giveaway->additionalPrize.isEmpty()) {
+				parts.push_back(giveaway->additionalPrize);
+			}
+			return parts.join(u", "_q);
+		}
+		if (const auto results = media->giveawayResults()) {
+			QStringList parts;
+			parts.push_back(QString::number(results->winnersCount)
+				+ u" winners"_q);
+			if (results->unclaimedCount > 0) {
+				parts.push_back(QString::number(results->unclaimedCount)
+					+ u" unclaimed"_q);
+			}
+			if (results->refunded) {
+				parts.push_back(u"refunded"_q);
+			}
+			return parts.join(u", "_q);
+		}
+		return {};
+	}
+	case 39: { // Gift.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto gift = media->gift();
+		if (!gift) {
+			return {};
+		}
+		switch (gift->type) {
+		case Data::GiftType::Premium:
+			return tr::lng_sr_message_gift_premium(
+				tr::now,
+				lt_count,
+				gift->count);
+		case Data::GiftType::Credits:
+		case Data::GiftType::StarGift:
+			return tr::lng_sr_message_gift_credits(
+				tr::now,
+				lt_count,
+				gift->count);
+		default:
+			if (!gift->giftTitle.isEmpty()) {
+				return gift->giftTitle;
+			}
+			return {};
+		}
+	}
+	case 40: { // Todo title.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto todolist = media->todolist();
+		if (todolist) {
+			return todolist->title.text;
+		}
+		return {};
+	}
+	case 41: { // Todo items.
+		const auto media = item->media();
+		if (!media) {
+			return {};
+		}
+		const auto todolist = media->todolist();
+		if (!todolist) {
+			return {};
+		}
+		QStringList items;
+		for (const auto &todoItem : todolist->items) {
+			auto line = todoItem.text.text;
+			line += u" ("_q;
+			line += todoItem.completedBy
+				? tr::lng_sr_message_todo_completed(tr::now)
+				: tr::lng_sr_message_todo_not_completed(tr::now);
+			line += u")"_q;
+			items.push_back(line);
+		}
+		return items.join(u"; "_q);
+	}
+	case 42: { // Factcheck.
+		const auto text = item->factcheckText();
+		if (!text.empty()) {
+			return text.text;
+		}
+		return {};
+	}
+	case 43: { // Forward date.
+		const auto fwd = item->Get<HistoryMessageForwarded>();
+		if (!fwd) {
+			return {};
+		}
+		if (fwd->originalDate) {
+			const auto dt = base::unixtime::parse(fwd->originalDate);
+			return QLocale().toString(dt, QLocale::ShortFormat);
+		}
+		return {};
+	}
+	case 44: { // Forward author.
+		const auto fwd = item->Get<HistoryMessageForwarded>();
+		if (!fwd) {
+			return {};
+		}
+		if (!fwd->originalPostAuthor.isEmpty()) {
+			return fwd->originalPostAuthor;
+		}
+		if (fwd->imported) {
+			return u"Imported"_q;
+		}
+		return {};
+	}
+	case 45: { // Paid reactions.
+		const auto &reactions = item->reactions();
+		for (const auto &reaction : reactions) {
+			if (reaction.id.paid() && reaction.count > 0) {
+				return QString::number(reaction.count);
+			}
+		}
+		return {};
+	}
+	}
+	return {};
+}
+
+void HistoryInner::focusInEvent(QFocusEvent *e) {
+	RpWidget::focusInEvent(e);
+
+	if (!base::ScreenReaderState::Instance()->active()) {
+		return;
+	}
+
+	InvokeQueued(this, [=] {
+		if (!hasFocus()) {
+			return;
+		}
+		const auto count = accessibilityChildCount();
+		if (count <= 0) {
+			return;
+		}
+		// Revalidate the focused index from the stored item.
+		if (_accessibilityFocusedItem) {
+			const auto elements = accessibleElements();
+			const auto barIndex = accessibilityUnreadBarIndex();
+			auto found = -1;
+			for (auto i = 0, n = int(elements.size()); i < n; ++i) {
+				if (elements[i]->data().get()
+					== _accessibilityFocusedItem) {
+					found = (barIndex >= 0 && i >= barIndex)
+						? (i + 1)
+						: i;
+					break;
+				}
+			}
+			if (found >= 0 && found < count) {
+				_accessibilityFocusedIndex = found;
+				accessibilityChildFocused(found);
+				return;
+			}
+			_accessibilityFocusedItem = nullptr;
+		}
+		if (_accessibilityFocusedIndex >= 0
+			&& _accessibilityFocusedIndex < count) {
+			accessibilityChildFocused(_accessibilityFocusedIndex);
+			return;
+		}
+		const auto barIndex = accessibilityUnreadBarIndex();
+		const auto index = (barIndex >= 0 && barIndex + 1 < count)
+			? (barIndex + 1)
+			: (count - 1);
+		_accessibilityFocusedIndex = index;
+		const auto elements = accessibleElements();
+		const auto elementIndex = (barIndex >= 0
+			&& index > barIndex)
+			? (index - 1)
+			: index;
+		_accessibilityFocusedItem = (elementIndex >= 0
+			&& elementIndex < int(elements.size()))
+			? elements[elementIndex]->data().get()
+			: nullptr;
+		accessibilityChildFocused(index);
+	});
 }

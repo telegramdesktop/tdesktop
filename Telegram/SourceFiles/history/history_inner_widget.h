@@ -110,6 +110,22 @@ public:
 		not_null<History*> history);
 	~HistoryInner();
 
+	// Accessibility.
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::Role::List;
+	}
+	int accessibilityChildCount() const override;
+	QString accessibilityChildName(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QRect accessibilityChildRect(int index) const override;
+	int accessibilityChildColumnCount(int row) const override;
+	QAccessible::Role accessibilityChildSubItemRole() const override;
+	QString accessibilityChildSubItemName(
+		int row, int column) const override;
+	QString accessibilityChildSubItemValue(
+		int row, int column) const override;
+
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<Ui::ChatTheme*> theme() const {
 		return _theme.get();
@@ -247,6 +263,7 @@ public:
 	-> std::unique_ptr<HistoryMainElementDelegateMixin>;
 
 protected:
+	void focusInEvent(QFocusEvent *e) override;
 	bool focusNextPrevChild(bool next) override;
 
 	bool eventHook(QEvent *e) override; // calls touchEvent when necessary
@@ -263,6 +280,15 @@ protected:
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
+	[[nodiscard]] std::vector<Element*> accessibleElements() const;
+	[[nodiscard]] int accessibilityUnreadBarIndex() const;
+	void toggleMessageSelection();
+	void playPauseFocusedMedia();
+	[[nodiscard]] QString computeSubItemValue(
+		int row, int column) const;
+	[[nodiscard]] const QVector<int> &computeActiveColumns(
+		int row) const;
+
 	void onTouchSelect();
 	void onTouchScrollTimer();
 	void markReadMetricsStale();
@@ -479,6 +505,11 @@ private:
 
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const;
+
+	int _accessibilityFocusedIndex = -1;
+	HistoryItem *_accessibilityFocusedItem = nullptr;
+	mutable int _activeColumnsRow = -1;
+	mutable QVector<int> _activeColumns;
 
 	const not_null<HistoryWidget*> _widget;
 	const not_null<Ui::ScrollArea*> _scroll;

@@ -5785,6 +5785,8 @@ void InnerWidget::announceSelectedFocus() {
 }
 
 Ui::AccessibilityState InnerWidget::accessibilityState() const {
+	// Mark the List container as non-focusable so screen readers
+	// drill down to the focusable child items (ListItem rows).
 	return {};
 }
 
