@@ -1916,10 +1916,13 @@ void HistoryInner::mousePressEvent(QMouseEvent *e) {
 	}
 	_mouseActive = true;
 	registerReadMetricsActivity();
-	mouseActionStart(e->globalPos(), e->button());
+	mouseActionStart(e->globalPos(), e->button(), e->modifiers());
 }
 
-void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton button) {
+void HistoryInner::mouseActionStart(
+		const QPoint &screenPos,
+		Qt::MouseButton button,
+		Qt::KeyboardModifiers modifiers) {
 	mouseActionUpdate(screenPos);
 	if (button != Qt::LeftButton) return;
 
@@ -1998,7 +2001,26 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 						}
 					}
 				}
-				if (uponSelected) {
+				const auto canShiftExtend = (modifiers & Qt::ShiftModifier)
+					&& (_selected.size() == 1)
+					&& (_selected.cbegin()->first == _mouseActionItem)
+					&& (_selected.cbegin()->second != FullSelection)
+					&& (_selected.cbegin()->second.from
+						!= _selected.cbegin()->second.to);
+				if (canShiftExtend) {
+					const auto symbol = dragState.afterSymbol
+						? uint16(_mouseTextSymbol + 1)
+						: _mouseTextSymbol;
+					const auto extended = HistoryView::ExtendTextSelectionTo(
+						_selected.cbegin()->second,
+						symbol);
+					_mouseTextSymbol = (extended.from == symbol)
+						? extended.to
+						: extended.from;
+					_selected.begin()->second = extended;
+					_mouseAction = MouseAction::Selecting;
+					repaintItem(_mouseActionItem);
+				} else if (uponSelected) {
 					_mouseAction = MouseAction::PrepareDrag; // start text drag
 				} else if (!_pressWasInactive) {
 					if (_mouseCursorState == CursorState::Date) {

@@ -245,6 +245,10 @@ TextSelection ShiftItemSelection(
 	TextSelection selection,
 	const Ui::Text::String &byText);
 
+[[nodiscard]] TextSelection ExtendTextSelectionTo(
+	TextSelection current,
+	uint16 symbol);
+
 QString DateTooltipText(not_null<Element*> view);
 
 // Any HistoryView::Element can have this Component for

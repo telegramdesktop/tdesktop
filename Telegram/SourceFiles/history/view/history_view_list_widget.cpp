@@ -3172,7 +3172,7 @@ void ListWidget::mousePressEvent(QMouseEvent *e) {
 	}
 	_mouseActive = true;
 	registerReadMetricsActivity();
-	mouseActionStart(e->globalPos(), e->button());
+	mouseActionStart(e->globalPos(), e->button(), e->modifiers());
 }
 
 void ListWidget::onTouchScrollTimer() {
@@ -3650,7 +3650,8 @@ void ListWidget::clearDragSelection() {
 
 void ListWidget::mouseActionStart(
 		const QPoint &globalPosition,
-		Qt::MouseButton button) {
+		Qt::MouseButton button,
+		Qt::KeyboardModifiers modifiers) {
 	mouseActionUpdate(globalPosition);
 	if (button != Qt::LeftButton) {
 		return;
@@ -3713,7 +3714,24 @@ void ListWidget::mouseActionStart(
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
 			_mouseTextSymbol = dragState.symbol;
-			if (isPressInSelectedText(dragState)) {
+			const auto canShiftExtend = (modifiers & Qt::ShiftModifier)
+				&& (dragState.cursor == CursorState::Text)
+				&& (_selectedTextItem == pressElement->data())
+				&& (_selectedTextRange != FullSelection)
+				&& (_selectedTextRange.from != _selectedTextRange.to);
+			if (canShiftExtend) {
+				const auto symbol = dragState.afterSymbol
+					? uint16(_mouseTextSymbol + 1)
+					: _mouseTextSymbol;
+				const auto extended = ExtendTextSelectionTo(
+					_selectedTextRange,
+					symbol);
+				_mouseTextSymbol = (extended.from == symbol)
+					? extended.to
+					: extended.from;
+				setTextSelection(pressElement, extended);
+				_mouseAction = MouseAction::Selecting;
+			} else if (isPressInSelectedText(dragState)) {
 				_mouseAction = MouseAction::PrepareDrag; // start text drag
 			} else if (!_pressWasInactive) {
 				if (requiredToStartDragging(pressElement)

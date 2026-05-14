@@ -582,7 +582,8 @@ private:
 
 	void mouseActionStart(
 		const QPoint &globalPosition,
-		Qt::MouseButton button);
+		Qt::MouseButton button,
+		Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 	void mouseActionUpdate(const QPoint &globalPosition);
 	void mouseActionUpdate();
 	void mouseActionFinish(

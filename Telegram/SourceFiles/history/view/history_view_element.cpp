@@ -643,6 +643,17 @@ TextSelection ShiftItemSelection(
 	return ShiftItemSelection(selection, byText.length());
 }
 
+TextSelection ExtendTextSelectionTo(
+		TextSelection current,
+		uint16 symbol) {
+	const auto anchor = (symbol * 2 < current.from + current.to)
+		? current.to
+		: current.from;
+	return TextSelection(
+		std::min(symbol, anchor),
+		std::max(symbol, anchor));
+}
+
 QString DateTooltipText(not_null<Element*> view) {
 	const auto locale = QLocale();
 	const auto format = QLocale::LongFormat;
