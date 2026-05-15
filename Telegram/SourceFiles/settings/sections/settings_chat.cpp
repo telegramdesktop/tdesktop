@@ -707,7 +707,7 @@ void ChooseFromFile(
 		auto image = Images::Read({
 			.path = result.paths.isEmpty() ? QString() : result.paths.front(),
 			.content = result.remoteContent,
-			.forceOpaque = true,
+			.forceOpaque = false,
 		}).image;
 		if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
 			return;
