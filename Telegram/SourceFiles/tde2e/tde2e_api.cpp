@@ -331,18 +331,18 @@ void Call::setId(CallId id) {
 }
 
 void Call::checkForOutboundMessages() {
-    Expects(_id);
+	Expects(_id);
 
-    const auto result = tde2e_api::call_pull_outbound_messages(libId());
-    if (!result.is_ok()) {
-        LOG_AND_FAIL(result.error(), CallFailure::Unknown);
-        return;
-    }
+	const auto result = tde2e_api::call_pull_outbound_messages(libId());
+	if (!result.is_ok()) {
+		LOG_AND_FAIL(result.error(), CallFailure::Unknown);
+		return;
+	}
 
-    for (const auto &message : result.value()) {
-        _outboundBlocks.fire(
-            QByteArray::fromStdString(message));
-    }
+	for (const auto &message : result.value()) {
+		_outboundBlocks.fire(
+			QByteArray::fromStdString(message));
+	}
 }
 
 void Call::apply(
