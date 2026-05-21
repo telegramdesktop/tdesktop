@@ -564,7 +564,7 @@ std::vector<TodoListItem> Tasks::toTodoListItems() const {
 	auto usedId = 0;
 	for (const auto &task : _list) {
 		if (const auto id = task->id()) {
-			usedId = id;
+			usedId = id > usedId ? id : usedId;
 		} else if (task->isGood()) {
 			++usedId;
 		}
