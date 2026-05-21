@@ -161,9 +161,13 @@ TextWithEntities AddTimestampLinks(
 			from,
 			std::less<>(),
 			&EntityInText::offset);
+		const auto allowsTimestampLink = [](const EntityInText &entity) {
+			return (entity.type() == EntityType::Spoiler)
+				|| (entity.type() == EntityType::Blockquote);
+		};
 		while (i != entities.end()
 			&& i->offset() < till
-			&& i->type() == EntityType::Spoiler) {
+			&& allowsTimestampLink(*i)) {
 			++i;
 		}
 		if (i != entities.end() && i->offset() < till) {
@@ -172,7 +176,7 @@ TextWithEntities AddTimestampLinks(
 
 		const auto intersects = [&](const EntityInText &entity) {
 			return (entity.offset() + entity.length() > from)
-				&& (entity.type() != EntityType::Spoiler);
+				&& !allowsTimestampLink(entity);
 		};
 		auto j = std::make_reverse_iterator(i);
 		const auto e = std::make_reverse_iterator(entities.begin());
