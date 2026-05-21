@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Iv::Markdown {
 namespace {
 
+#ifndef NDEBUG
 [[nodiscard]] QString PrepareTerminalFailureName(
 		PrepareTerminalFailure failure) {
 	switch (failure) {
@@ -67,6 +68,7 @@ namespace {
 		? failure.debugReason
 		: PrepareTerminalFailureName(failure.terminal);
 }
+#endif
 
 [[nodiscard]] QVariant CurrentClickHandlerContext(const OpenOptions &options) {
 	return options.clickHandlerContextRef
