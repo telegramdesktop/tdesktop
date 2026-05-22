@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_common.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h"
 #include "data/data_user.h"
@@ -207,7 +209,7 @@ ScheduleBoxStyleArgs::ScheduleBoxStyleArgs()
 }
 
 TimeId DefaultScheduleTime() {
-	return base::unixtime::now() + 600;
+	return base::unixtime::now() + Core::App().settings().defaultScheduleTime();
 }
 
 bool CanScheduleUntilOnline(not_null<PeerData*> peer) {

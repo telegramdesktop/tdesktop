@@ -342,10 +342,11 @@ QByteArray Settings::serialize() const {
 		size += Serialize::bytearraySize(key)
 			+ Serialize::bytearraySize(value);
 	}
-	size += sizeof(qint32) // _audioPlaybackSpeed
-		+ sizeof(qint32) // _mediaGridZoomStep
-		+ sizeof(qint32) // _pullToNextChannel
-		+ sizeof(qint32); // _chatFiltersTabsMode
+size += sizeof(qint32) // _audioPlaybackSpeed
+	+ sizeof(qint32) // _mediaGridZoomStep
+	+ sizeof(qint32) // _pullToNextChannel
+	+ sizeof(qint32) // _chatFiltersTabsMode
+	+ sizeof(qint32); // _defaultScheduleTime
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -523,6 +524,7 @@ QByteArray Settings::serialize() const {
 		stream << qint32(_mediaGridZoomStep);
 		stream << qint32(_pullToNextChannel.current() ? 1 : 0);
 		stream << qint32(_chatFiltersTabsMode.current());
+		stream << qint32(_defaultScheduleTime);
 	}
 
 	Ensures(result.size() == size);
@@ -1051,6 +1053,13 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	if (!stream.atEnd()) {
 		stream >> chatFiltersTabsMode;
+	}
+	if (!stream.atEnd()) {
+		auto defaultScheduleTime = qint32();
+		stream >> defaultScheduleTime;
+		if (stream.status() == QDataStream::Ok) {
+			_defaultScheduleTime = defaultScheduleTime;
+		}
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "

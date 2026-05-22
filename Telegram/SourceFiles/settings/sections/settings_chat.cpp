@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/reactions_settings_box.h"
 #include "boxes/stickers_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/boxes/single_choice_box.h"
 #include "boxes/background_box.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/download_path_box.h"
@@ -1802,18 +1803,106 @@ void SetupMessages(
 		} });
 	}
 
-	const auto pullToNext = inner->add(
-		object_ptr<Ui::Checkbox>(
-			inner,
-			tr::lng_settings_pull_to_next_channel(tr::now),
-			Core::App().settings().pullToNextChannel(),
-			st::settingsCheckbox),
-		st::settingsCheckboxPadding);
-	pullToNext->checkedChanges(
-	) | rpl::on_next([=](bool checked) {
-		Core::App().settings().setPullToNextChannel(checked);
-		Core::App().saveSettingsDelayed();
-	}, inner->lifetime());
+const auto pullToNext = inner->add(
+	object_ptr<Ui::Checkbox>(
+		inner,
+		tr::lng_settings_pull_to_next_channel(tr::now),
+		Core::App().settings().pullToNextChannel(),
+		st::settingsCheckbox),
+	st::settingsCheckboxPadding);
+pullToNext->checkedChanges(
+) | rpl::on_next([=](bool checked) {
+	Core::App().settings().setPullToNextChannel(checked);
+	Core::App().saveSettingsDelayed();
+}, inner->lifetime());
+
+Ui::AddSkip(inner, st::settingsCheckboxesSkip);
+
+	// Default schedule time dropdown
+	const auto scheduleValues = std::make_shared<std::vector<TimeId>>(std::vector<TimeId>{
+		300,    // 5 minutes
+		600,    // 10 minutes (default)
+		900,    // 15 minutes
+		1800,   // 30 minutes
+		3600,   // 1 hour
+		7200,   // 2 hours
+		14400,  // 4 hours
+		28800,  // 8 hours
+		86400,  // 1 day
+		172800, // 2 days
+		259200, // 3 days
+		604800, // 7 days
+	});
+
+	const auto formatScheduleTime = [](TimeId seconds, bool showDefault = false) -> QString {
+		QString result;
+		if (seconds < 60) {
+			result = QString::number(seconds) + u" seconds"_q;
+		} else if (seconds < 3600) {
+			const auto minutes = seconds / 60;
+			result = QString::number(minutes) + (minutes == 1 ? u" minute"_q : u" minutes"_q);
+		} else if (seconds < 86400) {
+			const auto hours = seconds / 3600;
+			result = QString::number(hours) + (hours == 1 ? u" hour"_q : u" hours"_q);
+		} else {
+			const auto days = seconds / 86400;
+			result = QString::number(days) + (days == 1 ? u" day"_q : u" days"_q);
+		}
+		if (showDefault && seconds == 600) {
+			result += u" (default)"_q;
+		}
+		return result;
+	};
+
+	const auto currentValue = inner->lifetime().make_state<rpl::variable<TimeId>>(
+		Core::App().settings().defaultScheduleTime());
+
+	const auto scheduleButton = AddButtonWithLabel(
+		inner,
+		tr::lng_settings_default_schedule_time(),
+		currentValue->value() | rpl::map([=](TimeId seconds) {
+			return formatScheduleTime(seconds);
+		}),
+		st::settingsButton,
+		{ &st::menuIconSchedule });
+
+	scheduleButton->addClickHandler([=, show = controller->uiShow()] {
+		auto list = std::vector<QString>();
+		for (const auto value : *scheduleValues) {
+			list.push_back(formatScheduleTime(value, true));
+		}
+		show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+			const auto save = [=](int index) {
+				if (index >= 0 && index < int(scheduleValues->size())) {
+					const auto newValue = (*scheduleValues)[index];
+					Core::App().settings().setDefaultScheduleTime(newValue);
+					Core::App().saveSettingsDelayed();
+					*currentValue = newValue;
+					box->closeBox();
+				}
+			};
+			SingleChoiceBox(box, {
+				.title = tr::lng_settings_default_schedule_time(),
+				.options = list,
+				.initialSelection = [&] {
+					const auto current = Core::App().settings().defaultScheduleTime();
+					for (auto i = 0; i < int(scheduleValues->size()); ++i) {
+						if ((*scheduleValues)[i] == current) {
+							return i;
+						}
+					}
+					return 1; // Default to 10 minutes
+				}(),
+				.callback = save,
+			});
+		}));
+	});
+	if (highlights) {
+		highlights->push_back({ u"chat/default-schedule-time"_q, {
+			scheduleButton.get(),
+			{ .rippleShape = true },
+		} });
+	}
 
 	Ui::AddSkip(inner);
 }
@@ -2033,7 +2122,7 @@ void SetupChatBackground(
 			row->chooseFromGallery(),
 			SubsectionTitleHighlight(),
 		} });
-		highlights->push_back({ u"chat/wallpapers-choose-photo"_q, {
+			highlights->push_back({ u"chat/wallpapers-choose-photo"_q, {
 			row->chooseFromFile(),
 			SubsectionTitleHighlight(),
 		} });

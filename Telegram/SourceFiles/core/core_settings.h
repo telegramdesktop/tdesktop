@@ -1037,12 +1037,19 @@ public:
 		_notificationsVolume = value;
 	}
 
-	[[nodiscard]] int mediaGridZoomStep() const {
-		return _mediaGridZoomStep;
-	}
-	void setMediaGridZoomStep(int value) {
-		_mediaGridZoomStep = value;
-	}
+[[nodiscard]] int mediaGridZoomStep() const {
+	return _mediaGridZoomStep;
+}
+void setMediaGridZoomStep(int value) {
+	_mediaGridZoomStep = value;
+}
+
+[[nodiscard]] TimeId defaultScheduleTime() const {
+	return _defaultScheduleTime;
+}
+void setDefaultScheduleTime(TimeId value) {
+	_defaultScheduleTime = value;
+}
 
 	template <typename Type, typename Other>
 	void writePref(std::string_view key, Other &&value) {
@@ -1224,7 +1231,8 @@ private:
 
 	ushort _notificationsVolume = 100;
 
-	int _mediaGridZoomStep = 0;
+int _mediaGridZoomStep = 0;
+TimeId _defaultScheduleTime = 600; // 10 minutes in seconds
 
 	QByteArray _photoEditorBrush;
 

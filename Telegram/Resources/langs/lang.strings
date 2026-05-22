@@ -706,6 +706,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_chat_corner_reply" = "Reply button on messages";
 "lng_settings_chat_corner_reaction" = "Reaction button on messages";
 "lng_settings_pull_to_next_channel" = "Swipe to the next unread channel";
+"lng_settings_default_schedule_time" = "Default schedule time";
 
 "lng_settings_shortcuts" = "Keyboard shortcuts";
 
