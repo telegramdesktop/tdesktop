@@ -55,6 +55,161 @@ constexpr auto kMaxVisualQuoteDepth = 3;
 	return text;
 }
 
+[[nodiscard]] PreparedPlaceholderBlockId GeneratePreparedPlaceholderBlockId(
+		PrepareState *state) {
+	return PreparedPlaceholderBlockId(++state->nextGeneratedId);
+}
+
+[[nodiscard]] QByteArray StoreMarkdownEmbedHtml(
+		QByteArray html,
+		PrepareState *state) {
+	const auto resourceId = QByteArray("markdown-embed/")
+		+ QByteArray::number(++state->nextGeneratedId)
+		+ ".html";
+	state->result.embedHtmlResources.emplace(resourceId, std::move(html));
+	return resourceId;
+}
+
+[[nodiscard]] QByteArray MermaidEmbedHtml(const QString &source) {
+	const auto escaped = source.toHtmlEscaped();
+	const auto body = uR"(
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+html, body {
+	margin: 0;
+	padding: 0;
+	background: #ffffff;
+	color: #000000;
+}
+body {
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	padding: 16px;
+	box-sizing: border-box;
+}
+.mermaid-wrap {
+	display: block;
+	width: 100%;
+	overflow-x: auto;
+}
+.mermaid {
+	display: flex;
+	justify-content: center;
+}
+svg {
+	max-width: 100%;
+	height: auto;
+}
+pre {
+	white-space: pre-wrap;
+	word-break: break-word;
+	margin: 0;
+	font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', 'Consolas', monospace;
+	font-size: 13px;
+	line-height: 1.4;
+}
+</style>
+</head>
+<body>
+<div class="mermaid-wrap">
+<div class="mermaid">)"_q + escaped + uR"(</div>
+</div>
+<script>
+(function() {
+	function resourceId() {
+		var path = '';
+		try { path = String(window.location.pathname || ''); } catch (e) {}
+		while (path.charAt(0) === '/') path = path.slice(1);
+		return path;
+	}
+	function reportSize() {
+		if (!window.TelegramWebviewProxy || typeof window.TelegramWebviewProxy.postEvent !== 'function') {
+			return;
+		}
+		var root = document.documentElement;
+		var body = document.body;
+		var width = Math.max(
+			root ? root.scrollWidth : 0,
+			body ? body.scrollWidth : 0,
+			window.innerWidth || 0
+		);
+		var height = Math.max(
+			root ? root.scrollHeight : 0,
+			body ? body.scrollHeight : 0,
+			window.innerHeight || 0
+		);
+		window.TelegramWebviewProxy.postEvent('preferred_size', {
+			resourceId: resourceId(),
+			width: width,
+			height: height,
+			viewportWidth: window.innerWidth || width
+		});
+	}
+	function fallback(error) {
+		var wrap = document.querySelector('.mermaid-wrap');
+		if (!wrap) return;
+		wrap.innerHTML = '<pre>' + (error ? String(error) : 'Mermaid render failed.') + '</pre>';
+		reportSize();
+	}
+	function render() {
+		if (!window.mermaid) {
+			fallback('Mermaid library failed to load.');
+			return;
+		}
+		try {
+			window.mermaid.initialize({
+				startOnLoad: false,
+				securityLevel: 'strict',
+				theme: 'default'
+			});
+			window.mermaid.run({
+				querySelector: '.mermaid'
+			}).then(function() {
+				setTimeout(reportSize, 0);
+			}).catch(fallback);
+		} catch (e) {
+			fallback(e);
+		}
+	}
+	window.addEventListener('load', function() {
+		render();
+		reportSize();
+	});
+	window.addEventListener('resize', reportSize);
+})();
+</script>
+</body>
+</html>
+)"_q;
+	return body.toUtf8();
+}
+
+[[nodiscard]] PreparedBlock PrepareMermaidBlock(
+		const MarkdownNode &node,
+		PrepareState *state) {
+	auto block = PreparedBlock();
+	block.kind = PreparedBlockKind::Placeholder;
+	block.supplementary = true;
+	block.placeholder.label = u"Render Mermaid diagram"_q;
+	block.placeholder.copyText = node.text;
+	block.placeholder.id = GeneratePreparedPlaceholderBlockId(state);
+	block.placeholder.embed = EmbedRequest{
+		.resourceId = StoreMarkdownEmbedHtml(
+			MermaidEmbedHtml(node.text),
+			state),
+		.width = 900,
+		.height = 520,
+		.fullWidth = true,
+		.fixedHeight = false,
+		.allowScrolling = true,
+	};
+	return block;
+}
+
 [[nodiscard]] int FlowFormulaTextSize(
 		PreparedBlockKind kind,
 		int headingLevel,
@@ -325,7 +480,12 @@ void AppendRichBlock(
 	return block;
 }
 
-[[nodiscard]] PreparedBlock PrepareCodeBlock(const MarkdownNode &node) {
+[[nodiscard]] PreparedBlock PrepareCodeBlock(
+		const MarkdownNode &node,
+		PrepareState *state) {
+	if (FirstInfoToken(node.info).compare(u"mermaid"_q, Qt::CaseInsensitive) == 0) {
+		return PrepareMermaidBlock(node, state);
+	}
 	auto block = PreparedBlock();
 	block.kind = PreparedBlockKind::CodeBlock;
 	block.text.text = StripOneTrailingNewline(node.text);
@@ -733,7 +893,7 @@ void PrepareFootnotes(PrepareState *state) {
 	case NodeKind::FootnoteDefinition:
 		return {};
 	case NodeKind::CodeBlock:
-		return { PrepareCodeBlock(node) };
+		return { PrepareCodeBlock(node, state) };
 	case NodeKind::ThematicBreak:
 		return { PrepareRuleBlock() };
 	case NodeKind::List: {
