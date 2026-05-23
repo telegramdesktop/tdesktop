@@ -89,6 +89,28 @@ Settings::Type SettingsFromDialogsType(Data::DialogInfo::Type type) {
 	return Settings::Type(0);
 }
 
+[[nodiscard]] auto MediaTypeFromMedia(const Data::Media &media)
+-> MediaSettings::Type {
+	using Type = MediaSettings::Type;
+	return v::match(media.content, [](const Data::Document &data) {
+		if (data.isSticker) {
+			return Type::Sticker;
+		} else if (data.isVideoMessage) {
+			return Type::VideoMessage;
+		} else if (data.isVoiceMessage) {
+			return Type::VoiceMessage;
+		} else if (data.isAnimated) {
+			return Type::GIF;
+		} else if (data.isVideoFile) {
+			return Type::Video;
+		} else {
+			return Type::File;
+		}
+	}, [](const auto &data) {
+		return Type::Photo;
+	});
+}
+
 } // namespace
 
 class ApiWrap::LoadedFileCache {
@@ -2095,6 +2117,12 @@ std::optional<QByteArray> ApiWrap::getCustomEmoji(QByteArray &data) {
 			return Data::TextPart::UnavailableEmoji();
 		}
 		auto &file = i->second.file;
+		using SkipReason = Data::File::SkipReason;
+		using Type = MediaSettings::Type;
+		if (file.skipReason == SkipReason::None
+			&& ((_settings->media.types & Type::Sticker) != Type::Sticker)) {
+			file.skipReason = SkipReason::FileType;
+		}
 		const auto fileProgress = [=](FileProgress value) {
 			if (_chatProcess) {
 				return loadMessageEmojiProgress(value);
@@ -2111,7 +2139,6 @@ std::optional<QByteArray> ApiWrap::getCustomEmoji(QByteArray &data) {
 		if (!ready) {
 			return std::nullopt;
 		}
-		using SkipReason = Data::File::SkipReason;
 		if (file.skipReason == SkipReason::Unavailable) {
 			return Data::TextPart::UnavailableEmoji();
 		} else if (file.skipReason == SkipReason::FileType
@@ -2646,34 +2673,16 @@ bool ApiWrap::processFileLoad(
 	} else if (!file.location && file.content.isEmpty()) {
 		file.skipReason = SkipReason::Unavailable;
 		return true;
-	} else if (writePreloadedFile(file, origin)) {
-		return !file.relativePath.isEmpty();
 	}
 
-	using Type = MediaSettings::Type;
 	const auto media = message
 		? &message->media
 		: story
 		? &story->media
 		: nullptr;
-	const auto type = media ? v::match(media->content, [&](
-			const Data::Document &data) {
-		if (data.isSticker) {
-			return Type::Sticker;
-		} else if (data.isVideoMessage) {
-			return Type::VideoMessage;
-		} else if (data.isVoiceMessage) {
-			return Type::VoiceMessage;
-		} else if (data.isAnimated) {
-			return Type::GIF;
-		} else if (data.isVideoFile) {
-			return Type::Video;
-		} else {
-			return Type::File;
-		}
-	}, [](const auto &data) {
-		return Type::Photo;
-	}) : Type(0);
+	const auto type = media
+		? std::make_optional(MediaTypeFromMedia(*media))
+		: std::nullopt;
 
 	const auto fullSize = message
 		? message->file().size
@@ -2683,13 +2692,16 @@ bool ApiWrap::processFileLoad(
 	if (message && Data::SkipMessageByDate(*message, *_settings)) {
 		file.skipReason = SkipReason::DateLimits;
 		return true;
-	} else if (!story && (_settings->media.types & type) != type) {
+	} else if (!story && type
+		&& ((_settings->media.types & *type) != *type)) {
 		file.skipReason = SkipReason::FileType;
 		return true;
 	} else if (!story && fullSize > _settings->media.sizeLimit) {
 		// Don't load thumbs for large files that we skip.
 		file.skipReason = SkipReason::FileSize;
 		return true;
+	} else if (writePreloadedFile(file, origin)) {
+		return !file.relativePath.isEmpty();
 	}
 	loadFile(file, origin, std::move(progress), std::move(done));
 	return false;
