@@ -8591,7 +8591,7 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 		this,
 		close ? st::historyReplyCancel : st::historyPinnedShowAll);
 	button->setAccessibleName(close
-		? tr::lng_cancel(tr::now)
+		? tr::lng_pinned_unpin(tr::now)
 		: tr::lng_settings_events_pinned(tr::now));
 	button->clicks(
 	) | rpl::on_next([=] {
