@@ -1941,8 +1941,13 @@ void ApiWrap::requestChatMessages(
 		: (splitsCount + splitIndex);
 	// Narrow server-side scan when the user requested a date range, so we
 	// don't pull every message in the chat just to skip them client-side.
+	// messages.search uses strict comparison for both bounds (date >
+	// min_date and date < max_date), while the exporter's canonical range
+	// is `[singlePeerFrom, singlePeerTill)` (see SkipMessageByDate). To
+	// match it exactly we shift min_date down by 1 and pass singlePeerTill
+	// through unchanged.
 	const auto minDate = (_settings->singlePeerFrom > 0)
-		? _settings->singlePeerFrom
+		? (_settings->singlePeerFrom - 1)
 		: 0;
 	const auto maxDate = (_settings->singlePeerTill > 0)
 		? _settings->singlePeerTill
@@ -2603,6 +2608,9 @@ void ApiWrap::loadNextTopicMessageFile() {
 		; _topicProcess->fileIndex < list.size()
 		; ++_topicProcess->fileIndex) {
 		auto &message = list[_topicProcess->fileIndex];
+		if (Data::SkipMessageByDate(message, *_settings)) {
+			continue;
+		}
 		if (!messageCustomEmojiReady(message)) {
 			return;
 		}

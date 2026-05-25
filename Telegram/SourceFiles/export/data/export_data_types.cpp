@@ -2607,7 +2607,10 @@ bool SingleMessageAfter(
 		const MTPmessages_Messages &data,
 		TimeId date) {
 	const auto single = SingleMessageDate(data);
-	return (single > 0 && single > date);
+	// Inclusive lower bound: SkipMessageByDate keeps messages with
+	// `singlePeerFrom <= date`, so a split whose newest message has the
+	// exact `singlePeerFrom` date must not be pre-skipped here.
+	return (single > 0 && single >= date);
 }
 
 bool SkipMessageByDate(const Message &message, const Settings &settings) {
