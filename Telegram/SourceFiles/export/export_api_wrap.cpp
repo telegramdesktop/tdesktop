@@ -258,6 +258,7 @@ struct ApiWrap::TopicProcess : AbstractMessagesProcess {
 	int32 offsetId = 0;
 	int totalCount = 0;
 	int processedCount = 0;
+	bool firstSliceRequested = false;
 };
 
 
@@ -1875,9 +1876,22 @@ void ApiWrap::requestMessagesSlice() {
 		loadMessagesFiles({});
 		return;
 	}
+	// If user picked a "from date" and this is the first slice of the split,
+	// jump to that date via MTP offset_date instead of walking the chat
+	// from the very beginning (id == 1). Otherwise we'd download every
+	// message in history just to skip it client-side.
+	const auto firstSlice = (_chatProcess->largestIdPlusOne <= 1);
+	const auto useDateOffset = firstSlice
+		&& (_settings->singlePeerFrom > 0);
+	const auto offsetId = useDateOffset
+		? 0
+		: _chatProcess->largestIdPlusOne;
+	const auto offsetDate = useDateOffset
+		? _settings->singlePeerFrom
+		: 0;
 	requestChatMessages(
 		_chatProcess->info.splits[_chatProcess->localSplitIndex],
-		_chatProcess->largestIdPlusOne,
+		offsetId,
 		-kMessagesSliceLimit,
 		kMessagesSliceLimit,
 		[=](const MTPmessages_Messages &result) {
@@ -1896,7 +1910,8 @@ void ApiWrap::requestMessagesSlice() {
 				data.vchats(),
 				_chatProcess->info.relativePath));
 		});
-	});
+	},
+	offsetDate);
 }
 
 void ApiWrap::requestChatMessages(
@@ -1904,7 +1919,8 @@ void ApiWrap::requestChatMessages(
 		int offsetId,
 		int addOffset,
 		int limit,
-		FnMut<void(MTPmessages_Messages&&)> done) {
+		FnMut<void(MTPmessages_Messages&&)> done,
+		int offsetDate) {
 	Expects(_chatProcess != nullptr);
 
 	_chatProcess->requestDone = std::move(done);
@@ -1923,6 +1939,14 @@ void ApiWrap::requestChatMessages(
 	const auto realSplitIndex = (splitIndex >= 0)
 		? splitIndex
 		: (splitsCount + splitIndex);
+	// Narrow server-side scan when the user requested a date range, so we
+	// don't pull every message in the chat just to skip them client-side.
+	const auto minDate = (_settings->singlePeerFrom > 0)
+		? _settings->singlePeerFrom
+		: 0;
+	const auto maxDate = (_settings->singlePeerTill > 0)
+		? _settings->singlePeerTill
+		: 0;
 	if (_chatProcess->info.onlyMyMessages) {
 		splitRequest(realSplitIndex, MTPmessages_Search(
 			MTP_flags(MTPmessages_Search::Flag::f_from_id),
@@ -1933,8 +1957,8 @@ void ApiWrap::requestChatMessages(
 			MTPVector<MTPReaction>(), // saved_reaction
 			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
-			MTP_int(0), // min_date
-			MTP_int(0), // max_date
+			MTP_int(minDate), // min_date
+			MTP_int(maxDate), // max_date
 			MTP_int(offsetId),
 			MTP_int(addOffset),
 			MTP_int(limit),
@@ -1946,7 +1970,7 @@ void ApiWrap::requestChatMessages(
 		splitRequest(realSplitIndex, MTPmessages_GetHistory(
 			realPeerInput,
 			MTP_int(offsetId),
-			MTP_int(0), // offset_date
+			MTP_int(offsetDate), // offset_date
 			MTP_int(addOffset),
 			MTP_int(limit),
 			MTP_int(0), // max_id
@@ -1967,7 +1991,8 @@ void ApiWrap::requestChatMessages(
 						offsetId,
 						addOffset,
 						limit,
-						base::take(_chatProcess->requestDone));
+						base::take(_chatProcess->requestDone),
+						offsetDate);
 					return true;
 				}
 			}
@@ -2195,6 +2220,12 @@ void ApiWrap::finishMessagesSlice() {
 	Expects(_chatProcess->slice.has_value());
 
 	auto slice = *base::take(_chatProcess->slice);
+	// If user picked an upper date bound and the newest message in this
+	// slice is already at/past it, the rest of the chat is also past it —
+	// no point in fetching further slices (used to walk to end of chat).
+	const auto reachedTill = (_settings->singlePeerTill > 0)
+		&& !slice.list.empty()
+		&& (slice.list.back().date >= _settings->singlePeerTill);
 	if (!slice.list.empty()) {
 		_chatProcess->largestIdPlusOne = slice.list.back().id + 1;
 		const auto splitIndex = _chatProcess->info.splits[
@@ -2205,6 +2236,9 @@ void ApiWrap::finishMessagesSlice() {
 		if (!_chatProcess->handleSlice(std::move(slice))) {
 			return;
 		}
+	}
+	if (reachedTill) {
+		_chatProcess->lastSlice = true;
 	}
 	if (_chatProcess->lastSlice
 		&& (++_chatProcess->localSplitIndex
@@ -2414,9 +2448,24 @@ void ApiWrap::requestTopicMessages(
 void ApiWrap::requestTopicMessagesSlice() {
 	Expects(_topicProcess != nullptr);
 
-	const auto offsetId = (_topicProcess->offsetId == 0)
-		? 1
-		: (_topicProcess->offsetId + 1);
+	// On the very first slice request for this topic, if the user picked
+	// a "from date", jump straight to it via MTP offset_date instead of
+	// walking the topic from its root id and skipping client-side.
+	// The initial root-message fetch leaves offsetId at the topic root id
+	// (or 0 if the root was empty), so we use an explicit "firstSlice"
+	// flag rather than overloading the offsetId == 0 check.
+	const auto firstSlice = !_topicProcess->firstSliceRequested;
+	_topicProcess->firstSliceRequested = true;
+	const auto useDateOffset = firstSlice
+		&& (_settings->singlePeerFrom > 0);
+	const auto offsetId = useDateOffset
+		? 0
+		: ((_topicProcess->offsetId == 0)
+			? 1
+			: (_topicProcess->offsetId + 1));
+	const auto offsetDate = useDateOffset
+		? _settings->singlePeerFrom
+		: 0;
 	requestTopicReplies(
 		offsetId,
 		-kMessagesSliceLimit,
@@ -2441,14 +2490,16 @@ void ApiWrap::requestTopicMessagesSlice() {
 				}
 				loadTopicMessagesFiles(std::move(slice));
 			});
-		});
+		},
+		offsetDate);
 }
 
 void ApiWrap::requestTopicReplies(
 		int offsetId,
 		int addOffset,
 		int limit,
-		FnMut<void(MTPmessages_Messages&&)> done) {
+		FnMut<void(MTPmessages_Messages&&)> done,
+		int offsetDate) {
 	Expects(_topicProcess != nullptr);
 
 	_topicProcess->requestDone = std::move(done);
@@ -2461,7 +2512,7 @@ void ApiWrap::requestTopicReplies(
 		_topicProcess->inputPeer,
 		MTP_int(_topicProcess->topicRootId),
 		MTP_int(offsetId),
-		MTP_int(0),
+		MTP_int(offsetDate), // offset_date
 		MTP_int(addOffset),
 		MTP_int(limit),
 		MTP_int(0),
@@ -2590,6 +2641,12 @@ void ApiWrap::finishTopicMessagesSlice() {
 	Expects(_topicProcess->slice.has_value());
 
 	auto slice = *base::take(_topicProcess->slice);
+	// Same early-stop as for chat slices: if the newest message in this
+	// batch is already at/past the user-picked upper date bound, the rest
+	// of the topic is past it too — no need to keep walking.
+	const auto reachedTill = (_settings->singlePeerTill > 0)
+		&& !slice.list.empty()
+		&& (slice.list.back().date >= _settings->singlePeerTill);
 	if (!slice.list.empty()) {
 		_topicProcess->offsetId = slice.list.back().id;
 		_topicProcess->processedCount += slice.list.size();
@@ -2601,7 +2658,7 @@ void ApiWrap::finishTopicMessagesSlice() {
 	const auto reachedTotal = _topicProcess->totalCount > 0
 		&& _topicProcess->processedCount >= _topicProcess->totalCount;
 
-	if (!_topicProcess->lastSlice && !reachedTotal) {
+	if (!_topicProcess->lastSlice && !reachedTill && !reachedTotal) {
 		requestTopicMessagesSlice();
 	} else {
 		finishTopicMessages();

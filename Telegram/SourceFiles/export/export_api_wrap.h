@@ -212,13 +212,15 @@ private:
 		int offsetId,
 		int addOffset,
 		int limit,
-		FnMut<void(MTPmessages_Messages&&)> done);
+		FnMut<void(MTPmessages_Messages&&)> done,
+		int offsetDate = 0);
 	void requestTopicMessagesSlice();
 	void requestTopicReplies(
 		int offsetId,
 		int addOffset,
 		int limit,
-		FnMut<void(MTPmessages_Messages&&)> done);
+		FnMut<void(MTPmessages_Messages&&)> done,
+		int offsetDate = 0);
 	void collectMessagesCustomEmoji(const Data::MessagesSlice &slice);
 	void resolveCustomEmoji();
 	void loadMessagesFiles(Data::MessagesSlice &&slice);
