@@ -1465,6 +1465,20 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 	Expects(_chatProcess != nullptr);
 	Expects(localSplitIndex < _chatProcess->info.splits.size());
 
+	// When the user picked a date range, ask the server for the count
+	// of messages matching `[singlePeerFrom, singlePeerTill)` in this
+	// split via messages.search. That gives the progress bar a real
+	// total for the filtered export (otherwise messagesCountPerSplit
+	// stores the full-chat size and progress effectively jumps from
+	// ~0% to 100% near the end). The same call also tells us whether
+	// the split is empty (count == 0) so it subsumes the previous
+	// SingleMessageAfter / SingleMessageBefore skip probes.
+	if ((_settings->singlePeerFrom > 0)
+		|| (_settings->singlePeerTill > 0)) {
+		requestDateLimitedMessagesCount(localSplitIndex);
+		return;
+	}
+
 	requestChatMessages(
 		_chatProcess->info.splits[localSplitIndex],
 		0, // offset_id
@@ -1487,41 +1501,81 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 			error("Unexpected messagesNotModified received.");
 			return;
 		}
-		const auto skipSplit = !Data::SingleMessageAfter(
-			result,
-			_settings->singlePeerFrom);
-		if (skipSplit) {
-			// No messages from the requested range, skip this split.
-			messagesCountLoaded(localSplitIndex, 0);
-			return;
-		}
-		checkFirstMessageDate(localSplitIndex, count);
+		messagesCountLoaded(localSplitIndex, count);
 	});
 }
 
-void ApiWrap::checkFirstMessageDate(int localSplitIndex, int count) {
+void ApiWrap::requestDateLimitedMessagesCount(int localSplitIndex) {
 	Expects(_chatProcess != nullptr);
 	Expects(localSplitIndex < _chatProcess->info.splits.size());
+	Expects((_settings->singlePeerFrom > 0)
+		|| (_settings->singlePeerTill > 0));
 
-	if (_settings->singlePeerTill <= 0) {
-		messagesCountLoaded(localSplitIndex, count);
-		return;
-	}
+	const auto splitIndex = _chatProcess->info.splits[localSplitIndex];
+	const auto splitsCount = int(_splits.size());
+	const auto realSplitIndex = (splitIndex >= 0)
+		? splitIndex
+		: (splitsCount + splitIndex);
+	const auto realPeerInput = (splitIndex >= 0)
+		? _chatProcess->info.input
+		: _chatProcess->info.migratedFromInput;
+	const auto outgoingInput = _chatProcess->info.isMonoforum
+		? _chatProcess->info.monoforumBroadcastInput
+		: MTP_inputPeerSelf();
 
-	// Request first message in this split to check if its' date < till.
-	requestChatMessages(
-		_chatProcess->info.splits[localSplitIndex],
-		1, // offset_id
-		-1, // add_offset
-		1, // limit
-		[=](const MTPmessages_Messages &result) {
+	// See requestChatMessages: messages.search uses strict comparison
+	// for both bounds (date > min_date && date < max_date), while the
+	// exporter's canonical range is `[singlePeerFrom, singlePeerTill)`
+	// (SkipMessageByDate). Shift min_date by -1 to match.
+	const auto minDate = (_settings->singlePeerFrom > 0)
+		? (_settings->singlePeerFrom - 1)
+		: 0;
+	const auto maxDate = (_settings->singlePeerTill > 0)
+		? _settings->singlePeerTill
+		: 0;
+	const auto flags = _chatProcess->info.onlyMyMessages
+		? MTPmessages_Search::Flag::f_from_id
+		: MTPmessages_Search::Flag(0);
+	const auto fromInput = _chatProcess->info.onlyMyMessages
+		? outgoingInput
+		: MTPInputPeer();
+
+	splitRequest(realSplitIndex, MTPmessages_Search(
+		MTP_flags(flags),
+		realPeerInput,
+		MTP_string(), // query
+		fromInput,
+		MTPInputPeer(), // saved_peer_id
+		MTPVector<MTPReaction>(), // saved_reaction
+		MTPint(), // top_msg_id
+		MTP_inputMessagesFilterEmpty(),
+		MTP_int(minDate), // min_date
+		MTP_int(maxDate), // max_date
+		MTP_int(0), // offset_id
+		MTP_int(0), // add_offset
+		MTP_int(1), // limit - we only need .count
+		MTP_int(0), // max_id
+		MTP_int(0), // min_id
+		MTP_long(0) // hash
+	)).done([=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
-		const auto skipSplit = !Data::SingleMessageBefore(
-			result,
-			_settings->singlePeerTill);
-		messagesCountLoaded(localSplitIndex, skipSplit ? 0 : count);
-	});
+		const auto count = result.match(
+			[](const MTPDmessages_messages &data) {
+			return int(data.vmessages().v.size());
+		}, [](const MTPDmessages_messagesSlice &data) {
+			return data.vcount().v;
+		}, [](const MTPDmessages_channelMessages &data) {
+			return data.vcount().v;
+		}, [](const MTPDmessages_messagesNotModified &) {
+			return -1;
+		});
+		if (count < 0) {
+			error("Unexpected messagesNotModified received.");
+			return;
+		}
+		messagesCountLoaded(localSplitIndex, count);
+	}).send();
 }
 
 void ApiWrap::messagesCountLoaded(int localSplitIndex, int count) {

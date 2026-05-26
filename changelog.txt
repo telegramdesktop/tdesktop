@@ -1,6 +1,6 @@
 6.8.3 beta (19.05.26)
 
-- Export now jumps to the picked "from date" instead of walking the whole chat.
+- Export now jumps to the picked "from date" instead of walking the whole chat, and shows progress against the date-filtered total.
 - In-app markdown file viewer.
 - Native Instant View support.
 - Native external webapp viewer on Linux.
