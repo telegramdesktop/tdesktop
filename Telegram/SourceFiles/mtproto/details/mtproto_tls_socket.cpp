@@ -4,7 +4,7 @@ the official desktop application for the Telegram messaging service.
 
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
---- DPI FIX by Qz3rK ---
+--- DPI FIX by Qz3rK v3 ---
 */
 #include "mtproto/details/mtproto_tls_socket.h"
 
@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/algorithm/shuffle.hpp>
 #include <random>
-#include <thread>
 
 namespace MTP::details {
 namespace {
@@ -40,7 +39,33 @@ const auto kClientHeader = qstr("\x17\x03\x03");
 using BigNum = openssl::BigNum;
 using BigNumContext = openssl::Context;
 
-[[nodiscard]] MTPTlsClientHello PrepareClientHelloRules() {
+static std::mt19937 kRng(std::random_device{}());
+
+[[nodiscard]] MTPTlsClientHello PrepareClientHelloRulesChrome();
+[[nodiscard]] MTPTlsClientHello PrepareClientHelloRulesFirefox();
+
+[[nodiscard]] bytes::vector PrepareGreases() {
+	auto result = bytes::vector(kMaxGrease);
+	bytes::set_random(result);
+	for (auto &byte : result) {
+		byte = bytes::type((uchar(byte) & 0xF0) + 0x0A);
+	}
+	static_assert(kMaxGrease % 2 == 0);
+	for (auto i = 0; i != kMaxGrease; i += 2) {
+		if (result[i] == result[i + 1]) {
+			result[i + 1] = bytes::type(uchar(result[i + 1]) ^ 0x10);
+		}
+	}
+	for (auto i = 0; i != kMaxGrease; ++i) {
+		const auto j = (uchar(result[i]) * 0x9E3779B9) % kMaxGrease;
+		if (i != j) {
+			std::swap(result[i], result[j]);
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] MTPTlsClientHello PrepareClientHelloRulesChrome() {
 	using Scope = QVector<MTPTlsBlock>;
 	using Permutation = std::vector<Scope>;
 	using StackElement = std::variant<Scope, Permutation>;
@@ -92,8 +117,10 @@ using BigNumContext = openssl::Context;
 		Expects(stack.size() > 1);
 		Expects(v::is<Permutation>(stack.back()));
 
-		const auto list = std::move(v::get<Permutation>(stack.back()));
+		auto list = std::move(v::get<Permutation>(stack.back()));
 		stack.pop_back();
+
+		ranges::shuffle(list, kRng);
 
 		const auto wrapped = list | ranges::views::transform([](
 				const QVector<MTPTlsBlock> &elements) {
@@ -123,109 +150,277 @@ using BigNumContext = openssl::Context;
 	S("\x20"_q);
 	R(32);
 
-	S("\x00\x20"_q);
-	G(0);
-	S(""
-		"\x13\x01\x13\x02\x13\x03\xc0\x2b\xc0\x2f\xc0\x2c\xc0\x30\xcc\xa9"
-		"\xcc\xa8\xc0\x13\xc0\x14\x00\x9c\x00\x9d\x00\x2f\x00\x35\x01\x00"
-		"\x01\x93"_q);
-	G(2);
+	const auto allCiphers = std::vector<QByteArray>{
+		"\x13\x01"_q,
+		"\x13\x03"_q,
+		"\x13\x02"_q,
+		"\xc0\x2b"_q,
+		"\xc0\x2f"_q,
+		"\xcc\xa9"_q,
+		"\xcc\xa8"_q,
+		"\xc0\x2c"_q,
+		"\xc0\x30"_q,
+		"\xc0\x14"_q,
+		"\x00\x9c"_q,
+		"\x00\x9d"_q,
+		"\x00\x2f"_q,
+		"\x00\x35"_q,
+		"\xc0\x13"_q,
+		"\x00\x3c"_q,
+	};
+	
+	auto selected = std::vector<QByteArray>{
+		"\x13\x01"_q,
+		"\x13\x03"_q,
+		"\x13\x02"_q,
+	};
+	
+	auto rng = std::mt19937(std::random_device{}());
+	auto countDist = std::uniform_int_distribution<int>(1, 9);
+	auto extraCount = countDist(rng);
+	
+	auto available = std::vector<QByteArray>(allCiphers.begin() + 3, allCiphers.end());
+	ranges::shuffle(available, rng);
+	
+	for (int i = 0; i < extraCount && i < (int)available.size(); ++i) {
+		selected.push_back(available[i]);
+	}
+	
+	auto tls13 = std::vector<QByteArray>(selected.begin(), selected.begin() + 3);
+	auto others = std::vector<QByteArray>(selected.begin() + 3, selected.end());
+	ranges::shuffle(others, rng);
+	
+	auto finalCiphers = tls13;
+	finalCiphers.insert(finalCiphers.end(), others.begin(), others.end());
+	
+	QByteArray cipherData;
+	for (const auto &c : finalCiphers) {
+		cipherData.append(c);
+	}
+	
+	uint16 cipherLen = qToBigEndian(uint16(cipherData.size()));
+	S(QByteArray(reinterpret_cast<const char*>(&cipherLen), 2));
+	S(cipherData);
+
+	S("\x01\x00"_q);
+	OpenScope();
+
 	S("\x00\x00"_q);
+	OpenScope();
+	OpenScope();
+	S("\x00"_q);
+	OpenScope();
+	D();
+	CloseScope();
+	CloseScope();
+	CloseScope();
 
-	OpenPermutation(); {
-		StartPermutationElement(); {
-			S("\x00\x00"_q);
-			OpenScope();
-			OpenScope();
-			S("\x00"_q);
-			OpenScope();
-			D();
-			CloseScope();
-			CloseScope();
-			CloseScope();
-		}
-		StartPermutationElement(); {
-			S("\x00\x05\x00\x05\x01\x00\x00\x00\x00"_q);
-		}
-		StartPermutationElement(); {
-			S("\x00\x0a\x00\x0a\x00\x08"_q);
-			G(4);
-			S("\x00\x1d\x00\x17\x00\x18"_q);
-		}
-		StartPermutationElement(); {
-			S("\x00\x0b\x00\x02\x01\x00"_q);
-		}
-		StartPermutationElement(); {
-			S(""
-				"\x00\x0d\x00\x12\x00\x10\x04\x03\x08\x04\x04\x01\x05\x03"
-				"\x08\x05\x05\x01\x08\x06\x06\x01"_q);
-		}
-		StartPermutationElement(); {
-			S(""
-				"\x00\x10\x00\x0e\x00\x0c\x02\x68\x32\x08\x68\x74\x74\x70"
-				"\x2f\x31\x2e\x31"_q);
-		}
-		StartPermutationElement(); {
-			S("\x00\x12\x00\x00"_q);
-		}
-		StartPermutationElement(); {
-			S("\x00\x17\x00\x00"_q);
-		}
-		StartPermutationElement(); {
-			S("\x00\x1b\x00\x03\x02\x00\x02"_q);
-		}
-		StartPermutationElement(); {
-			S("\x00\x23\x00\x00"_q);
-		}
-		StartPermutationElement(); {
-			S("\x00\x2b\x00\x07\x06"_q);
-			G(6);
-			S("\x03\x04\x03\x03"_q);
-		}
-		StartPermutationElement(); {
-			S("\x00\x2d\x00\x02\x01\x01"_q);
-		}
-		StartPermutationElement(); {
-			S("\x00\x33\x00\x2b\x00\x29"_q);
-			G(4);
-			S("\x00\x01\x00\x00\x1d\x00\x20"_q);
-			K();
-		}
-		StartPermutationElement(); {
-			S("\x44\x69\x00\x05\x00\x03\x02\x68\x32"_q);
-		}
-		StartPermutationElement(); {
-			S("\xff\x01\x00\x01\x00"_q);
-		}
-	} ClosePermutation();
+	struct ExtInfo {
+		QByteArray data;
+	};
+	
+	auto extraExts = std::vector<ExtInfo>();
+	
+	extraExts.push_back({"\x00\x17\x00\x00"_q});
+	extraExts.push_back({"\xff\x01\x00\x01\x00"_q});
+	extraExts.push_back({"\x00\x23\x00\x00"_q});
+	extraExts.push_back({"\x00\x12\x00\x00"_q});
+	extraExts.push_back({"\x00\x0b\x00\x02\x01\x00"_q});
+	extraExts.push_back({"\x00\x2d\x00\x02\x01\x01"_q});
 
-	G(3);
-	S("\x00\x01\x00\x00\x15"_q);
-	Z(83);
+	ranges::shuffle(extraExts, rng);
+	auto extCount = std::uniform_int_distribution<int>(0, 5)(rng);
+	
+	for (int i = 0; i < extCount && i < (int)extraExts.size(); ++i) {
+		S(extraExts[i].data);
+	}
+
+	CloseScope();
 
 	return MTP_tlsClientHello(MTP_vector<MTPTlsBlock>(Finish()));
 }
 
-[[nodiscard]] bytes::vector PrepareGreases() {
-	auto result = bytes::vector(kMaxGrease);
-	bytes::set_random(result);
-	for (auto &byte : result) {
-		byte = bytes::type((uchar(byte) & 0xF0) + 0x0A);
-	}
-	static_assert(kMaxGrease % 2 == 0);
-	for (auto i = 0; i != kMaxGrease; i += 2) {
-		if (result[i] == result[i + 1]) {
-			result[i + 1] = bytes::type(uchar(result[i + 1]) ^ 0x10);
+[[nodiscard]] MTPTlsClientHello PrepareClientHelloRulesFirefox() {
+	
+	using Scope = QVector<MTPTlsBlock>;
+	using Permutation = std::vector<Scope>;
+	using StackElement = std::variant<Scope, Permutation>;
+	auto stack = std::vector<StackElement>();
+	const auto pushToBack = [&](MTPTlsBlock &&block) {
+		Expects(!stack.empty());
+
+		if (const auto scope = std::get_if<Scope>(&stack.back())) {
+			scope->push_back(std::move(block));
+		} else {
+			auto &permutation = v::get<Permutation>(stack.back());
+			Assert(!permutation.empty());
+			permutation.back().push_back(std::move(block));
 		}
+	};
+	const auto S = [&](QByteArray data) {
+		pushToBack(MTP_tlsBlockString(MTP_bytes(data)));
+	};
+	const auto Z = [&](int length) {
+		pushToBack(MTP_tlsBlockZero(MTP_int(length)));
+	};
+	const auto G = [&](int seed) {
+		pushToBack(MTP_tlsBlockGrease(MTP_int(seed)));
+	};
+	const auto R = [&](int length) {
+		pushToBack(MTP_tlsBlockRandom(MTP_int(length)));
+	};
+	const auto D = [&] {
+		pushToBack(MTP_tlsBlockDomain());
+	};
+	const auto K = [&] {
+		pushToBack(MTP_tlsBlockPublicKey());
+	};
+	const auto OpenScope = [&] {
+		stack.emplace_back(Scope());
+	};
+	const auto CloseScope = [&] {
+		Expects(stack.size() > 1);
+		Expects(v::is<Scope>(stack.back()));
+
+		const auto blocks = std::move(v::get<Scope>(stack.back()));
+		stack.pop_back();
+		pushToBack(MTP_tlsBlockScope(MTP_vector<MTPTlsBlock>(blocks)));
+	};
+	const auto OpenPermutation = [&] {
+		stack.emplace_back(Permutation());
+	};
+	const auto ClosePermutation = [&] {
+		Expects(stack.size() > 1);
+		Expects(v::is<Permutation>(stack.back()));
+
+		auto list = std::move(v::get<Permutation>(stack.back()));
+		stack.pop_back();
+
+		ranges::shuffle(list, kRng);
+
+		const auto wrapped = list | ranges::views::transform([](
+				const QVector<MTPTlsBlock> &elements) {
+			return MTP_vector<MTPTlsBlock>(elements);
+		}) | ranges::to<QVector<MTPVector<MTPTlsBlock>>>();
+
+		pushToBack(MTP_tlsBlockPermutation(
+			MTP_vector<MTPVector<MTPTlsBlock>>(wrapped)));
+	};
+	const auto StartPermutationElement = [&] {
+		Expects(stack.size() > 1);
+		Expects(v::is<Permutation>(stack.back()));
+
+		v::get<Permutation>(stack.back()).emplace_back();
+	};
+	const auto Finish = [&] {
+		Expects(stack.size() == 1);
+		Expects(v::is<Scope>(stack.back()));
+
+		return v::get<Scope>(stack.back());
+	};
+
+	stack.emplace_back(Scope());
+
+	S("\x16\x03\x01\x02\x00\x01\x00\x01\xfc\x03\x03"_q);
+	Z(32);
+	S("\x20"_q);
+	R(32);
+	
+	const auto allCiphers = std::vector<QByteArray>{
+		"\x13\x01"_q,
+		"\x13\x03"_q,
+		"\x13\x02"_q,
+		"\xc0\x2b"_q,
+		"\xc0\x2f"_q,
+		"\xcc\xa9"_q,
+		"\xcc\xa8"_q,
+		"\xc0\x2c"_q,
+		"\xc0\x30"_q,
+		"\xc0\x13"_q,
+		"\xc0\x14"_q,
+		"\x00\x9c"_q,
+		"\x00\x9d"_q,
+		"\x00\x2f"_q,
+		"\x00\x35"_q,
+	};
+	
+	auto selected = std::vector<QByteArray>{
+		"\x13\x01"_q,
+		"\x13\x03"_q,
+		"\x13\x02"_q,
+	};
+	
+	auto rng = std::mt19937(std::random_device{}());
+	auto countDist = std::uniform_int_distribution<int>(1, 11);
+	auto extraCount = countDist(rng);
+	
+	auto available = std::vector<QByteArray>(allCiphers.begin() + 3, allCiphers.end());
+	ranges::shuffle(available, rng);
+	
+	for (int i = 0; i < extraCount && i < (int)available.size(); ++i) {
+		selected.push_back(available[i]);
 	}
-	for (auto i = 0; i != kMaxGrease; ++i) {
-		const auto j = (uchar(result[i]) * 0x9E3779B9) % kMaxGrease;
-		if (i != j) {
-			std::swap(result[i], result[j]);
-		}
+	
+	auto tls13 = std::vector<QByteArray>(selected.begin(), selected.begin() + 3);
+	auto others = std::vector<QByteArray>(selected.begin() + 3, selected.end());
+	ranges::shuffle(others, rng);
+	
+	auto finalCiphers = tls13;
+	finalCiphers.insert(finalCiphers.end(), others.begin(), others.end());
+	
+	QByteArray cipherData;
+	for (const auto &c : finalCiphers) {
+		cipherData.append(c);
 	}
-	return result;
+	
+	uint16 cipherLen = qToBigEndian(uint16(cipherData.size()));
+	S(QByteArray(reinterpret_cast<const char*>(&cipherLen), 2));
+	S(cipherData);
+
+	S("\x01\x00"_q);
+	OpenScope();
+
+	S("\x00\x00"_q);
+	OpenScope();
+	OpenScope();
+	S("\x00"_q);
+	OpenScope();
+	D();
+	CloseScope();
+	CloseScope();
+	CloseScope();
+
+	auto extraExts = std::vector<QByteArray>{
+		"\x00\x17\x00\x00"_q,
+		"\xff\x01\x00\x01\x00"_q,
+		"\x00\x23\x00\x00"_q,
+		"\x00\x12\x00\x00"_q,
+		"\x00\x0b\x00\x02\x01\x00"_q,
+		"\x00\x2d\x00\x02\x01\x01"_q,
+		"\x00\x1c\x00\x02\x40\x01"_q,
+	};
+	
+	ranges::shuffle(extraExts, rng);
+	auto extCount = std::uniform_int_distribution<int>(1, 6)(rng);
+	
+	for (int i = 0; i < extCount && i < (int)extraExts.size(); ++i) {
+		S(extraExts[i]);
+	}
+
+	CloseScope();
+
+	return MTP_tlsClientHello(MTP_vector<MTPTlsBlock>(Finish()));
 }
+
+[[nodiscard]] MTPTlsClientHello PrepareClientHelloRules() {
+	auto rng = std::mt19937(std::random_device{}());
+	std::uniform_int_distribution<int> dist(0, 1);
+	
+	return (dist(rng) == 0) 
+		? PrepareClientHelloRulesChrome() 
+		: PrepareClientHelloRulesFirefox();
+}
+
 
 [[nodiscard]] BigNum GenerateY2(
 		const BigNum &x,
@@ -511,13 +706,10 @@ void Generator::Part::writeBlock(const MTPDtlsBlockPermutation &data) {
 
 void Generator::Part::writeBlock(const MTPDtlsBlockM &data) {
 }
-
 void Generator::Part::writeBlock(const MTPDtlsBlockE &data) {
 }
-
 void Generator::Part::writeBlock(const MTPDtlsBlockPadding &data) {
 }
-
 
 void Generator::Part::finalize(bytes::const_span key) {
 	if (_error) {
@@ -621,6 +813,7 @@ TlsSocket::TlsSocket(
 
 	_socket.moveToThread(thread);
 	_socket.setProxy(proxy);
+	_socket.setSocketOption(QAbstractSocket::LowDelayOption, 1);
 	if (protocolForFiles) {
 		_socket.setSocketOption(
 			QAbstractSocket::SendBufferSizeSocketOption,
@@ -666,7 +859,7 @@ void TlsSocket::plainConnected() {
 		return;
 	}
 
-	static const auto kClientHelloRules = PrepareClientHelloRules();
+	const auto kClientHelloRules = PrepareClientHelloRules();
 	const auto hello = PrepareClientHello(
 		kClientHelloRules,
 		domainFromSecret(),
@@ -683,14 +876,30 @@ void TlsSocket::plainConnected() {
 		int offset = 0;
 		
 		auto rng = std::mt19937(std::random_device{}());
-		auto chunkSizeDist = std::uniform_int_distribution<int>(48, 96);
-		auto delayDist = std::uniform_int_distribution<int>(1, 5);
+		
+		_socket.setSocketOption(QAbstractSocket::LowDelayOption, 1);
+		
+		auto chunkSizeDist = std::uniform_int_distribution<int>(16, 128);
+		auto delayDist = std::uniform_int_distribution<int>(3, 25);
+		
+		QThread::msleep(std::uniform_int_distribution<int>(5, 100)(rng));
+		
+		auto firstChunkDist = std::uniform_int_distribution<int>(1, 32);
+		const auto firstChunk = std::min(firstChunkDist(rng), data.size());
+		_socket.write(data.mid(0, firstChunk));
+		_socket.flush();
+		offset = firstChunk;
+		
+		if (offset < data.size()) {
+			QThread::msleep(delayDist(rng));
+		}
 		
 		while (offset < data.size()) {
 			const auto chunkSize = std::min(
 				chunkSizeDist(rng),
 				data.size() - offset);
 			_socket.write(data.mid(offset, chunkSize));
+			_socket.flush();
 			offset += chunkSize;
 			
 			if (offset < data.size()) {
@@ -699,7 +908,6 @@ void TlsSocket::plainConnected() {
 		}
 	}
 }
-
 
 void TlsSocket::plainDisconnected() {
 	_state = State::NotConnected;
