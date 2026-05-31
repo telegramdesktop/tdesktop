@@ -599,8 +599,8 @@ mac:
 """)
 
 stage('openssl3', """
-    git clone -b openssl-3.2.1 https://github.com/openssl/openssl openssl3
-    cd openssl3
+    git clone -b openssl-4.0.0 https://github.com/openssl/openssl openssl4
+    cd openssl4
 win32:
     perl Configure no-shared no-tests debug-VC-WIN32 /FS
 win64:
@@ -646,7 +646,7 @@ mac:
 """)
 
 stage('opus', """
-    git clone -b v1.5.2 https://github.com/xiph/opus.git
+    git clone -b v1.6.1 https://github.com/xiph/opus.git
     cd opus
 win:
     cmake -B out . ^
