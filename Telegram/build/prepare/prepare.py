@@ -847,7 +847,7 @@ mac:
 """)
 
 stage('libavif', """
-    git clone -b v1.3.0 https://github.com/AOMediaCodec/libavif.git
+    git clone -b v1.4.2 https://github.com/AOMediaCodec/libavif.git
     cd libavif
 win:
     cmake . ^
