@@ -947,7 +947,7 @@ mac:
 """)
 
 stage('libheif', """
-    git clone -b v1.21.2 https://github.com/strukturag/libheif.git
+    git clone -b v1.23.0 https://github.com/strukturag/libheif.git
     cd libheif
 win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
