@@ -1148,7 +1148,7 @@ mac:
 
 stage('nv-codec-headers', """
 win:
-    git clone -b n12.1.14.0 https://github.com/FFmpeg/nv-codec-headers.git
+    git clone -b n13.0.19.0 https://github.com/FFmpeg/nv-codec-headers.git
 """)
 
 stage('regex', """
@@ -1156,7 +1156,7 @@ stage('regex', """
 """)
 
 stage('ffmpeg', """
-    git clone -b n6.1.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg
+    git clone -b n7.1.4 https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
 win:
 depends:patches/ffmpeg.patch
