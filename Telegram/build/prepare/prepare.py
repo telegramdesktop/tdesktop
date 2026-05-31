@@ -598,7 +598,7 @@ mac:
     cmake --install build
 """)
 
-stage('openssl3', """
+stage('openssl4', """
     git clone -b openssl-4.0.0 https://github.com/openssl/openssl openssl4
     cd openssl4
 win32:
@@ -1524,7 +1524,7 @@ win:
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
-    SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
+    SET OPENSSL_DIR=%LIBS_DIR%\\openssl4
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     SET WEBP_DIR=%LIBS_DIR%\\libwebp
@@ -1615,7 +1615,7 @@ release:
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt' + qt + '"') + """
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
-    SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
+    SET OPENSSL_DIR=%LIBS_DIR%\\openssl4
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     SET WEBP_DIR=%LIBS_DIR%\\libwebp
@@ -1673,7 +1673,7 @@ stage('tg_owt', """
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
     SET OPUS_PATH=$USED_PREFIX/include/opus
-    SET OPENSSL_PATH=$LIBS_DIR/openssl3/include
+    SET OPENSSL_PATH=$LIBS_DIR/openssl4/include
     SET LIBVPX_PATH=$USED_PREFIX/include
     SET OPENH264_PATH=$USED_PREFIX/include
     SET FFMPEG_PATH=$LIBS_DIR/ffmpeg
@@ -1706,7 +1706,7 @@ mac:
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl3/include \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl4/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
@@ -1721,7 +1721,7 @@ mac:
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl3/include \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl4/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
@@ -1738,7 +1738,7 @@ release:
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl3/include \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl4/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
@@ -1752,7 +1752,7 @@ release:
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl3/include \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl4/include \
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
@@ -1824,7 +1824,7 @@ stage('tde2e', """
     cd tde2e
     git checkout 51743df
 win:
-    SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
+    SET OPENSSL_DIR=%LIBS_DIR%\\openssl4
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed -i "s/STREQUAL/MATCHES/" td/generate/CMakeLists.txt
@@ -1881,9 +1881,9 @@ mac:
             -DCMAKE_BUILD_TYPE=$BUILD_CONFIG \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
             -DOPENSSL_FOUND=1 \
-            -DOPENSSL_INCLUDE_DIR=$LIBS_DIR/openssl3/include \
-            -DOPENSSL_SSL_LIBRARY=$LIBS_DIR/openssl3/libssl.a \
-            -DOPENSSL_CRYPTO_LIBRARY=$LIBS_DIR/openssl3/libcrypto.a \
+            -DOPENSSL_INCLUDE_DIR=$LIBS_DIR/openssl4/include \
+            -DOPENSSL_SSL_LIBRARY=$LIBS_DIR/openssl4/libssl.a \
+            -DOPENSSL_CRYPTO_LIBRARY=$LIBS_DIR/openssl4/libcrypto.a \
             -DZLIB_FOUND=1 \
             -DZLIB_LIBRARIES=$USED_PREFIX/lib/libz.a \
             -DTD_E2E_ONLY=ON \
