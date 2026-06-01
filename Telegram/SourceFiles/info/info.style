@@ -725,7 +725,6 @@ infoMainButtonAttention: SettingsButton(infoMainButton) {
 	textFgOver: attentionButtonFgOver;
 }
 infoSharedMediaButton: infoProfileButton;
-infoSharedMediaBottomSkip: 12px;
 
 infoBlockButton: SettingsButton(infoProfileButton) {
 	textFg: attentionButtonFg;
