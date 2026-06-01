@@ -752,7 +752,16 @@ public:
 		return _noSearchSubmits.events();
 	}
 
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	int accessibilityChildCount() const override;
+	QString accessibilityChildName(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+
 	~PeerListContent();
+
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -761,6 +770,7 @@ protected:
 		int visibleBottom) override;
 
 	void paintEvent(QPaintEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
 	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;

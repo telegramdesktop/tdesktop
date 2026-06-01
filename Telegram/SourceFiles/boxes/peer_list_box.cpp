@@ -2334,6 +2334,11 @@ void PeerListContent::setSelected(Selected selected) {
 	setCursor(_selected.element ? style::cur_pointer : style::cur_default);
 
 	_selectedIndex = _selected.index.value;
+
+	if (_selectedIndex >= 0) {
+		accessibilityChildNameChanged(_selectedIndex);
+		accessibilityChildFocused(_selectedIndex);
+	}
 }
 
 void PeerListContent::setContexted(Selected contexted) {
@@ -2530,6 +2535,61 @@ void PeerListContent::handleNameChanged(not_null<PeerData*> peer) {
 PeerListContent::~PeerListContent() {
 	if (_contextMenu) {
 		_contextMenu->setDestroyedCallback(nullptr);
+	}
+}
+
+QAccessible::Role PeerListContent::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy PeerListContent::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+QAccessible::Role PeerListContent::accessibilityChildRole() const {
+	return QAccessible::ListItem;
+}
+
+QAccessible::State PeerListContent::accessibilityChildState(
+		int index) const {
+	QAccessible::State state;
+	state.selectable = true;
+	state.focusable = true;
+	if (index == _selected.index.value) {
+		state.selected = true;
+		state.active = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+int PeerListContent::accessibilityChildCount() const {
+	return shownRowsCount();
+}
+
+QString PeerListContent::accessibilityChildName(int index) const {
+	if (auto row = const_cast<PeerListContent*>(this)->getRow(RowIndex(index))) {
+		return row->name().toString();
+	}
+	return QString();
+}
+
+QRect PeerListContent::accessibilityChildRect(int index) const {
+	if (index >= 0 && index < shownRowsCount()) {
+		return QRect(0, getRowTop(RowIndex(index)), width(), _rowHeight);
+	}
+	return QRect();
+}
+
+void PeerListContent::focusInEvent(QFocusEvent *e) {
+	if (_selected.index.value < 0 && shownRowsCount() > 0) {
+		setSelected(Selected(0, 0));
+	}
+	RpWidget::focusInEvent(e);
+	if (_selected.index.value >= 0 && hasFocus()) {
+		accessibilityChildFocused(_selected.index.value);
 	}
 }
 
