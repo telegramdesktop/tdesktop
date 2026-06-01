@@ -836,8 +836,8 @@ public:
 			_uniformBuffer, 0, sizeof(uniforms), &uniforms);
 
 		std::array<std::array<float, 2>, 4> texCoords = { {
-			{ { 0.f, 0.f } }, { { 1.f, 0.f } },
 			{ { 0.f, 1.f } }, { { 1.f, 1.f } },
+			{ { 1.f, 0.f } }, { { 0.f, 0.f } },
 		} };
 		if (const auto shift = (rotation / 90); shift != 0) {
 			std::rotate(
@@ -846,10 +846,10 @@ public:
 				texCoords.end());
 		}
 		const float coords[] = {
-			0.f, ph, texCoords[0][0], texCoords[0][1],
-			pw,  ph, texCoords[1][0], texCoords[1][1],
-			0.f, 0.f, texCoords[2][0], texCoords[2][1],
-			pw,  0.f, texCoords[3][0], texCoords[3][1],
+			0.f, ph, texCoords[3][0], texCoords[3][1],
+			pw,  ph, texCoords[2][0], texCoords[2][1],
+			0.f, 0.f, texCoords[0][0], texCoords[0][1],
+			pw,  0.f, texCoords[1][0], texCoords[1][1],
 		};
 		rub->updateDynamicBuffer(
 			_vertexBuffer, 0, sizeof(coords), coords);
