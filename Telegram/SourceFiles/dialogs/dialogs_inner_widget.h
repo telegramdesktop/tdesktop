@@ -375,6 +375,7 @@ private:
 			|| (_peerSearchSelected >= 0)
 			|| (_previewSelected >= 0)
 			|| (_searchedSelected >= 0)
+			|| (_srHeaderSelected >= 0)
 			|| _selectedMorePosts
 			|| _selectedChatTypeFilter;
 	}
@@ -503,14 +504,17 @@ private:
 		PeerSearch,
 		Preview,
 		Searched,
+		SectionHeader,
 	};
 	struct FilteredChildRef {
 		AccessibilityCohort cohort;
 		int local = 0;
+		QString label;
 	};
 	[[nodiscard]] int filteredChildCount() const;
 	[[nodiscard]] std::optional<FilteredChildRef>
 		filteredChildAt(int index) const;
+	[[nodiscard]] QString filteredSectionHeaderText(int section) const;
 	void announceSelectedFocus();
 	void clearSearchResults(bool alsoPeerSearchResults = true);
 	void clearPeerSearchResults();
@@ -656,6 +660,7 @@ private:
 	int _searchedMigratedCount = 0;
 	int _searchedSelected = -1;
 	int _searchedPressed = -1;
+	int _srHeaderSelected = -1;
 
 	WidgetState _state = WidgetState::Default;
 

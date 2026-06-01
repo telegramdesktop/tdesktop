@@ -4412,7 +4412,8 @@ void InnerWidget::clearMouseSelection(bool clearSelection) {
 				= _peerSearchSelected
 				= _previewSelected
 				= _searchedSelected
-				= _hashtagSelected = -1;
+				= _hashtagSelected
+				= _srHeaderSelected = -1;
 		}
 		setCursor(style::cur_default);
 	}
@@ -4606,12 +4607,25 @@ void InnerWidget::selectSkip(int32 direction) {
 			&& _searchResults.empty()) {
 			return;
 		}
+		const auto hashEnd = int(_hashtagResults.size());
+		const auto filterEnd = hashEnd + int(_filterResults.size());
+		const auto peerEnd = filterEnd + int(_peerSearchResults.size());
+		const auto previewEnd = peerEnd + int(_previewResults.size());
+		const auto searchEnd = previewEnd + int(_searchResults.size());
 		if ((_hashtagSelected < 0 || _hashtagSelected >= _hashtagResults.size())
 			&& (_filteredSelected < 0 || _filteredSelected >= _filterResults.size())
 			&& (_peerSearchSelected < 0 || _peerSearchSelected >= _peerSearchResults.size())
 			&& (_previewSelected < 0 || _previewSelected >= _previewResults.size())
-			&& (_searchedSelected < 0 || _searchedSelected >= _searchResults.size())) {
-			if (_hashtagResults.empty() && _filterResults.empty() && _peerSearchResults.empty() && _previewResults.empty()) {
+			&& (_searchedSelected < 0 || _searchedSelected >= _searchResults.size())
+			&& (_searchedSelected < 0 || _searchedSelected >= _searchResults.size())
+			&& _srHeaderSelected < 0) {
+			if (Ui::ScreenReaderModeActive() && filterEnd == 0 && !_peerSearchResults.empty()) {
+				_srHeaderSelected = 2;
+			} else if (Ui::ScreenReaderModeActive() && peerEnd == 0 && !_previewResults.empty()) {
+				_srHeaderSelected = 3;
+			} else if (Ui::ScreenReaderModeActive() && previewEnd == 0 && !_searchResults.empty()) {
+				_srHeaderSelected = 4;
+			} else if (_hashtagResults.empty() && _filterResults.empty() && _peerSearchResults.empty() && _previewResults.empty()) {
 				_searchedSelected = 0;
 			} else if (_hashtagResults.empty() && _filterResults.empty() && _peerSearchResults.empty()) {
 				_previewSelected = 0;
@@ -4622,39 +4636,90 @@ void InnerWidget::selectSkip(int32 direction) {
 			} else {
 				_hashtagSelected = 0;
 			}
+		} else if (Ui::ScreenReaderModeActive() && _srHeaderSelected >= 2) {
+			const auto prevHeader = _srHeaderSelected;
+			_srHeaderSelected = -1;
+			_hashtagSelected = _filteredSelected = _peerSearchSelected = _previewSelected = _searchedSelected = -1;
+			auto landAt = -1;
+			if (direction > 0) {
+				if (prevHeader == 2 && !_peerSearchResults.empty()) landAt = filterEnd;
+				else if (prevHeader == 3 && !_previewResults.empty()) landAt = peerEnd;
+				else if (prevHeader == 4 && !_searchResults.empty()) landAt = previewEnd;
+			} else {
+				if (prevHeader == 2) landAt = filterEnd - 1;
+				else if (prevHeader == 3) landAt = peerEnd - 1;
+				else if (prevHeader == 4) landAt = previewEnd - 1;
+			}
+			if (landAt < 0) {
+				_srHeaderSelected = prevHeader;
+			} else {
+				const auto clamped = std::clamp(landAt, 0, searchEnd - 1);
+				if (clamped < hashEnd) {
+					_hashtagSelected = clamped;
+				} else if (clamped < filterEnd) {
+					_filteredSelected = clamped - hashEnd;
+				} else if (clamped < peerEnd) {
+					_peerSearchSelected = clamped - filterEnd;
+				} else if (clamped < previewEnd) {
+					_previewSelected = clamped - peerEnd;
+				} else {
+					_searchedSelected = clamped - previewEnd;
+				}
+			}
 		} else {
-			int32 cur = base::in_range(_hashtagSelected, 0, _hashtagResults.size())
+			const int32 cur = base::in_range(_hashtagSelected, 0, _hashtagResults.size())
 				? _hashtagSelected
 				: base::in_range(_filteredSelected, 0, _filterResults.size())
-				? (_hashtagResults.size() + _filteredSelected)
+				? (hashEnd + _filteredSelected)
 				: base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())
-				? (_peerSearchSelected + _filterResults.size() + _hashtagResults.size())
+				? (filterEnd + _peerSearchSelected)
 				: base::in_range(_previewSelected, 0, _previewResults.size())
-				? (_previewSelected + _peerSearchResults.size() + _filterResults.size() + _hashtagResults.size())
-				: (_searchedSelected + _previewResults.size() + _peerSearchResults.size() + _filterResults.size() + _hashtagResults.size());
-			cur = std::clamp(
+				? (peerEnd + _previewSelected)
+				: (previewEnd + _searchedSelected);
+			const auto newCur = std::clamp(
 				cur + direction,
 				0,
-				static_cast<int>(_hashtagResults.size()
-					+ _filterResults.size()
-					+ _peerSearchResults.size()
-					+ _previewResults.size()
-					+ _searchResults.size()) - 1);
-			if (cur < _hashtagResults.size()) {
-				_hashtagSelected = cur;
-				_filteredSelected = _peerSearchSelected = _previewSelected = _searchedSelected = -1;
-			} else if (cur < _hashtagResults.size() + _filterResults.size()) {
-				_filteredSelected = cur - _hashtagResults.size();
-				_hashtagSelected = _peerSearchSelected = _previewSelected = _searchedSelected = -1;
-			} else if (cur < _hashtagResults.size() + _filterResults.size() + _peerSearchResults.size()) {
-				_peerSearchSelected = cur - _hashtagResults.size() - _filterResults.size();
-				_hashtagSelected = _filteredSelected = _previewSelected = _searchedSelected = -1;
-			} else if (cur < _hashtagResults.size() + _filterResults.size() + _peerSearchResults.size() + _previewResults.size()) {
-				_previewSelected = cur - _hashtagResults.size() - _filterResults.size() - _peerSearchResults.size();
-				_hashtagSelected = _filteredSelected = _peerSearchSelected = _searchedSelected = -1;
-			} else {
-				_searchedSelected = cur - _hashtagResults.size() - _filterResults.size() - _peerSearchResults.size() - _previewResults.size();
-				_hashtagSelected = _filteredSelected = _peerSearchSelected = _previewSelected = -1;
+				searchEnd - 1);
+
+			auto headerSet = false;
+			if (Ui::ScreenReaderModeActive()) {
+				const auto checkBoundary = [&](int boundary, int headerId, bool notEmpty) {
+					if (!notEmpty) return false;
+					const auto crossingDown = direction > 0 && cur < boundary && newCur >= boundary;
+					const auto landingUp = direction < 0 && cur == boundary;
+					if (crossingDown || landingUp) {
+						_srHeaderSelected = headerId;
+						_hashtagSelected = _filteredSelected = _peerSearchSelected = _previewSelected = _searchedSelected = -1;
+						headerSet = true;
+						return true;
+					}
+					return false;
+				};
+				if (!checkBoundary(filterEnd, 2, !_peerSearchResults.empty())) {
+					if (!checkBoundary(peerEnd, 3, !_previewResults.empty())) {
+						checkBoundary(previewEnd, 4, !_searchResults.empty());
+					}
+				}
+			}
+
+			if (!headerSet) {
+				const auto clamped = newCur;
+				if (clamped < hashEnd) {
+					_hashtagSelected = clamped;
+					_filteredSelected = _peerSearchSelected = _previewSelected = _searchedSelected = -1;
+				} else if (clamped < filterEnd) {
+					_filteredSelected = clamped - hashEnd;
+					_hashtagSelected = _peerSearchSelected = _previewSelected = _searchedSelected = -1;
+				} else if (clamped < peerEnd) {
+					_peerSearchSelected = clamped - filterEnd;
+					_hashtagSelected = _filteredSelected = _previewSelected = _searchedSelected = -1;
+				} else if (clamped < previewEnd) {
+					_previewSelected = clamped - peerEnd;
+					_hashtagSelected = _filteredSelected = _peerSearchSelected = _searchedSelected = -1;
+				} else {
+					_searchedSelected = clamped - previewEnd;
+					_hashtagSelected = _filteredSelected = _peerSearchSelected = _previewSelected = -1;
+				}
 			}
 		}
 		if (base::in_range(_hashtagSelected, 0, _hashtagResults.size())) {
@@ -4664,6 +4729,8 @@ void InnerWidget::selectSkip(int32 direction) {
 			const auto &result = _filterResults[_filteredSelected];
 			const auto from = filteredOffset() + result.top;
 			scrollToItem(from, result.row->height());
+		} else if (_srHeaderSelected == 2) {
+			scrollToItem(peerSearchOffset() - st::searchedBarHeight, st::searchedBarHeight);
 		} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
 			const auto from = peerSearchOffset()
 				+ _peerSearchSelected * st::dialogsRowHeight
@@ -4671,6 +4738,8 @@ void InnerWidget::selectSkip(int32 direction) {
 			const auto height = st::dialogsRowHeight
 				+ (_peerSearchSelected ? 0 : st::searchedBarHeight);
 			scrollToItem(from, height);
+		} else if (_srHeaderSelected == 3) {
+			scrollToItem(previewOffset() - st::searchedBarHeight, st::searchedBarHeight);
 		} else if (base::in_range(_previewSelected, 0, _previewResults.size())) {
 			const auto from = previewOffset()
 				+ _previewSelected * _st->height
@@ -4678,6 +4747,8 @@ void InnerWidget::selectSkip(int32 direction) {
 			const auto height = _st->height
 				+ (_previewSelected ? 0 : st::searchedBarHeight);
 			scrollToItem(from, height);
+		} else if (_srHeaderSelected == 4) {
+			scrollToItem(searchedOffset() - st::searchedBarHeight, st::searchedBarHeight);
 		} else {
 			const auto from = searchedOffset()
 				+ _searchedSelected * _st->height
@@ -5048,6 +5119,9 @@ bool InnerWidget::chooseRow(
 		Qt::KeyboardModifiers modifiers,
 		MsgId pressedTopicRootId,
 		PeerId pressedSublistPeerId) {
+	if (_srHeaderSelected >= 0) {
+		return true;
+	}
 	if (chooseHashtag()) {
 		return true;
 	} else if (_selectedMorePosts) {
@@ -5749,7 +5823,8 @@ void InnerWidget::focusInEvent(QFocusEvent *e) {
 			&& !base::in_range(
 				_previewSelected, 0, int(_previewResults.size()))
 			&& !base::in_range(
-				_searchedSelected, 0, int(_searchResults.size()));
+				_searchedSelected, 0, int(_searchResults.size()))
+			&& (_srHeaderSelected < 0);
 		if (noneSelected && filteredChildCount() > 0) {
 			selectSkip(1);
 		}
@@ -5769,6 +5844,7 @@ bool InnerWidget::processKeyDispatch(QKeyEvent *e) {
 		int peerSearch = -1;
 		int preview = -1;
 		int searched = -1;
+		int srHeader = -1;
 	};
 	const auto snap = Snapshot{
 		_selected,
@@ -5777,6 +5853,7 @@ bool InnerWidget::processKeyDispatch(QKeyEvent *e) {
 		_peerSearchSelected,
 		_previewSelected,
 		_searchedSelected,
+		_srHeaderSelected,
 	};
 	if (e->key() == Qt::Key_Up) {
 		selectSkip(-1);
@@ -5794,7 +5871,8 @@ bool InnerWidget::processKeyDispatch(QKeyEvent *e) {
 		|| (_filteredSelected != snap.filtered)
 		|| (_peerSearchSelected != snap.peerSearch)
 		|| (_previewSelected != snap.preview)
-		|| (_searchedSelected != snap.searched);
+		|| (_searchedSelected != snap.searched)
+		|| (_srHeaderSelected != snap.srHeader);
 	if (changed) {
 		announceSelectedFocus();
 	}
@@ -5805,7 +5883,9 @@ void InnerWidget::keyPressEvent(QKeyEvent *e) {
 	if (processKeyDispatch(e)) {
 		return;
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-		chooseRow();
+		if (_srHeaderSelected < 0) {
+			chooseRow();
+		}
 		return;
 	}
 	RpWidget::keyPressEvent(e);
@@ -5825,22 +5905,28 @@ void InnerWidget::announceSelectedFocus() {
 	} else if (_state == WidgetState::Filtered) {
 		const auto h = int(_hashtagResults.size());
 		const auto f = int(_filterResults.size());
+		const auto ph = !_peerSearchResults.empty() ? 1 : 0;
 		const auto p = int(_peerSearchResults.size());
+		const auto vh = !_previewResults.empty() ? 1 : 0;
 		const auto v = int(_previewResults.size());
+		const auto sh = !_searchResults.empty() ? 1 : 0;
 		auto index = -1;
-		if (base::in_range(_hashtagSelected, 0, h)) {
+		if (_srHeaderSelected == 2 && ph) {
+			index = h + f;
+		} else if (_srHeaderSelected == 3 && vh) {
+			index = h + f + ph + p;
+		} else if (_srHeaderSelected == 4 && sh) {
+			index = h + f + ph + p + vh + v;
+		} else if (base::in_range(_hashtagSelected, 0, h)) {
 			index = _hashtagSelected;
 		} else if (base::in_range(_filteredSelected, 0, f)) {
 			index = h + _filteredSelected;
 		} else if (base::in_range(_peerSearchSelected, 0, p)) {
-			index = h + f + _peerSearchSelected;
+			index = h + f + ph + _peerSearchSelected;
 		} else if (base::in_range(_previewSelected, 0, v)) {
-			index = h + f + p + _previewSelected;
-		} else if (base::in_range(
-				_searchedSelected,
-				0,
-				int(_searchResults.size()))) {
-			index = h + f + p + v + _searchedSelected;
+			index = h + f + ph + p + vh + _previewSelected;
+		} else if (base::in_range(_searchedSelected, 0, int(_searchResults.size()))) {
+			index = h + f + ph + p + vh + v + sh + _searchedSelected;
 		}
 		if (index >= 0) {
 			accessibilityChildNameChanged(index);
@@ -5856,11 +5942,14 @@ Ui::AccessibilityState InnerWidget::accessibilityState() const {
 }
 
 int InnerWidget::filteredChildCount() const {
-	return int(_hashtagResults.size()
-		+ _filterResults.size()
-		+ _peerSearchResults.size()
-		+ _previewResults.size()
-		+ _searchResults.size());
+	const auto ph = !_peerSearchResults.empty() ? 1 : 0;
+	const auto vh = !_previewResults.empty() ? 1 : 0;
+	const auto sh = !_searchResults.empty() ? 1 : 0;
+	return int(_hashtagResults.size())
+		+ int(_filterResults.size())
+		+ ph + int(_peerSearchResults.size())
+		+ vh + int(_previewResults.size())
+		+ sh + int(_searchResults.size());
 }
 
 auto InnerWidget::filteredChildAt(int index) const
@@ -5870,9 +5959,17 @@ auto InnerWidget::filteredChildAt(int index) const
 	}
 	const auto h = int(_hashtagResults.size());
 	const auto f = int(_filterResults.size());
+	const auto ph = !_peerSearchResults.empty() ? 1 : 0;
 	const auto p = int(_peerSearchResults.size());
+	const auto vh = !_previewResults.empty() ? 1 : 0;
 	const auto v = int(_previewResults.size());
+	const auto sh = !_searchResults.empty() ? 1 : 0;
 	const auto s = int(_searchResults.size());
+	const auto pHdrIdx = h + f;
+	const auto vHdrIdx = pHdrIdx + ph + p;
+	const auto sHdrIdx = vHdrIdx + vh + v;
+	const auto total = h + f + ph + p + vh + v + sh + s;
+	if (index >= total) return std::nullopt;
 	if (index < h) {
 		return FilteredChildRef{
 			AccessibilityCohort::Hashtag,
@@ -5883,23 +5980,44 @@ auto InnerWidget::filteredChildAt(int index) const
 			AccessibilityCohort::Filtered,
 			index - h,
 		};
-	} else if (index < h + f + p) {
+	} else if (ph && index == pHdrIdx) {
+		return FilteredChildRef{
+			AccessibilityCohort::SectionHeader,
+			2,
+			filteredSectionHeaderText(2),
+		};
+	} else if (index < vHdrIdx) {
 		return FilteredChildRef{
 			AccessibilityCohort::PeerSearch,
-			index - h - f,
+			index - pHdrIdx - ph,
 		};
-	} else if (index < h + f + p + v) {
-		return FilteredChildRef{
-			AccessibilityCohort::Preview,
-			index - h - f - p,
-		};
-	} else if (index < h + f + p + v + s) {
-		return FilteredChildRef{
-			AccessibilityCohort::Searched,
-			index - h - f - p - v,
-		};
+	} else if (vh && index == vHdrIdx) {
+		return FilteredChildRef{ AccessibilityCohort::SectionHeader, 3, filteredSectionHeaderText(3) };
+	} else if (index < sHdrIdx) {
+		return FilteredChildRef{ AccessibilityCohort::Preview, index - vHdrIdx - vh };
+	} else if (sh && index == sHdrIdx) {
+		return FilteredChildRef{ AccessibilityCohort::SectionHeader, 4, filteredSectionHeaderText(4) };
+	} else if (index < total) {
+		return FilteredChildRef{ AccessibilityCohort::Searched, index - sHdrIdx - sh };
 	}
 	return std::nullopt;
+}
+
+QString InnerWidget::filteredSectionHeaderText(int section) const {
+	switch (section) {
+	case 2: return tr::lng_search_global_results(tr::now);
+	case 3: return tr::lng_search_tab_public_posts(tr::now);
+	case 4: {
+		if (uniqueSearchResults()) return u"Unique Search Results"_q;
+		if (_searchState.tab == ChatSearchTab::PublicPosts && !_searchIn) {
+			return _searchState.query.isEmpty()
+				? tr::lng_posts_subtitle_empty(tr::now)
+				: tr::lng_posts_subtitle(tr::now);
+		}
+		return tr::lng_search_found_results(tr::now, lt_count, _searchedMigratedCount + _searchedCount);
+	}
+	}
+	return {};
 }
 
 int InnerWidget::accessibilityChildCount() const {
@@ -5924,6 +6042,8 @@ QString InnerWidget::accessibilityChildName(int index) const {
 			return {};
 		}
 		switch (ref->cohort) {
+		case AccessibilityCohort::SectionHeader:
+			return ref->label;
 		case AccessibilityCohort::Hashtag:
 			return HashtagAccessibilityName(
 				_hashtagResults[ref->local]->tag);
@@ -5972,6 +6092,20 @@ QAccessible::State InnerWidget::accessibilityChildState(int index) const {
 		if (!ref) {
 			return state;
 		}
+		if (ref->cohort == AccessibilityCohort::SectionHeader) {
+			if (Ui::ScreenReaderModeActive()) {
+				state.focusable = true;
+				if (_srHeaderSelected == ref->local) {
+					state.focused = true;
+					state.active = true;
+				}
+			}
+			return state;
+		}
+		state.selectable = true;
+		if (Ui::ScreenReaderModeActive()) {
+			state.focusable = true;
+		}
 		const auto active = [&] {
 			switch (ref->cohort) {
 			case AccessibilityCohort::Hashtag:
@@ -5984,8 +6118,9 @@ QAccessible::State InnerWidget::accessibilityChildState(int index) const {
 				return ref->local == _previewSelected;
 			case AccessibilityCohort::Searched:
 				return ref->local == _searchedSelected;
+			default:
+				return false;
 			}
-			return false;
 		}();
 		if (active) {
 			state.selected = true;
@@ -6016,6 +6151,26 @@ QRect InnerWidget::accessibilityChildRect(int index) const {
 			return QRect();
 		}
 		switch (ref->cohort) {
+		case AccessibilityCohort::SectionHeader:
+			if (ref->local == 2) {
+				return QRect(
+					0,
+					peerSearchOffset() - st::searchedBarHeight,
+					width(),
+					st::searchedBarHeight);
+			} else if (ref->local == 3) {
+				return QRect(
+					0,
+					previewOffset() - st::searchedBarHeight,
+					width(),
+					st::searchedBarHeight);
+			} else {
+				return QRect(
+					0,
+					searchedOffset() - st::searchedBarHeight,
+					width(),
+					st::searchedBarHeight);
+			}
 		case AccessibilityCohort::Hashtag:
 			return QRect(
 				0,
