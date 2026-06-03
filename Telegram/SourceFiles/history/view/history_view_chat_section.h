@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/history_item_helpers.h"
+#include "history/history_view_top_toast.h"
 #include "data/data_messages.h"
 #include "data/data_report.h"
 #include "ui/controls/swipe_handler_data.h"
@@ -146,6 +147,10 @@ public:
 
 	bool confirmSendingFiles(const QStringList &files) override;
 	bool confirmSendingFiles(not_null<const QMimeData*> data) override;
+	bool notify_switchInlineBotButtonReceived(
+		const QString &query,
+		UserData *samePeerBot,
+		MsgId samePeerReplyTo) override;
 
 	bool showChooseReportMessages(
 		not_null<PeerData*> peer,
@@ -279,6 +284,8 @@ private:
 		Fn<void(int)> withPaymentApproved);
 
 	void markLoaded();
+	void requestSponsoredMessages();
+	void injectSponsoredMessages() const;
 	void requestMessageData(MsgId msgId);
 	void messageDataReceived(not_null<PeerData*> peer, MsgId msgId);
 	void clearSupportPreloadRequest();
@@ -431,6 +438,7 @@ private:
 	void recountChatWidth();
 	void replyToMessage(FullReplyTo id);
 	void refreshTopBarActiveChat();
+	void handlePeerMigration();
 	void refreshUnreadCountBadge(std::optional<int> count);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
@@ -482,6 +490,11 @@ private:
 	void updateSubsectionTabsGeometry();
 	void setupEmptyPainter();
 	void refreshAboutView(bool force = false);
+	void checkSuggestToGigagroup();
+	void showAboutTopPromotion();
+	void showInfoTooltip(
+		const TextWithEntities &text,
+		Fn<void()> hiddenCallback);
 	void updateControlsVisibility();
 	void unblockUser();
 	void sendBotStartCommand();
@@ -564,6 +577,7 @@ private:
 	bool _kbShown = false;
 	bool _fieldHasSendText = false;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
+	InfoTooltip _topToast;
 
 	FullMsgId _lastShownAt;
 	HistoryView::CornerButtons _cornerButtons;

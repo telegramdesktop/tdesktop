@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "base/object_ptr.h"
 #include "base/required.h"
 #include "base/unique_qptr.h"
 #include "base/timer.h"
@@ -64,6 +65,7 @@ namespace Ui {
 class AbstractButton;
 class SendButton;
 class IconButton;
+class RoundButton;
 class EmojiButton;
 class SendAsButton;
 class SilentToggle;
@@ -426,6 +428,7 @@ private:
 	[[nodiscard]] bool showStopButton() const;
 	[[nodiscard]] int shownStarsPerMessage() const;
 	bool updateBotCommandShown();
+	bool refreshBotMenuButton();
 	bool updateLikeShown();
 	[[nodiscard]] bool hasVisibleSendText() const;
 	[[nodiscard]] bool hasSendableContent() const;
@@ -554,6 +557,11 @@ private:
 	const not_null<Ui::InputField*> _field;
 	std::unique_ptr<Controls::RichDraftPreview> _richDraftPreview;
 	Ui::IconButton * const _botCommandStart = nullptr;
+	struct {
+		object_ptr<Ui::RoundButton> button = { nullptr };
+		QString text;
+		bool small = false;
+	} _botMenu;
 	std::unique_ptr<Ui::SendAsButton> _sendAs;
 	rpl::variable<bool> _videoStreamAdmin;
 	std::unique_ptr<Ui::SilentToggle> _silent;

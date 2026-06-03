@@ -743,7 +743,15 @@ bool MainWidget::filesOrForwardDrop(
 }
 
 bool MainWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
-	return _history->notify_switchInlineBotButtonReceived(query, samePeerBot, samePeerReplyTo);
+	return _mainSection
+		? _mainSection->notify_switchInlineBotButtonReceived(
+			query,
+			samePeerBot,
+			samePeerReplyTo)
+		: _history->notify_switchInlineBotButtonReceived(
+			query,
+			samePeerBot,
+			samePeerReplyTo);
 }
 
 void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <optional>
 
 class PeerData;
+class UserData;
 
 namespace ChatHelpers {
 struct FileChosen;
@@ -206,6 +207,13 @@ public:
 		return false;
 	}
 	virtual bool confirmSendingFiles(not_null<const QMimeData*> data) {
+		return false;
+	}
+
+	virtual bool notify_switchInlineBotButtonReceived(
+			const QString &query,
+			UserData *samePeerBot,
+			MsgId samePeerReplyTo) {
 		return false;
 	}
 

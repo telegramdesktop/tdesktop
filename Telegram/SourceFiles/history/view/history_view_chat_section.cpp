@@ -41,10 +41,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/pinned_bar.h"
 #include "ui/chat/chat_style.h"
 #include "ui/controls/swipe_handler.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/inner_dropdown.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/text/format_values.h"
@@ -67,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "boxes/send_files_box.h"
 #include "boxes/premium_limits_box.h"
+#include "boxes/peers/edit_peer_permissions_box.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
@@ -82,6 +85,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/ephemeral_messages.h"
 #include "data/components/recent_inline_bots.h"
 #include "data/components/scheduled_messages.h"
+#include "data/components/sponsored_messages.h"
 #include "data/data_histories.h"
 #include "data/data_history_messages.h"
 #include "data/data_msg_id.h"
@@ -109,6 +113,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "info/profile/info_profile_values.h"
 #include "iv/editor/iv_editor_session.h"
+#include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -130,6 +135,7 @@ enum class SendPermission {
 };
 
 constexpr auto kShowMembersDropdownTimeoutMs = 300;
+constexpr auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 
 [[nodiscard]] bool CanSendResolved(
 		not_null<PeerData*> peer,
@@ -753,7 +759,12 @@ ChatWidget::ChatWidget(
 			| PeerUpdateFlag::Members
 			| PeerUpdateFlag::ManagedBot
 			| PeerUpdateFlag::StarsPerMessage
+			| PeerUpdateFlag::Migration
 	) | rpl::on_next([=](const Data::PeerUpdate &update) {
+		if (update.flags & PeerUpdateFlag::Migration) {
+			handlePeerMigration();
+			return;
+		}
 		_bottom->applyPeerUpdate(update.flags);
 		if (update.flags & (PeerUpdateFlag::FullInfo
 			| PeerUpdateFlag::Rights)) {
@@ -772,6 +783,7 @@ ChatWidget::ChatWidget(
 			| PeerUpdateFlag::StarsPerMessage)) {
 			refreshAboutView();
 		}
+		checkSuggestToGigagroup();
 		updateControlsVisibility();
 	}, lifetime());
 
@@ -3111,6 +3123,25 @@ void ChatWidget::refreshTopBarActiveChat() {
 	controller()->setDialogsEntryState(state);
 }
 
+void ChatWidget::handlePeerMigration() {
+	const auto current = _peer->migrateToOrMe();
+	const auto chat = current->migrateFrom();
+	if (!chat) {
+		return;
+	}
+	const auto channel = current->asChannel();
+	Assert(channel != nullptr);
+	if (_peer != channel) {
+		const auto showAtMsgId = _lastShownAt.msg;
+		controller()->showPeerHistory(
+			channel->id,
+			Window::SectionShow::Way::ClearStack,
+			(showAtMsgId > 0) ? (-showAtMsgId) : showAtMsgId);
+		channel->session().api().chatParticipants()
+			.requestCountDelayed(channel);
+	}
+}
+
 void ChatWidget::refreshUnreadCountBadge(std::optional<int> count) {
 	if (count.has_value()) {
 		_cornerButtons.updateJumpDownVisibility(count);
@@ -3396,6 +3427,31 @@ Window::SectionActionResult ChatWidget::sendBotCommand(
 	}
 	sendBotCommand(std::move(request), {});
 	return Window::SectionActionResult::Handle;
+}
+
+bool ChatWidget::notify_switchInlineBotButtonReceived(
+		const QString &query,
+		UserData *samePeerBot,
+		MsgId samePeerReplyTo) {
+	if (samePeerBot) {
+		const auto to = controller()->dialogsEntryStateCurrent();
+		if (!to.key.owningHistory()) {
+			return false;
+		}
+		controller()->switchInlineQuery(to, samePeerBot, query);
+		return true;
+	} else if (const auto bot = _peer->asUser()) {
+		const auto to = bot->isBot()
+			? bot->botInfo->inlineReturnTo
+			: Dialogs::EntryState();
+		if (!to.key.owningHistory()) {
+			return false;
+		}
+		bot->botInfo->inlineReturnTo = Dialogs::EntryState();
+		controller()->switchInlineQuery(to, bot, query);
+		return true;
+	}
+	return false;
 }
 
 Window::SectionActionResult ChatWidget::hideSingleUseKeyboard(
@@ -4040,11 +4096,82 @@ void ChatWidget::listTryProcessKeyInput(not_null<QKeyEvent*> e) {
 	_composeControls->tryProcessKeyInput(e);
 }
 
+void ChatWidget::checkSuggestToGigagroup() {
+	if (mode() != Mode::History || _topic) {
+		return;
+	}
+	const auto group = _peer->asMegagroup();
+	if (!group || !group->owner().suggestToGigagroup(group)) {
+		return;
+	}
+	InvokeQueued(this, [=] {
+		if (!controller()->isLayerShown()) {
+			group->owner().setSuggestToGigagroup(group, false);
+			group->session().api().request(MTPhelp_DismissSuggestion(
+				group->input(),
+				MTP_string("convert_to_gigagroup")
+			)).send();
+			controller()->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(tr::lng_gigagroup_suggest_title());
+				box->addRow(
+					object_ptr<Ui::FlatLabel>(
+						box,
+						tr::lng_gigagroup_suggest_text(
+						) | rpl::map(tr::rich),
+						st::infoAboutGigagroup));
+				box->addButton(
+					tr::lng_gigagroup_suggest_more(),
+					AboutGigagroupCallback(group, controller()));
+				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+			}));
+		}
+	});
+}
+
+void ChatWidget::showAboutTopPromotion() {
+	if (mode() != Mode::History || _topic) {
+		return;
+	} else if (!_history->useTopPromotion()
+		|| _history->topPromotionAboutShown()) {
+		return;
+	}
+	_history->markTopPromotionAboutShown();
+	const auto type = _history->topPromotionType();
+	const auto custom = type.isEmpty()
+		? QString()
+		: Lang::GetNonDefaultValue(kPsaAboutPrefix + type.toUtf8());
+	const auto text = type.isEmpty()
+		? tr::lng_proxy_sponsor_about(tr::now, tr::rich)
+		: custom.isEmpty()
+		? tr::lng_about_psa_default(tr::now, tr::rich)
+		: tr::rich(custom);
+	showInfoTooltip(text, nullptr);
+}
+
+void ChatWidget::showInfoTooltip(
+		const TextWithEntities &text,
+		Fn<void()> hiddenCallback) {
+	_topToast.show(
+		_scroll.get(),
+		&session(),
+		text,
+		std::move(hiddenCallback));
+}
+
 void ChatWidget::markLoaded() {
 	if (!_loaded) {
 		_loaded = true;
 		crl::on_main(this, [=] {
 			updatePinnedVisibility();
+		});
+		crl::on_main(this, [=] {
+			requestSponsoredMessages();
+		});
+		crl::on_main(this, [=] {
+			checkSuggestToGigagroup();
+		});
+		crl::on_main(this, [=] {
+			showAboutTopPromotion();
 		});
 		if ((mode() == Mode::History) && session().supportMode()) {
 			crl::on_main(this, [=] { checkSupportPreload(); });
@@ -4213,6 +4340,41 @@ void ChatWidget::maybeUpdateLastKeyboardFromSlice(
 			updateBotKeyboard();
 		}
 	}
+}
+
+void ChatWidget::requestSponsoredMessages() {
+	if (mode() != Mode::History || _topic) {
+		return;
+	} else if (session().sponsoredMessages().isTopBarFor(_history)) {
+		return;
+	}
+	const auto checkState = [=] {
+		using State = Data::SponsoredMessages::State;
+		const auto state = session().sponsoredMessages().state(_history);
+		if (state == State::InjectToMiddle) {
+			injectSponsoredMessages();
+		}
+	};
+	const auto history = _history;
+	session().sponsoredMessages().request(
+		_history,
+		crl::guard(this, [=] {
+			if (history == _history) {
+				checkState();
+			}
+		}));
+	checkState();
+}
+
+void ChatWidget::injectSponsoredMessages() const {
+	if (mode() != Mode::History || _topic) {
+		return;
+	}
+	session().sponsoredMessages().inject(
+		_history,
+		_lastShownAt.msg,
+		_scroll->height() * 2,
+		_scroll->width());
 }
 
 rpl::producer<Data::MessagesSlice> ChatWidget::historySource(
@@ -4420,6 +4582,7 @@ MessagesBarData ChatWidget::listMessagesBar(
 }
 
 void ChatWidget::listContentRefreshed() {
+	injectSponsoredMessages();
 }
 
 void ChatWidget::listUpdateDateLink(
@@ -5117,6 +5280,20 @@ void ChatWidget::setupShortcuts() {
 			searchRequested();
 			return true;
 		});
+		request->check(Command::ShowChatMenu, 1) && request->handle([=] {
+			Window::ActivateWindow(controller());
+			_topBar->showPeerMenu();
+			return true;
+		});
+		_canSendMessages
+			&& request->check(Command::ShowScheduled, 1)
+			&& request->handle([=] {
+				controller()->showSection(_topic
+					? std::make_shared<HistoryView::ScheduledMemento>(_topic)
+					: std::make_shared<HistoryView::ScheduledMemento>(
+						_history));
+				return true;
+			});
 		if ((mode() == Mode::History) && session().supportMode()) {
 			request->check(Command::SupportToggleMuted)
 				&& request->handle([=] {
