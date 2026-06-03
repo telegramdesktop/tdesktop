@@ -3139,6 +3139,8 @@ void ChatWidget::handlePeerMigration() {
 			(showAtMsgId > 0) ? (-showAtMsgId) : showAtMsgId);
 		channel->session().api().chatParticipants()
 			.requestCountDelayed(channel);
+	} else {
+		_inner->refreshViewer();
 	}
 }
 
