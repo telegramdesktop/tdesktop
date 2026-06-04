@@ -300,6 +300,7 @@ InnerWidget::InnerWidget(
 , _freezeTimer([=] { _shownList->unfreeze(); update(); }) {
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 	setAccessibleName(tr::lng_recent_chats(tr::now));
+	setObjectName(u"Chats"_q);
 
 	style::PaletteChanged(
 	) | rpl::on_next([=] {
