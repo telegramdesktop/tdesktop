@@ -5829,6 +5829,8 @@ void InnerWidget::keyPressEvent(QKeyEvent *e) {
 		chooseRow();
 		return;
 	}
+	// Leave unhandled keys (e.g. typed characters) for the parent
+	// Dialogs::Widget, whose keyPressEvent redirects them to search.
 	RpWidget::keyPressEvent(e);
 }
 

@@ -4240,7 +4240,7 @@ bool Widget::redirectToSearchPossible() const {
 		&& !_childList
 		&& _search->isVisible()
 		&& !_search->hasFocus()
-		&& hasFocus();
+		&& (hasFocus() || _inner->hasFocus());
 }
 
 bool Widget::redirectKeyToSearch(QKeyEvent *e) const {
