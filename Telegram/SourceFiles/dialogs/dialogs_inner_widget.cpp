@@ -4678,37 +4678,41 @@ void InnerWidget::selectSkip(int32 direction) {
 				_hashtagSelected = _filteredSelected = _peerSearchSelected = _previewSelected = -1;
 			}
 		}
-		if (base::in_range(_hashtagSelected, 0, _hashtagResults.size())) {
-			const auto from = _hashtagSelected * st::mentionHeight;
-			scrollToItem(from, st::mentionHeight);
-		} else if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
-			const auto &result = _filterResults[_filteredSelected];
-			const auto from = filteredOffset() + result.top;
-			scrollToItem(from, result.row->height());
-		} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
-			const auto from = peerSearchOffset()
-				+ _peerSearchSelected * st::dialogsRowHeight
-				+ (_peerSearchSelected ? 0 : -st::searchedBarHeight);
-			const auto height = st::dialogsRowHeight
-				+ (_peerSearchSelected ? 0 : st::searchedBarHeight);
-			scrollToItem(from, height);
-		} else if (base::in_range(_previewSelected, 0, _previewResults.size())) {
-			const auto from = previewOffset()
-				+ _previewSelected * _st->height
-				+ (_previewSelected ? 0 : -st::searchedBarHeight);
-			const auto height = _st->height
-				+ (_previewSelected ? 0 : st::searchedBarHeight);
-			scrollToItem(from, height);
-		} else {
-			const auto from = searchedOffset()
-				+ _searchedSelected * _st->height
-				+ (_searchedSelected ? 0 : -st::searchedBarHeight);
-			const auto height = _st->height
-				+ (_searchedSelected ? 0 : st::searchedBarHeight);
-			scrollToItem(from, height);
-		}
+		scrollToFilteredSelected();
 	}
 	update();
+}
+
+void InnerWidget::scrollToFilteredSelected() {
+	if (base::in_range(_hashtagSelected, 0, _hashtagResults.size())) {
+		const auto from = _hashtagSelected * st::mentionHeight;
+		scrollToItem(from, st::mentionHeight);
+	} else if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
+		const auto &result = _filterResults[_filteredSelected];
+		const auto from = filteredOffset() + result.top;
+		scrollToItem(from, result.row->height());
+	} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
+		const auto from = peerSearchOffset()
+			+ _peerSearchSelected * st::dialogsRowHeight
+			+ (_peerSearchSelected ? 0 : -st::searchedBarHeight);
+		const auto height = st::dialogsRowHeight
+			+ (_peerSearchSelected ? 0 : st::searchedBarHeight);
+		scrollToItem(from, height);
+	} else if (base::in_range(_previewSelected, 0, _previewResults.size())) {
+		const auto from = previewOffset()
+			+ _previewSelected * _st->height
+			+ (_previewSelected ? 0 : -st::searchedBarHeight);
+		const auto height = _st->height
+			+ (_previewSelected ? 0 : st::searchedBarHeight);
+		scrollToItem(from, height);
+	} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
+		const auto from = searchedOffset()
+			+ _searchedSelected * _st->height
+			+ (_searchedSelected ? 0 : -st::searchedBarHeight);
+		const auto height = _st->height
+			+ (_searchedSelected ? 0 : st::searchedBarHeight);
+		scrollToItem(from, height);
+	}
 }
 
 void InnerWidget::scrollToEntry(const RowDescriptor &entry) {
@@ -5882,6 +5886,64 @@ void InnerWidget::announceSelectedFocus() {
 			accessibilityChildFocused(index);
 		}
 	}
+}
+
+void InnerWidget::accessibilityChildSetFocus(int index) {
+	// UIA invokes provider actions (SetFocus) on a background thread,
+	// so hop to the main thread before touching any widget state.
+	crl::on_main(this, [=] {
+		if (!Ui::ScreenReaderModeActive()) {
+			return;
+		}
+		// The rows are virtual (no real QWidget), so the screen reader's
+		// SetFocus can't move real keyboard focus to a row. Translate it
+		// into our internal selection, then either grab keyboard focus
+		// (focusInEvent announces the row) or announce it directly.
+		clearMouseSelection();
+		if (_state == WidgetState::Default) {
+			if (index < 0 || index >= _shownList->size()) {
+				return;
+			}
+			_collapsedSelected = -1;
+			_selected = (_shownList->cbegin() + index)->get();
+			scrollToDefaultSelected();
+		} else if (_state == WidgetState::Filtered) {
+			const auto ref = filteredChildAt(index);
+			if (!ref) {
+				return;
+			}
+			_hashtagSelected = _filteredSelected = _peerSearchSelected
+				= _previewSelected = _searchedSelected = -1;
+			switch (ref->cohort) {
+			case AccessibilityCohort::Hashtag:
+				_hashtagSelected = ref->local;
+				break;
+			case AccessibilityCohort::Filtered:
+				_filteredSelected = ref->local;
+				break;
+			case AccessibilityCohort::PeerSearch:
+				_peerSearchSelected = ref->local;
+				break;
+			case AccessibilityCohort::Preview:
+				_previewSelected = ref->local;
+				break;
+			case AccessibilityCohort::Searched:
+				_searchedSelected = ref->local;
+				break;
+			}
+			scrollToFilteredSelected();
+		} else {
+			return;
+		}
+		update();
+		// Selection is already set, so if focus moves here focusInEvent
+		// announces this very row; otherwise announce it ourselves.
+		if (hasFocus()) {
+			announceSelectedFocus();
+		} else {
+			setFocus();
+		}
+	});
 }
 
 Ui::AccessibilityState InnerWidget::accessibilityState() const {
