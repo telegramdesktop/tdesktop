@@ -31,8 +31,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
+#include <QtCore/QFileSystemWatcher>
 
 #include <ksandbox.h>
+
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#include "base/platform/linux/base_linux_xdp_utilities.h"
+
+#include <flatpakportal/flatpakportal.hpp>
+#endif // !Q_OS_WIN && !Q_OS_MAC
 
 extern "C" {
 #include <openssl/rsa.h>
@@ -59,6 +66,12 @@ namespace {
 constexpr auto kUpdaterTimeout = 10 * crl::time(1000);
 constexpr auto kMaxResponseSize = 1024 * 1024;
 
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+constexpr auto kFlatpakPortalService = "org.freedesktop.portal.Flatpak";
+constexpr auto kFlatpakPortalObjectPath = "/org/freedesktop/portal/Flatpak";
+constexpr auto kFlatpakUpdated = "/app/.updated"_cs;
+#endif // !Q_OS_WIN && !Q_OS_MAC
+
 #ifdef TDESKTOP_DISABLE_AUTOUPDATE
 bool UpdaterIsDisabled = true;
 #else // TDESKTOP_DISABLE_AUTOUPDATE
@@ -80,6 +93,11 @@ using VersionChar = wchar_t;
 
 using Loader = MTP::AbstractDedicatedLoader;
 
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+using namespace gi::repository;
+namespace GObject = gi::repository::GObject;
+#endif // !Q_OS_WIN && !Q_OS_MAC
+
 struct BIODeleter {
 	void operator()(BIO *value) {
 		BIO_free(value);
@@ -97,6 +115,8 @@ public:
 	Checker(bool testing);
 
 	virtual void start() = 0;
+
+	virtual bool poll() const;
 
 	rpl::producer<std::shared_ptr<Loader>> ready() const;
 	rpl::producer<> failed() const;
@@ -217,6 +237,40 @@ private:
 
 };
 
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+class FlatpakChecker : public Checker {
+public:
+	FlatpakChecker(bool testing);
+
+	void start() override;
+
+	bool poll() const override;
+
+	~FlatpakChecker();
+
+private:
+	FlatpakPortal::Flatpak _interface;
+	FlatpakPortal::FlatpakUpdateMonitor _monitor;
+	QFileSystemWatcher _watcher;
+	ulong _updateAvailableSignal = 0;
+
+};
+
+class FlatpakLoader : public Loader {
+public:
+	FlatpakLoader(FlatpakPortal::FlatpakUpdateMonitor monitor);
+
+	~FlatpakLoader();
+
+private:
+	void startLoading() override;
+
+	FlatpakPortal::FlatpakUpdateMonitor _monitor;
+	ulong _progressSignal = 0;
+
+};
+#endif // !Q_OS_WIN && !Q_OS_MAC
+
 std::shared_ptr<Updater> GetUpdaterInstance() {
 	if (const auto result = UpdaterInstance.lock()) {
 		return result;
@@ -271,6 +325,10 @@ QString ExtractFilename(const QString &url) {
 
 bool UnpackUpdate(const QString &filepath) {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	if (filepath.isEmpty()) {
+		return true;
+	}
+
 	QFile input(filepath);
 	if (!input.open(QIODevice::ReadOnly)) {
 		LOG(("Update Error: cant read updates file!"));
@@ -631,6 +689,10 @@ rpl::producer<std::shared_ptr<Loader>> Checker::ready() const {
 
 rpl::producer<> Checker::failed() const {
 	return _failed.events();
+}
+
+bool Checker::poll() const {
+	return true;
 }
 
 bool Checker::testing() const {
@@ -1050,6 +1112,161 @@ Fn<void(const MTP::Error &error)> MtpChecker::failHandler() {
 	};
 }
 
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+FlatpakChecker::FlatpakChecker(bool testing)
+: Checker(testing)
+, _watcher({u"/app"_q}) {
+	FlatpakPortal::FlatpakProxy::new_for_bus(
+			Gio::BusType::SESSION_,
+			Gio::DBusProxyFlags::NONE_,
+			kFlatpakPortalService,
+			kFlatpakPortalObjectPath,
+			crl::guard(this, [=](GObject::Object, Gio::AsyncResult res) {
+		auto result = FlatpakPortal::FlatpakProxy::new_for_bus_finish(res);
+		if (!result) {
+			Gio::DBusErrorNS_::strip_remote_error(result.error());
+			LOG(("Update Error: %1").arg(result.error().message_().c_str()));
+			return;
+		}
+
+		_interface = *result;
+		_interface.call_create_update_monitor(
+				GLib::Variant::new_array(
+					GLib::VariantType::new_("{sv}"),
+					{}),
+				[=](GObject::Object, Gio::AsyncResult res) {
+			const auto result = _interface.call_create_update_monitor_finish(
+				res);
+
+			if (!result) {
+				Gio::DBusErrorNS_::strip_remote_error(result.error());
+				LOG(("Update Error: %1").arg(
+					result.error().message_().c_str()));
+				fail();
+				return;
+			}
+
+			FlatpakPortal::FlatpakUpdateMonitorProxy::new_for_bus(
+					Gio::BusType::SESSION_,
+					Gio::DBusProxyFlags::NONE_,
+					kFlatpakPortalService,
+					std::get<1>(*result),
+					crl::guard(this, [=](GObject::Object, Gio::AsyncResult res) {
+				using FlatpakPortal::FlatpakUpdateMonitorProxy;
+				auto result = FlatpakUpdateMonitorProxy::new_for_bus_finish(
+					res);
+
+				if (!result) {
+					Gio::DBusErrorNS_::strip_remote_error(result.error());
+					LOG(("Update Error: %1").arg(
+						result.error().message_().c_str()));
+					fail();
+					return;
+				}
+
+				_monitor = *result;
+				_updateAvailableSignal
+					= _monitor.signal_update_available().connect([=](
+							FlatpakPortal::FlatpakUpdateMonitor,
+							GLib::Variant updateInfo) {
+						done(std::make_shared<FlatpakLoader>(_monitor));
+					});
+			}));
+		});
+	}));
+
+	QObject::connect(
+		&_watcher,
+		&QFileSystemWatcher::directoryChanged,
+		[=](const QString &path) {
+			start();
+		});
+}
+
+void FlatpakChecker::start() {
+	if (QFileInfo::exists(kFlatpakUpdated.utf16())) {
+		done(std::make_shared<FlatpakLoader>(_monitor));
+	}
+}
+
+bool FlatpakChecker::poll() const {
+	return false;
+}
+
+FlatpakChecker::~FlatpakChecker() {
+	if (_monitor) {
+		_monitor.disconnect(_updateAvailableSignal);
+		_monitor.call_close(nullptr);
+	}
+}
+
+FlatpakLoader::FlatpakLoader(FlatpakPortal::FlatpakUpdateMonitor monitor)
+: Loader({}, kChunkSize)
+, _monitor(monitor) {
+	if (!_monitor) {
+		return;
+	}
+
+	_progressSignal = _monitor.signal_progress().connect([=](
+			FlatpakPortal::FlatpakUpdateMonitor,
+			GLib::Variant info) {
+		auto dict = GLib::VariantDict::new_(info);
+		switch (dict.lookup_value("status").get_uint32()) {
+		case 0: {
+			const auto n_ops = dict.lookup_value("n_ops").get_uint32();
+			const auto op = dict.lookup_value("op").get_uint32();
+			const auto progress = dict.lookup_value("progress").get_uint32();
+			threadSafeProgress({
+				int64(
+					std::round((op + (progress / 100.)) / n_ops * 104857600)),
+				104857600,
+				true,
+			});
+		} break;
+		case 1:
+		case 2: threadSafeReady(); break;
+		case 3: {
+			LOG(("Update Error: %1").arg(
+				dict.lookup_value("error_message").get_string(
+					nullptr).c_str()));
+			threadSafeFailed();
+		} break;
+		}
+	});
+}
+
+void FlatpakLoader::startLoading() {
+	if (QFileInfo::exists(kFlatpakUpdated.utf16())) {
+		threadSafeReady();
+	}
+
+	if (!_monitor) {
+		return;
+	}
+
+	_monitor.call_update(
+		base::Platform::XDP::ParentWindowID(),
+		GLib::Variant::new_array(
+			GLib::VariantType::new_("{sv}"),
+			{}),
+		crl::guard(this, [=](GObject::Object, Gio::AsyncResult res) {
+			const auto result = _monitor.call_close_finish(res);
+			if (!result) {
+				Gio::DBusErrorNS_::strip_remote_error(result.error());
+				LOG(("Update Error: %1").arg(
+					result.error().message_().c_str()));
+				threadSafeFailed();
+			}
+		}));
+}
+
+FlatpakLoader::~FlatpakLoader() {
+	if (_monitor) {
+		_monitor.disconnect(_progressSignal);
+	}
+}
+#endif // !Q_OS_WIN && !Q_OS_MAC
+
 } // namespace
 
 bool UpdaterDisabled() {
@@ -1079,6 +1296,7 @@ public:
 	State state() const;
 	int already() const;
 	int size() const;
+	bool percent() const;
 
 	void setMtproto(base::weak_ptr<Main::Session> session);
 
@@ -1123,6 +1341,7 @@ private:
 	rpl::event_stream<> _ready;
 	Implementation _httpImplementation;
 	Implementation _mtpImplementation;
+	Implementation _flatpakImplementation;
 	std::shared_ptr<Loader> _activeLoader;
 	bool _usingMtprotoLoader = (cAlphaVersion() != 0);
 	base::weak_ptr<Main::Session> _session;
@@ -1231,9 +1450,16 @@ int Updater::already() const {
 	return _activeLoader ? _activeLoader->alreadySize() : 0;
 }
 
+bool Updater::percent() const {
+	return _activeLoader ? _activeLoader->preferPercent() : 0;
+}
+
 void Updater::stop() {
 	_httpImplementation = Implementation();
 	_mtpImplementation = Implementation();
+	_flatpakImplementation = Implementation{
+		std::move(_flatpakImplementation.checker)
+	};
 	_activeLoader = nullptr;
 	_action = Action::Waiting;
 }
@@ -1267,7 +1493,15 @@ void Updater::start(bool forceWait) {
 		return;
 	}
 
-	if (sendRequest) {
+	if (KSandbox::isFlatpak()) {
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+		if (!_flatpakImplementation.checker) {
+			startImplementation(
+				&_flatpakImplementation,
+				std::make_unique<FlatpakChecker>(_testing));
+		}
+#endif // !Q_OS_WIN && !Q_OS_MAC
+	} else if (sendRequest) {
 		startImplementation(
 			&_httpImplementation,
 			std::make_unique<HttpChecker>(_testing));
@@ -1317,7 +1551,7 @@ void Updater::startImplementation(
 void Updater::checkerDone(
 		not_null<Implementation*> which,
 		std::shared_ptr<Loader> loader) {
-	which->checker = nullptr;
+	if (which->checker->poll()) which->checker = nullptr;
 	which->loader = std::move(loader);
 
 	tryLoaders();
@@ -1388,7 +1622,14 @@ bool Updater::tryLoaders() {
 			_isLatest.fire({});
 		}
 	};
-	if (_mtpImplementation.failed && _httpImplementation.failed) {
+	if (KSandbox::isFlatpak()) {
+		if (_flatpakImplementation.failed) {
+			_failed.fire({});
+			return false;
+		} else {
+			tryOne(_flatpakImplementation);
+		}
+	} else if (_mtpImplementation.failed && _httpImplementation.failed) {
 		_failed.fire({});
 		return false;
 	} else if (!_mtpImplementation.loader) {
@@ -1489,6 +1730,10 @@ int UpdateChecker::already() const {
 
 int UpdateChecker::size() const {
 	return _updater->size();
+}
+
+bool UpdateChecker::percent() const {
+	return _updater->percent();
 }
 
 //QString winapiErrorWrap() {
