@@ -251,7 +251,11 @@ public:
 	QAccessible::Role accessibilityChildSubItemRole() const override;
 	QString accessibilityChildSubItemName(int row, int column) const override;
 	QString accessibilityChildSubItemValue(int row, int column) const override;
-	void accessibilityChildSetFocus(int index) override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
 
 protected:
 	void visibleTopBottomUpdated(
@@ -344,6 +348,8 @@ private:
 	void scrollToItem(int top, int height);
 	void scrollToDefaultSelected();
 	void scrollToFilteredSelected();
+	bool selectChildByIndex(int index);
+	void clearSecondaryMouseState();
 	void setCollapsedPressed(int pressed);
 	void setPressed(
 		Row *pressed,
@@ -513,6 +519,20 @@ private:
 	[[nodiscard]] int filteredChildCount() const;
 	[[nodiscard]] std::optional<FilteredChildRef>
 		filteredChildAt(int index) const;
+
+	// A single logical mapping for the Default state shared by painting order,
+	// keyboard navigation and accessibility: collapsed rows first, then the
+	// shown list with _skipTopDialog applied. `collapsed` indexes
+	// _collapsedRows; otherwise `row` is the shown-list row.
+	struct DefaultChildRef {
+		int collapsed = -1;
+		Row *row = nullptr;
+	};
+	[[nodiscard]] int defaultChildCount() const;
+	[[nodiscard]] std::optional<DefaultChildRef>
+		defaultChildAt(int index) const;
+	[[nodiscard]] int defaultChildIndexOfSelected() const;
+
 	void announceSelectedFocus();
 	void clearSearchResults(bool alsoPeerSearchResults = true);
 	void clearPeerSearchResults();

@@ -5852,12 +5852,8 @@ void InnerWidget::keyPressEvent(QKeyEvent *e) {
 
 void InnerWidget::announceSelectedFocus() {
 	if (_state == WidgetState::Default) {
-		if (!_selected) {
-			return;
-		}
-		const auto i = _shownList->cfind(_selected);
-		if (i != _shownList->cend()) {
-			const auto index = int(i - _shownList->cbegin());
+		const auto index = defaultChildIndexOfSelected();
+		if (index >= 0) {
 			accessibilityChildNameChanged(index);
 			accessibilityChildFocused(index);
 		}
@@ -5888,60 +5884,100 @@ void InnerWidget::announceSelectedFocus() {
 	}
 }
 
-void InnerWidget::accessibilityChildSetFocus(int index) {
-	// UIA invokes provider actions (SetFocus) on a background thread,
-	// so hop to the main thread before touching any widget state.
-	crl::on_main(this, [=] {
-		if (!Ui::ScreenReaderModeActive()) {
-			return;
+void InnerWidget::clearSecondaryMouseState() {
+	// clearMouseSelection() only resets the row selection and cursor; these
+	// secondary hit-test flags survive and are read by chooseRow() /
+	// chooseHashtag(). Without clearing them an accessibility activation could
+	// delete a recent hashtag, switch the search tab or open the chat-type
+	// filter menu instead of opening the selected row.
+	_hashtagDeleteSelected = false;
+	_selectedMorePosts = false;
+	_selectedChatTypeFilter = false;
+	_selectedTopicJump = false;
+	_selectedRightButton = false;
+}
+
+bool InnerWidget::selectChildByIndex(int index) {
+	clearMouseSelection();
+	clearSecondaryMouseState();
+	if (_state == WidgetState::Default) {
+		const auto ref = defaultChildAt(index);
+		if (!ref) {
+			return false;
+		} else if (ref->collapsed >= 0) {
+			_collapsedSelected = ref->collapsed;
+			_selected = nullptr;
+		} else {
+			_collapsedSelected = -1;
+			_selected = ref->row;
 		}
+		scrollToDefaultSelected();
+	} else if (_state == WidgetState::Filtered) {
+		const auto ref = filteredChildAt(index);
+		if (!ref) {
+			return false;
+		}
+		_hashtagSelected = _filteredSelected = _peerSearchSelected
+			= _previewSelected = _searchedSelected = -1;
+		switch (ref->cohort) {
+		case AccessibilityCohort::Hashtag:
+			_hashtagSelected = ref->local;
+			break;
+		case AccessibilityCohort::Filtered:
+			_filteredSelected = ref->local;
+			break;
+		case AccessibilityCohort::PeerSearch:
+			_peerSearchSelected = ref->local;
+			break;
+		case AccessibilityCohort::Preview:
+			_previewSelected = ref->local;
+			break;
+		case AccessibilityCohort::Searched:
+			_searchedSelected = ref->local;
+			break;
+		}
+		scrollToFilteredSelected();
+	} else {
+		return false;
+	}
+	update();
+	return true;
+}
+
+void InnerWidget::accessibilityChildSetFocus(quintptr identity) {
+	// UIA invokes provider actions (SetFocus) on a background thread, so hop
+	// to the main thread before touching any widget state. Resolve the stable
+	// identity to its current index here (not on the background thread) so a
+	// reorder does not move focus to a replacement row.
+	crl::on_main(this, [=] {
+		// An explicit accessibility SetFocus is itself sufficient
+		// authorization, so we do not gate it on the screen-reader-mode
+		// detector: the UIA provider already reported success to the caller,
+		// and the detector may still be false during startup or for valid
+		// clients that are not on its allowlist.
+		const auto index = accessibilityChildIndexByIdentity(identity);
 		// The rows are virtual (no real QWidget), so the screen reader's
 		// SetFocus can't move real keyboard focus to a row. Translate it
 		// into our internal selection, then either grab keyboard focus
 		// (focusInEvent announces the row) or announce it directly.
-		clearMouseSelection();
-		if (_state == WidgetState::Default) {
-			if (index < 0 || index >= _shownList->size()) {
-				return;
-			}
-			_collapsedSelected = -1;
-			_selected = (_shownList->cbegin() + index)->get();
-			scrollToDefaultSelected();
-		} else if (_state == WidgetState::Filtered) {
-			const auto ref = filteredChildAt(index);
-			if (!ref) {
-				return;
-			}
-			_hashtagSelected = _filteredSelected = _peerSearchSelected
-				= _previewSelected = _searchedSelected = -1;
-			switch (ref->cohort) {
-			case AccessibilityCohort::Hashtag:
-				_hashtagSelected = ref->local;
-				break;
-			case AccessibilityCohort::Filtered:
-				_filteredSelected = ref->local;
-				break;
-			case AccessibilityCohort::PeerSearch:
-				_peerSearchSelected = ref->local;
-				break;
-			case AccessibilityCohort::Preview:
-				_previewSelected = ref->local;
-				break;
-			case AccessibilityCohort::Searched:
-				_searchedSelected = ref->local;
-				break;
-			}
-			scrollToFilteredSelected();
-		} else {
+		if (index < 0 || !selectChildByIndex(index)) {
 			return;
 		}
-		update();
-		// Selection is already set, so if focus moves here focusInEvent
-		// announces this very row; otherwise announce it ourselves.
 		if (hasFocus()) {
 			announceSelectedFocus();
 		} else {
 			setFocus();
+		}
+	});
+}
+
+void InnerWidget::accessibilityChildActivate(quintptr identity) {
+	// UIA invokes the press action on a background thread too; resolve the
+	// identity, move the selection and open the chat on the main thread.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index >= 0 && selectChildByIndex(index)) {
+			chooseRow();
 		}
 	});
 }
@@ -5999,9 +6035,55 @@ auto InnerWidget::filteredChildAt(int index) const
 	return std::nullopt;
 }
 
+int InnerWidget::defaultChildCount() const {
+	const auto skip = _skipTopDialog ? 1 : 0;
+	const auto shown = std::max(int(_shownList->size()) - skip, 0);
+	return int(_collapsedRows.size()) + shown;
+}
+
+auto InnerWidget::defaultChildAt(int index) const
+-> std::optional<DefaultChildRef> {
+	if (index < 0) {
+		return std::nullopt;
+	}
+	const auto collapsed = int(_collapsedRows.size());
+	if (index < collapsed) {
+		return DefaultChildRef{ .collapsed = index };
+	}
+	const auto skip = _skipTopDialog ? 1 : 0;
+	const auto shownIndex = skip + (index - collapsed);
+	if (shownIndex >= int(_shownList->size())) {
+		return std::nullopt;
+	}
+	return DefaultChildRef{
+		.row = (_shownList->cbegin() + shownIndex)->get(),
+	};
+}
+
+int InnerWidget::defaultChildIndexOfSelected() const {
+	const auto collapsed = int(_collapsedRows.size());
+	if (_collapsedSelected >= 0) {
+		return (_collapsedSelected < collapsed)
+			? _collapsedSelected
+			: -1;
+	} else if (!_selected) {
+		return -1;
+	}
+	const auto i = _shownList->cfind(_selected);
+	if (i == _shownList->cend()) {
+		return -1;
+	}
+	const auto skip = _skipTopDialog ? 1 : 0;
+	const auto shownIndex = int(i - _shownList->cbegin());
+	if (shownIndex < skip) {
+		return -1;
+	}
+	return collapsed + (shownIndex - skip);
+}
+
 int InnerWidget::accessibilityChildCount() const {
 	if (_state == WidgetState::Default) {
-		return _shownList->size();
+		return defaultChildCount();
 	} else if (_state == WidgetState::Filtered) {
 		return filteredChildCount();
 	}
@@ -6010,11 +6092,14 @@ int InnerWidget::accessibilityChildCount() const {
 
 QString InnerWidget::accessibilityChildName(int index) const {
 	if (_state == WidgetState::Default) {
-		if (index < 0 || index >= _shownList->size()) {
+		const auto ref = defaultChildAt(index);
+		if (!ref) {
 			return {};
+		} else if (ref->collapsed >= 0) {
+			const auto folder = _collapsedRows[ref->collapsed]->folder;
+			return folder ? CollapsedRowAccessibilityName(folder) : QString();
 		}
-		const auto it = _shownList->cbegin() + index;
-		return RowAccessibilityName(it->get(), _filterId);
+		return RowAccessibilityName(ref->row, _filterId);
 	} else if (_state == WidgetState::Filtered) {
 		const auto ref = filteredChildAt(index);
 		if (!ref) {
@@ -6052,11 +6137,14 @@ QAccessible::State InnerWidget::accessibilityChildState(int index) const {
 		state.focusable = true;
 	}
 	if (_state == WidgetState::Default) {
-		if (index < 0 || index >= _shownList->size()) {
+		const auto ref = defaultChildAt(index);
+		if (!ref) {
 			return state;
 		}
-		const auto it = _shownList->cbegin() + index;
-		if (it->get() == _selected) {
+		const auto active = (ref->collapsed >= 0)
+			? (ref->collapsed == _collapsedSelected)
+			: (ref->row && ref->row == _selected);
+		if (active) {
 			state.selected = true;
 			state.active = true;
 			if (Ui::ScreenReaderModeActive()) {
@@ -6102,11 +6190,25 @@ QAccessible::Role InnerWidget::accessibilityChildRole() const {
 
 QRect InnerWidget::accessibilityChildRect(int index) const {
 	if (_state == WidgetState::Default) {
-		if (index < 0 || index >= _shownList->size()) {
+		const auto ref = defaultChildAt(index);
+		if (!ref) {
 			return QRect();
+		} else if (ref->collapsed >= 0) {
+			return QRect(
+				0,
+				collapsedRowsOffset()
+					+ ref->collapsed * st::dialogsImportantBarHeight,
+				width(),
+				st::dialogsImportantBarHeight);
 		}
-		const auto row = (_shownList->cbegin() + index)->get();
-		return QRect(0, row->top(), width(), row->height());
+		// row->top() is measured from the raw shown list (which includes the
+		// skipped top dialog); dialogsOffset() shifts it to the painted
+		// position past the collapsed rows.
+		return QRect(
+			0,
+			ref->row->top() + dialogsOffset(),
+			width(),
+			ref->row->height());
 	} else if (_state == WidgetState::Filtered) {
 		const auto ref = filteredChildAt(index);
 		if (!ref) {
@@ -6153,11 +6255,11 @@ QRect InnerWidget::accessibilityChildRect(int index) const {
 
 int InnerWidget::accessibilityChildColumnCount(int row) const {
 	if (_state == WidgetState::Default) {
-		if (row < 0 || row >= _shownList->size()) {
+		const auto ref = defaultChildAt(row);
+		if (!ref || !ref->row) {
 			return 0;
 		}
-		const auto rowPtr = (_shownList->cbegin() + row)->get();
-		return int(activeSubItems(rowPtr).size());
+		return int(activeSubItems(ref->row).size());
 	} else if (_state == WidgetState::Filtered) {
 		const auto ref = filteredChildAt(row);
 		if (!ref || ref->cohort != AccessibilityCohort::Filtered) {
@@ -6185,11 +6287,11 @@ QString InnerWidget::accessibilityChildSubItemName(
 		int row,
 		int column) const {
 	if (_state == WidgetState::Default) {
-		if (row < 0 || row >= _shownList->size()) {
+		const auto ref = defaultChildAt(row);
+		if (!ref || !ref->row) {
 			return {};
 		}
-		const auto rowPtr = (_shownList->cbegin() + row)->get();
-		const auto &active = activeSubItems(rowPtr);
+		const auto &active = activeSubItems(ref->row);
 		if (column < 0 || column >= int(active.size())) {
 			return {};
 		}
@@ -6212,10 +6314,11 @@ QString InnerWidget::accessibilityChildSubItemValue(
 		int row,
 		int column) const {
 	if (_state == WidgetState::Default) {
-		if (row < 0 || row >= _shownList->size()) {
+		const auto ref = defaultChildAt(row);
+		if (!ref || !ref->row) {
 			return {};
 		}
-		const auto rowPtr = (_shownList->cbegin() + row)->get();
+		const auto rowPtr = ref->row;
 		const auto &active = activeSubItems(rowPtr);
 		if (column < 0 || column >= int(active.size())) {
 			return {};
@@ -6234,6 +6337,86 @@ QString InnerWidget::accessibilityChildSubItemValue(
 		return SubItemValue(rowPtr, _filterId, active[column]);
 	}
 	return {};
+}
+
+bool InnerWidget::accessibilityChildSupportsActions(int index) const {
+	// Every enumerated row (chats, collapsed Archive, search results) can be
+	// focused and activated, and each has a stable identity below. Tying the
+	// opt-in to a valid identity keeps the action interface off invalid
+	// indices.
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr InnerWidget::accessibilityChildIdentity(int index) const {
+	// Build the token from a session-owned object (Entry / PeerData /
+	// HistoryItem) or a semantic value, never from a transient wrapper row
+	// (FilterResult, FakeRow, ...), so allocator address reuse can't bind a
+	// stale provider to a new object. The low bits tag the kind so tokens
+	// from different cohorts can't alias.
+	enum class Kind : quintptr {
+		Chat = 1,
+		Hashtag = 2,
+		Peer = 3,
+		Message = 4,
+	};
+	const auto tagged = [](Kind kind, quintptr value) {
+		return value ? ((value << 3) | quintptr(kind)) : quintptr(0);
+	};
+	const auto fromPointer = [&](Kind kind, const void *pointer) {
+		return tagged(kind, reinterpret_cast<quintptr>(pointer));
+	};
+	if (_state == WidgetState::Default) {
+		const auto ref = defaultChildAt(index);
+		if (!ref) {
+			return 0;
+		} else if (ref->collapsed >= 0) {
+			return fromPointer(
+				Kind::Chat,
+				_collapsedRows[ref->collapsed]->folder);
+		}
+		return fromPointer(Kind::Chat, ref->row->entry().get());
+	} else if (_state == WidgetState::Filtered) {
+		const auto ref = filteredChildAt(index);
+		if (!ref) {
+			return 0;
+		}
+		switch (ref->cohort) {
+		case AccessibilityCohort::Hashtag:
+			return tagged(
+				Kind::Hashtag,
+				qHash(_hashtagResults[ref->local]->tag));
+		case AccessibilityCohort::Filtered:
+			return fromPointer(
+				Kind::Chat,
+				_filterResults[ref->local].key().entry().get());
+		case AccessibilityCohort::PeerSearch:
+			return fromPointer(
+				Kind::Peer,
+				_peerSearchResults[ref->local]->peer.get());
+		case AccessibilityCohort::Preview:
+			return fromPointer(
+				Kind::Message,
+				_previewResults[ref->local]->item().get());
+		case AccessibilityCohort::Searched:
+			return fromPointer(
+				Kind::Message,
+				_searchResults[ref->local]->item().get());
+		}
+	}
+	return 0;
+}
+
+int InnerWidget::accessibilityChildIndexByIdentity(quintptr identity) const {
+	if (!identity) {
+		return -1;
+	}
+	const auto count = accessibilityChildCount();
+	for (auto i = 0; i != count; ++i) {
+		if (accessibilityChildIdentity(i) == identity) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 } // namespace Dialogs

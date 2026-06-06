@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 
+namespace Data {
+class Folder;
+} // namespace Data
+
 namespace Dialogs {
 
 class Row;
@@ -45,6 +49,8 @@ enum class SubItem : int {
 [[nodiscard]] QString RowAccessibilityName(
 	not_null<const Row*> row,
 	FilterId filterId);
+[[nodiscard]] QString CollapsedRowAccessibilityName(
+	not_null<Data::Folder*> folder);
 [[nodiscard]] QString SubItemLabel(SubItem item);
 [[nodiscard]] QString SubItemValue(
 	not_null<const Row*> row,
