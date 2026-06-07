@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
+#include "base/event_filter.h"
 #include "core/ui_integration.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/power_saving.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/choose_filter_box.h"
@@ -41,7 +43,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h" // attentionBoxButton
 #include "styles/style_menu_icons.h"
 
+#include <QtGui/QtEvents>
+
 namespace Window {
+namespace {
+
+// The folder tabs container, exposed as a tab control to screen readers.
+class TabListLayout final : public Ui::VerticalLayout {
+public:
+	using Ui::VerticalLayout::VerticalLayout;
+
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::PageTabList;
+	}
+	Qt::FocusPolicy accessibilityFocusPolicy() override {
+		// Let the accessibility layer decide focusability (like PopupMenu),
+		// exposing the tab control as focusable in screen-reader mode.
+		return Qt::ClickFocus;
+	}
+};
+
+} // namespace
 
 FiltersMenu::FiltersMenu(
 	not_null<Ui::RpWidget*> parent,
@@ -193,6 +215,40 @@ void FiltersMenu::scrollToButton(not_null<Ui::RpWidget*> widget) {
 		anim::sineInOut);
 }
 
+void FiltersMenu::applyFilterAt(int start, int delta) {
+	const auto &list = _session->session().data().chatsFilters().list();
+	const auto count = int(list.size());
+	// Activate the first available (non-locked) folder starting from `start`
+	// and moving in the `delta` direction, stopping at the bounds (no wrap).
+	for (auto index = start; index >= 0 && index < count; index += delta) {
+		const auto i = _filters.find(list[index].id());
+		if (i != end(_filters) && !i->second->locked()) {
+			_session->setActiveChatsFilter(i->first);
+			i->second->setFocus();
+			return;
+		}
+	}
+}
+
+void FiltersMenu::moveToFilter(int delta) {
+	const auto &list = _session->session().data().chatsFilters().list();
+	const auto count = int(list.size());
+	auto current = 0;
+	for (auto i = 0; i != count; ++i) {
+		if (list[i].id() == _activeFilterId) {
+			current = i;
+			break;
+		}
+	}
+	applyFilterAt(current + delta, delta);
+}
+
+void FiltersMenu::moveToFilterEdge(int delta) {
+	const auto count = int(
+		_session->session().data().chatsFilters().list().size());
+	applyFilterAt((delta > 0) ? 0 : (count - 1), delta);
+}
+
 void FiltersMenu::refresh() {
 	const auto filters = &_session->session().data().chatsFilters();
 	if (!filters->has() || _ignoreRefresh) {
@@ -242,7 +298,9 @@ void FiltersMenu::refresh() {
 }
 
 void FiltersMenu::setupList() {
-	_list = _container->add(object_ptr<Ui::VerticalLayout>(_container));
+	_list = _container->add(object_ptr<TabListLayout>(_container));
+	_list->setAccessibleName(tr::lng_filters_title(tr::now));
+	_list->setObjectName(u"Folders"_q);
 	_setup = prepareButton(
 		_container,
 		-1,
@@ -333,6 +391,53 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 					nameText)
 				: nameText);
 		}, raw->lifetime());
+	}
+	if (id >= 0) {
+		raw->setIsPageTab(true);
+		// Like a tab strip, only the active tab is reachable with the Tab
+		// key. Drive the focus policy reactively so it stays correct as the
+		// active filter and screen-reader mode change (the active tab also
+		// reports itself as the selected/focused one in accessibilityState),
+		// and keep the Tab order as main menu -> active tab -> edit button.
+		rpl::combine(
+			Ui::ScreenReaderModeActiveValue(),
+			rpl::single(
+				_session->activeChatsFilterCurrent()
+			) | rpl::then(
+				_session->activeChatsFilter()
+			) | rpl::map([=](FilterId active) {
+				return (active == id);
+			}) | rpl::distinct_until_changed()
+		) | rpl::on_next([=](bool screenReaderActive, bool selected) {
+			// The active tab is the Tab-stop (TabFocus); the rest stay
+			// focusable but out of the Tab order (ClickFocus), so every tab
+			// reports as focusable the way a native tab control does.
+			raw->setFocusPolicy(!screenReaderActive
+				? Qt::NoFocus
+				: selected
+				? Qt::TabFocus
+				: Qt::ClickFocus);
+			if (screenReaderActive && selected) {
+				QWidget::setTabOrder(&_menu, raw);
+				QWidget::setTabOrder(raw, _setup.get());
+			}
+		}, raw->lifetime());
+		// Up/Down move to the previous/next folder, Home/End to the first/last
+		// one, activating it (the tabs are only focusable in screen-reader
+		// mode, so this is scoped to it).
+		base::install_event_filter(raw, [=](not_null<QEvent*> event) {
+			if (event->type() != QEvent::KeyPress) {
+				return base::EventFilterResult::Continue;
+			}
+			switch (static_cast<QKeyEvent*>(event.get())->key()) {
+			case Qt::Key_Up: moveToFilter(-1); break;
+			case Qt::Key_Down: moveToFilter(1); break;
+			case Qt::Key_Home: moveToFilterEdge(1); break;
+			case Qt::Key_End: moveToFilterEdge(-1); break;
+			default: return base::EventFilterResult::Continue;
+			}
+			return base::EventFilterResult::Cancel;
+		});
 	}
 	raw->setActive(_session->activeChatsFilterCurrent() == id);
 	raw->setClickedCallback([=] {
