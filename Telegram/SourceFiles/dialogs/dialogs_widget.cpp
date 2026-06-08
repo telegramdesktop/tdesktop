@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/swipe_handler.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -2222,6 +2223,14 @@ void Widget::setInnerFocus(bool unfocusSearch) {
 			|| _searchHasFocus
 			|| _searchSuggestionsLocked)) {
 		_search->setFocus();
+	} else if (Ui::ScreenReaderModeActive()
+		&& _inner
+		&& !_screenReaderListFocused) {
+		// Land on the chat list once, when first entering, for screen
+		// readers - later focus requests (e.g. returning from a section)
+		// keep the default behaviour so they don't steal the focus.
+		_screenReaderListFocused = true;
+		_inner->setFocus();
 	} else {
 		setFocus();
 	}

@@ -373,6 +373,7 @@ private:
 	QString _lastSearchText;
 	bool _searchSuggestionsLocked = false;
 	bool _searchHasFocus = false;
+	bool _screenReaderListFocused = false;
 	bool _processingSearch = false;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
