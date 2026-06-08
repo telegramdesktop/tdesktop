@@ -67,6 +67,7 @@ include(cmake/options.cmake)
 include(cmake/external/qt/package.cmake)
 
 set(desktop_app_skip_libs
+    dispatch
     glibmm
     variant
 )
