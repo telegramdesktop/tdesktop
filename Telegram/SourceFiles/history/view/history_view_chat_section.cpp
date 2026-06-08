@@ -219,21 +219,28 @@ void ChatMemento::setFromHistory(not_null<History*> history) {
 	const auto migrated = history->migrateFrom();
 	const auto showAtMsgId = history->showAtMsgId;
 	const auto scrollTopState = [&]() -> std::optional<ListMemento::ScrollTopState> {
-		if (const auto scrollTopItem = history->scrollTopItem) {
+		if (history->listScrollTopItemId) {
 			return ListMemento::ScrollTopState{
-				.item = scrollTopItem->data()->position(),
-				.shift = history->scrollTopOffset,
+				.item = {
+					.fullId = history->listScrollTopItemId,
+					.date = history->listScrollTopItemDate,
+				},
+				.shift = history->listScrollTopShift,
 			};
-		} else if (migrated && migrated->scrollTopItem) {
+		} else if (migrated && migrated->listScrollTopItemId) {
 			return ListMemento::ScrollTopState{
-				.item = migrated->scrollTopItem->data()->position(),
-				.shift = migrated->scrollTopOffset,
+				.item = {
+					.fullId = migrated->listScrollTopItemId,
+					.date = migrated->listScrollTopItemDate,
+				},
+				.shift = migrated->listScrollTopShift,
 			};
 		}
 		return std::nullopt;
 	}();
 	if (scrollTopState) {
 		_list.setAroundPosition(scrollTopState->item);
+		_list.setScrollTopState(*scrollTopState);
 	} else if (showAtMsgId == ShowAtUnreadMsgId) {
 		if (history->session().supportMode()) {
 			_list.setAroundPosition(Data::MaxMessagePosition);
@@ -254,9 +261,6 @@ void ChatMemento::setFromHistory(not_null<History*> history) {
 			.fullId = FullMsgId(migrated->peer->id, -showAtMsgId),
 			.date = TimeId(0),
 		});
-	}
-	if (scrollTopState) {
-		_list.setScrollTopState(*scrollTopState);
 	}
 }
 
@@ -2338,7 +2342,13 @@ void ChatWidget::validateSubsectionTabs() {
 			}
 		}
 	}
-	const auto thread = _topic ? (Data::Thread*)_topic : _sublist;
+	const auto thread = _topic
+		? (Data::Thread*)_topic
+		: _sublist
+		? (Data::Thread*)_sublist
+		: (mode() == Mode::History)
+		? (Data::Thread*)_history.get()
+		: nullptr;
 	if (!thread || !HistoryView::SubsectionTabs::UsedFor(_history)) {
 		if (_subsectionTabs) {
 			_subsectionTabsLifetime.destroy();
@@ -3528,30 +3538,30 @@ void ChatWidget::saveHistoryScrollState(const ListMemento &state) {
 	const auto atBottom = (_scroll->scrollTop() >= _scroll->scrollTopMax())
 		&& _inner->loadedAtBottomKnown()
 		&& _inner->loadedAtBottom();
-	if (atBottom) {
+	if (atBottom || !scrollTopState.item) {
 		_history->forgetScrollState();
 		if (migrated) {
 			migrated->forgetScrollState();
 		}
+		return;
+	}
+	const auto save = [](
+			not_null<History*> history,
+			ListMemento::ScrollTopState state) {
+		history->listScrollTopItemId = state.item.fullId;
+		history->listScrollTopItemDate = state.item.date;
+		history->listScrollTopShift = state.shift;
+	};
+	const auto useMigrated = migrated
+		&& (scrollTopState.item.fullId.peer == migrated->peer->id);
+	if (useMigrated) {
+		_history->forgetScrollState();
+		save(migrated, scrollTopState);
 	} else {
-		const auto useMigrated = migrated
-			&& (scrollTopState.item.fullId.peer == migrated->peer->id);
-		if (useMigrated) {
-			_history->forgetScrollState();
-			if (const auto item = session().data().message(scrollTopState.item.fullId)) {
-				migrated->scrollTopItem = item->mainView();
-				migrated->scrollTopOffset = scrollTopState.shift;
-				if (!migrated->scrollTopItem) {
-					migrated->forgetScrollState();
-				}
-			} else {
-				migrated->forgetScrollState();
-			}
-		} else {
-			_history->countScrollState(_scroll->scrollTop());
-			if (migrated) {
-				migrated->forgetScrollState();
-			}
+		_history->forgetScrollState();
+		save(_history, scrollTopState);
+		if (migrated) {
+			migrated->forgetScrollState();
 		}
 	}
 }
@@ -4435,7 +4445,6 @@ void ChatWidget::listSelectionChanged(SelectedItems &&items) {
 }
 
 void ChatWidget::listMarkReadTill(not_null<HistoryItem*> item) {
-	_inner->clearUnreadBar();
 	if (_replies) {
 		_replies->readTill(item);
 	} else if (_sublist) {

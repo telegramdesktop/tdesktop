@@ -86,6 +86,7 @@ namespace {
 
 constexpr auto kNewBlockEachMessage = 50;
 constexpr auto kSkipCloudDraftsFor = TimeId(2);
+constexpr auto kCountUnreadMessagesLimit = 10000;
 
 using UpdateFlag = Data::HistoryUpdate::Flag;
 
@@ -2111,11 +2112,11 @@ bool History::unreadCountRefreshNeeded(MsgId readTillId) const {
 }
 
 std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
-	if (isEmpty() || !folderKnown()) {
-		DEBUG_LOG(("Reading: countStillUnreadLocal unknown %1 and %2.").arg(
-			Logs::b(isEmpty()),
-			Logs::b(folderKnown())));
+	if (!folderKnown()) {
 		return std::nullopt;
+	}
+	if (isEmpty()) {
+		return countStillUnreadLocalFromMessages(readTillId);
 	}
 	if (_inboxReadBefore) {
 		const auto before = *_inboxReadBefore;
@@ -2170,6 +2171,35 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 		}
 	}
 	DEBUG_LOG(("Reading: check at end counted %1").arg(result));
+	return result;
+}
+
+std::optional<int> History::countStillUnreadLocalFromMessages(
+		MsgId readTillId) const {
+	const auto messages = const_cast<History*>(this)->maybeMessages();
+	if (!messages) {
+		return std::nullopt;
+	}
+	const auto snapshot = messages->snapshot({
+		ServerMaxMsgId - 1,
+		kCountUnreadMessagesLimit,
+		0,
+	});
+	if (snapshot.skippedAfter != 0) {
+		return std::nullopt;
+	}
+	auto result = 0;
+	for (const auto &id : snapshot.messageIds) {
+		if (id <= readTillId) {
+			continue;
+		}
+		const auto item = owner().message(peer->id, id);
+		if (item
+			&& item->isRegular()
+			&& !item->out()) {
+			++result;
+		}
+	}
 	return result;
 }
 
