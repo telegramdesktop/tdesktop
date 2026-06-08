@@ -89,6 +89,7 @@ parts:
       - ada
       - avif
       - ffmpeg
+      - minizip
       - mozjpeg
       - openal
       - protobuf
@@ -318,6 +319,18 @@ parts:
     prime: [-./*]
     after:
       - nv-codec-headers
+
+  minizip:
+    source: https://github.com/madler/zlib.git
+    source-depth: 1
+    source-commit: e3dc0a85b7032e98380dec011bc8f2c2ee0d8fca
+    source-subdir: contrib/minizip
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --libdir=\${exec_prefix}/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - --disable-shared
+    prime: [-./*]
 
   mozjpeg:
     source: https://github.com/mozilla/mozjpeg.git

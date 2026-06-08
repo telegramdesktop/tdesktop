@@ -73,7 +73,7 @@ jobs:
         run: |
           brew update
           brew upgrade || true
-          brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtshadertools qtsvg xz || true
+          brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool minizip ninja openal-soft openh264 openssl opus pkg-config python qtbase qtimageformats qtshadertools qtsvg xz
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
 

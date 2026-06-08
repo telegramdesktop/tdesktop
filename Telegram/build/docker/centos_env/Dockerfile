@@ -100,13 +100,21 @@ RUN git init patches \
 	&& rm -rf .git
 
 FROM builder AS zlib
-RUN git clone -b v1.3.1 --depth=1 https://github.com/madler/zlib.git \
+RUN git init zlib \
 	&& cd zlib \
-	&& cmake -B build . -DZLIB_BUILD_EXAMPLES=OFF \
+	&& git remote add origin https://github.com/madler/zlib.git \
+	&& git fetch --depth=1 origin e3dc0a85b7032e98380dec011bc8f2c2ee0d8fca \
+	&& git reset --hard FETCH_HEAD \
+	&& sed -i 's/Bool/BOOL/;s/ZLIB::ZLIBSTATIC/MINIZIP::minizipstatic/;s/ZLIB::ZLIB/MINIZIP::minizip/' contrib/minizip/minizipConfig.cmake.in \
+	&& sed -i '/DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"/s@}@}/minizip@' contrib/minizip/CMakeLists.txt \
+	&& cmake -B build . \
+		-DZLIB_BUILD_SHARED=OFF \
+		-DZLIB_BUILD_TESTING=OFF \
+		-DZLIB_BUILD_MINIZIP=ON \
+		-DZLIB_MINIZIP_BUILD_SHARED=OFF \
+		-DZLIB_MINIZIP_BUILD_TESTING=OFF \
 	&& cmake --build build \
-	&& export DESTDIR=/usr/src/zlib-cache \
-	&& cmake --install build \
-	&& rm $DESTDIR/usr/local/lib/libz.so* \
+	&& DESTDIR=/usr/src/zlib-cache cmake --install build \
 	&& cd .. \
 	&& rm -rf zlib
 

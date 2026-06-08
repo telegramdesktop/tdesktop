@@ -67,7 +67,7 @@ jobs:
 
           brew update
           brew upgrade || true
-          brew install automake meson nasm ninja pkg-config
+          brew install automake libtool meson nasm ninja pkg-config
 
           # Disable spotlight.
           sudo mdutil -a -i off
