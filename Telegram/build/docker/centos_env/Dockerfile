@@ -23,7 +23,7 @@ RUN dnf -y install epel-release \
 	&& dnf clean all
 
 RUN alternatives --set python3 /usr/bin/python3.11
-RUN python3 -m pip install cmake==3.31.10 meson ninja
+RUN python3 -m pip install cmake meson ninja
 RUN cat <<EOF > /usr/local/bin/pkg-config && chmod +x /usr/local/bin/pkg-config
 #!/bin/sh
 for i in "\$@"; do
@@ -171,6 +171,7 @@ RUN git clone -b v4.1.5 --depth=1 https://github.com/mozilla/mozjpeg.git \
 	&& cd mozjpeg \
 	&& cmake -B build . \
 		-DCMAKE_INSTALL_PREFIX=/usr/local \
+		-DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
 		-DENABLE_SHARED=OFF \
 		-DWITH_JPEG8=ON \
 		-DPNG_SUPPORTED=OFF \
