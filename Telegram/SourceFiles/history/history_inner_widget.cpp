@@ -762,6 +762,7 @@ void HistoryInner::setupSwipeReplyAndBack() {
 				if (!exact) {
 					return;
 				}
+				Window::ActivateWindow(_controller);
 				_widget->replyToMessage({
 					.messageId = exact->fullId(),
 					.quote = selected.highlight.quote,
