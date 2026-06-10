@@ -46,7 +46,7 @@ WORKDIR /usr/src
 ENV AR=gcc-ar
 ENV RANLIB=gcc-ranlib
 ENV NM=gcc-nm
-ENV CFLAGS='{% if DEBUG %}-g -fno-var-tracking-assignments{% endif %} {% if MINSIZE %}-Os{% else %}-O3{% endif %} {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened'
+ENV CFLAGS='{% if DEBUG %}-g -gdwarf64{% endif %} {% if MINSIZE %}-Os{% else %}-O3{% endif %} {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened'
 ENV CXXFLAGS=$CFLAGS
 ENV LDFLAGS='-static-libstdc++ -static-libgcc -static-libasan -pthread -Wl,--push-state,--no-as-needed,-ldl,--pop-state -Wl,--as-needed -Wl,-z,muldefs'
 
@@ -65,7 +65,7 @@ RUN git init Implib.so \
 		LIBFILE=$(basename $1); \
 		LIBNAME=$(basename $1 .so); \
 		../implib-gen.py -q $1; \
-		gcc $CFLAGS -c -o $LIBFILE.tramp.o $LIBFILE.tramp.S; \
+		gcc $CFLAGS -g0 -c -o $LIBFILE.tramp.o $LIBFILE.tramp.S; \
 		gcc $CFLAGS -c -o $LIBFILE.init.o $LIBFILE.init.c; \
 		ar rcs /usr/local/lib64/$LIBNAME.a $LIBFILE.tramp.o $LIBFILE.init.o; \
 	} \
@@ -710,6 +710,7 @@ RUN git clone -b 1.24.3 --depth=1 https://github.com/kcat/openal-soft.git \
 FROM builder AS openssl
 RUN git clone -b openssl-3.2.1 --depth=1 https://github.com/openssl/openssl.git \
 	&& cd openssl \
+	&& sed -i 's/$cmd $cmdflags -c -o/$cmd $cmdflags -g0 -c -o/' Configurations/unix-Makefile.tmpl \
 	&& ./config \
 		--openssldir=/etc/ssl \
 		no-shared \
