@@ -785,7 +785,7 @@ FROM builder AS boost
 RUN curl -sSL https://archives.boost.io/release/1.90.0/source/boost_1_90_0.tar.gz | tar -xz \
 	&& cd boost_* \
 	&& ./bootstrap.sh --prefix=/usr/src/boost-cache/usr/local --with-libraries=regex \
-	&& ./b2 release link=static install \
+	&& ./b2 release link=static cflags="$CFLAGS" cxxflags="$CXXFLAGS" linkflags="$LDFLAGS" -j$(nproc) install \
 	&& cd .. \
 	&& rm -rf boost_*
 
