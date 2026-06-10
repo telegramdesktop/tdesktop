@@ -249,7 +249,7 @@ RUN git init libvpx \
 		--enable-vp9 \
 		--enable-webm-io \
 		--size-limit=4096x4096 \
-	&& make -j$(nproc) \
+	&& make HAVE_GNU_STRIP=no -j$(nproc) \
 	&& make DESTDIR=/usr/src/vpx-cache install \
 	&& cd .. \
 	&& rm -rf libvpx
