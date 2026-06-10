@@ -1996,48 +1996,67 @@ auto ProxiesBoxController::proxySettingsValue() const
 }
 
 void ProxiesBoxController::refreshChecker(Item &item) {
-	item.state = ItemState::Checking;
-	const auto id = item.id;
-	MTP::StartProxyCheck(
-		&_account->mtp(),
-		item.data,
-		Core::App().settings().proxy().tryIPv6(),
-		item.checker,
-		item.checkerv6,
-		[=](Connection *raw, int pingTime) {
-			const auto item = ranges::find(
-				_list,
-				id,
-				[](const Item &item) { return item.id; });
-			if (item == end(_list)) {
-				return;
-			}
-			MTP::DropProxyChecker(item->checker, item->checkerv6, raw);
-			MTP::ResetProxyCheckers(item->checker, item->checkerv6);
-			if (item->state == ItemState::Checking) {
-				item->state = ItemState::Available;
-				item->ping = pingTime;
-				updateView(*item);
-			}
-		},
-		[=](Connection *raw) {
-			const auto item = ranges::find(
-				_list,
-				id,
-				[](const Item &item) { return item.id; });
-			if (item == end(_list)) {
-				return;
-			}
-			MTP::DropProxyChecker(item->checker, item->checkerv6, raw);
-			if (!MTP::HasProxyCheckers(item->checker, item->checkerv6)
-				&& item->state == ItemState::Checking) {
-				item->state = ItemState::Unavailable;
-				updateView(*item);
-			}
-		});
-	if (!MTP::HasProxyCheckers(item.checker, item.checkerv6)) {
-		item.state = ItemState::Unavailable;
-	}
+    MTP::ResetProxyCheckers(item.checker, item.checkerv6);
+    item.state = ItemState::Checking;
+    updateView(item);
+    _pendingCheckQueue.push_back(item.id);
+    processCheckQueue();
+}
+
+void ProxiesBoxController::processCheckQueue() {
+    int activeCount = ranges::count_if(_list, [](const Item &item) {
+        return !item.deleted && MTP::HasProxyCheckers(item.checker, item.checkerv6);
+    });
+
+    while (activeCount < kMaxConcurrentChecks && !_pendingCheckQueue.empty()) {
+        int nextId = _pendingCheckQueue.front();
+        _pendingCheckQueue.pop_front();
+        
+        auto it = ranges::find(_list, nextId, [](const Item &item) { return item.id; });
+        
+        if (it != end(_list) && !it->deleted && it->state == ItemState::Checking && !MTP::HasProxyCheckers(it->checker, it->checkerv6)) {
+            
+            const auto id = it->id;
+            MTP::StartProxyCheck(
+                &_account->mtp(),
+                it->data,
+                Core::App().settings().proxy().tryIPv6(),
+                it->checker,
+                it->checkerv6,
+                [=](Connection *raw, int pingTime) {
+                    const auto item = ranges::find(_list, id, [](const Item &item) { return item.id; });
+                    if (item != end(_list)) {
+                        MTP::DropProxyChecker(item->checker, item->checkerv6, raw);
+                        MTP::ResetProxyCheckers(item->checker, item->checkerv6);
+                        if (item->state == ItemState::Checking) {
+                            item->state = ItemState::Available;
+                            item->ping = pingTime;
+                            updateView(*item);
+                        }
+                    }
+                    processCheckQueue(); 
+                },
+                [=](Connection *raw) {
+                    const auto item = ranges::find(_list, id, [](const Item &item) { return item.id; });
+                    if (item != end(_list)) {
+                        MTP::DropProxyChecker(item->checker, item->checkerv6, raw);
+                        if (!MTP::HasProxyCheckers(item->checker, item->checkerv6)
+                            && item->state == ItemState::Checking) {
+                            item->state = ItemState::Unavailable;
+                            updateView(*item);
+                        }
+                    }
+                    processCheckQueue();
+                });
+                
+            if (!MTP::HasProxyCheckers(it->checker, it->checkerv6)) {
+                it->state = ItemState::Unavailable;
+                updateView(*it);
+            } else {
+                activeCount++;
+            }
+        }
+    }
 }
 
 object_ptr<Ui::BoxContent> ProxiesBoxController::CreateOwningBox(

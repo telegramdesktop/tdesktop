@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 #include "core/core_settings_proxy.h"
+#include <deque>
 #include "mtproto/connection_abstract.h"
 #include "mtproto/mtproto_proxy_data.h"
 
@@ -101,6 +102,9 @@ public:
 
 private:
 	using Checker = MTP::details::ConnectionPointer;
+	static constexpr int kMaxConcurrentChecks = 50;
+    std::deque<int> _pendingCheckQueue;
+    void processCheckQueue();
 	struct Item {
 		int id = 0;
 		ProxyData data;
