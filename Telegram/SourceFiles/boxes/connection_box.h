@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 #include "core/core_settings_proxy.h"
-#include <deque>
 #include "mtproto/connection_abstract.h"
 #include "mtproto/mtproto_proxy_data.h"
 
@@ -73,7 +72,6 @@ public:
 		bool supportsShare = false;
 		bool supportsCalls = false;
 		ItemState state = ItemState::Checking;
-
 	};
 
 	void deleteItem(int id);
@@ -102,9 +100,7 @@ public:
 
 private:
 	using Checker = MTP::details::ConnectionPointer;
-	static constexpr int kMaxConcurrentChecks = 50;
-    std::deque<int> _pendingCheckQueue;
-    void processCheckQueue();
+	
 	struct Item {
 		int id = 0;
 		ProxyData data;
@@ -113,9 +109,9 @@ private:
 		Checker checkerv6;
 		ItemState state = ItemState::Checking;
 		int ping = 0;
-
 	};
 
+	void processCheckQueue();
 	std::vector<Item>::iterator findById(int id);
 	std::vector<Item>::iterator findByProxy(const ProxyData &proxy);
 	void setDeleted(int id, bool deleted);
@@ -131,6 +127,7 @@ private:
 		std::vector<Item>::iterator which,
 		const ProxyData &proxy);
 
+	std::deque<int> _pendingCheckQueue;
 	const not_null<Main::Account*> _account;
 	Core::SettingsProxy &_settings;
 	int _idCounter = 0;

@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kSaveSettingsDelayedTimeout = crl::time(1000);
+constexpr auto kMaxConcurrentChecks = 50;
 
 using ProxyData = MTP::ProxyData;
 
@@ -2009,12 +2010,22 @@ void ProxiesBoxController::processCheckQueue() {
     });
 
     while (activeCount < kMaxConcurrentChecks && !_pendingCheckQueue.empty()) {
-        int nextId = _pendingCheckQueue.front();
+        const auto nextId = _pendingCheckQueue.front();
         _pendingCheckQueue.pop_front();
         
-        auto it = ranges::find(_list, nextId, [](const Item &item) { return item.id; });
-        
-        if (it != end(_list) && !it->deleted && it->state == ItemState::Checking && !MTP::HasProxyCheckers(it->checker, it->checkerv6)) {
+        const auto it = ranges::find(
+			_list,
+			nextId,
+			[](const Item &item) {
+				return item.id;
+			});
+
+		if (it != end(_list)
+			&& !it->deleted
+			&& it->state == ItemState::Checking
+			&& !MTP::HasProxyCheckers(
+				it->checker,
+				it->checkerv6)) {
             
             const auto id = it->id;
             MTP::StartProxyCheck(
