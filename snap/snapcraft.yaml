@@ -42,7 +42,6 @@ parts:
     build-snaps:
       - cmake
     build-packages:
-      - clang
       - libboost-regex-dev
       - libheif-dev
       - libjxl-dev
