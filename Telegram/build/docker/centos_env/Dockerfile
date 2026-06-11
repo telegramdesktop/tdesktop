@@ -15,7 +15,7 @@ dnf -y install epel-release
 dnf config-manager --set-enabled powertools
 dnf -y install autoconf automake libtool pkgconfig make patch git \
 	python3.11-pip python3.11-devel gperf flex bison clang-tools-extra \
-	lld nasm file which wget perl-open perl-XML-Parser perl-IPC-Cmd \
+	lld ccache nasm file which wget perl-open perl-XML-Parser perl-IPC-Cmd \
 	xorg-x11-util-macros $TOOLSET-gcc $TOOLSET-gcc-c++ $TOOLSET-binutils \
 	$TOOLSET-gdb $TOOLSET-libasan-devel libffi-devel fontconfig-devel \
 	freetype-devel libX11-devel wayland-devel alsa-lib-devel \
@@ -54,12 +54,19 @@ adduser user
 EOF
 
 WORKDIR /usr/src
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
 ENV AR=gcc-ar
 ENV RANLIB=gcc-ranlib
 ENV NM=gcc-nm
 ENV CFLAGS='{% if DEBUG %}-g -gdwarf64 -gz{% endif %} {% if MINSIZE %}-Os{% else %}-O3{% endif %} {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fno-strict-aliasing -fexceptions -fasynchronous-unwind-tables -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fhardened -Wno-hardened'
 ENV CXXFLAGS=$CFLAGS
 ENV LDFLAGS='-static-libstdc++ -static-libgcc -static-libasan -pthread -Wl,--push-state,--no-as-needed,-ldl,--pop-state -Wl,--as-needed -Wl,-z,muldefs'
+
+ENV CCACHE_DIR=/var/cache/ccache
+ENV CCACHE_UMASK=002
+ENV CCACHE_COMPRESS=1
+ENV CCACHE_MAXSIZE=20G
 
 ENV CMAKE_GENERATOR=Ninja
 ENV CMAKE_BUILD_TYPE=None
@@ -119,7 +126,7 @@ rm -rf .git
 EOF
 
 FROM builder AS zlib
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init zlib
 cd zlib
 git remote add origin https://github.com/madler/zlib.git
@@ -141,7 +148,7 @@ rm -rf zlib
 EOF
 
 FROM builder AS xz
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v5.8.1 --depth=1 https://github.com/tukaani-project/xz.git
 cd xz
 cmake -B build .
@@ -152,7 +159,7 @@ rm -rf xz
 EOF
 
 FROM builder AS protobuf
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v30.2 --depth=1 --recursive --shallow-submodules \
 	https://github.com/protocolbuffers/protobuf.git
 cd protobuf
@@ -168,7 +175,7 @@ rm -rf protobuf
 EOF
 
 FROM builder AS lcms2
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b lcms2.15 --depth=1 https://github.com/mm2/Little-CMS.git
 cd Little-CMS
 meson build --buildtype=plain --default-library=static
@@ -179,7 +186,7 @@ rm -rf Little-CMS
 EOF
 
 FROM builder AS brotli
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v1.1.0 --depth=1 https://github.com/google/brotli.git
 cd brotli
 cmake -B build . -DBUILD_SHARED_LIBS=OFF -DBROTLI_DISABLE_TESTS=ON
@@ -190,7 +197,7 @@ rm -rf brotli
 EOF
 
 FROM builder AS highway
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b 1.0.7 --depth=1 https://github.com/google/highway.git
 cd highway
 cmake -B build . -DBUILD_TESTING=OFF -DHWY_ENABLE_CONTRIB=OFF -DHWY_ENABLE_EXAMPLES=OFF
@@ -201,7 +208,7 @@ rm -rf highway
 EOF
 
 FROM builder AS mozjpeg
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v4.1.5 --depth=1 https://github.com/mozilla/mozjpeg.git
 cd mozjpeg
 cmake -B build . \
@@ -217,7 +224,7 @@ rm -rf mozjpeg
 EOF
 
 FROM builder AS opus
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v1.5.2 --depth=1 https://github.com/xiph/opus.git
 cd opus
 cmake -B build .
@@ -228,7 +235,7 @@ rm -rf opus
 EOF
 
 FROM builder AS dav1d
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b 1.5.3 --depth=1 https://github.com/videolan/dav1d.git
 cd dav1d
 meson build \
@@ -243,7 +250,7 @@ rm -rf dav1d
 EOF
 
 FROM builder AS openh264
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v2.6.0 --depth=1 https://github.com/cisco/openh264.git
 cd openh264
 meson build --buildtype=plain --default-library=static
@@ -254,7 +261,7 @@ rm -rf openh264
 EOF
 
 FROM builder AS de265
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v1.0.16 --depth=1 https://github.com/strukturag/libde265.git
 cd libde265
 cmake -B build . \
@@ -269,7 +276,7 @@ rm -rf libde265
 EOF
 
 FROM builder AS vpx
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init libvpx
 cd libvpx
 git remote add origin https://github.com/webmproject/libvpx.git
@@ -291,7 +298,7 @@ rm -rf libvpx
 EOF
 
 FROM builder AS webp
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v1.6.0 --depth=1 https://github.com/webmproject/libwebp.git
 cd libwebp
 cmake -B build . \
@@ -313,7 +320,7 @@ EOF
 FROM builder AS avif
 COPY --link --from=dav1d /usr/src/dav1d-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v1.3.0 --depth=1 https://github.com/AOMediaCodec/libavif.git
 cd libavif
 cmake -B build . -DBUILD_SHARED_LIBS=OFF -DAVIF_CODEC_DAV1D=SYSTEM -DAVIF_LIBYUV=OFF
@@ -326,7 +333,7 @@ EOF
 FROM builder AS heif
 COPY --link --from=de265 /usr/src/de265-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v1.21.2 --depth=1 https://github.com/strukturag/libheif.git
 cd libheif
 cmake -B build . \
@@ -357,7 +364,7 @@ COPY --link --from=lcms2 /usr/src/lcms2-cache /
 COPY --link --from=brotli /usr/src/brotli-cache /
 COPY --link --from=highway /usr/src/highway-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v0.11.2 --depth=1 https://github.com/libjxl/libjxl.git
 cd libjxl
 cmake -B build . \
@@ -382,7 +389,7 @@ rm -rf libjxl
 EOF
 
 FROM builder AS rnnoise
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v0.2 --depth=1 https://github.com/xiph/rnnoise.git
 cd rnnoise
 ./autogen.sh
@@ -394,7 +401,7 @@ rm -rf rnnoise
 EOF
 
 FROM builder AS xcb-proto
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b xcb-proto-1.16.0 --depth=1 https://github.com/gitlab-freedesktop-mirrors/xcbproto.git
 cd xcbproto
 ./autogen.sh
@@ -407,7 +414,7 @@ EOF
 FROM builder AS xcb
 COPY --link --from=xcb-proto /usr/src/xcb-proto-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b libxcb-1.16 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcb.git
 cd libxcb
 ./autogen.sh --enable-static --disable-shared
@@ -420,7 +427,7 @@ rm -rf libxcb
 EOF
 
 FROM builder AS xcb-wm
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive --shallow-submodules \
 	https://github.com/gitlab-freedesktop-mirrors/libxcb-wm.git
 cd libxcb-wm
@@ -432,7 +439,7 @@ rm -rf libxcb-wm
 EOF
 
 FROM builder AS xcb-util
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b xcb-util-0.4.1-gitlab --depth=1 --recursive --shallow-submodules \
 	https://github.com/gitlab-freedesktop-mirrors/libxcb-util.git
 cd libxcb-util
@@ -446,7 +453,7 @@ EOF
 FROM builder AS xcb-image
 COPY --link --from=xcb-util /usr/src/xcb-util-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b xcb-util-image-0.4.1-gitlab --depth=1 --recursive --shallow-submodules \
 	https://github.com/gitlab-freedesktop-mirrors/libxcb-image.git
 cd libxcb-image
@@ -458,7 +465,7 @@ rm -rf libxcb-image
 EOF
 
 FROM builder AS xcb-keysyms
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init libxcb-keysyms
 cd libxcb-keysyms
 git remote add origin https://github.com/gitlab-freedesktop-mirrors/libxcb-keysyms.git
@@ -473,7 +480,7 @@ rm -rf libxcb-keysyms
 EOF
 
 FROM builder AS xcb-render-util
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init libxcb-render-util
 cd libxcb-render-util
 git remote add origin https://github.com/gitlab-freedesktop-mirrors/libxcb-render-util.git
@@ -492,7 +499,7 @@ COPY --link --from=xcb-util /usr/src/xcb-util-cache /
 COPY --link --from=xcb-image /usr/src/xcb-image-cache /
 COPY --link --from=xcb-render-util /usr/src/xcb-render-util-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init libxcb-cursor
 cd libxcb-cursor
 git remote add origin https://github.com/gitlab-freedesktop-mirrors/libxcb-cursor.git
@@ -510,7 +517,7 @@ rm -rf libxcb-cursor
 EOF
 
 FROM builder AS xext
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b libXext-1.3.5 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxext.git
 cd libxext
 ./autogen.sh --enable-static --disable-shared
@@ -521,7 +528,7 @@ rm -rf libxext
 EOF
 
 FROM builder AS xtst
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b libXtst-1.2.4 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxtst.git
 cd libxtst
 ./autogen.sh --enable-static --disable-shared
@@ -532,7 +539,7 @@ rm -rf libxtst
 EOF
 
 FROM builder AS xfixes
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b libXfixes-5.0.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxfixes.git
 cd libxfixes
 ./autogen.sh --enable-static --disable-shared
@@ -545,7 +552,7 @@ EOF
 FROM builder AS xv
 COPY --link --from=xext /usr/src/xext-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b libXv-1.0.12 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxv.git
 cd libxv
 ./autogen.sh --enable-static --disable-shared
@@ -556,7 +563,7 @@ rm -rf libxv
 EOF
 
 FROM builder AS xrandr
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b libXrandr-1.5.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrandr.git
 cd libxrandr
 ./autogen.sh --enable-static --disable-shared
@@ -567,7 +574,7 @@ rm -rf libxrandr
 EOF
 
 FROM builder AS xrender
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b libXrender-0.9.11 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrender.git
 cd libxrender
 ./autogen.sh --enable-static --disable-shared
@@ -578,7 +585,7 @@ rm -rf libxrender
 EOF
 
 FROM builder AS xdamage
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b libXdamage-1.1.6 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxdamage.git
 cd libxdamage
 ./autogen.sh --enable-static --disable-shared
@@ -589,7 +596,7 @@ rm -rf libxdamage
 EOF
 
 FROM builder AS xcomposite
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b libXcomposite-0.4.6 --depth=1 \
 	https://github.com/gitlab-freedesktop-mirrors/libxcomposite.git
 cd libxcomposite
@@ -601,7 +608,7 @@ rm -rf libxcomposite
 EOF
 
 FROM builder AS nv-codec-headers
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b n12.1.14.0 --depth=1 https://github.com/FFmpeg/nv-codec-headers.git
 make -C nv-codec-headers DESTDIR=/usr/src/nv-codec-headers-cache install
 rm -rf nv-codec-headers
@@ -616,7 +623,7 @@ COPY --link --from=xext /usr/src/xext-cache /
 COPY --link --from=xv /usr/src/xv-cache /
 COPY --link --from=nv-codec-headers /usr/src/nv-codec-headers-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b n6.1.1 --depth=1 https://github.com/FFmpeg/FFmpeg.git
 cd FFmpeg
 ./configure \
@@ -765,7 +772,7 @@ rm -rf ffmpeg
 EOF
 
 FROM builder AS pipewire
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b 0.3.62 --depth=1 https://github.com/PipeWire/pipewire.git
 cd pipewire
 meson build \
@@ -783,7 +790,7 @@ EOF
 FROM builder AS openal
 COPY --link --from=pipewire /usr/src/pipewire-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b 1.24.3 --depth=1 https://github.com/kcat/openal-soft.git
 cd openal-soft
 cmake -B build . \
@@ -798,7 +805,7 @@ rm -rf openal-soft
 EOF
 
 FROM builder AS openssl
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b openssl-3.2.1 --depth=1 https://github.com/openssl/openssl.git
 cd openssl
 sed -i 's/$cmd $cmdflags -c -o/$cmd $cmdflags -g0 -c -o/' Configurations/unix-Makefile.tmpl
@@ -812,7 +819,7 @@ EOF
 FROM builder AS xkbcommon
 COPY --link --from=xcb /usr/src/xcb-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b xkbcommon-1.6.0 --depth=1 https://github.com/xkbcommon/libxkbcommon.git
 cd libxkbcommon
 meson build \
@@ -845,7 +852,7 @@ COPY --link --from=xcb-cursor /usr/src/xcb-cursor-cache /
 COPY --link --from=openssl /usr/src/openssl-cache /
 COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 QT=6.11.1
 git clone -b v$QT --depth=1 https://github.com/qt/qt5.git
 cd qt5
@@ -856,6 +863,7 @@ find $PWD/../patches/qtwayland_$QT -type f -print0 | sort -z | xargs -r0 git -C 
 cmake -B build . \
 	-DCMAKE_INSTALL_PREFIX=/usr/local \
 	-DBUILD_SHARED_LIBS=OFF \
+	-DBUILD_WITH_PCH=OFF \
 {%- if ASAN %}
 	-DFEATURE_sanitize_address=ON \
 {%- endif %}
@@ -875,7 +883,7 @@ rm -rf qt5
 EOF
 
 FROM builder AS boost
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 curl -sSL https://archives.boost.io/release/1.90.0/source/boost_1_90_0.tar.gz | tar -xz
 cd boost_*
 ./bootstrap.sh --prefix=/usr/src/boost-cache/usr/local --with-libraries=regex
@@ -885,7 +893,7 @@ rm -rf boost_*
 EOF
 
 FROM builder AS breakpad
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v2024.02.16 --depth=1 https://chromium.googlesource.com/breakpad/breakpad.git
 cd breakpad
 git clone -b v2024.02.01 --depth=1 \
@@ -916,7 +924,7 @@ COPY --link --from=xcomposite /usr/src/xcomposite-cache /
 COPY --link --from=pipewire /usr/src/pipewire-cache /
 
 # Shallow clone on a specific commit.
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init tg_owt
 cd tg_owt
 git remote add origin https://github.com/desktop-app/tg_owt.git
@@ -931,7 +939,7 @@ rm -rf tg_owt
 EOF
 
 FROM builder AS ada
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b v3.2.4 --depth=1 https://github.com/ada-url/ada.git
 cd ada
 cmake -B build . -DADA_TESTING=OFF -DADA_TOOLS=OFF -DADA_INCLUDE_URL_PATTERN=OFF
@@ -946,7 +954,7 @@ COPY --link --from=zlib /usr/src/zlib-cache /
 COPY --link --from=openssl /usr/src/openssl-cache /
 
 # Shallow clone on a specific commit.
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init tde2e
 cd tde2e
 git remote add origin https://github.com/tdlib/td.git
@@ -1009,6 +1017,7 @@ patch -p1 -d /usr/lib64/gobject-introspection -i $PWD/patches/gobject-introspect
 rm -rf patches
 EOF
 
+ENV CCACHE_DISABLE=true
 WORKDIR /usr/src/tdesktop
 USER user
 VOLUME [ "/usr/src/tdesktop" ]
