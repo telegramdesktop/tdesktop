@@ -10,7 +10,7 @@ ENV LIBRARY_PATH=/opt/rh/$TOOLSET/root/usr/lib64:/opt/rh/$TOOLSET/root/usr/lib:/
 ENV LD_LIBRARY_PATH=$LIBRARY_PATH
 ENV PKG_CONFIG_PATH=/opt/rh/$TOOLSET/root/usr/lib64/pkgconfig:/opt/rh/$TOOLSET/root/usr/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 
-RUN <<EOF
+RUN --mount=type=cache,target=/var/cache/dnf <<EOF
 dnf -y install epel-release
 dnf config-manager --set-enabled powertools
 dnf -y install autoconf automake libtool pkgconfig make patch git \
@@ -23,7 +23,6 @@ dnf -y install autoconf automake libtool pkgconfig make patch git \
 	libdrm-devel vulkan-devel libva-devel libvdpau-devel libselinux-devel \
 	libmount-devel systemd-devel glib2-devel gobject-introspection-devel \
 	at-spi2-core-devel gtk3-devel
-dnf clean all
 EOF
 
 RUN <<EOF
