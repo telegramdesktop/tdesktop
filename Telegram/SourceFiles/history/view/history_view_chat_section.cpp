@@ -175,6 +175,13 @@ constexpr auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 	return std::nullopt;
 }
 
+[[nodiscard]] bool IsSpecialShowAtMsgId(MsgId id) {
+	return (id == ShowAtTheEndMsgId)
+		|| (id == ShowAndStartBotMsgId)
+		|| (id == ShowAndMaybeStartBotMsgId)
+		|| (id == ShowForChooseMessagesMsgId);
+}
+
 } // namespace
 
 ChatMemento::ChatMemento(
@@ -182,18 +189,25 @@ ChatMemento::ChatMemento(
 	MsgId highlightId,
 	MessageHighlightId highlight)
 : _id(id)
-, _highlightId((highlightId == ShowForChooseMessagesMsgId)
-	? MsgId(0)
-	: highlightId)
+, _highlightId(IsSpecialShowAtMsgId(highlightId) ? MsgId(0) : highlightId)
 , _highlight(std::move(highlight))
-, _activateChooseForReport(highlightId == ShowForChooseMessagesMsgId) {
-	if (_highlightId || _id.sublist) {
+, _activateChooseForReport(highlightId == ShowForChooseMessagesMsgId)
+, _sendBotStart(highlightId == ShowAndStartBotMsgId)
+, _maybeSendBotStart(highlightId == ShowAndMaybeStartBotMsgId) {
+	if ((highlightId == ShowAtTheEndMsgId)
+		|| _sendBotStart
+		|| _maybeSendBotStart) {
+		_list.setAroundPosition(Data::MaxMessagePosition);
+	} else if (_highlightId || _id.sublist) {
 		_list.setAroundPosition({
 			.fullId = FullMsgId(_id.history->peer->id, _highlightId),
 			.date = TimeId(0),
 		});
 	}
-	if (!_highlightId && !_id.repliesRootId && !_id.sublist) {
+	if (!_list.aroundPosition()
+		&& !_highlightId
+		&& !_id.repliesRootId
+		&& !_id.sublist) {
 		setFromHistory(_id.history);
 	}
 }
@@ -607,9 +621,7 @@ ChatWidget::ChatWidget(
 
 	_composeControls->sendActionUpdates(
 	) | rpl::on_next([=](ComposeControls::SendActionUpdate &&data) {
-		if (!_repliesRootId) {
-			return;
-		} else if (!data.cancel) {
+		if (!data.cancel) {
 			session().sendProgressManager().update(
 				_history,
 				_repliesRootId,
@@ -661,31 +673,38 @@ ChatWidget::ChatWidget(
 			&& (action.replyTo.topicRootId == _repliesRootId)
 			&& (action.replyTo.monoforumPeerId == _monoforumPeerId);
 	}) | rpl::on_next([=](const Api::SendAction &action) {
-		if (action.options.scheduled) {
-			if (_topic) {
-				_composeControls->cancelReplyMessage();
-				crl::on_main(this, [=, t = _topic] {
-					controller->showSection(
-						std::make_shared<HistoryView::ScheduledMemento>(t));
-				});
+		if (!action.replaceMediaOf) {
+			const auto lastKeyboardUsed = lastForceReplyReplied(
+				action.replyTo.messageId);
+			const auto replyMatches = action.replyTo.messageId
+				&& (action.replyTo.messageId
+					== _composeControls->replyingToMessage().messageId);
+			if (replyMatches || lastKeyboardUsed) {
+				cancelReply(lastKeyboardUsed);
 			}
-		} else if (!action.replaceMediaOf
-			&& action.replyTo.messageId
-			&& (action.replyTo.messageId
-				== _composeControls->replyingToMessage().messageId)) {
-			_composeControls->cancelReplyMessage();
-			refreshTopBarActiveChat();
+			if (mode() == Mode::History) {
+				cancelSuggestPost();
+			}
+			if (action.options.scheduled) {
+				if (_topic) {
+					crl::on_main(this, [=, t = _topic] {
+						controller->showSection(
+							std::make_shared<HistoryView::ScheduledMemento>(t));
+					});
+				} else if (mode() == Mode::History) {
+					crl::on_main(this, [=, history = action.history] {
+						controller->showSection(
+							std::make_shared<HistoryView::ScheduledMemento>(
+								history));
+					});
+				}
+			}
+		}
+		if ((mode() == Mode::History)
+			&& action.options.handleSupportSwitch) {
+			handleSupportSwitch(action.history);
 		}
 	}, lifetime());
-	if (mode() == Mode::History) {
-		session().api().sendActions(
-		) | rpl::filter([=](const Api::SendAction &action) {
-			return (action.history == _history)
-				&& action.options.handleSupportSwitch;
-		}) | rpl::on_next([=](const Api::SendAction &action) {
-			handleSupportSwitch(action.history);
-		}, lifetime());
-	}
 	if (mode() == Mode::History) {
 		_topControls->subscribeToPinnedMessages();
 	}
@@ -749,6 +768,11 @@ ChatWidget::ChatWidget(
 		updateControlsGeometry();
 	}, lifetime());
 
+	_bottom->isButtonActiveValue(
+	) | rpl::skip(1) | rpl::on_next([=] {
+		updateControlsVisibility();
+	}, lifetime());
+
 	refreshCanSendMessages();
 
 	using PeerUpdateFlag = Data::PeerUpdate::Flag;
@@ -764,10 +788,22 @@ ChatWidget::ChatWidget(
 			| PeerUpdateFlag::ManagedBot
 			| PeerUpdateFlag::StarsPerMessage
 			| PeerUpdateFlag::Migration
+			| PeerUpdateFlag::UnavailableReason
 	) | rpl::on_next([=](const Data::PeerUpdate &update) {
 		if (update.flags & PeerUpdateFlag::Migration) {
 			handlePeerMigration();
 			return;
+		}
+		if (update.flags & PeerUpdateFlag::UnavailableReason) {
+			const auto unavailable = _peer->computeUnavailableReason();
+			if (!unavailable.isEmpty()) {
+				const auto account = not_null(&_peer->account());
+				closeCurrent();
+				if (const auto primary = Core::App().windowFor(account)) {
+					primary->showToast(unavailable);
+				}
+				return;
+			}
 		}
 		_bottom->applyPeerUpdate(update.flags);
 		if (update.flags & (PeerUpdateFlag::FullInfo
@@ -780,7 +816,9 @@ ChatWidget::ChatWidget(
 			| PeerUpdateFlag::StarsPerMessage)) {
 			refreshSuggestPostToggle();
 		}
-		if (update.flags & (PeerUpdateFlag::FullInfo
+		if (update.flags & PeerUpdateFlag::IsBlocked) {
+			refreshAboutView(true);
+		} else if (update.flags & (PeerUpdateFlag::FullInfo
 			| PeerUpdateFlag::Rights
 			| PeerUpdateFlag::Members
 			| PeerUpdateFlag::ManagedBot
@@ -796,6 +834,7 @@ ChatWidget::ChatWidget(
 		session().changes().historyUpdates(
 			_history,
 			HistoryUpdateFlag::BotKeyboard
+				| HistoryUpdateFlag::CloudDraft
 				| HistoryUpdateFlag::UnreadMentions
 				| HistoryUpdateFlag::UnreadReactions
 				| HistoryUpdateFlag::UnreadPollVotes
@@ -804,6 +843,10 @@ ChatWidget::ChatWidget(
 			const auto flags = update.flags;
 			if (flags & HistoryUpdateFlag::BotKeyboard) {
 				updateBotKeyboard();
+			}
+			if (flags & HistoryUpdateFlag::CloudDraft) {
+				_composeControls->applyCloudDraft();
+				refreshSuggestFromDraft();
 			}
 			if ((flags & HistoryUpdateFlag::UnreadMentions)
 				|| (flags & HistoryUpdateFlag::UnreadReactions)
@@ -837,7 +880,9 @@ ChatWidget::ChatWidget(
 					if (keyboardSourceId() == update.item->fullId()) {
 						updateBotKeyboard(update.item->history(), true);
 					} else if (_repliesLastSlice) {
-						maybeUpdateLastKeyboardFromSlice(*_repliesLastSlice);
+						maybeUpdateLastKeyboardFromSlice(
+							*_repliesLastSlice,
+							true);
 					} else {
 						updateBotKeyboard(update.item->history(), true);
 					}
@@ -2187,13 +2232,11 @@ void ChatWidget::sendTextWithTags(
 	session().api().sendMessage(std::move(message), nextLocalMessageId);
 
 	_composeControls->clear();
-	if (_repliesRootId) {
-		session().sendProgressManager().update(
-			_history,
-			_repliesRootId,
-			Api::SendProgressType::Typing,
-			-1);
-	}
+	session().sendProgressManager().update(
+		_history,
+		_repliesRootId,
+		Api::SendProgressType::Typing,
+		-1);
 
 	//_saveDraftText = true;
 	//_saveDraftStart = crl::now();
@@ -2415,6 +2458,39 @@ void ChatWidget::sendBotStartCommand() {
 	session().api().sendBotStart(controller()->uiShow(), _peer->asUser());
 	updateControlsVisibility();
 	updateControlsGeometry();
+}
+
+bool ChatWidget::clearMaybeSendStart() {
+	if (!_maybeSendStart) {
+		return false;
+	} else if (!_peer->isFullLoaded()) {
+		_peer->updateFull();
+		return false;
+	}
+	_maybeSendStart = false;
+	if (const auto user = _peer->asUser()) {
+		if (user->blockStatus() == PeerData::BlockStatus::NotBlocked) {
+			if (const auto info = user->botInfo.get()) {
+				if (!info->startToken.isEmpty()) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void ChatWidget::checkMaybeSendBotStart() {
+	if (!_maybeSendStart || mode() != Mode::History) {
+		return;
+	}
+	const auto empty = _inner->isEmpty();
+	const auto loadedEmpty = empty
+		&& _inner->loadedAtTop()
+		&& _inner->loadedAtBottom();
+	if ((!empty || loadedEmpty) && clearMaybeSendStart() && !empty) {
+		sendBotStartCommand();
+	}
 }
 
 void ChatWidget::joinChannelAction() {
@@ -3348,6 +3424,16 @@ bool ChatWidget::showInternal(
 				_composeControls->applyDraft(
 					ComposeControls::FieldHistoryAction::NewEntry);
 				refreshSuggestFromDraft();
+			} else if ((mode() == Mode::History)
+				&& !logMemento->highlightId()
+				&& !logMemento->sendBotStart()
+				&& !logMemento->maybeSendBotStart()) {
+				if (!_history->trackUnreadMessages()
+					|| _inner->insideJumpToEndInsteadOfToUnread()) {
+					showAtEnd();
+				} else {
+					showAtPosition(Data::UnreadMessagePosition);
+				}
 			} else {
 				restoreState(logMemento);
 			}
@@ -3747,7 +3833,25 @@ void ChatWidget::restoreState(not_null<ChatMemento*> memento) {
 	}
 	updateBotKeyboard();
 	if (mode() == Mode::History) {
+		// Must be done before unreadCountUpdated(), or we auto-close.
+		if (_history->unreadMark()) {
+			session().data().histories().changeDialogUnreadMark(
+				_history,
+				false);
+		}
+		const auto migrated = _history->migrateFrom();
+		if (migrated && migrated->unreadMark()) {
+			session().data().histories().changeDialogUnreadMark(
+				migrated,
+				false);
+		}
 		unreadCountUpdated();
+	}
+	if (memento->sendBotStart()) {
+		sendBotStartCommand();
+	} else if (memento->maybeSendBotStart()) {
+		_maybeSendStart = true;
+		checkMaybeSendBotStart();
 	}
 }
 
@@ -4295,17 +4399,21 @@ rpl::producer<Data::MessagesSlice> ChatWidget::sublistSource(
 }
 
 void ChatWidget::maybeUpdateLastKeyboardFromSlice(
-		const Data::MessagesSlice &slice) {
+		const Data::MessagesSlice &slice,
+		bool force) {
 	if (mode() == Mode::Sublist) {
 		return;
 	}
 	if (slice.skippedAfter.value_or(1) != 0) {
 		return;
 	}
-	const auto currentId = keyboardSourceId();
 	const auto inited = (mode() == Mode::History)
 		? _history->lastKeyboardInited
 		: _repliesKeyboardInited;
+	if (inited && !force) {
+		return;
+	}
+	const auto currentId = keyboardSourceId();
 	using Flag = ReplyMarkupFlag;
 	for (auto i = slice.ids.rbegin(); i != slice.ids.rend(); ++i) {
 		const auto item = session().data().message(*i);
@@ -4594,6 +4702,9 @@ MessagesBarData ChatWidget::listMessagesBar(
 
 void ChatWidget::listContentRefreshed() {
 	injectSponsoredMessages();
+	checkMaybeSendBotStart();
+	refreshAboutView();
+	_bottom->updateControlsVisibility();
 }
 
 void ChatWidget::listUpdateDateLink(
@@ -4948,6 +5059,14 @@ bool ChatWidget::kbWasHidden() const {
 			== FullMsgId(_peer->id, keyboardHiddenId()));
 }
 
+bool ChatWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {
+	return (replyTo.peer == _peer->id)
+		&& _keyboard
+		&& _keyboard->forceReply()
+		&& (_keyboard->forMsgId() == keyboardSourceId())
+		&& (_keyboard->forMsgId().msg == replyTo.msg);
+}
+
 bool ChatWidget::lastForceReplyReplied() const {
 	return _keyboard
 		&& _keyboard->forceReply()
@@ -4987,7 +5106,10 @@ void ChatWidget::listSearch(
 }
 
 void ChatWidget::listHandleViaClick(not_null<UserData*> bot) {
-	if (_bottom->canSendTexts()) {
+	const auto canSendTexts = (mode() == Mode::History)
+		? Data::CanSend(_peer, ChatRestriction::SendOther)
+		: _bottom->canSendTexts();
+	if (canSendTexts) {
 		_composeControls->setText({ '@' + bot->username() + ' ' });
 	}
 }
@@ -5185,20 +5307,34 @@ void ChatWidget::refreshAboutView(bool force) {
 	if (mode() != Mode::History) {
 		return;
 	}
+	const auto refreshExisting = [&] {
+		const auto was = _aboutView->view();
+		if (_aboutView->refresh()) {
+			_inner->aboutViewReplaced(was);
+			_inner->updateSize();
+			_inner->update();
+		}
+	};
 	const auto refresh = [&] {
 		if (force) {
-			_aboutView = nullptr;
 			_inner->setAboutView(nullptr);
+			_aboutView = nullptr;
 		}
 		if (!_aboutView) {
 			_aboutView = std::make_unique<HistoryView::AboutView>(
 				_history,
-				_history->delegateMixin()->delegate());
+				_inner.data());
+			_aboutView->setDisplayedEmptyOverride([=] {
+				return _inner->isEmpty();
+			});
 			_aboutView->refreshRequests() | rpl::on_next([=] {
 				if (_aboutView) {
-					_aboutView->refresh();
-					_inner->updateSize();
-					_inner->update();
+					const auto was = _aboutView->view();
+					if (_aboutView->refresh()) {
+						_inner->aboutViewReplaced(was);
+						_inner->updateSize();
+						_inner->update();
+					}
 				}
 			}, _aboutView->lifetime());
 			_aboutView->destroyRequests() | rpl::on_next([=] {
@@ -5207,9 +5343,23 @@ void ChatWidget::refreshAboutView(bool force) {
 					update();
 				});
 			}, _aboutView->lifetime());
+			_aboutView->sendIntroSticker() | rpl::on_next([=](
+					not_null<DocumentData*> sticker) {
+				sendExistingDocument(
+					sticker,
+					Api::MessageToSend(prepareSendAction({})),
+					std::nullopt);
+			}, _aboutView->lifetime());
 			_inner->setAboutView(_aboutView.get());
 		}
-		if (_aboutView && _aboutView->refresh()) {
+		if (_aboutView) {
+			refreshExisting();
+		}
+	};
+	const auto destroy = [&] {
+		if (_aboutView) {
+			_inner->setAboutView(nullptr);
+			_aboutView = nullptr;
 			_inner->updateSize();
 			_inner->update();
 		}
@@ -5232,11 +5382,17 @@ void ChatWidget::refreshAboutView(bool force) {
 			} else {
 				session().api().requestFullPeer(user);
 			}
+		} else {
+			destroy();
 		}
 	} else if (const auto monoforum = _peer->asChannel()) {
 		if (monoforum->isMonoforum() && !monoforum->amMonoforumAdmin()) {
 			refresh();
+		} else {
+			destroy();
 		}
+	} else {
+		destroy();
 	}
 }
 

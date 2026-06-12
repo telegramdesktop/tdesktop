@@ -1470,6 +1470,17 @@ void MainWidget::showHistory(
 
 	if (peerId && OptionUseNewChatView.value()) {
 		const auto history = session().data().history(peerId);
+		if (showAtMsgId == ShowAndStartBotMsgId) {
+			if (const auto user = history->peer->asUser()) {
+				if (const auto &info = user->botInfo) {
+					const auto wasState
+						= _controller->dialogsEntryStateCurrent();
+					if (wasState.key) {
+						info->inlineReturnTo = wasState;
+					}
+				}
+			}
+		}
 		using namespace HistoryView;
 		auto memento = std::make_shared<ChatMemento>(
 			ChatViewId{ .history = history },

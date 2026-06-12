@@ -415,9 +415,11 @@ private:
 	void updateBotKeyboard(History *h = nullptr, bool force = false);
 	void toggleBotKeyboard(bool manual = true);
 	void maybeUpdateLastKeyboardFromSlice(
-		const Data::MessagesSlice &slice);
+		const Data::MessagesSlice &slice,
+		bool force = false);
 	void botCallbackSent(not_null<HistoryItem*> item);
 	[[nodiscard]] bool kbWasHidden() const;
+	[[nodiscard]] bool lastForceReplyReplied(const FullMsgId &replyTo) const;
 	[[nodiscard]] bool lastForceReplyReplied() const;
 	void cancelReply(bool lastKeyboardUsed = false);
 	void sendBotCommand(
@@ -498,6 +500,8 @@ private:
 	void updateControlsVisibility();
 	void unblockUser();
 	void sendBotStartCommand();
+	bool clearMaybeSendStart();
+	void checkMaybeSendBotStart();
 	void joinChannelAction();
 	void joinGroupAction();
 	void toggleMuteUnmute();
@@ -595,6 +599,7 @@ private:
 	bool _choosingAttach = false;
 
 	bool _loaded = false;
+	bool _maybeSendStart = false;
 	History *_supportPreloadHistory = nullptr;
 	int _supportPreloadRequest = 0;
 
@@ -663,6 +668,12 @@ public:
 	[[nodiscard]] bool activateChooseForReport() const {
 		return _activateChooseForReport;
 	}
+	[[nodiscard]] bool sendBotStart() const {
+		return _sendBotStart;
+	}
+	[[nodiscard]] bool maybeSendBotStart() const {
+		return _maybeSendBotStart;
+	}
 
 private:
 	void setupTopicViewer();
@@ -674,6 +685,8 @@ private:
 	std::shared_ptr<Data::RepliesList> _replies;
 	QVector<FullMsgId> _replyReturns;
 	bool _activateChooseForReport = false;
+	bool _sendBotStart = false;
+	bool _maybeSendBotStart = false;
 
 	rpl::lifetime _lifetime;
 

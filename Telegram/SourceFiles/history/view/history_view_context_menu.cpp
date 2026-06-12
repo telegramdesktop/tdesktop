@@ -1901,6 +1901,7 @@ void FillContextMenuItems(
 		}, &st::menuIconCopy);
 	}
 	if (request.overSelection
+		&& view
 		&& !Ui::SkipTranslate(list->getSelectedText().rich)) {
 		const auto owner = &view->history()->owner();
 		result->addAction(tr::lng_context_translate_selected(tr::now), [=] {

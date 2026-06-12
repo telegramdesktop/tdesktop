@@ -719,6 +719,16 @@ bool AboutView::aboveHistory() const {
 		&& (!_history->isEmpty() || _history->lastMessage()));
 }
 
+void AboutView::setDisplayedEmptyOverride(Fn<bool()> value) {
+	_displayedEmptyOverride = std::move(value);
+}
+
+bool AboutView::displayedEmpty() const {
+	return _displayedEmptyOverride
+		? _displayedEmptyOverride()
+		: _history->isDisplayedEmpty();
+}
+
 bool AboutView::refresh() {
 	if (_history->peer->isVerifyCodes()) {
 		if (_item) {
@@ -742,7 +752,7 @@ bool AboutView::refresh() {
 			loadCommonGroups();
 			setItem(makeNewPeerInfo(user), nullptr);
 			return true;
-		} else if (user && !user->isSelf() && _history->isDisplayedEmpty()) {
+		} else if (user && !user->isSelf() && displayedEmpty()) {
 			if (_item) {
 				return false;
 			} else if (user->requiresPremiumToWrite()
@@ -758,7 +768,7 @@ bool AboutView::refresh() {
 				makeIntro(user);
 			}
 			return true;
-		} else if (monoforum && _history->isDisplayedEmpty()) {
+		} else if (monoforum && displayedEmpty()) {
 			if (_item) {
 				return false;
 			}

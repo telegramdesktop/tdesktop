@@ -377,6 +377,7 @@ public:
 	[[nodiscard]] bool loadedAtTop() const;
 	[[nodiscard]] bool loadedAtBottomKnown() const;
 	[[nodiscard]] bool loadedAtBottom() const;
+	[[nodiscard]] bool insideJumpToEndInsteadOfToUnread() const;
 	[[nodiscard]] bool isEmpty() const;
 
 	[[nodiscard]] bool markingContentsRead() const;
@@ -516,6 +517,7 @@ public:
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
 	void setAboutView(AboutView *view);
+	void aboutViewReplaced(const Element *was);
 	void updateSize();
 	void overrideChatMode(std::optional<ElementChatMode> mode);
 

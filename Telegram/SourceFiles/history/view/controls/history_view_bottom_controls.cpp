@@ -272,6 +272,7 @@ void BottomControls::setupButtons() {
 		refreshGiftToChannelShown();
 		refreshDirectMessageShown();
 		refreshMuteUnmuteText();
+		refreshUnblockText();
 	} else if (_mode == BottomControlsMode::Replies
 		&& _peer
 		&& _peer->isChannel()) {

@@ -2188,6 +2188,12 @@ std::optional<int> History::countStillUnreadLocalFromMessages(
 	if (snapshot.skippedAfter != 0) {
 		return std::nullopt;
 	}
+	const auto coversReadTill = (snapshot.skippedBefore == 0)
+		|| (!snapshot.messageIds.empty()
+			&& (snapshot.messageIds.front() <= readTillId));
+	if (!coversReadTill) {
+		return std::nullopt;
+	}
 	auto result = 0;
 	for (const auto &id : snapshot.messageIds) {
 		if (id <= readTillId) {

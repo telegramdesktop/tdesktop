@@ -257,9 +257,15 @@ void AppendHistoryClientSideMessages(
 			}
 		}
 	} else {
-		result.query = (aroundId.fullId.peer == history->peer->id)
-			? aroundId.fullId.msg
-			: (aroundId.fullId.msg - ServerMaxMsgId);
+		const auto samePeer = (aroundId.fullId.peer == history->peer->id);
+		if (IsServerMsgId(aroundId.fullId.msg)) {
+			result.query = samePeer
+				? aroundId.fullId.msg
+				: (aroundId.fullId.msg - ServerMaxMsgId);
+		} else {
+			result.query = (ServerMaxMsgId - 1);
+			result.target = MaxMessagePosition;
+		}
 	}
 	return result;
 }

@@ -1349,11 +1349,13 @@ ComposeControls::ComposeControls(
 				) | rpl::to_empty | rpl::start_to_stream(
 					_botKeyboardToggleClicks,
 					_botKeyboardHide->lifetime());
+				_tabbedSelectorToggle->hide();
 				orderControls();
 				updateControlsVisibility();
 				updateControlsGeometry(_wrap->size());
 			} else if (_botKeyboardHide && !has) {
 				_botKeyboardHide = nullptr;
+				_tabbedSelectorToggle->show();
 				updateControlsGeometry(_wrap->size());
 			}
 		}, _wrap->lifetime());
@@ -4688,7 +4690,9 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		right += _editStars->width();
 	}
 	_tabbedSelectorToggle->moveToRight(right, buttonsTop);
-	right += _tabbedSelectorToggle->width();
+	if (!_tabbedSelectorToggle->isHidden()) {
+		right += _tabbedSelectorToggle->width();
+	}
 	if (_like) {
 		using Type = Controls::WriteRestrictionType;
 		if (_writeRestriction.current().type == Type::PremiumRequired) {
@@ -5041,8 +5045,6 @@ bool ComposeControls::updateBotCommandShown() {
 				return !peer->asChat()->botCommands().empty();
 			} else if (peer->isMegagroup()) {
 				return !peer->asChannel()->mgInfo->botCommands().empty();
-			} else if (peer->isUser()) {
-				return peer->asUser()->isBot();
 			}
 			return false;
 		}();
@@ -5767,6 +5769,12 @@ void ComposeControls::initForwardProcess() {
 		} else if (const auto sublist = update.entry->asSublist()) {
 			if (sublist->owningHistory() == _history
 				&& sublist->sublistPeer()->id == _monoforumPeerId) {
+				updateForwarding();
+			}
+		} else if (const auto history = update.entry->asHistory()) {
+			if (history == _history
+				&& !_topicRootId
+				&& !_monoforumPeerId) {
 				updateForwarding();
 			}
 		}

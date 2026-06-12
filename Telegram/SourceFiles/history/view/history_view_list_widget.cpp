@@ -812,6 +812,7 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 		_emptyInfo->setVisible(isEmpty());
 	}
 	checkActivation();
+	_delegate->listContentRefreshed();
 }
 
 std::optional<int> ListWidget::scrollTopForPosition(
@@ -1166,6 +1167,9 @@ Element *ListWidget::viewForItem(FullMsgId itemId) const {
 
 Element *ListWidget::viewForItem(const HistoryItem *item) const {
 	if (item) {
+		if (_aboutView && _aboutView->item() == item) {
+			return _aboutView->view();
+		}
 		if (const auto i = _views.find(item); i != _views.end()) {
 			return i->second.get();
 		}
@@ -1775,6 +1779,14 @@ bool ListWidget::loadedAtTopKnown() const {
 
 bool ListWidget::loadedAtTop() const {
 	return skippedAtTop() == 0;
+}
+
+bool ListWidget::insideJumpToEndInsteadOfToUnread() const {
+	if (_session->supportMode()) {
+		return true;
+	}
+	const auto unread = _bar.element;
+	return unread && (itemTop(unread) <= _visibleBottom);
 }
 
 bool ListWidget::loadedAtBottomKnown() const {
@@ -2676,11 +2688,15 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			|| clip.y() + clip.height() <= about->top) {
 			return;
 		}
+		const auto view = about->view();
 		const auto top = about->top;
 		auto aboutContext = context.translated(0, -top);
-		aboutContext.selection = TextSelection();
+		const auto selection = itemRenderSelection(view);
+		aboutContext.selection = selection.selection;
+		aboutContext.fullMessageSelected = selection.fullMessageSelected;
+		aboutContext.messageSelection = selection.messageSelection;
 		p.translate(0, top);
-		about->view()->draw(p, aboutContext);
+		view->draw(p, aboutContext);
 		p.translate(0, -top);
 	};
 	drawAboutView();
@@ -4501,10 +4517,18 @@ void ListWidget::mouseActionUpdate() {
 		: TextState();
 	const auto replyBtnItem = session().data().message(replyBtnState.itemId);
 	const auto replyBtnView = viewForItem(replyBtnItem);
+	const auto aboutView = (_aboutView
+		&& _aboutView->view()
+		&& point.y() >= _aboutView->top
+		&& point.y() < _aboutView->top + _aboutView->view()->height())
+		? _aboutView->view()
+		: nullptr;
 	const auto view = reactionView
 		? reactionView
 		: replyBtnView
 		? replyBtnView
+		: aboutView
+		? aboutView
 		: strictFindItemByY(point.y());
 	const auto item = view ? view->data().get() : nullptr;
 	const auto itemPoint = mapPointToItem(point, view);
@@ -4849,6 +4873,9 @@ void ListWidget::performDrag() {
 }
 
 int ListWidget::itemTop(not_null<const Element*> view) const {
+	if (_aboutView && view == _aboutView->view()) {
+		return _aboutView->top;
+	}
 	return _itemsTop + view->y();
 }
 
@@ -5122,6 +5149,12 @@ void ListWidget::showItemHighlight(not_null<HistoryItem*> item) {
 	}
 }
 
+void ListWidget::aboutViewReplaced(const Element *was) {
+	if (was) {
+		viewReplaced(was, nullptr);
+	}
+}
+
 void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
 	if (_activeColumnsView == was.get()) {
 		_activeColumnsView = nullptr;
@@ -5329,7 +5362,9 @@ void ListWidget::setAboutView(AboutView *view) {
 	if (_aboutView == view) {
 		return;
 	}
-	// TODO: port hit-test delegation from HistoryInner.
+	if (const auto was = _aboutView ? _aboutView->view() : nullptr) {
+		viewReplaced(was, nullptr);
+	}
 	_aboutView = view;
 	updateSize();
 	update();
