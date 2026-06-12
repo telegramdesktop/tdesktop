@@ -79,14 +79,26 @@ jobs:
           tool-cache: true
 
       - name: Set up Docker Buildx.
+        id: setup-buildx
         uses: docker/setup-buildx-action@v4
 
       - name: Libraries cache.
+        id: cache-libs
         uses: actions/cache@v5
         with:
-          path: ${{ runner.temp }}/.buildx-cache
+          path: |
+            ${{ runner.temp }}/.buildx-cache
+            ${{ runner.temp }}/.mount-cache
           key: ${{ runner.OS }}-libs-${{ hashFiles('Telegram/build/docker/centos_env/**') }}
           restore-keys: ${{ runner.OS }}-libs-
+
+      - name: Restore Docker cache mounts.
+        uses: reproducible-containers/buildkit-cache-dance@5422eac04292c961a382e0f584ea0f03ad9da723
+        with:
+          builder: ${{ steps.setup-buildx.outputs.name }}
+          cache-dir: ${{ runner.temp }}/.mount-cache
+          dockerfile: Telegram/build/docker/centos_env/Dockerfile
+          skip-extraction: ${{ steps.cache-libs.outputs.cache-hit }}
 
       - name: Libraries.
         uses: docker/build-push-action@v7
