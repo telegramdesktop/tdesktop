@@ -114,6 +114,12 @@ jobs:
           rm -rf ${{ runner.temp }}/.buildx-cache
           mv ${{ runner.temp }}/.buildx-cache{-new,}
 
+      - name: Restore Telegram Desktop cache.
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ runner.temp }}/.tdesktop-cache
+          key: ${{ runner.OS }}-tdesktop${{ case(!!matrix.defines, format('-{0}', matrix.defines), '') }}
+
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |
@@ -126,20 +132,30 @@ jobs:
             echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
           fi
 
+          mkdir -p ${{ runner.temp }}/.tdesktop-cache
+
           docker run --rm \
           -u $(id -u) \
           -v $PWD:/usr/src/tdesktop \
+          -v ${{ runner.temp }}/.tdesktop-cache:/var/cache/ccache \
           -e CONFIG=Debug \
+          -e CCACHE_SLOPPINESS=pch_defines,time_macros \
           $IMAGE_TAG \
-          /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
+          env -u CCACHE_DISABLE /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
           -D CMAKE_CONFIGURATION_TYPES=Debug \
-          -D CMAKE_C_FLAGS_DEBUG="-O0 -fuse-ld=lld" \
-          -D CMAKE_CXX_FLAGS_DEBUG="-O0 -fuse-ld=lld" \
+          -D CMAKE_C_FLAGS_DEBUG="-O0 -fpch-preprocess -fuse-ld=lld" \
+          -D CMAKE_CXX_FLAGS_DEBUG="-O0 -fpch-preprocess -fuse-ld=lld" \
           -D CMAKE_COMPILE_WARNING_AS_ERROR=ON \
           -D TDESKTOP_API_TEST=ON \
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
           $DEFINE
+
+      - name: Save Telegram Desktop cache.
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ runner.temp }}/.tdesktop-cache
+          key: ${{ runner.OS }}-tdesktop${{ case(!!matrix.defines, format('-{0}', matrix.defines), '') }}
 
       - name: Check.
         if: env.ONLY_CACHE == 'false'
