@@ -359,7 +359,11 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 			if (cancel) {
 				processEnd();
 			} else {
-				const auto invert = (w->inverted() ? -1 : 1);
+				const auto isTouchpad = !w->pixelDelta().isNull();
+				const auto invert = (w->inverted()
+					|| (base::Platform::IsLinux() && isTouchpad))
+					? -1
+					: 1;
 				const auto delta = Ui::ScrollDeltaF(w) * invert;
 				updateWith({
 					.globalCursor = w->globalPosition().toPoint(),
