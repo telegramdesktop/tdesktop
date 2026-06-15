@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_system_media_controls.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/version.h"
 #include "data/data_document_media.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"

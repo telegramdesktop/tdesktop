@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_hash.h"
 #include "apiwrap.h"
+#include "core/version.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"

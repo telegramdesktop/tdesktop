@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/sandbox.h"
+#include "core/version.h"
 #include "data/data_forum_topic.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_peer.h"
