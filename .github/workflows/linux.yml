@@ -114,11 +114,13 @@ jobs:
           rm -rf ${{ runner.temp }}/.buildx-cache
           mv ${{ runner.temp }}/.buildx-cache{-new,}
 
-      - name: Restore Telegram Desktop cache.
-        uses: actions/cache/restore@v5
+      - name: Telegram Desktop cache.
+        if: env.ONLY_CACHE == 'false'
+        uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/.tdesktop-cache
-          key: ${{ runner.OS }}-tdesktop${{ case(!!matrix.defines, format('-{0}', matrix.defines), '') }}
+          key: ${{ runner.OS }}-tdesktop${{ case(!!matrix.defines, format('-{0}', matrix.defines), '') }}-${{ github.run_id }}
+          restore-keys: ${{ runner.OS }}-tdesktop${{ case(!!matrix.defines, format('-{0}', matrix.defines), '') }}-
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
@@ -150,12 +152,6 @@ jobs:
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
           $DEFINE
-
-      - name: Save Telegram Desktop cache.
-        uses: actions/cache/save@v5
-        with:
-          path: ${{ runner.temp }}/.tdesktop-cache
-          key: ${{ runner.OS }}-tdesktop${{ case(!!matrix.defines, format('-{0}', matrix.defines), '') }}
 
       - name: Check.
         if: env.ONLY_CACHE == 'false'
