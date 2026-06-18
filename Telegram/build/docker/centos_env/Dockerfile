@@ -49,6 +49,7 @@ sed -i '/Requires.private: gl/s/gl/opengl glx/' /usr/lib64/pkgconfig/epoxy.pc
 sed -i 's/-lharfbuzz//' /usr/lib64/pkgconfig/harfbuzz.pc
 sed -i 's/-lpng16//' /usr/lib64/pkgconfig/libpng16.pc
 
+rm /etc/profile.d/ccache.*
 echo set debuginfod enabled on > /opt/rh/$TOOLSET/root/etc/gdbinit.d/00-debuginfod.gdb
 adduser user
 EOF
