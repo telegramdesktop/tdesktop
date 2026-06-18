@@ -43,6 +43,8 @@ chmod +x /usr/local/bin/pkg-config
 CMAKE_ROOT="$(cmake --system-information | sed -n 's/^CMAKE_ROOT "\([^"]*\)"$/\1/p')"
 test -n "$CMAKE_ROOT"
 sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/")/ -O0 {% if LTO %}-fno-lto -fno-use-linker-plugin{% endif %} -fuse-ld=lld")/' "$CMAKE_ROOT/Modules/Compiler/GNU.cmake"
+sed -i '/__gcc_hints/d' "$CMAKE_ROOT/Modules/Compiler/GNU-FindBinUtils.cmake"
+sed -i '1i set(_CMAKE_TOOLCHAIN_LOCATION "")' "$CMAKE_ROOT/Modules/CMakeFindBinUtils.cmake"
 sed -i 's/NO_DEFAULT_PATH//g; s/PKG_CONFIG_ALLOW_SYSTEM_LIBS/PKG_CONFIG_IS_DUMB/g' "$CMAKE_ROOT/Modules/FindPkgConfig.cmake"
 sed -i '/Requires.private: valgrind/d' /usr/lib64/pkgconfig/libdrm.pc
 sed -i '/Requires.private: gl/s/gl/opengl glx/' /usr/lib64/pkgconfig/epoxy.pc
