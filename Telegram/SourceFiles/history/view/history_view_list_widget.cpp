@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_drag.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_emoji_interactions.h"
+#include "chat_helpers/emoji_interactions.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
@@ -51,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_views.h"
 #include "layout/layout_selection.h"
 #include "payments/payments_reaction_process.h"
+#include "history/view/history_view_reaction_preview.h"
 #include "window/section_widget.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
@@ -74,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_tag.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/moderate_messages_box.h"
@@ -517,6 +520,26 @@ ListWidget::ListWidget(
 	}
 
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
+
+	using PlayRequest = ChatHelpers::EmojiInteractionPlayRequest;
+	controller()->emojiInteractions().playRequests(
+	) | rpl::filter([=](const PlayRequest &request) {
+		return (viewForItem(request.item) != nullptr)
+			&& controller()->widget()->isActive();
+	}) | rpl::on_next([=](PlayRequest &&request) {
+		if (const auto view = viewForItem(request.item)) {
+			_emojiInteractions->play(std::move(request), view);
+		}
+	}, lifetime());
+	_emojiInteractions->playStarted(
+	) | rpl::on_next([=](QString &&emoji) {
+		if (const auto history = _delegate->listTranslateHistory()) {
+			controller()->emojiInteractions().playStarted(
+				history->peer,
+				std::move(emoji));
+		}
+	}, lifetime());
+
 	_session->data().viewRepaintRequest(
 	) | rpl::on_next([this](Data::RequestViewRepaint data) {
 		if (data.view->delegate() == this) {
@@ -929,6 +952,39 @@ void ListWidget::scrollTo(
 
 bool ListWidget::animatedScrolling() const {
 	return _scrollToAnimation.animating();
+}
+
+void ListWidget::scrollToCurrentVoiceMessage(
+		FullMsgId fromId,
+		FullMsgId toId) {
+	const auto from = viewForItem(fromId);
+	const auto to = viewForItem(toId);
+	if (!from || !to) {
+		return;
+	}
+	const auto fromTop = itemTop(from);
+	const auto fromBottom = fromTop + from->height();
+	if (fromBottom <= _visibleTop || fromTop >= _visibleBottom) {
+		return;
+	}
+	const auto toTop = itemTop(to);
+	const auto toBottom = toTop + to->height();
+	const auto partlyAbove = (toTop < _visibleTop)
+		&& (toBottom < _visibleBottom);
+	const auto partlyBelow = (toTop > _visibleTop)
+		&& (toBottom > _visibleBottom);
+	if (!partlyAbove && !partlyBelow) {
+		return;
+	}
+	const auto scrollTop = scrollTopForView(to);
+	if (!scrollTop) {
+		return;
+	}
+	scrollTo(
+		*scrollTop,
+		to->data()->position(),
+		*scrollTop - _visibleTop,
+		AnimatedScroll::Part);
 }
 
 void ListWidget::scrollToAnimationCallback(
@@ -2050,12 +2106,25 @@ QString ListWidget::tooltipText() const {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 			return forwarded->text.toString();
 		}
-	} else if (const auto link = ClickHandler::getActive()) {
+	}
+	if (const auto link = ClickHandler::getActive()) {
+		const auto count = Reactions::ReactionCountOfLink(
+			_overItemExact ? _overItemExact : item,
+			link);
+		if (count.count && count.shortened) {
+			return Lang::FormatCountDecimal(count.count);
+		}
 		if (const auto text = link->tooltip(); !text.isEmpty()) {
 			return text;
 		}
 	}
-	if (const auto view = _overElement) {
+	if (const auto view = _overElement;
+		view && _mouseAction == MouseAction::None) {
+		if (_mouseCursorState == CursorState::FromPhoto) {
+			if (const auto from = view->data()->displayFrom()) {
+				return from->name();
+			}
+		}
 		auto request = StateRequest();
 		request.flags |= Ui::Text::StateRequest::Flag::LookupCustomTooltip;
 		return view->textState(_overState.point, request).customTooltipText;
@@ -2254,6 +2323,7 @@ void ListWidget::elementReplyTo(const FullReplyTo &to) {
 }
 
 void ListWidget::elementStartInteraction(not_null<const Element*> view) {
+	controller()->emojiInteractions().startOutgoing(view);
 }
 
 void ListWidget::elementStartPremium(
@@ -3567,20 +3637,43 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		? PeerId(link->property(kPeerLinkPeerIdProperty).toULongLong())
 		: PeerId();
 	_whoReactedMenuLifetime.destroy();
-	if (!clickedReaction.empty()
-		&& overItem
-		&& Api::WhoReactedExists(overItem, Api::WhoReactedList::One)) {
-		HistoryView::ShowWhoReactedMenu(
-			&_menu,
-			e->globalPos(),
-			this,
-			overItem,
-			clickedReaction,
-			controller(),
-			_whoReactedMenuLifetime);
-		e->accept();
-		return;
-	} else if (!linkPhoneNumber.isEmpty()) {
+	const auto leaderOrSelf = [&]() -> HistoryItem* {
+		if (!overItem) {
+			return nullptr;
+		}
+		const auto group = session().data().groups().find(overItem);
+		return group ? group->items.front().get() : overItem;
+	}();
+	if (!clickedReaction.empty() && leaderOrSelf) {
+		if (clickedReaction.paid()) {
+			Payments::ShowPaidReactionDetails(
+				controller(),
+				leaderOrSelf,
+				viewForItem(leaderOrSelf),
+				HistoryReactionSource::Selector);
+			e->accept();
+			return;
+		} else if (Api::WhoReactedExists(
+				leaderOrSelf,
+				Api::WhoReactedList::One)) {
+			HistoryView::ShowWhoReactedMenu(
+				&_menu,
+				e->globalPos(),
+				this,
+				leaderOrSelf,
+				clickedReaction,
+				controller(),
+				_whoReactedMenuLifetime);
+			e->accept();
+			return;
+		} else if (HistoryView::ShowReactionPreview(
+				controller(),
+				leaderOrSelf->fullId(),
+				clickedReaction)) {
+			return;
+		}
+	}
+	if (!linkPhoneNumber.isEmpty()) {
 		PhoneClickHandler(&session(), linkPhoneNumber).onClick(
 			prepareClickContext(
 				Qt::LeftButton,
@@ -4669,6 +4762,7 @@ void ListWidget::mouseActionUpdate() {
 						// stop enumeration if we've found a userpic under the cursor
 						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
 							dragState = TextState(nullptr, view->fromPhotoLink());
+							dragState.cursor = CursorState::FromPhoto;
 							dragStateUserpic = true;
 							_overItemExact = nullptr;
 							lnkhost = view;
@@ -4688,6 +4782,7 @@ void ListWidget::mouseActionUpdate() {
 	if (dragState.link
 		|| dragState.cursor == CursorState::Date
 		|| dragState.cursor == CursorState::Forwarded
+		|| dragState.cursor == CursorState::FromPhoto
 		|| dragState.customTooltip) {
 		Ui::Tooltip::Show(1000, this);
 	}

@@ -62,6 +62,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_editing.h"
 #include "api/api_sending.h"
 #include "apiwrap.h"
+#include "boxes/premium_preview_box.h"
+#include "data/business/data_shortcut_messages.h"
+#include "settings/business/settings_quick_replies.h"
 #include "ui/boxes/confirm_box.h"
 #include "chat_helpers/bot_keyboard.h"
 #include "chat_helpers/message_field.h"
@@ -81,6 +84,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "media/player/media_player_instance.h"
 #include "menu/menu_timecode_action.h"
 #include "data/components/ephemeral_messages.h"
 #include "data/components/recent_inline_bots.h"
@@ -135,6 +139,7 @@ enum class SendPermission {
 };
 
 constexpr auto kShowMembersDropdownTimeoutMs = 300;
+constexpr auto kScrollToVoiceAfterScrolledMs = crl::time(1000);
 constexpr auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 
 [[nodiscard]] bool CanSendResolved(
@@ -408,6 +413,32 @@ ChatWidget::ChatWidget(
 			}) | rpl::type_erased
 			: rpl::single(false),
 		.currentSuggest = [=] { return suggestOptions(); },
+		.processShortcut = [=](QString shortcut) {
+			const auto messages = &_peer->owner().shortcutMessages();
+			const auto shortcutId = messages->lookupShortcutId(shortcut);
+			if (shortcut.isEmpty()) {
+				controller->showSettings(Settings::QuickRepliesId());
+			} else if (!_peer->session().premium()) {
+				ShowPremiumPreviewToBuy(
+					controller,
+					PremiumFeature::QuickReplies);
+			} else if (shortcutId) {
+				session().api().sendShortcutMessages(_peer, shortcutId);
+				session().api().finishForwarding(prepareSendAction({}));
+				if (const auto field = _composeControls->fieldForMention()) {
+					_composeControls->setText(field->getTextWithTagsPart(
+						field->textCursor().position()));
+				}
+			}
+		},
+		.moderateKeyActivateCallback = [=](int key) {
+			const auto context = [=](FullMsgId itemId) {
+				return _inner->prepareClickContext(Qt::LeftButton, itemId);
+			};
+			return _keyboard
+				&& !_keyboard->isHidden()
+				&& _keyboard->moderateKeyActivate(key, context);
+		},
 		.suggestPostToggleShown = _suggestPostToggleShown.value(),
 		.suggestPostToggleActive = _suggestPostToggleActive.value(),
 		.botKeyboardShownToggleShown
@@ -669,6 +700,21 @@ ChatWidget::ChatWidget(
 
 	session().api().sendActions(
 	) | rpl::filter([=](const Api::SendAction &action) {
+		if (_creatingBotTopic
+			&& action.history == _creatingBotTopic->owningHistory()
+			&& action.replyTo.topicRootId == _creatingBotTopic->rootId()) {
+			Ui::PostponeCall(_creatingBotTopic, [=] {
+				using namespace HistoryView;
+				const auto topic = base::take(_creatingBotTopic);
+				controller->showSection(
+					std::make_shared<ChatMemento>(ChatViewId{
+						.history = topic->owningHistory(),
+						.repliesRootId = topic->rootId(),
+					}),
+					Window::SectionShow::Way::ClearStack);
+			});
+			return false;
+		}
 		return (action.history == _history)
 			&& (action.replyTo.topicRootId == _repliesRootId)
 			&& (action.replyTo.monoforumPeerId == _monoforumPeerId);
@@ -708,6 +754,14 @@ ChatWidget::ChatWidget(
 	if (mode() == Mode::History) {
 		_topControls->subscribeToPinnedMessages();
 	}
+
+	using MediaSwitch = ::Media::Player::Instance::Switch;
+	::Media::Player::instance()->switchToNextEvents(
+	) | rpl::filter([=](const MediaSwitch &pair) {
+		return (pair.from.type() == AudioMsgId::Type::Voice);
+	}) | rpl::on_next([=](const MediaSwitch &pair) {
+		scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
+	}, lifetime());
 
 	_selfForwardsTagger = std::make_unique<HistoryView::SelfForwardsTagger>(
 		controller,
@@ -1980,6 +2034,40 @@ Api::SendAction ChatWidget::prepareSendAction(
 		Api::SendOptions options) const {
 	auto result = Api::SendAction(_history, options);
 	result.replyTo = replyTo();
+
+	if (mode() == Mode::History) {
+		if (const auto forum = _history->asForum()) {
+			if (forum->bot()
+				&& Data::IsBotUserCreatesTopics(_history->peer)) {
+				const auto readyRootId = [&]() -> MsgId {
+					if (const auto id = result.replyTo.messageId) {
+						if (const auto item = session().data().message(id)) {
+							return item->topicRootId();
+						}
+					}
+					return {};
+				}();
+				if (readyRootId) {
+					result.replyTo.topicRootId = readyRootId;
+				} else {
+					if (!_creatingBotTopic) {
+						_creatingBotTopic = forum->reserveNewBotTopic();
+						auto draft = _history->forwardDraft(MsgId(0), PeerId());
+						if (!draft.ids.empty()) {
+							_history->setForwardDraft(MsgId(0), PeerId(), {});
+							_history->setForwardDraft(
+								_creatingBotTopic->rootId(),
+								PeerId(),
+								std::move(draft));
+						}
+					}
+					result = Api::SendAction(_creatingBotTopic, options);
+					result.replyTo.topicRootId = _creatingBotTopic->rootId();
+				}
+			}
+		}
+	}
+
 	result.options.sendAs = _composeControls->sendAsPeer();
 	result.options.suggest = suggestOptions();
 	result.clearDraft = !Iv::Editor::IsComposeBoxOpen(
@@ -2296,35 +2384,48 @@ void ChatWidget::edit(
 		}
 	}
 
-	lifetime().add([=] {
-		if (!*saveEditMsgRequestId) {
-			return;
-		}
-		session().api().request(base::take(*saveEditMsgRequestId)).cancel();
-	});
-
-	const auto done = [=](mtpRequestId requestId) {
-		if (requestId == *saveEditMsgRequestId) {
-			*saveEditMsgRequestId = 0;
-			_composeControls->cancelEditMessage();
+	const auto weak = base::make_weak(this);
+	const auto history = _history;
+	const auto editingId = item->fullId();
+	const auto topicRootId = resolvedTopicRootId();
+	const auto monoforumPeerId = _monoforumPeerId;
+	const auto clearEditDraft = [=] {
+		const auto draft = history->localEditDraft(
+			topicRootId,
+			monoforumPeerId);
+		if (draft && draft->reply.messageId == editingId) {
+			history->clearLocalEditDraft(topicRootId, monoforumPeerId);
+			history->session().local().writeDrafts(history);
 		}
 	};
 
-	const auto fail = [=](const QString &error, mtpRequestId requestId) {
-		if (requestId == *saveEditMsgRequestId) {
-			*saveEditMsgRequestId = 0;
-		}
+	const auto done = [=](mtpRequestId requestId) {
+		crl::guard(weak, [=] {
+			if (requestId == *saveEditMsgRequestId) {
+				*saveEditMsgRequestId = 0;
+				_composeControls->cancelEditMessage();
+			}
+		})();
+		clearEditDraft();
+	};
 
-		if (ranges::contains(Api::kDefaultEditMessagesErrors, error)) {
-			controller()->showToast(tr::lng_edit_error(tr::now));
-		} else if (error == u"MESSAGE_NOT_MODIFIED"_q) {
-			_composeControls->cancelEditMessage();
-		} else if (error == u"MESSAGE_EMPTY"_q) {
-			doSetInnerFocus();
-		} else {
-			controller()->showToast(tr::lng_edit_error(tr::now));
-		}
-		update();
+	const auto fail = [=](const QString &error, mtpRequestId requestId) {
+		crl::guard(weak, [=] {
+			if (requestId == *saveEditMsgRequestId) {
+				*saveEditMsgRequestId = 0;
+			}
+
+			if (ranges::contains(Api::kDefaultEditMessagesErrors, error)) {
+				controller()->showToast(tr::lng_edit_error(tr::now));
+			} else if (error == u"MESSAGE_NOT_MODIFIED"_q) {
+				_composeControls->cancelEditMessage();
+			} else if (error == u"MESSAGE_EMPTY"_q) {
+				doSetInnerFocus();
+			} else {
+				controller()->showToast(tr::lng_edit_error(tr::now));
+			}
+			update();
+		})();
 		return true;
 	};
 
@@ -2646,6 +2747,15 @@ void ChatWidget::reportSelectedMessages() {
 }
 
 void ChatWidget::updateControlsVisibility() {
+	const auto wasAtMax = _scroll
+		&& (_scroll->scrollTop() == _scroll->scrollTopMax());
+	const auto keepAtMax = gsl::finally([&] {
+		if (wasAtMax
+			&& _scroll
+			&& (_scroll->scrollTop() != _scroll->scrollTopMax())) {
+			listScrollTo(_scroll->scrollTopMax());
+		}
+	});
 	_bottom->updateControlsVisibility();
 	const auto active = _bottom->isButtonActive();
 	const auto choosingTheme = isChoosingTheme();
@@ -2766,7 +2876,11 @@ bool ChatWidget::sendExistingPhoto(
 void ChatWidget::sendInlineResult(
 		std::shared_ptr<InlineBots::Result> result,
 		not_null<UserData*> bot) {
-	if (const auto error = result->getErrorOnSend(_history)) {
+	if (!_canSendMessages) {
+		return;
+	} else if (showSlowmodeError()) {
+		return;
+	} else if (const auto error = result->getErrorOnSend(_history)) {
 		Data::ShowSendErrorToast(controller(), _peer, error);
 		return;
 	}
@@ -3046,7 +3160,7 @@ void ChatWidget::updateKeyboardUiState(bool hasMarkup, bool suppress) {
 	_botKeyboardHideToggleShown = rowsVisible
 		&& !suppress
 		&& (!_peer->isUser() || !_keyboard->persistent());
-	_botCommandStartExtraGuard = !hasMarkup && !replyVisible && !suppress;
+	_botCommandStartExtraGuard = !hasMarkup && !replyVisible;
 	_botKeyboardPlaceholder = ((rowsVisible || replyVisible)
 		&& !suppress
 		&& !_keyboard->placeholder().isEmpty())
@@ -3227,6 +3341,9 @@ void ChatWidget::handlePeerMigration() {
 			.requestCountDelayed(channel);
 	} else {
 		_inner->refreshViewer();
+		if ((mode() == Mode::History) && _topControls) {
+			_topControls->subscribeToPinnedMessages();
+		}
 	}
 }
 
@@ -3279,6 +3396,7 @@ bool ChatWidget::cornerButtonsUnreadMayBeShown() {
 
 bool ChatWidget::cornerButtonsHas(CornerButtonType type) {
 	return _topic
+		|| (mode() == Mode::History)
 		|| (_sublist && type == CornerButtonType::Reactions)
 		|| (type == CornerButtonType::Down);
 }
@@ -3436,6 +3554,10 @@ bool ChatWidget::showInternal(
 				}
 			} else {
 				restoreState(logMemento);
+				if ((mode() != Mode::History)
+					&& !logMemento->highlightId()) {
+					showAtPosition(Data::UnreadMessagePosition);
+				}
 			}
 			return true;
 		}
@@ -3502,6 +3624,8 @@ bool ChatWidget::showMessage(
 					return returnTo;
 				} else if (_sublist
 					&& returnTo->savedSublist() == _sublist) {
+					return returnTo;
+				} else if (!_repliesRootId && !_sublist) {
 					return returnTo;
 				}
 			}
@@ -3826,7 +3950,7 @@ void ChatWidget::restoreState(not_null<ChatMemento*> memento) {
 		showAtPosition(Data::MessagePosition{
 			.fullId = FullMsgId(_peer->id, highlight),
 			.date = TimeId(0),
-		}, {}, params);
+		}, memento->originId(), params);
 	}
 	if (memento->activateChooseForReport()) {
 		activateChooseForReport();
@@ -3920,7 +4044,9 @@ void ChatWidget::updateControlsGeometry() {
 				maxFieldHeight - (maxFieldHeight / 2));
 			_composeControls->setFieldMaxHeight(
 				maxFieldHeight - keyboardReserve);
-			const auto maxKbHeight = keyboardReserve;
+			const auto maxKbHeight = std::max(
+				0,
+				maxFieldHeight - _composeControls->fieldHeightCurrent());
 			_keyboard->resizeToWidth(innerWidth, maxKbHeight);
 			const auto kbHeight = std::min(
 				_keyboard->height(),
@@ -4019,9 +4145,13 @@ void ChatWidget::paintEvent(QPaintEvent *e) {
 }
 
 bool ChatWidget::emptyShown() const {
-	return _topic
-		&& (_inner->isEmpty()
-			|| (_topic->lastKnownServerMessageId() == _repliesRootId));
+	if (_topic) {
+		return _inner->isEmpty()
+			|| (_topic->lastKnownServerMessageId() == _repliesRootId);
+	} else if (mode() == Mode::History) {
+		return _inner->isEmpty();
+	}
+	return false;
 }
 
 bool ChatWidget::isChoosingTheme() const {
@@ -4032,7 +4162,19 @@ void ChatWidget::onScroll() {
 	if (_skipScrollEvent) {
 		return;
 	}
+	if (!_synteticScrollEvent) {
+		_lastUserScrolled = crl::now();
+	}
 	updateInnerVisibleArea();
+}
+
+void ChatWidget::scrollToCurrentVoiceMessage(
+		FullMsgId fromId,
+		FullMsgId toId) {
+	if (crl::now() <= _lastUserScrolled + kScrollToVoiceAfterScrolledMs) {
+		return;
+	}
+	_inner->scrollToCurrentVoiceMessage(fromId, toId);
 }
 
 void ChatWidget::updateInnerVisibleArea() {
@@ -4685,7 +4827,7 @@ MessagesBarData ChatWidget::listMessagesBar(
 			listMarkReadTill(item);
 			continue;
 		}
-		if (!skippedReadIncoming) {
+		if (!skippedReadIncoming && !_replies && !_sublist) {
 			return {};
 		}
 		return {
@@ -4710,13 +4852,18 @@ void ChatWidget::listContentRefreshed() {
 void ChatWidget::listUpdateDateLink(
 		ClickHandlerPtr &link,
 		not_null<Element*> view) {
-	if (!_topic) {
+	const auto key = _topic
+		? Dialogs::Key(_topic)
+		: (mode() == Mode::History)
+		? Dialogs::Key(_history)
+		: Dialogs::Key();
+	if (!key) {
 		link = nullptr;
 		return;
 	}
 	const auto date = view->dateTime().date();
 	if (!link) {
-		link = std::make_shared<Window::DateClickHandler>(_topic, date);
+		link = std::make_shared<Window::DateClickHandler>(key, date);
 	} else {
 		static_cast<Window::DateClickHandler*>(link.get())->setDate(date);
 	}
@@ -4828,7 +4975,7 @@ void ChatWidget::sendBotCommand(
 		&& (keyboardId == request.replyTo.messageId);
 	const auto outgoingReplyTo = request.replyTo
 		? (!_peer->isUser() ? request.replyTo : replyTo())
-		: FullReplyTo();
+		: ((mode() != Mode::History) ? replyTo() : FullReplyTo());
 	const auto toSend = request.replyTo
 		? request.command
 		: Bot::WrapCommandInChat(_peer, request.command, request.context);
@@ -4864,6 +5011,8 @@ void ChatWidget::updateBotKeyboard(History *h, bool force) {
 	}
 
 	const auto rowsWereVisible = _kbShown && keyboardRowsVisible();
+	const auto wasKbShown = _kbShown;
+	const auto wasReplyExternal = _keyboardReplyExternalVisible;
 	const auto wasMsgId = _keyboard->forMsgId();
 	auto changed = false;
 	const auto reply = _composeControls->replyingToMessage();
@@ -4897,7 +5046,8 @@ void ChatWidget::updateBotKeyboard(History *h, bool force) {
 	}
 	const auto forceReply = _keyboard->forceReply() && !realReplySource;
 	const auto canShow = _canSendMessages
-		&& !_bottom->isButtonActive();
+		&& !_bottom->isButtonActive()
+		&& !_composeSearch;
 	if (isChoosingTheme()) {
 		_kbScroll->hide();
 		_kbShown = false;
@@ -4914,10 +5064,9 @@ void ChatWidget::updateBotKeyboard(History *h, bool force) {
 		&& hasMarkup
 		&& !editing
 		&& !missingReplySource
-		&& !kbWasHidden()
 		&& (rowsFromRealReply
 			|| rowsWereVisible
-			|| (!reply && !_fieldHasSendText));
+			|| (!reply && !_fieldHasSendText && !kbWasHidden()));
 	const auto shouldShowFakeReply = canShow
 		&& !realReplyOrEditActive()
 		&& (forceReply
@@ -4955,8 +5104,13 @@ void ChatWidget::updateBotKeyboard(History *h, bool force) {
 	}
 
 	updateKeyboardUiState(hasMarkup, suppressKeyboardUi);
-	updateControlsGeometry();
-	update();
+	if (changed
+		|| force
+		|| (_kbShown != wasKbShown)
+		|| (_keyboardReplyExternalVisible != wasReplyExternal)) {
+		updateControlsGeometry();
+		update();
+	}
 }
 
 void ChatWidget::toggleBotKeyboard(bool manual) {
@@ -5289,8 +5443,10 @@ Ui::ElasticScroll *ChatWidget::listScrollArea() const {
 }
 
 void ChatWidget::setupEmptyPainter() {
-	Expects(_topic != nullptr);
-
+	if (!_topic) {
+		_emptyPainter = std::make_unique<EmptyPainter>(_history);
+		return;
+	}
 	_emptyPainter = std::make_unique<EmptyPainter>(_topic, [=] {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
@@ -5489,6 +5645,7 @@ void ChatWidget::searchInTopic() {
 			} else {
 				_composeControls->show();
 			}
+			updateBotKeyboard();
 			updateControlsGeometry();
 		};
 		const auto from = (PeerData*)(nullptr);
@@ -5523,7 +5680,54 @@ bool ChatWidget::searchInChatEmbedded(
 		Dialogs::Key chat,
 		PeerData *searchFrom) {
 	const auto sublist = chat.sublist();
-	if (!sublist || sublist != _sublist) {
+	if (!sublist) {
+		if ((mode() != Mode::History) || (chat.history() != _history)) {
+			return false;
+		} else if (_composeSearch) {
+			_composeSearch->setQuery(query);
+			_composeSearch->setInnerFocus();
+			return true;
+		}
+		const auto update = [=] {
+			if (_composeSearch) {
+				_composeControls->hide();
+			} else {
+				_composeControls->show();
+			}
+			updateBotKeyboard();
+			updateControlsGeometry();
+		};
+		_composeSearch = std::make_unique<ComposeSearch>(
+			this,
+			controller(),
+			_history,
+			searchFrom,
+			query);
+		_composeSearch->setCalendarChat(Dialogs::Key(_history));
+
+		update();
+		doSetInnerFocus();
+
+		using Activation = ComposeSearch::Activation;
+		_composeSearch->activations(
+		) | rpl::on_next([=](Activation activation) {
+			auto params = Window::SectionShow(
+				Window::SectionShow::Way::Forward,
+				anim::type::instant);
+			params.highlight = Window::SearchHighlightId(activation.query);
+			showAtPosition(activation.item->position(), {}, params);
+		}, _composeSearch->lifetime());
+
+		_composeSearch->destroyRequests(
+		) | rpl::take(1) | rpl::on_next([=] {
+			_composeSearch = nullptr;
+
+			update();
+			doSetInnerFocus();
+		}, _composeSearch->lifetime());
+		return true;
+	}
+	if (sublist != _sublist) {
 		return false;
 	} else if (_composeSearch) {
 		_composeSearch->setQuery(query);

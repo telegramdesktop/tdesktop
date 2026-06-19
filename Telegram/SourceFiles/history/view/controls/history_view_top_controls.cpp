@@ -382,9 +382,11 @@ void TopControls::setupRootView() {
 		_repliesRootVisible.value()
 	) | rpl::map([=](Ui::MessageBarContent &&content, bool show) {
 		const auto shown = !content.title.isEmpty() && !content.text.empty();
-		_shownRepliesRootItem = shown
-			? _history->owner().message(_history->peer->id, _repliesRootId)
-			: nullptr;
+		crl::on_main(_wrap.get(), [=] {
+			_shownRepliesRootItem = shown
+				? _history->owner().message(_history->peer->id, _repliesRootId)
+				: nullptr;
+		});
 		return show ? std::move(content) : Ui::MessageBarContent();
 	}));
 
@@ -864,9 +866,14 @@ void TopControls::checkPinnedBarState() {
 		_repliesRootVisible.value()
 	) | rpl::map([=](Ui::MessageBarContent &&content, auto, auto, bool show) {
 		const auto shown = !content.title.isEmpty() && !content.text.empty();
-		_shownPinnedBarItem = shown
-			? _history->owner().message(_pinnedTracker->currentMessageId().message)
-			: nullptr;
+		const auto id = shown
+			? _pinnedTracker->currentMessageId().message
+			: FullMsgId();
+		crl::on_main(_wrap.get(), [=] {
+			_shownPinnedBarItem = id
+				? _history->owner().message(id)
+				: nullptr;
+		});
 		return (fullHistory || show || content.count > 1)
 			? std::move(content)
 			: Ui::MessageBarContent();
@@ -1086,19 +1093,31 @@ void TopControls::resetPinnedState() {
 
 void TopControls::rebuildModeSensitiveBars() {
 	const auto inForum = showInForum();
-	if (!_modeSensitiveBarsInited || (_modeSensitiveShowInForum != inForum)) {
+	const auto fullChat = !_repliesRootId && !_sublist;
+	if (!_modeSensitiveBarsInited
+		|| (_modeSensitiveShowInForum != inForum)
+		|| (_modeSensitiveFullChat != fullChat)) {
 		_modeSensitiveBarsInited = true;
 		_modeSensitiveShowInForum = inForum;
+		_modeSensitiveFullChat = fullChat;
 		_groupCallBar = nullptr;
 		_requestsBar = nullptr;
 		_contactStatus = nullptr;
+		_paysStatus = nullptr;
+		_businessBotStatus = nullptr;
 		_groupCallBarHeight = 0;
 		_requestsBarHeight = 0;
 		_contactStatusHeight = 0;
-		setupGroupCallBar();
-		setupRequestsBar();
+		_paysStatusHeight = 0;
+		_businessBotStatusHeight = 0;
+		if (fullChat) {
+			setupGroupCallBar();
+			setupRequestsBar();
+		}
 	}
-	setupPeerBars();
+	if (fullChat) {
+		setupPeerBars();
+	}
 	if (_topic || !_repliesRootId) {
 		if (_repliesRootView) {
 			_repliesRootView = nullptr;

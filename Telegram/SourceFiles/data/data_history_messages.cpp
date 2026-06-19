@@ -57,8 +57,7 @@ struct HistoryMessagesAround {
 		not_null<History*> history) {
 	auto result = std::vector<not_null<HistoryItem*>>();
 	for (const auto &item : history->clientSideMessages()) {
-		if (item->history() != history
-			|| (item->topicRootId() != Data::ForumTopic::kGeneralId)) {
+		if (item->history() != history) {
 			continue;
 		}
 		result.push_back(item);
@@ -175,11 +174,14 @@ void AppendHistoryClientSideMessages(
 	const auto &owner = history->owner();
 	auto dates = std::vector<TimeId>();
 	dates.reserve(slice->ids.size());
-	for (const auto &id : slice->ids) {
-		const auto message = owner.message(id);
-		Assert(message != nullptr);
-
+	for (auto i = slice->ids.begin(); i != slice->ids.end();) {
+		const auto message = owner.message(*i);
+		if (!message) {
+			i = slice->ids.erase(i);
+			continue;
+		}
 		dates.push_back(message->date());
+		++i;
 	}
 	for (const auto &item : messages) {
 		if (ranges::find(slice->ids, item->fullId()) != end(slice->ids)) {
@@ -448,6 +450,13 @@ rpl::producer<MessagesSlice> HistoryMessagesViewer(
 				history,
 				viewer->around,
 				&viewer->slice);
+			const auto unresolvedCountOnly = viewer->slice.ids.empty()
+				&& !viewer->slice.skippedBefore
+				&& !viewer->slice.skippedAfter
+				&& (viewer->slice.fullCount.value_or(0) > 0);
+			if (unresolvedCountOnly) {
+				return;
+			}
 			consumer.put_next_copy(viewer->slice);
 		};
 		const auto pushInstant = [=] {

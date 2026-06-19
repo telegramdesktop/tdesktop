@@ -141,6 +141,8 @@ struct ComposeControlsDescriptor {
 	ChatHelpers::ComposeFeatures features;
 	rpl::producer<bool> scheduledToggleValue;
 	Fn<SuggestOptions()> currentSuggest;
+	Fn<void(QString)> processShortcut;
+	Fn<bool(int)> moderateKeyActivateCallback;
 
 	rpl::producer<bool> suggestPostToggleShown;
 	rpl::producer<bool> suggestPostToggleActive;
@@ -315,7 +317,7 @@ public:
 	void applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 
-	void saveFieldToHistoryLocalDraft();
+	void saveFieldToHistoryLocalDraft(bool save = true);
 
 	Fn<void()> restoreTextCallback(const QString &insertTextOnCancel) const;
 
@@ -590,6 +592,8 @@ private:
 
 	const Fn<SendMenu::Details()> _sendMenuDetails;
 	const Fn<SuggestOptions()> _currentSuggest;
+	const Fn<void(QString)> _processShortcut;
+	const Fn<bool(int)> _moderateKeyActivateCallback;
 	const Fn<void(not_null<DocumentData*>)> _unavailableEmojiPasted;
 
 	rpl::event_stream<Api::SendOptions> _sendCustomRequests;

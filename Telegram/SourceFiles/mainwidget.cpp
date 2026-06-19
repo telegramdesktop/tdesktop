@@ -874,11 +874,13 @@ void MainWidget::searchMessages(
 			const auto account = not_null(&session().account());
 			if (const auto window = Core::App().windowFor(account)) {
 				if (const auto controller = window->sessionController()) {
-					controller->widget()->activate();
-					controller->content()->searchMessages(
-						query,
-						inChat,
-						searchFrom);
+					if (controller->content().get() != this) {
+						controller->widget()->activate();
+						controller->content()->searchMessages(
+							query,
+							inChat,
+							searchFrom);
+					}
 				}
 			}
 		}
@@ -1340,23 +1342,23 @@ void MainWidget::showChooseReportMessages(
 		Data::ReportInput reportInput,
 		Fn<void(std::vector<MsgId>)> done) {
 	_controller->window().hideSettingsAndLayer();
-	if (!_mainSection
-		|| !_mainSection->showChooseReportMessages(
-			peer,
-			std::move(reportInput),
-			std::move(done))) {
+	const auto attempt = [&] {
+		auto inputCopy = reportInput;
+		auto doneCopy = done;
+		return _mainSection
+			&& _mainSection->showChooseReportMessages(
+				peer,
+				std::move(inputCopy),
+				std::move(doneCopy));
+	};
+	if (!attempt()) {
+		_history->setChooseReportMessagesDetails(reportInput, done);
 		_controller->showPeerHistory(
 			peer,
 			SectionShow::Way::Forward,
 			ShowForChooseMessagesMsgId);
-		if (!_mainSection
-			|| !_mainSection->showChooseReportMessages(
-				peer,
-				std::move(reportInput),
-				std::move(done))) {
-			_history->setChooseReportMessagesDetails(
-				std::move(reportInput),
-				std::move(done));
+		if (attempt()) {
+			_history->setChooseReportMessagesDetails({}, nullptr);
 		}
 	}
 	controller()->showToast(tr::lng_report_please_select_messages(tr::now));
@@ -1482,11 +1484,65 @@ void MainWidget::showHistory(
 			}
 		}
 		using namespace HistoryView;
+		using Way = SectionShow::Way;
+		auto way = params.way;
+		auto replyReturns = QVector<FullMsgId>();
+		if (way == Way::ClearStack) {
+			for (const auto &item : _stack) {
+				ClearBotStartToken(item->peer());
+			}
+			_stack.clear();
+		} else if (way == Way::Forward && !params.allowDuplicateInStack) {
+			const auto sameHistoryChat = [&](StackItem *item) {
+				if (item->type() == HistoryStackItem) {
+					return (item->peer()->id == peerId);
+				} else if (item->type() == SectionStackItem) {
+					const auto section
+						= static_cast<StackItemSection*>(item);
+					const auto memento = dynamic_cast<ChatMemento*>(
+						section->memento());
+					return memento
+						&& (memento->id().history->peer->id == peerId)
+						&& !memento->id().repliesRootId
+						&& !memento->id().sublist;
+				}
+				return false;
+			};
+			for (auto i = 0, s = int(_stack.size()); i != s; ++i) {
+				if (sameHistoryChat(_stack.at(i).get())) {
+					if (_stack.at(i)->type() == SectionStackItem) {
+						const auto section = static_cast<StackItemSection*>(
+							_stack.at(i).get());
+						if (const auto memento = dynamic_cast<ChatMemento*>(
+								section->memento())) {
+							replyReturns = memento->replyReturns();
+						}
+					}
+					while (int(_stack.size()) > i) {
+						ClearBotStartToken(_stack.back()->peer());
+						_stack.pop_back();
+					}
+					way = Way::Backward;
+					break;
+				}
+			}
+		}
 		auto memento = std::make_shared<ChatMemento>(
 			ChatViewId{ .history = history },
 			showAtMsgId,
 			params.highlight);
-		showSection(std::move(memento), params);
+		using OriginMessage = SectionShow::OriginMessage;
+		if (const auto origin = std::get_if<OriginMessage>(&params.origin)) {
+			if (origin->id && origin->id.peer == peerId) {
+				memento->setOriginId(origin->id);
+			}
+		}
+		if (!replyReturns.isEmpty()) {
+			memento->setReplyReturns(replyReturns);
+		}
+		auto showParams = params;
+		showParams.way = way;
+		showSection(std::move(memento), showParams);
 		return;
 	}
 

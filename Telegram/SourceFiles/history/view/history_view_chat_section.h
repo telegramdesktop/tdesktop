@@ -305,6 +305,7 @@ private:
 		int limitAfter);
 
 	void onScroll();
+	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
 	void closeCurrent();
 	void unreadCountUpdated();
 	void updateInnerVisibleArea();
@@ -521,6 +522,7 @@ private:
 	MsgId _repliesKeyboardHiddenId = 0;
 	HistoryItem *_repliesRoot = nullptr;
 	Data::ForumTopic *_topic = nullptr;
+	mutable Data::ForumTopic *_creatingBotTopic = nullptr;
 	mutable bool _newTopicDiscarded = false;
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::lifetime _repliesLifetime;
@@ -595,6 +597,7 @@ private:
 	int _lastScrollTop = 0;
 	int _scrollTopDelta = 0;
 	int _composeControlsTop = 0;
+	crl::time _lastUserScrolled = 0;
 
 	bool _choosingAttach = false;
 
@@ -653,6 +656,13 @@ public:
 		return _replyReturns;
 	}
 
+	void setOriginId(FullMsgId id) {
+		_originId = id;
+	}
+	[[nodiscard]] FullMsgId originId() const {
+		return _originId;
+	}
+
 	Data::ForumTopic *topicForRemoveRequests() const override;
 	Data::SavedSublist *sublistForRemoveRequests() const override;
 
@@ -684,6 +694,7 @@ private:
 	ListMemento _list;
 	std::shared_ptr<Data::RepliesList> _replies;
 	QVector<FullMsgId> _replyReturns;
+	FullMsgId _originId;
 	bool _activateChooseForReport = false;
 	bool _sendBotStart = false;
 	bool _maybeSendBotStart = false;

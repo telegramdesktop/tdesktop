@@ -102,6 +102,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "info/statistics/info_statistics_widget.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "main/main_app_config.h"
@@ -1292,6 +1293,34 @@ void AddSelectionAction(
 	}
 }
 
+bool AddViewStatisticsAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!item || !item->isRegular() || item->isService()) {
+		return false;
+	}
+	const auto peer = item->history()->peer;
+	const auto channel = peer->asChannel();
+	if (!channel || channel->isMegagroup()) {
+		return false;
+	}
+	constexpr auto kMinViewsCount = 10;
+	const auto can = (channel->flags() & ChannelDataFlag::CanGetStatistics)
+		|| (channel->canPostMessages()
+			&& item->viewsCount() >= kMinViewsCount);
+	if (!can) {
+		return false;
+	}
+	const auto controller = list->controller();
+	const auto itemId = item->fullId();
+	menu->addAction(tr::lng_stats_title(tr::now), crl::guard(controller, [=] {
+		controller->showSection(Info::Statistics::Make(channel, itemId, {}));
+	}), &st::menuIconStats);
+	return true;
+}
+
 void AddTopMessageActions(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
@@ -1304,6 +1333,7 @@ void AddTopMessageActions(
 	AddEditMessageAction(menu, request, list);
 	AddFactcheckAction(menu, request, list);
 	AddPinMessageAction(menu, request, list);
+	AddViewStatisticsAction(menu, request, list);
 }
 
 void AddMessageActions(

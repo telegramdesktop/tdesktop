@@ -378,6 +378,7 @@ public:
 	[[nodiscard]] bool loadedAtBottomKnown() const;
 	[[nodiscard]] bool loadedAtBottom() const;
 	[[nodiscard]] bool insideJumpToEndInsteadOfToUnread() const;
+	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
 	[[nodiscard]] bool isEmpty() const;
 
 	[[nodiscard]] bool markingContentsRead() const;

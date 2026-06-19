@@ -175,6 +175,7 @@ private:
 	bool _repliesRootViewInitScheduled = false;
 	bool _modeSensitiveBarsInited = false;
 	bool _modeSensitiveShowInForum = false;
+	bool _modeSensitiveFullChat = false;
 	bool _shown = true;
 	bool _animatingMode = false;
 
