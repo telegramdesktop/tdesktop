@@ -830,7 +830,8 @@ private:
 	rpl::event_stream<TouchBarItemType> _touchbarDisplay;
 	rpl::event_stream<bool> _touchbarFullscreenToggled;
 
-	int _verticalWheelDelta = 0;
+	int _absWheelDelta = 0;
+	int _lastWheelDelta = 0;
 
 	Platform::TextRecognition::Result _recognitionResult;
 	uint64 _recognitionPendingSessionUniqueId = 0;
