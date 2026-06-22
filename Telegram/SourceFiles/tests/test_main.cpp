@@ -25,14 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Test {
 
-bool App::notifyOrInvoke(QObject *receiver, QEvent *e) {
-	if (e->type() == base::InvokeQueuedEvent::Type()) {
-		static_cast<base::InvokeQueuedEvent*>(e)->invoke();
-		return true;
-	}
-	return QApplication::notify(receiver, e);
-}
-
 bool App::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
@@ -109,7 +101,7 @@ void App::registerEnterFromEventLoop() {
 
 bool App::notify(QObject *receiver, QEvent *e) {
 	if (QThread::currentThreadId() != _mainThreadId) {
-		return notifyOrInvoke(receiver, e);
+		return QApplication::notify(receiver, e);
 	}
 
 	const auto wrap = createEventNestingLevel();
@@ -120,7 +112,7 @@ bool App::notify(QObject *receiver, QEvent *e) {
 			return true;
 		}
 	}
-	return notifyOrInvoke(receiver, e);
+	return QApplication::notify(receiver, e);
 }
 
 rpl::producer<> App::widgetUpdateRequests() const {

@@ -67,7 +67,6 @@ private:
 	void decrementEventNestingLevel();
 	void registerEnterFromEventLoop();
 
-	bool notifyOrInvoke(QObject *receiver, QEvent *e);
 	bool notify(QObject *receiver, QEvent *e) override;
 	bool nativeEventFilter(
 		const QByteArray &eventType,

@@ -585,17 +585,9 @@ void Sandbox::registerEnterFromEventLoop() {
 	}
 }
 
-bool Sandbox::notifyOrInvoke(QObject *receiver, QEvent *e) {
-	if (e->type() == base::InvokeQueuedEvent::Type()) {
-		static_cast<base::InvokeQueuedEvent*>(e)->invoke();
-		return true;
-	}
-	return QApplication::notify(receiver, e);
-}
-
 bool Sandbox::notify(QObject *receiver, QEvent *e) {
 	if (QThread::currentThreadId() != _mainThreadId) {
-		return notifyOrInvoke(receiver, e);
+		return QApplication::notify(receiver, e);
 	}
 
 	const auto wrap = createEventNestingLevel();
@@ -606,7 +598,7 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 			return true;
 		}
 	}
-	return notifyOrInvoke(receiver, e);
+	return QApplication::notify(receiver, e);
 }
 
 void Sandbox::processPostponedCalls(int level) {
