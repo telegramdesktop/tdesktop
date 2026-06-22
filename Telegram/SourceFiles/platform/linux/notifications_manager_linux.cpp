@@ -332,9 +332,7 @@ void Create(Window::Notifications::System *system) {
 
 Manager::Private::Private(not_null<Manager*> manager)
 : _manager(manager)
-, _application(UseGNotification()
-		? Gio::Application::get_default()
-		: nullptr)
+, _application(Gio::Application::get_default())
 , _sounds(cWorkingDir() + u"tdata/audio_cache"_q) {
 	const auto &serverInformation = CurrentServerInformation;
 
@@ -429,7 +427,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 	_proxy = proxy;
 	_interface = proxy;
 
-	if (_application || !_interface) {
+	if (!_interface) {
 		return;
 	}
 
@@ -535,7 +533,7 @@ void Manager::Private::showNotification(
 		.contextId = key,
 		.msgId = info.itemId,
 	};
-	auto notification = _application
+	auto notification = UseGNotification()
 		? Gio::Notification::new_(info.title.toStdString())
 		: Gio::Notification();
 

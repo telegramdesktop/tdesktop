@@ -135,6 +135,8 @@ private:
 
 	std::unique_ptr<QThread> _deadlockDetector;
 
+	rpl::lifetime _lifetime;
+
 };
 
 } // namespace Core
