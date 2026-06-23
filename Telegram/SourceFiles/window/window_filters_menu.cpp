@@ -61,6 +61,10 @@ public:
 		// exposing the tab control as focusable in screen-reader mode.
 		return Qt::ClickFocus;
 	}
+	std::optional<Qt::Orientation> accessibilityOrientation() const override {
+		// The folders strip is a vertically stacked tab control.
+		return Qt::Vertical;
+	}
 };
 
 } // namespace
