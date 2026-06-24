@@ -643,7 +643,6 @@ void HistoryInner::setupSwipeReplyAndBack() {
 	if (!_peer) {
 		return;
 	}
-	const auto peer = _peer;
 
 	auto update = [=, history = _history](
 			Ui::Controls::SwipeContextData data) {
