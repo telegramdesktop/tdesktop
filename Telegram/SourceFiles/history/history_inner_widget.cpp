@@ -4124,8 +4124,8 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		if (e->key() == Qt::Key_Space) {
 			if (hasSelectedItems()) {
 				toggleMessageSelection();
-			} else {
-				playPauseFocusedMedia();
+			} else if (!playPauseFocusedMedia()) {
+				downloadFocusedMedia();
 			}
 			e->accept();
 			return;
@@ -5784,7 +5784,39 @@ void HistoryInner::toggleMessageSelection() {
 	accessibilityChildNameChanged(_accessibilityFocusedIndex);
 }
 
-void HistoryInner::playPauseFocusedMedia() {
+bool HistoryInner::playPauseFocusedMedia() {
+	if (_accessibilityFocusedIndex < 0) {
+		return false;
+	}
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex >= 0 && _accessibilityFocusedIndex == barIndex) {
+		return false;
+	}
+	const auto elements = accessibleElements();
+	const auto elementIndex = (barIndex >= 0
+		&& _accessibilityFocusedIndex > barIndex)
+		? (_accessibilityFocusedIndex - 1)
+		: _accessibilityFocusedIndex;
+	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
+		return false;
+	}
+	const auto item = elements[elementIndex]->data();
+	if (const auto media = item->media()) {
+		if (const auto document = media->document()) {
+			if (document->isVoiceMessage()
+				|| document->isSong()
+				|| document->isAudioFile()
+				|| document->isVideoMessage()) {
+				::Media::Player::instance()->playPause(
+					{ document, item->fullId() });
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void HistoryInner::downloadFocusedMedia() {
 	if (_accessibilityFocusedIndex < 0) {
 		return;
 	}
@@ -5801,17 +5833,24 @@ void HistoryInner::playPauseFocusedMedia() {
 		return;
 	}
 	const auto item = elements[elementIndex]->data();
-	if (const auto media = item->media()) {
-		if (const auto document = media->document()) {
-			if (document->isVoiceMessage()
-				|| document->isSong()
-				|| document->isAudioFile()
-				|| document->isVideoMessage()) {
-				::Media::Player::instance()->playPause(
-					{ document, item->fullId() });
-			}
-		}
+	const auto media = item->media();
+	const auto document = media ? media->document() : nullptr;
+	if (!document
+		|| document->loading()
+		|| !document->filepath(true).isEmpty()
+		|| document->loadedInMediaCache()) {
+		return;
 	}
+	DocumentSaveClickHandler::SaveAndTrack(item->fullId(), document);
+
+	const auto index = _accessibilityFocusedIndex;
+	const auto focused = _accessibilityFocusedItem;
+	InvokeQueued(this, [=] {
+		if (_accessibilityFocusedIndex == index
+			&& _accessibilityFocusedItem == focused) {
+			accessibilityChildNameChanged(index);
+		}
+	});
 }
 
 void HistoryInner::forwardItem(FullMsgId itemId) {
