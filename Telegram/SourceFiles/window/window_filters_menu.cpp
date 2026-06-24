@@ -289,6 +289,10 @@ void FiltersMenu::refresh() {
 			filter.title(),
 			Ui::ComputeFilterIcon(filter));
 		button->setLocked(nextIsLocked);
+		// A locked (premium) folder can't become the current tab - pressing it
+		// opens the Premium box. Expose it as a plain button rather than a
+		// selectable page tab, so screen readers don't offer it as a tab.
+		button->setIsPageTab(!nextIsLocked);
 		now.emplace(filter.id(), std::move(button));
 	}
 	_filters = std::move(now);
