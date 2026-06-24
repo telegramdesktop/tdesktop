@@ -968,6 +968,23 @@ void BuildStickersEmojiSection(SectionBuilder &builder) {
 
 	builder.add(nullptr, [] {
 		return SearchEntry{
+			.id = u"chat/large-sticker-preview"_q,
+			.title = tr::lng_settings_large_sticker_preview(tr::now),
+			.keywords = {
+				u"large"_q,
+				u"big"_q,
+				u"stickers"_q,
+				u"preview"_q,
+				u"pack"_q,
+			},
+			.checkIcon = Core::App().settings().largeStickerPreview()
+				? SearchEntryCheckIcon::Checked
+				: SearchEntryCheckIcon::Unchecked,
+		};
+	});
+
+	builder.add(nullptr, [] {
+		return SearchEntry{
 			.id = u"chat/replace-emoji"_q,
 			.title = tr::lng_settings_replace_emojis(tr::now),
 			.keywords = { u"replace"_q, u"emoji"_q, u"convert"_q },
@@ -1458,6 +1475,20 @@ void SetupStickersEmoji(
 	if (highlights) {
 		highlights->push_back({ u"chat/large-emoji"_q, {
 			largeEmoji,
+			{ .radius = st::boxRadius }
+		} });
+	}
+
+	const auto largeStickerPreview = addWithReturn(
+		tr::lng_settings_large_sticker_preview(tr::now),
+		Core::App().settings().largeStickerPreview(),
+		[=](bool checked) {
+			Core::App().settings().setLargeStickerPreview(checked);
+			Core::App().saveSettingsDelayed();
+		});
+	if (highlights) {
+		highlights->push_back({ u"chat/large-sticker-preview"_q, {
+			largeStickerPreview,
 			{ .radius = st::boxRadius }
 		} });
 	}

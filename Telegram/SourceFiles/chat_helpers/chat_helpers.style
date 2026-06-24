@@ -431,9 +431,15 @@ stickersFeaturedUnreadTop: 7px;
 stickersMaxHeight: 320px;
 stickersPadding: margins(19px, 13px, 19px, 13px);
 stickersSize: size(64px, 64px);
+stickersLargeSize: size(224px, 224px);
+stickersLargeWidthPercent: 95;
+stickersLargeHeightPercent: 95;
 emojiSetPadding: margins(12px, 0px, 12px, 0px);
 emojiSetMaxHeight: 197px;
+emojiSetLargeMaxHeight: 394px;
+emojiSetLargeBoxWidth: 720px;
 emojiSetSize: size(42px, 39px);
+emojiSetLargeSize: size(84px, 78px);
 stickersScroll: ScrollArea(boxScroll) {
 	deltat: 19px;
 	deltab: 9px;

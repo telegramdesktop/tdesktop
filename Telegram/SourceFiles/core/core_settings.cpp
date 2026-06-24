@@ -1222,13 +1222,15 @@ void Settings::writePrefGeneric(
 	_saveDelayed.fire({});
 }
 
-std::optional<QByteArray> Settings::readPrefGeneric(std::string_view key) {
+std::optional<QByteArray> Settings::readPrefGeneric(
+		std::string_view key) const {
 	const auto i = _prefs.find(QByteArray(key.data(), key.size()));
 	return (i != end(_prefs)) ? i->second : std::optional<QByteArray>();
 }
 
 template <>
-std::optional<bool> Settings::readPrefImpl<bool>(std::string_view key) {
+std::optional<bool> Settings::readPrefImpl<bool>(
+		std::string_view key) const {
 	if (const auto data = readPrefGeneric(key)) {
 		return !data->isEmpty();
 	}

@@ -75,11 +75,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
+#include <QtGui/QScreen>
+#include <QtGui/QWindow>
 #include <QtSvg/QSvgRenderer>
 
 namespace {
 
 constexpr auto kStickersPerRow = 5;
+constexpr auto kStickerRowsVisible = 5;
 constexpr auto kEmojiPerRow = 8;
 constexpr auto kMinRepaintDelay = crl::time(33);
 constexpr auto kMinAfterScrollDelay = crl::time(33);
@@ -90,6 +93,116 @@ using Data::StickersSet;
 using Data::StickersPack;
 using SetFlag = Data::StickersSetFlag;
 using TLStickerSet = MTPmessages_StickerSet;
+
+[[nodiscard]] int PercentOf(int value, int percent) {
+	return (value * percent) / 100;
+}
+
+[[nodiscard]] int ButtonsHeight(const style::Box &box) {
+	return box.buttonPadding.top()
+		+ box.buttonHeight
+		+ box.buttonPadding.bottom();
+}
+
+[[nodiscard]] QSize AvailableBoxSize(QWidget *outer) {
+	if (outer && !outer->size().isEmpty()) {
+		return outer->size();
+	}
+	if (outer) {
+		if (const auto screen = outer->screen()) {
+			return screen->availableGeometry().size();
+		}
+	}
+	if (const auto screen = QApplication::primaryScreen()) {
+		return screen->availableGeometry().size();
+	}
+	return QSize();
+}
+
+[[nodiscard]] QSize StickerCellSize(
+		Data::StickersType type,
+		bool largePreview) {
+	return (type == Data::StickersType::Emoji)
+		? (largePreview ? st::emojiSetLargeSize : st::emojiSetSize)
+		: (largePreview ? st::stickersLargeSize : st::stickersSize);
+}
+
+[[nodiscard]] QMargins StickerSetPadding(Data::StickersType type) {
+	return (type == Data::StickersType::Emoji)
+		? st::emojiSetPadding
+		: st::stickersPadding;
+}
+
+[[nodiscard]] int StickersBoxWidthForColumns(
+		int columns,
+		Data::StickersType type,
+		bool largePreview) {
+	const auto padding = StickerSetPadding(type);
+	return padding.left()
+		+ (columns * StickerCellSize(type, largePreview).width())
+		+ padding.right();
+}
+
+[[nodiscard]] int StickersBoxHeightForRows(
+		int rows,
+		Data::StickersType type,
+		bool largePreview) {
+	const auto padding = StickerSetPadding(type);
+	return padding.top()
+		+ (rows * StickerCellSize(type, largePreview).height())
+		+ padding.bottom();
+}
+
+[[nodiscard]] int StickerSetBoxWidth(
+		Data::StickersType type,
+		QSize availableBox,
+		bool largePreview) {
+	if (!largePreview) {
+		return st::boxWideWidth;
+	}
+	return (type == Data::StickersType::Emoji)
+		? st::emojiSetLargeBoxWidth
+		: (availableBox.width()
+			? std::min(
+				availableBox.width(),
+				std::max(
+					PercentOf(
+						availableBox.width(),
+						st::stickersLargeWidthPercent),
+					StickersBoxWidthForColumns(
+						kStickersPerRow,
+						type,
+						largePreview)))
+			: StickersBoxWidthForColumns(
+				kStickersPerRow,
+				type,
+				largePreview));
+}
+
+[[nodiscard]] int StickerSetBoxMaxHeight(
+		Data::StickersType type,
+		QSize availableBox,
+		bool largePreview) {
+	if (!largePreview) {
+		return (type == Data::StickersType::Emoji)
+			? st::emojiSetMaxHeight
+			: st::stickersMaxHeight;
+	}
+	return (type == Data::StickersType::Emoji)
+		? st::emojiSetLargeMaxHeight
+		: (availableBox.height()
+			? std::max(
+				1,
+				PercentOf(
+					availableBox.height(),
+					st::stickersLargeHeightPercent)
+					- st::boxTitleHeight
+					- ButtonsHeight(st::layerBox))
+			: StickersBoxHeightForRows(
+				kStickerRowsVisible,
+				type,
+				largePreview));
+}
 
 [[nodiscard]] std::optional<QColor> ComputeImageColor(
 		const style::icon &lockIcon,
@@ -287,7 +400,8 @@ public:
 		QWidget *parent,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const StickerSetIdentifier &set,
-		Data::StickersType type);
+		Data::StickersType type,
+		bool largePreview);
 
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool notInstalled() const;
@@ -346,6 +460,7 @@ protected:
 	void contextMenuEvent(QContextMenuEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	struct Element {
@@ -415,6 +530,8 @@ private:
 
 	[[nodiscard]] QPoint posFromIndex(int index) const;
 	[[nodiscard]] bool isDraggedAnimating() const;
+	[[nodiscard]] int perRowForWidth(int newWidth) const;
+	void updateLayout(int newWidth);
 
 	not_null<Lottie::MultiPlayer*> getLottiePlayer();
 
@@ -473,6 +590,7 @@ private:
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	mutable StickerPremiumMark _premiumMark;
+	const bool _largePreview = false;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -515,6 +633,7 @@ StickerSetBox::StickerSetBox(
 , _session(&_show->session())
 , _set(set)
 , _type(type)
+, _largePreview(Core::App().settings().largeStickerPreview())
 , _previewDocumentId(previewDocumentId) {
 }
 
@@ -548,9 +667,14 @@ void StickerSetBox::prepare() {
 	setTitle(tr::lng_contacts_loading());
 
 	_inner = setInnerWidget(
-		object_ptr<Inner>(this, _show, _set, _type),
+		object_ptr<Inner>(this, _show, _set, _type, _largePreview),
 		st::stickersScroll);
-	_inner->setOuterContainer(getDelegate()->outerContainer());
+	const auto outer = getDelegate()->outerContainer();
+	_inner->setOuterContainer(outer);
+	_adaptiveDimensionsTimer.setCallback([=] {
+		updateAdaptiveDimensions();
+	});
+	setupAdaptiveDimensionsWatcher(outer);
 	if (const auto previewId = base::take(_previewDocumentId)) {
 		_inner->showPreviewForDocument(previewId);
 	}
@@ -560,11 +684,7 @@ void StickerSetBox::prepare() {
 		updateButtons();
 	}, lifetime());
 
-	setDimensions(
-		st::boxWideWidth,
-		(_type == Data::StickersType::Emoji
-			? st::emojiSetMaxHeight
-			: st::stickersMaxHeight));
+	updateAdaptiveDimensions();
 
 	updateTitleAndButtons();
 
@@ -631,6 +751,52 @@ void StickerSetBox::prepare() {
 			window->widget()->hideMediaPreview();
 		}
 	}, lifetime());
+}
+
+void StickerSetBox::updateAdaptiveDimensions() {
+	const auto outer = getDelegate()->outerContainer();
+	const auto availableBox = AvailableBoxSize(outer.data());
+	const auto size = QSize(
+		StickerSetBoxWidth(_type, availableBox, _largePreview),
+		StickerSetBoxMaxHeight(_type, availableBox, _largePreview));
+	if (_lastAdaptiveBoxSize == size) {
+		return;
+	}
+	_lastAdaptiveBoxSize = size;
+	setDimensions(size.width(), size.height(), _largePreview);
+}
+
+void StickerSetBox::scheduleAdaptiveDimensionsUpdate() {
+	_adaptiveDimensionsTimer.callOnce(0);
+}
+
+void StickerSetBox::setupAdaptiveDimensionsWatcher(QPointer<QWidget> outer) {
+	if (!outer) {
+		return;
+	}
+	const auto filter = [=](not_null<QEvent*> event) {
+		const auto type = event->type();
+		if (type == QEvent::Move
+			|| type == QEvent::Resize
+			|| type == QEvent::Show
+			|| type == QEvent::WindowStateChange
+			|| type == QEvent::ScreenChangeInternal) {
+			scheduleAdaptiveDimensionsUpdate();
+		}
+		return base::EventFilterResult::Continue;
+	};
+	base::install_event_filter(this, outer.data(), filter);
+
+	const auto window = outer->window();
+	if (window && window != outer.data()) {
+		base::install_event_filter(this, window, filter);
+	}
+	const auto handle = window ? window->windowHandle() : nullptr;
+	if (handle) {
+		QObject::connect(handle, &QWindow::screenChanged, this, [=] {
+			scheduleAdaptiveDimensionsUpdate();
+		});
+	}
 }
 
 void StickerSetBox::addStickers() {
@@ -898,9 +1064,12 @@ void StickerSetBox::updateButtons() {
 				auto button = CreateUnlockButton(
 					this,
 					tr::lng_premium_unlock_emoji());
-				button->resizeToWidth(st::boxWideWidth
-					- st.buttonPadding.left()
-					- st.buttonPadding.left());
+				const auto availableBox = AvailableBoxSize(
+					getDelegate()->outerContainer().data());
+				button->resizeToWidth(
+					StickerSetBoxWidth(type, availableBox, _largePreview)
+						- st.buttonPadding.left()
+						- st.buttonPadding.left());
 				button->setClickedCallback([=] {
 					if (const auto window = _show->resolveWindow()) {
 						Settings::ShowPremium(window, u"animated_emoji"_q);
@@ -1047,7 +1216,8 @@ StickerSetBox::Inner::Inner(
 	QWidget *parent,
 	std::shared_ptr<ChatHelpers::Show> show,
 	const StickerSetIdentifier &set,
-	Data::StickersType type)
+	Data::StickersType type,
+	bool largePreview)
 : RpWidget(parent)
 , _show(std::move(show))
 , _session(&_show->session())
@@ -1060,11 +1230,10 @@ StickerSetBox::Inner::Inner(
 	st::windowBgOver,
 	[=] { repaintItems(); }))
 , _premiumMark(_session, st::stickersPremiumLock)
+, _largePreview(largePreview)
 , _updateItemsTimer([=] { updateItems(); })
 , _input(set)
-, _padding((type == Data::StickersType::Emoji)
-	? st::emojiSetPadding
-	: st::stickersPadding)
+, _padding(StickerSetPadding(type))
 , _previewTimer([=] { showPreview(); }) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
@@ -1086,6 +1255,51 @@ StickerSetBox::Inner::Inner(
 	}, lifetime());
 
 	setMouseTracking(true);
+}
+
+void StickerSetBox::Inner::resizeEvent(QResizeEvent *e) {
+	RpWidget::resizeEvent(e);
+	updateLayout(width());
+}
+
+int StickerSetBox::Inner::perRowForWidth(int newWidth) const {
+	if (isEmojiSet()) {
+		return kEmojiPerRow;
+	}
+	if (!_largePreview) {
+		return kStickersPerRow;
+	}
+	if (_singleSize.width() <= 0 || newWidth <= 0) {
+		return kStickersPerRow;
+	}
+	const auto available = newWidth
+		- _padding.left()
+		- _padding.right();
+	return std::max(1, available / _singleSize.width());
+}
+
+void StickerSetBox::Inner::updateLayout(int newWidth) {
+	if (!_loaded || _singleSize.isEmpty()) {
+		return;
+	}
+	const auto perRow = perRowForWidth(newWidth);
+	const auto rowsCount = (totalCellsCount() + perRow - 1) / perRow;
+	const auto newHeight = _padding.top()
+		+ rowsCount * _singleSize.height()
+		+ _padding.bottom();
+	const auto changed = (_perRow != perRow)
+		|| (_rowsCount != rowsCount)
+		|| (height() != newHeight);
+
+	_perRow = perRow;
+	_rowsCount = rowsCount;
+	if (height() != newHeight) {
+		resize(newWidth, newHeight);
+	}
+	if (changed) {
+		updateSelected();
+		update();
+	}
 }
 
 void StickerSetBox::Inner::applySet(const TLStickerSet &set) {
@@ -1189,12 +1403,15 @@ void StickerSetBox::Inner::applySet(const TLStickerSet &set) {
 		return;
 	}
 	_loaded = true;
-	_perRow = isEmojiSet() ? kEmojiPerRow : kStickersPerRow;
-	_singleSize = isEmojiSet() ? st::emojiSetSize : st::stickersSize;
+	_singleSize = StickerCellSize(setType(), _largePreview);
+	_perRow = perRowForWidth(width());
 	_rowsCount = (totalCellsCount() + _perRow - 1) / _perRow;
+	const auto minWidth = _padding.left()
+		+ _perRow * _singleSize.width()
+		+ _padding.right();
 
 	resize(
-		_padding.left() + _perRow * _singleSize.width(),
+		std::max(width(), minWidth),
 		_padding.top() + _rowsCount * _singleSize.height() + _padding.bottom());
 
 	if (const auto previewId = base::take(_previewDocumentId)) {
@@ -2269,7 +2486,11 @@ void StickerSetBox::Inner::paintSticker(
 	const auto document = element.document;
 	const auto &media = element.documentMedia;
 	const auto sticker = document->sticker();
-	media->checkStickerSmall();
+	if (_largePreview) {
+		media->checkStickerLarge();
+	} else {
+		media->checkStickerSmall();
+	}
 
 	if (sticker->setType == Data::StickersType::Emoji) {
 		const_cast<Inner*>(this)->setupEmoji(index);
@@ -2308,7 +2529,9 @@ void StickerSetBox::Inner::paintSticker(
 			.frame = size,
 			.keepAlpha = true,
 		}, paused ? 0 : now));
-	} else if (const auto image = media->getStickerSmall()) {
+	} else if (const auto image = _largePreview
+			? media->getStickerLarge()
+			: media->getStickerSmall()) {
 		const auto pixmap = image->pix(size);
 		p.drawPixmapLeft(ppos, width(), pixmap);
 		if (premium) {

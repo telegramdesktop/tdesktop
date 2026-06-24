@@ -38,6 +38,8 @@ namespace Core {
 
 inline constexpr auto kScreenReaderModeDisabledKey
 	= "screen-reader-mode-disabled"_cs;
+inline constexpr auto kLargeStickerPreviewKey
+	= "large-sticker-preview"_cs;
 
 struct WindowPosition {
 	int32 moncrc = 0;
@@ -447,6 +449,12 @@ public:
 	}
 	void setLoopAnimatedStickers(bool value) {
 		_loopAnimatedStickers = value;
+	}
+	[[nodiscard]] bool largeStickerPreview() const {
+		return readPref<bool>(kLargeStickerPreviewKey, false);
+	}
+	void setLargeStickerPreview(bool value) {
+		writePref<bool>(kLargeStickerPreviewKey, value);
 	}
 	void setLargeEmoji(bool value) {
 		_largeEmoji = value;
@@ -1034,7 +1042,7 @@ public:
 	template <typename Type, typename Other = Type>
 	[[nodiscard]] Type readPref(
 			std::string_view key,
-			Other &&fallback = Type()) {
+			Other &&fallback = Type()) const {
 		return readPrefImpl<Type>(key).value_or(
 			std::forward<Other>(fallback));
 	}
@@ -1048,11 +1056,11 @@ private:
 	void writePrefImpl(std::string_view key, Type value);
 
 	template <typename Type>
-	[[nodiscard]] std::optional<Type> readPrefImpl(std::string_view key);
+	[[nodiscard]] std::optional<Type> readPrefImpl(std::string_view key) const;
 
 	void writePrefGeneric(std::string_view key, const QByteArray &value);
 	[[nodiscard]] std::optional<QByteArray> readPrefGeneric(
-		std::string_view key);
+		std::string_view key) const;
 
 	static constexpr auto kDefaultThirdColumnWidth = 0;
 	static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
@@ -1207,4 +1215,3 @@ private:
 };
 
 } // namespace Core
-
