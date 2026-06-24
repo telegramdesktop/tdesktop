@@ -5095,13 +5095,13 @@ void ListWidget::announceAccessibilityFocus(int index) {
 	accessibilityChildFocused(index);
 }
 
-void ListWidget::toggleMessageSelection() {
-	if (!hasSelectedItems() || _accessibilityFocusedIndex < 0) {
-		return;
+HistoryView::Element *ListWidget::resolveFocusedView() const {
+	if (_accessibilityFocusedIndex < 0) {
+		return nullptr;
 	}
 	const auto barIndex = accessibilityUnreadBarIndex();
 	if (barIndex >= 0 && _accessibilityFocusedIndex == barIndex) {
-		return;
+		return nullptr;
 	}
 	const auto elements = accessibleElements();
 	const auto elementIndex = (barIndex >= 0
@@ -5109,9 +5109,19 @@ void ListWidget::toggleMessageSelection() {
 		? (_accessibilityFocusedIndex - 1)
 		: _accessibilityFocusedIndex;
 	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
+		return nullptr;
+	}
+	return elements[elementIndex];
+}
+
+void ListWidget::toggleMessageSelection() {
+	if (!hasSelectedItems()) {
 		return;
 	}
-	const auto view = elements[elementIndex];
+	const auto view = resolveFocusedView();
+	if (!view) {
+		return;
+	}
 	const auto item = view->data();
 	clearTextSelection();
 	changeSelectionAsGroup(_selected, item, SelectAction::Invert);
@@ -5124,22 +5134,11 @@ void ListWidget::toggleMessageSelection() {
 }
 
 bool ListWidget::playPauseFocusedMedia() {
-	if (_accessibilityFocusedIndex < 0) {
+	const auto view = resolveFocusedView();
+	if (!view) {
 		return false;
 	}
-	const auto barIndex = accessibilityUnreadBarIndex();
-	if (barIndex >= 0 && _accessibilityFocusedIndex == barIndex) {
-		return false;
-	}
-	const auto elements = accessibleElements();
-	const auto elementIndex = (barIndex >= 0
-		&& _accessibilityFocusedIndex > barIndex)
-		? (_accessibilityFocusedIndex - 1)
-		: _accessibilityFocusedIndex;
-	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
-		return false;
-	}
-	const auto item = elements[elementIndex]->data();
+	const auto item = view->data();
 	if (const auto media = item->media()) {
 		if (const auto document = media->document()) {
 			if (document->isVoiceMessage()
@@ -5156,22 +5155,11 @@ bool ListWidget::playPauseFocusedMedia() {
 }
 
 void ListWidget::downloadFocusedMedia() {
-	if (_accessibilityFocusedIndex < 0) {
+	const auto view = resolveFocusedView();
+	if (!view) {
 		return;
 	}
-	const auto barIndex = accessibilityUnreadBarIndex();
-	if (barIndex >= 0 && _accessibilityFocusedIndex == barIndex) {
-		return;
-	}
-	const auto elements = accessibleElements();
-	const auto elementIndex = (barIndex >= 0
-		&& _accessibilityFocusedIndex > barIndex)
-		? (_accessibilityFocusedIndex - 1)
-		: _accessibilityFocusedIndex;
-	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
-		return;
-	}
-	const auto item = elements[elementIndex]->data();
+	const auto item = view->data();
 	const auto media = item->media();
 	const auto document = media ? media->document() : nullptr;
 	if (!document

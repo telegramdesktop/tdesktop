@@ -544,8 +544,9 @@ private:
 
 	[[nodiscard]] std::vector<Element*> accessibleElements() const;
 	[[nodiscard]] int accessibilityUnreadBarIndex() const;
+	[[nodiscard]] Element *resolveFocusedView() const;
 	void toggleMessageSelection();
-	bool playPauseFocusedMedia();
+	[[nodiscard]] bool playPauseFocusedMedia();
 	void downloadFocusedMedia();
 	void setAccessibilityFocusedItem(int index, HistoryItem *item);
 	void announceAccessibilityFocus(int index);

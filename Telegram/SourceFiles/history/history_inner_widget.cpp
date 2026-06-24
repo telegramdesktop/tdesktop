@@ -5757,13 +5757,13 @@ void HistoryInner::announceAccessibilityFocus(int index) {
 	accessibilityChildFocused(index);
 }
 
-void HistoryInner::toggleMessageSelection() {
-	if (!hasSelectedItems() || _accessibilityFocusedIndex < 0) {
-		return;
+HistoryView::Element *HistoryInner::resolveFocusedView() const {
+	if (_accessibilityFocusedIndex < 0) {
+		return nullptr;
 	}
 	const auto barIndex = accessibilityUnreadBarIndex();
 	if (barIndex >= 0 && _accessibilityFocusedIndex == barIndex) {
-		return;
+		return nullptr;
 	}
 	const auto elements = accessibleElements();
 	const auto elementIndex = (barIndex >= 0
@@ -5771,9 +5771,20 @@ void HistoryInner::toggleMessageSelection() {
 		? (_accessibilityFocusedIndex - 1)
 		: _accessibilityFocusedIndex;
 	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
+		return nullptr;
+	}
+	return elements[elementIndex];
+}
+
+void HistoryInner::toggleMessageSelection() {
+	if (!hasSelectedItems()) {
 		return;
 	}
-	const auto item = elements[elementIndex]->data();
+	const auto view = resolveFocusedView();
+	if (!view) {
+		return;
+	}
+	const auto item = view->data();
 	clearTextSelection();
 	changeSelectionAsGroup(&_selected, item, SelectAction::Invert);
 	repaintItem(item);
@@ -5785,22 +5796,11 @@ void HistoryInner::toggleMessageSelection() {
 }
 
 bool HistoryInner::playPauseFocusedMedia() {
-	if (_accessibilityFocusedIndex < 0) {
+	const auto view = resolveFocusedView();
+	if (!view) {
 		return false;
 	}
-	const auto barIndex = accessibilityUnreadBarIndex();
-	if (barIndex >= 0 && _accessibilityFocusedIndex == barIndex) {
-		return false;
-	}
-	const auto elements = accessibleElements();
-	const auto elementIndex = (barIndex >= 0
-		&& _accessibilityFocusedIndex > barIndex)
-		? (_accessibilityFocusedIndex - 1)
-		: _accessibilityFocusedIndex;
-	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
-		return false;
-	}
-	const auto item = elements[elementIndex]->data();
+	const auto item = view->data();
 	if (const auto media = item->media()) {
 		if (const auto document = media->document()) {
 			if (document->isVoiceMessage()
@@ -5817,22 +5817,11 @@ bool HistoryInner::playPauseFocusedMedia() {
 }
 
 void HistoryInner::downloadFocusedMedia() {
-	if (_accessibilityFocusedIndex < 0) {
+	const auto view = resolveFocusedView();
+	if (!view) {
 		return;
 	}
-	const auto barIndex = accessibilityUnreadBarIndex();
-	if (barIndex >= 0 && _accessibilityFocusedIndex == barIndex) {
-		return;
-	}
-	const auto elements = accessibleElements();
-	const auto elementIndex = (barIndex >= 0
-		&& _accessibilityFocusedIndex > barIndex)
-		? (_accessibilityFocusedIndex - 1)
-		: _accessibilityFocusedIndex;
-	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
-		return;
-	}
-	const auto item = elements[elementIndex]->data();
+	const auto item = view->data();
 	const auto media = item->media();
 	const auto document = media ? media->document() : nullptr;
 	if (!document
