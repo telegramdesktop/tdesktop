@@ -241,6 +241,98 @@ void applyBackground(QImage &&background, bool tiled, Instance *out) {
 	}
 }
 
+template <typename Callback>
+void ApplyBlackThemePalette(Callback callback) {
+	for (const auto key : {
+			qstr("windowBg"),
+			qstr("windowShadowFgFallback"),
+			qstr("lightButtonBg"),
+			qstr("outlineButtonBg"),
+			qstr("menuBg"),
+			qstr("filterInputInactiveBg"),
+			qstr("filterInputActiveBg"),
+			qstr("titleBg"),
+			qstr("titleBgActive"),
+			qstr("titleButtonBg"),
+			qstr("titleButtonBgActive"),
+			qstr("titleButtonCloseBg"),
+			qstr("titleButtonCloseBgActive"),
+			qstr("boxBg"),
+			qstr("boxSearchBg"),
+			qstr("contactsBg"),
+			qstr("introBg"),
+			qstr("dialogsBg"),
+			qstr("searchedBarBg"),
+			qstr("topBarBg"),
+			qstr("emojiPanBg"),
+			qstr("emojiPanCategories"),
+			qstr("historyUnreadBarBg"),
+			qstr("msgInBg"),
+			qstr("msgOutBg"),
+			qstr("msgServiceBg"),
+			qstr("reportSpamBg"),
+			qstr("historyToDownBg"),
+			qstr("historyComposeAreaBg"),
+			qstr("historyPinnedBg"),
+			qstr("historyReplyBg"),
+			qstr("historyComposeButtonBg"),
+			qstr("mainMenuBg"),
+			qstr("mediaPlayerBg"),
+			qstr("mediaviewFileBg"),
+			qstr("mediaviewBg"),
+			qstr("notificationBg"),
+			qstr("callBg"),
+			qstr("botKbBg"),
+			qstr("sideBarBg"),
+		}) {
+		callback(key);
+	}
+}
+
+[[nodiscard]] QImage BlackThemeBackground() {
+	auto result = QImage(1, 1, QImage::Format_RGB32);
+	result.fill(QColor(0, 0, 0));
+	return result;
+}
+
+void SaveBlackThemeBackground(const QImage &background, Cached *cache) {
+	if (!cache) {
+		return;
+	}
+	cache->background = QByteArray();
+	auto buffer = QBuffer(&cache->background);
+	background.save(&buffer, "BMP");
+	cache->tiled = false;
+}
+
+void ApplyBlackThemeOverrides(not_null<Instance*> out, Cached *cache) {
+	const auto black = QColor(0, 0, 0);
+	ApplyBlackThemePalette([&](QLatin1String key) {
+		out->palette.setColor(key, black);
+	});
+
+	out->background = BlackThemeBackground();
+	out->tiled = false;
+	if (cache) {
+		cache->colors = out->palette.save();
+		SaveBlackThemeBackground(out->background, cache);
+	}
+}
+
+void ApplyBlackThemeOverrides(Cached *cache) {
+	ApplyBlackThemePalette([](QLatin1String key) {
+		style::main_palette::setColor(key, 0, 0, 0, 255);
+	});
+
+	auto background = BlackThemeBackground();
+	if (cache) {
+		cache->colors = style::main_palette::save();
+		SaveBlackThemeBackground(background, cache);
+	}
+	Background()->setThemeData(std::move(background), false);
+	Background()->saveAdjustableColors();
+}
+
 enum class LoadResult {
 	Loaded,
 	Failed,
@@ -426,8 +518,12 @@ bool InitializeFromSaved(Saved &&saved) {
 	}
 
 	const auto editing = ReadEditingPalette();
+	const auto black = !editing
+		&& (saved.object.pathAbsolute == BlackThemePath());
 	GlobalBackground.createIfNull();
-	if (!editing && InitializeFromCache(saved.object.content, saved.cache)) {
+	if (!editing
+		&& !black
+		&& InitializeFromCache(saved.object.content, saved.cache)) {
 		return true;
 	}
 
@@ -435,6 +531,9 @@ bool InitializeFromSaved(Saved &&saved) {
 	if (!LoadTheme(saved.object.content, colorizer, editing, &saved.cache)) {
 		DEBUG_LOG(("Theme: Could not load from saved."));
 		return false;
+	}
+	if (black) {
+		ApplyBlackThemeOverrides(&saved.cache);
 	}
 	if (editing) {
 		Background()->setEditingTheme(ReadCloudFromText(*editing));
@@ -1223,6 +1322,11 @@ void ChatBackground::reapplyWithNightMode(
 		if (!loaded) {
 			return false;
 		}
+		if (path == BlackThemePath()) {
+			ApplyBlackThemeOverrides(
+				&preview->instance,
+				&preview->instance.cached);
+		}
 		Apply(std::move(preview));
 		return true;
 	}();
@@ -1484,7 +1588,16 @@ bool LoadFromFile(
 	if (outContent) {
 		*outContent = content;
 	}
-	return LoadTheme(content, colorizer, std::nullopt, outCache, out);
+	const auto loaded = LoadTheme(
+		content,
+		colorizer,
+		std::nullopt,
+		outCache,
+		out);
+	if (loaded && path == BlackThemePath()) {
+		ApplyBlackThemeOverrides(out, outCache);
+	}
+	return loaded;
 }
 
 bool LoadFromContent(

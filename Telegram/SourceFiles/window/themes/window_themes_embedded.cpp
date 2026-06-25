@@ -22,7 +22,7 @@ namespace Window {
 namespace Theme {
 namespace {
 
-constexpr auto kMaxAccentColors = 3;
+constexpr auto kMaxAccentColors = 5;
 constexpr auto kDayBaseFile = ":/gui/day-custom-base.tdesktop-theme"_cs;
 constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 
@@ -133,6 +133,7 @@ style::colorizer ColorizerFrom(
 		result.lightnessMax = 160;
 		break;
 	case EmbeddedType::Night:
+	case EmbeddedType::Black:
 		result.keepContrast = base::flat_map<QLatin1String, Pair>{ {
 			//{ qstr("windowFgActive"), Pair{ cColor("5288c1"), cColor("17212b") } }, // windowBgActive
 			{ qstr("activeButtonFg"), Pair{ cColor("2f6ea5"), cColor("17212b") } }, // activeButtonBg
@@ -187,6 +188,10 @@ std::optional<QColor> SystemAccentColor() {
 #endif // Qt < 6.0.0
 	const auto accent = QPalette().color(QPalette::Highlight);
 	return accent.isValid() ? std::make_optional(accent) : std::nullopt;
+}
+
+QString BlackThemePath() {
+	return u":/gui/black.tdesktop-theme"_q;
 }
 
 style::colorizer ColorizerForTheme(const QString &absolutePath) {
@@ -281,6 +286,17 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			":/gui/night-green.tdesktop-theme",
 			qColor("3fc1b0")
 		},
+		EmbeddedScheme{
+			EmbeddedType::Black,
+			qColor("000000"),
+			qColor("265e8c"),
+			qColor("24292e"),
+			qColor("24292e"),
+			qColor("5ca7d4"),
+			name(tr::lng_settings_theme_black),
+			BlackThemePath(),
+			qColor("5288c1")
+		},
 	};
 }
 
@@ -332,6 +348,17 @@ std::vector<QColor> DefaultAccentColors(EmbeddedType type) {
 			qColor("d27570"),
 			qColor("7b8799"),
 			qColor("cbac67"),
+		};
+	case EmbeddedType::Black:
+		return {
+			qColor("58bfe8"),
+			qColor("466f42"),
+			qColor("aa6084"),
+			qColor("a46d3c"),
+			qColor("917bbd"),
+			qColor("ab5149"),
+			qColor("697b97"),
+			qColor("9b834b"),
 		};
 	}
 	Unexpected("Type in Window::Theme::AccentColors.");
@@ -421,6 +448,7 @@ bool AccentColors::setFromSerialized(const QByteArray &serialized) {
 		case EmbeddedType::DayBlue:
 		case EmbeddedType::Night:
 		case EmbeddedType::NightGreen:
+		case EmbeddedType::Black:
 			data.emplace(uncheckedType, color);
 			break;
 		default:

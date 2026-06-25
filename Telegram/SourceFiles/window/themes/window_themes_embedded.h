@@ -19,6 +19,7 @@ enum class EmbeddedType {
 	Default,
 	Night,
 	NightGreen,
+	Black,
 };
 
 struct EmbeddedScheme {
@@ -52,6 +53,7 @@ private:
 	const QColor &color);
 [[nodiscard]] std::optional<QColor> SystemAccentColor();
 [[nodiscard]] style::colorizer ColorizerForTheme(const QString &absolutePath);
+[[nodiscard]] QString BlackThemePath();
 
 void Colorize(
 	EmbeddedScheme &scheme,
