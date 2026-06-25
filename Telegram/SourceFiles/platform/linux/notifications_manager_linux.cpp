@@ -57,6 +57,12 @@ bool ServiceRegistered = false;
 ServerInformation CurrentServerInformation;
 std::vector<std::string> CurrentCapabilities;
 
+[[nodiscard]] const auto &OptionGNotification() {
+	static const auto &result = base::options::lookup<bool>(
+		Window::Notifications::kOptionGNotification);
+	return result;
+}
+
 [[nodiscard]] bool HasCapability(const char *value) {
 	return ranges::contains(CurrentCapabilities, value);
 }
@@ -137,7 +143,7 @@ bool UseGNotification() {
 		return false;
 	}
 
-	if (Window::Notifications::OptionGNotification.value()) {
+	if (OptionGNotification().value()) {
 		return true;
 	}
 
@@ -207,8 +213,7 @@ bool Enforced() {
 	// Wayland doesn't support positioning
 	// and custom notifications don't work here
 	return IsWayland()
-		|| (Gio::Application::get_default()
-			&& Window::Notifications::OptionGNotification.value());
+		|| (Gio::Application::get_default() && OptionGNotification().value());
 }
 
 bool ByDefault() {
