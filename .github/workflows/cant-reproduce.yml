@@ -13,7 +13,7 @@ jobs:
           token: ${{ github.token }}
           responseRequiredLabel: cant reproduce
           closeComment: >
-            This issue has been automatically closed because no developer succeeded to
+            This issue has been automatically closed because no project developer succeeded to
             reproduce the issue with the given reproduction steps. With only the
             information that is currently in the issue, we don't have enough
             information to take action. Please reach out if you find what's missing to
