@@ -304,6 +304,7 @@ void SetupExperimental(
 	addToggle(Ui::kOptionHideAiButton);
 	addToggle(HistoryView::kOptionUnlimitedMessageWidth);
 	addToggle(HistoryView::Controls::kOptionMacCmdReplyImmediately);
+	addToggle(Ui::kOptionQScroller);
 }
 
 } // namespace
