@@ -5807,6 +5807,18 @@ bool InnerWidget::processKeyDispatch(QKeyEvent *e) {
 		selectSkipPage(_visibleBottom - _visibleTop, -1);
 	} else if (e->key() == Qt::Key_PageDown) {
 		selectSkipPage(_visibleBottom - _visibleTop, 1);
+	} else if (e->key() == Qt::Key_Home || e->key() == Qt::Key_End) {
+		// Jump to the first/last row. selectSkip() clamps the target, so
+		// skipping by more than the total row count lands on the edge in both
+		// the default and the filtered (search) list.
+		const auto rows = int(_collapsedRows.size())
+			+ _shownList->size()
+			+ int(_hashtagResults.size())
+			+ int(_filterResults.size())
+			+ int(_peerSearchResults.size())
+			+ int(_previewResults.size())
+			+ int(_searchResults.size());
+		selectSkip((e->key() == Qt::Key_End) ? rows : -rows);
 	} else {
 		return false;
 	}
