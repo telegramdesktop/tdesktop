@@ -388,7 +388,7 @@ std::vector<DcId> DcOptions::CountOptionsDifference(
 
 QByteArray DcOptions::serialize() const {
 	if (_immutable) {
-		// Don't write the overriden options to our settings.
+		// Don't write the overridden options to our settings.
 		return DcOptions(_environment).serialize();
 	}
 
