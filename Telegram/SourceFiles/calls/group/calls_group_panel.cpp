@@ -2952,13 +2952,11 @@ void Panel::paint(QRect clip) {
 bool Panel::handleClose() {
 	if (_call) {
 		window()->hide();
-#ifdef Q_OS_LINUX
 		if (Platform::IsWayland()) {
 			if (const auto handle = window()->windowHandle()) {
 				handle->destroy();
 			}
 		}
-#endif // Q_OS_LINUX
 		return true;
 	}
 	return false;

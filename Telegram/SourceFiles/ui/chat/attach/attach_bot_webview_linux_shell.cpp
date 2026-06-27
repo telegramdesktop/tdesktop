@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 
-#ifdef Q_OS_LINUX
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
 
 namespace Ui::BotWebView::LinuxShell {
 namespace {
@@ -221,4 +221,4 @@ QJsonObject ColorPayload(const ResolvedColors &colors) {
 
 } // namespace Ui::BotWebView::LinuxShell
 
-#endif // Q_OS_LINUX
+#endif // !Q_OS_WIN && !Q_OS_MAC

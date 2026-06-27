@@ -315,11 +315,6 @@ void ChooseSourceProcess::activate() {
 }
 
 void ChooseSourceProcess::setupPanel() {
-#ifndef Q_OS_LINUX
-	//_window->setAttribute(Qt::WA_OpaquePaintEvent);
-#endif // Q_OS_LINUX
-	//_window->setAttribute(Qt::WA_NoSystemBackground);
-
 	_window->setWindowIcon(QIcon(
 		QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	_window->setTitleStyle(st::desktopCaptureSourceTitle);

@@ -961,30 +961,23 @@ void Viewport::RendererRhi::drawYuv2RgbPass(
 		tileData.convertedSize = frameSize;
 	}
 
-	// Y-flip the UV for Linux: QRhi/OpenGL on Linux lands YUV frames
-	// upside-down in the offscreen RGB target compared with Metal/D3D11
-	// backends used on macOS/Windows, which already render correctly.
-#ifdef Q_OS_LINUX
-	const float coords[] = {
+	const auto coords = _rhi->isYUpInFramebuffer() ? std::array{
 		-1.f, -1.f, 0.f, 0.f,
 		 1.f, -1.f, 1.f, 0.f,
 		-1.f,  1.f, 0.f, 1.f,
 		 1.f,  1.f, 1.f, 1.f,
-	};
-#else // Q_OS_LINUX
-	const float coords[] = {
+	} : std::array{
 		-1.f, -1.f, 0.f, 1.f,
 		 1.f, -1.f, 1.f, 1.f,
 		-1.f,  1.f, 0.f, 0.f,
 		 1.f,  1.f, 1.f, 0.f,
 	};
-#endif // Q_OS_LINUX
 
 	if (!_rub) {
 		_rub = _rhi->nextResourceUpdateBatch();
 	}
 	_rub->updateDynamicBuffer(
-		_offscreenVertexBuffer, 0, sizeof(coords), coords);
+		_offscreenVertexBuffer, 0, coords.size(), coords.data());
 
 	auto *srb = _rhi->newShaderResourceBindings();
 	_perDrawSrbs.push_back(srb);

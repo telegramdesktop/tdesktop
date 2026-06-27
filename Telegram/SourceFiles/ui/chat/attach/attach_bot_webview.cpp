@@ -360,11 +360,7 @@ void LogNativeMessageRejected(
 }
 
 [[nodiscard]] bool UseExternalBotWebApps() {
-#ifdef Q_OS_LINUX
-	return true;
-#else // Q_OS_LINUX
-	return false;
-#endif // Q_OS_LINUX
+	return ::Platform::IsLinux();
 }
 
 [[nodiscard]] QColor ResolveExternalShellThemeColor(QColor color) {

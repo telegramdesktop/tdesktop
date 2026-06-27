@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_view.h"
 #include "base/algorithm.h"
 #include "base/weak_ptr.h"
+#include "base/platform/base_platform_info.h"
 #include "core/click_handler_types.h"
 #include "core/credits_amount.h"
 #include "core/file_utilities.h"
@@ -597,12 +598,12 @@ bool MarkdownPreviewRoot::showEmbed(const MediaActivation &activation) {
 		|| !activation.placeholderId) {
 		return false;
 	}
-#ifdef Q_OS_LINUX
-	closeEmbed();
-	return _embedOverlay
-		? _embedOverlay->showExternalEmbed(activation.embed)
-		: false;
-#else // Q_OS_LINUX
+	if (Platform::IsLinux()) {
+		closeEmbed();
+		return _embedOverlay
+			? _embedOverlay->showExternalEmbed(activation.embed)
+			: false;
+	}
 	const auto placeholderId = activation.placeholderId;
 	const auto generation = ++_pendingEmbed.generation;
 	if (_body && _pendingEmbed.placeholderId) {
@@ -637,7 +638,6 @@ bool MarkdownPreviewRoot::showEmbed(const MediaActivation &activation) {
 		finishPending();
 	}
 	return started;
-#endif // !Q_OS_LINUX
 }
 
 void MarkdownPreviewRoot::fillFootnoteBox(

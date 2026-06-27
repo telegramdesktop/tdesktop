@@ -21,7 +21,7 @@ struct ResolvedColors {
 	QColor bottomBg;
 };
 
-#ifdef Q_OS_LINUX
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
 
 [[nodiscard]] QByteArray InstallScript(const QString &shellToken);
 [[nodiscard]] QByteArray MethodCallScript(
@@ -37,7 +37,7 @@ struct ResolvedColors {
 [[nodiscard]] QJsonObject MenuPalette();
 [[nodiscard]] QJsonObject ColorPayload(const ResolvedColors &colors);
 
-#else // Q_OS_LINUX
+#else // !Q_OS_WIN && !Q_OS_MAC
 
 [[nodiscard]] inline QByteArray InstallScript(const QString &) {
 	return {};
@@ -74,6 +74,6 @@ struct ResolvedColors {
 	return {};
 }
 
-#endif // Q_OS_LINUX
+#endif // Q_OS_WIN || Q_OS_MAC
 
 } // namespace Ui::BotWebView::LinuxShell
