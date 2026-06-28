@@ -6598,7 +6598,12 @@ bool Message::textAppearCheckLine(not_null<TextAppearing*> appearing) {
 					|| (appearing->shownHeight < finalLineHeight))));
 	if (!use) {
 		if (data()->isRegular()) {
-			RemoveComponents(TextAppearing::Bit());
+			// We are inside these animations' tick, can't destroy them now.
+			crl::on_main(this, [=] {
+				if (Has<TextAppearing>() && !Get<TextAppearing>()->use) {
+					RemoveComponents(TextAppearing::Bit());
+				}
+			});
 			return false;
 		} else if (recount && lines) {
 			appearing->shownLine = lines - 1;
