@@ -66,7 +66,7 @@ void PinnedList::setPinned(Key key, bool pinned) {
 		const auto index = int(it - begin(_data));
 		_data.erase(it);
 		key.entry()->cachePinnedIndex(_filterId, 0);
-		for (auto i = index, count = int(size(_data)); i != count; ++i) {
+		for (auto i = index; i < int(size(_data)); ++i) {
 			_data[i].entry()->cachePinnedIndex(_filterId, i + 1);
 		}
 	}
