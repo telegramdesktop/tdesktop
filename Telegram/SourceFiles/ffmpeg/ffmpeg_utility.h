@@ -38,6 +38,9 @@ inline constexpr auto kAVBlockSize = 4096; // 4Kb for ffmpeg blocksize
 constexpr auto kUniversalTimeBase = AVRational{ 1, AV_TIME_BASE };
 constexpr auto kNormalAspect = AVRational{ 1, 1 };
 
+extern const char kOptionFFmpegMultiThread[];
+extern const char kOptionFFmpegThreadCount[];
+
 class AvErrorWrap {
 public:
 	AvErrorWrap(int code = 0) : _code(code) {

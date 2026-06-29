@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_utility.h"
 
 #include "base/algorithm.h"
+#include "base/options.h"
 #include "logs.h"
 
 #if !defined Q_OS_WIN && !defined Q_OS_MAC
@@ -51,6 +52,20 @@ constexpr auto kMaxPixelsPaddingRatio = 32;
 constexpr auto kMaxPixelsFixedPadding = 64 * 1024;
 constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
 constexpr auto kDurationMax = crl::time(std::numeric_limits<int>::max());
+
+base::options::toggle OptionFFmpegMultiThread({
+	.id = kOptionFFmpegMultiThread,
+	.name = "Multi-thread video decoding",
+	.description = "Allow FFmpeg to use a thread pool for decoding,"
+		" typically a thread per CPU thread.",
+	.defaultValue = true,
+});
+
+base::options::option<int> OptionFFmpegThreadCount({
+	.id = kOptionFFmpegThreadCount,
+	.name = "Video decoding thread count",
+	.description = "Override FFmpeg's thread pool thread count.",
+});
 
 using GetFormatMethod = enum AVPixelFormat(*)(
 	struct AVCodecContext *s,
@@ -275,6 +290,9 @@ enum AVPixelFormat GetFormatImplementation(
 
 } // namespace
 
+const char kOptionFFmpegMultiThread[] = "ffmpeg-multithread";
+const char kOptionFFmpegThreadCount[] = "ffmpeg-thread-count";
+
 IOPointer MakeIOPointer(
 		void *opaque,
 		int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
@@ -446,7 +464,15 @@ CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 		context->max_pixels = MaxPixelsForAreaLimit(
 			descriptor.videoMaxArea);
 	}
-	av_opt_set(context, "threads", "auto", 0);
+	if (OptionFFmpegMultiThread.value()) {
+		av_opt_set(
+			context,
+			"threads",
+			(OptionFFmpegThreadCount.value() > 0)
+				? std::to_string(OptionFFmpegThreadCount.value()).c_str()
+				: "auto",
+			0);
+	}
 	av_opt_set_int(context, "refcounted_frames", 1, 0);
 
 	const auto codec = FindDecoder(context);
