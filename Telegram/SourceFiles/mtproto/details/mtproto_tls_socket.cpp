@@ -21,7 +21,7 @@ namespace MTP::details {
 namespace {
 
 constexpr auto kMaxGrease = 8;
-constexpr auto kClientHelloLimit = 2048;
+constexpr auto kClientHelloLimit = 4096;
 constexpr auto kHelloDigestLength = 32;
 constexpr auto kLengthSize = sizeof(uint16);
 const auto kServerHelloPart1 = qstr("\x16\x03\x03");
@@ -324,6 +324,7 @@ private:
 		[[nodiscard]] QByteArray take();
 
 	private:
+		void writeSyntheticPskExtension();
 		void writeDigest(bytes::const_span key);
 		void injectTimestamp();
 
@@ -517,6 +518,49 @@ void Generator::Part::writeBlock(const MTPDtlsBlockPadding &data) {
 		writeBlock(MTP_tlsBlockString(MTP_bytes("\x00\x15"_q)));
 		writeBlock(MTP_tlsBlockScope(MTP_vector<MTPTlsBlock>(1, zero)));
 	}
+	// psk lives here: padding is last, so parent lengths still backpatch.
+	writeSyntheticPskExtension();
+}
+
+void Generator::Part::writeSyntheticPskExtension() {
+	const auto identityLengths = std::array{ 32, 105, 256 };
+	const auto binderLengths = std::array{ 32, 48 };
+	const auto identityLength = identityLengths[
+		base::RandomIndex(identityLengths.size())];
+	const auto binderLength = binderLengths[
+		base::RandomIndex(binderLengths.size())];
+	const auto identitiesLength = identityLength + 6;
+	const auto bindersLength = binderLength + 1;
+	const auto extensionLength = identitiesLength + bindersLength + 4;
+	const auto write16 = [&](uint16 value) {
+		const auto big = qToBigEndian(value);
+		const auto storage = grow(sizeof(big));
+		if (storage.empty()) {
+			return;
+		}
+		bytes::copy(storage, bytes::object_as_span(&big));
+	};
+	const auto random = [&](int length) {
+		const auto storage = grow(length);
+		if (storage.empty()) {
+			return;
+		}
+		bytes::set_random(storage);
+	};
+
+	write16(uint16(0x0029));
+	write16(uint16(extensionLength));
+	write16(uint16(identitiesLength));
+	write16(uint16(identityLength));
+	random(identityLength);
+	random(4);
+	write16(uint16(bindersLength));
+	const auto binderPrefix = grow(1);
+	if (binderPrefix.empty()) {
+		return;
+	}
+	binderPrefix[0] = bytes::type(binderLength);
+	random(binderLength);
 }
 
 void Generator::Part::finalize(bytes::const_span key) {
