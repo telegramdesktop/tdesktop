@@ -65,6 +65,7 @@ jobs:
 
       - name: First set up.
         run: |
+          echo "WEEK=$(date -u +%G%V)" >> $GITHUB_ENV
           sudo apt update
           curl -sSL https://install.python-poetry.org | python3 -
           cd Telegram/build/docker/centos_env
@@ -114,12 +115,13 @@ jobs:
           rm -rf ${{ runner.temp }}/.buildx-cache
           mv ${{ runner.temp }}/.buildx-cache{-new,}
 
-      - name: Telegram Desktop cache.
+      - name: Restore Telegram Desktop cache.
+        id: cache-tdesktop
         if: env.ONLY_CACHE == 'false'
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ${{ runner.temp }}/.tdesktop-cache
-          key: ${{ runner.OS }}-tdesktop-${{ matrix.defines || 'null' }}-${{ github.run_id }}
+          key: ${{ runner.OS }}-tdesktop-${{ matrix.defines || 'null' }}-${{ env.WEEK }}
           restore-keys: ${{ runner.OS }}-tdesktop-${{ matrix.defines || 'null' }}-
 
       - name: Telegram Desktop build.
@@ -152,6 +154,16 @@ jobs:
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
           $DEFINE
+
+      - name: Save Telegram Desktop cache.
+        if: >
+          github.ref_name == github.event.repository.default_branch
+            && steps.cache-tdesktop.outputs.cache-hit != 'true'
+            && env.ONLY_CACHE == 'false'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ runner.temp }}/.tdesktop-cache
+          key: ${{ steps.cache-tdesktop.outputs.cache-primary-key }}
 
       - name: Check.
         if: env.ONLY_CACHE == 'false'
