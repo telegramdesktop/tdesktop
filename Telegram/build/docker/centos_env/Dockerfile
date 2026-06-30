@@ -13,7 +13,7 @@ ENV PKG_CONFIG_PATH=/opt/rh/$TOOLSET/root/usr/lib64/pkgconfig:/opt/rh/$TOOLSET/r
 RUN --mount=type=cache,target=/var/cache/dnf <<EOF
 dnf -y install epel-release
 dnf config-manager --set-enabled powertools
-dnf -y install autoconf automake libtool pkgconfig make patch git \
+dnf -y install cmake autoconf automake libtool pkgconfig make patch git \
 	python3.11-pip python3.11-devel gperf flex bison clang-tools-extra \
 	lld ccache nasm file which wget perl-open perl-XML-Parser perl-IPC-Cmd \
 	xorg-x11-util-macros $TOOLSET-gcc $TOOLSET-gcc-c++ $TOOLSET-binutils \
@@ -27,7 +27,7 @@ EOF
 
 RUN <<EOF
 alternatives --set python3 /usr/bin/python3.11
-python3 -m pip install cmake meson ninja
+python3 -m pip install meson ninja
 EOF
 
 RUN <<EOF

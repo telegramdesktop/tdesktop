@@ -39,8 +39,6 @@ parts:
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-ldav1d,--pop-state -s
-    build-snaps:
-      - cmake
     build-packages:
       - libboost-regex-dev
       - libheif-dev
