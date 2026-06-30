@@ -465,12 +465,10 @@ CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 			descriptor.videoMaxArea);
 	}
 	if (OptionFFmpegMultiThread.value()) {
-		av_opt_set(
+		av_opt_set_int(
 			context,
 			"threads",
-			(OptionFFmpegThreadCount.value() > 0)
-				? std::to_string(OptionFFmpegThreadCount.value()).c_str()
-				: "auto",
+			OptionFFmpegThreadCount.value(),
 			0);
 	}
 	av_opt_set_int(context, "refcounted_frames", 1, 0);
