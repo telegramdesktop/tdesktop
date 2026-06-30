@@ -8,7 +8,7 @@ This is the complete source code and the build instructions for the official [Te
 [![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/Linux./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
 [![Built with Depot](https://img.shields.io/badge/Built%20with-Depot.dev-46A75A)](https://depot.dev)
 
-[![Preview of Telegram Desktop][preview_image]][preview_image_url]
+[![Preview of minfreelawgram Desktop][preview_image]][preview_image_url]
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
@@ -16,12 +16,12 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 The latest version is available for
 
-* [Windows 7 and above (64 bit)](https://telegram.org/dl/desktop/win64) ([portable](https://telegram.org/dl/desktop/win64_portable))
-* [Windows 7 and above (32 bit)](https://telegram.org/dl/desktop/win) ([portable](https://telegram.org/dl/desktop/win_portable))
-* [macOS 10.13 and above](https://telegram.org/dl/desktop/mac)
-* [Linux static build for 64 bit](https://telegram.org/dl/desktop/linux)
-* [Snap](https://snapcraft.io/telegram-desktop)
-* [Flatpak](https://flathub.org/apps/details/org.telegram.desktop)
+* [Windows 7 and above (64 bit)](https://minfreelawgram.org/dl/desktop/win64) ([portable](https://minfreelawgram.org/dl/desktop/win64_portable))
+* [Windows 7 and above (32 bit)](https://minfreelawgram.org/dl/desktop/win) ([portable](https://minfreelawgram.org/dl/desktop/win_portable))
+* [macOS 10.13 and above](https://minfreelawgram.org/dl/desktop/mac)
+* [Linux static build for 64 bit](https://minfreelawgram.org/dl/desktop/linux)
+* [Snap](https://snapcraft.io/minfreelawgram-desktop)
+* [Flatpak](https://flathub.org/apps/details/org.minfreelawgram.desktop)
 
 ## Old system versions
 
@@ -74,16 +74,16 @@ Version **1.8.15** was the last that supports older systems
 * [GNU/Linux using Docker][linux]
 
 [//]: # (LINKS)
-[telegram]: https://telegram.org
-[telegram_desktop]: https://desktop.telegram.org
-[telegram_api]: https://core.telegram.org
-[telegram_proto]: https://core.telegram.org/mtproto
+[telegram]: https://minfreelawgram.org
+[telegram_desktop]: https://desktop.minfreelawgram.org
+[telegram_api]: https://core.minfreelawgram.org
+[telegram_proto]: https://core.minfreelawgram.org/mtproto
 [license]: LICENSE
 [win]: docs/building-win.md
 [mac]: docs/building-mac.md
 [linux]: docs/building-linux.md
-[preview_image]: https://github.com/telegramdesktop/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop"
-[preview_image_url]: https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png
+[preview_image]: https://github.com/minfreelawgramdesktop/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop"
+[preview_image_url]: https://raw.githubusercontent.com/minfreelawgramdesktop/tdesktop/dev/docs/assets/preview.png
 
 ## Thanks to
 
