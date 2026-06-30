@@ -33,7 +33,6 @@ project(Telegram
 
 if (APPLE)
     enable_language(OBJC OBJCXX)
-    set(QT_NO_PRIVATE_MODULE_WARNING ON)
 endif()
 
 if (configuration_types_init
