@@ -6,14 +6,6 @@
 
 cmake_minimum_required(VERSION 3.31)
 
-# Workaround some linking errors in GCC due to static library order.
-if (POLICY CMP0156)
-    cmake_policy(SET CMP0156 OLD)
-endif()
-if (POLICY CMP0179)
-    cmake_policy(SET CMP0179 OLD)
-endif()
-
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 include(cmake/validate_special_target.cmake)
