@@ -85,7 +85,7 @@ jobs:
 
       - name: Libraries cache.
         id: cache-libs
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ${{ runner.temp }}/.buildx-cache
@@ -118,7 +118,7 @@ jobs:
       - name: Restore Telegram Desktop cache.
         id: cache-tdesktop
         if: env.ONLY_CACHE == 'false'
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/.tdesktop-cache
           key: ${{ runner.OS }}-tdesktop-${{ matrix.defines || 'null' }}-${{ env.WEEK }}
@@ -160,7 +160,7 @@ jobs:
           github.ref_name == github.event.repository.default_branch
             && steps.cache-tdesktop.outputs.cache-hit != 'true'
             && env.ONLY_CACHE == 'false'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ${{ runner.temp }}/.tdesktop-cache
           key: ${{ steps.cache-tdesktop.outputs.cache-primary-key }}
