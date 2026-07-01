@@ -98,7 +98,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
-#include <QtGui/QWindow>
 
 #include <ksandbox.h>
 
@@ -729,10 +728,9 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 	} break;
 
 	case QEvent::ThemeChange: {
-		if (Platform::IsLinux()
-				&& object == QGuiApplication::allWindows().constFirst()) {
-			Core::App().refreshApplicationIcon();
-			Core::App().tray().updateIconCounters();
+		if (Platform::IsLinux() && object == qApp) {
+			refreshApplicationIcon();
+			tray().updateIconCounters();
 		}
 	} break;
 	}
