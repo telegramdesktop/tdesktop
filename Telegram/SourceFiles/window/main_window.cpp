@@ -213,6 +213,10 @@ QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
 		Platform::ApplicationIconName(),
 		officialIcon);
 
+	if (!Platform::IsX11()) {
+		return iconFromTheme;
+	}
+
 	QIcon result;
 
 	static const auto iconSizes = {
