@@ -210,7 +210,6 @@ peerListBox: PeerList(defaultPeerList) {
 	item: peerListBoxItem;
 }
 
-localStorageRowHeight: 50px;
 localStorageRowTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 	maxHeight: 20px;
@@ -225,7 +224,6 @@ localStorageRowSize: FlatLabel(defaultFlatLabel) {
 		font: font(14px);
 	}
 }
-localStorageClear: defaultBoxButton;
 localStorageLimitLabel: LabelSimple(defaultLabelSimple) {
 	font: boxTextFont;
 }
@@ -245,7 +243,6 @@ localStorageChartThicknessThin: 12px;
 localStorageChartSelectGrow: 9px;
 localStorageChartSizeFont: font(32px semibold);
 localStorageChartUnitFont: font(13px);
-localStorageChartLabelFont: font(13px);
 localStorageChartPercentFont: font(15px semibold);
 localStorageChartParticle: 15px;
 localStorageCompleteStar1: 18px;
@@ -316,11 +313,6 @@ localStorageUsageSubtitle: FlatLabel(defaultFlatLabel) {
 	}
 }
 
-localStorageClearingSpinner: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
-	color: activeButtonBg;
-	thickness: 3px;
-	size: size(48px, 48px);
-}
 localStorageClearingSpinnerPadding: margins(0px, 20px, 0px, 14px);
 
 shareRowsTop: 12px;
