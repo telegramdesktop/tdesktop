@@ -183,7 +183,7 @@ void OverrideApplicationIcon(QImage image) {
 	OverridenIcon() = std::move(image);
 }
 
-QIcon CreateOfficialIcon(Main::Session *session) {
+QIcon CreateSupportIcon(Main::Session *session) {
 	const auto support = (session && session->supportMode());
 	if (!support) {
 		return QIcon();
@@ -197,22 +197,23 @@ QIcon CreateOfficialIcon(Main::Session *session) {
 }
 
 QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
-	const auto officialIcon = CreateOfficialIcon(session);
-	if (!officialIcon.isNull() || returnNullIfDefault) {
-		return officialIcon;
+	const auto supportIcon = CreateSupportIcon(session);
+	if (!supportIcon.isNull() || returnNullIfDefault) {
+		return supportIcon;
 	}
 
-	auto result = QIcon(Ui::PixmapFromImage(base::duplicate(Logo())));
+	const auto officialIcon = QIcon(
+		Ui::PixmapFromImage(base::duplicate(Logo())));
 
 	if constexpr (!Platform::IsLinux()) {
-		return result;
+		return officialIcon;
 	}
 
 	const auto iconFromTheme = QIcon::fromTheme(
 		Platform::ApplicationIconName(),
-		result);
+		officialIcon);
 
-	result = QIcon();
+	QIcon result;
 
 	static const auto iconSizes = {
 		16,
