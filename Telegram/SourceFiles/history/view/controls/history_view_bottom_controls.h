@@ -98,8 +98,6 @@ private:
 	void refreshGiftToChannelShown();
 	void refreshDirectMessageShown();
 
-	void updateSendRestriction();
-	[[nodiscard]] Data::SendError computeSendRestriction() const;
 	void recomputeContentHeight();
 
 	[[nodiscard]] bool isBotStart() const;
@@ -132,9 +130,6 @@ private:
 
 	std::unique_ptr<Ui::FlatButton> _openChatButton;
 	std::unique_ptr<Ui::RpWidget> _aboutHiddenAuthor;
-
-	std::unique_ptr<Ui::RpWidget> _sendRestriction;
-	QString _sendRestrictionKey;
 
 	rpl::event_stream<BottomControlsAction> _actionRequests;
 

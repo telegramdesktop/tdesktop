@@ -3611,8 +3611,17 @@ void ApiWrap::requestHistory(
 				parsed.noSkipRange,
 				parsed.fullCount);
 			finish();
-		}).fail([=] {
+		}).fail([=](const MTP::Error &error) {
 			_historyRequests.remove(key);
+			if (error.type() == u"CHANNEL_PRIVATE"_q
+				&& peer->isChannel()
+				&& peer->asChannel()->invitePeekExpires()) {
+				peer->asChannel()->privateErrorReceived();
+			} else if (error.type() == u"CHANNEL_PRIVATE"_q
+				|| error.type() == u"CHANNEL_PUBLIC_GROUP_NA"_q
+				|| error.type() == u"USER_BANNED_IN_CHANNEL"_q) {
+				history->owner().notifyHistoryAccessLost(history);
+			}
 			finish();
 		}).send();
 	});

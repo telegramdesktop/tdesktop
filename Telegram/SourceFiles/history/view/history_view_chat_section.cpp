@@ -883,6 +883,20 @@ ChatWidget::ChatWidget(
 		updateControlsVisibility();
 	}, lifetime());
 
+	session().data().historyAccessLost(
+	) | rpl::filter([=](not_null<History*> history) {
+		return (history == _history);
+	}) | rpl::on_next([=] {
+		const auto was = _peer;
+		const auto account = not_null(&was->account());
+		closeCurrent();
+		if (const auto primary = Core::App().windowFor(account)) {
+			primary->showToast(was->isMegagroup()
+				? tr::lng_group_not_accessible(tr::now)
+				: tr::lng_channel_not_accessible(tr::now));
+		}
+	}, lifetime());
+
 	if (mode() == Mode::History) {
 		using HistoryUpdateFlag = Data::HistoryUpdate::Flag;
 		session().changes().historyUpdates(
@@ -1373,6 +1387,17 @@ void ChatWidget::setupComposeControls() {
 		const auto canSendAnything = topic
 			? Data::CanSendAnyOf(topic, allWithoutPolls)
 			: Data::CanSendAnyOf(_peer, allWithoutPolls);
+		const auto channel = _peer->asChannel();
+		if ((mode() == Mode::History)
+			&& !canSendAnything
+			&& _peer->amMonoforumAdmin()
+			&& channel
+			&& !channel->monoforumDisabled()) {
+			return Controls::WriteRestriction{
+				.text = tr::lng_monoforum_choose_to_reply(tr::now),
+				.type = Controls::WriteRestrictionType::Rights,
+			};
+		}
 		auto topicRestriction = (!resolvedTopicRootId()
 			|| !topic
 			|| topic->canToggleClosed()

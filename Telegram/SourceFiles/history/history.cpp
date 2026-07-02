@@ -2180,33 +2180,13 @@ std::optional<int> History::countStillUnreadLocalFromMessages(
 	if (!messages) {
 		return std::nullopt;
 	}
-	const auto snapshot = messages->snapshot({
-		ServerMaxMsgId - 1,
-		kCountUnreadMessagesLimit,
-		0,
-	});
-	if (snapshot.skippedAfter != 0) {
-		return std::nullopt;
-	}
-	const auto coversReadTill = (snapshot.skippedBefore == 0)
-		|| (!snapshot.messageIds.empty()
-			&& (snapshot.messageIds.front() <= readTillId));
-	if (!coversReadTill) {
-		return std::nullopt;
-	}
-	auto result = 0;
-	for (const auto &id : snapshot.messageIds) {
-		if (id <= readTillId) {
-			continue;
-		}
+	return messages->countAfter(readTillId, kCountUnreadMessagesLimit, [&](
+			MsgId id) {
 		const auto item = owner().message(peer->id, id);
-		if (item
+		return item
 			&& item->isRegular()
-			&& !item->out()) {
-			++result;
-		}
-	}
-	return result;
+			&& !item->out();
+	});
 }
 
 void History::applyInboxReadUpdate(

@@ -451,6 +451,8 @@ public:
 	[[nodiscard]] rpl::producer<not_null<const ViewElement*>> viewRemoved() const;
 	void notifyHistoryCleared(not_null<const History*> history);
 	[[nodiscard]] rpl::producer<not_null<const History*>> historyCleared() const;
+	void notifyHistoryAccessLost(not_null<History*> history);
+	[[nodiscard]] rpl::producer<not_null<History*>> historyAccessLost() const;
 	void notifyHistoryChangeDelayed(not_null<History*> history);
 	[[nodiscard]] rpl::producer<not_null<History*>> historyChanged() const;
 	void notifyViewPaidReactionSent(not_null<const ViewElement*> view);
@@ -1233,6 +1235,7 @@ private:
 	rpl::event_stream<not_null<Calls::GroupCall*>> _callPaidReactionSent;
 	rpl::event_stream<not_null<const History*>> _historyUnloaded;
 	rpl::event_stream<not_null<const History*>> _historyCleared;
+	rpl::event_stream<not_null<History*>> _historyAccessLost;
 	base::flat_set<not_null<History*>> _historiesChanged;
 	rpl::event_stream<not_null<History*>> _historyChanged;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;

@@ -278,6 +278,13 @@ void HistoryMessages::addNew(MsgId messageId) {
 	_chat.addNew(messageId);
 }
 
+std::optional<int> HistoryMessages::countAfter(
+		MsgId tillId,
+		int limit,
+		Fn<bool(MsgId)> counts) const {
+	return _chat.countAfter(tillId, limit, std::move(counts));
+}
+
 void HistoryMessages::addExisting(MsgId messageId, MsgRange noSkipRange) {
 	_chat.addExisting(messageId, noSkipRange);
 }

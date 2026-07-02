@@ -2532,6 +2532,14 @@ rpl::producer<not_null<const History*>> Session::historyCleared() const {
 	return _historyCleared.events();
 }
 
+void Session::notifyHistoryAccessLost(not_null<History*> history) {
+	_historyAccessLost.fire_copy(history);
+}
+
+rpl::producer<not_null<History*>> Session::historyAccessLost() const {
+	return _historyAccessLost.events();
+}
+
 void Session::notifyHistoryChangeDelayed(not_null<History*> history) {
 	history->setHasPendingResizedItems();
 	_historiesChanged.insert(history);

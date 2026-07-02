@@ -131,7 +131,6 @@ void BottomControls::updateControlsVisibility() {
 		&& !_joinGroup
 		&& !_openChatButton
 		&& !_aboutHiddenAuthor) {
-		updateSendRestriction();
 		recomputeContentHeight();
 		_isButtonActive = false;
 		return;
@@ -172,12 +171,8 @@ void BottomControls::updateControlsVisibility() {
 		} else {
 			toggle(nullptr);
 		}
-		if (_sendRestriction) {
-			_sendRestriction->hide();
-		}
 	} else {
 		toggle(nullptr);
-		updateSendRestriction();
 	}
 	_isButtonActive = active;
 	recomputeContentHeight();
@@ -505,70 +500,6 @@ void BottomControls::refreshDirectMessageShown() {
 	}
 }
 
-void BottomControls::updateSendRestriction() {
-	const auto restriction = computeSendRestriction();
-	if (_sendRestrictionKey == restriction.text) {
-		return;
-	}
-	_sendRestrictionKey = restriction.text;
-	if (!restriction) {
-		_sendRestriction = nullptr;
-	} else if (restriction.frozen) {
-		const auto show = _controller->uiShow();
-		_sendRestriction = FrozenWriteRestriction(
-			this,
-			show,
-			FrozenWriteRestrictionType::MessageField);
-	} else if (restriction.premiumToLift) {
-		_sendRestriction = PremiumRequiredSendRestriction(
-			this,
-			_peer->asUser(),
-			_controller);
-	} else if (const auto lifting = restriction.boostsToLift) {
-		const auto show = _controller->uiShow();
-		_sendRestriction = BoostsToLiftWriteRestriction(
-			this,
-			show,
-			_peer,
-			lifting);
-	} else {
-		_sendRestriction = TextErrorSendRestriction(this, restriction.text);
-	}
-	if (_sendRestriction) {
-		_sendRestriction->show();
-		_sendRestriction->resize(width(), _sendRestriction->height());
-		_sendRestriction->move(0, 0);
-	}
-}
-
-Data::SendError BottomControls::computeSendRestriction() const {
-	if (_mode != BottomControlsMode::History) {
-		return Data::SendError();
-	}
-	if (!_canSendMessages
-		&& _peer->amMonoforumAdmin()
-		&& !_peer->asChannel()->monoforumDisabled()) {
-		return Data::SendError({
-			.text = tr::lng_monoforum_choose_to_reply(tr::now),
-			.monoforumAdmin = true,
-		});
-	}
-	const auto allWithoutPolls = Data::AllSendRestrictions()
-		& ~ChatRestriction::SendPolls;
-	if (const auto forum = _peer->forum()) {
-		auto topic = _topic;
-		if (!topic && !_peer->isBot()) {
-			topic = forum->enforceTopicFor(Data::ForumTopic::kGeneralId);
-		}
-		return (topic && !Data::CanSendAnyOf(topic, allWithoutPolls))
-			? Data::RestrictionError(_peer, ChatRestriction::SendOther)
-			: Data::SendError();
-	}
-	return !Data::CanSendAnyOf(_peer, allWithoutPolls)
-		? Data::RestrictionError(_peer, ChatRestriction::SendOther)
-		: Data::SendError();
-}
-
 void BottomControls::recomputeContentHeight() {
 	const auto h = _openChatButton
 		? _openChatButton->height()
@@ -576,8 +507,6 @@ void BottomControls::recomputeContentHeight() {
 		? st::historyUnblock.height
 		: isButtonActive()
 		? st::historyComposeButton.height
-		: _sendRestriction
-		? _sendRestriction->height()
 		: 0;
 	if (h > 0) {
 		resize(width(), h);
@@ -678,13 +607,6 @@ void BottomControls::resizeEvent(QResizeEvent *e) {
 	}
 	if (_reportMessages) {
 		_reportMessages->setGeometry(fullRect);
-	}
-	if (_sendRestriction) {
-		_sendRestriction->setGeometry(
-			0,
-			0,
-			w,
-			_sendRestriction->height());
 	}
 }
 
