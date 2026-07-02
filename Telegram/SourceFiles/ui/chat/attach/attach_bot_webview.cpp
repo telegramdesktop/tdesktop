@@ -2004,23 +2004,11 @@ Panel::ExternalShellAnchor Panel::externalShellAnchor() const {
 	}
 	auto popupAnchor = _webview->window.popupAnchor();
 	auto result = ExternalShellAnchor{
+		.anchorGeometry = std::move(popupAnchor.geometry),
 		.outerSize = std::move(popupAnchor.outerSize),
 		.transientParent = CompatibleForeignParent(
 			std::move(popupAnchor.transientParent)),
 	};
-	switch (result.transientParent.type) {
-	case Ui::Platform::ForeignParent::Type::X11:
-		result.anchorGeometry = Ui::Platform::ForeignWindowGeometry(
-			result.transientParent);
-		if (result.anchorGeometry) {
-			result.outerSize = std::nullopt;
-		}
-		break;
-	case Ui::Platform::ForeignParent::Type::None:
-	case Ui::Platform::ForeignParent::Type::Wayland:
-		result.anchorGeometry = std::move(popupAnchor.geometry);
-		break;
-	}
 	if (!result.transientParent
 		&& !result.anchorGeometry
 		&& !result.outerSize) {
