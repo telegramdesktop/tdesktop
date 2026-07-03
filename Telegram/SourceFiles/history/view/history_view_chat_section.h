@@ -88,6 +88,7 @@ class SuggestOptionsBar;
 class AboutView;
 class BottomControls;
 class PaidReactionToast;
+class PullToNextChannel;
 enum class SuggestMode;
 
 struct ChatViewId {

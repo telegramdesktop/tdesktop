@@ -761,11 +761,11 @@ PullToNextChannel::PullToNextChannel(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Ui::ElasticScroll*> scroll,
 	not_null<Window::SessionController*> controller,
-	Fn<bool()> topicBottomReady)
+	Fn<bool()> loadedAtBottom)
 : _parent(parent)
 , _scroll(scroll)
 , _controller(controller)
-, _topicBottomReady(std::move(topicBottomReady))
+, _loadedAtBottom(std::move(loadedAtBottom))
 , _indicator(base::make_unique_q<Indicator>(
 	scroll,
 	controller->chatStyle(),
@@ -848,22 +848,13 @@ bool PullToNextChannel::active() const {
 }
 
 bool PullToNextChannel::atBottom() const {
-	switch (_mode) {
-	case Mode::History: {
-		const auto history = _history.get();
-		return history
-			&& (_scroll->scrollTop() >= _scroll->scrollTopMax())
-			&& history->loadedAtBottom();
-	}
-	case Mode::Topic:
-		return _topic
-			&& (_scroll->scrollTop() >= _scroll->scrollTopMax())
-			&& _topicBottomReady
-			&& _topicBottomReady();
-	case Mode::None:
+	if (_scroll->scrollTop() < _scroll->scrollTopMax()) {
 		return false;
+	} else if (_loadedAtBottom) {
+		return _loadedAtBottom();
 	}
-	Unexpected("Mode in PullToNextChannel::atBottom.");
+	const auto history = _history.get();
+	return history && history->loadedAtBottom();
 }
 
 void PullToNextChannel::handleOverscroll(

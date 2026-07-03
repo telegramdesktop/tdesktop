@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h" // GetErrorForSending.
 #include "history/history_view_pull_to_next_channel.h"
 #include "history/history_item_reply_markup.h"
+#include "history/history_view_pull_to_next_channel.h"
 #include "iv/iv_rich_message_serializer.h"
 #include "iv/iv_rich_page.h"
 #include "ui/chat/choose_theme_controller.h"
@@ -591,7 +592,11 @@ ChatWidget::ChatWidget(
 	}, [=] {
 		return _inner->loadedAtBottomKnown() && _inner->loadedAtBottom();
 	});
-	_pullToNext->setTopic(_topic);
+	if (_topic) {
+		_pullToNext->setTopic(_topic);
+	} else if (mode() == Mode::History) {
+		_pullToNext->setHistory(_history);
+	}
 	_scroll->setBottomContentRequest([=] {
 		return appendSponsoredMessages();
 	});

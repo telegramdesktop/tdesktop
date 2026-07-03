@@ -37,7 +37,7 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		not_null<Ui::ElasticScroll*> scroll,
 		not_null<Window::SessionController*> controller,
-		Fn<bool()> topicBottomReady = nullptr);
+		Fn<bool()> loadedAtBottom = nullptr);
 	~PullToNextChannel();
 
 	void setHistory(History *history);
@@ -74,7 +74,7 @@ private:
 	const not_null<Ui::RpWidget*> _parent;
 	const not_null<Ui::ElasticScroll*> _scroll;
 	const not_null<Window::SessionController*> _controller;
-	const Fn<bool()> _topicBottomReady;
+	const Fn<bool()> _loadedAtBottom;
 	const base::unique_qptr<Indicator> _indicator;
 	const base::unique_qptr<HintOverlay> _hint;
 
