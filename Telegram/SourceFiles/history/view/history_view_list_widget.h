@@ -378,6 +378,17 @@ public:
 	[[nodiscard]] bool loadedAtBottomKnown() const;
 	[[nodiscard]] bool loadedAtBottom() const;
 	[[nodiscard]] bool appendToEnd(not_null<HistoryItem*> item);
+	struct InjectAfterLookup {
+		HistoryItem *after = nullptr;
+		bool ranOffEnd = false;
+	};
+	[[nodiscard]] InjectAfterLookup lookupInjectAfter(
+		HistoryItem *anchor,
+		int minCount,
+		int minHeight) const;
+	[[nodiscard]] bool insertAfter(
+		not_null<HistoryItem*> after,
+		not_null<HistoryItem*> item);
 	[[nodiscard]] bool insideJumpToEndInsteadOfToUnread() const;
 	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
 	[[nodiscard]] bool isEmpty() const;
@@ -660,6 +671,7 @@ private:
 	void updateAroundPositionFromNearest(int nearestIndex);
 	void refreshRows(const Data::MessagesSlice &old);
 	ScrollTopState countScrollState() const;
+	void rememberScrollAnchor();
 	void saveScrollState();
 	void restoreScrollState();
 

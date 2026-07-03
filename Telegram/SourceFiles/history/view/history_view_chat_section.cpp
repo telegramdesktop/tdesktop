@@ -4659,15 +4659,46 @@ void ChatWidget::requestSponsoredMessages() {
 	checkState();
 }
 
-void ChatWidget::injectSponsoredMessages() const {
-	if (mode() != Mode::History || _topic) {
+void ChatWidget::injectSponsoredMessages() {
+	if (mode() != Mode::History || _topic || _injectingSponsored) {
 		return;
 	}
-	session().sponsoredMessages().inject(
-		_history,
-		_lastShownAt.msg,
-		_scroll->height() * 2,
-		_scroll->width());
+	_injectingSponsored = true;
+	while (injectNextSponsoredMessage()) {
+	}
+	_injectingSponsored = false;
+}
+
+bool ChatWidget::injectNextSponsoredMessage() {
+	auto &sponsored = session().sponsoredMessages();
+	const auto state = sponsored.injectState(_history);
+	if (!state) {
+		return false;
+	}
+	const auto useUnreadBar = !state->lastInjected
+		&& (_lastShownAt.msg == ShowAtUnreadMsgId);
+	const auto anchor = state->lastInjected
+		? state->lastInjected
+		: useUnreadBar
+		? nullptr
+		: session().data().message(_lastShownAt);
+	if (!anchor && !useUnreadBar) {
+		return false;
+	}
+	const auto lookup = _inner->lookupInjectAfter(
+		anchor,
+		state->postsBetween,
+		_scroll->height() * 2);
+	if (!lookup.after
+		|| (lookup.ranOffEnd
+			&& (state->injectedAny
+				|| !_inner->loadedAtBottomKnown()
+				|| !_inner->loadedAtBottom()))) {
+		return false;
+	}
+	const auto after = not_null{ lookup.after };
+	const auto item = sponsored.injectItem(_history, after);
+	return (item != nullptr) && _inner->insertAfter(after, item);
 }
 
 bool ChatWidget::appendSponsoredMessages() {

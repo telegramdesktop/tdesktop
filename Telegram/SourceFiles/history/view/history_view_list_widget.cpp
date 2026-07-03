@@ -839,20 +839,81 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	_delegate->listContentRefreshed();
 }
 
-bool ListWidget::appendToEnd(not_null<HistoryItem*> item) {
-	if (_slice.skippedAfter != 0
-		|| ranges::contains(_slice.ids, item->fullId())) {
-		return false;
-	}
+void ListWidget::rememberScrollAnchor() {
 	if (!_scrollTopState.item && !_items.empty()) {
 		const auto top = findItemByY(_visibleTop);
 		_scrollTopState.item = top->data()->position();
 		_scrollTopState.shift = _visibleTop - itemTop(top);
 	}
+}
+
+bool ListWidget::appendToEnd(not_null<HistoryItem*> item) {
+	if (_slice.skippedAfter != 0
+		|| ranges::contains(_slice.ids, item->fullId())) {
+		return false;
+	}
+	rememberScrollAnchor();
 	const auto old = _slice;
 	_slice.ids.push_back(item->fullId());
 	refreshRows(old);
 	return true;
+}
+
+bool ListWidget::insertAfter(
+		not_null<HistoryItem*> after,
+		not_null<HistoryItem*> item) {
+	if (ranges::contains(_slice.ids, item->fullId())) {
+		return false;
+	}
+	const auto i = ranges::find(_slice.ids, after->fullId());
+	if (i == end(_slice.ids)) {
+		return false;
+	}
+	const auto index = int(i - begin(_slice.ids));
+	rememberScrollAnchor();
+	const auto old = _slice;
+	_slice.ids.insert(begin(_slice.ids) + index + 1, item->fullId());
+	refreshRows(old);
+	return true;
+}
+
+ListWidget::InjectAfterLookup ListWidget::lookupInjectAfter(
+		HistoryItem *anchor,
+		int minCount,
+		int minHeight) const {
+	const auto from = anchor
+		? ranges::find(_items, anchor, [](not_null<Element*> view) {
+			return view->data().get();
+		})
+		: _bar.element
+		? ranges::find(_items, not_null{ _bar.element })
+		: end(_items);
+	if (from == end(_items)) {
+		return {};
+	}
+	auto count = 0;
+	auto height = 0;
+	auto i = from;
+	while ((count < minCount) || (height < minHeight)) {
+		++i;
+		if (i == end(_items)) {
+			return {
+				.after = _items.back()->data().get(),
+				.ranOffEnd = true,
+			};
+		}
+		++count;
+		height += (*i)->height();
+	}
+	const auto date = (*i)->data()->date();
+	while ((i + 1) != end(_items)
+		&& (*(i + 1))->data()->date() == date) {
+		++i;
+	}
+	return {
+		.after = (*i)->data().get(),
+		.ranOffEnd = ((i + 1) == end(_items)) && !_itemsKnownTillEnd,
+	};
 }
 
 std::optional<int> ListWidget::scrollTopForPosition(
@@ -3254,11 +3315,17 @@ auto ListWidget::countScrollState() const -> ScrollTopState {
 	if (_items.empty() || (_itemsKnownTillEnd && atNewestEdge())) {
 		return { Data::MessagePosition(), 0 };
 	}
-	const auto topItem = findItemByY(_visibleTop);
-	return {
-		topItem->data()->position(),
-		_visibleTop - itemTop(topItem)
-	};
+	const auto index = findItemIndexByY(_visibleTop);
+	for (auto i = index, count = int(_items.size()); i != count; ++i) {
+		const auto view = _items[i];
+		if (!view->data()->isSponsored()) {
+			return {
+				view->data()->position(),
+				_visibleTop - itemTop(view),
+			};
+		}
+	}
+	return { Data::MessagePosition(), 0 };
 }
 
 void ListWidget::keyPressEvent(QKeyEvent *e) {
