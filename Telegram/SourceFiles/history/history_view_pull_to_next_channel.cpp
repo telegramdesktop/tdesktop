@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/call_delayed.h"
-#include "base/event_filter.h"
 #include "base/platform/base_platform_haptic.h"
 #include "core/application.h"
 #include "core/core_settings.h"

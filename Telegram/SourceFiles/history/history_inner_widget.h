@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dragging_scroll_manager.h"
 #include "ui/widgets/middle_click_autoscroll.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/userpic_view.h"
 #include "history/history_message_selection.h"
 #include "history/history_inner_widget_accessibility.h"
