@@ -902,10 +902,17 @@ EOF
 
 FROM builder AS breakpad
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v2024.02.16 --depth=1 https://chromium.googlesource.com/breakpad/breakpad.git
+git init breakpad
 cd breakpad
-git clone -b v2024.02.01 --depth=1 \
-	https://chromium.googlesource.com/linux-syscall-support.git src/third_party/lss
+git remote add origin https://chromium.googlesource.com/breakpad/breakpad.git
+git fetch --depth=1 origin 9aebd3d8ef5a246deb2c929b5666aaba160ebce6
+git reset --hard FETCH_HEAD
+git init src/third_party/lss
+cd src/third_party/lss
+git remote add origin https://chromium.googlesource.com/linux-syscall-support.git
+git fetch --depth=1 origin 29164a80da4d41134950d76d55199ea33fbb9613
+git reset --hard FETCH_HEAD
+cd ../../..
 CFLAGS="$CFLAGS -fno-lto" CXXFLAGS="$CXXFLAGS -fno-lto" ./configure
 make -j$(nproc)
 make DESTDIR=/usr/src/breakpad-cache install
