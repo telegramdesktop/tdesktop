@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/thanos_effect_controller.h"
 
 #include "ui/effects/thanos_effect.h"
-#include "ui/widgets/scroll_area.h"
 #include "ui/chat/chat_style.h"
 #include "ui/painter.h"
 #include "data/data_session.h"

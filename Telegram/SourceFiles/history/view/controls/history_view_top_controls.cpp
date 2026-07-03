@@ -44,8 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/sponsored_message_bar.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/widgets/scroll_area.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 

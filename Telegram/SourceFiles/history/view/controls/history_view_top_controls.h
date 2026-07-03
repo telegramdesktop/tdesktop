@@ -35,7 +35,7 @@ class SlideWrap;
 class GroupCallBar;
 class PinnedBar;
 class RequestsBar;
-class ScrollArea;
+class ElasticScroll;
 } // namespace Ui
 
 namespace HistoryView {
@@ -56,7 +56,7 @@ struct TopControlsDescriptor {
 	Data::ForumTopic *topic = nullptr;
 	Data::SavedSublist *sublist = nullptr;
 	PeerId monoforumPeerId = 0;
-	Ui::ScrollArea *scroll = nullptr;
+	Ui::ElasticScroll *scroll = nullptr;
 	ListWidget *list = nullptr;
 	Fn<int()> keyboardReservedHeight;
 	Fn<void(int)> moveWithTopDelta;
@@ -128,7 +128,7 @@ private:
 	Data::ForumTopic *_topic = nullptr;
 	Data::SavedSublist * const _sublist = nullptr;
 	PeerId _monoforumPeerId = 0;
-	const not_null<Ui::ScrollArea*> _scroll;
+	const not_null<Ui::ElasticScroll*> _scroll;
 	const not_null<ListWidget*> _list;
 	Fn<int()> _keyboardReservedHeight;
 	Fn<void(int)> _moveWithTopDelta;

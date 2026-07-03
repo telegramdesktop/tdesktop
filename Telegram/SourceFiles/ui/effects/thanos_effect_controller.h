@@ -16,7 +16,6 @@ class Session;
 
 namespace Ui {
 class ThanosEffect;
-class ScrollArea;
 struct ChatPaintContext;
 } // namespace Ui
 
