@@ -609,6 +609,7 @@ private:
 
 	bool _loaded = false;
 	bool _maybeSendStart = false;
+	bool _sentFromScheduledTip = false;
 	History *_supportPreloadHistory = nullptr;
 	int _supportPreloadRequest = 0;
 

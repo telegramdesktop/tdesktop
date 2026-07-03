@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_chat_section.h"
 
+#include "history/admin_log/history_admin_log_section.h"
 #include "history/view/controls/history_view_top_controls.h"
 #include "history/view/controls/history_view_bottom_controls.h"
 #include "history/view/controls/history_view_compose_controls.h"
@@ -188,6 +189,18 @@ constexpr auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 		|| (id == ShowForChooseMessagesMsgId);
 }
 
+[[nodiscard]] FullMsgId ResolveHighlightId(
+		not_null<History*> history,
+		MsgId highlightId) {
+	if (highlightId < 0) {
+		const auto migrated = history->migrateFrom();
+		if (migrated && IsServerMsgId(-highlightId)) {
+			return FullMsgId(migrated->peer->id, -highlightId);
+		}
+	}
+	return FullMsgId(history->peer->id, highlightId);
+}
+
 } // namespace
 
 ChatMemento::ChatMemento(
@@ -206,7 +219,7 @@ ChatMemento::ChatMemento(
 		_list.setAroundPosition(Data::MaxMessagePosition);
 	} else if (_highlightId || _id.sublist) {
 		_list.setAroundPosition({
-			.fullId = FullMsgId(_id.history->peer->id, _highlightId),
+			.fullId = ResolveHighlightId(_id.history, _highlightId),
 			.date = TimeId(0),
 		});
 	}
@@ -412,7 +425,13 @@ ChatWidget::ChatWidget(
 			) | rpl::map([=] {
 				return session().scheduledMessages().hasFor(_topic);
 			}) | rpl::type_erased
-			: rpl::single(false),
+			: (_repliesRootId || _sublist)
+			? (rpl::single(false) | rpl::type_erased)
+			: rpl::single(rpl::empty_value()) | rpl::then(
+				session().scheduledMessages().updates(_history)
+			) | rpl::map([=] {
+				return session().scheduledMessages().count(_history) > 0;
+			}) | rpl::type_erased,
 		.currentSuggest = [=] { return suggestOptions(); },
 		.processShortcut = [=](QString shortcut) {
 			const auto messages = &_peer->owner().shortcutMessages();
@@ -904,6 +923,33 @@ ChatWidget::ChatWidget(
 				: tr::lng_channel_not_accessible(tr::now));
 		}
 	}, lifetime());
+
+	if ((mode() == Mode::History) && !_topic) {
+		session().data().sentToScheduled(
+		) | rpl::filter([=](const Data::SentToScheduled &value) {
+			return (value.history == _history);
+		}) | rpl::on_next([=](const Data::SentToScheduled &value) {
+			const auto id = value.scheduledId;
+			crl::on_main(this, [=] {
+				controller->showSection(
+					std::make_shared<HistoryView::ScheduledMemento>(
+						_history,
+						id));
+			});
+		}, lifetime());
+
+		session().data().sentFromScheduled(
+		) | rpl::on_next([=](const Data::SentFromScheduled &value) {
+			if (value.item->awaitingVideoProcessing()
+				&& !_sentFromScheduledTip
+				&& HistoryView::ShowScheduledVideoPublished(
+					controller,
+					value,
+					crl::guard(this, [=] { _sentFromScheduledTip = false; }))) {
+				_sentFromScheduledTip = true;
+			}
+		}, lifetime());
+	}
 
 	if (mode() == Mode::History) {
 		using HistoryUpdateFlag = Data::HistoryUpdate::Flag;
@@ -1721,6 +1767,9 @@ void ChatWidget::setupSwipeReplyAndBack() {
 			return result;
 		}
 		if (data.direction == Qt::RightToLeft) {
+			if (_inner->hasVisibleSimilarChannels()) {
+				return result;
+			}
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				controller()->showBackFromStack();
 			});
@@ -1733,6 +1782,7 @@ void ChatWidget::setupSwipeReplyAndBack() {
 			|| (!view->data()->isRegular()
 				&& (!view->data()->isEphemeral()
 					|| view->data()->out()))
+			|| view->data()->showSimilarChannels()
 			|| view->data()->isService()) {
 			return result;
 		}
@@ -3922,6 +3972,13 @@ void ChatWidget::subscribeToSublist() {
 
 void ChatWidget::unreadCountUpdated() {
 	if (mode() == Mode::History) {
+		const auto migrated = _history->migrateFrom();
+		if (_history->unreadMark() || (migrated && migrated->unreadMark())) {
+			crl::on_main(this, [=] {
+				closeCurrent();
+			});
+			return;
+		}
 		const auto hideCounter = _history->isForum()
 			|| !_history->trackUnreadMessages();
 		refreshUnreadCountBadge(hideCounter
@@ -3984,7 +4041,7 @@ void ChatWidget::restoreState(not_null<ChatMemento*> memento) {
 			anim::type::instant);
 		params.highlight = memento->highlight();
 		showAtPosition(Data::MessagePosition{
-			.fullId = FullMsgId(_peer->id, highlight),
+			.fullId = ResolveHighlightId(_history, highlight),
 			.date = TimeId(0),
 		}, memento->originId(), params);
 	}
@@ -4313,6 +4370,8 @@ void ChatWidget::showFinishedHook() {
 		_topic->saveMeAsActiveSubsectionThread();
 	} else if (_sublist) {
 		_sublist->saveMeAsActiveSubsectionThread();
+	} else if (mode() == Mode::History) {
+		_history->saveMeAsActiveSubsectionThread();
 	}
 
 	updateControlsVisibility();
@@ -5722,6 +5781,18 @@ void ChatWidget::setupShortcuts() {
 						_history));
 				return true;
 			});
+		if (mode() == Mode::History) {
+			const auto channel = _peer->asChannel();
+			const auto hasRecentActions = channel
+				&& (channel->hasAdminRights() || channel->amCreator());
+			if (hasRecentActions) {
+				request->check(Command::ShowAdminLog, 1) && request->handle([=] {
+					controller()->showSection(
+						std::make_shared<AdminLog::SectionMemento>(channel));
+					return true;
+				});
+			}
+		}
 		if ((mode() == Mode::History) && session().supportMode()) {
 			request->check(Command::SupportToggleMuted)
 				&& request->handle([=] {

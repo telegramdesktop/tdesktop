@@ -414,6 +414,7 @@ public:
 	[[nodiscard]] bool canConsumeHorizontalScroll(
 		QPoint position,
 		int delta) const;
+	[[nodiscard]] bool hasVisibleSimilarChannels() const;
 	bool consumeScrollAction(
 		QPoint delta,
 		Qt::ScrollPhase phase,

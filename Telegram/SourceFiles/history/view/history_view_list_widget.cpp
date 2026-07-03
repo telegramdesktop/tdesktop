@@ -2030,6 +2030,24 @@ bool ListWidget::canConsumeHorizontalScroll(QPoint position, int delta) const {
 			delta);
 }
 
+bool ListWidget::hasVisibleSimilarChannels() const {
+	const auto from = std::lower_bound(
+		begin(_items),
+		end(_items),
+		_visibleTop,
+		[this](auto &elem, int top) {
+			return this->itemTop(elem) + elem->height() <= top;
+		});
+	for (auto i = from; i != end(_items); ++i) {
+		if (itemTop(*i) >= _visibleBottom) {
+			break;
+		} else if ((*i)->data()->showSimilarChannels()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool ListWidget::consumeScrollAction(
 		QPoint delta,
 		Qt::ScrollPhase phase,
@@ -3257,9 +3275,16 @@ SelectedItems ListWidget::getSelectedItems() const {
 
 TextSelection ListWidget::getSelectedTextRange(
 		not_null<HistoryItem*> item) const {
-	return (_selectedTextItem == item)
-		? _selectedTextSelection.flatRangeForEdit()
-		: TextSelection();
+	if (!hasSelectedText()) {
+		return TextSelection();
+	} else if (_selectedTextItem == item) {
+		return _selectedTextSelection.flatRangeForEdit();
+	} else if (const auto view = viewForItem(_selectedTextItem)) {
+		if (view->textItem() == item) {
+			return _selectedTextSelection.flatRangeForEdit();
+		}
+	}
+	return TextSelection();
 }
 
 MessageSelection ListWidget::getSelectedTextSelection(
@@ -5045,6 +5070,9 @@ void ListWidget::performDrag() {
 		if (_reactionsManager) {
 			_reactionsManager->updateButton({});
 		}
+		if (_replyButtonManager) {
+			_replyButtonManager->updateButton({});
+		}
 		_delegate->listLaunchDrag(
 			std::move(mimeData),
 			crl::guard(this, [=] { mouseActionUpdate(QCursor::pos()); }));
@@ -5466,6 +5494,9 @@ auto ListWidget::replyToMessageRequested() const
 void ListWidget::replyToMessageRequestNotify(
 		FullReplyTo to,
 		bool forceAnotherChat) {
+	if (!to.quote.empty()) {
+		clearTextSelection();
+	}
 	_requestedToReplyToMessage.fire({ std::move(to), forceAnotherChat });
 }
 

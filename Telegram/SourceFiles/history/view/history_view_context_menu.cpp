@@ -929,7 +929,18 @@ bool AddEditMessageAction(
 	if (!HasEditMessageAction(request, list)) {
 		return false;
 	}
-	const auto item = request.item;
+	const auto item = [&]() -> HistoryItem* {
+		const auto base = request.item;
+		const auto view = base->groupId() ? request.view : nullptr;
+		if (!view) {
+			return base;
+		} else if (const auto quoteItem = request.quote.item) {
+			return quoteItem;
+		} else if (const auto textItem = view->textItem()) {
+			return textItem;
+		}
+		return base;
+	}();
 	if (!item->allowsEdit(base::unixtime::now())) {
 		return false;
 	}

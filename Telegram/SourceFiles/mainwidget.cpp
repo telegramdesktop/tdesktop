@@ -1527,6 +1527,15 @@ void MainWidget::showHistory(
 				}
 			}
 		}
+		const auto wasActivePeer = _controller->activeChatCurrent().peer();
+		if (wasActivePeer
+			&& (wasActivePeer != history->peer)
+			&& (way != Way::Forward)) {
+			ClearBotStartToken(wasActivePeer);
+		}
+		if (wasActivePeer != history->peer) {
+			session().api().views().removeIncremented(history->peer);
+		}
 		auto memento = std::make_shared<ChatMemento>(
 			ChatViewId{ .history = history },
 			showAtMsgId,
@@ -1543,6 +1552,14 @@ void MainWidget::showHistory(
 		auto showParams = params;
 		showParams.way = way;
 		showSection(std::move(memento), showParams);
+		if (_dialogs && !_dialogs->isHidden()) {
+			if (way != Way::Backward) {
+				_dialogs->scrollToEntry(Dialogs::RowDescriptor(
+					history,
+					FullMsgId(history->peer->id, showAtMsgId)));
+			}
+			_dialogs->update();
+		}
 		return;
 	}
 
@@ -2348,7 +2365,10 @@ bool MainWidget::showBackFromStack(const SectionShow &params) {
 
 	auto item = std::move(_stack.back());
 	_stack.pop_back();
-	if (const auto currentHistoryPeer = _history->peer()) {
+	const auto currentHistoryPeer = _history->peer()
+		? _history->peer()
+		: _controller->activeChatCurrent().peer();
+	if (currentHistoryPeer) {
 		ClearBotStartToken(currentHistoryPeer);
 	}
 	_thirdSectionFromStack = item->takeThirdSectionMemento();
