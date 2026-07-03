@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "dialogs/dialogs_row.h"
 #include "history/history.h"
-#include "history/history_inner_widget.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "storage/storage_shared_media.h"
@@ -36,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_thumbnails.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
-#include "ui/ui_utility.h"
 #include "ui/userpic_view.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -797,10 +795,6 @@ PullToNextChannel::PullToNextChannel(
 }
 
 PullToNextChannel::~PullToNextChannel() = default;
-
-void PullToNextChannel::attachToContent(not_null<HistoryInner*>) {
-	reset(anim::type::instant);
-}
 
 void PullToNextChannel::setHistory(History *history) {
 	const auto mode = history ? Mode::History : Mode::None;

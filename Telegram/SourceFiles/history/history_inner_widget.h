@@ -165,10 +165,6 @@ public:
 
 	void setItemsRevealHeight(int revealHeight);
 	void changeItemsRevealHeight(int revealHeight);
-	void setPullBottomInset(int inset);
-	[[nodiscard]] int pullBottomInset() const {
-		return _pullBottomInset;
-	}
 	void checkActivation();
 	void recountHistoryGeometry(bool initial = false);
 	void updateSize();
@@ -597,7 +593,6 @@ private:
 	int _historyMarginTop = 0;
 	int _historyMarginBottom = 0;
 	int _revealHeight = 0;
-	int _pullBottomInset = 0;
 	int _forumThreadBarWidth = 0;
 	Ui::PeerUserpicView _forumThreadBarUserpicView;
 

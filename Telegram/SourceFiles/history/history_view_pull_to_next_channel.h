@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 
 class History;
-class HistoryInner;
 
 namespace Ui {
 class RpWidget;
@@ -41,11 +40,9 @@ public:
 		Fn<bool()> topicBottomReady = nullptr);
 	~PullToNextChannel();
 
-	void attachToContent(not_null<HistoryInner*> inner);
-
 	void setHistory(History *history);
 	void setTopic(Data::ForumTopic *topic);
-
+	void reset(anim::type animated);
 	void updateGeometry();
 
 private:
@@ -68,7 +65,6 @@ private:
 	void startExpand(bool ready);
 	void pushIndicator();
 	void clearState();
-	void reset(anim::type animated);
 	void jumpWhenReady(base::weak_ptr<History> next, crl::time waited);
 	void jumpTo(not_null<History*> history);
 	void jumpToTopic(

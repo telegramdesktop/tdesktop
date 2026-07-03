@@ -3283,7 +3283,7 @@ void HistoryWidget::showHistory(
 
 		_list = _scroll->setOwnedWidget(
 			object_ptr<HistoryInner>(this, _scroll, controller(), _history));
-		_pullToNext->attachToContent(_list);
+		_pullToNext->reset(anim::type::instant);
 		_list->sendIntroSticker(
 		) | rpl::on_next([=](not_null<DocumentData*> sticker) {
 			sendExistingDocument(
