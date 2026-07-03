@@ -592,6 +592,9 @@ ChatWidget::ChatWidget(
 		return _inner->loadedAtBottomKnown() && _inner->loadedAtBottom();
 	});
 	_pullToNext->setTopic(_topic);
+	_scroll->setBottomContentRequest([=] {
+		return appendSponsoredMessages();
+	});
 	_scroll->scrolls(
 	) | rpl::on_next([=] {
 		onScroll();
@@ -998,6 +1001,9 @@ ChatWidget::~ChatWidget() {
 		controller()->saveSubsectionTabs(base::take(_subsectionTabs));
 	}
 	if (mode() == Mode::History) {
+		if (!_topic) {
+			session().sponsoredMessages().clearItems(_history);
+		}
 		auto state = ListMemento();
 		_inner->saveState(&state);
 		saveHistoryScrollState(state);
@@ -4662,6 +4668,44 @@ void ChatWidget::injectSponsoredMessages() const {
 		_lastShownAt.msg,
 		_scroll->height() * 2,
 		_scroll->width());
+}
+
+bool ChatWidget::appendSponsoredMessages() {
+	if (mode() != Mode::History
+		|| _topic
+		|| !_inner->loadedAtBottomKnown()
+		|| !_inner->loadedAtBottom()) {
+		return false;
+	}
+	using Result = Data::SponsoredMessages::AppendResult;
+	const auto tryToAppend = [=] {
+		const auto result = session().sponsoredMessages().append(_history);
+		if (result == Result::Appended && !showAppendedSponsored()) {
+			return Result::None;
+		}
+		return result;
+	};
+	const auto result = tryToAppend();
+	if (result == Result::MediaLoading
+		&& !_historySponsoredPreloading) {
+		session().downloaderTaskFinished(
+		) | rpl::on_next([=] {
+			if (tryToAppend() != Result::MediaLoading) {
+				_historySponsoredPreloading.destroy();
+			}
+		}, _historySponsoredPreloading);
+	}
+	return (result == Result::Appended);
+}
+
+bool ChatWidget::showAppendedSponsored() {
+	auto shown = false;
+	for (const auto &item : _history->clientSideMessages()) {
+		if (item->isSponsored() && _inner->appendToEnd(item)) {
+			shown = true;
+		}
+	}
+	return shown;
 }
 
 rpl::producer<Data::MessagesSlice> ChatWidget::historySource(

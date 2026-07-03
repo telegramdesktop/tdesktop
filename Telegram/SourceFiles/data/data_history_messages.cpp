@@ -212,6 +212,11 @@ void AppendHistoryClientSideMessages(
 					break;
 				}
 			}
+			if (item->isSponsored()
+				&& (to == dates.size())
+				&& (slice->skippedAfter != 0)) {
+				continue;
+			}
 			dates.insert(dates.begin() + to, date);
 			slice->ids.insert(slice->ids.begin() + to, item->fullId());
 		}

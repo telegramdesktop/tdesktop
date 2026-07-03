@@ -286,6 +286,8 @@ private:
 	void markLoaded();
 	void requestSponsoredMessages();
 	void injectSponsoredMessages() const;
+	[[nodiscard]] bool appendSponsoredMessages();
+	[[nodiscard]] bool showAppendedSponsored();
 	void requestMessageData(MsgId msgId);
 	void messageDataReceived(not_null<PeerData*> peer, MsgId msgId);
 	void clearSupportPreloadRequest();
@@ -588,6 +590,7 @@ private:
 	FullMsgId _lastShownAt;
 	HistoryView::CornerButtons _cornerButtons;
 	rpl::lifetime _topicLifetime;
+	rpl::lifetime _historySponsoredPreloading;
 
 	Ui::Controls::SwipeContextData _gestureHorizontal;
 	Ui::Controls::SwipeBackResult _swipeBackData;

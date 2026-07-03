@@ -797,7 +797,8 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	for (auto e = end(_items), i = e - revealCount; i != e; ++i) {
 		const auto item = (*i)->data();
 		const auto streamed = item->history()->streamedDraftsIfExists();
-		if (!streamed || !streamed->hasFor(item)) {
+		if (!item->isSponsored()
+			&& (!streamed || !streamed->hasFor(item))) {
 			_itemRevealPending.emplace(*i);
 		}
 	}
@@ -836,6 +837,22 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	}
 	checkActivation();
 	_delegate->listContentRefreshed();
+}
+
+bool ListWidget::appendToEnd(not_null<HistoryItem*> item) {
+	if (_slice.skippedAfter != 0
+		|| ranges::contains(_slice.ids, item->fullId())) {
+		return false;
+	}
+	if (!_scrollTopState.item && !_items.empty()) {
+		const auto top = findItemByY(_visibleTop);
+		_scrollTopState.item = top->data()->position();
+		_scrollTopState.shift = _visibleTop - itemTop(top);
+	}
+	const auto old = _slice;
+	_slice.ids.push_back(item->fullId());
+	refreshRows(old);
+	return true;
 }
 
 std::optional<int> ListWidget::scrollTopForPosition(
