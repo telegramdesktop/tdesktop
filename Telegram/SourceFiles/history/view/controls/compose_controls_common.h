@@ -79,6 +79,7 @@ struct SetHistoryArgs {
 	MsgId topicRootId = 0;
 	PeerId monoforumPeerId = 0;
 	Fn<bool()> showSlowmodeError;
+	Fn<bool()> showScheduleSendError;
 	Fn<Api::SendAction()> sendActionFactory;
 	Fn<void(TextWithEntities, Api::SendOptions, Fn<void()>)> sendWithText;
 	rpl::producer<int> slowmodeSecondsLeft;

@@ -515,6 +515,7 @@ private:
 	[[nodiscard]] bool isChoosingTheme() const;
 	[[nodiscard]] bool emptyShown() const;
 	[[nodiscard]] bool showSlowmodeError();
+	[[nodiscard]] bool showScheduleSendError();
 
 	const not_null<History*> _history;
 	const not_null<PeerData*> _peer;
@@ -606,6 +607,7 @@ private:
 	crl::time _lastUserScrolled = 0;
 
 	bool _choosingAttach = false;
+	bool _justMarkingAsRead = false;
 
 	bool _loaded = false;
 	bool _maybeSendStart = false;

@@ -752,11 +752,13 @@ ChatWidget::ChatWidget(
 			const auto replyMatches = action.replyTo.messageId
 				&& (action.replyTo.messageId
 					== _composeControls->replyingToMessage().messageId);
-			if (replyMatches || lastKeyboardUsed) {
-				cancelReply(lastKeyboardUsed);
-			}
-			if (mode() == Mode::History) {
-				cancelSuggestPost();
+			if (action.options.scheduled || !_justMarkingAsRead) {
+				if (replyMatches || lastKeyboardUsed) {
+					cancelReply(lastKeyboardUsed);
+				}
+				if (mode() == Mode::History) {
+					cancelSuggestPost();
+				}
 			}
 			if (action.options.scheduled) {
 				if (_topic) {
@@ -1485,6 +1487,7 @@ void ChatWidget::setupComposeControls() {
 		.topicRootId = resolvedTopicRootId(),
 		.monoforumPeerId = _monoforumPeerId,
 		.showSlowmodeError = [=] { return showSlowmodeError(); },
+		.showScheduleSendError = [=] { return showScheduleSendError(); },
 		.sendActionFactory = [=] { return prepareSendAction({}); },
 		.sendWithText = [=](
 				TextWithEntities &&text,
@@ -1987,6 +1990,8 @@ void ChatWidget::sendingFilesConfirmed(
 		return;
 	}
 
+	auto action = prepareSendAction(options);
+	action.clearDraft = false;
 	if (!ephemeralReply) {
 		const auto withPaymentApproved = [=](int approved) {
 			auto copy = options;
@@ -1995,7 +2000,7 @@ void ChatWidget::sendingFilesConfirmed(
 		};
 		const auto checked = checkSendPayment(
 			bundle->totalCount,
-			options,
+			action.options,
 			withPaymentApproved);
 		if (!checked) {
 			return;
@@ -2004,8 +2009,6 @@ void ChatWidget::sendingFilesConfirmed(
 
 	const auto compress = bundle->way.sendImagesAsPhotos();
 	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
-	auto action = prepareSendAction(options);
-	action.clearDraft = false;
 	auto &api = session().api();
 	for (auto &group : bundle->groups) {
 		const auto album = (group.type != Ui::AlbumType::None)
@@ -2048,6 +2051,7 @@ bool ChatWidget::showSlowmodeError() {
 		} else if (_peer->slowmodeApplied()) {
 			if (const auto item = _history->latestSendingMessage()) {
 				showAtPosition(item->position());
+				_inner->highlightMessage(item->fullId(), {});
 				return tr::lng_slowmode_no_many(tr::now);
 			}
 		}
@@ -2058,6 +2062,29 @@ bool ChatWidget::showSlowmodeError() {
 	}
 	controller()->showToast(text);
 	return true;
+}
+
+bool ChatWidget::showScheduleSendError() {
+	if (!_canSendMessages) {
+		return false;
+	}
+	const auto richPage = _composeControls->shownRichMessage();
+	const auto richMessage = (richPage != nullptr);
+	const auto text = _composeControls->getTextWithAppliedMarkdown();
+	auto request = SendingErrorRequest{
+		.topicRootId = resolvedTopicRootId(),
+		.forward = &_composeControls->forwardItems(),
+		.text = richMessage ? nullptr : &text,
+		.ignoreSlowmodeCountdown = true,
+		.richMessage = richMessage,
+	};
+	request.messagesCount = ComputeSendingMessagesCount(_history, request);
+	const auto error = GetErrorForSending(_peer, request);
+	if (error) {
+		Data::ShowSendErrorToast(controller(), _peer, error);
+		return true;
+	}
+	return false;
 }
 
 void ChatWidget::pushReplyReturn(not_null<HistoryItem*> item) {
@@ -2180,15 +2207,15 @@ void ChatWidget::sendVoice(const ComposeControls::VoiceToSend &data) {
 		copy.options.starsApproved = approved;
 		sendVoice(copy);
 	};
+	auto action = prepareSendAction(data.options);
 	const auto checked = checkSendPayment(
-		1,
-		data.options,
+		1 + int(_composeControls->forwardItems().size()),
+		action.options,
 		withPaymentApproved);
 	if (!checked) {
 		return;
 	}
 
-	auto action = prepareSendAction(data.options);
 	session().api().sendVoiceMessage(
 		data.bytes,
 		data.waveform,
@@ -2242,7 +2269,7 @@ void ChatWidget::sendRichDraft(
 	}
 
 	auto request = SendingErrorRequest{
-		.topicRootId = _topic ? _topic->rootId() : MsgId(0),
+		.topicRootId = resolvedTopicRootId(),
 		.forward = &_composeControls->forwardItems(),
 		.messagesCount = 1,
 		.ignoreSlowmodeCountdown = (options.scheduled != 0),
@@ -2289,6 +2316,7 @@ void ChatWidget::sendRichDraft(
 		}
 		return;
 	}
+	auto action = prepareSendAction(options);
 	if (!options.scheduled && !ephemeral) {
 		const auto withPaymentApproved = [=](int approved) {
 			auto copy = options;
@@ -2297,7 +2325,7 @@ void ChatWidget::sendRichDraft(
 		};
 		const auto checked = checkSendPayment(
 			request.messagesCount,
-			options,
+			action.options,
 			withPaymentApproved);
 		if (!checked) {
 			return;
@@ -2307,17 +2335,15 @@ void ChatWidget::sendRichDraft(
 	session().api().sendRichMessage(
 		page,
 		*serialized.value,
-		prepareSendAction(options));
+		action);
 
 	_composeControls->clear();
 	_composeControls->applyCloudDraft();
-	if (_repliesRootId) {
-		session().sendProgressManager().update(
-			_history,
-			_repliesRootId,
-			Api::SendProgressType::Typing,
-			-1);
-	}
+	session().sendProgressManager().update(
+		_history,
+		_repliesRootId,
+		Api::SendProgressType::Typing,
+		-1);
 	finishSending();
 }
 
@@ -2361,7 +2387,7 @@ void ChatWidget::sendTextWithTags(
 
 	const auto ephemeral = session().ephemeralMessages().wouldSend(message);
 	auto request = SendingErrorRequest{
-		.topicRootId = _topic ? _topic->rootId() : MsgId(0),
+		.topicRootId = resolvedTopicRootId(),
 		.forward = &_composeControls->forwardItems(),
 		.text = &message.textWithTags,
 		.ignoreSlowmodeCountdown = (options.scheduled != 0),
@@ -2373,7 +2399,7 @@ void ChatWidget::sendTextWithTags(
 		Data::ShowSendErrorToast(controller(), _peer, error);
 		return;
 	}
-	if (!options.scheduled && !ephemeral) {
+	if (!ephemeral) {
 		const auto withPaymentApproved = [=](int approved) {
 			auto copy = options;
 			copy.starsApproved = approved;
@@ -2381,7 +2407,7 @@ void ChatWidget::sendTextWithTags(
 		};
 		const auto checked = checkSendPayment(
 			request.messagesCount,
-			options,
+			message.action.options,
 			withPaymentApproved);
 		if (!checked) {
 			return;
@@ -2403,9 +2429,13 @@ void ChatWidget::sendTextWithTags(
 		});
 	}
 
+	const auto justMarkingAsRead = !hasText
+		&& message.webPage.url.isEmpty();
+	_justMarkingAsRead = justMarkingAsRead;
 	session().api().sendMessage(std::move(message), nextLocalMessageId);
+	_justMarkingAsRead = false;
 
-	_composeControls->clear();
+	_composeControls->clear(justMarkingAsRead);
 	session().sendProgressManager().update(
 		_history,
 		_repliesRootId,
@@ -2449,11 +2479,13 @@ void ChatWidget::edit(
 	const auto hasMediaWithCaption = item
 		&& item->media()
 		&& item->media()->allowsEditCaption();
-	if (sending.text.isEmpty() && !hasMediaWithCaption) {
-		if (item) {
+	if (sending.text.isEmpty()
+		&& (webpage.removed
+			|| webpage.url.isEmpty()
+			|| !webpage.manual)
+		&& !hasMediaWithCaption) {
+		if (item->computeSuggestionActions() == SuggestionActions::None) {
 			controller()->show(Box<DeleteMessagesBox>(item));
-		} else {
-			doSetInnerFocus();
 		}
 		return;
 	} else {
@@ -2514,6 +2546,25 @@ void ChatWidget::edit(
 		})();
 		return true;
 	};
+
+	if (item->computeSuggestionActions()
+		== SuggestionActions::AcceptAndDecline) {
+		const auto fullId = item->fullId();
+		const auto withPaymentApproved = [=](int approved) {
+			if (const auto item = session().data().message(fullId)) {
+				auto copy = options;
+				copy.starsApproved = approved;
+				edit(item, copy, saveEditMsgRequestId, spoilered, videoCover);
+			}
+		};
+		const auto checked = checkSendPayment(
+			1 + int(_composeControls->forwardItems().size()),
+			options,
+			withPaymentApproved);
+		if (!checked) {
+			return;
+		}
+	}
 
 	*saveEditMsgRequestId = Api::EditTextMessage(
 		item,
@@ -2935,6 +2986,7 @@ bool ChatWidget::sendExistingPhoto(
 		return false;
 	}
 
+	const auto action = prepareSendAction(options);
 	if (!ephemeralReply) {
 		const auto withPaymentApproved = [=](int approved) {
 			auto copy = options;
@@ -2943,7 +2995,7 @@ bool ChatWidget::sendExistingPhoto(
 		};
 		const auto checked = checkSendPayment(
 			1,
-			options,
+			action.options,
 			withPaymentApproved);
 		if (!checked) {
 			return false;
@@ -2951,7 +3003,7 @@ bool ChatWidget::sendExistingPhoto(
 	}
 
 	Api::SendExistingPhoto(
-		Api::MessageToSend(prepareSendAction(options)),
+		Api::MessageToSend(action),
 		photo);
 
 	_composeControls->cancelReplyMessage();
@@ -2990,6 +3042,8 @@ void ChatWidget::sendInlineResult(
 			replyTo().messageId)) {
 		return;
 	}
+	auto action = prepareSendAction(options);
+	action.generateLocal = true;
 	const auto withPaymentApproved = [=](int approved) {
 		auto copy = options;
 		copy.starsApproved = approved;
@@ -2997,14 +3051,12 @@ void ChatWidget::sendInlineResult(
 	};
 	const auto checked = checkSendPayment(
 		1,
-		options,
+		action.options,
 		withPaymentApproved);
 	if (!checked) {
 		return;
 	}
 
-	auto action = prepareSendAction(options);
-	action.generateLocal = true;
 	session().api().sendInlineResult(
 		bot,
 		result.get(),
@@ -5085,11 +5137,12 @@ void ChatWidget::sendBotCommandWithOptions(
 		const QString &command,
 		const FullMsgId &context,
 		Api::SendOptions options) {
+	const auto action = prepareSendAction(options);
 	const auto text = Bot::WrapCommandInChat(
 		_peer,
 		command,
 		context);
-	auto message = Api::MessageToSend(prepareSendAction(options));
+	auto message = Api::MessageToSend(action);
 	message.textWithTags = { text };
 
 	const auto ephemeral = session().ephemeralMessages().wouldSend(message);
@@ -5104,7 +5157,7 @@ void ChatWidget::sendBotCommandWithOptions(
 		};
 		const auto checked = checkSendPayment(
 			1,
-			options,
+			action.options,
 			withPaymentApproved);
 		if (!checked) {
 			return;

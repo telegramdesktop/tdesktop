@@ -290,7 +290,7 @@ public:
 	[[nodiscard]] Data::WebPageDraft webPageDraft() const;
 	[[nodiscard]] std::shared_ptr<const Iv::RichPage> shownRichMessage() const;
 	void setText(const TextWithTags &text);
-	void clear();
+	void clear(bool keepReply = false);
 	void hidePanelsAnimated();
 	void clearListenState();
 
@@ -517,6 +517,7 @@ private:
 	PeerId _monoforumPeerId = 0;
 	BusinessShortcutId _shortcutId = 0;
 	Fn<bool()> _showSlowmodeError;
+	Fn<bool()> _showScheduleSendError;
 	Fn<Api::SendAction()> _sendActionFactory;
 	Fn<void(TextWithEntities, Api::SendOptions, Fn<void()>)> _sendWithText;
 	rpl::variable<int> _slowmodeSecondsLeft;

@@ -1488,6 +1488,7 @@ void ComposeControls::updateShortcutId(BusinessShortcutId shortcutId) {
 
 void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	_showSlowmodeError = std::move(args.showSlowmodeError);
+	_showScheduleSendError = std::move(args.showScheduleSendError);
 	_sendActionFactory = std::move(args.sendActionFactory);
 	_sendWithText = std::move(args.sendWithText);
 	_slowmodeSecondsLeft = rpl::single(0)
@@ -2145,6 +2146,12 @@ auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
 			: SendRequestType::Text;
 		return (sendRequestType == requestType);
 	});
+	auto custom = rpl::filter([=] {
+		const auto sendRequestType = _voiceRecordBar->isListenState()
+			? SendRequestType::Voice
+			: SendRequestType::Text;
+		return (sendRequestType == requestType);
+	});
 	auto map = rpl::map_to(Api::SendOptions());
 	auto submit = rpl::map([=](Qt::KeyboardModifiers modifiers) {
 		return adjustedSupportSendOptions(modifiers);
@@ -2156,7 +2163,7 @@ auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
 		_field->submits() | rpl::filter([=] {
 			return submitSends();
 		}) | filter | submit,
-		_sendCustomRequests.events());
+		_sendCustomRequests.events() | custom);
 }
 
 Api::SendOptions ComposeControls::adjustedSupportSendOptions(
@@ -2416,13 +2423,15 @@ TextWithTags ComposeControls::getTextWithAppliedMarkdown() const {
 	return _field->getTextWithAppliedMarkdown();
 }
 
-void ComposeControls::clear() {
+void ComposeControls::clear(bool keepReply) {
 	// Otherwise cancelReplyMessage() will save the draft.
-	const auto saveTextDraft = !replyingToMessage();
+	const auto saveTextDraft = keepReply || !replyingToMessage();
 	setFieldText(
 		{},
 		saveTextDraft ? TextUpdateEvent::SaveDraft : TextUpdateEvent());
-	cancelReplyMessage();
+	if (!keepReply) {
+		cancelReplyMessage();
+	}
 	clearChosenStarsForMessage();
 	if (_preview) {
 		_preview->apply({ .removed = true });
@@ -2889,7 +2898,7 @@ bool ComposeControls::showRecordButton() const {
 		&& !_voiceRecordBar->isListenState()
 		&& !_voiceRecordBar->isRecordingByAnotherBar()
 		&& !hasSendableContent()
-		&& !readyToForward()
+		&& (replyingToMessage().replying() || !readyToForward())
 		&& !isEditingMessage();
 }
 
@@ -3853,6 +3862,11 @@ void ComposeControls::setupSendMenu(
 			|| action.type == ActionType::RemoveCover) {
 			_header->mediaEditManagerApply(action);
 		} else {
+			if (action.type != ActionType::Send
+				&& _showScheduleSendError
+				&& _showScheduleSendError()) {
+				return;
+			}
 			SendMenu::DefaultCallback(_show, send)(action, details);
 		}
 	};
@@ -4615,11 +4629,17 @@ SendMenu::Details ComposeControls::sendButtonMenuDetails() const {
 	if (showStopButton()) {
 		return {};
 	}
-	return (computeSendButtonType() == Ui::SendButton::Type::Save)
-		? saveMenuDetails()
-		: (computeSendButtonType() == Ui::SendButton::Type::Send)
-		? sendMenuDetails()
-		: SendMenu::Details();
+	const auto type = computeSendButtonType();
+	if (type == Ui::SendButton::Type::Save) {
+		return saveMenuDetails();
+	} else if (type != Ui::SendButton::Type::Send) {
+		return SendMenu::Details();
+	}
+	auto result = sendMenuDetails();
+	if (!hasSendableContent() && !_previewShown) {
+		result.effectAllowed = false;
+	}
+	return result;
 }
 
 void ComposeControls::updateSendButtonType() {
@@ -4650,6 +4670,27 @@ void ComposeControls::updateSendButtonType() {
 		.isEphemeralBotReply(replyingToMessage().messageId);
 	using namespace Calls::Group::Ui;
 	const auto &appConfig = _show->session().appConfig();
+	const auto starsToSend = [&] {
+		if (_chosenStarsCount) {
+			return *_chosenStarsCount;
+		}
+		const auto perMessage = _history
+			? _history->peer->starsPerMessageChecked()
+			: 0;
+		if (!perMessage) {
+			return 0;
+		}
+		const auto richPage = shownRichMessage();
+		const auto richMessage = (richPage != nullptr);
+		const auto messages = _voiceRecordBar->isListenState()
+			? 1
+			: ComputeSendingMessagesCount(_history, {
+				.forward = &forwardItems(),
+				.text = richMessage ? nullptr : &_field->getTextWithTags(),
+				.richMessage = richMessage,
+			});
+		return perMessage * messages;
+	}();
 	_send->setState({
 		.type = type,
 		.fillBgOverride = (_chosenStarsCount.value_or(0)
@@ -4658,7 +4699,7 @@ void ComposeControls::updateSendButtonType() {
 				*_chosenStarsCount).bgLight)
 			: QColor()),
 		.slowmodeDelay = delay,
-		.starsToSend = ephemeralReply ? 0 : shownStarsPerMessage(),
+		.starsToSend = ephemeralReply ? 0 : starsToSend,
 		.forbidden = forbidden,
 	});
 	_send->setDisabled(_sendDisabledBySlowmode.current()
