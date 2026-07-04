@@ -191,6 +191,10 @@ bool BottomControls::isButtonActive() const {
 	return false;
 }
 
+bool BottomControls::botStartShown() const {
+	return _botStart && !_botStart->isHidden();
+}
+
 bool BottomControls::canSendTexts() const {
 	return _canSendTexts;
 }

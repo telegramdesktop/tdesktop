@@ -290,6 +290,7 @@ public:
 	[[nodiscard]] Data::WebPageDraft webPageDraft() const;
 	[[nodiscard]] std::shared_ptr<const Iv::RichPage> shownRichMessage() const;
 	void setText(const TextWithTags &text);
+	void selectAllFieldText();
 	void clear(bool keepReply = false);
 	void hidePanelsAnimated();
 	void clearListenState();

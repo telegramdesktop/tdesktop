@@ -631,6 +631,14 @@ ChatWidget::ChatWidget(
 		if (const auto item = session().data().message(fullId)) {
 			const auto media = item->media();
 			if (!media || media->webpage() || media->allowsEditCaption()) {
+				if (!item->richPage()) {
+					if (isChoosingTheme()) {
+						toggleChooseChatTheme(_peer, false);
+					}
+					if (_composeSearch) {
+						_composeSearch->hideAnimated();
+					}
+				}
 				_composeControls->editMessage(
 					fullId,
 					_inner->getSelectedTextRange(item));
@@ -1574,6 +1582,14 @@ void ChatWidget::setupComposeControls() {
 		}
 	}, lifetime());
 
+	_composeControls->editMsgIdValue(
+	) | rpl::filter([=](FullMsgId value) {
+		return !value && (*saveEditMsgRequestId != 0);
+	}) | rpl::on_next([=](FullMsgId) {
+		session().api().request(
+			base::take(*saveEditMsgRequestId)).cancel();
+	}, lifetime());
+
 	_composeControls->attachRequests(
 	) | rpl::filter([=] {
 		return !_choosingAttach;
@@ -1629,6 +1645,17 @@ void ChatWidget::setupComposeControls() {
 		_composeControls->scrollKeyEvents(),
 		_inner->scrollKeyEvents()
 	) | rpl::on_next([=](not_null<QKeyEvent*> e) {
+		if (e->key() == Qt::Key_Up
+			&& !_bottom->isButtonActive()
+			&& !_composeControls->isEditingMessage()
+			&& !_composeControls->replyingToMessage().replying()) {
+			const auto field = _composeControls->fieldForMention();
+			if (field
+				&& field->empty()
+				&& _inner->lastMessageEditRequestNotify()) {
+				return;
+			}
+		}
 		_scroll->keyPressEvent(e);
 	}, lifetime());
 
@@ -1641,6 +1668,14 @@ void ChatWidget::setupComposeControls() {
 
 	_composeControls->replyNextRequests(
 	) | rpl::on_next([=](ComposeControls::ReplyNextRequest &&data) {
+		if (_composeControls->isEditingMessage()
+			|| (!_topic && _history->isForum())) {
+			return;
+		}
+		const auto reply = _composeControls->replyingToMessage();
+		if (reply.messageId && reply.messageId.peer != _peer->id) {
+			return;
+		}
 		using Direction = ComposeControls::ReplyNextRequest::Direction;
 		_inner->replyNextMessage(
 			data.replyId,
@@ -2540,6 +2575,7 @@ void ChatWidget::edit(
 			} else if (error == u"MESSAGE_NOT_MODIFIED"_q) {
 				_composeControls->cancelEditMessage();
 			} else if (error == u"MESSAGE_EMPTY"_q) {
+				_composeControls->selectAllFieldText();
 				doSetInnerFocus();
 			} else {
 				controller()->showToast(tr::lng_edit_error(tr::now));
@@ -4500,7 +4536,18 @@ void ChatWidget::listDeleteRequest() {
 }
 
 void ChatWidget::listTryProcessKeyInput(not_null<QKeyEvent*> e) {
-	_composeControls->tryProcessKeyInput(e);
+	const auto key = e->key();
+	if ((key == Qt::Key_Return || key == Qt::Key_Enter)
+		&& _bottom->botStartShown()) {
+		sendBotStartCommand();
+	} else if ((key == Qt::Key_O)
+		&& (e->modifiers() == Qt::ControlModifier)) {
+		if (!_choosingAttach) {
+			chooseAttach(std::nullopt);
+		}
+	} else {
+		_composeControls->tryProcessKeyInput(e);
+	}
 }
 
 void ChatWidget::checkSuggestToGigagroup() {

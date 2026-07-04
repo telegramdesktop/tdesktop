@@ -447,6 +447,11 @@ void FieldHeader::init() {
 		updateDisplayedReply();
 	}, lifetime());
 
+	_mediaEditManager.updateRequests(
+	) | rpl::on_next([=] {
+		update();
+	}, lifetime());
+
 	_data->session().changes().messageUpdates(
 		Data::MessageUpdate::Flag::Edited
 		| Data::MessageUpdate::Flag::Destroyed
@@ -2953,7 +2958,9 @@ void ComposeControls::initKeyHandler() {
 			return;
 		}
 		if (key == Qt::Key_Up && !hasModifiers) {
-			if (!isEditingMessage() && _field->empty()) {
+			if (!isEditingMessage()
+				&& _field->empty()
+				&& !replyingToMessage().replying()) {
 				_editLastMessageRequests.fire(std::move(keyEvent));
 				return;
 			}
@@ -3312,7 +3319,13 @@ void ComposeControls::saveDraftDelayed() {
 		cancelPendingDraftSaves();
 		return;
 	}
-	if (!(_textUpdateEvents & TextUpdateEvent::SaveDraft)) {
+	if (!_history || !(_textUpdateEvents & TextUpdateEvent::SaveDraft)) {
+		return;
+	}
+	if (!_field->textCursor().position()
+		&& !_field->textCursor().anchor()
+		&& !_field->scrollTop().current()
+		&& !session().local().hasDraftCursors(_history->peer->id)) {
 		return;
 	}
 	saveDraft(true);
@@ -3391,12 +3404,20 @@ void ComposeControls::writeDraftTexts() {
 	Expects(_history != nullptr);
 
 	session().local().writeDrafts(_history);
+	if (const auto migrated = _history->migrateFrom()) {
+		migrated->clearDrafts();
+		session().local().writeDrafts(migrated);
+	}
 }
 
 void ComposeControls::writeDraftCursors() {
 	Expects(_history != nullptr);
 
 	session().local().writeDraftCursors(_history);
+	if (const auto migrated = _history->migrateFrom()) {
+		migrated->clearDrafts();
+		session().local().writeDraftCursors(migrated);
+	}
 }
 
 void ComposeControls::unregisterDraftSources() {
@@ -3544,6 +3565,9 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		updateFieldVisibility();
 		return;
 	}
+	if (_voiceRecordBar->isActive()) {
+		return;
+	}
 
 	const auto editDraft = _history->draft(draftKey(DraftType::Edit));
 	const auto richDraft = (!editDraft && shouldShowRichDraftPreview())
@@ -3649,9 +3673,6 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 					editingSuggest,
 					_photoEditMedia != nullptr);
 				if (_preview) {
-					_preview->apply(
-						Data::WebPageDraft::FromItem(item),
-						false);
 					_preview->setDisabled(media && !media->webpage());
 				}
 				return true;
@@ -4241,6 +4262,13 @@ void ComposeControls::initVoiceRecordBar() {
 	_voiceRecordBar->updateSendButtonTypeRequests(
 	) | rpl::on_next([=] {
 		updateSendButtonType();
+	}, _wrap->lifetime());
+
+	_voiceRecordBar->cancelRequests(
+	) | rpl::on_next([=] {
+		if (_history && _history->draft(draftKey(DraftType::Normal))) {
+			applyDraft();
+		}
 	}, _wrap->lifetime());
 
 	Shortcuts::Requests(
@@ -5570,9 +5598,14 @@ void ComposeControls::editMessage(
 		return;
 	}
 	editMessage(item);
+	if (_header->editMsgId() != id) {
+		return;
+	}
 	if (!item->richPage()) {
 		SelectTextInFieldWithMargins(_field, selection);
 	}
+	saveDraftWithTextNow();
+	focus();
 }
 
 void ComposeControls::editMessage(not_null<HistoryItem*> item) {
@@ -5589,7 +5622,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 		Iv::Editor::ShowEditBox(_regularWindow, item);
 		return;
 	} else if (_voiceRecordBar->isActive()) {
-		_show->showBox(Ui::MakeInformBox(tr::lng_edit_caption_voice()));
+		_show->showToast(tr::lng_edit_caption_voice(tr::now));
 		return;
 	} else if (const auto media = item->media()) {
 		if (media->todolist()) {
@@ -6203,6 +6236,10 @@ Ui::InputField *ComposeControls::fieldForMention() const {
 	return (_writeRestriction.current() || !_field->isVisible())
 		? nullptr
 		: _field.get();
+}
+
+void ComposeControls::selectAllFieldText() {
+	_field->selectAll();
 }
 
 TextWithEntities ComposeControls::prepareTextForEditMsg() const {

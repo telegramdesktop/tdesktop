@@ -3576,8 +3576,10 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 			|| (key == Qt::Key_PageUp)
 			|| (key == Qt::Key_PageDown))) {
 		_scrollKeyEvents.fire(std::move(e));
-	} else if (!(e->modifiers() & ~Qt::ShiftModifier)
-		&& key != Qt::Key_Shift) {
+	} else if (((key == Qt::Key_O)
+		&& (e->modifiers() == Qt::ControlModifier))
+		|| (!(e->modifiers() & ~Qt::ShiftModifier)
+			&& key != Qt::Key_Shift)) {
 		_delegate->listTryProcessKeyInput(e);
 	} else {
 		e->ignore();
@@ -5470,11 +5472,23 @@ void ListWidget::editMessageRequestNotify(FullMsgId item) const {
 
 bool ListWidget::lastMessageEditRequestNotify() const {
 	const auto now = base::unixtime::now();
+	const auto &list = ranges::views::reverse(_items);
+	const auto notSponsored = ranges::find_if(list, [](
+			not_null<Element*> view) {
+		return !view->data()->isSponsored();
+	});
+	if (notSponsored != end(list) && (*notSponsored)->data()->isLocal()) {
+		const auto last = (*notSponsored)->data();
+		if (last->media() && last->media()->allowsEdit()) {
+			controller()->show(Box(Ui::EditCaptionBox, *notSponsored));
+			return true;
+		}
+		return false;
+	}
 	auto proj = [&](not_null<Element*> view) {
 		return view->data()->allowsEdit(now)
 			&& !view->data()->isUploading();
 	};
-	const auto &list = ranges::views::reverse(_items);
 	const auto it = ranges::find_if(list, std::move(proj));
 	if (it == end(list)) {
 		return false;

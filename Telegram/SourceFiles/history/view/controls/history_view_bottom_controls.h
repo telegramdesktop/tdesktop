@@ -69,6 +69,7 @@ public:
 	void updateReportMessagesText(int selectedCount);
 
 	[[nodiscard]] bool isButtonActive() const;
+	[[nodiscard]] bool botStartShown() const;
 	[[nodiscard]] bool canSendTexts() const;
 	[[nodiscard]] bool hasOpenChatButton() const;
 	[[nodiscard]] bool hasAboutHiddenAuthor() const;
