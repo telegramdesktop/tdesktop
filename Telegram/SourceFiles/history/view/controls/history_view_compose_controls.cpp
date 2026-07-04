@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/field_autocomplete.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/core_settings.h"
 #include "core/shortcuts.h"
 #include "core/ui_integration.h"
@@ -68,12 +69,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "api/api_compose_with_ai.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/click_handler.h"
 #include "ui/color_int_conversion.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_streamed_drafts.h"
+#include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_compose_ai_button.h"
@@ -107,6 +110,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_send.h"
 #include "settings/sections/settings_premium.h"
 #include "support/support_common.h"
+#include "support/support_helper.h"
 #include "ui/item_text_options.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -3019,6 +3023,40 @@ void ComposeControls::initKeyHandler() {
 			}
 		}
 		return Result::Continue;
+	});
+
+	base::install_event_filter(_wrap.get(), _field->rawTextEdit(), [=](
+			not_null<QEvent*> e) {
+		using Result = base::EventFilterResult;
+		if (e->type() != QEvent::KeyPress
+			|| !_history
+			|| !_regularWindow
+			|| !FastButtonsMode()
+			|| !session().fastButtonsBots().enabled(_history->peer)
+			|| !_field->empty()) {
+			return Result::Continue;
+		}
+		const auto k = static_cast<QKeyEvent*>(e.get());
+		const auto key = k->key();
+		if (key < Qt::Key_1 || key > Qt::Key_9 || k->modifiers()) {
+			return Result::Continue;
+		}
+		const auto item = _history->lastMessage();
+		const auto markup = item ? item->inlineReplyKeyboard() : nullptr;
+		const auto link = markup
+			? markup->getLinkByIndex(key - Qt::Key_1)
+			: nullptr;
+		if (!link) {
+			return Result::Continue;
+		}
+		ActivateClickHandler(_wrap.get(), link, {
+			Qt::LeftButton,
+			QVariant::fromValue(ClickHandlerContext{
+				.itemId = item->fullId(),
+				.sessionWindow = base::make_weak(_regularWindow),
+			}),
+		});
+		return Result::Cancel;
 	});
 
 	base::install_event_filter(_wrap.get(), _field, [=](
