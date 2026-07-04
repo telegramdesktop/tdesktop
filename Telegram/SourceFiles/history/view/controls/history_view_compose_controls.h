@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class DocumentData;
 class Image;
+struct InlineBotQuery;
 
 namespace style {
 struct ComposeControls;
@@ -224,6 +225,7 @@ public:
 			std::shared_ptr<Ui::PreparedBundle>,
 			Api::SendOptions)> confirmed);
 	void processChosenSticker(FileChosen &&chosen);
+	void clearFieldAfterStickerSend();
 	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
 	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
 	[[nodiscard]] rpl::producer<FullReplyTo> jumpToItemRequests() const;
@@ -453,6 +455,7 @@ private:
 	void setupStarsEffectsCanvas();
 
 	// Look in the _field for the inline bot and query string.
+	[[nodiscard]] InlineBotQuery parseInlineBotQuery() const;
 	void updateInlineBotQuery();
 
 	// Request to show results in the emoji panel.

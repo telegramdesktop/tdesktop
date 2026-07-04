@@ -2339,6 +2339,10 @@ void ComposeControls::processChosenSticker(FileChosen &&chosen) {
 	_stickerOrEmojiChosen.fire(std::move(chosen));
 }
 
+void ComposeControls::clearFieldAfterStickerSend() {
+	setText({});
+}
+
 rpl::producer<FileChosen> ComposeControls::fileChosen() const {
 	return _fileChosen.events();
 }
@@ -3117,12 +3121,8 @@ void ComposeControls::initFieldAutocomplete() {
 			});
 		},
 		.stickerChosen = [=](ChatHelpers::FileChosen &&data) {
-			if (!_showSlowmodeError || !_showSlowmodeError()) {
-				setText({});
-			}
-			//saveDraftWithTextNow();
-			// Won't be needed if SendInlineBotResult clears the cloud draft.
-			//saveCloudDraft();
+			data.stickersByEmoji = _autocomplete
+				&& _autocomplete->stickersShown();
 			_fileChosen.fire(std::move(data));
 		},
 		.setText = [=](TextWithTags text) { setText(text); },
@@ -3161,7 +3161,7 @@ void ComposeControls::updateFieldPlaceholder() {
 	if (!isEditingMessage() && _isInlineBot) {
 		_field->setPlaceholder(
 			rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
-			_inlineBot->username().size() + 2);
+			_inlineBotUsername.size() + 2);
 		return;
 	}
 
@@ -5455,7 +5455,9 @@ void ComposeControls::updateAttachBotsMenu() {
 	}
 	_attachBotsMenu->setOrigin(
 		Ui::PanelAnimation::Origin::BottomLeft);
-	_attachToggle->installEventFilter(_attachBotsMenu.get());
+	if (!ChatHelpers::ShowPanelOnClick()) {
+		_attachToggle->installEventFilter(_attachBotsMenu.get());
+	}
 	_attachBotsMenu->heightValue(
 	) | rpl::on_next([=] {
 		updateOuterGeometry(_wrap->geometry());
@@ -5498,10 +5500,12 @@ bool ComposeControls::pushTabbedSelectorToThirdSection(
 		const Window::SectionShow &params) {
 	if (!_tabbedPanel || !_regularWindow || !_features.commonTabbedPanel) {
 		return true;
-	//} else if (!_canSendMessages) {
-	//	Core::App().settings().setTabbedReplacedWithInfo(true);
-	//	_window->showPeerInfo(_peer, params.withThirdColumn());
-	//	return;
+	} else if (!Data::CanSendAnyOf(
+			thread,
+			Data::TabbedPanelSendRestrictions())) {
+		Core::App().settings().setTabbedReplacedWithInfo(true);
+		_regularWindow->showPeerInfo(thread, params.withThirdColumn());
+		return false;
 	}
 	Core::App().settings().setTabbedReplacedWithInfo(false);
 	_tabbedSelectorToggle->setColorOverrides(
@@ -5888,6 +5892,10 @@ void ComposeControls::initWebpageProcess() {
 			updateFieldPlaceholder();
 		}
 		if (flags & (Data::PeerUpdate::Flag::Rights
+			| Data::PeerUpdate::Flag::StarsPerMessage)) {
+			updateAttachBotsMenu();
+		}
+		if (flags & (Data::PeerUpdate::Flag::Rights
 			| Data::PeerUpdate::Flag::FullInfo
 			| Data::PeerUpdate::Flag::GiftSettings)) {
 			refreshSendGiftToggle();
@@ -6089,6 +6097,12 @@ bool ComposeControls::hasSilentBroadcastToggle() const {
 		&& !session().data().notifySettings().silentPostsUnknown(peer);
 }
 
+InlineBotQuery ComposeControls::parseInlineBotQuery() const {
+	return isEditingMessage()
+		? InlineBotQuery()
+		: ParseInlineBotQuery(&session(), _field);
+}
+
 void ComposeControls::updateInlineBotQuery() {
 	if (!_features.inlineBots) {
 		if (_inlineBotResolveRequestId) {
@@ -6102,7 +6116,7 @@ void ComposeControls::updateInlineBotQuery() {
 	if (!_history || !_regularWindow) {
 		return;
 	}
-	const auto query = ParseInlineBotQuery(&session(), _field);
+	const auto query = parseInlineBotQuery();
 	if (_inlineBotUsername != query.username) {
 		_inlineBotUsername = query.username;
 		auto &api = session().api();
@@ -6136,7 +6150,7 @@ void ComposeControls::updateInlineBotQuery() {
 				session().data().processChats(data.vchats());
 
 				_inlineBotResolveRequestId = 0;
-				const auto query = ParseInlineBotQuery(&session(), _field);
+				const auto query = parseInlineBotQuery();
 				if (_inlineBotUsername == query.username) {
 					applyInlineBotQuery(
 						query.lookingUpBot ? resolvedBot : query.bot,

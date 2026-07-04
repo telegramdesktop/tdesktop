@@ -66,6 +66,7 @@ struct FileChosen {
 	std::shared_ptr<Data::EmojiStatusCollectible> collectible;
 	TextWithTags caption;
 	bool needsCaption = false;
+	bool stickersByEmoji = false;
 };
 
 struct PhotoChosen {

@@ -805,7 +805,11 @@ void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
 			request.peer,
 			SectionShow::Way::Forward,
 			ShowAtTheEndMsgId);
-		_history->sendBotCommand(request);
+		if (_mainSection) {
+			_mainSection->sendBotCommand(request);
+		} else {
+			_history->sendBotCommand(request);
+		}
 	}
 }
 
@@ -814,7 +818,11 @@ void MainWidget::hideSingleUseKeyboard(FullMsgId replyToId) {
 		? _mainSection->hideSingleUseKeyboard(replyToId)
 		: Window::SectionActionResult::Fallback;
 	if (type == Window::SectionActionResult::Fallback) {
-		_history->hideSingleUseKeyboard(replyToId);
+		if (_mainSection) {
+			_mainSection->hideSingleUseKeyboard(replyToId);
+		} else {
+			_history->hideSingleUseKeyboard(replyToId);
+		}
 	}
 }
 

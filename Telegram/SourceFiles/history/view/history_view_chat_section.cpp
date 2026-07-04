@@ -916,6 +916,9 @@ ChatWidget::ChatWidget(
 			| PeerUpdateFlag::StarsPerMessage)) {
 			refreshAboutView();
 		}
+		if (update.flags & PeerUpdateFlag::FullInfo) {
+			checkMaybeSendBotStart();
+		}
 		checkSuggestToGigagroup();
 		updateControlsVisibility();
 	}, lifetime());
@@ -1564,7 +1567,11 @@ void ChatWidget::setupComposeControls() {
 
 	_composeControls->sendCommandRequests(
 	) | rpl::on_next([=](const QString &command) {
-		listSendBotCommand(command, FullMsgId());
+		sendBotCommand({
+			.peer = _peer,
+			.command = command,
+			.replyTo = replyTo(),
+		}, {});
 		session().api().finishForwarding(prepareSendAction({}));
 	}, lifetime());
 
@@ -1612,13 +1619,15 @@ void ChatWidget::setupComposeControls() {
 		controller()->hideLayer(anim::type::normal);
 		controller()->sendingAnimation().appendSending(
 			data.messageSendingFrom);
+		const auto clearField = data.stickersByEmoji;
 		auto messageToSend = Api::MessageToSend(
 			prepareSendAction(data.options));
 		messageToSend.textWithTags = base::take(data.caption);
 		sendExistingDocument(
 			data.document,
 			std::move(messageToSend),
-			data.messageSendingFrom.localId);
+			data.messageSendingFrom.localId,
+			clearField);
 	}, lifetime());
 
 	_composeControls->photoChosen(
@@ -1932,6 +1941,9 @@ bool ChatWidget::confirmSendingFiles(
 		not_null<const QMimeData*> data,
 		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel) {
+	if (_composeSearch) {
+		_composeSearch->hideAnimated();
+	}
 	const auto hasImage = data->hasImage();
 	const auto premium = controller()->session().user()->isPremium();
 
@@ -1996,7 +2008,7 @@ bool ChatWidget::confirmSendingFiles(
 		_composeControls->setText(std::move(text));
 	}, box->lifetime());
 
-	//ActivateWindow(controller());
+	Window::ActivateWindow(controller());
 	controller()->show(std::move(box));
 
 	return true;
@@ -2967,7 +2979,8 @@ void ChatWidget::updateControlsVisibility() {
 bool ChatWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,
-		std::optional<MsgId> localId) {
+		std::optional<MsgId> localId,
+		bool clearFieldAfterSend) {
 	const auto ephemeralReply = session().ephemeralMessages()
 		.isEphemeralBotReply(messageToSend.action.replyTo.messageId);
 	const auto error = !ephemeralReply
@@ -2984,7 +2997,11 @@ bool ChatWidget::sendExistingDocument(
 		const auto withPaymentApproved = [=](int approved) {
 			auto copy = messageToSend;
 			copy.action.options.starsApproved = approved;
-			sendExistingDocument(document, std::move(copy), localId);
+			sendExistingDocument(
+				document,
+				std::move(copy),
+				localId,
+				clearFieldAfterSend);
 		};
 		const auto checked = checkSendPayment(
 			1,
@@ -3000,6 +3017,9 @@ bool ChatWidget::sendExistingDocument(
 		document,
 		localId);
 
+	if (clearFieldAfterSend) {
+		_composeControls->clearFieldAfterStickerSend();
+	}
 	_composeControls->cancelReplyMessage();
 	finishSending();
 	return true;
@@ -3821,7 +3841,7 @@ bool ChatWidget::showMessage(
 Window::SectionActionResult ChatWidget::sendBotCommand(
 		Bot::SendCommandRequest request) {
 	if (request.peer != _peer) {
-		return Window::SectionActionResult::Ignore;
+		return Window::SectionActionResult::Fallback;
 	}
 	sendBotCommand(std::move(request), {});
 	return Window::SectionActionResult::Handle;
@@ -5178,64 +5198,21 @@ void ChatWidget::listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) {
 	if (!_sublist || _sublist->parentChat()) {
-		sendBotCommandWithOptions(command, context, {});
+		sendBotCommand({
+			.peer = _peer,
+			.command = command,
+			.context = context,
+		}, {});
 	}
-}
-
-void ChatWidget::sendBotCommandWithOptions(
-		const QString &command,
-		const FullMsgId &context,
-		Api::SendOptions options) {
-	const auto action = prepareSendAction(options);
-	const auto text = Bot::WrapCommandInChat(
-		_peer,
-		command,
-		context);
-	auto message = Api::MessageToSend(action);
-	message.textWithTags = { text };
-
-	const auto ephemeral = session().ephemeralMessages().wouldSend(message);
-	if (!ephemeral && showSlowmodeError()) {
-		return;
-	}
-	if (!ephemeral) {
-		const auto withPaymentApproved = [=](int approved) {
-			auto copy = options;
-			copy.starsApproved = approved;
-			sendBotCommandWithOptions(command, context, copy);
-		};
-		const auto checked = checkSendPayment(
-			1,
-			action.options,
-			withPaymentApproved);
-		if (!checked) {
-			return;
-		}
-	}
-
-	session().api().sendMessage(std::move(message));
-	finishSending();
 }
 
 void ChatWidget::sendBotCommand(
 		Bot::SendCommandRequest request,
 		Api::SendOptions options) {
-	if (_peer != request.peer.get() || showSlowmodeError()) {
+	if (_peer != request.peer.get()) {
 		return;
 	}
-	const auto withPaymentApproved = [=, request = request](int approved) {
-		auto copy = options;
-		copy.starsApproved = approved;
-		sendBotCommand(request, copy);
-	};
 	const auto action = prepareSendAction(options);
-	const auto checked = checkSendPayment(
-		1,
-		action.options,
-		withPaymentApproved);
-	if (!checked) {
-		return;
-	}
 	const auto keyboardId = keyboardSourceIdForHiddenState();
 	const auto lastKeyboardUsed = keyboardId
 		&& (keyboardId == request.replyTo.messageId);
@@ -5248,6 +5225,24 @@ void ChatWidget::sendBotCommand(
 	auto message = Api::MessageToSend(action);
 	message.textWithTags = { toSend, TextWithTags::Tags() };
 	message.action.replyTo = outgoingReplyTo;
+	const auto ephemeral = session().ephemeralMessages().wouldSend(message);
+	if (!ephemeral && showSlowmodeError()) {
+		return;
+	}
+	if (!ephemeral) {
+		const auto withPaymentApproved = [=, request = request](int approved) {
+			auto copy = options;
+			copy.starsApproved = approved;
+			sendBotCommand(request, copy);
+		};
+		const auto checked = checkSendPayment(
+			1,
+			message.action.options,
+			withPaymentApproved);
+		if (!checked) {
+			return;
+		}
+	}
 	session().api().sendMessage(std::move(message));
 	if (request.replyTo) {
 		const auto replyMatches = (_composeControls->replyingToMessage()
@@ -5531,6 +5526,7 @@ void ChatWidget::listHandleViaClick(not_null<UserData*> bot) {
 		: _bottom->canSendTexts();
 	if (canSendTexts) {
 		_composeControls->setText({ '@' + bot->username() + ' ' });
+		setInnerFocus();
 	}
 }
 
