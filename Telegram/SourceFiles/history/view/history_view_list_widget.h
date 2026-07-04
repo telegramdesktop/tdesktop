@@ -219,6 +219,7 @@ public:
 		Fn<void()> finished) = 0;
 	virtual Ui::ElasticScroll *listScrollArea() const { return nullptr; }
 	virtual bool listThanosEffectEnabled() const { return true; }
+	virtual bool listShowForumThreadBars() const { return false; }
 	virtual AboutView *listAboutView() { return nullptr; }
 	virtual bool listInvertedOrder() { return false; }
 };
@@ -865,6 +866,10 @@ private:
 		Painter &p,
 		const Ui::ChatPaintContext &context,
 		QRect clip);
+	void paintForumThreadBars(
+		Painter &p,
+		const Ui::ChatPaintContext &context,
+		QRect clip);
 
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
@@ -889,6 +894,14 @@ private:
 	// if it returns false the enumeration stops immediately.
 	template <typename Method>
 	void enumerateDates(Method method);
+
+	// This function finds all forum thread bar elements that are displayed and calls template method
+	// for each found date element (from the bottom to the top) using enumerateItems() method.
+	//
+	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int barTop)" signature
+	// if it returns false the enumeration stops immediately.
+	template <typename Method>
+	void enumerateForumThreadBars(Method method);
 
 	void setGeometryCrashAnnotations(not_null<Element*> view);
 
@@ -959,6 +972,9 @@ private:
 	int _scrollDateLastItemTop = 0;
 	bool _scrollDateAfterDayCrossing = false;
 	ClickHandlerPtr _scrollDateLink;
+	int _forumThreadBarWidth = 0;
+	Ui::PeerUserpicView _forumThreadBarUserpicView;
+	ClickHandlerPtr _forumThreadBarLink;
 	SingleQueuedInvokation _applyUpdatedScrollState;
 
 	MessagesBar _bar;

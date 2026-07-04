@@ -2499,6 +2499,58 @@ void Element::recountThreadBarInBlocks() {
 	}
 }
 
+void Element::refreshForumThreadBar(Element *previous, bool enabled) {
+	if (!enabled) {
+		if (Has<ForumThreadBar>()) {
+			RemoveComponents(ForumThreadBar::Bit());
+			setPendingResize();
+		}
+		return;
+	}
+	const auto item = data();
+	const auto topic = item->topic();
+	const auto sublist = item->savedSublist();
+	const auto parentChat = (topic && topic->peer()->useSubsectionTabs())
+		? topic->peer().get()
+		: sublist
+		? sublist->parentChat()
+		: nullptr;
+	const auto barThread = [&]() -> Data::Thread* {
+		if (!parentChat
+			|| isHidden()
+			|| item->isEmpty()
+			|| item->isSponsored()) {
+			return nullptr;
+		}
+		if (previous) {
+			const auto prev = previous->data();
+			if (const auto prevTopic = prev->topic()) {
+				if (topic && prevTopic->rootId() == topic->rootId()) {
+					return nullptr;
+				}
+			} else if (const auto prevSublist = prev->savedSublist()) {
+				if (sublist
+					&& prevSublist->sublistPeer() == sublist->sublistPeer()) {
+					return nullptr;
+				}
+			}
+		}
+		return topic
+			? (Data::Thread*)topic
+			: (sublist && sublist->sublistPeer() != parentChat)
+			? (Data::Thread*)sublist
+			: nullptr;
+	}();
+	if (barThread && !Has<ForumThreadBar>()) {
+		AddComponents(ForumThreadBar::Bit());
+		Get<ForumThreadBar>()->init(parentChat, barThread);
+		setPendingResize();
+	} else if (!barThread && Has<ForumThreadBar>()) {
+		RemoveComponents(ForumThreadBar::Bit());
+		setPendingResize();
+	}
+}
+
 void Element::recountDisplayDateInBlocks() {
 	setDisplayDate([&] {
 		const auto item = data();

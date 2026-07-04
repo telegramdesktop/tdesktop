@@ -5804,6 +5804,12 @@ Ui::ElasticScroll *ChatWidget::listScrollArea() const {
 	return _scroll.get();
 }
 
+bool ChatWidget::listShowForumThreadBars() const {
+	return (mode() == Mode::History)
+		&& !_topic
+		&& _history->hasForumThreadBars();
+}
+
 void ChatWidget::setupEmptyPainter() {
 	if (!_topic) {
 		_emptyPainter = std::make_unique<EmptyPainter>(_history);
