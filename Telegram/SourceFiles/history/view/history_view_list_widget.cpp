@@ -59,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
 #include "media/player/media_player_instance.h"
+#include "dialogs/ui/dialogs_video_userpic.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/elastic_scroll.h"
@@ -3085,13 +3086,16 @@ void ListWidget::paintUserpics(
 						st::msgPhotoSize));
 			}
 			if (const auto from = view->displayFrom()) {
-				from->paintUserpicLeft(
+				Dialogs::Ui::PaintUserpic(
 					p,
+					from,
+					validateVideoUserpic(from),
 					_userpics[from],
 					st::historyPhotoLeft,
 					userpicTop,
 					view->width(),
-					st::msgPhotoSize);
+					st::msgPhotoSize,
+					context.paused);
 			} else if (const auto info = item->displayHiddenSenderInfo()) {
 				if (info->customUserpic.empty()) {
 					info->emptyUserpic.paintCircle(
@@ -3122,6 +3126,46 @@ void ListWidget::paintUserpics(
 		}
 		return true;
 	});
+}
+
+ListWidget::VideoUserpic *ListWidget::validateVideoUserpic(
+		not_null<PeerData*> peer) {
+	if (!peer->isPremium()
+		|| peer->userpicPhotoUnknown()
+		|| !peer->userpicHasVideo()) {
+		_videoUserpics.remove(peer);
+		return nullptr;
+	}
+	const auto i = _videoUserpics.find(peer);
+	if (i != end(_videoUserpics)) {
+		return i->second.get();
+	}
+	const auto repaint = [=] {
+		if (_resizePending) {
+			return;
+		}
+		enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
+			if (userpicTop >= _visibleBottom) {
+				return false;
+			}
+			if (userpicTop + st::msgPhotoSize > _visibleTop) {
+				if (const auto from = view->data()->displayFrom()) {
+					if (from == peer) {
+						rtlupdate(
+							st::historyPhotoLeft,
+							userpicTop,
+							st::msgPhotoSize,
+							st::msgPhotoSize);
+					}
+				}
+			}
+			return true;
+		});
+	};
+	return _videoUserpics.emplace(peer, std::make_unique<VideoUserpic>(
+		peer,
+		repaint
+	)).first->second.get();
 }
 
 void ListWidget::paintDates(
