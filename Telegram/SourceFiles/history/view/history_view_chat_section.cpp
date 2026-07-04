@@ -1318,6 +1318,9 @@ Data::ForumTopic *ChatWidget::lookupTopic() {
 }
 
 MsgId ChatWidget::resolveTopicRootId(const FullReplyTo &replyTo) const {
+	if (!_peer->isForum()) {
+		return replyTo.topicRootId;
+	}
 	const auto replyToMessage = (replyTo.messageId.peer == _peer->id)
 		? session().data().message(replyTo.messageId)
 		: nullptr;
@@ -2051,7 +2054,6 @@ bool ChatWidget::showSlowmodeError() {
 		} else if (_peer->slowmodeApplied()) {
 			if (const auto item = _history->latestSendingMessage()) {
 				showAtPosition(item->position());
-				_inner->highlightMessage(item->fullId(), {});
 				return tr::lng_slowmode_no_many(tr::now);
 			}
 		}
