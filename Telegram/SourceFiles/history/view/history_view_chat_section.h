@@ -66,6 +66,11 @@ class ForumTopic;
 struct DrawToReplyRequest;
 } // namespace Data
 
+namespace Support {
+class Autocomplete;
+struct Contact;
+} // namespace Support
+
 namespace HistoryView {
 
 namespace Controls {
@@ -295,6 +300,9 @@ private:
 	void clearSupportPreloadRequest();
 	void checkSupportPreload(bool force = false);
 	void handleSupportSwitch(not_null<History*> updated);
+	void supportInitAutocomplete();
+	void supportInsertText(const QString &text);
+	void supportShareContact(Support::Contact contact);
 	[[nodiscard]] rpl::producer<Data::MessagesSlice> repliesSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -588,6 +596,7 @@ private:
 
 	FullMsgId _lastShownAt;
 	HistoryView::CornerButtons _cornerButtons;
+	std::unique_ptr<Support::Autocomplete> _supportAutocomplete;
 	rpl::lifetime _topicLifetime;
 	rpl::lifetime _historySponsoredPreloading;
 	bool _injectingSponsored = false;

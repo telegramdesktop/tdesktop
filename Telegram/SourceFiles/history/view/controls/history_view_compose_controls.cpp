@@ -6252,6 +6252,25 @@ Ui::InputField *ComposeControls::fieldForMention() const {
 		: _field.get();
 }
 
+auto ComposeControls::fieldTabbed() const
+-> rpl::producer<not_null<Ui::InputField::TabbedRequest*>> {
+	return _field->tabbed();
+}
+
+void ComposeControls::insertTextToField(const QString &text) {
+	_field->setFocus();
+	_field->textCursor().insertText(text);
+	_field->ensureCursorVisible();
+}
+
+QString ComposeControls::fieldLastText() const {
+	return _field->getLastText();
+}
+
+void ComposeControls::undoFieldChange() {
+	_field->document()->undo();
+}
+
 void ComposeControls::selectAllFieldText() {
 	_field->selectAll();
 }

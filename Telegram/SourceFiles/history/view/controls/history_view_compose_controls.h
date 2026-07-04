@@ -325,6 +325,11 @@ public:
 	Fn<void()> restoreTextCallback(const QString &insertTextOnCancel) const;
 
 	[[nodiscard]] Ui::InputField *fieldForMention() const;
+	[[nodiscard]] auto fieldTabbed() const
+	-> rpl::producer<not_null<Ui::InputField::TabbedRequest*>>;
+	void insertTextToField(const QString &text);
+	[[nodiscard]] QString fieldLastText() const;
+	void undoFieldChange();
 
 private:
 	struct StarEffect;

@@ -114,6 +114,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "storage/localimageloader.h"
+#include "support/support_autocomplete.h"
 #include "support/support_common.h"
 #include "support/support_preload.h"
 #include "inline_bots/inline_bot_result.h"
@@ -623,6 +624,22 @@ ChatWidget::ChatWidget(
 	) | rpl::on_next([=] {
 		onScroll();
 	}, lifetime());
+	if (session().supportMode() && mode() == Mode::History && !_topic) {
+		_supportAutocomplete = std::make_unique<Support::Autocomplete>(
+			this,
+			&session());
+		supportInitAutocomplete();
+		_composeControls->fieldTabbed(
+		) | rpl::on_next([=](
+				not_null<Ui::InputField::TabbedRequest*> request) {
+			if (_supportAutocomplete) {
+				if (const auto field = _composeControls->fieldForMention()) {
+					_supportAutocomplete->activate(field);
+					request->handled = true;
+				}
+			}
+		}, lifetime());
+	}
 
 	_inner->editMessageRequested(
 	) | rpl::filter([=] {
@@ -2308,6 +2325,53 @@ void ChatWidget::send(Api::SendOptions options) {
 		nullptr);
 }
 
+void ChatWidget::supportInitAutocomplete() {
+	_supportAutocomplete->hide();
+
+	_supportAutocomplete->insertRequests(
+	) | rpl::on_next([=](const QString &text) {
+		supportInsertText(text);
+	}, _supportAutocomplete->lifetime());
+
+	_supportAutocomplete->shareContactRequests(
+	) | rpl::on_next([=](const Support::Contact &contact) {
+		supportShareContact(contact);
+	}, _supportAutocomplete->lifetime());
+}
+
+void ChatWidget::supportInsertText(const QString &text) {
+	_composeControls->insertTextToField(text);
+}
+
+void ChatWidget::supportShareContact(Support::Contact contact) {
+	supportInsertText(contact.comment);
+	contact.comment = _composeControls->fieldLastText();
+
+	const auto submit = [=](Qt::KeyboardModifiers modifiers) {
+		auto options = Api::SendOptions{
+			.sendAs = prepareSendAction({}).options.sendAs,
+		};
+		auto action = Api::SendAction(_history);
+		send(options);
+		options.handleSupportSwitch = Support::HandleSwitch(modifiers);
+		action.options = options;
+		session().api().shareContact(
+			contact.phone,
+			contact.firstName,
+			contact.lastName,
+			action);
+	};
+	const auto box = controller()->show(Box<Support::ConfirmContactBox>(
+		controller(),
+		_history,
+		contact,
+		crl::guard(this, submit)));
+	box->boxClosing(
+	) | rpl::on_next([=] {
+		_composeControls->undoFieldChange();
+	}, lifetime());
+}
+
 void ChatWidget::sendRichDraft(
 		std::shared_ptr<const Iv::RichPage> page,
 		Api::SendOptions options) {
@@ -2971,6 +3035,9 @@ void ChatWidget::updateControlsVisibility() {
 		hideKeyboardReplyToExternal();
 	}
 	if (active || choosingTheme) {
+		if (_supportAutocomplete) {
+			_supportAutocomplete->hide();
+		}
 		if (!hasSublistReplacement) {
 			_composeControls->hide();
 		}
@@ -4299,6 +4366,9 @@ void ChatWidget::updateControlsGeometry() {
 	}
 	_composeControls->move(0, composeTop);
 	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
+	if (_supportAutocomplete) {
+		_supportAutocomplete->setBoundings(_scroll->geometry());
+	}
 	_composeControlsTop = composeTop;
 
 	if (!animatingShow()) {
@@ -4469,6 +4539,9 @@ void ChatWidget::showFinishedHook() {
 			_inner->setFocus();
 		}
 		_composeControls->hide();
+		if (_supportAutocomplete) {
+			_supportAutocomplete->hide();
+		}
 	} else {
 		_composeControls->showFinished();
 	}
