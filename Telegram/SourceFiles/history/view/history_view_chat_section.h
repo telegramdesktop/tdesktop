@@ -426,7 +426,7 @@ private:
 	[[nodiscard]] bool kbWasHidden() const;
 	[[nodiscard]] bool lastForceReplyReplied(const FullMsgId &replyTo) const;
 	[[nodiscard]] bool lastForceReplyReplied() const;
-	void cancelReply(bool lastKeyboardUsed = false);
+	bool cancelReply(bool lastKeyboardUsed = false);
 	void sendBotCommand(
 		Bot::SendCommandRequest request,
 		Api::SendOptions options);

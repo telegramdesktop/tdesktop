@@ -760,12 +760,14 @@ ChatWidget::ChatWidget(
 			const auto replyMatches = action.replyTo.messageId
 				&& (action.replyTo.messageId
 					== _composeControls->replyingToMessage().messageId);
+			auto cancelledReply = false;
+			auto cancelledSuggest = false;
 			if (action.options.scheduled || !_justMarkingAsRead) {
 				if (replyMatches || lastKeyboardUsed) {
-					cancelReply(lastKeyboardUsed);
+					cancelledReply = cancelReply(lastKeyboardUsed);
 				}
 				if (mode() == Mode::History) {
-					cancelSuggestPost();
+					cancelledSuggest = cancelSuggestPost();
 				}
 			}
 			if (action.options.scheduled) {
@@ -780,6 +782,14 @@ ChatWidget::ChatWidget(
 							std::make_shared<HistoryView::ScheduledMemento>(
 								history));
 					});
+				}
+			} else {
+				if (mode() == Mode::History) {
+					showAtEnd();
+				}
+				if ((cancelledReply || cancelledSuggest)
+					&& !action.clearDraft) {
+					session().api().saveCurrentDraftToCloud();
 				}
 			}
 		}
@@ -5489,8 +5499,10 @@ bool ChatWidget::lastForceReplyReplied() const {
 		&& (_keyboard->forMsgId() == keyboardSourceId());
 }
 
-void ChatWidget::cancelReply(bool lastKeyboardUsed) {
+bool ChatWidget::cancelReply(bool lastKeyboardUsed) {
+	auto wasReply = false;
 	if (_composeControls->replyingToMessage()) {
+		wasReply = true;
 		_composeControls->cancelReplyMessage();
 		updateBotKeyboard();
 		refreshTopBarActiveChat();
@@ -5507,6 +5519,7 @@ void ChatWidget::cancelReply(bool lastKeyboardUsed) {
 			toggleBotKeyboard(false);
 		}
 	}
+	return wasReply;
 }
 
 void ChatWidget::listSearch(
