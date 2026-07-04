@@ -1246,6 +1246,14 @@ void ListWidget::clearUnreadBar() {
 	_bar = {};
 }
 
+bool ListWidget::unreadBarBelowVisibleBottom() const {
+	const auto element = _bar.element;
+	if (!element || _bar.hidden) {
+		return false;
+	}
+	return itemTop(element) >= _visibleBottom;
+}
+
 bool ListWidget::showAtPositionNow(
 		Data::MessagePosition position,
 		const Window::SectionShow &params,

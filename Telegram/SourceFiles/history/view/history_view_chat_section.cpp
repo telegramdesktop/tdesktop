@@ -3670,9 +3670,22 @@ std::optional<bool> ChatWidget::cornerButtonsDownShown() {
 	if (top < _scroll->scrollTopMax() || _cornerButtons.replyReturn()) {
 		return true;
 	} else if (_inner->loadedAtBottomKnown()) {
-		return !_inner->loadedAtBottom();
+		return !_inner->loadedAtBottom() || unreadMessagesBelowBottom();
 	}
 	return std::nullopt;
+}
+
+bool ChatWidget::unreadMessagesBelowBottom() const {
+	if (mode() != Mode::History) {
+		return false;
+	}
+	const auto unread = [](History *history) {
+		return history
+			&& history->unreadCount() > 0
+			&& history->trackUnreadMessages();
+	};
+	return (unread(_history) || unread(_history->migrateFrom()))
+		&& _inner->unreadBarBelowVisibleBottom();
 }
 
 bool ChatWidget::cornerButtonsUnreadMayBeShown() {

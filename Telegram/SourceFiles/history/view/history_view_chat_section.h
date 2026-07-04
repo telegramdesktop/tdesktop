@@ -270,6 +270,7 @@ private:
 		History,
 	};
 	[[nodiscard]] Mode mode() const;
+	[[nodiscard]] bool unreadMessagesBelowBottom() const;
 
 	void setChooseReportMessagesDetails(
 		Data::ReportInput reportInput,

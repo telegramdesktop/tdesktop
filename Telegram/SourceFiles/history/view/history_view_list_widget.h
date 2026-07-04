@@ -424,6 +424,7 @@ public:
 		QPoint position,
 		int delta) const;
 	[[nodiscard]] bool hasVisibleSimilarChannels() const;
+	[[nodiscard]] bool unreadBarBelowVisibleBottom() const;
 	bool consumeScrollAction(
 		QPoint delta,
 		Qt::ScrollPhase phase,
