@@ -286,6 +286,7 @@ public:
 	void cancelForward();
 
 	bool handleCancelRequest();
+	[[nodiscard]] bool fieldTextEmpty() const;
 	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;

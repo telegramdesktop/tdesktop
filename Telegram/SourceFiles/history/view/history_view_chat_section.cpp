@@ -4657,6 +4657,9 @@ void ChatWidget::listCancelRequest() {
 	} else if (_composeControls->handleCancelRequest()) {
 		refreshTopBarActiveChat();
 		return;
+	} else if (_suggestOptions && _composeControls->fieldTextEmpty()) {
+		cancelSuggestPost();
+		return;
 	}
 	controller()->showBackFromStack();
 }

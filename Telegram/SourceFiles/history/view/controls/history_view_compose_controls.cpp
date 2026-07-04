@@ -5921,7 +5921,8 @@ bool ComposeControls::handleCancelRequest() {
 	} else if (isEditingMessage()) {
 		maybeCancelEditMessage();
 		return true;
-	} else if (replyingToMessage().replying()) {
+	} else if (replyingToMessage().replying()
+		&& _field->getTextWithTags().empty()) {
 		cancelReplyMessage();
 		return true;
 	} else if (readyToForward()) {
@@ -5929,6 +5930,10 @@ bool ComposeControls::handleCancelRequest() {
 		return true;
 	}
 	return false;
+}
+
+bool ComposeControls::fieldTextEmpty() const {
+	return _field->getTextWithTags().empty();
 }
 
 void ComposeControls::tryProcessKeyInput(not_null<QKeyEvent*> e) {
