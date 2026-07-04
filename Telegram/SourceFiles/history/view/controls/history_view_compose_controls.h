@@ -212,6 +212,7 @@ public:
 	[[nodiscard]] bool focused() const;
 	[[nodiscard]] rpl::producer<bool> focusedValue() const;
 	[[nodiscard]] rpl::producer<bool> tabbedPanelShownValue() const;
+	[[nodiscard]] bool overlaps(const QRect &globalRect) const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<> replyCancelled() const;
 	[[nodiscard]] rpl::producer<> replyCancelledExternal() const;

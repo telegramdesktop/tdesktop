@@ -2121,6 +2121,12 @@ rpl::producer<bool> ComposeControls::tabbedPanelShownValue() const {
 	return _tabbedPanel ? _tabbedPanel->shownValue() : rpl::single(false);
 }
 
+bool ComposeControls::overlaps(const QRect &globalRect) const {
+	return (_autocomplete && _autocomplete->overlaps(globalRect))
+		|| (_tabbedPanel && _tabbedPanel->overlaps(globalRect))
+		|| (_inlineResults && _inlineResults->overlaps(globalRect));
+}
+
 rpl::producer<> ComposeControls::cancelRequests() const {
 	return _cancelRequests.events();
 }

@@ -4423,6 +4423,10 @@ void ChatWidget::updateSubsectionTabsGeometry() {
 		{ 0, subsectionTabsTop, width(), areaHeight });
 }
 
+bool ChatWidget::contentOverlapped(const QRect &globalRect) {
+	return _composeControls->overlaps(globalRect);
+}
+
 void ChatWidget::paintEvent(QPaintEvent *e) {
 	if (animatingShow()) {
 		SectionWidget::paintEvent(e);

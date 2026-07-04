@@ -279,6 +279,7 @@ private:
 
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	[[nodiscard]] bool contentOverlapped(const QRect &globalRect) override;
 
 	void showAnimatedHook(
 		const Window::SectionSlideParams &params) override;

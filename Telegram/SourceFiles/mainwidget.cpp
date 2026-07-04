@@ -3228,6 +3228,7 @@ int MainWidget::backgroundFromY() const {
 
 bool MainWidget::contentOverlapped(const QRect &globalRect) {
 	return _history->contentOverlapped(globalRect)
+		|| (_mainSection && _mainSection->contentOverlapped(globalRect))
 		/*|| _playerPlaylist->overlaps(globalRect)*/;
 }
 

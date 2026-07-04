@@ -241,6 +241,10 @@ public:
 	virtual void validateSubsectionTabs() {
 	}
 
+	[[nodiscard]] virtual bool contentOverlapped(const QRect &globalRect) {
+		return false;
+	}
+
 	static void PaintBackground(
 		not_null<SessionController*> controller,
 		not_null<Ui::ChatTheme*> theme,
