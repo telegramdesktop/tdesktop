@@ -1902,6 +1902,92 @@ void ListWidget::selectItemAsGroup(not_null<HistoryItem*> item) {
 	}
 }
 
+std::vector<not_null<HistoryItem*>> ListWidget::collectBetween(
+		not_null<HistoryItem*> from,
+		not_null<HistoryItem*> to,
+		int max) const {
+	const auto fromView = viewForItem(from);
+	const auto toView = viewForItem(to);
+	if (!fromView || !toView) {
+		return {};
+	}
+	const auto fromIt = ranges::find(_items, not_null{ fromView });
+	const auto toIt = ranges::find(_items, not_null{ toView });
+	if (fromIt == end(_items) || toIt == end(_items) || toIt <= fromIt) {
+		return {};
+	}
+	auto result = std::vector<not_null<HistoryItem*>>();
+	result.reserve(max);
+	result.push_back(from);
+	result.push_back(to);
+	for (auto i = fromIt + 1; i != toIt; ++i) {
+		if (int(result.size()) > max) {
+			return {};
+		}
+		const auto item = (*i)->data();
+		if (item->isRegular() && !item->isService()) {
+			result.push_back(item);
+		}
+	}
+	if (int(result.size()) > max) {
+		return {};
+	}
+	return result;
+}
+
+std::vector<not_null<HistoryItem*>> ListWidget::selectionUpTo(
+		not_null<HistoryItem*> item) const {
+	if (_selected.empty()) {
+		return {};
+	}
+	const auto group = session().data().groups().find(item);
+	const auto toItem = group ? group->items.front() : item;
+	auto nearestItem = (HistoryItem*)nullptr;
+	auto topToBottom = false;
+	auto minDiff = int64(0);
+	for (const auto &entry : _selected) {
+		const auto selected = session().data().message(entry.first);
+		if (!selected) {
+			continue;
+		}
+		const auto diff = entry.first.msg.bare - toItem->fullId().msg.bare;
+		if (!nearestItem || std::abs(diff) < minDiff) {
+			nearestItem = selected;
+			minDiff = std::abs(diff);
+			topToBottom = (diff < 0);
+		}
+	}
+	if (!nearestItem) {
+		return {};
+	}
+	const auto startItem = topToBottom ? nearestItem : toItem.get();
+	const auto endItem = topToBottom ? toItem.get() : nearestItem;
+	const auto left = MaxSelectedItems
+		- int(_selected.size())
+		+ (topToBottom ? 0 : 1);
+	return collectBetween(startItem, endItem, left);
+}
+
+bool ListWidget::canSelectItemsUpTo(not_null<HistoryItem*> item) const {
+	return !hasSelectRestriction() && !selectionUpTo(item).empty();
+}
+
+void ListWidget::selectItemsUpTo(not_null<HistoryItem*> item) {
+	if (hasSelectRestriction()) {
+		return;
+	}
+	const auto list = selectionUpTo(item);
+	if (list.empty()) {
+		return;
+	}
+	clearTextSelection();
+	for (const auto &i : list) {
+		changeSelectionAsGroup(_selected, i, SelectAction::Select);
+	}
+	pushSelectedItems();
+	update();
+}
+
 void ListWidget::showEditCaptionUploadLayer(not_null<HistoryItem*> item) {
 	if (const auto view = viewForItem(item)) {
 		if (item->isUploading()) {

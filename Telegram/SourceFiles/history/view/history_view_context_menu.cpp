@@ -16,10 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_transcribes.h"
 #include "api/api_who_reacted.h"
 #include "api/api_stickers_creator.h"
+#include "api/api_suggest_post.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "history/view/history_view_list_widget.h"
+#include "history/view/controls/history_view_suggest_options.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -72,11 +74,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "boxes/moderate_messages_box.h"
 #include "boxes/report_messages_box.h"
-#include "data/components/ephemeral_messages.h"
-#include "styles/style_layers.h"
+#include "boxes/star_gift_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/translate_box.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/components/factchecks.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
@@ -114,6 +116,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -625,6 +628,23 @@ void AddForwardAction(
 		not_null<ListWidget*> list) {
 	AddForwardSelectedAction(menu, request, list);
 	AddForwardMessageAction(menu, request, list);
+}
+
+void AddOfferAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!request.selectedItems.empty()) {
+		return;
+	} else if (!item || !CanAddOfferToMessage(item)) {
+		return;
+	}
+	const auto controller = list->controller();
+	const auto itemId = item->fullId();
+	menu->addAction(tr::lng_context_add_offer(tr::now), crl::guard(controller, [=] {
+		Api::AddOfferToMessage(controller->uiShow(), itemId);
+	}), &st::menuIconTagSell);
 }
 
 bool AddSendNowSelectedAction(
@@ -1227,7 +1247,9 @@ void AddReportAction(
 	const auto item = request.item;
 	if (!request.selectedItems.empty()) {
 		return;
-	} else if (!item || !item->suggestReport()) {
+	} else if (!item
+		|| !item->suggestReport()
+		|| item->history()->peer->isRepliesChat()) {
 		return;
 	}
 	const auto owner = &item->history()->owner();
@@ -1251,6 +1273,27 @@ void AddReportAction(
 		tr::lng_context_report_msg(tr::now),
 		callback,
 		&st::menuIconReport);
+}
+
+void AddBlockSenderAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!request.selectedItems.empty()) {
+		return;
+	} else if (!item || !item->history()->peer->isRepliesChat()) {
+		return;
+	}
+	const auto owner = &item->history()->owner();
+	const auto controller = list->controller();
+	const auto itemId = item->fullId();
+	menu->addAction(tr::lng_profile_block_user(tr::now), crl::guard(controller, [=] {
+		if (owner->message(itemId)) {
+			controller->show(
+				Box(Window::BlockSenderFromRepliesBox, controller, itemId));
+		}
+	}), &st::menuIconBlock);
 }
 
 bool AddClearSelectionAction(
@@ -1292,6 +1335,13 @@ bool AddSelectMessageAction(
 			}
 		}
 	}, &st::menuIconSelect);
+	if (!request.selectedItems.empty() && list->canSelectItemsUpTo(item)) {
+		menu->addAction(tr::lng_context_select_msg_bulk(tr::now), [=] {
+			if (const auto item = owner->message(itemId)) {
+				list->selectItemsUpTo(item);
+			}
+		}, &st::menuIconSelect);
+	}
 	return true;
 }
 
@@ -1353,11 +1403,13 @@ void AddMessageActions(
 		not_null<ListWidget*> list) {
 	AddPostLinkAction(menu, request);
 	AddForwardAction(menu, request, list);
+	AddOfferAction(menu, request, list);
 	AddSendNowAction(menu, request, list);
 	AddDeleteAction(menu, request, list);
 	AddDownloadFilesAction(menu, request, list);
 	AddSaveRichHtmlAction(menu, request, list);
 	AddReportAction(menu, request, list);
+	AddBlockSenderAction(menu, request, list);
 	if (request.item && request.selectedItems.empty()) {
 		AddEphemeralMessageActions(
 			menu,
@@ -1975,6 +2027,40 @@ void FillContextMenuItems(
 		const auto owner = &view->history()->owner();
 		const auto media = view->media();
 		const auto mediaHasTextForCopy = media && media->hasTextForCopy();
+		const auto itemMedia = view->data()->media();
+		if (const auto contact = itemMedia
+			? itemMedia->sharedContact()
+			: nullptr) {
+			const auto phone = contact->phoneNumber;
+			result->addAction(tr::lng_profile_copy_phone(tr::now), [=] {
+				QGuiApplication::clipboard()->setText(phone);
+			}, &st::menuIconCopy);
+		} else if (const auto gift = itemMedia
+			? itemMedia->gift()
+			: nullptr) {
+			const auto peer = view->data()->history()->peer;
+			const auto user = peer->asUser();
+			if (!user
+				|| (!user->isInaccessible()
+					&& !user->isNotificationsUser())) {
+				const auto controller = list->controller();
+				const auto starGiftUpgrade = gift->upgrade
+					&& (gift->type == Data::GiftType::StarGift);
+				const auto isGift = gift->slug.isEmpty() || !gift->channel;
+				const auto out = view->data()->out();
+				const auto outgoingGift = isGift
+					&& (starGiftUpgrade ? !out : out);
+				if (outgoingGift
+					&& gift->type != Data::GiftType::BirthdaySuggest) {
+					result->addAction(
+						tr::lng_context_gift_send(tr::now),
+						crl::guard(controller, [=] {
+							Ui::ShowStarGiftBox(controller, peer);
+						}),
+						&st::menuIconGiftPremium);
+				}
+			}
+		}
 		if (const auto document = media ? media->getDocument() : nullptr) {
 			AddDocumentActions(result, document, view->data(), list);
 		}

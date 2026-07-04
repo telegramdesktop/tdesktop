@@ -369,6 +369,9 @@ public:
 	void cancelSelection();
 	void selectItem(not_null<HistoryItem*> item);
 	void selectItemAsGroup(not_null<HistoryItem*> item);
+	void selectItemsUpTo(not_null<HistoryItem*> item);
+	[[nodiscard]] bool canSelectItemsUpTo(
+		not_null<HistoryItem*> item) const;
 	void showEditCaptionUploadLayer(not_null<HistoryItem*> item);
 	void setChooseReportReason(Data::ReportInput reportInput);
 	void clearChooseReportReason();
@@ -816,6 +819,12 @@ private:
 		SelectAction action) const;
 	void changeAccessibilitySelection(int index, SelectAction action);
 	void extendAccessibilitySelection(int oldIndex, int newIndex);
+	[[nodiscard]] std::vector<not_null<HistoryItem*>> selectionUpTo(
+		not_null<HistoryItem*> item) const;
+	[[nodiscard]] std::vector<not_null<HistoryItem*>> collectBetween(
+		not_null<HistoryItem*> from,
+		not_null<HistoryItem*> to,
+		int max) const;
 
 	SelectedMap::iterator itemUnderPressSelection();
 	SelectedMap::const_iterator itemUnderPressSelection() const;
