@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_media.h"
+#include "ui/basic_click_handlers.h"
 
 #include "boxes/send_credits_box.h" // CreditsEmoji.
 #include "history/history.h"
@@ -72,7 +73,7 @@ QString TimestampLinkBase(
 		not_null<DocumentData*> document,
 		FullMsgId context) {
 	return QString(
-		"media_timestamp?base=doc%1_%2_%3&t="
+		"internal:media_timestamp?base=doc%1_%2_%3&t="
 	).arg(document->id).arg(context.peer.value).arg(context.msg.bare);
 }
 
@@ -117,10 +118,10 @@ QString TimestampLinkBase(
 		return base.mid(0, query)
 			+ (params.empty() ? "?" : ("?" + params.join(QChar('&')) + "&"));
 	}();
-	return "url:"
-		+ use
+	const auto urlToEncode = use
 		+ "t="
 		+ (parts.empty() ? QString() : ("#" + parts.join(QChar('#'))));
+	return UrlClickHandler::EncodeInternalWrappedUrl(urlToEncode);
 }
 
 TextWithEntities AddTimestampLinks(
@@ -190,7 +191,7 @@ TextWithEntities AddTimestampLinks(
 				EntityType::CustomUrl,
 				from,
 				till - from,
-				("internal:" + base + QString::number(time))));
+				(base + QString::number(time))));
 	}
 	return text;
 }
