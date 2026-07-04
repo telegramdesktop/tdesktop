@@ -491,6 +491,7 @@ private:
 	void untrackThreadFieldVisibility();
 	void trackThreadFieldVisibility();
 	void updateFieldVisibility();
+	void updateFieldDisabled();
 	void changeFocusedControl();
 
 	void checkCharsLimitation();
@@ -503,6 +504,8 @@ private:
 	[[nodiscard]] bool hasEditDraft() const;
 	[[nodiscard]] bool shouldShowRichDraftPreview() const;
 	void clearRichDraft();
+	[[nodiscard]] bool fieldDisabledShown() const;
+	[[nodiscard]] int composeFieldHeight() const;
 	void migrateFieldToRichEditor();
 	void migrateScheduledFieldToRichEditor();
 	void migrateShortcutFieldToRichEditor(
@@ -533,6 +536,7 @@ private:
 	rpl::variable<bool> _sendDisabledBySlowmode;
 	rpl::variable<bool> _liked;
 	rpl::variable<Controls::WriteRestriction> _writeRestriction;
+	rpl::variable<bool> _canSendTexts = true;
 	rpl::variable<bool> _hidden;
 	Mode _mode = Mode::Normal;
 
@@ -568,6 +572,7 @@ private:
 	std::shared_ptr<QMimeData> _pendingRichPaste;
 	const not_null<Ui::InputField*> _field;
 	std::unique_ptr<Controls::RichDraftPreview> _richDraftPreview;
+	base::unique_qptr<Ui::RpWidget> _fieldDisabled;
 	Ui::IconButton * const _botCommandStart = nullptr;
 	struct {
 		object_ptr<Ui::RoundButton> button = { nullptr };

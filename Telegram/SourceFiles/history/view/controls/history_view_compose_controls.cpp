@@ -1503,6 +1503,9 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	_liked = args.liked ? std::move(args.liked) : rpl::single(false);
 	_writeRestriction = rpl::single(Controls::WriteRestriction())
 		| rpl::then(std::move(args.writeRestriction));
+	_canSendTexts = args.canSendTexts
+		? std::move(args.canSendTexts)
+		: rpl::single(true);
 	_minStarsCount = args.minStarsCount
 		? std::move(args.minStarsCount)
 		: rpl::single(0);
@@ -1513,6 +1516,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	untrackThreadFieldVisibility();
 	unregisterDraftSources();
 	_history = history;
+	_fieldDisabled = nullptr;
 	_topicRootId = args.topicRootId;
 	_monoforumPeerId = args.monoforumPeerId;
 	_historyLifetime.destroy();
@@ -2715,6 +2719,13 @@ void ComposeControls::init() {
 		updateWrappingVisibility();
 	}, _wrap->lifetime());
 
+	_canSendTexts.changes(
+	) | rpl::on_next([=] {
+		updateFieldVisibility();
+		updateSendButtonType();
+		updateControlsGeometry(_wrap->size());
+	}, _wrap->lifetime());
+
 	if (_botCommandStart) {
 		_botCommandStart->setAccessibleName(tr::lng_bot_commands_start(tr::now));
 		_botCommandStart->setClickedCallback([=] { setText({ "/" }); });
@@ -3502,9 +3513,39 @@ void ComposeControls::trackThreadFieldVisibility() {
 	}, _threadFieldVisibleLifetime);
 }
 
+bool ComposeControls::fieldDisabledShown() const {
+	return _history
+		&& !_canSendTexts.current()
+		&& !isEditingMessage();
+}
+
+void ComposeControls::updateFieldDisabled() {
+	const auto shown = fieldDisabledShown();
+	if (shown && !_fieldDisabled) {
+		if (Ui::InFocusChain(_field)) {
+			_parent->setFocus();
+		}
+		_fieldDisabled = CreateDisabledFieldView(
+			_wrap.get(),
+			_history->peer,
+			_parent);
+		_fieldDisabled->show();
+		orderControls();
+		updateHeight();
+		updateControlsGeometry(_wrap->size());
+	} else if (!shown && _fieldDisabled) {
+		_fieldDisabled = nullptr;
+		updateHeight();
+	}
+}
+
 void ComposeControls::updateFieldVisibility() {
-	const auto showPreview = shouldShowRichDraftPreview();
-	const auto showField = !_recording.current() && !showPreview;
+	updateFieldDisabled();
+	const auto disabled = (_fieldDisabled != nullptr);
+	const auto showPreview = shouldShowRichDraftPreview() && !disabled;
+	const auto showField = !disabled
+		&& !_recording.current()
+		&& !showPreview;
 	_field->setVisible(showField);
 	_hasSendText = hasVisibleSendText();
 	if (_richDraftPreview) {
@@ -3597,6 +3638,18 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	});
 
 	const auto hadFocus = Ui::InFocusChain(_field);
+	if (!_canSendTexts.current() && !editDraft && !richDraft) {
+		clearFieldText(0, fieldHistoryAction);
+		_header->editMessage({}, {});
+		if (_preview) {
+			_preview->apply({ .removed = true });
+			_preview->setDisabled(false);
+		}
+		_canReplaceMedia = _canAddMedia = false;
+		_photoEditMedia = nullptr;
+		updateFieldVisibility();
+		return;
+	}
 	if (richDraft) {
 		_textUpdateEvents = 0;
 		clearFieldText(0, fieldHistoryAction);
@@ -4753,9 +4806,7 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	// (_commentsShown) (_attachToggle|_replaceMedia) (_sendAs) -- _inlineResults ------ _tabbedPanel -- _fieldBarCancel (_starsReaction)
 	// (_attachDocument|_attachPhoto) _field (_ttlInfo) (_scheduled) (_silent|_botCommandStart) _tabbedSelectorToggle _send
 
-	const auto oldComposeHeight = shouldShowRichDraftPreview()
-		? _richDraftPreview->height()
-		: _field->height();
+	const auto oldComposeHeight = composeFieldHeight();
 	const auto commentsShown = _commentsShown
 		&& !_commentsShown->isHidden();
 	const auto giftToUser = _giftToUser
@@ -4801,9 +4852,7 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 				_st.field.heightMin,
 				st::historyComposeFieldMaxHeight);
 		}
-		const auto newComposeHeight = shouldShowRichDraftPreview()
-			? _richDraftPreview->height()
-			: _field->height();
+		const auto newComposeHeight = composeFieldHeight();
 		if (oldComposeHeight != newComposeHeight) {
 			updateHeight();
 			return;
@@ -4834,13 +4883,15 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		_sendAs->moveToLeft(left, buttonsTop);
 		left += _sendAs->width();
 	}
-	const auto fieldHeight = shouldShowRichDraftPreview()
-		? _richDraftPreview->height()
-		: _field->height();
+	const auto fieldHeight = composeFieldHeight();
 	const auto fieldTop = size.height() - _st.padding.bottom() - fieldHeight;
 	_field->moveToLeft(left, fieldTop);
 	if (_richDraftPreview) {
 		_richDraftPreview->moveToLeft(left, fieldTop);
+	}
+	if (_fieldDisabled) {
+		_fieldDisabled->resize(size.width(), st::historySendSize.height());
+		_fieldDisabled->moveToLeft(left, fieldTop);
 	}
 
 	_header->resizeToWidth(size.width());
@@ -5580,12 +5631,18 @@ void ComposeControls::toggleTabbedSelectorMode() {
 	}
 }
 
+int ComposeControls::composeFieldHeight() const {
+	return fieldDisabledShown()
+		? (st::historySendSize.height() - 2 * st::historySendPadding)
+		: shouldShowRichDraftPreview()
+		? _richDraftPreview->height()
+		: _field->height();
+}
+
 void ComposeControls::updateHeight() {
 	const auto height = (_header->isDisplayed() ? _header->height() : 0)
 		+ _st.padding.top()
-		+ (shouldShowRichDraftPreview()
-			? _richDraftPreview->height()
-			: _field->height())
+		+ composeFieldHeight()
 		+ _st.padding.bottom();
 	if (height != _wrap->height()) {
 		_wrap->resize(_wrap->width(), height);

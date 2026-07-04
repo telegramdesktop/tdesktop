@@ -87,6 +87,7 @@ struct SetHistoryArgs {
 	rpl::producer<bool> liked;
 	rpl::producer<int> minStarsCount;
 	rpl::producer<WriteRestriction> writeRestriction;
+	rpl::producer<bool> canSendTexts;
 };
 
 struct ReplyNextRequest {

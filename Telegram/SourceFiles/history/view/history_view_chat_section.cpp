@@ -1459,6 +1459,19 @@ void ChatWidget::setupComposeControls() {
 		return (update.topic->history() == _history)
 			&& (update.topic->rootId() == resolvedTopicRootId());
 	}) | rpl::to_empty);
+	auto canSendTexts = rpl::combine(
+		session().changes().peerFlagsValue(
+			_peer,
+			Data::PeerUpdate::Flag::Rights),
+		Data::CanSendAnythingValue(_peer),
+		rpl::duplicate(replyThreadChanges),
+		rpl::duplicate(topicClosedChanges)
+	) | rpl::map([=](auto, auto, auto, auto) {
+		const auto topic = resolvedTopic();
+		return topic
+			? Data::CanSend(topic, ChatRestriction::SendOther)
+			: Data::CanSend(_peer, ChatRestriction::SendOther);
+	});
 	auto writeRestriction = rpl::combine(
 		session().frozenValue(),
 		session().changes().peerFlagsValue(
@@ -1539,6 +1552,7 @@ void ChatWidget::setupComposeControls() {
 		.slowmodeSecondsLeft = SlowmodeSecondsLeft(_peer),
 		.sendDisabledBySlowmode = SendDisabledBySlowmode(_peer),
 		.writeRestriction = std::move(writeRestriction),
+		.canSendTexts = std::move(canSendTexts),
 	});
 
 	_composeControls->height(

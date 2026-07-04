@@ -1231,7 +1231,8 @@ void MessageLinksParser::applyRanges(const QString &text) {
 
 base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 		QWidget *parent,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		QWidget *toastParent) {
 	auto result = base::make_unique_q<Ui::AbstractButton>(parent);
 	const auto raw = result.get();
 	const auto label = CreateChild<Ui::FlatLabel>(
@@ -1277,6 +1278,7 @@ base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 	}, raw->lifetime());
 	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
 	const auto toast = raw->lifetime().make_state<WeakToast>();
+	const auto showToastOver = toastParent ? toastParent : parent;
 	raw->setClickedCallback([=] {
 		if (toast->get()) {
 			return;
@@ -1315,7 +1317,7 @@ base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 				lt_last,
 				list.back())
 			: list.back();
-		*toast = Ui::Toast::Show(parent, {
+		*toast = Ui::Toast::Show(showToastOver, {
 			.text = { tr::lng_send_text_no_about(tr::now, lt_types, types) },
 			.attach = RectPart::Bottom,
 			.duration = kTypesDuration,
