@@ -2202,6 +2202,10 @@ void Widget::setInnerFocus(bool unfocusSearch) {
 			|| _searchHasFocus
 			|| _searchSuggestionsLocked)) {
 		_search->setFocus();
+	} else if (Ui::ScreenReaderModeActive()) {
+		// Focus the chat list itself, so the screen reader announces the list
+		// and its selected chat, instead of the unnamed dialogs container.
+		_inner->setFocus();
 	} else {
 		setFocus();
 	}
