@@ -105,6 +105,10 @@ void AddSaveSoundForNotifications(
 	not_null<HistoryItem*> item,
 	not_null<DocumentData*> document,
 	not_null<Window::SessionController*> controller);
+void AddFilterSenderAction(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<Window::SessionController*> controller,
+	HistoryItem *item);
 void AddWhoReactedAction(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<QWidget*> context,

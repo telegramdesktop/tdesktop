@@ -1070,6 +1070,9 @@ void AddMessageActions(
 	AddDeleteAction(menu, request, list);
 	AddDownloadFilesAction(menu, request, list);
 	AddReportAction(menu, request, list);
+	if (request.selectedItems.empty()) {
+		AddFilterSenderAction(menu, list->controller(), request.item);
+	}
 	AddSelectionAction(menu, request, list);
 	AddRescheduleAction(menu, request, list);
 }
@@ -2091,6 +2094,38 @@ void AddWhenEditedForwardedAuthorActionHelper(
 		}
 		menu->addAction(MakeMessageAuthorAction(menu, item, controller));
 	}
+}
+
+void AddFilterSenderAction(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<Window::SessionController*> controller,
+		HistoryItem *item) {
+	if (!item || !item->isRegular()) {
+		return;
+	}
+	const auto peer = item->history()->peer;
+	if (!peer->isChat() && !peer->isMegagroup()) {
+		return;
+	}
+	const auto session = &controller->session();
+	const auto sender = item->from();
+	if (sender->id == session->userPeerId()) {
+		return;
+	}
+	const auto senderId = sender->id;
+	const auto filtered = session->settings().isGroupSenderFiltered(
+		senderId);
+	menu->addAction(
+		(filtered
+			? tr::lng_context_unfilter_sender(tr::now)
+			: tr::lng_context_filter_sender(tr::now)),
+		crl::guard(controller, [=] {
+			session->settings().setGroupSenderFiltered(senderId, !filtered);
+			session->saveSettingsDelayed();
+			session->data().requestSenderViewsResize(
+				session->data().peer(senderId));
+		}),
+		(filtered ? &st::menuIconUserShow : &st::menuIconUserHide));
 }
 
 void AddWhoReactedAction(

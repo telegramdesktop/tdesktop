@@ -320,6 +320,7 @@ private:
 	void addDirectMessages();
 	void addToggleTopicClosed();
 	void addExportChat();
+	void addFilteredSenders();
 	void addTranslate();
 	void addReport();
 	void addNewContact();
@@ -957,6 +958,62 @@ void Filler::addExportChat() {
 		tr::lng_profile_export_chat(tr::now),
 		[=] { PeerMenuExportChat(navigation, peer); },
 		&st::menuIconExport);
+}
+
+class FilteredSendersBoxController final : public PeerListController {
+public:
+	explicit FilteredSendersBoxController(not_null<Main::Session*> session)
+	: _session(session) {
+	}
+
+	Main::Session &session() const override {
+		return *_session;
+	}
+
+	void prepare() override {
+		delegate()->peerListSetTitle(tr::lng_filtered_senders_title());
+		for (const auto &peerId : _session->settings().groupFilteredSenders()) {
+			if (const auto peer = _session->data().peerLoaded(peerId)) {
+				delegate()->peerListAppendRow(
+					std::make_unique<PeerListRow>(peer));
+			}
+		}
+		delegate()->peerListRefreshRows();
+	}
+
+	void rowClicked(not_null<PeerListRow*> row) override {
+		const auto peer = row->peer();
+		_session->settings().setGroupSenderFiltered(peer->id, false);
+		_session->saveSettingsDelayed();
+		_session->data().requestSenderViewsResize(peer);
+		delegate()->peerListRemoveRow(row);
+		delegate()->peerListRefreshRows();
+	}
+
+private:
+	const not_null<Main::Session*> _session;
+
+};
+
+void Filler::addFilteredSenders() {
+	const auto peer = _peer;
+	if (_topic
+		|| !peer
+		|| (!peer->isChat() && !peer->isMegagroup())
+		|| peer->session().settings().groupFilteredSenders().empty()) {
+		return;
+	}
+	const auto controller = _controller;
+	const auto session = &peer->session();
+	_addAction(tr::lng_filtered_senders_menu(tr::now), [=] {
+		controller->show(Box<PeerListBox>(
+			std::make_unique<FilteredSendersBoxController>(session),
+			[=](not_null<PeerListBox*> box) {
+				box->addButton(tr::lng_close(), [=] {
+					box->closeBox();
+				});
+			}));
+	}, &st::menuIconUserHide);
 }
 
 void Filler::addTranslate() {
@@ -1790,6 +1847,7 @@ void Filler::fillHistoryActions() {
 	addViewDiscussion();
 	addDirectMessages();
 	addExportChat();
+	addFilteredSenders();
 	addTranslate();
 	addReport();
 	addClearHistory();

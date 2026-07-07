@@ -187,6 +187,20 @@ public:
 		return _moderateCommonGroups;
 	}
 
+	[[nodiscard]] bool isGroupSenderFiltered(PeerId peerId) const {
+		return _groupFilteredSenders.contains(peerId);
+	}
+	void setGroupSenderFiltered(PeerId peerId, bool filtered) {
+		if (filtered) {
+			_groupFilteredSenders.insert(peerId);
+		} else {
+			_groupFilteredSenders.remove(peerId);
+		}
+	}
+	[[nodiscard]] const base::flat_set<PeerId> &groupFilteredSenders() const {
+		return _groupFilteredSenders;
+	}
+
 	void setPhoneNumberHidden(bool hidden) {
 		_phoneNumberHidden = hidden;
 	}
@@ -248,6 +262,8 @@ private:
 	std::vector<int32> _moderateCommonGroups;
 
 	rpl::variable<bool> _phoneNumberHidden = false;
+
+	base::flat_set<PeerId> _groupFilteredSenders;
 
 };
 

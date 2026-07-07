@@ -2070,6 +2070,19 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemResizeRequest() const {
 	return _itemResizeRequest.events();
 }
 
+void Session::requestSenderViewsResize(not_null<PeerData*> sender) {
+	auto items = std::vector<not_null<const HistoryItem*>>();
+	items.reserve(_views.size());
+	for (const auto &[item, views] : _views) {
+		if (item->from() == sender) {
+			items.push_back(item);
+		}
+	}
+	for (const auto item : items) {
+		requestItemResize(item);
+	}
+}
+
 void Session::requestViewResize(not_null<ViewElement*> view) {
 	view->setPendingResize();
 	_viewResizeRequest.fire_copy(view);

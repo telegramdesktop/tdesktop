@@ -3355,6 +3355,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						reportItem(itemId);
 					}, &st::menuIconReport);
 				}
+				HistoryView::AddFilterSenderAction(_menu, controller, item);
 			}
 			addSelectMessageAction(item);
 			if (isUponSelected != -2 && blockSender) {
@@ -3650,6 +3651,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						reportAsGroup(itemId);
 					}, &st::menuIconReport);
 				}
+				HistoryView::AddFilterSenderAction(_menu, controller, item);
 			}
 			addSelectMessageAction(partItemOrLeader);
 			if (isUponSelected != -2 && canBlockSender) {

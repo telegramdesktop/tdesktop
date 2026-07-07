@@ -5187,6 +5187,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_select_msg" = "Select";
 "lng_context_select_msg_bulk" = "Select up to this message";
 "lng_context_report_msg" = "Report";
+"lng_context_filter_sender" = "Hide sender's messages";
+"lng_context_unfilter_sender" = "Show sender's messages";
+"lng_filtered_senders_title" = "Hidden senders";
+"lng_filtered_senders_menu" = "Hidden senders";
 "lng_context_pin_msg" = "Pin";
 "lng_context_unpin_msg" = "Unpin";
 "lng_context_cancel_upload" = "Cancel Upload";

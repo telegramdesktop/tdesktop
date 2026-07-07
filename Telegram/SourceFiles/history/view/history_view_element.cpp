@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "payments/payments_reaction_process.h" // TryAddingPaidReaction.
@@ -1461,7 +1462,18 @@ bool Element::isHiddenByGroup() const {
 }
 
 bool Element::isHidden() const {
-	return isHiddenByGroup();
+	if (isHiddenByGroup()) {
+		return true;
+	}
+	const auto item = data();
+	const auto peer = item->history()->peer;
+	if (peer->isChat() || peer->isMegagroup()) {
+		const auto &settings = item->history()->session().settings();
+		if (settings.isGroupSenderFiltered(item->from()->id)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void Element::overrideMedia(std::unique_ptr<Media> media) {
