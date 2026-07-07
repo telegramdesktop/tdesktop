@@ -63,6 +63,11 @@ public:
 	QAccessible::Role accessibilityChildSubItemRole() const override;
 	QString accessibilityChildSubItemName(int row, int column) const override;
 	QString accessibilityChildSubItemValue(int row, int column) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
 
 protected:
 	void focusInEvent(QFocusEvent *e) override;
@@ -680,6 +685,92 @@ QString CountrySelectBox::Inner::accessibilityChildSubItemValue(
 		return u"+"_q + list[row].code;
 	}
 	return {};
+}
+
+bool CountrySelectBox::Inner::accessibilityChildSupportsActions(
+		int index) const {
+	// Every row is a country that can be focused and activated, and each
+	// has a stable identity below. Tying the opt-in to a valid identity
+	// keeps the action interface off invalid indices.
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr CountrySelectBox::Inner::accessibilityChildIdentity(
+		int index) const {
+	// _filtered is rebuilt on every search keystroke and _list on every
+	// countries update, and the rebuilt vectors reuse their buffers, so
+	// neither indices nor Entry pointers are stable by the time a queued
+	// action runs. Derive the token from the (iso2, code) pair, which
+	// uniquely names a row; hash collisions are possible but acceptable,
+	// same as the hashtag cohort in the chat list. Shift instead of
+	// masking so that small hash values keep their distinguishing low
+	// bits; the tag bit keeps the token non-zero.
+	const auto &list = current();
+	if (index < 0 || index >= int(list.size())) {
+		return 0;
+	}
+	const auto value = quintptr(
+		qHash(list[index].iso2 + u"+"_q + list[index].code));
+	return value ? ((value << 3) | quintptr(1)) : quintptr(0);
+}
+
+int CountrySelectBox::Inner::accessibilityChildIndexByIdentity(
+		quintptr identity) const {
+	if (!identity) {
+		return -1;
+	}
+	const auto count = accessibilityChildCount();
+	for (auto i = 0; i != count; ++i) {
+		if (accessibilityChildIdentity(i) == identity) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void CountrySelectBox::Inner::accessibilityChildSetFocus(quintptr identity) {
+	// UIA invokes provider actions (SetFocus) on a background thread, so hop
+	// to the main thread before touching any widget state. Resolve the stable
+	// identity to its current index here (not on the background thread) so a
+	// filter or countries-list rebuild does not move focus to another row.
+	crl::on_main(this, [=] {
+		// An explicit accessibility SetFocus is itself sufficient
+		// authorization, so we do not gate it on the screen-reader-mode
+		// detector: the UIA provider already reported success to the caller,
+		// and the detector may still be false during startup or for valid
+		// clients that are not on its allowlist.
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		// The rows are virtual (no real QWidget), so the screen reader's
+		// SetFocus can't move real keyboard focus to a row. Translate it
+		// into our internal selection, then either announce it directly or
+		// grab keyboard focus (focusInEvent announces the selected row).
+		_mouseSelection = false;
+		setSelected(index, hasFocus() ? Announce::Always : Announce::No);
+		_mustScrollTo.fire(ScrollToRequest(
+			st::countriesSkip + index * _rowHeight,
+			st::countriesSkip + (index + 1) * _rowHeight));
+		update();
+		if (!hasFocus()) {
+			setFocus();
+		}
+	});
+}
+
+void CountrySelectBox::Inner::accessibilityChildActivate(quintptr identity) {
+	// UIA invokes the press action on a background thread too; resolve the
+	// identity, move the selection and choose the country on the main thread.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		_mouseSelection = false;
+		setSelected(index, Announce::No);
+		chooseCountry();
+	});
 }
 
 } // namespace Ui
