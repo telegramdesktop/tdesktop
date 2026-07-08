@@ -1273,6 +1273,7 @@ void HistoryInner::setTextSelection(
 	}
 	if (!_selected.empty()) {
 		_selected.clear();
+		_accessibilitySelectionAnchor = nullptr;
 		_widget->updateTopBarSelection();
 		_widget->update();
 	}
@@ -2410,6 +2411,10 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 	if (_accessibilityFocusedItem == item) {
 		_accessibilityFocusedItem = nullptr;
+		_accessibilityFocusedIndex = -1;
+	}
+	if (_accessibilitySelectionAnchor == item) {
+		_accessibilitySelectionAnchor = nullptr;
 	}
 	_accessibilityIdentities.remove(item);
 
@@ -2557,6 +2562,9 @@ void HistoryInner::mouseActionFinish(
 			}
 		}
 	}
+	// A mouse action replaces whatever range the keyboard was building,
+	// the next Shift+arrow re-anchors at the focused row.
+	_accessibilitySelectionAnchor = nullptr;
 	_mouseAction = MouseAction::None;
 	_mouseActionItem = nullptr;
 	_mouseSelectType = TextSelectType::Letters;
@@ -3098,6 +3106,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						} else {
 							changeSelection(&_selected, item, SelectAction::Select);
 						}
+						_accessibilitySelectionAnchor = nullptr;
 						repaintItem(item);
 						_widget->updateTopBarSelection();
 					}
@@ -3175,6 +3184,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								i,
 								SelectAction::Select);
 						}
+						_accessibilitySelectionAnchor = nullptr;
 						update();
 						_widget->updateTopBarSelection();
 					}
@@ -4032,8 +4042,7 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 
 	const auto count = accessibilityChildCount();
 	if (count > 0 && Ui::ScreenReaderModeActive()) {
-		if (_accessibilityFocusedItem
-			&& _accessibilityFocusedIndex >= 0) {
+		if (_accessibilityFocusedItem) {
 			const auto elements = accessibleElements();
 			const auto barIndex
 				= accessibilityUnreadBarIndex();
@@ -4051,7 +4060,12 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 				// cached index in-place without emitting a focus
 				// change — the framework still thinks the focused
 				// child is _accessibilityFocusedItem and we are only
-				// catching up our bookkeeping.
+				// catching up our bookkeeping. If the item is not in
+				// the loaded slice anymore the index is invalidated
+				// instead: selection and media actions dispatch by
+				// index, and a stale one would silently operate on
+				// whatever unrelated row occupies it now.
+				_accessibilityFocusedIndex = -1;
 				for (auto i = 0, n = int(elements.size());
 					i < n; ++i) {
 					if (elements[i]->data().get()
@@ -4065,47 +4079,64 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 				}
 			}
 		}
+		const auto modifiers = e->modifiers()
+			& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier);
+		const auto plainKey = (modifiers == Qt::NoModifier);
+		const auto shiftRange = (modifiers == Qt::ShiftModifier)
+			&& (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down);
 		auto newIndex = _accessibilityFocusedIndex;
 		switch (e->key()) {
 		case Qt::Key_Down:
-			newIndex = std::min(
-				(newIndex < 0) ? (count - 1) : (newIndex + 1),
-				count - 1);
+			if (plainKey || shiftRange) {
+				newIndex = std::min(
+					(newIndex < 0) ? (count - 1) : (newIndex + 1),
+					count - 1);
+			}
 			break;
 		case Qt::Key_Up:
-			newIndex = std::max(
-				(newIndex < 0) ? (count - 1) : (newIndex - 1),
-				0);
+			if (plainKey || shiftRange) {
+				newIndex = std::max(
+					(newIndex < 0) ? (count - 1) : (newIndex - 1),
+					0);
+			}
 			break;
 		case Qt::Key_PageDown: {
-			const auto pageHeight = _visibleAreaBottom
-				- _visibleAreaTop;
-			auto remaining = pageHeight;
-			while (newIndex + 1 < count && remaining > 0) {
-				++newIndex;
-				const auto rect = accessibilityChildRect(
-					newIndex);
-				remaining -= rect.height();
+			if (plainKey) {
+				const auto pageHeight = _visibleAreaBottom
+					- _visibleAreaTop;
+				auto remaining = pageHeight;
+				while (newIndex + 1 < count && remaining > 0) {
+					++newIndex;
+					const auto rect = accessibilityChildRect(
+						newIndex);
+					remaining -= rect.height();
+				}
 			}
 			break;
 		}
 		case Qt::Key_PageUp: {
-			const auto pageHeight = _visibleAreaBottom
-				- _visibleAreaTop;
-			auto remaining = pageHeight;
-			while (newIndex - 1 >= 0 && remaining > 0) {
-				--newIndex;
-				const auto rect = accessibilityChildRect(
-					newIndex);
-				remaining -= rect.height();
+			if (plainKey) {
+				const auto pageHeight = _visibleAreaBottom
+					- _visibleAreaTop;
+				auto remaining = pageHeight;
+				while (newIndex - 1 >= 0 && remaining > 0) {
+					--newIndex;
+					const auto rect = accessibilityChildRect(
+						newIndex);
+					remaining -= rect.height();
+				}
 			}
 			break;
 		}
 		case Qt::Key_Home:
-			newIndex = 0;
+			if (plainKey) {
+				newIndex = 0;
+			}
 			break;
 		case Qt::Key_End:
-			newIndex = count - 1;
+			if (plainKey) {
+				newIndex = count - 1;
+			}
 			break;
 		default:
 			break;
@@ -4124,6 +4155,13 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 				&& elementIndex < int(elements.size()))
 				? elements[elementIndex]->data().get()
 				: nullptr;
+			if (shiftRange) {
+				extendAccessibilitySelection(
+					_accessibilityFocusedIndex,
+					newIndex);
+			} else {
+				_accessibilitySelectionAnchor = nullptr;
+			}
 			setAccessibilityFocusedItem(newIndex, item);
 
 			const auto rect = accessibilityChildRect(newIndex);
@@ -4150,14 +4188,32 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 			return;
 		}
 
-		if (e->key() == Qt::Key_Space) {
-			if (hasSelectedItems()) {
-				toggleMessageSelection();
-			} else {
-				playPauseFocusedMedia();
-			}
+		if (shiftRange) {
 			e->accept();
 			return;
+		}
+
+		if (e->key() == Qt::Key_Space) {
+			// Ctrl+Space toggles selection of the focused message and
+			// thereby enters "selection mode". While any message stays
+			// selected, plain Space keeps toggling (mirroring how mouse
+			// clicks work for sighted users once selection is active);
+			// with nothing selected it plays/pauses the focused media.
+			if (modifiers == Qt::ControlModifier) {
+				_accessibilitySelectionAnchor = nullptr;
+				toggleMessageSelection();
+				e->accept();
+				return;
+			} else if (modifiers == Qt::NoModifier) {
+				if (hasSelectedItems()) {
+					_accessibilitySelectionAnchor = nullptr;
+					toggleMessageSelection();
+				} else {
+					playPauseFocusedMedia();
+				}
+				e->accept();
+				return;
+			}
 		}
 	}
 
@@ -5026,6 +5082,7 @@ void HistoryInner::clearSelected(bool onlyTextSelection) {
 	auto changed = false;
 	if (!onlyTextSelection && !_selected.empty()) {
 		_selected.clear();
+		_accessibilitySelectionAnchor = nullptr;
 		changed = true;
 	}
 	if (_selectedTextItem) {
@@ -5813,30 +5870,118 @@ void HistoryInner::announceAccessibilityFocus(int index) {
 }
 
 void HistoryInner::toggleMessageSelection() {
-	if (!hasSelectedItems() || _accessibilityFocusedIndex < 0) {
-		return;
-	}
+	changeAccessibilitySelection(
+		_accessibilityFocusedIndex,
+		SelectAction::Invert);
+}
+
+void HistoryInner::changeAccessibilitySelection(
+		int index,
+		SelectAction action) {
 	const auto barIndex = accessibilityUnreadBarIndex();
-	if (barIndex >= 0 && _accessibilityFocusedIndex == barIndex) {
+	if (index < 0 || (barIndex >= 0 && index == barIndex)) {
 		return;
 	}
 	const auto elements = accessibleElements();
-	const auto elementIndex = (barIndex >= 0
-		&& _accessibilityFocusedIndex > barIndex)
-		? (_accessibilityFocusedIndex - 1)
-		: _accessibilityFocusedIndex;
+	const auto elementIndex = (barIndex >= 0 && index > barIndex)
+		? (index - 1)
+		: index;
 	if (elementIndex < 0 || elementIndex >= int(elements.size())) {
 		return;
 	}
 	const auto item = elements[elementIndex]->data();
+	// Growing the selection respects the same restriction the mouse
+	// paths check; deselecting an already selected message stays
+	// possible even after a restriction became active, matching them.
+	const auto selecting = (action == SelectAction::Select)
+		|| ((action == SelectAction::Invert)
+			&& !isSelectedAsGroup(&_selected, item));
+	if (selecting && hasSelectRestriction()) {
+		return;
+	}
+	// Detect the change by container size, not by the group membership
+	// flip: deselecting a partially selected album really mutates the
+	// selection while isSelectedAsGroup() stays false both before and
+	// after. Selection changes here are pure adds or removes, so an
+	// unchanged size means nothing changed and no repaint, top bar
+	// update or announcement is due.
+	const auto sizeBefore = _selected.size();
+	changeSelectionAsGroup(&_selected, item, action);
+	if (_selected.size() == sizeBefore) {
+		return;
+	}
 	clearTextSelection();
-	changeSelectionAsGroup(&_selected, item, SelectAction::Invert);
 	repaintItem(item);
 	_widget->updateTopBarSelection();
-	accessibilityChildStateChanged(
-		_accessibilityFocusedIndex,
-		{ .selected = true });
-	accessibilityChildNameChanged(_accessibilityFocusedIndex);
+	accessibilityChildStateChanged(index, { .selected = true });
+	accessibilityChildNameChanged(index);
+}
+
+void HistoryInner::extendAccessibilitySelection(
+		int oldIndex,
+		int newIndex) {
+	// Windows-Explorer-style Shift+arrow range selection. The anchor is
+	// the row the current range grows from: re-established here whenever
+	// it is missing, no longer listed or the selection is empty, so an
+	// interrupted or cancelled range simply starts a fresh one at the
+	// focused row. Growing away from the anchor selects the row being
+	// entered (and the origin row on the first step), stepping back
+	// towards it deselects the row being left.
+	const auto elements = accessibleElements();
+	const auto barIndex = accessibilityUnreadBarIndex();
+	const auto itemAt = [&](int index) -> HistoryItem* {
+		if (barIndex >= 0 && index == barIndex) {
+			return nullptr;
+		}
+		const auto elementIndex = (barIndex >= 0 && index > barIndex)
+			? (index - 1)
+			: index;
+		return (elementIndex >= 0
+			&& elementIndex < int(elements.size()))
+			? elements[elementIndex]->data().get()
+			: nullptr;
+	};
+	if (oldIndex < 0) {
+		_accessibilitySelectionAnchor = itemAt(newIndex);
+		changeAccessibilitySelection(newIndex, SelectAction::Select);
+		return;
+	}
+	auto anchorIndex = -1;
+	if (_accessibilitySelectionAnchor && hasSelectedItems()) {
+		for (auto i = 0, n = int(elements.size()); i != n; ++i) {
+			if (elements[i]->data().get()
+				== _accessibilitySelectionAnchor) {
+				anchorIndex = (barIndex >= 0 && i >= barIndex)
+					? (i + 1)
+					: i;
+				break;
+			}
+		}
+	}
+	if (anchorIndex < 0) {
+		_accessibilitySelectionAnchor = itemAt(oldIndex);
+		if (!_accessibilitySelectionAnchor) {
+			// Re-anchoring on the unread-bar row (it has no item): anchor
+			// to the row being entered instead, so the next Shift+arrow
+			// can resolve the anchor and shrink the range. Leaving the
+			// anchor null here would make every following step re-anchor
+			// at its own old index and always read as growing.
+			_accessibilitySelectionAnchor = itemAt(newIndex);
+		}
+		anchorIndex = oldIndex;
+	}
+	const auto growing = std::abs(newIndex - anchorIndex)
+		> std::abs(oldIndex - anchorIndex);
+	if (growing) {
+		if (oldIndex == anchorIndex) {
+			changeAccessibilitySelection(
+				oldIndex,
+				SelectAction::Select);
+		}
+		changeAccessibilitySelection(newIndex, SelectAction::Select);
+	} else {
+		changeAccessibilitySelection(oldIndex, SelectAction::Deselect);
+	}
 }
 
 void HistoryInner::playPauseFocusedMedia() {
@@ -6417,11 +6562,14 @@ void HistoryInner::focusInEvent(QFocusEvent *e) {
 				return;
 			}
 			// The cached focused item is no longer in the list (it
-			// was removed since we last had focus). Clear the cache
-			// in-place and fall through to the index-still-valid /
-			// auto-select branches below — those will pick a new
-			// focus target and emit the announcement.
+			// was removed or fell out of the loaded slice since we
+			// last had focus). Invalidate the index together with the
+			// item: announcing whatever row occupies the old index
+			// would leave later actions bound to a row the user never
+			// heard about once the list shifts again. The auto-select
+			// branch below establishes a fresh focus instead.
 			_accessibilityFocusedItem = nullptr;
+			_accessibilityFocusedIndex = -1;
 		}
 		if (_accessibilityFocusedIndex >= 0
 			&& _accessibilityFocusedIndex < count) {
@@ -6521,6 +6669,7 @@ void HistoryInner::applyAccessibilityFocus(
 		: nullptr;
 	const auto changed = (_accessibilityFocusedIndex != index)
 		|| (_accessibilityFocusedItem != item);
+	_accessibilitySelectionAnchor = nullptr;
 	_accessibilityFocusedIndex = index;
 	_accessibilityFocusedItem = item;
 	// Exactly one announcement: directly when the widget already has

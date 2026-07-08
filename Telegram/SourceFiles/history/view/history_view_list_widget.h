@@ -750,6 +750,8 @@ private:
 		SelectedMap &applyTo,
 		not_null<HistoryItem*> item,
 		SelectAction action) const;
+	void changeAccessibilitySelection(int index, SelectAction action);
+	void extendAccessibilitySelection(int oldIndex, int newIndex);
 
 	SelectedMap::iterator itemUnderPressSelection();
 	SelectedMap::const_iterator itemUnderPressSelection() const;
@@ -939,6 +941,7 @@ private:
 
 	int _accessibilityFocusedIndex = -1;
 	HistoryItem *_accessibilityFocusedItem = nullptr;
+	HistoryItem *_accessibilitySelectionAnchor = nullptr;
 	mutable base::flat_map<
 		not_null<const HistoryItem*>,
 		quintptr> _accessibilityIdentities;

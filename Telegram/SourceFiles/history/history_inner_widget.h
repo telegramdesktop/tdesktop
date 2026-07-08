@@ -515,6 +515,8 @@ private:
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item,
 		SelectAction action) const;
+	void changeAccessibilitySelection(int index, SelectAction action);
+	void extendAccessibilitySelection(int oldIndex, int newIndex);
 	void forwardItem(FullMsgId itemId);
 	void forwardAsGroup(FullMsgId itemId);
 	void deleteItem(not_null<HistoryItem*> item);
@@ -558,6 +560,7 @@ private:
 
 	int _accessibilityFocusedIndex = -1;
 	HistoryItem *_accessibilityFocusedItem = nullptr;
+	HistoryItem *_accessibilitySelectionAnchor = nullptr;
 	mutable base::flat_map<
 		not_null<const HistoryItem*>,
 		quintptr> _accessibilityIdentities;

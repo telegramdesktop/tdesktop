@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/rect.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "base/timer_rpl.h"
 #include "api/api_bot.h"
@@ -3328,7 +3329,8 @@ void ChatWidget::listSelectionChanged(SelectedItems &&items) {
 	if ((state.count > 0) && _composeSearch) {
 		_composeSearch->hideAnimated();
 	}
-	if (items.empty()) {
+	if (items.empty()
+		&& !(_inner->hasFocus() && Ui::ScreenReaderModeActive())) {
 		doSetInnerFocus();
 	}
 }

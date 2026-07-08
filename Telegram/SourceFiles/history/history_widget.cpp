@@ -61,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/send_button.h"
 #include "ui/controls/send_as_button.h"
 #include "ui/controls/silent_toggle.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "inline_bots/inline_bot_result.h"
 #include "base/event_filter.h"
@@ -10462,7 +10463,10 @@ void HistoryWidget::updateTopBarSelection() {
 			|| isBotStart()
 			|| isBlocked()
 			|| !_richDraftPreview->isHidden()
-			|| (!_canSendTexts && !_editMsgId)) {
+			|| (!_canSendTexts && !_editMsgId)
+			|| (_list
+				&& _list->hasFocus()
+				&& Ui::ScreenReaderModeActive())) {
 			_list->setFocus();
 		} else {
 			_field->setFocus();

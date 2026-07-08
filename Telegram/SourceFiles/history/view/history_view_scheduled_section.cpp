@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "api/api_editing.h"
 #include "api/api_sending.h"
@@ -1454,7 +1455,8 @@ void ScheduledWidget::listSelectionChanged(SelectedItems &&items) {
 		}
 	}
 	_topBar->showSelected(state);
-	if (items.empty()) {
+	if (items.empty()
+		&& !(_inner->hasFocus() && Ui::ScreenReaderModeActive())) {
 		doSetInnerFocus();
 	}
 }
