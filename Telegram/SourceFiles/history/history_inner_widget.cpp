@@ -6429,6 +6429,18 @@ QString HistoryInner::accessibilityChildName(int index) const {
 		_history);
 }
 
+Ui::AccessibilityState HistoryInner::accessibilityState() const {
+	// The list allows selecting multiple messages (Ctrl+Space, plain
+	// Space while the selection is not empty, Shift+arrows for ranges)
+	// and the selection may be emptied again, so the UIA selection
+	// pattern must report CanSelectMultiple and must not claim
+	// IsSelectionRequired once something got selected.
+	return {
+		.extSelectable = true,
+		.multiSelectable = true,
+	};
+}
+
 QAccessible::State HistoryInner::accessibilityChildState(int index) const {
 	QAccessible::State state;
 	state.focusable = true;

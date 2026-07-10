@@ -123,6 +123,7 @@ public:
 	Qt::FocusPolicy accessibilityFocusPolicy() override {
 		return Qt::TabFocus;
 	}
+	Ui::AccessibilityState accessibilityState() const override;
 	int accessibilityChildCount() const override;
 	QString accessibilityChildName(int index) const override;
 	QAccessible::State accessibilityChildState(int index) const override;
