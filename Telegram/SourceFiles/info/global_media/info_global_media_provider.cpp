@@ -105,6 +105,10 @@ std::optional<GlobalMediaSlice::Value> GlobalMediaSlice::nearest(
 	return *it;
 }
 
+const std::vector<GlobalMediaSlice::Value> &GlobalMediaSlice::items() const {
+	return _items;
+}
+
 Provider::Provider(not_null<AbstractController*> controller)
 : _controller(controller)
 , _type(_controller->section().mediaType())
@@ -120,6 +124,15 @@ Provider::Provider(not_null<AbstractController*> controller)
 			layout.second.item->invalidateCache();
 		}
 	}, _lifetime);
+}
+
+Provider::~Provider() {
+	for (auto &entry : _totalLists) {
+		auto &list = entry.second;
+		if (list.requestId) {
+			_controller->session().api().request(list.requestId).cancel();
+		}
+	}
 }
 
 Provider::Type Provider::type() {
@@ -165,17 +178,19 @@ bool Provider::isPossiblyMyItem(not_null<const HistoryItem*> item) {
 }
 
 std::optional<int> Provider::fullCount() {
-	return (_sliceQuery == _totalListQuery)
-		? _slice.fullCount()
+	return _sliceSnapshot
+		? std::make_optional(_sliceSnapshot->fullCount)
 		: std::nullopt;
 }
 
 void Provider::restart() {
 	_layouts.clear();
+	++_generation;
 	_aroundId = Data::MaxMessagePosition;
 	_idsLimit = kMinimalIdsLimit;
 	_slice = GlobalMediaSlice(sliceKey(_aroundId));
-	_sliceQuery = QString();
+	_sliceSnapshot = std::nullopt;
+	_edgeRequest = std::nullopt;
 	refreshViewer();
 }
 
@@ -202,9 +217,11 @@ void Provider::checkPreload(
 		- Media::kPreloadIfLessThanScreens;
 	const auto minUniversalIdDelta = (minScreenDelta * visibleHeight)
 		/ minItemHeight;
-	const auto preloadAroundItem = [&](not_null<BaseLayout*> layout) {
+	const auto preloadAroundItem = [=](
+			not_null<BaseLayout*> layout,
+			EdgeRequestKey::Direction direction) {
 		auto preloadRequired = false;
-		auto aroundId = layout->getItem()->position();
+		const auto aroundId = layout->getItem()->position();
 		if (!preloadRequired) {
 			preloadRequired = (_idsLimit < preloadIdsLimitMin);
 		}
@@ -216,6 +233,19 @@ void Provider::checkPreload(
 			preloadRequired = (qAbs(*delta) >= minUniversalIdDelta);
 		}
 		if (preloadRequired) {
+			const auto key = EdgeRequestKey{
+				.generation = _generation,
+				.direction = direction,
+				.aroundId = aroundId,
+			};
+			if (_edgeRequest == key) {
+				return;
+			}
+			_edgeRequest = key;
+			const auto list = listForQuery(_totalListQuery);
+			list->pendingGlobalIndex = std::nullopt;
+			++list->globalIndexRequestToken;
+			list->coverageWaiterRegistered = false;
 			_idsLimit = preloadIdsLimit;
 			_aroundId = aroundId;
 			refreshViewer();
@@ -223,9 +253,9 @@ void Provider::checkPreload(
 	};
 
 	if (preloadTop && !topLoaded) {
-		preloadAroundItem(topLayout);
+		preloadAroundItem(topLayout, EdgeRequestKey::Direction::Top);
 	} else if (preloadBottom && !bottomLoaded) {
-		preloadAroundItem(bottomLayout);
+		preloadAroundItem(bottomLayout, EdgeRequestKey::Direction::Bottom);
 	}
 }
 
@@ -233,29 +263,29 @@ rpl::producer<Provider::SliceUpdate> Provider::source(
 		Type type,
 		Data::MessagePosition aroundId,
 		QString query,
+		uint64 generation,
 		int limitBefore,
 		int limitAfter) {
 	Expects(_type == type);
 
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
-		const auto session = &_controller->session();
 
 		struct State : base::has_weak_ptr {
-			State(not_null<Main::Session*> session) : session(session) {
-			}
-			~State() {
-				session->api().request(requestId).cancel();
-			}
-
-			const not_null<Main::Session*> session;
 			Fn<void()> pushAndLoadMore;
-			mtpRequestId requestId = 0;
 		};
-		const auto state = lifetime.make_state<State>(session);
+		const auto state = lifetime.make_state<State>();
 		const auto guard = base::make_weak(state);
 
 		state->pushAndLoadMore = [=] {
+			if (_generation != generation || _totalListQuery != query) {
+				return;
+			}
+			const auto list = listForQuery(query);
+			if (list->pendingGlobalIndex
+				&& list->pendingGeneration == generation) {
+				return;
+			}
 			auto result = fillRequest(
 				query,
 				aroundId,
@@ -265,11 +295,16 @@ rpl::producer<Provider::SliceUpdate> Provider::source(
 			// May destroy 'state' by calling source() with different args.
 			consumer.put_next(SliceUpdate{
 				query,
+				generation,
 				std::move(result.slice),
 			});
 
-			if (guard && !listForQuery(query)->loaded && result.notEnough) {
-				state->requestId = requestMore(query, state->pushAndLoadMore);
+			if (guard && !list->loaded && result.notEnough) {
+				requestMore(query, generation, [guard] {
+					if (guard) {
+						guard->pushAndLoadMore();
+					}
+				});
 			}
 		};
 		state->pushAndLoadMore();
@@ -278,34 +313,83 @@ rpl::producer<Provider::SliceUpdate> Provider::source(
 	};
 }
 
-mtpRequestId Provider::requestMore(QString query, Fn<void()> loaded) {
+void Provider::requestMore(
+		const QString &query,
+		uint64 generation,
+		Fn<void()> loaded) {
+	if (_generation != generation || _totalListQuery != query) {
+		return;
+	}
+	const auto list = listForQuery(query);
+	if (list->loaded) {
+		loaded();
+		return;
+	}
+	list->requestWaiters.push_back(std::move(loaded));
+	if (list->requestId) {
+		return;
+	}
+
+	const auto requestPosition = list->offsetPosition;
+	const auto requestRate = list->offsetRate;
+	const auto cursor = RequestCursor{
+		.position = requestPosition,
+		.rate = requestRate,
+	};
+	if (ranges::contains(list->requestCursors, cursor)) {
+		list->loaded = true;
+		list->fullCount = int(list->list.size());
+		auto waiters = std::exchange(
+			list->requestWaiters,
+			std::vector<Fn<void()>>());
+		for (auto &callback : waiters) {
+			callback();
+		}
+		return;
+	}
+	list->requestCursors.push_back(cursor);
+	const auto token = ++list->requestToken;
 	const auto done = [=](const Api::GlobalMediaResult &result) {
 		const auto list = listForQuery(query);
+		if (list->requestToken != token) {
+			return;
+		}
+		list->requestId = 0;
+
 		if (result.messageIds.empty()) {
 			list->loaded = true;
-			list->fullCount = list->list.size();
 		} else {
-			list->list.reserve(list->list.size() + result.messageIds.size());
-			list->fullCount = result.fullCount;
+			list->list.reserve(
+				list->list.size() + result.messageIds.size());
 			for (const auto &position : result.messageIds) {
+				if (list->ids.contains(position.fullId)) {
+					continue;
+				}
+				list->ids.emplace(position.fullId);
 				_seenIds.emplace(position.fullId);
-				list->offsetPosition = position;
 				list->list.push_back(position);
 			}
-		}
-		if (!result.offsetRate) {
-			list->loaded = true;
-		} else {
+			ranges::sort(list->list, std::greater<>());
+			list->offsetPosition = result.messageIds.back();
 			list->offsetRate = result.offsetRate;
+			list->loaded = !result.offsetRate;
 		}
-		loaded();
+		list->fullCount = list->loaded
+			? int(list->list.size())
+			: std::max(result.fullCount, int(list->list.size()));
+
+		auto waiters = std::exchange(
+			list->requestWaiters,
+			std::vector<Fn<void()>>());
+		for (auto &callback : waiters) {
+			callback();
+		}
 	};
-	const auto list = listForQuery(query);
-	return _controller->session().api().requestGlobalMedia(
+	list->requestId = _controller->session().api().requestGlobalMedia(
 		_type,
 		query,
-		list->offsetRate,
-		list->offsetPosition,
+		requestRate,
+		requestPosition,
 		done);
 }
 
@@ -323,6 +407,9 @@ Provider::FillResult Provider::fillRequest(
 	const auto hasBefore = int(end(list->list) - i);
 	const auto takeAfter = std::min(limitAfter, hasAfter);
 	const auto takeBefore = std::min(limitBefore, hasBefore);
+	const auto fullCount = std::max(
+		list->fullCount,
+		int(list->list.size()));
 	auto messages = std::vector<Data::MessagePosition>{
 		i - takeAfter,
 		i + takeBefore,
@@ -332,43 +419,201 @@ Provider::FillResult Provider::fillRequest(
 			GlobalMediaKey{ aroundId },
 			std::move(messages),
 			((!list->list.empty() || list->loaded)
-				? list->fullCount
+				? fullCount
 				: std::optional<int>()),
 			hasAfter - takeAfter),
 		.notEnough = (takeBefore < limitBefore),
 	};
 }
 
+void Provider::continueGlobalIndexCoverage(
+		const QString &query,
+		uint64 generation,
+		uint64 token) {
+	if (_generation != generation || _totalListQuery != query) {
+		return;
+	}
+	const auto list = listForQuery(query);
+	if (!list->pendingGlobalIndex
+		|| list->pendingGeneration != generation
+		|| list->globalIndexRequestToken != token) {
+		return;
+	}
+	const auto target = *list->pendingGlobalIndex;
+	if (target < int(list->list.size()) || list->loaded) {
+		list->pendingGlobalIndex = std::nullopt;
+		++list->globalIndexRequestToken;
+		list->coverageWaiterRegistered = false;
+		_edgeRequest = std::nullopt;
+		_aroundId = list->list.empty()
+			? Data::MaxMessagePosition
+			: list->list[std::min(target, int(list->list.size()) - 1)];
+		refreshViewer();
+		return;
+	}
+	if (list->coverageWaiterRegistered) {
+		return;
+	}
+	list->coverageWaiterRegistered = true;
+	requestMore(query, generation, [=] {
+		const auto list = listForQuery(query);
+		if (list->globalIndexRequestToken != token) {
+			return;
+		}
+		list->coverageWaiterRegistered = false;
+		continueGlobalIndexCoverage(query, generation, token);
+	});
+}
+
+std::optional<GlobalMediaSliceSnapshot> Provider::makeSnapshot(
+		const SliceUpdate &update) const {
+	if (update.query != _totalListQuery
+		|| update.generation != _generation) {
+		return std::nullopt;
+	}
+	const auto fullCount = update.slice.fullCount();
+	const auto skippedAfter = update.slice.skippedAfter();
+	const auto skippedBefore = update.slice.skippedBefore();
+	if (!fullCount
+		|| !skippedAfter
+		|| !skippedBefore
+		|| *fullCount < 0
+		|| *skippedAfter < 0
+		|| *skippedBefore < 0
+		|| *skippedAfter + update.slice.size() + *skippedBefore
+			!= *fullCount) {
+		return std::nullopt;
+	}
+
+	auto ids = base::flat_set<FullMsgId>();
+	const auto &positions = update.slice.items();
+	for (auto i = 0, count = int(positions.size()); i != count; ++i) {
+		if (ids.contains(positions[i].fullId)
+			|| (i > 0 && !(positions[i - 1] > positions[i]))) {
+			return std::nullopt;
+		}
+		ids.emplace(positions[i].fullId);
+	}
+	return GlobalMediaSliceSnapshot{
+		.query = update.query,
+		.generation = update.generation,
+		.fullCount = *fullCount,
+		.skippedAfter = *skippedAfter,
+		.skippedBefore = *skippedBefore,
+		.positions = positions,
+	};
+}
+
 void Provider::refreshViewer() {
 	_viewerLifetime.destroy();
+	const auto generation = _generation;
 	_controller->searchQueryValue(
+	) | rpl::take(1
 	) | rpl::map([=](QString query) {
+		if (generation != _generation) {
+			return rpl::producer<SliceUpdate>();
+		}
 		_totalListQuery = query;
+		const auto list = listForQuery(query);
+		if (list->pendingGeneration != generation) {
+			list->pendingGlobalIndex = std::nullopt;
+			++list->globalIndexRequestToken;
+			list->coverageWaiterRegistered = false;
+		}
 		return source(
 			_type,
 			sliceKey(_aroundId).aroundId,
 			query,
+			generation,
 			_idsLimit,
 			_idsLimit);
 	}) | rpl::flatten_latest(
 	) | rpl::on_next([=](SliceUpdate &&update) {
-		if (update.query != _totalListQuery) {
-			return;
-		} else if (!update.slice.fullCount()) {
-			// Don't display anything while full count is unknown.
+		auto snapshot = makeSnapshot(update);
+		if (!snapshot) {
 			return;
 		}
-		_sliceQuery = update.query;
 		_slice = std::move(update.slice);
 		if (auto nearest = _slice.nearest(_aroundId)) {
 			_aroundId = *nearest;
 		}
+		_sliceSnapshot = std::move(snapshot);
+		_sliceSnapshotChanges.fire_copy(*_sliceSnapshot);
 		_refreshed.fire({});
 	}, _viewerLifetime);
 }
 
 rpl::producer<> Provider::refreshed() {
 	return _refreshed.events();
+}
+
+bool Provider::anchorWhileAtTop() {
+	const auto skippedAfter = _slice.skippedAfter();
+	return !skippedAfter || (*skippedAfter != 0);
+}
+
+auto Provider::sliceSnapshot() const
+-> const std::optional<GlobalMediaSliceSnapshot> & {
+	return _sliceSnapshot;
+}
+
+rpl::producer<GlobalMediaSliceSnapshot> Provider::sliceSnapshotValue() const {
+	return _sliceSnapshot
+		? _sliceSnapshotChanges.events_starting_with_copy(*_sliceSnapshot)
+		: (_sliceSnapshotChanges.events() | rpl::type_erased);
+}
+
+void Provider::requestAroundGlobalIndex(int index) {
+	if (!_sliceSnapshot || _sliceSnapshot->fullCount <= 0) {
+		return;
+	}
+	const auto query = _sliceSnapshot->query;
+	const auto generation = _sliceSnapshot->generation;
+	if (query != _totalListQuery || generation != _generation) {
+		return;
+	}
+	const auto target = std::clamp(
+		index,
+		0,
+		_sliceSnapshot->fullCount - 1);
+	const auto sliceEnd = _sliceSnapshot->skippedAfter
+		+ int(_sliceSnapshot->positions.size());
+	if (target >= _sliceSnapshot->skippedAfter && target < sliceEnd) {
+		cancelGlobalIndexRequest();
+		return;
+	}
+
+	const auto list = listForQuery(query);
+	if (target < int(list->list.size())) {
+		list->pendingGlobalIndex = std::nullopt;
+		++list->globalIndexRequestToken;
+		list->coverageWaiterRegistered = false;
+		_edgeRequest = std::nullopt;
+		_aroundId = list->list[target];
+		refreshViewer();
+		return;
+	}
+	if (list->pendingGlobalIndex == target
+		&& list->pendingGeneration == generation) {
+		return;
+	}
+	list->coverageWaiterRegistered = false;
+	list->pendingGlobalIndex = target;
+	list->pendingGeneration = generation;
+	const auto token = ++list->globalIndexRequestToken;
+	continueGlobalIndexCoverage(query, generation, token);
+}
+
+void Provider::cancelGlobalIndexRequest() {
+	const auto list = listForQuery(_totalListQuery);
+	if (!list->pendingGlobalIndex
+		|| list->pendingGeneration != _generation) {
+		return;
+	}
+	list->pendingGlobalIndex = std::nullopt;
+	++list->globalIndexRequestToken;
+	list->coverageWaiterRegistered = false;
+	_edgeRequest = std::nullopt;
 }
 
 std::vector<Media::ListSection> Provider::fillSections(

@@ -7,12 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/rows_scroll_cache.h"
-#include "ui/widgets/tooltip.h"
-#include "info/media/info_media_widget.h"
+#include "info/global_media/info_global_media_provider.h"
 #include "info/media/info_media_common.h"
+#include "info/media/info_media_widget.h"
 #include "overview/overview_layout_delegate.h"
+#include "ui/widgets/tooltip.h"
+#include "ui/rows_scroll_cache.h"
+#include "ui/rp_widget.h"
 
 #include <optional>
 
@@ -57,6 +58,19 @@ class ListSection;
 class ListProvider;
 class ListZoom;
 
+struct GlobalMediaSliceRow {
+	Data::MessagePosition position;
+	QRect geometry;
+};
+
+struct GlobalMediaSliceView {
+	GlobalMedia::GlobalMediaSliceSnapshot slice;
+	std::vector<GlobalMediaSliceRow> rows;
+	int rowExtent = 0;
+	int topPadding = 0;
+	int bottomPadding = 0;
+};
+
 class ListWidget final
 	: public Ui::RpWidget
 	, public Overview::Layout::Delegate
@@ -74,6 +88,14 @@ public:
 	rpl::producer<int> scrollToRequests() const;
 	[[nodiscard]] std::optional<int> fullCount() const;
 	[[nodiscard]] rpl::producer<std::optional<int>> fullCountValue() const;
+	[[nodiscard]] auto globalMediaSliceView() const
+		-> const std::optional<GlobalMediaSliceView> &;
+	[[nodiscard]] auto globalMediaSliceViewValue() const
+		-> rpl::producer<std::optional<GlobalMediaSliceView>>;
+	void requestGlobalMediaAroundGlobalIndex(int index);
+	void cancelGlobalMediaAroundGlobalIndex();
+	[[nodiscard]] bool globalMediaSliceRefreshInProgress() const;
+	void setViewportInVirtualSpace(bool value);
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void setPreloadEnabled(bool enabled);
 	[[nodiscard]] int heightForFirstRows(int count) const;
@@ -225,6 +247,10 @@ private:
 	void itemLayoutChanged(not_null<const HistoryItem*> item);
 
 	void refreshRows();
+	[[nodiscard]] GlobalMedia::Provider *globalMediaProvider() const;
+	[[nodiscard]] auto computeGlobalMediaSliceView() const
+		-> std::optional<GlobalMediaSliceView>;
+	void invalidateGlobalMediaSliceView();
 	void markStoryMsgsSelected();
 	void trackSession(not_null<Main::Session*> session);
 
@@ -365,6 +391,12 @@ private:
 	ListScrollTopState _scrollTopState;
 	rpl::event_stream<int> _scrollToRequests;
 	rpl::event_stream<std::optional<int>> _fullCountUpdates;
+	std::optional<GlobalMediaSliceView> _globalMediaSliceView;
+	rpl::event_stream<std::optional<GlobalMediaSliceView>>
+		_globalMediaSliceViewChanges;
+	bool _globalMediaSliceRefreshInProgress = false;
+	bool _globalMediaEmbeddedViewport = false;
+	bool _viewportInVirtualSpace = false;
 
 	std::unique_ptr<ListZoom> _zoom;
 

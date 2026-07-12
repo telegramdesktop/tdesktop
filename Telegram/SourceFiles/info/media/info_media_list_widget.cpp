@@ -371,6 +371,40 @@ rpl::producer<std::optional<int>> ListWidget::fullCountValue() const {
 	return _fullCountUpdates.events_starting_with(fullCount());
 }
 
+auto ListWidget::globalMediaSliceView() const
+-> const std::optional<GlobalMediaSliceView> & {
+	return _globalMediaSliceView;
+}
+
+auto ListWidget::globalMediaSliceViewValue() const
+-> rpl::producer<std::optional<GlobalMediaSliceView>> {
+	return _globalMediaSliceViewChanges.events_starting_with_copy(
+		_globalMediaSliceView);
+}
+
+void ListWidget::requestGlobalMediaAroundGlobalIndex(int index) {
+	const auto provider = globalMediaProvider();
+	if (provider && provider->type() == Type::MusicFile) {
+		provider->requestAroundGlobalIndex(index);
+	}
+}
+
+void ListWidget::cancelGlobalMediaAroundGlobalIndex() {
+	const auto provider = globalMediaProvider();
+	if (provider && provider->type() == Type::MusicFile) {
+		provider->cancelGlobalIndexRequest();
+	}
+}
+
+bool ListWidget::globalMediaSliceRefreshInProgress() const {
+	return _globalMediaSliceRefreshInProgress;
+}
+
+void ListWidget::setViewportInVirtualSpace(bool value) {
+	_globalMediaEmbeddedViewport = true;
+	_viewportInVirtualSpace = value;
+}
+
 rpl::producer<SelectedItems> ListWidget::selectedListValue() const {
 	return _selectedListStream.events_starting_with(
 		collectSelectedItems());
@@ -467,6 +501,8 @@ void ListWidget::restart() {
 	_sections.clear();
 	_heavyLayouts.clear();
 	_rowsScrollCache.clear();
+	invalidateGlobalMediaSliceView();
+	_viewportInVirtualSpace = false;
 
 	_provider->restart();
 
@@ -515,7 +551,19 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 
 	if (needHeightRefresh) {
+		const auto provider = globalMediaProvider();
+		const auto globalMediaMusic = provider
+			&& (provider->type() == Type::MusicFile);
+		if (globalMediaMusic) {
+			_globalMediaSliceRefreshInProgress = true;
+			_globalMediaSliceView = std::nullopt;
+		}
 		refreshHeight();
+		if (globalMediaMusic) {
+			_globalMediaSliceRefreshInProgress = false;
+			_globalMediaSliceViewChanges.fire_copy(
+				_globalMediaSliceView);
+		}
 	}
 	mouseActionUpdate(_mousePosition);
 }
@@ -772,7 +820,93 @@ void ListWidget::markStoryMsgsSelected() {
 	}
 }
 
+GlobalMedia::Provider *ListWidget::globalMediaProvider() const {
+	return dynamic_cast<GlobalMedia::Provider*>(_provider.get());
+}
+
+auto ListWidget::computeGlobalMediaSliceView() const
+-> std::optional<GlobalMediaSliceView> {
+	const auto provider = globalMediaProvider();
+	if (!provider || provider->type() != Type::MusicFile) {
+		return std::nullopt;
+	}
+	const auto &snapshot = provider->sliceSnapshot();
+	if (!snapshot) {
+		return std::nullopt;
+	}
+	const auto count = int(snapshot->positions.size());
+	if (!count) {
+		return (_sections.empty() && !height() && !snapshot->fullCount)
+			? std::make_optional(GlobalMediaSliceView{
+				.slice = *snapshot,
+				.rowExtent = st::overviewFileLayout.songPadding.top()
+					+ st::overviewFileLayout.songThumbSize
+					+ st::overviewFileLayout.songPadding.bottom(),
+			})
+			: std::nullopt;
+	}
+	if (_sections.size() != 1
+		|| !_sections.front().isOneColumn()
+		|| int(_sections.front().items().size()) != count) {
+		return std::nullopt;
+	}
+
+	const auto rowExtent = st::overviewFileLayout.songPadding.top()
+		+ st::overviewFileLayout.songThumbSize
+		+ st::overviewFileLayout.songPadding.bottom();
+	auto result = GlobalMediaSliceView{
+		.slice = *snapshot,
+		.rowExtent = rowExtent,
+	};
+	result.rows.reserve(count);
+	auto ids = base::flat_set<FullMsgId>();
+	const auto &section = _sections.front();
+	for (auto i = 0; i != count; ++i) {
+		const auto item = section.items()[i];
+		const auto position = item->getItem()->position();
+		auto geometry = section.findItemDetails(item).geometry;
+		geometry.translate(0, section.top());
+		if (position != snapshot->positions[i]
+			|| ids.contains(position.fullId)
+			|| (i > 0 && !(snapshot->positions[i - 1] > position))
+			|| geometry.height() != rowExtent
+			|| (i > 0
+				&& result.rows.back().geometry.y()
+					+ result.rows.back().geometry.height()
+					!= geometry.y())) {
+			return std::nullopt;
+		}
+		ids.emplace(position.fullId);
+		result.rows.push_back({ position, geometry });
+	}
+	result.topPadding = result.rows.front().geometry.y();
+	result.bottomPadding = height()
+		- result.rows.back().geometry.y()
+		- result.rows.back().geometry.height();
+	if (result.topPadding < 0 || result.bottomPadding < 0) {
+		return std::nullopt;
+	}
+	return result;
+}
+
+void ListWidget::invalidateGlobalMediaSliceView() {
+	const auto provider = globalMediaProvider();
+	if (!provider
+		|| provider->type() != Type::MusicFile
+		|| !_globalMediaSliceView) {
+		return;
+	}
+	_globalMediaSliceView = std::nullopt;
+	_globalMediaSliceViewChanges.fire_copy(_globalMediaSliceView);
+}
+
 void ListWidget::refreshRows() {
+	const auto globalMedia = globalMediaProvider();
+	const auto globalMediaMusic = globalMedia
+		&& (globalMedia->type() == Type::MusicFile);
+	const auto embeddedGlobalMedia = globalMediaMusic
+		&& _globalMediaEmbeddedViewport;
+	_globalMediaSliceRefreshInProgress = embeddedGlobalMedia;
 	saveScrollState();
 
 	_reorderState = {};
@@ -791,10 +925,25 @@ void ListWidget::refreshRows() {
 	if (count && *count > kMediaCountForSearch) {
 		_controller->setSearchEnabledByContent(true);
 	}
-	_fullCountUpdates.fire_copy(count);
+	if (!embeddedGlobalMedia) {
+		_fullCountUpdates.fire_copy(count);
+	}
 
 	resizeToWidth(width());
+	_globalMediaSliceView = globalMediaMusic
+		? computeGlobalMediaSliceView()
+		: std::nullopt;
 	restoreScrollState();
+	if (embeddedGlobalMedia) {
+		_globalMediaSliceRefreshInProgress = false;
+		_fullCountUpdates.fire_copy(count);
+	}
+	if (globalMediaMusic) {
+		_globalMediaSliceViewChanges.fire_copy(_globalMediaSliceView);
+	}
+	if (embeddedGlobalMedia && !_viewportInVirtualSpace) {
+		checkMoveToOtherViewer();
+	}
 	mouseActionUpdate();
 	update();
 }
@@ -952,7 +1101,7 @@ void ListWidget::toggleScrollDateShown() {
 }
 
 void ListWidget::checkMoveToOtherViewer() {
-	if (!_preloadEnabled) {
+	if (!_preloadEnabled || _viewportInVirtualSpace) {
 		return;
 	}
 	const auto visibleHeight = std::max(
@@ -1011,6 +1160,9 @@ ListScrollTopState ListWidget::countScrollState() const {
 }
 
 ListScrollTopState ListWidget::countScrollState(QPoint anchor) const {
+	if (_viewportInVirtualSpace) {
+		return {};
+	}
 	// Embedded lists get their visible top clamped to 0, so being
 	// "at the top" is meaningless unless the newest edge is loaded.
 	const auto stickToTop = !_externalViewportHeight
