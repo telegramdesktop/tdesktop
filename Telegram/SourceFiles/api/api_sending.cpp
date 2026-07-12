@@ -362,6 +362,7 @@ void SendExistingMedia(
 
 struct MusicSendRequestItem {
 	MusicSelectionItem item;
+	not_null<HistoryItem*> localItem;
 	FullMsgId localId;
 	uint64 randomId = 0;
 	TextWithEntities caption;
@@ -433,6 +434,13 @@ void SendMusicSelectionBatch(
 	if (action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 	}
+	if (!multi
+		&& !action.options.scheduled
+		&& !action.options.shortcutId
+		&& session->ephemeralMessages().isEphemeralBotReply(
+			action.replyTo.messageId)) {
+		flags |= MessageFlag::Ephemeral;
+	}
 	InnerFillMessagePostFlags(action.options, peer, flags);
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
@@ -463,12 +471,13 @@ void SendMusicSelectionBatch(
 		batchStarsPaid += messageStarsPaid;
 
 		session->data().registerMessageRandomId(randomId, newId);
-		history->addNewLocalMessage({
+		const auto localItem = history->addNewLocalMessage({
 			.id = newId.msg,
 			.flags = flags,
 			.from = NewMessageFromId(action),
 			.replyTo = action.replyTo,
 			.date = NewMessageDate(action.options),
+			.scheduleRepeatPeriod = action.options.scheduleRepeatPeriod,
 			.shortcutId = action.options.shortcutId,
 			.starsPaid = messageStarsPaid,
 			.postAuthor = NewMessagePostAuthor(action),
@@ -479,6 +488,7 @@ void SendMusicSelectionBatch(
 		}, items[i].document, itemCaption);
 		requests.push_back({
 			.item = std::move(items[i]),
+			.localItem = localItem,
 			.localId = newId,
 			.randomId = randomId,
 			.caption = std::move(itemCaption),
@@ -509,12 +519,28 @@ void SendMusicSelectionBatch(
 		}
 		return result;
 	}();
+	if (!multi) {
+		const auto &item = requests.front();
+		if (session->ephemeralMessages().sendMedia(
+				item.localItem,
+				PrepareMusicInputMedia(
+					item.item,
+					action.options.mediaSpoiler))) {
+			if (done) {
+				done();
+			}
+			return;
+		}
+	}
 
 	const auto performRequest = [=](const auto &repeatRequest, bool refreshed)
 			-> void {
 		const auto sendAs = action.options.sendAs;
 		if (!multi) {
 			const auto &item = requests.front();
+			const auto inputMedia = PrepareMusicInputMedia(
+				item.item,
+				action.options.mediaSpoiler);
 			const auto entities = EntitiesToMTP(
 				session,
 				item.caption.entities,
@@ -563,7 +589,13 @@ void SendMusicSelectionBatch(
 					MTP_flags(sendFlags),
 					peer->input(),
 					Data::Histories::ReplyToPlaceholder(),
-					PrepareMusicInputMedia(item.item, action.options.mediaSpoiler),
+					(action.options.price
+						? MTPInputMedia(MTP_inputMediaPaidMedia(
+							MTP_flags(0),
+							MTP_long(action.options.price),
+							MTP_vector<MTPInputMedia>(1, inputMedia),
+							MTPstring()))
+						: inputMedia),
 					MTP_string(item.caption.text),
 					MTP_long(item.randomId),
 					MTPReplyMarkup(),
@@ -744,7 +776,13 @@ void SendMusicSelection(
 			api->finishForwarding(state->action);
 			return;
 		}
-		const auto till = std::min(state->offset + Ui::MaxAlbumItems(), count);
+		const auto optionsRequireSingle = state->action.options.price
+			|| state->action.options.scheduleRepeatPeriod
+			|| state->action.options.suggest;
+		const auto batchLimit = optionsRequireSingle
+			? 1
+			: Ui::MaxAlbumItems();
+		const auto till = std::min(state->offset + batchLimit, count);
 		auto batch = std::vector<MusicSelectionItem>();
 		batch.reserve(till - state->offset);
 		for (; state->offset != till; ++state->offset) {

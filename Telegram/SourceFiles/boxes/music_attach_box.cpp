@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/file_utilities.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/data_chat_participant_status.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
@@ -1613,7 +1614,13 @@ void MusicAttachBox(
 			copy.starsApproved = approved;
 			(*sendPreparedMusic)(bundle, copy, replyTo);
 		};
-		if (!paymentHelper->check(
+		const auto ephemeralReply = controller->session().ephemeralMessages()
+			.isEphemeralBotReply(replyTo.messageId);
+		if (ephemeralReply && bundle->totalCount > 1) {
+			controller->showToast(
+				tr::lng_ephemeral_reply_single_message(tr::now));
+			return;
+		} else if (!ephemeralReply && !paymentHelper->check(
 				show,
 				peer,
 				action.options,
@@ -1627,7 +1634,11 @@ void MusicAttachBox(
 			: SendMediaType::File;
 		auto &api = controller->session().api();
 		for (auto &group : bundle->groups) {
+			const auto optionsRequireSingle
+				= action.options.scheduleRepeatPeriod
+				|| action.options.suggest;
 			const auto album = (group.type != Ui::AlbumType::None)
+				&& !optionsRequireSingle
 				? std::make_shared<SendingAlbum>()
 				: nullptr;
 			if (album && (group.type == Ui::AlbumType::Music)) {
@@ -1650,15 +1661,28 @@ void MusicAttachBox(
 		if (items.empty()) {
 			return;
 		}
+		const auto ephemeralReply = controller->session().ephemeralMessages()
+			.isEphemeralBotReply(action.replyTo.messageId);
+		if (ephemeralReply && items.size() > 1) {
+			controller->showToast(
+				tr::lng_ephemeral_reply_single_message(tr::now));
+			return;
+		}
 
 		const auto thread = not_null<Data::Thread*>(
 			static_cast<Data::Thread*>(action.history.get()));
 		const auto error = GetErrorForSending(thread, {
 			.topicRootId = action.replyTo.topicRootId,
 			.text = &text,
-			.messagesCount = int(
-				(items.size() + Ui::MaxAlbumItems() - 1)
-				/ Ui::MaxAlbumItems()),
+			.messagesCount = [&] {
+				const auto optionsRequireSingle = action.options.price
+					|| action.options.scheduleRepeatPeriod
+					|| action.options.suggest;
+				return optionsRequireSingle
+					? int(items.size())
+					: int((items.size() + Ui::MaxAlbumItems() - 1)
+						/ Ui::MaxAlbumItems());
+			}(),
 		});
 		if (error) {
 			show->showBox(MakeSendErrorBox({
@@ -1672,7 +1696,7 @@ void MusicAttachBox(
 			copy.starsApproved = approved;
 			(*sendSelected)(copy);
 		};
-		if (!paymentHelper->check(
+		if (!ephemeralReply && !paymentHelper->check(
 				show,
 				peer,
 				action.options,
