@@ -1804,8 +1804,10 @@ void MusicAttachBox(
 	struct GeometryState {
 		std::optional<Info::Media::GlobalMediaSliceView> acceptedView;
 		Fn<void()> update;
+		uint64 authorityGenerationFloor = 0;
 		int chatsTitleHeight = 0;
 		int hiddenTopCompensation = 0;
+		bool topAuthority = true;
 		bool titleEligible = true;
 		bool updating = false;
 		bool pending = false;
@@ -2041,9 +2043,11 @@ void MusicAttachBox(
 			const auto committedQuery = *committedSearchQuery;
 			if (*yourChatsQuery != committedQuery) {
 				*yourChatsQuery = committedQuery;
+				geometryState->topAuthority = true;
+				geometryState->authorityGenerationFloor = 0;
+				geometryState->acceptedView = std::nullopt;
 				*yourChatsFullCount = std::nullopt;
 				*yourChatsFullCountQuery = std::nullopt;
-				geometryState->acceptedView = std::nullopt;
 			}
 			yourChatsControllerRaw->setQuery(committedQuery);
 			globalSearch->setQuery(committedQuery);
@@ -2078,6 +2082,7 @@ void MusicAttachBox(
 			const auto &view = geometryState->acceptedView;
 			if (geometryState->titleEligible
 				&& view
+				&& yourChats->hasResults()
 				&& view->rowExtent > 0) {
 				const auto measured = int64(yourChats->list()->y())
 					- geometryState->hiddenTopCompensation
@@ -2087,21 +2092,20 @@ void MusicAttachBox(
 					geometryState->chatsTitleHeight = int(measured);
 				}
 			}
-			const auto atTop = view && (view->slice.skippedAfter == 0);
-			const auto hasChatsRows = view && !view->rows.empty();
-			const auto awayFromTop = view
-				&& (view->slice.skippedAfter > 0);
+			const auto topAuthority = geometryState->topAuthority;
+			const auto hasChatsRows = yourChats->hasResults();
 			const auto savedDisplayEligible = !searching
 				&& savedMusic->hasResults();
-			const auto savedBlockEligible = savedDisplayEligible && atTop;
-			const auto titleEligible = atTop && hasChatsRows;
+			const auto savedBlockEligible = savedDisplayEligible
+				&& topAuthority;
+			const auto titleEligible = topAuthority;
 			const auto activeSavedHeight = savedDisplayEligible
 				? savedBlockHeight
 				: 0;
 			const auto activeTitleHeight = hasChatsRows
 				? geometryState->chatsTitleHeight
 				: 0;
-			const auto hiddenTopCompensation = awayFromTop
+			const auto hiddenTopCompensation = !topAuthority
 				? int(std::clamp<int64>(
 					int64(activeSavedHeight) + activeTitleHeight,
 					0,
@@ -2116,9 +2120,6 @@ void MusicAttachBox(
 			geometryState->titleEligible = titleEligible;
 			geometryState->hiddenTopCompensation
 				= hiddenTopCompensation;
-			if (titleEligible) {
-				geometryState->chatsTitleHeight = yourChats->list()->y();
-			}
 
 			searchEmpty->setQuery(
 				searching ? *typedSearchQuery : QString());
@@ -2252,12 +2253,12 @@ void MusicAttachBox(
 			}
 			return;
 		}
-		const auto &accepted = geometryState->acceptedView;
-		if (accepted
-			&& accepted->slice.query == view->slice.query
-			&& accepted->slice.generation > view->slice.generation) {
+		if (view->slice.generation
+			< geometryState->authorityGenerationFloor) {
 			return;
 		}
+		geometryState->authorityGenerationFloor = view->slice.generation;
+		geometryState->topAuthority = (view->slice.skippedAfter == 0);
 		geometryState->acceptedView = std::move(view);
 		updateSearchState();
 	}, box->lifetime());
