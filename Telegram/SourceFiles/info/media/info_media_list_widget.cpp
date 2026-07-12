@@ -2084,6 +2084,8 @@ style::cursor ListWidget::computeMouseCursor() const {
 		return style::cur_sizeall;
 	} else if (ClickHandler::getPressed() || ClickHandler::getActive()) {
 		return style::cur_pointer;
+	} else if (selectionConsumesClick(_overState)) {
+		return style::cur_pointer;
 	} else if (!hasSelectedItems()
 		&& (_mouseCursorState == CursorState::Text)) {
 		return style::cur_text;

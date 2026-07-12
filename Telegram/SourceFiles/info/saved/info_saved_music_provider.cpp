@@ -250,7 +250,11 @@ rpl::producer<not_null<BaseLayout*>> MusicProvider::layoutRemoved() {
 }
 
 BaseLayout *MusicProvider::lookupLayout(const HistoryItem *item) {
-	return nullptr;
+	if (!item) {
+		return nullptr;
+	}
+	const auto i = _layouts.find(item);
+	return (i != _layouts.end()) ? i->second.item.get() : nullptr;
 }
 
 bool MusicProvider::isMyItem(not_null<const HistoryItem*> item) {
