@@ -2328,7 +2328,11 @@ void ListWidget::mouseActionStart(
 		}
 	}
 
-	if (ClickHandler::getPressed() && !hasSelected()) {
+	if (_selectOnClick
+		&& !_pressWasInactive
+		&& selectionConsumesClick(_pressState)) {
+		_mouseAction = MouseAction::PrepareSelect;
+	} else if (ClickHandler::getPressed() && !hasSelected()) {
 		_mouseAction = MouseAction::PrepareDrag;
 		if (canReorder()) {
 			startReorder(globalPosition);
