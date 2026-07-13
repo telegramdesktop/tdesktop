@@ -573,14 +573,17 @@ void HistoryMusicSection::visibleTopBottomUpdated(
 		return;
 	}
 
-	const auto realTop = int64(_list->y())
-		+ view.rows.front().geometry.y();
-	const auto realBottom = int64(_list->y())
-		+ view.rows.back().geometry.y()
-		+ view.rows.back().geometry.height();
-	const auto intersectsRealRows = (int64(visibleTop) < realBottom)
+	const auto realTop = int64(_list->y());
+	const auto realBottom = realTop + _list->heightNoMargins();
+	const auto intersectsRealContent = (int64(visibleTop) < realBottom)
 		&& (int64(visibleBottom) > realTop);
-	if (intersectsRealRows) {
+	const auto virtualAbove = std::max(
+		realTop - int64(visibleTop),
+		int64(0));
+	const auto virtualBelow = std::max(
+		int64(visibleBottom) - realBottom,
+		int64(0));
+	if (!virtualAbove && !virtualBelow) {
 		clearVirtualTargeting();
 		setChildVisibleTopBottom(_list.data(), visibleTop, visibleBottom);
 		return;
@@ -588,12 +591,18 @@ void HistoryMusicSection::visibleTopBottomUpdated(
 
 	_viewportInVirtualSpace = true;
 	_list->setViewportInVirtualSpace(true);
+	if (intersectsRealContent) {
+		setChildVisibleTopBottom(_list.data(), visibleTop, visibleBottom);
+	}
 	const auto rowsHeight = int64(view.slice.fullCount) * view.rowExtent;
 	const auto baseline = int64(_list->y())
 		- int64(view.slice.skippedAfter) * view.rowExtent
 		+ view.topPadding;
+	const auto target = (virtualAbove >= virtualBelow)
+		? int64(visibleTop)
+		: int64(visibleBottom) - 1;
 	const auto targetOffset = std::clamp<int64>(
-		int64(visibleTop) - baseline,
+		target - baseline,
 		0,
 		rowsHeight - 1);
 	const auto globalIndex = int(targetOffset / view.rowExtent);
