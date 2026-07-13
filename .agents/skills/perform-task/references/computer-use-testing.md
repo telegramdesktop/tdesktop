@@ -10,6 +10,7 @@ authoritative.
 - [Driver policy](#driver-policy)
 - [Capability gate](#capability-gate)
 - [Locked macOS override](#locked-macos-override)
+- [Interrupted driver sessions](#interrupted-driver-sessions)
 - [Exact-app gate](#exact-app-gate)
 - [Hybrid handshake](#hybrid-handshake)
 - [Safety envelope](#safety-envelope)
@@ -99,6 +100,20 @@ Record the lock in `computer-use-capability.md` as the reason for selecting over
 `UI-Driver: overlay`. Lock state is neither missing verification nor a global environment stop. If
 the first overlay design depended on an external gesture, redesign that action inside the binary
 rather than treating the locked session as evidence that the task cannot be tested.
+
+## Interrupted driver sessions
+
+Treat physical Escape, local pointer or keyboard interference, or a runtime report that the user
+stopped Computer Use as interruption of that driver session, not cancellation of `$perform-task`.
+Immediately stop further Computer Use calls for as long as the runtime requires, mark the hybrid run
+contaminated, and continue unattended with source work, builds, logs, overlay checks, cleanup, or the
+prewritten `auto` fallback. Never pause merely to ask the user to resume Computer Use.
+
+When Computer Use becomes callable again, the runner may start a fresh bounded driver session without
+additional user input, after repeating the capability and exact-app gates. In `required` mode, exhaust
+the ordinary recoverable run budget before returning `BLOCKED(test)`; one user-stopped driver session
+is not itself a blocker. A separate user message that cancels or replaces the overall task remains
+authoritative.
 
 ## Exact-app gate
 
