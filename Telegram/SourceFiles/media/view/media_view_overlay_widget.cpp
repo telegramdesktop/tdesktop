@@ -5348,18 +5348,31 @@ void OverlayWidget::flushPendingFrameStep() {
 void OverlayWidget::seekRelativeTime(crl::time time) {
 	Expects(_streamed != nullptr);
 
+	const auto &state = _streamed->instance.info().video.state;
+	const auto position = state.position;
+	const auto duration = state.duration;
+	if (position == kTimeUnknown
+		|| duration == kTimeUnknown
+		|| duration == kDurationUnavailable) {
+		return;
+	}
 	const auto newTime = std::clamp(
-		_streamed->instance.info().video.state.position + time,
+		position + time,
 		crl::time(0),
-		_streamed->instance.info().video.state.duration);
+		duration);
 	restartAtSeekPosition(newTime);
 }
 
 void OverlayWidget::restartAtProgress(float64 progress) {
 	Expects(_streamed != nullptr);
 
-	restartAtSeekPosition(_streamed->instance.info().video.state.duration
-		* std::clamp(progress, 0., 1.));
+	const auto duration = _streamed->instance.info().video.state.duration;
+	if (duration == kTimeUnknown
+		|| duration == kDurationUnavailable) {
+		return;
+	}
+	restartAtSeekPosition(
+		duration * std::clamp(progress, 0., 1.));
 }
 
 void OverlayWidget::restartAtSeekPosition(crl::time position) {
