@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "info/profile/info_profile_badge.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_credits_graphics.h"
@@ -119,40 +120,52 @@ void SubmitChatInvite(
 		bool isGroup) {
 	session->api().request(MTPmessages_ImportChatInvite(
 		MTP_string(hash)
-	)).done([=](const MTPUpdates &result) {
-		session->api().applyUpdates(result);
+	)).done([=](const MTPmessages_ChatInviteJoinResult &result) {
 		const auto strongController = weak.get();
-		if (!strongController) {
-			return;
+		if (strongController) {
+			strongController->hideLayer();
 		}
 
-		strongController->hideLayer();
-		const auto handleChats = [&](const MTPVector<MTPChat> &chats) {
-			if (chats.v.isEmpty()) {
-				return;
-			}
-			const auto peerId = chats.v[0].match([](const MTPDchat &data) {
-				return peerFromChat(data.vid().v);
-			}, [](const MTPDchannel &data) {
-				return peerFromChannel(data.vid().v);
-			}, [](auto&&) {
-				return PeerId(0);
-			});
-			if (const auto peer = session->data().peerLoaded(peerId)) {
-				// Shows in the primary window anyway.
-				strongController->showPeerHistory(
-					peer,
-					Window::SectionShow::Way::Forward);
-			}
-		};
-		result.match([&](const MTPDupdates &data) {
-			handleChats(data.vchats());
-		}, [&](const MTPDupdatesCombined &data) {
-			handleChats(data.vchats());
-		}, [&](auto &&) {
-			LOG(("API Error: unexpected update cons %1 "
-				"(ApiWrap::importChatInvite)").arg(result.type()));
-		});
+		ProcessChatInviteJoinResult(
+			session,
+			strongController ? strongController->uiShow() : nullptr,
+			result,
+			[=](const MTPUpdates &updates) {
+				session->api().applyUpdates(updates);
+				if (!strongController) {
+					return;
+				}
+				const auto handleChats = [&](
+						const MTPVector<MTPChat> &chats) {
+					if (chats.v.isEmpty()) {
+						return;
+					}
+					const auto peerId = chats.v[0].match(
+						[](const MTPDchat &data) {
+							return peerFromChat(data.vid().v);
+						},
+						[](const MTPDchannel &data) {
+							return peerFromChannel(data.vid().v);
+						},
+						[](auto&&) {
+							return PeerId(0);
+						});
+					if (const auto peer = session->data().peerLoaded(peerId)) {
+						strongController->showPeerHistory(
+							peer,
+							Window::SectionShow::Way::Forward);
+					}
+				};
+				updates.match([&](const MTPDupdates &data) {
+					handleChats(data.vchats());
+				}, [&](const MTPDupdatesCombined &data) {
+					handleChats(data.vchats());
+				}, [&](auto &&) {
+					LOG(("API Error: unexpected update cons %1 "
+						"(ApiWrap::importChatInvite)").arg(updates.type()));
+				});
+			},
+			weak);
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
 
@@ -622,6 +635,36 @@ void ConfirmInviteBox(
 }
 
 } // namespace
+
+void ProcessChatInviteJoinResult(
+		not_null<Main::Session*> session,
+		std::shared_ptr<Ui::Show> show,
+		const MTPmessages_ChatInviteJoinResult &result,
+		Fn<void(const MTPUpdates &updates)> done,
+		base::weak_ptr<Window::SessionController> controller) {
+	result.match([&](const MTPDmessages_chatInviteJoinResultOk &data) {
+		done(data.vupdates());
+	}, [&](const MTPDmessages_chatInviteJoinResultWebView &data) {
+		session->data().processUsers(data.vusers());
+		const auto bot = session->data().userLoaded(UserId(data.vbot_id().v));
+		if (!bot || !show) {
+			LOG(("API Error: guard bot %1 not loaded "
+				"(Api::ProcessChatInviteJoinResult)").arg(data.vbot_id().v));
+			return;
+		}
+		session->attachWebView().open({
+			.bot = not_null<UserData*>{ bot },
+			.parentShow = std::move(show),
+			.context = {
+				.controller = controller,
+				.maySkipConfirmation = false,
+			},
+			.source = InlineBots::WebViewSourceJoinChat{
+				.queryId = data.vquery_id().v,
+			},
+		});
+	});
+}
 
 void CheckChatInvite(
 		not_null<Window::SessionController*> controller,

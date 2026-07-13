@@ -106,6 +106,9 @@ public:
 	void hideSpoilers() override;
 	bool needsBubble() const override;
 	bool unwrapped() const override;
+	bool drawsOwnEphemeralBadge() const override {
+		return true;
+	}
 	bool customInfoLayout() const override {
 		return true;
 	}
@@ -122,6 +125,7 @@ public:
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
 	bool enforceBubbleWidth() const override;
+	int bubbleWidthLimit() const override;
 
 	[[nodiscard]] static bool CanPlayInline(not_null<DocumentData*> document);
 
@@ -144,6 +148,8 @@ private:
 	[[nodiscard]] bool autoplayEnabled() const;
 	[[nodiscard]] bool autoplayUnderCursor() const;
 	[[nodiscard]] bool underCursor() const;
+	[[nodiscard]] int maxInlineArea() const;
+	[[nodiscard]] bool canPlayInline() const;
 
 	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
@@ -188,6 +194,11 @@ private:
 		const HistoryMessageVia *via,
 		const HistoryMessageForwarded *forwarded) const;
 	[[nodiscard]] int additionalWidth() const;
+	[[nodiscard]] int surroundingHeight(
+		const Reply *reply,
+		const HistoryMessageVia *via,
+		const HistoryMessageForwarded *forwarded,
+		int rectw) const;
 	[[nodiscard]] bool isUnwrapped() const;
 
 	void validateThumbCache(
@@ -236,6 +247,11 @@ private:
 	mutable std::shared_ptr<Data::PhotoMedia> _videoCoverMedia;
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
 	QString _downloadSize;
+	struct {
+		Ui::Text::String text;
+		bool onTop = false;
+		int topAdded = 0;
+	} _ephemeral;
 	mutable QImage _thumbCache;
 	mutable QImage _roundingMask;
 	mutable crl::time _videoPosition = 0;

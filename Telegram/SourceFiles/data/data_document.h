@@ -123,6 +123,9 @@ public:
 	void automaticLoadSettingsChanged();
 	void setVideoQualities(std::vector<not_null<DocumentData*>> qualities);
 	[[nodiscard]] int resolveVideoQuality() const;
+	[[nodiscard]] int resolveOriginalVideoQuality() const;
+	[[nodiscard]] Media::VideoQuality initialPlaybackVideoQuality(
+		Media::VideoQuality request) const;
 	[[nodiscard]] auto resolveQualities(HistoryItem *context) const
 		-> const std::vector<not_null<DocumentData*>> &;
 	[[nodiscard]] not_null<DocumentData*> chooseQuality(
@@ -207,6 +210,7 @@ public:
 	[[nodiscard]] bool isPatternWallPaper() const;
 	[[nodiscard]] bool isPatternWallPaperPNG() const;
 	[[nodiscard]] bool isPatternWallPaperSVG() const;
+	[[nodiscard]] bool isSvgImage() const;
 	[[nodiscard]] bool isPremiumSticker() const;
 	[[nodiscard]] bool isPremiumEmoji() const;
 	[[nodiscard]] bool emojiUsesTextColor() const;

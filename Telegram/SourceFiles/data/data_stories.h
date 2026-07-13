@@ -158,6 +158,8 @@ public:
 
 	static constexpr auto kInProfileToastDuration = 4 * crl::time(1000);
 
+	void clear();
+
 	[[nodiscard]] Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
 

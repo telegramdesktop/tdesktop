@@ -189,12 +189,7 @@ void Widget::saveChanges(FnMut<void()> done) {
 }
 
 SendMenu::Details Widget::sendMenuDetails() const {
-	if (const auto provider
-		= dynamic_cast<const ::Settings::SendMenuDetailsProvider*>(
-			_inner.get())) {
-		return provider->sendMenuDetails();
-	}
-	return ContentWidget::sendMenuDetails();
+	return _inner->sendMenuDetails();
 }
 
 bool Widget::processChosenSticker(ChatHelpers::FileChosen &&chosen) {

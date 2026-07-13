@@ -281,8 +281,8 @@ void Input::setupContent() {
 			error->geometryValue(),
 			newInput->geometryValue()
 		) | rpl::on_next([=](QRect r, QRect input) {
-			hintInfo->setGeometry(
-				{ input.x(), r.y(), input.width(), r.height() });
+			hintInfo->resizeToWidth(input.width());
+			hintInfo->moveToLeft(input.x(), r.y());
 		}, hintInfo->lifetime());
 		error->shownValue(
 		) | rpl::on_next([=](bool shown) {

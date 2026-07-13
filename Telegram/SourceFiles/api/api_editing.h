@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <optional>
+
 class HistoryItem;
 
 namespace Data {
@@ -57,6 +59,12 @@ mtpRequestId EditTextMessage(
 	Fn<void(mtpRequestId requestId)> done,
 	Fn<void(const QString &error, mtpRequestId requestId)> fail,
 	bool spoilered);
+mtpRequestId EditRichMessage(
+	not_null<HistoryItem*> item,
+	Fn<std::optional<MTPInputRichMessage>()> richMessage,
+	SendOptions options,
+	Fn<void(mtpRequestId requestId)> done,
+	Fn<void(const QString &error, mtpRequestId requestId)> fail);
 
 void EditTodoList(
 	not_null<HistoryItem*> item,

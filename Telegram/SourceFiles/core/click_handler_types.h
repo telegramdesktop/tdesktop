@@ -56,6 +56,7 @@ struct ClickHandlerContext {
 	bool skipBotAutoLogin = false;
 	bool botStartAutoSubmit = false;
 	bool ignoreIv = false;
+	bool forceExternalUrlConfirmation = false;
 	bool dark = false;
 	// Is filled from peer info.
 	PeerData *peer = nullptr;
@@ -76,7 +77,12 @@ public:
 	void onClick(ClickContext context) const override {
 		const auto button = context.button;
 		if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-			Open(url(), context.other);
+			const auto original = originalUrl();
+			Open(
+				UrlClickHandler::ExternalUrlFromInternalUrl(original).isEmpty()
+					? url()
+					: original,
+				context.other);
 		}
 	}
 

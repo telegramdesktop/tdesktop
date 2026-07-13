@@ -145,6 +145,9 @@ public:
 	virtual bool showInternal(
 		not_null<SectionMemento*> memento,
 		const SectionShow &params) = 0;
+	virtual bool showBackInternal() {
+		return false;
+	}
 	virtual bool sameTypeAs(not_null<SectionMemento*> memento) {
 		return false;
 	}

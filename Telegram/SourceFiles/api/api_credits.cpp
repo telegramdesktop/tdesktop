@@ -197,7 +197,8 @@ CreditsHistory::CreditsHistory(
 
 void CreditsHistory::request(
 		const Data::CreditsStatusSlice::OffsetToken &token,
-		Fn<void(Data::CreditsStatusSlice)> done) {
+		Fn<void(Data::CreditsStatusSlice)> done,
+		int limit) {
 	if (_requestId) {
 		return;
 	}
@@ -206,7 +207,7 @@ void CreditsHistory::request(
 		MTPstring(), // subscription_id
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input(),
 		MTP_string(token),
-		MTP_int(kTransactionsLimit)
+		MTP_int((limit > 0) ? limit : kTransactionsLimit)
 	)).done([=](const MTPpayments_StarsStatus &result) {
 		_requestId = 0;
 		done(StatusFromTL(result, _peer));

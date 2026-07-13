@@ -298,15 +298,8 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		return false;
 	}
 
-	auto rotateTag = av_dict_get(_fmtContext->streams[_streamId]->metadata, "rotate", nullptr, 0);
-	if (rotateTag && *rotateTag->value) {
-		auto stringRotateTag = QString::fromUtf8(rotateTag->value);
-		auto toIntSucceeded = false;
-		auto rotateDegrees = stringRotateTag.toInt(&toIntSucceeded);
-		if (toIntSucceeded) {
-			_rotation = rotationFromDegrees(rotateDegrees);
-		}
-	}
+	_rotation = rotationFromDegrees(FFmpeg::ReadRotationFromMetadata(
+		_fmtContext->streams[_streamId]));
 
 	_codecContext = avcodec_alloc_context3(nullptr);
 	if (!_codecContext) {
@@ -329,7 +322,8 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		const auto audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
 		_hasAudioStream = (audioStreamId >= 0);
 	}
-	_codecContext->max_pixels = MaxAreaForMode(_mode);
+	_codecContext->max_pixels = FFmpeg::MaxPixelsForAreaLimit(
+		MaxAreaForMode(_mode));
 
 	if ((res = avcodec_open2(_codecContext, codec, nullptr)) < 0) {
 		LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));

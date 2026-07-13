@@ -18,6 +18,7 @@ struct colorizer;
 } // namespace style
 
 namespace Ui {
+class ChatTheme;
 class PopupMenu;
 } // namespace Ui
 
@@ -59,16 +60,17 @@ public:
 	bool checkRippleStartPosition(QPoint position) const override;
 
 	void setColors(const Colors &colors);
+	void setPreview(QImage preview, const QColor &outline);
 
 private:
 	void paintNotSupported(QPainter &p, int left, int top, int outerWidth);
 	void paintWithColors(QPainter &p, int left, int top, int outerWidth);
-	void checkedChangedHook(anim::type animated) override;
+	void paintOutline(QPainter &p, int outerWidth);
 	void validateBackgroundCache(int width);
-	void ensureContrast();
 
 	std::optional<Colors> _colors;
-	Ui::RadioView _radio;
+	QImage _preview;
+	QColor _outline;
 	QImage _backgroundFull;
 	QImage _backgroundCache;
 	int _backgroundCacheWidth = -1;
@@ -92,6 +94,8 @@ private:
 		not_null<CloudListCheck*> check;
 		std::unique_ptr<Ui::Radiobutton> button;
 		std::shared_ptr<Data::DocumentMedia> media;
+		std::shared_ptr<Ui::ChatTheme> chatTheme;
+		rpl::lifetime previewLifetime;
 		base::binary_guard generating;
 		bool waiting = false;
 
@@ -102,6 +106,7 @@ private:
 	void setup();
 	[[nodiscard]] std::vector<Data::CloudTheme> collectAll() const;
 	void rebuildUsing(std::vector<Data::CloudTheme> &&list);
+	void requestPreview(Element &element);
 	bool applyChangesFrom(std::vector<Data::CloudTheme> &&list);
 	bool removeStaleUsing(const std::vector<Data::CloudTheme> &list);
 	bool insertTillLimit(
@@ -118,6 +123,7 @@ private:
 	void updateGeometry();
 
 	[[nodiscard]] bool amCreator(const Data::CloudTheme &theme) const;
+	[[nodiscard]] uint64 appliedElementId() const;
 	[[nodiscard]] int groupValueForId(uint64 id);
 
 	const not_null<Window::SessionController*> _window;
@@ -131,6 +137,7 @@ private:
 	base::flat_map<uint64, int> _groupValueById;
 	rpl::lifetime _downloadFinishedLifetime;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
+	std::shared_ptr<int> _applyGeneration = std::make_shared<int>(0);
 
 };
 

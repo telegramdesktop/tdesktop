@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/invoke_queued.h"
 #include "base/qt_signal_producer.h"
 #include "core/application.h"
+#include "core/version.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "storage/localstorage.h"
@@ -55,23 +56,6 @@ bool DarkTasbarValueValid/* = false*/;
 	}
 
 	return (value == 0);
-}
-
-[[nodiscard]] std::optional<bool> IsDarkTaskbar() {
-	static const auto kSystemVersion = QOperatingSystemVersion::current();
-	static const auto kDarkModeAddedVersion = QOperatingSystemVersion(
-		QOperatingSystemVersion::Windows,
-		10,
-		0,
-		18282);
-	static const auto kSupported = (kSystemVersion >= kDarkModeAddedVersion);
-	if (!kSupported) {
-		return std::nullopt;
-	} else if (!DarkTasbarValueValid) {
-		DarkTasbarValueValid = true;
-		DarkTaskbar = ReadDarkTaskbarValue();
-	}
-	return DarkTaskbar;
 }
 
 [[nodiscard]] QImage MonochromeIconFor(int size, bool darkMode) {
@@ -271,7 +255,7 @@ void Tray::addAction(rpl::producer<QString> text, Fn<void()> &&callback) {
 		using namespace rpl::mappers;
 		_callbackFromTrayLifetime = _menu->shownValue(
 		) | rpl::filter(!_1) | rpl::take(1) | rpl::on_next([=] {
-			callback();
+			crl::on_main([=] { callback(); });
 		});
 	});
 
@@ -439,6 +423,23 @@ QString Tray::QuitJumpListIconPath() {
 
 bool HasMonochromeSetting() {
 	return IsDarkTaskbar().has_value();
+}
+
+std::optional<bool> IsDarkTaskbar() {
+	static const auto kSystemVersion = QOperatingSystemVersion::current();
+	static const auto kDarkModeAddedVersion = QOperatingSystemVersion(
+		QOperatingSystemVersion::Windows,
+		10,
+		0,
+		18282);
+	static const auto kSupported = (kSystemVersion >= kDarkModeAddedVersion);
+	if (!kSupported) {
+		return std::nullopt;
+	} else if (!DarkTasbarValueValid) {
+		DarkTasbarValueValid = true;
+		DarkTaskbar = ReadDarkTaskbarValue();
+	}
+	return DarkTaskbar;
 }
 
 void RefreshTaskbarThemeValue() {

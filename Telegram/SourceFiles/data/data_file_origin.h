@@ -129,6 +129,20 @@ struct FileOriginWebPage {
 	}
 };
 
+struct FileOriginCloudDraft {
+	PeerId peerId = 0;
+	MsgId topicRootId = 0;
+	PeerId monoforumPeerId = 0;
+
+	inline bool operator<(const FileOriginCloudDraft &other) const {
+		return std::tie(peerId, topicRootId, monoforumPeerId)
+			< std::tie(
+				other.peerId,
+				other.topicRootId,
+				other.monoforumPeerId);
+	}
+};
+
 struct FileOrigin {
 	using Variant = std::variant<
 		v::null_t,
@@ -143,6 +157,7 @@ struct FileOrigin {
 		FileOriginRingtones,
 		FileOriginPremiumPreviews,
 		FileOriginWebPage,
+		FileOriginCloudDraft,
 		FileOriginStory>;
 
 	FileOrigin() = default;
@@ -167,6 +182,8 @@ struct FileOrigin {
 	FileOrigin(FileOriginPremiumPreviews data) : data(data) {
 	}
 	FileOrigin(FileOriginWebPage data) : data(data) {
+	}
+	FileOrigin(FileOriginCloudDraft data) : data(data) {
 	}
 	FileOrigin(FileOriginStory data) : data(data) {
 	}
@@ -206,15 +223,18 @@ struct UpdatedFileReferences {
 };
 
 UpdatedFileReferences GetFileReferences(const MTPmessages_Messages &data);
+UpdatedFileReferences GetFileReferences(const MTPmessages_PeerDialogs &data);
 UpdatedFileReferences GetFileReferences(const MTPphotos_Photos &data);
 UpdatedFileReferences GetFileReferences(const MTPusers_UserFull &data);
 UpdatedFileReferences GetFileReferences(const MTPmessages_ChatFull &data);
+UpdatedFileReferences GetFileReferences(const MTPmessages_ForumTopics &data);
 UpdatedFileReferences GetFileReferences(
 	const MTPmessages_RecentStickers &data);
 UpdatedFileReferences GetFileReferences(
 	const MTPmessages_FavedStickers &data);
 UpdatedFileReferences GetFileReferences(const MTPmessages_StickerSet &data);
 UpdatedFileReferences GetFileReferences(const MTPmessages_SavedGifs &data);
+UpdatedFileReferences GetFileReferences(const MTPmessages_SavedDialogs &data);
 UpdatedFileReferences GetFileReferences(const MTPWallPaper &data);
 UpdatedFileReferences GetFileReferences(const MTPTheme &data);
 UpdatedFileReferences GetFileReferences(

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_poll.h"
 #include "data/data_session.h"
+#include "data/data_statistics_chart.h"
 #include "data/stickers/data_stickers.h"
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor.h"
@@ -29,21 +30,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_document.h"
 #include "lang/lang_keys.h"
 #include "layout/layout_document_generic_preview.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "poll/poll_media_upload.h"
+#include "statistics/chart_widget.h"
 #include "mainwidget.h"
+#include "settings/settings_common.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/vertical_list.h"
 #include "ui/text/format_song_name.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/slide_wrap.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
@@ -51,6 +59,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
+#include "styles/style_statistics.h"
 #include "styles/style_widgets.h"
 
 namespace HistoryView {
@@ -247,6 +257,104 @@ void FillPollAnswerMenu(
 				&st::menuIconStickers);
 		}
 	}
+}
+
+void ShowPollStatsBox(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId) {
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_polls_stats_title());
+		box->setWidth(st::boxWideWidth);
+
+		const auto content = box->addRow(
+			object_ptr<Ui::VerticalLayout>(box),
+			Margins(0));
+		const auto loadingWrap = content->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				content,
+				object_ptr<Ui::VerticalLayout>(content)));
+		loadingWrap->toggle(true, anim::type::instant);
+		const auto loading = loadingWrap->entity();
+		const auto resultWrap = content->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				content,
+				object_ptr<Ui::VerticalLayout>(content)));
+		resultWrap->toggle(false, anim::type::instant);
+		const auto result = resultWrap->entity();
+
+		auto icon = ::Settings::CreateLottieIcon(
+			loading,
+			{ .name = u"stats"_q, .sizeOverride = st::normalBoxLottieSize },
+			st::settingsBlockedListIconPadding);
+		loading->add(std::move(icon.widget));
+		auto startAnimation = std::move(icon.animate);
+		box->showFinishes(
+		) | rpl::take(1) | rpl::on_next([=]() mutable {
+			startAnimation(anim::repeat::loop);
+		}, loading->lifetime());
+		loading->add(
+			object_ptr<Ui::FlatLabel>(
+				loading,
+				tr::lng_stats_loading(),
+				st::changePhoneTitle),
+			st::changePhoneTitlePadding + st::boxRowPadding,
+			style::al_top);
+		loading->add(
+			object_ptr<Ui::FlatLabel>(
+				loading,
+				tr::lng_stats_loading_subtext(),
+				st::statisticsLoadingSubtext),
+			st::changePhoneDescriptionPadding + st::boxRowPadding,
+			style::al_top
+		)->setTryMakeSimilarLines(true);
+		Ui::AddSkip(loading, st::settingsBlockedListIconPadding.top());
+		const auto finishLoading = [=] {
+			loading->clear();
+			loadingWrap->toggle(false, anim::type::instant);
+			resultWrap->toggle(true, anim::type::instant);
+		};
+		const auto showError = [=](QString error) {
+			finishLoading();
+			result->clear();
+			result->add(
+				object_ptr<Ui::FlatLabel>(
+					result,
+					error.isEmpty()
+						? tr::lng_polls_votes_none(tr::now)
+						: std::move(error),
+					st::defaultFlatLabel),
+				st::boxRowPadding + st::statisticsLayerMargins,
+				style::al_center);
+		};
+
+		controller->session().api().polls().requestStats(
+			itemId,
+			crl::guard(box, [=](Data::StatisticalGraph graph) {
+				if (graph.chart) {
+					finishLoading();
+					result->clear();
+					const auto chart = result->add(
+						object_ptr<Statistic::ChartWidget>(result),
+						st::statisticsLayerMargins);
+					chart->setChartData(
+						std::move(graph.chart),
+						Statistic::ChartViewType::Linear);
+					chart->setTitle(tr::lng_notification_reactions_poll_votes());
+					Statistic::FixCacheForHighDPIChartWidget(result);
+				} else {
+					showError(!graph.error.isEmpty()
+						? graph.error
+						: tr::lng_polls_votes_none(tr::now));
+				}
+			}),
+			crl::guard(box, [=](QString error) {
+				showError(std::move(error));
+			}));
+
+		box->addButton(tr::lng_box_ok(), [=] {
+			box->closeBox();
+		});
+	}));
 }
 
 namespace {

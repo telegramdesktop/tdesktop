@@ -157,6 +157,8 @@ public:
 		CommonGroups,
 		SimilarPeers,
 		RequestsList,
+		Community,
+		CommunityRequests,
 		ReactionsList,
 		SavedSublists,
 		PeerGifts,
@@ -273,6 +275,10 @@ public:
 
 	virtual void setSearchEnabledByContent(bool enabled) {
 	}
+	[[nodiscard]] virtual auto searchFieldController() const
+	-> Ui::SearchFieldController* {
+		return nullptr;
+	}
 	virtual rpl::producer<SparseIdsMergedSlice> mediaSource(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,
@@ -324,10 +330,12 @@ public:
 	[[nodiscard]] Wrap wrap() const;
 	[[nodiscard]] rpl::producer<Wrap> wrapValue() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> wrapWidget() const;
+	[[nodiscard]] rpl::producer<bool> contentTillBottomValue() const;
 	void setSection(not_null<ContentMemento*> memento);
 	[[nodiscard]] bool hasBackButton() const;
 
-	Ui::SearchFieldController *searchFieldController() const {
+	auto searchFieldController() const
+	-> Ui::SearchFieldController* override {
 		return _searchFieldController.get();
 	}
 	void setSearchEnabledByContent(bool enabled) override {

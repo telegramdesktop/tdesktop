@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
+#include "base/platform/base_platform_haptic.h"
 #include "core/mime_type.h"
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene_item_canvas.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 
 #include <QGraphicsView>
+#include <QNativeGestureEvent>
 #include <QScrollBar>
 #include <QWheelEvent>
 #include <QtCore/QMimeData>
@@ -39,6 +41,8 @@ constexpr auto kZoomEpsilon = 0.0001;
 constexpr auto kMinItemZoom = 0.1;
 constexpr auto kMaxItemZoom = 10.;
 constexpr auto kCanvasZoomStepFine = 1.015;
+constexpr auto kZoomSmoothTau = 60.;
+constexpr auto kZoomMaxFrameDelta = crl::time(64);
 
 std::shared_ptr<Scene> EnsureScene(
 		PhotoModifications &mods,
@@ -168,6 +172,10 @@ Paint::Paint(
 		updateUndoState();
 	}, lifetime());
 
+	_zoomAnimation.init([=](crl::time now) {
+		return zoomAnimationStep(now);
+	});
+
 }
 
 bool Paint::zoomSceneItems(float64 wheelDelta, bool fine) {
@@ -177,7 +185,10 @@ bool Paint::zoomSceneItems(float64 wheelDelta, bool fine) {
 	const auto step = wheelDelta
 		/ float64(QWheelEvent::DefaultDeltasPerStep);
 	const auto base = fine ? kCanvasZoomStepFine : kCanvasZoomStep;
-	const auto factor = std::pow(base, step);
+	return zoomSceneItemsByFactor(std::pow(base, step));
+}
+
+bool Paint::zoomSceneItemsByFactor(float64 factor) {
 	const auto center = rect::center(_scene->sceneRect());
 	auto applied = false;
 	for (const auto &item : _scene->items()) {
@@ -196,7 +207,92 @@ bool Paint::zoomSceneItems(float64 wheelDelta, bool fine) {
 		raw->setPos(center + (pos - center) * ratio);
 		applied = true;
 	}
+	if (!applied && std::abs(factor - 1.) > kZoomEpsilon) {
+		if (!_zoomAtLimit) {
+			_zoomAtLimit = true;
+			base::Platform::Haptic();
+		}
+	} else if (applied) {
+		_zoomAtLimit = false;
+	}
 	return applied;
+}
+
+void Paint::zoomCanvas(float64 factor, QPoint viewportPoint, bool animated) {
+	const auto view = _view.get();
+	if (!view || !_viewport) {
+		return;
+	}
+	const auto current = _zoomAnimation.animating()
+		? _zoomTarget
+		: _transform.userZoom;
+	const auto raw = current * factor;
+	const auto newTarget = std::clamp(raw, kMinCanvasZoom, kMaxCanvasZoom);
+	const auto pushingPastLimit
+		= (factor > 1. && raw > kMaxCanvasZoom + kZoomEpsilon)
+		|| (factor < 1. && raw < kMinCanvasZoom - kZoomEpsilon);
+	if (std::abs(newTarget - current) < kZoomEpsilon) {
+		if (pushingPastLimit && !_zoomAtLimit) {
+			_zoomAtLimit = true;
+			base::Platform::Haptic();
+		}
+		return;
+	}
+	_zoomAtLimit = false;
+	_zoomTarget = newTarget;
+	_zoomFocus = viewportPoint;
+	_zoomAnchorScene = view->mapToScene(viewportPoint);
+	if (animated) {
+		if (!_zoomAnimation.animating()) {
+			_zoomLastFrame = crl::now();
+			_zoomAnimation.start();
+		}
+	} else {
+		_zoomAnimation.stop();
+		applyCanvasZoom(newTarget, false);
+	}
+}
+
+void Paint::applyCanvasZoom(float64 zoom, bool subpixel) {
+	const auto view = _view.get();
+	if (!view || !_viewport) {
+		return;
+	}
+	_transform.userZoom = zoom;
+	updateViewGeometry();
+	applyViewTransform();
+	const auto sceneAtFocus = view->mapToScene(_zoomFocus);
+	const auto center = view->mapToScene(rect::center(_viewport->rect()));
+	view->centerOn(center - (sceneAtFocus - _zoomAnchorScene));
+	if (subpixel) {
+		const auto landed = view->viewportTransform().map(_zoomAnchorScene);
+		auto residual = QPointF(_zoomFocus) - landed;
+		residual.setX(std::clamp(residual.x(), -1., 1.));
+		residual.setY(std::clamp(residual.y(), -1., 1.));
+		view->setTransform(view->transform()
+			* QTransform().translate(residual.x(), residual.y()));
+	}
+	if (const auto parent = parentWidget()) {
+		parent->update(geometry());
+	}
+}
+
+bool Paint::zoomAnimationStep(crl::time now) {
+	const auto delta = std::clamp(
+		now - _zoomLastFrame,
+		crl::time(0),
+		kZoomMaxFrameDelta);
+	_zoomLastFrame = now;
+
+	const auto shown = _transform.userZoom;
+	const auto ratio = 1. - std::exp(-float64(delta) / kZoomSmoothTau);
+	auto next = shown + (_zoomTarget - shown) * ratio;
+	const auto finished = std::abs(next - _zoomTarget) < kZoomEpsilon;
+	if (finished) {
+		next = _zoomTarget;
+	}
+	applyCanvasZoom(next, !finished);
+	return !finished;
 }
 
 void Paint::panSceneItems(QPointF sceneDelta) {
@@ -390,6 +486,8 @@ void Paint::paintImage(QPainter &p, const QPixmap &image) const {
 }
 
 void Paint::resetView() {
+	_zoomAnimation.stop();
+	_zoomTarget = kMinCanvasZoom;
 	if (_transform.userZoom == kMinCanvasZoom) {
 		return;
 	}
@@ -452,27 +550,21 @@ bool Paint::eventFilter(QObject *obj, QEvent *e) {
 			return true;
 		}
 		const auto step = delta / float64(QWheelEvent::DefaultDeltasPerStep);
-		const auto factor = std::pow(kCanvasZoomStep, step);
-		const auto newZoom = std::clamp(
-			_transform.userZoom * factor,
-			kMinCanvasZoom,
-			kMaxCanvasZoom);
-		if (std::abs(newZoom - _transform.userZoom) < 0.0001) {
-			return true;
+		zoomCanvas(
+			std::pow(kCanvasZoomStep, step),
+			wheel->position().toPoint(),
+			false);
+		return true;
+	} else if (e->type() == QEvent::NativeGesture) {
+		const auto gesture = static_cast<QNativeGestureEvent*>(e);
+		if (gesture->gestureType() != Qt::ZoomNativeGesture) {
+			return RpWidget::eventFilter(obj, e);
 		}
-
-		const auto viewportPoint = wheel->position().toPoint();
-		const auto globalPoint = _viewport->mapToGlobal(viewportPoint);
-		const auto scenePoint = view->mapToScene(viewportPoint);
-		_transform.userZoom = newZoom;
-		updateViewGeometry();
-		applyViewTransform();
-		const auto scenePointAfter = view->mapToScene(
-			_viewport->mapFromGlobal(globalPoint));
-		const auto center = view->mapToScene(rect::center(_viewport->rect()));
-		view->centerOn(center - (scenePointAfter - scenePoint));
-		if (const auto parent = parentWidget()) {
-			parent->update(geometry());
+		const auto factor = 1. + gesture->value();
+		if (_fixedCrop) {
+			zoomSceneItemsByFactor(factor);
+		} else {
+			zoomCanvas(factor, gesture->pos(), true);
 		}
 		return true;
 	} else if (e->type() == QEvent::MouseButtonPress) {

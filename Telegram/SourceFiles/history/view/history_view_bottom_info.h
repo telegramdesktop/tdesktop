@@ -43,12 +43,16 @@ public:
 			Shortcut       = 0x080,
 			EstimateDate   = 0x100,
 			ForwardedDate  = 0x200,
+			Silent         = 0x400,
+			EditedPrimary  = 0x800,
+			Ephemeral      = 0x1000,
 			//Unread, // We don't want to pass and update it in Date for now.
 		};
 		friend inline constexpr bool is_flag_type(Flag) { return true; };
 		using Flags = base::flags<Flag>;
 
 		QDateTime date;
+		QDateTime editedDate;
 		QString author;
 		EffectId effectId = 0;
 		int64 tonStake = 0;

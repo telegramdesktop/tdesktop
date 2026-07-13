@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/sandbox.h"
+#include "core/version.h"
 #include "data/data_forum_topic.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_peer.h"
@@ -55,6 +56,12 @@ struct ServerInformation {
 bool ServiceRegistered = false;
 ServerInformation CurrentServerInformation;
 std::vector<std::string> CurrentCapabilities;
+
+[[nodiscard]] const auto &OptionGNotification() {
+	static const auto &result = base::options::lookup<bool>(
+		Window::Notifications::kOptionGNotification);
+	return result;
+}
 
 [[nodiscard]] bool HasCapability(const char *value) {
 	return ranges::contains(CurrentCapabilities, value);
@@ -136,7 +143,7 @@ bool UseGNotification() {
 		return false;
 	}
 
-	if (Window::Notifications::OptionGNotification.value()) {
+	if (OptionGNotification().value()) {
 		return true;
 	}
 
@@ -206,8 +213,7 @@ bool Enforced() {
 	// Wayland doesn't support positioning
 	// and custom notifications don't work here
 	return IsWayland()
-		|| (Gio::Application::get_default()
-			&& Window::Notifications::OptionGNotification.value());
+		|| (Gio::Application::get_default() && OptionGNotification().value());
 }
 
 bool ByDefault() {
@@ -331,9 +337,7 @@ void Create(Window::Notifications::System *system) {
 
 Manager::Private::Private(not_null<Manager*> manager)
 : _manager(manager)
-, _application(UseGNotification()
-		? Gio::Application::get_default()
-		: nullptr)
+, _application(Gio::Application::get_default())
 , _sounds(cWorkingDir() + u"tdata/audio_cache"_q) {
 	const auto &serverInformation = CurrentServerInformation;
 
@@ -428,7 +432,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 	_proxy = proxy;
 	_interface = proxy;
 
-	if (_application || !_interface) {
+	if (!_interface) {
 		return;
 	}
 
@@ -534,7 +538,7 @@ void Manager::Private::showNotification(
 		.contextId = key,
 		.msgId = info.itemId,
 	};
-	auto notification = _application
+	auto notification = UseGNotification()
 		? Gio::Notification::new_(info.title.toStdString())
 		: Gio::Notification();
 

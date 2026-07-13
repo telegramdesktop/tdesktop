@@ -67,7 +67,6 @@ private:
 	void decrementEventNestingLevel();
 	void registerEnterFromEventLoop();
 
-	bool notifyOrInvoke(QObject *receiver, QEvent *e);
 	bool notify(QObject *receiver, QEvent *e) override;
 	bool nativeEventFilter(
 		const QByteArray &eventType,
@@ -105,6 +104,11 @@ public:
 	QString emojiCacheFolder();
 	QString openglCheckFilePath();
 	QString angleBackendFilePath();
+	void touchCounterIncrement();
+	int touchCounterNow();
+
+private:
+	int _touchCounter = 0;
 };
 
 } // namespace Test

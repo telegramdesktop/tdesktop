@@ -641,6 +641,30 @@ int DocumentData::resolveVideoQuality() const {
 		: std::min(attributesSize.width(), attributesSize.height());
 }
 
+int DocumentData::resolveOriginalVideoQuality() const {
+	if (const auto data = video()) {
+		if (!data->realVideoSize.isEmpty()) {
+			const auto size = data->realVideoSize;
+			return std::min(size.width(), size.height());
+		}
+	}
+	const auto attributesSize = isVideoFile() ? dimensions : QSize();
+	return attributesSize.isEmpty()
+		? 0
+		: std::min(attributesSize.width(), attributesSize.height());
+}
+
+Media::VideoQuality DocumentData::initialPlaybackVideoQuality(
+		Media::VideoQuality request) const {
+	return (isVideoFile() && !filepath(true).isEmpty())
+		? Media::VideoQuality{
+			.manual = 1u,
+			.height = uint32(std::max(resolveOriginalVideoQuality(), 0)),
+			.original = 1u,
+		}
+		: request;
+}
+
 auto DocumentData::resolveQualities(HistoryItem *context) const
 -> const std::vector<not_null<DocumentData*>> & {
 	static const auto empty = std::vector<not_null<DocumentData*>>();
@@ -782,6 +806,11 @@ bool DocumentData::isPatternWallPaperPNG() const {
 
 bool DocumentData::isPatternWallPaperSVG() const {
 	return isWallPaper() && hasMimeType(u"application/x-tgwallpattern"_q);
+}
+
+bool DocumentData::isSvgImage() const {
+	return hasMimeType(u"image/svg+xml"_q)
+		|| _filename.endsWith(u".svg"_q, Qt::CaseInsensitive);
 }
 
 bool DocumentData::isPremiumSticker() const {

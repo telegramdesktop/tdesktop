@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_message.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
@@ -29,6 +30,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 namespace {
+
+[[nodiscard]] bool IsHostedInstantViewMedia(not_null<const Element*> parent) {
+	return parent->Get<InstantViewMediaRuntime>() != nullptr;
+}
 
 std::vector<Ui::GroupMediaLayout> LayoutPlaylist(
 		const std::vector<QSize> &sizes) {
@@ -146,6 +151,13 @@ QSize GroupedMedia::countOptimalSize() {
 			media->initDimensions();
 			accumulate_max(maxWidth, media->maxWidth());
 		}
+		auto index = 0;
+		for (const auto &part : _parts) {
+			const auto last = (++index == _parts.size());
+			accumulate_max(
+				maxWidth,
+				part.content->widenGroupingMaxWidth(maxWidth, last));
+		}
 	}
 	auto index = 0;
 	for (const auto &part : _parts) {
@@ -193,7 +205,11 @@ QSize GroupedMedia::countOptimalSize() {
 }
 
 QSize GroupedMedia::countCurrentSize(int newWidth) {
-	accumulate_min(newWidth, maxWidth());
+	const auto hostedInstantView = (_mode == Mode::Grid)
+		&& IsHostedInstantViewMedia(_parent);
+	if (!hostedInstantView) {
+		accumulate_min(newWidth, maxWidth());
+	}
 	auto newHeight = 0;
 	if (_mode == Mode::Grid && newWidth < st::historyGroupWidthMin) {
 		return { newWidth, newHeight };
@@ -310,6 +326,16 @@ QRect GroupedMedia::groupItemRect(int index) const {
 	return {};
 }
 
+Media *GroupedMedia::partMediaAt(QPoint point) const {
+	point -= QPoint(0, groupedPadding().top());
+	for (const auto &part : _parts) {
+		if (part.geometry.contains(point)) {
+			return part.content.get();
+		}
+	}
+	return nullptr;
+}
+
 Media *GroupedMedia::lookupSpoilerTagMedia() const {
 	if (_parts.empty()) {
 		return nullptr;
@@ -400,13 +426,15 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 	auto nowCache = false;
 	const auto groupPadding = groupedPadding();
 	auto selection = context.selection;
-	const auto fullSelection = (selection == FullSelection);
+	const auto fullSelection = context.selected();
 	const auto textSelection = (_mode == Mode::Column)
 		&& !fullSelection
 		&& !IsSubGroupSelection(selection);
 	const auto inWebPage = (_parent->media() != this);
 	constexpr auto kSmall = Ui::BubbleCornerRounding::Small;
-	const auto rounding = inWebPage
+	const auto rounding = IsHostedInstantViewMedia(_parent)
+		? Ui::BubbleRounding()
+		: inWebPage
 		? Ui::BubbleRounding{ kSmall, kSmall, kSmall, kSmall }
 		: adjustedBubbleRounding();
 	auto highlight = context.highlight.range;
@@ -501,7 +529,7 @@ TextState GroupedMedia::getPartState(
 				part.sides,
 				point,
 				request);
-			result.symbol += shift;
+			AddTextStateOffset(&result, uint16(shift));
 			result.itemId = part.item->fullId();
 			return result;
 		}
@@ -891,6 +919,19 @@ std::optional<PaidInformation> GroupedMedia::paidInformation() const {
 
 bool GroupedMedia::enforceBubbleWidth() const {
 	return _mode == Mode::Grid;
+}
+
+int GroupedMedia::contributedMaxMonospaceWidth() const {
+	if (_mode != Mode::Column) {
+		return 0;
+	}
+	auto result = 0;
+	for (const auto &part : _parts) {
+		accumulate_max(
+			result,
+			part.content->contributedMaxMonospaceWidth());
+	}
+	return result;
 }
 
 bool GroupedMedia::computeNeedBubble() const {

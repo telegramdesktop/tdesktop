@@ -1358,6 +1358,11 @@ bool Panel::handleClose() const {
 			_call->hangup();
 		} else {
 			window()->hide();
+			if (Platform::IsWayland()) {
+				if (const auto handle = window()->windowHandle()) {
+					handle->destroy();
+				}
+			}
 		}
 		return true;
 	}

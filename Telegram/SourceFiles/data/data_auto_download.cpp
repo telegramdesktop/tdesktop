@@ -20,7 +20,8 @@ namespace {
 constexpr auto kDefaultMaxSize = 8 * int64(1024 * 1024);
 constexpr auto kDefaultAutoPlaySize = 50 * int64(1024 * 1024);
 constexpr auto kVersion1 = char(1);
-constexpr auto kVersion = char(2);
+constexpr auto kVersion2 = char(2);
+constexpr auto kVersion = char(3);
 
 template <typename Enum>
 auto enums_view(int from, int till) {
@@ -78,6 +79,26 @@ Type AutoPlayTypeFromDocument(not_null<DocumentData*> document) {
 		: document->isVideoMessage()
 		? Type::AutoPlayVideoMessage
 		: Type::AutoPlayGIF;
+}
+
+[[nodiscard]] int64 ForceAllowLimit(
+		const Full &data,
+		Source source,
+		Type type) {
+	const auto user = data.bytesLimit(source, type);
+	return (user > 0) ? user : Defaults().bytesLimit(source, type);
+}
+
+[[nodiscard]] bool ForceAllowed(
+		const Full &data,
+		Source source,
+		Type type,
+		int64 fileSize) {
+	if (ranges::find(kStreamedTypes, type) != end(kStreamedTypes)) {
+		return false;
+	}
+	const auto limit = ForceAllowLimit(data, source, type);
+	return (limit > 0) && (fileSize <= limit);
 }
 
 } // namespace
@@ -194,10 +215,32 @@ int64 Full::bytesLimit(Source source, Type type) const {
 	return setOrDefault(source, type).bytesLimit(type);
 }
 
+void Full::setPeerOverride(PeerId peerId, Override value) {
+	if (value == Override::Default) {
+		_peerOverrides.remove(peerId);
+	} else {
+		_peerOverrides[peerId] = value;
+	}
+}
+
+Override Full::peerOverride(PeerId peerId) const {
+	const auto i = _peerOverrides.find(peerId);
+	return (i != end(_peerOverrides)) ? i->second : Override::Default;
+}
+
+void Full::enumeratePeerOverrides(
+		Fn<void(PeerId, Override)> callback) const {
+	for (const auto &[peerId, value] : _peerOverrides) {
+		callback(peerId, value);
+	}
+}
+
 QByteArray Full::serialize() const {
 	auto result = QByteArray();
 	auto size = sizeof(qint8);
 	size += kSourcesCount * kTypesCount * sizeof(qint32);
+	size += sizeof(qint32);
+	size += _peerOverrides.size() * (sizeof(quint64) + sizeof(qint8));
 	result.reserve(size);
 	{
 		auto buffer = QBuffer(&result);
@@ -208,6 +251,12 @@ QByteArray Full::serialize() const {
 			for (const auto type : enums_view<Type>(kTypesCount)) {
 				stream << set(source).serialize(type);
 			}
+		}
+		stream << qint32(_peerOverrides.size());
+		for (const auto &[peerId, override] : _peerOverrides) {
+			stream
+				<< SerializePeerId(peerId)
+				<< qint8(static_cast<char>(override));
 		}
 	}
 	return result;
@@ -223,7 +272,9 @@ bool Full::setFromSerialized(const QByteArray &serialized) {
 	stream >> version;
 	if (stream.status() != QDataStream::Ok) {
 		return false;
-	} else if (version != kVersion && version != kVersion1) {
+	} else if (version != kVersion
+		&& version != kVersion2
+		&& version != kVersion1) {
 		return false;
 	}
 	auto temp = Full();
@@ -245,7 +296,33 @@ bool Full::setFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (version >= kVersion && !stream.atEnd()) {
+		auto count = qint32();
+		stream >> count;
+		if (stream.status() != QDataStream::Ok || count < 0) {
+			return false;
+		}
+		for (auto i = 0; i != count; ++i) {
+			auto serializedPeerId = quint64();
+			auto rawOverride = qint8();
+			stream >> serializedPeerId >> rawOverride;
+			if (stream.status() != QDataStream::Ok) {
+				return false;
+			}
+			const auto value = (rawOverride == qint8(Override::ForceAllow))
+				? Override::ForceAllow
+				: (rawOverride == qint8(Override::ForceDeny))
+				? Override::ForceDeny
+				: Override::Default;
+			if (value != Override::Default) {
+				temp.setPeerOverride(
+					DeserializePeerId(serializedPeerId),
+					value);
+			}
+		}
+	}
 	_data = temp._data;
+	_peerOverrides = std::move(temp._peerOverrides);
 	return true;
 }
 
@@ -278,6 +355,27 @@ bool Should(
 		const Full &data,
 		not_null<PeerData*> peer,
 		not_null<DocumentData*> document) {
+	if (document->sticker()) {
+		return true;
+	}
+	const auto override = data.peerOverride(peer->id);
+	if (override == Override::ForceDeny) {
+		return false;
+	} else if (document->isGifv()) {
+		return true;
+	} else if (override == Override::ForceAllow) {
+		if (document->isVoiceMessage()
+			|| document->isVideoMessage()
+			|| document->isSong()
+			|| document->isVideoFile()) {
+			return false;
+		}
+		return ForceAllowed(
+			data,
+			SourceFromPeer(peer),
+			Type::File,
+			document->size);
+	}
 	return Should(data, SourceFromPeer(peer), document);
 }
 
@@ -296,6 +394,16 @@ bool Should(
 		const Full &data,
 		not_null<PeerData*> peer,
 		not_null<PhotoData*> photo) {
+	const auto override = data.peerOverride(peer->id);
+	if (override == Override::ForceDeny) {
+		return false;
+	} else if (override == Override::ForceAllow) {
+		return ForceAllowed(
+			data,
+			SourceFromPeer(peer),
+			Type::Photo,
+			photo->imageByteSize(PhotoSize::Large));
+	}
 	return data.shouldDownload(
 		SourceFromPeer(peer),
 		Type::Photo,
@@ -306,7 +414,20 @@ bool ShouldAutoPlay(
 		const Full &data,
 		not_null<PeerData*> peer,
 		not_null<DocumentData*> document) {
-	return document->sticker() || data.shouldDownload(
+	if (document->sticker()) {
+		return true;
+	}
+	const auto override = data.peerOverride(peer->id);
+	if (override == Override::ForceDeny) {
+		return false;
+	} else if (override == Override::ForceAllow) {
+		return ForceAllowed(
+			data,
+			SourceFromPeer(peer),
+			AutoPlayTypeFromDocument(document),
+			document->size);
+	}
+	return data.shouldDownload(
 		SourceFromPeer(peer),
 		AutoPlayTypeFromDocument(document),
 		document->size);
@@ -316,12 +437,23 @@ bool ShouldAutoPlay(
 		const Full &data,
 		not_null<PeerData*> peer,
 		not_null<PhotoData*> photo) {
+	if (!photo->hasVideo()) {
+		return false;
+	}
+	const auto override = data.peerOverride(peer->id);
+	if (override == Override::ForceDeny) {
+		return false;
+	}
 	const auto source = SourceFromPeer(peer);
 	const auto size = photo->videoByteSize(PhotoSize::Large);
-	return photo->hasVideo()
-		&& (data.shouldDownload(source, Type::AutoPlayGIF, size)
-			|| data.shouldDownload(source, Type::AutoPlayVideo, size)
-			|| data.shouldDownload(source, Type::AutoPlayVideoMessage, size));
+	if (override == Override::ForceAllow) {
+		return ForceAllowed(data, source, Type::AutoPlayGIF, size)
+			|| ForceAllowed(data, source, Type::AutoPlayVideo, size)
+			|| ForceAllowed(data, source, Type::AutoPlayVideoMessage, size);
+	}
+	return data.shouldDownload(source, Type::AutoPlayGIF, size)
+		|| data.shouldDownload(source, Type::AutoPlayVideo, size)
+		|| data.shouldDownload(source, Type::AutoPlayVideoMessage, size);
 }
 
 Full WithDisabledAutoPlay(const Full &data) {
@@ -330,6 +462,15 @@ Full WithDisabledAutoPlay(const Full &data) {
 		for (const auto type : kAutoPlayTypes) {
 			result.setBytesLimit(source, type, 0);
 		}
+	}
+	auto toClear = std::vector<PeerId>();
+	data.enumeratePeerOverrides([&](PeerId id, Override value) {
+		if (value == Override::ForceAllow) {
+			toClear.push_back(id);
+		}
+	});
+	for (const auto id : toClear) {
+		result.setPeerOverride(id, Override::Default);
 	}
 	return result;
 }

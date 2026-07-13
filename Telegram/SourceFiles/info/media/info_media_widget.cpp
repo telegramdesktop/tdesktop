@@ -148,6 +148,11 @@ Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 	) | rpl::on_next([this](Ui::ScrollToRequest request) {
 		scrollTo(request);
 	}, _inner->lifetime());
+
+	scroll()->setCustomWheelProcess([this](not_null<QWheelEvent*> e) {
+		return (e->modifiers() & Qt::ControlModifier)
+			&& _inner->processZoomWheel(e);
+	});
 }
 
 rpl::producer<SelectedItems> Widget::selectedListValue() const {
@@ -163,6 +168,16 @@ void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 	if (type != Type::Photo && type != Type::Video) {
 		return;
 	}
+	if (_inner->canZoomIn()) {
+		addAction(tr::lng_media_zoom_in(tr::now), [=] {
+			_inner->zoomIn();
+		}, &st::menuIconZoomIn);
+	}
+	if (_inner->canZoomOut()) {
+		addAction(tr::lng_media_zoom_out(tr::now), [=] {
+			_inner->zoomOut();
+		}, &st::menuIconZoomOut);
+	}
 	addAction(tr::lng_calendar(tr::now), [=] {
 		controller()->parentController()->showCalendar({
 			.chat = Dialogs::Key(
@@ -177,6 +192,21 @@ void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 			},
 		});
 	}, &st::menuIconSchedule);
+}
+
+bool Widget::processZoomKey(not_null<QKeyEvent*> e) {
+	if (!(e->modifiers() & Qt::ControlModifier)) {
+		return false;
+	}
+	const auto key = e->key();
+	if (key == Qt::Key_Plus || key == Qt::Key_Equal) {
+		_inner->zoomIn();
+		return true;
+	} else if (key == Qt::Key_Minus || key == Qt::Key_Underscore) {
+		_inner->zoomOut();
+		return true;
+	}
+	return false;
 }
 
 rpl::producer<QString> Widget::title() {

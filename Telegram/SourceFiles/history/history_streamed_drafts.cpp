@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "iv/iv_rich_page.h"
 #include "main/main_session.h"
 
 namespace {
@@ -60,40 +61,91 @@ void HistoryStreamedDrafts::apply(
 		PeerId fromId,
 		TimeId when,
 		const MTPDsendMessageTextDraftAction &data) {
+	const auto randomId = data.vrandom_id().v;
+	applyPrepared(rootId, fromId, when, randomId, prepareContent(data));
+}
+
+void HistoryStreamedDrafts::apply(
+		MsgId rootId,
+		PeerId fromId,
+		TimeId when,
+		const MTPDsendMessageRichMessageDraftAction &data) {
+	const auto randomId = data.vrandom_id().v;
+	applyPrepared(rootId, fromId, when, randomId, prepareContent(data));
+}
+
+HistoryStreamedDrafts::DraftContent HistoryStreamedDrafts::prepareContent(
+		const MTPDsendMessageTextDraftAction &data) {
+	auto content = DraftContent{
+		.text = Api::ParseTextWithEntities(
+			&_history->session(),
+			data.vtext()),
+		.kind = DraftKind::Text,
+	};
+	content.matchText = content.text.text;
+	content.text.append(loadingEmoji());
+	return content;
+}
+
+HistoryStreamedDrafts::DraftContent HistoryStreamedDrafts::prepareContent(
+		const MTPDsendMessageRichMessageDraftAction &data) {
+	auto content = DraftContent{
+		.richPage = Iv::ParseRichPage(
+			&_history->session(),
+			data.vrich_message()),
+		.kind = DraftKind::Rich,
+	};
+	content.text = Iv::FlattenRichPageSummary(content.richPage, false);
+	content.matchText = content.text.text;
+	if (content.text.empty()) {
+		content.text.append(loadingEmoji());
+	}
+	return content;
+}
+
+void HistoryStreamedDrafts::applyPrepared(
+		MsgId rootId,
+		PeerId fromId,
+		TimeId when,
+		uint64 randomId,
+		DraftContent &&content) {
 	const auto replyToId = rootId
 		? FullMsgId(_history->peer->id, rootId)
 		: FullMsgId();
 	if (!rootId) {
 		rootId = Data::ForumTopic::kGeneralId;
 	}
-	const auto randomId = data.vrandom_id().v;
 	if (!when) {
 		clearByRandomId(randomId);
 		return;
 	}
-	const auto text = Api::ParseTextWithEntities(
-		&_history->session(),
-		data.vtext()
-	).append(loadingEmoji());
-	if (update(randomId, text)) {
+	if (_drafts.find(randomId) != end(_drafts)
+		&& update(randomId, std::move(content))) {
 		return;
 	}
+	const auto item = _history->addNewLocalMessage({
+		.id = _history->owner().nextLocalMessageId(),
+		.flags = (MessageFlag::Local
+			| MessageFlag::HasReplyInfo
+			| MessageFlag::TextAppearing),
+		.from = fromId,
+		.replyTo = {
+			.messageId = replyToId,
+			.topicRootId = rootId,
+		},
+		.date = when,
+	}, content.text, MTP_messageMediaEmpty());
+	if (content.richPage) {
+		item->setRichPage(content.richPage);
+		_history->owner().requestItemTextRefresh(item);
+	}
 	_drafts.emplace(randomId, Draft{
-		.message = _history->addNewLocalMessage({
-			.id = _history->owner().nextLocalMessageId(),
-			.flags = (MessageFlag::Local
-				| MessageFlag::HasReplyInfo
-				| MessageFlag::TextAppearing),
-			.from = fromId,
-			.replyTo = {
-				.messageId = replyToId,
-				.topicRootId = rootId,
-			},
-			.date = when,
-		}, text, MTP_messageMediaEmpty()),
+		.message = item,
 		.rootId = rootId,
 		.fromId = fromId,
 		.updated = crl::now(),
+		.kind = content.kind,
+		.matchText = std::move(content.matchText),
 	});
 	if (!_checkTimer.isActive()) {
 		_checkTimer.callOnce(kClearTimeout);
@@ -113,14 +165,30 @@ void HistoryStreamedDrafts::apply(
 
 bool HistoryStreamedDrafts::update(
 		uint64 randomId,
-		const TextWithEntities &text) {
+		DraftContent &&content) {
 	const auto i = _drafts.find(randomId);
 	if (i == end(_drafts)) {
 		return false;
 	}
 	const auto item = i->second.message;
-	item->setText(text);
+	const auto currentRichPage = item->richPage();
+	const auto hadRichPage = (currentRichPage != nullptr);
+	const auto richPageChanged = content.richPage
+		? (currentRichPage != content.richPage)
+		: hadRichPage;
+	const auto textEmpty = content.text.empty();
+	if (content.richPage) {
+		item->setRichPage(content.richPage);
+	} else {
+		item->clearRichPage();
+	}
+	item->setText(std::move(content.text));
+	if (richPageChanged || textEmpty) {
+		_history->owner().requestItemTextRefresh(item);
+	}
 	item->invalidateChatListEntry();
+	i->second.kind = content.kind;
+	i->second.matchText = std::move(content.matchText);
 	i->second.updated = crl::now();
 	return true;
 }
@@ -179,26 +247,73 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 	if (!rootId) {
 		rootId = Data::ForumTopic::kGeneralId;
 	}
-	const auto incomingText = qs(data.vmessage());
-	auto best = end(_drafts);
-	auto bestPrefix = 0;
-	for (auto i = begin(_drafts); i != end(_drafts); ++i) {
-		const auto &draft = i->second;
-		if (draft.rootId != rootId) {
-			continue;
-		}
-		if (draft.message->from()->id != fromId) {
-			continue;
-		}
-		const auto prefix = CommonPrefixLength(
-			draft.message->originalText().text,
-			incomingText);
-		if (prefix > bestPrefix) {
-			bestPrefix = prefix;
-			best = i;
-		}
+	auto incomingKind = DraftKind::Text;
+	auto incomingText = qs(data.vmessage());
+	if (const auto richMessage = data.vrich_message()) {
+		incomingKind = DraftKind::Rich;
+		incomingText = Iv::FlattenRichPageSummary(
+			Iv::ParseRichPage(&_history->session(), *richMessage)).text;
 	}
-	if (best == end(_drafts) || bestPrefix <= 0) {
+	auto best = end(_drafts);
+	if (incomingKind == DraftKind::Rich && incomingText.isEmpty()) {
+		for (auto i = begin(_drafts); i != end(_drafts); ++i) {
+			const auto &draft = i->second;
+			if (draft.rootId != rootId) {
+				continue;
+			}
+			if (draft.message->from()->id != fromId) {
+				continue;
+			}
+			if (draft.kind != DraftKind::Rich) {
+				continue;
+			}
+			if (best == end(_drafts) || draft.updated > best->second.updated) {
+				best = i;
+			}
+		}
+	} else {
+		auto bestSameKind = end(_drafts);
+		auto bestSameKindPrefix = 0;
+		auto bestOtherKind = end(_drafts);
+		auto bestOtherKindPrefix = 0;
+		auto newestSameThreadRich = end(_drafts);
+		for (auto i = begin(_drafts); i != end(_drafts); ++i) {
+			const auto &draft = i->second;
+			if (draft.rootId != rootId) {
+				continue;
+			}
+			if (draft.message->from()->id != fromId) {
+				continue;
+			}
+			if (incomingKind == DraftKind::Rich
+				&& draft.kind == DraftKind::Rich
+				&& (newestSameThreadRich == end(_drafts)
+					|| draft.updated > newestSameThreadRich->second.updated)) {
+				newestSameThreadRich = i;
+			}
+			const auto prefix = CommonPrefixLength(
+				draft.matchText,
+				incomingText);
+			if (prefix <= 0) {
+				continue;
+			}
+			if (draft.kind == incomingKind) {
+				if (prefix > bestSameKindPrefix) {
+					bestSameKindPrefix = prefix;
+					bestSameKind = i;
+				}
+			} else if (prefix > bestOtherKindPrefix) {
+				bestOtherKindPrefix = prefix;
+				bestOtherKind = i;
+			}
+		}
+		best = (bestSameKind != end(_drafts))
+			? bestSameKind
+			: (bestOtherKind != end(_drafts))
+			? bestOtherKind
+			: newestSameThreadRich;
+	}
+	if (best == end(_drafts)) {
 		return nullptr;
 	}
 	const auto item = best->second.message.get();
@@ -212,6 +327,7 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 		sublist->applyMaybeLast(item);
 	}
 	_history->owner().updateExistingMessage(data);
+	_history->newItemAdded(item, NewAddType::StreamedDraftFinish);
 
 	if (_drafts.empty()) {
 		scheduleDestroy();

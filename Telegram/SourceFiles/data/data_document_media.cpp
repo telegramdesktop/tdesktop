@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "storage/file_download.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/image/svg_preview.h"
+#include "ui/rect.h"
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageReader>
@@ -44,6 +46,7 @@ enum class FileType {
 	WallPatternPNG,
 	WallPatternSVG,
 	Theme,
+	SvgImage,
 };
 
 [[nodiscard]] bool MayHaveGoodThumbnail(not_null<DocumentData*> owner) {
@@ -51,6 +54,7 @@ enum class FileType {
 		|| owner->isAnimation()
 		|| owner->isWallPaper()
 		|| owner->isTheme()
+		|| owner->isSvgImage()
 		|| (owner->sticker() && owner->sticker()->isAnimated());
 }
 
@@ -78,6 +82,21 @@ enum class FileType {
 				kWallPaperThumbnailLimit),
 			.gzipSvg = true,
 		}).image;
+	} else if (type == FileType::SvgImage) {
+		if (data.isEmpty() && !path.isEmpty()) {
+			auto file = QFile(path);
+			if (file.open(QIODevice::ReadOnly)) {
+				const auto limit = Ui::SvgPreviewBytesLimit();
+				if (!file.isSequential() && (file.size() > limit)) {
+					return QImage();
+				}
+				data = file.read(limit + 1);
+				if (data.size() > limit) {
+					return QImage();
+				}
+			}
+		}
+		return Ui::RenderSvgPreview(data, Size(kWallPaperThumbnailLimit));
 	}
 	auto buffer = QBuffer(&data);
 	auto file = QFile(path);
@@ -422,6 +441,8 @@ void DocumentMedia::GenerateGoodThumbnail(
 		? FileType::WallPaper
 		: document->isTheme()
 		? FileType::Theme
+		: document->isSvgImage()
+		? FileType::SvgImage
 		: !document->sticker()
 		? FileType::Video
 		: document->sticker()->isLottie()
@@ -447,7 +468,8 @@ void DocumentMedia::GenerateGoodThumbnail(
 				|| type == FileType::VideoSticker)
 				? "WEBP"
 				: (type == FileType::WallPatternPNG
-					|| type == FileType::WallPatternSVG)
+					|| type == FileType::WallPatternSVG
+					|| type == FileType::SvgImage)
 				? "PNG"
 				: "JPG";
 			result.save(&buffer, format, kGoodThumbQuality);

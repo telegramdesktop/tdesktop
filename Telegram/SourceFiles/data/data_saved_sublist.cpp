@@ -309,7 +309,7 @@ bool SavedSublist::buildFromData(not_null<Viewer*> viewer) {
 	}
 	const auto i = around
 		? ranges::lower_bound(_list, around, std::greater<>())
-		: end(_list);
+		: (inMonoforum() ? end(_list) : begin(_list));
 	const auto availableBefore = int(end(_list) - i);
 	const auto availableAfter = int(i - begin(_list));
 	const auto useBefore = std::min(availableBefore, viewer->limitBefore + 1);
@@ -360,7 +360,6 @@ bool SavedSublist::applyUpdate(const MessageUpdate &update) {
 
 	if (update.item->history() != owningHistory()
 		|| !update.item->isRegular()
-		|| update.item->isService()
 		|| update.item->sublistPeerId() != sublistPeer()->id) {
 		return false;
 	} else if (update.flags & Flag::Destroyed) {
@@ -438,8 +437,7 @@ bool SavedSublist::processMessagesIsEmpty(
 	for (const auto &message : list) {
 		if (const auto item = owner().addNewMessage(message, localFlags, type)) {
 			if (item->sublistPeerId() == sublistPeer()->id
-				&& item->isRegular()
-				&& !item->isService()) {
+				&& item->isRegular()) {
 				if (toFront && item->id > _list.front()) {
 					refreshed.push_back(item->id);
 				} else if (_list.empty() || item->id < _list.back()) {

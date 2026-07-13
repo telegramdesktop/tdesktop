@@ -29,7 +29,7 @@ void RefreshDockMenu(QMenu *menu) {
 	}
 
 	const auto accounts = Core::App().domain().orderedAccounts();
-	if (accounts.size() > 1) {
+	if (accounts.size() > 1 && !Core::App().passcodeLocked()) {
 		menu->addSeparator();
 		const auto profilesHeader = menu->addAction(
 			tr::lng_mac_menu_profiles(tr::now));

@@ -68,6 +68,7 @@ private:
 		Solution = 0x10,
 		Media    = 0x20,
 		Deadline = 0x40,
+		Country  = 0x80,
 	};
 	friend constexpr inline bool is_flag_type(Error) { return true; }
 	using Errors = base::flags<Error>;

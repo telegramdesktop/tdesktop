@@ -132,6 +132,18 @@ struct ResaleTabs {
 			ranges::remove_if(state->lists.models, isRare),
 			end(state->lists.models));
 	}
+	ranges::stable_sort(
+		state->lists.models,
+		ranges::greater(),
+		&Data::UniqueGiftModelCount::count);
+	ranges::stable_sort(
+		state->lists.backdrops,
+		ranges::greater(),
+		&Data::UniqueGiftBackdropCount::count);
+	ranges::stable_sort(
+		state->lists.patterns,
+		ranges::greater(),
+		&Data::UniqueGiftPatternCount::count);
 
 	const auto scroll = [=] {
 		return QPoint(int(base::SafeRound(state->scroll)), 0);

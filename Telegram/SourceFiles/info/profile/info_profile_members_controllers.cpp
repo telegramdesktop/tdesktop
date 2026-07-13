@@ -517,6 +517,10 @@ void MemberListRow::elementsPaint(
 	}
 }
 
+bool MemberListRow::elementsAnimating() const {
+	return _wasHovered || _hoverAnimation.animating();
+}
+
 std::unique_ptr<ParticipantsBoxController> CreateMembersController(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer) {

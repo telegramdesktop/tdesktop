@@ -19,8 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "menu/menu_mute.h"
+#include "ui/toast/toast.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 
 namespace Dialogs {
@@ -76,22 +78,36 @@ void PerformQuickDialogAction(
 		MuteMenu::ThreadDescriptor(history).updateMutePeriod(isMuted
 			? 0
 			: std::numeric_limits<TimeId>::max());
-		controller->showToast(isMuted
-			? tr::lng_quick_dialog_action_toast_unmute_success(tr::now)
-			: tr::lng_quick_dialog_action_toast_mute_success(tr::now));
+		controller->showToast({
+			.text = { isMuted
+				? tr::lng_quick_dialog_action_toast_unmute_success(tr::now)
+				: tr::lng_quick_dialog_action_toast_mute_success(tr::now) },
+			.iconLottie = isMuted
+				? u"toast/unmute"_q
+				: u"toast/mute"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	} else if (action == Dialogs::Ui::QuickDialogAction::Pin) {
 		const auto entry = (Dialogs::Entry*)(history);
 		const auto isPinned = entry->isPinnedDialog(filterId);
 		const auto onToggled = isPinned
 			? Fn<void()>(nullptr)
 			: [=] {
-				controller->showToast(
-					tr::lng_quick_dialog_action_toast_pin_success(tr::now));
+				controller->showToast({
+					.text = { tr::lng_quick_dialog_action_toast_pin_success(
+						tr::now) },
+					.iconLottie = u"toast/pin"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			};
 		Window::TogglePinnedThread(controller, entry, filterId, onToggled);
 		if (isPinned) {
-			controller->showToast(
-				tr::lng_quick_dialog_action_toast_unpin_success(tr::now));
+			controller->showToast({
+				.text = { tr::lng_quick_dialog_action_toast_unpin_success(
+					tr::now) },
+				.iconLottie = u"toast/unpin"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		}
 	} else if (action == Dialogs::Ui::QuickDialogAction::Read) {
 		if (Window::IsUnreadThread(history)) {

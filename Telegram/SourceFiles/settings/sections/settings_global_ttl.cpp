@@ -244,7 +244,7 @@ void RebuildButtons(
 			request(ttl);
 		};
 		if (state->group->value()) {
-			confirmed();
+			crl::on_main(state->buttons, confirmed);
 			return;
 		}
 		state->show->showBox(Ui::MakeConfirmBox({

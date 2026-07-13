@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 
@@ -56,6 +57,7 @@ struct List::Layout {
 	float64 expandedRatio = 0.;
 	float64 expandRatio = 0.;
 	float64 ratio = 0.;
+	float64 titleOpacity = 0.;
 	float64 segmentsSpinProgress = 0.;
 	float64 thumbnailLeft = 0.;
 	float64 photoLeft = 0.;
@@ -95,8 +97,10 @@ void List::showContent(Content &&content) {
 		return;
 	}
 	if (content.elements.empty()) {
+		_content = {};
 		_data = {};
 		_empty = true;
+		validateTitle();
 		return;
 	}
 	const auto wasCount = int(_data.items.size());
@@ -135,8 +139,34 @@ void List::showContent(Content &&content) {
 	if (!wasCount) {
 		_empty = false;
 	}
+	validateTitle();
 	_tooltipText = computeTooltipText();
 	updateTooltipGeometry();
+}
+
+void List::setShowTitle(bool shown) {
+	if (_showTitle == shown) {
+		return;
+	}
+	_showTitle = shown;
+	validateTitle();
+}
+
+void List::validateTitle() {
+	const auto count = _showTitle ? _content.total : 0;
+	auto title = count
+		? tr::lng_stories_row_count(tr::now, lt_count, count)
+		: QString();
+	if (_title == title) {
+		return;
+	}
+	_title = std::move(title);
+	_titleWidth = _title.isEmpty()
+		? 0
+		: st::historySavedFont->width(_title);
+	_lastCollapsedGeometry = {};
+	updateGeometry();
+	update();
 }
 
 void List::updateScrollMax() {
@@ -329,6 +359,7 @@ List::Layout List::computeLayout(float64 expanded) const {
 		.expandedRatio = expandedRatio,
 		.expandRatio = expandRatio,
 		.ratio = ratio,
+		.titleOpacity = (1. - expanded),
 		.segmentsSpinProgress = segmentsSpinProgress,
 		.thumbnailLeft = thumbnailLeft,
 		.photoLeft = photoLeft,
@@ -673,6 +704,30 @@ void List::paint(
 		}
 		p.setOpacity(1.);
 	});
+
+	const auto lastSmall = layout.endIndexSmall - 1;
+	if (!_title.isEmpty()
+		&& layout.titleOpacity > 0.
+		&& lastSmall >= std::max(layout.startIndexSmall, layout.smallSkip)) {
+		const auto x = layout.left
+			+ layout.single * (lastSmall - layout.startIndexSmall);
+		const auto ySmall = photoTopSmall
+			+ ((photoTop - photoTopSmall)
+				* (kSmallThumbsShown - lastSmall + layout.smallSkip) / 0.5);
+		const auto y = elerp(ySmall, photoTop);
+		const auto &font = st::historySavedFont;
+		const auto left = x
+			+ layout.photoLeft
+			+ photo
+			+ st.photoLeft
+			+ st.left;
+		const auto top = y + (photo - font->height) / 2.;
+		p.setOpacity(layout.titleOpacity);
+		p.setPen(st::dialogsNameFg);
+		p.setFont(font);
+		p.drawText(QPointF(left, top + font->ascent), _title);
+		p.setOpacity(1.);
+	}
 }
 
 void List::validateThumbnail(not_null<Item*> item) {
@@ -1139,7 +1194,8 @@ QRect List::countSmallGeometry() const {
 		+ st.photoLeft
 		+ st.photo + (count - 1) * st.shift
 		+ st.photoLeft
-		+ st.left;
+		+ st.left
+		+ (_title.isEmpty() ? 0 : (_titleWidth + st.left));
 	const auto left = ((_alignSmall & Qt::AlignRight) == Qt::AlignRight)
 		? (_positionSmall.x() - width)
 		: ((_alignSmall & Qt::AlignCenter) == Qt::AlignCenter)

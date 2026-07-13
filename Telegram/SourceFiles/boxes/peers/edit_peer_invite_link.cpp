@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_giveaway.h"
@@ -1455,7 +1456,11 @@ void AddPermanentLinkBlock(
 
 void CopyInviteLink(std::shared_ptr<Ui::Show> show, const QString &link) {
 	QGuiApplication::clipboard()->setText(link);
-	show->showToast(tr::lng_group_invite_copied(tr::now));
+	show->showToast({
+		.text = { tr::lng_group_invite_copied(tr::now) },
+		.iconLottie = u"toast/voip_invite"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
 }
 
 object_ptr<Ui::BoxContent> ShareInviteLinkBox(
@@ -1480,9 +1485,15 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(link);
-		showToast(copied.isEmpty()
-			? tr::lng_group_invite_copied(tr::now)
-			: copied);
+		if (*box) {
+			(*box)->showToast({
+				.text = { copied.isEmpty()
+					? tr::lng_group_invite_copied(tr::now)
+					: copied },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
+		}
 	};
 	auto countMessagesCallback = [=](const TextWithTags &comment) {
 		return 1;
@@ -1619,6 +1630,16 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 	};
 	const auto isGroup = !peer->isBroadcast();
 	const auto isPublic = peer->isChannel() && peer->asChannel()->isPublic();
+	const auto globalRequestApproval = peer->isChannel()
+		&& peer->asChannel()->requestToJoin();
+	const auto guardBot = [&]() -> UserData* {
+		const auto channel = peer->asChannel();
+		return channel ? channel->guardBot() : nullptr;
+	}();
+	const auto guardBotUsername = guardBot ? guardBot->username() : QString();
+	const auto guardBotLink = guardBotUsername.isEmpty()
+		? QString()
+		: peer->session().createInternalLink(guardBotUsername);
 	auto object = Box([=](not_null<Ui::GenericBox*> box) {
 		const auto fill = isGroup
 			? Fn<Ui::InviteLinkSubscriptionToggle()>(nullptr)
@@ -1626,7 +1647,15 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 				return Ui::FillCreateInviteLinkSubscriptionToggle(box, peer);
 			};
 		if (creating) {
-			Ui::CreateInviteLinkBox(box, fill, isGroup, isPublic, done);
+			Ui::CreateInviteLinkBox(
+				box,
+				fill,
+				isGroup,
+				isPublic,
+				globalRequestApproval,
+				guardBotUsername,
+				guardBotLink,
+				done);
 		} else {
 			Ui::EditInviteLinkBox(
 				box,
@@ -1640,6 +1669,9 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 					.requestApproval = data.requestApproval,
 					.isGroup = isGroup,
 					.isPublic = isPublic,
+					.globalRequestApproval = globalRequestApproval,
+					.guardBotUsername = guardBotUsername,
+					.guardBotLink = guardBotLink,
 				},
 				done);
 		}

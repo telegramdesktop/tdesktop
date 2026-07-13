@@ -53,6 +53,9 @@ namespace {
 				: Flag())
 			| (data.is_manage_ranks()
 				? Flag::ManageRanks
+				: Flag())
+			| (data.is_manage_linked_peers()
+				? Flag::ManageLinkedPeers
 				: Flag());
 	});
 }
@@ -75,11 +78,15 @@ namespace {
 			| (data.is_send_docs() ? Flag::SendFiles : Flag())
 			| (data.is_send_plain() ? Flag::SendOther : Flag())
 			| (data.is_embed_links() ? Flag::EmbedLinks : Flag())
+			| (data.is_send_reactions() ? Flag::SendReactions : Flag())
 			| (data.is_change_info() ? Flag::ChangeInfo : Flag())
 			| (data.is_invite_users() ? Flag::AddParticipants : Flag())
 			| (data.is_pin_messages() ? Flag::PinMessages : Flag())
 			| (data.is_manage_topics() ? Flag::CreateTopics : Flag())
-			| (data.is_edit_rank() ? Flag::EditRank : Flag());
+			| (data.is_edit_rank() ? Flag::EditRank : Flag())
+			| (data.is_manage_linked_peers()
+				? Flag::ManageLinkedPeers
+				: Flag());
 	});
 }
 
@@ -121,6 +128,9 @@ MTPChatAdminRights AdminRightsToMTP(ChatAdminRightsInfo info) {
 			: Flag())
 		| ((flags & R::ManageRanks)
 			? Flag::f_manage_ranks
+			: Flag())
+		| ((flags & R::ManageLinkedPeers)
+			? Flag::f_manage_linked_peers
 			: Flag())));
 }
 
@@ -149,11 +159,15 @@ MTPChatBannedRights RestrictionsToMTP(ChatRestrictionsInfo info) {
 			| ((flags & R::SendFiles) ? Flag::f_send_docs : Flag())
 			| ((flags & R::SendOther) ? Flag::f_send_plain : Flag())
 			| ((flags & R::EmbedLinks) ? Flag::f_embed_links : Flag())
+			| ((flags & R::SendReactions) ? Flag::f_send_reactions : Flag())
 			| ((flags & R::ChangeInfo) ? Flag::f_change_info : Flag())
 			| ((flags & R::AddParticipants) ? Flag::f_invite_users : Flag())
 			| ((flags & R::PinMessages) ? Flag::f_pin_messages : Flag())
 			| ((flags & R::CreateTopics) ? Flag::f_manage_topics : Flag())
-			| ((flags & R::EditRank) ? Flag::f_edit_rank : Flag())),
+			| ((flags & R::EditRank) ? Flag::f_edit_rank : Flag())
+			| ((flags & R::ManageLinkedPeers)
+				? Flag::f_manage_linked_peers
+				: Flag())),
 		MTP_int(info.until));
 }
 
@@ -247,12 +261,9 @@ bool CanSendAnyOf(
 		if (!chat->amIn()) {
 			return false;
 		}
-		for (const auto right : AllSendRestrictionsList()) {
-			if ((rights & right) && !chat->amRestricted(right)) {
-				return true;
-			}
-		}
-		return false;
+		return chat->amCreator()
+			|| chat->hasAdminRights()
+			|| (rights & ~chat->defaultRestrictions());
 	} else if (const auto channel = peer->asChannel()) {
 		if (channel->monoforumDisabled()) {
 			return false;
@@ -264,17 +275,15 @@ bool CanSendAnyOf(
 			|| channel->isMonoforum();
 		if (!allowed || (forbidInForums && channel->isForum())) {
 			return false;
-		} else if (channel->canPostMessages()) {
-			return true;
-		} else if (channel->isBroadcast()) {
-			return false;
 		}
-		for (const auto right : AllSendRestrictionsList()) {
-			if ((rights & right) && !channel->amRestricted(right)) {
-				return true;
-			}
-		}
-		return false;
+		const auto restricted = channel->restrictions()
+			| (channel->unrestrictedByBoosts()
+				? ChatRestrictions()
+				: channel->defaultRestrictions());
+		return channel->canPostMessages()
+			|| (!channel->isBroadcast()
+				&& (channel->hasAdminRights()
+					|| (rights & ~restricted)));
 	}
 	Unexpected("Peer type in CanSendAnyOf.");
 }
@@ -547,17 +556,23 @@ bool ShowSendError(
 		not_null<PeerData*> peer,
 		const Ui::PreparedList &list,
 		std::optional<bool> compress,
-		bool ignoreSlowmodeLeft) {
+		bool ignoreSlowmodeLeft,
+		bool ignoreRestrictions) {
 	const auto error = [&]() -> Data::SendError {
-		const auto error = Data::FileRestrictionError(peer, list, compress);
-		if (error) {
-			return error;
-		} else if (const auto left = peer->slowmodeSecondsLeft()) {
-			if (!ignoreSlowmodeLeft) {
-				return tr::lng_slowmode_enabled(
-					tr::now,
-					lt_left,
-					Ui::FormatDurationWordsSlowmode(left));
+		if (!ignoreRestrictions) {
+			const auto error = Data::FileRestrictionError(
+				peer,
+				list,
+				compress);
+			if (error) {
+				return error;
+			} else if (const auto left = peer->slowmodeSecondsLeft()) {
+				if (!ignoreSlowmodeLeft) {
+					return tr::lng_slowmode_enabled(
+						tr::now,
+						lt_left,
+						Ui::FormatDurationWordsSlowmode(left));
+				}
 			}
 		}
 		using Error = Ui::PreparedList::Error;
@@ -592,8 +607,11 @@ bool ShowSendError(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer,
 		const Ui::PreparedBundle &bundle,
-		bool ignoreSlowmodeLeft) {
-	if (peer->slowmodeApplied() && bundle.groups.size() > 1) {
+		bool ignoreSlowmodeLeft,
+		bool ignoreRestrictions) {
+	if (!ignoreRestrictions
+		&& peer->slowmodeApplied()
+		&& bundle.groups.size() > 1) {
 		Data::ShowSendErrorToast(
 			show,
 			peer,
@@ -603,7 +621,13 @@ bool ShowSendError(
 	const auto ignore = ignoreSlowmodeLeft;
 	const auto compress = bundle.way.sendImagesAsPhotos();
 	for (const auto &group : bundle.groups) {
-		if (ShowSendError(show, peer, group.list, compress, ignore)) {
+		if (ShowSendError(
+				show,
+				peer,
+				group.list,
+				compress,
+				ignore,
+				ignoreRestrictions)) {
 			return true;
 		}
 	}

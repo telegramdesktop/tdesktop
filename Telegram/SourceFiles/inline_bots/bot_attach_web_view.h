@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "dialogs/dialogs_key.h"
+#include "menu/menu_send_details.h"
 #include "mtproto/sender.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/rp_widget.h"
@@ -173,6 +174,29 @@ struct WebViewSourceAgeVerification {
 	}
 };
 
+struct WebViewResultData {
+	QString url;
+	uint64 queryId = 0;
+	bool fullscreen = false;
+	bool fullsize = false;
+	bool sameOrigin = false;
+
+	friend inline bool operator==(
+		const WebViewResultData &,
+		const WebViewResultData &) = default;
+};
+
+[[nodiscard]] WebViewResultData ParseWebViewResult(
+	const MTPWebViewResult &result);
+
+struct WebViewSourceJoinChat {
+	uint64 queryId = 0;
+
+	friend inline bool operator==(
+		const WebViewSourceJoinChat &,
+		const WebViewSourceJoinChat &) = default;
+};
+
 struct WebViewSource : std::variant<
 	WebViewSourceButton,
 	WebViewSourceSwitch,
@@ -184,7 +208,8 @@ struct WebViewSource : std::variant<
 	WebViewSourceBotMenu,
 	WebViewSourceGame,
 	WebViewSourceBotProfile,
-	WebViewSourceAgeVerification> {
+	WebViewSourceAgeVerification,
+	WebViewSourceJoinChat> {
 	using variant::variant;
 };
 
@@ -239,6 +264,7 @@ private:
 	void requestSimple();
 	void requestMain();
 	void requestApp(bool allowWrite);
+	void requestChatJoin();
 	void requestWithMainMenuDisclaimer();
 	void requestWithMenuAdd();
 	void maybeChooseAndRequestButton(PeerTypes supported);
@@ -259,10 +285,8 @@ private:
 		bool forceConfirmation);
 
 	struct ShowArgs {
-		QString url;
+		WebViewResultData result;
 		QString title;
-		uint64 queryId = 0;
-		bool fullscreen = false;
 	};
 	void show(ShowArgs &&args);
 	void showGame();
@@ -306,6 +330,8 @@ private:
 		Ui::BotWebView::SetEmojiStatusRequest request) override;
 	void botDownloadFile(
 		Ui::BotWebView::DownloadFileRequest request) override;
+	void botResolveButtonEmoji(
+		Ui::BotWebView::ResolveButtonEmojiRequest request) override;
 	void botVerifyAge(int age) override;
 	void botOpenPrivacyPolicy() override;
 	void botClose() override;
@@ -355,6 +381,11 @@ public:
 		const QString &botUsername,
 		const QString &startCommand,
 		bool fullscreen);
+	void watchJoinChatWebView(
+		uint64 queryId,
+		std::shared_ptr<Ui::Show> show,
+		base::weak_ptr<Window::SessionController> controller,
+		base::weak_ptr<WebViewInstance> instance);
 
 	void cancel();
 
@@ -443,11 +474,18 @@ private:
 	rpl::event_stream<> _attachBotsUpdates;
 	base::flat_set<not_null<UserData*>> _disclaimerAccepted;
 
+	struct JoinChatWebView {
+		std::shared_ptr<Ui::Show> show;
+		base::weak_ptr<Window::SessionController> controller;
+		base::weak_ptr<WebViewInstance> instance;
+	};
+	base::flat_map<uint64, JoinChatWebView> _joinChatWebViews;
 	std::vector<std::unique_ptr<WebViewInstance>> _instances;
 
 	std::vector<not_null<UserData*>> _popularAppBots;
 	mtpRequestId _popularAppBotsRequestId = 0;
 	rpl::variable<bool> _popularAppBotsLoaded = false;
+	rpl::lifetime _lifetime;
 
 };
 
@@ -456,6 +494,7 @@ private:
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	Fn<Api::SendAction()> actionFactory,
+	Fn<SendMenu::Details()> sendMenuDetails,
 	Fn<void(bool)> attach);
 
 class MenuBotIcon final : public Ui::RpWidget {

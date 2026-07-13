@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "lang/lang_keys.h"
 #include "layout/layout_document_generic_preview.h"
 #include "main/main_session.h"
@@ -72,8 +73,8 @@ QImage GenerateDocumentFilePreview(
 	p.setBrush(color);
 	p.drawRoundedRect(
 		QRect(0, 0, size, size),
-		st::roundRadiusSmall,
-		st::roundRadiusSmall);
+		st::pollAttachRadius,
+		st::pollAttachRadius);
 
 	if (!ext.isEmpty()) {
 		const auto refSize = st::overviewFileLayout.fileThumbSize;
@@ -200,6 +201,8 @@ void PollMediaButton::paintEvent(QPaintEvent *e) {
 		p,
 		_st.rippleAreaPosition,
 		_rippleColorOverride ? &*_rippleColorOverride : nullptr);
+	const auto isLinkWithPhoto = _state->media.webpage
+		&& _state->media.webpage->photo;
 	if (_state->thumbnail) {
 		const auto target = rippleRect();
 		paintCover(
@@ -208,6 +211,23 @@ void PollMediaButton::paintEvent(QPaintEvent *e) {
 			_state->thumbnail->image(
 				std::max(target.width(), target.height())),
 			_state->rounded);
+		if (isLinkWithPhoto) {
+			p.save();
+			auto hq = PainterHighQualityEnabler(p);
+			auto path = QPainterPath();
+			path.addRoundedRect(
+				target,
+				st::pollAttachRadius,
+				st::pollAttachRadius);
+			p.setClipPath(path);
+			p.fillRect(target, st::songCoverOverlayFg);
+			const auto center = QPointF(rect::center(target));
+			p.translate(center);
+			p.rotate(-45.);
+			p.translate(-center);
+			st::pollAttachLink.paintInCenter(p, target);
+			p.restore();
+		}
 	} else if (_iconColorOverride) {
 		const auto &icon = (isOver() && !_st.iconOver.empty())
 			? _st.iconOver
@@ -226,7 +246,7 @@ void PollMediaButton::paintEvent(QPaintEvent *e) {
 			target,
 			image->image(std::max(target.width(), target.height())));
 	}
-	if (_state->thumbnail && !_state->uploading) {
+	if (_state->thumbnail && !_state->uploading && !isLinkWithPhoto) {
 		const auto viewOpacity = _viewShown.value(
 			(isOver() || isDown()) ? 1. : 0.);
 		if (viewOpacity > 0.) {
@@ -235,8 +255,8 @@ void PollMediaButton::paintEvent(QPaintEvent *e) {
 			auto path = QPainterPath();
 			path.addRoundedRect(
 				rippleRect(),
-				st::roundRadiusSmall,
-				st::roundRadiusSmall);
+				st::pollAttachRadius,
+				st::pollAttachRadius);
 			p.setClipPath(path);
 			p.fillRect(rippleRect(), st::songCoverOverlayFg);
 			st::pollAttachView.paintInCenter(p, rippleRect());
@@ -252,8 +272,8 @@ void PollMediaButton::paintEvent(QPaintEvent *e) {
 			auto path = QPainterPath();
 			path.addRoundedRect(
 				rippleRect(),
-				st::roundRadiusSmall,
-				st::roundRadiusSmall);
+				st::pollAttachRadius,
+				st::pollAttachRadius);
 			p.setClipPath(path);
 			p.fillRect(rippleRect(), st::songCoverOverlayFg);
 			p.restore();
@@ -338,12 +358,13 @@ void PollMediaButton::paintCover(
 		size.width(),
 		size.height());
 	p.save();
+	auto hq = PainterHighQualityEnabler(p);
 	if (rounded) {
 		auto path = QPainterPath();
 		path.addRoundedRect(
 			target,
-			st::roundRadiusSmall,
-			st::roundRadiusSmall);
+			st::pollAttachRadius,
+			st::pollAttachRadius);
 		p.setClipPath(path);
 	}
 	p.drawImage(geometry, image, source);

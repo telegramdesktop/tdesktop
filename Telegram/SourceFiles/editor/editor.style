@@ -24,7 +24,7 @@ photoEditorContentMargins: margins(
 	photoEditorControlsBottomSkip,
 	photoEditorControlsHeight);
 
-photoEditorBarAnimationDuration: 200;
+photoEditorBarAnimationDuration: 100;
 
 photoEditorButtonIconFg: mediaviewPipControlsFg;
 photoEditorButtonIconFgOver: mediaviewPipControlsFgOver;
@@ -42,7 +42,6 @@ photoEditorTextButtonPadding: margins(22px, 0px, 22px, 0px);
 photoEditorButtonStyle: TextStyle(semiboldTextStyle) {
 	font: font(14px semibold);
 }
-photoEditorButtonTextTop: 15px;
 
 photoEditorAbout: FlatLabel(defaultFlatLabel) {
 	textFg: mediaviewCaptionFg;
@@ -75,13 +74,13 @@ photoEditorPaintModeButton: IconButton(photoEditorRotateButton) {
 photoEditorPaintIconActive: icon {{ "photo_editor/paint", photoEditorButtonIconFgActive }};
 
 photoEditorUndoButton: IconButton(photoEditorRotateButton) {
-	icon: icon {{ "photo_editor/undo", photoEditorButtonIconFg }};
-	iconOver: icon {{ "photo_editor/undo", photoEditorButtonIconFgOver }};
+	icon: icon {{ "menu/tabs_undo-24x24", photoEditorButtonIconFg }};
+	iconOver: icon {{ "menu/tabs_undo-24x24", photoEditorButtonIconFgOver }};
 }
 
 photoEditorRedoButton: IconButton(photoEditorRotateButton) {
-	icon: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFg }};
-	iconOver: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgOver }};
+	icon: icon {{ "menu/tabs_redo-24x24", photoEditorButtonIconFg }};
+	iconOver: icon {{ "menu/tabs_redo-24x24", photoEditorButtonIconFgOver }};
 }
 
 photoEditorStickersButton: IconButton(photoEditorRotateButton) {
@@ -120,8 +119,8 @@ photoEditorCropRatioMenu: PopupMenu(mediaviewPopupMenu) {
 	}
 }
 
-photoEditorUndoButtonInactive: icon {{ "photo_editor/undo", photoEditorButtonIconFgInactive }};
-photoEditorRedoButtonInactive: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgInactive }};
+photoEditorUndoButtonInactive: icon {{ "menu/tabs_undo-24x24", photoEditorButtonIconFgInactive }};
+photoEditorRedoButtonInactive: icon {{ "menu/tabs_redo-24x24", photoEditorButtonIconFgInactive }};
 
 photoEditorColorButtonSize: 24px;
 photoEditorColorButtonBorder: 1px;
@@ -129,7 +128,6 @@ photoEditorColorButtonBorderFg: mediaviewCaptionFg;
 photoEditorColorPaletteItemSize: 20px;
 photoEditorColorPaletteGap: 6px;
 photoEditorColorPaletteSelectionWidth: 2px;
-photoEditorColorPaletteSelectionFg: mediaviewCaptionFg;
 photoEditorColorPalettePlusLine: 2px;
 photoEditorColorPalettePlusFg: mediaviewCaptionFg;
 

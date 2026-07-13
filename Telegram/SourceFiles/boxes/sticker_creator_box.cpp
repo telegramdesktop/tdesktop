@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/emoji_picker_overlay.h"
 #include "core/file_utilities.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
@@ -46,6 +48,12 @@ constexpr auto kPreviewSide = 256;
 constexpr auto kWebpQuality = 95;
 constexpr auto kMaxEmojis = 7;
 
+[[nodiscard]] int SideForType(Data::StickersType type) {
+	return (type == Data::StickersType::Emoji)
+		? Api::kEmojiStickerSideMax
+		: kStickerSide;
+}
+
 [[nodiscard]] QImage LoadImageFromFile(const QString &path) {
 	auto reader = QImageReader(path);
 	reader.setAutoTransform(true);
@@ -78,9 +86,10 @@ private:
 
 };
 
-void OpenPhotoEditorForSticker(
+void OpenPhotoEditorForImage(
 		std::shared_ptr<ChatHelpers::Show> show,
 		QImage image,
+		int side,
 		Fn<void(QImage&&)> onDone) {
 	if (image.isNull()) {
 		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
@@ -103,19 +112,19 @@ void OpenPhotoEditorForSticker(
 	}
 
 	auto canvas = QImage(
-		kStickerSide,
-		kStickerSide,
+		side,
+		side,
 		QImage::Format_ARGB32_Premultiplied);
 	canvas.fill(Qt::transparent);
 	const auto baseImage = std::make_shared<Image>(std::move(canvas));
 
 	auto scene = std::make_shared<Editor::Scene>(
-		QRectF(0, 0, kStickerSide, kStickerSide));
+		QRectF(0, 0, side, side));
 
 	const auto userPixmap = QPixmap::fromImage(std::move(image));
 	const auto userSize = userPixmap.size();
 	const auto fitted = userSize.scaled(
-		QSize(kStickerSide, kStickerSide),
+		QSize(side, side),
 		Qt::KeepAspectRatio);
 	const auto handle = st::photoEditorItemHandleSize;
 	const auto itemSize = (userSize.width() >= userSize.height())
@@ -126,8 +135,8 @@ void OpenPhotoEditorForSticker(
 		.initialZoom = 1.0,
 		.zPtr = scene->lastZ(),
 		.size = itemSize,
-		.x = kStickerSide / 2,
-		.y = kStickerSide / 2,
+		.x = side / 2,
+		.y = side / 2,
 		.imageSize = userSize,
 	};
 	auto imageItem = std::make_shared<Editor::ItemImage>(
@@ -136,7 +145,7 @@ void OpenPhotoEditorForSticker(
 	scene->addItem(std::move(imageItem));
 
 	auto modifications = Editor::PhotoModifications{
-		.crop = QRect(0, 0, kStickerSide, kStickerSide),
+		.crop = QRect(0, 0, side, side),
 		.paint = std::move(scene),
 	};
 
@@ -146,7 +155,7 @@ void OpenPhotoEditorForSticker(
 		baseImage,
 		std::move(modifications),
 		Editor::EditorData{
-			.exactSize = QSize(kStickerSide, kStickerSide),
+			.exactSize = QSize(side, side),
 			.cropType = Editor::EditorData::CropType::RoundedRect,
 			.cropMode = Editor::EditorData::CropMode::Mask,
 			.keepAspectRatio = true,
@@ -157,10 +166,10 @@ void OpenPhotoEditorForSticker(
 	auto applyModifications = [=, done = std::move(onDone)](
 			const Editor::PhotoModifications &mods) mutable {
 		auto result = Editor::ImageModified(baseImage->original(), mods);
-		if (result.size() != QSize(kStickerSide, kStickerSide)) {
+		if (result.size() != QSize(side, side)) {
 			result = result.scaled(
-				kStickerSide,
-				kStickerSide,
+				side,
+				side,
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		}
@@ -177,13 +186,53 @@ void OpenPhotoEditorForSticker(
 		Ui::LayerOption::KeepOther);
 }
 
-[[nodiscard]] QByteArray EncodeWebp(QImage image) {
-	if (image.size() != QSize(kStickerSide, kStickerSide)) {
+[[nodiscard]] QImage Sharpened(QImage image) {
+	constexpr auto kRadius = 1;
+	constexpr auto kAmount = 0.7;
+	if (image.isNull()) {
+		return image;
+	}
+	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
+		image = std::move(image).convertToFormat(
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	auto blurred = Images::BlurLargeImage(QImage(image), kRadius);
+	if (blurred.size() != image.size()) {
+		return image;
+	}
+	const auto width = image.width();
+	const auto height = image.height();
+	for (auto y = 0; y != height; ++y) {
+		const auto blur = reinterpret_cast<const QRgb*>(
+			blurred.constScanLine(y));
+		const auto line = reinterpret_cast<QRgb*>(image.scanLine(y));
+		for (auto x = 0; x != width; ++x) {
+			const auto origin = line[x];
+			const auto soft = blur[x];
+			const auto alpha = qAlpha(origin);
+			const auto sharp = [&](int channel, int blurChannel) {
+				const auto value = channel
+					+ int(kAmount * (channel - blurChannel));
+				return std::clamp(value, 0, alpha);
+			};
+			line[x] = qRgba(
+				sharp(qRed(origin), qRed(soft)),
+				sharp(qGreen(origin), qGreen(soft)),
+				sharp(qBlue(origin), qBlue(soft)),
+				alpha);
+		}
+	}
+	return image;
+}
+
+[[nodiscard]] QByteArray EncodeWebp(QImage image, int side) {
+	if (image.size() != QSize(side, side)) {
 		image = image.scaled(
-			kStickerSide,
-			kStickerSide,
+			side,
+			side,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
+		image = Sharpened(std::move(image));
 	}
 	if (image.format() != QImage::Format_ARGB32) {
 		image = image.convertToFormat(QImage::Format_ARGB32);
@@ -195,16 +244,49 @@ void OpenPhotoEditorForSticker(
 	return bytes;
 }
 
+void LoadStickerImage(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<DocumentData*> document,
+		Fn<void(QImage)> done) {
+	struct State {
+		std::shared_ptr<Data::DocumentMedia> media;
+		rpl::lifetime lifetime;
+	};
+	const auto state = std::make_shared<State>();
+	state->media = document->createMediaView();
+	state->media->checkStickerLarge();
+	const auto finish = [=] {
+		const auto large = state->media->getStickerLarge();
+		auto image = large ? large->original() : QImage();
+		state->lifetime.destroy();
+		done(std::move(image));
+	};
+	if (state->media->loaded()) {
+		finish();
+		return;
+	}
+	show->session().downloaderTaskFinished(
+	) | rpl::filter([=] {
+		return state->media->loaded();
+	}) | rpl::on_next([=] {
+		finish();
+	}, state->lifetime);
+}
+
 } // namespace
 
 namespace Api {
+namespace {
 
-void CreateStickerBox(
+void CreateMediaBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
 		StickerSetIdentifier set,
 		QImage image,
+		Data::StickersType type,
 		Fn<void(MTPmessages_StickerSet)> done) {
+	const auto isEmoji = (type == Data::StickersType::Emoji);
+	const auto side = SideForType(type);
 	struct State {
 		rpl::variable<bool> uploading = false;
 		std::unique_ptr<StickerUpload> upload;
@@ -213,12 +295,16 @@ void CreateStickerBox(
 	const auto state = box->lifetime().make_state<State>();
 	const auto session = &show->session();
 
-	box->setTitle(tr::lng_stickers_create_image_title());
+	box->setTitle(isEmoji
+		? tr::lng_emoji_create_image_title()
+		: tr::lng_stickers_create_image_title());
 
 	const auto inner = box->verticalLayout();
 
 	auto pickerDescriptor = ChatHelpers::EmojiPickerOverlayDescriptor{
-		.aboutText = tr::lng_stickers_create_emoji_about(tr::now),
+		.aboutText = (isEmoji
+			? tr::lng_emoji_create_emoji_about(tr::now)
+			: tr::lng_stickers_create_emoji_about(tr::now)),
 		.maxSelected = kMaxEmojis,
 		.allowExpand = true,
 	};
@@ -283,7 +369,7 @@ void CreateStickerBox(
 				tr::lng_stickers_create_emoji_required(tr::now));
 			return;
 		}
-		const auto bytes = EncodeWebp(image);
+		const auto bytes = EncodeWebp(image, side);
 		if (bytes.isEmpty()) {
 			show->showToast(
 				tr::lng_stickers_create_upload_failed(tr::now));
@@ -301,14 +387,17 @@ void CreateStickerBox(
 			session,
 			set,
 			bytes,
-			emoji);
+			emoji,
+			type);
 
 		const auto doneCallback = done;
 		state->upload->start(
 			crl::guard(box, [=](MTPmessages_StickerSet result) {
 				state->upload = nullptr;
 				state->uploading = false;
-				show->showToast(tr::lng_stickers_create_added(tr::now));
+				show->showToast(isEmoji
+					? tr::lng_emoji_added(tr::now)
+					: tr::lng_stickers_create_added(tr::now));
 				if (doneCallback) {
 					doneCallback(result);
 				}
@@ -350,9 +439,32 @@ void CreateStickerBox(
 	}, box->lifetime());
 }
 
-void OpenCreateStickerFlow(
+void RunImageEditorAndCreate(
 		std::shared_ptr<ChatHelpers::Show> show,
 		StickerSetIdentifier set,
+		QImage image,
+		Data::StickersType type,
+		Fn<void(MTPmessages_StickerSet)> done) {
+	OpenPhotoEditorForImage(
+		show,
+		std::move(image),
+		kStickerSide,
+		[=, set = std::move(set), done = std::move(done)](
+				QImage &&prepared) mutable {
+			show->showBox(Box(
+				CreateMediaBox,
+				show,
+				std::move(set),
+				std::move(prepared),
+				type,
+				std::move(done)));
+		});
+}
+
+void ChooseImageThenCreate(
+		std::shared_ptr<ChatHelpers::Show> show,
+		StickerSetIdentifier set,
+		Data::StickersType type,
 		Fn<void(MTPmessages_StickerSet)> done) {
 	const auto parent = QPointer<QWidget>(show->toastParent());
 
@@ -367,18 +479,12 @@ void OpenCreateStickerFlow(
 		auto image = path.isEmpty()
 			? QImage::fromData(result.remoteContent)
 			: LoadImageFromFile(path);
-		OpenPhotoEditorForSticker(
+		RunImageEditorAndCreate(
 			show,
+			std::move(set),
 			std::move(image),
-			[=, set = std::move(set), done = std::move(done)](
-					QImage &&prepared) mutable {
-				show->showBox(Box(
-					CreateStickerBox,
-					show,
-					std::move(set),
-					std::move(prepared),
-					std::move(done)));
-			});
+			type,
+			std::move(done));
 	};
 
 	FileDialog::GetOpenPath(
@@ -386,6 +492,80 @@ void OpenCreateStickerFlow(
 		tr::lng_stickers_create_choose_image(tr::now),
 		FileDialog::ImagesFilter(),
 		std::move(onChosen));
+}
+
+} // namespace
+
+void OpenCreateStickerFlow(
+		std::shared_ptr<ChatHelpers::Show> show,
+		StickerSetIdentifier set,
+		Fn<void(MTPmessages_StickerSet)> done) {
+	ChooseImageThenCreate(
+		std::move(show),
+		std::move(set),
+		Data::StickersType::Stickers,
+		std::move(done));
+}
+
+void OpenCreateEmojiFlow(
+		std::shared_ptr<ChatHelpers::Show> show,
+		StickerSetIdentifier set,
+		Fn<void(MTPmessages_StickerSet)> done) {
+	ChooseImageThenCreate(
+		std::move(show),
+		std::move(set),
+		Data::StickersType::Emoji,
+		std::move(done));
+}
+
+bool AdaptStickerToEmoji(
+		std::shared_ptr<ChatHelpers::Show> show,
+		StickerSetIdentifier set,
+		not_null<DocumentData*> document,
+		Fn<void(MTPmessages_StickerSet)> done) {
+	const auto sticker = document->sticker();
+	if (!sticker || sticker->isWebm()) {
+		show->showToast(tr::lng_emoji_adapt_no_video(tr::now));
+		return false;
+	}
+	if (sticker->isLottie()) {
+		const auto emoji = StickerEmojiOrDefault(document);
+		AddExistingStickerToSet(
+			&show->session(),
+			set,
+			document,
+			emoji,
+			[=](MTPmessages_StickerSet result) {
+				show->showToast(tr::lng_emoji_added(tr::now));
+				if (done) {
+					done(result);
+				}
+			},
+			[=](QString err) {
+				show->showToast(err.isEmpty()
+					? tr::lng_attach_failed(tr::now)
+					: err);
+			});
+		return true;
+	}
+	LoadStickerImage(
+		show,
+		document,
+		[=, set = std::move(set), done = std::move(done)](
+				QImage image) mutable {
+			if (image.isNull()) {
+				show->showToast(
+					tr::lng_stickers_create_open_failed(tr::now));
+				return;
+			}
+			RunImageEditorAndCreate(
+				show,
+				std::move(set),
+				std::move(image),
+				Data::StickersType::Emoji,
+				std::move(done));
+		});
+	return true;
 }
 
 } // namespace Api

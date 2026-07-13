@@ -79,6 +79,7 @@ std::optional<GlobalMediaRequest> PrepareGlobalMediaRequest(
 	return MTPmessages_SearchGlobal(
 		MTP_flags(MTPmessages_SearchGlobal::Flag::f_folder_id), // No archive
 		MTP_int(folderId),
+		MTPInputChannel(),
 		MTP_string(query),
 		filter,
 		MTP_int(minDate),

@@ -278,6 +278,9 @@ public:
 	[[nodiscard]] virtual bool unwrapped() const {
 		return false;
 	}
+	[[nodiscard]] virtual bool drawsOwnEphemeralBadge() const {
+		return false;
+	}
 	[[nodiscard]] virtual bool customInfoLayout() const = 0;
 	[[nodiscard]] virtual QRect contentRectForReactions() const {
 		return QRect(0, 0, width(), height());
@@ -339,11 +342,23 @@ public:
 	[[nodiscard]] virtual bool enforceBubbleWidth() const {
 		return false;
 	}
+
+	[[nodiscard]] virtual int bubbleWidthLimit() const {
+		return 0;
+	}
 	[[nodiscard]] virtual bool allowsNarrowBubble() const {
 		return false;
 	}
 	[[nodiscard]] virtual int minBubbleWidthForNarrowBubble() const {
 		return 0;
+	}
+
+	[[nodiscard]] virtual int contributedMaxMonospaceWidth() const {
+		return 0;
+	}
+
+	virtual int widenGroupingMaxWidth(int current, bool last) {
+		return current;
 	}
 
 	// Sometimes click on media in message is overloaded by the message:

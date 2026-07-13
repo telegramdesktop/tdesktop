@@ -60,7 +60,7 @@ DocumentData *GiftBoxPack::lookup(
 	if (it == begin(pack.dividers)) {
 		return fallback;
 	} else if (it == end(pack.dividers)) {
-		return pack.documents.back();
+		return pack.documents.empty() ? nullptr : pack.documents.back();
 	}
 	const auto shift = exact
 		? ((*it > divider) ? 1 : 0)

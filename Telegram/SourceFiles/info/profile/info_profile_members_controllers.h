@@ -70,6 +70,7 @@ public:
 		int outerWidth,
 		bool selected,
 		int selectedElement) override;
+	bool elementsAnimating() const override;
 
 	QSize rightActionSize() const override;
 	QMargins rightActionMargins() const override;

@@ -14,6 +14,9 @@ class ApiWrap;
 class HistoryItem;
 struct PollData;
 struct PollMedia;
+namespace Data {
+struct StatisticalGraph;
+} // namespace Data
 
 namespace Main {
 class Session;
@@ -45,6 +48,10 @@ public:
 	void deleteAnswer(FullMsgId itemId, const QByteArray &option);
 	void close(not_null<HistoryItem*> item);
 	void reloadResults(not_null<HistoryItem*> item);
+	void requestStats(
+		FullMsgId itemId,
+		Fn<void(Data::StatisticalGraph)> done,
+		Fn<void(QString)> fail);
 
 private:
 	const not_null<Main::Session*> _session;

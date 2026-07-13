@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "calls/calls_window.h"
+#include "base/platform/base_platform_info.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_file_origin.h"
 #include "ui/platform/ui_platform_window_title.h" // TitleLayout
@@ -67,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_audio_input_tester.h"
 #include "webrtc/webrtc_create_adm.h"
 #include "styles/style_calls.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 
 #include <QtWidgets/QApplication>
@@ -1424,9 +1426,15 @@ void Panel::createPinOnTop() {
 				pin ? &st::groupCallPinnedOnTop : nullptr,
 				pin ? &st::groupCallPinnedOnTop : nullptr);
 			if (!_pinOnTop->isHidden()) {
-				uiShow()->showToast({ pin
-					? tr::lng_group_call_pinned_on_top(tr::now)
-					: tr::lng_group_call_unpinned_on_top(tr::now) });
+				uiShow()->showToast({
+					.text = { pin
+						? tr::lng_group_call_pinned_on_top(tr::now)
+						: tr::lng_group_call_unpinned_on_top(tr::now) },
+					.iconLottie = pin
+						? u"toast/pin"_q
+						: u"toast/unpin"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			}
 		}
 	};
@@ -2944,6 +2952,11 @@ void Panel::paint(QRect clip) {
 bool Panel::handleClose() {
 	if (_call) {
 		window()->hide();
+		if (Platform::IsWayland()) {
+			if (const auto handle = window()->windowHandle()) {
+				handle->destroy();
+			}
+		}
 		return true;
 	}
 	return false;

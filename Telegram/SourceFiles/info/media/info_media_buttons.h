@@ -47,34 +47,4 @@ using Type = Storage::SharedMediaType;
 	Type type,
 	Ui::MultiSlideTracker &tracker);
 
-[[nodiscard]] not_null<Ui::SettingsButton*> AddCommonGroupsButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<UserData*> user,
-	Ui::MultiSlideTracker &tracker);
-
-[[nodiscard]] not_null<Ui::SettingsButton*> AddSimilarPeersButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer,
-	Ui::MultiSlideTracker &tracker);
-
-[[nodiscard]] not_null<Ui::SettingsButton*> AddStoriesButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer,
-	Ui::MultiSlideTracker &tracker);
-
-[[nodiscard]] not_null<Ui::SettingsButton*> AddSavedSublistButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer,
-	Ui::MultiSlideTracker &tracker);
-
-[[nodiscard]] not_null<Ui::SettingsButton*> AddPeerGiftsButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer,
-	Ui::MultiSlideTracker &tracker);
-
 } // namespace Info::Media

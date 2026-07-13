@@ -539,7 +539,7 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 		const auto &gift = cover.values;
 		if (resalePrice && resalePrice.value() > 0) {
 			auto priceText = resalePrice.ton()
-				? Text::IconEmoji(&st::tonIconEmojiInSmall).append(
+				? Text::IconEmoji(&st::tonIconEmojiOnSale).append(
 					Lang::FormatCreditsAmountDecimal(resalePrice))
 				: Text::IconEmoji(&st::starIconEmojiSmall).append(
 					Lang::FormatCountDecimal(resalePrice.whole()));

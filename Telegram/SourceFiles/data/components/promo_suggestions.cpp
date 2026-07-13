@@ -58,6 +58,11 @@ PromoSuggestions::PromoSuggestions(
 PromoSuggestions::~PromoSuggestions() = default;
 
 void PromoSuggestions::refreshTopPromotion() {
+	if (_contactBirthdaysLastDayRequest != -1
+		&& _contactBirthdaysLastDayRequest != QDate::currentDate().day()) {
+		_refreshed.fire({});
+	}
+
 	const auto now = base::unixtime::now();
 	const auto next = (_topPromotionNextRequestTime != 0)
 		? _topPromotionNextRequestTime

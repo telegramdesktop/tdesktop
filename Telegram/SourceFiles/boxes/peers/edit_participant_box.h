@@ -101,6 +101,7 @@ private:
 		return _saveCallback != nullptr;
 	}
 	void finishAddAdmin();
+	void confirmGuardBotSave(ChatAdminRightsInfo rights, Fn<void()> done);
 	void refreshButtons();
 	[[nodiscard]] bool canTransferOwnership() const;
 	not_null<Ui::SlideWrap<Ui::RpWidget>*> setupTransferButton(

@@ -25,4 +25,16 @@ not_null<QAction*> AddCheckedAction(
 	const style::icon *icon,
 	bool checked);
 
+// Like a usual menu action, but when `active` the whole item (icon, text and
+// shortcut) is painted in st::windowActiveTextFg instead of showing a check.
+// When `premiumStarSize` is positive a gradient premium star of that size is
+// painted right-aligned in the shortcut slot instead of any shortcut text.
+not_null<QAction*> AddActiveColorAction(
+	not_null<Ui::PopupMenu*> menu,
+	const QString &text,
+	Fn<void()> callback,
+	const style::icon *icon,
+	bool active,
+	int premiumStarSize = 0);
+
 } // namespace Menu

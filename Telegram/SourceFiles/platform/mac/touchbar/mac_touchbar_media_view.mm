@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/mac_touchbar_media_view.h"
 
+#include "base/platform/mac/base_utilities_mac.h" // Q2NSString()
 #include "media/audio/media_audio.h"
 #include "platform/mac/touchbar/mac_touchbar_common.h"
 #include "platform/mac/touchbar/mac_touchbar_controls.h"
@@ -40,6 +41,7 @@ const auto kSeekItemIdentifier = @"seekBar";
 
 @interface MediaViewTouchBar : NSTouchBar
 - (id)init:(not_null<Delegate*>)controlsDelegate
+	matchTitle:(NSString *)matchTitle
 	trackState:(rpl::producer<Media::Player::TrackState>)trackState
 	display:(rpl::producer<ItemType>)display
 	fullscreenToggled:(rpl::producer<bool>)fullscreenToggled;
@@ -47,9 +49,11 @@ const auto kSeekItemIdentifier = @"seekBar";
 
 @implementation MediaViewTouchBar {
 	rpl::lifetime _lifetime;
+	NSString *_matchTitle;
 }
 
 - (id)init:(not_null<Delegate*>)controlsDelegate
+		matchTitle:(NSString *)matchTitle
 		trackState:(rpl::producer<Media::Player::TrackState>)trackState
 		display:(rpl::producer<ItemType>)display
 		fullscreenToggled:(rpl::producer<bool>)fullscreenToggled {
@@ -57,6 +61,7 @@ const auto kSeekItemIdentifier = @"seekBar";
 	if (!self) {
 		return self;
 	}
+	_matchTitle = [matchTitle copy];
 	const auto allocate = [](NSTouchBarItemIdentifier i) {
 		return [[NSCustomTouchBarItem alloc] initWithIdentifier:i];
 	};
@@ -167,7 +172,29 @@ const auto kSeekItemIdentifier = @"seekBar";
 		});
 	}, _lifetime);
 
+	[[NSNotificationCenter defaultCenter]
+		addObserver:self
+		selector:@selector(handleKeyWindowChanged:)
+		name:NSWindowDidBecomeKeyNotification
+		object:nil];
+
 	return self;
+}
+
+- (void)handleKeyWindowChanged:(NSNotification *)notification {
+	auto *window = (NSWindow *)notification.object;
+	if (!_matchTitle || ![[window title] isEqualToString:_matchTitle]) {
+		return;
+	}
+	if ([window touchBar] != self) {
+		[window setTouchBar:self];
+	}
+}
+
+- (void)dealloc {
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
+	[_matchTitle release];
+	[super dealloc];
 }
 
 @end // @implementation MediaViewTouchBar
@@ -176,14 +203,17 @@ namespace TouchBar {
 
 void SetupMediaViewTouchBar(
 		WId winId,
+		const QString &matchTitle,
 		not_null<Delegate*> controlsDelegate,
 		rpl::producer<Media::Player::TrackState> trackState,
 		rpl::producer<ItemType> display,
 		rpl::producer<bool> fullscreenToggled) {
 	auto *window = [reinterpret_cast<NSView*>(winId) window];
+	auto *title = Platform::Q2NSString(matchTitle);
 	CustomEnterToCocoaEventLoop([=] {
 		[window setTouchBar:[[[MediaViewTouchBar alloc]
 			init:std::move(controlsDelegate)
+			matchTitle:title
 			trackState:std::move(trackState)
 			display:std::move(display)
 			fullscreenToggled:std::move(fullscreenToggled)

@@ -326,12 +326,19 @@ bool NameTypeAllowsThumbnail(NameType type) {
 
 bool IsIpRevealingPath(const QString &filepath) {
 	static const auto kExtensions = [] {
-		const auto joined = u"htm html svg m4v m3u m3u8 xhtml xml"_q;
+		auto joined = u"htm html svg m4v m3u m3u8 xhtml xml kml kmz"_q;
+#ifdef Q_OS_MAC
+		joined += u" docx dotx docm dotm"_q;
+		joined += u" xlsx xltx xlsm xltm xlsb"_q;
+		joined += u" pptx ppsx potx pptm ppsm potm"_q;
+#endif // Q_OS_MAC
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();
 	static const auto kMimeTypes = [] {
-		const auto joined = u"text/html image/svg+xml"_q;
+		const auto joined = u"text/html image/svg+xml "
+			"application/vnd.google-earth.kml+xml "
+			"application/vnd.google-earth.kmz"_q;
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();

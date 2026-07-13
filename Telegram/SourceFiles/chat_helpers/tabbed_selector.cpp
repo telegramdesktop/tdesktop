@@ -530,6 +530,7 @@ TabbedSelector::TabbedSelector(
 	}
 	if (hasEmojiTab()) {
 		emoji()->refreshEmoji();
+		setSearchRightReserved(descriptor.searchRightReserved);
 	}
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	showAll();
@@ -561,12 +562,12 @@ void TabbedSelector::reinstallSwipe(not_null<Ui::RpWidget*> widget) {
 		}
 	};
 
-	auto init = [=](int, Qt::LayoutDirection direction) {
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
 		if (!_tabsSlider) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		const auto activeSection = _tabsSlider->activeSection();
-		const auto isToLeft = direction == Qt::RightToLeft;
+		const auto isToLeft = data.direction == Qt::RightToLeft;
 		if ((isToLeft && activeSection > 0)
 			|| (!isToLeft && activeSection < _tabs.size() - 1)) {
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
@@ -625,6 +626,8 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 					? EmojiMode::FullReactions
 					: _mode == Mode::RecentReactions
 					? EmojiMode::RecentReactions
+					: _mode == Mode::CustomEmojiOnly
+					? EmojiMode::CustomOnly
 					: _mode == Mode::PeerTitle
 					? EmojiMode::PeerTitle
 					: EmojiMode::Full),
@@ -1328,6 +1331,10 @@ void TabbedSelector::switchTab() {
 	}
 }
 
+void TabbedSelector::setSearchRightReserved(int value) {
+	emoji()->setSearchRightReserved(value);
+}
+
 not_null<EmojiListWidget*> TabbedSelector::emoji() const {
 	Expects(hasEmojiTab());
 
@@ -1478,18 +1485,22 @@ void TabbedSelector::Inner::disableScroll(bool disabled) {
 	_disableScrollRequests.fire_copy(disabled);
 }
 
-void TabbedSelector::Inner::checkHideWithBox(
+void TabbedSelector::Inner::showBoxPreventHide(
 		object_ptr<Ui::BoxContent> box) {
-	const auto raw = base::make_weak(box.data());
+	const auto weak = base::make_weak(box.data());
 	_show->showBox(std::move(box));
-	if (!raw) {
-		return;
+	preventHideWithBox(weak);
+}
+
+void TabbedSelector::Inner::preventHideWithBox(
+		base::weak_qptr<Ui::BoxContent> weak) {
+	if (const auto strong = weak.get()) {
+		_preventHideWithBox = true;
+		connect(strong, &QObject::destroyed, this, [=] {
+			_preventHideWithBox = false;
+			_checkForHide.fire({});
+		});
 	}
-	_preventHideWithBox = true;
-	connect(raw.get(), &QObject::destroyed, this, [=] {
-		_preventHideWithBox = false;
-		_checkForHide.fire({});
-	});
 }
 
 void TabbedSelector::Inner::paintEmptySearchResults(

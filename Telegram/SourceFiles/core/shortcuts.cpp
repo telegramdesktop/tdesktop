@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/parse_helper.h"
 #include "core/application.h"
+#include "core/version.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "window/window_controller.h"
@@ -132,6 +133,8 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"message"_q                       , Command::JustSendMessage },
 	{ u"message_silently"_q              , Command::SendSilentMessage },
 	{ u"message_scheduled"_q             , Command::ScheduleMessage },
+	{ u"ai_compose_apply"_q              , Command::ComposeAiApplyInPlace },
+	{ u"toggle_webpage_preview"_q        , Command::ToggleWebPagePreview },
 	{ u"media_viewer_video_fullscreen"_q , Command::MediaViewerFullscreen },
 	{ u"show_scheduled"_q                , Command::ShowScheduled },
 	{ u"archive_chat"_q                  , Command::ArchiveChat },
@@ -155,6 +158,8 @@ const base::flat_map<Command, QString> &CommandNames() {
 	Command::JustSendMessage,
 	Command::SendSilentMessage,
 	Command::ScheduleMessage,
+	Command::ComposeAiApplyInPlace,
+	Command::ToggleWebPagePreview,
 	Command::MediaViewerFullscreen,
 	Command::ShowScheduled,
 	Command::ArchiveChat,

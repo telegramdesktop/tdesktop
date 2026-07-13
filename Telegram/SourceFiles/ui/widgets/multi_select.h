@@ -34,7 +34,9 @@ public:
 	void setQueryChangedCallback(Fn<void(const QString &query)> callback);
 	void setSubmittedCallback(Fn<void(Qt::KeyboardModifiers)> callback);
 	void setCancelledCallback(Fn<void()> callback);
+	void setFocusedChangedCallback(Fn<void(bool focused)> callback);
 	void setResizedCallback(Fn<void()> callback);
+	void setCancelButtonShown(bool shown);
 
 	enum class AddItemWay {
 		Default,

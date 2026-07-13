@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class DynamicImage;
 class RippleAnimation;
+struct CommunityUserpicEffect;
 } // namespace Ui
 
 namespace style {
@@ -55,6 +56,13 @@ public:
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements
 	) -> std::unique_ptr<StickerPlayer>;
+
+	[[nodiscard]] virtual uint16 fullSelectionLength() const;
+	[[nodiscard]] virtual TextSelection adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const;
+	[[nodiscard]] virtual TextForMimeData selectedText(
+		TextSelection selection) const;
 };
 
 struct MediaGenericDescriptor {
@@ -84,6 +92,14 @@ public:
 
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
+
+	[[nodiscard]] bool hasTextForCopy() const override;
+	[[nodiscard]] TextForMimeData selectedText(
+		TextSelection selection) const override;
+	[[nodiscard]] TextSelection adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const override;
+	[[nodiscard]] uint16 fullSelectionLength() const override;
 
 	void clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
@@ -157,6 +173,13 @@ public:
 		QPoint point,
 		StateRequest request,
 		int outerWidth) const override;
+
+	[[nodiscard]] uint16 fullSelectionLength() const override;
+	[[nodiscard]] TextSelection adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const override;
+	[[nodiscard]] TextForMimeData selectedText(
+		TextSelection selection) const override;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -278,6 +301,44 @@ private:
 	mutable QMargins _padding;
 	mutable std::optional<Sticker> _sticker;
 	mutable ClickHandlerPtr _link;
+
+};
+
+class DynamicImagePart final : public MediaGenericPart {
+public:
+	DynamicImagePart(
+		not_null<Element*> parent,
+		std::shared_ptr<Ui::DynamicImage> image,
+		int size,
+		QMargins margins,
+		ClickHandlerPtr link = nullptr,
+		bool communityEffect = false);
+	~DynamicImagePart();
+
+	void draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const override;
+	TextState textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const override;
+	bool hasHeavyPart() override;
+	void unloadHeavyPart() override;
+
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+private:
+	const not_null<Element*> _parent;
+	const std::shared_ptr<Ui::DynamicImage> _image;
+	const ClickHandlerPtr _link;
+	const QMargins _margins;
+	const int _size = 0;
+	const bool _communityEffect = false;
+	mutable std::unique_ptr<Ui::CommunityUserpicEffect> _communityCache;
+	mutable bool _subscribed = false;
 
 };
 

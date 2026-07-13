@@ -108,6 +108,8 @@ struct BotInfo {
 	bool userCreatesTopics : 1 = false;
 	bool setBotPhotoHidden : 1 = false;
 	bool canManageBots : 1 = false;
+	bool supportsGuestChat : 1 = false;
+	bool supportsGuard : 1 = false;
 
 private:
 	std::unique_ptr<Data::Forum> _forum;
@@ -300,6 +302,9 @@ public:
 	[[nodiscard]] MsgId personalChannelMessageId() const;
 	void setPersonalChannel(ChannelId channelId, MsgId messageId);
 
+	[[nodiscard]] ChannelId linkedCommunityId() const;
+	void setLinkedCommunityId(ChannelId id);
+
 	[[nodiscard]] UserId botManagerId() const;
 	void setBotManagerId(UserId managerId);
 
@@ -350,6 +355,7 @@ private:
 
 	ChannelId _personalChannelId = 0;
 	MsgId _personalChannelMessageId = 0;
+	ChannelId _linkedCommunityId = 0;
 	UserId _botManagerId = 0;
 
 	uint64 _accessHash = 0;

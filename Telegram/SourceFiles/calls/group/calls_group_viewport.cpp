@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_viewport_tile.h"
 #include "calls/group/calls_group_viewport_opengl.h"
 #include "calls/group/calls_group_viewport_raster.h"
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#include "calls/group/calls_group_viewport_rhi.h"
+#include "ui/rhi/rhi_renderer.h"
+#endif
 #include "calls/group/calls_group_common.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_members_row.h"
@@ -57,6 +61,7 @@ Viewport::Viewport(
 	bool borrowedOpenGL)
 : _mode(mode)
 , _opengl(borrowedOpenGL)
+, _qrhi(borrowedRp && (backend == Ui::GL::Backend::QRhi))
 , _content(borrowedRp
 	? nullptr
 	: Ui::GL::CreateSurface(parent, chooseRenderer(backend)))
@@ -78,6 +83,7 @@ Viewport::~Viewport() {
 			ensureBorrowedCleared();
 		}
 	}
+	_content.release();
 }
 
 not_null<QWidget*> Viewport::widget() const {
@@ -885,6 +891,23 @@ void Viewport::setPressed(Selection value) {
 }
 
 Ui::GL::ChosenRenderer Viewport::chooseRenderer(Ui::GL::Backend backend) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+	if (backend == Ui::GL::Backend::QRhi) {
+		_opengl = true;
+		_qrhi = true;
+		return {
+			.renderer = std::make_unique<RendererRhi>(this),
+			.backend = Ui::GL::Backend::QRhi,
+		};
+	}
+#else
+	if (backend == Ui::GL::Backend::QRhi) {
+		return {
+			.renderer = std::make_unique<RendererSW>(this),
+			.backend = Ui::GL::Backend::QRhi,
+		};
+	}
+#endif
 	_opengl = (backend == Ui::GL::Backend::OpenGL);
 	return {
 		.renderer = makeRenderer(),
@@ -893,6 +916,11 @@ Ui::GL::ChosenRenderer Viewport::chooseRenderer(Ui::GL::Backend backend) {
 }
 
 std::unique_ptr<Ui::GL::Renderer> Viewport::makeRenderer() {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+	if (_qrhi) {
+		return std::make_unique<RendererRhi>(this);
+	}
+#endif
 	return _opengl
 		? std::unique_ptr<Ui::GL::Renderer>(
 			std::make_unique<RendererGL>(this))
@@ -977,6 +1005,43 @@ void Viewport::borrowedPaint(Painter &p, const QRegion &clip) {
 
 	_borrowedRenderer->paintFallback(p, clip, Ui::GL::Backend::Raster);
 }
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+Ui::Rhi::Renderer *Viewport::ensureBorrowedRhi(
+		QRhi *rhi,
+		QRhiRenderTarget *rt,
+		QRhiCommandBuffer *cb) {
+	Expects(_borrowed != nullptr);
+
+	if (!_borrowedRenderer) {
+		_borrowedRenderer = makeRenderer();
+	}
+	if (const auto r = dynamic_cast<Ui::Rhi::Renderer*>(
+			_borrowedRenderer.get())) {
+		r->initialize(rhi, rt, cb);
+		return r;
+	}
+	return nullptr;
+}
+
+void Viewport::borrowedPaintOffscreen(
+		QRhi *rhi,
+		QRhiRenderTarget *rt,
+		QRhiCommandBuffer *cb) {
+	if (const auto r = ensureBorrowedRhi(rhi, rt, cb)) {
+		r->renderOffscreen(rhi, rt, cb);
+	}
+}
+
+void Viewport::borrowedPaintOnscreen(
+		QRhi *rhi,
+		QRhiRenderTarget *rt,
+		QRhiCommandBuffer *cb) {
+	if (const auto r = ensureBorrowedRhi(rhi, rt, cb)) {
+		r->renderOnscreen(rhi, rt, cb);
+	}
+}
+#endif
 
 QPoint Viewport::borrowedOrigin() const {
 	return _borrowed ? _borrowedGeometry.topLeft() : QPoint();

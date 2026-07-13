@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "ui/text/text_entity.h"
 
+namespace Iv {
+struct RichPage;
+} // namespace Iv
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -31,6 +35,8 @@ struct ComposeAiBoxArgs {
 	Fn<void(TextWithEntities)> apply;
 	Fn<void(TextWithEntities, Api::SendOptions, Fn<void()>)> send;
 	Fn<void(not_null<Ui::RpWidget*>, Fn<void(Api::SendOptions)>)> setupMenu;
+	std::shared_ptr<const Iv::RichPage> richSource;
+	Fn<void(std::shared_ptr<const Iv::RichPage>)> applyRich;
 };
 
 void ComposeAiBox(not_null<Ui::GenericBox*> box, ComposeAiBoxArgs &&args);

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 
 #include "window/themes/window_theme_preview.h"
+#include "window/themes/window_themes_chat.h"
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor.h"
 #include "window/window_controller.h"
@@ -429,6 +430,20 @@ bool InitializeFromSaved(Saved &&saved) {
 	GlobalBackground.createIfNull();
 	if (!editing && InitializeFromCache(saved.object.content, saved.cache)) {
 		return true;
+	}
+
+	if (!editing
+		&& !saved.object.cloud.emoticon.isEmpty()
+		&& !saved.object.cloud.settings.empty()) {
+		auto preview = PreviewFromChatTheme(saved.object.cloud, IsNightMode());
+		if (preview) {
+			style::main_palette::apply(preview->instance.palette);
+			Background()->saveAdjustableColors();
+			saved.object.content = std::move(preview->object.content);
+			saved.cache = std::move(preview->instance.cached);
+			Local::writeTheme(saved);
+			return true;
+		}
 	}
 
 	const auto colorizer = ColorizerForTheme(saved.object.pathAbsolute);

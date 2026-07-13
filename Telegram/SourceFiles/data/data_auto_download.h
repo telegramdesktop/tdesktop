@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flat_map.h"
+
 #include <array>
 
 namespace Data {
@@ -44,6 +46,12 @@ inline constexpr auto kStreamedTypes = {
 };
 
 constexpr auto kTypesCount = 7;
+
+enum class Override : char {
+	Default    = 0,
+	ForceAllow = 1,
+	ForceDeny  = 2,
+};
 
 class Single {
 public:
@@ -90,6 +98,11 @@ public:
 		int64 fileSize) const;
 	[[nodiscard]] int64 bytesLimit(Source source, Type type) const;
 
+	void setPeerOverride(PeerId peerId, Override value);
+	[[nodiscard]] Override peerOverride(PeerId peerId) const;
+	void enumeratePeerOverrides(
+		Fn<void(PeerId, Override)> callback) const;
+
 	[[nodiscard]] QByteArray serialize() const;
 	bool setFromSerialized(const QByteArray &serialized);
 
@@ -101,6 +114,7 @@ private:
 	[[nodiscard]] const Set &setOrDefault(Source source, Type type) const;
 
 	std::array<Set, kSourcesCount> _data;
+	base::flat_map<PeerId, Override> _peerOverrides;
 
 };
 

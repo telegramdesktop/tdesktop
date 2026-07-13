@@ -15,12 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "settings/settings_common.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
 
@@ -188,11 +190,18 @@ void CollectibleInfoBox(
 		QGuiApplication::clipboard()->setText((text.isEmpty() || !copyLink)
 			? formatted
 			: text);
-		box->uiShow()->showToast((type == CollectibleType::Phone)
-			? tr::lng_collectible_phone_copied(tr::now)
-			: copyLink
-			? tr::lng_username_copied(tr::now)
-			: tr::lng_username_text_copied(tr::now));
+		const auto link = (type != CollectibleType::Phone) && copyLink;
+		box->uiShow()->showToast({
+			.text = { (type == CollectibleType::Phone)
+				? tr::lng_collectible_phone_copied(tr::now)
+				: copyLink
+				? tr::lng_username_copied(tr::now)
+				: tr::lng_username_text_copied(tr::now) },
+			.iconLottie = link
+				? u"toast/voip_invite"_q
+				: u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	};
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(

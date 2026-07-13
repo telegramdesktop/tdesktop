@@ -2044,6 +2044,71 @@ void MessageReactions::remove(const ReactionId &id) {
 	owner.notifyItemDataChange(_item);
 }
 
+bool MessageReactions::removeFromParticipant(
+		not_null<PeerData*> participant,
+		const ReactionId &knownReaction) {
+	auto changed = false;
+	auto participantFound = false;
+	const auto decrementReactionCount = [&](const ReactionId &id, int count) {
+		const auto i = ranges::find(_list, id, &MessageReaction::id);
+		if (i == end(_list)) {
+			return false;
+		}
+		if (i->count <= count) {
+			_list.erase(i);
+		} else {
+			i->count -= count;
+		}
+		return true;
+	};
+	for (auto i = begin(_recent); i != end(_recent);) {
+		auto &list = i->second;
+		const auto was = int(list.size());
+		list.erase(
+			ranges::remove(list, participant, &RecentReaction::peer),
+			end(list));
+		if (const auto removed = was - int(list.size())) {
+			changed = true;
+			participantFound = true;
+			decrementReactionCount(i->first, removed);
+		}
+		if (list.empty()) {
+			i = _recent.erase(i);
+		} else {
+			++i;
+		}
+	}
+	if (_paid) {
+		auto removedCount = 0;
+		auto removedEntries = 0;
+		_paid->top.erase(
+			ranges::remove_if(_paid->top, [&](const TopPaid &entry) {
+				if (entry.peer != participant.get()) {
+					return false;
+				}
+				removedCount += int(entry.count);
+				++removedEntries;
+				return true;
+			}),
+			end(_paid->top));
+		if (removedEntries) {
+			changed = true;
+			const auto paid = ReactionId::Paid();
+			participantFound = true;
+			decrementReactionCount(paid, removedCount);
+			if (_paid->top.empty() && !localPaidData()) {
+				_paid = nullptr;
+			}
+		}
+	}
+	if (!knownReaction.empty()
+		&& !participantFound
+		&& decrementReactionCount(knownReaction, 1)) {
+		changed = true;
+	}
+	return changed;
+}
+
 bool MessageReactions::checkIfChanged(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,

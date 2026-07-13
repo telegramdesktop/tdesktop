@@ -797,6 +797,9 @@ void ChooseSuggestPriceBox(
 }
 
 bool CanEditSuggestedMessage(not_null<HistoryItem*> item) {
+	if (item->richPage()) {
+		return false;
+	}
 	const auto media = item->media();
 	return !media || media->allowsEditCaption();
 }

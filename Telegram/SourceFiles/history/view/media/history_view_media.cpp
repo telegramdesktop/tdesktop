@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_media.h"
+#include "ui/basic_click_handlers.h"
 
 #include "boxes/send_credits_box.h" // CreditsEmoji.
 #include "history/history.h"
@@ -72,7 +73,7 @@ QString TimestampLinkBase(
 		not_null<DocumentData*> document,
 		FullMsgId context) {
 	return QString(
-		"media_timestamp?base=doc%1_%2_%3&t="
+		"internal:media_timestamp?base=doc%1_%2_%3&t="
 	).arg(document->id).arg(context.peer.value).arg(context.msg.bare);
 }
 
@@ -117,10 +118,10 @@ QString TimestampLinkBase(
 		return base.mid(0, query)
 			+ (params.empty() ? "?" : ("?" + params.join(QChar('&')) + "&"));
 	}();
-	return "url:"
-		+ use
+	const auto urlToEncode = use
 		+ "t="
 		+ (parts.empty() ? QString() : ("#" + parts.join(QChar('#'))));
+	return UrlClickHandler::EncodeInternalWrappedUrl(urlToEncode);
 }
 
 TextWithEntities AddTimestampLinks(
@@ -161,9 +162,13 @@ TextWithEntities AddTimestampLinks(
 			from,
 			std::less<>(),
 			&EntityInText::offset);
+		const auto allowsTimestampLink = [](const EntityInText &entity) {
+			return (entity.type() == EntityType::Spoiler)
+				|| (entity.type() == EntityType::Blockquote);
+		};
 		while (i != entities.end()
 			&& i->offset() < till
-			&& i->type() == EntityType::Spoiler) {
+			&& allowsTimestampLink(*i)) {
 			++i;
 		}
 		if (i != entities.end() && i->offset() < till) {
@@ -172,7 +177,7 @@ TextWithEntities AddTimestampLinks(
 
 		const auto intersects = [&](const EntityInText &entity) {
 			return (entity.offset() + entity.length() > from)
-				&& (entity.type() != EntityType::Spoiler);
+				&& !allowsTimestampLink(entity);
 		};
 		auto j = std::make_reverse_iterator(i);
 		const auto e = std::make_reverse_iterator(entities.begin());
@@ -186,7 +191,7 @@ TextWithEntities AddTimestampLinks(
 				EntityType::CustomUrl,
 				from,
 				till - from,
-				("internal:" + base + QString::number(time))));
+				(base + QString::number(time))));
 	}
 	return text;
 }
@@ -478,7 +483,9 @@ void Media::setupSpoilerTag(std::unique_ptr<MediaSpoilerTag> &tag) const {
 	}
 	const auto media = parent()->data()->media();
 	const auto invoice = media ? media->invoice() : nullptr;
-	if (const auto price = invoice->isPaidMedia ? invoice->amount : 0) {
+	if (const auto price = (invoice && invoice->isPaidMedia)
+		? invoice->amount
+		: 0) {
 		tag = std::make_unique<MediaSpoilerTag>();
 		tag->price = price;
 	}

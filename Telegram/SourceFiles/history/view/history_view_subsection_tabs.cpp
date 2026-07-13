@@ -980,7 +980,7 @@ bool SubsectionTabs::switchTo(
 bool SubsectionTabs::UsedFor(not_null<Data::Thread*> thread) {
 	const auto history = thread->owningHistory();
 	return history->amMonoforumAdmin()
-		|| history->peer->useSubsectionTabs();
+		|| history->peer->displaySubsectionTabs();
 }
 
 void SubsectionTabs::applyReorder(

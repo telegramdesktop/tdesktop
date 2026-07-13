@@ -225,9 +225,10 @@ private:
 	void setSendLargePhotos(bool enabled);
 	void changePrice();
 
-	[[nodiscard]] bool canChangePrice() const;
 	[[nodiscard]] bool hasPrice() const;
 	[[nodiscard]] bool hasSendLargePhotosOption() const;
+	[[nodiscard]] bool canMoveCaptionInCurrentSendWay() const;
+	[[nodiscard]] bool canChangePrice() const;
 	void refreshPriceTag();
 	[[nodiscard]] QImage preparePriceTagBg(QSize size) const;
 
@@ -256,7 +257,10 @@ private:
 	void updateControlsGeometry();
 	void updateCaptionVisibility();
 
-	bool addFiles(not_null<const QMimeData*> data);
+	bool addFiles(
+		not_null<const QMimeData*> data,
+		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt);
+	void applySendImagesAsPhotosOverride(const Ui::PreparedList &list);
 	bool addFiles(Ui::PreparedList list);
 	void addFile(Ui::PreparedFile &&file);
 	void pushBlock(int from, int till);

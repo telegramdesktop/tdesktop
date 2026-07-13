@@ -53,7 +53,7 @@ namespace {
 
 constexpr auto kOccupyFor = TimeId(60);
 constexpr auto kReoccupyEach = 30 * crl::time(1000);
-constexpr auto kMaxSupportInfoLength = MaxMessageSize * 4;
+constexpr auto kMaxSupportInfoLength = 16 * 1024;
 constexpr auto kTopicRootId = MsgId(0);
 constexpr auto kMonoforumPeerId = PeerId(0);
 

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
+#include "base/weak_ptr.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/filters/edit_filter_links.h" // FilterChatStatusText
@@ -26,15 +27,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/filter_link_header.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/layers/show.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/filter_icons.h"
+#include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
+#include "window/window_separate_id.h"
 #include "styles/style_filter_icons.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 namespace Api {
@@ -44,6 +52,112 @@ enum class ToggleAction {
 	Adding,
 	Removing,
 };
+
+class PreviewableRow final
+	: public PeerListRow
+	, public base::has_weak_ptr {
+public:
+	using PeerListRow::PeerListRow;
+
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	void rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+	void rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void rightActionStopLastRipple() override;
+
+	void setMenuShown(bool shown);
+
+	[[nodiscard]] QPoint buttonGlobalTopLeft() const {
+		return _buttonGlobalTopLeft;
+	}
+
+private:
+	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
+	QPoint _buttonGlobalTopLeft;
+	bool _menuShown = false;
+
+};
+
+QSize PreviewableRow::rightActionSize() const {
+	const auto side = st::inviteLinkThreeDotsIcon.height();
+	return QSize(side, side);
+}
+
+QMargins PreviewableRow::rightActionMargins() const {
+	return QMargins(
+		0,
+		(st::filterLinkChatsList.item.height
+			- rightActionSize().height()) / 2,
+		st::inviteLinkThreeDotsSkip,
+		0);
+}
+
+void PreviewableRow::rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (_actionRipple) {
+		_actionRipple->paint(p, x, y, outerWidth);
+		if (_actionRipple->empty()) {
+			_actionRipple.reset();
+		}
+	}
+	const auto &icon = actionSelected
+		? st::inviteLinkThreeDotsIconOver
+		: st::inviteLinkThreeDotsIcon;
+	const auto size = rightActionSize();
+	icon.paint(
+		p,
+		x + (size.width() - icon.width()) / 2,
+		y + (size.height() - icon.height()) / 2,
+		outerWidth);
+}
+
+void PreviewableRow::rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) {
+	if (!_actionRipple) {
+		auto mask = Ui::RippleAnimation::EllipseMask(rightActionSize());
+		_actionRipple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultRippleAnimation,
+			std::move(mask),
+			std::move(updateCallback));
+	}
+	_actionRipple->add(point);
+	_buttonGlobalTopLeft = QCursor::pos() - point;
+}
+
+void PreviewableRow::rightActionStopLastRipple() {
+	if (_menuShown) {
+		return;
+	}
+	crl::on_main(base::make_weak(this), [this] {
+		if (!_menuShown && _actionRipple) {
+			_actionRipple->lastStop();
+		}
+	});
+}
+
+void PreviewableRow::setMenuShown(bool shown) {
+	if (_menuShown == shown) {
+		return;
+	}
+	_menuShown = shown;
+	if (!shown && _actionRipple) {
+		_actionRipple->lastStop();
+	}
+}
 
 class ToggleChatsController final
 	: public PeerListController
@@ -58,6 +172,7 @@ public:
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowRightActionClicked(not_null<PeerListRow*> row) override;
 	Main::Session &session() const override;
 
 	[[nodiscard]] auto selectedValue() const
@@ -271,17 +386,29 @@ void ToggleChatsController::prepare() {
 		return peer->isChat()
 			? peer->asChat()->isForbidden()
 			: peer->isChannel()
-			? peer->asChannel()->isForbidden()
+			? (peer->asChannel()->isForbidden()
+				|| peer->asChannel()->isCommunity())
 			: false;
 	};
 	const auto add = [&](not_null<PeerData*> peer, bool additional = false) {
 		const auto disable = disabled(peer);
-		auto row = (additional || !disable)
-			? std::make_unique<PeerListRow>(peer)
-			: MakeFilterChatRow(
-				peer,
-				tr::lng_filters_link_inaccessible(tr::now),
-				true);
+		const auto channel = peer->asChannel();
+		const auto willDisable = disable
+			|| (additional && _action == ToggleAction::Adding);
+		const auto previewable = channel
+			&& channel->hasUsername()
+			&& !willDisable;
+		auto row = [&]() -> std::unique_ptr<PeerListRow> {
+			if (!additional && disable) {
+				return MakeFilterChatRow(
+					peer,
+					tr::lng_filters_link_inaccessible(tr::now),
+					true);
+			} else if (previewable) {
+				return std::make_unique<PreviewableRow>(peer);
+			}
+			return std::make_unique<PeerListRow>(peer);
+		}();
 		if (delegate()->peerListFindRow(peer->id.value)) {
 			return;
 		}
@@ -341,6 +468,31 @@ void ToggleChatsController::rowClicked(not_null<PeerListRow*> row) {
 		selected.emplace(peer);
 	}
 	_selected = std::move(selected);
+}
+
+void ToggleChatsController::rowRightActionClicked(
+		not_null<PeerListRow*> row) {
+	const auto peer = row->peer();
+	const auto previewRow = static_cast<PreviewableRow*>(row.get());
+	const auto parent = delegate()->peerListUiShow()->toastParent();
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
+	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+	const auto window = _window;
+	_menu->addAction(tr::lng_context_new_window(tr::now), [=] {
+		window->showInNewWindow(peer);
+	}, &st::menuIconNewWindow);
+	previewRow->setMenuShown(true);
+	_menu->setDestroyedCallback([weak = base::make_weak(previewRow)] {
+		if (weak) {
+			weak->setMenuShown(false);
+		}
+	});
+	const auto size = row->rightActionSize();
+	const auto bottomRight = previewRow->buttonGlobalTopLeft()
+		+ QPoint(size.width(), size.height());
+	_menu->popup(bottomRight);
 }
 
 void ToggleChatsController::setupAboveWidget() {

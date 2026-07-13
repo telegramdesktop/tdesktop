@@ -49,6 +49,55 @@ template <typename T>
 constexpr auto ErrorWithoutId
 	= is_callable_plain_v<T, QString>;
 
+[[nodiscard]] auto ComputeEditMessageFlags(
+		not_null<HistoryItem*> item,
+		const MTPVector<MTPMessageEntity> &sentEntities,
+		Data::WebPageDraft webpage,
+		SendOptions options,
+		bool withMessage,
+		bool withMedia,
+		bool withRichMessage)
+-> MTPmessages_EditMessage::Flags {
+	const auto emptyFlag = MTPmessages_EditMessage::Flag(0);
+	return emptyFlag
+		| (withMessage
+			? MTPmessages_EditMessage::Flag::f_message
+			: emptyFlag)
+		| (withMedia
+			? MTPmessages_EditMessage::Flag::f_media
+			: emptyFlag)
+		| (webpage.removed
+			? MTPmessages_EditMessage::Flag::f_no_webpage
+			: emptyFlag)
+		| (((!webpage.removed && !webpage.url.isEmpty() && webpage.invert)
+			|| options.invertCaption)
+			? MTPmessages_EditMessage::Flag::f_invert_media
+			: emptyFlag)
+		| (!sentEntities.v.isEmpty()
+			? MTPmessages_EditMessage::Flag::f_entities
+			: emptyFlag)
+		| (options.scheduled
+			? MTPmessages_EditMessage::Flag::f_schedule_date
+			: emptyFlag)
+		| ((options.scheduled && options.scheduleRepeatPeriod)
+			? MTPmessages_EditMessage::Flag::f_schedule_repeat_period
+			: emptyFlag)
+		| (item->isBusinessShortcut()
+			? MTPmessages_EditMessage::Flag::f_quick_reply_shortcut_id
+			: emptyFlag)
+		| (withRichMessage
+			? MTPmessages_EditMessage::Flag::f_rich_message
+			: emptyFlag);
+}
+
+[[nodiscard]] MsgId EditMessageRequestId(not_null<HistoryItem*> item) {
+	return item->isScheduled()
+		? item->history()->session().scheduledMessages().lookupId(item)
+		: item->isBusinessShortcut()
+		? item->history()->session().data().shortcutMessages().lookupId(item)
+		: item->id;
+}
+
 template <typename DoneCallback, typename FailCallback>
 mtpRequestId SuggestMessage(
 		not_null<HistoryItem*> item,
@@ -273,42 +322,17 @@ mtpRequestId EditMessage(
 		? Api::HasAttachedStickers(*inputMedia)
 		: false;
 
-	const auto emptyFlag = MTPmessages_EditMessage::Flag(0);
-	const auto flags = emptyFlag
-		| ((!text.isEmpty() || media)
-			? MTPmessages_EditMessage::Flag::f_message
-			: emptyFlag)
-		| ((media && inputMedia.has_value())
-			? MTPmessages_EditMessage::Flag::f_media
-			: emptyFlag)
-		| (webpage.removed
-			? MTPmessages_EditMessage::Flag::f_no_webpage
-			: emptyFlag)
-		| ((!webpage.removed && !webpage.url.isEmpty())
-			? MTPmessages_EditMessage::Flag::f_media
-			: emptyFlag)
-		| (((!webpage.removed && !webpage.url.isEmpty() && webpage.invert)
-			|| options.invertCaption)
-			? MTPmessages_EditMessage::Flag::f_invert_media
-			: emptyFlag)
-		| (!sentEntities.v.isEmpty()
-			? MTPmessages_EditMessage::Flag::f_entities
-			: emptyFlag)
-		| (options.scheduled
-			? MTPmessages_EditMessage::Flag::f_schedule_date
-			: emptyFlag)
-		| ((options.scheduled && options.scheduleRepeatPeriod)
-			? MTPmessages_EditMessage::Flag::f_schedule_repeat_period
-			: emptyFlag)
-		| (item->isBusinessShortcut()
-			? MTPmessages_EditMessage::Flag::f_quick_reply_shortcut_id
-			: emptyFlag);
+	const auto flags = ComputeEditMessageFlags(
+		item,
+		sentEntities,
+		webpage,
+		options,
+		(!text.isEmpty() || media),
+		((media && inputMedia.has_value())
+			|| (!webpage.removed && !webpage.url.isEmpty())),
+		false);
 
-	const auto id = item->isScheduled()
-		? session->scheduledMessages().lookupId(item)
-		: item->isBusinessShortcut()
-		? session->data().shortcutMessages().lookupId(item)
-		: item->id;
+	const auto id = EditMessageRequestId(item);
 	return api->request(MTPmessages_EditMessage(
 		MTP_flags(flags),
 		item->history()->peer->input(),
@@ -319,7 +343,8 @@ mtpRequestId EditMessage(
 		sentEntities,
 		MTP_int(options.scheduled),
 		MTP_int(options.scheduleRepeatPeriod),
-		MTP_int(item->shortcutId())
+		MTP_int(item->shortcutId()),
+		MTPInputRichMessage()
 	)).done([=](
 			const MTPUpdates &result,
 			[[maybe_unused]] mtpRequestId requestId) {
@@ -566,6 +591,70 @@ mtpRequestId EditTextMessage(
 		callback,
 		fail,
 		std::nullopt);
+}
+
+mtpRequestId EditRichMessage(
+		not_null<HistoryItem*> item,
+		Fn<std::optional<MTPInputRichMessage>()> richMessage,
+		SendOptions options,
+		Fn<void(mtpRequestId requestId)> done,
+		Fn<void(const QString &error, mtpRequestId requestId)> fail) {
+	const auto session = &item->history()->session();
+	const auto api = &session->api();
+	const auto sentEntities = MTPVector<MTPMessageEntity>();
+	const auto flags = ComputeEditMessageFlags(
+		item,
+		sentEntities,
+		Data::WebPageDraft(),
+		options,
+		false,
+		false,
+		true);
+	const auto id = EditMessageRequestId(item);
+	const auto origin = item->fullId();
+	const auto performRequest = [=](
+			const auto &repeatRequest,
+			mtpRequestId originalRequestId,
+			bool refreshed) -> mtpRequestId {
+		const auto current = richMessage ? richMessage() : std::nullopt;
+		const auto requestId = originalRequestId ? originalRequestId : 0;
+		if (!current) {
+			if (fail) {
+				fail(QString(), requestId);
+			}
+			return requestId;
+		}
+		return api->request(MTPmessages_EditMessage(
+			MTP_flags(flags),
+			item->history()->peer->input(),
+			MTP_int(id),
+			MTPstring(),
+			MTPInputMedia(),
+			MTPReplyMarkup(),
+			sentEntities,
+			MTP_int(options.scheduled),
+			MTP_int(options.scheduleRepeatPeriod),
+			MTP_int(item->shortcutId()),
+			*current
+		)).done([=](const MTPUpdates &result, mtpRequestId requestId) {
+			api->applyUpdates(result);
+			if (done) {
+				done(originalRequestId ? originalRequestId : requestId);
+			}
+		}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+			if (!refreshed && error.type().startsWith(u"FILE_REFERENCE_"_q)) {
+				api->refreshFileReference(origin, [=](const auto &) {
+					repeatRequest(
+						repeatRequest,
+						originalRequestId ? originalRequestId : requestId,
+						true);
+				});
+			} else if (fail) {
+				fail(error.type(), originalRequestId ? originalRequestId : requestId);
+			}
+		}).send();
+	};
+	return performRequest(performRequest, 0, false);
 }
 
 void EditTodoList(

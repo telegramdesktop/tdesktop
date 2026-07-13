@@ -65,6 +65,7 @@ struct FileChosen {
 	Ui::MessageSendingAnimationFrom messageSendingFrom;
 	std::shared_ptr<Data::EmojiStatusCollectible> collectible;
 	TextWithTags caption;
+	bool needsCaption = false;
 };
 
 struct PhotoChosen {
@@ -82,6 +83,7 @@ using InlineChosen = InlineBots::ResultSelected;
 enum class TabbedSelectorMode {
 	Full,
 	EmojiOnly,
+	CustomEmojiOnly,
 	StickersOnly,
 	MediaEditor,
 	EmojiStatus,
@@ -101,6 +103,7 @@ struct TabbedSelectorDescriptor {
 	Fn<QColor()> customTextColor;
 	ComposeFeatures features;
 	uint64 excludeStickerSetId = 0;
+	int searchRightReserved = 0;
 };
 
 enum class TabbedSearchType {
@@ -158,6 +161,7 @@ public:
 	void setCurrentPeer(PeerData *peer);
 	void provideRecentEmoji(
 		const std::vector<EmojiStatusId> &customRecentList);
+	void setSearchRightReserved(int value);
 
 	void hideFinished();
 	void showStarted();
@@ -419,7 +423,8 @@ protected:
 	void scrollTo(int y);
 	void disableScroll(bool disabled);
 
-	void checkHideWithBox(object_ptr<Ui::BoxContent> box);
+	void showBoxPreventHide(object_ptr<Ui::BoxContent> box);
+	void preventHideWithBox(base::weak_qptr<Ui::BoxContent> weak);
 
 	void paintEmptySearchResults(
 		Painter &p,

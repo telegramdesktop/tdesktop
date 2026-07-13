@@ -106,10 +106,6 @@ public:
 	[[nodiscard]] bool archiveInMainMenu() const;
 	[[nodiscard]] rpl::producer<bool> archiveInMainMenuChanges() const;
 
-	void setSkipArchiveInSearch(bool skip);
-	[[nodiscard]] bool skipArchiveInSearch() const;
-	[[nodiscard]] rpl::producer<bool> skipArchiveInSearchChanges() const;
-
 	[[nodiscard]] bool hadLegacyCallsPeerToPeerNobody() const {
 		return _hadLegacyCallsPeerToPeerNobody;
 	}
@@ -191,7 +187,10 @@ public:
 		_phoneNumberHidden = hidden;
 	}
 	[[nodiscard]] bool phoneNumberHidden() const {
-		return _phoneNumberHidden;
+		return _phoneNumberHidden.current();
+	}
+	[[nodiscard]] rpl::producer<bool> phoneNumberHiddenValue() const {
+		return _phoneNumberHidden.value();
 	}
 
 private:
@@ -216,7 +215,6 @@ private:
 	Data::AutoDownload::Full _autoDownload;
 	rpl::variable<bool> _archiveCollapsed = false;
 	rpl::variable<bool> _archiveInMainMenu = false;
-	rpl::variable<bool> _skipArchiveInSearch = false;
 	base::flat_map<ThreadId, MsgId> _hiddenPinnedMessages;
 	base::flat_map<PeerId, qint32> _subsectionTabsModes;
 	base::flat_map<Data::DefaultNotify, ushort> _ringtoneDefaultVolumes;
@@ -244,7 +242,7 @@ private:
 
 	std::vector<int32> _moderateCommonGroups;
 
-	bool _phoneNumberHidden = false;
+	rpl::variable<bool> _phoneNumberHidden = false;
 
 };
 

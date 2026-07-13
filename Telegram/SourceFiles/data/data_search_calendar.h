@@ -74,14 +74,15 @@ private:
 		std::vector<Fn<void(std::vector<DayThumbnail>)>> callbacks;
 		mtpRequestId requestId = 0;
 		MonthState state;
+		bool loaded = false;
 	};
 
 	void performMonthRequest(const MonthKey &key);
-	void processMonthMessages(
+	void processMonthData(
 		const MonthKey &key,
+		const std::vector<CalendarPeriod> &periods,
 		const std::vector<FullMsgId> &messages,
 		TimeId minDate,
-		MsgId minMsgId,
 		bool noMoreData);
 
 	const not_null<Main::Session*> _session;

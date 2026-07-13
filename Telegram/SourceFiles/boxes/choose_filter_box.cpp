@@ -118,11 +118,13 @@ Data::ChatFilter ChangedFilter(
 		not_null<History*> history,
 		bool add) {
 	auto always = base::duplicate(filter.always());
+	auto pinned = filter.pinned();
 	auto never = base::duplicate(filter.never());
 	if (add) {
 		never.remove(history);
 	} else {
 		always.remove(history);
+		pinned.erase(ranges::remove(pinned, history), end(pinned));
 	}
 	const auto result = Data::ChatFilter(
 		filter.id(),
@@ -131,7 +133,7 @@ Data::ChatFilter ChangedFilter(
 		filter.colorIndex(),
 		filter.flags(),
 		std::move(always),
-		filter.pinned(),
+		pinned,
 		std::move(never));
 	const auto in = result.contains(history);
 	if (in == add) {
@@ -151,7 +153,7 @@ Data::ChatFilter ChangedFilter(
 		filter.colorIndex(),
 		filter.flags(),
 		std::move(always),
-		filter.pinned(),
+		std::move(pinned),
 		std::move(never));
 }
 
@@ -207,7 +209,17 @@ ChooseFilterValidator::ChooseFilterValidator(not_null<History*> history)
 : _history(history) {
 }
 
+bool ChooseFilterValidator::communityAddBlocked() const {
+	const auto channel = _history->peer->asChannel();
+	return channel
+		&& channel->isCommunity()
+		&& !channel->collapsedInDialogs();
+}
+
 bool ChooseFilterValidator::canAdd() const {
+	if (communityAddBlocked()) {
+		return false;
+	}
 	for (const auto &filter : _history->owner().chatsFilters().list()) {
 		if (filter.id() && !filter.contains(_history)) {
 			return true;
@@ -219,6 +231,9 @@ bool ChooseFilterValidator::canAdd() const {
 bool ChooseFilterValidator::canAdd(FilterId filterId) const {
 	Expects(filterId != 0);
 
+	if (communityAddBlocked()) {
+		return false;
+	}
 	const auto list = _history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	if (i != end(list)) {

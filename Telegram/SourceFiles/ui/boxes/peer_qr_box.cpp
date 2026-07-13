@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/toast/toast.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/box_content_divider.h"
@@ -35,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_credits.h"
 #include "styles/style_intro.h"
@@ -196,7 +198,7 @@ void Paint(
 
 not_null<Ui::RpWidget*> PrepareQrWidget(
 		not_null<Ui::VerticalLayout*> container,
-		not_null<Ui::RpWidget*> topWidget,
+		std::shared_ptr<Ui::DynamicImage> userpicMedia,
 		rpl::producer<int> fontSizeValue,
 		rpl::producer<bool> userpicToggled,
 		rpl::producer<bool> backgroundToggled,
@@ -223,10 +225,11 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		bool backgroundToggled = false;
 	};
 	const auto result = Ui::CreateChild<Ui::RpWidget>(divider);
-	topWidget->setParent(result);
-	topWidget->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto state = result->lifetime().make_state<State>(
 		[=] { result->update(); });
+	userpicMedia->subscribeToUpdates(crl::guard(result, [=] {
+		result->update();
+	}));
 	const auto qrMaxSize = st::boxWideWidth
 		- rect::m::sum::h(st::boxRowPadding)
 		- rect::m::sum::h(st::profileQrBackgroundMargins);
@@ -309,9 +312,6 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 
 		divider->resize(container->width(), result->height());
 		result->moveToLeft((container->width() - result->width()) / 2, 0);
-		topWidget->setVisible(userpicToggled);
-		topWidget->moveToLeft(0, std::numeric_limits<int>::min());
-		topWidget->raise();
 
 		aboutLabel->raise();
 		aboutLabel->moveToLeft(
@@ -349,14 +349,14 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 			return;
 		}
 		const auto photoSize = state->photoSize;
-		const auto top = Ui::GrabWidget(
-			topWidget,
-			QRect(),
-			Qt::transparent).scaled(
-				Size(photoSize * style::DevicePixelRatio()),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation);
-		p.drawPixmap((result->width() - photoSize) / 2, -photoSize / 2, top);
+		const auto pixelSize = photoSize * style::DevicePixelRatio();
+		p.drawImage(
+			QRect(
+				(result->width() - photoSize) / 2,
+				-photoSize / 2,
+				photoSize,
+				photoSize),
+			userpicMedia->image(pixelSize));
 	}, result->lifetime());
 	return result;
 }
@@ -471,18 +471,9 @@ void FillPeerQrBox(
 			: (rpl::single(QString()) | rpl::type_erased);
 	};
 
-	const auto userpic = Ui::CreateChild<Ui::RpWidget>(box);
-	const auto userpicSize = st::defaultUserpicButton.photoSize;
-	userpic->resize(Size(userpicSize));
 	const auto userpicMedia = Ui::MakeUserpicThumbnail(peer
 		? peer
 		: controller->session().user().get());
-	userpicMedia->subscribeToUpdates(
-		crl::guard(userpic, [=] { userpic->update(); }));
-	userpic->paintRequest() | rpl::on_next([=] {
-		auto p = QPainter(userpic);
-		p.drawImage(0, 0, userpicMedia->image(userpicSize));
-	}, userpic->lifetime());
 
 	linkValue() | rpl::on_next([=](const QString &link) {
 		if (link.isEmpty()) {
@@ -493,10 +484,9 @@ void FillPeerQrBox(
 		}
 	}, box->lifetime());
 
-	userpic->setVisible(peer != nullptr);
 	PrepareQrWidget(
 		box->verticalLayout(),
-		userpic,
+		userpicMedia,
 		state->fontSizeValue.value(),
 		state->userpicToggled.value(),
 		state->backgroundToggled.value(),
@@ -772,7 +762,7 @@ void FillPeerQrBox(
 			},
 			[](int) {});
 	}
-	{
+	if (peer && !customLink) {
 		Ui::AddSkip(box->verticalLayout());
 		Ui::AddSkip(box->verticalLayout());
 		Ui::AddSubsectionTitle(
@@ -787,9 +777,9 @@ void FillPeerQrBox(
 				st::settingsScale),
 			st::boxRowPadding);
 		slider->resize(slider->width(), seekSize);
-		const auto kSizeAmount = 8;
-		const auto kMinSize = 20;
-		const auto kMaxSize = 36;
+		const auto kSizeAmount = 15;
+		const auto kMinSize = 14;
+		const auto kMaxSize = 44;
 		const auto kStep = (kMaxSize - kMinSize) / (kSizeAmount - 1);
 		const auto updateGeometry = AddDotsToSlider(
 			slider,
@@ -801,6 +791,25 @@ void FillPeerQrBox(
 		const auto indexToFontSize = [=](int index) {
 			return kMinSize + index * kStep;
 		};
+		{
+			const auto username = peer->username();
+			if (!username.isEmpty()) {
+				const auto measured = ('@' + username).toUpper();
+				const auto qrMaxSize = st::boxWideWidth
+					- rect::m::sum::h(st::boxRowPadding)
+					- rect::m::sum::h(st::profileQrBackgroundMargins);
+				auto picked = kMinSize;
+				for (auto i = kSizeAmount - 1; i >= 0; --i) {
+					const auto size = indexToFontSize(i);
+					const auto font = CreateFont(size, style::Scale());
+					if (font->width(measured) <= qrMaxSize) {
+						picked = size;
+						break;
+					}
+				}
+				state->fontSizeValue = picked;
+			}
+		}
 		slider->geometryValue(
 		) | rpl::on_next([=](const QRect &rect) {
 			updateGeometry(fontSizeToIndex(state->fontSizeValue.current()));
@@ -970,7 +979,11 @@ void FillPeerQrBox(
 				auto mime = std::make_unique<QMimeData>();
 				mime->setImageData(std::move(image));
 				QGuiApplication::clipboard()->setMimeData(mime.release());
-				show->showToast(tr::lng_group_invite_qr_copied(tr::now));
+				show->showToast({
+					.text = { tr::lng_group_invite_qr_copied(tr::now) },
+					.iconLottie = u"toast/copy"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			});
 		});
 	});

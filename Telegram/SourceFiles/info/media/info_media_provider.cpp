@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_document.h"
 #include "data/data_saved_sublist.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_shared_media.h"
 #include "styles/style_info.h"
 #include "styles/style_overview.h"
 
@@ -367,10 +369,20 @@ void Provider::jumpToMessage(
 		return;
 	}
 
+	const auto finish = [=] {
+		const auto fullId = FullMsgId(_peer->id, messageId);
+		_universalAroundId = GetUniversalId(fullId);
+		if (callback) {
+			callback(fullId);
+		}
+		_idsLimit = kMinimalIdsLimit * 2;
+		refreshViewer();
+	};
+
 	_controller->session().api().request(
 		std::move(*request)
 	).done([=](const Api::SearchRequestResult &result) {
-		const auto parsed = Api::ParseSearchResult(
+		auto parsed = Api::ParseSearchResult(
 			peer,
 			_type,
 			messageId,
@@ -378,15 +390,24 @@ void Provider::jumpToMessage(
 			result);
 
 		if (!parsed.messageIds.empty()) {
-			const auto fullId = FullMsgId(_peer->id, messageId);
-			_universalAroundId = GetUniversalId(fullId);
-			if (callback) {
-				callback(fullId);
-			}
-			_idsLimit = kMinimalIdsLimit * 2;
-			refreshViewer();
+			peer->session().storage().add(Storage::SharedMediaAddSlice(
+				peer->id,
+				_topicRootId,
+				_monoforumPeerId,
+				_type,
+				std::move(parsed.messageIds),
+				parsed.noSkipRange,
+				parsed.fullCount));
 		}
+		finish();
+	}).fail([=] {
+		finish();
 	}).send();
+}
+
+bool Provider::anchorWhileAtTop() {
+	const auto after = _slice.skippedAfter();
+	return !after || (*after > 0);
 }
 
 SparseIdsMergedSlice::Key Provider::sliceKey(

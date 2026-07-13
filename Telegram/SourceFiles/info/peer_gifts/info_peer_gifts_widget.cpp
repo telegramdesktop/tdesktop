@@ -2427,6 +2427,27 @@ std::unique_ptr<ListState> Memento::listState() {
 
 Memento::~Memento() = default;
 
+InlineGifts MakePeerGiftsInner(
+		QWidget *parent,
+		not_null<Window::SessionController*> window,
+		not_null<PeerData*> peer,
+		rpl::producer<Descriptor> descriptor) {
+	auto widget = object_ptr<InnerWidget>(
+		parent,
+		window,
+		peer,
+		std::move(descriptor),
+		nullptr);
+	const auto raw = widget.data();
+	return {
+		.widget = std::move(widget),
+		.fillMenu = [raw](const Ui::Menu::MenuCallback &addAction) {
+			raw->fillMenu(addAction);
+		},
+		.descriptorChanges = raw->descriptorChanges(),
+	};
+}
+
 Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 : ContentWidget(parent, controller)
 , _descriptor(Descriptor{

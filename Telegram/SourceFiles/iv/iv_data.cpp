@@ -7,80 +7,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/iv_data.h"
 
-#include "iv/iv_prepare.h"
-#include "core/cached_webview_availability.h"
+#include "iv/iv_rich_page.h"
 
 #include <QtCore/QRegularExpression>
 #include <QtCore/QUrl>
 
 namespace Iv {
-namespace {
 
-bool FailureRecorded/* = false*/;
-
-} // namespace
-
-QByteArray GeoPointId(Geo point) {
-	const auto lat = int(point.lat * 1000000);
-	const auto lon = int(point.lon * 1000000);
-	const auto combined = (std::uint64_t(std::uint32_t(lat)) << 32)
-		| std::uint64_t(std::uint32_t(lon));
-	return QByteArray::number(quint64(combined))
-		+ ','
-		+ QByteArray::number(point.access);
-}
-
-Geo GeoPointFromId(QByteArray data) {
-	const auto parts = data.split(',');
-	if (parts.size() != 2) {
-		return {};
-	}
-	const auto combined = parts[0].toULongLong();
-	const auto lat = int(std::uint32_t(combined >> 32));
-	const auto lon = int(std::uint32_t(combined & 0xFFFFFFFFULL));
-	return {
-		.lat = lat / 1000000.,
-		.lon = lon / 1000000.,
-		.access = parts[1].toULongLong(),
-	};
-}
-
-Data::Data(const MTPDwebPage &webpage, const MTPPage &page)
-: _source(std::make_unique<Source>(Source{
-	.pageId = webpage.vid().v,
-	.page = page,
-	.webpagePhoto = (webpage.vphoto()
-		? *webpage.vphoto()
-		: std::optional<MTPPhoto>()),
-	.webpageDocument = (webpage.vdocument()
-		? *webpage.vdocument()
-		: std::optional<MTPDocument>()),
-	.name = (webpage.vsite_name()
-		? qs(*webpage.vsite_name())
-		: SiteNameFromUrl(qs(webpage.vurl())))
-})) {
+Data::Data(
+	const MTPDwebPage &webpage,
+	std::shared_ptr<const RichPage> richPage)
+: _pageId(webpage.vid().v)
+, _hash(webpage.vhash().v)
+, _url(qs(webpage.vurl()))
+, _name(webpage.vsite_name()
+	? qs(*webpage.vsite_name())
+	: SiteNameFromUrl(_url))
+, _partial(richPage ? richPage->part : false)
+, _richPage(std::move(richPage)) {
 }
 
 QString Data::id() const {
-	return qs(_source->page.data().vurl());
+	return _url;
+}
+
+QString Data::name() const {
+	return _name;
+}
+
+uint64 Data::pageId() const {
+	return _pageId;
+}
+
+int32 Data::hash() const {
+	return _hash;
 }
 
 bool Data::partial() const {
-	return _source->page.data().is_part();
+	return _partial;
 }
 
 Data::~Data() = default;
 
-void Data::updateCachedViews(int cachedViews) {
-	_source->updatedCachedViews = std::max(
-		_source->updatedCachedViews,
-		cachedViews);
-}
-
-void Data::prepare(const Options &options, Fn<void(Prepared)> done) const {
-	crl::async([source = *_source, options, done = std::move(done)] {
-		done(Prepare(source, options));
-	});
+const std::shared_ptr<const RichPage> &Data::richPage() const {
+	return _richPage;
 }
 
 QString SiteNameFromUrl(const QString &url) {
@@ -99,20 +69,6 @@ QString SiteNameFromUrl(const QString &url) {
 			+ components.at(1);
 	}
 	return QString();
-}
-
-bool ShowButton() {
-	const auto &availability = Core::CachedWebviewAvailability();
-	return availability.customSchemeRequests
-		&& availability.customRangeRequests;
-}
-
-void RecordShowFailure() {
-	FailureRecorded = true;
-}
-
-bool FailedToShow() {
-	return FailureRecorded;
 }
 
 } // namespace Iv

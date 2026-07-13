@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_custom_emoji.h"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace Ui {
@@ -25,6 +26,8 @@ struct LabeledEmojiTab {
 	QString label;
 	EmojiPtr emoji = nullptr;
 	QString customEmojiData;
+	const style::icon *icon = nullptr;
+	const style::icon *iconActive = nullptr;
 };
 
 class LabeledEmojiScrollTabs;
@@ -39,6 +42,7 @@ public:
 		Text::CustomEmojiFactory factory);
 
 	void setChangedCallback(Fn<void(int)> callback);
+	void setContextMenuCallback(Fn<void(int, QPoint)> callback);
 	void setActive(int index);
 	void resizeForOuterWidth(int outerWidth);
 	[[nodiscard]] QString currentId() const;
@@ -53,6 +57,7 @@ private:
 
 	std::vector<not_null<Button*>> _buttons;
 	Fn<void(int)> _changed;
+	Fn<void(int, QPoint)> _contextMenu;
 	int _active = -1;
 	rpl::event_stream<ScrollToRequest> _requestShown;
 
@@ -67,9 +72,12 @@ public:
 	~LabeledEmojiScrollTabs();
 
 	void setChangedCallback(Fn<void(int)> callback);
+	void setContextMenuCallback(Fn<void(int, QPoint)> callback);
 	void setActive(int index);
 	void setPaintOuterCorners(bool paint);
 	void scrollToActive();
+	[[nodiscard]] int scrollLeft() const;
+	void setScrollLeft(int value);
 	[[nodiscard]] QString currentId() const;
 	[[nodiscard]] int buttonCount() const;
 	[[nodiscard]] rpl::producer<ScrollToRequest> requestShown() const;
@@ -93,6 +101,7 @@ private:
 	std::unique_ptr<DragScroll> _dragScroll;
 	bool _paintOuterCorners = true;
 	bool _scrollToActivePending = false;
+	std::optional<int> _pendingScrollLeft;
 
 };
 

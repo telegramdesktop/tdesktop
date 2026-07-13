@@ -13,6 +13,7 @@ namespace Data {
 class Media;
 } // namespace Data
 
+struct FullMsgId;
 struct WebPageData;
 
 namespace HistoryView {
@@ -21,8 +22,17 @@ struct TextState;
 
 class ViewButton {
 public:
+	enum class Kind {
+		Giveaway,
+		RichMessage,
+	};
+
 	ViewButton(
 		not_null<Data::Media*> media,
+		uint8 colorIndex,
+		Fn<void()> updateCallback);
+	ViewButton(
+		FullMsgId itemId,
 		uint8 colorIndex,
 		Fn<void()> updateCallback);
 	~ViewButton();
@@ -30,6 +40,8 @@ public:
 	[[nodiscard]] static bool MediaHasViewButton(
 		not_null<Data::Media*> media);
 
+	[[nodiscard]] bool matches(not_null<Data::Media*> media) const;
+	[[nodiscard]] bool matches(FullMsgId itemId) const;
 	[[nodiscard]] int height() const;
 	[[nodiscard]] bool belowMessageInfo() const;
 

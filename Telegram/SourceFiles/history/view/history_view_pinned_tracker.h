@@ -27,6 +27,7 @@ public:
 
 	[[nodiscard]] rpl::producer<PinnedId> shownMessageId() const;
 	[[nodiscard]] PinnedId currentMessageId() const;
+	[[nodiscard]] FullMsgId nextPinnedId(UniversalMsgId messageId) const;
 	void trackAround(UniversalMsgId messageId);
 	void reset();
 

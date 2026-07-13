@@ -101,21 +101,19 @@ void CreateManagedBotBox(
 
 	const auto botPrefixText = u"@"_q;
 	const auto botSuffixText = u"bot"_q;
+	const auto suffixWidth
+		= st::createBotUsernameSuffix.style.font->width(botSuffixText);
 
 	auto initialUsername = descriptor.suggestedUsername;
 	while (initialUsername.startsWith(botPrefixText)) {
 		initialUsername.remove(0, botPrefixText.size());
-	}
-	if (initialUsername.endsWith(botSuffixText, Qt::CaseInsensitive)) {
-		initialUsername.chop(botSuffixText.size());
 	}
 
 	const auto fieldSt = box->lifetime().make_state<style::InputField>(
 		st::createBotUsernameField);
 	fieldSt->textMargins.setLeft(
 		st::defaultFlatLabel.style.font->width(botPrefixText));
-	fieldSt->textMargins.setRight(
-		st::createBotUsernameSuffix.style.font->width(botSuffixText));
+	fieldSt->textMargins.setRight(suffixWidth);
 	fieldSt->placeholderMargins.setLeft(-fieldSt->textMargins.left());
 	fieldSt->placeholderMargins.setRight(-fieldSt->textMargins.right());
 	const auto usernameWrap = box->addRow(object_ptr<Ui::RpWidget>(box));
@@ -126,8 +124,7 @@ void CreateManagedBotBox(
 		initialUsername,
 		QString());
 	username->setPlaceholderHidden(true);
-	username->setMaxLength(
-		Ui::EditPeer::kMaxUsernameLength - int(botSuffixText.size()));
+	username->setMaxLength(Ui::EditPeer::kMaxUsernameLength);
 	usernameWrap->widthValue() | rpl::on_next([=](int width) {
 		username->resizeToWidth(width);
 	}, username->lifetime());
@@ -162,6 +159,66 @@ void CreateManagedBotBox(
 
 	username->geometryValue(
 	) | rpl::on_next(updatePositions, username->lifetime());
+
+	const auto cleanedUsername = [=] {
+		auto raw = username->getLastText().trimmed();
+		while (raw.startsWith(botPrefixText)) {
+			raw = raw.mid(botPrefixText.size());
+		}
+		return raw;
+	};
+	// How many trailing characters of `value` already spell the beginning
+	// of "bot" (in any capitalization): "..b" -> 1, "..bo" -> 2, "..bot" -> 3.
+	const auto botOverlap = [=](const QString &value) {
+		const auto bound = std::min(
+			int(value.size()),
+			int(botSuffixText.size()));
+		for (auto k = bound; k > 0; --k) {
+			if (!value.right(k).compare(
+					botSuffixText.left(k),
+					Qt::CaseInsensitive)) {
+				return k;
+			}
+		}
+		return 0;
+	};
+	// The lowercase remainder of "bot" we will append on save: shown as the
+	// non-editable label and empty once the value already ends with "bot".
+	const auto missingSuffix = [=](const QString &value) {
+		return botSuffixText.mid(botOverlap(value));
+	};
+	const auto fullUsername = [=] {
+		const auto raw = cleanedUsername();
+		return raw + missingSuffix(raw);
+	};
+
+	const auto refreshSuffix = [=] {
+		const auto suffix = missingSuffix(cleanedUsername());
+		botSuffix->setText(suffix);
+		botSuffix->setVisible(!suffix.isEmpty());
+	};
+
+	// We keep as many entered characters as fit together with the minimal
+	// auto-added suffix (so "..b" leaves room for "ot", "..bo" for "t",
+	// "..bot" for nothing). setMaxLength can't express this: reserving space
+	// for the full "bot" would block typing the very "b" that shrinks it.
+	const auto enforceLength = [=] {
+		const auto text = username->getLastText();
+		auto fitted = text;
+		while (!fitted.isEmpty()
+			&& (int(fitted.size()) + int(missingSuffix(fitted).size())
+				> Ui::EditPeer::kMaxUsernameLength)) {
+			fitted.chop(1);
+		}
+		if (fitted != text) {
+			username->setText(fitted);
+			return true;
+		}
+		return false;
+	};
+
+	enforceLength();
+	refreshSuffix();
 
 	const auto statusWrapper = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
@@ -205,11 +262,7 @@ void CreateManagedBotBox(
 	};
 
 	const auto showLinkInfo = [=] {
-		auto raw = username->getLastText().trimmed();
-		while (raw.startsWith(botPrefixText)) {
-			raw = raw.mid(botPrefixText.size());
-		}
-		const auto full = raw + botSuffixText;
+		const auto full = fullUsername();
 		const auto text = tr::lng_create_bot_username_link(
 			tr::now,
 			lt_link,
@@ -223,11 +276,7 @@ void CreateManagedBotBox(
 	const auto checkUsername = [=] {
 		api->request(base::take(state->checkRequestId)).cancel();
 
-		auto raw = username->getLastText().trimmed();
-		while (raw.startsWith(botPrefixText)) {
-			raw = raw.mid(botPrefixText.size());
-		}
-		const auto value = raw + botSuffixText;
+		const auto value = fullUsername();
 		if (value.size() < Ui::EditPeer::kMinUsernameLength) {
 			return;
 		}
@@ -281,7 +330,7 @@ void CreateManagedBotBox(
 			}
 		}
 
-		if ((value + botSuffixText).size() < Ui::EditPeer::kMinUsernameLength) {
+		if (fullUsername().size() < Ui::EditPeer::kMinUsernameLength) {
 			setError(tr::lng_create_bot_username_too_short(tr::now));
 			return;
 		}
@@ -301,15 +350,11 @@ void CreateManagedBotBox(
 			return;
 		}
 
-		auto rawUsername = username->getLastText().trimmed();
-		while (rawUsername.startsWith(botPrefixText)) {
-			rawUsername = rawUsername.mid(botPrefixText.size());
-		}
-		const auto usernameValue = rawUsername + botSuffixText;
-		if (rawUsername.isEmpty()) {
+		if (cleanedUsername().isEmpty()) {
 			username->showError();
 			return;
 		}
+		const auto usernameValue = fullUsername();
 
 		if (!state->errorText.isEmpty() || state->goodText.isEmpty()) {
 			username->showError();
@@ -402,6 +447,10 @@ void CreateManagedBotBox(
 	};
 
 	QObject::connect(username, &Ui::UsernameInput::changed, [=] {
+		if (enforceLength()) {
+			return;
+		}
+		refreshSuffix();
 		usernameChanged();
 		updatePositions();
 	});

@@ -228,7 +228,7 @@ PreparedList PrepareMediaList(
 			result.files.back().size = filesize;
 		} else {
 			result.filesToProcess.emplace_back(file);
-			result.files.back().size = filesize;
+			result.filesToProcess.back().size = filesize;
 		}
 	}
 	PrepareDetailsInParallel(result, previewWidth);

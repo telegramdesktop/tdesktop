@@ -55,6 +55,8 @@ enum class WebPageType : uint8 {
 	Auction,
 	NewBot,
 
+	ComposeAiTone,
+
 	Article,
 	ArticleWithIV,
 
@@ -115,6 +117,7 @@ struct WebPageData {
 		std::unique_ptr<WebPageStickerSet> newStickerSet,
 		std::shared_ptr<Data::UniqueGift> newUniqueGift,
 		std::unique_ptr<WebPageAuction> newAuction,
+		DocumentId newComposeToneEmojiId,
 		int newDuration,
 		const QString &newAuthor,
 		bool newHasLargeMedia,
@@ -147,6 +150,7 @@ struct WebPageData {
 	std::unique_ptr<WebPageStickerSet> stickerSet;
 	std::shared_ptr<Data::UniqueGift> uniqueGift;
 	std::unique_ptr<WebPageAuction> auction;
+	DocumentId composeToneEmojiId = 0;
 	int duration = 0;
 	TimeId pendingTill = 0;
 	uint32 version : 29 = 0;
@@ -160,3 +164,11 @@ private:
 	const not_null<Data::Session*> _owner;
 
 };
+
+[[nodiscard]] QString ExtractHash(
+	not_null<WebPageData*> webpage,
+	const TextWithEntities &text);
+
+[[nodiscard]] bool UrlMatchesWebPage(
+	not_null<WebPageData*> webpage,
+	const QString &url);

@@ -222,6 +222,13 @@ Stories::~Stories() {
 	Expects(_pollingViews.empty());
 }
 
+void Stories::clear() {
+	_pollingSettings.clear();
+	_pollingViews.clear();
+	_stories.clear();
+	_deletingStories.clear();
+}
+
 Session &Stories::owner() const {
 	return *_owner;
 }

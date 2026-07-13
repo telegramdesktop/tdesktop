@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 #include "core/shortcuts.h"
 #include "core/ui_integration.h" // TextContext
+#include "data/components/ephemeral_messages.h"
 #include "data/components/location_pickers.h"
 #include "data/data_bot_app.h"
 #include "data/data_changes.h"
@@ -52,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_confirm_prepared.h"
 #include "inline_bots/inline_bot_downloads.h"
 #include "inline_bots/inline_bot_storage.h"
+#include "iv/editor/iv_editor_session.h"
 #include "iv/iv_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
@@ -68,8 +70,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/controls/location_picker.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/delayed_activation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
@@ -98,6 +102,26 @@ namespace {
 constexpr auto kProlongTimeout = 60 * crl::time(1000);
 constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 constexpr auto kPopularAppBotsLimit = 100;
+
+[[nodiscard]] QImage PaintButtonEmojiFrame(
+		Ui::Text::CustomEmoji &emoji,
+		const QColor &textColor,
+		int size) {
+	const auto ratio = style::DevicePixelRatio();
+	auto image = QImage(
+		QSize(size, size) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(ratio);
+	image.fill(Qt::transparent);
+	auto painter = Painter(&image);
+	emoji.paint(painter, Ui::Text::CustomEmoji::Context{
+		.textColor = textColor,
+		.size = QSize(size, size),
+		.now = crl::now(),
+		.position = QPoint(0, 0),
+	});
+	return image;
+}
 
 [[nodiscard]] DocumentData *ResolveIcon(
 		not_null<Main::Session*> session,
@@ -185,6 +209,33 @@ constexpr auto kPopularAppBotsLimit = 100;
 			: PeerType(0);
 	}
 	return result;
+}
+
+[[nodiscard]] QString JoinChatDecisionToast(
+		not_null<Main::Session*> session,
+		PeerId peerId,
+		const MTPJoinChatBotResult &result) {
+	const auto isChannel = [&] {
+		if (const auto peer = session->data().peerLoaded(peerId)) {
+			return peer->isBroadcast();
+		}
+		return false;
+	}();
+	return result.match([&](const MTPDjoinChatBotResultApproved &) {
+		return isChannel
+			? tr::lng_action_you_joined_by_request_channel(tr::now)
+			: tr::lng_action_you_joined_by_request(tr::now);
+	}, [&](const MTPDjoinChatBotResultDeclined &) {
+		return isChannel
+			? tr::lng_group_request_declined_channel(tr::now)
+			: tr::lng_group_request_declined(tr::now);
+	}, [&](const MTPDjoinChatBotResultQueued &) {
+		return isChannel
+			? tr::lng_group_request_sent_channel(tr::now)
+			: tr::lng_group_request_sent(tr::now);
+	}, [&](const MTPDjoinChatBotResultWebView &) {
+		return QString();
+	});
 }
 
 [[nodiscard]] Ui::LocationPickerConfig ResolveMapsConfig(
@@ -772,6 +823,17 @@ void BotAction::handleKeyPress(not_null<QKeyEvent*> e) {
 
 } // namespace
 
+WebViewResultData ParseWebViewResult(const MTPWebViewResult &result) {
+	const auto &data = result.data();
+	return {
+		.url = qs(data.vurl()),
+		.queryId = data.vquery_id().value_or_empty(),
+		.fullscreen = data.is_fullscreen(),
+		.fullsize = data.is_fullsize(),
+		.sameOrigin = data.is_same_origin(),
+	};
+}
+
 base::weak_ptr<WebViewInstance> WebViewInstance::PendingActivation;
 
 MenuBotIcon::MenuBotIcon(
@@ -864,6 +926,8 @@ WebViewInstance::WebViewInstance(WebViewDescriptor &&descriptor)
 , _context(ResolveContext(_bot, std::move(descriptor.context)))
 , _button(std::move(descriptor.button))
 , _source(std::move(descriptor.source)) {
+	Expects(_parentShow != nullptr);
+
 	resolve();
 }
 
@@ -904,7 +968,7 @@ void WebViewInstance::requestFullBot() {
 	) | rpl::on_next([=] {
 		if (_botFullWaitingArgs.has_value()) {
 			auto args = *base::take(_botFullWaitingArgs);
-			if (args.url.isEmpty()) {
+			if (args.result.url.isEmpty()) {
 				showGame();
 			} else {
 				show(std::move(args));
@@ -962,6 +1026,10 @@ void WebViewInstance::resolve() {
 		}
 	}, [&](WebViewSourceAgeVerification) {
 		requestMain();
+	}, [&](WebViewSourceJoinChat data) {
+		confirmOpen([=] {
+			requestChatJoin();
+		}, true);
 	});
 }
 
@@ -1157,11 +1225,8 @@ void WebViewInstance::requestButton() {
 			? action.options.sendAs->input()
 			: MTP_inputPeerEmpty())
 	)).done([=](const MTPWebViewResult &result) {
-		const auto &data = result.data();
 		show({
-			.url = qs(data.vurl()),
-			.queryId = data.vquery_id().value_or_empty(),
-			.fullscreen = data.is_fullscreen(),
+			.result = ParseWebViewResult(result),
 		});
 	}).fail([=](const MTP::Error &error) {
 		_parentShow->showToast(error.type());
@@ -1191,10 +1256,8 @@ void WebViewInstance::requestSimple() {
 		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
 		MTP_string("tdesktop")
 	)).done([=](const MTPWebViewResult &result) {
-		const auto &data = result.data();
 		show({
-			.url = qs(data.vurl()),
-			.fullscreen = data.is_fullscreen(),
+			.result = ParseWebViewResult(result),
 		});
 	}).fail([=](const MTP::Error &error) {
 		_parentShow->showToast(error.type());
@@ -1221,10 +1284,8 @@ void WebViewInstance::requestMain() {
 		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
 		MTP_string("tdesktop")
 	)).done([=](const MTPWebViewResult &result) {
-		const auto &data = result.data();
 		show({
-			.url = qs(data.vurl()),
-			.fullscreen = data.is_fullscreen(),
+			.result = ParseWebViewResult(result),
 		});
 	}).fail([=](const MTP::Error &error) {
 		_parentShow->showToast(error.type());
@@ -1252,17 +1313,35 @@ void WebViewInstance::requestApp(bool allowWrite) {
 		MTP_string("tdesktop")
 	)).done([=](const MTPWebViewResult &result) {
 		_requestId = 0;
-		const auto &data = result.data();
 		show({
-			.url = qs(data.vurl()),
+			.result = ParseWebViewResult(result),
 			.title = title,
-			.fullscreen = data.is_fullscreen(),
 		});
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		if (error.type() == u"BOT_INVALID"_q) {
 			_session->attachWebView().requestBots();
 		}
+		close();
+	}).send();
+}
+
+void WebViewInstance::requestChatJoin() {
+	const auto &join = v::get<WebViewSourceJoinChat>(_source);
+	using Flag = MTPmessages_RequestChatJoinWebView::Flag;
+	_requestId = _session->api().request(MTPmessages_RequestChatJoinWebView(
+		MTP_flags(Flag::f_theme_params),
+		MTP_long(join.queryId),
+		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
+		MTP_string("tdesktop")
+	)).done([=](const MTPWebViewResult &result) {
+		_requestId = 0;
+		show({
+			.result = ParseWebViewResult(result),
+		});
+	}).fail([=](const MTP::Error &error) {
+		_requestId = 0;
+		_parentShow->showToast(error.type());
 		close();
 	}).send();
 }
@@ -1344,18 +1423,15 @@ void WebViewInstance::show(ShowArgs &&args) {
 	auto title = args.title.isEmpty()
 		? Info::Profile::NameValue(_bot)
 		: rpl::single(args.title);
-	auto titleBadge = _bot->isVerified()
-		? object_ptr<Ui::RpWidget>(_parentShow->toastParent())
-		: nullptr;
-	if (titleBadge) {
-		const auto raw = titleBadge.data();
-		raw->paintRequest() | rpl::on_next([=] {
-			auto p = Painter(raw);
-			const auto w = raw->width();
+	auto titleBadge = Ui::TitleBadgeDescriptor();
+	if (_bot->isVerified()) {
+		titleBadge.size = st::infoVerifiedStar.size()
+			+ QSize(0, st::lineWidth);
+		titleBadge.paint = [](QPainter &p, QSize size) {
+			const auto w = size.width();
 			st::infoVerifiedStar.paint(p, st::lineWidth, 0, w);
 			st::infoPeerBadge.verifiedCheck.paint(p, st::lineWidth, 0, w);
-		}, raw->lifetime());
-		raw->resize(st::infoVerifiedStar.size() + QSize(0, st::lineWidth));
+		};
 	}
 
 	const auto &bots = _session->attachWebView().attachBots();
@@ -1366,7 +1442,7 @@ void WebViewInstance::show(ShowArgs &&args) {
 		not_null{ _bot },
 		&AttachWebViewBot::user);
 	const auto hasOpenBot = v::is<WebViewSourceMainMenu>(_source)
-		|| (_context.action->history->peer != _bot);
+		|| (_context.action && _context.action->history->peer != _bot);
 	const auto hasRemoveFromMenu = (attached != end(bots))
 		&& (!attached->inactive || attached->inMainMenu)
 		&& (v::is<WebViewSourceMainMenu>(_source)
@@ -1383,20 +1459,21 @@ void WebViewInstance::show(ShowArgs &&args) {
 		|| (attached != end(bots)
 			&& (attached->inAttachMenu || attached->inMainMenu));
 	const auto downloads = &_session->attachWebView().downloads();
-	_panelUrl = args.url;
+	_panelUrl = args.result.url;
 	_panel = Ui::BotWebView::Show({
-		.url = args.url,
+		.url = args.result.url,
 		.storageId = _session->local().resolveStorageIdBots(),
 		.title = std::move(title),
 		.titleBadge = std::move(titleBadge),
 		.bottom = rpl::single('@' + _bot->username()),
 		.delegate = static_cast<Ui::BotWebView::Delegate*>(this),
 		.menuButtons = buttons,
-		.fullscreen = args.fullscreen,
+		.fullscreen = args.result.fullscreen,
+		.sameOrigin = args.result.sameOrigin,
 		.allowClipboardRead = allowClipboardRead,
 		.downloadsProgress = downloads->progress(_bot),
 	});
-	started(args.queryId);
+	started(args.result.queryId);
 
 	if (const auto strong = PendingActivation.get()) {
 		if (strong == this) {
@@ -1430,6 +1507,18 @@ void WebViewInstance::close() {
 }
 
 void WebViewInstance::started(uint64 queryId) {
+	if (v::is<WebViewSourceJoinChat>(_source)) {
+		if (!queryId) {
+			return;
+		}
+		_session->attachWebView().watchJoinChatWebView(
+			queryId,
+			_parentShow,
+			_context.controller,
+			this);
+		return;
+	}
+
 	Expects(_context.action.has_value());
 
 	if (!queryId) {
@@ -2127,6 +2216,70 @@ void WebViewInstance::botDownloadFile(
 	}).send();
 }
 
+void WebViewInstance::botResolveButtonEmoji(
+		Ui::BotWebView::ResolveButtonEmojiRequest request) {
+	const auto panel = _panel.get();
+	if (!panel || !request.customEmojiId || request.size <= 0) {
+		request.callback(QImage());
+		return;
+	}
+	struct State {
+		Fn<void(QImage)> callback;
+		std::unique_ptr<Ui::Text::CustomEmoji> emoji;
+		QColor textColor;
+		int size = 0;
+		bool sent = false;
+	};
+	const auto state = std::make_shared<State>();
+	state->callback = std::move(request.callback);
+	state->textColor = request.textColor.isValid()
+		? request.textColor
+		: QColor(255, 255, 255);
+	state->size = request.size;
+	const auto weak = base::make_weak(panel);
+	const auto attempt = std::make_shared<Fn<void()>>();
+	const auto weakAttempt = std::weak_ptr<Fn<void()>>(attempt);
+	const auto weakState = std::weak_ptr<State>(state);
+	*attempt = [weak, weakState] {
+		const auto state = weakState.lock();
+		const auto panel = weak.get();
+		if (!state
+			|| state->sent
+			|| !panel
+			|| !state->emoji
+			|| !state->emoji->ready()) {
+			return;
+		}
+		state->sent = true;
+		state->callback(PaintButtonEmojiFrame(
+			*state->emoji,
+			state->textColor,
+			state->size));
+	};
+	const auto fail = [state] {
+		if (state->sent) {
+			return;
+		}
+		state->sent = true;
+		state->callback(QImage());
+	};
+	_session->data().customEmojiManager().resolve(
+		request.customEmojiId
+	) | rpl::on_next_error([=](not_null<DocumentData*> document) {
+		state->emoji = MakeWrappedEmoji<Ui::Text::FirstFrameEmoji>(
+			_session->data().customEmojiManager().create(
+				document,
+				[weakAttempt] {
+					if (const auto attempt = weakAttempt.lock()) {
+						(*attempt)();
+					}
+				},
+				Data::CustomEmojiManager::SizeTag::Normal,
+				state->size));
+		(*attempt)();
+	}, fail, panel->lifetime());
+}
+
 void WebViewInstance::botVerifyAge(int age) {
 	if (v::is<WebViewSourceAgeVerification>(_source)) {
 		v::get<WebViewSourceAgeVerification>(_source).done(age);
@@ -2249,6 +2402,42 @@ AttachWebView::AttachWebView(not_null<Main::Session*> session)
 , _storage(std::make_unique<Storage>(session))
 , _refreshTimer([=] { requestBots(); }) {
 	_refreshTimer.callEach(kRefreshBotsTimeout);
+	_session->data().joinChatWebViewDecision(
+	) | rpl::on_next([=](
+			const Data::Session::JoinChatWebViewDecision &decision) {
+		const auto i = _joinChatWebViews.find(decision.queryId);
+		if (i == end(_joinChatWebViews)) {
+			return;
+		}
+		auto data = std::move(i->second);
+		_joinChatWebViews.erase(i);
+
+		const auto text = JoinChatDecisionToast(
+			_session,
+			decision.peerId,
+			decision.result);
+		const auto approved = (decision.result.type()
+			== mtpc_joinChatBotResultApproved);
+		const auto instance = data.instance.get();
+		if (instance) {
+			close(instance);
+			if (approved) {
+				if (const auto peer = _session->data().peerLoaded(
+						decision.peerId)) {
+					if (const auto window = WindowForThread(
+							data.controller,
+							peer->owner().history(peer))) {
+						window->showPeerHistory(
+							peer,
+							Window::SectionShow::Way::Forward);
+					}
+				}
+			}
+		}
+		if (data.show && !text.isEmpty()) {
+			data.show->showToast(text);
+		}
+	}, _lifetime);
 }
 
 AttachWebView::~AttachWebView() {
@@ -2299,6 +2488,18 @@ void AttachWebView::openByUsername(
 			.source = InlineBots::WebViewSourceLinkAttachMenu{},
 		});
 	}));
+}
+
+void AttachWebView::watchJoinChatWebView(
+		uint64 queryId,
+		std::shared_ptr<Ui::Show> show,
+		base::weak_ptr<Window::SessionController> controller,
+		base::weak_ptr<WebViewInstance> instance) {
+	_joinChatWebViews[queryId] = {
+		.show = std::move(show),
+		.controller = controller,
+		.instance = instance,
+	};
 }
 
 void AttachWebView::close(not_null<WebViewInstance*> instance) {
@@ -2670,7 +2871,10 @@ void ChooseAndSendLocation(
 	};
 	const auto state = std::make_shared<State>();
 	state->send = [=](Data::InputVenue venue, Api::SendAction action) {
-		if (const auto strong = weak.get()) {
+		const auto strong = weak.get();
+		const auto ephemeralReply = session->ephemeralMessages()
+			.isEphemeralBotReply(action.replyTo.messageId);
+		if (strong && !ephemeralReply) {
 			const auto withPaymentApproved = [=](int stars) {
 				if (const auto onstack = state->send) {
 					auto copy = action;
@@ -2717,6 +2921,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		Fn<Api::SendAction()> actionFactory,
+		Fn<SendMenu::Details()> sendMenuDetails,
 		Fn<void(bool)> attach) {
 	auto result = std::make_unique<Ui::DropdownMenu>(
 		parent,
@@ -2735,23 +2940,19 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		| ChatRestriction::SendStickers
 		| ChatRestriction::SendMusic
 		| ChatRestriction::SendFiles;
-	if (Data::CanSendAnyOf(peer, fileTypes)) {
+	if (Data::CanSendAnyOf(peer, fileTypes, false)) {
 		++minimal;
 		raw->addAction(tr::lng_attach_document(tr::now), [=] {
 			attach(false);
 		}, &st::menuIconFile);
 	}
-	if (peer->canCreatePolls()) {
+	if (peer->canCreatePolls(false)) {
 		++minimal;
 		raw->addAction(tr::lng_polls_menu_item(tr::now), [=] {
 			const auto action = actionFactory();
 			const auto source = action.options.scheduled
 				? Api::SendType::Scheduled
 				: Api::SendType::Normal;
-			const auto sendMenuType = (action.replyTo.topicRootId
-				|| action.history->peer->starsPerMessageChecked())
-				? SendMenu::Type::SilentOnly
-				: SendMenu::Type::Scheduled;
 			const auto chosen = kDefaultPollCreateFlags;
 			Window::PeerMenuCreatePoll(
 				controller,
@@ -2761,39 +2962,66 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 				chosen,
 				PollData::Flags(),
 				source,
-				{ sendMenuType });
+				sendMenuDetails());
 		}, &st::menuIconCreatePoll);
 	}
-	if (peer->canCreateTodoLists()) {
+	if (peer->canCreateTodoLists(false)) {
 		++minimal;
 		raw->addAction(tr::lng_todo_menu_item(tr::now), [=] {
 			const auto action = actionFactory();
 			const auto source = action.options.scheduled
 				? Api::SendType::Scheduled
 				: Api::SendType::Normal;
-			const auto sendMenuType = (action.replyTo.topicRootId
-				|| action.history->peer->starsPerMessageChecked())
-				? SendMenu::Type::SilentOnly
-				: SendMenu::Type::Scheduled;
 			Window::PeerMenuCreateTodoList(
 				controller,
 				peer,
 				action.replyTo,
 				action.options.suggest,
 				source,
-				{ sendMenuType });
+				sendMenuDetails());
 		}, &st::menuIconCreateTodoList);
+	}
+	if (Iv::Editor::CanAuthorRichMessages(&controller->session())
+		&& Data::CanSendAnyOf(peer, ChatRestriction::SendOther, false)) {
+		raw->addAction(tr::lng_article_menu_item(tr::now), [=] {
+			const auto action = actionFactory();
+			if (ShowEphemeralReplyTextOnlyError(
+					controller->uiShow(),
+					&controller->session(),
+					action.replyTo.messageId)) {
+				return;
+			}
+			const auto details = sendMenuDetails();
+			const auto openCompose = [=, weak = base::make_weak(controller)] {
+				if (const auto strong = weak.get()) {
+					Iv::Editor::ShowComposeBox(
+						strong,
+						peer,
+						action,
+						details);
+				}
+			};
+			const auto handled
+				= Iv::Editor::RequestCloseOpenEditWindowThenCompose(
+					&controller->session(),
+					peer,
+					openCompose);
+			if (!handled) {
+				openCompose();
+			}
+		}, &st::menuIconArticle);
 	}
 	const auto session = &controller->session();
 	const auto locationType = ChatRestriction::SendOther;
 	const auto config = ResolveMapsConfig(session);
-	if (Data::CanSendAnyOf(peer, locationType)
+	if (Data::CanSendAnyOf(peer, locationType, false)
 		&& Ui::LocationPicker::Available(config)) {
 		raw->addAction(tr::lng_maps_point(tr::now), [=] {
+			Ui::PreventDelayedActivation();
 			ChooseAndSendLocation(controller, config, actionFactory());
 		}, &st::menuIconAddress);
 	}
-	const auto addBots = Data::CanSend(peer, ChatRestriction::SendInline)
+	const auto addBots = Data::CanSend(peer, ChatRestriction::SendInline, false)
 		&& !peer->starsPerMessageChecked();
 	for (const auto &bot : bots->attachBots()) {
 		if (!addBots

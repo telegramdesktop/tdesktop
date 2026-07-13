@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_edition.h"
 
 #include "api/api_text_entities.h"
+#include "iv/iv_rich_page.h"
 #include "main/main_session.h"
 
 HistoryMessageEdition::HistoryMessageEdition(
@@ -28,6 +29,9 @@ HistoryMessageEdition::HistoryMessageEdition(
 	mtpMedia = message.vmedia();
 	mtpReactions = message.vreactions();
 	mtpFactcheck = message.vfactcheck();
+	if (const auto data = message.vrich_message()) {
+		richPage = Iv::ParseRichPage(session, *data);
+	}
 	views = message.vviews().value_or(-1);
 	forwards = message.vforwards().value_or(-1);
 	if (const auto mtpReplies = message.vreplies()) {

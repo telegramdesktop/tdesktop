@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/text/custom_emoji_instance.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
@@ -121,7 +122,13 @@ private:
 	void setupSwipeBack();
 	void setupHistory(not_null<Ui::VerticalLayout*> container);
 	void setupSubscriptions(not_null<Ui::VerticalLayout*> container);
+
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	const CreditsType _creditsType;
+	Ui::VerticalLayout *_content = nullptr;
 
 	QWidget *_parent = nullptr;
 
@@ -132,7 +139,6 @@ private:
 	base::unique_qptr<Ui::IconButton> _close;
 	rpl::variable<bool> _backToggles;
 	rpl::variable<Info::Wrap> _wrap;
-	Fn<void(bool)> _setPaused;
 
 	rpl::event_stream<> _showBack;
 	rpl::event_stream<> _showFinished;
@@ -420,6 +426,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 	const auto apiLifetime = content->lifetime().make_state<rpl::lifetime>();
 	{
 		using Api = Api::CreditsHistory;
+		constexpr auto kFirstPageLimit = 20;
 		const auto c = (_creditsType == CreditsType::Ton);
 		const auto apiFull = apiLifetime->make_state<Api>(self, true, true, c);
 		const auto apiIn = apiLifetime->make_state<Api>(self, true, false, c);
@@ -433,9 +440,9 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 						fill(bot, fullSlice, inSlice, outSlice);
 						apiLifetime->destroy();
 					}, *apiLifetime);
-				});
-			});
-		});
+				}, kFirstPageLimit);
+			}, kFirstPageLimit);
+		}, kFirstPageLimit);
 	}
 }
 
@@ -463,8 +470,8 @@ void Credits::setupSwipeBack() {
 		}
 	};
 
-	auto init = [=](int, Qt::LayoutDirection direction) {
-		return (direction == Qt::RightToLeft)
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
+		return (data.direction == Qt::RightToLeft)
 			? DefaultSwipeBackHandlerFinishData([=] {
 				_showBack.fire({});
 			})
@@ -481,6 +488,7 @@ void Credits::setupSwipeBack() {
 
 void Credits::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+	_content = content;
 	const auto isCurrency = _creditsType == CreditsType::Ton;
 	const auto statsButton = &_statsButton;
 	const auto giftButton = &_giftButton;
@@ -564,7 +572,7 @@ void Credits::setupContent() {
 	auto context = [&]() -> Ui::Text::MarkedContext {
 		const auto height = textSt.style.font->height;
 		auto customEmojiFactory = [=](const auto &...) {
-			return std::make_unique<Ui::Text::ShiftedEmoji>(
+			return Ui::Text::MakeWrappedEmoji<Ui::Text::ShiftedEmoji>(
 				isCurrency
 					? std::make_unique<Ui::CustomEmoji::Internal>(
 						u"currency_icon:%1"_q.arg(height),
@@ -690,12 +698,17 @@ base::weak_qptr<Ui::RpWidget> Credits::createPinnedToTop(
 					: tr::lng_credits_summary_about)(
 						TextWithEntities::Simple),
 				.light = true,
+				.use3dStar = !isCurrency,
+				.star3dGolden = !isCurrency,
+				.use3dDiamond = isCurrency,
 				.gradientStops = Ui::Premium::CreditsIconGradientStops(),
+				.showFinished = _showFinished.events(),
 			});
 	}();
-	_setPaused = [=](bool paused) {
-		content->setPaused(paused);
-	};
+	controller()->boxShownValue(
+	) | rpl::on_next([=](bool shown) {
+		content->setPaused(shown);
+	}, content->lifetime());
 
 	_wrap.value(
 	) | rpl::on_next([=](Info::Wrap wrap) {
@@ -792,6 +805,10 @@ void Credits::showFinished() {
 	controller()->checkHighlightControl(u"stars/stats"_q, _statsButton);
 	controller()->checkHighlightControl(u"stars/gift"_q, _giftButton);
 	controller()->checkHighlightControl(u"stars/earn"_q, _earnButton);
+}
+
+void Credits::visibleTopBottomUpdated(int visibleTop, int visibleBottom) {
+	setChildVisibleTopBottom(_content, visibleTop, visibleBottom);
 }
 
 class Currency {

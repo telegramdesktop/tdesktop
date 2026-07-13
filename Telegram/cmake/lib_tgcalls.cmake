@@ -65,6 +65,8 @@ PRIVATE
 
     v2/ContentNegotiation.cpp
     v2/ContentNegotiation.h
+    v2/CustomDcSctpSocket.cpp
+    v2/CustomDcSctpSocket.h
     v2/DirectNetworkingImpl.cpp
     v2/DirectNetworkingImpl.h
     v2/ExternalSignalingConnection.cpp

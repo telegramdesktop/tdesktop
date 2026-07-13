@@ -30,13 +30,3 @@ profileBlockTitleHeight: 24px;
 profileBlockTitleFont: font(14px semibold);
 profileBlockTitleFg: windowBoldFg;
 profileBlockTitlePosition: point(24px, 0px);
-profileBlockTextPart: FlatLabel(defaultFlatLabel) {
-	minWidth: 180px;
-	margin: margins(5px, 5px, 5px, 5px);
-}
-profileBlockOneLineTextPart: FlatLabel(profileBlockTextPart) {
-	minWidth: 0px; // No need to set minWidth in one-line text.
-	maxHeight: 20px;
-}
-
-profileMemberNameFg: windowBoldFg;

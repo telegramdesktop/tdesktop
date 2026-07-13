@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/statistics/info_statistics_inner_widget.h"
 
+#include "api/api_polls.h"
 #include "api/api_statistics.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
 #include "data/data_peer.h"
+#include "data/data_poll.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_story.h"
@@ -726,6 +728,9 @@ void InnerWidget::fill() {
 		FillOverview(inner, _state.stats, true);
 	}
 	FillStatistic(inner, descriptor, _state.stats, finishLoading);
+	if (_state.stats.message) {
+		fillPollVotesGraph(inner);
+	}
 	const auto &channel = _state.stats.channel;
 	const auto &supergroup = _state.stats.supergroup;
 	if (channel) {
@@ -784,6 +789,38 @@ void InnerWidget::fill() {
 			descriptor.peer,
 			RecentPostId{ .messageId = _contextId, .storyId = _storyId });
 	}
+}
+
+void InnerWidget::fillPollVotesGraph(
+		not_null<Ui::VerticalLayout*> container) {
+	const auto item = _peer->owner().message(_contextId);
+	const auto media = item ? item->media() : nullptr;
+	const auto poll = media ? media->poll() : nullptr;
+	if (!poll || !poll->canViewStats()) {
+		return;
+	}
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	wrap->toggle(false, anim::type::instant);
+	const auto widget = wrap->entity()->add(
+		object_ptr<Statistic::ChartWidget>(wrap->entity()),
+		st::statisticsLayerMargins);
+	_peer->session().api().polls().requestStats(
+		_contextId,
+		crl::guard(this, [=](Data::StatisticalGraph graph) {
+			if (!graph.chart) {
+				return;
+			}
+			widget->setChartData(
+				std::move(graph.chart),
+				Statistic::ChartViewType::Linear);
+			widget->setTitle(tr::lng_notification_reactions_poll_votes());
+			Statistic::FixCacheForHighDPIChartWidget(wrap->entity());
+			wrap->toggle(true, anim::type::normal);
+		}),
+		[](QString) {});
 }
 
 void InnerWidget::fillRecentPosts(not_null<Ui::VerticalLayout*> container) {

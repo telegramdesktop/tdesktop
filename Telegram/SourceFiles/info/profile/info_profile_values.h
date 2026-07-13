@@ -56,6 +56,10 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneOrHiddenValue(
 	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<TextWithEntities> PhoneWithSpoilerValue(
+	not_null<UserData*> user,
+	rpl::producer<TextWithEntities> phone);
+void CopyPhoneToClipboard(rpl::producer<TextWithEntities> phone);
 [[nodiscard]] rpl::producer<TextWithEntities> UsernameValue(
 	not_null<PeerData*> peer,
 	bool primary = false);

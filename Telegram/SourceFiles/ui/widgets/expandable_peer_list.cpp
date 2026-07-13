@@ -22,49 +22,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_widgets.h"
 
+#include <cstdlib>
+
 namespace Ui {
 namespace {
 
-class Button final : public Ui::RippleButton {
-public:
-	Button(not_null<QWidget*> parent, int count);
-
-	[[nodiscard]] not_null<Ui::AbstractCheckView*> checkView() const;
-
-private:
-	void paintEvent(QPaintEvent *event) override;
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
-
-	std::unique_ptr<Ui::AbstractCheckView> _view;
-
-};
-
-Button::Button(not_null<QWidget*> parent, int count)
-: Ui::RippleButton(parent, st::defaultRippleAnimation)
-, _view(std::make_unique<Ui::ParticipantsCheckView>(
-	count,
-	st::slideWrapDuration,
-	false,
-	[=] { update(); })) {
-}
-
-not_null<Ui::AbstractCheckView*> Button::checkView() const {
-	return _view.get();
-}
-
-QImage Button::prepareRippleMask() const {
-	return _view->prepareRippleMask();
-}
-
-QPoint Button::prepareRippleStartPosition() const {
-	return mapFromGlobal(QCursor::pos());
-}
-
-void Button::paintEvent(QPaintEvent *event) {
-	auto p = QPainter(this);
-	Ui::RippleButton::paintRipple(p, QPoint());
-	_view->paint(p, 0, 0, width());
+[[nodiscard]] TextWithEntities ParticipantsExpanderText(int count) {
+	return tr::marked()
+		.append(st::moderateBoxExpand)
+		.append(QString::number(std::abs(count)));
 }
 
 } // namespace
@@ -86,10 +52,13 @@ void AddExpandablePeerList(
 	}
 	const auto count = int(participants.size());
 	const auto button = !hideRightButton
-		? Ui::CreateChild<Button>(inner, count)
+		? Ui::CreateChild<Ui::ExpanderButton>(
+			inner,
+			ParticipantsExpanderText(count))
 		: nullptr;
 	if (button) {
-		button->resize(Ui::ParticipantsCheckView::ComputeSize(count));
+		button->resize(Ui::ExpanderButton::ComputeSize(
+			ParticipantsExpanderText(count)));
 	}
 
 	const auto overlay = Ui::CreateChild<Ui::AbstractButton>(inner);

@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/auto_download_box.h"
 #include "boxes/connection_box.h"
 #include "boxes/download_path_box.h"
-#include "boxes/local_storage_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/file_utilities.h"
@@ -37,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "platform/platform_specific.h"
 #include "settings/settings_builder.h"
+#include "settings/sections/settings_local_storage.h"
 #include "settings/sections/settings_main.h"
 #include "settings/sections/settings_chat.h"
 #include "settings/settings_experimental.h"
@@ -77,6 +77,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/spellchecker_common.h"
 #include "spellcheck/platform/platform_spellcheck.h"
 #endif // !TDESKTOP_DISABLE_SPELLCHECK
+
+#include <ksandbox.h>
 
 namespace Settings {
 namespace {
@@ -167,7 +169,7 @@ void BuildDataStorageSection(SectionBuilder &builder) {
 		.title = tr::lng_settings_manage_local_storage(),
 		.icon = { &st::menuIconStorage },
 		.onClick = [=] {
-			LocalStorageBox::Show(controller);
+			controller->showSettings(LocalStorageId());
 		},
 		.keywords = { u"storage"_q, u"cache"_q, u"local"_q },
 	});
@@ -1014,7 +1016,7 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 	auto install = (Ui::SettingsButton*)nullptr;
 	auto check = (Ui::SettingsButton*)nullptr;
 	builder.scope([&] {
-		install = cAlphaVersion()
+		install = (cAlphaVersion() || KSandbox::isInside())
 			? nullptr
 			: builder.addButton({
 				.id = u"advanced/install_beta"_q,
@@ -1050,11 +1052,32 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 			update->moveToLeft(0, 0);
 		}, update->lifetime());
 
-		const auto showDownloadProgress = [=](int64 ready, int64 total) {
+		const auto showDownloadProgress = [=](
+				int64 ready,
+				int64 total,
+				bool preferPercent) {
+			const auto formatted = [&] {
+				if (!preferPercent) {
+					return Ui::FormatDownloadText(ready, total);
+				}
+				const auto percent = (total > 0)
+					? std::clamp((ready * 100) / float64(total), 0., 100.)
+					: 0.;
+				auto result = QString::number(percent, 'f', 2);
+				if (result.contains('.')) {
+					while (result.endsWith('0')) {
+						result.chop(1);
+					}
+					if (result.endsWith('.')) {
+						result.chop(1);
+					}
+				}
+				return result + '%';
+			}();
 			texts->fire(tr::lng_settings_downloading_update(
 				tr::now,
 				lt_progress,
-				Ui::FormatDownloadText(ready, total)));
+				formatted));
 			downloading->fire(true);
 		};
 		const auto setDefaultStatus = [=](
@@ -1063,7 +1086,10 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 			const auto state = checker.state();
 			switch (state) {
 			case State::Download:
-				showDownloadProgress(checker.already(), checker.size());
+				showDownloadProgress(
+					checker.already(),
+					checker.size(),
+					checker.percent());
 				break;
 			case State::Ready:
 				texts->fire(tr::lng_settings_update_ready(tr::now));
@@ -1120,7 +1146,10 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 		}, options->lifetime());
 		checker.progress(
 		) | rpl::on_next([=](Core::UpdateChecker::Progress progress) {
-			showDownloadProgress(progress.already, progress.size);
+			showDownloadProgress(
+				progress.already,
+				progress.size,
+				progress.percent);
 		}, options->lifetime());
 		checker.failed() | rpl::on_next([=] {
 			options->setAttribute(Qt::WA_TransparentForMouseEvents, false);
@@ -1344,7 +1373,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto inner = options->entity();
-	const auto install = cAlphaVersion()
+	const auto install = (cAlphaVersion() || KSandbox::isInside())
 		? nullptr
 		: inner->add(object_ptr<Button>(
 			inner,
@@ -1375,11 +1404,32 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	}, label->lifetime());
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	const auto showDownloadProgress = [=](int64 ready, int64 total) {
+	const auto showDownloadProgress = [=](
+			int64 ready,
+			int64 total,
+			bool preferPercent) {
+		const auto formatted = [&] {
+			if (!preferPercent) {
+				return Ui::FormatDownloadText(ready, total);
+			}
+			const auto percent = (total > 0)
+				? std::clamp((ready * 100) / float64(total), 0., 100.)
+				: 0.;
+			auto result = QString::number(percent, 'f', 2);
+			if (result.contains('.')) {
+				while (result.endsWith('0')) {
+					result.chop(1);
+				}
+				if (result.endsWith('.')) {
+					result.chop(1);
+				}
+			}
+			return result + '%';
+		}();
 		texts->fire(tr::lng_settings_downloading_update(
 			tr::now,
 			lt_progress,
-			Ui::FormatDownloadText(ready, total)));
+			formatted));
 		downloading->fire(true);
 	};
 	const auto setDefaultStatus = [=](const Core::UpdateChecker &checker) {
@@ -1387,7 +1437,10 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		const auto state = checker.state();
 		switch (state) {
 		case State::Download:
-			showDownloadProgress(checker.already(), checker.size());
+			showDownloadProgress(
+				checker.already(),
+				checker.size(),
+				checker.percent());
 			break;
 		case State::Ready:
 			texts->fire(tr::lng_settings_update_ready(tr::now));
@@ -1455,7 +1508,10 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	}, options->lifetime());
 	checker.progress(
 	) | rpl::on_next([=](Core::UpdateChecker::Progress progress) {
-		showDownloadProgress(progress.already, progress.size);
+		showDownloadProgress(
+			progress.already,
+			progress.size,
+			progress.percent);
 	}, options->lifetime());
 	checker.failed() | rpl::on_next([=] {
 		options->setAttribute(Qt::WA_TransparentForMouseEvents, false);

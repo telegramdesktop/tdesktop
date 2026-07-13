@@ -42,6 +42,8 @@ struct LocalUrlHandler {
 
 [[nodiscard]] QString TryConvertUrlToLocal(QString url);
 
+[[nodiscard]] bool IsMiniAppUrl(const QString &url);
+
 [[nodiscard]] bool InternalPassportOrOAuthLink(const QString &url);
 
 [[nodiscard]] bool StartUrlRequiresActivate(const QString &url);

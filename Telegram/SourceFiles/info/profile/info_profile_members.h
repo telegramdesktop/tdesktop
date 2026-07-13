@@ -45,9 +45,12 @@ class Members
 public:
 	Members(
 		QWidget *parent,
-		not_null<Controller*> controller);
+		not_null<Controller*> controller,
+		bool skipHeader = false);
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
+
+	void applySearchQuery(const QString &query);
 
 	std::unique_ptr<MembersState> saveState();
 	void restoreState(std::unique_ptr<MembersState> state);
@@ -114,6 +117,7 @@ private:
 
 	//Wrap _wrap;
 	not_null<Controller*> _controller;
+	const bool _skipHeader = false;
 	not_null<PeerData*> _peer;
 	std::unique_ptr<ParticipantsBoxController> _listController;
 	object_ptr<Ui::RpWidget> _header = { nullptr };

@@ -91,6 +91,7 @@ constexpr auto kDefaultChargeStars = 10;
 			| Flag::SendInline, tr::lng_rights_chat_stickers(tr::now) },
 		{ Flag::EmbedLinks, tr::lng_rights_chat_send_links(tr::now) },
 		{ Flag::SendPolls, tr::lng_rights_chat_send_polls(tr::now) },
+		{ Flag::SendReactions, tr::lng_rights_chat_send_reactions(tr::now) },
 	};
 	auto second = std::vector<RestrictionLabel>{
 		{ Flag::AddParticipants, tr::lng_rights_chat_add_members(tr::now) },
@@ -121,7 +122,18 @@ constexpr auto kDefaultChargeStars = 10;
 -> std::vector<NestedEditFlagsLabels<ChatAdminRights>> {
 	using Flag = ChatAdminRight;
 
-	if (options.isGroup) {
+	if (options.isCommunity) {
+		auto rights = std::vector<AdminRightLabel>{
+			{ Flag::ChangeInfo, tr::lng_rights_community_info(tr::now) },
+			{
+				Flag::ManageLinkedPeers,
+				tr::lng_rights_community_linked(tr::now),
+			},
+			{ Flag::BanUsers, tr::lng_rights_community_ban(tr::now) },
+			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
+		};
+		return { { std::nullopt, std::move(rights) } };
+	} else if (options.isGroup) {
 		auto first = std::vector<AdminRightLabel>{
 			{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
 			{ Flag::DeleteMessages, tr::lng_rights_group_delete(tr::now) },
@@ -143,6 +155,12 @@ constexpr auto kDefaultChargeStars = 10;
 			{ Flag::Anonymous, tr::lng_rights_group_anonymous(tr::now) },
 			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
 		};
+		if (options.canProcessJoinRequests) {
+			second.push_back({
+				Flag::ProcessJoinRequests,
+				tr::lng_rights_group_process_join_requests(tr::now),
+			});
+		}
 		if (!options.isForum) {
 			first.erase(
 				ranges::remove(
@@ -180,6 +198,12 @@ constexpr auto kDefaultChargeStars = 10;
 		{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
 		{ Flag::BanUsers, tr::lng_rights_group_ban(tr::now) },
 	};
+	if (options.canProcessJoinRequests) {
+		second.push_back({
+			Flag::ProcessJoinRequests,
+			tr::lng_rights_group_process_join_requests(tr::now),
+		});
+	}
 	return {
 		{ std::nullopt, std::move(first) },
 		{ tr::lng_rights_channel_manage(), std::move(messages) },
@@ -305,6 +329,7 @@ ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 		//| Flag::ViewMessages
 		| Flag::ChangeInfo
 		| Flag::EmbedLinks
+		| Flag::SendReactions
 		| Flag::AddParticipants
 		| Flag::CreateTopics
 		| Flag::PinMessages
@@ -493,20 +518,28 @@ not_null<Ui::RpWidget*> AddInnerToggle(
 			icon.paint(p, 0, 0, arrow->width());
 		}, arrow->lifetime());
 	}
-	button->sizeValue(
-	) | rpl::on_next([=, &st](const QSize &s) {
+	const auto reposition = [=, &st] {
+		const auto s = button->size();
 		const auto labelLeft = st.padding.left();
 		const auto labelRight = s.width() - toggleButton->width();
 
-		label->resizeToWidth(labelRight - labelLeft - arrow->width());
+		const auto arrowSkip = st::rightsButtonArrowSkip;
+		label->resizeToWidth(
+			labelRight - labelLeft - arrow->width() - arrowSkip);
 		label->moveToLeft(
 			labelLeft,
 			(s.height() - label->height()) / 2);
 		arrow->moveToLeft(
 			std::min(
-				labelLeft + label->textMaxWidth(),
+				labelLeft + label->textMaxWidth() + arrowSkip,
 				labelRight - arrow->width()),
 			(s.height() - arrow->height()) / 2);
+	};
+	rpl::merge(
+		button->sizeValue() | rpl::to_empty,
+		state->anyChanges.events_starting_with(rpl::empty_value())
+	) | rpl::on_next([=] {
+		reposition();
 	}, button->lifetime());
 	wrap->toggledValue(
 	) | rpl::skip(1) | rpl::on_next([=](bool toggled) {
@@ -1207,6 +1240,7 @@ void ShowEditPeerPermissionsBox(
 	}
 
 	static constexpr auto kSendRestrictions = Flag::EmbedLinks
+		| Flag::SendReactions
 		| Flag::SendGames
 		| Flag::SendGifs
 		| Flag::SendInline
@@ -1464,7 +1498,9 @@ ChatAdminRights AdminRightsForOwnershipTransfer(
 		Data::AdminRightsSetOptions options) {
 	auto result = ChatAdminRights();
 	for (const auto &entry : AdminRightLabels(options)) {
-		if (!(entry.flags & ChatAdminRight::Anonymous)) {
+		if (!(entry.flags
+			& (ChatAdminRight::Anonymous
+				| ChatAdminRight::ProcessJoinRequests))) {
 			result |= entry.flags;
 		}
 	}

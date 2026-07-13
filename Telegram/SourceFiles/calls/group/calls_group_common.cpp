@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -376,7 +377,11 @@ void ShowConferenceCallLinkBox(
 
 		const auto copyCallback = [=] {
 			QApplication::clipboard()->setText(link);
-			show->showToast(tr::lng_username_copied(tr::now));
+			show->showToast({
+				.text = { tr::lng_username_copied(tr::now) },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		};
 		const auto shareCallback = [=] {
 			FastShareLink(

@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/star_gift_cover_box.h"
+#include "data/data_peer_id.h"
 #include "data/data_star_gift.h"
+
+class UserData;
 
 namespace Api {
 class PremiumGiftCodeOptions;
@@ -66,6 +69,10 @@ class VerticalLayout;
 
 void ChooseStarGiftRecipient(
 	not_null<Window::SessionController*> controller);
+
+[[nodiscard]] std::vector<not_null<UserData*>> CollectGiftFrequentUsers(
+	not_null<Main::Session*> session,
+	const std::vector<UserId> &exclude = {});
 
 void ShowStarGiftBox(
 	not_null<Window::SessionController*> controller,

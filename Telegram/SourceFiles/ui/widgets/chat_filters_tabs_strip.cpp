@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/premium_limits_box.h"
 #include "core/application.h"
+#include "core/shortcuts.h"
 #include "core/ui_integration.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
@@ -204,7 +205,8 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		Fn<void(FilterId)> choose,
 		ChatHelpers::PauseReason pauseLevel,
 		Window::SessionController *controller,
-		bool trackActiveFilterAndUnreadAndReorder) {
+		bool trackActiveFilterAndUnreadAndReorder,
+		bool handleKeyboardSwitch) {
 
 	const auto wrap = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
 		parent,
@@ -426,7 +428,10 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			reassignUnreadValue();
 		}
 		[&] {
-			const auto lookingId = state->lastFilterId.value_or(list[0].id());
+			const auto lookingId = state->lastFilterId.value_or(
+				trackActiveFilterAndUnreadAndReorder
+					? controller->activeChatsFilterCurrent()
+					: list[0].id());
 			for (auto i = 0; i < list.size(); i++) {
 				const auto &filter = list[i];
 				if (filter.id() == lookingId) {
@@ -436,7 +441,9 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 					scrollToIndex(
 						i,
 						wasLast ? anim::type::normal : anim::type::instant);
-					applyFilter(filter);
+					if (wasLast || !trackActiveFilterAndUnreadAndReorder) {
+						applyFilter(filter);
+					}
 					return;
 				}
 			}
@@ -522,6 +529,26 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		container->resize(w, h);
 		wrap->resize(w, h);
 	}, wrap->lifetime());
+
+	if (handleKeyboardSwitch) {
+		Shortcuts::ChatSwitchRequests(
+		) | rpl::filter([=](const Shortcuts::ChatSwitchRequest &request) {
+			return wrap->toggled()
+				&& ((request.action == Qt::Key_Tab)
+					|| (request.action == Qt::Key_Backtab));
+		}) | rpl::on_next([=](const Shortcuts::ChatSwitchRequest &request) {
+			const auto count = slider->sectionsCount();
+			const auto locked = slider->lockedFrom();
+			const auto limit = locked ? locked : count;
+			if (limit <= 1) {
+				return;
+			}
+			const auto back = (request.action == Qt::Key_Backtab);
+			const auto current = std::min(slider->activeSection(), limit - 1);
+			const auto next = (current + (back ? -1 : 1) + limit) % limit;
+			slider->setActiveSection(next);
+		}, wrap->lifetime());
+	}
 
 	return wrap;
 }

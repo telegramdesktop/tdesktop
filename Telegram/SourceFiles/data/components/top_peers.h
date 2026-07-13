@@ -15,6 +15,7 @@ namespace Data {
 
 enum class TopPeerType {
 	Chat,
+	BotGuestChat,
 	BotApp,
 };
 

@@ -681,7 +681,7 @@ CalendarBox::Inner::Inner(
 			(now - state.animationStart) / float64(st::fadeWrapDuration),
 			0.,
 			1.);
-		state.animation.update(dt, anim::linear);
+		state.animation.update(dt, anim::easeOutCubic);
 		if (dt >= 1.) {
 			state.animationStart = 0;
 			state.animationFinished = true;
@@ -841,24 +841,29 @@ void CalendarBox::Inner::paintRows(QPainter &p, QRect clip) {
 					auto image = state.image->image(_st.cellInner);
 					if (!image.isNull()) {
 						const auto opacity = grayedOut ? 0.5 : 1.;
-						const auto alpha = state.animating()
+						const auto shown = state.animating()
 							? state.animation.current()
 							: 1.;
-						dynamicImageProgress = alpha;
-						if (alpha > 0.) {
+						dynamicImageProgress = shown;
+						if (shown > 0.) {
 							auto hq = PainterHighQualityEnabler(p);
-							p.setOpacity(alpha * opacity);
-							const auto imgRect = myrtlrect(
+							const auto imgRect = QRectF(myrtlrect(
 								innerLeft,
 								innerTop,
 								_st.cellInner,
-								_st.cellInner);
+								_st.cellInner));
+							const auto side = _st.cellInner * shown;
+							const auto revealRect = QRectF(
+								imgRect.center()
+									- QPointF(side / 2., side / 2.),
+								QSizeF(side, side));
+							p.setOpacity(opacity);
 							p.drawImage(
-								imgRect,
+								revealRect,
 								Images::Circle(std::move(image)));
 							p.setPen(Qt::NoPen);
 							p.setBrush(st::songCoverOverlayFg);
-							p.drawEllipse(imgRect);
+							p.drawEllipse(revealRect);
 							p.setBrush(Qt::NoBrush);
 							p.setOpacity(1.);
 						}
@@ -898,15 +903,31 @@ void CalendarBox::Inner::paintRows(QPainter &p, QRect clip) {
 					: _styleColors.dayTextColor)
 				: st::windowSubTextFg);
 			if (dynamicImageProgress != -1) {
-				auto pen = p.pen();
-				pen.setColor(
-					anim::color(
-						pen.color(),
-						st::activeButtonFg->c,
-						dynamicImageProgress));
-				p.setPen(std::move(pen));
+				const auto label = _context->labelFromIndex(index);
+				p.setFont(st::calendarDaysFontOver);
+				p.drawText(rect, label, style::al_center);
+				const auto side = _st.cellInner * dynamicImageProgress;
+				if (side > 0.) {
+					const auto center = QRectF(myrtlrect(
+						innerLeft,
+						innerTop,
+						_st.cellInner,
+						_st.cellInner)).center();
+					auto path = QPainterPath();
+					path.addEllipse(center, side / 2., side / 2.);
+					p.save();
+					p.setClipPath(path);
+					p.setPen(st::activeButtonFg);
+					p.drawText(rect, label, style::al_center);
+					p.restore();
+				}
+				p.setFont(st::calendarDaysFont);
+			} else {
+				p.drawText(
+					rect,
+					_context->labelFromIndex(index),
+					style::al_center);
 			}
-			p.drawText(rect, _context->labelFromIndex(index), style::al_center);
 		}
 	}
 }

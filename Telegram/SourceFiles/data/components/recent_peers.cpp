@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/components/recent_peers.h"
 
+#include "core/version.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "history/history.h"

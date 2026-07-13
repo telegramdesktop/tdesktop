@@ -38,6 +38,9 @@ inline constexpr auto kAVBlockSize = 4096; // 4Kb for ffmpeg blocksize
 constexpr auto kUniversalTimeBase = AVRational{ 1, AV_TIME_BASE };
 constexpr auto kNormalAspect = AVRational{ 1, 1 };
 
+extern const char kOptionFFmpegMultiThread[];
+extern const char kOptionFFmpegThreadCount[];
+
 class AvErrorWrap {
 public:
 	AvErrorWrap(int code = 0) : _code(code) {
@@ -214,6 +217,7 @@ void LogError(
 	const QString &details = {});
 
 [[nodiscard]] const AVCodec *FindDecoder(not_null<AVCodecContext*> context);
+[[nodiscard]] int64_t MaxPixelsForAreaLimit(int64_t area);
 [[nodiscard]] crl::time PtsToTime(int64_t pts, AVRational timeBase);
 // Used for full duration conversion.
 [[nodiscard]] crl::time PtsToTimeCeil(int64_t pts, AVRational timeBase);

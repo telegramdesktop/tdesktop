@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_type.h"
 
+namespace Shortcuts {
+enum class Command;
+} // namespace Shortcuts
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -16,5 +20,6 @@ class SessionController;
 namespace Settings {
 
 [[nodiscard]] Type ShortcutsId();
+[[nodiscard]] QString ShortcutsHighlightId(::Shortcuts::Command command);
 
 } // namespace Settings

@@ -53,6 +53,7 @@ enum class Notification;
 namespace style {
 struct EmojiPan;
 struct FlatLabel;
+struct PopupMenu;
 } // namespace style
 
 namespace ChatHelpers {
@@ -268,6 +269,8 @@ private:
 	void displaySet(uint64 setId);
 	void removeMegagroupSet(bool locally);
 	void removeSet(uint64 setId);
+	[[nodiscard]] base::unique_qptr<Ui::PopupMenu> fillSetContextMenu(
+		const Set &set);
 	void refreshMySets();
 	void refreshFeaturedSets();
 	void refreshSearchSets();
@@ -534,5 +537,14 @@ private:
 	not_null<Main::Session*> session,
 	const style::FlatLabel &st,
 	uint64 setId);
+
+[[nodiscard]] base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
+	not_null<QWidget*> parent,
+	std::shared_ptr<Show> show,
+	not_null<Data::StickersSet*> set,
+	not_null<LocalStickersManager*> localSetsManager,
+	Fn<void(uint64 setId)> remove,
+	Fn<void()> repaint,
+	const style::PopupMenu &menuSt);
 
 } // namespace ChatHelpers

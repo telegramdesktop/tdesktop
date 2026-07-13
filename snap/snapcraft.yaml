@@ -40,7 +40,6 @@ parts:
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-ldav1d,--pop-state -s
     build-packages:
-      - clang
       - libboost-regex-dev
       - libheif-dev
       - libjxl-dev
@@ -87,6 +86,7 @@ parts:
       - ada
       - avif
       - ffmpeg
+      - minizip
       - mozjpeg
       - openal
       - protobuf
@@ -122,7 +122,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 4519c85c924b9da81f29d4aac045886f896ee479
+    source-commit: 701cfb4b3d6612188d168f198c842114fd64726f
     plugin: nil
     override-pull: |
       craftctl default
@@ -317,6 +317,18 @@ parts:
     after:
       - nv-codec-headers
 
+  minizip:
+    source: https://github.com/madler/zlib.git
+    source-depth: 1
+    source-commit: e3dc0a85b7032e98380dec011bc8f2c2ee0d8fca
+    source-subdir: contrib/minizip
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --libdir=\${exec_prefix}/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - --disable-shared
+    prime: [-./*]
+
   mozjpeg:
     source: https://github.com/mozilla/mozjpeg.git
     source-depth: 1
@@ -326,6 +338,7 @@ parts:
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
       - -DENABLE_SHARED=OFF
       - -DWITH_JPEG8=ON
       - -DPNG_SUPPORTED=OFF
@@ -375,7 +388,7 @@ parts:
   qt:
     source: https://github.com/qt/qt5.git
     source-depth: 1
-    source-tag: v6.11.0
+    source-tag: v6.11.1
     source-submodules:
       - qtbase
       - qtdeclarative

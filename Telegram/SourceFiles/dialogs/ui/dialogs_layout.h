@@ -23,6 +23,7 @@ namespace Data {
 class Forum;
 class Folder;
 class Thread;
+class CommunityInfo;
 } // namespace Data
 
 namespace Dialogs {
@@ -61,6 +62,7 @@ struct PaintContext {
 	TopicJumpCache *topicJumpCache = nullptr;
 	Data::Folder *folder = nullptr;
 	Data::Forum *forum = nullptr;
+	Data::CommunityInfo *community = nullptr;
 	required<QBrush> currentBg;
 	FilterId filter = 0;
 	float64 topicsExpanded = 0.;
@@ -74,6 +76,7 @@ struct PaintContext {
 	bool search = false;
 	bool narrow = false;
 	bool displayUnreadInfo = false;
+	bool insideCommunity = false;
 };
 
 extern const char kOptionDialogsMuteIcon[];

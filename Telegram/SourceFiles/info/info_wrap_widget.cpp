@@ -70,6 +70,7 @@ const style::InfoTopBar &TopBarStyle(Wrap wrap) {
 	const auto section = controller->section();
 	return (section.type() == Section::Type::BotStarRef)
 		|| (section.type() == Section::Type::Profile)
+		|| (section.type() == Section::Type::Community)
 		|| ((section.type() == Section::Type::Settings)
 			&& section.settingsType()->hasCustomTopBar())
 		|| (section.type() == Section::Type::Stories
@@ -771,6 +772,10 @@ void WrapWidget::setWrap(Wrap wrap) {
 	_wrap = wrap;
 }
 
+rpl::producer<bool> WrapWidget::contentTillBottomValue() const {
+	return _contentTillBottom.value();
+}
+
 rpl::producer<> WrapWidget::contentChanged() const {
 	return _contentChanges.events();
 }
@@ -1036,15 +1041,29 @@ void WrapWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void WrapWidget::keyPressEvent(QKeyEvent *e) {
+	if (_content && _content->processZoomKey(e)) {
+		return;
+	}
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
-		checkBeforeCloseByEscape((hasStackHistory() || wrap() != Wrap::Layer)
-			? Fn<void()>([=] { _controller->showBackFromStack(); })
-			: Fn<void()>([=] {
-				_controller->parentController()->hideSpecialLayer();
-			}));
+		if (!closeByBackButton()) {
+			checkBeforeCloseByEscape(
+				[=] { _controller->showBackFromStack(); });
+		}
 		return;
 	}
 	SectionWidget::keyPressEvent(e);
+}
+
+bool WrapWidget::closeByBackButton() {
+	if (!hasStackHistory() && wrap() != Wrap::Layer) {
+		return false;
+	}
+	checkBeforeCloseByEscape(hasStackHistory()
+		? Fn<void()>([=] { _controller->showBackFromStack(); })
+		: Fn<void()>([=] {
+			_controller->parentController()->hideSpecialLayer();
+		}));
+	return true;
 }
 
 void WrapWidget::updateContentGeometry() {
@@ -1092,6 +1111,7 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 void WrapWidget::updateGeometry(
 		QRect newGeometry,
 		bool expanding,
+		bool contentTillBottom,
 		int additionalScroll,
 		int maxVisibleHeight) {
 	auto scrollChanged = (_additionalScroll != additionalScroll);
@@ -1100,6 +1120,7 @@ void WrapWidget::updateGeometry(
 	_additionalScroll = additionalScroll;
 	_maxVisibleHeight = maxVisibleHeight;
 	_expanding = expanding;
+	_contentTillBottom = contentTillBottom;
 
 	_content->applyMaxVisibleHeight(maxVisibleHeight);
 

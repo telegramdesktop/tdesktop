@@ -971,7 +971,8 @@ void CreateGiveawayBox(
 				Ui::SelectCountriesBox,
 				state->countriesValue.current(),
 				std::move(done),
-				std::move(error)));
+				std::move(error),
+				Countries::Naming::Default));
 		};
 
 		const auto createCallback = [=](GiveawayType type) {

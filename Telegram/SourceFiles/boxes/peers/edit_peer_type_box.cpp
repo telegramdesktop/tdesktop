@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/box_content_divider.h"
+#include "ui/text/text_utilities.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -48,6 +49,68 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 
 namespace {
+
+[[nodiscard]] TextWithEntities RequestToJoinAbout(
+		bool joinToWrite,
+		bool requestToJoin,
+		bool isGroup,
+		const QString &guardBotUsername,
+		const QString &guardBotLink) {
+	if (!joinToWrite) {
+		return TextWithEntities{
+			tr::lng_manage_peer_send_only_members_about(tr::now)
+		};
+	} else if (requestToJoin && !guardBotUsername.isEmpty()) {
+		return (isGroup
+			? tr::lng_manage_peer_send_approve_members_about_managed
+			: tr::lng_manage_peer_send_approve_members_about_managed_channel)(
+				tr::now,
+				lt_bot,
+				tr::link('@' + guardBotUsername, guardBotLink),
+				tr::marked);
+	}
+	return TextWithEntities{
+		(isGroup
+			? tr::lng_manage_peer_send_approve_members_about
+			: tr::lng_manage_peer_send_approve_members_about_channel)(
+				tr::now)
+	};
+}
+
+[[nodiscard]] TextWithEntities ApplyRequestToJoinToInvitesText(
+		bool enabled,
+		bool isGroup,
+		int count) {
+	if (enabled) {
+		return (isGroup
+			? tr::lng_manage_peer_request_apply_enable_group
+			: tr::lng_manage_peer_request_apply_enable_channel)(
+				tr::now,
+				lt_count,
+				count,
+				tr::rich);
+	}
+	return (isGroup
+		? tr::lng_manage_peer_request_apply_disable_group
+		: tr::lng_manage_peer_request_apply_disable_channel)(
+			tr::now,
+			lt_count,
+			count,
+			tr::rich);
+}
+
+[[nodiscard]] int InviteLinksCount(
+		const MTPmessages_ChatAdminsWithInvites &result) {
+	auto count = 0;
+	result.match([&](const MTPDmessages_chatAdminsWithInvites &data) {
+		for (const auto &admin : data.vadmins().v) {
+			admin.match([&](const MTPDchatAdminWithInvites &data) {
+				count += data.vinvites_count().v;
+			});
+		}
+	});
+	return count;
+}
 
 class Controller : public base::has_weak_ptr {
 public:
@@ -87,12 +150,16 @@ public:
 		return _controls.joinToWrite && _controls.joinToWrite->toggled();
 	}
 	[[nodiscard]] bool requestToJoin() const {
-		return _controls.requestToJoin && _controls.requestToJoin->toggled();
+		return _controls.requestToJoin
+			&& (_isGroup || getPrivacy() != Privacy::HasUsername)
+			&& _controls.requestToJoin->toggled();
 	}
 
 	[[nodiscard]] rpl::producer<int> scrollToRequests() const {
 		return _scrollToRequests.events();
 	}
+
+	void submit(Fn<void(EditPeerTypeData)> done);
 
 	void showError(rpl::producer<QString> text) {
 		_controls.usernameInput->showError();
@@ -122,6 +189,7 @@ private:
 	object_ptr<Ui::RpWidget> createInviteLinkBlock();
 
 	void privacyChanged(Privacy value);
+	[[nodiscard]] bool requestsSectionShown(Privacy value) const;
 
 	void checkUsernameAvailability();
 	void askUsernameRevoke();
@@ -130,6 +198,12 @@ private:
 	void showUsernameGood();
 	void showUsernamePending();
 	void showUsernameEmpty();
+	[[nodiscard]] EditPeerTypeData collectData() const;
+	void requestInviteLinksCount(Fn<void(int)> done);
+	void confirmApplyToInviteLinks(
+		EditPeerTypeData data,
+		int count,
+		Fn<void(EditPeerTypeData)> done);
 
 	void fillPrivaciesButtons(
 		not_null<Ui::VerticalLayout*> parent,
@@ -152,6 +226,7 @@ private:
 	bool _useLocationPhrases = false;
 	bool _isGroup = false;
 	bool _goodUsername = false;
+	bool _originalRequestToJoin = false;
 
 	base::unique_qptr<Ui::VerticalLayout> _wrap;
 	base::Timer _checkUsernameTimer;
@@ -185,9 +260,104 @@ Controller::Controller(
 , _goodUsername(_dataSavedValue
 	? !_dataSavedValue->username.isEmpty()
 	: (_peer->isChannel() && !_peer->asChannel()->editableUsername().isEmpty()))
+, _originalRequestToJoin(_dataSavedValue
+	? _dataSavedValue->requestToJoin
+	: false)
 , _wrap(container)
 , _checkUsernameTimer([=] { checkUsernameAvailability(); }) {
 	_peer->updateFull();
+}
+
+EditPeerTypeData Controller::collectData() const {
+	const auto privacy = getPrivacy();
+	return EditPeerTypeData{
+		.privacy = privacy,
+		.username = (privacy == Privacy::HasUsername
+			? getUsernameInput()
+			: QString()),
+		.usernamesOrder = (privacy == Privacy::HasUsername
+			? usernamesOrder()
+			: std::vector<QString>()),
+		.hasDiscussionLink = _dataSavedValue
+			? _dataSavedValue->hasDiscussionLink
+			: false,
+		.noForwards = noForwards(),
+		.joinToWrite = joinToWrite(),
+		.requestToJoin = requestToJoin(),
+		.requestToJoinApplyToInvites = _dataSavedValue
+			? _dataSavedValue->requestToJoinApplyToInvites
+			: std::optional<bool>(),
+		.guardBotUsername = _dataSavedValue
+			? _dataSavedValue->guardBotUsername
+			: QString(),
+		.guardBotLink = _dataSavedValue
+			? _dataSavedValue->guardBotLink
+			: QString(),
+	};
+}
+
+void Controller::submit(Fn<void(EditPeerTypeData)> done) {
+	const auto privacy = getPrivacy();
+	if ((privacy == Privacy::HasUsername) && !goodUsername()) {
+		if (!getUsernameInput().isEmpty() || usernamesOrder().empty()) {
+			setFocusUsername();
+			return;
+		}
+	}
+
+	const auto data = collectData();
+	if (!_dataSavedValue
+		|| !_peer->isChannel()
+		|| _originalRequestToJoin == data.requestToJoin) {
+		done(data);
+		return;
+	}
+
+	requestInviteLinksCount([=](int count) {
+		if (count > 0) {
+			confirmApplyToInviteLinks(data, count, done);
+		} else {
+			done(data);
+		}
+	});
+}
+
+void Controller::requestInviteLinksCount(Fn<void(int)> done) {
+	_api.request(MTPmessages_GetAdminsWithInvites(
+		_peer->input()
+	)).done([=](const MTPmessages_ChatAdminsWithInvites &result) {
+		done(InviteLinksCount(result));
+	}).fail([=] {
+		done(0);
+	}).send();
+}
+
+void Controller::confirmApplyToInviteLinks(
+		EditPeerTypeData data,
+		int count,
+		Fn<void(EditPeerTypeData)> done) {
+	const auto finish = [=](bool apply) {
+		auto result = data;
+		result.requestToJoinApplyToInvites = apply;
+		done(result);
+	};
+	_show->showBox(Ui::MakeConfirmBox({
+		.text = ApplyRequestToJoinToInvitesText(
+			data.requestToJoin,
+			_isGroup,
+			count),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			finish(true);
+		},
+		.cancelled = [=](Fn<void()> close) {
+			close();
+			finish(false);
+		},
+		.confirmText = tr::lng_manage_peer_request_apply_confirm(),
+		.cancelText = tr::lng_manage_peer_request_apply_skip(),
+		.title = tr::lng_manage_peer_request_apply_title(),
+	}));
 }
 
 void Controller::createContent() {
@@ -212,7 +382,7 @@ void Controller::createContent() {
 	using namespace Settings;
 
 	if (!_linkOnly) {
-		if (_peer->isMegagroup()) {
+		if (_peer->isChannel()) {
 			_controls.whoSendWrap = _wrap->add(
 				object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 					_wrap.get(),
@@ -220,7 +390,7 @@ void Controller::createContent() {
 			const auto wrap = _controls.whoSendWrap->entity();
 
 			Ui::AddSkip(wrap);
-			if (_dataSavedValue->hasDiscussionLink) {
+			if (_peer->isMegagroup() && _dataSavedValue->hasDiscussionLink) {
 				Ui::AddSubsectionTitle(wrap, tr::lng_manage_peer_send_title());
 
 				_controls.joinToWrite = wrap->add(EditPeerInfoBox::CreateButton(
@@ -239,7 +409,7 @@ void Controller::createContent() {
 				}, wrap->lifetime());
 			} else {
 				_controls.whoSendWrap->toggle(
-					(_controls.privacy->current() == Privacy::HasUsername),
+					true,
 					anim::type::instant);
 			}
 			auto joinToWrite = _controls.joinToWrite
@@ -251,7 +421,9 @@ void Controller::createContent() {
 					wrap,
 					EditPeerInfoBox::CreateButton(
 						wrap,
-						tr::lng_manage_peer_send_approve_members(),
+						(_isGroup
+							? tr::lng_manage_peer_send_approve_members
+							: tr::lng_manage_peer_send_approve_subscribers)(),
 						rpl::single(QString()),
 						[=] {},
 						st::peerPermissionsButton,
@@ -264,14 +436,22 @@ void Controller::createContent() {
 			) | rpl::on_next([=](bool toggled) {
 				_dataSavedValue->requestToJoin = toggled;
 			}, wrap->lifetime());
+			auto requestToJoin = _controls.requestToJoin->toggledValue();
 
 			Ui::AddSkip(wrap);
 			Ui::AddDividerText(
 				wrap,
-				rpl::conditional(
+				rpl::combine(
 					std::move(joinToWrite),
-					tr::lng_manage_peer_send_approve_members_about(),
-					tr::lng_manage_peer_send_only_members_about()));
+					std::move(requestToJoin)
+				) | rpl::map([=](bool join, bool approval) {
+					return RequestToJoinAbout(
+						join,
+						approval,
+						_isGroup,
+						_dataSavedValue->guardBotUsername,
+						_dataSavedValue->guardBotLink);
+				}));
 		}
 		Ui::AddSkip(_wrap.get());
 		Ui::AddSubsectionTitle(
@@ -313,6 +493,11 @@ void Controller::createContent() {
 		_controls.usernameWrap->toggle(
 			(forShowing == Privacy::HasUsername),
 			anim::type::instant);
+		if (_controls.whoSendWrap) {
+			_controls.whoSendWrap->toggle(
+				requestsSectionShown(forShowing),
+				anim::type::instant);
+		}
 	}
 }
 
@@ -498,8 +683,7 @@ void Controller::privacyChanged(Privacy value) {
 			return;
 		}
 		_controls.whoSendWrap->toggle(
-			(value == Privacy::HasUsername
-				|| (_dataSavedValue && _dataSavedValue->hasDiscussionLink)),
+			requestsSectionShown(value),
 			anim::type::instant);
 	};
 	const auto refreshVisibilities = [&] {
@@ -535,6 +719,10 @@ void Controller::privacyChanged(Privacy value) {
 		refreshVisibilities();
 	}
 	setFocusUsername();
+}
+
+bool Controller::requestsSectionShown(Privacy value) const {
+	return _isGroup || value != Privacy::HasUsername;
 }
 
 void Controller::checkUsernameAvailability() {
@@ -759,29 +947,11 @@ void EditPeerTypeBox::prepare() {
 
 	if (_savedCallback.has_value()) {
 		addButton(tr::lng_settings_save(), [=] {
-			const auto v = controller->getPrivacy();
-			if ((v == Privacy::HasUsername) && !controller->goodUsername()) {
-				if (!controller->getUsernameInput().isEmpty()
-					|| controller->usernamesOrder().empty()) {
-					controller->setFocusUsername();
-					return;
-				}
-			}
-
-			auto local = std::move(*_savedCallback);
-			local(EditPeerTypeData{
-				.privacy = v,
-				.username = (v == Privacy::HasUsername
-					? controller->getUsernameInput()
-					: QString()),
-				.usernamesOrder = (v == Privacy::HasUsername
-					? controller->usernamesOrder()
-					: std::vector<QString>()),
-				.noForwards = controller->noForwards(),
-				.joinToWrite = controller->joinToWrite(),
-				.requestToJoin = controller->requestToJoin(),
-			}); // We don't need username with private type.
-			closeBox();
+			controller->submit(crl::guard(this, [=](EditPeerTypeData data) {
+				auto local = std::move(*_savedCallback);
+				local(std::move(data));
+				closeBox();
+			}));
 		});
 		addButton(tr::lng_cancel(), [=] { closeBox(); });
 	} else {

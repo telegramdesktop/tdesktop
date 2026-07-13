@@ -36,6 +36,7 @@ ThreeStateIcon {
 }
 
 VerifiedBadge {
+	position: point;
 	color: color;
 	height: pixels;
 }
@@ -99,6 +100,16 @@ defaultDialogRow: DialogRow {
 	textLeft: 68px;
 	textTop: 34px;
 }
+communityRequestableListItem: PeerListItem(defaultPeerListItem) {
+	height: dialogsRowHeight;            // == st::defaultDialogRow.height (62px)
+	photoSize: 46px;                     // == st::defaultDialogRow.photoSize
+	photoPosition: point(10px, 8px);     // == st::defaultDialogRow.padding left/top (10,8)
+	namePosition: point(68px, 10px);     // == st::defaultDialogRow.nameLeft / nameTop
+	statusPosition: point(68px, 34px);   // == st::defaultDialogRow.textLeft / textTop
+}
+communityRequestableList: PeerList(defaultPeerList) {
+	item: communityRequestableListItem;
+}
 taggedDialogRow: DialogRow(defaultDialogRow) {
 	height: 72px;
 	textTop: 30px;
@@ -114,6 +125,34 @@ forumDialogRow: DialogRow(defaultDialogRow) {
 taggedForumDialogRow: DialogRow(forumDialogRow) {
 	height: 96px;
 	tagTop: 77px;
+}
+communityInfoDialogRow: DialogRow(defaultDialogRow) {
+	padding: margins(22px, 8px, 18px, 8px);
+	nameLeft: 80px;
+	textLeft: 80px;
+}
+communityInfoTaggedDialogRow: DialogRow(taggedDialogRow) {
+	padding: margins(22px, 8px, 18px, 8px);
+	nameLeft: 80px;
+	textLeft: 80px;
+}
+communityInfoForumDialogRow: DialogRow(forumDialogRow) {
+	padding: margins(22px, 8px, 18px, 8px);
+	nameLeft: 80px;
+	textLeft: 80px;
+}
+communityInfoTaggedForumDialogRow: DialogRow(taggedForumDialogRow) {
+	padding: margins(22px, 8px, 18px, 8px);
+	nameLeft: 80px;
+	textLeft: 80px;
+}
+communityInfoRequestableListItem: PeerListItem(communityRequestableListItem) {
+	photoPosition: point(22px, 8px);     // == st::communityInfoDialogRow.padding left/top (22,8)
+	namePosition: point(80px, 10px);     // == st::communityInfoDialogRow.nameLeft / nameTop
+	statusPosition: point(80px, 34px);   // == st::communityInfoDialogRow.textLeft / textTop
+}
+communityInfoRequestableList: PeerList(defaultPeerList) {
+	item: communityInfoRequestableListItem;
 }
 dialogRowFilterTagSkip: 4px;
 dialogRowFilterTagStyle: TextStyle(defaultTextStyle) {
@@ -153,10 +192,16 @@ dialogsCallBadgeSkip: point(-3px, -3px);
 dialogsSubscriptionBadgeSize: 16px;
 dialogsSubscriptionBadgeSkip: point(-4px, -4px);
 
+dialogsCommunityBadgeSize: 16px;
+dialogsCommunityBadgeSkip: point(-3px, -3px);
+dialogsCommunityBadgeStroke: 2px;
+dialogsCommunityBadgeLine: 1px;
+
 dialogsTTLBadgeSize: 20px;
 dialogsTTLBadgeInnerMargins: margins(2px, 2px, 2px, 2px);
 // Relative to a photo place, not a whole userpic place.
 dialogsTTLBadgeSkip: point(1px, 1px);
+dialogsCommunityHiddenBadgeIcon: icon{{ "community/requests_hidden", premiumButtonFg }};
 
 dialogsSpeakingStrokeNumerator: 16px;
 dialogsSpeakingDenominator: 8.;
@@ -365,6 +410,13 @@ dialogsCancelSearch: CrossButton {
 	ripple: emptyRippleAnimation;
 }
 
+dialogsCalendarTopBar: IconButton(dialogsCalendar) {
+	width: 26px;
+}
+dialogsSearchFromTopBar: IconButton(dialogsSearchFrom) {
+	width: 26px;
+}
+
 dialogCalendar: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs/dialogs_calendar", lightButtonFg }};
 	iconOver: icon {{ "dialogs/dialogs_calendar", lightButtonFgOver }};
@@ -436,6 +488,7 @@ dialogsLockIcon: ThreeStateIcon {
 dialogsVerifiedColors: VerifiedBadge {
 	height: 20px;
 	color: dialogsVerifiedIconBg;
+	position: point(-1px, 0px);
 }
 dialogsVerifiedColorsOver: VerifiedBadge(dialogsVerifiedColors) {
 	color: dialogsVerifiedIconBgOver;
@@ -531,9 +584,6 @@ dialogsSearchInMenu: PopupMenu(defaultPopupMenu) {
 dialogsSearchInCheck: icon {{ "player/player_check", mediaPlayerActiveFg }};
 dialogsSearchInCheckSkip: 8px;
 dialogsSearchFromStyle: defaultTextStyle;
-dialogsSearchFromPalette: TextPalette(defaultTextPalette) {
-	linkFg: dialogsNameFg;
-}
 
 dialogsScamPadding: margins(2px, 0px, 2px, 0px);
 dialogsScamFont: font(9px semibold);
@@ -565,6 +615,11 @@ dialogsMiniForward: DialogsMiniIcon {
 dialogsMiniReplyIcon: IconEmoji {
 	icon: icon {{ "mini_forward-flip_horizontal", attentionButtonFg }};
 	padding: margins(0px, 2px, 0px, 0px);
+}
+
+dialogsMiniPollIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_poll-17x17", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
 }
 
 dialogsMiniReplyStory: DialogsMiniIcon {
@@ -896,6 +951,21 @@ dialogsTopBarSuggestionTitleStyle: TextStyle(defaultTextStyle) {
 dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }
+dialogsTopBarSuggestionMargins: margins(8px, 8px, 8px, 8px);
+dialogsTopBarSuggestionShadow: BoxShadow {
+	blurRadius: 3px;
+	offset: point(0px, 1px);
+	opacity: 0.09;
+}
+dialogsRequestsBubbleIconSize: 26px;
+dialogsRequestsBubbleIconRadius: 6px;
+dialogsRequestsBubbleIconBg: dialogsBgActive;
+dialogsRequestsBubbleIcon: icon{{ "chat/filled_requests-20x20", dialogsNameFgActive }};
+dialogsCommunityRequestsBubbleHeight: 44px;
+dialogsCommunityRequestsBubbleIconMargin: 9px;
+dialogsCommunityRequestsBubbleTextSkip: 48px;
+dialogsCommunityRequestsBubbleRightInset: 9px;
+dialogsCommunityRequestsBubbleRadius: 11px;
 dialogsSuggestionDeniedAuthLottie: size(70px, 70px);
 dialogsSuggestionDeniedAuthLottieCircle: size(90px, 90px);
 dialogsSuggestionDeniedAuthLottieMargins: margins(10px, 10px, 10px, 10px);

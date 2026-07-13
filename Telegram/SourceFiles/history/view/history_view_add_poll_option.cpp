@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_element_overlay.h"
+#include "history/view/controls/history_view_webpage_processor.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/menu/history_view_poll_menu.h"
 #include "api/api_polls.h"
@@ -22,12 +23,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "poll/poll_link_box.h"
+#include "poll/poll_link_thumbnail.h"
 #include "poll/poll_media_upload.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/dynamic_thumbnails.h"
@@ -35,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "window/section_widget.h"
@@ -69,6 +74,11 @@ private:
 	void setupAttach();
 	void showStickerPanel();
 	void subscribeToPollUpdates();
+	void chooseLink();
+	void resolveLink(QString url);
+	void applyResolvedWebPage(not_null<WebPageData*> page);
+	void subscribeToWebPageUpdates(not_null<WebPageData*> page);
+	void clearMedia();
 	[[nodiscard]] static QString mapErrorToText(const QString &error);
 
 	const not_null<PollData*> _poll;
@@ -84,6 +94,8 @@ private:
 	base::unique_qptr<Ui::PopupMenu> _mediaMenu;
 	std::unique_ptr<PollMediaUpload::PollMediaUploader> _uploader;
 	std::shared_ptr<PollMediaUpload::PollMediaState> _mediaState;
+	std::shared_ptr<HistoryView::Controls::WebpageResolver> _webpageResolver;
+	rpl::lifetime _webpageLifetime;
 
 	rpl::event_stream<> _submittedEvents;
 	rpl::event_stream<> _cancelledEvents;
@@ -100,7 +112,9 @@ AddPollOptionWidget::AddPollOptionWidget(
 , _itemId(itemId)
 , _controller(controller)
 , _session(&controller->session())
-, _mediaState(std::make_shared<PollMediaUpload::PollMediaState>()) {
+, _mediaState(std::make_shared<PollMediaUpload::PollMediaState>())
+, _webpageResolver(
+	std::make_shared<HistoryView::Controls::WebpageResolver>(_session)) {
 	const auto item = _session->data().message(_itemId);
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (peer) {
@@ -243,7 +257,7 @@ void AddPollOptionWidget::setupAttach() {
 					_mediaState,
 					std::move(list));
 			},
-			.remove = [=] { _uploader->clearMedia(_mediaState); },
+			.remove = [=] { clearMedia(); },
 		})) {
 			return;
 		}
@@ -264,9 +278,95 @@ void AddPollOptionWidget::setupAttach() {
 			tr::lng_chat_intro_choose_sticker(tr::now),
 			[=] { showStickerPanel(); },
 			&st::menuIconStickers);
+		_mediaMenu->addAction(
+			tr::lng_polls_create_option_link(tr::now),
+			[=] { chooseLink(); },
+			&st::menuIconLink);
 		_mediaMenu->popup(QCursor::pos());
 	});
 	_uploader->installDropToField(_field, _mediaState, false);
+}
+
+void AddPollOptionWidget::chooseLink() {
+	const auto initial = _mediaState->media.url;
+	const auto callback = crl::guard(this, [=](QString url) {
+		auto pollMedia = PollMedia();
+		pollMedia.url = url;
+		_uploader->setMedia(
+			_mediaState,
+			pollMedia,
+			Poll::MakeLinkThumbnail(),
+			false);
+		resolveLink(url);
+	});
+	const auto box = _controller->show(Box(
+		Poll::AddPollOptionLinkBox,
+		initial,
+		callback));
+	if (const auto raw = box.get()) {
+		raw->boxClosing(
+		) | rpl::on_next(crl::guard(this, [this] {
+			_field->setFocus();
+		}), raw->lifetime());
+	}
+}
+
+void AddPollOptionWidget::applyResolvedWebPage(
+		not_null<WebPageData*> page) {
+	auto pollMedia = PollMedia();
+	pollMedia.webpage = page;
+	pollMedia.url = page->url.isEmpty()
+		? _mediaState->media.url
+		: page->url;
+	auto thumb = page->photo
+		? Ui::MakePhotoThumbnailCenterCrop(page->photo, FullMsgId())
+		: Poll::MakeLinkThumbnail();
+	const auto rounded = (page->photo != nullptr);
+	_uploader->setMedia(_mediaState, pollMedia, std::move(thumb), rounded);
+}
+
+void AddPollOptionWidget::subscribeToWebPageUpdates(
+		not_null<WebPageData*> page) {
+	_session->data().webPageUpdates(
+	) | rpl::filter([=](not_null<WebPageData*> updated) {
+		return (updated == page) && (_mediaState->media.webpage == page);
+	}) | rpl::on_next([=] {
+		applyResolvedWebPage(page);
+	}, _webpageLifetime);
+}
+
+void AddPollOptionWidget::resolveLink(QString url) {
+	_webpageLifetime.destroy();
+	const auto token = _mediaState->token;
+	const auto apply = [=](const QString &resolvedUrl) {
+		if (_mediaState->token != token || resolvedUrl != url) {
+			return;
+		}
+		const auto cached = _webpageResolver->lookup(url);
+		if (!cached || !*cached) {
+			return;
+		}
+		const auto page = *cached;
+		applyResolvedWebPage(page);
+		subscribeToWebPageUpdates(page);
+	};
+	if (const auto cached = _webpageResolver->lookup(url)) {
+		if (*cached) {
+			applyResolvedWebPage(*cached);
+			subscribeToWebPageUpdates(*cached);
+		}
+		return;
+	}
+	_webpageResolver->resolved(
+	) | rpl::filter([=](const QString &resolvedUrl) {
+		return (resolvedUrl == url) && (_mediaState->token == token);
+	}) | rpl::take(1) | rpl::on_next(apply, _webpageLifetime);
+	_webpageResolver->request(url);
+}
+
+void AddPollOptionWidget::clearMedia() {
+	_webpageLifetime.destroy();
+	_uploader->clearMedia(_mediaState);
 }
 
 void AddPollOptionWidget::showStickerPanel() {

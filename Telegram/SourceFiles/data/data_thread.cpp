@@ -117,6 +117,10 @@ HistoryUnreadThings::ConstProxy Thread::unreadPollVotes() const {
 bool Thread::canToggleUnread(bool nowUnread) const {
 	if ((asTopic() || asForum()) && !nowUnread) {
 		return false;
+	} else if (const auto channel = asHistory() ? peer()->asChannel() : nullptr
+		; channel && channel->isCommunity() && !nowUnread) {
+		// Communities support "mark as read" but not "mark as unread".
+		return false;
 	} else if (asSublist() && owningHistory()->peer->isSelf()) {
 		return false;
 	} else if (asHistory() && peer()->amMonoforumAdmin()) {

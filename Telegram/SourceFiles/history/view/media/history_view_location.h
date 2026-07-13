@@ -28,7 +28,8 @@ public:
 		not_null<Data::CloudImage*> data,
 		Data::LocationPoint point,
 		Element *replacing = nullptr,
-		TimeId livePeriod = 0);
+		TimeId livePeriod = 0,
+		QSize sizeOverride = QSize());
 	Location(
 		not_null<Element*> parent,
 		not_null<Data::CloudImage*> data,
@@ -122,6 +123,7 @@ private:
 	mutable std::unique_ptr<Ui::BoxShadow> _pinShadow;
 	Ui::Text::String _title, _description;
 	ClickHandlerPtr _link;
+	QSize _sizeOverride;
 	bool _liveLocation = false;
 
 	int _thumbnailHeight = 0;

@@ -200,6 +200,75 @@ void SaveChannelAdmin(
 	}).send();
 }
 
+[[nodiscard]] ChatAdminRightsInfo StripLocalAdminRights(
+		ChatAdminRightsInfo rights) {
+	rights.flags &= ~ChatAdminRight::ProcessJoinRequests;
+	return rights;
+}
+
+void SaveGuardBot(
+		std::shared_ptr<Ui::Show> show,
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user,
+		bool processJoinRequests,
+		Fn<void()> onDone,
+		Fn<void()> onFail) {
+	const auto info = user->botInfo.get();
+	const auto userId = peerToUser(user->id);
+	const auto guardBotId = channel->guardBotId();
+	if (!info || !info->supportsGuard) {
+		if (onDone) {
+			onDone();
+		}
+		return;
+	} else if (processJoinRequests
+		&& channel->requestToJoin()
+		&& guardBotId == userId) {
+		if (onDone) {
+			onDone();
+		}
+		return;
+	} else if (!processJoinRequests && guardBotId != userId) {
+		if (onDone) {
+			onDone();
+		}
+		return;
+	}
+
+	using Flag = MTPchannels_ToggleJoinRequest::Flag;
+	const auto keepRequests = processJoinRequests || channel->requestToJoin();
+	channel->session().api().request(MTPchannels_ToggleJoinRequest(
+		MTP_flags(Flag::f_guard_bot),
+		channel->inputChannel(),
+		MTP_bool(keepRequests),
+		processJoinRequests ? user->inputUser() : MTP_inputUserEmpty()
+	)).done([=](const MTPUpdates &result) {
+		channel->session().api().applyUpdates(result);
+		if (processJoinRequests) {
+			channel->addFlags(ChannelDataFlag::RequestToJoin);
+			channel->setGuardBotId(userId);
+		} else {
+			if (!keepRequests) {
+				channel->removeFlags(ChannelDataFlag::RequestToJoin);
+			}
+			channel->setGuardBotId(UserId());
+		}
+		channel->session().changes().peerUpdated(
+			channel,
+			Data::PeerUpdate::Flag::FullInfo);
+		if (onDone) {
+			onDone();
+		}
+	}).fail([=](const MTP::Error &error) {
+		if (show) {
+			show->showToast(error.type());
+		}
+		if (onFail) {
+			onFail();
+		}
+	}).send();
+}
+
 void SaveChatParticipantKick(
 		std::shared_ptr<Ui::Show> show,
 		not_null<ChatData*> chat,
@@ -292,16 +361,38 @@ Fn<void(
 			ChatAdminRightsInfo oldRights,
 			ChatAdminRightsInfo newRights,
 			const std::optional<QString> &rank) {
-		const auto done = [=] { if (onDone) onDone(newRights, rank); };
+		const auto processJoinRequests = ((newRights.flags
+			& ChatAdminRight::ProcessJoinRequests) != 0);
+		const auto manageGuardBot = peer->isMegagroup()
+			|| processJoinRequests;
+		const auto strippedOldRights = StripLocalAdminRights(oldRights);
+		const auto strippedNewRights = StripLocalAdminRights(newRights);
+		const auto done = [=] {
+			if (onDone) {
+				onDone(strippedNewRights, rank);
+			}
+		};
 		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
 			SaveChannelAdmin(
 				show,
 				channel,
 				user,
-				oldRights,
-				newRights,
+				strippedOldRights,
+				strippedNewRights,
 				rank,
-				done,
+				[=] {
+					if (manageGuardBot) {
+						SaveGuardBot(
+							show,
+							channel,
+							user,
+							processJoinRequests,
+							done,
+							onFail);
+					} else {
+						done();
+					}
+				},
 				onFail);
 		};
 		if (const auto chat = peer->asChatNotMigrated()) {
@@ -311,9 +402,10 @@ Fn<void(
 					SaveMemberRank(show, chat, user, *rank, [] {}, [] {});
 				}
 			};
-			if (newRights.flags == chat->defaultAdminRights(user).flags) {
+			if (strippedNewRights.flags
+				== chat->defaultAdminRights(user).flags) {
 				saveChatAdmin(true);
-			} else if (!newRights.flags) {
+			} else if (!strippedNewRights.flags) {
 				saveChatAdmin(false);
 			} else {
 				peer->session().api().migrateChat(chat, saveForChannel);
@@ -1695,8 +1787,11 @@ void ParticipantsBoxController::loadMoreRows() {
 }
 
 void ParticipantsBoxController::refreshDescription() {
+	const auto channel = _peer->asChannel();
 	setDescriptionText((_role == Role::Kicked)
-		? ((_peer->isChat() || _peer->isMegagroup())
+		? ((channel && channel->isCommunity())
+			? tr::lng_community_removed_list_about
+			: (_peer->isChat() || _peer->isMegagroup())
 			? tr::lng_group_removed_list_about
 			: tr::lng_channel_removed_list_about)(tr::now)
 		: (delegate()->peerListFullRowsCount() > 0)
@@ -1901,7 +1996,7 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 				? &st::menuIconProfile
 				: &st::menuIconInfo));
 	}
-	if (user) {
+	if (user && !_peer->isBroadcast()) {
 		const auto isSelf = user->isSelf();
 		const auto canEditSelf = isSelf
 			&& !_peer->amRestricted(ChatRestriction::EditRank);
@@ -2021,8 +2116,32 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 			}
 		});
 		const auto show = delegate()->peerListUiShow();
-		box->setSaveCallback(
-			SaveAdminCallback(show, _peer, user, done, fail));
+		auto save = SaveAdminCallback(show, _peer, user, done, fail);
+		const auto channel = _peer->asChannel();
+		const auto promoting = !adminRights.has_value();
+		if (channel && channel->isCommunity() && promoting) {
+			box->setSaveCallback([=](
+					ChatAdminRightsInfo oldRights,
+					ChatAdminRightsInfo newRights,
+					const std::optional<QString> &rank) {
+				const auto sure = [=](Fn<void()> &&close) {
+					close();
+					save(oldRights, newRights, rank);
+				};
+				show->showBox(Ui::MakeConfirmBox({
+					.text = tr::lng_community_admin_promote_sure(
+						tr::now,
+						lt_user,
+						tr::bold(user->shortName()),
+						tr::marked),
+					.confirmed = sure,
+					.confirmText = tr::lng_community_admin_promote(),
+					.title = tr::lng_community_admin_promote_title(),
+				}));
+			});
+		} else {
+			box->setSaveCallback(std::move(save));
+		}
 	}
 	_editParticipantBox = showBox(std::move(box));
 }

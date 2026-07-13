@@ -155,14 +155,22 @@ AbstractDedicatedLoader::AbstractDedicatedLoader(
 	int chunkSize)
 : _filepath(filepath)
 , _chunkSize(chunkSize) {
+	progress() | rpl::on_next([=](Progress progress) {
+		QMutexLocker lock(&_sizesMutex);
+		_alreadySize = progress.already;
+		_totalSize = progress.size;
+		_preferPercent = progress.percent;
+	}, lifetime());
 }
 
 void AbstractDedicatedLoader::start() {
-	if (!validateOutput()
-		|| (!_output.isOpen() && !_output.open(QIODevice::Append))) {
-		QFile(_filepath).remove();
-		threadSafeFailed();
-		return;
+	if (!_filepath.isEmpty()) {
+		if (!validateOutput()
+			|| (!_output.isOpen() && !_output.open(QIODevice::Append))) {
+			QFile(_filepath).remove();
+			threadSafeFailed();
+			return;
+		}
 	}
 
 	LOG(("Update Info: Starting loading '%1' from %2 offset."
@@ -181,6 +189,10 @@ int64 AbstractDedicatedLoader::totalSize() const {
 	return _totalSize;
 }
 
+bool AbstractDedicatedLoader::preferPercent() const {
+	return _preferPercent;
+}
+
 rpl::producer<QString> AbstractDedicatedLoader::ready() const {
 	return _ready.events();
 }
@@ -194,6 +206,9 @@ rpl::producer<> AbstractDedicatedLoader::failed() const {
 }
 
 void AbstractDedicatedLoader::wipeFolder() {
+	if (_filepath.isEmpty()) {
+		return;
+	}
 	QFileInfo info(_filepath);
 	const auto dir = info.dir();
 	const auto all = dir.entryInfoList(QDir::Files);

@@ -695,12 +695,16 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 		const auto last = state->buttons.back().get();
 		if (type != Type::AuctionRecipient) {
 			const auto boosting = (type == Type::BoostReplace);
-			const auto back = boosting ? last : right;
+			const auto guard = (type == Type::GuardBotReplace);
+			const auto gradient = boosting || guard;
+			const auto back = gradient ? last : right;
 			const auto add = st::boostReplaceIconAdd;
-			const auto &icon = boosting
+			const auto &icon = guard
+				? st::guardBotReplaceIcon
+				: boosting
 				? st::boostReplaceIcon
 				: st::starrefJoinIcon;
-			const auto skip = boosting ? st::boostReplaceIconSkip : 0;
+			const auto skip = gradient ? st::boostReplaceIconSkip : 0;
 			const auto w = icon.width() + 2 * skip;
 			const auto h = icon.height() + 2 * skip;
 			const auto x = back->x() + back->width() - w + add.x();
@@ -708,8 +712,9 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 
 			pen.setWidthF(drawCornerPeer ? stroke * 2 : stroke);
 			q.setPen(pen);
-			q.drawEllipse(x - half, y - half, w + stroke, h + stroke);
 			if (drawCornerPeer) {
+				q.setBrush(Qt::NoBrush);
+				q.drawEllipse(x - half, y - half, w + stroke, h + stroke);
 				drawCornerPeer(
 					q,
 					x - half,
@@ -722,6 +727,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 					QPointF(x, y));
 				brush.setStops(Ui::Premium::ButtonGradientStops());
 				q.setBrush(brush);
+				q.drawEllipse(x - half, y - half, w + stroke, h + stroke);
 				icon.paint(q, x + skip, y + skip, outerw);
 			}
 		}
@@ -1108,4 +1114,3 @@ object_ptr<Ui::RpWidget> CreateGiftTransfer(
 	}, overlay->lifetime());
 	return result;
 }
-

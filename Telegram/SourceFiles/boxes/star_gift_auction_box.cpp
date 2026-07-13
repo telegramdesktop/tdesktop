@@ -309,7 +309,11 @@ Fn<void(not_null<Ui::PopupMenu*>)> MakeAuctionFillMenuCallback(
 
 		menu->addAction(tr::lng_auction_menu_copy_link(tr::now), [=] {
 			QApplication::clipboard()->setText(url);
-			show->showToast(tr::lng_username_copied(tr::now));
+			show->showToast({
+				.text = { tr::lng_username_copied(tr::now) },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		}, &st::menuIconLink);
 
 		menu->addAction(tr::lng_auction_menu_share(tr::now), [=] {

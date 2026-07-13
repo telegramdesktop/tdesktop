@@ -198,6 +198,14 @@ int AppConfig::pollAnswerDeletePeriod() const {
 	return get<int>(u"poll_answer_delete_period"_q, 300);
 }
 
+int AppConfig::pollCountriesMax() const {
+	return get<int>(u"poll_countries_max"_q, 12);
+}
+
+QString AppConfig::phoneCountryIso2() const {
+	return get<QString>(u"phone_country_iso2"_q, QString());
+}
+
 int AppConfig::todoListItemsLimit() const {
 	return get<int>(
 		u"todo_items_max"_q,
@@ -341,7 +349,6 @@ void AppConfig::refresh(bool force) {
 			}
 			updateIgnoredRestrictionReasons(std::move(was));
 
-			_aiComposeStyles.reset();
 			_groupCallColorings = {};
 
 			DEBUG_LOG(("getAppConfig result handled."));
@@ -550,39 +557,6 @@ bool AppConfig::newRequirePremiumFree() const {
 	return get<bool>(
 		u"new_noncontact_peers_require_premium_without_ownpremium"_q,
 		false);
-}
-
-std::vector<AppConfig::AiComposeStyle> AppConfig::aiComposeStyles() const {
-	if (_aiComposeStyles) {
-		return *_aiComposeStyles;
-	}
-	_aiComposeStyles = getValue(u"ai_compose_styles"_q, [&](const auto &value) {
-		return value.match([&](const MTPDjsonArray &data) {
-			auto result = std::vector<AiComposeStyle>();
-			result.reserve(data.vvalue().v.size());
-			for (const auto &entry : data.vvalue().v) {
-				if (entry.type() != mtpc_jsonArray) {
-					return std::vector<AiComposeStyle>();
-				}
-				const auto &list = entry.c_jsonArray().vvalue().v;
-				if (list.size() < 3
-					|| (list[0].type() != mtpc_jsonString)
-					|| (list[1].type() != mtpc_jsonString)
-					|| (list[2].type() != mtpc_jsonString)) {
-					return std::vector<AiComposeStyle>();
-				}
-				result.push_back({
-					.type = qs(list[0].c_jsonString().vvalue()),
-					.emojiId = qs(list[1].c_jsonString().vvalue()).toULongLong(),
-					.title = qs(list[2].c_jsonString().vvalue()),
-				});
-			}
-			return result;
-		}, [&](const auto &) {
-			return std::vector<AiComposeStyle>();
-		});
-	});
-	return *_aiComposeStyles;
 }
 
 auto AppConfig::groupCallColorings() const -> std::vector<StarsColoring> {

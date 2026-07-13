@@ -84,6 +84,10 @@ class Session;
 struct SendAsKey;
 } // namespace Main
 
+namespace Iv {
+struct RichPage;
+} // namespace Iv
+
 namespace Webrtc {
 enum class RecordAvailability : uchar;
 } // namespace Webrtc
@@ -98,6 +102,7 @@ enum class SendProgressType;
 } // namespace Api
 
 namespace HistoryView::Controls {
+class RichDraftPreview;
 class VoiceRecordBar;
 class TTLButton;
 class WebpageProcessor;
@@ -258,6 +263,7 @@ public:
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
 	[[nodiscard]] Data::WebPageDraft webPageDraft() const;
+	[[nodiscard]] std::shared_ptr<const Iv::RichPage> shownRichMessage() const;
 	void setText(const TextWithTags &text);
 	void clear();
 	void hidePanelsAnimated();
@@ -326,6 +332,7 @@ private:
 	void updateControlsParents();
 	void updateSubmitSettings();
 	void updateSendButtonType();
+	void updateSendLockBadge();
 	void updateMessagesTTLShown();
 	bool updateSendAsButton(std::shared_ptr<Data::GroupCall> videoStream);
 	void updateAttachBotsMenu();
@@ -344,6 +351,9 @@ private:
 		Ui::InputField::MimeAction action);
 	void updateSendAsFileVisibility();
 	void updateSendAsFileGeometry();
+	void initExpandButton();
+	void updateExpandButtonVisibility();
+	void updateExpandButtonGeometry();
 	void setupSendMenu(
 		not_null<Ui::RpWidget*> button,
 		Fn<void(Api::SendOptions)> send);
@@ -371,6 +381,7 @@ private:
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
 	void showAiComposeBox();
+	void triggerAiApplyInPlace();
 	[[nodiscard]] bool canSendAiComposeDirect() const;
 
 	[[nodiscard]] bool showRecordButton() const;
@@ -378,7 +389,11 @@ private:
 	[[nodiscard]] int shownStarsPerMessage() const;
 	bool updateBotCommandShown();
 	bool updateLikeShown();
+	[[nodiscard]] bool hasVisibleSendText() const;
+	[[nodiscard]] bool hasSendableContent() const;
+	[[nodiscard]] bool hideExtraButtons() const;
 	[[nodiscard]] bool hasEnoughLinesForAi() const;
+	[[nodiscard]] bool hasEnoughLinesForExpand() const;
 	[[nodiscard]] bool textExceedsMaxSize() const;
 
 	void cancelInlineBot();
@@ -405,6 +420,7 @@ private:
 	void saveDraftDelayed();
 	void saveDraftWithTextNow();
 	void saveCloudDraft();
+	void cancelPendingDraftSaves();
 
 	void writeDrafts();
 	void writeDraftTexts();
@@ -420,9 +436,21 @@ private:
 
 	void unregisterDraftSources();
 	void registerDraftSource();
+	void unregisterThreadFieldBridge();
+	void registerThreadFieldBridge();
+	void updateFieldVisibility();
 	void changeFocusedControl();
 
 	void checkCharsLimitation();
+	[[nodiscard]] Data::Draft *cloudDraft() const;
+	[[nodiscard]] bool isComposeBoxOpen() const;
+	[[nodiscard]] bool hasRichDraftThreadScope() const;
+	[[nodiscard]] bool bypassNormalDraftHandling() const;
+	[[nodiscard]] bool hasEditDraft() const;
+	[[nodiscard]] bool shouldShowRichDraftPreview() const;
+	[[nodiscard]] std::unique_ptr<Data::Draft> readThreadFieldDraft() const;
+	void saveThreadFieldDraft(std::unique_ptr<Data::Draft> draft);
+	void migrateFieldToRichEditor();
 
 	const style::ComposeControls &_st;
 	ChatHelpers::ComposeFeatures _features;
@@ -457,8 +485,10 @@ private:
 	std::optional<Ui::RoundRect> _backgroundRect;
 
 	const std::shared_ptr<Ui::SendButton> _send;
+	rpl::event_stream<bool> _sendLockBadge;
 	Controls::ComposeAiButton * const _aiButton = nullptr;
 	Ui::IconButton * const _sendAsFile = nullptr;
+	Ui::IconButton * const _expand = nullptr;
 	Ui::IconButton *_editStars = nullptr;
 	Ui::IconButton *_like = nullptr;
 	rpl::variable<int> _minStarsCount;
@@ -476,6 +506,7 @@ private:
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
 	rpl::producer<QString> _fieldCustomPlaceholder;
 	const not_null<Ui::InputField*> _field;
+	std::unique_ptr<Controls::RichDraftPreview> _richDraftPreview;
 	Ui::IconButton * const _botCommandStart = nullptr;
 	std::unique_ptr<Ui::SendAsButton> _sendAs;
 	rpl::variable<bool> _videoStreamAdmin;
@@ -546,8 +577,11 @@ private:
 	bool _canAddMedia = false;
 
 	std::unique_ptr<Controls::WebpageProcessor> _preview;
+	bool _previewShown = false;
+	bool _threadFieldVisible = false;
 
 	rpl::lifetime _historyLifetime;
+	rpl::lifetime _threadFieldBridgeLifetime;
 	rpl::lifetime _uploaderSubscriptions;
 
 };

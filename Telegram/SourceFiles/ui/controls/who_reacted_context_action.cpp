@@ -12,11 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/chat/group_call_userpics.h"
+#include "ui/image/image_prepare.h"
+#include "ui/round_rect.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
+#include "styles/style_basic.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
@@ -85,7 +89,8 @@ public:
 		rpl::producer<WhoReadContent> content,
 		CustomEmojiFactory factory,
 		Fn<void(WhoReadParticipant)> participantChosen,
-		Fn<void()> showAllChosen);
+		Fn<void()> showAllChosen,
+		Fn<void(WhoReadParticipant)> moderateReactionChosen);
 
 	bool isEnabled() const override;
 	not_null<QAction*> action() const override;
@@ -111,6 +116,7 @@ private:
 	const not_null<QAction*> _dummyAction;
 	const Fn<void(WhoReadParticipant)> _participantChosen;
 	const Fn<void()> _showAllChosen;
+	const Fn<void(WhoReadParticipant)> _moderateReactionChosen;
 	const std::unique_ptr<GroupCallUserpics> _userpics;
 	const style::Menu &_st;
 	const CustomEmojiFactory _customEmojiFactory;
@@ -174,6 +180,83 @@ TextParseOptions MenuTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
+struct CloseBadgeCache {
+	QImage badge;
+	QImage mask;
+};
+
+[[nodiscard]] QPainterPath WhoReactedCloseBadgePath(const QRect &rect) {
+	return Ui::ComplexRoundedRectPath(
+		rect,
+		0,
+		0,
+		st::whoReadCloseVisibleRadius,
+		0);
+}
+
+[[nodiscard]] QPoint WhoReactedCloseIconPosition(
+		const QRect &rect,
+		const style::icon &icon) {
+	auto position = st::whoReadClose.iconPosition;
+	if (position.x() < 0) {
+		position.setX((rect.width() - icon.width()) / 2);
+	}
+	if (position.y() < 0) {
+		position.setY((rect.height() - icon.height()) / 2);
+	}
+	return rect.topLeft() + position;
+}
+
+[[nodiscard]] CloseBadgeCache GenerateWhoReactedCloseBadgeCache(
+		QSize closeSize,
+		const style::color &fill,
+		const style::color &shadowColor) {
+	if (closeSize.isEmpty()) {
+		return {};
+	}
+	const auto blur = st::whoReadCloseBlurPadding;
+	const auto ratio = style::DevicePixelRatio();
+	const auto badgeRect = QRect(QPoint(blur, blur), closeSize);
+	const auto maskRect = QRect(QPoint(), closeSize);
+	const auto outer = badgeRect.marginsAdded(QMargins(blur, blur, blur, blur));
+
+	auto badge = QImage(
+		outer.size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	badge.setDevicePixelRatio(ratio);
+	badge.fill(Qt::transparent);
+	{
+		Painter p(&badge);
+		auto hq = PainterHighQualityEnabler(p);
+		auto shadow = shadowColor->c;
+		shadow.setAlphaF(shadow.alphaF() * 0.18);
+		p.setPen(Qt::NoPen);
+		p.setBrush(shadow);
+		p.drawPath(WhoReactedCloseBadgePath(badgeRect));
+	}
+	badge = Images::Blur(std::move(badge), true);
+	badge.setDevicePixelRatio(ratio);
+	{
+		Painter p(&badge);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(fill);
+		p.drawPath(WhoReactedCloseBadgePath(badgeRect));
+	}
+	auto mask = Ui::RippleAnimation::MaskByDrawer(
+		closeSize,
+		false,
+		[&](QPainter &p) {
+			p.setPen(Qt::NoPen);
+			p.setBrush(Qt::white);
+			p.drawPath(WhoReactedCloseBadgePath(maskRect));
+		});
+	return {
+		.badge = std::move(badge),
+		.mask = std::move(mask),
+	};
+}
+
 [[nodiscard]] QString FormatReactedString(int reacted, int seen) {
 	const auto projection = [&](const QString &text) {
 		return Lang::StringWithReacted{ text, seen };
@@ -198,19 +281,25 @@ Action::Action(
 	rpl::producer<WhoReadContent> content,
 	Text::CustomEmojiFactory factory,
 	Fn<void(WhoReadParticipant)> participantChosen,
-	Fn<void()> showAllChosen)
+	Fn<void()> showAllChosen,
+	Fn<void(WhoReadParticipant)> moderateReactionChosen)
 : ItemBase(parentMenu->menu(), parentMenu->menu()->st())
 , _parentMenu(parentMenu)
 , _dummyAction(CreateChild<QAction>(parentMenu->menu().get()))
 , _participantChosen(std::move(participantChosen))
 , _showAllChosen(std::move(showAllChosen))
+, _moderateReactionChosen(std::move(moderateReactionChosen))
 , _userpics(std::make_unique<GroupCallUserpics>(
 	st::defaultWhoRead.userpics,
 	rpl::never<bool>(),
 	[=] { update(); }))
 , _st(parentMenu->menu()->st())
 , _customEmojiFactory(std::move(factory))
-, _submenu(_customEmojiFactory, _participantChosen, _showAllChosen)
+, _submenu(
+	_customEmojiFactory,
+	_participantChosen,
+	_showAllChosen,
+	_moderateReactionChosen)
 , _height(st::defaultWhoRead.itemPadding.top()
 		+ _st.itemStyle.font->height
 		+ st::defaultWhoRead.itemPadding.bottom()) {
@@ -382,10 +471,12 @@ void Action::paint(Painter &p) {
 		const auto x = st::defaultWhoRead.iconPosition.x()
 			+ (st::whoReadChecks.width() - adjusted) / 2;
 		const auto y = (_height - adjusted) / 2;
+		const auto inactive = !window()->isActiveWindow();
 		_custom->paint(p, {
 			.textColor = (selected ? _st.itemFgOver : _st.itemFg)->c,
 			.now = crl::now(),
 			.position = { x, y },
+			.paused = inactive || On(PowerSaving::kEmojiChat),
 		});
 	} else {
 		const auto &icon = (_content.fullReactionsCount)
@@ -758,6 +849,31 @@ WhoReactedEntryAction::WhoReactedEntryAction(
 	}, lifetime());
 
 	enableMouseSelecting();
+	selects(
+	) | rpl::on_next([=](const auto &) {
+		refreshCloseMouseTracking();
+		updateCloseHovered(QCursor::pos());
+	}, lifetime());
+
+	style::PaletteChanged() | rpl::on_next([=] {
+		invalidateCloseCache();
+		update();
+	}, lifetime());
+
+	events() | rpl::on_next([=](not_null<QEvent*> e) {
+		if (e->type() != QEvent::Leave) {
+			return;
+		}
+		if (!_closeHovered && !_closePressed) {
+			return;
+		}
+		_closeHovered = false;
+		_closePressed = false;
+		_closeRippleActive = false;
+		finishAnimating();
+		invalidateCloseCache();
+		update();
+	}, lifetime());
 }
 
 not_null<QAction*> WhoReactedEntryAction::action() const {
@@ -772,8 +888,165 @@ int WhoReactedEntryAction::contentHeight() const {
 	return _height;
 }
 
+void WhoReactedEntryAction::mousePressEvent(QMouseEvent *e) {
+	updateCloseHovered(e->globalPos());
+	const auto menu = static_cast<Menu::Menu*>(parentWidget());
+	if (!menu->hasMouseMoved(e->globalPos())) {
+		return;
+	}
+	const auto closePressed = closeAffordanceActive()
+		&& (e->button() == Qt::LeftButton)
+		&& _closeRect.contains(e->pos());
+	if (!closePressed) {
+		_closePressed = false;
+		_closeRippleActive = false;
+		ItemBase::mousePressEvent(e);
+		return;
+	}
+	if (!_closeHovered) {
+		_closeHovered = true;
+		finishAnimating();
+		invalidateCloseCache();
+		update();
+	}
+	_closePressed = true;
+	_closeRippleActive = true;
+	RippleButton::mousePressEvent(e);
+}
+
+void WhoReactedEntryAction::mouseMoveEvent(QMouseEvent *e) {
+	if (_closePressed) {
+		const auto menu = static_cast<Menu::Menu*>(parentWidget());
+		menu->mouseMoved();
+		if (!menu->hasMouseMoved(e->globalPos())) {
+			return;
+		}
+		RippleButton::mouseMoveEvent(e);
+		updateCloseHovered(e->globalPos());
+		return;
+	}
+	ItemBase::mouseMoveEvent(e);
+	updateCloseHovered(e->globalPos());
+}
+
+void WhoReactedEntryAction::mouseReleaseEvent(QMouseEvent *e) {
+	const auto menu = static_cast<Menu::Menu*>(parentWidget());
+	if (!menu->hasMouseMoved(e->globalPos())) {
+		return;
+	}
+	if (!base::take(_closePressed)) {
+		const auto weak = base::make_weak(this);
+		ItemBase::mouseReleaseEvent(e);
+		if (weak) {
+			updateCloseHovered(e->globalPos());
+		}
+		return;
+	}
+	const auto overRow = rect().contains(e->pos());
+	const auto overClose = closeAffordanceActive()
+		&& overRow
+		&& _closeRect.contains(e->pos());
+	if (isOver()) {
+		setOver(false, StateChangeSource::ByPress);
+	}
+	if (isDown()) {
+		setDown(
+			false,
+			StateChangeSource::ByPress,
+			e->modifiers(),
+			e->button());
+	}
+	if (overRow) {
+		setOver(true, StateChangeSource::ByHover);
+	}
+	updateCloseHovered(e->globalPos());
+	if (overClose && _closeCallback) {
+		_closeCallback();
+	}
+}
+
+void WhoReactedEntryAction::resizeEvent(QResizeEvent *e) {
+	ItemBase::resizeEvent(e);
+	refreshCloseGeometry();
+	invalidateCloseCache();
+	updateCloseHovered(QCursor::pos());
+}
+
+QPoint WhoReactedEntryAction::prepareRippleStartPosition() const {
+	const auto result = mapFromGlobal(QCursor::pos());
+	return (_closeRippleActive && !_closeRect.isEmpty())
+		? (result - _closeRect.topLeft())
+		: result;
+}
+
+QImage WhoReactedEntryAction::prepareRippleMask() const {
+	if (!_closeRippleActive || _closeRect.isEmpty()) {
+		return Ui::RippleAnimation::RectMask(size());
+	}
+	if (_closeBadgeMask.isNull()) {
+		auto cache = GenerateWhoReactedCloseBadgeCache(
+			_closeRect.size(),
+			_st.itemBgOver,
+			_st.itemBgOver);
+		_closeBadgeMask = std::move(cache.mask);
+	}
+	return _closeBadgeMask;
+}
+
+bool WhoReactedEntryAction::closeAffordanceActive() const {
+	return _closeCallback
+		&& isSelected()
+		&& (lastTriggeredSource() == Menu::TriggeredSource::Mouse);
+}
+
+void WhoReactedEntryAction::refreshCloseMouseTracking() {
+	setMouseTracking(bool(_closeCallback) || !isSelected());
+}
+
+void WhoReactedEntryAction::refreshCloseGeometry() {
+	if (!_closeCallback) {
+		_closeRect = QRect();
+		return;
+	}
+	_closeRect = QRect(
+		width() - st::whoReadClose.width,
+		0,
+		st::whoReadClose.width,
+		st::whoReadClose.height);
+}
+
+void WhoReactedEntryAction::updateCloseHovered(QPoint globalPosition) {
+	const auto hovered = closeAffordanceActive()
+		&& _closeRect.contains(mapFromGlobal(globalPosition));
+	if (_closeHovered == hovered) {
+		return;
+	}
+	_closeHovered = hovered;
+	finishAnimating();
+	invalidateCloseCache();
+	update();
+}
+
+void WhoReactedEntryAction::clearCloseState() {
+	_closeHovered = false;
+	_closePressed = false;
+	_closeRippleActive = false;
+	finishAnimating();
+}
+
+void WhoReactedEntryAction::invalidateCloseCache() {
+	_closeBadge = QImage();
+	_closeBadgeMask = QImage();
+}
+
 void WhoReactedEntryAction::setData(Data &&data) {
 	setActionTriggered(std::move(data.callback));
+	clearCloseState();
+	_closeCallback = std::move(data.closeCallback);
+	if (!_closeCallback) {
+		_closeRect = QRect();
+		invalidateCloseCache();
+	}
 	_userpic = std::move(data.userpic);
 	_text.setMarkedText(_st.itemStyle, { data.text }, MenuTextOptions);
 	if (data.date.isEmpty()) {
@@ -805,18 +1078,24 @@ void WhoReactedEntryAction::setData(Data &&data) {
 	const auto w = std::clamp(goodWidth, _st.widthMin, _st.widthMax);
 	_textWidth = w - (goodWidth - textWidth);
 	setMinWidth(w);
+	refreshCloseGeometry();
+	refreshCloseMouseTracking();
+	invalidateCloseCache();
+	updateCloseHovered(QCursor::pos());
 	update();
 }
 
 void WhoReactedEntryAction::paint(Painter &&p) {
 	const auto enabled = isEnabled();
-	const auto selected = isSelected();
+	const auto badgeShown = closeAffordanceActive();
+	const auto closeHovered = badgeShown && _closeHovered;
+	const auto selected = isSelected() && !closeHovered;
 	if (selected && _st.itemBgOver->c.alpha() < 255) {
 		p.fillRect(0, 0, width(), _height, _st.itemBg);
 	}
 	const auto bg = selected ? _st.itemBgOver : _st.itemBg;
 	p.fillRect(0, 0, width(), _height, bg);
-	if (enabled) {
+	if (enabled && (!_closeRippleActive || _closeRect.isEmpty())) {
 		paintRipple(p, 0, 0);
 	}
 	const auto photoSize = st::defaultWhoRead.photoSize;
@@ -930,13 +1209,39 @@ void WhoReactedEntryAction::paint(Painter &&p) {
 		const auto ratio = style::DevicePixelRatio();
 		const auto size = Emoji::GetSizeNormal() / ratio;
 		const auto skip = (size - _customSize) / 2;
+		const auto inactive = !window()->isActiveWindow();
 		_custom->paint(p, {
 			.textColor = (selected ? _st.itemFgOver : _st.itemFg)->c,
 			.now = crl::now(),
 			.position = QPoint(
 				width() - _st.itemPadding.right() - size + skip,
 				(height() - _customSize) / 2),
+			.paused = inactive || On(PowerSaving::kEmojiChat),
 		});
+	}
+	if (badgeShown && !_closeRect.isEmpty()) {
+		if (_closeBadge.isNull()) {
+			auto cache = GenerateWhoReactedCloseBadgeCache(
+				_closeRect.size(),
+				_st.itemBgOver,
+				_st.itemBgOver);
+			_closeBadge = std::move(cache.badge);
+			_closeBadgeMask = std::move(cache.mask);
+		}
+		const auto blur = st::whoReadCloseBlurPadding;
+		p.drawImage(
+			_closeRect.topLeft() - QPoint(blur, blur),
+			_closeBadge);
+		if (enabled && _closeRippleActive) {
+			paintRipple(p, _closeRect.topLeft());
+		}
+		const auto &icon = closeHovered
+			? st::whoReadClose.iconOver
+			: st::whoReadClose.icon;
+		icon.paint(
+			p,
+			WhoReactedCloseIconPosition(_closeRect, icon),
+			width());
 	}
 }
 
@@ -944,6 +1249,9 @@ bool operator==(const WhoReadParticipant &a, const WhoReadParticipant &b) {
 	return (a.id == b.id)
 		&& (a.name == b.name)
 		&& (a.date == b.date)
+		&& (a.self == b.self)
+		&& (a.customEntityData == b.customEntityData)
+		&& (a.reaction == b.reaction)
 		&& (a.userpicKey == b.userpicKey);
 }
 
@@ -956,13 +1264,15 @@ base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 		rpl::producer<WhoReadContent> content,
 		CustomEmojiFactory factory,
 		Fn<void(WhoReadParticipant)> participantChosen,
-		Fn<void()> showAllChosen) {
+		Fn<void()> showAllChosen,
+		Fn<void(WhoReadParticipant)> moderateReactionChosen) {
 	return base::make_unique_q<Action>(
 		menu,
 		std::move(content),
 		std::move(factory),
 		std::move(participantChosen),
-		std::move(showAllChosen));
+		std::move(showAllChosen),
+		std::move(moderateReactionChosen));
 }
 
 base::unique_qptr<Menu::ItemBase> WhenReadContextAction(
@@ -978,10 +1288,12 @@ base::unique_qptr<Menu::ItemBase> WhenReadContextAction(
 WhoReactedListMenu::WhoReactedListMenu(
 	CustomEmojiFactory factory,
 	Fn<void(WhoReadParticipant)> participantChosen,
-	Fn<void()> showAllChosen)
+	Fn<void()> showAllChosen,
+	Fn<void(WhoReadParticipant)> moderateReactionChosen)
 : _customEmojiFactory(std::move(factory))
 , _participantChosen(std::move(participantChosen))
-, _showAllChosen(std::move(showAllChosen)) {
+, _showAllChosen(std::move(showAllChosen))
+, _moderateReactionChosen(std::move(moderateReactionChosen)) {
 }
 
 void WhoReactedListMenu::clear() {
@@ -1032,6 +1344,13 @@ void WhoReactedListMenu::populate(
 		const auto chosen = [call = _participantChosen, participant] {
 			call(participant);
 		};
+		const auto closeChosen = (!participant.customEntityData.isEmpty()
+			&& _moderateReactionChosen
+			&& !participant.self)
+			? Fn<void()>([
+				call = _moderateReactionChosen,
+				participant] { call(participant); })
+			: Fn<void()>();
 		append({
 			.text = participant.name,
 			.date = participant.date,
@@ -1041,6 +1360,7 @@ void WhoReactedListMenu::populate(
 			.customEntityData = participant.customEntityData,
 			.userpic = participant.userpicLarge,
 			.callback = chosen,
+			.closeCallback = std::move(closeChosen),
 		});
 	}
 	if (addShowAll) {

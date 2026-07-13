@@ -10,6 +10,9 @@
     <file alias="art/themeimage.jpg">../../art/themeimage.jpg</file>
     <file alias="art/round_placeholder.jpg">../../art/round_placeholder.jpg</file>
     <file alias="art/cocoon.webp">../../art/cocoon.webp</file>
+    <file alias="art/premium/flecks.png">../../art/premium/flecks.png</file>
+    <file alias="art/premium/star_texture.svg">../../art/premium/star_texture.svg</file>
+    <file alias="art/premium/coin_border.png">../../art/premium/coin_border.png</file>
     <file alias="day-blue.tdesktop-theme">../../day-blue.tdesktop-theme</file>
     <file alias="night.tdesktop-theme">../../night.tdesktop-theme</file>
     <file alias="night-green.tdesktop-theme">../../night-green.tdesktop-theme</file>
@@ -24,6 +27,7 @@
     <file alias="icons/settings/dino.svg">../../icons/settings/dino.svg</file>
     <file alias="icons/settings/star.svg">../../icons/settings/star.svg</file>
     <file alias="icons/settings/starmini.svg">../../icons/settings/starmini.svg</file>
+    <file alias="icons/settings/premium_dollar.svg">../../icons/settings/premium_dollar.svg</file>
     <file alias="icons/tray/monochrome.svg">../../icons/tray_monochrome.svg</file>
     <file alias="icons/tray/monochrome_attention.svg">../../icons/tray_monochrome_attention.svg</file>
     <file alias="icons/tray/monochrome_mute.svg">../../icons/tray_monochrome_mute.svg</file>
@@ -47,6 +51,7 @@
   <qresource prefix="/icons">
     <file alias="calls/hands.lottie">../../icons/calls/hands.lottie</file>
     <file alias="calls/voice.lottie">../../icons/calls/voice.lottie</file>
+    <file alias="notify_toggle.lottie">../../icons/notify_toggle.lottie</file>
     <file alias="settings/devices/device_desktop_mac.lottie">../../icons/settings/devices/device_desktop_mac.lottie</file>
     <file alias="settings/devices/device_desktop_win.lottie">../../icons/settings/devices/device_desktop_win.lottie</file>
     <file alias="settings/devices/device_linux.lottie">../../icons/settings/devices/device_linux.lottie</file>

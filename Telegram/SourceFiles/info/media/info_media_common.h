@@ -167,6 +167,10 @@ public:
 	virtual void setSearchQuery(QString query) = 0;
 	virtual void jumpToMessage(MsgId messageId, Fn<void(FullMsgId)>) = 0;
 
+	[[nodiscard]] virtual bool anchorWhileAtTop() {
+		return false;
+	}
+
 	[[nodiscard]] virtual int64 scrollTopStatePosition(
 		not_null<HistoryItem*> item) = 0;
 	[[nodiscard]] virtual HistoryItem *scrollTopStateItem(

@@ -24,12 +24,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_dice_pack.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/credits.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/components/gift_auctions.h"
 #include "data/components/promo_suggestions.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/top_peers.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_ai_compose_tones.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
@@ -410,6 +412,7 @@ void Updates::channelDifferenceDone(
 				channel->ptsInit(pts->v);
 			}
 		}, [&](const MTPDdialogFolder &) {
+		}, [&](const MTPDdialogCommunity &) {
 		});
 		session().data().applyDialogs(
 			nullptr,
@@ -854,6 +857,8 @@ void Updates::channelRangeDifferenceDone(
 			return data.vpts().value_or_empty();
 		}, [&](const MTPDdialogFolder &data) {
 			return 0;
+		}, [&](const MTPDdialogCommunity &data) {
+			return 0;
 		});
 		isFinal = d.is_final();
 	} break;
@@ -1110,6 +1115,10 @@ void Updates::handleSendActionUpdate(
 		const auto &data = action.c_sendMessageTextDraftAction();
 		history->streamedDrafts().apply(rootId, fromId, when, data);
 		return;
+	} else if (action.type() == mtpc_sendMessageRichMessageDraftAction) {
+		const auto &data = action.c_sendMessageRichMessageDraftAction();
+		history->streamedDrafts().apply(rootId, fromId, when, data);
+		return;
 	}
 	session().data().sendActionManager().registerFor(
 		history,
@@ -1209,6 +1218,7 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				d.vfwd_from() ? *d.vfwd_from() : MTPMessageFwdHeader(),
 				MTP_long(d.vvia_bot_id().value_or_empty()),
 				MTPlong(), // via_business_bot_id
+				MTPPeer(), // guestchat_via_from
 				d.vreply_to() ? *d.vreply_to() : MTPMessageReplyHeader(),
 				d.vdate(),
 				d.vmessage(),
@@ -1231,7 +1241,8 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPlong(), // paid_message_stars
 				MTPSuggestedPost(),
 				MTPint(), // schedule_repeat_period
-				MTPstring()), // summary_from_language
+				MTPstring(), // summary_from_language
+				MTPRichMessage()),
 			MessageFlags(),
 			NewMessageType::Unread);
 	} break;
@@ -1252,6 +1263,7 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				d.vfwd_from() ? *d.vfwd_from() : MTPMessageFwdHeader(),
 				MTP_long(d.vvia_bot_id().value_or_empty()),
 				MTPlong(), // via_business_bot_id
+				MTPPeer(), // guestchat_via_from
 				d.vreply_to() ? *d.vreply_to() : MTPMessageReplyHeader(),
 				d.vdate(),
 				d.vmessage(),
@@ -1274,7 +1286,8 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPlong(), // paid_message_stars
 				MTPSuggestedPost(),
 				MTPint(), // schedule_repeat_period
-				MTPstring()), // summary_from_language
+				MTPstring(), // summary_from_language
+				MTPRichMessage()),
 			MessageFlags(),
 			NewMessageType::Unread);
 	} break;
@@ -1602,17 +1615,6 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateNewChannelMessage: {
 		auto &d = update.c_updateNewChannelMessage();
 		auto channel = session().data().channelLoaded(peerToChannel(PeerFromMessage(d.vmessage())));
-		{
-			// Todo delete.
-			const auto messageId = IdFromMessage(d.vmessage());
-			if (const auto history = channel ? session().data().historyLoaded(channel) : nullptr) {
-				if (history->isUnknownMessageDeleted(messageId)) {
-					LOG(("Unknown message deleted detected for channel %1, message %2")
-						.arg(channel->id.value & PeerId::kChatTypeMask)
-						.arg(messageId.bare));
-				}
-			}
-		}
 		if (!requestingDifference() && !channel) {
 			MTP_LOG(0, ("getDifference "
 				"{ good - after not all data loaded in updateNewChannelMessage }%1"
@@ -1828,6 +1830,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				history->setUnreadMark(data.is_unread());
 			}
 		}, [](const MTPDdialogPeerFolder &dialog) {
+		}, [](const MTPDdialogPeerCommunity &dialog) {
 		});
 	} break;
 
@@ -1873,6 +1876,21 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateDeleteScheduledMessages: {
 		const auto &d = update.c_updateDeleteScheduledMessages();
 		session().scheduledMessages().apply(d);
+	} break;
+
+	case mtpc_updateNewEphemeralMessage: {
+		const auto &d = update.c_updateNewEphemeralMessage();
+		session().ephemeralMessages().apply(d);
+	} break;
+
+	case mtpc_updateEditEphemeralMessage: {
+		const auto &d = update.c_updateEditEphemeralMessage();
+		session().ephemeralMessages().apply(d);
+	} break;
+
+	case mtpc_updateDeleteEphemeralMessages: {
+		const auto &d = update.c_updateDeleteEphemeralMessages();
+		session().ephemeralMessages().apply(d);
 	} break;
 
 	case mtpc_updateQuickReplies: {
@@ -2229,6 +2247,15 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		session().data().webViewResultSent({ .queryId = d.vquery_id().v });
 	} break;
 
+	case mtpc_updateJoinChatWebViewDecision: {
+		const auto &d = update.c_updateJoinChatWebViewDecision();
+		session().data().joinChatWebViewDecision({
+			.peerId = peerFromMTP(d.vpeer()),
+			.queryId = uint64(d.vquery_id().v),
+			.result = d.vresult(),
+		});
+	} break;
+
 	case mtpc_updateBotMenuButton: {
 		const auto &d = update.c_updateBotMenuButton();
 		if (const auto bot = session().data().userLoaded(d.vbot_id())) {
@@ -2337,6 +2364,12 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 						return true;
 					}
 					return !session().data().folderLoaded(data.vfolder_id().v);
+				}, [&](const MTPDdialogPeerCommunity &data) {
+					const auto channelId = ChannelId(data.vcommunity_id().v);
+					const auto channel
+						= session().data().channelLoaded(channelId);
+					return !channel
+						|| !session().data().historyLoaded(channel);
 				});
 			};
 			if (!ranges::none_of(order, notLoaded)) {
@@ -2386,6 +2419,17 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				).arg(id
 				).arg(folderId
 				));
+			return false;
+		}, [&](const MTPDdialogPeerCommunity &data) {
+			const auto channelId = ChannelId(data.vcommunity_id().v);
+			const auto channel = session().data().channelLoaded(channelId);
+			if (channel) {
+				if (const auto history
+						= session().data().historyLoaded(channel)) {
+					history->applyPinnedUpdate(d);
+					return true;
+				}
+			}
 			return false;
 		});
 		if (!done) {
@@ -2775,6 +2819,10 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateSavedRingtones: {
 		session().api().ringtones().applyUpdate();
+	} break;
+
+	case mtpc_updateAiComposeTones: {
+		session().data().aiComposeTones().applyUpdate();
 	} break;
 
 	case mtpc_updateTranscribedAudio: {

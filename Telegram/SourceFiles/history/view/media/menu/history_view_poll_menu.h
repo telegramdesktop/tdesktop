@@ -52,6 +52,10 @@ void FillPollAnswerMenu(
 	FullMsgId itemId,
 	not_null<Window::SessionController*> controller);
 
+void ShowPollStatsBox(
+	not_null<Window::SessionController*> controller,
+	FullMsgId itemId);
+
 void ShowPollStickerPreview(
 	not_null<Window::SessionController*> controller,
 	not_null<DocumentData*> document,

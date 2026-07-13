@@ -54,6 +54,9 @@ public:
 		const Options &options);
 
 	void raise();
+	[[nodiscard]] bool shown() const {
+		return _shown && !_forceHidden;
+	}
 	void setReplaceCallback(Fn<void(
 		int from,
 		int till,

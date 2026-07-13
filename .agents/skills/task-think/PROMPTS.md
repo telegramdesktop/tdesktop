@@ -1,26 +1,27 @@
 # Phase Prompts
 
-Use these templates as Codex subagent messages. Use them as same-session checklists only for Phase 0, intentional main-session build work, Phase 7, or when delegation is unavailable from the start. Replace `<TASK>`, `<PROJECT>`, `<LETTER>`, and `<REPO_ROOT>`.
+Use these templates as Codex subagent messages. Use them as same-session checklists only for Phase 0, intentional current-session build work, Phase 7, or when delegation is unavailable from the start at the current agent depth. Replace every applicable placeholder: `<TASK>`, `<PROJECT>`, `<LETTER>`, `<PREV_LETTER>`, `<BUILD>`, `<N>`, `<OWNED_WRITE_SET>`, `<R>`, `<R-1>`, and `<phase-name>`.
 
 ## Orchestration Rules
 
 - Phase 0 runs in the main session.
 - When delegation is available, use a fresh subagent for Phase 1, Phase 2, Phase 3, each Phase 4 implementation unit, and each Phase 6 pass. Do not switch those phases to same-session midstream because of a timeout or missing artifact.
-- Phase 7 runs in the main session on Windows because it depends on the final local diff and touched-file set.
-- Write each phase prompt to `.ai/<PROJECT>/<LETTER>/logs/phase-<name>.prompt.md` before execution.
+- Treat delegation as selected only after the first real phase spawn succeeds; tool presence is insufficient. An immediate depth/capacity/policy rejection before phase work selects same-session checklists and is not a delegated retry.
+- Phase 7 runs in the current session on native, non-WSL Windows because it depends on the final local diff and touched-file set. Skip it on WSL and keep files LF/no-BOM there.
+- Write each phase prompt to `.ai/<PROJECT>/<LETTER>/logs/phase-<phase-name>.prompt.md` before execution.
 - If you delegate a phase, send the prompt file contents as the initial `spawn_agent` message.
 - When writing the phase prompt file, append the standard progress file contract and the standard compact reply block below so the subagent knows how to surface progress before the final artifact.
-- After each phase completes, write `.ai/<PROJECT>/<LETTER>/logs/phase-<name>.result.md` summarizing the status, files touched, and any follow-up notes.
-- Use `fork_context: false` by default. If the phase depends on thread-only context or UI attachments, pass that context explicitly or enable `fork_context` only for that phase.
-- Prefer `worker` for phases that write files. Use `default` for plan or review passes if that fits the host better. Use `explorer` only for narrow read-only questions.
-- When supported, request `model: gpt-5.4` and `reasoning_effort: xhigh` for delegated phases.
-- Default wait budget for delegated phases is 5 minutes while the phase is clearly still in progress. Successful completion may wake earlier, so this does not delay finished work.
-- When a phase appears close to landing, use 1-2 minute waits until it finishes.
-- A `wait_agent` timeout is not failure. On timeout, inspect both the expected artifact and the matching progress file before deciding anything.
+- After each phase completes, write `.ai/<PROJECT>/<LETTER>/logs/phase-<phase-name>.result.md` with exact
+  `STATUS:`, `ARTIFACTS:`, `TOUCHED:`, `BLOCKER:`, and `NOTES:` fields.
+- Use `fork_turns: "none"` by default. If the phase depends on thread-only context or UI attachments, pass it explicitly or use the smallest positive turn fork needed.
+- Use only fields the current `spawn_agent` schema exposes; do not invent role, model, or reasoning arguments. Inherit the parent model/reasoning selection, or match it if the host explicitly supports overrides.
+- Give each phase a unique lowercase/digit/underscore task name, store the canonical target returned by `spawn_agent`, and tell the phase it is a leaf that must not delegate.
+- Poll with `wait_agent` for at most 60 seconds per call; use elapsed wall-clock windows for stall decisions. Use 30-60 second polls when a phase appears close to landing.
+- `wait_agent` is mailbox-wide and may wake for another agent or user input. A timeout is not failure. After every wake, handle new user input if any, inspect the saved target with `list_agents`, and check the expected artifact and matching progress file.
 - If the expected artifact exists and shows progress, wait again.
 - If the expected artifact is not ready but the progress file mtime moved or its heartbeat counter increased since the previous check, wait again. Prefer mtime checks first and avoid rereading the file unless you need detail. Do not count that as a failed wait.
-- If neither the expected artifact nor the progress file moved since the previous blocked check, send one short follow-up asking the same agent to refresh the progress file, finish the required artifact, and return the standard compact reply block, then wait again.
-- If the same agent still produces no usable artifact and no meaningful progress-file movement after two full default waits and one follow-up, close it and retry the phase in a fresh subagent.
+- If neither the expected artifact nor progress file moved for a full five-minute blocked-check window, use `send_message` while the target is running or `followup_task` when it is idle, asking it to refresh progress, finish the artifact, and return the compact block.
+- If a second five-minute window after that follow-up still produces no usable artifact or movement, use `interrupt_agent` if needed, confirm the turn stopped, and retry the disposable phase once with a new unique name. There is no close-agent operation.
 - For Phase 1, Phase 2, Phase 3, Phase 4, and Phase 6, if delegated retries still fail, stop and ask the user rather than rerunning the phase locally.
 - Never use `codex exec`, background shell child processes, or JSONL child-session logging from this skill.
 
@@ -29,9 +30,11 @@ Use these templates as Codex subagent messages. Use them as same-session checkli
 Append this verbatim to every delegated phase prompt:
 
 ```text
+You are a leaf phase worker. Do not spawn or delegate to other agents.
+
 Before deep work, create or update the matching progress file in `.ai/<PROJECT>/<LETTER>/logs/`.
 
-Use `<phase-name>.progress.md` as a concise heartbeat with:
+Use `phase-<phase-name>.progress.md` as a concise heartbeat with:
 - `Heartbeat: <N>` on the first line, incremented on each meaningful update
 - Current step
 - Files being read or edited
@@ -68,6 +71,10 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
 - Phase 5 is complete only when the build outcome is known and the build checkbox is updated on success.
 - Phase 6a is complete only when `review<R>.md` exists and contains a verdict line.
 - Phase 6b is complete only when the requested fixes were applied and the post-fix build outcome is known.
+- An implement-specific visual design phase is complete only when `visual.md` cites its available
+  design sources (images when supplied; otherwise request facts and repository/baseline anchors),
+  records assumptions, and contains desktop anchors, an ordered derivation, tolerances, and
+  falsifiable geometry checks. Missing mockups alone never make the phase incomplete.
 
 ## Phase 0: Setup
 
@@ -90,9 +97,9 @@ For new projects:
 - Set `<LETTER>` = `a`.
 
 For follow-up tasks:
-- Scan `.ai/<PROJECT>/` for existing task folders (`a/`, `b/`, ...). Find the latest one (highest letter).
-- The previous task letter = that highest letter.
-- The new task letter = next letter in sequence.
+- Scan `.ai/<PROJECT>/` for spreadsheet-style task folders (`a/`...`z/`, `aa/`...). Find the latest id.
+- The previous task id = that highest id.
+- The new task id = next spreadsheet-style id; never reuse an existing artifact directory.
 - Create `.ai/<PROJECT>/<LETTER>/` and `.ai/<PROJECT>/<LETTER>/logs/`.
 
 Then proceed to Phase 1. Follow-up tasks do not skip context gathering. They use a modified Phase 1F prompt.
@@ -134,7 +141,7 @@ Write it as if the project is already fully implemented and working. It should c
 
 Do not include temporal state like "Current State", "Pending Changes", "Not yet implemented", or "TODO". Describe the project as a complete, coherent whole.
 
-File 2: .ai/<PROJECT>/a/context.md
+File 2: .ai/<PROJECT>/<LETTER>/context.md
 
 This is the primary task-specific implementation context. All downstream phases should be able to work from this file plus the referenced source files. It must be self-contained. Include:
 - Task Description: The full task restated clearly
@@ -316,7 +323,8 @@ Rules:
 - Follow the plan precisely.
 - Follow AGENTS.md coding conventions.
 - You are not alone in the codebase. Respect existing changes and do not revert unrelated work.
-- Do not modify .ai/ files except to update the Status section in plan.md.
+- Do not modify .ai/ files except the Status section in plan.md and the matching
+  `logs/phase-<phase-name>.progress.md` heartbeat required by this prompt.
 - When done, update plan.md Status section: change `- [ ] Phase <N>: ...` to `- [x] Phase <N>: ...`
 - Do not work on other phases.
 
@@ -345,7 +353,8 @@ Read these files:
 The implementation is complete. Your job is to build the project and fix any build errors that block the planned work.
 
 Steps:
-1. Run (from repository root): cmake --build ./out --config Debug --target Telegram
+1. Run the resolved Debug build command from context.md (`<BUILD>`) at the repository root. On WSL
+   this is the repository Docker entry point; do not run native Windows CMake against that tree.
 2. If the build succeeds, update plan.md: change `- [ ] Build verification` to `- [x] Build verification`
 3. If the build fails:
    a. Read the error messages carefully
@@ -382,7 +391,7 @@ LOOP:
 
 FINISH:
   - Update plan.md: change `- [ ] Code review` to `- [x] Code review`
-  - Proceed to Phase 7 on Windows, otherwise proceed to Completion
+  - Proceed to Phase 7 on native, non-WSL Windows; otherwise proceed to Completion
 ```
 
 ### Step 6a: Code Review
@@ -463,21 +472,22 @@ Rules:
 - Do not modify .ai/ files except where the review process explicitly requires it.
 
 After all changes are made:
-1. Build (from repository root): cmake --build ./out --config Debug --target Telegram
+1. Run the resolved Debug build command from context.md (`<BUILD>`) at the repository root.
 2. If the build fails, fix build errors and rebuild until it passes.
 3. If build fails with file-locked errors (C1041, LNK1104, "cannot open output file", or similar access-denied lock issues), stop and report the lock. Do not retry.
 
 When finished, report what changes were made and which files you touched.
 ```
 
-## Phase 7: Windows Text Normalization
+## Phase 7: Native-Windows Text Normalization
 
-Run this phase only on Windows hosts and only after the review loop has finished.
+Run this phase only in a native, non-WSL Windows checkout and only after the review loop has
+finished. Keep WSL/Linux text LF/no-BOM.
 
 Use the current task's result logs as the source of truth for what Codex touched. Do not sweep the whole repo and do not rewrite unrelated files from a dirty worktree.
 
 ```text
-You are performing the final Windows-only text normalization phase for task-think.
+You are performing the final native-Windows-only text normalization phase for task-think.
 
 Read these files:
 - .ai/<PROJECT>/<LETTER>/plan.md
@@ -486,7 +496,7 @@ Read these files:
 - .ai/<PROJECT>/<LETTER>/logs/phase-6*.result.md
 
 Your job:
-- Collect the union of repo file paths listed under "Touched files" in those result logs.
+- Collect the union of repo file paths listed in the exact `TOUCHED:` fields in those result logs.
 - Keep only files inside the repository that currently exist and are textual project files: source, headers, build/config files, localization files, style files, and similar text assets.
 - Exclude `.ai/`, `out/`, binary files, and unrelated user files that were not touched by Codex in this task.
 - Rewrite each kept file so all line endings are CRLF.
@@ -494,7 +504,7 @@ Your job:
 - Preserve file content otherwise. Preserve whether the file ended with a trailing newline.
 
 Rules:
-- Run this phase in the main session on Windows.
+- Run this phase in the current session on native, non-WSL Windows.
 - Do not modify files outside the touched-file set for the current task.
 - Do not rewrite binary files.
 - When scripting this phase, do not use writer APIs or defaults that emit UTF-8 with BOM.
@@ -517,7 +527,7 @@ When all phases, including build verification, code review, and Windows line end
 2. Show which files were modified or created.
 3. Note any issues encountered during implementation.
 4. Summarize the code review iterations: how many rounds, what was found and fixed, or whether it was approved on the first pass.
-5. On Windows, mention the text-normalization result briefly: which project files were normalized, whether any BOMs were removed, or whether nothing needed changes.
+5. On native, non-WSL Windows, mention the text-normalization result briefly: which project files were normalized, whether any BOMs were removed, or whether nothing needed changes.
 6. Calculate and display the total elapsed time since `$START_TIME` (format as `Xh Ym Zs`, omitting zero components).
 7. Remind the user of the project name so they can request follow-up tasks within the same project.
 
@@ -531,10 +541,11 @@ When all phases, including build verification, code review, and Windows line end
 ## Prompt Delivery And Logs
 
 For each phase:
-1. Write the full prompt to `.ai/<PROJECT>/<LETTER>/logs/phase-<name>.prompt.md`
+1. Write the full prompt to `.ai/<PROJECT>/<LETTER>/logs/phase-<phase-name>.prompt.md`
 2. Delegate by sending that prompt text to a fresh subagent, or use it as a same-session checklist only for the designated main-session phases or when delegation was unavailable from the start
-3. For delegated phases, expect a matching `.ai/<PROJECT>/<LETTER>/logs/phase-<name>.progress.md` heartbeat while work is in flight
-4. Save a concise completion note to `.ai/<PROJECT>/<LETTER>/logs/phase-<name>.result.md`
+3. For delegated phases, expect a matching `.ai/<PROJECT>/<LETTER>/logs/phase-<phase-name>.progress.md` heartbeat while work is in flight
+4. Save `.ai/<PROJECT>/<LETTER>/logs/phase-<phase-name>.result.md` with `STATUS:`, `ARTIFACTS:`,
+   `TOUCHED:`, `BLOCKER:`, and `NOTES:` fields.
 
 For review iterations, include the iteration in the file name, for example:
 - `phase-6a-review-1.prompt.md`
@@ -547,13 +558,12 @@ For review iterations, include the iteration in the file name, for example:
 Use this pattern conceptually for delegated phases:
 
 1. Write the phase prompt file.
-2. Spawn a fresh subagent with the phase prompt, usually with `fork_context: false`.
+2. Spawn a fresh leaf subagent with a unique tool-valid task name and `fork_turns: "none"` unless a minimal recent-turn fork is required.
 3. Require the agent to create the matching progress file early and refresh it sparingly: at natural milestones when possible, otherwise only after a longer quiet stretch such as roughly 5-10 minutes.
-4. Wait in 5-minute intervals when the next step is blocked on that phase, checking both the final artifact and the progress file on timeout.
-5. When the phase looks close to finishing, switch to 1-2 minute waits.
-6. Prefer filesystem mtime checks on the progress file first. If its mtime moved or the heartbeat counter increased, keep waiting; do not treat that as a stall.
-7. If neither the artifact nor the progress file moves, send one short follow-up to the same agent, then retry once with a fresh subagent before involving the user.
-8. Validate the expected artifact or code changes with small shell summaries and the completion checks above.
-9. Write the result log from the validated outcome and the compact reply block.
+4. Poll for at most 60 seconds at a time. After any mailbox wake, inspect the saved target with `list_agents`; use elapsed five-minute windows rather than poll count for stall checks.
+5. Prefer filesystem mtime checks on the progress file first. If its mtime moved or the heartbeat counter increased, keep waiting; do not treat that as a stall.
+6. After a full blocked-check window with no movement, use `send_message` for a running target or `followup_task` for an idle one. After a second unchanged window, interrupt if needed and retry the disposable phase once with a unique task name.
+7. Validate the expected artifact or code changes with small shell summaries and the completion checks above.
+8. Write the result log from the validated outcome and the compact reply block.
 
 Do not replace this pattern with shell-launched `codex exec`.

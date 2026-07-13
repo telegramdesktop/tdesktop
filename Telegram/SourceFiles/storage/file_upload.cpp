@@ -334,6 +334,8 @@ void Uploader::upload(
 		if (!file->filepath.isEmpty()) {
 			document->setLocation(Core::FileLocation(file->filepath));
 		} else if (!file->content.isEmpty()
+			&& !document->saveToCache()
+			&& !document->useStreamingLoader()
 			&& Core::App().canSaveFileWithoutAskingForPath()) {
 			const auto path = DocumentFileNameForSave(document);
 			if (!path.isEmpty()) {

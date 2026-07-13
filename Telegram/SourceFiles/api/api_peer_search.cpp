@@ -63,6 +63,7 @@ void PeerSearch::request(
 
 void PeerSearch::requestPeers() {
 	const auto requestId = _session->api().request(MTPcontacts_Search(
+		MTP_flags(0),
 		MTP_string(_query),
 		MTP_int(SearchPeopleLimit)
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {

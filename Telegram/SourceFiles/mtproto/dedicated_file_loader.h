@@ -54,6 +54,7 @@ public:
 	struct Progress {
 		int64 already = 0;
 		int64 size = 0;
+		bool percent = false;
 
 		inline bool operator<(const Progress &other) const {
 			return (already < other.already)
@@ -70,6 +71,7 @@ public:
 
 	int64 alreadySize() const;
 	int64 totalSize() const;
+	bool preferPercent() const;
 
 	rpl::producer<Progress> progress() const;
 	rpl::producer<QString> ready() const;
@@ -81,6 +83,8 @@ public:
 
 protected:
 	void threadSafeFailed();
+	void threadSafeProgress(Progress progress);
+	void threadSafeReady();
 
 	// Single threaded.
 	void writeChunk(bytes::const_span data, int totalSize);
@@ -89,8 +93,6 @@ private:
 	virtual void startLoading() = 0;
 
 	bool validateOutput();
-	void threadSafeProgress(Progress progress);
-	void threadSafeReady();
 
 	QString _filepath;
 	int _chunkSize = 0;
@@ -98,6 +100,7 @@ private:
 	QFile _output;
 	int64 _alreadySize = 0;
 	int64 _totalSize = 0;
+	bool _preferPercent = false;
 	mutable QMutex _sizesMutex;
 	rpl::event_stream<Progress> _progress;
 	rpl::event_stream<QString> _ready;

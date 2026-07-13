@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "boxes/peers/prepare_short_info_box.h"
 #include "boxes/peer_list_box.h"
+#include "config.h"
 #include "core/application.h"
 #include "data/business/data_business_chatbots.h"
 #include "data/data_session.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
@@ -29,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
@@ -36,6 +39,7 @@ namespace Settings {
 namespace {
 
 constexpr auto kDebounceTimeout = crl::time(400);
+constexpr auto kMaxSearchBots = 3;
 
 enum class LookupState {
 	Empty,
@@ -44,9 +48,15 @@ enum class LookupState {
 	Ready,
 };
 
-struct BotState {
-	UserData *bot = nullptr;
+struct BotSearchState {
+	std::vector<UserData*> bots;
 	LookupState state = LookupState::Empty;
+	bool exactUnsupported = false;
+};
+
+enum class PreviewActionKind {
+	None,
+	Add,
 };
 
 [[nodiscard]] constexpr Data::ChatbotsPermissions Defaults() {
@@ -61,13 +71,14 @@ public:
 	~Chatbots();
 
 	[[nodiscard]] bool closeByOutsideClick() const override;
+	void checkBeforeClose(Fn<void()> close) override;
 	[[nodiscard]] rpl::producer<QString> title() override;
+	void setInnerFocus() override;
 
-	const Ui::RoundRect *bottomSkipRounding() const override {
-		return _detailsWrap->count() ? nullptr : &_bottomSkipRounding;
-	}
+	const Ui::RoundRect *bottomSkipRounding() const override;
 
 private:
+	[[nodiscard]] bool shouldConfirmLeaveWithoutAddedBot() const;
 	void setupContent();
 	void refreshDetails();
 	void save();
@@ -75,10 +86,16 @@ private:
 	Ui::RoundRect _bottomSkipRounding;
 
 	Ui::VerticalLayout *_detailsWrap = nullptr;
+	Ui::VerticalLayout *_permissionsWrap = nullptr;
+	Ui::SlideWrap<Ui::InputField> *_usernameWrap = nullptr;
 
 	rpl::variable<Data::BusinessRecipients> _recipients;
+	rpl::variable<UserData*> _committedBot;
+	Data::BusinessRecipients _committedRecipients;
+	Data::ChatbotsPermissions _committedPermissions = Defaults();
 	rpl::variable<QString> _usernameValue;
-	rpl::variable<BotState> _botValue;
+	rpl::variable<BotSearchState> _lookupState;
+	rpl::variable<bool> _chooserVisible = false;
 	rpl::variable<Data::ChatbotsPermissions> _permissions = Defaults();
 	Fn<Data::ChatbotsPermissions()> _resolvePermissions;
 
@@ -86,7 +103,10 @@ private:
 
 class PreviewController final : public PeerListController {
 public:
-	PreviewController(not_null<PeerData*> peer, Fn<void()> resetBot);
+	PreviewController(
+		std::vector<UserData*> bots,
+		UserData *committedBot,
+		Fn<void(UserData*)> addBot);
 
 	void prepare() override;
 	void loadMoreRows() override;
@@ -95,15 +115,16 @@ public:
 	Main::Session &session() const override;
 
 private:
-	const not_null<PeerData*> _peer;
-	const Fn<void()> _resetBot;
+	const std::vector<UserData*> _bots;
+	UserData *const _committedBot = nullptr;
+	const Fn<void(UserData*)> _addBot;
 	rpl::lifetime _lifetime;
 
 };
 
 class PreviewRow final : public PeerListRow {
 public:
-	using PeerListRow::PeerListRow;
+	PreviewRow(not_null<PeerData*> peer, PreviewActionKind kind);
 
 	QSize rightActionSize() const override;
 	QMargins rightActionMargins() const override;
@@ -120,20 +141,50 @@ public:
 	void rightActionStopLastRipple() override;
 
 private:
+	[[nodiscard]] QSize addPillSize() const;
+
+	PreviewActionKind _kind = PreviewActionKind::None;
+	QString _addText;
+	int _addTextWidth = 0;
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
 
 };
 
+PreviewRow::PreviewRow(
+	not_null<PeerData*> peer,
+	PreviewActionKind kind)
+: PeerListRow(peer)
+, _kind(kind)
+, _addText((_kind == PreviewActionKind::Add)
+	? tr::lng_chatbots_add(tr::now)
+	: QString())
+, _addTextWidth((_kind == PreviewActionKind::Add)
+	? st::settingsChatbotsAddButton.style.font->width(_addText)
+	: 0) {
+	const auto username = peer->username();
+	if (!username.isEmpty()) {
+		setCustomStatus('@' + username);
+	}
+}
+
+QSize PreviewRow::addPillSize() const {
+	const auto &st = st::settingsChatbotsAddButton;
+	const auto width = _addTextWidth - st.width;
+	return QSize(std::max(width, st.height), st.height);
+}
+
 QSize PreviewRow::rightActionSize() const {
-	return QSize(
-		st::settingsChatbotsDeleteIcon.width(),
-		st::settingsChatbotsDeleteIcon.height()) * 2;
+	return (_kind == PreviewActionKind::Add) ? addPillSize() : QSize();
 }
 
 QMargins PreviewRow::rightActionMargins() const {
+	if (_kind == PreviewActionKind::None) {
+		return QMargins();
+	}
 	const auto itemHeight = st::peerListSingleRow.item.height;
-	const auto skip = (itemHeight - rightActionSize().height()) / 2;
-	return QMargins(0, skip, skip, 0);
+	const auto size = rightActionSize();
+	const auto skipV = (itemHeight - size.height()) / 2;
+	return QMargins(0, skipV, st::settingsChatbotsAddMargin, 0);
 }
 
 void PreviewRow::rightActionPaint(
@@ -143,25 +194,43 @@ void PreviewRow::rightActionPaint(
 		int outerWidth,
 		bool selected,
 		bool actionSelected) {
-	if (_actionRipple) {
-		_actionRipple->paint(p, x, y, outerWidth);
-		if (_actionRipple->empty()) {
-			_actionRipple.reset();
-		}
+	if (_kind == PreviewActionKind::None) {
+		return;
 	}
-	const auto rect = QRect(QPoint(x, y), PreviewRow::rightActionSize());
-	(actionSelected
-		? st::settingsChatbotsDeleteIconOver
-		: st::settingsChatbotsDeleteIcon).paintInCenter(p, rect);
+	const auto size = rightActionSize();
+	if (_kind == PreviewActionKind::Add) {
+		const auto &st = st::settingsChatbotsAddButton;
+		const auto rect = QRect(QPoint(x, y), size);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(actionSelected ? st.textBgOver : st.textBg);
+		const auto radius = size.height() / 2.;
+		p.drawRoundedRect(rect, radius, radius);
+		if (_actionRipple) {
+			_actionRipple->paint(p, x, y, outerWidth);
+			if (_actionRipple->empty()) {
+				_actionRipple.reset();
+			}
+		}
+		p.setPen(actionSelected ? st.textFgOver : st.textFg);
+		p.setFont(st.style.font);
+		p.drawText(rect, Qt::AlignCenter, _addText);
+	}
 }
 
 void PreviewRow::rightActionAddRipple(
 		QPoint point,
 		Fn<void()> updateCallback) {
+	if (_kind == PreviewActionKind::None) {
+		return;
+	}
 	if (!_actionRipple) {
-		auto mask = Ui::RippleAnimation::EllipseMask(rightActionSize());
+		const auto size = rightActionSize();
+		auto mask = Ui::RippleAnimation::RoundRectMask(
+			size,
+			size.height() / 2);
 		_actionRipple = std::make_unique<Ui::RippleAnimation>(
-			st::defaultRippleAnimation,
+			st::settingsChatbotsAddButton.ripple,
 			std::move(mask),
 			std::move(updateCallback));
 	}
@@ -175,14 +244,22 @@ void PreviewRow::rightActionStopLastRipple() {
 }
 
 PreviewController::PreviewController(
-	not_null<PeerData*> peer,
-	Fn<void()> resetBot)
-: _peer(peer)
-, _resetBot(std::move(resetBot)) {
+	std::vector<UserData*> bots,
+	UserData *committedBot,
+	Fn<void(UserData*)> addBot)
+: _bots(std::move(bots))
+, _committedBot(committedBot)
+, _addBot(std::move(addBot)) {
 }
 
 void PreviewController::prepare() {
-	delegate()->peerListAppendRow(std::make_unique<PreviewRow>(_peer));
+	for (const auto bot : _bots) {
+		const auto kind = (bot == _committedBot)
+			? PreviewActionKind::None
+			: PreviewActionKind::Add;
+		delegate()->peerListAppendRow(
+			std::make_unique<PreviewRow>(bot, kind));
+	}
 	delegate()->peerListRefreshRows();
 }
 
@@ -192,12 +269,16 @@ void PreviewController::loadMoreRows() {
 void PreviewController::rowClicked(not_null<PeerListRow*> row) {
 }
 
-void PreviewController::rowRightActionClicked(not_null<PeerListRow*> row) {
-	_resetBot();
+void PreviewController::rowRightActionClicked(
+		not_null<PeerListRow*> row) {
+	const auto user = row->peer()->asUser();
+	if (user && (user != _committedBot)) {
+		_addBot(user);
+	}
 }
 
 Main::Session &PreviewController::session() const {
-	return _peer->session();
+	return _bots.front()->session();
 }
 
 [[nodiscard]] rpl::producer<QString> DebouncedValue(
@@ -230,86 +311,192 @@ Main::Session &PreviewController::session() const {
 	};
 }
 
-[[nodiscard]] QString ExtractUsername(QString text) {
+struct ParsedUsernameQuery {
+	QString value;
+	bool valid = false;
+};
+
+[[nodiscard]] ParsedUsernameQuery ParseUsernameQuery(QString text) {
 	text = text.trimmed();
 	if (text.startsWith(QChar('@'))) {
-		return text.mid(1);
+		text = text.mid(1);
+	} else {
+		static const auto extractExpression = QRegularExpression(
+			"^(https://)?([a-zA-Z0-9\\.]+/)?([a-zA-Z0-9_\\.]+)");
+		const auto match = extractExpression.match(text);
+		text = match.hasMatch() ? match.captured(3) : text;
 	}
-	static const auto expression = QRegularExpression(
-		"^(https://)?([a-zA-Z0-9\\.]+/)?([a-zA-Z0-9_\\.]+)");
-	const auto match = expression.match(text);
-	return match.hasMatch() ? match.captured(3) : text;
+	static const auto validateExpression = QRegularExpression(
+		"^[a-zA-Z0-9_\\.]+$");
+	return {
+		.value = text,
+		.valid = !text.isEmpty()
+			&& validateExpression.match(text).hasMatch(),
+	};
 }
 
-[[nodiscard]] rpl::producer<BotState> LookupBot(
+[[nodiscard]] bool IsUsableBusinessBot(UserData *user) {
+	return user
+		&& user->isBot()
+		&& user->botInfo->supportsBusiness;
+}
+
+[[nodiscard]] UserData *FirstBot(const BotSearchState &state) {
+	return state.bots.empty() ? nullptr : state.bots.front();
+}
+
+[[nodiscard]] BotSearchState SingleBotState(UserData *bot) {
+	auto result = BotSearchState{
+		.state = bot ? LookupState::Ready : LookupState::Empty,
+	};
+	if (bot) {
+		result.bots.push_back(bot);
+	}
+	return result;
+}
+
+[[nodiscard]] std::pair<BotSearchState, UserData*> PreviewState(
+		BotSearchState lookupState,
+		UserData *committed,
+		bool chooserVisible,
+		const QString &usernameText) {
+	if (committed && !chooserVisible) {
+		return { SingleBotState(committed), committed };
+	}
+	if (chooserVisible && ParseUsernameQuery(usernameText).valid) {
+		return { std::move(lookupState), nullptr };
+	}
+	return { BotSearchState(), nullptr };
+}
+
+void AppendUniqueBot(
+		std::vector<UserData*> &bots,
+		UserData *user) {
+	if (!IsUsableBusinessBot(user)
+		|| ranges::contains(bots, user)
+		|| bots.size() >= kMaxSearchBots) {
+		return;
+	}
+	bots.push_back(user);
+}
+
+[[nodiscard]] UserData *UserFromPeer(
+		not_null<Main::Session*> session,
+		const MTPPeer &peer) {
+	return session->data().peer(peerFromMTP(peer))->asUser();
+}
+
+struct BotSearchRequest {
+	UserData *exact = nullptr;
+	std::vector<UserData*> my;
+	std::vector<UserData*> global;
+	mtpRequestId exactRequestId = 0;
+	mtpRequestId searchRequestId = 0;
+	bool exactUnsupported = false;
+	bool exactDone = false;
+	bool searchDone = false;
+};
+
+[[nodiscard]] BotSearchState MakeReadySearchState(
+		const BotSearchRequest &request) {
+	auto bots = std::vector<UserData*>();
+	AppendUniqueBot(bots, request.exact);
+	for (const auto user : request.my) {
+		AppendUniqueBot(bots, user);
+	}
+	for (const auto user : request.global) {
+		AppendUniqueBot(bots, user);
+	}
+	const auto unsupported = bots.empty()
+		&& request.exactUnsupported;
+	return {
+		.bots = std::move(bots),
+		.state = unsupported ? LookupState::Unsupported : LookupState::Ready,
+		.exactUnsupported = request.exactUnsupported,
+	};
+}
+
+void AppendUsersFromPeerList(
+		not_null<Main::Session*> session,
+		const MTPVector<MTPPeer> &list,
+		std::vector<UserData*> &users) {
+	users.reserve(users.size() + list.v.size());
+	for (const auto &mtpPeer : list.v) {
+		if (const auto user = UserFromPeer(session, mtpPeer)) {
+			users.push_back(user);
+		}
+	}
+}
+
+[[nodiscard]] rpl::producer<BotSearchState> LookupBots(
 		not_null<Main::Session*> session,
 		rpl::producer<QString> usernameChanges) {
-	using Cache = base::flat_map<QString, UserData*>;
-	const auto cache = std::make_shared<Cache>();
 	return std::move(
 		usernameChanges
-	) | rpl::map([=](const QString &username) -> rpl::producer<BotState> {
-		const auto extracted = ExtractUsername(username);
-		const auto owner = &session->data();
-		static const auto expression = QRegularExpression(
-			"^[a-zA-Z0-9_\\.]+$");
-		if (!expression.match(extracted).hasMatch()) {
-			return rpl::single(BotState());
-		} else if (const auto peer = owner->peerByUsername(extracted)) {
-			if (const auto user = peer->asUser(); user && user->isBot()) {
-				if (user->botInfo->supportsBusiness) {
-					return rpl::single(BotState{
-						.bot = user,
-						.state = LookupState::Ready,
-					});
-				}
-				return rpl::single(BotState{
-					.state = LookupState::Unsupported,
-				});
-			}
-			return rpl::single(BotState{
-				.state = LookupState::Ready,
-			});
-		} else if (const auto i = cache->find(extracted); i != end(*cache)) {
-			return rpl::single(BotState{
-				.bot = i->second,
-				.state = LookupState::Ready,
-			});
+	) | rpl::map([=](
+			const QString &username) -> rpl::producer<BotSearchState> {
+		const auto query = ParseUsernameQuery(username);
+		if (!query.valid) {
+			return rpl::single(BotSearchState());
 		}
+		const auto extracted = query.value;
 
 		return [=](auto consumer) {
 			auto result = rpl::lifetime();
 
-			const auto requestId = result.make_state<mtpRequestId>();
-			*requestId = session->api().request(MTPcontacts_ResolveUsername(
+			const auto data = result.make_state<BotSearchRequest>();
+			const auto finish = [=] {
+				if (!data->exactDone || !data->searchDone) {
+					return;
+				}
+				consumer.put_next(MakeReadySearchState(*data));
+			};
+
+			consumer.put_next(BotSearchState{
+				.state = LookupState::Loading,
+			});
+
+			data->exactRequestId = session->api().request(MTPcontacts_ResolveUsername(
 				MTP_flags(0),
 				MTP_string(extracted),
 				MTP_string()
 			)).done([=](const MTPcontacts_ResolvedPeer &result) {
-				const auto &data = result.data();
-				session->data().processUsers(data.vusers());
-				session->data().processChats(data.vchats());
-				const auto peerId = peerFromMTP(data.vpeer());
-				const auto peer = session->data().peer(peerId);
-				if (const auto user = peer->asUser()) {
-					if (user->isBot()) {
-						cache->emplace(extracted, user);
-						consumer.put_next(BotState{
-							.bot = user,
-							.state = LookupState::Ready,
-						});
-						return;
+				const auto &resolved = result.data();
+				session->data().processUsers(resolved.vusers());
+				session->data().processChats(resolved.vchats());
+				if (const auto user = UserFromPeer(session, resolved.vpeer())) {
+					if (IsUsableBusinessBot(user)) {
+						data->exact = user;
+					} else if (user->isBot()) {
+						data->exactUnsupported = true;
 					}
 				}
-				cache->emplace(extracted, nullptr);
-				consumer.put_next(BotState{ .state = LookupState::Ready });
+				data->exactDone = true;
+				finish();
 			}).fail([=] {
-				cache->emplace(extracted, nullptr);
-				consumer.put_next(BotState{ .state = LookupState::Ready });
+				data->exactDone = true;
+				finish();
+			}).send();
+			data->searchRequestId = session->api().request(MTPcontacts_Search(
+				MTP_flags(0),
+				MTP_string(extracted),
+				MTP_int(SearchPeopleLimit)
+			)).done([=](const MTPcontacts_Found &result) {
+				const auto &found = result.data();
+				session->data().processUsers(found.vusers());
+				session->data().processChats(found.vchats());
+				AppendUsersFromPeerList(session, found.vmy_results(), data->my);
+				AppendUsersFromPeerList(session, found.vresults(), data->global);
+				data->searchDone = true;
+				finish();
+			}).fail([=] {
+				data->searchDone = true;
+				finish();
 			}).send();
 
 			result.add([=] {
-				session->api().request(*requestId).cancel();
+				session->api().request(data->exactRequestId).cancel();
+				session->api().request(data->searchRequestId).cancel();
 			});
 			return result;
 		};
@@ -318,8 +505,8 @@ Main::Session &PreviewController::session() const {
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeBotPreview(
 		not_null<Ui::RpWidget*> parent,
-		rpl::producer<BotState> state,
-		Fn<void()> resetBot) {
+		rpl::producer<std::pair<BotSearchState, UserData*>> stateAndBot,
+		Fn<void(UserData*)> addBot) {
 	auto result = object_ptr<Ui::SlideWrap<>>(
 		parent.get(),
 		object_ptr<Ui::RpWidget>(parent.get()));
@@ -328,20 +515,22 @@ Main::Session &PreviewController::session() const {
 	raw->hide(anim::type::instant);
 
 	const auto child = inner->lifetime().make_state<Ui::RpWidget*>(nullptr);
-	std::move(state) | rpl::filter([=](BotState state) {
-		return state.state != LookupState::Loading;
-	}) | rpl::on_next([=](BotState state) {
-		raw->toggle(
-			(state.state == LookupState::Ready
-				|| state.state == LookupState::Unsupported),
-			anim::type::normal);
-		if (state.bot) {
+	std::move(stateAndBot) | rpl::on_next([=](
+			std::pair<BotSearchState, UserData*> pair) {
+		const auto &state = pair.first;
+		const auto committed = pair.second;
+		const auto hasBots = !state.bots.empty();
+		const auto hasLabel = !hasBots
+			&& (state.state == LookupState::Ready
+				|| state.state == LookupState::Unsupported);
+		raw->toggle(hasBots || hasLabel, anim::type::normal);
+		if (hasBots) {
 			const auto delegate = parent->lifetime().make_state<
 				PeerListContentDelegateSimple
 			>();
 			const auto controller = parent->lifetime().make_state<
 				PreviewController
-			>(state.bot, resetBot);
+			>(state.bots, committed, addBot);
 			controller->setStyleOverrides(&st::peerListSingleRow);
 			const auto content = Ui::CreateChild<PeerListContent>(
 				inner,
@@ -350,8 +539,7 @@ Main::Session &PreviewController::session() const {
 			controller->setDelegate(delegate);
 			delete base::take(*child);
 			*child = content;
-		} else if (state.state == LookupState::Ready
-			|| state.state == LookupState::Unsupported) {
+		} else if (hasLabel) {
 			const auto content = Ui::CreateChild<Ui::RpWidget>(inner);
 			const auto label = Ui::CreateChild<Ui::FlatLabel>(
 				content,
@@ -373,6 +561,7 @@ Main::Session &PreviewController::session() const {
 			delete base::take(*child);
 			*child = content;
 		} else {
+			delete base::take(*child);
 			return;
 		}
 		(*child)->show();
@@ -383,7 +572,7 @@ Main::Session &PreviewController::session() const {
 
 		(*child)->heightValue() | rpl::on_next([=](int height) {
 			inner->resize(inner->width(), height + st::contactSkip);
-		}, inner->lifetime());
+		}, (*child)->lifetime());
 	}, inner->lifetime());
 
 	raw->finishAnimating();
@@ -404,12 +593,51 @@ Chatbots::~Chatbots() {
 	}
 }
 
+bool Chatbots::shouldConfirmLeaveWithoutAddedBot() const {
+	if (!_chooserVisible.current() || _committedBot.current()) {
+		return false;
+	}
+	const auto parsed = ParseUsernameQuery(_usernameValue.current());
+	const auto &current = _lookupState.current();
+	return parsed.valid
+		&& !current.bots.empty();
+}
+
 bool Chatbots::closeByOutsideClick() const {
 	return false;
 }
 
+void Chatbots::checkBeforeClose(Fn<void()> close) {
+	if (!shouldConfirmLeaveWithoutAddedBot()) {
+		close();
+		return;
+	}
+	controller()->show(Ui::MakeConfirmBox({
+		.text = tr::lng_chatbots_leave_without_added_text(),
+		.confirmed = crl::guard(this, [=](Fn<void()> closeBox) {
+			closeBox();
+			close();
+		}),
+		.confirmText = tr::lng_box_leave(),
+		.cancelText = tr::lng_cancel(),
+		.title = tr::lng_chatbots_leave_without_added_title(),
+	}));
+}
+
 rpl::producer<QString> Chatbots::title() {
-	return tr::lng_chatbots_title();
+	return tr::lng_chat_automation_title();
+}
+
+void Chatbots::setInnerFocus() {
+	if (_chooserVisible.current()) {
+		_usernameWrap->entity()->setFocus();
+	} else {
+		AbstractSection::setInnerFocus();
+	}
+}
+
+const Ui::RoundRect *Chatbots::bottomSkipRounding() const {
+	return _permissionsWrap->count() ? nullptr : &_bottomSkipRounding;
 }
 
 void Chatbots::setupContent() {
@@ -420,62 +648,148 @@ void Chatbots::setupContent() {
 
 	_recipients = Data::BusinessRecipients::MakeValid(current.recipients);
 	_permissions = current.permissions;
+	_committedBot = current.bot;
+	_committedRecipients = _recipients.current();
+	_committedPermissions = _permissions.current();
 
 	AddDividerTextWithLottie(content, {
-		.lottie = u"robot"_q,
+		.lottie = u"settings/chat_automation"_q,
 		.lottieSize = st::settingsCloudPasswordIconSize,
 		.lottieMargins = st::peerAppearanceIconPadding,
 		.showFinished = showFinishes(),
-		.about = tr::lng_chatbots_about(
-			lt_link,
-			tr::lng_chatbots_about_link(
-				tr::url(tr::lng_chatbots_info_url(tr::now))),
-			tr::marked),
+		.about = tr::lng_chat_automation_about(tr::marked),
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 	});
 
-	const auto username = content->add(
-		object_ptr<Ui::InputField>(
+	const auto usernameWrap = content->add(
+		object_ptr<Ui::SlideWrap<Ui::InputField>>(
 			content,
-			st::settingsChatbotsUsername,
-			tr::lng_chatbots_placeholder(),
-			(current.bot
-				? current.bot->session().createInternalLink(
-					current.bot->username())
-				: QString())),
-		st::settingsChatbotsUsernameMargins);
+			object_ptr<Ui::InputField>(
+				content,
+				st::settingsChatbotsUsername,
+				tr::lng_chatbots_placeholder(),
+				QString()),
+			st::settingsChatbotsUsernameMargins),
+		QMargins(0, st::settingsChatbotsUsernameMargins.bottom(), 0, 0));
+	usernameWrap->setDuration(0);
+	_usernameWrap = usernameWrap;
+	_chooserVisible = !current.bot;
+	_usernameWrap->toggle(_chooserVisible.current(), anim::type::instant);
+	const auto username = usernameWrap->entity();
 
-	_usernameValue = DebouncedValue(username);
-	_botValue = rpl::single(BotState{
-		current.bot,
-		current.bot ? LookupState::Ready : LookupState::Empty
-	}) | rpl::then(
-		LookupBot(&controller()->session(), _usernameValue.changes())
+	_usernameValue = rpl::single(
+		username->getLastText()
+	) | rpl::then(
+		username->changes() | rpl::map([=] {
+			return username->getLastText();
+		}));
+	_lookupState = LookupBots(&controller()->session(), DebouncedValue(username)
 	);
 
 	const auto resetBot = [=] {
 		username->setText(QString());
-		username->setFocus();
-
+		_committedBot = nullptr;
+		_recipients = Data::BusinessRecipients::MakeValid({});
 		_permissions = Defaults();
-		refreshDetails();
+		_committedRecipients = _recipients.current();
+		_committedPermissions = _permissions.current();
+		_chooserVisible = true;
+		_usernameWrap->toggle(true, anim::type::instant);
+		username->setFocus();
 	};
+	const auto addBot = [=](UserData *resolved) {
+		if (!resolved) {
+			return;
+		}
+		_committedRecipients = _recipients.current();
+		_committedPermissions = _resolvePermissions();
+		_permissions = _committedPermissions;
+		_committedBot = resolved;
+		_chooserVisible = false;
+		_usernameWrap->toggle(false, anim::type::instant);
+		controller()->showToast(Ui::Toast::Config{
+			.text = { tr::lng_chatbots_added_success(
+				tr::now,
+				lt_bot,
+				resolved->name()) },
+			.icon = &st::toastCheckIcon,
+		});
+	};
+	auto stateAndBot = rpl::combine(
+		_lookupState.value(),
+		_committedBot.value(),
+		_chooserVisible.value(),
+		_usernameValue.value()
+	) | rpl::map([](
+			BotSearchState lookupState,
+			UserData *committed,
+			bool chooserVisible,
+			const QString &usernameText) {
+		return PreviewState(
+			std::move(lookupState),
+			committed,
+			chooserVisible,
+			usernameText);
+	});
+
 	content->add(object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
 		content,
-		MakeBotPreview(content, _botValue.value(), resetBot)));
+		MakeBotPreview(
+			content,
+			std::move(stateAndBot),
+			addBot)));
 
 	Ui::AddDividerText(
 		content,
-		tr::lng_chatbots_add_about(),
+		tr::lng_chat_automation_add_about(),
+		st::peerAppearanceDividerTextMargin);
+
+	_detailsWrap = content->add(object_ptr<Ui::VerticalLayout>(content));
+
+	AddBusinessRecipientsSelector(_detailsWrap, {
+		.controller = controller(),
+		.title = tr::lng_chatbots_access_title(),
+		.data = &_recipients,
+		.type = Data::BusinessRecipientsType::Bots,
+	});
+
+	Ui::AddSkip(_detailsWrap, st::settingsChatbotsAccessSkip);
+	Ui::AddDividerText(
+		_detailsWrap,
+		tr::lng_chatbots_exclude_about(),
 		st::peerAppearanceDividerTextMargin,
 		st::defaultDividerLabel,
 		RectPart::Top);
 
-	_detailsWrap = content->add(object_ptr<Ui::VerticalLayout>(content));
+	_permissionsWrap = _detailsWrap->add(
+		object_ptr<Ui::VerticalLayout>(_detailsWrap));
+
+	const auto removeWrap = _detailsWrap->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_detailsWrap,
+			object_ptr<Ui::VerticalLayout>(_detailsWrap)));
+	const auto removeInner = removeWrap->entity();
+	Ui::AddDivider(removeInner);
+	Ui::AddSkip(removeInner);
+	const auto remove = removeInner->add(
+		CreateButtonWithIcon(
+			removeInner,
+			tr::lng_chatbots_remove_bot(),
+			st::settingsChatbotsRemove,
+			{ &st::settingsChatbotsRemoveIcon }));
+	remove->setClickedCallback(resetBot);
+	removeWrap->toggleOn(
+		_committedBot.value() | rpl::map(_1 != nullptr),
+		anim::type::instant);
+	removeWrap->setDuration(0);
 
 	refreshDetails();
-	_botValue.changes() | rpl::on_next([=](const BotState &value) {
-		_permissions = Defaults();
+	rpl::merge(
+		_chooserVisible.changes() | rpl::to_empty,
+		_committedBot.changes() | rpl::to_empty,
+		_lookupState.changes() | rpl::to_empty,
+		_usernameValue.changes() | rpl::to_empty
+	) | rpl::on_next([=] {
 		refreshDetails();
 	}, lifetime());
 
@@ -486,29 +800,23 @@ void Chatbots::refreshDetails() {
 	_resolvePermissions = [=] {
 		return Data::ChatbotsPermissions();
 	};
-	while (_detailsWrap->count()) {
-		delete _detailsWrap->widgetAt(0);
+	while (_permissionsWrap->count()) {
+		delete _permissionsWrap->widgetAt(0);
 	}
 
-	const auto bot = _botValue.current().bot;
+	auto bot = _committedBot.current();
+	if (!bot && _chooserVisible.current()) {
+		const auto parsed = ParseUsernameQuery(_usernameValue.current());
+		if (parsed.valid) {
+			bot = FirstBot(_lookupState.current());
+		}
+	}
 	if (!bot) {
+		_permissionsWrap->resizeToWidth(width());
 		return;
 	}
 
-	const auto content = _detailsWrap;
-	AddBusinessRecipientsSelector(content, {
-		.controller = controller(),
-		.title = tr::lng_chatbots_access_title(),
-		.data = &_recipients,
-		.type = Data::BusinessRecipientsType::Bots,
-	});
-
-	Ui::AddSkip(content, st::settingsChatbotsAccessSkip);
-	Ui::AddDividerText(
-		content,
-		tr::lng_chatbots_exclude_about(),
-		st::peerAppearanceDividerTextMargin);
-
+	const auto content = _permissionsWrap;
 	Ui::AddSkip(content);
 	Ui::AddSubsectionTitle(content, tr::lng_chatbots_permissions_title());
 
@@ -518,13 +826,16 @@ void Chatbots::refreshDetails() {
 	content->add(std::move(permissions.widget));
 	_resolvePermissions = permissions.value;
 
-
 	std::move(
 		permissions.changes
 	) | rpl::on_next([=](Data::ChatbotsPermissions now) {
 		const auto warn = [&](tr::phrase<lngtag_bot> text) {
 			controller()->show(Ui::MakeInformBox({
-				.text = text(tr::now, lt_bot, tr::bold(bot->name()), tr::rich),
+				.text = text(
+					tr::now,
+					lt_bot,
+					tr::bold(bot->name()),
+					tr::rich),
 				.title = tr::lng_chatbots_warning_title(),
 			}));
 		};
@@ -549,7 +860,7 @@ void Chatbots::refreshDetails() {
 
 	Ui::AddSkip(content);
 
-	_detailsWrap->resizeToWidth(width());
+	_permissionsWrap->resizeToWidth(width());
 }
 
 void Chatbots::save() {
@@ -561,10 +872,15 @@ void Chatbots::save() {
 			show->showToast(tr::lng_chatbots_not_supported(tr::now));
 		}
 	};
+	const auto bot = _committedBot.current();
+	if (bot) {
+		_committedRecipients = _recipients.current();
+		_committedPermissions = _resolvePermissions();
+	}
 	controller()->session().data().chatbots().save({
-		.bot = _botValue.current().bot,
-		.recipients = _recipients.current(),
-		.permissions = _resolvePermissions(),
+		.bot = bot,
+		.recipients = _committedRecipients,
+		.permissions = _committedPermissions,
 	}, [=] {
 	}, fail);
 }

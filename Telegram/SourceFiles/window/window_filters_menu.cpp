@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
+#include "base/event_filter.h"
 #include "core/ui_integration.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/power_saving.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/choose_filter_box.h"
@@ -41,7 +43,52 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h" // attentionBoxButton
 #include "styles/style_menu_icons.h"
 
+#include <QtGui/QtEvents>
+
 namespace Window {
+namespace {
+
+// The folder tabs container, exposed as a list to screen readers.
+class TabListLayout final : public Ui::VerticalLayout {
+public:
+	using Ui::VerticalLayout::VerticalLayout;
+
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::List;
+	}
+	Qt::FocusPolicy accessibilityFocusPolicy() override {
+		// Let the accessibility layer decide focusability (like PopupMenu),
+		// exposing the list as focusable in screen-reader mode.
+		return Qt::ClickFocus;
+	}
+	std::optional<Qt::Orientation> accessibilityOrientation() const override {
+		// The folders strip is a vertically stacked list.
+		return Qt::Vertical;
+	}
+	bool accessibilitySelectionList() const override {
+		// Opt in to the single-selection list behaviour (selection interface +
+		// container focus forwarding to the active folder). Other List-role
+		// widgets (e.g. message history) must not get this.
+		return true;
+	}
+	std::vector<not_null<QWidget*>> accessibilityChildWidgets() const override {
+		// Report the tab buttons in visual (row) order, which can differ from
+		// the QObject child order after a drag-reorder. This override lives
+		// here, on the one VerticalLayout that exposes an accessibility role,
+		// rather than in the base class: a role-less VerticalLayout gets no
+		// custom accessible interface, so it would never call this anyway, and
+		// the widely-used base type keeps Qt's default child enumeration.
+		auto result = std::vector<not_null<QWidget*>>();
+		const auto rows = count();
+		result.reserve(rows);
+		for (auto i = 0; i != rows; ++i) {
+			result.push_back(widgetAt(i).get());
+		}
+		return result;
+	}
+};
+
+} // namespace
 
 FiltersMenu::FiltersMenu(
 	not_null<Ui::RpWidget*> parent,
@@ -193,6 +240,76 @@ void FiltersMenu::scrollToButton(not_null<Ui::RpWidget*> widget) {
 		anim::sineInOut);
 }
 
+void FiltersMenu::applyFilterAt(int start, int delta) {
+	const auto &list = _session->session().data().chatsFilters().list();
+	const auto count = int(list.size());
+	// Move focus to the folder at `start`, then in the `delta` direction,
+	// stopping at the bounds (no wrap). Arrow keys only move focus; activation
+	// (switching the chat list, or opening the Premium box for a locked folder)
+	// happens when the user presses Enter on the focused folder.
+	for (auto index = start; index >= 0 && index < count; index += delta) {
+		const auto i = _filters.find(list[index].id());
+		if (i != end(_filters)) {
+			const auto raw = i->second.get();
+			// Just move focus; the FocusIn handler makes this the list's single
+			// Tab-stop (setListTabStop). Arrows only move focus, so - unlike the
+			// old activate-on-arrow path - nothing scrolls the focused folder
+			// into view; do that explicitly.
+			raw->setFocus();
+			scrollToButton(raw);
+			return;
+		}
+	}
+}
+
+void FiltersMenu::moveToFilter(int delta) {
+	const auto &list = _session->session().data().chatsFilters().list();
+	const auto count = int(list.size());
+	// Move relative to the currently focused folder, so navigation continues
+	// from a locked one (which only takes focus, without becoming active); fall
+	// back to the active folder when nothing is focused.
+	auto current = 0;
+	for (auto i = 0; i != count; ++i) {
+		const auto it = _filters.find(list[i].id());
+		if (it != end(_filters) && it->second->hasFocus()) {
+			current = i;
+			break;
+		} else if (list[i].id() == _activeFilterId) {
+			current = i;
+		}
+	}
+	applyFilterAt(current + delta, delta);
+}
+
+void FiltersMenu::moveToFilterEdge(int delta) {
+	const auto count = int(
+		_session->session().data().chatsFilters().list().size());
+	applyFilterAt((delta > 0) ? 0 : (count - 1), delta);
+}
+
+void FiltersMenu::setListTabStop(not_null<Ui::SideBarButton*> stop) {
+	// Single source of truth for the list's roving Tab-stop, wired between the
+	// main menu and the edit button. Promote `stop` to the only TabFocus item
+	// and demote the previous one, so Tab/Shift+Tab always leave the list the
+	// same way regardless of which folder is focused.
+	if (const auto previous = _tabStop.get(); previous && previous != stop) {
+		previous->setFocusPolicy(Qt::ClickFocus);
+	}
+	stop->setFocusPolicy(Qt::TabFocus);
+	_tabStop = stop.get();
+	QWidget::setTabOrder(&_menu, stop.get());
+	QWidget::setTabOrder(stop.get(), _setup.get());
+}
+
+bool FiltersMenu::listFocused() const {
+	for (const auto &[id, button] : _filters) {
+		if (button->hasFocus()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void FiltersMenu::refresh() {
 	const auto filters = &_session->session().data().chatsFilters();
 	if (!filters->has() || _ignoreRefresh) {
@@ -216,6 +333,18 @@ void FiltersMenu::refresh() {
 		premiumFrom,
 		std::max(1, int(filters->list().size()) - maxLimit));
 
+	// Remember which folder holds keyboard focus so the roving Tab-stop can be
+	// re-established on its replacement after the rebuild: the new buttons are
+	// constructed while _filters still holds the old ones, so their own seeding
+	// can't see the focus and would leave the list with no Tab-stop.
+	auto focusedId = std::optional<FilterId>();
+	for (const auto &[id, button] : _filters) {
+		if (button->hasFocus()) {
+			focusedId = id;
+			break;
+		}
+	}
+
 	auto now = base::flat_map<int, base::unique_qptr<Ui::SideBarButton>>();
 	const auto &currentFilter = _session->activeChatsFilterCurrent();
 	for (const auto &filter : filters->list()) {
@@ -227,11 +356,33 @@ void FiltersMenu::refresh() {
 			_list,
 			filter.id(),
 			filter.title(),
-			Ui::ComputeFilterIcon(filter));
-		button->setLocked(nextIsLocked);
+			Ui::ComputeFilterIcon(filter),
+			nextIsLocked);
 		now.emplace(filter.id(), std::move(button));
 	}
 	_filters = std::move(now);
+	// Re-establish the list's Tab-stop on the folder that was focused (if it
+	// survived the rebuild), else on the active one, so a refresh - rename,
+	// deletion, Premium-state change - never leaves the list without a Tab-stop.
+	auto refocus = (Ui::SideBarButton*)nullptr;
+	if (Ui::ScreenReaderModeActive()) {
+		auto i = focusedId ? _filters.find(*focusedId) : end(_filters);
+		if (i == end(_filters)) {
+			i = _filters.find(_activeFilterId);
+		}
+		if (i != end(_filters)) {
+			setListTabStop(i->second.get());
+			// setListTabStop only fixes the Tab order; the std::move above
+			// destroyed the focused button, so Qt also dropped keyboard focus
+			// (to the menu, the edit button or nowhere). If a folder held it,
+			// restore focus to the replacement - or the active fallback - below,
+			// once the scroll is restored, so it lands focused and visible and a
+			// screen reader keeps reading a folder rather than where focus fell.
+			if (focusedId) {
+				refocus = i->second.get();
+			}
+		}
+	}
 	_reorder->start();
 
 	_container->resizeToWidth(_outer.width());
@@ -239,10 +390,16 @@ void FiltersMenu::refresh() {
 	// After the filters are refreshed, the scroll is reset,
 	// so we have to restore it.
 	_scroll.scrollToY(oldTop);
+
+	if (refocus) {
+		refocus->setFocus();
+		scrollToButton(refocus);
+	}
 }
 
 void FiltersMenu::setupList() {
-	_list = _container->add(object_ptr<Ui::VerticalLayout>(_container));
+	_list = _container->add(object_ptr<TabListLayout>(_container));
+	_list->setAccessibleName(tr::lng_filters_title(tr::now));
 	_setup = prepareButton(
 		_container,
 		-1,
@@ -271,7 +428,13 @@ bool FiltersMenu::premium() const {
 }
 
 base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareAll() {
-	return prepareButton(_container, 0, {}, Ui::FilterIcon::All, true);
+	return prepareButton(
+		_container,
+		0,
+		{},
+		Ui::FilterIcon::All,
+		false,
+		true);
 }
 
 base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
@@ -279,12 +442,19 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		FilterId id,
 		Data::ChatFilterTitle title,
 		Ui::FilterIcon icon,
+		bool locked,
 		bool toBeginning) {
 	const auto isStatic = title.isStatic;
 	const auto paused = [=] {
 		return On(PowerSaving::kEmojiChat)
 			|| _session->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 	};
+	// A real folder (id >= 0), locked or not, is a selectable list item; only
+	// the "Edit" button (id < 0) stays a plain button. Establish this before
+	// inserting the widget - insertion shows the child immediately, so
+	// configuring the role up front avoids a transient or separately-announced
+	// role change.
+	const auto listItem = (id >= 0);
 	auto prepared = object_ptr<Ui::SideBarButton>(
 		container,
 		id ? title.text : TextWithEntities{ tr::lng_filters_all(tr::now) },
@@ -294,6 +464,8 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 			.customEmojiLoopLimit = isStatic ? -1 : 0,
 		}),
 		paused);
+	prepared->setLocked(locked);
+	prepared->setIsListItem(listItem);
 	auto added = toBeginning
 		? container->insert(0, std::move(prepared))
 		: container->add(std::move(prepared));
@@ -307,6 +479,15 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		: Ui::FilterIcon::All);
 	raw->setIconOverride(icons.normal, icons.active);
 	if (id >= 0) {
+		if (locked) {
+			// Surface a locked folder's premium-gated status and what pressing
+			// it does, which the visual lock glyph alone can't convey to a
+			// screen reader.
+			raw->setAccessibleName(
+				tr::lng_sr_folder_locked(tr::now, lt_text, nameText));
+			raw->setAccessibleDescription(
+				tr::lng_sr_folder_locked_about(tr::now));
+		}
 		rpl::combine(
 			Data::UnreadStateValue(&_session->session(), id),
 			Data::IncludeMutedCounterFoldersValue()
@@ -324,15 +505,63 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 				? "99+"
 				: QString::number(count);
 			raw->setBadge(string, includeMuted && (count == muted));
-			raw->setAccessibleName(count
-				? tr::lng_filter_unread_chats(
-					tr::now,
-					lt_count,
-					count,
-					lt_text,
-					nameText)
-				: nameText);
+			if (!locked) {
+				raw->setAccessibleName(count
+					? tr::lng_filter_unread_chats(
+						tr::now,
+						lt_count,
+						count,
+						lt_text,
+						nameText)
+					: nameText);
+			}
 		}, raw->lifetime());
+	}
+	if (listItem) {
+		// The list has one roving Tab-stop and it follows keyboard focus (the
+		// FocusIn handler below makes the focused folder the single Tab-stop via
+		// setListTabStop). Here we only track screen-reader mode - which toggles
+		// whether the items are focusable at all - and seed the Tab-stop on the
+		// active folder, so Tab reaches the list there while nothing is focused.
+		rpl::combine(
+			Ui::ScreenReaderModeActiveValue(),
+			rpl::single(
+				_session->activeChatsFilterCurrent()
+			) | rpl::then(
+				_session->activeChatsFilter()
+			) | rpl::map([=](FilterId active) {
+				return (active == id);
+			}) | rpl::distinct_until_changed()
+		) | rpl::on_next([=](bool screenReaderActive, bool selected) {
+			if (!screenReaderActive) {
+				raw->setFocusPolicy(Qt::NoFocus);
+			} else if (selected && !listFocused()) {
+				setListTabStop(raw);
+			} else if (raw->focusPolicy() == Qt::NoFocus) {
+				raw->setFocusPolicy(Qt::ClickFocus);
+			}
+		}, raw->lifetime());
+		// Up/Down move focus to the previous/next folder, Home/End to the
+		// first/last one (the items are only focusable in screen-reader mode, so
+		// this is scoped to it). Activation - switching the chat list, or opening
+		// the Premium box for a locked folder - happens on Enter. Focusing an
+		// item (by arrow, mouse or UIA SetFocus) makes it the list's Tab-stop.
+		base::install_event_filter(raw, [=](not_null<QEvent*> event) {
+			if (event->type() == QEvent::FocusIn) {
+				setListTabStop(raw);
+				return base::EventFilterResult::Continue;
+			} else if (event->type() != QEvent::KeyPress) {
+				return base::EventFilterResult::Continue;
+			}
+			switch (static_cast<QKeyEvent*>(event.get())->key()) {
+			case Qt::Key_Up: moveToFilter(-1); break;
+			case Qt::Key_Down: moveToFilter(1); break;
+			case Qt::Key_Home: moveToFilterEdge(1); break;
+			case Qt::Key_End: moveToFilterEdge(-1); break;
+			default: return base::EventFilterResult::Continue;
+			}
+			return base::EventFilterResult::Cancel;
+		});
 	}
 	raw->setActive(_session->activeChatsFilterCurrent() == id);
 	raw->setClickedCallback([=] {

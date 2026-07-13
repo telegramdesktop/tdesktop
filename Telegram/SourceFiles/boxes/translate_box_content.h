@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "spellcheck/platform/platform_language.h"
+#include "ui/widgets/buttons.h"
+#include "ui/rp_widget.h"
 
 namespace Ui::Text {
 struct MarkedContext;
@@ -27,6 +29,20 @@ struct TranslateBoxContentResult {
 };
 
 class GenericBox;
+
+class TranslateShowButton final : public RpWidget {
+public:
+	TranslateShowButton(not_null<RpWidget*> parent);
+
+	[[nodiscard]] rpl::producer<Qt::MouseButton> clicks() const;
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	LinkButton _button;
+
+};
 
 struct TranslateBoxContentArgs {
 	TextWithEntities text;

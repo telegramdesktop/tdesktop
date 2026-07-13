@@ -10,6 +10,8 @@ using "ui/basic.style";
 using "ui/widgets/widgets.style";
 using "boxes/boxes.style";
 using "chat_helpers/chat_helpers.style";
+using "dialogs/dialogs.style";
+using "ui/chat/chat.style";
 
 historyPollQuestionFont: semiboldFont;
 historyPollQuestionStyle: TextStyle(defaultTextStyle) {
@@ -77,8 +79,12 @@ historyPollExplanationTitleSkip: 4px;
 historyPollExplanationCloseSize: 20px;
 historyPollExplanationCloseIconSize: 8px;
 historyPollExplanationCloseStroke: 2px;
-historyPollExplanationMediaMaxHeight: 300px;
 historyPollExplanationMediaSkip: 6px;
+historyPollLinkPlaceholderIcon: icon {{ "info/edit/links_link", windowSubTextFg }};
+historyPollLinkInIcon: icon {{ "info/edit/links_link", historyFileInIconFg }};
+historyPollLinkInIconSelected: icon {{ "info/edit/links_link", historyFileInIconFgSelected }};
+historyPollLinkOutIcon: icon {{ "info/edit/links_link", historyFileOutIconFg }};
+historyPollLinkOutIconSelected: icon {{ "info/edit/links_link", historyFileOutIconFgSelected }};
 historyPollChoiceRight: icon {{ "poll_choice_right", activeButtonFg }};
 historyPollChoiceWrong: icon {{ "poll_choice_wrong", activeButtonFg }};
 historyPollOutChoiceRight: icon {{ "poll_choice_right", historyFileOutIconFg }};
@@ -91,7 +97,6 @@ historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
 historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
 historyPollAddOptionTop: 3px;
-historyPollAddOptionHeight: 32px;
 historyPollAddOptionButtonSize: 26px;
 historyPollAddOptionEmojiLeft: -4px;
 historyPollAddOptionField: InputField(defaultInputField) {
@@ -129,9 +134,7 @@ historyPollAddOptionAttach: IconButton(defaultIconButton) {
 	ripple: defaultRippleAnimationBgOver;
 }
 
-pollBoxOutlinePollEmojiIcon: icon{{ "poll/general/outline_poll_emoji", activeButtonFg }};
 pollBoxOutlinePollAddIcon: icon{{ "poll/general/outline_poll_add-18x18", activeButtonFg }};
-pollBoxOutlinePollAttachIcon: icon{{ "poll/general/outline_poll_attach", activeButtonFg }};
 pollBoxMenuPollOrderIcon: icon{{ "poll/general/menu_poll_order-24x24", historyComposeIconFg }};
 pollBoxFilledPollDeadlineIcon: icon{{ "poll/filled/filled_poll_deadline", activeButtonFg }};
 pollBoxFilledPollViewIcon: icon{{ "poll/filled/filled_poll_view", activeButtonFg }};
@@ -140,12 +143,29 @@ pollBoxFilledPollCorrectIcon: icon{{ "poll/filled/filled_poll_correct", activeBu
 pollBoxFilledPollRevoteIcon: icon{{ "poll/filled/filled_poll_revote", activeButtonFg }};
 pollBoxFilledPollShuffleIcon: icon{{ "poll/filled/filled_poll_shuffle", activeButtonFg }};
 pollBoxFilledPollMultipleIcon: icon{{ "poll/filled/filled_poll_multiple", activeButtonFg }};
+pollBoxFilledPollSubscribersIcon: icon{{ "poll/filled/filled_poll_subscribers-20x20", activeButtonFg }};
+pollBoxFilledPollCountryIcon: icon{{ "poll/filled/filled_poll_country-20x20", activeButtonFg }};
 
 pollAttachTextSkip: 28px;
+pollAttachRadius: 7px;
+historyPollAnswerThumbRadius: 9px;
+
+pollOpenLinkUrlLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 1px;
+	align: align(center);
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px);
+	}
+	maxHeight: 0px;
+}
+pollOpenLinkUrlInnerPadding: margins(16px, 12px, 16px, 12px);
+pollOpenLinkUrlOuterPadding: margins(22px, 4px, 22px, 14px);
+pollOpenLinkUrlRadius: 16px;
+pollOpenLinkPreviewOuterPadding: margins(11px, 0px, 11px, 5px);
 pollAttachProgressMargin: 4px;
 pollAttachCancel: icon {{ "history_audio_cancel", historyFileThumbIconFg }};
 pollAttachView: icon {{ "mediaview/views", historyFileThumbIconFg }};
-pollAttachShift: point(-11px, -2px);
+pollAttachLink: icon {{ "menu/link", historyFileThumbIconFg }};
 
 createPollField: InputField(defaultInputField) {
 	textMargins: margins(0px, 4px, 0px, 4px);
@@ -210,6 +230,13 @@ createPollWarning: FlatLabel(defaultFlatLabel) {
 createPollWarningPosition: point(16px, 6px);
 createPollCheckboxMargin: margins(22px, 10px, 22px, 10px);
 createPollFieldTitlePadding: margins(22px, 7px, 10px, 6px);
+
+createPollLinkUrlField: InputField(dialogsFilter) {
+	textBgActive: filterInputInactiveBg;
+	textMargins: margins(14px, 8px, 14px, 5px);
+	placeholderMargins: margins(0px, 0px, 2px, 0px);
+	heightMin: 36px;
+}
 
 createTodoOptionField: InputField(createPollOptionField) {
 	textMargins: margins(22px, 11px, 68px, 11px);

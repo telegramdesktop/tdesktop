@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
 #include "base/object_ptr.h"
+#include "info/profile/info_profile_section_stack.h"
+#include "ui/rp_widget.h"
 
 namespace Data {
 class ForumTopic;
@@ -37,6 +38,7 @@ namespace Profile {
 
 class Memento;
 class Members;
+class TabsHost;
 struct Origin;
 
 class InnerWidget final : public Ui::RpWidget {
@@ -63,6 +65,13 @@ public:
 	void enableBackButton();
 	void showFinished();
 
+	[[nodiscard]] TabsHost *tabsHost() const {
+		return _tabsHost;
+	}
+	[[nodiscard]] rpl::producer<bool> tabsDockedValue() const {
+		return _tabsDocked.value();
+	}
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void visibleTopBottomUpdated(
@@ -73,23 +82,16 @@ private:
 	object_ptr<RpWidget> setupContent(
 		not_null<RpWidget*> parent,
 		Origin origin);
-	object_ptr<RpWidget> setupSharedMedia(
-		not_null<RpWidget*> parent,
-		rpl::producer<bool> showDivider,
-		Ui::MultiSlideTracker &sharedTracker);
-	void setupMembers(
-		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<bool> showDivider);
-	void setupSavedMusic(not_null<Ui::VerticalLayout*> container);
+	[[nodiscard]] Section makeMembersSection(not_null<QWidget*> parent);
 
 	int countDesiredHeight() const;
 	void updateDesiredHeight() {
-		_desiredHeight.fire(countDesiredHeight());
+		const auto value = countDesiredHeight();
+		if (_lastDesiredHeight != value) {
+			_lastDesiredHeight = value;
+			_desiredHeight.fire_copy(value);
+		}
 	}
-
-	void addAboutVerificationOrDivider(
-		not_null<Ui::VerticalLayout*> content,
-		rpl::producer<bool> showDivider);
 
 	const not_null<Controller*> _controller;
 	const not_null<PeerData*> _peer;
@@ -98,7 +100,7 @@ private:
 	Data::SavedSublist * const _sublist = nullptr;
 
 	bool _inResize = false;
-	bool _aboutVerificationAdded = false;
+	int _lastDesiredHeight = -1;
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<int> _desiredHeight;
 
@@ -113,6 +115,8 @@ private:
 
 	Members *_members = nullptr;
 	Ui::SlideWrap<RpWidget> *_sharedMediaWrap = nullptr;
+	TabsHost *_tabsHost = nullptr;
+	rpl::variable<bool> _tabsDocked = false;
 	object_ptr<RpWidget> _content;
 
 };

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "menu/menu_send_details.h"
 
 namespace style {
 struct ComposeIcons;
@@ -29,45 +30,6 @@ class Thread;
 } // namespace Data
 
 namespace SendMenu {
-
-enum class Type : uchar {
-	Disabled,
-	SilentOnly,
-	Scheduled,
-	ScheduledToUser, // For "Send when online".
-	Reminder,
-	EditCommentPrice,
-};
-
-enum class SpoilerState : uchar {
-	None,
-	Enabled,
-	Possible,
-};
-
-enum class CaptionState : uchar {
-	None,
-	Below,
-	Above,
-};
-
-enum class PhotoQualityState : uchar {
-	None,
-	Standard,
-	High,
-};
-
-struct Details {
-	Type type = Type::Disabled;
-	SpoilerState spoiler = SpoilerState::None;
-	CaptionState caption = CaptionState::None;
-	PhotoQualityState photoQuality = PhotoQualityState::None;
-	TextWithTags commentPreview;
-	QString commentStreamerName;
-	std::optional<uint64> price;
-	std::optional<uint64> commentPriceMin;
-	bool effectAllowed = false;
-};
 
 enum class FillMenuResult : uchar {
 	Prepared,

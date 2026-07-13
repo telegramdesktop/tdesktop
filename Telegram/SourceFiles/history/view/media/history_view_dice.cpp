@@ -75,19 +75,20 @@ void Dice::updateOutcomeMessage() {
 		? forwarded->originalHiddenSenderInfo->name
 		: from->name();
 	const auto out = (item->out() || from->isSelf()) && !forwarded;
-	const auto won = (_outcomeNanoTon - _outcomeStakeNanoTon);
+	const auto won = (_outcomeNanoTon > 0);
+	const auto displayNano = won ? _outcomeNanoTon : _outcomeStakeNanoTon;
 	const auto amount = tr::marked(QString::fromUtf8("\xf0\x9f\x92\x8e")
 		+ " "
-		+ QString::number(std::abs(won) / 1e9));
+		+ QString::number(displayNano / 1e9));
 	const auto text = out
-		? (won >= 0
+		? (won
 			? tr::lng_action_stake_game_won_you
 			: tr::lng_action_stake_game_lost_you)(
 				tr::now,
 				lt_amount,
 				amount,
 				tr::marked)
-		: (won >= 0
+		: (won
 			? tr::lng_action_stake_game_won
 			: tr::lng_action_stake_game_lost)(
 				tr::now,

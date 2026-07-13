@@ -62,6 +62,7 @@ private:
 	void load();
 	void fill();
 	void fillRecentPosts(not_null<Ui::VerticalLayout*> container);
+	void fillPollVotesGraph(not_null<Ui::VerticalLayout*> container);
 
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;

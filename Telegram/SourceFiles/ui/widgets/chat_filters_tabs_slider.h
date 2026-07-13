@@ -35,6 +35,9 @@ public:
 	void fitWidthToSections() override;
 	void setUnreadCount(int index, int unreadCount, bool muted);
 	void setLockedFrom(int index);
+	[[nodiscard]] int lockedFrom() const {
+		return _lockedFrom;
+	}
 
 	[[nodiscard]] rpl::producer<int> contextMenuRequested() const;
 	[[nodiscard]] rpl::producer<> lockedClicked() const;

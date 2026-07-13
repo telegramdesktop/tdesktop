@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
+#include "ui/basic_click_handlers.h"
 
 namespace Api {
 namespace {
@@ -306,11 +307,15 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 			v.push_back(MTP_messageEntityUrl(offset, length));
 		} break;
 		case EntityType::CustomUrl: {
+			const auto external = UrlClickHandler::ExternalUrlFromInternalUrl(
+				entity.data());
 			v.push_back(
 				MTP_messageEntityTextUrl(
 					offset,
 					length,
-					MTP_string(entity.data())));
+					MTP_string(external.isEmpty()
+						? entity.data()
+						: external)));
 		} break;
 		case EntityType::Email: {
 			v.push_back(MTP_messageEntityEmail(offset, length));

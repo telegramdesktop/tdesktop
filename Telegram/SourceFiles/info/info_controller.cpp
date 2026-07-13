@@ -393,6 +393,10 @@ rpl::producer<Wrap> Controller::wrapValue() const {
 	return _widget->wrapValue();
 }
 
+rpl::producer<bool> Controller::contentTillBottomValue() const {
+	return _widget->contentTillBottomValue();
+}
+
 not_null<Ui::RpWidget*> Controller::wrapWidget() const {
 	return _widget;
 }

@@ -117,6 +117,8 @@ PRIVATE
     dialogs/ui/chat_search_empty.h
     dialogs/ui/chat_search_in.cpp
     dialogs/ui/chat_search_in.h
+    dialogs/ui/dialogs_pill.cpp
+    dialogs/ui/dialogs_pill.h
     dialogs/ui/dialogs_quick_action_context.h
     dialogs/ui/dialogs_quick_action.h
     dialogs/ui/dialogs_stories_list.cpp
@@ -231,6 +233,7 @@ PRIVATE
     menu/menu_check_item.h
     menu/menu_item_rate_transcribe.cpp
     menu/menu_item_rate_transcribe.h
+    menu/menu_send_details.h
     menu/menu_timecode_action.cpp
     menu/menu_timecode_action.h
     menu/menu_ttl.cpp
@@ -371,6 +374,10 @@ PRIVATE
     ui/chat/attach/attach_bot_downloads.h
     ui/chat/attach/attach_bot_webview.cpp
     ui/chat/attach/attach_bot_webview.h
+    ui/chat/attach/attach_bot_webview_linux_shell.cpp
+    ui/chat/attach/attach_bot_webview_linux_shell.h
+    ui/layers/standalone_layer_stack.cpp
+    ui/layers/standalone_layer_stack.h
     ui/chat/attach/attach_controls.cpp
     ui/chat/attach/attach_controls.h
     ui/chat/attach/attach_extensions.cpp
@@ -391,8 +398,6 @@ PRIVATE
     ui/chat/chat_theme.h
     ui/chat/chats_filter_tag.cpp
     ui/chat/chats_filter_tag.h
-    ui/chat/continuous_scroll.cpp
-    ui/chat/continuous_scroll.h
     ui/chat/forward_options_box.cpp
     ui/chat/forward_options_box.h
     ui/chat/group_call_bar.cpp
@@ -478,10 +483,32 @@ PRIVATE
     ui/effects/ministar_particles.h
     ui/effects/outline_segments.cpp
     ui/effects/outline_segments.h
+    ui/effects/premium_3d_cover.cpp
+    ui/effects/premium_3d_cover.h
+    ui/effects/premium_3d_mesh.cpp
+    ui/effects/premium_3d_mesh.h
+    ui/effects/premium_3d_support.cpp
+    ui/effects/premium_3d_support.h
     ui/effects/premium_bubble.cpp
     ui/effects/premium_bubble.h
+    ui/effects/premium_coin.cpp
+    ui/effects/premium_coin.h
+    ui/effects/premium_coin_renderer.cpp
+    ui/effects/premium_coin_renderer.h
+    ui/effects/premium_diamond.cpp
+    ui/effects/premium_diamond.h
+    ui/effects/premium_diamond_renderer.cpp
+    ui/effects/premium_diamond_renderer.h
     ui/effects/premium_graphics.cpp
     ui/effects/premium_graphics.h
+    ui/effects/premium_star.cpp
+    ui/effects/premium_star.h
+    ui/effects/premium_star_model.cpp
+    ui/effects/premium_star_model.h
+    ui/effects/premium_star_particles.cpp
+    ui/effects/premium_star_particles.h
+    ui/effects/premium_star_renderer.cpp
+    ui/effects/premium_star_renderer.h
     ui/effects/premium_stars.cpp
     ui/effects/premium_stars.h
     ui/effects/premium_stars_colored.cpp
@@ -514,6 +541,9 @@ PRIVATE
     ui/text/text_lottie_custom_emoji.h
     ui/text/text_options.cpp
     ui/text/text_options.h
+
+    ui/image/svg_preview.cpp
+    ui/image/svg_preview.h
 
     ui/widgets/fields/special_fields.cpp
     ui/widgets/fields/special_fields.h
@@ -585,9 +615,18 @@ PRIVATE
 
 nice_target_sources(td_ui ${res_loc}
 PRIVATE
+    bot_webview_shell_html/body.html
+    bot_webview_shell_html/page.css
+    bot_webview_shell_html/page.js
     picker_html/picker.css
     picker_html/picker.js
 )
+
+if (WIN32 OR APPLE)
+    remove_target_sources(td_ui ${src_loc}
+        ui/chat/attach/attach_bot_webview_linux_shell.cpp
+    )
+endif()
 
 if (DESKTOP_APP_SPECIAL_TARGET)
     remove_target_sources(td_ui ${src_loc}

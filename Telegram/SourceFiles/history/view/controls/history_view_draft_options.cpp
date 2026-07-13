@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_file_origin.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_thread.h"
 #include "data/data_user.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/sections/settings_premium.h"
 #include "settings/settings_common.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -74,6 +76,7 @@ public:
 	bool elementAnimationsPaused() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	Context elementContext() override;
+	bool elementHideReply(not_null<const Element*> view) override;
 
 private:
 	const not_null<QWidget*> _parent;
@@ -275,6 +278,10 @@ void PreviewWrap::showForwardSelector(Data::ResolvedForwardDraft draft) {
 	};
 	const auto wasViews = base::take(_views);
 	using Options = Data::ForwardOptions;
+	draft.options = NormalizeForwardOptions(
+		&_history->session(),
+		draft.items,
+		draft.options);
 	const auto dropNames = (draft.options != Options::PreserveInfo);
 	const auto dropCaptions = (draft.options == Options::NoNamesAndCaptions);
 	for (const auto &source : draft.items) {
@@ -683,6 +690,14 @@ Context PreviewDelegate::elementContext() {
 	return Context::Replies;
 }
 
+bool PreviewDelegate::elementHideReply(not_null<const Element*> view) {
+	if (!view->isTopicRootReply()) {
+		return false;
+	}
+	const auto reply = view->data()->Get<HistoryMessageReply>();
+	return reply && !reply->fields().manualQuote;
+}
+
 void AddFilledSkip(not_null<Ui::VerticalLayout*> container) {
 	const auto skip = container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
@@ -716,6 +731,7 @@ void DraftOptionsBox(
 		rpl::lifetime resolveLifetime;
 
 		Fn<void()> rebuild;
+		bool rebuildScheduled = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	state->link = args.usedLink;
@@ -825,7 +841,10 @@ void DraftOptionsBox(
 		const auto weak = base::make_weak(box);
 		auto forward = Data::ForwardDraft();
 		if (options) {
-			forward.options = *options;
+			forward.options = NormalizeForwardOptions(
+				&show->session(),
+				state->forward.items,
+				*options);
 			for (const auto &item : state->forward.items) {
 				forward.ids.push_back(item->fullId());
 			}
@@ -945,20 +964,48 @@ void DraftOptionsBox(
 
 	const auto setupForwardActions = [=] {
 		using Options = Data::ForwardOptions;
-		const auto now = state->forward.options;
 		const auto &items = state->forward.items;
+		state->forward.options = NormalizeForwardOptions(
+			&show->session(),
+			items,
+			state->forward.options);
+		const auto now = state->forward.options;
 		const auto count = items.size();
 		const auto dropNames = (now != Options::PreserveInfo);
 		const auto sendersCount = ItemsForwardSendersCount(items);
 		const auto captionsCount = ItemsForwardCaptionsCount(items);
-		const auto hasOnlyForcedForwardedInfo = !captionsCount
-			&& HasOnlyForcedForwardedInfo(items);
+		const auto canHideAuthor = CanHideForwardAuthor(
+			&show->session(),
+			items);
+		const auto canDropNames = canHideAuthor
+			&& HasDropForwardedInfoSetting(items);
+		const auto premiumRequiredHide = HideForwardAuthorPremiumRequired(
+			&show->session(),
+			items);
 		const auto dropCaptions = (now == Options::NoNamesAndCaptions);
 
 		AddFilledSkip(bottom);
 
-		if (!hasOnlyForcedForwardedInfo
-			&& HasDropForwardedInfoSetting(items)) {
+		if (premiumRequiredHide) {
+			Settings::AddButtonWithIcon(
+				bottom,
+				(sendersCount == 1
+					? tr::lng_forward_action_hide_sender
+					: tr::lng_forward_action_hide_senders)(),
+				st::settingsButtonDisabledWithIcon,
+				{ &st::menuIconUserHideDisabled }
+			)->setClickedCallback([=] {
+				Settings::ShowPremiumPromoToast(
+					show,
+					tr::lng_article_premium_required(
+						tr::now,
+						lt_link,
+						tr::link(tr::bold(
+							tr::lng_article_premium_required_link(tr::now))),
+						tr::marked),
+					u"rich_message"_q);
+			});
+		} else if (canDropNames) {
 			Settings::AddButtonWithIcon(
 				bottom,
 				(dropNames
@@ -979,7 +1026,7 @@ void DraftOptionsBox(
 				state->shown.force_assign(Section::Forward);
 			});
 		}
-		if (captionsCount) {
+		if (captionsCount && canHideAuthor) {
 			Settings::AddButtonWithIcon(
 				bottom,
 				(dropCaptions
@@ -1025,9 +1072,13 @@ void DraftOptionsBox(
 		});
 
 		AddFilledSkip(bottom);
-		Ui::AddDividerText(bottom, (count == 1
-			? tr::lng_forward_about()
-			: tr::lng_forward_many_about()));
+		if (canDropNames) {
+			Ui::AddDividerText(bottom, (count == 1
+				? tr::lng_forward_about()
+				: tr::lng_forward_many_about()));
+		} else {
+			Ui::AddDivider(bottom);
+		}
 	};
 
 	const auto &resolver = args.resolver;
@@ -1091,7 +1142,7 @@ void DraftOptionsBox(
 	}, state->wrap->lifetime());
 
 	const auto &linkRanges = args.links;
-	state->shown.value() | rpl::on_next([=](Section shown) {
+	const auto rebuildBottom = [=](Section shown) {
 		bottom->clear();
 		state->shownLifetime.destroy();
 		switch (shown) {
@@ -1116,6 +1167,17 @@ void DraftOptionsBox(
 				setupForwardActions();
 			} break;
 		}
+	};
+	state->shown.value() | rpl::on_next([=](Section shown) {
+		if (!bottom->count()) {
+			rebuildBottom(shown);
+		} else if (!state->rebuildScheduled) {
+			state->rebuildScheduled = true;
+			crl::on_main(bottom, [=] {
+				state->rebuildScheduled = false;
+				rebuildBottom(state->shown.current());
+			});
+		}
 	}, box->lifetime());
 
 	auto save = rpl::combine(
@@ -1133,7 +1195,10 @@ void DraftOptionsBox(
 				.text = { tr::lng_reply_quote_long_text(tr::now) },
 			});
 		} else {
-			const auto options = state->forward.options;
+			const auto options = NormalizeForwardOptions(
+				&show->session(),
+				state->forward.items,
+				state->forward.options);
 			finish(resolveReply(), state->webpage, options);
 		}
 	};
@@ -1173,6 +1238,12 @@ void DraftOptionsBox(
 		if (state->wrap->hasViewForItem(item)) {
 			state->rebuild();
 		}
+	}, box->lifetime());
+
+	Data::AmPremiumValue(
+		&args.show->session()
+	) | rpl::skip(1) | rpl::on_next([=] {
+		state->shown.force_assign(state->shown.current());
 	}, box->lifetime());
 
 }

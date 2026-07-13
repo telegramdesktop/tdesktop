@@ -238,6 +238,13 @@ void Pip::RendererGL::deinit(QOpenGLFunctions *f) {
 	_volumeControllerImage.destroy(f);
 	_shadowImage.destroy(f);
 	_textures.destroy(f);
+	_rgbaSize = QSize();
+	_lumaSize = QSize();
+	_chromaSize = QSize();
+	_chromaSizeV = QSize();
+	_chromaNV12 = false;
+	_trackFrameIndex = 0;
+	_cacheKey = 0;
 	_imageProgram = std::nullopt;
 	_texturedVertexShader = nullptr;
 	_argb32Program = std::nullopt;
@@ -301,6 +308,12 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 		Assert(!data.image.isNull());
 		paintTransformedStaticContent(data.image, geometry);
 		return;
+	} else if (data.format == Streaming::FrameFormat::NativeTexture) {
+		const auto image = _owner->currentVideoFrameImage();
+		if (!image.isNull()) {
+			paintTransformedStaticContent(image, geometry);
+		}
+		return;
 	}
 	Assert(!data.yuv->size.isEmpty());
 	const auto program = (data.format == Streaming::FrameFormat::NV12)
@@ -337,8 +350,8 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 			nv12changed ? QSize() : _chromaSize,
 			yuv->u.stride / (nv12 ? 2 : 1),
 			yuv->u.data);
+		_chromaSize = yuv->chromaSize;
 		if (nv12) {
-			_chromaSize = yuv->chromaSize;
 			_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 		}
 		_chromaNV12 = nv12;
@@ -351,10 +364,10 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 				GL_ALPHA,
 				GL_ALPHA,
 				yuv->chromaSize,
-				_chromaSize,
+				_chromaSizeV,
 				yuv->v.stride,
 				yuv->v.data);
-			_chromaSize = yuv->chromaSize;
+			_chromaSizeV = yuv->chromaSize;
 			_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 		}
 	}

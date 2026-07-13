@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_common.h"
 #include "info/media/info_media_provider.h"
 #include "info/media/info_media_list_section.h"
+#include "info/media/info_media_grid_zoom.h"
 #include "info/downloads/info_downloads_provider.h"
 #include "info/saved/info_saved_music_provider.h"
 #include "info/stories/info_stories_provider.h"
@@ -53,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "ui/inactive_press.h"
+#include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
@@ -66,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/sticker_set_box.h" // StickerPremiumMark
+#include "core/click_handler_types.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "ui/toast/toast.h"
@@ -78,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_media_stories.h"
 
+#include <QtCore/QMimeData>
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
 
@@ -171,6 +175,7 @@ ListWidget::ListWidget(
 		&_controller->session(),
 		st::giftBoxHiddenMark,
 		RectPart::Center)) {
+	_zoom = std::make_unique<ListZoom>(this);
 	start();
 }
 
@@ -736,8 +741,10 @@ void ListWidget::restoreState(not_null<Memento*> memento) {
 
 int ListWidget::resizeGetHeight(int newWidth) {
 	if (newWidth > 0) {
+		const auto gridSize = _zoom->minGridSize();
 		for (auto &section : _sections) {
 			section.setCanReorder(canReorder());
+			section.setMinGridSize(gridSize);
 			section.resizeToWidth(newWidth);
 		}
 	}
@@ -813,8 +820,9 @@ void ListWidget::visibleTopBottomUpdated(
 	clearHeavyItems();
 
 	if (_dateBadge->goodType) {
-		updateDateBadgeFor(_visibleTop);
-		if (!_visibleTop) {
+		const auto badgeTop = _visibleTop + _topOverlayHeight;
+		updateDateBadgeFor(badgeTop);
+		if (badgeTop <= 0) {
 			if (_dateBadge->shown) {
 				scrollDateHide();
 			} else {
@@ -866,7 +874,9 @@ void ListWidget::toggleScrollDateShown() {
 }
 
 void ListWidget::checkMoveToOtherViewer() {
-	const auto visibleHeight = (_visibleBottom - _visibleTop);
+	const auto visibleHeight = std::max(
+		_visibleBottom - _visibleTop,
+		_externalViewportHeight);
 	if (width() <= 0
 		|| visibleHeight <= 0
 		|| _sections.empty()
@@ -916,15 +926,23 @@ void ListWidget::clearHeavyItems() {
 }
 
 ListScrollTopState ListWidget::countScrollState() const {
-	if (_sections.empty() || _visibleTop <= 0) {
+	return countScrollState({ st::infoMediaSkip, _visibleTop });
+}
+
+ListScrollTopState ListWidget::countScrollState(QPoint anchor) const {
+	// Embedded lists get their visible top clamped to 0, so being
+	// "at the top" is meaningless unless the newest edge is loaded.
+	const auto stickToTop = !_externalViewportHeight
+		|| !_provider->anchorWhileAtTop();
+	if (_sections.empty() || (_visibleTop <= 0 && stickToTop)) {
 		return {};
 	}
-	const auto topItem = findItemByPoint({ st::infoMediaSkip, _visibleTop });
-	const auto item = topItem.layout->getItem();
+	const auto anchorItem = findItemByPoint(anchor);
+	const auto item = anchorItem.layout->getItem();
 	return {
 		.position = _provider->scrollTopStatePosition(item),
 		.item = item,
-		.shift = _visibleTop - topItem.geometry.y(),
+		.shift = _visibleTop - anchorItem.geometry.y(),
 	};
 }
 
@@ -958,6 +976,30 @@ void ListWidget::restoreScrollState() {
 	_scrollTopState = ListScrollTopState();
 }
 
+bool ListWidget::keepPhotoMediaLoaded() {
+	return _zoom->isZoomable();
+}
+
+void ListWidget::zoomIn() {
+	_zoom->zoomIn();
+}
+
+void ListWidget::zoomOut() {
+	_zoom->zoomOut();
+}
+
+bool ListWidget::canZoomIn() const {
+	return _zoom->canZoomIn();
+}
+
+bool ListWidget::canZoomOut() const {
+	return _zoom->canZoomOut();
+}
+
+bool ListWidget::processZoomWheel(not_null<QWheelEvent*> e) {
+	return _zoom->processWheel(e);
+}
+
 MsgId ListWidget::topicRootId() const {
 	const auto topic = _controller->key().topic();
 	return topic ? topic->rootId() : MsgId(0);
@@ -972,8 +1014,22 @@ QMargins ListWidget::padding() const {
 	return st::infoMediaMargin;
 }
 
+bool ListWidget::eventHook(QEvent *e) {
+	if (e->type() == QEvent::NativeGesture) {
+		const auto gesture = static_cast<QNativeGestureEvent*>(e);
+		if (_zoom->handleNativeGesture(gesture)) {
+			return true;
+		}
+	}
+	return RpWidget::eventHook(e);
+}
+
 void ListWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
+	if (_zoom->paint(p)) {
+		return;
+	}
 
 	const auto outerWidth = width();
 	const auto clip = e->rect();
@@ -1050,7 +1106,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				st::roundedFg,
 				_dateBadge->text,
 				_dateBadge->textWidth,
-				_visibleTop,
+				_visibleTop + _topOverlayHeight,
 				outerWidth,
 				false);
 		}
@@ -2123,87 +2179,51 @@ void ListWidget::mouseActionCancel() {
 }
 
 void ListWidget::performDrag() {
-	if (_mouseAction != MouseAction::Dragging) return;
-
-	auto uponSelected = false;
-	if (_pressState.item && _pressState.inside) {
-		if (hasSelectedItems()) {
-			uponSelected = isItemUnderPressSelected();
-		} else if (const auto pressLayout = _provider->lookupLayout(
-				_pressState.item)) {
-			StateRequest request;
-			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
-			const auto dragState = pressLayout->getState(
-				_pressState.cursor,
-				request);
-			uponSelected = isPressInSelectedText(dragState);
-		}
-	}
-	auto pressedHandler = ClickHandler::getPressed();
-
-	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())) {
+	if (_mouseAction != MouseAction::Dragging) {
+		return;
+	} else if (_provider->hasSelectRestriction()) {
 		return;
 	}
-
-	TextWithEntities sel;
-	//QList<QUrl> urls;
-	if (uponSelected) {
-//		sel = getSelectedText();
-	} else if (pressedHandler) {
-		sel = { pressedHandler->dragText(), EntitiesInText() };
-		//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
-		//	urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
-		//}
+	const auto pressedHandler = ClickHandler::getPressed();
+	if (!pressedHandler
+		|| dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())) {
+		return;
 	}
-	//if (auto mimeData = MimeDataFromText(sel)) {
-	//	clearDragSelection();
-	//	_widget->noSelectingScroll();
+	auto mimeData = std::unique_ptr<QMimeData>();
+	auto pixmap = QPixmap();
+	const auto document = reinterpret_cast<DocumentData*>(
+		pressedHandler->property(
+			kDocumentLinkMediaProperty).toULongLong());
+	if (document) {
+		const auto filepath = document->filepath(true);
+		if (filepath.isEmpty()) {
+			return;
+		}
+		mimeData = std::make_unique<QMimeData>();
+		mimeData->setUrls({ QUrl::fromLocalFile(filepath) });
+		if (const auto layout = _provider->lookupLayout(_pressState.item)) {
+			if (const auto file = dynamic_cast<Overview::Layout::Document*>(
+					layout)) {
+				pixmap = Ui::PixmapFromImage(file->dragPreviewImage());
+			}
+		}
+	} else {
+		const auto text = pressedHandler->dragText();
+		if (text.isEmpty()) {
+			return;
+		}
+		mimeData = TextUtilities::MimeDataFromText(
+			TextForMimeData::Simple(text));
+		if (!mimeData) {
+			return;
+		}
+	}
 
-	//	if (!urls.isEmpty()) mimeData->setUrls(urls);
-	//	if (uponSelected && !Adaptive::OneColumn()) {
-	//		auto selectedState = getSelectionState();
-	//		if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-	//			session().data().setMimeForwardIds(collectSelectedIds());
-	//			mimeData->setData(u"application/x-td-forward"_q, "1");
-	//		}
-	//	}
-	//	_controller->parentController()->window()->launchDrag(std::move(mimeData));
-	//	return;
-	//} else {
-	//	auto forwardMimeType = QString();
-	//	auto pressedMedia = static_cast<HistoryView::Media*>(nullptr);
-	//	if (auto pressedItem = _pressState.layout) {
-	//		pressedMedia = pressedItem->getMedia();
-	//		if (_mouseCursorState == CursorState::Date) {
-	//			session().data().setMimeForwardIds(session().data().itemOrItsGroup(pressedItem));
-	//			forwardMimeType = u"application/x-td-forward"_q;
-	//		}
-	//	}
-	//	if (auto pressedLnkItem = App::pressedLinkItem()) {
-	//		if ((pressedMedia = pressedLnkItem->getMedia())) {
-	//			if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
-	//				session().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
-	//				forwardMimeType = u"application/x-td-forward"_q;
-	//			}
-	//		}
-	//	}
-	//	if (!forwardMimeType.isEmpty()) {
-	//		auto mimeData = std::make_unique<QMimeData>();
-	//		mimeData->setData(forwardMimeType, "1");
-	//		if (auto document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
-	//			auto filepath = document->filepath(true);
-	//			if (!filepath.isEmpty()) {
-	//				QList<QUrl> urls;
-	//				urls.push_back(QUrl::fromLocalFile(filepath));
-	//				mimeData->setUrls(urls);
-	//			}
-	//		}
-
-	//		// This call enters event loop and can destroy any QObject.
-	//		_controller->parentController()->window()->launchDrag(std::move(mimeData));
-	//		return;
-	//	}
-	//}
+	// This call enters event loop and can destroy any QObject.
+	_controller->parentController()->widget()->launchDrag(
+		std::move(mimeData),
+		crl::guard(this, [=] { mouseActionUpdate(QCursor::pos()); }),
+		std::move(pixmap));
 }
 
 void ListWidget::mouseActionFinish(
@@ -2735,6 +2755,17 @@ void ListWidget::jumpToMessage(MsgId msgId) {
 			_scrollTopState.item = i;
 		}
 	});
+}
+
+void ListWidget::setTopOverlayHeight(int height) {
+	if (_topOverlayHeight != height) {
+		_topOverlayHeight = height;
+		update(_dateBadge->rect);
+	}
+}
+
+void ListWidget::setExternalViewportHeight(int height) {
+	_externalViewportHeight = height;
 }
 
 } // namespace Media

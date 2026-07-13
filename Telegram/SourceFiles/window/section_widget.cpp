@@ -28,15 +28,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "menu/menu_send.h"
 #include "settings/sections/settings_premium.h"
+#include "ui/text/text_custom_emoji.h"
+#include "ui/toast/toast.h"
 #include "window/section_memento.h"
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 
+#include "styles/style_polls.h"
+
 #include <rpl/range.h>
 
 namespace Window {
 namespace {
+
+constexpr auto kReactionRestrictionToastDuration = 5 * crl::time(1000);
 
 [[nodiscard]] rpl::producer<QString> PeerThemeTokenValue(
 		not_null<PeerData*> peer) {
@@ -340,7 +346,7 @@ void SectionWidget::PaintBackground(
 		const auto fill = QSize(widget->width(), fillHeight);
 		const auto &state = theme->backgroundState(fill);
 		const auto make = [&] {
-			return std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+			return MakeWrappedEmoji<Ui::Text::LimitedLoopsEmoji>(
 				controller->session().data().customEmojiManager().create(
 					id,
 					crl::guard(widget, [=] { widget->update(); }),
@@ -599,6 +605,15 @@ bool ShowSendPremiumError(
 	return true;
 }
 
+void ShowReactRestrictionToast(not_null<SessionController*> controller) {
+	controller->showToast({
+		.text = { tr::lng_restricted_send_reactions_click(tr::now) },
+		.iconLottie = u"ban"_q,
+		.iconLottieSize = st::pollToastIconSize,
+		.duration = kReactionRestrictionToastDuration,
+	});
+}
+
 bool ShowReactPremiumError(
 		not_null<SessionController*> controller,
 		not_null<HistoryItem*> item,
@@ -609,8 +624,14 @@ bool ShowReactPremiumError(
 		}
 		ShowPremiumPreviewBox(controller, PremiumFeature::TagsForMessages);
 		return true;
+	} else if (!item->canReact()) {
+		ShowReactRestrictionToast(controller);
+		return true;
 	} else if (controller->session().premium()
-		|| ranges::contains(item->chosenReactions(), id)
+		|| ranges::contains(
+			item->reactions(),
+			id,
+			&Data::MessageReaction::id)
 		|| item->history()->peer->isBroadcast()) {
 		return false;
 	} else if (!id.custom()) {

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
+#include "info/profile/info_profile_phone_menu.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
@@ -69,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/continuous_sliders.h"
@@ -78,6 +80,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -172,10 +175,8 @@ Cover::Cover(
 	const auto hook = [=](Ui::FlatLabel::ContextMenuRequest request) {
 		if (request.selection.empty()) {
 			const auto callback = [=] {
-				auto phone = rpl::variable<TextWithEntities>(
-					Info::Profile::PhoneValue(_user)).current().text;
-				phone.replace(' ', QString()).replace('-', QString());
-				TextUtilities::SetClipboardText({ phone });
+				Info::Profile::CopyPhoneToClipboard(
+					Info::Profile::PhoneValue(_user));
 			};
 			request.menu->addAction(
 				tr::lng_profile_copy_phone(tr::now),
@@ -184,19 +185,7 @@ Cover::Cover(
 		} else {
 			_phone->fillContextMenu(request);
 		}
-		const auto hidden = _user->session().settings().phoneNumberHidden();
-		const auto toggle = [=] {
-			_user->session().settings().setPhoneNumberHidden(
-				!_user->session().settings().phoneNumberHidden());
-			_user->session().saveSettingsDelayed();
-			updatePhoneText();
-		};
-		Menu::AddCheckedAction(
-			request.menu,
-			tr::lng_context_spoiler_effect(tr::now),
-			toggle,
-			&st::menuIconSpoiler,
-			hidden);
+		Info::Profile::AddPhoneSpoilerMenu(request.menu, _user);
 	};
 	_phone->setContextMenuHook(hook);
 
@@ -276,6 +265,11 @@ void Cover::initViewers() {
 		updatePhoneText();
 	}, lifetime());
 
+	_user->session().settings().phoneNumberHiddenValue(
+	) | rpl::on_next([=] {
+		updatePhoneText();
+	}, lifetime());
+
 	Info::Profile::UsernameValue(
 		_user
 	) | rpl::on_next([=](const TextWithEntities &value) {
@@ -295,7 +289,11 @@ void Cover::initViewers() {
 		} else {
 			QGuiApplication::clipboard()->setText(
 				_user->session().createInternalLinkFull(username));
-			_controller->showToast(tr::lng_username_copied(tr::now));
+			_controller->showToast({
+				.text = { tr::lng_username_copied(tr::now) },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		}
 	});
 }
@@ -659,6 +657,7 @@ void Main::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 	const auto &list = Core::App().domain().accounts();
 	if (list.size() < Core::App().domain().maxAccounts()) {
 		addAction(tr::lng_menu_add_account(tr::now), [=] {
+			Core::App().setActivePrimaryWindow(&controller()->window());
 			Core::App().domain().addActivated(MTP::Environment{});
 		}, &st::menuIconAddAccount);
 	}

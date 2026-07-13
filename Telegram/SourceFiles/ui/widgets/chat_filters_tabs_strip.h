@@ -31,6 +31,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	Fn<void(FilterId)> choose,
 	ChatHelpers::PauseReason pauseLevel,
 	Window::SessionController *controller = nullptr,
-	bool trackActiveFilterAndUnreadAndReorder = false);
+	bool trackActiveFilterAndUnreadAndReorder = false,
+	bool handleKeyboardSwitch = false);
 
 } // namespace Ui

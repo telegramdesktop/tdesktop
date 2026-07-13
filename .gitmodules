@@ -73,9 +73,6 @@
 [submodule "Telegram/lib_webview"]
 	path = Telegram/lib_webview
 	url = https://github.com/desktop-app/lib_webview.git
-[submodule "Telegram/ThirdParty/dispatch"]
-	path = Telegram/ThirdParty/dispatch
-	url = https://github.com/apple/swift-corelibs-libdispatch
 [submodule "Telegram/ThirdParty/kimageformats"]
 	path = Telegram/ThirdParty/kimageformats
 	url = https://github.com/KDE/kimageformats.git
@@ -94,3 +91,12 @@
 [submodule "Telegram/lib_translate"]
 	path = Telegram/lib_translate
 	url = https://github.com/desktop-app/lib_translate
+[submodule "Telegram/ThirdParty/cmark-gfm"]
+	path = Telegram/ThirdParty/cmark-gfm
+	url = https://github.com/github/cmark-gfm.git
+[submodule "Telegram/ThirdParty/MicroTeX"]
+	path = Telegram/ThirdParty/MicroTeX
+	url = https://github.com/desktop-app/MicroTeX.git
+[submodule "Telegram/ThirdParty/TooManyCooks"]
+	path = Telegram/ThirdParty/TooManyCooks
+	url = https://github.com/tzcnt/TooManyCooks.git

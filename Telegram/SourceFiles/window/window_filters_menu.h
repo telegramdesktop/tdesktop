@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_filters_remove_manager.h"
 #include "base/timer.h"
+#include "base/weak_qptr.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/side_bar_button.h"
 #include "ui/widgets/scroll_area.h"
@@ -50,10 +51,16 @@ private:
 		FilterId id,
 		Data::ChatFilterTitle title,
 		Ui::FilterIcon icon,
+		bool locked = false,
 		bool toBeginning = false);
 	void setupMainMenuIcon();
 	void showMenu(QPoint position, FilterId id);
 	void scrollToButton(not_null<Ui::RpWidget*> widget);
+	void applyFilterAt(int start, int delta);
+	void moveToFilter(int delta);
+	void moveToFilterEdge(int delta);
+	void setListTabStop(not_null<Ui::SideBarButton*> stop);
+	[[nodiscard]] bool listFocused() const;
 	void openFiltersSettings();
 	void setupDragAndDrop();
 
@@ -67,6 +74,7 @@ private:
 	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
 	base::unique_qptr<Ui::SideBarButton> _setup;
 	base::flat_map<FilterId, base::unique_qptr<Ui::SideBarButton>> _filters;
+	base::weak_qptr<Ui::SideBarButton> _tabStop;
 	rpl::variable<bool> _includeMuted;
 	FilterId _activeFilterId = 0;
 	int _reordering = 0;

@@ -112,6 +112,7 @@ private:
 	void setup(const Descriptor &descriptor);
 	void setupWindow(const Descriptor &descriptor);
 	void setupWebview();
+	void showWebviewError();
 	void processKey(const QString &key, const QString &modifier);
 	void resolveCurrentLocation();
 	void resolveAddressByTimer();

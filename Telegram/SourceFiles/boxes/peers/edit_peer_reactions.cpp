@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/checkbox.h"
@@ -393,12 +394,12 @@ object_ptr<Ui::RpWidget> AddReactionsSelector(
 		const auto id = Data::ParseCustomEmojiData(data);
 		auto result = Ui::Text::MakeCustomEmoji(data, simpleContext);
 		if (state->unifiedFactoryOwner->lookupReactionId(id).custom()) {
-			return std::make_unique<MaybeDisabledEmoji>(
+			return MakeWrappedEmoji<MaybeDisabledEmoji>(
 				std::move(result),
 				[=] { return state->allowed.contains(id); });
 		}
 		using namespace Ui::Text;
-		return std::make_unique<FirstFrameEmoji>(std::move(result));
+		return MakeWrappedEmoji<FirstFrameEmoji>(std::move(result));
 	};
 	raw->setCustomTextContext(
 		std::move(context),

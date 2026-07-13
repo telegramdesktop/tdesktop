@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_message_reaction_id.h"
+
 class PeerData;
 
 namespace Data {
@@ -25,11 +27,23 @@ struct ModerateMessagesBoxOptions final {
 	bool banUser = false;
 };
 
+struct ModerateReactionEntry {
+	not_null<PeerData*> peer;
+	MsgId msgId;
+	not_null<PeerData*> participant;
+	Data::ReactionId reaction;
+};
+
+struct ModerateMessagesBoxEntry {
+	HistoryItemsList items;
+	std::optional<ModerateReactionEntry> reaction;
+};
+
 [[nodiscard]] ModerateMessagesBoxOptions DefaultModerateMessagesBoxOptions();
 
 void CreateModerateMessagesBox(
 	not_null<Ui::GenericBox*> box,
-	const HistoryItemsList &items,
+	ModerateMessagesBoxEntry entry,
 	Fn<void()> confirmed,
 	ModerateMessagesBoxOptions options);
 

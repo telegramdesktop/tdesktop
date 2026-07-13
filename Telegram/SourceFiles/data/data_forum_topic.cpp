@@ -807,7 +807,7 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 	_iconId = iconId;
 	invalidateTitleWithIcon();
 	_icon = iconId
-		? std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+		? MakeWrappedEmoji<Ui::Text::LimitedLoopsEmoji>(
 			owner().customEmojiManager().create(
 				_iconId,
 				[=] { updateChatListEntry(); },

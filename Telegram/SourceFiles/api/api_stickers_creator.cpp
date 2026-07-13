@@ -33,6 +33,12 @@ namespace {
 
 constexpr auto kStickerSide = 512;
 
+[[nodiscard]] int SideForType(Data::StickersType type) {
+	return (type == Data::StickersType::Emoji)
+		? kEmojiStickerSideMax
+		: kStickerSide;
+}
+
 [[nodiscard]] MTPInputStickerSetItem InputItem(
 		const MTPInputDocument &document,
 		const QString &emoji) {
@@ -47,14 +53,18 @@ constexpr auto kStickerSide = 512;
 [[nodiscard]] std::shared_ptr<FilePrepareResult> PrepareStickerWebp(
 		MTP::DcId dcId,
 		DocumentId id,
-		const QByteArray &bytes) {
-	const auto filename = u"sticker.webp"_q;
+		const QByteArray &bytes,
+		Data::StickersType type) {
+	const auto side = SideForType(type);
+	const auto filename = (type == Data::StickersType::Emoji)
+		? u"emoji.webp"_q
+		: u"sticker.webp"_q;
 	auto attributes = QVector<MTPDocumentAttribute>(
 		1,
 		MTP_documentAttributeFilename(MTP_string(filename)));
 	attributes.push_back(MTP_documentAttributeImageSize(
-		MTP_int(kStickerSide),
-		MTP_int(kStickerSide)));
+		MTP_int(side),
+		MTP_int(side)));
 
 	auto result = MakePreparedFile({
 		.id = id,
@@ -349,11 +359,13 @@ StickerUpload::StickerUpload(
 	not_null<Main::Session*> session,
 	StickerSetIdentifier set,
 	QByteArray webpBytes,
-	QString emoji)
+	QString emoji,
+	Data::StickersType type)
 : _session(session)
 , _set(std::move(set))
 , _bytes(std::move(webpBytes))
 , _emoji(std::move(emoji))
+, _type(type)
 , _api(&session->mtp()) {
 }
 
@@ -375,7 +387,8 @@ void StickerUpload::start(
 	auto ready = PrepareStickerWebp(
 		_session->mtp().mainDcId(),
 		_documentId,
-		_bytes);
+		_bytes,
+		_type);
 	_uploadId = FullMsgId(
 		_session->userPeerId(),
 		_session->data().nextLocalMessageId());
@@ -457,6 +470,7 @@ void StickerUpload::uploadReady(const MTPInputFile &file) {
 	_uploadLifetime.destroy();
 	_uploadId = FullMsgId();
 
+	const auto side = SideForType(_type);
 	auto attributes = QVector<MTPDocumentAttribute>();
 	attributes.push_back(MTP_documentAttributeSticker(
 		MTP_flags(0),
@@ -464,8 +478,8 @@ void StickerUpload::uploadReady(const MTPInputFile &file) {
 		MTP_inputStickerSetEmpty(),
 		MTPMaskCoords()));
 	attributes.push_back(MTP_documentAttributeImageSize(
-		MTP_int(kStickerSide),
-		MTP_int(kStickerSide)));
+		MTP_int(side),
+		MTP_int(side)));
 
 	const auto media = MTP_inputMediaUploadedDocument(
 		MTP_flags(0),

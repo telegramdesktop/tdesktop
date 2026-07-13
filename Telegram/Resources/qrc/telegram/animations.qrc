@@ -25,7 +25,7 @@
     <file alias="sleep.tgs">../../animations/sleep.tgs</file>
     <file alias="greeting.tgs">../../animations/greeting.tgs</file>
     <file alias="location.tgs">../../animations/location.tgs</file>
-    <file alias="robot.tgs">../../animations/robot.tgs</file>
+    <file alias="settings/chat_automation.tgs">../../animations/settings/chat_automation.tgs</file>
     <file alias="writing.tgs">../../animations/writing.tgs</file>
     <file alias="hours.tgs">../../animations/hours.tgs</file>
     <file alias="phone.tgs">../../animations/phone.tgs</file>
@@ -51,6 +51,18 @@
     <file alias="toast/tagged.tgs">../../animations/toast/tagged.tgs</file>
     <file alias="my_gifts_empty.tgs">../../animations/my_gifts_empty.tgs</file>
     <file alias="toast/chats_filter_in.tgs">../../animations/toast/chats_filter_in.tgs</file>
+    <file alias="toast/save_to_gallery.tgs">../../animations/toast/save_to_gallery.tgs</file>
+    <file alias="toast/save_to_music.tgs">../../animations/toast/save_to_music.tgs</file>
+    <file alias="toast/delete.tgs">../../animations/toast/delete.tgs</file>
+    <file alias="toast/voip_invite.tgs">../../animations/toast/voip_invite.tgs</file>
+    <file alias="toast/copy.tgs">../../animations/toast/copy.tgs</file>
+    <file alias="toast/mute.tgs">../../animations/toast/mute.tgs</file>
+    <file alias="toast/unmute.tgs">../../animations/toast/unmute.tgs</file>
+    <file alias="toast/pin.tgs">../../animations/toast/pin.tgs</file>
+    <file alias="toast/unpin.tgs">../../animations/toast/unpin.tgs</file>
+    <file alias="toast/chats_archived.tgs">../../animations/toast/chats_archived.tgs</file>
+    <file alias="toast/star_premium_2.tgs">../../animations/toast/star_premium_2.tgs</file>
+    <file alias="toast/contact_check.tgs">../../animations/toast/contact_check.tgs</file>
     <file alias="rtmp.tgs">../../animations/rtmp.tgs</file>
     <file alias="show_or_premium_lastseen.tgs">../../animations/show_or_premium_lastseen.tgs</file>
     <file alias="show_or_premium_readtime.tgs">../../animations/show_or_premium_readtime.tgs</file>
@@ -102,5 +114,6 @@
     <file alias="swipe_read.tgs">../../animations/swipe_action/read.tgs</file>
     <file alias="swipe_unread.tgs">../../animations/swipe_action/unread.tgs</file>
     <file alias="craft_progress.tgs">../../animations/craft_progress.tgs</file>
+    <file alias="cleaning_cache.tgs">../../animations/cleaning_cache.tgs</file>
   </qresource>
 </RCC>

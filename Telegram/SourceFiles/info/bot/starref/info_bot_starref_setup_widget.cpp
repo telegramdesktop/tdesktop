@@ -932,12 +932,26 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 
 	const auto baseHeight = st::starrefCoverHeight;
 	raw->resize(width(), baseHeight);
+	const auto updateTopSkip = [=] {
+		const auto height = raw->height();
+		setPaintPadding({ 0, height, 0, 0 });
+		setScrollTopSkip(height);
+	};
+	const auto setTopHeight = [=](int height) {
+		if (height > raw->maximumHeight()) {
+			raw->setMaximumHeight(height);
+			raw->setMinimumHeight(height);
+		} else {
+			raw->setMinimumHeight(height);
+			raw->setMaximumHeight(height);
+		}
+		raw->resize(raw->width(), height);
+		updateTopSkip();
+	};
 
 	raw->additionalHeight(
 	) | rpl::on_next([=](int additionalHeight) {
-		raw->setMaximumHeight(baseHeight + additionalHeight);
-		raw->setMinimumHeight(baseHeight + additionalHeight);
-		setPaintPadding({ 0, raw->height(), 0, 0 });
+		setTopHeight(baseHeight + additionalHeight);
 	}, raw->lifetime());
 
 	controller->wrapValue(
@@ -986,7 +1000,7 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	raw->move(0, 0);
 	widthValue() | rpl::on_next([=](int width) {
 		raw->resizeToWidth(width);
-		setScrollTopSkip(raw->height());
+		updateTopSkip();
 	}, raw->lifetime());
 
 	return result;

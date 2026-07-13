@@ -124,10 +124,9 @@ QSize Game::countOptimalSize() {
 
 		_attach->initDimensions();
 		QMargins bubble(_attach->bubbleMargins());
-		auto maxMediaWidth = _attach->maxWidth() - bubble.left() - bubble.right();
-		if (isBubbleBottom() && _attach->customInfoLayout()) {
-			maxMediaWidth += skipBlockWidth;
-		}
+		const auto maxMediaWidth = _attach->maxWidth()
+			- bubble.left()
+			- bubble.right();
 		accumulate_max(maxWidth, maxMediaWidth);
 		minHeight += _attach->minHeight() - bubble.top() - bubble.bottom();
 	}

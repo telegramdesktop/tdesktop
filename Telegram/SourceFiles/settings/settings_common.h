@@ -134,6 +134,7 @@ public:
 	virtual void sectionSaveChanges(FnMut<void()> done) {
 		done();
 	}
+	virtual SendMenu::Details sendMenuDetails() const;
 	virtual bool processChosenSticker(ChatHelpers::FileChosen &&chosen);
 	virtual void showFinished() {
 		_showFinished.fire({});
@@ -201,14 +202,6 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	rpl::event_stream<Type> _showOtherRequests;
 	rpl::event_stream<> _showFinished;
-
-};
-
-class SendMenuDetailsProvider {
-public:
-	[[nodiscard]] virtual SendMenu::Details sendMenuDetails() const = 0;
-
-	virtual ~SendMenuDetailsProvider() = default;
 
 };
 

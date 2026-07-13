@@ -8,11 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 
 #include "api/api_text_entities.h"
+#include "countries/countries_instance.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "base/call_delayed.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/text/text_options.h"
 
@@ -105,9 +108,17 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 		| (poll.is_hide_results_until_close()
 			? Flag::HideResultsUntilClose
 			: Flag(0))
-		| (poll.is_creator() ? Flag::Creator : Flag(0));
+		| (poll.is_creator() ? Flag::Creator : Flag(0))
+		| (poll.is_subscribers_only() ? Flag::SubscribersOnly : Flag(0));
 	const auto newCloseDate = poll.vclose_date().value_or_empty();
 	const auto newClosePeriod = poll.vclose_period().value_or_empty();
+	auto newCountries = std::vector<QString>();
+	if (const auto countries = poll.vcountries_iso2()) {
+		newCountries.reserve(countries->v.size());
+		for (const auto &country : countries->v) {
+			newCountries.push_back(qs(country));
+		}
+	}
 	auto newAnswers = ranges::views::all(
 		poll.vanswers().v
 	) | ranges::views::transform([&](const MTPPollAnswer &data) {
@@ -145,6 +156,7 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	const auto changed1 = (question != newQuestion)
 		|| (closeDate != newCloseDate)
 		|| (closePeriod != newClosePeriod)
+		|| (countries != newCountries)
 		|| (_flags != newFlags);
 	const auto changed2 = (answers != newAnswers);
 	if (!changed1 && !changed2) {
@@ -154,6 +166,7 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 		question = newQuestion;
 		closeDate = newCloseDate;
 		closePeriod = newClosePeriod;
+		countries = std::move(newCountries);
 		_flags = newFlags;
 	}
 	if (changed2) {
@@ -178,6 +191,21 @@ bool PollData::applyResults(const MTPPollResults &results) {
 		const auto newTotalVoters
 			= results.vtotal_voters().value_or(totalVoters);
 		auto changed = (newTotalVoters != totalVoters);
+		const auto setCanViewStats = [&](bool value) {
+			const auto previous = (_flags & Flag::CanViewStats);
+			if (bool(previous) == value) {
+				return;
+			}
+			if (value) {
+				_flags |= Flag::CanViewStats;
+			} else {
+				_flags &= ~Flag::CanViewStats;
+			}
+			changed = true;
+		};
+		if (!results.is_min() || results.is_can_view_stats()) {
+			setCanViewStats(results.is_can_view_stats());
+		}
 		if (const auto list = results.vresults()) {
 			for (const auto &result : list->v) {
 				if (applyResultToAnswers(result, results.is_min())) {
@@ -368,6 +396,32 @@ bool PollData::creator() const {
 	return (_flags & Flag::Creator);
 }
 
+bool PollData::subscribersOnly() const {
+	return (_flags & Flag::SubscribersOnly);
+}
+
+bool PollData::canViewStats() const {
+	return (_flags & Flag::CanViewStats);
+}
+
+void PollData::setVoteRestriction(VoteRestriction restriction) {
+	_voteRestrictionUpdated = (restriction == VoteRestriction::None)
+		? 0
+		: crl::now();
+	if (_voteRestriction != restriction) {
+		_voteRestriction = restriction;
+		++version;
+	}
+}
+
+PollData::VoteRestriction PollData::voteRestriction() const {
+	return _voteRestriction;
+}
+
+crl::time PollData::voteRestrictionUpdated() const {
+	return _voteRestrictionUpdated;
+}
+
 QString PollData::debugString() const {
 	auto result = QString();
 	result += u"Poll #"_q + QString::number(id) + u'\n';
@@ -383,6 +437,12 @@ QString PollData::debugString() const {
 	}
 	if (publicVotes()) {
 		result += u"[PublicVotes]"_q;
+	}
+	if (subscribersOnly()) {
+		result += u"[SubscribersOnly]"_q;
+	}
+	if (canViewStats()) {
+		result += u"[CanViewStats]"_q;
 	}
 	if (!result.endsWith(u'\n')) {
 		result += u'\n';
@@ -401,6 +461,13 @@ QString PollData::debugString() const {
 	}
 	if (!solution.text.isEmpty()) {
 		result += u"Solution: "_q + solution.text + u'\n';
+	}
+	if (!countries.empty()) {
+		result += u"Countries: "_q + countries.front();
+		for (auto i = 1, count = int(countries.size()); i != count; ++i) {
+			result += u", "_q + countries[i];
+		}
+		result += u'\n';
 	}
 	return result;
 }
@@ -427,6 +494,10 @@ MTPInputMedia PollMediaToMTP(const PollMedia &media) {
 				MTP_double(media.geo->lat()),
 				MTP_double(media.geo->lon()),
 				MTPint())); // accuracy_radius
+	} else if (!media.url.isEmpty()) {
+		return MTP_inputMediaWebPage(
+			MTP_flags(MTPDinputMediaWebPage::Flag::f_optional),
+			MTP_string(media.url));
 	}
 	return MTPInputMedia();
 }
@@ -459,6 +530,20 @@ PollMedia PollMediaFromMTP(
 			result.geo = Data::LocationPoint(point);
 		}, [](const MTPDgeoPointEmpty &) {
 		});
+	}, [&](const MTPDmessageMediaWebPage &data) {
+		data.vwebpage().match([&](const MTPDwebPage &page) {
+			result.webpage = owner->processWebpage(page);
+		}, [&](const MTPDwebPagePending &page) {
+			result.webpage = owner->processWebpage(page);
+		}, [&](const MTPDwebPageEmpty &page) {
+			if (const auto url = page.vurl()) {
+				result.url = qs(*url);
+			}
+		}, [&](const MTPDwebPageNotModified &page) {
+		});
+		if (result.webpage && !result.webpage->url.isEmpty()) {
+			result.url = result.webpage->url;
+		}
 	}, [](const auto &) {
 	});
 	return result;
@@ -486,6 +571,8 @@ PollMedia PollMediaFromInputMTP(
 				Data::LocationPoint::NoAccessHash);
 		}, [](const auto &) {
 		});
+	}, [&](const MTPDinputMediaWebPage &data) {
+		result.url = qs(data.vurl());
 	}, [](const auto &) {
 	});
 	return result;
@@ -520,6 +607,11 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 		poll->answers,
 		ranges::back_inserter(answers),
 		convert);
+	auto countries = QVector<MTPstring>();
+	countries.reserve(poll->countries.size());
+	for (const auto &country : poll->countries) {
+		countries.push_back(MTP_string(country));
+	}
 	using Flag = MTPDpoll::Flag;
 	const auto flags = ((poll->closed() || close) ? Flag::f_closed : Flag(0))
 		| (poll->multiChoice() ? Flag::f_multiple_choice : Flag(0))
@@ -531,8 +623,10 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 		| (poll->hideResultsUntilClose()
 			? Flag::f_hide_results_until_close
 			: Flag(0))
+		| (poll->subscribersOnly() ? Flag::f_subscribers_only : Flag(0))
 		| (poll->closePeriod > 0 ? Flag::f_close_period : Flag(0))
-		| (poll->closeDate > 0 ? Flag::f_close_date : Flag(0));
+		| (poll->closeDate > 0 ? Flag::f_close_date : Flag(0))
+		| (countries.isEmpty() ? Flag(0) : Flag::f_countries_iso2);
 	return MTP_poll(
 		MTP_long(poll->id),
 		MTP_flags(flags),
@@ -542,6 +636,7 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 		MTP_vector<MTPPollAnswer>(answers),
 		MTP_int(poll->closePeriod),
 		MTP_int(poll->closeDate),
+		MTP_vector<MTPstring>(std::move(countries)), // countries_iso2
 		MTP_long(0));
 }
 
@@ -591,4 +686,70 @@ MTPInputMedia PollDataToInputMedia(
 		poll->solutionMedia
 			? PollMediaToMTP(poll->solutionMedia)
 			: MTPInputMedia());
+}
+
+QString JoinPollCountries(const std::vector<QString> &countriesIso2) {
+	auto countries = QStringList();
+	countries.reserve(int(countriesIso2.size()));
+	const auto &instance = Countries::Instance();
+	for (const auto &iso2 : countriesIso2) {
+		const auto name = instance.countryNameByISO2(
+			iso2,
+			Countries::Naming::Polls);
+		countries.push_back(name.isEmpty() ? iso2 : name);
+	}
+	if (countries.empty()) {
+		return QString();
+	}
+	auto result = countries.front();
+	for (auto i = 1, count = int(countries.size()); i != count; ++i) {
+		result = ((i + 1 == count)
+			? tr::lng_prizes_countries_and_last
+			: tr::lng_prizes_countries_and_one)(
+				tr::now,
+				lt_countries,
+				result,
+				lt_country,
+				countries[i]);
+	}
+	return result;
+}
+
+TextWithEntities PollCountriesRestrictionText(
+		const std::vector<QString> &countries) {
+	const auto joined = JoinPollCountries(countries);
+	return joined.isEmpty()
+		? tr::lng_polls_vote_restricted_countries(tr::now, tr::rich)
+		: tr::lng_polls_vote_restricted_countries_list(
+			tr::now,
+			lt_countries,
+			tr::bold(joined),
+			tr::rich);
+}
+
+TextWithEntities PollVoteRestrictionText(
+		PollData::VoteRestriction restriction,
+		not_null<PeerData*> peer,
+		not_null<const PollData*> poll) {
+	switch (restriction) {
+	case PollData::VoteRestriction::SubscribersOnly: {
+		const auto channel = peer->name();
+		return channel.isEmpty()
+			? tr::lng_polls_vote_restricted_subscribers(tr::now, tr::rich)
+			: tr::lng_polls_vote_restricted_subscribers_channel(
+				tr::now,
+				lt_channel,
+				tr::bold(channel),
+				tr::rich);
+	}
+	case PollData::VoteRestriction::SubscribersJoinedTooRecently:
+		return tr::lng_polls_vote_restricted_subscribers_recent(
+			tr::now,
+			tr::rich);
+	case PollData::VoteRestriction::Countries:
+		return PollCountriesRestrictionText(poll->countries);
+	case PollData::VoteRestriction::None:
+		break;
+	}
+	return {};
 }

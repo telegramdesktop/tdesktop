@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement"
+  short_description: "Implement and verify Telegram changes"
+  default_prompt: "Use $implement to implement and fully verify this Telegram Desktop change."

@@ -7,9 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/share_message_phrase_factory.h"
 
+#include "chat_helpers/compose/compose_show.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/text/text_utilities.h"
+#include "window/window_session_controller.h"
 
 namespace ChatHelpers {
 
@@ -23,8 +27,11 @@ rpl::producer<TextWithEntities> ForwardedMessagePhrase(
 				return {};
 			}
 			return (args.singleMessage
-				? tr::lng_share_message_to_saved_messages
-				: tr::lng_share_messages_to_saved_messages)(
+				? tr::lng_share_message_to_saved
+				: tr::lng_share_messages_to_saved)(
+					lt_chat,
+					rpl::single(Ui::Text::Link(
+						tr::lng_saved_messages(tr::now))),
 					tr::rich);
 		} else {
 			return (args.singleMessage
@@ -53,5 +60,14 @@ rpl::producer<TextWithEntities> ForwardedMessagePhrase(
 	}
 }
 
+Ui::Toast::ClickHandlerFilter ForwardedToSavedMessagesFilter(
+		not_null<Main::Session*> session) {
+	return [=](const ClickHandlerPtr &, Qt::MouseButton) {
+		if (const auto window = ResolveWindowDefault()(session)) {
+			window->showPeerHistory(window->session().user());
+		}
+		return false;
+	};
+}
 
 } // namespace ChatHelpers

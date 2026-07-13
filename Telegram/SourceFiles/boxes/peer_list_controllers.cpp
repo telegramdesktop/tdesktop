@@ -95,6 +95,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		&window->session());
 	controller->setStyleOverrides(&st::contactsWithStories);
 	controller->setStoriesShown(true);
+	controller->setSectionHeadersShown(true);
 	const auto raw = controller.get();
 	auto init = [=](not_null<PeerListBox*> box) {
 		struct State {
@@ -245,6 +246,7 @@ bool PeerListGlobalSearchController::searchInCache() {
 
 void PeerListGlobalSearchController::searchOnServer() {
 	_requestId = _api.request(MTPcontacts_Search(
+		MTP_flags(0),
 		MTP_string(_query),
 		MTP_int(SearchPeopleLimit)
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
@@ -742,15 +744,41 @@ void ContactsBoxController::setSortMode(SortMode mode) {
 	}
 }
 
+void ContactsBoxController::setSectionHeadersShown(bool shown) {
+	_sectionHeadersShown = shown;
+}
+
 void ContactsBoxController::setStoriesShown(bool shown) {
 	_stories = std::make_unique<PeerListStories>(this, _session);
 }
 
 void ContactsBoxController::sort() {
 	switch (_sortMode) {
-	case SortMode::Alphabet: sortByName(); break;
-	case SortMode::Online: sortByOnline(); break;
+	case SortMode::Alphabet:
+		sortByName();
+		if (_sectionHeadersShown) {
+			applySectionHeaders();
+		}
+		delegate()->peerListSetShowSectionHeaders(_sectionHeadersShown);
+		break;
+	case SortMode::Online:
+		sortByOnline();
+		delegate()->peerListSetShowSectionHeaders(false);
+		break;
 	default: Unexpected("SortMode in ContactsBoxController.");
+	}
+}
+
+void ContactsBoxController::applySectionHeaders() {
+	const auto count = delegate()->peerListFullRowsCount();
+	for (auto i = 0; i != count; ++i) {
+		const auto row = delegate()->peerListRowAt(i);
+		const auto peer = row->peer();
+		const auto &key = peer->owner().history(peer)->chatListNameSortKey();
+		const auto first = key.isEmpty() ? QChar() : key[0];
+		row->setSection(first.isLetter()
+			? QString(first.toUpper())
+			: u"#"_q);
 	}
 }
 

@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "overview/overview_checkbox.h"
 #include "overview/overview_layout_delegate.h"
+#include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/ui_integration.h" // TextContext
 #include "data/data_document.h"
 #include "data/data_document_resolver.h"
@@ -34,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_document.h" // DrawThumbnailAsSongCover
+#include "iv/iv_instance.h"
 #include "base/unixtime.h"
 #include "boxes/sticker_set_box.h"
 #include "ui/effects/round_checkbox.h"
@@ -47,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_overview.h"
@@ -71,6 +75,56 @@ using ::Media::ValidFrameSize;
 [[nodiscard]] bool CanPlayInline(not_null<DocumentData*> document) {
 	return ValidFrameSize(document->dimensions, kMaxInlineArea);
 }
+
+[[nodiscard]] ClickHandlerPtr MakeUrlHandler(const QString &url) {
+	return UrlClickHandler::IsSuspicious(url)
+		? std::make_shared<HiddenUrlClickHandler>(url)
+		: std::make_shared<UrlClickHandler>(url, false);
+}
+
+void OpenPreferringIv(
+		not_null<Window::SessionController*> controller,
+		WebPageData *page,
+		const TextWithEntities &text,
+		const QString &url,
+		QVariant context) {
+	if (page && page->iv && UrlMatchesWebPage(page, url)) {
+		const auto hash = ExtractHash(page, text);
+		Core::App().iv().show(controller, page->iv.get(), hash);
+	} else {
+		Core::App().iv().openWithIvPreferred(controller, url, context);
+	}
+}
+
+class IvLink final : public UrlClickHandler {
+public:
+	IvLink(WebPageData *page, TextWithEntities text, const QString &url)
+	: UrlClickHandler(url, false)
+	, _page(page)
+	, _text(std::move(text)) {
+	}
+
+	void onClick(ClickContext context) const override {
+		const auto button = context.button;
+		if (button != Qt::LeftButton && button != Qt::MiddleButton) {
+			return;
+		}
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			OpenPreferringIv(
+				controller,
+				_page,
+				_text,
+				originalUrl(),
+				context.other);
+		}
+	}
+
+private:
+	WebPageData *_page = nullptr;
+	TextWithEntities _text;
+
+};
 
 [[nodiscard]] QImage CropMediaFrame(QImage image, int width, int height) {
 	const auto ratio = style::DevicePixelRatio();
@@ -313,6 +367,11 @@ Photo::Photo(
 			maybeClearSensitiveSpoiler();
 		})),
 		parent)
+	: _spoiler
+	? std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
+		clearSpoiler();
+		_link = makeOpenPhotoHandler();
+	}))
 	: makeOpenPhotoHandler()) {
 	if (_data->inlineThumbnailBytes().isEmpty()
 		&& (_data->hasExact(Data::PhotoSize::Small)
@@ -430,7 +489,8 @@ void Photo::setPixFrom(not_null<Image*> image) {
 
 	// In case we have inline thumbnail we can unload all images and we still
 	// won't get a blank image in the media viewer when the photo is opened.
-	if (!_data->inlineThumbnailBytes().isEmpty()) {
+	if (!_data->inlineThumbnailBytes().isEmpty()
+		&& !delegate()->keepPhotoMediaLoaded()) {
 		_dataMedia = nullptr;
 		delegate()->unregisterHeavyItem(this);
 	}
@@ -515,6 +575,11 @@ Video::Video(
 				setDocumentLinks(_data);
 			})),
 			parent);
+	} else if (_spoiler) {
+		_openl = std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
+			clearSpoiler();
+			setDocumentLinks(_data);
+		}));
 	}
 	if (!_videoCover) {
 		_data->loadThumbnail(parent->fullId());
@@ -636,14 +701,22 @@ void Video::paint(
 			const auto margin = st::overviewVideoStatusMargin;
 			const auto padding = st::overviewVideoStatusPadding;
 			const auto statusX = margin + padding.x(), statusY = _height - margin - padding.y() - st::normalFont->height;
-			const auto statusW = icon.width() + padding.x() + st::normalFont->width(text) + 2 * padding.x();
+			const auto fullW = icon.width()
+				+ 3 * padding.x()
+				+ st::normalFont->width(text);
+			const auto showText = (fullW <= _width - 2 * margin);
+			const auto statusW = showText
+				? fullW
+				: (icon.width() + 2 * padding.x());
 			const auto statusH = st::normalFont->height + 2 * padding.y();
 			p.setOpacity(1. - radialOpacity);
 			Ui::FillRoundRect(p, statusX - padding.x(), statusY - padding.y(), statusW, statusH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::OverviewVideoSelectedCorners : Ui::OverviewVideoCorners);
 			p.setFont(st::normalFont);
 			p.setPen(st::msgDateImgFg);
 			icon.paint(p, statusX, statusY + (st::normalFont->height - icon.height()) / 2, _width);
-			p.drawTextLeft(statusX + icon.width() + padding.x(), statusY, _width, text, statusW - 2 * padding.x());
+			if (showText) {
+				p.drawTextLeft(statusX + icon.width() + padding.x(), statusY, _width, text, statusW - 2 * padding.x());
+			}
 		}
 	}
 
@@ -1167,11 +1240,17 @@ Document::Document(
 		0);
 
 	if (withThumb()) {
-		_data->loadThumbnail(parent->fullId());
-		auto tw = style::ConvertScale(_data->thumbnailLocation().width());
-		auto th = style::ConvertScale(_data->thumbnailLocation().height());
-		if (tw > th) {
-			_thumbw = (tw * _st.fileThumbSize) / th;
+		if (_data->hasThumbnail()) {
+			_data->loadThumbnail(parent->fullId());
+			auto tw = style::ConvertScale(
+				_data->thumbnailLocation().width());
+			auto th = style::ConvertScale(
+				_data->thumbnailLocation().height());
+			if (tw > th) {
+				_thumbw = (tw * _st.fileThumbSize) / th;
+			} else {
+				_thumbw = _st.fileThumbSize;
+			}
 		} else {
 			_thumbw = _st.fileThumbSize;
 		}
@@ -1315,49 +1394,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 		QRect rthumb(style::rtlrect(0, st::linksBorder + _st.filePadding.top(), _st.fileThumbSize, _st.fileThumbSize, _width));
 		if (clip.intersects(rthumb)) {
-			if (wthumb) {
-				ensureDataMediaCreated();
-				const auto thumbnail = _dataMedia->thumbnail();
-				const auto blurred = _dataMedia->thumbnailInline();
-				if (thumbnail || blurred) {
-					if (_thumb.isNull() || (thumbnail && !_thumbLoaded)) {
-						_thumbLoaded = (thumbnail != nullptr);
-						const auto options = Images::Option::RoundSmall
-							| (_thumbLoaded
-								? Images::Option()
-								: Images::Option::Blur);
-						const auto image = thumbnail ? thumbnail : blurred;
-						_thumb = image->pixNoCache(
-							_thumbw * style::DevicePixelRatio(),
-							{
-								.options = options,
-								.outer = QSize(
-									_st.fileThumbSize,
-									_st.fileThumbSize),
-							});
-					}
-					p.drawPixmap(rthumb.topLeft(), _thumb);
-				} else {
-					p.setPen(Qt::NoPen);
-					p.setBrush(st::overviewFileThumbBg);
-					p.drawRoundedRect(
-						rthumb,
-						st::roundRadiusSmall,
-						st::roundRadiusSmall);
-				}
-			} else {
-				p.setPen(Qt::NoPen);
-				p.setBrush(_generic.color);
-				p.drawRoundedRect(
-					rthumb,
-					st::roundRadiusSmall,
-					st::roundRadiusSmall);
-				if (!radial && loaded && !_ext.isEmpty()) {
-					p.setFont(st::overviewFileExtFont);
-					p.setPen(st::overviewFileExtFg);
-					p.drawText(rthumb.left() + (rthumb.width() - _extw) / 2, rthumb.top() + st::overviewFileExtTop + st::overviewFileExtFont->ascent, _ext);
-				}
-			}
+			paintThumbnail(p, rthumb, wthumb, !radial && loaded);
 			if (selected) {
 				p.setPen(Qt::NoPen);
 				p.setBrush(st::defaultTextPalette.selectOverlay);
@@ -1439,6 +1476,85 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 		? _st.songPadding.top()
 		: (st::linksBorder + _st.filePadding.top())) + checkDelta;
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
+}
+
+void Document::paintThumbnail(
+		Painter &p,
+		QRect rthumb,
+		bool wthumb,
+		bool withExt) {
+	if (wthumb) {
+		ensureDataMediaCreated();
+		const auto good = _data->isSvgImage()
+			? _dataMedia->goodThumbnail()
+			: nullptr;
+		const auto thumbnail = good
+			? good
+			: _dataMedia->thumbnail();
+		const auto blurred = _dataMedia->thumbnailInline();
+		if (thumbnail || blurred) {
+			if (_thumb.isNull() || (thumbnail && !_thumbLoaded)) {
+				_thumbLoaded = (thumbnail != nullptr);
+				const auto options = Images::Option::RoundSmall
+					| (_thumbLoaded
+						? Images::Option()
+						: Images::Option::Blur);
+				const auto image = thumbnail ? thumbnail : blurred;
+				_thumb = image->pixNoCache(
+					_thumbw * style::DevicePixelRatio(),
+					{
+						.options = options,
+						.outer = QSize(
+							_st.fileThumbSize,
+							_st.fileThumbSize),
+					});
+			}
+			p.drawPixmap(rthumb.topLeft(), _thumb);
+		} else {
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::overviewFileThumbBg);
+			p.drawRoundedRect(
+				rthumb,
+				st::roundRadiusSmall,
+				st::roundRadiusSmall);
+		}
+	} else {
+		p.setPen(Qt::NoPen);
+		p.setBrush(_generic.color);
+		p.drawRoundedRect(
+			rthumb,
+			st::roundRadiusSmall,
+			st::roundRadiusSmall);
+		if (withExt && !_ext.isEmpty()) {
+			p.setFont(st::overviewFileExtFont);
+			p.setPen(st::overviewFileExtFg);
+			p.drawText(
+				rthumb.left() + (rthumb.width() - _extw) / 2,
+				rthumb.top()
+					+ st::overviewFileExtTop
+					+ st::overviewFileExtFont->ascent,
+				_ext);
+		}
+	}
+}
+
+QImage Document::dragPreviewImage() {
+	ensureDataMediaCreated();
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		QSize(_st.fileThumbSize, _st.fileThumbSize) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+
+	auto p = Painter(&result);
+	auto hq = PainterHighQualityEnabler(p);
+	paintThumbnail(
+		p,
+		QRect(0, 0, _st.fileThumbSize, _st.fileThumbSize),
+		withThumb(),
+		true);
+	return result;
 }
 
 void Document::drawCornerDownload(QPainter &p, bool selected, const PaintContext *context) const {
@@ -1613,6 +1729,10 @@ void Document::ensureDataMediaCreated() const {
 	}
 	_dataMedia = _data->createMediaView();
 	_dataMedia->thumbnailWanted(parent()->fullId());
+	if (_data->isSvgImage()) {
+		_dataMedia->goodThumbnailWanted();
+		Data::DocumentMedia::CheckGoodThumbnail(_data);
+	}
 	delegate()->registerHeavyItem(this);
 }
 
@@ -1641,7 +1761,8 @@ bool Document::iconAnimated() const {
 }
 
 bool Document::withThumb() const {
-	return !songLayout() && _data->hasThumbnail();
+	return !songLayout()
+		&& (_data->hasThumbnail() || _data->isSvgImage());
 }
 
 bool Document::updateStatusText() {
@@ -1706,7 +1827,7 @@ Link::Link(
 		const auto customUrl = entity.data();
 		const auto entityText = text.mid(entity.offset(), entity.length());
 		const auto url = customUrl.isEmpty() ? entityText : customUrl;
-		if (_links.isEmpty()) {
+		if (_links.empty()) {
 			mainUrl = url;
 		}
 		_links.push_back(LinkEntry(url, entityText));
@@ -1745,11 +1866,7 @@ Link::Link(
 		}
 	}
 
-	const auto createHandler = [](const QString &url) {
-		return UrlClickHandler::IsSuspicious(url)
-			? std::make_shared<HiddenUrlClickHandler>(url)
-			: std::make_shared<UrlClickHandler>(url, false);
-	};
+	const auto createHandler = MakeUrlHandler;
 	_page = media ? media->webpage() : nullptr;
 	if (_page) {
 		mainUrl = _page->url;
@@ -1783,6 +1900,7 @@ Link::Link(
 	} else if (!mainUrl.isEmpty()) {
 		_photol = createHandler(mainUrl);
 	}
+
 	if (from >= till && _page) {
 		text = _page->description.text;
 		from = 0;
@@ -1840,6 +1958,71 @@ Link::Link(
 		}
 	}
 	_titlew = st::semiboldFont->width(_title);
+
+	setupLinks(textWithEntities, mainUrl);
+}
+
+void Link::setupLinks(
+		const TextWithEntities &text,
+		const QString &mainUrl) {
+	const auto page = _page;
+	const auto ivCapable = [=](const QString &url) {
+		return Iv::PreferForUri(url)
+			|| (page && page->iv && UrlMatchesWebPage(page, url));
+	};
+	const auto makeHandler = [&](const QString &url, bool iv) {
+		return iv
+			? ClickHandlerPtr(std::make_shared<IvLink>(page, text, url))
+			: MakeUrlHandler(url);
+	};
+	static const auto kLinkOptions = TextParseOptions{
+		0,
+		0,
+		0,
+		Qt::LayoutDirectionAuto,
+	};
+	for (auto &link : _links) {
+		const auto iv = ivCapable(link.url);
+		link.handler = makeHandler(link.url, iv);
+		auto markup = iv
+			? Ui::Text::IconEmoji(&st::overviewLinkIvIcon)
+			: TextWithEntities();
+		const auto offset = int(markup.text.size());
+		markup.append(link.display);
+		markup.entities.push_back({
+			EntityType::CustomUrl,
+			offset,
+			int(link.display.size()),
+			link.url,
+		});
+		link.text.setMarkedText(st::defaultTextStyle, markup, kLinkOptions);
+		link.text.setLink(1, link.handler);
+	}
+
+	const auto titleUrl = !mainUrl.isEmpty()
+		? mainUrl
+		: (page ? page->url : QString());
+	if (!titleUrl.isEmpty()) {
+		_titlel = makeHandler(titleUrl, ivCapable(titleUrl));
+	}
+
+	if (!mainUrl.isEmpty() && ivCapable(mainUrl)) {
+		const auto previous = _photol;
+		_photol = std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			if (const auto controller = my.sessionWindow.get()) {
+				OpenPreferringIv(
+					controller,
+					page,
+					text,
+					mainUrl,
+					context.other);
+			} else if (previous) {
+				previous->onClick(context);
+			}
+		});
+	}
 }
 
 void Link::initDimensions() {
@@ -1858,8 +2041,11 @@ void Link::initDimensions() {
 int32 Link::resizeGetHeight(int32 width) {
 	_width = qMin(width, _maxw);
 	int32 w = _width - st::linksPhotoSize - st::linksPhotoPadding;
-	for (const auto &link : std::as_const(_links)) {
-		link.lnk->setFullDisplayed(w >= link.width);
+	for (const auto &link : _links) {
+		if (const auto handler = std::dynamic_pointer_cast<TextClickHandler>(
+				link.handler)) {
+			handler->setFullDisplayed(w >= link.text.maxWidth());
+		}
 	}
 
 	_height = 0;
@@ -1913,10 +2099,10 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	}
 
 	p.setPen(st::windowActiveTextFg);
-	for (const auto &link : std::as_const(_links)) {
-		if (clip.intersects(style::rtlrect(left, top, qMin(w, link.width), st::normalFont->height, _width))) {
-			p.setFont(ClickHandler::showAsActive(link.lnk) ? st::normalFont->underline() : st::normalFont);
-			p.drawTextLeft(left, top, _width, (w < link.width) ? st::normalFont->elided(link.text, w) : link.text);
+	for (const auto &link : _links) {
+		const auto width = link.text.maxWidth();
+		if (clip.intersects(style::rtlrect(left, top, qMin(w, width), st::normalFont->height, _width))) {
+			link.text.drawLeftElided(p, left, top, w, _width);
 		}
 		top += st::normalFont->height;
 	}
@@ -2053,7 +2239,7 @@ TextState Link::getState(
 	}
 	if (!_title.isEmpty()) {
 		if (style::rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width).contains(point)) {
-			return { parent(), _photol };
+			return { parent(), _titlel };
 		}
 		top += st::webPageTitleFont->height;
 	}
@@ -2061,8 +2247,9 @@ TextState Link::getState(
 		top += qMin(st::normalFont->height * 3, _text.countHeight(w));
 	}
 	for (const auto &link : _links) {
-		if (style::rtlrect(left, top, qMin(w, link.width), st::normalFont->height, _width).contains(point)) {
-			return { parent(), ClickHandlerPtr(link.lnk) };
+		const auto width = link.text.maxWidth();
+		if (style::rtlrect(left, top, qMin(w, width), st::normalFont->height, _width).contains(point)) {
+			return { parent(), link.handler };
 		}
 		top += st::normalFont->height;
 	}
@@ -2073,12 +2260,9 @@ const style::RoundCheckbox &Link::checkboxStyle() const {
 	return st::overviewSmallCheck;
 }
 
-Link::LinkEntry::LinkEntry(const QString &url, const QString &text)
-: text(text)
-, width(st::normalFont->width(text))
-, lnk(UrlClickHandler::IsSuspicious(url)
-	? std::make_shared<HiddenUrlClickHandler>(url)
-	: std::make_shared<UrlClickHandler>(url)) {
+Link::LinkEntry::LinkEntry(const QString &url, const QString &display)
+: url(url)
+, display(display) {
 }
 
 // Copied from inline_bot_layout_internal.

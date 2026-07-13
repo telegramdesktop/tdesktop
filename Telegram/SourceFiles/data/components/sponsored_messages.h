@@ -166,6 +166,8 @@ public:
 
 	[[nodiscard]] State state(not_null<History*> history) const;
 
+	[[nodiscard]] bool hasUnshownFor(not_null<History*> history) const;
+
 	[[nodiscard]] SponsoredReportAction createReportCallback(
 		const FullMsgId &fullId);
 	[[nodiscard]] SponsoredReportAction createReportCallback(

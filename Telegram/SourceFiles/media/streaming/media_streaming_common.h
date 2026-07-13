@@ -177,6 +177,7 @@ enum class FrameFormat {
 	ARGB32,
 	YUV420,
 	NV12,
+	NativeTexture,
 };
 
 struct FrameChannel {
@@ -192,9 +193,16 @@ struct FrameYUV {
 	FrameChannel v;
 };
 
+struct NativeFrame {
+	void *pixelBuffer = nullptr;
+	QSize size;
+	QSize chromaSize;
+};
+
 struct FrameWithInfo {
 	QImage image;
 	FrameYUV *yuv = nullptr;
+	NativeFrame *nativeFrame = nullptr;
 	FrameFormat format = FrameFormat::None;
 	int index = -1;
 	bool alpha = false;

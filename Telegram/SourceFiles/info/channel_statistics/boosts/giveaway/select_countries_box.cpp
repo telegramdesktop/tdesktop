@@ -58,7 +58,8 @@ void SelectCountriesBox(
 		not_null<Ui::GenericBox*> box,
 		const std::vector<QString> &selected,
 		Fn<void(std::vector<QString>)> doneCallback,
-		Fn<bool(int)> checkErrorCallback) {
+		Fn<bool(int)> checkErrorCallback,
+		Countries::Naming naming) {
 	struct State final {
 		std::vector<QString> resultList;
 	};
@@ -79,22 +80,28 @@ void SelectCountriesBox(
 	};
 
 	auto countries = Countries::Instance().list();
-	ranges::sort(countries, [](
+	const auto &instance = Countries::Instance();
+	ranges::sort(countries, [&](
 			const Countries::Info &a,
 			const Countries::Info &b) {
-		return (a.name.compare(b.name, Qt::CaseInsensitive) < 0);
+		const auto nameA = instance.countryNameByISO2(a.iso2, naming);
+		const auto nameB = instance.countryNameByISO2(b.iso2, naming);
+		return (nameA.compare(nameB, Qt::CaseInsensitive) < 0);
 	});
 	auto buttons = std::vector<Entry>();
 	buttons.reserve(countries.size());
 	for (const auto &country : countries) {
-		const auto flag = Countries::Instance().flagEmojiByISO2(country.iso2);
+		const auto flag = instance.flagEmojiByISO2(country.iso2);
 		if (!Ui::Emoji::Find(flag)) {
 			continue;
 		}
+		const auto displayName = instance.countryNameByISO2(
+			country.iso2,
+			naming);
 		const auto itemId = buttons.size();
 		auto button = object_ptr<SettingsButton>(
 			box->verticalLayout(),
-			rpl::single(flag + ' ' + country.name),
+			rpl::single(flag + ' ' + displayName),
 			buttonSt);
 		const auto radio = Ui::CreateChild<Ui::RpWidget>(button.data());
 		const auto radioView = std::make_shared<Ui::RadioView>(
@@ -132,7 +139,7 @@ void SelectCountriesBox(
 				state->resultList.push_back(country.iso2);
 				multiSelect->addItem(
 					itemId,
-					country.name,
+					displayName,
 					st::activeButtonBg,
 					paintCallback,
 					clicked
@@ -160,9 +167,12 @@ void SelectCountriesBox(
 		{
 			auto list = QStringList{
 				flag,
-				country.name,
+				displayName,
 				country.alternativeName,
 			};
+			if (displayName != country.name) {
+				list.push_back(country.name);
+			}
 			buttons.push_back({ wrap, std::move(list), country.iso2 });
 		}
 	}

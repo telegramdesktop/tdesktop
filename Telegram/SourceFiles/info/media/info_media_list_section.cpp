@@ -50,6 +50,10 @@ void ListSection::setCanReorder(bool value) {
 	_canReorder = value;
 }
 
+void ListSection::setMinGridSize(int value) {
+	_minGridSize = value;
+}
+
 int ListSection::height() const {
 	return _height;
 }
@@ -357,7 +361,10 @@ int ListSection::oneColumnRightPadding() const {
 }
 
 void ListSection::resizeToWidth(int newWidth) {
-	const auto minWidth = st::infoMediaMinGridSize + st::infoMediaSkip * 2;
+	const auto gridSize = _minGridSize
+		? _minGridSize
+		: st::infoMediaMinGridSize;
+	const auto minWidth = gridSize + st::infoMediaSkip * 2;
 	if (newWidth < minWidth) {
 		return;
 	}
@@ -381,7 +388,7 @@ void ListSection::resizeToWidth(int newWidth) {
 		_itemsLeft = st::infoMediaLeft;
 		_itemsTop = st::infoMediaSkip;
 		_itemsInRow = (newWidth - _itemsLeft * 2 + skip)
-			/ (st::infoMediaMinGridSize + skip);
+			/ (gridSize + skip);
 		_itemWidth = ((newWidth - _itemsLeft * 2 + skip) / _itemsInRow)
 			- st::infoMediaSkip;
 		_itemsLeft = (newWidth - (_itemWidth + skip) * _itemsInRow + skip)

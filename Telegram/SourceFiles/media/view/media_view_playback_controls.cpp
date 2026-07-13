@@ -229,6 +229,13 @@ void PlaybackControls::saveQuality(Media::VideoQuality quality) {
 }
 
 void PlaybackControls::updateSpeedToggleQuality() {
+	const auto qualities = _delegate->playbackControlsQualities();
+	if (_qualitiesList != qualities) {
+		_qualitiesList = qualities;
+		if (_speedController) {
+			_speedController->setQualities(qualities);
+		}
+	}
 	_speedToggle->setQuality(_delegate->playbackControlsCurrentQuality());
 }
 

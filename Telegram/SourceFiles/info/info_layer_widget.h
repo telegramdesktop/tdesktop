@@ -41,6 +41,7 @@ public:
 		const Window::SectionShow &params) override;
 
 	bool closeByOutsideClick() const override;
+	bool closeByBackButton() override;
 
 	static int MinimalSupportedWidth();
 

@@ -131,7 +131,11 @@ void LayerWidget::setupHeightConsumers() {
 			_heightAnimation.start([=] {
 				setContentHeight(_heightAnimation.value(_desiredHeight));
 			}, _contentWrapHeight, _desiredHeight, st::slideDuration);
-			resizeToWidth(width());
+			if (_inResize) {
+				_pendingResize = true;
+			} else {
+				resizeToWidth(width());
+			}
 		}
 	}, lifetime());
 }
@@ -250,6 +254,12 @@ bool LayerWidget::closeByOutsideClick() const {
 	return _contentWrap ? _contentWrap->closeByOutsideClick() : true;
 }
 
+bool LayerWidget::closeByBackButton() {
+	return _contentWrap
+		? _contentWrap->closeByBackButton()
+		: Ui::LayerWidget::closeByBackButton();
+}
+
 int LayerWidget::MinimalSupportedWidth() {
 	const auto minimalMargins = 2 * st::infoMinimalLayerMargin;
 	return st::infoMinimalWidth + minimalMargins;
@@ -325,7 +335,7 @@ QRect LayerWidget::countGeometry(int newWidth) {
 		contentTop,
 		contentWidth,
 		contentHeight,
-	}, expanding, additionalScroll, maxVisibleHeight);
+	}, expanding, _contentTillBottom, additionalScroll, maxVisibleHeight);
 
 	return QRect(newLeft, newTop, newWidth, desiredHeight);
 }

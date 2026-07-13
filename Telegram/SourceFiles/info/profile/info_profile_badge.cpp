@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
+#include "ui/text/text_custom_emoji.h"
 #include "main/main_session.h"
 #include "styles/style_info.h"
 
@@ -126,10 +127,10 @@ void Badge::setContent(Content content) {
 				[raw = _view.data()] { raw->update(); },
 				sizeTag());
 			if (_content.badge == BadgeType::BotVerified) {
-				_emojiStatus = std::make_unique<Ui::Text::FirstFrameEmoji>(
+				_emojiStatus = MakeWrappedEmoji<Ui::Text::FirstFrameEmoji>(
 					std::move(_emojiStatus));
 			} else if (_customStatusLoopsLimit > 0) {
-				_emojiStatus = std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+				_emojiStatus = MakeWrappedEmoji<Ui::Text::LimitedLoopsEmoji>(
 					std::move(_emojiStatus),
 					_customStatusLoopsLimit);
 			}

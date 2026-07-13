@@ -83,7 +83,6 @@ notifySendReply: IconButton {
 notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 titleUnreadCounterTop: 6px;
-titleUnreadCounterRight: 35px;
 
 mainMenuWidth: 274px;
 mainMenuCoverHeight: 134px;
@@ -341,7 +340,7 @@ windowFeeItem: Menu(defaultMenu) {
 	itemFgDisabled: windowFg;
 }
 
-ivWidthMin: 380px;
+ivWidthMin: 384px;
 ivHeightMin: 480px;
 ivWidthDefault: 600px;
 ivHeightDefault: 800px;
@@ -394,6 +393,11 @@ lockSetupEmailUserpicSmall: UserpicButton(defaultUserpicButton) {
 // Windows specific
 
 winQuitIcon: icon {{ "win_quit", windowFg }};
+
+windowTaskbarThumbPrevious: icon {{ "player/player_backward", windowFg }};
+windowTaskbarThumbPlay: icon {{ "player/player_play", windowFg }};
+windowTaskbarThumbPause: icon {{ "player/player_pause", windowFg }};
+windowTaskbarThumbNext: icon {{ "player/player_forward", windowFg }};
 
 // Mac specific
 

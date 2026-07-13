@@ -1633,12 +1633,12 @@ Ui::Controls::SwipeHandlerArgs Suggestions::generateIncompleteSwipeArgs() {
 			_swipeBackData = {};
 		}
 	};
-	auto init = [=](int, Qt::LayoutDirection direction) {
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
 		if (!_tabs) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		const auto activeSection = _tabs->activeSection();
-		const auto isToLeft = direction == Qt::RightToLeft;
+		const auto isToLeft = data.direction == Qt::RightToLeft;
 		if ((isToLeft && activeSection > 0)
 			|| (!isToLeft && activeSection < _tabKeys.size() - 1)) {
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
@@ -2376,6 +2376,7 @@ void Suggestions::updateControlsGeometry() {
 	}
 
 	const auto expanding = false;
+	const auto contentTillBottom = true;
 	for (const auto &[key, list] : _mediaLists) {
 		const auto full = !list.wrap->scrollBottomSkip();
 		const auto additionalScroll = (full ? st::boxRadius : 0);
@@ -2384,6 +2385,7 @@ void Suggestions::updateControlsGeometry() {
 		list.wrap->updateGeometry(
 			wrapGeometry,
 			expanding,
+			contentTillBottom,
 			additionalScroll,
 			content.height());
 	}

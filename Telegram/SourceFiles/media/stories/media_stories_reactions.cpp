@@ -952,7 +952,8 @@ void Reactions::Panel::create() {
 		[=](bool fast) { hide(mode); },
 		nullptr, // iconFactory
 		nullptr, // paused
-		true);
+		true,
+		_controller->wrap().get());
 
 	_selector->chosen(
 	) | rpl::on_next([=](

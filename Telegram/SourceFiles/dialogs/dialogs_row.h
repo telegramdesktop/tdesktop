@@ -105,7 +105,9 @@ public:
 	void updateCornerBadgeShown(
 		not_null<PeerData*> peer,
 		Fn<void()> updateCallback = nullptr,
-		bool hasUnreadBadgesAbove = false) const;
+		bool hasUnreadBadgesAbove = false,
+		bool insideCommunity = false,
+		bool hidden = false) const;
 	void paintUserpic(
 		Painter &p,
 		not_null<Entry*> entry,
@@ -182,12 +184,14 @@ private:
 		CornerLayersManager layersManager;
 		QImage frame;
 		QImage cacheTTL;
+		QImage cacheHidden;
 		int frameIndex = -1;
 		uint32 paletteVersion : 16 = 0;
-		uint32 storiesCount : 7 = 0;
-		uint32 storiesUnreadCount : 7 = 0;
+		uint32 storiesCount : 6 = 0;
+		uint32 storiesUnreadCount : 6 = 0;
 		uint32 storiesHasVideoStream : 1 = 0;
 		uint32 active : 1 = 0;
+		uint32 hidden : 1 = 0;
 	};
 
 	void setCornerBadgeShown(
@@ -202,10 +206,13 @@ private:
 		Ui::VideoUserpic *videoUserpic,
 		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context,
-		bool subscribed);
+		bool subscribed,
+		bool communityMember,
+		bool hidden);
 
 	Key _id;
 	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
+	mutable std::unique_ptr<Ui::CommunityUserpicEffect> _communityUserpicEffect;
 	int _top = 0;
 	int _height = 0;
 	uint32 _index : 30 = 0;

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_chat_participant_status.h"
+#include "data/components/recent_inline_bots.h"
 #include "data/data_document.h"
 #include "data/data_group_call.h"
 #include "data/data_message_reaction_id.h"
@@ -481,17 +482,7 @@ void ReplyArea::sendInlineResult(
 		action,
 		localMessageId);
 
-	auto &bots = cRefRecentInlineBots();
-	const auto index = bots.indexOf(bot);
-	if (index) {
-		if (index > 0) {
-			bots.removeAt(index);
-		} else if (bots.size() >= RecentInlineBotsLimit) {
-			bots.resize(RecentInlineBotsLimit - 1);
-		}
-		bots.push_front(bot);
-		bot->session().local().writeRecentHashtagsAndBots();
-	}
+	bot->session().recentInlineBots().bump(bot);
 	finishSending();
 	_controls->clear();
 }

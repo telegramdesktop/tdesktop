@@ -9,8 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_report.h"
 #include "core/application.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/layers/generic_box.h"
@@ -66,16 +70,12 @@ object_ptr<Ui::BoxContent> ReportProfilePhotoBox(
 	return ReportPhoto(peer, photo, nullptr);
 }
 
-void ShowReportMessageBox(
+void ShowReportFlowBox(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
-		const std::vector<MsgId> &ids,
-		const std::vector<StoryId> &stories,
+		Fn<void(Data::ReportInput, Fn<void(Api::ReportResult)>)> report,
+		Data::ReportInput initialInput,
 		const style::ReportBox *stOverride) {
-	const auto report = Api::CreateReportMessagesOrStoriesCallback(
-		show,
-		peer);
-
 	auto performRequest = [=](
 			const auto &repeatRequest,
 			Data::ReportInput reportInput) -> void {
@@ -203,5 +203,36 @@ void ShowReportMessageBox(
 			}
 		});
 	};
-	performRequest(performRequest, { .ids = ids, .stories = stories });
+	performRequest(performRequest, std::move(initialInput));
+}
+
+void ShowReportMessageBox(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer,
+		const std::vector<MsgId> &ids,
+		const std::vector<StoryId> &stories,
+		const style::ReportBox *stOverride) {
+	ShowReportFlowBox(
+		show,
+		peer,
+		Api::CreateReportMessagesOrStoriesCallback(show, peer),
+		{ .ids = ids, .stories = stories },
+		stOverride);
+}
+
+void ShowReportEphemeralBox(
+		std::shared_ptr<Ui::Show> show,
+		not_null<HistoryItem*> item) {
+	const auto peer = item->history()->peer;
+	const auto ephemeralId = peer->session().ephemeralMessages().lookupId(
+		item);
+	if (!ephemeralId) {
+		return;
+	}
+	ShowReportFlowBox(
+		show,
+		peer,
+		Api::CreateReportEphemeralMessageCallback(show, peer, ephemeralId),
+		{},
+		nullptr);
 }

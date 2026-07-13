@@ -769,6 +769,10 @@ void SpeedController::reloadFromLookup() {
 	}
 }
 
+void SpeedController::setQualities(std::vector<VideoQuality> qualities) {
+	_qualities = std::move(qualities);
+}
+
 float64 SpeedController::speed() const {
 	return _isDefault ? 1. : _speed;
 }

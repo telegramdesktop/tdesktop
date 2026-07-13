@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/deep_links/deep_links_settings.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_builder.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_recent_searches.h"
 #include "ui/painter.h"
 #include "ui/text/text_entity.h"
+#include "ui/toast/toast.h"
 #include "ui/search_field_controller.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
@@ -30,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -444,9 +447,9 @@ not_null<Ui::SettingsButton*> Search::createEntryButton(
 	}
 
 	const auto controlId = entry.id;
-	if (!controlId.isEmpty()) {
-		const auto targetSection = entry.section;
-		const auto deeplink = entry.deeplink;
+	const auto targetSection = entry.section;
+	const auto deeplink = entry.deeplink;
+	if (!deeplink.isEmpty() || targetSection || !controlId.isEmpty()) {
 		button->addClickHandler([=] {
 			bumpRecentEntry(controlId);
 			if (!deeplink.isEmpty()) {
@@ -456,34 +459,60 @@ not_null<Ui::SettingsButton*> Search::createEntryButton(
 						.sessionWindow = base::make_weak(controller()),
 					}));
 			} else {
-				controller()->setHighlightControlId(controlId);
+				if (!controlId.isEmpty()) {
+					controller()->setHighlightControlId(controlId);
+				}
 				showOtherMethod()(targetSection);
 			}
 		});
-
+	}
+	const auto copyLink = !deeplink.isEmpty()
+		? deeplink
+		: Core::DeepLinks::SettingsDeepLink(targetSection, controlId);
+	if (!copyLink.isEmpty() || !controlId.isEmpty()) {
 		base::install_event_filter(button, [=](not_null<QEvent*> e) {
 			if (e->type() != QEvent::ContextMenu) {
 				return base::EventFilterResult::Continue;
 			}
-			const auto &recentIds
-				= controller()->session().recentSettingsSearches().list();
-			if (!ranges::contains(recentIds, controlId)) {
+			const auto inRecent = !controlId.isEmpty()
+				&& ranges::contains(
+					controller()->session().recentSettingsSearches().list(),
+					controlId);
+			if (copyLink.isEmpty() && !inRecent) {
 				return base::EventFilterResult::Continue;
 			}
 			_contextMenu = base::make_unique_q<Ui::PopupMenu>(
 				button,
 				st::popupMenuWithIcons);
-			_contextMenu->addAction(
-				tr::lng_recent_remove(tr::now),
-				[=] {
-					controller()->session().recentSettingsSearches().remove(
-						controlId);
-					const auto query = _searchController
-						? _searchController->query()
-						: QString();
-					rebuildResults(query);
-				},
-				&st::menuIconDelete);
+			if (!copyLink.isEmpty()) {
+				_contextMenu->addAction(
+					tr::lng_context_copy_link(tr::now),
+					[=] {
+						TextUtilities::SetClipboardText(
+							TextForMimeData::Simple(copyLink));
+						controller()->showToast({
+							.text = {
+								tr::lng_channel_public_link_copied(tr::now),
+							},
+							.iconLottie = u"toast/voip_invite"_q,
+							.iconLottieSize = st::toastLottieIconSize,
+						});
+					},
+					&st::menuIconLink);
+			}
+			if (inRecent) {
+				_contextMenu->addAction(
+					tr::lng_recent_remove(tr::now),
+					[=] {
+						controller()->session().recentSettingsSearches().remove(
+							controlId);
+						const auto query = _searchController
+							? _searchController->query()
+							: QString();
+						rebuildResults(query);
+					},
+					&st::menuIconDelete);
+			}
 			_contextMenu->popup(QCursor::pos());
 			return base::EventFilterResult::Cancel;
 		}, button->lifetime());
@@ -494,10 +523,7 @@ not_null<Ui::SettingsButton*> Search::createEntryButton(
 }
 
 void Search::rebuildResults(const QString &query) {
-	for (auto i = 0, count = _list->count(); i != count; ++i) {
-		_list->widgetAt(i)->hide();
-	}
-	_list->clear();
+	_list->detachRows();
 	clearSelection();
 	_visibleButtons.clear();
 

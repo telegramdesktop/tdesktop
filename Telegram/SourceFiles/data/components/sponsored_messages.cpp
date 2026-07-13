@@ -829,4 +829,23 @@ SponsoredMessages::State SponsoredMessages::state(
 	return (it == end(_data)) ? State::None : it->second.state;
 }
 
+bool SponsoredMessages::hasUnshownFor(not_null<History*> history) const {
+	if (isTopBarFor(history)) {
+		return false;
+	}
+	const auto it = _data.find(history);
+	if (it == end(_data)) {
+		return false;
+	}
+	const auto &list = it->second;
+	if (list.showedAll
+		|| !TooEarlyForRequest(list.received)
+		|| list.postsBetween) {
+		return false;
+	}
+	return ranges::any_of(list.entries, [](const Entry &entry) {
+		return (entry.item == nullptr);
+	});
+}
+
 } // namespace Data

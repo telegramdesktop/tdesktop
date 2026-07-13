@@ -23,6 +23,8 @@ class History;
 
 namespace HistoryView::Controls {
 
+extern const char kOptionMacCmdReplyImmediately[];
+
 struct MessageToEdit {
 	FullMsgId fullId;
 	Api::SendOptions options;

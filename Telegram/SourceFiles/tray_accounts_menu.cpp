@@ -40,6 +40,9 @@ void SetupChangesSubscription(Fn<void()> callback, rpl::lifetime &lifetime) {
 }
 
 void Fill(Platform::Tray &tray) {
+	if (Core::App().passcodeLocked()) {
+		return;
+	}
 	auto accounts = std::vector<not_null<Main::Account*>>();
 	for (const auto &account : Core::App().domain().orderedAccounts()) {
 		if (account->sessionExists()) {

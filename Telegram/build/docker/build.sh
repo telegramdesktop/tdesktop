@@ -22,7 +22,7 @@ ProjectPath="$HomePath/../out"
 ReleasePath="$ProjectPath/Release"
 BinaryName="Telegram"
 
-if [ ! -f "/usr/bin/cmake" ]; then
+if ! command -v cmake >/dev/null 2>&1; then
   ln -s cmake3 /usr/bin/cmake
 fi
 

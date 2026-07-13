@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/peer_bubble.h"
@@ -88,7 +89,11 @@ void ShowMenu(not_null<Ui::GenericBox*> box, const QString &text) {
 	const auto menu = Ui::CreateChild<Ui::PopupMenu>(box.get());
 	menu->addAction(tr::lng_context_copy_link(tr::now), [=] {
 		TextUtilities::SetClipboardText(TextForMimeData::Simple(text));
-		box->uiShow()->showToast(tr::lng_background_link_copied(tr::now));
+		box->uiShow()->showToast({
+			.text = { tr::lng_background_link_copied(tr::now) },
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	});
 	menu->popup(QCursor::pos());
 }
@@ -169,7 +174,11 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 	}, container->lifetime());
 	container->setClickedCallback([=] {
 		QGuiApplication::clipboard()->setText(t.text);
-		box->showToast(tr::lng_text_copied(tr::now));
+		box->showToast({
+			.text = { tr::lng_text_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	});
 }
 
@@ -966,8 +975,7 @@ void InnerWidget::fill() {
 		const auto button = Info::BotStarRef::AddViewListButton(
 			container,
 			tr::lng_credits_summary_earn_title(),
-			tr::lng_credits_summary_earn_about(),
-			true);
+			tr::lng_credits_summary_earn_about());
 		button->setClickedCallback([=] {
 			_controller->showSection(Info::BotStarRef::Join::Make(_peer));
 		});
@@ -1412,7 +1420,7 @@ void InnerWidget::fill() {
 			phrase());
 
 		button->toggleOn(rpl::single(
-			data.switchedOff
+			_state.currencyEarn.switchedOff
 		) | rpl::then(toggled->events()));
 		button->setToggleLocked(isLocked);
 

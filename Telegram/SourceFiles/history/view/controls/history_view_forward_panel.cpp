@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_forum_topic.h"
+#include "data/data_user.h"
+#include "iv/editor/iv_editor_session.h"
 #include "main/main_session.h"
 #include "ui/chat/forward_options_box.h"
 #include "ui/effects/spoiler_mess.h"
@@ -236,7 +238,9 @@ bool ForwardPanel::empty() const {
 void ForwardPanel::applyOptions(Data::ForwardOptions options) {
 	if (_data.items.empty()) {
 		return;
-	} else if (_data.options != options) {
+	}
+	options = NormalizeForwardOptions(&_to->session(), _data.items, options);
+	if (_data.options != options) {
 		const auto topicRootId = _to->topicRootId();
 		const auto monoforumPeerId = _to->monoforumPeerId();
 		_data.options = options;
@@ -250,27 +254,20 @@ void ForwardPanel::applyOptions(Data::ForwardOptions options) {
 
 void ForwardPanel::editToNextOption() {
 	using Options = Data::ForwardOptions;
-	const auto captionsCount = ItemsForwardCaptionsCount(_data.items);
-	const auto hasOnlyForcedForwardedInfo = !captionsCount
-		&& HasOnlyForcedForwardedInfo(_data.items);
-	if (hasOnlyForcedForwardedInfo) {
+	if (_data.items.empty()) {
 		return;
 	}
-
-	const auto now = _data.options;
+	const auto captionsCount = ItemsForwardCaptionsCount(_data.items);
+	const auto now = NormalizeForwardOptions(
+		&_to->session(),
+		_data.items,
+		_data.options);
 	const auto next = (now == Options::PreserveInfo)
 		? Options::NoSenderNames
 		: ((now == Options::NoSenderNames) && captionsCount)
 		? Options::NoNamesAndCaptions
 		: Options::PreserveInfo;
-
-	const auto topicRootId = _to->topicRootId();
-	const auto monoforumPeerId = _to->monoforumPeerId();
-	_to->owningHistory()->setForwardDraft(topicRootId, monoforumPeerId, {
-		.ids = _to->owner().itemsToIds(_data.items),
-		.options = next,
-	});
-	_repaint();
+	applyOptions(next);
 }
 
 void ForwardPanel::paint(
@@ -477,6 +474,50 @@ bool HasDropForwardedInfoSetting(const HistoryItemsList &list) {
 		}
 	}
 	return false;
+}
+
+bool HasRichPage(const HistoryItemsList &list) {
+	for (const auto &item : list) {
+		if (item->richPage()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool CanHideForwardAuthor(
+		not_null<Main::Session*> session,
+		const HistoryItemsList &list) {
+	if (list.empty()) {
+		return true;
+	}
+	if (HasOnlyForcedForwardedInfo(list)) {
+		return false;
+	}
+	if (!Iv::Editor::CanAuthorRichMessages(session) && HasRichPage(list)) {
+		return false;
+	}
+	return session->premium() || !HasRichPage(list);
+}
+
+bool HideForwardAuthorPremiumRequired(
+		not_null<Main::Session*> session,
+		const HistoryItemsList &list) {
+	return Iv::Editor::CanAuthorRichMessages(session)
+		&& !list.empty()
+		&& !session->premium()
+		&& !HasOnlyForcedForwardedInfo(list)
+		&& HasRichPage(list)
+		&& HasDropForwardedInfoSetting(list);
+}
+
+Data::ForwardOptions NormalizeForwardOptions(
+		not_null<Main::Session*> session,
+		const HistoryItemsList &list,
+		Data::ForwardOptions options) {
+	return CanHideForwardAuthor(session, list)
+		? options
+		: Data::ForwardOptions::PreserveInfo;
 }
 
 } // namespace HistoryView::Controls

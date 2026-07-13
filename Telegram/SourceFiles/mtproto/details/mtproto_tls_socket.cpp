@@ -24,6 +24,7 @@ constexpr auto kMaxGrease = 8;
 constexpr auto kClientHelloLimit = 2048;
 constexpr auto kHelloDigestLength = 32;
 constexpr auto kLengthSize = sizeof(uint16);
+constexpr auto kMaxServerHelloLength = 65536;
 const auto kServerHelloPart1 = qstr("\x16\x03\x03");
 const auto kServerHelloPart3 = qstr("\x14\x03\x03\x00\x01\x01\x17\x03\x03");
 constexpr auto kServerHelloDigestPosition = 11;
@@ -711,6 +712,11 @@ void TlsSocket::checkHelloParts12(int parts1Size) {
 		+ part2Size
 		+ kServerHelloPart3.size()
 		+ kLengthSize;
+	if (parts123Size > kMaxServerHelloLength) {
+		logError(888, "Bad Server Hello size.");
+		handleError();
+		return;
+	}
 	if (_serverHelloLength == parts1Size) {
 		const auto part1Offset = parts1Size
 			- kLengthSize
@@ -735,6 +741,11 @@ void TlsSocket::checkHelloParts34(int parts123Size) {
 		parts123Size);
 	const auto part4Size = ReadPartLength(data, parts123Size - kLengthSize);
 	const auto full = parts123Size + part4Size;
+	if (full > kMaxServerHelloLength) {
+		logError(888, "Bad Server Hello size.");
+		handleError();
+		return;
+	}
 	if (_serverHelloLength == parts123Size) {
 		const auto part3Offset = parts123Size
 			- kLengthSize
@@ -754,6 +765,11 @@ void TlsSocket::checkHelloParts34(int parts123Size) {
 }
 
 void TlsSocket::checkHelloDigest() {
+	if (_serverHelloLength < kServerHelloDigestPosition + kHelloDigestLength) {
+		logError(888, "Bad Server Hello size.");
+		handleError();
+		return;
+	}
 	const auto fulldata = bytes::make_detached_span(_incoming).subspan(
 		0,
 		kHelloDigestLength + _serverHelloLength);

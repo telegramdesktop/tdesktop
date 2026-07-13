@@ -127,6 +127,7 @@ public:
 	void showAnimated(QPixmap oldContentCache, bool back = false);
 
 	void activate();
+	void handleStartFiles(QStringList interprets, QStringList paths);
 
 	void windowShown();
 

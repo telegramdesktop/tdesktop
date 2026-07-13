@@ -1,3 +1,110 @@
+6.9.4 beta (02.07.26)
+
+- Add rich message editor with media, tables and math formulas.
+- Show rich message drafts with full formatting in chat compose area.
+- Add text recognition with selection and copying to media viewer images.
+- Add swipe navigation and pinch zoom gestures to media viewer.
+- Support zoom and dragging files out in shared media photos.
+- Allow adapting existing stickers into custom emoji.
+- Add media viewer video playback to system media controls.
+- Add alphabetical fast-scroll index to contacts box.
+- Improve screen reader accessibility for chats list and folders.
+
+6.9.3 (12.06.26)
+
+- Fix possible crash in formula parsing.
+- Fix field resize after Undo/Redo.
+- Fix OpenGL in Windows build.
+
+6.9.2 (10.06.26)
+
+- Fix possible crash in OpenGL init (Linux).
+- Fix possible crash in calls (Windows on ARM).
+- Fix working with system proxy (Windows).
+- Fix display of rich messages without text.
+- Fix display of rich messages in Recent Actions.
+- Replace dispatch with TooManyCooks (Linux).
+
+6.9.1 (09.06.26)
+
+- Fix sending several same custom emoji.
+- Fix some rich messages layout glitches.
+
+6.9 (09.06.26)
+
+- Rich Text Formatting for Bots.
+- Guardian Bots for Group Chats.
+- Links in Poll Options.
+- Viewer for Markdown files in .md format.
+- Instant View that's really instant.
+
+6.8.5 beta (04.06.26)
+
+- Animated 3D objects on settings covers (premium star, coin, diamond).
+- Particle effects for one-time voice message playback.
+- Birthday celebration effect on profile.
+- Poll votes graph in message statistics.
+- Separate send action animation for round video messages.
+- Open public channels from chat folder invite links.
+- Notify toggle and muted icon for silent scheduled messages.
+- Per-window Qt RHI renderer activation.
+- Fix empty chat list preview after deleting last message.
+- Fix shaking of pinned chats dragged past rows of other heights.
+- Fix scroll with keyboard in chat history.
+- Fix pause of animated reactions when opening their context menu.
+- Improve performance with RHI enabled.
+
+6.8.4 beta (27.05.26)
+
+- Drag-and-drop of photos into chats.
+- Testing Qt RHI renderer on macOS and Windows on ARM.
+- Native external webapp viewer on Linux by default.
+- Frequent contacts and search in gift recipient picker.
+- Fix passcode bypass via separate windows opened while locked.
+- Fix clickable timestamps in blockquote.
+- Fix never ending download progress in web apps.
+- Fix borders in Instant View tables.
+- Fix several possible crashes.
+
+6.8.3 beta (19.05.26)
+
+- In-app markdown file viewer.
+- Native Instant View support.
+- Native external webapp viewer on Linux.
+- Screen reader support for chat list and message list.
+- Fix Ctrl+Shift+V on non-English layouts.
+- Upgrade to Qt 6.11.1 on macOS and Linux.
+- Test QRhi for Thanos effect on Qt 6.11.1.
+
+6.8.2 (12.05.26)
+
+- Fix non-premium sending of existing custom reactions.
+- Fix sending reactions to groups you're not part of.
+- Fix viewing emoji packs from emoji search results.
+- Fix portrait 4K video playback.
+- Fix lost caption on forwarded polls.
+- Fix possible crash in reaction reports.
+- Fix possible crash in gift message display.
+- Return "Chatbots" to Telegram Business.
+- Separate badge background color keys for sidebar buttons.
+
+6.8.1 (08.05.26)
+
+- Fix crash in anonymous group admins messages.
+- Fix reactions sending in channels.
+
+6.8.0 (07.05.26)
+
+- Get answers from AI bots in any chat by tagging their @username.
+- Connect a bot to your profile with the new Chat Automation.
+- Custom AI styles in text editor with cloud-based tones and sharing.
+- Advanced emoji and stickers search by keywords.
+- Poll statistics chart and subscriber/country-based vote restrictions.
+- Delete specific reactions and restrict reactions in groups.
+- Image editor improvements: brush size, text style cycling, sticker quality.
+- Fix tg:// link handling on cold start and login widget window activation.
+- Copy and paste formatting to and from HTML.
+
 6.7.8 (24.04.26)
 
 - Proxy auto-rotation option.

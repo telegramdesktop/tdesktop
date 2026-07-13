@@ -29,7 +29,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
+#include "boxes/share_box.h"
 #include "boxes/sticker_set_box.h"
+#include "boxes/stickers_box.h"
 #include "lang/lang_keys.h"
 #include "layout/layout_position.h"
 #include "data/data_emoji_statuses.h"
@@ -53,7 +55,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "settings/sections/settings_premium.h"
 #include "window/window_session_controller.h"
-#include "window/window_controller.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
@@ -491,6 +492,7 @@ EmojiListWidget::EmojiListWidget(
 , _mode(_onlyUnicodeEmoji ? Mode::Full : descriptor.mode)
 , _mediaPreviewParent(descriptor.mediaPreviewParent)
 , _mediaPreviewMargins(descriptor.mediaPreviewMargins)
+, _mediaPreviewPanelStyle(descriptor.mediaPreviewPanelStyle)
 , _api(&session().mtp())
 , _staticCount(_mode == Mode::Full ? kEmojiSectionCount : 1)
 , _premiumIcon(_mode == Mode::EmojiStatus
@@ -518,6 +520,7 @@ EmojiListWidget::EmojiListWidget(
 	if (_mode != Mode::RecentReactions
 		&& _mode != Mode::BackgroundEmoji
 		&& _mode != Mode::ChannelStatus
+		&& _mode != Mode::CustomOnly
 		&& !_onlyUnicodeEmoji) {
 		setupSearch();
 	}
@@ -573,6 +576,30 @@ EmojiListWidget::EmojiListWidget(
 	) | rpl::on_next([=] {
 		refreshCustom();
 		resizeToWidth(width());
+		if (!_searchMode
+			|| !searchShortcutSelected()
+			|| _searchSets.empty()) {
+			return;
+		}
+		// Skip refill when size already matches to preserve hover state.
+		const auto &sets = session().data().stickers().sets();
+		const auto it = sets.find(_searchSelectedSetId);
+		if (it == sets.end()) {
+			return;
+		}
+		const auto set = it->second.get();
+		const auto have = int(_searchSets.front().list.size());
+		const auto want = int(set->stickers.empty()
+			? set->covers.size()
+			: set->stickers.size());
+		if (have == want) {
+			return;
+		}
+		_searchSets.clear();
+		fillSelectedSearchShortcut();
+		resizeToWidth(width());
+		update();
+		updateSelected();
 	}, lifetime());
 
 	rpl::combine(
@@ -616,6 +643,12 @@ void EmojiListWidget::setupSearch() {
 		});
 		_searchQueries.fire_copy(_nextSearchQuery);
 	}, session, type);
+}
+
+void EmojiListWidget::setSearchRightReserved(int value) {
+	if (_search) {
+		_search->setRightReserved(value);
+	}
 }
 
 rpl::producer<std::vector<QString>> EmojiListWidget::searchQueries() const {
@@ -738,20 +771,21 @@ void EmojiListWidget::applyNextSearchQuery() {
 void EmojiListWidget::showPreview() {
 	if (const auto over = std::get_if<OverEmoji>(&_pressed)) {
 		if (const auto custom = lookupCustomEmoji(over)) {
-			showPreviewFor(custom.document);
-			_previewShown = true;
+			_previewShown = showPreviewFor(custom.document);
 		}
 	}
 }
 
-void EmojiListWidget::showPreviewFor(not_null<DocumentData*> document) {
+bool EmojiListWidget::showPreviewFor(not_null<DocumentData*> document) {
 	if ((_mode == Mode::FullReactions || _mode == Mode::RecentReactions)
 		&& _mediaPreviewParent) {
 		ensureMediaPreview();
-		_mediaPreview->showPreview(document->stickerSetOrigin(), document);
-	} else {
-		_show->showMediaPreview(document->stickerSetOrigin(), document);
+		if (_mediaPreview) {
+			_mediaPreview->showPreview(document->stickerSetOrigin(), document);
+			return true;
+		}
 	}
+	return _show->showMediaPreview(document->stickerSetOrigin(), document);
 }
 
 void EmojiListWidget::ensureMediaPreview() {
@@ -762,27 +796,24 @@ void EmojiListWidget::ensureMediaPreview() {
 		_mediaPreview->raise();
 		return;
 	}
-	const auto controller = Core::App().findWindow(_show->toastParent());
-	const auto sessionController = controller
-		? controller->sessionController()
-		: nullptr;
-	if (sessionController) {
-		const auto tooSmall = _mediaPreviewParent->height()
-			< st::emojiPanEmojiPreviewMinHeight;
+	if (const auto sessionController = _show->resolveWindow()) {
+		const auto tooSmall = _mediaPreviewPanelStyle
+			&& (_mediaPreviewParent->height()
+				< st::emojiPanEmojiPreviewMinHeight);
 		const auto parent = tooSmall
 			? sessionController->content()
 			: _mediaPreviewParent;
 		_mediaPreview = base::make_unique_q<Window::MediaPreviewWidget>(
 			parent,
 			sessionController);
-		if (!tooSmall) {
+		if (_mediaPreviewPanelStyle && !tooSmall) {
 			_mediaPreview->setCustomPadding(
 				st::emojiPanReactionsPreviewPadding);
 			_mediaPreview->setBackgroundMargins(_mediaPreviewMargins);
 			_mediaPreview->setCustomRadius(st::emojiPanEmojiPreviewRadius);
 		}
 		_mediaPreview->show();
-		_mediaPreview->setGeometry(parent->geometry());
+		_mediaPreview->setGeometry(parent->rect());
 		_mediaPreview->raise();
 	}
 }
@@ -1022,6 +1053,7 @@ void EmojiListWidget::checkPaginateSearchCloud(
 		int visibleTop,
 		int visibleBottom) {
 	if (!_searchMode
+		|| searchShortcutSelected()
 		|| _searchRequestQuery.isEmpty()
 		|| (_searchRequestQuery != _searchNextRequestQuery)
 		|| _searchCloudRequestId) {
@@ -1387,6 +1419,16 @@ void EmojiListWidget::toggleSearchShortcut(int index) {
 		_searchSelectedSetId = target;
 		showSearchResults();
 	}, packToPack);
+	if (target) {
+		// Pull full stickers so the grid shows them instead of cover-only.
+		const auto set = _searchShortcutSets[index].set;
+		if (set->stickers.empty()
+			|| (set->flags & Data::StickersSetFlag::NotLoaded)) {
+			auto &api = session().api();
+			api.scheduleStickerSetRequest(set->id, set->accessHash);
+			api.requestStickerSets();
+		}
+	}
 }
 
 void EmojiListWidget::backToSearchResults() {
@@ -1895,6 +1937,26 @@ base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
 	if (v::is_null(_selected)) {
 		return nullptr;
 	}
+	if (const auto setOver = std::get_if<OverSet>(&_selected)) {
+		const auto section = setOver->section;
+		if (_searchMode
+			&& section > 0
+			&& section <= int(_searchSets.size())) {
+			return fillSetContextMenu(searchSetBySection(section));
+		} else if (!_searchMode
+			&& section >= _staticCount
+			&& (section - _staticCount) < int(_custom.size())) {
+			return fillSetContextMenu(_custom[section - _staticCount]);
+		}
+		return nullptr;
+	}
+	if (const auto shortcut = std::get_if<OverSearchShortcut>(&_selected)) {
+		if (shortcut->index >= 0
+			&& shortcut->index < int(_searchShortcutSets.size())) {
+			return fillSetContextMenu(_searchShortcutSets[shortcut->index]);
+		}
+		return nullptr;
+	}
 	const auto over = std::get_if<OverEmoji>(&_selected);
 	if (!over) {
 		return nullptr;
@@ -1949,7 +2011,7 @@ void EmojiListWidget::fillRecentMenu(
 		if (recent && setId && _features.openStickerSets) {
 			addAction(
 				tr::lng_emoji_view_pack(tr::now),
-				crl::guard(this, [=] { displaySet(setId); }),
+				crl::guard(this, [=] { displaySet(document); }),
 				&st::menuIconShowAll);
 		}
 	} else if (recent && emoji) {
@@ -1981,7 +2043,7 @@ void EmojiListWidget::fillRecentMenu(
 			refreshRecent();
 			close();
 		};
-		checkHideWithBox(Ui::MakeConfirmBox({
+		showBoxPreventHide(Ui::MakeConfirmBox({
 			.text = tr::lng_emoji_reset_recent_sure(),
 			.confirmed = crl::guard(this, sure),
 			.confirmText = tr::lng_emoji_reset_recent_button(tr::now),
@@ -2021,6 +2083,18 @@ void EmojiListWidget::fillEmojiStatusMenu(
 		tr::lng_manage_messages_ttl_after_custom(tr::now),
 		crl::guard(this, [=] { selectWith(
 			TabbedSelector::kPickCustomTimeId); }));
+}
+
+base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillSetContextMenu(
+		const CustomSet &set) {
+	return FillStickerSetContextMenu(
+		this,
+		_show,
+		set.set,
+		_localSetsManager.get(),
+		crl::guard(this, [this](uint64 id) { removeSet(id); }),
+		crl::guard(this, [this] { update(); }),
+		st::popupMenuWithIcons);
 }
 
 void EmojiListWidget::paintEvent(QPaintEvent *e) {
@@ -2272,9 +2346,9 @@ void EmojiListWidget::paint(
 		&& !_searchRequestTimer.isActive()) {
 		paintEmptySearchResults(p);
 	}
-	const auto badgeText = tr::lng_stickers_creator_badge(tr::now);
+	const auto creatorBadgeText = tr::lng_stickers_creator_badge(tr::now);
+	const auto groupBadgeText = tr::lng_emoji_group_badge(tr::now);
 	const auto &badgeFont = st::stickersHeaderBadgeFont;
-	const auto badgeWidth = badgeFont->width(badgeText);
 	enumerateSections([&](const SectionInfo &info) {
 		if (clip.top() >= info.rowsBottom) {
 			return true;
@@ -2303,9 +2377,22 @@ void EmojiListWidget::paint(
 				: (info.section >= _staticCount)
 				? _custom[info.section - _staticCount].set.get()
 				: nullptr;
-			const auto amCreator = titleSet
+			const auto megagroupEmoji = !_searchMode
+				&& (info.section >= _staticCount)
+				&& (_custom[info.section - _staticCount].id
+					== Data::Stickers::MegagroupSetId);
+			const auto amCreator = !megagroupEmoji
+				&& titleSet
 				&& (titleSet->flags & Data::StickersSetFlag::AmCreator);
-			if (amCreator) {
+			const auto badgeText = megagroupEmoji
+				? groupBadgeText
+				: amCreator
+				? creatorBadgeText
+				: QString();
+			const auto badgeWidth = badgeText.isEmpty()
+				? 0
+				: badgeFont->width(badgeText);
+			if (!badgeText.isEmpty()) {
 				widthForTitle -= badgeWidth
 					+ st::stickersFeaturedUnreadSkip
 					+ st::stickersHeaderBadgeFontSkip;
@@ -2327,7 +2414,7 @@ void EmojiListWidget::paint(
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st().headerFg);
 			p.drawText(titleLeft, textBaseline, titleText);
-			if (amCreator) {
+			if (!badgeText.isEmpty()) {
 				const auto badgeLeft = titleLeft
 					+ titleWidth
 					+ st::stickersFeaturedUnreadSkip;
@@ -2646,9 +2733,7 @@ EmojiPtr EmojiListWidget::lookupOverEmoji(const OverEmoji *over) const {
 			? v::get<EmojiPtr>(_searchResults[index].id.data)
 			: nullptr)
 		: (_searchMode && section > 0)
-		? ((index < int(searchSetBySection(section).list.size()))
-			? searchSetBySection(section).list[index].emoji
-			: nullptr)
+		? nullptr
 		: (section == int(Section::Recent)
 			&& index < _recent.size()
 			&& v::is<EmojiPtr>(_recent[index].id.data))
@@ -2832,6 +2917,7 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			switch (_mode) {
 			case Mode::Full:
 			case Mode::UserpicBuilder:
+			case Mode::CustomOnly:
 				Settings::ShowPremium(resolved, u"animated_emoji"_q);
 				break;
 			case Mode::FullReactions:
@@ -2853,9 +2939,17 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
+void EmojiListWidget::displaySet(not_null<DocumentData*> document) {
+	preventHideWithBox(StickerSetBox::Show(_show, document));
+}
+
 void EmojiListWidget::displaySet(uint64 setId) {
 	if (setId == Data::Stickers::MegagroupSetId) {
-		if (_megagroupSet->mgInfo->emojiSet.id) {
+		if (_megagroupSet->canEditEmoji()) {
+			showBoxPreventHide(
+				Box<StickersBox>(_show, _megagroupSet, true));
+			return;
+		} else if (_megagroupSet->mgInfo->emojiSet.id) {
 			setId = _megagroupSet->mgInfo->emojiSet.id;
 		} else {
 			return;
@@ -2866,7 +2960,7 @@ void EmojiListWidget::displaySet(uint64 setId) {
 	const auto &sets = session().data().stickers().sets();
 	auto it = sets.find(setId);
 	if (it != sets.cend()) {
-		checkHideWithBox(Box<StickerSetBox>(_show, it->second.get()));
+		showBoxPreventHide(Box<StickerSetBox>(_show, it->second.get()));
 	}
 }
 
@@ -2877,7 +2971,7 @@ void EmojiListWidget::removeMegagroupSet(bool locally) {
 		refreshCustom();
 		return;
 	}
-	checkHideWithBox(Ui::MakeConfirmBox({
+	showBoxPreventHide(Ui::MakeConfirmBox({
 		.text = tr::lng_emoji_remove_group_set(),
 		.confirmed = crl::guard(this, [this, group = _megagroupSet](
 				Fn<void()> &&close) {
@@ -2902,7 +2996,7 @@ void EmojiListWidget::removeSet(uint64 setId) {
 		removeMegagroupSet(removeLocally);
 	} else if (setId == Data::Stickers::CollectibleSetId) {
 	} else if (auto box = MakeConfirmRemoveSetBox(&session(), labelSt, setId)) {
-		checkHideWithBox(std::move(box));
+		showBoxPreventHide(std::move(box));
 	}
 }
 
@@ -2971,7 +3065,8 @@ void EmojiListWidget::pickerHidden() {
 }
 
 bool EmojiListWidget::hasColorButton(int index) const {
-	return (_staticCount > int(Section::People))
+	return !_searchMode
+		&& (_staticCount > int(Section::People))
 		&& (index == int(Section::People));
 }
 
@@ -3320,12 +3415,6 @@ void EmojiListWidget::processHideFinished() {
 }
 
 void EmojiListWidget::processPanelHideFinished() {
-	if (_search) {
-		_search->cancel();
-	}
-	_nextSearchQuery.clear();
-	applyNextSearchQuery();
-	cancelSearchRequest();
 	unloadAllCustom();
 	if (_localSetsManager->clearInstalledLocally()) {
 		refreshCustom();
@@ -3346,6 +3435,10 @@ void EmojiListWidget::refreshCustom() {
 	if (_mode == Mode::RecentReactions || _mode == Mode::MessageEffects) {
 		return;
 	}
+	// Pin the section at the visible top across the rebuild.
+	const auto wasTop = getVisibleTop();
+	const auto wasActive = currentSet(wasTop);
+	const auto wasSectionTop = sectionInfoByOffset(wasTop).top;
 	auto old = base::take(_custom);
 	const auto session = &this->session();
 	const auto premiumPossible = session->premiumPossible();
@@ -3470,12 +3563,27 @@ void EmojiListWidget::refreshCustom() {
 	}
 	refreshMegagroupStickers(push, GroupStickersPlace::Hidden);
 
+	auto newSectionTop = wasSectionTop;
+	auto found = false;
+	enumerateSections([&](const SectionInfo &info) {
+		if (sectionSetId(info.section) == wasActive) {
+			newSectionTop = info.top;
+			found = true;
+			return false;
+		}
+		return true;
+	});
+
 	_footer->refreshIcons(
 		fillIcons(),
-		currentSet(getVisibleTop()),
+		found ? wasActive : currentSet(wasTop),
 		nullptr,
 		ValidateIconAnimations::None);
 	update();
+
+	if (found && newSectionTop != wasSectionTop) {
+		scrollTo(newSectionTop + (wasTop - wasSectionTop));
+	}
 }
 
 Fn<void()> EmojiListWidget::repaintCallback(
@@ -3810,8 +3918,10 @@ void EmojiListWidget::updateSelected() {
 			&& myrtlrect(buttonRect(section)).contains(p.x(), p.y())) {
 			newSelected = OverButton{ section };
 		} else if (_features.openStickerSets
-			&& section >= _staticCount
-			&& _mode == Mode::Full) {
+			&& ((_searchMode && section > 0)
+				|| (!_searchMode
+					&& section >= _staticCount
+					&& _mode == Mode::Full))) {
 			newSelected = OverSet{ section };
 		}
 	} else if (p.y() >= info.rowsTop && p.y() < info.rowsBottom) {
@@ -3869,7 +3979,7 @@ void EmojiListWidget::setSelected(OverState newSelected) {
 		if (const auto over = std::get_if<OverEmoji>(&_selected)) {
 			if (const auto custom = lookupCustomEmoji(over)) {
 				_pressed = _selected;
-				showPreviewFor(custom.document);
+				_previewShown = showPreviewFor(custom.document);
 			}
 		}
 	}

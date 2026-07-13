@@ -124,12 +124,12 @@ void PanelAskPassword::updateControlsGeometry() {
 		_password->height());
 	_password->moveToLeft((width() - _password->width()) / 2, top);
 
-	top -= st::passportPasswordFieldSkip + _about2->height();
 	_about2->resizeToWidth(availableWidth);
+	top -= st::passportPasswordFieldSkip + _about2->height();
 	_about2->moveToLeft(padding.left(), top);
 
-	top -= _about1->height();
 	_about1->resizeToWidth(availableWidth);
+	top -= _about1->height();
 	_about1->moveToLeft(padding.left(), top);
 
 	top -= st::passportPasswordUserpicSkip + _userpic->height();

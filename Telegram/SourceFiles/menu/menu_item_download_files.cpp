@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 
@@ -109,6 +110,8 @@ void AddAction(
 							"internal:show_saved_message"),
 						tr::marked),
 					.filter = filter,
+					.iconLottie = u"toast/save_to_gallery"_q,
+					.iconLottieSize = st::toastLottieIconSize,
 					.st = &st::defaultToast,
 				});
 			};
@@ -258,18 +261,14 @@ void AddDownloadFilesAction(
 void AddDownloadFilesAction(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<Window::SessionController*> window,
-		const base::flat_map<HistoryItem*, TextSelection, std::less<>> &items,
+		const std::vector<not_null<HistoryItem*>> &items,
 		not_null<HistoryInner*> list) {
 	if (items.empty()) {
 		return;
 	}
-	auto sortedItems = ranges::views::all(items)
-		| ranges::views::keys
-		| ranges::to<std::vector>();
-	ranges::sort(sortedItems, {}, &HistoryItem::fullId);
 	auto docs = Documents();
 	auto photos = Photos();
-	for (const auto &item : sortedItems) {
+	for (const auto &item : items) {
 		if (!Added(item, docs, photos)) {
 			return;
 		}

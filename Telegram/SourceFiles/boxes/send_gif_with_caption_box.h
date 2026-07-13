@@ -27,6 +27,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Ui {
 
 class GenericBox;
@@ -49,6 +53,16 @@ void SendGifWithCaptionBox(
 	not_null<DocumentData*> document,
 	not_null<PeerData*> peer,
 	const SendMenu::Details &details,
-	Fn<void(Api::SendOptions, TextWithTags)> done);
+	TextWithTags initialText,
+	Fn<void(Api::SendOptions, TextWithTags)> done,
+	Fn<void(TextWithTags)> cancelled);
+
+void SendGifWithCaption(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<Ui::InputField*> field,
+	not_null<DocumentData*> document,
+	not_null<PeerData*> peer,
+	const SendMenu::Details &details,
+	Fn<void(Api::SendOptions, TextWithTags)> send);
 
 } // namespace Ui

@@ -186,6 +186,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 			MTPstring()), // psa_type
 		MTPlong(), // via_bot_id
 		MTPlong(), // via_business_bot_id
+		MTPPeer(), // guestchat_via_from
 		MTPMessageReplyHeader(),
 		MTP_int(base::unixtime::now()), // date
 		MTP_string(text),
@@ -208,7 +209,8 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTPlong(), // paid_message_stars
 		MTPSuggestedPost(),
 		MTPint(), // schedule_repeat_period
-		MTPstring() // summary_from_language
+		MTPstring(), // summary_from_language
+		MTPRichMessage()
 	).match([&](const MTPDmessage &data) {
 		return history->makeMessage(
 			history->nextNonHistoryEntryId(),
@@ -530,8 +532,11 @@ void PhoneNumberPrivacyController::prepareWarningLabel(
 	warning->overrideLinkClickHandler([=] {
 		QGuiApplication::clipboard()->setText(PublicLinkByPhone(
 			_controller->session().user()));
-		_controller->window().showToast(
-			tr::lng_username_copied(tr::now));
+		_controller->window().showToast({
+			.text = { tr::lng_username_copied(tr::now) },
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	});
 }
 
@@ -743,6 +748,7 @@ void LastSeenPrivacyController::confirmSave(
 		bool someAreDisallowed,
 		Fn<void()> saveCallback) {
 	if (someAreDisallowed
+		&& !_session->premium()
 		&& !Core::App().settings().lastSeenWarningSeen()) {
 		auto callback = [
 			=,

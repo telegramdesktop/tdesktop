@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #import <AppKit/NSImage.h>
 #import <AppKit/NSImageView.h>
 #import <AppKit/NSSlider.h>
-#import <AppKit/NSSliderTouchBarItem.h>
 
 using namespace TouchBar;
 
@@ -208,17 +207,21 @@ NSButton *CreateTouchBarButtonWithTwoStates(
 		std::move(stateChanged));
 }
 
-NSSliderTouchBarItem *CreateTouchBarSlider(
+NSCustomTouchBarItem *CreateTouchBarSlider(
 		NSString *itemId,
 		rpl::lifetime &lifetime,
 		Fn<void(bool, double, double)> callback,
 		rpl::producer<Media::Player::TrackState> stateChanged) {
 	const auto lastDurationMs = lifetime.make_state<crl::time>(0);
 
-	auto *seekBar = [[NSSliderTouchBarItem alloc] initWithIdentifier:itemId];
-	seekBar.slider.minValue = 0.0f;
-	seekBar.slider.maxValue = 1.0f;
-	seekBar.customizationLabel = @"Seek Bar";
+	auto *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:itemId];
+	item.customizationLabel = @"Seek Bar";
+
+	auto *slider = [NSSlider sliderWithTarget:nil action:nil];
+	slider.minValue = 0.0f;
+	slider.maxValue = 1.0f;
+	slider.continuous = YES;
+	item.view = slider;
 
 	id block = [^{
 		// https://stackoverflow.com/a/45891017
@@ -227,7 +230,7 @@ NSSliderTouchBarItem *CreateTouchBarSlider(
 			touchesMatchingPhase:NSTouchPhaseEnded
 			inView:nil].count > 0;
 		Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-			callback(touchUp, seekBar.slider.doubleValue, *lastDurationMs);
+			callback(touchUp, slider.doubleValue, *lastDurationMs);
 		});
 	} copy];
 
@@ -236,7 +239,6 @@ NSSliderTouchBarItem *CreateTouchBarSlider(
 	) | rpl::on_next([=](const Media::Player::TrackState &state) {
 		const auto stop = Media::Player::IsStoppedOrStopping(state.state);
 		const auto duration = double(stop ? 0 : state.length);
-		auto slider = seekBar.slider;
 		if (duration <= 0) {
 			slider.enabled = false;
 			slider.doubleValue = 0;
@@ -252,13 +254,13 @@ NSSliderTouchBarItem *CreateTouchBarSlider(
 		}
 	}, lifetime);
 
-	seekBar.target = block;
-	seekBar.action = @selector(invoke);
+	slider.target = block;
+	slider.action = @selector(invoke);
 	lifetime.add([=] {
 		[block release];
 	});
 
-	return seekBar;
+	return item;
 }
 
 NSCustomTouchBarItem *CreateTouchBarTrackPosition(

@@ -179,6 +179,9 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
 			MTP_long(data.vvia_bot_id().value_or_empty()),
 			MTP_long(data.vvia_business_bot_id().value_or_empty()),
+			(data.vguestchat_via_from()
+				? *data.vguestchat_via_from()
+				: MTPPeer()),
 			reply.value_or(MTPMessageReplyHeader()),
 			MTP_int(newDate),
 			data.vmessage(),
@@ -203,7 +206,8 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTP_long(data.vpaid_message_stars().value_or_empty()),
 			MTPSuggestedPost(),
 			MTPint(), // schedule_repeat_period
-			MTPstring()); // summary_from_language
+			MTPstring(), // summary_from_language
+			data.vrich_message() ? *data.vrich_message() : MTPRichMessage());
 	});
 }
 
@@ -337,6 +341,7 @@ QString GeneratePermissionsChangeText(
 			| Flag::SendInline
 			| Flag::SendGames, tr::lng_admin_log_banned_send_stickers },
 		{ Flag::EmbedLinks, tr::lng_admin_log_banned_embed_links },
+		{ Flag::SendReactions, tr::lng_admin_log_banned_send_reactions },
 		{ Flag::SendPolls, tr::lng_admin_log_banned_send_polls },
 		{ Flag::ChangeInfo, tr::lng_admin_log_admin_change_info },
 		{ Flag::AddParticipants, tr::lng_admin_log_admin_invite_users },
@@ -743,14 +748,15 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 		not_null<ChannelData*> channel,
 		const MTPForumTopic &topic) {
 	return topic.match([&](const MTPDforumTopic &data) {
+		const auto url = u"https://t.me/c/%1/%2"_q.arg(
+			peerToChannel(channel->id).bare).arg(
+				data.vid().v);
 		return tr::link(
 			Data::ForumTopicIconWithTitle(
 				data.vid().v,
 				data.vicon_emoji_id().value_or_empty(),
 				qs(data.vtitle())),
-			u"internal:url:https://t.me/c/%1/%2"_q.arg(
-				peerToChannel(channel->id).bare).arg(
-					data.vid().v));
+			UrlClickHandler::EncodeInternalWrappedUrl(url));
 	}, [](const MTPDforumTopicDeleted &) {
 		return TextWithEntities{ u"Deleted"_q };
 	});
@@ -1100,12 +1106,40 @@ void GenerateItems(
 				tr::lng_admin_log_empty_text(tr::now));
 		}
 
+		auto prevPhoto = (PhotoData*)nullptr;
+		auto prevDocument = (DocumentData*)nullptr;
+		if (changedMedia
+			&& action.vprev_message().type() == mtpc_message) {
+			const auto &prev = action.vprev_message().c_message();
+			if (const auto media = prev.vmedia()) {
+				media->match([&](const MTPDmessageMediaPhoto &data) {
+					if (const auto photo = data.vphoto()) {
+						photo->match([&](const MTPDphoto &fields) {
+							prevPhoto = history->owner().processPhoto(fields);
+						}, [](const MTPDphotoEmpty &) {
+						});
+					}
+				}, [&](const MTPDmessageMediaDocument &data) {
+					if (const auto document = data.vdocument()) {
+						document->match([&](const MTPDdocument &fields) {
+							prevDocument = history->owner().processDocument(
+								fields);
+						}, [](const MTPDdocumentEmpty &) {
+						});
+					}
+				}, [](const auto &) {
+				});
+			}
+		}
+
 		body->addLogEntryOriginal(
 			id,
 			(canHaveCaption
 				? tr::lng_admin_log_previous_caption
 				: tr::lng_admin_log_previous_message)(tr::now),
-			oldValue);
+			oldValue,
+			prevPhoto,
+			prevDocument);
 		addPart(body, sentDate, realId);
 	};
 

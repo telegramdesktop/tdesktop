@@ -19,18 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QScreen>
 #include <QThread>
 #include <QDir>
+#include <QtCore/qmath.h>
 
 #include <qpa/qplatformscreen.h>
 
 namespace Test {
-
-bool App::notifyOrInvoke(QObject *receiver, QEvent *e) {
-	if (e->type() == base::InvokeQueuedEvent::Type()) {
-		static_cast<base::InvokeQueuedEvent*>(e)->invoke();
-		return true;
-	}
-	return QApplication::notify(receiver, e);
-}
 
 bool App::nativeEventFilter(
 		const QByteArray &eventType,
@@ -108,7 +101,7 @@ void App::registerEnterFromEventLoop() {
 
 bool App::notify(QObject *receiver, QEvent *e) {
 	if (QThread::currentThreadId() != _mainThreadId) {
-		return notifyOrInvoke(receiver, e);
+		return QApplication::notify(receiver, e);
 	}
 
 	const auto wrap = createEventNestingLevel();
@@ -119,7 +112,7 @@ bool App::notify(QObject *receiver, QEvent *e) {
 			return true;
 		}
 	}
-	return notifyOrInvoke(receiver, e);
+	return QApplication::notify(receiver, e);
 }
 
 rpl::producer<> App::widgetUpdateRequests() const {
@@ -160,6 +153,14 @@ QString UiIntegration::openglCheckFilePath() {
 
 QString UiIntegration::angleBackendFilePath() {
 	return QDir().currentPath() + "/test/" + name() + "/angle";
+}
+
+void UiIntegration::touchCounterIncrement() {
+	++_touchCounter;
+}
+
+int UiIntegration::touchCounterNow() {
+	return _touchCounter;
 }
 
 } // namespace Test
