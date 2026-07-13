@@ -43,5 +43,7 @@ using ClipboardData = std::variant<ClipboardBlockData, ClipboardListItemsData>;
 	ClipboardData data);
 [[nodiscard]] std::optional<ClipboardData> ClipboardDataFromMimeData(
 	const QMimeData *mimeData);
+[[nodiscard]] std::optional<RichPage::Block> ExcelTableBlockFromMimeData(
+	const QMimeData *mimeData);
 
 } // namespace Iv::Editor

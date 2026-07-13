@@ -4060,6 +4060,13 @@ bool Widget::handleClipboardKey(QKeyEvent *e) {
 			e->accept();
 			return true;
 		}
+		if (auto block = ExcelTableBlockFromMimeData(mimeData)) {
+			auto data = ClipboardBlockData();
+			data.blocks.push_back(std::move(*block));
+			pasteStructuredClipboardData(ClipboardData(std::move(data)));
+			e->accept();
+			return true;
+		}
 		if (mimeData && _applyPreparedMedia) {
 			if (auto list = PreparedMediaFromClipboard(
 					not_null<const QMimeData*>(mimeData),
@@ -8664,6 +8671,18 @@ bool Widget::handleIvClipboardMime(
 		}
 		crl::on_main(this, [=, clipboardData = *clipboardData] {
 			pasteStructuredClipboardData(clipboardData);
+		});
+		return true;
+	}
+	if (auto block = ExcelTableBlockFromMimeData(data.get())) {
+		if (action == Ui::InputField::MimeAction::Check) {
+			return true;
+		}
+		auto excelData = ClipboardBlockData();
+		excelData.blocks.push_back(std::move(*block));
+		auto structured = ClipboardData(std::move(excelData));
+		crl::on_main(this, [=, structured = std::move(structured)] {
+			pasteStructuredClipboardData(structured);
 		});
 		return true;
 	}
