@@ -4342,7 +4342,7 @@ void ChatWidget::updateControlsGeometry() {
 			bottom
 				- tabsBottomSkip
 				- (_suggestOptions ? st::historyReplyHeight : 0));
-		if (_kbScroll && keyboardRowsVisible() && _keyboard) {
+		if (_kbScroll && _kbShown && keyboardRowsVisible() && _keyboard) {
 			_keyboard->resizeToWidth(innerWidth, maxFieldHeight);
 			const auto keyboardReserve = std::min(
 				_keyboard->height(),
