@@ -4334,16 +4334,14 @@ void ChatWidget::updateControlsGeometry() {
 		_bottom->setGeometry(0, bottom - bottomHeight, width(), bottomHeight);
 		bottom -= bottomHeight;
 	}
-	bottom -= tabsBottomSkip;
 	if (isChoosingTheme()) {
 		bottom -= _chooseTheme->height();
 	} else {
-		if (_suggestOptions) {
-			bottom -= st::historyReplyHeight;
-		}
 		const auto maxFieldHeight = computeMaxFieldHeightForKeyboard(
 			top,
-			bottom);
+			bottom
+				- tabsBottomSkip
+				- (_suggestOptions ? st::historyReplyHeight : 0));
 		if (_kbScroll && keyboardRowsVisible() && _keyboard) {
 			_keyboard->resizeToWidth(innerWidth, maxFieldHeight);
 			const auto keyboardReserve = std::min(
@@ -4373,6 +4371,10 @@ void ChatWidget::updateControlsGeometry() {
 		}
 	}
 	const auto composeTop = bottom;
+	if (_suggestOptions) {
+		bottom -= st::historyReplyHeight;
+	}
+	bottom -= tabsBottomSkip;
 
 	const auto scrollHeight = bottom - top;
 	const auto scrollSize = QSize(innerWidth, scrollHeight);
