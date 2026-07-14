@@ -3149,7 +3149,6 @@ void HistoryWidget::showHistory(
 			}
 		}
 
-		_scroll->hide();
 		_list = _scroll->setOwnedWidget(
 			object_ptr<HistoryInner>(this, _scroll, controller(), _history));
 		_pullToNext->attachToContent(_list);
@@ -3905,13 +3904,7 @@ void HistoryWidget::updateControlsVisibility() {
 		return;
 	}
 
-	if (_firstLoadRequest && !_scroll->isHidden()) {
-		if (Ui::InFocusChain(_scroll.data())) {
-			// Don't loose focus back to chats list.
-			setFocus();
-		}
-		_scroll->hide();
-	} else if (!_firstLoadRequest && _scroll->isHidden()) {
+	if (_scroll->isHidden()) {
 		_scroll->show();
 	}
 	_topBars->show();
@@ -4984,7 +4977,7 @@ bool HistoryWidget::isItemCompletelyHidden(HistoryItem *item) const {
 }
 
 void HistoryWidget::visibleAreaUpdated() {
-	if (_list && !_scroll->isHidden()) {
+	if (_list && !_firstLoadRequest && !_scroll->isHidden()) {
 		const auto scrollTop = _scroll->scrollTop();
 		const auto scrollBottom = scrollTop + _scroll->height();
 		_list->visibleAreaUpdated(scrollTop, scrollBottom);
