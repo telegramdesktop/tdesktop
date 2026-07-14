@@ -43,6 +43,7 @@ parts:
       - libboost-regex-dev
       - libheif-dev
       - libjxl-dev
+      - liblz4-dev
       - libssl-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
