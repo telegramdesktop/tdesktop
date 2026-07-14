@@ -113,6 +113,7 @@ const std::vector<GlobalMediaSlice::Value> &GlobalMediaSlice::items() const {
 Provider::Provider(not_null<AbstractController*> controller)
 : _controller(controller)
 , _type(_controller->section().mediaType())
+, _onlyForwardable(_controller->key().globalMediaOnlyForwardable())
 , _slice(sliceKey(_aroundId)) {
 	_controller->session().data().itemRemoved(
 	) | rpl::on_next([this](auto item) {
@@ -360,9 +361,10 @@ void Provider::requestMore(
 		}
 		list->requestId = 0;
 
-		if (result.messageIds.empty()) {
+		if (!result.offsetPosition) {
 			list->loaded = true;
 		} else {
+			list->filteredCount += result.filteredCount;
 			list->list.reserve(
 				list->list.size() + result.messageIds.size());
 			for (const auto &position : result.messageIds) {
@@ -374,13 +376,15 @@ void Provider::requestMore(
 				list->list.push_back(position);
 			}
 			ranges::sort(list->list, std::greater<>());
-			list->offsetPosition = result.messageIds.back();
+			list->offsetPosition = result.offsetPosition;
 			list->offsetRate = result.offsetRate;
 			list->loaded = !result.offsetRate;
 		}
 		list->fullCount = list->loaded
 			? int(list->list.size())
-			: std::max(result.fullCount, int(list->list.size()));
+			: std::max(
+				result.fullCount - list->filteredCount,
+				int(list->list.size()));
 
 		auto waiters = std::exchange(
 			list->requestWaiters,
@@ -394,6 +398,7 @@ void Provider::requestMore(
 		query,
 		requestRate,
 		requestPosition,
+		_onlyForwardable,
 		done);
 }
 

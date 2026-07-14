@@ -328,6 +328,7 @@ public:
 		const QString &query,
 		int32 offsetRate,
 		Data::MessagePosition offsetPosition,
+		bool onlyForwardable,
 		Fn<void(Api::GlobalMediaResult)> done);
 
 	void readFeaturedSetDelayed(uint64 setId);

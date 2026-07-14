@@ -49,10 +49,13 @@ struct Tag {
 namespace Info::GlobalMedia {
 
 struct Tag {
-	explicit Tag(not_null<UserData*> self) : self(self) {
+	explicit Tag(not_null<UserData*> self, bool onlyForwardable = false)
+	: self(self)
+	, onlyForwardable(onlyForwardable) {
 	}
 
 	not_null<UserData*> self;
+	bool onlyForwardable = false;
 };
 
 } // namespace Info::GlobalMedia
@@ -100,6 +103,7 @@ public:
 	[[nodiscard]] UserData *settingsSelf() const;
 	[[nodiscard]] bool isDownloads() const;
 	[[nodiscard]] bool isGlobalMedia() const;
+	[[nodiscard]] bool globalMediaOnlyForwardable() const;
 	[[nodiscard]] PeerData *storiesPeer() const;
 	[[nodiscard]] int storiesAlbumId() const;
 	[[nodiscard]] int storiesAddToAlbumId() const;

@@ -313,7 +313,7 @@ MusicSectionController::MusicSectionController(
 		not_null<Window::SessionController*> controller,
 		GlobalMediaSectionTag)
 : AbstractController(controller)
-, _key(Info::GlobalMedia::Tag{ controller->session().user() })
+, _key(Info::GlobalMedia::Tag{ controller->session().user(), true })
 , _section(
 	Storage::SharedMediaType::MusicFile,
 	Info::Section::Type::GlobalMedia)

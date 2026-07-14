@@ -119,6 +119,13 @@ bool Key::isGlobalMedia() const {
 	return v::is<GlobalMedia::Tag>(_value);
 }
 
+bool Key::globalMediaOnlyForwardable() const {
+	if (const auto tag = std::get_if<GlobalMedia::Tag>(&_value)) {
+		return tag->onlyForwardable;
+	}
+	return false;
+}
+
 PeerData *Key::storiesPeer() const {
 	if (const auto tag = std::get_if<Stories::Tag>(&_value)) {
 		return tag->peer;

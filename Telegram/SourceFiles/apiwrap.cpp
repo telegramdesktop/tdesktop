@@ -3714,6 +3714,7 @@ mtpRequestId ApiWrap::requestGlobalMedia(
 		const QString &query,
 		int32 offsetRate,
 		Data::MessagePosition offsetPosition,
+		bool onlyForwardable,
 		Fn<void(Api::GlobalMediaResult)> done) {
 	auto prepared = Api::PrepareGlobalMediaRequest(
 		_session,
@@ -3728,7 +3729,7 @@ mtpRequestId ApiWrap::requestGlobalMedia(
 	return request(
 		std::move(*prepared)
 	).done([=](const Api::SearchRequestResult &result) {
-		done(Api::ParseGlobalMediaResult(_session, result));
+		done(Api::ParseGlobalMediaResult(_session, result, onlyForwardable));
 	}).fail([=] {
 		done({});
 	}).send();

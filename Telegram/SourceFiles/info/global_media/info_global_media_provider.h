@@ -165,6 +165,7 @@ private:
 		Data::MessagePosition offsetPosition;
 		int32 offsetRate = 0;
 		int fullCount = 0;
+		int filteredCount = 0;
 		mtpRequestId requestId = 0;
 		uint64 requestToken = 0;
 		std::vector<Fn<void()>> requestWaiters;
@@ -229,6 +230,7 @@ private:
 
 	const not_null<AbstractController*> _controller;
 	const Type _type = {};
+	const bool _onlyForwardable = false;
 
 	Data::MessagePosition _aroundId = Data::MaxMessagePosition;
 	int _idsLimit = kMinimalIdsLimit;
