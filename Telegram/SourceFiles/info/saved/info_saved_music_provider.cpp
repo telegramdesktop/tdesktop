@@ -35,6 +35,7 @@ using namespace Media;
 constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
+constexpr auto kAccumulatedPageSize = 50;
 
 } // namespace
 
@@ -96,10 +97,24 @@ std::optional<int> MusicProvider::fullCount() {
 	return _slice.fullCount();
 }
 
+void MusicProvider::setAccumulateFromTop(bool enabled) {
+	if (_accumulateFromTop == enabled) {
+		return;
+	}
+	_accumulateFromTop = enabled;
+	if (_accumulateFromTop) {
+		_aroundId = nullptr;
+		_idsLimit = std::max(_idsLimit, kAccumulatedPageSize);
+		refreshViewer();
+	}
+}
+
 void MusicProvider::clear() {
 	_layouts.clear();
 	_aroundId = nullptr;
-	_idsLimit = kMinimalIdsLimit;
+	_idsLimit = _accumulateFromTop
+		? kAccumulatedPageSize
+		: kMinimalIdsLimit;
 	_slice = Data::SavedMusicSlice();
 }
 
@@ -128,6 +143,15 @@ void MusicProvider::checkPreload(
 	const auto topLoaded = after && (*after == 0);
 	const auto before = _slice.skippedBefore();
 	const auto bottomLoaded = before && (*before == 0);
+	if (_accumulateFromTop) {
+		if (preloadBottom
+			&& !bottomLoaded
+			&& (_slice.size() >= _idsLimit)) {
+			_idsLimit += kAccumulatedPageSize;
+			refreshViewer();
+		}
+		return;
+	}
 
 	const auto minScreenDelta = kPreloadedScreensCount
 		- kPreloadIfLessThanScreens;

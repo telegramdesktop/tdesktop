@@ -246,6 +246,14 @@ int SavedMusic::count(PeerId peerId) const {
 	return entry ? std::max(entry->total, 0) : 0;
 }
 
+bool SavedMusic::fullyLoaded(PeerId peerId) const {
+	if (!Supported(peerId)) {
+		return true;
+	}
+	const auto entry = lookupEntry(peerId);
+	return entry && entry->loaded;
+}
+
 const std::vector<not_null<HistoryItem*>> &SavedMusic::list(
 		PeerId peerId) const {
 	static const auto empty = std::vector<not_null<HistoryItem*>>();

@@ -66,9 +66,6 @@ struct GlobalMediaSliceRow {
 struct GlobalMediaSliceView {
 	GlobalMedia::GlobalMediaSliceSnapshot slice;
 	std::vector<GlobalMediaSliceRow> rows;
-	int rowExtent = 0;
-	int topPadding = 0;
-	int bottomPadding = 0;
 };
 
 class ListWidget final
@@ -92,13 +89,14 @@ public:
 		-> const std::optional<GlobalMediaSliceView> &;
 	[[nodiscard]] auto globalMediaSliceViewValue() const
 		-> rpl::producer<std::optional<GlobalMediaSliceView>>;
-	void requestGlobalMediaAroundGlobalIndex(int index);
-	void cancelGlobalMediaAroundGlobalIndex();
 	[[nodiscard]] bool globalMediaSliceRefreshInProgress() const;
-	void setViewportInVirtualSpace(bool value);
+	void setGlobalMediaEmbeddedViewport();
+	void setGlobalMediaAccumulationEnabled(bool enabled);
+	void setSavedMusicAccumulationEnabled(bool enabled);
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void setPreloadEnabled(bool enabled);
 	[[nodiscard]] int heightForFirstRows(int count) const;
+	[[nodiscard]] bool allRowsDisplayed() const;
 	void selectionAction(SelectionAction action);
 	void setSelectOnClick(bool enabled);
 	void setSelectedLimit(int limit);
@@ -396,7 +394,6 @@ private:
 		_globalMediaSliceViewChanges;
 	bool _globalMediaSliceRefreshInProgress = false;
 	bool _globalMediaEmbeddedViewport = false;
-	bool _viewportInVirtualSpace = false;
 
 	std::unique_ptr<ListZoom> _zoom;
 

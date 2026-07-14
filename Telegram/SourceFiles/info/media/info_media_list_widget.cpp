@@ -382,27 +382,25 @@ auto ListWidget::globalMediaSliceViewValue() const
 		_globalMediaSliceView);
 }
 
-void ListWidget::requestGlobalMediaAroundGlobalIndex(int index) {
-	const auto provider = globalMediaProvider();
-	if (provider && provider->type() == Type::MusicFile) {
-		provider->requestAroundGlobalIndex(index);
-	}
-}
-
-void ListWidget::cancelGlobalMediaAroundGlobalIndex() {
-	const auto provider = globalMediaProvider();
-	if (provider && provider->type() == Type::MusicFile) {
-		provider->cancelGlobalIndexRequest();
-	}
-}
-
 bool ListWidget::globalMediaSliceRefreshInProgress() const {
 	return _globalMediaSliceRefreshInProgress;
 }
 
-void ListWidget::setViewportInVirtualSpace(bool value) {
+void ListWidget::setGlobalMediaEmbeddedViewport() {
 	_globalMediaEmbeddedViewport = true;
-	_viewportInVirtualSpace = value;
+}
+
+void ListWidget::setGlobalMediaAccumulationEnabled(bool enabled) {
+	if (const auto provider = globalMediaProvider()) {
+		provider->setAccumulateFromTop(enabled);
+	}
+}
+
+void ListWidget::setSavedMusicAccumulationEnabled(bool enabled) {
+	if (const auto provider = dynamic_cast<Saved::MusicProvider*>(
+			_provider.get())) {
+		provider->setAccumulateFromTop(enabled);
+	}
 }
 
 rpl::producer<SelectedItems> ListWidget::selectedListValue() const {
@@ -421,7 +419,7 @@ int ListWidget::heightForFirstRows(int count) const {
 			return heightNoMargins();
 		}
 	}
-	auto result = 0;
+	auto result = padding().top();
 	auto remaining = count;
 	for (const auto &section : _sections) {
 		const auto &items = section.items();
@@ -438,6 +436,20 @@ int ListWidget::heightForFirstRows(int count) const {
 		return result + item->position() + item->height();
 	}
 	return result;
+}
+
+bool ListWidget::allRowsDisplayed() const {
+	const auto count = fullCount();
+	if (!count) {
+		return false;
+	}
+	const auto displayed = ranges::accumulate(
+		_sections,
+		0,
+		[](int result, const ListSection &section) {
+			return result + int(section.items().size());
+		});
+	return (displayed == *count);
 }
 
 void ListWidget::selectionAction(SelectionAction action) {
@@ -502,7 +514,6 @@ void ListWidget::restart() {
 	_heavyLayouts.clear();
 	_rowsScrollCache.clear();
 	invalidateGlobalMediaSliceView();
-	_viewportInVirtualSpace = false;
 
 	_provider->restart();
 
@@ -834,30 +845,12 @@ auto ListWidget::computeGlobalMediaSliceView() const
 	if (!snapshot) {
 		return std::nullopt;
 	}
-	const auto count = int(snapshot->positions.size());
-	if (!count) {
-		return (_sections.empty() && !height() && !snapshot->fullCount)
-			? std::make_optional(GlobalMediaSliceView{
-				.slice = *snapshot,
-				.rowExtent = st::overviewFileLayout.songPadding.top()
-					+ st::overviewFileLayout.songThumbSize
-					+ st::overviewFileLayout.songPadding.bottom(),
-			})
-			: std::nullopt;
-	}
-	if (_sections.size() != 1
-		|| !_sections.front().isOneColumn()
-		|| int(_sections.front().items().size()) != count) {
-		return std::nullopt;
+	auto result = GlobalMediaSliceView{ .slice = *snapshot };
+	if (_sections.size() != 1 || !_sections.front().isOneColumn()) {
+		return result;
 	}
 
-	const auto rowExtent = st::overviewFileLayout.songPadding.top()
-		+ st::overviewFileLayout.songThumbSize
-		+ st::overviewFileLayout.songPadding.bottom();
-	auto result = GlobalMediaSliceView{
-		.slice = *snapshot,
-		.rowExtent = rowExtent,
-	};
+	const auto count = int(_sections.front().items().size());
 	result.rows.reserve(count);
 	auto ids = base::flat_set<FullMsgId>();
 	const auto &section = _sections.front();
@@ -866,25 +859,18 @@ auto ListWidget::computeGlobalMediaSliceView() const
 		const auto position = item->getItem()->position();
 		auto geometry = section.findItemDetails(item).geometry;
 		geometry.translate(0, section.top());
-		if (position != snapshot->positions[i]
-			|| ids.contains(position.fullId)
-			|| (i > 0 && !(snapshot->positions[i - 1] > position))
-			|| geometry.height() != rowExtent
+		if (ids.contains(position.fullId)
+			|| (i > 0 && !(result.rows.back().position > position))
+			|| geometry.height() <= 0
 			|| (i > 0
 				&& result.rows.back().geometry.y()
 					+ result.rows.back().geometry.height()
 					!= geometry.y())) {
-			return std::nullopt;
+			result.rows.clear();
+			return result;
 		}
 		ids.emplace(position.fullId);
 		result.rows.push_back({ position, geometry });
-	}
-	result.topPadding = result.rows.front().geometry.y();
-	result.bottomPadding = height()
-		- result.rows.back().geometry.y()
-		- result.rows.back().geometry.height();
-	if (result.topPadding < 0 || result.bottomPadding < 0) {
-		return std::nullopt;
 	}
 	return result;
 }
@@ -941,7 +927,7 @@ void ListWidget::refreshRows() {
 	if (globalMediaMusic) {
 		_globalMediaSliceViewChanges.fire_copy(_globalMediaSliceView);
 	}
-	if (embeddedGlobalMedia && !_viewportInVirtualSpace) {
+	if (embeddedGlobalMedia) {
 		checkMoveToOtherViewer();
 	}
 	mouseActionUpdate();
@@ -1101,7 +1087,7 @@ void ListWidget::toggleScrollDateShown() {
 }
 
 void ListWidget::checkMoveToOtherViewer() {
-	if (!_preloadEnabled || _viewportInVirtualSpace) {
+	if (!_preloadEnabled) {
 		return;
 	}
 	const auto visibleHeight = std::max(
@@ -1160,13 +1146,8 @@ ListScrollTopState ListWidget::countScrollState() const {
 }
 
 ListScrollTopState ListWidget::countScrollState(QPoint anchor) const {
-	if (_viewportInVirtualSpace) {
-		return {};
-	}
-	// Embedded lists get their visible top clamped to 0, so being
-	// "at the top" is meaningless unless the newest edge is loaded.
-	const auto stickToTop = !_externalViewportHeight
-		|| !_provider->anchorWhileAtTop();
+	const auto stickToTop = !_globalMediaEmbeddedViewport
+		&& (!_externalViewportHeight || !_provider->anchorWhileAtTop());
 	if (_sections.empty() || (_visibleTop <= 0 && stickToTop)) {
 		return {};
 	}
@@ -1203,7 +1184,8 @@ void ListWidget::restoreScrollState() {
 	}
 	const auto item = foundItemInSection(*found, *sectionIt);
 	const auto newVisibleTop = item.geometry.y() + _scrollTopState.shift;
-	if (_visibleTop != newVisibleTop) {
+	if (_visibleTop != newVisibleTop
+		|| _globalMediaSliceRefreshInProgress) {
 		_scrollToRequests.fire_copy(newVisibleTop);
 	}
 	_scrollTopState = ListScrollTopState();

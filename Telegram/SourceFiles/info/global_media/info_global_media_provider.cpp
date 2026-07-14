@@ -33,6 +33,7 @@ namespace {
 constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
+constexpr auto kAccumulatedPageSize = 50;
 
 } // namespace
 
@@ -187,7 +188,9 @@ void Provider::restart() {
 	_layouts.clear();
 	++_generation;
 	_aroundId = Data::MaxMessagePosition;
-	_idsLimit = kMinimalIdsLimit;
+	_idsLimit = _accumulateFromTop
+		? kAccumulatedPageSize
+		: kMinimalIdsLimit;
 	_slice = GlobalMediaSlice(sliceKey(_aroundId));
 	_sliceSnapshot = std::nullopt;
 	_edgeRequest = std::nullopt;
@@ -212,6 +215,15 @@ void Provider::checkPreload(
 	const auto topLoaded = after && (*after == 0);
 	const auto before = _slice.skippedBefore();
 	const auto bottomLoaded = before && (*before == 0);
+	if (_accumulateFromTop) {
+		if (preloadBottom
+			&& !bottomLoaded
+			&& (_slice.size() >= _idsLimit)) {
+			_idsLimit += kAccumulatedPageSize;
+			refreshViewer();
+		}
+		return;
+	}
 
 	const auto minScreenDelta = kPreloadedScreensCount
 		- Media::kPreloadIfLessThanScreens;
@@ -242,10 +254,6 @@ void Provider::checkPreload(
 				return;
 			}
 			_edgeRequest = key;
-			const auto list = listForQuery(_totalListQuery);
-			list->pendingGlobalIndex = std::nullopt;
-			++list->globalIndexRequestToken;
-			list->coverageWaiterRegistered = false;
 			_idsLimit = preloadIdsLimit;
 			_aroundId = aroundId;
 			refreshViewer();
@@ -282,10 +290,6 @@ rpl::producer<Provider::SliceUpdate> Provider::source(
 				return;
 			}
 			const auto list = listForQuery(query);
-			if (list->pendingGlobalIndex
-				&& list->pendingGeneration == generation) {
-				return;
-			}
 			auto result = fillRequest(
 				query,
 				aroundId,
@@ -426,45 +430,6 @@ Provider::FillResult Provider::fillRequest(
 	};
 }
 
-void Provider::continueGlobalIndexCoverage(
-		const QString &query,
-		uint64 generation,
-		uint64 token) {
-	if (_generation != generation || _totalListQuery != query) {
-		return;
-	}
-	const auto list = listForQuery(query);
-	if (!list->pendingGlobalIndex
-		|| list->pendingGeneration != generation
-		|| list->globalIndexRequestToken != token) {
-		return;
-	}
-	const auto target = *list->pendingGlobalIndex;
-	if (target < int(list->list.size()) || list->loaded) {
-		list->pendingGlobalIndex = std::nullopt;
-		++list->globalIndexRequestToken;
-		list->coverageWaiterRegistered = false;
-		_edgeRequest = std::nullopt;
-		_aroundId = list->list.empty()
-			? Data::MaxMessagePosition
-			: list->list[std::min(target, int(list->list.size()) - 1)];
-		refreshViewer();
-		return;
-	}
-	if (list->coverageWaiterRegistered) {
-		return;
-	}
-	list->coverageWaiterRegistered = true;
-	requestMore(query, generation, [=] {
-		const auto list = listForQuery(query);
-		if (list->globalIndexRequestToken != token) {
-			return;
-		}
-		list->coverageWaiterRegistered = false;
-		continueGlobalIndexCoverage(query, generation, token);
-	});
-}
-
 std::optional<GlobalMediaSliceSnapshot> Provider::makeSnapshot(
 		const SliceUpdate &update) const {
 	if (update.query != _totalListQuery
@@ -494,12 +459,17 @@ std::optional<GlobalMediaSliceSnapshot> Provider::makeSnapshot(
 		}
 		ids.emplace(positions[i].fullId);
 	}
+	const auto list = _totalLists.find(update.query);
+	if (list == end(_totalLists)) {
+		return std::nullopt;
+	}
 	return GlobalMediaSliceSnapshot{
 		.query = update.query,
 		.generation = update.generation,
 		.fullCount = *fullCount,
 		.skippedAfter = *skippedAfter,
 		.skippedBefore = *skippedBefore,
+		.fullyLoaded = list->second.loaded,
 		.positions = positions,
 	};
 }
@@ -514,12 +484,6 @@ void Provider::refreshViewer() {
 			return rpl::producer<SliceUpdate>();
 		}
 		_totalListQuery = query;
-		const auto list = listForQuery(query);
-		if (list->pendingGeneration != generation) {
-			list->pendingGlobalIndex = std::nullopt;
-			++list->globalIndexRequestToken;
-			list->coverageWaiterRegistered = false;
-		}
 		return source(
 			_type,
 			sliceKey(_aroundId).aroundId,
@@ -563,57 +527,17 @@ rpl::producer<GlobalMediaSliceSnapshot> Provider::sliceSnapshotValue() const {
 		: (_sliceSnapshotChanges.events() | rpl::type_erased);
 }
 
-void Provider::requestAroundGlobalIndex(int index) {
-	if (!_sliceSnapshot || _sliceSnapshot->fullCount <= 0) {
+void Provider::setAccumulateFromTop(bool enabled) {
+	if (_accumulateFromTop == enabled) {
 		return;
 	}
-	const auto query = _sliceSnapshot->query;
-	const auto generation = _sliceSnapshot->generation;
-	if (query != _totalListQuery || generation != _generation) {
-		return;
-	}
-	const auto target = std::clamp(
-		index,
-		0,
-		_sliceSnapshot->fullCount - 1);
-	const auto sliceEnd = _sliceSnapshot->skippedAfter
-		+ int(_sliceSnapshot->positions.size());
-	if (target >= _sliceSnapshot->skippedAfter && target < sliceEnd) {
-		cancelGlobalIndexRequest();
-		return;
-	}
-
-	const auto list = listForQuery(query);
-	if (target < int(list->list.size())) {
-		list->pendingGlobalIndex = std::nullopt;
-		++list->globalIndexRequestToken;
-		list->coverageWaiterRegistered = false;
-		_edgeRequest = std::nullopt;
-		_aroundId = list->list[target];
-		refreshViewer();
-		return;
-	}
-	if (list->pendingGlobalIndex == target
-		&& list->pendingGeneration == generation) {
-		return;
-	}
-	list->coverageWaiterRegistered = false;
-	list->pendingGlobalIndex = target;
-	list->pendingGeneration = generation;
-	const auto token = ++list->globalIndexRequestToken;
-	continueGlobalIndexCoverage(query, generation, token);
-}
-
-void Provider::cancelGlobalIndexRequest() {
-	const auto list = listForQuery(_totalListQuery);
-	if (!list->pendingGlobalIndex
-		|| list->pendingGeneration != _generation) {
-		return;
-	}
-	list->pendingGlobalIndex = std::nullopt;
-	++list->globalIndexRequestToken;
-	list->coverageWaiterRegistered = false;
+	_accumulateFromTop = enabled;
+	_aroundId = Data::MaxMessagePosition;
+	_idsLimit = _accumulateFromTop
+		? kAccumulatedPageSize
+		: kMinimalIdsLimit;
 	_edgeRequest = std::nullopt;
+	refreshViewer();
 }
 
 std::vector<Media::ListSection> Provider::fillSections(

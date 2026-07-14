@@ -123,49 +123,31 @@ public:
 	[[nodiscard]] bool hasResults() const;
 	[[nodiscard]] std::optional<int> fullCount() const;
 	[[nodiscard]] rpl::producer<std::optional<int>> fullCountValue() const;
-	[[nodiscard]] auto globalMediaSliceView() const
-		-> const std::optional<Info::Media::GlobalMediaSliceView> &;
 	[[nodiscard]] auto globalMediaSliceViewValue() const
 		-> rpl::producer<std::optional<Info::Media::GlobalMediaSliceView>>;
-	[[nodiscard]] bool viewportInVirtualSpace() const;
 
 	void setQuery(QString query);
 	void setCollapsed(bool collapsed);
-	void setExternalViewportHeight(int height);
+	void setPagingEnabled(bool enabled);
+	void setGlobalMediaAccumulationEnabled(bool enabled);
 	void setTitleEligible(bool eligible);
-	void setHiddenTopCompensation(int height);
-	void setTitleAndHiddenTopCompensation(bool eligible, int height);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void visibleTopBottomUpdated(int visibleTop, int visibleBottom) override;
 
 private:
-	struct VirtualTarget {
-		QString query;
-		uint64 generation = 0;
-		int globalIndex = 0;
-		int rowOffset = 0;
-	};
-
 	[[nodiscard]] int listHeightForCurrentMode() const;
-	[[nodiscard]] bool virtualTrackEnabled() const;
-	void clearVirtualTargeting();
+	void updatePreloadEnabled();
 	void updateTitleVisibility();
 	void refreshHeight();
 
 	const std::unique_ptr<MusicSectionController> _controller;
 	object_ptr<Ui::VerticalLayout> _titleWrap;
 	object_ptr<Info::Media::ListWidget> _list;
-	std::optional<Info::Media::GlobalMediaSliceView> _sliceView;
-	std::optional<VirtualTarget> _virtualTarget;
-	int _hiddenTopCompensation = 0;
-	int _outerViewportHeight = 0;
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
 	bool _collapsed = false;
+	bool _pagingEnabled = true;
 	bool _titleEligible = true;
-	bool _viewportInVirtualSpace = false;
 	bool _inResize = false;
 
 };
@@ -203,9 +185,12 @@ public:
 	[[nodiscard]] bool available() const;
 	void setQuery(QString query);
 	void setSelectedLimit(int limit);
+	void setPagingEnabled(bool enabled);
 	[[nodiscard]] bool hasResults() const;
 	[[nodiscard]] bool busy() const;
 	[[nodiscard]] bool loading() const;
+	[[nodiscard]] bool awayFromTop() const;
+	[[nodiscard]] rpl::producer<bool> awayFromTopValue() const;
 	[[nodiscard]] int rawSelectedCount() const;
 	[[nodiscard]] rpl::producer<SelectedDocuments> selectedDocumentsValue() const;
 	[[nodiscard]] rpl::producer<> stateChanged() const;
@@ -309,6 +294,8 @@ private:
 	bool _loading = false;
 	bool _botLookupStarted = false;
 	bool _inResize = false;
+	bool _pagingEnabled = false;
+	rpl::variable<bool> _awayFromTop = false;
 	rpl::event_stream<SelectedDocuments> _selectedDocuments;
 	rpl::event_stream<> _stateChanged;
 
@@ -369,7 +356,8 @@ HistoryMusicSection::HistoryMusicSection(
 		std::move(title),
 		MusicAttachSubsectionTitlePadding());
 	_list->show();
-	_list->setViewportInVirtualSpace(false);
+	_list->setGlobalMediaEmbeddedViewport();
+	updatePreloadEnabled();
 	updateTitleVisibility();
 
 	_titleWrap->heightValue() | rpl::on_next([this] {
@@ -383,10 +371,8 @@ HistoryMusicSection::HistoryMusicSection(
 		refreshHeight();
 	}, lifetime());
 	_list->globalMediaSliceViewValue() | rpl::on_next([this](
-			std::optional<Info::Media::GlobalMediaSliceView> view) {
-		_sliceView = std::move(view);
+			const std::optional<Info::Media::GlobalMediaSliceView> &) {
 		refreshHeight();
-		visibleTopBottomUpdated(_visibleTop, _visibleBottom);
 	}, lifetime());
 }
 
@@ -411,18 +397,9 @@ rpl::producer<std::optional<int>> HistoryMusicSection::fullCountValue() const {
 	return _list->fullCountValue();
 }
 
-auto HistoryMusicSection::globalMediaSliceView() const
--> const std::optional<Info::Media::GlobalMediaSliceView> & {
-	return _sliceView;
-}
-
 auto HistoryMusicSection::globalMediaSliceViewValue() const
 -> rpl::producer<std::optional<Info::Media::GlobalMediaSliceView>> {
 	return _list->globalMediaSliceViewValue();
-}
-
-bool HistoryMusicSection::viewportInVirtualSpace() const {
-	return _viewportInVirtualSpace;
 }
 
 void HistoryMusicSection::setQuery(QString query) {
@@ -434,47 +411,29 @@ void HistoryMusicSection::setCollapsed(bool collapsed) {
 		return;
 	}
 	_collapsed = collapsed;
-	_list->setPreloadEnabled(!collapsed);
-	if (collapsed) {
-		clearVirtualTargeting();
-	}
+	updatePreloadEnabled();
 	refreshHeight();
-	visibleTopBottomUpdated(_visibleTop, _visibleBottom);
 }
 
-void HistoryMusicSection::setExternalViewportHeight(int height) {
-	height = std::max(height, 0);
-	if (_outerViewportHeight == height) {
+void HistoryMusicSection::setPagingEnabled(bool enabled) {
+	if (_pagingEnabled == enabled) {
 		return;
 	}
-	_outerViewportHeight = height;
-	_list->setExternalViewportHeight(height);
-	visibleTopBottomUpdated(_visibleTop, _visibleBottom);
+	_pagingEnabled = enabled;
+	updatePreloadEnabled();
+}
+
+void HistoryMusicSection::setGlobalMediaAccumulationEnabled(bool enabled) {
+	_list->setGlobalMediaAccumulationEnabled(enabled);
 }
 
 void HistoryMusicSection::setTitleEligible(bool eligible) {
-	setTitleAndHiddenTopCompensation(
-		eligible,
-		_hiddenTopCompensation);
-}
-
-void HistoryMusicSection::setHiddenTopCompensation(int height) {
-	setTitleAndHiddenTopCompensation(_titleEligible, height);
-}
-
-void HistoryMusicSection::setTitleAndHiddenTopCompensation(
-		bool eligible,
-		int height) {
-	height = std::clamp(height, 0, QWIDGETSIZE_MAX);
-	if (_titleEligible == eligible
-		&& _hiddenTopCompensation == height) {
+	if (_titleEligible == eligible) {
 		return;
 	}
 	_titleEligible = eligible;
-	_hiddenTopCompensation = height;
 	updateTitleVisibility();
 	refreshHeight();
-	visibleTopBottomUpdated(_visibleTop, _visibleBottom);
 }
 
 int HistoryMusicSection::listHeightForCurrentMode() const {
@@ -485,143 +444,30 @@ int HistoryMusicSection::listHeightForCurrentMode() const {
 	return std::min(height, _list->heightForFirstRows(kFirstLimit));
 }
 
-bool HistoryMusicSection::virtualTrackEnabled() const {
-	if (_collapsed || !_sliceView) {
-		return false;
-	}
-	const auto &view = *_sliceView;
-	const auto &slice = view.slice;
-	const auto loadedCount = int(view.rows.size());
-	const auto sliceCount = int(slice.positions.size());
-	const auto expectedListHeight = int64(view.topPadding)
-		+ int64(loadedCount) * view.rowExtent
-		+ view.bottomPadding;
-	return (view.rowExtent > 0)
-		&& (slice.fullCount >= 0)
-		&& (slice.skippedAfter >= 0)
-		&& (slice.skippedBefore >= 0)
-		&& (view.topPadding >= 0)
-		&& (view.bottomPadding >= 0)
-		&& (loadedCount == sliceCount)
-		&& (int64(slice.skippedAfter)
-			+ loadedCount
-			+ slice.skippedBefore == slice.fullCount)
-		&& (expectedListHeight == _list->heightNoMargins());
-}
-
-void HistoryMusicSection::clearVirtualTargeting() {
-	_viewportInVirtualSpace = false;
-	_virtualTarget = std::nullopt;
-	_list->setViewportInVirtualSpace(false);
-	_list->cancelGlobalMediaAroundGlobalIndex();
-}
-
 int HistoryMusicSection::resizeGetHeight(int newWidth) {
 	_inResize = true;
 
 	_titleWrap->resizeToWidth(newWidth);
 	_titleWrap->moveToLeft(0, 0, newWidth);
 
-	const auto visibleTitleHeight = _titleWrap->isHidden()
+	const auto titleHeight = _titleWrap->isHidden()
 		? 0
 		: _titleWrap->heightNoMargins();
 	_list->resizeToWidth(newWidth);
-
-	const auto topBaseline = int64(visibleTitleHeight)
-		+ _hiddenTopCompensation;
-	const auto bounded = [](int64 value) {
-		return int(std::clamp<int64>(value, 0, QWIDGETSIZE_MAX));
-	};
-	if (!virtualTrackEnabled()) {
-		_list->moveToLeft(0, bounded(topBaseline), newWidth);
-		_inResize = false;
-		return bounded(topBaseline + listHeightForCurrentMode());
-	}
-
-	const auto &view = *_sliceView;
-	const auto above = int64(view.slice.skippedAfter) * view.rowExtent;
-	const auto below = int64(view.slice.skippedBefore) * view.rowExtent;
-	const auto listHeight = _list->heightNoMargins();
-	const auto listTop = topBaseline + above;
-	const auto trackHeight = listTop + listHeight + below;
-	const auto expectedTrackHeight = topBaseline
-		+ view.topPadding
-		+ int64(view.slice.fullCount) * view.rowExtent
-		+ view.bottomPadding;
-	Assert(trackHeight == expectedTrackHeight);
-	_list->moveToLeft(0, bounded(listTop), newWidth);
+	_list->moveToLeft(0, titleHeight, newWidth);
 
 	_inResize = false;
-	return bounded(trackHeight);
+	return titleHeight + listHeightForCurrentMode();
 }
 
 void HistoryMusicSection::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	_visibleTop = visibleTop;
-	_visibleBottom = visibleBottom;
-	if (!virtualTrackEnabled() || visibleBottom <= visibleTop) {
-		clearVirtualTargeting();
-		setChildVisibleTopBottom(_list.data(), visibleTop, visibleBottom);
-		return;
-	}
+	setChildVisibleTopBottom(_list.data(), visibleTop, visibleBottom);
+}
 
-	const auto &view = *_sliceView;
-	if (view.rows.empty() || view.slice.fullCount <= 0) {
-		clearVirtualTargeting();
-		setChildVisibleTopBottom(_list.data(), visibleTop, visibleBottom);
-		return;
-	}
-
-	const auto realTop = int64(_list->y());
-	const auto realBottom = realTop + _list->heightNoMargins();
-	const auto intersectsRealContent = (int64(visibleTop) < realBottom)
-		&& (int64(visibleBottom) > realTop);
-	const auto virtualAbove = std::max(
-		realTop - int64(visibleTop),
-		int64(0));
-	const auto virtualBelow = std::max(
-		int64(visibleBottom) - realBottom,
-		int64(0));
-	if (!virtualAbove && !virtualBelow) {
-		clearVirtualTargeting();
-		setChildVisibleTopBottom(_list.data(), visibleTop, visibleBottom);
-		return;
-	}
-
-	_viewportInVirtualSpace = true;
-	_list->setViewportInVirtualSpace(true);
-	if (intersectsRealContent) {
-		setChildVisibleTopBottom(_list.data(), visibleTop, visibleBottom);
-	}
-	const auto rowsHeight = int64(view.slice.fullCount) * view.rowExtent;
-	const auto baseline = int64(_list->y())
-		- int64(view.slice.skippedAfter) * view.rowExtent
-		+ view.topPadding;
-	const auto target = (virtualAbove >= virtualBelow)
-		? int64(visibleTop)
-		: int64(visibleBottom) - 1;
-	const auto targetOffset = std::clamp<int64>(
-		target - baseline,
-		0,
-		rowsHeight - 1);
-	const auto globalIndex = int(targetOffset / view.rowExtent);
-	const auto rowOffset = int(targetOffset % view.rowExtent);
-	const auto sameTarget = _virtualTarget
-		&& (_virtualTarget->query == view.slice.query)
-		&& (_virtualTarget->generation == view.slice.generation)
-		&& (_virtualTarget->globalIndex == globalIndex);
-	if (sameTarget) {
-		_virtualTarget->rowOffset = rowOffset;
-		return;
-	}
-	_virtualTarget = VirtualTarget{
-		.query = view.slice.query,
-		.generation = view.slice.generation,
-		.globalIndex = globalIndex,
-		.rowOffset = rowOffset,
-	};
-	_list->requestGlobalMediaAroundGlobalIndex(globalIndex);
+void HistoryMusicSection::updatePreloadEnabled() {
+	_list->setPreloadEnabled(_pagingEnabled && !_collapsed);
 }
 
 void HistoryMusicSection::updateTitleVisibility() {
@@ -723,6 +569,7 @@ void GlobalMusicSearchSection::setQuery(QString query) {
 		}
 		return;
 	} else if (_nextQuery != query) {
+		_awayFromTop = false;
 		setLoading(false);
 		cancelActiveRequest();
 		_requestTimer.stop();
@@ -748,6 +595,16 @@ void GlobalMusicSearchSection::setSelectedLimit(int limit) {
 	_selectedLimit = std::max(limit, 0);
 }
 
+void GlobalMusicSearchSection::setPagingEnabled(bool enabled) {
+	if (_pagingEnabled == enabled) {
+		return;
+	}
+	_pagingEnabled = enabled;
+	if (_pagingEnabled) {
+		maybeRequestMore();
+	}
+}
+
 bool GlobalMusicSearchSection::hasResults() const {
 	return !_rows.empty();
 }
@@ -758,6 +615,14 @@ bool GlobalMusicSearchSection::busy() const {
 
 bool GlobalMusicSearchSection::loading() const {
 	return _loading;
+}
+
+bool GlobalMusicSearchSection::awayFromTop() const {
+	return _awayFromTop.current();
+}
+
+rpl::producer<bool> GlobalMusicSearchSection::awayFromTopValue() const {
+	return _awayFromTop.value();
 }
 
 int GlobalMusicSearchSection::rawSelectedCount() const {
@@ -796,6 +661,7 @@ void GlobalMusicSearchSection::visibleTopBottomUpdated(
 		int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
+	_awayFromTop = (visibleTop > std::max(visibleBottom - visibleTop, 0));
 	pruneHeavyItems();
 	maybeRequestMore();
 }
@@ -1013,6 +879,7 @@ void GlobalMusicSearchSection::cancelActiveRequest() {
 }
 
 void GlobalMusicSearchSection::cancelSearch() {
+	_awayFromTop = false;
 	setPending(false);
 	setLoading(false);
 	cancelActiveRequest();
@@ -1323,7 +1190,8 @@ int GlobalMusicSearchSection::findRowByPoint(
 }
 
 void GlobalMusicSearchSection::maybeRequestMore() {
-	if (_pending
+	if (!_pagingEnabled
+		|| _pending
 		|| _requestId
 		|| (_nextQuery != _query)
 		|| _query.isEmpty()
@@ -1754,23 +1622,43 @@ void MusicAttachBox(
 		controller,
 		MusicSectionController::GlobalMediaSectionTag());
 	const auto yourChatsControllerRaw = yourChatsController.get();
-	const auto yourChats = content->add(object_ptr<HistoryMusicSection>(
-		content,
-		std::move(yourChatsController),
-		tr::lng_reply_in_chats_list()));
-	const auto yourChatsShowAllWrap = addShowAllButton(content);
-	const auto globalSearch = content->add(
-		object_ptr<GlobalMusicSearchSection>(
+	const auto yourChatsBlock = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			content,
-			controller,
-			peer,
-			tr::lng_music_attach_global_search()));
-	const auto searchEmpty = content->add(object_ptr<SearchEmptyWidget>(content));
+			object_ptr<Ui::VerticalLayout>(content)));
+	yourChatsBlock->setDuration(0);
+	yourChatsBlock->toggle(true, anim::type::instant);
+	const auto yourChatsBlockLayout = yourChatsBlock->entity();
+	const auto yourChats = yourChatsBlockLayout->add(
+		object_ptr<HistoryMusicSection>(
+			yourChatsBlockLayout,
+			std::move(yourChatsController),
+			tr::lng_reply_in_chats_list()));
+	const auto yourChatsShowAllWrap = addShowAllButton(
+		yourChatsBlockLayout);
+	const auto globalSearchWrap = content->add(
+		object_ptr<Ui::SlideWrap<GlobalMusicSearchSection>>(
+			content,
+			object_ptr<GlobalMusicSearchSection>(
+				content,
+				controller,
+				peer,
+				tr::lng_music_attach_global_search())));
+	globalSearchWrap->setDuration(0);
+	globalSearchWrap->toggle(false, anim::type::instant);
+	const auto globalSearch = globalSearchWrap->entity();
+	const auto searchEmptyWrap = content->add(
+		object_ptr<Ui::SlideWrap<SearchEmptyWidget>>(
+			content,
+			object_ptr<SearchEmptyWidget>(content)));
+	searchEmptyWrap->setDuration(0);
+	searchEmptyWrap->toggle(false, anim::type::instant);
+	const auto searchEmpty = searchEmptyWrap->entity();
 	searchEmpty->setFullHeight(rpl::combine(
 		box->heightValue(),
 		search->heightValue(),
 		bottom->heightValue(),
-		searchEmpty->topValue()
+		searchEmptyWrap->topValue()
 	) | rpl::map([](
 			int boxHeight,
 			int searchHeight,
@@ -1778,9 +1666,6 @@ void MusicAttachBox(
 			int top) {
 		return std::max(boxHeight - searchHeight - bottomHeight - top, 0);
 	}));
-	globalSearch->hide();
-	searchEmpty->hide();
-
 	for (const auto section : { savedMusic, yourChats }) {
 		section->list()->setSelectOnClick(true);
 		section->list()->setSelectedLimit(MaxSelectedItems);
@@ -1810,21 +1695,21 @@ void MusicAttachBox(
 		Data::MessagePosition position;
 		int shift = 0;
 	};
+	struct GlobalSearchAnchor {
+		int shift = 0;
+	};
 	struct GeometryState {
 		std::optional<Info::Media::GlobalMediaSliceView> acceptedView;
 		Fn<void()> update;
 		uint64 authorityGenerationFloor = 0;
-		int chatsTitleHeight = 0;
-		int hiddenTopCompensation = 0;
+		std::optional<int> pendingChatsScrollTop;
+		bool pendingChatsScrollReady = false;
+		bool pendingChatsScrollScheduled = false;
 		bool topAuthority = true;
-		bool titleEligible = true;
 		bool updating = false;
 		bool pending = false;
 	};
 	const auto geometryState = box->lifetime().make_state<GeometryState>();
-	geometryState->chatsTitleHeight = std::max(
-		yourChats->list()->y(),
-		0);
 	const auto paymentHelper = box->lifetime().make_state<SendPaymentHelper>();
 	const auto sendPreparedMusic = box->lifetime().make_state<
 		Fn<void(std::shared_ptr<Ui::PreparedBundle>, Api::SendOptions, FullReplyTo)>>();
@@ -2015,7 +1900,7 @@ void MusicAttachBox(
 	};
 	const auto captureOuterAnchor = [=]() -> std::optional<OuterAnchor> {
 		const auto &view = geometryState->acceptedView;
-		if (!view || yourChats->viewportInVirtualSpace()) {
+		if (!view) {
 			return std::nullopt;
 		}
 		const auto scrollTop = box->scrollTop();
@@ -2036,6 +1921,22 @@ void MusicAttachBox(
 		}
 		return std::nullopt;
 	};
+	const auto captureGlobalSearchAnchor = [=]()
+			-> std::optional<GlobalSearchAnchor> {
+		if (!globalSearchWrap->toggled()) {
+			return std::nullopt;
+		}
+		const auto scrollTop = box->scrollTop();
+		const auto scrollBottom = int64(scrollTop) + box->scrollHeight();
+		const auto sectionTop = globalSearch->mapTo(content, QPoint()).y();
+		const auto sectionBottom = int64(sectionTop) + globalSearch->height();
+		return (int64(sectionTop) < scrollBottom
+			&& sectionBottom > scrollTop)
+			? std::make_optional(GlobalSearchAnchor{
+				.shift = scrollTop - sectionTop,
+			})
+			: std::nullopt;
+	};
 	geometryState->update = [=] {
 		if (geometryState->updating) {
 			geometryState->pending = true;
@@ -2043,6 +1944,7 @@ void MusicAttachBox(
 		}
 		geometryState->updating = true;
 		const auto anchor = captureOuterAnchor();
+		const auto globalSearchAnchor = captureGlobalSearchAnchor();
 
 		do {
 			geometryState->pending = false;
@@ -2058,11 +1960,13 @@ void MusicAttachBox(
 				*yourChatsFullCount = std::nullopt;
 				*yourChatsFullCountQuery = std::nullopt;
 			}
+			yourChats->setGlobalMediaAccumulationEnabled(
+				!committedQuery.isEmpty() && *yourChatsExpanded);
 			yourChatsControllerRaw->setQuery(committedQuery);
 			globalSearch->setQuery(committedQuery);
 
 			const auto savedMusicCount = savedMusic->fullCount();
-			const auto savedMusicCollapsed = committedQuery.isEmpty()
+			const auto savedMusicCollapsed = !searching
 				&& savedMusicCount.has_value()
 				&& (*savedMusicCount > kFirstLimit)
 				&& !*savedMusicExpanded;
@@ -2074,61 +1978,60 @@ void MusicAttachBox(
 				&& yourChatsFullCount->has_value()
 				&& (**yourChatsFullCount > kFirstLimit)
 				&& !*yourChatsExpanded;
+			const auto &view = geometryState->acceptedView;
+			const auto yourChatsFullyLoaded = view
+				&& (view->slice.query == committedQuery)
+				&& view->slice.fullyLoaded;
+			const auto yourChatsAtBottom = view
+				&& (view->slice.query == committedQuery)
+				&& (view->slice.skippedBefore == 0);
+			const auto savedMusicFullyLoaded = controller->session()
+				.data()
+				.savedMusic()
+				.fullyLoaded(controller->session().user()->id)
+				&& savedMusic->list()->allRowsDisplayed();
+			const auto savedMusicJoinReady = savedMusicCollapsed
+				|| savedMusicFullyLoaded;
+			const auto savedMusicLoading = !searching
+				&& !savedMusicJoinReady;
+			const auto yourChatsJoinReady = yourChatsCollapsed
+				|| (yourChatsFullyLoaded && yourChatsAtBottom);
+			const auto yourChatsLoading = searching
+				&& !yourChatsJoinReady;
+			const auto globalSearchSectionVisible = searching
+				&& !yourChatsLoading
+				&& globalSearch->available();
+			const auto yourChatsSectionVisible = !savedMusicLoading
+				&& !(globalSearchSectionVisible
+					&& globalSearch->awayFromTop());
 			savedMusic->setCollapsed(savedMusicCollapsed);
 			yourChats->setCollapsed(yourChatsCollapsed);
+			savedMusic->setPagingEnabled(
+				!searching && !savedMusicCollapsed);
+			yourChats->setPagingEnabled(
+				yourChatsSectionVisible && !yourChatsCollapsed);
+			globalSearch->setPagingEnabled(globalSearchSectionVisible);
 			savedMusicShowAllWrap->toggle(
 				savedMusicCollapsed,
 				anim::type::instant);
 			yourChatsShowAllWrap->toggle(
-				yourChatsCollapsed,
+				yourChatsSectionVisible && yourChatsCollapsed,
 				anim::type::instant);
 
 			if (browseTopLayout->width() > 0) {
 				savedMusicBlock->resizeToWidth(browseTopLayout->width());
 			}
-			const auto savedBlockHeight
-				= savedMusicBlockLayout->heightNoMargins();
-			const auto &view = geometryState->acceptedView;
-			if (geometryState->titleEligible
-				&& view
-				&& yourChats->hasResults()
-				&& view->rowExtent > 0) {
-				const auto measured = int64(yourChats->list()->y())
-					- geometryState->hiddenTopCompensation
-					- int64(view->slice.skippedAfter)
-						* view->rowExtent;
-				if (measured >= 0 && measured <= QWIDGETSIZE_MAX) {
-					geometryState->chatsTitleHeight = int(measured);
-				}
-			}
-			const auto topAuthority = geometryState->topAuthority;
-			const auto hasChatsRows = yourChats->hasResults();
+			const auto topAuthority = savedMusicLoading
+				|| geometryState->topAuthority;
 			const auto savedDisplayEligible = !searching
 				&& savedMusic->hasResults();
 			const auto savedBlockEligible = savedDisplayEligible
 				&& topAuthority;
 			const auto titleEligible = topAuthority;
-			const auto activeSavedHeight = savedDisplayEligible
-				? savedBlockHeight
-				: 0;
-			const auto activeTitleHeight = hasChatsRows
-				? geometryState->chatsTitleHeight
-				: 0;
-			const auto hiddenTopCompensation = !topAuthority
-				? int(std::clamp<int64>(
-					int64(activeSavedHeight) + activeTitleHeight,
-					0,
-					QWIDGETSIZE_MAX))
-				: 0;
 			savedMusicBlock->toggle(
 				savedBlockEligible,
 				anim::type::instant);
-			yourChats->setTitleAndHiddenTopCompensation(
-				titleEligible,
-				hiddenTopCompensation);
-			geometryState->titleEligible = titleEligible;
-			geometryState->hiddenTopCompensation
-				= hiddenTopCompensation;
+			yourChats->setTitleEligible(titleEligible);
 
 			searchEmpty->setQuery(
 				searching ? *typedSearchQuery : QString());
@@ -2137,14 +2040,16 @@ void MusicAttachBox(
 				.savedMusic()
 				.countKnown(controller->session().user()->id);
 			const auto savedMusicVisible = savedMusic->hasResults();
-			const auto yourChatsVisible = yourChats->hasResults();
+			const auto yourChatsVisible = yourChatsSectionVisible
+				&& yourChats->hasResults();
 			const auto countMatchesQuery = *yourChatsFullCountQuery
 				&& (**yourChatsFullCountQuery == committedQuery);
 			const auto yourChatsSettled = countMatchesQuery
 				&& yourChatsFullCount->has_value();
 			const auto yourChatsKnownEmpty = yourChatsSettled
 				&& (**yourChatsFullCount == 0);
-			const auto globalSearchVisible = globalSearch->hasResults();
+			const auto globalSearchVisible = globalSearchSectionVisible
+				&& globalSearch->hasResults();
 			const auto globalSearchBusy = globalSearch->busy();
 			const auto resultsVisible = yourChatsVisible
 				|| globalSearchVisible;
@@ -2163,21 +2068,38 @@ void MusicAttachBox(
 				&& !showSearchLoading;
 
 			browseTop->toggle(!searching, anim::type::instant);
-			yourChats->setVisible(true);
-			globalSearch->setVisible(
-				searching && globalSearch->available());
+			yourChatsBlock->toggle(
+				yourChatsSectionVisible,
+				anim::type::instant);
+			globalSearchWrap->toggle(
+				globalSearchSectionVisible,
+				anim::type::instant);
 			searchEmpty->setLoading(showSearchLoading);
-			searchEmpty->setVisible(
+			searchEmptyWrap->toggle(
 				showBrowseEmpty
-				|| showSearchLoading
-				|| showSearchEmpty);
+					|| showSearchLoading
+					|| showSearchEmpty,
+				anim::type::instant);
 			if (content->width() > 0) {
 				content->resizeToWidth(content->width());
 			}
-			yourChats->setExternalViewportHeight(box->scrollHeight());
 		} while (geometryState->pending);
 
-		if (anchor) {
+		if (geometryState->pendingChatsScrollTop
+			&& geometryState->pendingChatsScrollReady) {
+			const auto listTop = yourChats->list()->mapTo(
+				content,
+				QPoint()).y();
+			const auto desired = int(std::clamp<int64>(
+				int64(listTop) + *geometryState->pendingChatsScrollTop,
+				0,
+				QWIDGETSIZE_MAX));
+			geometryState->pendingChatsScrollTop = std::nullopt;
+			geometryState->pendingChatsScrollReady = false;
+			if (box->scrollTop() != desired) {
+				box->scrollToY(desired);
+			}
+		} else if (!geometryState->pendingChatsScrollTop && anchor) {
 			const auto &view = geometryState->acceptedView;
 			if (view
 				&& view->slice.query == anchor->query
@@ -2201,16 +2123,48 @@ void MusicAttachBox(
 					}
 				}
 			}
+		} else if (globalSearchAnchor && globalSearchWrap->toggled()) {
+			const auto sectionTop = globalSearch->mapTo(
+				content,
+				QPoint()).y();
+			const auto desired = int(std::clamp<int64>(
+				int64(sectionTop) + globalSearchAnchor->shift,
+				0,
+				QWIDGETSIZE_MAX));
+			if (box->scrollTop() != desired) {
+				box->scrollToY(desired);
+			}
 		}
 		const auto visibleBottom = int(std::min<int64>(
 			int64(box->scrollTop()) + box->scrollHeight(),
 			QWIDGETSIZE_MAX));
 		content->setVisibleTopBottom(box->scrollTop(), visibleBottom);
-		geometryState->pending = false;
 		geometryState->updating = false;
+		if (std::exchange(geometryState->pending, false)) {
+			geometryState->update();
+		}
 	};
 	const auto updateSearchState = [=] {
 		geometryState->update();
+	};
+	const auto schedulePendingChatsScroll = [=] {
+		if (geometryState->pendingChatsScrollScheduled) {
+			return;
+		}
+		geometryState->pendingChatsScrollScheduled = true;
+		crl::on_main(box.get(), [=] {
+			geometryState->pendingChatsScrollScheduled = false;
+			geometryState->pendingChatsScrollReady
+				= geometryState->pendingChatsScrollTop.has_value();
+			updateSearchState();
+		});
+	};
+	const auto listOwnsScrollTop = [=](
+			not_null<Info::Media::ListWidget*> list) {
+		const auto listTop = list->mapTo(content, QPoint()).y();
+		const auto scrollTop = box->scrollTop();
+		return (scrollTop >= listTop)
+			&& (int64(scrollTop) < int64(listTop) + list->height());
 	};
 	const auto commitSearchQuery = [=](QString query) {
 		if (*committedSearchQuery == query) {
@@ -2253,9 +2207,20 @@ void MusicAttachBox(
 		*yourChatsFullCount = count;
 		*yourChatsFullCountQuery = *committedSearchQuery;
 	}, box->lifetime());
+	yourChats->list()->scrollToRequests() | rpl::on_next([=](int top) {
+		if (!listOwnsScrollTop(yourChats->list())) {
+			geometryState->pendingChatsScrollTop = std::nullopt;
+			geometryState->pendingChatsScrollReady = false;
+			return;
+		}
+		geometryState->pendingChatsScrollTop = top;
+		geometryState->pendingChatsScrollReady = false;
+	}, box->lifetime());
 	yourChats->globalMediaSliceViewValue() | rpl::on_next([=](
 			std::optional<Info::Media::GlobalMediaSliceView> view) {
 		if (!view || view->slice.query != *committedSearchQuery) {
+			geometryState->pendingChatsScrollTop = std::nullopt;
+			geometryState->pendingChatsScrollReady = false;
 			if (geometryState->acceptedView) {
 				geometryState->acceptedView = std::nullopt;
 				updateSearchState();
@@ -2269,7 +2234,11 @@ void MusicAttachBox(
 		geometryState->authorityGenerationFloor = view->slice.generation;
 		geometryState->topAuthority = (view->slice.skippedAfter == 0);
 		geometryState->acceptedView = std::move(view);
-		updateSearchState();
+		if (geometryState->pendingChatsScrollTop) {
+			schedulePendingChatsScroll();
+		} else {
+			updateSearchState();
+		}
 	}, box->lifetime());
 	rpl::combine(
 		box->heightValue(),
@@ -2287,6 +2256,23 @@ void MusicAttachBox(
 	globalSearch->stateChanged() | rpl::on_next([=] {
 		updateSearchState();
 	}, box->lifetime());
+	globalSearch->awayFromTopValue() | rpl::distinct_until_changed(
+	) | rpl::on_next([=](bool) {
+		updateSearchState();
+	}, box->lifetime());
+	savedMusic->list()->scrollToRequests() | rpl::on_next([=](int top) {
+		const auto list = savedMusic->list();
+		if (!listOwnsScrollTop(list)) {
+			return;
+		}
+		crl::on_main(box.get(), [=] {
+			if (!listOwnsScrollTop(list)) {
+				return;
+			}
+			const auto listTop = list->mapTo(content, QPoint()).y();
+			box->scrollToY(std::max(listTop + top, 0));
+		});
+	}, box->lifetime());
 
 	box->addTopButton(st::boxTitleClose, [=] {
 		box->closeBox();
@@ -2300,6 +2286,7 @@ void MusicAttachBox(
 	});
 	savedMusicShowAllWrap->entity()->setClickedCallback([=] {
 		*savedMusicExpanded = true;
+		savedMusic->list()->setSavedMusicAccumulationEnabled(true);
 		updateSearchState();
 	});
 	yourChatsShowAllWrap->entity()->setClickedCallback([=] {

@@ -31,6 +31,7 @@ struct GlobalMediaSliceSnapshot {
 	int fullCount = 0;
 	int skippedAfter = 0;
 	int skippedBefore = 0;
+	bool fullyLoaded = false;
 	std::vector<Data::MessagePosition> positions;
 };
 
@@ -97,8 +98,7 @@ public:
 		-> const std::optional<GlobalMediaSliceSnapshot> &;
 	[[nodiscard]] rpl::producer<GlobalMediaSliceSnapshot>
 		sliceSnapshotValue() const;
-	void requestAroundGlobalIndex(int index);
-	void cancelGlobalIndexRequest();
+	void setAccumulateFromTop(bool enabled);
 
 	std::vector<Media::ListSection> fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) override;
@@ -169,10 +169,6 @@ private:
 		uint64 requestToken = 0;
 		std::vector<Fn<void()>> requestWaiters;
 		std::vector<RequestCursor> requestCursors;
-		std::optional<int> pendingGlobalIndex;
-		uint64 pendingGeneration = 0;
-		uint64 globalIndexRequestToken = 0;
-		bool coverageWaiterRegistered = false;
 		bool loaded = false;
 	};
 	struct EdgeRequestKey {
@@ -228,10 +224,6 @@ private:
 		const QString &query,
 		uint64 generation,
 		Fn<void()> loaded);
-	void continueGlobalIndexCoverage(
-		const QString &query,
-		uint64 generation,
-		uint64 token);
 	[[nodiscard]] std::optional<GlobalMediaSliceSnapshot> makeSnapshot(
 		const SliceUpdate &update) const;
 
@@ -244,6 +236,7 @@ private:
 	uint64 _generation = 0;
 	std::optional<EdgeRequestKey> _edgeRequest;
 	std::optional<GlobalMediaSliceSnapshot> _sliceSnapshot;
+	bool _accumulateFromTop = false;
 
 	base::flat_set<FullMsgId> _seenIds;
 	std::unordered_map<FullMsgId, Media::CachedItem> _layouts;
