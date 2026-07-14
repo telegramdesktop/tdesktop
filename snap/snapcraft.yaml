@@ -46,7 +46,6 @@ parts:
       - libssl-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
-      - libxcb-screensaver0-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -104,7 +103,6 @@ parts:
       - libopenh264-7
       - libxcb-cursor0
       - libxcb-record0
-      - libxcb-screensaver0
     stage:
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstde265.so
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstfdkaac.so
@@ -117,7 +115,6 @@ parts:
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libopenh264.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-cursor.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-record.so*
-      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-screensaver.so*
 
   patches:
     source: https://github.com/desktop-app/patches.git
