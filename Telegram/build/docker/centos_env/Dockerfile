@@ -117,7 +117,38 @@ implib /usr/lib64/libwayland-cursor.so
 implib /usr/lib64/libwayland-client.so
 implib /usr/lib64/libwayland-server.so
 implib /usr/lib64/libX11-xcb.so
+implib /usr/lib64/libX11.so
 implib /usr/lib64/libxcb.so
+
+# Implib.so can only intercept functions, while the static libXext,
+# libXfixes, libXdamage, libXcomposite, libXrender reference three Xlib
+# threading data symbols. Define them with real locks (the always-on
+# XInitThreads semantics of libX11 1.8+). The layout is private to this
+# implementation: whether the real libX11 interposes these or keeps its
+# own copies, each lock implementation only ever sees its own objects.
+cat > libX11.locks.c <<'EOF2'
+#include <pthread.h>
+
+typedef struct _LockInfoRec {
+	pthread_mutex_t mutex;
+} LockInfoRec, *LockInfoPtr;
+
+static LockInfoRec GlobalLock = { PTHREAD_MUTEX_INITIALIZER };
+
+static void LockMutex(LockInfoPtr lock) {
+	pthread_mutex_lock(&lock->mutex);
+}
+
+static void UnlockMutex(LockInfoPtr lock) {
+	pthread_mutex_unlock(&lock->mutex);
+}
+
+LockInfoPtr _Xglobal_lock = &GlobalLock;
+void (*_XLockMutex_fn)(LockInfoPtr) = LockMutex;
+void (*_XUnlockMutex_fn)(LockInfoPtr) = UnlockMutex;
+EOF2
+gcc $CFLAGS -c -o libX11.locks.o libX11.locks.c
+ar rs /usr/local/lib64/libX11.a libX11.locks.o
 
 cd ../..
 rm -rf Implib.so
