@@ -386,7 +386,12 @@ HistoryWidget::HistoryWidget(
 	_scroll->setOverscrollBg(QColor(0, 0, 0, 0));
 	_scroll->setOverscrollEdges(
 		[=] { return historyLoadedAtTop(); },
-		[=] { return historyLoadedAtBottom(); });
+		[=] {
+			return Core::App().settings().pullToNextChannel()
+				&& _history
+				&& _history->peer->isBroadcast()
+				&& historyLoadedAtBottom();
+		});
 	_scroll->geometryChanged(
 	) | rpl::on_next(crl::guard(_list, [=] {
 		_list->onParentGeometryChanged();
