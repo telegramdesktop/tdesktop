@@ -212,6 +212,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QWindow>
 #include <QtCore/QMimeData>
+#include <QtWidgets/QScroller>
 
 namespace {
 
@@ -11124,6 +11125,9 @@ void HistoryWidget::synteticScrollToY(int y) {
 	if (_scroll->scrollTop() == y) {
 		visibleAreaUpdated();
 	} else {
+		if (QScroller::hasScroller(_scroll.data())) {
+			QScroller::scroller(_scroll.data())->stop();
+		}
 		_scroll->scrollToY(y);
 	}
 	_synteticScrollEvent = false;
