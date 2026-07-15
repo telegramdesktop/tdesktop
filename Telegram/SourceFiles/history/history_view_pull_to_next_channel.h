@@ -51,6 +51,7 @@ private:
 	void handleOverscroll(
 		Ui::ElasticScrollPosition position,
 		Ui::ElasticScrollMovement movement);
+	void updatePullCurve();
 	void startExpand(bool ready);
 	void pushIndicator();
 	void clearState();
