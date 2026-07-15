@@ -945,7 +945,7 @@ git remote add origin https://chromium.googlesource.com/linux-syscall-support.gi
 git fetch --depth=1 origin 29164a80da4d41134950d76d55199ea33fbb9613
 git reset --hard FETCH_HEAD
 cd ../../..
-CFLAGS="$CFLAGS -fno-lto" CXXFLAGS="$CXXFLAGS -fno-lto" ./configure
+CFLAGS="$CFLAGS -fno-lto -DNDEBUG" CXXFLAGS="$CXXFLAGS -fno-lto -DNDEBUG" ./configure
 make -j$(nproc)
 make DESTDIR=/usr/src/breakpad-cache install
 cd ..

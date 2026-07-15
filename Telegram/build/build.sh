@@ -163,7 +163,7 @@ if [ "$BuildTarget" == "linux" ]; then
   cp "$ReleasePath/root/Packer" "$ReleasePath/Packer"
 
   echo "Dumping debug symbols.."
-  "$ReleasePath/dump_syms" "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
+  "$ReleasePath/dump_syms" -d -m "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
   echo "Done!"
 
   echo "Stripping the executable.."
