@@ -46,25 +46,16 @@ ItemSticker::ItemSticker(
 				Lottie::Quality::High);
 			_lottie.player->updates(
 			) | rpl::on_next([=] {
-				updatePixmap(_lottie.player->frame());
-				_lottie.player = nullptr;
-				_lottie.lifetime.destroy();
+				if (_image.isNull()) {
+					updatePixmap(_lottie.player->frame());
+				}
 				update();
 			}, _lottie.lifetime);
 			return true;
 		} else if (stickerData->isWebm()
 			&& !_document->dimensions.isEmpty()) {
-			const auto callback = [=](::Media::Clip::Notification) {
-				const auto size = _document->dimensions;
-				if (_webm && _webm->ready() && !_webm->started()) {
-					_webm->start({ .frame = size, .keepAlpha = true });
-				}
-				if (_webm && _webm->started()) {
-					updatePixmap(_webm->current(
-						{ .frame = size, .keepAlpha = true },
-						0));
-					_webm = nullptr;
-				}
+			const auto callback = [=](::Media::Clip::Notification value) {
+				clipCallback(value);
 			};
 			_webm = ::Media::Clip::MakeReader(
 				_mediaView->owner()->location(),
@@ -105,17 +96,65 @@ void ItemSticker::updatePixmap(QImage &&image) {
 	}
 }
 
+void ItemSticker::clipCallback(::Media::Clip::Notification notification) {
+	using namespace ::Media::Clip;
+	if (notification == Notification::Reinit) {
+		if (_webm && _webm->state() == State::Error) {
+			_webm.setBad();
+		} else if (_webm && _webm->ready() && !_webm->started()) {
+			_webm->start({
+				.frame = _document->dimensions,
+				.keepAlpha = true,
+			});
+		}
+	}
+	if (_webm && _webm->started() && _image.isNull()) {
+		updatePixmap(_webm->current(
+			{ .frame = _document->dimensions, .keepAlpha = true },
+			0));
+	}
+	update();
+}
+
+bool ItemSticker::animated() const {
+	return (_lottie.player != nullptr) || _webm.valid();
+}
+
+QImage ItemSticker::currentFrame() {
+	if (_lottie.player && _lottie.player->ready()) {
+		auto request = Lottie::FrameRequest();
+		request.box = QSize(kStickerSideSize, kStickerSideSize)
+			* style::DevicePixelRatio();
+		request.mirrorHorizontal = flipped();
+		auto result = _lottie.player->frame(request);
+		_lottie.player->markFrameShown();
+		return result;
+	} else if (_webm && _webm->started()) {
+		auto result = _webm->current(
+			{ .frame = _document->dimensions, .keepAlpha = true },
+			crl::now());
+		_webm->moveToNextFrame();
+		if (!result.isNull()) {
+			return flipped()
+				? result.transformed(QTransform().scale(-1, 1))
+				: result;
+		}
+	}
+	return _image;
+}
+
 void ItemSticker::paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *w) {
 	const auto rect = contentRect();
-	const auto imageSize = QSizeF(_image.size() / style::DevicePixelRatio())
+	const auto image = currentFrame();
+	const auto imageSize = QSizeF(image.size() / style::DevicePixelRatio())
 		.scaled(rect.size(), Qt::KeepAspectRatio);
 	const auto resultRect = QRectF(rect.topLeft(), imageSize).translated(
 		(rect.width() - imageSize.width()) / 2.,
 		(rect.height() - imageSize.height()) / 2.);
-	p->drawImage(resultRect, _image);
+	p->drawImage(resultRect, image);
 	ItemBase::paint(p, option, w);
 }
 

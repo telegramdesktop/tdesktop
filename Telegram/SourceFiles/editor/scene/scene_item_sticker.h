@@ -32,6 +32,7 @@ public:
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
 	[[nodiscard]] not_null<DocumentData*> sticker() const;
+	[[nodiscard]] bool animated() const;
 	int type() const override;
 
 protected:
@@ -43,6 +44,8 @@ private:
 	const std::shared_ptr<::Data::DocumentMedia> _mediaView;
 
 	void updatePixmap(QImage &&image);
+	void clipCallback(::Media::Clip::Notification notification);
+	[[nodiscard]] QImage currentFrame();
 
 	struct {
 		std::unique_ptr<Lottie::SinglePlayer> player;

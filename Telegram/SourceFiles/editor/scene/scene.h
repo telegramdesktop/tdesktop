@@ -54,6 +54,7 @@ public:
 
 	[[nodiscard]] std::vector<ItemPtr> items(
 		Qt::SortOrder order = Qt::DescendingOrder) const;
+	[[nodiscard]] bool hasAnimatedItems() const;
 	void addItem(ItemPtr item);
 	void removeItem(not_null<QGraphicsItem*> item);
 	void removeItem(const ItemPtr &item);
