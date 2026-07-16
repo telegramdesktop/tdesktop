@@ -1088,6 +1088,9 @@ bool DocumentData::displayLoading() const {
 
 float64 DocumentData::progress() const {
 	if (uploading()) {
+		if (uploadingData->preparing) {
+			return 0.;
+		}
 		if (uploadingData->size > 0) {
 			const auto result = float64(uploadingData->offset)
 				/ float64(uploadingData->size);

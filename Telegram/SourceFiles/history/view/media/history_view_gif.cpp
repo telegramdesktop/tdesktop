@@ -554,7 +554,8 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto canBePlayed = _dataMedia->canBePlayed();
 	const auto autoplay = autoplayEnabled()
 		&& canBePlayed
-		&& canPlayInline();
+		&& canPlayInline()
+		&& !(_data->uploading() && _data->uploadingData->preparing);
 	const auto activeRoundPlaying = activeRoundStreamed();
 
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
@@ -1791,7 +1792,8 @@ void Gif::drawGrouped(
 	const auto autoplay = !_smallGroupPart
 		&& autoplayEnabled()
 		&& canBePlayed
-		&& canPlayInline();
+		&& canPlayInline()
+		&& !(_data->uploading() && _data->uploadingData->preparing);
 	const auto canStartPlay = autoplay
 		&& !_streamed
 		&& !fullHiddenBySpoiler;
@@ -2297,6 +2299,15 @@ void Gif::updateStatusText() const {
 	}
 	if (statusSize != _statusSize) {
 		setStatusSize(statusSize);
+	}
+	if (_data->uploading() && _data->uploadingData->preparing) {
+		const auto percent = int(base::SafeRound(
+			_data->uploadingData->prepareProgress * 100));
+		_statusText = tr::lng_send_video_preparing(
+			tr::now,
+			lt_progress,
+			QString::number(percent));
+		_statusSize = Ui::FileStatusSizeReady;
 	}
 }
 
