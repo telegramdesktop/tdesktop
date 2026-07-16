@@ -206,6 +206,7 @@ struct FilePrepareResult {
 	TextWithTags caption;
 	bool spoiler = false;
 	bool forceFile = false;
+	int videoTranscodeHeight = 0;
 
 	std::vector<MTPInputDocument> attachedStickers;
 
@@ -245,6 +246,7 @@ public:
 		std::shared_ptr<SendingAlbum> album;
 		bool forceFile = false;
 		bool sendLargePhotos = false;
+		int transcodeHeight = 0;
 		uint64 idOverride = 0;
 		QString displayName;
 	};
@@ -317,6 +319,7 @@ private:
 	bool _spoiler = false;
 	bool _forceFile = false;
 	bool _sendLargePhotos = false;
+	int _transcodeHeight = 0;
 
 	std::shared_ptr<FilePrepareResult> _result;
 

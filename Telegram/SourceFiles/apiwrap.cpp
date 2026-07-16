@@ -4299,6 +4299,7 @@ void ApiWrap::sendFiles(
 			.album = album,
 			.forceFile = forceFile,
 			.sendLargePhotos = file.sendLargePhotos,
+			.transcodeHeight = file.videoTranscodeHeight,
 			.idOverride = 0,
 			.displayName = file.displayName,
 		}));

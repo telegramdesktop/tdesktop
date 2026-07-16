@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/message_field.h"
+#include "media/media_video_encode.h"
 #include "menu/menu_checked_action.h"
 #include "menu/menu_send.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -1664,6 +1665,28 @@ void SendFilesBox::pushBlock(int from, int till) {
 				},
 				&icons.menuSpoiler,
 				spoilered);
+		}
+		const auto canCompress = _sendWay.current().sendImagesAsPhotos()
+			&& file.isVideoFile();
+		const auto compressHeight = canCompress
+			? Media::Encode::CompressedShorterSide(
+				file.originalDimensions,
+				file.size)
+			: 0;
+		if (compressHeight > 0) {
+			const auto compressed = (file.videoTranscodeHeight > 0);
+			Menu::AddCheckedAction(
+				state->menu.get(),
+				u"Compressed"_q,
+				[=] {
+					applyBlockChanges();
+					refreshAllAfterChanges(from, [&] {
+						_list.files[fileIndex].videoTranscodeHeight
+							= compressed ? 0 : compressHeight;
+					});
+				},
+				&st::menuIconShrink,
+				compressed);
 		}
 		const auto ttlUser = _toPeer->asUser();
 		const auto canSetTtl = !hasPrice()

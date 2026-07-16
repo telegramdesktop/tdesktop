@@ -99,6 +99,7 @@ struct PreparedFile {
 	crl::time ttlSeconds = 0;
 	bool spoiler = false;
 	bool sendLargePhotos = false;
+	int videoTranscodeHeight = 0;
 };
 
 [[nodiscard]] bool CanBeInAlbumType(PreparedFile::Type type, AlbumType album);

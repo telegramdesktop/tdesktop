@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
+#include "media/media_video_encode.h"
 #include "mtproto/facade.h"
 #include "lottie/lottie_animation.h"
 #include "history/history.h"
@@ -507,7 +508,8 @@ FileLoadTask::FileLoadTask(Args &&args)
 , _caption(std::move(args.caption))
 , _spoiler(args.spoiler)
 , _forceFile(args.forceFile)
-, _sendLargePhotos(args.sendLargePhotos) {
+, _sendLargePhotos(args.sendLargePhotos)
+, _transcodeHeight(args.transcodeHeight) {
 	Expects(_to.options.scheduled
 		|| _to.options.shortcutId
 		|| !_to.replaceMediaOf
@@ -898,6 +900,19 @@ void FileLoadTask::process(ProcessArgs &&args) {
 			isVideo = true;
 			auto coverWidth = video->thumbnail.width();
 			auto coverHeight = video->thumbnail.height();
+			if (_transcodeHeight > 0 && !_forceFile) {
+				const auto target = Media::Encode::DownscaledSize(
+					QSize(coverWidth, coverHeight),
+					_transcodeHeight);
+				if (!target.isEmpty()) {
+					coverWidth = target.width();
+					coverHeight = target.height();
+					video->thumbnail = video->thumbnail.scaled(
+						target,
+						Qt::IgnoreAspectRatio,
+						Qt::SmoothTransformation);
+				}
+			}
 			if (!_forceFile) {
 				if (video->isGifv && !_album) {
 					attributes.push_back(MTP_documentAttributeAnimated());
@@ -1078,6 +1093,9 @@ void FileLoadTask::process(ProcessArgs &&args) {
 	_result->document = document;
 	_result->photoThumbs = photoThumbs;
 	_result->forceFile = _forceFile;
+	_result->videoTranscodeHeight = (isVideo && !_forceFile)
+		? _transcodeHeight
+		: 0;
 }
 
 void FileLoadTask::finish() {
