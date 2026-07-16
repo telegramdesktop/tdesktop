@@ -100,6 +100,7 @@ struct PreparedFile {
 	bool spoiler = false;
 	bool sendLargePhotos = false;
 	int videoTranscodeHeight = 0;
+	std::shared_ptr<Media::Encode::Job> animationJob;
 };
 
 [[nodiscard]] bool CanBeInAlbumType(PreparedFile::Type type, AlbumType album);

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 
 #include "editor/photo_editor_common.h"
+#include "editor/scene/scene.h"
 #include "platform/platform_file_utilities.h"
 #include "lang/lang_keys.h"
 #include "storage/localimageloader.h"
@@ -416,9 +417,30 @@ bool ApplyModifications(PreparedList &list) {
 		applied = true;
 		file.path = QString();
 		file.content = QByteArray();
+		const auto &scene = image->modifications.paint;
+		if (scene && scene->hasAnimatedItems()) {
+			auto job = Editor::ComposeAnimatedJob(
+				image->data,
+				image->modifications);
+			const auto animated = ranges::any_of(
+				job.overlay,
+				[](const Media::Encode::Layer &layer) {
+					const auto entity
+						= std::get_if<Media::Encode::AnimatedEntity>(
+							&layer);
+					return entity && !entity->bytes.isEmpty();
+				});
+			if (animated) {
+				file.animationJob = std::make_shared<Media::Encode::Job>(
+					std::move(job));
+			}
+		}
 		image->data = Editor::ImageModified(
 			std::move(image->data),
 			image->modifications);
+		if (file.animationJob) {
+			image->modifications = Editor::PhotoModifications();
+		}
 	};
 	for (auto &file : list.files) {
 		apply(file);

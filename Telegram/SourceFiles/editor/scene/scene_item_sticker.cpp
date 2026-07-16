@@ -120,6 +120,57 @@ bool ItemSticker::animated() const {
 	return (_lottie.player != nullptr) || _webm.valid();
 }
 
+Media::Encode::AnimatedEntity ItemSticker::animatedEntity(
+		const QTransform &sceneToCanvas) const {
+	const auto data = _document->sticker();
+	const auto composed = QTransform().scale(flipped() ? -1. : 1., 1.)
+		* sceneTransform()
+		* sceneToCanvas;
+	const auto inner = contentRect();
+	const auto m11 = composed.m11();
+	const auto m12 = composed.m12();
+	const auto m21 = composed.m21();
+	const auto m22 = composed.m22();
+	const auto scale = std::hypot(m11, m12);
+	const auto mirrored = ((m11 * m22 - m12 * m21) < 0);
+	const auto rotation = mirrored
+		? (std::atan2(-m12, m22) * 180. / M_PI)
+		: (std::atan2(m12, m11) * 180. / M_PI);
+	const auto size = inner.size() * scale;
+	const auto center = composed.map(inner.center());
+	return {
+		.kind = ((data && data->isWebm())
+			? Media::Encode::AnimatedEntity::Kind::Webm
+			: Media::Encode::AnimatedEntity::Kind::Lottie),
+		.bytes = content(),
+		.geometry = QRectF(
+			center - QPointF(size.width() / 2., size.height() / 2.),
+			size),
+		.rotation = rotation,
+		.flipped = mirrored,
+	};
+}
+
+QByteArray ItemSticker::content() const {
+	const auto &bytes = _mediaView->bytes();
+	if (!bytes.isEmpty()) {
+		return QByteArray(bytes.constData(), bytes.size());
+	}
+	auto file = QFile(_document->filepath(true));
+	return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+}
+
+crl::time ItemSticker::loopDuration() const {
+	if (_lottie.player && _lottie.player->ready()) {
+		const auto information = _lottie.player->information();
+		if (information.frameRate > 0) {
+			return crl::time(base::SafeRound(
+				information.framesCount * 1000. / information.frameRate));
+		}
+	}
+	return 0;
+}
+
 QImage ItemSticker::currentFrame() {
 	if (_lottie.player && _lottie.player->ready()) {
 		auto request = Lottie::FrameRequest();

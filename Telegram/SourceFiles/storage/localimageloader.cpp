@@ -509,7 +509,8 @@ FileLoadTask::FileLoadTask(Args &&args)
 , _spoiler(args.spoiler)
 , _forceFile(args.forceFile)
 , _sendLargePhotos(args.sendLargePhotos)
-, _transcodeHeight(args.transcodeHeight) {
+, _transcodeHeight(args.transcodeHeight)
+, _animationJob(std::move(args.animationJob)) {
 	Expects(_to.options.scheduled
 		|| _to.options.shortcutId
 		|| !_to.replaceMediaOf

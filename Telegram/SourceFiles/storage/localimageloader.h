@@ -16,6 +16,10 @@ namespace Ui {
 struct PreparedFileInformation;
 } // namespace Ui
 
+namespace Media::Encode {
+struct Job;
+} // namespace Media::Encode
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -247,6 +251,7 @@ public:
 		bool forceFile = false;
 		bool sendLargePhotos = false;
 		int transcodeHeight = 0;
+		std::shared_ptr<Media::Encode::Job> animationJob;
 		uint64 idOverride = 0;
 		QString displayName;
 	};
@@ -320,6 +325,7 @@ private:
 	bool _forceFile = false;
 	bool _sendLargePhotos = false;
 	int _transcodeHeight = 0;
+	std::shared_ptr<Media::Encode::Job> _animationJob;
 
 	std::shared_ptr<FilePrepareResult> _result;
 

@@ -4300,6 +4300,7 @@ void ApiWrap::sendFiles(
 			.forceFile = forceFile,
 			.sendLargePhotos = file.sendLargePhotos,
 			.transcodeHeight = file.videoTranscodeHeight,
+			.animationJob = file.animationJob,
 			.idOverride = 0,
 			.displayName = file.displayName,
 		}));

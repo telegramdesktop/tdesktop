@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/scene/scene_item_base.h"
 #include "media/clip/media_clip_reader.h"
+#include "media/media_video_encode.h"
 
 namespace Data {
 class DocumentMedia;
@@ -33,6 +34,10 @@ public:
 		QWidget *widget) override;
 	[[nodiscard]] not_null<DocumentData*> sticker() const;
 	[[nodiscard]] bool animated() const;
+	[[nodiscard]] Media::Encode::AnimatedEntity animatedEntity(
+		const QTransform &sceneToCanvas) const;
+	[[nodiscard]] QByteArray content() const;
+	[[nodiscard]] crl::time loopDuration() const;
 	int type() const override;
 
 protected:
