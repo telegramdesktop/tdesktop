@@ -64,6 +64,6 @@ void UpdateImageDetails(
 	int previewWidth,
 	int sideLimit);
 
-bool ApplyModifications(Ui::PreparedList &list);
+bool ApplyModifications(Ui::PreparedList &list, bool composeAnimated = false);
 
 } // namespace Storage

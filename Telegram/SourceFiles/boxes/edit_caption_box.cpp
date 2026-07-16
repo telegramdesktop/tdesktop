@@ -513,6 +513,7 @@ void EditCaptionBox::rebuildPreview() {
 		if (media && !_asFile) {
 			media->setSendWay(currentSendWay());
 			media->setCanShowHighQualityBadge(file.canUseHighQualityPhoto());
+			media->setCanShowAnimatedBadge(false);
 			_content.reset(media);
 		} else {
 			_content.reset(Ui::CreateChild<Ui::SingleFilePreview>(

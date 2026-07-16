@@ -38,6 +38,7 @@ public:
 
 	void setSpoiler(bool spoiler);
 	void setCanShowHighQualityBadge(bool value);
+	void setCanShowAnimatedBadge(bool value);
 	void setTtlSeconds(crl::time ttlSeconds);
 	[[nodiscard]] bool hasSpoiler() const;
 	[[nodiscard]] bool canHaveSpoiler() const;
@@ -81,6 +82,7 @@ private:
 
 	std::unique_ptr<SpoilerAnimation> _spoiler;
 	bool _canShowHighQualityBadge = false;
+	bool _canShowAnimatedBadge = false;
 	crl::time _ttlSeconds = 0;
 
 	const int _minThumbH;

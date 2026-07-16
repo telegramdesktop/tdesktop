@@ -734,9 +734,11 @@ std::vector<ItemPtr> Scene::items(
 bool Scene::hasAnimatedItems() const {
 	for (const auto &item : _items) {
 		if (item->isNormalStatus()
-			&& (item->type() == ItemSticker::Type)
-			&& static_cast<ItemSticker*>(item.get())->animated()) {
-			return true;
+			&& (item->type() == ItemSticker::Type)) {
+			const auto sticker = static_cast<ItemSticker*>(item.get());
+			if (sticker->animated() && !sticker->content().isEmpty()) {
+				return true;
+			}
 		}
 	}
 	return false;

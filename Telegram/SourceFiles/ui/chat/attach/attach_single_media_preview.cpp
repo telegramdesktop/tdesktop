@@ -55,6 +55,7 @@ SingleMediaPreview *SingleMediaPreview::Create(
 		animationPreview ? file.path : QString(),
 		type);
 	result->setCanShowHighQualityBadge(file.canUseHighQualityPhoto());
+	result->setCanShowAnimatedBadge(file.hasAnimatedEditScene());
 	return result;
 }
 

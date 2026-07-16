@@ -2582,12 +2582,10 @@ void SendFilesBox::send(
 		item.sendLargePhotos = way.sendLargePhotos();
 	}
 
-	Storage::ApplyModifications(_list);
-
 	if ((_limits & SendFilesAllow::OnlyOne)
 		&& (_list.files.size() > 1)
 		&& ranges::any_of(_list.files, [](const auto &file) {
-			return file.animationJob != nullptr;
+			return file.hasAnimatedEditScene();
 		})) {
 		showToast(tr::lng_slowmode_no_many(tr::now));
 		return;
@@ -2605,6 +2603,7 @@ void SendFilesBox::send(
 				return;
 			}
 		}
+		Storage::ApplyModifications(_list, true);
 		saveSendWaySettings(_wayRemember && _wayRemember->checked());
 		options.invertCaption = _invertCaption;
 		options.price = hasPrice() ? _price.current() : 0;

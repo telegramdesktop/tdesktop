@@ -395,7 +395,7 @@ void UpdateImageDetails(
 	file.preview.setDevicePixelRatio(style::DevicePixelRatio());
 }
 
-bool ApplyModifications(PreparedList &list) {
+bool ApplyModifications(PreparedList &list, bool composeAnimated) {
 	auto applied = false;
 	const auto apply = [&](PreparedFile &file, QSize strictSize = {}) {
 		const auto image = std::get_if<Image>(&file.information->media);
@@ -418,7 +418,7 @@ bool ApplyModifications(PreparedList &list) {
 		file.path = QString();
 		file.content = QByteArray();
 		const auto &scene = image->modifications.paint;
-		if (scene && scene->hasAnimatedItems()) {
+		if (composeAnimated && scene && scene->hasAnimatedItems()) {
 			auto job = Editor::ComposeAnimatedJob(
 				image->data,
 				image->modifications);

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_prepare.h"
 
+#include "editor/scene/scene.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/popup_menu.h"
 
@@ -40,7 +41,7 @@ struct GroupRange {
 	}
 };
 
-struct HighQualityBadgeCache {
+struct MediaBadgeCache {
 	QRgb bg = 0;
 	QRgb fg = 0;
 	qreal ratio = 0.;
@@ -49,10 +50,9 @@ struct HighQualityBadgeCache {
 	QImage image;
 };
 
-[[nodiscard]] const QImage &HighQualityBadgeImage(
-		const style::ComposeControls &st) {
-	static auto cache = HighQualityBadgeCache();
-	const auto text = u"HD"_q;
+[[nodiscard]] const QImage &MediaBadgeImage(
+		MediaBadgeCache &cache,
+		const QString &text) {
 	const auto &font = st::mediaPlayerSpeedButton.font;
 	const auto xpadding = style::ConvertScale(2.);
 	const auto ypadding = 0;
@@ -101,6 +101,37 @@ struct HighQualityBadgeCache {
 			text);
 	}
 	return cache.image;
+}
+
+[[nodiscard]] const QImage &HighQualityBadgeImage() {
+	static auto cache = MediaBadgeCache();
+	return MediaBadgeImage(cache, u"HD"_q);
+}
+
+[[nodiscard]] const QImage &AnimatedBadgeImage() {
+	static auto cache = MediaBadgeCache();
+	return MediaBadgeImage(cache, u"GIF"_q);
+}
+
+void PaintMediaBadge(
+		QPainter &p,
+		const style::ComposeControls &st,
+		QRect rect,
+		RectPart origin,
+		const QImage &badge) {
+	const auto outerSkip = st.photoQualityBadgeOuterSkip;
+	const auto size = badge.size() / badge.devicePixelRatio();
+	const auto left = (origin == RectPart::TopLeft)
+		|| (origin == RectPart::BottomLeft);
+	const auto top = (origin == RectPart::TopLeft)
+		|| (origin == RectPart::TopRight);
+	const auto x = left
+		? (rect.x() + outerSkip)
+		: (rect.x() + rect.width() - size.width() - outerSkip);
+	const auto y = top
+		? (rect.y() + outerSkip)
+		: (rect.y() + rect.height() - size.height() - outerSkip);
+	p.drawImage(QPointF(x, y), badge);
 }
 
 [[nodiscard]] AlbumType GroupTypeForFile(
@@ -211,6 +242,15 @@ bool PreparedFile::canUseHighQualityPhoto() const {
 		&& !isSticker()
 		&& ((originalDimensions.width() > kStandardPhotoSideLimit)
 			|| (originalDimensions.height() > kStandardPhotoSideLimit));
+}
+
+bool PreparedFile::hasAnimatedEditScene() const {
+	const auto image = information
+		? std::get_if<PreparedFileInformation::Image>(&information->media)
+		: nullptr;
+	return image
+		&& image->modifications.paint
+		&& image->modifications.paint->hasAnimatedItems();
 }
 
 AlbumType PreparedFile::albumType(bool sendImagesAsPhotos) const {
@@ -509,20 +549,15 @@ void PaintHighQualityBadge(
 		const style::ComposeControls &st,
 		QRect rect,
 		RectPart origin) {
-	const auto outerSkip = st.photoQualityBadgeOuterSkip;
-	const auto &badge = HighQualityBadgeImage(st);
-	const auto size = badge.size() / badge.devicePixelRatio();
-	const auto left = (origin == RectPart::TopLeft)
-		|| (origin == RectPart::BottomLeft);
-	const auto top = (origin == RectPart::TopLeft)
-		|| (origin == RectPart::TopRight);
-	const auto x = left
-		? (rect.x() + outerSkip)
-		: (rect.x() + rect.width() - size.width() - outerSkip);
-	const auto y = top
-		? (rect.y() + outerSkip)
-		: (rect.y() + rect.height() - size.height() - outerSkip);
-	p.drawImage(QPointF(x, y), badge);
+	PaintMediaBadge(p, st, rect, origin, HighQualityBadgeImage());
+}
+
+void PaintAnimatedBadge(
+		QPainter &p,
+		const style::ComposeControls &st,
+		QRect rect,
+		RectPart origin) {
+	PaintMediaBadge(p, st, rect, origin, AnimatedBadgeImage());
 }
 
 void PaintMediaTtlBadge(QPainter &p, QRect preview, crl::time ttlSeconds) {

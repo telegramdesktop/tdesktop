@@ -84,6 +84,7 @@ struct PreparedFile {
 	[[nodiscard]] bool isVideoFile() const;
 	[[nodiscard]] bool isGifv() const;
 	[[nodiscard]] bool canUseHighQualityPhoto() const;
+	[[nodiscard]] bool hasAnimatedEditScene() const;
 
 	QString path;
 	QString displayName;
@@ -188,6 +189,12 @@ void PaintHighQualityBadge(
 	const style::ComposeControls &st,
 	QRect rect,
 	RectPart origin = RectPart::BottomLeft);
+
+void PaintAnimatedBadge(
+	QPainter &p,
+	const style::ComposeControls &st,
+	QRect rect,
+	RectPart origin = RectPart::BottomRight);
 
 void PaintMediaTtlBadge(QPainter &p, QRect preview, crl::time ttlSeconds);
 

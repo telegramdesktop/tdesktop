@@ -44,6 +44,7 @@ AlbumThumbnail::AlbumThumbnail(
 , _isPhoto(file.type == PreparedFile::Type::Photo)
 , _isVideo(file.type == PreparedFile::Type::Video)
 , _canShowHighQualityBadge(file.canUseHighQualityPhoto())
+, _canShowAnimatedBadge(file.hasAnimatedEditScene())
 , _ttlSeconds(file.ttlSeconds)
 , _isCompressedSticker(Core::IsMimeSticker(file.information->filemime))
 , _repaint(std::move(repaint))
@@ -321,6 +322,9 @@ void AlbumThumbnail::paintInAlbum(
 	if (showHighQualityBadge && _canShowHighQualityBadge) {
 		PaintHighQualityBadge(p, _st, paintedTo);
 	}
+	if (_canShowAnimatedBadge) {
+		PaintAnimatedBadge(p, _st, paintedTo);
+	}
 	if (_ttlSeconds && !shrinkProgress) {
 		PaintMediaTtlBadge(p, paintedTo, _ttlSeconds);
 	}
@@ -532,6 +536,9 @@ void AlbumThumbnail::paintPhoto(
 	_lastRectOfModify = QRect(topLeft, size);
 	if (showHighQualityBadge && _canShowHighQualityBadge) {
 		PaintHighQualityBadge(p, _st, rect);
+	}
+	if (_canShowAnimatedBadge) {
+		PaintAnimatedBadge(p, _st, rect);
 	}
 }
 
