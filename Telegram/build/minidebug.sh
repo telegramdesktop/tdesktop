@@ -7,9 +7,9 @@ bin="$1"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-nm -D "$bin" --format=posix --defined-only | awk '{print $1}' | sort -u > "$tmp/dynsyms"
-nm    "$bin" --format=posix --defined-only | awk '$2 ~ /[tTwW]/ {print $1}' | sort -u > "$tmp/funcsyms"
-comm -13 "$tmp/dynsyms" "$tmp/funcsyms" > "$tmp/keep"
+nm -p -D "$bin" --format=posix --defined-only | awk '{print $1}' > "$tmp/dynsyms"
+nm -p    "$bin" --format=posix --defined-only | awk '$2 ~ /[tTwW]/ {print $1}' > "$tmp/funcsyms"
+awk 'FILENAME == ARGV[1] { dyn[$0]; next } !($0 in dyn)' "$tmp/dynsyms" "$tmp/funcsyms" > "$tmp/keep"
 
 objcopy --only-keep-debug "$bin" "$tmp/mini"
 objcopy -S --remove-section .comment --keep-symbols="$tmp/keep" "$tmp/mini"
