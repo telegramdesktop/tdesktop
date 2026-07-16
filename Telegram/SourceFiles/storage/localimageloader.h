@@ -211,6 +211,7 @@ struct FilePrepareResult {
 	bool spoiler = false;
 	bool forceFile = false;
 	int videoTranscodeHeight = 0;
+	std::shared_ptr<Media::Encode::Job> animationJob;
 
 	std::vector<MTPInputDocument> attachedStickers;
 

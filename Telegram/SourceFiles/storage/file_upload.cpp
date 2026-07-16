@@ -319,8 +319,9 @@ void Uploader::upload(
 					file->thumbbytes));
 		document->uploadingData = std::make_unique<Data::UploadState>(
 			document->size);
-		preparing = (file->videoTranscodeHeight > 0)
-			&& (!file->content.isEmpty() || !file->filepath.isEmpty());
+		preparing = (file->animationJob != nullptr)
+			|| ((file->videoTranscodeHeight > 0)
+				&& (!file->content.isEmpty() || !file->filepath.isEmpty()));
 		if (preparing) {
 			document->uploadingData->preparing = true;
 		}
@@ -386,16 +387,10 @@ void Uploader::startTranscode(FullMsgId itemId) {
 	auto &entry = *i;
 	const auto file = entry.file;
 	const auto height = file->videoTranscodeHeight;
+	const auto job = file->animationJob;
 	const auto cancel = std::make_shared<std::atomic<bool>>(false);
 	entry.cancelPreparing = cancel;
 	crl::async([=, weak = base::make_weak(this)]() mutable {
-		auto source = file->content;
-		if (source.isEmpty() && !file->filepath.isEmpty()) {
-			auto f = QFile(file->filepath);
-			if (f.open(QIODevice::ReadOnly)) {
-				source = f.readAll();
-			}
-		}
 		auto lastReported = -1.;
 		const auto progress = [&](float64 value) {
 			if (value - lastReported >= 0.01 || value >= 1.) {
@@ -406,10 +401,36 @@ void Uploader::startTranscode(FullMsgId itemId) {
 			}
 			return !cancel->load();
 		};
-		auto bytes = Media::Encode::TranscodeVideoToMp4(
-			source,
-			height,
-			progress);
+		auto bytes = QByteArray();
+		if (job) {
+			auto result = Media::Encode::Run(
+				Media::Encode::Job(*job),
+				progress);
+			if (result.bytes.isEmpty() && !cancel->load()) {
+				auto fallback = Media::Encode::Job(*job);
+				fallback.overlay.erase(
+					ranges::remove_if(
+						fallback.overlay,
+						[](const Media::Encode::Layer &layer) {
+							return !std::get_if<QImage>(&layer);
+						}),
+					end(fallback.overlay));
+				result = Media::Encode::Run(std::move(fallback), nullptr);
+			}
+			bytes = std::move(result.bytes);
+		} else {
+			auto source = file->content;
+			if (source.isEmpty() && !file->filepath.isEmpty()) {
+				auto f = QFile(file->filepath);
+				if (f.open(QIODevice::ReadOnly)) {
+					source = f.readAll();
+				}
+			}
+			bytes = Media::Encode::TranscodeVideoToMp4(
+				source,
+				height,
+				progress);
+		}
 		crl::on_main(weak, [=, bytes = std::move(bytes)]() mutable {
 			if (!cancel->load()) {
 				finishTranscode(itemId, std::move(bytes));

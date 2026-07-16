@@ -135,10 +135,12 @@ struct HighQualityBadgeCache {
 	auto from = 0;
 	auto groupType = AlbumType::None;
 	for (auto i = 0; i != int(files.size()); ++i) {
-		const auto fileGroupType = GroupTypeForFile(
-			files[i].type,
-			groupFiles,
-			sendImagesAsPhotos);
+		const auto fileGroupType = files[i].animationJob
+			? AlbumType::None
+			: GroupTypeForFile(
+				files[i].type,
+				groupFiles,
+				sendImagesAsPhotos);
 		const auto count = (i - from);
 		if ((i > from && groupType != fileGroupType)
 			|| ((groupType != AlbumType::None) && (count == kMaxAlbumCount))) {

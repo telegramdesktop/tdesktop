@@ -715,6 +715,48 @@ void FileLoadTask::process(ProcessArgs &&args) {
 		}
 	}
 
+	auto animationPreparing = false;
+	if (_animationJob) {
+		const auto still = _forceFile
+			? nullptr
+			: std::get_if<Media::Encode::StillSource>(&_animationJob->source);
+		auto preview = QImage();
+		if (_information) {
+			const auto media = &_information->media;
+			if (const auto image = std::get_if<
+					Ui::PreparedFileInformation::Image>(media)) {
+				preview = std::move(image->data);
+			}
+		}
+		if (still && !still->base.isNull() && still->duration > 0) {
+			if (preview.isNull()) {
+				preview = still->base;
+			} else if (preview.size() != still->base.size()) {
+				preview = preview.scaled(
+					still->base.size(),
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation);
+			}
+			auto information = std::make_unique<
+				Ui::PreparedFileInformation>();
+			information->filemime = "video/mp4";
+			information->media = Ui::PreparedFileInformation::Video{
+				.isGifv = true,
+				.supportsStreaming = true,
+				.duration = still->duration,
+				.thumbnail = std::move(preview),
+			};
+			_information = std::move(information);
+			_content = QByteArray();
+			_filepath = QString();
+			_type = SendMediaType::File;
+			_displayName = u"animation.mp4"_q;
+			_result->animationJob = _animationJob;
+			animationPreparing = true;
+		}
+		_animationJob = nullptr;
+	}
+
 	QString filename, filemime;
 	qint64 filesize = 0;
 	QByteArray filedata;
@@ -759,6 +801,19 @@ void FileLoadTask::process(ProcessArgs &&args) {
 			}
 			isAnimation = image->animated;
 		}
+	} else if (animationPreparing) {
+		const auto video = std::get_if<Ui::PreparedFileInformation::Video>(
+			&_information->media);
+		const auto seconds = std::max(
+			int64(video->duration / 1000),
+			int64(1));
+		filesize = seconds * 200'000;
+		filename = filedialogDefaultName(
+			u"animation"_q,
+			u".mp4"_q,
+			QString(),
+			true);
+		filemime = "video/mp4";
 	} else if (!_content.isEmpty()) {
 		filesize = _content.size();
 		if (isVoice) {

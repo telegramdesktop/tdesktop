@@ -2584,6 +2584,15 @@ void SendFilesBox::send(
 
 	Storage::ApplyModifications(_list);
 
+	if ((_limits & SendFilesAllow::OnlyOne)
+		&& (_list.files.size() > 1)
+		&& ranges::any_of(_list.files, [](const auto &file) {
+			return file.animationJob != nullptr;
+		})) {
+		showToast(tr::lng_slowmode_no_many(tr::now));
+		return;
+	}
+
 	_confirmed = true;
 	if (_confirmedCallback) {
 		auto caption = fieldText();
