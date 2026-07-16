@@ -9,6 +9,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media::Encode {
 
+struct AnimatedEntity {
+	enum class Kind {
+		Lottie,
+		Webm,
+	};
+	Kind kind = Kind::Lottie;
+	QByteArray bytes;
+	QRectF geometry;
+	float64 rotation = 0.;
+	bool flipped = false;
+};
+
+using Layer = std::variant<QImage, AnimatedEntity>;
+
+struct StillSource {
+	QImage base;
+	crl::time duration = 0;
+	float64 fps = 30.;
+};
+
+struct VideoSource {
+	QByteArray bytes;
+	int targetShorterSide = 0;
+};
+
+struct Job {
+	std::variant<VideoSource, StillSource> source;
+	std::vector<Layer> overlay;
+	int bitrate = 0;
+	bool silentLoop = false;
+};
+
+struct Result {
+	QByteArray bytes;
+	QSize dimensions;
+	crl::time duration = 0;
+
+	[[nodiscard]] bool empty() const {
+		return bytes.isEmpty();
+	}
+};
+
+[[nodiscard]] Result Run(Job &&job, Fn<bool(float64)> progress = nullptr);
+
 [[nodiscard]] int CompressedShorterSide(QSize original, int64 size);
 
 [[nodiscard]] QSize DownscaledSize(QSize original, int targetShorterSide);

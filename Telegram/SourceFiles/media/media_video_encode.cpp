@@ -8,9 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_video_encode.h"
 
 #include "ffmpeg/ffmpeg_bytes_io_wrap.h"
+#include "ffmpeg/ffmpeg_frame_generator.h"
 #include "ffmpeg/ffmpeg_utility.h"
+#include "lottie/lottie_frame_generator.h"
 
 #include <QtCore/QTemporaryFile>
+#include <QtGui/QPainter>
 
 namespace Media::Encode {
 namespace {
@@ -151,6 +154,303 @@ void CopyDisplayMatrix(not_null<AVStream*> from, not_null<AVStream*> to) {
 
 	auto file = QFile(path);
 	return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+}
+
+[[nodiscard]] bool EncodeAndWrite(
+		AVCodecContext *encoder,
+		AVStream *stream,
+		AVFormatContext *format,
+		AVFrame *frame) {
+	auto sent = AvErrorWrap(avcodec_send_frame(encoder, frame));
+	if (sent) {
+		LogError(u"avcodec_send_frame"_q, sent);
+		return false;
+	}
+	auto encoded = av_packet_alloc();
+	const auto encodedGuard = gsl::finally([&] {
+		av_packet_free(&encoded);
+	});
+	while (true) {
+		auto received = AvErrorWrap(avcodec_receive_packet(
+			encoder,
+			encoded));
+		if (received.code() == AVERROR(EAGAIN)
+			|| received.code() == AVERROR_EOF) {
+			return true;
+		} else if (received) {
+			LogError(u"avcodec_receive_packet"_q, received);
+			return false;
+		}
+		encoded->stream_index = stream->index;
+		av_packet_rescale_ts(
+			encoded,
+			encoder->time_base,
+			stream->time_base);
+		auto written = AvErrorWrap(av_interleaved_write_frame(
+			format,
+			encoded));
+		if (written) {
+			LogError(u"av_interleaved_write_frame"_q, written);
+			return false;
+		}
+	}
+}
+
+class EntityPlayer final {
+public:
+	explicit EntityPlayer(const AnimatedEntity &entity)
+	: _size(entity.geometry.size().toSize()) {
+		if (_size.isEmpty() || entity.bytes.isEmpty()) {
+			return;
+		}
+		if (entity.kind == AnimatedEntity::Kind::Lottie) {
+			_generator = std::make_unique<Lottie::FrameGenerator>(
+				entity.bytes);
+		} else {
+			_generator = std::make_unique<FFmpeg::FrameGenerator>(
+				entity.bytes);
+		}
+	}
+
+	[[nodiscard]] QImage frameAt(crl::time position) {
+		while (_generator && (_covered <= position)) {
+			auto frame = _generator->renderNext(std::move(_storage), _size);
+			if (frame.image.isNull()) {
+				if (std::exchange(_restarted, true)) {
+					_generator = nullptr;
+					break;
+				}
+				_generator->jumpToStart();
+				continue;
+			}
+			_restarted = false;
+			_storage = std::move(_current);
+			_current = std::move(frame.image);
+			_covered += std::max(frame.duration, crl::time(1));
+			if (frame.last) {
+				_generator->jumpToStart();
+			}
+		}
+		return _current;
+	}
+
+private:
+	std::unique_ptr<Ui::FrameGenerator> _generator;
+	QImage _current;
+	QImage _storage;
+	QSize _size;
+	crl::time _covered = 0;
+	bool _restarted = false;
+
+};
+
+[[nodiscard]] Result EncodeStill(
+		StillSource &&still,
+		std::vector<Layer> &&overlay,
+		int bitrate,
+		Fn<bool(float64)> progress) {
+	if (still.base.isNull() || still.duration <= 0) {
+		return {};
+	}
+	const auto fps = std::clamp(still.fps, 1., 60.);
+	const auto target = QSize(
+		std::max(EvenDown(still.base.width()), 2),
+		std::max(EvenDown(still.base.height()), 2));
+	auto base = still.base.convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
+	if (base.size() != target) {
+		base = base.scaled(
+			target,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	const auto framesCount = std::max(
+		int(base::SafeRound(still.duration * fps / 1000.)),
+		1);
+
+	auto result = WriteBytesWrap();
+	auto output = MakeWriteFormatPointer(
+		static_cast<void*>(&result),
+		nullptr,
+		&WriteBytesWrap::Write,
+		&WriteBytesWrap::Seek,
+		"mp4"_q);
+	if (!output) {
+		return {};
+	}
+	auto encoderCodec = avcodec_find_encoder_by_name("libopenh264");
+	if (!encoderCodec) {
+		encoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
+		if (!encoderCodec) {
+			LogError(u"avcodec_find_encoder"_q, u"H264"_q);
+			return {};
+		}
+	}
+	const auto outVideoStream = avformat_new_stream(
+		output.get(),
+		encoderCodec);
+	if (!outVideoStream) {
+		LogError(u"avformat_new_stream"_q, u"video"_q);
+		return {};
+	}
+	auto encoder = CodecPointer(avcodec_alloc_context3(encoderCodec));
+	if (!encoder) {
+		LogError(u"avcodec_alloc_context3"_q, u"video"_q);
+		return {};
+	}
+	encoder->codec_id = encoderCodec->id;
+	encoder->codec_type = AVMEDIA_TYPE_VIDEO;
+	encoder->width = target.width();
+	encoder->height = target.height();
+	encoder->time_base = kVideoTimeBase;
+	encoder->framerate = AVRational{ 0, 1 };
+	encoder->pix_fmt = AV_PIX_FMT_YUV420P;
+	encoder->bit_rate = bitrate ? bitrate : TargetBitrate(target, fps);
+	encoder->gop_size = int(base::SafeRound(fps));
+	if (output->oformat->flags & AVFMT_GLOBALHEADER) {
+		encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+	}
+	auto error = AvErrorWrap(avcodec_open2(
+		encoder.get(),
+		encoderCodec,
+		nullptr));
+	if (error) {
+		LogError(u"avcodec_open2"_q, error, u"video"_q);
+		return {};
+	}
+	error = AvErrorWrap(avcodec_parameters_from_context(
+		outVideoStream->codecpar,
+		encoder.get()));
+	if (error) {
+		LogError(u"avcodec_parameters_from_context"_q, error);
+		return {};
+	}
+	outVideoStream->time_base = encoder->time_base;
+
+	error = AvErrorWrap(avformat_write_header(output.get(), nullptr));
+	if (error) {
+		LogError(u"avformat_write_header"_q, error);
+		return {};
+	}
+
+	auto players = std::vector<std::unique_ptr<EntityPlayer>>();
+	players.reserve(overlay.size());
+	for (const auto &layer : overlay) {
+		const auto entity = std::get_if<AnimatedEntity>(&layer);
+		players.push_back(entity
+			? std::make_unique<EntityPlayer>(*entity)
+			: nullptr);
+	}
+
+	auto encodeFrame = MakeFramePointer();
+	if (!encodeFrame) {
+		return {};
+	}
+	encodeFrame->format = AV_PIX_FMT_YUV420P;
+	encodeFrame->width = target.width();
+	encodeFrame->height = target.height();
+	error = AvErrorWrap(av_frame_get_buffer(encodeFrame.get(), 0));
+	if (error) {
+		LogError(u"av_frame_get_buffer"_q, error);
+		return {};
+	}
+	auto canvas = QImage(target, QImage::Format_ARGB32_Premultiplied);
+	auto swscale = MakeSwscalePointer(
+		target,
+		AV_PIX_FMT_BGRA,
+		target,
+		AV_PIX_FMT_YUV420P,
+		nullptr);
+	if (!swscale) {
+		return {};
+	}
+
+	for (auto i = 0; i != framesCount; ++i) {
+		const auto position = crl::time(base::SafeRound(i * 1000. / fps));
+		canvas.fill(Qt::black);
+		{
+			auto p = QPainter(&canvas);
+			p.setRenderHint(QPainter::SmoothPixmapTransform);
+			p.drawImage(0, 0, base);
+			for (auto index = 0; index != int(overlay.size()); ++index) {
+				if (const auto &player = players[index]) {
+					const auto &entity = std::get<AnimatedEntity>(
+						overlay[index]);
+					const auto frame = player->frameAt(position);
+					if (frame.isNull()) {
+						continue;
+					}
+					p.save();
+					const auto center = entity.geometry.center();
+					p.translate(center);
+					if (entity.rotation != 0.) {
+						p.rotate(entity.rotation);
+					}
+					if (entity.flipped) {
+						p.scale(-1., 1.);
+					}
+					p.translate(-center);
+					p.drawImage(entity.geometry, frame);
+					p.restore();
+				} else {
+					p.drawImage(0, 0, std::get<QImage>(overlay[index]));
+				}
+			}
+		}
+		error = AvErrorWrap(av_frame_make_writable(encodeFrame.get()));
+		if (error) {
+			LogError(u"av_frame_make_writable"_q, error);
+			return {};
+		}
+		const uint8_t *srcData[AV_NUM_DATA_POINTERS] = {
+			canvas.constBits(),
+			nullptr,
+		};
+		int srcLinesize[AV_NUM_DATA_POINTERS] = {
+			int(canvas.bytesPerLine()),
+			0,
+		};
+		sws_scale(
+			swscale.get(),
+			srcData,
+			srcLinesize,
+			0,
+			target.height(),
+			encodeFrame->data,
+			encodeFrame->linesize);
+		encodeFrame->pts = int64(base::SafeRound(i * 1'000'000. / fps));
+		if (!EncodeAndWrite(
+				encoder.get(),
+				outVideoStream,
+				output.get(),
+				encodeFrame.get())) {
+			return {};
+		}
+		if (progress && !progress((i + 1) / float64(framesCount))) {
+			return {};
+		}
+	}
+	if (!EncodeAndWrite(
+			encoder.get(),
+			outVideoStream,
+			output.get(),
+			nullptr)) {
+		return {};
+	}
+	error = AvErrorWrap(av_write_trailer(output.get()));
+	if (error) {
+		LogError(u"av_write_trailer"_q, error);
+		return {};
+	}
+	auto produced = std::move(result.content);
+	auto faststart = MoveMoovToFront(produced);
+	return {
+		.bytes = (faststart.isEmpty()
+			? std::move(produced)
+			: std::move(faststart)),
+		.dimensions = target,
+		.duration = crl::time(base::SafeRound(framesCount * 1000. / fps)),
+	};
 }
 
 } // namespace
@@ -372,39 +672,11 @@ QByteArray TranscodeVideoToMp4(
 	});
 
 	const auto writeEncoded = [&](AVFrame *frame) {
-		auto sent = AvErrorWrap(avcodec_send_frame(encoder.get(), frame));
-		if (sent) {
-			LogError(u"avcodec_send_frame"_q, sent);
-			return false;
-		}
-		auto encoded = av_packet_alloc();
-		const auto encodedGuard = gsl::finally([&] {
-			av_packet_free(&encoded);
-		});
-		while (true) {
-			auto received = AvErrorWrap(avcodec_receive_packet(
-				encoder.get(),
-				encoded));
-			if (received.code() == AVERROR(EAGAIN)
-				|| received.code() == AVERROR_EOF) {
-				return true;
-			} else if (received) {
-				LogError(u"avcodec_receive_packet"_q, received);
-				return false;
-			}
-			encoded->stream_index = outVideoStream->index;
-			av_packet_rescale_ts(
-				encoded,
-				encoder->time_base,
-				outVideoStream->time_base);
-			auto written = AvErrorWrap(av_interleaved_write_frame(
-				output.get(),
-				encoded));
-			if (written) {
-				LogError(u"av_interleaved_write_frame"_q, written);
-				return false;
-			}
-		}
+		return EncodeAndWrite(
+			encoder.get(),
+			outVideoStream,
+			output.get(),
+			frame);
 	};
 
 	const auto drainDecoder = [&] {
@@ -538,6 +810,23 @@ QByteArray TranscodeVideoToMp4(
 	auto produced = std::move(result.content);
 	auto faststart = MoveMoovToFront(produced);
 	return faststart.isEmpty() ? produced : faststart;
+}
+
+Result Run(Job &&job, Fn<bool(float64)> progress) {
+	return v::match(job.source, [&](VideoSource &data) {
+		return Result{
+			.bytes = TranscodeVideoToMp4(
+				data.bytes,
+				data.targetShorterSide,
+				std::move(progress)),
+		};
+	}, [&](StillSource &data) {
+		return EncodeStill(
+			std::move(data),
+			std::move(job.overlay),
+			job.bitrate,
+			std::move(progress));
+	});
 }
 
 } // namespace Media::Encode
