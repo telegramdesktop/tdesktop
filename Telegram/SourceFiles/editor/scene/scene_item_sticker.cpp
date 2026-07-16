@@ -186,9 +186,7 @@ QImage ItemSticker::currentFrame() {
 			crl::now());
 		_webm->moveToNextFrame();
 		if (!result.isNull()) {
-			return flipped()
-				? result.transformed(QTransform().scale(-1, 1))
-				: result;
+			return result;
 		}
 	}
 	return _image;
@@ -200,12 +198,49 @@ void ItemSticker::paint(
 		QWidget *w) {
 	const auto rect = contentRect();
 	const auto image = currentFrame();
-	const auto imageSize = QSizeF(image.size() / style::DevicePixelRatio())
-		.scaled(rect.size(), Qt::KeepAspectRatio);
-	const auto resultRect = QRectF(rect.topLeft(), imageSize).translated(
-		(rect.width() - imageSize.width()) / 2.,
-		(rect.height() - imageSize.height()) / 2.);
-	p->drawImage(resultRect, image);
+	if (!image.isNull()) {
+		const auto ratio = style::DevicePixelRatio();
+		const auto fitted = QSizeF(image.size())
+			.scaled(rect.size(), Qt::KeepAspectRatio);
+		const auto resultRect = QRectF(rect.topLeft(), fitted).translated(
+			(rect.width() - fitted.width()) / 2.,
+			(rect.height() - fitted.height()) / 2.);
+		const auto live = (_lottie.player && _lottie.player->ready())
+			|| (_webm && _webm->started());
+		if (live) {
+			p->save();
+			p->setRenderHint(QPainter::SmoothPixmapTransform);
+			if (_webm.valid() && flipped()) {
+				p->translate(resultRect.center().x(), 0);
+				p->scale(-1., 1.);
+				p->translate(-resultRect.center().x(), 0);
+			}
+			p->drawImage(resultRect, image);
+			p->restore();
+		} else {
+			auto pixelSize = (fitted * ratio).toSize();
+			if (pixelSize.width() > image.width()) {
+				pixelSize = image.size();
+			}
+			const auto mirror = _webm.valid() && flipped();
+			if ((_preview.key != image.cacheKey())
+				|| (_preview.size != pixelSize)
+				|| (_preview.flipped != mirror)) {
+				_preview.image = image.scaled(
+					pixelSize,
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation);
+				if (mirror) {
+					_preview.image = _preview.image.mirrored(true, false);
+				}
+				_preview.image.setDevicePixelRatio(ratio);
+				_preview.key = image.cacheKey();
+				_preview.size = pixelSize;
+				_preview.flipped = mirror;
+			}
+			p->drawImage(resultRect, _preview.image);
+		}
+	}
 	ItemBase::paint(p, option, w);
 }
 

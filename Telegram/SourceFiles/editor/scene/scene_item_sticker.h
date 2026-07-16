@@ -58,6 +58,12 @@ private:
 	} _lottie;
 	::Media::Clip::ReaderPointer _webm;
 	QImage _image;
+	struct {
+		QImage image;
+		qint64 key = 0;
+		QSize size;
+		bool flipped = false;
+	} _preview;
 
 	rpl::lifetime _loadingLifetime;
 
