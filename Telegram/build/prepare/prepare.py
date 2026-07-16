@@ -1387,17 +1387,13 @@ if 'build-stackwalk' in options:
 mac:
     git clone https://chromium.googlesource.com/breakpad/breakpad stackwalk
     cd stackwalk
-    git checkout dfcb7b6799
-depends:patches/breakpad.diff
-    git apply ../patches/breakpad.diff
-    git clone -b release-1.11.0 https://github.com/google/googletest src/testing
+    git checkout 9aebd3d8ef
     git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
     cd src/third_party/lss
-    git checkout e1e7b0ad8e
-    cd ../../build
-    PYTHONPATH=$THIRDPARTY_DIR/gyp python3 gyp_breakpad
-    cd ../processor
-    xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
+    git checkout 29164a80da
+    cd ../../..
+    ./configure
+    make -j$(sysctl -n hw.logicalcpu) src/processor/minidump_stackwalk
 """)
 
 stage('breakpad', """
