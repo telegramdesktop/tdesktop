@@ -33,7 +33,7 @@ function(generate_lang target_name lang_file src_loc)
     )
     generate_target(${target_name} lang ${gen_timestamp} "${gen_files}" ${gen_dst})
 
-    if (CMAKE_GENERATOR STREQUAL "Ninja")
+    if (NOT CMAKE_GENERATOR MATCHES "Visual Studio|Xcode")
         file(GLOB_RECURSE lang_sources CONFIGURE_DEPENDS
             ${src_loc}/*.cpp
             ${src_loc}/*.h
@@ -71,6 +71,7 @@ function(generate_lang target_name lang_file src_loc)
         )
         add_custom_target(${target_name}_lang_subsets DEPENDS ${subsets_timestamp})
         init_target_folder(${target_name}_lang_subsets "(gen)")
+        add_dependencies(${target_name}_lang_subsets ${target_name}_lang)
         add_dependencies(${target_name} ${target_name}_lang_subsets)
     endif()
 endfunction()
