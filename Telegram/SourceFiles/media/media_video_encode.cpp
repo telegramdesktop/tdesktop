@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_utility.h"
 #include "lottie/lottie_frame_generator.h"
 
+#include <QtCore/QFileInfo>
 #include <QtCore/QTemporaryFile>
 #include <QtGui/QPainter>
 
@@ -24,6 +25,17 @@ constexpr auto kVideoTimeBase = AVRational{ 1, 1'000'000 };
 constexpr auto kMinBitrate = 600'000;
 constexpr auto kMaxBitrate = 6'800'000;
 constexpr auto kMaxSourceSize = 1000 * int64(1024) * 1024;
+constexpr auto kStaleTempTimeout = 24 * 60 * 60;
+
+[[nodiscard]] QString TempDirectory() {
+	return QDir::tempPath() + u"/tdtranscode"_q;
+}
+
+[[nodiscard]] QString TempFileTemplate() {
+	const auto directory = TempDirectory();
+	QDir().mkpath(directory);
+	return directory + u"/XXXXXX.mp4"_q;
+}
 
 [[nodiscard]] int EvenDown(int value) {
 	return value & ~1;
@@ -60,26 +72,64 @@ void CopyDisplayMatrix(not_null<AVStream*> from, not_null<AVStream*> to) {
 	}
 }
 
-[[nodiscard]] QByteArray MoveMoovToFront(const QByteArray &mp4) {
-	if (mp4.isEmpty()) {
+struct ReadFileWrap {
+	QFile file;
+
+	static int Read(void *opaque, uint8_t *buf, int buf_size) {
+		auto wrap = static_cast<ReadFileWrap*>(opaque);
+		const auto read = wrap->file.read(
+			reinterpret_cast<char*>(buf),
+			buf_size);
+		return (read > 0) ? int(read) : AVERROR_EOF;
+	}
+	static int64_t Seek(void *opaque, int64_t offset, int whence) {
+		auto wrap = static_cast<ReadFileWrap*>(opaque);
+		auto position = int64(-1);
+		switch (whence) {
+		case SEEK_SET: position = offset; break;
+		case SEEK_CUR: position = wrap->file.pos() + offset; break;
+		case SEEK_END: position = wrap->file.size() + offset; break;
+		case AVSEEK_SIZE: return wrap->file.size();
+		}
+		if (position < 0 || position > wrap->file.size()) {
+			return -1;
+		}
+		return wrap->file.seek(position) ? position : -1;
+	}
+};
+
+struct FileFormatDeleter {
+	void operator()(AVFormatContext *value) {
+		if (value) {
+			if (value->pb) {
+				avio_closep(&value->pb);
+			}
+			avformat_free_context(value);
+		}
+	}
+};
+using FileFormatPointer = std::unique_ptr<AVFormatContext, FileFormatDeleter>;
+
+[[nodiscard]] QString MoveMoovToFront(const QString &sourcePath) {
+	if (sourcePath.isEmpty()) {
 		return {};
 	}
-	auto inWrap = ReadBytesWrap{
-		.size = mp4.size(),
-		.data = reinterpret_cast<const uchar*>(mp4.constData()),
-	};
+	auto inWrap = ReadFileWrap();
+	inWrap.file.setFileName(sourcePath);
+	if (!inWrap.file.open(QIODevice::ReadOnly)) {
+		return {};
+	}
 	auto input = MakeFormatPointer(
 		&inWrap,
-		&ReadBytesWrap::Read,
+		&ReadFileWrap::Read,
 		nullptr,
-		&ReadBytesWrap::Seek);
+		&ReadFileWrap::Seek);
 	if (!input
 		|| AvErrorWrap(avformat_find_stream_info(input.get(), nullptr))) {
 		return {};
 	}
 
-	auto temp = QTemporaryFile(
-		QDir::tempPath() + u"/tdtranscode-XXXXXX.mp4"_q);
+	auto temp = QTemporaryFile(TempFileTemplate());
 	if (!temp.open()) {
 		return {};
 	}
@@ -152,8 +202,30 @@ void CopyDisplayMatrix(not_null<AVStream*> from, not_null<AVStream*> to) {
 	}
 	avio_closep(&output->pb);
 
-	auto file = QFile(path);
-	return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+	temp.setAutoRemove(false);
+	return path;
+}
+
+[[nodiscard]] QByteArray MoveMoovToFrontBytes(const QByteArray &mp4) {
+	if (mp4.isEmpty()) {
+		return {};
+	}
+	auto temp = QTemporaryFile(TempFileTemplate());
+	if (!temp.open() || temp.write(mp4) != mp4.size()) {
+		return {};
+	}
+	temp.close();
+	const auto produced = MoveMoovToFront(temp.fileName());
+	if (produced.isEmpty()) {
+		return {};
+	}
+	auto file = QFile(produced);
+	auto result = file.open(QIODevice::ReadOnly)
+		? file.readAll()
+		: QByteArray();
+	file.close();
+	QFile::remove(produced);
+	return result;
 }
 
 [[nodiscard]] bool EncodeAndWrite(
@@ -443,7 +515,7 @@ private:
 		return {};
 	}
 	auto produced = std::move(result.content);
-	auto faststart = MoveMoovToFront(produced);
+	auto faststart = MoveMoovToFrontBytes(produced);
 	return {
 		.bytes = (faststart.isEmpty()
 			? std::move(produced)
@@ -485,25 +557,43 @@ int CompressedShorterSide(QSize original, int64 size) {
 	return shorter;
 }
 
-QByteArray TranscodeVideoToMp4(
-		const QByteArray &source,
+QString TranscodeVideoToMp4(
+		const QString &sourcePath,
+		const QByteArray &sourceContent,
 		int targetShorterSide,
 		Fn<bool(float64)> progress) {
-	if (source.isEmpty()
-		|| source.size() >= kMaxSourceSize
+	const auto sourceSize = !sourceContent.isEmpty()
+		? int64(sourceContent.size())
+		: QFileInfo(sourcePath).size();
+	if (sourceSize <= 0
+		|| sourceSize >= kMaxSourceSize
 		|| targetShorterSide <= 0) {
 		return {};
 	}
 
-	auto inWrap = ReadBytesWrap{
-		.size = source.size(),
-		.data = reinterpret_cast<const uchar*>(source.constData()),
+	auto inBytesWrap = ReadBytesWrap{
+		.size = sourceContent.size(),
+		.data = reinterpret_cast<const uchar*>(sourceContent.constData()),
 	};
-	auto input = MakeFormatPointer(
-		&inWrap,
-		&ReadBytesWrap::Read,
-		nullptr,
-		&ReadBytesWrap::Seek);
+	auto inFileWrap = ReadFileWrap();
+	auto input = FormatPointer();
+	if (!sourceContent.isEmpty()) {
+		input = MakeFormatPointer(
+			&inBytesWrap,
+			&ReadBytesWrap::Read,
+			nullptr,
+			&ReadBytesWrap::Seek);
+	} else {
+		inFileWrap.file.setFileName(sourcePath);
+		if (!inFileWrap.file.open(QIODevice::ReadOnly)) {
+			return {};
+		}
+		input = MakeFormatPointer(
+			&inFileWrap,
+			&ReadFileWrap::Read,
+			nullptr,
+			&ReadFileWrap::Seek);
+	}
 	if (!input) {
 		return {};
 	}
@@ -558,14 +648,28 @@ QByteArray TranscodeVideoToMp4(
 		return {};
 	}
 
-	auto result = WriteBytesWrap();
-	auto output = MakeWriteFormatPointer(
-		static_cast<void*>(&result),
-		nullptr,
-		&WriteBytesWrap::Write,
-		&WriteBytesWrap::Seek,
-		"mp4"_q);
-	if (!output) {
+	auto temp = QTemporaryFile(TempFileTemplate());
+	if (!temp.open()) {
+		return {};
+	}
+	const auto path = temp.fileName();
+	temp.close();
+	const auto pathUtf8 = path.toUtf8();
+
+	auto rawOutput = (AVFormatContext*)nullptr;
+	if (AvErrorWrap(avformat_alloc_output_context2(
+			&rawOutput,
+			nullptr,
+			"mp4",
+			pathUtf8.constData()))
+		|| !rawOutput) {
+		return {};
+	}
+	auto output = FileFormatPointer(rawOutput);
+	if (AvErrorWrap(avio_open(
+			&output->pb,
+			pathUtf8.constData(),
+			AVIO_FLAG_WRITE))) {
 		return {};
 	}
 
@@ -596,7 +700,9 @@ QByteArray TranscodeVideoToMp4(
 	encoder->time_base = kVideoTimeBase;
 	encoder->framerate = AVRational{ 0, 1 };
 	encoder->pix_fmt = AV_PIX_FMT_YUV420P;
-	const auto sourceBitrate = int64(inVideoStream->codecpar->bit_rate);
+	const auto sourceBitrate = int64((inVideoStream->codecpar->bit_rate > 0)
+		? inVideoStream->codecpar->bit_rate
+		: input->bit_rate);
 	const auto targetBitrate = int64(TargetBitrate(target, fps));
 	encoder->bit_rate = (sourceBitrate > 0)
 		? std::min(targetBitrate, sourceBitrate)
@@ -642,7 +748,10 @@ QByteArray TranscodeVideoToMp4(
 		outAudioStream->time_base = inAudioStream->time_base;
 	}
 
-	error = AvErrorWrap(avformat_write_header(output.get(), nullptr));
+	auto muxOptions = (AVDictionary*)nullptr;
+	av_dict_set(&muxOptions, "movflags", "+faststart", 0);
+	error = AvErrorWrap(avformat_write_header(output.get(), &muxOptions));
+	av_dict_free(&muxOptions);
 	if (error) {
 		LogError(u"avformat_write_header"_q, error);
 		return {};
@@ -752,6 +861,10 @@ QByteArray TranscodeVideoToMp4(
 	};
 
 	while (true) {
+		if (output->pb && avio_tell(output->pb) > sourceSize) {
+			LogError(u"transcode"_q, u"Output exceeded source size."_q);
+			return {};
+		}
 		auto read = AvErrorWrap(av_read_frame(input.get(), packet));
 		if (read.code() == AVERROR_EOF) {
 			break;
@@ -807,25 +920,49 @@ QByteArray TranscodeVideoToMp4(
 		return {};
 	}
 
-	auto produced = std::move(result.content);
-	auto faststart = MoveMoovToFront(produced);
-	return faststart.isEmpty() ? produced : faststart;
+	avio_closep(&output->pb);
+
+	temp.setAutoRemove(false);
+	return path;
 }
 
 Result Run(Job &&job, Fn<bool(float64)> progress) {
 	return v::match(job.source, [&](VideoSource &data) {
-		return Result{
-			.bytes = TranscodeVideoToMp4(
-				data.bytes,
-				data.targetShorterSide,
-				std::move(progress)),
-		};
+		auto result = Result();
+		const auto path = TranscodeVideoToMp4(
+			QString(),
+			data.bytes,
+			data.targetShorterSide,
+			std::move(progress));
+		if (!path.isEmpty()) {
+			auto file = QFile(path);
+			if (file.open(QIODevice::ReadOnly)) {
+				result.bytes = file.readAll();
+			}
+			file.close();
+			QFile::remove(path);
+		}
+		return result;
 	}, [&](StillSource &data) {
 		return EncodeStill(
 			std::move(data),
 			std::move(job.overlay),
 			job.bitrate,
 			std::move(progress));
+	});
+}
+
+void ClearStaleTempFiles() {
+	crl::async([] {
+		const auto stale = QDateTime::currentDateTime().addSecs(
+			-kStaleTempTimeout);
+		const auto entries = QDir(TempDirectory()).entryInfoList(
+			QDir::Files | QDir::NoDotAndDotDot);
+		for (const auto &entry : entries) {
+			if (entry.lastModified() < stale) {
+				QFile::remove(entry.absoluteFilePath());
+			}
+		}
 	});
 }
 

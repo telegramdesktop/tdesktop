@@ -113,7 +113,10 @@ private:
 	void maybeSend();
 	void startTranscode(FullMsgId itemId);
 	void updatePrepareProgress(FullMsgId itemId, float64 progress);
-	void finishTranscode(FullMsgId itemId, QByteArray bytes);
+	void finishTranscode(
+		FullMsgId itemId,
+		QByteArray bytes,
+		const QString &path);
 	[[nodiscard]] bool canAddDcIndex() const;
 	[[nodiscard]] std::optional<uchar> chooseDcIndexForNextRequest(
 		const base::flat_set<uchar> &used);

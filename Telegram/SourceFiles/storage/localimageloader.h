@@ -177,6 +177,7 @@ struct FilePrepareDescriptor {
 };
 struct FilePrepareResult {
 	explicit FilePrepareResult(FilePrepareDescriptor &&descriptor);
+	~FilePrepareResult();
 
 	TaskId taskId = kEmptyTaskId;
 	uint64 id = 0;
@@ -212,6 +213,7 @@ struct FilePrepareResult {
 	bool forceFile = false;
 	int videoTranscodeHeight = 0;
 	std::shared_ptr<Media::Encode::Job> animationJob;
+	QString transcodedTempPath;
 
 	std::vector<MTPInputDocument> attachedStickers;
 

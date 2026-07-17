@@ -449,6 +449,12 @@ SendingAlbum::Item::Item(TaskId taskId)
 : taskId(taskId) {
 }
 
+FilePrepareResult::~FilePrepareResult() {
+	if (!transcodedTempPath.isEmpty()) {
+		QFile::remove(transcodedTempPath);
+	}
+}
+
 FilePrepareResult::FilePrepareResult(FilePrepareDescriptor &&descriptor)
 : taskId(descriptor.taskId)
 , id(descriptor.id)

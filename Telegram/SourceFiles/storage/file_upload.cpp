@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "apiwrap.h"
 
+#include <QtCore/QFileInfo>
+
 namespace Storage {
 namespace {
 
@@ -402,6 +404,7 @@ void Uploader::startTranscode(FullMsgId itemId) {
 			return !cancel->load();
 		};
 		auto bytes = QByteArray();
+		auto path = QString();
 		if (job) {
 			auto result = Media::Encode::Run(
 				Media::Encode::Job(*job),
@@ -419,22 +422,21 @@ void Uploader::startTranscode(FullMsgId itemId) {
 			}
 			bytes = std::move(result.bytes);
 		} else {
-			auto source = file->content;
-			if (source.isEmpty() && !file->filepath.isEmpty()) {
-				auto f = QFile(file->filepath);
-				if (f.open(QIODevice::ReadOnly)) {
-					source = f.readAll();
-				}
-			}
-			bytes = Media::Encode::TranscodeVideoToMp4(
-				source,
+			path = Media::Encode::TranscodeVideoToMp4(
+				file->filepath,
+				file->content,
 				height,
 				progress);
 		}
-		crl::on_main(weak, [=, bytes = std::move(bytes)]() mutable {
-			if (!cancel->load()) {
-				finishTranscode(itemId, std::move(bytes));
+		crl::on_main([=, bytes = std::move(bytes)]() mutable {
+			const auto strong = weak.get();
+			if (!strong || cancel->load()) {
+				if (!path.isEmpty()) {
+					QFile::remove(path);
+				}
+				return;
 			}
+			strong->finishTranscode(itemId, std::move(bytes), path);
 		});
 	});
 }
@@ -451,43 +453,49 @@ void Uploader::updatePrepareProgress(FullMsgId itemId, float64 progress) {
 	_documentProgress.fire_copy(itemId);
 }
 
-void Uploader::finishTranscode(FullMsgId itemId, QByteArray bytes) {
+void Uploader::finishTranscode(
+		FullMsgId itemId,
+		QByteArray bytes,
+		const QString &path) {
 	const auto i = ranges::find(_queue, itemId, &Entry::itemId);
 	if (i == end(_queue) || !i->preparing) {
+		if (!path.isEmpty()) {
+			QFile::remove(path);
+		}
 		return;
 	}
 	auto &entry = *i;
 	const auto file = entry.file;
-	if (bytes.isEmpty()) {
-		bytes = file->content;
-		if (bytes.isEmpty() && !file->filepath.isEmpty()) {
-			auto f = QFile(file->filepath);
-			if (f.open(QIODevice::ReadOnly)) {
-				bytes = f.readAll();
-			}
-		}
-		if (bytes.isEmpty()) {
-			failed(itemId);
-			return;
-		}
-	}
-	file->content = bytes;
-	file->filepath = QString();
-	file->filesize = int64(bytes.size());
-
 	const auto document = session().data().document(file->id);
-	document->size = int64(bytes.size());
+	auto size = int64();
+	if (!path.isEmpty()) {
+		size = QFileInfo(path).size();
+		file->content = QByteArray();
+		file->filepath = path;
+		file->transcodedTempPath = path;
+		document->setLocation(Core::FileLocation(path));
+	} else if (!bytes.isEmpty()) {
+		size = int64(bytes.size());
+		file->content = bytes;
+		file->filepath = QString();
+		document->setDataAndCache(bytes);
+	}
+	if (size <= 0) {
+		failed(itemId);
+		return;
+	}
+	file->filesize = size;
+	document->size = size;
 	if (document->uploadingData) {
-		document->uploadingData->size = int64(bytes.size());
+		document->uploadingData->size = size;
 		document->uploadingData->offset = 0;
 		document->uploadingData->preparing = false;
 		document->uploadingData->prepareProgress = 1.;
 	}
-	document->setDataAndCache(bytes);
 
 	entry.preparing = false;
 	entry.cancelPreparing = nullptr;
-	entry.setDocSize(int64(bytes.size()));
+	entry.setDocSize(size);
 
 	_documentProgress.fire_copy(itemId);
 	if (!_nextTimer.isActive()) {

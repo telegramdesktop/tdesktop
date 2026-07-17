@@ -58,9 +58,12 @@ struct Result {
 
 [[nodiscard]] QSize DownscaledSize(QSize original, int targetShorterSide);
 
-[[nodiscard]] QByteArray TranscodeVideoToMp4(
-	const QByteArray &source,
+[[nodiscard]] QString TranscodeVideoToMp4(
+	const QString &sourcePath,
+	const QByteArray &sourceContent,
 	int targetShorterSide,
 	Fn<bool(float64)> progress = nullptr);
+
+void ClearStaleTempFiles();
 
 } // namespace Media::Encode
