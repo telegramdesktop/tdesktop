@@ -38,7 +38,7 @@ public:
 	[[nodiscard]] int number() const;
 
 	[[nodiscard]] Status status() const;
-	void setStatus(Status status);
+	virtual void setStatus(Status status);
 	[[nodiscard]] bool isNormalStatus() const;
 	[[nodiscard]] bool isUndidStatus() const;
 	[[nodiscard]] bool isRemovedStatus() const;

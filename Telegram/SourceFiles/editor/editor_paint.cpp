@@ -340,6 +340,7 @@ QPointF Paint::mapWidgetDeltaToScene(QPoint delta) const {
 Paint::~Paint() {
 	_scene->setPendingShape(std::nullopt);
 	_scene->cancelTextEditing();
+	_scene->releaseAnimations();
 	if (_viewport) {
 		_viewport->removeEventFilter(this);
 	}

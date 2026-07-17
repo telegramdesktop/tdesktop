@@ -744,6 +744,14 @@ bool Scene::hasAnimatedItems() const {
 	return false;
 }
 
+void Scene::releaseAnimations() {
+	for (const auto &item : _items) {
+		if (item->type() == ItemSticker::Type) {
+			static_cast<ItemSticker*>(item.get())->releasePlayers();
+		}
+	}
+}
+
 std::shared_ptr<float64> Scene::lastZ() const {
 	return _lastZ;
 }

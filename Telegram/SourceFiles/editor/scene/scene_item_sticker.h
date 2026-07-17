@@ -38,6 +38,8 @@ public:
 		const QTransform &sceneToCanvas) const;
 	[[nodiscard]] QByteArray content() const;
 	[[nodiscard]] crl::time loopDuration() const;
+	void releasePlayers();
+	void setStatus(Status status) override;
 	int type() const override;
 
 protected:
@@ -50,6 +52,7 @@ private:
 
 	void updatePixmap(QImage &&image);
 	void clipCallback(::Media::Clip::Notification notification);
+	bool createPlayer();
 	[[nodiscard]] QImage currentFrame();
 
 	struct {
@@ -64,6 +67,10 @@ private:
 		QSize size;
 		bool flipped = false;
 	} _preview;
+
+	crl::time _loopDuration = 0;
+	bool _releasedAnimation = false;
+	bool _pendingRecreate = false;
 
 	rpl::lifetime _loadingLifetime;
 

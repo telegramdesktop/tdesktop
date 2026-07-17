@@ -37,30 +37,7 @@ ItemSticker::ItemSticker(
 				setAspectRatio(1.);
 			}
 		});
-		if (stickerData->isLottie()) {
-			_lottie.player = ChatHelpers::LottiePlayerFromDocument(
-				_mediaView.get(),
-				ChatHelpers::StickerLottieSize::MessageHistory,
-				QSize(kStickerSideSize, kStickerSideSize)
-					* style::DevicePixelRatio(),
-				Lottie::Quality::High);
-			_lottie.player->updates(
-			) | rpl::on_next([=] {
-				if (_image.isNull()) {
-					updatePixmap(_lottie.player->frame());
-				}
-				update();
-			}, _lottie.lifetime);
-			return true;
-		} else if (stickerData->isWebm()
-			&& !_document->dimensions.isEmpty()) {
-			const auto callback = [=](::Media::Clip::Notification value) {
-				clipCallback(value);
-			};
-			_webm = ::Media::Clip::MakeReader(
-				_mediaView->owner()->location(),
-				_mediaView->bytes(),
-				callback);
+		if (createPlayer()) {
 			return true;
 		}
 		const auto sticker = _mediaView->getStickerLarge();
@@ -82,6 +59,59 @@ ItemSticker::ItemSticker(
 			}
 		}, _loadingLifetime);
 	}
+}
+
+bool ItemSticker::createPlayer() {
+	const auto stickerData = _document->sticker();
+	if (!stickerData) {
+		return false;
+	}
+	if (stickerData->isLottie()) {
+		_lottie.player = ChatHelpers::LottiePlayerFromDocument(
+			_mediaView.get(),
+			ChatHelpers::StickerLottieSize::MessageHistory,
+			QSize(kStickerSideSize, kStickerSideSize)
+				* style::DevicePixelRatio(),
+			Lottie::Quality::High);
+		_lottie.player->updates(
+		) | rpl::on_next([=] {
+			if (_image.isNull()) {
+				updatePixmap(_lottie.player->frame());
+			}
+			update();
+		}, _lottie.lifetime);
+		return true;
+	} else if (stickerData->isWebm()
+		&& !_document->dimensions.isEmpty()) {
+		const auto callback = [=](::Media::Clip::Notification value) {
+			clipCallback(value);
+		};
+		_webm = ::Media::Clip::MakeReader(
+			_mediaView->owner()->location(),
+			_mediaView->bytes(),
+			callback);
+		return true;
+	}
+	return false;
+}
+
+void ItemSticker::releasePlayers() {
+	if (!animated()) {
+		return;
+	}
+	_loopDuration = loopDuration();
+	_releasedAnimation = true;
+	_pendingRecreate = true;
+	_lottie.lifetime.destroy();
+	_lottie.player = nullptr;
+	_webm.reset();
+}
+
+void ItemSticker::setStatus(Status status) {
+	if (status != Status::Normal) {
+		releasePlayers();
+	}
+	ItemBase::setStatus(status);
 }
 
 void ItemSticker::updatePixmap(QImage &&image) {
@@ -117,7 +147,7 @@ void ItemSticker::clipCallback(::Media::Clip::Notification notification) {
 }
 
 bool ItemSticker::animated() const {
-	return (_lottie.player != nullptr) || _webm.valid();
+	return (_lottie.player != nullptr) || _webm.valid() || _releasedAnimation;
 }
 
 Media::Encode::AnimatedEntity ItemSticker::animatedEntity(
@@ -168,7 +198,7 @@ crl::time ItemSticker::loopDuration() const {
 				information.framesCount * 1000. / information.frameRate));
 		}
 	}
-	return 0;
+	return _loopDuration;
 }
 
 QImage ItemSticker::currentFrame() {
@@ -196,6 +226,10 @@ void ItemSticker::paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *w) {
+	if (_pendingRecreate && w) {
+		_pendingRecreate = false;
+		createPlayer();
+	}
 	const auto rect = contentRect();
 	const auto image = currentFrame();
 	if (!image.isNull()) {
