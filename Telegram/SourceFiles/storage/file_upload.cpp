@@ -384,6 +384,28 @@ void Uploader::upload(
 }
 
 void Uploader::startTranscode(FullMsgId itemId) {
+	_transcodeQueue.push_back(itemId);
+	maybeStartTranscode();
+}
+
+void Uploader::maybeStartTranscode() {
+	if (_transcodeRunning) {
+		return;
+	}
+	while (!_transcodeQueue.empty()) {
+		const auto itemId = _transcodeQueue.front();
+		_transcodeQueue.pop_front();
+		const auto i = ranges::find(_queue, itemId, &Entry::itemId);
+		if (i == end(_queue) || !i->preparing) {
+			continue;
+		}
+		_transcodeRunning = true;
+		runTranscode(itemId);
+		return;
+	}
+}
+
+void Uploader::runTranscode(FullMsgId itemId) {
 	const auto i = ranges::find(_queue, itemId, &Entry::itemId);
 	Assert(i != end(_queue));
 	auto &entry = *i;
@@ -430,13 +452,21 @@ void Uploader::startTranscode(FullMsgId itemId) {
 		}
 		crl::on_main([=, bytes = std::move(bytes)]() mutable {
 			const auto strong = weak.get();
-			if (!strong || cancel->load()) {
+			if (!strong) {
 				if (!path.isEmpty()) {
 					QFile::remove(path);
 				}
 				return;
 			}
-			strong->finishTranscode(itemId, std::move(bytes), path);
+			strong->_transcodeRunning = false;
+			if (cancel->load()) {
+				if (!path.isEmpty()) {
+					QFile::remove(path);
+				}
+			} else {
+				strong->finishTranscode(itemId, std::move(bytes), path);
+			}
+			strong->maybeStartTranscode();
 		});
 	});
 }
@@ -880,6 +910,7 @@ void Uploader::clear() {
 			entry.cancelPreparing->store(true);
 		}
 	}
+	_transcodeQueue.clear();
 	_queue.clear();
 	cancelAllRequests();
 	stopSessions();
