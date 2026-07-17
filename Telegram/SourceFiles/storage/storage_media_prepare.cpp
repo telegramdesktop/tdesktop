@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/storage_media_prepare.h"
 
+#include "data/data_document.h"
 #include "editor/photo_editor_common.h"
 #include "editor/scene/scene.h"
+#include "editor/scene/scene_item_sticker.h"
 #include "platform/platform_file_utilities.h"
 #include "lang/lang_keys.h"
 #include "storage/localimageloader.h"
@@ -439,6 +441,15 @@ bool ApplyModifications(PreparedList &list, bool composeAnimated) {
 			std::move(image->data),
 			image->modifications);
 		if (file.animationJob) {
+			auto &ids = file.animationJob->attachedStickerIds;
+			for (const auto &item : scene->items()) {
+				if (item->isVisible()
+					&& (item->type() == Editor::ItemSticker::Type)) {
+					const auto sticker
+						= static_cast<Editor::ItemSticker*>(item.get());
+					ids.push_back(sticker->sticker()->id);
+				}
+			}
 			image->modifications = Editor::PhotoModifications();
 		}
 	};

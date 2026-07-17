@@ -37,6 +37,7 @@ struct VideoSource {
 struct Job {
 	std::variant<VideoSource, StillSource> source;
 	std::vector<Layer> overlay;
+	std::vector<uint64> attachedStickerIds;
 	int bitrate = 0;
 	bool silentLoop = false;
 };

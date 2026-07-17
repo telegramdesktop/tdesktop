@@ -1181,6 +1181,13 @@ void FileLoadTask::finish() {
 			Api::SendConfirmedFile(session, _result);
 		}
 	} else {
+		if (const auto &job = _result->animationJob) {
+			_result->attachedStickers = job->attachedStickerIds
+				| ranges::views::transform([&](uint64 id) {
+					return session->data().document(id)->mtpInput();
+				})
+				| ranges::to_vector;
+		}
 		Api::SendConfirmedFile(session, _result);
 	}
 }
