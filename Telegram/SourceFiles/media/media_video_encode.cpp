@@ -16,6 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QTemporaryFile>
 #include <QtGui/QPainter>
 
+extern "C" {
+#include <libavutil/audio_fifo.h>
+#include <libavutil/samplefmt.h>
+} // extern "C"
+
 namespace Media::Encode {
 namespace {
 
@@ -25,7 +30,11 @@ constexpr auto kVideoTimeBase = AVRational{ 1, 1'000'000 };
 constexpr auto kMinBitrate = 600'000;
 constexpr auto kMaxBitrate = 6'800'000;
 constexpr auto kMaxSourceSize = 1000 * int64(1024) * 1024;
+constexpr auto kAudioFrequency = 48'000;
+constexpr auto kAudioBitratePerChannel = 64'000;
 constexpr auto kStaleTempTimeout = 24 * 60 * 60;
+
+constexpr auto kMp3InMp4MinFrequency = 16'000;
 
 [[nodiscard]] QString TempDirectory() {
 	return QDir::tempPath() + u"/tdtranscode"_q;
@@ -266,6 +275,265 @@ using FileFormatPointer = std::unique_ptr<AVFormatContext, FileFormatDeleter>;
 			return false;
 		}
 	}
+}
+
+struct AudioFifoDeleter {
+	void operator()(AVAudioFifo *value) {
+		av_audio_fifo_free(value);
+	}
+};
+using AudioFifoPointer = std::unique_ptr<AVAudioFifo, AudioFifoDeleter>;
+
+class AudioTranscoder final {
+public:
+	[[nodiscard]] bool init(
+		not_null<AVFormatContext*> output,
+		not_null<AVStream*> inStream);
+	[[nodiscard]] bool process(
+		not_null<AVFormatContext*> output,
+		AVPacket *packet);
+	[[nodiscard]] bool finish(not_null<AVFormatContext*> output);
+
+private:
+	[[nodiscard]] bool drainDecoder(not_null<AVFormatContext*> output);
+	[[nodiscard]] bool pushToFifo(AVFrame *frame);
+	[[nodiscard]] bool encodeFromFifo(
+		not_null<AVFormatContext*> output,
+		bool flushing);
+
+	CodecPointer _decoder;
+	CodecPointer _encoder;
+	SwresamplePointer _swr;
+	AudioFifoPointer _fifo;
+	FramePointer _decodedFrame;
+	FramePointer _encodeFrame;
+	AVStream *_stream = nullptr;
+	AVRational _inTimeBase = AVRational{ 0, 1 };
+	int64 _pts = 0;
+	bool _ptsSeeded = false;
+
+};
+
+bool AudioTranscoder::init(
+		not_null<AVFormatContext*> output,
+		not_null<AVStream*> inStream) {
+	_decoder = MakeCodecPointer({ .stream = inStream });
+	if (!_decoder) {
+		return false;
+	}
+	_inTimeBase = inStream->time_base;
+	const auto codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+	if (!codec) {
+		LogError(u"avcodec_find_encoder"_q, u"AAC"_q);
+		return false;
+	}
+	_stream = avformat_new_stream(output, codec);
+	if (!_stream) {
+		LogError(u"avformat_new_stream"_q, u"AAC"_q);
+		return false;
+	}
+	_encoder = CodecPointer(avcodec_alloc_context3(codec));
+	if (!_encoder) {
+		LogError(u"avcodec_alloc_context3"_q, u"AAC"_q);
+		return false;
+	}
+	const auto channels = std::clamp(_decoder->ch_layout.nb_channels, 1, 2);
+	av_channel_layout_default(&_encoder->ch_layout, channels);
+	_encoder->codec_type = AVMEDIA_TYPE_AUDIO;
+	_encoder->sample_fmt = AV_SAMPLE_FMT_FLTP;
+	_encoder->sample_rate = kAudioFrequency;
+	_encoder->time_base = AVRational{ 1, kAudioFrequency };
+	_encoder->bit_rate = kAudioBitratePerChannel * channels;
+	if (output->oformat->flags & AVFMT_GLOBALHEADER) {
+		_encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+	}
+	auto error = AvErrorWrap(avcodec_open2(_encoder.get(), codec, nullptr));
+	if (error) {
+		LogError(u"avcodec_open2"_q, error, u"AAC"_q);
+		return false;
+	}
+	error = AvErrorWrap(avcodec_parameters_from_context(
+		_stream->codecpar,
+		_encoder.get()));
+	if (error) {
+		LogError(u"avcodec_parameters_from_context"_q, error, u"AAC"_q);
+		return false;
+	}
+	_stream->time_base = _encoder->time_base;
+	_fifo = AudioFifoPointer(av_audio_fifo_alloc(
+		_encoder->sample_fmt,
+		channels,
+		_encoder->frame_size * 4));
+	_decodedFrame = MakeFramePointer();
+	_encodeFrame = MakeFramePointer();
+	return _fifo && _decodedFrame && _encodeFrame;
+}
+
+bool AudioTranscoder::process(
+		not_null<AVFormatContext*> output,
+		AVPacket *packet) {
+	const auto sent = AvErrorWrap(avcodec_send_packet(
+		_decoder.get(),
+		packet));
+	if (sent) {
+		LogError(u"avcodec_send_packet"_q, sent, u"audio"_q);
+		return (sent.code() == AVERROR_INVALIDDATA);
+	}
+	return drainDecoder(output);
+}
+
+bool AudioTranscoder::drainDecoder(not_null<AVFormatContext*> output) {
+	while (true) {
+		const auto got = AvErrorWrap(avcodec_receive_frame(
+			_decoder.get(),
+			_decodedFrame.get()));
+		if (got.code() == AVERROR(EAGAIN) || got.code() == AVERROR_EOF) {
+			return true;
+		} else if (got) {
+			LogError(u"avcodec_receive_frame"_q, got, u"audio"_q);
+			return (got.code() == AVERROR_INVALIDDATA);
+		}
+		_swr = MakeSwresamplePointer(
+			&_decodedFrame->ch_layout,
+			AVSampleFormat(_decodedFrame->format),
+			_decodedFrame->sample_rate,
+			&_encoder->ch_layout,
+			_encoder->sample_fmt,
+			_encoder->sample_rate,
+			&_swr);
+		if (!_swr) {
+			return false;
+		}
+		if (!_ptsSeeded) {
+			_ptsSeeded = true;
+			const auto raw = (_decodedFrame->best_effort_timestamp
+				!= AV_NOPTS_VALUE)
+				? _decodedFrame->best_effort_timestamp
+				: _decodedFrame->pts;
+			if (raw != AV_NOPTS_VALUE && _inTimeBase.den > 0) {
+				_pts = std::max(
+					av_rescale_q(
+						raw,
+						_inTimeBase,
+						AVRational{ 1, kAudioFrequency }),
+					int64(0));
+			}
+		}
+		if (!pushToFifo(_decodedFrame.get())
+			|| !encodeFromFifo(output, false)) {
+			return false;
+		}
+	}
+}
+
+bool AudioTranscoder::pushToFifo(AVFrame *frame) {
+	const auto in = frame ? frame->nb_samples : 0;
+	const auto upper = int(swr_get_out_samples(_swr.get(), in));
+	if (upper <= 0) {
+		return true;
+	}
+	auto converted = MakeFramePointer();
+	if (!converted) {
+		return false;
+	}
+	converted->nb_samples = upper;
+	converted->format = _encoder->sample_fmt;
+	converted->sample_rate = _encoder->sample_rate;
+	av_channel_layout_copy(&converted->ch_layout, &_encoder->ch_layout);
+	const auto error = AvErrorWrap(av_frame_get_buffer(converted.get(), 0));
+	if (error) {
+		LogError(u"av_frame_get_buffer"_q, error, u"audio"_q);
+		return false;
+	}
+	const auto samples = swr_convert(
+		_swr.get(),
+		converted->extended_data,
+		upper,
+		frame ? const_cast<const uint8_t**>(frame->extended_data) : nullptr,
+		in);
+	if (samples < 0) {
+		LogError(u"swr_convert"_q, AvErrorWrap(samples));
+		return false;
+	} else if (!samples) {
+		return true;
+	}
+	const auto written = av_audio_fifo_write(
+		_fifo.get(),
+		reinterpret_cast<void**>(converted->extended_data),
+		samples);
+	if (written < samples) {
+		LogError(u"av_audio_fifo_write"_q);
+		return false;
+	}
+	return true;
+}
+
+bool AudioTranscoder::encodeFromFifo(
+		not_null<AVFormatContext*> output,
+		bool flushing) {
+	const auto frameSize = _encoder->frame_size;
+	while (true) {
+		const auto available = av_audio_fifo_size(_fifo.get());
+		if (available <= 0 || (!flushing && available < frameSize)) {
+			return true;
+		}
+		const auto take = std::min(available, frameSize);
+		av_frame_unref(_encodeFrame.get());
+		_encodeFrame->nb_samples = frameSize;
+		_encodeFrame->format = _encoder->sample_fmt;
+		_encodeFrame->sample_rate = _encoder->sample_rate;
+		av_channel_layout_copy(
+			&_encodeFrame->ch_layout,
+			&_encoder->ch_layout);
+		const auto error = AvErrorWrap(av_frame_get_buffer(
+			_encodeFrame.get(),
+			0));
+		if (error) {
+			LogError(u"av_frame_get_buffer"_q, error, u"audio"_q);
+			return false;
+		}
+		const auto read = av_audio_fifo_read(
+			_fifo.get(),
+			reinterpret_cast<void**>(_encodeFrame->extended_data),
+			take);
+		if (read < take) {
+			LogError(u"av_audio_fifo_read"_q);
+			return false;
+		}
+		if (take < frameSize) {
+			av_samples_set_silence(
+				_encodeFrame->extended_data,
+				take,
+				frameSize - take,
+				_encoder->ch_layout.nb_channels,
+				_encoder->sample_fmt);
+		}
+		_encodeFrame->pts = _pts;
+		_pts += take;
+		if (!EncodeAndWrite(
+				_encoder.get(),
+				_stream,
+				output,
+				_encodeFrame.get())) {
+			return false;
+		}
+	}
+}
+
+bool AudioTranscoder::finish(not_null<AVFormatContext*> output) {
+	const auto sent = AvErrorWrap(avcodec_send_packet(
+		_decoder.get(),
+		nullptr));
+	if (!sent && !drainDecoder(output)) {
+		return false;
+	}
+	if (_swr && !pushToFifo(nullptr)) {
+		return false;
+	}
+	if (!encodeFromFifo(output, true)) {
+		return false;
+	}
+	return EncodeAndWrite(_encoder.get(), _stream, output, nullptr);
 }
 
 class EntityPlayer final {
@@ -731,21 +999,34 @@ QString TranscodeVideoToMp4(
 		? input->streams[audioId]
 		: nullptr;
 	auto outAudioStream = (AVStream*)nullptr;
+	auto audioTranscoder = std::optional<AudioTranscoder>();
 	if (inAudioStream) {
-		outAudioStream = avformat_new_stream(output.get(), nullptr);
-		if (!outAudioStream) {
-			LogError(u"avformat_new_stream"_q, u"audio"_q);
-			return {};
+		const auto codecId = inAudioStream->codecpar->codec_id;
+		const auto frequency = inAudioStream->codecpar->sample_rate;
+		const auto copyCompatible = (codecId == AV_CODEC_ID_AAC)
+			|| ((codecId == AV_CODEC_ID_MP3)
+				&& (frequency >= kMp3InMp4MinFrequency));
+		if (!copyCompatible) {
+			audioTranscoder.emplace();
+			if (!audioTranscoder->init(output.get(), inAudioStream)) {
+				return {};
+			}
+		} else {
+			outAudioStream = avformat_new_stream(output.get(), nullptr);
+			if (!outAudioStream) {
+				LogError(u"avformat_new_stream"_q, u"audio"_q);
+				return {};
+			}
+			error = AvErrorWrap(avcodec_parameters_copy(
+				outAudioStream->codecpar,
+				inAudioStream->codecpar));
+			if (error) {
+				LogError(u"avcodec_parameters_copy"_q, error);
+				return {};
+			}
+			outAudioStream->codecpar->codec_tag = 0;
+			outAudioStream->time_base = inAudioStream->time_base;
 		}
-		error = AvErrorWrap(avcodec_parameters_copy(
-			outAudioStream->codecpar,
-			inAudioStream->codecpar));
-		if (error) {
-			LogError(u"avcodec_parameters_copy"_q, error);
-			return {};
-		}
-		outAudioStream->codecpar->codec_tag = 0;
-		outAudioStream->time_base = inAudioStream->time_base;
 	}
 
 	auto muxOptions = (AVDictionary*)nullptr;
@@ -887,19 +1168,25 @@ QString TranscodeVideoToMp4(
 			if (!drainDecoder()) {
 				return {};
 			}
-		} else if (outAudioStream && packet->stream_index == audioId) {
-			av_packet_rescale_ts(
-				packet,
-				inAudioStream->time_base,
-				outAudioStream->time_base);
-			packet->stream_index = outAudioStream->index;
-			packet->pos = -1;
-			auto written = AvErrorWrap(av_interleaved_write_frame(
-				output.get(),
-				packet));
-			if (written) {
-				LogError(u"av_interleaved_write_frame"_q, written);
-				return {};
+		} else if (packet->stream_index == audioId) {
+			if (audioTranscoder) {
+				if (!audioTranscoder->process(output.get(), packet)) {
+					return {};
+				}
+			} else if (outAudioStream) {
+				av_packet_rescale_ts(
+					packet,
+					inAudioStream->time_base,
+					outAudioStream->time_base);
+				packet->stream_index = outAudioStream->index;
+				packet->pos = -1;
+				auto written = AvErrorWrap(av_interleaved_write_frame(
+					output.get(),
+					packet));
+				if (written) {
+					LogError(u"av_interleaved_write_frame"_q, written);
+					return {};
+				}
 			}
 		}
 	}
@@ -911,6 +1198,9 @@ QString TranscodeVideoToMp4(
 		return {};
 	}
 	if (!writeEncoded(nullptr)) {
+		return {};
+	}
+	if (audioTranscoder && !audioTranscoder->finish(output.get())) {
 		return {};
 	}
 
