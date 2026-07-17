@@ -119,6 +119,65 @@ struct FileFormatDeleter {
 };
 using FileFormatPointer = std::unique_ptr<AVFormatContext, FileFormatDeleter>;
 
+struct H264Encoder {
+	AVStream *stream = nullptr;
+	CodecPointer codec;
+};
+
+[[nodiscard]] H264Encoder CreateH264Encoder(
+		not_null<AVFormatContext*> output,
+		QSize size,
+		int64 bitrate,
+		int gopSize) {
+	auto encoderCodec = avcodec_find_encoder_by_name("libopenh264");
+	if (!encoderCodec) {
+		encoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
+		if (!encoderCodec) {
+			LogError(u"avcodec_find_encoder"_q, u"H264"_q);
+			return {};
+		}
+	}
+	const auto stream = avformat_new_stream(output, encoderCodec);
+	if (!stream) {
+		LogError(u"avformat_new_stream"_q, u"video"_q);
+		return {};
+	}
+	auto encoder = CodecPointer(avcodec_alloc_context3(encoderCodec));
+	if (!encoder) {
+		LogError(u"avcodec_alloc_context3"_q, u"video"_q);
+		return {};
+	}
+	encoder->codec_id = encoderCodec->id;
+	encoder->codec_type = AVMEDIA_TYPE_VIDEO;
+	encoder->width = size.width();
+	encoder->height = size.height();
+	encoder->time_base = kVideoTimeBase;
+	encoder->framerate = AVRational{ 0, 1 };
+	encoder->pix_fmt = AV_PIX_FMT_YUV420P;
+	encoder->bit_rate = bitrate;
+	encoder->gop_size = gopSize;
+	if (output->oformat->flags & AVFMT_GLOBALHEADER) {
+		encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+	}
+	auto error = AvErrorWrap(avcodec_open2(
+		encoder.get(),
+		encoderCodec,
+		nullptr));
+	if (error) {
+		LogError(u"avcodec_open2"_q, error, u"video"_q);
+		return {};
+	}
+	error = AvErrorWrap(avcodec_parameters_from_context(
+		stream->codecpar,
+		encoder.get()));
+	if (error) {
+		LogError(u"avcodec_parameters_from_context"_q, error);
+		return {};
+	}
+	stream->time_base = encoder->time_base;
+	return { stream, std::move(encoder) };
+}
+
 [[nodiscard]] QString MoveMoovToFront(const QString &sourcePath) {
 	if (sourcePath.isEmpty()) {
 		return {};
@@ -618,56 +677,18 @@ private:
 	if (!output) {
 		return {};
 	}
-	auto encoderCodec = avcodec_find_encoder_by_name("libopenh264");
-	if (!encoderCodec) {
-		encoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
-		if (!encoderCodec) {
-			LogError(u"avcodec_find_encoder"_q, u"H264"_q);
-			return {};
-		}
-	}
-	const auto outVideoStream = avformat_new_stream(
+	auto video = CreateH264Encoder(
 		output.get(),
-		encoderCodec);
-	if (!outVideoStream) {
-		LogError(u"avformat_new_stream"_q, u"video"_q);
+		target,
+		bitrate ? int64(bitrate) : int64(TargetBitrate(target, fps)),
+		int(base::SafeRound(fps)));
+	if (!video.codec) {
 		return {};
 	}
-	auto encoder = CodecPointer(avcodec_alloc_context3(encoderCodec));
-	if (!encoder) {
-		LogError(u"avcodec_alloc_context3"_q, u"video"_q);
-		return {};
-	}
-	encoder->codec_id = encoderCodec->id;
-	encoder->codec_type = AVMEDIA_TYPE_VIDEO;
-	encoder->width = target.width();
-	encoder->height = target.height();
-	encoder->time_base = kVideoTimeBase;
-	encoder->framerate = AVRational{ 0, 1 };
-	encoder->pix_fmt = AV_PIX_FMT_YUV420P;
-	encoder->bit_rate = bitrate ? bitrate : TargetBitrate(target, fps);
-	encoder->gop_size = int(base::SafeRound(fps));
-	if (output->oformat->flags & AVFMT_GLOBALHEADER) {
-		encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-	}
-	auto error = AvErrorWrap(avcodec_open2(
-		encoder.get(),
-		encoderCodec,
-		nullptr));
-	if (error) {
-		LogError(u"avcodec_open2"_q, error, u"video"_q);
-		return {};
-	}
-	error = AvErrorWrap(avcodec_parameters_from_context(
-		outVideoStream->codecpar,
-		encoder.get()));
-	if (error) {
-		LogError(u"avcodec_parameters_from_context"_q, error);
-		return {};
-	}
-	outVideoStream->time_base = encoder->time_base;
+	const auto outVideoStream = video.stream;
+	auto encoder = std::move(video.codec);
 
-	error = AvErrorWrap(avformat_write_header(output.get(), nullptr));
+	auto error = AvErrorWrap(avformat_write_header(output.get(), nullptr));
 	if (error) {
 		LogError(u"avformat_write_header"_q, error);
 		return {};
@@ -941,58 +962,22 @@ QString TranscodeVideoToMp4(
 		return {};
 	}
 
-	auto encoderCodec = avcodec_find_encoder_by_name("libopenh264");
-	if (!encoderCodec) {
-		encoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
-		if (!encoderCodec) {
-			LogError(u"avcodec_find_encoder"_q, u"H264"_q);
-			return {};
-		}
-	}
-	const auto outVideoStream = avformat_new_stream(
-		output.get(),
-		encoderCodec);
-	if (!outVideoStream) {
-		LogError(u"avformat_new_stream"_q, u"video"_q);
-		return {};
-	}
-	auto encoder = CodecPointer(avcodec_alloc_context3(encoderCodec));
-	if (!encoder) {
-		LogError(u"avcodec_alloc_context3"_q, u"video"_q);
-		return {};
-	}
-	encoder->codec_id = encoderCodec->id;
-	encoder->codec_type = AVMEDIA_TYPE_VIDEO;
-	encoder->width = target.width();
-	encoder->height = target.height();
-	encoder->time_base = kVideoTimeBase;
-	encoder->framerate = AVRational{ 0, 1 };
-	encoder->pix_fmt = AV_PIX_FMT_YUV420P;
 	const auto sourceBitrate = int64((inVideoStream->codecpar->bit_rate > 0)
 		? inVideoStream->codecpar->bit_rate
 		: input->bit_rate);
 	const auto targetBitrate = int64(TargetBitrate(target, fps));
-	encoder->bit_rate = (sourceBitrate > 0)
-		? std::min(targetBitrate, sourceBitrate)
-		: targetBitrate;
-	encoder->gop_size = int(base::SafeRound(
-		(fps > 1. && fps < 121.) ? fps : 30.));
-	if (output->oformat->flags & AVFMT_GLOBALHEADER) {
-		encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-	}
-	error = AvErrorWrap(avcodec_open2(encoder.get(), encoderCodec, nullptr));
-	if (error) {
-		LogError(u"avcodec_open2"_q, error, u"video"_q);
+	auto video = CreateH264Encoder(
+		output.get(),
+		target,
+		(sourceBitrate > 0)
+			? std::min(targetBitrate, sourceBitrate)
+			: targetBitrate,
+		int(base::SafeRound((fps > 1. && fps < 121.) ? fps : 30.)));
+	if (!video.codec) {
 		return {};
 	}
-	error = AvErrorWrap(avcodec_parameters_from_context(
-		outVideoStream->codecpar,
-		encoder.get()));
-	if (error) {
-		LogError(u"avcodec_parameters_from_context"_q, error);
-		return {};
-	}
-	outVideoStream->time_base = encoder->time_base;
+	const auto outVideoStream = video.stream;
+	auto encoder = std::move(video.codec);
 	CopyDisplayMatrix(inVideoStream, outVideoStream);
 
 	const auto inAudioStream = (audioId >= 0)
