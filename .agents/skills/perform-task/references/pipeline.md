@@ -9,7 +9,7 @@
 - [Implementation phases](#implementation-phases)
 - [Telegram commits](#telegram-commits)
 - [Test loop adapter](#test-loop-adapter)
-- [Terminal state](#terminal-state)
+- [Attempt-boundary state](#attempt-boundary-state)
 - [Failure handling](#failure-handling)
 
 ## Contract and inputs
@@ -41,6 +41,7 @@ PROJECT_FILE = AI_SLOT/projects/<project>/project.md, or none
 PREVIOUS_CONTEXT = latest approved project task's work/context.md, or none
 BASE_REF = refs/ai-tasks/TASK_ID/base
 GREEN_REF = refs/ai-tasks/TASK_ID/green
+RUN_REF = refs/ai-tasks/TASK_ID/run
 ```
 
 Capture a wall-clock start time for the final elapsed-time report.
@@ -89,16 +90,18 @@ Before planning or editing:
      source-begin --source-root SOURCE_ROOT --task TASK_ID
    ```
 
-   On resume, run the same command. It verifies the local refs and reconciles
-   them from contiguous tip commits with this task's exact `Task:` line after a
-   source rebase. Never resolve or record a ref's object name in an artifact.
+   On resume, run the same command. It verifies the local refs, rediscovers the
+   latest exact `Task:` commit from current first-parent history when needed,
+   and records current `HEAD` in `RUN_REF`. Later task commits may remain above
+   the retained implementation. Never resolve or record a ref's object name in
+   an artifact.
 6. For an interrupted run, allow dirty Telegram paths only when every one is
    listed in `work/owned-paths.txt` and completed phase artifacts prove this
    task owns them. Otherwise hard-stop without cleaning them.
 
 Do not stash. Do not reset, restore, stage, commit, or delete an unexpected
 path. Invocation authorizes recovery only for paths proven to belong to this
-task and only back to `GREEN_REF` or `BASE_REF`, as appropriate.
+task and only back to `RUN_REF` or `BASE_REF`, as appropriate.
 
 ## Artifacts and resumption
 
@@ -248,10 +251,12 @@ attribution, or any other trailer. Track rationale in the AI task. If a short
 durable explanation will help source-history readers, write
 `SOURCE_ROOT/tasks/TASK_ID.md` and include it in the same commit.
 
-Record only the attempt number. Use `BASE_REF` as the old behavioral baseline
-across all attempts and `GREEN_REF` as the current retained implementation.
-These refs are local recovery mechanics: never copy their resolved object names
-into AI artifacts, source notes, reports, chat, or commit messages.
+Record only the attempt number. Use `BASE_REF` as the original local baseline,
+`GREEN_REF` as the latest retained exact task commit, and `RUN_REF` as the
+current clean source tip on which this resumed run operates. Later tasks may
+make `GREEN_REF` an ancestor of `RUN_REF`. These refs are local recovery
+mechanics: never copy their resolved object names into AI artifacts, source
+notes, reports, chat, or commit messages.
 
 ## Test loop adapter
 
@@ -266,7 +271,9 @@ rules, with these external-task safety adaptations:
   in `work/test-overlay.paths`; never introduce an untracked source file.
 - Save the overlay with `git diff --binary HEAD > work/test-overlay.patch`,
   verify it is nonempty and reapplicable, then restore only inventoried overlay
-  paths to `GREEN_REF`. Do not run a repository-wide hard reset.
+  paths to `RUN_REF`. Do not run a repository-wide hard reset. After an
+  implementation-fix commit, move both `GREEN_REF` and `RUN_REF` to the new
+  clean tip before reapplying the overlay.
 - Reapply with `git apply --3way`; re-author a conflicting hunk from `test.md`
   rather than leaving conflict markers.
 - Missing `test_TelegramForcePortable` is the only portable-account setup
@@ -290,26 +297,31 @@ rules, with these external-task safety adaptations:
 - Delete the overlay-bearing Debug executable on every terminal test exit so
   the user cannot launch it accidentally.
 
-The test author must read both the full task specification and the complete
-`BASE_REF..GREEN_REF` diff. It writes checks before running, covers every
-acceptance surface, declares a falsifiable oracle for each, and never reuses a
-generic navigate-and-screenshot scenario. Missing or ambiguous evidence is
-`TEST_FLAW`; no expected delta from `BASE_REF` is `IMPL_BUG`. Two identical
-consecutive failure signatures block early. A known implementation bug at the
-attempt cap is implementation-blocked, not a successful retained commit.
+The test author must read the full task specification and every current-branch
+commit whose message has this task's exact `Task:` line. For an uninterrupted
+contiguous run this is the `BASE_REF..GREEN_REF` diff; for a resumed older task,
+combine the exact task commits and inspect their current code at `RUN_REF`
+without treating intervening tasks as this task's changes. It writes checks
+before running, covers every acceptance surface, declares a falsifiable oracle
+for each, and never reuses a generic navigate-and-screenshot scenario. Missing
+or ambiguous evidence is `TEST_FLAW`; no expected task delta is `IMPL_BUG`. Two
+identical consecutive failure signatures block early. A known implementation
+bug at the attempt cap is implementation-blocked, not a successful retained
+commit.
 
 Skip runtime testing only for a task with no runnable behavior. Record
 `NOT_APPLICABLE` and exact file-level validation. Configuration alone is not a
 reason to skip.
 
-## Terminal state
+## Attempt-boundary state
 
-Before terminal publication, require a clean Telegram checkout at `GREEN_REF`
-when an implementation is retained, no overlay in source, no owned live test
-copy, and no overlay-bearing executable. For implementation-blocked work with
-no retained commit, restore only proven owned paths to `BASE_REF`. For
-test-blocked work retain the latest implementation commit and state the exact
-unverified behavior.
+Before publishing an approved or blocked attempt, require a clean Telegram
+checkout at `RUN_REF`, with `GREEN_REF` in its history when an implementation
+is retained, no overlay in source, no owned live test copy, and no
+overlay-bearing executable. For implementation-blocked work with no retained
+commit, restore only proven owned paths to `BASE_REF`. For test-blocked work
+retain the latest implementation commit and state the exact unverified
+behavior.
 
 Write `work/result.md` with exactly one value for every field:
 
@@ -336,7 +348,8 @@ For approved project work, promote `work/project.proposed.md` to the project's
 `project.md` immediately before final AI publication. For blocked work, retain
 the proposal only as a task artifact.
 
-Publish terminal AI state only after the Telegram commit and result are final:
+Publish the attempt-boundary AI state only after the Telegram commit and result
+are final:
 
 ```bash
 python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
@@ -345,12 +358,14 @@ python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
 ```
 
 The helper verifies a clean source checkout, local task refs, current `HEAD`,
-and the exact three-line commit message. It commits the task result and state in
-the AI slot, fetches newer canonical state when configured, rebases the slot,
-publishes without force, fast-forwards local AI master, and then deletes the
-local task refs. Do not report a terminal task until that final AI commit
-reaches canonical master. Preserve an unpublished slot commit on a semantic
-conflict or remote outage and hard-stop instead of pretending completion.
+and the retained implementation's exact three-line commit message. It commits
+the task result and state in the AI slot, fetches newer canonical state when
+configured, rebases the slot, publishes without force, and fast-forwards local
+AI master. It deletes all local task refs after approval; after a block it
+deletes only `RUN_REF` and retains implementation recovery refs for the next
+invocation. Do not report an attempt boundary until that AI commit reaches
+canonical master. Preserve an unpublished slot commit on a semantic conflict
+or remote outage and hard-stop instead of pretending completion.
 
 When `Discovered: present`, preserve complete task blocks in `result.md`. The
 `continue` scheduler must route them through the same independent-testability
@@ -359,13 +374,16 @@ planner into new unclaimed dated tasks before selecting more shared work.
 ## Failure handling
 
 - A disposable phase may be retried once through the wait ladder. Never fresh
-  retry the performer.
-- A clean terminal `blocked` task lets `continue` proceed with independent
-  work. A dirty/non-buildable checkout or global environment problem stops it.
+  retry the performer within the same attempt; a later `continue` invocation
+  creates one new performer to resume a published blocked task.
+- A clean `blocked` attempt leaves the task unfinished. It lets `continue`
+  proceed with independent work, but the next invocation retries it once before
+  reserved or shared work. A dirty/non-buildable checkout or global environment
+  problem stops the current invocation.
 - A file-lock build error always stops immediately and asks the human to close
   this checkout's Telegram/debugger.
 - Missing optional screenshots or mockups never block.
 - Never silently pass unverified behavior. Surface every blocked or partially
   verified task with exact `work/test.md`, `work/result.md`, and evidence paths.
-- In Goal mode, report terminal blocked state without claiming achievement;
+- In Goal mode, report blocked state without claiming achievement;
   complete the goal only when every selected task is approved.

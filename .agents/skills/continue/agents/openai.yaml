@@ -1,4 +1,4 @@
 interface:
   display_name: "Continue AI Work"
-  short_description: "Drain the shared Telegram AI work queue"
-  default_prompt: "Use $continue to process the inbox and continue queued Telegram Desktop work."
+  short_description: "Resume unfinished work and drain the AI queue"
+  default_prompt: "Use $continue to process the inbox, retry paused unfinished tasks, and continue queued Telegram Desktop work."

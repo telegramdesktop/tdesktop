@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Continue autonomous Telegram Desktop development from the shared ai-tdesktop repository. Use when the user invokes $continue or /continue, asks Codex to keep working through the AI queue, or wants one command to process the local inbox, resume this checkout's active task, consume its claimed queue, and claim new work until nothing eligible remains.
+description: Continue autonomous Telegram Desktop development from the shared ai-tdesktop repository. Use when the user invokes $continue or /continue, asks Codex to keep working through the AI queue, or wants one command to process the local inbox, resume active or previously blocked unfinished work, consume this checkout's claimed queue, and claim new work until nothing eligible remains.
 ---
 
 # Continue AI Work
@@ -37,7 +37,9 @@ work.
 - `todo` plus `claimed_by: null` is shared unreserved work;
 - `todo` plus this `checkout_tag` is this checkout's reserved queue;
 - `in-progress` plus this tag is the one active task;
-- `approved` and `blocked` are terminal;
+- `blocked` plus this tag is paused unfinished work that the next invocation
+  retries once;
+- `approved` is the only completed terminal state;
 - work claimed by another checkout is invisible to this scheduler.
 
 Do not infer a claim from who processed an inbox receipt. Do not steal or
@@ -64,13 +66,16 @@ one `claimed_at` value and ascending `claim_order`. Dependencies do not prevent
 reservation, but they do prevent a task from starting.
 
 Scope hints filter new claims only. Always resume this checkout's existing
-`in-progress` task and then its already claimed queue before taking more shared
-work, unless the user explicitly asks to stop or reassign them.
+`in-progress` task, previously blocked work, and already claimed queue before
+taking more shared work, unless the user explicitly asks to stop or reassign
+them.
 
 ## Main loop
 
-Repeat these steps. Refresh queue JSON after every delegated operation and
-state transition; do not rely on a stale snapshot.
+Create an empty invocation-local `attempted_blocked` set, then repeat these
+steps. Refresh queue JSON after every delegated operation and state transition;
+do not rely on a stale snapshot. The set is scheduler memory only and is never
+written to task state.
 
 ### 1. Process the inbox
 
@@ -92,7 +97,31 @@ leave the input or active transaction recoverable.
 If this checkout has an `in-progress` task, select it. There must be at most
 one. Spawn one stateful performer as described below.
 
-### 3. Start reserved work
+### 3. Retry paused unfinished work
+
+Otherwise select the first ready task in this checkout's `own_blocked` queue
+whose id is not in `attempted_blocked`. Readiness means every `depends_on` task
+is `approved`. Add its id to `attempted_blocked` before changing state, then
+transition it atomically:
+
+```bash
+python3 .agents/skills/process-inbox/scripts/workspace.py retry \
+  --task <YYYY/MM/DD/slug>
+```
+
+The retry preserves the claim and all source, work, test, result, and evidence
+artifacts, changes the task back to `in-progress`, and resumes from the first
+incomplete validated boundary. It clears only `work/discovered-routed.md`, when
+present, so discoveries in the next result are deduplicated and routed again.
+Never discard or redo completed work merely because the prior run ended
+`blocked`.
+
+If a performer ends `blocked` during this invocation, add that task id to
+`attempted_blocked`. Do not retry it again in the same invocation; continue
+with other independent work. A later `$continue` or `/continue` starts with a
+fresh set and tries it again.
+
+### 4. Start reserved work
 
 Otherwise select the first ready task in this checkout's claimed `todo` queue.
 Readiness means every `depends_on` task is `approved`. Transition it atomically:
@@ -105,7 +134,7 @@ python3 .agents/skills/process-inbox/scripts/workspace.py start \
 Then spawn its performer. Leave claimed tasks with unfinished prerequisites as
 `todo` and consider later ready tasks.
 
-### 4. Claim shared work
+### 5. Claim shared work
 
 Otherwise inspect unclaimed `todo` work matching the scope. For a plain
 invocation select only the first ready task. For an explicit batch reservation,
@@ -122,18 +151,21 @@ The claim is committed and published before source work starts. Refresh the
 queue; then return to step 3. A publish race may mean another checkout won the
 task. Do not resolve that by overwriting shared state; refresh and choose again.
 
-### 5. Stop normally
+### 6. Stop normally
 
 Stop when the inbox is empty and none of these exist:
 
 - this checkout's active task;
+- a ready task in this checkout's blocked queue that is not in
+  `attempted_blocked`;
 - a ready task in this checkout's claimed queue;
 - a ready unclaimed task for a plain run, or any unclaimed task matching an
   explicit batch-reservation scope.
 
-Claimed tasks belonging to other checkouts do not keep this run alive.
-Claimed tasks waiting on prerequisites remain visible in the final summary but
-do not cause a busy loop.
+Blocked or claimed tasks belonging to other checkouts do not keep this run
+alive. Claimed tasks waiting on prerequisites and blocked tasks already tried
+in this invocation remain visible in the final summary but do not cause a busy
+loop.
 
 ## Spawn one performer
 
@@ -146,24 +178,29 @@ Source checkout: <source_root>
 AI slot worktree: <slot_worktree>
 Checkout tag: <checkout_tag>
 Task: <task-id>
-Own this task until it reaches approved or blocked. You may use the bounded
-leaf delegation required by the skill. Do not select or claim another task.
+Own this task until this attempt reaches approved or blocked. You may use the
+bounded leaf delegation required by the skill. Do not select or claim another
+task.
 ```
 
 The performer is stateful. Never duplicate it. Poll at no more than 60-second
 intervals, distinguish progress from completion using its task artifacts, and
-send a follow-up to the same target if it becomes idle without a terminal state.
+send a follow-up to the same target if it becomes idle without an
+attempt-boundary state.
 
 After it returns, require:
 
-- source checkout clean and at the performer's retained commit;
-- task `state.yaml` terminal and published to AI master; or
+- source checkout clean at the performer's recorded run tip, with its retained
+  implementation commit in current history when one exists;
+- task `state.yaml` at an attempt boundary (`approved` or `blocked`) and
+  published to AI master; or
 - a clearly reported global hard stop that makes further work unsafe.
 
-A clean terminal `blocked` task does not stop the scheduler; continue with
-independent work. A dirty checkout, file-lock build failure, missing test
-account, unresolved AI publication conflict, or other global environment
-failure stops the loop.
+A clean `blocked` attempt does not complete the task and does not stop the
+scheduler. Add it to `attempted_blocked` and continue with independent work;
+the next invocation retries it before reserved or shared work. A dirty
+checkout, file-lock build failure, missing test account, unresolved AI
+publication conflict, or other global environment failure stops the loop.
 
 The missing `test_TelegramForcePortable` golden account is the only
 portable-folder state that is a global stop. Live and real portable folders
@@ -173,7 +210,8 @@ must never stop `/continue`.
 
 ## Route discovered follow-ups
 
-After every terminal performer, read its published `work/result.md`. If it says
+After every performer attempt ending `approved` or `blocked`, read its published
+`work/result.md`. If it says
 `Discovered: present` and has no `work/discovered-routed.md`, route the complete
 blocks under `## Discovered tasks` before selecting more shared work.
 
@@ -204,9 +242,10 @@ Refresh queue JSON after routing, then resume the main loop.
 ## Report
 
 Return one compact run summary: inbox receipt if processed, tasks approved,
-tasks blocked with exact unverified behavior, tasks newly claimed or left
-queued, routed discoveries, elapsed time, and why the loop stopped. Make any
-global hard stop, retained unsafe state, or incomplete verification visually
-unmistakable. The human should not need to invoke another command merely to
-advance to the next eligible task. Never include source or AI commit hashes;
-task ids are the only durable locators.
+unfinished blocked tasks with exact unverified behavior and whether they were
+retried in this invocation, tasks newly claimed or left queued, routed
+discoveries, elapsed time, and why the loop stopped. Make any global hard stop,
+retained unsafe state, or incomplete verification visually unmistakable. The
+human should not need to invoke another command merely to advance to the next
+eligible task. Never include source or AI commit hashes; task ids are the only
+durable locators.

@@ -81,7 +81,7 @@ and debugger.
   `GREEN_REF` to the resulting commit.
 - **Test report** (`test.md`) is the only fix-agent handoff. Give it the latest Attempt/Run section,
   especially Root cause / Fix hint and Failure signature. Reserve wrapper-owned `result.md` for the
-  terminal task result; never create `result<n>.md`.
+  published attempt-boundary result; never create `result<n>.md`.
 
 ## Commit message
 

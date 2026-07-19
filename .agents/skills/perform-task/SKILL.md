@@ -1,13 +1,14 @@
 ---
 name: perform-task
-description: Resolve, claim, implement, commit, and verify exactly one existing ai-tdesktop task by short slug or full dated id. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Runs the complete mature context, planning, assessment, Debug build, review, test-loop, Computer Use, resume, and publication pipeline without selecting any additional work.
+description: Resolve, claim, resume, implement, commit, and verify exactly one existing ai-tdesktop task by short slug or full dated id, including previously blocked unfinished work. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Runs the complete mature context, planning, assessment, Debug build, review, test-loop, Computer Use, resume, and publication pipeline without selecting any additional work.
 ---
 
 # Perform One AI Task
 
-Own exactly one task through a Telegram commit and terminal AI commit. Do not
+Own exactly one task through a Telegram commit and a published attempt-boundary
+AI commit. Do not
 process the inbox, split the task, drain the queue, or select a follow-up after
-this task reaches a terminal state.
+this attempt reaches `approved` or `blocked`.
 
 ## Read the complete engine
 
@@ -66,7 +67,7 @@ owner before source work.
 
 - If another task is already `in-progress` for this checkout, stop. Never
   abandon or supersede it implicitly.
-- If this task is `approved` or `blocked`, report its terminal result and stop.
+- If this task is `approved`, report its completed result and stop.
 - If it is claimed by another checkout, stop without touching it.
 - If it is unclaimed but its dependencies are unfinished, report those
   dependencies and stop without claiming it.
@@ -84,8 +85,20 @@ owner before source work.
     --task <full-task-id>
   ```
 
+- If it is `blocked` and owned by this checkout, retry it:
+
+  ```bash
+  python3 .agents/skills/process-inbox/scripts/workspace.py retry \
+    --task <full-task-id>
+  ```
+
+  Preserve its claim, implementation, plans, reviews, tests, result, and
+  evidence. Treat the prior blocked result as the exact resumption handoff and
+  continue from the first incomplete validated boundary rather than starting
+  over.
+
 - If it is already `in-progress` and owned by this checkout, resume it without
-  another claim or start commit.
+  another claim, start, or retry commit.
 
 Refresh with `resolve` after every state mutation. The source pipeline starts
 only after canonical AI state shows this task `in-progress` for this checkout.
@@ -97,15 +110,16 @@ Execute `references/pipeline.md` exactly. The task must normally produce:
 1. one or more tested Telegram implementation-attempt commits, each with an
    exact one-line subject, blank line, and `Task: <full-task-id>`;
 2. tracked resumable AI checkpoints during phase work;
-3. a terminal AI slot commit containing final result/state, rebased and
+3. an attempt-boundary AI slot commit containing final result/state, rebased and
    published to canonical AI master without force.
 
-Do not report success from a source commit alone. The final AI commit must also
-be canonical. On a retryable concurrent-master race, keep fetching, rebasing,
-and publishing until it succeeds. On a semantic conflict, unsafe checkout, or
-unreachable remote, preserve resumable state and report a hard stop.
+Do not report success from a source commit alone. The attempt-boundary AI
+commit must also be canonical. On a retryable concurrent-master race, keep
+fetching, rebasing, and publishing until it succeeds. On a semantic conflict,
+unsafe checkout, or unreachable remote, preserve resumable state and report a
+hard stop.
 
-Return a compact result with the full task id, terminal status or hard stop,
+Return a compact result with the full task id, attempt status or hard stop,
 attempts, touched files, canonical-publication confirmation, and exact evidence
 or unverified behavior. Never persist or report commit hashes; the full task id
 is the only cross-repository link.

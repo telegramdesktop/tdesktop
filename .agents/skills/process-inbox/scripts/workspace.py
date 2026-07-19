@@ -514,7 +514,7 @@ def resolve_task(states, value):
 		]
 	unfinished = [
 		task for task in exact
-		if task["status"] in ("todo", "in-progress")
+		if task["status"] in ("todo", "in-progress", "blocked")
 	]
 	candidates = unfinished or exact
 	if not candidates:
@@ -541,15 +541,31 @@ def command_queue(args):
 	tag = config["checkout_tag"]
 	values = [task_summary(task, states) for task in states.values()]
 	own_in_progress = sorted(
-		(task for task in values if task["claimed_by"] == tag and task["status"] == "in-progress"),
+		(
+			task for task in values
+			if task["claimed_by"] == tag and task["status"] == "in-progress"
+		),
 		key=queue_sort_key,
 	)
 	own_todo = sorted(
-		(task for task in values if task["claimed_by"] == tag and task["status"] == "todo"),
+		(
+			task for task in values
+			if task["claimed_by"] == tag and task["status"] == "todo"
+		),
+		key=queue_sort_key,
+	)
+	own_blocked = sorted(
+		(
+			task for task in values
+			if task["claimed_by"] == tag and task["status"] == "blocked"
+		),
 		key=queue_sort_key,
 	)
 	unclaimed_todo = sorted(
-		(task for task in values if task["claimed_by"] is None and task["status"] == "todo"),
+		(
+			task for task in values
+			if task["claimed_by"] is None and task["status"] == "todo"
+		),
 		key=lambda task: (task["created"], task["id"]),
 	)
 	violations = []
@@ -558,17 +574,23 @@ def command_queue(args):
 	for task in values:
 		if task["status"] == "in-progress" and task["claimed_by"] is None:
 			violations.append(f"{task['id']} is in-progress but unclaimed")
+		if task["status"] == "blocked" and task["claimed_by"] is None:
+			violations.append(f"{task['id']} is blocked but unclaimed")
 	inbox_file = main / "inbox" / "inbox.md"
 	result = {
 		**config,
-		"inbox_nonempty": inbox_file.is_file() and bool(inbox_file.read_text(encoding="utf-8").strip()),
+		"inbox_nonempty": (
+			inbox_file.is_file()
+			and bool(inbox_file.read_text(encoding="utf-8").strip())
+		),
 		"own_in_progress": own_in_progress,
 		"own_todo": own_todo,
+		"own_blocked": own_blocked,
 		"unclaimed_todo": unclaimed_todo,
 		"other_claimed_unfinished": sum(
 			1 for task in values
 			if task["claimed_by"] not in (None, tag)
-			and task["status"] in ("todo", "in-progress")
+			and task["status"] in ("todo", "in-progress", "blocked")
 		),
 		"ai_main_dirty": main_dirty,
 		"slot_dirty": slot_dirty,
@@ -699,6 +721,53 @@ def command_start(args):
 	}, indent=2, sort_keys=True))
 
 
+def command_retry(args):
+	config = worktree_config(args, create=True)
+	sync_canonical(config)
+	slot = Path(config["slot_worktree"])
+	states = load_states(slot)
+	task = states.get(args.task)
+	if task is None:
+		raise WorkspaceError(f"Task does not exist: {args.task}")
+	if (
+		task["status"] != "blocked"
+		or task["claimed_by"] != config["checkout_tag"]
+	):
+		raise WorkspaceError(
+			f"Task is not blocked work owned by this checkout: {args.task}"
+		)
+	if not task_ready(task, states):
+		raise WorkspaceError(f"Task has unfinished dependencies: {args.task}")
+	active = [
+		value["id"] for value in states.values()
+		if value["claimed_by"] == config["checkout_tag"]
+		and value["status"] == "in-progress"
+	]
+	if active:
+		raise WorkspaceError("Another task is already in progress: " + ", ".join(active))
+	path = state_path(slot, args.task)
+	update_state(path, {
+		"status": "in-progress",
+		"phase": "resume",
+		"lease_until": None,
+	})
+	paths = [str(path.relative_to(slot))]
+	routed = path.parent / "work" / "discovered-routed.md"
+	if routed.is_file():
+		routed.unlink()
+		paths.append(str(routed.relative_to(slot)))
+	commit = commit_paths(
+		config,
+		paths,
+		f"Resume {args.task} on {config['checkout_tag']}",
+	)
+	print(json.dumps({
+		"task": args.task,
+		"status": "in-progress",
+		"published": bool(commit),
+	}, indent=2, sort_keys=True))
+
+
 def task_action_config(args, require_status="in-progress", allow_project=False):
 	config = worktree_config(args, create=True)
 	slot = Path(config["slot_worktree"])
@@ -742,34 +811,61 @@ def task_commit_matches(source, value, task_id):
 	)
 
 
-def validate_current_task_commit(source, task_id):
-	if not task_commit_matches(source, "HEAD", task_id):
+def validate_task_commit(source, value, task_id):
+	if not task_commit_matches(source, value, task_id):
 		raise WorkspaceError(
 			"Telegram commit message must be exactly a one-line subject, a blank line, "
 			f"and Task: {task_id}"
 		)
 
 
-def task_series_base(source, task_id):
-	current = "HEAD"
-	if not task_commit_matches(source, current, task_id):
-		return None
-	while True:
-		parent = resolved_ref(source, f"{current}^")
-		if parent is None:
-			raise WorkspaceError("A task implementation cannot start at the repository root")
-		if not task_commit_matches(source, parent, task_id):
-			return parent
-		current = parent
+def task_series_refs(source, task_id):
+	commits = run_git(
+		source,
+		"log",
+		"--first-parent",
+		"--format=%H",
+		"--fixed-strings",
+		f"--grep=Task: {task_id}",
+		"HEAD",
+	).stdout.splitlines()
+	for green in commits:
+		if not task_commit_matches(source, green, task_id):
+			continue
+		current = green
+		while True:
+			parent = resolved_ref(source, f"{current}^")
+			if parent is None:
+				raise WorkspaceError(
+					"A task implementation cannot start at the repository root"
+				)
+			if not task_commit_matches(source, parent, task_id):
+				return parent, green
+			current = parent
+	return None
+
+
+def is_ancestor(source, older, newer="HEAD"):
+	return not run_git(
+		source,
+		"merge-base",
+		"--is-ancestor",
+		older,
+		newer,
+		check=False,
+	).returncode
 
 
 def validate_source_state(config, task_id, required):
 	source = Path(config["source_root"])
 	base = resolved_ref(source, source_task_ref(task_id, "base"))
 	green = resolved_ref(source, source_task_ref(task_id, "green"))
+	run = resolved_ref(source, source_task_ref(task_id, "run"))
 	head = resolved_ref(source, "HEAD")
 	if base is None:
 		raise WorkspaceError("The local task baseline ref is missing")
+	if run is None or head != run:
+		raise WorkspaceError("Telegram HEAD no longer matches the task run ref")
 	if green is None:
 		if required:
 			raise WorkspaceError("An approved task must retain a Telegram implementation commit")
@@ -778,9 +874,11 @@ def validate_source_state(config, task_id, required):
 				"A blocked task without an implementation must be restored to its local baseline"
 			)
 		return
-	if head != green:
-		raise WorkspaceError("Telegram HEAD is not the locally retained task implementation")
-	validate_current_task_commit(source, task_id)
+	if not is_ancestor(source, green, head):
+		raise WorkspaceError(
+			"The retained task implementation is not in Telegram HEAD history"
+		)
+	validate_task_commit(source, green, task_id)
 
 
 def ensure_no_persisted_commit_hashes(root):
@@ -799,9 +897,10 @@ def ensure_no_persisted_commit_hashes(root):
 			raise WorkspaceError(f"Persisted commit hash found in {path}")
 
 
-def delete_source_refs(config, task_id):
+def delete_source_refs(config, task_id, retain_implementation=False):
 	source = Path(config["source_root"])
-	for name in ("green", "base"):
+	names = ("run",) if retain_implementation else ("run", "green", "base")
+	for name in names:
 		value = source_task_ref(task_id, name)
 		if resolved_ref(source, value) is not None:
 			run_git(source, "update-ref", "-d", value)
@@ -812,28 +911,33 @@ def command_source_begin(args):
 	source = Path(config["source_root"])
 	base = source_task_ref(args.task, "base")
 	green = source_task_ref(args.task, "green")
+	run = source_task_ref(args.task, "run")
 	base_value = resolved_ref(source, base)
 	green_value = resolved_ref(source, green)
 	head = resolved_ref(source, "HEAD")
-	series_base = task_series_base(source, args.task)
-	if series_base is not None:
-		run_git(source, "update-ref", base, series_base)
-		run_git(source, "update-ref", green, "HEAD")
-		state = "reconciled" if base_value is not None else "recovered"
-	elif base_value is None:
-		ensure_clean(source, "Telegram source checkout")
-		run_git(source, "update-ref", base, "HEAD")
-		state = "initialized"
-	elif green_value is None and head != base_value:
-		ensure_clean(source, "Telegram source checkout")
-		run_git(source, "update-ref", base, "HEAD")
-		state = "reconciled"
-	elif green_value is not None and head != green_value:
-		raise WorkspaceError(
-			"Telegram HEAD no longer matches this task's retained implementation"
-		)
-	else:
+	retained = (
+		base_value is not None
+		and green_value is not None
+		and is_ancestor(source, base_value, green_value)
+		and is_ancestor(source, green_value, head)
+		and task_commit_matches(source, green_value, args.task)
+	)
+	if retained or (base_value is not None and green_value is None and head == base_value):
 		state = "resumed"
+	else:
+		series = task_series_refs(source, args.task)
+		if series is not None:
+			series_base, series_green = series
+			run_git(source, "update-ref", base, series_base)
+			run_git(source, "update-ref", green, series_green)
+			state = "reconciled" if base_value is not None else "recovered"
+		else:
+			ensure_clean(source, "Telegram source checkout")
+			run_git(source, "update-ref", base, "HEAD")
+			if green_value is not None:
+				run_git(source, "update-ref", "-d", green)
+			state = "reconciled" if base_value is not None else "initialized"
+	run_git(source, "update-ref", run, "HEAD")
 	print(json.dumps({
 		"task": args.task,
 		"source_state": state,
@@ -852,8 +956,9 @@ def command_source_mark_green(args):
 		raise WorkspaceError("The local task baseline ref is missing")
 	if run_git(source, "merge-base", "--is-ancestor", base, "HEAD", check=False).returncode:
 		raise WorkspaceError("The retained implementation does not descend from the task baseline")
-	validate_current_task_commit(source, args.task)
+	validate_task_commit(source, "HEAD", args.task)
 	run_git(source, "update-ref", source_task_ref(args.task, "green"), "HEAD")
+	run_git(source, "update-ref", source_task_ref(args.task, "run"), "HEAD")
 	print(json.dumps({
 		"task": args.task,
 		"source_state": "retained",
@@ -901,7 +1006,11 @@ def command_finish(args):
 		paths,
 		f"{verb} {args.task}",
 	)
-	delete_source_refs(config, args.task)
+	delete_source_refs(
+		config,
+		args.task,
+		retain_implementation=(args.status == "blocked"),
+	)
 	print(json.dumps({
 		"task": args.task,
 		"status": args.status,
@@ -1147,6 +1256,11 @@ def parse_args():
 	add_common_arguments(start)
 	start.add_argument("--task", required=True)
 	start.set_defaults(handler=command_start)
+
+	retry = subparsers.add_parser("retry")
+	add_common_arguments(retry)
+	retry.add_argument("--task", required=True)
+	retry.set_defaults(handler=command_retry)
 
 	checkpoint = subparsers.add_parser("checkpoint")
 	add_common_arguments(checkpoint)
