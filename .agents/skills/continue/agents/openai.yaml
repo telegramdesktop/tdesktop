@@ -1,0 +1,4 @@
+interface:
+  display_name: "Continue AI Work"
+  short_description: "Drain the shared Telegram AI work queue"
+  default_prompt: "Use $continue to process the inbox and continue queued Telegram Desktop work."

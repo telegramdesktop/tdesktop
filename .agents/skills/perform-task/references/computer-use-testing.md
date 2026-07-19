@@ -1,6 +1,6 @@
 # Computer Use testing adapter
 
-Read this during `$implement` TEST when selecting or using the UI driver. This is a Codex-only
+Read this during `$perform-task` TEST when selecting or using the UI driver. This is a Codex-only
 adapter over `.agents/shared/test-loop.md`; the shared task-derived scenarios, oracles, overlay,
 `-testagent` launch, portable account, watchdog, crash handling, and artifact verdicts remain
 authoritative.

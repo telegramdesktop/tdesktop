@@ -1,17 +1,32 @@
-# Phase Prompts
+# Telegram Task Phase Prompts
 
-Use these templates as Codex subagent messages. Use them as same-session checklists only for Phase 0, intentional current-session build work, Phase 7, or when delegation is unavailable from the start at the current agent depth. Replace every applicable placeholder: `<TASK>`, `<PROJECT>`, `<LETTER>`, `<PREV_LETTER>`, `<BUILD>`, `<N>`, `<OWNED_WRITE_SET>`, `<R>`, `<R-1>`, and `<phase-name>`.
+## Contents
+
+- [Orchestration rules](#orchestration-rules)
+- [Completion checks](#artifact-based-completion-checks)
+- [Context](#phase-1-context)
+- [Plan and assessment](#phase-2-plan)
+- [Implementation and build](#phase-4-implementation)
+- [Review](#phase-6-code-review-loop)
+- [Windows normalization](#phase-7-native-windows-text-normalization)
+- [Prompt delivery](#prompt-delivery-and-logs)
+
+Use these templates as Codex subagent messages. Use them as same-session
+checklists only for intentional current-session build work, Phase 7, or when
+delegation is unavailable from the start at the current agent depth. Replace
+every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
+`<PROJECT_FILE>`, `<PREVIOUS_CONTEXT>`, `<BUILD>`, `<N>`,
+`<OWNED_WRITE_SET>`, `<R>`, `<R-1>`, and `<phase-name>`.
 
 ## Orchestration Rules
 
-- Phase 0 runs in the main session.
 - When delegation is available, use a fresh subagent for Phase 1, Phase 2, Phase 3, each Phase 4 implementation unit, and each Phase 6 pass. Do not switch those phases to same-session midstream because of a timeout or missing artifact.
 - Treat delegation as selected only after the first real phase spawn succeeds; tool presence is insufficient. An immediate depth/capacity/policy rejection before phase work selects same-session checklists and is not a delegated retry.
 - Phase 7 runs in the current session on native, non-WSL Windows because it depends on the final local diff and touched-file set. Skip it on WSL and keep files LF/no-BOM there.
-- Write each phase prompt to `.ai/<PROJECT>/<LETTER>/logs/phase-<phase-name>.prompt.md` before execution.
+- Write each phase prompt to `<WORK_DIR>/logs/phase-<phase-name>.prompt.md` before execution.
 - If you delegate a phase, send the prompt file contents as the initial `spawn_agent` message.
 - When writing the phase prompt file, append the standard progress file contract and the standard compact reply block below so the subagent knows how to surface progress before the final artifact.
-- After each phase completes, write `.ai/<PROJECT>/<LETTER>/logs/phase-<phase-name>.result.md` with exact
+- After each phase completes, write `<WORK_DIR>/logs/phase-<phase-name>.result.md` with exact
   `STATUS:`, `ARTIFACTS:`, `TOUCHED:`, `BLOCKER:`, and `NOTES:` fields.
 - Use `fork_turns: "none"` by default. If the phase depends on thread-only context or UI attachments, pass it explicitly or use the smallest positive turn fork needed.
 - Use only fields the current `spawn_agent` schema exposes; do not invent role, model, or reasoning arguments. Inherit the parent model/reasoning selection, or match it if the host explicitly supports overrides.
@@ -32,7 +47,7 @@ Append this verbatim to every delegated phase prompt:
 ```text
 You are a leaf phase worker. Do not spawn or delegate to other agents.
 
-Before deep work, create or update the matching progress file in `.ai/<PROJECT>/<LETTER>/logs/`.
+Before deep work, create or update the matching progress file in `<WORK_DIR>/logs/`.
 
 Use `phase-<phase-name>.progress.md` as a concise heartbeat with:
 - `Heartbeat: <N>` on the first line, incremented on each meaningful update
@@ -64,76 +79,48 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
 
 ## Artifact-Based Completion Checks
 
-- Phase 1 is complete only when `about.md` and `context.md` both exist and are non-empty.
+- Phase 1 is complete only when `context.md` exists and is non-empty. For a
+  project task, `project.proposed.md` must also exist and be non-empty.
 - Phase 2 is complete only when `plan.md` exists, contains a `## Status` section, and no unintended source edits were made.
 - Phase 3 is complete only when `plan.md` contains both `Phases:` in the Status section and `Assessed: yes`.
 - Phase 4 is complete only when the target phase checkbox changed to checked and the touched-file list matches the owned write set, or the blocker explains any mismatch.
 - Phase 5 is complete only when the build outcome is known and the build checkbox is updated on success.
 - Phase 6a is complete only when `review<R>.md` exists and contains a verdict line.
 - Phase 6b is complete only when the requested fixes were applied and the post-fix build outcome is known.
-- An implement-specific visual design phase is complete only when `visual.md` cites its available
+- A perform-task visual design phase is complete only when `visual.md` cites its available
   design sources (images when supplied; otherwise request facts and repository/baseline anchors),
   records assumptions, and contains desktop anchors, an ordered derivation, tolerances, and
   falsifiable geometry checks. Missing mockups alone never make the phase incomplete.
 
-## Phase 0: Setup
-
-Record the current time now and store it as `$START_TIME`. You will use this at the end to display total elapsed time.
-
-Before running any phase prompts, determine whether this is a new project or a follow-up task.
-
-Follow-up detection:
-1. Extract the first word or token from the task description. Call it `FIRST_TOKEN`.
-2. Check `.ai/` to see existing project names.
-3. Check whether `.ai/<FIRST_TOKEN>/about.md` exists.
-4. If the file exists, this is a follow-up task. The project name is `FIRST_TOKEN`. The task description is everything after `FIRST_TOKEN`.
-5. If the file does not exist, this is a new project. The full input is the task description.
-
-Do not proceed until you have determined follow-up vs new.
-
-For new projects:
-- Using the list of existing projects, pick a unique short name (1-2 lowercase words, hyphen-separated) that does not collide.
-- Create `.ai/<PROJECT>/`, `.ai/<PROJECT>/a/`, and `.ai/<PROJECT>/a/logs/`.
-- Set `<LETTER>` = `a`.
-
-For follow-up tasks:
-- Scan `.ai/<PROJECT>/` for spreadsheet-style task folders (`a/`...`z/`, `aa/`...). Find the latest id.
-- The previous task id = that highest id.
-- The new task id = next spreadsheet-style id; never reuse an existing artifact directory.
-- Create `.ai/<PROJECT>/<LETTER>/` and `.ai/<PROJECT>/<LETTER>/logs/`.
-
-Then proceed to Phase 1. Follow-up tasks do not skip context gathering. They use a modified Phase 1F prompt.
-
-## Phase 1: Context (New Project, letter = `a`)
+## Phase 1: Context
 
 ```text
 You are a context-gathering agent for a large C++ codebase (Telegram Desktop).
 
 TASK: <TASK>
 
-YOUR JOB: Read AGENTS.md, inspect the codebase, find all files and code relevant to this task, and write two documents.
+YOUR JOB: Read AGENTS.md, inspect the codebase, find all files and code relevant to this task, and write self-contained implementation context.
 
 Steps:
 1. Read AGENTS.md for project conventions and build instructions.
-2. Search the codebase for files, classes, functions, and patterns related to the task.
-3. Read all potentially relevant files. Be thorough and prefer reading more rather than less.
-4. For each relevant file, note:
+2. When `<PROJECT_FILE>` is not `none`, read it as the current durable project
+   blueprint and preserve everything still accurate in the proposal.
+3. Search the codebase for files, classes, functions, and patterns related to the task.
+4. Read all potentially relevant files. Be thorough and prefer reading more rather than less.
+5. For each relevant file, note:
    - file path
    - relevant line ranges
    - what the code does and how it relates to the task
    - key data structures, function signatures, and patterns used
-5. Look for similar existing features that could serve as a reference implementation.
-6. Check api.tl if the task involves Telegram API.
-7. Check .style files if the task involves UI.
-8. Check lang.strings if the task involves user-visible text.
+6. Look for similar existing features that could serve as a reference implementation.
+7. Check api.tl if the task involves Telegram API.
+8. Check .style files if the task involves UI.
+9. Check lang.strings if the task involves user-visible text.
 
-Write two files.
-
-File 1: .ai/<PROJECT>/about.md
-
-This file is not used by any agent in the current task. It exists solely as a starting point for a future follow-up task's context gatherer. No planning, implementation, or review phase should rely on it during the current task.
-
-Write it as if the project is already fully implemented and working. It should contain:
+Write `<WORK_DIR>/project.proposed.md` only when `<PROJECT_FILE>` is not
+`none`. It is not used by the current task. Describe the project as if this
+task is approved and fully working, so the performer can promote it only after
+approval. Include:
 - Project: What this project does (feature description, goals, scope)
 - Architecture: High-level architectural decisions, which modules are involved, how they interact
 - Key Design Decisions: Important choices made about the approach
@@ -141,7 +128,7 @@ Write it as if the project is already fully implemented and working. It should c
 
 Do not include temporal state like "Current State", "Pending Changes", "Not yet implemented", or "TODO". Describe the project as a complete, coherent whole.
 
-File 2: .ai/<PROJECT>/<LETTER>/context.md
+Always write `<WORK_DIR>/context.md`.
 
 This is the primary task-specific implementation context. All downstream phases should be able to work from this file plus the referenced source files. It must be self-contained. Include:
 - Task Description: The full task restated clearly
@@ -159,7 +146,7 @@ Be extremely thorough. Another agent with no prior context will rely on this fil
 Do not implement code in this phase.
 ```
 
-## Phase 1F: Context (Follow-up Task, letter = `b`, `c`, ...)
+## Phase 1F: Context for an existing project
 
 ```text
 You are a context-gathering agent for a follow-up task on an existing project in a large C++ codebase (Telegram Desktop).
@@ -170,20 +157,22 @@ YOUR JOB: Read the existing project state, gather any additional context needed,
 
 Steps:
 1. Read AGENTS.md for project conventions and build instructions.
-2. Read .ai/<PROJECT>/about.md. This is the project-level blueprint describing everything done so far.
-3. Read .ai/<PROJECT>/<PREV_LETTER>/context.md. This is the previous task's gathered context.
-4. Understand what has already been implemented by reading the actual source files referenced in about.md and the previous context.
+2. Read <PROJECT_FILE>. This is the project-level blueprint describing everything done so far.
+3. Read <PREVIOUS_CONTEXT>. This is the previous task's gathered context.
+4. Understand what has already been implemented by reading the actual source files referenced in the project file and previous context.
 5. Based on the new task description, search the codebase for any additional files, classes, functions, and patterns that are relevant to the new task but not already covered.
 6. Read all newly relevant files thoroughly.
 
 Write two files.
 
-File 1: .ai/<PROJECT>/about.md (rewrite)
+File 1: `<WORK_DIR>/project.proposed.md`
 
-Rewrite this file instead of appending to it. The new about.md must be a single coherent document that describes the project as if everything, including this new task's changes, is already fully implemented and working.
+Write a single coherent proposed project document that describes everything,
+including this task's changes, as fully implemented and working. Do not modify
+`<PROJECT_FILE>` during this phase.
 
 It should incorporate:
-- everything from the old about.md that is still accurate and relevant
+- everything from the existing project document that is still accurate and relevant
 - the new task's functionality described as part of the project, not as a pending change
 - any changed design decisions or architectural updates from the new task requirements
 
@@ -194,10 +183,10 @@ It should not contain:
 - task-by-task changelog or timeline
 - information that contradicts the new task requirements
 
-File 2: .ai/<PROJECT>/<LETTER>/context.md
+File 2: `<WORK_DIR>/context.md`
 
 This is the primary document for the new task. It must be self-contained and should include:
-- Task Description: The new task restated clearly, with enough project background that an implementation agent can understand it without reading any other .ai files
+- Task Description: The new task restated clearly, with enough project background that an implementation agent can understand it without reading other AI task files
 - Relevant Files: Every file path with line ranges relevant to this task
 - Key Code Patterns: How similar things are done in the codebase
 - Data Structures: Relevant types, structs, classes
@@ -218,10 +207,10 @@ Do not implement code in this phase.
 You are a planning agent. You must create a detailed implementation plan.
 
 Read these files:
-- .ai/<PROJECT>/<LETTER>/context.md
+- <WORK_DIR>/context.md
 - Then read the specific source files referenced in context.md to understand the code deeply.
 
-Create a detailed plan in: .ai/<PROJECT>/<LETTER>/plan.md
+Create a detailed plan in: <WORK_DIR>/plan.md
 
 The plan.md should contain:
 
@@ -273,8 +262,8 @@ Do not implement code in this phase.
 You are a plan assessment agent. Review and refine an implementation plan.
 
 Read these files:
-- .ai/<PROJECT>/<LETTER>/context.md
-- .ai/<PROJECT>/<LETTER>/plan.md
+- <WORK_DIR>/context.md
+- <WORK_DIR>/plan.md
 - Then read the actual source files referenced to verify the plan makes sense.
 
 Assess the plan:
@@ -308,8 +297,8 @@ For each phase in the plan that is not yet marked as done, use this prompt:
 You are an implementation agent working on phase <N> of an implementation plan.
 
 Read these files first:
-- .ai/<PROJECT>/<LETTER>/context.md
-- .ai/<PROJECT>/<LETTER>/plan.md
+- <WORK_DIR>/context.md
+- <WORK_DIR>/plan.md
 
 Then read the source files you will be modifying.
 
@@ -323,7 +312,7 @@ Rules:
 - Follow the plan precisely.
 - Follow AGENTS.md coding conventions.
 - You are not alone in the codebase. Respect existing changes and do not revert unrelated work.
-- Do not modify .ai/ files except the Status section in plan.md and the matching
+- Do not modify AI task files except the Status section in plan.md and the matching
   `logs/phase-<phase-name>.progress.md` heartbeat required by this prompt.
 - When done, update plan.md Status section: change `- [ ] Phase <N>: ...` to `- [x] Phase <N>: ...`
 - Do not work on other phases.
@@ -347,8 +336,8 @@ Prefer running the build in the main session because it is critical-path work. I
 You are a build verification agent.
 
 Read these files:
-- .ai/<PROJECT>/<LETTER>/context.md
-- .ai/<PROJECT>/<LETTER>/plan.md
+- <WORK_DIR>/context.md
+- <WORK_DIR>/plan.md
 
 The implementation is complete. Your job is to build the project and fix any build errors that block the planned work.
 
@@ -400,10 +389,10 @@ FINISH:
 You are a code review agent for Telegram Desktop (C++ / Qt).
 
 Read these files:
-- .ai/<PROJECT>/<LETTER>/context.md
-- .ai/<PROJECT>/<LETTER>/plan.md
+- <WORK_DIR>/context.md
+- <WORK_DIR>/plan.md
 - REVIEW.md
-- If R > 1, also read .ai/<PROJECT>/<LETTER>/review<R-1>.md
+- If R > 1, also read <WORK_DIR>/review<R-1>.md
 
 Then run `git diff` to see the current uncommitted changes for this task.
 
@@ -425,7 +414,7 @@ Important guidelines:
 - Be pragmatic. Each suggestion should have a clear, concrete benefit.
 - Do not suggest comments, docstrings, or over-engineering.
 
-Write your review to: .ai/<PROJECT>/<LETTER>/review<R>.md
+Write your review to: <WORK_DIR>/review<R>.md
 
 The review document should contain:
 
@@ -457,9 +446,9 @@ When finished, report your verdict clearly as: APPROVED or NEEDS_CHANGES.
 You are a review fix agent. You implement improvements identified during code review.
 
 Read these files:
-- .ai/<PROJECT>/<LETTER>/context.md
-- .ai/<PROJECT>/<LETTER>/plan.md
-- .ai/<PROJECT>/<LETTER>/review<R>.md
+- <WORK_DIR>/context.md
+- <WORK_DIR>/plan.md
+- <WORK_DIR>/review<R>.md
 
 Then read the source files mentioned in the review.
 
@@ -469,7 +458,7 @@ Rules:
 - Implement exactly the review changes, nothing more.
 - Follow AGENTS.md coding conventions.
 - You are not alone in the codebase. Respect existing changes and do not revert unrelated work.
-- Do not modify .ai/ files except where the review process explicitly requires it.
+- Do not modify AI task files except where the review process explicitly requires it.
 
 After all changes are made:
 1. Run the resolved Debug build command from context.md (`<BUILD>`) at the repository root.
@@ -487,18 +476,18 @@ finished. Keep WSL/Linux text LF/no-BOM.
 Use the current task's result logs as the source of truth for what Codex touched. Do not sweep the whole repo and do not rewrite unrelated files from a dirty worktree.
 
 ```text
-You are performing the final native-Windows-only text normalization phase for task-think.
+You are performing the final native-Windows-only text normalization phase for perform-task.
 
 Read these files:
-- .ai/<PROJECT>/<LETTER>/plan.md
-- .ai/<PROJECT>/<LETTER>/logs/phase-4*.result.md
-- .ai/<PROJECT>/<LETTER>/logs/phase-5*.result.md
-- .ai/<PROJECT>/<LETTER>/logs/phase-6*.result.md
+- <WORK_DIR>/plan.md
+- <WORK_DIR>/logs/phase-4*.result.md
+- <WORK_DIR>/logs/phase-5*.result.md
+- <WORK_DIR>/logs/phase-6*.result.md
 
 Your job:
 - Collect the union of repo file paths listed in the exact `TOUCHED:` fields in those result logs.
 - Keep only files inside the repository that currently exist and are textual project files: source, headers, build/config files, localization files, style files, and similar text assets.
-- Exclude `.ai/`, `out/`, binary files, and unrelated user files that were not touched by Codex in this task.
+- Exclude `out/`, binary files, and unrelated user files that were not touched by Codex in this task.
 - Rewrite each kept file so all line endings are CRLF.
 - If a kept file is UTF-8 or ASCII text, write it back as UTF-8 without BOM. Never add a UTF-8 BOM to source/config/project text files.
 - Preserve file content otherwise. Preserve whether the file ended with a trailing newline.
@@ -511,7 +500,7 @@ Rules:
 - If a file cannot be normalized safely, record it as a failure instead of silently skipping it.
 
 When finished:
-1. Write `.ai/<PROJECT>/<LETTER>/logs/phase-7-line-endings.result.md`
+1. Write `<WORK_DIR>/logs/phase-7-line-endings.result.md`
 2. Include:
    - whether the phase completed
    - which files were normalized
@@ -523,13 +512,14 @@ When finished:
 ## Completion
 
 When all phases, including build verification, code review, and Windows line ending normalization when applicable, are done:
-1. Read the final `plan.md` and report the summary to the user.
+1. Read the final `plan.md` and prepare the compact performer result.
 2. Show which files were modified or created.
 3. Note any issues encountered during implementation.
 4. Summarize the code review iterations: how many rounds, what was found and fixed, or whether it was approved on the first pass.
 5. On native, non-WSL Windows, mention the text-normalization result briefly: which project files were normalized, whether any BOMs were removed, or whether nothing needed changes.
 6. Calculate and display the total elapsed time since `$START_TIME` (format as `Xh Ym Zs`, omitting zero components).
-7. Remind the user of the project name so they can request follow-up tasks within the same project.
+7. Include the full task id and project slug, when any, so later follow-ups can
+   be routed without relying on session memory.
 
 ## Error Handling
 
@@ -541,10 +531,10 @@ When all phases, including build verification, code review, and Windows line end
 ## Prompt Delivery And Logs
 
 For each phase:
-1. Write the full prompt to `.ai/<PROJECT>/<LETTER>/logs/phase-<phase-name>.prompt.md`
+1. Write the full prompt to `<WORK_DIR>/logs/phase-<phase-name>.prompt.md`
 2. Delegate by sending that prompt text to a fresh subagent, or use it as a same-session checklist only for the designated main-session phases or when delegation was unavailable from the start
-3. For delegated phases, expect a matching `.ai/<PROJECT>/<LETTER>/logs/phase-<phase-name>.progress.md` heartbeat while work is in flight
-4. Save `.ai/<PROJECT>/<LETTER>/logs/phase-<phase-name>.result.md` with `STATUS:`, `ARTIFACTS:`,
+3. For delegated phases, expect a matching `<WORK_DIR>/logs/phase-<phase-name>.progress.md` heartbeat while work is in flight
+4. Save `<WORK_DIR>/logs/phase-<phase-name>.result.md` with `STATUS:`, `ARTIFACTS:`,
    `TOUCHED:`, `BLOCKER:`, and `NOTES:` fields.
 
 For review iterations, include the iteration in the file name, for example:
