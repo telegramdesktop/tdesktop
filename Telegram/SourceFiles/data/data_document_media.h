@@ -110,6 +110,7 @@ private:
 	mutable QPainterPath _pathThumbnail;
 	std::unique_ptr<Image> _thumbnail;
 	std::unique_ptr<Image> _sticker;
+	bool _stickerLoading = false;
 	QByteArray _bytes;
 	QByteArray _videoThumbnailBytes;
 	Flags _flags;
