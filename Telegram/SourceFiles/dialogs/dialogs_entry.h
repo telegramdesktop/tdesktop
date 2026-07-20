@@ -202,7 +202,7 @@ private:
 	virtual void changedChatListPinHook();
 	void pinnedIndexChanged(FilterId filterId, int was, int now);
 	[[nodiscard]] uint64 computeSortPosition(FilterId filterId) const;
-	[[nodiscard]] bool hasUnreadUnmutedForSort() const;
+	[[nodiscard]] bool hasUnreadForSort() const;
 
 	void setChatListExistence(bool exists);
 	not_null<Row*> mainChatListLink(FilterId filterId) const;

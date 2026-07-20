@@ -55,8 +55,8 @@ uint64 UnreadOnTopDialogPos(uint64 sortKeyByDate) {
 
 base::options::toggle OptionUnreadOnTop({
 	.id = kOptionDialogsUnreadOnTop,
-	.name = "Keep unmuted unread chats on top",
-	.description = "Sort chats with new unmuted messages right below the "
+	.name = "Keep unread chats on top",
+	.description = "Sort chats with unread messages right below the "
 		"pinned ones and keep them there until you read them.",
 });
 
@@ -249,18 +249,19 @@ uint64 Entry::computeSortPosition(FilterId filterId) const {
 	const auto index = lookupPinnedIndex(filterId);
 	if (index) {
 		return PinnedDialogPos(index);
-	} else if (UnreadOnTopEnabled() && hasUnreadUnmutedForSort()) {
+	} else if (UnreadOnTopEnabled() && hasUnreadForSort()) {
 		return UnreadOnTopDialogPos(_sortKeyByDate);
 	}
 	return _sortKeyByDate;
 }
 
-bool Entry::hasUnreadUnmutedForSort() const {
+bool Entry::hasUnreadForSort() const {
 	const auto state = chatListUnreadState();
-	return (state.messages > state.messagesMuted)
-		|| (state.marks > state.marksMuted)
-		|| (state.reactions > state.reactionsMuted)
-		|| (state.mentions > 0);
+	return (state.messages > 0)
+		|| (state.marks > 0)
+		|| (state.reactions > 0)
+		|| (state.mentions > 0)
+		|| (state.polls > 0);
 }
 
 void Entry::updateChatListExistence() {
