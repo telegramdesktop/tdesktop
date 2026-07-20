@@ -304,6 +304,10 @@ rules, with these external-task safety adaptations:
 - Enforce both the in-app watchdog and an external wall-clock deadline. Count
   test runs independently from implementation attempts and stop at
   `MAX_TEST_RUNS`.
+- Plan the fewest possible runs: one complete programmed scenario per attempt
+  that proves every check in a single execution, splitting only for checks
+  that cannot share one process lifetime. `MAX_TEST_RUNS` is a safety cap,
+  never a budget to spend.
 - Delete the overlay-bearing Debug executable on every terminal test exit so
   the user cannot launch it accidentally.
 
@@ -313,7 +317,8 @@ contiguous run this is the `BASE_REF..GREEN_REF` diff; for a resumed older task,
 combine the exact task commits and inspect their current code at `RUN_REF`
 without treating intervening tasks as this task's changes. It writes checks
 before running, covers every acceptance surface, declares a falsifiable oracle
-for each, and never reuses a generic navigate-and-screenshot scenario. Missing
+for each, compresses all checks into the fewest possible runs — normally
+exactly one — and never reuses a generic navigate-and-screenshot scenario. Missing
 or ambiguous evidence is `TEST_FLAW`; no expected task delta is `IMPL_BUG`. Two
 identical consecutive failure signatures block early. A known implementation
 bug at the attempt cap is implementation-blocked, not a successful retained

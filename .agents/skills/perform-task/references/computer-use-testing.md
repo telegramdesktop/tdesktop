@@ -20,8 +20,11 @@ authoritative.
 
 Resolve one policy from the user's request and pass it to the task-runner:
 
-- `auto` (default) — let the test-author choose hybrid driving only where real pointer, keyboard,
-  focus, scrolling, dragging, menus, windowing, or native UI materially improves coverage.
+- `auto` (default) — overlay-only unless a check's tested subject IS the physical interaction.
+  Choose hybrid only when the acceptance criteria name behavior that solely real pointer, keyboard,
+  focus, scrolling, dragging, menus, windowing, or native-UI mechanics can exercise; "improves
+  coverage" or "more end-to-end" never qualifies. Expect most tasks, including most UI tasks, to
+  verify fully overlay-only.
 - `overlay-only` — never use Computer Use.
 - `required` — use hybrid driving for the named flow; if it cannot run safely, return
   `BLOCKED(test)` with the exact missing interaction rather than weakening the oracle, except for
@@ -29,8 +32,9 @@ Resolve one policy from the user's request and pass it to the task-runner:
 
 For each check, select `Driver: overlay` or `Driver: hybrid`. Keep overlay-only for internal state,
 data, exact text, and geometry that the in-app harness can exercise deterministically. Select hybrid
-when the user-input path itself matters. Do not approve a runnable code task from a Computer Use
-narrative or an uninstrumented click-through. Even a hybrid test retains the overlay for fixture
+only when the user-input path is itself the tested aspect, and fold every hybrid step into the same
+planned run as the overlay checks; hybrid never justifies extra runs. Do not approve a runnable code
+task from a Computer Use narrative or an uninstrumented click-through. Even a hybrid test retains the overlay for fixture
 setup, semantic assertions or geometry capture, watchdog, terminal markers, and tight screenshots.
 
 Have the test-author add these fields to every hybrid check in `test.md` before the run:

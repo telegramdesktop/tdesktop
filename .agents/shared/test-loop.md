@@ -194,6 +194,15 @@ writing any overlay:
    a reason). Do not stop at one or two.
 4. **Write the checks into `<WORK_DIR>/test.md` BEFORE running** (format under "Test report"), so the
    design is explicit and Actual/Result can be filled in per check afterward.
+5. **Run economy — plan ONE run.** A test run costs a build, an app launch, and an assessment pass,
+   so compress the whole design into a single programmed execution: one scenario that steps through
+   every check on the event loop, emitting per-check markers and saving every log value, measurement,
+   and tight screenshot needed to judge all of them afterwards. Order steps so earlier ones do not
+   destroy later fixtures. Plan a second run only when two checks genuinely cannot share one process
+   lifetime (mutually exclusive fixtures or settings, state one check needs fresh that another
+   necessarily contaminates) — never for scenario simplicity. Unplanned re-runs stay what the state
+   machine allows: a TEST_FLAW re-run or the next attempt after an IMPL_BUG fix — and a TEST_FLAW
+   re-author fixes every flaw observed in that run in one pass, not one flaw per relaunch.
 
 ## Visual contract (layout tasks)
 
@@ -250,9 +259,10 @@ How TEST verifies it (numbers over eyes):
 
 The overlay is ad-hoc, authored fresh against the CURRENT implementation, injected at the
 highest level that still exercises the change (often a direct data-layer call like
-`item->applyEdition(...)` rather than a faked MTP response). It is also a complete runtime driver
-when external desktop control is unavailable. Drive the whole task-specific flow inside the Debug
-binary by invoking application actions or posting Qt input events on the event loop, waiting for
+`item->applyEdition(...)` rather than a faked MTP response). It is also the complete runtime driver
+of first resort: prefer programmatically triggering every required action and judging the saved logs
+and captures afterwards over any external desktop driver, whether or not one is available. Drive the
+whole task-specific flow inside the Debug binary by invoking application actions or posting Qt input events on the event loop, waiting for
 observable state, logging assertions, capturing the rendered target in-process, and quitting. A
 locked macOS session does not reduce required coverage and is never a testing blocker. The overlay
 must:
