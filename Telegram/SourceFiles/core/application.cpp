@@ -101,6 +101,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
 
+#include <private/qabstractanimation_p.h>
+
 #include <ksandbox.h>
 
 namespace Core {
@@ -131,6 +133,18 @@ void SetCrashAnnotationsGL() {
 		"OpenGL",
 		Core::App().settings().disableOpenGL() ? "Disabled" : "Enabled");
 #endif // DESKTOP_APP_USE_ANGLE
+}
+
+// Qt animates QScroller kinetic scrolling at fixed 16 ms / ~60 fps,
+// so the inertia feels laggy on high refresh rate displays. Override the
+// interval to match the highest refresh rate.
+void RefreshAnimationTimingInterval() {
+	auto rate = 60.;
+	for (const auto screen : QGuiApplication::screens()) {
+		rate = std::max(rate, screen->refreshRate());
+	}
+	QUnifiedTimer::instance()->setTimingInterval(
+		std::clamp(int(std::floor(1000. / rate)), 2, 16));
 }
 
 base::options::toggle OptionSkipUrlSchemeRegister({
@@ -180,6 +194,23 @@ Application::Application()
 	_private->proxyRotation = std::make_unique<ProxyRotationManager>();
 
 	_platformIntegration->init();
+
+	RefreshAnimationTimingInterval();
+	const auto trackScreen = [=](QScreen *screen) {
+		connect(screen, &QScreen::refreshRateChanged, this, [] {
+			RefreshAnimationTimingInterval();
+		});
+	};
+	for (const auto screen : QGuiApplication::screens()) {
+		trackScreen(screen);
+	}
+	connect(qApp, &QGuiApplication::screenAdded, this, [=](QScreen *screen) {
+		trackScreen(screen);
+		RefreshAnimationTimingInterval();
+	});
+	connect(qApp, &QGuiApplication::screenRemoved, this, [] {
+		RefreshAnimationTimingInterval();
+	});
 
 	passcodeLockChanges(
 	) | rpl::on_next([=](bool locked) {
