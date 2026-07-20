@@ -1,14 +1,13 @@
 ---
 name: perform-task
-description: Resolve, claim, resume, implement, commit, and verify exactly one existing ai-tdesktop task by short slug or full dated id, including previously blocked unfinished work. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Runs the complete mature context, planning, assessment, Debug build, review, test-loop, Computer Use, resume, and publication pipeline without selecting any additional work.
+description: Resolve, start or resume, implement, commit, and verify exactly one existing ai-tdesktop task by short slug or full dated id, including rare blocked unfinished work. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Runs the complete context, planning, assessment, Debug build, review, test-loop, Computer Use, recovery, and final publication pipeline without selecting additional work.
 ---
 
 # Perform One AI Task
 
-Own exactly one task through a Telegram commit and a published attempt-boundary
-AI commit. Do not
-process the inbox, split the task, drain the queue, or select a follow-up after
-this attempt reaches `approved` or `blocked`.
+Own exactly one task through a Telegram commit and a canonical AI `Approve` or
+exceptional `Block`. Do not process the inbox, split the task, drain the queue,
+or select a follow-up afterward.
 
 ## Read the complete engine
 
@@ -34,92 +33,77 @@ python3 .agents/skills/process-inbox/scripts/workspace.py resolve \
 ```
 
 Use `python` or `py -3` when appropriate. The helper reads the ignored machine
-tag, derives the checkout tag, synchronizes clean AI state, and resolves:
+tag, derives the checkout tag, synchronizes clean AI state, and resolves an
+exact full id, exact final path slug, or exact normalized friendly title.
+Prefer a unique unfinished match over approved history. Never guess among
+several unfinished matches; report their full ids.
 
-1. an exact full id such as `2026/07/19/fix-community-forward`;
-2. an exact final path slug such as `fix-community-forward`;
-3. an exact normalized friendly task title.
-
-Prefer a unique unfinished match when approved history has the same slug.
-Never guess among several unfinished matches; report their full ids so the
-human can choose one.
-
-An interactive `/perform-task` or `$perform-task` invocation requires a
-nonempty name. If none was supplied, ask for the friendly short name or full
-id and do not select from the queue. A `continue` delegation always supplies
-the full id.
-
-When invoked by `continue`, accept its explicit `source_root`, `slot_worktree`,
-`checkout_tag`, and full `task_id`, but still run `resolve` and verify they
-match local discovery.
+An interactive invocation requires a nonempty name. If none was supplied, ask
+for the friendly short name or full id. A `continue` delegation always supplies
+the full id and explicit workspace values; still resolve and verify them.
 
 If `commits.slot_only` is nonzero and the slot is clean, run the helper's
-`publish` command and resolve again before changing ownership. If the slot is
-dirty, permit it only for an already `in-progress` task owned by this checkout
-and only within that task's allowed paths; the pipeline preflight will validate
-resumption ownership. Any other dirty or divergent state is a hard stop. Never
-discard an unpublished checkpoint.
+`publish` command and resolve again. A dirty slot is valid only when every
+change belongs to this checkout's one `in-progress` task. Those files are local
+resumable phase state; never discard them. Any unrelated dirty or divergent
+state is a hard stop.
 
 ## Acquire exactly this task
 
-Inspect the resolved task, its `ready` value, `other_active_task`, state, and
-owner before source work.
+Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 
-- If another task is already `in-progress` for this checkout, stop. Never
-  abandon or supersede it implicitly.
+- If another task is already `in-progress` for this checkout, stop.
 - If this task is `approved`, report its completed result and stop.
-- If it is claimed by another checkout, stop without touching it.
-- If it is unclaimed but its dependencies are unfinished, report those
-  dependencies and stop without claiming it.
-- If it is ready and unclaimed, claim only this full id:
-
-  ```bash
-  python3 .agents/skills/process-inbox/scripts/workspace.py claim \
-    --task <full-task-id>
-  ```
-
-- If it is `todo` and owned by this checkout, start it:
+- If it is owned by another checkout, stop. Cross-checkout restart is a rare
+  explicit human reassignment, never an implicit steal.
+- If its dependencies are unfinished, report them and stop without starting.
+- If it is `todo` and either unclaimed or owned by this checkout, atomically
+  assign and activate it:
 
   ```bash
   python3 .agents/skills/process-inbox/scripts/workspace.py start \
     --task <full-task-id>
   ```
 
-- If it is `blocked` and owned by this checkout, retry it:
+- If it is `blocked` and owned by this checkout, reopen it locally:
 
   ```bash
   python3 .agents/skills/process-inbox/scripts/workspace.py retry \
     --task <full-task-id>
   ```
 
-  Preserve its claim, implementation, plans, reviews, tests, result, and
-  evidence. Treat the prior blocked result as the exact resumption handoff and
-  continue from the first incomplete validated boundary rather than starting
-  over.
-
+  Preserve all source recovery, plans, reviews, tests, result, and evidence.
+  Continue from the first incomplete validated boundary. This creates no
+  `Resume` commit.
 - If it is already `in-progress` and owned by this checkout, resume it without
-  another claim, start, or retry commit.
+  another state commit.
 
-Refresh with `resolve` after every state mutation. The source pipeline starts
-only after canonical AI state shows this task `in-progress` for this checkout.
+Refresh with `resolve` after each mutation. The source pipeline begins only
+after the slot state shows this task `in-progress` for this checkout. For a new
+task, canonical master must already contain its `Start` commit.
 
 ## Run and publish
 
-Execute `references/pipeline.md` exactly. The task must normally produce:
+Execute `references/pipeline.md` exactly. A normal task produces:
 
 1. one or more tested Telegram implementation-attempt commits, each with an
    exact one-line subject, blank line, and `Task: <full-task-id>`;
-2. tracked resumable AI checkpoints during phase work;
-3. an attempt-boundary AI slot commit containing final result/state, rebased and
-   published to canonical AI master without force.
+2. local tracked phase artifacts and progress in the AI slot worktree, without
+   phase commits;
+3. one canonical `Approve <full-task-id>` commit containing all final AI
+   artifacts and state.
 
-Do not report success from a source commit alone. The attempt-boundary AI
-commit must also be canonical. On a retryable concurrent-master race, keep
-fetching, rebasing, and publishing until it succeeds. On a semantic conflict,
-unsafe checkout, or unreachable remote, preserve resumable state and report a
-hard stop.
+Only a genuine exhausted implementation or verification blocker produces a
+canonical `Block <full-task-id>` commit. Agent interruption, tool loss, and
+global environment stops leave the task `in-progress` with its task-scoped
+local state intact for the next invocation.
 
-Return a compact result with the full task id, attempt status or hard stop,
-attempts, touched files, canonical-publication confirmation, and exact evidence
-or unverified behavior. Never persist or report commit hashes; the full task id
-is the only cross-repository link.
+Do not report success from a source commit alone. The final AI commit must be
+canonical. Retry ordinary concurrent-master publication races until success.
+On a semantic conflict, unsafe checkout, or unreachable remote, preserve
+resumable state and report a hard stop.
+
+Return a compact result with the full task id, status or hard stop, attempts,
+touched files, canonical final-publication confirmation, and exact evidence or
+unverified behavior. Never persist or report commit hashes; the full task id is
+the only cross-repository link.

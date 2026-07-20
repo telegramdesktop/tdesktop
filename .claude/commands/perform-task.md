@@ -7,8 +7,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, AskUserQuestion, Todo
 
 Read `.claude/ai-workflow-adapter.md` and
 `.agents/skills/perform-task/SKILL.md` completely. Follow the shared skill with
-the Claude adapter's delegation and text-handling substitutions. Resolve,
-claim when needed, implement, verify, and publish only the named task. Do not
+the Claude adapter's delegation and text-handling substitutions. Resolve, start
+or resume, implement, verify, and publish only the named task. Do not
 continue with other queue work afterward.
 
 Tell every phase Agent to read `.claude/ai-workflow-adapter.md` before its

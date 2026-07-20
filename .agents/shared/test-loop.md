@@ -67,10 +67,10 @@ Early-escalation rule: if two consecutive ASSESS rounds produce the **same failu
 the attempt budget chasing it.
 
 UNRECOVERABLE conditions: the app reaches a login screen / `AUTH_KEY_DUPLICATED` and re-copying the
-test account does not recover it; `test_TelegramForcePortable` is missing when SETUP runs; or a crash
-has no usable diagnostic after one retry. A file-lock build error (`LNK1104`, `C1041`, access denied,
-file in use) is a repository hard stop: do not retry or work around it; ask the user to close the app
-and debugger.
+test account does not recover it, or a crash has no usable diagnostic after one retry. Missing
+`test_TelegramForcePortable` is a global environment hard stop, not a task `Block`. A file-lock build
+error (`LNK1104`, `C1041`, access denied, file in use) is likewise a repository hard stop: do not
+retry or work around it; ask the user to close the app and debugger.
 
 ## Handoff tokens
 
@@ -81,7 +81,7 @@ and debugger.
   `GREEN_REF` to the resulting commit.
 - **Test report** (`test.md`) is the only fix-agent handoff. Give it the latest Attempt/Run section,
   especially Root cause / Fix hint and Failure signature. Reserve wrapper-owned `result.md` for the
-  published attempt-boundary result; never create `result<n>.md`.
+  final AI result or exceptional blocked boundary; never create `result<n>.md`.
 
 ## Commit message
 

@@ -31,23 +31,29 @@ def task_state(status, claimed_by="macbook-twork"):
 	}
 
 
-def write_task(slot, status="blocked"):
+def write_task(slot, status="blocked", claimed_by="macbook-twork"):
 	directory = slot / "tasks" / TASK_ID
 	(directory / "work").mkdir(parents=True)
 	(directory / "task.md").write_text(
 		"# Correct recent-search peer actions\n",
 		encoding="utf-8",
 	)
+	owner = claimed_by or "null"
+	claimed_at = "2026-07-19T14:28:01+04:00" if claimed_by else "null"
+	claim_order = "1" if claimed_by else "null"
+	phase = "blocked" if status == "blocked" else (
+		"setup" if status == "in-progress" else "null"
+	)
 	(directory / "state.yaml").write_text(
 		f"""status: {status}
 created: 2026-07-19
 project: null
 depends_on: []
-claimed_by: macbook-twork
-claimed_at: 2026-07-19T14:28:01+04:00
-claim_order: 1
+claimed_by: {owner}
+claimed_at: {claimed_at}
+claim_order: {claim_order}
 lease_until: null
-phase: {status}
+phase: {phase}
 inbox_receipt: receipts/2026/07/19/test.md
 """,
 		encoding="utf-8",
@@ -91,7 +97,7 @@ class WorkspaceTest(unittest.TestCase):
 			with (
 				mock.patch.object(workspace, "worktree_config", return_value=config),
 				mock.patch.object(workspace, "sync_canonical"),
-				mock.patch.object(workspace, "commit_paths", return_value=True) as commit,
+				mock.patch.object(workspace, "commit_paths") as commit,
 				contextlib.redirect_stdout(io.StringIO()),
 			):
 				workspace.command_retry(SimpleNamespace(task=TASK_ID))
@@ -100,9 +106,127 @@ class WorkspaceTest(unittest.TestCase):
 			self.assertEqual(state["status"], "in-progress")
 			self.assertEqual(state["phase"], "resume")
 			self.assertFalse(routed.exists())
-			paths = commit.call_args.args[1]
-			self.assertIn(f"tasks/{TASK_ID}/state.yaml", paths)
-			self.assertIn(f"tasks/{TASK_ID}/work/discovered-routed.md", paths)
+			commit.assert_not_called()
+
+	def test_start_atomically_assigns_unclaimed_todo(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			slot = Path(temporary)
+			directory = write_task(slot, status="todo", claimed_by=None)
+			config = {
+				"checkout_tag": "macbook-twork",
+				"slot_worktree": str(slot),
+			}
+			with (
+				mock.patch.object(workspace, "worktree_config", return_value=config),
+				mock.patch.object(workspace, "sync_canonical"),
+				mock.patch.object(workspace, "commit_paths", return_value=True) as commit,
+				contextlib.redirect_stdout(io.StringIO()),
+			):
+				workspace.command_start(SimpleNamespace(task=TASK_ID))
+
+			state = workspace.load_state(slot, directory / "state.yaml")
+			self.assertEqual(state["status"], "in-progress")
+			self.assertEqual(state["claimed_by"], "macbook-twork")
+			self.assertIsNotNone(state["claimed_at"])
+			self.assertEqual(state["claim_order"], 1)
+			self.assertEqual(state["phase"], "setup")
+			self.assertEqual(
+				commit.call_args.args[2],
+				f"Start {TASK_ID} on macbook-twork",
+			)
+
+	def test_checkpoint_updates_only_local_task_state(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			slot = Path(temporary)
+			directory = write_task(slot, status="in-progress")
+			config = {"checkout_tag": "macbook-twork"}
+			with (
+				mock.patch.object(
+					workspace,
+					"task_action_config",
+					return_value=(config, slot),
+				),
+				mock.patch.object(workspace, "commit_paths") as commit,
+				contextlib.redirect_stdout(io.StringIO()),
+			):
+				workspace.command_checkpoint(
+					SimpleNamespace(task=TASK_ID, phase="review")
+				)
+
+			state = workspace.load_state(slot, directory / "state.yaml")
+			self.assertEqual(state["phase"], "review")
+			commit.assert_not_called()
+
+	def test_normal_lifecycle_publishes_only_start_and_approve(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			slot = root / "slot"
+			source = root / "source"
+			source.mkdir()
+			directory = write_task(slot, status="todo", claimed_by=None)
+			config = {
+				"ai_main": str(root / "main"),
+				"checkout_tag": "macbook-twork",
+				"slot_worktree": str(slot),
+				"source_root": str(source),
+			}
+			subjects = []
+
+			def record_commit(_config, _paths, subject):
+				subjects.append(subject)
+				return True
+
+			with (
+				mock.patch.object(workspace, "worktree_config", return_value=config),
+				mock.patch.object(workspace, "sync_canonical"),
+				mock.patch.object(workspace, "commit_paths", side_effect=record_commit),
+				contextlib.redirect_stdout(io.StringIO()),
+			):
+				workspace.command_start(SimpleNamespace(task=TASK_ID))
+
+			with (
+				mock.patch.object(
+					workspace,
+					"task_action_config",
+					return_value=(config, slot),
+				),
+				mock.patch.object(workspace, "commit_paths", side_effect=record_commit),
+				contextlib.redirect_stdout(io.StringIO()),
+			):
+				workspace.command_checkpoint(
+					SimpleNamespace(task=TASK_ID, phase="review")
+				)
+
+			(directory / "work" / "result.md").write_text(
+				f"""# Task result: {TASK_ID}
+STATUS: DONE
+Verdict: APPROVED
+Checkout: clean-buildable
+""",
+				encoding="utf-8",
+			)
+			with (
+				mock.patch.object(
+					workspace,
+					"task_action_config",
+					return_value=(config, slot),
+				),
+				mock.patch.object(workspace, "ensure_clean"),
+				mock.patch.object(workspace, "validate_source_state"),
+				mock.patch.object(workspace, "delete_source_refs"),
+				mock.patch.object(workspace, "commit_paths", side_effect=record_commit),
+				contextlib.redirect_stdout(io.StringIO()),
+			):
+				workspace.command_finish(
+					SimpleNamespace(task=TASK_ID, status="approved")
+				)
+
+			self.assertEqual(subjects, [
+				f"Start {TASK_ID} on macbook-twork",
+				f"Approve {TASK_ID}",
+			])
+			state = workspace.load_state(slot, directory / "state.yaml")
+			self.assertEqual(state["status"], "approved")
 
 	def test_retry_refuses_to_compete_with_active_task(self):
 		with tempfile.TemporaryDirectory() as temporary:

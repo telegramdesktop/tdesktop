@@ -4,12 +4,12 @@
 
 - [Contract and inputs](#contract-and-inputs)
 - [Preflight](#preflight)
-- [Artifacts and resumption](#artifacts-and-resumption)
+- [Local artifacts and resumption](#local-artifacts-and-resumption)
 - [Delegation](#delegation)
 - [Implementation phases](#implementation-phases)
 - [Telegram commits](#telegram-commits)
 - [Test loop adapter](#test-loop-adapter)
-- [Attempt-boundary state](#attempt-boundary-state)
+- [Final AI state](#final-ai-state)
 - [Failure handling](#failure-handling)
 
 ## Contract and inputs
@@ -103,7 +103,7 @@ Do not stash. Do not reset, restore, stage, commit, or delete an unexpected
 path. Invocation authorizes recovery only for paths proven to belong to this
 task and only back to `RUN_REF` or `BASE_REF`, as appropriate.
 
-## Artifacts and resumption
+## Local artifacts and resumption
 
 Use tracked, resumable task artifacts:
 
@@ -142,17 +142,20 @@ repeat an approved phase merely because the prior agent session disappeared.
 Treat a compact subagent reply as a notification; the artifact and repository
 state are proof.
 
-At each stable boundary update `work/progress.md` and publish a checkpoint:
+At each stable boundary update `work/progress.md` and record the current phase
+locally:
 
 ```bash
 python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
   checkpoint --source-root SOURCE_ROOT --task TASK_ID --phase PHASE
 ```
 
-Checkpoint after context, assessed plan, each completed implementation phase
-when useful for recovery, the retained implementation commit, review, and each
-material test attempt. Never checkpoint a half-written artifact. A checkpoint
-commit must be rebased and published to AI master before later phase work.
+Record progress after context, assessed plan, each completed implementation
+phase when useful for recovery, the retained implementation commit, review,
+and each material test attempt. Never mark a half-written artifact complete.
+The helper changes only task-scoped files in the slot worktree and publishes no
+checkpoint commit. Keep this local dirty state until the final `Approve` or
+exceptional `Block` commit captures the whole task record.
 
 ## Delegation
 
@@ -313,14 +316,14 @@ Skip runtime testing only for a task with no runnable behavior. Record
 `NOT_APPLICABLE` and exact file-level validation. Configuration alone is not a
 reason to skip.
 
-## Attempt-boundary state
+## Final AI state
 
-Before publishing an approved or blocked attempt, require a clean Telegram
-checkout at `RUN_REF`, with `GREEN_REF` in its history when an implementation
-is retained, no overlay in source, no owned live test copy, and no
-overlay-bearing executable. For implementation-blocked work with no retained
-commit, restore only proven owned paths to `BASE_REF`. For test-blocked work
-retain the latest implementation commit and state the exact unverified
+Before publishing an approved result or genuine blocked boundary, require a
+clean Telegram checkout at `RUN_REF`, with `GREEN_REF` in its history when an
+implementation is retained, no overlay in source, no owned live test copy, and
+no overlay-bearing executable. For implementation-blocked work with no
+retained commit, restore only proven owned paths to `BASE_REF`. For test-blocked
+work retain the latest implementation commit and state the exact unverified
 behavior.
 
 Write `work/result.md` with exactly one value for every field:
@@ -348,8 +351,7 @@ For approved project work, promote `work/project.proposed.md` to the project's
 `project.md` immediately before final AI publication. For blocked work, retain
 the proposal only as a task artifact.
 
-Publish the attempt-boundary AI state only after the Telegram commit and result
-are final:
+Publish final AI state only after the Telegram commit and result are final:
 
 ```bash
 python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
@@ -359,13 +361,14 @@ python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
 
 The helper verifies a clean source checkout, local task refs, current `HEAD`,
 and the retained implementation's exact three-line commit message. It commits
-the task result and state in the AI slot, fetches newer canonical state when
-configured, rebases the slot, publishes without force, and fast-forwards local
-AI master. It deletes all local task refs after approval; after a block it
-deletes only `RUN_REF` and retains implementation recovery refs for the next
-invocation. Do not report an attempt boundary until that AI commit reaches
-canonical master. Preserve an unpublished slot commit on a semantic conflict
-or remote outage and hard-stop instead of pretending completion.
+all task-scoped local artifacts and final state as `Approve <TASK_ID>` or the
+exceptional `Block <TASK_ID>`, fetches newer canonical state when configured,
+rebases the slot, publishes without force, and fast-forwards local AI master.
+It deletes all local task refs after approval; after a block it deletes only
+`RUN_REF` and retains implementation recovery refs for the next invocation.
+Do not report final state until that AI commit reaches canonical master.
+Preserve an unpublished final slot commit on a semantic conflict or remote
+outage and hard-stop instead of pretending completion.
 
 When `Discovered: present`, preserve complete task blocks in `result.md`. The
 `continue` scheduler must route them through the same independent-testability
@@ -374,12 +377,14 @@ planner into new unclaimed dated tasks before selecting more shared work.
 ## Failure handling
 
 - A disposable phase may be retried once through the wait ladder. Never fresh
-  retry the performer within the same attempt; a later `continue` invocation
-  creates one new performer to resume a published blocked task.
+  retry the performer within the same attempt. An interruption leaves local
+  task state `in-progress`; a later `continue` invocation resumes it. A later
+  invocation reopens a published blocked task locally without a `Resume`
+  commit.
 - A clean `blocked` attempt leaves the task unfinished. It lets `continue`
   proceed with independent work, but the next invocation retries it once before
-  reserved or shared work. A dirty/non-buildable checkout or global environment
-  problem stops the current invocation.
+  starting new shared work. A dirty/non-buildable checkout or global
+  environment problem stops the current invocation.
 - A file-lock build error always stops immediately and asks the human to close
   this checkout's Telegram/debugger.
 - Missing optional screenshots or mockups never block.

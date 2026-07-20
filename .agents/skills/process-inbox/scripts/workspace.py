@@ -630,64 +630,6 @@ def command_resolve(args):
 	}, indent=2, sort_keys=True))
 
 
-def command_claim(args):
-	config = worktree_config(args, create=True)
-	sync_canonical(config)
-	slot = Path(config["slot_worktree"])
-	states = load_states(slot)
-	tasks = []
-	for task_id in args.task:
-		if task_id in (task["id"] for task in tasks):
-			raise WorkspaceError(f"Task was listed twice: {task_id}")
-		task = states.get(task_id)
-		if task is None:
-			raise WorkspaceError(f"Task does not exist: {task_id}")
-		if task["status"] != "todo" or task["claimed_by"] is not None:
-			raise WorkspaceError(f"Task is not unclaimed todo work: {task_id}")
-		tasks.append(task)
-	claimed_at = datetime.datetime.now().astimezone().isoformat()
-	paths = []
-	for order, task in enumerate(tasks, 1):
-		path = state_path(slot, task["id"])
-		update_state(path, {
-			"claimed_by": config["checkout_tag"],
-			"claimed_at": claimed_at,
-			"claim_order": order,
-			"lease_until": None,
-		})
-		paths.append(str(path.relative_to(slot)))
-	subject = (
-		f"Claim {tasks[0]['id']} for {config['checkout_tag']}"
-		if len(tasks) == 1
-		else f"Claim {len(tasks)} tasks for {config['checkout_tag']}"
-	)
-	try:
-		commit = commit_paths(config, paths, subject)
-	except WorkspaceError as error:
-		main_states = load_states(Path(config["ai_main"]))
-		lost = [
-			task["id"] for task in tasks
-			if task["id"] in main_states
-			and (
-				main_states[task["id"]]["status"] != "todo"
-				or main_states[task["id"]]["claimed_by"] is not None
-			)
-		]
-		counts = unpublished_counts(config)
-		if lost and counts["slot_only"] == 1:
-			head = run_git(slot, "rev-parse", "HEAD").stdout.strip()
-			run_git(slot, "rebase", "--onto", "master", head)
-			raise WorkspaceError(
-				"Claim lost to newer master for " + ", ".join(lost)
-			) from error
-		raise
-	print(json.dumps({
-		"checkout_tag": config["checkout_tag"],
-		"claimed": [task["id"] for task in tasks],
-		"published": bool(commit),
-	}, indent=2, sort_keys=True))
-
-
 def command_start(args):
 	config = worktree_config(args, create=True)
 	sync_canonical(config)
@@ -696,8 +638,13 @@ def command_start(args):
 	task = states.get(args.task)
 	if task is None:
 		raise WorkspaceError(f"Task does not exist: {args.task}")
-	if task["status"] != "todo" or task["claimed_by"] != config["checkout_tag"]:
-		raise WorkspaceError(f"Task is not claimed todo work for this checkout: {args.task}")
+	if task["status"] != "todo" or task["claimed_by"] not in (
+		None,
+		config["checkout_tag"],
+	):
+		raise WorkspaceError(
+			f"Task is not available todo work for this checkout: {args.task}"
+		)
 	if not task_ready(task, states):
 		raise WorkspaceError(f"Task has unfinished dependencies: {args.task}")
 	active = [
@@ -708,12 +655,44 @@ def command_start(args):
 	if active:
 		raise WorkspaceError("Another task is already in progress: " + ", ".join(active))
 	path = state_path(slot, args.task)
-	update_state(path, {"status": "in-progress", "phase": "setup"})
-	commit = commit_paths(
-		config,
-		[str(path.relative_to(slot))],
-		f"Start {args.task} on {config['checkout_tag']}",
-	)
+	update_state(path, {
+		"status": "in-progress",
+		"claimed_by": config["checkout_tag"],
+		"claimed_at": (
+			task["claimed_at"]
+			or datetime.datetime.now().astimezone().isoformat()
+		),
+		"claim_order": task["claim_order"] or 1,
+		"lease_until": None,
+		"phase": "setup",
+	})
+	try:
+		commit = commit_paths(
+			config,
+			[str(path.relative_to(slot))],
+			f"Start {args.task} on {config['checkout_tag']}",
+		)
+	except WorkspaceError as error:
+		main_states = load_states(Path(config["ai_main"]))
+		main_task = main_states.get(args.task)
+		lost = (
+			main_task is not None
+			and (
+				main_task["status"] != "todo"
+				or main_task["claimed_by"] not in (
+					None,
+					config["checkout_tag"],
+				)
+			)
+		)
+		counts = unpublished_counts(config)
+		if lost and counts["slot_only"] == 1:
+			head = run_git(slot, "rev-parse", "HEAD").stdout.strip()
+			run_git(slot, "rebase", "--onto", "master", head)
+			raise WorkspaceError(
+				f"Start lost to newer master for {args.task}"
+			) from error
+		raise
 	print(json.dumps({
 		"task": args.task,
 		"status": "in-progress",
@@ -751,20 +730,14 @@ def command_retry(args):
 		"phase": "resume",
 		"lease_until": None,
 	})
-	paths = [str(path.relative_to(slot))]
 	routed = path.parent / "work" / "discovered-routed.md"
 	if routed.is_file():
 		routed.unlink()
-		paths.append(str(routed.relative_to(slot)))
-	commit = commit_paths(
-		config,
-		paths,
-		f"Resume {args.task} on {config['checkout_tag']}",
-	)
 	print(json.dumps({
 		"task": args.task,
 		"status": "in-progress",
-		"published": bool(commit),
+		"local": True,
+		"published": False,
 	}, indent=2, sort_keys=True))
 
 
@@ -785,18 +758,14 @@ def task_action_config(args, require_status="in-progress", allow_project=False):
 
 
 def command_checkpoint(args):
-	config, slot = task_action_config(args)
+	_, slot = task_action_config(args)
 	path = state_path(slot, args.task)
 	update_state(path, {"phase": args.phase})
-	commit = commit_paths(
-		config,
-		[task_relative_dir(args.task)],
-		f"Checkpoint {args.task}: {args.phase}",
-	)
 	print(json.dumps({
 		"task": args.task,
 		"phase": args.phase,
-		"published": bool(commit),
+		"local": True,
+		"published": False,
 	}, indent=2, sort_keys=True))
 
 
@@ -1246,11 +1215,6 @@ def parse_args():
 	add_common_arguments(resolve)
 	resolve.add_argument("--name", required=True)
 	resolve.set_defaults(handler=command_resolve)
-
-	claim = subparsers.add_parser("claim")
-	add_common_arguments(claim)
-	claim.add_argument("--task", action="append", required=True)
-	claim.set_defaults(handler=command_claim)
 
 	start = subparsers.add_parser("start")
 	add_common_arguments(start)
