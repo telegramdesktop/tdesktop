@@ -21,6 +21,9 @@ COMMIT_HASH_PATTERN = re.compile(
 	r"(?i)\b(?:commit|revision|sha(?:-1)?)\b[^\r\n]{0,32}(?<!#)\b[0-9a-f]{7,64}\b"
 )
 LEGACY_COMMIT_FIELDS = ("Task-Base-SHA:", "Implementation-SHA:")
+PROJECT_ARCHIVE_DIR = "archive"
+PROJECT_LINK_PATTERN = re.compile(r"\]\(\.\./\.\./(?!\.\./)")
+ARCHIVED_PROJECT_LINK_PATTERN = re.compile(r"\]\(\.\./\.\./\.\./")
 STATE_FIELD_ORDER = [
 	"status",
 	"created",
@@ -993,6 +996,109 @@ def command_publish(args):
 	print(json.dumps({"published": bool(published)}, indent=2, sort_keys=True))
 
 
+def rewrite_project_links(directory, pattern, replacement):
+	for path in sorted(directory.rglob("*.md")):
+		data = path.read_bytes()
+		if data.startswith(b"\xef\xbb\xbf"):
+			raise WorkspaceError(f"Refusing to preserve a UTF-8 BOM in {path}")
+		text = data.decode("utf-8")
+		replaced = pattern.sub(replacement, text)
+		if replaced != text:
+			path.write_bytes(replaced.encode("utf-8"))
+
+
+def project_last_activity(states):
+	activity = {}
+	unfinished = set()
+	for task in states.values():
+		project = task["project"]
+		if project is None:
+			continue
+		try:
+			created = datetime.date.fromisoformat(task["created"])
+		except ValueError as error:
+			raise WorkspaceError(
+				f"Invalid created date in {task['id']}: {task['created']!r}"
+			) from error
+		if project not in activity or created > activity[project]:
+			activity[project] = created
+		if task["status"] != "approved":
+			unfinished.add(project)
+	return activity, unfinished
+
+
+def command_archive_stale(args):
+	if args.days < 1:
+		raise WorkspaceError("The archive threshold must be at least one day")
+	config = worktree_config(args, create=True)
+	sync_canonical(config)
+	slot = Path(config["slot_worktree"])
+	activity, unfinished = project_last_activity(load_states(slot))
+	cutoff = datetime.date.today() - datetime.timedelta(days=args.days)
+	projects = slot / "projects"
+	candidates = sorted(
+		entry.name for entry in projects.iterdir()
+		if entry.is_dir() and entry.name != PROJECT_ARCHIVE_DIR
+	) if projects.is_dir() else []
+	archived = []
+	published = False
+	for slug in candidates:
+		if slug in unfinished or slug not in activity or activity[slug] > cutoff:
+			continue
+		target = projects / PROJECT_ARCHIVE_DIR / slug
+		if target.exists():
+			raise WorkspaceError(f"The archive already contains a project: {slug}")
+		target.parent.mkdir(exist_ok=True)
+		run_git(
+			slot,
+			"mv",
+			f"projects/{slug}",
+			f"projects/{PROJECT_ARCHIVE_DIR}/{slug}",
+		)
+		rewrite_project_links(target, PROJECT_LINK_PATTERN, "](../../../")
+		published = commit_paths(
+			config,
+			[f"projects/{PROJECT_ARCHIVE_DIR}/{slug}"],
+			f"Archive {slug}",
+		)
+		archived.append(slug)
+	print(json.dumps({
+		"archived": archived,
+		"days": args.days,
+		"published": bool(published),
+	}, indent=2, sort_keys=True))
+
+
+def command_unarchive(args):
+	slug = args.project
+	if slug == PROJECT_ARCHIVE_DIR or not TAG_PATTERN.fullmatch(slug):
+		raise WorkspaceError(f"Invalid project slug: {slug!r}")
+	config = worktree_config(args, create=True)
+	slot = Path(config["slot_worktree"])
+	archived = slot / "projects" / PROJECT_ARCHIVE_DIR / slug
+	target = slot / "projects" / slug
+	if not archived.is_dir():
+		raise WorkspaceError(f"No archived project: {slug}")
+	if target.exists():
+		raise WorkspaceError(f"The project is already live: {slug}")
+	run_git(
+		slot,
+		"mv",
+		f"projects/{PROJECT_ARCHIVE_DIR}/{slug}",
+		f"projects/{slug}",
+	)
+	rewrite_project_links(target, ARCHIVED_PROJECT_LINK_PATTERN, "](../../")
+	run_git(slot, "add", "--", f"projects/{slug}")
+	archive_root = slot / "projects" / PROJECT_ARCHIVE_DIR
+	if archive_root.is_dir() and not any(archive_root.iterdir()):
+		archive_root.rmdir()
+	print(json.dumps({
+		"project": slug,
+		"published": False,
+		"unarchived": True,
+	}, indent=2, sort_keys=True))
+
+
 def payload_entries(inbox):
 	return sorted(
 		(path for path in inbox.iterdir() if path.name != "backup"),
@@ -1251,6 +1357,16 @@ def parse_args():
 	publish = subparsers.add_parser("publish")
 	add_common_arguments(publish)
 	publish.set_defaults(handler=command_publish)
+
+	archive_stale = subparsers.add_parser("archive-stale")
+	add_common_arguments(archive_stale)
+	archive_stale.add_argument("--days", type=int, default=90)
+	archive_stale.set_defaults(handler=command_archive_stale)
+
+	unarchive = subparsers.add_parser("unarchive")
+	add_common_arguments(unarchive)
+	unarchive.add_argument("--project", required=True)
+	unarchive.set_defaults(handler=command_unarchive)
 
 	return parser.parse_args()
 

@@ -44,7 +44,8 @@ Resolve the task and read its context:
 
 1. Run `python3 .agents/skills/process-inbox/scripts/workspace.py resolve --name "$ARGUMENTS"` (use the host's Python 3 command).
 2. Read the resolved task's `task.md` and `work/context.md` from the returned AI slot worktree.
-3. When `project` is non-null, also read `projects/<project>/project.md`.
+3. When `project` is non-null, also read `projects/<project>/project.md`, or
+   `projects/archive/<project>/project.md` when the project has been archived.
 
 This helps you distinguish between:
 - **Task-specific mistakes** — the agent misunderstood this particular feature's requirements or made a wrong choice within the specific problem. These are NOT documentation-worthy.

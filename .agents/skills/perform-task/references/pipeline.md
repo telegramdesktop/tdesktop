@@ -80,8 +80,10 @@ Before planning or editing:
 3. Require the prepared portable test account. Its absence is a global hard
    stop before implementation.
 4. Verify a usable Debug executable/build tree, safe path-scoped process
-   control, safe portable-folder operations, and an app-run display. Computer
-   Use remains optional unless policy is `required`.
+   control, safe portable-folder operations, and the ability to launch and
+   render the in-binary test flow. A locked macOS session disables Computer Use
+   only; it does not fail this preflight or block testing, even when policy was
+   `required`.
 5. For a new run require a clean tracked Telegram worktree, clean submodules,
    and no unrelated untracked files, then initialize local recovery state:
 
@@ -279,6 +281,11 @@ rules, with these external-task safety adaptations:
   clean tip before reapplying the overlay.
 - Reapply with `git apply --3way`; re-author a conflicting hunk from `test.md`
   rather than leaving conflict markers.
+- On locked macOS, force overlay-only testing without waiting or blocking.
+  Encode the complete interaction inside the Debug binary using application
+  actions or Qt events, log assertions and geometry, capture widgets/windows
+  in-process, save the artifacts, and quit. Do not require an OS-level desktop
+  screenshot or interactive Computer Use evidence.
 - Missing `test_TelegramForcePortable` is the only portable-account setup
   blocker. If live exists without real, move live to real. If live and real
   both exist, recursively delete live completely. Then deep-copy golden to
@@ -387,6 +394,9 @@ planner into new unclaimed dated tasks before selecting more shared work.
   environment problem stops the current invocation.
 - A file-lock build error always stops immediately and asks the human to close
   this checkout's Telegram/debugger.
+- A locked macOS session and the resulting unavailable Computer Use driver
+  never stop or block the task; continue with the complete in-binary overlay
+  flow.
 - Missing optional screenshots or mockups never block.
 - Never silently pass unverified behavior. Surface every blocked or partially
   verified task with exact `work/test.md`, `work/result.md`, and evidence paths.

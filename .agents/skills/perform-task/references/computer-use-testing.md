@@ -9,6 +9,7 @@ authoritative.
 
 - [Driver policy](#driver-policy)
 - [Capability gate](#capability-gate)
+- [Locked macOS override](#locked-macos-override)
 - [Exact-app gate](#exact-app-gate)
 - [Hybrid handshake](#hybrid-handshake)
 - [Safety envelope](#safety-envelope)
@@ -23,7 +24,8 @@ Resolve one policy from the user's request and pass it to the task-runner:
   focus, scrolling, dragging, menus, windowing, or native UI materially improves coverage.
 - `overlay-only` — never use Computer Use.
 - `required` — use hybrid driving for the named flow; if it cannot run safely, return
-  `BLOCKED(test)` with the exact missing interaction rather than weakening the oracle.
+  `BLOCKED(test)` with the exact missing interaction rather than weakening the oracle, except for
+  the locked-macOS override below.
 
 For each check, select `Driver: overlay` or `Driver: hybrid`. Keep overlay-only for internal state,
 data, exact text, and geometry that the in-app harness can exercise deterministically. Select hybrid
@@ -63,13 +65,36 @@ not arrive through `fork_turns: "none"`; the explicit path is the handoff.
 Do not infer capability from an installed directory or config entry. An installed plugin may be
 disabled by policy, lack its runtime tool, support a different platform, or still need app/OS
 approval. In `auto`, fall back to the prewritten overlay action. In `required`, or when no equivalent
-overlay can exercise the physical interaction, return `BLOCKED(test)` with the canonical mapping below.
-Missing capability or permission is never an implementation bug.
+overlay can exercise the physical interaction, return `BLOCKED(test)` with the canonical mapping
+below unless the locked-macOS override applies. Missing capability or permission is never an
+implementation bug.
 
 Computer Use runs in the foreground on Windows. Use it only on an unlocked, reserved active desktop
 or isolated VM. Treat local pointer or keyboard interference, a focus steal, or a window switch as a
 contaminated run and restart within `MAX_TEST_RUNS`. Treat WSL/Linux/headless as unavailable unless
 the current host explicitly exposes a supported desktop adapter for the exact test app.
+
+## Locked macOS override
+
+When macOS reports the graphical session locked, including
+`CGSSessionScreenIsLocked=Yes`, do not wait for unlock, repeat capability checks, ask the human to
+unlock, count repeated lock checks toward a blocked goal, or return `BLOCKED(test)`. Do not call
+Computer Use against the lock screen. Force every planned check to `Driver: overlay`, regardless of
+whether the original policy was `auto` or `required`, and continue the ordinary build/run/assess
+loop. Skip the exact-app gate and hybrid handshake entirely for that run.
+
+Treat the in-binary overlay as a complete driver, not merely supplemental instrumentation. Extend it
+until it performs the whole task-specific flow on the Qt event loop: create or inject the fixture,
+invoke the same application actions or post the needed Qt input events, wait on observable
+conditions, log actual values and assertions, grab the target widget or top-level test window from
+inside the process, save artifacts, emit `TEST_COMPLETE`, and quit. Prefer `QWidget::grab()` or a
+renderer-owned image over an OS desktop capture, which may show only the lock screen. Assess those
+logs, measurements, and saved images exactly as in any other overlay run.
+
+Record the lock in `computer-use-capability.md` as the reason for selecting overlay-only and report
+`UI-Driver: overlay`. Lock state is neither missing verification nor a global environment stop. If
+the first overlay design depended on an external gesture, redesign that action inside the binary
+rather than treating the locked session as evidence that the task cannot be tested.
 
 ## Exact-app gate
 
@@ -146,6 +171,8 @@ Whenever a planned hybrid check is unavailable before a run, write
 `<TASK_DIR>/computer-use-capability.md` with the policy, host, active skill path or `none`, runtime
 tool status, OS/app-approval status, exact-app identity result, fallback decision, and reason.
 
+- Locked macOS always continues overlay-only under the override above, including for `required`.
+  Never map screen lock to `BLOCKED(test)` or `UI-Driver: hybrid-unavailable`.
 - `auto` with an equivalent fallback continues overlay-only. Record `UI-Driver: overlay` and cite the
   capability report plus overlay evidence; capability failure is not a blocker.
 - `required`, or `auto` without an equivalent fallback, records `STATUS: BLOCKED`,

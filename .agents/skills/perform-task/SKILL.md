@@ -98,6 +98,11 @@ canonical `Block <full-task-id>` commit. Agent interruption, tool loss, and
 global environment stops leave the task `in-progress` with its task-scoped
 local state intact for the next invocation.
 
+A locked macOS session is not an environment stop or verification blocker.
+Skip interactive Computer Use and complete the same coverage through the
+in-binary overlay: drive the flow, log/assert, capture widgets or windows,
+quit, and assess the saved artifacts.
+
 Do not report success from a source commit alone. The final AI commit must be
 canonical. Retry ordinary concurrent-master publication races until success.
 On a semantic conflict, unsafe checkout, or unreachable remote, preserve

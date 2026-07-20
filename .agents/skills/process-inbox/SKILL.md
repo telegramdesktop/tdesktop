@@ -46,7 +46,8 @@ Read these before planning:
 
 - source checkout `AGENTS.md`;
 - `ai_main/AGENTS.md`;
-- existing `projects/*/project.md` and task states relevant to the request;
+- existing `projects/*/project.md`, including `projects/archive/`, and task
+  states relevant to the request;
 - the transaction's `inbox.md` and every file it references.
 
 Use one disposable leaf planner when the harness supports delegation; instruct
@@ -66,6 +67,18 @@ unrelated regressions normally becomes standalone tasks or tasks in existing
 domain projects. Group requests into one task only when they form one cohesive,
 independently testable behavior. Split work until every task is implementable
 in one pass and has an exact observable acceptance result.
+
+Project slugs are unique across `projects/` and `projects/archive/`. When a
+request belongs to an archived project, restore it before routing to it:
+
+```bash
+python3 .agents/skills/process-inbox/scripts/workspace.py unarchive \
+  --project <slug>
+```
+
+The helper moves the project back to `projects/<slug>`, rewrites its relative
+links, and leaves the restored files staged for this transaction's commit.
+Never point a task at a path under `projects/archive/`.
 
 Briefly inspect Telegram source when needed to understand scope and testable
 seams. Do not plan implementation internals and do not modify the source tree.
@@ -157,6 +170,7 @@ Before committing, verify:
 - every new task has `task.md`, valid `state.yaml`, and a falsifiable
   acceptance result;
 - every task link, dependency, and copied input exists;
+- no task or project reference points into `projects/archive/`;
 - no raw inbox path, `.local/`, browser profile, portable account, credential,
   complete run directory, or complete build log is tracked;
 - no Telegram or AI commit hash is copied into a task, project, or receipt;

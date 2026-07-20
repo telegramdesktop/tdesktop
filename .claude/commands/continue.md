@@ -16,7 +16,8 @@ in its initial prompt to read `.claude/ai-workflow-adapter.md` completely before
 the applicable shared skill or reference. Use the Agent tool for those workers;
 do not start Claude subprocesses through Bash.
 
-Arguments, when present, are natural-language scheduling or priority hints:
+Arguments, when present, are natural-language hints for new shared work; their
+wording decides whether they merely prioritize or strictly restrict selection:
 
 ```text
 $ARGUMENTS

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import contextlib
+import datetime
 import io
 from pathlib import Path
 import subprocess
@@ -13,6 +14,12 @@ import workspace
 
 
 TASK_ID = "2026/07/19/correct-recent-search-peer-actions"
+
+
+class FrozenDate(datetime.date):
+	@classmethod
+	def today(cls):
+		return cls(2026, 7, 20)
 
 
 def task_state(status, claimed_by="macbook-twork"):
@@ -61,6 +68,42 @@ inbox_receipt: receipts/2026/07/19/test.md
 	return directory
 
 
+def write_project(slot, slug):
+	directory = slot / "projects" / slug
+	directory.mkdir(parents=True)
+	(directory / "project.md").write_text(f"# {slug}\n", encoding="utf-8")
+	(directory / "tasks.md").write_text(
+		"# Tasks\n\n- [Task](../../tasks/2026/01/10/some-task/task.md)\n",
+		encoding="utf-8",
+	)
+	return directory
+
+
+def write_project_task(slot, task_id, project, status, created):
+	directory = slot / "tasks" / task_id
+	directory.mkdir(parents=True)
+	(directory / "task.md").write_text(
+		f"# {task_id.rsplit('/', 1)[-1]}\n",
+		encoding="utf-8",
+	)
+	claimed = status != "todo"
+	(directory / "state.yaml").write_text(
+		f"""status: {status}
+created: {created}
+project: {project}
+depends_on: []
+claimed_by: {"macbook-twork" if claimed else "null"}
+claimed_at: {f"{created}T10:00:00+04:00" if claimed else "null"}
+claim_order: {"1" if claimed else "null"}
+lease_until: null
+phase: {"complete" if status == "approved" else "null"}
+inbox_receipt: receipts/2026/01/10/test.md
+""",
+		encoding="utf-8",
+	)
+	return directory
+
+
 def git(repo, *args):
 	return subprocess.run(
 		["git", "-C", str(repo), *args],
@@ -69,6 +112,13 @@ def git(repo, *args):
 		stderr=subprocess.PIPE,
 		text=True,
 	).stdout.strip()
+
+
+def git_repo(path):
+	path.mkdir(parents=True, exist_ok=True)
+	git(path, "init")
+	git(path, "config", "user.name", "Workflow Test")
+	git(path, "config", "user.email", "workflow@example.invalid")
 
 
 class WorkspaceTest(unittest.TestCase):
@@ -336,6 +386,101 @@ inbox_receipt: receipts/2026/07/19/test.md
 			self.assertIsNone(
 				workspace.resolved_ref(repo, workspace.source_task_ref(TASK_ID, "green"))
 			)
+
+	def test_archive_stale_moves_only_old_fully_approved_projects(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			slot = Path(temporary)
+			git_repo(slot)
+			write_project(slot, "old-project")
+			write_project(slot, "fresh-project")
+			write_project(slot, "pending-project")
+			write_project_task(
+				slot, "2026/01/10/old-task", "old-project", "approved", "2026-01-10"
+			)
+			write_project_task(
+				slot, "2026/07/19/fresh-task", "fresh-project", "approved", "2026-07-19"
+			)
+			write_project_task(
+				slot, "2026/01/11/pending-task", "pending-project", "blocked", "2026-01-11"
+			)
+			git(slot, "add", ".")
+			git(slot, "commit", "-m", "Seed projects")
+			config = {
+				"checkout_tag": "macbook-twork",
+				"slot_worktree": str(slot),
+			}
+			with (
+				mock.patch.object(workspace, "worktree_config", return_value=config),
+				mock.patch.object(workspace, "sync_canonical"),
+				mock.patch.object(workspace, "commit_paths", return_value=True) as commit,
+				mock.patch.object(workspace.datetime, "date", FrozenDate),
+				contextlib.redirect_stdout(io.StringIO()),
+			):
+				workspace.command_archive_stale(SimpleNamespace(days=90))
+
+			archived = slot / "projects" / "archive" / "old-project"
+			self.assertTrue(archived.is_dir())
+			self.assertFalse((slot / "projects" / "old-project").exists())
+			self.assertIn(
+				"](../../../tasks/",
+				(archived / "tasks.md").read_text(encoding="utf-8"),
+			)
+			self.assertTrue((slot / "projects" / "fresh-project").is_dir())
+			self.assertTrue((slot / "projects" / "pending-project").is_dir())
+			commit.assert_called_once()
+			self.assertEqual(
+				commit.call_args.args[1],
+				["projects/archive/old-project"],
+			)
+			self.assertEqual(commit.call_args.args[2], "Archive old-project")
+
+	def test_archive_stale_without_candidates_reports_nothing(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			slot = Path(temporary)
+			config = {
+				"checkout_tag": "macbook-twork",
+				"slot_worktree": str(slot),
+			}
+			out = io.StringIO()
+			with (
+				mock.patch.object(workspace, "worktree_config", return_value=config),
+				mock.patch.object(workspace, "sync_canonical"),
+				mock.patch.object(workspace, "commit_paths") as commit,
+				contextlib.redirect_stdout(out),
+			):
+				workspace.command_archive_stale(SimpleNamespace(days=90))
+
+			commit.assert_not_called()
+			self.assertIn('"archived": []', out.getvalue())
+
+	def test_unarchive_restores_links_and_stages_the_project(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			slot = Path(temporary)
+			git_repo(slot)
+			directory = slot / "projects" / "archive" / "old-project"
+			directory.mkdir(parents=True)
+			(directory / "project.md").write_text("# Old project\n", encoding="utf-8")
+			(directory / "tasks.md").write_text(
+				"# Tasks\n\n- [Task](../../../tasks/2026/01/10/some-task/task.md)\n",
+				encoding="utf-8",
+			)
+			git(slot, "add", ".")
+			git(slot, "commit", "-m", "Seed archive")
+			config = {"slot_worktree": str(slot)}
+			with (
+				mock.patch.object(workspace, "worktree_config", return_value=config),
+				contextlib.redirect_stdout(io.StringIO()),
+			):
+				workspace.command_unarchive(SimpleNamespace(project="old-project"))
+
+			restored = slot / "projects" / "old-project"
+			self.assertIn(
+				"](../../tasks/",
+				(restored / "tasks.md").read_text(encoding="utf-8"),
+			)
+			self.assertFalse((slot / "projects" / "archive").exists())
+			staged = git(slot, "diff", "--cached", "--name-only")
+			self.assertIn("projects/old-project/tasks.md", staged)
 
 
 if __name__ == "__main__":

@@ -250,7 +250,12 @@ How TEST verifies it (numbers over eyes):
 
 The overlay is ad-hoc, authored fresh against the CURRENT implementation, injected at the
 highest level that still exercises the change (often a direct data-layer call like
-`item->applyEdition(...)` rather than a faked MTP response). It must:
+`item->applyEdition(...)` rather than a faked MTP response). It is also a complete runtime driver
+when external desktop control is unavailable. Drive the whole task-specific flow inside the Debug
+binary by invoking application actions or posting Qt input events on the event loop, waiting for
+observable state, logging assertions, capturing the rendered target in-process, and quitting. A
+locked macOS session does not reduce required coverage and is never a testing blocker. The overlay
+must:
 
 - Live entirely inside `#ifdef _DEBUG` blocks.
 - Pick a **test strategy** and record it in the spec:
@@ -267,6 +272,10 @@ highest level that still exercises the change (often a direct data-layer call li
   it) so the target is unambiguously in frame at usable resolution. A full-window grab that leaves
   the target clipped, off-screen, or thumbnail-sized is NOT acceptable evidence — if the target
   isn't clearly captured, that is a TEST_FLAW (re-frame), never a pass.
+- When the desktop is locked or an OS screenshot is unavailable, capture from inside the process
+  with `QWidget::grab()` or a renderer-owned image after layout and paint have completed. A widget or
+  test-window grab plus logged geometry is primary visual evidence; never wait for unlock merely to
+  obtain a desktop screenshot.
 - **Lay down the oracle's references.** Save every applicable independent reference beside the
   crop. Exact asset work saves OLD and intended-NEW art as `<name>_{old,new}.png`. Without target
   artwork, save the baseline/reference-component crop when available and log the contract anchors,
@@ -332,6 +341,9 @@ actually land; likewise for screenshots.
 
 ## Build & run discipline
 
+- On macOS, a locked graphical session disables external UI driving only. Launch `EXE` normally,
+  run the in-binary overlay flow, collect its logs and widget/window grabs, assess them, and clean up.
+  Do not try to unlock the session and do not return BLOCKED because the lock screen is present.
 - Build with `BUILD`. A single changed TU compiles fast; only the overlay-touched files + link
   rebuild between rounds. Proactive path-scoped cleanup may run before the build. If the build reports
   `LNK1104`, `C1041`, access denied, or file in use, follow `AGENTS.md`: stop immediately, do not

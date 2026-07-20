@@ -26,12 +26,17 @@ python3 .agents/skills/process-inbox/scripts/workspace.py queue
 Use `python` or `py -3` when appropriate. Save `checkout_tag`, `ai_main`,
 `slot_worktree`, and `source_root` from its JSON. Read `ai_main/AGENTS.md`.
 
-Stop before mutating anything when `violations` is nonempty, AI master is
-dirty, or AI slot changes are not wholly inside its one active task. Never
-clean, stash, reset, or absorb unrelated changes. Dirty task-scoped AI files
-are the active checkout's local resumable phase state and are expected.
-Unpublished clean AI slot commits are incomplete publication; run the helper's
-`publish` command before selecting work.
+Stop before mutating anything when `violations` is nonempty or AI master is
+dirty. Dirty task-scoped AI files are the active checkout's local resumable
+phase state and are expected; resume from them, never discard them. Other
+uncommitted slot changes under `tasks/`, `projects/`, or `receipts/` are
+disposable leftovers of an interrupted worker; the ignored inbox snapshot and
+published task results retain every durable input needed to redo them.
+Restore those exact tracked paths to the slot branch head, delete their
+untracked files, and continue. Stop instead of cleaning when any other slot
+path changed, and never clean the main worktree or stash anywhere.
+Unpublished clean AI slot commits are incomplete publication; run the
+helper's `publish` command before selecting work.
 
 The canonical lifecycle is deliberately small:
 
@@ -56,8 +61,11 @@ artifacts; it is never automatic scheduler behavior.
 ## Interpret scope hints
 
 Treat text after `$continue` or `/continue` as optional natural-language
-priority guidance. It may prefer tasks from one receipt, project, or explicit
-list, but it does not reserve a batch. Start only one shared task at a time,
+guidance for new shared work. Its own wording decides its strength. A
+preference such as "payments tasks first" only reorders selection; the run
+still drains every eligible task. A restriction such as "only the payments
+tasks" limits new shared work to matching tasks and ends the run when none
+remain. Neither form reserves a batch. Start only one shared task at a time,
 finish or exceptionally block it, refresh canonical state, then choose again.
 
 Always resume this checkout's `in-progress` task and previously blocked work
@@ -68,6 +76,14 @@ asks to stop or reassign it.
 
 Create an empty invocation-local `attempted_blocked` set, then repeat. Refresh
 queue JSON after every delegated operation and state transition.
+
+Before publishing any new canonical `Start` commit, require a startable
+environment: a clean Telegram source checkout with clean submodules and no
+unrelated untracked files, plus an existing
+`out/Debug/test_TelegramForcePortable` golden account. A failed check is a
+global hard stop before claiming; never reserve shared work this checkout
+cannot immediately run. Resuming and retrying already-owned work keeps the
+performer's own preflight rules instead.
 
 ### 1. Resume active work
 
@@ -126,10 +142,12 @@ ready work.
 
 ### 5. Start shared work
 
-Otherwise select the first ready unclaimed `todo` task matching the priority
-hint, or the first ready task in normal queue order. Start it with the same
-helper command. `start` atomically assigns and activates the task, then
-publishes its canonical `Start` commit before source work begins.
+Otherwise select the first ready unclaimed `todo` task the hint prefers. Under
+a restrictive hint consider only matching tasks. With no hint, or when a mere
+preference has no matching ready task left, select the first ready task in
+normal queue order. Start it with the same helper command. `start` atomically
+assigns and activates the task, then publishes its canonical `Start` commit
+before source work begins.
 
 A concurrent start may mean another checkout won the task. Never overwrite
 shared state; refresh and choose again.
@@ -141,11 +159,25 @@ Stop when the inbox is empty and none of these exist:
 - this checkout's active task;
 - a ready blocked task not attempted in this invocation;
 - a ready legacy reserved task;
-- a ready unclaimed task matching the invocation's priority scope.
+- a ready unclaimed task this invocation may still start: any under no hint or
+  a preference, only matching ones under a restrictive hint.
 
 Work owned by another checkout does not keep this run alive. A blocked task
 already attempted in this invocation remains visible in the final summary but
 does not cause a busy loop.
+
+Immediately before this normal stop, run the housekeeping command once:
+
+```bash
+python3 .agents/skills/process-inbox/scripts/workspace.py archive-stale
+```
+
+It publishes one canonical `Archive <slug>` commit for every project whose
+tasks are all approved and whose newest task is older than its threshold,
+after rewriting the project's relative links for the deeper path. Skip this
+housekeeping on any global hard stop. Only routing new work to an archived
+project restores it, through the helper's `unarchive` command; nothing
+un-archives on a timer.
 
 ## Spawn one performer
 
@@ -185,6 +217,9 @@ failure stops the loop.
 The missing `test_TelegramForcePortable` golden account is the only
 portable-folder global stop. All live/real folder combinations must be
 reconciled by `perform-task` according to the shared test-loop protocol.
+Computer Use being unavailable because macOS is locked is never a scheduler
+stop; the performer must continue with the in-binary overlay driver and
+artifact-based assessment.
 
 ## Route discovered follow-ups
 
@@ -209,6 +244,8 @@ conflict or unavailable-remote slot commit and stop.
 
 Return one compact summary: inbox receipt if processed, tasks approved,
 exceptionally blocked tasks with exact unverified behavior and retry status,
-tasks started or left queued, routed discoveries, elapsed time, and why the
-loop stopped. Make any global hard stop or unsafe state unmistakable. Never
-include source or AI commit hashes; task ids are the only durable locators.
+tasks started or left queued, routed discoveries, archived projects, any
+discarded interrupted-worker leftovers, elapsed time, and why the loop
+stopped. Make
+any global hard stop or unsafe state unmistakable. Never include source or AI
+commit hashes; task ids are the only durable locators.
