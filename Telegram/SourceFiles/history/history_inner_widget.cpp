@@ -1478,7 +1478,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				_controller->emojiInteractions().startAutoplay(view);
 			}
 		}
-		if (readTill && _widget->markingMessagesRead()) {
+		if (readTill
+			&& _widget->markingMessagesRead()
+			&& !Ui::ScreenReaderModeActive()) {
 			session().data().histories().readInboxTill(readTill);
 		}
 		if (markingAsViewed && !readContents.empty()) {
@@ -4413,6 +4415,9 @@ void HistoryInner::checkActivation() {
 		// Side-effect: Also clears all notifications from forum topics.
 		Core::App().notifications().clearFromHistory(_history);
 	}
+	if (Ui::ScreenReaderModeActive()) {
+		return;
+	}
 	if (_curHistory != _history || _history->isEmpty()) {
 		return;
 	}
@@ -6814,15 +6819,29 @@ void HistoryInner::announceAccessibilityFocusedChild() {
 		announceAccessibilityFocus(_accessibilityFocusedIndex);
 		return;
 	}
-	const auto barIndex = accessibilityUnreadBarIndex();
-	const auto index = (barIndex >= 0 && barIndex + 1 < count)
-		? (barIndex + 1)
-		: (count - 1);
 	const auto elements = accessibleElements();
-	const auto item = accessibilityItemAtIndex(
-		index,
-		elements,
-		barIndex);
+	const auto barIndex = accessibilityUnreadBarIndex();
+	auto index = barIndex;
+	if (index < 0) {
+		// The bar is not always there while messages stay unread (it is
+		// not recreated when the few unread messages fit on one screen):
+		// land on the first unread message itself then, so that every
+		// visit starts at the reading edge and the first arrow press
+		// marks one heard message, not everything above the newest row.
+		_history->calculateFirstUnreadMessage();
+		if (const auto first = _history->firstUnreadMessage()) {
+			for (auto i = 0, n = int(elements.size()); i != n; ++i) {
+				if (elements[i] == first) {
+					index = i;
+					break;
+				}
+			}
+		}
+	}
+	if (index < 0) {
+		index = count - 1;
+	}
+	const auto item = accessibilityItemAtIndex(index, elements, barIndex);
 	setAccessibilityFocusedItem(index, item);
 }
 

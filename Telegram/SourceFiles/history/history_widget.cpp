@@ -4400,6 +4400,20 @@ void HistoryWidget::destroyUnreadBar() {
 void HistoryWidget::destroyUnreadBarOnClose() {
 	if (!_history || !_historyInited) {
 		return;
+	} else if (Ui::ScreenReaderModeActive() && _history->unreadCount() > 0) {
+		// The checks below infer "the user has seen it all" from the scroll
+		// position, and with a screen reader what was scrolled into view was
+		// not necessarily heard: while something actually stays unread, keep
+		// the bar, so the next visit lands the focus back on it. Only keep
+		// it while it still sits at the reading edge, though - once reading
+		// advanced past it, drop the stale bar here so that the next visit
+		// puts a fresh one above the first message still actually unread.
+		_history->calculateFirstUnreadMessage();
+		if (_history->unreadBar()
+			&& _history->unreadBar() != _history->firstUnreadMessage()) {
+			destroyUnreadBar();
+		}
+		return;
 	} else if (_scroll->scrollTop() >= _scroll->scrollTopMax()) {
 		destroyUnreadBar();
 		return;
@@ -8191,6 +8205,14 @@ bool HistoryWidget::hasSavedScroll() const {
 }
 
 int HistoryWidget::countInitialScrollTop() {
+	if (Ui::ScreenReaderModeActive()) {
+		// Several of the paths below skip creating the unread bar (a saved
+		// scroll state restores as it was, a jump to the end has no use
+		// for it). With a screen reader the bar is where reading starts
+		// from on every visit, so make sure it exists while something
+		// stays unread, whatever position the chat opens at.
+		createUnreadBarIfBelowVisibleArea(0);
+	}
 	if (hasSavedScroll()) {
 		return _list->historyScrollTop();
 	} else if (_showAtMsgId
@@ -8239,7 +8261,12 @@ void HistoryWidget::createUnreadBarIfBelowVisibleArea(int withScrollTop) {
 	}
 	_history->calculateFirstUnreadMessage();
 	if (const auto unread = _history->firstUnreadMessage()) {
-		if (_list->itemTop(unread) > withScrollTop) {
+		// The visible-area check assumes what fits on the screen is read
+		// at a glance, so a bar above it would only flicker. With a screen
+		// reader the bar is the landmark the focus starts reading from, so
+		// it is worth having however little stays unread.
+		if (Ui::ScreenReaderModeActive()
+			|| _list->itemTop(unread) > withScrollTop) {
 			createUnreadBarAndResize();
 		}
 	}
@@ -8266,7 +8293,13 @@ int HistoryWidget::countAutomaticScrollTop() {
 		const auto possibleUnreadBarTop = _scroll->scrollTopMax()
 			+ HistoryView::UnreadBar::height()
 			- HistoryView::UnreadBar::marginTop();
-		if (firstUnreadTop < possibleUnreadBarTop) {
+		// The position check assumes the few unread messages fitting on
+		// the last screen are read at a glance, so a bar is not worth its
+		// space. With a screen reader the bar is the landmark the focus
+		// starts reading from, so it is worth having however little stays
+		// unread.
+		if (Ui::ScreenReaderModeActive()
+			|| firstUnreadTop < possibleUnreadBarTop) {
 			createUnreadBarAndResize();
 			if (_history->unreadBar() != nullptr) {
 				setMsgId(ShowAtUnreadMsgId);
