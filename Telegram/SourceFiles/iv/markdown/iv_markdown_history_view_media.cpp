@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <unordered_set>
 
 #include "settings.h"
+#include "ui/effects/animations.h"
 #include "ui/image/image_location.h"
 #include "data/data_types.h"
 #include "data/data_auto_download.h"
@@ -57,6 +58,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Iv::Markdown {
 namespace {
+
+constexpr auto kSlideshowSlideDuration = crl::time(200);
 
 class IvHistoryViewDelegate final : public HistoryView::SimpleElementDelegate {
 public:
@@ -765,9 +768,13 @@ private:
 
 	void applyForcedSize();
 
+	void applyForcedSizeFor(not_null<HistoryView::Media*> media);
+
 	void ensureNavigationLinks();
 
 	void stepActiveIndex(int delta);
+
+	void startTransition(int from, int direction);
 
 	struct SlidePreload {
 		std::shared_ptr<::Data::PhotoMedia> photo;
@@ -790,6 +797,13 @@ private:
 		int index) const;
 
 	[[nodiscard]] IvHistoryViewHit resolveHit(QPoint point) const;
+
+	void paintSlide(
+		Painter &p,
+		const MarkdownArticlePaintContext &context,
+		QRect visible,
+		not_null<HistoryView::Media*> media,
+		int shift) const;
 
 	[[nodiscard]] bool probeSupport();
 
@@ -819,6 +833,9 @@ private:
 	ClickHandlerPtr _previousLink;
 	ClickHandlerPtr _nextLink;
 	int _activeIndex = 0;
+	Ui::Animations::Simple _slideAnimation;
+	int _transitionFrom = -1;
+	int _transitionDirection = 0;
 	int _requestedWidth = 0;
 	bool _supported = false;
 	MediaBlockHost *_registeredBridgeHost = nullptr;
@@ -912,14 +929,8 @@ int IvHistoryViewSlideshowBlock::resizeGetHeight(int width) {
 	return frameHeight(_requestedWidth);
 }
 
-void IvHistoryViewSlideshowBlock::applyForcedSize() {
-	if (_geometry.isEmpty() || !alive()) {
-		return;
-	}
-	const auto media = activeMedia();
-	if (!media) {
-		return;
-	}
+void IvHistoryViewSlideshowBlock::applyForcedSizeFor(
+		not_null<HistoryView::Media*> media) {
 	const auto runtime = _host->view()->Get<
 		HistoryView::InstantViewMediaRuntime>();
 	const auto guard = gsl::finally([&] {
@@ -933,6 +944,22 @@ void IvHistoryViewSlideshowBlock::applyForcedSize() {
 		runtime->forcedFor = media;
 	}
 	media->resizeGetHeight(_geometry.width());
+}
+
+void IvHistoryViewSlideshowBlock::applyForcedSize() {
+	if (_geometry.isEmpty() || !alive()) {
+		return;
+	}
+	if (const auto media = activeMedia()) {
+		applyForcedSizeFor(media);
+	}
+	const auto count = int(_slides.size());
+	if (_transitionFrom < 0 || _transitionFrom >= count) {
+		return;
+	}
+	if (const auto media = _slides[_transitionFrom].get()) {
+		applyForcedSizeFor(media);
+	}
 }
 
 void IvHistoryViewSlideshowBlock::setGeometry(QRect geometry) {
@@ -987,6 +1014,9 @@ void IvHistoryViewSlideshowBlock::unloadHeavyPart() {
 		return;
 	}
 	const auto had = hasHeavyPart();
+	_slideAnimation.stop();
+	_transitionFrom = -1;
+	_transitionDirection = 0;
 	_preloads.clear();
 	_residencyIndex = -1;
 	_painted = false;
@@ -1039,8 +1069,9 @@ void IvHistoryViewSlideshowBlock::setActiveItemIndex(int index) {
 	if (next == _activeIndex) {
 		return;
 	}
+	const auto from = _activeIndex;
 	_activeIndex = next;
-	applyForcedSize();
+	startTransition(from, (next > from) ? 1 : -1);
 	updatePreloads();
 	requestRepaint(_geometry);
 }
@@ -1073,10 +1104,32 @@ void IvHistoryViewSlideshowBlock::stepActiveIndex(int delta) {
 	if (next == _activeIndex) {
 		return;
 	}
+	const auto from = _activeIndex;
 	_activeIndex = next;
-	applyForcedSize();
+	startTransition(from, (delta > 0) ? 1 : -1);
 	updatePreloads();
 	requestRepaint(_geometry);
+}
+
+void IvHistoryViewSlideshowBlock::startTransition(int from, int direction) {
+	if (_geometry.isEmpty() || !_painted) {
+		applyForcedSize();
+		return;
+	}
+	_transitionFrom = from;
+	_transitionDirection = direction;
+	applyForcedSize();
+	_slideAnimation.stop();
+	_slideAnimation.start([=] {
+		requestRepaint(_geometry);
+	}, 0., 1., kSlideshowSlideDuration, anim::easeOutCirc);
+	_slideAnimation.setFinishedCallback([=] {
+		_transitionFrom = -1;
+		_transitionDirection = 0;
+		_residencyIndex = -1;
+		requestRepaint(_geometry);
+		updatePreloads();
+	});
 }
 
 int IvHistoryViewSlideshowBlock::slideIndexAfter(
@@ -1226,7 +1279,7 @@ void IvHistoryViewSlideshowBlock::updatePreloads() {
 	if (!_painted || !alive() || count < 2) {
 		return;
 	}
-	if (_residencyIndex != _activeIndex) {
+	if (_residencyIndex != _activeIndex && _transitionFrom < 0) {
 		refreshResidency();
 	}
 	if (!activeSlideReady()) {
@@ -1337,6 +1390,21 @@ bool IvHistoryViewSlideshowBlock::probeSupport() {
 	return true;
 }
 
+void IvHistoryViewSlideshowBlock::paintSlide(
+		Painter &p,
+		const MarkdownArticlePaintContext &context,
+		QRect visible,
+		not_null<HistoryView::Media*> media,
+		int shift) const {
+	p.save();
+	const auto origin = _geometry.topLeft() + QPoint(shift, 0);
+	p.translate(origin);
+	auto local = context.translated(-origin);
+	local.clip = visible.translated(-origin);
+	media->draw(p, local);
+	p.restore();
+}
+
 void IvHistoryViewSlideshowBlock::paint(
 		Painter &p,
 		const MarkdownArticlePaintContext &context) const {
@@ -1355,12 +1423,26 @@ void IvHistoryViewSlideshowBlock::paint(
 		RoundedRectPath(_geometry, st.radius),
 		Qt::IntersectClip);
 
-	p.save();
-	p.translate(_geometry.topLeft());
-	auto local = context.translated(-_geometry.topLeft());
-	local.clip = visible.translated(-_geometry.topLeft());
-	media->draw(p, local);
-	p.restore();
+	const auto count = int(_slides.size());
+	const auto transition = _slideAnimation.animating()
+		&& (_transitionFrom >= 0)
+		&& (_transitionFrom < count)
+		&& (_transitionFrom != _activeIndex);
+	if (transition) {
+		const auto progress = _slideAnimation.value(1.);
+		const auto width = _geometry.width();
+		const auto direction = _transitionDirection;
+		const auto shift = anim::interpolate(
+			0,
+			-direction * width,
+			progress);
+		if (const auto outgoing = _slides[_transitionFrom].get()) {
+			paintSlide(p, context, visible, outgoing, shift);
+		}
+		paintSlide(p, context, visible, media, shift + direction * width);
+	} else {
+		paintSlide(p, context, visible, media, 0);
+	}
 
 	if (_slides.size() >= 2) {
 		if (!_previousRect.isEmpty()) {
@@ -1381,14 +1463,15 @@ void IvHistoryViewSlideshowBlock::paint(
 				active ? st.navButtonBgOver : st.navButtonBg,
 				active ? st.navNextIconOver : st.navNextIcon);
 		}
+		const auto dotsIndex = transition ? _transitionFrom : _activeIndex;
 		PaintSlideshowDots(
 			p,
 			ComputeSlideshowDots(
 				_geometry,
 				int(_slides.size()),
-				_activeIndex,
+				dotsIndex,
 				st),
-			_activeIndex,
+			dotsIndex,
 			st,
 			_dotsBackdrop);
 	}
