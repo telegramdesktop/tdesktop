@@ -364,7 +364,8 @@ HistoryItem *WelcomeMessages::append(
 	const auto item = history->makeMessage(
 		HistoryItemCommonFields{
 			.id = RemoteToLocalMsgId(id),
-			.flags = ((data.is_out()
+			.flags = (MessageFlag::FakeHistoryItem
+				| (data.is_out()
 					? MessageFlag::Outgoing
 					: MessageFlag())
 				| (fromId ? MessageFlag::HasFromId : MessageFlag())
