@@ -279,7 +279,7 @@ public:
 	bool tooltipWindowActive() const override;
 
 	void onParentGeometryChanged();
-	bool consumeScrollAction(QPoint delta);
+	bool consumeScrollAction(QPoint delta, Qt::ScrollPhase phase);
 
 	[[nodiscard]] Fn<HistoryView::ElementDelegate*()> elementDelegateFactory(
 		FullMsgId itemId) const;

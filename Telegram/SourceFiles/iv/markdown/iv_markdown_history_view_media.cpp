@@ -60,6 +60,11 @@ namespace Iv::Markdown {
 namespace {
 
 constexpr auto kSlideshowSlideDuration = crl::time(200);
+constexpr auto kSlideshowCommitRatio = 0.3;
+constexpr auto kSlideshowInertiaDelta = 8.;
+constexpr auto kSlideshowWheelStep = 60.;
+constexpr auto kSlideshowWheelResetDelay = crl::time(300);
+constexpr auto kSlideshowMomentumWindow = crl::time(200);
 
 class IvHistoryViewDelegate final : public HistoryView::SimpleElementDelegate {
 public:
@@ -759,6 +764,10 @@ public:
 
 	void setActiveItemIndex(int index) override;
 
+	[[nodiscard]] bool canHandleHorizontalScroll() const override;
+
+	bool handleHorizontalScroll(int delta, Qt::ScrollPhase phase) override;
+
 private:
 	[[nodiscard]] bool alive() const override;
 
@@ -774,7 +783,18 @@ private:
 
 	void stepActiveIndex(int delta);
 
-	void startTransition(int from, int direction);
+	void startTransition(int from, int direction, float64 progress = 0.);
+
+	[[nodiscard]] bool gestureActive() const;
+	void adoptTransitionOffset();
+	void beginDrag();
+	void applyDragDelta(int delta);
+	void finishDrag();
+	void commitDrag(int direction);
+	void revertDrag();
+	void cancelDrag();
+	bool handleMomentum(int delta);
+	void handlePhaselessScroll(int delta);
 
 	struct SlidePreload {
 		std::shared_ptr<::Data::PhotoMedia> photo;
@@ -836,6 +856,13 @@ private:
 	Ui::Animations::Simple _slideAnimation;
 	int _transitionFrom = -1;
 	int _transitionDirection = 0;
+	float64 _dragOffset = 0.;
+	bool _dragActive = false;
+	bool _dragReverting = false;
+	int _momentumDirection = 0;
+	crl::time _momentumSince = 0;
+	float64 _wheelAccumulated = 0.;
+	crl::time _wheelLastTime = 0;
 	int _requestedWidth = 0;
 	bool _supported = false;
 	MediaBlockHost *_registeredBridgeHost = nullptr;
@@ -954,6 +981,14 @@ void IvHistoryViewSlideshowBlock::applyForcedSize() {
 		applyForcedSizeFor(media);
 	}
 	const auto count = int(_slides.size());
+	if (_dragOffset != 0.) {
+		const auto entering = slideIndexAfter(
+			_activeIndex,
+			(_dragOffset > 0.) ? 1 : -1);
+		if (const auto media = _slides[entering].get()) {
+			applyForcedSizeFor(media);
+		}
+	}
 	if (_transitionFrom < 0 || _transitionFrom >= count) {
 		return;
 	}
@@ -1017,6 +1052,13 @@ void IvHistoryViewSlideshowBlock::unloadHeavyPart() {
 	_slideAnimation.stop();
 	_transitionFrom = -1;
 	_transitionDirection = 0;
+	_dragActive = false;
+	_dragOffset = 0.;
+	_dragReverting = false;
+	_momentumDirection = 0;
+	_momentumSince = 0;
+	_wheelAccumulated = 0.;
+	_wheelLastTime = 0;
 	_preloads.clear();
 	_residencyIndex = -1;
 	_painted = false;
@@ -1069,11 +1111,53 @@ void IvHistoryViewSlideshowBlock::setActiveItemIndex(int index) {
 	if (next == _activeIndex) {
 		return;
 	}
+	cancelDrag();
 	const auto from = _activeIndex;
 	_activeIndex = next;
 	startTransition(from, (next > from) ? 1 : -1);
 	updatePreloads();
 	requestRepaint(_geometry);
+}
+
+bool IvHistoryViewSlideshowBlock::canHandleHorizontalScroll() const {
+	return alive() && (_slides.size() > 1);
+}
+
+bool IvHistoryViewSlideshowBlock::handleHorizontalScroll(
+		int delta,
+		Qt::ScrollPhase phase) {
+	if (!alive() || _slides.size() < 2 || _geometry.isEmpty()) {
+		return false;
+	}
+	switch (phase) {
+	case Qt::NoScrollPhase:
+		if (gestureActive()) {
+			finishDrag();
+		}
+		handlePhaselessScroll(delta);
+		return true;
+	case Qt::ScrollBegin:
+		if (gestureActive()) {
+			finishDrag();
+		}
+		beginDrag();
+		applyDragDelta(delta);
+		return true;
+	case Qt::ScrollUpdate:
+		if (!_dragActive) {
+			beginDrag();
+		}
+		applyDragDelta(delta);
+		return true;
+	case Qt::ScrollEnd:
+		if (_dragActive) {
+			finishDrag();
+		}
+		return true;
+	case Qt::ScrollMomentum:
+		return handleMomentum(delta);
+	}
+	return false;
 }
 
 void IvHistoryViewSlideshowBlock::ensureNavigationLinks() {
@@ -1104,6 +1188,7 @@ void IvHistoryViewSlideshowBlock::stepActiveIndex(int delta) {
 	if (next == _activeIndex) {
 		return;
 	}
+	cancelDrag();
 	const auto from = _activeIndex;
 	_activeIndex = next;
 	startTransition(from, (delta > 0) ? 1 : -1);
@@ -1111,7 +1196,137 @@ void IvHistoryViewSlideshowBlock::stepActiveIndex(int delta) {
 	requestRepaint(_geometry);
 }
 
-void IvHistoryViewSlideshowBlock::startTransition(int from, int direction) {
+bool IvHistoryViewSlideshowBlock::gestureActive() const {
+	return _dragActive || (_dragOffset != 0.);
+}
+
+void IvHistoryViewSlideshowBlock::adoptTransitionOffset() {
+	if (!_slideAnimation.animating() || _transitionFrom < 0) {
+		return;
+	}
+	_dragOffset = -_transitionDirection
+		* _geometry.width()
+		* (1. - _slideAnimation.value(1.));
+	_slideAnimation.stop();
+	_transitionFrom = -1;
+	_transitionDirection = 0;
+	_residencyIndex = -1;
+	_dragReverting = false;
+}
+
+void IvHistoryViewSlideshowBlock::beginDrag() {
+	adoptTransitionOffset();
+	_dragReverting = false;
+	_dragActive = true;
+	_momentumDirection = 0;
+}
+
+void IvHistoryViewSlideshowBlock::applyDragDelta(int delta) {
+	const auto width = _geometry.width();
+	_dragOffset = std::clamp(_dragOffset - delta, -1. * width, 1. * width);
+	applyForcedSize();
+	requestRepaint(_geometry);
+}
+
+void IvHistoryViewSlideshowBlock::finishDrag() {
+	const auto direction = (_dragOffset > 0.)
+		? 1
+		: (_dragOffset < 0.)
+		? -1
+		: 0;
+	_dragActive = false;
+	const auto threshold = _geometry.width() * kSlideshowCommitRatio;
+	if (direction != 0 && std::abs(_dragOffset) >= threshold) {
+		_momentumDirection = 0;
+		commitDrag(direction);
+	} else {
+		_momentumDirection = direction;
+		_momentumSince = crl::now();
+		revertDrag();
+	}
+}
+
+void IvHistoryViewSlideshowBlock::commitDrag(int direction) {
+	const auto width = std::max(_geometry.width(), 1);
+	const auto progress = std::clamp(std::abs(_dragOffset) / width, 0., 1.);
+	_dragOffset = 0.;
+	const auto from = _activeIndex;
+	_activeIndex = slideIndexAfter(_activeIndex, direction);
+	startTransition(from, direction, progress);
+	updatePreloads();
+	requestRepaint(_geometry);
+}
+
+void IvHistoryViewSlideshowBlock::revertDrag() {
+	const auto offset = base::take(_dragOffset);
+	if (offset == 0. || _geometry.width() <= 0) {
+		requestRepaint(_geometry);
+		updatePreloads();
+		return;
+	}
+	const auto direction = (offset > 0.) ? 1 : -1;
+	_dragReverting = true;
+	startTransition(
+		slideIndexAfter(_activeIndex, direction),
+		-direction,
+		1. - std::abs(offset) / _geometry.width());
+}
+
+void IvHistoryViewSlideshowBlock::cancelDrag() {
+	_dragActive = false;
+	_dragOffset = 0.;
+	_dragReverting = false;
+	_momentumDirection = 0;
+}
+
+bool IvHistoryViewSlideshowBlock::handleMomentum(int delta) {
+	if (_slideAnimation.animating()
+		&& (_transitionFrom >= 0)
+		&& !_dragReverting) {
+		return true;
+	}
+	if (_dragActive) {
+		applyDragDelta(delta);
+		return true;
+	}
+	if (_momentumDirection != 0) {
+		const auto direction = base::take(_momentumDirection);
+		const auto inWindow = (crl::now() - _momentumSince
+			<= kSlideshowMomentumWindow);
+		const auto sameDirection = (delta * direction < 0);
+		const auto strongEnough = (std::abs(delta)
+			>= style::ConvertFloatScale(kSlideshowInertiaDelta));
+		if (inWindow && sameDirection && strongEnough) {
+			adoptTransitionOffset();
+			commitDrag(direction);
+		}
+		return true;
+	}
+	return _dragReverting;
+}
+
+void IvHistoryViewSlideshowBlock::handlePhaselessScroll(int delta) {
+	const auto now = crl::now();
+	const auto incoming = float64(-delta);
+	if (!_wheelLastTime
+		|| (now - _wheelLastTime > kSlideshowWheelResetDelay)
+		|| (incoming * _wheelAccumulated < 0.)) {
+		_wheelAccumulated = 0.;
+	}
+	_wheelAccumulated += incoming;
+	_wheelLastTime = now;
+	const auto step = style::ConvertFloatScale(kSlideshowWheelStep);
+	while (std::abs(_wheelAccumulated) >= step) {
+		const auto direction = (_wheelAccumulated > 0.) ? 1 : -1;
+		_wheelAccumulated -= direction * step;
+		stepActiveIndex(direction);
+	}
+}
+
+void IvHistoryViewSlideshowBlock::startTransition(
+		int from,
+		int direction,
+		float64 progress) {
 	if (_geometry.isEmpty() || !_painted) {
 		applyForcedSize();
 		return;
@@ -1122,10 +1337,11 @@ void IvHistoryViewSlideshowBlock::startTransition(int from, int direction) {
 	_slideAnimation.stop();
 	_slideAnimation.start([=] {
 		requestRepaint(_geometry);
-	}, 0., 1., kSlideshowSlideDuration, anim::easeOutCirc);
+	}, progress, 1., kSlideshowSlideDuration, anim::easeOutCirc);
 	_slideAnimation.setFinishedCallback([=] {
 		_transitionFrom = -1;
 		_transitionDirection = 0;
+		_dragReverting = false;
 		_residencyIndex = -1;
 		requestRepaint(_geometry);
 		updatePreloads();
@@ -1279,7 +1495,9 @@ void IvHistoryViewSlideshowBlock::updatePreloads() {
 	if (!_painted || !alive() || count < 2) {
 		return;
 	}
-	if (_residencyIndex != _activeIndex && _transitionFrom < 0) {
+	if (_residencyIndex != _activeIndex
+		&& _transitionFrom < 0
+		&& !gestureActive()) {
 		refreshResidency();
 	}
 	if (!activeSlideReady()) {
@@ -1428,6 +1646,7 @@ void IvHistoryViewSlideshowBlock::paint(
 		&& (_transitionFrom >= 0)
 		&& (_transitionFrom < count)
 		&& (_transitionFrom != _activeIndex);
+	const auto dragging = !transition && (_dragOffset != 0.);
 	if (transition) {
 		const auto progress = _slideAnimation.value(1.);
 		const auto width = _geometry.width();
@@ -1440,6 +1659,36 @@ void IvHistoryViewSlideshowBlock::paint(
 			paintSlide(p, context, visible, outgoing, shift);
 		}
 		paintSlide(p, context, visible, media, shift + direction * width);
+		if (progress > 1.) {
+			const auto filler = _slides[slideIndexAfter(
+				_activeIndex,
+				direction)].get();
+			if (filler) {
+				paintSlide(
+					p,
+					context,
+					visible,
+					filler,
+					shift + 2 * direction * width);
+			}
+		}
+	} else if (dragging) {
+		const auto width = _geometry.width();
+		const auto offset = int(std::round(
+			std::clamp(_dragOffset, -1. * width, 1. * width)));
+		const auto direction = (offset > 0) ? 1 : -1;
+		paintSlide(p, context, visible, media, -offset);
+		const auto entering = _slides[slideIndexAfter(
+			_activeIndex,
+			direction)].get();
+		if (entering) {
+			paintSlide(
+				p,
+				context,
+				visible,
+				entering,
+				-offset + direction * width);
+		}
 	} else {
 		paintSlide(p, context, visible, media, 0);
 	}
@@ -1463,7 +1712,9 @@ void IvHistoryViewSlideshowBlock::paint(
 				active ? st.navButtonBgOver : st.navButtonBg,
 				active ? st.navNextIconOver : st.navNextIcon);
 		}
-		const auto dotsIndex = transition ? _transitionFrom : _activeIndex;
+		const auto dotsIndex = (transition && !_dragReverting)
+			? _transitionFrom
+			: _activeIndex;
 		PaintSlideshowDots(
 			p,
 			ComputeSlideshowDots(

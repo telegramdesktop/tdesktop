@@ -1892,7 +1892,9 @@ void HistoryInner::onTouchScrollTimer() {
 		|| _touchScrollState == Ui::TouchScrollState::Acceleration) {
 		int32 elapsed = int32(nowTime - _touchTime);
 		QPoint delta = _touchSpeed * elapsed / 1000;
-		const auto consumedHorizontal = consumeScrollAction(delta);
+		const auto consumedHorizontal = consumeScrollAction(
+			delta,
+			Qt::NoScrollPhase);
 		if (consumedHorizontal) {
 			_horizontalScrollLocked = true;
 		}
@@ -2127,7 +2129,7 @@ void HistoryInner::mouseActionUpdate(const QPoint &screenPos) {
 
 void HistoryInner::touchScrollUpdated(const QPoint &screenPos) {
 	_touchPos = screenPos;
-	if (consumeScrollAction(_touchPos - _touchPrevPos)) {
+	if (consumeScrollAction(_touchPos - _touchPrevPos, Qt::NoScrollPhase)) {
 		_horizontalScrollLocked = true;
 	} else if (!_horizontalScrollLocked) {
 		_widget->touchScroll(_touchPos - _touchPrevPos);
@@ -6316,15 +6318,20 @@ void HistoryInner::onParentGeometryChanged() {
 	}
 }
 
-bool HistoryInner::consumeScrollAction(QPoint delta) {
+bool HistoryInner::consumeScrollAction(QPoint delta, Qt::ScrollPhase phase) {
 	const auto horizontal = (std::abs(delta.x()) > std::abs(delta.y()));
-	if (!horizontal || !_acceptsHorizontalScroll || !Element::Moused()) {
+	if (((phase == Qt::NoScrollPhase) && !horizontal)
+		|| !_acceptsHorizontalScroll
+		|| !Element::Moused()) {
 		return false;
 	}
 	const auto position = mapPointToItem(
 		mapFromGlobal(_mousePosition),
 		Element::Moused());
-	return Element::Moused()->consumeHorizontalScroll(position, delta.x());
+	return Element::Moused()->consumeHorizontalScroll(
+		position,
+		delta.x(),
+		phase);
 }
 
 Fn<HistoryView::ElementDelegate*()> HistoryInner::elementDelegateFactory(

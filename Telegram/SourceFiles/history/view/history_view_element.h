@@ -733,7 +733,10 @@ public:
 		not_null<const Element*> view,
 		QRect countedGeometry = QRect());
 
-	virtual bool consumeHorizontalScroll(QPoint position, int delta) {
+	virtual bool consumeHorizontalScroll(
+			QPoint position,
+			int delta,
+			Qt::ScrollPhase phase) {
 		return false;
 	}
 	[[nodiscard]] virtual bool canConsumeHorizontalScroll(

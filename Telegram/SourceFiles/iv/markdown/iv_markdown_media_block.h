@@ -79,6 +79,12 @@ public:
 	}
 	virtual void setActiveItemIndex(int index) {
 	}
+	[[nodiscard]] virtual bool canHandleHorizontalScroll() const {
+		return false;
+	}
+	virtual bool handleHorizontalScroll(int delta, Qt::ScrollPhase phase) {
+		return false;
+	}
 
 protected:
 	void requestRepaint(QRect articleRect) const;

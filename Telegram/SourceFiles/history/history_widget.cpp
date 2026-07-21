@@ -374,8 +374,8 @@ HistoryWidget::HistoryWidget(
 
 	_scroll->setHandleTouch(false);
 	_scroll->lockWheelDirection();
-	_scroll->setCrossAxisWheelProcess([=](QPoint delta) {
-		return _list && _list->consumeScrollAction(delta);
+	_scroll->setCrossAxisWheelProcess([=](QPoint delta, Qt::ScrollPhase phase) {
+		return _list && _list->consumeScrollAction(delta, phase);
 	});
 	_scroll->scrolls() | rpl::on_next([=] {
 		handleScroll();

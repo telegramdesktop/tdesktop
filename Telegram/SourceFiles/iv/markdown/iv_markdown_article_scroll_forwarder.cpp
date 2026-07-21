@@ -61,7 +61,8 @@ void MarkdownArticleScrollForwarder::handleWheel(
 	if (horizontal) {
 		(void)article->consumeHorizontalScroll(
 			local,
-			int(std::round(delta.x())));
+			int(std::round(delta.x())),
+			e->phase());
 		e->accept();
 	} else {
 		e->ignore();
