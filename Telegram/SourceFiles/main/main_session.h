@@ -37,6 +37,7 @@ class RecentInlineBots;
 class RecentPeers;
 class RecentSharedMediaGifts;
 class ScheduledMessages;
+class WelcomeMessages;
 class EphemeralMessages;
 class SponsoredMessages;
 class TopPeers;
@@ -157,6 +158,9 @@ public:
 	}
 	[[nodiscard]] Data::ScheduledMessages &scheduledMessages() const {
 		return *_scheduledMessages;
+	}
+	[[nodiscard]] Data::WelcomeMessages &welcomeMessages() const {
+		return *_welcomeMessages;
 	}
 	[[nodiscard]] Data::EphemeralMessages &ephemeralMessages() const {
 		return *_ephemeralMessages;
@@ -327,6 +331,7 @@ private:
 	const std::unique_ptr<Data::RecentSharedMediaGifts> _recentSharedGifts;
 	const std::unique_ptr<Data::GiftAuctions> _giftAuctions;
 	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;
+	const std::unique_ptr<Data::WelcomeMessages> _welcomeMessages;
 	const std::unique_ptr<Data::EphemeralMessages> _ephemeralMessages;
 	const std::unique_ptr<Data::SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Data::TopPeers> _topPeers;

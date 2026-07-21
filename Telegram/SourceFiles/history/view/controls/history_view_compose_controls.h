@@ -237,6 +237,7 @@ public:
 	bool returnTabbedSelector();
 
 	[[nodiscard]] bool isEditingMessage() const;
+	[[nodiscard]] rpl::producer<FullMsgId> editMsgIdValue() const;
 	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] const HistoryItemsList &forwardItems() const;
 	[[nodiscard]] FullReplyTo replyingToMessage() const;

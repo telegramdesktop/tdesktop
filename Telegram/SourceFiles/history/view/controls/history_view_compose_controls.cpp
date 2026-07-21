@@ -2857,6 +2857,10 @@ Data::DraftKey ComposeControls::draftKey(DraftType type) const {
 		return (type == DraftType::Edit)
 			? Key::ShortcutEdit(_shortcutId)
 			: Key::Shortcut(_shortcutId);
+	case Section::WelcomeMessages:
+		return (type == DraftType::Edit)
+			? Key::WelcomeMessagesEdit()
+			: Key::WelcomeMessages();
 	}
 	return Key::None();
 }
@@ -5105,6 +5109,10 @@ rpl::producer<FullReplyTo> ComposeControls::jumpToItemRequests() const {
 
 bool ComposeControls::isEditingMessage() const {
 	return _header->isEditingMessage();
+}
+
+rpl::producer<FullMsgId> ComposeControls::editMsgIdValue() const {
+	return _header->editMsgIdValue();
 }
 
 FullReplyTo ComposeControls::replyingToMessage() const {

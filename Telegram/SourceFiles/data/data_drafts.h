@@ -129,6 +129,12 @@ public:
 	[[nodiscard]] static constexpr DraftKey ScheduledEdit() {
 		return kScheduledDraftIndex + kEditDraftShift;
 	}
+	[[nodiscard]] static constexpr DraftKey WelcomeMessages() {
+		return kWelcomeMessagesDraftIndex;
+	}
+	[[nodiscard]] static constexpr DraftKey WelcomeMessagesEdit() {
+		return kWelcomeMessagesDraftIndex + kEditDraftShift;
+	}
 	[[nodiscard]] static constexpr DraftKey Shortcut(
 			BusinessShortcutId shortcutId) {
 		return (shortcutId < 0 || shortcutId >= ServerMaxMsgId)
@@ -230,6 +236,7 @@ private:
 	static constexpr auto kLocalDraftIndex = -1;
 	static constexpr auto kCloudDraftIndex = -2;
 	static constexpr auto kScheduledDraftIndex = -3;
+	static constexpr auto kWelcomeMessagesDraftIndex = -4;
 	static constexpr auto kMonoforumDraftBit = (int64(1) << 60);
 	static constexpr auto kMonoforumDraftMask = (kMonoforumDraftBit - 1);
 	static constexpr auto kEditDraftShift = ServerMaxMsgId.bare;

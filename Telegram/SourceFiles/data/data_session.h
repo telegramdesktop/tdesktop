@@ -1410,7 +1410,7 @@ private:
 	const std::unique_ptr<BusinessInfo> _businessInfo;
 	std::unique_ptr<ShortcutMessages> _shortcutMessages;
 
-	MsgId _nonHistoryEntryId = ShortcutMaxMsgId;
+	MsgId _nonHistoryEntryId = WelcomeMaxMsgId;
 
 	std::unique_ptr<StarsRatingPending> _pendingStarsRating;
 

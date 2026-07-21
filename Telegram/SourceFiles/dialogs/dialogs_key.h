@@ -116,6 +116,7 @@ struct EntryState {
 		ContextMenu,
 		SubsectionTabsMenu,
 		ShortcutMessages,
+		WelcomeMessages,
 	};
 
 	Key key;

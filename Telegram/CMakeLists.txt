@@ -621,6 +621,8 @@ PRIVATE
     data/components/sponsored_messages.h
     data/components/top_peers.cpp
     data/components/top_peers.h
+    data/components/welcome_messages.cpp
+    data/components/welcome_messages.h
     data/notify/data_notify_settings.cpp
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp
@@ -1100,6 +1102,8 @@ PRIVATE
     history/view/history_view_view_button.h
     history/view/history_view_webpage_preview.cpp
     history/view/history_view_webpage_preview.h
+    history/view/history_view_welcome_messages_section.cpp
+    history/view/history_view_welcome_messages_section.h
     history/history.cpp
     history/history.h
     history/history_drag_area.cpp

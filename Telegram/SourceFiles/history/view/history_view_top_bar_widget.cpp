@@ -581,6 +581,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			&& _activeChat.section != Section::SavedSublist)
 		|| (_activeChat.section == Section::Scheduled)
 		|| (_activeChat.section == Section::Pinned)
+		|| (_activeChat.section == Section::WelcomeMessages)
 		|| communityChatsListBar()) {
 		auto text = (_activeChat.section == Section::Scheduled)
 			? ((peer && peer->isSelf())
@@ -588,6 +589,8 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				: tr::lng_scheduled_messages(tr::now))
 			: (_activeChat.section == Section::Pinned)
 			? _customTitleText
+			: (_activeChat.section == Section::WelcomeMessages)
+			? tr::lng_welcome_messages_title(tr::now)
 			: folder
 			? folder->chatListName()
 			: peer->isSelf()
@@ -1335,6 +1338,8 @@ void TopBarWidget::updateControlsVisibility() {
 		? !_activeChat.key.folder()
 		: (section == Section::Scheduled)
 		? (hasPollsMenu || hasTodoListsMenu)
+		: (section == Section::WelcomeMessages)
+		? true
 		: (section == Section::Replies)
 		? (hasPollsMenu || hasTodoListsMenu || hasTopicMenu)
 		: (section == Section::ChatsList)

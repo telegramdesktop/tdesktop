@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/data_user.h"
 #include "history/admin_log/history_admin_log_section.h"
+#include "history/view/history_view_welcome_messages_section.h"
 #include "info/bot/earn/info_bot_earn_widget.h"
 #include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/bot/starref/info_bot_starref_setup_widget.h"
@@ -1561,6 +1562,9 @@ void Controller::fillManageSection() {
 			|| (channel->isBroadcast() && channel->canEditInformation()));
 	const auto canEditDirectMessages = isChannel
 		&& (channel->isBroadcast() && channel->canEditInformation());
+	const auto canEditWelcomeMessages = isChannel
+		? (channel->isMegagroup() && channel->canEditInformation())
+		: chat->canEditInformation();
 	const auto communityEligible = isChannel
 		&& (channel->isMegagroup() || channel->isBroadcast())
 		&& !channel->isMonoforum()
@@ -1752,6 +1756,20 @@ void Controller::fillManageSection() {
 			rpl::single(QString()), // Empty count.
 			std::move(callback),
 			{ &st::menuIconGroupLog });
+	}
+	if (canEditWelcomeMessages) {
+		const auto history = _peer->owner().history(_peer);
+		auto callback = [=] {
+			_navigation->showSection(
+				std::make_shared<HistoryView::WelcomeMessagesMemento>(
+					history));
+		};
+		AddButtonWithCount(
+			_controls.buttonsLayout,
+			tr::lng_manage_peer_welcome_messages(),
+			rpl::single(QString()), // Empty count.
+			std::move(callback),
+			{ &st::menuIconChatBubble });
 	}
 	if (hasStarRef) {
 		auto callback = [=] {

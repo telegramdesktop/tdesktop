@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/sponsored_messages.h"
+#include "data/components/welcome_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_bot_app.h"
 #include "data/data_saved_messages.h"
@@ -200,6 +201,15 @@ void UpdateInstantViewMediaCaption(
 	if (!caption.text.isEmpty() && data->captions[index].text.isEmpty()) {
 		data->captions[index] = std::move(caption);
 	}
+}
+
+[[nodiscard]] bool CanEditPeerInfo(not_null<PeerData*> peer) {
+	if (const auto channel = peer->asChannel()) {
+		return channel->canEditInformation();
+	} else if (const auto chat = peer->asChat()) {
+		return chat->canEditInformation();
+	}
+	return false;
 }
 
 } // namespace
@@ -2134,6 +2144,12 @@ bool HistoryItem::isBusinessShortcut() const {
 	return _shortcutId != 0;
 }
 
+bool HistoryItem::isWelcomeTemplate() const {
+	return !isHistoryEntry()
+		&& !isAdminLogEntry()
+		&& Data::IsWelcomeMsgId(id);
+}
+
 void HistoryItem::setRealShortcutId(BusinessShortcutId id) {
 	_shortcutId = id;
 }
@@ -3007,6 +3023,7 @@ bool HistoryItem::allowsForward() const {
 bool HistoryItem::isTooOldForEdit(TimeId now) const {
 	return !_history->peer->canEditMessagesIndefinitely()
 		&& !isScheduled()
+		&& !isWelcomeTemplate()
 		&& (now - date() >= _history->session().serverConfig().editTimeLimit);
 }
 
@@ -3030,12 +3047,18 @@ bool HistoryItem::allowsEditMedia() const {
 }
 
 bool HistoryItem::canBeEdited() const {
-	if ((!isRegular() && !isScheduled() && !isBusinessShortcut())
+	if ((!isRegular()
+			&& !isScheduled()
+			&& !isBusinessShortcut()
+			&& !isWelcomeTemplate())
 		|| Has<HistoryMessageVia>()
 		|| Has<HistoryMessageForwarded>()) {
 		return false;
 	}
 
+	if (isWelcomeTemplate()) {
+		return CanEditPeerInfo(_history->peer);
+	}
 	const auto peer = _history->peer;
 	if (peer->isSelf()) {
 		return true;
@@ -3087,8 +3110,12 @@ bool HistoryItem::canDelete() const {
 		return false;
 	} else if (!isHistoryEntry()
 		&& !isScheduled()
-		&& !isBusinessShortcut()) {
+		&& !isBusinessShortcut()
+		&& !isWelcomeTemplate()) {
 		return false;
+	}
+	if (isWelcomeTemplate()) {
+		return CanEditPeerInfo(_history->peer);
 	}
 	auto channel = _history->peer->asChannel();
 	if (!channel) {

@@ -97,6 +97,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_widget.h"
 #include "info/stories/info_stories_widget.h"
 #include "data/components/scheduled_messages.h"
+#include "data/components/welcome_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
@@ -291,6 +292,7 @@ private:
 	void fillProfileActions();
 	void fillRepliesActions();
 	void fillScheduledActions();
+	void fillWelcomeMessagesActions();
 	void fillArchiveActions();
 	void fillSavedSublistActions();
 	void fillContextMenuActions();
@@ -1654,6 +1656,7 @@ void Filler::fill() {
 	case Section::Profile: fillProfileActions(); break;
 	case Section::Replies: fillRepliesActions(); break;
 	case Section::Scheduled: fillScheduledActions(); break;
+	case Section::WelcomeMessages: fillWelcomeMessagesActions(); break;
 	case Section::ContextMenu:
 	case Section::SubsectionTabsMenu: fillContextMenuActions(); break;
 	case Section::SavedSublist: fillMonoforumPeerActions(); break;
@@ -1931,6 +1934,32 @@ void Filler::fillRepliesActions() {
 void Filler::fillScheduledActions() {
 	addCreatePoll();
 	addCreateTodoList();
+}
+
+void Filler::fillWelcomeMessagesActions() {
+	const auto peer = _peer;
+	if (!peer) {
+		return;
+	}
+	const auto controller = _controller;
+	const auto history = peer->owner().history(peer);
+	_addAction({
+		.text = tr::lng_welcome_messages_delete_all(tr::now),
+		.handler = [=] {
+			const auto confirmed = [=](Fn<void()> close) {
+				peer->session().welcomeMessages().deleteAll(history);
+				close();
+			};
+			controller->show(Ui::MakeConfirmBox({
+				.text = tr::lng_welcome_messages_delete_all_sure(),
+				.confirmed = confirmed,
+				.confirmText = tr::lng_box_delete(),
+				.confirmStyle = &st::attentionBoxButton,
+			}));
+		},
+		.icon = &st::menuIconDeleteAttention,
+		.isAttention = true,
+	});
 }
 
 void Filler::fillArchiveActions() {

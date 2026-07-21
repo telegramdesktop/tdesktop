@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/random.h"
 #include "base/unixtime.h"
+#include "data/components/welcome_messages.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_forum_topic.h"
@@ -88,6 +89,10 @@ EphemeralMessages::EphemeralMessages(not_null<Main::Session*> session)
 EphemeralMessages::~EphemeralMessages() = default;
 
 void EphemeralMessages::apply(const MTPDupdateNewEphemeralMessage &update) {
+	if (update.vmessage().data().is_welcome_template()) {
+		_session->welcomeMessages().applyNew(update.vmessage().data());
+		return;
+	}
 	applyOrDefer(update.vmessage());
 }
 
@@ -137,6 +142,10 @@ void EphemeralMessages::drainPending(bool force) {
 
 void EphemeralMessages::apply(const MTPDupdateEditEphemeralMessage &update) {
 	const auto &data = update.vmessage().data();
+	if (data.is_welcome_template()) {
+		_session->welcomeMessages().applyEdit(data);
+		return;
+	}
 	const auto history = _session->data().history(
 		peerFromMTP(data.vpeer_id()));
 	const auto item = lookupItem(history->peer, data.vid().v);
@@ -171,6 +180,9 @@ void EphemeralMessages::apply(
 		return;
 	}
 	for (const auto &id : update.vids().v) {
+		if (_session->welcomeMessages().applyDelete(history->peer, id.v)) {
+			continue;
+		}
 		if (const auto item = lookupItem(history->peer, id.v)) {
 			item->destroy();
 		}

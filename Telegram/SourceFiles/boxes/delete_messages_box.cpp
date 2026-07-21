@@ -185,7 +185,9 @@ void DeleteMessagesBox::prepare() {
 			: tr::lng_selected_delete_sure(tr::now, lt_count, _ids.size());
 		if (const auto peer = checkFromSinglePeer()) {
 			auto count = int(_ids.size());
-			if (hasScheduledMessages() || hasSavedMusicMessages()) {
+			if (hasScheduledMessages()
+				|| hasWelcomeTemplateMessages()
+				|| hasSavedMusicMessages()) {
 			} else if (auto revoke = revokeText(peer)) {
 				const auto &settings = Core::App().settings();
 				const auto revokeByDefault
@@ -296,6 +298,17 @@ bool DeleteMessagesBox::hasScheduledMessages() const {
 	for (const auto &fullId : _ids) {
 		if (const auto item = _session->data().message(fullId)) {
 			if (item->isScheduled()) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool DeleteMessagesBox::hasWelcomeTemplateMessages() const {
+	for (const auto &fullId : _ids) {
+		if (const auto item = _session->data().message(fullId)) {
+			if (item->isWelcomeTemplate()) {
 				return true;
 			}
 		}
