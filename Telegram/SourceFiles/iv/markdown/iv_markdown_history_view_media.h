@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/flat_set.h"
 #include "base/weak_ptr.h"
+#include "data/data_file_origin.h"
 
 #include <functional>
 #include <memory>
@@ -99,6 +100,7 @@ struct IvHistoryViewMediaDescriptor {
 		std::shared_ptr<DocumentRuntime>> groupedDocuments;
 	base::flat_map<uint64, int> groupedItemIndices;
 	base::flat_set<uint64> groupedSpoileredIds;
+	::Data::FileOrigin fileOrigin;
 	bool spoiler = false;
 	bool editMode = false;
 };

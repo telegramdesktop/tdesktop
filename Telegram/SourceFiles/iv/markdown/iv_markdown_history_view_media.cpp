@@ -25,9 +25,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings.h"
 #include "ui/image/image_location.h"
 #include "data/data_types.h"
+#include "data/data_auto_download.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_file_click_handler.h"
+#include "data/data_media_preload.h"
 #include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -39,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_media_grouped.h"
+#include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "ui/basic_click_handlers.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
@@ -763,6 +769,21 @@ private:
 
 	void stepActiveIndex(int delta);
 
+	struct SlidePreload {
+		std::shared_ptr<::Data::PhotoMedia> photo;
+		std::shared_ptr<::Data::DocumentMedia> document;
+		std::unique_ptr<::Data::VideoPreload> video;
+		bool ready = false;
+	};
+
+	[[nodiscard]] int slideIndexAfter(int index, int delta) const;
+	[[nodiscard]] bool activeSlideReady() const;
+	[[nodiscard]] bool preloadReady(int index);
+	void startPreload(int index);
+	void releaseSlideRuntimes(int index);
+	void refreshResidency();
+	void updatePreloads();
+
 	[[nodiscard]] IvHistoryViewHit classifyState(
 		const HistoryView::TextState &state,
 		HistoryView::Media *media,
@@ -788,6 +809,7 @@ private:
 		std::shared_ptr<DocumentRuntime>> _groupedDocumentRuntimes;
 	const base::flat_map<uint64, int> _groupedItemIndices;
 	const base::flat_set<uint64> _groupedSpoileredIds;
+	const ::Data::FileOrigin _fileOrigin;
 	const bool _editMode = false;
 	std::vector<std::unique_ptr<HistoryView::Media>> _slides;
 	std::vector<QSize> _slideOriginalSizes;
@@ -801,6 +823,10 @@ private:
 	bool _supported = false;
 	MediaBlockHost *_registeredBridgeHost = nullptr;
 	mutable SlideshowDotsBackdrop _dotsBackdrop;
+	base::flat_map<int, SlidePreload> _preloads;
+	rpl::lifetime _downloadLifetime;
+	int _residencyIndex = -1;
+	bool _painted = false;
 
 };
 
@@ -814,6 +840,7 @@ IvHistoryViewSlideshowBlock::IvHistoryViewSlideshowBlock(
 , _groupedDocumentRuntimes(std::move(descriptor.groupedDocuments))
 , _groupedItemIndices(std::move(descriptor.groupedItemIndices))
 , _groupedSpoileredIds(std::move(descriptor.groupedSpoileredIds))
+, _fileOrigin(descriptor.fileOrigin)
 , _editMode(descriptor.editMode)
 , _slideOriginalSizes(std::move(descriptor.slideOriginalSizes)) {
 	_slides.reserve(descriptor.slideMediaFactories.size());
@@ -830,6 +857,12 @@ IvHistoryViewSlideshowBlock::IvHistoryViewSlideshowBlock(
 		return;
 	}
 	_supported = probeSupport();
+	if (_supported && _slides.size() > 1) {
+		_host->session()->session().downloaderTaskFinished(
+		) | rpl::on_next([=] {
+			updatePreloads();
+		}, _downloadLifetime);
+	}
 }
 
 IvHistoryViewSlideshowBlock::~IvHistoryViewSlideshowBlock() {
@@ -942,9 +975,11 @@ MediaBlockSelectionData IvHistoryViewSlideshowBlock::selectionData() const {
 }
 
 bool IvHistoryViewSlideshowBlock::hasHeavyPart() const {
-	return alive() && ranges::any_of(_slides, [](const auto &media) {
-		return media && media->hasHeavyPart();
-	});
+	return alive()
+		&& (!_preloads.empty()
+			|| ranges::any_of(_slides, [](const auto &media) {
+				return media && media->hasHeavyPart();
+			}));
 }
 
 void IvHistoryViewSlideshowBlock::unloadHeavyPart() {
@@ -952,6 +987,15 @@ void IvHistoryViewSlideshowBlock::unloadHeavyPart() {
 		return;
 	}
 	const auto had = hasHeavyPart();
+	_preloads.clear();
+	_residencyIndex = -1;
+	_painted = false;
+	for (const auto &[id, runtime] : _groupedPhotoRuntimes) {
+		runtime->releaseHeavyData();
+	}
+	for (const auto &[id, runtime] : _groupedDocumentRuntimes) {
+		runtime->releaseHeavyData();
+	}
 	for (const auto &media : _slides) {
 		if (media) {
 			media->unloadHeavyPart();
@@ -997,6 +1041,7 @@ void IvHistoryViewSlideshowBlock::setActiveItemIndex(int index) {
 	}
 	_activeIndex = next;
 	applyForcedSize();
+	updatePreloads();
 	requestRepaint(_geometry);
 }
 
@@ -1030,7 +1075,179 @@ void IvHistoryViewSlideshowBlock::stepActiveIndex(int delta) {
 	}
 	_activeIndex = next;
 	applyForcedSize();
+	updatePreloads();
 	requestRepaint(_geometry);
+}
+
+int IvHistoryViewSlideshowBlock::slideIndexAfter(
+		int index,
+		int delta) const {
+	const auto count = int(_slides.size());
+	return ((index + delta) % count + count) % count;
+}
+
+bool IvHistoryViewSlideshowBlock::activeSlideReady() const {
+	const auto media = activeMedia();
+	if (!media) {
+		return false;
+	}
+	if (const auto photo = media->getPhoto()) {
+		const auto view = photo->activeMediaView();
+		return view && view->loaded();
+	} else if (const auto document = media->getDocument()) {
+		const auto view = document->activeMediaView();
+		return view && view->canBePlayed();
+	}
+	return false;
+}
+
+bool IvHistoryViewSlideshowBlock::preloadReady(int index) {
+	const auto i = _preloads.find(index);
+	if (i == end(_preloads)) {
+		return false;
+	}
+	auto &entry = i->second;
+	if (!entry.ready) {
+		if (entry.photo && entry.photo->loaded()) {
+			entry.ready = true;
+		} else if (entry.document
+			&& !entry.video
+			&& entry.document->canBePlayed()) {
+			entry.ready = true;
+		}
+	}
+	return entry.ready;
+}
+
+void IvHistoryViewSlideshowBlock::startPreload(int index) {
+	const auto media = _slides[index].get();
+	auto &entry = _preloads[index];
+	if (const auto photo = media->getPhoto()) {
+		entry.photo = photo->createMediaView();
+		if (entry.photo->loaded()) {
+			entry.ready = true;
+		} else if (::Data::PhotoPreload::Should(
+				photo,
+				_host->item()->history()->peer)) {
+			photo->load(_fileOrigin, LoadFromCloudOrLocal, true);
+		} else {
+			entry.photo->wanted(::Data::PhotoSize::Small, _fileOrigin);
+			entry.ready = true;
+		}
+	} else if (const auto document = media->getDocument()) {
+		entry.document = document->createMediaView();
+		entry.document->goodThumbnailWanted();
+		entry.document->thumbnailWanted(_fileOrigin);
+		const auto autoplay = ::Data::AutoDownload::ShouldAutoPlay(
+			document->session().settings().autoDownload(),
+			_host->item()->history()->peer,
+			document);
+		if (!autoplay) {
+			entry.document->videoThumbnailWanted(_fileOrigin);
+		}
+		if (::Data::VideoPreload::Can(document)) {
+			const auto weak = std::weak_ptr<IvHistoryViewSlideshowBlock>(
+				std::static_pointer_cast<IvHistoryViewSlideshowBlock>(
+					shared_from_this()));
+			entry.video = std::make_unique<::Data::VideoPreload>(
+				document,
+				_fileOrigin,
+				[weak, index] {
+					if (const auto block = weak.lock()) {
+						const auto i = block->_preloads.find(index);
+						if (i != end(block->_preloads)) {
+							i->second.ready = true;
+						}
+						block->updatePreloads();
+					}
+				});
+		} else if (entry.document->canBePlayed()) {
+			entry.ready = true;
+		} else {
+			entry.document->automaticLoad(_fileOrigin, _host->item());
+			if (!document->loading()) {
+				entry.ready = true;
+			}
+		}
+	} else {
+		entry.ready = true;
+	}
+}
+
+void IvHistoryViewSlideshowBlock::releaseSlideRuntimes(int index) {
+	for (const auto &[mediaId, itemIndex] : _groupedItemIndices) {
+		if (itemIndex != index) {
+			continue;
+		}
+		const auto photo = _groupedPhotoRuntimes.find(mediaId);
+		if (photo != end(_groupedPhotoRuntimes)) {
+			photo->second->releaseHeavyData();
+		}
+		const auto document = _groupedDocumentRuntimes.find(mediaId);
+		if (document != end(_groupedDocumentRuntimes)) {
+			document->second->releaseHeavyData();
+		}
+	}
+}
+
+void IvHistoryViewSlideshowBlock::refreshResidency() {
+	const auto count = int(_slides.size());
+	if (!alive() || !count) {
+		return;
+	}
+	_residencyIndex = _activeIndex;
+	if (count < 2) {
+		return;
+	}
+	const auto next = slideIndexAfter(_activeIndex, 1);
+	const auto previous = slideIndexAfter(_activeIndex, -1);
+	for (auto i = 0; i != count; ++i) {
+		if (i == _activeIndex || i == next || i == previous) {
+			continue;
+		}
+		const auto media = _slides[i].get();
+		if (media && media->hasHeavyPart()) {
+			media->unloadHeavyPart();
+		}
+		releaseSlideRuntimes(i);
+		_preloads.remove(i);
+	}
+	for (const auto index : { next, previous }) {
+		if (index != _activeIndex) {
+			if (const auto media = _slides[index].get()) {
+				media->stopAnimation();
+			}
+		}
+	}
+}
+
+void IvHistoryViewSlideshowBlock::updatePreloads() {
+	const auto count = int(_slides.size());
+	if (!_painted || !alive() || count < 2) {
+		return;
+	}
+	if (_residencyIndex != _activeIndex) {
+		refreshResidency();
+	}
+	if (!activeSlideReady()) {
+		return;
+	}
+	const auto next = slideIndexAfter(_activeIndex, 1);
+	if (next == _activeIndex) {
+		return;
+	}
+	if (!_preloads.contains(next)) {
+		startPreload(next);
+	}
+	if (!preloadReady(next)) {
+		return;
+	}
+	const auto previous = slideIndexAfter(_activeIndex, -1);
+	if (previous != _activeIndex
+		&& previous != next
+		&& !_preloads.contains(previous)) {
+		startPreload(previous);
+	}
 }
 
 IvHistoryViewHit IvHistoryViewSlideshowBlock::classifyState(
@@ -1176,6 +1393,9 @@ void IvHistoryViewSlideshowBlock::paint(
 			_dotsBackdrop);
 	}
 	p.restore();
+	const auto that = const_cast<IvHistoryViewSlideshowBlock*>(this);
+	that->_painted = true;
+	that->updatePreloads();
 }
 
 ClickHandlerPtr IvHistoryViewSlideshowBlock::linkAt(QPoint point) const {

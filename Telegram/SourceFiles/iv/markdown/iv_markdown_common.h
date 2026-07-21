@@ -46,6 +46,8 @@ public:
 	[[nodiscard]] virtual bool loading() const = 0;
 	[[nodiscard]] virtual double progress() const = 0;
 	virtual void open(Qt::MouseButton button) const = 0;
+	virtual void releaseHeavyData() {
+	}
 };
 
 class DocumentRuntime {
@@ -60,6 +62,8 @@ public:
 	[[nodiscard]] virtual bool loading() const = 0;
 	[[nodiscard]] virtual double progress() const = 0;
 	virtual void open(Qt::MouseButton button) const = 0;
+	virtual void releaseHeavyData() {
+	}
 };
 
 class MapRuntime {
