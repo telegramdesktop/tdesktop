@@ -216,6 +216,7 @@ private:
 		DocumentData *thumbnailDocument = nullptr;
 		QString title;
 		std::vector<CustomOne> list;
+		mutable std::unique_ptr<Ui::Text::CustomEmoji> shortcutIcon;
 		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 		bool painted = false;
 		bool expanded = false;

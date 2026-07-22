@@ -2302,11 +2302,20 @@ void EmojiListWidget::paintSearchShortcutIcon(
 		Painter &p,
 		const CustomSet &set,
 		QRect rect) {
-	if (set.list.empty() || _customSingleSize <= 0) {
+	if (set.list.empty()) {
 		return;
 	}
-	const auto native = _customSingleSize;
-	const auto scale = double(rect.width()) / double(native);
+	using SizeTag = Data::CustomEmojiManager::SizeTag;
+	const auto native = Data::FrameSizeFromTag(SizeTag::Isolated)
+		/ style::DevicePixelRatio();
+	if (!set.shortcutIcon) {
+		const auto document = set.list.front().document;
+		set.shortcutIcon = document->owner().customEmojiManager().create(
+			document,
+			[=] { update(); },
+			SizeTag::Isolated);
+	}
+	const auto scale = rect.width() / float64(native);
 	auto context = Ui::Text::CustomEmojiPaintContext{
 		.textColor = (_customTextColor
 			? _customTextColor()
@@ -2320,10 +2329,11 @@ void EmojiListWidget::paintSearchShortcutIcon(
 		.internal = { .forceFirstFrame = true },
 	};
 	p.save();
+	auto hq = PainterHighQualityEnabler(p);
 	p.translate(rect.center());
 	p.scale(scale, scale);
 	p.translate(-native / 2, -native / 2);
-	set.list.front().custom->paint(p, context);
+	set.shortcutIcon->paint(p, context);
 	p.restore();
 }
 
