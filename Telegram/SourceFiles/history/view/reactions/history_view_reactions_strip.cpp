@@ -441,6 +441,9 @@ void Strip::checkIcons() {
 	if (all) {
 		_loadCacheLifetime.destroy();
 		loadIcons();
+		if (_update) {
+			_update();
+		}
 	}
 }
 
