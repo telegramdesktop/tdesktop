@@ -3667,7 +3667,12 @@ bool ChatWidget::handleDrawToReplyRequest(Data::DrawToReplyRequest request) {
 				return;
 			}
 			if (replyTo) {
-				replyToMessage({ .messageId = replyTo });
+				const auto item = session().data().message(replyTo);
+				if (!item
+					|| !item->isEphemeral()
+					|| CanReplyToEphemeral(item)) {
+					replyToMessage({ .messageId = replyTo });
+				}
 			}
 			auto list = Storage::PrepareMediaFromImage(
 				std::move(result),

@@ -3280,8 +3280,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	const auto addReplyAction = [&](HistoryItem *item) {
 		if (!item
-			|| (!item->isRegular()
-				&& (!item->isEphemeral() || item->out()))) {
+			|| (!item->isRegular() && !CanReplyToEphemeral(item))) {
 			return;
 		}
 		const auto canSendReply = CanSendReply(item);
@@ -6484,7 +6483,7 @@ auto HistoryInner::DelegateMixin()
 }
 
 bool CanSendReply(not_null<const HistoryItem*> item) {
-	if (item->isEphemeral() && item->out()) {
+	if (item->isEphemeral() && !CanReplyToEphemeral(item)) {
 		return false;
 	}
 	const auto peer = item->history()->peer;

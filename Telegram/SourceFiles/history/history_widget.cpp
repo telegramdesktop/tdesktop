@@ -8987,7 +8987,7 @@ bool HistoryWidget::replyToPreviousMessage() {
 		auto view = from;
 		while (view
 			&& view->data()->isLocal()
-			&& (!view->data()->isEphemeral() || view->data()->out())) {
+			&& !CanReplyToEphemeral(view->data())) {
 			view = view->previousDisplayedInBlocks();
 		}
 		return view;
@@ -9033,7 +9033,7 @@ bool HistoryWidget::replyToNextMessage() {
 			auto next = view->nextDisplayedInBlocks();
 			while (next
 				&& next->data()->isLocal()
-				&& (!next->data()->isEphemeral() || next->data()->out())) {
+				&& !CanReplyToEphemeral(next->data())) {
 				next = next->nextDisplayedInBlocks();
 			}
 			if (next) {
@@ -10085,8 +10085,7 @@ void HistoryWidget::processReply() {
 		return processCancel();
 #endif
 	} else if (!_processingReplyItem->isRegular()
-		&& (!_processingReplyItem->isEphemeral()
-			|| _processingReplyItem->out())) {
+		&& !CanReplyToEphemeral(_processingReplyItem)) {
 		return processCancel();
 	} else if (const auto forum = _peer->forum()
 		; forum && _processingReplyItem->history() == _history) {

@@ -639,8 +639,7 @@ bool AddReplyToMessageAction(
 	const auto topic = item ? item->topic() : nullptr;
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (!item
-		|| (!item->isRegular()
-			&& (!item->isEphemeral() || item->out()))
+		|| (!item->isRegular() && !CanReplyToEphemeral(item))
 		|| (context != Context::History
 			&& context != Context::Replies
 			&& context != Context::Monoforum)) {
@@ -1499,7 +1498,10 @@ void FillContextMenuItems(
 		const auto canSendText = topic
 			? Data::CanSendAnything(topic)
 			: Data::CanSendAnything(peer);
-		if (canSendText && document && document->isVoiceMessage()) {
+		if (canSendText
+			&& (item->isRegular() || CanReplyToEphemeral(item))
+			&& document
+			&& document->isVoiceMessage()) {
 			const auto msgId = item->fullId();
 			if (const auto timecode = CurrentVoiceTimecode(msgId)) {
 				const auto weak = base::make_weak(list.get());

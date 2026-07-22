@@ -128,6 +128,7 @@ void RequestDependentMessageStory(
 	not_null<History*> history,
 	FullReplyTo replyTo);
 [[nodiscard]] bool LookupReplyIsTopicPost(HistoryItem *replyTo);
+[[nodiscard]] bool CanReplyToEphemeral(not_null<const HistoryItem*> item);
 [[nodiscard]] bool ShowEphemeralReplyTextOnlyError(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Main::Session*> session,

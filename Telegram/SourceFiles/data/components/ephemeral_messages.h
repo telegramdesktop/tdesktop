@@ -44,6 +44,8 @@ public:
 	[[nodiscard]] int32 lookupId(not_null<const HistoryItem*> item) const;
 	[[nodiscard]] UserData *replyReceiver(
 		not_null<const HistoryItem*> item) const;
+	[[nodiscard]] UserData *replyBot(
+		not_null<const HistoryItem*> target) const;
 
 	[[nodiscard]] bool wouldSend(const Api::MessageToSend &message) const;
 	[[nodiscard]] bool hasEphemeralCommand(
@@ -122,6 +124,7 @@ private:
 		not_null<History*> history,
 		PeerId botId);
 	[[nodiscard]] UserData *botForSending(const Entry &entry) const;
+	void reportDroppedReply() const;
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void pruneOld();
 

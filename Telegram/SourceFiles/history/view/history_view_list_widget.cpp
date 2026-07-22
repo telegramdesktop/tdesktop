@@ -3357,8 +3357,7 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 		&& _selected.empty()
 		&& _overElement
 		&& (_overElement->data()->isRegular()
-			|| (_overElement->data()->isEphemeral()
-				&& !_overElement->data()->out()))) {
+			|| CanReplyToEphemeral(_overElement->data()))) {
 		mouseActionCancel();
 		switch (CurrentQuickAction()) {
 		case DoubleClickQuickAction::Reply: {
@@ -5216,8 +5215,7 @@ void ListWidget::replyNextMessage(FullMsgId fullId, bool next) {
 		if (view) {
 			const auto newFullId = view->data()->fullId();
 			if (!view->data()->isRegular()
-				&& (!view->data()->isEphemeral()
-					|| view->data()->out())) {
+				&& !CanReplyToEphemeral(view->data())) {
 				return replyNextMessage(newFullId, next);
 			}
 			replyToMessageRequestNotify({ newFullId });

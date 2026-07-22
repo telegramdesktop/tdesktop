@@ -25,7 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_edition.h"
 #include "iv/iv_rich_message_serializer.h"
 #include "iv/iv_rich_page.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/toast/toast.h"
 
 namespace Data {
 namespace {
@@ -348,6 +350,15 @@ UserData *EphemeralMessages::replyReceiver(
 	return nullptr;
 }
 
+UserData *EphemeralMessages::replyBot(
+		not_null<const HistoryItem*> target) const {
+	if (!target->isEphemeral() || target->out()) {
+		return nullptr;
+	}
+	const auto entry = findByItem(target);
+	return entry ? botForSending(*entry) : nullptr;
+}
+
 bool EphemeralMessages::wouldSend(const Api::MessageToSend &message) const {
 	const auto history = message.action.history;
 	const auto peer = history->peer;
@@ -357,7 +368,7 @@ bool EphemeralMessages::wouldSend(const Api::MessageToSend &message) const {
 	if (const auto replyToId = realReplyId(message)) {
 		const auto replyTo = _session->data().message(replyToId);
 		if (replyTo && replyTo->isEphemeral()) {
-			return true;
+			return replyBot(replyTo) != nullptr;
 		}
 	}
 	return findCommandBot(peer, message.textWithTags.text.trimmed())
@@ -383,7 +394,7 @@ bool EphemeralMessages::wouldSendMedia(
 
 bool EphemeralMessages::isEphemeralBotReply(FullMsgId replyToId) const {
 	const auto target = _session->data().message(replyToId);
-	return target && target->isEphemeral() && !target->out();
+	return target && (replyBot(target) != nullptr);
 }
 
 FullMsgId EphemeralMessages::realReplyId(
@@ -403,7 +414,11 @@ bool EphemeralMessages::trySend(const Api::MessageToSend &message) {
 		return false;
 	} else if (message.action.options.scheduled
 		|| message.action.options.shortcutId) {
-		if (wouldSend(message)) {
+		const auto replyToId = realReplyId(message);
+		const auto replyTo = replyToId
+			? _session->data().message(replyToId)
+			: nullptr;
+		if (wouldSend(message) || (replyTo && replyTo->isEphemeral())) {
 			LOG(("API Error: "
 				"Dropping a scheduled ephemeral message send."));
 			return true;
@@ -427,17 +442,19 @@ bool EphemeralMessages::trySend(const Api::MessageToSend &message) {
 			}
 			const auto entry = findByItem(replyTo);
 			const auto bot = entry ? botForSending(*entry) : nullptr;
-			if (bot) {
-				send(
-					history,
-					bot,
-					std::move(text),
-					entry->ephemeralId,
-					MsgId(),
-					FullReplyTo(),
-					message.webPage,
-					message.action.options.invertCaption);
+			if (!bot) {
+				reportDroppedReply();
+				return true;
 			}
+			send(
+				history,
+				bot,
+				std::move(text),
+				entry->ephemeralId,
+				MsgId(),
+				FullReplyTo(),
+				message.webPage,
+				message.action.options.invertCaption);
 			return true;
 		}
 		realReply = message.action.replyTo;
@@ -576,6 +593,7 @@ bool EphemeralMessages::sendMedia(
 				item->invertMedia());
 			return true;
 		}
+		reportDroppedReply();
 	}
 	item->destroy();
 	return true;
@@ -675,6 +693,7 @@ bool EphemeralMessages::sendRich(
 				rebuildRich);
 			return true;
 		}
+		reportDroppedReply();
 	}
 	item->destroy();
 	return true;
@@ -700,6 +719,8 @@ bool EphemeralMessages::sendSimpleMedia(
 				true,
 				entry->ephemeralId,
 				MsgId(0));
+		} else {
+			reportDroppedReply();
 		}
 	}
 	return true;
@@ -811,7 +832,8 @@ void EphemeralMessages::request(
 }
 
 void EphemeralMessages::deleteMessage(not_null<HistoryItem*> item) {
-	if (const auto entry = findByItem(item)) {
+	const auto entry = findByItem(item);
+	if (entry && entry->receiverId) {
 		const auto receiver = _session->data().user(entry->receiverId);
 		_session->api().request(MTPephemeral_DeleteMessage(
 			item->history()->peer->input(),
@@ -867,6 +889,11 @@ UserData *EphemeralMessages::botForSending(const Entry &entry) const {
 	}
 	const auto from = entry.item->from();
 	return from ? from->asUser() : nullptr;
+}
+
+void EphemeralMessages::reportDroppedReply() const {
+	LOG(("API Error: Dropping an ephemeral reply without a receiver."));
+	Ui::Toast::Show(tr::lng_ephemeral_reply_text_only(tr::now));
 }
 
 void EphemeralMessages::itemRemoved(not_null<const HistoryItem*> item) {

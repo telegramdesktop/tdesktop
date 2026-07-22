@@ -651,6 +651,11 @@ bool LookupReplyIsTopicPost(HistoryItem *replyTo) {
 		&& (replyTo->topicRootId() != Data::ForumTopic::kGeneralId);
 }
 
+bool CanReplyToEphemeral(not_null<const HistoryItem*> item) {
+	const auto &session = item->history()->session();
+	return session.ephemeralMessages().replyBot(item) != nullptr;
+}
+
 bool ShowEphemeralReplyTextOnlyError(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Main::Session*> session,

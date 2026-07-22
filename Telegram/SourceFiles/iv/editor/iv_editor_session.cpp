@@ -974,9 +974,8 @@ private:
 		if (!_composeAction) {
 			return false;
 		} else if (!simple) {
-			const auto id = _composeAction->replyTo.messageId;
-			const auto target = _session->data().message(id);
-			return target && target->isEphemeral();
+			return _session->ephemeralMessages().isEphemeralBotReply(
+				_composeAction->replyTo.messageId);
 		}
 		auto message = Api::MessageToSend(*_composeAction);
 		message.textWithTags = {
