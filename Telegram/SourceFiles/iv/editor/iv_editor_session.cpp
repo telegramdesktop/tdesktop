@@ -1042,14 +1042,6 @@ private:
 			}
 			return submitSimpleText(std::move(*simple));
 		}
-		if (_mode == Mode::Compose && _composeAction) {
-			const auto replyToId = _composeAction->replyTo.messageId;
-			const auto target = _session->data().message(replyToId);
-			if (target && target->isEphemeral()) {
-				showToast(tr::lng_ephemeral_reply_text_only(tr::now));
-				return false;
-			}
-		}
 		if (!CanUseRichMessages(_session)) {
 			const auto page = _state->richPage();
 			if (!RichPageIsFlattenSafe(page)) {
@@ -1245,6 +1237,11 @@ private:
 		}
 		if (action.options.shortcutId) {
 			flags |= MessageFlag::ShortcutMessage;
+		}
+		if (!action.options.scheduled
+			&& !action.options.shortcutId
+			&& submitWouldBeEphemeral(std::nullopt)) {
+			flags |= MessageFlag::Ephemeral;
 		}
 		const auto starsPaid = std::min(
 			peer->starsPerMessageChecked(),

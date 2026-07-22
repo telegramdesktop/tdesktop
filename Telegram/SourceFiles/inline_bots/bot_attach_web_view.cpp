@@ -3022,12 +3022,6 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		&& Data::CanSendAnyOf(peer, ChatRestriction::SendOther, false)) {
 		raw->addAction(tr::lng_article_menu_item(tr::now), [=] {
 			const auto action = actionFactory();
-			if (ShowEphemeralReplyTextOnlyError(
-					controller->uiShow(),
-					&controller->session(),
-					action.replyTo.messageId)) {
-				return;
-			}
 			const auto details = sendMenuDetails();
 			Iv::Editor::ShowComposeBox(
 				controller,

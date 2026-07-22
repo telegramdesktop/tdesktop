@@ -5536,15 +5536,15 @@ void HistoryWidget::sendRichDraft(
 	if (!page) {
 		return;
 	}
-	if (ShowEphemeralReplyTextOnlyError(
-			controller()->uiShow(),
-			&session(),
-			replyTo().messageId)) {
+	const auto ephemeral = session().ephemeralMessages()
+		.isEphemeralBotReply(replyTo().messageId);
+	if (ephemeral && options.scheduled) {
+		controller()->showToast(tr::lng_ephemeral_cant_schedule(tr::now));
 		return;
 	}
 	if (!options.scheduled) {
 		_cornerButtons.clearReplyReturns();
-		if (showSlowmodeError()) {
+		if (!ephemeral && showSlowmodeError()) {
 			return;
 		}
 	}
@@ -5582,7 +5582,8 @@ void HistoryWidget::sendRichDraft(
 	if (showSendRichDraftError(
 			options.scheduled != 0,
 			std::move(withPaymentApproved),
-			action.options)) {
+			action.options,
+			ephemeral)) {
 		return;
 	}
 
@@ -7558,7 +7559,8 @@ bool HistoryWidget::showSendMessageError(
 bool HistoryWidget::showSendRichDraftError(
 		bool ignoreSlowmodeCountdown,
 		Fn<void(int starsApproved)> withPaymentApproved,
-		Api::SendOptions options) {
+		Api::SendOptions options,
+		bool ephemeral) {
 	if (!_canSendMessages || !_history || !_peer) {
 		return false;
 	}
@@ -7569,6 +7571,7 @@ bool HistoryWidget::showSendRichDraftError(
 		.messagesCount = 1,
 		.ignoreSlowmodeCountdown = ignoreSlowmodeCountdown,
 		.richMessage = true,
+		.ignoreRestrictions = ephemeral,
 	};
 	request.messagesCount = ComputeSendingMessagesCount(_history, request);
 	const auto error = GetErrorForSending(_peer, request);
@@ -7578,6 +7581,7 @@ bool HistoryWidget::showSendRichDraftError(
 	}
 
 	return withPaymentApproved
+		&& !ephemeral
 		&& !checkSendPayment(
 			request.messagesCount,
 			options,

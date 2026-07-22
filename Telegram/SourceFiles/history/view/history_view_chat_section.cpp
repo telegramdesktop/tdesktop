@@ -1508,15 +1508,15 @@ void ChatWidget::sendRichDraft(
 	if (!page) {
 		return;
 	}
-	if (ShowEphemeralReplyTextOnlyError(
-			controller()->uiShow(),
-			&session(),
-			replyTo().messageId)) {
+	const auto ephemeral = session().ephemeralMessages()
+		.isEphemeralBotReply(replyTo().messageId);
+	if (ephemeral && options.scheduled) {
+		controller()->showToast(tr::lng_ephemeral_cant_schedule(tr::now));
 		return;
 	}
 	if (!options.scheduled) {
 		_cornerButtons.clearReplyReturns();
-		if (showSlowmodeError()) {
+		if (!ephemeral && showSlowmodeError()) {
 			return;
 		}
 	}
@@ -1527,6 +1527,7 @@ void ChatWidget::sendRichDraft(
 		.messagesCount = 1,
 		.ignoreSlowmodeCountdown = (options.scheduled != 0),
 		.richMessage = true,
+		.ignoreRestrictions = ephemeral,
 	};
 	request.messagesCount = ComputeSendingMessagesCount(_history, request);
 	const auto error = GetErrorForSending(_peer, request);
@@ -1568,7 +1569,7 @@ void ChatWidget::sendRichDraft(
 		}
 		return;
 	}
-	if (!options.scheduled) {
+	if (!options.scheduled && !ephemeral) {
 		const auto withPaymentApproved = [=](int approved) {
 			auto copy = options;
 			copy.starsApproved = approved;

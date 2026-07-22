@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_drafts.h"
 #include "data/data_file_origin.h"
 
 class History;
@@ -17,6 +18,7 @@ class UserData;
 
 namespace Api {
 struct MessageToSend;
+struct SendAction;
 } // namespace Api
 
 namespace Main {
@@ -59,12 +61,18 @@ public:
 		TextWithEntities text,
 		int32 replyToEphemeralId = 0,
 		MsgId topicRootId = 0,
-		FullReplyTo realReply = {});
+		FullReplyTo realReply = {},
+		Data::WebPageDraft webPage = {},
+		bool invertCaption = false);
 	[[nodiscard]] bool sendMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
 		Data::FileOrigin origin = {},
 		Fn<MTPInputMedia()> rebuildMedia = nullptr);
+	[[nodiscard]] bool sendRich(
+		not_null<HistoryItem*> item,
+		const MTPInputRichMessage &richMessage,
+		const Api::SendAction &action);
 	[[nodiscard]] bool sendSimpleMedia(
 		not_null<History*> history,
 		FullReplyTo replyTo,
@@ -101,7 +109,10 @@ private:
 		FullReplyTo realReply = {},
 		FullMsgId destroyOnResult = {},
 		Data::FileOrigin origin = {},
-		Fn<MTPInputMedia()> rebuildMedia = nullptr);
+		Fn<MTPInputMedia()> rebuildMedia = nullptr,
+		bool invertMedia = false,
+		std::optional<MTPInputRichMessage> richMessage = {},
+		Fn<std::optional<MTPInputRichMessage>()> rebuildRich = nullptr);
 	[[nodiscard]] bool replyTargetMissing(
 		const MTPDephemeralMessage &data) const;
 	void drainPending(bool force = false);
@@ -120,7 +131,7 @@ private:
 	base::Timer _pendingTimer;
 	base::flat_map<not_null<History*>, List> _data;
 	std::vector<MTPEphemeralMessage> _pending;
-	FullMsgId _convertLocalMediaTarget;
+	FullMsgId _convertLocalTarget;
 	base::flat_map<
 		not_null<History*>,
 		base::flat_map<PeerId, MsgId>> _callbackTopicHints;

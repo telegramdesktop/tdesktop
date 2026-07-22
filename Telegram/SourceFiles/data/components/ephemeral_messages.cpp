@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_edition.h"
+#include "iv/iv_rich_message_serializer.h"
+#include "iv/iv_rich_page.h"
 #include "main/main_session.h"
 
 namespace Data {
@@ -169,6 +171,10 @@ void EphemeralMessages::apply(const MTPDupdateEditEphemeralMessage &update) {
 	};
 	edition.replyMarkup = HistoryMessageMarkupData(data.vreply_markup());
 	edition.mtpMedia = data.vmedia();
+	edition.invertMedia = data.is_invert_media();
+	if (const auto richMessage = data.vrich_message()) {
+		edition.richPage = Iv::ParseRichPage(_session, *richMessage);
+	}
 	item->applyEdition(std::move(edition));
 }
 
@@ -238,13 +244,18 @@ HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
 			replyTo.messageId = { history->peer->id, hinted };
 		}
 	}
-	if (_convertLocalMediaTarget && data.is_out() && data.vmedia()) {
-		const auto localId = base::take(_convertLocalMediaTarget);
+	if (_convertLocalTarget
+		&& data.is_out()
+		&& (data.vmedia() || data.vrich_message())) {
+		const auto localId = base::take(_convertLocalTarget);
 		if (const auto local = _session->data().message(localId)) {
-			if (const auto media = local->media()) {
-				media->updateSentMedia(*data.vmedia());
-			}
 			if (local->isEphemeral()) {
+				local->updateSentContent({
+					qs(data.vmessage()),
+					Api::EntitiesFromMTP(
+						_session,
+						data.ventities().value_or_empty())
+				}, data.vmedia(), data.vrich_message());
 				local->markEphemeralSent();
 				_data[history].push_back({
 					.ephemeralId = ephemeralId,
@@ -262,6 +273,9 @@ HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
 			.flags = (MessageFlag::HistoryEntry
 				| MessageFlag::Ephemeral
 				| (data.is_out() ? MessageFlag::Outgoing : MessageFlag())
+				| (data.is_invert_media()
+					? MessageFlag::InvertMedia
+					: MessageFlag())
 				| (fromId ? MessageFlag::HasFromId : MessageFlag())
 				| (replyTo.messageId
 					? MessageFlag::HasReplyInfo
@@ -283,6 +297,9 @@ HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
 		data.vmedia()
 			? *data.vmedia()
 			: MTPMessageMedia(MTP_messageMediaEmpty()));
+	if (const auto richMessage = data.vrich_message()) {
+		item->applyLocalRichPage(Iv::ParseRichPage(_session, *richMessage));
+	}
 	_data[history].push_back({
 		.ephemeralId = ephemeralId,
 		.receiverId = UserId(data.vreceiver_id()),
@@ -411,7 +428,15 @@ bool EphemeralMessages::trySend(const Api::MessageToSend &message) {
 			const auto entry = findByItem(replyTo);
 			const auto bot = entry ? botForSending(*entry) : nullptr;
 			if (bot) {
-				send(history, bot, std::move(text), entry->ephemeralId);
+				send(
+					history,
+					bot,
+					std::move(text),
+					entry->ephemeralId,
+					MsgId(),
+					FullReplyTo(),
+					message.webPage,
+					message.action.options.invertCaption);
 			}
 			return true;
 		}
@@ -427,7 +452,9 @@ bool EphemeralMessages::trySend(const Api::MessageToSend &message) {
 		std::move(text),
 		0,
 		message.action.replyTo.topicRootId,
-		realReply);
+		realReply,
+		message.webPage,
+		message.action.options.invertCaption);
 	return true;
 }
 
@@ -471,16 +498,28 @@ void EphemeralMessages::send(
 		TextWithEntities text,
 		int32 replyToEphemeralId,
 		MsgId topicRootId,
-		FullReplyTo realReply) {
+		FullReplyTo realReply,
+		Data::WebPageDraft webPage,
+		bool invertCaption) {
+	const auto exactWebPage = !webPage.url.isEmpty() && !webPage.removed;
+	const auto manualWebPage = exactWebPage && webPage.manual;
+	const auto invertMedia = (exactWebPage && webPage.invert)
+		|| invertCaption;
 	request(
 		history,
 		bot,
 		std::move(text),
-		MTPInputMedia(),
-		false,
+		(manualWebPage
+			? Data::WebPageForMTP(webPage, true)
+			: MTPInputMedia()),
+		manualWebPage,
 		replyToEphemeralId,
 		topicRootId,
-		realReply);
+		realReply,
+		FullMsgId(),
+		Data::FileOrigin(),
+		nullptr,
+		invertMedia);
 }
 
 bool EphemeralMessages::sendMedia(
@@ -512,7 +551,8 @@ bool EphemeralMessages::sendMedia(
 				realReply,
 				item->fullId(),
 				origin,
-				rebuildMedia);
+				rebuildMedia,
+				item->invertMedia());
 			return true;
 		}
 		return false;
@@ -532,7 +572,107 @@ bool EphemeralMessages::sendMedia(
 				FullReplyTo(),
 				item->fullId(),
 				origin,
-				rebuildMedia);
+				rebuildMedia,
+				item->invertMedia());
+			return true;
+		}
+	}
+	item->destroy();
+	return true;
+}
+
+bool EphemeralMessages::sendRich(
+		not_null<HistoryItem*> item,
+		const MTPInputRichMessage &richMessage,
+		const Api::SendAction &action) {
+	const auto history = item->history();
+	const auto replyTo = item->replyTo();
+	const auto target = _session->data().message(replyTo.messageId);
+	const auto targetEphemeral = target && target->isEphemeral();
+	const auto commandBot = targetEphemeral
+		? nullptr
+		: findCommandBot(
+			history->peer,
+			item->originalText().text.trimmed());
+	if (!targetEphemeral && !commandBot) {
+		return false;
+	} else if (action.options.scheduled || action.options.shortcutId) {
+		LOG(("API Error: "
+			"Dropping a scheduled ephemeral rich message send."));
+		item->destroy();
+		return true;
+	}
+	const auto session = _session;
+	const auto itemId = item->fullId();
+	const auto rebuildRich = [=]() -> std::optional<MTPInputRichMessage> {
+		const auto local = session->data().message(itemId);
+		if (!local) {
+			return std::nullopt;
+		}
+		const auto fullPage = local->fullRichPage();
+		const auto page = fullPage ? fullPage : local->richPage();
+		if (!page) {
+			return std::nullopt;
+		}
+		auto serialized = Iv::SerializeInputRichMessage(
+			session,
+			*page,
+			Iv::SerializeInputRichMessageMode::FinalSubmit);
+		const auto success = (serialized.status
+			== Iv::SerializeInputRichMessageStatus::Success);
+		return (success && serialized.value)
+			? std::move(serialized.value)
+			: std::nullopt;
+	};
+	const auto origin = action.clearDraft
+		? Data::FileOrigin(Data::FileOriginCloudDraft{
+			.peerId = history->peer->id,
+			.topicRootId = action.replyTo.topicRootId,
+			.monoforumPeerId = action.replyTo.monoforumPeerId,
+		})
+		: Data::FileOrigin();
+	if (commandBot) {
+		const auto realReply = (replyTo.messageId
+			&& !(replyTo.topicRootId
+				&& replyTo.messageId.msg == replyTo.topicRootId))
+			? replyTo
+			: FullReplyTo();
+		request(
+			history,
+			commandBot,
+			TextWithEntities(),
+			MTPInputMedia(),
+			false,
+			0,
+			item->topicRootId(),
+			realReply,
+			item->fullId(),
+			origin,
+			nullptr,
+			false,
+			richMessage,
+			rebuildRich);
+		return true;
+	}
+	if (!target->out()) {
+		const auto entry = findByItem(target);
+		const auto bot = entry ? botForSending(*entry) : nullptr;
+		if (bot) {
+			request(
+				history,
+				bot,
+				TextWithEntities(),
+				MTPInputMedia(),
+				false,
+				entry->ephemeralId,
+				MsgId(0),
+				FullReplyTo(),
+				item->fullId(),
+				origin,
+				nullptr,
+				false,
+				richMessage,
+				rebuildRich);
 			return true;
 		}
 	}
@@ -576,7 +716,10 @@ void EphemeralMessages::request(
 		FullReplyTo realReply,
 		FullMsgId destroyOnResult,
 		Data::FileOrigin origin,
-		Fn<MTPInputMedia()> rebuildMedia) {
+		Fn<MTPInputMedia()> rebuildMedia,
+		bool invertMedia,
+		std::optional<MTPInputRichMessage> richMessage,
+		Fn<std::optional<MTPInputRichMessage>()> rebuildRich) {
 	const auto session = _session;
 	const auto destroyLocal = [=] {
 		if (destroyOnResult) {
@@ -609,11 +752,14 @@ void EphemeralMessages::request(
 	const auto flags = Flag(0)
 		| (entities.v.isEmpty() ? Flag(0) : Flag::f_entities)
 		| (hasMedia ? Flag::f_media : Flag(0))
-		| (hasReplyTo ? Flag::f_reply_to : Flag(0));
+		| (hasReplyTo ? Flag::f_reply_to : Flag(0))
+		| (invertMedia ? Flag::f_invert_media : Flag(0))
+		| (richMessage ? Flag::f_rich_message : Flag(0));
 	const auto randomId = base::RandomValue<uint64>();
 	const auto send = [=](
 			const auto &send,
 			const MTPInputMedia &media,
+			const MTPInputRichMessage &rich,
 			int attempt) -> void {
 		session->api().request(MTPephemeral_SendMessage(
 			MTP_flags(flags),
@@ -624,11 +770,11 @@ void EphemeralMessages::request(
 			entities,
 			media,
 			MTPReplyMarkup(),
-			MTPInputRichMessage(),
+			rich,
 			MTP_long(randomId),
 			replyTo
 		)).done([=](const MTPUpdates &result) {
-			_convertLocalMediaTarget = destroyOnResult;
+			_convertLocalTarget = destroyOnResult;
 			session->api().applyUpdates(result);
 			if (destroyOnResult) {
 				const auto local = session->data().message(destroyOnResult);
@@ -637,22 +783,31 @@ void EphemeralMessages::request(
 				}
 			}
 		}).fail([=](const MTP::Error &error) {
-			if (rebuildMedia
-				&& !attempt
-				&& error.code() == 400
-				&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
+			const auto type = error.type();
+			const auto refreshable = !attempt
+				&& (error.code() == 400)
+				&& type.startsWith(u"FILE_REFERENCE_"_q);
+			if (refreshable && (rebuildMedia || rebuildRich)) {
 				session->api().refreshFileReference(
 					origin,
 					[=](const auto &) {
-						send(send, rebuildMedia(), 1);
+						if (rebuildMedia) {
+							send(send, rebuildMedia(), rich, 1);
+						} else if (auto rebuilt = rebuildRich()) {
+							send(send, media, *rebuilt, 1);
+						} else {
+							LOG(("API Error: "
+								"send ephemeral message - %1").arg(type));
+							destroyLocal();
+						}
 					});
 				return;
 			}
-			LOG(("API Error: send ephemeral message - %1").arg(error.type()));
+			LOG(("API Error: send ephemeral message - %1").arg(type));
 			destroyLocal();
 		}).send();
 	};
-	send(send, media, 0);
+	send(send, media, richMessage.value_or(MTPInputRichMessage()), 0);
 }
 
 void EphemeralMessages::deleteMessage(not_null<HistoryItem*> item) {

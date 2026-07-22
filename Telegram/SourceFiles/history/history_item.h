@@ -404,6 +404,10 @@ public:
 	void applyEdition(const QVector<MTPMessageExtendedMedia> &media);
 	void updateForwardedInfo(const MTPMessageFwdHeader *fwd);
 	void updateSentContent(const MTPDmessage &data);
+	void updateSentContent(
+		const TextWithEntities &textWithEntities,
+		const MTPMessageMedia *media,
+		const MTPRichMessage *richMessage);
 	void applySentMessage(const MTPDmessage &data);
 	void applySentMessage(
 		const QString &text,
@@ -696,10 +700,6 @@ private:
 	}
 
 	[[nodiscard]] bool checkDiscussionLink(ChannelId id) const;
-	void updateSentContent(
-		const TextWithEntities &textWithEntities,
-		const MTPMessageMedia *media,
-		const MTPRichMessage *richMessage);
 	void updateSentContent(
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media,

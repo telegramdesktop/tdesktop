@@ -4362,14 +4362,24 @@ void ApiWrap::sendRichMessage(
 		SendAction action) {
 	Expects(page != nullptr);
 
-	StripEphemeralReply(_session, action.replyTo);
-
 	const auto history = action.history;
 	const auto peer = history->peer;
+	const auto ephemeral = !action.options.scheduled
+		&& !action.options.shortcutId
+		&& _session->ephemeralMessages().wouldSendMedia(
+			peer,
+			action.replyTo,
+			Iv::FlattenRichPageSummary(page).text);
+	if (!ephemeral) {
+		StripEphemeralReply(_session, action.replyTo);
+	}
 	const auto newId = FullMsgId(
 		peer->id,
 		_session->data().nextLocalMessageId());
 	auto flags = NewMessageFlags(peer);
+	if (ephemeral) {
+		flags |= MessageFlag::Ephemeral;
+	}
 	if (action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 	}
@@ -4412,6 +4422,15 @@ void ApiWrap::sendRichMessage(
 		const MTPInputRichMessage &richMessage,
 		SendAction action) {
 	Expects(item->history() == action.history);
+
+	if (_session->ephemeralMessages().sendRich(item, richMessage, action)) {
+		if (action.clearDraft) {
+			action.history->clearCloudDraft(
+				action.replyTo.topicRootId,
+				action.replyTo.monoforumPeerId);
+		}
+		return;
+	}
 
 	StripEphemeralReply(_session, action.replyTo);
 
