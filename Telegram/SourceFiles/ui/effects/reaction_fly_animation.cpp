@@ -429,6 +429,10 @@ bool ReactionFlyAnimation::finished() const {
 			&& !_minis.animating());
 }
 
+bool ReactionFlyAnimation::centerInDefaultState() {
+	return !_custom || _custom->readyInDefaultState();
+}
+
 ReactionFlyCenter ReactionFlyAnimation::takeCenter() {
 	_valid = false;
 	return {
