@@ -235,6 +235,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	const auto calendar
 		= content->lifetime().make_state<base::weak_qptr<CalendarBox>>();
 	const auto calendarStyle = args.style.calendarStyle;
+	const auto dynamicImageForDate = std::move(args.dynamicImageForDate);
 	state->day->focusedChanges(
 	) | rpl::on_next([=](bool focused) {
 		if (*calendar || !focused) {
@@ -253,6 +254,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 				.minDate = minDate(),
 				.maxDate = maxDate(),
 				.stColors = *calendarStyle,
+				.dynamicImageForDate = dynamicImageForDate,
 			}));
 		(*calendar)->boxClosing(
 		) | rpl::on_next(crl::guard(state->time, [=] {
