@@ -585,6 +585,7 @@ base::weak_qptr<Ui::RpWidget> InnerWidget::createPinnedToTop(
 		content->setupStandaloneGroupControl(
 			members->groupByRoleValue(),
 			members->groupByRoleAvailableValue(),
+			members->rowsVisibleValue(),
 			crl::guard(members, [=](bool grouped) {
 				members->setGroupByRole(grouped);
 			}));

@@ -129,6 +129,7 @@ public:
 	void setupStandaloneGroupControl(
 		rpl::producer<bool> state,
 		rpl::producer<bool> available,
+		rpl::producer<bool> reached,
 		Fn<void(bool)> toggle);
 
 	void checkBeforeCloseByEscape(Fn<void()> close);
@@ -293,6 +294,7 @@ private:
 	bool _tabGroupActive = false;
 	bool _tabGroupAvailable = false;
 	bool _standaloneGroup = false;
+	bool _standaloneGroupReached = false;
 	object_ptr<Ui::FlatLabel> _status;
 	std::unique_ptr<StatusLabel> _statusLabel;
 	rpl::variable<int> _statusShift = 0;

@@ -55,6 +55,7 @@ public:
 	void setGroupByRole(bool grouped);
 	[[nodiscard]] rpl::producer<bool> groupByRoleValue() const;
 	[[nodiscard]] rpl::producer<bool> groupByRoleAvailableValue() const;
+	[[nodiscard]] rpl::producer<bool> rowsVisibleValue() const;
 
 	std::unique_ptr<MembersState> saveState();
 	void restoreState(std::unique_ptr<MembersState> state);
@@ -140,6 +141,7 @@ private:
 	//base::Timer _searchTimer;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
+	rpl::variable<bool> _rowsVisible = false;
 
 };
 
