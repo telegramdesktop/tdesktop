@@ -318,11 +318,13 @@ HistoryMessageMarkupData::HistoryMessageMarkupData(
 		flags = (data.is_resize() ? Flag::Resize : Flag())
 			| (data.is_selective() ? Flag::Selective : Flag())
 			| (data.is_single_use() ? Flag::SingleUse : Flag())
-			| (data.is_persistent() ? Flag::Persistent : Flag());
+			| (data.is_persistent() ? Flag::Persistent : Flag())
+			| (data.is_force_reply() ? Flag::ForceReply : Flag());
 		placeholder = qs(data.vplaceholder().value_or_empty());
 		fillRows(data.vrows().v);
 	}, [&](const MTPDreplyInlineMarkup &data) {
-		flags = Flag::Inline;
+		flags = Flag::Inline
+			| (data.is_force_reply() ? Flag::ForceReply : Flag());
 		placeholder = QString();
 		fillRows(data.vrows().v);
 	}, [&](const MTPDreplyKeyboardHide &data) {

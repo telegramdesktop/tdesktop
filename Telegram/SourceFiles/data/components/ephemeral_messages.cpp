@@ -129,6 +129,52 @@ bool EphemeralMessages::replyTargetMissing(
 	});
 }
 
+bool EphemeralMessages::mentionsMe(
+		not_null<History*> history,
+		const MTPDephemeralMessage &data) const {
+	if (data.is_out()) {
+		return false;
+	}
+	const auto text = qs(data.vmessage());
+	if (const auto entities = data.ventities()) {
+		for (const auto &entity : entities->v) {
+			auto found = false;
+			entity.match([&](const MTPDmessageEntityMentionName &data) {
+				found = (UserId(data.vuser_id()) == _session->userId());
+			}, [&](const MTPDmessageEntityMention &data) {
+				const auto tag = text.mid(
+					data.voffset().v + 1,
+					data.vlength().v - 1);
+				found = ranges::any_of(
+					_session->user()->usernames(),
+					[&](const QString &username) {
+						return !tag.compare(username, Qt::CaseInsensitive);
+					});
+			}, [](const auto &) {
+			});
+			if (found) {
+				return true;
+			}
+		}
+	}
+	const auto header = data.vreply_to();
+	if (!header) {
+		return false;
+	}
+	return header->match([&](const MTPDmessageReplyHeader &reply) {
+		const auto replyToId = reply.vreply_to_msg_id();
+		if (!replyToId) {
+			return false;
+		}
+		const auto item = reply.is_reply_to_ephemeral()
+			? lookupItem(history->peer, replyToId->v)
+			: _session->data().message(history->peer->id, replyToId->v);
+		return (item != nullptr) && item->out();
+	}, [](const MTPDmessageReplyStoryHeader &) {
+		return false;
+	});
+}
+
 void EphemeralMessages::drainPending(bool force) {
 	while (!_pending.empty()) {
 		const auto i = ranges::find_if(_pending, [&](
@@ -269,6 +315,7 @@ HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
 			}
 		}
 	}
+	const auto mentioned = mentionsMe(history, data);
 	const auto item = history->addNewLocalMessage(
 		{
 			.id = _session->data().nextLocalMessageId(),
@@ -284,7 +331,8 @@ HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
 					: MessageFlag())
 				| (data.vreply_markup()
 					? MessageFlag::HasReplyMarkup
-					: MessageFlag())),
+					: MessageFlag())
+				| (mentioned ? MessageFlag::MentionsMe : MessageFlag())),
 			.from = fromId,
 			.replyTo = replyTo,
 			.date = data.vdate().v,

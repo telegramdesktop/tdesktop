@@ -2157,7 +2157,7 @@ void HistoryWidget::fieldChanged() {
 		_fieldIsEmpty = true;
 	} else if (_fieldIsEmpty) {
 		_fieldIsEmpty = false;
-		if (_kbShown) {
+		if (_kbShown && (!_kbReplyTo || !forceReplyPending())) {
 			toggleKeyboard();
 		}
 	}
@@ -6793,6 +6793,14 @@ bool HistoryWidget::kbWasHidden() const {
 				_history->lastKeyboardHiddenId));
 }
 
+bool HistoryWidget::forceReplyPending() const {
+	return _keyboard->forceReply()
+		&& (!_history
+			|| !_history->lastKeyboardUsed
+			|| (_keyboard->forMsgId()
+				!= FullMsgId(_history->peer->id, _history->lastKeyboardId)));
+}
+
 void HistoryWidget::showKeyboardHideButton() {
 	_botKeyboardHide->setVisible(!_peer->isUser()
 		|| !_keyboard->persistent());
@@ -6870,7 +6878,7 @@ void HistoryWidget::toggleKeyboard(bool manual) {
 		_kbReplyTo = (false
 			|| _peer->isChat()
 			|| _peer->isChannel()
-			|| _keyboard->forceReply())
+			|| forceReplyPending())
 			? session().data().message(_keyboard->forMsgId())
 			: nullptr;
 		if (_kbReplyTo && !_editMsgId && !_replyTo) {
@@ -8594,7 +8602,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_kbShown = hasMarkup;
 			_kbReplyTo = (_peer->isChat()
 					|| _peer->isChannel()
-					|| _keyboard->forceReply())
+					|| forceReplyPending())
 				? session().data().message(_keyboard->forMsgId())
 				: nullptr;
 			if (_kbReplyTo && !_replyTo) {
@@ -10332,11 +10340,27 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 		saveDraftWithTextNow();
 	}
 	if (!_editMsgId
-		&& _keyboard->singleUse()
 		&& _keyboard->forceReply()
 		&& lastKeyboardUsed) {
-		if (_kbReplyTo) {
-			toggleKeyboard(false);
+		if (!_keyboard->hasMarkup()) {
+			if (_kbReplyTo) {
+				toggleKeyboard(false);
+			}
+		} else if (_history) {
+			_history->lastKeyboardUsed = true;
+			if (_keyboard->singleUse() && _kbShown) {
+				toggleKeyboard(false);
+			} else if (base::take(_kbReplyTo)) {
+				if (!readyToForward()
+					&& !_previewDrawPreview
+					&& !_replyTo
+					&& !_suggestOptions) {
+					_fieldBarCancel->hide();
+					updateMouseTracking();
+				}
+				updateControlsGeometry();
+				update();
+			}
 		}
 	}
 	return wasReply;

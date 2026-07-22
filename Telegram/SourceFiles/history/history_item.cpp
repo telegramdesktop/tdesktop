@@ -1959,7 +1959,7 @@ void HistoryItem::clearSavedMedia() {
 bool HistoryItem::definesReplyKeyboard() const {
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
 		if (markup->data.flags & ReplyMarkupFlag::Inline) {
-			return false;
+			return (markup->data.flags & ReplyMarkupFlag::ForceReply);
 		}
 		return true;
 	}

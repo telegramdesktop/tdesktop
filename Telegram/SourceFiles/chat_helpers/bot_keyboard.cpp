@@ -342,24 +342,23 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 	_wasForMsgId = FullMsgId(peerId, to->id);
 
 	auto markupFlags = to->replyKeyboardFlags();
+	const auto markup = to->Get<HistoryMessageReplyMarkup>();
+	const auto hasVisibleRows = markup
+		&& !markup->data.rows.empty()
+		&& !(markupFlags & ReplyMarkupFlag::Inline);
 	_forceReply = markupFlags & ReplyMarkupFlag::ForceReply;
 	_maximizeSize = !(markupFlags & ReplyMarkupFlag::Resize);
-	_singleUse = _forceReply || (markupFlags & ReplyMarkupFlag::SingleUse);
+	_singleUse = (_forceReply && !hasVisibleRows)
+		|| (markupFlags & ReplyMarkupFlag::SingleUse);
 	_persistent = (markupFlags & ReplyMarkupFlag::Persistent);
 
-	if (const auto markup = to->Get<HistoryMessageReplyMarkup>()) {
-		_placeholder = markup->data.placeholder;
-	} else {
-		_placeholder = QString();
-	}
+	_placeholder = markup ? markup->data.placeholder : QString();
 
 	_impl = nullptr;
-	if (auto markup = to->Get<HistoryMessageReplyMarkup>()) {
-		if (!markup->data.rows.empty()) {
-			_impl = std::make_unique<ReplyKeyboard>(
-				to,
-				std::make_unique<Style>(this, *_st));
-		}
+	if (hasVisibleRows) {
+		_impl = std::make_unique<ReplyKeyboard>(
+			to,
+			std::make_unique<Style>(this, *_st));
 	}
 
 	resizeToWidth(width(), _maxOuterHeight);

@@ -778,6 +778,7 @@ private:
 	void injectSponsoredMessages() const;
 
 	bool kbWasHidden() const;
+	[[nodiscard]] bool forceReplyPending() const;
 
 	void switchToSearch(QString query);
 

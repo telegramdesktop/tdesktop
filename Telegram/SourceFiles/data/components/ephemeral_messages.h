@@ -117,6 +117,9 @@ private:
 		Fn<std::optional<MTPInputRichMessage>()> rebuildRich = nullptr);
 	[[nodiscard]] bool replyTargetMissing(
 		const MTPDephemeralMessage &data) const;
+	[[nodiscard]] bool mentionsMe(
+		not_null<History*> history,
+		const MTPDephemeralMessage &data) const;
 	void drainPending(bool force = false);
 	[[nodiscard]] const Entry *findByItem(
 		not_null<const HistoryItem*> item) const;
