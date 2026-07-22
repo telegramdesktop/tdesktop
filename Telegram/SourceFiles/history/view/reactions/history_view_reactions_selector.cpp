@@ -884,6 +884,13 @@ void Selector::mouseMoveEvent(QMouseEvent *e) {
 	setSelected(lookupSelectedIndex(e->pos()));
 }
 
+bool Selector::inVisibleArea(QPoint position) const {
+	return !_strip
+		|| _expandScheduled
+		|| _outerWithBubble.isEmpty()
+		|| _outerWithBubble.contains(position);
+}
+
 int Selector::lookupSelectedIndex(QPoint position) const {
 	const auto p = position - _inner.topLeft() - QPoint(_skipx, _skipy);
 	const auto max = _strip->count();
@@ -921,14 +928,20 @@ void Selector::leaveEventHook(QEvent *e) {
 }
 
 void Selector::mousePressEvent(QMouseEvent *e) {
-	if (!_strip) {
+	if (!inVisibleArea(e->pos())) {
+		e->ignore();
+		return;
+	} else if (!_strip) {
 		return;
 	}
 	_pressed = lookupSelectedIndex(e->pos());
 }
 
 void Selector::mouseReleaseEvent(QMouseEvent *e) {
-	if (!_strip) {
+	if (!inVisibleArea(e->pos())) {
+		e->ignore();
+		return;
+	} else if (!_strip) {
 		return;
 	}
 	if (_pressed != lookupSelectedIndex(e->pos())) {

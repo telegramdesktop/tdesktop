@@ -179,6 +179,7 @@ private:
 
 	[[nodiscard]] int recentCount() const;
 	[[nodiscard]] int countSkipLeft() const;
+	[[nodiscard]] bool inVisibleArea(QPoint position) const;
 	[[nodiscard]] int lookupSelectedIndex(QPoint position) const;
 	void setSelected(int index);
 
