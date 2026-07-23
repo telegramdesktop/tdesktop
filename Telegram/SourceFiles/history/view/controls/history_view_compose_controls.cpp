@@ -2186,19 +2186,37 @@ void ComposeControls::clearRichDraft() {
 	if (!_history) {
 		return;
 	}
+	const auto reply = replyingToMessage();
 	clearFieldText();
 	if (const auto key = draftKey(DraftType::Normal)) {
-		_history->clearDraft(key);
+		if (reply.messageId) {
+			_history->setDraft(
+				key,
+				std::make_unique<Data::Draft>(
+					TextWithTags(),
+					reply,
+					SuggestOptions(),
+					MessageCursor(),
+					Data::WebPageDraft()));
+		} else {
+			_history->clearDraft(key);
+		}
 	}
 	_history->clearCloudDraft(_topicRootId, _monoforumPeerId);
 	applyDraft(Ui::InputField::HistoryAction::NewEntry);
 	if (const auto thread = _history->threadFor(
 			_topicRootId,
 			_monoforumPeerId)) {
+		auto draft = Data::Draft(
+			TextWithTags(),
+			reply,
+			SuggestOptions(),
+			MessageCursor(),
+			Data::WebPageDraft());
 		if (const auto cloudDraft = _history->createCloudDraft(
 				_topicRootId,
 				_monoforumPeerId,
-				nullptr)) {
+				&draft)) {
 			session().api().saveDraftToCloud(
 				not_null{ thread },
 				*cloudDraft);

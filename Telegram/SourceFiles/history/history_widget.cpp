@@ -2296,16 +2296,32 @@ void HistoryWidget::clearRichDraft() {
 	if (!_history) {
 		return;
 	}
+	const auto reply = _replyTo;
 	clearFieldText();
-	_history->clearLocalDraft(MsgId(), PeerId());
+	if (reply.messageId) {
+		_history->setLocalDraft(std::make_unique<Data::Draft>(
+			TextWithTags(),
+			reply,
+			SuggestOptions(),
+			MessageCursor(),
+			Data::WebPageDraft()));
+	} else {
+		_history->clearLocalDraft(MsgId(), PeerId());
+	}
 	_history->clearCloudDraft(MsgId(), PeerId());
 	applyDraft(Ui::InputField::HistoryAction::NewEntry);
 	updateControlsVisibility();
 	updateControlsGeometry();
+	auto draft = Data::Draft(
+		TextWithTags(),
+		reply,
+		SuggestOptions(),
+		MessageCursor(),
+		Data::WebPageDraft());
 	if (const auto cloudDraft = _history->createCloudDraft(
 			MsgId(),
 			PeerId(),
-			nullptr)) {
+			&draft)) {
 		session().api().saveDraftToCloud(
 			not_null{ _history },
 			*cloudDraft);

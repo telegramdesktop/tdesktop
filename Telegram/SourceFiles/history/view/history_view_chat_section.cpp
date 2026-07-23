@@ -467,21 +467,30 @@ ChatWidget::ChatWidget(
 		) | rpl::on_next([=] {
 			_inner->update();
 		}, lifetime());
-	} else {
-		session().api().sendActions(
-		) | rpl::filter([=](const Api::SendAction &action) {
-			return (action.history == _history)
-				&& (action.replyTo.topicRootId == _topic->topicRootId());
-		}) | rpl::on_next([=](const Api::SendAction &action) {
-			if (action.options.scheduled) {
+	}
+
+	session().api().sendActions(
+	) | rpl::filter([=](const Api::SendAction &action) {
+		return (action.history == _history)
+			&& (action.replyTo.topicRootId == _repliesRootId)
+			&& (action.replyTo.monoforumPeerId == _monoforumPeerId);
+	}) | rpl::on_next([=](const Api::SendAction &action) {
+		if (action.options.scheduled) {
+			if (_topic) {
 				_composeControls->cancelReplyMessage();
 				crl::on_main(this, [=, t = _topic] {
 					controller->showSection(
 						std::make_shared<HistoryView::ScheduledMemento>(t));
 				});
 			}
-		}, lifetime());
-	}
+		} else if (!action.replaceMediaOf
+			&& action.replyTo.messageId
+			&& (action.replyTo.messageId
+				== _composeControls->replyingToMessage().messageId)) {
+			_composeControls->cancelReplyMessage();
+			refreshTopBarActiveChat();
+		}
+	}, lifetime());
 
 	_selfForwardsTagger = std::make_unique<HistoryView::SelfForwardsTagger>(
 		controller,

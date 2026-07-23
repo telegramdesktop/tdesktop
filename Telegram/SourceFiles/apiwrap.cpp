@@ -4423,6 +4423,9 @@ void ApiWrap::sendRichMessage(
 		SendAction action) {
 	Expects(item->history() == action.history);
 
+	action.generateLocal = true;
+	sendAction(action);
+
 	if (_session->ephemeralMessages().sendRich(item, richMessage, action)) {
 		if (action.clearDraft) {
 			action.history->clearCloudDraft(
@@ -4436,8 +4439,6 @@ void ApiWrap::sendRichMessage(
 
 	const auto history = item->history();
 	const auto peer = history->peer;
-	action.generateLocal = true;
-	sendAction(action);
 
 	const auto clearCloudDraft = action.clearDraft;
 	const auto draftTopicRootId = action.replyTo.topicRootId;
