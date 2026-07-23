@@ -11,9 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/manage_community_box.h"
-#include "data/data_changes.h"
 #include "data/data_channel.h"
-#include "data/data_community.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "lang/lang_hardcoded.h"
@@ -55,7 +53,6 @@ public:
 
 private:
 	void appendRow(not_null<ChannelData*> community);
-	void updateStatus(not_null<PeerListRow*> row);
 
 	const not_null<PeerData*> _peer;
 	const Fn<void(not_null<ChannelData*>)> _callback;
@@ -75,16 +72,6 @@ Main::Session &Controller::session() const {
 }
 
 void Controller::prepare() {
-	session().changes().peerUpdates(
-		Data::PeerUpdate::Flag::FullInfo
-	) | rpl::on_next([=](const Data::PeerUpdate &update) {
-		if (const auto row = delegate()->peerListFindRow(
-				update.peer->id.value)) {
-			updateStatus(row);
-			delegate()->peerListUpdateRow(row);
-		}
-	}, lifetime());
-
 	session().api().communities().requestJoinedCommunities(crl::guard(
 		this,
 		[=](const std::vector<not_null<ChannelData*>> &list) {
@@ -107,20 +94,7 @@ void Controller::appendRow(not_null<ChannelData*> community) {
 		return;
 	}
 	auto row = std::make_unique<PeerListRow>(community);
-	updateStatus(row.get());
 	delegate()->peerListAppendRow(std::move(row));
-	if (!community->wasFullUpdated()) {
-		session().api().requestFullPeer(community);
-	}
-}
-
-void Controller::updateStatus(not_null<PeerListRow*> row) {
-	const auto community = row->peer()->asChannel();
-	const auto info = community ? community->communityInfo() : nullptr;
-	const auto count = info ? int(info->linkedPeers().size()) : 0;
-	row->setCustomStatus(count
-		? tr::lng_community_chats(tr::now, lt_count, count)
-		: tr::lng_community_status(tr::now));
 }
 
 void CreateCommunityBox(

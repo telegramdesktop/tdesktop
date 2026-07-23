@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
-#include "data/data_community.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -747,11 +746,7 @@ void PeerListRow::refreshStatus() {
 		setStatusText(tr::lng_group_status(tr::now));
 	} else if (const auto channel = peer()->asChannel()) {
 		if (channel->isCommunity()) {
-			const auto info = channel->communityInfo();
-			const auto count = info ? int(info->histories().size()) : 0;
-			setStatusText(count
-				? tr::lng_community_chats(tr::now, lt_count, count)
-				: tr::lng_community_status(tr::now));
+			setStatusText(tr::lng_community_status(tr::now));
 		} else {
 			setStatusText(tr::lng_channel_status(tr::now));
 		}

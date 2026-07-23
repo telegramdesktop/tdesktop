@@ -266,7 +266,7 @@ RecentRow::RecentRow(not_null<PeerData*> peer)
 					chat->count));
 		}
 	} else if (const auto channel = peer->asChannel()) {
-		if (channel->membersCountKnown()) {
+		if (!channel->isCommunity() && channel->membersCountKnown()) {
 			setCustomStatus((channel->isBroadcast()
 				? tr::lng_chat_status_subscribers
 				: tr::lng_chat_status_members)(
