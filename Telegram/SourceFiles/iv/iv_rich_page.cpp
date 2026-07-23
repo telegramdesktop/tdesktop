@@ -2011,27 +2011,37 @@ void AppendSummaryBlock(
 		auto ordered = OrderedListSequenceStart(block);
 		const auto step = block.orderedList.reversed ? -1 : 1;
 		for (const auto &item : block.listItems) {
-			auto prefix = QString();
 			const auto orderedValue = item.number.value.value_or(ordered);
-			if (item.taskState == TaskState::Unchecked) {
-				prefix = u"[ ] "_q;
-			} else if (item.taskState == TaskState::Checked) {
-				prefix = u"[x] "_q;
-			} else if (block.listKind == ListKind::Ordered) {
-				const auto marker = OrderedMarkerText(
-					block.orderedList,
-					item.number,
-					ordered);
-				prefix = marker.isEmpty() ? QString() : (marker + u" "_q);
+			const auto task = (item.taskState != TaskState::None);
+			auto line = tr::marked();
+			if (withIcons && task) {
+				line = Ui::Text::IconEmoji(
+					item.taskState == TaskState::Checked
+						? &st::ivSummaryTaskCheckedIcon
+						: &st::ivSummaryTaskUncheckedIcon);
 			} else {
-				prefix = u"- "_q;
+				auto prefix = QString();
+				if (item.taskState == TaskState::Unchecked) {
+					prefix = u"[ ] "_q;
+				} else if (item.taskState == TaskState::Checked) {
+					prefix = u"[x] "_q;
+				} else if (block.listKind == ListKind::Ordered) {
+					const auto marker = OrderedMarkerText(
+						block.orderedList,
+						item.number,
+						ordered);
+					prefix = marker.isEmpty()
+						? QString()
+						: (marker + u" "_q);
+				} else {
+					prefix = u"- "_q;
+				}
+				line = tr::marked(prefix);
 			}
-			if (!item.text.text.empty()) {
-				AppendSummaryLine(result, item.text, withIcons, prefix);
-			} else {
-				auto nested = FlattenSummaryBlocks(item.blocks, withIcons);
-				AppendSummaryLine(result, std::move(nested), withIcons, prefix);
-			}
+			line.append(item.text.text.empty()
+				? FlattenSummaryBlocks(item.blocks, withIcons)
+				: item.text.text);
+			AppendSummaryLine(result, std::move(line), withIcons);
 			if (block.listKind == ListKind::Ordered) {
 				ordered = orderedValue + step;
 			}
