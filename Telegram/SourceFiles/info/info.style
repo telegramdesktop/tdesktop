@@ -1078,7 +1078,7 @@ editPeerDescriptionMargins: margins(22px, 3px, 22px, 2px);
 editPeerPrivaciesMargins: margins(15px, 7px, 22px, 0px);
 editPeerPrivacyBottomSkip: 16px;
 editPeerPrivacyLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 220px;
+	minWidth: 200px;
 	textFg: windowSubTextFg;
 }
 editPeerPrivacyBoxCheckbox: Checkbox(defaultBoxCheckbox) {
