@@ -1446,17 +1446,10 @@ void HistoryWidget::showRichEditor() {
 		}
 		return;
 	}
-	auto action = prepareSendAction({});
-	if (ShowEphemeralReplyTextOnlyError(
-			window->uiShow(),
-			&session(),
-			action.replyTo.messageId)) {
-		return;
-	}
 	Iv::Editor::ShowComposeBox(
 		window,
 		_history->peer,
-		std::move(action),
+		prepareSendAction({}),
 		sendMenuDetails(),
 		_field->getTextWithAppliedMarkdown(),
 		crl::guard(this, [=] {

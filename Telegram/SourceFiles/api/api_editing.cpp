@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
+#include "data/components/welcome_messages.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_saved_sublist.h"
@@ -534,6 +535,25 @@ mtpRequestId EditTextMessage(
 		Fn<void(const QString &error, mtpRequestId requestId)> fail,
 		bool spoilered,
 		VideoCoverEdit videoCover) {
+	if (item->isWelcomeTemplate()) {
+		const auto history = item->history();
+		auto &welcome = history->session().welcomeMessages();
+		welcome.edit(
+			history,
+			welcome.lookupId(item),
+			caption,
+			[=] {
+				if (done) {
+					done(0);
+				}
+			},
+			[=](const QString &error) {
+				if (fail) {
+					fail(error, 0);
+				}
+			});
+		return 0;
+	}
 	const auto media = item->media();
 	const auto spoilerChanged = media
 		&& HistoryView::MediaEditManager::CanBeSpoilered(item)
@@ -686,6 +706,25 @@ mtpRequestId EditRichMessage(
 		SendOptions options,
 		Fn<void(mtpRequestId requestId)> done,
 		Fn<void(const QString &error, mtpRequestId requestId)> fail) {
+	if (item->isWelcomeTemplate()) {
+		const auto history = item->history();
+		auto &welcome = history->session().welcomeMessages();
+		welcome.editRich(
+			history,
+			welcome.lookupId(item),
+			std::move(richMessage),
+			[=] {
+				if (done) {
+					done(0);
+				}
+			},
+			[=](const QString &error) {
+				if (fail) {
+					fail(error, 0);
+				}
+			});
+		return 0;
+	}
 	const auto session = &item->history()->session();
 	const auto api = &session->api();
 	const auto sentEntities = MTPVector<MTPMessageEntity>();

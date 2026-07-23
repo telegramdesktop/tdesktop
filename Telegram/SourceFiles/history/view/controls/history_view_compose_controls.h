@@ -453,6 +453,7 @@ private:
 	[[nodiscard]] bool isComposeBoxOpen() const;
 	[[nodiscard]] bool hasRichDraftThreadScope() const;
 	[[nodiscard]] bool isShortcutComposeEligible() const;
+	[[nodiscard]] bool isWelcomeComposeEligible() const;
 	[[nodiscard]] bool bypassNormalDraftHandling() const;
 	[[nodiscard]] bool hasEditDraft() const;
 	[[nodiscard]] bool shouldShowRichDraftPreview() const;
@@ -461,6 +462,7 @@ private:
 	void migrateScheduledFieldToRichEditor();
 	void migrateShortcutFieldToRichEditor(
 		BusinessShortcutId expectedShortcutId);
+	void migrateWelcomeFieldToRichEditor();
 
 	const style::ComposeControls &_st;
 	ChatHelpers::ComposeFeatures _features;

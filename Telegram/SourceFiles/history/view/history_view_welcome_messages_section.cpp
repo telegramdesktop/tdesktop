@@ -204,6 +204,7 @@ void WelcomeMessagesWidget::setupComposeControls() {
 	});
 	_composeControls->setHistory({
 		.history = _history.get(),
+		.sendActionFactory = [=] { return Api::SendAction(_history); },
 		.writeRestriction = std::move(writeRestriction),
 	});
 

@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "core/shortcuts.h"
 #include "data/components/ephemeral_messages.h"
+#include "data/components/welcome_messages.h"
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_document.h"
@@ -905,6 +906,27 @@ private:
 			== ComposeBoxOptions::Scope::Detached;
 	}
 
+	[[nodiscard]] bool welcomeTemplatesCompose() const {
+		return (_mode == Mode::Compose)
+			&& _composeOptions.welcomeTemplates
+			&& _composeAction;
+	}
+
+	[[nodiscard]] bool welcomeTemplatesLimitReached() const {
+		Expects(_composeAction.has_value());
+
+		const auto history = _composeAction->history;
+		return _session->welcomeMessages().count(history)
+			>= ::Data::WelcomeMessagesLimit(_session);
+	}
+
+	void showWelcomeTemplatesLimitToast() const {
+		showToast(tr::lng_business_limit_reached(
+			tr::now,
+			lt_count,
+			::Data::WelcomeMessagesLimit(_session)));
+	}
+
 	void dropDetachedReturnText() {
 		if (detachedCompose()) {
 			(void)base::take(_composeOptions.returnText);
@@ -991,6 +1013,7 @@ private:
 		if (_mode != Mode::Compose
 			|| !_composeAction
 			|| _submitOptions.scheduled
+			|| welcomeTemplatesCompose()
 			|| submitWouldBeEphemeral(simple)) {
 			return true;
 		}
@@ -1065,6 +1088,10 @@ private:
 			showRichMessageLimitToast(*error);
 			return false;
 		}
+		if (welcomeTemplatesCompose() && welcomeTemplatesLimitReached()) {
+			showWelcomeTemplatesLimitToast();
+			return false;
+		}
 		_submittedPage = page;
 		if (submittedAttachmentsReady()
 			&& serializeSubmittedPage().status
@@ -1094,6 +1121,18 @@ private:
 			if (!_composeAction) {
 				showToast(tr::lng_edit_error(tr::now));
 				return false;
+			}
+			if (welcomeTemplatesCompose()) {
+				if (welcomeTemplatesLimitReached()) {
+					showWelcomeTemplatesLimitToast();
+					return false;
+				}
+				cancelRichDraftAutosave();
+				dropDetachedReturnText();
+				_session->welcomeMessages().send(
+					_composeAction->history,
+					std::move(text));
+				return true;
 			}
 			auto action = *_composeAction;
 			action.options = _submitOptions;
@@ -1269,6 +1308,9 @@ private:
 
 	[[nodiscard]] bool applySubmittedLocalState(
 			const std::shared_ptr<const RichPage> &page) {
+		if (welcomeTemplatesCompose()) {
+			return true;
+		}
 		const auto item = (_mode == Mode::Compose)
 			? ensureComposeLocalItem()
 			: currentSubmittedItem();
@@ -1518,6 +1560,31 @@ private:
 		} else if (richMessage.status != SerializeInputRichMessageStatus::Success
 			|| !richMessage.value) {
 			failSubmittedWork(true);
+			return;
+		}
+		if (welcomeTemplatesCompose()) {
+			if (welcomeTemplatesLimitReached()) {
+				showWelcomeTemplatesLimitToast();
+				finishSubmittedWork();
+				restartRichDraftAutosave();
+				return;
+			}
+			dropDetachedReturnText();
+			const auto session = _session;
+			_session->welcomeMessages().sendRich(
+				_composeAction->history,
+				[session, page = _submittedPage] {
+					auto serialized = SerializeInputRichMessage(
+						session,
+						*page,
+						SerializeInputRichMessageMode::FinalSubmit);
+					const auto success = (serialized.status
+						== SerializeInputRichMessageStatus::Success);
+					return (success && serialized.value)
+						? std::move(serialized.value)
+						: std::optional<MTPInputRichMessage>();
+				});
+			finishSubmittedWork();
 			return;
 		}
 		const auto item = currentSubmittedItem();

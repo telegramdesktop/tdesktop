@@ -60,6 +60,7 @@ struct ComposeBoxOptions {
 	Scope scope = Scope::Thread;
 	SubmitPolicy submitPolicy = SubmitPolicy::Immediate;
 	Fn<void(TextWithTags)> returnText;
+	bool welcomeTemplates = false;
 };
 
 [[nodiscard]] std::shared_ptr<ChatHelpers::Show> ActiveWindowShow(

@@ -67,7 +67,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_compose_ai_button.h"
 #include "history/view/controls/history_view_compose_ai_tooltip.h"
@@ -2162,6 +2161,15 @@ bool ComposeControls::isShortcutComposeEligible() const {
 		&& (_shortcutId > 0);
 }
 
+bool ComposeControls::isWelcomeComposeEligible() const {
+	return _features.richEditor
+		&& _history
+		&& !isEditingMessage()
+		&& (_mode == Mode::Normal)
+		&& (_currentDialogsEntryState.section
+			== Dialogs::EntryState::Section::WelcomeMessages);
+}
+
 bool ComposeControls::hasEditDraft() const {
 	return _history
 		&& (_history->draft(draftKey(DraftType::Edit)) != nullptr);
@@ -2255,6 +2263,16 @@ void ComposeControls::migrateShortcutFieldToRichEditor(
 	cancelPendingDraftSaves();
 	clearFieldText();
 	_history->clearDraft(Data::DraftKey::Shortcut(expectedShortcutId));
+}
+
+void ComposeControls::migrateWelcomeFieldToRichEditor() {
+	if (!isWelcomeComposeEligible()) {
+		return;
+	}
+
+	cancelPendingDraftSaves();
+	clearFieldText();
+	_history->clearDraft(Data::DraftKey::WelcomeMessages());
 }
 
 void ComposeControls::clearFieldText(
@@ -3872,22 +3890,12 @@ void ComposeControls::showRichEditor() {
 		}
 		return;
 	}
-	const auto ephemeralError = [&](const Api::SendAction &action) {
-		return ShowEphemeralReplyTextOnlyError(
-			_show,
-			&_show->session(),
-			action.replyTo.messageId);
-	};
 	if (_mode == Mode::Scheduled) {
-		auto action = _sendActionFactory();
-		if (ephemeralError(action)) {
-			return;
-		}
 		using Options = Iv::Editor::ComposeBoxOptions;
 		Iv::Editor::ShowComposeBox(
 			_regularWindow,
 			_history->peer,
-			std::move(action),
+			_sendActionFactory(),
 			sendMenuDetails(),
 			getTextWithAppliedMarkdown(),
 			crl::guard(_wrap.get(), [=] {
@@ -3916,9 +3924,6 @@ void ComposeControls::showRichEditor() {
 			|| action.options.shortcutId != expectedShortcutId) {
 			return;
 		}
-		if (ephemeralError(action)) {
-			return;
-		}
 		auto fieldText = getTextWithAppliedMarkdown();
 		using Options = Iv::Editor::ComposeBoxOptions;
 		Iv::Editor::ShowComposeBox(
@@ -3943,17 +3948,41 @@ void ComposeControls::showRichEditor() {
 			});
 		return;
 	}
-	if (_mode != Mode::Normal || !hasRichDraftThreadScope()) {
+	if (_currentDialogsEntryState.section
+			== Dialogs::EntryState::Section::WelcomeMessages) {
+		if (!isWelcomeComposeEligible()) {
+			return;
+		}
+		using Options = Iv::Editor::ComposeBoxOptions;
+		Iv::Editor::ShowComposeBox(
+			_regularWindow,
+			_history->peer,
+			_sendActionFactory(),
+			sendMenuDetails(),
+			getTextWithAppliedMarkdown(),
+			crl::guard(_wrap.get(), [=] {
+				migrateWelcomeFieldToRichEditor();
+			}),
+			Options{
+				.scope = Options::Scope::Detached,
+				.returnText = crl::guard(
+					_wrap.get(),
+					[=](TextWithTags text) {
+						if (isWelcomeComposeEligible()) {
+							setText(text);
+						}
+					}),
+				.welcomeTemplates = true,
+			});
 		return;
 	}
-	auto action = _sendActionFactory();
-	if (ephemeralError(action)) {
+	if (_mode != Mode::Normal || !hasRichDraftThreadScope()) {
 		return;
 	}
 	Iv::Editor::ShowComposeBox(
 		_regularWindow,
 		_history->peer,
-		std::move(action),
+		_sendActionFactory(),
 		sendMenuDetails(),
 		getTextWithAppliedMarkdown(),
 		crl::guard(_wrap.get(), [=] {
@@ -4334,7 +4363,8 @@ bool ComposeControls::canShowRichEditor() const {
 	const auto media = item ? item->media() : nullptr;
 	const auto composeEligible = (_mode == Mode::Scheduled)
 		|| ((_mode == Mode::Normal) && hasRichDraftThreadScope())
-		|| isShortcutComposeEligible();
+		|| isShortcutComposeEligible()
+		|| isWelcomeComposeEligible();
 	return _history
 		&& _regularWindow
 		&& _sendActionFactory
