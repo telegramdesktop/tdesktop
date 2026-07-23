@@ -101,35 +101,38 @@ The debug build runs in portable mode out of `out/Debug/`. Three sibling folders
 - `test_TelegramForcePortable` — the golden test account, prepared by the user. Read-only SOURCE,
   never modified by tests. (Its presence is the launch gate; the wrapper aborts if it is missing.)
 - `TelegramForcePortable` — the LIVE folder the app actually uses (its presence is what puts the
-  build in portable mode). Disposable; recreated fresh each run.
-- `real_TelegramForcePortable` — the user's real data, preserved once so manual use survives.
+  build in portable mode). A marker file named `testing` directly inside it marks it as a
+  disposable test copy; a live folder WITHOUT the marker is the user's real data.
+- `real_TelegramForcePortable` — the user's real data, preserved so manual use survives. Once it
+  exists, NO flow step may ever delete, rename, move, overwrite, or write into it.
 
-**SETUP — run at the START of every test run, with NO app instance alive. Idempotent: it
-guarantees a clean test account no matter how the previous run ended.**
+**SETUP — run at the START of every test run, with NO app instance alive. Idempotent, and a pure
+no-op between runs and between consecutive tasks (the marked test copy is simply reused).**
 1. Require `test_TelegramForcePortable`. Its absence is the only portable-account setup blocker.
-2. If `TelegramForcePortable` exists and `real_TelegramForcePortable` does not, rename the live
-   folder to `real_TelegramForcePortable`.
-3. If both `TelegramForcePortable` and `real_TelegramForcePortable` exist, recursively delete the
-   live folder completely. Do not inspect or require an ownership marker: coexistence means the real
-   data is already preserved and the live folder is disposable.
-4. Deep-copy `test_TelegramForcePortable` to `TelegramForcePortable`. Never rename, modify, or
-   delete the golden folder.
+2. If `TelegramForcePortable/testing` exists, the live folder is already the reusable test copy:
+   touch none of the three folders and proceed straight to testing.
+3. If `TelegramForcePortable` exists without the marker, it is the user's real data: move it to
+   `real_TelegramForcePortable` when that is absent. If `real_...` already exists, the unmarked
+   live folder is the user's manual restore of that same preserved data — recursively delete the
+   live folder only.
+4. Deep-copy `test_TelegramForcePortable` to `TelegramForcePortable`, then create the marker file
+   `TelegramForcePortable/testing` (any content, e.g. `echo 1`). Never rename, modify, or delete
+   the golden folder.
 
-After SETUP, the live folder is always a fresh deep copy of the golden account, the golden folder is
-still present, and the real folder may or may not be present. An existing live folder, an existing
-real folder, both folders existing, or any missing/extra ownership marker is never a blocker.
+Any live/real folder combination is never a blocker. After SETUP the live folder is a marked test
+copy, the golden folder is untouched, and `real_...` may or may not exist.
 
-**CLEANUP — optional, only after SETUP completed successfully.** The SETUP steps already self-heal,
-so cleanup exists only to leave the user's real data live for manual use. If SETUP stopped because
-the golden folder was missing, do not touch any of the three folders.
-1. Recursively delete `TelegramForcePortable` completely.
-2. If `real_TelegramForcePortable` exists, move it to `TelegramForcePortable`.
+**NO CLEANUP — the flow performs no folder operations after testing, ever.** The marked test copy
+stays live, so the next run or next task starts with SETUP as a no-op and the folders are never
+copied, moved, or deleted between testing phases. The flow never restores real data to live: when
+the user wants manual use they copy `real_...` to `TelegramForcePortable` themselves (keeping
+`real_...` in place), and the next SETUP handles that unmarked live folder by step 3.
 
-Why this is safe: SETUP preserves the live folder as `real_...` before the first test run, and once
-`real_...` exists every live folder is a disposable test copy or the manual-use copy restored from
-that same preserved folder by CLEANUP. A skipped or interrupted CLEANUP therefore self-heals on the
-next SETUP. Use the platform's recursive copy/move operations only on these exact resolved sibling
-paths; never delete `test_...` or `real_...`.
+Deletion guard — the only folder the flow may ever delete is a live `TelegramForcePortable` that
+either carries the `testing` marker or coexists with `real_...` (step 3). If the test account
+breaks mid-loop (login screen, `AUTH_KEY_DUPLICATED`), delete the MARKED live folder, re-run SETUP
+for a fresh golden copy, and retry once; if it is still broken the run is UNRECOVERABLE. Never
+delete or alter `test_...` or `real_...` under any circumstances.
 
 **Serialize app runs.** Never have two `Telegram.exe` instances alive against this account at once —
 concurrent reuse of one auth key can trigger a server-side session reset. Before SETUP, launching, or
@@ -156,7 +159,8 @@ test-author's responsibility.) Everything short of that is allowed: this is a te
 so freely CREATE content in any chats (messages, drafts, tables, media) and freely DELETE or clear
 content that test runs created — including leftovers from previous runs and sessions (e.g. clear
 the self-chat rich compose cloud draft before a run instead of designing around accumulated junk;
-cloud drafts survive the local tdata restore, so server-side cleanup is the right tool). Don't
+the live test copy is reused across runs and tasks, so local AND cloud state accumulate — reset
+whatever state the test depends on at the start of the run). Don't
 delete anything the user placed on the account by hand unless the task says so.
 
 ## Design the tests from THIS task (the crux)
@@ -370,7 +374,7 @@ actually land; likewise for screenshots.
   `<EVIDENCE_DIR>/test_log.txt` every ~5s -> on each `SCREENSHOT:` read the image and judge it -> detect
   `TEST_COMPLETE` (success) or process death (crash) or no new output for the watchdog cap, or the
   hard deadline elapsing (hang) -> path-scoped kill of any straggler (Test account → "Serialize app
-  runs") -> optional CLEANUP -> save the binary overlay patch -> restore only inventoried overlay
+  runs") -> save the binary overlay patch -> restore only inventoried overlay
   paths to `GREEN_REF` (the patch must be saved before this restore).
 
     On Windows, launch and capture both streams like:

@@ -142,7 +142,7 @@ For every hybrid step:
    recheck again before deciding the next action.
 5. Let the overlay observe the resulting application state, log actual values and PASS/FAIL markers,
    and capture the tight target or geometry. Persist supplemental Computer Use AX and screen evidence.
-6. Finish through the ordinary `TEST_COMPLETE`, process/crash, watchdog, cleanup, patch-save, and
+6. Finish through the ordinary `TEST_COMPLETE`, process/crash, watchdog, patch-save, and
    source-restore path.
 
 Use Computer Use for exploration only to discover a reproducible flow. Before assigning an

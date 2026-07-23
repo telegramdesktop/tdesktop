@@ -287,12 +287,13 @@ rules, with these external-task safety adaptations:
   in-process, save the artifacts, and quit. Do not require an OS-level desktop
   screenshot or interactive Computer Use evidence.
 - Missing `test_TelegramForcePortable` is the only portable-account setup
-  blocker. If live exists without real, move live to real. If live and real
-  both exist, recursively delete live completely. Then deep-copy golden to
-  live and continue without ownership-marker checks. After successful SETUP,
-  terminal cleanup deletes live and moves real back to live when real exists.
-  If SETUP did not complete, cleanup leaves all three folders untouched. Never
-  alter golden or real in place.
+  blocker. A `testing` marker file inside the live folder marks it as the
+  reusable test copy: marker present means touch no folders and go test. An
+  unmarked live folder is real data: move it to real when real is absent;
+  delete it only when real already exists. Only then deep-copy golden to live
+  and create the `testing` marker inside the copy. There is NO folder cleanup
+  after testing — the marked copy stays live for the next run and next task.
+  Never delete, rename, move, or alter golden or real.
 - Set `RUN_DIR` and `EVIDENCE_DIR` to
   `TASK_DIR/.local/runs/attempt-<n>/run-<m>/`. Promote only decisive compact
   logs/screenshots into tracked `evidence/`.
