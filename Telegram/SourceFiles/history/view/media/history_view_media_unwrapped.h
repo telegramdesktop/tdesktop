@@ -151,6 +151,8 @@ private:
 	QSize countCurrentSize(int newWidth) override;
 
 	bool needInfoDisplay() const;
+	int bottomInfoWidth() const;
+	int bottomInfoHeight() const;
 	int additionalWidth(
 		const TopicButton *topic,
 		const Reply *reply,

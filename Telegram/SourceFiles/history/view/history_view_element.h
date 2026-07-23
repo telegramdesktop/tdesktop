@@ -492,6 +492,7 @@ public:
 
 	[[nodiscard]] bool isTopicRootReply() const;
 
+	[[nodiscard]] bool hidesBottomInfo() const;
 	[[nodiscard]] int skipBlockWidth() const;
 	[[nodiscard]] int skipBlockHeight() const;
 	[[nodiscard]] virtual int infoWidth() const;

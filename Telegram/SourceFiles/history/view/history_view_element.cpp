@@ -1471,11 +1471,21 @@ bool Element::isTopicRootReply() const {
 	return _flags & Flag::TopicRootReply;
 }
 
+bool Element::hidesBottomInfo() const {
+	return data()->isWelcomeTemplate();
+}
+
 int Element::skipBlockWidth() const {
+	if (hidesBottomInfo()) {
+		return 0;
+	}
 	return st::msgDateSpace + infoWidth() - st::msgDateDelta.x();
 }
 
 int Element::skipBlockHeight() const {
+	if (hidesBottomInfo()) {
+		return 0;
+	}
 	return st::msgDateFont->height - st::msgDateDelta.y();
 }
 

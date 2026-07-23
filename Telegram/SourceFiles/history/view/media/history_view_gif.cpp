@@ -394,8 +394,11 @@ QSize Gif::countCurrentSize(int newWidth) {
 	const auto scaled = countThumbSize(thumbMaxWidth);
 	const auto minWidthByInfo = hostedInstantView
 		? _parent->minWidthForMedia()
-		: (_parent->infoWidth()
-			+ 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+		: (_parent->hidesBottomInfo()
+			? 0
+			: (_parent->infoWidth()
+				+ 2 * (st::msgDateImgDelta
+					+ st::msgDateImgPadding.x())));
 	const auto minPhotoWidth = std::min(st::minPhotoSize, thumbMaxWidth);
 	newWidth = std::clamp(
 		std::max(scaled.width(), minWidthByInfo),
@@ -967,7 +970,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		} else {
 			maxRight -= st::msgMargin.left();
 		}
-		if (unwrapped && !rightAligned) {
+		if (unwrapped
+			&& !rightAligned
+			&& !_parent->hidesBottomInfo()) {
 			auto infoWidth = _parent->infoWidth();
 
 			// This is just some arbitrary point,
@@ -1001,13 +1006,16 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				- st::historyFastShareBottom
 				- (size ? size->height() : 0);
 			if (fastShareLeft + rightActionWidth > maxRight) {
+				const auto hidesBottomInfo = _parent->hidesBottomInfo();
 				fastShareLeft = fullRight
 					- rightActionWidth
-					- st::msgDateImgDelta;
-				fastShareTop -= st::msgDateImgDelta
-					+ st::msgDateImgPadding.y()
-					+ st::msgDateFont->height
-					+ st::msgDateImgPadding.y();
+					- (hidesBottomInfo ? 0 : st::msgDateImgDelta);
+				if (!hidesBottomInfo) {
+					fastShareTop -= st::msgDateImgDelta
+						+ st::msgDateImgPadding.y()
+						+ st::msgDateFont->height
+						+ st::msgDateImgPadding.y();
+				}
 			}
 			if (size) {
 				_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, 2 * paintx + paintw);
@@ -1571,7 +1579,9 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 		} else {
 			maxRight -= st::msgMargin.left();
 		}
-		if (unwrapped && !rightAligned) {
+		if (unwrapped
+			&& !rightAligned
+			&& !_parent->hidesBottomInfo()) {
 			auto infoWidth = _parent->infoWidth();
 
 			// This is just some arbitrary point,
@@ -1602,13 +1612,16 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 				- st::historyFastShareBottom
 				- size->height();
 			if (fastShareLeft + rightActionWidth > maxRight) {
+				const auto hidesBottomInfo = _parent->hidesBottomInfo();
 				fastShareLeft = fullRight
 					- rightActionWidth
-					- st::msgDateImgDelta;
-				fastShareTop -= st::msgDateImgDelta
-					+ st::msgDateImgPadding.y()
-					+ st::msgDateFont->height
-					+ st::msgDateImgPadding.y();
+					- (hidesBottomInfo ? 0 : st::msgDateImgDelta);
+				if (!hidesBottomInfo) {
+					fastShareTop -= st::msgDateImgDelta
+						+ st::msgDateImgPadding.y()
+						+ st::msgDateFont->height
+						+ st::msgDateImgPadding.y();
+				}
 			}
 			if (QRect(QPoint(fastShareLeft, fastShareTop), *size).contains(point)) {
 				result.link = _parent->rightActionLink(point
@@ -2092,7 +2105,7 @@ QRect Gif::contentRectForReactions() const {
 }
 
 std::optional<int> Gif::reactionButtonCenterOverride() const {
-	if (!isUnwrapped()) {
+	if (!isUnwrapped() || _parent->hidesBottomInfo()) {
 		return std::nullopt;
 	}
 	const auto right = resolveCustomInfoRightBottom().x()
@@ -2105,6 +2118,9 @@ QPoint Gif::resolveCustomInfoRightBottom() const {
 	const auto inner = contentRectForReactions();
 	auto fullBottom = inner.y() + inner.height();
 	auto fullRight = inner.x() + inner.width();
+	if (_parent->hidesBottomInfo()) {
+		return QPoint(fullRight, fullBottom);
+	}
 	const auto unwrapped = isUnwrapped();
 	if (unwrapped) {
 		auto maxRight = _parent->width() - st::msgMargin.left();

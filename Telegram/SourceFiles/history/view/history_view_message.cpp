@@ -1196,6 +1196,9 @@ auto Message::takeEffectAnimation()
 }
 
 QRect Message::effectIconGeometry() const {
+	if (hidesBottomInfo()) {
+		return {};
+	}
 	const auto item = data();
 	const auto media = this->media();
 
@@ -1241,7 +1244,7 @@ QRect Message::effectIconGeometry() const {
 			const auto belowInfo = _viewButton->belowMessageInfo();
 			const auto infoHeight = reactionsInBubble
 				? (reactionsHeight + 2 * st::mediaInBubbleSkip)
-				: _bottomInfo.height();
+				: bottomInfoHeight();
 			const auto heightMargins = QMargins(0, 0, 0, infoHeight);
 			if (belowInfo) {
 				inner -= heightMargins;
@@ -1909,7 +1912,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			const auto belowInfo = _viewButton->belowMessageInfo();
 			const auto infoHeight = reactionsInBubble
 				? (reactionsHeight + 2 * st::mediaInBubbleSkip)
-				: _bottomInfo.height();
+				: bottomInfoHeight();
 			const auto heightMargins = QMargins(0, 0, 0, infoHeight);
 			_viewButton->draw(
 				p,
@@ -3874,7 +3877,7 @@ TextState Message::textState(
 			const auto belowInfo = _viewButton->belowMessageInfo();
 			const auto infoHeight = reactionsInBubble
 				? (reactionsHeight + 2 * st::mediaInBubbleSkip)
-				: _bottomInfo.height();
+				: bottomInfoHeight();
 			const auto heightMargins = QMargins(0, 0, 0, infoHeight);
 			if (_viewButton->getState(
 					point,
@@ -5187,6 +5190,9 @@ void Message::drawInfo(
 		int bottom,
 		int width,
 		InfoDisplayType type) const {
+	if (hidesBottomInfo()) {
+		return;
+	}
 	p.setFont(st::msgDateFont);
 
 	const auto st = context.st;
@@ -5239,6 +5245,9 @@ TextState Message::bottomInfoTextState(
 		int bottom,
 		QPoint point,
 		InfoDisplayType type) const {
+	if (hidesBottomInfo()) {
+		return {};
+	}
 	auto infoRight = right;
 	auto infoBottom = bottom;
 	switch (type) {
@@ -5264,15 +5273,16 @@ TextState Message::bottomInfoTextState(
 }
 
 int Message::infoWidth() const {
-	return _bottomInfo.maxWidth();
+	return hidesBottomInfo() ? 0 : _bottomInfo.maxWidth();
 }
 
 int Message::bottomInfoFirstLineWidth() const {
-	return _bottomInfo.firstLineWidth();
+	return hidesBottomInfo() ? 0 : _bottomInfo.firstLineWidth();
 }
 
 bool Message::bottomInfoIsWide() const {
-	if (_reactions && embedReactionsInBubble()) {
+	if (hidesBottomInfo()
+		|| (_reactions && embedReactionsInBubble())) {
 		return false;
 	}
 	return _bottomInfo.isWide();
@@ -5283,7 +5293,7 @@ bool Message::isSignedAuthorElided() const {
 }
 
 bool Message::embedReactionsInBubble() const {
-	return needInfoDisplay();
+	return usesMessageInfoLayout();
 }
 
 void Message::validateFromNameText(PeerData *from) const {
@@ -5681,7 +5691,10 @@ int Message::minWidthForMedia() const {
 	if (Get<InstantViewMediaRuntime>() && !hasRichPage()) {
 		return 0;
 	}
-	auto result = infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x());
+	auto result = hidesBottomInfo()
+		? 0
+		: infoWidth()
+			+ 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x());
 	const auto views = data()->Get<HistoryMessageViews>();
 	if (data()->repliesAreComments() && !views->replies.text.isEmpty()) {
 		const auto limit = HistoryMessageViews::kMaxRecentRepliers;
@@ -6865,7 +6878,11 @@ void Message::textAppearHeightCallback() {
 	textAppearValidate(appearing);
 }
 
-bool Message::needInfoDisplay() const {
+int Message::bottomInfoHeight() const {
+	return hidesBottomInfo() ? 0 : _bottomInfo.height();
+}
+
+bool Message::usesMessageInfoLayout() const {
 	const auto media = this->media();
 	const auto mediaDisplayed = media ? media->isDisplayed() : false;
 	const auto check = factcheckBlock();
@@ -6877,6 +6894,10 @@ bool Message::needInfoDisplay() const {
 		: ((mediaDisplayed && media->isBubbleBottom())
 			? !media->customInfoLayout()
 			: true);
+}
+
+bool Message::needInfoDisplay() const {
+	return !hidesBottomInfo() && usesMessageInfoLayout();
 }
 
 bool Message::invertMedia() const {
@@ -6944,7 +6965,10 @@ void Message::refreshInfoSkipBlock(HistoryItem *textItem) {
 			_reactions->removeSkipBlock();
 		}
 	}
-	validateTextSkipBlock(hasTextSkipBlock, skipWidth, skipHeight);
+	validateTextSkipBlock(
+		!hidesBottomInfo() && hasTextSkipBlock,
+		skipWidth,
+		skipHeight);
 }
 
 TimeId Message::displayedEditDate() const {
