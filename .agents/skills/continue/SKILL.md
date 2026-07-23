@@ -1,18 +1,21 @@
 ---
 name: continue
-description: Continue autonomous Telegram Desktop development from the shared ai-tdesktop repository. Use when the user invokes $continue or /continue, asks Codex to keep working through the AI queue, or wants one command to process the local inbox, resume this checkout's unfinished work, and start ready shared tasks until nothing eligible remains.
+description: Continue autonomous Telegram Desktop development from the shared ai-tdesktop repository. Use when the user invokes $continue or /continue, asks Codex to keep working through the AI queue, or wants one command to resume unfinished work, drain ready shared tasks, and process the local inbox only when the invocation starts with no task work.
 ---
 
 # Continue AI Work
 
-Act as the checkout-level scheduler. Keep looping until the inbox is empty and
-no eligible work remains. Delegate inbox planning and one-task execution; do not
-plan or implement Telegram changes in this scheduler session.
+Act as the checkout-level scheduler. Keep looping until no eligible task work
+remains. The inbox is not a loop condition: process it at most once, through
+the startup-only idle gate below. Delegate inbox planning and one-task
+execution; do not plan or implement Telegram changes in this scheduler
+session.
 
-This is the default development command and the successor to the old `task` and
-`implement` workflows. Inbox processing owns request splitting and project
-routing; `perform-task` owns context, planning, implementation, review, Debug
-build, test-loop, evidence, and final publication.
+This is the default development command and the successor to the old `task`
+and `implement` workflows. Inbox processing may bootstrap an otherwise idle
+invocation and owns request splitting and project routing; `perform-task` owns
+context, planning, implementation, review, Debug build, test-loop, evidence,
+and final publication.
 
 ## Resolve the workspace
 
@@ -74,8 +77,9 @@ asks to stop or reassign it.
 
 ## Main loop
 
-Create an empty invocation-local `attempted_blocked` set, then repeat. Refresh
-queue JSON after every delegated operation and state transition.
+Create an empty invocation-local `attempted_blocked` set and a false
+invocation-local `startup_inbox_gate_consumed` flag. Refresh queue JSON after
+every delegated operation and state transition.
 
 Before publishing any new canonical `Start` commit, require a startable
 environment: a clean Telegram source checkout with clean submodules and no
@@ -85,28 +89,51 @@ global hard stop before claiming; never reserve shared work this checkout
 cannot immediately run. Resuming and retrying already-owned work keeps the
 performer's own preflight rules instead.
 
+### 0. Process the inbox only for an idle startup
+
+Evaluate this gate exactly once, from the first clean, refreshed queue
+snapshot, before starting, retrying, resuming, or performing a task. Existing
+task work closes the gate for the whole invocation. Task work exists when the
+normal ownership and dependency rules expose any task the scheduler could
+resume, retry, or start: an active task for this checkout, ready own blocked
+work, ready legacy reserved work, or ready unclaimed shared work. Evaluate
+shared work before applying a preference or restrictive scope hint, so an
+existing ready task outside a hint cannot make the startup look idle.
+
+If task work exists, set `startup_inbox_gate_consumed` and continue to task
+selection without invoking `process-inbox`. Never reopen the gate after a task
+finishes or the queue later drains.
+
+If no task work exists, this invocation started idle. Set
+`startup_inbox_gate_consumed`, then inspect `inbox_nonempty`:
+
+- when it is false, proceed without inbox processing;
+- when it is true, spawn one inbox worker with `fork_turns: "none"`.
+
+Give the worker the source checkout path and instruct it to read and use
+`.agents/skills/process-inbox/SKILL.md` completely. It owns exactly one inbox
+transaction, may use the bounded planner delegation required by that skill,
+must not implement tasks, and must return the receipt and created ids.
+
+Wait in intervals no longer than 60 seconds. A timeout is not failure. Inspect
+the saved target after every wake and validate the receipt plus refreshed
+queue before proceeding. Never launch a second inbox worker in this
+invocation. If it cannot publish durable AI state, stop with the inbox
+transaction recoverable.
+
+After a successful startup transaction, refresh the queue and perform the
+tasks it created through the ordinary loop. Inbox content that appears or
+remains after `startup_inbox_gate_consumed` is true is left untouched for the
+next `$continue` or `/continue` invocation.
+
 ### 1. Resume active work
 
 If this checkout has an `in-progress` task, select it and spawn one performer.
 Its task-scoped dirty AI artifacts are the resumption handoff. There must be at
-most one active task. Resume it before inbox processing because the inbox worker
-requires a clean slot; after the task finishes, the next loop iteration handles
-the inbox.
+most one active task. The startup inbox gate is already consumed, so completing
+or blocking this task never triggers inbox processing later in the invocation.
 
-### 2. Process the inbox
-
-When no task is active and `inbox_nonempty` is true, spawn one inbox worker
-with `fork_turns: "none"`. Give it the source checkout path and instruct it to
-read and use `.agents/skills/process-inbox/SKILL.md` completely. It owns exactly
-one inbox transaction, may use the bounded planner delegation required by that
-skill, must not implement tasks, and must return the receipt and created ids.
-
-Wait in intervals no longer than 60 seconds. A timeout is not failure. Inspect
-the saved target after every wake and validate the receipt plus refreshed queue
-before proceeding. Never launch a second worker for the same transaction. If
-it cannot publish durable AI state, stop with the inbox transaction recoverable.
-
-### 3. Retry rare blocked work
+### 2. Retry rare blocked work
 
 Otherwise select the first ready task in `own_blocked` whose id is not in
 `attempted_blocked`. Readiness means every dependency is `approved`. Add its id
@@ -126,7 +153,7 @@ If it blocks again, leave the new canonical `Block` boundary and do not retry
 it again in this invocation. Independent work may continue; the next
 invocation gets a fresh retry set.
 
-### 4. Start older reserved work
+### 3. Start older reserved work
 
 Otherwise select the first ready legacy `todo` task already owned by this
 checkout and start it:
@@ -140,7 +167,7 @@ The resulting canonical `Start` commit changes it to `in-progress`. Leave
 legacy reservations with unfinished dependencies untouched and consider later
 ready work.
 
-### 5. Start shared work
+### 4. Start shared work
 
 Otherwise select the first ready unclaimed `todo` task the hint prefers. Under
 a restrictive hint consider only matching tasks. With no hint, or when a mere
@@ -152,9 +179,9 @@ before source work begins.
 A concurrent start may mean another checkout won the task. Never overwrite
 shared state; refresh and choose again.
 
-### 6. Stop normally
+### 5. Stop normally
 
-Stop when the inbox is empty and none of these exist:
+Stop when none of these exist:
 
 - this checkout's active task;
 - a ready blocked task not attempted in this invocation;
@@ -165,6 +192,9 @@ Stop when the inbox is empty and none of these exist:
 Work owned by another checkout does not keep this run alive. A blocked task
 already attempted in this invocation remains visible in the final summary but
 does not cause a busy loop.
+
+Do not process or wait for the inbox at this point. Once the startup gate has
+been consumed, any current inbox content belongs to a later invocation.
 
 Immediately before this normal stop, run the housekeeping command once:
 
