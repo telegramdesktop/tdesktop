@@ -72,7 +72,7 @@ public:
 		not_null<HistoryItem*> item,
 		QString initialFragment = QString());
 	void resolveRichMessage(
-		not_null<Window::SessionController*> controller,
+		not_null<Main::Session*> session,
 		not_null<HistoryItem*> item,
 		RichMessageResolved done);
 
