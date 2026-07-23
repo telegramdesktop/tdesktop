@@ -118,15 +118,12 @@ Widget::Widget(
 	}
 
 	_inner->scrollToRequests(
-	) | rpl::on_next([this, tabs](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
+		const auto reserve = innerTopReserve();
 		if (request.ymin < 0) {
 			scrollTopRestore(
-				qMin(scrollTopSave(), request.ymax));
-		} else if (!tabs) {
-			scrollTo(request);
+				qMin(scrollTopSave(), request.ymax + reserve));
 		} else {
-			// Inner coordinates miss the flexible cover top padding.
-			const auto reserve = innerTopReserve();
 			scrollTo({
 				request.ymin + reserve,
 				(request.ymax < 0) ? -1 : (request.ymax + reserve),
