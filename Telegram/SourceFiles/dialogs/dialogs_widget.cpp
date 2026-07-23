@@ -1810,6 +1810,10 @@ void Widget::setupStories() {
 
 void Widget::storiesToggleExplicitExpand(bool expand) {
 	if (_storiesExplicitExpand == expand) {
+		if (!expand && _scroll->position().overscroll < 0) {
+			_scroll->setOverscrollDefaults(0, 0);
+			_scroll->returnToOverscrollDefaults();
+		}
 		return;
 	}
 	_storiesExplicitExpand = expand;
@@ -2285,8 +2289,7 @@ void Widget::storiesExplicitCollapse() {
 		storiesToggleExplicitExpand(false);
 	} else if (_stories) {
 		using Type = Ui::ElasticScroll::OverscrollType;
-		_scroll->setOverscrollDefaults(0, 0);
-		_scroll->setOverscrollTypes(Type::None, Type::Real);
+		_scroll->clearOverscroll();
 		_scroll->setOverscrollTypes(
 			_stories->isHidden() ? Type::Real : Type::Virtual,
 			Type::Real);
@@ -2732,13 +2735,6 @@ void Widget::updateStoriesVisibility() {
 	const auto widthAnimation = !_widthAnimationCache.isNull();
 	const auto suggestionsAnimation = widthAnimation
 		&& (!_suggestions || !_hidingSuggestions.empty());
-	const auto hiddenInstant = _showAnimation
-		|| _openedForum
-		|| _openedCommunity
-		|| (widthAnimation && !suggestionsAnimation)
-		|| _childList
-		|| _stories->empty()
-		|| (_scroll->position().overscroll < -st::dialogsFilterSkip);
 	const auto hiddenAnimated = _searchHasFocus
 		|| _searchSuggestionsLocked
 		|| !_searchState.query.isEmpty()
@@ -2747,17 +2743,23 @@ void Widget::updateStoriesVisibility() {
 		|| (_openedFolder
 			&& _subsectionTopBar
 			&& _subsectionTopBar->searchMode());
+	const auto pulledDown = _scroll->position().overscroll
+		< -st::dialogsFilterSkip;
+	const auto hiddenInstant = _showAnimation
+		|| _openedForum
+		|| _openedCommunity
+		|| (widthAnimation && !suggestionsAnimation)
+		|| _childList
+		|| _stories->empty()
+		|| (pulledDown && hiddenAnimated);
 	const auto hidden = hiddenInstant || hiddenAnimated;
 	const auto changed = (_stories->toggledHidden() != hidden);
 	_stories->setToggledHidden(hiddenInstant, hiddenAnimated);
 	if (changed) {
 		using Type = Ui::ElasticScroll::OverscrollType;
 		if (hidden) {
-			_scroll->setOverscrollDefaults(0, 0);
+			_scroll->clearOverscroll();
 			_scroll->setOverscrollTypes(Type::Real, Type::Real);
-			if (_scroll->position().overscroll < 0) {
-				_scroll->scrollToY(0);
-			}
 			_scroll->update();
 		} else {
 			_scroll->setOverscrollDefaults(0, 0);
