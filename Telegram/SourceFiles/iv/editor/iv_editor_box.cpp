@@ -1368,19 +1368,20 @@ int Toolbar::contentMaxWidth() const {
 int Toolbar::resizeGetHeight(int width) {
 	const auto padding = st::ivEditorToolbarPadding;
 	const auto top = padding.top();
-	const auto column = _editor
-		? _editor->articleColumnForWidth(width)
-		: Widget::ArticleColumn{ 0, width };
-	const auto fitsArticle = (column.width >= contentMaxWidth());
-	const auto left = fitsArticle ? column.left : 0;
-	const auto right = fitsArticle ? (column.left + column.width) : width;
-	const auto undoRedoLeft = left;
+	const auto undoRedoLeft = padding.left();
 	_undoRedoPill->moveToLeft(undoRedoLeft, top, width);
-	const auto controlsLeft = undoRedoLeft
+	const auto controlsWidth = _controlsPill->naturalSize().width();
+	const auto staticCommandLeft = undoRedoLeft
 		+ _undoRedoPill->naturalSize().width()
 		+ st::ivEditorToolbarGroupsSkip;
+	const auto centeredCommandLeft = (width - controlsWidth) / 2;
+	const auto controlsLeft = std::max(
+		staticCommandLeft,
+		centeredCommandLeft);
 	_controlsPill->moveToLeft(controlsLeft, top, width);
-	const auto emojiLeft = right - _emojiPill->naturalSize().width();
+	const auto emojiLeft = width
+		- padding.right()
+		- _emojiPill->naturalSize().width();
 	_emojiPill->moveToLeft(emojiLeft, top, width);
 	updateInputMask();
 	if (_hovered && _hovered->isHidden()) {
@@ -2060,12 +2061,8 @@ void WindowHost::Impl::layout() {
 	_toolbar->raise();
 	_bottomFade->setGeometry(0, height - bottomHeight, editorWidth, bottomHeight);
 	_bottom->setGeometry(0, height - bottomHeight, editorWidth, bottomHeight);
-	const auto column = _editor->articleColumnForWidth(editorWidth);
-	const auto fitsArticle = (column.width >= _toolbar->contentMaxWidth());
-	const auto right = fitsArticle
-		? (column.left + column.width)
-		: editorWidth;
-	const auto left = fitsArticle ? column.left : 0;
+	const auto right = editorWidth - padding.right();
+	const auto left = padding.left();
 	const auto leftPill = _discard
 		? _discard.data()
 		: _cancel.data();
