@@ -164,7 +164,7 @@ void ManageCommunityBox(
 				row,
 				object_ptr<Ui::InputField>(
 					row,
-					st::editPeerTitleField,
+					st::defaultInputField,
 					tr::lng_community_create_name(),
 					community->name()),
 				st::editPeerTitleMargins));
