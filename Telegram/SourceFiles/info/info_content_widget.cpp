@@ -210,7 +210,8 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		const auto bottom = top + height;
 		_innerDesiredHeight = desired;
 		_innerWrap->setVisibleTopBottom(top, bottom);
-		_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));
+		_scrollTillBottomChanges.fire_copy(
+			std::max(desired + _innerTopReserve - bottom, 0));
 	}, _innerWrap->lifetime());
 
 	rpl::combine(
@@ -269,7 +270,7 @@ int ContentWidget::scrollTillBottom(int forHeight) const {
 		- _scrollTopSkip.current()
 		- _scrollBottomSkip.current();
 	const auto scrollBottom = _scroll->scrollTop() + scrollHeight;
-	const auto desired = _innerDesiredHeight;
+	const auto desired = _innerDesiredHeight + _innerTopReserve;
 	return std::max(desired - scrollBottom, 0);
 }
 
