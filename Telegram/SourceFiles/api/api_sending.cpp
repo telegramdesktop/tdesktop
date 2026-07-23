@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/components/ephemeral_messages.h"
+#include "data/components/welcome_messages.h"
 #include "data/stickers/data_stickers.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -187,6 +188,13 @@ void SendExistingMedia(
 	const auto peer = history->peer;
 	const auto session = &history->session();
 	const auto api = &session->api();
+	const auto welcomeTemplate = message.action.options.welcomeTemplate;
+
+	if (welcomeTemplate
+		&& session->welcomeMessages().count(history)
+			>= Data::WelcomeMessagesLimit(session)) {
+		return;
+	}
 
 	message.action.clearDraft = false;
 	message.action.generateLocal = true;
@@ -197,16 +205,22 @@ void SendExistingMedia(
 		localMessageId
 			? (*localMessageId)
 			: session->data().nextLocalMessageId());
-	const auto randomId = base::RandomValue<uint64>();
+	const auto randomId = welcomeTemplate
+		? uint64(0)
+		: base::RandomValue<uint64>();
 	auto &action = message.action;
 
 	auto flags = NewMessageFlags(peer);
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
+	if (welcomeTemplate) {
+		flags |= MessageFlag::FakeHistoryItem;
+	}
 	if (action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 	}
-	if (!action.options.scheduled
+	if (!welcomeTemplate
+		&& !action.options.scheduled
 		&& !action.options.shortcutId
 		&& session->ephemeralMessages().wouldSendMedia(
 			peer,
@@ -265,8 +279,6 @@ void SendExistingMedia(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 
-	session->data().registerMessageRandomId(randomId, newId);
-
 	const auto item = history->addNewLocalMessage({
 		.id = newId.msg,
 		.flags = flags,
@@ -281,6 +293,16 @@ void SendExistingMedia(
 		.suggest = HistoryMessageSuggestInfo(action.options),
 		.mediaSpoiler = action.options.mediaSpoiler,
 	}, media, caption);
+
+	if (welcomeTemplate) {
+		auto &welcome = session->welcomeMessages();
+		welcome.appendSending(item);
+		welcome.sendMedia(item, inputMedia(), origin, inputMedia);
+		api->finishForwarding(action);
+		return;
+	}
+
+	session->data().registerMessageRandomId(randomId, newId);
 
 	if (session->ephemeralMessages().sendMedia(
 			item,
@@ -569,6 +591,17 @@ void FillMessagePostFlags(
 void SendConfirmedFile(
 		not_null<Main::Session*> session,
 		const std::shared_ptr<FilePrepareResult> &file) {
+	const auto welcomeTemplate = file->to.options.welcomeTemplate;
+	if (welcomeTemplate && file->to.replaceMediaOf) {
+		return;
+	}
+	if (welcomeTemplate) {
+		const auto history = session->data().history(file->to.peer);
+		if (session->welcomeMessages().count(history)
+			>= Data::WelcomeMessagesLimit(session)) {
+			return;
+		}
+	}
 	const auto isEditing = (file->type != SendMediaType::Audio)
 		&& (file->type != SendMediaType::Round)
 		&& (file->to.replaceMediaOf != 0);
@@ -577,8 +610,12 @@ void SendConfirmedFile(
 		(isEditing
 			? file->to.replaceMediaOf
 			: session->data().nextLocalMessageId()));
-	const auto groupId = file->album ? file->album->groupId : uint64(0);
-	if (file->album) {
+	const auto groupId = welcomeTemplate
+		? uint64(0)
+		: file->album
+		? file->album->groupId
+		: uint64(0);
+	if (!welcomeTemplate && file->album) {
 		const auto proj = [](const SendingAlbum::Item &item) {
 			return item.taskId;
 		};
@@ -624,10 +661,14 @@ void SendConfirmedFile(
 	TextUtilities::Trim(caption);
 
 	auto flags = isEditing ? MessageFlags() : NewMessageFlags(peer);
+	if (welcomeTemplate) {
+		flags |= MessageFlag::FakeHistoryItem;
+	}
 	if (file->to.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 	}
 	if (!isEditing
+		&& !welcomeTemplate
 		&& !groupId
 		&& !file->to.options.scheduled
 		&& !file->to.options.shortcutId
@@ -727,7 +768,7 @@ void SendConfirmedFile(
 		edition.savePreviousMedia = true;
 		itemToEdit->applyEdition(std::move(edition));
 	} else {
-		history->addNewLocalMessage({
+		const auto item = history->addNewLocalMessage({
 			.id = newId.msg,
 			.flags = flags,
 			.from = NewMessageFromId(action),
@@ -743,9 +784,15 @@ void SendConfirmedFile(
 			.effectId = file->to.options.effectId,
 			.suggest = HistoryMessageSuggestInfo(file->to.options),
 		}, caption, media);
+		if (welcomeTemplate) {
+			session->welcomeMessages().appendSending(item);
+		}
 	}
 
 	if (isEditing) {
+		return;
+	}
+	if (welcomeTemplate) {
 		return;
 	}
 

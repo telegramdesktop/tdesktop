@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/history_item.h"
 #include "base/timer.h"
+#include "data/data_file_origin.h"
+#include "history/history_item.h"
 
 class History;
 class PeerData;
@@ -38,12 +39,21 @@ public:
 		not_null<PeerData*> peer,
 		int32 ephemeralId) const;
 	[[nodiscard]] int count(not_null<History*> history) const;
+	[[nodiscard]] bool owns(not_null<const HistoryItem*> item) const;
+
+	void appendSending(not_null<HistoryItem*> item);
+	void removeSending(not_null<HistoryItem*> item);
 
 	void applyNew(const MTPDephemeralMessage &data);
 	void applyEdit(const MTPDephemeralMessage &data);
 	bool applyDelete(not_null<PeerData*> peer, int32 ephemeralId);
 
 	void send(not_null<History*> history, TextWithEntities text);
+	void sendMedia(
+		not_null<HistoryItem*> item,
+		const MTPInputMedia &media,
+		Data::FileOrigin origin = {},
+		Fn<MTPInputMedia()> rebuildMedia = nullptr);
 	void sendRich(
 		not_null<History*> history,
 		Fn<std::optional<MTPInputRichMessage>()> richMessage);
@@ -105,6 +115,7 @@ private:
 	base::flat_map<not_null<History*>, Request> _requests;
 	base::flat_map<not_null<History*>, uint64> _hashes;
 	rpl::event_stream<not_null<History*>> _updates;
+	FullMsgId _convertLocalTarget = {};
 
 	rpl::lifetime _lifetime;
 

@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/credits.h"
 #include "data/components/ephemeral_messages.h"
 #include "data/components/scheduled_messages.h"
+#include "data/components/welcome_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
@@ -5180,6 +5181,17 @@ void ApiWrap::sendMedia(
 		const MTPInputMedia &media,
 		Api::SendOptions options,
 		Fn<void(bool)> done) {
+	if (options.welcomeTemplate) {
+		const auto owned = _session->welcomeMessages().owns(item);
+		if (owned) {
+			_session->welcomeMessages().sendMedia(item, media);
+		}
+		if (done) {
+			done(owned);
+		}
+		return;
+	}
+
 	const auto randomId = base::RandomValue<uint64>();
 	_session->data().registerMessageRandomId(randomId, item->fullId());
 
@@ -5192,6 +5204,17 @@ void ApiWrap::sendMediaWithRandomId(
 		Api::SendOptions options,
 		uint64 randomId,
 		Fn<void(bool)> done) {
+	if (options.welcomeTemplate) {
+		const auto owned = _session->welcomeMessages().owns(item);
+		if (owned) {
+			_session->welcomeMessages().sendMedia(item, media);
+		}
+		if (done) {
+			done(owned);
+		}
+		return;
+	}
+
 	const auto history = item->history();
 	const auto replyTo = item->replyTo();
 	const auto peer = history->peer;

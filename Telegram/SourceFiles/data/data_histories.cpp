@@ -973,7 +973,12 @@ void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
 				}
 				continue;
 			} else if (item->isWelcomeTemplate()) {
-				_owner->session().welcomeMessages().deleteTemplate(item);
+				auto &welcome = _owner->session().welcomeMessages();
+				if (item->isSending() || item->hasFailed()) {
+					welcome.removeSending(item);
+				} else {
+					welcome.deleteTemplate(item);
+				}
 				continue;
 			}
 			remove.push_back(item);

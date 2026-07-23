@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_rich_page.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "storage/file_upload.h"
 
 namespace Data {
 namespace {
@@ -66,6 +67,17 @@ WelcomeMessages::WelcomeMessages(not_null<Main::Session*> session)
 	}) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		remove(item);
 	}, _lifetime);
+
+	rpl::merge(
+		_session->uploader().photoFailed(),
+		_session->uploader().documentFailed()
+	) | rpl::on_next([=](FullMsgId id) {
+		if (const auto item = _session->data().message(id)) {
+			if (owns(item)) {
+				item->destroy();
+			}
+		}
+	}, _lifetime);
 }
 
 WelcomeMessages::~WelcomeMessages() {
@@ -78,6 +90,7 @@ void WelcomeMessages::clear() {
 	for (const auto &request : base::take(_requests)) {
 		_session->api().request(request.second.requestId).cancel();
 	}
+	_convertLocalTarget = {};
 	base::take(_data);
 	base::take(_hashes);
 }
@@ -121,10 +134,70 @@ int WelcomeMessages::count(not_null<History*> history) const {
 	return (i != end(_data)) ? int(i->second.items.size()) : 0;
 }
 
+bool WelcomeMessages::owns(not_null<const HistoryItem*> item) const {
+	const auto i = _data.find(item->history());
+	if (i == end(_data)) {
+		return false;
+	}
+	return ranges::find(i->second.items, item, &OwnedItem::get)
+		!= end(i->second.items);
+}
+
+void WelcomeMessages::appendSending(not_null<HistoryItem*> item) {
+	Expects(!owns(item));
+	Expects(item->isSending());
+	Expects(IsClientMsgId(item->id));
+
+	const auto history = item->history();
+	auto &list = _data[history];
+	list.items.emplace_back(item);
+	sort(list);
+	_updates.fire_copy(history);
+}
+
+void WelcomeMessages::removeSending(not_null<HistoryItem*> item) {
+	Expects(owns(item));
+	Expects(item->isSending() || item->hasFailed());
+
+	item->destroy();
+}
+
 void WelcomeMessages::applyNew(const MTPDephemeralMessage &data) {
 	const auto history = _session->data().history(
 		peerFromMTP(data.vpeer_id()));
 	auto &list = _data[history];
+	if (_convertLocalTarget
+		&& data.is_welcome_template()
+		&& data.is_out()
+		&& data.vmedia()) {
+		const auto local = _session->data().message(_convertLocalTarget);
+		if (local
+			&& local->history() == history
+			&& local->isSending()
+			&& IsClientMsgId(local->id)
+			&& owns(local)) {
+			_convertLocalTarget = {};
+			const auto id = data.vid().v;
+			if (id > 0) {
+				const auto i = list.itemById.find(id);
+				if (i != end(list.itemById)) {
+					const auto existing = i->second;
+					applyEdition(existing, data);
+					existing->updateDate(data.vdate().v);
+					sort(list);
+					local->destroy();
+				} else {
+					applyEdition(local, data);
+					local->updateDate(data.vdate().v);
+					local->setRealId(RemoteToLocalMsgId(id));
+					list.itemById.emplace(id, local);
+					sort(list);
+					_updates.fire_copy(history);
+				}
+				return;
+			}
+		}
+	}
 	if (append(history, list, data)) {
 		sort(list);
 		_updates.fire_copy(history);
@@ -180,6 +253,77 @@ void WelcomeMessages::send(
 		LOG(("API Error: send welcome template - %1"
 			).arg(error.type()));
 	}).send();
+}
+
+void WelcomeMessages::sendMedia(
+		not_null<HistoryItem*> item,
+		const MTPInputMedia &media,
+		Data::FileOrigin origin,
+		Fn<MTPInputMedia()> rebuildMedia) {
+	Expects(owns(item));
+	Expects(item->isSending());
+	Expects(IsClientMsgId(item->id));
+
+	const auto session = _session;
+	const auto history = item->history();
+	const auto localId = item->fullId();
+	const auto text = item->originalText();
+	const auto entities = Api::EntitiesToMTP(
+		session,
+		text.entities,
+		Api::ConvertOption::SkipLocal);
+	using Flag = MTPephemeral_SendMessage::Flag;
+	const auto flags = Flag::f_welcome_template
+		| Flag::f_media
+		| (entities.v.isEmpty() ? Flag(0) : Flag::f_entities)
+		| (item->invertMedia() ? Flag::f_invert_media : Flag(0));
+	const auto randomId = base::RandomValue<uint64>();
+	const auto destroyLocal = [=] {
+		if (const auto local = session->data().message(localId)) {
+			if (owns(local)) {
+				local->destroy();
+			}
+		}
+	};
+	const auto send = [=](
+			const auto &send,
+			const MTPInputMedia &media,
+			int attempt) -> void {
+		session->api().request(MTPephemeral_SendMessage(
+			MTP_flags(flags),
+			history->peer->input(),
+			MTP_inputUserEmpty(),
+			MTPlong(),
+			MTP_string(text.text),
+			entities,
+			media,
+			MTPReplyMarkup(),
+			MTPInputRichMessage(),
+			MTP_long(randomId),
+			MTPInputReplyTo()
+		)).done([=](const MTPUpdates &result) {
+			_convertLocalTarget = localId;
+			session->api().applyUpdates(result);
+			_convertLocalTarget = {};
+			destroyLocal();
+		}).fail([=](const MTP::Error &error) {
+			const auto type = error.type();
+			const auto refreshable = !attempt
+				&& (error.code() == 400)
+				&& type.startsWith(u"FILE_REFERENCE_"_q);
+			if (refreshable && rebuildMedia) {
+				session->api().refreshFileReference(
+					origin,
+					[=](const auto &) {
+						send(send, rebuildMedia(), 1);
+					});
+				return;
+			}
+			LOG(("API Error: send welcome media template - %1").arg(type));
+			destroyLocal();
+		}).send();
+	};
+	send(send, media, 0);
 }
 
 void WelcomeMessages::sendRich(
@@ -426,7 +570,9 @@ void WelcomeMessages::parse(
 		}
 		auto clear = base::flat_set<not_null<HistoryItem*>>();
 		for (const auto &owned : i->second.items) {
-			clear.emplace(owned.get());
+			if (!owned->isSending() && !owned->hasFailed()) {
+				clear.emplace(owned.get());
+			}
 		}
 		updated(history, {}, clear);
 		return;
@@ -441,7 +587,9 @@ void WelcomeMessages::parse(
 	}
 	for (const auto &owned : list.items) {
 		const auto item = owned.get();
-		if (!received.contains(item)) {
+		if (!item->isSending()
+			&& !item->hasFailed()
+			&& !received.contains(item)) {
 			clear.emplace(item);
 		}
 	}
@@ -555,10 +703,12 @@ void WelcomeMessages::remove(not_null<const HistoryItem*> item) {
 		return;
 	}
 	auto &list = i->second;
-	list.itemById.remove(LocalToRemoteMsgId(item->id));
 	const auto k = ranges::find(list.items, item, &OwnedItem::get);
 	if (k == list.items.end()) {
 		return;
+	}
+	if (IsWelcomeMsgId(item->id)) {
+		list.itemById.remove(LocalToRemoteMsgId(item->id));
 	}
 	k->release();
 	list.items.erase(k);

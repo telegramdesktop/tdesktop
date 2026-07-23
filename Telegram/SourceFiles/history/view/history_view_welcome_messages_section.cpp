@@ -7,22 +7,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_welcome_messages_section.h"
 
+#include "api/api_sending.h"
+#include "apiwrap.h"
+#include "base/call_delayed.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/send_files_box.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "core/file_utilities.h"
 #include "data/components/welcome_messages.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_message_reactions.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "history/view/controls/history_view_compose_controls.h"
 #include "history/view/history_view_empty_list_bubble.h"
 #include "history/view/history_view_sticker_toast.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/history.h"
 #include "history/history_view_swipe_back_session.h"
+#include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_send.h"
+#include "storage/localimageloader.h"
+#include "storage/storage_media_prepare.h"
 #include "ui/chat/chat_style.h"
+#include "ui/image/image_prepare.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/shadow.h"
@@ -30,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 
+#include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
@@ -86,14 +98,15 @@ WelcomeMessagesWidget::WelcomeMessagesWidget(
 		.features = {
 			.sendAs = false,
 			.ttlInfo = false,
-			.attachments = false,
+			.attachments = true,
 			.botCommandSend = false,
 			.silentBroadcastToggle = false,
 			.attachBotsMenu = false,
 			.inlineBots = false,
 			.megagroupSet = false,
+			.commonTabbedPanel = false,
 			.recordMediaMessage = false,
-			.emojiOnlyPanel = true,
+			.emojiOnlyPanel = false,
 		},
 	}))
 , _cornerButtons(
@@ -227,6 +240,44 @@ void WelcomeMessagesWidget::setupComposeControls() {
 		send();
 	}, lifetime());
 
+	_composeControls->attachRequests(
+	) | rpl::filter([=] {
+		return !_choosingAttach;
+	}) | rpl::on_next([=](std::optional<bool> overrideCompress) {
+		if (!checkLimit()) {
+			return;
+		}
+		_choosingAttach = true;
+		base::call_delayed(st::historyAttach.ripple.hideDuration, this, [=] {
+			_choosingAttach = false;
+			chooseAttach(overrideCompress);
+		});
+	}, lifetime());
+
+	_composeControls->setSendAsFileConfirmed(crl::guard(this, [=](
+			std::shared_ptr<Ui::PreparedBundle> bundle,
+			Api::SendOptions options) {
+		sendingFilesConfirmed(std::move(bundle), options);
+	}));
+
+	_composeControls->fileChosen(
+	) | rpl::on_next([=](ChatHelpers::FileChosen chosen) {
+		sendExistingDocument(
+			chosen.document,
+			chosen.options,
+			std::move(chosen.caption));
+	}, lifetime());
+
+	_composeControls->photoChosen(
+	) | rpl::on_next([=](ChatHelpers::PhotoChosen chosen) {
+		sendExistingPhoto(chosen.photo, chosen.options);
+	}, lifetime());
+
+	_composeControls->inlineResultChosen(
+	) | rpl::on_next([=](ChatHelpers::InlineChosen chosen) {
+		sendInlineResult(std::move(chosen.result), chosen.options);
+	}, lifetime());
+
 	_composeControls->editRequests(
 	) | rpl::on_next([=](auto data) {
 		if (const auto item = session().data().message(data.fullId)) {
@@ -287,6 +338,227 @@ void WelcomeMessagesWidget::checkReplyReturns() {
 	}
 }
 
+void WelcomeMessagesWidget::uploadFile(
+		const QByteArray &fileContent,
+		SendMediaType type) {
+	if (!checkLimit()) {
+		return;
+	}
+	session().api().sendFile(
+		fileContent,
+		type,
+		prepareSendAction({}));
+}
+
+bool WelcomeMessagesWidget::showSendingFilesError(
+		const Ui::PreparedList &list) const {
+	return Data::ShowSendError(
+		controller()->uiShow(),
+		_history->peer,
+		list,
+		std::nullopt,
+		true);
+}
+
+bool WelcomeMessagesWidget::showSendingFilesError(
+		const Ui::PreparedBundle &bundle) const {
+	return Data::ShowSendError(
+		controller()->uiShow(),
+		_history->peer,
+		bundle,
+		true);
+}
+
+bool WelcomeMessagesWidget::confirmSendingFiles(
+		Ui::PreparedList &&list,
+		const QString &insertTextOnCancel) {
+	if (!checkLimit() || showSendingFilesError(list)) {
+		return false;
+	}
+
+	const auto show = controller()->uiShow();
+	auto box = Box<SendFilesBox>(SendFilesBoxDescriptor{
+		.show = show,
+		.list = std::move(list),
+		.caption = _composeControls->getTextWithAppliedMarkdown(),
+		.toPeer = _history->peer,
+		.limits = SendFilesAllow::OnlyOne
+			| SendFilesAllow::Photos
+			| SendFilesAllow::Videos
+			| SendFilesAllow::Files,
+		.check = DefaultCheckForPeer(show, _history->peer),
+		.sendType = Api::SendType::Normal,
+		.sendMenuDetails = [=] { return sendMenuDetails(); },
+		.confirmed = crl::guard(this, [=](
+				std::shared_ptr<Ui::PreparedBundle> bundle,
+				Api::SendOptions options,
+				FullReplyTo) {
+			sendingFilesConfirmed(std::move(bundle), options);
+		}),
+		.cancelled = _composeControls->restoreTextCallback(
+			insertTextOnCancel),
+	});
+	box->takeTextWithTagsRequests(
+	) | rpl::on_next([=](TextWithTags &&text) {
+		_composeControls->setText(std::move(text));
+	}, box->lifetime());
+	show->show(std::move(box));
+	return true;
+}
+
+bool WelcomeMessagesWidget::confirmSendingFiles(
+		QImage &&image,
+		QByteArray &&content,
+		std::optional<bool> overrideSendImagesAsPhotos,
+		const QString &insertTextOnCancel) {
+	if (image.isNull()) {
+		return false;
+	}
+	auto list = Storage::PrepareMediaFromImage(
+		std::move(image),
+		std::move(content),
+		st::sendMediaPreviewSize);
+	list.overrideSendImagesAsPhotos = overrideSendImagesAsPhotos;
+	return confirmSendingFiles(std::move(list), insertTextOnCancel);
+}
+
+void WelcomeMessagesWidget::sendingFilesConfirmed(
+		std::shared_ptr<Ui::PreparedBundle> bundle,
+		Api::SendOptions options) {
+	if (!checkLimit() || showSendingFilesError(*bundle)) {
+		return;
+	}
+	if (bundle->totalCount != 1
+		|| bundle->groups.size() != 1
+		|| bundle->groups.front().list.files.size() != 1) {
+		controller()->showToast(tr::lng_send_media_invalid_files(tr::now));
+		return;
+	}
+	const auto type = bundle->way.sendImagesAsPhotos()
+		? SendMediaType::Photo
+		: SendMediaType::File;
+	auto action = prepareSendAction(options);
+	action.clearDraft = false;
+	session().api().sendFiles(
+		std::move(bundle->groups.front().list),
+		type,
+		nullptr,
+		action);
+	finishSending();
+}
+
+void WelcomeMessagesWidget::chooseAttach(
+		std::optional<bool> overrideSendImagesAsPhotos) {
+	if (!checkLimit()) {
+		return;
+	}
+	const auto filter = (overrideSendImagesAsPhotos == true)
+		? FileDialog::PhotoVideoFilesFilter()
+		: FileDialog::AllOrImagesFilter();
+	FileDialog::GetOpenPaths(
+		this,
+		tr::lng_choose_files(tr::now),
+		filter,
+		crl::guard(this, [=](FileDialog::OpenResult &&result) {
+			if (result.paths.isEmpty()
+				&& result.remoteContent.isEmpty()) {
+				return;
+			}
+			if (!checkLimit()) {
+				return;
+			}
+			if (!result.remoteContent.isEmpty()) {
+				auto read = Images::Read({
+					.content = result.remoteContent,
+				});
+				if (!read.image.isNull() && !read.animated) {
+					confirmSendingFiles(
+						std::move(read.image),
+						std::move(result.remoteContent),
+						overrideSendImagesAsPhotos);
+				} else {
+					uploadFile(
+						result.remoteContent,
+						SendMediaType::File);
+				}
+			} else {
+				auto list = Storage::PrepareMediaList(
+					result.paths,
+					st::sendMediaPreviewSize,
+					session().user()->isPremium());
+				list.overrideSendImagesAsPhotos
+					= overrideSendImagesAsPhotos;
+				confirmSendingFiles(std::move(list));
+			}
+		}));
+}
+
+bool WelcomeMessagesWidget::checkLimit() const {
+	const auto limit = Data::WelcomeMessagesLimit(&session());
+	if (session().welcomeMessages().count(_history) < limit) {
+		return true;
+	}
+	controller()->showToast(tr::lng_business_limit_reached(
+		tr::now,
+		lt_count,
+		limit));
+	return false;
+}
+
+Api::SendAction WelcomeMessagesWidget::prepareSendAction(
+		Api::SendOptions options) const {
+	auto result = Api::SendAction(_history, options);
+	result.options.welcomeTemplate = true;
+	return result;
+}
+
+bool WelcomeMessagesWidget::sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options,
+		TextWithTags caption) {
+	if (!checkLimit()) {
+		return false;
+	}
+	auto message = Api::MessageToSend(prepareSendAction(options));
+	message.textWithTags = std::move(caption);
+	Api::SendExistingDocument(std::move(message), document);
+	finishSending();
+	return true;
+}
+
+bool WelcomeMessagesWidget::sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		Api::SendOptions options) {
+	if (!checkLimit()) {
+		return false;
+	}
+	Api::SendExistingPhoto(
+		Api::MessageToSend(prepareSendAction(options)),
+		photo);
+	finishSending();
+	return true;
+}
+
+void WelcomeMessagesWidget::sendInlineResult(
+		std::shared_ptr<InlineBots::Result> result,
+		Api::SendOptions options) {
+	if (const auto error = result->getErrorOnSend(_history)) {
+		Data::ShowSendErrorToast(controller(), _history->peer, error);
+		return;
+	}
+	const auto request = result->openRequest();
+	if (const auto document = request.document()) {
+		sendExistingDocument(document, options, {});
+	} else if (const auto photo = request.photo()) {
+		sendExistingPhoto(photo, options);
+	}
+}
+
+void WelcomeMessagesWidget::finishSending() {
+	_composeControls->hidePanelsAnimated();
+	_composeControls->focus();
+}
+
 void WelcomeMessagesWidget::send() {
 	const auto textWithTags
 		= _composeControls->getTextWithAppliedMarkdown();
@@ -298,18 +570,12 @@ void WelcomeMessagesWidget::send() {
 	if (text.text.isEmpty()) {
 		return;
 	}
-	const auto limit = Data::WelcomeMessagesLimit(&session());
-	if (session().welcomeMessages().count(_history) >= limit) {
-		controller()->showToast(tr::lng_business_limit_reached(
-			tr::now,
-			lt_count,
-			limit));
+	if (!checkLimit()) {
 		return;
 	}
 	session().welcomeMessages().send(_history, std::move(text));
 	_composeControls->clear();
-	_composeControls->hidePanelsAnimated();
-	_composeControls->focus();
+	finishSending();
 }
 
 void WelcomeMessagesWidget::edit(not_null<HistoryItem*> item) {

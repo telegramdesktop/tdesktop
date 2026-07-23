@@ -2147,7 +2147,8 @@ bool HistoryItem::isBusinessShortcut() const {
 bool HistoryItem::isWelcomeTemplate() const {
 	return !isHistoryEntry()
 		&& !isAdminLogEntry()
-		&& Data::IsWelcomeMsgId(id);
+		&& (Data::IsWelcomeMsgId(id)
+			|| history()->session().welcomeMessages().owns(this));
 }
 
 void HistoryItem::setRealShortcutId(BusinessShortcutId id) {

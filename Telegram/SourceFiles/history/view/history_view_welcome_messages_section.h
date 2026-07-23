@@ -14,6 +14,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 
 class History;
+class QImage;
+enum class SendMediaType;
+
+namespace Api {
+struct SendAction;
+struct SendOptions;
+} // namespace Api
+
+namespace InlineBots {
+class Result;
+} // namespace InlineBots
 
 namespace SendMenu {
 struct Details;
@@ -22,6 +33,8 @@ struct Details;
 namespace Ui {
 class ElasticScroll;
 class PlainShadow;
+struct PreparedBundle;
+struct PreparedList;
 } // namespace Ui
 
 namespace Window {
@@ -69,6 +82,7 @@ public:
 
 	Window::SectionActionResult sendBotCommand(
 		Bot::SendCommandRequest request) override;
+	using SectionWidget::confirmSendingFiles;
 
 	void setInternalState(
 		const QRect &geometry,
@@ -182,6 +196,38 @@ private:
 	void confirmDeleteSelected();
 	void clearSelected();
 
+	void uploadFile(const QByteArray &fileContent, SendMediaType type);
+	bool confirmSendingFiles(
+		QImage &&image,
+		QByteArray &&content,
+		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
+		const QString &insertTextOnCancel = QString());
+	bool confirmSendingFiles(
+		Ui::PreparedList &&list,
+		const QString &insertTextOnCancel = QString());
+	[[nodiscard]] bool showSendingFilesError(
+		const Ui::PreparedList &list) const;
+	[[nodiscard]] bool showSendingFilesError(
+		const Ui::PreparedBundle &bundle) const;
+	void sendingFilesConfirmed(
+		std::shared_ptr<Ui::PreparedBundle> bundle,
+		Api::SendOptions options);
+	void chooseAttach(
+		std::optional<bool> overrideSendImagesAsPhotos);
+	[[nodiscard]] bool checkLimit() const;
+	[[nodiscard]] Api::SendAction prepareSendAction(
+		Api::SendOptions options) const;
+	bool sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options,
+		TextWithTags caption);
+	bool sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		Api::SendOptions options);
+	void sendInlineResult(
+		std::shared_ptr<InlineBots::Result> result,
+		Api::SendOptions options);
+	void finishSending();
 	void send();
 	void edit(not_null<HistoryItem*> item);
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
@@ -198,6 +244,7 @@ private:
 	object_ptr<Ui::PlainShadow> _topBarShadow;
 	std::unique_ptr<ComposeControls> _composeControls;
 	bool _skipScrollEvent = false;
+	bool _choosingAttach = false;
 
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 

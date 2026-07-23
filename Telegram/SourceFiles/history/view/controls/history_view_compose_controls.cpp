@@ -5246,6 +5246,15 @@ bool ComposeControls::hasSilentBroadcastToggle() const {
 }
 
 void ComposeControls::updateInlineBotQuery() {
+	if (!_features.inlineBots) {
+		if (_inlineBotResolveRequestId) {
+			session().api().request(_inlineBotResolveRequestId).cancel();
+			_inlineBotResolveRequestId = 0;
+		}
+		_inlineBotUsername.clear();
+		clearInlineBot();
+		return;
+	}
 	if (!_history || !_regularWindow) {
 		return;
 	}
