@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/windows_taskbar_buttons.h"
 
+#include "base/platform/win/base_windows_safe_library.h"
 #include "lang/lang_keys.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
@@ -28,9 +29,49 @@ enum class ButtonId : UINT {
 
 constexpr auto kButtonsCount = 3;
 
-[[nodiscard]] HICON CreateThumbIcon(const style::icon &icon, QColor color) {
-	const auto size = GetSystemMetrics(SM_CXSMICON);
-	auto source = icon.instance(color, 100);
+// While Windows is switching between light and dark themes the explorer
+// process churns through lots of section handles and the in-process
+// TaskbarList::_ThumbBarUpdateButtons (explorerframe.dll) may re-lock
+// its shared memory block by an already recycled handle and crash
+// reading foreign memory, so postpone theme-driven updates till the
+// system settles down.
+constexpr auto kThemeApplyDelay = crl::time(5000);
+
+UINT(__stdcall *GetDpiForWindow)(_In_ HWND hwnd);
+
+int(__stdcall *GetSystemMetricsForDpi)(
+	_In_ int nIndex,
+	_In_ UINT dpi);
+
+[[nodiscard]] bool DpiMetricsSupported() {
+	static const auto Result = [&] {
+#define LOAD_SYMBOL(lib, name) base::Platform::LoadMethod(lib, #name, name)
+		const auto user32 = base::Platform::SafeLoadLibrary(L"User32.dll");
+		return LOAD_SYMBOL(user32, GetDpiForWindow)
+			&& LOAD_SYMBOL(user32, GetSystemMetricsForDpi);
+#undef LOAD_SYMBOL
+	}();
+	return Result;
+}
+
+[[nodiscard]] int ThumbIconSize(HWND window) {
+	if (DpiMetricsSupported()) {
+		if (const auto dpi = GetDpiForWindow(window)) {
+			return GetSystemMetricsForDpi(SM_CXSMICON, dpi);
+		}
+	}
+	return GetSystemMetrics(SM_CXSMICON);
+}
+
+[[nodiscard]] HICON CreateThumbIcon(
+		const style::icon &icon,
+		QColor color,
+		int size) {
+	auto source = icon.instance(color, 100, true);
+	const auto full = std::max(source.width(), source.height());
+	if (full > 0 && full != size) {
+		source = icon.instance(color, size * 100 / full, true);
+	}
 	auto scaled = (source.width() == size && source.height() == size)
 		? std::move(source)
 		: source.scaled(
@@ -73,10 +114,9 @@ void FillButton(
 
 TaskbarButtons::TaskbarButtons(not_null<ITaskbarList3*> taskbar, HWND window)
 : _taskbar(taskbar)
-, _window(window) {
+, _window(window)
+, _themeApplyTimer([=] { scheduleApply(); }) {
 	using namespace Media::Player;
-
-	refreshIcons();
 
 	const auto instance = Media::Player::instance();
 
@@ -106,9 +146,12 @@ TaskbarButtons::~TaskbarButtons() {
 }
 
 void TaskbarButtons::buttonsCreated() {
-	refreshIcons();
-	_created = false;
-	apply(currentState(), true);
+	_taskbarReady = true;
+	_added = false;
+	_applied = State();
+	if (currentState().active) {
+		scheduleApply();
+	}
 }
 
 void TaskbarButtons::buttonClicked(int id) {
@@ -122,7 +165,7 @@ void TaskbarButtons::buttonClicked(int id) {
 }
 
 void TaskbarButtons::refreshTheme() {
-	scheduleApply();
+	_themeApplyTimer.callOnce(kThemeApplyDelay);
 }
 
 void TaskbarButtons::scheduleApply() {
@@ -132,12 +175,18 @@ void TaskbarButtons::scheduleApply() {
 	_applyScheduled = true;
 	crl::on_main(this, [=] {
 		_applyScheduled = false;
-		const auto iconsChanged = refreshIcons();
-		if (!_created) {
+		if (!_taskbarReady) {
 			return;
 		}
 		const auto state = currentState();
-		if (iconsChanged || state != _applied) {
+		const auto wasActive = _added && _applied.active;
+		if (!state.active && !wasActive) {
+			return;
+		}
+		const auto iconsChanged = refreshIcons();
+		if (!_added) {
+			apply(state, true);
+		} else if (iconsChanged || state != _applied) {
 			apply(state, false);
 		}
 	});
@@ -161,18 +210,23 @@ TaskbarButtons::State TaskbarButtons::currentState() const {
 
 bool TaskbarButtons::refreshIcons() {
 	const auto dark = IsDarkTaskbar();
-	if (_iconsDark == dark && _previousIcon) {
+	const auto size = ThumbIconSize(_window);
+	if (_iconsDark == dark && _iconsSize == size && _previousIcon) {
 		return false;
 	}
 	destroyIcons();
 	_iconsDark = dark;
+	_iconsSize = size;
 	const auto color = dark.value_or(true)
 		? QColor(255, 255, 255)
 		: QColor(0, 0, 0);
-	_previousIcon = CreateThumbIcon(st::windowTaskbarThumbPrevious, color);
-	_playIcon = CreateThumbIcon(st::windowTaskbarThumbPlay, color);
-	_pauseIcon = CreateThumbIcon(st::windowTaskbarThumbPause, color);
-	_nextIcon = CreateThumbIcon(st::windowTaskbarThumbNext, color);
+	_previousIcon = CreateThumbIcon(
+		st::windowTaskbarThumbPrevious,
+		color,
+		size);
+	_playIcon = CreateThumbIcon(st::windowTaskbarThumbPlay, color, size);
+	_pauseIcon = CreateThumbIcon(st::windowTaskbarThumbPause, color, size);
+	_nextIcon = CreateThumbIcon(st::windowTaskbarThumbNext, color, size);
 	return true;
 }
 
@@ -187,7 +241,7 @@ void TaskbarButtons::destroyIcons() {
 }
 
 void TaskbarButtons::updateFromPlayer() {
-	if (!_created) {
+	if (!_taskbarReady) {
 		return;
 	}
 	scheduleApply();
@@ -237,7 +291,7 @@ void TaskbarButtons::apply(State state, bool create) {
 			UINT(kButtonsCount),
 			buttons.data());
 	if (create) {
-		_created = SUCCEEDED(result);
+		_added = SUCCEEDED(result);
 	}
 	_applied = state;
 }

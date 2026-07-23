@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/platform/win/base_windows_shlobj_h.h"
+#include "base/timer.h"
 
 namespace Platform {
 
@@ -49,11 +50,15 @@ private:
 	HICON _pauseIcon = nullptr;
 	HICON _nextIcon = nullptr;
 	std::optional<bool> _iconsDark;
+	int _iconsSize = 0;
 
 	State _applied;
-	bool _created = false;
+	bool _taskbarReady = false;
+	bool _added = false;
 	bool _applying = false;
 	bool _applyScheduled = false;
+
+	base::Timer _themeApplyTimer;
 
 	rpl::lifetime _lifetime;
 
