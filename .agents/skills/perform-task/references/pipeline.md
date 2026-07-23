@@ -333,8 +333,9 @@ reason to skip.
 
 Before publishing an approved result or genuine blocked boundary, require a
 clean Telegram checkout at `RUN_REF`, with `GREEN_REF` in its history when an
-implementation is retained, no overlay in source, no owned live test copy, and
-no overlay-bearing executable. For implementation-blocked work with no
+implementation is retained, no overlay in source, and no overlay-bearing
+executable. The marked live test copy stays in place per the test-loop folder
+rules. For implementation-blocked work with no
 retained commit, restore only proven owned paths to `BASE_REF`. For test-blocked
 work retain the latest implementation commit and state the exact unverified
 behavior.
