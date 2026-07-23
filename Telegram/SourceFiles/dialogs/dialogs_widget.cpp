@@ -2249,8 +2249,8 @@ void Widget::changeOpenedSubsection(
 	_showAnimation = nullptr;
 	destroyChildListCanvas();
 	change();
-	updateSuggestions(anim::type::instant);
 	refreshTopBars();
+	updateSuggestions(anim::type::instant);
 	updateControlsVisibility(true);
 	_peerSearch.clear();
 	_api.request(base::take(_topicSearchRequest)).cancel();
