@@ -66,6 +66,9 @@ jobs:
         run: |
           sudo apt update
           curl -sSL https://install.python-poetry.org | python3 -
+          curl -sSL https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.xz \
+          | sudo tar xJ -C /usr/local/bin --strip-components=1 ccache-4.13.6-linux-x86_64-glibc/ccache
+          echo "CCACHE_DIR=$RUNNER_TEMP/.tdesktop-cache" >> $GITHUB_ENV
           cd Telegram/build/docker/centos_env
           poetry install
           DOCKERFILE=$(DEBUG= LTO= poetry run gen_dockerfile)
@@ -118,7 +121,7 @@ jobs:
         if: env.ONLY_CACHE == 'false'
         uses: actions/cache/restore@v6
         with:
-          path: ${{ runner.temp }}/.tdesktop-cache
+          path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.OS }}-tdesktop-${{ matrix.defines || 'null' }}-${{ github.run_id }}
           restore-keys: ${{ runner.OS }}-tdesktop-${{ matrix.defines || 'null' }}-
 
@@ -134,18 +137,12 @@ jobs:
             echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
           fi
 
-          mkdir -p ${{ runner.temp }}/.tdesktop-cache
-
-          docker run --rm \
-          -u $(id -u) \
-          -v ${{ runner.temp }}/.tdesktop-cache:/var/cache/ccache \
-          $IMAGE_TAG \
           ccache -z
 
           docker run --rm \
           -u $(id -u) \
           -v $PWD:/usr/src/tdesktop \
-          -v ${{ runner.temp }}/.tdesktop-cache:/var/cache/ccache \
+          -v ${{ env.CCACHE_DIR }}:/var/cache/ccache \
           -e CONFIG=Debug \
           -e CCACHE_SLOPPINESS=pch_defines,time_macros \
           $IMAGE_TAG \
@@ -163,11 +160,7 @@ jobs:
         id: ccache-stats
         if: env.ONLY_CACHE == 'false'
         run: |
-          MISSES=$(docker run --rm \
-          -u $(id -u) \
-          -v ${{ runner.temp }}/.tdesktop-cache:/var/cache/ccache \
-          $IMAGE_TAG \
-          sh -c 'ccache --print-stats | sed -n "s/^cache_miss\t//p"' | head -1)
+          MISSES=$(ccache --print-stats | sed -n 's/^cache_miss\t//p' | head -1)
           case "$MISSES" in (*[!0-9]*|'') MISSES=0;; esac
           echo "misses=$MISSES" >> $GITHUB_OUTPUT
           echo "ccache misses this run: $MISSES"
@@ -177,12 +170,7 @@ jobs:
           env.ONLY_CACHE == 'false'
             && github.ref_name == github.event.repository.default_branch
             && fromJSON(steps.ccache-stats.outputs.misses) > 300
-        run: |
-          docker run --rm \
-          -u $(id -u) \
-          -v ${{ runner.temp }}/.tdesktop-cache:/var/cache/ccache \
-          $IMAGE_TAG \
-          ccache --evict-older-than 1d
+        run: ccache --evict-older-than 1d
 
       - name: Save Telegram Desktop cache.
         if: >
@@ -191,7 +179,7 @@ jobs:
             && fromJSON(steps.ccache-stats.outputs.misses) > 300
         uses: actions/cache/save@v6
         with:
-          path: ${{ runner.temp }}/.tdesktop-cache
+          path: ${{ env.CCACHE_DIR }}
           key: ${{ steps.cache-tdesktop.outputs.cache-primary-key }}
 
       - name: Check.
