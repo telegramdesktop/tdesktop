@@ -1,6 +1,6 @@
 ---
 name: process-inbox
-description: Process the local ignored ai-tdesktop inbox into durable, independently testable Telegram Desktop task records. Use when the user invokes $process-inbox or /process-inbox, asks to triage or process ai-tdesktop/inbox/inbox.md, or wants inbox notes and pasted images routed into new or existing AI projects and dated tasks without implementing them.
+description: Process the local ignored ai-tdesktop inbox into durable, independently testable Telegram Desktop task records while task execution worktrees remain active. Use when the user invokes $process-inbox or /process-inbox, asks to triage or process ai-tdesktop/inbox/inbox.md, or wants inbox notes and pasted images routed into new or existing AI projects and dated tasks without implementing them.
 ---
 
 # Process Inbox
@@ -14,7 +14,7 @@ Run from a Telegram Desktop checkout. Use the bundled helper with an available
 Python 3 interpreter:
 
 ```bash
-python3 .agents/skills/process-inbox/scripts/workspace.py ensure
+python3 .agents/skills/process-inbox/scripts/workspace.py inbox-ensure
 python3 .agents/skills/process-inbox/scripts/workspace.py prepare
 ```
 
@@ -24,21 +24,25 @@ Use `python` or `py -3` when that is the host's Python 3 command. The helper:
 - combines it with the checkout folder, for example `macbook-twork`;
 - locates the sibling `ai-tdesktop` and `ai-tdesktop-worktrees` directories,
   with `AI_TDESKTOP_ROOT` and `AI_TDESKTOP_WORKTREES_ROOT` as overrides;
-- ensures the local `slot/<checkout-tag>` linked worktree exists;
+- ensures the isolated `inbox/<checkout-tag>` linked worktree exists without
+  creating or inspecting the task execution worktree;
 - snapshots the ignored inbox before planning and prints JSON paths.
 
 `prepare` resumes the one active `.processing-*` snapshot when present. Save its
-`transaction`, `digest`, `ai_main`, `slot_worktree`, `slot_branch`, and
+`transaction`, `digest`, `ai_main`, `inbox_worktree`, `inbox_branch`, and
 `checkout_tag` values. Read raw input only from the transaction snapshot, not
 from the live inbox.
 
-If the inbox is empty, stop normally. If tracked AI worktrees are dirty, a slot
-has unpublished commits, or the machine tag is invalid, stop without changing
-or clearing the inbox.
+The task execution `slot_worktree` may be dirty or have unpublished task work.
+Ignore it completely while processing the inbox: do not read planning state
+from it, write to it, stage it, commit it, rebase it, or publish it.
 
-If `ai_main` has an `origin`, fetch it before a new transaction and
-fast-forward local `master` to `origin/master`. Never force-push shared AI
-history.
+For a new transaction, `prepare` requires clean `ai_main` and `inbox_worktree`
+state with no unpublished inbox commits. It fetches `origin` when configured,
+fast-forwards local `master`, and fast-forwards the inbox branch before taking
+the snapshot. If the inbox is empty, the machine tag is invalid, or either
+inbox publication worktree is unsafe, stop without changing or clearing the
+inbox. Never force-push shared AI history.
 
 ## Route and plan
 
@@ -46,8 +50,8 @@ Read these before planning:
 
 - source checkout `AGENTS.md`;
 - `ai_main/AGENTS.md`;
-- existing `projects/*/project.md`, including `projects/archive/`, and task
-  states relevant to the request;
+- existing `<inbox_worktree>/projects/*/project.md`, including
+  `projects/archive/`, and relevant task states from `<inbox_worktree>`;
 - the transaction's `inbox.md` and every file it references.
 
 Use one disposable leaf planner when the harness supports delegation; instruct
@@ -72,7 +76,7 @@ Project slugs are unique across `projects/` and `projects/archive/`. When a
 request belongs to an archived project, restore it before routing to it:
 
 ```bash
-python3 .agents/skills/process-inbox/scripts/workspace.py unarchive \
+python3 .agents/skills/process-inbox/scripts/workspace.py inbox-unarchive \
   --project <slug>
 ```
 
@@ -104,7 +108,8 @@ existing tasks.
 
 ## Write tracked artifacts
 
-Write only inside the checkout-specific `slot_worktree`.
+Write tracked planning artifacts only inside the checkout-specific
+`inbox_worktree`.
 
 For every task, create `task.md`:
 
@@ -178,21 +183,29 @@ Before committing, verify:
 - tracked text uses the checkout's native convention (LF on Unix/WSL, CRLF on
   native Windows) without a BOM or mixed line endings.
 
-Stage only explicit generated paths; never use `git add -A`. Commit on the slot
-branch with the one-line subject:
+Publish through the helper, passing every generated or restored task, project,
+and receipt path explicitly:
 
-```text
-Process inbox for <checkout-tag>
+```bash
+python3 .agents/skills/process-inbox/scripts/workspace.py inbox-publish \
+  --transaction <transaction-path> \
+  --receipt <receipts/YYYY/MM/DD/name.md> \
+  --path <tasks/YYYY/MM/DD/task-slug> \
+  --path <projects/project-slug> \
+  --path <receipts/YYYY/MM/DD/name.md>
 ```
 
-Immediately before publishing, fetch `origin` when configured and
-fast-forward `ai_main/master` when possible. Rebase the clean slot branch onto
-local `master`, then fast-forward `master` to the slot branch. Push `master`
-when an origin exists. Retry ordinary non-fast-forward races by fetching,
-rebasing, and publishing again until success. If a semantic rebase conflict,
-unsafe worktree, or remote outage occurs, do not clear the inbox; leave the
-active transaction and slot commit recoverable and report the exact state.
-Never force-push.
+Do not run broad staging commands yourself. The helper rejects changes outside
+the explicit paths, stages those paths, commits them on the inbox branch with
+`Process inbox for <checkout-tag>`, fetches and rebases onto current master,
+pushes `HEAD:master` when an origin exists, and fast-forwards local master.
+It can resume publication when the inbox commit already exists. Ordinary
+non-fast-forward races are retried. If a semantic rebase conflict, unsafe
+inbox worktree, or remote outage occurs, do not clear the inbox; leave the
+active transaction and inbox commit recoverable and report the exact state.
+Never cherry-pick or force-push, and never involve the dirty task slot.
+When a project was restored, pass both `projects/<slug>` and its removed
+`projects/archive/<slug>` path.
 
 After master contains the generated commit and any configured push succeeded,
 finalize using the receipt path relative to `ai_main`:
@@ -203,10 +216,11 @@ python3 .agents/skills/process-inbox/scripts/workspace.py finalize \
   --receipt <receipts/YYYY/MM/DD/name.md>
 ```
 
-The helper verifies the live inbox digest, preserves the raw snapshot under
-ignored `inbox/backup/`, and empties `inbox.md` only when the input remained
-unchanged. If the human edited the inbox during planning, it preserves those
-edits and reports `cleared: false`.
+The helper accepts only a receipt below `receipts/`, verifies that exact receipt
+and digest are present in local master `HEAD`, checks the live inbox digest,
+preserves the raw snapshot under ignored `inbox/backup/`, and empties
+`inbox.md` only when the input remained unchanged. If the human edited the
+inbox during planning, it preserves those edits and reports `cleared: false`.
 
 If planning fails before any tracked changes or commits exist, preserve the
 live inbox and close the snapshot with:
@@ -216,7 +230,7 @@ python3 .agents/skills/process-inbox/scripts/workspace.py abort \
   --transaction <transaction-path>
 ```
 
-Do not abort after a generated commit exists; retain the transaction so the
+Do not abort after a generated inbox commit exists; retain the transaction so
 publication can be resumed.
 
 ## Report

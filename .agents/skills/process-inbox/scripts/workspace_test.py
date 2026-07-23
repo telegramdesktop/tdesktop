@@ -3,6 +3,7 @@
 import contextlib
 import datetime
 import io
+import json
 from pathlib import Path
 import subprocess
 import tempfile
@@ -121,7 +122,398 @@ def git_repo(path):
 	git(path, "config", "user.email", "workflow@example.invalid")
 
 
+def inbox_worktrees(root):
+	main = root / "ai-main"
+	main.mkdir()
+	git(main, "init", "--initial-branch=master")
+	git(main, "config", "user.name", "Workflow Test")
+	git(main, "config", "user.email", "workflow@example.invalid")
+	(main / ".gitignore").write_text("inbox/\n", encoding="utf-8")
+	(main / "AGENTS.md").write_text("# AI tasks\n", encoding="utf-8")
+	active = main / "tasks" / "2026/07/18/active-task"
+	active.mkdir(parents=True)
+	(active / "task.md").write_text("# Active task\n", encoding="utf-8")
+	(active / "state.yaml").write_text(
+		"""status: todo
+created: 2026-07-18
+project: null
+depends_on: []
+claimed_by: null
+claimed_at: null
+claim_order: null
+lease_until: null
+phase: null
+inbox_receipt: receipts/2026/07/18/seed.md
+""",
+		encoding="utf-8",
+	)
+	git(main, "add", ".gitignore", "AGENTS.md", "tasks")
+	git(main, "commit", "-m", "Create AI workspace")
+	worktrees = root / "worktrees"
+	worktrees.mkdir()
+	slot = worktrees / "macbook-twork"
+	inbox_worktree = worktrees / "macbook-twork-inbox"
+	git(
+		main,
+		"worktree",
+		"add",
+		"-b",
+		"slot/macbook-twork",
+		str(slot),
+		"master",
+	)
+	git(
+		main,
+		"worktree",
+		"add",
+		"-b",
+		"inbox/macbook-twork",
+		str(inbox_worktree),
+		"master",
+	)
+	inbox = main / "inbox"
+	(inbox / "backup").mkdir(parents=True)
+	(inbox / "inbox.md").write_text("Plan a parallel-safe task.\n", encoding="utf-8")
+	return {
+		"source_root": str(root / "tdesktop"),
+		"machine_tag": "macbook",
+		"checkout_folder": "twork",
+		"checkout_tag": "macbook-twork",
+		"ai_main": str(main),
+		"worktrees_root": str(worktrees),
+		"slot_worktree": str(slot),
+		"slot_branch": "slot/macbook-twork",
+		"inbox_worktree": str(inbox_worktree),
+		"inbox_branch": "inbox/macbook-twork",
+		"inbox": str(inbox),
+	}
+
+
 class WorkspaceTest(unittest.TestCase):
+	def test_inbox_publication_paths_must_be_specific(self):
+		for value in (
+			"tasks",
+			"projects",
+			"projects/archive",
+			"receipts/2026/07",
+		):
+			with self.subTest(value=value):
+				with self.assertRaises(workspace.WorkspaceError):
+					workspace.normalized_publish_path(value)
+		self.assertEqual(
+			workspace.normalized_publish_path(
+				"tasks/2026/07/19/parallel-safe"
+			),
+			"tasks/2026/07/19/parallel-safe",
+		)
+		self.assertEqual(
+			workspace.normalized_publish_path(
+				"receipts/2026/07/19/parallel-safe.md"
+			),
+			"receipts/2026/07/19/parallel-safe.md",
+		)
+
+	def test_only_non_fast_forward_push_failures_are_retryable(self):
+		self.assertTrue(workspace.retryable_push_failure(
+			"! [rejected] HEAD -> master (fetch first)"
+		))
+		self.assertTrue(workspace.retryable_push_failure(
+			"! [rejected] HEAD -> master (non-fast-forward)"
+		))
+		self.assertFalse(workspace.retryable_push_failure(
+			"! [remote rejected] HEAD -> master (protected branch hook declined)"
+		))
+
+	def test_inbox_worktree_config_does_not_create_task_slot(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source = root / "twork"
+			source.mkdir()
+			git(source, "init", "--initial-branch=master")
+			build = source / "Telegram" / "build"
+			build.mkdir(parents=True)
+			(build / "ai-machine-tag").write_text("macbook\n", encoding="utf-8")
+			main = root / "ai-main"
+			main.mkdir()
+			git(main, "init", "--initial-branch=master")
+			git(main, "config", "user.name", "Workflow Test")
+			git(main, "config", "user.email", "workflow@example.invalid")
+			(main / "AGENTS.md").write_text("# AI tasks\n", encoding="utf-8")
+			git(main, "add", "AGENTS.md")
+			git(main, "commit", "-m", "Create AI workspace")
+			worktrees = root / "worktrees"
+			args = SimpleNamespace(
+				source_root=str(source),
+				ai_main=str(main),
+				worktrees_root=str(worktrees),
+			)
+
+			config = workspace.inbox_worktree_config(args, create=True)
+
+			self.assertTrue(Path(config["inbox_worktree"]).is_dir())
+			self.assertFalse((worktrees / "macbook-twork").exists())
+			self.assertNotIn("slot_worktree", config)
+
+	def test_inbox_lifecycle_ignores_dirty_task_slot(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			config = inbox_worktrees(root)
+			slot = Path(config["slot_worktree"])
+			inbox_worktree = Path(config["inbox_worktree"])
+			active = slot / "tasks" / "2026/07/18/active-task"
+			state = active / "state.yaml"
+			state.write_text(
+				state.read_text(encoding="utf-8").replace(
+					"status: todo",
+					"status: in-progress",
+				),
+				encoding="utf-8",
+			)
+			dirty = active / "work" / "live.txt"
+			dirty.parent.mkdir()
+			dirty.write_text("active implementation\n", encoding="utf-8")
+
+			prepared = io.StringIO()
+			with (
+				mock.patch.object(
+					workspace,
+					"inbox_worktree_config",
+					return_value=config,
+				),
+				contextlib.redirect_stdout(prepared),
+			):
+				workspace.command_prepare(SimpleNamespace())
+			prepared_result = json.loads(prepared.getvalue())
+			transaction = prepared_result["transaction"]
+
+			write_task(inbox_worktree, status="todo", claimed_by=None)
+			receipt = "receipts/2026/07/19/parallel-safe.md"
+			receipt_path = inbox_worktree / receipt
+			receipt_path.parent.mkdir(parents=True)
+			receipt_path.write_text(
+				f"# Inbox receipt\n\nInbox digest: {prepared_result['digest']}\n",
+				encoding="utf-8",
+			)
+			published = io.StringIO()
+			with (
+				mock.patch.object(
+					workspace,
+					"inbox_worktree_config",
+					return_value=config,
+				),
+				contextlib.redirect_stdout(published),
+			):
+				workspace.command_inbox_publish(SimpleNamespace(
+					transaction=transaction,
+					receipt=receipt,
+					paths=[
+						f"tasks/{TASK_ID}",
+						receipt,
+					],
+				))
+
+			result = json.loads(published.getvalue())
+			self.assertTrue(result["committed"])
+			self.assertTrue(result["published"])
+			self.assertTrue((Path(config["ai_main"]) / receipt).is_file())
+			self.assertTrue(dirty.is_file())
+			self.assertIn(
+				state.relative_to(slot).as_posix(),
+				workspace.changed_paths(slot),
+			)
+			self.assertIn(
+				dirty.relative_to(slot).as_posix(),
+				workspace.changed_paths(slot),
+			)
+
+			finalized = io.StringIO()
+			with contextlib.redirect_stdout(finalized):
+				workspace.command_finalize(SimpleNamespace(
+					transaction=transaction,
+					receipt=receipt,
+				))
+			final = json.loads(finalized.getvalue())
+			self.assertTrue(final["cleared"])
+			self.assertEqual(
+				(Path(config["inbox"]) / "inbox.md").read_text(encoding="utf-8"),
+				"",
+			)
+			self.assertTrue(Path(final["backup"]).is_dir())
+
+	def test_inbox_publish_handles_restored_project_deletion(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			config = inbox_worktrees(root)
+			main = Path(config["ai_main"])
+			archived = main / "projects" / "archive" / "legacy"
+			archived.mkdir(parents=True)
+			(archived / "project.md").write_text(
+				"# Legacy project\n",
+				encoding="utf-8",
+			)
+			(archived / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+			git(main, "add", "projects/archive/legacy")
+			git(main, "commit", "-m", "Archive legacy project")
+
+			prepared = io.StringIO()
+			with (
+				mock.patch.object(
+					workspace,
+					"inbox_worktree_config",
+					return_value=config,
+				),
+				contextlib.redirect_stdout(prepared),
+			):
+				workspace.command_prepare(SimpleNamespace())
+			result = json.loads(prepared.getvalue())
+			with (
+				mock.patch.object(
+					workspace,
+					"inbox_worktree_config",
+					return_value=config,
+				),
+				contextlib.redirect_stdout(io.StringIO()),
+			):
+				workspace.command_inbox_unarchive(
+					SimpleNamespace(project="legacy")
+				)
+
+			receipt = "receipts/2026/07/19/restored-project.md"
+			receipt_path = Path(config["inbox_worktree"]) / receipt
+			receipt_path.parent.mkdir(parents=True)
+			receipt_path.write_text(
+				f"# Inbox receipt\n\nInbox digest: {result['digest']}\n",
+				encoding="utf-8",
+			)
+			with (
+				mock.patch.object(
+					workspace,
+					"inbox_worktree_config",
+					return_value=config,
+				),
+				contextlib.redirect_stdout(io.StringIO()),
+			):
+				workspace.command_inbox_publish(SimpleNamespace(
+					transaction=result["transaction"],
+					receipt=receipt,
+					paths=[
+						"projects/legacy",
+						"projects/archive/legacy",
+						receipt,
+					],
+				))
+
+			self.assertTrue((main / "projects" / "legacy").is_dir())
+			self.assertFalse((main / "projects" / "archive" / "legacy").exists())
+
+	def test_finalize_rejects_receipt_outside_master(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			config = inbox_worktrees(root)
+			prepared = io.StringIO()
+			with (
+				mock.patch.object(
+					workspace,
+					"inbox_worktree_config",
+					return_value=config,
+				),
+				contextlib.redirect_stdout(prepared),
+			):
+				workspace.command_prepare(SimpleNamespace())
+			result = json.loads(prepared.getvalue())
+			(root / "outside.md").write_text(
+				f"Inbox digest: {result['digest']}\n",
+				encoding="utf-8",
+			)
+
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.command_finalize(SimpleNamespace(
+					transaction=result["transaction"],
+					receipt="../outside.md",
+				))
+
+			self.assertTrue(Path(result["transaction"]).is_dir())
+			self.assertTrue(
+				(Path(config["inbox"]) / "inbox.md")
+				.read_text(encoding="utf-8")
+				.strip()
+			)
+
+	def test_finalize_requires_receipt_from_master_head(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			config = inbox_worktrees(root)
+			prepared = io.StringIO()
+			with (
+				mock.patch.object(
+					workspace,
+					"inbox_worktree_config",
+					return_value=config,
+				),
+				contextlib.redirect_stdout(prepared),
+			):
+				workspace.command_prepare(SimpleNamespace())
+			result = json.loads(prepared.getvalue())
+			receipt = "receipts/2026/07/19/untracked.md"
+			receipt_path = Path(config["ai_main"]) / receipt
+			receipt_path.parent.mkdir(parents=True)
+			receipt_path.write_text(
+				f"Inbox digest: {result['digest']}\n",
+				encoding="utf-8",
+			)
+
+			with self.assertRaisesRegex(
+				workspace.WorkspaceError,
+				"master HEAD",
+			):
+				workspace.command_finalize(SimpleNamespace(
+					transaction=result["transaction"],
+					receipt=receipt,
+				))
+
+			self.assertTrue(Path(result["transaction"]).is_dir())
+			self.assertTrue(
+				(Path(config["inbox"]) / "inbox.md")
+				.read_text(encoding="utf-8")
+				.strip()
+			)
+
+	def test_prepare_rejects_another_checkouts_transaction(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			main = root / "ai-main"
+			inbox = main / "inbox"
+			transaction = inbox / "backup" / ".processing-existing"
+			transaction.mkdir(parents=True)
+			(inbox / "inbox.md").write_text("New note\n", encoding="utf-8")
+			(transaction / "transaction.json").write_text(
+				json.dumps({
+					"checkout_tag": "other-checkout",
+					"ai_main": str(main),
+					"inbox": str(inbox),
+					"digest": "digest",
+				}),
+				encoding="utf-8",
+			)
+			config = {
+				"checkout_tag": "macbook-twork",
+				"ai_main": str(main),
+				"inbox": str(inbox),
+			}
+
+			with (
+				mock.patch.object(
+					workspace,
+					"inbox_worktree_config",
+					return_value=config,
+				),
+				self.assertRaisesRegex(
+					workspace.WorkspaceError,
+					"other-checkout",
+				),
+			):
+				workspace.command_prepare(SimpleNamespace())
+
 	def test_resolve_prefers_blocked_over_approved_history(self):
 		blocked = task_state("blocked")
 		approved = {

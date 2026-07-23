@@ -5,7 +5,7 @@ import datetime
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shutil
 import subprocess
@@ -89,7 +89,7 @@ def read_machine_tag(root):
 	return value
 
 
-def worktree_config(args, create=False):
+def repository_config(args, create=False):
 	root = source_root(args.source_root)
 	machine = read_machine_tag(root)
 	checkout = root.name
@@ -125,38 +125,11 @@ def worktree_config(args, create=False):
 		)
 
 	tag = f"{machine}-{checkout}"
-	branch = f"slot/{tag}"
-	slot = worktrees / tag
 	if create:
 		inbox = main / "inbox"
 		(inbox / "backup").mkdir(parents=True, exist_ok=True)
 		(inbox / "inbox.md").touch(exist_ok=True)
 		worktrees.mkdir(parents=True, exist_ok=True)
-		if not slot.exists():
-			branch_exists = run_git(
-				main,
-				"show-ref",
-				"--verify",
-				"--quiet",
-				f"refs/heads/{branch}",
-				check=False,
-			).returncode == 0
-			arguments = ["worktree", "add"]
-			if not branch_exists:
-				arguments.extend(["-b", branch])
-			arguments.extend([str(slot), branch if branch_exists else "master"])
-			run_git(main, *arguments)
-
-	if not slot.is_dir():
-		raise WorkspaceError(f"Missing checkout AI worktree: {slot}")
-	if absolute_git_dir(main) != absolute_git_dir(slot):
-		raise WorkspaceError(f"The slot does not belong to {main}: {slot}")
-	slot_branch = run_git(slot, "branch", "--show-current").stdout.strip()
-	if slot_branch != branch:
-		raise WorkspaceError(
-			f"Expected {slot} on {branch}, found {slot_branch!r}."
-		)
-
 	return {
 		"source_root": str(root),
 		"machine_tag": machine,
@@ -164,9 +137,62 @@ def worktree_config(args, create=False):
 		"checkout_tag": tag,
 		"ai_main": str(main),
 		"worktrees_root": str(worktrees),
+		"inbox": str(main / "inbox"),
+	}
+
+
+def linked_worktree(config, path, branch, create, label):
+	main = Path(config["ai_main"])
+	if create and not path.exists():
+		branch_exists = run_git(
+			main,
+			"show-ref",
+			"--verify",
+			"--quiet",
+			f"refs/heads/{branch}",
+			check=False,
+		).returncode == 0
+		arguments = ["worktree", "add"]
+		if not branch_exists:
+			arguments.extend(["-b", branch])
+		arguments.extend([str(path), branch if branch_exists else "master"])
+		run_git(main, *arguments)
+	if not path.is_dir():
+		raise WorkspaceError(f"Missing {label}: {path}")
+	if absolute_git_dir(main) != absolute_git_dir(path):
+		raise WorkspaceError(
+			f"The {label} does not belong to {main}: {path}"
+		)
+	actual_branch = run_git(path, "branch", "--show-current").stdout.strip()
+	if actual_branch != branch:
+		raise WorkspaceError(
+			f"Expected {path} on {branch}, found {actual_branch!r}."
+		)
+
+
+def worktree_config(args, create=False):
+	config = repository_config(args, create=create)
+	tag = config["checkout_tag"]
+	branch = f"slot/{tag}"
+	slot = Path(config["worktrees_root"]) / tag
+	linked_worktree(config, slot, branch, create, "checkout AI worktree")
+	return {
+		**config,
 		"slot_worktree": str(slot),
 		"slot_branch": branch,
-		"inbox": str(main / "inbox"),
+	}
+
+
+def inbox_worktree_config(args, create=False):
+	config = repository_config(args, create=create)
+	tag = config["checkout_tag"]
+	branch = f"inbox/{tag}"
+	worktree = Path(config["worktrees_root"]) / f"{tag}-inbox"
+	linked_worktree(config, worktree, branch, create, "inbox AI worktree")
+	return {
+		**config,
+		"inbox_worktree": str(worktree),
+		"inbox_branch": branch,
 	}
 
 
@@ -177,24 +203,43 @@ def ensure_clean(path, label):
 
 
 def sync_local_slot(config):
+	sync_branch_worktree(
+		config,
+		"slot_worktree",
+		"slot_branch",
+		"ai-tdesktop slot",
+	)
+
+
+def sync_inbox_worktree(config):
+	sync_branch_worktree(
+		config,
+		"inbox_worktree",
+		"inbox_branch",
+		"ai-tdesktop inbox worktree",
+	)
+
+
+def sync_branch_worktree(config, worktree_key, branch_key, label):
 	main = Path(config["ai_main"])
-	slot = Path(config["slot_worktree"])
+	worktree = Path(config[worktree_key])
+	branch = config[branch_key]
 	ensure_clean(main, "ai-tdesktop master")
-	ensure_clean(slot, "ai-tdesktop slot")
+	ensure_clean(worktree, label)
 	counts = run_git(
-		slot,
+		worktree,
 		"rev-list",
 		"--left-right",
 		"--count",
-		f"master...{config['slot_branch']}",
+		f"master...{branch}",
 	).stdout.strip().split()
-	master_only, slot_only = (int(value) for value in counts)
-	if slot_only:
+	master_only, worktree_only = (int(value) for value in counts)
+	if worktree_only:
 		raise WorkspaceError(
-			f"{config['slot_branch']} has {slot_only} unpublished commit(s)."
+			f"{branch} has {worktree_only} unpublished commit(s)."
 		)
 	if master_only:
-		run_git(slot, "merge", "--ff-only", "master")
+		run_git(worktree, "merge", "--ff-only", "master")
 
 
 def has_origin(path):
@@ -210,6 +255,11 @@ def origin_master_exists(path):
 		"refs/remotes/origin/master",
 		check=False,
 	).returncode == 0
+
+
+def retryable_push_failure(message):
+	lowered = message.lower()
+	return "non-fast-forward" in lowered or "fetch first" in lowered
 
 
 def sync_canonical(config):
@@ -448,33 +498,68 @@ def update_main_from_origin(config):
 		run_git(main, "merge", "--ff-only", "origin/master")
 
 
-def publish_slot(config):
+def sync_inbox_canonical(config):
+	update_main_from_origin(config)
+	sync_inbox_worktree(config)
+
+
+def publish_worktree(config, worktree_key, branch_key, label):
 	main = Path(config["ai_main"])
-	slot = Path(config["slot_worktree"])
+	worktree = Path(config[worktree_key])
+	branch = config[branch_key]
 	ensure_clean(main, "ai-tdesktop master")
-	ensure_clean(slot, "ai-tdesktop slot")
+	ensure_clean(worktree, label)
 	while True:
 		update_main_from_origin(config)
-		rebase = run_git(slot, "rebase", "master", check=False)
+		rebase = run_git(worktree, "rebase", "master", check=False)
 		if rebase.returncode:
-			run_git(slot, "rebase", "--abort", check=False)
+			run_git(worktree, "rebase", "--abort", check=False)
 			raise WorkspaceError(
-				"AI state conflicts with newer master; the slot commits were preserved. "
+				"AI state conflicts with newer master; the worktree commits were preserved. "
 				+ (rebase.stderr.strip() or rebase.stdout.strip())
 			)
 		if has_origin(main):
-			push = run_git(slot, "push", "origin", "HEAD:master", check=False)
+			push = run_git(worktree, "push", "origin", "HEAD:master", check=False)
 			if push.returncode:
 				message = push.stderr.strip() or push.stdout.strip()
-				if "rejected" in message or "fetch first" in message:
+				if retryable_push_failure(message):
 					continue
 				raise WorkspaceError(message)
-		merge = run_git(main, "merge", "--ff-only", config["slot_branch"], check=False)
+		merge = run_git(main, "merge", "--ff-only", branch, check=False)
 		if not merge.returncode:
 			return True
-		if has_origin(main):
-			update_main_from_origin(config)
+		master_advanced = run_git(
+			main,
+			"merge-base",
+			"--is-ancestor",
+			"master",
+			branch,
+			check=False,
+		).returncode != 0
+		if master_advanced:
 			continue
+		raise WorkspaceError(
+			"Could not fast-forward local AI master: "
+			+ (merge.stderr.strip() or merge.stdout.strip())
+		)
+
+
+def publish_slot(config):
+	return publish_worktree(
+		config,
+		"slot_worktree",
+		"slot_branch",
+		"ai-tdesktop slot",
+	)
+
+
+def publish_inbox(config):
+	return publish_worktree(
+		config,
+		"inbox_worktree",
+		"inbox_branch",
+		"ai-tdesktop inbox worktree",
+	)
 
 
 def commit_paths(config, paths, subject):
@@ -996,6 +1081,125 @@ def command_publish(args):
 	print(json.dumps({"published": bool(published)}, indent=2, sort_keys=True))
 
 
+def normalized_publish_path(value):
+	path = PurePosixPath(value.replace("\\", "/"))
+	minimum_parts = {
+		"tasks": 5,
+		"projects": 2,
+		"receipts": 5,
+	}
+	if (
+		path.is_absolute()
+		or not path.parts
+		or ".." in path.parts
+		or path.parts[0] not in minimum_parts
+		or len(path.parts) < minimum_parts.get(path.parts[0], 0)
+		or (
+			path.parts[0] == "projects"
+			and len(path.parts) == 2
+			and path.parts[1] == PROJECT_ARCHIVE_DIR
+		)
+	):
+		raise WorkspaceError(f"Invalid inbox publication path: {value!r}")
+	return path.as_posix()
+
+
+def path_is_covered(path, roots):
+	return any(path == root or path.startswith(root + "/") for root in roots)
+
+
+def validate_receipt_text(text, metadata, label):
+	if metadata["digest"] not in text:
+		raise WorkspaceError(
+			f"{label} does not contain the inbox digest: {metadata['digest']}"
+		)
+
+
+def command_inbox_publish(args):
+	config = inbox_worktree_config(args, create=True)
+	_, metadata = load_transaction(args.transaction)
+	if metadata["checkout_tag"] != config["checkout_tag"]:
+		raise WorkspaceError("The inbox transaction belongs to another checkout")
+	if Path(metadata["ai_main"]).resolve() != Path(config["ai_main"]).resolve():
+		raise WorkspaceError(
+			"The inbox transaction belongs to another ai-tdesktop repository"
+		)
+	worktree = Path(config["inbox_worktree"])
+	receipt = normalized_publish_path(args.receipt)
+	if not receipt.startswith("receipts/"):
+		raise WorkspaceError("The tracked receipt must be below receipts/")
+	if not (worktree / receipt).is_file():
+		raise WorkspaceError(
+			f"Tracked receipt is missing from the inbox worktree: {receipt}"
+		)
+	validate_receipt_text(
+		(worktree / receipt).read_text(encoding="utf-8-sig"),
+		metadata,
+		"Tracked receipt",
+	)
+	paths = sorted({normalized_publish_path(value) for value in args.paths})
+	if not path_is_covered(receipt, paths):
+		raise WorkspaceError(
+			"The tracked receipt is not covered by an explicit publication path"
+		)
+	changes = changed_paths(worktree)
+	unexpected = [path for path in changes if not path_is_covered(path, paths)]
+	if unexpected:
+		raise WorkspaceError(
+			"Inbox worktree changes are outside the explicit publication paths: "
+			+ ", ".join(unexpected)
+		)
+	unstaged_before = set(
+		run_git(worktree, "diff", "--name-only").stdout.splitlines()
+	)
+	unstaged_before.update(run_git(
+		worktree,
+		"ls-files",
+		"--others",
+		"--exclude-standard",
+	).stdout.splitlines())
+	for path in paths:
+		if (
+			(worktree / path).exists()
+			or any(path_is_covered(change, [path]) for change in unstaged_before)
+		):
+			run_git(worktree, "add", "-A", "--", path)
+	unstaged = run_git(worktree, "diff", "--name-only").stdout.splitlines()
+	untracked = run_git(
+		worktree,
+		"ls-files",
+		"--others",
+		"--exclude-standard",
+	).stdout.splitlines()
+	if unstaged or untracked:
+		raise WorkspaceError(
+			"Inbox worktree changes remain unstaged: "
+			+ ", ".join(sorted(set(unstaged + untracked)))
+		)
+	committed = run_git(
+		worktree,
+		"diff",
+		"--cached",
+		"--quiet",
+		check=False,
+	).returncode != 0
+	if committed:
+		run_git(
+			worktree,
+			"commit",
+			"-m",
+			f"Process inbox for {config['checkout_tag']}",
+		)
+	published = publish_inbox(config)
+	print(json.dumps({
+		"committed": committed,
+		"inbox_branch": config["inbox_branch"],
+		"inbox_worktree": config["inbox_worktree"],
+		"published": bool(published),
+		"receipt": receipt,
+	}, indent=2, sort_keys=True))
+
+
 def rewrite_project_links(directory, pattern, replacement):
 	for path in sorted(directory.rglob("*.md")):
 		data = path.read_bytes()
@@ -1069,27 +1273,25 @@ def command_archive_stale(args):
 	}, indent=2, sort_keys=True))
 
 
-def command_unarchive(args):
-	slug = args.project
+def unarchive_project(config, worktree_key, slug):
 	if slug == PROJECT_ARCHIVE_DIR or not TAG_PATTERN.fullmatch(slug):
 		raise WorkspaceError(f"Invalid project slug: {slug!r}")
-	config = worktree_config(args, create=True)
-	slot = Path(config["slot_worktree"])
-	archived = slot / "projects" / PROJECT_ARCHIVE_DIR / slug
-	target = slot / "projects" / slug
+	worktree = Path(config[worktree_key])
+	archived = worktree / "projects" / PROJECT_ARCHIVE_DIR / slug
+	target = worktree / "projects" / slug
 	if not archived.is_dir():
 		raise WorkspaceError(f"No archived project: {slug}")
 	if target.exists():
 		raise WorkspaceError(f"The project is already live: {slug}")
 	run_git(
-		slot,
+		worktree,
 		"mv",
 		f"projects/{PROJECT_ARCHIVE_DIR}/{slug}",
 		f"projects/{slug}",
 	)
 	rewrite_project_links(target, ARCHIVED_PROJECT_LINK_PATTERN, "](../../")
-	run_git(slot, "add", "--", f"projects/{slug}")
-	archive_root = slot / "projects" / PROJECT_ARCHIVE_DIR
+	run_git(worktree, "add", "--", f"projects/{slug}")
+	archive_root = worktree / "projects" / PROJECT_ARCHIVE_DIR
 	if archive_root.is_dir() and not any(archive_root.iterdir()):
 		archive_root.rmdir()
 	print(json.dumps({
@@ -1097,6 +1299,16 @@ def command_unarchive(args):
 		"published": False,
 		"unarchived": True,
 	}, indent=2, sort_keys=True))
+
+
+def command_unarchive(args):
+	config = worktree_config(args, create=True)
+	unarchive_project(config, "slot_worktree", args.project)
+
+
+def command_inbox_unarchive(args):
+	config = inbox_worktree_config(args, create=True)
+	unarchive_project(config, "inbox_worktree", args.project)
 
 
 def payload_entries(inbox):
@@ -1161,8 +1373,13 @@ def command_ensure(args):
 	print(json.dumps(config, indent=2, sort_keys=True))
 
 
+def command_inbox_ensure(args):
+	config = inbox_worktree_config(args, create=True)
+	print(json.dumps(config, indent=2, sort_keys=True))
+
+
 def command_prepare(args):
-	config = worktree_config(args, create=True)
+	config = inbox_worktree_config(args, create=True)
 	inbox = Path(config["inbox"])
 	inbox_file = inbox / "inbox.md"
 	backup = inbox / "backup"
@@ -1174,6 +1391,15 @@ def command_prepare(args):
 				+ ", ".join(str(path) for path in active)
 			)
 		transaction, metadata = load_transaction(active[0])
+		if metadata["checkout_tag"] != config["checkout_tag"]:
+			raise WorkspaceError(
+				"Active inbox transaction belongs to "
+				f"{metadata['checkout_tag']}, not {config['checkout_tag']}"
+			)
+		if Path(metadata["ai_main"]).resolve() != Path(config["ai_main"]).resolve():
+			raise WorkspaceError(
+				"Active inbox transaction belongs to another ai-tdesktop repository"
+			)
 		current_digest = payload_digest(inbox)
 		print(json.dumps({
 			**config,
@@ -1185,7 +1411,7 @@ def command_prepare(args):
 		return
 	if not inbox_file.read_text(encoding="utf-8").strip():
 		raise WorkspaceError(f"Inbox is empty: {inbox_file}")
-	sync_local_slot(config)
+	sync_inbox_canonical(config)
 
 	stamp = datetime.datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
 	name = unique_backup_name(backup, f"{stamp}-inbox")
@@ -1249,9 +1475,22 @@ def command_finalize(args):
 	transaction, metadata = load_transaction(args.transaction)
 	inbox = Path(metadata["inbox"])
 	main = Path(metadata["ai_main"])
-	receipt = main / args.receipt
-	if not receipt.is_file():
-		raise WorkspaceError(f"Tracked receipt is missing from master: {receipt}")
+	receipt_value = normalized_publish_path(args.receipt)
+	if not receipt_value.startswith("receipts/"):
+		raise WorkspaceError("The tracked receipt must be below receipts/")
+	if git_root(main) != main:
+		raise WorkspaceError(f"ai-tdesktop is not a worktree root: {main}")
+	main_branch = run_git(main, "branch", "--show-current").stdout.strip()
+	if main_branch != "master":
+		raise WorkspaceError(
+			f"The main ai-tdesktop worktree must be on master, not {main_branch!r}."
+		)
+	tracked = run_git(main, "show", f"HEAD:{receipt_value}", check=False)
+	if tracked.returncode:
+		raise WorkspaceError(
+			f"Tracked receipt is missing from master HEAD: {main / receipt_value}"
+		)
+	validate_receipt_text(tracked.stdout, metadata, "Tracked receipt on master")
 	current_digest = payload_digest(inbox)
 	unchanged = current_digest == metadata["digest"]
 	backup = inbox / "backup"
@@ -1266,7 +1505,7 @@ def command_finalize(args):
 	write_local_receipt(
 		final,
 		metadata,
-		args.receipt,
+		receipt_value,
 		"inbox-cleared" if unchanged else "inbox-changed-and-left-intact",
 	)
 	print(json.dumps({
@@ -1299,6 +1538,10 @@ def parse_args():
 	ensure = subparsers.add_parser("ensure")
 	add_common_arguments(ensure)
 	ensure.set_defaults(handler=command_ensure)
+
+	inbox_ensure = subparsers.add_parser("inbox-ensure")
+	add_common_arguments(inbox_ensure)
+	inbox_ensure.set_defaults(handler=command_inbox_ensure)
 
 	prepare = subparsers.add_parser("prepare")
 	add_common_arguments(prepare)
@@ -1358,6 +1601,18 @@ def parse_args():
 	add_common_arguments(publish)
 	publish.set_defaults(handler=command_publish)
 
+	inbox_publish = subparsers.add_parser("inbox-publish")
+	add_common_arguments(inbox_publish)
+	inbox_publish.add_argument("--transaction", required=True)
+	inbox_publish.add_argument("--receipt", required=True)
+	inbox_publish.add_argument(
+		"--path",
+		action="append",
+		dest="paths",
+		required=True,
+	)
+	inbox_publish.set_defaults(handler=command_inbox_publish)
+
 	archive_stale = subparsers.add_parser("archive-stale")
 	add_common_arguments(archive_stale)
 	archive_stale.add_argument("--days", type=int, default=90)
@@ -1367,6 +1622,11 @@ def parse_args():
 	add_common_arguments(unarchive)
 	unarchive.add_argument("--project", required=True)
 	unarchive.set_defaults(handler=command_unarchive)
+
+	inbox_unarchive = subparsers.add_parser("inbox-unarchive")
+	add_common_arguments(inbox_unarchive)
+	inbox_unarchive.add_argument("--project", required=True)
+	inbox_unarchive.set_defaults(handler=command_inbox_unarchive)
 
 	return parser.parse_args()
 
