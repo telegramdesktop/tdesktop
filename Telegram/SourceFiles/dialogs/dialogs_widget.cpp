@@ -2691,7 +2691,11 @@ void Widget::scrollToDefault(bool verytop) {
 			this,
 			QPoint(),
 			QRect(0, top, wideGeometry.width(), skip));
-		if (_chatFilters && !_chatFilters->isHidden()) {
+		if (_chatFilters
+			&& _searchState.query.isEmpty()
+			&& !_openedForum
+			&& !_searchState.community
+			&& !searchInPeer()) {
 			Ui::RenderWidget(
 				p,
 				_chatFilters,
