@@ -377,9 +377,9 @@ void QrWidget::setupPasskeyLink() {
 	}, _passkey->lifetime());
 
 	_passkey->setClickedCallback([=] {
-		const auto initialDc = api().instance().mainDcId();
 		const auto attempt = [=](
 				const ::Data::Passkey::LoginData &loginData) {
+			const auto initialDc = _passkeyLoginDc;
 			Platform::WebAuthn::Login(loginData, [=](
 					Platform::WebAuthn::LoginResult result) {
 				if (result.userHandle.isEmpty()) {
@@ -411,10 +411,12 @@ void QrWidget::setupPasskeyLink() {
 			attempt(*_passkeyLoginData);
 		} else {
 			_passkeyLoginData = std::nullopt;
+			const auto initedDc = api().instance().mainDcId();
 			::Data::InitPasskeyLogin(api(), [=](
 				const ::Data::Passkey::LoginData &loginData) {
 				_passkeyLoginData = loginData;
 				_passkeyLoginTime = crl::now();
+				_passkeyLoginDc = initedDc;
 				attempt(loginData);
 			});
 		}

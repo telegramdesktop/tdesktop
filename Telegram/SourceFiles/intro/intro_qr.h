@@ -62,6 +62,7 @@ private:
 	bool _forceRefresh = false;
 	std::optional<::Data::Passkey::LoginData> _passkeyLoginData;
 	crl::time _passkeyLoginTime = 0;
+	int _passkeyLoginDc = 0;
 
 };
 
