@@ -548,7 +548,7 @@ Main::Session &ChooseChatController::session() const {
 }
 
 void ChooseChatController::prepare() {
-	delegate()->peerListSetTitle(tr::lng_community_add_chat());
+	delegate()->peerListSetTitle(tr::lng_community_add_chat_title());
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	auto candidates = std::vector<not_null<ChannelData*>>();
 	_session->data().enumerateGroups([&](not_null<PeerData*> peer) {
