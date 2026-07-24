@@ -22,6 +22,7 @@ namespace {
 	append(CryptoChecks());
 	append(KeyChecks());
 	append(MnemonicChecks());
+	append(TonChecks());
 	return result;
 }
 

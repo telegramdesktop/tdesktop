@@ -22,6 +22,14 @@ PRIVATE
     gram/crypto/gram_wordlist.cpp
     gram/crypto/gram_wordlist.h
     gram/gram_pch.h
+    gram/ton/gram_address.cpp
+    gram/ton/gram_address.h
+    gram/ton/gram_boc.cpp
+    gram/ton/gram_boc.h
+    gram/ton/gram_cell.cpp
+    gram/ton/gram_cell.h
+    gram/ton/gram_crc.cpp
+    gram/ton/gram_crc.h
 )
 
 target_include_directories(td_gram
@@ -44,6 +52,7 @@ PRIVATE
     gram/tests/gram_mnemonic_tests.cpp
     gram/tests/gram_tests.h
     gram/tests/gram_tests_main.cpp
+    gram/tests/gram_ton_tests.cpp
 )
 
 target_include_directories(td_gram_test
