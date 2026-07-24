@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "data/components/passkeys.h"
+#include "data/data_passkey_deserialize.h"
 #include "intro/intro_phone.h"
 #include "intro/intro_widget.h"
 #include "intro/intro_password_check.h"
@@ -377,8 +378,8 @@ void QrWidget::setupPasskeyLink() {
 
 	_passkey->setClickedCallback([=] {
 		const auto initialDc = api().instance().mainDcId();
-		::Data::InitPasskeyLogin(api(), [=](
-			const ::Data::Passkey::LoginData &loginData) {
+		const auto attempt = [=](
+				const ::Data::Passkey::LoginData &loginData) {
 			Platform::WebAuthn::Login(loginData, [=](
 					Platform::WebAuthn::LoginResult result) {
 				if (result.userHandle.isEmpty()) {
@@ -395,6 +396,7 @@ void QrWidget::setupPasskeyLink() {
 					result,
 					[=](const MTPauth_Authorization &auth) { done(auth); },
 					[=](QString error) {
+						_passkeyLoginData = std::nullopt;
 						if (error == u"SESSION_PASSWORD_NEEDED"_q) {
 							sendCheckPasswordRequest();
 						} else {
@@ -402,7 +404,20 @@ void QrWidget::setupPasskeyLink() {
 						}
 					});
 			});
-		});
+		};
+		if (_passkeyLoginData
+			&& (crl::now() - _passkeyLoginTime
+				< crl::time(_passkeyLoginData->timeout))) {
+			attempt(*_passkeyLoginData);
+		} else {
+			_passkeyLoginData = std::nullopt;
+			::Data::InitPasskeyLogin(api(), [=](
+				const ::Data::Passkey::LoginData &loginData) {
+				_passkeyLoginData = loginData;
+				_passkeyLoginTime = crl::now();
+				attempt(loginData);
+			});
+		}
 	});
 }
 

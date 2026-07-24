@@ -38,11 +38,21 @@ Passkeys::~Passkeys() = default;
 
 void Passkeys::initRegistration(
 		Fn<void(const Data::Passkey::RegisterData&)> done) {
+	if (_pendingRegistration
+		&& (crl::now() - _pendingRegistrationTime
+			< crl::time(_pendingRegistration->timeout))) {
+		done(*_pendingRegistration);
+		return;
+	}
+	_pendingRegistration = nullptr;
 	_session->api().request(MTPaccount_InitPasskeyRegistration(
 	)).done([=](const MTPaccount_PasskeyRegistrationOptions &result) {
 		const auto &data = result.data();
 		const auto jsonData = data.voptions().data().vdata().v;
 		if (const auto p = Data::Passkey::DeserializeRegisterData(jsonData)) {
+			_pendingRegistration
+				= std::make_unique<Data::Passkey::RegisterData>(*p);
+			_pendingRegistrationTime = crl::now();
 			done(*p);
 		}
 	}).send();
@@ -61,9 +71,12 @@ void Passkeys::registerPasskey(
 				MTP_dataJSON(MTP_bytes(result.clientDataJSON)),
 				MTP_bytes(result.attestationObject)))
 	)).done([=](const MTPPasskey &result) {
+		_pendingRegistration = nullptr;
 		_passkeys.emplace_back(FromTL(result.data()));
 		_listUpdated.fire({});
 		done();
+	}).fail([=](const MTP::Error &) {
+		_pendingRegistration = nullptr;
 	}).send();
 }
 

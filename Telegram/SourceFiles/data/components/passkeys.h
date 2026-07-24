@@ -58,6 +58,8 @@ private:
 
 	const not_null<Main::Session*> _session;
 	std::vector<PasskeyEntry> _passkeys;
+	std::unique_ptr<Data::Passkey::RegisterData> _pendingRegistration;
+	crl::time _pendingRegistrationTime = 0;
 	rpl::event_stream<> _listUpdated;
 	crl::time _lastRequestTime = 0;
 	mtpRequestId _listRequestId = 0;
