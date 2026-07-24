@@ -1,0 +1,53 @@
+# This file is part of Telegram Desktop,
+# the official desktop application for the Telegram messaging service.
+#
+# For license and copyright information please follow this link:
+# https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+
+add_library(td_gram OBJECT)
+init_non_host_target(td_gram)
+add_library(tdesktop::td_gram ALIAS td_gram)
+
+target_precompile_headers(td_gram PRIVATE ${src_loc}/gram/gram_pch.h)
+nice_target_sources(td_gram ${src_loc}
+PRIVATE
+    gram/crypto/gram_hmac.cpp
+    gram/crypto/gram_hmac.h
+    gram/gram_pch.h
+)
+
+target_include_directories(td_gram
+PUBLIC
+    ${src_loc}
+)
+
+target_link_libraries(td_gram
+PUBLIC
+    desktop-app::lib_base
+)
+
+add_executable(td_gram_test)
+init_non_host_target(td_gram_test "(gram)")
+
+nice_target_sources(td_gram_test ${src_loc}
+PRIVATE
+    gram/tests/gram_crypto_tests.cpp
+    gram/tests/gram_tests.h
+    gram/tests/gram_tests_main.cpp
+)
+
+target_include_directories(td_gram_test
+PRIVATE
+    ${src_loc}
+)
+
+target_link_libraries(td_gram_test
+PRIVATE
+    tdesktop::td_gram
+    desktop-app::lib_base
+)
+
+set_target_properties(td_gram_test PROPERTIES
+    EXCLUDE_FROM_ALL TRUE
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
