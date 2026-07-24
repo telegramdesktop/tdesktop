@@ -73,18 +73,14 @@ void PerformQuickDialogAction(
 		FilterId filterId) {
 	const auto history = peer->owner().history(peer);
 	if (action == Dialogs::Ui::QuickDialogAction::Mute) {
-		const auto isMuted = rpl::variable<bool>(
-			MuteMenu::ThreadDescriptor(history).isMutedValue()).current();
-		MuteMenu::ThreadDescriptor(history).updateMutePeriod(isMuted
-			? 0
-			: std::numeric_limits<TimeId>::max());
+		const auto muted = MuteMenu::ToggleMuteForever(history);
 		controller->showToast({
-			.text = { isMuted
-				? tr::lng_quick_dialog_action_toast_unmute_success(tr::now)
-				: tr::lng_quick_dialog_action_toast_mute_success(tr::now) },
-			.iconLottie = isMuted
-				? u"toast/unmute"_q
-				: u"toast/mute"_q,
+			.text = { muted
+				? tr::lng_quick_dialog_action_toast_mute_success(tr::now)
+				: tr::lng_quick_dialog_action_toast_unmute_success(tr::now) },
+			.iconLottie = muted
+				? u"toast/mute"_q
+				: u"toast/unmute"_q,
 			.iconLottieSize = st::toastLottieIconSize,
 		});
 	} else if (action == Dialogs::Ui::QuickDialogAction::Pin) {

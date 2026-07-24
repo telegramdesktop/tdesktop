@@ -295,6 +295,15 @@ Descriptor DefaultDescriptor(
 	};
 }
 
+bool ToggleMuteForever(not_null<Data::Thread*> thread) {
+	const auto settings = &thread->owner().notifySettings();
+	const auto muted = !settings->isMuted(thread);
+	settings->update(thread, muted
+		? Data::MuteValue{ .forever = true }
+		: Data::MuteValue{ .unmute = true });
+	return muted;
+}
+
 void FillMuteMenu(
 		not_null<Ui::PopupMenu*> menu,
 		Descriptor descriptor,
