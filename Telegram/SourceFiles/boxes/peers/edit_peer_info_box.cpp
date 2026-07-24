@@ -1764,8 +1764,8 @@ void Controller::fillManageSection() {
 		auto count = rpl::single(rpl::empty) | rpl::then(
 			store->updates(history)
 		) | rpl::map([=] {
-			return QString::number(store->count(history));
-		});
+			return store->count(history);
+		}) | ToPositiveNumberString();
 		auto callback = [=] {
 			_navigation->showSection(
 				std::make_shared<HistoryView::WelcomeMessagesMemento>(

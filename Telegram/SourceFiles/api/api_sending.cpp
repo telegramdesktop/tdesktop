@@ -213,6 +213,7 @@ void SendExistingMedia(
 	auto flags = NewMessageFlags(peer);
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (welcomeTemplate) {
+		flags &= ~MessageFlag::Outgoing;
 		flags |= MessageFlag::FakeHistoryItem;
 	}
 	if (action.replyTo) {
@@ -662,6 +663,7 @@ void SendConfirmedFile(
 
 	auto flags = isEditing ? MessageFlags() : NewMessageFlags(peer);
 	if (welcomeTemplate) {
+		flags &= ~MessageFlag::Outgoing;
 		flags |= MessageFlag::FakeHistoryItem;
 	}
 	if (file->to.replyTo) {
