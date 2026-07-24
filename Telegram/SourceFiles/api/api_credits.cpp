@@ -131,7 +131,7 @@ rpl::producer<rpl::no_value, QString> CreditsTopupOptions::request() {
 			using TLOption = MTPStarsGiftOption;
 			_api.request(MTPpayments_GetStarsGiftOptions(
 				MTP_flags(MTPpayments_GetStarsGiftOptions::Flag::f_user_id),
-				user->inputUser
+				user->inputUser()
 			)).done([=](const MTPVector<TLOption> &result) {
 				_options = optionsFromTL(result.v);
 				consumer.put_done();
@@ -162,7 +162,7 @@ void CreditsStatus::request(
 
 	_requestId = _api.request(MTPpayments_GetStarsStatus(
 		MTP_flags(0),
-		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input
+		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input()
 	)).done([=](const TLResult &result) {
 		_requestId = 0;
 		const auto &balance = result.data().vbalance();
@@ -197,16 +197,17 @@ CreditsHistory::CreditsHistory(
 
 void CreditsHistory::request(
 		const Data::CreditsStatusSlice::OffsetToken &token,
-		Fn<void(Data::CreditsStatusSlice)> done) {
+		Fn<void(Data::CreditsStatusSlice)> done,
+		int limit) {
 	if (_requestId) {
 		return;
 	}
 	_requestId = _api.request(MTPpayments_GetStarsTransactions(
 		MTP_flags(_flags),
 		MTPstring(), // subscription_id
-		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input,
+		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input(),
 		MTP_string(token),
-		MTP_int(kTransactionsLimit)
+		MTP_int((limit > 0) ? limit : kTransactionsLimit)
 	)).done([=](const MTPpayments_StarsStatus &result) {
 		_requestId = 0;
 		done(StatusFromTL(result, _peer));
@@ -227,7 +228,7 @@ void CreditsHistory::requestSubscriptions(
 		MTP_flags(missingBalance
 			? MTPpayments_getStarsSubscriptions::Flag::f_missing_balance
 			: MTPpayments_getStarsSubscriptions::Flags(0)),
-		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input,
+		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input(),
 		MTP_string(token)
 	)).done([=](const MTPpayments_StarsStatus &result) {
 		_requestId = 0;
@@ -285,7 +286,7 @@ rpl::producer<rpl::no_value, QString> CreditsEarnStatistics::request() {
 		const auto finish = [=](const QString &url) {
 			api().request(MTPpayments_GetStarsRevenueStats(
 				MTP_flags(0),
-				(_isUser ? user()->input : channel()->input)
+				(_isUser ? user()->input() : channel()->input())
 			)).done([=](const MTPpayments_StarsRevenueStats &result) {
 				const auto &data = result.data();
 				const auto &status = data.vstatus().data();
@@ -315,7 +316,7 @@ rpl::producer<rpl::no_value, QString> CreditsEarnStatistics::request() {
 
 		api().request(
 			MTPpayments_GetStarsRevenueAdsAccountUrl(
-				(_isUser ? user()->input : channel()->input))
+				(_isUser ? user()->input() : channel()->input()))
 		).done([=](const MTPpayments_StarsRevenueAdsAccountUrl &result) {
 			finish(qs(result.data().vurl()));
 		}).fail([=](const MTP::Error &error) {
@@ -408,7 +409,7 @@ MTPInputSavedStarGift InputSavedStarGiftId(
 		: id.isUser()
 		? MTP_inputSavedStarGiftUser(MTP_int(id.userMessageId().bare))
 		: MTP_inputSavedStarGiftChat(
-			id.chat()->input,
+			id.chat()->input(),
 			MTP_long(id.chatSavedId()));
 }
 

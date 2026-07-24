@@ -8,9 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/chat_filters_tabs_strip.h"
 
 #include "api/api_chat_filters_remove_manager.h"
+#include "boxes/choose_filter_box.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/premium_limits_box.h"
 #include "core/application.h"
+#include "core/shortcuts.h"
 #include "core/ui_integration.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
@@ -20,8 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_folders.h"
+#include "settings/sections/settings_folders.h"
 #include "ui/widgets/menu/menu_action.h"
+#include "ui/filter_icons.h"
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/chat_filters_tabs_slider_reorder.h"
@@ -111,13 +114,13 @@ void ShowMenu(
 		auto openFiltersSettings = [=] {
 			const auto filters = &session->data().chatsFilters();
 			if (filters->suggestedLoaded()) {
-				controller->showSettings(Settings::Folders::Id());
+				controller->showSettings(Settings::FoldersId());
 			} else if (!state->waitingSuggested) {
 				state->waitingSuggested = true;
 				filters->requestSuggested();
 				filters->suggestedUpdated(
 				) | rpl::take(1) | rpl::on_next([=] {
-					controller->showSettings(Settings::Folders::Id());
+					controller->showSettings(Settings::FoldersId());
 				}, parent->lifetime());
 			}
 		};
@@ -164,11 +167,11 @@ void ShowFiltersListMenu(
 			? &st::mediaPlayerMenuCheck
 			: nullptr;
 		const auto action = Ui::Menu::CreateAction(
-			state->menu.get(),
+			state->menu->menu(),
 			text,
 			callback);
 		auto item = base::make_unique_q<Ui::Menu::Action>(
-			state->menu.get(),
+			state->menu->menu(),
 			state->menu->st().menu,
 			action,
 			icon,
@@ -203,7 +206,8 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		Fn<void(FilterId)> choose,
 		ChatHelpers::PauseReason pauseLevel,
 		Window::SessionController *controller,
-		bool trackActiveFilterAndUnreadAndReorder) {
+		bool trackActiveFilterAndUnreadAndReorder,
+		bool handleKeyboardSwitch) {
 
 	const auto wrap = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
 		parent,
@@ -295,6 +299,40 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				}
 			}
 		}, slider->lifetime());
+
+		SetupFilterDragAndDrop(
+			slider,
+			session,
+			[=](QPoint pos) -> std::optional<FilterId> {
+				const auto local = slider->mapFromGlobal(pos);
+				const auto x = local.x();
+				const auto count = slider->sectionsCount();
+				for (auto i = 0; i < count; ++i) {
+					const auto left = slider->lookupSectionLeft(i);
+					const auto right = (i + 1 < count)
+						? slider->lookupSectionLeft(i + 1)
+						: slider->width();
+					if (x >= left && x < right) {
+						const auto &list
+							= session->data().chatsFilters().list();
+						return (i < list.size())
+							? list[i].id()
+							: FilterId();
+					}
+				}
+				return std::nullopt;
+			},
+			[=] { return state->lastFilterId.value_or(FilterId()); },
+			[=](FilterId id) {
+				const auto &list = session->data().chatsFilters().list();
+				for (auto i = 0; i < list.size(); i++) {
+					if (list[i].id() == id) {
+						slider->selectSection(i);
+						return;
+					}
+				}
+				slider->selectSection(-1);
+			});
 	}
 	wrap->toggle(false, anim::type::instant);
 	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
@@ -360,6 +398,13 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 					? Data::ForceCustomEmojiStatic(title.text)
 					: title.text;
 			}) | ranges::to_vector, context, paused);
+		slider->setSectionIcons(ranges::views::all(
+			list
+		) | ranges::views::transform([](const Data::ChatFilter &filter) {
+			return LookupFilterIcon(filter.id()
+				? ComputeFilterIcon(filter)
+				: FilterIcon::All).tabs.get();
+		}) | ranges::to_vector);
 		if (!sectionsChanged) {
 			return;
 		}
@@ -391,7 +436,10 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			reassignUnreadValue();
 		}
 		[&] {
-			const auto lookingId = state->lastFilterId.value_or(list[0].id());
+			const auto lookingId = state->lastFilterId.value_or(
+				trackActiveFilterAndUnreadAndReorder
+					? controller->activeChatsFilterCurrent()
+					: list[0].id());
 			for (auto i = 0; i < list.size(); i++) {
 				const auto &filter = list[i];
 				if (filter.id() == lookingId) {
@@ -401,7 +449,9 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 					scrollToIndex(
 						i,
 						wasLast ? anim::type::normal : anim::type::instant);
-					applyFilter(filter);
+					if (wasLast || !trackActiveFilterAndUnreadAndReorder) {
+						applyFilter(filter);
+					}
 					return;
 				}
 			}
@@ -464,6 +514,11 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		session->data().chatsFilters().changed(),
 		Data::AmPremiumValue(session) | rpl::to_empty
 	) | rpl::on_next(rebuild, wrap->lifetime());
+	Core::App().settings().chatFiltersTabsModeValue(
+	) | rpl::on_next([=](ChatsFiltersTabsMode mode) {
+		slider->setTabsMode(mode);
+		scrollToIndex(slider->activeSection(), anim::type::instant);
+	}, wrap->lifetime());
 	rebuild();
 
 	session->data().chatsFilters().isChatlistChanged(
@@ -487,6 +542,26 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		container->resize(w, h);
 		wrap->resize(w, h);
 	}, wrap->lifetime());
+
+	if (handleKeyboardSwitch) {
+		Shortcuts::ChatSwitchRequests(
+		) | rpl::filter([=](const Shortcuts::ChatSwitchRequest &request) {
+			return wrap->toggled()
+				&& ((request.action == Qt::Key_Tab)
+					|| (request.action == Qt::Key_Backtab));
+		}) | rpl::on_next([=](const Shortcuts::ChatSwitchRequest &request) {
+			const auto count = slider->sectionsCount();
+			const auto locked = slider->lockedFrom();
+			const auto limit = locked ? locked : count;
+			if (limit <= 1) {
+				return;
+			}
+			const auto back = (request.action == Qt::Key_Backtab);
+			const auto current = std::min(slider->activeSection(), limit - 1);
+			const auto next = (current + (back ? -1 : 1) + limit) % limit;
+			slider->setActiveSection(next);
+		}, wrap->lifetime());
+	}
 
 	return wrap;
 }

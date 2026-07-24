@@ -149,7 +149,7 @@ DebugInfoBox::DebugInfoBox(QWidget*, base::weak_ptr<Call> call)
 }
 
 void DebugInfoBox::prepare() {
-	setTitle(rpl::single(u"Call Debug"_q));
+	setTitle(u"Call Debug"_q);
 
 	addButton(tr::lng_close(), [this] { closeBox(); });
 	_text = setInnerWidget(

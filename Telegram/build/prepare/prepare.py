@@ -87,8 +87,6 @@ pathPrefixes = [
     'ThirdParty\\gyp',
 ] if win else [
     'ThirdParty/gyp',
-    'ThirdParty/yasm',
-    'ThirdParty/depot_tools',
 ]
 pathPrefix = ''
 for singlePrefix in pathPrefixes:
@@ -100,24 +98,22 @@ environment = {
     'LIBS_DIR': libsDir,
     'THIRDPARTY_DIR': thirdPartyDir,
     'PATH_PREFIX': pathPrefix,
+    'CMAKE_GENERATOR': 'Ninja Multi-Config',
 }
 if (win32):
     environment.update({
         'SPECIAL_TARGET': 'win',
         'X8664': 'x86',
-        'WIN32X64': 'Win32',
     })
 elif (win64):
     environment.update({
         'SPECIAL_TARGET': 'win64',
         'X8664': 'x64',
-        'WIN32X64': 'x64',
     })
 elif (winarm):
     environment.update({
         'SPECIAL_TARGET': 'winarm',
         'X8664': 'ARM64',
-        'WIN32X64': 'ARM64',
     })
 elif (mac):
     environment.update({
@@ -126,6 +122,7 @@ elif (mac):
         'MACOSX_DEPLOYMENT_TARGET': '10.13',
         'UNGUARDED': '-Werror=unguarded-availability-new',
         'MIN_VER': '-mmacosx-version-min=10.13',
+        'CMAKE_GENERATOR': 'Ninja',
     })
 
 ignoreInCacheForThirdParty = [
@@ -133,7 +130,6 @@ ignoreInCacheForThirdParty = [
     'LIBS_DIR',
     'SPECIAL_TARGET',
     'X8664',
-    'WIN32X64',
 ]
 
 environmentKeyString = ''
@@ -149,6 +145,8 @@ envForThirdPartyKey = hashlib.sha1(envForThirdPartyKeyString.encode('utf-8')).he
 modifiedEnv = os.environ.copy()
 for key in environment:
     modifiedEnv[key] = environment[key]
+if win and 'NoDefaultCurrentDirectoryInExePath' in modifiedEnv:
+    del modifiedEnv['NoDefaultCurrentDirectoryInExePath']
 
 modifiedEnv['PATH'] = environment['PATH_PREFIX'] + modifiedEnv['PATH']
 
@@ -315,8 +313,9 @@ def run(commands):
         if os.path.exists("command.bat"):
             os.remove("command.bat")
         with open("command.bat", 'w') as file:
-            file.write('@echo OFF\r\n' + winFailOnEach(commands))
-        result = subprocess.run("command.bat", shell=True, env=modifiedEnv).returncode == 0
+            file.write('@echo OFF\r\nset "NoDefaultCurrentDirectoryInExePath="\r\n' + winFailOnEach(commands))
+        batPath = os.path.abspath("command.bat")
+        result = subprocess.run(batPath, shell=True, env=modifiedEnv).returncode == 0
         if result and os.path.exists("command.bat"):
             os.remove("command.bat")
         return result
@@ -456,14 +455,16 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout c91bf24dcdf814cc3a3a37e2cb980ccb95f0f39f
+    git checkout 5c6549de54d24aa11bff0968b92fae06afe5b168
+mac:
+    git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
+    cd qt6_highsierra
+    git checkout 4aae812a405f47553e001faf566de572d3eccd16
 """)
 
 stage('msys64', """
 win:
-    SET PATH_BACKUP_=%PATH%
-    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
-
+    SET PATH=%THIRDPARTY_DIR%\\msys64\\usr\\bin;%PATH%
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
@@ -478,10 +479,7 @@ win:
         mingw-w64-x86_64-gperf ^
         mingw-w64-x86_64-nasm ^
         mingw-w64-x86_64-perl ^
-        mingw-w64-x86_64-pkgconf ^
-        mingw-w64-x86_64-yasm
-
-    SET PATH=%PATH_BACKUP_%
+        mingw-w64-x86_64-pkgconf
 """, 'ThirdParty')
 
 stage('python', """
@@ -506,13 +504,6 @@ win:
     del jom.zip
 """, 'ThirdParty')
 
-stage('depot_tools', """
-mac:
-    git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-    cd depot_tools
-    ./update_depot_tools
-""", 'ThirdParty')
-
 if not mac or 'build-stackwalk' in options:
     stage('gyp', """
 win:
@@ -523,25 +514,20 @@ mac:
     python3 -m pip install \\
         --ignore-installed \\
         --target=$THIRDPARTY_DIR/gyp \\
-        git+https://chromium.googlesource.com/external/gyp@master
-""", 'ThirdParty')
-
-stage('yasm', """
-mac:
-    git clone https://github.com/yasm/yasm.git
-    cd yasm
-    git checkout 41762bea
-    ./autogen.sh
-    make $MAKE_THREADS_CNT
+        git+https://chromium.googlesource.com/external/gyp@master six
 """, 'ThirdParty')
 
 stage('lzma', """
 win:
     git clone https://github.com/desktop-app/lzma.git
     cd lzma\\C\\Util\\LzmaLib
-    msbuild -m LzmaLib.sln /property:Configuration=Debug /property:Platform="$X8664"
+    SET "ToolsetProp="
+winarm:
+    SET "ToolsetProp=/property:PlatformToolset=v145"
+win:
+    msbuild -m LzmaLib.sln /property:Configuration=Debug /property:Platform="$X8664" %ToolsetProp%
 release:
-    msbuild -m LzmaLib.sln /property:Configuration=Release /property:Platform="$X8664"
+    msbuild -m LzmaLib.sln /property:Configuration=Release /property:Platform="$X8664" %ToolsetProp%
 """)
 
 stage('xz', """
@@ -550,32 +536,47 @@ stage('xz', """
     cd xz
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
-    cmake --build build $MAKE_THREADS_CNT
+    cmake --build build
     cmake --install build
 """)
 
 stage('zlib', """
-    git clone -b v1.3.1 https://github.com/madler/zlib.git
+    git clone https://github.com/madler/zlib.git
     cd zlib
+    git checkout e3dc0a85b7032e98380dec011bc8f2c2ee0d8fca
 win:
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
-        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
         -DCMAKE_C_FLAGS="/DZLIB_WINAPI" ^
-        -DZLIB_BUILD_EXAMPLES=OFF
-    cmake --build . --config Debug --parallel
+        -DZLIB_BUILD_SHARED=OFF ^
+        -DZLIB_BUILD_TESTING=OFF ^
+        -DZLIB_BUILD_MINIZIP=ON ^
+        -DZLIB_MINIZIP_BUILD_SHARED=OFF ^
+        -DZLIB_MINIZIP_BUILD_TESTING=OFF
+    cmake --build . --config Debug
 release:
-    cmake --build . --config Release --parallel
+    cmake --build . --config Release
 mac:
     CFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure \\
         --static \\
         --prefix=$USED_PREFIX \\
         --archs="-arch x86_64 -arch arm64"
     make $MAKE_THREADS_CNT
+    make install
+    cd contrib/minizip
+    autoreconf -fi
+    CFLAGS="$MIN_VER $UNGUARDED -arch arm64" CPPFLAGS="$MIN_VER $UNGUARDED -arch arm64" LDFLAGS="$MIN_VER" ./configure --enable-static --disable-shared --host=arm --prefix=$USED_PREFIX
+    make $MAKE_THREADS_CNT
+    mkdir out.arm64
+    mv .libs/libminizip.a out.arm64
+    make clean
+    CFLAGS="$MIN_VER $UNGUARDED -arch x86_64" CPPFLAGS="$MIN_VER $UNGUARDED -arch x86_64" LDFLAGS="$MIN_VER" ./configure --enable-static --disable-shared --host=x86_64 --prefix=$USED_PREFIX
+    make $MAKE_THREADS_CNT
+    mkdir out.x86_64
+    mv .libs/libminizip.a out.x86_64
+    lipo -create out.arm64/libminizip.a out.x86_64/libminizip.a -output .libs/libminizip.a
     make install
 """)
 
@@ -584,13 +585,12 @@ stage('mozjpeg', """
     cd mozjpeg
 win:
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
-    cmake --build . --config Debug --parallel
+    cmake --build . --config Debug
 release:
-    cmake --build . --config Release --parallel
+    cmake --build . --config Release
 mac:
     CFLAGS="-arch arm64" cmake -B build.arm64 . \\
         -D CMAKE_POLICY_VERSION_MINIMUM=3.5 \\
@@ -598,22 +598,20 @@ mac:
         -D CMAKE_SYSTEM_PROCESSOR=arm64 \\
         -D CMAKE_BUILD_TYPE=Release \\
         -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D WITH_JPEG8=ON \\
         -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
-    cmake --build build.arm64 $MAKE_THREADS_CNT
+    cmake --build build.arm64
     CFLAGS="-arch x86_64" cmake -B build . \\
         -D CMAKE_POLICY_VERSION_MINIMUM=3.5 \\
         -D CMAKE_SYSTEM_NAME=Darwin \\
         -D CMAKE_SYSTEM_PROCESSOR=x86_64 \\
         -D CMAKE_BUILD_TYPE=Release \\
         -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D WITH_JPEG8=ON \\
         -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
-    cmake --build build $MAKE_THREADS_CNT
+    cmake --build build
     lipo -create build.arm64/libjpeg.a build/libjpeg.a -output build/libjpeg.a
     lipo -create build.arm64/libturbojpeg.a build/libturbojpeg.a -output build/libturbojpeg.a
     cmake --install build
@@ -643,7 +641,7 @@ win32_release:
 win64_release:
     perl Configure no-shared no-tests VC-WIN64A /FS
 winarm_release:
-    perl Configure no-shared no-tests VC-WIN64-ARM /FS
+    perl Configure no-shared no-tests VC-WIN64-ARM /FS /Gs4096
 win_release:
     jom -j%NUMBER_OF_PROCESSORS% build_libs
     mkdir out
@@ -671,18 +669,16 @@ stage('opus', """
     cd opus
 win:
     cmake -B out . ^
-        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DOPUS_STATIC_RUNTIME=ON
-    cmake --build out --config Debug --parallel
-    cmake --build out --config Release --parallel
+    cmake --build out --config Debug
+    cmake --build out --config Release
     cmake --install out --config Release
 mac:
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
-    cmake --build build $MAKE_THREADS_CNT
+    cmake --build build
     cmake --install build
 """)
 
@@ -693,27 +689,25 @@ stage('rnnoise', """
     mkdir out
     cd out
 win:
-    cmake -A %WIN32X64% .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
-    cmake --build . --config Debug --parallel
+    cmake .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    cmake --build . --config Debug
 release:
-    cmake --build . --config Release --parallel
+    cmake --build . --config Release
 !win:
     mkdir Debug
     cd Debug
-    cmake -G Ninja ../.. \\
+    cmake ../.. \\
         -D CMAKE_BUILD_TYPE=Debug \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
-    ninja
+    cmake --build .
 release:
     cd ..
     mkdir Release
     cd Release
-    cmake -G Ninja ../.. \\
+    cmake ../.. \\
         -D CMAKE_BUILD_TYPE=Release \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
-    ninja
+    cmake --build .
 """)
 
 stage('libiconv', """
@@ -749,7 +743,7 @@ win:
 
 # Somehow in x86 Debug build dav1d crashes on AV1 10bpc videos.
 stage('dav1d', """
-    git clone -b 1.5.1 https://code.videolan.org/videolan/dav1d.git
+    git clone -b 1.5.3 https://code.videolan.org/videolan/dav1d.git
     cd dav1d
 win32:
     SET "TARGET=x86"
@@ -760,7 +754,6 @@ win64:
 winarm:
     SET "TARGET=aarch64"
     SET "DAV1D_ASM_DISABLE="
-    SET "PATH_BACKUP_=%PATH%"
     SET "PATH=%LIBS_DIR%\\gas-preprocessor;%PATH%"
     echo armasm64 fails with 'syntax error in expression: tbnz x14, #4, 8f' as if this instruction is unknown/unsupported.
     git revert --no-edit d503bb0ccaf104b2f13da0f092e09cc9411b3297
@@ -789,8 +782,6 @@ release:
 win:
     copy %LIBS_DIR%\\local\\lib\\libdav1d.a %LIBS_DIR%\\local\\lib\\dav1d.lib
     deactivate
-winarm:
-    SET "PATH=%PATH_BACKUP_%"
 mac:
     buildOneArch() {
         arch=$1
@@ -825,7 +816,6 @@ win64:
     SET "TARGET=x86_64"
 winarm:
     SET "TARGET=aarch64"
-    SET "PATH_BACKUP_=%PATH%"
     SET "PATH=%LIBS_DIR%\\gas-preprocessor;%PATH%"
 win:
     set FILE=cross-file.txt
@@ -852,8 +842,6 @@ release:
 win:
     copy %LIBS_DIR%\\local\\lib\\libopenh264.a %LIBS_DIR%\\local\\lib\\openh264.lib
     deactivate
-winarm:
-    SET "PATH=%PATH_BACKUP_%"
 mac:
     buildOneArch() {
         arch=$1
@@ -882,7 +870,6 @@ stage('libavif', """
     cd libavif
 win:
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
@@ -890,21 +877,20 @@ win:
         -DAVIF_ENABLE_WERROR=OFF ^
         -DAVIF_CODEC_DAV1D=SYSTEM ^
         -DAVIF_LIBYUV=OFF
-    cmake --build . --config Debug --parallel
+    cmake --build . --config Debug
     cmake --install . --config Debug
 release:
-    cmake --build . --config Release --parallel
+    cmake --build . --config Release
     cmake --install . --config Release
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D BUILD_SHARED_LIBS=OFF \\
         -D AVIF_ENABLE_WERROR=OFF \\
         -D AVIF_CODEC_DAV1D=SYSTEM \\
         -D AVIF_LIBYUV=OFF
-    cmake --build . --config MinSizeRel $MAKE_THREADS_CNT
+    cmake --build . --config MinSizeRel
     cmake --install . --config MinSizeRel
 """)
 
@@ -913,7 +899,6 @@ stage('libde265', """
     cd libde265
 win:
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
@@ -923,27 +908,26 @@ win:
         -DBUILD_SHARED_LIBS=OFF ^
         -DENABLE_DECODER=OFF ^
         -DENABLE_ENCODER=OFF
-    cmake --build . --config Debug --parallel
+    cmake --build . --config Debug
     cmake --install . --config Debug
 release:
-    cmake --build . --config Release --parallel
+    cmake --build . --config Release
     cmake --install . --config Release
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D DISABLE_SSE=ON \\
         -D ENABLE_SDL=OFF \\
         -D BUILD_SHARED_LIBS=OFF \\
         -D ENABLE_DECODER=ON \\
         -D ENABLE_ENCODER=OFF
-    cmake --build . --config MinSizeRel $MAKE_THREADS_CNT
+    cmake --build . --config MinSizeRel
     cmake --install . --config MinSizeRel
 """)
 
 stage('libwebp', """
-    git clone -b v1.5.0 https://github.com/webmproject/libwebp.git
+    git clone -b v1.6.0 https://github.com/webmproject/libwebp.git
     cd libwebp
 win:
     nmake /f Makefile.vc CFG=debug-static OBJDIR=out RTLIBCFG=static all
@@ -956,10 +940,9 @@ mac:
         arch=$1
         folder=$2
 
-        CFLAGS=$UNGUARDED cmake -B $folder -G Ninja . \\
+        CFLAGS=$UNGUARDED cmake -B $folder . \\
             -D CMAKE_BUILD_TYPE=Release \\
             -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-            -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
             -D CMAKE_OSX_ARCHITECTURES=$arch \\
             -D WEBP_BUILD_ANIM_UTILS=OFF \\
             -D WEBP_BUILD_CWEBP=OFF \\
@@ -970,7 +953,7 @@ mac:
             -D WEBP_BUILD_WEBPMUX=OFF \\
             -D WEBP_BUILD_WEBPINFO=OFF \\
             -D WEBP_BUILD_EXTRAS=OFF
-        cmake --build $folder $MAKE_THREADS_CNT
+        cmake --build $folder
     }
     buildOneArch arm64 build.arm64
     buildOneArch x86_64 build
@@ -983,7 +966,7 @@ mac:
 """)
 
 stage('libheif', """
-    git clone -b v1.19.8 https://github.com/strukturag/libheif.git
+    git clone -b v1.21.2 https://github.com/strukturag/libheif.git
     cd libheif
 win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
@@ -991,7 +974,6 @@ win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' heifio/CMakeLists.txt
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' heifio/CMakeLists.txt
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DBUILD_SHARED_LIBS=OFF ^
@@ -999,6 +981,7 @@ win:
         -DBUILD_TESTING=OFF ^
         -DENABLE_PLUGIN_LOADING=OFF ^
         -DWITH_LIBDE265=ON ^
+        -DWITH_X264=OFF ^
         -DWITH_OpenH264_DECODER=OFF ^
         -DWITH_SvtEnc=OFF ^
         -DWITH_SvtEnc_PLUGIN=OFF ^
@@ -1009,15 +992,14 @@ win:
         -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE ^
         -DCMAKE_DISABLE_FIND_PACKAGE_PNG=TRUE ^
         -DWITH_EXAMPLES=OFF
-    cmake --build . --config Debug --parallel
+    cmake --build . --config Debug
     cmake --install . --config Debug
 release:
-    cmake --build . --config Release --parallel
+    cmake --build . --config Release
     cmake --install . --config Release
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D BUILD_SHARED_LIBS=OFF \\
         -D CMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \\
@@ -1026,6 +1008,7 @@ mac:
         -D WITH_AOM_ENCODER=OFF \\
         -D WITH_AOM_DECODER=OFF \\
         -D WITH_X265=OFF \\
+        -D WITH_X264=OFF \\
         -D WITH_OpenH264_DECODER=OFF \\
         -D WITH_SvtEnc=OFF \\
         -D WITH_RAV1E=OFF \\
@@ -1038,12 +1021,12 @@ mac:
         -D CMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \\
         -D CMAKE_DISABLE_FIND_PACKAGE_PNG=TRUE \\
         -D WITH_EXAMPLES=OFF
-    cmake --build . --config MinSizeRel $MAKE_THREADS_CNT
+    cmake --build . --config MinSizeRel
     cmake --install . --config MinSizeRel
 """)
 
 stage('libjxl', """
-    git clone -b v0.11.1 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    git clone -b v0.11.2 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
     cd libjxl
 """ + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
@@ -1067,24 +1050,22 @@ stage('libjxl', """
 """) + """
 win:
     cmake . ^
-        -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
         -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE /DJXL_CMS_STATIC_DEFINE" ^
         %cmake_defines%
-    cmake --build . --config Debug --parallel
+    cmake --build . --config Debug
     cmake --install . --config Debug
 release:
-    cmake --build . --config Release --parallel
+    cmake --build . --config Release
     cmake --install . --config Release
 mac:
     cmake . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         ${cmake_defines}
-    cmake --build . --config MinSizeRel $MAKE_THREADS_CNT
+    cmake --build . --config MinSizeRel
     cmake --install . --config MinSizeRel
 """)
 
@@ -1096,9 +1077,7 @@ depends:patches/libvpx/*.patch
 win:
     for /r %%i in (..\\patches\\libvpx\\*) do git apply %%i
 
-    SET PATH_BACKUP_=%PATH%
-    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
-
+    SET PATH=%THIRDPARTY_DIR%\\msys64\\usr\\bin;%PATH%
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
@@ -1107,16 +1086,13 @@ win32:
 win64:
     SET "TOOLCHAIN=x86_64-win64-vs17"
 winarm:
-    SET "TOOLCHAIN=arm64-win64-vs17"
+    SET "TOOLCHAIN=arm64-win64-vs17-v145"
 win:
 depends:patches/build_libvpx_win.sh
     bash --login ../patches/build_libvpx_win.sh
-
-    SET PATH=%PATH_BACKUP_%
 mac:
     find ../patches/libvpx -type f -print0 | sort -z | xargs -0 git apply
 
-depends:yasm/yasm
     ./configure --prefix=$USED_PREFIX \
     --target=arm64-darwin20-gcc \
     --disable-examples \
@@ -1163,10 +1139,8 @@ depends:python/Scripts/activate.bat
     %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
     meson setup --default-library=static --buildtype=debug -Db_vscrt=mtd out/Debug
     meson compile -C out/Debug
-release:
     meson setup --default-library=static --buildtype=release -Db_vscrt=mt out/Release
     meson compile -C out/Release
-win:
     deactivate
 mac:
     buildOneArch() {
@@ -1201,15 +1175,13 @@ stage('regex', """
 """)
 
 stage('ffmpeg', """
-    git clone -b n6.1.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg
+    git clone -b n6.1.6 https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
 win:
 depends:patches/ffmpeg.patch
     git apply ../patches/ffmpeg.patch
 
-    SET PATH_BACKUP_=%PATH%
-    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
-
+    SET PATH=%THIRDPARTY_DIR%\\msys64\\usr\\bin;%PATH%
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
@@ -1219,11 +1191,8 @@ winarm:
 win:
 depends:patches/build_ffmpeg_win.sh
     bash --login ../patches/build_ffmpeg_win.sh
-
-    SET PATH=%PATH_BACKUP_%
 mac:
     export PKG_CONFIG_PATH=$USED_PREFIX/lib/pkgconfig
-depends:yasm/yasm
 
     configureFFmpeg() {
         arch=$1
@@ -1391,15 +1360,14 @@ stage('openal-soft', """
 win:
     git checkout 291c0fdbbd
     cmake -B build . ^
-        -A %WIN32X64% ^
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON ^
         -D ALSOFT_UTILS=OFF ^
         -D ALSOFT_EXAMPLES=OFF ^
         -D ALSOFT_TESTS=OFF
-    cmake --build build --config Debug --parallel
+    cmake --build build --config Debug
 release:
-    cmake --build build --config RelWithDebInfo --parallel
+    cmake --build build --config RelWithDebInfo
 mac:
     git checkout coreaudio_device_uid
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -B build . \\
@@ -1409,9 +1377,8 @@ mac:
         -D ALSOFT_UTILS=OFF \\
         -D ALSOFT_TESTS=OFF \\
         -D LIBTYPE:STRING=STATIC \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
-    cmake --build build $MAKE_THREADS_CNT
+    cmake --build build
     cmake --install build
 """)
 
@@ -1443,10 +1410,12 @@ depends:patches/breakpad.diff
 win:
     SET "PYTHONUTF8=1"
     SET "FolderPostfix="
+    SET "ToolsetProp="
 win64:
     SET "FolderPostfix=_x64"
 winarm:
     SET "FolderPostfix=_ARM64"
+    SET "ToolsetProp=/property:PlatformToolset=v145"
 win:
 depends:python/Scripts/activate.bat
     %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
@@ -1458,7 +1427,7 @@ release:
     ninja -C out/Release%FolderPostfix% common crash_generation_client exception_handler
     cd tools\\windows\\dump_syms
     gyp dump_syms.gyp --format=msvs
-    msbuild -m dump_syms.vcxproj /property:Configuration=Release /property:Platform="x64"
+    msbuild -m dump_syms.vcxproj /property:Configuration=Release /property:Platform="x64" %ToolsetProp%
 win:
     deactivate
 mac:
@@ -1487,23 +1456,23 @@ mac:
     cd out
     mkdir Debug.x86_64
     cd Debug.x86_64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
         -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
+    cmake --build .
     cd ..
     mkdir Debug.arm64
     cd Debug.arm64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
         -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
+    cmake --build .
     cd ..
     mkdir Debug
     lipo -create Debug.arm64/crashpad_handler Debug.x86_64/crashpad_handler -output Debug/crashpad_handler
@@ -1511,23 +1480,23 @@ mac:
 release:
     mkdir Release.x86_64
     cd Release.x86_64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
         -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
+    cmake --build .
     cd ..
     mkdir Release.arm64
     cd Release.arm64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
         -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
+    cmake --build .
     cd ..
     mkdir Release
     lipo -create Release.arm64/crashpad_handler Release.x86_64/crashpad_handler -output Release/crashpad_handler
@@ -1540,26 +1509,13 @@ if qt < '6':
 win:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
-    git checkout e3f59e8d0c
-    mkdir out
-    cd out
-    mkdir Debug
-    cd Debug
-    cmake -G Ninja ^
-        -DCMAKE_BUILD_TYPE=Debug ^
+    git checkout d4c3606e47
+    cmake -B out ^
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
-        -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
-    ninja
+        -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib
+    cmake --build out --config Debug
 release:
-    cd ..
-    mkdir Release
-    cd Release
-    cmake -G Ninja ^
-        -DCMAKE_BUILD_TYPE=Release ^
-        -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
-        -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
-    ninja
-    cd ..\\..\\..
+    cmake --build out --config Release
 """)
 
     stage('qt_' + qt, """
@@ -1567,8 +1523,8 @@ release:
     cd qt_$QT
     git submodule update --init --recursive --progress qtbase qtimageformats qtsvg
 depends:patches/qtbase_""" + qt + """/*.patch
-    cd qtbase
 win:
+    cd qtbase
     setlocal enabledelayedexpansion
     for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
         git apply %%i -v
@@ -1577,7 +1533,6 @@ win:
             exit /b 1
         )
     )
-
     cd ..
 
     SET CONFIGURATIONS=-debug
@@ -1603,11 +1558,11 @@ win:
         -I "%ANGLE_DIR%\\include" ^
         -D "KHRONOS_STATIC=" ^
         -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
-        QMAKE_LIBS_OPENGL_ES2_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib d3d9.lib dxgi.lib dxguid.lib" ^
-        QMAKE_LIBS_OPENGL_ES2_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\\Debug\\libzsd.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\\Release\\libzs.lib d3d9.lib dxgi.lib dxguid.lib" ^
         -egl ^
-        QMAKE_LIBS_EGL_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
-        QMAKE_LIBS_EGL_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\\Debug\\libzsd.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\\Release\\libzs.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
         -openssl-linked ^
         -I "%OPENSSL_DIR%\\include" ^
         OPENSSL_LIBS_DEBUG="%OPENSSL_LIBS_DIR%.dbg\\libssl.lib %OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
@@ -1624,46 +1579,24 @@ win:
         -nomake tests ^
         -platform win32-msvc
 
-    jom -j%NUMBER_OF_PROCESSORS%
+    rem jom -jN occasionally fails to create the shared mkspecs\\modules-inst
+    rem directory due to a race in qmake's mkpath under parallel builds; the
+    rem build is incremental, so simply retrying picks up where it stopped.
+    jom -j%NUMBER_OF_PROCESSORS% || jom -j%NUMBER_OF_PROCESSORS%
     jom -j%NUMBER_OF_PROCESSORS% install
-mac:
-    find ../../patches/qtbase_$QT -type f -print0 | sort -z | xargs -0 git apply
-    cd ..
-
-    CONFIGURATIONS=-debug
-release:
-    CONFIGURATIONS=-debug-and-release
-mac:
-    ./configure -prefix "$USED_PREFIX/Qt-$QT" \
-        $CONFIGURATIONS \
-        -force-debug-info \
-        -opensource \
-        -confirm-license \
-        -static \
-        -opengl desktop \
-        -no-openssl \
-        -securetransport \
-        -I "$USED_PREFIX/include" \
-        LIBJPEG_LIBS="$USED_PREFIX/lib/libjpeg.a" \
-        ZLIB_LIBS="$USED_PREFIX/lib/libz.a" \
-        -nomake examples \
-        -nomake tests \
-        -platform macx-clang
-
-    make $MAKE_THREADS_CNT
-    make install
 """)
 else: # qt > '6'
     branch = 'v$QT' + ('-lts-lgpl' if qt.startswith('6.2.') else '')
     stage('qt_' + qt, """
     git clone -b """ + branch + """ https://github.com/qt/qt5.git qt_$QT
     cd qt_$QT
-    git submodule update --init --recursive --progress qtbase qtimageformats qtsvg
+    git submodule update --init --recursive --progress qtbase qtimageformats qtshadertools qtsvg
 depends:patches/qtbase_""" + qt + """/*.patch
-    cd qtbase
 mac:
-    find ../../patches/qtbase_$QT -type f -print0 | sort -z | xargs -0 git apply -v
-    cd ..
+    if [ -d "../patches/qt6_highsierra" ]; then
+        find "$PWD/../patches/qt6_highsierra" -maxdepth 1 -name "*.patch" -print0 | sort -z | xargs -0 git -C qtbase apply -v
+    fi
+    find $PWD/../patches/qtbase_$QT -type f -print0 | sort -z | xargs -0 git -C qtbase apply -v
     sed -i.bak 's/tqtc-//' {qtimageformats,qtsvg}/dependencies.yaml
 
     CONFIGURATIONS=-debug
@@ -1676,6 +1609,7 @@ mac:
         -opensource \
         -confirm-license \
         -static \
+        -no-framework \
         -opengl desktop \
         -no-openssl \
         -securetransport \
@@ -1683,14 +1617,25 @@ mac:
         -I "$USED_PREFIX/include" \
         -no-feature-futimens \
         -no-feature-brotli \
+        -no-feature-cxx17_filesystem \
         -platform macx-clang -- \
         -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-        -DCMAKE_PREFIX_PATH="$USED_PREFIX"
+        -DCMAKE_PREFIX_PATH="$USED_PREFIX" \
+        -DQT_NO_HANDLE_APPLE_SINGLE_ARCH_CROSS_COMPILING=ON \
+        -DQT_SYNC_HEADERS_AT_CONFIGURE_TIME=ON
 
-    ninja
-    ninja install
+    cmake --build .
+    cmake --install .
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do git apply %%i -v
+    cd qtbase
+    setlocal enabledelayedexpansion
+    for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
+        git apply %%i -v
+        if errorlevel 1 (
+            echo ERROR: Applying patch %%~nxi failed!
+            exit /b 1
+        )
+    )
     cd ..
 
     SET CONFIGURATIONS=-debug
@@ -1731,8 +1676,8 @@ win:
         -D JPEG_LIBRARY_RELEASE="%MOZJPEG_DIR%\\Release\\jpeg-static.lib" ^
         -D ZLIB_FOUND=1 ^
         -D ZLIB_INCLUDE_DIR="%ZLIB_LIBS_DIR%" ^
-        -D ZLIB_LIBRARY_DEBUG="%ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib" ^
-        -D ZLIB_LIBRARY_RELEASE="%ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib" ^
+        -D ZLIB_LIBRARY_DEBUG="%ZLIB_LIBS_DIR%\\Debug\\libzsd.lib" ^
+        -D ZLIB_LIBRARY_RELEASE="%ZLIB_LIBS_DIR%\\Release\\libzs.lib" ^
         -D WebP_INCLUDE_DIR="%WEBP_DIR%\\src" ^
         -D WebP_demux_INCLUDE_DIR="%WEBP_DIR%\\src" ^
         -D WebP_mux_INCLUDE_DIR="%WEBP_DIR%\\src" ^
@@ -1743,16 +1688,16 @@ win:
         -D LCMS2_INCLUDE_DIR="%LCMS2_DIR%\\include" ^
         -D LCMS2_LIBRARIES="%LCMS2_DIR%\\out\\Release\\src\\liblcms2.a"
 
-    cmake --build . --config Debug --parallel
+    cmake --build . --config Debug
     cmake --install . --config Debug
-    cmake --build . --parallel
+    cmake --build .
     cmake --install .
 """)
 
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 5c5c71258777d0196dbb3a09cc37d2f56ead28ab
+    git checkout 89df288dd6ba5b2ec95b3c5eaf1e7e0c3a870fc4
     git submodule update --init --recursive
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
@@ -1761,12 +1706,7 @@ win:
     SET LIBVPX_PATH=$USED_PREFIX/include
     SET OPENH264_PATH=$USED_PREFIX/include
     SET FFMPEG_PATH=$LIBS_DIR/ffmpeg
-    mkdir out
-    cd out
-    mkdir Debug
-    cd Debug
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
+    cmake -B out \
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1775,24 +1715,10 @@ win:
         -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH
+    cmake --build out --config Debug
 release:
-    cd ..
-    mkdir Release
-    cd Release
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PATH \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
+    cmake --build out --config Release
 mac:
     MOZJPEG_PATH=$USED_PREFIX/include
     OPUS_PATH=$USED_PREFIX/include/opus
@@ -1803,9 +1729,8 @@ mac:
     cd out
     mkdir Debug.x86_64
     cd Debug.x86_64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1815,13 +1740,12 @@ mac:
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
+    cmake --build .
     cd ..
     mkdir Debug.arm64
     cd Debug.arm64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
@@ -1831,16 +1755,15 @@ mac:
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
+    cmake --build .
     cd ..
     mkdir Debug
     lipo -create Debug.arm64/libtg_owt.a Debug.x86_64/libtg_owt.a -output Debug/libtg_owt.a
 release:
     mkdir Release.x86_64
     cd Release.x86_64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=x86_64 \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1849,13 +1772,12 @@ release:
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
+    cmake --build .
     cd ..
     mkdir Release.arm64
     cd Release.arm64
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
@@ -1864,7 +1786,7 @@ release:
         -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
         -DTG_OWT_OPENH264_INCLUDE_PATH=$OPENH264_PATH \
         -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
+    cmake --build .
     cd ..
     mkdir Release
     lipo -create Release.arm64/libtg_owt.a Release.x86_64/libtg_owt.a -output Release/libtg_owt.a
@@ -1875,21 +1797,19 @@ stage('ada', """
     cd ada
 win:
     cmake -B out . ^
-        -A %WIN32X64% ^
         -D ADA_TESTING=OFF ^
         -D ADA_TOOLS=OFF ^
         -D ADA_INCLUDE_URL_PATTERN=OFF ^
         -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
-    cmake --build out --config Debug --parallel
-    cmake --build out --config Release --parallel
+    cmake --build out --config Debug
+    cmake --build out --config Release
 mac:
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
         -D ADA_TESTING=OFF \\
         -D ADA_TOOLS=OFF \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
-    cmake --build build $MAKE_THREADS_CNT
+    cmake --build build
     cmake --install build
 """)
 
@@ -1904,14 +1824,13 @@ win:
     mkdir build
     cd build
     cmake .. ^
-        -A %WIN32X64% ^
         -Dprotobuf_BUILD_TESTS=OFF ^
         -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON ^
         -Dprotobuf_BUILD_LIBPROTOC=ON ^
         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF ^
         -Dprotobuf_DEBUG_POSTFIX=""
-    cmake --build . --config Release --parallel
-    cmake --build . --config Debug --parallel
+    cmake --build . --config Release
+    cmake --build . --config Debug
 """)
 # mac:
 #     git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
@@ -1923,12 +1842,11 @@ win:
 #     mkdir build
 #     cd build
 #     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake .. \
-#         -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
 #         -Dprotobuf_BUILD_TESTS=OFF \
 #         -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
 #         -Dprotobuf_BUILD_LIBPROTOC=ON \
 #         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF
-#     cmake --build . $MAKE_THREADS_CNT
+#     cmake --build .
 
 stage('tde2e', """
     git clone https://github.com/tdlib/td.git tde2e
@@ -1938,17 +1856,19 @@ win:
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
+    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed -i "s/STREQUAL/MATCHES/" td/generate/CMakeLists.txt
     mkdir out
     cd out
     mkdir Debug
     cd Debug
-    cmake -A %WIN32X64% ^
+    cmake ^
         -DOPENSSL_FOUND=1 ^
         -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\\include ^
         -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib" ^
         -DZLIB_FOUND=1 ^
         -DZLIB_INCLUDE_DIR=%ZLIB_LIBS_DIR% ^
-        -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib" ^
+        -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\\Debug\\libzsd.lib" ^
+        -DCMAKE_CONFIGURATION_TYPES=Debug ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
         -DCMAKE_C_FLAGS="/DZLIB_WINAPI" ^
@@ -1958,18 +1878,19 @@ win:
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
         -DTD_E2E_ONLY=ON ^
         ../..
-    cmake --build . --config Debug --target tde2e
+    cmake --build . --config Debug
 release:
     cd ..
     mkdir Release
     cd Release
-    cmake -A %WIN32X64% ^
+    cmake ^
         -DOPENSSL_FOUND=1 ^
         -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\\include ^
         -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%\\libcrypto.lib" ^
         -DZLIB_FOUND=1 ^
         -DZLIB_INCLUDE_DIR=%ZLIB_LIBS_DIR% ^
-        -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib" ^
+        -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\\Release\\libzs.lib" ^
+        -DCMAKE_CONFIGURATION_TYPES=Release ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
         -DCMAKE_C_FLAGS="/DZLIB_WINAPI" ^
@@ -1979,13 +1900,13 @@ release:
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
         -DTD_E2E_ONLY=ON ^
         ../..
-    cmake --build . --config Release --target tde2e
+    cmake --build . --config Release
 mac:
     buildTd() {
         BUILD_CONFIG=$1
         mkdir -p out/$BUILD_CONFIG
         cd out/$BUILD_CONFIG
-        cmake -G Ninja \
+        cmake \
             -DCMAKE_BUILD_TYPE=$BUILD_CONFIG \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
             -DOPENSSL_FOUND=1 \
@@ -1996,7 +1917,7 @@ mac:
             -DZLIB_LIBRARIES=$USED_PREFIX/lib/libz.a \
             -DTD_E2E_ONLY=ON \
             ../..
-        cmake --build . --config $BUILD_CONFIG --target tde2e $MAKE_THREADS_CNT
+        cmake --build .
         cd ../..
     }
 

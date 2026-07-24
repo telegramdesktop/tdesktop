@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/peers/edit_peer_info_box.h" // EditPeerInfoBox::Available.
 #include "boxes/peers/edit_forum_topic_box.h"
+#include "boxes/peers/manage_community_box.h"
 #include "boxes/moderate_messages_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/star_gift_box.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/shortcuts.h"
 #include "data/components/recent_shared_media_gifts.h"
+#include "data/data_birthday.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -50,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/profile/info_profile_badge_tooltip.h"
 #include "info/profile/info_profile_badge.h"
+#include "info/profile/info_profile_birthday_effect.h"
 #include "info/profile/info_profile_cover.h" // LargeCustomEmojiMargins
 #include "info/profile/info_profile_status_label.h"
 #include "info/profile/info_profile_top_bar_action_button.h"
@@ -63,13 +66,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "menu/menu_mute.h"
 #include "settings/settings_credits_graphics.h"
-#include "settings/settings_information.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_information.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/boxes/show_or_premium_box.h"
 #include "ui/color_contrast.h"
 #include "ui/controls/stars_rating.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/effects/animated_string.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/upload_progress_overlay.h"
 #include "ui/effects/outline_segments.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/empty_userpic.h"
@@ -77,7 +83,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/peer/video_userpic_player.h"
 #include "ui/rect.h"
+#include "ui/effects/numbers_animation.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/top_background_gradient.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/buttons.h"
@@ -85,12 +93,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/shadow.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
-#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "boxes/sticker_set_box.h"
 #include "styles/style_boxes.h"
@@ -101,7 +109,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
-#include <QGraphicsOpacityEffect>
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
 
@@ -116,6 +123,7 @@ public:
 	: Ui::AbstractButton(parent)
 	, _hasStories(std::move(hasStories)) {
 		installEventFilter(this);
+		setAccessibleName(tr::lng_mediaview_profile_photo(tr::now));
 	}
 
 	QString tooltipText() const override {
@@ -149,6 +157,7 @@ constexpr auto kMinPatternRadius = 8;
 constexpr auto kMinContrast = 5.5;
 constexpr auto kStoryOutlineFadeEnd = 0.4;
 constexpr auto kStoryOutlineFadeRange = 1. - kStoryOutlineFadeEnd;
+constexpr auto kSwapMoveAmplitude = 0.3;
 
 using AnimatedPatternPoint = TopBar::AnimatedPatternPoint;
 
@@ -321,10 +330,13 @@ TopBar::TopBar(
 	: nullptr)
 , _status(this, QString(), statusStyle())
 , _statusLabel(std::make_unique<StatusLabel>(_status.data(), _peer))
+, _customStatus(std::move(descriptor.customStatus))
 , _showLastSeen(
 	this,
-	tr::lng_status_lastseen_when(),
-	st::infoProfileTopBarShowLastSeen)
+	object_ptr<Ui::RoundButton>(
+		this,
+		tr::lng_status_lastseen_when(),
+		st::infoProfileTopBarShowLastSeen))
 , _forumButton([&, controller = descriptor.controller] {
 	const auto topic = _key.topic();
 	if (!topic) {
@@ -341,7 +353,6 @@ TopBar::TopBar(
 			.append(' ')
 			.append(Ui::Text::IconEmoji(&st::textMoreIconEmoji, QString()));
 	}));
-	owned->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	owned->setClickedCallback([=, peer = _peer] {
 		if (const auto forum = peer->forum()) {
 			if (peer->useSubsectionTabs()) {
@@ -359,6 +370,7 @@ TopBar::TopBar(
 }())
 , _backToggles(std::move(descriptor.backToggles)) {
 	_peer->updateFull();
+	_communityEffect = (_source == Source::Community);
 	if (const auto broadcast = _peer->monoforumBroadcast()) {
 		broadcast->updateFull();
 	}
@@ -377,6 +389,15 @@ TopBar::TopBar(
 				: std::make_shared<Info::Memento>(shown, section));
 		});
 	}
+	_statusLabel->setHiddenLinkCallback([=] {
+		controller->showToast(Ui::Toast::Config{
+			.title = tr::lng_community_hidden_chat_title(tr::now),
+			.text = tr::lng_community_hidden_chat_about(
+				tr::now,
+				tr::marked),
+			.icon = &st::infoStatusHiddenToastIcon,
+		});
+	});
 	if (!_peer->isMegagroup() && !_topic) {
 		setupStatusWithRating();
 	}
@@ -385,12 +406,7 @@ TopBar::TopBar(
 		setupShowLastSeen(controller);
 	}
 
-	_peer->session().changes().peerFlagsValue(
-		_peer,
-		Data::PeerUpdate::Flag::OnlineStatus | Data::PeerUpdate::Flag::Members
-	) | rpl::on_next([=] {
-		_statusLabel->refresh();
-	}, lifetime());
+	bindStatus();
 
 	_title->setSelectable(true);
 	_title->setContextCopyText(tr::lng_profile_copy_fullname(tr::now));
@@ -428,6 +444,7 @@ TopBar::TopBar(
 
 	setupUniqueBadgeTooltip();
 	setupButtons(controller, descriptor.source);
+	setupSwipeBack(controller);
 	setupUserpicButton(controller);
 	if (_hasActions) {
 		_peer->session().changes().peerFlagsValue(
@@ -436,6 +453,18 @@ TopBar::TopBar(
 				| Data::PeerUpdate::Flag::ChannelAmIn
 		) | rpl::on_next([=] {
 			setupActions(controller);
+		}, lifetime());
+	}
+	if (_source == Source::Community) {
+		Shortcuts::Requests(
+		) | rpl::filter([=] {
+			return Core::App().activeWindow() == &controller->window();
+		}) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
+			using Command = Shortcuts::Command;
+			request->check(Command::Search, 1) && request->handle([=] {
+				searchInCommunity(controller);
+				return true;
+			});
 		}, lifetime());
 	}
 	setupStoryOutline();
@@ -486,11 +515,39 @@ TopBar::TopBar(
 		descriptor.showFinished
 	) | rpl::take(1) | rpl::on_next([=] {
 		setupPinnedToTopGifts(controller);
+		setupBirthdayEffect();
 	}, lifetime());
 
 	if (_forumButton) {
 		_forumButton->show();
 	}
+}
+
+void TopBar::setupBirthdayEffect() {
+	const auto user = _peer->asUser();
+	if (!user || !Data::IsBirthdayToday(user->birthday())) {
+		return;
+	} else if (_wrap.current() == Wrap::Side) {
+		return;
+	}
+	const auto container = static_cast<Ui::RpWidget*>(parentWidget());
+	if (!container) {
+		return;
+	}
+	StartProfileBirthdayEffect(
+		container,
+		user,
+		[weak = base::make_weak(this)] {
+			const auto strong = weak.get();
+			if (!strong) {
+				return QRect();
+			}
+			const auto geometry = strong->userpicGeometry();
+			return QRect(
+				strong->mapToParent(geometry.topLeft()),
+				geometry.size());
+		},
+		_gifPausedChecker);
 }
 
 void TopBar::adjustColors(const std::optional<QColor> &edgeColor) {
@@ -508,18 +565,25 @@ void TopBar::adjustColors(const std::optional<QColor> &edgeColor) {
 		: shouldOverrideTitle
 		? std::optional<QColor>(st::groupCallMembersFg->c)
 		: std::nullopt);
-	if (!_showLastSeen->isHidden()) {
+	_tabSubtitleOverride = collectible
+		? collectible->textColor
+		: shouldOverrideStatus
+		? std::optional<QColor>(st::groupCallVideoSubTextFg->c)
+		: std::nullopt;
+	update();
+	if (_showLastSeen->toggled()) {
 		if (shouldOverrideTitle) {
 			const auto st = mapActionStyle(edgeColor);
-			_showLastSeen->setBrushOverride(st.bgColor);
-			_showLastSeen->setTextFgOverride(st.fgColor);
+			_showLastSeen->entity()->setBrushOverride(st.bgColor);
+			_showLastSeen->entity()->setTextFgOverride(st.fgColor);
 		} else {
-			_showLastSeen->setBrushOverride(std::nullopt);
-			_showLastSeen->setTextFgOverride(std::nullopt);
+			_showLastSeen->entity()->setBrushOverride(std::nullopt);
+			_showLastSeen->entity()->setTextFgOverride(std::nullopt);
 		}
 	}
 	{
 		const auto membersLinkCallback = _statusLabel->membersLinkCallback();
+		const auto hiddenLinkCallback = _statusLabel->hiddenLinkCallback();
 		{
 			_statusLabel = nullptr;
 			delete _status.release();
@@ -545,12 +609,27 @@ void TopBar::adjustColors(const std::optional<QColor> &edgeColor) {
 		}, _status->lifetime());
 		_statusLabel = std::make_unique<StatusLabel>(_status.data(), _peer);
 		_statusLabel->setMembersLinkCallback(membersLinkCallback);
+		_statusLabel->setHiddenLinkCallback(hiddenLinkCallback);
+		if (_customStatus) {
+			rpl::duplicate(
+				_customStatus
+			) | rpl::on_next([=](TextWithEntities text) {
+				_status->setMarkedText(std::move(text));
+				updateStatusPosition(_progress.current());
+			}, _status->lifetime());
+		}
 		_status->setTextColorOverride(collectible
 			? collectible->textColor
 			: shouldOverrideStatus
 			? std::optional<QColor>(st::groupCallVideoSubTextFg->c)
 			: std::nullopt);
-		_statusLabel->setColorized(!shouldOverrideStatus);
+		if (!_customStatus) {
+			// For the custom status the text is driven by the producer
+			// bound above, so let StatusLabel::refresh() (called from
+			// setColorized) overwrite _status only when there is no custom
+			// status.
+			_statusLabel->setColorized(!shouldOverrideStatus);
+		}
 	}
 
 	const auto shouldOverrideBadges = shouldOverride(
@@ -621,15 +700,26 @@ void TopBar::updateCollectibleStatus() {
 		_animatedPoints.clear();
 		_pinnedToTopGifts.clear();
 	}
-	if (colorProfile && !colorProfile->palette.empty()) {
+	const auto verifiedFg = [&]() -> std::optional<QColor> {
+		if (collectible) {
+			return Ui::BlendColors(
+				collectible->edgeColor,
+				collectible->centerColor,
+				0.2);
+		}
+		if (colorProfile && !colorProfile->palette.empty()) {
+			return Ui::BlendColors(
+				colorProfile->palette.back(),
+				colorProfile->palette.size() == 1 ? Qt::white : Qt::black,
+				0.2);
+		}
+		return std::nullopt;
+	}();
+	if (verifiedFg) {
 		const auto copyStVerified = [&](const style::InfoPeerBadge &st) {
 			auto result = std::make_unique<style::InfoPeerBadge>(
 				base::duplicate(st));
-			auto fg = std::make_shared<style::owned_color>(
-				Ui::BlendColors(
-					colorProfile->palette.back(),
-					colorProfile->palette.size() == 1 ? Qt::white : Qt::black,
-					0.2));
+			auto fg = std::make_shared<style::owned_color>(*verifiedFg);
 			result->premiumFg = fg->color();
 			return std::shared_ptr<style::InfoPeerBadge>(
 				result.release(),
@@ -658,6 +748,93 @@ void TopBar::updateCollectibleStatus() {
 		: std::nullopt);
 }
 
+void TopBar::finalizeActions(
+		const std::vector<not_null<TopBarActionButton*>> &buttons) {
+	_actionsShadow = base::make_unique_q<Ui::RpWidget>(this);
+	const auto shadowRaw = _actionsShadow.get();
+	shadowRaw->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto shadow = shadowRaw->lifetime().make_state<Ui::BoxShadow>(
+		st::infoProfileTopBarActionButtonShadow);
+	const auto shadowShown = shadowRaw->lifetime().make_state<bool>(
+		false);
+	const auto extend = Ui::BoxShadow::ExtendFor(
+		st::infoProfileTopBarActionButtonShadow);
+	shadowRaw->paintRequest() | rpl::on_next([=] {
+		if (!*shadowShown) {
+			return;
+		}
+		const auto full = st::infoProfileTopBarActionButtonSize;
+		const auto progress = std::clamp(
+			float64(_actions->height()) / full,
+			0.,
+			1.);
+		if (progress <= 0.) {
+			return;
+		}
+		auto p = QPainter(shadowRaw);
+		const auto opacity = shadow->opacity() * progress;
+		for (const auto &button : buttons) {
+			const auto buttonRect = button->geometry().translated(
+				extend.left(),
+				extend.top());
+			shadow->paint(p, buttonRect, st::boxRadius, opacity);
+		}
+	}, shadowRaw->lifetime());
+
+	style::PaletteChanged(
+	) | rpl::on_next([=] {
+		const auto current = _edgeColor.current();
+		_edgeColor.force_assign(current);
+	}, _actions->lifetime());
+	_edgeColor.value() | rpl::map([=](std::optional<QColor> c) {
+		return mapActionStyle(c);
+	}) | rpl::on_next([=](
+			TopBarActionButtonStyle st) {
+		for (const auto &button : buttons) {
+			button->setStyle(st);
+		}
+		*shadowShown = st.shadowColor.has_value();
+		shadowRaw->update();
+	}, _actions->lifetime());
+	const auto padding = st::infoProfileTopBarActionButtonsPadding;
+	sizeValue() | rpl::on_next([=](const QSize &size) {
+		const auto ratio = float64(size.height())
+			/ (st::infoProfileTopBarActionButtonsHeight
+				+ st::infoLayerTopBarHeight);
+		const auto h = st::infoProfileTopBarActionButtonSize;
+		const auto resultHeight = (ratio >= 1.)
+			? h
+			: (ratio <= 0.5)
+			? 0
+			: int(h * (ratio - 0.5) / 0.5);
+		_actions->setGeometry(
+			padding.left(),
+			size.height() - resultHeight - padding.bottom(),
+			size.width() - rect::m::sum::h(padding),
+			resultHeight);
+	}, _actions->lifetime());
+	_actions->geometryValue() | rpl::on_next([=](QRect geometry) {
+		shadowRaw->setGeometry(geometry.marginsAdded(extend));
+		shadowRaw->update();
+	}, shadowRaw->lifetime());
+	shadowRaw->show();
+	_actions->show();
+	_actions->raise();
+	shadowRaw->stackUnder(_actions.get());
+}
+
+void TopBar::searchInCommunity(
+		not_null<Window::SessionController*> controller) {
+	const auto channel = _peer->asChannel();
+	if (!channel) {
+		return;
+	}
+	const auto history = channel->owner().history(channel);
+	controller->hideLayer();
+	controller->hideSpecialLayer();
+	controller->searchInChat(history);
+}
+
 void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 	const auto peer = _peer;
 	const auto user = peer->asUser();
@@ -666,6 +843,40 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 	const auto topic = _key.topic();
 	const auto sublist = _key.sublist();
 	const auto isSide = (_wrap.current() == Wrap::Side);
+
+	if (_source == Source::Community) {
+		_actions = base::make_unique_q<Ui::HorizontalFitContainer>(
+			this,
+			st::infoProfileTopBarActionButtonsSpace);
+		auto buttons = std::vector<not_null<TopBarActionButton*>>();
+		if (channel && channel->canEditInformation()) {
+			const auto manage = Ui::CreateChild<TopBarActionButton>(
+				this,
+				tr::lng_profile_action_short_manage(tr::now),
+				st::infoProfileTopBarActionManage);
+			manage->setClickedCallback([=] {
+				ShowManageCommunityBox(controller, channel);
+			});
+			manage->setAccessibleName(
+				tr::lng_profile_action_short_manage(tr::now));
+			buttons.push_back(manage);
+			_actions->add(manage);
+		}
+		if (channel) {
+			const auto search = Ui::CreateChild<TopBarActionButton>(
+				this,
+				tr::lng_dlg_filter(tr::now),
+				st::infoProfileTopBarActionSearch);
+			search->setClickedCallback([=] {
+				searchInCommunity(controller);
+			});
+			search->setAccessibleName(tr::lng_dlg_filter(tr::now));
+			buttons.push_back(search);
+			_actions->add(search);
+		}
+		finalizeActions(buttons);
+		return;
+	}
 
 	auto buttons = std::vector<not_null<TopBarActionButton*>>();
 	_actions = base::make_unique_q<Ui::HorizontalFitContainer>(
@@ -690,6 +901,7 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 			moreButton->setClickedCallback([=] {
 				showTopBarMenu(controller, false);
 			});
+			moreButton->setAccessibleName(tr::lng_profile_action_short_more(tr::now));
 			_actionMore = moreButton;
 			_actions->add(moreButton);
 			buttons.push_back(moreButton);
@@ -697,38 +909,7 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 	};
 	const auto guard = gsl::finally([&] {
 		addMore();
-		style::PaletteChanged(
-		) | rpl::on_next([=] {
-			const auto current = _edgeColor.current();
-			_edgeColor.force_assign(current);
-		}, _actions->lifetime());
-		_edgeColor.value() | rpl::map([=](std::optional<QColor> c) {
-			return mapActionStyle(c);
-		}) | rpl::on_next([=](
-				TopBarActionButtonStyle st) {
-			for (const auto &button : buttons) {
-				button->setStyle(st);
-			}
-		}, _actions->lifetime());
-		const auto padding = st::infoProfileTopBarActionButtonsPadding;
-		sizeValue() | rpl::on_next([=](const QSize &size) {
-			const auto ratio = float64(size.height())
-				/ (st::infoProfileTopBarActionButtonsHeight
-					+ st::infoLayerTopBarHeight);
-			const auto h = st::infoProfileTopBarActionButtonSize;
-			const auto resultHeight = (ratio >= 1.)
-				? h
-				: (ratio <= 0.5)
-				? 0
-				: int(h * (ratio - 0.5) / 0.5);
-			_actions->setGeometry(
-				padding.left(),
-				size.height() - resultHeight - padding.bottom(),
-				size.width() - rect::m::sum::h(padding),
-				resultHeight);
-		}, _actions->lifetime());
-		_actions->show();
-		_actions->raise();
+		finalizeActions(buttons);
 	});
 	if (user) {
 		const auto message = Ui::CreateChild<TopBarActionButton>(
@@ -740,10 +921,12 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 				peer->id,
 				Window::SectionShow::Way::Forward);
 		});
+		message->setAccessibleName(tr::lng_profile_action_short_message(tr::now));
 		buttons.push_back(message);
 		_actions->add(message);
 	}
-	if (!topic && channel && !channel->amIn()) {
+	const auto canJoin = (!sublist && !topic && channel && !channel->amIn());
+	if (canJoin) {
 		const auto join = Ui::CreateChild<TopBarActionButton>(
 			this,
 			tr::lng_profile_action_short_join(tr::now),
@@ -751,6 +934,7 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 		join->setClickedCallback([=] {
 			channel->session().api().joinChannel(channel);
 		});
+		join->setAccessibleName(tr::lng_profile_action_short_join(tr::now));
 		buttons.push_back(join);
 		_actions->add(join);
 	} else if (const auto channel = peer->monoforumBroadcast()) {
@@ -763,14 +947,16 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 				channel,
 				Window::SectionShow::Way::Forward);
 		});
+		message->setAccessibleName(tr::lng_profile_action_short_channel(tr::now));
 		buttons.push_back(message);
 		_actions->add(message);
 	}
-	{
+	if (!peer->isSelf()) {
 		const auto notifications = Ui::CreateChild<TopBarActionButton>(
 			this,
 			tr::lng_profile_action_short_mute(tr::now),
 			st::infoProfileTopBarActionMessage);
+		notifications->setAccessibleName(tr::lng_profile_action_short_mute(tr::now));
 		notifications->convertToToggle(
 			st::infoProfileTopBarActionUnmute,
 			st::infoProfileTopBarActionMute,
@@ -788,9 +974,11 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 			: NotificationsEnabledValue(peer)
 		) | rpl::on_next([=](bool enabled) {
 			notifications->toggle(enabled);
-			notifications->setText(enabled
+			const auto text = enabled
 				? tr::lng_profile_action_short_mute(tr::now)
-				: tr::lng_profile_action_short_unmute(tr::now));
+				: tr::lng_profile_action_short_unmute(tr::now);
+			notifications->setText(text);
+			notifications->setAccessibleName(text);
 		}, notifications->lifetime());
 		notifications->finishAnimating();
 
@@ -849,8 +1037,9 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 			tr::lng_profile_action_short_call(tr::now),
 			st::infoProfileTopBarActionCall);
 		call->setClickedCallback([=] {
-			Core::App().calls().startOutgoingCall(user, false);
+			Core::App().calls().startOutgoingCall(user, {});
 		});
+		call->setAccessibleName(tr::lng_profile_action_short_call(tr::now));
 		buttons.push_back(call);
 		_actions->add(call);
 	}
@@ -869,17 +1058,19 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 					tr::lng_channel_invite_private(tr::now));
 				return;
 			}
-			controller->showPeerHistory(
-				chat,
+			auto params = Window::SectionShow(
 				Window::SectionShow::Way::Forward);
+			params.preferCurrentWindow = true;
+			controller->showPeerHistory(chat, params);
 		});
+		discuss->setAccessibleName(tr::lng_profile_action_short_discuss(tr::now));
 		_actions->add(discuss);
 		buttons.push_back(discuss);
 	}
 	if (chechMax()) {
 		return;
 	}
-	if ((topic && topic->canEdit()) || EditPeerInfoBox::Available(peer)) {
+	if (topic ? topic->canEdit() : EditPeerInfoBox::Available(peer)) {
 		const auto manage = Ui::CreateChild<TopBarActionButton>(
 			this,
 			tr::lng_profile_action_short_manage(tr::now),
@@ -895,8 +1086,29 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 				window->showEditPeerBox(peer);
 			}
 		});
+		manage->setAccessibleName(tr::lng_profile_action_short_manage(tr::now));
 		buttons.push_back(manage);
 		_actions->add(manage);
+	}
+	if (chechMax()) {
+		return;
+	}
+	if (peer->groupCall()
+		|| (!peer->isUser() && peer->canManageGroupCall())) {
+		const auto broadcast = peer->isBroadcast();
+		const auto text = broadcast
+			? tr::lng_profile_action_short_live_stream(tr::now)
+			: tr::lng_profile_action_short_video_chat(tr::now);
+		const auto liveStream = Ui::CreateChild<TopBarActionButton>(
+			this,
+			text,
+			st::infoProfileTopBarActionLiveStream);
+		liveStream->setClickedCallback([=] {
+			controller->startOrJoinGroupCall(peer);
+		});
+		liveStream->setAccessibleName(text);
+		buttons.push_back(liveStream);
+		_actions->add(liveStream);
 	}
 	if (chechMax()) {
 		return;
@@ -914,7 +1126,9 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 				|| user->isVerifyCodes()
 				|| !user->session().premiumCanBuy())) {
 		} else if (channel
-			&& (channel->isForbidden() || !channel->stargiftsAvailable())) {
+			&& (channel->isForbidden()
+				|| !channel->stargiftsAvailable()
+				|| channel->amCreator())) {
 		} else {
 			const auto giftButton = Ui::CreateChild<TopBarActionButton>(
 				this,
@@ -923,6 +1137,7 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 			giftButton->setClickedCallback([=] {
 				Ui::ShowStarGiftBox(controller, peer);
 			});
+			giftButton->setAccessibleName(tr::lng_profile_action_short_gift(tr::now));
 			_actions->add(giftButton);
 			buttons.push_back(giftButton);
 		}
@@ -931,8 +1146,11 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 		return;
 	}
 	if (!topic
-		&& ((chat && !chat->amCreator())
-			|| (channel && !channel->amCreator()))) {
+		&& canJoin
+		&& ((chat && !chat->amCreator() && !chat->hasAdminRights())
+			|| (channel
+				&& !channel->amCreator()
+				&& !channel->hasAdminRights()))) {
 		const auto show = controller->uiShow();
 		const auto reportButton = Ui::CreateChild<TopBarActionButton>(
 			this,
@@ -941,22 +1159,21 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 		reportButton->setClickedCallback([=] {
 			ShowReportMessageBox(show, peer, {}, {});
 		});
+		reportButton->setAccessibleName(tr::lng_profile_action_short_report(tr::now));
 		_actions->add(reportButton);
 		buttons.push_back(reportButton);
 	}
 	if (chechMax()) {
 		return;
 	}
-	if (!topic && !sublist && channel && channel->amIn()) {
+	if (!canJoin && !topic && !sublist && (chat || channel)) {
 		const auto leaveButton = Ui::CreateChild<TopBarActionButton>(
 			this,
 			tr::lng_profile_action_short_leave(tr::now),
 			st::infoProfileTopBarActionLeave);
-		leaveButton->setClickedCallback([=] {
-			if (!controller->showFrozenError()) {
-				controller->show(Box(DeleteChatBox, peer));
-			}
-		});
+		leaveButton->setClickedCallback(
+			Window::DeleteAndLeaveHandler(controller, peer));
+		leaveButton->setAccessibleName(tr::lng_profile_action_short_leave(tr::now));
 		_actions->add(leaveButton);
 		buttons.push_back(leaveButton);
 	}
@@ -1093,6 +1310,7 @@ void TopBar::setupUserpicButton(
 				_peer->session().api().peerPhoto().upload(
 					_peer,
 					std::move(result));
+				startUploadOverlay();
 				break;
 			case ChosenType::Suggest:
 				_peer->session().api().peerPhoto().suggest(
@@ -1110,17 +1328,24 @@ void TopBar::setupUserpicButton(
 			: _peer->name();
 		const auto phrase = (type == ChosenType::Suggest)
 			? &tr::lng_profile_suggest_sure
-			: &tr::lng_profile_set_personal_sure;
+			: (user && !user->isSelf() && !_peer->isBot())
+			? &tr::lng_profile_set_personal_sure
+			: nullptr;
+		const auto useForumShape = _peer->isForum() && !_peer->isBot();
 		return Editor::EditorData{
-			.about = (*phrase)(
-				tr::now,
-				lt_user,
-				tr::bold(name),
-				tr::marked),
+			.about = (phrase
+				? (*phrase)(
+					tr::now,
+					lt_user,
+					tr::bold(name),
+					tr::marked)
+				: TextWithEntities()),
 			.confirm = ((type == ChosenType::Suggest)
 				? tr::lng_profile_suggest_button(tr::now)
 				: tr::lng_profile_set_photo_button(tr::now)),
-			.cropType = Editor::EditorData::CropType::Ellipse,
+			.cropType = (useForumShape
+				? Editor::EditorData::CropType::RoundedRect
+				: Editor::EditorData::CropType::Ellipse),
 			.keepAspectRatio = true,
 		};
 	};
@@ -1166,12 +1391,10 @@ void TopBar::setupUserpicButton(
 				this,
 				st::popupMenuWithIcons);
 
-			if (_hasStories) {
-				(*menu)->addAction(
-					tr::lng_profile_open_photo(tr::now),
-					openPhoto,
-					&st::menuIconPhoto);
-			}
+			(*menu)->addAction(
+				tr::lng_profile_open_photo(tr::now),
+				openPhoto,
+				&st::menuIconPhoto);
 
 			if (canReport()) {
 				(*menu)->addAction(
@@ -1251,7 +1474,9 @@ void TopBar::setupUserpicButton(
 				(*menu)->popup(QCursor::pos());
 			}
 		} else if (button == Qt::LeftButton) {
-			if (_topicIconView && _topic && _topic->iconId()) {
+			if (_uploadOverlay && _uploadOverlay->uploading()) {
+				_peer->session().api().peerPhoto().cancelUpload(_peer);
+			} else if (_topicIconView && _topic && _topic->iconId()) {
 				const auto document = _peer->owner().document(
 					_topic->iconId());
 				if (const auto sticker = document->sticker()) {
@@ -1292,6 +1517,46 @@ void TopBar::setupUserpicButton(
 	}, _userpicButton->lifetime());
 }
 
+void TopBar::startUploadOverlay() {
+	if (_uploadOverlay && _uploadOverlay->uploading()) {
+		return;
+	}
+	_waitingUserpicCloudLoad = true;
+	_uploadOverlay = std::make_unique<Ui::UploadProgressOverlay>(
+		this,
+		[=] { update(); });
+	_uploadOverlay->start();
+
+	_userpicButton->events(
+	) | rpl::filter([](not_null<QEvent*> e) {
+		return e->type() == QEvent::Enter
+			|| e->type() == QEvent::Leave;
+	}) | rpl::on_next([=](not_null<QEvent*> e) {
+		if (_uploadOverlay) {
+			_uploadOverlay->setOver(e->type() == QEvent::Enter);
+		}
+	}, _uploadLifetime);
+
+	const auto cleanup = [=] {
+		_uploadLifetime.destroy();
+		_uploadOverlay = nullptr;
+	};
+	_peer->session().api().peerPhoto().subscribeToUpload(
+		_peer,
+		_uploadLifetime,
+		{
+			.progress = [=](float64 value) {
+				_uploadOverlay->setProgress(value);
+			},
+			.done = [=] {
+				_uploadOverlay->stop(cleanup);
+			},
+			.failed = [=] {
+				_uploadOverlay->fail(cleanup);
+			},
+		});
+}
+
 void TopBar::setupUniqueBadgeTooltip() {
 	if (!_badge || _source == Source::Preview) {
 		return;
@@ -1313,9 +1578,8 @@ void TopBar::setupUniqueBadgeTooltip() {
 		if (!collectible || _localCollectible) {
 			return;
 		}
-		const auto parent = window();
 		_badgeTooltip = std::make_unique<BadgeTooltip>(
-			parent,
+			this,
 			collectible,
 			widget);
 		const auto raw = _badgeTooltip.get();
@@ -1361,6 +1625,59 @@ rpl::producer<> TopBar::backRequest() const {
 	return _backClicks.events();
 }
 
+void TopBar::setupSwipeBack(
+		not_null<Window::SessionController*> controller) {
+	auto update = [=](Ui::Controls::SwipeContextData data) {
+		if (data.translation > 0) {
+			if (!_swipeBackData.callback) {
+				const auto container = static_cast<Ui::RpWidget*>(
+					parentWidget());
+				_swipeBackData = Ui::Controls::SetupSwipeBack(
+					container ? container : static_cast<Ui::RpWidget*>(this),
+					[]() -> std::pair<QColor, QColor> {
+						return {
+							st::historyForwardChooseBg->c,
+							st::historyForwardChooseFg->c,
+						};
+					});
+			}
+			_swipeBackData.callback(data);
+			return;
+		} else if (_swipeBackData.lifetime) {
+			_swipeBackData = {};
+		}
+	};
+
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
+		if (data.direction != Qt::RightToLeft) {
+			return Ui::Controls::SwipeHandlerFinishData();
+		}
+		auto dismiss = Fn<void()>();
+		if (_back && _back->toggled()) {
+			dismiss = [=] { _backClicks.fire({}); };
+		} else if (_close) {
+			dismiss = (_wrap.current() == Wrap::Side)
+				? Fn<void()>([=] {
+					controller->closeThirdSection();
+				})
+				: Fn<void()>([=] {
+					controller->hideLayer();
+					controller->hideSpecialLayer();
+				});
+		}
+		return dismiss
+			? Ui::Controls::DefaultSwipeBackHandlerFinishData(
+				std::move(dismiss))
+			: Ui::Controls::SwipeHandlerFinishData();
+	};
+
+	Ui::Controls::SetupSwipeHandler({
+		.widget = this,
+		.update = std::move(update),
+		.init = std::move(init),
+	});
+}
+
 void TopBar::setOnlineCount(rpl::producer<int> &&count) {
 	std::move(count) | rpl::on_next([=](int v) {
 		if (_statusLabel) {
@@ -1390,11 +1707,7 @@ void TopBar::setPatternEmojiId(std::optional<DocumentId> patternEmojiId) {
 
 void TopBar::setLocalEmojiStatusId(EmojiStatusId emojiStatusId) {
 	_localCollectible = emojiStatusId.collectible;
-	if (!emojiStatusId.collectible) {
-		_badgeContent = Badge::Content{ BadgeType::Premium, emojiStatusId };
-	} else {
-		_badgeContent = BadgeContentForPeer(_peer);
-	}
+	_badgeContent = Badge::Content{ BadgeType::Premium, emojiStatusId };
 	updateCollectibleStatus();
 }
 
@@ -1460,6 +1773,15 @@ int TopBar::calculateRightButtonsWidth() const {
 	if (_topBarButton) {
 		width += _topBarButton->width();
 	}
+	if (_tabMenuToggle && _tabMenuToggle->toggled()) {
+		width += _tabMenuToggle->width();
+	}
+	if (_tabSearchToggle && _tabSearchToggle->toggled()) {
+		width += _tabSearchToggle->width();
+	}
+	if (_tabGroupToggle && _tabGroupToggle->toggled()) {
+		width += _tabGroupToggle->width();
+	}
 	return width;
 }
 
@@ -1477,6 +1799,32 @@ void TopBar::updateLabelsPosition() {
 	}();
 	const auto progressCurrent = _progress.current();
 
+	updateTitlePosition(progressCurrent);
+	updateStatusPosition(progressCurrent);
+
+	if (_badgeTooltip) {
+		_badgeTooltip->setOpacity(progressCurrent);
+	}
+
+	{
+		const auto userpicRect = userpicGeometry();
+		if (_userpicButton) {
+			_userpicButton->setGeometry(userpicGeometry());
+		}
+
+		updateGiftButtonsGeometry(progressCurrent, userpicRect);
+	}
+
+	updateRightButtonsPosition();
+	updateTabSwapVisibility();
+	updateTabSelectionGeometry();
+	updateTabSearchGeometry();
+}
+
+void TopBar::updateTitlePosition(float64 progressCurrent) {
+	if (width() <= 0) {
+		return;
+	}
 	const auto rightButtonsWidth = calculateRightButtonsWidth();
 
 	const auto reservedRight = anim::interpolate(
@@ -1509,8 +1857,8 @@ void TopBar::updateLabelsPosition() {
 		- reservedRight
 		- badgesWidth;
 
-	if (titleWidth > 0 && _title->textMaxWidth() > titleWidth) {
-		_title->resizeToWidth(titleWidth);
+	if (titleWidth > 0) {
+		_title->resizeToNaturalWidth(titleWidth);
 	}
 
 	const auto titleTop = anim::interpolate(
@@ -1561,21 +1909,6 @@ void TopBar::updateLabelsPosition() {
 			badgeTop,
 			badgeBottom);
 	}
-
-	updateStatusPosition(progressCurrent);
-
-	if (_badgeTooltip) {
-		_badgeTooltip->setOpacity(progressCurrent);
-	}
-
-	{
-		const auto userpicRect = userpicGeometry();
-		if (_userpicButton) {
-			_userpicButton->setGeometry(userpicGeometry());
-		}
-
-		updateGiftButtonsGeometry(progressCurrent, userpicRect);
-	}
 }
 
 void TopBar::updateStatusPosition(float64 progressCurrent) {
@@ -1605,21 +1938,30 @@ void TopBar::updateStatusPosition(float64 progressCurrent) {
 			(width() - _forumButton->width()) / 2,
 			progressCurrent);
 		_forumButton->moveToLeft(buttonLeft, buttonTop);
-		_forumButton->setVisible(true);
+		_forumButton->setVisible(!tabSwapActive());
 
 		_status->hide();
 		// _starsRating->hide();
-		_showLastSeen->hide();
+		_showLastSeen->hide(anim::type::instant);
 		return;
 	}
 
+	const auto swapProgress = _tabSwapAnimation.value(
+		_tabSwapShown ? 1. : 0.);
+	_status->setOpacity(1. - swapProgress);
+	_status->setVisible(swapProgress < 1.);
+
+	const auto swapShift = int(base::SafeRound(swapProgress
+		* statusStyle().style.font->height
+		* kSwapMoveAmplitude
+		* (_tabSwapShown ? 1. : -1.)));
 	const auto statusTop = anim::interpolate(
 		_st.subtitlePosition.y(),
 		st::infoProfileTopBarStatusTop,
-		progressCurrent);
+		progressCurrent) + swapShift;
 	const auto totalElementsWidth = _status->width()
 		+ (_starsRating ? _starsRating->width() : 0)
-		+ (!_showLastSeen->isHidden() ? _showLastSeen->width() : 0);
+		+ (_showLastSeen->toggled() ? _showLastSeen->width() : 0);
 	const auto statusLeft = anim::interpolate(
 		statusMostLeft(),
 		(width() - totalElementsWidth) / 2,
@@ -1634,20 +1976,623 @@ void TopBar::updateStatusPosition(float64 progressCurrent) {
 
 	_status->moveToLeft(statusLeft + statusShift, statusTop);
 
-	if (!_showLastSeen->isHidden()) {
+	if (_showLastSeen->toggled()) {
 		_showLastSeen->moveToLeft(
 			statusLeft
 				+ statusShift
 				+ _status->textMaxWidth()
 				+ st::infoProfileTopBarLastSeenSkip.x(),
 			statusTop + st::infoProfileTopBarLastSeenSkip.y());
-		if (_showLastSeenOpacity) {
-			_showLastSeenOpacity->setOpacity(progressCurrent);
-		}
-		_showLastSeen->setAttribute(
+		_showLastSeen->setOpacity(progressCurrent);
+		_showLastSeen->entity()->setAttribute(
 			Qt::WA_TransparentForMouseEvents,
 			!progressCurrent);
 	}
+}
+
+void TopBar::bindActiveTab(
+		rpl::producer<TabTopBarBindings> bindings,
+		rpl::producer<bool> docked) {
+	_tabsDocked = std::move(docked);
+	_tabsDocked.changes(
+	) | rpl::on_next([=] {
+		updateLabelsPosition();
+	}, lifetime());
+	std::move(
+		bindings
+	) | rpl::on_next([=](TabTopBarBindings &&value) {
+		applyTabBindings(std::move(value));
+	}, lifetime());
+}
+
+void TopBar::applyTabBindings(TabTopBarBindings &&bindings) {
+	_tabBindingsLifetime.destroy();
+	_tabBindingsActive = bool(bindings.title);
+	if (_tabBindingsActive) {
+		if (!_tabSubtitle) {
+			_tabSubtitle = std::make_unique<Ui::AnimatedString>(
+				statusStyle().style.font,
+				[=] { update(); },
+				Ui::AnimatedString::Options{
+					.splitByWords = true,
+					.duration = st::infoTopBarDuration,
+				});
+			_tabSubtitle->setText(QString(), false);
+		}
+		if (bindings.subtitle) {
+			std::move(
+				bindings.subtitle
+			) | rpl::on_next([=](const TextWithEntities &text) {
+				_tabSubtitleText = text.text;
+				refreshTabSubtitle();
+			}, _tabBindingsLifetime);
+		} else {
+			_tabSubtitleText = QString();
+			refreshTabSubtitle();
+		}
+	} else {
+		_tabSubtitleText = QString();
+		refreshTabSubtitle();
+	}
+	_tabSelectionAction = std::move(bindings.selectionAction);
+	_tabFillMenu = std::move(bindings.fillMenu);
+	if (bindings.selectedItems) {
+		std::move(
+			bindings.selectedItems
+		) | rpl::on_next([=](SelectedItems &&items) {
+			setTabSelectedItems(std::move(items));
+		}, _tabBindingsLifetime);
+	} else {
+		setTabSelectedItems(SelectedItems());
+	}
+	_tabApplySearch = std::move(bindings.applySearchQuery);
+	_tabSearchAvailable = false;
+	hideTabSearch();
+	if (bindings.searchEnabledByContent) {
+		std::move(
+			bindings.searchEnabledByContent
+		) | rpl::on_next([=](bool enabled) {
+			if (_tabSearchAvailable != enabled) {
+				_tabSearchAvailable = enabled;
+				updateTabSwapVisibility();
+			}
+		}, _tabBindingsLifetime);
+	}
+	_tabSetGroup = std::move(bindings.setGroupByRole);
+	_tabGroupActive = false;
+	if (bindings.groupByRoleState) {
+		std::move(
+			bindings.groupByRoleState
+		) | rpl::on_next([=](bool grouped) {
+			_tabGroupActive = grouped;
+			updateTabGroupActive();
+			updateTabSwapVisibility();
+		}, _tabBindingsLifetime);
+	}
+	_tabGroupAvailable = false;
+	if (bindings.groupByRoleAvailable) {
+		std::move(
+			bindings.groupByRoleAvailable
+		) | rpl::on_next([=](bool available) {
+			_tabGroupAvailable = available;
+			updateTabSwapVisibility();
+		}, _tabBindingsLifetime);
+	}
+	updateTabGroupActive();
+	updateTabSwapVisibility();
+}
+
+void TopBar::setupStandaloneGroupControl(
+		rpl::producer<bool> state,
+		rpl::producer<bool> available,
+		rpl::producer<bool> reached,
+		Fn<void(bool)> toggle) {
+	_standaloneGroup = true;
+	_tabSetGroup = std::move(toggle);
+	_tabGroupActive = false;
+	_tabGroupAvailable = false;
+	_standaloneGroupReached = false;
+	std::move(
+		state
+	) | rpl::on_next([=](bool grouped) {
+		_tabGroupActive = grouped;
+		updateTabGroupActive();
+		updateTabSwapVisibility();
+	}, lifetime());
+	std::move(
+		available
+	) | rpl::on_next([=](bool value) {
+		_tabGroupAvailable = value;
+		updateTabSwapVisibility();
+	}, lifetime());
+	std::move(
+		reached
+	) | rpl::on_next([=](bool value) {
+		_standaloneGroupReached = value;
+		updateTabSwapVisibility();
+	}, lifetime());
+	updateTabGroupActive();
+	updateTabSwapVisibility();
+}
+
+bool TopBar::tabSelectionMode() const {
+	return !_tabSelectedItems.list.empty();
+}
+
+void TopBar::setTabSelectedItems(SelectedItems &&items) {
+	_tabSelectedItems = std::move(items);
+	const auto mode = tabSelectionMode();
+	if (mode && !_tabSelectionBar) {
+		createTabSelectionBar();
+	}
+	if (_tabSelectionBar) {
+		if (mode) {
+			updateTabSelectionState();
+			raiseTabSelectionOverlay();
+		}
+		_tabSelectionBar->toggle(mode, anim::type::normal);
+	}
+}
+
+void TopBar::raiseTabSelectionOverlay() {
+	if (!_tabSelectionBar || !tabSelectionMode()) {
+		return;
+	}
+	_tabSelectionBar->raise();
+}
+
+void TopBar::createTabSelectionBar() {
+	_tabSelectionBar.create(
+		this,
+		object_ptr<Ui::RpWidget>(this));
+	const auto bar = _tabSelectionBar.data();
+	bar->setDuration(st::infoTopBarDuration);
+	bar->toggle(false, anim::type::instant);
+
+	const auto inner = bar->entity();
+	inner->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(inner);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = _roundEdges ? st::boxRadius : 0;
+		p.setPen(Qt::NoPen);
+		p.setBrush(_st.bg);
+		p.drawRoundedRect(
+			inner->rect() + QMargins(0, 0, 0, radius),
+			radius,
+			radius);
+		const auto line = st::lineWidth;
+		p.fillRect(
+			0,
+			inner->height() - line,
+			inner->width(),
+			line,
+			st::shadowFg);
+	}, inner->lifetime());
+
+	const auto forwardAction = [=](SelectionAction action) {
+		if (const auto onstack = _tabSelectionAction) {
+			onstack(action);
+		}
+	};
+	_tabSelectionCancel = Ui::CreateChild<Ui::IconButton>(
+		inner,
+		_st.mediaCancel);
+	_tabSelectionCancel->setAccessibleName(
+		tr::lng_context_clear_selection(tr::now));
+	_tabSelectionCancel->clicks(
+	) | rpl::on_next([=] {
+		forwardAction(SelectionAction::Clear);
+	}, _tabSelectionCancel->lifetime());
+
+	_tabSelectionText = Ui::CreateChild<Ui::LabelWithNumbers>(
+		inner,
+		_st.title,
+		_st.titlePosition.y(),
+		Ui::StringWithNumbers());
+	_tabSelectionText->resize(0, QWidget::minimumHeight());
+
+	_tabSelectionForward = Ui::CreateChild<Ui::IconButton>(
+		inner,
+		_st.mediaForward);
+	_tabSelectionForward->setAccessibleName(
+		tr::lng_context_forward_selected(tr::now));
+	_tabSelectionForward->clicks(
+	) | rpl::on_next([=] {
+		forwardAction(SelectionAction::Forward);
+	}, _tabSelectionForward->lifetime());
+
+	_tabSelectionDelete = Ui::CreateChild<Ui::IconButton>(
+		inner,
+		_st.mediaDelete);
+	_tabSelectionDelete->setAccessibleName(
+		tr::lng_context_delete_selected(tr::now));
+	_tabSelectionDelete->clicks(
+	) | rpl::on_next([=] {
+		forwardAction(SelectionAction::Delete);
+	}, _tabSelectionDelete->lifetime());
+
+	_tabSelectionStoryInProfile = Ui::CreateChild<Ui::IconButton>(
+		inner,
+		_st.storiesSave);
+	_tabSelectionStoryInProfile->clicks(
+	) | rpl::on_next([=] {
+		const auto allInProfile = ranges::all_of(
+			_tabSelectedItems.list,
+			&SelectedItem::storyInProfile);
+		forwardAction(allInProfile
+			? SelectionAction::ToggleStoryToArchive
+			: SelectionAction::ToggleStoryToProfile);
+	}, _tabSelectionStoryInProfile->lifetime());
+
+	_tabSelectionStoryPin = Ui::CreateChild<Ui::IconButton>(
+		inner,
+		_st.storiesPin);
+	_tabSelectionStoryPin->clicks(
+	) | rpl::on_next([=] {
+		forwardAction(SelectionAction::ToggleStoryPin);
+	}, _tabSelectionStoryPin->lifetime());
+
+	_tabSelectionCancel->show();
+	_tabSelectionText->show();
+	updateTabSelectionGeometry();
+	bar->raise();
+}
+
+void TopBar::updateTabSelectionState() {
+	Expects(_tabSelectionBar != nullptr);
+
+	const auto &list = _tabSelectedItems.list;
+	const auto canDelete = ranges::all_of(list, &SelectedItem::canDelete);
+	const auto canForward = ranges::all_of(list, &SelectedItem::canForward);
+	const auto canToggleStoryPin = ranges::all_of(
+		list,
+		&SelectedItem::canToggleStoryPin);
+	const auto allInProfile = ranges::all_of(
+		list,
+		&SelectedItem::storyInProfile);
+	const auto canUnpin = ranges::any_of(
+		list,
+		&SelectedItem::canUnpinStory);
+	_tabSelectionText->setValue(_tabSelectedItems.title
+		? _tabSelectedItems.title(int(list.size()))
+		: Ui::StringWithNumbers());
+	_tabSelectionForward->setVisible(canForward);
+	_tabSelectionDelete->setVisible(canDelete);
+	_tabSelectionStoryInProfile->setVisible(canToggleStoryPin);
+	_tabSelectionStoryInProfile->setIconOverride(
+		(allInProfile
+			? &_st.storiesArchive.icon
+			: &_st.storiesSave.icon),
+		(allInProfile
+			? &_st.storiesArchive.iconOver
+			: &_st.storiesSave.iconOver));
+	_tabSelectionStoryInProfile->setAccessibleName(allInProfile
+		? tr::lng_mediaview_archive_story(tr::now)
+		: tr::lng_mediaview_save_to_profile(tr::now));
+	_tabSelectionStoryPin->setVisible(canToggleStoryPin);
+	_tabSelectionStoryPin->setIconOverride(
+		canUnpin ? &_st.storiesUnpin.icon : nullptr,
+		canUnpin ? &_st.storiesUnpin.iconOver : nullptr);
+	_tabSelectionStoryPin->setAccessibleName(canUnpin
+		? tr::lng_context_unpin_from_top(tr::now)
+		: tr::lng_context_pin_to_top(tr::now));
+	updateTabSelectionGeometry();
+}
+
+void TopBar::updateTabSelectionGeometry() {
+	if (!_tabSelectionBar || width() <= 0) {
+		return;
+	}
+	const auto barHeight = QWidget::minimumHeight();
+	const auto inner = _tabSelectionBar->entity();
+	inner->resize(width(), barHeight);
+	_tabSelectionBar->move(0, 0);
+
+	_tabSelectionCancel->moveToLeft(0, 0);
+	auto right = _st.mediaActionsSkip;
+	if (!_tabSelectionDelete->isHidden()) {
+		_tabSelectionDelete->moveToRight(right, 0, inner->width());
+		right += _tabSelectionDelete->width();
+	}
+	if (!_tabSelectionStoryInProfile->isHidden()) {
+		_tabSelectionStoryInProfile->moveToRight(right, 0, inner->width());
+		right += _tabSelectionStoryInProfile->width();
+	}
+	if (!_tabSelectionStoryPin->isHidden()) {
+		_tabSelectionStoryPin->moveToRight(right, 0, inner->width());
+		right += _tabSelectionStoryPin->width();
+	}
+	if (!_tabSelectionForward->isHidden()) {
+		_tabSelectionForward->moveToRight(right, 0, inner->width());
+		right += _tabSelectionForward->width();
+	}
+	const auto left = _tabSelectionCancel->width();
+	const auto available = inner->width() - left - right;
+	if (available > 0) {
+		_tabSelectionText->resizeToNaturalWidth(available);
+		_tabSelectionText->moveToLeft(left, 0);
+	}
+}
+
+void TopBar::showTabSearch() {
+	if (!_tabSearchBar) {
+		_tabSearchBar.create(
+			this,
+			object_ptr<Ui::RpWidget>(this));
+		const auto bar = _tabSearchBar.data();
+		bar->setDuration(st::infoTopBarDuration);
+		bar->toggle(false, anim::type::instant);
+
+		const auto inner = bar->entity();
+		inner->paintRequest(
+		) | rpl::on_next([=] {
+			auto p = QPainter(inner);
+			auto hq = PainterHighQualityEnabler(p);
+			const auto radius = _roundEdges ? st::boxRadius : 0;
+			p.setPen(Qt::NoPen);
+			p.setBrush(_st.bg);
+			p.drawRoundedRect(
+				inner->rect() + QMargins(0, 0, 0, radius),
+				radius,
+				radius);
+			const auto line = st::lineWidth;
+			p.fillRect(
+				0,
+				inner->height() - line,
+				inner->width(),
+				line,
+				st::shadowFg);
+		}, inner->lifetime());
+
+		_tabSearchField = Ui::CreateChild<Ui::InputField>(
+			inner,
+			_st.searchRow.field,
+			tr::lng_dlg_filter());
+		_tabSearchField->changes(
+		) | rpl::on_next([=] {
+			if (const auto onstack = _tabApplySearch) {
+				onstack(_tabSearchField->getLastText());
+			}
+		}, _tabSearchField->lifetime());
+
+		const auto cancel = Ui::CreateChild<Ui::IconButton>(
+			inner,
+			st::infoTopBarBlackClose);
+		cancel->setAccessibleName(tr::lng_sr_cancel_search(tr::now));
+		cancel->show();
+		cancel->addClickHandler([=] {
+			cancelTabSearch();
+		});
+		inner->widthValue(
+		) | rpl::on_next([=](int newWidth) {
+			cancel->moveToRight(0, 0, newWidth);
+		}, cancel->lifetime());
+
+		_tabSearchField->show();
+	}
+	_tabSearchShown = true;
+	updateTabSwapVisibility();
+	updateTabSearchGeometry();
+	raiseTabSearchOverlay();
+	_tabSearchBar->toggle(true, anim::type::normal);
+	_tabSearchField->setFocus();
+}
+
+void TopBar::hideTabSearch() {
+	if (!_tabSearchBar || !_tabSearchShown) {
+		_tabSearchShown = false;
+		return;
+	}
+	_tabSearchShown = false;
+	if (_back) {
+		_back->entity()->setIconOverride(nullptr, nullptr);
+	}
+	if (_tabSearchField->hasFocus()) {
+		setFocus();
+	}
+	_tabSearchField->setText(QString());
+	_tabSearchBar->toggle(false, anim::type::normal);
+}
+
+bool TopBar::cancelTabSearch() {
+	if (!_tabSearchShown) {
+		return false;
+	} else if (!_tabSearchField->getLastText().isEmpty()) {
+		_tabSearchField->setText(QString());
+	} else {
+		hideTabSearch();
+		updateTabSwapVisibility();
+	}
+	return true;
+}
+
+void TopBar::checkBeforeCloseByEscape(Fn<void()> close) {
+	if (!cancelTabSearch()) {
+		close();
+	}
+}
+
+bool TopBar::searchAvailable() const {
+	return _tabSearchShown || (tabSwapActive() && _tabSearchAvailable);
+}
+
+void TopBar::showSearch() {
+	if (_tabSearchShown) {
+		_tabSearchField->setFocus();
+	} else if (tabSwapActive() && _tabSearchAvailable) {
+		showTabSearch();
+	}
+}
+
+void TopBar::raiseTabSearchOverlay() {
+	if (!_tabSearchBar || !_tabSearchShown) {
+		return;
+	}
+	_tabSearchBar->raise();
+	if (_back) {
+		_back->raise();
+		_back->entity()->setIconOverride(
+			&st::infoTopBarBlackBack.icon,
+			&st::infoTopBarBlackBack.iconOver);
+	}
+}
+
+void TopBar::updateTabSearchGeometry() {
+	if (!_tabSearchBar || width() <= 0) {
+		return;
+	}
+	const auto barHeight = QWidget::minimumHeight();
+	const auto inner = _tabSearchBar->entity();
+	inner->resize(width(), barHeight);
+	_tabSearchBar->move(0, 0);
+
+	const auto fieldLeft = titleMostLeft();
+	const auto fieldWidth = width()
+		- fieldLeft
+		- _st.searchRow.fieldCancelSkip;
+	if (fieldWidth > 0) {
+		_tabSearchField->resize(fieldWidth, _tabSearchField->height());
+		_tabSearchField->moveToLeft(
+			fieldLeft,
+			(barHeight - _tabSearchField->height()) / 2);
+	}
+}
+
+void TopBar::refreshTabSubtitle() {
+	if (!_tabSubtitle) {
+		return;
+	}
+	_tabSubtitle->setText(tabSwapActive()
+		? _tabSubtitleText
+		: QString());
+	update();
+}
+
+void TopBar::paintTabSubtitle(QPainter &p) {
+	if (!_tabSubtitle) {
+		return;
+	}
+	const auto color = _tabSubtitleOverride
+		? *_tabSubtitleOverride
+		: statusStyle().textFg->c;
+	_tabSubtitle->draw(
+		p,
+		statusMostLeft(),
+		_st.subtitlePosition.y(),
+		color);
+}
+
+bool TopBar::tabSwapActive() const {
+	return _tabBindingsActive && _tabsDocked.current();
+}
+
+void TopBar::updateTabSwapVisibility() {
+	const auto swap = tabSwapActive();
+	if (!swap) {
+		hideTabSearch();
+	}
+	auto togglesChanged = false;
+	if (_tabMenuToggle) {
+		const auto shown = swap
+			&& !_tabSearchShown
+			&& (_tabFillMenu != nullptr);
+		if (_tabMenuToggle->toggled() != shown) {
+			_tabMenuToggle->toggle(shown, anim::type::normal);
+			togglesChanged = true;
+		}
+	}
+	if (_tabSearchToggle) {
+		const auto shown = swap
+			&& !_tabSearchShown
+			&& _tabSearchAvailable;
+		if (_tabSearchToggle->toggled() != shown) {
+			_tabSearchToggle->toggle(shown, anim::type::normal);
+			togglesChanged = true;
+		}
+	}
+	if (_tabGroupToggle) {
+		const auto reached = _standaloneGroup
+			? _standaloneGroupReached
+			: swap;
+		const auto shown = reached
+			&& !_tabSearchShown
+			&& (_tabSetGroup != nullptr)
+			&& _tabGroupAvailable;
+		if (_tabGroupToggle->toggled() != shown) {
+			if (shown) {
+				updateTabGroupActive();
+			}
+			_tabGroupToggle->toggle(shown, anim::type::normal);
+			togglesChanged = true;
+		}
+	}
+	if (togglesChanged) {
+		updateRightButtonsPosition();
+		updateTitlePosition(_progress.current());
+		updateStatusPosition(_progress.current());
+	}
+	if (!_tabSubtitle && !swap) {
+		return;
+	}
+	if (_tabSwapShown != swap) {
+		_tabSwapShown = swap;
+		_tabSwapAnimation.start(
+			[=] { applyTabSwapProgress(_tabSwapAnimation.value(
+				_tabSwapShown ? 1. : 0.)); },
+			swap ? 0. : 1.,
+			swap ? 1. : 0.,
+			st::infoTopBarDuration,
+			anim::easeOutQuint);
+		refreshTabSubtitle();
+	}
+	applyTabSwapProgress(
+		_tabSwapAnimation.value(_tabSwapShown ? 1. : 0.));
+}
+
+void TopBar::updateRightButtonsPosition() {
+	if (width() <= 0) {
+		return;
+	}
+	auto right = 0;
+	if (_close) {
+		_close->moveToRight(right, 0);
+		right += _close->width();
+	}
+	if (_topBarButton) {
+		_topBarButton->moveToRight(right, 0);
+		right += _topBarButton->width();
+	}
+	if (_tabMenuToggle && _tabMenuToggle->toggled()) {
+		_tabMenuToggle->moveToRight(right, 0);
+		right += _tabMenuToggle->width();
+	}
+	if (_tabSearchToggle && _tabSearchToggle->toggled()) {
+		_tabSearchToggle->moveToRight(right, 0);
+		right += _tabSearchToggle->width();
+	}
+	if (_tabGroupToggle && _tabGroupToggle->toggled()) {
+		_tabGroupToggle->moveToRight(right, 0);
+		right += _tabGroupToggle->width();
+	}
+}
+
+void TopBar::updateTabGroupActive() {
+	if (!_tabGroupToggle) {
+		return;
+	}
+	const auto entity = _tabGroupToggle->entity();
+	entity->setForceRippled(false, anim::type::instant);
+	entity->setForceRippled(_tabGroupActive, anim::type::instant);
+}
+
+void TopBar::applyTabSwapProgress(float64 progress) {
+	if (!_forumButton) {
+		_status->setOpacity(1. - progress);
+		_status->setVisible(progress < 1.);
+		updateStatusPosition(_progress.current());
+	}
+	update();
 }
 
 void TopBar::resizeEvent(QResizeEvent *e) {
@@ -1708,13 +2653,18 @@ void TopBar::paintUserpic(QPainter &p, const QRect &geometry) {
 		const auto size = st::infoProfileTopBarPhotoSize;
 		const auto frame = _videoUserpicPlayer->frame(Size(size), _peer);
 		if (!frame.isNull()) {
+			auto hq = PainterHighQualityEnabler(p);
 			p.drawImage(geometry, frame);
 			update();
 			return;
 		}
 	}
 	const auto key = _peer->userpicUniqueKey(_userpicView);
-	if (_userpicUniqueKey != key) {
+	const auto overlayActive = _uploadOverlay && _uploadOverlay->shown();
+	const auto awaitingCloud = _waitingUserpicCloudLoad
+		&& !_peer->userpicCloudImage(_userpicView);
+	if (!overlayActive && !awaitingCloud && _userpicUniqueKey != key) {
+		_waitingUserpicCloudLoad = false;
 		_userpicUniqueKey = key;
 		const auto fullSize = st::infoProfileTopBarPhotoSize;
 		const auto scaled = fullSize * style::DevicePixelRatio();
@@ -1739,16 +2689,41 @@ void TopBar::paintUserpic(QPainter &p, const QRect &geometry) {
 				_monoforumMask);
 			q.end();
 		} else {
+			const auto radius = (_source == Source::Community)
+				? std::optional<int>(
+					int(scaled * Ui::ForumUserpicRadiusMultiplier()))
+				: std::nullopt;
 			image = PeerData::GenerateUserpicImage(
 				_peer,
 				_userpicView,
 				scaled,
-				std::nullopt);
+				radius);
 		}
 		_cachedUserpic = std::move(image);
 		_cachedUserpic.setDevicePixelRatio(style::DevicePixelRatio());
 	}
-	p.drawImage(geometry, _cachedUserpic);
+	if (_communityEffect) {
+		Ui::PaintCommunityUserpicEffect(
+			p,
+			_communityUserpicEffect,
+			geometry.x(),
+			geometry.y(),
+			geometry.width(),
+			st::windowSubTextFg->c);
+	}
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(geometry, _cachedUserpic);
+	}
+	if (_uploadOverlay && _uploadOverlay->shown()) {
+		_uploadOverlay->paint(p, geometry, {
+			.lineWidth = st::defaultUserpicButton.uploadProgressLine,
+			.margin = st::defaultUserpicButton.uploadProgressMargin,
+			.progressFg = st::historyFileThumbRadialFg,
+			.overlayFg = st::songCoverOverlayFg,
+			.cancelIcon = &st::userpicUploadCancel,
+		});
+	}
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {
@@ -1818,6 +2793,8 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		paintUserpic(p, geometry);
 		paintStoryOutline(p, geometry);
 	}
+
+	paintTabSubtitle(p);
 }
 
 void TopBar::setupButtons(
@@ -1856,6 +2833,7 @@ void TopBar::setupButtons(
 			st::infoTopBarScale);
 		_back->QWidget::show();
 		_back->setDuration(0);
+		_back->entity()->setAccessibleName(tr::lng_go_back(tr::now));
 		_back->toggleOn(isLayer || isSide
 			? (_backToggles.value() | rpl::type_erased)
 			: rpl::single(wrap == Wrap::Narrow));
@@ -1871,6 +2849,7 @@ void TopBar::setupButtons(
 				shouldUseColored
 					? st::infoTopBarColoredClose
 					: st::infoTopBarBlackClose);
+			_close->setAccessibleName(tr::lng_sr_close_panel(tr::now));
 			_close->show();
 			_close->addClickHandler(isSide
 				? Fn<void()> ([=] { controller->closeThirdSection(); })
@@ -1883,11 +2862,79 @@ void TopBar::setupButtons(
 			}, _close->lifetime());
 		}
 
+		_tabMenuToggle = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
+			this,
+			object_ptr<Ui::IconButton>(
+				this,
+				shouldUseColored
+					? st::infoTopBarColoredMenu
+					: st::infoTopBarBlackMenu),
+			st::infoTopBarScale);
+		_tabMenuToggle->QWidget::show();
+		_tabMenuToggle->setDuration(st::infoTopBarDuration);
+		_tabMenuToggle->toggle(false, anim::type::instant);
+		_tabMenuToggle->entity()->setAccessibleName(
+			tr::lng_profile_action_short_more(tr::now));
+		_tabMenuToggle->entity()->addClickHandler([=] {
+			showTopBarMenu(controller, false);
+		});
+
+		_tabSearchToggle = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
+			this,
+			object_ptr<Ui::IconButton>(
+				this,
+				shouldUseColored
+					? st::infoTopBarColoredSearch
+					: st::infoTopBarBlackSearch),
+			st::infoTopBarScale);
+		_tabSearchToggle->QWidget::show();
+		_tabSearchToggle->setDuration(st::infoTopBarDuration);
+		_tabSearchToggle->toggle(false, anim::type::instant);
+		_tabSearchToggle->entity()->setAccessibleName(
+			tr::lng_dlg_filter(tr::now));
+		_tabSearchToggle->entity()->addClickHandler([=] {
+			showTabSearch();
+		});
+
+		_tabGroupToggle = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
+			this,
+			object_ptr<Ui::IconButton>(
+				this,
+				shouldUseColored
+					? st::infoTopBarColoredGroup
+					: st::infoTopBarBlackGroup),
+			st::infoTopBarScale);
+		_tabGroupToggle->QWidget::show();
+		_tabGroupToggle->setDuration(st::infoTopBarDuration);
+		_tabGroupToggle->toggle(false, anim::type::instant);
+		_tabGroupToggle->entity()->setAccessibleName(
+			tr::lng_profile_participants_section(tr::now));
+		_tabGroupToggle->entity()->addClickHandler([=] {
+			if (_tabSetGroup) {
+				_tabSetGroup(!_tabGroupActive);
+			}
+		});
+		_tabGroupToggle->entity()->shownValue(
+		) | rpl::filter([](bool shown) {
+			return shown;
+		}) | rpl::on_next([=] {
+			updateTabGroupActive();
+		}, _tabGroupToggle->lifetime());
+		updateTabGroupActive();
+
+		widthValue() | rpl::on_next([=] {
+			updateRightButtonsPosition();
+		}, _tabSearchToggle->lifetime());
+		updateTabSwapVisibility();
+		updateRightButtonsPosition();
+
 		if (wrap != Wrap::Side) {
 			if (source == Source::Stories) {
 				addTopBarEditButton(controller, wrap, shouldUseColored);
 			}
 		}
+		raiseTabSearchOverlay();
+		raiseTabSelectionOverlay();
 	}, lifetime());
 }
 
@@ -1906,8 +2953,9 @@ void TopBar::addTopBarEditButton(
 				: st::infoTopBarBlackEdit)));
 	_topBarButton->show();
 	_topBarButton->addClickHandler([=] {
-		controller->showSettings(::Settings::Information::Id());
+		controller->showSettings(::Settings::InformationId());
 	});
+	_topBarButton->setAccessibleName(tr::lng_settings_information(tr::now));
 
 	widthValue() | rpl::on_next([=] {
 		if (_close) {
@@ -1936,9 +2984,15 @@ void TopBar::showTopBarMenu(
 		// }
 	});
 
-	fillTopBarMenu(
-		controller,
-		Ui::Menu::CreateAddActionCallback(_peerMenu));
+	if (tabSwapActive()) {
+		if (_tabFillMenu) {
+			_tabFillMenu(Ui::Menu::CreateAddActionCallback(_peerMenu));
+		}
+	} else {
+		fillTopBarMenu(
+			controller,
+			Ui::Menu::CreateAddActionCallback(_peerMenu));
+	}
 	if (_peerMenu->empty()) {
 		_peerMenu = nullptr;
 		return;
@@ -1946,11 +3000,22 @@ void TopBar::showTopBarMenu(
 		return;
 	}
 	_peerMenu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
-	_peerMenu->popup(_actionMore
-		? _actionMore->mapToGlobal(
-			QPoint(
-				_actionMore->width(),
-				_actionMore->height() + st::infoProfileTopBarActionMenuSkip))
+	const auto tabToggle = (_tabMenuToggle && _tabMenuToggle->toggled())
+		? _tabMenuToggle->entity()
+		: nullptr;
+	const auto anchor = tabToggle
+		? static_cast<QWidget*>(tabToggle)
+		: static_cast<QWidget*>(_actionMore);
+	const auto extend = Ui::BoxShadow::ExtendFor(_peerMenu->st().shadow);
+	const auto skip = tabToggle
+		? extend.top()
+		: st::infoProfileTopBarActionMenuSkip;
+	_peerMenu->popup(anchor
+		? Ui::PopupMenu::ConstrainToParentScreen(
+			_peerMenu,
+			anchor->mapToGlobal(QPoint(
+				anchor->width() + extend.right(),
+				anchor->height() + skip)))
 		: QCursor::pos());
 }
 
@@ -2005,7 +3070,7 @@ void TopBar::setupShowLastSeen(
 		|| user->isBot()
 		|| user->isServiceUser()
 		|| !user->session().premiumPossible()) {
-		_showLastSeen->hide();
+		_showLastSeen->hide(anim::type::instant);
 		return;
 	}
 
@@ -2013,7 +3078,7 @@ void TopBar::setupShowLastSeen(
 		if (user->lastseen().isHiddenByMe()) {
 			user->updateFullForced();
 		}
-		_showLastSeen->hide();
+		_showLastSeen->hide(anim::type::instant);
 		return;
 	}
 
@@ -2023,13 +3088,13 @@ void TopBar::setupShowLastSeen(
 			Data::PeerUpdate::Flag::OnlineStatus),
 		Data::AmPremiumValue(&user->session())
 	) | rpl::on_next([=](auto, bool premium) {
-		const auto wasShown = !_showLastSeen->isHidden();
+		const auto wasShown = _showLastSeen->toggled();
 		const auto hiddenByMe = user->lastseen().isHiddenByMe();
 		const auto shown = hiddenByMe
 			&& !user->lastseen().isOnline(base::unixtime::now())
 			&& !premium
 			&& user->session().premiumPossible();
-		_showLastSeen->setVisible(shown);
+		_showLastSeen->toggle(shown, anim::type::instant);
 		if (wasShown && premium && hiddenByMe) {
 			user->updateFullForced();
 		}
@@ -2045,16 +3110,11 @@ void TopBar::setupShowLastSeen(
 		}
 	}, _showLastSeen->lifetime());
 
-	_showLastSeenOpacity = Ui::CreateChild<QGraphicsOpacityEffect>(
-		_showLastSeen.get());
-	_showLastSeen->setGraphicsEffect(_showLastSeenOpacity);
-	_showLastSeenOpacity->setOpacity(0.);
+	_showLastSeen->setOpacity(0.);
 
-	using TextTransform = Ui::RoundButton::TextTransform;
-	_showLastSeen->setTextTransform(TextTransform::NoTransform);
-	_showLastSeen->setFullRadius(true);
+	_showLastSeen->entity()->setFullRadius(true);
 
-	_showLastSeen->setClickedCallback([=] {
+	_showLastSeen->entity()->setClickedCallback([=] {
 		const auto type = Ui::ShowOrPremium::LastSeen;
 		controller->show(Box(
 			Ui::ShowOrPremiumBox,
@@ -2301,6 +3361,18 @@ void TopBar::setupNewGifts(
 		}
 		entry.position = positions[i];
 		entry.button = base::make_unique_q<Ui::AbstractButton>(this);
+		entry.button->setAccessibleName([&] {
+			const auto base = tr::lng_profile_action_short_gift(tr::now);
+
+			if (const auto &unique = gift.info.unique) {
+				const auto name = Data::UniqueGiftName(*unique);
+				if (!name.isEmpty()) {
+					return base + ": " + name;
+				}
+			}
+
+			return base;
+		}());
 		entry.button->show();
 
 		entry.button->setClickedCallback([=, giftData = gift, peer = _peer] {
@@ -2527,6 +3599,10 @@ void TopBar::setupStoryOutline(const QRect &geometry) {
 					| Data::PeerUpdate::Flag::ColorProfile
 			) | rpl::filter([=](const Data::PeerUpdate &update) {
 				return update.peer == _peer;
+			}) | rpl::to_empty,
+			_peer->owner().stories().sourceChanged(
+			) | rpl::filter([=](PeerId peerId) {
+				return peerId == _peer->id;
 			}) | rpl::to_empty)
 	) | rpl::on_next([=](
 			std::optional<QColor> edgeColor,
@@ -2550,9 +3626,6 @@ void TopBar::setupStoryOutline(const QRect &geometry) {
 }
 
 void TopBar::updateStoryOutline(std::optional<QColor> edgeColor) {
-	if (width() <= 0) {
-		return;
-	}
 	const auto user = _peer->asUser();
 	const auto channel = _peer->asChannel();
 	if (!user && !channel) {
@@ -2603,9 +3676,10 @@ void TopBar::updateStoryOutline(std::optional<QColor> edgeColor) {
 		return;
 	}
 
-	const auto &stories = _peer->owner().stories();
+	auto &stories = _peer->owner().stories();
 	const auto source = stories.source(_peer->id);
 	if (!source) {
+		stories.requestPeerStories(_peer);
 		return;
 	}
 
@@ -2677,6 +3751,27 @@ void TopBar::paintStoryOutline(QPainter &p, const QRect &geometry) {
 	}
 }
 
+void TopBar::bindStatus() {
+	if (_customStatus) {
+		rpl::duplicate(
+			_customStatus
+		) | rpl::on_next([=](TextWithEntities text) {
+			_status->setMarkedText(std::move(text));
+			updateStatusPosition(_progress.current());
+		}, _status->lifetime());
+		_status->widthValue() | rpl::on_next([=] {
+			updateStatusPosition(_progress.current());
+		}, _status->lifetime());
+		return;
+	}
+	_peer->session().changes().peerFlagsValue(
+		_peer,
+		Data::PeerUpdate::Flag::OnlineStatus | Data::PeerUpdate::Flag::Members
+	) | rpl::on_next([=] {
+		_statusLabel->refresh();
+	}, lifetime());
+}
+
 void TopBar::setupStatusWithRating() {
 	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 	if (const auto rating = _starsRating.get()) {
@@ -2722,7 +3817,9 @@ TopBarActionButtonStyle TopBar::mapActionStyle(
 				st::boxBg->c,
 				1. - st::infoProfileTopBarActionButtonBgOpacity),
 			.fgColor = std::nullopt,
-			.shadowColor = std::make_optional(st::windowShadowFgFallback->c),
+			.shadowColor = Window::Theme::IsNightMode()
+				? std::nullopt
+				: std::make_optional(st::windowShadowFgFallback->c),
 		};
 	}
 }

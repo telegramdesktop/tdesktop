@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "menu/menu_send_details.h"
 
 namespace style {
 struct ComposeIcons;
@@ -30,38 +31,6 @@ class Thread;
 
 namespace SendMenu {
 
-enum class Type : uchar {
-	Disabled,
-	SilentOnly,
-	Scheduled,
-	ScheduledToUser, // For "Send when online".
-	Reminder,
-	EditCommentPrice,
-};
-
-enum class SpoilerState : uchar {
-	None,
-	Enabled,
-	Possible,
-};
-
-enum class CaptionState : uchar {
-	None,
-	Below,
-	Above,
-};
-
-struct Details {
-	Type type = Type::Disabled;
-	SpoilerState spoiler = SpoilerState::None;
-	CaptionState caption = CaptionState::None;
-	TextWithTags commentPreview;
-	QString commentStreamerName;
-	std::optional<uint64> price;
-	std::optional<uint64> commentPriceMin;
-	bool effectAllowed = false;
-};
-
 enum class FillMenuResult : uchar {
 	Prepared,
 	Skipped,
@@ -75,6 +44,8 @@ enum class ActionType : uchar {
 	SpoilerOff,
 	CaptionUp,
 	CaptionDown,
+	PhotoQualityOn,
+	PhotoQualityOff,
 	ChangePrice,
 };
 struct Action {
@@ -115,6 +86,10 @@ void SetupUnreadMentionsMenu(
 	Fn<Data::Thread*()> currentThread);
 
 void SetupUnreadReactionsMenu(
+	not_null<Ui::RpWidget*> button,
+	Fn<Data::Thread*()> currentThread);
+
+void SetupUnreadPollVotesMenu(
 	not_null<Ui::RpWidget*> button,
 	Fn<Data::Thread*()> currentThread);
 

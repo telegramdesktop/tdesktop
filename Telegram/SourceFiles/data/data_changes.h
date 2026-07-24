@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 class PeerData;
+class UserData;
 class HistoryItem;
 
 namespace Dialogs {
@@ -121,9 +122,12 @@ struct PeerUpdate {
 		ChannelLocation     = (1ULL << 53),
 		Slowmode            = (1ULL << 54),
 		GroupCall           = (1ULL << 55),
+		ManagedBot          = (1ULL << 56),
+
+		MainProfileTab      = (1ULL << 57),
 
 		// For iteration
-		LastUsedBit         = (1ULL << 55),
+		LastUsedBit         = (1ULL << 57),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -152,8 +156,9 @@ struct HistoryUpdate {
 		CloudDraft         = (1U << 12),
 		TranslateFrom      = (1U << 13),
 		TranslatedTo       = (1U << 14),
+		UnreadPollVotes    = (1U << 15),
 
-		LastUsedBit        = (1U << 14),
+		LastUsedBit        = (1U << 15),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -178,8 +183,9 @@ struct TopicUpdate {
 		Closed          = (1U << 9),
 		Creator         = (1U << 10),
 		Destroyed       = (1U << 11),
+		UnreadPollVotes = (1U << 12),
 
-		LastUsedBit     = (1U << 11),
+		LastUsedBit     = (1U << 12),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -197,8 +203,9 @@ struct SublistUpdate {
 		UnreadReactions = (1U << 2),
 		CloudDraft = (1U << 3),
 		Destroyed = (1U << 4),
+		UnreadPollVotes = (1U << 5),
 
-		LastUsedBit = (1U << 4),
+		LastUsedBit = (1U << 5),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -279,6 +286,12 @@ struct ChatAdminChange {
 	not_null<PeerData*> peer;
 	not_null<UserData*> user;
 	ChatAdminRights rights;
+	QString rank;
+};
+
+struct ChatMemberRankChange {
+	not_null<PeerData*> peer;
+	not_null<UserData*> user;
 	QString rank;
 };
 
@@ -401,6 +414,12 @@ public:
 		QString rank);
 	[[nodiscard]] rpl::producer<ChatAdminChange> chatAdminChanges() const;
 
+	void chatMemberRankChanged(
+		not_null<PeerData*> peer,
+		not_null<UserData*> user,
+		QString rank);
+	[[nodiscard]] rpl::producer<ChatMemberRankChange> chatMemberRankChanges() const;
+
 	void sendNotifications();
 
 private:
@@ -454,6 +473,7 @@ private:
 	Manager<Dialogs::Entry, EntryUpdate> _entryChanges;
 	Manager<Story, StoryUpdate> _storyChanges;
 	rpl::event_stream<ChatAdminChange> _chatAdminChanges;
+	rpl::event_stream<ChatMemberRankChange> _chatMemberRankChanges;
 
 	bool _notify = false;
 

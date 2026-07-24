@@ -18,6 +18,8 @@ class QLockFile;
 
 namespace Core {
 
+extern const char kOptionDeadlockDetector[];
+
 class UpdateChecker;
 class Application;
 
@@ -60,6 +62,7 @@ public:
 		return *static_cast<Sandbox*>(QCoreApplication::instance());
 	}
 	static void QuitWhenStarted();
+	static void NotifySystemShuttingDown();
 
 	~Sandbox();
 
@@ -74,8 +77,6 @@ private:
 		int loopNestingLevel = 0;
 		FnMut<void()> callable;
 	};
-
-	bool notifyOrInvoke(QObject *receiver, QEvent *e);
 
 	void closeApplication(); // will be done in aboutToQuit()
 	void checkForQuit(); // will be done in exec()
@@ -102,6 +103,7 @@ private:
 	void socketWritten(qint64 bytes);
 	void socketReading();
 	void newInstanceConnected();
+	int stopRunningInstance();
 
 	void readClients();
 	void removeClients();
@@ -123,6 +125,7 @@ private:
 	bool _secondInstance = false;
 	bool _started = false;
 	static bool QuitOnStartRequested;
+	static bool SystemShuttingDown;
 
 	std::unique_ptr<UpdateChecker> _updateChecker;
 
@@ -132,6 +135,8 @@ private:
 	rpl::event_stream<> _widgetUpdateRequests;
 
 	std::unique_ptr<QThread> _deadlockDetector;
+
+	rpl::lifetime _lifetime;
 
 };
 

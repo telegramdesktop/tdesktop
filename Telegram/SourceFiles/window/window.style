@@ -83,7 +83,6 @@ notifySendReply: IconButton {
 notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 titleUnreadCounterTop: 6px;
-titleUnreadCounterRight: 35px;
 
 mainMenuWidth: 274px;
 mainMenuCoverHeight: 134px;
@@ -208,6 +207,21 @@ windowOutdatedClose: IconButton(defaultIconButton) {
 	iconPosition: point(-1px, -1px);
 }
 
+windowScreenReaderLabel: FlatLabel(defaultFlatLabel) {
+	align: align(left);
+	textFg: activeButtonFg;
+	style: semiboldTextStyle;
+}
+windowScreenReaderPadding: margins(12px, 4px, 4px, 4px);
+windowScreenReaderDisableTextStyle: semiboldTextStyle;
+windowScreenReaderButtonPadding: margins(12px, 0px, 12px, 0px);
+windowScreenReaderButtonHeight: 28px;
+windowScreenReaderButtonBorderWidth: 2px;
+windowScreenReaderButtonRadius: 14px;
+windowScreenReaderButtonRipple: RippleAnimation(defaultRippleAnimation) {
+	color: activeButtonBgRipple;
+}
+
 createThemeImportButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
@@ -283,14 +297,23 @@ windowFilterSmallRemove: IconButton(notifyClose) {
 }
 windowFilterSmallRemoveRight: 10px;
 windowFilterNameInput: InputField(defaultInputField) {
-	textMargins: margins(0px, 26px, 87px, 4px);
+	textMargins: margins(0px, 26px, 52px, 4px);
 }
-windowFilterNameEmojiPosition: point(-65px, 22px);
-windowFilterNameCharsLimitRightPosition: point(75px, 27px);
+windowFilterNameInputPadding: margins(86px, 0px, 22px, 10px);
+windowFilterNameEmojiPosition: point(-30px, 22px);
+windowFilterNameCharsLimitRightPosition: point(40px, 27px);
 windowFilterStaticTitlePosition: point(0px, 5px);
-windowFilterIconToggleSize: size(36px, 36px);
-windowFilterIconTogglePosition: point(-4px, 18px);
-windwoFilterIconPanelPosition: point(-2px, -1px);
+windowFilterIconUserpicSize: 44px;
+windowFilterIconUserpicSkip: 20px;
+windowFilterIconUserpicTop: 9px;
+windowFilterIconUserpicBadge: 16px;
+windowFilterIconUserpicBadgePosition: point(30px, 30px);
+windowFilterIconUserpicBadgeBorder: 2px;
+windowFilterIconUserpicBadgeIcon: icon {{ "chat/paid_edit-14x14", windowFgActive }};
+windowFilterIconFlyUp: 24px;
+windowFilterIconFlyDuration: 270;
+windowFilterIconScaleOutDuration: 160;
+windwoFilterIconPanelPosition: point(2px, -1px);
 windowFilterIconSingle: size(44px, 42px);
 windowFilterIconPadding: margins(10px, 36px, 10px, 8px);
 windowFilterIconHeaderPosition: point(18px, 14px);
@@ -326,7 +349,7 @@ windowFeeItem: Menu(defaultMenu) {
 	itemFgDisabled: windowFg;
 }
 
-ivWidthMin: 380px;
+ivWidthMin: 384px;
 ivHeightMin: 480px;
 ivWidthDefault: 600px;
 ivHeightDefault: 800px;
@@ -379,6 +402,11 @@ lockSetupEmailUserpicSmall: UserpicButton(defaultUserpicButton) {
 // Windows specific
 
 winQuitIcon: icon {{ "win_quit", windowFg }};
+
+windowTaskbarThumbPrevious: icon {{ "player/player_backward", windowFg }};
+windowTaskbarThumbPlay: icon {{ "player/player_play", windowFg }};
+windowTaskbarThumbPause: icon {{ "player/player_pause", windowFg }};
+windowTaskbarThumbNext: icon {{ "player/player_forward", windowFg }};
 
 // Mac specific
 

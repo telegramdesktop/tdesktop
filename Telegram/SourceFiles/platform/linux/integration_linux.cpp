@@ -104,20 +104,6 @@ Application::Application()
 		});
 	});
 	actionMap.add_action(quitAction);
-
-	const auto notificationIdVariantType = GLib::VariantType::new_("a{sv}");
-
-	auto notificationActivateAction = Gio::SimpleAction::new_(
-		"notification-activate",
-		notificationIdVariantType);
-
-	actionMap.add_action(notificationActivateAction);
-
-	auto notificationMarkAsReadAction = Gio::SimpleAction::new_(
-		"notification-mark-as-read",
-		notificationIdVariantType);
-
-	actionMap.add_action(notificationMarkAsReadAction);
 }
 
 gi::ref_ptr<Application> MakeApplication() {

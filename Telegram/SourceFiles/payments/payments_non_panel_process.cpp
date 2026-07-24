@@ -46,64 +46,77 @@ void ProcessCreditsPayment(
 		QPointer<QWidget> fireworks,
 		std::shared_ptr<CreditsFormData> form,
 		Fn<void(CheckoutResult)> maybeReturnToBot) {
-	const auto done = [=](Settings::SmallBalanceResult result) {
+	const auto hasBadResult = [=](Settings::SmallBalanceResult result) {
 		if (result == Settings::SmallBalanceResult::Blocked) {
 			if (const auto onstack = maybeReturnToBot) {
 				onstack(CheckoutResult::Failed);
 			}
-			return;
+			return true;
 		} else if (result == Settings::SmallBalanceResult::Cancelled) {
 			if (const auto onstack = maybeReturnToBot) {
 				onstack(CheckoutResult::Cancelled);
 			}
+			return true;
+		}
+		return false;
+	};
+	const auto done = [=](Settings::SmallBalanceResult result) {
+		if (hasBadResult(result)) {
 			return;
-		} else if (form->starGiftForm
-			|| IsPremiumForStarsInvoice(form->id)) {
-			const auto done = [=](std::optional<QString> error) {
-				const auto onstack = maybeReturnToBot;
-				if (error) {
-					if (*error == u"STARGIFT_USAGE_LIMITED"_q) {
-						if (form->starGiftLimitedCount) {
-							show->showToast({
-								.title = tr::lng_gift_sold_out_title(
-									tr::now),
-								.text = tr::lng_gift_sold_out_text(
-									tr::now,
-									lt_count_decimal,
-									form->starGiftLimitedCount,
-									tr::rich),
-							});
-						} else {
-							show->showToast(
-								tr::lng_gift_sold_out_title(tr::now));
-						}
-					} else if (*error == u"STARGIFT_USER_USAGE_LIMITED"_q) {
+		}
+		const auto done = [=](std::optional<QString> error) {
+			const auto onstack = maybeReturnToBot;
+			if (error) {
+				if (*error == u"STARGIFT_USAGE_LIMITED"_q) {
+					if (form->starGiftLimitedCount) {
 						show->showToast({
-							.text = tr::lng_gift_sent_finished(
+							.title = tr::lng_gift_sold_out_title(
+								tr::now),
+							.text = tr::lng_gift_sold_out_text(
 								tr::now,
-								lt_count,
-								std::max(form->starGiftPerUserLimit, 1),
+								lt_count_decimal,
+								form->starGiftLimitedCount,
 								tr::rich),
 						});
 					} else {
-						show->showToast(*error);
+						show->showToast(
+							tr::lng_gift_sold_out_title(tr::now));
 					}
-					if (onstack) {
-						onstack(CheckoutResult::Failed);
-					}
-				} else if (onstack) {
-					onstack(CheckoutResult::Paid);
+				} else if (*error == u"STARGIFT_USER_USAGE_LIMITED"_q) {
+					show->showToast({
+						.text = tr::lng_gift_sent_finished(
+							tr::now,
+							lt_count,
+							std::max(form->starGiftPerUserLimit, 1),
+							tr::rich),
+					});
+				} else {
+					show->showToast(*error);
 				}
-			};
-			Ui::SendStarsForm(&show->session(), form, done);
-			return;
-		}
+				if (onstack) {
+					onstack(CheckoutResult::Failed);
+				}
+			} else if (onstack) {
+				onstack(CheckoutResult::Paid);
+			}
+		};
+		Ui::SendStarsForm(&show->session(), form, done);
+	};
+	using namespace Settings;
+	auto source = Ui::SmallBalanceSourceFromForm(form);
+	if (form->starGiftForm || IsPremiumForStarsInvoice(form->id)) {
+		const auto credits = form->invoice.credits;
+		MaybeRequestBalanceIncrease(show, credits, source, done);
+	} else {
 		const auto unsuccessful = std::make_shared<bool>(true);
 		const auto box = show->show(Box(
 			Ui::SendCreditsBox,
 			form,
-			[=] {
+			[=](Settings::SmallBalanceResult result) {
 				*unsuccessful = false;
+				if (hasBadResult(result)) {
+					return;
+				}
 				if (const auto widget = fireworks.data()) {
 					Ui::StartFireworks(widget);
 				}
@@ -120,15 +133,7 @@ void ProcessCreditsPayment(
 				}
 			});
 		}, box->lifetime());
-	};
-	using namespace Settings;
-	const auto starGift = std::get_if<InvoiceStarGift>(&form->id.value);
-	auto source = !starGift
-		? SmallBalanceSource(SmallBalanceBot{ .botId = form->botId })
-		: SmallBalanceSource(SmallBalanceStarGift{
-			.recipientId = starGift->recipient->id,
-		});
-	MaybeRequestBalanceIncrease(show, form->invoice.credits, source, done);
+	}
 }
 
 void ProcessCreditsReceipt(

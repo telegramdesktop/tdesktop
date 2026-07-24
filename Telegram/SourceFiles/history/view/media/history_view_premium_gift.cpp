@@ -26,9 +26,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_credits.h" // Settings::CreditsId
+#include "settings/sections/settings_credits.h" // Settings::CreditsId
 #include "settings/settings_credits_graphics.h" // GiftedCreditsBox
-#include "settings/settings_premium.h" // Settings::ShowGiftPremium
+#include "settings/sections/settings_premium.h" // Settings::ShowGiftPremium
 #include "ui/chat/chat_style.h"
 #include "ui/controls/ton_common.h" // kNanosInOne
 #include "ui/layers/generic_box.h"
@@ -361,11 +361,15 @@ void PremiumGift::draw(
 QImage PremiumGift::cornerTag(const PaintContext &context) {
 	auto badge = Info::PeerGifts::GiftBadge();
 	if (_data.unique) {
+		const auto burned = _data.unique->burned;
+		const auto burnedBg = Info::PeerGifts::BurnedBadgeBg();
 		badge = {
-			.text = tr::lng_gift_collectible_tag(tr::now),
-			.bg1 = _data.unique->backdrop.edgeColor,
-			.bg2 = _data.unique->backdrop.patternColor,
-			.fg = QColor(255, 255, 255),
+			.text = (burned
+				? tr::lng_gift_burned_tag(tr::now)
+				: tr::lng_gift_collectible_tag(tr::now)),
+			.bg1 = (burned ? burnedBg : _data.unique->backdrop.edgeColor),
+			.bg2 = (burned ? burnedBg : _data.unique->backdrop.patternColor),
+			.fg = (burned ? st::white->c : _data.unique->backdrop.textColor),
 		};
 	} else if (const auto count = _data.limitedCount) {
 		badge = {
@@ -528,6 +532,9 @@ ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item) {
 		const auto controller = weak.get();
 		if (!controller) {
 			return;
+		} else if (data.unique && data.unique->burned) {
+			controller->showToast(tr::lng_gift_burned_message(tr::now));
+			return;
 		}
 		const auto quick = [=](not_null<Window::SessionController*> window) {
 			Settings::ShowStarGiftViewBox(window, data, itemId);
@@ -563,8 +570,10 @@ ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item) {
 			}).fail([=](const MTP::Error &error) {
 				*requesting = false;
 				if (const auto window = weak.get()) {
-					window->showToast(error.type());
-					quick(window);
+					if (!Ui::ShowGiftErrorToast(window->uiShow(), error)) {
+						window->showToast(error.type());
+						quick(window);
+					}
 				}
 			}).send();
 		};

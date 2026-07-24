@@ -1,3 +1,325 @@
+7.0.5 (23.07.26)
+
+- Improve slideshow preload / animation / swipes in rich messages.
+- Fix stories leaving empty space on chats list top.
+- Fix custom emoji frame size in favorite reactions.
+- Crash fixes.
+
+7.0.4 (20.07.26)
+
+- Enable rich text editor for scheduled messages and quick replies.
+- Upload rich message photos in high quality.
+- Fix crash in some video files viewer.
+- Fix crash in shared files section.
+
+7.0.3 (17.07.26)
+
+- Fix media viewer freezes on macOS.
+
+7.0.2 (17.07.26)
+
+- Fix editing existing rich messages.
+- Fix editing scheduled rich messages.
+- Improve rich messages editor (drag-n-drop, changing tables).
+- Allow forwarding to chats hidden inside a community.
+
+7.0.1 (14.07.26)
+
+- Rich Text Editor.
+- Telegram Communities.
+- Invisible Bot Messages.
+
+7.0 (11.07.26)
+
+- Rich messages editor.
+- Ephemeral messages in groups.
+- Communities of chats.
+
+6.9.4 beta (02.07.26)
+
+- Add rich message editor with media, tables and math formulas.
+- Show rich message drafts with full formatting in chat compose area.
+- Add text recognition with selection and copying to media viewer images.
+- Add swipe navigation and pinch zoom gestures to media viewer.
+- Support zoom and dragging files out in shared media photos.
+- Allow adapting existing stickers into custom emoji.
+- Add media viewer video playback to system media controls.
+- Add alphabetical fast-scroll index to contacts box.
+- Improve screen reader accessibility for chats list and folders.
+
+6.9.3 (12.06.26)
+
+- Fix possible crash in formula parsing.
+- Fix field resize after Undo/Redo.
+- Fix OpenGL in Windows build.
+
+6.9.2 (10.06.26)
+
+- Fix possible crash in OpenGL init (Linux).
+- Fix possible crash in calls (Windows on ARM).
+- Fix working with system proxy (Windows).
+- Fix display of rich messages without text.
+- Fix display of rich messages in Recent Actions.
+- Replace dispatch with TooManyCooks (Linux).
+
+6.9.1 (09.06.26)
+
+- Fix sending several same custom emoji.
+- Fix some rich messages layout glitches.
+
+6.9 (09.06.26)
+
+- Rich Text Formatting for Bots.
+- Guardian Bots for Group Chats.
+- Links in Poll Options.
+- Viewer for Markdown files in .md format.
+- Instant View that's really instant.
+
+6.8.5 beta (04.06.26)
+
+- Animated 3D objects on settings covers (premium star, coin, diamond).
+- Particle effects for one-time voice message playback.
+- Birthday celebration effect on profile.
+- Poll votes graph in message statistics.
+- Separate send action animation for round video messages.
+- Open public channels from chat folder invite links.
+- Notify toggle and muted icon for silent scheduled messages.
+- Per-window Qt RHI renderer activation.
+- Fix empty chat list preview after deleting last message.
+- Fix shaking of pinned chats dragged past rows of other heights.
+- Fix scroll with keyboard in chat history.
+- Fix pause of animated reactions when opening their context menu.
+- Improve performance with RHI enabled.
+
+6.8.4 beta (27.05.26)
+
+- Drag-and-drop of photos into chats.
+- Testing Qt RHI renderer on macOS and Windows on ARM.
+- Native external webapp viewer on Linux by default.
+- Frequent contacts and search in gift recipient picker.
+- Fix passcode bypass via separate windows opened while locked.
+- Fix clickable timestamps in blockquote.
+- Fix never ending download progress in web apps.
+- Fix borders in Instant View tables.
+- Fix several possible crashes.
+
+6.8.3 beta (19.05.26)
+
+- In-app markdown file viewer.
+- Native Instant View support.
+- Native external webapp viewer on Linux.
+- Screen reader support for chat list and message list.
+- Fix Ctrl+Shift+V on non-English layouts.
+- Upgrade to Qt 6.11.1 on macOS and Linux.
+- Test QRhi for Thanos effect on Qt 6.11.1.
+
+6.8.2 (12.05.26)
+
+- Fix non-premium sending of existing custom reactions.
+- Fix sending reactions to groups you're not part of.
+- Fix viewing emoji packs from emoji search results.
+- Fix portrait 4K video playback.
+- Fix lost caption on forwarded polls.
+- Fix possible crash in reaction reports.
+- Fix possible crash in gift message display.
+- Return "Chatbots" to Telegram Business.
+- Separate badge background color keys for sidebar buttons.
+
+6.8.1 (08.05.26)
+
+- Fix crash in anonymous group admins messages.
+- Fix reactions sending in channels.
+
+6.8.0 (07.05.26)
+
+- Get answers from AI bots in any chat by tagging their @username.
+- Connect a bot to your profile with the new Chat Automation.
+- Custom AI styles in text editor with cloud-based tones and sharing.
+- Advanced emoji and stickers search by keywords.
+- Poll statistics chart and subscriber/country-based vote restrictions.
+- Delete specific reactions and restrict reactions in groups.
+- Image editor improvements: brush size, text style cycling, sticker quality.
+- Fix tg:// link handling on cold start and login widget window activation.
+- Copy and paste formatting to and from HTML.
+
+6.7.8 (24.04.26)
+
+- Proxy auto-rotation option.
+- Allow seeking in video messages.
+- Styled text items with emoji support in image editor.
+- Wheel zoom and middle-button panning in image editor.
+- Manage owned custom emoji packs and delete owned sticker sets.
+- Add-to-Sticker-Set and Add-to-Emoji-Set submenus for foreign packs.
+- Reply header with preview in send files box.
+- Bring back original video quality option.
+- Screen reader support for language list and country select box.
+- Fix screen reader false-positive reporting on X11.
+- Fix stories in albums with reorder enabled.
+- Fix crash in proxy sharing before auth.
+- Fix layout for RTL messages.
+
+6.7.7 beta (20.04.26)
+
+- Proxy auto-rotation option.
+- Allow seeking in video messages.
+- Styled text items with emoji support in image editor.
+- Wheel zoom and middle-button panning in image editor.
+- Reply header with preview in send files box.
+- Bring back original video quality option.
+- Delete owned sticker set from sticker set box.
+- Add-to-Sticker-Set and Add-to-Emoji-Set submenus for foreign packs.
+- Screen reader support for language list and country select box.
+- Fix stories in albums with reorder enabled.
+- Fix layout for RTL messages.
+
+6.7.6 (14.04.26)
+
+- Gradient-reveal animation for text appearing in messages.
+- Support draw-to-reply from shared media.
+- Frame-by-frame stepping and hold-to-speedup hotkeys in media view.
+- Fix loading stickers and emoji search results.
+- Custom emoji picker for premium quick reaction.
+- Search in section of pinned messages.
+- Recent search entries in settings search.
+- Hide phone number in main settings section.
+- Suggest sending large texts as files.
+- Allow creating polls with single answer option.
+- Bring menus and fullscreen media viewer to active space on macOS.
+- Fix several poll display and voting menu issues.
+- Fix possible crashes in chats list, url auth and others.
+
+6.7.5 (07.04.26)
+
+- Support for gradual appearing of bot reply messages.
+
+6.7.4 (07.04.26)
+
+- Add experimental option for "AI Tools" button.
+- Jump between markers with Alt+Arrows in video player.
+- Cocoon info button in AI Tools box.
+- Show warning for unofficial app builds.
+- Allow text emojify without selecting a style.
+- Accept also base64 (non-url) proxy secrets.
+- Use tg:// deeplinks for proxy share links.
+- Fix newbot deeplink parsing with trailing slash and unicode names.
+- Fix file reference refresh for user, group and channel photos.
+- Fix stale macOS tray icon colors after appearance switches.
+- Fix tooltip crash in top peers selector with small width.
+- Fix preserving markers after video quality switch in media view.
+
+6.7.3 (04.04.26)
+
+- Fix launch on older macOS versions.
+
+6.7.2 (03.04.26)
+
+- System audio capture for desktop sharing on macOS.
+- Split voice and audio playback speeds.
+- Unread media dot for voice messages in dialog list.
+- Add 'x' button to AI Tools promo toast.
+- Fix long forward messages preview in box.
+- Fix custom emoji reaction search by category.
+- Fix double context menu in photo sending confirmation.
+- Fix possible crash in middle-elision.
+- Fix possible crash in GIFs search.
+
+6.7.1 (01.04.26)
+
+- Fix crash in emoji panel animation.
+
+6.7 (01.04.26)
+
+- AI Text Editor for messages.
+- Enhanced Polls with media, locations and suggested options.
+- Bots can create and managed other Bots on your behalf.
+- Drawing tools in image editor (brush, marker, eraser, arrow).
+- Trim recorded voice messages.
+- Per-file captions when sending multiple files.
+- Audio sharing in calls on Linux.
+
+6.6.4 beta (16.03.26)
+
+- Fix launch on Linux.
+
+6.6.3 beta (12.03.26)
+
+- Drawing tools in image editor (brush, marker, eraser, arrow).
+- Draw-to-reply button in media viewer.
+- Trim recorded voice messages.
+- Per-file captions when sending multiple files.
+- Audio sharing in calls on Linux.
+- Ripple effects for reactions, send and reply buttons.
+- Fix saved music shuffled playing.
+
+6.6.2 (03.03.26)
+
+- Fix editing of media files.
+- Fix admin rights in legacy groups for tag editing.
+- Fix opening emoji packs from custom emoji click.
+
+6.6.1 (02.03.26)
+
+- Fix crash in legacy groups members list.
+- Fix display of member tags in legacy groups.
+- Make fast reply button appear instantly.
+- Allow hiding fast reply button.
+
+6.6 (01.03.26)
+
+- Member Tags in groups.
+- Disable Sharing in Private Chats.
+- Timestamps for Polls.
+- Log In With Telegram.
+- Time and Date Formatting.
+
+6.5.1 (09.02.26)
+
+- Drag-n-drop chats to folders.
+- Fix crash in adding Recommended folders.
+- Fix crash in crafting gifts selection layer.
+- Fix disappeared Login Email button in Settings.
+- Fix Tab focusing chats search when autocompleting hashtags or mentions.
+
+6.5 (06.02.26)
+
+- Leaving Groups to a New Admin.
+- Log In With Telegram.
+- Gift Crafting.
+- Colored Buttons for Bots.
+- Search in Settings.
+
+6.4.4 beta (29.01.26)
+
+- Fix crash in topic group opening.
+- Show correct profile colors preview when edit.
+- Strip quote entities in media viewer.
+
+6.4.3 beta (28.01.26)
+
+- Search in Settings.
+
+6.4.2 (08.01.26)
+
+- Fix non-closing popup menu items.
+- Fix crash in my profile section resize.
+- Fix some text glitches because of render optimizations.
+
+6.4.1 (05.01.26)
+
+- Fix context menu double activations.
+- Fix text rendering in animating bubbles.
+
+6.4 (03.01.26)
+
+- AI Summaries for posts in channels.
+
+6.3.10 beta (22.12.25)
+
+- Fix user info showing from large group messages.
+- Fix sent state of outgoing messages in forums.
+- Show who sent your unique collectible gifts.
+- Update Qt on all platforms.
+
 6.3.9 (15.12.25)
 
 - Fix possible crash in audio playback speed menu.

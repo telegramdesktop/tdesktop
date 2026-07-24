@@ -90,6 +90,17 @@ void UserPhotos::List::removeAfter(PhotoId photoId) {
 	sendUpdate();
 }
 
+void UserPhotos::List::replace(PhotoId oldPhotoId, PhotoId newPhotoId) {
+	auto position = ranges::find(_photoIds, oldPhotoId);
+	if (position != _photoIds.end()) {
+		*position = newPhotoId;
+	}
+	if (_backPhotoId == oldPhotoId) {
+		_backPhotoId = newPhotoId;
+	}
+	sendUpdate();
+}
+
 void UserPhotos::List::sendUpdate() {
 	auto update = SliceUpdate();
 	update.photoIds = &_photoIds;
@@ -185,6 +196,13 @@ void UserPhotos::remove(UserPhotosRemoveAfter &&query) {
 	auto userIt = _lists.find(query.userId);
 	if (userIt != _lists.end()) {
 		userIt->second.removeAfter(query.photoId);
+	}
+}
+
+void UserPhotos::replace(UserPhotosReplace &&query) {
+	auto userIt = _lists.find(query.userId);
+	if (userIt != _lists.end()) {
+		userIt->second.replace(query.oldPhotoId, query.newPhotoId);
 	}
 }
 

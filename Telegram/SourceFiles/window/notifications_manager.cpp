@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 
 #include "base/options.h"
+#include "base/platform/base_platform_info.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "platform/platform_notifications_manager.h"
 #include "window/notifications_manager_default.h"
@@ -32,7 +33,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/application.h"
+#include "core/version.h"
 #include "mainwindow.h"
+#include "api/api_reactions_notify_settings.h"
 #include "api/api_updates.h"
 #include "apiwrap.h"
 #include "main/main_account.h"
@@ -66,6 +69,37 @@ constexpr auto kSystemAlertDuration = crl::time(1000);
 #else // !Q_OS_MAC
 constexpr auto kSystemAlertDuration = crl::time(0);
 #endif // Q_OS_MAC
+
+base::options::toggle OptionCustomNotification({
+	.id = kOptionCustomNotification,
+	.name = "Force non-native notifications availability",
+	.description = "Allow to disable native notifications"
+		" even if custom notifications are broken on this platform",
+	.scope = [] {
+		return Platform::Notifications::Enforced();
+	},
+});
+
+base::options::toggle OptionGNotification({
+	.id = kOptionGNotification,
+	.name = "GNotification",
+	.description = "Force enable GLib's GNotification."
+		" When disabled, autodetect is used.",
+	.scope = [] {
+#if __has_include(<gio/gio.hpp>)
+		using namespace gi::repository;
+		return bool(Gio::Application::get_default());
+#else // __has_include(<gio/gio.hpp>)
+		return false;
+#endif // __has_include(<gio/gio.hpp>)
+	},
+});
+
+base::options::toggle HideReplyButtonOption({
+	.id = kOptionHideReplyButton,
+	.name = "Hide reply button",
+	.description = "Hide reply button in notifications.",
+});
 
 [[nodiscard]] QString PlaceholderReactionText() {
 	static const auto result = QString::fromUtf8("\xf0\x9f\x92\xad");
@@ -130,49 +164,19 @@ constexpr auto kSystemAlertDuration = crl::time(0);
 		: std::optional<DocumentId>();
 }
 
+[[nodiscard]] bool AllowNotificationActions(not_null<PeerData*> peer) {
+	return Platform::IsMac() && peer->isNotificationsUser();
+}
+
 } // namespace
 
 const char kOptionCustomNotification[] = "custom-notification";
-
-base::options::toggle OptionCustomNotification({
-	.id = kOptionCustomNotification,
-	.name = "Force non-native notifications availability",
-	.description = "Allow to disable native notifications"
-		" even if custom notifications are broken on this platform",
-	.scope = [] {
-		return Platform::Notifications::Enforced();
-	},
-	.restartRequired = true,
-});
-
 const char kOptionGNotification[] = "gnotification";
 const char kOptionHideReplyButton[] = "hide-reply-button";
 
-base::options::toggle OptionGNotification({
-	.id = kOptionGNotification,
-	.name = "GNotification",
-	.description = "Force enable GLib's GNotification."
-		" When disabled, autodetect is used.",
-	.scope = [] {
-#if __has_include(<gio/gio.hpp>)
-		using namespace gi::repository;
-		return bool(Gio::Application::get_default());
-#else // __has_include(<gio/gio.hpp>)
-		return false;
-#endif // __has_include(<gio/gio.hpp>)
-	},
-	.restartRequired = true,
-});
-
-base::options::toggle HideReplyButtonOption({
-	.id = kOptionHideReplyButton,
-	.name = "Hide reply button",
-	.description = "Hide reply button in notifications.",
-});
-
 struct System::Waiter {
 	NotificationInHistoryKey key;
-	UserData *reactionSender = nullptr;
+	UserData *reactionOrVoteSender = nullptr;
 	Data::ItemNotificationType type = Data::ItemNotificationType::Message;
 	crl::time when = 0;
 };
@@ -203,6 +207,13 @@ System::System()
 			|| type == ChangeType::CountMessages) {
 			Core::App().domain().notifyUnreadBadgeChanged();
 		}
+	}, lifetime());
+
+	rpl::merge(
+		OptionCustomNotification.changes(),
+		OptionGNotification.changes()
+	 ) | rpl::on_next([=] {
+		createManager();
 	}, lifetime());
 }
 
@@ -266,23 +277,23 @@ Main::Session *System::findSession(uint64 sessionId) const {
 	return nullptr;
 }
 
-bool System::skipReactionNotification(not_null<HistoryItem*> item) const {
-	const auto id = ReactionNotificationId{
+bool System::skipSentNotification(
+		not_null<HistoryItem*> item,
+		base::flat_map<SentNotificationId, crl::time> &already) const {
+	const auto id = SentNotificationId{
 		.itemId = item->fullId(),
 		.sessionId = item->history()->session().uniqueId(),
 	};
 	const auto now = crl::now();
 	const auto clearBefore = now - kReactionNotificationEach;
-	for (auto i = begin(_sentReactionNotifications)
-		; i != end(_sentReactionNotifications)
-		;) {
+	for (auto i = begin(already); i != end(already);) {
 		if (i->second <= clearBefore) {
-			i = _sentReactionNotifications.erase(i);
+			i = already.erase(i);
 		} else {
 			++i;
 		}
 	}
-	return !_sentReactionNotifications.emplace(id, now).second;
+	return !already.emplace(id, now).second;
 }
 
 System::SkipState System::skipNotification(
@@ -295,7 +306,9 @@ System::SkipState System::skipNotification(
 		|| !thread->currentNotification()
 		|| (messageType && item->skipNotification())
 		|| (type == Data::ItemNotificationType::Reaction
-			&& skipReactionNotification(item))) {
+			&& skipSentNotification(item, _sentReactionNotifications))
+		|| (type == Data::ItemNotificationType::PollVote
+			&& skipSentNotification(item, _sentPollVoteNotifications))) {
 		return { SkipState::Skip };
 	}
 	return computeSkipState(notification);
@@ -324,7 +337,7 @@ System::SkipState System::computeSkipState(
 		&& item->isFromScheduled();
 	const auto notifyBy = messageType
 		? item->specialNotificationPeer()
-		: notification.reactionSender;
+		: notification.reactionOrVoteSender;
 	if (Core::Quitting()) {
 		return { SkipState::Skip };
 	} else if (!Core::App().settings().notifyFromAll()
@@ -419,7 +432,8 @@ void System::schedule(Data::ItemNotification notification) {
 	const auto ready = (skip.value != SkipState::Unknown)
 		&& item->notificationReady();
 
-	const auto minimalDelay = (type == Data::ItemNotificationType::Reaction)
+	const auto minimalDelay = (type == Data::ItemNotificationType::Reaction
+		|| type == Data::ItemNotificationType::PollVote)
 		? kMinimalDelay
 		: item->Has<HistoryMessageForwarded>()
 		? kMinimalForwardDelay
@@ -427,7 +441,7 @@ void System::schedule(Data::ItemNotification notification) {
 	const auto timing = countTiming(thread, minimalDelay);
 	const auto notifyBy = (type == Data::ItemNotificationType::Message)
 		? item->specialNotificationPeer()
-		: notification.reactionSender;
+		: notification.reactionOrVoteSender;
 	if (!skip.silent) {
 		registerThread(thread);
 		_whenAlerts[thread].emplace(timing.when, notifyBy);
@@ -452,7 +466,7 @@ void System::schedule(Data::ItemNotification notification) {
 		if (it == addTo.end() || it->second.when > timing.when) {
 			addTo.emplace(thread, Waiter{
 				.key = key,
-				.reactionSender = notification.reactionSender,
+				.reactionOrVoteSender = notification.reactionOrVoteSender,
 				.type = notification.type,
 				.when = timing.when,
 			});
@@ -632,7 +646,7 @@ void System::checkDelayed() {
 			}
 			const auto state = computeSkipState({
 				.item = item,
-				.reactionSender = i->second.reactionSender,
+				.reactionOrVoteSender = i->second.reactionOrVoteSender,
 				.type = i->second.type,
 			});
 			if (state.value == SkipState::Skip) {
@@ -923,18 +937,27 @@ void System::showNext() {
 			showGrouped();
 			const auto reactionNotification
 				= (notify->type == Data::ItemNotificationType::Reaction);
+			const auto pollVoteNotification
+				= (notify->type == Data::ItemNotificationType::PollVote);
 			const auto reaction = reactionNotification
-				? notify->item->lookupUnreadReaction(notify->reactionSender)
+				? notify->item->lookupUnreadReaction(notify->reactionOrVoteSender)
 				: Data::ReactionId();
-			const auto soundFrom = reactionNotification
-				? notify->reactionSender
+			const auto pollVoteOption = pollVoteNotification
+				? notify->item->lookupUnreadPollVote(
+					notify->reactionOrVoteSender)
+				: QByteArray();
+			const auto soundFrom = (reactionNotification
+				|| pollVoteNotification)
+				? notify->reactionOrVoteSender
 				: notify->item->specialNotificationPeer();
-			if (!reactionNotification || !reaction.empty()) {
+			if ((!reactionNotification || !reaction.empty())
+				&& (!pollVoteNotification || !pollVoteOption.isEmpty())) {
 				_manager->showNotification({
 					.item = notify->item,
 					.forwardedCount = forwardedCount,
-					.reactionFrom = notify->reactionSender,
+					.reactionFrom = notify->reactionOrVoteSender,
 					.reactionId = reaction,
+					.pollVoteOption = pollVoteOption,
 					.soundId = (notifySilent
 						? std::nullopt
 						: MaybeSoundFor(notifyThread, soundFrom)),
@@ -1071,8 +1094,8 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 		|| HideReplyButtonOption.value();
 	result.spoilerLoginCode = item
 		&& !item->out()
-		&& peer->isNotificationsUser()
-		&& Core::App().isSharingScreen();
+		&& (peer->isNotificationsUser()
+			|| peer->isVerifyCodes());
 	return result;
 }
 
@@ -1149,16 +1172,9 @@ TextWithEntities Manager::ComposeReactionNotification(
 		}
 		return simple(tr::lng_reaction_document);
 	} else if (const auto contact = media->sharedContact()) {
-		const auto name = contact->firstName.isEmpty()
-			? contact->lastName
-			: contact->lastName.isEmpty()
-			? contact->firstName
-			: tr::lng_full_name(
-				tr::now,
-				lt_first_name,
-				contact->firstName,
-				lt_last_name,
-				contact->lastName);
+		const auto name = langFullName(
+			contact->firstName,
+			contact->lastName);
 		return tr::lng_reaction_contact(
 			tr::now,
 			lt_reaction,
@@ -1185,6 +1201,32 @@ TextWithEntities Manager::ComposeReactionNotification(
 		return simple(tr::lng_reaction_invoice);
 	}
 	return text();
+}
+
+TextWithEntities Manager::ComposePollVoteNotification(
+		not_null<HistoryItem*> item,
+		const QByteArray &option,
+		bool hideContent) {
+	if (hideContent) {
+		return tr::lng_poll_vote_notext(tr::now, tr::marked);
+	}
+	const auto media = item->media();
+	const auto poll = media ? media->poll() : nullptr;
+	if (!poll) {
+		return tr::lng_poll_vote_notext(tr::now, tr::marked);
+	}
+	if (const auto answer = poll->answerByOption(option)) {
+		return tr::lng_poll_vote_option(
+			tr::now,
+			lt_option,
+			answer->text,
+			tr::marked);
+	}
+	return tr::lng_poll_vote(
+		tr::now,
+		lt_title,
+		poll->question,
+		tr::marked);
 }
 
 TextWithEntities Manager::addTargetAccountName(
@@ -1404,6 +1446,87 @@ void Manager::notificationReplied(
 	}
 }
 
+void Manager::notificationActionActivated(
+		NotificationId id,
+		const QString &actionId) {
+	if (actionId == u"markAsRead"_q) {
+		notificationReplied(id, {});
+		return;
+	}
+	if (!actionId.startsWith(u"callbackButton:"_q)) {
+		return;
+	}
+	const auto payload = QStringView(actionId).mid(15);
+	const auto sep = payload.indexOf(':');
+	if (sep < 0) {
+		return;
+	}
+	const auto row = payload.left(sep).toInt();
+	const auto column = payload.mid(sep + 1).toInt();
+	if (!id.contextId.sessionId || !id.contextId.peerId) {
+		return;
+	}
+	const auto session = system()->findSession(id.contextId.sessionId);
+	if (!session) {
+		return;
+	}
+	const auto history = session->data().history(id.contextId.peerId);
+	const auto item = history->owner().message(history->peer, id.msgId);
+	if (!item || !item->isRegular()) {
+		return;
+	}
+	const auto owner = &history->owner();
+	const auto fullId = item->fullId();
+	const auto button = HistoryMessageMarkupButton::Get(
+		owner,
+		fullId,
+		row,
+		column);
+	if (!button || button->requestId) {
+		return;
+	}
+	using ButtonType = HistoryMessageMarkupButton::Type;
+	if (button->type != ButtonType::Callback) {
+		return;
+	}
+	auto flags = MTPmessages_GetBotCallbackAnswer::Flags(0);
+	flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_data;
+	const auto sendData = button->data;
+	button->requestId = session->api().request(
+		MTPmessages_GetBotCallbackAnswer(
+			MTP_flags(flags),
+			history->peer->input(),
+			MTP_int(item->id),
+			MTP_bytes(sendData),
+			MTP_inputCheckPasswordEmpty())
+	).done([=](const MTPmessages_BotCallbackAnswer &result) {
+		const auto item = owner->message(fullId);
+		if (!item) {
+			return;
+		}
+		if (const auto button = HistoryMessageMarkupButton::Get(
+				owner,
+				fullId,
+				row,
+				column)) {
+			button->requestId = 0;
+			owner->requestItemRepaint(item);
+		}
+	}).fail([=](const MTP::Error &error) {
+		const auto item = owner->message(fullId);
+		if (!item) {
+			return;
+		}
+		if (const auto button = HistoryMessageMarkupButton::Get(
+				owner,
+				fullId,
+				row,
+				column)) {
+			button->requestId = 0;
+		}
+	}).send();
+}
+
 void Manager::maybePlaySound(Fn<void()> playSound) {
 	if (_system->volumeSupported()) {
 		doMaybePlaySound(std::move(playSound));
@@ -1411,11 +1534,13 @@ void Manager::maybePlaySound(Fn<void()> playSound) {
 }
 
 void NativeManager::doShowNotification(NotificationFields &&fields) {
-	const auto options = getNotificationOptions(
-		fields.item,
-		(fields.reactionFrom
-			? Data::ItemNotificationType::Reaction
-			: Data::ItemNotificationType::Message));
+	const auto pollVote = !fields.pollVoteOption.isEmpty();
+	const auto type = fields.reactionFrom
+		? (pollVote
+			? Data::ItemNotificationType::PollVote
+			: Data::ItemNotificationType::Reaction)
+		: Data::ItemNotificationType::Message;
+	const auto options = getNotificationOptions(fields.item, type);
 	const auto item = fields.item;
 	const auto peer = item->history()->peer;
 	const auto reactionFrom = fields.reactionFrom;
@@ -1442,12 +1567,22 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		? tr::lng_notification_reminder(tr::now)
 		: subWithChat();
 	const auto fullTitle = addTargetAccountName(title, &peer->session());
+	const auto hideReactionSender = reactionFrom
+		&& !peer->session().api().reactionsNotifySettings()
+			.showPreviewsCurrent();
 	const auto subtitle = reactionFrom
-		? (reactionFrom != peer ? reactionFrom->name() : QString())
+		? ((!hideReactionSender && reactionFrom != peer)
+			? reactionFrom->name()
+			: QString())
 		: options.hideNameAndPhoto
 		? QString()
 		: item->notificationHeader();
-	const auto text = reactionFrom
+	const auto text = pollVote
+		? TextWithPermanentSpoiler(ComposePollVoteNotification(
+			item,
+			fields.pollVoteOption,
+			options.hideMessageText))
+		: reactionFrom
 		? TextWithPermanentSpoiler(ComposeReactionNotification(
 			item,
 			fields.reactionId,
@@ -1476,6 +1611,27 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 			return Core::App().notifications().lookupSoundBytes(owner, 0);
 		});
 	} : Fn<NotificationSound()>();
+	auto actions = std::vector<NotificationAction>();
+	if (AllowNotificationActions(peer) && !options.hideMarkAsRead) {
+		if (const auto markup = item->inlineReplyMarkup()) {
+			using ButtonType = HistoryMessageMarkupButton::Type;
+			const auto &rows = markup->data.rows;
+			const auto rowsCount = int(rows.size());
+			for (auto row = 0; row != rowsCount; ++row) {
+				const auto &buttons = rows[row];
+				const auto colsCount = int(buttons.size());
+				for (auto col = 0; col != colsCount; ++col) {
+					const auto &button = buttons[col];
+					if (button.type == ButtonType::Callback) {
+						actions.push_back({
+							.id = u"callbackButton:%1:%2"_q.arg(row).arg(col),
+							.text = button.text,
+						});
+					}
+				}
+			}
+		}
+	}
 	doShowNativeNotification({
 		.peer = item->history()->peer,
 		.topicRootId = item->topicRootId(),
@@ -1488,6 +1644,7 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		.message = text,
 		.sound = sound,
 		.options = options,
+		.actions = std::move(actions),
 	}, userpicView);
 }
 

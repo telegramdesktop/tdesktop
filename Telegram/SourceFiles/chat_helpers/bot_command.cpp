@@ -40,8 +40,8 @@ QString WrapCommandInChat(
 		? peer->asChat()->botStatus
 		: peer->isMegagroup()
 		? peer->asChannel()->mgInfo->botStatus
-		: -1;
-	return ((command.indexOf('@') < 2) && (botStatus == 0 || botStatus == 2))
+		: Data::BotStatus::NoBots;
+	return ((command.indexOf('@') < 2) && (botStatus != Data::BotStatus::NoBots))
 		? command + '@' + bot->username()
 		: command;
 }

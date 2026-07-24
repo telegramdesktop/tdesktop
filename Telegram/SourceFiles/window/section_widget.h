@@ -17,8 +17,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class PeerData;
 
 namespace ChatHelpers {
+struct FileChosen;
 class Show;
 } // namespace ChatHelpers
+
+namespace SendMenu {
+struct Details;
+} // namespace SendMenu
 
 namespace Data {
 struct ReactionId;
@@ -72,6 +77,8 @@ public:
 	virtual bool returnTabbedSelector() {
 		return false;
 	}
+	[[nodiscard]] virtual SendMenu::Details sendMenuDetails() const;
+	virtual bool processChosenSticker(ChatHelpers::FileChosen &&chosen);
 
 private:
 	const not_null<SessionController*> _controller;
@@ -138,6 +145,9 @@ public:
 	virtual bool showInternal(
 		not_null<SectionMemento*> memento,
 		const SectionShow &params) = 0;
+	virtual bool showBackInternal() {
+		return false;
+	}
 	virtual bool sameTypeAs(not_null<SectionMemento*> memento) {
 		return false;
 	}

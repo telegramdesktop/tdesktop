@@ -51,6 +51,7 @@ public:
 	ClickHandlerPtr link() override;
 
 	[[nodiscard]] bool ready() const;
+	[[nodiscard]] bool stoppedOnLastFrame() const;
 	DocumentData *document() override;
 	void stickerClearLoopPlayed() override;
 	std::unique_ptr<StickerPlayer> stickerTakePlayer(

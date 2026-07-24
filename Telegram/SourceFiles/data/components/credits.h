@@ -66,7 +66,6 @@ private:
 	rpl::variable<CreditsAmount> _nonLockedBalance;
 	rpl::event_stream<> _loadedChanges;
 	crl::time _lastLoaded = 0;
-	float64 _rate = 0.;
 
 	rpl::variable<CreditsAmount> _tonBalance;
 	rpl::event_stream<> _tonLoadedChanges;

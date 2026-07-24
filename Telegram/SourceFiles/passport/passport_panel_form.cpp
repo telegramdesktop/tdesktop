@@ -41,6 +41,7 @@ PanelForm::PanelForm(
 		this,
 		tr::lng_passport_authorize(),
 		st::passportPanelAuthorize) {
+	_submit->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	setupControls();
 }
 

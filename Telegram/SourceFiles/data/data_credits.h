@@ -83,6 +83,7 @@ struct CreditsHistoryEntry final {
 	Fn<std::vector<CreditsHistoryEntry>()> pinnedSavedGifts;
 	uint64 nextToUpgradeStickerId = 0;
 	Fn<void()> nextToUpgradeShow;
+	Fn<void()> craftAnotherCallback;
 	CreditsAmount starrefAmount;
 	int starrefCommission = 0;
 	uint64 starrefRecipientId = 0;
@@ -118,8 +119,10 @@ struct CreditsHistoryEntry final {
 	bool giftUpgradeSeparate : 1 = false;
 	bool giftUpgradeGifted : 1 = false;
 	bool giftResale : 1 = false;
+	bool giftOffer : 1 = false;
 	bool giftResaleForceTon : 1 = false;
 	bool giftPinned : 1 = false;
+	bool giftCrafted : 1 = false;
 	bool savedToProfile : 1 = false;
 	bool fromGiftsList : 1 = false;
 	bool fromGiftSlug : 1 = false;

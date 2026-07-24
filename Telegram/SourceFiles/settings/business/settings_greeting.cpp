@@ -35,7 +35,7 @@ namespace {
 
 constexpr auto kDefaultNoActivityDays = 7;
 
-class Greeting : public BusinessSection<Greeting> {
+class Greeting : public Section<Greeting> {
 public:
 	Greeting(
 		QWidget *parent,
@@ -66,7 +66,7 @@ private:
 Greeting::Greeting(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: BusinessSection(parent, controller)
+: Section(parent, controller)
 , _bottomSkipRounding(st::boxRadius, st::boxDividerBg) {
 	setupContent(controller);
 }

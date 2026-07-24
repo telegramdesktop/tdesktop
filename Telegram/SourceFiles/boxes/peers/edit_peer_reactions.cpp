@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/boxes/boost_box.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/checkbox.h"
@@ -340,6 +341,7 @@ struct ReactionsSelectorArgs {
 	int customAllowed = 0;
 	int customHardLimit = 0;
 	bool all = false;
+	bool isGroup = false;
 };
 
 object_ptr<Ui::RpWidget> AddReactionsSelector(
@@ -392,12 +394,12 @@ object_ptr<Ui::RpWidget> AddReactionsSelector(
 		const auto id = Data::ParseCustomEmojiData(data);
 		auto result = Ui::Text::MakeCustomEmoji(data, simpleContext);
 		if (state->unifiedFactoryOwner->lookupReactionId(id).custom()) {
-			return std::make_unique<MaybeDisabledEmoji>(
+			return MakeWrappedEmoji<MaybeDisabledEmoji>(
 				std::move(result),
 				[=] { return state->allowed.contains(id); });
 		}
 		using namespace Ui::Text;
-		return std::make_unique<FirstFrameEmoji>(std::move(result));
+		return MakeWrappedEmoji<FirstFrameEmoji>(std::move(result));
 	};
 	raw->setCustomTextContext(
 		std::move(context),
@@ -457,7 +459,7 @@ object_ptr<Ui::RpWidget> AddReactionsSelector(
 	using SelectorState = ReactionsSelectorState;
 	std::move(
 		args.stateValue
-	) | rpl::on_next([=](SelectorState value) {
+	) | rpl::on_next([=, all = args.all](SelectorState value) {
 		switch (value) {
 		case SelectorState::Active:
 			state->overlay = nullptr;
@@ -466,8 +468,10 @@ object_ptr<Ui::RpWidget> AddReactionsSelector(
 				raw->setTextWithTags(
 					ComposeEmojiList(
 						reactions,
-						CollectAvailableReactions(
-							&args.controller->session())));
+						all
+							? CollectAvailableReactions(
+								&args.controller->session())
+							: DefaultSelected()));
 			}
 			raw->setDisabled(false);
 			raw->setFocusFast();
@@ -756,9 +760,7 @@ void EditAllowedReactionsBox(
 
 	const auto all = args.list;
 	auto selected = (allowed.type != AllowedReactionsType::Some)
-		? (all
-			| ranges::views::transform(&Data::Reaction::id)
-			| ranges::to_vector)
+		? std::vector<Data::ReactionId>()
 		: allowed.some;
 	if (allowed.paidEnabled) {
 		selected.insert(begin(selected), Data::ReactionId::Paid());
@@ -779,10 +781,12 @@ void EditAllowedReactionsBox(
 		}
 	};
 	changed(
-		selected.empty()
+		!selected.empty()
+			? std::move(selected)
+			: !isGroup
 			? CollectAvailableReactions(
 				&args.navigation->parentController()->session())
-			: std::move(selected),
+			: DefaultSelected(),
 		{});
 	Ui::AddSubsectionTitle(
 		reactions,
@@ -1010,7 +1014,7 @@ void SaveAllowedReactions(
 		MTP_flags(Flag()
 			| (maxCount ? Flag::f_reactions_limit : Flag())
 			| (editPaidEnabled ? Flag::f_paid_enabled : Flag())),
-		peer->input,
+		peer->input(),
 		updated,
 		MTP_int(maxCount),
 		MTP_bool(paidEnabled)

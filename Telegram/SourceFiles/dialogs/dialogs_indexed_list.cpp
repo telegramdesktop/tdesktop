@@ -194,6 +194,20 @@ void IndexedList::adjustNames(
 	}
 }
 
+void IndexedList::freeze() {
+	_list.freeze();
+	for (auto &[ch, list] : _index) {
+		list.freeze();
+	}
+}
+
+void IndexedList::unfreeze() {
+	_list.unfreeze();
+	for (auto &[ch, list] : _index) {
+		list.unfreeze();
+	}
+}
+
 void IndexedList::remove(Key key, Row *replacedBy) {
 	if (_list.remove(key, replacedBy)) {
 		for (const auto &ch : key.entry()->chatListFirstLetters()) {

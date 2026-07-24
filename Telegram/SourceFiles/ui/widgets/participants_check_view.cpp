@@ -11,85 +11,130 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/toggle_arrow.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/text/text.h"
 #include "styles/style_boxes.h"
 
 namespace Ui {
+namespace {
 
-ParticipantsCheckView::ParticipantsCheckView(
-	int count,
+void SetExpanderText(
+		Ui::Text::String &target,
+		const TextWithEntities &text,
+		Fn<void()> repaint = nullptr) {
+	target.setMarkedText(
+		st::moderateBoxExpandTextStyle,
+		text,
+		kMarkupTextOptions,
+		Ui::Text::MarkedContext{ .repaint = std::move(repaint) });
+}
+
+} // namespace
+
+ExpanderCheckView::ExpanderCheckView(
+	TextWithEntities text,
 	int duration,
 	bool checked,
 	Fn<void()> updateCallback)
 : Ui::AbstractCheckView(duration, checked, std::move(updateCallback))
-, _text(QString::number(std::abs(count)))
-, _count(count) {
+, _size(ComputeSize(text)) {
+	SetExpanderText(_text, text, [=] { update(); });
 }
 
-QSize ParticipantsCheckView::ComputeSize(int count) {
+QSize ExpanderCheckView::ComputeSize(const TextWithEntities &text) {
+	auto string = Ui::Text::String();
+	SetExpanderText(string, text);
 	return QSize(
 		st::moderateBoxExpandHeight
-			+ st::moderateBoxExpand.width()
 			+ st::moderateBoxExpandInnerSkip * 4
-			+ st::moderateBoxExpandFont->width(
-				QString::number(std::abs(count)))
+			+ string.maxWidth()
 			+ st::moderateBoxExpandToggleSize,
 		st::moderateBoxExpandHeight);
 }
 
-QSize ParticipantsCheckView::getSize() const {
-	return ComputeSize(_count);
+void ExpanderCheckView::setText(TextWithEntities text) {
+	SetExpanderText(_text, text, [=] { update(); });
+	update();
 }
 
-void ParticipantsCheckView::paint(
-		QPainter &p,
-		int left,
-		int top,
-		int outerWidth) {
+QSize ExpanderCheckView::getSize() const {
+	return _size;
+}
+
+void ExpanderCheckView::paint(QPainter &p, int left, int top, int outerWidth) {
 	auto hq = PainterHighQualityEnabler(p);
-	const auto size = getSize();
-	const auto radius = size.height() / 2;
-	p.setPen(Qt::NoPen);
-	st::moderateBoxExpand.paint(
-		p,
-		radius,
-		left + (size.height() - st::moderateBoxExpand.height()) / 2,
-		top + size.width());
-
+	const auto radius = _size.height() / 2;
 	const auto innerSkip = st::moderateBoxExpandInnerSkip;
-
-	p.setBrush(Qt::NoBrush);
+	const auto textLeft = left + innerSkip + radius;
+	const auto textWidth = _size.width()
+		- st::moderateBoxExpandHeight
+		- st::moderateBoxExpandInnerSkip * 4
+		- st::moderateBoxExpandToggleSize;
 	p.setPen(st::boxTextFg);
-	p.setFont(st::moderateBoxExpandFont);
-	p.drawText(
-		QRect(
-			left + innerSkip + radius + st::moderateBoxExpand.width(),
-			top,
-			size.width(),
-			size.height()),
-		_text,
-		style::al_left);
+	_text.draw(p, {
+		.position = { textLeft, top + (_size.height() - _text.minHeight()) / 2 },
+		.outerWidth = outerWidth,
+		.availableWidth = textWidth,
+		.elisionLines = 1,
+	});
 
 	const auto path = Ui::ToggleUpDownArrowPath(
-		left + size.width() - st::moderateBoxExpandToggleSize - radius,
-		top + size.height() / 2,
+		left + _size.width() - st::moderateBoxExpandToggleSize - radius,
+		top + _size.height() / 2,
 		st::moderateBoxExpandToggleSize,
 		st::moderateBoxExpandToggleFourStrokes,
-		Ui::AbstractCheckView::currentAnimationValue());
+		currentAnimationValue());
 	p.fillPath(path, st::boxTextFg);
 }
 
-QImage ParticipantsCheckView::prepareRippleMask() const {
-	const auto size = getSize();
-	return Ui::RippleAnimation::RoundRectMask(size, size.height() / 2);
+QImage ExpanderCheckView::prepareRippleMask() const {
+	return Ui::RippleAnimation::RoundRectMask(_size, _size.height() / 2);
 }
 
-bool ParticipantsCheckView::checkRippleStartPosition(QPoint position) const {
-	return Rect(getSize()).contains(position);
+bool ExpanderCheckView::checkRippleStartPosition(QPoint position) const {
+	return Rect(_size).contains(position);
 }
 
-void ParticipantsCheckView::checkedChangedHook(anim::type animated) {
+void ExpanderCheckView::checkedChangedHook(anim::type) {
 }
 
-ParticipantsCheckView::~ParticipantsCheckView() = default;
+ExpanderCheckView::~ExpanderCheckView() = default;
+
+ExpanderButton::ExpanderButton(
+	not_null<QWidget*> parent,
+	TextWithEntities text)
+: Ui::RippleButton(parent, st::defaultRippleAnimation)
+, _view(std::make_unique<Ui::ExpanderCheckView>(
+	std::move(text),
+	st::slideWrapDuration,
+	false,
+	[=] { update(); })) {
+	resize(_view->getSize());
+}
+
+QSize ExpanderButton::ComputeSize(const TextWithEntities &text) {
+	return Ui::ExpanderCheckView::ComputeSize(text);
+}
+
+void ExpanderButton::setText(TextWithEntities text) {
+	_view->setText(std::move(text));
+}
+
+not_null<Ui::AbstractCheckView*> ExpanderButton::checkView() const {
+	return _view.get();
+}
+
+QImage ExpanderButton::prepareRippleMask() const {
+	return _view->prepareRippleMask();
+}
+
+QPoint ExpanderButton::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos());
+}
+
+void ExpanderButton::paintEvent(QPaintEvent *) {
+	auto p = QPainter(this);
+	Ui::RippleButton::paintRipple(p, QPoint());
+	_view->paint(p, 0, 0, width());
+}
 
 } // namespace Ui

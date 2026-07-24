@@ -39,7 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_icon.h"
 #include "apiwrap.h"
@@ -1330,7 +1330,7 @@ void AddSpecialBoxController::loadMoreRows() {
 	const auto channel = _peer->asChannel();
 
 	_loadRequestId = _api.request(MTPchannels_GetParticipants(
-		channel->inputChannel,
+		channel->inputChannel(),
 		MTP_channelParticipantsRecent(),
 		MTP_int(_offset),
 		MTP_int(perPage),
@@ -1393,8 +1393,8 @@ bool AddSpecialBoxController::checkInfoLoaded(
 	// We don't know what this user status is in the group.
 	const auto channel = _peer->asChannel();
 	_api.request(MTPchannels_GetParticipant(
-		channel->inputChannel,
-		participant->input
+		channel->inputChannel(),
+		participant->input()
 	)).done([=](const MTPchannels_ChannelParticipant &result) {
 		result.match([&](const MTPDchannels_channelParticipant &data) {
 			channel->owner().processUsers(data.vusers());
@@ -1500,14 +1500,14 @@ void AddSpecialBoxController::showAdmin(
 		_peer,
 		user,
 		currentRights,
-		_additional.adminRank(user),
+		_additional.memberRank(user),
 		_additional.adminPromotedSince(user),
 		_additional.adminPromotedBy(user));
 	const auto show = delegate()->peerListUiShow();
 	if (_additional.canAddOrEditAdmin(user)) {
 		const auto done = crl::guard(this, [=](
 				ChatAdminRightsInfo newRights,
-				const QString &rank) {
+				const std::optional<QString> &rank) {
 			editAdminDone(user, newRights, rank);
 		});
 		const auto fail = crl::guard(this, [=] {
@@ -1524,12 +1524,15 @@ void AddSpecialBoxController::showAdmin(
 void AddSpecialBoxController::editAdminDone(
 		not_null<UserData*> user,
 		ChatAdminRightsInfo rights,
-		const QString &rank) {
+		const std::optional<QString> &rank) {
 	if (_editParticipantBox) {
 		_editParticipantBox->closeBox();
 	}
 
-	_additional.applyAdminLocally(user, rights, rank);
+	_additional.applyAdminLocally(
+		user,
+		rights,
+		rank.value_or(_additional.memberRank(user)));
 	// _adminDoneCallback should call changes().chatAdminUpdated.
 	if (const auto callback = _adminDoneCallback) {
 		callback(user, rights, rank);
@@ -1582,6 +1585,7 @@ void AddSpecialBoxController::showRestricted(
 		user,
 		_additional.adminRights(user).has_value(),
 		currentRights,
+		_additional.memberRank(user),
 		_additional.restrictedBy(user),
 		_additional.restrictedSince(user));
 	if (_additional.canRestrictParticipant(user)) {
@@ -1594,8 +1598,9 @@ void AddSpecialBoxController::showRestricted(
 				_editParticipantBox->closeBox();
 			}
 		});
+		const auto show = delegate()->peerListUiShow();
 		box->setSaveCallback(
-			SaveRestrictedCallback(_peer, user, done, fail));
+			SaveRestrictedCallback(show, _peer, user, done, fail));
 	}
 	_editParticipantBox = showBox(std::move(box));
 }
@@ -1668,7 +1673,9 @@ void AddSpecialBoxController::kickUser(
 	const auto fail = crl::guard(this, [=] {
 		_editBox = nullptr;
 	});
+	const auto show = delegate()->peerListUiShow();
 	const auto callback = SaveRestrictedCallback(
+		show,
 		_peer,
 		participant,
 		done,
@@ -1800,7 +1807,7 @@ void AddSpecialBoxSearchController::requestParticipants() {
 	const auto channel = _peer->asChannel();
 
 	_requestId = _api.request(MTPchannels_GetParticipants(
-		channel->inputChannel,
+		channel->inputChannel(),
 		MTP_channelParticipantsSearch(MTP_string(_query)),
 		MTP_int(_offset),
 		MTP_int(perPage),
@@ -1892,6 +1899,7 @@ void AddSpecialBoxSearchController::requestGlobal() {
 
 	auto perPage = SearchPeopleLimit;
 	_requestId = _api.request(MTPcontacts_Search(
+		MTP_flags(0),
 		MTP_string(_query),
 		MTP_int(perPage)
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {

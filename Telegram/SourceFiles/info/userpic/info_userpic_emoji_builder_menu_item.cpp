@@ -175,7 +175,7 @@ void AddEmojiBuilderAction(
 	};
 	const auto state = menu->lifetime().make_state<State>(controller);
 	auto item = base::make_unique_q<Ui::Menu::Action>(
-		menu.get(),
+		menu->menu(),
 		menu->st().menu,
 		Ui::Menu::CreateAction(
 			menu.get(),
@@ -207,7 +207,10 @@ void AddEmojiBuilderAction(
 		state->manager.setDocuments(std::move(documents));
 	}, item->lifetime());
 
-	menu->addAction(std::move(item));
+	const auto action = menu->addAction(std::move(item));
+	action->setProperty(
+		"highlight-control-id",
+		u"profile-photo/use-emoji"_q);
 }
 
 } // namespace UserpicBuilder

@@ -167,7 +167,7 @@ if [ "$BuildTarget" == "linux" ]; then
   echo "Done!"
 
   echo "Stripping the executable.."
-  strip -s "$ReleasePath/$BinaryName"
+  "$FullScriptPath/minidebug.sh" "$ReleasePath/$BinaryName"
   echo "Done!"
 
   echo "Preparing version $AppVersionStrFull, executing Packer.."
@@ -255,7 +255,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
       rm -rf "$ReleasePath/Updater"
 
-      ./configure.sh -D DESKTOP_APP_MAC_ARCH="arm64;x86_64"
+      ./configure.sh -D DESKTOP_APP_MAC_ARCH="arm64;x86_64" -DDESKTOP_APP_ENABLE_LTO=ON
 
       cd $ProjectPath
       cmake --build . --config Release --target Telegram
@@ -280,7 +280,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     fi
     cd $ReleasePath
   fi
-  if [ "$NotarizeRequestId" == "" ]; then
+  if [ "$NotarizeRequestId" == "" ] || [ "$NotarizeRequestId" == "go" ]; then
     if [ "$BuildTarget" == "mac" ]; then
       if [ ! -f "$ReleasePath/$BundleName/Contents/Frameworks/Updater" ]; then
         Error "Updater not found!"
@@ -358,7 +358,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
   if [ "$BuildTarget" == "mac" ]; then
     cd "$ReleasePath"
 
-    if [ "$NotarizeRequestId" == "" ]; then
+    if [ "$NotarizeRequestId" == "" ] || [ "$NotarizeRequestId" == "go" ]; then
       if [ "$AlphaVersion" == "0" ]; then
         cp -f tsetup_template.dmg tsetup.temp.dmg
         TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
@@ -391,7 +391,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
         SetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
       fi
 
-      if [ "$NotarizeRequestId" == "" ]; then
+      if [ "$NotarizeRequestId" == "" ] || [ "$NotarizeRequestId" == "go" ]; then
         rm -rf "$ReleasePath/AlphaTemp"
         mkdir "$ReleasePath/AlphaTemp"
         mkdir "$ReleasePath/AlphaTemp/$BinaryName"

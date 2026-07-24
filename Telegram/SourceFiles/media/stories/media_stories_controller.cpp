@@ -266,7 +266,6 @@ void Controller::Unsupported::setup(not_null<PeerData*> peer) {
 		wrap,
 		tr::lng_update_telegram(),
 		st::storiesUnsupportedUpdate);
-	_button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_button->show();
 
 	rpl::combine(
@@ -566,6 +565,9 @@ void Controller::rebuildActiveAreas(const Layout &layout) const {
 		area.radius = scale.width() * area.radiusOriginal / 100.;
 		if (const auto view = area.view.get()) {
 			view->setAreaGeometry(area.geometry, area.radius);
+			view->setContentRect(
+				layout.content,
+				st::storiesRadius);
 		}
 	}
 }
@@ -2043,6 +2045,10 @@ Ui::Toast::Config PrepareTogglePinToast(
 					tr::now,
 					lt_count,
 					count))) },
+		.iconLottie = pin
+			? u"toast/pin"_q
+			: u"toast/unpin"_q,
+		.iconLottieSize = st::toastLottieIconSize,
 		.st = &st::storiesActionToast,
 		.duration = (pin
 			? Data::Stories::kInProfileToastDuration

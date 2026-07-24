@@ -27,6 +27,7 @@ public:
 	void setTop(int top);
 	[[nodiscard]] int top() const;
 	void setCanReorder(bool);
+	void setMinGridSize(int value);
 	void resizeToWidth(int newWidth);
 	[[nodiscard]] int height() const;
 
@@ -91,6 +92,7 @@ private:
 	mutable int _rowsCount = 0;
 	int _top = 0;
 	int _height = 0;
+	int _minGridSize = 0;
 	bool _canReorder = false;
 
 	Mosaic::Layout::MosaicLayout<BaseLayout> _mosaic;

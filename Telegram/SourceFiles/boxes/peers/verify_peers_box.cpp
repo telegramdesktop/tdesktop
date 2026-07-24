@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_polls.h"
 
 namespace {
 
@@ -58,8 +59,8 @@ void Setup(
 		MTP_flags(Flag::f_bot
 			| Flag::f_enabled
 			| (description.isEmpty() ? Flag() : Flag::f_custom_description)),
-		bot->inputUser,
-		peer->input,
+		bot->inputUser(),
+		peer->input(),
 		MTP_string(description)
 	)).done([=] {
 		done(QString());
@@ -74,8 +75,8 @@ void Remove(
 		Fn<void(QString)> done) {
 	bot->session().api().request(MTPbots_SetCustomVerification(
 		MTP_flags(MTPbots_SetCustomVerification::Flag::f_bot),
-		bot->inputUser,
-		peer->input,
+		bot->inputUser(),
+		peer->input(),
 		MTPstring()
 	)).done([=] {
 		done(QString());

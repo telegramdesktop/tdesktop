@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
+#include "ui/effects/panel_animation.h"
 #include "ui/rp_widget.h"
+#include "ui/widgets/shadow.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
 
@@ -16,9 +18,6 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-namespace Ui {
-class PanelAnimation;
-} // namespace Ui
 
 namespace ChatHelpers {
 
@@ -56,6 +55,7 @@ public:
 		int minHeight,
 		int maxHeight);
 	void setDropDown(bool dropDown);
+	void setShowAnimationOrigin(Ui::PanelAnimation::Origin origin);
 
 	void hideFast();
 	bool hiding() const {
@@ -121,9 +121,11 @@ private:
 
 	bool _shouldFinishHide = false;
 	bool _dropDown = false;
+	std::optional<Ui::PanelAnimation::Origin> _showAnimationOrigin;
 
 	bool _hiding = false;
 	bool _hideAfterSlide = false;
+	Ui::BoxShadow _shadow;
 	QPixmap _cache;
 	Ui::Animations::Simple _a_opacity;
 	base::Timer _hideTimer;

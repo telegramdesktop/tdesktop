@@ -127,11 +127,15 @@ public:
 
 	void saveAdditional() override;
 
+	void checkHighlightControls(
+		not_null<Window::SessionController*> controller) override;
+
 private:
 	const not_null<::Main::Session*> _session;
 	rpl::variable<Option> _option;
 	rpl::variable<int> _exceptionsNever;
 	bool _hideReadTime = false;
+	QPointer<QWidget> _hideReadTimeButton;
 
 };
 
@@ -263,10 +267,15 @@ public:
 
 	void saveAdditional() override;
 
+	void checkHighlightControls(
+		not_null<Window::SessionController*> controller) override;
+
 private:
 	Fn<void()> _saveAdditional;
 	rpl::variable<Option> _option;
 	rpl::variable<int> _exceptionsNever;
+	QPointer<QWidget> _setPublicButton;
+	QPointer<QWidget> _removePublicButton;
 
 };
 
@@ -368,6 +377,9 @@ public:
 
 	void saveAdditional() override;
 
+	void checkHighlightControls(
+		not_null<Window::SessionController*> controller) override;
+
 private:
 	struct AdditionalState;
 
@@ -376,6 +388,8 @@ private:
 		rpl::lifetime &on);
 
 	AdditionalState *_state = nullptr;
+	QPointer<QWidget> _showIconButton;
+	QPointer<QWidget> _acceptedTypesTitle;
 
 };
 

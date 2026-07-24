@@ -173,7 +173,7 @@ private:
 			link.usageLimit)
 		: tr::lng_group_invite_no_joined(tr::now);
 	const auto add = [&](const QString &text) {
-		result += QString::fromUtf8(" \xE2\x80\xA2 ") + text;
+		result += ' ' + Ui::kQBullet + ' ' + text;
 	};
 	if (revoked) {
 		return result;
@@ -208,6 +208,9 @@ private:
 			const auto time = base::unixtime::parse(link.expireDate).time();
 			add(QLocale().toString(time, QLocale::LongFormat));
 		}
+	}
+	if (link.requestApproval) {
+		add(tr::lng_group_invite_approval_required(tr::now));
 	}
 	return result;
 }
@@ -803,7 +806,7 @@ void AdminsController::prepare() {
 		return;
 	}
 	_requestId = session().api().request(MTPmessages_GetAdminsWithInvites(
-		_peer->input
+		_peer->input()
 	)).done([=](const MTPmessages_ChatAdminsWithInvites &result) {
 		result.match([&](const MTPDmessages_chatAdminsWithInvites &data) {
 			auto &owner = _peer->owner();

@@ -281,10 +281,8 @@ void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
 		showPhoneError(tr::lng_bad_phone());
 	} else if (err == u"PHONE_NUMBER_BANNED"_q) {
 		Ui::ShowPhoneBannedError(getData()->controller, _sentPhone);
-	} else if (Logs::DebugEnabled()) { // internal server error
-		showPhoneError(rpl::single(err + ": " + error.description()));
-	} else {
-		showPhoneError(rpl::single(Lang::Hard::ServerError()));
+	} else if (!MTP::IgnoreError(error)) {
+		showPhoneError(rpl::single(err));
 	}
 }
 

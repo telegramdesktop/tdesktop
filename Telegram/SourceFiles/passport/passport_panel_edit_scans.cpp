@@ -327,6 +327,7 @@ ScanButton::ScanButton(
 		this,
 		tr::lng_passport_delete_scan_undo(),
 		_st.restore)) {
+	_restore->entity()->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	_delete->toggle(!deleted, anim::type::instant);
 	_restore->toggle(deleted, anim::type::instant);
 }

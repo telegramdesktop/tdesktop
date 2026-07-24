@@ -83,8 +83,9 @@ struct CacheBackgroundRequest {
 	float64 gradientProgress = 1.;
 
 	explicit operator bool() const {
-		return !background.prepared.isNull()
-			|| !background.gradientForFill.isNull();
+		return !area.isEmpty()
+			&& (!background.prepared.isNull()
+				|| !background.gradientForFill.isNull());
 	}
 };
 
@@ -178,6 +179,7 @@ public:
 	[[nodiscard]] ChatPaintContext preparePaintContext(
 		not_null<const ChatStyle*> st,
 		QRect viewport,
+		QRect area,
 		QRect clip,
 		bool paused);
 	[[nodiscard]] const BackgroundState &backgroundState(QSize area);
@@ -221,7 +223,6 @@ private:
 	CacheBackgroundRequest _backgroundCachingRequest;
 	CacheBackgroundRequest _nextCachingRequest;
 	CacheBackgroundResult _backgroundNext;
-	int _backgroundVersion = 0;
 	QSize _cacheBackgroundArea;
 	crl::time _lastBackgroundAreaChangeTime = 0;
 	std::optional<base::Timer> _cacheBackgroundTimer;
@@ -286,6 +287,8 @@ struct BackgroundImageFields {
 	int rotation);
 [[nodiscard]] ChatThemeBackground PrepareBackgroundImage(
 	const ChatThemeBackgroundData &data);
+[[nodiscard]] QImage PrepareBubblesBackground(
+	const ChatThemeBubblesData &data);
 [[nodiscard]] QImage PrepareGiftSymbol(
 	const std::unique_ptr<Text::CustomEmoji> &emoji);
 

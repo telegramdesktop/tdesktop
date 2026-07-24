@@ -101,7 +101,7 @@ public:
 	using AdminDoneCallback = Fn<void(
 		not_null<UserData*> user,
 		ChatAdminRightsInfo adminRights,
-		const QString &rank)>;
+		const std::optional<QString> &rank)>;
 	using BannedDoneCallback = Fn<void(
 		not_null<PeerData*> participant,
 		ChatRestrictionsInfo bannedRights)>;
@@ -133,7 +133,7 @@ private:
 	void editAdminDone(
 		not_null<UserData*> user,
 		ChatAdminRightsInfo rights,
-		const QString &rank);
+		const std::optional<QString> &rank);
 	void showRestricted(not_null<UserData*> user, bool sure = false);
 	void editRestrictedDone(
 		not_null<PeerData*> participant,

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "media/media_common.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/buttons.h"
 #include "ui/rect_part.h"
@@ -111,7 +112,7 @@ public:
 	}
 
 	void setSpeed(float64 speed);
-	void setQuality(int quality);
+	void setQuality(Media::VideoQuality quality);
 	void setActive(bool active);
 
 private:
@@ -134,7 +135,7 @@ private:
 	Ui::Animations::Simple _overAnimation;
 	QImage _frameCache;
 	float _speed = 1.;
-	int _quality = 0;
+	Media::VideoQuality _quality;
 	bool _isDefaultSpeed = false;
 	bool _active = false;
 

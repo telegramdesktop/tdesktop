@@ -12,17 +12,157 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/image/image_prepare.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "core/mime_type.h"
+#include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_media_player.h"
+
+#include <QFileInfo>
 
 namespace Ui {
 namespace {
 
 constexpr auto kMaxAlbumCount = 10;
+constexpr auto kStandardPhotoSideLimit = 1280;
+
+struct GroupRange {
+	int from = 0;
+	int till = 0;
+	AlbumType type = AlbumType::None;
+
+	[[nodiscard]] int size() const {
+		return till - from;
+	}
+};
+
+struct HighQualityBadgeCache {
+	QRgb bg = 0;
+	QRgb fg = 0;
+	qreal ratio = 0.;
+	int width = 0;
+	int height = 0;
+	QImage image;
+};
+
+[[nodiscard]] const QImage &HighQualityBadgeImage(
+		const style::ComposeControls &st) {
+	static auto cache = HighQualityBadgeCache();
+	const auto text = u"HD"_q;
+	const auto &font = st::mediaPlayerSpeedButton.font;
+	const auto xpadding = style::ConvertScale(2.);
+	const auto ypadding = 0;
+	const auto stroke = style::ConvertScaleExact(1.);
+	const auto width = font->width(text);
+	const auto height = font->height;
+	const auto ratio = style::DevicePixelRatio();
+	const auto bg = st::roundedBg->c.rgba();
+	const auto fg = st::roundedFg->c.rgba();
+	if (cache.image.isNull()
+		|| (cache.bg != bg)
+		|| (cache.fg != fg)
+		|| (cache.ratio != ratio)
+		|| (cache.width != width)
+		|| (cache.height != height)) {
+		cache.bg = bg;
+		cache.fg = fg;
+		cache.ratio = ratio;
+		cache.width = width;
+		cache.height = height;
+		cache.image = QImage(
+			(width + 2 * xpadding + stroke) * ratio,
+			(height + 2 * ypadding + stroke) * ratio,
+			QImage::Format_ARGB32_Premultiplied);
+		cache.image.setDevicePixelRatio(ratio);
+		cache.image.fill(Qt::transparent);
+		auto painter = QPainter(&cache.image);
+		auto hq = PainterHighQualityEnabler(painter);
+		painter.setCompositionMode(QPainter::CompositionMode_Source);
+		painter.setPen(QPen(Qt::transparent, stroke));
+		painter.setBrush(st::roundedBg);
+		painter.setFont(font);
+		painter.drawRoundedRect(
+			QRectF(
+				0,
+				0,
+				width + 2 * xpadding + stroke,
+				height + 2 * ypadding + stroke),
+			height / 3.,
+			height / 3.);
+		painter.setPen(st::roundedFg);
+		painter.drawText(
+			QPointF(
+				xpadding + stroke / 2.,
+				ypadding + font->ascent + stroke / 2.),
+			text);
+	}
+	return cache.image;
+}
+
+[[nodiscard]] AlbumType GroupTypeForFile(
+		PreparedFile::Type type,
+		bool groupFiles,
+		bool sendImagesAsPhotos) {
+	using Type = PreparedFile::Type;
+	return (type == Type::Music)
+		? (groupFiles ? AlbumType::Music : AlbumType::None)
+		: (type == Type::Video || type == Type::Photo)
+		? ((groupFiles && sendImagesAsPhotos)
+			? AlbumType::PhotoVideo
+			: (groupFiles && !sendImagesAsPhotos)
+			? AlbumType::File
+			: AlbumType::None)
+		: (type == Type::File)
+		? (groupFiles ? AlbumType::File : AlbumType::None)
+		: AlbumType::None;
+}
+
+[[nodiscard]] std::vector<GroupRange> GroupRanges(
+		const std::vector<PreparedFile> &files,
+		SendFilesWay way,
+		bool slowmode) {
+	const auto sendImagesAsPhotos = way.sendImagesAsPhotos();
+	const auto groupFiles = way.groupFiles() || slowmode;
+
+	auto result = std::vector<GroupRange>();
+	if (files.empty()) {
+		return result;
+	}
+	auto from = 0;
+	auto groupType = AlbumType::None;
+	for (auto i = 0; i != int(files.size()); ++i) {
+		const auto fileGroupType = GroupTypeForFile(
+			files[i].type,
+			groupFiles,
+			sendImagesAsPhotos);
+		const auto count = (i - from);
+		if ((i > from && groupType != fileGroupType)
+			|| ((groupType != AlbumType::None) && (count == kMaxAlbumCount))) {
+			result.push_back(GroupRange{
+				.from = from,
+				.till = i,
+				.type = (count > 1) ? groupType : AlbumType::None,
+			});
+			from = i;
+		}
+		groupType = fileGroupType;
+	}
+	const auto till = int(files.size());
+	const auto count = (till - from);
+	result.push_back(GroupRange{
+		.from = from,
+		.till = till,
+		.type = (count > 1) ? groupType : AlbumType::None,
+	});
+	return result;
+}
 
 } // namespace
 
 PreparedFile::PreparedFile(const QString &path) : path(path) {
+	const auto fileInfo = QFileInfo(path);
+	displayName = fileInfo.fileName();
 }
 
 PreparedFile::PreparedFile(PreparedFile &&other) = default;
@@ -60,6 +200,14 @@ bool PreparedFile::isGifv() const {
 		&& v::get<Video>(information->media).isGifv;
 }
 
+bool PreparedFile::canUseHighQualityPhoto() const {
+	return (type == PreparedFile::Type::Photo)
+		&& (information != nullptr)
+		&& !isSticker()
+		&& ((originalDimensions.width() > kStandardPhotoSideLimit)
+			|| (originalDimensions.height() > kStandardPhotoSideLimit));
+}
+
 AlbumType PreparedFile::albumType(bool sendImagesAsPhotos) const {
 	switch (type) {
 	case Type::Photo:
@@ -86,7 +234,9 @@ bool CanBeInAlbumType(PreparedFile::Type type, AlbumType album) {
 	case AlbumType::Music:
 		return (type == Type::Music);
 	case AlbumType::File:
-		return (type == Type::Photo) || (type == Type::File);
+		return (type == Type::Photo)
+			|| (type == Type::Video)
+			|| (type == Type::File);
 	}
 	Unexpected("AlbumType in CanBeInAlbumType.");
 }
@@ -167,45 +317,33 @@ bool PreparedList::canBeSentInSlowmodeWith(const PreparedList &other) const {
 	return !hasNonGrouping && (!hasFiles || !hasVideos);
 }
 
-bool PreparedList::canAddCaption(bool sendingAlbum, bool compress) const {
-	if (!filesToProcess.empty()
-		|| files.empty()
-		|| files.size() > kMaxAlbumCount) {
+bool PreparedList::canAddCaption(bool compress) const {
+	if (files.empty()) {
 		return false;
 	}
-	if (files.size() == 1) {
-		Assert(files.front().information != nullptr);
-		const auto isSticker = (!compress
-				&& Core::IsMimeSticker(files.front().information->filemime))
-			|| files.front().path.endsWith(u".tgs"_q, Qt::CaseInsensitive);
-		return !isSticker;
-	} else if (!sendingAlbum) {
-		return false;
-	}
-	const auto hasFiles = ranges::contains(
-		files,
-		PreparedFile::Type::File,
-		&PreparedFile::type);
-	const auto hasMusic = ranges::contains(
-		files,
-		PreparedFile::Type::Music,
-		&PreparedFile::type);
-	const auto hasNotGrouped = ranges::contains(
-		files,
-		PreparedFile::Type::None,
-		&PreparedFile::type);
-	return !hasFiles && !hasMusic && !hasNotGrouped;
+	const auto &last = files.back();
+	const auto isSticker = last.path.endsWith(u".tgs"_q, Qt::CaseInsensitive)
+		|| (!compress
+			&& last.information
+			&& Core::IsMimeSticker(last.information->filemime));
+	return !isSticker;
 }
 
 bool PreparedList::canMoveCaption(bool sendingAlbum, bool compress) const {
-	if (!canAddCaption(sendingAlbum, compress)) {
+	if (!canAddCaption(compress)) {
 		return false;
-	} else if (files.size() != 1) {
-		return true;
+	} else if (files.size() > kMaxAlbumCount) {
+		return false;
+	} else if (!sendingAlbum || !compress) {
+		return (files.size() == 1);
 	}
-	const auto &file = files.front();
-	return (file.type == PreparedFile::Type::Video)
-		|| (file.type == PreparedFile::Type::Photo && compress);
+	for (const auto &file : files) {
+		if (file.type != PreparedFile::Type::Photo
+			&& file.type != PreparedFile::Type::Video) {
+			return false;
+		}
+	}
+	return true;
 }
 
 bool PreparedList::canChangePrice(bool sendingAlbum, bool compress) const {
@@ -235,9 +373,13 @@ bool PreparedList::hasGroupOption(bool slowmode) const {
 
 bool PreparedList::hasSendImagesAsPhotosOption(bool slowmode) const {
 	using Type = PreparedFile::Type;
-	return slowmode
-		? ((files.size() == 1) && (files.front().type == Type::Photo))
-		: ranges::contains(files, Type::Photo, &PreparedFile::type);
+	if (slowmode) {
+		const auto t = files.front().type;
+		return (files.size() == 1)
+			&& (t == Type::Photo || t == Type::Video);
+	}
+	return ranges::contains(files, Type::Photo, &PreparedFile::type)
+		|| ranges::contains(files, Type::Video, &PreparedFile::type);
 }
 
 bool PreparedList::canHaveEditorHintLabel() const {
@@ -266,23 +408,23 @@ bool PreparedList::hasSpoilerMenu(bool compress) const {
 	return allAreVideo || (allAreMedia && compress);
 }
 
+bool PreparedList::hasSendLargePhotosOption(bool compress) const {
+	return compress
+		&& ranges::any_of(files, &PreparedFile::canUseHighQualityPhoto);
+}
+
 std::shared_ptr<PreparedBundle> PrepareFilesBundle(
 		std::vector<PreparedGroup> groups,
 		SendFilesWay way,
-		TextWithTags caption,
 		bool ctrlShiftEnter) {
 	auto totalCount = 0;
 	for (const auto &group : groups) {
 		totalCount += group.list.files.size();
 	}
-	const auto sendComment = !caption.text.isEmpty()
-		&& (groups.size() != 1 || !groups.front().sentWithCaption());
 	return std::make_shared<PreparedBundle>(PreparedBundle{
 		.groups = std::move(groups),
 		.way = way,
-		.caption = std::move(caption),
-		.totalCount = totalCount + (sendComment ? 1 : 0),
-		.sendComment = sendComment,
+		.totalCount = totalCount,
 		.ctrlShiftEnter = ctrlShiftEnter,
 	});
 }
@@ -302,49 +444,19 @@ std::vector<PreparedGroup> DivideByGroups(
 		PreparedList &&list,
 		SendFilesWay way,
 		bool slowmode) {
-	const auto sendImagesAsPhotos = way.sendImagesAsPhotos();
-	const auto groupFiles = way.groupFiles() || slowmode;
-
-	auto group = Ui::PreparedList();
-
-	using Type = Ui::PreparedFile::Type;
-	auto groupType = AlbumType::None;
-
+	const auto ranges = GroupRanges(list.files, way, slowmode);
 	auto result = std::vector<PreparedGroup>();
-	auto pushGroup = [&] {
-		const auto type = (group.files.size() > 1)
-			? groupType
-			: AlbumType::None;
-		result.push_back(PreparedGroup{
-			.list = base::take(group),
-			.type = type,
-		});
-	};
-	for (auto i = 0; i != list.files.size(); ++i) {
-		auto &file = list.files[i];
-		const auto fileGroupType = (file.type == Type::Music)
-			? (groupFiles ? AlbumType::Music : AlbumType::None)
-			: (file.type == Type::Video)
-			? (groupFiles ? AlbumType::PhotoVideo : AlbumType::None)
-			: (file.type == Type::Photo)
-			? ((groupFiles && sendImagesAsPhotos)
-				? AlbumType::PhotoVideo
-				: (groupFiles && !sendImagesAsPhotos)
-				? AlbumType::File
-				: AlbumType::None)
-			: (file.type == Type::File)
-			? (groupFiles ? AlbumType::File : AlbumType::None)
-			: AlbumType::None;
-		if ((!group.files.empty() && groupType != fileGroupType)
-			|| ((groupType != AlbumType::None)
-				&& (group.files.size() == Ui::MaxAlbumItems()))) {
-			pushGroup();
+	result.reserve(ranges.size());
+	for (const auto &range : ranges) {
+		auto grouped = Ui::PreparedList();
+		grouped.files.reserve(range.size());
+		for (auto i = range.from; i != range.till; ++i) {
+			grouped.files.push_back(std::move(list.files[i]));
 		}
-		group.files.push_back(std::move(file));
-		groupType = fileGroupType;
-	}
-	if (!group.files.empty()) {
-		pushGroup();
+		result.push_back(PreparedGroup{
+			.list = std::move(grouped),
+			.type = range.type,
+		});
 	}
 	return result;
 }
@@ -385,6 +497,27 @@ QPixmap BlurredPreviewFromPixmap(QPixmap pixmap, RectParts corners) {
 		Blur(std::move(small), true),
 		image.size(),
 		{ .options = RoundOptions(ImageRoundRadius::Large, corners) }));
+}
+
+void PaintHighQualityBadge(
+		QPainter &p,
+		const style::ComposeControls &st,
+		QRect rect,
+		RectPart origin) {
+	const auto outerSkip = st.photoQualityBadgeOuterSkip;
+	const auto &badge = HighQualityBadgeImage(st);
+	const auto size = badge.size() / badge.devicePixelRatio();
+	const auto left = (origin == RectPart::TopLeft)
+		|| (origin == RectPart::BottomLeft);
+	const auto top = (origin == RectPart::TopLeft)
+		|| (origin == RectPart::TopRight);
+	const auto x = left
+		? (rect.x() + outerSkip)
+		: (rect.x() + rect.width() - size.width() - outerSkip);
+	const auto y = top
+		? (rect.y() + outerSkip)
+		: (rect.y() + rect.height() - size.height() - outerSkip);
+	p.drawImage(QPointF(x, y), badge);
 }
 
 } // namespace Ui

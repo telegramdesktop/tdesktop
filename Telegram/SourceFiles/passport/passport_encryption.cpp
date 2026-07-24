@@ -374,6 +374,9 @@ bytes::vector DecryptData(
 	} else if (dataSecret.size() != kSecretSize) {
 		LOG(("API Error: Bad data secret size %1").arg(dataSecret.size()));
 		return {};
+	} else if ((encrypted.size() % kAlignTo) != 0) {
+		LOG(("API Error: Bad encrypted size %1").arg(encrypted.size()));
+		return {};
 	}
 
 	const auto bytesForEncryptionKey = bytes::concatenate(

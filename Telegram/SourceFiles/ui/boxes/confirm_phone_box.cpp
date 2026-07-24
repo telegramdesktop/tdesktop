@@ -34,8 +34,6 @@ ConfirmPhoneBox::ConfirmPhoneBox(
 			tr::lng_intro_fragment_button(),
 			st::fragmentBoxButton);
 		_fragment->setClickedCallback([=] { File::OpenUrl(openUrl); });
-		_fragment->setTextTransform(
-			Ui::RoundButton::TextTransform::NoTransform);
 	}
 	if (timeout) {
 		_call.setStatus({ Ui::SentCodeCall::State::Waiting, *timeout });

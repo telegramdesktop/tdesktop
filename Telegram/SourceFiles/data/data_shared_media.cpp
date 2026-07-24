@@ -66,7 +66,7 @@ bool IsItemGoodForType(const not_null<HistoryItem*> item, Type type) {
 		|| ((videoType || photoVideoType) && videoDoc)
 		|| (fileType && (document->isTheme()
 			|| document->isImage()
-			|| !document->canBeStreamed(item)));
+			|| !document->canBeStreamed()));
 }
 
 } // namespace
@@ -79,7 +79,8 @@ std::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 	case Type::MusicFile:
 	case Type::File:
 	case Type::RoundVoiceFile:
-	case Type::Link: return type;
+	case Type::Link:
+	case Type::Poll: return type;
 	}
 	return std::nullopt;
 }
@@ -88,7 +89,8 @@ bool SharedMediaAllowSearch(Storage::SharedMediaType type) {
 	switch (type) {
 	case Type::MusicFile:
 	case Type::File:
-	case Type::Link: return true;
+	case Type::Link:
+	case Type::Poll: return true;
 	default: return false;
 	}
 }

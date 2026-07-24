@@ -15,18 +15,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 [[nodiscard]] QString langDayOfMonth(const QDate &date);
 [[nodiscard]] QString langDayOfMonthFull(const QDate &date);
+[[nodiscard]] QString langDayOfMonthShort(const QDate &date);
 [[nodiscard]] QString langMonthOfYear(int month, int year);
 [[nodiscard]] QString langMonth(const QDate &date);
 [[nodiscard]] QString langMonthOfYearFull(int month, int year);
 [[nodiscard]] QString langMonthFull(const QDate &date);
 [[nodiscard]] QString langDayOfWeek(int index);
+[[nodiscard]] QString langDayOfWeekFull(int index);
 
 [[nodiscard]] inline QString langDayOfWeek(const QDate &date) {
 	return langDayOfWeek(date.dayOfWeek());
 }
 
+[[nodiscard]] inline QString langDayOfWeekFull(const QDate &date) {
+	return langDayOfWeekFull(date.dayOfWeek());
+}
+
 [[nodiscard]] QString langDateTime(const QDateTime &date);
 [[nodiscard]] QString langDateTimeFull(const QDateTime &date);
+[[nodiscard]] QString langFullName(
+	const QString &firstName,
+	const QString &lastName);
 [[nodiscard]] bool langFirstNameGoesSecond();
 
 namespace Lang {
@@ -41,5 +50,6 @@ namespace Lang {
 [[nodiscard]] tr::phrase<> MonthSmall(int index);
 [[nodiscard]] tr::phrase<> MonthDay(int index);
 [[nodiscard]] tr::phrase<> Weekday(int index);
+[[nodiscard]] tr::phrase<> WeekdayFull(int index);
 
 } // namespace Lang

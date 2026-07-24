@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h"
 #include "lang/lang_keys.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
+#include "settings/settings_common.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_email.h"
 #include "settings/cloud_password/settings_cloud_password_hint.h"
@@ -65,6 +66,10 @@ private:
 	QString _currentPassword;
 
 	rpl::lifetime _requestLifetime;
+
+	QPointer<Ui::RpWidget> _changePasswordButton;
+	QPointer<Ui::RpWidget> _changeEmailButton;
+	QPointer<Ui::RpWidget> _disableButton;
 
 };
 
@@ -134,22 +139,24 @@ void Manage::setupContent() {
 	});
 
 	Ui::AddSkip(content);
-	AddButtonWithIcon(
+	const auto changePasswordButton = AddButtonWithIcon(
 		content,
 		tr::lng_settings_cloud_password_manage_password_change(),
 		st::settingsButton,
-		{ &st::menuIconPermissions }
-	)->setClickedCallback([=] {
+		{ &st::menuIconPermissions });
+	_changePasswordButton = changePasswordButton;
+	changePasswordButton->setClickedCallback([=] {
 		showOtherAndRememberPassword(CloudPasswordInputId());
 	});
-	AddButtonWithIcon(
+	const auto changeEmailButton = AddButtonWithIcon(
 		content,
 		state->hasRecovery
 			? tr::lng_settings_cloud_password_manage_email_change()
 			: tr::lng_settings_cloud_password_manage_email_new(),
 		st::settingsButton,
-		{ &st::menuIconRecoveryEmail }
-	)->setClickedCallback([=] {
+		{ &st::menuIconRecoveryEmail });
+	_changeEmailButton = changeEmailButton;
+	changeEmailButton->setClickedCallback([=] {
 		auto data = stepData();
 		data.setOnlyRecoveryEmail = true;
 		setStepData(std::move(data));
@@ -157,6 +164,16 @@ void Manage::setupContent() {
 		showOtherAndRememberPassword(CloudPasswordEmailId());
 	});
 	Ui::AddSkip(content);
+
+	showFinishes() | rpl::take(1) | rpl::on_next([=] {
+		controller()->checkHighlightControl(
+			u"2sv/change"_q,
+			_changePasswordButton);
+		controller()->checkHighlightControl(
+			u"2sv/change-email"_q,
+			_changeEmailButton);
+		controller()->checkHighlightControl("2sv/disable"_q, _disableButton);
+	}, lifetime());
 
 	using Divider = CloudPassword::OneEdgeBoxContentDivider;
 	const auto divider = Ui::CreateChild<Divider>(this);
@@ -222,6 +239,7 @@ base::weak_qptr<Ui::RpWidget> Manage::createPinnedToBottom(
 		std::move(callback));
 
 	_isBottomFillerShown = base::take(bottomButton.isBottomFillerShown);
+	_disableButton = bottomButton.button.get();
 
 	return bottomButton.content;
 }

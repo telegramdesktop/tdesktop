@@ -102,8 +102,6 @@ PasscodeLockWidget::PasscodeLockWidget(
 , _logout(this, tr::lng_passcode_logout(tr::now)) {
 	connect(_passcode, &Ui::MaskedInputField::changed, [=] { changed(); });
 	connect(_passcode, &Ui::MaskedInputField::submitted, [=] { submit(); });
-
-	_submit->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_submit->setClickedCallback([=] { submit(); });
 	_logout->setClickedCallback([=] {
 		window->showLogoutConfirmation();

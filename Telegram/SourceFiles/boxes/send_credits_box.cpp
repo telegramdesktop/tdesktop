@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_keys.h"
+#include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_form.h"
@@ -301,7 +302,7 @@ void AddTerms(
 void SendCreditsBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Payments::CreditsFormData> form,
-		Fn<void()> sent) {
+		Fn<void(Settings::SmallBalanceResult)> sent) {
 	if (!form) {
 		return;
 	}
@@ -391,7 +392,7 @@ void SendCreditsBox(
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
 
-	const auto button = box->addButton(rpl::single(QString()), [=] {
+	const auto sendStars = [=] {
 		if (state->confirmButtonBusy.current()) {
 			return;
 		}
@@ -411,7 +412,7 @@ void SendCreditsBox(
 				state->confirmButtonBusy = false;
 				box->closeBox();
 			}
-			sent();
+			sent(Settings::SmallBalanceResult::Success);
 		}).fail([=](const MTP::Error &error) {
 			if (weak) {
 				state->confirmButtonBusy = false;
@@ -433,6 +434,22 @@ void SendCreditsBox(
 				show->showToast(id);
 			}
 		}).send();
+	};
+
+	const auto button = box->addButton(rpl::single(QString()), [=] {
+		Settings::MaybeRequestBalanceIncrease(
+			Main::MakeSessionShow(box->uiShow(), session),
+			form->invoice.credits,
+			SmallBalanceSourceFromForm(form),
+			[=](Settings::SmallBalanceResult result) {
+				if (result == Settings::SmallBalanceResult::Cancelled) {
+				} else if (result == Settings::SmallBalanceResult::Success
+					|| result == Settings::SmallBalanceResult::Already) {
+					sendStars();
+				} else {
+					sent(result);
+				}
+			});
 	});
 	if (form->invoice.subscriptionPeriod) {
 		AddTerms(box, button, stBox);
@@ -571,6 +588,18 @@ void SendStarsForm(
 	}).fail([=](const MTP::Error &error) {
 		done(error.type());
 	}).send();
+}
+
+Settings::SmallBalanceSource SmallBalanceSourceFromForm(
+		std::shared_ptr<Payments::CreditsFormData> form) {
+	using namespace Payments;
+	using namespace Settings;
+	const auto starGift = std::get_if<InvoiceStarGift>(&form->id.value);
+	return !starGift
+		? SmallBalanceSource(SmallBalanceBot{ .botId = form->botId })
+		: SmallBalanceSource(SmallBalanceStarGift{
+			.recipientId = starGift->recipient->id,
+		});
 }
 
 } // namespace Ui

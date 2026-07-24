@@ -42,7 +42,6 @@ public:
 
 private:
 	Media::Memento _media;
-	int _addingToAlbumId = 0;
 
 };
 
@@ -71,7 +70,6 @@ private:
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
 	MusicInner *_inner = nullptr;
-	bool _shown = false;
 
 };
 

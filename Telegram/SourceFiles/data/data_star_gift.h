@@ -17,14 +17,44 @@ struct ColorCollectible;
 
 namespace Data {
 
+enum class UniqueGiftRarity : int {
+	Default = 0,
+	Uncommon = -1,
+	Rare = -2,
+	Epic = -3,
+	Legendary = -4,
+};
+
 struct UniqueGiftAttribute {
 	QString name;
-	int rarityPermille = 0;
+	int rarityValue = 0;
+
+	[[nodiscard]] UniqueGiftRarity rarityType() const {
+		return (rarityValue >= 0)
+			? UniqueGiftRarity::Default
+			: UniqueGiftRarity(rarityValue);
+	}
+	[[nodiscard]] int rarityPermille() const {
+		return (rarityValue >= 0) ? rarityValue : 0;
+	}
 
 	friend inline bool operator==(
 		const UniqueGiftAttribute &,
 		const UniqueGiftAttribute &) = default;
 };
+
+struct UniqueGiftRarityColors {
+	QColor bg;
+	QColor fg;
+};
+
+[[nodiscard]] QString UniqueGiftRarityText(UniqueGiftRarity type);
+[[nodiscard]] UniqueGiftRarityColors UniqueGiftRarityBadgeColors(
+	UniqueGiftRarity type);
+[[nodiscard]] QString UniqueGiftAttributeText(
+	const UniqueGiftAttribute &attribute);
+[[nodiscard]] bool UniqueGiftAttributeHasSpecialRarity(
+	const UniqueGiftAttribute &attribute);
 
 struct UniqueGiftModel : UniqueGiftAttribute {
 	not_null<DocumentData*> document;
@@ -97,15 +127,19 @@ struct UniqueGift {
 	PeerData *releasedBy = nullptr;
 	PeerData *themeUser = nullptr;
 	int64 nanoTonForResale = -1;
+	int craftChancePermille = 0;
 	int starsForResale = -1;
 	int starsForTransfer = -1;
 	int starsMinOffer = -1;
 	int number = 0;
 	bool onlyAcceptTon = false;
 	bool canBeTheme = false;
+	bool crafted = false;
+	bool burned = false;
 	TimeId exportAt = 0;
 	TimeId canTransferAt = 0;
 	TimeId canResellAt = 0;
+	TimeId canCraftAt = 0;
 	UniqueGiftModel model;
 	UniqueGiftPattern pattern;
 	UniqueGiftBackdrop backdrop;
@@ -362,6 +396,8 @@ struct ResaleGiftsFilter {
 	uint64 attributesHash = 0;
 	base::flat_set<GiftAttributeId> attributes;
 	ResaleGiftsSort sort = ResaleGiftsSort::Price;
+	bool forCraft = false;
+	bool starsOnly = false;
 
 	friend inline bool operator==(
 		const ResaleGiftsFilter &,
@@ -372,6 +408,18 @@ struct ResaleGiftsFilter {
 	not_null<Main::Session*> session,
 	uint64 giftId,
 	ResaleGiftsFilter filter = {},
+	QString offset = QString());
+
+struct CraftGiftsDescriptor {
+	uint64 giftId = 0;
+	QString offset;
+	std::vector<SavedStarGift> list;
+	int count = 0;
+};
+
+[[nodiscard]] rpl::producer<CraftGiftsDescriptor> CraftGiftsSlice(
+	not_null<Main::Session*> session,
+	uint64 giftId,
 	QString offset = QString());
 
 } // namespace Data

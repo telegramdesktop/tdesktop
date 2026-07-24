@@ -13,7 +13,7 @@ namespace Api {
 
 [[nodiscard]] Data::PremiumSubscriptionOption CreateSubscriptionOption(
 	int months,
-	int monthlyAmount,
+	float64 monthlyAmount,
 	int64 amount,
 	const QString &currency,
 	const QString &botUrl);
@@ -24,9 +24,9 @@ template<typename Option>
 	if (tlOpts.isEmpty()) {
 		return {};
 	}
-	auto monthlyAmountPerCurrency = base::flat_map<QString, int>();
+	auto monthlyAmountPerCurrency = base::flat_map<QString, float64>();
 	auto result = Data::PremiumSubscriptionOptions();
-	const auto monthlyAmount = [&](const QString &currency) -> int {
+	const auto monthlyAmount = [&](const QString &currency) -> float64 {
 		const auto it = monthlyAmountPerCurrency.find(currency);
 		if (it != end(monthlyAmountPerCurrency)) {
 			return it->second;

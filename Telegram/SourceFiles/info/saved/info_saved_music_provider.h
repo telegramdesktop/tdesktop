@@ -50,6 +50,7 @@ public:
 	rpl::producer<> refreshed() override;
 
 	void setSearchQuery(QString query) override;
+	void jumpToMessage(MsgId, Fn<void(FullMsgId)> done) override;
 
 	std::vector<Media::ListSection> fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) override;
@@ -121,8 +122,6 @@ private:
 		Media::CachedItem> _layouts;
 	rpl::event_stream<not_null<Media::BaseLayout*>> _layoutRemoved;
 	rpl::event_stream<> _refreshed;
-
-	bool _started = false;
 
 	rpl::lifetime _lifetime;
 	rpl::lifetime _viewerLifetime;

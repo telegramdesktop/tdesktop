@@ -45,6 +45,8 @@ struct UnreadState {
 	int reactions = 0;
 	int reactionsMuted = 0;
 	int mentions = 0;
+	int polls = 0;
+	int pollsMuted = 0;
 	bool known = false;
 
 	UnreadState &operator+=(const UnreadState &other) {
@@ -57,6 +59,8 @@ struct UnreadState {
 		reactions += other.reactions;
 		reactionsMuted += other.reactionsMuted;
 		mentions += other.mentions;
+		polls += other.polls;
+		pollsMuted += other.pollsMuted;
 		return *this;
 	}
 	UnreadState &operator-=(const UnreadState &other) {
@@ -69,6 +73,8 @@ struct UnreadState {
 		reactions -= other.reactions;
 		reactionsMuted -= other.reactionsMuted;
 		mentions -= other.mentions;
+		polls -= other.polls;
+		pollsMuted -= other.pollsMuted;
 		return *this;
 	}
 };
@@ -96,6 +102,8 @@ inline QDebug operator<<(QDebug debug, const UnreadState &state) {
 	<< ", reactions:" << state.reactions
 	<< ", reactionsMuted:" << state.reactionsMuted
 	<< ", mentions:" << state.mentions
+	<< ", polls:" << state.polls
+	<< ", pollsMuted:" << state.pollsMuted
 	<< ", known:" << state.known << ")";
 }
 #endif // _DEBUG
@@ -108,6 +116,8 @@ struct BadgesState {
 	bool mentionMuted : 1 = false;
 	bool reaction : 1 = false;
 	bool reactionMuted : 1 = false;
+	bool poll : 1 = false;
+	bool pollMuted : 1 = false;
 
 	friend inline constexpr auto operator<=>(
 		BadgesState,
@@ -117,7 +127,7 @@ struct BadgesState {
 		BadgesState) = default;
 
 	[[nodiscard]] bool empty() const {
-		return !unread && !mention && !reaction;
+		return !unread && !mention && !reaction && !poll;
 	}
 };
 

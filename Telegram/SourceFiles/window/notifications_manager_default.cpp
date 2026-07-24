@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
+#include "data/data_premium_limits.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
@@ -661,6 +662,8 @@ Notification::Notification(
 , _fromScheduled(fromScheduled)
 , _close(this, st::notifyClose)
 , _reply(this, tr::lng_notification_reply(), st::defaultBoxButton) {
+	_reply->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
+
 	Lang::Updated(
 	) | rpl::on_next([=] {
 		refreshLang();
@@ -1113,7 +1116,8 @@ void Notification::showReplyField() {
 	_replyArea->moveToLeft(st::notifyBorderWidth, st::notifyMinHeight);
 	_replyArea->show();
 	_replyArea->setFocus();
-	_replyArea->setMaxLength(MaxMessageSize);
+	_replyArea->setMaxLength(
+		Data::PremiumLimits(&_item->history()->session()).messageLengthCurrent());
 	_replyArea->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	InitMessageFieldHandlers({
 		.session = &_item->history()->session(),
@@ -1189,8 +1193,17 @@ bool Notification::unlinkHistory(
 bool Notification::unlinkSession(not_null<Main::Session*> session) {
 	const auto unlink = _history && (&_history->session() == session);
 	if (unlink) {
+		// Custom emoji in title and text caches are owned by the session,
+		// while the widget outlives it for the hide animation, so caches
+		// must be destroyed right here. The already rendered _cache image
+		// is still painted, so don't re-render it from the empty strings.
+		_titleCache = Ui::Text::String();
+		_textCache = Ui::Text::String();
+		_textsRepaintScheduled = false;
 		hideFast();
 		_history = nullptr;
+		_topic = nullptr;
+		_sublist = nullptr;
 		_item = nullptr;
 	}
 	return unlink;

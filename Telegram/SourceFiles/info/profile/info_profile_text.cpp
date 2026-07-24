@@ -24,7 +24,8 @@ TextWithLabel CreateTextWithLabel(
 		rpl::producer<TextWithEntities> &&text,
 		const style::FlatLabel &labelSt,
 		const style::FlatLabel &textSt,
-		const style::margins &padding) {
+		const style::margins &padding,
+		const style::PopupMenu &stMenu) {
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent),
@@ -47,7 +48,8 @@ TextWithLabel CreateTextWithLabel(
 	const auto labeled = layout->add(object_ptr<Ui::FlatLabel>(
 		layout,
 		std::move(nonEmptyText),
-		textSt));
+		textSt,
+		stMenu));
 	std::move(text) | rpl::on_next([=] {
 		labeled->resizeToWidth(layout->width());
 	}, labeled->lifetime());

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "base/timer.h"
+#include "base/weak_qptr.h"
 #include "base/platform/base_platform_info.h"
 #include "styles/style_widgets.h"
 
@@ -101,8 +102,12 @@ void ContinuousSlider::mousePressEvent(QMouseEvent *e) {
 void ContinuousSlider::mouseReleaseEvent(QMouseEvent *e) {
 	if (_mouseDown) {
 		_mouseDown = false;
+		const auto weak = base::make_weak(this);
 		if (_changeFinishedCallback) {
 			_changeFinishedCallback(_downValue);
+		}
+		if (!weak) {
+			return;
 		}
 		_value = _downValue;
 		update();
@@ -125,8 +130,12 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 	auto delta = (qAbs(deltaX) > qAbs(deltaY)) ? deltaX : deltaY;
 	auto finalValue = std::clamp(_value + delta * coef, 0., 1.);
 	setValue(finalValue);
+	const auto weak = base::make_weak(this);
 	if (_changeProgressCallback) {
 		_changeProgressCallback(finalValue);
+	}
+	if (!weak) {
+		return;
 	}
 	_byWheelFinished->callOnce(kByWheelFinishedTimeout);
 }
@@ -171,11 +180,15 @@ void ContinuousSlider::keyPressEvent(QKeyEvent *e) {
 		return;
 	}
 	setValue(newValue);
+	const auto weak = base::make_weak(this);
 	if (_changeProgressCallback) {
 		_changeProgressCallback(_value);
 	}
-	if (_changeFinishedCallback) {
+	if (weak && _changeFinishedCallback) {
 		_changeFinishedCallback(_value);
+	}
+	if (!weak) {
+		return;
 	}
 	accessibilityValueChanged();
 }
@@ -269,6 +282,53 @@ void MediaSlider::disablePaint(bool disabled) {
 
 void MediaSlider::addDivider(float64 atValue, const QSize &size) {
 	_dividers.push_back(Divider{ atValue, size });
+	_dividerExclusionSize = QSize();
+}
+
+void MediaSlider::clearDividers() {
+	_dividers.clear();
+	_dividerExclusion = QRegion();
+	_dividerExclusionSize = QSize();
+}
+
+void MediaSlider::rebuildDividerExclusion() {
+	const auto currentSize = size();
+	if (_dividerExclusionSize == currentSize) {
+		return;
+	}
+	_dividerExclusionSize = currentSize;
+	_dividerExclusion = QRegion();
+	if (_dividers.empty()) {
+		return;
+	}
+	const auto horizontal = isHorizontal();
+	const auto from = 0;
+	const auto length = horizontal ? width() : height();
+	for (const auto &divider : _dividers) {
+		const auto dividerValue = horizontal
+			? divider.atValue
+			: (1. - divider.atValue);
+		const auto dividerMid = int(base::SafeRound(
+			from + dividerValue * length));
+		const auto &s = divider.size;
+		_dividerExclusion += horizontal
+			? QRect(
+				dividerMid - s.width() / 2,
+				(height() - s.height()) / 2,
+				s.width(),
+				s.height())
+			: QRect(
+				(width() - s.height()) / 2,
+				dividerMid - s.width() / 2,
+				s.height(),
+				s.width());
+	}
+}
+
+void MediaSlider::setDividerStyle(DividerStyle style) {
+	_dividerStyle = style;
+	_dividerExclusionSize = QSize();
+	update();
 }
 
 void MediaSlider::setColorOverrides(ColorOverrides overrides) {
@@ -334,6 +394,17 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 		? QBrush(*_overrides.inactiveFg)
 		: anim::brush(_st.inactiveFg, _st.inactiveFgOver, over);
 	const auto borderFg = _st.borderFg;
+	const auto gapStyle = (_dividerStyle == DividerStyle::Gaps);
+	if (gapStyle) {
+		rebuildDividerExclusion();
+	}
+	const auto clip = [&](const QRect &rect) {
+		if (!gapStyle || _dividerExclusion.isEmpty()) {
+			p.setClipRect(rect);
+		} else {
+			p.setClipRegion(QRegion(rect) - _dividerExclusion);
+		}
+	};
 	if (mid > from) {
 		const auto fromClipRect = horizontal
 			? QRect(0, 0, mid, height())
@@ -350,7 +421,7 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 				from + borderHalf,
 				_st.width - borderWidth,
 				till - from - borderWidth);
-		p.setClipRect(fromClipRect);
+		clip(fromClipRect);
 		if (borderWidth > 0) {
 			const auto borderPen = _overrides.activeBorder
 				? QPen(*_overrides.activeBorder, borderWidth)
@@ -376,7 +447,7 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 			(height() - _st.width) / 2,
 			right - left,
 			_st.width);
-		p.setClipRect(clipRect);
+		clip(clipRect);
 		p.setBrush(receivedTillFg);
 		p.drawRoundedRect(rect, radius, radius);
 	}
@@ -396,7 +467,7 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 				begin + borderHalf,
 				_st.width - borderWidth,
 				end - begin - borderWidth);
-		p.setClipRect(endClipRect);
+		clip(endClipRect);
 		if (borderWidth > 0) {
 			const auto endBorderPen = _overrides.inactiveBorder
 				? QPen(*_overrides.inactiveBorder, borderWidth)
@@ -408,7 +479,7 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 		p.setBrush(horizontal ? inactiveFg : activeFg);
 		p.drawRoundedRect(endRect, radius, radius);
 	}
-	if (!_dividers.empty()) {
+	if (!gapStyle && !_dividers.empty()) {
 		p.setClipRect(rect());
 		for (const auto &divider : _dividers) {
 			const auto dividerValue = horizontal

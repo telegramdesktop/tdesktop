@@ -6,14 +6,24 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/translate_box.h"
+#include "boxes/translate_box_content.h"
+#include "lang/translate_provider.h"
 
-#include "api/api_text_entities.h" // Api::EntitiesToMTP / EntitiesFromMTP.
+#include "base/weak_ptr.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/core_settings.h"
 #include "core/ui_integration.h"
+#include "data/data_msg_id.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "history/history.h"
+#include "history/history_item.h"
+#include "iv/markdown/iv_markdown_article.h"
+#include "iv/markdown/iv_markdown_prepare.h"
+#include "iv/markdown/iv_markdown_view_widget.h"
+#include "iv/iv_cached_media.h"
+#include "iv/iv_rich_page.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -23,71 +33,378 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
-#include "ui/vertical_list.h"
-#include "ui/painter.h"
-#include "ui/power_saving.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
-#include "styles/style_boxes.h"
-#include "styles/style_chat_helpers.h"
-#include "styles/style_info.h" // inviteLinkListItem.
-#include "styles/style_layers.h"
+#include "ui/basic_click_handlers.h"
+#include "ui/integration.h"
+#include "ui/power_saving.h"
+#include "ui/vertical_list.h"
+#include "window/window_session_controller.h"
 
-#include <QLocale>
+#include "styles/style_boxes.h"
+#include "styles/style_iv.h"
+#include "styles/style_layers.h"
 
 namespace Ui {
 namespace {
 
 constexpr auto kSkipAtLeastOneDuration = 3 * crl::time(1000);
 
-class ShowButton final : public RpWidget {
-public:
-	ShowButton(not_null<Ui::RpWidget*> parent);
-
-	[[nodiscard]] rpl::producer<Qt::MouseButton> clicks() const;
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	LinkButton _button;
-
-};
-
-ShowButton::ShowButton(not_null<Ui::RpWidget*> parent)
-: RpWidget(parent)
-, _button(this, tr::lng_usernames_activate_confirm(tr::now)) {
-	_button.sizeValue(
-	) | rpl::on_next([=](const QSize &s) {
-		resize(
-			s.width() + st::defaultEmojiSuggestions.fadeRight.width(),
-			s.height());
-		_button.moveToRight(0, 0);
-	}, lifetime());
-	_button.show();
+void ActivateRichTranslateLink(
+		not_null<Iv::Markdown::MarkdownDocumentWidget*> body,
+		const Iv::Markdown::PreparedLink &link,
+		Qt::MouseButton button,
+		const QVariant &context) {
+	if (button != Qt::LeftButton && button != Qt::MiddleButton) {
+		return;
+	}
+	using Kind = Iv::Markdown::PreparedLinkKind;
+	switch (link.kind) {
+	case Kind::External: {
+		if (link.target.isEmpty()) {
+			return;
+		}
+		switch (link.entityType) {
+		case EntityType::Url:
+		case EntityType::CustomUrl:
+		case EntityType::Email:
+			break;
+		default:
+			return;
+		}
+		const auto handler = Ui::Integration::Instance().createLinkHandler(
+			EntityLinkData{
+				.text = (!link.copyText.isEmpty()
+					? link.copyText
+					: link.target),
+				.data = link.target,
+				.type = link.entityType,
+				.shown = link.shown,
+			},
+			Ui::Text::MarkedContext());
+		if (handler) {
+			auto click = ClickContext();
+			click.button = button;
+			click.other = context;
+			handler->onClick(std::move(click));
+		}
+	} break;
+	case Kind::InstantViewPage: {
+		auto target = link.target;
+		if (!link.fragment.isEmpty()) {
+			target += u"#"_q + link.fragment;
+		}
+		UrlClickHandler::Open(target, context);
+	} break;
+	case Kind::ToggleDetails:
+		static_cast<void>(body->toggleDetails(link.target));
+		break;
+	default:
+		break;
+	}
 }
 
-void ShowButton::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
-	const auto clip = e->rect();
-
-	const auto &icon = st::defaultEmojiSuggestions.fadeRight;
-	const auto fade = QRect(0, 0, icon.width(), height());
-	if (fade.intersects(clip)) {
-		icon.fill(p, fade);
+[[nodiscard]] bool ActivateRichTranslateMedia(
+		const Iv::Markdown::MediaActivation &activation,
+		Qt::MouseButton button,
+		const QVariant &context) {
+	if (button != Qt::LeftButton && button != Qt::MiddleButton) {
+		return false;
 	}
-	const auto fill = clip.intersected(
-		{ icon.width(), 0, width() - icon.width(), height() });
-	if (!fill.isEmpty()) {
-		p.fillRect(fill, st::boxBg);
+	using Kind = Iv::Markdown::MediaActivationKind;
+	switch (activation.kind) {
+	case Kind::ExternalUrl:
+		if (activation.url.isEmpty()) {
+			return false;
+		}
+		HiddenUrlClickHandler::Open(activation.url, context);
+		return true;
+	case Kind::Photo:
+		if (!activation.photo) {
+			return false;
+		}
+		activation.photo->open(button);
+		return true;
+	case Kind::Document:
+		if (!activation.document) {
+			return false;
+		}
+		activation.document->open(button);
+		return true;
+	case Kind::OpenChannel:
+		if (!activation.channel) {
+			return false;
+		}
+		activation.channel->open(button);
+		return true;
+	case Kind::JoinChannel:
+		if (!activation.channel) {
+			return false;
+		}
+		activation.channel->join(button);
+		return true;
+	default:
+		return false;
 	}
 }
 
-rpl::producer<Qt::MouseButton> ShowButton::clicks() const {
-	return _button.clicks();
+void SetupRichArticleBody(
+		not_null<GenericBox*> box,
+		not_null<Iv::Markdown::MarkdownDocumentWidget*> body,
+		not_null<Main::Session*> session,
+		not_null<PeerData*> peer,
+		FullMsgId itemId) {
+	auto clickHandlerContext = ClickHandlerContext();
+	clickHandlerContext.itemId = itemId;
+	clickHandlerContext.sessionWindow = base::make_weak(
+		session->tryResolveWindow(peer));
+	clickHandlerContext.show = box->uiShow();
+	const auto context = QVariant::fromValue(clickHandlerContext);
+	body->setClickHandlerContext(context);
+	body->setLinkActivationCallback([=](
+			const Iv::Markdown::PreparedLink &link,
+			Qt::MouseButton button) {
+		ActivateRichTranslateLink(body, link, button, context);
+	});
+	body->setMediaActivationCallback([=](
+			const Iv::Markdown::MediaActivation &activation,
+			Qt::MouseButton button) {
+		return ActivateRichTranslateMedia(activation, button, context);
+	});
+	style::PaletteChanged() | rpl::on_next([=] {
+		body->refreshPalette();
+	}, body->lifetime());
+}
+
+[[nodiscard]] bool ShowRichArticlePage(
+		not_null<Main::Session*> session,
+		FullMsgId itemId,
+		not_null<Iv::Markdown::MarkdownDocumentWidget*> body,
+		not_null<std::shared_ptr<Iv::Markdown::MarkdownArticle>*> article,
+		std::shared_ptr<const Iv::RichPage> page) {
+	const auto limits = Iv::ResolveRichMessageLimits(session);
+	auto prepared = Iv::Markdown::TryPrepareNativeInstantView({
+		.richPage = page,
+		.mediaRuntime = Iv::CreateMessageMediaRuntime(
+			session,
+			itemId,
+			[](QString) {},
+			[](QString) {},
+			::Data::FileOrigin()),
+		.dimensionsOverride = Iv::Markdown::CaptureMarkdownPrepareDimensions(
+			st::translateBoxMarkdown),
+		.tableRenderLimits
+			= Iv::Markdown::PrepareTableRenderLimitsForRichMessage(limits),
+	});
+	if (!prepared.supported()) {
+		return false;
+	}
+	if (!*article) {
+		*article = std::make_shared<Iv::Markdown::MarkdownArticle>(
+			st::translateBoxMarkdown);
+		(*article)->setContent(std::move(prepared.content));
+		body->setArticle(*article);
+	} else {
+		(*article)->setContent(std::move(prepared.content));
+		body->articleContentChanged();
+	}
+	return true;
+}
+
+[[nodiscard]] bool TranslateRichBox(
+		not_null<GenericBox*> box,
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		std::shared_ptr<const Iv::RichPage> page,
+		TextWithEntities summaryText,
+		bool hasCopyRestriction) {
+	struct State {
+		State(not_null<Main::Session*> session)
+		: api(&session->mtp()) {
+		}
+
+		MTP::Sender api;
+		rpl::variable<LanguageId> to;
+		mtpRequestId requestId = 0;
+		std::shared_ptr<Iv::Markdown::MarkdownArticle> original;
+		std::shared_ptr<Iv::Markdown::MarkdownArticle> translated;
+	};
+	const auto session = &peer->session();
+	const auto itemId = FullMsgId(peer->id, msgId);
+	const auto state = box->lifetime().make_state<State>(session);
+	auto originalBody = object_ptr<Iv::Markdown::MarkdownDocumentWidget>(box);
+	if (!ShowRichArticlePage(
+			session,
+			itemId,
+			originalBody.data(),
+			&state->original,
+			page)) {
+		return false;
+	}
+	state->to = ChooseTranslateTo(peer->owner().history(peer));
+
+	box->setWidth(st::boxWideWidth);
+	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
+	const auto container = box->verticalLayout();
+
+	const auto textContext = Core::TextContext({ .session = session });
+
+	auto to = state->to.value() | rpl::start_spawning(box->lifetime());
+	const auto toTitle = rpl::duplicate(to) | rpl::map(LanguageName);
+	const auto toDirection = rpl::duplicate(to) | rpl::map([=](
+			LanguageId id) {
+		return id.locale().textDirection() == Qt::RightToLeft;
+	});
+
+	const auto &stLabel = st::aboutLabel;
+	const auto lineHeight = stLabel.style.lineHeight;
+
+	Ui::AddSkip(container);
+
+	const auto animationsPaused = [] {
+		using Which = FlatLabel::WhichAnimationsPaused;
+		const auto emoji = On(PowerSaving::kEmojiChat);
+		const auto spoiler = On(PowerSaving::kChatSpoiler);
+		return emoji
+			? (spoiler ? Which::All : Which::CustomEmoji)
+			: (spoiler ? Which::Spoiler : Which::None);
+	};
+	const auto summary = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
+		box,
+		object_ptr<FlatLabel>(box, stLabel)));
+	if (hasCopyRestriction) {
+		summary->entity()->setContextMenuHook([](auto&&) {
+		});
+	}
+	summary->entity()->setAnimationsPausedCallback(animationsPaused);
+	summary->entity()->setMarkedText(summaryText, textContext);
+	summary->setMinimalHeight(lineHeight);
+	summary->hide(anim::type::instant);
+
+	const auto show = Ui::CreateChild<FadeWrap<TranslateShowButton>>(
+		container.get(),
+		object_ptr<TranslateShowButton>(container));
+	rpl::combine(
+		container->widthValue(),
+		summary->geometryValue()
+	) | rpl::on_next([=](int width, const QRect &rect) {
+		show->moveToLeft(
+			width - show->width() - st::boxRowPadding.right(),
+			rect.y() + std::abs(lineHeight - show->height()) / 2);
+	}, show->lifetime());
+
+	const auto original = box->addRow(
+		object_ptr<SlideWrap<Iv::Markdown::MarkdownDocumentWidget>>(
+			box,
+			std::move(originalBody)),
+		style::margins());
+	original->hide(anim::type::instant);
+	SetupRichArticleBody(box, original->entity(), session, peer, itemId);
+
+	show->entity()->clicks() | rpl::on_next([=] {
+		show->hide(anim::type::instant);
+		summary->setMinimalHeight(0);
+		summary->hide(anim::type::normal);
+		original->show(anim::type::normal);
+	}, show->lifetime());
+
+	Ui::AddSkip(container);
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
+
+	{
+		const auto padding = st::defaultSubsectionTitlePadding;
+		const auto subtitle = Ui::AddSubsectionTitle(container, std::move(toTitle));
+
+		rpl::duplicate(to) | rpl::on_next([=] {
+			subtitle->resizeToWidth(container->width()
+				- padding.left()
+				- padding.right());
+		}, subtitle->lifetime());
+	}
+
+	const auto translated = box->addRow(
+		object_ptr<SlideWrap<Iv::Markdown::MarkdownDocumentWidget>>(
+			box,
+			object_ptr<Iv::Markdown::MarkdownDocumentWidget>(box)),
+		style::margins());
+	translated->hide(anim::type::instant);
+	SetupRichArticleBody(box, translated->entity(), session, peer, itemId);
+
+	const auto error = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
+		box,
+		object_ptr<FlatLabel>(box, stLabel)));
+	error->hide(anim::type::instant);
+
+	constexpr auto kMaxLines = 3;
+	const auto loading = box->addRow(object_ptr<SlideWrap<RpWidget>>(
+		box,
+		CreateLoadingTextWidget(
+			box,
+			st::aboutLabel.style,
+			kMaxLines,
+			std::move(toDirection))));
+
+	const auto showError = [=] {
+		error->entity()->setMarkedText(
+			tr::italic(tr::lng_translate_box_error(tr::now)),
+			textContext);
+		error->show(anim::type::instant);
+		loading->hide(anim::type::instant);
+	};
+	const auto showResult = [=](std::shared_ptr<const Iv::RichPage> result) {
+		if (result
+			&& ShowRichArticlePage(
+				session,
+				itemId,
+				translated->entity(),
+				&state->translated,
+				result)) {
+			translated->show(anim::type::instant);
+			loading->hide(anim::type::instant);
+		} else {
+			showError();
+		}
+	};
+	const auto send = [=](LanguageId id) {
+		state->api.request(base::take(state->requestId)).cancel();
+		loading->show(anim::type::instant);
+		translated->hide(anim::type::instant);
+		error->hide(anim::type::instant);
+		using Flag = MTPmessages_TranslateRichMessage::Flag;
+		state->requestId = state->api.request(
+			MTPmessages_TranslateRichMessage(
+				MTP_flags(Flag::f_peer | Flag::f_id),
+				peer->input(),
+				MTP_vector<MTPint>(1, MTP_int(msgId)),
+				MTPVector<MTPInputRichMessage>(),
+				MTP_string(id.twoLetterCode()),
+				MTPstring())
+		).done([=](const MTPmessages_TranslatedRichMessage &result) {
+			state->requestId = 0;
+			const auto &list = result.data().vresult().v;
+			showResult(list.isEmpty()
+				? nullptr
+				: Iv::ParseRichPage(session, list.front()));
+		}).fail([=](const MTP::Error &) {
+			state->requestId = 0;
+			showResult(nullptr);
+		}).send();
+	};
+	std::move(to) | rpl::on_next(send, box->lifetime());
+
+	box->addLeftButton(tr::lng_settings_language(), [=] {
+		if (loading->toggled()) {
+			return;
+		}
+		box->uiShow()->showBox(ChooseTranslateToBox(
+			state->to.current(),
+			crl::guard(box, [=](LanguageId id) { state->to = id; })));
+	});
+	return true;
 }
 
 } // namespace
@@ -98,174 +415,68 @@ void TranslateBox(
 		MsgId msgId,
 		TextWithEntities text,
 		bool hasCopyRestriction) {
-	box->setWidth(st::boxWideWidth);
-	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
-	const auto container = box->verticalLayout();
-
 	struct State {
-		State(not_null<Main::Session*> session) : api(&session->mtp()) {
+		State(not_null<Main::Session*> session)
+		: provider(CreateTranslateProvider(session)) {
 		}
 
-		MTP::Sender api;
+		std::unique_ptr<TranslateProvider> provider;
 		rpl::variable<LanguageId> to;
 	};
 	const auto state = box->lifetime().make_state<State>(&peer->session());
+	if (IsServerMsgId(msgId) && state->provider->supportsMessageId()) {
+		if (const auto item = peer->owner().message(peer->id, msgId)) {
+			if (const auto page = item->richPage()) {
+				if (TranslateRichBox(
+						box,
+						peer,
+						msgId,
+						page,
+						text,
+						hasCopyRestriction)) {
+					return;
+				}
+			}
+		}
+	}
 	state->to = ChooseTranslateTo(peer->owner().history(peer));
+	const auto request = std::make_shared<TranslateProviderRequest>(
+		PrepareTranslateProviderRequest(
+			state->provider.get(),
+			peer,
+			msgId,
+			std::move(text)));
 
-	if (!IsServerMsgId(msgId)) {
-		msgId = 0;
-	}
-
-	using Flag = MTPmessages_TranslateText::Flag;
-	const auto flags = msgId
-		? (Flag::f_peer | Flag::f_id)
-		: !text.text.isEmpty()
-		? Flag::f_text
-		: Flag(0);
-
-	const auto &stLabel = st::aboutLabel;
-	const auto lineHeight = stLabel.style.lineHeight;
-
-	Ui::AddSkip(container);
-	// Ui::AddSubsectionTitle(
-	// 	container,
-	// 	tr::lng_translate_box_original());
-
-	const auto animationsPaused = [] {
-		using Which = FlatLabel::WhichAnimationsPaused;
-		const auto emoji = On(PowerSaving::kEmojiChat);
-		const auto spoiler = On(PowerSaving::kChatSpoiler);
-		return emoji
-			? (spoiler ? Which::All : Which::CustomEmoji)
-			: (spoiler ? Which::Spoiler : Which::None);
-	};
-	const auto original = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
-		box,
-		object_ptr<FlatLabel>(box, stLabel)));
-	{
-		if (hasCopyRestriction) {
-			original->entity()->setContextMenuHook([](auto&&) {
-			});
-		}
-		original->entity()->setAnimationsPausedCallback(animationsPaused);
-		original->entity()->setMarkedText(
-			text,
-			Core::TextContext({ .session = &peer->session() }));
-		original->setMinimalHeight(lineHeight);
-		original->hide(anim::type::instant);
-
-		const auto show = Ui::CreateChild<FadeWrap<ShowButton>>(
-			container.get(),
-			object_ptr<ShowButton>(container));
-		show->hide(anim::type::instant);
-		rpl::combine(
-			container->widthValue(),
-			original->geometryValue()
-		) | rpl::on_next([=](int width, const QRect &rect) {
-			show->moveToLeft(
-				width - show->width() - st::boxRowPadding.right(),
-				rect.y() + std::abs(lineHeight - show->height()) / 2);
-		}, show->lifetime());
-		original->entity()->heightValue(
-		) | rpl::filter([](int height) {
-			return height > 0;
-		}) | rpl::take(1) | rpl::on_next([=](int height) {
-			if (height > lineHeight) {
-				show->show(anim::type::instant);
-			}
-		}, show->lifetime());
-		show->toggleOn(show->entity()->clicks() | rpl::map_to(false));
-		original->toggleOn(show->entity()->clicks() | rpl::map_to(true));
-	}
-	Ui::AddSkip(container);
-	Ui::AddSkip(container);
-	Ui::AddDivider(container);
-	Ui::AddSkip(container);
-
-	{
-		const auto padding = st::defaultSubsectionTitlePadding;
-		const auto subtitle = Ui::AddSubsectionTitle(
-			container,
-			state->to.value() | rpl::map(LanguageName));
-
-		// Workaround.
-		state->to.value() | rpl::on_next([=] {
-			subtitle->resizeToWidth(container->width()
-				- padding.left()
-				- padding.right());
-		}, subtitle->lifetime());
-	}
-
-	const auto translated = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
-		box,
-		object_ptr<FlatLabel>(box, stLabel)));
-	translated->entity()->setSelectable(!hasCopyRestriction);
-	translated->entity()->setAnimationsPausedCallback(animationsPaused);
-
-	constexpr auto kMaxLines = 3;
-	container->resizeToWidth(box->width());
-	const auto loading = box->addRow(object_ptr<SlideWrap<RpWidget>>(
-		box,
-		CreateLoadingTextWidget(
-			box,
-			st::aboutLabel.style,
-			std::min(original->entity()->height() / lineHeight, kMaxLines),
-			state->to.value() | rpl::map([=](LanguageId id) {
-				return id.locale().textDirection() == Qt::RightToLeft;
-			}))));
-
-	const auto showText = [=](TextWithEntities text) {
-		const auto label = translated->entity();
-		label->setMarkedText(
-			text,
-			Core::TextContext({ .session = &peer->session() }));
-		translated->show(anim::type::instant);
-		loading->hide(anim::type::instant);
-	};
-
-	const auto send = [=](LanguageId to) {
-		loading->show(anim::type::instant);
-		translated->hide(anim::type::instant);
-		state->api.request(MTPmessages_TranslateText(
-			MTP_flags(flags),
-			msgId ? peer->input : MTP_inputPeerEmpty(),
-			(msgId
-				? MTP_vector<MTPint>(1, MTP_int(msgId))
-				: MTPVector<MTPint>()),
-			(msgId
-				? MTPVector<MTPTextWithEntities>()
-				: MTP_vector<MTPTextWithEntities>(1, MTP_textWithEntities(
-					MTP_string(text.text),
-					Api::EntitiesToMTP(
-						&peer->session(),
-						text.entities,
-						Api::ConvertOption::SkipLocal)))),
-			MTP_string(to.twoLetterCode())
-		)).done([=](const MTPmessages_TranslatedText &result) {
-			const auto &data = result.data();
-			const auto &list = data.vresult().v;
-			if (list.isEmpty()) {
-				showText(
-					tr::italic(tr::lng_translate_box_error(tr::now)));
-			} else {
-				showText(Api::ParseTextWithEntities(
-					&peer->session(),
-					list.front()));
-			}
-		}).fail([=](const MTP::Error &error) {
-			showText(
-				tr::italic(tr::lng_translate_box_error(tr::now)));
-		}).send();
-	};
-	state->to.value() | rpl::on_next(send, box->lifetime());
-
-	box->addLeftButton(tr::lng_settings_language(), [=] {
-		if (loading->toggled()) {
-			return;
-		}
-		box->uiShow()->showBox(ChooseTranslateToBox(
-			state->to.current(),
-			crl::guard(box, [=](LanguageId id) { state->to = id; })));
+	TranslateBoxContent(box, {
+		.text = request->text,
+		.hasCopyRestriction = hasCopyRestriction,
+		.textContext = Core::TextContext({ .session = &peer->session() }),
+		.to = state->to.value(),
+		.chooseTo = [=] {
+			box->uiShow()->showBox(ChooseTranslateToBox(
+				state->to.current(),
+				crl::guard(box, [=](LanguageId id) { state->to = id; })));
+		},
+		.request = [=](
+				LanguageId to,
+				Fn<void(TranslateBoxContentResult)> done) {
+			state->provider->request(
+				*request,
+				to,
+				[done = std::move(done)](TranslateProviderResult result) {
+					using ProviderError = TranslateProviderError;
+					using UiError = TranslateBoxContentError;
+					done(TranslateBoxContentResult{
+						.text = std::move(result.text),
+						.error = (result.error
+								== ProviderError::LocalLanguagePackMissing)
+							? UiError::LocalLanguagePackMissing
+							: (result.error == ProviderError::None)
+							? UiError::None
+							: UiError::Unknown,
+					});
+				});
+		},
 	});
 }
 

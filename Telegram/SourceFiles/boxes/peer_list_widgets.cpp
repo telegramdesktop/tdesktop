@@ -91,11 +91,20 @@ crl::time PeerListWidgets::paintRow(
 			+ rightActionMargins.right()
 			- skipRight;
 	}
-	namew -= row->paintNameIconGetWidth(
+	const auto leading = row->paintNameIconGetLeadingWidth(
 		p,
 		[=] { updateRow(row); },
 		now,
 		namex,
+		namey,
+		w,
+		selected);
+	namew -= leading;
+	namew -= row->paintNameIconGetWidth(
+		p,
+		[=] { updateRow(row); },
+		now,
+		namex + leading,
 		namey,
 		name.maxWidth(),
 		namew,
@@ -103,7 +112,7 @@ crl::time PeerListWidgets::paintRow(
 		selected);
 	auto nameCheckedRatio = row->disabled() ? 0. : row->checkedRatio();
 	p.setPen(anim::pen(st.nameFg, st.nameFgChecked, nameCheckedRatio));
-	name.drawLeftElided(p, namex, namey, namew, w);
+	name.drawLeftElided(p, namex + leading, namey, namew, w);
 
 	p.setFont(st::contactsStatusFont);
 	row->paintStatusText(p, st, statusx, statusy, statusw, w, selected);

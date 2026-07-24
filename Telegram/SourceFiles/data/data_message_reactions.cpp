@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "main/main_app_config.h"
 #include "main/session/send_as_peers.h"
 #include "data/components/credits.h"
@@ -172,7 +173,7 @@ constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000) + 500;
 		: (*shownPeer == session->userPeerId())
 		? MTP_paidReactionPrivacyDefault()
 		: MTP_paidReactionPrivacyPeer(
-			session->data().peer(*shownPeer)->input);
+			session->data().peer(*shownPeer)->input());
 }
 
 } // namespace
@@ -308,6 +309,19 @@ PossibleItemReactionsRef LookupPossibleReactions(
 				std::rotate(begin(result.recent), i, i + 1);
 			}
 		};
+		if (!limited) {
+			const auto &extra = session->settings().extraFavoriteReactions();
+			for (const auto &id : extra | ranges::views::reverse) {
+				if (id.custom()
+					&& result.customAllowed
+					&& !ranges::contains(result.recent, id, &Reaction::id)) {
+					if (const auto temp = reactions->lookupTemporary(id)) {
+						result.recent.insert(begin(result.recent), temp);
+					}
+				}
+				toFront(id);
+			}
+		}
 		toFront(reactions->favoriteId());
 		if (paidInFront) {
 			toFront(ReactionId::Paid());
@@ -1058,7 +1072,7 @@ void Reactions::requestMyTags(SavedSublist *sublist) {
 	using Flag = MTPmessages_GetSavedReactionTags::Flag;
 	my.requestId = api.request(MTPmessages_GetSavedReactionTags(
 		MTP_flags(sublist ? Flag::f_peer : Flag()),
-		(sublist ? sublist->sublistPeer()->input : MTP_inputPeerEmpty()),
+		(sublist ? sublist->sublistPeer()->input() : MTP_inputPeerEmpty()),
 		MTP_long(my.hash)
 	)).done([=](const MTPmessages_SavedReactionTags &result) {
 		auto &my = _myTags[sublist];
@@ -1504,7 +1518,7 @@ void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 		| (addToRecent ? Flag::f_add_to_recent : Flag(0));
 	i->second = api.request(MTPmessages_SendReaction(
 		MTP_flags(flags),
-		item->history()->peer->input,
+		item->history()->peer->input(),
 		MTP_int(id.msg),
 		MTP_vector<MTPReaction>(chosen | ranges::views::filter([](
 				const ReactionId &id) {
@@ -1728,7 +1742,7 @@ void Reactions::pollCollected() {
 			}
 		};
 		_pollRequestId = api.request(MTPmessages_GetMessagesReactions(
-			peer->input,
+			peer->input(),
 			MTP_vector<MTPint>(ids)
 		)).done([=](const MTPUpdates &result) {
 			_owner->session().api().applyUpdates(result);
@@ -1832,7 +1846,7 @@ void Reactions::sendPaidPrivacyRequest(
 	auto &api = _owner->session().api();
 	const auto requestId = api.request(
 		MTPmessages_TogglePaidReactionPrivacy(
-			item->history()->peer->input,
+			item->history()->peer->input(),
 			MTP_int(id.msg),
 			PaidReactionShownPeerToTL(&_owner->session(), send.shownPeer))
 	).done([=] {
@@ -1869,7 +1883,7 @@ void Reactions::sendPaidRequest(
 	using Flag = MTPmessages_SendPaidReaction::Flag;
 	const auto requestId = api.request(MTPmessages_SendPaidReaction(
 		MTP_flags(send.shownPeer ? Flag::f_private : Flag()),
-		item->history()->peer->input,
+		item->history()->peer->input(),
 		MTP_int(id.msg),
 		MTP_int(send.count),
 		MTP_long(randomId),
@@ -2042,6 +2056,71 @@ void MessageReactions::remove(const ReactionId &id) {
 	auto &owner = history->owner();
 	owner.reactions().send(_item, false);
 	owner.notifyItemDataChange(_item);
+}
+
+bool MessageReactions::removeFromParticipant(
+		not_null<PeerData*> participant,
+		const ReactionId &knownReaction) {
+	auto changed = false;
+	auto participantFound = false;
+	const auto decrementReactionCount = [&](const ReactionId &id, int count) {
+		const auto i = ranges::find(_list, id, &MessageReaction::id);
+		if (i == end(_list)) {
+			return false;
+		}
+		if (i->count <= count) {
+			_list.erase(i);
+		} else {
+			i->count -= count;
+		}
+		return true;
+	};
+	for (auto i = begin(_recent); i != end(_recent);) {
+		auto &list = i->second;
+		const auto was = int(list.size());
+		list.erase(
+			ranges::remove(list, participant, &RecentReaction::peer),
+			end(list));
+		if (const auto removed = was - int(list.size())) {
+			changed = true;
+			participantFound = true;
+			decrementReactionCount(i->first, removed);
+		}
+		if (list.empty()) {
+			i = _recent.erase(i);
+		} else {
+			++i;
+		}
+	}
+	if (_paid) {
+		auto removedCount = 0;
+		auto removedEntries = 0;
+		_paid->top.erase(
+			ranges::remove_if(_paid->top, [&](const TopPaid &entry) {
+				if (entry.peer != participant.get()) {
+					return false;
+				}
+				removedCount += int(entry.count);
+				++removedEntries;
+				return true;
+			}),
+			end(_paid->top));
+		if (removedEntries) {
+			changed = true;
+			const auto paid = ReactionId::Paid();
+			participantFound = true;
+			decrementReactionCount(paid, removedCount);
+			if (_paid->top.empty() && !localPaidData()) {
+				_paid = nullptr;
+			}
+		}
+	}
+	if (!knownReaction.empty()
+		&& !participantFound
+		&& decrementReactionCount(knownReaction, 1)) {
+		changed = true;
+	}
+	return changed;
 }
 
 bool MessageReactions::checkIfChanged(

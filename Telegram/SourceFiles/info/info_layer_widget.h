@@ -41,6 +41,7 @@ public:
 		const Window::SectionShow &params) override;
 
 	bool closeByOutsideClick() const override;
+	bool closeByBackButton() override;
 
 	static int MinimalSupportedWidth();
 
@@ -70,6 +71,7 @@ private:
 
 	void setupHeightConsumers();
 	void setContentHeight(int height);
+	void unregisterActiveLayerSection();
 	[[nodiscard]] QRect countGeometry(int newWidth);
 
 	not_null<Window::SessionController*> _controller;

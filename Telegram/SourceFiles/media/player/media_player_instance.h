@@ -51,6 +51,7 @@ namespace Player {
 extern const char kOptionDisableAutoplayNext[];
 
 class Instance;
+class MusicListenTracker;
 struct TrackState;
 
 void start(not_null<Audio::Instance*> instance);
@@ -129,7 +130,7 @@ public:
 	void finishSeeking(AudioMsgId::Type type, float64 progress);
 	void cancelSeeking(AudioMsgId::Type type);
 
-	void updateVoicePlaybackSpeed();
+	void updatePlaybackSpeed();
 
 	[[nodiscard]] bool nextAvailable(AudioMsgId::Type type) const;
 	[[nodiscard]] bool previousAvailable(AudioMsgId::Type type) const;
@@ -303,6 +304,7 @@ private:
 
 	Data _songData;
 	Data _voiceData;
+	std::unique_ptr<MusicListenTracker> _listenTracker;
 	bool _roundPlaying = false;
 
 	rpl::event_stream<Switch> _switchToNext;

@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_location_manager.h"
 
+#include <memory>
+
 struct HistoryItemCommonFields;
 
 namespace Data {
@@ -20,6 +22,10 @@ class Session;
 } // namespace Main
 
 class History;
+
+namespace Iv {
+struct RichPage;
+} // namespace Iv
 
 namespace InlineBots {
 
@@ -112,6 +118,31 @@ public:
 private:
 	QString _message;
 	EntitiesInText _entities;
+
+};
+
+class SendRichMessage final : public SendData {
+public:
+	SendRichMessage(
+		not_null<Main::Session*> session,
+		const MTPRichMessage &message);
+
+	bool isValid() const override;
+
+	not_null<HistoryItem*> makeMessage(
+		const Result *owner,
+		not_null<History*> history,
+		HistoryItemCommonFields &&fields) const override;
+
+	Data::SendError getErrorOnSend(
+		const Result *owner,
+		not_null<History*> history) const override;
+
+	QString getLayoutDescription(const Result *owner) const override;
+
+private:
+	std::shared_ptr<const Iv::RichPage> _page;
+	TextWithEntities _summary;
 
 };
 

@@ -33,7 +33,8 @@ private:
 	void paintTransformedImage(
 		const QImage &image,
 		QRect rect,
-		int rotation);
+		int rotation,
+		const QRectF &sourceRect = QRectF());
 	void paintControlsFade(QRect content, const ContentGeometry &geometry);
 	void paintRadialLoading(
 		QRect inner,
@@ -42,6 +43,8 @@ private:
 	void paintThemePreview(QRect outer) override;
 	void paintDocumentBubble(QRect outer, QRect icon) override;
 	void paintSaveMsg(QRect outer) override;
+	void paintChapter(QRect outer) override;
+	void paintSpeedBoost(QRect outer) override;
 	void paintControlsStart() override;
 	void paintControl(
 		Over control,

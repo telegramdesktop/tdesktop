@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_inner_common.h"
 
+#include <array>
+
 namespace Ui {
 class LayerWidget;
 class Show;
@@ -62,12 +64,16 @@ private:
 
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;
+	std::array<Brush, 5> _brushes;
+	Brush::Tool _brushTool = Brush::Tool::Pen;
 	const std::unique_ptr<ColorPicker> _colorPicker;
 
 	rpl::variable<PhotoEditorMode> _mode = PhotoEditorMode{
 		.mode = PhotoEditorMode::Mode::Transform,
 		.action = PhotoEditorMode::Action::None,
 	};
+	bool _textItemSelected = false;
+	bool _textEditing = false;
 	rpl::event_stream<PhotoModifications> _done;
 	rpl::event_stream<> _cancel;
 

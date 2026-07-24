@@ -29,7 +29,7 @@ public:
 		std::shared_ptr<ChatStyle> style,
 		rpl::producer<uint8> colorIndex,
 		rpl::producer<std::shared_ptr<ColorCollectible>> collectible,
-		const QString &name);
+		rpl::producer<QString> name);
 	ColorSample(
 		not_null<QWidget*> parent,
 		std::shared_ptr<ChatStyle> style,
@@ -46,6 +46,7 @@ public:
 	void setSelected(bool selected);
 	void setCutoutPadding(int padding);
 	void setForceCircle(bool force);
+	void setSelectionCutout(bool cutout);
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -60,6 +61,7 @@ private:
 	Fn<Data::ColorProfileSet(uint8)> _profileProvider;
 	int _cutoutPadding = 0;
 	bool _forceCircle = false;
+	bool _selectionCutout = false;
 
 };
 

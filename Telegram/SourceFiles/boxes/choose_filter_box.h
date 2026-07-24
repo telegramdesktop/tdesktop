@@ -7,7 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
+class RpWidget;
 class PopupMenu;
 } // namespace Ui
 
@@ -26,6 +31,7 @@ public:
 	};
 
 	[[nodiscard]] bool canAdd() const;
+	[[nodiscard]] bool canAdd(FilterId filterId) const;
 	[[nodiscard]] bool canRemove(FilterId filterId) const;
 	[[nodiscard]] LimitData limitReached(
 		FilterId filterId,
@@ -35,6 +41,8 @@ public:
 	void remove(FilterId filterId) const;
 
 private:
+	[[nodiscard]] bool communityAddBlocked() const;
+
 	const not_null<History*> _history;
 
 };
@@ -43,3 +51,22 @@ void FillChooseFilterMenu(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::PopupMenu*> menu,
 	not_null<History*> history);
+
+bool FillChooseFilterWithAdminedGroupsMenu(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::PopupMenu*> menu,
+	not_null<UserData*> user,
+	std::shared_ptr<rpl::event_stream<>> listUpdates,
+	std::vector<not_null<PeerData*>> common,
+	std::shared_ptr<std::vector<PeerId>> collectCommon);
+
+void SetupFilterDragAndDrop(
+	not_null<Ui::RpWidget*> outer,
+	not_null<Main::Session*> session,
+	Fn<std::optional<FilterId>(QPoint)> filterIdAtPosition,
+	Fn<FilterId()> activeFilterId,
+	Fn<void(FilterId)> selectByFilterId);
+
+[[nodiscard]] History *HistoryFromMimeData(
+	const QMimeData *mime,
+	not_null<Main::Session*> session);

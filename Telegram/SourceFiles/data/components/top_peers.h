@@ -15,6 +15,7 @@ namespace Data {
 
 enum class TopPeerType {
 	Chat,
+	BotGuestChat,
 	BotApp,
 };
 
@@ -57,7 +58,6 @@ private:
 	mtpRequestId _requestId = 0;
 
 	bool _disabled = false;
-	bool _received = false;
 
 };
 

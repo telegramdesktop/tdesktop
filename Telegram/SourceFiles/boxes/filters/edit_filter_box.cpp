@@ -206,6 +206,45 @@ void EditExceptions(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)));
 }
 
+struct ParabolicPath {
+	float64 a = 0.;
+	float64 b = 0.;
+	int from = 0;
+
+	[[nodiscard]] int y(float64 progress) const {
+		return int(base::SafeRound(
+			(a * progress * progress) + (b * progress) + from));
+	}
+};
+
+[[nodiscard]] ParabolicPath ComputeParabolicPath(int from, int to, int up) {
+	const auto y_1 = to - from;
+	const auto y_0 = std::min(0, y_1) - up;
+	const auto ratio = y_1 ? (float64(y_0) / y_1) : 0.;
+	const auto root = y_1 ? sqrt(ratio * (ratio - 1)) : 0.;
+	const auto t_0 = !y_1
+		? 0.5
+		: (y_1 > 0)
+		? (ratio + root)
+		: (ratio - root);
+	const auto a = y_1 ? (y_1 / (1 - 2 * t_0)) : (-4. * y_0);
+	return { .a = a, .b = y_1 - a, .from = from };
+}
+
+[[nodiscard]] QImage PrepareFlyIcon(
+		not_null<const style::icon*> icon,
+		QColor color) {
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		icon->size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	auto p = QPainter(&result);
+	icon->paint(p, 0, 0, icon->width(), color);
+	return result;
+}
+
 void CreateIconSelector(
 		not_null<QWidget*> outer,
 		not_null<QWidget*> box,
@@ -213,8 +252,27 @@ void CreateIconSelector(
 		not_null<Ui::InputField*> input,
 		not_null<rpl::variable<Data::ChatFilter>*> data) {
 	const auto rules = data->current();
+	const auto size = st::windowFilterIconUserpicSize;
+	const auto badge = st::windowFilterIconUserpicBadge;
+	const auto badgePosition = st::windowFilterIconUserpicBadgePosition;
+	const auto border = st::windowFilterIconUserpicBadgeBorder;
 	const auto toggle = Ui::CreateChild<Ui::AbstractButton>(parent.get());
-	toggle->resize(st::windowFilterIconToggleSize);
+	toggle->resize(Size(badgePosition.x() + badge + border));
+
+	struct FlyState {
+		Ui::Animations::Simple animation;
+		Ui::Animations::Simple scaleOut;
+		QImage previous;
+		QImage from;
+		QImage to;
+		QRect fromRect;
+		QRect toRect;
+		QRect bounds;
+		QRect last;
+		ParabolicPath path;
+		base::unique_qptr<Ui::RpWidget> layer;
+	};
+	const auto fly = toggle->lifetime().make_state<FlyState>();
 
 	const auto type = toggle->lifetime().make_state<Ui::FilterIcon>();
 	data->value(
@@ -227,21 +285,43 @@ void CreateIconSelector(
 
 	input->geometryValue(
 	) | rpl::on_next([=](QRect geometry) {
-		const auto left = geometry.x() + geometry.width() - toggle->width();
-		const auto position = st::windowFilterIconTogglePosition;
 		toggle->move(
-			left - position.x(),
-			geometry.y() + position.y());
+			geometry.x() - st::windowFilterIconUserpicSkip - size,
+			geometry.y() + st::windowFilterIconUserpicTop);
 	}, toggle->lifetime());
 
 	toggle->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = QPainter(toggle);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto userpic = Rect(Size(size));
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgActive);
+		p.drawEllipse(userpic);
+
 		const auto icons = Ui::LookupFilterIcon(*type);
-		icons.normal->paintInCenter(
-			p,
-			toggle->rect(),
-			st::dialogsUnreadBgMuted->c);
+		if (!fly->animation.animating()) {
+			icons.userpic->paintInCenter(p, userpic);
+		} else if (const auto scale = fly->scaleOut.value(0.); scale > 0.) {
+			const auto ratio = fly->previous.devicePixelRatio();
+			auto shrunk = QRectF(
+				QPointF(),
+				QSizeF(fly->previous.size()) * scale / ratio);
+			shrunk.moveCenter(rect::center(QRectF(userpic)));
+			p.setOpacity(scale);
+			p.drawImage(shrunk, fly->previous);
+			p.setOpacity(1.);
+		}
+
+		const auto badgeRect = Rect(
+			badgePosition.x(),
+			badgePosition.y(),
+			Size(badge));
+		p.setBrush(st::boxBg);
+		p.drawEllipse(badgeRect.marginsAdded(Margins(border)));
+		p.setBrush(st::windowBgActive);
+		p.drawEllipse(badgeRect);
+		st::windowFilterIconUserpicBadgeIcon.paintInCenter(p, badgeRect);
 	}, toggle->lifetime());
 
 	const auto panel = toggle->lifetime().make_state<Ui::FilterIconPanel>(
@@ -250,16 +330,101 @@ void CreateIconSelector(
 	toggle->addClickHandler([=] {
 		panel->toggleAnimated();
 	});
+	const auto startFly = [=](Ui::FilterIconChosen chosen) {
+		fly->previous = PrepareFlyIcon(
+			Ui::LookupFilterIcon(*type).userpic,
+			st::windowFgActive->c);
+		const auto icons = Ui::LookupFilterIcon(chosen.icon);
+		const auto map = [&](not_null<QWidget*> from, QRect geometry) {
+			return QRect(
+				outer->mapFromGlobal(from->mapToGlobal(geometry.topLeft())),
+				geometry.size());
+		};
+		const auto centerOn = [](QRect where, QSize size) {
+			auto result = QRect(QPoint(), size);
+			result.moveCenter(rect::center(where));
+			return result;
+		};
+		fly->from = PrepareFlyIcon(icons.normal, st::dialogsUnreadBgMuted->c);
+		fly->to = PrepareFlyIcon(icons.userpic, st::windowFgActive->c);
+		fly->fromRect = centerOn(
+			map(panel, chosen.geometry),
+			icons.normal->size());
+		fly->toRect = centerOn(
+			map(toggle, Rect(Size(size))),
+			icons.userpic->size());
+		fly->path = ComputeParabolicPath(
+			fly->fromRect.y(),
+			fly->toRect.y(),
+			st::windowFilterIconFlyUp);
+
+		const auto frameRect = [=](float64 progress) {
+			return QRect(
+				anim::interpolate(
+					fly->fromRect.x(),
+					fly->toRect.x(),
+					progress),
+				fly->path.y(progress),
+				anim::interpolate(
+					fly->fromRect.width(),
+					fly->toRect.width(),
+					progress),
+				anim::interpolate(
+					fly->fromRect.height(),
+					fly->toRect.height(),
+					progress));
+		};
+		fly->bounds = fly->fromRect.united(fly->toRect).marginsAdded(
+			{ 0, st::windowFilterIconFlyUp, 0, 0 });
+		fly->last = fly->fromRect;
+
+		fly->layer = base::make_unique_q<Ui::RpWidget>(outer);
+		const auto layer = fly->layer.get();
+		layer->setAttribute(Qt::WA_TransparentForMouseEvents);
+		layer->setGeometry(fly->bounds);
+		layer->show();
+		layer->raise();
+		layer->paintRequest(
+		) | rpl::on_next([=] {
+			auto p = QPainter(layer);
+			auto hq = PainterHighQualityEnabler(p);
+			const auto progress = fly->animation.value(1.);
+			const auto rect = frameRect(progress).translated(
+				-fly->bounds.topLeft());
+			p.setOpacity(1. - progress);
+			p.drawImage(rect, fly->from);
+			p.setOpacity(progress);
+			p.drawImage(rect, fly->to);
+		}, layer->lifetime());
+
+		fly->scaleOut.start([=] {
+			toggle->update();
+		}, 1., 0., st::windowFilterIconScaleOutDuration);
+
+		fly->animation.start([=] {
+			const auto finished = !fly->animation.animating();
+			const auto rect = frameRect(fly->animation.value(1.));
+			layer->update(
+				rect.united(fly->last).translated(-fly->bounds.topLeft()));
+			fly->last = rect;
+			toggle->update();
+			if (finished) {
+				InvokeQueued(toggle, [=] { fly->layer = nullptr; });
+			}
+		}, 0., 1., st::windowFilterIconFlyDuration, anim::sineInOut);
+	};
+
 	panel->chosen(
-	) | rpl::filter([=](Ui::FilterIcon icon) {
-		return icon != Ui::ComputeFilterIcon(data->current());
-	}) | rpl::on_next([=](Ui::FilterIcon icon) {
+	) | rpl::filter([=](Ui::FilterIconChosen chosen) {
+		return chosen.icon != Ui::ComputeFilterIcon(data->current());
+	}) | rpl::on_next([=](Ui::FilterIconChosen chosen) {
+		startFly(chosen);
 		panel->hideAnimated();
 		const auto rules = data->current();
 		*data = Data::ChatFilter(
 			rules.id(),
 			rules.title(),
-			Ui::LookupFilterIcon(icon).emoji,
+			Ui::LookupFilterIcon(chosen.icon).emoji,
 			rules.colorIndex(),
 			rules.flags(),
 			rules.always(),
@@ -268,15 +433,12 @@ void CreateIconSelector(
 	}, panel->lifetime());
 
 	const auto updatePanelGeometry = [=] {
-		const auto global = toggle->mapToGlobal({
-			toggle->width(),
-			toggle->height()
-		});
+		const auto global = toggle->mapToGlobal({ 0, toggle->height() });
 		const auto local = outer->mapFromGlobal(global);
 		const auto position = st::windwoFilterIconPanelPosition;
 		const auto padding = panel->innerPadding();
 		panel->move(
-			local.x() - panel->width() + position.x() + padding.right(),
+			local.x() + position.x() - padding.left(),
 			local.y() + position.y() - padding.top());
 	};
 
@@ -426,7 +588,7 @@ void EditFilterBox(
 			st::windowFilterNameInput,
 			Ui::InputField::Mode::SingleLine,
 			tr::lng_filters_new_name()),
-		st::markdownLinkFieldPadding);
+		st::windowFilterNameInputPadding);
 	InitMessageFieldHandlers(window, name, ChatHelpers::PauseReason::Layer);
 	name->setTextWithTags({
 		current.text,
@@ -968,6 +1130,7 @@ void EditFilterBox(
 			doneCallback(*result);
 		}
 	};
+	name->submits() | rpl::on_next(save, name->lifetime());
 
 	box->addButton(rpl::conditional(
 		state->creating.value(),

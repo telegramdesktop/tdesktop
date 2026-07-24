@@ -87,7 +87,7 @@ std::optional<MTPMessageReplyHeader> PrepareLogReply(
 	}
 	return header->match([&](const MTPDmessageReplyHeader &data)
 	-> std::optional<MTPMessageReplyHeader> {
-		if (data.vreply_to_peer_id()) {
+		if (data.vreply_to_peer_id() || data.vreply_to_msg_id()) {
 			return *header;
 		} else if (data.is_forum_topic()) {
 			const auto topId = data.vreply_to_top_id().value_or(
@@ -112,7 +112,8 @@ std::optional<MTPMessageReplyHeader> PrepareLogReply(
 					MTPstring(), // quote_text
 					MTPVector<MTPMessageEntity>(), // quote_entities
 					MTPint(), // quote_offset
-					MTPint()); // todo_item_id
+					MTPint(), // todo_item_id
+					MTPbytes()); // poll_option
 			}
 		}
 		return {};
@@ -165,17 +166,22 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			| Flag::f_ttl_period
 			| Flag::f_factcheck
 			| Flag::f_report_delivery_until_date
-			| Flag::f_suggested_post;
+			| Flag::f_suggested_post
+			| Flag::f_summary_from_language;
 		return MTP_message(
 			MTP_flags(data.vflags().v & ~removeFlags),
 			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			MTPint(), // from_boosts_applied
+			MTPstring(), // from_rank
 			data.vpeer_id(),
 			MTPPeer(), // saved_peer_id
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
 			MTP_long(data.vvia_bot_id().value_or_empty()),
 			MTP_long(data.vvia_business_bot_id().value_or_empty()),
+			(data.vguestchat_via_from()
+				? *data.vguestchat_via_from()
+				: MTPPeer()),
 			reply.value_or(MTPMessageReplyHeader()),
 			MTP_int(newDate),
 			data.vmessage(),
@@ -199,7 +205,9 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, TimeId newDate) {
 			MTPint(), // report_delivery_until_date
 			MTP_long(data.vpaid_message_stars().value_or_empty()),
 			MTPSuggestedPost(),
-			MTPint()); // schedule_repeat_period
+			MTPint(), // schedule_repeat_period
+			MTPstring(), // summary_from_language
+			data.vrich_message() ? *data.vrich_message() : MTPRichMessage());
 	});
 }
 
@@ -290,6 +298,7 @@ TextWithEntities GenerateAdminChangeText(
 		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
 		{ Flag::ManageCall, tr::lng_admin_log_admin_manage_calls },
 		{ Flag::ManageDirect, tr::lng_admin_log_admin_manage_direct },
+		{ Flag::ManageRanks, tr::lng_admin_log_admin_manage_ranks },
 		{ Flag::AddAdmins, tr::lng_admin_log_admin_add_admins },
 		{ Flag::Anonymous, tr::lng_admin_log_admin_remain_anonymous },
 	};
@@ -309,11 +318,12 @@ TextWithEntities GenerateAdminChangeText(
 
 QString GeneratePermissionsChangeText(
 		ChatRestrictionsInfo newRights,
-		ChatRestrictionsInfo prevRights) {
+		ChatRestrictionsInfo prevRights,
+		bool isUserSpecific = false) {
 	using Flag = ChatRestriction;
 	using Flags = ChatRestrictions;
 
-	static auto phraseMap = std::map<Flags, tr::phrase<>>{
+	auto phraseMap = std::map<Flags, tr::phrase<>>{
 		{ Flag::ViewMessages, tr::lng_admin_log_banned_view_messages },
 		{ Flag::SendOther, tr::lng_admin_log_banned_send_messages },
 		{ Flag::SendPhotos, tr::lng_admin_log_banned_send_photos },
@@ -331,11 +341,15 @@ QString GeneratePermissionsChangeText(
 			| Flag::SendInline
 			| Flag::SendGames, tr::lng_admin_log_banned_send_stickers },
 		{ Flag::EmbedLinks, tr::lng_admin_log_banned_embed_links },
+		{ Flag::SendReactions, tr::lng_admin_log_banned_send_reactions },
 		{ Flag::SendPolls, tr::lng_admin_log_banned_send_polls },
 		{ Flag::ChangeInfo, tr::lng_admin_log_admin_change_info },
 		{ Flag::AddParticipants, tr::lng_admin_log_admin_invite_users },
 		{ Flag::CreateTopics, tr::lng_admin_log_admin_create_topics },
 		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
+		{ Flag::EditRank, isUserSpecific
+			? tr::lng_admin_log_banned_edit_rank_single
+			: tr::lng_admin_log_banned_edit_rank },
 	};
 	return CollectChanges(phraseMap, prevRights.flags, newRights.flags);
 }
@@ -352,10 +366,23 @@ TextWithEntities GeneratePermissionsChangeText(
 	const auto prevFlags = prevRights.flags;
 	const auto indefinitely = ChannelData::IsRestrictedForever(newUntil);
 	if (newFlags & Flag::ViewMessages) {
-		return tr::lng_admin_log_banned(
+		if (indefinitely) {
+			return tr::lng_admin_log_banned(
+				tr::now,
+				lt_user,
+				user,
+				tr::marked);
+		}
+		return tr::lng_admin_log_banned_until(
 			tr::now,
 			lt_user,
 			user,
+			lt_until,
+			tr::lng_admin_log_restricted_until(
+				tr::now,
+				lt_date,
+				{ langDateTime(base::unixtime::parse(newUntil)) },
+				tr::marked),
 			tr::marked);
 	} else if (newFlags == 0
 		&& (prevFlags & Flag::ViewMessages)
@@ -379,7 +406,10 @@ TextWithEntities GeneratePermissionsChangeText(
 		lt_until,
 		TextWithEntities { untilText },
 		tr::marked);
-	const auto changes = GeneratePermissionsChangeText(newRights, prevRights);
+	const auto changes = GeneratePermissionsChangeText(
+		newRights,
+		prevRights,
+		true);
 	if (!changes.isEmpty()) {
 		result.text.append('\n' + changes);
 	}
@@ -718,14 +748,15 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 		not_null<ChannelData*> channel,
 		const MTPForumTopic &topic) {
 	return topic.match([&](const MTPDforumTopic &data) {
+		const auto url = u"https://t.me/c/%1/%2"_q.arg(
+			peerToChannel(channel->id).bare).arg(
+				data.vid().v);
 		return tr::link(
 			Data::ForumTopicIconWithTitle(
 				data.vid().v,
 				data.vicon_emoji_id().value_or_empty(),
 				qs(data.vtitle())),
-			u"internal:url:https://t.me/c/%1/%2"_q.arg(
-				peerToChannel(channel->id).bare).arg(
-					data.vid().v));
+			UrlClickHandler::EncodeInternalWrappedUrl(url));
 	}, [](const MTPDforumTopicDeleted &) {
 		return TextWithEntities{ u"Deleted"_q };
 	});
@@ -834,6 +865,7 @@ void GenerateItems(
 	using LogToggleSignatureProfiles = MTPDchannelAdminLogEventActionToggleSignatureProfiles;
 	using LogParticipantSubExtend = MTPDchannelAdminLogEventActionParticipantSubExtend;
 	using LogToggleAutotranslation = MTPDchannelAdminLogEventActionToggleAutotranslation;
+	using LogParticipantEditRank = MTPDchannelAdminLogEventActionParticipantEditRank;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -1074,12 +1106,40 @@ void GenerateItems(
 				tr::lng_admin_log_empty_text(tr::now));
 		}
 
+		auto prevPhoto = (PhotoData*)nullptr;
+		auto prevDocument = (DocumentData*)nullptr;
+		if (changedMedia
+			&& action.vprev_message().type() == mtpc_message) {
+			const auto &prev = action.vprev_message().c_message();
+			if (const auto media = prev.vmedia()) {
+				media->match([&](const MTPDmessageMediaPhoto &data) {
+					if (const auto photo = data.vphoto()) {
+						photo->match([&](const MTPDphoto &fields) {
+							prevPhoto = history->owner().processPhoto(fields);
+						}, [](const MTPDphotoEmpty &) {
+						});
+					}
+				}, [&](const MTPDmessageMediaDocument &data) {
+					if (const auto document = data.vdocument()) {
+						document->match([&](const MTPDdocument &fields) {
+							prevDocument = history->owner().processDocument(
+								fields);
+						}, [](const MTPDdocumentEmpty &) {
+						});
+					}
+				}, [](const auto &) {
+				});
+			}
+		}
+
 		body->addLogEntryOriginal(
 			id,
 			(canHaveCaption
 				? tr::lng_admin_log_previous_caption
 				: tr::lng_admin_log_previous_message)(tr::now),
-			oldValue);
+			oldValue,
+			prevPhoto,
+			prevDocument);
 		addPart(body, sentDate, realId);
 	};
 
@@ -2138,6 +2198,81 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
+	const auto createParticipantEditRank = [&](const LogParticipantEditRank &action) {
+		const auto user = history->owner().user(action.vuser_id().v);
+		const auto prevRank = qs(action.vprev_rank());
+		const auto newRank = qs(action.vnew_rank());
+		const auto isSelf = (user == from);
+		const auto text = [&] {
+			if (isSelf) {
+				if (newRank.isEmpty()) {
+					return tr::lng_admin_log_removed_own_rank(
+						tr::now,
+						lt_from,
+						fromLinkText,
+						lt_previous,
+						{ prevRank },
+						tr::marked);
+				} else if (prevRank.isEmpty()) {
+					return tr::lng_admin_log_set_own_rank(
+						tr::now,
+						lt_from,
+						fromLinkText,
+						lt_tag,
+						{ newRank },
+						tr::marked);
+				}
+				return tr::lng_admin_log_changed_own_rank_from(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_previous,
+					{ prevRank },
+					lt_tag,
+					{ newRank },
+					tr::marked);
+			}
+			const auto userLinkText = tr::link(user->name(), QString());
+			if (newRank.isEmpty()) {
+				return tr::lng_admin_log_removed_rank(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_user,
+					userLinkText,
+					lt_previous,
+					{ prevRank },
+					tr::marked);
+			} else if (prevRank.isEmpty()) {
+				return tr::lng_admin_log_set_rank(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_user,
+					userLinkText,
+					lt_tag,
+					{ newRank },
+					tr::marked);
+			}
+			return tr::lng_admin_log_changed_rank_from(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_user,
+				userLinkText,
+				lt_previous,
+				{ prevRank },
+				lt_tag,
+				{ newRank },
+				tr::marked);
+		}();
+		if (isSelf) {
+			addSimpleServiceMessage(text);
+		} else {
+			addServiceMessageWithLink(text, user->createOpenLink());
+		}
+	};
+
 	action.match(
 		createChangeTitle,
 		createChangeAbout,
@@ -2189,7 +2324,8 @@ void GenerateItems(
 		createChangeEmojiStatus,
 		createToggleSignatureProfiles,
 		createParticipantSubExtend,
-		createToggleAutotranslation);
+		createToggleAutotranslation,
+		createParticipantEditRank);
 }
 
 } // namespace AdminLog

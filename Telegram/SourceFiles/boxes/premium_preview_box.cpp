@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h" // kMaxAccounts
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
+#include "ui/controls/feature_list.h"
 #include "ui/layers/generic_box.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
@@ -34,8 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
-#include "settings/settings_business.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_business.h"
+#include "settings/sections/settings_premium.h"
 #include "lottie/lottie_single_player.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/history_view_element.h"
@@ -143,6 +144,12 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_peer_colors();
 	case PremiumFeature::Gifts:
 		return tr::lng_premium_summary_subtitle_gifts();
+	case PremiumFeature::NoForwards:
+		return tr::lng_premium_summary_subtitle_no_forwards();
+	case PremiumFeature::AiCompose:
+		return tr::lng_premium_summary_subtitle_ai_compose();
+	case PremiumFeature::RichFormatting:
+		return tr::lng_premium_summary_subtitle_rich_formatting();
 
 	case PremiumFeature::BusinessLocation:
 		return tr::lng_business_subtitle_location();
@@ -214,6 +221,12 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_peer_colors();
 	case PremiumFeature::Gifts:
 		return tr::lng_premium_summary_about_gifts();
+	case PremiumFeature::NoForwards:
+		return tr::lng_premium_summary_about_no_forwards();
+	case PremiumFeature::AiCompose:
+		return tr::lng_premium_summary_about_ai_compose();
+	case PremiumFeature::RichFormatting:
+		return tr::lng_premium_summary_about_rich_formatting();
 
 	case PremiumFeature::BusinessLocation:
 		return tr::lng_business_about_location();
@@ -557,6 +570,9 @@ struct VideoPreviewDocument {
 		case PremiumFeature::TodoLists: return "todo";
 		case PremiumFeature::PeerColors: return "peer_colors";
 		case PremiumFeature::Gifts: return "gifts";
+		case PremiumFeature::NoForwards: return "no_forwards";
+		case PremiumFeature::AiCompose: return "ai_compose";
+		case PremiumFeature::RichFormatting: return "rich_formatting";
 
 		case PremiumFeature::BusinessLocation: return "business_location";
 		case PremiumFeature::BusinessHours: return "business_hours";
@@ -904,42 +920,28 @@ struct VideoPreviewDocument {
 }
 
 void AddGiftsInfoRows(not_null<Ui::VerticalLayout*> container) {
-	const auto infoRow = [&](
-			rpl::producer<QString> title,
-			rpl::producer<QString> text,
-			not_null<const style::icon*> icon) {
-		auto raw = container->add(
-			object_ptr<Ui::VerticalLayout>(container));
-		raw->add(
-			object_ptr<Ui::FlatLabel>(
-				raw,
-				std::move(title) | rpl::map(tr::bold),
-				st::defaultFlatLabel),
-			st::settingsPremiumRowTitlePadding);
-		raw->add(
-			object_ptr<Ui::FlatLabel>(
-				raw,
-				std::move(text),
-				st::upgradeGiftSubtext),
-			st::settingsPremiumRowAboutPadding);
-		object_ptr<Info::Profile::FloatingIcon>(
-			raw,
-			*icon,
-			st::starrefInfoIconPosition);
+	const auto features = std::vector<Ui::FeatureListEntry>{
+		{
+			st::menuIconUnique,
+			tr::lng_gift_upgrade_unique_title(tr::now),
+			tr::lng_gift_upgrade_unique_about(tr::now, tr::marked),
+		},
+		{
+			st::menuIconTradable,
+			tr::lng_gift_upgrade_tradable_title(tr::now),
+			tr::lng_gift_upgrade_tradable_about(tr::now, tr::marked),
+		},
+		{
+			st::menuIconNftWear,
+			tr::lng_gift_upgrade_wearable_title(tr::now),
+			tr::lng_gift_upgrade_wearable_about(tr::now, tr::marked),
+		},
 	};
-
-	infoRow(
-		tr::lng_gift_upgrade_unique_title(),
-		tr::lng_gift_upgrade_unique_about(),
-		&st::menuIconUnique);
-	infoRow(
-		tr::lng_gift_upgrade_tradable_title(),
-		tr::lng_gift_upgrade_tradable_about(),
-		&st::menuIconTradable);
-	infoRow(
-		tr::lng_gift_upgrade_wearable_title(),
-		tr::lng_gift_upgrade_wearable_about(),
-		&st::menuIconNftWear);
+	for (const auto &feature : features) {
+		container->add(
+			Ui::MakeFeatureListEntry(container, feature),
+			st::boxRowPadding);
+	}
 }
 
 void PreviewBox(
@@ -1462,7 +1464,17 @@ void ShowPremiumPreviewToBuy(
 		not_null<Window::SessionController*> controller,
 		PremiumFeature section,
 		Fn<void()> hiddenCallback) {
-	Show(controller->uiShow(), Descriptor{
+	ShowPremiumPreviewToBuy(
+		controller->uiShow(),
+		section,
+		std::move(hiddenCallback));
+}
+
+void ShowPremiumPreviewToBuy(
+		std::shared_ptr<ChatHelpers::Show> show,
+		PremiumFeature section,
+		Fn<void()> hiddenCallback) {
+	Show(std::move(show), Descriptor{
 		.section = section,
 		.fromSettings = true,
 		.hiddenCallback = std::move(hiddenCallback),

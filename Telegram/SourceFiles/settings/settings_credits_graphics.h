@@ -66,12 +66,12 @@ struct SubscriptionRightLabel {
 	QSize size;
 };
 SubscriptionRightLabel PaintSubscriptionRightLabelCallback(
-	not_null<Main::Session*> session,
+	not_null<::Main::Session*> session,
 	const style::PeerListItem &st,
 	int amount);
 
 void FillCreditOptions(
-	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<::Main::SessionShow> show,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	CreditsAmount minCredits,
@@ -79,11 +79,12 @@ void FillCreditOptions(
 	rpl::producer<> showFinishes,
 	rpl::producer<QString> subtitle,
 	std::vector<Data::CreditTopupOption> preloadedTopupOptions,
-	bool dark = false);
+	bool dark = false,
+	PeerId spendPurposePeerId = PeerId(0));
 
 [[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Main::Session*> session,
+	not_null<::Main::Session*> session,
 	rpl::producer<CreditsAmount> balanceValue,
 	bool rightAlign,
 	rpl::producer<float64> opacityValue = nullptr,
@@ -122,6 +123,7 @@ struct CreditsEntryBoxStyleOverrides {
 	const style::icon *share = nullptr;
 	const style::icon *theme = nullptr;
 	const style::icon *transfer = nullptr;
+	const style::icon *craft = nullptr;
 	const style::icon *wear = nullptr;
 	const style::icon *takeoff = nullptr;
 	const style::icon *resell = nullptr;
@@ -151,6 +153,10 @@ void GenericCreditsEntryBox(
 	const Data::CreditsHistoryEntry &e,
 	const Data::SubscriptionEntry &s,
 	CreditsEntryBoxStyleOverrides st = {});
+void GenericCreditsEntryBody(
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<ChatHelpers::Show> show,
+	const Data::CreditsHistoryEntry &e);
 void GenericCreditsEntryBody(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,
@@ -200,7 +206,7 @@ void GlobalStarGiftBox(
 	not_null<PeerData*> owner,
 	const Data::SavedStarGift &data);
 [[nodiscard]] Data::SavedStarGiftId EntryToSavedStarGiftId(
-	not_null<Main::Session*> session,
+	not_null<::Main::Session*> session,
 	const Data::CreditsHistoryEntry &entry);
 void ShowSavedStarGiftBox(
 	not_null<Window::SessionController*> controller,
@@ -292,7 +298,7 @@ struct SmallBalanceSource : std::variant<
 
 void SmallBalanceBox(
 	not_null<Ui::GenericBox*> box,
-	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<::Main::SessionShow> show,
 	uint64 wholeCredits,
 	SmallBalanceSource source,
 	Fn<void()> paid);
@@ -305,7 +311,7 @@ enum class SmallBalanceResult {
 };
 
 void MaybeRequestBalanceIncrease(
-	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<::Main::SessionShow> show,
 	uint64 credits,
 	SmallBalanceSource source,
 	Fn<void(SmallBalanceResult)> done);
@@ -316,5 +322,11 @@ void AddMiniStars(
 	int photoSize,
 	int boxWidth,
 	float64 heightRatio);
+
+void AddUniqueCloseMoreButton(
+	not_null<Ui::GenericBox*> box,
+	Settings::CreditsEntryBoxStyleOverrides st,
+	Fn<void(not_null<Ui::PopupMenu*>)> fillMenu = nullptr,
+	Fn<void()> launchCraft = nullptr);
 
 } // namespace Settings

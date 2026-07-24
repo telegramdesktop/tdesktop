@@ -77,21 +77,10 @@ struct custom_is_fast_copy_type<Window::Notifications::ChangeType> : std::true_t
 
 } // namespace base
 
-namespace base::options {
-
-template <typename Type>
-class option;
-
-using toggle = option<bool>;
-
-} // namespace base::options
-
 namespace Window::Notifications {
 
 extern const char kOptionCustomNotification[];
 extern const char kOptionGNotification[];
-extern base::options::toggle OptionGNotification;
-
 extern const char kOptionHideReplyButton[];
 
 class Manager;
@@ -175,13 +164,13 @@ private:
 		crl::time delay = 0;
 		crl::time when = 0;
 	};
-	struct ReactionNotificationId {
+	struct SentNotificationId {
 		FullMsgId itemId;
 		uint64 sessionId = 0;
 
 		friend inline bool operator<(
-				ReactionNotificationId a,
-				ReactionNotificationId b) {
+				SentNotificationId a,
+				SentNotificationId b) {
 			return std::pair(a.itemId, a.sessionId)
 				< std::pair(b.itemId, b.sessionId);
 		}
@@ -196,8 +185,9 @@ private:
 	[[nodiscard]] Timing countTiming(
 		not_null<Data::Thread*> thread,
 		crl::time minimalDelay) const;
-	[[nodiscard]] bool skipReactionNotification(
-		not_null<HistoryItem*> item) const;
+	[[nodiscard]] bool skipSentNotification(
+		not_null<HistoryItem*> item,
+		base::flat_map<SentNotificationId, crl::time> &already) const;
 
 	void showNext();
 	void showGrouped();
@@ -222,8 +212,11 @@ private:
 		base::flat_map<crl::time, PeerData*>> _whenAlerts;
 
 	mutable base::flat_map<
-		ReactionNotificationId,
+		SentNotificationId,
 		crl::time> _sentReactionNotifications;
+	mutable base::flat_map<
+		SentNotificationId,
+		crl::time> _sentPollVoteNotifications;
 
 	std::unique_ptr<Manager> _manager;
 	rpl::event_stream<> _managerChanged;
@@ -276,6 +269,7 @@ public:
 		int forwardedCount = 0;
 		PeerData *reactionFrom = nullptr;
 		Data::ReactionId reactionId;
+		QByteArray pollVoteOption;
 		std::optional<DocumentId> soundId;
 	};
 
@@ -314,6 +308,9 @@ public:
 		NotificationId id,
 		ActivateOptions &&options = {});
 	void notificationReplied(NotificationId id, const TextWithTags &reply);
+	void notificationActionActivated(
+		NotificationId id,
+		const QString &actionId);
 
 	struct DisplayOptions {
 		bool hideNameAndPhoto : 1 = false;
@@ -331,6 +328,10 @@ public:
 	[[nodiscard]] static TextWithEntities ComposeReactionNotification(
 		not_null<HistoryItem*> item,
 		const Data::ReactionId &reaction,
+		bool hideContent);
+	[[nodiscard]] static TextWithEntities ComposePollVoteNotification(
+		not_null<HistoryItem*> item,
+		const QByteArray &option,
 		bool hideContent);
 
 	[[nodiscard]] TextWithEntities addTargetAccountName(
@@ -398,6 +399,10 @@ public:
 	}
 
 	using NotificationSound = Media::Audio::LocalSound;
+	struct NotificationAction {
+		QString id;
+		QString text;
+	};
 	struct NotificationInfo {
 		not_null<PeerData*> peer;
 		MsgId topicRootId = 0;
@@ -408,6 +413,7 @@ public:
 		QString message;
 		Fn<NotificationSound()> sound;
 		DisplayOptions options;
+		std::vector<NotificationAction> actions;
 	};
 
 protected:

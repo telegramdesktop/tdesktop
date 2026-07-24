@@ -72,6 +72,7 @@ public:
 		not_null<HistoryItem*> topItem);
 	void readTillEnd();
 	void requestChatListMessage();
+	void setRestorePinnedWhenNonEmpty(bool restore);
 
 	TimeId adjustedChatListTimeId() const override;
 
@@ -89,6 +90,7 @@ public:
 
 	void hasUnreadMentionChanged(bool has) override;
 	void hasUnreadReactionChanged(bool has) override;
+	void hasUnreadPollVoteChanged(bool has) override;
 
 	[[nodiscard]] HistoryItem *lastMessage() const;
 	[[nodiscard]] HistoryItem *lastServerMessage() const;
@@ -173,6 +175,7 @@ private:
 	rpl::event_stream<> _listChanges;
 	rpl::event_stream<> _instantChanges;
 	std::optional<MsgId> _loadingAround;
+	std::optional<MsgId> _loadingAroundRetry;
 	rpl::variable<std::optional<int>> _unreadCount;
 	MsgId _inboxReadTillId = 0;
 	MsgId _outboxReadTillId = 0;
@@ -189,7 +192,7 @@ private:
 	mtpRequestId _readRequestId = 0;
 	MsgId _sentReadTill = 0;
 
-	mtpRequestId _reloadUnreadCountRequestId = 0;
+	bool _restorePinnedWhenNonEmpty = false;
 
 	rpl::lifetime _lifetime;
 

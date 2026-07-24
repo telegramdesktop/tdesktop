@@ -8,18 +8,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_translate_tracker.h"
 
 #include "apiwrap.h"
-#include "api/api_text_entities.h"
+#include "api/api_transcribes.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_flags.h"
+#include "data/data_peer.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
+#include "iv/iv_rich_page.h"
+#include "lang/translate_provider.h"
 #include "main/main_session.h"
 #include "spellcheck/platform/platform_language.h"
 
@@ -36,6 +39,8 @@ constexpr auto kRequestCountLimit = 20;
 
 TranslateTracker::TranslateTracker(not_null<History*> history)
 : _history(history)
+, _provider(Ui::CreateTranslateProvider(&_history->session()))
+, _api(&_history->session().mtp())
 , _limit(kEnoughForRecognition) {
 	setup();
 }
@@ -72,12 +77,10 @@ void TranslateTracker::setup() {
 		if (tracking) {
 			recognizeCollected();
 			trackSkipLanguages();
+			trackTranslationDisabled();
 		} else {
 			checkRecognized({});
-			_history->translateTo({});
-			if (const auto migrated = _history->migrateFrom()) {
-				migrated->translateTo({});
-			}
+			stopAndRevert();
 		}
 	}, _lifetime);
 }
@@ -157,10 +160,14 @@ bool TranslateTracker::add(
 void TranslateTracker::switchTranslation(
 		not_null<HistoryItem*> item,
 		LanguageId id) {
+	_history->session().api().transcribes().checkSummaryToTranslate(
+		item->fullId());
 	if (item->translationShowRequiresRequest(id)) {
-		_itemsToRequest.emplace(
-			item->fullId(),
-			ItemToRequest{ int(item->originalText().text.size()) });
+		_itemsToRequest.emplace(item->fullId(), ItemToRequest{
+			.length = int(item->originalText().text.size()),
+			.rich = (_provider->supportsMessageId()
+				&& (item->richPage() != nullptr)),
+		});
 	}
 }
 
@@ -233,19 +240,38 @@ void TranslateTracker::cancelToRequest() {
 }
 
 void TranslateTracker::cancelSentRequest() {
-	if (_requestId) {
+	if (_requestInProcess) {
 		const auto owner = &_history->owner();
 		for (const auto &id : base::take(_requested)) {
 			if (const auto item = owner->message(id)) {
 				item->translationShowRequiresRequest({});
 			}
 		}
-		_history->session().api().request(base::take(_requestId)).cancel();
+		++_requestToken;
+		_requestInProcess = false;
+	}
+}
+
+void TranslateTracker::stopAndRevert() {
+	cancelToRequest();
+	cancelSentRequest();
+	const auto owner = &_history->owner();
+	for (const auto &[id, entry] : _itemsForRecognize) {
+		if (const auto item = owner->message(id)) {
+			if (item->translation()
+				&& item->translationShowRequiresCheck({})) {
+				item->translationShowRequiresRequest({});
+			}
+		}
+	}
+	_history->translateTo({});
+	if (const auto migrated = _history->migrateFrom()) {
+		migrated->translateTo({});
 	}
 }
 
 void TranslateTracker::requestSome() {
-	if (_requestId || _itemsToRequest.empty()) {
+	if (_requestInProcess || _itemsToRequest.empty()) {
 		return;
 	}
 	const auto to = _history->translatedTo();
@@ -257,60 +283,146 @@ void TranslateTracker::requestSome() {
 	_requested.reserve(_itemsToRequest.size());
 	const auto session = &_history->session();
 	const auto peerId = _itemsToRequest.back().first.peer;
-	auto peer = (peerId == _history->peer->id)
-		? _history->peer
-		: session->data().peer(peerId);
+	const auto rich = _itemsToRequest.back().second.rich;
 	auto length = 0;
-	auto list = QVector<MTPint>();
-	list.reserve(_itemsToRequest.size());
 	for (auto i = _itemsToRequest.end(); i != _itemsToRequest.begin();) {
-		if ((--i)->first.peer != peerId) {
+		--i;
+		if (i->first.peer != peerId
+			|| i->second.rich != rich) {
 			break;
 		}
 		length += i->second.length;
 		_requested.push_back(i->first);
-		list.push_back(MTP_int(i->first.msg));
 		i = _itemsToRequest.erase(i);
-		if (list.size() >= kRequestCountLimit
+		if (_requested.size() >= kRequestCountLimit
 			|| length >= kRequestLengthLimit) {
 			break;
 		}
 	}
-	using Flag = MTPmessages_TranslateText::Flag;
-	_requestId = session->api().request(MTPmessages_TranslateText(
-		MTP_flags(Flag::f_peer | Flag::f_id),
-		peer->input,
-		MTP_vector<MTPint>(list),
-		MTPVector<MTPTextWithEntities>(),
-		MTP_string(to.twoLetterCode())
-	)).done([=](const MTPmessages_TranslatedText &result) {
-		requestDone(to, result.data().vresult().v);
-	}).fail([=] {
-		requestDone(to, {});
-	}).send();
+	if (_requested.empty()) {
+		return;
+	}
+	if (rich) {
+		requestSomeRich(to, peerId);
+		return;
+	}
+	const auto owner = &session->data();
+	auto requests = std::vector<Ui::TranslateProviderRequest>();
+	requests.reserve(_requested.size());
+	auto ids = std::vector<FullMsgId>();
+	ids.reserve(_requested.size());
+	for (const auto &id : _requested) {
+		if (const auto item = owner->message(id)) {
+			requests.push_back(Ui::PrepareTranslateProviderRequest(
+				_provider.get(),
+				session->data().peer(id.peer),
+				id.msg,
+				item->originalText()));
+			ids.push_back(id);
+		}
+	}
+	_requested = std::move(ids);
+	if (_requested.empty()) {
+		requestSome();
+		return;
+	}
+	_requestInProcess = true;
+	const auto requestToken = ++_requestToken;
+	_provider->requestBatch(
+		std::move(requests),
+		to,
+		[=](int index, Ui::TranslateProviderResult result) {
+			if (!_requestInProcess || (_requestToken != requestToken)) {
+				return;
+			}
+			if (index < 0 || index >= _requested.size()) {
+				return;
+			}
+			const auto &id = _requested[index];
+			if (const auto item = owner->message(id)) {
+				item->translationDone(
+					to,
+					result.text.value_or(TextWithEntities()));
+			}
+		},
+		[=] {
+			if (!_requestInProcess || (_requestToken != requestToken)) {
+				return;
+			}
+			_requestInProcess = false;
+			_requested.clear();
+			requestSome();
+		});
 }
 
-void TranslateTracker::requestDone(
-		LanguageId to,
-		const QVector<MTPTextWithEntities> &list) {
-	auto index = 0;
+void TranslateTracker::requestSomeRich(LanguageId to, PeerId peerId) {
 	const auto session = &_history->session();
 	const auto owner = &session->data();
-	for (const auto &id : base::take(_requested)) {
-		if (const auto item = owner->message(id)) {
-			const auto data = (index >= list.size())
-				? nullptr
-				: &list[index].data();
-			auto text = data ? TextWithEntities{
-				qs(data->vtext()),
-				Api::EntitiesFromMTP(session, data->ventities().v)
-			} : TextWithEntities();
-			item->translationDone(to, std::move(text));
+	const auto peer = owner->peerLoaded(peerId);
+	if (!peer) {
+		for (const auto &id : base::take(_requested)) {
+			if (const auto item = owner->message(id)) {
+				item->translationDone(to, TextWithEntities());
+			}
 		}
-		++index;
+		requestSome();
+		return;
 	}
-	_requestId = 0;
-	requestSome();
+	auto mtpIds = QVector<MTPint>();
+	mtpIds.reserve(_requested.size());
+	auto ids = std::vector<FullMsgId>();
+	ids.reserve(_requested.size());
+	for (const auto &id : _requested) {
+		const auto item = owner->message(id);
+		if (item && item->richPage()) {
+			mtpIds.push_back(MTP_int(id.msg));
+			ids.push_back(id);
+		}
+	}
+	_requested = std::move(ids);
+	if (_requested.empty()) {
+		requestSome();
+		return;
+	}
+	_requestInProcess = true;
+	const auto requestToken = ++_requestToken;
+	const auto finish = [=] {
+		_requestInProcess = false;
+		_requested.clear();
+		requestSome();
+	};
+	using Flag = MTPmessages_TranslateRichMessage::Flag;
+	_api.request(MTPmessages_TranslateRichMessage(
+		MTP_flags(Flag::f_peer | Flag::f_id),
+		peer->input(),
+		MTP_vector<MTPint>(mtpIds),
+		MTPVector<MTPInputRichMessage>(),
+		MTP_string(to.twoLetterCode()),
+		MTPstring()
+	)).done([=](const MTPmessages_TranslatedRichMessage &result) {
+		if (!_requestInProcess || (_requestToken != requestToken)) {
+			return;
+		}
+		const auto &list = result.data().vresult().v;
+		for (auto i = 0, count = int(_requested.size()); i != count; ++i) {
+			if (const auto item = owner->message(_requested[i])) {
+				item->translationDone(to, (i < list.size())
+					? Iv::ParseRichPage(session, list[i])
+					: nullptr);
+			}
+		}
+		finish();
+	}).fail([=](const MTP::Error &) {
+		if (!_requestInProcess || (_requestToken != requestToken)) {
+			return;
+		}
+		for (const auto &id : _requested) {
+			if (const auto item = owner->message(id)) {
+				item->translationDone(to, TextWithEntities());
+			}
+		}
+		finish();
+	}).send();
 }
 
 void TranslateTracker::applyLimit() {
@@ -355,7 +467,28 @@ void TranslateTracker::recognizeCollected() {
 void TranslateTracker::trackSkipLanguages() {
 	Core::App().settings().skipTranslationLanguagesValue(
 	) | rpl::on_next([=](const std::vector<LanguageId> &skip) {
+		const auto wasOfferedFrom = _history->translateOfferedFrom();
+		const auto wasTranslatedTo = _history->translatedTo();
 		checkRecognized(skip);
+		if (wasTranslatedTo
+			&& wasOfferedFrom
+			&& !_history->translateOfferedFrom()) {
+			stopAndRevert();
+		}
+	}, _trackingLifetime);
+}
+
+void TranslateTracker::trackTranslationDisabled() {
+	using PeerFlag = Data::PeerUpdate::Flag;
+	_history->session().changes().peerFlagsValue(
+		_history->peer,
+		PeerFlag::TranslationDisabled
+	) | rpl::skip(1) | rpl::on_next([=] {
+		using TranslationFlag = PeerData::TranslationFlag;
+		if (_history->peer->translationFlag() == TranslationFlag::Disabled
+			&& _history->translatedTo()) {
+			stopAndRevert();
+		}
 	}, _trackingLifetime);
 }
 

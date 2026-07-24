@@ -33,7 +33,7 @@ class ListController final
 	, public base::has_weak_ptr {
 public:
 	ListController(
-		not_null<Controller*> controller,
+		not_null<AbstractController*> controller,
 		not_null<UserData*> user);
 
 	Main::Session &session() const override;
@@ -57,7 +57,7 @@ private:
 		bool allLoaded = false;
 		bool wasLoading = false;
 	};
-	const not_null<Controller*> _controller;
+	const not_null<AbstractController*> _controller;
 	MTP::Sender _api;
 	not_null<UserData*> _user;
 	mtpRequestId _preloadRequestId = 0;
@@ -67,7 +67,7 @@ private:
 };
 
 ListController::ListController(
-	not_null<Controller*> controller,
+	not_null<AbstractController*> controller,
 	not_null<UserData*> user)
 : PeerListController()
 , _controller(controller)
@@ -98,7 +98,7 @@ void ListController::loadMoreRows() {
 		return;
 	}
 	_preloadRequestId = _api.request(MTPmessages_GetCommonChats(
-		_user->inputUser,
+		_user->inputUser(),
 		MTP_long(peerIsChat(_preloadGroupId)
 			? peerToChat(_preloadGroupId).bare
 			: peerToChannel(_preloadGroupId).bare),
@@ -192,7 +192,7 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	not_null<Controller*> controller,
+	not_null<AbstractController*> controller,
 	not_null<UserData*> user)
 : RpWidget(parent)
 , _show(controller->uiShow())
@@ -203,11 +203,13 @@ InnerWidget::InnerWidget(
 	setContent(_list.data());
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
 
-	_controller->searchFieldController()->queryValue(
-	) | rpl::on_next([this](QString &&query) {
-		peerListScrollToTop();
-		content()->searchQueryChanged(std::move(query));
-	}, lifetime());
+	if (const auto search = _controller->searchFieldController()) {
+		search->queryValue(
+		) | rpl::on_next([this](QString &&query) {
+			peerListScrollToTop();
+			content()->searchQueryChanged(std::move(query));
+		}, lifetime());
+	}
 }
 
 void InnerWidget::visibleTopBottomUpdated(

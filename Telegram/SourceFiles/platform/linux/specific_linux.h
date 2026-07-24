@@ -34,6 +34,10 @@ inline uint64 ActivationWindowId(not_null<QWidget*> window) {
 inline void ActivateOtherProcess(uint64 processId, uint64 windowId) {
 }
 
+inline bool WaitForProcessExit(uint64 processId, crl::time timeout) {
+	return true;
+}
+
 } // namespace Platform
 
 inline void psCheckLocalSocket(const QString &serverName) {

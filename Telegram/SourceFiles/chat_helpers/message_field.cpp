@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "ui/chat/chat_style.h"
 #include "ui/layers/generic_box.h"
+#include "ui/boxes/calendar_box.h"
+#include "ui/boxes/choose_date_time.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/rect.h"
 #include "core/shortcuts.h"
@@ -45,7 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
@@ -138,8 +140,22 @@ void EditLinkBox(
 		const QString &startLink,
 		Fn<void(TextWithTags, QString)> callback,
 		const style::InputField *fieldStyle,
-		Fn<QString(QString)> validate) {
+		Fn<QString(QString)> validate,
+		Fn<void(bool)> interactionActive,
+		Fn<void()> restoreFocus) {
 	Expects(callback != nullptr);
+
+	if (interactionActive) {
+		interactionActive(true);
+	}
+	box->boxClosing() | rpl::on_next([=] {
+		if (interactionActive) {
+			interactionActive(false);
+		}
+		if (restoreFocus) {
+			restoreFocus();
+		}
+	}, box->lifetime());
 
 	const auto &fieldSt = fieldStyle ? *fieldStyle : st::defaultInputField;
 	const auto content = box->verticalLayout();
@@ -154,7 +170,8 @@ void EditLinkBox(
 		st::markdownLinkFieldPadding);
 	text->setInstantReplaces(Ui::InstantReplaces::Default());
 	text->setInstantReplacesEnabled(
-		Core::App().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue(),
+		Core::App().settings().systemTextReplaceValue());
 	Ui::Emoji::SuggestionsController::Init(
 		box->getDelegate()->outerContainer(),
 		text,
@@ -244,9 +261,6 @@ void EditLinkBox(
 		}
 	});
 
-	url->customTab(true);
-	text->customTab(true);
-
 	const auto clearFullSelection = [=](not_null<Ui::InputField*> input) {
 		if (input->empty()) {
 			return;
@@ -262,17 +276,20 @@ void EditLinkBox(
 	};
 
 	url->tabbed(
-	) | rpl::on_next([=] {
+	) | rpl::on_next([=](not_null<bool*> handled) {
 		clearFullSelection(url);
 		text->setFocus();
+		*handled = true;
 	}, url->lifetime());
+
 	text->tabbed(
-	) | rpl::on_next([=] {
+	) | rpl::on_next([=](not_null<bool*> handled) {
 		if (!url->empty()) {
 			url->selectAll();
 		}
 		clearFullSelection(text);
 		url->setFocus();
+		*handled = true;
 	}, text->lifetime());
 }
 
@@ -400,7 +417,10 @@ Fn<bool(
 	EditLinkAction action)> DefaultEditLinkCallback(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
-		const style::InputField *fieldStyle) {
+		const style::InputField *fieldStyle,
+		Fn<QString(QString)> linkValidator,
+		Fn<void(bool)> interactionActive,
+		Fn<void()> restoreFocus) {
 	const auto weak = base::make_weak(field);
 	return [=](
 			EditLinkSelection selection,
@@ -408,14 +428,78 @@ Fn<bool(
 			QString link,
 			EditLinkAction action) {
 		if (action == EditLinkAction::Check) {
-			return Ui::InputField::IsValidMarkdownLink(link)
-				&& !TextUtilities::IsMentionLink(link);
+			return (Ui::InputField::IsValidMarkdownLink(link)
+					&& !TextUtilities::IsMentionLink(link))
+				|| Ui::InputField::IsCustomDateLink(link)
+				|| (linkValidator && !linkValidator(link).isEmpty());
+		}
+		if (Ui::InputField::IsCustomDateLink(link)) {
+			const auto dateStr = link.mid(
+				Ui::InputField::kCustomDateTagStart.size());
+			const auto existingDate = dateStr.toInt();
+			auto callback = [=](
+					const TextWithTags &t,
+					const QString &l) {
+				if (const auto strong = weak.get()) {
+					strong->commitMarkdownLinkEdit(selection, t, l);
+				}
+			};
+			const auto savedCallback = std::make_shared<
+				Fn<void(const TextWithTags &, const QString &)>>(
+					std::move(callback));
+			const auto savedText = std::make_shared<TextWithTags>(text);
+			const auto showDateTimeBox = [=](TimeId time) {
+				const auto dateBox = std::make_shared<
+					base::weak_qptr<Ui::GenericBox>>();
+				*dateBox = show->show(Box(
+					Ui::ChooseDateTimeBox,
+					Ui::ChooseDateTimeBoxArgs{
+						.title = tr::lng_formatting_date_title(),
+						.submit = tr::lng_settings_save(),
+						.done = [=](TimeId result) {
+							const auto dateLink
+								= Ui::InputField::kCustomDateTagStart
+								+ QString::number(result);
+							(*savedCallback)(
+								*savedText,
+								dateLink);
+							if (const auto box = dateBox->get()) {
+								box->closeBox();
+							}
+						},
+						.min = [] { return TimeId(1); },
+						.time = time,
+						.max = [] { return TimeId(2114380800); },
+					}));
+			};
+			if (existingDate > 0) {
+				showDateTimeBox(existingDate);
+			} else {
+				show->show(Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
+					.month = QDate::currentDate(),
+					.highlighted = QDate::currentDate(),
+					.callback = [=](QDate chosen, Fn<void()> close) {
+						close();
+						const auto midday = QDateTime(
+							chosen,
+							QTime(12, 0));
+						showDateTimeBox(
+							base::unixtime::serialize(midday));
+					},
+					.minDate = QDate(1970, 1, 1),
+					.maxDate = QDate(2036, 12, 31),
+				}));
+			}
+			return true;
 		}
 		auto callback = [=](const TextWithTags &text, const QString &link) {
 			if (const auto strong = weak.get()) {
 				strong->commitMarkdownLinkEdit(selection, text, link);
 			}
 		};
+		const auto validateLink = linkValidator
+			? linkValidator
+			: Fn<QString(QString)>(qthelp::validate_url);
 		show->showBox(Box(
 			EditLinkBox,
 			show,
@@ -423,7 +507,9 @@ Fn<bool(
 			link,
 			std::move(callback),
 			fieldStyle,
-			qthelp::validate_url));
+			validateLink,
+			interactionActive,
+			restoreFocus));
 		return true;
 	};
 }
@@ -435,7 +521,8 @@ Fn<void(QString now, Fn<void(QString)> save)> DefaultEditLanguageCallback(
 	};
 }
 
-void InitMessageFieldHandlers(MessageFieldHandlersArgs &&args) {
+auto InitMessageFieldHandlers(MessageFieldHandlersArgs &&args)
+-> std::shared_ptr<Ui::ChatStyle> {
 	const auto paused = [passed = args.customEmojiPaused] {
 		return passed && passed();
 	};
@@ -452,17 +539,25 @@ void InitMessageFieldHandlers(MessageFieldHandlersArgs &&args) {
 	});
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
-		Core::App().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue(),
+		Core::App().settings().systemTextReplaceValue());
 	field->setMarkdownReplacesEnabled(rpl::single(Ui::MarkdownEnabledState{
-		Ui::MarkdownEnabled{ std::move(args.allowMarkdownTags) }
+		Ui::MarkdownEnabled{
+			std::move(args.allowMarkdownTags),
+			args.allowTypedMarkdown
+		}
 	}));
 	if (const auto &show = args.show) {
 		field->setEditLinkCallback(
-			DefaultEditLinkCallback(show, field, args.fieldStyle));
+			DefaultEditLinkCallback(
+				show,
+				field,
+				args.fieldStyle,
+				args.linkValidator));
 		field->setEditLanguageCallback(DefaultEditLanguageCallback(show));
 		InitSpellchecker(show, field, args.fieldStyle != nullptr);
 	}
-	const auto style = field->lifetime().make_state<Ui::ChatStyle>(
+	const auto style = std::make_shared<Ui::ChatStyle>(
 		session->colorIndicesValue());
 	field->setPreCache([=] {
 		return style->messageStyle(false, false).preCache.get();
@@ -471,6 +566,7 @@ void InitMessageFieldHandlers(MessageFieldHandlersArgs &&args) {
 		const auto colorIndex = session->user()->colorIndex();
 		return style->coloredQuoteCache(false, colorIndex).get();
 	});
+	return style;
 }
 
 [[nodiscard]] bool IsGoodFactcheckUrl(QStringView url) {
@@ -514,7 +610,9 @@ void InitMessageFieldHandlers(MessageFieldHandlersArgs &&args) {
 			link,
 			std::move(callback),
 			nullptr,
-			validate));
+			validate,
+			nullptr,
+			nullptr));
 		return true;
 	};
 }
@@ -542,7 +640,8 @@ Fn<void(not_null<Ui::InputField*>)> FactcheckFieldIniter(
 		});
 		field->setInstantReplaces(Ui::InstantReplaces::Default());
 		field->setInstantReplacesEnabled(
-			Core::App().settings().replaceEmojiValue());
+			Core::App().settings().replaceEmojiValue(),
+			Core::App().settings().systemTextReplaceValue());
 		field->setMarkdownReplacesEnabled(rpl::single(
 			Ui::MarkdownEnabledState{
 				Ui::MarkdownEnabled{
@@ -581,11 +680,11 @@ void InitMessageFieldGeometry(not_null<Ui::InputField*> field) {
 	field->setAdditionalMargin(style::ConvertScale(4) - 4);
 }
 
-void InitMessageField(
+std::shared_ptr<Ui::ChatStyle> InitMessageField(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::InputField*> field,
 		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
-	InitMessageFieldHandlers({
+	const auto style = InitMessageFieldHandlers({
 		.session = &show->session(),
 		.show = show,
 		.field = field,
@@ -595,9 +694,10 @@ void InitMessageField(
 		.allowPremiumEmoji = std::move(allowPremiumEmoji),
 	});
 	InitMessageFieldGeometry(field);
+	return style;
 }
 
-void InitMessageField(
+std::shared_ptr<Ui::ChatStyle> InitMessageField(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field,
 		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
@@ -620,11 +720,12 @@ void InitSpellchecker(
 			tr::lng_settings_manage_dictionaries(tr::now),
 			[=] { show->showBox(Box<Ui::ManageDictionariesBox>(session)); }
 		});
-	const auto s = Ui::CreateChild<SpellingHighlighter>(
+	// The highlighter parents itself to the field's document and registers a
+	// context-menu hook on the field, so it keeps working without holding it.
+	Ui::CreateChild<SpellingHighlighter>(
 		field.get(),
 		Core::App().settings().spellcheckerEnabledValue(),
 		menuItem);
-	field->setExtendedContextMenu(s->contextMenuCreated());
 #endif // TDESKTOP_DISABLE_SPELLCHECK
 }
 
@@ -835,10 +936,10 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 				if (!features.autocompleteMentions) {
 					return {};
 				}
-				if ((position - fragmentPosition - i < 1 || text[i].isLetter()) && (i < 2 || !(text[i - 2].isLetterOrNumber() || text[i - 2] == '_'))) {
+				if ((position - fragmentPosition - i < 1 || text[i].isLetterOrNumber()) && (i < 2 || !(text[i - 2].isLetterOrNumber() || text[i - 2] == '_'))) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
-				} else if ((position - fragmentPosition - i < 1 || text[i].isLetter()) && i > 2 && (text[i - 2].isLetterOrNumber() || text[i - 2] == '_') && !mentionInCommand) {
+				} else if ((position - fragmentPosition - i < 1 || text[i].isLetterOrNumber()) && i > 2 && (text[i - 2].isLetterOrNumber() || text[i - 2] == '_') && !mentionInCommand) {
 					mentionInCommand = true;
 					--i;
 					continue;
@@ -1503,4 +1604,23 @@ void FrozenInfoBox(
 	}) | rpl::on_next([=] {
 		button->resizeToWidth(buttonWidth);
 	}, button->lifetime());
+}
+
+Ui::InputField::MimeDataHook WrappedMessageFieldMimeHook(
+		Ui::InputField::MimeDataHook original,
+		not_null<Ui::InputField*> field) {
+	return [field, originalHook = std::move(original)](
+			not_null<const QMimeData*> data,
+			Ui::InputField::MimeAction action) {
+		if (data->hasFormat(u"application/x-telegram-input-field"_q)) {
+			if (action == Ui::InputField::MimeAction::Check) {
+				return true;
+			}
+			const auto text = QString::fromUtf8(
+				data->data(u"application/x-telegram-input-field"_q));
+			field->textCursor().insertText(text);
+			return true;
+		}
+		return originalHook ? originalHook(data, action) : false;
+	};
 }

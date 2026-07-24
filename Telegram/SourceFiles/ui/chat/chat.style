@@ -23,6 +23,32 @@ msgMinWidth: 160px;
 msgPhotoSize: 33px;
 msgPhotoSkip: 40px;
 msgPadding: margins(11px, 8px, 11px, 8px);
+msgTagBadgePadding: margins(5px, -1px, 5px, 0px);
+msgTagBadgeBoostSkip: 2px;
+
+tagInfoIcon: icon {{ "chat/large_user_tag-48x48", windowFgActive }};
+tagInfoIconPadding: margins(8px, 8px, 8px, 8px);
+tagInfoPreviewHeight: 80px;
+tagInfoPreviewGap: 8px;
+tagInfoPreviewBubbleRadius: 8px;
+tagInfoPreviewLineHeight: 6px;
+tagInfoPreviewLineSpacing: 4px;
+tagInfoPreviewBubblePadding: margins(10px, 8px, 10px, 8px);
+tagInfoPreviewRadius: 8px;
+tagInfoPreviewBubbleRightMargin: 10px;
+tagInfoPreviewFadeWidth: 24px;
+tagInfoPreviewBadgeTop: 6px;
+tagInfoPreviewPadding: margins(0px, 16px, 0px, 0px);
+tagInfoAdminsOnlyPadding: margins(0px, 8px, 0px, 0px);
+tagInfoAdminsOnlyLabel: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 40px;
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+
 msgMargin: margins(16px, 6px, 56px, 2px);
 msgMarginTopAttached: 0px;
 msgShadow: 2px;
@@ -30,6 +56,9 @@ msgSelectionOffset: 30px;
 msgSelectionBottomSkip: 5px;
 
 itemRevealDuration: 150;
+textRevealGradient: 24px;
+middleClickAutoscrollSpeedScale: 30px;
+middleClickAutoscrollMaxSpeed: 7200px;
 
 historyReplyTop: 2px;
 historyReplyBottom: 2px;
@@ -123,6 +152,10 @@ priceTagTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: creditsBg1;
 }
 fwdTextUserpicPadding: margins(0px, 1px, 3px, 0px);
+nameRippleRadius: 4px;
+nameRipplePadding: margins(3px, 1px, 3px, 1px);
+linkRippleRadius: 3px;
+linkRipplePadding: margins(3px, 0px, 3px, 0px);
 fwdTextStyle: TextStyle(semiboldTextStyle) {
 	linkUnderline: kLinkUnderlineNever;
 }
@@ -189,9 +222,6 @@ maxWallPaperWidth: 160px;
 maxWallPaperHeight: 240px;
 historyThemeSize: size(272px, 176px);
 
-extendedPreviewButtonPadding: margins(20px, 10px, 20px, 10px);
-extendedPreviewButtonMargin: 20px;
-
 historyMinimalWidth: 380px;
 
 reactionMenu: PopupMenu(defaultPopupMenu) {
@@ -249,7 +279,6 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 0px, 3px);
 }
-membersInnerItem: defaultPeerListItem;
 
 historyFileOutImage: icon {{ "history_file_image", historyFileOutIconFg }};
 historyFileOutImageSelected: icon {{ "history_file_image", historyFileOutIconFgSelected }};
@@ -321,6 +350,13 @@ historyPinInSelectedIcon: icon {{ "history_pin", msgInDateFgSelected }};
 historyPinOutIcon: icon {{ "history_pin", historyOutIconFg }};
 historyPinOutSelectedIcon: icon {{ "history_pin", historyOutIconFgSelected }};
 historyPinInvertedIcon: icon {{ "history_pin", historySendingInvertedIconFg }};
+historySilentWidth: 12px;
+historySilentTop: -13px;
+historySilentInIcon: icon {{ "dialogs/dialogs_mute", msgInDateFg }};
+historySilentInSelectedIcon: icon {{ "dialogs/dialogs_mute", msgInDateFgSelected }};
+historySilentOutIcon: icon {{ "dialogs/dialogs_mute", historyOutIconFg }};
+historySilentOutSelectedIcon: icon {{ "dialogs/dialogs_mute", historyOutIconFgSelected }};
+historySilentInvertedIcon: icon {{ "dialogs/dialogs_mute", historySendingInvertedIconFg }};
 
 historyBotMenuSkip: 8px;
 historyBotMenuMaxWidth: 160px;
@@ -340,6 +376,10 @@ textMoreIconEmoji: IconEmoji {
 	icon: topicButtonArrow;
 	padding: margins(-2px, 5px, 0px, 0px);
 }
+textBackIconEmoji: IconEmoji {
+	icon: icon{{ "dialogs/dialogs_topic_arrow-flip_horizontal", historyReplyIconFg }};
+	padding: margins(0px, 5px, -2px, 0px);
+}
 
 msgBotKbIconPadding: 4px;
 msgBotKbUrlIcon: icon {{ "inline_button_url", msgBotKbIconFg }};
@@ -357,7 +397,6 @@ msgBotKbButton: BotKeyboardButton {
 
 botDescSkip: 8px;
 
-botKbDuration: 200;
 botKbStyle: TextStyle(defaultTextStyle) {
 	font: font(15px semibold);
 }
@@ -389,10 +428,9 @@ historyDiceToast: Toast(defaultToast) {
 historyInfoToast: Toast(defaultToast) {
 	minWidth: msgMinWidth;
 	maxWidth: 380px;
-	padding: margins(54px, 13px, 19px, 12px);
-	icon: icon {{ "toast_info", toastFg }};
-	iconPosition: point(13px, 13px);
+	padding: margins(13px, 13px, 19px, 12px);
 }
+historyInfoToastIcon: icon {{ "toast/info", toastFg }};
 
 bubbleRadiusSmall: roundRadiusLarge;
 bubbleRadiusLarge: 16px;
@@ -418,6 +456,21 @@ historyPsaIconSkip1: 23px;
 historyPsaIconSkip2: 23px;
 historyPsaIconPosition1: point(-5px, 0px);
 historyPsaIconPosition2: point(-5px, 0px);
+
+historyEphemeralIconIn: icon {{ "chat/ephemeral_badge", msgInServiceFg }};
+historyEphemeralIconInSelected: icon {{ "chat/ephemeral_badge", msgInServiceFgSelected }};
+historyEphemeralIconOut: icon {{ "chat/ephemeral_badge", msgOutServiceFg }};
+historyEphemeralIconOutSelected: icon {{ "chat/ephemeral_badge", msgOutServiceFgSelected }};
+historyEphemeralInvertedIcon: icon {{ "chat/ephemeral_badge", historySendingInvertedIconFg }};
+historyEphemeralIconSkip: 4px;
+historyEphemeralBadgeBottom: 2px;
+historyEphemeralStateWidth: 16px;
+historyEphemeralStateTop: -14px;
+historyEphemeralPlateStyle: TextStyle(semiboldTextStyle) {
+	font: font(12px semibold);
+	linkUnderline: kLinkUnderlineActive;
+}
+historyEphemeralIconLeftSkip: 1px;
 
 historyStatusFg: windowSubTextFg;
 historyStatusFgActive: windowActiveTextFg;
@@ -508,6 +561,8 @@ attachPreviewThumbLayout: HistoryFileLayout {
 	thumbSize: 64px;
 	thumbSkip: 10px;
 }
+attachPreviewCaptionTopOffset: 6px;
+attachPreviewCaptionRepaintMargin: margins(0px, 2px, 0px, 2px);
 
 msgFileMinWidth: 268px;
 msgFileTopMinus: 6px;
@@ -519,6 +574,11 @@ msgWaveformBar: 2px;
 msgWaveformSkip: 1px;
 msgWaveformMin: 3px;
 msgWaveformMax: 17px;
+
+msgVoicePlaybackMinorBlobMinRadius: 25px;
+msgVoicePlaybackMinorBlobMaxRadius: 28px;
+msgVoicePlaybackMajorBlobMinRadius: 26px;
+msgVoicePlaybackMajorBlobMaxRadius: 29px;
 
 historyVoiceMessageInTTL: icon {{ "chat/mini_media_once", historyFileInIconFg }};
 historyVoiceMessageInTTLSelected: icon {{ "chat/mini_media_once", historyFileInIconFgSelected }};
@@ -544,11 +604,21 @@ historyTranscribeOutLockSelected: icon {{ "chat/mini_lock", msgFileOutBgSelected
 historyTranscribeLockPos: point(17px, 9px);
 historyTranscribeLockOverlayPos: point(19px, 11px);
 historyTranscribeLockOverlaySize: size(5px, 10px);
+historyTranscribeRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	linearPeriod: 700;
+	sinePeriod: 2400;
+	sineDuration: 700;
+	sineShift: 1100;
+	arcMin: 0.0625;
+	arcMax: 0.35;
+}
 
 historyVideoMessageMute: icon {{ "volume_mute", historyFileThumbIconFg }};
 historyVideoMessageMuteSelected: icon {{ "volume_mute", historyFileThumbIconFgSelected }};
 historyVideoMessageMuteSize: 25px;
 historyVideoMessageProgressOpacity: 0.72;
+historyVideoMessageSeekInset: 12px;
+historyVideoMessageSeekDotSize: 13px;
 historyVideoMessageTtlIcon: icon {{ "chat/audio_once", historyFileThumbIconFg }};
 historyVideoMessageTtlIconSelected: icon {{ "chat/audio_once", historyFileThumbIconFgSelected }};
 
@@ -574,8 +644,14 @@ historyAdminLogCancelSearch: CrossButton {
 }
 historyAdminLogSearchTop: 11px;
 historyAdminLogSearchSlideDuration: 150;
+historyAdminLogTopBarLeft: 17px;
+historyAdminLogTopBarUserpicSkip: 35px;
+historyAdminLogWhatIsThis: IconButton(historyAttach) {
+	icon: icon {{ "menu/faq", windowActiveTextFg }};
+	iconOver: icon {{ "menu/faq", windowActiveTextFg }};
+}
 
-historyFastShareSize: 31px;
+historyFastShareSize: topPeersSelectorUserpicSize;
 historyFastShareLeft: 13px;
 historyFastShareBottom: 5px;
 historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};
@@ -583,10 +659,11 @@ historyGoToOriginalIcon: icon {{ "filled_go_to_message", msgServiceFg, point(0px
 historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
 historyFastCloseSize: 30px;
 historyFastCloseIcon: icon {{ "box_button_close", msgServiceFg }};
-historyFastMoreIcon: icon {{ "title_menu_dots", msgServiceFg, point(0px, -2px)  }};
+historyFastMoreIcon: icon {{ "title_menu_dots", msgServiceFg, point(0px, -2px) }};
 historyFastTranscribeIcon: icon {{ "chat/voice_to_text", msgServiceFg }};
 historyFastTranscribeLock: icon {{ "chat/mini_lock", msgServiceFg }};
 historyFastTranscribeLockPos: point(18px, 13px);
+historyFastSummaryLockPos: point(13px, 13px);
 historyFastTranscribeLockOverlayPos: point(21px, 13px);
 historyFastTranscribeLockOverlaySize: size(6px, 10px);
 
@@ -603,6 +680,18 @@ historyGroupRadialLine: 3px;
 historyMapPoint: icon {{ "map_point", mapPointDrop }};
 historyMapPointInner: icon {{ "map_point_inner", mapPointDot }};
 
+historyMapPinRadius: 28px;
+historyMapPinUserpicSize: 52px;
+historyMapPinTailHeight: 12px;
+historyMapPinTailHalfWidth: 12px;
+historyMapPinDotRadius: 4px;
+historyMapPinDotStroke: 2px;
+historyMapPinShadow: BoxShadow {
+	blurRadius: 6px;
+	offset: point(0px, 2px);
+	opacity: 0.29;
+}
+
 historyPsaForwardPalette: TextPalette(defaultTextPalette) {
 	linkFg: boxTextFgGood;
 }
@@ -615,60 +704,7 @@ webPageDescriptionStyle: defaultTextStyle;
 webPagePhotoDelta: 8px;
 webPageAuctionTimerPadding: margins(8px, 4px, 8px, 4px);
 webPageAuctionTimeFont: font(11px);
-webPageAuctionSubtextFont: font(12px);
 webPageAuctionPreviewPadding: margins(10px, 30px, 10px, 5px);
-
-historyPollQuestionFont: semiboldFont;
-historyPollQuestionStyle: TextStyle(defaultTextStyle) {
-	font: historyPollQuestionFont;
-}
-historyPollAnswerStyle: defaultTextStyle;
-historyPollQuestionTop: 7px;
-historyPollSubtitleSkip: 4px;
-historyPollAnswerPadding: margins(32px, 10px, 0px, 10px);
-historyPollAnswersSkip: 2px;
-historyPollPercentFont: semiboldFont;
-historyPollPercentSkip: 5px;
-historyPollPercentTop: 0px;
-historyPollTotalVotesSkip: 5px;
-historyPollFillingMin: 4px;
-historyPollFillingHeight: 4px;
-historyPollFillingRadius: 1px;
-historyPollFillingBottom: 2px;
-historyPollFillingRight: 4px;
-historyPollRadio: Radio(defaultRadio) {
-	bg: transparent;
-	untoggledFg: checkboxFg;
-	toggledFg: windowBgActive;
-	diameter: 18px;
-	thickness: 2px;
-	skip: 65px; // * 0.1
-	duration: universalDuration;
-	rippleAreaPadding: 8px;
-}
-historyPollRadioOpacity: 0.7;
-historyPollRadioOpacityOver: 1.;
-historyPollDuration: 300;
-historyPollRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
-	thickness: 2px;
-	size: size(18px, 18px);
-}
-historyPollRippleOpacity: 0.3;
-historyPollRecentVotersSkip: 4px;
-historyPollRecentVoterSize: 18px;
-historyPollRecentVoterSkip: 13px;
-historyPollBottomButtonSkip: 15px;
-historyPollBottomButtonTop: 4px;
-historyPollChoiceRight: icon {{ "poll_choice_right", activeButtonFg }};
-historyPollChoiceWrong: icon {{ "poll_choice_wrong", activeButtonFg }};
-historyPollOutChoiceRight: icon {{ "poll_choice_right", historyFileOutIconFg }};
-historyPollOutChoiceRightSelected: icon {{ "poll_choice_right", historyFileOutIconFgSelected }};
-historyPollInChoiceRight: icon {{ "poll_choice_right", historyFileInIconFg }};
-historyPollInChoiceRightSelected: icon {{ "poll_choice_right", historyFileInIconFgSelected }};
-historyPollOutChosen: icon {{ "poll_select_check", historyFileOutIconFg }};
-historyPollOutChosenSelected: icon {{ "poll_select_check", historyFileOutIconFgSelected }};
-historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
-historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
 historyChecklistTaskPadding: margins(32px, 12px, 0px, 12px);
 historyChecklistCheckedTop: 4px;
@@ -808,6 +844,8 @@ popupMenuExpandedSeparator: PopupMenu(popupMenuWithIcons) {
 	}
 }
 
+menuTimecodeFont: font(7px semibold);
+
 whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 400px;
@@ -877,9 +915,7 @@ reactionInlineUserpics: GroupCallUserpics {
 }
 
 reactionInfoSize: 15px;
-reactionInfoImage: 30px;
 reactionInfoSkip: 3px;
-reactionInfoDigitSkip: 6px;
 reactionInfoBetween: 3px;
 
 reactionCornerSize: size(36px, 32px);
@@ -898,6 +934,11 @@ reactionAppearStartSkip: 2px;
 reactionMainAppearShift: 20px;
 reactionCollapseFadeThreshold: 40px;
 reactionFlyUp: 50px;
+
+replyCornerHeight: 20px;
+replyCornerShadow: margins(4px, 8px, 4px, 8px);
+replyCornerCenter: point(7px, -2px);
+replyCornerTextPadding: margins(6px, 0px, 6px, 0px);
 
 effectInfoImage: 12px;
 
@@ -932,6 +973,7 @@ msgServiceStarGiftStickerTop: 24px;
 msgServiceStarGiftStickerSize: 100px;
 msgServiceGiftThemeStickerSize: 64px;
 msgServiceGiftThemeStickerPadding: margins(18px, 18px, 18px, 18px);
+msgServiceCommunityAddedPhoto: 66px; // About 2/3 of msgServicePhotoWidth.
 
 historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
@@ -971,6 +1013,32 @@ historyTranslateSettings: IconButton(defaultIconButton) {
 	}
 }
 historyTranslateMenuPosition: point(-6px, 30px);
+historyTranslateCocoonLabel: FlatLabel(historyHasCustomEmoji) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+	margin: margins(4px, 8px, 4px, 8px);
+}
+
+cocoonLogoTop: 32px;
+cocoonLogoSize: 96px;
+cocoonTitleFont: font(36px semibold);
+cocoonTitleTop: 12px;
+cocoonSubtitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 120px;
+	align: align(top);
+}
+cocoonSubtitleTop: 8px;
+cocoonSubtitleBottom: 16px;
+cocoonJoinSeparatorPadding: margins(24px, 4px, 24px, 12px);
+cocoonJoinLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+	textFg: windowSubTextFg;
+	minWidth: 120px;
+	align: align(top);
+}
 
 historySponsoredAboutMenuLabelPosition: point(54px, 4px);
 
@@ -1010,7 +1078,6 @@ storyMentionReadStrokeTwice: 3px;
 storyMentionButtonSkip: 5px;
 
 chatGiveawayWidth: 292px;
-chatGiveawayStickerTop: -16px;
 chatGiveawayStickerPadding: margins(14px, -2px, 14px, 14px);
 chatGiveawayWinnersTopSkip: 25px;
 chatGiveawayBadgeFont: font(12px bold);
@@ -1030,7 +1097,6 @@ chatGiveawayPeerPadding: margins(5px, 7px, 12px, 0px);
 chatGiveawayPeerSkip: 8px;
 chatGiveawayCreditsIconHeight: 19px;
 
-chatSimilarRadius: 12px;
 chatSimilarArrowSize: 6px;
 chatSimilarTitle: semiboldFont;
 chatSimilarTitlePosition: point(15px, 9px);
@@ -1057,6 +1123,7 @@ chatSuggestInfoWidth: 272px;
 chatSuggestInfoTitleMargin: margins(16px, 16px, 16px, 6px);
 chatSuggestInfoMiddleMargin: margins(16px, 4px, 16px, 4px);
 chatSuggestInfoLastMargin: margins(16px, 4px, 16px, 16px);
+chatSuggestBulletLeftExtra: 16px;
 chatSuggestTableMiddleMargin: margins(8px, 4px, 8px, 4px);
 chatSuggestTableLastMargin: margins(8px, 4px, 8px, 16px);
 chatSuggestInfoFullMargin: margins(16px, 16px, 16px, 16px);
@@ -1075,7 +1142,6 @@ chatSuggestChangeIcon: IconEmoji {
 
 premiumRequiredWidth: 186px;
 premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
-premiumRequiredCircle: 60px;
 directMessagesIcon: icon{{ "chat/large_messages", msgServiceFg }};
 starsPerMessageWidth: 226px;
 
@@ -1123,10 +1189,6 @@ previewMenu: PopupMenu(defaultPopupMenu) {
 	}
 	maxHeight: 420px;
 	radius: boxRadius;
-	shadow: boxRoundShadow;
-	animation: PanelAnimation(defaultPanelAnimation) {
-		shadow: boxRoundShadow;
-	}
 }
 previewTop: PeerListItem(defaultPeerListItem) {
 	height: 52px;
@@ -1295,7 +1357,12 @@ chatTabsToggle: IconButton(defaultIconButton) {
 	iconOver: icon {{ "top_bar_profile-flip_horizontal", menuIconFgOver }};
 	ripple: emptyRippleAnimation;
 }
-chatTabsToggleActive: icon {{ "top_bar_profile-flip_horizontal", windowActiveTextFg }};
+chatTabsToggleIconTop: icon {{ "chat/menu_sidebar2-24x24", menuIconFg }};
+chatTabsToggleIconTopOver: icon {{ "chat/menu_sidebar2-24x24", menuIconFgOver }};
+chatTabsToggleIconLeft: icon {{ "chat/menu_sidebar3-24x24", menuIconFg }};
+chatTabsToggleIconLeftOver: icon {{ "chat/menu_sidebar3-24x24", menuIconFgOver }};
+chatTabsToggleIconBottom: icon {{ "chat/menu_sidebar1-24x24", menuIconFg }};
+chatTabsToggleIconBottomOver: icon {{ "chat/menu_sidebar1-24x24", menuIconFgOver }};
 chatTabsScroll: ScrollArea(defaultScrollArea) {
 	barHidden: true;
 }
@@ -1392,20 +1459,6 @@ suggestPriceEstimate: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 suggestPriceEstimateTop: 12px;
-tonInput: InputField(defaultInputField) {
-	textBg: transparent;
-	textMargins: margins(0px, 7px, 0px, 7px);
-
-	placeholderFg: placeholderFg;
-	placeholderFgActive: placeholderFgActive;
-	placeholderFgError: placeholderFgActive;
-	placeholderMargins: margins(0px, 0px, 0px, 0px);
-	placeholderScale: 0.;
-	placeholderFont: boxTextFont;
-
-	heightMin: 34px;
-	heightMax: 100px;
-}
 starsFieldIconPosition: point(0px, 10px);
 tonFieldIconSize: 16px;
 tonFieldIconPosition: point(2px, 11px);
@@ -1459,3 +1512,49 @@ messageGiftIconSkip: 30px;
 
 newChatIcon: icon{{ "chat/new_topic", windowFgActive }};
 newChatIconPadding: margins(2px, 2px, 2px, 2px);
+
+newThreadAboutMaxWidth: 180px;
+newThreadAboutIconSkip: chatIntroTitleMargin.top;
+newThreadAboutIconOuter: 60px;
+newThreadAboutIcon: icon{{ "chat/new_thread-40x40", windowFgActive }};
+
+managedBotCodeIcon: icon{{ "chat/code_tags", windowFg }};
+managedBotImageWidth: 280px;
+managedBotImageHeight: 140px;
+
+stakeBox: Box(defaultBox) {
+	buttonPadding: margins(24px, 12px, 24px, 24px);
+	buttonHeight: 42px;
+	buttonWide: true;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+	shadowIgnoreTopSkip: true;
+}
+stakeEmojiSize: 20px;
+stakeEmojiTop: 8px;
+stakeEmojiIcon: IconEmoji {
+	icon: icon{{ "chat/mini_roll-18x18", activeButtonFg }};
+	padding: margins(1px, 2px, 1px, 0px);
+}
+stakeIconEmojiSize: 12px;
+stakeIconEmojiTop: 3px;
+stakePresetButton: RoundButton(defaultLightButton) {
+	textBg: lightButtonBgOver;
+}
+stakePresetButtonSkip: point(8px, 8px);
+stakeChangeBadge: RoundButton(defaultTableSmallButton) {
+	textFg: mediaviewTextLinkFg;
+	textFgOver: mediaviewTextLinkFg;
+}
+stateChangeBadgeMargin: margins(0px, 1px, 0px, 0px);
+
+historySummaryHeaderIconSize: 30px;
+historySummaryHeaderIconSizeInner: 5px;
+
+toastCheckIcon: icon {{ "toast/check-36x36", toastFg }};
+
+historySummaryStars: icon {{ "chat/summary_stars-24x24", msgServiceFg }};
+historySummaryArrows: icon {{ "chat/summary_arrows-24x24", msgServiceFg }};

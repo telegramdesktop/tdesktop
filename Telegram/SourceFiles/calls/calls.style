@@ -52,7 +52,7 @@ callBodyLayout: CallBodyLayout {
 	participantsTop: 294px;
 	muteStroke: 3px;
 	muteSize: 36px;
-	mutePosition: point(142px, 135px);
+	mutePosition: point(140px, 135px);
 }
 callBodyWithPreview: CallBodyLayout {
 	height: 185px;
@@ -101,6 +101,7 @@ callButtonLabel: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(11px);
 	}
+	maxHeight: 16px;
 }
 
 callAnswer: CallButton {
@@ -537,10 +538,6 @@ callTitle: WindowTitle(defaultWindowTitle) {
 callTitleShadowRight: icon {{ "calls/calls_shadow_controls", windowShadowFg }};
 callTitleShadowLeft: icon {{ "calls/calls_shadow_controls-flip_horizontal", windowShadowFg }};
 
-callErrorToast: Toast(defaultToast) {
-	minWidth: 240px;
-}
-
 groupCallWidth: 380px;
 groupCallHeight: 520px;
 groupCallWidthRtmp: 720px;
@@ -581,15 +578,14 @@ groupCallMenuShadow: Shadow(defaultEmptyShadow) {
 }
 groupCallPanelAnimation: PanelAnimation(defaultPanelAnimation) {
 	fadeBg: groupCallMenuBg;
-	shadow: groupCallMenuShadow;
 }
 groupCallPopupMenu: PopupMenu(defaultPopupMenu) {
-	shadow: groupCallMenuShadow;
+	shadowFallback: groupCallMenuBg;
 	menu: groupCallMenu;
 	animation: groupCallPanelAnimation;
 }
 groupCallPopupMenuWithIcons: PopupMenu(popupMenuWithIcons) {
-	shadow: groupCallMenuShadow;
+	shadowFallback: groupCallMenuBg;
 	menu: Menu(groupCallMenu, menuWithIcons) {
 		arrow: icon {{ "menu/submenu_arrow", groupCallMemberNotJoinedStatus }};
 	}
@@ -631,7 +627,6 @@ groupCallMenuAbout: FlatLabel(defaultFlatLabel) {
 	textFg: groupCallMemberNotJoinedStatus;
 	palette: groupCallTextPalette;
 	minWidth: 200px;
-	maxHeight: 92px;
 }
 callDeviceSelectionLabel: FlatLabel(defaultSubsectionTitle) {
 	textFg: groupCallActiveFg;
@@ -671,7 +666,7 @@ groupCallInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	animation: groupCallPanelAnimation;
 	bg: groupCallMenuBg;
 	scroll: defaultSolidScroll;
-	scrollPadding: margins(0px, 4px, 0px, 4px);
+	scrollPadding: margins(0px, 7px, 0px, 7px);
 }
 groupCallDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	wrap: groupCallInnerDropdown;
@@ -1489,8 +1484,6 @@ groupCallAttentionBoxButton: RoundButton(groupCallBoxButton) {
 groupCallRtmpUrlSkip: 1px;
 groupCallRtmpKeySubsectionTitleSkip: 8px;
 groupCallRtmpSubsectionTitleAddPadding: margins(0px, -1px, 0px, -4px);
-groupCallRtmpShowButtonPosition: point(21px, -5px);
-groupCallDividerBg: groupCallMembersBgRipple;
 
 groupCallScheduleDateField: InputField(groupCallField) {
 	textMargins: margins(2px, 0px, 2px, 0px);

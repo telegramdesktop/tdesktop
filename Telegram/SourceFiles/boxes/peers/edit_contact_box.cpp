@@ -28,7 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/view/controls/history_view_characters_limit.h"
-#include "info/profile/info_profile_cover.h"
+#include "info/profile/info_profile_values.h"
+#include "ui/wrap/padding_wrap.h"
 #include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "info/userpic/info_userpic_emoji_builder_menu_item.h"
 #include "lang/lang_keys.h"
@@ -85,14 +86,13 @@ void SendRequest(
 		const QString &first,
 		const QString &last,
 		const QString &phone,
-		const TextWithEntities &note,
-		Fn<void()> done) {
+		const TextWithEntities &note) {
 	const auto wasContact = user->isContact();
 	using Flag = MTPcontacts_AddContact::Flag;
 	user->session().api().request(MTPcontacts_AddContact(
 		MTP_flags(Flag::f_note
 			| (sharePhone ? Flag::f_add_phone_privacy_exception : Flag(0))),
-		user->inputUser,
+		user->inputUser(),
 		MTP_string(first),
 		MTP_string(last),
 		MTP_string(phone),
@@ -121,8 +121,95 @@ void SendRequest(
 			}
 			box->closeBox();
 		}
-		done();
 	}).send();
+}
+
+class Cover final : public Ui::FixedHeightWidget {
+public:
+	Cover(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user,
+		rpl::producer<QString> status);
+
+private:
+	void setupChildGeometry();
+	void initViewers(rpl::producer<QString> status);
+	void refreshNameGeometry(int newWidth);
+	void refreshStatusGeometry(int newWidth);
+
+	const style::InfoProfileCover &_st;
+	const not_null<UserData*> _user;
+
+	object_ptr<Ui::UserpicButton> _userpic;
+	object_ptr<Ui::FlatLabel> _name = { nullptr };
+	object_ptr<Ui::FlatLabel> _status = { nullptr };
+
+};
+
+Cover::Cover(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<UserData*> user,
+	rpl::producer<QString> status)
+: FixedHeightWidget(parent, st::infoEditContactCover.height)
+, _st(st::infoEditContactCover)
+, _user(user)
+, _userpic(
+		this,
+		controller,
+		_user,
+		Ui::UserpicButton::Role::OpenPhoto,
+		Ui::UserpicButton::Source::PeerPhoto,
+		_st.photo) {
+	_userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	_name = object_ptr<Ui::FlatLabel>(this, _st.name);
+	_name->setSelectable(true);
+	_name->setContextCopyText(tr::lng_profile_copy_fullname(tr::now));
+
+	_status = object_ptr<Ui::FlatLabel>(this, _st.status);
+	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	initViewers(std::move(status));
+	setupChildGeometry();
+}
+
+void Cover::setupChildGeometry() {
+	widthValue(
+	) | rpl::on_next([this](int newWidth) {
+		_userpic->moveToLeft(_st.photoLeft, _st.photoTop, newWidth);
+		refreshNameGeometry(newWidth);
+		refreshStatusGeometry(newWidth);
+	}, lifetime());
+}
+
+void Cover::initViewers(rpl::producer<QString> status) {
+	Info::Profile::NameValue(
+		_user
+	) | rpl::on_next([=](const QString &name) {
+		_name->setText(name);
+		refreshNameGeometry(width());
+	}, lifetime());
+
+	std::move(
+		status
+	) | rpl::on_next([=](const QString &status) {
+		_status->setText(status);
+		refreshStatusGeometry(width());
+	}, lifetime());
+}
+
+void Cover::refreshNameGeometry(int newWidth) {
+	auto nameWidth = newWidth - _st.nameLeft - _st.rightSkip;
+	_name->resizeToNaturalWidth(nameWidth);
+	_name->moveToLeft(_st.nameLeft, _st.nameTop, newWidth);
+}
+
+void Cover::refreshStatusGeometry(int newWidth) {
+	auto statusWidth = newWidth - _st.statusLeft - _st.rightSkip;
+	_status->resizeToNaturalWidth(statusWidth);
+	_status->moveToLeft(_st.statusLeft, _st.statusTop, newWidth);
 }
 
 class Controller {
@@ -176,7 +263,6 @@ private:
 	QString _phone;
 	Fn<void()> _focus;
 	Fn<void()> _save;
-	Fn<std::optional<QImage>()> _updatedPersonalPhoto;
 
 };
 
@@ -215,17 +301,15 @@ void Controller::setupContent() {
 }
 
 void Controller::setupCover() {
-	const auto cover = _box->addRow(
-		object_ptr<Info::Profile::Cover>(
+	_box->addRow(
+		object_ptr<Cover>(
 			_box,
 			_window,
 			_user,
-			Info::Profile::Cover::Role::EditContact,
 			(_phone.isEmpty()
 				? tr::lng_contact_mobile_hidden()
 				: rpl::single(Ui::FormatPhone(_phone)))),
 		style::margins());
-	_updatedPersonalPhoto = [=] { return cover->updatedPersonalPhoto(); };
 }
 
 void Controller::setupNameFields() {
@@ -301,21 +385,6 @@ void Controller::initNameFields(
 			}
 		}
 
-		const auto user = _user;
-		const auto personal = _updatedPersonalPhoto
-			? _updatedPersonalPhoto()
-			: std::nullopt;
-		const auto done = [=] {
-			if (personal) {
-				if (personal->isNull()) {
-					user->session().api().peerPhoto().clearPersonal(user);
-				} else {
-					user->session().api().peerPhoto().upload(
-						user,
-						{ base::duplicate(*personal) });
-				}
-			}
-		};
 		const auto noteValue = _notesField
 			? [&] {
 				auto textWithTags = _notesField->getTextWithAppliedMarkdown();
@@ -328,13 +397,12 @@ void Controller::initNameFields(
 			: TextWithEntities();
 		SendRequest(
 			base::make_weak(_box),
-			user,
+			_user,
 			_sharePhone && _sharePhone->checked(),
 			firstValue,
 			lastValue,
 			_phone,
-			noteValue,
-			done);
+			noteValue);
 	};
 	const auto submit = [=] {
 		const auto firstValue = first->getLastText().trimmed();
@@ -440,7 +508,8 @@ void Controller::setupNotesField() {
 		_box,
 		_window,
 		_emojiPanel.get(),
-		st::sendGifWithCaptionEmojiPosition);
+		st::sendGifWithCaptionEmojiPosition,
+		false);
 	emojiButton->show();
 
 	using Limit = HistoryView::Controls::CharactersLimitLabel;
@@ -688,7 +757,7 @@ void Controller::setupDeleteContactButton() {
 		const auto deleteSure = [=](Fn<void()> &&close) {
 			close();
 			_user->session().api().request(MTPcontacts_DeleteContacts(
-				MTP_vector<MTPInputUser>(1, _user->inputUser)
+				MTP_vector<MTPInputUser>(1, _user->inputUser())
 			)).done([=](const MTPUpdates &result) {
 				_user->session().api().applyUpdates(result);
 				_box->closeBox();

@@ -101,6 +101,17 @@ void SlideAnimation::paintContents(QPainter &p) const {
 				rightWidth * retina,
 				_cacheOver.height() - _topSkip * retina);
 		}
+	} else if (_direction == SlideDirection::FromBottom) {
+		const auto height = _cacheOver.height() / retina;
+		const auto offset = anim::interpolate(0, height, progress);
+		p.drawPixmap(
+			QRect(QPoint(0, -offset), _cacheUnder.size() / retina),
+			_cacheUnder,
+			QRect(QPoint(), _cacheUnder.size()));
+		p.drawPixmap(
+			QRect(QPoint(0, height - offset), _cacheOver.size() / retina),
+			_cacheOver,
+			QRect(QPoint(), _cacheOver.size()));
 	} else {
 		const auto coordUnder = anim::interpolate(
 			0,
@@ -188,12 +199,17 @@ void SlideAnimation::start() {
 	if (fromLeft) {
 		std::swap(_cacheUnder, _cacheOver);
 	}
+	const auto fromBottom = (_direction == SlideDirection::FromBottom);
+	const auto curve = fromBottom ? anim::easeOutQuint : transition();
+	const auto duration = fromBottom
+		? (st::slideDuration * 2)
+		: st::slideDuration;
 	_animation.start(
 		[this] { animationCallback(); },
 		fromLeft ? 1. : 0.,
 		fromLeft ? 0. : 1.,
-		st::slideDuration,
-		transition());
+		duration,
+		curve);
 	if (const auto onstack = _repaintCallback) {
 		onstack();
 	}

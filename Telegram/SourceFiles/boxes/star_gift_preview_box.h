@@ -25,7 +25,7 @@ class GenericBox;
 void StarGiftPreviewBox(
 	not_null<GenericBox*> box,
 	const QString &title,
-	const Data::UniqueGiftAttributes &attributes,
+	Data::UniqueGiftAttributes attributes,
 	Data::GiftAttributeIdType tab,
 	std::shared_ptr<Data::UniqueGift> selected);
 

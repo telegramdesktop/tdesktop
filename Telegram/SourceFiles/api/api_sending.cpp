@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/stickers/data_stickers.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -74,6 +75,28 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 	action.clearDraft = false;
 	action.generateLocal = false;
 	api->sendAction(action);
+
+	if (!action.options.scheduled
+		&& !action.options.shortcutId
+		&& session->ephemeralMessages().sendSimpleMedia(
+			history,
+			action.replyTo,
+			inputMedia)) {
+		api->finishForwarding(action);
+		return;
+	}
+
+	if (action.replyTo.messageId
+		&& !IsServerMsgId(action.replyTo.messageId.msg)
+		&& !session->data().message(action.replyTo.messageId)) {
+		action.replyTo = {
+			.messageId = (action.replyTo.topicRootId
+				? FullMsgId(peer->id, action.replyTo.topicRootId)
+				: FullMsgId()),
+			.topicRootId = action.replyTo.topicRootId,
+			.monoforumPeerId = action.replyTo.monoforumPeerId,
+		};
+	}
 
 	const auto randomId = base::RandomValue<uint64>();
 
@@ -131,7 +154,7 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
-			peer->input,
+			peer->input(),
 			Data::Histories::ReplyToPlaceholder(),
 			std::move(inputMedia),
 			MTPstring(),
@@ -140,7 +163,7 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 			MTPvector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
 			MTP_int(action.options.scheduleRepeatPeriod),
-			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+			(sendAs ? sendAs->input() : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(session, action.options.shortcutId),
 			MTP_long(action.options.effectId),
 			MTP_long(starsPaid),
@@ -182,6 +205,14 @@ void SendExistingMedia(
 	if (action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
+	}
+	if (!action.options.scheduled
+		&& !action.options.shortcutId
+		&& session->ephemeralMessages().wouldSendMedia(
+			peer,
+			action.replyTo,
+			message.textWithTags.text)) {
+		flags |= MessageFlag::Ephemeral;
 	}
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 	InnerFillMessagePostFlags(action.options, peer, flags);
@@ -236,18 +267,29 @@ void SendExistingMedia(
 
 	session->data().registerMessageRandomId(randomId, newId);
 
-	history->addNewLocalMessage({
+	const auto item = history->addNewLocalMessage({
 		.id = newId.msg,
 		.flags = flags,
 		.from = NewMessageFromId(action),
 		.replyTo = action.replyTo,
 		.date = NewMessageDate(action.options),
+		.scheduleRepeatPeriod = action.options.scheduleRepeatPeriod,
 		.shortcutId = action.options.shortcutId,
 		.starsPaid = starsPaid,
 		.postAuthor = NewMessagePostAuthor(action),
 		.effectId = action.options.effectId,
 		.suggest = HistoryMessageSuggestInfo(action.options),
+		.mediaSpoiler = action.options.mediaSpoiler,
 	}, media, caption);
+
+	if (session->ephemeralMessages().sendMedia(
+			item,
+			inputMedia(),
+			origin,
+			inputMedia)) {
+		api->finishForwarding(action);
+		return;
+	}
 
 	const auto performRequest = [=](const auto &repeatRequest) -> void {
 		auto &histories = history->owner().histories();
@@ -259,7 +301,7 @@ void SendExistingMedia(
 			randomId,
 			Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 				MTP_flags(sendFlags),
-				peer->input,
+				peer->input(),
 				Data::Histories::ReplyToPlaceholder(),
 				inputMedia(),
 				MTP_string(captionText),
@@ -268,7 +310,7 @@ void SendExistingMedia(
 				sentEntities,
 				MTP_int(action.options.scheduled),
 				MTP_int(action.options.scheduleRepeatPeriod),
-				(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+				(sendAs ? sendAs->input() : MTP_inputPeerEmpty()),
 				Data::ShortcutIdToMTP(session, action.options.shortcutId),
 				MTP_long(action.options.effectId),
 				MTP_long(starsPaid),
@@ -302,7 +344,9 @@ void SendExistingDocument(
 		std::optional<MsgId> localMessageId) {
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
-			MTP_flags(0),
+			MTP_flags(message.action.options.mediaSpoiler
+				? MTPDinputMediaDocument::Flag::f_spoiler
+				: MTPDinputMediaDocument::Flags(0)),
 			document->mtpInput(),
 			MTPInputPhoto(), // video_cover
 			MTPint(), // ttl_seconds
@@ -329,7 +373,8 @@ void SendExistingPhoto(
 		return MTP_inputMediaPhoto(
 			MTP_flags(0),
 			photo->mtpInput(),
-			MTPint());
+			MTPint(), // ttl_seconds
+			MTPInputDocument()); // video
 	};
 	SendExistingMedia(
 		std::move(message),
@@ -371,7 +416,6 @@ bool SendDice(MessageToSend &message) {
 	message.textWithTags = TextWithTags();
 	message.action.clearDraft = false;
 	message.action.generateLocal = true;
-
 
 	auto &action = message.action;
 	api->sendAction(action);
@@ -428,36 +472,54 @@ bool SendDice(MessageToSend &message) {
 
 	session->data().registerMessageRandomId(randomId, newId);
 
+	auto seed = QByteArray(32, Qt::Uninitialized);
+	base::RandomFill(bytes::make_detached_span(seed));
+	const auto stake = action.options.stakeSeedHash.isEmpty()
+		? 0
+		: action.options.stakeNanoTon;
 	history->addNewLocalMessage({
 		.id = newId.msg,
 		.flags = flags,
 		.from = NewMessageFromId(action),
 		.replyTo = action.replyTo,
 		.date = NewMessageDate(action.options),
+		.scheduleRepeatPeriod = action.options.scheduleRepeatPeriod,
 		.shortcutId = action.options.shortcutId,
 		.starsPaid = starsPaid,
 		.postAuthor = NewMessagePostAuthor(action),
 		.effectId = action.options.effectId,
 		.suggest = HistoryMessageSuggestInfo(action.options),
 	}, TextWithEntities(), MTP_messageMediaDice(
+		MTP_flags(stake
+			? MTPDmessageMediaDice::Flag::f_game_outcome
+			: MTPDmessageMediaDice::Flag()),
 		MTP_int(0),
-		MTP_string(emoji)));
+		MTP_string(emoji),
+		MTP_messages_emojiGameOutcome(
+			MTP_bytes(seed),
+			MTP_long(stake),
+			MTP_long(0))));
 	histories.sendPreparedMessage(
 		history,
 		action.replyTo,
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
-			peer->input,
+			peer->input(),
 			Data::Histories::ReplyToPlaceholder(),
-			MTP_inputMediaDice(MTP_string(emoji)),
+			(stake
+				? MTP_inputMediaStakeDice(
+					MTP_bytes(action.options.stakeSeedHash),
+					MTP_long(stake),
+					MTP_bytes(seed))
+				: MTP_inputMediaDice(MTP_string(emoji))),
 			MTP_string(),
 			MTP_long(randomId),
 			MTPReplyMarkup(),
 			MTP_vector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
 			MTP_int(action.options.scheduleRepeatPeriod),
-			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
+			(sendAs ? sendAs->input() : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(session, action.options.shortcutId),
 			MTP_long(action.options.effectId),
 			MTP_long(starsPaid),
@@ -565,6 +627,16 @@ void SendConfirmedFile(
 	if (file->to.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 	}
+	if (!isEditing
+		&& !groupId
+		&& !file->to.options.scheduled
+		&& !file->to.options.shortcutId
+		&& session->ephemeralMessages().wouldSendMedia(
+			peer,
+			file->to.replyTo,
+			caption.text)) {
+		flags |= MessageFlag::Ephemeral;
+	}
 	FillMessagePostFlags(action, peer, flags);
 	if (file->to.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
@@ -594,7 +666,8 @@ void SendConfirmedFile(
 				MTP_flags(Flag::f_photo
 					| (file->spoiler ? Flag::f_spoiler : Flag())),
 				file->photo,
-				MTPint());
+				MTPint(), // ttl_seconds
+				MTPDocument()); // video
 		} else if (file->type == SendMediaType::File) {
 			using Flag = MTPDmessageMediaDocument::Flag;
 			return MTP_messageMediaDocument(
@@ -660,6 +733,7 @@ void SendConfirmedFile(
 			.from = NewMessageFromId(action),
 			.replyTo = file->to.replyTo,
 			.date = NewMessageDate(file->to.options),
+			.scheduleRepeatPeriod = file->to.options.scheduleRepeatPeriod,
 			.shortcutId = file->to.options.shortcutId,
 			.starsPaid = std::min(
 				history->peer->starsPerMessageChecked(),

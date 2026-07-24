@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::GlobalMedia {
 namespace {
 
-constexpr auto kPerPage = 50;
 constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
@@ -421,6 +420,10 @@ bool Provider::isAfter(
 
 void Provider::setSearchQuery(QString query) {
 	Unexpected("Media::Provider::setSearchQuery.");
+}
+
+void Provider::jumpToMessage(MsgId messageId, Fn<void(FullMsgId)>) {
+	Unexpected("GlobalMedia::Provider::jumpToMessage.");
 }
 
 GlobalMediaKey Provider::sliceKey(Data::MessagePosition aroundId) const {

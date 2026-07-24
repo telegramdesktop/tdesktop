@@ -92,8 +92,8 @@ void SendAsPeers::saveChosen(
 		not_null<PeerData*> peer,
 		not_null<PeerData*> chosen) {
 	peer->session().api().request(MTPmessages_SaveDefaultSendAs(
-		peer->input,
-		chosen->input
+		peer->input(),
+		chosen->input()
 	)).send();
 
 	setChosen(peer, chosen->id);
@@ -152,7 +152,7 @@ void SendAsPeers::request(SendAsKey key) {
 			: (key.type == SendAsType::VideoStream)
 			? Flag::f_for_live_stories
 			: Flag()),
-		key.peer->input
+		key.peer->input()
 	)).done([=](const MTPchannels_SendAsPeers &result) {
 		auto parsed = std::vector<SendAsPeer>();
 		auto &owner = key.peer->owner();

@@ -79,6 +79,10 @@ private:
 		Unexpected("Type in Dialogs::TabLabel.");
 	case ChatSearchTab::PublicPosts:
 		return tr::lng_search_tab_public_posts(tr::now);
+	case ChatSearchTab::Archive:
+		return tr::lng_search_tab_archive(tr::now);
+	case ChatSearchTab::ThisCommunity:
+		return tr::lng_search_tab_this_community(tr::now);
 	}
 	Unexpected("Tab in Dialogs::TabLabel.");
 }
@@ -95,12 +99,10 @@ Action::Action(
 , _height(st::dialogsSearchInHeight)
 , _icon(std::move(icon))
 , _checked(chosen) {
-	const auto parent = parentMenu->menu();
-
 	_text.setText(st::semiboldTextStyle, label);
 	_icon->subscribeToUpdates([=] { update(); });
 
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 	resolveMinWidth();
 
 	paintRequest(
@@ -332,7 +334,7 @@ void ChatSearchIn::showMenu() {
 			tab.icon,
 			TabLabel(value, _peerTabType),
 			(value == active));
-		action->setClickedCallback([=] {
+		action->setActionTriggered([=] {
 			_active = value;
 		});
 		_menu->addAction(std::move(action));
@@ -451,6 +453,7 @@ void ChatSearchIn::updateSection(
 
 		const auto st = &st::dialogsCancelSearchInPeer;
 		section->cancel = std::make_unique<Ui::IconButton>(raw, *st);
+		section->cancel->setAccessibleName(tr::lng_cancel(tr::now));
 		section->cancel->show();
 		raw->sizeValue() | rpl::on_next([=](QSize size) {
 			const auto left = size.width() - section->cancel->width();

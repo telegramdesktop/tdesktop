@@ -27,6 +27,9 @@ void EditBirthdayBox(
 		Data::Birthday current,
 		Fn<void(Data::Birthday)> save,
 		EditBirthdayType type) {
+	if (type != EditBirthdayType::Suggest) {
+		box->setTitle(tr::lng_settings_birthday_title());
+	}
 	box->setWidth(st::boxWideWidth);
 	const auto content = box->addRow(object_ptr<Ui::FixedHeightWidget>(
 		box,

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/send_button.h"
 
 #include "lang/lang_tag.h"
+#include "lottie/lottie_icon.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
@@ -15,33 +16,54 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
+#include "lang/lang_keys.h"
+#include "ui/text/format_values.h"
 
 namespace Ui {
 namespace {
 
-constexpr int kWideScale = 5;
+constexpr auto kWideScale = 5;
+constexpr auto kVoiceToRoundIndex = 0;
+constexpr auto kRoundToVoiceIndex = 1;
+constexpr auto kForbiddenOpacity = 0.5;
 
 } // namespace
 
 SendButton::SendButton(QWidget *parent, const style::SendButton &st)
 : RippleButton(parent, st.inner.ripple)
-, _st(st) {
+, _st(st)
+, _lastRippleShape(currentRippleShape()) {
 	updateSize();
 }
+
+SendButton::~SendButton() = default;
 
 void SendButton::setState(State state) {
 	if (_state == state) {
 		return;
 	}
+
+	const auto previousType = _state.type;
+	const auto newType = state.type;
+	const auto voiceRoundTransition = isVoiceRoundTransition(
+		previousType,
+		newType);
+
 	const auto hasSlowmode = (_state.slowmodeDelay > 0);
 	const auto hasSlowmodeChanged = hasSlowmode != (state.slowmodeDelay > 0);
 	auto withSameSlowmode = state;
 	withSameSlowmode.slowmodeDelay = _state.slowmodeDelay;
 	const auto animate = hasSlowmodeChanged
 		|| (!hasSlowmode && withSameSlowmode != _state);
-	if (animate) {
+
+	if (animate && !voiceRoundTransition) {
 		_contentFrom = grabContent();
 	}
+
+	if (_voiceRoundAnimating && !voiceRoundTransition) {
+		_voiceRoundAnimating = false;
+	}
+
 	if (_state.slowmodeDelay != state.slowmodeDelay) {
 		const auto seconds = state.slowmodeDelay;
 		const auto minutes = seconds / 60;
@@ -60,7 +82,56 @@ void SendButton::setState(State state) {
 			kMarkupTextOptions);
 	}
 	_state = state;
-	if (animate) {
+
+	const auto newShape = currentRippleShape();
+	if (_lastRippleShape != newShape) {
+		_lastRippleShape = newShape;
+		RippleButton::finishAnimating();
+	}
+
+	setAccessibleName([&] {
+		switch (_state.type) {
+		case Type::Send: return tr::lng_send_button(tr::now);
+		case Type::Record:
+			return tr::lng_shortcuts_record_voice_message(tr::now);
+		case Type::Round:
+			return tr::lng_shortcuts_record_round_message(tr::now);
+		case Type::Cancel: return tr::lng_cancel(tr::now);
+		case Type::Save: return tr::lng_settings_save(tr::now);
+		case Type::Slowmode:
+			return tr::lng_slowmode_enabled(
+				tr::now,
+				lt_left,
+				Ui::FormatDurationWordsSlowmode(_state.slowmodeDelay));
+		case Type::Schedule: return tr::lng_schedule_button(tr::now);
+		case Type::EditPrice:
+			return tr::lng_suggest_menu_edit_price(tr::now);
+		}
+		Unexpected("Send button type.");
+	}());
+
+	if (voiceRoundTransition) {
+		_voiceRoundAnimating = true;
+
+		const auto toRound = (newType == Type::Round);
+		const auto index = toRound ? kVoiceToRoundIndex : kRoundToVoiceIndex;
+		auto &icon = _voiceRoundIcons[index];
+		if (!icon) {
+			initVoiceRoundIcon(index);
+		}
+		icon->animate([=, raw = icon.get()] {
+			update();
+			if (!raw->animating()) {
+				_voiceRoundAnimating = false;
+			}
+		}, 0, icon->framesCount() - 1);
+		auto &after = _voiceRoundIcons[1 - index];
+		if (!after) {
+			initVoiceRoundIcon(1 - index);
+		} else if (after->frameIndex() != 0) {
+			after->jumpTo(0, nullptr);
+		}
+	} else if (animate) {
 		_stateChangeFromWidth = width();
 		_stateChangeAnimation.stop();
 		updateSize();
@@ -86,6 +157,12 @@ void SendButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
 	auto over = (isDown() || isOver());
+
+	if (_voiceRoundAnimating) {
+		paintVoiceRoundIcon(p, over);
+		return;
+	}
+
 	auto changed = _stateChangeAnimation.value(1.);
 	if (changed < 1.) {
 		PainterHighQualityEnabler hq(p);
@@ -147,34 +224,60 @@ void SendButton::paintEvent(QPaintEvent *e) {
 }
 
 void SendButton::paintRecord(QPainter &p, bool over) {
-	if (!isDisabled()) {
+	if (!isDisabled() && !_state.forbidden) {
 		paintRipple(
 			p,
 			(width() - _st.inner.rippleAreaSize) / 2,
 			_st.inner.rippleAreaPosition.y());
 	}
-
-	const auto &icon = (isDisabled() || !over)
-		? _st.record
-		: _st.recordOver;
-	icon.paintInCenter(p, rect());
+	if (_state.forbidden) {
+		p.setOpacity(kForbiddenOpacity);
+	}
+	paintLottieIcon(p, kVoiceToRoundIndex, over);
+	if (_state.forbidden) {
+		p.setOpacity(1.);
+	}
 }
 
 void SendButton::paintRound(QPainter &p, bool over) {
-	if (!isDisabled()) {
+	if (!isDisabled() && !_state.forbidden) {
 		paintRipple(
 			p,
 			(width() - _st.inner.rippleAreaSize) / 2,
 			_st.inner.rippleAreaPosition.y());
 	}
+	if (_state.forbidden) {
+		p.setOpacity(kForbiddenOpacity);
+	}
+	paintLottieIcon(p, kRoundToVoiceIndex, over);
+	if (_state.forbidden) {
+		p.setOpacity(1.);
+	}
+}
 
-	const auto &icon = (isDisabled() || !over)
-		? _st.round
-		: _st.roundOver;
-	icon.paintInCenter(p, rect());
+void SendButton::paintLottieIcon(QPainter &p, int index, bool over) {
+	auto &icon = _voiceRoundIcons[index];
+	if (!icon) {
+		initVoiceRoundIcon(index);
+	} else if (!_voiceRoundAnimating && icon->frameIndex() != 0) {
+		icon->jumpTo(0, [=] { update(); });
+	}
+	const auto color = (isDisabled() || !over)
+		? st::historyRecordVoiceFg->c
+		: st::historyRecordVoiceFgOver->c;
+	icon->paintInCenter(p, rect(), color);
 }
 
 void SendButton::paintSave(QPainter &p, bool over) {
+	if (!isDisabled()) {
+		auto color = _st.sendIconFg->c;
+		color.setAlpha(25);
+		paintRipple(
+			p,
+			(width() - _st.inner.rippleAreaSize) / 2,
+			_st.inner.rippleAreaPosition.y(),
+			&color);
+	}
 	const auto &saveIcon = over
 		? st::historyEditSaveIconOver
 		: st::historyEditSaveIcon;
@@ -196,16 +299,30 @@ void SendButton::paintCancel(QPainter &p, bool over) {
 void SendButton::paintSend(QPainter &p, bool over) {
 	const auto &sendIcon = over ? _st.inner.iconOver : _st.inner.icon;
 	if (const auto padding = _st.sendIconFillPadding; padding > 0) {
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		if (_state.fillBgOverride.isValid()) {
-			p.setBrush(_state.fillBgOverride);
-		} else {
-			p.setBrush(st::windowBgActive);
+		const auto ellipse = sendEllipseRect();
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			if (_state.fillBgOverride.isValid()) {
+				p.setBrush(_state.fillBgOverride);
+			} else {
+				p.setBrush(st::windowBgActive);
+			}
+			p.drawEllipse(ellipse);
 		}
-		p.drawEllipse(
-			QRect(_st.sendIconPosition, sendIcon.size()).marginsAdded(
-				{ padding, padding, padding, padding }));
+		if (!isDisabled()) {
+			auto color = _st.sendIconFg->c;
+			color.setAlpha(25);
+			paintRipple(p, ellipse.topLeft(), &color);
+		}
+	} else if (!isDisabled()) {
+		auto color = _st.sendIconFg->c;
+		color.setAlpha(25);
+		paintRipple(
+			p,
+			(width() - _st.inner.rippleAreaSize) / 2,
+			_st.inner.rippleAreaPosition.y(),
+			&color);
 	}
 	if (isDisabled()) {
 		const auto color = st::historyRecordVoiceFg->c;
@@ -228,6 +345,11 @@ void SendButton::paintStarsToSend(QPainter &p, bool over) {
 		const auto radius = geometry.rounded.height() / 2;
 		p.drawRoundedRect(geometry.rounded, radius, radius);
 	}
+	if (!isDisabled()) {
+		auto color = _st.stars.textFg->c;
+		color.setAlpha(25);
+		paintRipple(p, geometry.rounded.topLeft(), &color);
+	}
 	p.setPen(over ? _st.stars.textFgOver : _st.stars.textFg);
 	_starsToSendText.draw(p, {
 		.position = geometry.inner.topLeft(),
@@ -237,15 +359,17 @@ void SendButton::paintStarsToSend(QPainter &p, bool over) {
 }
 
 void SendButton::paintSchedule(QPainter &p, bool over) {
+	const auto ellipse = scheduleEllipseRect();
 	{
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(over ? st::historySendIconFgOver : st::historySendIconFg);
-		p.drawEllipse(
-			st::historyScheduleIconPosition.x(),
-			st::historyScheduleIconPosition.y(),
-			st::historyScheduleIcon.width(),
-			st::historyScheduleIcon.height());
+		p.drawEllipse(ellipse);
+	}
+	if (!isDisabled()) {
+		auto color = st::historyComposeAreaBg->c;
+		color.setAlpha(25);
+		paintRipple(p, ellipse.topLeft(), &color);
 	}
 	st::historyScheduleIcon.paint(
 		p,
@@ -288,6 +412,43 @@ SendButton::StarsGeometry SendButton::starsGeometry() const {
 	};
 }
 
+SendButton::RippleShape SendButton::currentRippleShape() const {
+	switch (_state.type) {
+	case Type::Send:
+		if (!_starsToSendText.isEmpty()) {
+			return RippleShape::StarsRoundRect;
+		} else if (_st.sendIconFillPadding > 0) {
+			return RippleShape::SendEllipse;
+		}
+		return RippleShape::InnerEllipse;
+	case Type::Schedule:
+		return RippleShape::ScheduleEllipse;
+	case Type::Save:
+	case Type::Record:
+	case Type::Round:
+	case Type::Cancel:
+	case Type::Slowmode:
+	case Type::EditPrice:
+		return RippleShape::InnerEllipse;
+	}
+	Unexpected("Type in SendButton::currentRippleShape.");
+}
+
+QRect SendButton::sendEllipseRect() const {
+	const auto &sendIcon = _st.inner.icon;
+	const auto padding = _st.sendIconFillPadding;
+	return QRect(_st.sendIconPosition, sendIcon.size()).marginsAdded(
+		{ padding, padding, padding, padding });
+}
+
+QRect SendButton::scheduleEllipseRect() const {
+	return QRect(
+		st::historyScheduleIconPosition,
+		QSize(
+			st::historyScheduleIcon.width(),
+			st::historyScheduleIcon.height()));
+}
+
 void SendButton::updateSize() {
 	if (_state.type == Type::EditPrice) {
 		resize(0, _st.inner.height);
@@ -319,15 +480,83 @@ QPixmap SendButton::grabContent() {
 }
 
 QImage SendButton::prepareRippleMask() const {
-	const auto size = _st.inner.rippleAreaSize;
-	return RippleAnimation::EllipseMask(QSize(size, size));
+	switch (_lastRippleShape) {
+	case RippleShape::InnerEllipse: {
+		const auto size = _st.inner.rippleAreaSize;
+		return RippleAnimation::EllipseMask(QSize(size, size));
+	}
+	case RippleShape::SendEllipse: {
+		const auto r = sendEllipseRect();
+		return RippleAnimation::EllipseMask(r.size());
+	}
+	case RippleShape::StarsRoundRect: {
+		const auto r = starsGeometry().rounded;
+		const auto radius = r.height() / 2;
+		return RippleAnimation::RoundRectMask(r.size(), radius);
+	}
+	case RippleShape::ScheduleEllipse: {
+		const auto r = scheduleEllipseRect();
+		return RippleAnimation::EllipseMask(r.size());
+	}
+	}
+	Unexpected("RippleShape in SendButton::prepareRippleMask.");
 }
 
 QPoint SendButton::prepareRippleStartPosition() const {
 	const auto real = mapFromGlobal(QCursor::pos());
-	const auto size = _st.inner.rippleAreaSize;
-	const auto y = (height() - _st.inner.rippleAreaSize) / 2;
-	return real - QPoint((width() - size) / 2, y);
+	switch (_lastRippleShape) {
+	case RippleShape::InnerEllipse: {
+		const auto size = _st.inner.rippleAreaSize;
+		const auto y = (height() - size) / 2;
+		return real - QPoint((width() - size) / 2, y);
+	}
+	case RippleShape::SendEllipse:
+		return real - sendEllipseRect().topLeft();
+	case RippleShape::StarsRoundRect:
+		return real - starsGeometry().rounded.topLeft();
+	case RippleShape::ScheduleEllipse:
+		return real - scheduleEllipseRect().topLeft();
+	}
+	Unexpected("RippleShape in SendButton::prepareRippleStartPosition.");
+}
+
+void SendButton::initVoiceRoundIcon(int index) {
+	Expects(index >= 0 && index < 2);
+
+	_voiceRoundIcons[index] = Lottie::MakeIcon({
+		.path = ((index == kVoiceToRoundIndex)
+			? u":/animations/chat/voice_to_video.tgs"_q
+			: u":/animations/chat/video_to_voice.tgs"_q),
+		.sizeOverride = _st.recordSize,
+		.colorizeUsingAlpha = true,
+	});
+}
+
+void SendButton::paintVoiceRoundIcon(QPainter &p, bool over) {
+	if (!isDisabled() && !_state.forbidden) {
+		paintRipple(
+			p,
+			(width() - _st.inner.rippleAreaSize) / 2,
+			_st.inner.rippleAreaPosition.y());
+	}
+
+	if (_state.forbidden) {
+		p.setOpacity(kForbiddenOpacity);
+	}
+	const auto color = (isDisabled() || !over)
+		? st::historyRecordVoiceFg->c
+		: st::historyRecordVoiceFgOver->c;
+	const auto toVideo = (_state.type == Type::Round);
+	const auto index = toVideo ? kVoiceToRoundIndex : kRoundToVoiceIndex;
+	_voiceRoundIcons[index]->paintInCenter(p, rect(), color);
+	if (_state.forbidden) {
+		p.setOpacity(1.);
+	}
+}
+
+bool SendButton::isVoiceRoundTransition(Type from, Type to) {
+	return (from == Type::Record && to == Type::Round)
+		|| (from == Type::Round && to == Type::Record);
 }
 
 SendStarButton::SendStarButton(

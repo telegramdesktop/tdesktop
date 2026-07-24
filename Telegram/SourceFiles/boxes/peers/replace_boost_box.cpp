@@ -593,10 +593,25 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 	const auto raw = result.data();
 	const auto right = CreateChild<Ui::UserpicButton>(raw, to, st->button);
 	const auto overlay = CreateChild<Ui::RpWidget>(raw);
+	const auto drawCornerPeer = (type == Type::ChannelFutureOwner)
+		? [&]() -> PaintRoundImageCallback {
+			using Peers = std::vector<not_null<PeerData*>>;
+			const auto snapshot = rpl::variable<Peers>(
+				rpl::duplicate(from)).current();
+			if (snapshot.size() == 2) {
+				return ForceRoundUserpicCallback(snapshot[1].get());
+			}
+			return nullptr;
+		}()
+		: (PaintRoundImageCallback)(nullptr);
 
 	const auto state = raw->lifetime().make_state<State>();
-	std::move(
-		from
+	((type == Type::ChannelFutureOwner)
+		? std::move(from) | rpl::map([=](
+				const std::vector<not_null<PeerData*>> &list) {
+			return std::vector<not_null<PeerData*>>{ list.front() };
+		})
+		: std::move(from)
 	) | rpl::on_next([=](
 			const std::vector<not_null<PeerData*>> &list) {
 		auto was = base::take(state->from);
@@ -662,7 +677,7 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 		}
 		state->layer.fill(Qt::transparent);
 
-		auto q = QPainter(&state->layer);
+		auto q = Painter(&state->layer);
 		auto hq = PainterHighQualityEnabler(q);
 		const auto stroke = st->stroke;
 		const auto half = stroke / 2.;
@@ -680,24 +695,41 @@ object_ptr<Ui::RpWidget> CreateUserpicsTransfer(
 		const auto last = state->buttons.back().get();
 		if (type != Type::AuctionRecipient) {
 			const auto boosting = (type == Type::BoostReplace);
-			const auto back = boosting ? last : right;
+			const auto guard = (type == Type::GuardBotReplace);
+			const auto gradient = boosting || guard;
+			const auto back = gradient ? last : right;
 			const auto add = st::boostReplaceIconAdd;
-			const auto &icon = boosting
+			const auto &icon = guard
+				? st::guardBotReplaceIcon
+				: boosting
 				? st::boostReplaceIcon
 				: st::starrefJoinIcon;
-			const auto skip = boosting ? st::boostReplaceIconSkip : 0;
+			const auto skip = gradient ? st::boostReplaceIconSkip : 0;
 			const auto w = icon.width() + 2 * skip;
 			const auto h = icon.height() + 2 * skip;
 			const auto x = back->x() + back->width() - w + add.x();
 			const auto y = back->y() + back->height() - h + add.y();
 
-			auto brush = QLinearGradient(QPointF(x + w, y + h), QPointF(x, y));
-			brush.setStops(Ui::Premium::ButtonGradientStops());
-			q.setBrush(brush);
-			pen.setWidthF(stroke);
+			pen.setWidthF(drawCornerPeer ? stroke * 2 : stroke);
 			q.setPen(pen);
-			q.drawEllipse(x - half, y - half, w + stroke, h + stroke);
-			icon.paint(q, x + skip, y + skip, outerw);
+			if (drawCornerPeer) {
+				q.setBrush(Qt::NoBrush);
+				q.drawEllipse(x - half, y - half, w + stroke, h + stroke);
+				drawCornerPeer(
+					q,
+					x - half,
+					y - half,
+					w + stroke,
+					w + stroke);
+			} else {
+				auto brush = QLinearGradient(
+					QPointF(x + w, y + h),
+					QPointF(x, y));
+				brush.setStops(Ui::Premium::ButtonGradientStops());
+				q.setBrush(brush);
+				q.drawEllipse(x - half, y - half, w + stroke, h + stroke);
+				icon.paint(q, x + skip, y + skip, outerw);
+			}
 		}
 		const auto size = st::boostReplaceArrow.size();
 		st::boostReplaceArrow.paint(
@@ -952,6 +984,64 @@ private:
 
 };
 
+[[nodiscard]] PaintRoundImageCallback GenerateGiftUniqueUserpicCallback(
+		not_null<Main::Session*> session,
+		std::shared_ptr<Data::UniqueGift> unique,
+		Fn<void()> update) {
+	struct State {
+		QImage layer;
+		std::shared_ptr<UniqueGiftBackground> bg;
+		std::shared_ptr<Ui::Text::CustomEmoji> sticker;
+	};
+	const auto state = std::make_shared<State>();
+	const auto repaint = [=] {
+		if (update) {
+			update();
+		}
+	};
+	state->bg = std::make_shared<UniqueGiftBackground>(session, unique);
+	state->bg->subscribeToUpdates(repaint);
+	const auto tag = Data::CustomEmojiSizeTag::Isolated;
+	state->sticker = session->data().customEmojiManager().create(
+		unique->model.document,
+		repaint,
+		tag);
+
+	return [=](QPainter &p, int x, int y, int outerw, int size) {
+		const auto ideal = st::boostReplaceUserpic.photoSize;
+		const auto scale = size / float64(ideal);
+		const auto ratio = style::DevicePixelRatio();
+		if (state->layer.size() != QSize(ideal, ideal) * ratio) {
+			state->layer = QImage(
+				QSize(ideal, ideal) * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			state->layer.setDevicePixelRatio(ratio);
+		}
+		state->layer.fill(Qt::transparent);
+
+		auto q = QPainter(&state->layer);
+		auto hq = PainterHighQualityEnabler(q);
+		const auto esize = Data::FrameSizeFromTag(tag) / ratio;
+		q.drawImage(QRect(0, 0, ideal, ideal), state->bg->image(ideal));
+		state->sticker->paint(q, {
+			.textColor = st::windowFg->c,
+			.now = crl::now(),
+			.position = QPoint((ideal - esize) / 2, (ideal - esize) / 2),
+		});
+		q.end();
+
+		if (scale != 1.) {
+			p.save();
+			p.translate(x, y);
+			p.scale(scale, scale);
+			p.drawImage(0, 0, state->layer);
+			p.restore();
+		} else {
+			p.drawImage(x, y, state->layer);
+		}
+	};
+}
+
 object_ptr<Ui::RpWidget> CreateGiftTransfer(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<Data::UniqueGift> unique,
@@ -959,8 +1049,7 @@ object_ptr<Ui::RpWidget> CreateGiftTransfer(
 	struct State {
 		QImage layer;
 		QPoint giftPosition;
-		std::shared_ptr<UniqueGiftBackground> bg;
-		std::shared_ptr<Ui::Text::CustomEmoji> sticker;
+		PaintRoundImageCallback paintGift;
 	};
 	const auto st = &st::boostReplaceUserpicsRow;
 	const auto full = st->button.size.height()
@@ -972,18 +1061,10 @@ object_ptr<Ui::RpWidget> CreateGiftTransfer(
 	const auto overlay = CreateChild<Ui::RpWidget>(raw);
 
 	const auto state = raw->lifetime().make_state<State>();
-	state->bg = std::make_shared<UniqueGiftBackground>(
+	state->paintGift = GenerateGiftUniqueUserpicCallback(
 		&to->session(),
-		unique);
-	state->bg->subscribeToUpdates([=] {
-		overlay->update();
-	});
-	const auto tag = Data::CustomEmojiSizeTag::Isolated;
-	state->sticker = to->owner().customEmojiManager().create(
-		unique->model.document,
-		[=] { overlay->update(); },
-		tag);
-	overlay->update();
+		unique,
+		[=] { raw->update(); });
 
 	raw->widthValue(
 	) | rpl::on_next([=](int width) {
@@ -1008,18 +1089,14 @@ object_ptr<Ui::RpWidget> CreateGiftTransfer(
 		}
 		state->layer.fill(Qt::transparent);
 
-		auto q = QPainter(&state->layer);
+		auto q = Painter(&state->layer);
 		auto hq = PainterHighQualityEnabler(q);
-		const auto from = QRect(state->giftPosition, right->size());
-		const auto esize = Data::FrameSizeFromTag(tag) / ratio;
-		q.drawImage(from, state->bg->image(from.width()));
-		state->sticker->paint(q, {
-			.textColor = st::windowFg->c,
-			.now = crl::now(),
-			.position = from.topLeft() + QPoint(
-				(from.width() - esize) / 2,
-				(from.height() - esize) / 2),
-		});
+		state->paintGift(
+			q,
+			state->giftPosition.x(),
+			state->giftPosition.y(),
+			outerw,
+			right->width());
 
 		const auto size = st::boostReplaceArrow.size();
 		st::boostReplaceArrow.paint(

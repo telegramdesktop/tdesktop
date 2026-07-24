@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_line.h"
 
 #include <QGraphicsScene>
+#include <QtGui/QPainter>
 
 namespace Editor {
 
@@ -25,6 +26,36 @@ void ItemLine::paint(
 		const QStyleOptionGraphicsItem *,
 		QWidget *) {
 	p->drawPixmap(0, 0, _pixmap);
+}
+
+const QPixmap &ItemLine::pixmap() const {
+	return _pixmap;
+}
+
+void ItemLine::setPixmap(QPixmap pixmap) {
+	_pixmap = std::move(pixmap);
+	update();
+}
+
+bool ItemLine::applyEraser(const QPixmap &mask, const QPointF &maskPos) {
+	if (mask.isNull()) {
+		return false;
+	}
+	const auto maskSize = mask.size() / float64(mask.devicePixelRatio());
+	const auto localTopLeft = maskPos - pos();
+	const auto localRect = QRectF(localTopLeft, maskSize);
+	if (!localRect.intersects(_rect)) {
+		return false;
+	}
+	auto image = _pixmap.toImage().convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
+	auto p = QPainter(&image);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+	p.drawPixmap(localTopLeft, mask);
+	p.end();
+	_pixmap = QPixmap::fromImage(std::move(image));
+	update();
+	return true;
 }
 
 bool ItemLine::collidesWithItem(

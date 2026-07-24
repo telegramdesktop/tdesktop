@@ -87,7 +87,7 @@ void AddTableRow(
 		st::giveawayGiftCodePeerMargin);
 }
 
-object_ptr<RpWidget> MakeValueWithSmallButton(
+ValueWithSmallButton MakeValueWithSmallButton(
 		not_null<TableLayout*> table,
 		not_null<RpWidget*> value,
 		rpl::producer<QString> buttonText,
@@ -110,7 +110,6 @@ object_ptr<RpWidget> MakeValueWithSmallButton(
 		raw,
 		std::move(buttonText),
 		table->st().smallButton);
-	button->setTextTransform(RoundButton::TextTransform::NoTransform);
 	if (handler) {
 		button->setClickedCallback([button, handler = std::move(handler)] {
 			handler(button);
@@ -139,7 +138,10 @@ object_ptr<RpWidget> MakeValueWithSmallButton(
 		raw->resize(raw->width(), height + bottom);
 	}, raw->lifetime());
 
-	return result;
+	return {
+		.widget = std::move(result),
+		.button = button,
+	};
 }
 
 object_ptr<RpWidget> MakePeerTableValue(
@@ -193,7 +195,7 @@ object_ptr<RpWidget> MakePeerTableValue(
 		result.release(),
 		std::move(button),
 		[=](not_null<RpWidget*> button) { handler(); },
-		st::giveawayGiftCodeNamePosition.y());
+		st::giveawayGiftCodeNamePosition.y()).widget;
 }
 
 object_ptr<RpWidget> MakePeerWithStatusValue(
@@ -372,7 +374,7 @@ void ShowTableRowTooltip(
 	}, tooltip->lifetime());
 }
 
-object_ptr<RpWidget> MakeTableValueWithTooltip(
+ValueWithSmallButton MakeTableValueWithTooltip(
 		not_null<TableLayout*> table,
 		std::shared_ptr<TableRowTooltipData> data,
 		TextWithEntities price,

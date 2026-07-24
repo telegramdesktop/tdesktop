@@ -27,7 +27,7 @@ StickersPanelController::StickersPanelController(
 				nullptr,
 				ChatHelpers::TabbedSelectorDescriptor{
 					.show = show,
-					.st = st::storiesComposeControls.tabbed,
+					.st = st::mediaviewEmojiPan,
 					.level = Window::GifPauseReason::Layer,
 					.mode = ChatHelpers::TabbedSelector::Mode::MediaEditor,
 					.features = {

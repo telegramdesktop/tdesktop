@@ -92,6 +92,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> emptyValue() const {
 		return _empty.value();
 	}
+	void setShowTitle(bool shown);
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
 	[[nodiscard]] rpl::producer<ShowMenuRequest> showMenuRequests() const;
 	[[nodiscard]] rpl::producer<bool> toggleExpandedRequests() const;
@@ -100,6 +101,9 @@ public:
 
 	[[nodiscard]] auto verticalScrollEvents() const
 		-> rpl::producer<not_null<QWheelEvent*>>;
+
+	[[nodiscard]] bool toggledHidden() const;
+	void setToggledHidden(bool hiddenInstant, bool hiddenAnimated);
 
 private:
 	struct Layout;
@@ -124,6 +128,7 @@ private:
 	};
 
 	void showContent(Content &&content);
+	void validateTitle();
 	//void enterEventHook(QEnterEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
@@ -185,6 +190,9 @@ private:
 	QRect _changingGeometryFrom;
 	State _state = State::Small;
 	rpl::variable<bool> _empty = true;
+	QString _title;
+	int _titleWidth = 0;
+	bool _showTitle = false;
 
 	QPoint _lastMousePosition;
 	std::optional<QPoint> _mouseDownPosition;
@@ -196,8 +204,11 @@ private:
 
 	Ui::Animations::Simple _expandedAnimation;
 	Ui::Animations::Simple _expandCatchUpAnimation;
+	Ui::Animations::Simple _hiddenAnimation;
 	float64 _lastRatio = 0.;
 	int _lastExpandedHeight = 0;
+	bool _hiddenAnimated : 1 = false;
+	bool _hiddenInstant : 1 = false;
 	bool _expandIgnored : 1 = false;
 	bool _expanded : 1 = false;
 

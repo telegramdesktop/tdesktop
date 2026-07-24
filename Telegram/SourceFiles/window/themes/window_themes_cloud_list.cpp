@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/themes/window_themes_cloud_list.h"
 
+#include "base/call_delayed.h"
+#include "ui/emoji_config.h"
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor_box.h"
+#include "window/themes/window_themes_chat.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -19,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/image/image_prepare.h"
+#include "ui/rect.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
 #include "ui/style/style_palette_colorizer.h"
@@ -28,8 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/application.h"
 #include "styles/style_settings.h"
+#include "styles/style_window.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -47,6 +53,24 @@ constexpr auto kShowPerRow = 4;
 	result.id = result.documentId = kFakeCloudThemeId;
 	result.slug = object.pathAbsolute;
 	return result;
+}
+
+[[nodiscard]] bool IsChatTheme(const Data::CloudTheme &theme) {
+	return !theme.documentId
+		&& !theme.emoticon.isEmpty()
+		&& !theme.settings.empty();
+}
+
+[[nodiscard]] bool ContainsThemeWithEmoticon(
+		const std::vector<Data::CloudTheme> &list,
+		const QString &emoticon) {
+	const auto emoji = Ui::Emoji::Find(emoticon);
+	if (!emoji) {
+		return false;
+	}
+	return ranges::contains(list, emoji, [](const Data::CloudTheme &theme) {
+		return Ui::Emoji::Find(theme.emoticon);
+	});
 }
 
 [[nodiscard]] QImage ColorsBackgroundFromImage(const QImage &source) {
@@ -109,6 +133,81 @@ constexpr auto kShowPerRow = 4;
 	return result;
 }
 
+[[nodiscard]] QImage ChatThemeBackground(not_null<Ui::ChatTheme*> theme) {
+	const auto &background = theme->background();
+	if (background.waitingForNegativePattern()) {
+		return QImage();
+	}
+	const auto size = st::settingsThemePreviewSize;
+	const auto fullsize = size * style::DevicePixelRatio();
+	const auto prepared = background.prepared;
+	const auto paintPattern = [&](QPainter &p, bool inverted) {
+		if (prepared.isNull()) {
+			return;
+		}
+		const auto w = prepared.width();
+		const auto h = prepared.height();
+		const auto scaled = size.scaled(
+			st::windowMinWidth,
+			st::windowMinHeight,
+			Qt::KeepAspectRatio);
+		const auto use = (scaled.width() > w || scaled.height() > h)
+			? scaled.scaled({ w, h }, Qt::KeepAspectRatio)
+			: scaled;
+		const auto good = QSize(
+			std::max(use.width(), 1),
+			std::max(use.height(), 1));
+		auto small = prepared.copy(QRect(
+			QPoint((w - good.width()) / 2, (h - good.height()) / 2),
+			good));
+		if (inverted) {
+			small = Ui::InvertPatternImage(std::move(small));
+		}
+		p.drawImage(QRect(QPoint(), fullsize), small);
+	};
+	auto result = Ui::GenerateBackgroundImage(
+		fullsize,
+		(background.colors.empty()
+			? std::vector<QColor>{ QColor(0, 0, 0) }
+			: background.colors),
+		background.gradientRotation,
+		background.patternOpacity,
+		paintPattern);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
+	return result;
+}
+
+[[nodiscard]] CloudListColors ColorsFromTheme(const Data::CloudTheme &theme) {
+	const auto dark = IsNightMode();
+	const auto used = ChatThemeVariant(theme, dark);
+	Assert(used.has_value());
+	const auto &settings = theme.settings.find(*used)->second;
+	auto result = CloudListColors();
+	result.sent = settings.outgoingMessagesColors.empty()
+		? settings.accentColor
+		: settings.outgoingMessagesColors.front();
+	result.received = dark ? QColor(24, 24, 25) : QColor(255, 255, 255);
+	result.radiobuttonActive
+		= result.radiobuttonInactive
+		= (dark ? QColor(255, 255, 255) : settings.accentColor);
+	const auto paperColors = settings.paper
+		? settings.paper->backgroundColors()
+		: std::vector<QColor>();
+	if (paperColors.size() > 1) {
+		result.background = Images::GenerateLinearGradient(
+			st::settingsThemePreviewSize * style::DevicePixelRatio(),
+			paperColors);
+	} else {
+		result.background = QImage(
+			QSize(1, 1) * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		result.background.fill(paperColors.empty()
+			? settings.accentColor
+			: paperColors.front());
+	}
+	return result;
+}
+
 [[nodiscard]] CloudListColors ColorsFromCurrentTheme() {
 	auto result = CloudListColors();
 	auto background = Background()->createCurrentImage();
@@ -117,7 +216,7 @@ constexpr auto kShowPerRow = 4;
 	result.received = st::msgInBg->c;
 	result.radiobuttonActive
 		= result.radiobuttonInactive
-		= st::msgServiceFg->c;
+		= st::activeButtonBg->c;
 	return result;
 }
 
@@ -144,6 +243,9 @@ CloudListColors ColorsFromScheme(
 	}
 	auto copy = scheme;
 	Colorize(copy, colorizer);
+	if (const auto accent = style::colorize(copy.accentColor, colorizer)) {
+		copy.accentColor = *accent;
+	}
 	return ColorsFromScheme(copy);
 }
 
@@ -157,11 +259,15 @@ CloudListCheck::CloudListCheck(bool checked)
 , _radio(st::defaultRadio, checked, [=] { update(); }) {
 }
 
+void CloudListCheck::setEmoji(EmojiPtr emoji) {
+	_emoji = emoji;
+	update();
+}
+
 void CloudListCheck::setColors(const Colors &colors) {
 	_colors = colors;
 	if (!_colors->background.isNull()) {
-		const auto size = st::settingsThemePreviewSize
-			* style::DevicePixelRatio();
+		const auto size = getSize() * style::DevicePixelRatio();
 		_backgroundFull = (_colors->background.size() == size)
 			? _colors->background
 			: _colors->background.scaled(
@@ -170,9 +276,11 @@ void CloudListCheck::setColors(const Colors &colors) {
 				Qt::SmoothTransformation);
 		_backgroundCacheWidth = -1;
 
-		ensureContrast();
-		_radio.setToggledOverride(_colors->radiobuttonActive);
-		_radio.setUntoggledOverride(_colors->radiobuttonInactive);
+		if (!_emoji) {
+			ensureContrast();
+			_radio.setToggledOverride(_colors->radiobuttonActive);
+			_radio.setUntoggledOverride(_colors->radiobuttonInactive);
+		}
 	}
 	update();
 }
@@ -199,6 +307,10 @@ void CloudListCheck::ensureContrast() {
 	_colors->radiobuttonInactive.setAlpha(192);
 }
 
+void CloudListCheck::checkedChangedHook(anim::type animated) {
+	_radio.setChecked(checked(), animated);
+}
+
 QSize CloudListCheck::getSize() const {
 	return st::settingsThemePreviewSize;
 }
@@ -209,7 +321,7 @@ void CloudListCheck::validateBackgroundCache(int width) {
 	}
 	_backgroundCacheWidth = width;
 	const auto imageWidth = width * style::DevicePixelRatio();
-	_backgroundCache = (width == st::settingsThemePreviewSize.width())
+	_backgroundCache = (width == getSize().width())
 		? _backgroundFull
 		: _backgroundFull.copy(
 			(_backgroundFull.width() - imageWidth) / 2,
@@ -241,7 +353,7 @@ void CloudListCheck::paintNotSupported(
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::settingsThemeNotSupportedBg);
 
-	const auto height = st::settingsThemePreviewSize.height();
+	const auto height = getSize().height();
 	const auto rect = QRect(0, 0, outerWidth, height);
 	const auto radius = st::roundRadiusLarge;
 	p.drawRoundedRect(rect, radius, radius);
@@ -257,7 +369,7 @@ void CloudListCheck::paintWithColors(
 
 	validateBackgroundCache(outerWidth);
 	p.drawImage(
-		QRect(0, 0, outerWidth, st::settingsThemePreviewSize.height()),
+		QRect(0, 0, outerWidth, getSize().height()),
 		_backgroundCache);
 
 	const auto received = QRect(
@@ -278,6 +390,11 @@ void CloudListCheck::paintWithColors(
 	p.setBrush(_colors->sent);
 	p.drawRoundedRect(style::rtlrect(sent, outerWidth), radius, radius);
 
+	if (_emoji) {
+		paintEmoji(p, outerWidth);
+		paintOutline(p, outerWidth);
+		return;
+	}
 	const auto radio = _radio.getSize();
 	_radio.paint(
 		p,
@@ -286,16 +403,50 @@ void CloudListCheck::paintWithColors(
 		outerWidth);
 }
 
+void CloudListCheck::paintEmoji(QPainter &p, int outerWidth) {
+	if (!_emoji) {
+		return;
+	}
+	const auto large = Ui::Emoji::GetSizeLarge();
+	const auto size = large / style::DevicePixelRatio();
+	Ui::Emoji::Draw(
+		p,
+		_emoji,
+		large,
+		(outerWidth - size) / 2,
+		getSize().height() - size - st::settingsThemeRadioBottom);
+}
+
+void CloudListCheck::paintOutline(QPainter &p, int outerWidth) {
+	const auto toggled = currentAnimationValue();
+	if (toggled <= 0.) {
+		return;
+	}
+	const auto width = float64(st::settingsThemeOutlineWidth);
+	const auto inset = width / 2.;
+	const auto radius = st::roundRadiusLarge - inset;
+	auto pen = QPen(_colors->radiobuttonActive);
+	pen.setWidthF(width);
+	p.setPen(pen);
+	p.setBrush(Qt::NoBrush);
+	p.setOpacity(toggled);
+	p.drawRoundedRect(
+		QRectF(0, 0, outerWidth, getSize().height()).adjusted(
+			inset,
+			inset,
+			-inset,
+			-inset),
+		radius,
+		radius);
+	p.setOpacity(1.);
+}
+
 QImage CloudListCheck::prepareRippleMask() const {
 	return QImage();
 }
 
 bool CloudListCheck::checkRippleStartPosition(QPoint position) const {
 	return false;
-}
-
-void CloudListCheck::checkedChangedHook(anim::type animated) {
-	_radio.setChecked(checked(), animated);
 }
 
 CloudList::CloudList(
@@ -333,9 +484,15 @@ rpl::producer<bool> CloudList::allShown() const {
 
 void CloudList::setup() {
 	_group->setChangedCallback([=](int selected) {
-		const auto &object = Background()->themeObject();
-		_group->setValue(groupValueForId(
-			object.cloud.id ? object.cloud.id : kFakeCloudThemeId));
+		const auto i = ranges::find_if(_elements, [&](const Element &e) {
+			return (groupValueForId(e.theme.id) == selected)
+				&& !e.theme.emoticon.isEmpty()
+				&& !e.theme.settings.empty();
+		});
+		if (i != end(_elements)) {
+			return;
+		}
+		_group->setValue(groupValueForId(appliedElementId()));
 	});
 
 	auto cloudListChanges = rpl::single(rpl::empty) | rpl::then(
@@ -376,7 +533,8 @@ std::vector<Data::CloudTheme> CloudList::collectAll() const {
 			result,
 			object.cloud.id,
 			&Data::CloudTheme::id);
-		if (i == end(result)) {
+		if (i == end(result)
+			&& !ContainsThemeWithEmoticon(result, object.cloud.emoticon)) {
 			if (object.cloud.id) {
 				result.push_back(object.cloud);
 			} else {
@@ -406,37 +564,16 @@ bool CloudList::applyChangesFrom(std::vector<Data::CloudTheme> &&list) {
 	}
 	auto changed = false;
 	const auto limit = _showAll.current() ? list.size() : kShowPerRow;
-	const auto &object = Background()->themeObject();
-	const auto id = object.cloud.id ? object.cloud.id : kFakeCloudThemeId;
-	ranges::stable_sort(list, std::less<>(), [&](const Data::CloudTheme &t) {
-		if (t.id == id) {
-			return 0;
-		} else if (t.documentId) {
-			return 1;
-		} else {
-			return 2;
-		}
+	ranges::stable_sort(list, std::less<>(), [](const Data::CloudTheme &t) {
+		return t.documentId ? 0 : 1;
 	});
-	if (list.front().id == id) {
-		const auto j = ranges::find(_elements, id, &Element::id);
-		if (j == end(_elements)) {
-			insert(0, list.front());
-			changed = true;
-		} else if (j - begin(_elements) >= limit) {
-			std::rotate(
-				begin(_elements) + limit - 1,
-				j,
-				j + 1);
-			changed = true;
-		}
-	}
 	if (removeStaleUsing(list)) {
 		changed = true;
 	}
 	if (insertTillLimit(list, limit)) {
 		changed = true;
 	}
-	_group->setValue(groupValueForId(id));
+	_group->setValue(groupValueForId(appliedElementId()));
 	return changed;
 }
 
@@ -506,7 +643,7 @@ void CloudList::insert(int index, const Data::CloudTheme &theme) {
 		_outer,
 		_group,
 		value,
-		theme.title,
+		theme.emoticon.isEmpty() ? theme.title : QString(),
 		st::settingsTheme,
 		std::move(check));
 	button->setCheckAlignment(style::al_top);
@@ -525,8 +662,18 @@ void CloudList::insert(int index, const Data::CloudTheme &theme) {
 		if (button == Qt::RightButton) {
 			showMenu(*i);
 		} else if (cloud.documentId) {
+			++*_applyGeneration;
 			_window->session().data().cloudThemes().applyFromDocument(cloud);
+		} else if (!cloud.emoticon.isEmpty() && !cloud.settings.empty()) {
+			const auto generation = ++*_applyGeneration;
+			const auto check = _applyGeneration;
+			base::call_delayed(st::defaultRadio.duration, _window, [=] {
+				if (*check == generation) {
+					ApplyChatTheme(_window, cloud, IsNightMode());
+				}
+			});
 		} else {
+			++*_applyGeneration;
 			_window->session().data().cloudThemes().showPreview(
 				&_window->window(),
 				cloud);
@@ -546,7 +693,7 @@ void CloudList::refreshElementUsing(
 			&& (element.theme.slug != data.slug));
 	const auto titleChanged = (element.theme.title != data.title);
 	element.theme = data;
-	if (colorsChanged) {
+	if (colorsChanged || !data.emoticon.isEmpty()) {
 		setWaiting(element, false);
 		refreshColors(element);
 	}
@@ -561,6 +708,13 @@ void CloudList::refreshColors(Element &element) {
 	const auto document = theme.documentId
 		? _window->session().data().document(theme.documentId).get()
 		: nullptr;
+	if (IsChatTheme(theme)) {
+		element.check->setEmoji(Ui::Emoji::Find(theme.emoticon));
+		element.check->setColors(ColorsFromTheme(theme));
+		requestPattern(element);
+		setWaiting(element, false);
+		return;
+	}
 	if (element.id() == kFakeCloudThemeId
 		|| ((element.id() == currentId)
 			&& (!document || !document->isTheme()))) {
@@ -581,6 +735,60 @@ void CloudList::refreshColors(Element &element) {
 	}
 }
 
+void CloudList::requestPattern(Element &element) {
+	const auto variant = ChatThemeVariant(element.theme, IsNightMode());
+	if (!variant) {
+		return;
+	}
+	const auto id = element.id();
+	const auto theme = element.theme;
+	const auto key = Ui::ChatThemeKey{
+		theme.id,
+		(*variant == Data::CloudThemeType::Dark),
+	};
+	const auto apply = [=] {
+		const auto i = ranges::find(_elements, id, &Element::id);
+		if (i == end(_elements)) {
+			return;
+		}
+		auto background = ChatThemeBackground(i->chatTheme.get());
+		if (background.isNull()) {
+			return;
+		}
+		auto colors = ColorsFromTheme(i->theme);
+		colors.background = std::move(background);
+		i->check->setColors(colors);
+	};
+	element.previewLifetime.destroy();
+	_window->cachedChatThemeValue(
+		theme,
+		Data::WallPaper(0),
+		*variant
+	) | rpl::filter([=](const std::shared_ptr<Ui::ChatTheme> &data) {
+		return data && (data->key() == key);
+	}) | rpl::take(1) | rpl::on_next([=](
+			std::shared_ptr<Ui::ChatTheme> &&data) {
+		const auto i = ranges::find(_elements, id, &Element::id);
+		if (i == end(_elements)) {
+			return;
+		}
+		const auto raw = data.get();
+		i->chatTheme = std::move(data);
+		apply();
+		if (!raw->background().prepared.isNull()) {
+			return;
+		}
+		raw->repaintBackgroundRequests(
+		) | rpl::filter([=] {
+			const auto i = ranges::find(_elements, id, &Element::id);
+			return (i == end(_elements))
+				|| !i->chatTheme->background().prepared.isNull();
+		}) | rpl::take(1) | rpl::on_next([=] {
+			apply();
+		}, i->previewLifetime);
+	}, element.previewLifetime);
+}
+
 void CloudList::showMenu(Element &element) {
 	if (_contextMenu) {
 		_contextMenu = nullptr;
@@ -594,8 +802,11 @@ void CloudList::showMenu(Element &element) {
 		_contextMenu->addAction(tr::lng_theme_share(tr::now), [=] {
 			QGuiApplication::clipboard()->setText(
 				_window->session().createInternalLinkFull("addtheme/" + slug));
-			_window->window().showToast(
-				tr::lng_background_link_copied(tr::now));
+			_window->window().showToast({
+				.text = { tr::lng_background_link_copied(tr::now) },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		}, &st::menuIconShare);
 	}
 	if (cloud.documentId
@@ -606,40 +817,60 @@ void CloudList::showMenu(Element &element) {
 		}, &st::menuIconChangeColors);
 	}
 	const auto id = cloud.id;
-	_contextMenu->addAction(tr::lng_theme_delete(tr::now), [=] {
-		const auto remove = [=](Fn<void()> &&close) {
-			close();
-			if (Background()->themeObject().cloud.id == id
-				|| id == kFakeCloudThemeId) {
-				if (Background()->editingTheme().has_value()) {
-					Background()->clearEditingTheme(
-						ClearEditing::KeepChanges);
-					_window->window().showRightColumn(nullptr);
+	if (!IsChatTheme(cloud)) {
+		_contextMenu->addAction(tr::lng_theme_delete(tr::now), [=] {
+			const auto remove = [=](Fn<void()> &&close) {
+				close();
+				if (Background()->themeObject().cloud.id == id
+					|| id == kFakeCloudThemeId) {
+					if (Background()->editingTheme().has_value()) {
+						Background()->clearEditingTheme(
+							ClearEditing::KeepChanges);
+						_window->window().showRightColumn(nullptr);
+					}
+					ResetToSomeDefault();
+					KeepApplied();
 				}
-				ResetToSomeDefault();
-				KeepApplied();
-			}
-			if (id != kFakeCloudThemeId) {
-				_window->session().data().cloudThemes().remove(id);
-			}
-		};
-		_window->window().show(Ui::MakeConfirmBox({
-			.text = tr::lng_theme_delete_sure(),
-			.confirmed = remove,
-			.confirmText = tr::lng_theme_delete(),
-		}));
-	}, &st::menuIconDelete);
+				if (id != kFakeCloudThemeId) {
+					_window->session().data().cloudThemes().remove(id);
+				}
+			};
+			_window->window().show(Ui::MakeConfirmBox({
+				.text = tr::lng_theme_delete_sure(),
+				.confirmed = remove,
+				.confirmText = tr::lng_theme_delete(),
+			}));
+		}, &st::menuIconDelete);
+	}
 	_contextMenu->popup(QCursor::pos());
 }
 
 void CloudList::setWaiting(Element &element, bool waiting) {
 	element.waiting = waiting;
-	element.button->setPointerCursor(
-		!waiting && (element.theme.documentId || amCreator(element.theme)));
+	element.button->setPointerCursor(!waiting
+		&& (element.theme.documentId
+			|| amCreator(element.theme)
+			|| !element.theme.settings.empty()));
 }
 
 bool CloudList::amCreator(const Data::CloudTheme &theme) const {
 	return (_window->session().userId() == theme.createdBy);
+}
+
+uint64 CloudList::appliedElementId() const {
+	const auto &cloud = Background()->themeObject().cloud;
+	const auto id = cloud.id ? cloud.id : kFakeCloudThemeId;
+	if (ranges::contains(_elements, id, &Element::id)) {
+		return id;
+	}
+	const auto emoji = Ui::Emoji::Find(cloud.emoticon);
+	if (!emoji) {
+		return id;
+	}
+	const auto i = ranges::find(_elements, emoji, [](const Element &element) {
+		return Ui::Emoji::Find(element.theme.emoticon);
+	});
+	return (i != end(_elements)) ? i->id() : id;
 }
 
 void CloudList::refreshColorsFromDocument(Element &element) {

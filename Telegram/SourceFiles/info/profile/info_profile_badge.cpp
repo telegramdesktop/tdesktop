@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
+#include "ui/text/text_custom_emoji.h"
 #include "main/main_session.h"
 #include "styles/style_info.h"
 
@@ -81,6 +82,26 @@ void Badge::setContent(Content content) {
 		return;
 	}
 	_view.create(_parent);
+	_view->setAccessibleName([&] {
+		switch (_content.badge) {
+		case BadgeType::Verified:
+			return tr::lng_sr_verified_badge(tr::now);
+		case BadgeType::BotVerified:
+			return tr::lng_sr_bot_verified_badge(tr::now);
+		case BadgeType::Premium:
+			if (_content.emojiStatusId) {
+				return tr::lng_profile_bot_emoji_status_access(tr::now);
+			}
+			return tr::lng_premium_summary_title(tr::now);
+		case BadgeType::Scam:
+			return tr::lng_scam_badge(tr::now);
+		case BadgeType::Fake:
+			return tr::lng_fake_badge(tr::now);
+		case BadgeType::Direct:
+			return tr::lng_direct_badge(tr::now);
+		}
+		Unexpected("badge type");
+	}());
 	_view->show();
 	switch (_content.badge) {
 	case BadgeType::Verified:
@@ -106,10 +127,10 @@ void Badge::setContent(Content content) {
 				[raw = _view.data()] { raw->update(); },
 				sizeTag());
 			if (_content.badge == BadgeType::BotVerified) {
-				_emojiStatus = std::make_unique<Ui::Text::FirstFrameEmoji>(
+				_emojiStatus = MakeWrappedEmoji<Ui::Text::FirstFrameEmoji>(
 					std::move(_emojiStatus));
 			} else if (_customStatusLoopsLimit > 0) {
-				_emojiStatus = std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+				_emojiStatus = MakeWrappedEmoji<Ui::Text::LimitedLoopsEmoji>(
 					std::move(_emojiStatus),
 					_customStatusLoopsLimit);
 			}
@@ -180,9 +201,11 @@ void Badge::setContent(Content content) {
 				p,
 				badge->rect().marginsRemoved({ skip, skip, skip, skip }),
 				badge->width(),
-				(type == Ui::TextBadgeType::Direct
-					? st::windowSubTextFg
-					: st::attentionButtonFg));
+				_overrideSt
+					? _overrideSt->premiumFg
+					: (type == Ui::TextBadgeType::Direct
+						? st::windowSubTextFg
+						: st::attentionButtonFg));
 			}, _view->lifetime());
 	} break;
 	}
@@ -257,6 +280,9 @@ rpl::producer<Badge::Content> BadgeContentForPeer(not_null<PeerData*> peer) {
 		BadgeValue(peer),
 		EmojiStatusIdValue(peer)
 	) | rpl::map([=](BadgeType badge, EmojiStatusId emojiStatusId) {
+		if (emojiStatusId.collectible && (badge == BadgeType::Verified)) {
+			return Badge::Content{ BadgeType::Premium, emojiStatusId };
+		}
 		if (badge == BadgeType::Verified) {
 			badge = BadgeType::None;
 		}

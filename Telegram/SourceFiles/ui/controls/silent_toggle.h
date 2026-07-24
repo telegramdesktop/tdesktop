@@ -27,6 +27,8 @@ public:
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
 	bool tooltipWindowActive() const override;
+	[[nodiscard]] QAccessible::Role accessibilityRole() override;
+	[[nodiscard]] AccessibilityState accessibilityState() const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
-#include "settings/settings_premium.h" // Settings::ShowPremium.
+#include "settings/sections/settings_premium.h" // Settings::ShowPremium.
 
 namespace Api {
 namespace {
@@ -33,7 +33,7 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 		result.reserve(peers.size());
 		for (const auto &peer : peers) {
 			if (const auto user = peer->asUser()) {
-				result.push_back(user->inputUser);
+				result.push_back(user->inputUser());
 			}
 		}
 		return result;

@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/painter.h"
+#include "ui/paint/blobs.h"
 #include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "history/history.h"
@@ -30,9 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_document.h"
 #include "core/click_handler_types.h"
+#include "core/local_url_handlers.h"
 #include "core/ui_integration.h"
-#include "layout/layout_position.h"
-#include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "data/business/data_shortcut_messages.h"
@@ -154,6 +154,43 @@ void HistoryMessageVia::resize(int32 availw) const {
 			tr::now,
 			lt_inline_bot,
 			'@' + bot->username());
+		maxWidth = st::msgServiceNameFont->width(text);
+		if (availw < maxWidth) {
+			text = st::msgServiceNameFont->elided(text, availw);
+			width = st::msgServiceNameFont->width(text);
+		} else if (width < maxWidth) {
+			width = maxWidth;
+		}
+	}
+}
+
+void HistoryMessageGuestChat::create(
+		not_null<Data::Session*> owner,
+		PeerId visitorId) {
+	visitor = owner->peer(visitorId);
+	const auto firstName = visitor->isUser()
+		? visitor->asUser()->firstName
+		: visitor->name();
+	maxWidth = st::msgServiceNameFont->width(
+		tr::lng_guest_chat_for(tr::now, lt_user, firstName));
+	link = std::make_shared<LambdaClickHandler>([peer = this->visitor](
+			ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			controller->showPeerInfo(peer);
+		}
+	});
+}
+
+void HistoryMessageGuestChat::resize(int32 availw) const {
+	if (availw < 0) {
+		text = QString();
+		width = 0;
+	} else {
+		const auto firstName = visitor->isUser()
+			? visitor->asUser()->firstName
+			: visitor->name();
+		text = tr::lng_guest_chat_for(tr::now, lt_user, firstName);
 		if (availw < maxWidth) {
 			text = st::msgServiceNameFont->elided(text, availw);
 			width = st::msgServiceNameFont->width(text);
@@ -198,9 +235,14 @@ ClickHandlerPtr HiddenSenderInfo::ForwardClickHandler() {
 	static const auto hidden = std::make_shared<LambdaClickHandler>([](
 			ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
-		const auto weak = my.sessionWindow;
-		if (const auto strong = weak.get()) {
-			strong->showToast(tr::lng_forwarded_hidden(tr::now));
+		auto text = tr::lng_forwarded_hidden(tr::now, Ui::Text::WithEntities);
+		const auto delegate = my.elementDelegate
+			? my.elementDelegate()
+			: nullptr;
+		if (delegate) {
+			delegate->elementShowHiddenSenderTooltip(my.itemId, text);
+		} else if (const auto strong = my.sessionWindow.get()) {
+			strong->showToast(std::move(text));
 		}
 	});
 	return hidden;
@@ -362,6 +404,8 @@ ReplyFields ReplyFields::clone(not_null<HistoryItem*> parent) const {
 		.messageId = messageId,
 		.topMessageId = topMessageId,
 		.storyId = storyId,
+		.todoItemId = todoItemId,
+		.pollOption = pollOption,
 		.quoteOffset = quoteOffset,
 		.manualQuote = manualQuote,
 		.topicPost = topicPost,
@@ -375,6 +419,8 @@ ReplyFields ReplyFieldsFromMTP(
 		auto result = ReplyFields();
 		if (const auto peer = data.vreply_to_peer_id()) {
 			result.externalPeerId = peerFromMTP(*peer);
+		} else if (item->isAdminLogEntry()) {
+			result.externalPeerId = item->history()->peer->id;
 		}
 		const auto owner = &item->history()->owner();
 		if (const auto id = data.vreply_to_msg_id().value_or_empty()) {
@@ -388,6 +434,7 @@ ReplyFields ReplyFieldsFromMTP(
 			result.topicPost = data.is_forum_topic() ? 1 : 0;
 		}
 		result.todoItemId = data.vtodo_item_id().value_or_empty();
+		result.pollOption = data.vpoll_option().value_or_empty();
 		if (const auto header = data.vreply_from()) {
 			const auto &data = header->data();
 			result.externalPostAuthor
@@ -442,6 +489,8 @@ FullReplyTo ReplyToFromMTP(
 				data.vquote_entities().value_or_empty()),
 		};
 		result.quoteOffset = data.vquote_offset().value_or_empty();
+		result.todoItemId = data.vtodo_item_id().value_or_empty();
+		result.pollOption = data.vpoll_option().value_or_empty();
 		return result;
 	}, [&](const MTPDinputReplyToStory &data) {
 		if (const auto parsed = Data::PeerFromInputMTP(
@@ -459,6 +508,8 @@ FullReplyTo ReplyToFromMTP(
 		return FullReplyTo{
 			.monoforumPeerId = parsed ? parsed->id : PeerId(),
 		};
+	}, [&](const MTPDinputReplyToEphemeralMessage &) {
+		return FullReplyTo();
 	});
 }
 
@@ -548,6 +599,23 @@ void HistoryMessageReply::updateData(
 		_pendingResolve = 1;
 		_requestedResolve = 0;
 	}
+}
+
+void HistoryMessageReply::setInLogReplyTo(
+		not_null<HistoryItem*> holder,
+		not_null<HistoryItem*> message) {
+	if (resolvedMessage.get() == message) {
+		return;
+	} else if (resolvedMessage) {
+		holder->history()->owner().unregisterDependentMessage(
+			holder,
+			resolvedMessage.get());
+		resolvedMessage = nullptr;
+	}
+	_fields.externalPeerId = PeerId();
+	_fields.messageId = message->id;
+	_unavailable = 0;
+	updateData(holder, true);
 }
 
 void HistoryMessageReply::set(ReplyFields fields) {
@@ -641,7 +709,9 @@ void HistoryMessageReply::storyRemoved(
 void HistoryMessageReply::refreshReplyToMedia() {
 	replyToDocumentId = 0;
 	replyToWebPageId = 0;
-	if (const auto media = resolvedMessage ? resolvedMessage->media() : nullptr) {
+	if (const auto media = resolvedMessage
+			? resolvedMessage->media()
+			: nullptr) {
 		if (const auto document = media->document()) {
 			replyToDocumentId = document->id;
 		} else if (const auto webpage = media->webpage()) {
@@ -659,6 +729,11 @@ ReplyMarkupClickHandler::ReplyMarkupClickHandler(
 , _itemId(context)
 , _row(row)
 , _column(column) {
+}
+
+QString ReplyMarkupClickHandler::dragText() const {
+	const auto button = getUrlButton();
+	return button ? QString::fromUtf8(button->data) : QString();
 }
 
 // Copy to clipboard support.
@@ -739,12 +814,10 @@ ReplyKeyboard::ReplyKeyboard(
 	not_null<const HistoryItem*> item,
 	std::unique_ptr<Style> &&s)
 : _item(item)
-, _selectedAnimation([=](crl::time now) {
-	return selectedAnimationCallback(now);
-})
 , _st(std::move(s)) {
 	if (const auto markup = _item->Get<HistoryMessageReplyMarkup>()) {
 		const auto owner = &_item->history()->owner();
+		const auto session = &owner->session();
 		const auto context = _item->fullId();
 		const auto rowCount = int(markup->data.rows.size());
 		_rows.reserve(rowCount);
@@ -775,24 +848,37 @@ ReplyKeyboard::ReplyKeyboard(
 						return withEmoji(st::chatSuggestDeclineIcon);
 					} else if (type == Type::SuggestChange) {
 						return withEmoji(st::chatSuggestChangeIcon);
-					} else if (type != Type::Buy) {
-						return TextWithEntities();
 					}
 					auto result = TextWithEntities();
-					auto firstPart = true;
-					for (const auto &part : text.split(QChar(0x2B50))) {
-						if (!firstPart) {
-							result.append(Ui::Text::IconEmoji(
-								&st::starIconEmojiLarge));
+					if (const auto iconId = row[j].visual.iconId) {
+						using namespace Data;
+						result.append(SingleCustomEmoji(iconId));
+						if (!text.isEmpty()) {
+							result.append(' ');
 						}
-						result.append(part);
-						firstPart = false;
+					}
+					if (type == Type::Buy) {
+						auto firstPart = true;
+						for (const auto &part : text.split(QChar(0x2B50))) {
+							if (!firstPart) {
+								result.append(Ui::Text::IconEmoji(
+									&st::starIconEmojiLarge));
+							}
+							result.append(part);
+							firstPart = false;
+						}
+					} else if (!result.entities.empty()) {
+						result.append(text);
 					}
 					return result.entities.empty()
 						? TextWithEntities()
 						: result;
 				}();
 				button.type = type;
+				button.iconType = (type == Type::Url
+					&& Core::IsMiniAppUrl(QString::fromUtf8(row[j].data)))
+					? Type::WebView
+					: type;
 				button.link = std::make_shared<ReplyMarkupClickHandler>(
 					owner,
 					i,
@@ -802,7 +888,11 @@ ReplyKeyboard::ReplyKeyboard(
 					button.text.setMarkedText(
 						_st->textStyle(),
 						TextUtilities::SingleLine(textWithEntities),
-						kMarkupTextOptions);
+						kMarkupTextOptions,
+						Core::TextContext({
+							.session = session,
+							.repaint = [=] { _st->repaint(_item); },
+						}));
 				} else {
 					button.text.setText(
 						_st->textStyle(),
@@ -810,6 +900,7 @@ ReplyKeyboard::ReplyKeyboard(
 						kPlainTextOptions);
 				}
 				button.characters = text.isEmpty() ? 1 : text.size();
+				button.color = row[j].visual.color;
 				newRow.push_back(std::move(button));
 			}
 			_rows.push_back(std::move(newRow));
@@ -824,7 +915,6 @@ void ReplyKeyboard::updateMessageId() {
 			button.link->setMessageId(msgId);
 		}
 	}
-
 }
 
 void ReplyKeyboard::resize(int width, int height) {
@@ -835,25 +925,26 @@ void ReplyKeyboard::resize(int width, int height) {
 		? float64(_st->buttonHeight())
 		: (float64(height + _st->buttonSkip()) / _rows.size());
 	for (auto &row : _rows) {
-		int s = row.size();
+		auto s = int(row.size());
 
-		int widthForButtons = _width - ((s - 1) * _st->buttonSkip());
-		int widthForText = widthForButtons;
-		int widthOfText = 0;
-		int maxMinButtonWidth = 0;
+		auto widthForButtons = _width - ((s - 1) * _st->buttonSkip());
+		auto widthForText = widthForButtons;
+		auto widthOfText = 0;
+		auto maxMinButtonWidth = 0;
 		for (const auto &button : row) {
 			widthOfText += qMax(button.text.maxWidth(), 1);
-			int minButtonWidth = _st->minButtonWidth(button.type);
+			int minButtonWidth = _st->minButtonWidth(button.iconType);
 			widthForText -= minButtonWidth;
 			accumulate_max(maxMinButtonWidth, minButtonWidth);
 		}
-		bool exact = (widthForText == widthOfText);
-		bool enough = (widthForButtons - s * maxMinButtonWidth) >= widthOfText;
+		const auto exact = (widthForText == widthOfText);
+		const auto enough
+			= (widthForButtons - s * maxMinButtonWidth) >= widthOfText;
 
-		float64 x = 0;
+		auto x = 0.;
 		for (auto &button : row) {
 			int buttonw = qMax(button.text.maxWidth(), 1);
-			float64 textw = buttonw, minw = _st->minButtonWidth(button.type);
+			float64 textw = buttonw, minw = _st->minButtonWidth(button.iconType);
 			float64 w = textw;
 			if (exact) {
 				w += minw;
@@ -866,10 +957,17 @@ void ReplyKeyboard::resize(int width, int height) {
 				accumulate_max(w, 2 * float64(_st->buttonPadding()));
 			}
 
-			int rectx = static_cast<int>(std::floor(x));
-			int rectw = static_cast<int>(std::floor(x + w)) - rectx;
-			button.rect = QRect(rectx, qRound(y), rectw, qRound(buttonHeight - _st->buttonSkip()));
-			if (rtl()) button.rect.setX(_width - button.rect.x() - button.rect.width());
+			const auto rectx = static_cast<int>(std::floor(x));
+			const auto rectw = static_cast<int>(std::floor(x + w)) - rectx;
+			button.rect = QRect(
+				rectx,
+				qRound(y),
+				rectw,
+				qRound(buttonHeight - _st->buttonSkip()));
+			if (rtl()) {
+				button.rect.setX(
+					_width - button.rect.x() - button.rect.width());
+			}
 			x += w + _st->buttonSkip();
 
 			button.link->setFullDisplayed(textw >= buttonw);
@@ -878,10 +976,12 @@ void ReplyKeyboard::resize(int width, int height) {
 	}
 }
 
-bool ReplyKeyboard::isEnoughSpace(int width, const style::BotKeyboardButton &st) const {
+bool ReplyKeyboard::isEnoughSpace(
+		int width,
+		const style::BotKeyboardButton &st) const {
 	for (const auto &row : _rows) {
-		int s = row.size();
-		int widthLeft = width - ((s - 1) * st.margin + s * 2 * st.padding);
+		auto s = int(row.size());
+		auto widthLeft = width - ((s - 1) * st.margin + s * 2 * st.padding);
 		for (const auto &button : row) {
 			widthLeft -= qMax(button.text.maxWidth(), 1);
 			if (widthLeft < 0) {
@@ -907,7 +1007,7 @@ int ReplyKeyboard::naturalWidth() const {
 		for (const auto &button : row) {
 			accumulate_max(
 				maxMinButtonWidth,
-				_st->minButtonWidth(button.type));
+				_st->minButtonWidth(button.iconType));
 		}
 		auto rowMaxButtonWidth = 0;
 		for (const auto &button : row) {
@@ -925,7 +1025,8 @@ int ReplyKeyboard::naturalWidth() const {
 }
 
 int ReplyKeyboard::naturalHeight() const {
-	return (_rows.size() - 1) * _st->buttonSkip() + _rows.size() * _st->buttonHeight();
+	return (_rows.size() - 1) * _st->buttonSkip()
+		+ _rows.size() * _st->buttonHeight();
 }
 
 void ReplyKeyboard::paint(
@@ -933,11 +1034,11 @@ void ReplyKeyboard::paint(
 		const Ui::ChatStyle *st,
 		Ui::BubbleRounding rounding,
 		int outerWidth,
-		const QRect &clip) const {
+		const QRect &clip,
+		bool paused) const {
 	Assert(_st != nullptr);
 	Assert(_width > 0);
 
-	_st->startPaint(p, st);
 	auto number = hasFastButtonMode() ? 1 : 0;
 	for (auto y = 0, rowsCount = int(_rows.size()); y != rowsCount; ++y) {
 		for (auto x = 0, count = int(_rows[y].size()); x != count; ++x) {
@@ -951,11 +1052,24 @@ void ReplyKeyboard::paint(
 			}
 
 			// just ignore the buttons that didn't layout well
-			if (rect.x() + rect.width() > _width) break;
+			if (rect.x() + rect.width() > _width) {
+				break;
+			}
 
 			auto buttonRounding = Ui::BubbleRounding();
 			using Corner = Ui::BubbleCornerRounding;
-			buttonRounding.topLeft = buttonRounding.topRight = Corner::Small;
+			buttonRounding.topLeft = ((!y)
+				&& !x
+				&& !st
+				&& (rounding.topLeft == Corner::Large))
+				? Corner::Large
+				: Corner::Small;
+			buttonRounding.topRight = ((!y)
+				&& (x + 1 == count)
+				&& !st
+				&& (rounding.topRight == Corner::Large))
+				? Corner::Large
+				: Corner::Small;
 			buttonRounding.bottomLeft = ((y + 1 == rowsCount)
 				&& !x
 				&& (rounding.bottomLeft == Corner::Large))
@@ -966,7 +1080,13 @@ void ReplyKeyboard::paint(
 				&& (rounding.bottomRight == Corner::Large))
 				? Corner::Large
 				: Corner::Small;
-			_st->paintButton(p, st, outerWidth, button, buttonRounding);
+			_st->paintButton(
+				p,
+				st,
+				outerWidth,
+				button,
+				buttonRounding,
+				paused);
 
 			if (number) {
 				p.setFont(st::dialogsUnreadFont);
@@ -996,9 +1116,16 @@ ClickHandlerPtr ReplyKeyboard::getLink(QPoint point) const {
 			QRect rect(button.rect);
 
 			// just ignore the buttons that didn't layout well
-			if (rect.x() + rect.width() > _width) break;
+			if (rect.x() + rect.width() > _width) {
+				break;
+			}
 
 			if (rect.contains(point)) {
+				if (_item->isAdminLogEntry()
+					&& button.type != HistoryMessageMarkupButton::Type::Url
+					&& button.type != HistoryMessageMarkupButton::Type::Callback) {
+					return ClickHandlerPtr();
+				}
 				_savedCoords = point;
 				return button.link;
 			}
@@ -1020,17 +1147,23 @@ ClickHandlerPtr ReplyKeyboard::getLinkByIndex(int index) const {
 	return ClickHandlerPtr();
 }
 
-void ReplyKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	if (!p) return;
+void ReplyKeyboard::clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) {
+	if (!p) {
+		return;
+	}
 
 	_savedActive = active ? p : ClickHandlerPtr();
 	auto coords = findButtonCoordsByClickHandler(p);
 	if (coords.i >= 0 && _savedPressed != p) {
-		startAnimation(coords.i, coords.j, active ? 1 : -1);
+		_rows[coords.i][coords.j].howMuchOver = active ? 1. : 0.;
+		_st->repaint(_item);
 	}
 }
 
-ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(const ClickHandlerPtr &p) {
+ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(
+		const ClickHandlerPtr &p) {
 	for (int i = 0, rows = _rows.size(); i != rows; ++i) {
 		auto &row = _rows[i];
 		for (int j = 0, cols = row.size(); j != cols; ++j) {
@@ -1046,7 +1179,9 @@ void ReplyKeyboard::clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed,
 		Ui::BubbleRounding rounding) {
-	if (!handler) return;
+	if (!handler) {
+		return;
+	}
 
 	_savedPressed = pressed ? handler : ClickHandlerPtr();
 	auto coords = findButtonCoordsByClickHandler(handler);
@@ -1077,55 +1212,19 @@ void ReplyKeyboard::clickHandlerPressedChanged(
 				button.ripple->lastStop();
 			}
 			if (_savedActive != handler) {
-				startAnimation(coords.i, coords.j, -1);
+				button.howMuchOver = 0.;
+				_st->repaint(_item);
 			}
 		}
 	}
 }
 
-void ReplyKeyboard::startAnimation(int i, int j, int direction) {
-	auto notStarted = _animations.empty();
-
-	int indexForAnimation = Layout::PositionToIndex(i, j + 1) * direction;
-
-	_animations.remove(-indexForAnimation);
-	if (!_animations.contains(indexForAnimation)) {
-		_animations.emplace(indexForAnimation, crl::now());
-	}
-
-	if (notStarted && !_selectedAnimation.animating()) {
-		_selectedAnimation.start();
-	}
-}
-
-bool ReplyKeyboard::selectedAnimationCallback(crl::time now) {
-	if (anim::Disabled()) {
-		now += st::botKbDuration;
-	}
-	for (auto i = _animations.begin(); i != _animations.end();) {
-		const auto index = std::abs(i->first) - 1;
-		const auto &[row, col] = Layout::IndexToPosition(index);
-		const auto dt = float64(now - i->second) / st::botKbDuration;
-		if (dt >= 1) {
-			_rows[row][col].howMuchOver = (i->first > 0) ? 1 : 0;
-			i = _animations.erase(i);
-		} else {
-			_rows[row][col].howMuchOver = (i->first > 0) ? dt : (1 - dt);
-			++i;
+void ReplyKeyboard::clearSelection() {
+	for (auto &row : _rows) {
+		for (auto &button : row) {
+			button.howMuchOver = 0.;
 		}
 	}
-	_st->repaint(_item);
-	return !_animations.empty();
-}
-
-void ReplyKeyboard::clearSelection() {
-	for (const auto &[relativeIndex, time] : _animations) {
-		const auto index = std::abs(relativeIndex) - 1;
-		const auto &[row, col] = Layout::IndexToPosition(index);
-		_rows[row][col].howMuchOver = 0;
-	}
-	_animations.clear();
-	_selectedAnimation.stop();
 }
 
 int ReplyKeyboard::Style::buttonSkip() const {
@@ -1145,23 +1244,34 @@ void ReplyKeyboard::Style::paintButton(
 		const Ui::ChatStyle *st,
 		int outerWidth,
 		const ReplyKeyboard::Button &button,
-		Ui::BubbleRounding rounding) const {
-	const QRect &rect = button.rect;
-	paintButtonBg(p, st, rect, rounding, button.howMuchOver);
+		Ui::BubbleRounding rounding,
+		bool paused) const {
+	const auto &rect = button.rect;
+	paintButtonBg(p, st, rect, button.color, rounding, button.howMuchOver);
 	if (button.ripple) {
-		const auto color = st ? &st->msgBotKbRippleBg()->c : nullptr;
+		const auto color = st
+			? &st->msgBotKbRippleBg()->c
+			: (button.color != HistoryMessageMarkupButton::Color::Normal)
+			? &st::shadowFg->c
+			: nullptr;
 		button.ripple->paint(p, rect.x(), rect.y(), outerWidth, color);
 		if (button.ripple->empty()) {
 			button.ripple.reset();
 		}
 	}
-	paintButtonIcon(p, st, rect, outerWidth, button.type);
+	paintButtonIcon(p, st, rect, outerWidth, button.iconType);
 	if (button.type == HistoryMessageMarkupButton::Type::CallbackWithPassword
 		|| button.type == HistoryMessageMarkupButton::Type::Callback
 		|| button.type == HistoryMessageMarkupButton::Type::Game) {
 		if (const auto data = button.link->getButton()) {
 			if (data->requestId) {
-				paintButtonLoading(p, st, rect, outerWidth, rounding);
+				paintButtonLoading(
+					p,
+					st,
+					rect,
+					button.color,
+					outerWidth,
+					rounding);
 			}
 		}
 	}
@@ -1174,13 +1284,17 @@ void ReplyKeyboard::Style::paintButton(
 		tx += (tw - st::botKbStyle.font->elidew) / 2;
 		tw = st::botKbStyle.font->elidew;
 	}
-	button.text.drawElided(
-		p,
-		tx,
-		rect.y() + _st->textTop + ((rect.height() - _st->height) / 2),
-		tw,
-		1,
-		style::al_top);
+	paintButtonStart(p, st, button.color);
+	button.text.draw(p, {
+		.position = {
+			tx,
+			rect.y() + _st->textTop + ((rect.height() - _st->height) / 2),
+		},
+		.availableWidth = tw,
+		.align = style::al_top,
+		.paused = paused || On(PowerSaving::kEmojiChat),
+		.elisionLines = 1,
+	});
 	if (button.type == HistoryMessageMarkupButton::Type::SimpleWebView) {
 		const auto &icon = st::markupWebview;
 		st::markupWebview.paint(
@@ -1220,7 +1334,8 @@ bool HistoryMessageReplyMarkup::hiddenBy(Data::Media *media) const {
 void HistoryMessageReplyMarkup::updateSuggestControls(
 		SuggestionActions actions) {
 	if (actions == SuggestionActions::AcceptAndDecline
-		|| actions == SuggestionActions::GiftOfferActions) {
+		|| actions == SuggestionActions::GiftOfferActions
+		|| actions == SuggestionActions::NoForwardsRequest) {
 		data.flags |= ReplyMarkupFlag::SuggestionAccept;
 	} else {
 		data.flags &= ~ReplyMarkupFlag::SuggestionAccept;
@@ -1232,6 +1347,7 @@ void HistoryMessageReplyMarkup::updateSuggestControls(
 			| ReplyMarkupFlag::SuggestionDecline;
 	}
 	using Type = HistoryMessageMarkupButton::Type;
+	using Visual = HistoryMessageMarkupButton::Visual;
 	const auto has = [&](Type type) {
 		return !data.rows.empty()
 			&& ranges::contains(
@@ -1247,10 +1363,25 @@ void HistoryMessageReplyMarkup::updateSuggestControls(
 			{
 				Type::SuggestDecline,
 				tr::lng_action_gift_offer_decline(tr::now),
+				Visual(),
 			},
 			{
 				Type::SuggestAccept,
 				tr::lng_action_gift_offer_accept(tr::now),
+				Visual(),
+			},
+		});
+	} else if (actions == SuggestionActions::NoForwardsRequest) {
+		data.rows.push_back({
+			{
+				Type::SuggestDecline,
+				tr::lng_action_no_forwards_reject(tr::now),
+				Visual(),
+			},
+			{
+				Type::SuggestAccept,
+				tr::lng_action_no_forwards_accept(tr::now),
+				Visual(),
 			},
 		});
 	} else if (actions == SuggestionActions::AcceptAndDecline) {
@@ -1267,15 +1398,18 @@ void HistoryMessageReplyMarkup::updateSuggestControls(
 				{
 					Type::SuggestDecline,
 					tr::lng_suggest_action_decline(tr::now),
+					Visual(),
 				},
 				{
 					Type::SuggestAccept,
 					tr::lng_suggest_action_accept(tr::now),
+					Visual(),
 				},
 			});
 			data.rows.push_back({ {
 				Type::SuggestChange,
 				tr::lng_suggest_action_change(tr::now),
+				Visual(),
 			} });
 			data.flags |= ReplyMarkupFlag::SuggestionAccept
 				| ReplyMarkupFlag::SuggestionDecline;
@@ -1307,6 +1441,7 @@ void HistoryMessageReplyMarkup::updateSuggestControls(
 				data.rows.push_back({ {
 					Type::SuggestDecline,
 					tr::lng_suggest_action_decline(tr::now),
+					Visual(),
 				} });
 				data.flags |= ReplyMarkupFlag::SuggestionDecline;
 			}
@@ -1394,7 +1529,7 @@ TextWithEntities ComposeTodoTasksList(
 }
 
 HistoryDocumentCaptioned::HistoryDocumentCaptioned()
-: caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
+: caption(st::msgFileMinWidth - rect::m::sum::h(st::msgPadding)) {
 }
 
 HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(
@@ -1405,6 +1540,8 @@ HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(
 	return nonconst->voiceProgressAnimationCallback(now);
 }) {
 }
+
+HistoryDocumentVoicePlayback::~HistoryDocumentVoicePlayback() = default;
 
 void HistoryDocumentVoice::ensurePlayback(
 		const HistoryView::Document *that) const {

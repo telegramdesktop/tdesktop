@@ -555,7 +555,7 @@ ClickHandlerPtr ThemeDocumentBox::createViewLink() {
 					const auto api = &controller->session().api();
 					api->request(MTPmessages_SetChatWallPaper(
 						MTP_flags(MTPmessages_SetChatWallPaper::Flag::f_revert),
-						view->data()->history()->peer->input,
+						view->data()->history()->peer->input(),
 						MTPInputWallPaper(),
 						MTPWallPaperSettings(),
 						MTPint()
@@ -656,14 +656,10 @@ TextWithEntities GiftServiceBox::subtitle() {
 					giftName,
 					tr::marked));
 			} else {
-				text.append(tr::lng_action_gift_offer(
+				text.append(tr::lng_action_gift_offer_incoming(
 					tr::now,
-					lt_user,
-					tr::bold(_parent->data()->from()->shortName()),
-					lt_cost,
+					lt_amount,
 					cost,
-					lt_name,
-					giftName,
 					tr::marked));
 			}
 			text.append(u"\n\n"_q);

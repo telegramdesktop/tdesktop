@@ -495,7 +495,7 @@ ConfirmContactBox::ConfirmContactBox(
 }
 
 void ConfirmContactBox::prepare() {
-	setTitle(rpl::single(u"Confirmation"_q)); // #TODO hard_lang
+	setTitle(u"Confirmation"_q); // #TODO hard_lang
 
 	auto maxWidth = 0;
 	if (_comment) {
@@ -555,6 +555,7 @@ void ConfirmContactBox::paintEvent(QPaintEvent *e) {
 	const auto theme = controller()->defaultChatTheme().get();
 	auto context = theme->preparePaintContext(
 		_chatStyle.get(),
+		rect(),
 		rect(),
 		rect(),
 		controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer));

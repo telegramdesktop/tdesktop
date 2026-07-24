@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings.h"
 
+#include "core/version.h"
 #include "ui/emoji_config.h"
 
 Qt::LayoutDirection gLangDir = Qt::LeftToRight;
@@ -37,6 +38,7 @@ int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;
 bool gDebugMode = false;
+bool gTestAgent = false;
 
 uint32 gConnectionsInSession = 1;
 
@@ -48,8 +50,6 @@ RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
 
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
-
-RecentInlineBots gRecentInlineBots;
 
 bool gPasswordRecovered = false;
 int32 gPasscodeBadTries = 0;

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="72px" height="72px" viewBox="0 0 72 72" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <title>Filled / filled_poll_country</title>
+    <defs>
+        <linearGradient id="filled_poll_country_gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#0BC4BA"/>
+            <stop offset="100%" stop-color="#1196E4"/>
+        </linearGradient>
+    </defs>
+    <g id="Filled-/-filled_poll_country" stroke="none" fill="none" fill-rule="evenodd">
+        <path d="M36,9.33333333 C24.8,9.33333333 14.6666667,17.92 14.6666667,31.2 C14.6666667,39.68 21.2,51.7866667 34.24,63.28 C35.2533333,64.16 36.7733333,64.16 37.7866667,63.28 C50.8,51.7866667 57.3333333,39.68 57.3333333,31.2 C57.3333333,17.92 47.2,9.33333333 36,9.33333333 Z M36,37 C32.15,37 29,33.85 29,30 C29,26.15 32.15,23 36,23 C39.85,23 43,26.15 43,30 C43,33.85 39.85,37 36,37 Z" id="Shape" fill="url(#filled_poll_country_gradient)"/>
+    </g>
+</svg>

@@ -45,7 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_form.h"
 #include "settings/settings_credits_graphics.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
 #include "ui/boxes/boost_box.h" // StartFireworks.
 #include "ui/boxes/confirm_box.h"
@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/widgets/tooltip.h"
@@ -74,6 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h" // ShowChooseRecipientBox.
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
@@ -222,7 +224,7 @@ using SpinnerState = Data::GiftUpgradeSpinner::State;
 	const auto prefix = (use > 0) ? u"+"_q : QString();
 	const auto percent = Lang::FormatExactCountDecimal(use) + '%';
 	auto text = rpl::single(prefix + percent);
-	return MakeValueWithSmallButton(table, label, std::move(text));
+	return MakeValueWithSmallButton(table, label, std::move(text)).widget;
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeMinimumPriceValue(
@@ -241,7 +243,7 @@ using SpinnerState = Data::GiftUpgradeSpinner::State;
 			tr::bold(text.text),
 			lt_gift,
 			tr::bold(unique->title),
-			tr::marked));
+			tr::marked)).widget;
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeAveragePriceValue(
@@ -260,7 +262,7 @@ using SpinnerState = Data::GiftUpgradeSpinner::State;
 			tr::bold(text.text),
 			lt_gift,
 			tr::bold(unique->title),
-			tr::marked));
+			tr::marked)).widget;
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeAttributeValue(
@@ -273,13 +275,25 @@ using SpinnerState = Data::GiftUpgradeSpinner::State;
 		table->st().defaultValue);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	const auto permille = attribute.rarityPermille;
-	auto text = rpl::single(QString::number(permille / 10.) + '%');
+	const auto permille = attribute.rarityPermille();
+	const auto rarity = attribute.rarityType();
+	auto text = rpl::single(Data::UniqueGiftAttributeText(attribute));
 
 	const auto handler = [=](not_null<Ui::RpWidget*> button) {
 		showTooltip(button, permille);
 	};
-	return MakeValueWithSmallButton(table, label, std::move(text), handler);
+	auto result = MakeValueWithSmallButton(
+		table,
+		label,
+		std::move(text),
+		handler);
+	if (rarity != Data::UniqueGiftRarity::Default) {
+		const auto colors = Data::UniqueGiftRarityBadgeColors(rarity);
+		result.button->setBrushOverride(colors.bg);
+		result.button->setTextFgOverride(colors.fg);
+		result.button->setRippleOverride(colors.bg);
+	}
+	return std::move(result.widget);
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeAttributeValue(
@@ -500,7 +514,7 @@ void AddUniqueGiftPropertyRows(
 	const auto showRarity = [=](Data::GiftAttributeId id) {
 		return [=](
 				not_null<Ui::RpWidget*> widget,
-				int rarity) {
+				int rarityPermille) {
 			initVariants();
 
 			const auto weak = base::make_weak(widget);
@@ -517,10 +531,11 @@ void AddUniqueGiftPropertyRows(
 						id.type,
 						unique));
 				} else if (const auto widget = weak.get()) {
-					const auto percent = QString::number(rarity / 10.) + '%';
+					const auto percent = Data::UniqueGiftAttributeText(
+						{ .rarityValue = rarityPermille });
 					showTooltip(widget, tr::lng_gift_unique_rarity(
 						lt_percent,
-						rpl::single(TextWithEntities{ percent }),
+						rpl::single(tr::marked(percent)),
 						tr::marked));
 				}
 			});
@@ -615,7 +630,7 @@ void AddUniqueGiftPropertyRows(
 		table,
 		label.release(),
 		std::move(text),
-		handler);
+		handler).widget;
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeUniqueGiftValueValue(
@@ -673,7 +688,7 @@ void AddUniqueGiftPropertyRows(
 		table,
 		label,
 		tr::lng_gift_unique_value_learn_more(),
-		handler);
+		handler).widget;
 }
 
 void AddTable(
@@ -1546,8 +1561,11 @@ void AddStarGiftTable(
 			label->setClickHandlerFilter([=](const auto &...) {
 				TextUtilities::SetClipboardText(
 					TextForMimeData::Simple(FixupTransactionId(address)));
-				show->showToast(
-					tr::lng_gift_unique_address_copied(tr::now));
+				show->showToast({
+					.text = { tr::lng_gift_unique_address_copied(tr::now) },
+					.iconLottie = u"toast/copy"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 				return false;
 			});
 			AddTableRow(
@@ -1628,7 +1646,7 @@ void AddStarGiftTable(
 			tr::lng_credits_box_history_entry_peer_in(),
 			MakePeerTableValue(table, show, peerId, send, handler),
 			st::giveawayGiftCodePeerMargin);
-	} else if (!entry.soldOutInfo) {
+	} else if (!entry.soldOutInfo && !giftToSelf) {
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_peer_in(),
@@ -2032,8 +2050,13 @@ void AddCreditsHistoryEntryTable(
 		label->setClickHandlerFilter([=](const auto &...) {
 			TextUtilities::SetClipboardText(
 				TextForMimeData::Simple(FixupTransactionId(entry.id)));
-			show->showToast(
-				tr::lng_credits_box_history_entry_id_copied(tr::now));
+			show->showToast({
+				.text = {
+					tr::lng_credits_box_history_entry_id_copied(tr::now),
+				},
+				.iconLottie = u"toast/copy"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 			return false;
 		});
 		AddTableRow(
@@ -2233,8 +2256,13 @@ void AddChannelEarnTable(
 		label->setClickHandlerFilter([=](const auto &...) {
 			TextUtilities::SetClipboardText(
 				TextForMimeData::Simple(FixupTransactionId(entry.id)));
-			show->showToast(
-				tr::lng_credits_box_history_entry_id_copied(tr::now));
+			show->showToast({
+				.text = {
+					tr::lng_credits_box_history_entry_id_copied(tr::now),
+				},
+				.iconLottie = u"toast/copy"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 			return false;
 		});
 		AddTableRow(

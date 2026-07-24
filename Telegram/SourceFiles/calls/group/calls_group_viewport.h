@@ -12,11 +12,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class Painter;
 class QOpenGLFunctions;
+class QRhi;
+class QRhiRenderTarget;
+class QRhiCommandBuffer;
 
 namespace Ui {
 class AbstractButton;
 class RpWidgetWrap;
 } // namespace Ui
+
+namespace Ui::Rhi {
+class Renderer;
+} // namespace Ui::Rhi
 
 namespace Ui::GL {
 enum class Backend;
@@ -108,6 +115,14 @@ public:
 	void ensureBorrowedCleared();
 	void borrowedPaint(Painter &p, const QRegion &clip);
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+	void borrowedPaintOffscreen(QRhi *rhi, QRhiRenderTarget *rt, QRhiCommandBuffer *cb);
+	void borrowedPaintOnscreen(QRhi *rhi, QRhiRenderTarget *rt, QRhiCommandBuffer *cb);
+private:
+	[[nodiscard]] Ui::Rhi::Renderer *ensureBorrowedRhi(QRhi *rhi, QRhiRenderTarget *rt, QRhiCommandBuffer *cb);
+public:
+#endif
+
 	[[nodiscard]] QPoint borrowedOrigin() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();
@@ -119,6 +134,7 @@ private:
 	class VideoTile;
 	class RendererSW;
 	class RendererGL;
+	class RendererRhi;
 	using TileId = quintptr;
 
 	struct Geometry {
@@ -191,7 +207,8 @@ private:
 
 	PanelMode _mode = PanelMode();
 	bool _opengl = false;
-	const std::unique_ptr<Ui::RpWidgetWrap> _content;
+	bool _qrhi = false;
+	std::unique_ptr<Ui::RpWidgetWrap> _content;
 	std::vector<std::unique_ptr<VideoTile>> _tiles;
 	std::vector<not_null<VideoTile*>> _tilesForOrder;
 	rpl::variable<int> _fullHeight = 0;

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/popup_menu.h"
@@ -56,7 +57,7 @@ constexpr auto kChangesDebounceTimeout = crl::time(1000);
 
 using ChatLinkData = Api::ChatLink;
 
-class ChatLinks final : public BusinessSection<ChatLinks> {
+class ChatLinks final : public Section<ChatLinks> {
 public:
 	ChatLinks(
 		QWidget *parent,
@@ -595,8 +596,11 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 		st::popupMenuWithIcons);
 	result->addAction(tr::lng_group_invite_context_copy(tr::now), [=] {
 		QGuiApplication::clipboard()->setText(link);
-		delegate()->peerListUiShow()->showToast(
-			tr::lng_chat_link_copied(tr::now));
+		delegate()->peerListUiShow()->showToast({
+			.text = { tr::lng_chat_link_copied(tr::now) },
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	}, &st::menuIconCopy);
 	result->addAction(tr::lng_group_invite_context_share(tr::now), [=] {
 		delegate()->peerListUiShow()->showBox(ShareInviteLinkBox(
@@ -698,7 +702,7 @@ void LinksController::rowPaintIcon(
 ChatLinks::ChatLinks(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: BusinessSection(parent, controller)
+: Section(parent, controller)
 , _bottomSkipRounding(st::boxRadius, st::boxDividerBg) {
 	setupContent(controller);
 }
@@ -801,7 +805,11 @@ void ChatLinks::setupContent(
 		st::boxDividerLabel);
 	label->setClickHandlerFilter([=](ClickHandlerPtr handler, auto) {
 		QGuiApplication::clipboard()->setText(handler->url());
-		controller->showToast(tr::lng_chat_link_copied(tr::now));
+		controller->showToast({
+			.text = { tr::lng_chat_link_copied(tr::now) },
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 		return false;
 	});
 	content->add(object_ptr<Ui::DividerLabel>(

@@ -12,6 +12,10 @@ include(cmake/validate_special_target.cmake)
 include(cmake/version.cmake)
 desktop_app_parse_version(Telegram/build/version)
 
+if (NOT DEFINED CMAKE_CONFIGURATION_TYPES)
+    set(configuration_types_init 1)
+endif()
+
 project(Telegram
     LANGUAGES C CXX
     VERSION ${desktop_app_version_cmake}
@@ -21,6 +25,12 @@ project(Telegram
 
 if (APPLE)
     enable_language(OBJC OBJCXX)
+endif()
+
+if (configuration_types_init
+    AND CMAKE_CONFIGURATION_TYPES
+    AND NOT MinSizeRel IN_LIST CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_CONFIGURATION_TYPES "${CMAKE_CONFIGURATION_TYPES};MinSizeRel" CACHE STRING "" FORCE)
 endif()
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Telegram)

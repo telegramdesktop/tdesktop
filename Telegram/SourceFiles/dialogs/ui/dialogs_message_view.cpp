@@ -144,6 +144,7 @@ bool MessageView::prepared(
 		Data::Forum *forum,
 		Data::SavedMessages *monoforum) const {
 	return (_textCachedFor == item.get())
+		&& (_unreadMedia == item->isUnreadMedia())
 		&& ((!forum && !monoforum)
 			|| (_topics
 				&& _topics->forum() == forum
@@ -176,6 +177,7 @@ void MessageView::prepare(
 		}
 	}
 	if (_textCachedFor == item.get()) {
+		_unreadMedia = item->isUnreadMedia();
 		return;
 	}
 	options.existing = &_imagesCache;
@@ -310,6 +312,7 @@ void MessageView::prepare(
 		DialogTextOptions(),
 		std::move(context));
 	_textCachedFor = item;
+	_unreadMedia = item->isUnreadMedia();
 	_imagesCache = std::move(preview.images);
 	if (!ranges::any_of(_imagesCache, &ItemPreviewImage::hasSpoiler)) {
 		_spoiler = nullptr;
@@ -382,6 +385,24 @@ int MessageView::countWidth() const {
 	return result + _textCache.maxWidth();
 }
 
+bool MessageView::hasAnimatedContent() const {
+	if (_textCache.hasCustomEmoji()
+		|| _textCache.hasSpoilers()
+		|| _senderCache.hasCustomEmoji()) {
+		return true;
+	}
+	for (const auto &image : _imagesCache) {
+		if (image.hasSpoiler()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void MessageView::resetLastPaintGeometry() {
+	_lastPaintGeometry = QRect();
+}
+
 void MessageView::paint(
 		Painter &p,
 		const QRect &geometry,
@@ -389,6 +410,7 @@ void MessageView::paint(
 	if (geometry.isEmpty()) {
 		return;
 	}
+	_lastPaintGeometry = geometry;
 	p.setFont(st::dialogsTextFont);
 	p.setPen(context.active
 		? st::dialogsTextFgActive

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Continue AI Work"
+  short_description: "Resume work and drain a frozen task batch"
+  default_prompt: "Use $continue to resume active work or drain a frozen startup batch, processing the inbox only when no startup task work exists."

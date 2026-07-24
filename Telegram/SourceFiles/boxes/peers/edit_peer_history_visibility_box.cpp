@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_history_visibility_box.h"
 
+#include "base/event_filter.h"
 #include "lang/lang_keys.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -35,12 +37,39 @@ void EditPeerHistoryVisibilityBox(
 		button->setClickedCallback([=] { historyVisibility->setValue(v); });
 	};
 
+	const auto tryClose = [=] {
+		if (historyVisibility->current() == historyVisibilitySavedValue) {
+			box->closeBox();
+			return;
+		}
+		box->uiShow()->showBox(Ui::MakeConfirmBox({
+			.text = tr::lng_bot_close_warning(),
+			.confirmed = crl::guard(box, [=](Fn<void()> close) {
+				close();
+				box->closeBox();
+			}),
+			.confirmText = tr::lng_bot_close_warning_sure(),
+			.cancelText = tr::lng_create_group_back(),
+		}));
+	};
+
 	box->setTitle(tr::lng_manage_history_visibility_title());
 	box->addButton(tr::lng_settings_save(), [=] {
 		savedCallback(historyVisibility->current());
 		box->closeBox();
 	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	box->addButton(tr::lng_cancel(), tryClose);
+
+	box->setCloseByOutsideClick(false);
+	box->setCloseByEscape(false);
+	base::install_event_filter(box, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::KeyPress
+			&& static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape) {
+			tryClose();
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
 
 	box->addSkip(st::editPeerHistoryVisibilityTopSkip);
 	const auto visible = box->addRow(object_ptr<Ui::VerticalLayout>(box));

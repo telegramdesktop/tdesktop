@@ -495,6 +495,7 @@ object_ptr<RoundButton> FilterLinkProcessButton(
 	const auto st = &st::filterInviteBox.button;
 	const auto badgeSt = &st::filterInviteButtonBadgeStyle;
 	auto result = object_ptr<RoundButton>(parent, rpl::single(u""_q), *st);
+	result->setTextTransform(RoundButtonTextTransform::ToUpper);
 
 	struct Data {
 		TextWithEntities text;

@@ -43,7 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "settings/settings_credits_graphics.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "storage/storage_shared_media.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/swipe_handler.h"
@@ -165,8 +165,9 @@ void FillEntryMenu(
 		EntryMenuDescriptor &&descriptor) {
 	const auto peer = descriptor.peer;
 	const auto controller = descriptor.controller;
-	const auto group = peer->isMegagroup();
-	const auto channel = peer->isChannel();
+	const auto channel = peer->asChannel();
+	const auto community = channel && channel->isCommunity();
+	const auto group = peer->isChat() || peer->isMegagroup();
 
 	add(tr::lng_context_new_window(tr::now), [=] {
 		Ui::PreventDelayedActivation();
@@ -177,14 +178,23 @@ void FillEntryMenu(
 	}, &st::menuIconNewWindow);
 	Window::AddSeparatorAndShiftUp(add);
 
-	const auto showHistoryText = group
+	const auto showHistoryText = community
+		? tr::lng_context_open_community(tr::now)
+		: group
 		? tr::lng_context_open_group(tr::now)
 		: channel
 		? tr::lng_context_open_channel(tr::now)
 		: tr::lng_profile_send_message(tr::now);
+	const auto showHistoryIcon = community
+		? &st::menuIconCommunity
+		: group
+		? &st::menuIconChatBubble
+		: channel
+		? &st::menuIconChannel
+		: &st::menuIconChatBubble;
 	add(showHistoryText, [=] {
 		controller->showPeerHistory(peer);
-	}, channel ? &st::menuIconChannel : &st::menuIconChatBubble);
+	}, showHistoryIcon);
 
 	const auto history = peer->owner().historyLoaded(peer);
 	if (history
@@ -200,14 +210,16 @@ void FillEntryMenu(
 			.submenuSt = &st::foldersMenu,
 		});
 	}
-	const auto viewProfileText = group
+	const auto viewProfileText = community
+		? tr::lng_context_view_community(tr::now)
+		: group
 		? tr::lng_context_view_group(tr::now)
 		: channel
 		? tr::lng_context_view_channel(tr::now)
 		: tr::lng_context_view_profile(tr::now);
 	add(viewProfileText, [=] {
 		controller->showPeerInfo(peer);
-	}, channel ? &st::menuIconInfo : &st::menuIconProfile);
+	}, peer->isUser() ? &st::menuIconProfile : &st::menuIconInfo);
 
 	add({ .separatorSt = &st::expandedMenuSeparator });
 
@@ -596,7 +608,6 @@ private:
 
 	Fn<bool(not_null<PeerData*>)> _filterOut;
 	rpl::producer<> _filterOutRefreshes;
-	History *_activeHistory = nullptr;
 	bool _requested = false;
 	rpl::lifetime _lifetime;
 
@@ -1634,12 +1645,12 @@ Ui::Controls::SwipeHandlerArgs Suggestions::generateIncompleteSwipeArgs() {
 			_swipeBackData = {};
 		}
 	};
-	auto init = [=](int, Qt::LayoutDirection direction) {
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
 		if (!_tabs) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		const auto activeSection = _tabs->activeSection();
-		const auto isToLeft = direction == Qt::RightToLeft;
+		const auto isToLeft = data.direction == Qt::RightToLeft;
 		if ((isToLeft && activeSection > 0)
 			|| (!isToLeft && activeSection < _tabKeys.size() - 1)) {
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
@@ -2377,6 +2388,7 @@ void Suggestions::updateControlsGeometry() {
 	}
 
 	const auto expanding = false;
+	const auto contentTillBottom = true;
 	for (const auto &[key, list] : _mediaLists) {
 		const auto full = !list.wrap->scrollBottomSkip();
 		const auto additionalScroll = (full ? st::boxRadius : 0);
@@ -2385,6 +2397,7 @@ void Suggestions::updateControlsGeometry() {
 		list.wrap->updateGeometry(
 			wrapGeometry,
 			expanding,
+			contentTillBottom,
 			additionalScroll,
 			content.height());
 	}

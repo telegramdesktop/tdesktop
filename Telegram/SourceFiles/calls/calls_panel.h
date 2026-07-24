@@ -79,6 +79,7 @@ public:
 	[[nodiscard]] not_null<UserData*> user() const;
 	[[nodiscard]] bool isVisible() const;
 	[[nodiscard]] bool isActive() const;
+	[[nodiscard]] QRect panelGeometry() const;
 
 	[[nodiscard]] ConferencePanelMigration migrationInfo() const;
 
@@ -86,6 +87,7 @@ public:
 	void minimize();
 	void toggleFullScreen();
 	void replaceCall(not_null<Call*> call);
+	void savePanelGeometry();
 	void closeBeforeDestroy(bool windowIsReused = false);
 
 	QWidget *chooseSourceParent() override;
@@ -218,6 +220,7 @@ private:
 
 	std::unique_ptr<PanelBackground> _background;
 
+	rpl::lifetime _geometryLifetime;
 	rpl::lifetime _lifetime;
 
 };

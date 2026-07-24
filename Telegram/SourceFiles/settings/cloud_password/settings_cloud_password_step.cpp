@@ -25,16 +25,11 @@ namespace Settings::CloudPassword {
 AbstractStep::AbstractStep(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: AbstractSection(parent)
-, _controller(controller) {
-}
-
-not_null<Window::SessionController*> AbstractStep::controller() const {
-	return _controller;
+: AbstractSection(parent, controller) {
 }
 
 Api::CloudPassword &AbstractStep::cloudPassword() {
-	return _controller->session().api().cloudPassword();
+	return controller()->session().api().cloudPassword();
 }
 
 rpl::producer<AbstractStep::Types> AbstractStep::removeTypes() {

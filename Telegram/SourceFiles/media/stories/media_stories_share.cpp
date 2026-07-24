@@ -120,7 +120,7 @@ namespace Media::Stories {
 				comment.text = url;
 			}
 			auto &api = show->session().api();
-			for (const auto thread : result) {
+			for (const auto &thread : result) {
 				auto message = Api::MessageToSend(
 					Api::SendAction(thread, options));
 				message.textWithTags = comment;
@@ -134,7 +134,7 @@ namespace Media::Stories {
 
 		const auto api = &story->session().api();
 		auto &histories = story->owner().histories();
-		for (const auto thread : result) {
+		for (const auto &thread : result) {
 			const auto action = Api::SendAction(thread, options);
 			if (!comment.text.isEmpty()) {
 				auto message = Api::MessageToSend(action);
@@ -194,9 +194,9 @@ namespace Media::Stories {
 				randomId,
 				Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 					MTP_flags(sendFlags),
-					threadPeer->input,
+					threadPeer->input(),
 					Data::Histories::ReplyToPlaceholder(),
-					MTP_inputMediaStory(peer->input, MTP_int(id.story)),
+					MTP_inputMediaStory(peer->input(), MTP_int(id.story)),
 					MTPstring(),
 					MTP_long(randomId),
 					MTPReplyMarkup(),

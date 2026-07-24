@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_chat_participant_status.h"
+#include "data/components/recent_inline_bots.h"
 #include "data/data_document.h"
 #include "data/data_group_call.h"
 #include "data/data_message_reaction_id.h"
@@ -129,6 +130,7 @@ namespace {
 		.recordMediaMessage = !videoStream,
 		.editMessageStars = videoStream,
 		.emojiOnlyPanel = videoStream,
+		.richEditor = false,
 	};
 }
 
@@ -481,17 +483,7 @@ void ReplyArea::sendInlineResult(
 		action,
 		localMessageId);
 
-	auto &bots = cRefRecentInlineBots();
-	const auto index = bots.indexOf(bot);
-	if (index) {
-		if (index > 0) {
-			bots.removeAt(index);
-		} else if (bots.size() >= RecentInlineBotsLimit) {
-			bots.resize(RecentInlineBotsLimit - 1);
-		}
-		bots.push_front(bot);
-		bot->session().local().writeRecentHashtagsAndBots();
-	}
+	bot->session().recentInlineBots().bump(bot);
 	finishSending();
 	_controls->clear();
 }
@@ -513,45 +505,15 @@ void ReplyArea::uploadFile(
 
 bool ReplyArea::showSendingFilesError(
 		const Ui::PreparedList &list) const {
-	return showSendingFilesError(list, std::nullopt);
+	const auto show = _controller->uiShow();
+	const auto peer = _data.peer;
+	return Data::ShowSendError(show, peer, list, std::nullopt, true);
 }
 
 bool ReplyArea::showSendingFilesError(
-		const Ui::PreparedList &list,
-		std::optional<bool> compress) const {
-	const auto error = [&]() -> Data::SendError {
-		const auto peer = _data.peer;
-		const auto error = Data::FileRestrictionError(peer, list, compress);
-		if (error) {
-			return error;
-		}
-		using Error = Ui::PreparedList::Error;
-		switch (list.error) {
-		case Error::None: return QString();
-		case Error::EmptyFile:
-		case Error::Directory:
-		case Error::NonLocalUrl: return tr::lng_send_image_empty(
-			tr::now,
-			lt_name,
-			list.errorData);
-		case Error::TooLargeFile: return u"(toolarge)"_q;
-		}
-		return tr::lng_forward_send_files_cant(tr::now);
-	}();
-	if (!error) {
-		return false;
-	} else if (error.text == u"(toolarge)"_q) {
-		const auto fileSize = list.files.back().size;
-		_controller->uiShow()->showBox(Box(
-			FileSizeLimitBox,
-			&session(),
-			fileSize,
-			&st::storiesComposePremium));
-		return true;
-	}
-
-	Data::ShowSendErrorToast(_controller->uiShow(), _data.peer, error);
-	return true;
+		const Ui::PreparedBundle &bundle) const {
+	const auto show = _controller->uiShow();
+	return Data::ShowSendError(show, _data.peer, bundle, true);
 }
 
 not_null<History*> ReplyArea::history() const {
@@ -698,14 +660,17 @@ bool ReplyArea::confirmSendingFiles(
 	}
 
 	const auto show = _controller->uiShow();
-	auto confirmed = [=](auto &&...args) {
-		sendingFilesConfirmed(std::forward<decltype(args)>(args)...);
+	auto confirmed = [=](
+			std::shared_ptr<Ui::PreparedBundle> bundle,
+			Api::SendOptions options,
+			FullReplyTo) {
+		sendingFilesConfirmed(std::move(bundle), options);
 	};
 	show->show(Box<SendFilesBox>(SendFilesBoxDescriptor{
 		.show = show,
 		.list = std::move(list),
 		.caption = _controls->getTextWithAppliedMarkdown(),
-		.captionToPeer = _data.peer,
+		.toPeer = _data.peer,
 		.limits = DefaultLimitsForPeer(_data.peer),
 		.check = DefaultCheckForPeer(show, _data.peer),
 		.sendType = Api::SendType::Normal,
@@ -719,31 +684,11 @@ bool ReplyArea::confirmSendingFiles(
 }
 
 void ReplyArea::sendingFilesConfirmed(
-		Ui::PreparedList &&list,
-		Ui::SendFilesWay way,
-		TextWithTags &&caption,
-		Api::SendOptions options,
-		bool ctrlShiftEnter) {
-	Expects(list.filesToProcess.empty());
-
-	if (showSendingFilesError(list, way.sendImagesAsPhotos())) {
-		return;
-	}
-	auto groups = DivideByGroups(
-		std::move(list),
-		way,
-		_data.peer->slowmodeApplied());
-	auto bundle = PrepareFilesBundle(
-		std::move(groups),
-		way,
-		std::move(caption),
-		ctrlShiftEnter);
-	sendingFilesConfirmed(std::move(bundle), options);
-}
-
-void ReplyArea::sendingFilesConfirmed(
 		std::shared_ptr<Ui::PreparedBundle> bundle,
 		Api::SendOptions options) {
+	if (showSendingFilesError(*bundle)) {
+		return;
+	}
 	const auto compress = bundle->way.sendImagesAsPhotos();
 	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
 	auto action = prepareSendAction(options);
@@ -762,21 +707,12 @@ void ReplyArea::sendingFilesConfirmed(
 		return;
 	}
 
-	if (bundle->sendComment) {
-		auto message = Api::MessageToSend(action);
-		message.textWithTags = base::take(bundle->caption);
-		session().api().sendMessage(std::move(message));
-	}
+	auto &api = session().api();
 	for (auto &group : bundle->groups) {
 		const auto album = (group.type != Ui::AlbumType::None)
 			? std::make_shared<SendingAlbum>()
 			: nullptr;
-		session().api().sendFiles(
-			std::move(group.list),
-			type,
-			base::take(bundle->caption),
-			album,
-			action);
+		api.sendFiles(std::move(group.list), type, album, action);
 	}
 	finishSending();
 }
@@ -824,6 +760,12 @@ void ReplyArea::initActions() {
 			this,
 			[=] { chooseAttach(overrideCompress); });
 	}, _lifetime);
+
+	_controls->setSendAsFileConfirmed(crl::guard(this, [=](
+			std::shared_ptr<Ui::PreparedBundle> bundle,
+			Api::SendOptions options) {
+		sendingFilesConfirmed(std::move(bundle), options);
+	}));
 
 	_controls->fileChosen(
 	) | rpl::on_next([=](ChatHelpers::FileChosen data) {

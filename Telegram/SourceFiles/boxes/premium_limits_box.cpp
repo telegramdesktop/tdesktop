@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_premium_limits.h"
 #include "lang/lang_keys.h"
-#include "settings/settings_premium.h" // ShowPremium.
+#include "settings/sections/settings_premium.h" // ShowPremium.
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "styles/style_premium.h"
@@ -366,11 +366,11 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 		}
 		*once = true;
 		peer->session().api().request(MTPchannels_UpdateUsername(
-			peer->asChannel()->inputChannel,
+			peer->asChannel()->inputChannel(),
 			MTP_string()
 		)).done([=] {
 			peer->session().api().request(MTPchannels_DeactivateAllUsernames(
-				peer->asChannel()->inputChannel
+				peer->asChannel()->inputChannel()
 			)).done([=] {
 				closeBox();
 				close();
@@ -1115,18 +1115,20 @@ void AccountsLimitBox(
 		(!premiumPossible
 			? (current * 2)
 			: (current > defaultLimit)
-			? (current + 1)
+			? std::min(current + 1, premiumLimit)
 			: (defaultLimit * 2)),
 		ChooseBubbleType(premiumPossible),
 		std::nullopt,
 		&st::premiumIconAccounts);
 	Ui::AddSkip(top, st::premiumLineTextSkip);
 	if (premiumPossible) {
+		const auto nextMax = std::max(current, defaultLimit) + 1;
 		Ui::Premium::AddLimitRow(
 			top,
 			st::defaultPremiumLimits,
-			(QString::number(std::max(current, defaultLimit) + 1)
-				+ ((current + 1 == premiumLimit) ? "" : "+")),
+			((nextMax >= premiumLimit)
+				? QString::number(premiumLimit)
+				: (QString::number(nextMax) + QChar('+'))),
 			QString::number(defaultLimit));
 		Ui::AddSkip(top, st::premiumInfographicPadding.bottom());
 	}

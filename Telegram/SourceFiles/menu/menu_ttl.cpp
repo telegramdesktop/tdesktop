@@ -109,7 +109,7 @@ TextItem::TextItem(
 			(s.height() - _label->height()) / 2);
 	}, lifetime());
 
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 }
 
 not_null<QAction*> TextItem::action() const {

@@ -58,7 +58,21 @@ constexpr auto kSearchPerPage = 50;
 			result += u"emoji"_q + tag.emoji();
 		}
 	}
+	switch (request.filter) {
+	case SearchFilter::NoFilter: break;
+	case SearchFilter::Pinned: result += u"\npinned"_q; break;
+	}
 	return result;
+}
+
+[[nodiscard]] MTPMessagesFilter PrepareFilter(SearchFilter filter) {
+	switch (filter) {
+	case SearchFilter::Pinned:
+		return MTP_inputMessagesFilterPinned();
+	case SearchFilter::NoFilter:
+		return MTP_inputMessagesFilterEmpty();
+	}
+	return MTP_inputMessagesFilterEmpty();
 }
 
 } // namespace
@@ -105,15 +119,15 @@ void MessagesSearch::searchRequest() {
 				| (savedPeer ? Flag::f_saved_peer_id : Flag())
 				| (_request.topMsgId ? Flag::f_top_msg_id : Flag())
 				| (_request.tags.empty() ? Flag() : Flag::f_saved_reaction)),
-			_history->peer->input,
+			_history->peer->input(),
 			MTP_string(_request.query),
-			(fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
-			(savedPeer ? savedPeer->input : MTP_inputPeerEmpty()),
+			(fromPeer ? fromPeer->input() : MTP_inputPeerEmpty()),
+			(savedPeer ? savedPeer->input() : MTP_inputPeerEmpty()),
 			MTP_vector_from_range(_request.tags | ranges::views::transform(
 				Data::ReactionToMTP
 			)),
 			MTP_int(_request.topMsgId), // top_msg_id
-			MTP_inputMessagesFilterEmpty(),
+			PrepareFilter(_request.filter),
 			MTP_int(0), // min_date
 			MTP_int(0), // max_date
 			MTP_int(_offsetId), // offset_id

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "menu/menu_item_download_files.h"
 
+#include "base/base_file_utilities.h"
+#include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/file_utilities.h"
@@ -28,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 
@@ -107,15 +110,23 @@ void AddAction(
 							"internal:show_saved_message"),
 						tr::marked),
 					.filter = filter,
+					.iconLottie = u"toast/save_to_gallery"_q,
+					.iconLottieSize = st::toastLottieIconSize,
 					.st = &st::defaultToast,
 				});
 			};
 
 		auto views = std::vector<std::shared_ptr<Data::PhotoMedia>>();
+		auto dates = std::vector<TimeId>();
 		for (const auto &[photo, fullId] : photos) {
 			if (const auto view = photo->createMediaView()) {
 				view->wanted(Data::PhotoSize::Large, fullId);
 				views.push_back(view);
+				const auto photoDate = photo->date();
+				const auto item = session->data().message(fullId);
+				dates.push_back(photoDate
+					? photoDate
+					: (item ? item->date() : TimeId(0)));
 			}
 		}
 
@@ -138,7 +149,18 @@ void AddAction(
 			auto lastPath = QString();
 			for (auto i = 0; i < views.size(); i++) {
 				lastPath = fullPath(i + 1);
-				views[i]->saveToFile(lastPath);
+				if (views[i]->saveToFile(lastPath) && dates[i] > 0) {
+					auto f = QFile(lastPath);
+					if (f.open(QIODevice::ReadWrite)) {
+						const auto when = base::unixtime::parse(dates[i]);
+						f.setFileTime(
+							when,
+							QFileDevice::FileModificationTime);
+						f.setFileTime(
+							when,
+							QFileDevice::FileAccessTime);
+					}
+				}
 			}
 			if (showToast) {
 				showToast(lastPath);
@@ -161,7 +183,9 @@ void AddAction(
 	const auto saveDocuments = [=](const QString &folderPath) {
 		for (const auto &[document, origin] : documents) {
 			if (!folderPath.isEmpty()) {
-				document->save(origin, folderPath + document->filename());
+				const auto name =
+					base::FileNameFromUserString(document->filename());
+				document->save(origin, folderPath + name);
 			} else {
 				DocumentSaveClickHandler::SaveAndTrack(origin, document);
 			}
@@ -237,18 +261,14 @@ void AddDownloadFilesAction(
 void AddDownloadFilesAction(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<Window::SessionController*> window,
-		const base::flat_map<HistoryItem*, TextSelection, std::less<>> &items,
+		const std::vector<not_null<HistoryItem*>> &items,
 		not_null<HistoryInner*> list) {
 	if (items.empty()) {
 		return;
 	}
-	auto sortedItems = ranges::views::all(items)
-		| ranges::views::keys
-		| ranges::to<std::vector>();
-	ranges::sort(sortedItems, {}, &HistoryItem::fullId);
 	auto docs = Documents();
 	auto photos = Photos();
-	for (const auto &item : sortedItems) {
+	for (const auto &item : items) {
 		if (!Added(item, docs, photos)) {
 			return;
 		}

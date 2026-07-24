@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "data/components/promo_suggestions.h"
 #include "data/data_thread.h"
+#include "settings/settings_common.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "styles/style_layers.h"
 
@@ -144,10 +145,16 @@ void Controller::showAccount(
 		MsgId singlePeerShowAtMsgId) {
 	Expects(isPrimary() || _id.account == account);
 
+	const auto prevAccount = _id.account;
 	const auto prevSession = maybeSession();
 	const auto prevSessionUniqueId = prevSession
 		? prevSession->uniqueId()
 		: 0;
+	const auto accountBeforeIntro = (prevAccount
+		&& prevAccount != account
+		&& prevAccount->sessionExists())
+		? prevAccount
+		: nullptr;
 	_accountLifetime.destroy();
 	_id.account = account;
 	Core::App().checkWindowId(this);
@@ -216,7 +223,7 @@ void Controller::showAccount(
 			session->updates().updateOnline(crl::now());
 		} else {
 			sideBarChanged();
-			setupIntro(std::move(oldContentCache));
+			setupIntro(accountBeforeIntro, std::move(oldContentCache));
 			_widget.updateGlobalMenu();
 		}
 
@@ -393,11 +400,13 @@ void Controller::clearSetupEmailLock() {
 	_widget.clearSetupEmailLock();
 }
 
-void Controller::setupIntro(QPixmap oldContentCache) {
+void Controller::setupIntro(
+		Main::Account *accountBeforeIntro,
+		QPixmap oldContentCache) {
 	const auto point = Core::App().domain().maybeLastOrSomeAuthedAccount()
 		? Intro::EnterPoint::Qr
 		: Intro::EnterPoint::Start;
-	_widget.setupIntro(point, std::move(oldContentCache));
+	_widget.setupIntro(point, accountBeforeIntro, std::move(oldContentCache));
 }
 
 void Controller::setupMain(
@@ -462,8 +471,16 @@ void Controller::hideSettingsAndLayer(anim::type animated) {
 	_widget.ui_hideSettingsAndLayer(animated);
 }
 
+bool Controller::closeLayerByBackButton() {
+	return _widget.closeLayerByBackButton();
+}
+
 bool Controller::isLayerShown() const {
 	return _widget.ui_isLayerShown();
+}
+
+rpl::producer<bool> Controller::boxShownValue() const {
+	return _widget.ui_boxShownValue();
 }
 
 void Controller::sideBarChanged() {
@@ -613,6 +630,35 @@ auto Controller::floatPlayerDelegateValue() const
 
 std::shared_ptr<Ui::Show> Controller::uiShow() {
 	return std::make_shared<Show>(this);
+}
+
+void Controller::setHighlightControlId(const QString &id) {
+	_highlightControlId = id;
+}
+
+QString Controller::highlightControlId() const {
+	return _highlightControlId;
+}
+
+bool Controller::takeHighlightControlId(const QString &id) {
+	if (_highlightControlId == id) {
+		_highlightControlId = QString();
+		return true;
+	}
+	return false;
+}
+
+void Controller::checkHighlightControl(
+		const QString &id,
+		QWidget *widget,
+		Settings::HighlightArgs &&args) {
+	if (widget && takeHighlightControlId(id)) {
+		Settings::HighlightWidget(widget, std::move(args));
+	}
+}
+
+void Controller::checkHighlightControl(const QString &id, QWidget *widget) {
+	checkHighlightControl(id, widget, {});
 }
 
 rpl::lifetime &Controller::lifetime() {

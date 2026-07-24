@@ -154,16 +154,19 @@ void ChatFilterLinkBox(
 		labelField->setFocusFast();
 	});
 
-	const auto &saveLabel = link.isEmpty()
-		? tr::lng_formatting_link_create
-		: tr::lng_settings_save;
-	box->addButton(saveLabel(), [=] {
+	const auto save = [=] {
 		session->data().chatsFilters().edit(
 			data.id,
 			data.url,
 			labelField->getLastText().trimmed());
 		box->closeBox();
-	});
+	};
+	labelField->submits() | rpl::on_next(save, labelField->lifetime());
+
+	const auto &saveLabel = link.isEmpty()
+		? tr::lng_formatting_link_create
+		: tr::lng_settings_save;
+	box->addButton(saveLabel(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
@@ -1015,7 +1018,7 @@ void ExportFilterLink(
 	const auto front = peers.front();
 	const auto session = &front->session();
 	auto mtpPeers = peers | ranges::views::transform(
-		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
+		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input()); }
 	) | ranges::to<QVector<MTPInputPeer>>();
 	session->api().request(MTPchatlists_ExportChatlistInvite(
 		MTP_inputChatlistDialogFilter(MTP_int(id)),
@@ -1048,7 +1051,7 @@ void EditLinkChats(
 	const auto front = peers.front();
 	const auto session = &front->session();
 	auto mtpPeers = peers | ranges::views::transform(
-		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
+		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input()); }
 	) | ranges::to<QVector<MTPInputPeer>>();
 	session->api().request(MTPchatlists_EditExportedInvite(
 		MTP_flags(MTPchatlists_EditExportedInvite::Flag::f_peers),

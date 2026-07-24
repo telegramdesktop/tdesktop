@@ -938,24 +938,30 @@ void AddGiftOptions(
 		const auto costPerMonthIcon = info.costPerMonth.startsWith(kStar)
 			? GenerateStars(costPerMonthFont->height, 1)
 			: QImage();
+		auto leftText = TextWithEntities();
+		if (!info.costNoDiscount.isEmpty()) {
+			leftText.append(Ui::Text::Wrapped(
+				TextWithEntities{ info.costNoDiscount },
+				EntityType::StrikeOut));
+			leftText.append(' ');
+		}
+		leftText.append(costPerMonthIcon.isNull()
+			? info.costPerMonth
+			: removedStar(info.costPerMonth));
 		const auto costPerMonthLabel
 			= row->lifetime().make_state<Ui::Text::String>();
 		costPerMonthLabel->setMarkedText(
 			st::shareBoxListItem.nameStyle,
-			TextWithEntities()
-				.append(Ui::Text::Wrapped(
-					TextWithEntities{ info.costNoDiscount },
-					EntityType::StrikeOut))
-				.append(' ')
-				.append(costPerMonthIcon.isNull()
-					? info.costPerMonth
-					: removedStar(info.costPerMonth)));
+			std::move(leftText));
+		const auto rightText = info.total.isEmpty()
+			? info.costPerYear
+			: info.total;
 
 		const auto costPerYearEntry = [&] {
-			if (!info.costPerYear.startsWith(kStar)) {
+			if (!rightText.startsWith(kStar)) {
 				return QImage();
 			}
-			const auto text = removedStar(info.costPerYear);
+			const auto text = removedStar(rightText);
 			const auto icon = GenerateStars(costPerYearFont->height, 1);
 			auto result = QImage(
 				QSize(costPerYearFont->spacew + costPerYearFont->width(text), 0)
@@ -969,7 +975,6 @@ void AddGiftOptions(
 				p.drawImage(0, 0, icon);
 				p.setPen(st::windowSubTextFg);
 				p.setFont(costPerYearFont);
-				auto copy = info.costPerYear;
 				p.drawText(
 					Rect(result.size() / style::DevicePixelRatio()),
 					text,
@@ -1078,7 +1083,7 @@ void AddGiftOptions(
 						+ costPerMonthIcon.width()
 							/ style::DevicePixelRatio());
 				const auto costPerYearWidth = costPerYearFont->width(
-					info.costPerYear);
+					rightText);
 				const auto pos = perRect.translated(left, 0).topLeft();
 				const auto availableWidth = row->width()
 					- pos.x()
@@ -1096,7 +1101,7 @@ void AddGiftOptions(
 				- QMargins(0, 0, st.rowMargins.right(), 0);
 			if (costPerYearEntry.isNull()) {
 				p.setFont(costPerYearFont);
-				p.drawText(totalRect, info.costPerYear, style::al_right);
+				p.drawText(totalRect, rightText, style::al_right);
 			} else {
 				const auto size = costPerYearEntry.size()
 					/ style::DevicePixelRatio();

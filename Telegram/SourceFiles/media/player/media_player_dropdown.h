@@ -73,6 +73,7 @@ public:
 		not_null<QWidget*> menuParent,
 		const style::DropdownMenu &menuSt,
 		Qt::Alignment menuAlign,
+		QPoint menuPosition,
 		Fn<void(bool)> menuOverCallback);
 	virtual ~WithDropdownController() = default;
 
@@ -95,6 +96,7 @@ private:
 	const not_null<QWidget*> _menuParent;
 	const style::DropdownMenu &_menuSt;
 	const Qt::Alignment _menuAlign = Qt::AlignTop | Qt::AlignRight;
+	const QPoint _menuPosition;
 	const Fn<void(bool)> _menuOverCallback;
 	base::unique_qptr<Ui::DropdownMenu> _menu;
 	rpl::variable<bool> _menuToggled;
@@ -131,12 +133,14 @@ public:
 		Fn<void(bool)> menuOverCallback,
 		Fn<float64(bool lastNonDefault)> value,
 		Fn<void(float64)> change,
-		std::vector<int> qualities = {},
+		std::vector<VideoQuality> qualities = {},
 		Fn<VideoQuality()> quality = nullptr,
-		Fn<void(int)> changeQuality = nullptr);
+		Fn<void(VideoQuality)> changeQuality = nullptr);
 
 	[[nodiscard]] rpl::producer<> saved() const;
 	[[nodiscard]] rpl::producer<float64> realtimeValue() const;
+	void reloadFromLookup();
+	void setQualities(std::vector<VideoQuality> qualities);
 
 private:
 	void fillMenu(not_null<Ui::DropdownMenu*> menu) override;
@@ -157,9 +161,9 @@ private:
 	rpl::event_stream<float64> _speedChanged;
 	rpl::event_stream<> _saved;
 
-	std::vector<int> _qualities;
+	std::vector<VideoQuality> _qualities;
 	Fn<VideoQuality()> _lookupQuality;
-	Fn<void(int)> _changeQuality;
+	Fn<void(VideoQuality)> _changeQuality;
 	rpl::variable<VideoQuality> _quality;
 
 };

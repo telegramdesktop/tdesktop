@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
 #include "main/main_session.h"
 #include "ui/controls/ton_common.h"
@@ -23,6 +24,7 @@ namespace {
 
 constexpr auto kMyGiftsPerPage = 50;
 constexpr auto kResaleGiftsPerPage = 50;
+constexpr auto kCraftGiftsPerPage = 50;
 
 [[nodiscard]] MTPStarGiftAttributeId AttributeToTL(GiftAttributeId id) {
 	switch (id.type) {
@@ -63,7 +65,52 @@ QString UniqueGiftName(const UniqueGift &gift) {
 }
 
 QString UniqueGiftName(const QString &title, int number) {
-	return title + u" #"_q + QString::number(number);
+	return title + u" #"_q + Lang::FormatCountDecimal(number);
+}
+
+QString UniqueGiftRarityText(UniqueGiftRarity type) {
+	switch (type) {
+	case UniqueGiftRarity::Uncommon:
+		return tr::lng_gift_uncommon_tag(tr::now);
+	case UniqueGiftRarity::Rare:
+		return tr::lng_gift_rare_tag(tr::now);
+	case UniqueGiftRarity::Epic:
+		return tr::lng_gift_epic_tag(tr::now);
+	case UniqueGiftRarity::Legendary:
+		return tr::lng_gift_legendary_tag(tr::now);
+	}
+	return QString();
+}
+
+UniqueGiftRarityColors UniqueGiftRarityBadgeColors(UniqueGiftRarity type) {
+	constexpr auto kBgOpacity = 0.15;
+	const auto base = [&] {
+		switch (type) {
+		case UniqueGiftRarity::Uncommon: return QColor(0x40, 0xA9, 0x20);
+		case UniqueGiftRarity::Rare: return QColor(0x11, 0xAA, 0xBE);
+		case UniqueGiftRarity::Epic: return QColor(0x95, 0x5C, 0xDB);
+		case UniqueGiftRarity::Legendary: return QColor(0xBF, 0x76, 0x00);
+		}
+		Unexpected("Invalid rarity type.");
+	}();
+	auto bg = base;
+	bg.setAlphaF(kBgOpacity);
+	return { bg, base };
+}
+
+QString UniqueGiftAttributeText(const UniqueGiftAttribute &attribute) {
+	const auto type = attribute.rarityType();
+	if (type != UniqueGiftRarity::Default) {
+		return UniqueGiftRarityText(type);
+	}
+	const auto permille = attribute.rarityPermille();
+	return (permille > 0)
+		? (QString::number(permille / 10.) + '%')
+		: u"< 0.1%"_q;
+}
+
+bool UniqueGiftAttributeHasSpecialRarity(const UniqueGiftAttribute &attribute) {
+	return attribute.rarityType() != UniqueGiftRarity::Default;
 }
 
 CreditsAmount UniqueGiftResaleStars(const UniqueGift &gift) {
@@ -137,7 +184,7 @@ rpl::producer<MyGiftsDescriptor> MyUniqueGiftsSlice(
 				| ((type == MyUniqueType::OnlyOwned)
 					? Flag::f_exclude_hosted
 					: Flag())),
-			user->input,
+			user->input(),
 			MTP_int(0), // collection_id
 			MTP_string(offset),
 			MTP_int(kMyGiftsPerPage)
@@ -188,7 +235,9 @@ rpl::producer<ResaleGiftsDescriptor> ResaleGiftsSlice(
 						: Flag())
 					| (filter.attributes.empty()
 						? Flag()
-						: Flag::f_attributes)),
+						: Flag::f_attributes)
+					| (filter.forCraft ? Flag::f_for_craft : Flag())
+					| (filter.starsOnly ? Flag::f_stars_only : Flag())),
 				MTP_long(filter.attributesHash),
 				MTP_long(giftId),
 				MTP_vector_from_range(filter.attributes
@@ -244,6 +293,47 @@ rpl::producer<ResaleGiftsDescriptor> ResaleGiftsSlice(
 					info.backdrops.push_back({ parsed, count(IdFor(parsed)) });
 				}, [](const MTPDstarGiftAttributeOriginalDetails &data) {
 				});
+			}
+			consumer.put_next(std::move(info));
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_next({});
+			consumer.put_done();
+		}).send();
+
+		auto lifetime = rpl::lifetime();
+		lifetime.add([=] { session->api().request(requestId).cancel(); });
+		return lifetime;
+	};
+}
+
+rpl::producer<CraftGiftsDescriptor> CraftGiftsSlice(
+		not_null<Main::Session*> session,
+		uint64 giftId,
+		QString offset) {
+	return [=](auto consumer) {
+		const auto requestId = session->api().request(
+			MTPpayments_GetCraftStarGifts(
+				MTP_long(giftId),
+				MTP_string(offset),
+				MTP_int(kCraftGiftsPerPage))
+		).done([=](const MTPpayments_SavedStarGifts &result) {
+			const auto user = session->user();
+			const auto owner = &session->data();
+			const auto &data = result.data();
+			owner->processUsers(data.vusers());
+			owner->processChats(data.vchats());
+
+			auto info = CraftGiftsDescriptor{
+				.giftId = giftId,
+				.offset = qs(data.vnext_offset().value_or_empty()),
+				.count = data.vcount().v,
+			};
+			info.list.reserve(data.vgifts().v.size());
+			for (const auto &gift : data.vgifts().v) {
+				if (auto parsed = Api::FromTL(user, gift)) {
+					info.list.push_back(std::move(*parsed));
+				}
 			}
 			consumer.put_next(std::move(info));
 			consumer.put_done();

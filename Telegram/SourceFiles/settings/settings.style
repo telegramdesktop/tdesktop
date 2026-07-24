@@ -56,6 +56,10 @@ settingsOptionDisabled: SettingsButton(settingsButtonNoIcon) {
 	textBgOver: windowBg;
 	toggleOver: infoProfileToggle;
 }
+settingsButtonDisabledWithIcon: SettingsButton(settingsButton) {
+	textFg: windowSubTextFg;
+	textFgOver: windowSubTextFg;
+}
 settingsButtonRightSkip: 23px;
 settingsScalePadding: margins(60px, 7px, 22px, 4px);
 settingsBigScalePadding: margins(21px, 7px, 21px, 4px);
@@ -105,6 +109,21 @@ settingsPremiumIconBusiness: icon {{ "settings/premium/market", settingsIconFg }
 settingsPremiumIconEffects: icon {{ "settings/premium/effects", settingsIconFg }};
 settingsPremiumIconChecklist: icon {{ "settings/premium/checklist", settingsIconFg }};
 settingsPremiumIconPeerColors: icon {{ "settings/premium/peer_colors-24x24", settingsIconFg }};
+settingsPremiumIconNoForwards: icon {{ "menu/share_off-24x24", settingsIconFg }};
+settingsPremiumIconAiCompose: icon{
+	{ size(24px, 24px), transparent },
+	{ "chat/ai_letters-20x20", settingsIconFg, point(2px, 2px) },
+	{ "chat/ai_star1-20x20", settingsIconFg, point(2px, 2px) },
+	{ "chat/ai_star2-20x20", settingsIconFg, point(2px, 2px) },
+};
+settingsPremiumIconRich: icon {{ "settings/premium/rich", settingsIconFg }};
+
+settingsIconChatAutomation: icon {
+	{ size(24px, 24px), transparent },
+	{ "chat/ai_letters-20x20", menuIconColor, point(2px, 2px) },
+	{ "chat/ai_star1-20x20", menuIconColor, point(2px, 2px) },
+	{ "chat/ai_star2-20x20", menuIconColor, point(2px, 2px) },
+};
 
 settingsStoriesIconOrder: icon {{ "settings/premium/stories_order", premiumButtonBg1 }};
 settingsStoriesIconStealth: icon {{ "menu/stealth", premiumButtonBg1 }};
@@ -175,10 +194,6 @@ settingsPrivacySkip: 14px;
 settingsPrivacySkipTop: 4px;
 settingsPrivacyPremium: icon{{ "profile_premium", premiumButtonFg }};
 
-settingsPrivacyAddBirthday: FlatLabel(defaultFlatLabel) {
-	minWidth: 256px;
-}
-
 settingsCloudPasswordIconSize: 100px;
 
 settingLocalPasscodeInputField: InputField(defaultInputField) {
@@ -187,7 +202,6 @@ settingLocalPasscodeInputField: InputField(defaultInputField) {
 settingLocalPasscodeDescription: FlatLabel(changePhoneDescription) {
 	minWidth: 256px;
 }
-settingLocalPasscodeDescriptionHeight: 53px;
 settingLocalPasscodeError: FlatLabel(changePhoneError) {
 	minWidth: 256px;
 }
@@ -195,13 +209,13 @@ settingLocalPasscodeDescriptionBottomSkip: 15px;
 settingLocalPasscodeIconPadding: margins(0px, 19px, 0px, 5px);
 settingLocalPasscodeButtonPadding: margins(0px, 19px, 0px, 35px);
 
-settingsInfoPhotoHeight: 161px;
+settingsInfoPhotoHeight: 162px;
 settingsInfoPhotoSize: 100px;
 settingsInfoPhoto: UserpicButton(defaultUserpicButton) {
 	size: size(settingsInfoPhotoSize, settingsInfoPhotoSize);
 	photoSize: settingsInfoPhotoSize;
 }
-settingsInfoPhotoTop: 0px;
+settingsInfoPhotoTop: 2px;
 settingsInfoPhotoSkip: 7px;
 settingsInfoNameSkip: -1px;
 settingsInfoUploadLeft: 6px;
@@ -213,6 +227,9 @@ settingsInfoPeerBadge: InfoPeerBadge {
 	premium: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
 	premiumFg: dialogsVerifiedIconBg;
 	sizeTag: 0; // Normal
+}
+settingsCoverBadge: InfoPeerBadge(infoPeerBadge) {
+	position: point(4px, 2px);
 }
 
 settingsBio: InputField(defaultInputField) {
@@ -233,6 +250,7 @@ settingsBio: InputField(defaultInputField) {
 }
 
 settingsBioMargins: margins(22px, 6px, 22px, 4px);
+settingsBioHighlightMargin: margins(-22px, 0px, -22px, 0px);
 settingsBioCountdown: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 	textFg: windowSubTextFg;
@@ -271,6 +289,7 @@ settingsThemeBubbleRadius: 2px;
 settingsThemeBubblePosition: point(6px, 8px);
 settingsThemeBubbleSkip: 6px;
 settingsThemeRadioBottom: 12px;
+settingsThemeOutlineWidth: 2px;
 settingsThemeMinSkip: 4px;
 
 settingsThemeNotSupportedBg: windowBgOver;
@@ -314,6 +333,12 @@ settingsFilterIconPadding: margins(0px, 17px, 0px, 5px);
 
 settingsFilterTagPreviewSkip: 14px;
 
+settingsFilterAddRecommended: RoundButton(defaultActiveButton) {
+	width: -32px;
+	height: 26px;
+	textTop: 4px;
+}
+
 settingsDeviceName: InputField(defaultInputField) {
 	textBg: transparent;
 	textMargins: margins(1px, 3px, 1px, 4px);
@@ -334,8 +359,6 @@ dictionariesSectionButton: SettingsButton(settingsUpdateToggle) {
 	}
 }
 
-sessionsScroll: boxScroll;
-sessionsHeight: 350px;
 sessionLocationTop: 54px;
 sessionCurrentSkip: 8px;
 sessionSubtitleSkip: 14px;
@@ -427,6 +450,7 @@ websiteBigUserpic: UserpicButton(defaultUserpicButton) {
 settingsPhotoLeft: 22px;
 settingsPhotoTop: 8px;
 settingsPhotoBottom: 16px;
+settingsPhotoHighlightMargin: margins(-4px, -4px, -4px, -4px);
 settingsNameLeft: 112px;
 settingsNameTop: 12px;
 settingsPhoneLeft: settingsNameLeft;
@@ -444,6 +468,18 @@ settingsReactionCornerSkip: point(11px, -6px);
 settingsReactionMessageSize: 18px;
 
 settingsReactionRightIcon: 20px;
+settingsReactionsIslandPadding: margins(12px, 12px, 12px, 4px);
+settingsReactionsFillerOpacity: 0.4;
+settingsReactionsFlyUp: 12px;
+settingsReactionsAboutLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(center);
+	minWidth: 240px;
+}
+settingsReactionsAboutPadding: margins(22px, 9px, 22px, 2px);
+reactionsSettingsBox: Box(defaultBox) {
+	shadowIgnoreTopSkip: true;
+}
 
 notifyPreviewMargins: margins(40px, 20px, 40px, 58px);
 notifyPreviewUserpicSize: 36px;
@@ -506,17 +542,10 @@ settingsPremiumTopHeight: 202px;
 settingsPremiumUserHeight: 205px;
 settingsPremiumUserTitlePadding: margins(0px, 16px, 0px, 6px);
 settingsPremiumUserTitle: FlatLabel(boxTitle) {
-	style: TextStyle(defaultTextStyle) {
-		font: boxTitleFont;
-		lineHeight: 20px;
-	}
 	minWidth: 300px;
 	maxHeight: 0px;
 	align: align(top);
 }
-
-settingsPremiumLock: icon{{ "emoji/premium_lock", windowActiveTextFg, point(0px, 1px) }};
-settingsPremiumLockSkip: 3px;
 
 settingsBlockedListSubtitleAddPadding: margins(0px, 1px, 0px, -4px);
 settingsBlockedListIconPadding: margins(0px, 24px, 0px, 5px);
@@ -532,6 +561,21 @@ settingsNotificationType: SettingsButton(settingsButton) {
 settingsNotificationTypeDetails: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
+
+settingsSearchResult: SettingsButton(settingsButton) {
+	height: 40px;
+	padding: margins(60px, 4px, 22px, 4px);
+}
+settingsSearchResultNoIcon: SettingsButton(settingsSearchResult) {
+	padding: margins(22px, 4px, 22px, 4px);
+}
+settingsSearchResultDetails: FlatLabel(settingsNotificationTypeDetails) {
+}
+settingsSearchNoResults: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(center);
+}
+settingsSearchNoResultsPadding: margins(22px, 32px, 22px, 32px);
 
 powerSavingButton: SettingsButton(settingsButton) {
 	style: boxTextStyle;
@@ -636,13 +680,17 @@ settingsChatbotsAccess: Checkbox(defaultCheckbox) {
 }
 settingsLocationAddress: InputField(defaultMultiSelectSearchField) {
 }
-settingsChatbotsUsernameMargins: margins(20px, 8px, 20px, 8px);
+settingsChatbotsUsernameMargins: margins(20px, 0px, 20px, 8px);
 settingsChatbotsAccessMargins: margins(22px, 5px, 22px, 9px);
 settingsChatbotsAccessSkip: 4px;
 settingsChatbotsBottomTextMargin: margins(22px, 8px, 22px, 3px);
 settingsChatbotsAdd: SettingsButton(settingsButton) {
 	iconLeft: 22px;
 }
+settingsChatbotsRemove: SettingsButton(settingsAttentionButtonWithIcon, settingsChatbotsAdd) {
+	iconLeft: 16px;
+}
+settingsChatbotsRemoveIcon: infoIconDeleteRed;
 settingsWorkingHoursWeek: SettingsButton(settingsButtonNoIcon) {
 	height: 40px;
 	padding: margins(22px, 4px, 22px, 4px);
@@ -672,8 +720,12 @@ settingsChatbotsNotFound: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	align: align(top);
 }
-settingsChatbotsDeleteIcon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
-settingsChatbotsDeleteIconOver: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFgOver }};
+settingsChatbotsAddButton: RoundButton(defaultActiveButton) {
+	width: -16px;
+	height: 26px;
+	textTop: 4px;
+}
+settingsChatbotsAddMargin: 14px;
 
 settingsChatIntroField: InputField(defaultMultiSelectSearchField) {
 	textMargins: margins(2px, 0px, 32px, 0px);
@@ -707,8 +759,6 @@ settingsGiftIconEmoji: IconEmoji {
 	padding: margins(1px, 2px, 1px, 0px);
 }
 
-settingsCreditsButtonBuyIcon: icon {{ "settings/add", windowBgActive, point(7px, 0px) }};
-
 settingsCreditsButton: SettingsButton(settingsButton) {
 	padding: margins(62px, 8px, 22px, 8px);
 }
@@ -734,3 +784,35 @@ settingsAgeVerifyTitle: FlatLabel(boxTitle) {
 settingsAgeVerifyIcon: icon {{ "settings/filled_verify_age-48x48", windowFgActive }};
 settingsAgeVerifyIconPadding: margins(16px, 16px, 16px, 16px);
 settingsAgeVerifyIconMargin: margins(0px, 24px, 0px, 14px);
+
+DetailedSettingsButtonStyle {
+	button: SettingsButton;
+	description: FlatLabel;
+	iconRadius: pixels;
+	iconPadding: pixels;
+	iconForegroundPadding: pixels;
+	descriptionTopSkip: pixels;
+	descriptionBottomSkip: pixels;
+	descriptionRightSkip: pixels;
+}
+
+detailedSettingsButtonStyle: DetailedSettingsButtonStyle {
+	button: SettingsButton(settingsButtonNoIconLocked) {
+		style: defaultTextStyle;
+		textBg: transparent;
+		textBgOver: transparent;
+		padding: margins(68px, 8px, 22px, 8px);
+		iconLeft: 17px;
+	}
+	description: FlatLabel(defaultFlatLabel) {
+		textFg: windowSubTextFg;
+	}
+	iconRadius: 10px;
+	iconPadding: 6px;
+	iconForegroundPadding: 3px;
+	descriptionTopSkip: 0px;
+	descriptionBottomSkip: 8px;
+	descriptionRightSkip: 4px;
+}
+
+settingsToastStarIcon: icon {{ "toast/star", toastFg }};

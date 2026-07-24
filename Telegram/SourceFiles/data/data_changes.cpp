@@ -357,6 +357,17 @@ rpl::producer<ChatAdminChange> Changes::chatAdminChanges() const {
 	return _chatAdminChanges.events();
 }
 
+void Changes::chatMemberRankChanged(
+		not_null<PeerData*> peer,
+		not_null<UserData*> user,
+		QString rank) {
+	_chatMemberRankChanges.fire({ peer, user, std::move(rank) });
+}
+
+rpl::producer<ChatMemberRankChange> Changes::chatMemberRankChanges() const {
+	return _chatMemberRankChanges.events();
+}
+
 void Changes::scheduleNotifications() {
 	if (!_notify) {
 		_notify = true;

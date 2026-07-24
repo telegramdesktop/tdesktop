@@ -70,7 +70,8 @@ struct GifSection {
 
 [[nodiscard]] std::vector<EmojiPtr> SearchEmoji(
 	const std::vector<QString> &query,
-	base::flat_set<EmojiPtr> &outResultSet);
+	base::flat_set<EmojiPtr> &outResultSet,
+	bool exact = false);
 
 struct StickerIcon {
 	explicit StickerIcon(uint64 setId);
@@ -114,6 +115,10 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+[[nodiscard]] bool MatchAllPreparedSearchWords(
+	const QStringList &titleWords,
+	const QStringList &searchWords);
 
 class StickersListFooter final : public TabbedSelector::InnerFooter {
 public:

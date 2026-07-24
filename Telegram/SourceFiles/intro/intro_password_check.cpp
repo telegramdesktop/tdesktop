@@ -156,12 +156,8 @@ void PasswordCheckWidget::pwdSubmitFail(const MTP::Error &error) {
 		goBack();
 	} else if (type == u"SRP_ID_INVALID"_q) {
 		handleSrpIdInvalid();
-	} else {
-		if (Logs::DebugEnabled()) { // internal server error
-			showError(rpl::single(type + ": " + error.description()));
-		} else {
-			showError(rpl::single(Lang::Hard::ServerError()));
-		}
+	} else if (!MTP::IgnoreError(error)) {
+		showError(rpl::single(type));
 		_pwdField->setFocus();
 	}
 }
@@ -264,12 +260,8 @@ void PasswordCheckWidget::codeSubmitFail(const MTP::Error &error) {
 		showError(tr::lng_signin_wrong_code());
 		_codeField->selectAll();
 		_codeField->showError();
-	} else {
-		if (Logs::DebugEnabled()) { // internal server error
-			showError(rpl::single(type + ": " + error.description()));
-		} else {
-			showError(rpl::single(Lang::Hard::ServerError()));
-		}
+	} else if (!MTP::IgnoreError(error)) {
+		showError(rpl::single(type));
 		_codeField->setFocus();
 	}
 }

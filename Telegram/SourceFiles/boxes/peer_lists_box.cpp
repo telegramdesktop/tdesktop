@@ -146,12 +146,12 @@ void PeerListsBox::updateScrollSkips() {
 }
 
 void PeerListsBox::prepare() {
-	auto rows = setInnerWidget(
+	_rows = setInnerWidget(
 		object_ptr<Ui::VerticalLayout>(this),
 		st::boxScroll);
 	for (auto &list : _lists) {
-		const auto content = rows->add(object_ptr<PeerListContent>(
-			rows,
+		const auto content = _rows->add(object_ptr<PeerListContent>(
+			_rows,
 			list.controller.get()));
 		list.content = content;
 		list.delegate->setContent(content);
@@ -176,9 +176,16 @@ void PeerListsBox::prepare() {
 			}
 		}, lifetime());
 	}
-	rows->resizeToWidth(firstController()->contentWidth());
+	_rows->resizeToWidth(firstController()->contentWidth());
 
-	setDimensions(firstController()->contentWidth(), st::boxMaxListHeight);
+	{
+		setDimensions(
+			firstController()->contentWidth(),
+			std::clamp(
+				_rows->height(),
+				st::boxMaxListHeight,
+				st::boxMaxListHeight * 3));
+	}
 	if (_select) {
 		_select->finishAnimating();
 		Ui::SendPendingMoveResizeEvents(_select);
@@ -341,6 +348,23 @@ void PeerListsBox::Delegate::peerListSetForeignRowChecked(
 		// The itemRemovedCallback will call changeCheckState() here.
 		_box->_select->entity()->removeItem(row->id());
 	}
+}
+
+not_null<Ui::RpWidget*> PeerListsBox::addSeparatorBefore(
+		int listIndex,
+		object_ptr<Ui::RpWidget> widget) {
+	Assert(!(listIndex < 0 || listIndex >= int(_lists.size()) || !_rows));
+	const auto position = listIndex * 2;
+	auto wrapped = object_ptr<Ui::SlideWrap<>>(
+		_rows,
+		std::move(widget));
+	_lists[listIndex].content->heightValue(
+	) | rpl::on_next([=, separator = wrapped.data()](int h) {
+		separator->toggle(h > 0, anim::type::instant);
+	}, wrapped->lifetime());
+	_lists[listIndex].separator = wrapped.data();
+	_rows->insert(position, std::move(wrapped));
+	return _lists[listIndex].separator;
 }
 
 void PeerListsBox::Delegate::peerListScrollToTop() {

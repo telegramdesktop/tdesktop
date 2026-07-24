@@ -48,6 +48,8 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 
 private:
+	style::color listBackground() const override;
+
 	// Info::AbstractController implementation.
 	Info::Key key() const override;
 	PeerData *migrated() const override;

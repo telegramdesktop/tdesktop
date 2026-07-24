@@ -809,7 +809,7 @@ void PeerShortInfoBox::prepareRows() {
 	addInfoLine(std::move(label), aboutValue(), _st.labeled);
 	addInfoOneLine(
 		tr::lng_info_username_label(),
-		usernameValue() | rpl::map(tr::marked),
+		usernameValue(),
 		tr::lng_context_copy_mention(tr::now));
 	addInfoOneLine(
 		birthdayLabel(),
@@ -899,10 +899,12 @@ rpl::producer<QString> PeerShortInfoBox::phoneValue() const {
 	}) | rpl::distinct_until_changed();
 }
 
-rpl::producer<QString> PeerShortInfoBox::usernameValue() const {
+rpl::producer<TextWithEntities> PeerShortInfoBox::usernameValue() const {
 	return _fields.value(
 	) | rpl::map([](const PeerShortInfoFields &fields) {
-		return fields.username;
+		return fields.usernameLink.isEmpty()
+			? TextWithEntities{ fields.username }
+			: tr::link(fields.username, fields.usernameLink);
 	}) | rpl::distinct_until_changed();
 }
 

@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/gift_credits_box.h"
 
 #include "api/api_credits.h"
+#include "boxes/filters/edit_filter_chats_list.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/star_gift_box.h" // CollectGiftFrequentUsers.
 #include "core/ui_integration.h" // TextContext.
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -24,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
+#include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
@@ -34,6 +37,77 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_premium.h"
 
 namespace Ui {
+namespace {
+
+[[nodiscard]] object_ptr<RpWidget> MakeFrequentRecipientsList(
+		not_null<Main::Session*> session,
+		std::vector<not_null<UserData*>> users,
+		Fn<void(not_null<PeerData*>)> chosen) {
+	class FrequentController final : public PeerListController {
+	public:
+		FrequentController(
+			not_null<Main::Session*> session,
+			std::vector<not_null<UserData*>> users,
+			Fn<void(not_null<PeerData*>)> chosen)
+		: _session(session)
+		, _users(std::move(users))
+		, _chosen(std::move(chosen)) {
+		}
+
+		void prepare() override {
+			for (const auto &user : _users) {
+				delegate()->peerListAppendRow(
+					std::make_unique<PeerListRow>(user));
+			}
+			delegate()->peerListRefreshRows();
+		}
+		void loadMoreRows() override {
+		}
+		void rowClicked(not_null<PeerListRow*> row) override {
+			_chosen(row->peer());
+		}
+		Main::Session &session() const override {
+			return *_session;
+		}
+
+	private:
+		const not_null<Main::Session*> _session;
+		const std::vector<not_null<UserData*>> _users;
+		const Fn<void(not_null<PeerData*>)> _chosen;
+
+	};
+
+	auto result = object_ptr<Ui::VerticalLayout>((QWidget*)nullptr);
+	const auto container = result.data();
+
+	Ui::AddSkip(container);
+	container->add(CreatePeerListSectionSubtitle(
+		container,
+		tr::lng_settings_top_peers_title()));
+	Ui::AddSkip(container, st::defaultVerticalListSkip / 2);
+
+	const auto delegate
+		= container->lifetime().make_state<PeerListContentDelegateSimple>();
+	const auto controller
+		= container->lifetime().make_state<FrequentController>(
+			session,
+			std::move(users),
+			std::move(chosen));
+	controller->setStyleOverrides(&st::peerListSingleRow);
+	const auto content = container->add(
+		object_ptr<PeerListContent>(container, controller));
+	delegate->setContent(content);
+	controller->setDelegate(delegate);
+
+	Ui::AddSkip(container);
+	container->add(CreatePeerListSectionSubtitle(
+		container,
+		tr::lng_contacts_header()));
+
+	return result;
+}
+
+} // namespace
 
 void GiftCreditsBox(
 		not_null<Ui::GenericBox*> box,
@@ -115,7 +189,8 @@ void ShowGiftCreditsBox(
 			not_null<Main::Session*> session,
 			Fn<void(not_null<PeerData*>)> choose)
 		: ContactsBoxController(session)
-		, _choose(std::move(choose)) {
+		, _choose(std::move(choose))
+		, _frequentUsers(CollectGiftFrequentUsers(session)) {
 		}
 
 	protected:
@@ -127,7 +202,20 @@ void ShowGiftCreditsBox(
 				|| user->isInaccessible()) {
 				return nullptr;
 			}
+			if (ranges::contains(_frequentUsers, user)) {
+				return nullptr;
+			}
 			return ContactsBoxController::createRow(user);
+		}
+
+		void prepareViewHook() override {
+			if (_frequentUsers.empty()) {
+				return;
+			}
+			delegate()->peerListSetAboveWidget(MakeFrequentRecipientsList(
+				&session(),
+				_frequentUsers,
+				_choose));
 		}
 
 		void rowClicked(not_null<PeerListRow*> row) override {
@@ -136,6 +224,7 @@ void ShowGiftCreditsBox(
 
 	private:
 		const Fn<void(not_null<PeerData*>)> _choose;
+		const std::vector<not_null<UserData*>> _frequentUsers;
 
 	};
 	auto initBox = [=](not_null<PeerListBox*> peersBox) {

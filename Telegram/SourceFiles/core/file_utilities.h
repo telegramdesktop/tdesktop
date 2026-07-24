@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QUrl>
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -92,6 +94,8 @@ void GetFolder(
 [[nodiscard]] QString AllOrImagesFilter();
 [[nodiscard]] QString ImagesOrAllFilter();
 [[nodiscard]] QString PhotoVideoFilesFilter();
+[[nodiscard]] QString PhotoVideoAudioFilesFilter();
+[[nodiscard]] QString AudioFilesFilter();
 [[nodiscard]] const QString &Tmp();
 
 namespace internal {

@@ -9,8 +9,6 @@ using "ui/basic.style";
 using "boxes/boxes.style";
 using "statistics/statistics.style";
 
-channelEarnLearnArrowMargins: margins(-2px, 5px, 0px, 0px);
-
 channelEarnOverviewTitleSkip: 11px;
 channelEarnOverviewMajorLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 30px;
@@ -112,7 +110,6 @@ channelEarnBalanceMinorLabel: FlatLabel(channelEarnOverviewMinorLabel) {
 	}
 }
 channelEarnBalanceMinorLabelSkip: 6px;
-channelEarnFadeDuration: 60;
 
 channelEarnLearnDescription: FlatLabel(defaultFlatLabel) {
 	maxHeight: 0px;
@@ -152,4 +149,3 @@ botEarnButtonLock: IconEmoji {
 	icon: icon{{ "chat/mini_lock", premiumButtonFg }};
 	padding: margins(-2px, 4px, 0px, 0px);
 }
-

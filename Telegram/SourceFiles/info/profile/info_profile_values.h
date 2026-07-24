@@ -56,6 +56,10 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneOrHiddenValue(
 	not_null<UserData*> user);
+[[nodiscard]] rpl::producer<TextWithEntities> PhoneWithSpoilerValue(
+	not_null<UserData*> user,
+	rpl::producer<TextWithEntities> phone);
+void CopyPhoneToClipboard(rpl::producer<TextWithEntities> phone);
 [[nodiscard]] rpl::producer<TextWithEntities> UsernameValue(
 	not_null<PeerData*> peer,
 	bool primary = false);
@@ -143,6 +147,7 @@ enum class BadgeType : uchar;
 [[nodiscard]] rpl::producer<QString> BirthdayLabelText(
 	rpl::producer<Data::Birthday> birthday);
 [[nodiscard]] rpl::producer<QString> BirthdayValueText(
-	rpl::producer<Data::Birthday> birthday);
+	rpl::producer<Data::Birthday> birthday,
+	bool fullMonth = false);
 
 } // namespace Info::Profile

@@ -41,12 +41,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_themes_embedded.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -668,7 +669,7 @@ void BackgroundPreviewBox::setExistingForPeer(
 			| (_fromMessageId ? Flag() : Flag::f_wallpaper)
 			| (both ? Flag::f_for_both : Flag())
 			| Flag::f_settings),
-		_forPeer->input,
+		_forPeer->input(),
 		paper.mtpInput(&_controller->session()),
 		paper.mtpSettings(),
 		MTP_int(_fromMessageId.msg)
@@ -792,10 +793,6 @@ void BackgroundPreviewBox::applyForPeer() {
 		}), raw->lifetime());
 		raw->toggle(false, anim::type::normal);
 	});
-	forMe->setTextTransform(RoundButton::TextTransform::NoTransform);
-	forBoth->setTextTransform(RoundButton::TextTransform::NoTransform);
-	cancel->setTextTransform(RoundButton::TextTransform::NoTransform);
-
 	overlay->sizeValue(
 	) | rpl::on_next([=](QSize size) {
 		const auto padding = st::backgroundConfirmPadding;
@@ -842,7 +839,11 @@ void BackgroundPreviewBox::applyForEveryone() {
 void BackgroundPreviewBox::share() {
 	QGuiApplication::clipboard()->setText(
 		_paper.shareUrl(&_controller->session()));
-	showToast(tr::lng_background_link_copied(tr::now));
+	showToast({
+		.text = { tr::lng_background_link_copied(tr::now) },
+		.iconLottie = u"toast/voip_invite"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
 }
 
 void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
@@ -958,6 +959,7 @@ void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
 	const auto height2 = _text2->height();
 	auto context = _controller->defaultChatTheme()->preparePaintContext(
 		_chatStyle.get(),
+		rect(),
 		rect(),
 		rect(),
 		_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer));

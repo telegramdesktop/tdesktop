@@ -563,7 +563,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			create(original, std::move(update), SizeTag::Large));
 	} else if (data.startsWith(ForceStaticPrefix())) {
 		const auto original = data.mid(ForceStaticPrefix().size());
-		return std::make_unique<Ui::Text::FirstFrameEmoji>(
+		return MakeWrappedEmoji<Ui::Text::FirstFrameEmoji>(
 			create(original, std::move(update), tag, sizeOverride));
 	} else if (data.startsWith(UserpicEmojiPrefix())) {
 		const auto ratio = style::DevicePixelRatio();
@@ -1089,8 +1089,8 @@ Ui::Text::CustomEmojiFactory ReactedMenuFactory(
 				const auto tag = Data::CustomEmojiManager::SizeTag::Normal;
 				const auto ratio = style::DevicePixelRatio();
 				const auto skip = (Data::FrameSizeFromTag(tag) / ratio - size) / 2;
-				return std::make_unique<Ui::Text::FirstFrameEmoji>(
-					std::make_unique<Ui::Text::ShiftedEmoji>(
+				return MakeWrappedEmoji<Ui::Text::FirstFrameEmoji>(
+					MakeWrappedEmoji<Ui::Text::ShiftedEmoji>(
 						owner->customEmojiManager().create(
 							document,
 							context.repaint,

@@ -52,10 +52,10 @@ struct Preview {
 
 [[nodiscard]] Preview GeneratePreview(
 		not_null<Ui::ChatTheme*> theme,
-		const std::shared_ptr<Ui::DynamicImage> &takenUserpic) {
+		const std::shared_ptr<Ui::DynamicImage> &takenUserpic,
+		QSize size = st::chatThemePreviewSize) {
 	const auto &background = theme->background();
 	const auto &colors = background.colors;
-	const auto size = st::chatThemePreviewSize;
 	auto prepared = background.prepared;
 	const auto paintPattern = [&](QPainter &p, bool inverted) {
 		if (prepared.isNull()) {
@@ -180,6 +180,26 @@ struct Preview {
 
 } // namespace
 
+QImage GenerateChatThemePreview(
+		not_null<ChatTheme*> theme,
+		EmojiPtr emoji,
+		QSize size) {
+	auto result = GeneratePreview(theme, nullptr, size).preview;
+	if (emoji) {
+		auto p = QPainter(&result);
+		const auto large = Ui::Emoji::GetSizeLarge();
+		const auto factor = style::DevicePixelRatio();
+		const auto esize = large / factor;
+		Ui::Emoji::Draw(
+			p,
+			emoji,
+			large,
+			(size.width() - esize) / 2,
+			size.height() - esize - st::chatThemeEmojiBottom);
+	}
+	return result;
+}
+
 struct ChooseThemeController::Entry {
 	QString token;
 	Ui::ChatThemeKey key;
@@ -292,12 +312,10 @@ void ChooseThemeController::initButtons() {
 		controls,
 		tr::lng_chat_theme_apply(),
 		st::defaultLightButton);
-	apply->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	const auto choose = CreateChild<RoundButton>(
 		controls,
 		tr::lng_chat_theme_change_wallpaper(),
 		st::defaultLightButton);
-	choose->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
 	const auto &margin = st::chatThemeButtonMargin;
 	controls->resize(

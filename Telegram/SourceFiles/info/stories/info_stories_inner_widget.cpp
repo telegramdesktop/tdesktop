@@ -168,7 +168,7 @@ void EditAlbumBox::prepare() {
 					| (remove.isEmpty()
 						? Flag()
 						: Flag::f_delete_stories)),
-				changes.peer->input,
+				changes.peer->input(),
 				MTP_int(changes.albumId),
 				MTPstring(),
 				MTP_vector<MTPint>(remove),
@@ -291,6 +291,8 @@ void InnerWidget::setupTop() {
 }
 
 void InnerWidget::startTop() {
+	_albumsTabs = nullptr;
+	_albumsWrap = nullptr;
 	_top.create(this);
 	_top->show();
 	_topHeight = _top->heightValue();
@@ -306,17 +308,13 @@ void InnerWidget::createProfileTop() {
 		_topBarColor.value());
 
 	using namespace Profile;
-	auto mainTracker = Ui::MultiSlideTracker();
-	auto dividerOverridden = rpl::variable<bool>(false);
 	AddDetails(
 		_top,
 		_controller,
 		_peer,
 		nullptr,
 		nullptr,
-		{ v::null },
-		mainTracker,
-		dividerOverridden);
+		{ v::null });
 
 	auto tracker = Ui::MultiSlideTracker();
 	const auto dividerWrap = _top->add(
@@ -543,6 +541,21 @@ void InnerWidget::enableBackButton() {
 
 void InnerWidget::showFinished() {
 	_showFinished.fire({});
+
+	const auto window = _controller->parentController();
+	window->checkHighlightControl(u"my-profile/posts"_q, _albumsWrap);
+	if (window->highlightControlId() == u"my-profile/posts/add-album"_q) {
+		window->setHighlightControlId(QString());
+		if (_albumsWrap) {
+			::Settings::HighlightWidget(_albumsWrap);
+		}
+		_controller->uiShow()->show(Box(
+			NewAlbumBox,
+			_controller,
+			_peer,
+			StoryId(),
+			[=](Data::StoryAlbum album) { albumAdded(album); }));
+	}
 }
 
 void InnerWidget::finalizeTop() {
@@ -707,8 +720,6 @@ void InnerWidget::refreshEmpty() {
 		) | rpl::map([](const QString &text) {
 			return Ui::Text::IconEmoji(&st::collectionAddIcon).append(text);
 		}));
-		button->setTextTransform(
-			Ui::RoundButton::TextTransform::NoTransform);
 		button->setClickedCallback([=] {
 			editAlbumStories(albumId);
 		});
@@ -1118,7 +1129,7 @@ void InnerWidget::flushAlbumReorder() {
 	}
 
 	_reorderRequestId = _api->request(MTPstories_ReorderAlbums(
-		_peer->input,
+		_peer->input(),
 		MTP_vector<MTPint>(order)
 	)).done([=] {
 		_reorderRequestId = 0;

@@ -14,6 +14,7 @@ namespace Window {
 enum class SlideDirection {
 	FromRight,
 	FromLeft,
+	FromBottom,
 };
 
 class SlideAnimation {

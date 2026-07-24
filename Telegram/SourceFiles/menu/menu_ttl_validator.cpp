@@ -76,7 +76,7 @@ Args TTLValidator::createArgs() const {
 		}
 		state->savingPeriod = period;
 		state->savingRequestId = api.request(MTPmessages_SetHistoryTTL(
-			peer->input,
+			peer->input(),
 			MTP_int(period)
 		)).done([=](const MTPUpdates &result) {
 			peer->session().api().applyUpdates(result);

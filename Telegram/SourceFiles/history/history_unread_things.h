@@ -23,6 +23,7 @@ enum class AddType {
 enum class Type {
 	Mentions,
 	Reactions,
+	PollVotes,
 };
 
 class List final {
@@ -70,6 +71,7 @@ private:
 struct All {
 	List mentions;
 	List reactions;
+	List pollVotes;
 };
 
 class ConstProxy {
@@ -117,7 +119,9 @@ public:
 			? nullptr
 			: (type == Type::Mentions)
 			? &data->mentions
-			: &data->reactions),
+			: (type == Type::Reactions)
+			? &data->reactions
+			: &data->pollVotes),
 		known)
 	, _thread(thread)
 	, _data(data)

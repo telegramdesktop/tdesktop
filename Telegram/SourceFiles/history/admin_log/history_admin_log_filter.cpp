@@ -34,6 +34,7 @@ EditFlagsDescriptor<FilterValue::Flags> FilterValueLabels(bool isChannel) {
 
 	auto members = std::vector<Label>{
 		{ adminRights, tr::lng_admin_log_filter_admins_new(tr::now) },
+		{ Flag::EditRank, tr::lng_admin_log_filter_edit_rank(tr::now) },
 		{ restrictions, tr::lng_admin_log_filter_restrictions(tr::now) },
 		{ membersNew, std::move(membersNewText) },
 		{ membersRemoved, std::move(membersRemovedText) },
@@ -104,7 +105,7 @@ Fn<FilterValue::Flags()> FillFilterValueList(
 		not_null<Ui::VerticalLayout*> container,
 		bool isChannel,
 		const FilterValue &filter) {
-	auto [checkboxes, getResult, changes] = CreateEditAdminLogFilter(
+	auto [checkboxes, getResult, changes, highlightWidget] = CreateEditAdminLogFilter(
 		container,
 		filter.flags ? (*filter.flags) : ~FilterValue::Flags(0),
 		isChannel);

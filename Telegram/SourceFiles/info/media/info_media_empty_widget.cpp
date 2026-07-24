@@ -37,6 +37,7 @@ void EmptyWidget::setType(Type type) {
 	_icon = [&] {
 		switch (_type) {
 		case Type::Photo:
+		case Type::PhotoVideo:
 		case Type::GIF: return &st::infoEmptyPhoto;
 		case Type::Video: return &st::infoEmptyVideo;
 		case Type::MusicFile: return &st::infoEmptyAudio;
@@ -53,6 +54,7 @@ void EmptyWidget::setSearchQuery(const QString &query) {
 	_text->setText([&] {
 		switch (_type) {
 		case Type::Photo:
+		case Type::PhotoVideo:
 			return tr::lng_media_photo_empty(tr::now);
 		case Type::GIF:
 			return tr::lng_media_gif_empty(tr::now);
@@ -78,12 +80,33 @@ void EmptyWidget::setSearchQuery(const QString &query) {
 	resizeToWidth(width());
 }
 
+void EmptyWidget::setLoading(bool loading) {
+	if (_loading == loading) {
+		return;
+	}
+	_loading = loading;
+	resizeToWidth(width());
+	update();
+}
+
+bool EmptyWidget::loading() const {
+	return _loading;
+}
+
 void EmptyWidget::paintEvent(QPaintEvent *e) {
-	if (!_icon) {
+	auto p = QPainter(this);
+
+	if (_loading) {
+		p.setFont(st::normalFont);
+		p.setPen(st::windowSubTextFg);
+		p.drawText(rect(), tr::lng_contacts_loading(tr::now),
+			QTextOption(Qt::AlignCenter));
 		return;
 	}
 
-	auto p = QPainter(this);
+	if (!_icon) {
+		return;
+	}
 
 	auto iconLeft = (width() - _icon->width()) / 2;
 	auto iconTop = height() - st::infoEmptyIconTop;
@@ -91,12 +114,14 @@ void EmptyWidget::paintEvent(QPaintEvent *e) {
 }
 
 int EmptyWidget::resizeGetHeight(int newWidth) {
-	auto labelTop = _height - st::infoEmptyLabelTop;
-	auto labelWidth = newWidth - 2 * st::infoEmptyLabelSkip;
-	_text->resizeToNaturalWidth(labelWidth);
+	if (!_loading) {
+		auto labelTop = _height - st::infoEmptyLabelTop;
+		auto labelWidth = newWidth - 2 * st::infoEmptyLabelSkip;
+		_text->resizeToNaturalWidth(labelWidth);
 
-	auto labelLeft = (newWidth - _text->width()) / 2;
-	_text->moveToLeft(labelLeft, labelTop, newWidth);
+		auto labelLeft = (newWidth - _text->width()) / 2;
+		_text->moveToLeft(labelLeft, labelTop, newWidth);
+	}
 
 	update();
 	return _height;

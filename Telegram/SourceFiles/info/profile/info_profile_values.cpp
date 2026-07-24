@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "countries/countries_instance.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
@@ -154,6 +155,29 @@ rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
 			return phone;
 		}
 	});
+}
+
+rpl::producer<TextWithEntities> PhoneWithSpoilerValue(
+		not_null<UserData*> user,
+		rpl::producer<TextWithEntities> phone) {
+	if (!user->isSelf()) {
+		return phone;
+	}
+	return rpl::combine(
+		std::move(phone),
+		user->session().settings().phoneNumberHiddenValue()
+	) | rpl::map([](const TextWithEntities &phone, bool hidden) {
+		return hidden
+			? Ui::Text::Wrapped(phone, EntityType::Spoiler)
+			: phone;
+	});
+}
+
+void CopyPhoneToClipboard(rpl::producer<TextWithEntities> phone) {
+	auto text = rpl::variable<TextWithEntities>(
+		std::move(phone)).current().text;
+	text.replace(' ', QString()).replace('-', QString());
+	TextUtilities::SetClipboardText({ text });
 }
 
 rpl::producer<TextWithEntities> UsernameValue(
@@ -735,17 +759,18 @@ rpl::producer<QString> BirthdayLabelText(
 }
 
 rpl::producer<QString> BirthdayValueText(
-		rpl::producer<Data::Birthday> birthday) {
+		rpl::producer<Data::Birthday> birthday,
+		bool fullMonth) {
 	return std::move(
 		birthday
-	) | rpl::map([](Data::Birthday value) -> rpl::producer<QString> {
+	) | rpl::map([=](Data::Birthday value) -> rpl::producer<QString> {
 		if (!value) {
 			return rpl::single(QString());
 		}
 		return Data::IsBirthdayTodayValue(
 			value
 		) | rpl::map([=](bool today) {
-			auto text = Data::BirthdayText(value);
+			auto text = Data::BirthdayText(value, fullMonth);
 			if (const auto age = Data::BirthdayAge(value)) {
 				text = (today
 					? tr::lng_info_birthday_today_years

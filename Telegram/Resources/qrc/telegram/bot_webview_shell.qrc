@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="/bot_webview_shell">
+    <file alias="page.css">../../bot_webview_shell_html/page.css</file>
+    <file alias="page.js">../../bot_webview_shell_html/page.js</file>
+    <file alias="body.html">../../bot_webview_shell_html/body.html</file>
+  </qresource>
+</RCC>

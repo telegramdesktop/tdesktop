@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_giveaway.h"
@@ -73,6 +74,7 @@ constexpr auto kFirstPage = 20;
 constexpr auto kPerPage = 100;
 // constexpr auto kShareQrSize = 768;
 // constexpr auto kShareQrPadding = 16;
+constexpr auto kMaxShownJoined = 3;
 
 using LinkData = Api::InviteLink;
 
@@ -902,11 +904,11 @@ void Controller::loadMoreRows() {
 	_requestId = _api.request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(Flag::f_link
 			| (_role == Role::Requested ? Flag::f_requested : Flag(0))),
-		_peer->input,
+		_peer->input(),
 		MTP_string(_link),
 		MTPstring(), // q
 		MTP_int(_lastUser ? _lastUser->date : 0),
-		_lastUser ? _lastUser->user->inputUser : MTP_inputUserEmpty(),
+		_lastUser ? _lastUser->user->inputUser() : MTP_inputUserEmpty(),
 		MTP_int(_lastUser ? kPerPage : kFirstPage)
 	)).done([=](const MTPmessages_ChatInviteImporters &result) {
 		_requestId = 0;
@@ -1389,7 +1391,8 @@ void AddPermanentLinkBlock(
 	}) | rpl::flatten_latest(
 	) | rpl::on_next([=](const Api::JoinedByLinkSlice &slice) {
 		auto list = std::vector<HistoryView::UserpicInRow>();
-		list.reserve(slice.users.size());
+		const auto take = std::min(int(slice.users.size()), kMaxShownJoined);
+		list.reserve(take);
 		for (const auto &item : slice.users) {
 			const auto i = ranges::find(
 				state->list,
@@ -1399,6 +1402,9 @@ void AddPermanentLinkBlock(
 				list.push_back(std::move(*i));
 			} else {
 				list.push_back({ item.user });
+			}
+			if (list.size() == take) {
+				break;
 			}
 		}
 		state->count = slice.count;
@@ -1450,7 +1456,11 @@ void AddPermanentLinkBlock(
 
 void CopyInviteLink(std::shared_ptr<Ui::Show> show, const QString &link) {
 	QGuiApplication::clipboard()->setText(link);
-	show->showToast(tr::lng_group_invite_copied(tr::now));
+	show->showToast({
+		.text = { tr::lng_group_invite_copied(tr::now) },
+		.iconLottie = u"toast/voip_invite"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
 }
 
 object_ptr<Ui::BoxContent> ShareInviteLinkBox(
@@ -1475,9 +1485,15 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(link);
-		showToast(copied.isEmpty()
-			? tr::lng_group_invite_copied(tr::now)
-			: copied);
+		if (*box) {
+			(*box)->showToast({
+				.text = { copied.isEmpty()
+					? tr::lng_group_invite_copied(tr::now)
+					: copied },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
+		}
 	};
 	auto countMessagesCallback = [=](const TextWithTags &comment) {
 		return 1;
@@ -1517,7 +1533,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 			comment.text = link;
 		}
 		auto &api = session->api();
-		for (const auto thread : result) {
+		for (const auto &thread : result) {
 			auto message = Api::MessageToSend(
 				Api::SendAction(thread, options));
 			message.textWithTags = comment;
@@ -1614,6 +1630,16 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 	};
 	const auto isGroup = !peer->isBroadcast();
 	const auto isPublic = peer->isChannel() && peer->asChannel()->isPublic();
+	const auto globalRequestApproval = peer->isChannel()
+		&& peer->asChannel()->requestToJoin();
+	const auto guardBot = [&]() -> UserData* {
+		const auto channel = peer->asChannel();
+		return channel ? channel->guardBot() : nullptr;
+	}();
+	const auto guardBotUsername = guardBot ? guardBot->username() : QString();
+	const auto guardBotLink = guardBotUsername.isEmpty()
+		? QString()
+		: peer->session().createInternalLink(guardBotUsername);
 	auto object = Box([=](not_null<Ui::GenericBox*> box) {
 		const auto fill = isGroup
 			? Fn<Ui::InviteLinkSubscriptionToggle()>(nullptr)
@@ -1621,7 +1647,15 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 				return Ui::FillCreateInviteLinkSubscriptionToggle(box, peer);
 			};
 		if (creating) {
-			Ui::CreateInviteLinkBox(box, fill, isGroup, isPublic, done);
+			Ui::CreateInviteLinkBox(
+				box,
+				fill,
+				isGroup,
+				isPublic,
+				globalRequestApproval,
+				guardBotUsername,
+				guardBotLink,
+				done);
 		} else {
 			Ui::EditInviteLinkBox(
 				box,
@@ -1635,6 +1669,9 @@ object_ptr<Ui::BoxContent> EditLinkBox(
 					.requestApproval = data.requestApproval,
 					.isGroup = isGroup,
 					.isPublic = isPublic,
+					.globalRequestApproval = globalRequestApproval,
+					.guardBotUsername = guardBotUsername,
+					.guardBotLink = guardBotLink,
 				},
 				done);
 		}

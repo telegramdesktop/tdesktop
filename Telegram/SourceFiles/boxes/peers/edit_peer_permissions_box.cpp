@@ -91,11 +91,15 @@ constexpr auto kDefaultChargeStars = 10;
 			| Flag::SendInline, tr::lng_rights_chat_stickers(tr::now) },
 		{ Flag::EmbedLinks, tr::lng_rights_chat_send_links(tr::now) },
 		{ Flag::SendPolls, tr::lng_rights_chat_send_polls(tr::now) },
+		{ Flag::SendReactions, tr::lng_rights_chat_send_reactions(tr::now) },
 	};
 	auto second = std::vector<RestrictionLabel>{
 		{ Flag::AddParticipants, tr::lng_rights_chat_add_members(tr::now) },
 		{ Flag::CreateTopics, tr::lng_rights_group_add_topics(tr::now) },
 		{ Flag::PinMessages, tr::lng_rights_group_pin(tr::now) },
+		{ Flag::EditRank, (options.isUserSpecific
+			? tr::lng_rights_group_edit_rank_single
+			: tr::lng_rights_group_edit_rank)(tr::now) },
 		{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
 	};
 	if (!options.isForum) {
@@ -118,7 +122,18 @@ constexpr auto kDefaultChargeStars = 10;
 -> std::vector<NestedEditFlagsLabels<ChatAdminRights>> {
 	using Flag = ChatAdminRight;
 
-	if (options.isGroup) {
+	if (options.isCommunity) {
+		auto rights = std::vector<AdminRightLabel>{
+			{ Flag::ChangeInfo, tr::lng_rights_community_info(tr::now) },
+			{
+				Flag::ManageLinkedPeers,
+				tr::lng_rights_community_linked(tr::now),
+			},
+			{ Flag::BanUsers, tr::lng_rights_community_ban(tr::now) },
+			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
+		};
+		return { { std::nullopt, std::move(rights) } };
+	} else if (options.isGroup) {
 		auto first = std::vector<AdminRightLabel>{
 			{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
 			{ Flag::DeleteMessages, tr::lng_rights_group_delete(tr::now) },
@@ -136,9 +151,16 @@ constexpr auto kDefaultChargeStars = 10;
 		};
 		auto second = std::vector<AdminRightLabel>{
 			{ Flag::ManageCall, tr::lng_rights_group_manage_calls(tr::now) },
+			{ Flag::ManageRanks, tr::lng_rights_group_manage_ranks(tr::now) },
 			{ Flag::Anonymous, tr::lng_rights_group_anonymous(tr::now) },
 			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
 		};
+		if (options.canProcessJoinRequests) {
+			second.push_back({
+				Flag::ProcessJoinRequests,
+				tr::lng_rights_group_process_join_requests(tr::now),
+			});
+		}
 		if (!options.isForum) {
 			first.erase(
 				ranges::remove(
@@ -176,6 +198,12 @@ constexpr auto kDefaultChargeStars = 10;
 		{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
 		{ Flag::BanUsers, tr::lng_rights_group_ban(tr::now) },
 	};
+	if (options.canProcessJoinRequests) {
+		second.push_back({
+			Flag::ProcessJoinRequests,
+			tr::lng_rights_group_process_join_requests(tr::now),
+		});
+	}
 	return {
 		{ std::nullopt, std::move(first) },
 		{ tr::lng_rights_channel_manage(), std::move(messages) },
@@ -301,6 +329,7 @@ ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 		//| Flag::ViewMessages
 		| Flag::ChangeInfo
 		| Flag::EmbedLinks
+		| Flag::SendReactions
 		| Flag::AddParticipants
 		| Flag::CreateTopics
 		| Flag::PinMessages
@@ -315,7 +344,8 @@ ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 		| Flag::SendMusic
 		| Flag::SendVoiceMessages
 		| Flag::SendFiles
-		| Flag::SendOther);
+		| Flag::SendOther
+		| Flag::EditRank);
 }
 
 auto Dependencies(ChatAdminRights)
@@ -488,20 +518,28 @@ not_null<Ui::RpWidget*> AddInnerToggle(
 			icon.paint(p, 0, 0, arrow->width());
 		}, arrow->lifetime());
 	}
-	button->sizeValue(
-	) | rpl::on_next([=, &st](const QSize &s) {
+	const auto reposition = [=, &st] {
+		const auto s = button->size();
 		const auto labelLeft = st.padding.left();
 		const auto labelRight = s.width() - toggleButton->width();
 
-		label->resizeToWidth(labelRight - labelLeft - arrow->width());
+		const auto arrowSkip = st::rightsButtonArrowSkip;
+		label->resizeToWidth(
+			labelRight - labelLeft - arrow->width() - arrowSkip);
 		label->moveToLeft(
 			labelLeft,
 			(s.height() - label->height()) / 2);
 		arrow->moveToLeft(
 			std::min(
-				labelLeft + label->textMaxWidth(),
+				labelLeft + label->textMaxWidth() + arrowSkip,
 				labelRight - arrow->width()),
 			(s.height() - arrow->height()) / 2);
+	};
+	rpl::merge(
+		button->sizeValue() | rpl::to_empty,
+		state->anyChanges.events_starting_with(rpl::empty_value())
+	) | rpl::on_next([=] {
+		reposition();
 	}, button->lifetime());
 	wrap->toggledValue(
 	) | rpl::skip(1) | rpl::on_next([=](bool toggled) {
@@ -712,6 +750,8 @@ template <typename Flags>
 
 		return checkView;
 	};
+	auto highlightWidget = QPointer<Ui::RpWidget>();
+	const auto highlightFlags = descriptor.highlightFlags;
 	for (const auto &nestedWithLabel : descriptor.labels) {
 		Assert(!nestedWithLabel.nested.empty());
 
@@ -723,16 +763,18 @@ template <typename Flags>
 			: object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>{ nullptr };
 		const auto verticalLayout = wrap ? wrap->entity() : container.get();
 		auto innerChecks = std::vector<not_null<Ui::AbstractCheckView*>>();
+		auto sectionFlags = Flags();
 		for (const auto &entry : nestedWithLabel.nested) {
 			const auto c = addCheckbox(verticalLayout, isInner, entry);
 			if (isInner) {
 				innerChecks.push_back(c);
+				sectionFlags |= entry.flags;
 			}
 		}
 		if (wrap) {
 			const auto raw = wrap.data();
 			raw->hide(anim::type::instant);
-			AddInnerToggle(
+			const auto toggle = AddInnerToggle(
 				container,
 				st,
 				innerChecks,
@@ -740,6 +782,9 @@ template <typename Flags>
 				*nestedWithLabel.nestingLabel,
 				std::nullopt,
 				{ nestedWithLabel.nested.front().icon });
+			if (highlightFlags && (sectionFlags & highlightFlags)) {
+				highlightWidget = toggle;
+			}
 			container->add(std::move(wrap));
 			container->widthValue(
 			) | rpl::on_next([=](int w) {
@@ -754,9 +799,10 @@ template <typename Flags>
 	}
 
 	return {
-		nullptr,
-		value,
-		state->anyChanges.events() | rpl::map(value)
+		.widget = nullptr,
+		.value = value,
+		.changes = state->anyChanges.events() | rpl::map(value),
+		.highlightWidget = highlightWidget,
 	};
 }
 
@@ -1143,7 +1189,7 @@ void ShowEditPeerPermissionsBox(
 	Ui::AddSubsectionTitle(
 		inner,
 		tr::lng_rights_default_restrictions_header());
-	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
+	auto [checkboxes, getRestrictions, changes, highlightWidget] = CreateEditRestrictions(
 		inner,
 		restrictions,
 		disabledMessages,
@@ -1194,6 +1240,7 @@ void ShowEditPeerPermissionsBox(
 	}
 
 	static constexpr auto kSendRestrictions = Flag::EmbedLinks
+		| Flag::SendReactions
 		| Flag::SendGames
 		| Flag::SendGifs
 		| Flag::SendInline
@@ -1273,7 +1320,7 @@ Fn<void()> AboutGigagroupCallback(
 		}
 		*converting = true;
 		channel->session().api().request(MTPchannels_ConvertToGigagroup(
-			channel->inputChannel
+			channel->inputChannel()
 		)).done([=](const MTPUpdates &result) {
 			channel->session().api().applyUpdates(result);
 			if (const auto strong = weak.get()) {
@@ -1310,7 +1357,7 @@ Fn<void()> AboutGigagroupCallback(
 			box->setTitle(tr::lng_gigagroup_convert_title());
 			const auto addFeature = [&](rpl::producer<QString> text) {
 				using namespace rpl::mappers;
-				const auto prefix = QString::fromUtf8("\xE2\x80\xA2 ");
+				const auto prefix = Ui::kQBullet + ' ';
 				box->addRow(
 					object_ptr<Ui::FlatLabel>(
 						box,
@@ -1451,7 +1498,9 @@ ChatAdminRights AdminRightsForOwnershipTransfer(
 		Data::AdminRightsSetOptions options) {
 	auto result = ChatAdminRights();
 	for (const auto &entry : AdminRightLabels(options)) {
-		if (!(entry.flags & ChatAdminRight::Anonymous)) {
+		if (!(entry.flags
+			& (ChatAdminRight::Anonymous
+				| ChatAdminRight::ProcessJoinRequests))) {
 			result |= entry.flags;
 		}
 	}
@@ -1461,10 +1510,12 @@ ChatAdminRights AdminRightsForOwnershipTransfer(
 EditFlagsControl<PowerSaving::Flags> CreateEditPowerSaving(
 		QWidget *parent,
 		PowerSaving::Flags flags,
-		rpl::producer<QString> forceDisabledMessage) {
+		rpl::producer<QString> forceDisabledMessage,
+		PowerSaving::Flags highlightFlags) {
 	auto widget = object_ptr<Ui::VerticalLayout>(parent);
 	auto descriptor = Settings::PowerSavingLabels();
 	descriptor.forceDisabledMessage = std::move(forceDisabledMessage);
+	descriptor.highlightFlags = highlightFlags;
 	auto result = CreateEditFlags(
 		widget.data(),
 		flags,

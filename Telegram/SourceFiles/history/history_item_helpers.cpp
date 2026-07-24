@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_item_helpers.h"
 
+#include "api/api_reactions_notify_settings.h"
 #include "api/api_text_entities.h"
 #include "boxes/premium_preview_box.h"
 #include "calls/calls_instance.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/components/sponsored_messages.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/notify/data_notify_settings.h"
@@ -21,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_message_reactions.h"
+#include "data/data_poll.h"
+#include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
@@ -42,12 +46,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits_graphics.h"
 #include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/boxes/emoji_stake_box.h" // InsufficientTonBox
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/item_text_options.h"
 #include "lang/lang_keys.h"
+
+#include "styles/style_layers.h"
 
 namespace {
 
@@ -68,7 +75,9 @@ int ComputeSendingMessagesCount(
 		not_null<History*> history,
 		const SendingErrorRequest &request) {
 	auto result = 0;
-	if (request.text && !request.text->empty()) {
+	if (request.richMessage) {
+		++result;
+	} else if (request.text && !request.text->empty()) {
 		auto sending = TextWithEntities();
 		auto left = TextWithEntities{
 			request.text->text,
@@ -77,9 +86,12 @@ int ComputeSendingMessagesCount(
 		auto prepareFlags = Ui::ItemTextOptions(
 			history,
 			history->session().user()).flags;
+		const auto messageLengthLimit = Data::PremiumLimits(
+			&history->session()
+		).messageLengthCurrent();
 		TextUtilities::PrepareForSending(left, prepareFlags);
 
-		while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+		while (TextUtilities::CutPart(sending, left, messageLengthLimit)) {
 			++result;
 		}
 		if (!result) {
@@ -101,6 +113,9 @@ Data::SendError GetErrorForSending(
 	const auto thread = topic
 		? not_null<Data::Thread*>(topic)
 		: peer->owner().history(peer);
+	const auto messageLengthLimit = Data::PremiumLimits(
+		&thread->owningHistory()->session()
+	).messageLengthCurrent();
 	if (request.story) {
 		if (const auto error = request.story->errorTextForForward(thread)) {
 			return error;
@@ -113,8 +128,9 @@ Data::SendError GetErrorForSending(
 			}
 		}
 	}
-	const auto hasText = (request.text && !request.text->empty());
-	if (hasText) {
+	const auto hasText = request.richMessage
+		|| (request.text && !request.text->empty());
+	if (hasText && !request.ignoreRestrictions) {
 		const auto error = Data::RestrictionError(
 			peer,
 			ChatRestriction::SendOther);
@@ -124,7 +140,7 @@ Data::SendError GetErrorForSending(
 			return tr::lng_forward_cant(tr::now);
 		}
 	}
-	if (peer->slowmodeApplied()) {
+	if (peer->slowmodeApplied() && !request.ignoreRestrictions) {
 		const auto count = request.messagesCount
 			? request.messagesCount
 			: ComputeSendingMessagesCount(thread->owningHistory(), request);
@@ -135,7 +151,7 @@ Data::SendError GetErrorForSending(
 				return tr::lng_slowmode_no_many(tr::now);
 			}
 		}
-		if (request.text && request.text->text.size() > MaxMessageSize) {
+		if (request.text && request.text->text.size() > messageLengthLimit) {
 			return tr::lng_slowmode_too_long(tr::now);
 		} else if ((hasText || request.story) && count > 1) {
 			return tr::lng_slowmode_no_many(tr::now);
@@ -158,7 +174,7 @@ Data::SendError GetErrorForSending(
 		}
 	}
 	if (const auto left = peer->slowmodeSecondsLeft()) {
-		if (!request.ignoreSlowmodeCountdown) {
+		if (!request.ignoreSlowmodeCountdown && !request.ignoreRestrictions) {
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
@@ -178,7 +194,7 @@ Data::SendError GetErrorForSending(
 Data::SendErrorWithThread GetErrorForSending(
 		const std::vector<not_null<Data::Thread*>> &threads,
 		SendingErrorRequest request) {
-	for (const auto thread : threads) {
+	for (const auto &thread : threads) {
 		const auto error = GetErrorForSending(thread, request);
 		if (error) {
 			return Data::SendErrorWithThread{ error, thread };
@@ -515,10 +531,12 @@ bool SendPaymentHelper::check(
 			done);
 		return false;
 	}
+	const auto session = &peer->session();
 	if (checkSuggestPriceTon
-		&& checkSuggestPriceTon > peer->session().credits().tonBalance()) {
+		&& checkSuggestPriceTon > session->credits().tonBalance()) {
 		using namespace HistoryView;
-		show->show(Box(InsufficientTonBox, peer, checkSuggestPriceTon));
+		show->show(
+			Box(Ui::InsufficientTonBox, session, checkSuggestPriceTon));
 		return false;
 	}
 	return true;
@@ -633,24 +651,85 @@ bool LookupReplyIsTopicPost(HistoryItem *replyTo) {
 		&& (replyTo->topicRootId() != Data::ForumTopic::kGeneralId);
 }
 
+bool ShowEphemeralReplyTextOnlyError(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<Main::Session*> session,
+		FullMsgId replyToId) {
+	const auto item = session->data().message(replyToId);
+	if (!item || !item->isEphemeral()) {
+		return false;
+	}
+	show->showToast(tr::lng_ephemeral_reply_text_only(tr::now));
+	return true;
+}
+
+void StripEphemeralReply(
+		not_null<Main::Session*> session,
+		FullReplyTo &replyTo) {
+	const auto item = session->data().message(replyTo.messageId);
+	if (item && item->isEphemeral()) {
+		replyTo.messageId = FullMsgId();
+	}
+}
+
+void ConfirmDeleteSelectedEphemeral(
+		std::shared_ptr<ChatHelpers::Show> show,
+		std::vector<not_null<HistoryItem*>> items,
+		Fn<void()> confirmed) {
+	if (items.empty()) {
+		return;
+	}
+	const auto session = &items.front()->history()->session();
+	auto ids = std::vector<FullMsgId>();
+	ids.reserve(items.size());
+	for (const auto &item : items) {
+		ids.push_back(item->fullId());
+	}
+	const auto count = int(ids.size());
+	show->show(Ui::MakeConfirmBox({
+		.text = tr::lng_selected_delete_sure(tr::now, lt_count, count),
+		.confirmed = [=](Fn<void()> &&close) {
+			close();
+			const auto owner = &session->data();
+			for (const auto &id : ids) {
+				if (const auto item = owner->message(id)) {
+					session->ephemeralMessages().deleteMessage(item);
+				}
+			}
+			if (const auto onstack = confirmed) {
+				onstack();
+			}
+		},
+		.confirmText = tr::lng_box_delete(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
+}
+
 TextWithEntities DropDisallowedCustomEmoji(
 		not_null<PeerData*> to,
 		TextWithEntities text) {
 	if (to->session().premium() || to->isSelf()) {
 		return text;
 	}
+	const auto isLocalIconEmoji = [](const EntityInText &entity) {
+		return entity.data().startsWith(u"icon-emoji-"_q);
+	};
 	const auto channel = to->asMegagroup();
 	const auto allowSetId = channel ? channel->mgInfo->emojiSet.id : 0;
 	if (!allowSetId) {
+		const auto predicate = [&](const EntityInText &entity) {
+			return (entity.type() == EntityType::CustomEmoji)
+				&& !isLocalIconEmoji(entity);
+		};
 		text.entities.erase(
-			ranges::remove(
-				text.entities,
-				EntityType::CustomEmoji,
-				&EntityInText::type),
+			ranges::remove_if(text.entities, predicate),
 			text.entities.end());
 	} else {
 		const auto predicate = [&](const EntityInText &entity) {
 			if (entity.type() != EntityType::CustomEmoji) {
+				return false;
+			}
+			if (isLocalIconEmoji(entity)) {
 				return false;
 			}
 			if (const auto id = Data::ParseCustomEmojiData(entity.data())) {
@@ -733,9 +812,10 @@ ClickHandlerPtr JumpToMessageClickHandler(
 			: peer->session().tryResolveWindow(peer);
 		if (controller) {
 			auto params = Window::SectionShow{
-				Window::SectionShow::Way::Forward
+				Window::SectionShow::Way::Forward,
 			};
 			params.highlight = highlight;
+			params.allowDuplicateInStack = true;
 			params.origin = Window::SectionShow::OriginMessage{
 				returnToId
 			};
@@ -843,6 +923,12 @@ MessageFlags FlagsFromMTP(
 			? Flag::TonPaidSuggested
 			: (flags & MTP::f_paid_suggested_post_stars)
 			? Flag::StarsPaidSuggested
+			: Flag())
+		| ((flags & MTP::f_summary_from_language)
+			? Flag::CanBeSummarized
+			: Flag())
+		| ((flags & MTP::f_guestchat_via_from)
+			? Flag::GuestChatViaFrom
 			: Flag());
 }
 
@@ -880,6 +966,8 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 			? PeerId()
 			: replyTo.messageId.peer;
 		const auto replyToTop = LookupReplyToTop(action.history, replyTo);
+		const auto topicPost = replyTo.topicRootId
+			&& (replyTo.topicRootId != Data::ForumTopic::kGeneralId);
 		auto quoteEntities = Api::EntitiesToMTP(
 			&action.history->session(),
 			replyTo.quote.entities,
@@ -896,7 +984,11 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 				| (quoteEntities.v.empty()
 					? Flag()
 					: Flag::f_quote_entities)
-				| (replyTo.todoItemId ? Flag::f_todo_item_id : Flag())),
+				| (replyTo.todoItemId ? Flag::f_todo_item_id : Flag())
+				| (replyTo.pollOption.isEmpty()
+					? Flag()
+					: Flag::f_poll_option)
+				| (topicPost ? Flag::f_forum_topic : Flag())),
 			MTP_int(replyTo.messageId.msg),
 			peerToMTP(externalPeerId),
 			MTPMessageFwdHeader(), // reply_from
@@ -905,7 +997,8 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 			MTP_string(replyTo.quote.text),
 			quoteEntities,
 			MTP_int(replyTo.quoteOffset),
-			MTP_int(replyTo.todoItemId));
+			MTP_int(replyTo.todoItemId),
+			MTP_bytes(replyTo.pollOption));
 	}
 	return MTPMessageReplyHeader();
 }
@@ -1160,15 +1253,22 @@ void CheckReactionNotificationSchedule(
 	if (!item->hasUnreadReaction()) {
 		return;
 	}
+	const auto from = item->history()->session().api()
+		.reactionsNotifySettings().messagesFromCurrent();
+	if (from == Api::ReactionsNotifyFrom::None) {
+		return;
+	}
 	for (const auto &[emoji, reactions] : item->recentReactions()) {
 		for (const auto &reaction : reactions) {
 			if (!reaction.unread) {
 				continue;
 			}
 			const auto user = reaction.peer->asUser();
-			if (!user
-				|| !user->isContact()
-				|| ranges::contains(wasUsers, user)) {
+			if (!user || ranges::contains(wasUsers, user)) {
+				continue;
+			}
+			if (from == Api::ReactionsNotifyFrom::Contacts
+				&& !user->isContact()) {
 				continue;
 			}
 			using Status = PeerData::BlockStatus;
@@ -1177,8 +1277,47 @@ void CheckReactionNotificationSchedule(
 			}
 			const auto notification = Data::ItemNotification{
 				.item = item,
-				.reactionSender = user,
+				.reactionOrVoteSender = user,
 				.type = Data::ItemNotificationType::Reaction,
+			};
+			item->notificationThread()->pushNotification(notification);
+			Core::App().notifications().schedule(notification);
+			return;
+		}
+	}
+}
+
+void CheckPollVoteNotificationSchedule(
+		not_null<HistoryItem*> item,
+		const std::vector<not_null<PeerData*>> &wasRecentVoters) {
+	const auto media = item->media();
+	const auto poll = media ? media->poll() : nullptr;
+	if (!poll || !poll->creator()) {
+		return;
+	}
+	const auto from = item->history()->session().api()
+		.reactionsNotifySettings().pollVotesFromCurrent();
+	if (from == Api::ReactionsNotifyFrom::None) {
+		return;
+	}
+	for (const auto &answer : poll->answers) {
+		for (const auto &voter : answer.recentVoters) {
+			const auto user = voter->asUser();
+			if (!user || ranges::contains(wasRecentVoters, voter)) {
+				continue;
+			}
+			if (from == Api::ReactionsNotifyFrom::Contacts
+				&& !user->isContact()) {
+				continue;
+			}
+			using Status = PeerData::BlockStatus;
+			if (user->blockStatus() == Status::Unknown) {
+				user->updateFull();
+			}
+			const auto notification = Data::ItemNotification{
+				.item = item,
+				.reactionOrVoteSender = user,
+				.type = Data::ItemNotificationType::PollVote,
 			};
 			item->notificationThread()->pushNotification(notification);
 			Core::App().notifications().schedule(notification);
@@ -1248,6 +1387,20 @@ void CheckReactionNotificationSchedule(
 	return result;
 }
 
+HistoryMessageMarkupData UnsupportedMessageMarkup() {
+	using Button = HistoryMessageMarkupButton;
+	auto markup = HistoryMessageMarkupData();
+	markup.flags = ReplyMarkupFlag::Inline;
+	auto row = std::vector<Button>();
+	row.emplace_back(
+		Button::Type::Url,
+		tr::lng_update_telegram(tr::now),
+		Button::Visual(),
+		QByteArray("https://desktop.telegram.org"));
+	markup.rows.push_back(std::move(row));
+	return markup;
+}
+
 void ShowTrialTranscribesToast(int left, TimeId until) {
 	const auto window = Core::App().activeWindow();
 	if (!window) {
@@ -1301,8 +1454,10 @@ int ItemsForwardCaptionsCount(const HistoryItemsList &list) {
 	auto result = 0;
 	for (const auto &item : list) {
 		if (const auto media = item->media()) {
-			if (!item->originalText().text.isEmpty()
-				&& media->allowsEditCaption()) {
+			const auto hasCaption = !item->originalText().text.isEmpty()
+				|| !media->consumedMessageText().text.isEmpty();
+			if (hasCaption
+				&& (media->allowsEditCaption() || media->poll())) {
 				++result;
 			}
 		}

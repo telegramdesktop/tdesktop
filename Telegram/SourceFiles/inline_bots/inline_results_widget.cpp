@@ -36,6 +36,7 @@ Widget::Widget(
 , _api(&_controller->session().mtp())
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
+, _shadow(st::emojiPanAnimation.shadow)
 , _scroll(this, st::inlineBotsScroll)
 , _innerRounding(Ui::PrepareCornerPixmaps(
 	ImageRoundRadius::Small,
@@ -154,7 +155,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 		hideFinished();
 	} else {
 		if (!_cache.isNull()) _cache = QPixmap();
-		if (!_inPanelGrab) Ui::Shadow::paint(p, innerRect(), width(), st::emojiPanAnimation.shadow);
+		if (!_inPanelGrab) _shadow.paint(p, innerRect(), st::roundRadiusSmall);
 		paintContent(p);
 	}
 }
@@ -241,7 +242,8 @@ void Widget::startShowAnimation() {
 			std::move(image),
 			QRect(
 				inner.topLeft() * style::DevicePixelRatio(),
-				inner.size() * style::DevicePixelRatio()));
+				inner.size() * style::DevicePixelRatio()),
+			st::emojiPanRadius);
 		_showAnimation->setCornerMasks(Images::CornersMask(ImageRoundRadius::Small));
 		_showAnimation->start();
 	}
@@ -395,6 +397,7 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 			entry->switchPmStartToken = QString();
 			entry->switchPmUrl = switchWebView->data().vurl().v;
 		}
+		entry->gallery = d.is_gallery();
 
 		if (const auto count = v.size()) {
 			entry->results.reserve(entry->results.size() + count);
@@ -465,8 +468,8 @@ void Widget::onInlineRequest() {
 	_requesting.fire(true);
 	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(0),
-		_inlineBot->inputUser,
-		_inlineQueryPeer->input,
+		_inlineBot->inputUser(),
+		_inlineQueryPeer->input(),
 		MTPInputGeoPoint(),
 		MTP_string(_inlineQuery),
 		MTP_string(nextOffset)

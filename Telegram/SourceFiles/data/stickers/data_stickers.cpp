@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "apiwrap.h"
 #include "storage/storage_account.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
@@ -188,6 +188,14 @@ rpl::producer<uint64> Stickers::stickerSetInstalled() const {
 	return _stickerSetInstalled.events();
 }
 
+void Stickers::notifyGifWithCaptionSent() {
+	_gifWithCaptionSent.fire({});
+}
+
+rpl::producer<> Stickers::gifWithCaptionSent() const {
+	return _gifWithCaptionSent.events();
+}
+
 void Stickers::notifyEmojiSetInstalled(uint64 setId) {
 	_emojiSetInstalled.fire(std::move(setId));
 }
@@ -253,7 +261,7 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 				set->emoji[emoji].push_front(document);
 			}
 		} else if (!removedFromEmoji.empty()) {
-			for (const auto emoji : removedFromEmoji) {
+			for (const auto &emoji : removedFromEmoji) {
 				set->emoji[emoji].push_front(document);
 			}
 		} else {
@@ -1457,7 +1465,7 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		const auto others = session().api().stickersByEmoji(key);
 		if (others) {
 			result.reserve(result.size() + others->size());
-			for (const auto document : *others) {
+			for (const auto &document : *others) {
 				add(document, CreateOtherSortKey(document));
 			}
 		} else if (!forceAllResults) {
@@ -1601,7 +1609,8 @@ not_null<StickersSet*> Stickers::feedSet(const MTPStickerSet &info) {
 			& (SetFlag::Featured
 				| SetFlag::Unread
 				| SetFlag::NotLoaded
-				| SetFlag::Special);
+				| SetFlag::Special
+				| SetFlag::Installed);
 		set->flags = flags | clientFlags;
 		const auto installDate = data.vinstalled_date();
 		set->installDate = installDate
@@ -1649,7 +1658,12 @@ not_null<StickersSet*> Stickers::feedSet(
 	const auto set = data.match([&](const auto &data) {
 		return feedSet(data.vset());
 	});
-	data.match([](const MTPDstickerSetCovered &data) {
+	data.match([&](const MTPDstickerSetCovered &data) {
+		set->covers = StickersPack();
+		const auto cover = session().data().processDocument(data.vcover());
+		if (cover->sticker()) {
+			set->covers.push_back(cover);
+		}
 	}, [&](const MTPDstickerSetNoCovered &data) {
 	}, [&](const MTPDstickerSetMultiCovered &data) {
 		feedSetCovers(set, data.vcovers().v);

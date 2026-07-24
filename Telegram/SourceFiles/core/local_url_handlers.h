@@ -33,12 +33,18 @@ struct LocalUrlHandler {
 		const QVariant &context)> handler;
 };
 
+[[nodiscard]] bool TryRouterForLocalUrl(
+	Window::SessionController *controller,
+	const QString &command);
+
 [[nodiscard]] const std::vector<LocalUrlHandler> &LocalUrlHandlers();
 [[nodiscard]] const std::vector<LocalUrlHandler> &InternalUrlHandlers();
 
 [[nodiscard]] QString TryConvertUrlToLocal(QString url);
 
-[[nodiscard]] bool InternalPassportLink(const QString &url);
+[[nodiscard]] bool IsMiniAppUrl(const QString &url);
+
+[[nodiscard]] bool InternalPassportOrOAuthLink(const QString &url);
 
 [[nodiscard]] bool StartUrlRequiresActivate(const QString &url);
 

@@ -60,9 +60,6 @@ struct TopReactorKey {
 	friend inline auto operator<=>(
 		const TopReactorKey &,
 		const TopReactorKey &) = default;
-	friend inline bool operator==(
-		const TopReactorKey &,
-		const TopReactorKey &) = default;
 };
 
 [[nodiscard]] QImage GenerateBadgeImage(
@@ -915,14 +912,14 @@ void PaidReactionSlider(
 
 		p.setClipPath(fullPath.subtracted(circlePath));
 		state->particles.setColor(Qt::white);
-		state->particles.paint(p, rect, crl::now());
+		state->particles.paint(p, rect, crl::now(), false);
 		p.setClipping(false);
 
 		p.setClipPath(fullPath.intersected(circlePath.united(rightRect)));
 		state->particles.setColor(activeFgOverride
 			? st::groupCallMemberInactiveIcon->c
 			: st::creditsBg3->c);
-		state->particles.paint(p, rect, crl::now());
+		state->particles.paint(p, rect, crl::now(), false);
 	}, stars->lifetime());
 }
 

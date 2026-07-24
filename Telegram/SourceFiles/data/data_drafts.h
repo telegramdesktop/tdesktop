@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_msg_id.h"
 
+#include <memory>
+
 namespace Ui {
 class InputField;
 } // namespace Ui
@@ -16,6 +18,10 @@ class InputField;
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Iv {
+struct RichPage;
+} // namespace Iv
 
 namespace Data {
 
@@ -69,7 +75,13 @@ struct Draft {
 	SuggestOptions suggest;
 	MessageCursor cursor;
 	WebPageDraft webpage;
+	std::shared_ptr<const Iv::RichPage> richMessage;
+	TextWithEntities richMessageSummary;
 	mtpRequestId saveRequestId = 0;
+
+	[[nodiscard]] bool hasRichMessage() const {
+		return (richMessage != nullptr);
+	}
 };
 
 class DraftKey {
@@ -240,26 +252,8 @@ using HistoryDrafts = base::flat_map<DraftKey, std::unique_ptr<Draft>>;
 	return true;
 }
 
-[[nodiscard]] inline bool DraftIsNull(const Draft *draft) {
-	return !draft
-		|| (!draft->reply.messageId
-			&& !draft->suggest.exists
-			&& DraftStringIsEmpty(draft->textWithTags.text));
-}
-
-[[nodiscard]] inline bool DraftsAreEqual(const Draft *a, const Draft *b) {
-	const auto aIsNull = DraftIsNull(a);
-	const auto bIsNull = DraftIsNull(b);
-	if (aIsNull) {
-		return bIsNull;
-	} else if (bIsNull) {
-		return false;
-	}
-	return (a->textWithTags == b->textWithTags)
-		&& (a->reply == b->reply)
-		&& (a->suggest == b->suggest)
-		&& (a->webpage == b->webpage);
-}
+[[nodiscard]] bool DraftIsNull(const Draft *draft);
+[[nodiscard]] bool DraftsAreEqual(const Draft *a, const Draft *b);
 
 void SetChatLinkDraft(not_null<PeerData*> peer, TextWithEntities draft);
 

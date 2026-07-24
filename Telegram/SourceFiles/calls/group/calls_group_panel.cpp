@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "calls/calls_window.h"
+#include "base/platform/base_platform_info.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_file_origin.h"
 #include "ui/platform/ui_platform_window_title.h" // TitleLayout
@@ -65,7 +66,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_audio_input_tester.h"
+#include "webrtc/webrtc_create_adm.h"
 #include "styles/style_calls.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 
 #include <QtWidgets/QApplication>
@@ -246,7 +249,11 @@ Panel::Panel(not_null<GroupCall*> call, ConferencePanelMigration info)
 	nullptr,
 	_call->messages()->idUpdates(),
 	_call->canManageValue(),
-	_call->messagesEnabledValue()))
+	_call->messagesEnabledValue(),
+	[=](QPoint globalPosition) {
+		return _messageField
+			&& _messageField->ownsReactionPanelInput(globalPosition);
+	}))
 , _toasts(std::make_unique<Toasts>(this))
 , _controlsBackgroundColor([] {
 	auto result = st::groupCallBg->c;
@@ -356,11 +363,7 @@ bool Panel::chooseSourceActiveWithAudio() {
 }
 
 bool Panel::chooseSourceWithAudioSupported() {
-#ifdef Q_OS_WIN
-	return true;
-#else // Q_OS_WIN
-	return false;
-#endif // Q_OS_WIN
+	return Webrtc::LoopbackAudioCaptureSupported();
 }
 
 rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
@@ -616,6 +619,7 @@ void Panel::initControls() {
 	}, lifetime());
 
 	_hangup->setClickedCallback([=] { endCall(); });
+	_hangup->setAccessibleName(tr::lng_group_call_leave(tr::now));
 
 	const auto scheduleDate = _call->scheduleDate();
 	if (scheduleDate) {
@@ -701,12 +705,14 @@ void Panel::refreshLeftButton() {
 		_settings.destroy();
 		_callShare.create(widget(), st::groupCallShare);
 		_callShare->setClickedCallback(_callShareLinkCallback);
+		_callShare->setAccessibleName(tr::lng_group_call_invite(tr::now));
 	} else {
 		_callShare.destroy();
 		_settings.create(widget(), st::groupCallSettings);
 		_settings->setClickedCallback([=] {
 			uiShow()->showBox(Box(SettingsBox, _call));
 		});
+		_settings->setAccessibleName(tr::lng_group_call_settings_title(tr::now));
 		trackControls(_trackControls, true);
 	}
 	const auto raw = _callShare ? _callShare.data() : _settings.data();
@@ -754,6 +760,7 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 				StickedTooltipHide::Activated);
 			_call->toggleVideo(!_call->isSharingCamera());
 		});
+		_video->setAccessibleName(tr::lng_call_start_video(tr::now));
 		_video->setColorOverrides(
 			toggleableOverrides(_call->isSharingCameraValue()));
 		_call->isSharingCameraValue(
@@ -764,6 +771,9 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 					StickedTooltipHide::Activated);
 			}
 			_video->setProgress(sharing ? 1. : 0.);
+			_video->setAccessibleName(sharing
+				? tr::lng_call_stop_video(tr::now)
+				: tr::lng_call_start_video(tr::now));
 		}, _video->lifetime());
 	}
 	if (!_screenShare) {
@@ -772,17 +782,22 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 		_screenShare->setClickedCallback([=] {
 			chooseShareScreenSource();
 		});
+		_screenShare->setAccessibleName(tr::lng_group_call_screen_share_start(tr::now));
 		_screenShare->setColorOverrides(
 			toggleableOverrides(_call->isSharingScreenValue()));
 		_call->isSharingScreenValue(
 		) | rpl::on_next([=](bool sharing) {
 			_screenShare->setProgress(sharing ? 1. : 0.);
+			_screenShare->setAccessibleName(sharing
+				? tr::lng_group_call_screen_share_stop(tr::now)
+				: tr::lng_group_call_screen_share_start(tr::now));
 		}, _screenShare->lifetime());
 	}
 	if (!_wideMenu) {
 		_wideMenu.create(widget(), st::groupCallMenuToggleSmall);
 		_wideMenu->show();
 		_wideMenu->setClickedCallback([=] { showMainMenu(); });
+		_wideMenu->setAccessibleName(tr::lng_sr_group_call_menu(tr::now));
 		_wideMenu->setColorOverrides(
 			toggleableOverrides(_wideMenuShown.value()));
 	}
@@ -799,6 +814,7 @@ void Panel::createMessageButton() {
 			&st::groupCallMessageActiveSmall);
 		_message->show();
 		_message->setClickedCallback([=] { toggleMessageTyping(); });
+		_message->setAccessibleName(tr::lng_group_call_message(tr::now));
 		_message->setColorOverrides(
 			toggleableOverrides(_messageTyping.value()));
 	}
@@ -880,8 +896,7 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 		const auto wide = (mode == PanelMode::Wide);
 		using Type = Ui::CallMuteButtonType;
 		using ExpandType = Ui::CallMuteButtonExpandType;
-		_mute->setState(Ui::CallMuteButtonState{
-			.text = (wide
+		const auto text = (wide
 				? QString()
 				: scheduleDate
 				? (canManage
@@ -897,7 +912,10 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 				? tr::lng_group_call_raised_hand(tr::now)
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute(tr::now)
-				: tr::lng_group_call_you_are_live(tr::now)),
+				: tr::lng_group_call_you_are_live(tr::now));
+		_mute->outer()->setAccessibleName(text);
+		_mute->setState(Ui::CallMuteButtonState{
+			.text = text,
 			.tooltip = ((!scheduleDate && mute == MuteState::Muted)
 				? tr::lng_group_call_unmute_sub(tr::now)
 				: QString()),
@@ -1412,9 +1430,15 @@ void Panel::createPinOnTop() {
 				pin ? &st::groupCallPinnedOnTop : nullptr,
 				pin ? &st::groupCallPinnedOnTop : nullptr);
 			if (!_pinOnTop->isHidden()) {
-				uiShow()->showToast({ pin
-					? tr::lng_group_call_pinned_on_top(tr::now)
-					: tr::lng_group_call_unpinned_on_top(tr::now) });
+				uiShow()->showToast({
+					.text = { pin
+						? tr::lng_group_call_pinned_on_top(tr::now)
+						: tr::lng_group_call_unpinned_on_top(tr::now) },
+					.iconLottie = pin
+						? u"toast/pin"_q
+						: u"toast/unpin"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			}
 		}
 	};
@@ -1480,6 +1504,7 @@ void Panel::refreshTopButton() {
 		if (!_menuToggle) {
 			_menuToggle.create(widget(), st::groupCallMenuToggle);
 			_menuToggle->show();
+			_menuToggle->setAccessibleName(tr::lng_sr_group_call_menu(tr::now));
 			_menuToggle->setClickedCallback([=] { showMainMenu(); });
 			updateControlsGeometry();
 			raiseControls();
@@ -1527,6 +1552,13 @@ void Panel::chooseShareScreenSource() {
 		} else if (const auto source = env->uniqueDesktopCaptureSource()) {
 			if (_call->isSharingScreen()) {
 				_call->toggleScreenSharing(std::nullopt);
+			} else if (chooseSourceWithAudioSupported()) {
+				const auto sourceId = *source;
+				ShowUniqueCaptureOptions(
+					uiShow(),
+					crl::guard(this, [=](bool audio) {
+						chooseSourceAccepted(sourceId, audio);
+					}));
 			} else {
 				chooseSourceAccepted(*source, false);
 			}
@@ -2123,6 +2155,7 @@ void Panel::trackControl(Ui::RpWidget *widget, rpl::lifetime &lifetime) {
 					trackControlOver(widget, true);
 				}
 			});
+			toggleWideControls(true);
 		} else if (type == QEvent::Leave) {
 			*over = false;
 			crl::on_main(widget, [=] {
@@ -2130,6 +2163,7 @@ void Panel::trackControl(Ui::RpWidget *widget, rpl::lifetime &lifetime) {
 					trackControlOver(widget, false);
 				}
 			});
+			toggleWideControls(false);
 		}
 	}, lifetime);
 }
@@ -2150,7 +2184,6 @@ void Panel::trackControlOver(not_null<Ui::RpWidget*> control, bool over) {
 	} else {
 		Ui::Integration::Instance().unregisterLeaveSubscription(control);
 	}
-	toggleWideControls(over);
 }
 
 void Panel::showStickedTooltip() {
@@ -2739,7 +2772,7 @@ void Panel::refreshTitle() {
 		if (_call->rtmp()) {
 			_titleSeparator.create(
 				widget(),
-				rpl::single(QString::fromUtf8("\xE2\x80\xA2")),
+				rpl::single(Ui::kQBullet),
 				st::groupCallTitleLabel);
 			_titleSeparator->show();
 			_titleSeparator->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -2923,6 +2956,11 @@ void Panel::paint(QRect clip) {
 bool Panel::handleClose() {
 	if (_call) {
 		window()->hide();
+		if (Platform::IsWayland()) {
+			if (const auto handle = window()->windowHandle()) {
+				handle->destroy();
+			}
+		}
 		return true;
 	}
 	return false;

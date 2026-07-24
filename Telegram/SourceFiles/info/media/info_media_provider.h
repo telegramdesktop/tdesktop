@@ -48,6 +48,10 @@ public:
 
 	void setSearchQuery(QString query) override;
 
+	void jumpToMessage(MsgId, Fn<void(FullMsgId)> done) override;
+
+	[[nodiscard]] bool anchorWhileAtTop() override;
+
 	ListItemSelectionData computeSelectionData(
 		not_null<const HistoryItem*> item,
 		TextSelection selection) override;

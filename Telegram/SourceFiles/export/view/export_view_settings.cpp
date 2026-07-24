@@ -617,11 +617,11 @@ void SettingsWidget::editDateLimit(
 			}
 		}));
 	};
-	const auto callback = crl::guard(this, [=](const QDate &date) {
+	const auto callback = crl::guard(this, [=](
+			const QDate &date,
+			Fn<void()> close) {
 		done(base::unixtime::serialize(date.startOfDay()));
-		if (const auto weak = shared->get()) {
-			weak->closeBox();
-		}
+		close();
 	});
 	auto box = Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
 		.month = month,
@@ -888,7 +888,6 @@ void SettingsWidget::refreshButtons(
 			st::defaultBoxButton)
 		: nullptr;
 	if (start) {
-		start->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 		start->show();
 		_startClicks = start->clicks() | rpl::to_empty;
 
@@ -904,7 +903,6 @@ void SettingsWidget::refreshButtons(
 		container.get(),
 		tr::lng_cancel(),
 		st::defaultBoxButton);
-	cancel->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	cancel->show();
 	_cancelClicks = cancel->clicks() | rpl::to_empty;
 

@@ -15,7 +15,7 @@ class ListWidget;
 
 namespace Ui {
 class RpWidget;
-class ScrollArea;
+class ElasticScroll;
 } // namespace Ui
 
 namespace Window {
@@ -24,7 +24,7 @@ class SectionWidget;
 
 void SetupSwipeBackSection(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Ui::ScrollArea*> scroll,
+	not_null<Ui::ElasticScroll*> scroll,
 	not_null<HistoryView::ListWidget*> list);
 
 } // namespace Window

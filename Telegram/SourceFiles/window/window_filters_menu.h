@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_filters_remove_manager.h"
 #include "base/timer.h"
+#include "base/weak_qptr.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/side_bar_button.h"
 #include "ui/widgets/scroll_area.h"
@@ -22,11 +23,14 @@ class VerticalLayout;
 class VerticalLayoutReorder;
 enum class FilterIcon : uchar;
 class PopupMenu;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 namespace Window {
 
 class SessionController;
+class FolderFavoriteButton;
 
 class FiltersMenu final {
 public:
@@ -39,6 +43,9 @@ private:
 	void setup();
 	void refresh();
 	void setupList();
+	void updateFavorite();
+	void createFavorite();
+	void destroyFavorite();
 	void applyReorder(
 		not_null<Ui::RpWidget*> widget,
 		int oldPosition,
@@ -50,11 +57,18 @@ private:
 		FilterId id,
 		Data::ChatFilterTitle title,
 		Ui::FilterIcon icon,
+		bool locked = false,
 		bool toBeginning = false);
 	void setupMainMenuIcon();
 	void showMenu(QPoint position, FilterId id);
 	void scrollToButton(not_null<Ui::RpWidget*> widget);
+	void applyFilterAt(int start, int delta);
+	void moveToFilter(int delta);
+	void moveToFilterEdge(int delta);
+	void setListTabStop(not_null<Ui::SideBarButton*> stop);
+	[[nodiscard]] bool listFocused() const;
 	void openFiltersSettings();
+	void setupDragAndDrop();
 
 	const not_null<SessionController*> _session;
 	const not_null<Ui::RpWidget*> _parent;
@@ -65,7 +79,9 @@ private:
 	Ui::VerticalLayout *_list = nullptr;
 	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
 	base::unique_qptr<Ui::SideBarButton> _setup;
+	base::unique_qptr<Ui::SlideWrap<FolderFavoriteButton>> _favorite;
 	base::flat_map<FilterId, base::unique_qptr<Ui::SideBarButton>> _filters;
+	base::weak_qptr<Ui::SideBarButton> _tabStop;
 	rpl::variable<bool> _includeMuted;
 	FilterId _activeFilterId = 0;
 	int _reordering = 0;
@@ -73,9 +89,6 @@ private:
 	bool _waitingSuggested = false;
 
 	Api::RemoveComplexChatFilter _removeApi;
-
-	FilterId _removingId = 0;
-	mtpRequestId _removingRequestId = 0;
 
 	base::unique_qptr<Ui::PopupMenu> _popupMenu;
 	struct {

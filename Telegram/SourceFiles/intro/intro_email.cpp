@@ -118,7 +118,7 @@ EmailWidget::EmailWidget(
 					// Show box?
 					error->setText(Lang::Hard::EmailConfirmationExpired());
 				} else {
-					error->setText(Lang::Hard::ServerError());
+					error->setText(type);
 				}
 			};
 

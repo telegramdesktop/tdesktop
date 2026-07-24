@@ -19,15 +19,12 @@ struct ComposeControls;
 
 namespace Ui {
 
-class PopupMenu;
-
 class AbstractSingleMediaPreview : public AbstractSinglePreview {
 public:
 	AbstractSingleMediaPreview(
 		QWidget *parent,
 		const style::ComposeControls &st,
-		AttachControls::Type type,
-		Fn<bool(AttachActionType)> actionAllowed);
+		AttachControls::Type type);
 	~AbstractSingleMediaPreview();
 
 	void setSendWay(SendFilesWay way);
@@ -36,15 +33,13 @@ public:
 	[[nodiscard]] rpl::producer<> deleteRequests() const override;
 	[[nodiscard]] rpl::producer<> editRequests() const override;
 	[[nodiscard]] rpl::producer<> modifyRequests() const override;
-	[[nodiscard]] rpl::producer<> editCoverRequests() const override;
-	[[nodiscard]] rpl::producer<> clearCoverRequests() const override;
 
 	[[nodiscard]] bool isPhoto() const;
 
 	void setSpoiler(bool spoiler);
+	void setCanShowHighQualityBadge(bool value);
 	[[nodiscard]] bool hasSpoiler() const;
 	[[nodiscard]] bool canHaveSpoiler() const;
-	[[nodiscard]] rpl::producer<bool> spoileredChanges() const;
 
 	[[nodiscard]] QImage generatePriceTagBackground() const;
 
@@ -72,11 +67,9 @@ private:
 
 	[[nodiscard]] bool isOverPreview(QPoint position) const;
 	void applyCursor(style::cursor cursor);
-	void showContextMenu(QPoint position);
 
 	const style::ComposeControls &_st;
 	SendFilesWay _sendWay;
-	Fn<bool(AttachActionType)> _actionAllowed;
 	bool _animated = false;
 	QPixmap _preview;
 	QPixmap _previewBlurred;
@@ -86,18 +79,14 @@ private:
 	int _previewHeight = 0;
 
 	std::unique_ptr<SpoilerAnimation> _spoiler;
-	rpl::event_stream<bool> _spoileredChanges;
+	bool _canShowHighQualityBadge = false;
 
 	const int _minThumbH;
 	const base::unique_qptr<AttachControlsWidget> _controls;
 	rpl::event_stream<> _photoEditorRequests;
-	rpl::event_stream<> _editCoverRequests;
-	rpl::event_stream<> _clearCoverRequests;
 
 	style::cursor _cursor = style::cur_default;
 	bool _pressed = false;
-
-	base::unique_qptr<PopupMenu> _menu;
 
 	rpl::event_stream<> _modifyRequests;
 

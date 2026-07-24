@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
@@ -57,8 +58,8 @@ void ConnectStarRef(
 		Fn<void(ConnectedBot)> done,
 		Fn<void(const QString &)> fail) {
 	bot->session().api().request(MTPpayments_ConnectStarRefBot(
-		peer->input,
-		bot->inputUser
+		peer->input(),
+		bot->inputUser()
 	)).done([=](const MTPpayments_ConnectedStarRefBots &result) {
 		const auto parsed = Parse(&bot->session(), result);
 		if (parsed.empty()) {
@@ -93,9 +94,9 @@ void ConnectStarRef(
 	const auto state = raw->lifetime().make_state<State>(State{
 		.icon = ChatHelpers::GenerateLocalTgsSticker(
 			session,
-			u"starref_link"_q),
+			u"starref_link"_q,
+			true),
 	});
-	state->icon->overrideEmojiUsesTextColor(true);
 	state->media = state->icon->createMediaView();
 	state->player = std::make_unique<HistoryView::LottiePlayer>(
 		ChatHelpers::LottiePlayerFromDocument(
@@ -459,7 +460,11 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 		const auto copy = [=](bool close) {
 			return [=] {
 				QApplication::clipboard()->setText(row.state.link);
-				box->uiShow()->showToast(tr::lng_username_copied(tr::now));
+				box->uiShow()->showToast({
+					.text = { tr::lng_username_copied(tr::now) },
+					.iconLottie = u"toast/voip_invite"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 				if (close) {
 					box->closeBox();
 				}
@@ -468,7 +473,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 		preview->setClickedCallback(copy(false));
 		const auto button = box->addButton(
 			tr::lng_star_ref_link_copy(),
-			[=] { copy(true); },
+			copy(true),
 			st::starrefCopyButton);
 
 		const auto name = TextWithEntities{ bot->name() };
@@ -973,7 +978,7 @@ void UpdateProgram(
 		MTP_flags((program.commission > 0 && program.durationMonths > 0)
 			? Flag::f_duration_months
 			: Flag()),
-		bot->inputUser,
+		bot->inputUser(),
 		MTP_int(program.commission),
 		MTP_int(program.durationMonths)
 	)).done([=](const MTPStarRefProgram &result) {

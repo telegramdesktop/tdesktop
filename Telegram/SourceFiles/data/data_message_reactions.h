@@ -405,6 +405,9 @@ public:
 
 	void add(const ReactionId &id, bool addToRecent);
 	void remove(const ReactionId &id);
+	bool removeFromParticipant(
+		not_null<PeerData*> participant,
+		const ReactionId &knownReaction);
 	bool change(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,

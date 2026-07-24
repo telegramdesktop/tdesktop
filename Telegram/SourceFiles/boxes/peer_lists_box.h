@@ -9,12 +9,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/peer_list_box.h"
 
+namespace Ui {
+class VerticalLayout;
+} // namespace Ui
+
 class PeerListsBox : public Ui::BoxContent {
 public:
 	PeerListsBox(
 		QWidget*,
 		std::vector<std::unique_ptr<PeerListController>> controllers,
 		Fn<void(not_null<PeerListsBox*>)> init);
+
+	not_null<Ui::RpWidget*> addSeparatorBefore(
+		int listIndex,
+		object_ptr<Ui::RpWidget> widget);
 
 	[[nodiscard]] std::vector<not_null<PeerData*>> collectSelectedRows();
 
@@ -66,6 +74,7 @@ private:
 		std::unique_ptr<PeerListController> controller;
 		std::unique_ptr<Delegate> delegate;
 		PeerListContent *content = nullptr;
+		Ui::SlideWrap<Ui::RpWidget> *separator = nullptr;
 	};
 
 	friend class Delegate;
@@ -99,5 +108,6 @@ private:
 	std::vector<List> _lists;
 	Fn<void(PeerListsBox*)> _init;
 	bool _scrollBottomFixed = false;
+	Ui::VerticalLayout *_rows = nullptr;
 
 };

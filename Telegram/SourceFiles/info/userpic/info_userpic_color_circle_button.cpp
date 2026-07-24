@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/userpic/info_userpic_color_circle_button.h"
 
-#include "settings/settings_chat.h" // Settings::PaintRoundColorButton.
+#include "settings/sections/settings_chat.h" // Settings::PaintRoundColorButton.
 #include "ui/painter.h"
 
 namespace UserpicBuilder {

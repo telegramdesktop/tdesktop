@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/global_media/info_global_media_widget.h"
 #include "info/media/info_media_widget.h"
+#include "info/polls/info_polls_list_widget.h"
 #include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_peer.h"
@@ -28,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
+#include "styles/style_layers.h"
+#include "styles/style_profile.h"
 
 namespace Info {
 
@@ -384,12 +387,24 @@ void Controller::setupTopicViewer() {
 	}, _lifetime);
 }
 
+style::color AbstractController::listBackground() const {
+	return st::profileBg;
+}
+
 Wrap Controller::wrap() const {
 	return _widget->wrap();
 }
 
+style::color Controller::listBackground() const {
+	return (wrap() == Wrap::Layer) ? st::boxBg : st::profileBg;
+}
+
 rpl::producer<Wrap> Controller::wrapValue() const {
 	return _widget->wrapValue();
+}
+
+rpl::producer<bool> Controller::contentTillBottomValue() const {
+	return _widget->contentTillBottomValue();
 }
 
 not_null<Ui::RpWidget*> Controller::wrapWidget() const {
@@ -437,9 +452,14 @@ void Controller::updateSearchControllers(
 	if (type == Type::Media) {
 		_searchController
 			= std::make_unique<Api::DelayedSearchController>(&session());
-		auto mediaMemento = dynamic_cast<Media::Memento*>(memento.get());
-		Assert(mediaMemento != nullptr);
-		_searchController->restoreState(mediaMemento->searchState());
+		if (auto mediaMemento = dynamic_cast<Media::Memento*>(
+				memento.get())) {
+			_searchController->restoreState(mediaMemento->searchState());
+		} else if (dynamic_cast<Polls::ListMemento*>(memento.get())) {
+			auto state = Api::SearchController::SavedState();
+			state.query = produceSearchQuery(searchQuery);
+			_searchController->restoreState(std::move(state));
+		}
 	} else {
 		_searchController = nullptr;
 	}
@@ -473,10 +493,10 @@ void Controller::saveSearchState(not_null<ContentMemento*> memento) {
 			_seachEnabledByContent.current());
 	}
 	if (_searchController) {
-		auto mediaMemento = dynamic_cast<Media::Memento*>(
-			memento.get());
-		Assert(mediaMemento != nullptr);
-		mediaMemento->setSearchState(_searchController->saveState());
+		if (auto mediaMemento = dynamic_cast<Media::Memento*>(
+				memento.get())) {
+			mediaMemento->setSearchState(_searchController->saveState());
+		}
 	}
 }
 

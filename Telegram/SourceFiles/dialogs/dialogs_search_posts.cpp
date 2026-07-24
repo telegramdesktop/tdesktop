@@ -185,7 +185,7 @@ void PostsSearch::requestSearch(const QString &query) {
 		MTP_string(), // hashtag
 		MTP_string(query),
 		MTP_int(entry.offsetRate),
-		(entry.offsetPeer ? entry.offsetPeer->input : MTP_inputPeerEmpty()),
+		(entry.offsetPeer ? entry.offsetPeer->input() : MTP_inputPeerEmpty()),
 		MTP_int(entry.offsetId),
 		MTP_int(kPerPage),
 		MTP_long(useStars)

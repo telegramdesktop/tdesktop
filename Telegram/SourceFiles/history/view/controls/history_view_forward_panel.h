@@ -23,6 +23,10 @@ class Thread;
 struct WebPageDraft;
 } // namespace Data
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -88,5 +92,16 @@ void EditWebPageOptions(
 [[nodiscard]] bool HasOnlyForcedForwardedInfo(const HistoryItemsList &list);
 [[nodiscard]] bool HasOnlyDroppedForwardedInfo(const HistoryItemsList &list);
 [[nodiscard]] bool HasDropForwardedInfoSetting(const HistoryItemsList &list);
+[[nodiscard]] bool HasRichPage(const HistoryItemsList &list);
+[[nodiscard]] bool CanHideForwardAuthor(
+	not_null<Main::Session*> session,
+	const HistoryItemsList &list);
+[[nodiscard]] bool HideForwardAuthorPremiumRequired(
+	not_null<Main::Session*> session,
+	const HistoryItemsList &list);
+[[nodiscard]] Data::ForwardOptions NormalizeForwardOptions(
+	not_null<Main::Session*> session,
+	const HistoryItemsList &list,
+	Data::ForwardOptions options);
 
 } // namespace HistoryView::Controls

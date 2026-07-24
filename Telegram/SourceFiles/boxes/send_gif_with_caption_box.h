@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 class DocumentData;
+enum class PremiumFeature;
 
 namespace Api {
 struct SendOptions;
@@ -22,9 +23,26 @@ namespace HistoryView {
 class Element;
 } // namespace HistoryView
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Ui {
 
 class GenericBox;
+class InputField;
+
+void SetupCaptionFieldInBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::InputField*> field,
+	PeerData *panelPeer,
+	Fn<bool(not_null<DocumentData*>)> allowWithoutPremium,
+	PremiumFeature premiumFeature);
 
 void EditCaptionBox(
 	not_null<Ui::GenericBox*> box,
@@ -35,6 +53,16 @@ void SendGifWithCaptionBox(
 	not_null<DocumentData*> document,
 	not_null<PeerData*> peer,
 	const SendMenu::Details &details,
-	Fn<void(Api::SendOptions, TextWithTags)> done);
+	TextWithTags initialText,
+	Fn<void(Api::SendOptions, TextWithTags)> done,
+	Fn<void(TextWithTags)> cancelled);
+
+void SendGifWithCaption(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<Ui::InputField*> field,
+	not_null<DocumentData*> document,
+	not_null<PeerData*> peer,
+	const SendMenu::Details &details,
+	Fn<void(Api::SendOptions, TextWithTags)> send);
 
 } // namespace Ui

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class ScrollArea;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Ui::Menu {
@@ -75,21 +76,6 @@ public:
 	[[nodiscard]] Type id() const final override {
 		return Id();
 	}
-
-	[[nodiscard]] rpl::producer<Type> sectionShowOther() final override {
-		return _showOtherRequests.events();
-	}
-	void showOther(Type type) {
-		_showOtherRequests.fire_copy(type);
-	}
-	[[nodiscard]] Fn<void(Type)> showOtherMethod() {
-		return crl::guard(this, [=](Type type) {
-			showOther(type);
-		});
-	}
-
-private:
-	rpl::event_stream<Type> _showOtherRequests;
 
 };
 

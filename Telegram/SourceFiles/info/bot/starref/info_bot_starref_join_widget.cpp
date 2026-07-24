@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
@@ -270,8 +271,8 @@ void Resolve(
 		not_null<UserData*> bot,
 		Fn<void(std::optional<ConnectedBotState>)> done) {
 	peer->session().api().request(MTPpayments_GetConnectedStarRefBot(
-		peer->input,
-		bot->inputUser
+		peer->input(),
+		bot->inputUser()
 	)).done([=](const MTPpayments_ConnectedStarRefBots &result) {
 		const auto parsed = Parse(&peer->session(), result);
 		if (parsed.empty()) {
@@ -358,7 +359,7 @@ void ListController::loadMoreRows() {
 				MTP_flags(Flag()
 					| (_offsetDate ? Flag::f_offset_date : Flag())
 					| (_offsetThing.isEmpty() ? Flag() : Flag::f_offset_link)),
-				_peer->input,
+				_peer->input(),
 				MTP_int(_offsetDate),
 				MTP_string(_offsetThing),
 				MTP_int(kPerPage))
@@ -390,7 +391,7 @@ void ListController::loadMoreRows() {
 					: (_sort == SuggestedSort::Date)
 					? Flag::f_order_by_date
 					: Flag()),
-				_peer->input,
+				_peer->input(),
 				MTP_string(_offsetThing),
 				MTP_int(kPerPage))
 		).done([=](const MTPpayments_SuggestedStarRefBots &result) {
@@ -595,7 +596,7 @@ void RevokeLink(
 		Fn<void()> revoked) {
 	peer->session().api().request(MTPpayments_EditConnectedStarRefBot(
 		MTP_flags(MTPpayments_EditConnectedStarRefBot::Flag::f_revoked),
-		peer->input,
+		peer->input(),
 		MTP_string(link)
 	)).done([=] {
 		controller->showToast({
@@ -634,7 +635,11 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 	if (!state.link.isEmpty()) {
 		addAction(tr::lng_star_ref_list_my_copy(tr::now), [=] {
 			QApplication::clipboard()->setText(state.link);
-			_controller->showToast(tr::lng_username_copied(tr::now));
+			_controller->showToast({
+				.text = { tr::lng_username_copied(tr::now) },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		}, &st::menuIconLinks);
 		const auto revoke = [=] {
 			const auto link = state.link;
@@ -1016,12 +1021,26 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 
 	const auto baseHeight = st::starrefCoverHeight;
 	raw->resize(width(), baseHeight);
+	const auto updateTopSkip = [=] {
+		const auto height = raw->height();
+		setPaintPadding({ 0, height, 0, 0 });
+		setScrollTopSkip(height);
+	};
+	const auto setTopHeight = [=](int height) {
+		if (height > raw->maximumHeight()) {
+			raw->setMaximumHeight(height);
+			raw->setMinimumHeight(height);
+		} else {
+			raw->setMinimumHeight(height);
+			raw->setMaximumHeight(height);
+		}
+		raw->resize(raw->width(), height);
+		updateTopSkip();
+	};
 
 	raw->additionalHeight(
 	) | rpl::on_next([=](int additionalHeight) {
-		raw->setMaximumHeight(baseHeight + additionalHeight);
-		raw->setMinimumHeight(baseHeight + additionalHeight);
-		setPaintPadding({ 0, raw->height(), 0, 0 });
+		setTopHeight(baseHeight + additionalHeight);
 	}, raw->lifetime());
 
 	controller->wrapValue(
@@ -1074,7 +1093,7 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	raw->move(0, 0);
 	widthValue() | rpl::on_next([=](int width) {
 		raw->resizeToWidth(width);
-		setScrollTopSkip(raw->height());
+		updateTopSkip();
 	}, raw->lifetime());
 
 	return result;

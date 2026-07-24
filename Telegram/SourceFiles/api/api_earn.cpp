@@ -25,7 +25,7 @@ void RestrictSponsored(
 		bool restricted,
 		Fn<void(QString)> failed) {
 	channel->session().api().request(MTPchannels_RestrictSponsoredMessages(
-		channel->inputChannel,
+		channel->inputChannel(),
 		MTP_bool(restricted))
 	).done([=](const MTPUpdates &updates) {
 		channel->session().api().applyUpdates(updates);
@@ -105,8 +105,8 @@ void HandleWithdrawalButton(
 								? F::f_ton
 								: F::f_amount),
 							currencyReceiver
-								? currencyReceiver->input
-								: creditsReceiver->input,
+								? currencyReceiver->input()
+								: creditsReceiver->input(),
 							MTP_long(creditsReceiver
 								? receiver.creditsAmount()
 								: 0),
@@ -145,8 +145,8 @@ void HandleWithdrawalButton(
 						? F::f_ton
 						: F::f_amount),
 					currencyReceiver
-						? currencyReceiver->input
-						: creditsReceiver->input,
+						? currencyReceiver->input()
+						: creditsReceiver->input(),
 					MTP_long(creditsReceiver
 						? receiver.creditsAmount()
 						: 0),

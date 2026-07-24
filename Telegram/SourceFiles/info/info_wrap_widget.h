@@ -93,17 +93,18 @@ public:
 		Wrap wrap,
 		not_null<Memento*> memento);
 
-	Key key() const;
+	[[nodiscard]] Key key() const;
 	Dialogs::RowDescriptor activeChat() const override;
-	Wrap wrap() const {
+	[[nodiscard]] Wrap wrap() const {
 		return _wrap.current();
 	}
-	rpl::producer<Wrap> wrapValue() const;
+	[[nodiscard]] rpl::producer<Wrap> wrapValue() const;
 	void setWrap(Wrap wrap);
 
-	rpl::producer<> contentChanged() const;
+	[[nodiscard]] rpl::producer<bool> contentTillBottomValue() const;
+	[[nodiscard]] rpl::producer<> contentChanged() const;
 
-	not_null<Controller*> controller() {
+	[[nodiscard]] not_null<Controller*> controller() {
 		return _controller.get();
 	}
 
@@ -117,8 +118,11 @@ public:
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) override;
 	bool showBackFromStackInternal(const Window::SectionShow &params);
+	bool closeByBackButton();
 	void removeFromStack(const std::vector<Section> &sections);
 	std::shared_ptr<Window::SectionMemento> createMemento() override;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const override;
+	bool processChosenSticker(ChatHelpers::FileChosen &&chosen) override;
 
 	rpl::producer<int> desiredHeightValue() const override;
 
@@ -134,6 +138,7 @@ public:
 	void updateGeometry(
 		QRect newGeometry,
 		bool expanding,
+		bool contentTillBottom,
 		int additionalScroll,
 		int maxVisibleHeight);
 	[[nodiscard]] int scrollBottomSkip() const;
@@ -226,10 +231,10 @@ private:
 	int _maxVisibleHeight = 0;
 	bool _expanding = false;
 	rpl::variable<bool> _grabbingForExpanding = false;
+	rpl::variable<bool> _contentTillBottom = false;
 	object_ptr<TopBar> _topBar = { nullptr };
 	object_ptr<Ui::RpWidget> _topBarSurrogate = { nullptr };
 	Ui::Animations::Simple _topBarOverrideAnimation;
-	bool _topBarOverrideShown = false;
 
 	object_ptr<Ui::FadeShadow> _topShadow;
 	object_ptr<Ui::FadeShadow> _bottomShadow;
@@ -238,6 +243,7 @@ private:
 
 	std::vector<StackItem> _historyStack;
 	rpl::event_stream<> _removeRequests;
+	bool _shortcutsSetup = false;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
 	rpl::event_stream<rpl::producer<bool>> _desiredShadowVisibilities;

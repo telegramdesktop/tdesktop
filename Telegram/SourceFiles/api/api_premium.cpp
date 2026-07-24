@@ -56,6 +56,9 @@ namespace {
 			+ QChar(0x00D7)
 			+ ' '
 			+ QString::number(tlOption.vusers().v);
+		options[i].total = Ui::FillAmountAndCurrency(
+			tlOption.vamount().v,
+			currency);
 		options[i].currency = currency;
 	}
 	return options;
@@ -365,7 +368,7 @@ void Premium::resolveGiveawayInfo(
 	_giveawayInfoPeer = peer;
 	_giveawayInfoMessageId = messageId;
 	_giveawayInfoRequestId = _api.request(MTPpayments_GetGiveawayInfo(
-		_giveawayInfoPeer->input,
+		_giveawayInfoPeer->input(),
 		MTP_int(_giveawayInfoMessageId.bare)
 	)).done([=](const MTPpayments_GiveawayInfo &result) {
 		_giveawayInfoRequestId = 0;
@@ -500,7 +503,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 			MTP_flags(_peer->isChannel()
 				? MTPpayments_GetPremiumGiftCodeOptions::Flag::f_boost_peer
 				: MTPpayments_GetPremiumGiftCodeOptions::Flag(0)),
-			_peer->input
+			_peer->input()
 		)).done([=](const MTPVector<TLOption> &result) {
 			auto tlMapOptions = base::flat_map<Amount, QVector<TLOption>>();
 			for (const auto &tlOption : result.v) {
@@ -554,7 +557,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::applyPrepaid(
 		}
 
 		_api.request(MTPpayments_LaunchPrepaidGiveaway(
-			_peer->input,
+			_peer->input(),
 			MTP_long(prepaidId),
 			invoice.giveawayCredits
 				? Payments::InvoiceCreditsGiveawayToTL(invoice)
@@ -945,11 +948,15 @@ std::optional<Data::StarGift> FromTL(
 				.releasedBy = releasedBy,
 				.themeUser = themeUser,
 				.nanoTonForResale = FindTonForResale(data.vresell_amount()),
+				.craftChancePermille
+					= data.vcraft_chance_permille().value_or_empty(),
 				.starsForResale = FindStarsForResale(data.vresell_amount()),
 				.starsMinOffer = data.voffer_min_stars().value_or(-1),
 				.number = data.vnum().v,
 				.onlyAcceptTon = data.is_resale_ton_only(),
 				.canBeTheme = data.is_theme_available(),
+				.crafted = data.is_crafted(),
+				.burned = data.is_burned(),
 				.model = *model,
 				.pattern = *pattern,
 				.value = (data.vvalue_amount()
@@ -999,6 +1006,7 @@ std::optional<Data::SavedStarGift> FromTL(
 		unique->exportAt = data.vcan_export_at().value_or_empty();
 		unique->canTransferAt = data.vcan_transfer_at().value_or_empty();
 		unique->canResellAt = data.vcan_resell_at().value_or_empty();
+		unique->canCraftAt = data.vcan_craft_at().value_or_empty();
 	}
 	using Id = Data::SavedStarGiftId;
 	const auto hasUnique = parsed->unique != nullptr;
@@ -1038,6 +1046,20 @@ std::optional<Data::SavedStarGift> FromTL(
 	};
 }
 
+int ParseRarity(const MTPStarGiftAttributeRarity &rarity) {
+	return rarity.match([&](const MTPDstarGiftAttributeRarity &data) {
+		return std::max(data.vpermille().v, 0);
+	}, [&](const MTPDstarGiftAttributeRarityUncommon &) {
+		return int(Data::UniqueGiftRarity::Uncommon);
+	}, [&](const MTPDstarGiftAttributeRarityRare &) {
+		return int(Data::UniqueGiftRarity::Rare);
+	}, [&](const MTPDstarGiftAttributeRarityEpic &) {
+		return int(Data::UniqueGiftRarity::Epic);
+	}, [&](const MTPDstarGiftAttributeRarityLegendary &) {
+		return int(Data::UniqueGiftRarity::Legendary);
+	});
+}
+
 Data::UniqueGiftModel FromTL(
 		not_null<Main::Session*> session,
 		const MTPDstarGiftAttributeModel &data) {
@@ -1045,7 +1067,7 @@ Data::UniqueGiftModel FromTL(
 		.document = session->data().processDocument(data.vdocument()),
 	};
 	result.name = qs(data.vname());
-	result.rarityPermille = data.vrarity_permille().v;
+	result.rarityValue = ParseRarity(data.vrarity());
 	return result;
 }
 
@@ -1057,14 +1079,14 @@ Data::UniqueGiftPattern FromTL(
 	};
 	result.document->overrideEmojiUsesTextColor(true);
 	result.name = qs(data.vname());
-	result.rarityPermille = data.vrarity_permille().v;
+	result.rarityValue = ParseRarity(data.vrarity());
 	return result;
 }
 
 Data::UniqueGiftBackdrop FromTL(const MTPDstarGiftAttributeBackdrop &data) {
 	auto result = Data::UniqueGiftBackdrop{ .id = data.vbackdrop_id().v };
 	result.name = qs(data.vname());
-	result.rarityPermille = data.vrarity_permille().v;
+	result.rarityValue = ParseRarity(data.vrarity());
 	result.centerColor = Ui::ColorFromSerialized(
 		data.vcenter_color());
 	result.edgeColor = Ui::ColorFromSerialized(

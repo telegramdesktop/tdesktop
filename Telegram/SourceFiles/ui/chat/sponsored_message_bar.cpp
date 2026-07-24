@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_color_indices.h"
 #include "styles/style_dialogs.h"
 
 namespace Ui {
@@ -265,7 +266,7 @@ void FillSponsoredMessageBar(
 		GenerateReplyColorCallback(
 			widget,
 			fullId,
-			from.colorIndex ? from.colorIndex : 4/*blue*/));
+			from.colorIndex ? from.colorIndex : st::colorIndexBlue));
 	badgeButton->setClickedCallback(
 		hostedClick(from.canReport
 			? AboutSponsoredClickHandler()

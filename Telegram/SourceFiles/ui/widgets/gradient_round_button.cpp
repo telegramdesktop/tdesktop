@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/gradient_round_button.h"
 
+#include "ui/effects/ripple_animation.h"
 #include "ui/image/image_prepare.h"
+#include "ui/painter.h"
 #include "styles/style_boxes.h"
 
 namespace Ui {
@@ -15,6 +17,22 @@ namespace Ui {
 GradientButton::GradientButton(QWidget *widget, QGradientStops stops)
 : RippleButton(widget, st::defaultRippleAnimation)
 , _stops(std::move(stops)) {
+}
+
+void GradientButton::setStops(QGradientStops stops) {
+	if (_stops != stops) {
+		_stops = std::move(stops);
+		_bg = {};
+		update();
+	}
+}
+
+void GradientButton::setFullRadius(bool enabled) {
+	if (_fullRadius != enabled) {
+		_fullRadius = enabled;
+		_bg = {};
+		update();
+	}
 }
 
 void GradientButton::paintEvent(QPaintEvent *e) {
@@ -65,14 +83,27 @@ void GradientButton::validateBg() {
 	}
 	_bg = QImage(size() * factor, QImage::Format_ARGB32_Premultiplied);
 	_bg.setDevicePixelRatio(factor);
-
+	if (_fullRadius) {
+		_bg.fill(Qt::transparent);
+	}
 	auto p = QPainter(&_bg);
-	auto gradient = QLinearGradient(QPointF(0, 0), QPointF(width(), 0));
+	auto gradient = QLinearGradient(
+		QPointF(0, 0),
+		QPointF(width(), height()));
 	gradient.setStops(_stops);
-	p.fillRect(rect(), gradient);
+	if (_fullRadius) {
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(gradient);
+		p.drawRoundedRect(rect(), height() / 2., height() / 2.);
+	} else {
+		p.fillRect(rect(), gradient);
+	}
 	p.end();
 
-	_bg = Images::Round(std::move(_bg), ImageRoundRadius::Large);
+	if (!_fullRadius) {
+		_bg = Images::Round(std::move(_bg), ImageRoundRadius::Large);
+	}
 }
 
 void GradientButton::setGlarePaused(bool paused) {
@@ -85,6 +116,12 @@ void GradientButton::validateGlare() {
 		[=] { update(); },
 		st::gradientButtonGlareTimeout,
 		st::gradientButtonGlareDuration);
+}
+
+QImage GradientButton::prepareRippleMask() const {
+	return RippleAnimation::RoundRectMask(
+		size(),
+		_fullRadius ? height() / 2 : st::roundRadiusLarge);
 }
 
 void GradientButton::startGlareAnimation() {

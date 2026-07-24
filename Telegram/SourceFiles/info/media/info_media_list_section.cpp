@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout/layout_selection.h"
 #include "ui/rect.h"
 #include "ui/painter.h"
+#include "ui/rows_scroll_cache.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 
@@ -48,6 +49,10 @@ int ListSection::top() const {
 
 void ListSection::setCanReorder(bool value) {
 	_canReorder = value;
+}
+
+void ListSection::setMinGridSize(int value) {
+	_minGridSize = value;
 }
 
 int ListSection::height() const {
@@ -265,6 +270,11 @@ void ListSection::paint(
 	const auto tillIt = findItemAfterBottom(
 		fromIt,
 		clip.y() + clip.height());
+	const auto cache = (context.scrollCache
+		&& context.scrollCache->scrolling()
+		&& isOneColumn())
+		? context.scrollCache
+		: nullptr;
 	for (auto it = fromIt; it != tillIt; ++it) {
 		const auto item = *it;
 		if (item == context.draggedItem) {
@@ -274,12 +284,37 @@ void ListSection::paint(
 		rect.translate(item->shift());
 		localContext.skipBorder = (rect.y() <= header + _itemsTop);
 		if (rect.intersects(clip)) {
+			const auto selection = itemSelection(item, context);
+			const auto cached = cache
+				&& (selection == TextSelection())
+				&& !localContext.selecting
+				&& !localContext.skipBorder
+				&& (item != context.hoveredItem)
+				&& !item->elementsAnimating();
 			p.translate(rect.topLeft());
-			item->paint(
-				p,
-				clip.translated(-rect.topLeft()),
-				itemSelection(item, context),
-				&localContext);
+			if (cached) {
+				const auto ratio = style::DevicePixelRatio();
+				cache->paintRow(
+					p,
+					GetLayoutCacheKey(item),
+					rect.size() * ratio,
+					ratio,
+					[&](QImage &image) {
+						image.fill(context.bg->c);
+						auto q = Painter(&image);
+						item->paint(
+							q,
+							QRect(QPoint(), rect.size()),
+							selection,
+							&localContext);
+					});
+			} else {
+				item->paint(
+					p,
+					clip.translated(-rect.topLeft()),
+					selection,
+					&localContext);
+			}
 			p.translate(-rect.topLeft());
 
 			if (_canReorder && isOneColumn()) {
@@ -357,7 +392,10 @@ int ListSection::oneColumnRightPadding() const {
 }
 
 void ListSection::resizeToWidth(int newWidth) {
-	const auto minWidth = st::infoMediaMinGridSize + st::infoMediaSkip * 2;
+	const auto gridSize = _minGridSize
+		? _minGridSize
+		: st::infoMediaMinGridSize;
+	const auto minWidth = gridSize + st::infoMediaSkip * 2;
 	if (newWidth < minWidth) {
 		return;
 	}
@@ -381,7 +419,7 @@ void ListSection::resizeToWidth(int newWidth) {
 		_itemsLeft = st::infoMediaLeft;
 		_itemsTop = st::infoMediaSkip;
 		_itemsInRow = (newWidth - _itemsLeft * 2 + skip)
-			/ (st::infoMediaMinGridSize + skip);
+			/ (gridSize + skip);
 		_itemWidth = ((newWidth - _itemsLeft * 2 + skip) / _itemsInRow)
 			- st::infoMediaSkip;
 		_itemsLeft = (newWidth - (_itemWidth + skip) * _itemsInRow + skip)

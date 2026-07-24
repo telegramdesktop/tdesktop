@@ -68,6 +68,8 @@ enum class Command {
 	JustSendMessage,
 	SendSilentMessage,
 	ScheduleMessage,
+	ComposeAiApplyInPlace,
+	ToggleWebPagePreview,
 
 	RecordVoice,
 	RecordRound,
@@ -79,6 +81,8 @@ enum class Command {
 
 	ShowChatMenu,
 	ShowChatPreview,
+
+	ShowAdminLog,
 
 	SupportReloadTemplates,
 	SupportToggleMuted,

@@ -919,7 +919,10 @@ int GenderRow::resizeInner(int left, int top, int width) {
 	top += st::passportDetailsField.textMargins.top();
 	top -= st::defaultCheckbox.textPosition.y();
 	_male->moveToLeft(left, top);
-	left += _male->widthNoMargins() + st::passportDetailsGenderSkip;
+	left += _male->checkRect().width()
+		+ st::defaultCheckbox.style.font->width(
+			tr::lng_passport_gender_male(tr::now))
+		+ st::passportDetailsGenderSkip;
 	_female->moveToLeft(left, top);
 	return st::semiboldFont->height;
 }

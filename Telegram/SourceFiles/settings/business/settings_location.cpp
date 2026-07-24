@@ -37,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
-class Location : public BusinessSection<Location> {
+class Location : public Section<Location> {
 public:
 	Location(
 		QWidget *parent,
@@ -84,7 +84,7 @@ private:
 Location::Location(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: BusinessSection(parent, controller)
+: Section(parent, controller)
 , _config(ResolveBusinessMapsConfig(&controller->session()))
 , _bottomSkipRounding(st::boxRadius, st::boxDividerBg) {
 	setupContent(controller);

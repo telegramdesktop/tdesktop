@@ -81,6 +81,8 @@ void ClearCallsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<::Window::SessionController*> window);
 
-void ShowCallsBox(not_null<::Window::SessionController*> window);
+void ShowCallsBox(
+	not_null<::Window::SessionController*> window,
+	bool highlightStartCall = false);
 
 } // namespace Calls

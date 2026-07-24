@@ -64,6 +64,7 @@ MediaSpeedButton {
 	rippleRadius: pixels;
 	menu: MediaSpeedMenu;
 	menuAlign: align;
+	menuPosition: point;
 }
 
 mediaPlayerButton: MediaPlayerButton {
@@ -160,8 +161,8 @@ mediaPlayerCancelIcon: icon{
 
 mediaPlayerMenu: DropdownMenu(defaultDropdownMenu) {
 	wrap: InnerDropdown(defaultInnerDropdown) {
-		scrollPadding: margins(0px, 4px, 0px, 4px);
-		padding: margins(10px, 2px, 10px, 10px);
+		scrollPadding: margins(0px, 6px, 0px, 6px);
+		padding: margins(10px, 10px, 10px, 10px);
 	}
 }
 mediaPlayerMenuCheck: icon {{ "player/player_check", mediaPlayerActiveFg }};
@@ -228,6 +229,7 @@ mediaPlayerSpeedButton: MediaSpeedButton {
 	rippleRadius: 4px;
 	menu: mediaPlayerSpeedMenu;
 	menuAlign: align(topright);
+	menuPosition: point(-2px, -1px);
 }
 
 mediaPlayerVolumeIcon0: icon {
@@ -295,11 +297,6 @@ mediaPlayerPlayback: FilledSlider {
 mediaPlayerPanelMarginLeft: 10px;
 mediaPlayerPanelMarginBottom: 10px;
 mediaPlayerPanelWidth: 344px;
-
-mediaPlayerPanelNextButton: IconButton(mediaPlayerRepeatButton) {
-	width: 37px;
-	icon: icon {{ "player/player_forward", mediaPlayerActiveFg, point(6px, 4px) }};
-}
 
 mediaPlayerPanelPlaybackPadding: 8px;
 mediaPlayerPanelPlayback: defaultContinuousSlider;

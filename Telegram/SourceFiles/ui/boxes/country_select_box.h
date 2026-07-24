@@ -20,6 +20,7 @@ class RippleAnimation;
 
 class CountrySelectBox : public BoxContent {
 public:
+	class Inner;
 	enum class Type {
 		Phones,
 		Countries,
@@ -50,7 +51,6 @@ private:
 
 	object_ptr<MultiSelect> _select;
 
-	class Inner;
 	object_ptr<Inner> _ownedInner;
 	QPointer<Inner> _inner;
 

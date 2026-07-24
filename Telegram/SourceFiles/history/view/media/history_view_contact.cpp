@@ -215,12 +215,7 @@ Contact::Contact(
 
 	_nameLine.setText(
 		st::webPageTitleStyle,
-		tr::lng_full_name(
-			tr::now,
-			lt_first_name,
-			data.firstName,
-			lt_last_name,
-			data.lastName).trimmed(),
+		langFullName(data.firstName, data.lastName),
 		Ui::WebpageTextTitleOptions());
 
 	_phoneLine.setText(

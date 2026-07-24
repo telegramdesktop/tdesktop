@@ -129,9 +129,9 @@ constexpr auto kLoadViewsPages = 2;
 		const QString &date,
 		not_null<Data::Story*> repost) {
 	return date + (repost->repostModified()
-		? (QString::fromUtf8(" \xE2\x80\xA2 ") + tr::lng_edited(tr::now))
+		? (' ' + Ui::kQBullet + ' ' + tr::lng_edited(tr::now))
 		: !repost->caption().empty()
-		? (QString::fromUtf8(" \xE2\x80\xA2 ") + tr::lng_commented(tr::now))
+		? (' ' + Ui::kQBullet + ' ' + tr::lng_commented(tr::now))
 		: QString());
 }
 
@@ -359,8 +359,7 @@ void RecentViews::setupViewsReactions() {
 	}) | rpl::on_next([=] {
 		auto p = QPainter(_viewsWrap.get());
 		const auto &icon = st::storiesViewsIcon;
-		const auto top = (_viewsWrap->height() - icon.height()) / 2;
-		icon.paint(p, 0, top, _viewsWrap->width());
+		icon.paint(p, 0, st::storiesViewsIconTop, _viewsWrap->width());
 	}, _viewsWrap->lifetime());
 
 	_likeIcon->move(0, 0);
@@ -406,7 +405,7 @@ void RecentViews::updatePartsGeometry() {
 	const auto skip = st::storiesRecentViewsSkip;
 	const auto full = _userpicsWidth + skip + _text.maxWidth();
 	const auto add = (_data.type == RecentViewsType::Channel)
-		? st::storiesViewsTextPosition.y()
+		? st::storiesChannelReactionsTextTop
 		: 0;
 	const auto use = std::min(full, _outer.width());
 	const auto ux = _outer.x() + (_outer.width() - use) / 2;
@@ -500,7 +499,7 @@ void RecentViews::showMenu() {
 	_menu->setForcedVerticalOrigin(PopupMenu::VerticalOrigin::Bottom);
 	_menu->popup(QPoint(
 		geometry.x() + (_widget->width() - size.width()) / 2,
-		geometry.y() + _widget->height()));
+		geometry.y()));
 
 	_menuEntriesCount = _menuEntriesCount.current() + added;
 }

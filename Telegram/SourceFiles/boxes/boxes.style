@@ -23,6 +23,8 @@ UserpicButton {
 	uploadBg: color;
 	uploadIcon: icon;
 	uploadIconPosition: point;
+	uploadProgressLine: pixels;
+	uploadProgressMargin: pixels;
 }
 UserpicsRow {
 	button: UserpicButton;
@@ -72,6 +74,8 @@ defaultUserpicButton: UserpicButton {
 	uploadBg: msgDateImgBgOver;
 	uploadIcon: defaultUploadUserpicIcon;
 	uploadIconPosition: point(-1px, 1px);
+	uploadProgressLine: 3px;
+	uploadProgressMargin: 8px;
 }
 uploadUserpicSize: 32px;
 uploadUserpicButton: UserpicButton(defaultUserpicButton) {
@@ -81,13 +85,14 @@ uploadUserpicButton: UserpicButton(defaultUserpicButton) {
 	changeIconPosition: point(4px, 4px);
 }
 uploadUserpicButtonBorder: 2px;
+userpicUploadCancel: icon {{ "history_file_cancel", historyFileThumbIconFg }};
 restoreUserpicIcon: UserpicButton(defaultUserpicButton) {
 	size: size(22px, 22px);
 	photoSize: 22px;
 }
 
 confirmInviteTitle: FlatLabel(defaultFlatLabel) {
-	align: align(center);
+	align: align(top);
 	minWidth: 320px;
 	maxHeight: 24px;
 	textFg: windowBoldFg;
@@ -96,9 +101,8 @@ confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	}
 }
 confirmInviteAbout: FlatLabel(boxLabel) {
-	align: align(center);
+	align: align(top);
 	minWidth: 320px;
-	maxHeight: 60px;
 	style: TextStyle(boxLabelStyle) {
 		lineHeight: 19px;
 	}
@@ -110,10 +114,8 @@ confirmInviteStatus: FlatLabel(confirmInviteAbout) {
 }
 confirmInviteAboutPadding: margins(36px, 4px, 36px, 10px);
 confirmInviteAboutRequestsPadding: margins(36px, 9px, 36px, 15px);
-confirmInviteTitleTop: 141px;
 confirmInvitePhotoSize: 96px;
 confirmInvitePhotoTop: 33px;
-confirmInviteStatusTop: 164px;
 confirmInviteUserHeight: 100px;
 confirmInviteUserPhotoSize: 50px;
 confirmInviteUserPhotoTop: 210px;
@@ -167,6 +169,20 @@ contactsSortButton: IconButton(defaultIconButton) {
 contactsSortOnlineIcon: icon{{ "contacts_online", boxTitleCloseFg }};
 contactsSortOnlineIconOver: icon{{ "contacts_online", boxTitleCloseFgOver }};
 
+contactsSortHeaderHeight: 29px;
+contactsSortHeaderFont: font(13px);
+contactsSortHeaderPosition: point(16px, 7px);
+contactsSortHeaderFg: windowSubTextFg;
+
+peerListIndexWidth: 22px;
+peerListIndexApproach: 32px;
+peerListIndexSlotHeight: 15px;
+peerListIndexMinSlotHeight: 12px;
+peerListIndexVerticalInset: 10px;
+peerListIndexFont: font(bold 11px);
+peerListIndexFg: windowSubTextFg;
+peerListIndexActiveFg: windowActiveTextFg;
+
 membersMarginTop: 10px;
 membersMarginBottom: 10px;
 
@@ -194,8 +210,6 @@ peerListBox: PeerList(defaultPeerList) {
 	item: peerListBoxItem;
 }
 
-localStorageRowHeight: 50px;
-localStorageRowPadding: margins(22px, 5px, 20px, 5px);
 localStorageRowTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 	maxHeight: 20px;
@@ -210,15 +224,96 @@ localStorageRowSize: FlatLabel(defaultFlatLabel) {
 		font: font(14px);
 	}
 }
-localStorageClear: defaultBoxButton;
 localStorageLimitLabel: LabelSimple(defaultLabelSimple) {
 	font: boxTextFont;
+}
+localStorageLimitValue: LabelSimple(localStorageLimitLabel) {
+	textFg: windowActiveTextFg;
 }
 localStorageLimitLabelMargin: margins(22px, 10px, 20px, 5px);
 localStorageLimitSlider: MediaSlider(defaultContinuousSlider) {
 	seekSize: size(15px, 15px);
 }
 localStorageLimitMargin: margins(22px, 5px, 20px, 10px);
+
+localStorageChartHeight: 200px;
+localStorageChartDiameter: 172px;
+localStorageChartThickness: 38px;
+localStorageChartThicknessThin: 12px;
+localStorageChartSelectGrow: 9px;
+localStorageChartSizeFont: font(32px semibold);
+localStorageChartUnitFont: font(13px);
+localStorageChartPercentFont: font(15px semibold);
+localStorageChartParticle: 15px;
+localStorageCompleteStar1: 18px;
+localStorageCompleteStar2: 12px;
+localStorageCompleteStar3: 10px;
+localStorageCompleteExclude: 80px;
+localStorageCompleteField: 150px;
+localStorageCompleteSpeed: 4px;
+localStorageParticlePhotos: icon{{ "local_storage/photos-72x72", windowFg }};
+localStorageParticleVideos: icon{{ "local_storage/videos-72x72", windowFg }};
+localStorageParticleDocuments: icon{{ "local_storage/documents-72x72", windowFg }};
+localStorageParticleMusic: icon{{ "local_storage/music-72x72", windowFg }};
+localStorageParticleStickers: icon{{ "local_storage/stickers-72x72", windowFg }};
+
+localStorageIslandMargin: margins(12px, 10px, 12px, 0px);
+localStorageIslandRadius: 12px;
+localStorageIslandPadding: 6px;
+localStorageBottomSkip: 12px;
+
+localStorageCategoryHeight: 44px;
+localStorageCategoryPadding: margins(22px, 0px, 20px, 0px);
+localStorageCategoryCheckSkip: 14px;
+localStorageCategoryPercentSkip: 8px;
+localStorageCategoryCheck: Check(defaultCheck) {
+	diameter: 20px;
+}
+localStorageClearMargin: margins(12px, 6px, 12px, 9px);
+localStorageClearHeight: 38px;
+localStorageClearFont: font(13px semibold);
+localStorageClearSkip: 7px;
+localStorageCategoryName: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+}
+localStorageCategoryPercent: FlatLabel(localStorageCategoryName) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px semibold);
+	}
+}
+localStorageCategorySize: FlatLabel(localStorageCategoryName) {
+	textFg: windowActiveTextFg;
+}
+
+localStorageUsageTopSkip: 2px;
+localStorageUsageBarSkip: 9px;
+localStorageUsageBarWidth: 174px;
+localStorageUsageBarHeight: 4px;
+localStorageUsageBottomSkip: 6px;
+localStorageUsageBarMargin: margins(6px, 6px, 6px, 6px);
+localStorageUsageTooltipMaxWidth: 240px;
+localStorageUsageTooltipSkip: 8px;
+localStorageAboutMargin: margins(28px, 9px, 28px, 12px);
+localStorageAbout: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 240px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+}
+localStorageUsageSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+}
+
+localStorageClearingSpinnerPadding: margins(0px, 20px, 0px, 14px);
 
 shareRowsTop: 12px;
 shareRowHeight: 108px;
@@ -344,7 +439,6 @@ themeWarningHeight: 150px;
 themeWarningTextTop: 60px;
 
 aboutWidth: 390px;
-aboutVersionTop: -3px;
 aboutVersionLink: LinkButton(defaultLinkButton) {
 	color: windowSubTextFg;
 	overColor: windowSubTextFg;
@@ -381,7 +475,6 @@ connectionUserInputField: InputField(defaultInputField) {
 }
 connectionPasswordInputField: InputField(defaultInputField) {
 }
-connectionIPv6Skip: 11px;
 
 autolockWidth: 256px;
 autolockButton: Checkbox(defaultBoxCheckbox) {
@@ -443,6 +536,7 @@ defaultCalendarSizes: CalendarSizes {
 	padding: margins(14px, 0px, 14px, 0px);
 }
 calendarDaysFont: normalFont;
+calendarDaysFontOver: semiboldFont;
 calendarDaysFg: boxTitleAdditionalFg;
 calendarScroll: ScrollArea(defaultSolidScroll) {
 	deltat: 3px;
@@ -524,9 +618,9 @@ colorResultInput: InputField(colorValueInput) {
 changePhoneButton: RoundButton(defaultActiveButton) {
 	width: 256px;
 }
-changePhoneButtonPadding: margins(0px, 32px, 0px, 44px);
 changePhoneTitle: FlatLabel(boxTitle) {
 }
+localStorageClearingLottieSize: size(150px, 150px);
 changePhoneTitlePadding: margins(0px, 8px, 0px, 8px);
 changePhoneDescription: FlatLabel(defaultFlatLabel) {
 	minWidth: 332px;
@@ -545,18 +639,6 @@ changePhoneError: FlatLabel(changePhoneLabel) {
 
 normalBoxLottieSize: size(120px, 120px);
 
-adminLogFilterUserpicLeft: 15px;
-adminLogFilterLittleSkip: 16px;
-adminLogFilterCheckbox: Checkbox(defaultBoxCheckbox) {
-	style: TextStyle(boxTextStyle) {
-		font: font(boxFontSize semibold);
-	}
-}
-adminLogFilterSkip: 32px;
-adminLogFilterUserCheckbox: Checkbox(defaultBoxCheckbox) {
-	margin: margins(8px, 6px, 8px, 6px);
-	checkPosition: point(8px, 6px);
-}
 rightsCheckbox: Checkbox(defaultCheckbox) {
 	textPosition: point(10px, 1px);
 	rippleBg: attentionButtonBgOver;
@@ -580,10 +662,10 @@ rightsButton: SettingsButton(defaultSettingsButton) {
 	toggleSkip: 20px;
 }
 rightsButtonToggleWidth: 70px;
+rightsButtonArrowSkip: 5px;
 rightsDividerMargin: margins(0px, 0px, 0px, 20px);
 rightsHeaderMargin: margins(22px, 13px, 22px, 7px);
 rightsToggleMargin: margins(22px, 8px, 22px, 8px);
-rightsAboutMargin: margins(22px, 8px, 22px, 8px);
 rightsPhotoButton: UserpicButton(defaultUserpicButton) {
 	size: size(60px, 60px);
 	photoSize: 60px;
@@ -655,8 +737,8 @@ proxyCheckingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) 
 	thickness: 1px;
 	size: size(8px, 8px);
 }
-proxyDropdownDownPosition: point(-2px, 35px);
-proxyDropdownUpPosition: point(-2px, 20px);
+proxyDropdownDownPosition: point(2px, 35px);
+proxyDropdownUpPosition: point(2px, 20px);
 
 proxyAboutPadding: margins(22px, 7px, 22px, 14px);
 proxyAboutSponsorPadding: margins(22px, 7px, 22px, 0px);
@@ -664,8 +746,45 @@ proxyAboutSponsorPadding: margins(22px, 7px, 22px, 0px);
 proxyApplyBoxLabel : FlatLabel(defaultFlatLabel) {
 	maxHeight: 30px;
 }
+proxyApplyBoxTable: Table(defaultTable) {
+	labelMinWidth: 91px;
+}
+proxyApplyBoxTableMargin: margins(24px, 4px, 24px, 4px);
+proxyApplyBoxTableLabelMargin: margins(13px, 10px, 13px, 10px);
+proxyApplyBoxTableValueMargin: margins(13px, 9px, 13px, 9px);
+proxyApplyBoxValueMultiline: FlatLabel(defaultTableValue) {
+	minWidth: 128px;
+	maxHeight: 100px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(10px);
+		linkUnderline: kLinkUnderlineNever;
+	}
+}
+proxyApplyBoxSponsorLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	minWidth: 100px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+proxyApplyBoxSponsorMargin: margins(13px, 8px, 13px, 8px);
+proxyApplyBoxButton: RoundButton(defaultActiveButton) {
+	height: 38px;
+	textTop: 10px;
+	style: semiboldTextStyle;
+}
+proxyApplyBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 22px);
+	buttonHeight: 38px;
+	buttonWide: true;
+	button: proxyApplyBoxButton;
+	shadowIgnoreTopSkip: true;
+}
 
 markdownLinkFieldPadding: margins(22px, 0px, 22px, 10px);
+markdownMathCheckboxMargin: margins(22px, 12px, 22px, 10px);
+markdownMathFieldMaxHeight: 140px;
 
 termsContent: FlatLabel(defaultFlatLabel) {
 	minWidth: 285px;
@@ -686,70 +805,7 @@ themesMenuToggle: IconButton(defaultIconButton) {
 	rippleAreaSize: 36px;
 	ripple: defaultRippleAnimationBgOver;
 }
-themesMenuPosition: point(-2px, 25px);
-
-createPollField: InputField(defaultInputField) {
-	textMargins: margins(0px, 4px, 0px, 4px);
-	textAlign: align(left);
-	heightMin: 36px;
-	heightMax: 86px;
-	placeholderFg: placeholderFg;
-	placeholderFgActive: placeholderFgActive;
-	placeholderFgError: placeholderFgActive;
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
-	placeholderAlign: align(topleft);
-	placeholderScale: 0.;
-	placeholderFont: boxTextFont;
-	placeholderShift: -50px;
-	border: 0px;
-	borderActive: 0px;
-	duration: 100;
-}
-createPollFieldPadding: margins(22px, 5px, 22px, 5px);
-createPollOptionField: InputField(createPollField) {
-	textMargins: margins(22px, 11px, 40px, 11px);
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
-	heightMax: 68px;
-}
-createPollOptionFieldPremium: InputField(createPollOptionField) {
-	textMargins: margins(22px, 11px, 68px, 11px);
-}
-createPollOptionFieldPremiumEmojiPosition: point(15px, -1px);
-createPollSolutionField: InputField(createPollField) {
-	textMargins: margins(0px, 4px, 0px, 4px);
-	border: 1px;
-	borderActive: 2px;
-}
-createPollLimitPadding: margins(22px, 10px, 22px, 16px);
-createPollOptionRemove: CrossButton {
-	width: 22px;
-	height: 22px;
-
-	cross: CrossAnimation {
-		size: 22px;
-		skip: 6px;
-		stroke: 1.5;
-		minScale: 0.3;
-	}
-	crossFg: boxTitleCloseFg;
-	crossFgOver: boxTitleCloseFgOver;
-	crossPosition: point(0px, 0px);
-
-	duration: 150;
-	loadingPeriod: 1000;
-	ripple: defaultRippleAnimationBgOver;
-}
-createPollOptionRemovePosition: point(11px, 9px);
-createPollOptionEmojiPositionSkip: 4px;
-createPollWarning: FlatLabel(defaultFlatLabel) {
-	textFg: windowSubTextFg;
-	palette: TextPalette(defaultTextPalette) {
-		linkFg: boxTextFgError;
-	}
-}
-createPollWarningPosition: point(16px, 6px);
-createPollCheckboxMargin: margins(22px, 10px, 22px, 10px);
-createPollFieldTitlePadding: margins(22px, 7px, 10px, 6px);
+themesMenuPosition: point(2px, 25px);
 
 sendGifWithCaptionEmojiPosition: point(-30px, 23px);
 
@@ -806,8 +862,37 @@ backgroundConfirmCancel: RoundButton(backgroundConfirm) {
 		color: shadowFg;
 	}
 }
+urlAuthBox: Box(defaultBox) {
+	buttonPadding: margins(0px, 0px, 0px, 12px);
+	buttonHeight: 0px;
+}
 urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
 	width: 240px;
+}
+urlAuthCodesTitle: FlatLabel(defaultPeerListAbout) {
+	textFg: boxTitleFg;
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+	}
+}
+urlAuthCheckboxAbout: FlatLabel(defaultPeerListAbout) {
+	style: TextStyle(boxTextStyle) {
+		font: font(12px);
+	}
+}
+urlAuthCodesButton: RoundButton(defaultLightButton) {
+	height: 58px;
+	textTop: 19px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(20px semibold);
+	}
+}
+urlAuthBoxRowTopLabel: FlatLabel(boxLabel) {
+	maxHeight: 30px;
+}
+urlAuthBoxRowBottomLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	maxHeight: 30px;
 }
 
 addContactFieldMargin: margins(19px, 0px, 19px, 10px);
@@ -828,7 +913,7 @@ boostsUnrestrictLabel: FlatLabel(defaultFlatLabel) {
 }
 
 customBadgeField: InputField(defaultInputField) {
-	textMargins: margins(2px, 7px, 2px, 0px);
+	textMargins: margins(2px, 0px, 2px, 0px);
 
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;
@@ -837,33 +922,15 @@ customBadgeField: InputField(defaultInputField) {
 	placeholderScale: 0.;
 	placeholderFont: normalFont;
 
+	border: 0px;
+	borderActive: 0px;
+
 	heightMin: 32px;
 }
 
-pollResultsQuestion: FlatLabel(defaultFlatLabel) {
-	minWidth: 320px;
-	textFg: windowBoldFg;
-	style: TextStyle(defaultTextStyle) {
-		font: font(16px semibold);
-	}
-}
-pollResultsVotesCount: FlatLabel(defaultFlatLabel) {
-	textFg: windowSubTextFg;
-}
-pollResultsHeaderPadding: margins(22px, 22px, 22px, 8px);
-pollResultsShowMore: SettingsButton(defaultSettingsButton) {
-	textFg: lightButtonFg;
-	textFgOver: lightButtonFgOver;
-	textBg: windowBg;
-	textBgOver: windowBgOver;
-
-	style: semiboldTextStyle;
-
-	height: 20px;
-	padding: margins(71px, 10px, 8px, 8px);
-
-	ripple: defaultRippleAnimation;
-}
+tagPreviewLineHeight: 8px;
+tagPreviewLineSpacing: 4px;
+tagPreviewInputSkip: 16px;
 
 inviteViaLinkButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
@@ -882,6 +949,7 @@ inviteViaLinkButton: SettingsButton(defaultSettingsButton) {
 }
 inviteViaLinkIcon: icon {{ "info/edit/group_manage_links", lightButtonFg }};
 inviteViaLinkIconPosition: point(23px, 2px);
+communityEditAddChatIconPosition: point(25px, 16px);
 peerListWithInviteViaLink: PeerList(peerListBox) {
 	padding: margins(
 		0px,
@@ -919,6 +987,8 @@ scheduleDateWidth: 136px;
 scheduleTimeWidth: 72px;
 scheduleAtSkip: 24px;
 scheduleAtTop: 42px;
+scheduleNotifyIconSize: 24px;
+scheduleNotifyTooltipShift: 5px;
 scheduleAtLabel: FlatLabel(defaultFlatLabel) {
 }
 scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
@@ -928,12 +998,22 @@ scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
 }
 scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
 scheduleRepeatDropdownLock: IconEmoji {
-	icon: icon {{ "emoji/premium_lock", windowActiveTextFg }};
-	padding: margins(-2px, 1px, 0px, 0px);
+	icon: icon {{ "emoji/premium_lock", windowSubTextFg }};
+	padding: margins(1px, 1px, 0px, 0px);
 }
 scheduleRepeatDropdownArrow: IconEmoji {
-	icon: icon {{ "intro_country_dropdown", windowActiveTextFg }};
-	padding: margins(3px, 6px, 3px, 0px);
+	icon: icon {{ "arrows_select", windowSubTextFg }};
+	padding: margins(6px, 5px, 0px, 0px);
+}
+scheduleRepeatHeight: 28px;
+scheduleRepeatRadius: 14px;
+scheduleRepeatTextPadding: 12px;
+scheduleRepeatMargin: margins(0px, -4px, 0px, 10px);
+scheduleRepeatLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+	textFg: windowBoldFg;
 }
 
 muteBoxTimeField: InputField(scheduleDateField) {
@@ -981,20 +1061,6 @@ requestPeerRestriction: FlatLabel(defaultFlatLabel) {
 	}
 }
 
-requestsBoxItem: PeerListItem(peerListBoxItem) {
-	height: 99px;
-	button: OutlineButton(defaultPeerListButton) {
-		textBg: contactsBg;
-		textBgOver: contactsBg;
-		ripple: RippleAnimation(defaultRippleAnimation) {
-			color: contactsBgOver;
-		}
-	}
-}
-requestsBoxList: PeerList(peerListBox) {
-	padding: margins(0px, 12px, 0px, 12px);
-	item: requestsBoxItem;
-}
 contactsWithStories: PeerList(peerListBox) {
 	padding: margins(0px, 0px, 0px, 0px);
 	item: PeerListItem(peerListBoxItem) {
@@ -1013,20 +1079,68 @@ contactsWithStories: PeerList(peerListBox) {
 		nameFgChecked: contactsNameFg;
 	}
 }
-storiesReadLineTwice: 2px;
-storiesUnreadLineTwice: 4px;
 requestsAcceptButton: RoundButton(defaultActiveButton) {
-	width: -28px;
-	height: 30px;
-	textTop: 6px;
+	width: -32px;
+	height: 28px;
+	textTop: 5px;
 }
-requestsRejectButton: RoundButton(defaultLightButton) {
-	width: -28px;
-	height: 30px;
-	textTop: 6px;
+requestsRejectButton: RoundButton(defaultBoxButton) {
+	width: -32px;
+	height: 28px;
+	textTop: 5px;
+	style: semiboldTextStyle;
 }
-requestAcceptPosition: point(71px, 58px);
 requestButtonsSkip: 9px;
+communityRequestsBoxItem: PeerListItem(peerListBoxItem) {
+	height: 89px;
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBg;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: contactsBgOver;
+		}
+	}
+}
+communityRequestsBoxList: PeerList(peerListBox) {
+	padding: margins(0px, 6px, 0px, 12px);
+	item: communityRequestsBoxItem;
+}
+communityRequestAcceptPosition: point(71px, 56px);
+communityRequestsTitlePadding: margins(0px, 8px, 0px, -4px);
+requestSuggestStyle: TextStyle(defaultTextStyle) {
+	font: contactsStatusFont;
+}
+requestSuggestPosition: point(74px, 30px);
+requestSuggestBadgeSize: 16px;
+requestSuggestBadgeBorder: 1px;
+requestSuggestBadgeSkip: point(-4px, 2px);
+requestMembersStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+}
+requestMembersTop: 11px;
+requestMembersRightSkip: 14px;
+requestMembersPadding: margins(5px, 0px, 5px, 1px);
+requestMembersIcon: IconEmoji {
+	icon: icon{{ "community/requests_members", contactsStatusFg }};
+	padding: margins(0px, 4px, 4px, 0px);
+	useIconColor: false;
+}
+requestPillsSkip: 5px;
+requestHiddenIcon: IconEmoji {
+	icon: icon{{ "community/requests_hidden", contactsStatusFg }};
+	padding: margins(0px, 4px, 0px, 0px);
+	useIconColor: false;
+}
+messageOwnerInfoSkip: 12px;
+requestsSectionBottomMargin: margins(12px, 10px, 12px, 10px);
+requestsAddAllButton: RoundButton(defaultActiveButton) {
+	height: 32px;
+	textTop: 7px;
+}
+requestsDeclineAllButton: RoundButton(defaultLightButton) {
+	height: 32px;
+	textTop: 7px;
+}
 
 ringtonesBoxButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
@@ -1099,7 +1213,6 @@ collectibleHeaderPadding: margins(24px, 16px, 24px, 12px);
 collectibleOwnerPadding: margins(24px, 4px, 24px, 8px);
 collectibleInfo: inviteForbiddenInfo;
 collectibleInfoPadding: margins(24px, 12px, 24px, 12px);
-collectibleInfoTonMargins: margins(0px, 3px, 0px, 0px);
 collectibleMore: RoundButton(defaultActiveButton) {
 	height: 36px;
 	textTop: 9px;
@@ -1122,11 +1235,18 @@ moderateBoxUserpic: UserpicButton(defaultUserpicButton) {
 	photoSize: 34px;
 	photoPosition: point(0px, 4px);
 }
-moderateBoxExpand: icon {{ "chat/reply_type_group", boxTextFg }};
+moderateBoxExpand: IconEmoji {
+	icon: icon {{ "chat/reply_type_group", boxTextFg }};
+	padding: margins(1px, 3px, 1px, 0px);
+	useIconColor: true;
+}
 moderateBoxExpandHeight: 20px;
 moderateBoxExpandRight: 10px;
 moderateBoxExpandInnerSkip: 2px;
 moderateBoxExpandFont: font(11px);
+moderateBoxExpandTextStyle: TextStyle(boxTextStyle) {
+	font: moderateBoxExpandFont;
+}
 moderateBoxExpandToggleSize: 4px;
 moderateBoxExpandToggleFourStrokes: 3px;
 moderateBoxExpandIcon: IconEmoji{
@@ -1146,7 +1266,6 @@ moderateBoxDividerLabel: FlatLabel(boxDividerLabel) {
 }
 
 profileQrFont: font(fsize bold);
-profileQrCenterSize: 34px;
 profileQrBackgroundRadius: 12px;
 profileQrIcon: icon{{ "qr_mini", windowActiveTextFg }};
 profileQrBackgroundMargins: margins(36px, 12px, 36px, 12px);
@@ -1159,9 +1278,322 @@ foldersMenu: PopupMenu(popupMenuWithIcons) {
 	}
 }
 
-fakeUserpicButton: UserpicButton(defaultUserpicButton) {
-	size: size(1px, 1px);
-	photoSize: 1px;
-	changeIcon: icon {{ "settings/photo", transparent }};
-	uploadBg: transparent;
+moderateCommonGroupsCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+	imageRadius: 12px;
+	imageSmallRadius: 11px;
+	selectWidth: 2px;
+	check: RoundCheckbox(defaultPeerListCheck) {
+		size: 16px;
+		sizeSmall: 0.3;
+		bgInactive: overviewCheckBg;
+		bgActive: overviewCheckBgActive;
+		check: icon {{
+			"default_checkbox_check",
+			overviewCheckFgActive,
+			point(1px, 4px)
+		}};
+	}
+}
+
+futureOwnerBox: Box(defaultBox) {
+	buttonPadding: margins(0px, 0px, 0px, 14px);
+	buttonHeight: 0px;
+}
+futureOwnerBoxSelect: collectibleBox;
+guardBotReplaceBox: Box(futureOwnerBox) {
+}
+
+localAutomationBox: Box(defaultBox) {
+	buttonPadding: margins(0px, 0px, 0px, 12px);
+	buttonHeight: 0px;
+}
+
+disableSharingIconPadding: margins(12px, 12px, 12px, 8px);
+disableSharingButtonLock: IconEmoji {
+	icon: icon {{ "emoji/premium_lock", activeButtonFg }};
+	padding: margins(-2px, 1px, 0px, 0px);
+}
+
+createBotBox: Box(defaultBox) {
+	shadowIgnoreTopSkip: true;
+}
+createBotUserpicPadding: margins(0px, 16px, 0px, 10px);
+createBotTitlePadding: margins(0px, 0px, 0px, 8px);
+createBotSubtitlePadding: margins(0px, 0px, 0px, 4px);
+createBotCenteredText: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 40px;
+}
+createBotFieldSpacing: 8px;
+createBotUsernameField: InputField(defaultInputField) {
+	textMargins: margins(0px, 28px, 0px, 4px);
+}
+createBotUsernamePrefix: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+}
+createBotUsernameSuffix: FlatLabel(createBotUsernamePrefix) {
+	textFg: windowSubTextFg;
+}
+
+managedBotIconEmoji: IconEmoji {
+	icon: icon {{ "chat/code_tags", windowSubTextFg }};
+	padding: margins(-2px, -2px, -2px, 0px);
+}
+
+createBotStatusLabel: FlatLabel(aboutRevokePublicLabel) {
+	maxHeight: 20px;
+}
+
+aiComposeBoxStyleTabsSkip: 8px;
+aiComposeContentMargin: margins(16px, 0px, 16px, 0px);
+
+aiComposeButtonBgActive: windowActiveTextFg;
+aiComposeButtonBgActiveOpacity: 0.1;
+aiComposeButtonFg: windowBoldFg;
+aiComposeButtonFgActive: windowActiveTextFg;
+aiComposeButtonRippleInactive: RippleAnimation(defaultRippleAnimation) {
+	color: windowBoldFg;
+}
+aiComposeButtonRippleInactiveOpacity: 0.1;
+aiComposeButtonRippleActive: RippleAnimation(defaultRippleAnimation) {
+	color: windowActiveTextFg;
+}
+aiComposeButtonRippleActiveOpacity: 0.1;
+
+aiComposeTabsBg: boxBg;
+aiComposeTabsHeight: 58px;
+aiComposeTabsRadius: 29px;
+aiComposeTabsPadding: margins(6px, 6px, 6px, 6px);
+aiComposeTabsSkip: 4px;
+aiComposeTabButtonBgActive: aiComposeButtonBgActive;
+aiComposeTabLabelFg: aiComposeButtonFg;
+aiComposeTabLabelFgActive: aiComposeButtonFgActive;
+aiComposeTabLabelFont: font(12px semibold);
+aiComposeTabIconTop: 6px;
+aiComposeTabLabelTop: 26px;
+aiComposeTabTranslateIcon: icon {{ "menu/translate", aiComposeButtonFg }};
+aiComposeTabTranslateIconActive: icon {{ "menu/translate", aiComposeButtonFgActive }};
+aiComposeTabStyleIcon: icon {{ "menu/edit_stars", aiComposeButtonFg }};
+aiComposeTabStyleIconActive: icon {{ "menu/edit_stars", aiComposeButtonFgActive }};
+aiComposeTabFixIcon: icon {{ "menu/search_check", aiComposeButtonFg }};
+aiComposeTabFixIconActive: icon {{ "menu/search_check", aiComposeButtonFgActive }};
+
+aiComposeStyleTabsBg: boxBg;
+aiComposeStyleTabsHeight: 64px;
+aiComposeStyleTabsRadius: 14px;
+aiComposeStyleTabsPadding: margins(6px, 6px, 6px, 6px);
+aiComposeStyleTabsSkip: 4px;
+aiComposeStyleButtonBgActive: aiComposeButtonBgActive;
+aiComposeStyleLabelFg: aiComposeButtonFg;
+aiComposeStyleLabelFgActive: aiComposeButtonFgActive;
+aiComposeStyleEmojiTop: 5px;
+aiComposeStyleLabelTop: 30px;
+aiComposeStyleLabelFont: font(12px semibold);
+aiComposeStyleTabsScroll: ScrollArea(defaultScrollArea) {
+	barHidden: true;
+}
+aiComposeStyleButtonPadding: margins(12px, 0px, 12px, 0px);
+aiComposeStyleFadeWidth: 24px;
+aiComposeBadge: RoundButton(customEmojiTextBadge) {
+	textFg: activeButtonBg;
+	textBg: activeButtonFg;
+	width: -8px;
+	height: 16px;
+	radius: 4px;
+	textTop: 1px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(10px semibold);
+	}
+}
+aiComposeBadgeMargin: margins(0px, 2px, 0px, 0px);
+
+aiComposeAddStyleIcon: icon {{ "menu/edit_stars_add", aiComposeButtonFg }};
+aiComposeAddStyleIconOver: icon {{ "menu/edit_stars_add", aiComposeButtonFgActive }};
+
+aiToneIconPreviewSize: 80px;
+aiToneIconPreviewBottomSkip: 12px;
+aiToneIconPreviewTopSkip: 4px;
+aiToneIconPreviewBg: boxBg;
+aiToneIconPreviewInnerSize: 54px;
+
+aiToneIconPreviewPlaceholder: icon {{ "chat/ai_style_tone", windowSubTextFg }};
+
+aiToneFieldBg: boxBg;
+aiToneFieldRadius: 12px;
+aiToneFieldPadding: margins(16px, 12px, 16px, 12px);
+aiToneFieldsMargin: margins(16px, 0px, 16px, 0px);
+aiToneFieldsSkip: 8px;
+
+aiToneNameField: InputField(defaultInputField) {
+	textBg: transparent;
+	textBgActive: transparent;
+	textMargins: margins(16px, 12px, 16px, 12px);
+	border: 0px;
+	borderActive: 0px;
+	heightMin: 44px;
+}
+aiTonePromptField: InputField(newGroupDescription) {
+	textBg: transparent;
+	textBgActive: transparent;
+	textMargins: margins(16px, 12px, 16px, 12px);
+	border: 0px;
+	borderActive: 0px;
+	heightMin: 140px;
+	heightMax: 240px;
+}
+aiTonePlaceholderLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 80px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+aiToneAuthorCheckboxMargin: margins(0px, 12px, 0px, 8px);
+aiToneDeleteButton: RoundButton(defaultActiveButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFg;
+	textBg: boxBg;
+	textBgOver: boxBg;
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+	ripple: defaultRippleAnimation;
+}
+aiToneDeleteButtonMargin: margins(16px, 8px, 16px, 0px);
+aiComposeToneToastIconSize: size(32px, 32px);
+aiComposeToneToastIconPadding: margins(12px, 6px, 12px, 6px);
+
+aiTonePreviewTitleLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowFg;
+	minWidth: 0px;
+	maxHeight: 28px;
+	align: align(top);
+	style: TextStyle(semiboldTextStyle) {
+		font: font(17px semibold);
+	}
+}
+aiTonePreviewTitleMargin: margins(16px, 6px, 16px, 0px);
+
+aiTonePreviewAboutLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 20px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+aiTonePreviewAboutMargin: margins(28px, 6px, 28px, 6px);
+
+aiTonePreviewAttributionLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 0px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkUnderline: kLinkUnderlineActive;
+	}
+}
+aiTonePreviewAttributionMargin: margins(16px, 10px, 16px, 8px);
+
+aiTonePreviewExampleCardBg: boxBg;
+aiTonePreviewExampleCardRadius: 22px;
+aiTonePreviewExampleCardPadding: margins(14px, 12px, 16px, 12px);
+aiTonePreviewExampleCardSectionSkip: 24px;
+aiTonePreviewExampleCardTitleSkip: 6px;
+aiTonePreviewExampleCardMargin: margins(16px, 6px, 16px, 0px);
+aiTonePreviewBottomSkip: 6px;
+
+aiTonePreviewAnotherExampleButton: RoundButton(defaultLightButton) {
+	width: -12px;
+	height: 26px;
+	radius: 8px;
+	textTop: 4px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+}
+aiTonePreviewAnotherExampleIcon: IconEmoji {
+	icon: icon {{ "chat/refresh-18x18", lightButtonFg }};
+	padding: margins(0px, 1px, 4px, 0px);
+}
+aiComposeToneRemovedToastIcon: icon {{ "menu/delete", toastFg }};
+
+aiComposeCardBg: boxBg;
+aiComposeCardRadius: 22px;
+aiComposeCardPadding: margins(12px, 16px, 16px, 16px);
+aiComposeCardSectionSkip: 12px;
+aiComposeCardControlSkip: 8px;
+aiComposeCardTitle: FlatLabel(defaultSubsectionTitle) {
+	textFg: windowFg;
+	minWidth: 0px;
+	maxHeight: 22px;
+}
+aiComposeEmojifyCheckbox: Checkbox(defaultBoxCheckbox) {
+	textFg: windowSubTextFg;
+	textFgActive: windowSubTextFg;
+	width: 0px;
+}
+
+aiComposeExpandIcon: icon{{ "info/edit/expand_arrow_small", windowActiveTextFg }};
+aiComposeCollapseIcon: icon{{ "info/edit/expand_arrow_small-flip_vertical", windowActiveTextFg }};
+aiComposeExpandButton: IconButton(defaultIconButton) {
+	width: 32px;
+	height: 32px;
+	icon: aiComposeExpandIcon;
+	iconOver: aiComposeExpandIcon;
+	iconPosition: point(5px, 5px);
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 32px;
+	ripple: defaultRippleAnimationBgOver;
+}
+
+aiComposeCopyIcon: icon{{ "menu/copy", windowActiveTextFg }};
+aiComposeCopyButton: IconButton(aiComposeExpandButton) {
+	icon: aiComposeCopyIcon;
+	iconOver: aiComposeCopyIcon;
+}
+
+aiComposeAuthorLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 0px;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkUnderline: kLinkUnderlineActive;
+	}
+}
+aiComposeAuthorLabelTop: 8px;
+
+aiComposeBoxButton: RoundButton(defaultActiveButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+aiComposeBox: Box(defaultBox) {
+	buttonPadding: margins(16px, 12px, 16px, 12px);
+	buttonHeight: 42px;
+	buttonWide: true;
+	button: aiComposeBoxButton;
+	shadowIgnoreTopSkip: true;
+	bg: boxDividerBg;
+}
+aiComposeBoxWithSend: Box(aiComposeBox) {
+	buttonPadding: margins(16px, 12px, 66px, 12px);
+}
+aiComposeSendButtonSkip: 8px;
+aiComposeBoxClose: IconButton(boxTitleClose) {
+	ripple: defaultRippleAnimation;
+}
+aiComposeBoxInfoButton: IconButton(boxTitleClose) {
+	icon: icon {{ "menu/info", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/info", boxTitleCloseFgOver }};
+	ripple: defaultRippleAnimation;
+}
+aiComposeShadowOpacity: 0.3;
+
+createAiSelectorArrowsIcon: icon{{ "arrows_select", windowSubTextFg }};
+
+communityBoxManage: IconButton(boxTitleClose) {
+	icon: icon {{ "menu/manage", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/manage", boxTitleCloseFgOver }};
 }

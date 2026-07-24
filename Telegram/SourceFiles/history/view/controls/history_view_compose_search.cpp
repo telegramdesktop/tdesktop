@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_search_from_controllers.h" // SearchFromBox
 #include "dialogs/dialogs_search_tags.h"
 #include "dialogs/ui/dialogs_layout.h"
@@ -54,78 +55,35 @@ using SearchRequest = Api::MessagesSearchMerged::Request;
 
 class Row final : public PeerListRow {
 public:
-	explicit Row(
-		std::unique_ptr<Dialogs::FakeRow> fakeRow,
-		not_null<QString*> query);
+	explicit Row(std::unique_ptr<Dialogs::FakeRow> fakeRow);
 
 	[[nodiscard]] FullMsgId fullId() const;
+	[[nodiscard]] not_null<Dialogs::FakeRow*> fakeRow() const;
 
-	QRect elementGeometry(int element, int outerWidth) const override;
-	void elementAddRipple(
-		int element,
-		QPoint point,
-		Fn<void()> updateCallback) override;
 	void elementsStopLastRipple() override;
-	void elementsPaint(
-		Painter &p,
-		int outerWidth,
-		bool selected,
-		int selectedElement) override;
 
 private:
 	const std::unique_ptr<Dialogs::FakeRow> _fakeRow;
 
-	not_null<QString*> _query;
-	int _outerWidth = 0;
-
 };
 
-Row::Row(std::unique_ptr<Dialogs::FakeRow> fakeRow, not_null<QString*> query)
+Row::Row(std::unique_ptr<Dialogs::FakeRow> fakeRow)
 : PeerListRow(
 	fakeRow->searchInChat().history()->peer,
 	fakeRow->item()->fullId().msg.bare)
-, _fakeRow(std::move(fakeRow))
-, _query(query) {
+, _fakeRow(std::move(fakeRow)) {
 }
 
 FullMsgId Row::fullId() const {
 	return _fakeRow->item()->fullId();
 }
 
-QRect Row::elementGeometry(int element, int outerWidth) const {
-	return QRect(0, 0, outerWidth, st::dialogsRowHeight);
-}
-
-void Row::elementAddRipple(
-		int element,
-		QPoint point,
-		Fn<void()> updateCallback) {
-	_fakeRow->addRipple(
-		point,
-		{ _outerWidth, st::dialogsRowHeight },
-		std::move(updateCallback));
+not_null<Dialogs::FakeRow*> Row::fakeRow() const {
+	return _fakeRow.get();
 }
 
 void Row::elementsStopLastRipple() {
 	_fakeRow->stopLastRipple();
-}
-
-void Row::elementsPaint(
-		Painter &p,
-		int outerWidth,
-		bool selected,
-		int selectedElement) {
-	_outerWidth = outerWidth;
-	Dialogs::Ui::RowPainter::Paint(p, _fakeRow.get(), {
-		.st = &st::defaultDialogRow,
-		.currentBg = st::dialogsBg,
-		.now = crl::now(),
-		.searchLowerText = QStringView(*_query),
-		.width = outerWidth,
-		.selected = selected,
-		.paused = p.inactive(),
-		.search = true,
-	});
 }
 
 class ListController final : public PeerListController {
@@ -135,10 +93,25 @@ public:
 	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
-	void rowElementClicked(not_null<PeerListRow*> row, int element) override;
+
+	int customRowHeight() override;
+	void customRowPaint(
+		Painter &p,
+		crl::time now,
+		not_null<PeerListRow*> row,
+		bool selected) override;
+	bool customRowSelectionPoint(
+		not_null<PeerListRow*> row,
+		int x,
+		int y) override;
+	void customRowAddRipple(
+		not_null<PeerListRow*> row,
+		QPoint point,
+		Fn<void()> updateCallback) override;
 
 	void loadMoreRows() override;
 
+	void setContent(PeerListContent *content);
 	void addItems(const MessageIdsList &ids, bool clear);
 	void setQuery(const QString &query);
 
@@ -148,6 +121,7 @@ public:
 
 private:
 	const not_null<History*> _history;
+	PeerListContent *_content = nullptr;
 	rpl::event_stream<FullMsgId> _showItemRequests;
 	rpl::event_stream<> _searchMoreRequests;
 	rpl::event_stream<> _resetScrollRequests;
@@ -171,14 +145,52 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 	_showItemRequests.fire_copy(static_cast<Row*>(row.get())->fullId());
 }
 
-void ListController::rowElementClicked(
+int ListController::customRowHeight() {
+	return st::dialogsRowHeight;
+}
+
+void ListController::customRowPaint(
+		Painter &p,
+		crl::time now,
 		not_null<PeerListRow*> row,
-		int element) {
-	ListController::rowClicked(row);
+		bool selected) {
+	const auto outerWidth = _content->width();
+	const auto fakeRow = static_cast<Row*>(row.get())->fakeRow();
+	Dialogs::Ui::RowPainter::Paint(p, fakeRow, {
+		.st = &st::defaultDialogRow,
+		.currentBg = st::dialogsBg,
+		.now = now,
+		.searchLowerText = QStringView(_query),
+		.width = outerWidth,
+		.selected = selected,
+		.paused = p.inactive(),
+		.search = true,
+	});
+}
+
+bool ListController::customRowSelectionPoint(
+		not_null<PeerListRow*> row,
+		int x,
+		int y) {
+	return true;
+}
+
+void ListController::customRowAddRipple(
+		not_null<PeerListRow*> row,
+		QPoint point,
+		Fn<void()> updateCallback) {
+	static_cast<Row*>(row.get())->fakeRow()->addRipple(
+		point,
+		QSize(_content->width(), st::dialogsRowHeight),
+		std::move(updateCallback));
 }
 
 void ListController::loadMoreRows() {
 	_searchMoreRequests.fire({});
+}
+
+void ListController::setContent(PeerListContent *content) {
+	_content = content;
 }
 
 rpl::producer<FullMsgId> ListController::showItemRequests() const {
@@ -210,8 +222,7 @@ void ListController::addItems(const MessageIdsList &ids, bool clear) {
 				std::make_unique<Dialogs::FakeRow>(
 					key,
 					item,
-					[=] { delegate()->peerListUpdateRow(*shared); }),
-				&_query);
+					[=] { delegate()->peerListUpdateRow(*shared); }));
 			*shared = row.get();
 			delegate()->peerListAppendRow(std::move(row));
 		}
@@ -235,7 +246,8 @@ struct List {
 
 List CreateList(
 		not_null<Ui::RpWidget*> parent,
-		not_null<History*> history) {
+		not_null<History*> history,
+		rpl::producer<not_null<QKeyEvent*>> scrollKeys) {
 	auto list = List{
 		base::make_unique_q<Ui::RpWidget>(parent),
 		std::make_unique<ListController>(history),
@@ -262,6 +274,8 @@ List CreateList(
 
 	delegate->setContent(content);
 	list.controller->setDelegate(delegate);
+	list.controller->setContent(content);
+	content->setMode(PeerListContent::Mode::Custom);
 
 	list.container->sizeValue(
 	) | rpl::on_next([=](const QSize &size) {
@@ -275,6 +289,16 @@ List CreateList(
 		auto p = QPainter(weak.get());
 		p.fillRect(r, st::dialogsBg);
 	}, list.container->lifetime());
+
+	std::move(
+		scrollKeys
+	) | rpl::on_next([=](not_null<QKeyEvent*> e) {
+		const auto delta = scroll->height();
+		const auto now = scroll->scrollTop();
+		scroll->scrollToY((e->key() == Qt::Key_PageUp)
+			? (now - delta)
+			: (now + delta));
+	}, scroll->lifetime());
 
 	return list;
 }
@@ -855,6 +879,9 @@ public:
 	void setInnerFocus();
 	void setQuery(const QString &query);
 	void setTopMsgId(MsgId topMsgId);
+	void setSearchFilter(Api::SearchFilter filter);
+	void setCalendarChat(const Dialogs::Key &chat);
+	void setCalendarJumpHandler(Fn<void(FullMsgId, Fn<void()>)> jump);
 
 	[[nodiscard]] rpl::producer<Activation> activations() const;
 	[[nodiscard]] rpl::producer<> destroyRequests() const;
@@ -881,6 +908,10 @@ private:
 	} _pendingJump;
 
 	MsgId _topMsgId;
+	Api::SearchFilter _searchFilter = Api::SearchFilter::NoFilter;
+	rpl::variable<bool> _filterAllowsFrom = true;
+	Dialogs::Key _calendarChat;
+	Fn<void(FullMsgId, Fn<void()>)> _calendarJump;
 
 	rpl::event_stream<Activation> _activations;
 	rpl::event_stream<> _destroyRequests;
@@ -897,8 +928,15 @@ ComposeSearch::Inner::Inner(
 , _history(history)
 , _topBar(base::make_unique_q<TopBar>(parent, window, history, from, query))
 , _bottomBar(base::make_unique_q<BottomBar>(parent, HasChooseFrom(history)))
-, _list(CreateList(parent, history))
-, _apiSearch(history) {
+, _list(
+	CreateList(
+		parent,
+		history,
+		_topBar->keyEvents() | rpl::filter([](not_null<QKeyEvent*> e) {
+			return e->key() == Qt::Key_PageDown || e->key() == Qt::Key_PageUp;
+		})))
+, _apiSearch(history)
+, _calendarChat(history) {
 	showAnimated();
 
 	rpl::combine(
@@ -925,11 +963,12 @@ ComposeSearch::Inner::Inner(
 			}
 		}
 		search.topMsgId = _topMsgId;
+		search.filter = _searchFilter;
 		_apiSearch.clear();
-		_apiSearch.search(search);
 
 		_list.controller->addItems({}, true);
-		_list.controller->setQuery(_apiSearch.request().query);
+		_list.controller->setQuery(search.query);
+		_apiSearch.search(search);
 	}, _topBar->lifetime());
 
 	_topBar->queryChanges(
@@ -1015,7 +1054,10 @@ ComposeSearch::Inner::Inner(
 	_bottomBar->showCalendarRequests(
 	) | rpl::on_next([=] {
 		hideList();
-		_window->showCalendar({ _history }, QDate());
+		auto descriptor = Window::SessionController::ShowCalendarDescriptor();
+		descriptor.chat = _calendarChat;
+		descriptor.customJump = _calendarJump;
+		_window->showCalendar(std::move(descriptor));
 	}, _bottomBar->lifetime());
 
 	_bottomBar->showBoxFromRequests(
@@ -1046,9 +1088,11 @@ ComposeSearch::Inner::Inner(
 		return !from;
 	}));
 
-	_bottomBar->buttonFromToggleOn(_topBar->fromValue(
-	) | rpl::map([=](PeerData *from) {
-		return HasChooseFrom(_history) && !from;
+	_bottomBar->buttonFromToggleOn(rpl::combine(
+		_topBar->fromValue(),
+		_filterAllowsFrom.value()
+	) | rpl::map([=](PeerData *from, bool allowed) {
+		return allowed && HasChooseFrom(_history) && !from;
 	}));
 
 	if (!query.isEmpty()) {
@@ -1071,6 +1115,20 @@ void ComposeSearch::Inner::setTopMsgId(MsgId topMsgId) {
 		_apiSearch.disableMigrated();
 	}
 	_topMsgId = topMsgId;
+}
+
+void ComposeSearch::Inner::setSearchFilter(Api::SearchFilter filter) {
+	_searchFilter = filter;
+	_filterAllowsFrom = (filter != Api::SearchFilter::Pinned);
+}
+
+void ComposeSearch::Inner::setCalendarChat(const Dialogs::Key &chat) {
+	_calendarChat = chat;
+}
+
+void ComposeSearch::Inner::setCalendarJumpHandler(
+		Fn<void(FullMsgId, Fn<void()>)> jump) {
+	_calendarJump = std::move(jump);
 }
 
 void ComposeSearch::Inner::showAnimated() {
@@ -1133,6 +1191,19 @@ void ComposeSearch::setQuery(const QString &query) {
 
 void ComposeSearch::setTopMsgId(MsgId topMsgId) {
 	_inner->setTopMsgId(topMsgId);
+}
+
+void ComposeSearch::setSearchFilter(Api::SearchFilter filter) {
+	_inner->setSearchFilter(filter);
+}
+
+void ComposeSearch::setCalendarChat(const Dialogs::Key &chat) {
+	_inner->setCalendarChat(chat);
+}
+
+void ComposeSearch::setCalendarJumpHandler(
+		Fn<void(FullMsgId, Fn<void()>)> jump) {
+	_inner->setCalendarJumpHandler(std::move(jump));
 }
 
 rpl::producer<ComposeSearch::Activation> ComposeSearch::activations() const {

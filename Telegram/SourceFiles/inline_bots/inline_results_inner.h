@@ -58,6 +58,7 @@ struct CacheEntry {
 	QString switchPmStartToken;
 	QByteArray switchPmUrl;
 	Results results;
+	bool gallery = false;
 };
 
 class Inner
@@ -158,6 +159,7 @@ private:
 	crl::time _lastUpdatedAt = 0;
 	base::Timer _updateInlineItems;
 	bool _inlineWithThumb = false;
+	bool _gallery = false;
 
 	object_ptr<Ui::RoundButton> _switchPmButton = { nullptr };
 	QString _switchPmStartToken;

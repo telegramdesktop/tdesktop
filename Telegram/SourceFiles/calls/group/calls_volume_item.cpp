@@ -41,7 +41,7 @@ constexpr auto kVolumeStickedValues
 } // namespace
 
 MenuVolumeItem::MenuVolumeItem(
-	not_null<RpWidget*> parent,
+	not_null<Ui::Menu::Menu*> parent,
 	const style::Menu &st,
 	const style::MediaSlider &stSlider,
 	rpl::producer<Group::ParticipantState> participantState,
@@ -65,7 +65,7 @@ MenuVolumeItem::MenuVolumeItem(
 	_localMuted ? 0. : (startVolume / float(maxVolume)),
 	Ui::Paint::ArcsAnimation::Direction::Right)) {
 
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 	enableMouseSelecting();
 	enableMouseSelecting(_slider.get());
 

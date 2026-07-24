@@ -162,8 +162,8 @@ PreviewWrap::PreviewWrap(
 
 	const auto session = &_item->history()->session();
 	session->data().viewRepaintRequest(
-	) | rpl::on_next([=](not_null<const HistoryView::Element*> view) {
-		if (view == _element.get()) {
+	) | rpl::on_next([=](Data::RequestViewRepaint data) {
+		if (data.view == _element.get()) {
 			update(_elementGeometry);
 		}
 	}, lifetime());
@@ -201,7 +201,6 @@ PreviewWrap::PreviewWrap(
 			st::ttlMediaButton);
 		close->setFullRadius(true);
 		close->setClickedCallback(closeCallback);
-		close->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
 		rpl::combine(
 			sizeValue(),
@@ -322,6 +321,7 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	} else {
 		auto context = _theme->preparePaintContext(
 			_style.get(),
+			Rect(_element->currentSize()),
 			Rect(_element->currentSize()),
 			Rect(_element->currentSize()),
 			!window()->isActiveWindow());

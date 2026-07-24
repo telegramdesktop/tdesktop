@@ -9,6 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 
+#include <memory>
+
+namespace Lottie {
+class Icon;
+} // namespace Lottie
+
 namespace style {
 struct SendButton;
 struct IconButton;
@@ -20,6 +26,7 @@ namespace Ui {
 class SendButton final : public RippleButton {
 public:
 	SendButton(QWidget *parent, const style::SendButton &st);
+	~SendButton();
 
 	static constexpr auto kSlowmodeDelayLimit = 100 * 60;
 
@@ -38,6 +45,7 @@ public:
 		QColor fillBgOverride;
 		int slowmodeDelay = 0;
 		int starsToSend = 0;
+		bool forbidden = false;
 
 		friend inline bool operator==(State, State) = default;
 	};
@@ -62,10 +70,21 @@ private:
 		QRect rounded;
 		QRect outer;
 	};
+	enum class RippleShape : uchar {
+		InnerEllipse,
+		SendEllipse,
+		StarsRoundRect,
+		ScheduleEllipse,
+	};
+
 	[[nodiscard]] QPixmap grabContent();
 	void updateSize();
 
 	[[nodiscard]] StarsGeometry starsGeometry() const;
+
+	[[nodiscard]] RippleShape currentRippleShape() const;
+	[[nodiscard]] QRect sendEllipseRect() const;
+	[[nodiscard]] QRect scheduleEllipseRect() const;
 
 	void paintRecord(QPainter &p, bool over);
 	void paintRound(QPainter &p, bool over);
@@ -75,6 +94,11 @@ private:
 	void paintSchedule(QPainter &p, bool over);
 	void paintSlowmode(QPainter &p);
 	void paintStarsToSend(QPainter &p, bool over);
+
+	void initVoiceRoundIcon(int index);
+	void paintVoiceRoundIcon(QPainter &p, bool over);
+	[[nodiscard]] static bool isVoiceRoundTransition(Type from, Type to);
+	void paintLottieIcon(QPainter &p, int index, bool over);
 
 	const style::SendButton &_st;
 
@@ -86,6 +110,10 @@ private:
 
 	QString _slowmodeDelayText;
 	Ui::Text::String _starsToSendText;
+
+	std::array<std::unique_ptr<Lottie::Icon>, 2> _voiceRoundIcons;
+	bool _voiceRoundAnimating = false;
+	RippleShape _lastRippleShape = RippleShape::SendEllipse;
 
 };
 

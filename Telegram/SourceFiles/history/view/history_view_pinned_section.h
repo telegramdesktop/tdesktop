@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 
 namespace Ui {
-class ScrollArea;
+class ElasticScroll;
 class PlainShadow;
 class FlatButton;
 } // namespace Ui
@@ -31,6 +31,7 @@ namespace HistoryView {
 
 class Element;
 class TopBarWidget;
+class ComposeSearch;
 class PinnedMemento;
 class TranslateBar;
 
@@ -97,7 +98,8 @@ public:
 	void listMarkContentsRead(
 		const base::flat_set<not_null<HistoryItem*>> &items) override;
 	MessagesBarData listMessagesBar(
-		const std::vector<not_null<Element*>> &elements) override;
+		const std::vector<not_null<Element*>> &elements,
+		bool markLastAsRead) override;
 	void listContentRefreshed() override;
 	void listUpdateDateLink(
 		ClickHandlerPtr &link,
@@ -136,6 +138,8 @@ public:
 	History *listTranslateHistory() override;
 	void listAddTranslatedItems(
 		not_null<TranslateTracker*> tracker) override;
+	Ui::ElasticScroll *listScrollArea() const override;
+	bool listThanosEffectEnabled() const override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(
@@ -169,6 +173,8 @@ private:
 
 	void setupClearButton();
 	void setupTranslateBar();
+	void setupShortcuts();
+	void searchInPinned();
 
 	void confirmDeleteSelected();
 	void confirmForwardSelected();
@@ -190,8 +196,9 @@ private:
 	int _translateBarHeight = 0;
 
 	bool _skipScrollEvent = false;
-	std::unique_ptr<Ui::ScrollArea> _scroll;
+	std::unique_ptr<Ui::ElasticScroll> _scroll;
 	std::unique_ptr<Ui::FlatButton> _clearButton;
+	std::unique_ptr<ComposeSearch> _composeSearch;
 
 	CornerButtons _cornerButtons;
 

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/file_utilities.h"
 
+#include "core/version.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "base/platform/base_platform_file_utilities.h"
@@ -332,7 +333,21 @@ QString ImagesOrAllFilter() {
 }
 
 QString PhotoVideoFilesFilter() {
-	return u"Image and Video Files (*"_q + Ui::ImageExtensions().join(u" *"_q) + u" *.mp4 *.mov *.m4v);;"_q
+	return u"Image and Video Files (*"_q
+		+ Ui::ImageExtensions().join(u" *"_q)
+		+ u" *.mp4 *.mov *.m4v);;"_q
+		+ AllFilesFilter();
+}
+
+QString PhotoVideoAudioFilesFilter() {
+	return u"Image, Video and Audio Files (*"_q
+		+ Ui::ImageExtensions().join(u" *"_q)
+		+ u" *.mp4 *.mov *.m4v *.webm"_q
+		+ u" *.mp3 *.m4a *.aac *.ogg *.flac *.opus *.oga)"_q;
+}
+
+QString AudioFilesFilter() {
+	return u"Audio Files (*.mp3 *.m4a *.aac *.ogg *.flac *.opus *.oga);;"_q
 		+ AllFilesFilter();
 }
 

@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "window/main_window.h" // Window::LogoNoMargin.
 #include "ui/image/image.h"
@@ -463,11 +464,7 @@ void PeerData::paintUserpic(
 	const auto cloud = userpicCloudImage(view);
 	const auto ratio = style::DevicePixelRatio();
 	if (context.shape == Ui::PeerUserpicShape::Auto) {
-		context.shape = isForum()
-			? Ui::PeerUserpicShape::Forum
-			: isMonoforum()
-			? Ui::PeerUserpicShape::Monoforum
-			: Ui::PeerUserpicShape::Circle;
+		context.shape = userpicShape();
 	}
 	Ui::ValidateUserpicCache(
 		view,
@@ -504,6 +501,9 @@ bool PeerData::useEmptyUserpic(Ui::PeerUserpicView &view) const {
 }
 
 InMemoryKey PeerData::userpicUniqueKey(Ui::PeerUserpicView &view) const {
+	if (const auto broadcast = monoforumBroadcast()) {
+		return broadcast->userpicUniqueKey(view);
+	}
 	return useEmptyUserpic(view)
 		? ensureEmptyUserpic()->uniqueKey()
 		: inMemoryKey(_userpic.location());
@@ -583,7 +583,7 @@ Data::FileOrigin PeerData::userpicOrigin() const {
 
 Data::FileOrigin PeerData::userpicPhotoOrigin() const {
 	return (isUser() && userpicPhotoId())
-		? Data::FileOriginUserPhoto(peerToUser(id).bare, userpicPhotoId())
+		? Data::FileOriginFullUser(peerToUser(id))
 		: Data::FileOrigin();
 }
 
@@ -599,7 +599,7 @@ void PeerData::updateUserpic(
 				isSelf() ? peerToUser(id) : UserId(),
 				MTP_inputPeerPhotoFileLocation(
 					MTP_flags(0),
-					input,
+					input(),
 					MTP_long(photoId))) },
 			kUserpicSize,
 			kUserpicSize),
@@ -695,7 +695,7 @@ bool PeerData::canPinMessages() const {
 	Unexpected("Peer type in PeerData::canPinMessages.");
 }
 
-bool PeerData::canCreatePolls() const {
+bool PeerData::canCreatePolls(bool forbidInForums) const {
 	if (const auto user = asUser()) {
 		return user->isSelf()
 			|| (user->isBot()
@@ -705,15 +705,16 @@ bool PeerData::canCreatePolls() const {
 	} else if (isMonoforum()) {
 		return false;
 	}
-	return Data::CanSend(this, ChatRestriction::SendPolls);
+	return Data::CanSend(this, ChatRestriction::SendPolls, forbidInForums);
 }
 
-bool PeerData::canCreateTodoLists() const {
+bool PeerData::canCreateTodoLists(bool forbidInForums) const {
 	if (isMonoforum() || isBroadcast()) {
 		return false;
 	}
 	return session().premium()
-		&& (Data::CanSend(this, ChatRestriction::SendPolls) || isUser());
+		&& (Data::CanSend(this, ChatRestriction::SendPolls, forbidInForums)
+			|| isUser());
 }
 
 bool PeerData::canCreateTopics() const {
@@ -874,7 +875,7 @@ void PeerData::saveTranslationDisabled(bool disabled) {
 	using Flag = MTPmessages_TogglePeerTranslations::Flag;
 	session().api().request(MTPmessages_TogglePeerTranslations(
 		MTP_flags(disabled ? Flag::f_disabled : Flag()),
-		input
+		input()
 	)).send();
 }
 
@@ -1055,8 +1056,9 @@ bool PeerData::changeColorCollectible(
 
 bool PeerData::changeColor(
 		const tl::conditional<MTPPeerColor> &cloudColor) {
-	const auto changed1 = cloudColor
-		? changeColorIndex(Data::ColorIndexFromColor(cloudColor))
+	const auto maybeColorIndex = Data::ColorIndexFromColor(cloudColor);
+	const auto changed1 = maybeColorIndex
+		? changeColorIndex(*maybeColorIndex)
 		: clearColorIndex();
 	const auto changed2 = changeBackgroundEmojiId(
 		Data::BackgroundEmojiIdFromColor(cloudColor));
@@ -1066,8 +1068,9 @@ bool PeerData::changeColor(
 
 bool PeerData::changeColorProfile(
 		const tl::conditional<MTPPeerColor> &cloudColor) {
-	const auto changed1 = cloudColor
-		? changeColorProfileIndex(Data::ColorIndexFromColor(cloudColor))
+	const auto maybeColorIndex = Data::ColorIndexFromColor(cloudColor);
+	const auto changed1 = maybeColorIndex
+		? changeColorProfileIndex(*maybeColorIndex)
 		: clearColorProfileIndex();
 	const auto changed2 = changeProfileBackgroundEmojiId(
 		Data::BackgroundEmojiIdFromColor(cloudColor));
@@ -1292,7 +1295,10 @@ not_null<const PeerData*> PeerData::userpicPaintingPeer() const {
 }
 
 Ui::PeerUserpicShape PeerData::userpicShape() const {
-	return isForum()
+	const auto channel = asChannel();
+	return (isForum() && !isBot())
+		? Ui::PeerUserpicShape::Forum
+		: (channel && channel->isCommunity())
 		? Ui::PeerUserpicShape::Forum
 		: isMonoforum()
 		? Ui::PeerUserpicShape::Monoforum
@@ -1697,6 +1703,23 @@ bool PeerData::useSubsectionTabs() const {
 	return false;
 }
 
+bool PeerData::displayAsForum() const {
+	if (!isForum()) {
+		return false;
+	} else if (Data::IsBotCreatesTopics(this)) {
+		const auto forum = asBot()->botInfo->forum();
+		return forum && !forum->topicsList()->empty();
+	}
+	return true;
+}
+
+bool PeerData::displaySubsectionTabs() const {
+	if (asBot()) {
+		return displayAsForum();
+	}
+	return useSubsectionTabs();
+}
+
 bool PeerData::viewForumAsMessages() const {
 	if (const auto channel = asChannel()) {
 		return channel->viewForumAsMessages();
@@ -1711,8 +1734,8 @@ void PeerData::processTopics(const MTPVector<MTPForumTopic> &topics) {
 }
 
 bool PeerData::allowsForwarding() const {
-	if (isUser()) {
-		return true;
+	if (const auto user = asUser()) {
+		return user->allowsForwarding();
 	} else if (const auto channel = asChannel()) {
 		return channel->allowsForwarding();
 	} else if (const auto chat = asChat()) {
@@ -1867,6 +1890,17 @@ bool PeerData::canManageGroupCall() const {
 	Unexpected("Peer type in PeerData::canManageGroupCall.");
 }
 
+bool PeerData::canManageRanks() const {
+	if (const auto chat = asChat()) {
+		return chat->amCreator()
+			|| (chat->adminRights() & ChatAdminRight::ManageRanks);
+	} else if (const auto channel = asChannel()) {
+		return channel->amCreator()
+			|| (channel->adminRights() & ChatAdminRight::ManageRanks);
+	}
+	return false;
+}
+
 bool PeerData::amMonoforumAdmin() const {
 	if (const auto channel = asChannel()) {
 		return channel->flags() & ChannelDataFlag::MonoforumAdmin;
@@ -2014,6 +2048,52 @@ int PeerData::peerGiftsCount() const {
 	return 0;
 }
 
+void PeerData::setMainProfileTab(Data::ProfileTab tab) {
+	if (_mainProfileTab != tab) {
+		_mainProfileTab = tab;
+		session().changes().peerUpdated(this, UpdateFlag::MainProfileTab);
+	}
+}
+
+Data::ProfileTab PeerData::mainProfileTab() const {
+	return _mainProfileTab;
+}
+
+MTPInputPeer PeerData::input() const {
+	if (const auto user = asUser()) {
+		const auto specific = user->inputUser();
+		return specific.match([](const MTPDinputUser &data) {
+			return MTP_inputPeerUser(data.vuser_id(), data.vaccess_hash());
+		}, [](const MTPDinputUserFromMessage &data) {
+			return MTP_inputPeerUserFromMessage(
+				data.vpeer(),
+				data.vmsg_id(),
+				data.vuser_id());
+		}, [](const MTPDinputUserEmpty &) {
+			return MTP_inputPeerEmpty();
+		}, [](const MTPDinputUserSelf &) {
+			return MTP_inputPeerSelf();
+		});
+	} else if (const auto chat = asChat()) {
+		return MTP_inputPeerChat(chat->inputChat());
+	} else if (const auto channel = asChannel()) {
+		const auto &specific = channel->inputChannel();
+		return specific.match([](const MTPDinputChannel &data) {
+			return MTP_inputPeerChannel(
+				data.vchannel_id(),
+				data.vaccess_hash());
+		}, [](const MTPDinputChannelFromMessage &data) {
+			return MTP_inputPeerChannelFromMessage(
+				data.vpeer(),
+				data.vmsg_id(),
+				data.vchannel_id());
+		}, [](const MTPDinputChannelEmpty &) {
+			return MTP_inputPeerEmpty();
+		});
+	}
+	return MTP_inputPeerEmpty();
+}
+
 void PeerData::setIsBlocked(bool is) {
 	const auto status = is
 		? BlockStatus::Blocked
@@ -2029,6 +2109,7 @@ void PeerData::setIsBlocked(bool is) {
 			}
 		}
 		session().changes().peerUpdated(this, UpdateFlag::IsBlocked);
+		Core::App().notifications().checkDelayed();
 	}
 }
 
@@ -2172,17 +2253,67 @@ uint64 BackgroundEmojiIdFromColor(const MTPPeerColor *color) {
 	});
 }
 
-uint8 ColorIndexFromColor(const MTPPeerColor *color) {
+std::optional<uint8> ColorIndexFromColor(const MTPPeerColor *color) {
 	if (!color) {
-		return 0;
+		return std::nullopt;
 	}
-	return color->match([](const MTPDpeerColor &data) -> uint8 {
-		return data.vcolor().value_or_empty();
-	}, [](const MTPDpeerColorCollectible &data) -> uint8 {
-		return 0;
-	}, [](const MTPDinputPeerColorCollectible &) -> uint8 {
-		return 0;
+	return color->match([](const MTPDpeerColor &d) -> std::optional<uint8> {
+		return d.vcolor() ? std::make_optional(d.vcolor()->v) : std::nullopt;
+	}, [](const auto &) -> std::optional<uint8> {
+		return std::nullopt;
 	});
+}
+
+ProfileTab ParseProfileTab(const MTPProfileTab *tab) {
+	if (!tab) {
+		return ProfileTab::None;
+	}
+	return tab->match([](const MTPDprofileTabPosts &) {
+		return ProfileTab::Posts;
+	}, [](const MTPDprofileTabGifts &) {
+		return ProfileTab::Gifts;
+	}, [](const MTPDprofileTabMedia &) {
+		return ProfileTab::Media;
+	}, [](const MTPDprofileTabFiles &) {
+		return ProfileTab::Files;
+	}, [](const MTPDprofileTabMusic &) {
+		return ProfileTab::Music;
+	}, [](const MTPDprofileTabVoice &) {
+		return ProfileTab::Voice;
+	}, [](const MTPDprofileTabLinks &) {
+		return ProfileTab::Links;
+	}, [](const MTPDprofileTabGifs &) {
+		return ProfileTab::Gifs;
+	});
+}
+
+MTPProfileTab ProfileTabToMTP(ProfileTab tab) {
+	switch (tab) {
+	case ProfileTab::Posts: return MTP_profileTabPosts();
+	case ProfileTab::Gifts: return MTP_profileTabGifts();
+	case ProfileTab::Media: return MTP_profileTabMedia();
+	case ProfileTab::Files: return MTP_profileTabFiles();
+	case ProfileTab::Music: return MTP_profileTabMusic();
+	case ProfileTab::Voice: return MTP_profileTabVoice();
+	case ProfileTab::Links: return MTP_profileTabLinks();
+	case ProfileTab::Gifs: return MTP_profileTabGifs();
+	case ProfileTab::None: break;
+	}
+	Unexpected("Tab in Data::ProfileTabToMTP.");
+}
+
+bool IsBotUserCreatesTopics(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return user->botInfo && user->botInfo->userCreatesTopics;
+	}
+	return false;
+}
+
+bool IsBotCreatesTopics(not_null<const PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return user->botInfo && !user->botInfo->userCreatesTopics;
+	}
+	return false;
 }
 
 } // namespace Data

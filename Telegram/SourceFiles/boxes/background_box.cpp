@@ -337,7 +337,7 @@ void BackgroundBox::resetForPeer() {
 	const auto api = &_controller->session().api();
 	api->request(MTPmessages_SetChatWallPaper(
 		MTP_flags(0),
-		_forPeer->input,
+		_forPeer->input(),
 		MTPInputWallPaper(),
 		MTPWallPaperSettings(),
 		MTPint()

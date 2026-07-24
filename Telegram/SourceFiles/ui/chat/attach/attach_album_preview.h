@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/text/text.h"
 #include "base/timer.h"
 
 namespace style {
@@ -20,7 +21,6 @@ namespace Ui {
 struct PreparedFile;
 struct GroupMediaLayout;
 class AlbumThumbnail;
-class PopupMenu;
 
 class AlbumPreview final : public RpWidget {
 public:
@@ -28,11 +28,13 @@ public:
 		QWidget *parent,
 		const style::ComposeControls &st,
 		gsl::span<Ui::PreparedFile> items,
-		SendFilesWay way,
-		Fn<bool(int, AttachActionType)> actionAllowed);
+		const Text::MarkedContext &captionContext,
+		SendFilesWay way);
 	~AlbumPreview();
 
 	void setSendWay(SendFilesWay way);
+	void setCaption(int index, const TextWithTags &caption);
+	[[nodiscard]] int indexFromPoint(QPoint position) const;
 
 	[[nodiscard]] base::flat_set<int> collectSpoileredIndices();
 	[[nodiscard]] bool canHaveSpoiler(int index) const;
@@ -47,12 +49,6 @@ public:
 	}
 	[[nodiscard]] rpl::producer<int> thumbModified() const {
 		return _thumbModified.events();
-	}
-	[[nodiscard]] rpl::producer<int> thumbEditCoverRequested() const {
-		return _thumbEditCoverRequested.events();
-	}
-	[[nodiscard]] rpl::producer<int> thumbClearCoverRequested() const {
-		return _thumbClearCoverRequested.events();
 	}
 	[[nodiscard]] rpl::producer<> orderUpdated() const {
 		return _orderUpdated.events();
@@ -100,11 +96,9 @@ private:
 	void cancelDrag();
 	void finishDrag();
 
-	void showContextMenu(not_null<AlbumThumbnail*> thumb, QPoint position);
-
 	const style::ComposeControls &_st;
+	const Text::MarkedContext _captionContext;
 	SendFilesWay _sendWay;
-	Fn<bool(int, AttachActionType)> _actionAllowed;
 	style::cursor _cursor = style::cur_default;
 	std::vector<int> _order;
 	std::vector<QSize> _itemsShownDimensions;
@@ -127,11 +121,7 @@ private:
 	rpl::event_stream<int> _thumbDeleted;
 	rpl::event_stream<int> _thumbChanged;
 	rpl::event_stream<int> _thumbModified;
-	rpl::event_stream<int> _thumbEditCoverRequested;
-	rpl::event_stream<int> _thumbClearCoverRequested;
 	rpl::event_stream<> _orderUpdated;
-
-	base::unique_qptr<PopupMenu> _menu;
 
 	mutable Animations::Simple _thumbsHeightAnimation;
 	mutable Animations::Simple _shrinkAnimation;

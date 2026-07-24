@@ -209,7 +209,7 @@ void TopicsView::paint(
 	rect.setWidth(rect.width() - _lastTopicJumpGeometry.rightCut);
 	auto skipBig = _jumpToTopic && !context.active;
 	if (_titles.empty()) {
-		const auto text = (_monoforum && _allLoaded)
+		const auto text = _allLoaded
 			? tr::lng_filters_no_chats(tr::now)
 			: tr::lng_contacts_loading(tr::now);
 		p.drawText(

@@ -69,7 +69,7 @@ void IconWithText::paintEvent(QPaintEvent *e) {
 class MuteItem final : public Ui::Menu::Action {
 public:
 	MuteItem(
-		not_null<RpWidget*> parent,
+		not_null<Ui::Menu::Menu*> parent,
 		const style::Menu &st,
 		Descriptor descriptor);
 
@@ -85,7 +85,7 @@ private:
 };
 
 MuteItem::MuteItem(
-	not_null<RpWidget*> parent,
+	not_null<Ui::Menu::Menu*> parent,
 	const style::Menu &st,
 	Descriptor descriptor)
 : Ui::Menu::Action(
@@ -113,7 +113,7 @@ MuteItem::MuteItem(
 	}, lifetime());
 	_animation.stop();
 
-	setClickedCallback([=] {
+	setActionTriggered([=] {
 		descriptor.updateMutePeriod(_isMuted ? 0 : kMuteForeverValue);
 	});
 }
@@ -340,7 +340,7 @@ void FillMuteMenu(
 		};
 
 		auto item = base::make_unique_q<IconWithText>(
-			menu,
+			menu->menu(),
 			st,
 			Ui::Menu::CreateAction(
 				menu->menu().get(),
@@ -361,7 +361,10 @@ void FillMuteMenu(
 		&st::menuIconMuteFor);
 
 	menu->addAction(
-		base::make_unique_q<MuteItem>(menu, menu->st().menu, descriptor));
+		base::make_unique_q<MuteItem>(
+			menu->menu(),
+			menu->st().menu,
+			descriptor));
 }
 
 void SetupMuteMenu(

@@ -148,8 +148,6 @@ void VerifyBox::setupControls(
 			button->setFullWidth(w - small.left() - small.right());
 		}, button->lifetime());
 		button->setClickedCallback([=] { ::File::OpenUrl(openUrl); });
-		button->setTextTransform(
-			Ui::RoundButton::TextTransform::NoTransform);
 	}
 	if (resend) {
 		auto link = TextWithEntities{ tr::lng_cloud_password_resend(tr::now) };
@@ -238,6 +236,7 @@ PanelEditContact::PanelEditContact(
 		this,
 		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
+	_done->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	setupControls(data, existing);
 }
 

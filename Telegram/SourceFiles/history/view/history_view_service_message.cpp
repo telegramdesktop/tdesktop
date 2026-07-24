@@ -438,7 +438,10 @@ QRect Service::innerGeometry() const {
 	return countGeometry();
 }
 
-bool Service::consumeHorizontalScroll(QPoint position, int delta) {
+bool Service::consumeHorizontalScroll(
+		QPoint position,
+		int delta,
+		Qt::ScrollPhase phase) {
 	if (const auto media = this->media()) {
 		return media->consumeHorizontalScroll(position, delta);
 	}
@@ -656,7 +659,8 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 			context.st,
 			KeyboardRounding(),
 			keyboardWidth,
-			context.clip.translated(-keyboardPosition));
+			context.clip.translated(-keyboardPosition),
+			context.paused);
 		p.translate(-keyboardPosition);
 	}
 
@@ -822,6 +826,10 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 				result.link = done->lnk;
 			} else if (const auto append = item->Get<HistoryServiceTodoAppendTasks>()) {
 				result.link = append->lnk;
+			} else if (const auto pollAppend = item->Get<HistoryServicePollAppendAnswer>()) {
+				result.link = pollAppend->lnk;
+			} else if (const auto pollDelete = item->Get<HistoryServicePollDeleteAnswer>()) {
+				result.link = pollDelete->lnk;
 			} else if (const auto finish = item->Get<HistoryServiceSuggestFinish>()) {
 				result.link = finish->lnk;
 			} else if (media && data()->showSimilarChannels()) {
@@ -969,7 +977,8 @@ void EmptyPainter::paint(
 	if (_icon) {
 		_icon->paintInRect(
 			p,
-			QRect(bubbleLeft, top, bubbleWidth, iconHeight));
+			QRect(bubbleLeft, top, bubbleWidth, iconHeight),
+			st->msgServiceFg()->c);
 		top += iconHeight + st::historyGroupAboutHeaderSkip;
 	}
 

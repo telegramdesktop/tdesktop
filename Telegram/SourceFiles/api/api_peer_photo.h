@@ -41,6 +41,11 @@ public:
 		std::vector<QColor> markupColors;
 	};
 
+	struct UploadProgress {
+		not_null<PeerData*> peer;
+		float64 progress = 0.;
+	};
+
 	void upload(
 		not_null<PeerData*> peer,
 		UserPhoto &&photo,
@@ -54,6 +59,24 @@ public:
 	void clear(not_null<PhotoData*> photo);
 	void clearPersonal(not_null<UserData*> user);
 	void set(not_null<PeerData*> peer, not_null<PhotoData*> photo);
+
+	struct UploadCallbacks {
+		Fn<void(float64)> progress;
+		Fn<void()> done;
+		Fn<void()> failed;
+	};
+	void subscribeToUpload(
+		not_null<PeerData*> peer,
+		rpl::lifetime &lifetime,
+		UploadCallbacks callbacks);
+
+	[[nodiscard]] auto uploadProgress() const
+		-> rpl::producer<UploadProgress>;
+	[[nodiscard]] auto uploadDone() const
+		-> rpl::producer<not_null<PeerData*>>;
+	[[nodiscard]] auto uploadFailed() const
+		-> rpl::producer<not_null<PeerData*>>;
+	void cancelUpload(not_null<PeerData*> peer);
 
 	void requestUserPhotos(not_null<UserData*> user, UserPhotoId afterId);
 
@@ -100,9 +123,13 @@ private:
 		not_null<PeerData*> peer;
 		UploadType type = UploadType::Default;
 		Fn<void()> done;
+		PhotoId photoId = 0;
 	};
 
 	base::flat_map<FullMsgId, UploadValue> _uploads;
+	rpl::event_stream<UploadProgress> _uploadProgress;
+	rpl::event_stream<not_null<PeerData*>> _uploadDone;
+	rpl::event_stream<not_null<PeerData*>> _uploadFailed;
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 

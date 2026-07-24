@@ -7,7 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/basic_types.h"
 #include "base/qt/qt_compare.h"
+
+#include <variant>
+
+namespace tl {
+template <typename bare>
+class boxed;
+} // namespace tl
+
+class MTPreaction;
+using MTPReaction = tl::boxed<MTPreaction>;
+using DocumentId = uint64;
 
 namespace Data {
 

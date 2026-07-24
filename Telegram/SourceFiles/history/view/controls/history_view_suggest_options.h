@@ -51,21 +51,6 @@ void ChooseSuggestTimeBox(
 	not_null<Ui::GenericBox*> box,
 	SuggestTimeBoxArgs &&args);
 
-struct StarsInputFieldArgs {
-	std::optional<int64> value;
-	int64 max = 0;
-};
-[[nodiscard]] not_null<Ui::NumberInput*> AddStarsInputField(
-	not_null<Ui::VerticalLayout*> container,
-	StarsInputFieldArgs &&args);
-
-struct TonInputFieldArgs {
-	int64 value = 0;
-};
-[[nodiscard]] not_null<Ui::InputField*> AddTonInputField(
-	not_null<Ui::VerticalLayout*> container,
-	TonInputFieldArgs &&args);
-
 struct StarsTonPriceInput {
 	Fn<void()> focusCallback;
 	Fn<std::optional<CreditsAmount>()> computeResult;
@@ -114,11 +99,6 @@ void ChooseSuggestPriceBox(
 [[nodiscard]] QString FormatAfterCommissionPercent(
 	not_null<Main::Session*> session,
 	CreditsAmount price);
-
-void InsufficientTonBox(
-	not_null<Ui::GenericBox*> box,
-	not_null<PeerData*> peer,
-	CreditsAmount required);
 
 class SuggestOptionsBar final {
 public:

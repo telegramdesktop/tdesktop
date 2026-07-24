@@ -137,7 +137,7 @@ void SendProgressManager::send(const Key &key, int progress) {
 		MTP_flags(key.topMsgId
 			? MTPmessages_SetTyping::Flag::f_top_msg_id
 			: MTPmessages_SetTyping::Flag(0)),
-		key.history->peer->input,
+		key.history->peer->input(),
 		MTP_int(key.topMsgId),
 		action
 	)).done([=](const MTPBool &result, mtpRequestId requestId) {

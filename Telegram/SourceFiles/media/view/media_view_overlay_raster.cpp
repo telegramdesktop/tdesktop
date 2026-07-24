@@ -15,6 +15,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 
 namespace Media::View {
+namespace {
+
+[[nodiscard]] QRectF StoryCropRect(QSizeF imageSize, QSizeF targetSize) {
+	if (imageSize.isEmpty() || targetSize.isEmpty()) {
+		return QRectF();
+	}
+	const auto targetAspect = targetSize.width() / targetSize.height();
+	const auto imageAspect = imageSize.width() / imageSize.height();
+	if (imageAspect > targetAspect) {
+		const auto cropW = imageSize.height() * targetAspect;
+		return QRectF(
+			(imageSize.width() - cropW) / 2.,
+			0.,
+			cropW,
+			imageSize.height());
+	} else if (imageAspect < targetAspect) {
+		const auto cropH = imageSize.width() / targetAspect;
+		return QRectF(
+			0.,
+			(imageSize.height() - cropH) / 2.,
+			imageSize.width(),
+			cropH);
+	}
+	return QRectF();
+}
+
+} // namespace
 
 OverlayWidget::RendererSW::RendererSW(not_null<OverlayWidget*> owner)
 : _owner(owner)
@@ -100,7 +127,11 @@ void OverlayWidget::RendererSW::paintTransformedVideoFrame(
 	if (!rect.intersects(_clipOuter)) {
 		return;
 	}
-	paintTransformedImage(_owner->videoFrame(), rect, rotation);
+	const auto image = _owner->videoFrame();
+	const auto sourceRect = _owner->_stories
+		? StoryCropRect(QSizeF(image.size()), geometry.rect.size())
+		: QRectF();
+	paintTransformedImage(image, rect, rotation, sourceRect);
 	paintControlsFade(rect, geometry);
 }
 
@@ -120,7 +151,10 @@ void OverlayWidget::RendererSW::paintTransformedStaticContent(
 		_p->fillRect(rect, _transparentBrush);
 	}
 	if (!image.isNull()) {
-		paintTransformedImage(image, rect, rotation);
+		const auto sourceRect = _owner->_stories
+			? StoryCropRect(QSizeF(image.size()), geometry.rect.size())
+			: QRectF();
+		paintTransformedImage(image, rect, rotation, sourceRect);
 	}
 	paintControlsFade(rect, geometry);
 }
@@ -192,14 +226,19 @@ void OverlayWidget::RendererSW::paintControlsFade(
 void OverlayWidget::RendererSW::paintTransformedImage(
 		const QImage &image,
 		QRect rect,
-		int rotation) {
+		int rotation,
+		const QRectF &sourceRect) {
 	PainterHighQualityEnabler hq(*_p);
 	if (UsePainterRotation(rotation)) {
 		if (rotation) {
 			_p->save();
 			_p->rotate(rotation);
 		}
-		_p->drawImage(RotatedRect(rect, rotation), image);
+		if (sourceRect.isValid()) {
+			_p->drawImage(QRectF(RotatedRect(rect, rotation)), image, sourceRect);
+		} else {
+			_p->drawImage(RotatedRect(rect, rotation), image);
+		}
 		if (rotation) {
 			_p->restore();
 		}
@@ -233,6 +272,18 @@ void OverlayWidget::RendererSW::paintDocumentBubble(
 void OverlayWidget::RendererSW::paintSaveMsg(QRect outer) {
 	if (outer.intersects(_clipOuter)) {
 		_owner->paintSaveMsgContent(*_p, outer, _clipOuter);
+	}
+}
+
+void OverlayWidget::RendererSW::paintChapter(QRect outer) {
+	if (outer.intersects(_clipOuter)) {
+		_owner->paintChapterContent(*_p, outer, _clipOuter);
+	}
+}
+
+void OverlayWidget::RendererSW::paintSpeedBoost(QRect outer) {
+	if (outer.intersects(_clipOuter)) {
+		_owner->paintSpeedBoostContent(*_p, outer, _clipOuter);
 	}
 }
 

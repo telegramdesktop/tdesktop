@@ -16,6 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_type.h"
 #include "window/window_adaptive.h"
 
+#include <QtCore/QDate>
+#include <QtCore/QPointer>
+
 class PhotoData;
 class MainWidget;
 class MainWindow;
@@ -26,6 +29,7 @@ enum class WindowLayout;
 
 namespace Data {
 struct StoriesContext;
+struct DrawToReplyRequest;
 class SavedMessages;
 enum class StorySourcesList : uchar;
 } // namespace Data
@@ -70,12 +74,20 @@ struct ChatThemeBackgroundData;
 class MessageSendingAnimationController;
 struct BoostCounters;
 struct ChatPaintContextArgs;
+struct PreparedList;
+struct PreparedBundle;
 } // namespace Ui
+
+namespace Api {
+struct SendOptions;
+} // namespace Api
 
 namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
+class PhotoMedia;
 class Thread;
+class CommunityInfo;
 class Forum;
 class ForumTopic;
 class SavedSublist;
@@ -90,12 +102,17 @@ namespace HistoryView::Reactions {
 class CachedIconFactory;
 } // namespace HistoryView::Reactions
 
+namespace Settings {
+struct HighlightArgs;
+} // namespace Settings
+
 namespace Window {
 
 using GifPauseReason = ChatHelpers::PauseReason;
 using GifPauseReasons = ChatHelpers::PauseReasons;
 
 class SectionMemento;
+class SectionWidget;
 class Controller;
 class FiltersMenu;
 class ChatPreviewManager;
@@ -103,6 +120,8 @@ class ChatSwitchProcess;
 
 struct PeerByLinkInfo;
 struct SeparateId;
+
+extern const char kOptionExternalMediaViewer[];
 
 struct PeerThemeOverride {
 	PeerData *peer = nullptr;
@@ -193,8 +212,11 @@ struct SectionShow {
 	bool childColumn = false;
 	bool forbidLayer = false;
 	bool forceTopicsList = false;
+	bool preferCurrentWindow = false;
 	bool reapplyLocalDraft = false;
 	bool dropSameFromStack = false;
+	bool allowDuplicateInStack = false;
+	bool slideFromBottom = false;
 	Origin origin;
 
 };
@@ -397,6 +419,7 @@ public:
 	[[nodiscard]] SeparateId windowId() const;
 	[[nodiscard]] bool isPrimary() const;
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
+	[[nodiscard]] rpl::producer<> imeCompositionStarts() const;
 	[[nodiscard]] not_null<MainWidget*> content() const;
 	[[nodiscard]] Adaptive &adaptive() const;
 	[[nodiscard]] ChatHelpers::EmojiInteractions &emojiInteractions() const {
@@ -439,9 +462,14 @@ public:
 
 	void showForum(
 		not_null<Data::Forum*> forum,
-		const SectionShow &params = SectionShow::Way::ClearStack);
+		const SectionShow &params = SectionShow::Way::ClearStack,
+		MsgId showAtMsgId = ShowAtUnreadMsgId);
 	void closeForum();
 	const rpl::variable<Data::Forum*> &shownForum() const;
+
+	void openCommunity(not_null<Data::CommunityInfo*> info);
+	void closeCommunity();
+	const rpl::variable<Data::CommunityInfo*> &openedCommunity() const;
 
 	void setActiveChatEntry(Dialogs::RowDescriptor row);
 	void setActiveChatEntry(Dialogs::Key key);
@@ -536,10 +564,19 @@ public:
 	}
 	void removeLayerBlackout();
 	[[nodiscard]] bool isLayerShown() const;
+	[[nodiscard]] rpl::producer<bool> boxShownValue() const;
+	void registerActiveLayerSection(SectionWidget *section);
+	void unregisterActiveLayerSection(SectionWidget *section);
+	[[nodiscard]] SectionWidget *activeLayerSection() const;
 
-	void showCalendar(
-		Dialogs::Key chat,
-		QDate requestedDate);
+	struct ShowCalendarDescriptor {
+		Dialogs::Key chat;
+		QDate date;
+		bool mediaPhoto = false;
+		bool mediaVideo = false;
+		Fn<void(FullMsgId, Fn<void()>)> customJump;
+	};
+	void showCalendar(ShowCalendarDescriptor &&descriptor);
 
 	void showAddContact();
 	void showNewGroup();
@@ -552,6 +589,7 @@ public:
 		FullMsgId id;
 		MsgId topicRootId;
 		PeerId monoforumPeerId;
+		bool showDrawButton = false;
 	};
 	void openPhoto(
 		not_null<PhotoData*> photo,
@@ -697,6 +735,18 @@ public:
 	void dropSubsectionTabs();
 
 	void showStarGiftAuction(const QString &slug);
+	void showStarGiftAuction(uint64 giftId);
+
+	void showCloudPassword(const QString &highlightId = QString());
+
+	void setHighlightControlId(const QString &id);
+	[[nodiscard]] QString highlightControlId() const;
+	[[nodiscard]] bool takeHighlightControlId(const QString &id);
+	void checkHighlightControl(
+		const QString &id,
+		QWidget *widget,
+		Settings::HighlightArgs &&args);
+	void checkHighlightControl(const QString &id, QWidget *widget);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -748,9 +798,28 @@ private:
 	void checkNonPremiumLimitToastUpload(FullMsgId id);
 
 	bool openFolderInDifferentWindow(not_null<Data::Folder*> folder);
+	bool openCommunityInDifferentWindow(
+		not_null<Data::CommunityInfo*> info);
 	bool showForumInDifferentWindow(
 		not_null<Data::Forum*> forum,
-		const SectionShow &params);
+		const SectionShow &params,
+		MsgId showAtMsgId);
+
+	[[nodiscard]] bool openPhotoExternal(
+		not_null<PhotoData*> photo,
+		Data::FileOrigin origin);
+	void handleDrawToReplyRequest(Data::DrawToReplyRequest request);
+	[[nodiscard]] Data::Thread *resolveDrawToReplyThread(
+		const Data::DrawToReplyRequest &request) const;
+	void showDrawToReplyFilesBox(
+		not_null<Data::Thread*> thread,
+		FullMsgId replyTo,
+		Ui::PreparedList &&list);
+	void sendDrawToReplyFiles(
+		not_null<Data::Thread*> thread,
+		FullMsgId replyTo,
+		std::shared_ptr<Ui::PreparedBundle> bundle,
+		Api::SendOptions options);
 
 	const not_null<Controller*> _window;
 	const std::unique_ptr<ChatHelpers::EmojiInteractions> _emojiInteractions;
@@ -792,15 +861,19 @@ private:
 	rpl::variable<int> _connectingBottomSkip;
 
 	rpl::event_stream<ChatHelpers::FileChosen> _stickerOrEmojiChosen;
+	QPointer<SectionWidget> _activeLayerSection;
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
 	rpl::variable<Data::Forum*> _shownForum;
 	rpl::lifetime _shownForumLifetime;
+	rpl::variable<Data::CommunityInfo*> _openedCommunity;
+	rpl::lifetime _openedCommunityLifetime;
 
 	rpl::event_stream<> _filtersMenuChanged;
 
 	const std::shared_ptr<Ui::ChatTheme> _defaultChatTheme;
+	std::vector<QColor> _defaultChatThemeBubblesColors;
 	base::flat_map<CachedThemeKey, CachedTheme> _customChatThemes;
 	rpl::event_stream<std::shared_ptr<Ui::ChatTheme>> _cachedThemesStream;
 	rpl::event_stream<> _giftSymbolLoaded;
@@ -811,6 +884,13 @@ private:
 
 	std::unique_ptr<ChatSwitchProcess> _chatSwitchProcess;
 
+	DocumentId _pendingOpenDocumentId = 0;
+	struct PendingOpenPhoto {
+		PhotoData *data = nullptr;
+		std::shared_ptr<Data::PhotoMedia> media;
+		QString filepath;
+	} _pendingOpenPhoto;
+
 	base::has_weak_ptr _storyOpenGuard;
 
 	QString _premiumRef;
@@ -818,6 +898,7 @@ private:
 	rpl::lifetime _savedSubsectionTabsLifetime;
 
 	rpl::lifetime _starGiftAuctionLifetime;
+	rpl::lifetime _showCloudPasswordLifetime;
 
 	rpl::lifetime _lifetime;
 

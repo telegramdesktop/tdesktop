@@ -355,7 +355,7 @@ void SettingsButton::setSpeed(float64 speed) {
 	}
 }
 
-void SettingsButton::setQuality(int quality) {
+void SettingsButton::setQuality(Media::VideoQuality quality) {
 	if (_quality != quality) {
 		_quality = quality;
 		update();
@@ -437,13 +437,14 @@ void SettingsButton::prepareFrame() {
 			: u"%1X"_q.arg(rounded / 10);
 		paintBadge(p, text, RectPart::TopLeft, color);
 	}
-	const auto text = (!_quality)
+	const auto height = _quality.height;
+	const auto text = !height
 		? QString()
-		: (_quality > 2000)
+		: (height > 2000)
 		? u"4K"_q
-		: (_quality > 1000)
+		: (height > 1000)
 		? u"FHD"_q
-		: (_quality > 700)
+		: (height > 700)
 		? u"HD"_q
 		: u"SD"_q;
 	if (!text.isEmpty()) {

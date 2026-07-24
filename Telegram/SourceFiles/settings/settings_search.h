@@ -1,0 +1,94 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#pragma once
+
+#include <any>
+
+#include "base/flat_map.h"
+#include "settings/settings_builder.h"
+#include "settings/settings_common_session.h"
+
+namespace Window {
+class SessionController;
+} // namespace Window
+
+namespace Ui {
+class InputField;
+class PopupMenu;
+class RpWidget;
+class SearchFieldController;
+class VerticalLayout;
+} // namespace Ui
+
+namespace Settings {
+
+struct SearchSectionState {
+	QString query;
+};
+
+class Search : public Section<Search> {
+public:
+	Search(QWidget *parent, not_null<Window::SessionController*> controller);
+
+	[[nodiscard]] rpl::producer<QString> title() override;
+
+	void setInnerFocus() override;
+	void sectionSaveState(std::any &state) override;
+	void sectionRestoreState(const std::any &state) override;
+	[[nodiscard]] base::weak_qptr<Ui::RpWidget> createPinnedToTop(
+		not_null<QWidget*> parent) override;
+
+private:
+	struct IndexedEntry {
+		Builder::SearchEntry entry;
+		QStringList terms;
+		int depth = 0;
+		QString faqUrl;
+		QString faqSection;
+	};
+
+	struct ResultCustomization {
+		Fn<void(not_null<Ui::SettingsButton*>)> hook;
+		const style::SettingsButton *st = nullptr;
+	};
+
+	void setupContent();
+	void setupCustomizations();
+	void buildIndex();
+	void rebuildResults(const QString &query);
+	void rebuildRecentResults();
+	void rebuildFaqResults();
+	void bumpRecentEntry(const QString &entryId);
+	[[nodiscard]] not_null<Ui::SettingsButton*> createEntryButton(
+		int entryIndex,
+		const QString &subtitle);
+	void selectByKeyboard(int newSelected);
+	void clearSelection();
+	void handleKeyNavigation(int key);
+	void scrollToButton(not_null<Ui::SettingsButton*> button);
+	void setupButtonMouseTracking(not_null<Ui::SettingsButton*> button);
+	void addButton(not_null<Ui::SettingsButton*> button);
+
+	std::unique_ptr<Ui::SearchFieldController> _searchController;
+	Ui::InputField *_searchField = nullptr;
+	Ui::VerticalLayout *_list = nullptr;
+	base::flat_map<QString, ResultCustomization> _customizations;
+	base::flat_map<QString, int> _entryIdToIndex;
+	QString _pendingQuery;
+	std::vector<IndexedEntry> _entries;
+	base::flat_map<QChar, base::flat_set<int>> _firstLetterIndex;
+	base::flat_map<int, Ui::SettingsButton*> _buttonCache;
+	int _faqStartIndex = 0;
+	std::vector<Ui::SettingsButton*> _visibleButtons;
+	base::flat_set<not_null<Ui::SettingsButton*>> _trackedButtons;
+	base::unique_qptr<Ui::PopupMenu> _contextMenu;
+	int _selected = -1;
+
+};
+
+} // namespace Settings

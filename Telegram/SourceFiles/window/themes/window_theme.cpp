@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 
 #include "window/themes/window_theme_preview.h"
+#include "window/themes/window_themes_chat.h"
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor.h"
 #include "window/window_controller.h"
@@ -431,6 +432,20 @@ bool InitializeFromSaved(Saved &&saved) {
 		return true;
 	}
 
+	if (!editing
+		&& !saved.object.cloud.emoticon.isEmpty()
+		&& !saved.object.cloud.settings.empty()) {
+		auto preview = PreviewFromChatTheme(saved.object.cloud, IsNightMode());
+		if (preview) {
+			style::main_palette::apply(preview->instance.palette);
+			Background()->saveAdjustableColors();
+			saved.object.content = std::move(preview->object.content);
+			saved.cache = std::move(preview->instance.cached);
+			Local::writeTheme(saved);
+			return true;
+		}
+	}
+
 	const auto colorizer = ColorizerForTheme(saved.object.pathAbsolute);
 	if (!LoadTheme(saved.object.content, colorizer, editing, &saved.cache)) {
 		DEBUG_LOG(("Theme: Could not load from saved."));
@@ -495,7 +510,11 @@ void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
 void ChatBackground::initialRead() {
 	if (started()) {
 		return;
-	} else if (!Local::readBackground()) {
+	}
+	if (_themeObject.pathAbsolute.isEmpty() && !nightMode()) {
+		applyDefaultThemeAccentColorizer();
+	}
+	if (!Local::readBackground()) {
 		set(Data::ThemeWallPaper());
 	}
 	if (_localStoredTileDayValue) {
@@ -561,6 +580,28 @@ void ChatBackground::start() {
 	}) | rpl::distinct_until_changed(
 	) | rpl::on_next([](bool dark) {
 		Core::App().settings().setSystemDarkMode(dark);
+	}, _lifetime);
+
+	rpl::single(
+		QGuiApplication::palette()
+	) | rpl::then(
+		base::qt_signal_producer(
+			qApp,
+			&QGuiApplication::paletteChanged
+		)
+	) | rpl::on_next([=] {
+		const auto &settings = Core::App().settings();
+		if (!settings.systemAccentColorEnabled()
+			|| _themeObject.cloud.id
+			|| editingTheme()) {
+			return;
+		}
+		const auto path = _themeObject.pathAbsolute;
+		if (!IsEmbeddedTheme(path)) {
+			return;
+		}
+		ApplyDefaultWithPath(path);
+		KeepApplied();
 	}, _lifetime);
 }
 
@@ -1064,13 +1105,17 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 }
 
 void ChatBackground::setTestingDefaultTheme() {
-	style::main_palette::reset(ColorizerForTheme(QString()));
-	saveAdjustableColors();
+	applyDefaultThemeAccentColorizer();
 
 	saveForRevert();
 	set(Data::details::TestingDefaultWallPaper());
 	setTile(false);
 	_updates.fire({ BackgroundUpdate::Type::TestingTheme, tile() });
+}
+
+void ChatBackground::applyDefaultThemeAccentColorizer() {
+	style::main_palette::reset(ColorizerForTheme(QString()));
+	saveAdjustableColors();
 }
 
 void ChatBackground::keepApplied(const Object &object, bool write) {

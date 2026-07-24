@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "boxes/peer_list_box.h"
 #include "core/current_geo_location.h"
+#include "core/file_utilities.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
@@ -24,12 +25,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
+#include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
@@ -38,9 +42,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
+#include "core/cached_webview_availability.h"
 #include "window/themes/window_theme.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_payments.h" // paymentsCriticalError
 #include "styles/style_window.h"
 #include "styles/style_settings.h" // settingsCloudPasswordIconSize
 #include "styles/style_layers.h" // boxDividerHeight
@@ -687,7 +693,6 @@ not_null<RpWidget*> SetupMapPlaceholder(
 		tr::lng_maps_select_on_map(),
 		st::pickLocationChooseOnMap);
 	button->setFullRadius(true);
-	button->setTextTransform(RoundButton::TextTransform::NoTransform);
 	button->setClickedCallback(choose);
 
 	parent->sizeValue() | rpl::on_next([=](QSize size) {
@@ -772,12 +777,13 @@ std::shared_ptr<Main::SessionShow> LocationPicker::uiShow() {
 }
 
 bool LocationPicker::Available(const LocationPickerConfig &config) {
-	static const auto Supported = [&] {
-		const auto availability = Webview::Availability();
-		return availability.customSchemeRequests
-			&& availability.customReferer;
-	}();
-	return Supported && !config.mapsToken.isEmpty();
+#ifdef _DEBUG
+	return true;
+#endif
+	const auto &availability = Core::CachedWebviewAvailability();
+	return availability.customSchemeRequests
+		&& availability.customReferer
+		&& !config.mapsToken.isEmpty();
 }
 
 void LocationPicker::setup(const Descriptor &descriptor) {
@@ -881,6 +887,25 @@ void LocationPicker::setupWebview() {
 
 	delete base::take(_mapPlaceholder);
 
+	const auto window = _window.get();
+	_webview = std::make_unique<Webview::Window>(
+		_container,
+		Webview::WindowConfig{
+			.opaqueBg = st::windowBg->c,
+			.storageId = _webviewStorageId,
+			.safe = true,
+		});
+	const auto raw = _webview.get();
+	if (!raw->widget()) {
+		_webview = nullptr;
+		showWebviewError();
+		return;
+	}
+
+	window->lifetime().add([=] {
+		_webview = nullptr;
+	});
+
 	const auto mapControls = _mapControlsWrap->entity();
 	mapControls->insert(
 		1,
@@ -910,20 +935,6 @@ void LocationPicker::setupWebview() {
 
 	SetupLoadingView(_mapLoading);
 	_mapLoading->show();
-
-	const auto window = _window.get();
-	_webview = std::make_unique<Webview::Window>(
-		_container,
-		Webview::WindowConfig{
-			.opaqueBg = st::windowBg->c,
-			.storageId = _webviewStorageId,
-			.safe = true,
-		});
-	const auto raw = _webview.get();
-
-	window->lifetime().add([=] {
-		_webview = nullptr;
-	});
 
 	window->events(
 	) | rpl::on_next([=](not_null<QEvent*> e) {
@@ -1056,6 +1067,45 @@ void LocationPicker::setupWebview() {
 	raw->navigateToData("location/picker.html");
 }
 
+void LocationPicker::showWebviewError() {
+	delete base::take(_mapPlaceholder);
+
+	const auto wrap = CreateChild<RpWidget>(_container);
+
+	const auto available = Webview::Availability();
+	auto text = (available.error != Webview::Available::Error::None)
+		? BotWebView::ErrorText(available)
+		: TextWithEntities{ u"Error: Could not initialize WebView."_q };
+
+	const auto error = CreateChild<PaddingWrap<FlatLabel>>(
+		wrap,
+		object_ptr<FlatLabel>(
+			wrap,
+			rpl::single(std::move(text)),
+			st::paymentsCriticalError),
+		st::paymentsCriticalErrorPadding);
+	error->entity()->setClickHandlerFilter([=](
+			const ClickHandlerPtr &handler,
+			Qt::MouseButton) {
+		const auto entity = handler->getTextEntity();
+		if (entity.type != EntityType::CustomUrl) {
+			return true;
+		}
+		File::OpenUrl(entity.data);
+		return false;
+	});
+	wrap->show();
+
+	wrap->widthValue() | rpl::on_next([=](int width) {
+		error->resizeToWidth(width);
+		wrap->resize(width, error->height());
+	}, wrap->lifetime());
+
+	_container->sizeValue() | rpl::on_next([=](QSize size) {
+		wrap->setGeometry(0, 0, size.width(), size.height());
+	}, wrap->lifetime());
+}
+
 void LocationPicker::resolveAddressByTimer() {
 	if (const auto location = base::take(_geocoderResolvePostponed)) {
 		resolveAddress(location);
@@ -1178,8 +1228,8 @@ void LocationPicker::venuesSendRequest() {
 	}
 	_venuesRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(MTPmessages_GetInlineBotResults::Flag::f_geo_point),
-		_venuesBot->inputUser,
-		(_venueRecipient ? _venueRecipient->input : MTP_inputPeerEmpty()),
+		_venuesBot->inputUser(),
+		(_venueRecipient ? _venueRecipient->input() : MTP_inputPeerEmpty()),
 		MTP_inputGeoPoint(
 			MTP_flags(0),
 			MTP_double(_venuesRequestLocation.point.x()),

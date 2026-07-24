@@ -168,7 +168,7 @@ SuggestionsWidget::SuggestionsWidget(
 , _session(session)
 , _suggestCustomEmoji(suggestCustomEmoji)
 , _allowCustomWithoutPremium(std::move(allowCustomWithoutPremium))
-, _overRect(st::roundRadiusSmall, _st.overBg)
+, _overRect(st::roundRadiusLarge, _st.overBg)
 , _oneWidth(st::emojiSuggestionSize)
 , _padding(st::emojiSuggestionsPadding) {
 	resize(

@@ -182,14 +182,14 @@ UnifiedFactoryOwner::RecentFactory UnifiedFactoryOwner::factory() {
 			&& !i->second.custom();
 		const auto manager = &_session->data().customEmojiManager();
 		auto result = isDefaultReaction
-			? std::make_unique<Ui::Text::ShiftedEmoji>(
+			? MakeWrappedEmoji<Ui::Text::ShiftedEmoji>(
 				manager->create(id, std::move(repaint), tag, sizeOverride),
 				_defaultReactionShift)
 			: manager->create(id, std::move(repaint), tag);
 		const auto j = _defaultReactionInStripMap.find(id);
 		if (j != end(_defaultReactionInStripMap)) {
 			Assert(_strip != nullptr);
-			return std::make_unique<StripEmoji>(
+			return MakeWrappedEmoji<StripEmoji>(
 				std::move(result),
 				_strip,
 				-_stripPaintOneShift,
@@ -208,7 +208,8 @@ Selector::Selector(
 	Fn<void(bool fast)> close,
 	IconFactory iconFactory,
 	Fn<bool()> paused,
-	bool child)
+	bool child,
+	QWidget *mediaPreviewParent)
 : Selector(
 	parent,
 	st,
@@ -224,7 +225,8 @@ Selector::Selector(
 	std::move(iconFactory),
 	std::move(paused),
 	std::move(close),
-	child) {
+	child,
+	mediaPreviewParent) {
 }
 
 #if 0 // not ready
@@ -261,7 +263,8 @@ Selector::Selector(
 	IconFactory iconFactory,
 	Fn<bool()> paused,
 	Fn<void(bool fast)> close,
-	bool child)
+	bool child,
+	QWidget *mediaPreviewParent)
 : RpWidget(parent)
 , _st(st)
 , _show(std::move(show))
@@ -269,6 +272,7 @@ Selector::Selector(
 , _recent(std::move(recent))
 , _listMode(mode)
 , _paused(std::move(paused))
+, _mediaPreviewParent(mediaPreviewParent)
 , _jumpedToPremium([=] { close(false); })
 , _cachedRound(
 	QSize(2 * st::reactStripSkip + st::reactStripSize, st::reactStripHeight),
@@ -359,10 +363,11 @@ int Selector::effectPreviewHeight() const {
 	if (_listMode != ChatHelpers::EmojiListMode::MessageEffects) {
 		return 0;
 	}
-	return st::previewMenu.shadow.extend.top()
+	const auto extend = Ui::BoxShadow::ExtendFor(st::previewMenu.shadow);
+	return extend.top()
 		+ HistoryView::Sticker::MessageEffectSize().height()
 		+ st::effectPreviewSend.height
-		+ st::previewMenu.shadow.extend.bottom();
+		+ extend.bottom();
 }
 
 QMargins Selector::marginsForShadow() const {
@@ -465,6 +470,10 @@ void Selector::setBubbleUp(bool bubbleUp) {
 	_bubbleUp = bubbleUp;
 }
 
+void Selector::setExpandDown(bool expandDown) {
+	_expandDown = expandDown;
+}
+
 void Selector::initGeometry(int innerTop) {
 	const auto margins = marginsForShadow();
 	const auto parent = parentWidget()->rect();
@@ -474,10 +483,11 @@ void Selector::initGeometry(int innerTop) {
 		? (innerWidth + margins.left() + margins.right())
 		: parent.width();
 	const auto forAbout = width - margins.left() - margins.right();
-	_collapsedTopSkip = _useTransparency
+	const auto categoriesAndAboutTop = _useTransparency
 		? (extendTopForCategoriesAndAbout(forAbout) + _specialExpandTopSkip)
 		: opaqueExtendTopAbout(forAbout);
-	_topAddOnExpand = _collapsedTopSkip - _aboutExtend;
+	_collapsedTopSkip = _expandDown ? _aboutExtend : categoriesAndAboutTop;
+	_topAddOnExpand = categoriesAndAboutTop - _aboutExtend;
 	const auto height = margins.top()
 		+ _aboutExtend
 		+ innerHeight
@@ -802,7 +812,7 @@ void Selector::paintNonTransparentExpandRect(
 		inner.y() + inner.height(),
 		inner.width(),
 		st::lineWidth,
-		st::defaultPopupMenu.shadow.fallback);
+		st::defaultPopupMenu.shadowFallback);
 }
 
 void Selector::paintExpanded(QPainter &p) {
@@ -874,6 +884,13 @@ void Selector::mouseMoveEvent(QMouseEvent *e) {
 	setSelected(lookupSelectedIndex(e->pos()));
 }
 
+bool Selector::inVisibleArea(QPoint position) const {
+	return !_strip
+		|| _expandScheduled
+		|| _outerWithBubble.isEmpty()
+		|| _outerWithBubble.contains(position);
+}
+
 int Selector::lookupSelectedIndex(QPoint position) const {
 	const auto p = position - _inner.topLeft() - QPoint(_skipx, _skipy);
 	const auto max = _strip->count();
@@ -911,15 +928,30 @@ void Selector::leaveEventHook(QEvent *e) {
 }
 
 void Selector::mousePressEvent(QMouseEvent *e) {
-	if (!_strip) {
+	if (!inVisibleArea(e->pos())) {
+		e->ignore();
+		return;
+	} else if (!_strip) {
 		return;
 	}
 	_pressed = lookupSelectedIndex(e->pos());
 }
 
 void Selector::mouseReleaseEvent(QMouseEvent *e) {
-	if (!_strip || _pressed != lookupSelectedIndex(e->pos())) {
+	if (!inVisibleArea(e->pos())) {
+		e->ignore();
 		return;
+	} else if (!_strip) {
+		return;
+	}
+	if (_pressed != lookupSelectedIndex(e->pos())) {
+#ifdef Q_OS_UNIX
+		if (!_over || e->button() != Qt::RightButton) {
+			return;
+		}
+#else
+		return;
+#endif // !Q_OS_UNIX
 	}
 	_pressed = -1;
 	const auto selected = _strip->selected();
@@ -987,11 +1019,24 @@ void Selector::expand() {
 		margins.top() + heightLimit + margins.bottom());
 	const auto additionalBottom = willBeHeight - height();
 	const auto additional = _specialExpandTopSkip + additionalBottom;
+	const auto additionalTop = _expandDown ? _topAddOnExpand : 0;
 	if (additionalBottom < 0 || additional <= 0) {
 		return;
-	} else if (additionalBottom > 0) {
-		resize(width(), height() + additionalBottom);
+	} else if (additionalBottom > 0 || additionalTop > 0) {
+		setGeometry(
+			x(),
+			y() - additionalTop,
+			width(),
+			height() + additionalTop + additionalBottom);
 		raise();
+		if (additionalTop > 0) {
+			_outer.translate(0, additionalTop);
+			_outerWithBubble.translate(0, additionalTop);
+			_inner.translate(0, additionalTop);
+			if (_about) {
+				_about->move(_about->x(), _about->y() + additionalTop);
+			}
+		}
 	}
 
 	createList();
@@ -1075,8 +1120,11 @@ void Selector::createList() {
 			.customRecentFactory = _unifiedFactoryOwner->factory(),
 			.freeEffects = std::move(freeEffects),
 			.st = st,
-			.mediaPreviewParent = this,
+			.mediaPreviewParent = _mediaPreviewParent
+				? _mediaPreviewParent
+				: this,
 			.mediaPreviewMargins = marginsForShadow(),
+			.mediaPreviewPanelStyle = (_mediaPreviewParent == nullptr),
 		}));
 	if (!_reactions.stickers.empty()) {
 		auto descriptors = ranges::views::all(
@@ -1238,7 +1286,7 @@ bool AdjustMenuGeometryForSelector(
 		selector->effectPreviewHeight());
 	const auto willBeHeightWithoutBottomPadding = fullTop
 		+ height
-		- menu->st().shadow.extend.top();
+		- Ui::BoxShadow::ExtendFor(menu->st().shadow).top();
 	const auto additionalPaddingBottom
 		= (willBeHeightWithoutBottomPadding >= minimalHeight
 			? 0

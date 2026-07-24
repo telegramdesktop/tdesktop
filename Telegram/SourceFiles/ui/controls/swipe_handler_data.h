@@ -27,6 +27,11 @@ struct SwipeContextData final {
 	int cursorTop = 0;
 };
 
+struct SwipeHandlerInitData final {
+	QPoint cursorPosition;
+	Qt::LayoutDirection direction = Qt::LeftToRight;
+};
+
 struct SwipeBackResult final {
 	rpl::lifetime lifetime;
 	Fn<void(SwipeContextData)> callback;

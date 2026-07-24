@@ -200,6 +200,7 @@ void GroupCallBar::refreshScheduledProcess() {
 			_inner.get(),
 			_scheduledProcess->text(GroupCallScheduledLeft::Negative::Show),
 			st::groupCallTopBarOpen);
+		_open->setTextTransform(RoundButtonTextTransform::ToUpper);
 		setupRightButton(_open.get());
 		_open->widthValue(
 		) | rpl::on_next([=] {

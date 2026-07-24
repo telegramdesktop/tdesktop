@@ -40,6 +40,8 @@ class ItemBase;
 
 namespace Ui {
 
+class UploadProgressOverlay;
+
 class PopupMenu;
 
 class UserpicButton final : public RippleButton {
@@ -111,6 +113,10 @@ public:
 	void showSource(Source source);
 	void showCustomOnChosen();
 
+	void showUploadProgress();
+
+	[[nodiscard]] PopupMenu *showChangePhotoMenu();
+
 	void overrideHasPersonalPhoto(bool has);
 	[[nodiscard]] rpl::producer<> resetPersonalRequests() const;
 
@@ -132,7 +138,7 @@ private:
 	void processNewPeerPhoto();
 	void startNewPhotoShowing();
 	void prepareUserpicPixmap();
-	void fillShape(QPainter &p, const style::color &color) const;
+	void fillShape(QPainter &p, QBrush brush) const;
 	[[nodiscard]] QPoint countPhotoPosition() const;
 	void startChangeOverlayAnimation();
 	void updateCursorInChangeOverlay(QPoint localPos);
@@ -199,6 +205,9 @@ private:
 	std::optional<bool> _overrideHasPersonalPhoto;
 	rpl::event_stream<> _resetPersonalRequests;
 	rpl::lifetime _sourceLifetime;
+
+	std::unique_ptr<UploadProgressOverlay> _uploadOverlay;
+	rpl::lifetime _uploadLifetime;
 
 };
 

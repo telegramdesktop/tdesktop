@@ -179,7 +179,6 @@ void Close::paintEvent(QPaintEvent *e) {
 			(height() - st::mediaSponsoredCloseDiameter) / 2,
 			st::mediaSponsoredCloseDiameter,
 			st::mediaSponsoredCloseDiameter);
-		p.setFont(st::mediaSponsoredCloseFont);
 		_countdown.paint(
 			p,
 			inner.x() + (inner.width() - _countdown.countWidth()) / 2,
@@ -332,7 +331,6 @@ PlaybackSponsored::Message::Message(
 		this,
 		_aboutSt.ripple,
 		std::move(allowCloseAt))) {
-	_about->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	setMouseTracking(true);
 	populate();
 	hide();
@@ -487,6 +485,7 @@ void PlaybackSponsored::Message::mouseReleaseEvent(QMouseEvent *e) {
 int PlaybackSponsored::Message::resizeGetHeight(int newWidth) {
 	const auto &padding = st::mediaSponsoredPadding;
 	const auto userpic = st::mediaSponsoredThumb;
+	_left = padding.left() + (_photo ? (userpic + padding.left()) : 0);
 	const auto innerWidth = newWidth - _left - _close->width();
 	const auto titleWidth = innerWidth - _about->width() - padding.right();
 	_titleHeight = _title.countHeight(titleWidth);
@@ -495,7 +494,6 @@ int PlaybackSponsored::Message::resizeGetHeight(int newWidth) {
 	const auto use = std::max(_titleHeight + _textHeight, userpic);
 
 	const auto height = padding.top() + use + padding.bottom();
-	_left = padding.left() + (_photo ? (userpic + padding.left()) : 0);
 	_top = padding.top() + (use - _titleHeight - _textHeight) / 2;
 
 	_about->move(
@@ -648,7 +646,7 @@ void PlaybackSponsored::update() {
 	}
 
 	const auto [now, state] = computeState();
-	const auto message = (_data->state.itemIndex < _data->list.size())
+	const auto message = (state.itemIndex < _data->list.size())
 		? &_data->list[state.itemIndex]
 		: nullptr;
 	const auto duration = message
@@ -670,7 +668,11 @@ void PlaybackSponsored::update() {
 		}
 	} else if (_data->state.leftTillShow <= 0
 		&& state.leftTillShow <= -duration) {
-		hide(now);
+		if (duration) {
+			hide(now);
+		} else {
+			finish();
+		}
 	} else {
 		if (state.leftTillShow <= 0 && duration) {
 			_allowCloseAt = now + state.leftTillShow + message->durationMin;
@@ -684,7 +686,6 @@ void PlaybackSponsored::update() {
 			: (state.leftTillShow + duration));
 	}
 }
-
 
 void PlaybackSponsored::show(const Data::SponsoredMessage &data) {
 	_widget = std::make_unique<Message>(
@@ -718,13 +719,13 @@ void PlaybackSponsored::showPremiumPromo() {
 }
 
 void PlaybackSponsored::hide(crl::time now) {
-	Expects(_widget != nullptr);
-
-	_widget->fadeOut([this, raw = _widget.get()] {
-		if (_widget.get() == raw) {
-			_widget = nullptr;
-		}
-	});
+	if (_widget) {
+		_widget->fadeOut([this, raw = _widget.get()] {
+			if (_widget.get() == raw) {
+				_widget = nullptr;
+			}
+		});
+	}
 
 	++_data->state.itemIndex;
 	_data->state.leftTillShow = std::max(

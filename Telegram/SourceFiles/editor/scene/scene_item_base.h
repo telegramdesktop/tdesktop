@@ -100,6 +100,7 @@ protected:
 	void actionFlip();
 	void actionDelete();
 	void actionDuplicate();
+	void raiseToTop();
 
 	QRectF contentRect() const;
 	QRectF innerRect() const;

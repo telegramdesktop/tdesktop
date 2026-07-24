@@ -249,19 +249,23 @@ struct MadePrivacyBadge {
 	const auto index = data.fullIndex + 1;
 	const auto count = data.fullCount;
 	return count
-		? QString::fromUtf8(" \xE2\x80\xA2 %1/%2").arg(index).arg(count)
+		? QString::fromUtf8(" %3 %1/%2")
+			.arg(index)
+			.arg(count)
+			.arg(Ui::kQBullet)
 		: QString();
 }
 
 [[nodiscard]] Timestamp ComposeDetails(HeaderData data, TimeId now) {
 	auto result = ComposeTimestamp(data.date, now);
 	if (data.edited) {
-		result.text.append(
-			QString::fromUtf8(" \xE2\x80\xA2 ") + tr::lng_edited(tr::now));
+		result.text.append(' '
+			+ Ui::kQBullet
+			+ ' '
+			+ tr::lng_edited(tr::now));
 	}
 	if (data.fromPeer || !data.repostFrom.isEmpty()) {
-		result.text = QString::fromUtf8("\xE2\x80\xA2 ")
-			+ result.text;
+		result.text = Ui::kQBullet + ' ' + result.text;
 	}
 	return result;
 }
@@ -549,7 +553,7 @@ void Header::setVideoStreamViewers(rpl::producer<int> viewers) {
 	auto helper = Ui::Text::CustomEmojiHelper();
 	const auto badge = helper.paletteDependent(
 		Ui::Text::CustomEmojiTextBadge(
-			tr::lng_video_stream_live(tr::now),
+			tr::lng_video_stream_live(tr::now).toUpper(),
 			st::groupCallMessageBadge,
 			st::groupCallMessageBadgeMargin));
 	const auto context = helper.context();

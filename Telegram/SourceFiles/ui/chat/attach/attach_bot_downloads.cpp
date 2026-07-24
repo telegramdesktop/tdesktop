@@ -23,7 +23,7 @@ namespace {
 class Action final : public Menu::ItemBase {
 public:
 	Action(
-		not_null<RpWidget*> parent,
+		not_null<Ui::Menu::Menu*> parent,
 		const DownloadsEntry &entry,
 		Fn<void(DownloadsAction)> callback);
 
@@ -57,7 +57,7 @@ private:
 };
 
 Action::Action(
-	not_null<RpWidget*> parent,
+	not_null<Ui::Menu::Menu*> parent,
 	const DownloadsEntry &entry,
 	Fn<void(DownloadsAction)> callback)
 : ItemBase(parent, st::defaultMenu)
@@ -69,8 +69,8 @@ Action::Action(
 	+ st::ttlItemTimerFont->height
 	+ st::ttlItemPadding.bottom()) {
 	setAcceptBoth(true);
-	initResizeHook(parent->sizeValue());
-	setClickedCallback([=] {
+	fitToMenuWidth();
+	setActionTriggered([=] {
 		if (isEnabled()) {
 			callback(DownloadsAction::Open);
 		}
@@ -243,7 +243,7 @@ FnMut<void(not_null<PopupMenu*>)> FillAttachBotDownloadsSubmenu(
 					i->action->refresh(entry);
 				} else {
 					auto action = base::make_unique_q<Action>(
-						menu,
+						menu->menu(),
 						entry,
 						[=](DownloadsAction type) { callback(id, type); });
 					state->rows.push_back({

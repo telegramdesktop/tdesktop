@@ -18,6 +18,11 @@ void UsernamesBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<PeerData*> peer);
 
+void UsernamesBoxWithCallback(
+	not_null<Ui::GenericBox*> box,
+	not_null<PeerData*> peer,
+	Fn<void()> onSaved);
+
 struct UsernameCheckInfo final {
 	[[nodiscard]] static UsernameCheckInfo PurchaseAvailable(
 		const QString &username,

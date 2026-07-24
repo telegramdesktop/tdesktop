@@ -33,6 +33,8 @@ public:
 	virtual void paintThemePreview(QRect outer) = 0;
 	virtual void paintDocumentBubble(QRect outer, QRect icon) = 0;
 	virtual void paintSaveMsg(QRect outer) = 0;
+	virtual void paintChapter(QRect outer) = 0;
+	virtual void paintSpeedBoost(QRect outer) = 0;
 	virtual void paintControlsStart() = 0;
 	virtual void paintControl(
 		Over control,

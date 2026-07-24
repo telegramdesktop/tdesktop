@@ -31,16 +31,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "base/options.h"
 #include "base/crc32hash.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/shadow.h"
 #include "ui/controls/window_outdated_bar.h"
+#include "ui/controls/window_screen_reader_bar.h"
 #include "ui/painter.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "mainwidget.h" // session->content()->windowShown().
 #include "tray.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h" // ChildSkip().x() for new child windows.
+
+#ifdef Q_OS_MAC
+#include "platform/mac/global_menu_mac.h"
+#endif // Q_OS_MAC
 
 #include <QtCore/QMimeData>
 #include <QtGui/QWindow>
@@ -71,7 +78,7 @@ using Core::WindowPosition;
 
 base::options::toggle OptionNewWindowsSizeAsFirst({
 	.id = kOptionNewWindowsSizeAsFirst,
-	.name = "Adjust size of new chat windows.",
+	.name = "Adjust size of new chat windows",
 	.description = "Open new windows with a size of the main window.",
 });
 
@@ -176,7 +183,7 @@ void OverrideApplicationIcon(QImage image) {
 	OverridenIcon() = std::move(image);
 }
 
-QIcon CreateOfficialIcon(Main::Session *session) {
+QIcon CreateSupportIcon(Main::Session *session) {
 	const auto support = (session && session->supportMode());
 	if (!support) {
 		return QIcon();
@@ -190,22 +197,27 @@ QIcon CreateOfficialIcon(Main::Session *session) {
 }
 
 QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
-	const auto officialIcon = CreateOfficialIcon(session);
-	if (!officialIcon.isNull() || returnNullIfDefault) {
-		return officialIcon;
+	const auto supportIcon = CreateSupportIcon(session);
+	if (!supportIcon.isNull() || returnNullIfDefault) {
+		return supportIcon;
 	}
 
-	auto result = QIcon(Ui::PixmapFromImage(base::duplicate(Logo())));
+	const auto officialIcon = QIcon(
+		Ui::PixmapFromImage(base::duplicate(Logo())));
 
 	if constexpr (!Platform::IsLinux()) {
-		return result;
+		return officialIcon;
 	}
 
 	const auto iconFromTheme = QIcon::fromTheme(
 		Platform::ApplicationIconName(),
-		result);
+		officialIcon);
 
-	result = QIcon();
+	if (!Platform::IsX11()) {
+		return iconFromTheme;
+	}
+
+	QIcon result;
 
 	static const auto iconSizes = {
 		16,
@@ -368,6 +380,20 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 : _controller(controller)
 , _positionUpdatedTimer([=] { savePosition(); })
 , _outdated(Ui::CreateOutdatedBar(body(), cWorkingDir()))
+, _screenReaderBar(Ui::CreateScreenReaderBar(body(), [=] {
+	controller->show(Ui::MakeConfirmBox({
+		.text = tr::lng_screen_reader_confirm_text(tr::now),
+		.confirmed = [=](Fn<void()> close) {
+			Core::App().settings().writePref<bool>(
+				Core::kScreenReaderModeDisabledKey,
+				true);
+			Core::App().saveSettingsDelayed();
+			Ui::SetScreenReaderModeDisabled(true);
+			close();
+		},
+		.confirmText = tr::lng_screen_reader_confirm_disable(),
+	}));
+}))
 , _body(body()) {
 	style::PaletteChanged(
 	) | rpl::on_next([=] {
@@ -417,6 +443,13 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 			}
 			updateControlsGeometry();
 		}, _outdated->lifetime());
+	}
+
+	if (_screenReaderBar) {
+		_screenReaderBar->heightValue(
+		) | rpl::on_next([=](int height) {
+			updateControlsGeometry();
+		}, _screenReaderBar->lifetime());
 	}
 
 	Shortcuts::Listen(this);
@@ -474,6 +507,14 @@ bool MainWindow::hideNoQuit() {
 void MainWindow::clearWidgets() {
 	clearWidgetsHook();
 	updateGlobalMenu();
+}
+
+void MainWindow::updateGlobalMenu() {
+#ifdef Q_OS_MAC
+	Platform::RequestUpdateGlobalMenu();
+#else // Q_OS_MAC
+	updateGlobalMenuHook();
+#endif // Q_OS_MAC
 }
 
 void MainWindow::updateIsActive() {
@@ -606,7 +647,14 @@ int MainWindow::computeMinHeight() const {
 		_outdated->resizeToWidth(st::windowMinWidth);
 		return _outdated->height();
 	}();
-	return outdated + st::windowMinHeight;
+	const auto screenReader = [&] {
+		if (!_screenReaderBar) {
+			return 0;
+		}
+		_screenReaderBar->resizeToWidth(st::windowMinWidth);
+		return _screenReaderBar->height();
+	}();
+	return outdated + screenReader + st::windowMinHeight;
 }
 
 void MainWindow::refreshTitleWidget() {
@@ -700,111 +748,12 @@ QRect MainWindow::countInitialGeometry(WindowPosition position) {
 		.w = initialWidth,
 		.h = initialHeight,
 	};
-	return countInitialGeometry(
+	return CountInitialGeometry(
+		this,
 		position,
 		initial,
-		{ st::windowMinWidth, st::windowMinHeight });
-}
-
-QRect MainWindow::countInitialGeometry(
-		WindowPosition position,
-		WindowPosition initial,
-		QSize minSize) const {
-	if (!position.w || !position.h) {
-		return initial.rect();
-	}
-	const auto screen = [&]() -> QScreen* {
-		for (const auto screen : QGuiApplication::screens()) {
-			const auto sum = Platform::ScreenNameChecksum(screen->name());
-			if (position.moncrc == sum) {
-				return screen;
-			}
-		}
-		return nullptr;
-	}();
-	if (!screen) {
-		return initial.rect();
-	}
-	const auto frame = frameMargins();
-	const auto screenGeometry = screen->geometry();
-	const auto availableGeometry = screen->availableGeometry();
-	const auto spaceForInner = availableGeometry.marginsRemoved(frame);
-	DEBUG_LOG(("Window Pos: "
-		"Screen found, screen geometry: %1, %2, %3, %4, "
-		"available: %5, %6, %7, %8"
-		).arg(screenGeometry.x()
-		).arg(screenGeometry.y()
-		).arg(screenGeometry.width()
-		).arg(screenGeometry.height()
-		).arg(availableGeometry.x()
-		).arg(availableGeometry.y()
-		).arg(availableGeometry.width()
-		).arg(availableGeometry.height()));
-	DEBUG_LOG(("Window Pos: "
-		"Window frame margins: %1, %2, %3, %4, "
-		"available space for inner geometry: %5, %6, %7, %8"
-		).arg(frame.left()
-		).arg(frame.top()
-		).arg(frame.right()
-		).arg(frame.bottom()
-		).arg(spaceForInner.x()
-		).arg(spaceForInner.y()
-		).arg(spaceForInner.width()
-		).arg(spaceForInner.height()));
-
-	const auto x = spaceForInner.x() - screenGeometry.x();
-	const auto y = spaceForInner.y() - screenGeometry.y();
-	const auto w = spaceForInner.width();
-	const auto h = spaceForInner.height();
-	if (w < st::windowMinWidth || h < st::windowMinHeight) {
-		return initial.rect();
-	}
-	if (position.x < x) position.x = x;
-	if (position.y < y) position.y = y;
-	if (position.w > w) position.w = w;
-	if (position.h > h) position.h = h;
-	const auto rightPoint = position.x + position.w;
-	const auto screenRightPoint = x + w;
-	if (rightPoint > screenRightPoint) {
-		const auto distance = rightPoint - screenRightPoint;
-		const auto newXPos = position.x - distance;
-		if (newXPos >= x) {
-			position.x = newXPos;
-		} else {
-			position.x = x;
-			const auto newRightPoint = position.x + position.w;
-			const auto newDistance = newRightPoint - screenRightPoint;
-			position.w -= newDistance;
-		}
-	}
-	const auto bottomPoint = position.y + position.h;
-	const auto screenBottomPoint = y + h;
-	if (bottomPoint > screenBottomPoint) {
-		const auto distance = bottomPoint - screenBottomPoint;
-		const auto newYPos = position.y - distance;
-		if (newYPos >= y) {
-			position.y = newYPos;
-		} else {
-			position.y = y;
-			const auto newBottomPoint = position.y + position.h;
-			const auto newDistance = newBottomPoint - screenBottomPoint;
-			position.h -= newDistance;
-		}
-	}
-	position.x += screenGeometry.x();
-	position.y += screenGeometry.y();
-	if ((position.x + st::windowMinWidth
-		> screenGeometry.x() + screenGeometry.width())
-		|| (position.y + st::windowMinHeight
-			> screenGeometry.y() + screenGeometry.height())) {
-		return initial.rect();
-	}
-	DEBUG_LOG(("Window Pos: Resulting geometry is %1, %2, %3, %4"
-		).arg(position.x
-		).arg(position.y
-		).arg(position.w
-		).arg(position.h));
-	return position.rect();
+		{ st::windowMinWidth, st::windowMinHeight },
+		u"Window"_q);
 }
 
 void MainWindow::firstShow() {
@@ -860,6 +809,12 @@ void MainWindow::updateControlsGeometry() {
 		_outdated->resizeToWidth(inner.width());
 		_outdated->moveToLeft(inner.x(), bodyTop);
 		bodyTop += _outdated->height();
+	}
+	if (_screenReaderBar) {
+		Ui::SendPendingMoveResizeEvents(_screenReaderBar.data());
+		_screenReaderBar->resizeToWidth(inner.width());
+		_screenReaderBar->moveToLeft(inner.x(), bodyTop);
+		bodyTop += _screenReaderBar->height();
 	}
 	if (_rightColumn) {
 		bodyWidth -= _rightColumn->width();
@@ -981,7 +936,8 @@ WindowPosition MainWindow::withScreenInPosition(
 	return PositionWithScreen(
 		position,
 		this,
-		{ st::windowMinWidth, st::windowMinHeight });
+		{ st::windowMinWidth, st::windowMinHeight },
+		u"Window"_q);
 }
 
 bool MainWindow::minimizeToTray() {
@@ -1056,12 +1012,16 @@ int MainWindow::tryToExtendWidthBy(int addToWidth) {
 
 void MainWindow::launchDrag(
 		std::unique_ptr<QMimeData> data,
-		Fn<void()> &&callback) {
+		Fn<void()> &&callback,
+		QPixmap pixmap) {
 	// Qt destroys this QDrag automatically after the drag is finished
 	// We must not delete this at the end of this function, as this breaks DnD on Linux
 	auto drag = new QDrag(this);
 	KUrlMimeData::exportUrlsToPortal(data.get());
 	drag->setMimeData(data.release());
+	if (!pixmap.isNull()) {
+		drag->setPixmap(std::move(pixmap));
+	}
 	drag->exec(Qt::CopyAction);
 
 	// We don't receive mouseReleaseEvent when drag is finished.
@@ -1090,7 +1050,8 @@ int32 DefaultScreenNameChecksum(const QString &name) {
 WindowPosition PositionWithScreen(
 		WindowPosition position,
 		const QScreen *chosen,
-		QSize minimal) {
+		QSize minimal,
+		const QString &name) {
 	if (!chosen) {
 		return position;
 	}
@@ -1108,26 +1069,136 @@ WindowPosition PositionWithScreen(
 		position.y = available.y() + available.height() - position.h;
 	}
 	const auto geometry = chosen->geometry();
-	DEBUG_LOG(("Window Pos: Screen found, geometry: %1, %2, %3, %4"
+	DEBUG_LOG(("%1 Pos: Screen found, geometry: %2, %3, %4, %5"
+		).arg(name
 		).arg(geometry.x()
 		).arg(geometry.y()
 		).arg(geometry.width()
 		).arg(geometry.height()));
-	position.x -= geometry.x();
-	position.y -= geometry.y();
-	position.moncrc = Platform::ScreenNameChecksum(chosen->name());
 	return position;
 }
 
 WindowPosition PositionWithScreen(
 		WindowPosition position,
 		not_null<const QWidget*> widget,
-		QSize minimal) {
+		QSize minimal,
+		const QString &name) {
 	const auto screen = widget->screen();
 	return PositionWithScreen(
 		position,
 		screen ? screen : QGuiApplication::primaryScreen(),
-		minimal);
+		minimal,
+		name);
+}
+
+QRect CountInitialGeometry(
+		not_null<const Ui::RpWindow*> widget,
+		WindowPosition position,
+		WindowPosition initial,
+		QSize minSize,
+		const QString &name) {
+	if (!position.w || !position.h) {
+		return initial.rect();
+	}
+	const auto screen = [&]() -> QScreen* {
+		for (const auto screen : QGuiApplication::screens()) {
+			const auto sum = Platform::ScreenNameChecksum(screen->name());
+			if (position.moncrc == sum) {
+				return screen;
+			}
+		}
+		return QGuiApplication::screenAt(position.rect().center());
+	}();
+	if (!screen) {
+		return initial.rect();
+	}
+	const auto frame = widget->frameMargins();
+	const auto screenGeometry = screen->geometry();
+	const auto availableGeometry = screen->availableGeometry();
+	const auto spaceForInner = availableGeometry.marginsRemoved(frame);
+	DEBUG_LOG(("%1 Pos: "
+		"Screen found, screen geometry: %2, %3, %4, %5, "
+		"available: %6, %7, %8, %9"
+		).arg(name
+		).arg(screenGeometry.x()
+		).arg(screenGeometry.y()
+		).arg(screenGeometry.width()
+		).arg(screenGeometry.height()
+		).arg(availableGeometry.x()
+		).arg(availableGeometry.y()
+		).arg(availableGeometry.width()
+		).arg(availableGeometry.height()));
+	DEBUG_LOG(("%1 Pos: "
+		"Window frame margins: %2, %3, %4, %5, "
+		"available space for inner geometry: %6, %7, %8, %9"
+		).arg(name
+		).arg(frame.left()
+		).arg(frame.top()
+		).arg(frame.right()
+		).arg(frame.bottom()
+		).arg(spaceForInner.x()
+		).arg(spaceForInner.y()
+		).arg(spaceForInner.width()
+		).arg(spaceForInner.height()));
+
+	const auto x = spaceForInner.x()
+		- (position.moncrc ? screenGeometry.x() : 0);
+	const auto y = spaceForInner.y()
+		- (position.moncrc ? screenGeometry.y() : 0);
+	const auto w = spaceForInner.width();
+	const auto h = spaceForInner.height();
+	if (w < st::windowMinWidth || h < st::windowMinHeight) {
+		return initial.rect();
+	}
+	if (position.x < x) position.x = x;
+	if (position.y < y) position.y = y;
+	if (position.w > w) position.w = w;
+	if (position.h > h) position.h = h;
+	const auto rightPoint = position.x + position.w;
+	const auto screenRightPoint = x + w;
+	if (rightPoint > screenRightPoint) {
+		const auto distance = rightPoint - screenRightPoint;
+		const auto newXPos = position.x - distance;
+		if (newXPos >= x) {
+			position.x = newXPos;
+		} else {
+			position.x = x;
+			const auto newRightPoint = position.x + position.w;
+			const auto newDistance = newRightPoint - screenRightPoint;
+			position.w -= newDistance;
+		}
+	}
+	const auto bottomPoint = position.y + position.h;
+	const auto screenBottomPoint = y + h;
+	if (bottomPoint > screenBottomPoint) {
+		const auto distance = bottomPoint - screenBottomPoint;
+		const auto newYPos = position.y - distance;
+		if (newYPos >= y) {
+			position.y = newYPos;
+		} else {
+			position.y = y;
+			const auto newBottomPoint = position.y + position.h;
+			const auto newDistance = newBottomPoint - screenBottomPoint;
+			position.h -= newDistance;
+		}
+	}
+	if (position.moncrc) {
+		position.x += screenGeometry.x();
+		position.y += screenGeometry.y();
+	}
+	if ((position.x + st::windowMinWidth
+		> screenGeometry.x() + screenGeometry.width())
+		|| (position.y + st::windowMinHeight
+			> screenGeometry.y() + screenGeometry.height())) {
+		return initial.rect();
+	}
+	DEBUG_LOG(("%1 Pos: Resulting geometry is %2, %3, %4, %5"
+		).arg(name
+		).arg(position.x
+		).arg(position.y
+		).arg(position.w
+		).arg(position.h));
+	return position.rect();
 }
 
 } // namespace Window

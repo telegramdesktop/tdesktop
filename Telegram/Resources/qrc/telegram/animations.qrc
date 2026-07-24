@@ -17,11 +17,15 @@
     <file alias="stats_earn.tgs">../../animations/stats_earn.tgs</file>
     <file alias="voice_ttl_idle.tgs">../../animations/voice_ttl_idle.tgs</file>
     <file alias="voice_ttl_start.tgs">../../animations/voice_ttl_start.tgs</file>
+    <file alias="chat/voice_to_video.tgs">../../animations/chat/voice_to_video.tgs</file>
+    <file alias="chat/video_to_voice.tgs">../../animations/chat/video_to_voice.tgs</file>
+    <file alias="chat/sparkles_emoji.tgs">../../animations/chat/sparkles_emoji.tgs</file>
+    <file alias="chat/white_flag_emoji.tgs">../../animations/chat/white_flag_emoji.tgs</file>
     <file alias="palette.tgs">../../animations/palette.tgs</file>
     <file alias="sleep.tgs">../../animations/sleep.tgs</file>
     <file alias="greeting.tgs">../../animations/greeting.tgs</file>
     <file alias="location.tgs">../../animations/location.tgs</file>
-    <file alias="robot.tgs">../../animations/robot.tgs</file>
+    <file alias="settings/chat_automation.tgs">../../animations/settings/chat_automation.tgs</file>
     <file alias="writing.tgs">../../animations/writing.tgs</file>
     <file alias="hours.tgs">../../animations/hours.tgs</file>
     <file alias="phone.tgs">../../animations/phone.tgs</file>
@@ -44,13 +48,32 @@
     <file alias="camera_outline.tgs">../../animations/camera_outline.tgs</file>
     <file alias="photo_suggest_icon.tgs">../../animations/photo_suggest_icon.tgs</file>
     <file alias="toast/saved_messages.tgs">../../animations/toast/saved_messages.tgs</file>
+    <file alias="toast/forward.tgs">../../animations/toast/forward.tgs</file>
     <file alias="toast/tagged.tgs">../../animations/toast/tagged.tgs</file>
     <file alias="my_gifts_empty.tgs">../../animations/my_gifts_empty.tgs</file>
     <file alias="toast/chats_filter_in.tgs">../../animations/toast/chats_filter_in.tgs</file>
+    <file alias="toast/save_to_gallery.tgs">../../animations/toast/save_to_gallery.tgs</file>
+    <file alias="toast/save_to_music.tgs">../../animations/toast/save_to_music.tgs</file>
+    <file alias="toast/delete.tgs">../../animations/toast/delete.tgs</file>
+    <file alias="toast/voip_invite.tgs">../../animations/toast/voip_invite.tgs</file>
+    <file alias="toast/copy.tgs">../../animations/toast/copy.tgs</file>
+    <file alias="toast/mute.tgs">../../animations/toast/mute.tgs</file>
+    <file alias="toast/unmute.tgs">../../animations/toast/unmute.tgs</file>
+    <file alias="toast/pin.tgs">../../animations/toast/pin.tgs</file>
+    <file alias="toast/unpin.tgs">../../animations/toast/unpin.tgs</file>
+    <file alias="toast/chats_archived.tgs">../../animations/toast/chats_archived.tgs</file>
+    <file alias="toast/star_premium_2.tgs">../../animations/toast/star_premium_2.tgs</file>
+    <file alias="toast/contact_check.tgs">../../animations/toast/contact_check.tgs</file>
     <file alias="rtmp.tgs">../../animations/rtmp.tgs</file>
     <file alias="show_or_premium_lastseen.tgs">../../animations/show_or_premium_lastseen.tgs</file>
     <file alias="show_or_premium_readtime.tgs">../../animations/show_or_premium_readtime.tgs</file>
     <file alias="passkeys.tgs">../../animations/passkeys.tgs</file>
+    <file alias="ban.tgs">../../animations/ban.tgs</file>
+    <file alias="cocoon.tgs">../../animations/cocoon.tgs</file>
+    <file alias="craft_failed.tgs">../../animations/craft_failed.tgs</file>
+    <file alias="stop.tgs">../../animations/stop.tgs</file>
+    <file alias="toast_hide_results.tgs">../../icons/poll/toast_hide_results.tgs</file>
+    <file alias="uploading.tgs">../../icons/poll/uploading.tgs</file>
 
     <file alias="profile_muting.tgs">../../animations/profile/profile_muting.tgs</file>
     <file alias="profile_unmuting.tgs">../../animations/profile/profile_unmuting.tgs</file>
@@ -65,6 +88,7 @@
     <file alias="slot_back.tgs">../../animations/dice/slot_back.tgs</file>
     <file alias="slot_pull.tgs">../../animations/dice/slot_pull.tgs</file>
     <file alias="winners.tgs">../../animations/dice/winners.tgs</file>
+    <file alias="dice_6.tgs">../../animations/dice/dice_6.tgs</file>
 
     <file alias="star_reaction_appear.tgs">../../animations/star_reaction/appear.tgs</file>
     <file alias="star_reaction_center.tgs">../../animations/star_reaction/center.tgs</file>
@@ -73,6 +97,12 @@
     <file alias="star_reaction_effect1.tgs">../../animations/star_reaction/effect1.tgs</file>
     <file alias="star_reaction_effect2.tgs">../../animations/star_reaction/effect2.tgs</file>
     <file alias="star_reaction_effect3.tgs">../../animations/star_reaction/effect3.tgs</file>
+
+    <file alias="photo_editor_pen.tgs">../../animations/photo_editor/pen.tgs</file>
+    <file alias="photo_editor_arrow.tgs">../../animations/photo_editor/arrow.tgs</file>
+    <file alias="photo_editor_marker.tgs">../../animations/photo_editor/marker.tgs</file>
+    <file alias="photo_editor_eraser.tgs">../../animations/photo_editor/eraser.tgs</file>
+    <file alias="photo_editor_blur.tgs">../../animations/photo_editor/blur.tgs</file>
 
     <file alias="swipe_archive.tgs">../../animations/swipe_action/archive.tgs</file>
     <file alias="swipe_unarchive.tgs">../../animations/swipe_action/unarchive.tgs</file>
@@ -84,5 +114,7 @@
     <file alias="swipe_unpin.tgs">../../animations/swipe_action/unpin.tgs</file>
     <file alias="swipe_read.tgs">../../animations/swipe_action/read.tgs</file>
     <file alias="swipe_unread.tgs">../../animations/swipe_action/unread.tgs</file>
+    <file alias="craft_progress.tgs">../../animations/craft_progress.tgs</file>
+    <file alias="cleaning_cache.tgs">../../animations/cleaning_cache.tgs</file>
   </qresource>
 </RCC>

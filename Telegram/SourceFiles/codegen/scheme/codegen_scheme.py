@@ -46,6 +46,7 @@ generate({
     'peerNotifySettings': 'inputPeerNotifySettings',
     'channelForbidden': 'channel',
     'dialogFolder': 'dialog',
+    'dialogCommunity': 'dialog',
   },
 
   'typeIdExceptions': [

@@ -117,7 +117,10 @@ public:
 		return _body.data();
 	}
 
-	void launchDrag(std::unique_ptr<QMimeData> data, Fn<void()> &&callback);
+	void launchDrag(
+		std::unique_ptr<QMimeData> data,
+		Fn<void()> &&callback,
+		QPixmap pixmap = QPixmap());
 
 	[[nodiscard]] rpl::producer<> leaveEvents() const;
 	[[nodiscard]] rpl::producer<> imeCompositionStarts() const;
@@ -135,14 +138,7 @@ public:
 
 	void firstShow();
 	bool minimizeToTray();
-	void updateGlobalMenu() {
-		updateGlobalMenuHook();
-	}
-
-	[[nodiscard]] QRect countInitialGeometry(
-		Core::WindowPosition position,
-		Core::WindowPosition initial,
-		QSize minSize) const;
+	void updateGlobalMenu();
 
 	[[nodiscard]] virtual rpl::producer<QPoint> globalForceClicks() {
 		return rpl::never<QPoint>();
@@ -214,6 +210,7 @@ private:
 
 	object_ptr<Ui::PlainShadow> _titleShadow = { nullptr };
 	object_ptr<Ui::RpWidget> _outdated;
+	object_ptr<Ui::RpWidget> _screenReaderBar;
 	object_ptr<Ui::RpWidget> _body;
 	object_ptr<Ui::RpWidget> _rightColumn = { nullptr };
 
@@ -237,10 +234,19 @@ private:
 [[nodiscard]] Core::WindowPosition PositionWithScreen(
 	Core::WindowPosition position,
 	const QScreen *chosen,
-	QSize minimal);
+	QSize minimal,
+	const QString &name);
 [[nodiscard]] Core::WindowPosition PositionWithScreen(
 	Core::WindowPosition position,
 	not_null<const QWidget*> widget,
-	QSize minimal);
+	QSize minimal,
+	const QString &name);
+
+[[nodiscard]] QRect CountInitialGeometry(
+	not_null<const Ui::RpWindow*> widget,
+	Core::WindowPosition position,
+	Core::WindowPosition initial,
+	QSize minSize,
+	const QString &name);
 
 } // namespace Window

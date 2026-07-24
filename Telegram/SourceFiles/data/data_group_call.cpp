@@ -976,7 +976,7 @@ void GroupCall::checkFinishSpeakingByActive() {
 			++i;
 		}
 	}
-	for (const auto participantPeer : stop) {
+	for (const auto &participantPeer : stop) {
 		const auto participant = findParticipant(participantPeer);
 		Assert(participant != nullptr);
 		if (participant->speaking) {
@@ -1152,7 +1152,7 @@ void GroupCall::saveSendAs(not_null<PeerData*> peer) {
 	_savedSendAs = peer;
 	api().request(MTPphone_SaveDefaultSendAs(
 		input(),
-		peer->input
+		peer->input()
 	)).send();
 }
 

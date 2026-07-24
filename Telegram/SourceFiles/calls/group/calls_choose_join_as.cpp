@@ -362,7 +362,7 @@ void ChooseJoinAsProcess::start(
 void ChooseJoinAsProcess::requestList() {
 	const auto session = &_request->peer->session();
 	_request->id = session->api().request(MTPphone_GetGroupCallJoinAs(
-		_request->peer->input
+		_request->peer->input()
 	)).done([=](const MTPphone_JoinAsPeers &result) {
 		auto list = result.match([&](const MTPDphone_joinAsPeers &data) {
 			session->data().processUsers(data.vusers());

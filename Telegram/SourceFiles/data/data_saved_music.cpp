@@ -269,7 +269,7 @@ void SavedMusic::loadMore(PeerId peerId, bool reload) {
 
 	entry.reloading = reload;
 	entry.requestId = _owner->session().api().request(MTPusers_GetSavedMusic(
-		user->inputUser,
+		user->inputUser(),
 		MTP_int(reload ? 0 : entry.list.size()),
 		MTP_int(kPerPage),
 		MTP_long(reload ? firstPageHash(entry) : 0)

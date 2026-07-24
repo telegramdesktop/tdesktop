@@ -175,7 +175,8 @@ void Account::createSession(
 			MTPPeerColor(), // profile_color
 			MTPint(), // bot_active_users
 			MTPlong(), // bot_verification_icon
-			MTPlong()), // send_paid_messages_stars
+			MTPlong(), // send_paid_messages_stars
+			MTPlong()), // linked_community_id
 		serialized,
 		streamVersion,
 		std::move(settings));
@@ -462,6 +463,7 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 	_mtp->setStateChangedHandler([=](MTP::ShiftedDcId dc, int32 state) {
 		if (dc == _mtp->mainDcId()) {
 			Core::App().settings().proxy().connectionTypeChangesNotify();
+			Core::App().checkProxyRotation(this, state);
 		}
 	});
 	_mtp->setSessionResetHandler([=](MTP::ShiftedDcId shiftedDcId) {

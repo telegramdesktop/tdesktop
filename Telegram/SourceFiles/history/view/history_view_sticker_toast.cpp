@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "lottie/lottie_single_player.h"
 #include "window/window_session_controller.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 
@@ -202,7 +202,6 @@ void StickerToast::showWithTitle(const QString &title) {
 		widget.get(),
 		rpl::single(view),
 		st::historyPremiumViewSet);
-	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	button->show();
 	rpl::combine(
 		widget->sizeValue(),

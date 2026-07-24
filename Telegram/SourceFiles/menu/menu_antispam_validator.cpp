@@ -106,7 +106,7 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 				tr::rich));
 		} else {
 			channel->session().api().request(MTPchannels_ToggleAntiSpam(
-				channel->inputChannel,
+				channel->inputChannel(),
 				MTP_bool(toggled)
 			)).done([=](const MTPUpdates &result) {
 				channel->session().api().applyUpdates(result);
@@ -184,7 +184,7 @@ void AntiSpamValidator::addAction(
 			[=, channel = _channel] {
 				_channel->session().api().request(
 					MTPchannels_ReportAntiSpamFalsePositive(
-						channel->inputChannel,
+						channel->inputChannel(),
 						MTP_int(eventId)
 				)).done(showToast).send();
 			},

@@ -63,6 +63,24 @@ void UpdateAnimated(
 
 } // namespace
 
+bool MatchAllPreparedSearchWords(
+		const QStringList &titleWords,
+		const QStringList &searchWords) {
+	for (const auto &searchWord : searchWords) {
+		auto found = false;
+		for (const auto &titleWord : titleWords) {
+			if (titleWord.startsWith(searchWord)) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			return false;
+		}
+	}
+	return true;
+}
+
 uint64 EmojiSectionSetId(EmojiSection section) {
 	Expects(section >= EmojiSection::Recent
 		&& section <= EmojiSection::Symbols);
@@ -146,7 +164,8 @@ rpl::producer<std::vector<GifSection>> GifSectionsValue(
 
 [[nodiscard]] std::vector<EmojiPtr> SearchEmoji(
 		const std::vector<QString> &query,
-		base::flat_set<EmojiPtr> &outResultSet) {
+		base::flat_set<EmojiPtr> &outResultSet,
+		bool exact) {
 	auto result = std::vector<EmojiPtr>();
 	const auto pushPlain = [&](EmojiPtr emoji) {
 		if (result.size() < kEmojiSearchLimit
@@ -170,7 +189,7 @@ rpl::producer<std::vector<GifSection>> GifSectionsValue(
 				refreshed = true;
 				keywords.refresh();
 			}
-			const auto list = keywords.queryMine(entry);
+			const auto list = keywords.queryMine(entry, exact);
 			for (const auto &entry : list) {
 				pushPlain(entry.emoji);
 				if (result.size() >= kEmojiSearchLimit) {

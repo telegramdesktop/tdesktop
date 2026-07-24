@@ -32,7 +32,31 @@ void StarParticles::setVisible(float visible) {
 }
 
 void StarParticles::setColor(const QColor &color) {
-	_color = color;
+	setColors({ color });
+}
+
+void StarParticles::setColors(std::vector<QColor> colors) {
+	Expects(!colors.empty());
+
+	const auto was = int(_colors.size());
+	_colors = std::move(colors);
+	const auto now = int(_colors.size());
+
+	_paintedCaches.clear();
+
+	if (now != was) {
+		if (now > 1) {
+			auto buffered = base::BufferedRandom<uint32>(_particles.size());
+			for (auto &p : _particles) {
+				p.colorIndex = base::RandomIndex(now, buffered);
+			}
+		} else {
+			for (auto &p : _particles) {
+				p.colorIndex = 0;
+			}
+		}
+
+	}
 }
 
 QImage StarParticles::generateStarCache(int size, QColor color) {
@@ -76,11 +100,13 @@ void StarParticles::generate() {
 	_particles.clear();
 	_particles.reserve(_count);
 
-	constexpr auto kRandomPerParticle = 12;
+	constexpr auto kRandomPerParticle = 13;
 	auto random = bytes::vector(_count * kRandomPerParticle);
 	base::RandomFill(random.data(), random.size());
 	auto idx = 0;
 	const auto next = [&] { return uchar(random[idx++]) / 255.; };
+
+	const auto colors = int(_colors.size());
 
 	for (auto i = 0; i < _count; ++i) {
 		auto p = Particle();
@@ -106,23 +132,57 @@ void StarParticles::generate() {
 			p.vy = -std::sin(angle) * speed;
 		}
 
+		if (colors > 1) {
+			p.colorIndex = int(base::SafeRound(next() * (colors - 1)));
+		}
+
 		_particles.push_back(p);
 	}
 }
 
-void StarParticles::paint(QPainter &p, const QRect &rect, crl::time now) {
+void StarParticles::paint(
+		QPainter &p,
+		const QRect &rect,
+		crl::time now,
+		bool paused) {
 	if (_lastTime == 0) {
 		_lastTime = now;
 		return;
 	}
 
-	const auto colorKey = _color.rgba();
-	const auto i = _starCache.find(colorKey);
-	const auto &cache = (i != end(_starCache))
-		? i->second
-		: _starCache.emplace(
-			colorKey,
-			generateStarCache(_starSize, _color)).first->second;
+	if (paused) {
+		if (!_pausedAt) {
+			_pausedAt = now;
+		}
+		now = _pausedAt - _pauseOffset;
+	} else {
+		if (_pausedAt) {
+			_pauseOffset += now - _pausedAt;
+			_pausedAt = 0;
+		}
+		now = now - _pauseOffset;
+	}
+
+	const auto validate = [&](int colorIndex) {
+		Expects(colorIndex >= 0 && colorIndex < _colors.size());
+
+		if (_paintedCaches.empty()) {
+			_paintedCaches.resize(_colors.size());
+		} else if (const auto result = _paintedCaches[colorIndex]
+			; !result.isNull()) {
+			return result;
+		}
+		const auto &color = _colors[colorIndex];
+		const auto colorKey = color.rgba();
+		const auto i = _starCache.find(colorKey);
+		const auto &cache = (i != end(_starCache))
+			? i->second
+			: _starCache.emplace(
+				colorKey,
+				generateStarCache(_starSize, color)).first->second;
+		_paintedCaches[colorIndex] = cache;
+		return cache;
+	};
 
 	const auto dt = (now - _lastTime) / 1000.;
 	_lastTime = now;
@@ -147,6 +207,7 @@ void StarParticles::paint(QPainter &p, const QRect &rect, crl::time now) {
 
 		const auto x = rect.x() + particle.x * rect.width();
 		const auto y = rect.y() + particle.y * rect.height();
+		const auto cache = validate(particle.colorIndex);
 		const auto size = cache.width()
 			/ cache.devicePixelRatio() * particle.size;
 

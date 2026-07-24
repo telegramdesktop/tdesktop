@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
 #include "styles/style_editor.h"
+#include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 
 #include <QGraphicsScene>
@@ -170,7 +171,7 @@ void ItemBase::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 }
 
 void ItemBase::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-	setZValue((*_lastZ)++);
+	raiseToTop();
 	if (event->button() == Qt::LeftButton) {
 		_handle = handleType(event->pos());
 	}
@@ -211,22 +212,22 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		nullptr,
-		st::popupMenuWithIcons);
+		st::mediaviewPopupMenu);
 	add(
 		tr::lng_photo_editor_menu_delete,
 		kDeleteSequence,
 		[=] { actionDelete(); },
-		&st::menuIconDelete);
+		&st::mediaMenuIconDelete);
 	add(
 		tr::lng_photo_editor_menu_flip,
 		kFlipSequence,
 		[=] { actionFlip(); },
-		&st::menuIconFlip);
+		&st::mediaMenuIconFlip);
 	add(
 		tr::lng_photo_editor_menu_duplicate,
 		kDuplicateSequence,
 		[=] { actionDuplicate(); },
-		&st::menuIconCopy);
+		&st::mediaMenuIconCopy);
 
 	_menu->popup(event->screenPos());
 }
@@ -265,6 +266,10 @@ void ItemBase::actionDuplicate() {
 		setSelected(false);
 		s->addItem(newItem);
 	}
+}
+
+void ItemBase::raiseToTop() {
+	setZValue((*_lastZ)++);
 }
 
 void ItemBase::keyPressEvent(QKeyEvent *e) {
@@ -329,6 +334,7 @@ void ItemBase::updateVerticalSize() {
 }
 
 void ItemBase::setAspectRatio(float64 aspectRatio) {
+	prepareGeometryChange();
 	_aspectRatio = aspectRatio;
 	updateVerticalSize();
 }

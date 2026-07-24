@@ -69,6 +69,10 @@ public:
 		return _lifetime;
 	}
 
+	[[nodiscard]] HistoryItem *divider() const {
+		return _divider;
+	}
+
 private:
 	struct Viewer;
 

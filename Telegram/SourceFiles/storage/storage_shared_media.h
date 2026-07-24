@@ -27,6 +27,7 @@ enum class SharedMediaType : signed char {
 	GIF,
 	RoundFile,
 	Pinned,
+	Poll,
 
 	kCount,
 };

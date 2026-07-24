@@ -32,8 +32,6 @@ namespace Ui {
 namespace {
 
 constexpr auto kMinTextWidth = 120;
-constexpr auto kMaxTextWidth = 320;
-constexpr auto kMaxTextLines = 3;
 
 struct PreviewRequest {
 	QString family;
@@ -585,7 +583,7 @@ PreviewPainter::PreviewPainter(const QImage &bg, PreviewRequest request)
 : _request(request)
 , _msgBg(_request.msgBg)
 , _msgShadow(_request.msgShadow)
-, _nameFontOwned(_request.family, style::FontFlag::Semibold, st::fsize)
+, _nameFontOwned(_request.family, style::FontFlag::Bold, st::fsize)
 , _nameFont(_nameFontOwned.font())
 , _nameStyle(st::semiboldTextStyle)
 , _textFontOwned(_request.family, 0, st::fsize)

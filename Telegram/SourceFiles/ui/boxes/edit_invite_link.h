@@ -22,6 +22,9 @@ struct InviteLinkFields {
 	bool requestApproval = false;
 	bool isGroup = false;
 	bool isPublic = false;
+	bool globalRequestApproval = false;
+	QString guardBotUsername;
+	QString guardBotLink;
 };
 
 struct InviteLinkSubscriptionToggle final {
@@ -40,6 +43,9 @@ void CreateInviteLinkBox(
 	Fn<InviteLinkSubscriptionToggle()> fillSubscription,
 	bool isGroup,
 	bool isPublic,
+	bool globalRequestApproval,
+	const QString &guardBotUsername,
+	const QString &guardBotLink,
 	Fn<void(InviteLinkFields)> done);
 
 } // namespace Ui

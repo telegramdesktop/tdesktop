@@ -25,8 +25,13 @@ namespace Dialogs {
 [[nodiscard]] auto TopBarSuggestionValue(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Main::Session*>,
-	rpl::producer<bool> outerWrapToggleValue)
+	rpl::producer<bool> outerWrapToggleValue,
+	rpl::producer<float64> childListShown,
+	rpl::producer<> prepareCollapseSnapshot)
 -> rpl::producer<Ui::SlideWrap<Ui::RpWidget>*>;
+
+[[nodiscard]] Fn<void()> ExpandChatsListCallback(
+	not_null<Ui::RpWidget*> widget);
 
 } // namespace Dialogs
 

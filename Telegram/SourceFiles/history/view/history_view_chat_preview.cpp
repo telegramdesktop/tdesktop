@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_chat_preview.h"
 
+#include "apiwrap.h"
 #include "base/unixtime.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -19,7 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_thread.h"
+#include "data/data_user.h"
 #include "history/view/reactions/history_view_reactions_button.h"
+#include "history/view/history_view_about_view.h"
 #include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/history.h"
@@ -60,7 +63,7 @@ class Item final
 	, private ListDelegate
 	, private CornerButtonsDelegate {
 public:
-	Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread);
+	Item(not_null<Ui::Menu::Menu*> parent, not_null<Data::Thread*> thread);
 
 	[[nodiscard]] not_null<QAction*> action() const override;
 	[[nodiscard]] bool isEnabled() const override;
@@ -77,10 +80,12 @@ private:
 	void setupMarkRead();
 	void setupBackground();
 	void setupHistory();
+	void setupAboutView();
 	void updateInnerVisibleArea();
 
 	// ListDelegate delegate.
 	Context listContext() override;
+	AboutView *listAboutView() override;
 	bool listScrollTo(int top, bool syntetic = true) override;
 	void listCancelRequest() override;
 	void listDeleteRequest() override;
@@ -99,7 +104,8 @@ private:
 	void listMarkContentsRead(
 		const base::flat_set<not_null<HistoryItem*>> &items) override;
 	MessagesBarData listMessagesBar(
-		const std::vector<not_null<Element*>> &elements) override;
+		const std::vector<not_null<Element*>> &elements,
+		bool markLastAsRead) override;
 	void listContentRefreshed() override;
 	void listUpdateDateLink(
 		ClickHandlerPtr &link,
@@ -199,6 +205,7 @@ private:
 	Info::Profile::Badge _badge;
 
 	QPointer<ListWidget> _inner;
+	std::unique_ptr<AboutView> _aboutView;
 	std::unique_ptr<CornerButtons> _cornerButtons;
 	rpl::event_stream<ChatPreviewAction> _actions;
 
@@ -274,7 +281,7 @@ struct StatusFields {
 	});
 }
 
-Item::Item(not_null<Ui::RpWidget*> parent, not_null<Data::Thread*> thread)
+Item::Item(not_null<Ui::Menu::Menu*> parent, not_null<Data::Thread*> thread)
 : Ui::Menu::ItemBase(parent, st::previewMenu.menu)
 , _dummyAction(new QAction(parent))
 , _session(&thread->session())
@@ -552,11 +559,43 @@ void Item::setupHistory() {
 
 	_inner->refreshViewer();
 
+	setupAboutView();
+
 	_inner->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	crl::on_main(this, [=] {
 		_inner->setFocus();
 	});
+}
+
+void Item::setupAboutView() {
+	if (_replies || _sublist) {
+		return;
+	}
+	const auto user = _peer->asUser();
+	if (!user || user->isContact()) {
+		return;
+	}
+	_session->api().requestPeerSettings(user);
+	user->barSettingsValue() | rpl::on_next([=] {
+		if (_aboutView
+			|| user->isContact()
+			|| user->phoneCountryCode().isEmpty()) {
+			return;
+		}
+		_aboutView = std::make_unique<AboutView>(
+			_history,
+			static_cast<ElementDelegate*>(_inner.data()));
+		_aboutView->refresh();
+		_aboutView->refreshRequests() | rpl::on_next([=] {
+			if (_aboutView->refresh() && _inner) {
+				_inner->resizeToWidth(_scroll->width(), _scroll->height());
+			}
+		}, _aboutView->lifetime());
+		if (_inner) {
+			_inner->resizeToWidth(_scroll->width(), _scroll->height());
+		}
+	}, lifetime());
 }
 
 void Item::paintEvent(QPaintEvent *e) {
@@ -572,6 +611,10 @@ void Item::updateInnerVisibleArea() {
 
 Context Item::listContext() {
 	return Context::ChatPreview;
+}
+
+AboutView *Item::listAboutView() {
+	return _aboutView.get();
 }
 
 bool Item::listScrollTo(int top, bool syntetic) {
@@ -648,7 +691,8 @@ void Item::listMarkContentsRead(
 }
 
 MessagesBarData Item::listMessagesBar(
-		const std::vector<not_null<Element*>> &elements) {
+		const std::vector<not_null<Element*>> &elements,
+		bool markLastAsRead) {
 	if (elements.empty()) {
 		return {};
 	} else if (!_replies && !_sublist && !_history->unreadCount()) {
@@ -860,6 +904,11 @@ Ui::ChatPaintContext Item::listPreparePaintContext(
 		Ui::ChatPaintContextArgs &&args) {
 	const auto visibleAreaTopLocal = mapFromGlobal(
 		args.visibleAreaPositionGlobal).y();
+	const auto area = QRect(
+		0,
+		args.visibleAreaTop,
+		args.visibleAreaWidth,
+		args.visibleAreaHeight);
 	const auto viewport = QRect(
 		0,
 		args.visibleAreaTop - visibleAreaTopLocal,
@@ -868,6 +917,7 @@ Ui::ChatPaintContext Item::listPreparePaintContext(
 	return args.theme->preparePaintContext(
 		_chatStyle.get(),
 		viewport,
+		area,
 		args.clip,
 		false);
 }
@@ -960,7 +1010,7 @@ ChatPreview MakeChatPreview(
 	};
 	const auto menu = result.menu.get();
 
-	auto action = base::make_unique_q<Item>(menu, thread);
+	auto action = base::make_unique_q<Item>(menu->menu(), thread);
 	result.actions = action->actions();
 	menu->addAction(std::move(action));
 	if (const auto topic = thread->asTopic()) {

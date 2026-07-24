@@ -5,7 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+using "chat_helpers/chat_helpers.style";
+using "ui/chat/chat.style";
 using "ui/basic.style";
+using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
 
 ivMenuToggle: IconButton(defaultIconButton) {
@@ -20,6 +23,7 @@ ivMenuToggle: IconButton(defaultIconButton) {
 	ripple: defaultRippleAnimationBgOver;
 }
 ivMenuPosition: point(-2px, 40px);
+ivZoomDropdownPosition: point(-2px, 0px);
 ivBackIcon: icon {{ "box_button_back", menuIconColor }};
 ivBack: IconButton(ivMenuToggle) {
 	width: 60px;
@@ -28,14 +32,6 @@ ivBack: IconButton(ivMenuToggle) {
 	rippleAreaPosition: point(12px, 6px);
 }
 ivZoomButtonsSize: 26px;
-ivPlusMinusZoom: IconButton(ivMenuToggle) {
-	width: ivZoomButtonsSize;
-	height: ivZoomButtonsSize;
-
-	rippleAreaPosition: point(0px, 0px);
-	rippleAreaSize: ivZoomButtonsSize;
-	ripple: defaultRippleAnimationBgOver;
-}
 ivResetZoomStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
 }
@@ -59,11 +55,12 @@ ivResetZoomLabel: FlatLabel(defaultFlatLabel) {
 ivResetZoomInnerPadding: 20px;
 ivBackIconDisabled: icon {{ "box_button_back", menuIconFg }};
 ivForwardIcon: icon {{ "box_button_back-flip_horizontal", menuIconColor }};
+ivForwardIconDisabled: icon {{ "box_button_back-flip_horizontal", menuIconFg }};
 ivForward: IconButton(ivBack) {
 	width: 48px;
 	icon: ivForwardIcon;
 	iconOver: ivForwardIcon;
-	rippleAreaPosition: point(0px, 6px);
+	rippleAreaPosition: point(6px, 6px);
 }
 ivSubtitleFont: font(16px semibold);
 ivSubtitle: FlatLabel(defaultFlatLabel) {
@@ -77,3 +74,1365 @@ ivSubtitleHeight: 48px;
 ivSubtitleTop: 12px;
 ivSubtitleLeft: 22px;
 ivSubtitleSkip: 0px;
+ivSearchBarHeight: ivSubtitleHeight;
+ivSearchBarCounterSkip: 10px;
+ivSearchCounterLabel: FlatLabel(defaultSettingsRightLabel) {
+	textFg: windowFg;
+}
+ivWrongLayoutBarHeight: 32px;
+ivWrongLayoutLink: LinkButton(defaultLinkButton) {
+	color: windowSubTextFg;
+	overColor: windowSubTextFg;
+	padding: margins(5px, 5px, 5px, 5px);
+}
+ivEditorWindowMinSize: size(384px, 480px);
+ivEditorWindowDefaultSize: size(800px, 600px);
+ivEditorBodyPadding: margins(0px, 8px, 0px, 8px);
+ivEditorToolbarButtonSize: 36px;
+ivEditorEmojiColumnCloseSize: 30px;
+ivEditorToolbarPadding: margins(9px, 10px, 9px, 10px);
+ivEditorToolbarDividerSkip: 6px;
+ivEditorToolbarDividerHeight: 18px;
+ivEditorToolbarGroupsSkip: 6px;
+ivEditorBottomControlsPadding: margins(9px, 10px, 9px, 10px);
+ivEditorPillPadding: 2px;
+ivEditorPillButtonSkip: 6px;
+ivEditorBottomCircleSize: 40px;
+ivEditorSendLockBadgeShift: point(-5px, -5px);
+ivComposeSendLockBadgePosition: point(1px, 2px);
+ivEditorSendLockBadgePadding: 3px;
+ivEditorSendLockBadgeStroke: 2px;
+ivEditorPremiumChoiceAboutSkip: 10px;
+ivEditorPremiumChoiceBox: Box(defaultBox) {
+	buttonHeight: 0px;
+}
+ivEditorSendLockIcon: icon{{ "chat/mini_lock", windowFgActive }};
+ivEditorToolbarPremiumStarSize: 11px;
+ivEditorToolbarPremiumStarSkip: point(5px, 7px);
+ivEditorToolbarPremiumStarOutline: 2px;
+ivEditorStyleMenuPremiumStarSize: 16px;
+ivEditorPillShadow: BoxShadow {
+	blurRadius: 3px;
+	offset: point(0px, 1px);
+	opacity: 0.09;
+}
+ivEditorEmojiColumnCloseScrollSkip: 4px;
+ivEditorToolbarUndoIcon: icon {{ "menu/tabs_undo-24x24", menuIconColor }};
+ivEditorToolbarUndoIconOver: icon {{ "menu/tabs_undo-24x24", menuIconColor }};
+ivEditorToolbarUndoIconDisabled: icon {{ "menu/tabs_undo-24x24", windowSubTextFg }};
+ivEditorToolbarRedoIcon: icon {{ "menu/tabs_redo-24x24", menuIconColor }};
+ivEditorToolbarRedoIconOver: icon {{ "menu/tabs_redo-24x24", menuIconColor }};
+ivEditorToolbarRedoIconDisabled: icon {{ "menu/tabs_redo-24x24", windowSubTextFg }};
+ivEditorToolbarOverflowIcon: icon {{ "title_menu_dots", menuIconColor, point(0px, -2px) }};
+ivEditorToolbarOverflowIconOver: icon {{ "title_menu_dots", menuIconColor, point(0px, -2px) }};
+ivEditorToolbarBoldIcon: icon {{ "menu/rich/bold-24x24", menuIconColor }};
+ivEditorToolbarItalicIcon: icon {{ "menu/rich/italic-24x24", menuIconColor }};
+ivEditorToolbarUnderlineIcon: icon {{ "menu/rich/underline-24x24", menuIconColor }};
+ivEditorToolbarStrikeOutIcon: icon {{ "menu/rich/strikeout-24x24", menuIconColor }};
+ivEditorToolbarSpoilerIcon: icon {{ "menu/rich/spoiler-24x24", menuIconColor }};
+ivEditorToolbarSubscriptIcon: icon {{ "menu/rich/subscript-24x24", menuIconColor }};
+ivEditorToolbarSuperscriptIcon: icon {{ "menu/rich/superscript-24x24", menuIconColor }};
+ivEditorToolbarMarkedIcon: icon {{ "menu/rich/marked-24x24", menuIconColor }};
+ivEditorToolbarPlainTextIcon: icon {{ "menu/rich/plain_text-24x24", menuIconColor }};
+ivEditorToolbarLinkIcon: icon {{ "menu/rich/link-24x24", menuIconColor }};
+ivEditorBottomDiscardIcon: icon {{ "menu/rich/discard-24x24", menuIconColor }};
+ivEditorBottomCancelIcon: icon {{ "menu/rich/cancel-24x24", menuIconColor }};
+ivEditorPremiumChoiceIcon: icon {{ "menu/article_rich-24x24", windowFgActive }};
+ivEditorPremiumChoiceIconCircle: 64px;
+ivEditorPremiumChoiceIconPadding: margins(0px, 8px, 0px, 12px);
+ivEditorToolbarButton: IconButton(defaultIconButton) {
+	width: ivEditorToolbarButtonSize;
+	height: ivEditorToolbarButtonSize;
+	iconPosition: point(-1px, -1px);
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: ivEditorToolbarButtonSize;
+	ripple: defaultRippleAnimationBgOver;
+}
+ivEditorSearchMultiSelect: MultiSelect(searchInChatMultiSelect) {
+	bg: transparent;
+	padding: margins(8px, 4px, 8px, 4px);
+}
+ivEditorSearchPrevious: IconButton(ivEditorToolbarButton) {
+	icon: icon {{ "calendar_down-flip_vertical", boxTitleFg }};
+}
+ivEditorSearchNext: IconButton(ivEditorSearchPrevious) {
+	icon: icon {{ "calendar_down", boxTitleFg }};
+}
+ivEditorSearchCancel: CrossButton(defaultMultiSelectSearchCancel) {
+	width: ivEditorToolbarButtonSize;
+	height: ivEditorToolbarButtonSize;
+	crossPosition: point(0px, 0px);
+}
+ivEditorBottomDiscardButton: IconButton(ivEditorToolbarButton) {
+	icon: ivEditorBottomDiscardIcon;
+	iconOver: ivEditorBottomDiscardIcon;
+}
+ivEditorBottomCancelButton: IconButton(ivEditorToolbarButton) {
+	icon: ivEditorBottomCancelIcon;
+	iconOver: ivEditorBottomCancelIcon;
+}
+ivEditorBottomAiIcon: icon {{ "chat/ai_letters-24x24", menuIconColor }};
+ivEditorBottomAiStar1: icon {{ "chat/ai_star1-24x24", menuIconColor }};
+ivEditorBottomAiStar2: icon {{ "chat/ai_star2-24x24", menuIconColor }};
+ivEditorBottomSend: SendButton(historySend) {
+	sendIconPosition: point(8px, 8px);
+	sendIconFillPadding: 8px;
+	inner: IconButton(historyAttach) {
+		width: ivEditorBottomCircleSize;
+		height: ivEditorBottomCircleSize;
+		icon: icon {{ "menu/rich/send-24x24", windowFgActive }};
+		iconOver: icon {{ "menu/rich/send-24x24", windowFgActive }};
+		rippleAreaSize: ivEditorBottomCircleSize;
+		rippleAreaPosition: point(0px, 0px);
+	}
+	stars: RoundButton(defaultActiveButton) {
+		height: ivEditorBottomCircleSize;
+		padding: margins(6px, 0px, 10px, 0px);
+		textTop: 11px;
+		width: -8px;
+	}
+	sendIconFg: windowFgActive;
+}
+ivEditorBottomSaveSend: SendButton(historySend) {
+	sendIconPosition: point(8px, 8px);
+	sendIconFillPadding: 8px;
+	inner: IconButton(historyAttach) {
+		width: ivEditorBottomCircleSize;
+		height: ivEditorBottomCircleSize;
+		icon: icon {{ "menu/rich/save-24x24", windowFgActive }};
+		iconOver: icon {{ "menu/rich/save-24x24", windowFgActive }};
+		rippleAreaSize: ivEditorBottomCircleSize;
+		rippleAreaPosition: point(0px, 0px);
+	}
+	sendIconFg: windowFgActive;
+}
+ivEditorToolbarOverflowButton: IconButton(ivEditorToolbarButton) {
+	icon: ivEditorToolbarOverflowIcon;
+	iconOver: ivEditorToolbarOverflowIconOver;
+}
+ivEditorEmojiColumnCloseIcon: icon {{ "simple_close", menuIconColor }};
+ivEditorEmojiColumnCloseIconOver: icon {{ "simple_close", menuIconColor }};
+ivEditorEmojiColumnClose: IconButton(ivEditorToolbarButton) {
+	width: ivEditorEmojiColumnCloseSize;
+	height: ivEditorEmojiColumnCloseSize;
+	rippleAreaSize: ivEditorEmojiColumnCloseSize;
+	rippleAreaPosition: point(0px, 0px);
+	icon: ivEditorEmojiColumnCloseIcon;
+	iconOver: ivEditorEmojiColumnCloseIconOver;
+}
+ivEditorToolbarHeadingIcon: icon {{ "menu/rich/heading-24x24", menuIconColor }};
+ivEditorToolbarHeading1Icon: icon {{ "menu/rich/heading1-24x24", menuIconColor }};
+ivEditorToolbarHeading2Icon: icon {{ "menu/rich/heading2-24x24", menuIconColor }};
+ivEditorToolbarHeading3Icon: icon {{ "menu/rich/heading3-24x24", menuIconColor }};
+ivEditorToolbarHeading4Icon: icon {{ "menu/rich/heading4-24x24", menuIconColor }};
+ivEditorToolbarHeading5Icon: icon {{ "menu/rich/heading5-24x24", menuIconColor }};
+ivEditorToolbarHeading6Icon: icon {{ "menu/rich/heading6-24x24", menuIconColor }};
+ivEditorToolbarTextStyleIcon: icon {{ "menu/rich/text_style-24x24", menuIconColor }};
+ivEditorToolbarEmojiIcon: icon {{ "menu/rich/emoji-24x24", menuIconColor }};
+ivEditorToolbarBlockquoteIcon: icon {{ "menu/rich/blockquote-24x24", menuIconColor }};
+ivEditorToolbarCodeIcon: icon {{ "menu/rich/code-24x24", menuIconColor }};
+ivEditorToolbarMathIcon: icon {{ "menu/rich/math-24x24", menuIconColor }};
+ivEditorToolbarDividerIcon: icon {{ "menu/rich/divider-24x24", menuIconColor }};
+ivEditorToolbarFooterIcon: icon {{ "menu/rich/footer-24x24", menuIconColor }};
+ivEditorToolbarOrderedListIcon: icon {{ "menu/rich/ordered_list-24x24", menuIconColor }};
+ivEditorToolbarBulletListIcon: icon {{ "menu/rich/bullet_list-24x24", menuIconColor }};
+ivEditorToolbarTaskListIcon: icon {{ "menu/rich/task_list-24x24", menuIconColor }};
+ivEditorToolbarOrderedListAlphaLowerIcon: icon {{ "menu/rich/page_numbered1-24x24", menuIconColor }};
+ivEditorToolbarOrderedListAlphaUpperIcon: icon {{ "menu/rich/page_numbered2-24x24", menuIconColor }};
+ivEditorToolbarOrderedListRomanLowerIcon: icon {{ "menu/rich/page_numbered3-24x24", menuIconColor }};
+ivEditorToolbarOrderedListRomanUpperIcon: icon {{ "menu/rich/page_numbered4-24x24", menuIconColor }};
+ivEditorToolbarPullquoteIcon: icon {{ "menu/rich/pullquote-24x24", menuIconColor }};
+ivEditorToolbarAttachIcon: icon {{ "menu/rich/attach-24x24", menuIconColor }};
+ivEditorToolbarDetailsIcon: icon {{ "menu/rich/details-24x24", menuIconColor }};
+ivEditorToolbarTableIcon: icon {{ "menu/rich/table-24x24", menuIconColor }};
+ivEditorToolbarLocationIcon: icon {{ "menu/rich/location-24x24", menuIconColor }};
+ivEditorToolbarAudioIcon: icon {{ "menu/rich/audio-24x24", menuIconColor }};
+ivSummaryTableIcon: IconEmoji {
+	icon: icon {{ "menu/rich/table-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryMediaIcon: IconEmoji {
+	icon: icon {{ "menu/rich/attach-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryAudioIcon: IconEmoji {
+	icon: icon {{ "menu/rich/audio-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryLocationIcon: IconEmoji {
+	icon: icon {{ "menu/rich/location-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryPullquoteIcon: IconEmoji {
+	icon: icon {{ "menu/rich/pullquote-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryBlockquoteIcon: IconEmoji {
+	icon: icon {{ "menu/rich/blockquote-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryMathIcon: IconEmoji {
+	icon: icon {{ "menu/rich/math-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivEditorMediaCornerSize: 27px;
+ivEditorMediaCornerSkip: 6px;
+ivEditorMediaAddIcon: icon {{ "menu/rich/media_add-20x20", windowFgActive }};
+ivEditorMediaUploadRadialSize: 44px;
+ivEditorMediaToCollageIcon: icon {{ "menu/rich/to_collage-20x20", windowFgActive }};
+ivEditorMediaToSlideshowIcon: icon {{ "menu/rich/to_slideshow-20x20", windowFgActive }};
+ivEditorTableAddCellsIcon: icon {{ "menu/rich/table_add_cells-24x24", menuIconColor }};
+ivEditorTableAddRowAboveIcon: icon {{ "menu/rich/table_add_row_above-24x24", menuIconColor }};
+ivEditorTableAddRowBelowIcon: icon {{ "menu/rich/table_add_row_below-24x24", menuIconColor }};
+ivEditorTableAddColumnLeftIcon: icon {{ "menu/rich/table_add_column_left-24x24", menuIconColor }};
+ivEditorTableAddColumnRightIcon: icon {{ "menu/rich/table_add_column_right-24x24", menuIconColor }};
+ivEditorTableHeaderIcon: icon {{ "menu/rich/table_highlight-24x24", menuIconColor }};
+ivEditorTableHeaderOffIcon: icon {{ "menu/rich/table_highlight_off-24x24", menuIconColor }};
+ivEditorTableBorderlessIcon: icon {{ "menu/rich/table_borderless-24x24", menuIconColor }};
+ivEditorTableStripedIcon: icon {{ "menu/rich/table_striped-24x24", menuIconColor }};
+ivEditorTableAlignmentIcon: icon {{ "menu/rich/table_alignment-24x24", menuIconColor }};
+ivEditorTableAlignLeftIcon: icon {{ "menu/rich/align_left-24x24", menuIconColor }};
+ivEditorTableAlignCenterIcon: icon {{ "menu/rich/align_center-24x24", menuIconColor }};
+ivEditorTableAlignRightIcon: icon {{ "menu/rich/align_right-24x24", menuIconColor }};
+ivEditorTableAlignTopIcon: icon {{ "menu/rich/align_top-24x24", menuIconColor }};
+ivEditorTableAlignMiddleIcon: icon {{ "menu/rich/align_middle-24x24", menuIconColor }};
+ivEditorTableAlignBottomIcon: icon {{ "menu/rich/align_bottom-24x24", menuIconColor }};
+ivEditorTableDeleteCellsIcon: icon {{ "menu/rich/table_delete_cells-24x24", menuIconColor }};
+ivEditorTableDeleteRowsIcon: icon {{ "menu/rich/table_delete_row-24x24", menuIconColor }};
+ivEditorTableDeleteColumnsIcon: icon {{ "menu/rich/table_delete_column-24x24", menuIconColor }};
+ivEditorTableMergeIcon: icon {{ "menu/rich/table_merge-24x24", menuIconColor }};
+ivEditorTableSplitIcon: icon {{ "menu/rich/table_split-24x24", menuIconColor }};
+ivEditorInlineFieldMargins: margins(4px, 0px, 6px, 0px);
+ivEditorMinHeight: boxWidth;
+ivEditorInputField: InputField(defaultInputField) {
+	style: historyTextStyle;
+	textMargins: margins(0px, 0px, 0px, 0px);
+	textAlign: align(left);
+	textFg: historyComposeAreaFg;
+	textBg: transparent;
+	textBgActive: transparent;
+	heightMin: 1px;
+	heightMax: 72px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	placeholderShift: -50px;
+	border: 0px;
+	borderActive: 0px;
+	duration: 100;
+}
+
+MarkdownBlockSkips {
+	paragraph: pixels;
+	heading: pixels;
+	code: pixels;
+	rule: pixels;
+	quote: pixels;
+	displayMath: pixels;
+	table: pixels;
+	photo: pixels;
+	video: pixels;
+	audio: pixels;
+	map: pixels;
+	channel: pixels;
+	groupedMedia: pixels;
+	relatedArticle: pixels;
+	embedPost: pixels;
+	placeholder: pixels;
+}
+MarkdownList {
+	indent: pixels;
+	continuationIndent: pixels;
+	markerWidth: pixels;
+	markerSkip: pixels;
+	bulletRadius: pixels;
+	bulletLeftShift: pixels;
+	bulletFg: color;
+	taskCheck: Check;
+}
+MarkdownQuotePaintColors {
+	blockquote: color;
+	pre: color;
+	preBg: color;
+}
+MarkdownPullquote {
+	padding: margins;
+	maxWidth: pixels;
+}
+MarkdownRule {
+	fg: color;
+	height: pixels;
+}
+MarkdownDisplayMath {
+	padding: margins;
+	align: align;
+	textSize: pixels;
+	maxRenderWidth: pixels;
+	maxRenderHeight: pixels;
+	fg: color;
+	fallbackStyle: TextStyle;
+	fallbackBg: color;
+	fallbackRadius: pixels;
+	fallbackPadding: margins;
+	overflowWidth: pixels;
+	overflowFg: color;
+}
+MarkdownTable {
+	cellPadding: margins;
+	border: pixels;
+	borderFg: color;
+	radius: pixels;
+	headerBg: color;
+	headerBgOpacity: double;
+	headerStyle: TextStyle;
+	bodyStyle: TextStyle;
+	captionSkip: pixels;
+	minColumnWidth: pixels;
+	overflowWidth: pixels;
+	overflowFg: color;
+	scrollbarSkip: pixels;
+	scrollbarHeight: pixels;
+	scrollbarMinThumbWidth: pixels;
+}
+MarkdownDetails {
+	headerPadding: margins;
+	bodyPadding: margins;
+	border: pixels;
+	borderFg: color;
+	headerBg: color;
+	bodyBg: color;
+	summaryFg: color;
+	radius: pixels;
+	summaryStyle: TextStyle;
+	icon: icon;
+	iconSkip: pixels;
+	stateSkip: pixels;
+}
+MarkdownEmbedPost {
+	padding: margins;
+	accentWidth: pixels;
+	accentFg: color;
+	accentSkip: pixels;
+	headerGap: pixels;
+	avatarSize: pixels;
+	avatarRadius: pixels;
+	authorStyle: TextStyle;
+	authorFg: color;
+	dateStyle: TextStyle;
+	dateFg: color;
+	bodySkip: pixels;
+	captionSkip: pixels;
+}
+MarkdownPlaceholder {
+	padding: margins;
+	minHeight: pixels;
+	border: pixels;
+	radius: pixels;
+	bg: color;
+	bgActive: color;
+	rippleBg: color;
+	borderFg: color;
+	spinnerWidth: pixels;
+	spinnerSize: pixels;
+	spinnerFg: color;
+	captionSkip: pixels;
+	labelStyle: TextStyle;
+	labelFg: color;
+	labelFgActive: color;
+}
+MarkdownPhoto {
+	padding: margins;
+	captionSkip: pixels;
+	progressSize: pixels;
+	progressWidth: pixels;
+	progressBg: color;
+	progressFg: color;
+	fallbackBg: color;
+	fallbackFg: color;
+}
+MarkdownAudio {
+	padding: margins;
+	captionSkip: pixels;
+	textSkip: pixels;
+	border: pixels;
+	borderFg: color;
+	bg: color;
+	radius: pixels;
+	titleStyle: TextStyle;
+	titleFg: color;
+	subtitleStyle: TextStyle;
+	subtitleFg: color;
+}
+MarkdownChannelButton {
+	padding: margins;
+	border: pixels;
+	borderFg: color;
+	bg: color;
+	radius: pixels;
+	textStyle: TextStyle;
+	textFg: color;
+}
+MarkdownChannel {
+	padding: margins;
+	border: pixels;
+	borderFg: color;
+	bg: color;
+	radius: pixels;
+	textSkip: pixels;
+	buttonSkip: pixels;
+	titleStyle: TextStyle;
+	titleFg: color;
+	subtitleStyle: TextStyle;
+	subtitleFg: color;
+	button: MarkdownChannelButton;
+}
+MarkdownRelatedArticle {
+	padding: margins;
+	border: pixels;
+	borderFg: color;
+	bg: color;
+	radius: pixels;
+	headerPadding: margins;
+	headerBg: color;
+	separator: pixels;
+	separatorFg: color;
+	textSkip: pixels;
+	footerSkip: pixels;
+	thumbnailSize: pixels;
+	thumbnailSkip: pixels;
+	thumbnailRadius: pixels;
+	titleLines: int;
+	subtitleLines: int;
+	footerLines: int;
+	titleStyle: TextStyle;
+	titleFg: color;
+	subtitleStyle: TextStyle;
+	subtitleFg: color;
+	footerStyle: TextStyle;
+	footerFg: color;
+}
+MarkdownGroupedMedia {
+	padding: margins;
+	captionSkip: pixels;
+	itemSkip: pixels;
+	radius: pixels;
+	slideshowMinHeight: pixels;
+	overlayOpacity: double;
+	fallbackBg: color;
+	fallbackFg: color;
+	navButtonSize: pixels;
+	navButtonSkip: pixels;
+	navButtonBg: color;
+	navButtonBgOver: color;
+	navPreviousIcon: icon;
+	navPreviousIconOver: icon;
+	navNextIcon: icon;
+	navNextIconOver: icon;
+	dotSize: pixels;
+	dotSkip: pixels;
+	dotsBottomSkip: pixels;
+	dotsBgOpacity: double;
+}
+MarkdownFailure {
+	label: FlatLabel;
+	width: pixels;
+	skip: pixels;
+}
+MarkdownEmbedOverlay {
+	scrimBg: color;
+	bg: color;
+	loading: InfiniteRadialAnimation;
+	size: size;
+	margin: margins;
+	padding: margins;
+	errorLabel: FlatLabel;
+	errorPadding: margins;
+}
+Markdown {
+	textPalette: TextPalette;
+	markBgOpacity: double;
+	textColor: color;
+	supplementaryTextColor: color;
+	body: TextStyle;
+	heading1: TextStyle;
+	heading2: TextStyle;
+	heading3: TextStyle;
+	heading4: TextStyle;
+	heading5: TextStyle;
+	heading6: TextStyle;
+	footer: TextStyle;
+	code: TextStyle;
+	pagePadding: margins;
+	pageMaxWidth: pixels;
+	textPadding: margins;
+	mediaPadding: margins;
+	blockSkips: MarkdownBlockSkips;
+	list: MarkdownList;
+	quoteIndent: pixels;
+	quoteReadableMinWidth: pixels;
+	quotePaintColors: MarkdownQuotePaintColors;
+	pullquote: MarkdownPullquote;
+	quoteAuthorStyle: TextStyle;
+	rule: MarkdownRule;
+	displayMath: MarkdownDisplayMath;
+	table: MarkdownTable;
+	details: MarkdownDetails;
+	embedPost: MarkdownEmbedPost;
+	placeholder: MarkdownPlaceholder;
+	photo: MarkdownPhoto;
+	audio: MarkdownAudio;
+	channel: MarkdownChannel;
+	relatedArticle: MarkdownRelatedArticle;
+	groupedMedia: MarkdownGroupedMedia;
+	failure: MarkdownFailure;
+}
+
+defaultMarkdownTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: windowActiveTextFg;
+}
+defaultMarkdownBodyStyle: TextStyle(historyTextStyle) {
+	lineHeight: 24px;
+}
+defaultMarkdownCodeStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: font(14px);
+	lineHeight: 22px;
+}
+defaultMarkdownDisplayMathFallbackStyle: TextStyle(defaultMarkdownCodeStyle) {
+}
+defaultMarkdownTableHeaderStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: font(16px semibold);
+	lineHeight: 24px;
+}
+defaultMarkdownQuoteAuthorStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: semiboldFont;
+	lineHeight: 24px;
+}
+defaultMarkdownBlockSkips: MarkdownBlockSkips {
+	paragraph: 12px;
+	heading: 16px;
+	code: 12px;
+	rule: 12px;
+	quote: 12px;
+	displayMath: 12px;
+	table: 12px;
+	photo: 12px;
+	video: 12px;
+	audio: 12px;
+	map: 12px;
+	channel: 8px;
+	groupedMedia: 12px;
+	relatedArticle: 0px;
+	embedPost: 12px;
+	placeholder: 12px;
+}
+defaultMarkdownList: MarkdownList {
+	indent: 28px;
+	continuationIndent: 22px;
+	markerWidth: 22px;
+	markerSkip: 8px;
+	bulletRadius: 2px;
+	bulletLeftShift: 0px;
+	bulletFg: windowFg;
+	taskCheck: defaultCheck;
+}
+defaultMarkdownQuotePaintColors: MarkdownQuotePaintColors {
+	blockquote: windowActiveTextFg;
+	pre: windowSubTextFg;
+	preBg: windowBgOver;
+}
+defaultMarkdownPullquote: MarkdownPullquote {
+	padding: margins(0px, 18px, 0px, 18px);
+	maxWidth: 420px;
+}
+defaultMarkdownRule: MarkdownRule {
+	fg: boxDividerBg;
+	height: 1px;
+}
+defaultMarkdownDisplayMath: MarkdownDisplayMath {
+	padding: margins(10px, 12px, 10px, 12px);
+	align: align(center);
+	textSize: 20px;
+	maxRenderWidth: 1600px;
+	maxRenderHeight: 1200px;
+	fg: windowFg;
+	fallbackStyle: defaultMarkdownDisplayMathFallbackStyle;
+	fallbackBg: windowBgOver;
+	fallbackRadius: 6px;
+	fallbackPadding: margins(10px, 12px, 10px, 12px);
+	overflowWidth: 4px;
+	overflowFg: windowSubTextFg;
+}
+ivFormulaPreviewScroll: ScrollArea(defaultScrollArea) {
+	barHidden: true;
+}
+ivFormulaSectionTitle: FlatLabel(defaultSubsectionTitle) {
+	minWidth: 0px;
+}
+ivFormulaPreviewLabelMargin: margins(22px, 4px, 22px, 4px);
+ivFormulaPreviewMargin: margins(22px, 0px, 22px, 10px);
+ivFormulaPreviewPadding: margins(10px, 10px, 10px, 10px);
+ivFormulaPreviewMinHeight: 72px;
+ivFormulaPreviewRadius: 8px;
+ivFormulaPreviewBg: windowBgOver;
+ivFormulaPreviewFg: windowFg;
+ivFormulaSourceField: InputField(defaultInputField) {
+	textMargins: margins(0px, 6px, 0px, 4px);
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	placeholderShift: -50px;
+	heightMin: 33px;
+}
+defaultMarkdownTable: MarkdownTable {
+	cellPadding: margins(8px, 10px, 8px, 10px);
+	border: 1px;
+	borderFg: inputBorderFg;
+	radius: defaultTable.radius;
+	headerBg: windowBgOver;
+	headerBgOpacity: 1.0;
+	headerStyle: defaultMarkdownTableHeaderStyle;
+	bodyStyle: defaultMarkdownBodyStyle;
+	captionSkip: 7px;
+	minColumnWidth: 96px;
+	overflowWidth: 4px;
+	overflowFg: windowSubTextFg;
+	scrollbarSkip: 4px;
+	scrollbarHeight: 12px;
+	scrollbarMinThumbWidth: 24px;
+}
+defaultMarkdownDetailsSummaryStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	linkUnderline: kLinkUnderlineNever;
+	lineHeight: 18px;
+}
+defaultMarkdownDetails: MarkdownDetails {
+	headerPadding: margins(8px, 12px, 8px, 12px);
+	bodyPadding: margins(10px, 12px, 10px, 12px);
+	border: 1px;
+	borderFg: inputBorderFg;
+	headerBg: windowBgOver;
+	bodyBg: windowBg;
+	summaryFg: windowFg;
+	radius: 6px;
+	summaryStyle: defaultMarkdownDetailsSummaryStyle;
+	icon: icon {{ "history_down_arrow", windowSubTextFg }};
+	iconSkip: 8px;
+	stateSkip: 8px;
+}
+defaultMarkdownEmbedPostAuthorStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: font(16px semibold);
+}
+defaultMarkdownEmbedPostDateStyle: TextStyle(defaultMarkdownDetailsSummaryStyle) {
+}
+defaultMarkdownEmbedPostAccentWidth: 3px;
+defaultMarkdownEmbedPost: MarkdownEmbedPost {
+	padding: margins(8px, 0px, 8px, 0px);
+	accentWidth: defaultMarkdownEmbedPostAccentWidth;
+	accentFg: windowActiveTextFg;
+	accentSkip: 12px;
+	headerGap: 10px;
+	avatarSize: 40px;
+	avatarRadius: 20px;
+	authorStyle: defaultMarkdownEmbedPostAuthorStyle;
+	authorFg: windowFg;
+	dateStyle: defaultMarkdownEmbedPostDateStyle;
+	dateFg: windowSubTextFg;
+	bodySkip: 10px;
+	captionSkip: 12px;
+}
+defaultMarkdownPlaceholder: MarkdownPlaceholder {
+	padding: margins(16px, 24px, 16px, 24px);
+	minHeight: 48px;
+	border: defaultMarkdownEmbedPostAccentWidth;
+	radius: 16px;
+	bg: windowBgOver;
+	bgActive: windowBgOver;
+	rippleBg: windowBgRipple;
+	borderFg: windowActiveTextFg;
+	spinnerWidth: 4px;
+	spinnerSize: 24px;
+	spinnerFg: windowActiveTextFg;
+	captionSkip: 14px;
+	labelStyle: TextStyle(defaultMarkdownBodyStyle) {
+		font: font(16px semibold);
+	}
+	labelFg: windowSubTextFg;
+	labelFgActive: windowActiveTextFg;
+}
+defaultMarkdownPhoto: MarkdownPhoto {
+	padding: margins(0px, 0px, 0px, 0px);
+	captionSkip: 12px;
+	progressSize: 36px;
+	progressWidth: 3px;
+	progressBg: windowSubTextFg;
+	progressFg: windowFg;
+	fallbackBg: windowBgOver;
+	fallbackFg: windowSubTextFg;
+}
+defaultMarkdownAudioTitleStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: font(16px semibold);
+}
+defaultMarkdownAudioSubtitleStyle: TextStyle(defaultMarkdownDetailsSummaryStyle) {
+}
+defaultMarkdownAudio: MarkdownAudio {
+	padding: margins(8px, 12px, 8px, 12px);
+	captionSkip: 14px;
+	textSkip: 8px;
+	border: 1px;
+	borderFg: inputBorderFg;
+	bg: windowBgOver;
+	radius: 6px;
+	titleStyle: defaultMarkdownAudioTitleStyle;
+	titleFg: windowFg;
+	subtitleStyle: defaultMarkdownAudioSubtitleStyle;
+	subtitleFg: windowSubTextFg;
+}
+defaultMarkdownChannelTitleStyle: TextStyle(defaultMarkdownAudioTitleStyle) {
+}
+defaultMarkdownChannelSubtitleStyle: TextStyle(defaultMarkdownDetailsSummaryStyle) {
+}
+defaultMarkdownChannelButtonStyle: TextStyle(defaultMarkdownChannelTitleStyle) {
+}
+defaultMarkdownSidesMargin: margins(18px, 0px, 18px, 0px);
+defaultMarkdownChannelButton: MarkdownChannelButton {
+	padding: defaultMarkdownSidesMargin;
+	border: 0px;
+	borderFg: windowActiveTextFg;
+	bg: windowBgOver;
+	radius: 0px;
+	textStyle: defaultMarkdownChannelButtonStyle;
+	textFg: windowActiveTextFg;
+}
+defaultMarkdownChannel: MarkdownChannel {
+	padding: margins(18px, 8px, 18px, 8px);
+	border: 0px;
+	borderFg: inputBorderFg;
+	bg: windowBgOver;
+	radius: 0px;
+	textSkip: 8px;
+	buttonSkip: 18px;
+	titleStyle: defaultMarkdownChannelTitleStyle;
+	titleFg: windowFg;
+	subtitleStyle: defaultMarkdownChannelSubtitleStyle;
+	subtitleFg: windowSubTextFg;
+	button: defaultMarkdownChannelButton;
+}
+defaultMarkdownRelatedArticleTitleStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: font(16px semibold);
+	lineHeight: 22px;
+}
+defaultMarkdownRelatedArticleSubtitleStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: font(15px);
+	lineHeight: 21px;
+}
+defaultMarkdownRelatedArticleFooterStyle: TextStyle(defaultMarkdownDetailsSummaryStyle) {
+}
+defaultMarkdownRelatedArticle: MarkdownRelatedArticle {
+	padding: margins(18px, 8px, 18px, 8px);
+	border: 0px;
+	borderFg: boxDividerBg;
+	bg: windowBg;
+	radius: 0px;
+	headerPadding: margins(18px, 8px, 18px, 8px);
+	headerBg: windowBgOver;
+	separator: 1px;
+	separatorFg: boxDividerBg;
+	textSkip: 6px;
+	footerSkip: 8px;
+	thumbnailSize: 87px;
+	thumbnailSkip: 12px;
+	thumbnailRadius: 0px;
+	titleLines: 2;
+	subtitleLines: 3;
+	footerLines: 1;
+	titleStyle: defaultMarkdownRelatedArticleTitleStyle;
+	titleFg: windowFg;
+	subtitleStyle: defaultMarkdownRelatedArticleSubtitleStyle;
+	subtitleFg: windowSubTextFg;
+	footerStyle: defaultMarkdownRelatedArticleFooterStyle;
+	footerFg: windowSubTextFg;
+}
+defaultMarkdownGroupedMedia: MarkdownGroupedMedia {
+	padding: margins(0px, 0px, 0px, 0px);
+	captionSkip: 12px;
+	itemSkip: 3px;
+	radius: 0px;
+	slideshowMinHeight: 200px;
+	overlayOpacity: 0.2;
+	fallbackBg: windowBgOver;
+	fallbackFg: windowSubTextFg;
+	navButtonSize: 36px;
+	navButtonSkip: 12px;
+	navButtonBg: windowBg;
+	navButtonBgOver: windowBgOver;
+	navPreviousIcon: ivBackIcon;
+	navPreviousIconOver: ivBackIcon;
+	navNextIcon: ivForwardIcon;
+	navNextIconOver: ivForwardIcon;
+	dotSize: 6px;
+	dotSkip: 14px;
+	dotsBottomSkip: 12px;
+	dotsBgOpacity: 0.34;
+}
+defaultMarkdownFailureLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 280px;
+	textFg: windowSubTextFg;
+	align: align(center);
+	style: defaultMarkdownBodyStyle;
+}
+defaultMarkdownFailure: MarkdownFailure {
+	label: defaultMarkdownFailureLabel;
+	width: 360px;
+	skip: 12px;
+}
+markdownFootnoteBox: Box(defaultBox) {
+	buttonPadding: margins(0px, 0px, 0px, 0px);
+	buttonHeight: 0px;
+}
+markdownFootnoteLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 95px;
+	textFg: windowFg;
+	align: align(topleft);
+	style: defaultMarkdownBodyStyle;
+	palette: defaultMarkdownTextPalette;
+}
+markdownFootnotePadding: margins(24px, 12px, 24px, 12px);
+markdownEmbedOverlayError: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: windowSubTextFg;
+	align: align(top);
+	style: defaultMarkdownBodyStyle;
+}
+markdownEmbedOverlay: MarkdownEmbedOverlay {
+	scrimBg: layerBg;
+	bg: windowBg;
+	loading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+		color: windowSubTextFg;
+	}
+	size: size(640px, 480px);
+	margin: margins(12px, 12px, 12px, 12px);
+	padding: margins(8px, 8px, 8px, 8px);
+	errorLabel: markdownEmbedOverlayError;
+	errorPadding: margins(24px, 36px, 24px, 36px);
+}
+markdownEmbedOverlayClose: IconButton(boxTitleClose) {
+	icon: icon {{ "box_button_close", mediaviewPlaybackActive }};
+	iconOver: icon {{ "box_button_close", mediaviewPlaybackActiveOver }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
+defaultMarkdown: Markdown {
+	textPalette: defaultMarkdownTextPalette;
+	markBgOpacity: 1.0;
+	textColor: windowFg;
+	supplementaryTextColor: windowSubTextFg;
+	body: defaultMarkdownBodyStyle;
+	heading1: TextStyle(defaultMarkdownBodyStyle) {
+		font: font(30px semibold);
+		lineHeight: 42px;
+	}
+	heading2: TextStyle(defaultMarkdownBodyStyle) {
+		font: font(26px semibold);
+		lineHeight: 36px;
+	}
+	heading3: TextStyle(defaultMarkdownBodyStyle) {
+		font: font(22px semibold);
+		lineHeight: 31px;
+	}
+	heading4: TextStyle(defaultMarkdownBodyStyle) {
+		font: font(19px semibold);
+		lineHeight: 27px;
+	}
+	heading5: TextStyle(defaultMarkdownBodyStyle) {
+		font: font(17px semibold);
+		lineHeight: 24px;
+	}
+	heading6: TextStyle(defaultMarkdownBodyStyle) {
+		font: font(15px semibold);
+		lineHeight: 22px;
+	}
+	footer: TextStyle(defaultMarkdownBodyStyle) {
+		font: font(11px);
+		lineHeight: 18px;
+	}
+	code: defaultMarkdownCodeStyle;
+	pagePadding: margins(0px, 0px, 0px, 16px);
+	pageMaxWidth: 732px;
+	textPadding: defaultMarkdownSidesMargin;
+	mediaPadding: margins(0px, 0px, 0px, 0px);
+	blockSkips: defaultMarkdownBlockSkips;
+	list: defaultMarkdownList;
+	quoteIndent: 18px;
+	quoteReadableMinWidth: 160px;
+	quotePaintColors: defaultMarkdownQuotePaintColors;
+	pullquote: defaultMarkdownPullquote;
+	quoteAuthorStyle: defaultMarkdownQuoteAuthorStyle;
+	rule: defaultMarkdownRule;
+	displayMath: defaultMarkdownDisplayMath;
+	table: defaultMarkdownTable;
+	details: defaultMarkdownDetails;
+	embedPost: defaultMarkdownEmbedPost;
+	placeholder: defaultMarkdownPlaceholder;
+	photo: defaultMarkdownPhoto;
+	audio: defaultMarkdownAudio;
+	channel: defaultMarkdownChannel;
+	relatedArticle: defaultMarkdownRelatedArticle;
+	groupedMedia: defaultMarkdownGroupedMedia;
+	failure: defaultMarkdownFailure;
+}
+messageMarkdownBodyStyle: TextStyle(messageTextStyle) {
+	font: font(13px);
+}
+messageMarkdownCodeStyle: TextStyle(defaultMarkdownCodeStyle) {
+	font: font(13px);
+	lineHeight: 20px;
+}
+messageMarkdownTableHeaderStyle: TextStyle(messageMarkdownBodyStyle) {
+	font: font(13px semibold);
+	lineHeight: 20px;
+}
+messageMarkdownDisplayMathFallbackStyle: TextStyle(messageMarkdownCodeStyle) {
+}
+messageMarkdownQuoteAuthorStyle: TextStyle(messageMarkdownBodyStyle) {
+	font: font(13px semibold);
+	lineHeight: 20px;
+}
+messageMarkdownHeading1Style: TextStyle(messageMarkdownBodyStyle) {
+	font: font(19px semibold);
+	lineHeight: 27px;
+}
+messageMarkdownHeading2Style: TextStyle(messageMarkdownBodyStyle) {
+	font: font(18px semibold);
+	lineHeight: 26px;
+}
+messageMarkdownHeading3Style: TextStyle(messageMarkdownBodyStyle) {
+	font: font(17px semibold);
+	lineHeight: 24px;
+}
+messageMarkdownHeading4Style: TextStyle(messageMarkdownBodyStyle) {
+	font: font(16px semibold);
+	lineHeight: 23px;
+}
+messageMarkdownHeading5Style: TextStyle(messageMarkdownBodyStyle) {
+	font: font(15px semibold);
+	lineHeight: 22px;
+}
+messageMarkdownHeading6Style: TextStyle(messageMarkdownBodyStyle) {
+	font: font(14px semibold);
+	lineHeight: 21px;
+}
+messageMarkdownFooterStyle: TextStyle(messageMarkdownBodyStyle) {
+	font: font(12px);
+	lineHeight: 19px;
+}
+messageMarkdownDetailsSummaryStyle: TextStyle(messageMarkdownBodyStyle) {
+	linkUnderline: kLinkUnderlineNever;
+}
+messageMarkdownAudioTitleStyle: TextStyle(messageMarkdownBodyStyle) {
+	font: font(14px semibold);
+	lineHeight: 18px;
+}
+messageMarkdownAudioSubtitleStyle: TextStyle(messageMarkdownDetailsSummaryStyle) {
+}
+messageMarkdownBlockSkips: MarkdownBlockSkips {
+	paragraph: 4px;
+	heading: 10px;
+	code: 8px;
+	rule: 8px;
+	quote: 8px;
+	displayMath: 8px;
+	table: 8px;
+	photo: 8px;
+	video: 8px;
+	audio: 8px;
+	map: 8px;
+	channel: 6px;
+	groupedMedia: 8px;
+	relatedArticle: 0px;
+	embedPost: 8px;
+	placeholder: 8px;
+}
+messageMarkdownQuoteBgOpacity: 0.12;
+messageMarkdownDetailsIcon: icon{{ "history_down_arrow", msgInDateFg }};
+messageMarkdownDetailsIconSelected: icon{{
+	"history_down_arrow",
+	msgInDateFgSelected
+}};
+messageMarkdownDetailsIconOut: icon{{ "history_down_arrow", msgOutDateFg }};
+messageMarkdownDetailsIconOutSelected: icon{{
+	"history_down_arrow",
+	msgOutDateFgSelected
+}};
+messageMarkdownNavPreviousIcon: icon{{ "box_button_back", windowSubTextFg }};
+messageMarkdownNavPreviousIconSelected: icon{{
+	"box_button_back",
+	windowFg
+}};
+messageMarkdownNavPreviousIconOut: icon{{ "box_button_back", windowSubTextFg }};
+messageMarkdownNavPreviousIconOutSelected: icon{{
+	"box_button_back",
+	windowFg
+}};
+messageMarkdownNavNextIcon: icon{{
+	"box_button_back-flip_horizontal",
+	windowSubTextFg
+}};
+messageMarkdownNavNextIconSelected: icon{{
+	"box_button_back-flip_horizontal",
+	windowFg
+}};
+messageMarkdownNavNextIconOut: icon{{
+	"box_button_back-flip_horizontal",
+	windowSubTextFg
+}};
+messageMarkdownNavNextIconOutSelected: icon{{
+	"box_button_back-flip_horizontal",
+	windowFg
+}};
+messageMarkdownList: MarkdownList(defaultMarkdownList) {
+	bulletFg: historyTextInFg;
+}
+messageMarkdownQuotePaintColors: MarkdownQuotePaintColors(
+	defaultMarkdownQuotePaintColors) {
+	blockquote: msgInReplyBarColor;
+	pre: msgInDateFg;
+	preBg: msgFileInBg;
+}
+messageMarkdownPullquote: MarkdownPullquote(defaultMarkdownPullquote) {
+	padding: margins(0px, 8px, 0px, 8px);
+	maxWidth: 280px;
+}
+messageMarkdownRule: MarkdownRule(defaultMarkdownRule) {
+	fg: msgInDateFg;
+}
+messageMarkdownTable: MarkdownTable(defaultMarkdownTable) {
+	cellPadding: margins(6px, 8px, 6px, 8px);
+	borderFg: msgInReplyBarColor;
+	headerBg: msgInReplyBarColor;
+	headerBgOpacity: messageMarkdownQuoteBgOpacity;
+	headerStyle: messageMarkdownTableHeaderStyle;
+	bodyStyle: messageMarkdownBodyStyle;
+	captionSkip: 6px;
+	overflowWidth: 3px;
+	overflowFg: msgInDateFg;
+	scrollbarSkip: 3px;
+	scrollbarHeight: 10px;
+	scrollbarMinThumbWidth: 20px;
+}
+messageMarkdownDisplayMath: MarkdownDisplayMath(defaultMarkdownDisplayMath) {
+	padding: margins(8px, 10px, 8px, 10px);
+	textSize: 16px;
+	fg: historyTextInFg;
+	fallbackStyle: messageMarkdownDisplayMathFallbackStyle;
+	fallbackBg: msgFileInBg;
+	fallbackRadius: 8px;
+	fallbackPadding: margins(8px, 10px, 8px, 10px);
+	overflowWidth: 3px;
+	overflowFg: msgInDateFg;
+}
+messageMarkdownDetails: MarkdownDetails(defaultMarkdownDetails) {
+	headerPadding: margins(4px, 11px, 4px, 11px);
+	bodyPadding: margins(4px, 11px, 6px, 11px);
+	bodyBg: msgInBg;
+	summaryFg: historyTextInFg;
+	radius: 8px;
+	summaryStyle: messageMarkdownDetailsSummaryStyle;
+	icon: messageMarkdownDetailsIcon;
+	iconSkip: 8px;
+}
+messageMarkdownPhoto: MarkdownPhoto(defaultMarkdownPhoto) {
+	captionSkip: 8px;
+	progressSize: 28px;
+	progressWidth: 2px;
+	progressBg: msgInDateFg;
+	progressFg: historyTextInFg;
+	fallbackBg: msgFileInBg;
+	fallbackFg: msgInDateFg;
+}
+messageMarkdownAudio: MarkdownAudio(defaultMarkdownAudio) {
+	padding: margins(6px, 8px, 6px, 8px);
+	captionSkip: 10px;
+	textSkip: 6px;
+	borderFg: msgInDateFg;
+	bg: msgFileInBg;
+	radius: 8px;
+	titleStyle: messageMarkdownAudioTitleStyle;
+	titleFg: historyTextInFg;
+	subtitleStyle: messageMarkdownAudioSubtitleStyle;
+	subtitleFg: msgInDateFg;
+}
+messageMarkdownGroupedMedia: MarkdownGroupedMedia(defaultMarkdownGroupedMedia) {
+	captionSkip: 8px;
+	itemSkip: 2px;
+	radius: 0px;
+	slideshowMinHeight: 160px;
+	fallbackBg: msgFileInBg;
+	fallbackFg: msgInDateFg;
+	navButtonSize: 28px;
+	navButtonSkip: 8px;
+	navButtonBg: windowBg;
+	navButtonBgOver: windowBgOver;
+	navPreviousIcon: messageMarkdownNavPreviousIcon;
+	navPreviousIconOver: messageMarkdownNavPreviousIconSelected;
+	navNextIcon: messageMarkdownNavNextIcon;
+	navNextIconOver: messageMarkdownNavNextIconSelected;
+	dotsBottomSkip: 8px;
+}
+messageMarkdownFailureLabel: FlatLabel(defaultMarkdownFailureLabel) {
+	textFg: msgInDateFg;
+	style: messageMarkdownBodyStyle;
+	palette: inTextPalette;
+}
+messageMarkdownFailureLabelSelected: FlatLabel(messageMarkdownFailureLabel) {
+	textFg: msgInDateFgSelected;
+	palette: inTextPaletteSelected;
+}
+messageMarkdownFailureLabelOut: FlatLabel(messageMarkdownFailureLabel) {
+	textFg: msgOutDateFg;
+	palette: outTextPalette;
+}
+messageMarkdownFailureLabelOutSelected: FlatLabel(
+	messageMarkdownFailureLabelOut) {
+	textFg: msgOutDateFgSelected;
+	palette: outTextPaletteSelected;
+}
+messageMarkdownFailure: MarkdownFailure(defaultMarkdownFailure) {
+	label: messageMarkdownFailureLabel;
+	width: 280px;
+	skip: 8px;
+}
+messageMarkdown: Markdown(defaultMarkdown) {
+	textPalette: TextPalette(inTextPalette) {
+		markBg: msgInReplyBarColor;
+	}
+	markBgOpacity: messageMarkdownQuoteBgOpacity;
+	textColor: historyTextInFg;
+	supplementaryTextColor: msgInDateFg;
+	body: messageMarkdownBodyStyle;
+	heading1: messageMarkdownHeading1Style;
+	heading2: messageMarkdownHeading2Style;
+	heading3: messageMarkdownHeading3Style;
+	heading4: messageMarkdownHeading4Style;
+	heading5: messageMarkdownHeading5Style;
+	heading6: messageMarkdownHeading6Style;
+	footer: messageMarkdownFooterStyle;
+	code: messageMarkdownCodeStyle;
+	pagePadding: margins(0px, 0px, 0px, 0px);
+	pageMaxWidth: msgMaxWidth;
+	textPadding: msgPadding;
+	blockSkips: messageMarkdownBlockSkips;
+	list: MarkdownList(messageMarkdownList) {
+		taskCheck: Check(defaultCheck) {
+			toggledFg: msgFileInBg;
+		}
+	}
+	quoteIndent: 16px;
+	quoteReadableMinWidth: 160px;
+	quotePaintColors: messageMarkdownQuotePaintColors;
+	pullquote: messageMarkdownPullquote;
+	quoteAuthorStyle: messageMarkdownQuoteAuthorStyle;
+	rule: messageMarkdownRule;
+	table: messageMarkdownTable;
+	displayMath: messageMarkdownDisplayMath;
+	details: messageMarkdownDetails;
+	photo: messageMarkdownPhoto;
+	audio: messageMarkdownAudio;
+	groupedMedia: messageMarkdownGroupedMedia;
+	failure: messageMarkdownFailure;
+}
+messageMarkdownOut: Markdown(messageMarkdown) {
+	textPalette: TextPalette(outTextPalette) {
+		markBg: msgOutReplyBarColor;
+	}
+	textColor: historyTextOutFg;
+	supplementaryTextColor: msgOutDateFg;
+	list: MarkdownList(messageMarkdownList) {
+		bulletFg: historyTextOutFg;
+		taskCheck: Check(defaultCheck) {
+			toggledFg: msgFileOutBg;
+		}
+	}
+	quotePaintColors: MarkdownQuotePaintColors(messageMarkdownQuotePaintColors) {
+		blockquote: msgOutReplyBarColor;
+		pre: msgOutDateFg;
+		preBg: msgFileOutBg;
+	}
+	rule: MarkdownRule(messageMarkdownRule) {
+		fg: msgOutDateFg;
+	}
+	table: MarkdownTable(messageMarkdownTable) {
+		borderFg: msgOutReplyBarColor;
+		headerBg: msgOutReplyBarColor;
+		overflowFg: msgOutDateFg;
+	}
+	displayMath: MarkdownDisplayMath(messageMarkdownDisplayMath) {
+		fg: historyTextOutFg;
+		fallbackBg: msgFileOutBg;
+		overflowFg: msgOutDateFg;
+	}
+	details: MarkdownDetails(messageMarkdownDetails) {
+		bodyBg: msgOutBg;
+		summaryFg: historyTextOutFg;
+		icon: messageMarkdownDetailsIconOut;
+	}
+	photo: MarkdownPhoto(messageMarkdownPhoto) {
+		progressBg: msgOutDateFg;
+		progressFg: historyTextOutFg;
+		fallbackBg: msgFileOutBg;
+		fallbackFg: msgOutDateFg;
+	}
+	audio: MarkdownAudio(messageMarkdownAudio) {
+		borderFg: msgOutDateFg;
+		bg: msgFileOutBg;
+		titleFg: historyTextOutFg;
+		subtitleFg: msgOutDateFg;
+	}
+	groupedMedia: MarkdownGroupedMedia(messageMarkdownGroupedMedia) {
+		fallbackBg: msgFileOutBg;
+		fallbackFg: msgOutDateFg;
+		navButtonBg: windowBg;
+		navButtonBgOver: windowBgOver;
+		navPreviousIcon: messageMarkdownNavPreviousIconOut;
+		navPreviousIconOver: messageMarkdownNavPreviousIconOutSelected;
+		navNextIcon: messageMarkdownNavNextIconOut;
+		navNextIconOver: messageMarkdownNavNextIconOutSelected;
+	}
+	failure: MarkdownFailure(messageMarkdownFailure) {
+		label: messageMarkdownFailureLabelOut;
+	}
+}
+messageMarkdownSelected: Markdown(messageMarkdown) {
+	textPalette: TextPalette(inTextPaletteSelected) {
+		markBg: msgInReplyBarSelColor;
+	}
+	textColor: historyTextInFgSelected;
+	supplementaryTextColor: msgInDateFgSelected;
+	list: MarkdownList(messageMarkdownList) {
+		bulletFg: historyTextInFgSelected;
+		taskCheck: Check(defaultCheck) {
+			toggledFg: msgFileInBgSelected;
+		}
+	}
+	quotePaintColors: MarkdownQuotePaintColors(messageMarkdownQuotePaintColors) {
+		blockquote: msgInReplyBarSelColor;
+		pre: msgInDateFgSelected;
+		preBg: msgFileInBgSelected;
+	}
+	rule: MarkdownRule(messageMarkdownRule) {
+		fg: msgInDateFgSelected;
+	}
+	table: MarkdownTable(messageMarkdownTable) {
+		borderFg: msgInReplyBarSelColor;
+		headerBg: msgInReplyBarSelColor;
+		overflowFg: msgInDateFgSelected;
+	}
+	displayMath: MarkdownDisplayMath(messageMarkdownDisplayMath) {
+		fg: historyTextInFgSelected;
+		fallbackBg: msgFileInBgSelected;
+		overflowFg: msgInDateFgSelected;
+	}
+	details: MarkdownDetails(messageMarkdownDetails) {
+		bodyBg: msgInBgSelected;
+		summaryFg: historyTextInFgSelected;
+		icon: messageMarkdownDetailsIconSelected;
+	}
+	photo: MarkdownPhoto(messageMarkdownPhoto) {
+		progressBg: msgInDateFgSelected;
+		progressFg: historyTextInFgSelected;
+		fallbackBg: msgFileInBgSelected;
+		fallbackFg: msgInDateFgSelected;
+	}
+	audio: MarkdownAudio(messageMarkdownAudio) {
+		borderFg: msgInDateFgSelected;
+		bg: msgFileInBgSelected;
+		titleFg: historyTextInFgSelected;
+		subtitleFg: msgInDateFgSelected;
+	}
+	groupedMedia: MarkdownGroupedMedia(messageMarkdownGroupedMedia) {
+		fallbackBg: msgFileInBgSelected;
+		fallbackFg: msgInDateFgSelected;
+		navButtonBg: windowBg;
+		navButtonBgOver: windowBgOver;
+		navPreviousIcon: messageMarkdownNavPreviousIconSelected;
+		navPreviousIconOver: messageMarkdownNavPreviousIconSelected;
+		navNextIcon: messageMarkdownNavNextIconSelected;
+		navNextIconOver: messageMarkdownNavNextIconSelected;
+	}
+	failure: MarkdownFailure(messageMarkdownFailure) {
+		label: messageMarkdownFailureLabelSelected;
+	}
+}
+messageMarkdownOutSelected: Markdown(messageMarkdown) {
+	textPalette: TextPalette(outTextPaletteSelected) {
+		markBg: msgOutReplyBarSelColor;
+	}
+	textColor: historyTextOutFgSelected;
+	supplementaryTextColor: msgOutDateFgSelected;
+	list: MarkdownList(messageMarkdownList) {
+		bulletFg: historyTextOutFgSelected;
+		taskCheck: Check(defaultCheck) {
+			toggledFg: msgFileOutBgSelected;
+		}
+	}
+	quotePaintColors: MarkdownQuotePaintColors(messageMarkdownQuotePaintColors) {
+		blockquote: msgOutReplyBarSelColor;
+		pre: msgOutDateFgSelected;
+		preBg: msgFileOutBgSelected;
+	}
+	rule: MarkdownRule(messageMarkdownRule) {
+		fg: msgOutDateFgSelected;
+	}
+	table: MarkdownTable(messageMarkdownTable) {
+		borderFg: msgOutReplyBarSelColor;
+		headerBg: msgOutReplyBarSelColor;
+		overflowFg: msgOutDateFgSelected;
+	}
+	displayMath: MarkdownDisplayMath(messageMarkdownDisplayMath) {
+		fg: historyTextOutFgSelected;
+		fallbackBg: msgFileOutBgSelected;
+		overflowFg: msgOutDateFgSelected;
+	}
+	details: MarkdownDetails(messageMarkdownDetails) {
+		bodyBg: msgOutBgSelected;
+		summaryFg: historyTextOutFgSelected;
+		icon: messageMarkdownDetailsIconOutSelected;
+	}
+	photo: MarkdownPhoto(messageMarkdownPhoto) {
+		progressBg: msgOutDateFgSelected;
+		progressFg: historyTextOutFgSelected;
+		fallbackBg: msgFileOutBgSelected;
+		fallbackFg: msgOutDateFgSelected;
+	}
+	audio: MarkdownAudio(messageMarkdownAudio) {
+		borderFg: msgOutDateFgSelected;
+		bg: msgFileOutBgSelected;
+		titleFg: historyTextOutFgSelected;
+		subtitleFg: msgOutDateFgSelected;
+	}
+	groupedMedia: MarkdownGroupedMedia(messageMarkdownGroupedMedia) {
+		fallbackBg: msgFileOutBgSelected;
+		fallbackFg: msgOutDateFgSelected;
+		navButtonBg: windowBg;
+		navButtonBgOver: windowBgOver;
+		navPreviousIcon: messageMarkdownNavPreviousIconOutSelected;
+		navPreviousIconOver: messageMarkdownNavPreviousIconOutSelected;
+		navNextIcon: messageMarkdownNavNextIconOutSelected;
+		navNextIconOver: messageMarkdownNavNextIconOutSelected;
+	}
+	failure: MarkdownFailure(messageMarkdownFailure) {
+		label: messageMarkdownFailureLabelOutSelected;
+	}
+}
+aiComposeCardMarkdown: Markdown(messageMarkdown) {
+	textPadding: margins(12px, 8px, 12px, 8px);
+}
+translateBoxMarkdown: Markdown(messageMarkdown) {
+	textPadding: boxRowPadding;
+	rule: defaultMarkdownRule;
+}

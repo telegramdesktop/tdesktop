@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_text_recognition.h"
 
 #include "base/platform/mac/base_utilities_mac.h"
-#include "base/options.h"
 
 #import <Foundation/Foundation.h>
 #import <Vision/Vision.h>
@@ -17,21 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace TextRecognition {
 
-namespace {
-
-base::options::toggle TextRecognitionOption({
-	.id = "text-recognition-mac",
-	.name = "Text Recognition",
-	.description = "Enable text recognition from images on macOS 10.15+.",
-	.defaultValue = false,
-	.scope = base::options::macos,
-});
-
-} // namespace
-
 bool IsAvailable() {
 	if (@available(macOS 10.15, *)) {
-		return TextRecognitionOption.value();
+		return true;
 	}
 	return false;
 }
@@ -74,17 +61,38 @@ Result RecognizeText(const QImage &image) {
 						topCandidates:1].firstObject;
 					if (recognizedText) {
 						const auto text = recognizedText.string;
-						const auto boundingBox = obs.boundingBox;
-						const auto x = boundingBox.origin.x * imageSize.width;
-						const auto y = (1.0 - boundingBox.origin.y
-							- boundingBox.size.height) * imageSize.height;
-						const auto width = boundingBox.size.width
-							* imageSize.width;
-						const auto height = boundingBox.size.height
-							* imageSize.height;
+						const auto convert = [&](CGRect box) {
+							const auto x = box.origin.x * imageSize.width;
+							const auto y = (1.0 - box.origin.y
+								- box.size.height) * imageSize.height;
+							const auto width = box.size.width
+								* imageSize.width;
+							const auto height = box.size.height
+								* imageSize.height;
+							return QRect(
+								style::ConvertScale(x),
+								style::ConvertScale(y),
+								style::ConvertScale(width),
+								style::ConvertScale(height));
+						};
+						auto glyphs = std::vector<QRect>();
+						if (@available(macOS 11.0, *)) {
+							const auto length = NSInteger(text.length);
+							glyphs.reserve(length);
+							for (auto i = NSInteger(); i < length; ++i) {
+								NSError *rangeError = nil;
+								auto *box = [recognizedText
+									boundingBoxForRange:NSMakeRange(i, 1)
+									error:&rangeError];
+								glyphs.push_back((box && !rangeError)
+									? convert(box.boundingBox)
+									: QRect());
+							}
+						}
 						result.items.push_back({
 							NS2QString(text),
-							QRect(x, y, width, height)
+							convert(obs.boundingBox),
+							std::move(glyphs)
 						});
 					}
 				}

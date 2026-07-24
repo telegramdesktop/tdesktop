@@ -72,6 +72,7 @@ public:
 
 	[[nodiscard]] ParsedTheme result() const;
 	[[nodiscard]] QImage image() const;
+	[[nodiscard]] bool chosen() const;
 
 	int resizeGetHeight(int newWidth) override;
 
@@ -90,6 +91,7 @@ private:
 	QString _imageText;
 	int _thumbnailSize = 0;
 	QPixmap _thumbnail;
+	bool _chosen = false;
 
 };
 
@@ -191,6 +193,7 @@ void BackgroundSelector::chooseBackgroundFromFile() {
 				&& (read.format == "jpeg"
 					|| read.format == "jpg"
 					|| read.format == "png")) {
+				_chosen = true;
 				_background = std::move(read.image);
 				_parsed.background = content;
 				_parsed.isPng = (read.format == "png");
@@ -221,6 +224,39 @@ ParsedTheme BackgroundSelector::result() const {
 
 QImage BackgroundSelector::image() const {
 	return _background;
+}
+
+bool BackgroundSelector::chosen() const {
+	return _chosen;
+}
+
+[[nodiscard]] MTPVector<MTPInputThemeSettings> PrepareThemeSettings(
+		not_null<Main::Session*> session) {
+	const auto paper = Background()->paper();
+	if (!Data::IsCloudWallPaper(paper) || paper.isLocal()) {
+		return MTPVector<MTPInputThemeSettings>();
+	}
+	const auto serialize = [](const QColor &color) {
+		return int(((uint32(color.red()) & 0xFFU) << 16)
+			| ((uint32(color.green()) & 0xFFU) << 8)
+			| (uint32(color.blue()) & 0xFFU));
+	};
+	using Flag = MTPDinputThemeSettings::Flag;
+	const auto dark = IsNightMode();
+	return MTP_vector<MTPInputThemeSettings>(
+		QVector<MTPInputThemeSettings>{
+			MTP_inputThemeSettings(
+			MTP_flags(Flag::f_message_colors
+				| Flag::f_wallpaper
+				| Flag::f_wallpaper_settings),
+			(dark ? MTP_baseThemeTinted() : MTP_baseThemeClassic()),
+			MTP_int(serialize(st::windowActiveTextFg->c)),
+			MTP_int(0),
+			MTP_vector<MTPint>(
+				QVector<MTPint>{ MTP_int(serialize(st::msgOutBg->c)) }),
+			paper.mtpInput(session),
+			paper.mtpSettings()),
+		});
 }
 
 bool PaletteChanged(
@@ -444,6 +480,7 @@ Fn<void()> SavePreparedTheme(
 		not_null<Window::Controller*> window,
 		const ParsedTheme &parsed,
 		const QImage &background,
+		bool backgroundChosen,
 		const QByteArray &originalContent,
 		const ParsedTheme &originalParsed,
 		const Data::CloudTheme &fields,
@@ -479,7 +516,7 @@ Fn<void()> SavePreparedTheme(
 		done();
 
 		const auto cloud = result.match([&](const MTPDtheme &data) {
-			const auto result = Data::CloudTheme::Parse(session, data);
+			const auto result = Data::CloudTheme::Parse(session, data, true);
 			session->data().cloudThemes().savedFromEditor(result);
 			return result;
 		});
@@ -496,14 +533,22 @@ Fn<void()> SavePreparedTheme(
 			background);
 	};
 
+	const auto themeSettings = backgroundChosen
+		? MTPVector<MTPInputThemeSettings>()
+		: PrepareThemeSettings(session);
+
 	const auto createTheme = [=](const MTPDocument &data) {
+		using Flag = MTPaccount_CreateTheme::Flag;
 		const auto document = session->data().processDocument(data);
 		state->requestId = api->request(MTPaccount_CreateTheme(
-			MTP_flags(MTPaccount_CreateTheme::Flag::f_document),
+			MTP_flags(Flag::f_document
+				| (themeSettings.v.isEmpty()
+					? Flag(0)
+					: Flag::f_settings)),
 			MTP_string(fields.slug),
 			MTP_string(fields.title),
 			document->mtpInput(),
-			MTPVector<MTPInputThemeSettings>()
+			themeSettings
 		)).done([=](const MTPTheme &result) {
 			finish(result);
 		}).fail([=](const MTP::Error &error) {
@@ -518,7 +563,10 @@ Fn<void()> SavePreparedTheme(
 			| Flag::f_slug
 			| (data.type() == mtpc_documentEmpty
 				? Flag(0)
-				: Flag::f_document);
+				: Flag::f_document)
+			| (themeSettings.v.isEmpty()
+				? Flag(0)
+				: Flag::f_settings);
 		state->requestId = api->request(MTPaccount_UpdateTheme(
 			MTP_flags(flags),
 			MTP_string(Data::CloudThemes::Format()),
@@ -526,7 +574,7 @@ Fn<void()> SavePreparedTheme(
 			MTP_string(fields.slug),
 			MTP_string(fields.title),
 			document->mtpInput(),
-			MTPVector<MTPInputThemeSettings>()
+			themeSettings
 		)).done([=](const MTPTheme &result) {
 			finish(result);
 		}).fail([=](const MTP::Error &error) {
@@ -906,6 +954,7 @@ void SaveThemeBox(
 			window,
 			back->result(),
 			back->image(),
+			back->chosen(),
 			collected.originalContent,
 			collected.originalParsed,
 			fields,

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/crash_report_window.h"
 #include "core/application.h"
+#include "core/external_control.h"
 #include "core/launcher.h"
 #include "core/local_url_handlers.h"
 #include "core/update_checker.h"
@@ -24,10 +25,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/concurrent_timer.h"
 #include "base/invoke_queued.h"
+#include "base/options.h"
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
 #include "ui/ui_utility.h"
 #include "ui/effects/animations.h"
+
+#ifdef Q_OS_MAC
+#include "platform/mac/global_menu_mac.h"
+#endif // Q_OS_MAC
 
 #include <QtCore/QLockFile>
 #include <QtGui/QSessionManager>
@@ -35,24 +41,49 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/qpa/qplatformscreen.h>
 
 namespace Core {
+namespace {
+
+base::options::toggle OptionDeadlockDetector({
+	.id = kOptionDeadlockDetector,
+	.name = "Deadlock Detector",
+	.description = "Check once every 30 seconds that main thread is still responsive.",
+});
+
+constexpr auto kCleanupIpcTimeout = 10 * crl::time(1000);
+constexpr auto kCleanupQuitTimeout = 30 * crl::time(1000);
+
+} // namespace
+
+const char kOptionDeadlockDetector[] = "deadlock-detector";
 
 bool Sandbox::QuitOnStartRequested = false;
+bool Sandbox::SystemShuttingDown = false;
 
 Sandbox::Sandbox(int &argc, char **argv)
 : QApplication(argc, argv)
 , _mainThreadId(QThread::currentThreadId()) {
+#ifdef Q_OS_MAC
+	Platform::CreateGlobalMenu();
+#endif // Q_OS_MAC
 }
 
 int Sandbox::start() {
-	if (!Core::UpdaterDisabled()) {
-		_updateChecker = std::make_unique<Core::UpdateChecker>();
-	}
-
 	{
 		const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
 		char h[33] = { 0 };
 		hashMd5Hex(d.constData(), d.size(), h);
 		_localServerName = Platform::SingleInstanceLocalServerName(h);
+	}
+
+	if (cLaunchMode() == LaunchModeCleanup) {
+		const auto result = stopRunningInstance();
+		psCleanup();
+		closeApplication();
+		return result;
+	}
+
+	if (!Core::UpdaterDisabled()) {
+		_updateChecker = std::make_unique<Core::UpdateChecker>();
 	}
 
 	{
@@ -110,9 +141,27 @@ int Sandbox::start() {
 
 	crl::on_main(this, [=] { checkForQuit(); });
 	connect(this, &QCoreApplication::aboutToQuit, [=] {
-		customEnterFromEventLoop([&] {
-			closeApplication();
-		});
+		// On Windows, Qt emits aboutToQuit synchronously from its
+		// WM_ENDSESSION handler (QWindowsContext::windowsProc). Running
+		// closeApplication() there destroys QWindows mid-dispatch and
+		// later WM_ENDSESSION messages delivered to other top-level
+		// HWNDs crash on virtual dispatch through stale QWindow*. Detect
+		// that path and defer cleanup to the next main-loop tick so Qt
+		// finishes delivering shutdown messages on still-live windows.
+		// On a normal quit (Ctrl+Q etc.) aboutToQuit fires from the
+		// exec() epilogue after the event loop has exited and queued
+		// events would not run, so we keep the synchronous teardown.
+		if (SystemShuttingDown) {
+			QMetaObject::invokeMethod(this, [=] {
+				customEnterFromEventLoop([&] {
+					closeApplication();
+				});
+			}, Qt::QueuedConnection);
+		} else {
+			customEnterFromEventLoop([&] {
+				closeApplication();
+			});
+		}
 	});
 
 	// https://github.com/telegramdesktop/tdesktop/issues/948
@@ -132,11 +181,64 @@ int Sandbox::start() {
 	return exec();
 }
 
+int Sandbox::stopRunningInstance() {
+	LOG(("Cleanup: connecting to %1...").arg(_localServerName));
+	_localSocket.connectToServer(_localServerName);
+	if (!_localSocket.waitForConnected(int(kCleanupIpcTimeout))) {
+		if (_localSocket.error() == QLocalSocket::ServerNotFoundError) {
+			LOG(("Cleanup: no running instance found."));
+			return 0;
+		}
+		LOG(("Cleanup: connect error %1.").arg(_localSocket.error()));
+		return 1;
+	}
+	_localSocket.write("CMD:quit;");
+	if (!_localSocket.waitForBytesWritten(int(kCleanupIpcTimeout))) {
+		LOG(("Cleanup: could not send the quit command."));
+		return 1;
+	}
+	auto response = QByteArray();
+	const auto deadline = crl::now() + kCleanupIpcTimeout;
+	while (!response.contains(';')) {
+		const auto timeout = deadline - crl::now();
+		if (timeout <= 0 || !_localSocket.waitForReadyRead(int(timeout))) {
+			LOG(("Cleanup: no response to the quit command."));
+			return 1;
+		}
+		response.append(_localSocket.readAll());
+	}
+	const auto match = QRegularExpression(u"RES:(\\d+)_(\\d+);"_q).match(
+		QString::fromLatin1(response));
+	if (!match.hasMatch()) {
+		LOG(("Cleanup: bad response to the quit command."));
+		return 1;
+	}
+	const auto processId = match.capturedView(1).toULongLong();
+	LOG(("Cleanup: waiting for process %1 to quit...").arg(processId));
+	if (!Platform::WaitForProcessExit(processId, kCleanupQuitTimeout)) {
+		LOG(("Cleanup: the process did not quit in time."));
+		return 1;
+	}
+	LOG(("Cleanup: the running instance quit."));
+	return 0;
+}
+
+void Sandbox::NotifySystemShuttingDown() {
+	SystemShuttingDown = true;
+}
+
 void Sandbox::QuitWhenStarted() {
 	if (!QApplication::instance() || !Instance()._started) {
 		QuitOnStartRequested = true;
 	} else {
-		quit();
+		// Use exit(0) instead of quit() to avoid recursive
+		// [NSApp terminate:] on macOS. Since Qt 6.0, quit() routes
+		// through QCocoaIntegration::quit() -> [NSApp terminate:],
+		// which when called from within applicationShouldTerminate:
+		// causes a nested terminate that leads to exit() being called
+		// directly, bypassing normal cleanup. exit(0) properly exits
+		// event loops without going through the platform plugin.
+		QCoreApplication::exit(0);
 	}
 }
 
@@ -149,12 +251,18 @@ void Sandbox::launchApplication() {
 		}
 		setupScreenScale();
 
-#ifndef _DEBUG
-		if (Logs::DebugEnabled()) {
+		rpl::single(
+			rpl::empty
+		) | rpl::then(
+			OptionDeadlockDetector.changes()
+		) | rpl::on_next([=] {
 			using DeadlockDetector::PingThread;
-			_deadlockDetector = std::make_unique<PingThread>(this);
-		}
-#endif // !_DEBUG
+			// The test agent always wants a stuck main thread to crash with a
+			// report instead of hanging silently, so force it on for -testagent.
+			_deadlockDetector = (OptionDeadlockDetector.value() || cTestAgent())
+				? std::make_unique<PingThread>(this)
+				: nullptr;
+		}, _lifetime);
 
 		_application = std::make_unique<Application>();
 
@@ -211,7 +319,11 @@ void Sandbox::setupScreenScale() {
 	LOG(("ScreenScale: %1").arg(cScreenScale()));
 }
 
-Sandbox::~Sandbox() = default;
+Sandbox::~Sandbox() {
+#ifdef Q_OS_MAC
+	Platform::DestroyGlobalMenu();
+#endif // Q_OS_MAC
+}
 
 bool Sandbox::event(QEvent *e) {
 	if (e->type() == QEvent::Quit) {
@@ -411,6 +523,13 @@ void Sandbox::readClients() {
 					if (!activationRequired) {
 						activationRequired = StartUrlRequiresActivate(startUrls.back().toString());
 					}
+				} else if (cmd.startsWith(u"CTRL:"_q)) {
+					const auto payload = HandleExternalControl(
+						cmds.mid(from + 5, to - from - 5));
+					const auto response = QByteArray("DATA:")
+						+ payload.toBase64()
+						+ ';';
+					i->first->write(response);
 				} else {
 					LOG(("Sandbox Error: unknown command %1 passed in local socket").arg(cmd.toString()));
 				}
@@ -525,17 +644,9 @@ void Sandbox::registerEnterFromEventLoop() {
 	}
 }
 
-bool Sandbox::notifyOrInvoke(QObject *receiver, QEvent *e) {
-	if (e->type() == base::InvokeQueuedEvent::Type()) {
-		static_cast<base::InvokeQueuedEvent*>(e)->invoke();
-		return true;
-	}
-	return QApplication::notify(receiver, e);
-}
-
 bool Sandbox::notify(QObject *receiver, QEvent *e) {
 	if (QThread::currentThreadId() != _mainThreadId) {
-		return notifyOrInvoke(receiver, e);
+		return QApplication::notify(receiver, e);
 	}
 
 	const auto wrap = createEventNestingLevel();
@@ -546,7 +657,7 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 			return true;
 		}
 	}
-	return notifyOrInvoke(receiver, e);
+	return QApplication::notify(receiver, e);
 }
 
 void Sandbox::processPostponedCalls(int level) {

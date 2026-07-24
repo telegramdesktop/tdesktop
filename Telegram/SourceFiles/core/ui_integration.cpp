@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/emoji_config.h"
+#include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_specific.h"
 #include "boxes/url_auth_box.h"
@@ -32,6 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
+#include "base/unixtime.h"
+#include "styles/style_chat_helpers.h"
+
+#include <QtCore/QDateTime>
+#include <QtCore/QLocale>
 
 namespace Core {
 namespace {
@@ -85,18 +91,24 @@ const auto kBadPrefix = u"http://"_q;
 		QVariant context) {
 	auto &account = Core::App().activeAccount();
 	const auto &config = account.appConfig();
+	const auto my = context.value<ClickHandlerContext>();
+	const auto window = my.sessionWindow.get();
+	const auto show = window
+		? window->uiShow()
+		: my.show;
 	const auto domains = config.get<std::vector<QString>>(
 		"url_auth_domains",
 		{});
 	if (!account.sessionExists()
 		|| domain.isEmpty()
+		|| !show
 		|| !ranges::contains(domains, domain)) {
 		return false;
 	}
 	const auto good = url.startsWith(kBadPrefix, Qt::CaseInsensitive)
 		? (kGoodPrefix + url.mid(kBadPrefix.size()))
 		: url;
-	UrlAuthBox::Activate(&account.session(), good, context);
+	UrlAuthBox::ActivateUrl(show, &account.session(), good, context);
 	return true;
 }
 
@@ -106,6 +118,117 @@ const auto kBadPrefix = u"http://"_q;
 
 [[nodiscard]] QString ANGLEBackendFilePath() {
 	return cWorkingDir() + "tdata/angle_backend";
+}
+
+[[nodiscard]] Ui::Text::FormattedDateResult FormatDateRelative(TimeId date) {
+	const auto now = base::unixtime::now();
+	const auto delta = int64(date) - int64(now);
+	const auto absDelta = std::abs(delta);
+	const auto future = (delta > 0);
+	auto text = QString();
+	auto nextUpdate = int32(0);
+
+	if (absDelta < 1) {
+		text = tr::lng_date_relative_now(tr::now);
+		nextUpdate = now + 1;
+	} else if (absDelta < 60) {
+		const auto count = int(absDelta);
+		text = (future
+			? tr::lng_date_relative_in_seconds
+			: tr::lng_date_relative_seconds_ago)(tr::now, lt_count, count);
+		nextUpdate = now + 1;
+	} else if (absDelta < 3600) {
+		const auto count = int(absDelta / 60);
+		text = (future
+			? tr::lng_date_relative_in_minutes
+			: tr::lng_date_relative_minutes_ago)(tr::now, lt_count, count);
+		nextUpdate = future
+			? ((count > 1)
+				? (date - (count - 1) * 60)
+				: (date - 59))
+			: (date + (count + 1) * 60);
+	} else if (absDelta < 86400) {
+		const auto count = int(absDelta / 3600);
+		text = (future
+			? tr::lng_date_relative_in_hours
+			: tr::lng_date_relative_hours_ago)(tr::now, lt_count, count);
+		nextUpdate = future
+			? ((count > 1)
+				? (date - (count - 1) * 3600)
+				: (date - 3599))
+			: (date + (count + 1) * 3600);
+	} else if (absDelta < 30 * 86400) {
+		const auto count = int(absDelta / 86400);
+		text = (future
+			? tr::lng_date_relative_in_days
+			: tr::lng_date_relative_days_ago)(tr::now, lt_count, count);
+		nextUpdate = future
+			? ((count > 1)
+				? (date - (count - 1) * 86400)
+				: (date - 86399))
+			: (date + (count + 1) * 86400);
+	} else if (absDelta < 365 * 86400) {
+		const auto count = int(absDelta / (30 * 86400));
+		text = (future
+			? tr::lng_date_relative_in_months
+			: tr::lng_date_relative_months_ago)(tr::now, lt_count, count);
+		nextUpdate = future
+			? ((count > 1)
+				? (date - (count - 1) * 30 * 86400)
+				: (date - 30 * 86400 + 1))
+			: (date + (count + 1) * 30 * 86400);
+	} else {
+		const auto count = int(absDelta / (365 * 86400));
+		text = (future
+			? tr::lng_date_relative_in_years
+			: tr::lng_date_relative_years_ago)(tr::now, lt_count, count);
+		nextUpdate = future
+			? ((count > 1)
+				? (date - (count - 1) * 365 * 86400)
+				: (date - 365 * 86400 + 1))
+			: (date + (count + 1) * 365 * 86400);
+	}
+	return { text, nextUpdate };
+}
+
+[[nodiscard]] Ui::Text::FormattedDateResult FormatDateWithFlags(
+		TimeId date,
+		FormattedDateFlags flags) {
+	if (flags & FormattedDateFlag::Relative) {
+		return FormatDateRelative(date);
+	}
+	const auto dateTime = QDateTime::fromSecsSinceEpoch(date);
+	const auto locale = QLocale();
+	auto parts = QStringList();
+	const auto hasDayOfWeek = (flags & FormattedDateFlag::DayOfWeek);
+	const auto hasShortDate = (flags & FormattedDateFlag::ShortDate);
+	const auto hasLongDate = (flags & FormattedDateFlag::LongDate);
+	const auto hasShortTime = (flags & FormattedDateFlag::ShortTime);
+	const auto hasLongTime = (flags & FormattedDateFlag::LongTime);
+	if (hasDayOfWeek) {
+		parts.push_back(hasLongDate
+			? langDayOfWeekFull(dateTime.date())
+			: langDayOfWeek(dateTime.date()));
+	}
+	if (hasLongDate) {
+		parts.push_back(langDayOfMonthFull(dateTime.date()));
+	} else if (hasShortDate) {
+		parts.push_back(langDayOfMonth(dateTime.date()));
+	}
+	if (hasLongTime) {
+		parts.push_back(locale.toString(
+			dateTime.time(),
+			QLocale::LongFormat));
+	} else if (hasShortTime) {
+		parts.push_back(locale.toString(
+			dateTime.time(),
+			QLocale::ShortFormat));
+	}
+	auto text = parts.join(u" "_q);
+	if (text.isEmpty()) {
+		text = locale.toString(dateTime, QLocale::ShortFormat);
+	}
+	return { text, 0 };
 }
 
 } // namespace
@@ -126,20 +249,21 @@ Ui::Text::MarkedContext TextContext(TextContextArgs &&args) {
 		? Factory([simple, loop = args.customEmojiLoopLimit](
 				QStringView data,
 				const Context &context) {
-			return std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+			return MakeWrappedEmoji<Ui::Text::LimitedLoopsEmoji>(
 				simple(data, context),
 				loop);
 		})
 		: Factory([simple](
 				QStringView data,
 				const Context &context) {
-			return std::make_unique<Ui::Text::FirstFrameEmoji>(
+			return MakeWrappedEmoji<Ui::Text::FirstFrameEmoji>(
 				simple(data, context));
 		});
 	args.details.session = session;
 	return {
 		.repaint = std::move(args.repaint),
 		.customEmojiFactory = std::move(factory),
+		.formattedDateFactory = FormatDateWithFlags,
 		.other = std::move(args.details),
 	};
 }
@@ -176,6 +300,14 @@ void UiIntegration::textActionsUpdated() {
 
 void UiIntegration::activationFromTopPanel() {
 	Platform::IgnoreApplicationActivationRightNow();
+}
+
+void UiIntegration::touchCounterIncrement() {
+	++_touchCounter;
+}
+
+int UiIntegration::touchCounterNow() {
+	return _touchCounter;
 }
 
 bool UiIntegration::screenIsLocked() {
@@ -261,6 +393,12 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		return (my && my->session)
 			? std::make_shared<BankCardClickHandler>(my->session, data.text)
 			: nullptr;
+	case EntityType::FormattedDate: {
+		const auto [date, flags] = DeserializeFormattedDateData(data.data);
+		if (date) {
+			return std::make_shared<FormattedDateClickHandler>(date, flags);
+		}
+	} break;
 	}
 	return Integration::createLinkHandler(data, context);
 }
@@ -269,7 +407,7 @@ bool UiIntegration::handleUrlClick(
 		const QString &url,
 		const QVariant &context) {
 	const auto local = Core::TryConvertUrlToLocal(url);
-	if (Core::InternalPassportLink(local)) {
+	if (Core::InternalPassportOrOAuthLink(local)) {
 		return true;
 	}
 
@@ -307,9 +445,17 @@ bool UiIntegration::handleUrlClick(
 bool UiIntegration::copyPreOnClick(const QVariant &context) {
 	const auto my = context.value<ClickHandlerContext>();
 	if (const auto window = my.sessionWindow.get()) {
-		window->showToast(tr::lng_code_copied(tr::now));
+		window->showToast({
+			.text = { tr::lng_code_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	} else if (my.show) {
-		my.show->showToast(tr::lng_code_copied(tr::now));
+		my.show->showToast({
+			.text = { tr::lng_code_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	}
 	return true;
 }
@@ -386,6 +532,10 @@ QString UiIntegration::phraseFormattingMonospace() {
 
 QString UiIntegration::phraseFormattingSpoiler() {
 	return tr::lng_menu_formatting_spoiler(tr::now);
+}
+
+QString UiIntegration::phraseFormattingDate() {
+	return tr::lng_menu_formatting_date(tr::now);
 }
 
 QString UiIntegration::phraseButtonOk() {

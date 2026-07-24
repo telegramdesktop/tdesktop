@@ -80,6 +80,7 @@ DeclareSetting(int32, LastUpdateCheck);
 DeclareSetting(bool, NoStartUpdate);
 DeclareSetting(bool, StartToSettings);
 DeclareSetting(bool, DebugMode);
+DeclareSetting(bool, TestAgent);
 DeclareReadSetting(bool, ManyInstance);
 DeclareSetting(bool, Quit);
 
@@ -98,10 +99,6 @@ DeclareRefSetting(RecentStickerPack, RecentStickers);
 typedef QList<QPair<QString, ushort>> RecentHashtagPack;
 DeclareRefSetting(RecentHashtagPack, RecentWriteHashtags);
 DeclareSetting(RecentHashtagPack, RecentSearchHashtags);
-
-class UserData;
-typedef QVector<UserData*> RecentInlineBots;
-DeclareRefSetting(RecentInlineBots, RecentInlineBots);
 
 DeclareSetting(bool, PasswordRecovered);
 

@@ -34,6 +34,10 @@ public:
 		CallbackComputeState &&computeState = nullptr,
 		bool hideSubtext = false);
 
+	static void SetupProxyDropArea(
+		not_null<Ui::RpWidget*> container,
+		Fn<void(const QString &localUrl)> connectProxy);
+
 	void setText(const QString &text, const QString &subtext);
 
 	void otherEnter();

@@ -66,6 +66,7 @@ private:
 		FullMsgId itemId;
 		TextSelection part;
 		int todoListId = 0;
+		QByteArray pollOption;
 
 		explicit operator bool() const {
 			return itemId.operator bool();

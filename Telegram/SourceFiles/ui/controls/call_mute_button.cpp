@@ -200,6 +200,7 @@ public:
 		const style::FlatLabel &st = st::defaultFlatLabel);
 
 	int contentHeight() const;
+	void setMaxWidth(int width);
 
 private:
 	void setText(const QString &text);
@@ -211,6 +212,8 @@ private:
 
 	Text::String _text;
 	Text::String _previousText;
+
+	int _maxLabelWidth = 0;
 
 	Animations::Simple _animation;
 
@@ -248,28 +251,36 @@ AnimatedLabel::AnimatedLabel(
 
 		p.setOpacity(1. - progress);
 		if (p.opacity()) {
-			_previousText.draw(
+			_previousText.drawElided(
 				p,
 				0,
 				anim::interpolate(center, diffHeight, progress),
 				width(),
+				1,
 				style::al_center);
 		}
 
 		p.setOpacity(progress);
 		if (p.opacity()) {
-			_text.draw(
+			_text.drawElided(
 				p,
 				0,
 				anim::interpolate(0, center, progress),
 				width(),
+				1,
 				style::al_center);
 		}
 	}, lifetime());
 }
 
 int AnimatedLabel::contentHeight() const {
-	return _st.style.font->height;
+	const auto lineHeight = _st.style.font->height;
+	if (!_maxLabelWidth) {
+		return lineHeight;
+	}
+	const auto textHeight = _text.countHeight(_maxLabelWidth);
+	const auto previousHeight = _previousText.countHeight(_maxLabelWidth);
+	return std::min(std::max(textHeight, previousHeight), lineHeight * 2);
 }
 
 void AnimatedLabel::setText(const QString &text) {
@@ -279,15 +290,27 @@ void AnimatedLabel::setText(const QString &text) {
 	_previousText = std::move(_text);
 	_text = Ui::Text::String(_st.style, text, _options);
 
-	const auto width = std::max(
-		_st.style.font->width(_text.toString()),
-		_st.style.font->width(_previousText.toString()));
+	const auto width = _maxLabelWidth
+		? _maxLabelWidth
+		: std::max(
+			_st.style.font->width(_text.toString()),
+			_st.style.font->width(_previousText.toString()));
 	resize(
 		width + _additionalHeight,
 		contentHeight() + _additionalHeight * 2);
 
 	_animation.stop();
 	_animation.start([=] { update(); }, 0., 1., _duration);
+}
+
+void AnimatedLabel::setMaxWidth(int width) {
+	_maxLabelWidth = width;
+	if (!_text.isEmpty()) {
+		resize(
+			_maxLabelWidth + _additionalHeight,
+			contentHeight() + _additionalHeight * 2);
+		update();
+	}
 }
 
 class BlobsWidget final : public RpWidget {
@@ -614,6 +637,16 @@ void CallMuteButton::refreshLabels() {
 		updateCenterLabelGeometry(my, size);
 	}, _centerLabel->lifetime());
 	_centerLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	_content->sizeValue(
+	) | rpl::map([](QSize size) {
+		return size.width();
+	}) | rpl::distinct_until_changed(
+	) | rpl::on_next([=](int w) {
+		_centerLabel->setMaxWidth(w);
+		_label->setMaxWidth(w);
+		_sublabel->setMaxWidth(w);
+	}, _centerLabel->lifetime());
 }
 
 void CallMuteButton::refreshIcons() {

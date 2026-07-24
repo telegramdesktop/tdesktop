@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "media/stories/media_stories_controller.h"
 #include "media/stories/media_stories_view.h"
+#include "media/view/media_view_open_common.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/labels.h"
 #include "ui/click_handler.h"
@@ -30,7 +31,9 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 		object_ptr<Ui::FlatLabel>(_scroll.get(), st::storiesCaptionFull),
 		st::mediaviewCaptionPadding + _controller->repostCaptionPadding())))
 , _text(_wrap->entity()) {
-	_text->setMarkedText(controller->captionText(), Core::TextContext({
+	using namespace Media::View;
+	const auto text = StripQuoteEntities(controller->captionText());
+	_text->setMarkedText(text, Core::TextContext({
 		.session = &controller->uiShow()->session(),
 	}));
 

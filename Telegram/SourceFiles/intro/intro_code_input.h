@@ -39,7 +39,10 @@ protected:
 	void focusOutEvent(QFocusEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	void keyReleaseEvent(QKeyEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
+	void inputMethodEvent(QInputMethodEvent *e) override;
 
 private:
 	[[nodiscard]] QString collectDigits() const;
@@ -47,6 +50,7 @@ private:
 	void insertCodeAndSubmit(const QString &code);
 	void unfocusAll(int except);
 	void findEmptyAndPerform(const Fn<void(int)> &callback);
+	void processDigit(int digit);
 
 	int _digitsCountMax = 0;
 	std::vector<not_null<CodeDigit*>> _digits;

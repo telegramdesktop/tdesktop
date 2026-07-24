@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/gl/gl_shader.h"
 #include "ui/gl/gl_image.h"
 #include "ui/gl/gl_primitives.h"
+#include "ui/rhi/rhi_renderer.h"
+#include "ui/rhi/rhi_shader.h"
 #include "ui/painter.h"
 #include "media/view/media_view_pip.h"
 #include "webrtc/webrtc_video_track.h"
@@ -18,6 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QOpenGLShader>
 #include <QOpenGLBuffer>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#include <rhi/qrhi.h>
+#endif
 
 namespace Calls {
 namespace {
@@ -533,6 +538,534 @@ void Panel::Incoming::RendererSW::fillBottomShadow(QPainter &p) {
 			factor * fill.height()));
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+
+struct IncomingShadowUniforms {
+	float viewport[2];
+	float shadow[3];
+	float _pad0;
+};
+static_assert(sizeof(IncomingShadowUniforms) == 24);
+
+class Panel::Incoming::RendererRhi final
+	: public Ui::GL::Renderer
+	, public Ui::Rhi::Renderer {
+public:
+	explicit RendererRhi(not_null<Incoming*> owner) : _owner(owner) {
+	}
+	~RendererRhi() {
+		releaseResources();
+	}
+
+	void initialize(
+			QRhi *rhi,
+			QRhiRenderTarget *rt,
+			QRhiCommandBuffer *cb) override {
+		if (_initialized && _rhi == rhi) {
+			return;
+		}
+		_rhi = rhi;
+		_vertexBuffer = rhi->newBuffer(
+			QRhiBuffer::Dynamic,
+			QRhiBuffer::VertexBuffer,
+			4 * 4 * sizeof(float));
+		_vertexBuffer->create();
+		_uniformBuffer = rhi->newBuffer(
+			QRhiBuffer::Dynamic,
+			QRhiBuffer::UniformBuffer,
+			256);
+		_uniformBuffer->create();
+		_sampler = rhi->newSampler(
+			QRhiSampler::Linear, QRhiSampler::Linear,
+			QRhiSampler::None,
+			QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge);
+		_sampler->create();
+		_placeholder = rhi->newTexture(QRhiTexture::BGRA8, QSize(1, 1));
+		_placeholder->create();
+
+		const auto rpDesc = rt->renderPassDescriptor();
+		const auto vs = Ui::Rhi::ShaderFromFile(
+			u":/shaders/argb32.vert.qsb"_q);
+		const auto argb32Fs = Ui::Rhi::ShaderFromFile(
+			u":/shaders/incoming_shadow.frag.qsb"_q);
+		const auto yuv420Fs = Ui::Rhi::ShaderFromFile(
+			u":/shaders/incoming_yuv420.frag.qsb"_q);
+
+		QRhiVertexInputLayout layout;
+		layout.setBindings({ { 4 * sizeof(float) } });
+		layout.setAttributes({
+			{ 0, 0, QRhiVertexInputAttribute::Float2, 0 },
+			{ 0, 1, QRhiVertexInputAttribute::Float2, 2 * sizeof(float) },
+		});
+
+		_argb32Srb = rhi->newShaderResourceBindings();
+		_argb32Srb->setBindings({
+			QRhiShaderResourceBinding::uniformBuffer(
+				0,
+				QRhiShaderResourceBinding::VertexStage
+					| QRhiShaderResourceBinding::FragmentStage,
+				_uniformBuffer),
+			QRhiShaderResourceBinding::sampledTexture(
+				1, QRhiShaderResourceBinding::FragmentStage,
+				_placeholder, _sampler),
+		});
+		_argb32Srb->create();
+
+		_argb32Pipeline = rhi->newGraphicsPipeline();
+		_argb32Pipeline->setShaderStages({
+			{ QRhiShaderStage::Vertex, vs },
+			{ QRhiShaderStage::Fragment, argb32Fs },
+		});
+		_argb32Pipeline->setVertexInputLayout(layout);
+		_argb32Pipeline->setTopology(
+			QRhiGraphicsPipeline::TriangleStrip);
+		_argb32Pipeline->setShaderResourceBindings(_argb32Srb);
+		_argb32Pipeline->setRenderPassDescriptor(rpDesc);
+		_argb32Pipeline->create();
+
+		_yuv420Srb = rhi->newShaderResourceBindings();
+		_yuv420Srb->setBindings({
+			QRhiShaderResourceBinding::uniformBuffer(
+				0,
+				QRhiShaderResourceBinding::VertexStage
+					| QRhiShaderResourceBinding::FragmentStage,
+				_uniformBuffer),
+			QRhiShaderResourceBinding::sampledTexture(
+				1, QRhiShaderResourceBinding::FragmentStage,
+				_placeholder, _sampler),
+			QRhiShaderResourceBinding::sampledTexture(
+				2, QRhiShaderResourceBinding::FragmentStage,
+				_placeholder, _sampler),
+			QRhiShaderResourceBinding::sampledTexture(
+				3, QRhiShaderResourceBinding::FragmentStage,
+				_placeholder, _sampler),
+		});
+		_yuv420Srb->create();
+
+		_yuv420Pipeline = rhi->newGraphicsPipeline();
+		_yuv420Pipeline->setShaderStages({
+			{ QRhiShaderStage::Vertex, vs },
+			{ QRhiShaderStage::Fragment, yuv420Fs },
+		});
+		_yuv420Pipeline->setVertexInputLayout(layout);
+		_yuv420Pipeline->setTopology(
+			QRhiGraphicsPipeline::TriangleStrip);
+		_yuv420Pipeline->setShaderResourceBindings(_yuv420Srb);
+		_yuv420Pipeline->setRenderPassDescriptor(rpDesc);
+		_yuv420Pipeline->create();
+
+#ifndef Q_OS_MAC
+		const auto shadowFs = Ui::Rhi::ShaderFromFile(
+			u":/shaders/argb32.frag.qsb"_q);
+
+		_shadowVertexBuffer = rhi->newBuffer(
+			QRhiBuffer::Dynamic,
+			QRhiBuffer::VertexBuffer,
+			4 * 4 * sizeof(float));
+		_shadowVertexBuffer->create();
+		_shadowUniformBuffer = rhi->newBuffer(
+			QRhiBuffer::Dynamic,
+			QRhiBuffer::UniformBuffer,
+			256);
+		_shadowUniformBuffer->create();
+
+		validateShadowImage();
+
+		_shadowSrb = rhi->newShaderResourceBindings();
+		_shadowSrb->setBindings({
+			QRhiShaderResourceBinding::uniformBuffer(
+				0,
+				QRhiShaderResourceBinding::VertexStage,
+				_shadowUniformBuffer),
+			QRhiShaderResourceBinding::sampledTexture(
+				1,
+				QRhiShaderResourceBinding::FragmentStage,
+				_shadowTexture, _sampler),
+		});
+		_shadowSrb->create();
+
+		QRhiGraphicsPipeline::TargetBlend blend;
+		blend.enable = true;
+		blend.srcColor = QRhiGraphicsPipeline::One;
+		blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+		blend.srcAlpha = QRhiGraphicsPipeline::One;
+		blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+		_shadowBlendPipeline = rhi->newGraphicsPipeline();
+		_shadowBlendPipeline->setShaderStages({
+			{ QRhiShaderStage::Vertex, vs },
+			{ QRhiShaderStage::Fragment, shadowFs },
+		});
+		_shadowBlendPipeline->setVertexInputLayout(layout);
+		_shadowBlendPipeline->setTargetBlends({ blend });
+		_shadowBlendPipeline->setTopology(
+			QRhiGraphicsPipeline::TriangleStrip);
+		_shadowBlendPipeline->setShaderResourceBindings(_shadowSrb);
+		_shadowBlendPipeline->setRenderPassDescriptor(rpDesc);
+		_shadowBlendPipeline->create();
+#endif
+
+		_initialized = true;
+	}
+
+	void render(
+			QRhi *rhi,
+			QRhiRenderTarget *rt,
+			QRhiCommandBuffer *cb) override {
+		_rhi = rhi;
+		const auto markGuard = gsl::finally([&] {
+			_owner->_track->markFrameShown();
+		});
+		const auto data = _owner->_track->frameWithInfo(false);
+		if (data.format == Webrtc::FrameFormat::None) {
+			auto *rub = rhi->nextResourceUpdateBatch();
+			cb->beginPass(rt, Qt::black, { 1.0f, 0 }, rub);
+			cb->endPass();
+			return;
+		}
+
+		auto *rub = rhi->nextResourceUpdateBatch();
+		const auto rgbaFrame =
+			(data.format == Webrtc::FrameFormat::ARGB32);
+		const auto upload = (_trackFrameIndex != data.index);
+		_trackFrameIndex = data.index;
+		const auto rotation = data.rotation;
+
+		auto *pipeline = _argb32Pipeline;
+		auto *srb = _argb32Srb;
+
+		if (rgbaFrame) {
+			Assert(!data.original.isNull());
+			const auto &image = data.original;
+			if (upload || !_rgbaTexture
+				|| _rgbaSize != image.size()) {
+				delete _rgbaTexture;
+				_rgbaTexture = rhi->newTexture(
+					QRhiTexture::BGRA8, image.size());
+				_rgbaTexture->create();
+				_rgbaSize = image.size();
+			}
+			if (upload) {
+				rub->uploadTexture(_rgbaTexture,
+					QRhiTextureUploadDescription(
+						QRhiTextureUploadEntry(0, 0,
+							QRhiTextureSubresourceUploadDescription(
+								image))));
+			}
+			srb->setBindings({
+				QRhiShaderResourceBinding::uniformBuffer(
+					0,
+					QRhiShaderResourceBinding::VertexStage
+						| QRhiShaderResourceBinding::FragmentStage,
+					_uniformBuffer),
+				QRhiShaderResourceBinding::sampledTexture(
+					1, QRhiShaderResourceBinding::FragmentStage,
+					_rgbaTexture, _sampler),
+			});
+		} else {
+			Assert(data.format == Webrtc::FrameFormat::YUV420);
+			Assert(!data.yuv420->size.isEmpty());
+			const auto yuv = data.yuv420;
+			pipeline = _yuv420Pipeline;
+			srb = _yuv420Srb;
+
+			if (upload) {
+				if (!_yTexture || _lumaSize != yuv->size) {
+					delete _yTexture;
+					_yTexture = rhi->newTexture(
+						QRhiTexture::R8, yuv->size);
+					_yTexture->create();
+					_lumaSize = yuv->size;
+				}
+				auto yDesc = QRhiTextureSubresourceUploadDescription(
+					yuv->y.data,
+					yuv->y.stride * yuv->size.height());
+				yDesc.setDataStride(yuv->y.stride);
+				rub->uploadTexture(_yTexture,
+					QRhiTextureUploadDescription(
+						QRhiTextureUploadEntry(0, 0, yDesc)));
+
+				if (!_uTexture || _chromaSize != yuv->chromaSize) {
+					delete _uTexture;
+					_uTexture = rhi->newTexture(
+						QRhiTexture::R8, yuv->chromaSize);
+					_uTexture->create();
+					delete _vTexture;
+					_vTexture = rhi->newTexture(
+						QRhiTexture::R8, yuv->chromaSize);
+					_vTexture->create();
+					_chromaSize = yuv->chromaSize;
+				}
+				auto uDesc = QRhiTextureSubresourceUploadDescription(
+					yuv->u.data,
+					yuv->u.stride * yuv->chromaSize.height());
+				uDesc.setDataStride(yuv->u.stride);
+				rub->uploadTexture(_uTexture,
+					QRhiTextureUploadDescription(
+						QRhiTextureUploadEntry(0, 0, uDesc)));
+				auto vDesc = QRhiTextureSubresourceUploadDescription(
+					yuv->v.data,
+					yuv->v.stride * yuv->chromaSize.height());
+				vDesc.setDataStride(yuv->v.stride);
+				rub->uploadTexture(_vTexture,
+					QRhiTextureUploadDescription(
+						QRhiTextureUploadEntry(0, 0, vDesc)));
+			}
+			srb->setBindings({
+				QRhiShaderResourceBinding::uniformBuffer(
+					0,
+					QRhiShaderResourceBinding::VertexStage
+						| QRhiShaderResourceBinding::FragmentStage,
+					_uniformBuffer),
+				QRhiShaderResourceBinding::sampledTexture(
+					1, QRhiShaderResourceBinding::FragmentStage,
+					_yTexture, _sampler),
+				QRhiShaderResourceBinding::sampledTexture(
+					2, QRhiShaderResourceBinding::FragmentStage,
+					_uTexture, _sampler),
+				QRhiShaderResourceBinding::sampledTexture(
+					3, QRhiShaderResourceBinding::FragmentStage,
+					_vTexture, _sampler),
+			});
+		}
+		srb->create();
+
+		const auto pw = float(rt->pixelSize().width());
+		const auto ph = float(rt->pixelSize().height());
+		const auto factor = style::DevicePixelRatio();
+
+		const auto widget = _owner->widget();
+		const auto bottomShadowArea = QRect(
+			0,
+			widget->parentWidget()->height()
+				- st::callBottomShadowSize,
+			widget->parentWidget()->width(),
+			st::callBottomShadowSize);
+		const auto bottomShadowFill = bottomShadowArea.intersected(
+			widget->geometry()).translated(-widget->pos());
+		const auto shadowHeight = bottomShadowFill.height();
+		const auto shadowAlpha = float(
+			shadowHeight * kBottomShadowAlphaMax)
+			/ float(st::callBottomShadowSize * 255);
+		const auto viewport = QSize(
+			int(pw / factor), int(ph / factor));
+		const auto shadowBottom = Ui::GL::TransformRect(
+			Ui::GL::Rect(bottomShadowFill),
+			viewport,
+			factor);
+
+		IncomingShadowUniforms uniforms{};
+		uniforms.viewport[0] = pw;
+		uniforms.viewport[1] = ph;
+		uniforms.shadow[0] = shadowHeight * factor;
+		uniforms.shadow[1] = shadowBottom.bottom();
+		uniforms.shadow[2] = shadowAlpha;
+		rub->updateDynamicBuffer(
+			_uniformBuffer, 0, sizeof(uniforms), &uniforms);
+
+		std::array<std::array<float, 2>, 4> texCoords = { {
+			{ { 0.f, 1.f } }, { { 1.f, 1.f } },
+			{ { 1.f, 0.f } }, { { 0.f, 0.f } },
+		} };
+		if (const auto shift = (rotation / 90); shift != 0) {
+			std::rotate(
+				texCoords.begin(),
+				texCoords.begin() + shift,
+				texCoords.end());
+		}
+		const float coords[] = {
+			0.f, ph, texCoords[3][0], texCoords[3][1],
+			pw,  ph, texCoords[2][0], texCoords[2][1],
+			0.f, 0.f, texCoords[0][0], texCoords[0][1],
+			pw,  0.f, texCoords[1][0], texCoords[1][1],
+		};
+		rub->updateDynamicBuffer(
+			_vertexBuffer, 0, sizeof(coords), coords);
+
+#ifndef Q_OS_MAC
+		prepareTitleShadow(rub, pw, ph);
+#endif
+
+		cb->beginPass(rt, Qt::black, { 1.0f, 0 }, rub);
+		cb->setGraphicsPipeline(pipeline);
+		cb->setShaderResources(srb);
+		cb->setViewport({ 0, 0, pw, ph });
+		const QRhiCommandBuffer::VertexInput vbuf(_vertexBuffer, 0);
+		cb->setVertexInput(0, 1, &vbuf);
+		cb->draw(4);
+
+#ifndef Q_OS_MAC
+		paintTitleShadow(cb, pw, ph);
+#endif
+
+		cb->endPass();
+	}
+
+	// Only records resource updates, must be called outside a render
+	// pass, the batch is then passed to beginPass.
+	void prepareTitleShadow(
+			QRhiResourceUpdateBatch *rub,
+			float pw,
+			float ph) {
+		if (!_shadowBlendPipeline) {
+			return;
+		}
+		ensureShadowUploaded(rub);
+		const auto factor = style::DevicePixelRatio();
+		const auto widget = _owner->widget();
+		const auto left = (_owner->_topControlsAlignment
+			== style::al_left);
+		const auto width = widget->parentWidget()->width();
+		const auto position = left
+			? QPoint()
+			: QPoint(
+				width - st::callTitleShadowRight.width(),
+				0);
+		const auto translated = position - widget->pos();
+		const auto shadowArea = QRect(
+			translated,
+			st::callTitleShadowLeft.size());
+		const auto viewport = QSize(
+			int(pw / factor), int(ph / factor));
+		const auto shadowRect = Ui::GL::TransformRect(
+			Ui::GL::Rect(shadowArea),
+			viewport,
+			factor);
+
+		const auto &texRect = left
+			? _shadowLeftRect : _shadowRightRect;
+		const auto atlasW = float(_shadowSize.width());
+		const auto atlasH = float(_shadowSize.height());
+		const auto tl = texRect.left() / atlasW;
+		const auto tr = texRect.right() / atlasW;
+		const auto tt = texRect.top() / atlasH;
+		const auto tb = texRect.bottom() / atlasH;
+
+		const float shadowCoords[] = {
+			shadowRect.left(), shadowRect.bottom(), tl, tt,
+			shadowRect.right(), shadowRect.bottom(), tr, tt,
+			shadowRect.left(), shadowRect.top(), tl, tb,
+			shadowRect.right(), shadowRect.top(), tr, tb,
+		};
+		rub->updateDynamicBuffer(
+			_shadowVertexBuffer, 0, sizeof(shadowCoords), shadowCoords);
+		const float viewport2[] = { pw, ph, 0.f, 0.f };
+		rub->updateDynamicBuffer(
+			_shadowUniformBuffer, 0, sizeof(viewport2), viewport2);
+	}
+
+	void paintTitleShadow(QRhiCommandBuffer *cb, float pw, float ph) {
+		if (!_shadowBlendPipeline) {
+			return;
+		}
+		cb->setGraphicsPipeline(_shadowBlendPipeline);
+		cb->setShaderResources(_shadowSrb);
+		cb->setViewport({ 0, 0, pw, ph });
+		const QRhiCommandBuffer::VertexInput vbuf2(_shadowVertexBuffer, 0);
+		cb->setVertexInput(0, 1, &vbuf2);
+		cb->draw(4);
+	}
+
+	void validateShadowImage() {
+		if (_shadowTexture) {
+			return;
+		}
+		const auto ifactor = int(std::ceil(
+			style::DevicePixelRatio()));
+		const auto size = st::callTitleShadowLeft.size();
+		const auto full = QSize(
+			size.width(), 2 * size.height()) * ifactor;
+		auto image = QImage(
+			full, QImage::Format_ARGB32_Premultiplied);
+		image.setDevicePixelRatio(ifactor);
+		image.fill(Qt::transparent);
+		{
+			auto p = QPainter(&image);
+			st::callTitleShadowLeft.paint(
+				p, 0, 0, size.width());
+			_shadowLeftRect = QRect(
+				0, 0, full.width(), full.height() / 2);
+			st::callTitleShadowRight.paint(
+				p, 0, size.height(), size.width());
+			_shadowRightRect = QRect(
+				0, full.height() / 2,
+				full.width(), full.height() / 2);
+		}
+		_shadowTexture = _rhi->newTexture(
+			QRhiTexture::BGRA8, full);
+		_shadowTexture->create();
+		_shadowSize = full;
+		_shadowUploadImage = std::move(image);
+	}
+
+	QImage _shadowUploadImage;
+
+	void ensureShadowUploaded(QRhiResourceUpdateBatch *rub) {
+		if (_shadowUploadImage.isNull()) {
+			return;
+		}
+		rub->uploadTexture(
+			_shadowTexture,
+			QRhiTextureUploadDescription(
+				QRhiTextureUploadEntry(0, 0,
+					QRhiTextureSubresourceUploadDescription(
+						_shadowUploadImage))));
+		_shadowUploadImage = QImage();
+	}
+
+	void releaseResources() override {
+		delete _argb32Pipeline; _argb32Pipeline = nullptr;
+		delete _yuv420Pipeline; _yuv420Pipeline = nullptr;
+		delete _shadowBlendPipeline; _shadowBlendPipeline = nullptr;
+		delete _argb32Srb; _argb32Srb = nullptr;
+		delete _yuv420Srb; _yuv420Srb = nullptr;
+		delete _shadowSrb; _shadowSrb = nullptr;
+		delete _shadowTexture; _shadowTexture = nullptr;
+		delete _shadowVertexBuffer; _shadowVertexBuffer = nullptr;
+		delete _shadowUniformBuffer; _shadowUniformBuffer = nullptr;
+		delete _rgbaTexture; _rgbaTexture = nullptr;
+		delete _yTexture; _yTexture = nullptr;
+		delete _uTexture; _uTexture = nullptr;
+		delete _vTexture; _vTexture = nullptr;
+		delete _placeholder; _placeholder = nullptr;
+		delete _vertexBuffer; _vertexBuffer = nullptr;
+		delete _uniformBuffer; _uniformBuffer = nullptr;
+		delete _sampler; _sampler = nullptr;
+		_initialized = false;
+	}
+
+	QColor rhiClearColor() override { return Qt::black; }
+
+private:
+	const not_null<Incoming*> _owner;
+	QRhi *_rhi = nullptr;
+	QRhiBuffer *_vertexBuffer = nullptr;
+	QRhiBuffer *_uniformBuffer = nullptr;
+	QRhiSampler *_sampler = nullptr;
+	QRhiTexture *_placeholder = nullptr;
+	QRhiTexture *_rgbaTexture = nullptr;
+	QSize _rgbaSize;
+	QRhiTexture *_yTexture = nullptr;
+	QRhiTexture *_uTexture = nullptr;
+	QRhiTexture *_vTexture = nullptr;
+	QSize _lumaSize;
+	QSize _chromaSize;
+	int _trackFrameIndex = 0;
+	QRhiGraphicsPipeline *_argb32Pipeline = nullptr;
+	QRhiGraphicsPipeline *_yuv420Pipeline = nullptr;
+	QRhiGraphicsPipeline *_shadowBlendPipeline = nullptr;
+	QRhiShaderResourceBindings *_argb32Srb = nullptr;
+	QRhiShaderResourceBindings *_yuv420Srb = nullptr;
+	QRhiShaderResourceBindings *_shadowSrb = nullptr;
+	QRhiTexture *_shadowTexture = nullptr;
+	QRhiBuffer *_shadowVertexBuffer = nullptr;
+	QRhiBuffer *_shadowUniformBuffer = nullptr;
+	QSize _shadowSize;
+	QRect _shadowLeftRect;
+	QRect _shadowRightRect;
+	bool _initialized = false;
+};
+#endif // Qt >= 6.7
+
 Panel::Incoming::Incoming(
 	not_null<QWidget*> parent,
 	not_null<Webrtc::VideoTrack*> track,
@@ -560,6 +1093,15 @@ void Panel::Incoming::setControlsAlignment(style::align align) {
 
 Ui::GL::ChosenRenderer Panel::Incoming::chooseRenderer(
 		Ui::GL::Backend backend) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+	if (backend == Ui::GL::Backend::QRhi) {
+		_opengl = true;
+		return {
+			.renderer = std::make_unique<RendererRhi>(this),
+			.backend = Ui::GL::Backend::QRhi,
+		};
+	}
+#endif // Qt >= 6.7
 	_opengl = (backend == Ui::GL::Backend::OpenGL);
 	return {
 		.renderer = (_opengl

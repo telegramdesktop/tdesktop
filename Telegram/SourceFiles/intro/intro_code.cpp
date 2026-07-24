@@ -292,10 +292,8 @@ void CodeWidget::codeSubmitFail(const MTP::Error &error) {
 		}).fail([=](const MTP::Error &error) {
 			codeSubmitFail(error);
 		}).handleFloodErrors().send();
-	} else if (Logs::DebugEnabled()) { // internal server error
-		showCodeError(rpl::single(err + ": " + error.description()));
-	} else {
-		showCodeError(rpl::single(Lang::Hard::ServerError()));
+	} else if (!MTP::IgnoreError(error)) {
+	    showCodeError(rpl::single(err));
 	}
 }
 
@@ -479,20 +477,12 @@ void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 }
 
 void CodeWidget::noTelegramCodeFail(const MTP::Error &error) {
-	if (MTP::IsFloodError(error)) {
-		_noTelegramCodeRequestId = 0;
-		showCodeError(tr::lng_flood_error());
-		return;
-	} else if (error.type() == u"SEND_CODE_UNAVAILABLE"_q) {
-		_noTelegramCodeRequestId = 0;
-		return;
-	}
-
 	_noTelegramCodeRequestId = 0;
-	if (Logs::DebugEnabled()) { // internal server error
-		showCodeError(rpl::single(error.type() + ": " + error.description()));
-	} else {
-		showCodeError(rpl::single(Lang::Hard::ServerError()));
+	if (MTP::IsFloodError(error)) {
+		showCodeError(tr::lng_flood_error());
+	} else if (error.type() != u"SEND_CODE_UNAVAILABLE"_q
+	    && !MTP::IgnoreError(error)) {
+		showCodeError(rpl::single(error.type()));
 	}
 }
 

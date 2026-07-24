@@ -1324,8 +1324,6 @@ void ChartWidget::processLocalZoom(int xIndex) {
 		0,
 		(header->height() - zoomOutButton->height()) / 2);
 	zoomOutButton->show();
-	zoomOutButton->setTextTransform(
-		Ui::RoundButton::TextTransform::NoTransform);
 	zoomOutButton->setClickedCallback([=] {
 		auto lifetime = _localZoomLifetime.make_state<rpl::lifetime>();
 		const auto animation = lifetime->make_state<Ui::Animations::Simple>();
@@ -1534,8 +1532,6 @@ void ChartWidget::setZoomedChartData(
 		customHeader,
 		tr::lng_stats_zoom_out(),
 		st::statisticsHeaderButton);
-	zoomOutButton->setTextTransform(
-		Ui::RoundButton::TextTransform::NoTransform);
 	zoomOutButton->moveToRight(
 		0,
 		(customHeader->height() - zoomOutButton->height()) / 2);

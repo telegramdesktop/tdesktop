@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "styles/style_boxes.h"
 #include "styles/style_calls.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -36,8 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Calls::Group {
 namespace {
-
-constexpr auto kPasswordCharAmount = 24;
 
 void StartWithBox(
 		not_null<Ui::GenericBox*> box,
@@ -161,7 +160,7 @@ void StartRtmpProcess::requestUrl(bool revoke) {
 	const auto session = &_request->peer->session();
 	_request->id = session->api().request(MTPphone_GetGroupCallStreamRtmpUrl(
 		MTP_flags(0),
-		_request->peer->input,
+		_request->peer->input(),
 		MTP_bool(revoke)
 	)).done([=](const MTPphone_GroupCallStreamRtmpUrl &result) {
 		auto data = result.match([&](
@@ -247,9 +246,6 @@ void StartRtmpProcess::FillRtmpRows(
 		data
 	) | rpl::map([=](const auto &d) { return d.url; });
 
-	const auto showToast = [=](const QString &text) {
-		show->showToast(text);
-	};
 	const auto addButton = [&](
 			bool key,
 			rpl::producer<QString> &&text) {
@@ -258,15 +254,22 @@ void StartRtmpProcess::FillRtmpRows(
 			wrap.data(),
 			rpl::duplicate(text),
 			st::groupCallRtmpCopyButton);
-		button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 		button->setClickedCallback(key
 			? Fn<void()>([=] {
 				QGuiApplication::clipboard()->setText(state->key.current());
-				showToast(tr::lng_group_call_rtmp_key_copied(tr::now));
+				show->showToast({
+					.text = { tr::lng_group_call_rtmp_key_copied(tr::now) },
+					.iconLottie = u"toast/copy"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			})
 			: Fn<void()>([=] {
 				QGuiApplication::clipboard()->setText(state->url.current());
-				showToast(tr::lng_group_call_rtmp_url_copied(tr::now));
+				show->showToast({
+					.text = { tr::lng_group_call_rtmp_url_copied(tr::now) },
+					.iconLottie = u"toast/voip_invite"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			}));
 		Ui::AddSkip(container, st::groupCallRtmpCopyButtonTopSkip);
 		const auto weak = container->add(std::move(wrap), rowPadding);

@@ -15,12 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "settings/settings_common.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
 
@@ -29,8 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 namespace {
-
-constexpr auto kTonMultiplier = uint64(1000000000);
 
 [[nodiscard]] QString FormatEntity(CollectibleType type, QString entity) {
 	switch (type) {
@@ -190,11 +190,18 @@ void CollectibleInfoBox(
 		QGuiApplication::clipboard()->setText((text.isEmpty() || !copyLink)
 			? formatted
 			: text);
-		box->uiShow()->showToast((type == CollectibleType::Phone)
-			? tr::lng_collectible_phone_copied(tr::now)
-			: copyLink
-			? tr::lng_username_copied(tr::now)
-			: tr::lng_username_text_copied(tr::now));
+		const auto link = (type != CollectibleType::Phone) && copyLink;
+		box->uiShow()->showToast({
+			.text = { (type == CollectibleType::Phone)
+				? tr::lng_collectible_phone_copied(tr::now)
+				: copyLink
+				? tr::lng_username_copied(tr::now)
+				: tr::lng_username_text_copied(tr::now) },
+			.iconLottie = link
+				? u"toast/voip_invite"_q
+				: u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	};
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
@@ -232,7 +239,6 @@ void CollectibleInfoBox(
 			tr::lng_collectible_learn_more(),
 			st::collectibleMore),
 		st::collectibleMorePadding);
-	more->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	more->setClickedCallback([url = info.url] {
 		File::OpenUrl(url);
 	});
@@ -245,7 +251,6 @@ void CollectibleInfoBox(
 		phrase(),
 		st::collectibleCopy);
 	const auto copy = owned.data();
-	copy->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	copy->setClickedCallback([copyCallback] {
 		copyCallback(true);
 	});

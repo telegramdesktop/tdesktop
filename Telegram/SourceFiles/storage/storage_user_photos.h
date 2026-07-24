@@ -74,6 +74,22 @@ struct UserPhotosRemoveAfter {
 
 };
 
+struct UserPhotosReplace {
+	UserPhotosReplace(
+		UserId userId,
+		PhotoId oldPhotoId,
+		PhotoId newPhotoId)
+		: userId(userId)
+		, oldPhotoId(oldPhotoId)
+		, newPhotoId(newPhotoId) {
+	}
+
+	UserId userId = 0;
+	PhotoId oldPhotoId = 0;
+	PhotoId newPhotoId = 0;
+
+};
+
 struct UserPhotosKey {
 	UserPhotosKey(
 		UserId userId,
@@ -144,6 +160,7 @@ public:
 	void add(UserPhotosAddSlice &&query);
 	void remove(UserPhotosRemoveOne &&query);
 	void remove(UserPhotosRemoveAfter &&query);
+	void replace(UserPhotosReplace &&query);
 
 	rpl::producer<UserPhotosResult> query(UserPhotosQuery &&query) const;
 	rpl::producer<UserPhotosSliceUpdate> sliceUpdated() const;
@@ -158,6 +175,7 @@ private:
 			int count);
 		void removeOne(PhotoId photoId);
 		void removeAfter(PhotoId photoId);
+		void replace(PhotoId oldPhotoId, PhotoId newPhotoId);
 		rpl::producer<UserPhotosResult> query(UserPhotosQuery &&query) const;
 
 		struct SliceUpdate {

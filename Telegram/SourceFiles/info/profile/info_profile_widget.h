@@ -17,6 +17,7 @@ class ForumTopic;
 namespace Info::Profile {
 
 class InnerWidget;
+class TabsHost;
 struct MembersState;
 
 struct GroupReactionOrigin {
@@ -43,14 +44,21 @@ public:
 		not_null<Controller*> controller,
 		const QRect &geometry) override;
 
-	Section section() const override;
+	Info::Section section() const override;
 
 	[[nodiscard]] Origin origin() const {
 		return _origin;
 	}
 
 	void setMembersState(std::unique_ptr<MembersState> state);
-	std::unique_ptr<MembersState> membersState();
+	[[nodiscard]] std::unique_ptr<MembersState> membersState();
+
+	void setActiveTab(const QString &id) {
+		_activeTab = id;
+	}
+	[[nodiscard]] QString activeTab() const {
+		return _activeTab;
+	}
 
 	~Memento();
 
@@ -64,6 +72,7 @@ private:
 
 	std::unique_ptr<MembersState> _membersState;
 	Origin _origin;
+	QString _activeTab;
 
 };
 
@@ -81,6 +90,9 @@ public:
 	void setInnerFocus() override;
 	void enableBackButton() override;
 	void showFinished() override;
+	void checkBeforeCloseByEscape(Fn<void()> close) override;
+	bool searchAvailable() const override;
+	void showSearch() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<Dialogs::Stories::Content> titleStories() override;
@@ -88,6 +100,11 @@ public:
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+	void setupTabsStripFloat();
+	void updateTabsStripFloatGeometry();
+	[[nodiscard]] auto swipeTabsFinishData(
+		Ui::Controls::SwipeHandlerInitData data)
+	-> Ui::Controls::SwipeHandlerFinishData;
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
@@ -96,6 +113,9 @@ private:
 	base::weak_qptr<Ui::RpWidget> _pinnedToTop;
 	base::weak_qptr<Ui::RpWidget> _pinnedToBottom;
 	std::unique_ptr<FlexibleScrollHelper> _flexibleScrollHelper;
+	base::unique_qptr<Ui::RpWidget> _tabsStripFloat;
+	base::weak_qptr<TabsHost> _tabsHost;
+	base::weak_qptr<Ui::RpWidget> _tabsStrip;
 
 };
 

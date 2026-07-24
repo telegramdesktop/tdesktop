@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_pts_waiter.h"
 #include "data/data_location.h"
 #include "data/data_chat_participant_status.h"
+#include "data/data_community.h"
 #include "data/data_peer_bot_commands.h"
 #include "data/data_user_names.h"
 
@@ -86,6 +87,8 @@ enum class ChannelDataFlag : uint64 {
 	HasStarsPerMessage = (1ULL << 43),
 	StarsPerMessageKnown = (1ULL << 44),
 	HasActiveVideoStream = (1ULL << 45),
+	Community = (1ULL << 46),
+	CommunityCollapsed = (1ULL << 47),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -141,12 +144,11 @@ public:
 	base::flat_set<not_null<UserData*>> bots;
 	rpl::event_stream<bool> unrestrictedByBoostsChanges;
 
-	// For admin badges, full admins list with ranks.
-	base::flat_map<UserId, QString> admins;
+	base::flat_set<UserId> admins;
+	base::flat_map<UserId, QString> memberRanks;
 
 	UserData *creator = nullptr; // nullptr means unknown
-	QString creatorRank;
-	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
+	Data::BotStatus botStatus = Data::BotStatus::Unknown;
 	bool joinedMessageFound = false;
 	bool adminsLoaded = false;
 	StickerSetIdentifier stickerSet;
@@ -194,6 +196,10 @@ public:
 	void setUsername(const QString &username);
 	void setUsernames(const Data::Usernames &newUsernames);
 	void setPhoto(const MTPChatPhoto &photo);
+
+	[[nodiscard]] uint64 accessHash() const {
+		return _accessHash;
+	}
 	void setAccessHash(uint64 accessHash);
 
 	void setFlags(ChannelDataFlags which);
@@ -251,7 +257,7 @@ public:
 		return flags() & Flag::Left;
 	}
 	[[nodiscard]] bool amIn() const {
-		return !isForbidden() && !haveLeft();
+		return !isForbidden() && !haveLeft() && !isCommunity();
 	}
 	[[nodiscard]] bool addsSignature() const {
 		return flags() & Flag::Signatures;
@@ -302,6 +308,9 @@ public:
 		ChatAdminRightsInfo oldRights,
 		ChatAdminRightsInfo newRights,
 		const QString &rank);
+	void applyEditMemberRank(
+		not_null<UserData*> user,
+		const QString &rank);
 	void applyEditBanned(
 		not_null<PeerData*> participant,
 		ChatRestrictionsInfo oldRights,
@@ -327,6 +336,12 @@ public:
 	[[nodiscard]] bool isMonoforum() const {
 		return flags() & Flag::Monoforum;
 	}
+	[[nodiscard]] bool isCommunity() const {
+		return flags() & Flag::Community;
+	}
+	[[nodiscard]] bool collapsedInDialogs() const {
+		return flags() & Flag::CommunityCollapsed;
+	}
 	[[nodiscard]] bool hasUsername() const {
 		return flags() & Flag::Username;
 	}
@@ -345,13 +360,17 @@ public:
 	[[nodiscard]] bool requestToJoin() const {
 		return flags() & Flag::RequestToJoin;
 	}
+	[[nodiscard]] UserData *guardBot() const;
+	[[nodiscard]] UserId guardBotId() const {
+		return _guardBotId;
+	}
+	void setGuardBotId(UserId userId);
 	[[nodiscard]] bool antiSpamMode() const {
 		return flags() & Flag::AntiSpam;
 	}
 	[[nodiscard]] bool autoTranslation() const {
 		return flags() & Flag::AutoTranslation;
 	}
-
 	[[nodiscard]] auto adminRights() const {
 		return _adminRights.current();
 	}
@@ -443,6 +462,16 @@ public:
 	void setMonoforumLink(ChannelData *link);
 	[[nodiscard]] ChannelData *monoforumLink() const;
 	[[nodiscard]] bool monoforumDisabled() const;
+
+	void setLinkedCommunityId(ChannelId id);
+	[[nodiscard]] ChannelId linkedCommunityId() const;
+
+	[[nodiscard]] Data::CommunityInfo *communityInfo() const {
+		return _communityInfo.get();
+	}
+	[[nodiscard]] not_null<Data::CommunityInfo*> ensuredCommunityInfo();
+	[[nodiscard]] bool canManageLinkedPeers() const;
+	[[nodiscard]] bool communityAnyoneCanAddPeers() const;
 
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);
@@ -553,11 +582,9 @@ public:
 	[[nodiscard]] TimeId subscriptionUntilDate() const;
 	void updateSubscriptionUntilDate(TimeId subscriptionUntilDate);
 
+	[[nodiscard]] MTPInputChannel inputChannel() const;
+
 	// Still public data members.
-	uint64 access = 0;
-
-	MTPinputChannel inputChannel = MTP_inputChannelEmpty();
-
 	int32 date = 0;
 	std::unique_ptr<MegagroupInfo> mgInfo;
 
@@ -588,11 +615,13 @@ private:
 	std::vector<UserId> _recentRequesters;
 	MsgId _availableMinId = 0;
 
+	uint64 _accessHash = 0;
+
 	RestrictionFlags _defaultRestrictions;
 	AdminRightFlags _adminRights;
 	RestrictionFlags _restrictions;
-	TimeId _restrictedUntil;
-	TimeId _subscriptionUntilDate;
+	TimeId _restrictedUntil = 0;
+	TimeId _subscriptionUntilDate = 0;
 
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	std::unique_ptr<InvitePeek> _invitePeek;
@@ -600,6 +629,8 @@ private:
 
 	ChannelData *_discussionLink = nullptr;
 	ChannelData *_monoforumLink = nullptr;
+	ChannelId _linkedCommunityId = 0;
+	std::unique_ptr<Data::CommunityInfo> _communityInfo;
 	bool _discussionLinkKnown = false;
 
 	int _peerGiftsCount = 0;
@@ -610,6 +641,7 @@ private:
 	int _pendingRequestsCount = 0;
 	int _levelHint = 0;
 	int _starsPerMessage = 0;
+	UserId _guardBotId = 0;
 
 	Data::AllowedReactions _allowedReactions;
 
@@ -633,5 +665,9 @@ void ApplyChannelUpdate(
 void ApplyChannelUpdate(
 	not_null<ChannelData*> channel,
 	const MTPDchannelFull &update);
+
+void ApplyCommunityUpdate(
+	not_null<ChannelData*> channel,
+	const MTPDcommunityFull &update);
 
 } // namespace Data

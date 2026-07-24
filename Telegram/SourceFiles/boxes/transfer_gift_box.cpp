@@ -468,7 +468,7 @@ void TransferGift(
 		// Like when we transfer a gift from Resale tab.
 		session->api().request(MTPpayments_TransferStarGift(
 			Api::InputSavedStarGiftId(savedId, gift),
-			to->input
+			to->input()
 		)).done([=](const MTPUpdates &result) {
 			session->api().applyUpdates(result);
 			formDone(Payments::CheckoutResult::Paid, &result);
@@ -484,7 +484,9 @@ void TransferGift(
 					ShowTransferGiftLater(strong->uiShow(), gift);
 				}
 			} else if (const auto strong = weak.get()) {
-				strong->showToast(error.type());
+				if (!Ui::ShowGiftErrorToast(strong->uiShow(), error)) {
+					strong->showToast(type);
+				}
 			}
 		}).send();
 	} else {
@@ -492,7 +494,7 @@ void TransferGift(
 			window->uiShow(),
 			MTP_inputInvoiceStarGiftTransfer(
 				Api::InputSavedStarGiftId(savedId, gift),
-				to->input),
+				to->input()),
 			std::move(formDone));
 	}
 }
@@ -512,7 +514,9 @@ void ResolveGiftSaleOffer(
 		session->api().applyUpdates(result);
 		done(true);
 	}).fail([=](const MTP::Error &error) {
-		show->showToast(error.type());
+		if (!Ui::ShowGiftErrorToast(show, error)) {
+			show->showToast(error.type());
+		}
 		done(false);
 	}).send();
 }
@@ -526,9 +530,11 @@ void BuyResaleGift(
 	auto paymentDone = [=](
 			Payments::CheckoutResult result,
 			const MTPUpdates *updates) {
-		done(result);
 		if (result == Payments::CheckoutResult::Paid) {
 			gift->starsForResale = 0;
+		}
+		done(result);
+		if (result == Payments::CheckoutResult::Paid) {
 			to->owner().notifyGiftUpdate({
 				.slug = gift->slug,
 				.action = Data::GiftUpdate::Action::ResaleChange,
@@ -541,7 +547,7 @@ void BuyResaleGift(
 	const auto invoice = MTP_inputInvoiceStarGiftResale(
 		MTP_flags((type == CreditsType::Ton) ? Flag::f_ton : Flag()),
 		MTP_string(gift->slug),
-		to->input);
+		to->input());
 
 	Ui::RequestOurForm(show, invoice, [=](
 			uint64 formId,
@@ -922,7 +928,7 @@ void SendPeerThemeChangeRequest(
 
 	api->request(MTPmessages_SetChatWallPaper(
 		MTP_flags(0),
-		peer->input,
+		peer->input(),
 		MTPInputWallPaper(),
 		MTPWallPaperSettings(),
 		MTPint()
@@ -931,7 +937,7 @@ void SendPeerThemeChangeRequest(
 	}).send();
 
 	api->request(MTPmessages_SetChatTheme(
-		peer->input,
+		peer->input(),
 		(unique
 			? MTP_inputChatThemeUniqueGift(MTP_string(unique->slug))
 			: MTP_inputChatTheme(MTP_string(token)))

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_view.h"
@@ -249,6 +250,7 @@ void AboutBox(
 			box,
 			tr::lng_box_ok(),
 			st::defaultActiveButton);
+		button->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 		button->resizeToWidth(box->width()
 			- st.buttonPadding.left()
 			- st.buttonPadding.left());
@@ -318,7 +320,7 @@ void ShowReportSponsoredBox(
 			}
 			if (!result.options.empty()) {
 				show->show(Box([=](not_null<Ui::GenericBox*> box) {
-					box->setTitle(rpl::single(result.title));
+					box->setTitle(result.title);
 
 					for (const auto &option : result.options) {
 						const auto button = Ui::AddReportOptionButton(
@@ -404,11 +406,15 @@ void FillSponsored(
 				}).text;
 			const auto callback = [=] {
 				TextUtilities::SetClipboardText({ allText });
-				show->showToast(tr::lng_text_copied(tr::now));
+				show->showToast({
+					.text = { tr::lng_text_copied(tr::now) },
+					.iconLottie = u"toast/copy"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			};
 			for (const auto &i : info) {
 				auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
-					menu,
+					menu->menu(),
 					dark ? st::storiesMenu : st::defaultMenu,
 					(dark
 						? st::historySponsorInfoItemDark

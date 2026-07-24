@@ -565,7 +565,7 @@ void EditForumTopicBox(
 			state->requestId = api->request(MTPmessages_EditForumTopic(
 				MTP_flags(Flag::f_title
 					| (topic->isGeneral() ? Flag() : Flag::f_icon_emoji_id)),
-				topic->peer()->input,
+				topic->peer()->input(),
 				MTP_int(rootId),
 				MTP_string(title->getLastText().trimmed()),
 				MTP_long(state->iconId.current()),

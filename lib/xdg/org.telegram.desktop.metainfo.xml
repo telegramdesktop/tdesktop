@@ -25,8 +25,10 @@
     </categories>
     <developer id="org.telegram"><name>Telegram FZ-LLC</name></developer>
     <url type="homepage">https://desktop.telegram.org/</url>
+    <url type="faq">https://telegram.org/faq</url>
     <url type="bugtracker">https://github.com/telegramdesktop/tdesktop/issues</url>
     <url type="translate">https://translations.telegram.org/</url>
+    <url type="vcs-browser">https://github.com/telegramdesktop/tdesktop</url>
     <url type="contribute">https://github.com/telegramdesktop/tdesktop/blob/dev/.github/CONTRIBUTING.md</url>
     <branding>
         <color type="primary" scheme_preference="light">#edf0f2</color>

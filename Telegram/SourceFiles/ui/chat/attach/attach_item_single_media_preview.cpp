@@ -36,15 +36,8 @@ ItemSingleMediaPreview::ItemSingleMediaPreview(
 	Fn<bool()> gifPaused,
 	not_null<HistoryItem*> item,
 	AttachControls::Type type)
-: AbstractSingleMediaPreview(parent, st, type, [=](AttachActionType type) {
-	if (type == AttachActionType::EditCover) {
-		return _isVideoFile;
-	}
-	return true;
-})
+: AbstractSingleMediaPreview(parent, st, type)
 , _gifPaused(std::move(gifPaused))
-, _isVideoFile(item->media()->document()
-	&& item->media()->document()->isVideoFile())
 , _fullId(item->fullId()) {
 	const auto media = item->media();
 	Assert(media != nullptr);

@@ -34,6 +34,12 @@ class SubsectionSliderReorder;
 
 namespace HistoryView {
 
+enum class SubsectionTabsMode : qint32 {
+	Top = 0,
+	Left = 1,
+	Bottom = 2,
+};
+
 class SubsectionTabs final {
 public:
 	SubsectionTabs(
@@ -59,6 +65,7 @@ public:
 	[[nodiscard]] rpl::producer<> layoutRequests() const;
 	[[nodiscard]] int leftSkip() const;
 	[[nodiscard]] int topSkip() const;
+	[[nodiscard]] int bottomSkip() const;
 
 	void raise();
 	void show();
@@ -80,7 +87,7 @@ private:
 	};
 
 	void track();
-	void setupHorizontal(not_null<QWidget*> parent);
+	void setupHorizontal(not_null<QWidget*> parent, bool bottom);
 	void setupVertical(not_null<QWidget*> parent);
 	void toggleModes();
 	void setVisible(bool shown);
@@ -92,6 +99,7 @@ private:
 	void loadMore();
 	void setup(not_null<Ui::RpWidget*> parent);
 	[[nodiscard]] rpl::producer<> dataChanged() const;
+	[[nodiscard]] Ui::RpWidget *activeWidget() const;
 
 	void setupSlider(
 		not_null<Ui::ScrollArea*> scroll,
@@ -118,6 +126,7 @@ private:
 
 	Ui::RpWidget *_horizontal = nullptr;
 	Ui::RpWidget *_vertical = nullptr;
+	Ui::RpWidget *_bottom = nullptr;
 	Ui::RpWidget *_shadow = nullptr;
 	std::unique_ptr<Ui::SubsectionSliderReorder> _reorder;
 	int _reordering = 0;

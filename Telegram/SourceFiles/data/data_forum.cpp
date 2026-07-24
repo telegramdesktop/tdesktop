@@ -58,6 +58,17 @@ Forum::Forum(not_null<History*> history)
 	if (peer()->canCreateTopics()) {
 		owner().forumIcons().requestDefaultIfUnknown();
 	}
+	_topicsList.fullSize().value(
+	) | rpl::map([](int size) {
+		return size > 0;
+	}) | rpl::distinct_until_changed(
+	) | rpl::skip(
+		1
+	) | rpl::on_next([=] {
+		if (IsBotCreatesTopics(_history->peer)) {
+			_history->updateChatListEntryHeight();
+		}
+	}, _lifetime);
 }
 
 Forum::~Forum() {
@@ -162,7 +173,7 @@ void Forum::requestTopics() {
 	const auto loadCount = firstLoad ? kTopicsFirstLoad : kTopicsPerPage;
 	_requestId = session().api().request(MTPmessages_GetForumTopics(
 		MTP_flags(0),
-		peer()->input,
+		peer()->input(),
 		MTPstring(), // q
 		MTP_int(_offset.date),
 		MTP_int(_offset.id),
@@ -366,10 +377,7 @@ void Forum::applyReceivedTopics(
 		const auto rootId = topic.match([&](const auto &data) {
 			return data.vid().v;
 		});
-		_staleRootIds.remove(rootId);
-		topic.match([&](const MTPDforumTopicDeleted &data) {
-			applyTopicDeleted(rootId);
-		}, [&](const MTPDforumTopic &data) {
+		const auto apply = [&](const MTPDforumTopic *fields = nullptr) {
 			_topicsDeleted.remove(rootId);
 			const auto i = _topics.find(rootId);
 			const auto creating = (i == end(_topics));
@@ -379,7 +387,9 @@ void Forum::applyReceivedTopics(
 					std::make_unique<ForumTopic>(this, rootId)
 				).first->second.get()
 				: i->second.get();
-			raw->applyTopic(data);
+			if (fields) {
+				raw->applyTopic(*fields);
+			}
 			if (creating) {
 				if (const auto last = _history->chatListMessage()
 					; last && last->topicRootId() == rootId) {
@@ -390,6 +400,19 @@ void Forum::applyReceivedTopics(
 			if (callback) {
 				callback(raw);
 			}
+		};
+
+		_staleRootIds.remove(rootId);
+		topic.match([&](const MTPDforumTopicDeleted &data) {
+			if (rootId != ForumTopic::kGeneralId) {
+				applyTopicDeleted(rootId);
+			} else {
+				// We shouldn't delete general topic in any case.
+				// Here this happens in bot forums, for example.
+				apply();
+			}
+		}, [&](const MTPDforumTopic &data) {
+			apply(&data);
 		});
 	}
 }
@@ -425,7 +448,7 @@ void Forum::requestSomeStale() {
 			Fn<void()> finish) {
 		return session().api().request(
 			MTPmessages_GetForumTopicsByID(
-				peer()->input,
+				peer()->input(),
 				MTP_vector<MTPint>(rootIds))
 		).done([=](const MTPmessages_ForumTopics &result) {
 			_staleRequestId = 0;
@@ -515,6 +538,15 @@ MsgId Forum::reserveCreatingId(
 	return result;
 }
 
+ForumTopic *Forum::reserveNewBotTopic() {
+	const auto &colors = ForumTopicColorIds();
+	const auto colorId = colors[base::RandomIndex(colors.size())];
+	return topicFor(reserveCreatingId(
+		tr::lng_bot_new_chat(tr::now),
+		colorId,
+		DocumentId()));
+}
+
 void Forum::discardCreatingId(MsgId rootId) {
 	Expects(creating(rootId));
 
@@ -560,6 +592,12 @@ void Forum::clearAllUnreadMentions() {
 void Forum::clearAllUnreadReactions() {
 	for (const auto &[rootId, topic] : _topics) {
 		topic->unreadReactions().clear();
+	}
+}
+
+void Forum::clearAllUnreadPollVotes() {
+	for (const auto &[rootId, topic] : _topics) {
+		topic->unreadPollVotes().clear();
 	}
 }
 

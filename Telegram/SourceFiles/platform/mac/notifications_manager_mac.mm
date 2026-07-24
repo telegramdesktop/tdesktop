@@ -178,10 +178,18 @@ using Manager = Platform::Notifications::Manager;
 	if (notification.activationType == NSUserNotificationActivationTypeAdditionalActionClicked
 		|| notification.activationType == NSUserNotificationActivationTypeActionButtonClicked) {
 		const auto manager = _manager;
-		NSString *actionId = [notificationUserInfo objectForKey:@"actionId"];
-		if ([actionId isEqualToString:@"markAsRead"]) {
+		NSString *actionId = nil;
+		if (notification.activationType == NSUserNotificationActivationTypeAdditionalActionClicked
+			&& [notification respondsToSelector:@selector(additionalActivationAction)]) {
+			actionId = notification.additionalActivationAction.identifier;
+		}
+		if (!actionId) {
+			actionId = [notificationUserInfo objectForKey:@"actionId"];
+		}
+		if (actionId) {
+			const auto actionStr = QString::fromNSString(actionId);
 			crl::on_main(manager, [=] {
-				manager->notificationReplied(my, {});
+				manager->notificationActionActivated(my, actionStr);
 			});
 		}
 	}
@@ -382,7 +390,28 @@ void Manager::Private::showNotification(
 		[notification setContentImage:img];
 	}
 
-	if (!info.options.hideReplyButton
+	if (!info.actions.empty()
+		&& [notification respondsToSelector:@selector(setAdditionalActions:)]) {
+		NSMutableArray *actions = [NSMutableArray array];
+		if (!info.options.hideMarkAsRead) {
+			[actions addObject:[NSUserNotificationAction
+				actionWithIdentifier:@"markAsRead"
+				title:_cachedMarkAsReadText]];
+		}
+		for (const auto &action : info.actions) {
+			[actions addObject:[NSUserNotificationAction
+				actionWithIdentifier:Q2NSString(action.id)
+				title:Q2NSString(action.text)]];
+		}
+		if (!info.options.hideReplyButton
+			&& [notification respondsToSelector:@selector(setHasReplyButton:)]) {
+			[notification setHasReplyButton:YES];
+		}
+		[notification setAdditionalActions:actions];
+		AddActionIdToNotification(
+			notification,
+			[[actions firstObject] identifier]);
+	} else if (!info.options.hideReplyButton
 		&& !info.options.hideMarkAsRead
 		&& [notification respondsToSelector:@selector(setHasReplyButton:)]
 		&& [notification respondsToSelector:@selector(setAdditionalActions:)]) {

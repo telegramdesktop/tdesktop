@@ -1,0 +1,308 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+
+using "ui/widgets/widgets.style";
+using "boxes/boxes.style";
+using "chat_helpers/chat_helpers.style";
+using "dialogs/dialogs.style";
+using "ui/chat/chat.style";
+
+historyPollQuestionFont: semiboldFont;
+historyPollQuestionStyle: TextStyle(defaultTextStyle) {
+	font: historyPollQuestionFont;
+}
+historyPollAnswerStyle: defaultTextStyle;
+historyPollQuestionTop: 7px;
+historyPollMediaHeight: 180px;
+historyPollMediaTopSkip: 1px;
+historyPollMediaSideSkip: 1px;
+historyPollMediaSkip: 10px;
+historyPollDescriptionSkip: 8px;
+historyPollSubtitleSkip: 4px;
+historyPollAnswerPadding: margins(32px, 6px, 0px, 6px);
+historyPollAnswerPaddingNoMedia: margins(32px, 10px, 0px, 10px);
+historyPollAnswersSkip: 2px;
+historyPollPercentFont: semiboldFont;
+historyPollPercentSkip: 5px;
+historyPollPercentTop: 0px;
+historyPollTotalVotesSkip: 5px;
+historyPollFillingMin: 4px;
+historyPollFillingHeight: 4px;
+historyPollFillingRadius: 2px;
+historyPollFillingBgOpacity: 0.15;
+historyPollFillingBottom: 2px;
+historyPollFillingTop: 6px;
+historyPollFillingRight: 4px;
+historyPollRadio: Radio(defaultRadio) {
+	bg: transparent;
+	untoggledFg: checkboxFg;
+	toggledFg: windowBgActive;
+	diameter: 18px;
+	thickness: 2px;
+	skip: 65px; // * 0.1
+	duration: universalDuration;
+	rippleAreaPadding: 8px;
+}
+historyPollCheckboxRadius: 3px;
+historyPollReplyIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_poll-17x17", windowFg }};
+	padding: margins(0px, 0px, 3px, 0px);
+}
+historyPollRadioOpacity: 0.7;
+historyPollRadioOpacityOver: 1.;
+historyPollDuration: 300;
+historyPollRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	thickness: 2px;
+	size: size(18px, 18px);
+}
+historyPollRippleOpacity: 0.3;
+historyPollRecentVotersSkip: 4px;
+historyPollRecentVoterSize: 18px;
+historyPollRecentVoterSkip: 13px;
+historyPollAnswerUserpics: GroupCallUserpics {
+	size: 16px;
+	shift: 5px;
+	stroke: 1px;
+	align: align(left);
+}
+historyPollAnswerUserpicsSkip: 4px;
+historyPollBottomButtonSkip: 15px;
+historyPollBottomButtonTop: 4px;
+historyPollExplanationSkip: 8px;
+historyPollExplanationTitleSkip: 4px;
+historyPollExplanationCloseSize: 20px;
+historyPollExplanationCloseIconSize: 8px;
+historyPollExplanationCloseStroke: 2px;
+historyPollExplanationMediaSkip: 6px;
+historyPollLinkPlaceholderIcon: icon {{ "info/edit/links_link", windowSubTextFg }};
+historyPollLinkInIcon: icon {{ "info/edit/links_link", historyFileInIconFg }};
+historyPollLinkInIconSelected: icon {{ "info/edit/links_link", historyFileInIconFgSelected }};
+historyPollLinkOutIcon: icon {{ "info/edit/links_link", historyFileOutIconFg }};
+historyPollLinkOutIconSelected: icon {{ "info/edit/links_link", historyFileOutIconFgSelected }};
+historyPollChoiceRight: icon {{ "poll_choice_right", activeButtonFg }};
+historyPollChoiceWrong: icon {{ "poll_choice_wrong", activeButtonFg }};
+historyPollOutChoiceRight: icon {{ "poll_choice_right", historyFileOutIconFg }};
+historyPollOutChoiceRightSelected: icon {{ "poll_choice_right", historyFileOutIconFgSelected }};
+historyPollInChoiceRight: icon {{ "poll_choice_right", historyFileInIconFg }};
+historyPollInChoiceRightSelected: icon {{ "poll_choice_right", historyFileInIconFgSelected }};
+historyPollOutChosen: icon {{ "poll_select_check", historyFileOutIconFg }};
+historyPollOutChosenSelected: icon {{ "poll_select_check", historyFileOutIconFgSelected }};
+historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
+historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
+
+historyPollAddOptionTop: 3px;
+historyPollAddOptionButtonSize: 26px;
+historyPollAddOptionEmojiLeft: -4px;
+historyPollAddOptionField: InputField(defaultInputField) {
+	textBg: transparent;
+	textFg: windowFg;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	textMargins: margins(32px, 7px, 28px, 4px);
+	heightMin: 32px;
+	heightMax: 32px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+	placeholderMargins: margins(0px, 1px, 0px, 0px);
+	placeholderFont: font(12px);
+	placeholderScale: 0.;
+	border: 0px;
+	borderActive: 0px;
+}
+historyPollAddOptionEmoji: IconButton(defaultIconButton) {
+	width: 26px;
+	height: 26px;
+	icon: icon {{ "poll/general/outline_poll_emoji-22x22", historyComposeIconFg }};
+	iconOver: icon {{ "poll/general/outline_poll_emoji-22x22", historyComposeIconFgOver }};
+	rippleAreaSize: 0px;
+}
+historyPollAddOptionAttach: IconButton(defaultIconButton) {
+	width: 26px;
+	height: 26px;
+	icon: icon {{ "poll/general/outline_poll_attach-22x22", historyComposeIconFg }};
+	iconOver: icon {{ "poll/general/outline_poll_attach-22x22", historyComposeIconFgOver }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 26px;
+	ripple: defaultRippleAnimationBgOver;
+}
+
+pollBoxOutlinePollAddIcon: icon{{ "poll/general/outline_poll_add-18x18", activeButtonFg }};
+pollBoxMenuPollOrderIcon: icon{{ "poll/general/menu_poll_order-24x24", historyComposeIconFg }};
+pollBoxFilledPollDeadlineIcon: icon{{ "poll/filled/filled_poll_deadline", activeButtonFg }};
+pollBoxFilledPollViewIcon: icon{{ "poll/filled/filled_poll_view", activeButtonFg }};
+pollBoxFilledPollAddIcon: icon{{ "poll/filled/filled_poll_add", activeButtonFg }};
+pollBoxFilledPollCorrectIcon: icon{{ "poll/filled/filled_poll_correct", activeButtonFg }};
+pollBoxFilledPollRevoteIcon: icon{{ "poll/filled/filled_poll_revote", activeButtonFg }};
+pollBoxFilledPollShuffleIcon: icon{{ "poll/filled/filled_poll_shuffle", activeButtonFg }};
+pollBoxFilledPollMultipleIcon: icon{{ "poll/filled/filled_poll_multiple", activeButtonFg }};
+pollBoxFilledPollSubscribersIcon: icon{{ "poll/filled/filled_poll_subscribers-20x20", activeButtonFg }};
+pollBoxFilledPollCountryIcon: icon{{ "poll/filled/filled_poll_country-20x20", activeButtonFg }};
+
+pollAttachTextSkip: 28px;
+pollAttachRadius: 7px;
+historyPollAnswerThumbRadius: 9px;
+
+pollOpenLinkUrlLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 1px;
+	align: align(center);
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px);
+	}
+	maxHeight: 0px;
+}
+pollOpenLinkUrlInnerPadding: margins(16px, 12px, 16px, 12px);
+pollOpenLinkUrlOuterPadding: margins(22px, 4px, 22px, 14px);
+pollOpenLinkUrlRadius: 16px;
+pollOpenLinkPreviewOuterPadding: margins(11px, 0px, 11px, 5px);
+pollAttachProgressMargin: 4px;
+pollAttachCancel: icon {{ "history_audio_cancel", historyFileThumbIconFg }};
+pollAttachView: icon {{ "mediaview/views", historyFileThumbIconFg }};
+pollAttachLink: icon {{ "menu/link", historyFileThumbIconFg }};
+
+createPollField: InputField(defaultInputField) {
+	textMargins: margins(0px, 4px, 0px, 4px);
+	textAlign: align(left);
+	heightMin: 36px;
+	heightMax: 86px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+	placeholderShift: -50px;
+	border: 0px;
+	borderActive: 0px;
+	duration: 100;
+}
+createPollFieldPadding: margins(22px, 5px, 22px, 5px);
+createPollOptionField: InputField(createPollField) {
+	textMargins: margins(22px, 11px, 40px, 11px);
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	heightMax: 68px;
+}
+createPollOptionFieldPremium: InputField(createPollOptionField) {
+	textMargins: margins(22px, 11px, 72px, 11px);
+}
+createPollOptionFieldPremiumEmojiPosition: point(13px, -1px);
+createPollSolutionField: InputField(createPollField) {
+	textMargins: margins(0px, 4px, 0px, 4px);
+	border: 1px;
+	borderActive: 2px;
+}
+createPollLimitPadding: margins(22px, 10px, 22px, 16px);
+createPollOptionRemove: CrossButton {
+	width: 22px;
+	height: 22px;
+
+	cross: CrossAnimation {
+		size: 22px;
+		skip: 6px;
+		stroke: 1.5;
+		minScale: 0.3;
+	}
+	crossFg: boxTitleCloseFg;
+	crossFgOver: boxTitleCloseFgOver;
+	crossPosition: point(0px, 0px);
+
+	duration: 150;
+	loadingPeriod: 1000;
+	ripple: defaultRippleAnimationBgOver;
+}
+createPollAttachPosition: point(0px, 0px);
+createPollOptionRemovePosition: point(11px, 9px);
+createPollOptionEmojiPositionSkip: 6px;
+createPollWarning: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: boxTextFgError;
+	}
+}
+createPollWarningPosition: point(16px, 6px);
+createPollCheckboxMargin: margins(22px, 10px, 22px, 10px);
+createPollFieldTitlePadding: margins(22px, 7px, 10px, 6px);
+
+createPollLinkUrlField: InputField(dialogsFilter) {
+	textBgActive: filterInputInactiveBg;
+	textMargins: margins(14px, 8px, 14px, 5px);
+	placeholderMargins: margins(0px, 0px, 2px, 0px);
+	heightMin: 36px;
+}
+
+createTodoOptionField: InputField(createPollOptionField) {
+	textMargins: margins(22px, 11px, 68px, 11px);
+}
+createTodoOptionFieldEmojiPosition: point(13px, -1px);
+
+pollResultsQuestion: FlatLabel(defaultFlatLabel) {
+	minWidth: 320px;
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+	}
+}
+pollResultsVotesCount: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+pollResultsHeaderPadding: margins(22px, 22px, 22px, 8px);
+pollResultsShowMore: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	style: semiboldTextStyle;
+
+	height: 20px;
+	padding: margins(71px, 10px, 8px, 8px);
+
+	ripple: defaultRippleAnimation;
+}
+pollResultsVoteTimeFont: font(fsize);
+pollResultsVoteTimeDateFont: font(fsize);
+pollResultsVoteTimeRightSkip: 16px;
+pollResultsVoteTimeLeftSkip: 8px;
+pollResultsVoteTimeGap: 2px;
+
+pollAttach: IconButton(defaultIconButton) {
+	width: pollAttachTextSkip;
+	height: pollAttachTextSkip;
+
+	icon: icon {{ "poll/general/outline_poll_attach-26x26", historyComposeIconFg }};
+	iconOver: icon {{ "poll/general/outline_poll_attach-26x26", historyComposeIconFgOver }};
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: pollAttachTextSkip;
+	ripple: defaultRippleAnimationBgOver;
+}
+
+createPollDurationIconSize: 20px;
+createPollDurationIconPosition: point(1px, 5px);
+createPollDurationIconMargins: margins(2px, 2px, 2px, 2px);
+
+pollDescriptionFieldPadding: margins(22px, 5px, 11px, 5px);
+pollDescriptionField: InputField(createPollField) {
+	textMargins: margins(0px, 4px, pollAttachTextSkip + pollAttachTextSkip + 1px, 4px);
+	border: 0px;
+	borderActive: 0px;
+}
+
+pollMediaField: InputField(createPollSolutionField) {
+	textMargins: margins(0px, 4px, pollAttachTextSkip, 4px);
+	border: 0px;
+	borderActive: 0px;
+}
+
+infoPollsNewButtonBottom: 19px;
+
+pollToastUploadingIconSize: size(30px, 30px);
+pollToastIconSize: size(22px, 22px);

@@ -14,15 +14,27 @@ bool IsSubGroupSelection(TextSelection selection) {
 bool IsGroupItemSelection(
 		TextSelection selection,
 		int index) {
-	Expects(index >= 0 && index < 0x0F);
+	Expects(index >= 0 && index < kMaxGroupSelectionItems);
 
 	return IsSubGroupSelection(selection) && (selection.to & (1 << index));
+}
+
+int FirstGroupItemIndex(TextSelection selection) {
+	if (!IsSubGroupSelection(selection)) {
+		return -1;
+	}
+	for (auto i = 0; i != kMaxGroupSelectionItems; ++i) {
+		if (selection.to & (1 << i)) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 TextSelection AddGroupItemSelection(
 		TextSelection selection,
 		int index) {
-	Expects(index >= 0 && index < 0x0F);
+	Expects(index >= 0 && index < kMaxGroupSelectionItems);
 
 	const auto bit = uint16(1U << index);
 	return TextSelection(
@@ -33,7 +45,7 @@ TextSelection AddGroupItemSelection(
 TextSelection RemoveGroupItemSelection(
 		TextSelection selection,
 		int index) {
-	Expects(index >= 0 && index < 0x0F);
+	Expects(index >= 0 && index < kMaxGroupSelectionItems);
 
 	const auto bit = uint16(1U << index);
 	return IsSubGroupSelection(selection)
