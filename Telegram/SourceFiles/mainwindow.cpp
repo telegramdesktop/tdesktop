@@ -370,6 +370,7 @@ void MainWindow::showSettings() {
 	if (const auto session = sessionController()) {
 		session->showSettings();
 	} else {
+		controller().hideLayer(anim::type::instant);
 		showSpecialLayer(
 			Box<Settings::LayerWidget>(&controller()),
 			anim::type::normal);
