@@ -94,6 +94,33 @@ Ensure the repository is in `L:\Telegram\tdesktop`. The build system requires `.
 ### Build fails with "wrong command prompt"
 On Windows, use the correct Visual Studio Native Tools Command Prompt matching your target (x64/x86/ARM64).
 
+### macOS crashes while reading the cached language pack
+
+After an incremental Xcode build that regenerated `lang.strings` outputs, the
+app can link a new generated key lookup with stale objects that still use an
+older `kKeysCount`. The characteristic failure is:
+
+- the Debug log stops immediately after
+  `Lang Info: Loaded cached, keys: ...`;
+- stderr and `tdata/working` may be empty;
+- a fresh `~/Library/Logs/DiagnosticReports/Telegram-*.ips` shows `SIGABRT`
+  from `std::vector<unsigned char>::operator[]`, then
+  `Lang::Instance::applyValue()`, `fillFromSerialized()`, and
+  `Local::readLangPack()`.
+
+If this exact startup failure repeats twice, do not change the implementation,
+test overlay, or portable account. Stop only this checkout's exact Telegram
+process, then perform one full Xcode Debug clean and rebuild:
+
+```bash
+cmake --build out --config Debug --target clean
+cmake --build out --config Debug --target Telegram
+```
+
+Rerun the same test once. If the signature persists after that clean rebuild,
+continue normal crash diagnosis or report the blocker. Do not loop clean
+rebuilds.
+
 ### Build fails with PDB or EXE access errors
 
 **âš ï¸ CRITICAL: DO NOT RETRY THE BUILD. STOP AND WAIT FOR USER.**

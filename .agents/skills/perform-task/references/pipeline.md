@@ -321,9 +321,10 @@ before running, covers every acceptance surface, declares a falsifiable oracle
 for each, compresses all checks into the fewest possible runs — normally
 exactly one — and never reuses a generic navigate-and-screenshot scenario. Missing
 or ambiguous evidence is `TEST_FLAW`; no expected task delta is `IMPL_BUG`. Two
-identical consecutive failure signatures block early. A known implementation
-bug at the attempt cap is implementation-blocked, not a successful retained
-commit.
+identical consecutive failure signatures block early, except that the macOS
+cached-language signature first gets the shared test loop's one-time Xcode
+clean-rebuild recovery. A known implementation bug at the attempt cap is
+implementation-blocked, not a successful retained commit.
 
 Skip runtime testing only for a task with no runnable behavior. Record
 `NOT_APPLICABLE` and exact file-level validation. Configuration alone is not a

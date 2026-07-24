@@ -64,13 +64,15 @@ step in "Leave no test binary behind" below.
 
 Early-escalation rule: if two consecutive ASSESS rounds produce the **same failure signature**
 (same step fails the same way after a fix), stop and return BLOCKED — do not burn the rest of
-the attempt budget chasing it.
+the attempt budget chasing it. Before applying this rule to the macOS cached-language startup
+signature, perform the one-time clean-rebuild recovery under "Crashes & assertions".
 
 UNRECOVERABLE conditions: the app reaches a login screen / `AUTH_KEY_DUPLICATED` and re-copying the
-test account does not recover it, or a crash has no usable diagnostic after one retry. Missing
-`test_TelegramForcePortable` is a global environment hard stop, not a task `Block`. A file-lock build
-error (`LNK1104`, `C1041`, access denied, file in use) is likewise a repository hard stop: do not
-retry or work around it; ask the user to close the app and debugger.
+test account does not recover it, or a crash has no usable diagnostic after one retry and the
+macOS cached-language recovery below does not apply. Missing `test_TelegramForcePortable` is a
+global environment hard stop, not a task `Block`. A file-lock build error (`LNK1104`, `C1041`,
+access denied, file in use) is likewise a repository hard stop: do not retry or work around it;
+ask the user to close the app and debugger.
 
 ## Handoff tokens
 
@@ -402,8 +404,10 @@ set, the binary:
 **Do NOT key the crash decision on exit code.** Breakpad handles the crash and the process usually
 exits **0** — exactly as tdesktop's own crash detection assumes. The reliable crash signals are: the
 process is gone WITHOUT a `TEST_COMPLETE` marker, AND a fresh non-empty
-`<workdir>/tdata/working` exists. So **always pass `-testagent`**, and on a crash gather diagnostics
-in this order before deciding the verdict:
+`<workdir>/tdata/working` exists. On macOS, a fresh matching system `.ips`
+report is also sufficient when Telegram's reporter wrote nothing. So **always
+pass `-testagent`**, and on a crash gather diagnostics in this order before
+deciding the verdict:
 
 1. **`<EVIDENCE_DIR>/app_stderr.txt`** — the `[testagent] assert: …` line gives the failed expression and
    `file:line` (e.g. `vector(1931) : … vector subscript out of range`). Usually enough to localize.
@@ -413,12 +417,33 @@ in this order before deciding the verdict:
    `out/Debug/TelegramForcePortable/`).
 3. **`<workdir>/tdata/dumps/*.dmp`** — the minidump (full stack, needs symbols to read; note its path
    in `test.md`, don't try to symbolize inline).
+4. **macOS `~/Library/Logs/DiagnosticReports/Telegram-*.ips`** — when the preceding files are empty,
+   inspect reports created after the exact process launch and match the app UUID/start time. These
+   reports can contain a fully symbolicated stack even when Telegram's reporter wrote nothing.
 
 A crash is an **IMPL_BUG** (the implementation tripped an assertion / dereferenced out of range), not
 a TEST_FLAW, unless the overlay itself is what reached out of bounds — quote the `[testagent]` line
 and the `tdata/working` excerpt in `test.md` as evidence, and feed the expression + file:line to the
 impl-fix agent as the Root cause / Fix hint. Only a crash with NO usable diagnostic after one retry
 is UNRECOVERABLE.
+
+On macOS, treat this exact repeated startup signature as a stale Xcode incremental build, not an
+implementation or overlay verdict:
+
+- the app log stops immediately after `Lang Info: Loaded cached, keys: ...`;
+- the `.ips` report shows `SIGABRT` in
+  `std::vector<unsigned char>::operator[]` →
+  `Lang::Instance::applyValue()` → `fillFromSerialized()` →
+  `Local::readLangPack()`;
+- the same signature occurs on two launches.
+
+Before early escalation, preserve the current overlay and account, stop only the exact-path app,
+run one full Xcode Debug clean followed by `BUILD` (the configured-tree clean is normally
+`cmake --build out --config Debug --target clean`), and rerun the same scenario once. Record the
+preceding runs as `TEST_FLAW` caused by stale generated-language objects; do not spend an
+implementation attempt or re-author the overlay. If the identical signature remains after the
+single clean rebuild, resume normal crash classification and early escalation. Never loop clean
+rebuilds.
 
 ### Hangs & freezes (two layers, because they have two causes)
 
