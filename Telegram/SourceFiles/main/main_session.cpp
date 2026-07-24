@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_download_manager.h"
 #include "data/stickers/data_stickers.h"
+#include "wallet/wallet_session.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "window/window_lock_widgets.h"
@@ -134,6 +135,7 @@ Session::Session(
 , _factchecks(std::make_unique<Data::Factchecks>(this))
 , _locationPickers(std::make_unique<Data::LocationPickers>())
 , _credits(std::make_unique<Data::Credits>(this))
+, _wallet(std::make_unique<Wallet::Session>(this))
 , _promoSuggestions(std::make_unique<Data::PromoSuggestions>(this, [=] {
 	using State = Data::SetupEmailState;
 	if (_promoSuggestions->setupEmailState() == State::Setup

@@ -2153,6 +2153,12 @@ PRIVATE
     ui/unread_badge.h
     ui/peer/video_userpic_player.cpp
     ui/peer/video_userpic_player.h
+    wallet/wallet_api.cpp
+    wallet/wallet_api.h
+    wallet/wallet_fee_estimator.cpp
+    wallet/wallet_fee_estimator.h
+    wallet/wallet_session.cpp
+    wallet/wallet_session.h
     webauthn/cable.h
     webauthn/cable_box.cpp
     webauthn/cable_box.h

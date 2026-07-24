@@ -31,8 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "settings/sections/settings_folders.h"
 #include "storage/storage_account.h"
-#include "gram/crypto/gram_mnemonic.h"
-#include "gram/wallet/gram_wallet_v5.h"
+#include "wallet/wallet_session.h"
+#include "gram/ton/gram_address.h"
+#include "ui/controls/ton_common.h"
 #include "api/api_updates.h"
 #include "base/qt/qt_common_adapters.h"
 #include "base/custom_app_icon.h"
@@ -77,19 +78,14 @@ using SessionController = Window::SessionController;
 	return result;
 }
 
-[[nodiscard]] Storage::WalletStored TestWalletStored() {
+[[nodiscard]] std::vector<QString> TestWalletPhrase() {
 	const auto phrase = u"hospital stove relief fringe tongue always "
 		u"charge angry urge sentence again match nerve inquiry senior "
 		u"coconut label tumble carry category beauty bean road solution"_q;
-	auto result = Storage::WalletStored();
+	auto result = std::vector<QString>();
 	for (const auto &word : phrase.split(u' ')) {
-		result.words.push_back(word);
+		result.push_back(word);
 	}
-	result.mnemonicType = Gram::MnemonicType::Ton;
-	result.contractVersion = 1;
-	result.walletId = Gram::kDefaultWalletId;
-	result.networkId = -239;
-	result.phraseViewed = false;
 	return result;
 }
 
@@ -130,44 +126,160 @@ auto GenerateCodes() {
 			window->session().updates().getDifference();
 		}
 	});
-	codes.emplace(u"walletwrite"_q, [](SessionController *window) {
+	codes.emplace(u"walletcreate"_q, [](SessionController *window) {
 		if (!window) {
 			return;
 		}
-		window->session().local().writeWallet(TestWalletStored());
-		Ui::Toast::Show(u"Test wallet written."_q);
+		auto &wallet = window->session().wallet();
+		if (wallet.keyState() != Wallet::KeyState::None) {
+			Ui::Toast::Show(u"Wallet already exists."_q);
+			return;
+		}
+		if (wallet.create()) {
+			Ui::Toast::Show(
+				u"Wallet created: %1"_q.arg(wallet.addressFriendly(false)));
+		} else {
+			Ui::Toast::Show(u"Wallet create failed."_q);
+		}
 	});
-	codes.emplace(u"walletread"_q, [](SessionController *window) {
+	codes.emplace(u"walletimport"_q, [](SessionController *window) {
 		if (!window) {
 			return;
 		}
-		const auto read = window->session().local().readWallet();
-		if (!read) {
-			Ui::Toast::Show(u"No wallet stored."_q);
+		auto &wallet = window->session().wallet();
+		if (wallet.keyState() != Wallet::KeyState::None) {
+			Ui::Toast::Show(u"Wallet already exists, walletdelete first."_q);
 			return;
 		}
-		const auto expected = TestWalletStored();
-		auto mismatches = QStringList();
-		if (read->words != expected.words) {
-			mismatches.push_back(u"words"_q);
+		if (!wallet.import(TestWalletPhrase())) {
+			Ui::Toast::Show(u"Wallet import failed."_q);
+			return;
 		}
-		if (read->mnemonicType != expected.mnemonicType) {
-			mismatches.push_back(u"mnemonicType"_q);
+		const auto address = wallet.addressFriendly(true);
+		const auto match = (address
+			== u"EQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53kAk"_q);
+		Ui::Toast::Show(u"Wallet imported: %1 (%2)"_q
+			.arg(address)
+			.arg(match ? u"PASS"_q : u"FAIL"_q));
+	});
+	codes.emplace(u"walletaddress"_q, [](SessionController *window) {
+		if (!window) {
+			return;
 		}
-		if (read->contractVersion != expected.contractVersion) {
-			mismatches.push_back(u"contractVersion"_q);
+		auto &wallet = window->session().wallet();
+		const auto address = wallet.address();
+		if (!address) {
+			Ui::Toast::Show(u"No wallet."_q);
+			return;
 		}
-		if (read->walletId != expected.walletId) {
-			mismatches.push_back(u"walletId"_q);
+		LOG(("Wallet: address UQ: %1, EQ: %2, raw: %3"
+			).arg(wallet.addressFriendly(false)
+			).arg(wallet.addressFriendly(true)
+			).arg(Gram::FormatRaw(*address)));
+		Ui::Toast::Show(u"Address: %1"_q.arg(wallet.addressFriendly(false)));
+	});
+	codes.emplace(u"walletbalance"_q, [](SessionController *window) {
+		if (!window) {
+			return;
 		}
-		if (read->networkId != expected.networkId) {
-			mismatches.push_back(u"networkId"_q);
+		window->session().wallet().refreshState([](
+				const Gram::AccountState &state) {
+			Ui::Toast::Show(u"Balance: %1 TON (status %2)"_q
+				.arg(Ui::FormatTonAmount(state.balanceNano).full)
+				.arg(int(state.status)));
+		}, [](const Gram::ApiError &error) {
+			Ui::Toast::Show(u"Balance error: %1"_q.arg(error.message));
+		});
+	});
+	codes.emplace(u"wallethistory"_q, [](SessionController *window) {
+		if (!window) {
+			return;
 		}
-		Ui::Toast::Show(mismatches.isEmpty()
-			? u"Wallet read: PASS (%1 words, viewed: %2)."_q
-				.arg(read->words.size())
-				.arg(read->phraseViewed ? u"yes"_q : u"no"_q)
-			: u"Wallet read: FAIL (%1)."_q.arg(mismatches.join(u", "_q)));
+		const auto wallet = &window->session().wallet();
+		wallet->refreshHistory([=] {
+			const auto &list = wallet->history();
+			Ui::Toast::Show(
+				u"History: %1 items (see log)."_q.arg(list.size()));
+			for (const auto &item : list) {
+				LOG(("Wallet: %1 %2 TON fee %3 to %4 date %5 lt %6 status %7"
+					).arg(item.incoming ? u"in"_q : u"out"_q
+					).arg(Ui::FormatTonAmount(item.amountNano).full
+					).arg(Ui::FormatTonAmount(item.feeNano).full
+					).arg(Gram::FormatFriendly(item.counterparty, false)
+					).arg(item.date
+					).arg(item.lt
+					).arg(int(item.status)));
+				if (!item.comment.isEmpty()) {
+					LOG(("Wallet:   comment: %1").arg(item.comment));
+				}
+			}
+		});
+	});
+	codes.emplace(u"walletpoll"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		auto &wallet = window->session().wallet();
+		if (wallet.keyState() == Wallet::KeyState::None) {
+			Ui::Toast::Show(u"No wallet."_q);
+			return;
+		}
+		if (wallet.pollingRequested()) {
+			wallet.stopPolling();
+		} else {
+			wallet.startPolling();
+		}
+		Ui::Toast::Show(u"Wallet polling: %1"_q
+			.arg(wallet.pollingRequested() ? u"on"_q : u"off"_q));
+	});
+	codes.emplace(u"walletsend"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		auto &wallet = window->session().wallet();
+		const auto address = wallet.address();
+		if (!address) {
+			Ui::Toast::Show(u"No wallet."_q);
+			return;
+		}
+		auto args = Wallet::SendArgs{
+			.destination = *address,
+			.amountNano = int64(10'000'000),
+			.comment = u"tdesktop test"_q,
+		};
+		wallet.estimateFee(args, [](Wallet::FeeResult result) {
+			Ui::Toast::Show(result.error.isEmpty()
+				? u"Fee estimate: ~%1 TON"_q
+					.arg(Ui::FormatTonAmount(result.feeNano).full)
+				: u"Fee error: %1"_q.arg(result.error));
+		});
+		wallet.send(args, [](QString error) {
+			Ui::Toast::Show(error.isEmpty()
+				? u"Sent, pending confirmation."_q
+				: error);
+		});
+	});
+	codes.emplace(u"walletsendstale"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		auto &wallet = window->session().wallet();
+		const auto address = wallet.address();
+		if (!address) {
+			Ui::Toast::Show(u"No wallet."_q);
+			return;
+		}
+		auto args = Wallet::SendArgs{
+			.destination = *address,
+			.amountNano = int64(10'000'000),
+			.comment = u"tdesktop test"_q,
+			.simulateStaleSeqno = true,
+		};
+		wallet.send(std::move(args), [](QString error) {
+			Ui::Toast::Show(error.isEmpty()
+				? u"Sent, pending confirmation."_q
+				: error);
+		});
 	});
 	codes.emplace(u"walletviewed"_q, [](SessionController *window) {
 		if (!window) {
@@ -182,12 +294,17 @@ auto GenerateCodes() {
 		window->session().local().writeWallet(*wallet);
 		Ui::Toast::Show(u"Wallet phrase marked as viewed."_q);
 	});
-	codes.emplace(u"walletclear"_q, [](SessionController *window) {
+	codes.emplace(u"walletdelete"_q, [](SessionController *window) {
 		if (!window) {
 			return;
 		}
-		window->session().local().writeWallet({});
-		Ui::Toast::Show(u"Wallet cleared."_q);
+		auto &wallet = window->session().wallet();
+		if (wallet.keyState() == Wallet::KeyState::None) {
+			Ui::Toast::Show(u"No wallet."_q);
+			return;
+		}
+		wallet.remove();
+		Ui::Toast::Show(u"Wallet deleted."_q);
 	});
 	codes.emplace(u"loadcolors"_q, [](SessionController *window) {
 		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
