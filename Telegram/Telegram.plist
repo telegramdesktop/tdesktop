@@ -75,6 +75,8 @@
 	<string>We need access to your camera so that you can record video messages and make video calls.</string>
 	<key>NSLocationUsageDescription</key>
 	<string>We need access to your location so that you can send your current locations.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>We need access to Bluetooth so that you can sign in with a passkey from your phone over a QR code.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
