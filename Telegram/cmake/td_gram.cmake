@@ -66,6 +66,11 @@ PRIVATE
     ${src_loc}
 )
 
+target_compile_definitions(td_gram_test
+PRIVATE
+    GRAM_TEST_FIXTURES_PATH="${src_loc}/gram/tests/fixtures"
+)
+
 target_link_libraries(td_gram_test
 PRIVATE
     tdesktop::td_gram

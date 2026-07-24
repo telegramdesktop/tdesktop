@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/ton/gram_message.h"
 #include "gram/wallet/gram_wallet_v5.h"
 
+#include <QtCore/QFile>
+
 #include <vector>
 
 namespace Gram::Tests {
@@ -56,6 +58,28 @@ const auto kFixture0Q = u"0QDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53qZr"_q;
 
 [[nodiscard]] std::optional<KeyPair> FixtureKey() {
 	return MnemonicToKeyPair(FixtureWords(), MnemonicType::Ton);
+}
+
+[[nodiscard]] QByteArray ReadFixture(const QString &name) {
+	auto file = QFile(
+		QString::fromUtf8(GRAM_TEST_FIXTURES_PATH) + u"/"_q + name);
+	if (!file.open(QIODevice::ReadOnly)) {
+		return QByteArray();
+	}
+	return file.readAll().trimmed();
+}
+
+[[nodiscard]] TransferRequest FixtureTransferRequest(const Address &dest) {
+	auto request = TransferRequest();
+	auto message = TransferMessage();
+	message.destination = dest;
+	message.bounce = true;
+	message.amountNano = 10000000;
+	message.body = BuildCommentBody(u"test"_q);
+	request.messages.push_back(message);
+	request.seqno = 5;
+	request.validUntil = 1753300000;
+	return request;
 }
 
 [[nodiscard]] Address TestDest(uchar byte) {
@@ -311,16 +335,7 @@ std::vector<Check> WalletChecks() {
 			if (!parsed) {
 				return u"address: parse failed"_q;
 			}
-			auto request = TransferRequest();
-			auto message = TransferMessage();
-			message.destination = parsed->address;
-			message.bounce = true;
-			message.amountNano = 10000000;
-			message.body = BuildCommentBody(u"test"_q);
-			request.messages.push_back(message);
-			request.seqno = 5;
-			request.validUntil = 1753300000;
-
+			const auto request = FixtureTransferRequest(parsed->address);
 			const auto real = BuildSignedTransfer(*key, request);
 			const auto realCell = DeserializeBoc(real);
 			if (!realCell) {
@@ -349,6 +364,95 @@ std::vector<Check> WalletChecks() {
 				return u"fake: "_q + fakeFailure;
 			}
 			return QString();
+		} },
+		{ u"w5_parity_signed_transfer"_q, [] {
+			const auto expected = ReadFixture(u"signed-transfer.boc.b64"_q);
+			if (expected.isEmpty()) {
+				return u"fixture read failed: signed-transfer.boc.b64"_q;
+			}
+			const auto key = FixtureKey();
+			if (!key) {
+				return u"mnemonic: key derivation failed"_q;
+			}
+			const auto parsed = ParseAddress(kFixtureEQ);
+			if (!parsed) {
+				return u"address: parse failed"_q;
+			}
+			const auto real = BuildSignedTransfer(
+				*key,
+				FixtureTransferRequest(parsed->address));
+			return CompareHex(real, QByteArray::fromBase64(expected).toHex());
+		} },
+		{ u"w5_parity_fake_signed_transfer"_q, [] {
+			const auto expected = ReadFixture(
+				u"signed-transfer-fake.boc.b64"_q);
+			if (expected.isEmpty()) {
+				return u"fixture read failed: signed-transfer-fake.boc.b64"_q;
+			}
+			const auto key = FixtureKey();
+			if (!key) {
+				return u"mnemonic: key derivation failed"_q;
+			}
+			const auto parsed = ParseAddress(kFixtureEQ);
+			if (!parsed) {
+				return u"address: parse failed"_q;
+			}
+			const auto fake = BuildFakeSignedTransfer(
+				key->publicKey,
+				FixtureTransferRequest(parsed->address));
+			return CompareHex(fake, QByteArray::fromBase64(expected).toHex());
+		} },
+		{ u"w5_parity_normalized_hash"_q, [] {
+			const auto expectedReal = ReadFixture(u"normalized-ext-hash.hex"_q);
+			if (expectedReal.isEmpty()) {
+				return u"fixture read failed: normalized-ext-hash.hex"_q;
+			}
+			const auto expectedFake = ReadFixture(
+				u"normalized-ext-hash-fake.hex"_q);
+			if (expectedFake.isEmpty()) {
+				return u"fixture read failed: normalized-ext-hash-fake.hex"_q;
+			}
+			if (expectedReal == expectedFake) {
+				return u"fixtures: real and fake hashes must differ"_q;
+			}
+			const auto key = FixtureKey();
+			if (!key) {
+				return u"mnemonic: key derivation failed"_q;
+			}
+			const auto parsed = ParseAddress(kFixtureEQ);
+			if (!parsed) {
+				return u"address: parse failed"_q;
+			}
+			const auto request = FixtureTransferRequest(parsed->address);
+			const auto realCell = DeserializeBoc(
+				BuildSignedTransfer(*key, request));
+			if (!realCell) {
+				return u"real: deserialize failed"_q;
+			}
+			const auto realFailure = CompareHex(
+				NormalizedExternalHash(*realCell),
+				expectedReal);
+			if (!realFailure.isEmpty()) {
+				return u"real: "_q + realFailure;
+			}
+			const auto fakeCell = DeserializeBoc(
+				BuildFakeSignedTransfer(key->publicKey, request));
+			if (!fakeCell) {
+				return u"fake: deserialize failed"_q;
+			}
+			const auto fakeFailure = CompareHex(
+				NormalizedExternalHash(*fakeCell),
+				expectedFake);
+			return fakeFailure.isEmpty()
+				? QString()
+				: (u"fake: "_q + fakeFailure);
+		} },
+		{ u"w5_parity_code_cell_hash"_q, [] {
+			const auto expected = ReadFixture(u"w5-code-cell-hash.hex"_q);
+			if (expected.isEmpty()) {
+				return u"fixture read failed: w5-code-cell-hash.hex"_q;
+			}
+			return CompareHex(WalletV5Code().hash(), expected);
 		} },
 	};
 }
