@@ -1564,7 +1564,9 @@ void Controller::fillManageSection() {
 	const auto canEditDirectMessages = isChannel
 		&& (channel->isBroadcast() && channel->canEditInformation());
 	const auto canEditWelcomeMessages = isChannel
-		? (channel->isMegagroup() && channel->canEditInformation())
+		? ((channel->isMegagroup()
+			|| (channel->isBroadcast() && channel->amIn()))
+			&& channel->canEditInformation())
 		: chat->canEditInformation();
 	const auto communityEligible = isChannel
 		&& (channel->isMegagroup() || channel->isBroadcast())

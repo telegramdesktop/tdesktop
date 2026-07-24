@@ -5021,7 +5021,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_welcome_messages_empty" = "No welcome messages here yet...";
 "lng_welcome_messages_placeholder" = "Add a Welcome Message";
 "lng_welcome_messages_delete_all" = "Delete All";
-"lng_welcome_messages_delete_all_sure" = "Are you sure you want to delete all welcome messages in this group?";
+"lng_welcome_messages_delete_all_sure" = "Are you sure you want to delete all welcome messages?";
 "lng_unblock_button" = "Unblock";
 "lng_restart_button" = "Restart";
 "lng_channel_mute" = "Mute";
