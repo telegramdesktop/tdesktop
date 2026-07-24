@@ -30,6 +30,11 @@ PRIVATE
     gram/ton/gram_cell.h
     gram/ton/gram_crc.cpp
     gram/ton/gram_crc.h
+    gram/ton/gram_message.cpp
+    gram/ton/gram_message.h
+    gram/wallet/gram_wallet_v5.cpp
+    gram/wallet/gram_wallet_v5.h
+    gram/wallet/gram_wallet_v5_code.h
 )
 
 target_include_directories(td_gram
@@ -53,6 +58,7 @@ PRIVATE
     gram/tests/gram_tests.h
     gram/tests/gram_tests_main.cpp
     gram/tests/gram_ton_tests.cpp
+    gram/tests/gram_wallet_tests.cpp
 )
 
 target_include_directories(td_gram_test
