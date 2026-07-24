@@ -2154,9 +2154,15 @@ void AppendSummaryBlock(
 		return;
 	case BlockKind::Table:
 		if (withIcons) {
-			AppendSummaryLine(result, Ui::Text::IconEmoji(
+			auto line = block.text.text;
+			TextUtilities::Trim(line);
+			if (!line.empty()) {
+				line.append(QChar(' '));
+			}
+			line.append(Ui::Text::IconEmoji(
 				&st::ivSummaryTableIcon,
-				tr::lng_in_dlg_table(tr::now)), withIcons);
+				tr::lng_in_dlg_table(tr::now)));
+			AppendSummaryLine(result, std::move(line), withIcons);
 		} else if (!block.text.text.empty()) {
 			AppendSummaryLine(result, block.text, withIcons);
 		} else {
@@ -2433,12 +2439,11 @@ TextWithEntities FlattenRichPageSummary(
 		auto title = soleTable->text.text;
 		TextUtilities::Trim(title);
 		if (title.empty()) {
-			title = tr::marked(tr::lng_in_dlg_table(tr::now));
+			auto line = Ui::Text::IconEmoji(&st::ivSummaryTableIcon);
+			line.append(tr::lng_in_dlg_table(tr::now));
+			result = tr::marked();
+			AppendSummaryLine(&result, std::move(line), true);
 		}
-		auto line = Ui::Text::IconEmoji(&st::ivSummaryTableIcon);
-		line.append(std::move(title));
-		result = tr::marked();
-		AppendSummaryLine(&result, std::move(line), true);
 	}
 	if (result.empty() && emptyFallback) {
 		result = TextWithEntities::Simple(tr::lng_message_empty(tr::now));
