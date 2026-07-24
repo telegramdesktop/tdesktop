@@ -516,7 +516,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 	) | rpl::on_next(rebuild, wrap->lifetime());
 	Core::App().settings().chatFiltersTabsModeValue(
 	) | rpl::on_next([=](ChatsFiltersTabsMode mode) {
-		slider->setTabsMode(mode);
+		slider->setTabsMode(HorizontalChatsFiltersTabsMode(mode));
 		scrollToIndex(slider->activeSection(), anim::type::instant);
 	}, wrap->lifetime());
 	rebuild();

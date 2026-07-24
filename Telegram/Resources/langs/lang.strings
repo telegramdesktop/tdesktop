@@ -7662,6 +7662,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_vertical" = "Tabs on the left";
 "lng_filters_horizontal" = "Tabs at the top";
 "lng_filters_tabs_subtitle" = "Tabs appearance";
+"lng_filters_tabs_default" = "Default";
 "lng_filters_tabs_text" = "Text only";
 "lng_filters_tabs_text_icons" = "Text and icons";
 "lng_filters_tabs_icons" = "Icons only";

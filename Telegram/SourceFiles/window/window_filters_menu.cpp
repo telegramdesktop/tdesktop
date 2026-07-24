@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "base/options.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "core/ui_integration.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
@@ -178,6 +180,23 @@ void FiltersMenu::setup() {
 	_menu.setClickedCallback([=] {
 		_session->widget()->showMainMenu();
 	});
+
+	Core::App().settings().chatFiltersTabsModeValue(
+	) | rpl::skip(1) | rpl::on_next([=] {
+		if (!_list) {
+			return;
+		}
+		_setup = prepareButton(
+			_container,
+			-1,
+			{ TextWithEntities{ tr::lng_filters_setup(tr::now) } },
+			Ui::FilterIcon::Edit);
+		if (_favorite) {
+			_favorite = nullptr;
+			updateFavorite();
+		}
+		refresh();
+	}, _outer.lifetime());
 }
 
 void FiltersMenu::setupDragAndDrop() {
@@ -470,7 +489,7 @@ void FiltersMenu::createFavorite() {
 				object_ptr<FolderFavoriteButton>(
 					_container,
 					_session,
-					st::windowFiltersButton))));
+					buttonStyle()))));
 	_favorite->toggle(false, anim::type::instant);
 	_favorite->setFinishedCallback([=] {
 		if (_favorite && !_favorite->toggled()) {
@@ -497,6 +516,21 @@ void FiltersMenu::destroyFavorite() {
 
 bool FiltersMenu::premium() const {
 	return _session->session().user()->isPremium();
+}
+
+Ui::ChatsFiltersTabsMode FiltersMenu::tabsMode() const {
+	return Ui::VerticalChatsFiltersTabsMode(
+		Core::App().settings().chatFiltersTabsMode());
+}
+
+const style::SideBarButton &FiltersMenu::buttonStyle() const {
+	using Mode = Ui::ChatsFiltersTabsMode;
+	switch (tabsMode()) {
+	case Mode::TextOnly: return st::windowFiltersButtonTextOnly;
+	case Mode::TextAndIcons: return st::windowFiltersButton;
+	case Mode::IconsOnly: return st::windowFiltersButtonIconsOnly;
+	}
+	return st::windowFiltersButton;
 }
 
 base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareAll() {
@@ -527,10 +561,11 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 	// configuring the role up front avoids a transient or separately-announced
 	// role change.
 	const auto listItem = (id >= 0);
+	const auto mode = tabsMode();
 	auto prepared = object_ptr<Ui::SideBarButton>(
 		container,
 		id ? title.text : TextWithEntities{ tr::lng_filters_all(tr::now) },
-		st::windowFiltersButton,
+		buttonStyle(),
 		Core::TextContext({
 			.session = &_session->session(),
 			.customEmojiLoopLimit = isStatic ? -1 : 0,
@@ -538,6 +573,8 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		paused);
 	prepared->setLocked(locked);
 	prepared->setIsListItem(listItem);
+	prepared->setShowIcon(mode != Ui::ChatsFiltersTabsMode::TextOnly);
+	prepared->setShowText(mode != Ui::ChatsFiltersTabsMode::IconsOnly);
 	auto added = toBeginning
 		? container->insert(0, std::move(prepared))
 		: container->add(std::move(prepared));

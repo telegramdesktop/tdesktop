@@ -267,6 +267,15 @@ windowFiltersButton: SideBarButton(defaultSideBarButton) {
 	badgePosition: point(3px, 7px);
 	iconPosition: point(-1px, 6px);
 }
+windowFiltersButtonTextOnly: SideBarButton(windowFiltersButton) {
+	textTop: 15px;
+	minHeight: 44px;
+	badgePosition: point(15px, 1px);
+}
+windowFiltersButtonIconsOnly: SideBarButton(windowFiltersButton) {
+	iconPosition: point(-1px, -1px);
+	minHeight: 54px;
+}
 windowFiltersMainMenu: SideBarButton(windowFiltersButton) {
 	icon: icon {{ "dialogs/dialogs_menu", sideBarIconFg }};
 	iconPosition: point(-1px, -1px);

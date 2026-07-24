@@ -1149,35 +1149,25 @@ void BuildViewSection(SectionBuilder &builder) {
 			Core::App().saveSettingsDelayed();
 		});
 
-		const auto modeWrap = content->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				content,
-				object_ptr<Ui::VerticalLayout>(content)));
-		modeWrap->toggleOn(rpl::single(
-			Core::App().settings().chatFiltersHorizontal()
-		) | rpl::then(
-			Core::App().settings().chatFiltersHorizontalChanges()));
-		modeWrap->finishAnimating();
-		const auto modeContent = modeWrap->entity();
-
-		Ui::AddSkip(modeContent);
+		Ui::AddSkip(content);
 		Ui::AddSubsectionTitle(
-			modeContent,
+			content,
 			tr::lng_filters_tabs_subtitle());
 
 		using Mode = Ui::ChatsFiltersTabsMode;
 		const auto modeGroup = std::make_shared<Ui::RadioenumGroup<Mode>>(
 			Core::App().settings().chatFiltersTabsMode());
 		const auto addMode = [&](Mode value, const QString &text) {
-			modeContent->add(
+			content->add(
 				object_ptr<Ui::Radioenum<Mode>>(
-					modeContent,
+					content,
 					modeGroup,
 					value,
 					text,
 					st::settingsSendType),
 				st::settingsSendTypePadding);
 		};
+		addMode(Mode::Default, tr::lng_filters_tabs_default(tr::now));
 		addMode(Mode::TextOnly, tr::lng_filters_tabs_text(tr::now));
 		addMode(Mode::TextAndIcons, tr::lng_filters_tabs_text_icons(tr::now));
 		addMode(Mode::IconsOnly, tr::lng_filters_tabs_icons(tr::now));
