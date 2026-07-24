@@ -185,6 +185,13 @@ ScheduledWidget::ScheduledWidget(
 		controller->setChatStyleTheme(_theme);
 	}, lifetime());
 
+	if (_forumTopic) {
+		_forumTopic->destroyed(
+		) | rpl::on_next([=] {
+			controller->showBackFromStack();
+		}, lifetime());
+	}
+
 	const auto state = Dialogs::EntryState{
 		.key = _history,
 		.section = Dialogs::EntryState::Section::Scheduled,
