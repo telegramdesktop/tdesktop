@@ -168,7 +168,6 @@ void WelcomeMessages::applyNew(const MTPDephemeralMessage &data) {
 	auto &list = _data[history];
 	if (_convertLocalTarget
 		&& data.is_welcome_template()
-		&& data.is_out()
 		&& data.vmedia()) {
 		const auto local = _session->data().message(_convertLocalTarget);
 		if (local
