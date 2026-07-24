@@ -397,7 +397,7 @@ void QrWidget::setupPasskeyLink() {
 		const auto attempt = [=](
 				const ::Data::Passkey::LoginData &loginData) {
 			const auto initialDc = _passkeyLoginDc;
-			Platform::WebAuthn::Login(loginData, [=](
+			Platform::WebAuthn::Login(loginData, crl::guard(this, [=](
 					Platform::WebAuthn::LoginResult result) {
 				if (result.userHandle.isEmpty()) {
 					using Error = Platform::WebAuthn::Error;
@@ -420,7 +420,7 @@ void QrWidget::setupPasskeyLink() {
 							showError(rpl::single(error));
 						}
 					});
-			});
+			}));
 		};
 		if (_passkeyLoginData
 			&& (crl::now() - _passkeyLoginTime
