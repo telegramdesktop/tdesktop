@@ -1700,6 +1700,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pull_next_channel" = "Pull up to go to the next unread channel";
 "lng_release_next_channel" = "Release to go to the next unread channel";
 "lng_pull_no_unread_channels" = "You have no unread channels";
+"lng_pull_next_topic" = "Pull up to go to the next unread topic";
+"lng_release_next_topic" = "Release to go to the next unread topic";
+"lng_pull_no_unread_topics" = "No more unread topics in {group}";
 
 "lng_profile_apply_to_join_group" = "Apply to Join Group";
 "lng_profile_kick" = "Remove";

@@ -77,6 +77,7 @@ class StickerToast;
 class TopicReopenBar;
 class EmptyPainter;
 class PinnedTracker;
+class PullToNextChannel;
 class TranslateBar;
 class SubsectionTabs;
 class SelfForwardsTagger;
@@ -455,6 +456,7 @@ private:
 	rpl::variable<bool> _repliesRootVisible = false;
 
 	std::unique_ptr<Ui::ElasticScroll> _scroll;
+	std::unique_ptr<PullToNextChannel> _pullToNext;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 
 	FullMsgId _lastShownAt;
