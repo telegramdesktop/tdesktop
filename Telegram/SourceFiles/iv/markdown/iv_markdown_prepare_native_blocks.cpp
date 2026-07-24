@@ -1814,6 +1814,15 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 			path,
 			state);
 	case RichPageBlockKind::Paragraph:
+		return AppendNativeIvFlowBlock(
+			result,
+			PreparedBlockKind::Paragraph,
+			0,
+			block.text,
+			block.anchorId,
+			path,
+			state,
+			true);
 	case RichPageBlockKind::Footer:
 		return AppendNativeIvFlowBlock(
 			result,
@@ -1824,7 +1833,7 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 			path,
 			state,
 			false,
-			(block.kind == RichPageBlockKind::Footer));
+			true);
 	case RichPageBlockKind::Thinking:
 		return AppendNativeIvFlowBlock(
 			result,
