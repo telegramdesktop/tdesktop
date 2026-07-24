@@ -1074,7 +1074,9 @@ void CalendarBox::Inner::setDynamicImage(
 	auto &state = _dynamicImageStates[date];
 	if (image) {
 		state.image = std::move(image);
-		state.image->subscribeToUpdates([=] { update(); });
+		state.image->subscribeToUpdates(crl::guard(this, [=] {
+			update();
+		}));
 	} else {
 		_dynamicImageStates.remove(date);
 	}
