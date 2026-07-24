@@ -438,7 +438,7 @@ void test(not_null<Ui::RpWindow*> window, not_null<Ui::RpWidget*> body) {
 	Expects(!HasEntityType(formulaMime.rich.entities, EntityType::CustomEmoji));
 	Expects(formulaMime.tags.size() == 1);
 	const auto expectedFormulaTag = TextForMimeDataTag{
-		.offset = formulaPosition,
+		.offset = int(formulaPosition),
 		.length = int(formulaReplacementText.size()),
 		.id = Ui::InputField::kTagIvMath,
 	};
@@ -463,6 +463,46 @@ void test(not_null<Ui::RpWindow*> window, not_null<Ui::RpWidget*> body) {
 	Expects(!formulaText->hasCustomEmoji());
 	Expects(!formulaText->isOnlyCustomEmoji());
 	Expects(!formulaText->isIsolatedEmoji());
+
+	auto longFormulaSource = QString();
+	while (longFormulaSource.size() <= 4096) {
+		longFormulaSource.append(u"\\alpha+\\beta "_q);
+	}
+	auto longFormulaData = TextWithEntities();
+	longFormulaData.append(u"Before "_q);
+	const auto longFormulaPosition = longFormulaData.text.size();
+	longFormulaData.append(longFormulaSource);
+	longFormulaData.entities.push_back(EntityInText(
+		EntityType::CustomEmoji,
+		longFormulaPosition,
+		longFormulaSource.size(),
+		formulaEntityData));
+	longFormulaData.append(u" after"_q);
+	const auto longFormulaText = Ui::Text::String(
+		st::defaultTextStyle,
+		longFormulaData,
+		kMarkupTextOptions,
+		scale(64),
+		context);
+	Expects(longFormulaText.maxWidth() >= formulaImage.width());
+	Expects(longFormulaText.countHeight(scale(200)) > 0);
+	Expects(
+		longFormulaText.toString()
+			== u"Before "_q + formulaReplacementText + u" after"_q);
+	const auto longFormulaRender = RenderTextOffscreen(
+		longFormulaText,
+		scale(200));
+	Expects(HasPaintedPixels(longFormulaRender));
+
+	const auto longSpacedEmojiText = Ui::Text::String(
+		st::defaultTextStyle,
+		QString::fromUtf8("\xF0\x9F\x98\x80")
+			+ QString(4100, QChar(' '))
+			+ u"x"_q,
+		kDefaultTextOptions,
+		scale(64));
+	Expects(longSpacedEmojiText.maxWidth() > 0);
+	Expects(longSpacedEmojiText.countHeight(scale(200)) > 0);
 
 	auto controlData = TextWithEntities();
 	controlData.append(QChar::ObjectReplacementCharacter);
