@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "lottie/lottie_icon.h"
 #include "menu/menu_send_details.h"
+#include "settings/settings_key_navigation.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
@@ -255,6 +256,14 @@ void HighlightWidget(QWidget *target, HighlightArgs &&args) {
 	if (args.scroll) {
 		ScrollToWidget(target);
 	}
+	for (auto parent = target->parentWidget()
+		; parent
+		; parent = parent->parentWidget()) {
+		if (const auto section = dynamic_cast<AbstractSection*>(parent)) {
+			section->setNavigationAnchor(target);
+			break;
+		}
+	}
 	new HighlightOverlay(target, std::move(args));
 }
 
@@ -285,6 +294,30 @@ void ScrollToWidget(not_null<QWidget*> target) {
 	}
 }
 
+void RevealWidget(not_null<QWidget*> target, int margin) {
+	const auto scrollIn = [&](auto &&scroll) {
+		if (const auto inner = scroll->widget()) {
+			const auto globalPosition = target->mapToGlobal(QPoint(0, 0));
+			const auto localTop = inner->mapFromGlobal(globalPosition).y();
+			scroll->scrollToY(
+				localTop - margin,
+				localTop + target->height() + margin);
+		}
+	};
+	for (auto parent = target->parentWidget()
+		; parent
+		; parent = parent->parentWidget()) {
+		if (const auto scroll = dynamic_cast<Ui::ScrollArea*>(parent)) {
+			scrollIn(scroll);
+			return;
+		}
+		if (const auto scroll = dynamic_cast<Ui::ElasticScroll*>(parent)) {
+			scrollIn(scroll);
+			return;
+		}
+	}
+}
+
 HighlightArgs SubsectionTitleHighlight() {
 	const auto radius = st::roundRadiusSmall;
 	return { .margin = { -radius, 0, -radius, 0 }, .radius = radius };
@@ -295,6 +328,8 @@ AbstractSection::AbstractSection(
 	not_null<Window::SessionController*> controller)
 : _controller(controller) {
 }
+
+AbstractSection::~AbstractSection() = default;
 
 SendMenu::Details AbstractSection::sendMenuDetails() const {
 	return {};
@@ -312,6 +347,22 @@ void AbstractSection::build(
 		_controller,
 		showOtherMethod(),
 		_showFinished.events());
+}
+
+void AbstractSection::keyPressEvent(QKeyEvent *e) {
+	if (!_keyNavigation) {
+		_keyNavigation = std::make_unique<KeyNavigation>(this);
+	}
+	if (!_keyNavigation->handle(e)) {
+		RpWidget::keyPressEvent(e);
+	}
+}
+
+void AbstractSection::setNavigationAnchor(not_null<QWidget*> widget) {
+	if (!_keyNavigation) {
+		_keyNavigation = std::make_unique<KeyNavigation>(this);
+	}
+	_keyNavigation->anchorTo(widget);
 }
 
 Icon::Icon(IconDescriptor descriptor) : _icon(descriptor.icon) {

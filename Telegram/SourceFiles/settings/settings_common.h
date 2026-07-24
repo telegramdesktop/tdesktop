@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/round_rect.h"
 #include "base/object_ptr.h"
+#include "base/weak_qptr.h"
 #include "settings/settings_type.h"
 
 #include <any>
@@ -64,6 +65,8 @@ struct IconDescriptor;
 
 namespace Settings {
 
+class KeyNavigation;
+
 using Button = Ui::SettingsButton;
 
 enum class HighlightShape {
@@ -88,6 +91,7 @@ struct HighlightArgs {
 
 void HighlightWidget(QWidget *target, HighlightArgs &&args = {});
 void ScrollToWidget(not_null<QWidget*> target);
+void RevealWidget(not_null<QWidget*> target, int margin = 0);
 
 [[nodiscard]] HighlightArgs SubsectionTitleHighlight();
 
@@ -109,6 +113,7 @@ public:
 	AbstractSection(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
+	~AbstractSection();
 
 	[[nodiscard]] not_null<Window::SessionController*> controller() const {
 		return _controller;
@@ -192,16 +197,20 @@ public:
 			showOther(type);
 		});
 	}
+	void setNavigationAnchor(not_null<QWidget*> widget);
 
 protected:
 	void build(
 		not_null<Ui::VerticalLayout*> container,
 		SectionBuildMethod method);
 
+	void keyPressEvent(QKeyEvent *e) override;
+
 private:
 	const not_null<Window::SessionController*> _controller;
 	rpl::event_stream<Type> _showOtherRequests;
 	rpl::event_stream<> _showFinished;
+	std::unique_ptr<KeyNavigation> _keyNavigation;
 
 };
 

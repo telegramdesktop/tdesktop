@@ -148,6 +148,9 @@ settingsCheckboxPadding: margins(22px, 10px, 10px, 10px);
 settingsLink: boxLinkButton;
 settingsCheckboxesSkip: 12px;
 
+settingsNavigationMargin: 60px;
+settingsNavigationBandSkip: 4px;
+
 settingsSendType: settingsCheckbox;
 settingsSendTypePadding: margins(22px, 5px, 10px, 5px);
 settingsSendTypeSkip: 5px;

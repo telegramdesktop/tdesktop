@@ -25,10 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/scroll_area.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
@@ -316,30 +314,6 @@ void Search::clearSelection() {
 	_selected = -1;
 }
 
-void Search::scrollToButton(not_null<Ui::SettingsButton*> button) {
-	const auto scrollIn = [&](auto &&scroll) {
-		if (const auto inner = scroll->widget()) {
-			const auto globalPos = button->mapToGlobal(QPoint(0, 0));
-			const auto localPos = inner->mapFromGlobal(globalPos);
-			scroll->scrollToY(
-				localPos.y(),
-				localPos.y() + button->height());
-		}
-	};
-	for (auto widget = button->parentWidget()
-		; widget
-		; widget = widget->parentWidget()) {
-		if (const auto scroll = dynamic_cast<Ui::ScrollArea*>(widget)) {
-			scrollIn(scroll);
-			return;
-		}
-		if (const auto scroll = dynamic_cast<Ui::ElasticScroll*>(widget)) {
-			scrollIn(scroll);
-			return;
-		}
-	}
-}
-
 void Search::selectByKeyboard(int newSelected) {
 	const auto count = int(_visibleButtons.size());
 	if (!count) {
@@ -359,7 +333,7 @@ void Search::selectByKeyboard(int newSelected) {
 		_visibleButtons[_selected]->setSynteticOver(true);
 	};
 	applySelection();
-	scrollToButton(_visibleButtons[_selected]);
+	RevealWidget(_visibleButtons[_selected]);
 	applySelection();
 }
 
