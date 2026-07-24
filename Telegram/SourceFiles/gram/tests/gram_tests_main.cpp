@@ -24,6 +24,7 @@ namespace {
 	append(MnemonicChecks());
 	append(TonChecks());
 	append(WalletChecks());
+	append(ApiChecks());
 	return result;
 }
 

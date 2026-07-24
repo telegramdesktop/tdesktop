@@ -1,0 +1,119 @@
+{
+    "mc_block_seqno": 42,
+    "rand_seed": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=",
+    "is_incomplete": false,
+    "trace": {
+        "tx_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "in_msg_hash": null,
+        "children": []
+    },
+    "transactions": {
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=": {
+            "account": "0:10C1073837B93FDAAD594284CE8B8EFF7B9CF25427440EB2FC682762E1471365",
+            "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "lt": "100000001",
+            "now": 1700000000,
+            "mc_block_seqno": 42,
+            "trace_external_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "prev_trans_hash": null,
+            "prev_trans_lt": null,
+            "orig_status": "active",
+            "end_status": "active",
+            "total_fees": "1000000",
+            "total_fees_extra_currencies": {},
+            "description": {
+                "type": "ord",
+                "aborted": false,
+                "destroyed": false,
+                "credit_first": false,
+                "is_tock": false,
+                "installed": false,
+                "storage_ph": {
+                    "storage_fees_collected": "0",
+                    "status_change": "unchanged"
+                },
+                "compute_ph": {
+                    "skipped": false,
+                    "success": true,
+                    "msg_state_used": false,
+                    "account_activated": false,
+                    "gas_fees": "0",
+                    "gas_used": "21000",
+                    "gas_limit": "1000000",
+                    "mode": 0,
+                    "exit_code": 0,
+                    "vm_steps": 100,
+                    "vm_init_state_hash": "",
+                    "vm_final_state_hash": ""
+                },
+                "action": {
+                    "success": true,
+                    "valid": true,
+                    "no_funds": false,
+                    "status_change": "unchanged",
+                    "result_code": 0,
+                    "tot_actions": 1,
+                    "spec_actions": 0,
+                    "skipped_actions": 0,
+                    "msgs_created": 1,
+                    "action_list_hash": "",
+                    "tot_msg_size": { "cells": "1", "bits": "267" }
+                }
+            },
+            "block_ref": {
+                "workchain": -1,
+                "shard": "8000000000000000",
+                "seqno": 42
+            },
+            "in_msg": null,
+            "out_msgs": [
+                {
+                    "hash": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+                    "source": "0:10C1073837B93FDAAD594284CE8B8EFF7B9CF25427440EB2FC682762E1471365",
+                    "destination": "0:E93E7D444180608B8520C00DC664383A387356FB6E16FDDF99DBE5E1415A574B",
+                    "value": "1000000000",
+                    "value_extra_currencies": {},
+                    "fwd_fee": "1000000",
+                    "ihr_fee": null,
+                    "created_lt": "100000002",
+                    "created_at": "1700000000",
+                    "opcode": null,
+                    "ihr_disabled": true,
+                    "bounce": true,
+                    "bounced": false,
+                    "import_fee": null,
+                    "message_content": {
+                        "hash": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+                        "body": "te6cckEBAQEAAgAAAEysuc0=",
+                        "decoded": null
+                    },
+                    "init_state": null
+                }
+            ],
+            "account_state_before": {
+                "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                "balance": "5000000000",
+                "extra_currencies": null,
+                "account_status": "active",
+                "frozen_hash": null,
+                "data_hash": null,
+                "code_hash": null
+            },
+            "account_state_after": {
+                "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                "balance": "4000000000",
+                "extra_currencies": null,
+                "account_status": "active",
+                "frozen_hash": null,
+                "data_hash": null,
+                "code_hash": null
+            },
+            "emulated": true
+        }
+    },
+    "actions": [],
+    "code_cells": {},
+    "data_cells": {},
+    "address_book": {},
+    "metadata": {}
+}

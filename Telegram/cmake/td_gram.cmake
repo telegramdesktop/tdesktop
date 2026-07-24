@@ -11,6 +11,14 @@ add_library(tdesktop::td_gram ALIAS td_gram)
 target_precompile_headers(td_gram PRIVATE ${src_loc}/gram/gram_pch.h)
 nice_target_sources(td_gram ${src_loc}
 PRIVATE
+    gram/api/gram_api_account.cpp
+    gram/api/gram_api_account.h
+    gram/api/gram_api_history.cpp
+    gram/api/gram_api_history.h
+    gram/api/gram_api_request.cpp
+    gram/api/gram_api_request.h
+    gram/api/gram_api_send.cpp
+    gram/api/gram_api_send.h
     gram/crypto/gram_ed25519.cpp
     gram/crypto/gram_ed25519.h
     gram/crypto/gram_hmac.cpp
@@ -52,6 +60,7 @@ init_non_host_target(td_gram_test "(gram)")
 
 nice_target_sources(td_gram_test ${src_loc}
 PRIVATE
+    gram/tests/gram_api_tests.cpp
     gram/tests/gram_crypto_tests.cpp
     gram/tests/gram_key_tests.cpp
     gram/tests/gram_mnemonic_tests.cpp

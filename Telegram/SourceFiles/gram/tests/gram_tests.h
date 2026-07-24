@@ -37,5 +37,6 @@ struct Check {
 [[nodiscard]] std::vector<Check> MnemonicChecks();
 [[nodiscard]] std::vector<Check> TonChecks();
 [[nodiscard]] std::vector<Check> WalletChecks();
+[[nodiscard]] std::vector<Check> ApiChecks();
 
 } // namespace Gram::Tests
