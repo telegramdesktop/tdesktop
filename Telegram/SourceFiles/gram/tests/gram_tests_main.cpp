@@ -20,6 +20,8 @@ namespace {
 		}
 	};
 	append(CryptoChecks());
+	append(KeyChecks());
+	append(MnemonicChecks());
 	return result;
 }
 

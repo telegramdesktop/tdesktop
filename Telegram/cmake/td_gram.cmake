@@ -11,8 +11,16 @@ add_library(tdesktop::td_gram ALIAS td_gram)
 target_precompile_headers(td_gram PRIVATE ${src_loc}/gram/gram_pch.h)
 nice_target_sources(td_gram ${src_loc}
 PRIVATE
+    gram/crypto/gram_ed25519.cpp
+    gram/crypto/gram_ed25519.h
     gram/crypto/gram_hmac.cpp
     gram/crypto/gram_hmac.h
+    gram/crypto/gram_mnemonic.cpp
+    gram/crypto/gram_mnemonic.h
+    gram/crypto/gram_slip10.cpp
+    gram/crypto/gram_slip10.h
+    gram/crypto/gram_wordlist.cpp
+    gram/crypto/gram_wordlist.h
     gram/gram_pch.h
 )
 
@@ -32,6 +40,8 @@ init_non_host_target(td_gram_test "(gram)")
 nice_target_sources(td_gram_test ${src_loc}
 PRIVATE
     gram/tests/gram_crypto_tests.cpp
+    gram/tests/gram_key_tests.cpp
+    gram/tests/gram_mnemonic_tests.cpp
     gram/tests/gram_tests.h
     gram/tests/gram_tests_main.cpp
 )

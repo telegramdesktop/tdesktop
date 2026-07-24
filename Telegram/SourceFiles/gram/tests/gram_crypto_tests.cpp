@@ -13,18 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Gram::Tests {
 namespace {
 
-[[nodiscard]] QString CompareHex(
-		const QByteArray &got,
-		const QByteArray &expectedHex) {
-	if (got == QByteArray::fromHex(expectedHex)) {
-		return QString();
-	}
-	return u"got "_q
-		+ QString::fromLatin1(got.toHex())
-		+ u", expected "_q
-		+ QString::fromLatin1(expectedHex);
-}
-
 [[nodiscard]] QString CheckHmacSha512(
 		const QByteArray &key,
 		const QByteArray &data,

@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/basic_types.h"
 
+#include <QtCore/QByteArray>
+
 #include <vector>
 
 namespace Gram::Tests {
@@ -18,6 +20,20 @@ struct Check {
 	Fn<QString()> run;
 };
 
+[[nodiscard]] inline QString CompareHex(
+		const QByteArray &got,
+		const QByteArray &expectedHex) {
+	if (got == QByteArray::fromHex(expectedHex)) {
+		return QString();
+	}
+	return u"got "_q
+		+ QString::fromLatin1(got.toHex())
+		+ u", expected "_q
+		+ QString::fromLatin1(expectedHex);
+}
+
 [[nodiscard]] std::vector<Check> CryptoChecks();
+[[nodiscard]] std::vector<Check> KeyChecks();
+[[nodiscard]] std::vector<Check> MnemonicChecks();
 
 } // namespace Gram::Tests
