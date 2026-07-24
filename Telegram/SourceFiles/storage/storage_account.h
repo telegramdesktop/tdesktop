@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_drafts.h"
 #include "webview/webview_common.h"
+#include "gram/crypto/gram_mnemonic.h"
 
 class History;
 
@@ -61,6 +62,15 @@ struct MessageDraft {
 struct MessageDraftSource {
 	Fn<MessageDraft()> draft;
 	Fn<MessageCursor()> cursor;
+};
+
+struct WalletStored {
+	std::vector<QString> words;
+	Gram::MnemonicType mnemonicType = Gram::MnemonicType::Ton;
+	qint32 contractVersion = 1;
+	quint32 walletId = 2147483409;
+	qint32 networkId = -239;
+	bool phraseViewed = false;
 };
 
 class Account final {
@@ -207,6 +217,10 @@ public:
 
 	void writeBotStorage(PeerId botId, const QByteArray &serialized);
 	[[nodiscard]] QByteArray readBotStorage(PeerId botId);
+
+	void writeWallet(const WalletStored &data);
+	[[nodiscard]] std::optional<WalletStored> readWallet();
+	[[nodiscard]] bool hasWalletWithUnviewedPhrase();
 
 	[[nodiscard]] bool encrypt(
 		const void *src,
@@ -359,6 +373,7 @@ private:
 	FileKey _roundPlaceholderKey = 0;
 	FileKey _inlineBotsDownloadsKey = 0;
 	FileKey _mediaLastPlaybackPositionsKey = 0;
+	FileKey _walletKey = 0;
 
 	qint64 _cacheTotalSizeLimit = 0;
 	qint64 _cacheBigFileTotalSizeLimit = 0;

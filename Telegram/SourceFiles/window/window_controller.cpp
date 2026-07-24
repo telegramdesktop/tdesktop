@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "intro/intro_widget.h"
 #include "mtproto/mtproto_config.h"
+#include "storage/storage_account.h"
 #include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
 #include "chat_helpers/emoji_sets_manager.h"
@@ -566,6 +567,16 @@ QPoint Controller::getPointForCallPanelCenter() const {
 		: _widget.geometry().center();
 }
 
+QString LogoutConfirmationText(Main::Account *account) {
+	const auto warnWallet = account
+		&& account->local().hasWalletWithUnviewedPhrase();
+	return warnWallet
+		? (tr::lng_sure_logout(tr::now)
+			+ u"\n\n"_q
+			+ tr::lng_sure_logout_wallet(tr::now))
+		: tr::lng_sure_logout(tr::now);
+}
+
 void Controller::showLogoutConfirmation() {
 	const auto account = Core::App().passcodeLocked()
 		? nullptr
@@ -582,7 +593,7 @@ void Controller::showLogoutConfirmation() {
 		}
 	};
 	show(Ui::MakeConfirmBox({
-		.text = tr::lng_sure_logout(),
+		.text = LogoutConfirmationText(account),
 		.confirmed = callback,
 		.confirmText = tr::lng_settings_logout(),
 		.confirmStyle = &st::attentionBoxButton,

@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "settings/sections/settings_folders.h"
 #include "storage/storage_account.h"
+#include "gram/crypto/gram_mnemonic.h"
+#include "gram/wallet/gram_wallet_v5.h"
 #include "api/api_updates.h"
 #include "base/qt/qt_common_adapters.h"
 #include "base/custom_app_icon.h"
@@ -75,6 +77,22 @@ using SessionController = Window::SessionController;
 	return result;
 }
 
+[[nodiscard]] Storage::WalletStored TestWalletStored() {
+	const auto phrase = u"hospital stove relief fringe tongue always "
+		u"charge angry urge sentence again match nerve inquiry senior "
+		u"coconut label tumble carry category beauty bean road solution"_q;
+	auto result = Storage::WalletStored();
+	for (const auto &word : phrase.split(u' ')) {
+		result.words.push_back(word);
+	}
+	result.mnemonicType = Gram::MnemonicType::Ton;
+	result.contractVersion = 1;
+	result.walletId = Gram::kDefaultWalletId;
+	result.networkId = -239;
+	result.phraseViewed = false;
+	return result;
+}
+
 auto GenerateCodes() {
 	auto codes = std::map<QString, Fn<void(SessionController*)>>();
 	codes.emplace(u"debugmode"_q, [](SessionController *window) {
@@ -111,6 +129,65 @@ auto GenerateCodes() {
 		if (window) {
 			window->session().updates().getDifference();
 		}
+	});
+	codes.emplace(u"walletwrite"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		window->session().local().writeWallet(TestWalletStored());
+		Ui::Toast::Show(u"Test wallet written."_q);
+	});
+	codes.emplace(u"walletread"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		const auto read = window->session().local().readWallet();
+		if (!read) {
+			Ui::Toast::Show(u"No wallet stored."_q);
+			return;
+		}
+		const auto expected = TestWalletStored();
+		auto mismatches = QStringList();
+		if (read->words != expected.words) {
+			mismatches.push_back(u"words"_q);
+		}
+		if (read->mnemonicType != expected.mnemonicType) {
+			mismatches.push_back(u"mnemonicType"_q);
+		}
+		if (read->contractVersion != expected.contractVersion) {
+			mismatches.push_back(u"contractVersion"_q);
+		}
+		if (read->walletId != expected.walletId) {
+			mismatches.push_back(u"walletId"_q);
+		}
+		if (read->networkId != expected.networkId) {
+			mismatches.push_back(u"networkId"_q);
+		}
+		Ui::Toast::Show(mismatches.isEmpty()
+			? u"Wallet read: PASS (%1 words, viewed: %2)."_q
+				.arg(read->words.size())
+				.arg(read->phraseViewed ? u"yes"_q : u"no"_q)
+			: u"Wallet read: FAIL (%1)."_q.arg(mismatches.join(u", "_q)));
+	});
+	codes.emplace(u"walletviewed"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		auto wallet = window->session().local().readWallet();
+		if (!wallet) {
+			Ui::Toast::Show(u"No wallet stored."_q);
+			return;
+		}
+		wallet->phraseViewed = true;
+		window->session().local().writeWallet(*wallet);
+		Ui::Toast::Show(u"Wallet phrase marked as viewed."_q);
+	});
+	codes.emplace(u"walletclear"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		window->session().local().writeWallet({});
+		Ui::Toast::Show(u"Wallet cleared."_q);
 	});
 	codes.emplace(u"loadcolors"_q, [](SessionController *window) {
 		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {

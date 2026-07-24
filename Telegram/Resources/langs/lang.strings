@@ -1352,6 +1352,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_currency" = "My Grams";
 "lng_settings_logout" = "Log out";
 "lng_sure_logout" = "Are you sure you want to log out?";
+"lng_sure_logout_wallet" = "Warning! Your Gram wallet is stored only on this device and you haven't viewed its recovery phrase. If you log out, the wallet will be lost forever.";
 
 "lng_settings_need_restart" = "You need to restart for applying some of the new settings. Restart now?";
 "lng_settings_restart_now" = "Restart";

@@ -952,7 +952,8 @@ void SetupAccountsWrap(
 				};
 				window->show(
 					Ui::MakeConfirmBox({
-						.text = tr::lng_sure_logout(),
+						.text = Window::LogoutConfirmationText(
+							&session->account()),
 						.confirmed = crl::guard(session, callback),
 						.confirmText = tr::lng_settings_logout(),
 						.confirmStyle = &st::attentionBoxButton,

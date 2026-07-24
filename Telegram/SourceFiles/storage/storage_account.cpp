@@ -71,6 +71,7 @@ constexpr auto kMultiDraftTag = quint64(0xFFFF'FFFF'FFFF'FF03ULL);
 constexpr auto kMultiDraftCursorsTag = quint64(0xFFFF'FFFF'FFFF'FF04ULL);
 constexpr auto kRichDraftsTag = quint64(0xFFFF'FFFF'FFFF'FF05ULL);
 constexpr auto kDraftsTag2 = quint64(0xFFFF'FFFF'FFFF'FF06ULL);
+constexpr auto kWalletFormatVersion = quint32(1);
 
 enum { // Local Storage Keys
 	lskUserMap = 0x00,
@@ -104,6 +105,7 @@ enum { // Local Storage Keys
 	lskMediaLastPlaybackPositions = 0x1c, // no data
 	lskBotStorages = 0x1d, // data: PeerId botId
 	lskPrefs = 0x1e, // no data
+	lskWalletKey = 0x1f, // no data
 };
 
 auto EmptyMessageDraftSources()
@@ -271,6 +273,7 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		_roundPlaceholderKey,
 		_inlineBotsDownloadsKey,
 		_mediaLastPlaybackPositionsKey,
+		_walletKey,
 	};
 	auto result = base::flat_set<QString>{
 		"map0",
@@ -365,6 +368,7 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 roundPlaceholderKey = 0;
 	quint64 inlineBotsDownloadsKey = 0;
 	quint64 mediaLastPlaybackPositionsKey = 0;
+	quint64 walletKey = 0;
 	QByteArray webviewStorageTokenBots, webviewStorageTokenOther;
 	while (!map.stream.atEnd()) {
 		quint32 keyType;
@@ -486,6 +490,9 @@ Account::ReadMapResult Account::readMapWith(
 		case lskMediaLastPlaybackPositions: {
 			map.stream >> mediaLastPlaybackPositionsKey;
 		} break;
+		case lskWalletKey: {
+			map.stream >> walletKey;
+		} break;
 		case lskWebviewTokens: {
 			map.stream
 				>> webviewStorageTokenBots
@@ -545,6 +552,7 @@ Account::ReadMapResult Account::readMapWith(
 	_roundPlaceholderKey = roundPlaceholderKey;
 	_inlineBotsDownloadsKey = inlineBotsDownloadsKey;
 	_mediaLastPlaybackPositionsKey = mediaLastPlaybackPositionsKey;
+	_walletKey = walletKey;
 	_oldMapVersion = mapData.version;
 	_webviewStorageIdBots.token = webviewStorageTokenBots;
 	_webviewStorageIdOther.token = webviewStorageTokenOther;
@@ -666,6 +674,7 @@ void Account::writeMap() {
 	if (_roundPlaceholderKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_inlineBotsDownloadsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_mediaLastPlaybackPositionsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+	if (_walletKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (!_botStoragesMap.empty()) mapSize += sizeof(quint32) * 2 + _botStoragesMap.size() * sizeof(quint64) * 2;
 
 	EncryptedDescriptor mapData(mapSize);
@@ -752,6 +761,10 @@ void Account::writeMap() {
 		mapData.stream << quint32(lskMediaLastPlaybackPositions);
 		mapData.stream << quint64(_mediaLastPlaybackPositionsKey);
 	}
+	if (_walletKey) {
+		mapData.stream << quint32(lskWalletKey);
+		mapData.stream << quint64(_walletKey);
+	}
 	if (!_botStoragesMap.empty()) {
 		mapData.stream << quint32(lskBotStorages) << quint32(_botStoragesMap.size());
 		for (const auto &[key, value] : _botStoragesMap) {
@@ -792,6 +805,7 @@ void Account::reset() {
 	_roundPlaceholderKey = 0;
 	_inlineBotsDownloadsKey = 0;
 	_mediaLastPlaybackPositionsKey = 0;
+	_walletKey = 0;
 	_oldMapVersion = 0;
 	_fileLocations.clear();
 	_fileLocationPairs.clear();
@@ -3688,6 +3702,103 @@ QByteArray Account::readBotStorage(PeerId botId) {
 		return {};
 	}
 	return result;
+}
+
+void Account::writeWallet(const WalletStored &data) {
+	if (data.words.empty()) {
+		if (_walletKey) {
+			ClearKey(_walletKey, _basePath);
+			_walletKey = 0;
+			writeMapDelayed();
+		}
+		return;
+	}
+	if (!_walletKey) {
+		_walletKey = GenerateKey(_basePath);
+		writeMapQueued();
+	}
+	auto size = quint32(sizeof(quint32) * 2 + sizeof(qint32) * 5);
+	for (const auto &word : data.words) {
+		size += Serialize::stringSize(word);
+	}
+	EncryptedDescriptor wallet(size);
+	wallet.stream
+		<< quint32(kWalletFormatVersion)
+		<< qint32(data.words.size());
+	for (const auto &word : data.words) {
+		wallet.stream << word;
+	}
+	wallet.stream
+		<< qint32((data.mnemonicType == Gram::MnemonicType::Bip39) ? 1 : 0)
+		<< qint32(data.contractVersion)
+		<< quint32(data.walletId)
+		<< qint32(data.networkId)
+		<< qint32(data.phraseViewed ? 1 : 0);
+	FileWriteDescriptor file(_walletKey, _basePath);
+	file.writeEncrypted(wallet, _localKey);
+}
+
+std::optional<WalletStored> Account::readWallet() {
+	if (!_walletKey) {
+		return std::nullopt;
+	}
+	const auto broken = [&] {
+		ClearKey(_walletKey, _basePath);
+		_walletKey = 0;
+		writeMapDelayed();
+		return std::nullopt;
+	};
+	FileReadDescriptor wallet;
+	if (!ReadEncryptedFile(wallet, _walletKey, _basePath, _localKey)) {
+		return broken();
+	}
+	quint32 formatVersion = 0;
+	qint32 wordCount = 0;
+	wallet.stream >> formatVersion >> wordCount;
+	if (!CheckStreamStatus(wallet.stream)) {
+		return broken();
+	} else if (formatVersion > kWalletFormatVersion) {
+		return std::nullopt;
+	} else if (wordCount != 12 && wordCount != 24) {
+		return broken();
+	}
+	auto result = WalletStored();
+	result.words.reserve(wordCount);
+	for (auto i = 0; i != wordCount; ++i) {
+		auto word = QString();
+		wallet.stream >> word;
+		result.words.push_back(word);
+	}
+	auto mnemonicType = qint32(0);
+	auto contractVersion = qint32(0);
+	auto walletId = quint32(0);
+	auto networkId = qint32(0);
+	auto phraseViewed = qint32(0);
+	wallet.stream
+		>> mnemonicType
+		>> contractVersion
+		>> walletId
+		>> networkId
+		>> phraseViewed;
+	if (!CheckStreamStatus(wallet.stream)) {
+		return broken();
+	}
+	result.mnemonicType = (mnemonicType == 1)
+		? Gram::MnemonicType::Bip39
+		: Gram::MnemonicType::Ton;
+	result.contractVersion = contractVersion;
+	result.walletId = walletId;
+	result.networkId = networkId;
+	result.phraseViewed = (phraseViewed == 1);
+	return result;
+}
+
+bool Account::hasWalletWithUnviewedPhrase() {
+	if (!_walletKey) {
+		return false;
+	}
+	const auto wallet = readWallet();
+	return wallet && !wallet->phraseViewed;
 }
 
 bool Account::encrypt(

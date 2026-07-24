@@ -200,4 +200,6 @@ private:
 
 };
 
+[[nodiscard]] QString LogoutConfirmationText(Main::Account *account);
+
 } // namespace Window
