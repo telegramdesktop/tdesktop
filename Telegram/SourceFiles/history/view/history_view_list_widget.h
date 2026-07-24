@@ -353,6 +353,7 @@ public:
 	void cancelSelection();
 	void selectItem(not_null<HistoryItem*> item);
 	void selectItemAsGroup(not_null<HistoryItem*> item);
+	void showEditCaptionUploadLayer(not_null<HistoryItem*> item);
 
 	void touchScrollUpdated(const QPoint &screenPos);
 	[[nodiscard]] rpl::producer<bool> touchMaybeSelectingValue() const;

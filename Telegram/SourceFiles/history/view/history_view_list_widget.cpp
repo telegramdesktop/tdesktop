@@ -72,10 +72,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
+#include "boxes/peers/edit_participant_box.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/moderate_messages_box.h"
 #include "boxes/premium_preview_box.h"
-#include "boxes/peers/edit_participant_box.h"
+#include "boxes/send_gif_with_caption_box.h"
 #include "core/crash_reports.h"
 #include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
@@ -1677,6 +1678,14 @@ void ListWidget::selectItemAsGroup(not_null<HistoryItem*> item) {
 		_accessibilitySelectionAnchor = nullptr;
 		pushSelectedItems();
 		update();
+	}
+}
+
+void ListWidget::showEditCaptionUploadLayer(not_null<HistoryItem*> item) {
+	if (const auto view = viewForItem(item)) {
+		if (item->isUploading()) {
+			controller()->show(Box(Ui::EditCaptionBox, view));
+		}
 	}
 }
 

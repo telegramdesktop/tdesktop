@@ -951,6 +951,16 @@ bool AddDeleteMessageAction(
 		}
 	});
 	if (item->isUploading()) {
+		if (item->media() && item->media()->allowsEditCaption()) {
+			menu->addAction(
+				tr::lng_context_upload_edit_caption(tr::now),
+				crl::guard(controller, [=] {
+					if (const auto item = owner->message(itemId)) {
+						list->showEditCaptionUploadLayer(item);
+					}
+				}),
+				&st::menuIconEdit);
+		}
 		menu->addAction(
 			tr::lng_context_cancel_upload(tr::now),
 			callback,
