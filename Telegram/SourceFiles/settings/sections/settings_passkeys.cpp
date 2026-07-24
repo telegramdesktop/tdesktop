@@ -459,25 +459,26 @@ void PasskeysNoneBox(
 		button->resizeToWidth(box->width()
 			- st.buttonPadding.left()
 			- st.buttonPadding.left());
+		const auto show = box->uiShow();
 		button->setClickedCallback([=] {
-			session->passkeys().initRegistration([=](
+			session->passkeys().initRegistration(crl::guard(box, [=](
 					const Data::Passkey::RegisterData &data) {
-				Platform::WebAuthn::RegisterKey(data, [=](
+				Platform::WebAuthn::RegisterKey(data, crl::guard(box, [=](
 						Platform::WebAuthn::RegisterResult result) {
 					if (!result.success) {
 						using Error = Platform::WebAuthn::Error;
 						if (result.error == Error::UnsignedBuild) {
-							box->uiShow()->showToast(
+							show->showToast(
 								tr::lng_settings_passkeys_unsigned_error(
 									tr::now));
 						}
 						return;
 					}
-					session->passkeys().registerPasskey(result, [=] {
-						box->closeBox();
-					});
-				});
-			});
+					session->passkeys().registerPasskey(
+						result,
+						crl::guard(box, [=] { box->closeBox(); }));
+				}));
+			}));
 		});
 		if (!canRegister) {
 			button->setAttribute(Qt::WA_TransparentForMouseEvents);
