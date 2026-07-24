@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "data/components/passkeys.h"
+#include "data/data_passkey_deserialize.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "lang/lang_keys.h"

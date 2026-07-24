@@ -690,6 +690,14 @@ settingsIconPasskeys: icon {{ "menu/permissions", windowBgActive }};
 settingsIconPasskeysAboutIcon1: icon {{ "menu/permissions", boxTextFg }};
 settingsIconPasskeysAboutIcon2: icon {{ "menu/passcode_winhello", boxTextFg }};
 settingsIconPasskeysAboutIcon3: icon {{ "menu/lock", boxTextFg }};
+passkeyCableBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 10px, 22px, 12px);
+}
+passkeyCableHintLabel: FlatLabel(boxDividerLabel) {
+	align: align(top);
+}
+passkeyCableQrCenter: size(64px, 64px);
+passkeyCableQrSize: 260px;
 
 settingsAgeVerifyBox: Box(filterInviteBox) {
 	buttonPadding: margins(24px, 24px, 24px, 24px);

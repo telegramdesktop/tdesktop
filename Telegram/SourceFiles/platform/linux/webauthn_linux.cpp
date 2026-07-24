@@ -26,4 +26,20 @@ void Login(
 	callback({});
 }
 
+bool SecurityKeyPresent() {
+	return false;
+}
+
+void RegisterViaSecurityKey(
+		const Data::Passkey::RegisterData &data,
+		Fn<void(RegisterResult)> callback) {
+	callback({});
+}
+
+void LoginViaSecurityKey(
+		const Data::Passkey::LoginData &data,
+		Fn<void(LoginResult)> callback) {
+	callback({});
+}
+
 } // namespace Platform::WebAuthn

@@ -1968,6 +1968,12 @@ PRIVATE
     ui/unread_badge.h
     ui/peer/video_userpic_player.cpp
     ui/peer/video_userpic_player.h
+    webauthn/cable.h
+    webauthn/cable_box.cpp
+    webauthn/cable_box.h
+    webauthn/cable_ceremony.cpp
+    webauthn/webauthn_common.cpp
+    webauthn/webauthn_common.h
     window/main_window.cpp
     window/main_window.h
     window/notifications_manager.cpp

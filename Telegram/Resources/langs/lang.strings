@@ -1357,6 +1357,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_passkeys_unsigned_error" = "Passkeys are not available in unsigned builds. Please use an official signed version of Telegram Desktop.";
 "lng_settings_passkey_unknown" = "Passkey";
 
+"lng_passkey_touch" = "Touch your security key";
+"lng_passkey_insert" = "Insert your security key, then touch it to continue.";
+"lng_passkey_pin_title" = "Security key PIN";
+"lng_passkey_pin_about" = "Enter the PIN of your security key.";
+"lng_passkey_pin_invalid" = "Incorrect PIN. Please try again.";
+"lng_passkey_pin_placeholder" = "PIN";
+"lng_passkey_pin_blocked" = "The security key PIN is blocked. Reconnect the key or reset it.";
+"lng_passkey_confirm" = "Confirm";
+"lng_passkey_error_no_device" = "No security key found. Insert one and try again.";
+"lng_passkey_error_no_credentials" = "This security key has no passkey for your account.";
+"lng_passkey_error_login" = "Couldn't sign in with the security key.";
+"lng_passkey_error_register" = "Couldn't add a passkey with the security key.";
+"lng_passkey_method_key" = "Use a security key";
+"lng_passkey_cable_register_title" = "Add a passkey";
+"lng_passkey_cable_login_title" = "Sign in with a passkey";
+"lng_passkey_cable_register_about" = "Scan this QR code with the camera on the phone or tablet where you want to save your passkey.";
+"lng_passkey_cable_login_about" = "Scan this QR code with the camera on the phone or tablet that has your passkey.";
+"lng_passkey_cable_bluetooth" = "Keep Bluetooth on — your phone connects to this device over Bluetooth.";
+"lng_passkey_cable_key_about" = "Insert and touch your security key.";
+"lng_passkey_cable_connecting" = "Connecting to your phone…";
+"lng_passkey_cable_continue" = "Continue on your phone";
+"lng_passkey_cable_follow" = "Follow the instructions on your phone.";
+"lng_passkey_cable_error_title" = "Something went wrong";
+"lng_passkey_cable_no_bluetooth" = "Bluetooth is unavailable. Turn on Bluetooth to sign in with a phone.";
+"lng_passkey_cable_error" = "Couldn't connect to your phone.\nPlease try again.";
+
 "lng_settings_quick_dialog_action_title" = "Chat list quick action";
 "lng_settings_quick_dialog_action_about" = "Choose the action you want to perform when you middle-click or swipe left in the chat list.";
 "lng_settings_quick_dialog_action_both" = "Swipe left and Middle-click";
