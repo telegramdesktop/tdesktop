@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/components/credits.h"
+#include "data/components/welcome_messages.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_community.h"
@@ -1759,6 +1760,12 @@ void Controller::fillManageSection() {
 	}
 	if (canEditWelcomeMessages) {
 		const auto history = _peer->owner().history(_peer);
+		const auto store = &_peer->session().welcomeMessages();
+		auto count = rpl::single(rpl::empty) | rpl::then(
+			store->updates(history)
+		) | rpl::map([=] {
+			return QString::number(store->count(history));
+		});
 		auto callback = [=] {
 			_navigation->showSection(
 				std::make_shared<HistoryView::WelcomeMessagesMemento>(
@@ -1767,7 +1774,7 @@ void Controller::fillManageSection() {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			tr::lng_manage_peer_welcome_messages(),
-			rpl::single(QString()), // Empty count.
+			std::move(count),
 			std::move(callback),
 			{ &st::menuIconChatBubble });
 	}
