@@ -180,6 +180,9 @@ WelcomeMessagesWidget::WelcomeMessagesWidget(
 				_composeControls->editMessage(
 					fullId,
 					_inner->getSelectedTextRange(item));
+				if (_composeControls->isEditingMessage()) {
+					doSetInnerFocus();
+				}
 			}
 		}
 	}, _inner->lifetime());
@@ -215,6 +218,20 @@ void WelcomeMessagesWidget::setupComposeControls() {
 				.type = Controls::WriteRestrictionType::Rights,
 			} : Controls::WriteRestriction();
 	});
+	rpl::duplicate(
+		writeRestriction
+	) | rpl::map([](const Controls::WriteRestriction &restriction) {
+		return !restriction.empty();
+	}) | rpl::distinct_until_changed(
+	) | rpl::on_next([=](bool restricted) {
+		if (restricted) {
+			_inner->setFocus();
+		} else {
+			crl::on_main(this, [=] {
+				doSetInnerFocus();
+			});
+		}
+	}, lifetime());
 	_composeControls->setHistory({
 		.history = _history.get(),
 		.sendActionFactory = [=] { return Api::SendAction(_history); },
@@ -556,7 +573,7 @@ void WelcomeMessagesWidget::sendInlineResult(
 
 void WelcomeMessagesWidget::finishSending() {
 	_composeControls->hidePanelsAnimated();
-	_composeControls->focus();
+	doSetInnerFocus();
 }
 
 void WelcomeMessagesWidget::send() {
@@ -613,7 +630,7 @@ void WelcomeMessagesWidget::edit(not_null<HistoryItem*> item) {
 			}
 		}));
 	_composeControls->hidePanelsAnimated();
-	_composeControls->focus();
+	doSetInnerFocus();
 }
 
 SendMenu::Details WelcomeMessagesWidget::sendMenuDetails() const {
@@ -717,7 +734,9 @@ void WelcomeMessagesWidget::checkActivation() {
 }
 
 void WelcomeMessagesWidget::doSetInnerFocus() {
-	_composeControls->focus();
+	if (!_composeControls->focus()) {
+		_inner->setFocus();
+	}
 }
 
 bool WelcomeMessagesWidget::showInternal(
