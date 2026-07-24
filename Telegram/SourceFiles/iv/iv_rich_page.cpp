@@ -2414,8 +2414,32 @@ std::shared_ptr<const RichPage> ParseRichPage(
 TextWithEntities FlattenRichPageSummary(
 		const RichPage &page,
 		bool emptyFallback) {
-	auto result = FlattenSummaryBlocks(page.blocks, true);
+	auto result = tr::marked();
+	auto contributionCount = 0;
+	const Block *soleTable = nullptr;
+	for (const auto &block : page.blocks) {
+		const auto previousSize = result.text.size();
+		AppendSummaryBlock(&result, block, true);
+		if (result.text.size() == previousSize) {
+			continue;
+		}
+		++contributionCount;
+		if (block.kind == BlockKind::Table) {
+			soleTable = &block;
+		}
+	}
 	TextUtilities::Trim(result);
+	if (contributionCount == 1 && soleTable) {
+		auto title = soleTable->text.text;
+		TextUtilities::Trim(title);
+		if (title.empty()) {
+			title = tr::marked(tr::lng_in_dlg_table(tr::now));
+		}
+		auto line = Ui::Text::IconEmoji(&st::ivSummaryTableIcon);
+		line.append(std::move(title));
+		result = tr::marked();
+		AppendSummaryLine(&result, std::move(line), true);
+	}
 	if (result.empty() && emptyFallback) {
 		result = TextWithEntities::Simple(tr::lng_message_empty(tr::now));
 	}
