@@ -347,9 +347,32 @@ void ChooseVisibilityBox(
 void ShowAddPeerToCommunity(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> community,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		Fn<void()> completed) {
+	struct State {
+		base::weak_qptr<Ui::GenericBox> visibility;
+		bool linking = false;
+	};
+	const auto state = completed ? std::make_shared<State>() : nullptr;
 	const auto show = navigation->uiShow();
+	const auto finish = [=] {
+		if (state) {
+			const auto visibility = base::take(state->visibility);
+			if (visibility) {
+				visibility->closeBox();
+			}
+			completed();
+		} else {
+			show->hideLayer();
+		}
+	};
 	const auto add = [=](bool visible) {
+		if (state) {
+			if (state->linking) {
+				return;
+			}
+			state->linking = true;
+		}
 		const auto sure = [=](Fn<void()> &&close) {
 			close();
 			peer->session().api().communities().addPeerLink(
@@ -357,7 +380,7 @@ void ShowAddPeerToCommunity(
 				peer,
 				visible,
 				[=] {
-					show->hideLayer();
+					finish();
 					show->showToast(peer->isUser()
 						? tr::lng_community_add_done_bot(tr::now)
 						: peer->isBroadcast()
@@ -366,10 +389,15 @@ void ShowAddPeerToCommunity(
 				},
 				[=](const QString &error) {
 					if (error == Api::kCommunityRequestCreated.utf16()) {
-						show->hideLayer();
+						finish();
 						show->showToast(
 							tr::lng_community_request_sent(tr::now));
-					} else if (error == Api::kCommunityPeersTooMuch.utf16()) {
+						return;
+					}
+					if (state) {
+						state->linking = false;
+					}
+					if (error == Api::kCommunityPeersTooMuch.utf16()) {
 						show->showToast(
 							Api::CommunityPeersLimitToast(peer));
 					} else {
@@ -384,7 +412,7 @@ void ShowAddPeerToCommunity(
 		if (community->canManageLinkedPeers()) {
 			sure([] {});
 		} else {
-			show->showBox(Ui::MakeConfirmBox({
+			auto args = Ui::ConfirmBoxArgs{
 				.text = (peer->isUser()
 					? tr::lng_community_add_confirm_bot()
 					: peer->isBroadcast()
@@ -393,13 +421,25 @@ void ShowAddPeerToCommunity(
 				.confirmed = sure,
 				.confirmText = tr::lng_community_add_confirm_add(),
 				.title = tr::lng_community_add_to(),
-			}));
+			};
+			if (state) {
+				args.cancelled = [=](Fn<void()> close) {
+					state->linking = false;
+					close();
+				};
+			}
+			show->showBox(Ui::MakeConfirmBox(std::move(args)));
 		}
 	};
-	show->showBox(Box(
+	auto box = Box(
 		ChooseVisibilityBox,
 		tr::lng_community_add_to(),
-		add));
+		add);
+	if (state) {
+		state->visibility = show->show(std::move(box));
+	} else {
+		show->showBox(std::move(box));
+	}
 }
 
 void ShowAddToCommunityBox(

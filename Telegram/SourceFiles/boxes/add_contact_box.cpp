@@ -876,7 +876,11 @@ void GroupInfoBox::createChannel(
 				}
 				channel->session().api().requestFullPeer(channel);
 				_createdChannel = channel;
-				checkInviteLink();
+				if (_done && !_mustBePublic) {
+					channelReady();
+				} else {
+					checkInviteLink();
+				}
 			};
 		if (!success) {
 			LOG(("API Error: channel not found in updates "

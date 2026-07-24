@@ -21,4 +21,5 @@ void ShowAddToCommunityBox(
 void ShowAddPeerToCommunity(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> community,
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	Fn<void()> completed = nullptr);

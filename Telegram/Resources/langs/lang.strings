@@ -2277,6 +2277,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_community_chats_requestable" = "Hidden chats";
 "lng_community_add_chat" = "Add a Chat to Community";
 "lng_community_add_chat_title" = "Add a Chat to Community";
+"lng_community_create_chat" = "Create a New Chat";
 "lng_community_requests_title" = "Pending Requests";
 "lng_community_requests_about" = "Chats require admin approval before they're added to the community. {link}";
 "lng_community_requests_about_link" = "Change Settings.";
