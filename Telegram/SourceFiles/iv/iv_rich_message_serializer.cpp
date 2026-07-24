@@ -1718,6 +1718,9 @@ SerializeInputRichMessageResult SerializeInputRichMessage(
 	if (mode == SerializeInputRichMessageMode::FinalSubmit
 		&& !normalizedBlocks.hasRealContent) {
 		return EmptySerializeInputRichMessage();
+	} else if (mode == SerializeInputRichMessageMode::Draft
+		&& blocks->isEmpty()) {
+		return EmptySerializeInputRichMessage();
 	}
 	auto photos = QVector<MTPInputPhoto>();
 	photos.reserve(context.photos.size());

@@ -1299,14 +1299,7 @@ auto CachedPageMediaRuntime::hostedMediaHost(
 		}
 		return _hostedMediaHost;
 	}
-	if (!_session->data().peerLoaded(PeerData::kServiceNotificationsId)) {
-		return nullptr;
-	}
-	const auto history = _session->data().history(
-		PeerData::kServiceNotificationsId);
-	if (!history->peer->isUser()) {
-		return nullptr;
-	}
+	const auto history = _session->data().history(_session->user());
 	if (!_hostedMediaHost) {
 		_hostedMediaHost
 			= std::make_shared<Markdown::IvHistoryViewMediaHost>(

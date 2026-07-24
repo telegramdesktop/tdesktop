@@ -4049,7 +4049,7 @@ std::optional<::Data::Draft> ArticleSession::prepareRichDraftForAutosave() const
 		_session,
 		*richMessage,
 		SerializeInputRichMessageMode::Draft);
-	if (serialized.status == SerializeInputRichMessageStatus::Failed) {
+	if (serialized.status != SerializeInputRichMessageStatus::Success) {
 		return std::nullopt;
 	}
 	draft.richMessage = std::move(richMessage);
