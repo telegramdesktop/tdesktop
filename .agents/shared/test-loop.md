@@ -438,12 +438,14 @@ implementation or overlay verdict:
 - the same signature occurs on two launches.
 
 Before early escalation, preserve the current overlay and account, stop only the exact-path app,
-run one full Xcode Debug clean followed by `BUILD` (the configured-tree clean is normally
-`cmake --build out --config Debug --target clean`), and rerun the same scenario once. Record the
-preceding runs as `TEST_FLAW` caused by stale generated-language objects; do not spend an
-implementation attempt or re-author the overlay. If the identical signature remains after the
-single clean rebuild, resume normal crash classification and early escalation. Never loop clean
-rebuilds.
+follow the portable-folder safety-copy procedure in `AGENTS.md`, then run one full Xcode Debug
+clean followed by `BUILD` (the configured-tree clean is normally
+`cmake --build out --config Debug --target clean`). Restore only portable folders missing after
+the clean, never overwrite survivors, and retain the external backup through one successful
+post-build launch. Rerun the same scenario once. Record the preceding runs as `TEST_FLAW` caused
+by stale generated-language objects; do not spend an implementation attempt or re-author the
+overlay. If the identical signature remains after the single clean rebuild, resume normal crash
+classification and early escalation. Never loop clean rebuilds.
 
 ### Hangs & freezes (two layers, because they have two causes)
 

@@ -110,16 +110,36 @@ older `kKeysCount`. The characteristic failure is:
 
 If this exact startup failure repeats twice, do not change the implementation,
 test overlay, or portable account. Stop only this checkout's exact Telegram
-process, then perform one full Xcode Debug clean and rebuild:
+process. Because Xcode's `CONFIGURATION_BUILD_DIR` is `out/Debug`, make a
+safety copy of every existing portable folder outside `out/` before cleaning:
+
+```bash
+portable_backup_root="$(mktemp -d "${TMPDIR:-/tmp}/tdesktop-portable-clean.XXXXXX")"
+for portable_name in \
+  TelegramForcePortable \
+  test_TelegramForcePortable \
+  real_TelegramForcePortable; do
+  if [ -d "out/Debug/$portable_name" ]; then
+    ditto "out/Debug/$portable_name" "$portable_backup_root/$portable_name"
+  fi
+done
+```
+
+Require every expected backup copy to exist before continuing. Then perform
+one full Xcode Debug clean and rebuild:
 
 ```bash
 cmake --build out --config Debug --target clean
 cmake --build out --config Debug --target Telegram
 ```
 
-Rerun the same test once. If the signature persists after that clean rebuild,
-continue normal crash diagnosis or report the blocker. Do not loop clean
-rebuilds.
+Afterward, restore a portable folder from the backup only when its original
+path is missing; never overwrite a folder that survived the clean. Verify all
+three original folder names that existed before the clean are present, keep
+the backup until the rebuilt app completes one successful launch, and record
+its path if the run stops before verification. Then rerun the same test once.
+If the signature persists after that clean rebuild, continue normal crash
+diagnosis or report the blocker. Do not loop clean rebuilds.
 
 ### Build fails with PDB or EXE access errors
 
