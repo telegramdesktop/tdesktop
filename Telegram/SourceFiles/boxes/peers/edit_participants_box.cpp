@@ -361,7 +361,7 @@ Fn<void(
 			ChatAdminRightsInfo newRights,
 			const std::optional<QString> &rank)> onDone,
 		Fn<void()> onFail) {
-	return [=](
+	const auto save = [=](
 			ChatAdminRightsInfo oldRights,
 			ChatAdminRightsInfo newRights,
 			const std::optional<QString> &rank) {
@@ -419,6 +419,38 @@ Fn<void(
 		} else {
 			Unexpected("Peer in SaveAdminCallback.");
 		}
+	};
+	return [=](
+			ChatAdminRightsInfo oldRights,
+			ChatAdminRightsInfo newRights,
+			const std::optional<QString> &rank) {
+		const auto channel = peer->asChannel();
+		const auto promoting = channel
+			&& channel->isCommunity()
+			&& !oldRights.flags
+			&& newRights.flags;
+		if (!promoting) {
+			save(oldRights, newRights, rank);
+			return;
+		}
+		const auto sure = [
+				save,
+				oldRights,
+				newRights,
+				rank](Fn<void()> &&close) {
+			close();
+			save(oldRights, newRights, rank);
+		};
+		show->showBox(Ui::MakeConfirmBox({
+			.text = tr::lng_community_admin_promote_sure(
+				tr::now,
+				lt_user,
+				tr::bold(user->shortName()),
+				tr::marked),
+			.confirmed = sure,
+			.confirmText = tr::lng_community_admin_promote(),
+			.title = tr::lng_community_admin_promote_title(),
+		}));
 	};
 }
 
@@ -2133,32 +2165,8 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 			}
 		});
 		const auto show = delegate()->peerListUiShow();
-		auto save = SaveAdminCallback(show, _peer, user, done, fail);
-		const auto channel = _peer->asChannel();
-		const auto promoting = !adminRights.has_value();
-		if (channel && channel->isCommunity() && promoting) {
-			box->setSaveCallback([=](
-					ChatAdminRightsInfo oldRights,
-					ChatAdminRightsInfo newRights,
-					const std::optional<QString> &rank) {
-				const auto sure = [=](Fn<void()> &&close) {
-					close();
-					save(oldRights, newRights, rank);
-				};
-				show->showBox(Ui::MakeConfirmBox({
-					.text = tr::lng_community_admin_promote_sure(
-						tr::now,
-						lt_user,
-						tr::bold(user->shortName()),
-						tr::marked),
-					.confirmed = sure,
-					.confirmText = tr::lng_community_admin_promote(),
-					.title = tr::lng_community_admin_promote_title(),
-				}));
-			});
-		} else {
-			box->setSaveCallback(std::move(save));
-		}
+		box->setSaveCallback(
+			SaveAdminCallback(show, _peer, user, done, fail));
 	}
 	_editParticipantBox = showBox(std::move(box));
 }

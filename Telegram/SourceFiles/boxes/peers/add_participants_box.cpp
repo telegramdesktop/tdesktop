@@ -1473,7 +1473,8 @@ void AddSpecialBoxController::showAdmin(
 			showBox(Ui::MakeInformBox(tr::lng_error_cant_add_admin_unban()));
 			return;
 		}
-	} else if (_additional.isExternal(user)) {
+	} else if (_additional.isExternal(user)
+		&& !(channel && channel->isCommunity())) {
 		// The user is not in the group yet.
 		if (canAddMembers) {
 			if (!sure) {
