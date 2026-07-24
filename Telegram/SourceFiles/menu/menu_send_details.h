@@ -40,6 +40,8 @@ enum class PhotoQualityState : uchar {
 
 struct Details {
 	Type type = Type::Disabled;
+	uint64 barePeerId = 0;
+	int64 bareTopicRootId = 0;
 	SpoilerState spoiler = SpoilerState::None;
 	CaptionState caption = CaptionState::None;
 	PhotoQualityState photoQuality = PhotoQualityState::None;

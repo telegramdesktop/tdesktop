@@ -5735,7 +5735,11 @@ SendMenu::Details HistoryWidget::sendMenuDetails() const {
 		? SendMenu::Type::ScheduledToUser
 		: SendMenu::Type::Scheduled;
 	const auto effectAllowed = _peer && _peer->isUser();
-	return { .type = type, .effectAllowed = effectAllowed };
+	return {
+		.type = type,
+		.barePeerId = _peer ? _peer->id.value : 0,
+		.effectAllowed = effectAllowed,
+	};
 }
 
 SendMenu::Details HistoryWidget::saveMenuDetails() const {

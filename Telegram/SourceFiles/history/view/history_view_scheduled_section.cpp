@@ -947,7 +947,12 @@ SendMenu::Details ScheduledWidget::sendMenuDetails() const {
 		? SendMenu::Type::ScheduledToUser
 		: SendMenu::Type::Scheduled;
 	const auto effectAllowed = _history->peer->isUser();
-	return { .type = type, .effectAllowed = effectAllowed };
+	return {
+		.type = type,
+		.barePeerId = _history->peer->id.value,
+		.bareTopicRootId = _forumTopic ? _forumTopic->rootId().bare : 0,
+		.effectAllowed = effectAllowed,
+	};
 }
 
 bool ScheduledWidget::processChosenSticker(ChatHelpers::FileChosen &&chosen) {

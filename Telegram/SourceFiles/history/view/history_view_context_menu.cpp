@@ -602,11 +602,17 @@ bool AddRescheduleAction(
 			: itemDate + (firstItem->isScheduled() ? 0 : crl::time(600));
 		const auto repeatPeriod = firstItem->scheduleRepeatPeriod();
 
+		const auto topic = firstItem->topic();
 		const auto box = request.navigation->parentController()->show(
 			HistoryView::PrepareScheduleBox(
 				&request.navigation->session(),
 				request.navigation->uiShow(),
-				{ .type = sendMenuType, .effectAllowed = false },
+				{
+					.type = sendMenuType,
+					.barePeerId = firstItem->history()->peer->id.value,
+					.bareTopicRootId = topic ? topic->rootId().bare : 0,
+					.effectAllowed = false,
+				},
 				callback,
 				{ .scheduleRepeatPeriod = repeatPeriod },
 				date));

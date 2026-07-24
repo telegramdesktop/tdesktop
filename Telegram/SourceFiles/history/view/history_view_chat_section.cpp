@@ -2064,7 +2064,13 @@ SendMenu::Details ChatWidget::sendMenuDetails() const {
 		: (_topic && !_peer->starsPerMessageChecked())
 		? Type::Scheduled
 		: Type::SilentOnly;
-	return SendMenu::Details{ .type = type };
+	return SendMenu::Details{
+		.type = type,
+		.barePeerId = (_sublist
+			? _sublist->owningHistory()
+			: _history)->peer->id.value,
+		.bareTopicRootId = _topic ? _topic->rootId().bare : 0,
+	};
 }
 
 bool ChatWidget::processChosenSticker(ChatHelpers::FileChosen &&chosen) {
