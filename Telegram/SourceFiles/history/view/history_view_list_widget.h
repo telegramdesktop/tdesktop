@@ -619,6 +619,8 @@ private:
 	void playPauseFocusedMedia();
 	void setAccessibilityFocusedItem(int index, HistoryItem *item);
 	void announceAccessibilityFocus(int index);
+	void checkAnnounceFirstMessages();
+	void announceAccessibilityFocusedChild();
 	void applyAccessibilityFocus(int index, bool announceAlways);
 	void pruneAccessibilityIdentities();
 	[[nodiscard]] auto computeActiveColumns(int row) const
@@ -1035,6 +1037,7 @@ private:
 	std::optional<ElementChatMode> _overrideChatMode;
 
 	int _accessibilityFocusedIndex = -1;
+	bool _announceFirstMessages = false;
 	HistoryItem *_accessibilityFocusedItem = nullptr;
 	HistoryItem *_accessibilitySelectionAnchor = nullptr;
 	mutable base::flat_map<

@@ -895,6 +895,7 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 		_emptyInfo->setVisible(isEmpty());
 	}
 	checkActivation();
+	checkAnnounceFirstMessages();
 	_delegate->listContentRefreshed();
 }
 
@@ -6306,67 +6307,92 @@ QString ListWidget::accessibilityChildSubItemValue(
 		active[column]);
 }
 
+void ListWidget::checkAnnounceFirstMessages() {
+	if (_announceFirstMessages && hasFocus()) {
+		InvokeQueued(this, [=] {
+			if (_announceFirstMessages && hasFocus()) {
+				announceAccessibilityFocusedChild();
+			}
+		});
+	}
+}
+
+void ListWidget::announceAccessibilityFocusedChild() {
+	const auto count = accessibilityChildCount();
+	if (count <= 0) {
+		// One-shot for chats focused before their first messages arrived:
+		// while the empty list holds focus, remember that the first
+		// received slice (or the first live-added message in a genuinely
+		// empty chat) should announce the focused message. Fired (queued)
+		// from checkAnnounceFirstMessages and disarmed by any real
+		// announcement below or in a later focus-in. Deliberately not
+		// gated by the screen-reader-mode detector: it may still be false
+		// during startup or for valid clients that are not on its
+		// allowlist, while the deferred announcement is a no-op without
+		// an accessibility client and never moves ordinary keyboard focus.
+		_announceFirstMessages = true;
+		return;
+	}
+	_announceFirstMessages = false;
+	if (_accessibilityFocusedItem) {
+		const auto elements = accessibleElements();
+		const auto barIndex = accessibilityUnreadBarIndex();
+		auto found = -1;
+		for (auto i = 0, n = int(elements.size()); i < n; ++i) {
+			if (elements[i]->data().get()
+				== _accessibilityFocusedItem) {
+				found = (barIndex >= 0 && i >= barIndex)
+					? (i + 1)
+					: i;
+				break;
+			}
+		}
+		if (found >= 0 && found < count) {
+			_accessibilityFocusedIndex = found;
+			announceAccessibilityFocus(found);
+			return;
+		}
+		// The cached focused item is no longer in the list (it
+		// was removed or fell out of the loaded slice since we
+		// last had focus). Invalidate the index together with the
+		// item: announcing whatever row occupies the old index
+		// would leave later actions bound to a row the user never
+		// heard about once the list shifts again. The auto-select
+		// branch below establishes a fresh focus instead.
+		_accessibilityFocusedItem = nullptr;
+		_accessibilityFocusedIndex = -1;
+	} else if (_accessibilityFocusedIndex >= 0) {
+		// A nonnegative index with no cached item means the unread
+		// bar was focused. Follow the bar to wherever it sits now,
+		// or fall through to pick a fresh focus target when it is
+		// gone: the row that occupies the old index was never
+		// announced to the user.
+		_accessibilityFocusedIndex = accessibilityUnreadBarIndex();
+	}
+	if (_accessibilityFocusedIndex >= 0
+		&& _accessibilityFocusedIndex < count) {
+		announceAccessibilityFocus(_accessibilityFocusedIndex);
+		return;
+	}
+	const auto barIndex = accessibilityUnreadBarIndex();
+	const auto index = (barIndex >= 0 && barIndex + 1 < count)
+		? (barIndex + 1)
+		: accessibilityNewestIndex(count);
+	const auto elements = accessibleElements();
+	const auto item = accessibilityItemAtIndex(
+		index,
+		elements,
+		barIndex);
+	setAccessibilityFocusedItem(index, item);
+}
+
 void ListWidget::focusInEvent(QFocusEvent *e) {
 	RpWidget::focusInEvent(e);
 
 	InvokeQueued(this, [=] {
-		if (!hasFocus()) {
-			return;
+		if (hasFocus()) {
+			announceAccessibilityFocusedChild();
 		}
-		const auto count = accessibilityChildCount();
-		if (count <= 0) {
-			return;
-		}
-		if (_accessibilityFocusedItem) {
-			const auto elements = accessibleElements();
-			const auto barIndex = accessibilityUnreadBarIndex();
-			auto found = -1;
-			for (auto i = 0, n = int(elements.size()); i < n; ++i) {
-				if (elements[i]->data().get()
-					== _accessibilityFocusedItem) {
-					found = (barIndex >= 0 && i >= barIndex)
-						? (i + 1)
-						: i;
-					break;
-				}
-			}
-			if (found >= 0 && found < count) {
-				_accessibilityFocusedIndex = found;
-				announceAccessibilityFocus(found);
-				return;
-			}
-			// The cached focused item is no longer in the list (it
-			// was removed or fell out of the loaded slice since we
-			// last had focus). Invalidate the index together with the
-			// item: announcing whatever row occupies the old index
-			// would leave later actions bound to a row the user never
-			// heard about once the list shifts again. The auto-select
-			// branch below establishes a fresh focus instead.
-			_accessibilityFocusedItem = nullptr;
-			_accessibilityFocusedIndex = -1;
-		} else if (_accessibilityFocusedIndex >= 0) {
-			// A nonnegative index with no cached item means the unread
-			// bar was focused. Follow the bar to wherever it sits now,
-			// or fall through to pick a fresh focus target when it is
-			// gone: the row that occupies the old index was never
-			// announced to the user.
-			_accessibilityFocusedIndex = accessibilityUnreadBarIndex();
-		}
-		if (_accessibilityFocusedIndex >= 0
-			&& _accessibilityFocusedIndex < count) {
-			announceAccessibilityFocus(_accessibilityFocusedIndex);
-			return;
-		}
-		const auto barIndex = accessibilityUnreadBarIndex();
-		const auto index = (barIndex >= 0 && barIndex + 1 < count)
-			? (barIndex + 1)
-			: accessibilityNewestIndex(count);
-		const auto elements = accessibleElements();
-		const auto item = accessibilityItemAtIndex(
-			index,
-			elements,
-			barIndex);
-		setAccessibilityFocusedItem(index, item);
 	});
 }
 
