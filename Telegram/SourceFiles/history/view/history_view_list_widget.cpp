@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_quick_action.h"
 #include "iv/iv_rich_message_html_export.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
@@ -73,6 +74,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
@@ -2948,6 +2950,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
 	auto startEffects = base::flat_set<not_null<const Element*>>();
+	auto startInteractions = base::flat_set<not_null<const Element*>>();
 	const auto markingAsViewed = markingMessagesRead();
 	const auto markingContentRead = markingContentsRead();
 	const auto guard = gsl::finally([&] {
@@ -2961,6 +2964,12 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		if (!startEffects.empty()) {
 			for (const auto &view : startEffects) {
 				_emojiInteractions->playEffectOnRead(view);
+			}
+		}
+		if (!startInteractions.empty()) {
+			for (const auto &view : startInteractions) {
+				_animatedStickersPlayed.emplace(view->data());
+				controller()->emojiInteractions().startAutoplay(view);
 			}
 		}
 		if (markingAsViewed && readTill) {
@@ -3105,6 +3114,14 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				&& item->hasUnwatchedEffect()
 				&& _delegate->listAllowsReadEffect(view)) {
 				startEffects.emplace(view);
+			}
+			if (markingContentRead
+				&& !item->out()
+				&& !_animatedStickersPlayed.contains(item)
+				&& !PowerSaving::On(PowerSaving::kEmojiChat)
+				&& CanPlayEmojiInteraction(view)
+				&& session->emojiStickersPack().hasAnimationsFor(item)) {
+				startInteractions.emplace(view);
 			}
 			if (markingAsViewed && item->hasViews()) {
 				session->api().views().scheduleIncrement(item);
@@ -5719,6 +5736,7 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 		_accessibilitySelectionAnchor = nullptr;
 	}
 	_accessibilityIdentities.remove(item);
+	_animatedStickersPlayed.remove(item);
 	const auto i = _views.find(item);
 	if (i == end(_views)) {
 		return;
