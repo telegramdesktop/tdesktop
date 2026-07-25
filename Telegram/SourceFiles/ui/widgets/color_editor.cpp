@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/masked_input_field.h"
 #include "ui/widgets/shadow.h"
 #include "styles/style_boxes.h"
-#include "styles/style_media_view.h"
 
 class ColorEditor::Picker : public Ui::RpWidget {
 public:

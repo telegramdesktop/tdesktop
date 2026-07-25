@@ -33,10 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "main/main_session_settings.h"
-#include "styles/style_dialogs.h"
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 #include "styles/style_menu_icons.h"
-#include "styles/style_settings.h"
 
 namespace {
 

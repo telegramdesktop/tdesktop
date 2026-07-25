@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
-#include "styles/style_widgets.h"
 #include "styles/style_export.h"
 #include "styles/style_layers.h"
 

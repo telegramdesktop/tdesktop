@@ -73,14 +73,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "ui/toast/toast.h"
-#include "styles/style_overview.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h" // giftBoxHiddenMark
 #include "styles/style_chat_helpers.h"
-#include "styles/style_media_stories.h"
 
 #include <QtCore/QMimeData>
 #include <QtWidgets/QApplication>

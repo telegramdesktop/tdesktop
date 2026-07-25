@@ -93,12 +93,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h" // defaultComposeFiles.
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_overview.h"
 #include "styles/style_polls.h"
 #include "styles/style_settings.h"
 

@@ -65,7 +65,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
-#include "styles/style_chat.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>

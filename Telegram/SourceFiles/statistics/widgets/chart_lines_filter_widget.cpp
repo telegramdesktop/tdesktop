@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "styles/style_basic.h"
 #include "styles/style_statistics.h"
-#include "styles/style_widgets.h"
 
 namespace Statistic {
 

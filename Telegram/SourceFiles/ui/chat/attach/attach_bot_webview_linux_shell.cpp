@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/style/style_core_palette.h"
 #include "styles/style_layers.h"
-#include "styles/style_menu_icons.h"
 #include "styles/style_payments.h"
 
 #include <QtCore/QFile>

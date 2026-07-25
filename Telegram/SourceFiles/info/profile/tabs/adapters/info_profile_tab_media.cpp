@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "window/window_session_controller.h"
-#include "styles/style_basic.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 

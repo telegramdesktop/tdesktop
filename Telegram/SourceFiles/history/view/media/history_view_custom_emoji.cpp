@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
-#include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {

@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
 #include "base/event_filter.h"
-#include "styles/style_info.h"
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QScrollBar>

@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
 #include "ui/ui_utility.h"
-#include "styles/style_editor.h"
 
 namespace Editor {
 namespace {

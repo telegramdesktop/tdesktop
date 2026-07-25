@@ -45,7 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
-#include "styles/style_layers.h" // attentionBoxButton
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QtEvents>

@@ -6,9 +6,8 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_slide_animation.h"
+#include "styles/style_basic.h"
 
-#include "styles/style_window.h"
-#include "styles/style_boxes.h"
 
 namespace Window {
 

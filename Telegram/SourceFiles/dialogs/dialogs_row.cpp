@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
-#include "styles/style_calls.h"
 #include "styles/style_dialogs.h"
 
 namespace Dialogs {

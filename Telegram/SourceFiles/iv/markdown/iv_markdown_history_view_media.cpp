@@ -48,8 +48,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "ui/basic_click_handlers.h"
 #include "window/window_session_controller.h"
-#include "styles/style_chat.h"
-#include "styles/style_iv.h"
 
 #include "rpl/filter.h"
 #include "rpl/lifetime.h"

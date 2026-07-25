@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_calls.h"
 #include "styles/style_info.h" // st::topBarArrowPadding, like TopBarWidget.
 #include "styles/style_window.h" // st::columnMinimalWidthLeft
 #include "styles/palette.h"

@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
-#include "styles/style_basic.h"
 
 namespace Ui {
 namespace {

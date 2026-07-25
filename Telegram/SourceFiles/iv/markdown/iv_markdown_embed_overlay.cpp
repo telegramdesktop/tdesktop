@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
 
-#include "styles/style_layers.h"
 #include "styles/style_iv.h"
 
 #include <QtCore/QEvent>

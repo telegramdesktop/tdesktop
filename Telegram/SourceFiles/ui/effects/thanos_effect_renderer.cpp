@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rhi/rhi_shader.h"
 #include "ui/rp_widget.h"
 #include "ui/painter.h"
-#include "styles/style_basic.h"
 #include "base/debug_log.h"
 
 #include <rhi/qrhi.h>

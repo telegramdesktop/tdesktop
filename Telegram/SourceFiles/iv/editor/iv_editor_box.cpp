@@ -82,7 +82,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_chat_helpers.h"
 #include "styles/style_basic.h"
-#include "styles/style_editor.h"
 #include "styles/style_iv.h"
 #include "styles/style_layers.h"
 #include "styles/style_widgets.h"

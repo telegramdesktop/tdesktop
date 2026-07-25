@@ -53,11 +53,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "api/api_bot.h"
 #include "support/support_helper.h"
-#include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h" // dialogsMiniReplyStory.
-#include "styles/style_settings.h"
 #include "styles/style_widgets.h"
 
 #include <QtGui/QGuiApplication>

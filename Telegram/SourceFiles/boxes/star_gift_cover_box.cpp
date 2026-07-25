@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
-#include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 
 namespace Ui {

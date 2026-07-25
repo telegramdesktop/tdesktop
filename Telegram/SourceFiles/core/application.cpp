@@ -94,7 +94,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/accessible/ui_accessible_factory.h"
 #include "ui/boxes/confirm_box.h"
 #include "core/cached_webview_availability.h"
-#include "styles/style_window.h"
 
 #include <QtCore/QStandardPaths>
 #include <QtCore/QMimeDatabase>

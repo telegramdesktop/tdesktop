@@ -47,9 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_payments.h" // paymentsCriticalError
-#include "styles/style_window.h"
 #include "styles/style_settings.h" // settingsCloudPasswordIconSize
-#include "styles/style_layers.h" // boxDividerHeight
 
 #include <QtCore/QFile>
 #include <QtCore/QJsonDocument>

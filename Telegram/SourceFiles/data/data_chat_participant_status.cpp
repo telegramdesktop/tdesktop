@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "window/window_session_controller.h"
-#include "styles/style_widgets.h"
 
 namespace {
 
