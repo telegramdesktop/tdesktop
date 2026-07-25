@@ -3647,6 +3647,7 @@ void ComposeControls::applyCloudDraft() {
 void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	Expects(_history != nullptr);
 	if (bypassNormalDraftHandling()) {
+		clearFieldText(0, fieldHistoryAction);
 		updateFieldVisibility();
 		return;
 	}
