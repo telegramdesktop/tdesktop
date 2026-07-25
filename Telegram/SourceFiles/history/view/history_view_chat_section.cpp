@@ -3023,11 +3023,11 @@ void ChatWidget::reportSelectedMessages() {
 
 void ChatWidget::updateControlsVisibility() {
 	const auto wasAtMax = _scroll
-		&& (_scroll->scrollTop() == _scroll->scrollTopMax());
+		&& (_scroll->scrollTop() >= _scroll->scrollTopMax());
 	const auto keepAtMax = gsl::finally([&] {
 		if (wasAtMax
 			&& _scroll
-			&& (_scroll->scrollTop() != _scroll->scrollTopMax())) {
+			&& (_scroll->scrollTop() < _scroll->scrollTopMax())) {
 			listScrollTo(_scroll->scrollTopMax());
 		}
 	});
