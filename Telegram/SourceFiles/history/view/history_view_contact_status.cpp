@@ -239,6 +239,7 @@ public:
 private:
 	int resizeGetHeight(int newWidth) override;
 
+	void refreshAddText(int newWidth);
 	void emojiStatusRepaint();
 
 	QString _name;
@@ -256,6 +257,7 @@ private:
 	object_ptr<Ui::PlainShadow> _emojiStatusShadow;
 	object_ptr<Ui::RippleButton> _setBotPhoto;
 	bool _emojiStatusRepaintScheduled = false;
+	bool _addWithName = false;
 	bool _narrow = false;
 	rpl::event_stream<> _emojiStatusClicks;
 
@@ -385,9 +387,7 @@ void ContactStatus::Bar::showState(
 		});
 	}
 	_emojiStatusInfo->setVisible(has);
-	_add->setText((type == Type::Add)
-		? tr::lng_new_contact_add_name(tr::now, lt_user, _name).toUpper()
-		: tr::lng_new_contact_add(tr::now).toUpper());
+	_addWithName = (type == Type::Add);
 	_report->setText((type == Type::ReportSpam)
 		? tr::lng_report_spam_and_leave(tr::now).toUpper()
 		: tr::lng_report_spam(tr::now).toUpper());
@@ -446,7 +446,34 @@ rpl::producer<> ContactStatus::Bar::setBotPhotoClicks() const {
 	return _setBotPhoto->clicks() | rpl::to_empty;
 }
 
+void ContactStatus::Bar::refreshAddText(int newWidth) {
+	const auto compose = [](const QString &name) {
+		return tr::lng_new_contact_add_name(tr::now, lt_user, name).toUpper();
+	};
+	auto text = tr::lng_new_contact_add(tr::now).toUpper();
+	if (_addWithName) {
+		const auto font = st::historyContactStatusButton.font;
+		const auto available = newWidth
+			- _close->width()
+			- 2 * st::historyContactStatusMinSkip;
+		const auto name = _name.toUpper();
+		text = compose(name);
+		if (available > 0 && font->width(text) > available) {
+			const auto rest = font->width(compose(QString()));
+			text = compose(font->elided(
+				name,
+				std::max(available - rest, 0),
+				Qt::ElideMiddle));
+			if (font->width(text) > available) {
+				text = font->elided(text, available);
+			}
+		}
+	}
+	_add->setText(text);
+}
+
 int ContactStatus::Bar::resizeGetHeight(int newWidth) {
+	refreshAddText(newWidth);
 	_close->moveToRight(0, 0, newWidth);
 	const auto narrow = (newWidth < _close->width() * 2);
 	if (_narrow != narrow) {
