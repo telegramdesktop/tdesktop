@@ -1895,6 +1895,9 @@ bool PeerData::canManageRanks() const {
 		return chat->amCreator()
 			|| (chat->adminRights() & ChatAdminRight::ManageRanks);
 	} else if (const auto channel = asChannel()) {
+		if (channel->isCommunity()) {
+			return false;
+		}
 		return channel->amCreator()
 			|| (channel->adminRights() & ChatAdminRight::ManageRanks);
 	}

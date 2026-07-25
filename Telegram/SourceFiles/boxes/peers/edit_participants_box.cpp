@@ -55,6 +55,11 @@ constexpr auto kParticipantsFirstPageCount = 16;
 constexpr auto kParticipantsPerPage = 200;
 constexpr auto kSortByOnlineDelay = crl::time(1000);
 
+[[nodiscard]] bool SupportsMemberTags(not_null<PeerData*> peer) {
+	const auto channel = peer->asChannel();
+	return !channel || (!channel->isBroadcast() && !channel->isCommunity());
+}
+
 void RemoveAdmin(
 		std::shared_ptr<Ui::Show> show,
 		not_null<ChannelData*> channel,
@@ -2008,7 +2013,7 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 				? &st::menuIconProfile
 				: &st::menuIconInfo));
 	}
-	if (user && !_peer->isBroadcast()) {
+	if (user && SupportsMemberTags(_peer)) {
 		const auto isSelf = user->isSelf();
 		const auto canEditSelf = isSelf
 			&& !_peer->amRestricted(ChatRestriction::EditRank);
@@ -2515,7 +2520,7 @@ auto ParticipantsBoxController::computeType(
 	} break;
 	}
 
-	if (user && !_peer->isBroadcast()) {
+	if (user && SupportsMemberTags(_peer)) {
 		const auto isSelf = user->isSelf();
 		const auto canEditSelf = isSelf
 			&& !_peer->amRestricted(ChatRestriction::EditRank);
