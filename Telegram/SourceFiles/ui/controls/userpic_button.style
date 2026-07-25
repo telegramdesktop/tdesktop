@@ -1,0 +1,55 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/widgets/widgets.style";
+
+UserpicButton {
+	size: size;
+	photoSize: pixels;
+	photoPosition: point;
+	changeButton: RoundButton;
+	changeIcon: icon;
+	changeIconPosition: point;
+	duration: int;
+	uploadHeight: pixels;
+	uploadBg: color;
+	uploadIcon: icon;
+	uploadIconPosition: point;
+	uploadProgressLine: pixels;
+	uploadProgressMargin: pixels;
+}
+
+defaultChangeUserpicIcon: icon {{ "new_chat_photo", activeButtonFg }};
+defaultUploadUserpicIcon: icon {{ "upload_chat_photo", msgDateImgFg }};
+defaultUserpicButton: UserpicButton {
+	size: size(72px, 72px);
+	photoSize: 72px;
+	photoPosition: point(-1px, -1px);
+	changeButton: defaultActiveButton;
+	changeIcon: defaultChangeUserpicIcon;
+	changeIconPosition: point(21px, 23px);
+	duration: 500;
+	uploadHeight: 24px;
+	uploadBg: msgDateImgBgOver;
+	uploadIcon: defaultUploadUserpicIcon;
+	uploadIconPosition: point(-1px, 1px);
+	uploadProgressLine: 3px;
+	uploadProgressMargin: 8px;
+}
+uploadUserpicSize: 32px;
+uploadUserpicButton: UserpicButton(defaultUserpicButton) {
+	size: size(uploadUserpicSize, uploadUserpicSize);
+	photoSize: uploadUserpicSize;
+	changeIcon: icon {{ "settings/photo", activeButtonFg }};
+	changeIconPosition: point(4px, 4px);
+}
+uploadUserpicButtonBorder: 2px;
+userpicUploadCancel: icon {{ "history_file_cancel", historyFileThumbIconFg }};
+restoreUserpicIcon: UserpicButton(defaultUserpicButton) {
+	size: size(22px, 22px);
+	photoSize: 22px;
+}

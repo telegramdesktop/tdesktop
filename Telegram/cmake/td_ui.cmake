@@ -18,7 +18,9 @@ set(style_files
     ui/chat/chat.style
     ui/effects/credits.style
     ui/effects/premium.style
+    ui/effects/premium_limits.style
     ui/color_indices.style
+    ui/controls/userpic_button.style
     boxes/boxes.style
     boxes/polls.style
     dialogs/dialogs.style

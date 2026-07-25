@@ -11,6 +11,7 @@ using "boxes/boxes.style";
 using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
 using "ui/menu_icons.style";
+using "ui/effects/premium_limits.style";
 using "ui/effects/premium.style";
 
 GroupCallUserpics {

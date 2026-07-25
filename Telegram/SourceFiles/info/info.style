@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 
 using "boxes/boxes.style";
+using "ui/controls/userpic_button.style";
 using "ui/widgets/widgets.style";
 using "ui/chat/chat.style"; // GroupCallUserpics.
 using "dialogs/dialogs.style"; // dialogsDateFont.
