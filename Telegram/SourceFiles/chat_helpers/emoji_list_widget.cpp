@@ -1481,23 +1481,26 @@ void EmojiListWidget::setMarkedCustomIds(base::flat_set<DocumentId> ids) {
 }
 
 void EmojiListWidget::repaintCustom(uint64 setId) {
-	if (!_repaintsScheduled.emplace(setId).second) {
+	if (_repaintsScheduled.contains(setId)) {
 		return;
 	}
-	const auto repaintSearch = (setId == SearchEmojiSectionSetId());
+	auto scheduled = false;
 	if (_searchMode) {
-		if (repaintSearch) {
+		if (setId == SearchEmojiSectionSetId()) {
+			scheduled = true;
 			update();
 		} else {
 			for (auto i = 0, count = int(_searchShortcutSets.size());
 					i != count; ++i) {
 				if (_searchShortcutSets[i].id == setId) {
+					scheduled = true;
 					rtlupdate(searchShortcutRect(i));
 				}
 			}
 			enumerateSections([&](const SectionInfo &info) {
 				if (info.section > 0
 					&& searchSetBySection(info.section).id == setId) {
+					scheduled = true;
 					update(
 						0,
 						info.rowsTop,
@@ -1507,24 +1510,28 @@ void EmojiListWidget::repaintCustom(uint64 setId) {
 				return true;
 			});
 		}
-		return;
+	} else {
+		const auto repaintRecent = (setId == RecentEmojiSectionSetId());
+		enumerateSections([&](const SectionInfo &info) {
+			const auto repaint1 = repaintRecent
+				&& (info.section == int(Section::Recent));
+			const auto repaint2 = !repaint1
+				&& (info.section >= _staticCount)
+				&& (setId == _custom[info.section - _staticCount].id);
+			if (repaint1 || repaint2) {
+				scheduled = true;
+				update(
+					0,
+					info.rowsTop,
+					width(),
+					info.rowsBottom - info.rowsTop);
+			}
+			return true;
+		});
 	}
-	const auto repaintRecent = (setId == RecentEmojiSectionSetId());
-	enumerateSections([&](const SectionInfo &info) {
-		const auto repaint1 = repaintRecent
-			&& (info.section == int(Section::Recent));
-		const auto repaint2 = !repaint1
-			&& (info.section >= _staticCount)
-			&& (setId == _custom[info.section - _staticCount].id);
-		if (repaint1 || repaint2) {
-			update(
-				0,
-				info.rowsTop,
-				width(),
-				info.rowsBottom - info.rowsTop);
-		}
-		return true;
-	});
+	if (scheduled) {
+		_repaintsScheduled.emplace(setId);
+	}
 }
 
 rpl::producer<EmojiChosen> EmojiListWidget::chosen() const {
