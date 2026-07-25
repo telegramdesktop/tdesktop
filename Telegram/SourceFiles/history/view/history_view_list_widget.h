@@ -983,6 +983,7 @@ private:
 	bool _touchScroll = false;
 	bool _touchSelect = false;
 	bool _touchInProgress = false;
+	bool _horizontalScrollLocked = false;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	rpl::variable<bool> _touchMaybeSelecting;
 	base::Timer _touchSelectTimer;
