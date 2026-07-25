@@ -484,6 +484,7 @@ private:
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomRecent(
 		EmojiStatusId id);
 	[[nodiscard]] Fn<void()> repaintCallback(
+		EmojiStatusId id,
 		DocumentId documentId,
 		uint64 setId);
 

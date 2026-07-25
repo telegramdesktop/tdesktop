@@ -140,6 +140,7 @@ private:
 
 struct EmojiListWidget::CustomEmojiInstance {
 	std::unique_ptr<Ui::Text::CustomEmoji> emoji;
+	uint64 setId = 0;
 	bool recentOnly = false;
 };
 
@@ -3568,7 +3569,7 @@ void EmojiListWidget::refreshCustom() {
 				continue;
 			} else if (const auto sticker = document->sticker()) {
 				set.push_back({
-					.custom = resolveCustomEmoji(id, document, lookupId),
+					.custom = resolveCustomEmoji(id, document, setId),
 					.document = document,
 					.emoji = Ui::Emoji::Find(sticker->alt),
 				});
@@ -3624,10 +3625,14 @@ void EmojiListWidget::refreshCustom() {
 }
 
 Fn<void()> EmojiListWidget::repaintCallback(
+		EmojiStatusId id,
 		DocumentId documentId,
 		uint64 setId) {
 	return [=] {
-		repaintCustom(setId);
+		const auto i = _customEmoji.find(id);
+		repaintCustom((i != end(_customEmoji) && !i->second.recentOnly)
+			? i->second.setId
+			: setId);
 		if (_recentCustomIds.contains(documentId)) {
 			repaintCustom(RecentEmojiSectionSetId());
 		}
@@ -3645,11 +3650,12 @@ not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
 	const auto i = _customEmoji.find(id);
 	const auto recentOnly = (i != end(_customEmoji)) && i->second.recentOnly;
 	if (i != end(_customEmoji) && !recentOnly) {
+		i->second.setId = setId;
 		return i->second.emoji.get();
 	}
 	auto instance = document->owner().customEmojiManager().create(
 		Data::EmojiStatusCustomId(id),
-		repaintCallback(documentId, setId),
+		repaintCallback(id, documentId, setId),
 		Data::CustomEmojiManager::SizeTag::Large);
 	if (recentOnly) {
 		for (auto &recent : _recent) {
@@ -3658,12 +3664,13 @@ not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
 			}
 		}
 		i->second.emoji = std::move(instance);
+		i->second.setId = setId;
 		i->second.recentOnly = false;
 		return i->second.emoji.get();
 	}
 	return _customEmoji.emplace(
 		id,
-		CustomEmojiInstance{ .emoji = std::move(instance) }
+		CustomEmojiInstance{ .emoji = std::move(instance), .setId = setId }
 	).first->second.emoji.get();
 }
 
@@ -3698,7 +3705,10 @@ not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomRecent(
 	const auto documentId = id.collectible
 		? id.collectible->documentId
 		: id.documentId;
-	auto repaint = repaintCallback(documentId, RecentEmojiSectionSetId());
+	auto repaint = repaintCallback(
+		id,
+		documentId,
+		RecentEmojiSectionSetId());
 	if (_customRecentFactory && !id.collectible) {
 		return _customRecent.emplace(
 			id.documentId,
@@ -3711,7 +3721,11 @@ not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomRecent(
 		Data::CustomEmojiManager::SizeTag::Large);
 	return _customEmoji.emplace(
 		id,
-		CustomEmojiInstance{ .emoji = std::move(custom), .recentOnly = true }
+		CustomEmojiInstance{
+			.emoji = std::move(custom),
+			.setId = RecentEmojiSectionSetId(),
+			.recentOnly = true,
+		}
 	).first->second.emoji.get();
 }
 
