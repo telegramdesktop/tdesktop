@@ -7799,6 +7799,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_corners_small" = "Small";
 "lng_photo_editor_corners_none" = "None";
 
+"lng_photo_editor_shape_circle" = "Circle";
+"lng_photo_editor_shape_rectangle" = "Rectangle";
+"lng_photo_editor_shape_star" = "Star";
+"lng_photo_editor_shape_bubble" = "Bubble";
+"lng_photo_editor_shape_arrow" = "Arrow";
+"lng_photo_editor_shape_filled" = "Filled";
+
 "lng_voice_speed_slow" = "Slow";
 "lng_voice_speed_normal" = "Normal";
 "lng_voice_speed_medium" = "Medium";

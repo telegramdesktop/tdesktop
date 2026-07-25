@@ -122,10 +122,17 @@ void ItemBase::paint(
 	p->setPen(hasFocus ? _pens.select : _pens.selectInactive);
 	p->drawRect(innerRect());
 
+	paintHandle(p, rightHandleRect(), hasFocus);
+	paintHandle(p, leftHandleRect(), hasFocus);
+}
+
+void ItemBase::paintHandle(
+		QPainter *p,
+		const QRectF &rect,
+		bool hasFocus) const {
 	p->setPen(hasFocus ? _pens.handle : _pens.handleInactive);
 	p->setBrush(st::photoEditorItemBaseHandleFg);
-	p->drawEllipse(rightHandleRect());
-	p->drawEllipse(leftHandleRect());
+	p->drawEllipse(rect);
 }
 
 void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
@@ -162,7 +169,10 @@ void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void ItemBase::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
-	setCursor(isHandling()
+	const auto owner = static_cast<Scene*>(scene());
+	setCursor((owner && owner->hasPendingShape())
+		? Qt::CrossCursor
+		: isHandling()
 		? Qt::ClosedHandCursor
 		: (handleType(event->pos()) != HandleType::None) && isSelected()
 		? Qt::OpenHandCursor
@@ -323,13 +333,31 @@ float64 ItemBase::size() const {
 	return _horizontalSize;
 }
 
+float64 ItemBase::horizontalSize() const {
+	return _horizontalSize;
+}
+
+float64 ItemBase::verticalSize() const {
+	return _verticalSize;
+}
+
+float64 ItemBase::verticalMinimum() const {
+	return _verticalMinimumEnabled ? float64(_sizeLimits.min) : 1.;
+}
+
 void ItemBase::updateVerticalSize() {
 	const auto verticalSize = _horizontalSize * _aspectRatio;
-	_verticalSize = std::max(
-		verticalSize,
-		float64(_sizeLimits.min));
-	if (verticalSize < _sizeLimits.min) {
+	const auto minimum = verticalMinimum();
+	_verticalSize = std::max(verticalSize, minimum);
+	if (verticalSize < minimum) {
 		_horizontalSize = _verticalSize / _aspectRatio;
+	}
+}
+
+void ItemBase::setVerticalMinimumEnabled(bool enabled) {
+	if (_verticalMinimumEnabled != enabled) {
+		_verticalMinimumEnabled = enabled;
+		updateVerticalSize();
 	}
 }
 
@@ -337,6 +365,31 @@ void ItemBase::setAspectRatio(float64 aspectRatio) {
 	prepareGeometryChange();
 	_aspectRatio = aspectRatio;
 	updateVerticalSize();
+}
+
+void ItemBase::applyStretch(
+		float64 horizontal,
+		float64 vertical,
+		bool allowBelowMinimum) {
+	prepareGeometryChange();
+	_horizontalSize = std::clamp(
+		horizontal,
+		allowBelowMinimum ? 1. : float64(_sizeLimits.min),
+		float64(_sizeLimits.max));
+	_verticalSize = std::clamp(
+		vertical,
+		allowBelowMinimum ? 1. : verticalMinimum(),
+		float64(_sizeLimits.max));
+	_aspectRatio = _verticalSize / _horizontalSize;
+}
+
+bool ItemBase::fitsMinimumSize() const {
+	return (_horizontalSize >= _sizeLimits.min)
+		&& (_verticalSize >= verticalMinimum());
+}
+
+float64 ItemBase::scaledHandleSize() const {
+	return _scaledHandleSize;
 }
 
 ItemBase::HandleType ItemBase::handleType(const QPointF &pos) const {

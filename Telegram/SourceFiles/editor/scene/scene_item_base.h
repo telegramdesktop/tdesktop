@@ -108,6 +108,15 @@ protected:
 	float64 horizontalSize() const;
 	float64 verticalSize() const;
 	void setAspectRatio(float64 aspectRatio);
+	void applyStretch(
+		float64 horizontal,
+		float64 vertical,
+		bool allowBelowMinimum = false);
+	[[nodiscard]] bool fitsMinimumSize() const;
+	void setVerticalMinimumEnabled(bool enabled);
+	[[nodiscard]] bool isHandling() const;
+	[[nodiscard]] float64 scaledHandleSize() const;
+	void paintHandle(QPainter *p, const QRectF &rect, bool hasFocus) const;
 
 	virtual void performFlip();
 	virtual std::shared_ptr<ItemBase> duplicate(Data data) const = 0;
@@ -115,7 +124,7 @@ private:
 	HandleType handleType(const QPointF &pos) const;
 	QRectF rightHandleRect() const;
 	QRectF leftHandleRect() const;
-	bool isHandling() const;
+	[[nodiscard]] float64 verticalMinimum() const;
 	void updateVerticalSize();
 	void updatePens(QPen pen);
 	void handleActionKey(not_null<QKeyEvent*> e);
@@ -154,6 +163,7 @@ private:
 	HandleType _handle = HandleType::None;
 
 	bool _flipped = false;
+	bool _verticalMinimumEnabled = true;
 
 };
 

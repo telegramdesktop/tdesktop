@@ -22,6 +22,7 @@ class RpWidget;
 namespace Editor {
 
 class ItemCanvas;
+class ItemShape;
 class ItemText;
 class NumberedItem;
 
@@ -29,11 +30,26 @@ class Scene final : public QGraphicsScene {
 public:
 	using ItemPtr = std::shared_ptr<NumberedItem>;
 
+	struct PendingShape {
+		ShapeType shape = ShapeType::Circle;
+		QColor color;
+		float64 strokeWidth = 1.;
+		int defaultSize = 0;
+		bool fill = false;
+		int rotation = 0;
+		bool flipped = false;
+	};
+
 	Scene(const QRectF &rect);
 	~Scene();
 	void applyBrush(const QColor &color, float64 size, Brush::Tool tool);
 	void setBlurSource(Fn<QImage(QRect)> source);
 	void setTextDefaults(const QColor &color, float64 fontSize, int style);
+
+	void setPendingShape(std::optional<PendingShape> pending);
+	void updatePendingShapeBrush(const QColor &color, float64 strokeWidth);
+	[[nodiscard]] bool hasPendingShape() const;
+	[[nodiscard]] rpl::producer<bool> pendingShapeStates() const;
 
 	[[nodiscard]] std::vector<ItemPtr> items(
 		Qt::SortOrder order = Qt::DescendingOrder) const;
@@ -54,11 +70,14 @@ public:
 	void createTextAtCenter(int rotation);
 	void setTextColor(const QColor &color);
 	void setSelectedTextColor(const QColor &color);
+	void setSelectedShapeBrush(const QColor &color, float64 strokeWidth);
 
 	[[nodiscard]] rpl::producer<QColor> textColorRequests() const;
 	[[nodiscard]] rpl::producer<QColor> textItemSelections() const;
 	[[nodiscard]] rpl::producer<> textItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> textEditStates() const;
+	[[nodiscard]] rpl::producer<QColor> shapeItemSelections() const;
+	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
 
 	[[nodiscard]] bool hasUndo() const;
 	[[nodiscard]] bool hasRedo() const;
@@ -76,6 +95,15 @@ protected:
 	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 private:
 	void removeIf(Fn<bool(const ItemPtr &)> proj);
+	void startShapeDrawing(const QPointF &position);
+	void updateShapeDrawing(
+		const QPointF &position,
+		Qt::KeyboardModifiers modifiers);
+	void applyDraftFrame(float64 width, float64 height);
+	void finishShapeDrawing(bool apply);
+	[[nodiscard]] std::shared_ptr<ItemShape> createShape(
+		int size,
+		const QPointF &center) const;
 	void finishTextEditing(bool save, bool notify = true);
 	void setTextEditing(bool editing, bool notify = true);
 	void setupTextProxy(
@@ -104,12 +132,25 @@ private:
 		base::unique_qptr<QGraphicsTextItem> proxy;
 	} _textEdit;
 
+	struct {
+		std::optional<PendingShape> pending;
+		std::shared_ptr<ItemShape> item;
+		QPointF start;
+		bool dragging = false;
+		bool moved = false;
+		bool fits = false;
+	} _shapeTool;
+
 	rpl::event_stream<> _addsItem, _removesItem;
 	rpl::event_stream<QColor> _textColorRequests;
 	rpl::event_stream<QColor> _textItemSelections;
 	rpl::event_stream<> _textItemDeselections;
 	rpl::event_stream<bool> _textEditStates;
+	rpl::event_stream<QColor> _shapeItemSelections;
+	rpl::event_stream<> _shapeItemDeselections;
+	rpl::event_stream<bool> _pendingShapeStates;
 	ItemText *_selectedTextItem = nullptr;
+	ItemShape *_selectedShapeItem = nullptr;
 	bool _textEditing = false;
 	int _textEditGeneration = 0;
 	rpl::lifetime _lifetime;

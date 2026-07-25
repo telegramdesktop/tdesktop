@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
+#include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene.h"
@@ -34,6 +35,17 @@ namespace {
 
 constexpr auto kMaxBrush = 25.;
 constexpr auto kMinBrush = 1.;
+constexpr auto kShapeSizeRatio = 2. / 5.;
+
+[[nodiscard]] float64 BrushSize(const Brush &brush) {
+	return kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio;
+}
+
+[[nodiscard]] int DefaultShapeSize(const QSize &imageSize) {
+	return int(std::min(imageSize.width(), imageSize.height())
+		* kShapeSizeRatio);
+}
+
 constexpr auto kMinCanvasZoom = 1.;
 constexpr auto kMaxCanvasZoom = 8.;
 constexpr auto kCanvasZoomStep = 1.15;
@@ -148,6 +160,7 @@ Paint::Paint(
 
 		controllers->stickersPanelController->stickerChosen(
 		) | rpl::on_next([=](not_null<DocumentData*> document) {
+			disarmShapeTool();
 			const auto item = std::make_shared<ItemSticker>(
 				document,
 				itemBaseData());
@@ -155,6 +168,17 @@ Paint::Paint(
 			_scene->clearSelection();
 		}, lifetime());
 	}
+
+	_scene->pendingShapeStates(
+	) | rpl::on_next([=](bool armed) {
+		if (!_viewport) {
+			return;
+		} else if (armed) {
+			_viewport->setCursor(Qt::CrossCursor);
+		} else {
+			_viewport->unsetCursor();
+		}
+	}, lifetime());
 
 	rpl::merge(
 		controllers->stickersPanelController
@@ -312,6 +336,7 @@ QPointF Paint::mapWidgetDeltaToScene(QPoint delta) const {
 }
 
 Paint::~Paint() {
+	_scene->setPendingShape(std::nullopt);
 	_scene->cancelTextEditing();
 	if (_viewport) {
 		_viewport->removeEventFilter(this);
@@ -403,12 +428,59 @@ void Paint::updateUndoState() {
 void Paint::applyBrush(const Brush &brush) {
 	_scene->applyBrush(
 		brush.color,
-		(kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio),
+		BrushSize(brush),
 		brush.tool);
+	_scene->updatePendingShapeBrush(brush.color, BrushSize(brush));
+}
+
+void Paint::applyBrushToSelectedShape(const Brush &brush) {
+	_scene->setSelectedShapeBrush(brush.color, BrushSize(brush));
 }
 
 void Paint::createTextItem() {
+	disarmShapeTool();
 	_scene->createTextAtCenter(-_transform.angle);
+}
+
+void Paint::createShapeItem(ShapeType shape, const Brush &brush, bool fill) {
+	disarmShapeTool();
+	auto data = itemBaseData();
+	data.size = DefaultShapeSize(_imageSize);
+	const auto item = std::make_shared<ItemShape>(
+		shape,
+		brush.color,
+		BrushSize(brush),
+		fill,
+		std::move(data));
+	_scene->addItem(item);
+	_scene->clearSelection();
+	item->setSelected(true);
+	item->setFocus();
+	_view->setFocus();
+}
+
+void Paint::armShapeTool(ShapeType shape, const Brush &brush, bool fill) {
+	_scene->setPendingShape(Scene::PendingShape{
+		.shape = shape,
+		.color = brush.color,
+		.strokeWidth = BrushSize(brush),
+		.defaultSize = DefaultShapeSize(_imageSize),
+		.fill = fill,
+		.rotation = -_transform.angle,
+		.flipped = _transform.flipped,
+	});
+}
+
+void Paint::disarmShapeTool() {
+	_scene->setPendingShape(std::nullopt);
+}
+
+bool Paint::handleKeyPress(not_null<QKeyEvent*> e) {
+	if ((e->key() == Qt::Key_Escape) && _scene->hasPendingShape()) {
+		disarmShapeTool();
+		return true;
+	}
+	return false;
 }
 
 void Paint::clearSelection() {
@@ -437,6 +509,18 @@ rpl::producer<> Paint::textItemDeselections() const {
 
 rpl::producer<bool> Paint::textEditStates() const {
 	return _scene->textEditStates();
+}
+
+rpl::producer<QColor> Paint::shapeItemSelections() const {
+	return _scene->shapeItemSelections();
+}
+
+rpl::producer<> Paint::shapeItemDeselections() const {
+	return _scene->shapeItemDeselections();
+}
+
+rpl::producer<bool> Paint::shapeToolStates() const {
+	return _scene->pendingShapeStates();
 }
 
 void Paint::handleMimeData(const QMimeData *data) {

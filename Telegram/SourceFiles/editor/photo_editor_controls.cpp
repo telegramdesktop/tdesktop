@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/fade_wrap.h"
@@ -21,8 +22,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 
 #include <QRegion>
+#include <QtGui/QGuiApplication>
 
 namespace Editor {
+namespace {
+
+[[nodiscard]] bool AnyModifierPressed() {
+	return QGuiApplication::keyboardModifiers()
+		& (Qt::ShiftModifier
+			| Qt::ControlModifier
+			| Qt::AltModifier
+			| Qt::MetaModifier);
+}
+
+} // namespace
 
 class EdgeButton final : public Ui::RippleButton {
 public:
@@ -240,7 +253,8 @@ PhotoEditorControls::PhotoEditorControls(
 	std::shared_ptr<Controllers> controllers,
 	const PhotoModifications modifications,
 	const EditorData &data,
-	const QSize &imageSize)
+	const QSize &imageSize,
+	bool shapesFilled)
 : RpWidget(parent)
 , _imageSize(imageSize)
 , _bg(st::roundedBg)
@@ -311,6 +325,9 @@ PhotoEditorControls::PhotoEditorControls(
 			st::photoEditorStickersButton)
 		: nullptr)
 , _textButton(base::make_unique_q<TextToolButton>(_paintBottomButtons))
+, _shapesButton(base::make_unique_q<Ui::IconButton>(
+	_paintBottomButtons,
+	st::photoEditorShapesButton))
 , _paintDone(base::make_unique_q<EdgeButton>(
 	_paintBottomButtons,
 	tr::lng_box_done(tr::now),
@@ -318,6 +335,15 @@ PhotoEditorControls::PhotoEditorControls(
 	st::photoEditorEdgeButtonBg,
 	st::mediaviewTextLinkFg,
 	st::photoEditorRotateButton.ripple)) {
+
+	_shapesFilled = shapesFilled;
+	_shapesButton->setClickedCallback([=] {
+		if (_shapeToolActive) {
+			_shapeRequests.fire({ .action = ShapeRequest::Action::Cancel });
+		} else {
+			showShapesMenu();
+		}
+	});
 
 	{
 		const auto icon = &st::photoEditorPaintIconActive;
@@ -604,6 +630,114 @@ rpl::producer<> PhotoEditorControls::paintModeRequests() const {
 
 rpl::producer<> PhotoEditorControls::textRequests() const {
 	return _textButton->clicks() | rpl::to_empty;
+}
+
+rpl::producer<ShapeRequest> PhotoEditorControls::shapeRequests() const {
+	return _shapeRequests.events();
+}
+
+void PhotoEditorControls::setShapeToolActive(bool active) {
+	if (_shapeToolActive == active) {
+		return;
+	}
+	_shapeToolActive = active;
+	const auto icon = active ? &st::photoEditorShapesIconActive : nullptr;
+	_shapesButton->setIconOverride(icon, icon);
+}
+
+rpl::producer<bool> PhotoEditorControls::shapesFillChanges() const {
+	return _shapesFillChanges.events();
+}
+
+void PhotoEditorControls::showShapesMenu() {
+	_shapesMenu = base::make_unique_q<Ui::PopupMenu>(
+		_shapesButton.get(),
+		st::photoEditorCropRatioMenu);
+	_shapesMenu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomRight);
+	const auto menu = _shapesMenu.get();
+
+	struct Entry {
+		Ui::Menu::Action *item = nullptr;
+		const style::icon *outline = nullptr;
+		const style::icon *fill = nullptr;
+	};
+	const auto entries = menu->lifetime().make_state<std::vector<Entry>>();
+	const auto add = [&](
+			const QString &text,
+			ShapeType shape,
+			const style::icon *outline,
+			const style::icon *fill) {
+		const auto icon = _shapesFilled ? fill : outline;
+		auto item = base::make_unique_q<Ui::Menu::Action>(
+			menu->menu(),
+			menu->st().menu,
+			new QAction(text, menu),
+			icon,
+			icon);
+		item->setActionTriggered([=] {
+			_shapeRequests.fire({
+				.shape = shape,
+				.action = AnyModifierPressed()
+					? ShapeRequest::Action::Immediate
+					: ShapeRequest::Action::Arm,
+			});
+		});
+		entries->push_back({ item.get(), outline, fill });
+		menu->addAction(std::move(item));
+	};
+	add(
+		tr::lng_photo_editor_shape_circle(tr::now),
+		ShapeType::Circle,
+		&st::photoEditorShapeCircle,
+		&st::photoEditorShapeCircleFill);
+	add(
+		tr::lng_photo_editor_shape_rectangle(tr::now),
+		ShapeType::Rectangle,
+		&st::photoEditorShapeRectangle,
+		&st::photoEditorShapeRectangleFill);
+	add(
+		tr::lng_photo_editor_shape_star(tr::now),
+		ShapeType::Star,
+		&st::photoEditorShapeStar,
+		&st::photoEditorShapeStarFill);
+	add(
+		tr::lng_photo_editor_shape_bubble(tr::now),
+		ShapeType::Bubble,
+		&st::photoEditorShapeBubble,
+		&st::photoEditorShapeBubbleFill);
+	add(
+		tr::lng_photo_editor_shape_arrow(tr::now),
+		ShapeType::Arrow,
+		&st::photoEditorShapeArrow,
+		&st::photoEditorShapeArrow);
+	menu->addSeparator();
+
+	auto filled = base::make_unique_q<Ui::Menu::Action>(
+		menu->menu(),
+		menu->st().menu,
+		new QAction(tr::lng_photo_editor_shape_filled(tr::now), menu),
+		_shapesFilled ? &st::mediaPlayerMenuCheck : nullptr,
+		_shapesFilled ? &st::mediaPlayerMenuCheck : nullptr);
+	const auto filledRaw = filled.get();
+	filled->setActionTriggered([=] {
+		_shapesFilled = !_shapesFilled;
+		_shapesFillChanges.fire_copy(_shapesFilled);
+		const auto check = _shapesFilled
+			? &st::mediaPlayerMenuCheck
+			: nullptr;
+		filledRaw->setIcon(check, check);
+		for (const auto &entry : *entries) {
+			const auto icon = _shapesFilled ? entry.fill : entry.outline;
+			entry.item->setIcon(icon, icon);
+		}
+	});
+	filled->setPreventClose(true);
+	menu->addAction(std::move(filled));
+
+	const auto button = _shapesButton.get();
+	const auto bottomRight = button->mapToGlobal(
+		QPoint(button->width(), 0));
+	menu->popup(bottomRight);
 }
 
 rpl::producer<> PhotoEditorControls::doneRequests() const {

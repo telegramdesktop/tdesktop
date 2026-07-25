@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_line.h"
+#include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_emoji_document.h"
@@ -112,6 +113,9 @@ constexpr auto kMaxWidthFactor = 0.8;
 constexpr auto kMinWidthFactor = 0.16;
 constexpr auto kIdealWidthExtra = 2;
 constexpr auto kScaleThreshold = 0.01;
+constexpr auto kShapeDragThreshold = 4.;
+constexpr auto kShapeSnapAngle = 45.;
+constexpr auto kDraftShapeOpacity = 0.5;
 
 class TextEditProxy final : public QGraphicsTextItem {
 public:
@@ -294,19 +298,29 @@ Scene::Scene(const QRectF &rect)
 		[=] {
 			const auto selected = selectedItems();
 			auto *textItem = (ItemText*)(nullptr);
-			if (selected.size() == 1
-				&& selected.front()->type() == ItemText::Type) {
-				textItem = static_cast<ItemText*>(selected.front());
+			auto *shapeItem = (ItemShape*)(nullptr);
+			if (selected.size() == 1) {
+				if (selected.front()->type() == ItemText::Type) {
+					textItem = static_cast<ItemText*>(selected.front());
+				} else if (selected.front()->type() == ItemShape::Type) {
+					shapeItem = static_cast<ItemShape*>(selected.front());
+				}
 			}
-			const auto changed = (textItem != _selectedTextItem);
-			if (!changed) {
-				return;
+			if (textItem != _selectedTextItem) {
+				_selectedTextItem = textItem;
+				if (textItem) {
+					_textItemSelections.fire_copy(textItem->color());
+				} else {
+					_textItemDeselections.fire({});
+				}
 			}
-			_selectedTextItem = textItem;
-			if (textItem) {
-				_textItemSelections.fire_copy(textItem->color());
-			} else {
-				_textItemDeselections.fire({});
+			if (shapeItem != _selectedShapeItem) {
+				_selectedShapeItem = shapeItem;
+				if (shapeItem) {
+					_shapeItemSelections.fire_copy(shapeItem->color());
+				} else {
+					_shapeItemDeselections.fire({});
+				}
 			}
 		});
 }
@@ -329,7 +343,9 @@ void Scene::addItem(ItemPtr item) {
 		return;
 	}
 	item->setNumber(_itemNumber++);
-	QGraphicsScene::addItem(item.get());
+	if (item->scene() != this) {
+		QGraphicsScene::addItem(item.get());
+	}
 	const auto raw = item.get();
 	_items.push_back(std::move(item));
 	_itemsByPointer.emplace(raw, _items.back());
@@ -352,6 +368,21 @@ void Scene::removeItem(const ItemPtr &item) {
 }
 
 void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+	if (_shapeTool.pending) {
+		if (event->button() == Qt::LeftButton) {
+			event->accept();
+			startShapeDrawing(event->scenePos());
+			return;
+		} else if (event->button() == Qt::RightButton) {
+			event->accept();
+			if (_shapeTool.dragging) {
+				finishShapeDrawing(false);
+			} else {
+				setPendingShape(std::nullopt);
+			}
+			return;
+		}
+	}
 	if (_textEdit.proxy) {
 		const auto clickOnProxy = _textEdit.proxy->contains(
 			_textEdit.proxy->mapFromScene(event->scenePos()));
@@ -370,6 +401,11 @@ void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+	if (_shapeTool.dragging && (event->button() == Qt::LeftButton)) {
+		event->accept();
+		finishShapeDrawing(true);
+		return;
+	}
 	QGraphicsScene::mouseReleaseEvent(event);
 	if (SkipMouseEvent(event) || _textEdit.proxy) {
 		return;
@@ -378,11 +414,182 @@ void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void Scene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+	if (_shapeTool.dragging) {
+		event->accept();
+		updateShapeDrawing(event->scenePos(), event->modifiers());
+		return;
+	}
 	QGraphicsScene::mouseMoveEvent(event);
 	if (SkipMouseEvent(event) || _textEdit.proxy) {
 		return;
 	}
 	_canvas->handleMouseMoveEvent(event);
+}
+
+void Scene::setPendingShape(std::optional<PendingShape> pending) {
+	if (!pending && !_shapeTool.pending) {
+		return;
+	}
+	if (_shapeTool.dragging) {
+		finishShapeDrawing(false);
+	}
+	const auto was = _shapeTool.pending.has_value();
+	_shapeTool.pending = std::move(pending);
+	const auto now = _shapeTool.pending.has_value();
+	if (now) {
+		if (_textEdit.proxy) {
+			finishTextEditing(true);
+		}
+		clearSelection();
+		clearFocus();
+	}
+	if (was != now) {
+		_pendingShapeStates.fire_copy(now);
+	}
+}
+
+void Scene::updatePendingShapeBrush(
+		const QColor &color,
+		float64 strokeWidth) {
+	if (!_shapeTool.pending) {
+		return;
+	}
+	_shapeTool.pending->color = color;
+	_shapeTool.pending->strokeWidth = strokeWidth;
+	if (const auto item = _shapeTool.item.get()) {
+		item->setColor(color);
+		item->setStrokeWidth(strokeWidth);
+	}
+}
+
+bool Scene::hasPendingShape() const {
+	return _shapeTool.pending.has_value();
+}
+
+rpl::producer<bool> Scene::pendingShapeStates() const {
+	return _pendingShapeStates.events();
+}
+
+std::shared_ptr<ItemShape> Scene::createShape(
+		int size,
+		const QPointF &center) const {
+	const auto &pending = *_shapeTool.pending;
+	auto data = ItemBase::Data{
+		.initialZoom = (_currentZoom > 0.) ? _currentZoom : 1.,
+		.zPtr = _lastZ,
+		.size = size,
+		.x = int(center.x()),
+		.y = int(center.y()),
+		.flipped = pending.flipped,
+		.rotation = pending.rotation,
+		.imageSize = sceneRect().size().toSize(),
+	};
+	return std::make_shared<ItemShape>(
+		pending.shape,
+		pending.color,
+		pending.strokeWidth,
+		pending.fill,
+		std::move(data));
+}
+
+void Scene::startShapeDrawing(const QPointF &position) {
+	if (_shapeTool.item) {
+		finishShapeDrawing(false);
+	}
+	clearSelection();
+	cancelDrawing();
+
+	_shapeTool.start = position;
+	_shapeTool.dragging = true;
+	_shapeTool.moved = false;
+	_shapeTool.fits = false;
+	_shapeTool.item = createShape(0, position);
+	_shapeTool.item->setVisible(false);
+	QGraphicsScene::addItem(_shapeTool.item.get());
+}
+
+void Scene::updateShapeDrawing(
+		const QPointF &position,
+		Qt::KeyboardModifiers modifiers) {
+	const auto item = _shapeTool.item.get();
+	if (!item || !_shapeTool.pending) {
+		return;
+	}
+	const auto delta = position - _shapeTool.start;
+	const auto length = std::hypot(delta.x(), delta.y());
+	if (!_shapeTool.moved) {
+		const auto zoom = (_currentZoom > 0.) ? _currentZoom : 1.;
+		if (length * zoom < kShapeDragThreshold) {
+			return;
+		}
+		_shapeTool.moved = true;
+		item->setVisible(true);
+		item->setSelected(true);
+	}
+	const auto &pending = *_shapeTool.pending;
+	const auto radians = pending.rotation * M_PI / 180.;
+	const auto cosine = std::cos(radians);
+	const auto sine = std::sin(radians);
+	auto width = delta.x() * cosine + delta.y() * sine;
+	auto height = delta.y() * cosine - delta.x() * sine;
+	const auto shift = modifiers.testFlag(Qt::ShiftModifier);
+	if (pending.shape == ShapeType::Arrow) {
+		const auto mirror = pending.flipped ? -1. : 1.;
+		const auto degrees = mirror
+			* std::atan2(height, mirror * width)
+			* 180.
+			/ M_PI;
+		item->setRotation(pending.rotation + (shift
+			? (base::SafeRound(degrees / kShapeSnapAngle) * kShapeSnapAngle)
+			: degrees));
+		item->setPos(_shapeTool.start + delta / 2.);
+		applyDraftFrame(length, 0.);
+		return;
+	}
+	if (shift) {
+		const auto aspectRatio = item->defaultAspectRatio();
+		const auto side = std::max(
+			std::abs(width),
+			std::abs(height) / aspectRatio);
+		width = (width < 0.) ? -side : side;
+		height = ((height < 0.) ? -side : side) * aspectRatio;
+	}
+	item->setPos(_shapeTool.start
+		+ QPointF(cosine, sine) * (width / 2.)
+		+ QPointF(-sine, cosine) * (height / 2.));
+	applyDraftFrame(std::abs(width), std::abs(height));
+}
+
+void Scene::applyDraftFrame(float64 width, float64 height) {
+	const auto item = _shapeTool.item.get();
+	_shapeTool.fits = item->applyDraftFrame(width, height);
+	item->setOpacity(_shapeTool.fits ? 1. : kDraftShapeOpacity);
+}
+
+void Scene::finishShapeDrawing(bool apply) {
+	auto item = base::take(_shapeTool.item);
+	const auto moved = base::take(_shapeTool.moved);
+	const auto fits = base::take(_shapeTool.fits);
+	_shapeTool.dragging = false;
+	if (!item) {
+		return;
+	}
+	if (!apply || (moved && !fits)) {
+		item->setSelected(false);
+		QGraphicsScene::removeItem(item.get());
+		return;
+	}
+	if (!moved) {
+		const auto size = _shapeTool.pending
+			? _shapeTool.pending->defaultSize
+			: 0;
+		item->applyFrame(size, size * item->defaultAspectRatio());
+		item->setVisible(true);
+		item->setSelected(true);
+	}
+	addItem(item);
+	item->setFocus();
+	setPendingShape(std::nullopt);
 }
 
 void Scene::applyBrush(const QColor &color, float64 size, Brush::Tool tool) {
@@ -415,6 +622,18 @@ void Scene::setSelectedTextColor(const QColor &color) {
 	}
 }
 
+void Scene::setSelectedShapeBrush(
+		const QColor &color,
+		float64 strokeWidth) {
+	for (auto *item : selectedItems()) {
+		if (item->type() == ItemShape::Type) {
+			const auto shape = static_cast<ItemShape*>(item);
+			shape->setColor(color);
+			shape->setStrokeWidth(strokeWidth);
+		}
+	}
+}
+
 rpl::producer<QColor> Scene::textColorRequests() const {
 	return _textColorRequests.events();
 }
@@ -429,6 +648,14 @@ rpl::producer<> Scene::textItemDeselections() const {
 
 rpl::producer<bool> Scene::textEditStates() const {
 	return _textEditStates.events();
+}
+
+rpl::producer<QColor> Scene::shapeItemSelections() const {
+	return _shapeItemSelections.events();
+}
+
+rpl::producer<> Scene::shapeItemDeselections() const {
+	return _shapeItemDeselections.events();
 }
 
 void Scene::setBlurSource(Fn<QImage(QRect)> source) {
@@ -833,6 +1060,9 @@ void Scene::finishTextEditing(bool save, bool notify) {
 Scene::~Scene() {
 	disconnect(this, &QGraphicsScene::selectionChanged, nullptr, nullptr);
 	cancelTextEditing();
+	if (const auto pending = base::take(_shapeTool.item)) {
+		QGraphicsScene::removeItem(pending.get());
+	}
 	QGraphicsScene::removeItem(_canvas.get());
 	for (const auto &item : items()) {
 		QGraphicsScene::removeItem(item.get());

@@ -186,6 +186,8 @@ PRIVATE
     editor/scene/scene_item_image.h
     editor/scene/scene_item_line.cpp
     editor/scene/scene_item_line.h
+    editor/scene/scene_item_shape.cpp
+    editor/scene/scene_item_shape.h
     editor/scene/scene_item_text.cpp
     editor/scene/scene_item_text.h
     editor/scene/scene_emoji_document.cpp

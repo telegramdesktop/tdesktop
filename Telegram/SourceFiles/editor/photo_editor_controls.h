@@ -37,12 +37,15 @@ public:
 		std::shared_ptr<Controllers> controllers,
 		const PhotoModifications modifications,
 		const EditorData &data,
-		const QSize &imageSize);
+		const QSize &imageSize,
+		bool shapesFilled);
 
 	[[nodiscard]] rpl::producer<int> rotateRequests() const;
 	[[nodiscard]] rpl::producer<> flipRequests() const;
 	[[nodiscard]] rpl::producer<> paintModeRequests() const;
 	[[nodiscard]] rpl::producer<> textRequests() const;
+	[[nodiscard]] rpl::producer<ShapeRequest> shapeRequests() const;
+	[[nodiscard]] rpl::producer<bool> shapesFillChanges() const;
 	[[nodiscard]] rpl::producer<> doneRequests() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<QPoint> colorLinePositionValue() const;
@@ -56,11 +59,13 @@ public:
 	bool handleKeyPress(not_null<QKeyEvent*> e) const;
 
 	void applyMode(const PhotoEditorMode &mode);
+	void setShapeToolActive(bool active);
 
 private:
 	void showAnimated(
 		PhotoEditorMode::Mode mode,
 		anim::type animated = anim::type::normal);
+	void showShapesMenu();
 	void updateInputMask();
 
 	int bottomButtonsTop() const;
@@ -88,14 +93,18 @@ private:
 	const base::unique_qptr<Ui::IconButton> _paintModeButtonActive;
 	const base::unique_qptr<Ui::IconButton> _stickersButton;
 	const base::unique_qptr<Ui::AbstractButton> _textButton;
+	const base::unique_qptr<Ui::IconButton> _shapesButton;
 	const base::unique_qptr<EdgeButton> _paintDone;
 
 	base::unique_qptr<Ui::PopupMenu> _ratioMenu;
 	base::unique_qptr<Ui::PopupMenu> _cornersMenu;
+	base::unique_qptr<Ui::PopupMenu> _shapesMenu;
 	float64 _currentRatio = 0.;
 	RoundedCornersLevel _currentCornersLevel = RoundedCornersLevel::Large;
 
 	bool _flipped = false;
+	bool _shapesFilled = false;
+	bool _shapeToolActive = false;
 
 	Ui::Animations::Simple _toggledBarAnimation;
 
@@ -103,6 +112,8 @@ private:
 	rpl::event_stream<not_null<QKeyEvent*>> _keyPresses;
 	rpl::event_stream<float64> _aspectRatioChanges;
 	rpl::event_stream<RoundedCornersLevel> _cornersLevelChanges;
+	rpl::event_stream<ShapeRequest> _shapeRequests;
+	rpl::event_stream<bool> _shapesFillChanges;
 
 };
 

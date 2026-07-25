@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QGraphicsItem;
 class QGraphicsView;
+class QKeyEvent;
 
 namespace Editor {
 
@@ -44,14 +45,23 @@ public:
 	void updateUndoState();
 
 	void createTextItem();
+	void createShapeItem(ShapeType shape, const Brush &brush, bool fill);
+	void armShapeTool(ShapeType shape, const Brush &brush, bool fill);
+	void disarmShapeTool();
 	void clearSelection();
 	void setTextColor(const QColor &color);
 	void setSelectedTextColor(const QColor &color);
+	void applyBrushToSelectedShape(const Brush &brush);
+
+	[[nodiscard]] bool handleKeyPress(not_null<QKeyEvent*> e);
 
 	[[nodiscard]] rpl::producer<QColor> textColorRequests() const;
 	[[nodiscard]] rpl::producer<QColor> textItemSelections() const;
 	[[nodiscard]] rpl::producer<> textItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> textEditStates() const;
+	[[nodiscard]] rpl::producer<QColor> shapeItemSelections() const;
+	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
+	[[nodiscard]] rpl::producer<bool> shapeToolStates() const;
 
 	void handleMimeData(const QMimeData *data);
 	void paintImage(QPainter &p, const QPixmap &image) const;
