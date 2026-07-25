@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/slide_wrap.h"
+#include "wallet/wallet_section.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_main_menu_helpers.h"
@@ -71,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
+#include "styles/style_wallet.h"
 #include "styles/style_window.h"
 #include "styles/style_window_main_menu.h"
 
@@ -716,6 +718,13 @@ void MainMenu::setupMenu() {
 			{ &st::menuIconSavedMessages }
 		)->setClickedCallback([=] {
 			controller->showPeerHistory(controller->session().user());
+		});
+		addAction(
+			tr::lng_wallet_menu(),
+			{ &st::walletMenuIcon }
+		)->setClickedCallback([=] {
+			controller->showSection(
+				std::make_shared<Wallet::SectionMemento>());
 		});
 	} else {
 		addAction(

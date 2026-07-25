@@ -1,0 +1,81 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "ui/widgets/widgets.style";
+
+walletMenuIcon: icon{{ "payments/ton_emoji-24x24", menuIconColor }};
+
+walletTopBarTitleLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: dialogsNameFg;
+}
+
+walletContentWidth: 332px;
+walletCardHeight: 208px;
+walletCardRadius: 16px;
+walletCardTopSkip: 12px;
+walletCardContentLeft: 22px;
+walletCardContentSkip: 8px;
+walletCardSecondaryOpacity: 0.65;
+walletCardBalanceTop: 74px;
+walletCardBalanceMajorLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 52px;
+	textFg: premiumButtonFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(26px semibold);
+	}
+}
+walletCardIconMargin: margins(0px, 4px, 2px, 0px);
+walletCardBalanceMinorLabel: FlatLabel(walletCardBalanceMajorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(18px semibold);
+	}
+}
+walletCardBalanceMinorSkip: 8px;
+walletCardTickerLabel: FlatLabel(walletCardBalanceMajorLabel) {
+}
+walletCardTickerSkip: 7px;
+walletCardNameFont: font(13px semibold);
+walletCardNameBottom: 18px;
+walletCardAddressFont: font(10px semibold);
+walletCardAddressSkip: 17px;
+walletCardAddressRight: 8px;
+walletCardQrSize: 46px;
+walletCardQrRadius: 10px;
+walletCardQrRight: 52px;
+walletCardQrIcon: icon{{ "menu/qr_code", premiumButtonFg }};
+walletCardQrBgOpacity: 0.2;
+
+walletSendButton: RoundButton(defaultActiveButton) {
+	height: 40px;
+	textTop: 11px;
+	radius: 20px;
+}
+walletSendButtonMargin: margins(0px, 12px, 0px, 0px);
+
+walletAboutTopSkip: 24px;
+walletAboutPadding: margins(60px, 0px, 24px, 0px);
+walletAboutTitleLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+}
+walletAboutTextLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+walletAboutTitleSkip: 3px;
+walletAboutIconSkip: 3px;
+walletAboutRowSkip: 12px;
+walletAboutInstantIcon: icon{{ "sponsored/withdrawals", windowActiveTextFg }};
+walletAboutFeesIcon: icon{{ "sponsored/revenue_split", windowActiveTextFg }};
+walletAboutChainIcon: icon{{ "payments/ton_emoji-24x24", windowActiveTextFg }};
+
+walletQrPixel: 8px;
+walletQrSkip: 24px;
+walletQrMargin: margins(0px, 0px, 0px, 0px);

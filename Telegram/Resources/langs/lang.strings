@@ -8748,6 +8748,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_send_as_file_tooltip" = "Send text as a file.";
 
+"lng_wallet_menu" = "Wallet";
+"lng_wallet_title" = "Wallet";
+"lng_wallet_card_ticker" = "GRAM";
+"lng_wallet_send_button" = "Send";
+"lng_wallet_qr_title" = "Wallet Address";
+"lng_wallet_qr_copy" = "Copy Address";
+"lng_wallet_about_instant_title" = "Send Money Instantly";
+"lng_wallet_about_instant_text" = "Send Grams in any chat, just like sharing a photo.";
+"lng_wallet_about_fees_title" = "No Fees";
+"lng_wallet_about_fees_text" = "Transfers cost almost nothing.";
+"lng_wallet_about_chain_title" = "Blockchain Verified";
+"lng_wallet_about_chain_text" = "All transactions are recorded and verifiable on a public ledger.";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";
