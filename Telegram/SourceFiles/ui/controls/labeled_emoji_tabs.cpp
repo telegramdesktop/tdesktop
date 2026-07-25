@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "styles/style_basic.h"
-#include "styles/style_boxes.h"
+#include "styles/style_compose_ai_box.h"
+#include "styles/style_labeled_emoji_tabs.h"
+#include "styles/style_widgets.h"
 
 #include <algorithm>
 #include <cmath>

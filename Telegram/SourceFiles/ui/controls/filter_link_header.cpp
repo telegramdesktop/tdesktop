@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h" // defaultEmojiSuggestions
 #include "styles/style_dialogs.h" // dialogsSearchTabs
 #include "styles/style_filter_icons.h"
+#include "styles/style_filter_link_header.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_window.h"

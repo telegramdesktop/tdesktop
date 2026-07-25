@@ -40,6 +40,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h" // megagroupSizeMax
 #include "apiwrap.h"
 #include "settings/settings_common.h"
+#include "styles/style_background_preview_box.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"

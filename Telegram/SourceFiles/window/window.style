@@ -84,48 +84,9 @@ notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 titleUnreadCounterTop: 6px;
 
-mainMenuWidth: 274px;
-mainMenuCoverHeight: 134px;
-mainMenuUserpicLeft: 24px;
-mainMenuUserpicTop: 20px;
 mainMenuUserpic: UserpicButton(defaultUserpicButton) {
 	size: size(48px, 48px);
 	photoSize: 48px;
-}
-mainMenuCloudButton: IconButton {
-	width: 48px;
-	height: 48px;
-
-	icon: icon {
-//		{ "menu_cloud", mainMenuCloudFg },
-	};
-	iconPosition: point(22px, 22px);
-}
-mainMenuCloudSize: 32px;
-mainMenuResetScaleFont: font(20px semibold);
-mainMenuResetScaleLeft: 36px;
-mainMenuResetScaleRight: 12px;
-mainMenuResetScaleTop: 2px;
-mainMenuResetScaleIconLeft: 5px;
-mainMenuCoverNameLeft: 26px;
-mainMenuCoverNameTop: 84px;
-mainMenuCoverStatusLeft: mainMenuCoverNameLeft;
-mainMenuCoverStatusTop: 103px;
-mainMenuSkip: 6px;
-mainMenuFooterHeightMin: 80px;
-mainMenu: Menu(defaultMenu) {
-	itemFg: windowBoldFg;
-	itemFgOver: windowBoldFgOver;
-	itemStyle: semiboldTextStyle;
-	itemIconPosition: point(26px, 8px);
-	itemPadding: margins(76px, 13px, 28px, 13px);
-	itemToggle: Toggle(defaultMenuToggle) {
-		toggledFg: mainMenuCoverBg;
-	}
-	itemToggleOver: Toggle(defaultMenuToggleOver) {
-		toggledFg: mainMenuCoverBg;
-	}
-	itemToggleShift: 11px;
 }
 mainMenuButton: SettingsButton(defaultSettingsButton) {
 	style: semiboldTextStyle;
@@ -142,7 +103,6 @@ mainMenuAccountLine: 2px;
 mainMenuBadgeFont: font(11px bold);
 mainMenuBadgeSize: 18px;
 
-mainMenuFooterLeft: 25px;
 mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 	align: align(left);
 	textFg: windowSubTextFg;
@@ -153,15 +113,11 @@ mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 		linkFg: windowSubTextFg;
 	}
 }
-mainMenuTelegramBottom: 38px;
 mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
 	style: defaultTextStyle;
 }
-mainMenuVersionBottom: 17px;
 
-mainMenuToggleSize: 6px;
 mainMenuToggleFourStrokes: 3px;
-mainMenuTogglePosition: point(30px, 30px);
 
 themeEditorSampleSize: size(90px, 51px);
 themeEditorMargin: margins(17px, 10px, 17px, 10px);

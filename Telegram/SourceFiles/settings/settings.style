@@ -85,38 +85,10 @@ settingsUpdate: SettingsButton(infoMainButton, settingsButtonNoIcon) {
 }
 settingsUpdateStatePosition: point(22px, 29px);
 
-settingsIconChat: icon {{ "settings/chat", settingsIconFg }};
 settingsIconInterfaceScale: icon {{ "settings/interface_scale", settingsIconFg }};
-settingsIconStickers: icon {{ "settings/stickers", settingsIconFg }};
-settingsIconEmoji: icon {{ "settings/emoji", settingsIconFg }};
 
-settingsPremiumIconWallpapers: icon {{ "settings/photo", settingsIconFg }};
-settingsPremiumIconStories: icon {{ "settings/stories", settingsIconFg }};
-settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
 settingsPremiumIconDouble: icon {{ "settings/premium/double", settingsIconFg }};
-settingsPremiumIconStatus: icon {{ "settings/premium/status", settingsIconFg }};
-settingsPremiumIconLike: icon {{ "settings/premium/like", settingsIconFg }};
-settingsPremiumIconPlay: icon {{ "settings/premium/play", settingsIconFg }};
-settingsPremiumIconSpeed: icon {{ "settings/premium/speed", settingsIconFg }};
-settingsPremiumIconStar: icon {{ "settings/premium/star", settingsIconFg }};
-settingsPremiumIconVoice: icon {{ "settings/premium/voice", settingsIconFg }};
-settingsPremiumIconFiles: icon {{ "settings/premium/files", settingsIconFg }};
-settingsPremiumIconTranslations: icon {{ "settings/premium/translations", settingsIconFg }};
 settingsPremiumIconTags: icon {{ "settings/premium/tags", settingsIconFg }};
-settingsPremiumIconLastSeen: icon {{ "settings/premium/lastseen", settingsIconFg }};
-settingsPremiumIconPrivacy: icon {{ "settings/premium/privacy", settingsIconFg }};
-settingsPremiumIconBusiness: icon {{ "settings/premium/market", settingsIconFg }};
-settingsPremiumIconEffects: icon {{ "settings/premium/effects", settingsIconFg }};
-settingsPremiumIconChecklist: icon {{ "settings/premium/checklist", settingsIconFg }};
-settingsPremiumIconPeerColors: icon {{ "settings/premium/peer_colors-24x24", settingsIconFg }};
-settingsPremiumIconNoForwards: icon {{ "menu/share_off-24x24", settingsIconFg }};
-settingsPremiumIconAiCompose: icon{
-	{ size(24px, 24px), transparent },
-	{ "chat/ai_letters-20x20", settingsIconFg, point(2px, 2px) },
-	{ "chat/ai_star1-20x20", settingsIconFg, point(2px, 2px) },
-	{ "chat/ai_star2-20x20", settingsIconFg, point(2px, 2px) },
-};
-settingsPremiumIconRich: icon {{ "settings/premium/rich", settingsIconFg }};
 
 settingsIconChatAutomation: icon {
 	{ size(24px, 24px), transparent },
@@ -359,8 +331,6 @@ dictionariesSectionButton: SettingsButton(settingsUpdateToggle) {
 	}
 }
 
-sessionLocationTop: 54px;
-sessionCurrentSkip: 8px;
 sessionSubtitleSkip: 14px;
 sessionInfoFg: windowSubTextFg;
 sessionTerminateTop: 8px;
@@ -373,23 +343,8 @@ sessionTerminate: IconButton {
 	iconOver: smallCloseIconOver;
 	iconPosition: point(12px, 12px);
 }
-sessionIconWindows: icon{{ "settings/devices/device_desktop_win", historyPeerUserpicFg }};
-sessionIconMac: icon{{ "settings/devices/device_desktop_mac", historyPeerUserpicFg }};
-sessionIconUbuntu: icon{{ "settings/devices/device_linux_ubuntu", historyPeerUserpicFg }};
-sessionIconLinux: icon{{ "settings/devices/device_linux", historyPeerUserpicFg }};
 sessionIconiPhone: icon{{ "settings/devices/device_phone_ios", historyPeerUserpicFg }};
-sessionIconiPad: icon{{ "settings/devices/device_tablet_ios", historyPeerUserpicFg }};
 sessionIconAndroid: icon{{ "settings/devices/device_phone_android", historyPeerUserpicFg }};
-sessionIconWeb: icon{{ "settings/devices/device_web_other", historyPeerUserpicFg }};
-sessionIconChrome: icon{{ "settings/devices/device_web_chrome", historyPeerUserpicFg }};
-sessionIconEdge: icon{{ "settings/devices/device_web_edge", historyPeerUserpicFg }};
-sessionIconFirefox: icon{{ "settings/devices/device_web_firefox", historyPeerUserpicFg }};
-sessionIconSafari: icon{{ "settings/devices/device_web_safari", historyPeerUserpicFg }};
-sessionIconOther: icon{{ "settings/devices/device_other", historyPeerUserpicFg }};
-sessionBigUserpicSize: 70px;
-sessionBigLottieSize: 52px;
-sessionBigIconOther: icon{{ "settings/devices/device_other_large", historyPeerUserpicFg }};
-sessionBigIconWeb: icon{{ "settings/devices/device_web_other_large", historyPeerUserpicFg }};
 sessionBigCoverPadding: margins(0px, 18px, 0px, 7px);
 sessionBigName: FlatLabel(defaultFlatLabel) {
 	textFg: boxTitleFg;
@@ -405,11 +360,7 @@ sessionDateLabel: FlatLabel(defaultFlatLabel) {
 }
 sessionDateSkip: 19px;
 sessionValuePadding: margins(37px, 5px, 0px, 0px);
-sessionValueLabel: FlatLabel(defaultFlatLabel) {
-	textFg: windowSubTextFg;
-}
 sessionValueSkip: 8px;
-sessionValueIconPosition: point(20px, 9px);
 
 sessionListItem: PeerListItem(defaultPeerListItem) {
 	button: OutlineButton(defaultPeerListButton) {
@@ -539,8 +490,6 @@ settingsPremiumArrowOver: icon{{ "settings/premium/arrow", menuIconFgOver }};
 
 settingsPremiumOptionsPadding: margins(0px, 9px, 0px, 2px);
 settingsPremiumTopHeight: 202px;
-settingsPremiumUserHeight: 205px;
-settingsPremiumUserTitlePadding: margins(0px, 16px, 0px, 6px);
 settingsPremiumUserTitle: FlatLabel(boxTitle) {
 	minWidth: 300px;
 	maxHeight: 0px;
@@ -596,39 +545,11 @@ filterInviteBox: Box(defaultBox) {
 		style: semiboldTextStyle;
 	}
 }
-filterInviteButtonStyle: TextStyle(defaultTextStyle) {
-	font: font(13px semibold);
-}
-filterInviteButtonBadgeStyle: TextStyle(defaultTextStyle) {
-	font: font(12px semibold);
-}
-filterInviteButtonBadgePadding: margins(5px, 0px, 5px, 2px);
-filterInviteButtonBadgeSkip: 5px;
 filterLinkDividerLabelPadding: margins(0px, 10px, 0px, 17px);
-filterLinkTitlePadding: margins(0px, 15px, 0px, 17px);
 filterLinkAboutTextStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
 	lineHeight: 17px;
 }
-filterLinkAbout: FlatLabel(defaultFlatLabel) {
-	style: filterLinkAboutTextStyle;
-	align: align(top);
-	minWidth: 190px;
-}
-filterLinkAboutTop: 170px;
-filterLinkAboutBottom: 15px;
-filterLinkPreview: 96px;
-filterLinkPreviewRadius: 13px;
-filterLinkPreviewTop: 30px;
-filterLinkPreviewColumn: 65px;
-filterLinkPreviewAllBottom: 18px;
-filterLinkPreviewAllTop: 15px;
-filterLinkPreviewMyBottom: 74px;
-filterLinkPreviewMyTop: 71px;
-filterLinkPreviewChatSize: 36px;
-filterLinkPreviewChatSkip: 10px;
-filterLinkPreviewBadgeLeft: 40px;
-filterLinkPreviewBadgeTop: 38px;
 filterLinkSubsectionTitlePadding: margins(0px, 5px, 0px, -4px);
 filterLinkChatsList: PeerList(peerListBox) {
 	padding: margins(0px, 0px, 0px, membersMarginBottom);

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "base/flat_map.h"
 #include "styles/style_boxes.h"
+#include "styles/style_calendar_box.h"
 #include "styles/style_chat.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"

@@ -71,6 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "styles/style_window.h"
+#include "styles/style_window_main_menu.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>

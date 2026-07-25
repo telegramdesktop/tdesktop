@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_widgets.h"
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h"

@@ -1,0 +1,153 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "info/info.style";
+
+infoTopBarColoredBack: IconButton(infoTopBarBack) {
+	icon: icon {{ "info/info_back", groupCallMembersFg }};
+	iconOver: icon {{ "info/info_back", groupCallMembersFg }};
+	ripple: universalRippleAnimation;
+}
+infoLayerTopBarColoredBack: IconButton(infoLayerTopBarBack) {
+	icon: icon {{ "info/info_back", groupCallMembersFg }};
+	iconOver: icon {{ "info/info_back", groupCallMembersFg }};
+	ripple: universalRippleAnimation;
+}
+infoTopBarColoredClose: IconButton(infoTopBarClose) {
+	icon: icon {{ "info/info_close", groupCallMembersFg }};
+	iconOver: icon {{ "info/info_close", groupCallMembersFg }};
+	ripple: universalRippleAnimation;
+}
+infoTopBarColoredEdit: IconButton(infoTopBarEdit) {
+	icon: icon {{ "menu/edit", groupCallMembersFg }};
+	iconOver: icon {{ "menu/edit", groupCallMembersFg }};
+	ripple: universalRippleAnimation;
+}
+infoLayerTopBarColoredEdit: IconButton(infoLayerTopBarEdit) {
+	icon: icon {{ "menu/edit", groupCallMembersFg }};
+	iconOver: icon {{ "menu/edit", groupCallMembersFg }};
+	ripple: universalRippleAnimation;
+}
+infoTopBarBlackBack: IconButton(infoTopBarBack) {
+	icon: icon {{ "info/info_back", windowBoldFg }};
+	iconOver: icon {{ "info/info_back", windowBoldFg }};
+	ripple: universalRippleAnimation;
+}
+infoLayerTopBarBlackBack: IconButton(infoLayerTopBarBack) {
+	icon: icon {{ "info/info_back", windowBoldFg }};
+	iconOver: icon {{ "info/info_back", windowBoldFg }};
+	ripple: universalRippleAnimation;
+}
+infoTopBarBlackClose: IconButton(infoTopBarClose) {
+	icon: icon {{ "info/info_close", windowBoldFg }};
+	iconOver: icon {{ "info/info_close", windowBoldFg }};
+	ripple: universalRippleAnimation;
+}
+infoTopBarColoredMenu: IconButton(infoTopBarMenu) {
+	icon: icon {{ "title_menu_dots", groupCallMembersFg }};
+	iconOver: icon {{ "title_menu_dots", groupCallMembersFg }};
+	ripple: universalRippleAnimation;
+}
+infoTopBarBlackMenu: IconButton(infoTopBarMenu) {
+	icon: icon {{ "title_menu_dots", windowBoldFg }};
+	iconOver: icon {{ "title_menu_dots", windowBoldFg }};
+	ripple: universalRippleAnimation;
+}
+infoTopBarColoredSearch: IconButton(infoTopBarSearch) {
+	icon: icon {{ "top_bar_search", groupCallMembersFg }};
+	iconOver: icon {{ "top_bar_search", groupCallMembersFg }};
+	ripple: universalRippleAnimation;
+}
+infoTopBarBlackSearch: IconButton(infoTopBarSearch) {
+	icon: icon {{ "top_bar_search", windowBoldFg }};
+	iconOver: icon {{ "top_bar_search", windowBoldFg }};
+	ripple: universalRippleAnimation;
+}
+infoTopBarColoredGroup: IconButton(infoTopBarSearch) {
+	icon: icon {{ "menu/admin", groupCallMembersFg }};
+	iconOver: icon {{ "menu/admin", groupCallMembersFg }};
+	iconPosition: point(15px, -1px);
+	ripple: universalRippleAnimation;
+}
+infoTopBarBlackGroup: IconButton(infoTopBarSearch) {
+	icon: icon {{ "menu/admin", windowBoldFg }};
+	iconOver: icon {{ "menu/admin", windowBoldFg }};
+	iconPosition: point(15px, -1px);
+	ripple: universalRippleAnimation;
+}
+infoTopBarBlackEdit: IconButton(infoTopBarEdit) {
+	icon: icon {{ "menu/edit", windowBoldFg }};
+	iconOver: icon {{ "menu/edit", windowBoldFg }};
+	ripple: universalRippleAnimation;
+}
+infoLayerTopBarBlackEdit: IconButton(infoLayerTopBarEdit) {
+	icon: icon {{ "menu/edit", windowBoldFg }};
+	iconOver: icon {{ "menu/edit", windowBoldFg }};
+	ripple: universalRippleAnimation;
+}
+infoProfileTopBarTitleTop: 113px;
+infoProfileTopBarStatusTop: 134px;
+infoProfileTopBarPhotoTop: 24px;
+infoProfileTopBarPhotoBgShift: 55px;
+infoProfileTopBarPhotoBgNoActionsShift: 30px;
+infoProfileTopBarPhotoSize: 80px;
+infoProfileTopBarLastSeenSkip: point(8px, 1px);
+infoProfileTopBarGiftSize: 20px;
+infoProfileTopBarGiftLeft: point(15px, 13px);
+infoProfileTopBarGiftTopLeft: point(4px, 4px);
+infoProfileTopBarGiftBottomLeft: point(9px, 16px);
+infoProfileTopBarGiftRight: point(50px, 13px);
+infoProfileTopBarGiftTopRight: point(30px, 4px);
+infoProfileTopBarGiftBottomRight: point(40px, 13px);
+infoProfileTopBarActionButtonShadow: BoxShadow {
+	blurRadius: 1px;
+	offset: point(0px, 0px);
+	opacity: 0.25;
+}
+infoProfileTopBarActionButtonsSpace: 10px;
+infoProfileTopBarActionMenuSkip: 10px;
+infoProfileTopBarActionMessage: icon{{ "profile/message-23x23", windowBoldFg }};
+infoProfileTopBarActionMute: icon{{ "profile/mute-23x23", windowBoldFg }};
+infoProfileTopBarActionUnmute: icon{{ "profile/unmute-23x23", windowBoldFg }};
+infoProfileTopBarActionCall: icon{{ "profile/call-23x23", windowBoldFg }};
+infoProfileTopBarActionGift: icon{{ "profile/gift-23x23", windowBoldFg }};
+infoProfileTopBarActionJoin: icon{{ "profile/join-23x23", windowBoldFg }};
+infoProfileTopBarActionReport: icon{{ "profile/report-23x23", windowBoldFg }};
+infoProfileTopBarActionLeave: icon{{ "profile/leave-23x23", windowBoldFg }};
+infoProfileTopBarActionMore: icon{{ "profile/profile_more", windowBoldFg }};
+infoProfileTopBarActionManage: icon{{ "profile/profile_manage", windowBoldFg }};
+infoProfileTopBarActionSearch: icon{{ "menu/search", windowBoldFg }};
+infoProfileTopBarActionLiveStream: icon{{ "profile/live_stream-23x23", windowBoldFg }};
+infoProfileTopBarTopicStatusButton: RoundButton(defaultTableSmallButton) {
+	radius: 4px;
+}
+infoProfileTopBarShowLastSeen: RoundButton(defaultActiveButton) {
+	textFg: windowBoldFg;
+	textFgOver: windowBoldFg;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+	width: -12px;
+	height: 18px;
+	textTop: 0px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+	ripple: universalRippleAnimation;
+}
+infoStatusHiddenToastIcon: icon{{ "community/requests_hidden", toastFg }};
+infoBotVerifyBadge: InfoPeerBadge(infoPeerBadge) {
+	position: point(-2px, 2px);
+}
+infoColoredPeerBadge: InfoPeerBadge(infoPeerBadge) {
+	verified: icon {{ "profile_verified_star", groupCallMembersFg }}; // Will be colorized.
+	verifiedCheck: icon {{ "profile_verified_check", groupCallMembersFg }};
+	premium: icon {{ "profile_premium", groupCallMembersFg }};
+	premiumFg: groupCallVideoSubTextFg;
+}
+infoColoredBotVerifyBadge: InfoPeerBadge(infoColoredPeerBadge) {
+	position: point(-2px, 2px);
+}

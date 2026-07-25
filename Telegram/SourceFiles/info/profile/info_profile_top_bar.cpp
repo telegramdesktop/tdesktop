@@ -101,6 +101,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "styles/style_chat.h"
 #include "styles/style_info.h"
+#include "styles/style_info_profile_top_bar.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 

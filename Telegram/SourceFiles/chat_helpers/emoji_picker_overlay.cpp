@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_emoji_picker_overlay.h"
 
 #include <QtCore/QEvent>
 #include <QtGui/QMouseEvent>

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_isolated_emoji.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_style.h"
 
 namespace Ui {
 namespace {

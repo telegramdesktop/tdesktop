@@ -1,0 +1,48 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "chat_helpers/chat_helpers.style";
+
+historyRecordVoiceOnceBg: icon {{ "voice_lock/audio_once_bg", historySendIconFg }};
+historyRecordVoiceOnceFg: icon {{ "voice_lock/audio_once_number", windowFgActive }};
+historyRecordVoiceOnceInactive: icon {{ "chat/audio_once", windowSubTextFg }};
+historyRecordSignalRadius: 5px;
+historyRecordFont: font(13px);
+historyRecordDurationSkip: 12px;
+historyRecordTextStyle: TextStyle(defaultTextStyle) {
+	font: historyRecordFont;
+}
+historyRecordTextWidthForWrap: 210px;
+historyRecordTextLeft: 15px;
+historyRecordTextRight: 25px;
+historyRecordLockShowDuration: historyToDownDuration;
+historyRecordLockSize: size(75px, 133px);
+historyRecordLockIconSize: size(14px, 17px);
+historyRecordLockIconBottomHeight: 9px;
+historyRecordLockIconLineHeight: 2px;
+historyRecordLockIconLineSkip: 3px;
+historyRecordLockIconLineWidth: 2px;
+historyRecordLockIconArcHeight: 4px;
+historyRecordStopIconWidth: 12px;
+historyRecordLockMargin: margins(4px, 4px, 4px, 4px);
+historyRecordLockInput: icon {{ "voice_lock/input_mic_s", historyToDownFg }};
+historyRecordLockRound: icon {{ "voice_lock/input_round_s", historyToDownFg }};
+historyRecordLockRippleMargin: margins(6px, 6px, 6px, 6px);
+historyRecordWaveformBgRadius: 7px;
+historyRecordWaveformOutsideAlpha: 0.6;
+historyRecordWaveformInactiveAlpha: 0.7;
+historyRecordCenterControlHeight: 18px;
+historyRecordCenterControlIconScale: 0.6;
+historyRecordCenterControlPadding: 4px;
+historyRecordCenterControlTextSkip: 2px;
+historyRecordCenterControlMinimumProgressPadding: 5px;
+historyRecordWaveformBar: 3px;
+historyRecordTrimHandleWidth: 10px;
+historyRecordTrimHandleInnerSize: size(2px, 8px);
+historyRecordLockPosition: point(1px, 22px);
+historyRecordCancelButtonWidth: 100px;
+historyRecordTooltipSkip: 8px;

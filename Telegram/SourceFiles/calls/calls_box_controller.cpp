@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "settings/sections/settings_calls.h"
 #include "settings/settings_common.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h" // st::boxLabel.
 #include "styles/style_calls.h"

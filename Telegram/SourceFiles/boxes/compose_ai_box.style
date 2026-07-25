@@ -1,0 +1,186 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+aiComposeBoxStyleTabsSkip: 8px;
+aiComposeTabsBg: boxBg;
+aiComposeTabsHeight: 58px;
+aiComposeTabsRadius: 29px;
+aiComposeTabsPadding: margins(6px, 6px, 6px, 6px);
+aiComposeTabsSkip: 4px;
+aiComposeTabButtonBgActive: aiComposeButtonBgActive;
+aiComposeTabLabelFg: aiComposeButtonFg;
+aiComposeTabLabelFgActive: aiComposeButtonFgActive;
+aiComposeTabLabelFont: font(12px semibold);
+aiComposeTabIconTop: 6px;
+aiComposeTabLabelTop: 26px;
+aiComposeTabTranslateIcon: icon {{ "menu/translate", aiComposeButtonFg }};
+aiComposeTabTranslateIconActive: icon {{ "menu/translate", aiComposeButtonFgActive }};
+aiComposeTabStyleIcon: icon {{ "menu/edit_stars", aiComposeButtonFg }};
+aiComposeTabStyleIconActive: icon {{ "menu/edit_stars", aiComposeButtonFgActive }};
+aiComposeTabFixIcon: icon {{ "menu/search_check", aiComposeButtonFg }};
+aiComposeTabFixIconActive: icon {{ "menu/search_check", aiComposeButtonFgActive }};
+aiComposeBadge: RoundButton(customEmojiTextBadge) {
+	textFg: activeButtonBg;
+	textBg: activeButtonFg;
+	width: -8px;
+	height: 16px;
+	radius: 4px;
+	textTop: 1px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(10px semibold);
+	}
+}
+aiComposeBadgeMargin: margins(0px, 2px, 0px, 0px);
+aiComposeAddStyleIcon: icon {{ "menu/edit_stars_add", aiComposeButtonFg }};
+aiComposeAddStyleIconOver: icon {{ "menu/edit_stars_add", aiComposeButtonFgActive }};
+aiComposeCollapseIcon: icon{{ "info/edit/expand_arrow_small-flip_vertical", windowActiveTextFg }};
+aiComposeExpandButton: IconButton(defaultIconButton) {
+	width: 32px;
+	height: 32px;
+	icon: aiComposeExpandIcon;
+	iconOver: aiComposeExpandIcon;
+	iconPosition: point(5px, 5px);
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 32px;
+	ripple: defaultRippleAnimationBgOver;
+}
+aiComposeCopyButton: IconButton(aiComposeExpandButton) {
+	icon: aiComposeCopyIcon;
+	iconOver: aiComposeCopyIcon;
+}
+aiComposeAuthorLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 0px;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkUnderline: kLinkUnderlineActive;
+	}
+}
+aiComposeAuthorLabelTop: 8px;
+aiComposeBoxWithSend: Box(aiComposeBox) {
+	buttonPadding: margins(16px, 12px, 66px, 12px);
+}
+aiComposeSendButtonSkip: 8px;
+
+aiComposeContentMargin: margins(16px, 0px, 16px, 0px);
+aiComposeButtonBgActiveOpacity: 0.1;
+aiComposeButtonRippleInactive: RippleAnimation(defaultRippleAnimation) {
+	color: windowBoldFg;
+}
+aiComposeButtonRippleInactiveOpacity: 0.1;
+aiComposeButtonRippleActive: RippleAnimation(defaultRippleAnimation) {
+	color: windowActiveTextFg;
+}
+aiComposeButtonRippleActiveOpacity: 0.1;
+aiComposeStyleTabsPadding: margins(6px, 6px, 6px, 6px);
+aiToneIconPreviewSize: 80px;
+aiToneIconPreviewBottomSkip: 12px;
+aiToneIconPreviewTopSkip: 4px;
+aiToneIconPreviewBg: boxBg;
+aiToneIconPreviewInnerSize: 54px;
+aiToneIconPreviewPlaceholder: icon {{ "chat/ai_style_tone", windowSubTextFg }};
+aiToneFieldBg: boxBg;
+aiToneFieldRadius: 12px;
+aiToneFieldsSkip: 8px;
+aiToneNameField: InputField(defaultInputField) {
+	textBg: transparent;
+	textBgActive: transparent;
+	textMargins: margins(16px, 12px, 16px, 12px);
+	border: 0px;
+	borderActive: 0px;
+	heightMin: 44px;
+}
+aiTonePlaceholderLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 80px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+aiToneAuthorCheckboxMargin: margins(0px, 12px, 0px, 8px);
+aiToneDeleteButton: RoundButton(defaultActiveButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFg;
+	textBg: boxBg;
+	textBgOver: boxBg;
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+	ripple: defaultRippleAnimation;
+}
+aiToneDeleteButtonMargin: margins(16px, 8px, 16px, 0px);
+aiComposeToneToastIconSize: size(32px, 32px);
+aiComposeToneToastIconPadding: margins(12px, 6px, 12px, 6px);
+aiTonePreviewTitleLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowFg;
+	minWidth: 0px;
+	maxHeight: 28px;
+	align: align(top);
+	style: TextStyle(semiboldTextStyle) {
+		font: font(17px semibold);
+	}
+}
+aiTonePreviewTitleMargin: margins(16px, 6px, 16px, 0px);
+aiTonePreviewAboutLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 20px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+aiTonePreviewAboutMargin: margins(28px, 6px, 28px, 6px);
+aiTonePreviewAttributionLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 0px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkUnderline: kLinkUnderlineActive;
+	}
+}
+aiTonePreviewAttributionMargin: margins(16px, 10px, 16px, 8px);
+aiTonePreviewExampleCardBg: boxBg;
+aiTonePreviewExampleCardRadius: 22px;
+aiTonePreviewExampleCardPadding: margins(14px, 12px, 16px, 12px);
+aiTonePreviewExampleCardSectionSkip: 24px;
+aiTonePreviewExampleCardTitleSkip: 6px;
+aiTonePreviewExampleCardMargin: margins(16px, 6px, 16px, 0px);
+aiTonePreviewBottomSkip: 6px;
+aiTonePreviewAnotherExampleButton: RoundButton(defaultLightButton) {
+	width: -12px;
+	height: 26px;
+	radius: 8px;
+	textTop: 4px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+}
+aiTonePreviewAnotherExampleIcon: IconEmoji {
+	icon: icon {{ "chat/refresh-18x18", lightButtonFg }};
+	padding: margins(0px, 1px, 4px, 0px);
+}
+aiComposeToneRemovedToastIcon: icon {{ "menu/delete", toastFg }};
+aiComposeCardBg: boxBg;
+aiComposeCardRadius: 22px;
+aiComposeCardPadding: margins(12px, 16px, 16px, 16px);
+aiComposeCardSectionSkip: 12px;
+aiComposeCardControlSkip: 8px;
+aiComposeCardTitle: FlatLabel(defaultSubsectionTitle) {
+	textFg: windowFg;
+	minWidth: 0px;
+	maxHeight: 22px;
+}
+aiComposeBoxInfoButton: IconButton(boxTitleClose) {
+	icon: icon {{ "menu/info", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/info", boxTitleCloseFgOver }};
+	ripple: defaultRippleAnimation;
+}
+aiComposeShadowOpacity: 0.3;

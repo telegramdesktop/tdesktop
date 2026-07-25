@@ -97,6 +97,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_dialogs_widget.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
 #include "base/qt/qt_common_adapters.h"

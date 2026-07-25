@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "window/themes/window_theme.h"
 #include "styles/style_boxes.h"
+#include "styles/style_compose_ai_box.h"
 #include "styles/style_iv.h"
 #include "styles/style_layers.h"
 

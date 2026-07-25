@@ -102,6 +102,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_overlay_widget.h"
 #include "storage/file_download.h"
 #include "storage/storage_account.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_media_view.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"

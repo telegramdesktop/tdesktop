@@ -1,0 +1,56 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+localStorageLimitMargin: margins(22px, 5px, 20px, 10px);
+backgroundCheckbox: Checkbox(defaultCheckbox) {
+	textFg: msgServiceFg;
+	textFgActive: msgServiceFg;
+
+	width: -10px;
+	margin: margins(0px, 0px, 0px, 0px);
+
+	textPosition: point(0px, 6px);
+	checkPosition: point(0px, 0px);
+
+	style: semiboldTextStyle;
+}
+backgroundCheck: ServiceCheck {
+	margin: margins(10px, 6px, 8px, 6px);
+	diameter: 18px;
+	shift: 2px;
+	thickness: 2px;
+	tip: point(7px, 13px);
+	small: 3px;
+	large: 6px;
+	stroke: 2px;
+	color: msgServiceFg;
+	duration: 200;
+}
+backgroundConfirmPadding: margins(24px, 16px, 24px, 16px);
+backgroundConfirm: RoundButton(defaultActiveButton) {
+	height: 44px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+backgroundConfirmCancel: RoundButton(backgroundConfirm) {
+	textFg: mediaviewSaveMsgFg;
+	textFgOver: mediaviewSaveMsgFg;
+	numbersTextFg: mediaviewSaveMsgFg;
+	numbersTextFgOver: mediaviewSaveMsgFg;
+	textBg: shadowFg;
+	textBgOver: shadowFg;
+
+	height: 44px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}

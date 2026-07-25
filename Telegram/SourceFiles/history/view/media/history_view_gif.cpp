@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "storage/storage_account.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_style.h"
 
 #include <QSvgRenderer>
 #include <QtWidgets/QApplication>

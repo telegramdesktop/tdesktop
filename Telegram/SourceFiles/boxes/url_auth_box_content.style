@@ -1,0 +1,38 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+urlAuthBox: Box(defaultBox) {
+	buttonPadding: margins(0px, 0px, 0px, 12px);
+	buttonHeight: 0px;
+}
+urlAuthCodesTitle: FlatLabel(defaultPeerListAbout) {
+	textFg: boxTitleFg;
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+	}
+}
+urlAuthCheckboxAbout: FlatLabel(defaultPeerListAbout) {
+	style: TextStyle(boxTextStyle) {
+		font: font(12px);
+	}
+}
+urlAuthCodesButton: RoundButton(defaultLightButton) {
+	height: 58px;
+	textTop: 19px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(20px semibold);
+	}
+}
+urlAuthBoxRowTopLabel: FlatLabel(boxLabel) {
+	maxHeight: 30px;
+}
+urlAuthBoxRowBottomLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	maxHeight: 30px;
+}

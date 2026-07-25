@@ -1,0 +1,40 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+passcodeHeaderFont: font(19px);
+passcodeHeaderHeight: 80px;
+passcodeInput: InputField(introPhone) {
+	textMargins: margins(1px, 27px, 1px, 6px);
+}
+passcodeSubmit: RoundButton(introNextButton) {
+	width: 225px;
+}
+passcodeSubmitSkip: 40px;
+passcodeSystemUnlock: IconButton(defaultIconButton) {
+	width: 32px;
+	height: 36px;
+	icon: icon{{ "menu/passcode_winhello", lightButtonFg }};
+	iconOver: icon{{ "menu/passcode_winhello", lightButtonFg }};
+	iconPosition: point(4px, 4px);
+	rippleAreaSize: 32px;
+	rippleAreaPosition: point(0px, 0px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
+passcodeSystemTouchID: icon{{ "menu/passcode_finger", lightButtonFg }};
+passcodeSystemAppleWatch: icon{{ "menu/passcode_watch", lightButtonFg }};
+passcodeSystemSystemPwd: icon{{ "menu/permissions", lightButtonFg }};
+passcodeSystemUnlockLater: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+passcodeSystemUnlockSkip: 12px;
+termsPadding: margins(22px, 4px, 16px, 16px);
+termsAgePadding: margins(22px, 16px, 16px, 0px);

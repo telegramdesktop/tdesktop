@@ -44,8 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 #include "settings/settings_common.h"
+#include "styles/style_add_contact_box.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
 namespace {
