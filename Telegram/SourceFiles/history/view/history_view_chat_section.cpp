@@ -3023,6 +3023,8 @@ void ChatWidget::recountChatWidth() {
 void ChatWidget::updateControlsGeometry() {
 	const auto contentWidth = width();
 
+	const auto wasAtBottom = !_scroll->isHidden()
+		&& (_scroll->scrollTop() >= _scroll->scrollTopMax());
 	const auto newScrollDelta = _scroll->isHidden()
 		? std::nullopt
 		: _scroll->scrollTop()
@@ -3089,11 +3091,10 @@ void ChatWidget::updateControlsGeometry() {
 	}
 	_scroll->move(tabsLeftSkip, top);
 	if (!_scroll->isHidden()) {
-		const auto newScrollTop = (newScrollDelta && _scroll->scrollTop())
-			? (_scroll->scrollTop() + *newScrollDelta)
-			: std::optional<int>();
-		if (newScrollTop) {
-			_scroll->scrollToY(*newScrollTop);
+		if (wasAtBottom) {
+			_scroll->scrollToY(_scroll->scrollTopMax());
+		} else if (newScrollDelta && _scroll->scrollTop()) {
+			_scroll->scrollToY(_scroll->scrollTop() + *newScrollDelta);
 		}
 		updateInnerVisibleArea();
 	}
