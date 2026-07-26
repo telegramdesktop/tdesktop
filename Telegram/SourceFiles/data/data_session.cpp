@@ -465,10 +465,10 @@ void Session::clear() {
 	HistoryView::Element::ClearGlobal();
 	_contactsNoChatsList.clear();
 	_contactsList.clear();
-	_chatsList.clear();
 	for (const auto &[id, folder] : _folders) {
 		folder->clearChatsList();
 	}
+	_chatsList.clear();
 	_chatsFilters->clear();
 	_histories->clearAll();
 	_webpages.clear();
