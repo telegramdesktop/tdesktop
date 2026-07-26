@@ -374,6 +374,77 @@ api().request(MTPnamespace_MethodName(
 - Include `.handleFloodErrors()` before `.send()` in rare cases where you want special case flood error handling
 - Silently ignore HTTP 406 errors in UI: the server uses 406 to mean "show nothing to the user". Guard toasts with `MTP::IgnoreError(error)` or use `MTP::ShowErrorFallback(show, error)` (both in `mtproto/mtproto_response.h`) which shows `error.type()` as a toast unless the error should be ignored.
 
+### API Request Callback Lifetime
+
+`api().request(...)` callbacks are owned by the session, not by whatever created
+them. A `.done()` / `.fail()` handler stays alive for the whole session lifetime,
+so a handler that captured a widget, a box, a controller, or any shorter-lived
+state still runs after that state is gone. A plain `[=]` capture warns about
+nothing, which makes this one of the easiest ways to write a use-after-free here.
+
+Capturing only plain values or session-owned objects is fine. When anything
+captured can die before the session does, pick one of three:
+
+**1. Guard the callback with `crl::guard`.** The request is always sent; the
+handler is skipped when the context is gone. Use when the call itself must reach
+the server and only the local reaction is optional.
+
+```cpp
+api().request(MTPmethod(
+	...
+)).done(crl::guard(this, [=](const MTPResult &result) {
+	// runs only while `this` is still alive
+})).send();
+```
+
+Accepted guards, in rough order of how often they are used: a raw pointer or
+`not_null` to any `QObject`-derived type — widgets, boxes, controllers — where the
+`QPointer` is created on the spot, so passing `this` is the normal case; a raw
+pointer or `not_null` to a `base::has_weak_ptr` type; `QPointer`, `QWeakPointer`,
+`QSharedPointer`; `base::weak_ptr`, `base::weak_qptr`; `std::weak_ptr`,
+`std::shared_ptr`; and `base::binary_guard`.
+
+**2. Remember the `mtpRequestId` and cancel it.** Cancel when the result stops
+being relevant, and in the destructor. The request may never reach the server —
+if it is still queued when cancelled, or connectivity dies first, it is simply
+dropped — so never use this when the call itself has to happen.
+
+```cpp
+_requestId = api().request(MTPmethod(
+	...
+)).done([=](const MTPResult &result) {
+	_requestId = 0;
+	...
+}).send();
+
+// when the result is no longer relevant, and in the destructor:
+api().request(base::take(_requestId)).cancel();
+```
+
+**3. Own an `MTP::Sender`.** Its destructor cancels everything it sent that is
+still in flight, so request lifetime follows the owner with no bookkeeping. Same
+delivery caveat as (2). Prefer this for a widget, box, or controller that issues
+more than a request or two.
+
+```cpp
+// header
+	MTP::Sender _api;
+
+// constructor initializer list
+, _api(&session->mtp())
+
+// requests sent through it die with the owner
+_api.request(MTPmethod(
+	...
+)).done([=](const MTPResult &result) {
+	...
+}).send();
+```
+
+Choosing between them: if the server must see the request, use (1). If it only
+matters while its owner is alive, use (3) — or (2) when a single request does not
+justify a `Sender` member.
+
 ## UI Styling
 
 ### Style Files
