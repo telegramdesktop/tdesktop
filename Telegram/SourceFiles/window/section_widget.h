@@ -229,10 +229,13 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	// Temp variable used in resizeEvent() implementation, that is passed
-	// to setGeometryWithTopMoved() to adjust the scroll position with the resize.
-	int topDelta() const {
-		return _topDelta;
+	// A size-changing setGeometryWithTopMoved() can deliver the shift to
+	// the section twice: Ui::RpWidget fires its geometry stream before
+	// QEvent::Resize reaches resizeEvent(), so a section with a consumer
+	// of its own sizeValue() relayouts once for each. A relative applier
+	// must add the shift only once.
+	[[nodiscard]] int takeTopDelta() {
+		return base::take(_topDelta);
 	}
 
 	// Called after the hideChildren() call in showAnimated().
@@ -255,7 +258,6 @@ private:
 
 	std::unique_ptr<SlideAnimation> _showAnimation;
 
-	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
 	int _topDelta = 0;
 
 };

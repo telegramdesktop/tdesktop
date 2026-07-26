@@ -3028,7 +3028,7 @@ void ChatWidget::updateControlsGeometry() {
 	const auto newScrollDelta = _scroll->isHidden()
 		? std::nullopt
 		: _scroll->scrollTop()
-		? base::make_optional(topDelta() + _scrollTopDelta)
+		? base::make_optional(takeTopDelta() + _scrollTopDelta)
 		: 0;
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
