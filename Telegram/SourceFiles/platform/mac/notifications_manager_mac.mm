@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
+#include "platform/mac/notifications_manager_mac_un.h"
 #include "platform/platform_specific.h"
 #include "ui/empty_userpic.h"
 #include "window/notifications_utilities.h"
@@ -239,6 +240,12 @@ bool VolumeSupported() {
 }
 
 void Create(Window::Notifications::System *system) {
+	if (UseUNManager()) {
+		system->setManager([=] {
+			return std::make_unique<UNManager>(system);
+		});
+		return;
+	}
 	system->setManager([=] { return std::make_unique<Manager>(system); });
 }
 

@@ -95,6 +95,16 @@ base::options::toggle OptionGNotification({
 	},
 });
 
+base::options::toggle OptionMacModernNotifications({
+	.id = kOptionMacModernNotifications,
+	.name = "Modern macOS notifications",
+	.description = "Use UserNotifications framework"
+		" for native notifications (macOS 10.14+)."
+		" System asks for notifications permission on first launch.",
+	.scope = base::options::macos,
+	.restartRequired = true,
+});
+
 base::options::toggle HideReplyButtonOption({
 	.id = kOptionHideReplyButton,
 	.name = "Hide reply button",
@@ -172,6 +182,7 @@ base::options::toggle HideReplyButtonOption({
 
 const char kOptionCustomNotification[] = "custom-notification";
 const char kOptionGNotification[] = "gnotification";
+const char kOptionMacModernNotifications[] = "mac-modern-notifications";
 const char kOptionHideReplyButton[] = "hide-reply-button";
 
 struct System::Waiter {

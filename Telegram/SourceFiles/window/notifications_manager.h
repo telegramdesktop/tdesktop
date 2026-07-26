@@ -81,6 +81,7 @@ namespace Window::Notifications {
 
 extern const char kOptionCustomNotification[];
 extern const char kOptionGNotification[];
+extern const char kOptionMacModernNotifications[];
 extern const char kOptionHideReplyButton[];
 
 class Manager;

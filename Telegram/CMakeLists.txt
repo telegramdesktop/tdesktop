@@ -1643,6 +1643,8 @@ PRIVATE
     platform/mac/native_event_mac.mm
     platform/mac/notifications_manager_mac.mm
     platform/mac/notifications_manager_mac.h
+    platform/mac/notifications_manager_mac_un.mm
+    platform/mac/notifications_manager_mac_un.h
     platform/mac/overlay_widget_mac.h
     platform/mac/overlay_widget_mac.mm
     platform/mac/specific_mac.mm
@@ -2144,6 +2146,7 @@ elseif (APPLE)
     endif()
 
     target_link_frameworks(Telegram PRIVATE CoreBluetooth)
+    target_link_frameworks_weak(Telegram PRIVATE UserNotifications)
 
     set(icons_path ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Images.xcassets)
     if (CMAKE_GENERATOR STREQUAL Xcode)
