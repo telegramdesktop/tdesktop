@@ -49,12 +49,14 @@ private:
 	void ensureSurface();
 	void showSurface();
 	void hideSurface();
+	void finishNow();
 	[[nodiscard]] QWidget *surfaceWidget() const;
 
 	const not_null<QWidget*> _parent;
 
 	std::unique_ptr<RpWidgetWrap> _surface;
 	[[maybe_unused]] ThanosEffectRenderer *_renderer = nullptr;
+	bool _shown = false;
 
 	Ui::Animations::Basic _animation;
 
