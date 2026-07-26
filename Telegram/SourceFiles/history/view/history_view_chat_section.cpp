@@ -3193,11 +3193,7 @@ void ChatWidget::setPinnedVisibility(bool shown) {
 			const auto height = shown ? st::historyReplyHeight : 0;
 			if (const auto delta = height - _repliesRootViewHeight) {
 				_repliesRootViewHeight = height;
-				if (_scroll->scrollTop() >= _scroll->scrollTopMax()) {
-					setGeometryWithTopMoved(geometry(), delta);
-				} else {
-					updateControlsGeometry();
-				}
+				setGeometryWithTopMoved(geometry(), delta);
 			}
 		}
 		_repliesRootVisible = shown;
