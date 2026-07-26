@@ -2800,6 +2800,9 @@ void HistoryWidget::fastShowAtEnd(not_null<History*> history) {
 bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	if (bypassNormalDraftHandling()) {
 		clearFieldText(0, fieldHistoryAction);
+		if (_preview) {
+			_preview->apply({ .removed = true });
+		}
 		updateCmdStartShown();
 		updateControlsVisibility();
 		updateControlsGeometry();
