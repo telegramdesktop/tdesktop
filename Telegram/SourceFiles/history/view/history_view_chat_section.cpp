@@ -844,7 +844,7 @@ void ChatWidget::setupComposeControls() {
 	) | rpl::filter([=] {
 		return !_joinGroup;
 	}) | rpl::on_next([=] {
-		const auto wasMax = (_scroll->scrollTopMax() == _scroll->scrollTop());
+		const auto wasMax = (_scroll->scrollTop() >= _scroll->scrollTopMax());
 		updateControlsGeometry();
 		if (wasMax) {
 			listScrollTo(_scroll->scrollTopMax());
@@ -1873,7 +1873,7 @@ void ChatWidget::refreshJoinGroupButton() {
 		if (!button && !_joinGroup) {
 			return;
 		}
-		const auto atMax = (_scroll->scrollTopMax() == _scroll->scrollTop());
+		const auto atMax = (_scroll->scrollTop() >= _scroll->scrollTopMax());
 		_joinGroup = std::move(button);
 		if (!animatingShow()) {
 			if (button) {
