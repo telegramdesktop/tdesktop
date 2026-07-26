@@ -949,6 +949,10 @@ historyIvIcon: IconEmoji {
 	icon: icon {{ "boosts/boost_mini2", windowFg }};
 	padding: margins(2px, 2px, 2px, 0px);
 }
+historyExternalLinkIcon: IconEmoji {
+	icon: icon {{ "chat/mini_external_link-16x16", windowFg }};
+	padding: margins(4px, 2px, 0px, 0px);
+}
 
 chatIntroStickerSize: 96px;
 chatGiftPreviewWidth: 224px;
