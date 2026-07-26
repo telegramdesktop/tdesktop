@@ -7858,7 +7858,10 @@ void HistoryWidget::updateControlsGeometry() {
 		}
 	}
 
-	updateHistoryGeometry(false, false, { ScrollChangeAdd, _topDelta });
+	updateHistoryGeometry(
+		false,
+		false,
+		{ ScrollChangeAdd, base::take(_topDelta) });
 
 	updateFieldSize();
 
