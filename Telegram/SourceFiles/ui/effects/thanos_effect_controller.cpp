@@ -221,6 +221,7 @@ void ThanosEffectController::startCollapseAnimation(
 		for (auto &gap : _collapseGaps) {
 			gap.startHeight = gap.currentHeight;
 		}
+		_collapseAnimation = {};
 	}
 
 	auto merged = false;
@@ -257,8 +258,6 @@ void ThanosEffectController::startCollapseAnimation(
 		});
 	}
 
-	syncCollapseGapsToHost();
-
 	auto totalHeight = 0;
 	for (const auto &gap : _collapseGaps) {
 		totalHeight += gap.currentHeight;
@@ -274,6 +273,8 @@ void ThanosEffectController::startCollapseAnimation(
 		1.,
 		duration,
 		anim::halfSine);
+
+	syncCollapseGapsToHost();
 }
 
 void ThanosEffectController::collapseAnimationCallback() {
