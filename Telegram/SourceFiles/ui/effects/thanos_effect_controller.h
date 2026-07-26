@@ -62,6 +62,8 @@ public:
 	void clearPreCaptured();
 	void pinScroll();
 	void shiftGaps(int delta);
+	void notePrependBaseline(int contentHeight);
+	void applyPrependBaseline(int contentHeight);
 
 	[[nodiscard]] const std::vector<CollapseGap> &renderGaps() const {
 		return _renderGaps;
@@ -109,6 +111,8 @@ private:
 
 	bool _inPinScroll = false;
 	int _gapsShift = 0;
+	int _prependBaseline = 0;
+	bool _prependPending = false;
 	int _removalHeight = 0;
 
 	int _savedScrollTop = 0;

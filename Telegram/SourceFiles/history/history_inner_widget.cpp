@@ -833,6 +833,9 @@ bool HistoryInner::hasSelectRestriction() const {
 void HistoryInner::messagesReceived(
 		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages) {
+	if (_thanosController && !messages.isEmpty()) {
+		_thanosController->notePrependBaseline(historyHeight());
+	}
 	if (_history->peer == peer) {
 		_history->addOlderSlice(messages);
 		if (!messages.isEmpty()) {
@@ -4425,6 +4428,10 @@ void HistoryInner::recountHistoryGeometry(bool initial) {
 				}
 			}
 		}
+	}
+
+	if (_thanosController) {
+		_thanosController->applyPrependBaseline(historyHeight());
 	}
 
 	if (const auto view = _aboutView ? _aboutView->view() : nullptr) {
