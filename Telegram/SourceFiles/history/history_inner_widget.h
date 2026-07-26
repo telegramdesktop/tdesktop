@@ -150,7 +150,6 @@ public:
 	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
 
 	using CollapseGap = Ui::CollapseGap;
-	void setCollapseGaps(std::vector<CollapseGap> gaps);
 
 	void messagesReceived(
 		not_null<PeerData*> peer,
@@ -716,9 +715,10 @@ private:
 	std::unique_ptr<HistoryView::ElementOverlayHost> _overlayHost;
 
 	void setupThanosEffect();
+	void collapseGapsUpdated();
+	[[nodiscard]] const std::vector<CollapseGap> &collapseGaps() const;
 
 	std::unique_ptr<Ui::ThanosEffectController> _thanosController;
-	std::vector<CollapseGap> _collapseGaps;
 
 };
 

@@ -301,7 +301,7 @@ void ThanosEffectController::collapseAnimationCallback() {
 	if (!_collapseAnimation.animating()) {
 		_collapseGaps.clear();
 		_renderGaps.clear();
-		_delegate.setCollapseGaps({});
+		_delegate.collapseGapsUpdated();
 		_collapseAnimation = {};
 		_restoreScrollPending = false;
 		_wasAtBottom = false;
@@ -319,8 +319,10 @@ void ThanosEffectController::syncCollapseGapsToHost() {
 		});
 		cumulativeOriginal += g.originalHeight;
 	}
-	_renderGaps = gaps;
-	_delegate.setCollapseGaps(std::move(gaps));
+	if (_renderGaps != gaps) {
+		_renderGaps = std::move(gaps);
+		_delegate.collapseGapsUpdated();
+	}
 }
 
 } // namespace Ui

@@ -49,7 +49,7 @@ public:
 		Fn<int()> scrollTopMax;
 		Fn<not_null<QWidget*>()> scrollWidget;
 		Fn<void(int scrollTop)> scrollToY;
-		Fn<void(std::vector<CollapseGap>)> setCollapseGaps;
+		Fn<void()> collapseGapsUpdated;
 	};
 
 	ThanosEffectController(

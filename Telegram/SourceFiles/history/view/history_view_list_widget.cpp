@@ -247,7 +247,7 @@ void ListWidget::enumerateItems(Method method) {
 	}
 
 	auto collapseGapsTotal = 0;
-	for (const auto &gap : _collapseGaps) {
+	for (const auto &gap : collapseGaps()) {
 		collapseGapsTotal += gap.height;
 	}
 
@@ -273,14 +273,14 @@ void ListWidget::enumerateItems(Method method) {
 		--from;
 	}
 
-	const auto gapCount = int(_collapseGaps.size());
+	const auto gapCount = int(collapseGaps().size());
 	auto nextGapIndex = 0;
 	auto collapseShift = 0;
 	if (TopToBottom) {
 		const auto firstTop = itemTop(from->get());
 		for (; nextGapIndex < gapCount; ++nextGapIndex) {
-			if (firstTop < _collapseGaps[nextGapIndex].absY) break;
-			collapseShift += _collapseGaps[nextGapIndex].height;
+			if (firstTop < collapseGaps()[nextGapIndex].absY) break;
+			collapseShift += collapseGaps()[nextGapIndex].height;
 		}
 	} else {
 		collapseShift = collapseGapsTotal;
@@ -293,14 +293,14 @@ void ListWidget::enumerateItems(Method method) {
 
 		if (TopToBottom) {
 			while (nextGapIndex < gapCount) {
-				const auto &gap = _collapseGaps[nextGapIndex];
+				const auto &gap = collapseGaps()[nextGapIndex];
 				if (logicalTop < gap.absY) break;
 				collapseShift += gap.height;
 				++nextGapIndex;
 			}
 		} else {
 			while (nextGapIndex > 0) {
-				const auto &gap = _collapseGaps[nextGapIndex - 1];
+				const auto &gap = collapseGaps()[nextGapIndex - 1];
 				if (logicalTop >= gap.absY) break;
 				collapseShift -= gap.height;
 				--nextGapIndex;
@@ -2385,7 +2385,7 @@ void ListWidget::revealItemsCallback() {
 			? (_minHeight - _itemsHeight - st::historyPaddingBottom)
 			: 0;
 		auto collapseGapTotal = 0;
-		for (const auto &gap : _collapseGaps) {
+		for (const auto &gap : collapseGaps()) {
 			collapseGapTotal += gap.height;
 		}
 		const auto wasHeight = height();
@@ -2428,7 +2428,7 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	_itemsWidth = newWidth;
 	_itemsHeight = newHeight - _itemsRevealHeight;
 	auto collapseGapTotal = 0;
-	for (const auto &gap : _collapseGaps) {
+	for (const auto &gap : collapseGaps()) {
 		collapseGapTotal += gap.height;
 	}
 	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom)
@@ -2611,7 +2611,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto clip = e->rect();
 
 	auto collapseGapsTotal = 0;
-	for (const auto &gap : _collapseGaps) {
+	for (const auto &gap : collapseGaps()) {
 		collapseGapsTotal += gap.height;
 	}
 
@@ -2648,8 +2648,8 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 
 	auto nextGapIndex = 0;
 	auto collapseShift = 0;
-	for (; nextGapIndex < int(_collapseGaps.size()); ++nextGapIndex) {
-		const auto &gap = _collapseGaps[nextGapIndex];
+	for (; nextGapIndex < int(collapseGaps().size()); ++nextGapIndex) {
+		const auto &gap = collapseGaps()[nextGapIndex];
 		if (top < gap.absY) break;
 		collapseShift += gap.height;
 	}
@@ -2659,8 +2659,8 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	p.translate(0, top);
 	const auto sendingAnimation = _delegate->listSendingAnimation();
 	for (auto i = from; i != to; ++i) {
-		while (nextGapIndex < int(_collapseGaps.size())) {
-			const auto &gap = _collapseGaps[nextGapIndex];
+		while (nextGapIndex < int(collapseGaps().size())) {
+			const auto &gap = collapseGaps()[nextGapIndex];
 			if (top - collapseShift < gap.absY) break;
 			top += gap.height;
 			collapseShift += gap.height;
@@ -3044,7 +3044,7 @@ int ListWidget::findItemIndexByY(int y) const {
 	Expects(!_items.empty());
 
 	auto gapShift = 0;
-	for (const auto &gap : _collapseGaps) {
+	for (const auto &gap : collapseGaps()) {
 		if (y < gap.absY + gapShift) {
 			break;
 		}
@@ -3074,7 +3074,7 @@ Element *ListWidget::strictFindItemByY(int y) const {
 		return nullptr;
 	}
 	auto gapTotal = 0;
-	for (const auto &gap : _collapseGaps) {
+	for (const auto &gap : collapseGaps()) {
 		gapTotal += gap.height;
 	}
 	return (y >= _itemsTop && y < _itemsTop + _itemsHeight + gapTotal)
@@ -4768,13 +4768,14 @@ int ListWidget::itemTop(not_null<const Element*> view) const {
 	return _itemsTop + view->y();
 }
 
-void ListWidget::setCollapseGaps(std::vector<Ui::CollapseGap> gaps) {
-	if (_collapseGaps == gaps) {
-		return;
-	}
-	_collapseGaps = std::move(gaps);
+const std::vector<Ui::CollapseGap> &ListWidget::collapseGaps() const {
+	static const auto kNone = std::vector<Ui::CollapseGap>();
+	return _thanosController ? _thanosController->renderGaps() : kNone;
+}
+
+void ListWidget::collapseGapsUpdated() {
 	auto gapTotal = 0;
-	for (const auto &gap : _collapseGaps) {
+	for (const auto &gap : collapseGaps()) {
 		gapTotal += gap.height;
 	}
 	const auto nowHeight = _itemsTop
@@ -4786,6 +4787,7 @@ void ListWidget::setCollapseGaps(std::vector<Ui::CollapseGap> gaps) {
 	}
 	update();
 }
+
 
 void ListWidget::setupThanosEffect() {
 	if (!_delegate->listThanosEffectEnabled()) {
@@ -4823,9 +4825,7 @@ void ListWidget::setupThanosEffect() {
 			.scrollToY = [=](int y) {
 				scroll->scrollToY(y);
 			},
-			.setCollapseGaps = [=](std::vector<Ui::CollapseGap> gaps) {
-				setCollapseGaps(std::move(gaps));
-			},
+			.collapseGapsUpdated = [=] { collapseGapsUpdated(); },
 		},
 		lifetime());
 }
