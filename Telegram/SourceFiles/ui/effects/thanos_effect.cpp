@@ -34,6 +34,14 @@ bool ThanosEffect::Supported() {
 #endif
 }
 
+bool ThanosEffect::WindowVisible(QWidget *window) {
+	if (!window || window->isHidden() || window->isMinimized()) {
+		return false;
+	}
+	const auto handle = window->windowHandle();
+	return handle && handle->isExposed();
+}
+
 void ThanosEffect::WarmUp() {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
 	if (PowerSaving::On(PowerSaving::kChatEffects)

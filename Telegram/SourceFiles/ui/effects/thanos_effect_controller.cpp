@@ -43,7 +43,8 @@ ThanosEffectController::~ThanosEffectController() {
 
 void ThanosEffectController::captureItemsBatch(
 		const std::vector<not_null<HistoryItem*>> &items) {
-	if (!ThanosEffect::Supported()) {
+	if (!ThanosEffect::Supported()
+		|| !ThanosEffect::WindowVisible(_delegate.window())) {
 		return;
 	}
 	auto anyFound = false;
@@ -80,6 +81,9 @@ void ThanosEffectController::clearPreCaptured() {
 void ThanosEffectController::captureOnRemoval(
 		not_null<const HistoryItem*> item) {
 	if (!ThanosEffect::Supported()) {
+		return;
+	} else if (!ThanosEffect::WindowVisible(_delegate.window())) {
+		clearPreCaptured();
 		return;
 	}
 	const auto view = _delegate.viewForItem(item);
