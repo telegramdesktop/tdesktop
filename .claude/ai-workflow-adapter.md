@@ -14,14 +14,12 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   rely on the parent conversation being inherited.
 - Tell every leaf Agent not to delegate and never to commit. Preserve the
   shared workflow's single-writer and one-stateful-performer constraints.
-- Override the shared inherit-the-parent-model rule for the mechanical
-  leaves: spawn every Phase 4 implementation-unit leaf, every Phase 6b
-  review-fix leaf, and every test-loop impl-fix leaf with `model: "opus"`
-  (Opus 4.8) on the Agent call. Do not pass a reasoning field — the Agent
-  tool has none, and effort is inherited unchanged, so these leaves keep
-  the parent's maximum reasoning level. Every other phase — context, plan,
-  assessment, review, build, test author — and the performer itself
-  inherit the parent model as the shared workflow says.
+- Every phase leaf and the performer inherit the parent model, as the shared
+  workflow says. Do not pass a model override on the Agent call: its family
+  aliases already resolve to the newest permitted model of that family, so an
+  override can only pin a leaf below the parent. Do not pass a reasoning field
+  either — the Agent tool has none, and effort is inherited unchanged, so every
+  leaf keeps the parent's reasoning level.
 - A foreground Agent call may replace Codex-specific polling. Treat its short
   reply as notification and validate the required files and repository state.
   When Claude exposes a resumable agent id and more work is needed from that

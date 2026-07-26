@@ -289,9 +289,14 @@ artifact-based assessment.
 
 ## Route discovered follow-ups
 
-After every canonical `Approve` or `Block`, read `work/result.md`. If it says
-`Discovered: present` and lacks `work/discovered-routed.md`, route the complete
-blocks before selecting more shared work.
+After every canonical `Approve` or `Block`, read `work/result.md`. Route before
+selecting more shared work whenever it lacks `work/discovered-routed.md` and
+either says `Discovered: present` or carries a non-`none` `Unverified:` value.
+Both are unfinished work leaving the pipeline; the only difference is that
+`Discovered:` names work nobody has started and `Unverified:` names behavior that
+already shipped without proof. An approved task whose unverified behavior was
+never routed is exactly how coverage debt becomes invisible, so the marker file
+gates both.
 
 Spawn one disposable routing worker with `fork_turns: "none"`. Tell it to read
 the routing, splitting, task-path, artifact, validation, and publication rules
@@ -306,6 +311,22 @@ paths, commits `Route follow-ups from <source-task-id>`, and publishes with the
 workspace helper. Retry ordinary concurrent-master races; preserve a semantic
 conflict or unavailable-remote slot commit and stop.
 
+Each unverified entry gets exactly one of two dispositions, and the receipt
+records which and why:
+
+- **Routable** when the existing test account and checkout could close the gap
+  and the run simply did not cover it. Create a verification task naming the
+  exact behavior to prove; its acceptance is that verification, and it carries
+  no implementation work of its own.
+- **Infrastructure-limited** when closing it needs something the project does
+  not have — a second account, funded external value, real server-backed cloud
+  state. Record it in the receipt only. Do not create a task that would be
+  unstartable the moment it enters the queue.
+
+Never resolve an entry by deciding the behavior is probably fine. The
+disposition is about who can verify it and when, never about whether it is worth
+verifying.
+
 After validating the discovery receipt, append only the task ids created from
 that result to `discovered_task_ids` and `batch_task_ids`, preserving routing
 order. This is the only way the frozen batch grows. Apply the same rule
@@ -319,7 +340,8 @@ Return one compact summary: invocation mode, initial batch ids, discovered ids
 added to the batch, inbox receipt if processed, tasks approved, exceptionally
 blocked tasks with exact unverified behavior and retry status, recorded tasks
 left queued, unrelated new tasks deferred to the next invocation, routed
-discoveries, archived projects, any discarded interrupted-worker leftovers,
+discoveries, infrastructure-limited coverage gaps recorded but not routed,
+archived projects, any discarded interrupted-worker leftovers,
 elapsed time, and why the loop stopped. Make any global hard stop or unsafe
 state unmistakable. Never include source or AI commit hashes; task ids are the
 only durable locators.

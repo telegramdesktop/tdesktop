@@ -114,7 +114,11 @@ work/context.md
 work/project.proposed.md       # project tasks only
 work/visual.md                 # layout tasks only
 work/plan.md
-work/review1.md
+work/review1-correctness.md    # one report per review lens per iteration
+work/review1-lifetime.md
+work/review1-reuse.md
+work/review1-structure.md
+work/review1.md                # synthesized review for the iteration
 work/test.md
 work/result.md
 work/owned-paths.txt
@@ -216,11 +220,15 @@ Run sequentially:
    by codegen, force its documented regeneration so the Debug binary contains
    the new resource. A file-lock/access-denied build error is an immediate
    global hard stop with no retry or workaround.
-7. **Review.** Run the independent focused review/fix loop from the phase
-   prompts for up to three review iterations. Review the task diff using
-   `REVIEW.md`: correctness/safety, dead code, redundant changes, duplication,
-   placement, decomposition, exceptional module structure, and style. Rebuild
-   after every fix pass. Give layout reviewers the visual contract.
+7. **Review.** Run the multi-lens review/fix loop from the phase prompts for up
+   to three review iterations. Each iteration runs four independent lenses over
+   the task diff — correctness, lifetime and ownership, reuse, structure — and
+   then one synthesis pass that confirms every finding against the code itself
+   and writes the single `review<R>.md` the fix phase implements. A lens
+   defaults to not clean and must record the surfaces it checked; an approved
+   review carries that merged coverage as the evidence for approval. Rebuild
+   after every fix pass. Give the correctness and structure lenses the visual
+   contract on layout tasks.
 8. **Normalize.** On native non-WSL Windows, normalize only task-owned source,
    header, style, localization, and build/config text to CRLF without BOM,
    preserving content and trailing-newline state, then rebuild. On macOS,
@@ -388,6 +396,15 @@ outage and hard-stop instead of pretending completion.
 When `Discovered: present`, preserve complete task blocks in `result.md`. The
 `continue` scheduler must route them through the same independent-testability
 planner into new unclaimed dated tasks before selecting more shared work.
+
+A non-`none` `Unverified:` value is routed by that same scheduler step, so write
+it to be routable: the exact behavior that shipped without verification, and what
+closing that gap would require. That second half is what lets the router separate a
+gap a later run can close with the existing setup from one that needs project
+infrastructure this checkout does not have. Never widen `Unverified:` to behavior
+the task never claimed, and never narrow it to `none` because the acceptance
+criteria passed — it records what this run did not prove, not what the task did not
+ask for.
 
 ## Failure handling
 

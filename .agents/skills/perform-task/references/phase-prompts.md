@@ -20,7 +20,8 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 
 ## Orchestration Rules
 
-- When delegation is available, use a fresh subagent for Phase 1, Phase 2, Phase 3, each Phase 4 implementation unit, and each Phase 6 pass. Do not switch those phases to same-session midstream because of a timeout or missing artifact.
+- When delegation is available, use a fresh subagent for Phase 1, Phase 2, Phase 3, each Phase 4 implementation unit, each Phase 6a lens, each Phase 6s synthesis, and each Phase 6b fix. Do not switch those phases to same-session midstream because of a timeout or missing artifact.
+- The Phase 6a lenses of one iteration are independent and write disjoint report files, so spawn them together when capacity allows. Never let one lens read another's report, and never collapse them into a single combined reviewer: their independence is the point of the phase.
 - Treat delegation as selected only after the first real phase spawn succeeds; tool presence is insufficient. An immediate depth/capacity/policy rejection before phase work selects same-session checklists and is not a delegated retry.
 - Phase 7 runs in the current session on native, non-WSL Windows because it depends on the final local diff and touched-file set. Skip it on WSL and keep files LF/no-BOM there.
 - Write each phase prompt to `<WORK_DIR>/logs/phase-<phase-name>.prompt.md` before execution.
@@ -85,7 +86,8 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
 - Phase 3 is complete only when `plan.md` contains both `Phases:` in the Status section and `Assessed: yes`.
 - Phase 4 is complete only when the target phase checkbox changed to checked and the touched-file list matches the owned write set, or the blocker explains any mismatch.
 - Phase 5 is complete only when the build outcome is known and the build checkbox is updated on success.
-- Phase 6a is complete only when `review<R>.md` exists and contains a verdict line.
+- Phase 6a is complete only when every lens scheduled for iteration `R` wrote `review<R>-<lens>.md` with a `## Verdict:` line and a non-empty `## Checked` section. A lens report that records no checked surfaces is incomplete work: rerun that lens rather than accepting it.
+- Phase 6s is complete only when `review<R>.md` exists with a `## Verdict:` line, a non-empty `## Coverage` section, and a `## Dropped` section.
 - Phase 6b is complete only when the requested fixes were applied and the post-fix build outcome is known.
 - A perform-task visual design phase is complete only when `visual.md` cites its available
   design sources (images when supplied; otherwise request facts and repository/baseline anchors),
@@ -365,15 +367,37 @@ When finished, report the build result and which files, if any, you changed.
 
 After build verification passes, run up to 3 review-fix iterations. Set iteration counter `R = 1`.
 
+Each iteration runs four independent review lenses over the same diff, then one
+synthesis pass that produces the single `review<R>.md` the fix phase consumes. The
+lenses never read each other's reports: independence is what makes their agreement
+evidence rather than an echo. Their write sets are disjoint (one report file each),
+so they may run in parallel; when delegation is unavailable, run them as sequential
+checklists in the current session and keep the same four reports.
+
+The lenses are:
+
+| Lens | Report file | Angle |
+| --- | --- | --- |
+| `correctness` | `review<R>-correctness.md` | Does it do the specified thing, on every path it touches |
+| `lifetime` | `review<R>-lifetime.md` | Ownership, object lifetime, re-entrancy, threading |
+| `reuse` | `review<R>-reuse.md` | Duplication of what the repository already has |
+| `structure` | `review<R>-structure.md` | Placement, minimality, dead code, conventions |
+
 Review loop:
 
 ```text
 LOOP:
-  1. Run review phase 6a with iteration R.
-  2. Read review<R>.md verdict:
+  1. Run the scheduled Phase 6a lenses for iteration R.
+     R = 1     -> all four lenses.
+     R > 1     -> every lens whose finding survived synthesis in iteration R-1,
+                  plus `lifetime` unconditionally. A fix pass is the most likely
+                  moment for a new ownership or lifetime error to be introduced,
+                  so that lens never goes unrun over changed code.
+  2. Run synthesis phase 6s with iteration R. It writes review<R>.md.
+  3. Read review<R>.md verdict:
      - "APPROVED" -> go to FINISH
      - "NEEDS_CHANGES" -> run fix phase 6b
-  3. After fix work completes and build passes:
+  4. After fix work completes and build passes:
      R = R + 1
      If R > 3 -> go to FINISH
      Otherwise -> go to step 1
@@ -383,45 +407,192 @@ FINISH:
   - Proceed to Phase 7 on native, non-WSL Windows; otherwise proceed to Completion
 ```
 
-### Step 6a: Code Review
+### Step 6a: Review lenses
+
+Every lens prompt is the shared preamble below, then its own Angle section, then the
+shared report contract. Replace `<LENS>` with the lens name and `<R>` with the
+iteration.
+
+#### Shared lens preamble
 
 ```text
-You are a code review agent for Telegram Desktop (C++ / Qt).
+You are one of four independent code-review lenses for Telegram Desktop (C++ / Qt).
+Your lens is <LENS>, iteration <R>.
+
+Other lenses cover the other angles. Do not review outside your assigned angle, and
+never soften or skip a finding because another lens might also catch it — you cannot
+see their reports and they cannot see yours.
 
 Read these files:
 - <WORK_DIR>/context.md
 - <WORK_DIR>/plan.md
+- AGENTS.md
 - REVIEW.md
-- If R > 1, also read <WORK_DIR>/review<R-1>.md
+- If R > 1, also read <WORK_DIR>/review<R-1>.md for what the previous iteration
+  already required, so you do not re-file a fix that has since been applied.
 
-Then run `git diff` to see the current uncommitted changes for this task.
+Then run `git diff` to see the current uncommitted changes for this task, and read
+every modified source file IN FULL. The diff hides the context a change lands in,
+and most real defects are visible only in that context.
 
-Read the modified source files in full to understand the changes in context.
+Review only what this task changed. A pre-existing problem outside this task's diff
+is not a finding, however tempting.
 
-Perform a focused code review using these criteria, in order:
+Default to NOT CLEAN. A clean verdict is a positive claim that you looked at each
+surface and found nothing — not the absence of an objection. You must report what
+you checked, and a report whose Checked section does not account for the diff is
+incomplete work, not a fast approval.
 
-1. Correctness and safety: Obvious logic errors, missing null checks at API boundaries, potential crashes, use-after-free, dangling references, race conditions.
-2. Dead code: Added or left-behind code that is never used within the scope of the changes.
-3. Redundant changes: Diff hunks that have no functional effect.
-4. Code duplication: Repeated logic that should be shared.
-5. Wrong placement: Code added to a module where it does not logically belong.
-6. Function decomposition: Whether an extracted helper would clearly improve readability.
-7. Module structure: Only in exceptional cases where a large new chunk of code clearly belongs elsewhere.
-8. Style compliance: REVIEW.md rules and AGENTS.md conventions.
+A finding is admissible only if you can state the concrete failure it produces: the
+specific input, state, or call sequence that yields a crash, a wrong result, or a
+maintenance cost a future reader pays. "Could be cleaner", "consider extracting",
+and "might be a problem" are not findings. If you cannot name the failure, drop it.
+Do not suggest comments or docstrings.
+```
 
-Important guidelines:
-- Review only the changes made, not pre-existing code outside the scope of the task.
-- Be pragmatic. Each suggestion should have a clear, concrete benefit.
-- Do not suggest comments, docstrings, or over-engineering.
+#### Angle: `correctness`
 
-Write your review to: <WORK_DIR>/review<R>.md
+```text
+ANGLE — behavior and correctness. Does the change produce the behavior the task and
+plan specify, on every path it touches?
 
-The review document should contain:
+- Logic errors: inverted conditions, wrong operator, off-by-one, wrong variable.
+- Missing branches: early return, empty or absent data, a failed or cancelled
+  network reply, the not-found case, the zero and one-element cases.
+- State left inconsistent when an operation fails partway through.
+- Behavior in adjacent code paths the diff touches but the task did not intend to
+  change.
+- Values crossing an API boundary — network, settings, a peer or session lookup —
+  used without checking what the boundary can actually return.
+- Obviously pathological work in a hot path: per-frame paint, resize, scroll, or a
+  loop over every message or dialog.
+```
+
+#### Angle: `lifetime`
+
+```text
+ANGLE — lifetime, ownership and safety. Will this crash, and who owns what?
+
+- Use-after-free and dangling references: a reference or pointer to a temporary, or
+  into a container that can reallocate or rehash before the next use.
+- Ownership: for every object the change introduces or stores, name the owner and
+  confirm the owner outlives every user. Watch widget parent/child ownership, raw
+  pointers escaping the scope that owns them, and `not_null` invariants that the
+  change can now violate.
+- Reactive and callback lifetimes: every subscription bound to a lifetime that dies
+  with everything its handler dereferences; captures that can be destroyed before
+  the callback runs; guarded-callback and weak-pointer use where the target can go
+  away.
+- Re-entrancy and destruction order: can this run while something it dereferences is
+  being destroyed; can a handler destroy the object that invoked it.
+- Thread assumptions: main-thread-only APIs reached from another thread; data shared
+  across threads without synchronization.
+- Iterator or reference invalidation across a mutation of the container.
+```
+
+#### Angle: `reuse`
+
+```text
+ANGLE — duplication and reuse. Does the repository already have this?
+
+This lens is not satisfied by reading the diff. Reuse lives OUTSIDE the diff, which
+is exactly why a single generalist reviewer misses it. Search the repository before
+you judge anything.
+
+- For each helper, widget, algorithm, constant, string, or style value the change
+  introduces: search for an existing equivalent, then either use it or state in your
+  report why the existing one does not fit. Report the search you ran.
+- Logic repeated within the change itself that should be shared.
+- A reimplementation of an established repository pattern instead of following it —
+  the strongest finding this lens produces, and the one that compounds worst if it
+  ships.
+- New style values that duplicate an existing token; new localization strings that
+  duplicate an existing key.
+```
+
+#### Angle: `structure`
+
+```text
+ANGLE — structure, simplicity and conventions. Does it read like the rest of the
+codebase, and is it no bigger than it needs to be?
+
+- Placement: each piece lives in the module it logically belongs to. Flag module
+  structure only when a large new chunk clearly belongs elsewhere.
+- Decomposition: an extracted helper that would CLEARLY improve readability. Do not
+  file marginal splits.
+- Minimality: diff hunks with no functional effect; changes broader than the task
+  requires; abstraction, indirection, validation, or error handling for cases that
+  cannot happen; a compatibility shim or flag where the code can simply change.
+- Dead code: anything added or left behind that nothing reaches.
+- Conventions: REVIEW.md mechanical rules and AGENTS.md coding conventions.
+- Local idiom: comment density, naming, and construction match the surrounding code.
+```
+
+#### Shared lens report contract
+
+```text
+Write your report to <WORK_DIR>/review<R>-<LENS>.md. Do not write review<R>.md —
+the synthesis phase owns that file.
+
+## Lens: <LENS> — iteration <R>
+
+## Checked
+<One line per surface you examined and cleared: the file and function, and what you
+verified about it under THIS angle. This section is the evidence behind a clean
+verdict, and it is required even when you do have findings — list everything you
+cleared alongside them. For the reuse lens, include the searches you ran.>
+
+## Findings
+<Omit the section entirely when you have none.>
+
+### <short title>
+- File(s): <paths, with line references>
+- Failure: <the concrete input, state, or sequence -> the crash, wrong result, or
+  maintenance cost it produces>
+- Fix: <the specific change to make>
+- Confidence: <high | medium | low>
+
+## Verdict: <CLEAN or FINDINGS>
+
+Reply in the compact block. Do not restate the diff or the report body in chat.
+```
+
+### Step 6s: Review synthesis
+
+```text
+You are the review synthesizer for iteration <R>. Four independent lenses reviewed
+the same task diff. Produce the single review<R>.md that the fix phase implements.
+
+Read every <WORK_DIR>/review<R>-*.md that exists for this iteration, plus
+<WORK_DIR>/context.md, <WORK_DIR>/plan.md, REVIEW.md, and the task diff itself.
+
+You are the last filter before work is created, and you are adversarial toward the
+findings, not toward the code. Apply in order:
+
+1. Merge duplicates. Several lenses may describe one underlying defect from
+   different angles. Keep one entry, with the clearest failure statement, and pick
+   the category that matches the actual defect.
+2. Confirm each finding against the code yourself. Do not take a lens at its word.
+   A finding whose failure statement you cannot reproduce by reading the diff and
+   the surrounding file is DROPPED, whatever confidence the lens claimed.
+3. Drop findings that fall outside this task's diff.
+4. Order what survives by impact: crashes and wrong behavior first, then duplication
+   and placement, then minimality and conventions.
+
+Verdict rule: NEEDS_CHANGES if any finding survives, otherwise APPROVED. An APPROVED
+verdict must carry the merged Checked coverage from every lens that ran — that
+coverage is the evidence for approval, and an APPROVED review without it is
+incomplete work.
+
+Write <WORK_DIR>/review<R>.md:
 
 ## Code Review - Iteration <R>
 
 ## Summary
 <1-2 sentence overall assessment>
+
+## Coverage
+<Merged Checked lines from every lens that ran this iteration, grouped by lens.>
 
 ## Verdict: <APPROVED or NEEDS_CHANGES>
 
@@ -430,12 +601,14 @@ If the verdict is NEEDS_CHANGES, continue with:
 ## Changes Required
 
 ### <Issue 1 title>
-- Category: <dead code | duplication | wrong placement | function decomposition | module structure | style | correctness>
+- Category: <correctness | lifetime | duplication | wrong placement | function decomposition | module structure | dead code | minimality | style>
 - File(s): <file paths>
-- Problem: <clear description>
+- Problem: <clear description, including the concrete failure>
 - Fix: <specific description of what to change>
 
-Keep the list focused. Prioritize the most impactful issues.
+## Dropped
+<Each finding you dropped and why, or `none`. This is how the next iteration knows
+not to re-file it.>
 
 When finished, report your verdict clearly as: APPROVED or NEEDS_CHANGES.
 ```
@@ -537,9 +710,14 @@ For each phase:
 4. Save `<WORK_DIR>/logs/phase-<phase-name>.result.md` with `STATUS:`, `ARTIFACTS:`,
    `TOUCHED:`, `BLOCKER:`, and `NOTES:` fields.
 
-For review iterations, include the iteration in the file name, for example:
-- `phase-6a-review-1.prompt.md`
-- `phase-6a-review-1.result.md`
+For review iterations, include the iteration and the lens in the file name, for example:
+- `phase-6a-review-1-correctness.prompt.md`
+- `phase-6a-review-1-correctness.result.md`
+- `phase-6a-review-1-lifetime.prompt.md`
+- `phase-6a-review-1-reuse.prompt.md`
+- `phase-6a-review-1-structure.prompt.md`
+- `phase-6s-synthesis-1.prompt.md`
+- `phase-6s-synthesis-1.result.md`
 - `phase-6b-fix-1.prompt.md`
 - `phase-6b-fix-1.result.md`
 
