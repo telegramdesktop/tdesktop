@@ -5808,9 +5808,19 @@ void ComposeControls::cancelEditMessage() {
 	Expects(_history != nullptr);
 	Expects(draftKeyCurrent() != Data::DraftKey::None());
 
+	_canReplaceMedia = _canAddMedia = false;
+	_photoEditMedia = nullptr;
+	updateReplaceMediaButton();
+	_header->editMessage({}, {});
+	if (_preview) {
+		_preview->setDisabled(false);
+	}
 	_history->clearDraft(draftKey(DraftType::Edit));
 	applyDraft();
 	saveDraftWithTextNow();
+	updateControlsVisibility();
+	updateFieldPlaceholder();
+	updateControlsGeometry(_wrap->size());
 }
 
 void ComposeControls::maybeCancelEditMessage() {
