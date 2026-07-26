@@ -112,12 +112,6 @@ public:
 	virtual void enableBackButton() {
 	}
 
-	// When resizing the widget with top edge moved up or down and we
-	// want to add this top movement to the scroll position, so inner
-	// content will not move.
-	void setGeometryWithTopMoved(
-		const QRect &newGeometry,
-		int topDelta);
 	void applyAdditionalScroll(int additionalScroll);
 	void applyMaxVisibleHeight(int maxVisibleHeight);
 	int scrollTillBottom(int forHeight) const;
@@ -254,9 +248,6 @@ private:
 	int _addedHeight = 0;
 	int _maxVisibleHeight = 0;
 	bool _isStackBottom = false;
-
-	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
-	int _topDelta = 0;
 
 	// To paint round edges from content.
 	style::margins _paintPadding;
