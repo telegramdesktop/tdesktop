@@ -607,6 +607,9 @@ private:
 	// the first _history message date (just skip it by height).
 	int _historySkipHeight = 0;
 
+	FullMsgId _prependAnchorId;
+	int _prependAnchorDateHeight = 0;
+
 	std::unique_ptr<HistoryView::AboutView> _aboutView;
 	std::unique_ptr<HistoryView::EmptyPainter> _emptyPainter;
 	std::unique_ptr<HistoryView::TranslateTracker> _translateTracker;
