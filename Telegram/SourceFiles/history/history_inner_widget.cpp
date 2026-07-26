@@ -4716,6 +4716,10 @@ void HistoryInner::updateSize() {
 	} else {
 		update();
 	}
+
+	if (_thanosController && !_pullBottomInset) {
+		_thanosController->pinScroll();
+	}
 }
 
 void HistoryInner::setShownPinned(HistoryItem *item) {

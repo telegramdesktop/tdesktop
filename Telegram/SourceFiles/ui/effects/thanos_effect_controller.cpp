@@ -310,6 +310,23 @@ void ThanosEffectController::collapseAnimationCallback() {
 	}
 }
 
+void ThanosEffectController::pinScroll() {
+	if (_collapseGaps.empty() || _inPinScroll) {
+		return;
+	}
+	_inPinScroll = true;
+	const auto guard = gsl::finally([&] { _inPinScroll = false; });
+	if (_wasAtBottom) {
+		_delegate.scrollToY(_delegate.scrollTopMax());
+		return;
+	}
+	auto collapsed = 0;
+	for (const auto &gap : _collapseGaps) {
+		collapsed += gap.originalHeight - gap.currentHeight;
+	}
+	_delegate.scrollToY(std::max(_savedScrollTop - collapsed, 0));
+}
+
 void ThanosEffectController::shiftGaps(int delta) {
 	if (!delta || _collapseGaps.empty()) {
 		return;

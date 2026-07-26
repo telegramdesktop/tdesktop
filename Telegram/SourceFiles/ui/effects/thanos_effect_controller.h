@@ -60,6 +60,7 @@ public:
 
 	void captureOnRemoval(not_null<const HistoryItem*> item);
 	void clearPreCaptured();
+	void pinScroll();
 	void shiftGaps(int delta);
 
 	[[nodiscard]] const std::vector<CollapseGap> &renderGaps() const {
@@ -106,6 +107,7 @@ private:
 	std::vector<CollapseGapState> _collapseGaps;
 	Animations::Simple _collapseAnimation;
 
+	bool _inPinScroll = false;
 	int _gapsShift = 0;
 	int _removalHeight = 0;
 
