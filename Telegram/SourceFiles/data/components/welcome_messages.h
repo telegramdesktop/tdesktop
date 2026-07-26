@@ -39,6 +39,7 @@ public:
 		not_null<PeerData*> peer,
 		int32 ephemeralId) const;
 	[[nodiscard]] int count(not_null<History*> history) const;
+	[[nodiscard]] HistoryItem *first(not_null<History*> history) const;
 	[[nodiscard]] bool owns(not_null<const HistoryItem*> item) const;
 
 	void appendSending(not_null<HistoryItem*> item);

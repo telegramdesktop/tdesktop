@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "history/view/history_view_welcome_messages_section.h"
+#include "history/history_item.h"
 #include "info/bot/earn/info_bot_earn_widget.h"
 #include "info/bot/starref/info_bot_starref_join_widget.h"
 #include "info/bot/starref/info_bot_starref_setup_widget.h"
@@ -95,16 +96,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
+#include <QtCore/QTextBoundaryFinder>
 #include <QtSvg/QSvgRenderer>
 
 namespace {
 
 constexpr auto kBotManagerUsername = "BotFather"_cs;
+constexpr auto kWelcomePreviewLength = 8;
 
 [[nodiscard]] auto ToPositiveNumberString() {
 	return rpl::map([](int count) {
 		return count ? QString::number(count) : QString();
 	});
+}
+
+[[nodiscard]] QString ElidedPreview(const QString &text, int max) {
+	auto finder = QTextBoundaryFinder(QTextBoundaryFinder::Grapheme, text);
+	auto clusters = 0;
+	while (finder.toNextBoundary() > 0) {
+		if (++clusters < max) {
+			continue;
+		}
+		const auto cut = finder.position();
+		return (cut < text.size())
+			? (text.left(cut).trimmed() + Ui::kQEllipsis)
+			: text;
+	}
+	return text;
 }
 
 [[nodiscard]] int EnableForumMinMembers(not_null<PeerData*> peer) {
@@ -1639,6 +1657,34 @@ void Controller::fillManageSection() {
 			[=] { editReactions(); },
 			{ &st::menuIconGroupReactions });
 	}
+	if (canEditWelcomeMessages) {
+		const auto history = _peer->owner().history(_peer);
+		const auto store = &_peer->session().welcomeMessages();
+		auto label = rpl::single(rpl::empty) | rpl::then(
+			store->updates(history)
+		) | rpl::map([=] {
+			const auto item = store->first(history);
+			const auto preview = item
+				? ElidedPreview(
+					item->notificationText().text.simplified(),
+					kWelcomePreviewLength)
+				: QString();
+			return preview.isEmpty()
+				? tr::lng_manage_monoforum_off(tr::now)
+				: preview;
+		});
+		auto callback = [=] {
+			_navigation->showSection(
+				std::make_shared<HistoryView::WelcomeMessagesMemento>(
+					history));
+		};
+		AddButtonWithCount(
+			_controls.buttonsLayout,
+			tr::lng_manage_peer_welcome_messages(),
+			std::move(label),
+			std::move(callback),
+			{ &st::menuIconWelcomeMessage });
+	}
 	if (canEditPermissions) {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
@@ -1759,26 +1805,6 @@ void Controller::fillManageSection() {
 			rpl::single(QString()), // Empty count.
 			std::move(callback),
 			{ &st::menuIconGroupLog });
-	}
-	if (canEditWelcomeMessages) {
-		const auto history = _peer->owner().history(_peer);
-		const auto store = &_peer->session().welcomeMessages();
-		auto count = rpl::single(rpl::empty) | rpl::then(
-			store->updates(history)
-		) | rpl::map([=] {
-			return store->count(history);
-		}) | ToPositiveNumberString();
-		auto callback = [=] {
-			_navigation->showSection(
-				std::make_shared<HistoryView::WelcomeMessagesMemento>(
-					history));
-		};
-		AddButtonWithCount(
-			_controls.buttonsLayout,
-			tr::lng_manage_peer_welcome_messages(),
-			std::move(count),
-			std::move(callback),
-			{ &st::menuIconChatBubble });
 	}
 	if (hasStarRef) {
 		auto callback = [=] {

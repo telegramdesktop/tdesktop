@@ -213,6 +213,7 @@ menuIconShareOn: icon {{ "menu/share_on-24x24", menuIconColor }};
 menuIconCommunity: icon {{ "menu/community-24x24", menuIconColor }};
 menuIconPendingRequests: icon {{ "menu/pending_requests-24x24", menuIconColor }};
 menuIconRemovedUsers: icon {{ "menu/removed_users-24x24", menuIconColor }};
+menuIconWelcomeMessage: icon {{ "menu/welcome_message-24x24", menuIconColor }};
 menuIconStar: icon {{ "menu/star", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};

@@ -1957,7 +1957,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_community_title" = "Manage community";
 "lng_manage_bot_title" = "Manage Bot";
 "lng_manage_peer_recent_actions" = "Recent actions";
-"lng_manage_peer_welcome_messages" = "Welcome message";
+"lng_manage_peer_welcome_messages" = "Welcome Message";
 "lng_manage_peer_star_ref" = "Affiliate programs";
 "lng_manage_peer_members" = "Members";
 "lng_manage_peer_subscribers" = "Subscribers";

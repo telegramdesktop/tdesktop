@@ -134,6 +134,13 @@ int WelcomeMessages::count(not_null<History*> history) const {
 	return (i != end(_data)) ? int(i->second.items.size()) : 0;
 }
 
+HistoryItem *WelcomeMessages::first(not_null<History*> history) const {
+	const auto i = _data.find(history);
+	return (i != end(_data) && !i->second.items.empty())
+		? i->second.items.front().get()
+		: nullptr;
+}
+
 bool WelcomeMessages::owns(not_null<const HistoryItem*> item) const {
 	const auto i = _data.find(item->history());
 	if (i == end(_data)) {
@@ -212,6 +219,7 @@ void WelcomeMessages::applyEdit(const MTPDephemeralMessage &data) {
 		return;
 	}
 	applyEdition(item, data);
+	_updates.fire_copy(history);
 }
 
 bool WelcomeMessages::applyDelete(
