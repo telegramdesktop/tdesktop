@@ -302,10 +302,21 @@ void ThanosEffectController::collapseAnimationCallback() {
 	if (!_collapseAnimation.animating()) {
 		_collapseGaps.clear();
 		_renderGaps.clear();
+		_gapsShift = 0;
 		_delegate.collapseGapsUpdated();
 		_collapseAnimation = {};
 		_restoreScrollPending = false;
 		_wasAtBottom = false;
+	}
+}
+
+void ThanosEffectController::shiftGaps(int delta) {
+	if (!delta || _collapseGaps.empty()) {
+		return;
+	}
+	_gapsShift += delta;
+	for (auto &gap : _renderGaps) {
+		gap.absY += delta;
 	}
 }
 
@@ -315,7 +326,7 @@ void ThanosEffectController::syncCollapseGapsToHost() {
 	auto cumulativeOriginal = 0;
 	for (const auto &g : _collapseGaps) {
 		gaps.push_back({
-			.absY = g.absY - cumulativeOriginal,
+			.absY = g.absY - cumulativeOriginal + _gapsShift,
 			.height = g.currentHeight,
 		});
 		cumulativeOriginal += g.originalHeight;
