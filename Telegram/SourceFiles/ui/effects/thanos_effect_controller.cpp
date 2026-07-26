@@ -90,6 +90,7 @@ void ThanosEffectController::captureOnRemoval(
 	if (!view) {
 		return;
 	}
+	_removalHeight += view->height();
 	if (const auto it = _preCaptured.find(item->fullId());
 		it != end(_preCaptured)) {
 		const auto saved = it->second;

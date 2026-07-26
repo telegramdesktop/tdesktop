@@ -4778,6 +4778,7 @@ void ListWidget::collapseGapsUpdated() {
 	for (const auto &gap : collapseGaps()) {
 		gapTotal += gap.height;
 	}
+	gapTotal = std::max(gapTotal - _thanosController->removalHeight(), 0);
 	const auto nowHeight = _itemsTop
 		+ _itemsHeight
 		+ gapTotal

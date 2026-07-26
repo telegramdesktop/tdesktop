@@ -64,6 +64,12 @@ public:
 	[[nodiscard]] const std::vector<CollapseGap> &renderGaps() const {
 		return _renderGaps;
 	}
+	[[nodiscard]] int removalHeight() const {
+		return _removalHeight;
+	}
+	void clearRemovalHeight() {
+		_removalHeight = 0;
+	}
 
 private:
 	struct PreCapturedView {
@@ -98,6 +104,8 @@ private:
 
 	std::vector<CollapseGapState> _collapseGaps;
 	Animations::Simple _collapseAnimation;
+
+	int _removalHeight = 0;
 
 	int _savedScrollTop = 0;
 	bool _restoreScrollPending = false;
