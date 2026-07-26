@@ -31,9 +31,14 @@ namespace Ui {
 struct CollapseGap {
 	int absY = -1;
 	int height = 0;
+	int dateHeight = 0;
 
 	friend bool operator==(const CollapseGap&, const CollapseGap&) = default;
 };
+
+[[nodiscard]] int CollapseDateShift(
+	const std::vector<CollapseGap> &gaps,
+	int itemTop);
 
 class ThanosEffectController final {
 public:
@@ -79,6 +84,7 @@ private:
 	struct PreCapturedView {
 		int height = 0;
 		int top = 0;
+		int dateHeight = 0;
 	};
 
 	struct CollapseGapState {
@@ -86,6 +92,7 @@ private:
 		int startHeight = 0;
 		int currentHeight = 0;
 		int originalHeight = 0;
+		int dateHeight = 0;
 	};
 
 	void captureItemsBatch(
@@ -94,7 +101,7 @@ private:
 		not_null<const HistoryView::Element*> view,
 		int viewHeight,
 		int viewTop);
-	void startCollapseAnimation(int height, int itemTop);
+	void startCollapseAnimation(int height, int itemTop, int dateHeight);
 	void collapseAnimationCallback();
 	void syncCollapseGapsToHost();
 	void ensureScrollBaseline();

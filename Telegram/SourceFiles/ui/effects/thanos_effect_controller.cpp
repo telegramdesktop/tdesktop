@@ -66,6 +66,7 @@ void ThanosEffectController::captureItemsBatch(
 				_preCaptured.emplace(item->fullId(), PreCapturedView{
 					.height = height,
 					.top = top,
+					.dateHeight = view->displayedDateHeight(),
 				});
 			}
 		}
@@ -96,12 +97,16 @@ void ThanosEffectController::captureOnRemoval(
 		const auto saved = it->second;
 		_preCaptured.erase(it);
 		if (saved.top >= 0) {
-			startCollapseAnimation(saved.height, saved.top);
+			startCollapseAnimation(
+				saved.height,
+				saved.top,
+				saved.dateHeight);
 		}
 		return;
 	}
 	const auto top = _delegate.itemTop(view);
 	const auto height = view->height();
+	const auto dateHeight = view->displayedDateHeight();
 
 	if ((!item->isRegular() && !item->isEphemeral())
 		|| item->isService()
@@ -113,7 +118,7 @@ void ThanosEffectController::captureOnRemoval(
 	[[maybe_unused]] const auto dissolved = captureView(view, height, top);
 
 	ensureScrollBaseline();
-	startCollapseAnimation(height, top);
+	startCollapseAnimation(height, top, dateHeight);
 }
 
 void ThanosEffectController::ensureScrollBaseline() {
@@ -203,9 +208,19 @@ bool ThanosEffectController::captureView(
 	return true;
 }
 
+int CollapseDateShift(const std::vector<CollapseGap> &gaps, int itemTop) {
+	for (const auto &gap : gaps) {
+		if (gap.dateHeight > 0 && gap.absY + gap.height == itemTop) {
+			return gap.height;
+		}
+	}
+	return 0;
+}
+
 void ThanosEffectController::startCollapseAnimation(
 		int height,
-		int itemTop) {
+		int itemTop,
+		int dateHeight) {
 	if (height <= 0) {
 		return;
 	}
@@ -240,6 +255,7 @@ void ThanosEffectController::startCollapseAnimation(
 			gap.startHeight += height;
 			gap.currentHeight += height;
 			gap.originalHeight += height;
+			gap.dateHeight = dateHeight;
 			merged = true;
 			break;
 		}
@@ -255,6 +271,7 @@ void ThanosEffectController::startCollapseAnimation(
 			.startHeight = height,
 			.currentHeight = height,
 			.originalHeight = height,
+			.dateHeight = dateHeight,
 		});
 	}
 
@@ -366,6 +383,7 @@ void ThanosEffectController::syncCollapseGapsToHost() {
 		gaps.push_back({
 			.absY = g.absY - cumulativeOriginal + _gapsShift,
 			.height = g.currentHeight,
+			.dateHeight = g.dateHeight,
 		});
 		cumulativeOriginal += g.originalHeight;
 	}
