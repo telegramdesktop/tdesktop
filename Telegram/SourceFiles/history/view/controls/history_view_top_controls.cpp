@@ -277,11 +277,7 @@ void TopControls::setRepliesRootVisible(bool shown) {
 				const auto was = height();
 				_repliesRootViewHeight = next;
 				updateLayout();
-				if (_scroll->scrollTop() >= _scroll->scrollTopMax()) {
-					applyHeightChangeWithTopMoved(was, height());
-				} else {
-					applyHeightChangeWithRelayout(was, height());
-				}
+				applyHeightChangeWithTopMoved(was, height());
 			}
 		}
 		_repliesRootVisible = shown;
