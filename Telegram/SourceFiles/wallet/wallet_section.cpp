@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "profile/profile_back_button.h"
 #include "qr/qr_generate.h"
+#include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
@@ -32,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
@@ -40,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 #include "styles/style_chat_helpers.h"
+#include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_wallet.h"
@@ -51,6 +54,7 @@ namespace {
 constexpr auto kAddressLength = 48;
 constexpr auto kAddressGroup = 4;
 constexpr auto kAddressGroupsPerLine = 6;
+constexpr auto kDetailsGroupsPerLine = 4;
 constexpr auto kShortAddressChars = 4;
 constexpr auto kMinus = QChar(0x2212);
 
@@ -90,6 +94,28 @@ private:
 			kAddressGroup));
 	}
 	return groups.join(QChar(' '));
+}
+
+[[nodiscard]] TextWithEntities DetailsAddressValue(
+		const QString &address) {
+	auto result = tr::marked();
+	const auto perLine = kAddressGroup * kDetailsGroupsPerLine;
+	for (auto offset = 0; offset < address.size(); offset += perLine) {
+		auto groups = QStringList();
+		for (auto i = 0; i != kDetailsGroupsPerLine; ++i) {
+			groups.append(address.mid(
+				offset + i * kAddressGroup,
+				kAddressGroup));
+		}
+		if (!result.empty()) {
+			result.append(QChar('\n'));
+		}
+		result.append(Ui::Text::Wrapped(
+			{ groups.join(QChar(' ')) },
+			EntityType::Code,
+			{}));
+	}
+	return result;
 }
 
 void SetBalanceText(not_null<Ui::FlatLabel*> label, CreditsAmount amount) {
@@ -160,13 +186,15 @@ void SetRowAmount(
 
 void AddHistoryRow(
 		not_null<Ui::VerticalLayout*> list,
-		const HistoryRowContent &content) {
+		const HistoryRowContent &content,
+		Fn<void()> clicked) {
 	const auto wrap = list->add(
 		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
 			list,
 			object_ptr<Ui::VerticalLayout>(list),
 			st::walletRowPadding));
 	const auto inner = wrap->entity();
+	inner->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto title = inner->add(object_ptr<Ui::FlatLabel>(
 		inner,
 		content.title,
@@ -187,9 +215,11 @@ void AddHistoryRow(
 	const auto major = Ui::CreateChild<Ui::FlatLabel>(
 		wrap,
 		st::walletRowAmountMajorLabel);
+	major->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto minor = Ui::CreateChild<Ui::FlatLabel>(
 		wrap,
 		st::walletRowAmountMinorLabel);
+	minor->setAttribute(Qt::WA_TransparentForMouseEvents);
 	SetRowAmount(
 		major,
 		minor,
@@ -198,6 +228,7 @@ void AddHistoryRow(
 		content.pending);
 	const auto circle = Ui::CreateChild<Ui::RpWidget>(wrap);
 	circle->resize(st::walletRowIconSize, st::walletRowIconSize);
+	circle->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto icon = content.incoming
 		? &st::walletRowIconIn
 		: &st::walletRowIconOut;
@@ -210,6 +241,10 @@ void AddHistoryRow(
 		p.drawEllipse(circle->rect());
 		icon->paintInCenter(p, circle->rect());
 	}, circle->lifetime());
+	const auto button = Ui::CreateChild<Ui::SettingsButton>(
+		wrap,
+		rpl::single(QString()));
+	button->setClickedCallback(std::move(clicked));
 	Ui::ToggleChildrenVisibility(wrap, true);
 	wrap->geometryValue(
 	) | rpl::on_next([=](const QRect &g) {
@@ -224,6 +259,8 @@ void AddHistoryRow(
 		major->moveToRight(
 			st::walletRowPadding.right() + minor->width(),
 			majorTop);
+		button->resize(g.size());
+		button->lower();
 	}, wrap->lifetime());
 }
 
@@ -264,6 +301,17 @@ void AddHistoryRow(
 		.incoming = false,
 		.pending = true,
 	};
+}
+
+[[nodiscard]] Gram::TransferItem ItemFromPending(
+		const PendingSend &pending) {
+	auto result = Gram::TransferItem();
+	result.incoming = false;
+	result.counterparty = pending.destination;
+	result.amountNano = pending.amountNano;
+	result.date = pending.posted;
+	result.status = Gram::TransferItem::Status::Pending;
+	return result;
 }
 
 void WalletQrBox(not_null<Ui::GenericBox*> box, const QString &address) {
@@ -308,6 +356,150 @@ void WalletQrBox(not_null<Ui::GenericBox*> box, const QString &address) {
 	};
 	button->setClickedCallback(copy);
 	box->addLeftButton(tr::lng_wallet_qr_copy(), copy);
+}
+
+void AddDetailsAmountHeader(
+		not_null<Ui::GenericBox*> box,
+		const Gram::TransferItem &item) {
+	const auto container = box->addRow(
+		object_ptr<Ui::RpWidget>(box),
+		style::margins(
+			0,
+			st::boxTitleHeight + st::walletDetailsAmountTopSkip,
+			0,
+			st::walletDetailsAmountBottomSkip),
+		style::al_top);
+	const auto formatted = Ui::FormatTonAmount(item.amountNano);
+	const auto major = Ui::CreateChild<Ui::FlatLabel>(
+		container,
+		(item.incoming ? QChar('+') : kMinus) + formatted.wholeString,
+		st::walletDetailsAmountMajorLabel);
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto minorText = formatted.nanoString.isEmpty()
+		? tr::marked()
+		: tr::marked(formatted.separator + formatted.nanoString);
+	minorText.append(helper.paletteDependent({
+		.factory = [] {
+			return Ui::Earn::IconCurrencyColored(
+				st::walletDetailsAmountMajorLabel.style.font,
+				st::windowActiveTextFg->c);
+		},
+		.margin = st::walletDetailsIconMargin,
+	}));
+	const auto minor = Ui::CreateChild<Ui::FlatLabel>(
+		container,
+		st::walletDetailsAmountMinorLabel);
+	minor->setMarkedText(std::move(minorText), helper.context());
+	const auto pending
+		= (item.status == Gram::TransferItem::Status::Pending);
+	const auto color = pending
+		? st::windowSubTextFg->c
+		: item.incoming
+		? st::boxTextFgGood->c
+		: st::windowFg->c;
+	major->setTextColorOverride(color);
+	minor->setTextColorOverride(color);
+	rpl::combine(
+		major->sizeValue(),
+		minor->sizeValue()
+	) | rpl::on_next([=](
+			const QSize &majorSize,
+			const QSize &minorSize) {
+		const auto width = majorSize.width() + minorSize.width();
+		container->resize(
+			width,
+			std::max(
+				majorSize.height(),
+				st::walletDetailsAmountMinorSkip + minorSize.height()));
+		container->setNaturalWidth(width);
+		major->moveToLeft(0, 0, width);
+		minor->moveToLeft(
+			majorSize.width(),
+			st::walletDetailsAmountMinorSkip,
+			width);
+	}, container->lifetime());
+}
+
+void AddDetailsTable(
+		not_null<Ui::GenericBox*> box,
+		const Gram::TransferItem &item) {
+	const auto table = box->addRow(
+		object_ptr<Ui::TableLayout>(
+			box,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	if (!item.counterparty.hash.isEmpty()) {
+		const auto address = Gram::FormatFriendly(item.counterparty, true);
+		auto label = object_ptr<Ui::FlatLabel>(
+			table,
+			rpl::single(DetailsAddressValue(address)),
+			st::walletDetailsAddressLabel);
+		label->setClickHandlerFilter([=, show = box->uiShow()](
+				const auto &...) {
+			TextUtilities::SetClipboardText(
+				TextForMimeData::Simple(address));
+			show->showToast({
+				.text = { tr::lng_gift_unique_address_copied(tr::now) },
+				.iconLottie = u"toast/copy"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
+			return false;
+		});
+		Ui::AddTableRow(
+			table,
+			(item.incoming
+				? tr::lng_wallet_details_sender()
+				: tr::lng_wallet_details_recipient()),
+			std::move(label));
+	}
+	const auto pending
+		= (item.status == Gram::TransferItem::Status::Pending);
+	if (item.feeNano > 0 && !pending) {
+		auto helper = Ui::Text::CustomEmojiHelper();
+		auto fee = helper.paletteDependent({
+			.factory = [] {
+				return Ui::Earn::IconCurrencyColored(
+					st::defaultTableValue.style.font,
+					st::windowActiveTextFg->c);
+			},
+		});
+		fee.append(QChar(' '));
+		fee.append(Ui::FormatTonAmount(item.feeNano).full);
+		Ui::AddTableRow(
+			table,
+			tr::lng_wallet_details_fee(),
+			rpl::single(std::move(fee)),
+			helper.context());
+	}
+	Ui::AddTableRow(
+		table,
+		tr::lng_wallet_details_date(),
+		rpl::single(tr::marked(
+			langDateTime(base::unixtime::parse(item.date)))));
+}
+
+void WalletTransactionBox(
+		not_null<Ui::GenericBox*> box,
+		Gram::TransferItem item) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	AddDetailsAmountHeader(box, item);
+	AddDetailsTable(box, item);
+
+	const auto close = Ui::CreateChild<Ui::IconButton>(
+		box.get(),
+		st::boxTitleClose);
+	close->setClickedCallback([=] {
+		box->closeBox();
+	});
+	box->widthValue(
+	) | rpl::on_next([=](int width) {
+		close->moveToRight(0, 0);
+	}, box->lifetime());
+
+	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 }
 
 Card::Card(
@@ -698,6 +890,7 @@ void SectionWidget::setupContent() {
 			column,
 			object_ptr<Ui::VerticalLayout>(column)));
 	const auto list = listWrap->entity();
+	const auto controller = this->controller();
 	const auto rebuildList = [=] {
 		list->clear();
 		const auto &history = wallet->history();
@@ -711,10 +904,15 @@ void SectionWidget::setupContent() {
 						== pending->messageHashNorm;
 				});
 			if (pending && !shown) {
-				AddHistoryRow(list, RowContentFromPending(*pending));
+				const auto item = ItemFromPending(*pending);
+				AddHistoryRow(list, RowContentFromPending(*pending), [=] {
+					controller->show(Box(WalletTransactionBox, item));
+				});
 			}
 			for (const auto &item : history) {
-				AddHistoryRow(list, RowContentFromItem(item));
+				AddHistoryRow(list, RowContentFromItem(item), [=] {
+					controller->show(Box(WalletTransactionBox, item));
+				});
 			}
 			Ui::AddSkip(list, st::walletRowsTopSkip);
 		}

@@ -114,3 +114,22 @@ walletRowIconMargin: margins(3px, 0px, 0px, 0px);
 walletQrPixel: 8px;
 walletQrSkip: 24px;
 walletQrMargin: margins(0px, 0px, 0px, 0px);
+
+walletDetailsAmountMajorLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(26px semibold);
+	}
+}
+walletDetailsAmountMinorLabel: FlatLabel(walletDetailsAmountMajorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(18px semibold);
+	}
+}
+walletDetailsAmountMinorSkip: 8px;
+walletDetailsIconMargin: margins(6px, 4px, 0px, 0px);
+walletDetailsAmountTopSkip: 16px;
+walletDetailsAmountBottomSkip: 24px;
+walletDetailsAddressLabel: FlatLabel(defaultTableValue) {
+	minWidth: 128px;
+	maxHeight: 100px;
+}
