@@ -64,6 +64,7 @@ walletAboutTitleLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 }
 walletAboutTextLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 248px;
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(12px);
