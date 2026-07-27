@@ -701,6 +701,9 @@ private:
 	void updateVisibleTopItem();
 	void updateItemsGeometry();
 	void updateSize();
+	[[nodiscard]] int collapseGapsTotal() const;
+	[[nodiscard]] int countItemsTop() const;
+	void setItemsTop(int top);
 	void refreshAttachmentsFromTill(int from, int till);
 	void refreshAttachmentsAtIndex(int index);
 

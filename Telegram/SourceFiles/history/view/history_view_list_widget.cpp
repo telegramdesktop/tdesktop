@@ -246,9 +246,9 @@ void ListWidget::enumerateItems(Method method) {
 		return;
 	}
 
-	auto collapseGapsTotal = 0;
+	auto collapseGapTotal = 0;
 	for (const auto &gap : collapseGaps()) {
-		collapseGapsTotal += gap.height;
+		collapseGapTotal += gap.height;
 	}
 
 	const auto beginning = begin(_items);
@@ -257,7 +257,7 @@ void ListWidget::enumerateItems(Method method) {
 		? std::lower_bound(
 			beginning,
 			ending,
-			_visibleTop - collapseGapsTotal,
+			_visibleTop - collapseGapTotal,
 			[this](auto &elem, int top) {
 				return this->itemTop(elem) + elem->height() <= top;
 			})
@@ -283,7 +283,7 @@ void ListWidget::enumerateItems(Method method) {
 			collapseShift += collapseGaps()[nextGapIndex].height;
 		}
 	} else {
-		collapseShift = collapseGapsTotal;
+		collapseShift = collapseGapTotal;
 		nextGapIndex = gapCount;
 	}
 
@@ -2389,13 +2389,8 @@ void ListWidget::revealItemsCallback() {
 		const auto old = std::exchange(_itemsRevealHeight, revealHeight);
 		const auto delta = old - _itemsRevealHeight;
 		_itemsHeight += delta;
-		_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom)
-			? (_minHeight - _itemsHeight - st::historyPaddingBottom)
-			: 0;
-		auto collapseGapTotal = 0;
-		for (const auto &gap : collapseGaps()) {
-			collapseGapTotal += gap.height;
-		}
+		setItemsTop(countItemsTop());
+		const auto collapseGapTotal = collapseGapsTotal();
 		const auto wasHeight = height();
 		const auto nowHeight = _itemsTop
 			+ _itemsHeight
@@ -2438,17 +2433,12 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	if (_thanosController) {
 		_thanosController->clearRemovalHeight();
 	}
-	auto collapseGapTotal = 0;
-	for (const auto &gap : collapseGaps()) {
-		collapseGapTotal += gap.height;
-	}
-	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom)
-		? (_minHeight - _itemsHeight - st::historyPaddingBottom)
-		: 0;
+	const auto collapseGapTotal = collapseGapsTotal();
+	setItemsTop(countItemsTop());
 	if (const auto about = _delegate->listAboutView()) {
 		if (const auto view = about->view()) {
 			about->height = view->resizeGetHeight(newWidth);
-			_itemsTop = std::max(_itemsTop, about->height);
+			setItemsTop(std::max(_itemsTop, about->height));
 			about->top = std::min(
 				_itemsTop - about->height,
 				std::max(0, (_minHeight - about->height) / 2));
@@ -2625,12 +2615,12 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		_thanosController->clearRemovalHeight();
 	}
 
-	auto collapseGapsTotal = 0;
+	auto collapseGapTotal = 0;
 	for (const auto &gap : collapseGaps()) {
-		collapseGapsTotal += gap.height;
+		collapseGapTotal += gap.height;
 	}
 
-	auto from = std::lower_bound(begin(_items), end(_items), clip.top() - collapseGapsTotal, [this](auto &elem, int top) {
+	auto from = std::lower_bound(begin(_items), end(_items), clip.top() - collapseGapTotal, [this](auto &elem, int top) {
 		return this->itemTop(elem) + elem->height() <= top;
 	});
 	auto to = std::lower_bound(begin(_items), end(_items), clip.top() + clip.height(), [this](auto &elem, int bottom) {
@@ -4807,12 +4797,36 @@ const std::vector<Ui::CollapseGap> &ListWidget::collapseGaps() const {
 	return _thanosController ? _thanosController->renderGaps() : kNone;
 }
 
-void ListWidget::collapseGapsUpdated() {
-	auto gapTotal = 0;
+int ListWidget::collapseGapsTotal() const {
+	auto result = 0;
 	for (const auto &gap : collapseGaps()) {
-		gapTotal += gap.height;
+		result += gap.height;
 	}
-	gapTotal = std::max(gapTotal - _thanosController->removalHeight(), 0);
+	if (_thanosController) {
+		result = std::max(result - _thanosController->removalHeight(), 0);
+	}
+	return result;
+}
+
+int ListWidget::countItemsTop() const {
+	const auto full = _itemsHeight
+		+ collapseGapsTotal()
+		+ st::historyPaddingBottom;
+	return (_minHeight > full) ? (_minHeight - full) : 0;
+}
+
+void ListWidget::setItemsTop(int top) {
+	if (_itemsTop == top) {
+		return;
+	} else if (_thanosController) {
+		_thanosController->shiftGaps(top - _itemsTop);
+	}
+	_itemsTop = top;
+}
+
+void ListWidget::collapseGapsUpdated() {
+	const auto gapTotal = collapseGapsTotal();
+	setItemsTop(countItemsTop());
 	const auto nowHeight = _itemsTop
 		+ _itemsHeight
 		+ gapTotal
@@ -4976,10 +4990,13 @@ void ListWidget::viewHeightAdjusted(not_null<Element*> view) {
 		(*next)->setY((*next)->y() + delta);
 	}
 	_itemsHeight += delta;
-	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom)
-		? (_minHeight - _itemsHeight - st::historyPaddingBottom)
-		: 0;
-	resize(width(), _itemsTop + _itemsHeight + st::historyPaddingBottom);
+	setItemsTop(countItemsTop());
+	resize(
+		width(),
+		_itemsTop
+			+ _itemsHeight
+			+ collapseGapsTotal()
+			+ st::historyPaddingBottom);
 	restoreScrollPosition();
 	updateVisibleTopItem();
 	update();
