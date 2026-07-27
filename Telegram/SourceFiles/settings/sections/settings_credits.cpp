@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/slider_natural_width.h"
+#include "ui/widgets/sliding_tabs.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -331,12 +332,15 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			}, shadow->lifetime());
 		}
 
+		auto tabBySection = std::vector<int>{ 0 };
 		slider->entity()->addSection(fullTabText);
 		if (hasIn) {
 			slider->entity()->addSection(inTabText);
+			tabBySection.push_back(1);
 		}
 		if (hasOut) {
 			slider->entity()->addSection(outTabText);
+			tabBySection.push_back(2);
 		}
 
 		{
@@ -348,35 +352,14 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 				+ rect::m::sum::h(st::creditsHistoryTabsSliderPadding));
 		}
 
-		const auto fullWrap = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				inner,
-				object_ptr<Ui::VerticalLayout>(inner)));
-		const auto inWrap = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				inner,
-				object_ptr<Ui::VerticalLayout>(inner)));
-		const auto outWrap = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				inner,
-				object_ptr<Ui::VerticalLayout>(inner)));
+		const auto tabs = inner->add(object_ptr<Ui::SlidingTabs>(inner, 3));
+		const auto fullTab = tabs->tab(0);
+		const auto inTab = tabs->tab(1);
+		const auto outTab = tabs->tab(2);
 
-		rpl::single(0) | rpl::then(
-			slider->entity()->sectionActivated()
+		slider->entity()->sectionActivated(
 		) | rpl::on_next([=](int index) {
-			if (index == 0) {
-				fullWrap->toggle(true, anim::type::instant);
-				inWrap->toggle(false, anim::type::instant);
-				outWrap->toggle(false, anim::type::instant);
-			} else if (index == 1) {
-				inWrap->toggle(true, anim::type::instant);
-				fullWrap->toggle(false, anim::type::instant);
-				outWrap->toggle(false, anim::type::instant);
-			} else {
-				outWrap->toggle(true, anim::type::instant);
-				fullWrap->toggle(false, anim::type::instant);
-				inWrap->toggle(false, anim::type::instant);
-			}
+			tabs->showTab(tabBySection[index]);
 		}, inner->lifetime());
 
 		const auto window = controller()->parentController();
@@ -393,7 +376,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		Info::Statistics::AddCreditsHistoryList(
 			window->uiShow(),
 			fullSlice,
-			fullWrap->entity(),
+			fullTab,
 			entryClicked,
 			self,
 			true,
@@ -401,7 +384,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		Info::Statistics::AddCreditsHistoryList(
 			window->uiShow(),
 			inSlice,
-			inWrap->entity(),
+			inTab,
 			entryClicked,
 			self,
 			true,
@@ -409,7 +392,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		Info::Statistics::AddCreditsHistoryList(
 			window->uiShow(),
 			outSlice,
-			outWrap->entity(),
+			outTab,
 			std::move(entryClicked),
 			self,
 			false,
