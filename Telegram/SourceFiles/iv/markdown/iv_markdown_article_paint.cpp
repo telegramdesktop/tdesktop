@@ -328,6 +328,7 @@ void PaintSelectableTextLeaf(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1458,6 +1459,7 @@ void PaintTableCaption(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -2532,6 +2534,15 @@ void PaintAudioBlock(
 	PaintMediaCaption(p, block, st, context);
 }
 
+void PaintFileBlock(
+		Painter &p,
+		const LaidOutBlock &block,
+		const style::Markdown &st,
+		const MarkdownArticlePaintContext &context) {
+	PaintPersistentMediaBlock(p, block, context);
+	PaintMediaCaption(p, block, st, context);
+}
+
 void PaintChannelBlock(
 		Painter &p,
 		const LaidOutBlock &block,
@@ -3165,6 +3176,9 @@ void PaintBlock(
 		break;
 	case PreparedBlockKind::Audio:
 		PaintAudioBlock(p, block, st, context);
+		break;
+	case PreparedBlockKind::File:
+		PaintFileBlock(p, block, st, context);
 		break;
 	case PreparedBlockKind::Map:
 		PaintMapBlock(p, block, st, context);

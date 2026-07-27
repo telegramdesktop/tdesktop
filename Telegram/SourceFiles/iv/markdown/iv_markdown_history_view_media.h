@@ -75,6 +75,7 @@ enum class IvHistoryViewMediaKind {
 	Document,
 	Map,
 	Audio,
+	File,
 	GroupedMedia,
 	Slideshow,
 };
@@ -116,6 +117,9 @@ public:
 	using AudioFactory = std::function<std::shared_ptr<MediaBlock>(
 		Window::SessionController *controller,
 		const PreparedAudioBlockData &prepared)>;
+	using FileFactory = std::function<std::shared_ptr<MediaBlock>(
+		Window::SessionController *controller,
+		const PreparedFileBlockData &prepared)>;
 	using MapFactory = std::function<std::shared_ptr<MediaBlock>(
 		Window::SessionController *controller,
 		const PreparedMapBlockData &prepared)>;
@@ -128,6 +132,7 @@ public:
 		PhotoFactory createPhoto = {},
 		VideoFactory createVideo = {},
 		AudioFactory createAudio = {},
+		FileFactory createFile = {},
 		MapFactory createMap = {},
 		GroupedMediaFactory createGroupedMedia = {});
 
@@ -137,6 +142,8 @@ public:
 		const PreparedVideoBlockData &prepared) const override;
 	[[nodiscard]] std::shared_ptr<MediaBlock> createAudio(
 		const PreparedAudioBlockData &prepared) const override;
+	[[nodiscard]] std::shared_ptr<MediaBlock> createFile(
+		const PreparedFileBlockData &prepared) const override;
 	[[nodiscard]] std::shared_ptr<MediaBlock> createMap(
 		const PreparedMapBlockData &prepared) const override;
 	[[nodiscard]] std::shared_ptr<MediaBlock> createGroupedMedia(
@@ -152,6 +159,7 @@ private:
 	const PhotoFactory _createPhoto;
 	const VideoFactory _createVideo;
 	const AudioFactory _createAudio;
+	const FileFactory _createFile;
 	const MapFactory _createMap;
 	const GroupedMediaFactory _createGroupedMedia;
 };

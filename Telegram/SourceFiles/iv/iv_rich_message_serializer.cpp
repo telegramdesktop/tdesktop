@@ -866,6 +866,7 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 			block.photo).has_value();
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 		return ResolveInputDocument(
 			context,
 			block.documentId,
@@ -899,6 +900,7 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 		return ResolveInputPhoto(context, block.photoId, block.photo).has_value();
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 		return ResolveInputDocument(
 			context,
 			block.documentId,
@@ -1513,6 +1515,18 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 		const auto caption = SerializeCaption(block.caption, block.anchorId, context);
 		return (documentId && caption)
 			? SuccessfulSerializeBlock(MTP_pageBlockAudio(
+				MTP_long(*documentId),
+				*caption))
+			: FailedSerializeBlock();
+	}
+	case BlockKind::File: {
+		const auto documentId = CollectDocument(
+			context,
+			block.documentId,
+			block.document);
+		const auto caption = SerializeCaption(block.caption, block.anchorId, context);
+		return (documentId && caption)
+			? SuccessfulSerializeBlock(MTP_pageBlockDocument(
 				MTP_long(*documentId),
 				*caption))
 			: FailedSerializeBlock();

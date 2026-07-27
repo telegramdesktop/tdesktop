@@ -277,6 +277,7 @@ void AccumulateTextLength(
 	case BlockKind::Photo:
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 		return true;
 	default:
 		return false;
@@ -1612,9 +1613,16 @@ void AppendBlock(
 	}, [&](const MTPDpageBlockButtonRow &) {
 		AssertIsDebug();
 		result->push_back(MakeBlock(BlockKind::Unsupported));
-	}, [&](const MTPDpageBlockDocument &) {
-		AssertIsDebug();
-		result->push_back(MakeBlock(BlockKind::Unsupported));
+	}, [&](const MTPDpageBlockDocument &data) {
+		const auto documentId = uint64(data.vdocument_id().v);
+		const auto info = FindDocumentInfo(*context, documentId);
+		auto parsed = MakeBlock(BlockKind::File);
+		parsed.fileName = info.fileName;
+		parsed.documentId = documentId;
+		parsed.document = FindDocument(*context, documentId);
+		parsed.caption = ParseCaption(data.vcaption(), context);
+		AdoptAnchor(&parsed.anchorId, &parsed.caption);
+		result->push_back(std::move(parsed));
 	}, [&](const MTPDinputPageBlockMap &) {
 		result->push_back(MakeBlock(BlockKind::Unsupported));
 	});
@@ -1723,6 +1731,8 @@ void AppendSummaryLine(
 		return tr::lng_in_dlg_video(tr::now);
 	} else if (block.kind == BlockKind::Audio) {
 		return tr::lng_in_dlg_audio_file(tr::now);
+	} else if (block.kind == BlockKind::File) {
+		return tr::lng_in_dlg_file(tr::now);
 	} else if (block.kind == BlockKind::Map) {
 		return tr::lng_maps_point(tr::now);
 	} else if (block.kind == BlockKind::GroupedMedia) {
@@ -2092,6 +2102,7 @@ void AppendSummaryBlock(
 	case BlockKind::Photo:
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 	case BlockKind::GroupedMedia:
 	case BlockKind::Map: {
 		if (!withIcons) {
@@ -2253,6 +2264,7 @@ std::shared_ptr<const RichPage> ParsePage(
 	case BlockKind::Photo:
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 	case BlockKind::GroupedMedia:
 	case BlockKind::Map:
 		return false;

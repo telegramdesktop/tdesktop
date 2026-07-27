@@ -1006,6 +1006,7 @@ QByteArray RichBlockKindToString(Data::RichBlock::Kind kind) {
 	case Kind::Slideshow: return "slideshow";
 	case Kind::Channel: return "channel";
 	case Kind::Audio: return "audio";
+	case Kind::File: return "file";
 	case Kind::Math: return "math";
 	case Kind::Table: return "table";
 	case Kind::Details: return "details";
@@ -1261,6 +1262,7 @@ QByteArray SerializeRichBlock(
 				SerializeRichChannel(context, data.channel));
 			break;
 		case Kind::Audio:
+		case Kind::File:
 			values.emplace_back(
 				"document_id",
 				SerializeRichNumberString(data.documentId));

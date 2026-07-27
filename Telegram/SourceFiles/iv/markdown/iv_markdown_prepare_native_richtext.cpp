@@ -539,6 +539,42 @@ bool PrepareNativeIvAudioBlock(
 	return true;
 }
 
+bool PrepareNativeIvFileBlock(
+		const Iv::RichPage::Block &data,
+		std::vector<PreparedBlock> *result,
+		NativeIvPrepareState *state) {
+	if (!CanonicalDocumentId(data)) {
+		return state->editMode
+			? PrepareNativeIvCanonicalPlaceholderBlock(
+				u"File"_q,
+				data.caption,
+				data.anchorId,
+				result,
+				state)
+			: true;
+	}
+	auto caption = PreparedIvRichText();
+	auto anchorId = QString();
+	if (!PrepareNativeIvCaption(data.caption, &caption, &anchorId, state)) {
+		return false;
+	}
+	SortPreparedIvRichText(&caption);
+	auto block = PreparedBlock();
+	block.kind = PreparedBlockKind::File;
+	block.text = std::move(caption.text);
+	block.links = std::move(caption.links);
+	block.anchorId = data.anchorId.isEmpty() ? std::move(anchorId) : data.anchorId;
+	block.anchorIds = std::move(caption.anchorIds);
+	block.supplementary = true;
+	block.forceTextSegment = state->editMode;
+	ApplyEmptyMediaCaptionPlaceholder(&block, state);
+	block.file.id = GeneratePreparedMediaBlockId(state);
+	block.file.documentId = CanonicalDocumentId(data);
+	block.file.fileName = data.fileName;
+	result->push_back(std::move(block));
+	return true;
+}
+
 bool PrepareNativeIvMapBlock(
 		const Iv::RichPage::Block &data,
 		std::vector<PreparedBlock> *result,

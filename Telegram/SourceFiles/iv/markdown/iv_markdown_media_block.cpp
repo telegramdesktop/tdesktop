@@ -583,6 +583,21 @@ std::shared_ptr<MediaBlock> CreateAudioMediaBlock(
 	return nullptr;
 }
 
+std::shared_ptr<MediaBlock> CreateFileMediaBlock(
+		const PreparedFileBlockData &prepared,
+		const std::shared_ptr<MediaRuntime> &mediaRuntime,
+		const style::Markdown &st) {
+	if (mediaRuntime) {
+		if (const auto hosted = mediaRuntime->hostedMediaBlockFactory()) {
+			if (const auto block = hosted->createFile(prepared)) {
+				block->setLayoutStyle(st);
+				return block;
+			}
+		}
+	}
+	return nullptr;
+}
+
 std::shared_ptr<MediaBlock> CreateMapMediaBlock(
 		const PreparedMapBlockData &prepared,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,

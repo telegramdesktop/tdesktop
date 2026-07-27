@@ -984,9 +984,11 @@ RichBlock ParseRichBlock(const MTPPageBlock &block) {
 	}, [](const MTPDpageBlockButtonRow &) {
 		AssertIsDebug();
 		return ParseRichUnsupportedBlock(Kind::Unsupported);
-	}, [](const MTPDpageBlockDocument &) {
-		AssertIsDebug();
-		return ParseRichUnsupportedBlock(Kind::Unsupported);
+	}, [](const MTPDpageBlockDocument &data) {
+		auto result = ParseRichSupportedBlock(Kind::File);
+		result.documentId = uint64(data.vdocument_id().v);
+		result.caption = ParseRichCaption(data.vcaption());
+		return result;
 	});
 }
 

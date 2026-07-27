@@ -41,6 +41,7 @@ namespace {
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -288,6 +289,7 @@ void PrepareNestedContext(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -482,6 +484,7 @@ void FinalizeOwnerSelection(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1183,6 +1186,7 @@ void FinalizeOwnerSelection(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1836,6 +1840,7 @@ void FinalizeOwnerSelection(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -2530,6 +2535,17 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			context);
 	case PreparedBlockKind::Audio:
 		return LayoutAudioBlock(
+			prepared,
+			formulas,
+			inlineFormulaObjects,
+			mediaRuntime,
+			st,
+			left,
+			top,
+			width,
+			context);
+	case PreparedBlockKind::File:
+		return LayoutFileBlock(
 			prepared,
 			formulas,
 			inlineFormulaObjects,
@@ -3629,6 +3645,7 @@ int LayoutBlocks(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -3864,6 +3881,7 @@ int LayoutBlocks(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:

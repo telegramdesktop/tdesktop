@@ -57,6 +57,7 @@ struct RichPage {
 		GroupedMedia,
 		Channel,
 		Audio,
+		File,
 		Math,
 		Table,
 		Details,
@@ -194,6 +195,7 @@ struct RichPage {
 		QString audioTitle;
 		QString audioPerformer;
 		QString audioFileName;
+		QString fileName;
 		TimeId date = 0;
 		int audioDuration = 0;
 		int headingLevel = 0;

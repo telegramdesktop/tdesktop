@@ -44,6 +44,7 @@ enum class PreparedBlockKind {
 	Photo,
 	Video,
 	Audio,
+	File,
 	Map,
 	Channel,
 	GroupedMedia,
@@ -608,6 +609,12 @@ struct PreparedAudioBlockData {
 	int duration = 0;
 };
 
+struct PreparedFileBlockData {
+	PreparedMediaBlockId id;
+	uint64 documentId = 0;
+	QString fileName;
+};
+
 struct PreparedMapBlockData {
 	PreparedMediaBlockId id;
 	double latitude = 0.;
@@ -682,6 +689,7 @@ struct PreparedBlock {
 	PreparedPhotoBlockData photo;
 	PreparedVideoBlockData video;
 	PreparedAudioBlockData audio;
+	PreparedFileBlockData file;
 	PreparedMapBlockData map;
 	PreparedChannelBlockData channel;
 	PreparedGroupedMediaBlockData groupedMedia;

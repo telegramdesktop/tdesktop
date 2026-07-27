@@ -1462,6 +1462,7 @@ void MergeRichTextAnchors(RichText *target, RichText source) {
 	case BlockKind::Embed:
 	case BlockKind::EmbedPost:
 	case BlockKind::Channel:
+	case BlockKind::File:
 	case BlockKind::RelatedArticles:
 		return false;
 	}

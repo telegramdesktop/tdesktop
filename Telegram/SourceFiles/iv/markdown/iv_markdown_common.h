@@ -109,6 +109,7 @@ struct PreparedPlaceholderBlockId {
 struct PreparedPhotoBlockData;
 struct PreparedVideoBlockData;
 struct PreparedAudioBlockData;
+struct PreparedFileBlockData;
 struct PreparedMapBlockData;
 struct PreparedGroupedMediaBlockData;
 
@@ -126,6 +127,10 @@ public:
 	}
 	[[nodiscard]] virtual std::shared_ptr<MediaBlock> createAudio(
 		const PreparedAudioBlockData &prepared) const {
+		return nullptr;
+	}
+	[[nodiscard]] virtual std::shared_ptr<MediaBlock> createFile(
+		const PreparedFileBlockData &prepared) const {
 		return nullptr;
 	}
 	[[nodiscard]] virtual std::shared_ptr<MediaBlock> createMap(

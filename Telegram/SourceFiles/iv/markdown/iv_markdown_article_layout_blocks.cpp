@@ -1261,6 +1261,7 @@ void CopyBlockCachedTextLeafs(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -2552,6 +2553,7 @@ int BlockSkip(
 	case PreparedBlockKind::Video:
 		return skips.video;
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 		return skips.audio;
 	case PreparedBlockKind::Map:
 		return skips.map;
@@ -2781,6 +2783,7 @@ void UpdateLaidOutLeafContent(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -3614,6 +3617,50 @@ LaidOutBlock LayoutAudioBlock(
 	auto block = LaidOutBlock();
 	ApplyPreparedEditSources(&block, prepared);
 	block.kind = PreparedBlockKind::Audio;
+	block.anchorId = prepared.anchorId;
+	block.anchorIds = prepared.anchorIds;
+	block.supplementary = prepared.supplementary;
+	if (context.mediaBlockFactory) {
+		block.mediaBlock = context.mediaBlockFactory(prepared);
+	}
+	if (block.mediaBlock) {
+		block.copyText = block.mediaBlock->selectionData().copyText;
+	}
+	FillMediaCaption(
+		&block,
+		prepared,
+		formulas,
+		inlineFormulaObjects,
+		mediaRuntime,
+		st,
+		context);
+	const auto bottom = LayoutCardMediaBlockGeometry(
+		&block,
+		prepared,
+		st,
+		left,
+		top,
+		width,
+		st.audio.padding,
+		st.audio.captionSkip,
+		context);
+	Expects(bottom.has_value());
+	return FinalizeLaidOutBlock(std::move(block));
+}
+
+LaidOutBlock LayoutFileBlock(
+		const PreparedBlock &prepared,
+		std::vector<PreparedFormulaSlot> *formulas,
+		InlineFormulaObjectCache *inlineFormulaObjects,
+		const std::shared_ptr<MediaRuntime> &mediaRuntime,
+		const style::Markdown &st,
+		int left,
+		int top,
+		int width,
+		LayoutContext context) {
+	auto block = LaidOutBlock();
+	ApplyPreparedEditSources(&block, prepared);
+	block.kind = PreparedBlockKind::File;
 	block.anchorId = prepared.anchorId;
 	block.anchorIds = prepared.anchorIds;
 	block.supplementary = prepared.supplementary;
@@ -4893,6 +4940,7 @@ std::optional<int> RecountSimpleLaidOutBlock(
 			prepared.video.media.width,
 			context);
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 		if (!block
 			|| !block->mediaBlock
 			|| !block->mediaBlock->alive()) {

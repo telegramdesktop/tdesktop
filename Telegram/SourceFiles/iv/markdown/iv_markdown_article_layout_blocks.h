@@ -684,6 +684,16 @@ void UpdateLaidOutLeafContent(
 	int top,
 	int width,
 	LayoutContext context = {});
+[[nodiscard]] LaidOutBlock LayoutFileBlock(
+	const PreparedBlock &prepared,
+	std::vector<PreparedFormulaSlot> *formulas,
+	InlineFormulaObjectCache *inlineFormulaObjects,
+	const std::shared_ptr<MediaRuntime> &mediaRuntime,
+	const style::Markdown &st,
+	int left,
+	int top,
+	int width,
+	LayoutContext context = {});
 [[nodiscard]] LaidOutBlock LayoutMapBlock(
 	const PreparedBlock &prepared,
 	std::vector<PreparedFormulaSlot> *formulas,

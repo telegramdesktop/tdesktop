@@ -45,6 +45,10 @@ struct NativeIvRichTextContext {
 	const Iv::RichPage::Block &data,
 	std::vector<PreparedBlock> *result,
 	NativeIvPrepareState *state);
+[[nodiscard]] bool PrepareNativeIvFileBlock(
+	const Iv::RichPage::Block &data,
+	std::vector<PreparedBlock> *result,
+	NativeIvPrepareState *state);
 [[nodiscard]] bool PrepareNativeIvMapBlock(
 	const Iv::RichPage::Block &data,
 	std::vector<PreparedBlock> *result,

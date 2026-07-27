@@ -273,6 +273,7 @@ struct RichBlock {
 		Slideshow,
 		Channel,
 		Audio,
+		File,
 		Math,
 		Table,
 		Details,

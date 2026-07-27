@@ -585,6 +585,7 @@ void HarvestCachedTextLeafs(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1105,6 +1106,7 @@ void AppendBlockRevealLines(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1558,6 +1560,7 @@ void RestoreLogicalBlockGeometry(LaidOutBlock *block) {
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1588,6 +1591,7 @@ void RestoreLogicalBlockGeometry(LaidOutBlock *block) {
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1697,6 +1701,7 @@ void ApplyOwnerContentGeometry(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1887,6 +1892,7 @@ void CollectMediaBlockGeometries(
 		const auto media = (block.kind == PreparedBlockKind::Photo)
 			|| (block.kind == PreparedBlockKind::Video)
 			|| (block.kind == PreparedBlockKind::Audio)
+			|| (block.kind == PreparedBlockKind::File)
 			|| (block.kind == PreparedBlockKind::Map)
 			|| (block.kind == PreparedBlockKind::GroupedMedia);
 		if (media && block.editBlock) {
@@ -1944,6 +1950,7 @@ void CollectMediaBlockGeometries(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -2171,6 +2178,7 @@ void CollectMediaBlockGeometries(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -2742,6 +2750,7 @@ void ConsiderStructuralBlockDropTargets(
 		case PreparedBlockKind::Photo:
 		case PreparedBlockKind::Video:
 		case PreparedBlockKind::Audio:
+		case PreparedBlockKind::File:
 		case PreparedBlockKind::Map:
 		case PreparedBlockKind::Channel:
 		case PreparedBlockKind::GroupedMedia:
@@ -2805,6 +2814,7 @@ void ConsiderStructuralListItemDropTargets(
 		case PreparedBlockKind::Photo:
 		case PreparedBlockKind::Video:
 		case PreparedBlockKind::Audio:
+		case PreparedBlockKind::File:
 		case PreparedBlockKind::Map:
 		case PreparedBlockKind::Channel:
 		case PreparedBlockKind::GroupedMedia:
@@ -2882,6 +2892,7 @@ void ConsiderStructuralListItemDropTargets(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::File:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -3319,6 +3330,8 @@ void CollectCodeBlockHighlightKeys(
 		return bool(prepared.map.id);
 	case PreparedBlockKind::Audio:
 		return bool(prepared.audio.id);
+	case PreparedBlockKind::File:
+		return bool(prepared.file.id);
 	case PreparedBlockKind::GroupedMedia:
 		return bool(prepared.groupedMedia.id);
 	default:
@@ -5135,6 +5148,15 @@ std::shared_ptr<MediaBlock> MarkdownArticle::Impl::getOrCreateMediaBlock(
 			[=] {
 				return CreateAudioMediaBlock(
 					prepared.audio,
+					_content.mediaRuntime,
+					layoutStyle());
+			});
+	case PreparedBlockKind::File:
+		return getOrCreateMediaBlock(
+			prepared.file.id,
+			[=] {
+				return CreateFileMediaBlock(
+					prepared.file,
 					_content.mediaRuntime,
 					layoutStyle());
 			});

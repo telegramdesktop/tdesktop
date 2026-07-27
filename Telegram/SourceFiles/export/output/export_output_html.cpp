@@ -561,10 +561,21 @@ MediaData PrepareAudioMediaData(const Data::Document &data) {
 	return result;
 }
 
+MediaData PrepareFileMediaData(const Data::Document &data) {
+	auto result = MediaData();
+	result.title = data.name.isEmpty() ? QByteArray("File") : data.name;
+	result.status = Data::FormatFileSize(data.file.size);
+	result.classes = "media_file";
+	result.link = data.file.relativePath;
+	result.description = NoFileDescription(data.file.skipReason);
+	return result;
+}
+
 struct RichMediaCallbacks {
 	Fn<QByteArray(const Data::Photo*)> photo = {};
 	Fn<QByteArray(const Data::Document*)> video = {};
 	Fn<QByteArray(const Data::Document*)> audio = {};
+	Fn<QByteArray(const Data::Document*)> file = {};
 	Fn<QByteArray(const MediaData&)> generic = {};
 	Fn<QByteArray(const MediaData&, const Data::Photo*)> photoCard = {};
 };
@@ -631,6 +642,7 @@ private:
 	[[nodiscard]] QByteArray renderPhoto(const Data::RichBlock &block);
 	[[nodiscard]] QByteArray renderVideo(const Data::RichBlock &block);
 	[[nodiscard]] QByteArray renderAudio(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderFile(const Data::RichBlock &block);
 	[[nodiscard]] QByteArray renderMediaGroup(
 		const Data::RichBlock &block,
 		const QByteArray &kind,
@@ -1394,6 +1406,7 @@ RichTailState RichHtmlRenderer::tailState(
 			: RichTailState::Media;
 	case Kind::Video:
 	case Kind::Audio:
+	case Kind::File:
 	case Kind::Map:
 	case Kind::InputMap:
 		return RichCaptionHasOutput(block.caption)
@@ -1598,6 +1611,19 @@ QByteArray RichHtmlRenderer::renderAudio(
 		Data::NumberToString(block.documentId));
 	auto result = _context.pushTag("figure", std::move(attributes));
 	result += _media.audio(findDocument(block.documentId));
+	result += renderCaption(block.caption);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderFile(
+		const Data::RichBlock &block) {
+	auto attributes = RichBlockAttributes("rich_media_item", "file");
+	attributes.emplace(
+		"data-document-id",
+		Data::NumberToString(block.documentId));
+	auto result = _context.pushTag("figure", std::move(attributes));
+	result += _media.file(findDocument(block.documentId));
 	result += renderCaption(block.caption);
 	result += _context.popTag();
 	return result;
@@ -2160,6 +2186,7 @@ void RichHtmlRenderer::collectBlockAnchors(const Data::RichBlock &block) {
 	case Kind::Photo:
 	case Kind::Video:
 	case Kind::Audio:
+	case Kind::File:
 	case Kind::Embed:
 	case Kind::Map:
 	case Kind::InputMap:
@@ -2974,6 +3001,8 @@ QByteArray RichHtmlRenderer::renderBlock(const Data::RichBlock &block) {
 		return renderChannel(block);
 	case Kind::Audio:
 		return renderAudio(block);
+	case Kind::File:
+		return renderFile(block);
 	case Kind::Math: {
 		auto attributes = RichBlockAttributes("rich_math_display", "math");
 		attributes.emplace("dir", "ltr");
@@ -3149,6 +3178,8 @@ private:
 		const Data::Document *data,
 		const QString &basePath);
 	[[nodiscard]] QByteArray pushRichAudioMedia(
+		const Data::Document *data);
+	[[nodiscard]] QByteArray pushRichFileMedia(
 		const Data::Document *data);
 	[[nodiscard]] QByteArray pushRichReferenceMedia(
 		MediaData data,
@@ -4260,6 +4291,9 @@ auto HtmlWriter::Wrap::pushMessage(
 			.audio = [this](const Data::Document *document) {
 				return pushRichAudioMedia(document);
 			},
+			.file = [this](const Data::Document *document) {
+				return pushRichFileMedia(document);
+			},
 			.generic = [this](const MediaData &data) {
 				return pushGenericMedia(data);
 			},
@@ -4787,6 +4821,12 @@ QByteArray HtmlWriter::Wrap::pushRichAudioMedia(
 	return pushGenericMedia(PrepareAudioMediaData(presentation));
 }
 
+QByteArray HtmlWriter::Wrap::pushRichFileMedia(
+		const Data::Document *data) {
+	const auto presentation = RichDocumentPresentation(data);
+	return pushGenericMedia(PrepareFileMediaData(presentation));
+}
+
 QByteArray HtmlWriter::Wrap::pushRichReferenceMedia(
 		MediaData data,
 		const Data::Photo *photo,
@@ -5203,11 +5243,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		} else if (data.isAudioFile) {
 			result = PrepareAudioMediaData(data);
 		} else {
-			result.title = data.name.isEmpty()
-				? QByteArray("File")
-				: data.name;
-			result.status = FormatFileSize(data.file.size);
-			result.classes = "media_file";
+			result = PrepareFileMediaData(data);
 		}
 	}, [&](const SharedContact &data) {
 		result.title = data.info.firstName + ' ' + data.info.lastName;

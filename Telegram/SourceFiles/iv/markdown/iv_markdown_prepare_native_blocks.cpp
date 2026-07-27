@@ -1038,6 +1038,7 @@ void RefreshPreparedNativeIvPlaceholderCopyText(PreparedBlock *block) {
 	case RichPageBlockKind::Photo:
 	case RichPageBlockKind::Video:
 	case RichPageBlockKind::Audio:
+	case RichPageBlockKind::File:
 	case RichPageBlockKind::Map:
 	case RichPageBlockKind::GroupedMedia: {
 		if (!preparedBlock->editLeaf || (*preparedBlock->editLeaf != source)) {
@@ -1990,6 +1991,13 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 			state,
 			path,
 			PrepareNativeIvAudioBlock);
+	case RichPageBlockKind::File:
+		return PrepareCanonicalNativeIvMediaBlock(
+			block,
+			result,
+			state,
+			path,
+			PrepareNativeIvFileBlock);
 	case RichPageBlockKind::Math:
 		if (block.formula.trimmed().isEmpty() && !state->editMode) {
 			return true;

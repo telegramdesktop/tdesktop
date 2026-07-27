@@ -449,6 +449,13 @@ void CachedPagePhotoRuntime::releaseHeavyData() {
 	return subtitle.isEmpty() ? title : (title + u"\n"_q + subtitle);
 }
 
+[[nodiscard]] QString CachedPageFileCopyText(
+		const Markdown::PreparedFileBlockData &file) {
+	return file.fileName.isEmpty()
+		? tr::lng_in_dlg_file(tr::now)
+		: file.fileName;
+}
+
 class CachedPageDocumentRuntime final : public Markdown::DocumentRuntime {
 public:
 	CachedPageDocumentRuntime(
@@ -1433,6 +1440,40 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 			descriptor.stableId = prepared.id.value;
 			descriptor.kind = Markdown::IvHistoryViewMediaKind::Audio;
 			descriptor.copyText = CachedPageAudioCopyText(prepared);
+			descriptor.host = host;
+			descriptor.mediaFactory = [media](
+					not_null<HistoryView::Element*> view) {
+				return media->createView(
+					view,
+					view->data());
+			};
+			descriptor.keepAlive.push_back(base::take(media));
+			descriptor.document = std::make_shared<CachedPageDocumentRuntime>(
+				session,
+				document,
+				origin,
+				host->item()->fullId());
+			return Markdown::CreateIvHistoryViewMediaBlock(
+				std::move(descriptor));
+		},
+		[session = _session, host, origin = fileOrigin()](
+				Window::SessionController *controller,
+				const Markdown::PreparedFileBlockData &prepared) {
+			const auto document = session->data().document(
+				DocumentId(prepared.documentId));
+			if (document->isNull()) {
+				return std::shared_ptr<Markdown::MediaBlock>();
+			}
+			host->registerDocument(document);
+			auto media = std::make_shared<::Data::MediaFile>(
+				host->item(),
+				document,
+				::Data::MediaFile::Args{});
+
+			auto descriptor = Markdown::IvHistoryViewMediaDescriptor();
+			descriptor.stableId = prepared.id.value;
+			descriptor.kind = Markdown::IvHistoryViewMediaKind::File;
+			descriptor.copyText = CachedPageFileCopyText(prepared);
 			descriptor.host = host;
 			descriptor.mediaFactory = [media](
 					not_null<HistoryView::Element*> view) {

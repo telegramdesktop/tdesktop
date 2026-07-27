@@ -290,6 +290,7 @@ void VisitRichBlock(
 		break;
 	case Kind::Video:
 	case Kind::Audio:
+	case Kind::File:
 		VisitRichDocument(message, block.documentId, callbacks);
 		VisitRichCaption(message, block.caption, callbacks);
 		break;
