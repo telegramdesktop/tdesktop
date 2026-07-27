@@ -1,3 +1,10 @@
+7.0.6 (27.07.26)
+
+- Allow muting forever by left click on the profile mute button.
+- Improve tables, tasks and titles in rich message previews.
+- Fix adding admins in communities.
+- Crash fixes.
+
 7.0.5 (23.07.26)
 
 - Improve slideshow preload / animation / swipes in rich messages.
