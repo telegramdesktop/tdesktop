@@ -49,6 +49,7 @@ struct SendArgs {
 	Gram::Address destination;
 	int64 amountNano = 0;
 	QString comment;
+	bool bounce = true;
 	bool simulateStaleSeqno = false;
 };
 

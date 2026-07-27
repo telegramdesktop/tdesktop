@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "gram/api/gram_api_history.h"
 #include "gram/ton/gram_address.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "profile/profile_back_button.h"
 #include "qr/qr_generate.h"
+#include "ui/boxes/emoji_stake_box.h"
 #include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"
 #include "ui/effects/premium_graphics.h"
@@ -26,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -47,6 +50,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_wallet.h"
 #include "styles/style_widgets.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace Wallet {
 namespace {
@@ -118,6 +124,26 @@ private:
 	return result;
 }
 
+[[nodiscard]] object_ptr<Ui::FlatLabel> AddressValueLabel(
+		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<Ui::Show> show,
+		const QString &address) {
+	auto result = object_ptr<Ui::FlatLabel>(
+		table,
+		rpl::single(DetailsAddressValue(address)),
+		st::walletDetailsAddressLabel);
+	result->setClickHandlerFilter([=](const auto &...) {
+		TextUtilities::SetClipboardText(TextForMimeData::Simple(address));
+		show->showToast({
+			.text = { tr::lng_gift_unique_address_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
+		return false;
+	});
+	return result;
+}
+
 void SetBalanceText(not_null<Ui::FlatLabel*> label, CreditsAmount amount) {
 	auto helper = Ui::Text::CustomEmojiHelper();
 	auto icon = helper.paletteDependent({
@@ -142,14 +168,18 @@ struct HistoryRowContent {
 	bool pending = false;
 };
 
+[[nodiscard]] QString ShortAddressForm(const QString &full) {
+	return full.left(kShortAddressChars)
+		+ QChar(0x2026)
+		+ full.right(kShortAddressChars);
+}
+
 [[nodiscard]] QString ShortAddress(const Gram::Address &address) {
 	if (address.hash.isEmpty()) {
 		return QString();
 	}
 	const auto full = Gram::FormatFriendly(address, true);
-	return full.left(kShortAddressChars)
-		+ QChar(0x2026)
-		+ full.right(kShortAddressChars);
+	return ShortAddressForm(full);
 }
 
 void SetRowAmount(
@@ -430,27 +460,12 @@ void AddDetailsTable(
 		st::giveawayGiftCodeTableMargin);
 	if (!item.counterparty.hash.isEmpty()) {
 		const auto address = Gram::FormatFriendly(item.counterparty, true);
-		auto label = object_ptr<Ui::FlatLabel>(
-			table,
-			rpl::single(DetailsAddressValue(address)),
-			st::walletDetailsAddressLabel);
-		label->setClickHandlerFilter([=, show = box->uiShow()](
-				const auto &...) {
-			TextUtilities::SetClipboardText(
-				TextForMimeData::Simple(address));
-			show->showToast({
-				.text = { tr::lng_gift_unique_address_copied(tr::now) },
-				.iconLottie = u"toast/copy"_q,
-				.iconLottieSize = st::toastLottieIconSize,
-			});
-			return false;
-		});
 		Ui::AddTableRow(
 			table,
 			(item.incoming
 				? tr::lng_wallet_details_sender()
 				: tr::lng_wallet_details_recipient()),
-			std::move(label));
+			AddressValueLabel(table, box->uiShow(), address));
 	}
 	const auto pending
 		= (item.status == Gram::TransferItem::Status::Pending);
@@ -478,6 +493,19 @@ void AddDetailsTable(
 			langDateTime(base::unixtime::parse(item.date)))));
 }
 
+void AddBoxCloseButton(not_null<Ui::GenericBox*> box) {
+	const auto close = Ui::CreateChild<Ui::IconButton>(
+		box.get(),
+		st::boxTitleClose);
+	close->setClickedCallback([=] {
+		box->closeBox();
+	});
+	box->widthValue(
+	) | rpl::on_next([=](int) {
+		close->moveToRight(0, 0);
+	}, box->lifetime());
+}
+
 void WalletTransactionBox(
 		not_null<Ui::GenericBox*> box,
 		Gram::TransferItem item) {
@@ -488,18 +516,329 @@ void WalletTransactionBox(
 	AddDetailsAmountHeader(box, item);
 	AddDetailsTable(box, item);
 
-	const auto close = Ui::CreateChild<Ui::IconButton>(
-		box.get(),
-		st::boxTitleClose);
-	close->setClickedCallback([=] {
-		box->closeBox();
-	});
-	box->widthValue(
-	) | rpl::on_next([=](int width) {
-		close->moveToRight(0, 0);
-	}, box->lifetime());
+	AddBoxCloseButton(box);
 
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
+}
+
+struct SendFlow {
+	Gram::Address destination;
+	bool bounce = true;
+	QString displayForm;
+	int64 amountNano = 0;
+	int64 feeNano = 0;
+	bool feeApproximate = true;
+};
+
+not_null<Ui::FlatLabel*> AddSendFlowLabel(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> text,
+		const style::FlatLabel &st) {
+	return box->addRow(
+		object_ptr<Ui::FlatLabel>(box, std::move(text), st),
+		style::margins(
+			st::boxRowPadding.left(),
+			st::walletSendRowSkip,
+			st::boxRowPadding.right(),
+			0),
+		style::al_top);
+}
+
+void WalletSendConfirmBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		SendFlow flow) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	auto item = Gram::TransferItem();
+	item.incoming = false;
+	item.amountNano = flow.amountNano;
+	item.status = Gram::TransferItem::Status::Success;
+	AddDetailsAmountHeader(box, item);
+
+	const auto table = box->addRow(
+		object_ptr<Ui::TableLayout>(
+			box,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	Ui::AddTableRow(
+		table,
+		tr::lng_wallet_send_address_label(),
+		AddressValueLabel(table, box->uiShow(), flow.displayForm));
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto fee = helper.paletteDependent({
+		.factory = [] {
+			return Ui::Earn::IconCurrencyColored(
+				st::defaultTableValue.style.font,
+				st::windowActiveTextFg->c);
+		},
+	});
+	fee.append(QChar(' '));
+	if (flow.feeApproximate) {
+		fee.append(QChar('~'));
+	}
+	fee.append(Ui::FormatTonAmount(flow.feeNano).full);
+	Ui::AddTableRow(
+		table,
+		tr::lng_wallet_details_fee(),
+		rpl::single(std::move(fee)),
+		helper.context());
+	Ui::AddTableRow(
+		table,
+		tr::lng_wallet_details_date(),
+		rpl::single(tr::marked(
+			langDateTime(base::unixtime::parse(base::unixtime::now())))));
+
+	struct State {
+		rpl::variable<bool> confirmButtonBusy = false;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	const auto wallet = &controller->session().wallet();
+	const auto weak = base::make_weak(box.get());
+	const auto weakController = base::make_weak(controller.get());
+	const auto submit = [=] {
+		if (state->confirmButtonBusy.current()) {
+			return;
+		}
+		state->confirmButtonBusy = true;
+		auto args = SendArgs{
+			.destination = flow.destination,
+			.amountNano = flow.amountNano,
+			.bounce = flow.bounce,
+		};
+		wallet->send(args, [=](QString error) {
+			if (!error.isEmpty()) {
+				if (const auto strong = weak.get()) {
+					state->confirmButtonBusy = false;
+				}
+				if (const auto strong = weakController.get()) {
+					strong->showToast(error);
+				}
+				return;
+			}
+			const auto strong = weakController.get();
+			if (!strong) {
+				return;
+			}
+			strong->hideLayer();
+			strong->showToast(tr::lng_wallet_sent_toast(
+				tr::now,
+				lt_address,
+				ShortAddressForm(flow.displayForm)));
+			if (const auto &pending = wallet->pendingSend()) {
+				strong->show(
+					Box(WalletTransactionBox, ItemFromPending(*pending)));
+			}
+		});
+	};
+	const auto button = box->addButton(rpl::combine(
+		tr::lng_wallet_send_amount(
+			lt_amount,
+			rpl::single(Ui::FormatTonAmount(flow.amountNano).full)),
+		state->confirmButtonBusy.value()
+	) | rpl::map([](QString &&text, bool busy) {
+		return busy ? QString() : std::move(text);
+	}), submit);
+	{
+		using namespace Info::Statistics;
+		const auto loading = InfiniteRadialAnimationWidget(
+			button,
+			st::giveawayGiftCodeBoxButton.height / 2);
+		AddChildToWidgetCenter(button.data(), loading);
+		loading->showOn(state->confirmButtonBusy.value());
+	}
+
+	AddBoxCloseButton(box);
+}
+
+void SetButtonDisabledLook(
+		not_null<Ui::RoundButton*> button,
+		bool disabled) {
+	button->setBrushOverride(disabled
+		? std::optional(st::windowSubTextFg)
+		: std::nullopt);
+	button->setAttribute(Qt::WA_TransparentForMouseEvents, disabled);
+}
+
+void WalletSendAmountBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		SendFlow flow) {
+	box->setTitle(tr::lng_wallet_send_to_title(
+		lt_address,
+		rpl::single(ShortAddressForm(flow.displayForm))));
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+
+	const auto wallet = &controller->session().wallet();
+	Ui::AddSkip(box->verticalLayout(), st::walletSendAmountTopSkip);
+	const auto field = Ui::AddTonInputField(box->verticalLayout(), {});
+	box->setFocusCallback([=] {
+		field->setFocusFast();
+	});
+
+	struct State {
+		rpl::variable<int64> amount = 0;
+		rpl::variable<int64> fee = 0;
+		rpl::variable<bool> insufficient = false;
+		bool feeApproximate = true;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	field->changes() | rpl::on_next([=] {
+		state->amount = Ui::ParseTonAmountString(
+			field->getLastText()).value_or(0);
+	}, field->lifetime());
+
+	const auto refreshFee = [=] {
+		auto args = SendArgs{
+			.destination = flow.destination,
+			.amountNano = state->amount.current(),
+			.bounce = flow.bounce,
+		};
+		wallet->estimateFee(args, crl::guard(box, [=](FeeResult result) {
+			if (result.error.isEmpty()) {
+				state->feeApproximate = result.approximate;
+				state->fee = result.feeNano;
+			}
+		}));
+	};
+	state->amount.value() | rpl::on_next([=] {
+		refreshFee();
+	}, box->lifetime());
+	state->insufficient = rpl::combine(
+		state->amount.value(),
+		state->fee.value(),
+		wallet->balanceNanoValue()
+	) | rpl::map([](int64 amount, int64 fee, int64 balance) {
+		return (amount > 0) && (amount + fee > balance);
+	});
+
+	const auto error = AddSendFlowLabel(
+		box,
+		tr::lng_wallet_send_insufficient(),
+		st::walletSendErrorLabel);
+	error->setVisible(false);
+	state->insufficient.value() | rpl::on_next([=](bool insufficient) {
+		error->setVisible(insufficient);
+	}, error->lifetime());
+	AddSendFlowLabel(
+		box,
+		tr::lng_wallet_send_balance(
+			lt_amount,
+			wallet->balanceNanoValue() | rpl::map([](int64 nano) {
+				return Ui::FormatTonAmount(nano).full;
+			})),
+		st::walletSendBalanceLabel);
+
+	const auto submit = [=] {
+		if (state->amount.current() <= 0
+			|| state->insufficient.current()) {
+			field->showError();
+			return;
+		}
+		auto next = flow;
+		next.amountNano = state->amount.current();
+		next.feeNano = state->fee.current();
+		next.feeApproximate = state->feeApproximate;
+		box->uiShow()->showBox(
+			Box(WalletSendConfirmBox, controller, next));
+	};
+	field->submits() | rpl::on_next(submit, field->lifetime());
+	const auto button = box->addButton(tr::lng_wallet_send_amount(
+		lt_amount,
+		state->amount.value() | rpl::map([](int64 amount) {
+			return Ui::FormatTonAmount(amount).full;
+		})), submit);
+	rpl::combine(
+		state->amount.value(),
+		state->insufficient.value()
+	) | rpl::on_next([=](int64 amount, bool insufficient) {
+		SetButtonDisabledLook(
+			button.data(),
+			(amount <= 0) || insufficient);
+	}, button->lifetime());
+}
+
+void WalletSendRecipientBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller) {
+	box->setTitle(tr::lng_wallet_send_title());
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+
+	Ui::AddSubsectionTitle(
+		box->verticalLayout(),
+		tr::lng_wallet_send_recipient());
+	const auto field = box->addRow(object_ptr<Ui::InputField>(
+		box,
+		st::walletSendAddressField,
+		Ui::InputField::Mode::SingleLine,
+		tr::lng_wallet_send_address()));
+	box->setFocusCallback([=] {
+		field->setFocusFast();
+	});
+	const auto paste = Ui::CreateChild<Ui::RoundButton>(
+		field,
+		tr::lng_wallet_send_paste(),
+		st::walletSendPaste);
+	paste->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+	paste->setClickedCallback([=] {
+		field->setText(QGuiApplication::clipboard()->text().trimmed());
+		field->setFocusFast();
+	});
+	field->widthValue(
+	) | rpl::on_next([=](int) {
+		paste->moveToRight(0, st::walletSendPasteTop);
+	}, paste->lifetime());
+
+	const auto error = AddSendFlowLabel(
+		box,
+		tr::lng_wallet_send_invalid_address(),
+		st::walletSendErrorLabel);
+	error->setVisible(false);
+
+	struct State {
+		std::optional<Gram::ParsedAddress> parsed;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	const auto valid = [=] {
+		return state->parsed && !state->parsed->testnet;
+	};
+	const auto submit = [=] {
+		if (!valid()) {
+			field->showError();
+			return;
+		}
+		const auto parsed = *state->parsed;
+		auto flow = SendFlow{
+			.destination = parsed.address,
+			.bounce = parsed.bounceable,
+			.displayForm = (parsed.friendly
+				? field->getLastText().trimmed()
+				: Gram::FormatFriendly(
+					parsed.address,
+					parsed.bounceable)),
+		};
+		box->closeBox();
+		controller->show(Box(WalletSendAmountBox, controller, flow));
+	};
+	field->submits() | rpl::on_next(submit, field->lifetime());
+	const auto button = box->addButton(
+		tr::lng_wallet_send_continue(),
+		submit);
+	field->changes() | rpl::on_next([=] {
+		const auto text = field->getLastText().trimmed();
+		state->parsed = text.isEmpty()
+			? std::nullopt
+			: Gram::ParseAddress(text);
+		error->setVisible(!text.isEmpty() && !valid());
+		SetButtonDisabledLook(button.data(), !valid());
+	}, field->lifetime());
+	SetButtonDisabledLook(button.data(), true);
 }
 
 Card::Card(
@@ -814,6 +1153,7 @@ void SectionWidget::setupContent() {
 	Ui::AddSkip(column, st::walletCardTopSkip);
 	column->add(object_ptr<Card>(column, controller()));
 
+	const auto controller = this->controller();
 	const auto send = column->add(
 		object_ptr<Ui::RoundButton>(
 			column,
@@ -822,8 +1162,9 @@ void SectionWidget::setupContent() {
 		st::walletSendButtonMargin,
 		style::al_justify);
 	send->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-	send->setDisabled(true);
-	send->setAttribute(Qt::WA_TransparentForMouseEvents);
+	send->setClickedCallback([=] {
+		controller->show(Box(WalletSendRecipientBox, controller));
+	});
 
 	const auto wrap = column->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -878,10 +1219,11 @@ void SectionWidget::setupContent() {
 		st::walletAboutChainIcon);
 
 	const auto wallet = &session().wallet();
-	wrap->toggleOn(rpl::single(rpl::empty) | rpl::then(
-		wallet->historyUpdates()
-	) | rpl::map([=] {
-		return wallet->history().empty();
+	wrap->toggleOn(rpl::single(rpl::empty) | rpl::then(rpl::merge(
+		wallet->historyUpdates(),
+		wallet->sendStateValue() | rpl::to_empty
+	)) | rpl::map([=] {
+		return wallet->history().empty() && !wallet->pendingSend();
 	}));
 	wrap->finishAnimating();
 
@@ -890,13 +1232,12 @@ void SectionWidget::setupContent() {
 			column,
 			object_ptr<Ui::VerticalLayout>(column)));
 	const auto list = listWrap->entity();
-	const auto controller = this->controller();
 	const auto rebuildList = [=] {
 		list->clear();
 		const auto &history = wallet->history();
-		if (!history.empty()) {
+		const auto &pending = wallet->pendingSend();
+		if (!history.empty() || pending) {
 			Ui::AddSkip(list, st::walletRowsTopSkip);
-			const auto &pending = wallet->pendingSend();
 			const auto shown = pending
 				&& ranges::any_of(history, [&](
 						const Gram::TransferItem &item) {
@@ -923,10 +1264,12 @@ void SectionWidget::setupContent() {
 		wallet->historyUpdates(),
 		wallet->sendStateValue() | rpl::to_empty
 	) | rpl::on_next(rebuildList, list->lifetime());
-	listWrap->toggleOn(rpl::single(rpl::empty) | rpl::then(
-		wallet->historyUpdates()
-	) | rpl::map([=] {
-		return !wallet->history().empty();
+	listWrap->toggleOn(rpl::single(rpl::empty) | rpl::then(rpl::merge(
+		wallet->historyUpdates(),
+		wallet->sendStateValue() | rpl::to_empty
+	)) | rpl::map([=] {
+		return !wallet->history().empty()
+			|| wallet->pendingSend().has_value();
 	}));
 	listWrap->finishAnimating();
 

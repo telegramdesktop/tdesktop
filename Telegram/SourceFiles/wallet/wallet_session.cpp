@@ -624,6 +624,7 @@ void Session::sendWithState(
 			if (_keyState.current() == KeyState::None) {
 				return;
 			}
+			_pending.reset();
 			_sendState = SendState::Failed;
 			updatePollingState();
 			LOG(("Wallet Error: sendMessage failed: %1").arg(error.message));
@@ -688,7 +689,7 @@ Gram::TransferRequest Session::buildTransferRequest(
 		quint32 seqno) const {
 	auto message = Gram::TransferMessage{
 		.destination = args.destination,
-		.bounce = true,
+		.bounce = args.bounce,
 		.amountNano = args.amountNano,
 		.body = (args.comment.isEmpty()
 			? std::nullopt

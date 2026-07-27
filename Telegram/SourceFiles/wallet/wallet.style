@@ -133,3 +133,29 @@ walletDetailsAddressLabel: FlatLabel(defaultTableValue) {
 	minWidth: 128px;
 	maxHeight: 100px;
 }
+
+walletSendAddressField: InputField(defaultInputField) {
+	textMargins: margins(0px, 10px, 76px, 2px);
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+	heightMin: 36px;
+}
+walletSendPaste: RoundButton(defaultTableSmallButton) {
+	width: -24px;
+	height: 26px;
+	radius: 13px;
+	textTop: 4px;
+	style: semiboldTextStyle;
+}
+walletSendPasteTop: 5px;
+walletSendErrorLabel: FlatLabel(defaultFlatLabel) {
+	textFg: attentionButtonFg;
+}
+walletSendBalanceLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+walletSendRowSkip: 12px;
+walletSendAmountTopSkip: 16px;
