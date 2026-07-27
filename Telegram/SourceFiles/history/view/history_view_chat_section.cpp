@@ -3395,8 +3395,7 @@ void ChatWidget::listSelectionChanged(SelectedItems &&items) {
 	if ((state.count > 0) && _composeSearch) {
 		_composeSearch->hideAnimated();
 	}
-	if (items.empty()
-		&& !(_inner->hasFocus() && Ui::ScreenReaderModeActive())) {
+	if (!_inner->hasFocus() || !Ui::ScreenReaderModeActive()) {
 		doSetInnerFocus();
 	}
 }
