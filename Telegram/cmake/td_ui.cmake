@@ -615,6 +615,8 @@ PRIVATE
     ui/widgets/participants_check_view.cpp
     ui/widgets/participants_check_view.h
     ui/widgets/slider_natural_width.h
+    ui/widgets/sliding_tabs.cpp
+    ui/widgets/sliding_tabs.h
     ui/widgets/vertical_drum_picker.cpp
     ui/widgets/vertical_drum_picker.h
 
