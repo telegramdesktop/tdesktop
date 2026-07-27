@@ -1184,14 +1184,16 @@ void FakeBotAboutTop::init() {
 	height = st::msgNameStyle.font->height + st::botDescSkip;
 }
 
-void EphemeralBadge::init(not_null<const HistoryItem*> item) {
+void EphemeralBadge::init(not_null<const Element*> view) {
 	if (!text.isEmpty()) {
 		return;
 	}
-	receiver = item->out()
+	const auto item = view->data();
+	const auto plain = (view->context() == Context::WelcomeMessages);
+	receiver = (!plain && item->out())
 		? item->history()->session().ephemeralMessages().replyReceiver(item)
 		: nullptr;
-	if (item->out() && !receiver) {
+	if (!plain && item->out() && !receiver) {
 		return;
 	}
 	text.setText(
@@ -1246,7 +1248,7 @@ Element::Element(
 			AddComponents(FakeBotAboutTop::Bit());
 		}
 	}
-	if (data->isEphemeral()) {
+	if (data->isEphemeral() || _context == Context::WelcomeMessages) {
 		AddComponents(EphemeralBadge::Bit());
 	}
 }
@@ -1267,12 +1269,24 @@ not_null<History*> Element::history() const {
 	return _data->history();
 }
 
+PeerData *Element::displayFrom() const {
+	return (_context == Context::WelcomeMessages)
+		? _data->history()->peer.get()
+		: _data->displayFrom();
+}
+
 uint8 Element::colorIndex() const {
+	if (const auto from = displayFrom()) {
+		return from->colorIndex();
+	}
 	return data()->colorIndex();
 }
 
 auto Element::colorCollectible() const
 -> const std::shared_ptr<Ui::ColorCollectible> & {
+	if (const auto from = displayFrom()) {
+		return from->colorCollectible();
+	}
 	return data()->colorCollectible();
 }
 
@@ -2265,7 +2279,7 @@ ClickHandlerPtr Element::fromLink() const {
 		return _fromLink;
 	}
 	const auto item = data();
-	if (const auto from = item->displayFrom()) {
+	if (const auto from = displayFrom()) {
 		_fromLink = std::make_shared<LambdaClickHandler>([=](
 				ClickContext context) {
 			if (context.button != Qt::LeftButton) {

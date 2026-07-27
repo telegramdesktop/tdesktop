@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_sticker_toast.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/history.h"
+#include "history/history_item_helpers.h"
 #include "history/history_view_swipe_back_session.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
@@ -209,7 +210,11 @@ WelcomeMessagesWidget::WelcomeMessagesWidget(
 	Window::SetupSwipeBackSection(this, _scroll, _inner);
 }
 
-WelcomeMessagesWidget::~WelcomeMessagesWidget() = default;
+WelcomeMessagesWidget::~WelcomeMessagesWidget() {
+	if (_notice) {
+		_notice->destroy();
+	}
+}
 
 void WelcomeMessagesWidget::setupComposeControls() {
 	auto writeRestriction = rpl::combine(
@@ -903,7 +908,7 @@ QRect WelcomeMessagesWidget::floatPlayerAvailableRect() {
 }
 
 Context WelcomeMessagesWidget::listContext() {
-	return Context::ShortcutMessages;
+	return Context::WelcomeMessages;
 }
 
 bool WelcomeMessagesWidget::listScrollTo(int top, bool syntetic) {
@@ -934,6 +939,18 @@ void WelcomeMessagesWidget::listTryProcessKeyInput(not_null<QKeyEvent*> e) {
 	_composeControls->tryProcessKeyInput(e);
 }
 
+not_null<HistoryItem*> WelcomeMessagesWidget::noticeItem() {
+	if (!_notice) {
+		_notice = _history->makeMessage({
+			.id = _history->nextNonHistoryEntryId(),
+			.flags = MessageFlag::FakeHistoryItem,
+		}, PreparedServiceText{
+			tr::lng_welcome_messages_preview_about(tr::now, tr::marked),
+		});
+	}
+	return _notice;
+}
+
 rpl::producer<Data::MessagesSlice> WelcomeMessagesWidget::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -942,7 +959,11 @@ rpl::producer<Data::MessagesSlice> WelcomeMessagesWidget::listSource(
 	return rpl::single(rpl::empty) | rpl::then(
 		session->welcomeMessages().updates(_history)
 	) | rpl::map([=] {
-		return session->welcomeMessages().list(_history);
+		auto result = session->welcomeMessages().list(_history);
+		if (!result.ids.empty()) {
+			result.ids.insert(begin(result.ids), noticeItem()->fullId());
+		}
+		return result;
 	}) | rpl::after_next([=](const Data::MessagesSlice &slice) {
 		_count = slice.fullCount.value_or(0);
 		highlightSingleNewMessage(slice);
@@ -985,7 +1006,9 @@ bool WelcomeMessagesWidget::listAllowsMultiSelect() {
 
 bool WelcomeMessagesWidget::listIsItemGoodForSelection(
 		not_null<HistoryItem*> item) {
-	return !item->isSending() && !item->hasFailed();
+	return !item->isService()
+		&& !item->isSending()
+		&& !item->hasFailed();
 }
 
 bool WelcomeMessagesWidget::listIsLessInOrder(

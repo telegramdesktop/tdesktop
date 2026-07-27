@@ -5020,6 +5020,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_welcome_messages_title" = "Welcome Message";
 "lng_welcome_messages_empty_title" = "Create a Welcome Message";
 "lng_welcome_messages_empty_about" = "Automatically greet new members when they join.";
+"lng_welcome_messages_preview_about" = "New members will see this message when they join";
 "lng_welcome_messages_placeholder" = "Add a Welcome Message";
 "lng_welcome_messages_delete_all" = "Delete All";
 "lng_welcome_messages_delete_all_sure" = "Are you sure you want to delete all welcome messages?";

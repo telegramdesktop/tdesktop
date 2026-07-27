@@ -124,6 +124,11 @@ constexpr auto kScrollDateHideOnDayCrossingTimeout = crl::time(3000);
 	return std::make_unique<ReadMetricsTracker>(history->peer);
 }
 
+[[nodiscard]] bool HidesDates(Context context) {
+	return (context == Context::ShortcutMessages)
+		|| (context == Context::WelcomeMessages);
+}
+
 } // namespace
 
 WindowListDelegate::WindowListDelegate(
@@ -2279,7 +2284,7 @@ void ListWidget::updateItemsGeometry() {
 			if (view->isHidden()) {
 				view->setDisplayDate(false);
 			} else {
-				view->setDisplayDate(_context != Context::ShortcutMessages);
+				view->setDisplayDate(!HidesDates(_context));
 				view->setAttachToPrevious(false);
 				return i;
 			}
@@ -2792,7 +2797,7 @@ void ListWidget::paintUserpics(
 							- context.gestureHorizontal.translation,
 						st::msgPhotoSize));
 			}
-			if (const auto from = item->displayFrom()) {
+			if (const auto from = view->displayFrom()) {
 				from->paintUserpicLeft(
 					p,
 					_userpics[from],
@@ -2836,7 +2841,7 @@ void ListWidget::paintDates(
 		Painter &p,
 		const Ui::ChatPaintContext &context,
 		QRect clip) {
-	if (_context == Context::ShortcutMessages) {
+	if (HidesDates(_context)) {
 		return;
 	}
 
@@ -4964,6 +4969,7 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 	if (from == till) {
 		return;
 	}
+	const auto hidesDates = HidesDates(_context);
 	auto view = _items[from].get();
 	for (auto i = from + 1; i != till; ++i) {
 		const auto next = _items[i].get();
@@ -4972,7 +4978,7 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 		} else {
 			const auto viewDate = view->dateTime();
 			const auto nextDate = next->dateTime();
-			next->setDisplayDate(_context != Context::ShortcutMessages
+			next->setDisplayDate(!hidesDates
 				&& (nextDate.date() != viewDate.date()
 					|| view->data()->hideDisplayDate()));
 			auto attached = next->computeIsAttachToPrevious(view);

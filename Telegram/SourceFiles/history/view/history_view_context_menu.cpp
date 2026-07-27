@@ -134,6 +134,7 @@ bool HasEditMessageAction(
 		|| (context != Context::History
 			&& context != Context::Replies
 			&& context != Context::ShortcutMessages
+			&& context != Context::WelcomeMessages
 			&& context != Context::ScheduledTopic
 			&& context != Context::Monoforum)) {
 		return false;

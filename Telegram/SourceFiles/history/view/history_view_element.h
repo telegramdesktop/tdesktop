@@ -78,6 +78,7 @@ enum class Context : char {
 	ShortcutMessages,
 	ScheduledTopic,
 	ChatPreview,
+	WelcomeMessages,
 };
 
 enum class OnlyEmojiAndSpaces : char {
@@ -384,7 +385,7 @@ struct FakeBotAboutTop : RuntimeComponent<FakeBotAboutTop, Element> {
 };
 
 struct EphemeralBadge : RuntimeComponent<EphemeralBadge, Element> {
-	void init(not_null<const HistoryItem*> item);
+	void init(not_null<const Element*> view);
 
 	Ui::Text::String text;
 	UserData *receiver = nullptr;
@@ -459,6 +460,8 @@ public:
 	[[nodiscard]] Media *media() const;
 	[[nodiscard]] Context context() const;
 	void refreshDataId();
+
+	[[nodiscard]] PeerData *displayFrom() const;
 
 	[[nodiscard]] uint8 colorIndex() const;
 	[[nodiscard]] auto colorCollectible() const

@@ -231,6 +231,7 @@ private:
 	void finishSending();
 	void send();
 	void edit(not_null<HistoryItem*> item);
+	[[nodiscard]] not_null<HistoryItem*> noticeItem();
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const override;
 	bool processChosenSticker(ChatHelpers::FileChosen &&chosen) override;
@@ -253,6 +254,7 @@ private:
 
 	Data::MessagesSlice _lastSlice;
 	rpl::variable<int> _count;
+	HistoryItem *_notice = nullptr;
 
 	Ui::Text::String _emptyTitle;
 	Ui::Text::String _emptyAbout;

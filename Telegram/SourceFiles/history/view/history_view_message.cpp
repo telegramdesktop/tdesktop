@@ -989,7 +989,7 @@ void Message::refreshRightBadge() {
 	if (const auto badge = Get<RightBadge>(); badge && badge->overridden) {
 		return;
 	}
-	if (hasOutLayout()) {
+	if (hasOutLayout() || context() == Context::WelcomeMessages) {
 		if (Has<RightBadge>()) {
 			RemoveComponents(RightBadge::Bit());
 		}
@@ -1374,7 +1374,7 @@ QSize Message::performCountOptimalSize() {
 		botTop->init();
 	}
 	if (ephemeralBadge) {
-		ephemeralBadge->init(item);
+		ephemeralBadge->init(this);
 	}
 
 	auto maxWidth = 0;
@@ -1492,7 +1492,7 @@ QSize Message::performCountOptimalSize() {
 			// Count parts in maxWidth(), don't count them in minHeight().
 			// They will be added in resizeGetHeight() anyway.
 			if (displayFromName()) {
-				const auto from = item->displayFrom();
+				const auto from = displayFrom();
 				validateFromNameText(from);
 				const auto &name = from
 					? _fromName
@@ -1860,9 +1860,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		context.highlightPathCache->clear();
 	}
 	if (bubble) {
-		if (displayFromName()
-			&& item->displayFrom()
-			&& (_fromNameVersion < item->displayFrom()->nameVersion())) {
+		const auto from = displayFromName() ? displayFrom() : nullptr;
+		if (from && (_fromNameVersion < from->nameVersion())) {
 			fromNameUpdated(g.width());
 		}
 		Ui::PaintBubble(
@@ -2448,7 +2447,7 @@ void Message::paintFromName(
 	}
 
 	const auto stm = context.messageStyle();
-	const auto from = item->displayFrom();
+	const auto from = displayFrom();
 	const auto info = from ? nullptr : item->displayHiddenSenderInfo();
 	Assert(from || info);
 	const auto nameFg = FromNameFg(
@@ -3734,6 +3733,7 @@ bool Message::hasFromPhoto() const {
 	}
 	switch (context()) {
 	case Context::AdminLog:
+	case Context::WelcomeMessages:
 		return true;
 	case Context::Monoforum:
 		return (delegate()->elementChatMode() == ElementChatMode::Wide);
@@ -4113,7 +4113,7 @@ bool Message::getStateFromName(
 			availableWidth -= st::msgPadding.right() + badgeWidth;
 		}
 		const auto item = data();
-		const auto from = item->displayFrom();
+		const auto from = displayFrom();
 		const auto nameText = [&]() -> const Ui::Text::String * {
 			if (from) {
 				validateFromNameText(from);
@@ -5544,6 +5544,7 @@ bool Message::allowTextSelectionByHandler(
 bool Message::hasFromName() const {
 	switch (context()) {
 	case Context::AdminLog:
+	case Context::WelcomeMessages:
 		return true;
 	case Context::Monoforum:
 		return data()->out() || data()->from()->isChannel();
@@ -5617,6 +5618,9 @@ bool Message::displayForwardedFrom() const {
 }
 
 bool Message::hasOutLayout() const {
+	if (context() == Context::WelcomeMessages) {
+		return false;
+	}
 	const auto item = data();
 	if (item->history()->peer->isSelf()) {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
@@ -6137,7 +6141,7 @@ void Message::fromNameUpdated(int width) const {
 	if (Has<RightBadge>()) {
 		width -= st::msgPadding.right() + rightBadgeWidth();
 	}
-	const auto from = item->displayFrom();
+	const auto from = displayFrom();
 	validateFromNameText(from);
 	if (const auto via = item->Get<HistoryMessageVia>()) {
 		if (!displayForwardedFrom()) {
