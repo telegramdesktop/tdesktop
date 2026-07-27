@@ -1078,7 +1078,9 @@ void ChatWidget::setupSwipeReplyAndBack() {
 		}
 		const auto view = _inner->lookupItemByY(data.cursorPosition.y());
 		if (!view
-			|| !view->data()->isRegular()
+			|| (!view->data()->isRegular()
+				&& (!view->data()->isEphemeral()
+					|| view->data()->out()))
 			|| view->data()->isService()) {
 			return result;
 		}
