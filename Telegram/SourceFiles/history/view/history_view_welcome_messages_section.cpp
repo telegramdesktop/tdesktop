@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/view/controls/history_view_compose_controls.h"
-#include "history/view/history_view_empty_list_bubble.h"
+#include "history/view/history_view_service_message.h"
 #include "history/view/history_view_sticker_toast.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/history.h"
@@ -46,6 +46,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
+namespace {
+
+[[nodiscard]] QSize FillEmptyText(
+		Ui::Text::String &text,
+		const style::TextStyle &st,
+		const QString &value) {
+	const auto padding = st::welcomeEmptyPadding;
+	const auto minWidth = st::welcomeEmptyWidth / 4;
+	const auto maxWidth = std::max(
+		minWidth + 1,
+		st::welcomeEmptyWidth - padding.left() - padding.right());
+	text = Ui::Text::String(st, value, kPlainTextOptions, minWidth);
+	return Ui::Text::CountOptimalTextSize(text, minWidth, maxWidth);
+}
+
+} // namespace
 
 WelcomeMessagesMemento::WelcomeMessagesMemento(not_null<History*> history)
 : _history(history) {
@@ -113,6 +129,8 @@ WelcomeMessagesWidget::WelcomeMessagesWidget(
 	_scroll.data(),
 	controller->chatStyle(),
 	static_cast<HistoryView::CornerButtonsDelegate*>(this)) {
+	refreshEmptyText();
+
 	controller->chatStyle()->paletteChanged(
 	) | rpl::on_next([=] {
 		_scroll->updateBars();
@@ -187,16 +205,6 @@ WelcomeMessagesWidget::WelcomeMessagesWidget(
 		}
 	}, _inner->lifetime());
 
-	{
-		auto emptyInfo = base::make_unique_q<EmptyListBubbleWidget>(
-			_inner,
-			controller->chatStyle(),
-			st::msgServicePadding);
-		const auto emptyText = tr::semibold(
-			tr::lng_welcome_messages_empty(tr::now));
-		emptyInfo->setText(emptyText);
-		_inner->setEmptyInfoWidget(std::move(emptyInfo));
-	}
 	setupComposeControls();
 	Window::SetupSwipeBackSection(this, _scroll, _inner);
 }
@@ -337,6 +345,17 @@ void WelcomeMessagesWidget::setupComposeControls() {
 	) | rpl::on_next([=](not_null<QEvent*> e) {
 		_scroll->viewportEvent(e);
 	}, lifetime());
+}
+
+void WelcomeMessagesWidget::refreshEmptyText() {
+	_emptyTitleSize = FillEmptyText(
+		_emptyTitle,
+		st::welcomeEmptyTitle,
+		tr::lng_welcome_messages_empty_title(tr::now));
+	_emptyAboutSize = FillEmptyText(
+		_emptyAbout,
+		st::welcomeEmptyAbout,
+		tr::lng_welcome_messages_empty_about(tr::now));
 }
 
 void WelcomeMessagesWidget::checkReplyReturns() {
@@ -1130,8 +1149,51 @@ void WelcomeMessagesWidget::listOpenDocument(
 }
 
 void WelcomeMessagesWidget::listPaintEmpty(
-	Painter &p,
-	const Ui::ChatPaintContext &context) {
+		Painter &p,
+		const Ui::ChatPaintContext &context) {
+	const auto &icon = st::welcomeEmptyIcon;
+	const auto fg = context.st->msgServiceFg();
+	const auto outer = _inner->size();
+	const auto width = st::welcomeEmptyWidth;
+	const auto padding = st::welcomeEmptyPadding;
+	const auto height = padding.top()
+		+ icon.height()
+		+ st::welcomeEmptyIconSkip
+		+ _emptyTitleSize.height()
+		+ st::welcomeEmptyTextSkip
+		+ _emptyAboutSize.height()
+		+ padding.bottom();
+	const auto r = QRect(
+		(outer.width() - width) / 2,
+		(outer.height() - height) / 2,
+		width,
+		height);
+	ServiceMessagePainter::PaintBubble(p, context.st, r);
+
+	auto top = r.y() + padding.top();
+	icon.paint(
+		p,
+		r.x() + (r.width() - icon.width()) / 2,
+		top,
+		outer.width(),
+		fg->c);
+	top += icon.height() + st::welcomeEmptyIconSkip;
+
+	p.setPen(fg);
+	_emptyTitle.draw(
+		p,
+		r.x() + (r.width() - _emptyTitleSize.width()) / 2,
+		top,
+		_emptyTitleSize.width(),
+		style::al_top);
+	top += _emptyTitleSize.height() + st::welcomeEmptyTextSkip;
+
+	_emptyAbout.draw(
+		p,
+		r.x() + (r.width() - _emptyAboutSize.width()) / 2,
+		top,
+		_emptyAboutSize.width(),
+		style::al_top);
 }
 
 QString WelcomeMessagesWidget::listElementAuthorRank(

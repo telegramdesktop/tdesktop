@@ -192,6 +192,7 @@ private:
 		FullMsgId originId = {});
 
 	void setupComposeControls();
+	void refreshEmptyText();
 
 	void confirmDeleteSelected();
 	void clearSelected();
@@ -252,6 +253,11 @@ private:
 
 	Data::MessagesSlice _lastSlice;
 	rpl::variable<int> _count;
+
+	Ui::Text::String _emptyTitle;
+	Ui::Text::String _emptyAbout;
+	QSize _emptyTitleSize;
+	QSize _emptyAboutSize;
 
 };
 
