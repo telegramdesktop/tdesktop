@@ -129,7 +129,7 @@ settingsBusinessIconChatLinks: icon {{ "settings/premium/business/business_links
 settingsBusinessPromoLocation: icon {{ "settings/premium/promo/business_location", premiumButtonBg1 }};
 settingsBusinessPromoHours: icon {{ "settings/premium/promo/business_hours", premiumButtonBg1 }};
 settingsBusinessPromoReplies: icon {{ "settings/premium/promo/business_quickreply", premiumButtonBg1 }};
-settingsBusinessPromoGreeting: icon {{ "settings/premium/promo/business_greeting", premiumButtonBg1 }};
+settingsBusinessPromoGreeting: icon {{ "menu/welcome_message-24x24", premiumButtonBg1 }};
 settingsBusinessPromoAway: icon {{ "settings/premium/promo/business_away", premiumButtonBg1 }};
 settingsBusinessPromoChatbots: icon {{ "settings/premium/promo/business_chatbot", premiumButtonBg1 }};
 settingsBusinessPromoChatIntro: icon {{ "settings/premium/promo/business_intro", premiumButtonBg1 }};
