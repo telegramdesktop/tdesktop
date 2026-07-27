@@ -126,7 +126,7 @@ walletDetailsAmountMinorLabel: FlatLabel(walletDetailsAmountMajorLabel) {
 	}
 }
 walletDetailsAmountMinorSkip: 8px;
-walletDetailsIconMargin: margins(6px, 4px, 0px, 0px);
+walletDetailsIconMargin: margins(6px, 0px, 0px, 0px);
 walletDetailsAmountTopSkip: 16px;
 walletDetailsAmountBottomSkip: 24px;
 walletDetailsAddressLabel: FlatLabel(defaultTableValue) {
