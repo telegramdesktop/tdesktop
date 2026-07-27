@@ -13,6 +13,7 @@ stickersEmojiPickerPadding: margins(12px, 8px, 12px, 0px);
 stickersEmojiPickerItemSize: 30px;
 stickersEmojiPickerItemSkip: 4px;
 stickersEmojiPickerStripHeight: 40px;
+stickersEmojiPickerSearchSkip: 6px;
 stickersEmojiPickerExpandedHeight: 220px;
 stickersEmojiPickerStripBubble: icon{
 	{ "chat/reactions_bubble_shadow", windowShadowFg },
