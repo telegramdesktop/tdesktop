@@ -62,6 +62,7 @@ void SlidingTabs::showTab(int index, anim::type animated) {
 	was->hide();
 	now->show();
 	now->resizeToWidth(width());
+	applyChildrenVisibleRange();
 	if (!slide) {
 		resize(width(), now->height());
 		return;
@@ -114,8 +115,23 @@ void SlidingTabs::paintEvent(QPaintEvent *e) {
 }
 
 void SlidingTabs::visibleTopBottomUpdated(int visibleTop, int visibleBottom) {
-	for (const auto &tab : _tabs) {
-		setChildVisibleTopBottom(tab.get(), visibleTop, visibleBottom);
+	_visibleTop = visibleTop;
+	_visibleBottom = visibleBottom;
+	applyChildrenVisibleRange();
+}
+
+void SlidingTabs::applyChildrenVisibleRange() {
+	// All tabs are placed at (0, 0), so a hidden tab would consider
+	// itself visible and start preloading its content (photos, next
+	// pages) in the background. Give the real range only to the shown
+	// tab and an empty one to the rest.
+	for (auto i = 0, count = int(_tabs.size()); i != count; ++i) {
+		const auto tab = _tabs[i].get();
+		if (i == _shown) {
+			setChildVisibleTopBottom(tab, _visibleTop, _visibleBottom);
+		} else {
+			setChildVisibleTopBottom(tab, 0, 0);
+		}
 	}
 }
 

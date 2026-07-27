@@ -29,6 +29,7 @@ private:
 	void visibleTopBottomUpdated(int visibleTop, int visibleBottom) override;
 
 	void finishAnimating();
+	void applyChildrenVisibleRange();
 
 	const style::color _bg;
 	std::vector<not_null<VerticalLayout*>> _tabs;
@@ -36,6 +37,8 @@ private:
 	QRect _slideRect;
 	int _shown = 0;
 	int _animationHeight = 0;
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
 
 };
 
