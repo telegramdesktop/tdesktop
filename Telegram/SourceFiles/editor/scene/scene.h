@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <base/unique_qptr.h>
 #include <editor/photo_editor_inner_common.h>
+#include <editor/scene/scene_item_base.h>
 
 #include <QGraphicsScene>
 
@@ -94,7 +95,14 @@ protected:
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 private:
+	struct CapturedPlacement {
+		std::shared_ptr<ItemBase> item;
+		ItemBase::Placement placement;
+	};
+
 	void removeIf(Fn<bool(const ItemPtr &)> proj);
+	void capturePlacements();
+	void commitPlacements();
 	void startShapeDrawing(const QPointF &position);
 	void updateShapeDrawing(
 		const QPointF &position,
@@ -117,6 +125,7 @@ private:
 
 	std::vector<ItemPtr> _items;
 	std::unordered_map<QGraphicsItem*, ItemPtr> _itemsByPointer;
+	std::vector<CapturedPlacement> _capturedPlacements;
 
 	float64 _lastLineZ = 0.;
 	float64 _currentZoom = 1.;

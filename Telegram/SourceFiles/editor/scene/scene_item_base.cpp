@@ -475,6 +475,29 @@ ItemBase::Data ItemBase::generateData() const {
 	};
 }
 
+ItemBase::Placement ItemBase::placement() const {
+	return {
+		.position = pos(),
+		.rotation = rotation(),
+		.scale = scale(),
+		.zValue = zValue(),
+		.size = _horizontalSize,
+		.flipped = _flipped,
+	};
+}
+
+void ItemBase::applyPlacement(const Placement &placement) {
+	prepareGeometryChange();
+	_horizontalSize = placement.size;
+	updateVerticalSize();
+	setPos(placement.position);
+	setRotation(placement.rotation);
+	setScale(placement.scale);
+	setZValue(placement.zValue);
+	setFlip(placement.flipped);
+	update();
+}
+
 void ItemBase::applyData(const Data &data) {
 	// _lastZ is const.
 	// _imageSize is const.

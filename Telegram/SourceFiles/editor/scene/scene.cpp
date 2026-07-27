@@ -29,33 +29,12 @@ namespace {
 
 using ItemPtr = std::shared_ptr<NumberedItem>;
 
-class ItemEraser final : public NumberedItem {
+class ItemAction : public NumberedItem {
 public:
-	struct Target {
-		std::shared_ptr<ItemLine> item;
-		QPixmap before;
-	};
+	using NumberedItem::NumberedItem;
 
-	ItemEraser(
-		QPixmap mask,
-		QPointF maskPos,
-		std::vector<Target> targets)
-	: _mask(std::move(mask))
-	, _maskPos(maskPos)
-	, _targets(std::move(targets)) {
-	}
-
-	void apply() {
-		for (const auto &target : _targets) {
-			target.item->applyEraser(_mask, _maskPos);
-		}
-	}
-
-	void revert() {
-		for (const auto &target : _targets) {
-			target.item->setPixmap(target.before);
-		}
-	}
+	virtual void apply() = 0;
+	virtual void revert() = 0;
 
 	QRectF boundingRect() const override {
 		return QRectF();
@@ -86,9 +65,51 @@ public:
 		}
 		const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
 		setStatus(saved.status);
-		if (saved.status == Status::Normal) {
+	}
+
+private:
+	struct {
+		bool saved = false;
+		NumberedItem::Status status = Status::Normal;
+	} _saved, _keeped;
+};
+
+class ItemEraser final : public ItemAction {
+public:
+	struct Target {
+		std::shared_ptr<ItemLine> item;
+		QPixmap before;
+	};
+
+	ItemEraser(
+		QPixmap mask,
+		QPointF maskPos,
+		std::vector<Target> targets)
+	: _mask(std::move(mask))
+	, _maskPos(maskPos)
+	, _targets(std::move(targets)) {
+	}
+
+	void apply() override {
+		for (const auto &target : _targets) {
+			target.item->applyEraser(_mask, _maskPos);
+		}
+	}
+
+	void revert() override {
+		for (const auto &target : _targets) {
+			target.item->setPixmap(target.before);
+		}
+	}
+
+	void restore(SaveState state) override {
+		if (!hasState(state)) {
+			return;
+		}
+		ItemAction::restore(state);
+		if (isNormalStatus()) {
 			apply();
-		} else if (saved.status == Status::Undid) {
+		} else if (isUndidStatus()) {
 			revert();
 		}
 	}
@@ -97,11 +118,34 @@ private:
 	QPixmap _mask;
 	QPointF _maskPos;
 	std::vector<Target> _targets;
+};
 
-	struct {
-		bool saved = false;
-		NumberedItem::Status status;
-	} _saved, _keeped;
+class ItemPlacement final : public ItemAction {
+public:
+	struct Target {
+		std::shared_ptr<ItemBase> item;
+		ItemBase::Placement before;
+		ItemBase::Placement after;
+	};
+
+	explicit ItemPlacement(std::vector<Target> targets)
+	: _targets(std::move(targets)) {
+	}
+
+	void apply() override {
+		for (const auto &target : _targets) {
+			target.item->applyPlacement(target.after);
+		}
+	}
+
+	void revert() override {
+		for (const auto &target : _targets) {
+			target.item->applyPlacement(target.before);
+		}
+	}
+
+private:
+	std::vector<Target> _targets;
 };
 
 bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
@@ -389,11 +433,13 @@ void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 		if (!clickOnProxy) {
 			finishTextEditing(true);
 			QGraphicsScene::mousePressEvent(event);
+			capturePlacements();
 			return;
 		}
 	}
 
 	QGraphicsScene::mousePressEvent(event);
+	capturePlacements();
 	if (SkipMouseEvent(event) || !sceneRect().contains(event->scenePos())) {
 		return;
 	}
@@ -407,6 +453,7 @@ void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 		return;
 	}
 	QGraphicsScene::mouseReleaseEvent(event);
+	commitPlacements();
 	if (SkipMouseEvent(event) || _textEdit.proxy) {
 		return;
 	}
@@ -710,8 +757,8 @@ void Scene::performUndo() {
 
 	const auto it = ranges::find_if(filtered, &NumberedItem::isNormalStatus);
 	if (it != filtered.end()) {
-		if (const auto eraser = dynamic_cast<ItemEraser*>(it->get())) {
-			eraser->revert();
+		if (const auto action = dynamic_cast<ItemAction*>(it->get())) {
+			action->revert();
 		}
 		(*it)->setStatus(NumberedItem::Status::Undid);
 	}
@@ -722,10 +769,44 @@ void Scene::performRedo() {
 
 	const auto it = ranges::find_if(filtered, &NumberedItem::isUndidStatus);
 	if (it != filtered.end()) {
-		if (const auto eraser = dynamic_cast<ItemEraser*>(it->get())) {
-			eraser->apply();
+		if (const auto action = dynamic_cast<ItemAction*>(it->get())) {
+			action->apply();
 		}
 		(*it)->setStatus(NumberedItem::Status::Normal);
+	}
+}
+
+void Scene::capturePlacements() {
+	_capturedPlacements.clear();
+	for (const auto &item : _items) {
+		if (item->isNormalStatus() && (item->type() >= ItemBase::Type)) {
+			const auto base = std::static_pointer_cast<ItemBase>(item);
+			_capturedPlacements.push_back({
+				.item = base,
+				.placement = base->placement(),
+			});
+		}
+	}
+}
+
+void Scene::commitPlacements() {
+	if (_capturedPlacements.empty()) {
+		return;
+	}
+	auto targets = std::vector<ItemPlacement::Target>();
+	for (auto &captured : _capturedPlacements) {
+		const auto now = captured.item->placement();
+		if (now != captured.placement) {
+			targets.push_back({
+				.item = std::move(captured.item),
+				.before = captured.placement,
+				.after = now,
+			});
+		}
+	}
+	_capturedPlacements.clear();
+	if (!targets.empty()) {
+		addItem(std::make_shared<ItemPlacement>(std::move(targets)));
 	}
 }
 

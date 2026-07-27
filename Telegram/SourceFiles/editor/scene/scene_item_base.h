@@ -66,6 +66,19 @@ public:
 		QSize imageSize;
 	};
 
+	struct Placement {
+		QPointF position;
+		float64 rotation = 0.;
+		float64 scale = 1.;
+		float64 zValue = 0.;
+		float64 size = 0.;
+		bool flipped = false;
+
+		friend inline bool operator==(
+			const Placement &,
+			const Placement &) = default;
+	};
+
 	ItemBase(Data data);
 	QRectF boundingRect() const override;
 	void paint(
@@ -78,6 +91,9 @@ public:
 	void setFlip(bool value);
 
 	void updateZoom(float64 zoom);
+
+	[[nodiscard]] Placement placement() const;
+	void applyPlacement(const Placement &placement);
 
 	bool hasState(SaveState state) const override;
 	void save(SaveState state) override;
