@@ -75,8 +75,10 @@ void ThanosEffectController::captureItemsBatch(
 
 void ThanosEffectController::clearPreCaptured() {
 	_preCaptured.clear();
-	_restoreScrollPending = false;
-	_wasAtBottom = false;
+	if (!_collapseAnimation.animating()) {
+		_restoreScrollPending = false;
+		_wasAtBottom = false;
+	}
 }
 
 void ThanosEffectController::captureOnRemoval(
