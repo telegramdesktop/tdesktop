@@ -1098,6 +1098,14 @@ void RememberWebPageMedia(
 				inserted,
 				EntityType::Colorized,
 				QString(QChar(kTextDiffInsertedColorIndex)));
+	}, [&](const MTPDtextButton &data) {
+		AssertIsDebug();
+		return AppendRichText(
+			data.vtext(),
+			result,
+			context,
+			anchorId,
+			anchorIds);
 	});
 }
 
@@ -1601,6 +1609,12 @@ void AppendBlock(
 		parsed.caption = ParseCaption(data.vcaption(), context);
 		AdoptAnchor(&parsed.anchorId, &parsed.caption);
 		result->push_back(std::move(parsed));
+	}, [&](const MTPDpageBlockButtonRow &) {
+		AssertIsDebug();
+		result->push_back(MakeBlock(BlockKind::Unsupported));
+	}, [&](const MTPDpageBlockDocument &) {
+		AssertIsDebug();
+		result->push_back(MakeBlock(BlockKind::Unsupported));
 	}, [&](const MTPDinputPageBlockMap &) {
 		result->push_back(MakeBlock(BlockKind::Unsupported));
 	});

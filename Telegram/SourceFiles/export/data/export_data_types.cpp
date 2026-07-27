@@ -68,93 +68,101 @@ std::vector<std::vector<HistoryMessageMarkupButton>> ButtonRowsFromTL(
 		row.reserve(tlRow.data().vbuttons().v.size());
 		for (const auto &button : tlRow.data().vbuttons().v) {
 			button.match([&](const MTPDkeyboardButton &data) {
-				row.push_back({ Type::Default, qs(data.vtext()) });
-			}, [&](const MTPDkeyboardButtonCallback &data) {
-				row.push_back({
-					(data.is_requires_password()
-						? Type::CallbackWithPassword
-						: Type::Callback),
-					qs(data.vtext()),
-					qba(data.vdata())
-				});
-			}, [&](const MTPDkeyboardButtonRequestGeoLocation &data) {
-				row.push_back({ Type::RequestLocation, qs(data.vtext()) });
-			}, [&](const MTPDkeyboardButtonRequestPhone &data) {
-				row.push_back({ Type::RequestPhone, qs(data.vtext()) });
-			}, [&](const MTPDkeyboardButtonRequestPeer &data) {
-				row.push_back({
-					Type::RequestPeer,
-					qs(data.vtext()),
-					QByteArray("unsupported"),
-					QString(),
-					int64(data.vbutton_id().v),
-				});
-			}, [&](const MTPDkeyboardButtonUrl &data) {
-				row.push_back({
-					Type::Url,
-					qs(data.vtext()),
-					qba(data.vurl())
-				});
-			}, [&](const MTPDkeyboardButtonSwitchInline &data) {
-				const auto type = data.is_same_peer()
-					? Type::SwitchInlineSame
-					: Type::SwitchInline;
-				row.push_back({ type, qs(data.vtext()), qba(data.vquery()) });
-			}, [&](const MTPDkeyboardButtonGame &data) {
-				row.push_back({ Type::Game, qs(data.vtext()) });
-			}, [&](const MTPDkeyboardButtonBuy &data) {
-				row.push_back({ Type::Buy, qs(data.vtext()) });
-			}, [&](const MTPDkeyboardButtonUrlAuth &data) {
-				row.push_back({
-					Type::Auth,
-					qs(data.vtext()),
-					qba(data.vurl()),
-					qs(data.vfwd_text().value_or_empty()),
-					data.vbutton_id().v,
-				});
-			}, [&](const MTPDkeyboardButtonRequestPoll &data) {
-				const auto quiz = [&] {
-					if (!data.vquiz()) {
-						return QByteArray();
-					}
-					return data.vquiz()->match([&](const MTPDboolTrue&) {
-						return QByteArray(1, 1);
-					}, [&](const MTPDboolFalse&) {
-						return QByteArray(1, 0);
+				const auto text = qs(data.vtext());
+				data.vtype().match([&](const MTPDbuttonTypeDefault &) {
+					row.push_back({ Type::Default, text });
+				}, [&](const MTPDbuttonTypeRequestPhone &) {
+					row.push_back({ Type::RequestPhone, text });
+				}, [&](const MTPDbuttonTypeRequestGeoLocation &) {
+					row.push_back({ Type::RequestLocation, text });
+				}, [&](const MTPDbuttonTypeRequestPoll &data) {
+					const auto quiz = [&] {
+						if (!data.vquiz()) {
+							return QByteArray();
+						}
+						return data.vquiz()->match([](const MTPDboolTrue &) {
+							return QByteArray(1, 1);
+						}, [](const MTPDboolFalse &) {
+							return QByteArray(1, 0);
+						});
+					}();
+					row.push_back({
+						Type::RequestPoll,
+						text,
+						quiz
 					});
-				}();
-				row.push_back({
-					Type::RequestPoll,
-					qs(data.vtext()),
-					quiz
+				}, [&](const MTPDbuttonTypeRequestPeer &data) {
+					row.push_back({
+						Type::RequestPeer,
+						text,
+						QByteArray("unsupported"),
+						QString(),
+						int64(data.vbutton_id().v),
+					});
+				}, [&](const MTPDinputButtonTypeRequestPeer &) {
+				}, [&](const MTPDbuttonTypeSimpleWebView &data) {
+					row.push_back({
+						Type::SimpleWebView,
+						text,
+						data.vurl().v
+					});
 				});
-			}, [&](const MTPDkeyboardButtonUserProfile &data) {
-				row.push_back({
-					Type::UserProfile,
-					qs(data.vtext()),
-					QByteArray::number(data.vuser_id().v)
+			}, [&](const MTPDkeyboardInlineButton &data) {
+				const auto text = qs(data.vtext());
+				data.vtype().match([&](const MTPDinlineButtonTypeUrl &data) {
+					row.push_back({
+						Type::Url,
+						text,
+						qba(data.vurl())
+					});
+				}, [&](const MTPDinlineButtonTypeUrlAuth &data) {
+					row.push_back({
+						Type::Auth,
+						text,
+						qba(data.vurl()),
+						qs(data.vfwd_text().value_or_empty()),
+						data.vbutton_id().v,
+					});
+				}, [&](const MTPDinputInlineButtonTypeUrlAuth &) {
+				}, [&](const MTPDinlineButtonTypeWebView &data) {
+					row.push_back({
+						Type::WebView,
+						text,
+						data.vurl().v
+					});
+				}, [&](const MTPDinlineButtonTypeCallback &data) {
+					row.push_back({
+						(data.is_requires_password()
+							? Type::CallbackWithPassword
+							: Type::Callback),
+						text,
+						qba(data.vdata())
+					});
+				}, [&](const MTPDinlineButtonTypeGame &) {
+					row.push_back({ Type::Game, text });
+				}, [&](const MTPDinlineButtonTypeBuy &) {
+					row.push_back({ Type::Buy, text });
+				}, [&](const MTPDinlineButtonTypeSwitchInline &data) {
+					const auto type = data.is_same_peer()
+						? Type::SwitchInlineSame
+						: Type::SwitchInline;
+					row.push_back({ type, text, qba(data.vquery()) });
+				}, [&](const MTPDinlineButtonTypeUserProfile &data) {
+					row.push_back({
+						Type::UserProfile,
+						text,
+						QByteArray::number(data.vuser_id().v)
+					});
+				}, [&](const MTPDinputInlineButtonTypeUserProfile &) {
+				}, [&](const MTPDinlineButtonTypeCopy &data) {
+					row.push_back({
+						Type::CopyText,
+						text,
+						data.vcopy_text().v,
+					});
+				}, [&](const MTPDinlineButtonTypeDisabled &) {
+					AssertIsDebug();
 				});
-			}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
-			}, [&](const MTPDinputKeyboardButtonUserProfile &data) {
-			}, [&](const MTPDkeyboardButtonWebView &data) {
-				row.push_back({
-					Type::WebView,
-					qs(data.vtext()),
-					data.vurl().v
-				});
-			}, [&](const MTPDkeyboardButtonSimpleWebView &data) {
-				row.push_back({
-					Type::SimpleWebView,
-					qs(data.vtext()),
-					data.vurl().v
-				});
-			}, [&](const MTPDkeyboardButtonCopy &data) {
-				row.push_back({
-					Type::CopyText,
-					qs(data.vtext()),
-					data.vcopy_text().v,
-				});
-			}, [&](const MTPDinputKeyboardButtonRequestPeer &data) {
 			});
 		}
 		if (!row.empty()) {
@@ -475,6 +483,11 @@ RichText ParseRichText(const MTPRichText &text) {
 		result.children.push_back(ParseRichText(data.vtext()));
 		result.oldChildren.reserve(1);
 		result.oldChildren.push_back(ParseRichText(data.vold_text()));
+		return result;
+	}, [](const MTPDtextButton &data) {
+		AssertIsDebug();
+		auto result = ParseRichTextWrapper(Type::Concat, data.vtext());
+		result.unsupported = true;
 		return result;
 	});
 }
@@ -968,6 +981,12 @@ RichBlock ParseRichBlock(const MTPPageBlock &block) {
 		result.blocks = ParseRichBlocks(data.vblocks().v);
 		result.quoteCaption = ParseRichText(data.vcaption());
 		return result;
+	}, [](const MTPDpageBlockButtonRow &) {
+		AssertIsDebug();
+		return ParseRichUnsupportedBlock(Kind::Unsupported);
+	}, [](const MTPDpageBlockDocument &) {
+		AssertIsDebug();
+		return ParseRichUnsupportedBlock(Kind::Unsupported);
 	});
 }
 

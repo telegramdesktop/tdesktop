@@ -2087,66 +2087,70 @@ void WebViewInstance::botRequestChat(
 		MTP_string(requestId)
 	)).done([show, bot, callback, requestId](
 			const MTPKeyboardButton &result) {
-		result.match([&](const MTPDkeyboardButtonRequestPeer &data) {
-			if (!*show) {
-				callback(u"UNKNOWN_ERROR"_q);
-				return;
-			}
-			const auto buttonId = data.vbutton_id();
-			const auto sendPeers = [=](
-					std::vector<not_null<PeerData*>> peers) {
-				using Flag = MTPmessages_SendBotRequestedPeer::Flag;
-				bot->session().api().request(
-					MTPmessages_SendBotRequestedPeer(
-						MTP_flags(Flag::f_webapp_req_id),
-						bot->input(),
-						MTPint(),
-						MTP_string(requestId),
-						buttonId,
-						MTP_vector_from_range(
-							peers | ranges::views::transform([](
-									not_null<PeerData*> peer) {
-								return MTPInputPeer(peer->input());
-							})))
-				).done([=](const MTPUpdates &result) {
-					bot->session().api().applyUpdates(result);
-					callback(QString());
-				}).fail([callback](const MTP::Error &error) {
-					callback(error.type());
-				}).send();
-			};
-			data.vpeer_type().match([&](
-					const MTPDrequestPeerTypeCreateBot &createData) {
-				ShowCreateManagedBotBox({
-					.show = show,
-					.manager = bot,
-					.suggestedName = qs(
-						createData.vsuggested_name().value_or_empty()),
-					.suggestedUsername = qs(
-						createData.vsuggested_username()
-							.value_or_empty()),
-					.done = [=](not_null<UserData*> createdBot) {
-						sendPeers({ createdBot });
-						show->showBox(Ui::MakeInformBox({
-							.text = tr::lng_managed_bot_created_text(
-								tr::now,
-								lt_parent_name,
-								bot->name()),
-							.title = tr::lng_managed_bot_created_title(
-								tr::now,
-								lt_name,
-								createdBot->name()),
-						}));
-					},
-					.cancelled = [=] {
+		result.match([&](const MTPDkeyboardButton &button) {
+			button.vtype().match([&](const MTPDbuttonTypeRequestPeer &data) {
+				if (!*show) {
+					callback(u"UNKNOWN_ERROR"_q);
+					return;
+				}
+				const auto buttonId = data.vbutton_id();
+				const auto sendPeers = [=](
+						std::vector<not_null<PeerData*>> peers) {
+					using Flag = MTPmessages_SendBotRequestedPeer::Flag;
+					bot->session().api().request(
+						MTPmessages_SendBotRequestedPeer(
+							MTP_flags(Flag::f_webapp_req_id),
+							bot->input(),
+							MTPint(),
+							MTP_string(requestId),
+							buttonId,
+							MTP_vector_from_range(
+								peers | ranges::views::transform([](
+										not_null<PeerData*> peer) {
+									return MTPInputPeer(peer->input());
+								})))
+					).done([=](const MTPUpdates &result) {
+						bot->session().api().applyUpdates(result);
+						callback(QString());
+					}).fail([callback](const MTP::Error &error) {
+						callback(error.type());
+					}).send();
+				};
+				data.vpeer_type().match([&](
+						const MTPDrequestPeerTypeCreateBot &createData) {
+					ShowCreateManagedBotBox({
+						.show = show,
+						.manager = bot,
+						.suggestedName = qs(
+							createData.vsuggested_name().value_or_empty()),
+						.suggestedUsername = qs(
+							createData.vsuggested_username()
+								.value_or_empty()),
+						.done = [=](not_null<UserData*> createdBot) {
+							sendPeers({ createdBot });
+							show->showBox(Ui::MakeInformBox({
+								.text = tr::lng_managed_bot_created_text(
+									tr::now,
+									lt_parent_name,
+									bot->name()),
+								.title = tr::lng_managed_bot_created_title(
+									tr::now,
+									lt_name,
+									createdBot->name()),
+							}));
+						},
+						.cancelled = [=] {
+							callback(u"USER_DECLINED"_q);
+						},
+					});
+				}, [&](const auto &) {
+					const auto query = RequestPeerQueryFromTL(data);
+					ShowChoosePeerBox(show, bot, query, sendPeers, [=] {
 						callback(u"USER_DECLINED"_q);
-					},
+					});
 				});
 			}, [&](const auto &) {
-				const auto query = RequestPeerQueryFromTL(data);
-				ShowChoosePeerBox(show, bot, query, sendPeers, [=] {
-					callback(u"USER_DECLINED"_q);
-				});
+				callback(u"UNSUPPORTED_BUTTON_TYPE"_q);
 			});
 		}, [&](const auto &) {
 			callback(u"UNSUPPORTED_BUTTON_TYPE"_q);

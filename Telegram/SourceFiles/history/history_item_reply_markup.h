@@ -69,10 +69,10 @@ struct RequestPeerQuery {
 };
 static_assert(std::is_trivially_copy_assignable_v<RequestPeerQuery>);
 
-class MTPDkeyboardButtonRequestPeer;
+class MTPDbuttonTypeRequestPeer;
 
 [[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
-	const MTPDkeyboardButtonRequestPeer &query);
+	const MTPDbuttonTypeRequestPeer &query);
 
 struct HistoryMessageMarkupButton {
 	enum class Type : uchar {
