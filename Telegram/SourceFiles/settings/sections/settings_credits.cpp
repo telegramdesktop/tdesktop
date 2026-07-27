@@ -352,7 +352,8 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 				+ rect::m::sum::h(st::creditsHistoryTabsSliderPadding));
 		}
 
-		const auto tabs = inner->add(object_ptr<Ui::SlidingTabs>(inner, 3));
+		const auto tabs = inner->add(
+			object_ptr<Ui::SlidingTabs>(inner, 3, st::windowBg));
 		const auto fullTab = tabs->tab(0);
 		const auto inTab = tabs->tab(1);
 		const auto outTab = tabs->tab(2);

@@ -14,8 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-SlidingTabs::SlidingTabs(QWidget *parent, int count)
-: RpWidget(parent) {
+SlidingTabs::SlidingTabs(QWidget *parent, int count, style::color bg)
+: RpWidget(parent)
+, _bg(bg) {
 	Expects(count > 0);
 
 	_tabs.reserve(count);
@@ -55,7 +56,7 @@ void SlidingTabs::showTab(int index, anim::type animated) {
 		? QRect()
 		: visibleRegion().boundingRect();
 	const auto slide = !rect.isEmpty();
-	auto wasCache = slide ? GrabWidget(was, rect) : QPixmap();
+	auto wasCache = slide ? GrabOpaque(was, rect, _bg->c) : QPixmap();
 
 	_shown = index;
 	was->hide();
@@ -69,7 +70,9 @@ void SlidingTabs::showTab(int index, anim::type animated) {
 	_slideRect = rect;
 	_animationHeight = std::max(was->height(), now->height());
 	_animation = std::make_unique<SlideAnimation>();
-	_animation->setSnapshots(std::move(wasCache), GrabWidget(now, rect));
+	_animation->setSnapshots(
+		std::move(wasCache),
+		GrabOpaque(now, rect, _bg->c));
 	_animation->start(slideLeft, [=] {
 		if (_animation && !_animation->animating()) {
 			finishAnimating();
@@ -106,7 +109,7 @@ void SlidingTabs::paintEvent(QPaintEvent *e) {
 		return;
 	}
 	auto p = QPainter(this);
-	p.fillRect(_slideRect, st::windowBg);
+	p.fillRect(_slideRect, _bg);
 	_animation->paintFrame(p, _slideRect.x(), _slideRect.y(), width());
 }
 

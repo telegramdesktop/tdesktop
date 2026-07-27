@@ -345,7 +345,11 @@ void InnerWidget::fillHistory() {
 				+ rect::m::sum::h(st::boxRowPadding));
 		}
 
-		const auto tabs = inner->add(object_ptr<Ui::SlidingTabs>(inner, 3));
+		const auto tabs = inner->add(
+			object_ptr<Ui::SlidingTabs>(
+				inner,
+				3,
+				_controller->listBackground()));
 		const auto fullTab = tabs->tab(0);
 		const auto inTab = tabs->tab(1);
 		const auto outTab = tabs->tab(2);

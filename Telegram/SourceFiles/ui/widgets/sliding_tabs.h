@@ -17,7 +17,7 @@ class VerticalLayout;
 
 class SlidingTabs final : public RpWidget {
 public:
-	SlidingTabs(QWidget *parent, int count);
+	SlidingTabs(QWidget *parent, int count, style::color bg);
 	~SlidingTabs();
 
 	[[nodiscard]] not_null<VerticalLayout*> tab(int index) const;
@@ -30,6 +30,7 @@ private:
 
 	void finishAnimating();
 
+	const style::color _bg;
 	std::vector<not_null<VerticalLayout*>> _tabs;
 	std::unique_ptr<SlideAnimation> _animation;
 	QRect _slideRect;
