@@ -1865,12 +1865,16 @@ bool ListWidget::canConsumeHorizontalScroll(QPoint position, int delta) const {
 			delta);
 }
 
-bool ListWidget::consumeScrollAction(QPoint delta, Qt::ScrollPhase phase) {
+bool ListWidget::consumeScrollAction(
+		QPoint delta,
+		Qt::ScrollPhase phase,
+		std::optional<QPoint> globalPosition) {
 	const auto horizontal = (std::abs(delta.x()) > std::abs(delta.y()));
 	if ((phase == Qt::NoScrollPhase) && !horizontal) {
 		return false;
 	}
-	const auto position = mapFromGlobal(_mousePosition);
+	const auto position = mapFromGlobal(
+		globalPosition.value_or(_mousePosition));
 	const auto view = lookupItemByY(position.y());
 	return view
 		&& view->consumeHorizontalScroll(
@@ -3653,7 +3657,8 @@ void ListWidget::onTouchScrollTimer() {
 		const auto delta = _touchSpeed * elapsed / 1000;
 		const auto consumedHorizontal = consumeScrollAction(
 			delta,
-			Qt::NoScrollPhase);
+			Qt::NoScrollPhase,
+			_touchPos);
 		if (consumedHorizontal) {
 			_horizontalScrollLocked = true;
 		}
@@ -3908,7 +3913,10 @@ void ListWidget::registerReadMetricsActivity() {
 
 void ListWidget::touchScrollUpdated(const QPoint &screenPos) {
 	_touchPos = screenPos;
-	if (consumeScrollAction(_touchPos - _touchPrevPos, Qt::NoScrollPhase)) {
+	if (consumeScrollAction(
+			_touchPos - _touchPrevPos,
+			Qt::NoScrollPhase,
+			_touchPos)) {
 		_horizontalScrollLocked = true;
 	} else if (!_horizontalScrollLocked) {
 		_delegate->listScrollTo(

@@ -387,7 +387,10 @@ public:
 	[[nodiscard]] bool canConsumeHorizontalScroll(
 		QPoint position,
 		int delta) const;
-	bool consumeScrollAction(QPoint delta, Qt::ScrollPhase phase);
+	bool consumeScrollAction(
+		QPoint delta,
+		Qt::ScrollPhase phase,
+		std::optional<QPoint> globalPosition = {});
 
 	[[nodiscard]] std::pair<Element*, int> findViewForPinnedTracking(
 		int top) const;
