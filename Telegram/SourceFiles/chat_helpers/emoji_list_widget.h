@@ -476,7 +476,8 @@ private:
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
 		EmojiStatusId id,
 		not_null<DocumentData*> document,
-		uint64 setId);
+		uint64 setId,
+		bool search = false);
 	[[nodiscard]] Ui::Text::CustomEmoji *resolveCustomRecent(
 		Core::RecentEmojiId customId);
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomRecent(

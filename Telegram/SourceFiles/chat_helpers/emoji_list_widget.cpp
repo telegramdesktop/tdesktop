@@ -1165,7 +1165,8 @@ void EmojiListWidget::fillCloudSearchResults() {
 			.custom = resolveCustomEmoji(
 				statusId,
 				document,
-				SearchEmojiSectionSetId()),
+				SearchEmojiSectionSetId(),
+				true),
 			.id = { RecentEmojiDocument{ .id = id, .test = test } },
 		});
 	}
@@ -1223,7 +1224,8 @@ bool EmojiListWidget::addSearchShortcut(not_null<Data::StickersSet*> set) {
 				.custom = resolveCustomEmoji(
 					EmojiStatusId{ document->id },
 					document,
-					set->id),
+					set->id,
+					true),
 				.document = document,
 				.emoji = Ui::Emoji::Find(sticker->alt),
 			});
@@ -1259,7 +1261,8 @@ std::vector<EmojiListWidget::CustomOne> EmojiListWidget::collectSearchSet(
 				.custom = resolveCustomEmoji(
 					statusId,
 					document,
-					set->id),
+					set->id,
+					true),
 				.document = document,
 				.emoji = Ui::Emoji::Find(sticker->alt),
 			});
@@ -3652,12 +3655,18 @@ Fn<void()> EmojiListWidget::repaintCallback(
 not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
 		EmojiStatusId id,
 		not_null<DocumentData*> document,
-		uint64 setId) {
+		uint64 setId,
+		bool search) {
 	const auto documentId = document->id;
 	const auto i = _customEmoji.find(id);
 	const auto recentOnly = (i != end(_customEmoji)) && i->second.recentOnly;
 	if (i != end(_customEmoji) && !recentOnly) {
-		i->second.setId = setId;
+		// Search results reuse instances of normal sections, but they
+		// must not retarget the stored section id: it outlives the search
+		// and the search repaints are covered by _searchCustomIds checks.
+		if (!search) {
+			i->second.setId = setId;
+		}
 		return i->second.emoji.get();
 	}
 	auto instance = document->owner().customEmojiManager().create(
@@ -3671,7 +3680,9 @@ not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
 			}
 		}
 		i->second.emoji = std::move(instance);
-		i->second.setId = setId;
+		if (!search) {
+			i->second.setId = setId;
+		}
 		i->second.recentOnly = false;
 		return i->second.emoji.get();
 	}
