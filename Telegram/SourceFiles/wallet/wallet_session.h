@@ -67,6 +67,10 @@ public:
 	bool import(std::vector<QString> words);
 	void remove();
 
+	[[nodiscard]] bool phraseUnviewed();
+	[[nodiscard]] rpl::producer<bool> phraseUnviewedValue();
+	void markPhraseViewed();
+
 	[[nodiscard]] int64 balanceNano() const;
 	[[nodiscard]] rpl::producer<int64> balanceNanoValue() const;
 	[[nodiscard]] Gram::AccountStatus status() const;
@@ -127,6 +131,7 @@ private:
 
 	bool _loaded = false;
 	rpl::variable<KeyState> _keyState = KeyState::None;
+	rpl::variable<bool> _phraseUnviewed = false;
 	std::optional<Gram::KeyPair> _keyPair;
 	Gram::Address _address;
 	quint32 _walletId = Gram::kDefaultWalletId;

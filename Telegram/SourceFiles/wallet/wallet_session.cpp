@@ -44,11 +44,13 @@ void Session::ensureLoaded() {
 	if (!stored || stored->words.empty()) {
 		return;
 	}
-	applyKey(
-		stored->words,
-		stored->mnemonicType,
-		stored->walletId,
-		stored->phraseViewed ? KeyState::Imported : KeyState::Created);
+	if (applyKey(
+			stored->words,
+			stored->mnemonicType,
+			stored->walletId,
+			stored->phraseViewed ? KeyState::Imported : KeyState::Created)) {
+		_phraseUnviewed = !stored->phraseViewed;
+	}
 }
 
 bool Session::applyKey(
@@ -113,6 +115,7 @@ bool Session::create() {
 			.networkId = -239,
 			.phraseViewed = false,
 		});
+		_phraseUnviewed = true;
 	}
 	return applied;
 }
@@ -143,6 +146,7 @@ bool Session::import(std::vector<QString> words) {
 			.networkId = -239,
 			.phraseViewed = true,
 		});
+		_phraseUnviewed = false;
 	}
 	return applied;
 }
@@ -153,7 +157,28 @@ void Session::remove() {
 	_address = Gram::Address();
 	_walletId = Gram::kDefaultWalletId;
 	_keyState = KeyState::None;
+	_phraseUnviewed = false;
 	clearNetworkState();
+}
+
+bool Session::phraseUnviewed() {
+	ensureLoaded();
+	return _phraseUnviewed.current();
+}
+
+rpl::producer<bool> Session::phraseUnviewedValue() {
+	ensureLoaded();
+	return _phraseUnviewed.value();
+}
+
+void Session::markPhraseViewed() {
+	ensureLoaded();
+	auto stored = _session->local().readWallet();
+	if (stored && !stored->phraseViewed) {
+		stored->phraseViewed = true;
+		_session->local().writeWallet(*stored);
+	}
+	_phraseUnviewed = false;
 }
 
 void Session::clearNetworkState() {

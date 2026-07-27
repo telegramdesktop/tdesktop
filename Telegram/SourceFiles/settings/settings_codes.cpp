@@ -287,13 +287,12 @@ auto GenerateCodes() {
 		if (!window) {
 			return;
 		}
-		auto wallet = window->session().local().readWallet();
+		const auto wallet = window->session().local().readWallet();
 		if (!wallet) {
 			Ui::Toast::Show(u"No wallet stored."_q);
 			return;
 		}
-		wallet->phraseViewed = true;
-		window->session().local().writeWallet(*wallet);
+		window->session().wallet().markPhraseViewed();
 		Ui::Toast::Show(u"Wallet phrase marked as viewed."_q);
 	});
 	codes.emplace(u"walletdelete"_q, [](SessionController *window) {

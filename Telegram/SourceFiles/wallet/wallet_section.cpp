@@ -17,9 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "profile/profile_back_button.h"
 #include "qr/qr_generate.h"
+#include "settings/settings_common.h"
+#include "storage/storage_account.h"
+#include "storage/storage_domain.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/boxes/emoji_stake_box.h"
 #include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"
@@ -29,9 +34,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/padding_wrap.h"
@@ -44,10 +51,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_session.h"
 #include "window/window_session_controller.h"
 
+#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 #include "styles/style_wallet.h"
 #include "styles/style_widgets.h"
 
@@ -75,6 +85,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	void refreshAddress();
 	void setupBalance();
 	void setupQr();
 	void updateLayout();
@@ -841,17 +852,318 @@ void WalletSendRecipientBox(
 	SetButtonDisabledLook(button.data(), true);
 }
 
+void AddPhraseBoxHeader(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> title,
+		rpl::producer<QString> text) {
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(title),
+			st::walletPhraseTitleLabel),
+		st::walletPhraseTitleMargin,
+		style::al_top);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(text),
+			st::walletPhraseTextLabel),
+		st::walletPhraseTextMargin,
+		style::al_top);
+}
+
+void WalletPhraseBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller) {
+	const auto stored = controller->session().local().readWallet();
+	if (!stored || stored->words.empty()) {
+		box->closeBox();
+		return;
+	}
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+	controller->session().wallet().markPhraseViewed();
+
+	const auto count = int(stored->words.size());
+	AddPhraseBoxHeader(
+		box,
+		tr::lng_wallet_phrase_title(),
+		tr::lng_wallet_phrase_text(
+			lt_count,
+			rpl::single(count * 1.) | tr::to_count()));
+
+	const auto grid = box->addRow(
+		object_ptr<Ui::RpWidget>(box),
+		st::walletPhraseGridPadding);
+	const auto rows = count / 2;
+	auto numberLabels = std::vector<Ui::FlatLabel*>();
+	auto wordLabels = std::vector<Ui::FlatLabel*>();
+	for (auto i = 0; i != count; ++i) {
+		numberLabels.push_back(Ui::CreateChild<Ui::FlatLabel>(
+			grid,
+			QString::number(i + 1) + QChar('.'),
+			st::walletPhraseNumberLabel));
+		wordLabels.push_back(Ui::CreateChild<Ui::FlatLabel>(
+			grid,
+			stored->words[i],
+			st::walletPhraseWordLabel));
+	}
+	const auto rowHeight = wordLabels.front()->height();
+	grid->resize(
+		grid->width(),
+		rows * rowHeight + (rows - 1) * st::walletPhraseRowSkip);
+	grid->widthValue(
+	) | rpl::on_next([=](int width) {
+		const auto column = (width - st::walletPhraseColumnSkip) / 2;
+		for (auto i = 0; i != int(wordLabels.size()); ++i) {
+			const auto x = (i < rows)
+				? 0
+				: (column + st::walletPhraseColumnSkip);
+			const auto y = (i % rows)
+				* (rowHeight + st::walletPhraseRowSkip);
+			numberLabels[i]->moveToLeft(x, y, width);
+			wordLabels[i]->moveToLeft(
+				x + st::walletPhraseNumberWidth,
+				y,
+				width);
+		}
+	}, grid->lifetime());
+
+	AddBoxCloseButton(box);
+	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
+}
+
+void WalletPhraseWarningBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	AddPhraseBoxHeader(
+		box,
+		tr::lng_wallet_phrase_intro_title(),
+		tr::lng_wallet_phrase_intro_text());
+
+	const auto container = box->verticalLayout();
+	const auto addWarning = [&](
+			rpl::producer<TextWithEntities> text,
+			const style::icon &icon) {
+		const auto label = container->add(
+			object_ptr<Ui::FlatLabel>(
+				container,
+				std::move(text),
+				st::walletPhraseWarnLabel),
+			st::walletPhraseWarnPadding);
+		const auto left = Ui::CreateChild<Ui::RpWidget>(container);
+		left->paintRequest(
+		) | rpl::on_next([=] {
+			auto p = Painter(left);
+			icon.paint(p, 0, 0, left->width());
+		}, left->lifetime());
+		left->resize(icon.size());
+		label->geometryValue(
+		) | rpl::on_next([=](const QRect &g) {
+			left->moveToLeft(
+				(g.left() - left->width()) / 2,
+				g.top() + st::walletPhraseWarnIconSkip);
+		}, left->lifetime());
+	};
+	Ui::AddSkip(container);
+	addWarning(
+		tr::lng_wallet_phrase_warn_share(tr::rich),
+		st::walletPhraseWarnShareIcon);
+	Ui::AddSkip(container, st::walletPhraseWarnRowSkip);
+	addWarning(
+		tr::lng_wallet_phrase_warn_steal(tr::rich),
+		st::walletPhraseWarnStealIcon);
+	Ui::AddSkip(container, st::walletPhraseWarnRowSkip);
+	addWarning(
+		tr::lng_wallet_phrase_warn_support(tr::rich),
+		st::walletPhraseWarnSupportIcon);
+	Ui::AddSkip(container);
+
+	AddBoxCloseButton(box);
+	box->addButton(tr::lng_wallet_keys_show_phrase(), [=] {
+		const auto stored = controller->session().local().readWallet();
+		if (!stored || stored->words.empty()) {
+			return;
+		}
+		box->closeBox();
+		controller->show(Box(WalletPhraseBox, controller));
+	});
+}
+
+void WalletPasscodeBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller) {
+	box->setTitle(tr::lng_passcode_check_title());
+	const auto &fieldSt = st::settingLocalPasscodeInputField;
+	const auto wrap = box->addRow(
+		object_ptr<Ui::RpWidget>(box),
+		st::walletPasscodeFieldMargin);
+	wrap->resize(wrap->width(), fieldSt.heightMin);
+	const auto field = Ui::CreateChild<Ui::PasswordInput>(
+		wrap,
+		fieldSt,
+		tr::lng_passcode_enter());
+	wrap->widthValue(
+	) | rpl::on_next([=](int width) {
+		field->moveToLeft((width - field->width()) / 2, 0);
+	}, wrap->lifetime());
+	const auto error = box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			QString(),
+			st::settingLocalPasscodeError),
+		st::walletPasscodeErrorMargin,
+		style::al_top);
+	error->hide();
+	QObject::connect(field, &Ui::MaskedInputField::changed, [=] {
+		error->hide();
+	});
+	box->setFocusCallback([=] {
+		field->setFocusFast();
+	});
+	const auto submit = [=] {
+		if (!passcodeCanTry()) {
+			field->setFocus();
+			field->showError();
+			error->show();
+			error->setText(tr::lng_flood_error(tr::now));
+			return;
+		}
+		const auto &domain = controller->session().domain();
+		if (domain.local().checkPasscode(field->text().toUtf8())) {
+			cSetPasscodeBadTries(0);
+			box->closeBox();
+			controller->show(Box(WalletPhraseWarningBox, controller));
+		} else {
+			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
+			cSetPasscodeLastTry(crl::now());
+			field->selectAll();
+			field->setFocus();
+			field->showError();
+			error->show();
+			error->setText(tr::lng_passcode_wrong(tr::now));
+		}
+	};
+	QObject::connect(field, &Ui::MaskedInputField::submitted, submit);
+	box->addButton(tr::lng_passcode_submit(), submit);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+void WalletRevealFlow(not_null<Window::SessionController*> controller) {
+	const auto &domain = controller->session().domain();
+	if (domain.local().hasLocalPasscode()) {
+		controller->show(Box(WalletPasscodeBox, controller));
+	} else {
+		controller->show(Box(WalletPhraseWarningBox, controller));
+	}
+}
+
+void WalletReplaceBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller) {
+	box->setTitle(tr::lng_wallet_replace_title());
+	const auto create = box->addRow(
+		object_ptr<Ui::RoundButton>(
+			box,
+			tr::lng_wallet_replace_create(),
+			st::walletSendButton),
+		st::walletReplaceButtonMargin,
+		style::al_justify);
+	create->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+	create->setClickedCallback([=] {
+		auto &wallet = controller->session().wallet();
+		if (wallet.keyState() != KeyState::None) {
+			return;
+		}
+		if (!wallet.create()) {
+			controller->showToast(u"Wallet create failed."_q);
+			return;
+		}
+		wallet.startPolling();
+		controller->hideLayer();
+		controller->showToast({
+			.title = tr::lng_wallet_created_title(tr::now),
+			.text = { tr::lng_wallet_created_text(tr::now) },
+			.icon = &st::toastCheckIcon,
+		});
+	});
+	const auto import = box->addRow(
+		object_ptr<Ui::RoundButton>(
+			box,
+			tr::lng_wallet_replace_import(),
+			st::walletSendButton),
+		st::walletReplaceButtonMargin,
+		style::al_justify);
+	import->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+	import->setClickedCallback([=] {
+		controller->showToast(u"Import is coming soon."_q);
+	});
+	Ui::AddSkip(box->verticalLayout());
+}
+
+void WalletKeysBackupBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller) {
+	const auto stored = controller->session().local().readWallet();
+	if (!stored || stored->words.empty()) {
+		box->closeBox();
+		return;
+	}
+	const auto count = int(stored->words.size());
+	box->setTitle(tr::lng_wallet_keys_title());
+	const auto container = box->verticalLayout();
+	Ui::AddSkip(container);
+	Settings::AddButtonWithIcon(
+		container,
+		tr::lng_wallet_keys_show_phrase(),
+		st::settingsButtonNoIcon
+	)->addClickHandler([=] {
+		WalletRevealFlow(controller);
+	});
+	Ui::AddSkip(container);
+	Ui::AddDividerText(
+		container,
+		tr::lng_wallet_keys_phrase_about(
+			lt_count,
+			rpl::single(count * 1.) | tr::to_count()));
+	Ui::AddSkip(container);
+	Settings::AddButtonWithIcon(
+		container,
+		tr::lng_wallet_keys_delete(),
+		st::settingsAttentionButton
+	)->addClickHandler([=] {
+		controller->show(Ui::MakeConfirmBox({
+			.text = tr::lng_wallet_delete_text(tr::now, lt_count, count),
+			.confirmed = [=](Fn<void()> close) {
+				close();
+				controller->hideLayer();
+				controller->session().wallet().remove();
+				controller->show(Box(WalletReplaceBox, controller));
+			},
+			.confirmText = tr::lng_wallet_delete_confirm(),
+			.confirmStyle = &st::attentionBoxButton,
+			.title = tr::lng_wallet_delete_title(),
+		}));
+	});
+	Ui::AddSkip(container);
+	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+}
+
 Card::Card(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller) {
-	auto &wallet = controller->session().wallet();
-	const auto address = wallet.addressFriendly(false);
-	if (address.size() == kAddressLength) {
-		_addressLine1 = GroupedAddressLine(address, 0);
-		_addressLine2 = GroupedAddressLine(address, kAddressLength / 2);
-	}
+	controller->session().wallet().keyStateValue(
+	) | rpl::on_next([=](KeyState) {
+		refreshAddress();
+	}, lifetime());
+
 	Info::Profile::NameValue(
 		controller->session().user()
 	) | rpl::on_next([=](const QString &name) {
@@ -861,6 +1173,17 @@ Card::Card(
 
 	setupBalance();
 	setupQr();
+}
+
+void Card::refreshAddress() {
+	auto &wallet = _controller->session().wallet();
+	const auto address = wallet.addressFriendly(false);
+	_addressLine1 = _addressLine2 = QString();
+	if (address.size() == kAddressLength) {
+		_addressLine1 = GroupedAddressLine(address, 0);
+		_addressLine2 = GroupedAddressLine(address, kAddressLength / 2);
+	}
+	update();
 }
 
 int Card::resizeGetHeight(int newWidth) {
@@ -1027,9 +1350,12 @@ protected:
 
 private:
 	void goBack();
+	void showMenu();
 
 	const not_null<Window::SessionController*> _controller;
 	object_ptr<Profile::BackButton> _backButton;
+	object_ptr<Ui::IconButton> _menuToggle;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 	bool _animatingMode = false;
 
 };
@@ -1039,9 +1365,11 @@ FixedBar::FixedBar(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _backButton(this) {
+, _backButton(this)
+, _menuToggle(this, st::topBarMenuToggle) {
 	_backButton->moveToLeft(0, 0);
 	_backButton->setClickedCallback([=] { goBack(); });
+	_menuToggle->setClickedCallback([=] { showMenu(); });
 
 	const auto title = Ui::CreateChild<Ui::FlatLabel>(
 		_backButton.data(),
@@ -1062,6 +1390,41 @@ FixedBar::FixedBar(
 
 void FixedBar::goBack() {
 	_controller->showBackFromStack();
+}
+
+void FixedBar::showMenu() {
+	if (_menu) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+	_menu->setDestroyedCallback([
+			weak = base::make_weak(this),
+			weakToggle = base::make_weak(_menuToggle.data()),
+			menu = _menu.get()] {
+		if (weak && weak->_menu == menu) {
+			if (weakToggle) {
+				weakToggle->setForceRippled(false);
+			}
+		}
+	});
+	_menuToggle->setForceRippled(true);
+	const auto controller = _controller;
+	_menu->addAction(
+		tr::lng_wallet_keys_title(tr::now),
+		[=] {
+			const auto stored = controller->session().local().readWallet();
+			if (!stored || stored->words.empty()) {
+				return;
+			}
+			controller->show(Box(WalletKeysBackupBox, controller));
+		},
+		&st::menuIconPermissions);
+	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+	_menu->popup(mapToGlobal(QPoint(
+		width() + st::topBarMenuPosition.x(),
+		st::topBarMenuPosition.y())));
 }
 
 void FixedBar::setAnimatingMode(bool enabled) {
@@ -1096,6 +1459,7 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 
 int FixedBar::resizeGetHeight(int newWidth) {
 	_backButton->resizeToWidth(newWidth);
+	_menuToggle->moveToRight(0, 0, newWidth);
 	return _backButton->height();
 }
 
@@ -1166,6 +1530,24 @@ void SectionWidget::setupContent() {
 		controller->show(Box(WalletSendRecipientBox, controller));
 	});
 
+	const auto wallet = &session().wallet();
+	const auto bannerWrap = column->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			column,
+			object_ptr<Ui::VerticalLayout>(column)));
+	const auto bannerInner = bannerWrap->entity();
+	Ui::AddSkip(bannerInner, st::walletBannerTopSkip);
+	Settings::AddButtonWithIcon(
+		bannerInner,
+		tr::lng_wallet_protect_banner(),
+		st::settingsAttentionButtonWithIcon,
+		{ &st::menuIconReportAttention }
+	)->addClickHandler([=] {
+		WalletRevealFlow(controller);
+	});
+	bannerWrap->toggleOn(wallet->phraseUnviewedValue());
+	bannerWrap->finishAnimating();
+
 	const auto wrap = column->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			column,
@@ -1218,7 +1600,6 @@ void SectionWidget::setupContent() {
 		tr::lng_wallet_about_chain_text(),
 		st::walletAboutChainIcon);
 
-	const auto wallet = &session().wallet();
 	wrap->toggleOn(rpl::single(rpl::empty) | rpl::then(rpl::merge(
 		wallet->historyUpdates(),
 		wallet->sendStateValue() | rpl::to_empty

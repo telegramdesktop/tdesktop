@@ -159,3 +159,39 @@ walletSendBalanceLabel: FlatLabel(defaultFlatLabel) {
 }
 walletSendRowSkip: 12px;
 walletSendAmountTopSkip: 16px;
+
+walletBannerTopSkip: 12px;
+walletPhraseTitleLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(17px semibold);
+	}
+	align: align(top);
+}
+walletPhraseTitleMargin: margins(24px, 48px, 24px, 0px);
+walletPhraseTextLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	align: align(top);
+}
+walletPhraseTextMargin: margins(24px, 8px, 24px, 8px);
+walletPhraseWarnPadding: margins(60px, 0px, 24px, 0px);
+walletPhraseWarnLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 248px;
+}
+walletPhraseWarnIconSkip: 3px;
+walletPhraseWarnRowSkip: 12px;
+walletPhraseWarnShareIcon: icon{{ "menu/stealth", windowActiveTextFg }};
+walletPhraseWarnStealIcon: icon{{ "menu/report", windowActiveTextFg }};
+walletPhraseWarnSupportIcon: icon{{ "menu/lock", windowActiveTextFg }};
+walletPhraseGridPadding: margins(40px, 16px, 40px, 8px);
+walletPhraseColumnSkip: 16px;
+walletPhraseRowSkip: 8px;
+walletPhraseNumberWidth: 24px;
+walletPhraseNumberLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+walletPhraseWordLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+}
+walletPasscodeFieldMargin: margins(22px, 16px, 22px, 0px);
+walletPasscodeErrorMargin: margins(22px, 8px, 22px, 8px);
+walletReplaceButtonMargin: margins(22px, 12px, 22px, 0px);
