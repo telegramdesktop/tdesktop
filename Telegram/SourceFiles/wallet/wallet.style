@@ -77,6 +77,40 @@ walletAboutInstantIcon: icon{{ "sponsored/withdrawals", windowActiveTextFg }};
 walletAboutFeesIcon: icon{{ "sponsored/revenue_split", windowActiveTextFg }};
 walletAboutChainIcon: icon{{ "payments/ton_emoji-24x24", windowActiveTextFg }};
 
+walletRowsTopSkip: 24px;
+walletRowPadding: margins(68px, 6px, 24px, 6px);
+walletRowIconSize: 46px;
+walletRowIconLeft: 12px;
+walletRowIconIn: icon{{ "calls/call_arrow_in", activeButtonFg }};
+walletRowIconOut: icon{{ "calls/call_arrow_out", activeButtonFg }};
+walletRowTitleLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+}
+walletRowSubtitleLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+walletRowDateLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+walletRowSkip: 3px;
+walletRowAmountMajorLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+}
+walletRowAmountMinorLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+}
+walletRowAmountMinorSkip: 2px;
+walletRowIconMargin: margins(3px, 0px, 0px, 0px);
+
 walletQrPixel: 8px;
 walletQrSkip: 24px;
 walletQrMargin: margins(0px, 0px, 0px, 0px);

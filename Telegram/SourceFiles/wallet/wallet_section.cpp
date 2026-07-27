@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_section.h"
 
+#include "base/unixtime.h"
 #include "core/credits_amount.h"
 #include "data/data_user.h"
+#include "gram/api/gram_api_history.h"
+#include "gram/ton/gram_address.h"
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
@@ -27,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
@@ -47,6 +51,8 @@ namespace {
 constexpr auto kAddressLength = 48;
 constexpr auto kAddressGroup = 4;
 constexpr auto kAddressGroupsPerLine = 6;
+constexpr auto kShortAddressChars = 4;
+constexpr auto kMinus = QChar(0x2212);
 
 class Card final : public Ui::RpWidget {
 public:
@@ -99,6 +105,165 @@ void SetBalanceText(not_null<Ui::FlatLabel*> label, CreditsAmount amount) {
 	label->setMarkedText(
 		icon.append(Info::ChannelEarn::MajorPart(amount)),
 		helper.context());
+}
+
+struct HistoryRowContent {
+	QString title;
+	QString subtitle;
+	QString date;
+	int64 amountNano = 0;
+	bool incoming = false;
+	bool pending = false;
+};
+
+[[nodiscard]] QString ShortAddress(const Gram::Address &address) {
+	if (address.hash.isEmpty()) {
+		return QString();
+	}
+	const auto full = Gram::FormatFriendly(address, true);
+	return full.left(kShortAddressChars)
+		+ QChar(0x2026)
+		+ full.right(kShortAddressChars);
+}
+
+void SetRowAmount(
+		not_null<Ui::FlatLabel*> major,
+		not_null<Ui::FlatLabel*> minor,
+		int64 amountNano,
+		bool incoming,
+		bool pending) {
+	const auto amount = CreditsAmount(
+		amountNano / Ui::kNanosInOne,
+		amountNano % Ui::kNanosInOne,
+		CreditsType::Ton);
+	major->setText((incoming ? QChar('+') : kMinus)
+		+ Info::ChannelEarn::MajorPart(amount));
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto minorText = tr::marked(Info::ChannelEarn::MinorPart(amount));
+	minorText.append(helper.paletteDependent({
+		.factory = [] {
+			return Ui::Earn::IconCurrencyColored(
+				st::walletRowAmountMajorLabel.style.font,
+				st::windowActiveTextFg->c);
+		},
+		.margin = st::walletRowIconMargin,
+	}));
+	minor->setMarkedText(std::move(minorText), helper.context());
+	const auto color = pending
+		? st::windowSubTextFg->c
+		: incoming
+		? st::boxTextFgGood->c
+		: st::windowFg->c;
+	major->setTextColorOverride(color);
+	minor->setTextColorOverride(color);
+}
+
+void AddHistoryRow(
+		not_null<Ui::VerticalLayout*> list,
+		const HistoryRowContent &content) {
+	const auto wrap = list->add(
+		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
+			list,
+			object_ptr<Ui::VerticalLayout>(list),
+			st::walletRowPadding));
+	const auto inner = wrap->entity();
+	const auto title = inner->add(object_ptr<Ui::FlatLabel>(
+		inner,
+		content.title,
+		st::walletRowTitleLabel));
+	if (!content.subtitle.isEmpty()) {
+		Ui::AddSkip(inner, st::walletRowSkip);
+		inner->add(object_ptr<Ui::FlatLabel>(
+			inner,
+			content.subtitle,
+			st::walletRowSubtitleLabel));
+	}
+	Ui::AddSkip(inner, st::walletRowSkip);
+	inner->add(object_ptr<Ui::FlatLabel>(
+		inner,
+		content.date,
+		st::walletRowDateLabel));
+
+	const auto major = Ui::CreateChild<Ui::FlatLabel>(
+		wrap,
+		st::walletRowAmountMajorLabel);
+	const auto minor = Ui::CreateChild<Ui::FlatLabel>(
+		wrap,
+		st::walletRowAmountMinorLabel);
+	SetRowAmount(
+		major,
+		minor,
+		content.amountNano,
+		content.incoming,
+		content.pending);
+	const auto circle = Ui::CreateChild<Ui::RpWidget>(wrap);
+	circle->resize(st::walletRowIconSize, st::walletRowIconSize);
+	const auto icon = content.incoming
+		? &st::walletRowIconIn
+		: &st::walletRowIconOut;
+	circle->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(circle);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgActive);
+		p.drawEllipse(circle->rect());
+		icon->paintInCenter(p, circle->rect());
+	}, circle->lifetime());
+	Ui::ToggleChildrenVisibility(wrap, true);
+	wrap->geometryValue(
+	) | rpl::on_next([=](const QRect &g) {
+		circle->moveToLeft(
+			st::walletRowIconLeft,
+			(g.height() - circle->height()) / 2);
+		const auto majorTop = st::walletRowPadding.top()
+			+ (title->height() - major->height()) / 2;
+		minor->moveToRight(
+			st::walletRowPadding.right(),
+			majorTop + st::walletRowAmountMinorSkip);
+		major->moveToRight(
+			st::walletRowPadding.right() + minor->width(),
+			majorTop);
+	}, wrap->lifetime());
+}
+
+[[nodiscard]] HistoryRowContent RowContentFromItem(
+		const Gram::TransferItem &item) {
+	const auto pending
+		= (item.status == Gram::TransferItem::Status::Pending);
+	const auto hasCounterparty = !item.counterparty.hash.isEmpty();
+	const auto kindText = (item.kind
+		== Gram::TransferItem::Kind::ContractInteraction)
+		? tr::lng_wallet_row_contract(tr::now)
+		: item.incoming
+		? tr::lng_wallet_row_incoming(tr::now)
+		: tr::lng_wallet_row_outgoing(tr::now);
+	return {
+		.title = (hasCounterparty
+			? ShortAddress(item.counterparty)
+			: kindText),
+		.subtitle = (pending
+			? tr::lng_wallet_row_pending(tr::now)
+			: hasCounterparty
+			? kindText
+			: QString()),
+		.date = langDateTime(base::unixtime::parse(item.date)),
+		.amountNano = item.amountNano,
+		.incoming = item.incoming,
+		.pending = pending,
+	};
+}
+
+[[nodiscard]] HistoryRowContent RowContentFromPending(
+		const PendingSend &pending) {
+	return {
+		.title = ShortAddress(pending.destination),
+		.subtitle = tr::lng_wallet_row_pending(tr::now),
+		.date = langDateTime(base::unixtime::parse(pending.posted)),
+		.amountNano = pending.amountNano,
+		.incoming = false,
+		.pending = true,
+	};
 }
 
 void WalletQrBox(not_null<Ui::GenericBox*> box, const QString &address) {
@@ -528,6 +693,50 @@ void SectionWidget::setupContent() {
 	}));
 	wrap->finishAnimating();
 
+	const auto listWrap = column->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			column,
+			object_ptr<Ui::VerticalLayout>(column)));
+	const auto list = listWrap->entity();
+	const auto rebuildList = [=] {
+		list->clear();
+		const auto &history = wallet->history();
+		if (!history.empty()) {
+			Ui::AddSkip(list, st::walletRowsTopSkip);
+			const auto &pending = wallet->pendingSend();
+			const auto shown = pending
+				&& ranges::any_of(history, [&](
+						const Gram::TransferItem &item) {
+					return item.externalHashNorm
+						== pending->messageHashNorm;
+				});
+			if (pending && !shown) {
+				AddHistoryRow(list, RowContentFromPending(*pending));
+			}
+			for (const auto &item : history) {
+				AddHistoryRow(list, RowContentFromItem(item));
+			}
+			Ui::AddSkip(list, st::walletRowsTopSkip);
+		}
+		list->resizeToWidth(st::walletContentWidth);
+		checkLoadMore();
+	};
+	rpl::merge(
+		wallet->historyUpdates(),
+		wallet->sendStateValue() | rpl::to_empty
+	) | rpl::on_next(rebuildList, list->lifetime());
+	listWrap->toggleOn(rpl::single(rpl::empty) | rpl::then(
+		wallet->historyUpdates()
+	) | rpl::map([=] {
+		return !wallet->history().empty();
+	}));
+	listWrap->finishAnimating();
+
+	_scroll->scrolls(
+	) | rpl::on_next([=] {
+		checkLoadMore();
+	}, lifetime());
+
 	column->resizeToWidth(st::walletContentWidth);
 	rpl::combine(
 		_container->widthValue(),
@@ -536,6 +745,16 @@ void SectionWidget::setupContent() {
 		column->moveToLeft((width - column->width()) / 2, 0);
 		_container->resize(width, height);
 	}, column->lifetime());
+}
+
+void SectionWidget::checkLoadMore() {
+	auto &wallet = session().wallet();
+	if (!wallet.historyHasNext()) {
+		return;
+	}
+	if (_scroll->scrollTop() + _scroll->height() >= _scroll->scrollTopMax()) {
+		wallet.loadMoreHistory();
+	}
 }
 
 QPixmap SectionWidget::grabForShowAnimation(
@@ -588,6 +807,7 @@ void SectionWidget::resizeEvent(QResizeEvent *e) {
 	if (_container) {
 		_container->resize(width(), _container->height());
 	}
+	checkLoadMore();
 }
 
 void SectionWidget::paintEvent(QPaintEvent *e) {

@@ -65,6 +65,7 @@ protected:
 
 private:
 	void setupContent();
+	void checkLoadMore();
 	void updateAdaptiveLayout();
 
 	object_ptr<Ui::ScrollArea> _scroll;

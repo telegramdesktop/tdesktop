@@ -33,9 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "wallet/wallet_session.h"
 #include "gram/ton/gram_address.h"
+#include "gram/api/gram_api_history.h"
 #include "ui/controls/ton_common.h"
 #include "api/api_updates.h"
 #include "base/qt/qt_common_adapters.h"
+#include "base/unixtime.h"
 #include "base/custom_app_icon.h"
 #include "base/options.h"
 #include "boxes/abstract_box.h" // Ui::show().
@@ -306,6 +308,69 @@ auto GenerateCodes() {
 		wallet.remove();
 		Ui::Toast::Show(u"Wallet deleted."_q);
 	});
+#ifdef _DEBUG
+	codes.emplace(u"wallethistoryfixture"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		const auto weak = base::make_weak(window);
+		FileDialog::GetOpenPath(
+			Core::App().getFileDialogParent(),
+			"Open traces fixture",
+			"Traces JSON (*.json)",
+			[weak](const FileDialog::OpenResult &result) {
+				const auto strong = weak.get();
+				if (!strong || result.paths.isEmpty()) {
+					return;
+				}
+				auto file = QFile(result.paths.front());
+				if (!file.open(QIODevice::ReadOnly)) {
+					Ui::Toast::Show(u"Could not open fixture."_q);
+					return;
+				}
+				const auto json = file.readAll();
+				auto &wallet = strong->session().wallet();
+				auto candidates = std::vector<Gram::Address>();
+				const auto acc1 = u"0:9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC"_q;
+				const auto acc2 = u"0:BC1B748F5D26B74D857798FF4DD4252A2B79CF51B232AE41BE1F19E8CD9547B7"_q;
+				for (const auto &raw : { acc1, acc2 }) {
+					if (const auto parsed = Gram::ParseAddress(raw)) {
+						candidates.push_back(parsed->address);
+					}
+				}
+				if (const auto own = wallet.address()) {
+					candidates.push_back(*own);
+				}
+				auto items = std::vector<Gram::TransferItem>();
+				for (const auto &self : candidates) {
+					if (auto page = Gram::ParseTraces(json, self, 20)) {
+						if (!page->list.empty()) {
+							items = std::move(page->list);
+							break;
+						}
+					}
+				}
+				if (items.empty()) {
+					Ui::Toast::Show(u"No items parsed from fixture."_q);
+					return;
+				}
+				auto demo = items.front();
+				demo.date = base::unixtime::now();
+				demo.lt = demo.lt + 1;
+				demo.traceId = demo.traceId + "-demo-now";
+				auto demoPending = items.front();
+				demoPending.status = Gram::TransferItem::Status::Pending;
+				demoPending.date = base::unixtime::now();
+				demoPending.lt = demoPending.lt + 2;
+				demoPending.traceId = demoPending.traceId + "-demo-pending";
+				items.push_back(std::move(demo));
+				items.push_back(std::move(demoPending));
+				const auto count = int(items.size());
+				wallet.injectDebugHistory(std::move(items));
+				Ui::Toast::Show(u"Injected %1 history items."_q.arg(count));
+			});
+	});
+#endif
 	codes.emplace(u"loadcolors"_q, [](SessionController *window) {
 		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {

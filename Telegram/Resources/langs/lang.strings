@@ -8760,6 +8760,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_about_fees_text" = "Transfers cost almost nothing.";
 "lng_wallet_about_chain_title" = "Blockchain Verified";
 "lng_wallet_about_chain_text" = "All transactions are recorded and verifiable on a public ledger.";
+"lng_wallet_row_incoming" = "Incoming transfer";
+"lng_wallet_row_outgoing" = "Outgoing transfer";
+"lng_wallet_row_contract" = "Contract interaction";
+"lng_wallet_row_pending" = "Pending";
 
 // Wnd specific
 

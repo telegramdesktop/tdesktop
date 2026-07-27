@@ -162,6 +162,8 @@ void Session::clearNetworkState() {
 	_history.clear();
 	_historyUpdates.fire({});
 	_historyErrorLogged = false;
+	_historyHasNext = false;
+	_historyLoadedOffset = 0;
 	_pending.reset();
 	_sendState = SendState::Idle;
 	_pollingCount = 0;
@@ -257,9 +259,16 @@ void Session::refreshHistory(Fn<void()> done) {
 	if (_historyRequestPending) {
 		return;
 	}
+	requestHistory(0);
+}
+
+void Session::requestHistory(int offset) {
 	_historyRequestPending = true;
 	_api.request(
-		Gram::TracesRequest(addressFriendly(false), kHistoryPageLimit, 0),
+		Gram::TracesRequest(
+			addressFriendly(false),
+			kHistoryPageLimit,
+			offset),
 		[=](const QByteArray &json) {
 			_historyRequestPending = false;
 			if (_keyState.current() == KeyState::None) {
@@ -273,11 +282,11 @@ void Session::refreshHistory(Fn<void()> done) {
 					LOG(("Wallet: traces unavailable (parse failed), "
 						"using transactions fallback."));
 				}
-				requestHistoryFallback();
+				requestHistoryFallback(offset);
 				return;
 			}
 			_historyErrorLogged = false;
-			mergeHistory(std::move(page->list));
+			applyHistoryPage(offset, std::move(*page));
 			for (const auto &callback : base::take(_historyDone)) {
 				callback();
 			}
@@ -293,17 +302,17 @@ void Session::refreshHistory(Fn<void()> done) {
 				LOG(("Wallet: traces unavailable (%1), "
 					"using transactions fallback.").arg(error.message));
 			}
-			requestHistoryFallback();
+			requestHistoryFallback(offset);
 		});
 }
 
-void Session::requestHistoryFallback() {
+void Session::requestHistoryFallback(int offset) {
 	_historyRequestPending = true;
 	_api.request(
 		Gram::TransactionsRequest(
 			addressFriendly(false),
 			kHistoryPageLimit,
-			0),
+			offset),
 		[=](const QByteArray &json) {
 			_historyRequestPending = false;
 			if (_keyState.current() == KeyState::None) {
@@ -314,7 +323,7 @@ void Session::requestHistoryFallback() {
 					json,
 					_address,
 					kHistoryPageLimit)) {
-				mergeHistory(std::move(page->list));
+				applyHistoryPage(offset, std::move(*page));
 			}
 			for (const auto &callback : base::take(_historyDone)) {
 				callback();
@@ -365,6 +374,41 @@ void Session::mergeHistory(std::vector<Gram::TransferItem> &&items) {
 		_historyUpdates.fire({});
 	}
 }
+
+void Session::applyHistoryPage(int offset, Gram::HistoryPage &&page) {
+	// The offset ladder counts SERVER rows (traces or transactions), not
+	// mapped items. Only a page that extends the current tail (request
+	// offset == _historyLoadedOffset) may update _historyHasNext or advance
+	// the ladder; the offset-0 poll therefore stops mattering as soon as a
+	// deeper page was consumed, and can never clobber a deeper "no more".
+	if (offset == _historyLoadedOffset) {
+		_historyHasNext = page.hasNext;
+		if (page.hasNext) {
+			_historyLoadedOffset += kHistoryPageLimit;
+		}
+	}
+	mergeHistory(std::move(page.list));
+}
+
+bool Session::historyHasNext() const {
+	return _historyHasNext;
+}
+
+void Session::loadMoreHistory() {
+	ensureLoaded();
+	if (_keyState.current() == KeyState::None
+		|| _historyRequestPending
+		|| !_historyHasNext) {
+		return;
+	}
+	requestHistory(_historyLoadedOffset);
+}
+
+#ifdef _DEBUG
+void Session::injectDebugHistory(std::vector<Gram::TransferItem> items) {
+	mergeHistory(std::move(items));
+}
+#endif
 
 void Session::startPolling() {
 	++_pollingCount;
@@ -550,6 +594,7 @@ void Session::sendWithState(
 		.messageHashNorm = hashNorm,
 		.signedSeqno = usedSeqno,
 		.validUntil = request.validUntil,
+		.posted = base::unixtime::now(),
 		.amountNano = args.amountNano,
 		.destination = args.destination,
 	};

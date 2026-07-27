@@ -40,6 +40,7 @@ struct PendingSend {
 	QByteArray messageHashNorm;
 	quint32 signedSeqno = 0;
 	TimeId validUntil = 0;
+	TimeId posted = 0;
 	int64 amountNano = 0;
 	Gram::Address destination;
 };
@@ -75,6 +76,11 @@ public:
 		Fn<void(const Gram::AccountState &)> done = nullptr,
 		Fn<void(const Gram::ApiError &)> fail = nullptr);
 	void refreshHistory(Fn<void()> done = nullptr);
+	[[nodiscard]] bool historyHasNext() const;
+	void loadMoreHistory();
+#ifdef _DEBUG
+	void injectDebugHistory(std::vector<Gram::TransferItem> items);
+#endif
 
 	void startPolling();
 	void stopPolling();
@@ -98,7 +104,9 @@ private:
 	void updatePollingState();
 	void applyAccountState(const Gram::AccountState &state);
 	void mergeHistory(std::vector<Gram::TransferItem> &&items);
-	void requestHistoryFallback();
+	void requestHistory(int offset);
+	void requestHistoryFallback(int offset);
+	void applyHistoryPage(int offset, Gram::HistoryPage &&page);
 	void checkPendingByMessage();
 	void checkPendingBySeqno(const Gram::AccountState &state);
 	void finishPending();
@@ -127,6 +135,8 @@ private:
 	std::vector<Gram::TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
 	bool _historyErrorLogged = false;
+	bool _historyHasNext = false;
+	int _historyLoadedOffset = 0;
 
 	int _pollingCount = 0;
 	bool _stateRequestPending = false;
