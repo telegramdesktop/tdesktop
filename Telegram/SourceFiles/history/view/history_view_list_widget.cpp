@@ -2435,6 +2435,9 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	startItemRevealAnimations();
 	_itemsWidth = newWidth;
 	_itemsHeight = newHeight - _itemsRevealHeight;
+	if (_thanosController) {
+		_thanosController->clearRemovalHeight();
+	}
 	auto collapseGapTotal = 0;
 	for (const auto &gap : collapseGaps()) {
 		collapseGapTotal += gap.height;
@@ -2617,6 +2620,10 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		std::min(st::msgMaxWidth / 2, width() / 2));
 
 	auto clip = e->rect();
+
+	if (_thanosController) {
+		_thanosController->clearRemovalHeight();
+	}
 
 	auto collapseGapsTotal = 0;
 	for (const auto &gap : collapseGaps()) {
