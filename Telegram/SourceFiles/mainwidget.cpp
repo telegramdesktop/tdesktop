@@ -809,7 +809,11 @@ void MainWidget::searchMessages(
 		== Window::SeparateType::Archive);
 	if (_dialogs
 		&& (!archiveWindow || inChat.folder())
-		&& (!ForceComposeSearchOneColumn.value() || !isOneColumn())) {
+		&& (!ForceComposeSearchOneColumn.value()
+			|| !isOneColumn()
+			|| (inChat.peer()
+				&& inChat.peer()->isChannel()
+				&& inChat.peer()->asChannel()->isCommunity()))) {
 		auto state = Dialogs::SearchState{
 			.inChat = ((tags.empty() || inChat.sublist())
 				? inChat
