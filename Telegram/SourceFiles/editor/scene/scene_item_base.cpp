@@ -96,6 +96,7 @@ bool NumberedItem::undoable() const {
 ItemBase::ItemBase(Data data)
 : _lastZ(data.zPtr)
 , _imageSize(data.imageSize)
+, _contentMargins(data.contentMargins)
 , _horizontalSize(data.size) {
 	setFlags(QGraphicsItem::ItemIsMovable
 		| QGraphicsItem::ItemIsSelectable
@@ -109,7 +110,9 @@ QRectF ItemBase::boundingRect() const {
 }
 
 QRectF ItemBase::contentRect() const {
-	return innerRect() - _scaledInnerMargins;
+	return _contentMargins
+		? (innerRect() - _scaledInnerMargins)
+		: innerRect();
 }
 
 QRectF ItemBase::innerRect() const {
@@ -480,6 +483,7 @@ ItemBase::Data ItemBase::generateData() const {
 		.flipped = flipped(),
 		.rotation = int(rotation()),
 		.imageSize = _imageSize,
+		.contentMargins = _contentMargins,
 	};
 }
 

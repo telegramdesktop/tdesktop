@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_editor.h"
 #include "styles/style_layers.h"
 
 #include <QtCore/QBuffer>
@@ -125,18 +124,14 @@ void OpenPhotoEditorForImage(
 	const auto fitted = userSize.scaled(
 		QSize(side, side),
 		Qt::KeepAspectRatio);
-	const auto handle = st::photoEditorItemHandleSize;
-	const auto itemSize = (userSize.width() >= userSize.height())
-		? int((fitted.height() + handle)
-			* userSize.width() / float64(userSize.height()))
-		: (fitted.width() + handle);
 	auto itemData = Editor::ItemBase::Data{
 		.initialZoom = 1.0,
 		.zPtr = scene->lastZ(),
-		.size = itemSize,
+		.size = fitted.width(),
 		.x = side / 2,
 		.y = side / 2,
 		.imageSize = userSize,
+		.contentMargins = false,
 	};
 	auto imageItem = std::make_shared<Editor::ItemImage>(
 		QPixmap(userPixmap),
