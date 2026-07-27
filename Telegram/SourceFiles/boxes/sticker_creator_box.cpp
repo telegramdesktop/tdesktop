@@ -84,29 +84,21 @@ private:
 
 };
 
-void OpenPhotoEditorForImage(
-		std::shared_ptr<ChatHelpers::Show> show,
-		QImage image,
-		int side,
-		Fn<void(QImage&&)> onDone) {
-	if (image.isNull()) {
-		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
-		return;
-	}
-	const auto sessionController = show->resolveWindow();
-	if (!sessionController) {
-		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
-		return;
-	}
-	const auto windowController = &sessionController->window();
-	const auto parentWidget = sessionController->widget();
+struct EditorState {
+	std::shared_ptr<Image> canvas;
+	Editor::PhotoModifications modifications;
+	int side = 0;
+};
 
-	if (image.width() <= 0
+[[nodiscard]] std::shared_ptr<EditorState> PrepareEditorState(
+		QImage image,
+		int side) {
+	if (image.isNull()
+		|| image.width() <= 0
 		|| image.height() <= 0
 		|| (image.width() > 10 * image.height())
 		|| (image.height() > 10 * image.width())) {
-		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
-		return;
+		return nullptr;
 	}
 
 	auto canvas = QImage(
@@ -114,7 +106,6 @@ void OpenPhotoEditorForImage(
 		side,
 		QImage::Format_ARGB32_Premultiplied);
 	canvas.fill(Qt::transparent);
-	const auto baseImage = std::make_shared<Image>(std::move(canvas));
 
 	auto scene = std::make_shared<Editor::Scene>(
 		QRectF(0, 0, side, side));
@@ -139,16 +130,34 @@ void OpenPhotoEditorForImage(
 	imageItem->setUndoable(false);
 	scene->addItem(std::move(imageItem));
 
-	auto modifications = Editor::PhotoModifications{
-		.crop = QRect(0, 0, side, side),
-		.paint = std::move(scene),
-	};
+	return std::make_shared<EditorState>(EditorState{
+		.canvas = std::make_shared<Image>(std::move(canvas)),
+		.modifications = Editor::PhotoModifications{
+			.crop = QRect(0, 0, side, side),
+			.paint = std::move(scene),
+		},
+		.side = side,
+	});
+}
+
+void ShowPhotoEditor(
+		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<EditorState> state,
+		Fn<void(QImage&&)> onDone) {
+	const auto sessionController = show->resolveWindow();
+	if (!sessionController) {
+		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
+		return;
+	}
+	const auto windowController = &sessionController->window();
+	const auto parentWidget = sessionController->widget();
+	const auto side = state->side;
 
 	auto editor = base::make_unique_q<Editor::PhotoEditor>(
 		parentWidget,
 		windowController,
-		baseImage,
-		std::move(modifications),
+		state->canvas,
+		state->modifications,
 		Editor::EditorData{
 			.exactSize = QSize(side, side),
 			.cropType = Editor::EditorData::CropType::RoundedRect,
@@ -160,7 +169,8 @@ void OpenPhotoEditorForImage(
 
 	auto applyModifications = [=, done = std::move(onDone)](
 			const Editor::PhotoModifications &mods) mutable {
-		auto result = Editor::ImageModified(baseImage->original(), mods);
+		state->modifications = mods;
+		auto result = Editor::ImageModified(state->canvas->original(), mods);
 		if (result.size() != QSize(side, side)) {
 			result = result.scaled(
 				side,
@@ -273,13 +283,23 @@ void LoadStickerImage(
 namespace Api {
 namespace {
 
+struct CreateMediaArgs {
+	std::shared_ptr<ChatHelpers::Show> show;
+	StickerSetIdentifier set;
+	QImage image;
+	Data::StickersType type = Data::StickersType::Stickers;
+	std::vector<EmojiPtr> emoji;
+	Fn<void(std::vector<EmojiPtr>)> back;
+	Fn<void(MTPmessages_StickerSet)> done;
+};
+
 void CreateMediaBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<ChatHelpers::Show> show,
-		StickerSetIdentifier set,
-		QImage image,
-		Data::StickersType type,
-		Fn<void(MTPmessages_StickerSet)> done) {
+		CreateMediaArgs args) {
+	const auto show = args.show;
+	const auto type = args.type;
+	const auto back = args.back;
+	auto image = std::move(args.image);
 	const auto isEmoji = (type == Data::StickersType::Emoji);
 	const auto side = SideForType(type);
 	struct State {
@@ -302,6 +322,7 @@ void CreateMediaBox(
 			: tr::lng_stickers_create_emoji_about(tr::now)),
 		.maxSelected = kMaxEmojis,
 		.allowExpand = true,
+		.initialSelected = std::move(args.emoji),
 	};
 	const auto metrics = ChatHelpers::EmojiPickerOverlay::EstimateMetrics(
 		pickerDescriptor.aboutText);
@@ -350,8 +371,9 @@ void CreateMediaBox(
 
 	Ui::AddSkip(inner);
 
-	const auto startUpload = [=, set = std::move(set), done = std::move(done)](
-			) mutable {
+	const auto startUpload = [=,
+			set = std::move(args.set),
+			done = std::move(args.done)]() mutable {
 		if (state->uploading.current()) {
 			return;
 		}
@@ -414,7 +436,12 @@ void CreateMediaBox(
 			tr::lng_box_done()),
 		startUpload);
 	state->addButton = addButton;
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	box->addButton(tr::lng_cancel(), [=] {
+		if (back) {
+			back(picker->selected());
+		}
+		box->closeBox();
+	});
 
 	{
 		using namespace Info::Statistics;
@@ -434,26 +461,46 @@ void CreateMediaBox(
 	}, box->lifetime());
 }
 
+void ShowEditorThenCreate(
+		std::shared_ptr<ChatHelpers::Show> show,
+		StickerSetIdentifier set,
+		std::shared_ptr<EditorState> state,
+		Data::StickersType type,
+		std::vector<EmojiPtr> emoji,
+		Fn<void(MTPmessages_StickerSet)> done) {
+	ShowPhotoEditor(show, state, [=](QImage &&prepared) {
+		show->showBox(Box(CreateMediaBox, CreateMediaArgs{
+			.show = show,
+			.set = set,
+			.image = std::move(prepared),
+			.type = type,
+			.emoji = emoji,
+			.back = [=](std::vector<EmojiPtr> chosen) {
+				ShowEditorThenCreate(show, set, state, type, chosen, done);
+			},
+			.done = done,
+		}));
+	});
+}
+
 void RunImageEditorAndCreate(
 		std::shared_ptr<ChatHelpers::Show> show,
 		StickerSetIdentifier set,
 		QImage image,
 		Data::StickersType type,
 		Fn<void(MTPmessages_StickerSet)> done) {
-	OpenPhotoEditorForImage(
-		show,
-		std::move(image),
-		kStickerSide,
-		[=, set = std::move(set), done = std::move(done)](
-				QImage &&prepared) mutable {
-			show->showBox(Box(
-				CreateMediaBox,
-				show,
-				std::move(set),
-				std::move(prepared),
-				type,
-				std::move(done)));
-		});
+	auto state = PrepareEditorState(std::move(image), kStickerSide);
+	if (!state) {
+		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
+		return;
+	}
+	ShowEditorThenCreate(
+		std::move(show),
+		std::move(set),
+		std::move(state),
+		type,
+		{},
+		std::move(done));
 }
 
 void ChooseImageThenCreate(
