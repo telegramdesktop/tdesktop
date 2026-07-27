@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_credits.h"
 #include "api/api_filter_updates.h"
+#include "base/invoke_queued.h"
 #include "base/unixtime.h"
 #include "core/ui_integration.h"
 #include "data/data_channel_earn.h"
@@ -284,7 +285,6 @@ void InnerWidget::fillHistory() {
 	const auto sectionIndex = history->lifetime().make_state<int>(0);
 
 	const auto fill = [=, peer = peer()](
-			not_null<PeerData*> premiumBot,
 			const Data::CreditsStatusSlice &fullSlice,
 			const Data::CreditsStatusSlice &inSlice,
 			const Data::CreditsStatusSlice &outSlice) {
@@ -414,16 +414,12 @@ void InnerWidget::fillHistory() {
 		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
 			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
 				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
-					::Api::PremiumPeerBot(
-						&_controller->session()
-					) | rpl::on_next([=](not_null<PeerData*> bot) {
-						fill(bot, fullSlice, inSlice, outSlice);
-						container->resizeToWidth(container->width());
-						while (history->count() > 1) {
-							delete history->widgetAt(0);
-						}
-						apiLifetime->destroy();
-					}, *apiLifetime);
+					fill(fullSlice, inSlice, outSlice);
+					container->resizeToWidth(container->width());
+					while (history->count() > 1) {
+						delete history->widgetAt(0);
+					}
+					InvokeQueued(container, [=] { apiLifetime->destroy(); });
 				});
 			});
 		});

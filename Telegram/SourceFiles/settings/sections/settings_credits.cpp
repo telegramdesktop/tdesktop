@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_earn.h"
 #include "api/api_statistics.h"
 #include "base/call_delayed.h"
+#include "base/invoke_queued.h"
 #include "boxes/gift_credits_box.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/star_gift_box.h"
@@ -282,7 +283,6 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 	Ui::AddSkip(content, st::lineWidth * 6);
 
 	const auto fill = [=](
-			not_null<PeerData*> premiumBot,
 			const Data::CreditsStatusSlice &fullSlice,
 			const Data::CreditsStatusSlice &inSlice,
 			const Data::CreditsStatusSlice &outSlice) {
@@ -416,12 +416,8 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
 			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
 				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
-					::Api::PremiumPeerBot(
-						&controller()->session()
-					) | rpl::on_next([=](not_null<PeerData*> bot) {
-						fill(bot, fullSlice, inSlice, outSlice);
-						apiLifetime->destroy();
-					}, *apiLifetime);
+					fill(fullSlice, inSlice, outSlice);
+					InvokeQueued(container, [=] { apiLifetime->destroy(); });
 				}, kFirstPageLimit);
 			}, kFirstPageLimit);
 		}, kFirstPageLimit);
