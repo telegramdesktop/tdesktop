@@ -232,6 +232,11 @@ void ThanosEffectController::startCollapseAnimation(
 		return;
 	}
 
+	// Gap positions are kept in the coordinates of the moment the first
+	// gap was captured, while itemTop is measured in the current layout
+	// that may have been shifted since (prepend / top margin change).
+	itemTop -= _gapsShift;
+
 	if (_collapseAnimation.animating()) {
 		for (auto &gap : _collapseGaps) {
 			gap.startHeight = gap.currentHeight;
@@ -353,6 +358,12 @@ void ThanosEffectController::shiftGaps(int delta) {
 	_gapsShift += delta;
 	for (auto &gap : _renderGaps) {
 		gap.absY += delta;
+	}
+	if (_restoreScrollPending && !_wasAtBottom) {
+		// The content above the gaps moved, so the scroll position that
+		// keeps the same content visible moved by the same delta. Without
+		// this the next animation frame forces the pre-shift coordinate.
+		_savedScrollTop += delta;
 	}
 }
 
