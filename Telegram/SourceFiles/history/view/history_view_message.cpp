@@ -2168,6 +2168,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	}
 	if (hasGesture) {
 		p.translate(-context.gestureHorizontal.translation, 0);
+		if (context.reactionInfo && context.reactionInfo->effectPaint) {
+			const auto shift = context.gestureHorizontal.translation;
+			context.reactionInfo->effectOffset += QPoint(shift, 0);
+		}
 
 		constexpr auto kShiftRatio = 1.5;
 		constexpr auto kBouncePart = 0.25;
