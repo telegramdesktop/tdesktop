@@ -3734,7 +3734,7 @@ void Account::writeWallet(const WalletStored &data) {
 		<< quint32(data.walletId)
 		<< qint32(data.networkId)
 		<< qint32(data.phraseViewed ? 1 : 0);
-	FileWriteDescriptor file(_walletKey, _basePath);
+	FileWriteDescriptor file(_walletKey, _basePath, true);
 	file.writeEncrypted(wallet, _localKey);
 }
 
