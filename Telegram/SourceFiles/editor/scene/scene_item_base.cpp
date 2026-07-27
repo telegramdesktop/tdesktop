@@ -85,6 +85,14 @@ void NumberedItem::setStatus(Status status) {
 	}
 }
 
+void NumberedItem::setUndoable(bool undoable) {
+	_undoable = undoable;
+}
+
+bool NumberedItem::undoable() const {
+	return _undoable;
+}
+
 ItemBase::ItemBase(Data data)
 : _lastZ(data.zPtr)
 , _imageSize(data.imageSize)

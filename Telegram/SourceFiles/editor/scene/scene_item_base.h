@@ -43,12 +43,16 @@ public:
 	[[nodiscard]] bool isUndidStatus() const;
 	[[nodiscard]] bool isRemovedStatus() const;
 
+	void setUndoable(bool undoable);
+	[[nodiscard]] bool undoable() const;
+
 	virtual void save(SaveState state);
 	virtual void restore(SaveState state);
 	virtual bool hasState(SaveState state) const;
 private:
 	int _number = 0;
 	Status _status = Status::Normal;
+	bool _undoable = true;
 };
 
 class ItemBase : public NumberedItem {

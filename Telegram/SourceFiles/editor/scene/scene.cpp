@@ -745,7 +745,9 @@ void Scene::updateZoom(float64 zoom) {
 }
 
 bool Scene::hasUndo() const {
-	return ranges::any_of(_items, &NumberedItem::isNormalStatus);
+	return ranges::any_of(_items, [](const ItemPtr &item) {
+		return item->isNormalStatus() && item->undoable();
+	});
 }
 
 bool Scene::hasRedo() const {
@@ -755,7 +757,9 @@ bool Scene::hasRedo() const {
 void Scene::performUndo() {
 	const auto filtered = items(Qt::DescendingOrder);
 
-	const auto it = ranges::find_if(filtered, &NumberedItem::isNormalStatus);
+	const auto it = ranges::find_if(filtered, [](const ItemPtr &item) {
+		return item->isNormalStatus() && item->undoable();
+	});
 	if (it != filtered.end()) {
 		if (const auto action = dynamic_cast<ItemAction*>(it->get())) {
 			action->revert();

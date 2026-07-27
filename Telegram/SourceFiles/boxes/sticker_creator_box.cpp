@@ -141,6 +141,7 @@ void OpenPhotoEditorForImage(
 	auto imageItem = std::make_shared<Editor::ItemImage>(
 		QPixmap(userPixmap),
 		std::move(itemData));
+	imageItem->setUndoable(false);
 	scene->addItem(std::move(imageItem));
 
 	auto modifications = Editor::PhotoModifications{
