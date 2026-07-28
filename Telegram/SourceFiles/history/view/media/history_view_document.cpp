@@ -652,11 +652,10 @@ QSize Document::countCurrentSize(int newWidth) {
 	const auto hasTranscribe = voice && !voice->transcribeText.isEmpty();
 	const auto thumbed = Get<HistoryDocumentThumbed>();
 	const auto &st = thumbed ? st::msgFileThumbLayout : st::msgFileLayout;
-	const auto hostedInstantViewAudio = IsHostedInstantViewMedia(_parent)
-		&& (_data->isAudioFile() || _data->isVoiceMessage());
+	const auto hostedInstantView = IsHostedInstantViewMedia(_parent);
 	if (!captioned && !hasTranscribe) {
 		auto result = File::countCurrentSize(newWidth);
-		if (hostedInstantViewAudio) {
+		if (hostedInstantView) {
 			result.setWidth(std::max(newWidth, result.width()));
 		}
 		if (isBubbleBottom()) {
@@ -687,7 +686,7 @@ QSize Document::countCurrentSize(int newWidth) {
 		return result;
 	}
 
-	if (!hostedInstantViewAudio) {
+	if (!hostedInstantView) {
 		accumulate_min(newWidth, maxWidth());
 	}
 	auto newHeight = st.padding.top() + st.thumbSize + st.padding.bottom();
