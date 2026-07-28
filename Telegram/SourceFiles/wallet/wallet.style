@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
+using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
 
 walletMenuIcon: icon{{ "payments/ton_emoji-24x24", menuIconColor }};
@@ -195,3 +196,7 @@ walletPhraseWordLabel: FlatLabel(defaultFlatLabel) {
 walletPasscodeFieldMargin: margins(22px, 16px, 22px, 0px);
 walletPasscodeErrorMargin: margins(22px, 8px, 22px, 8px);
 walletReplaceButtonMargin: margins(22px, 12px, 22px, 0px);
+walletReplaceTitleLabel: FlatLabel(boxTitle) {
+	maxHeight: 0px;
+}
+walletReplaceTitleMargin: margins(22px, 16px, 22px, 4px);

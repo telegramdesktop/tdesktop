@@ -1066,7 +1066,12 @@ void WalletRevealFlow(not_null<Window::SessionController*> controller) {
 void WalletReplaceBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller) {
-	box->setTitle(tr::lng_wallet_replace_title());
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_wallet_replace_title(),
+			st::walletReplaceTitleLabel),
+		st::walletReplaceTitleMargin);
 	const auto create = box->addRow(
 		object_ptr<Ui::RoundButton>(
 			box,
@@ -1412,7 +1417,7 @@ void FixedBar::showMenu() {
 	_menuToggle->setForceRippled(true);
 	const auto controller = _controller;
 	_menu->addAction(
-		tr::lng_wallet_keys_title(tr::now),
+		Ui::Text::FixAmpersandInAction(tr::lng_wallet_keys_title(tr::now)),
 		[=] {
 			const auto stored = controller->session().local().readWallet();
 			if (!stored || stored->words.empty()) {
