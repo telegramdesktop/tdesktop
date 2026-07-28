@@ -1172,7 +1172,7 @@ void WalletImportBox(
 	const auto error = AddSendFlowLabel(
 		box,
 		state->error.value(),
-		st::walletSendErrorLabel);
+		st::walletImportErrorLabel);
 	error->setVisible(false);
 	state->error.value() | rpl::on_next([=](const QString &text) {
 		error->setVisible(!text.isEmpty());

@@ -227,6 +227,9 @@ walletImportClear: CrossButton {
 	ripple: defaultRippleAnimationBgOver;
 }
 walletImportClearPosition: point(11px, 7px);
+walletImportErrorLabel: FlatLabel(walletSendErrorLabel) {
+	minWidth: 120px;
+}
 walletImportSuggestionsSkip: 2px;
 walletImportSuggestionsPadding: margins(4px, 4px, 4px, 4px);
 walletImportSuggestionRowHeight: 28px;
