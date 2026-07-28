@@ -538,6 +538,23 @@ evidence rather than an echo. Their write sets are disjoint (one report file eac
 so they may run in parallel; when delegation is unavailable, run them as sequential
 checklists in the current session and keep the same four reports.
 
+**Check the diff before spawning anything.** If `git status --porcelain` over
+`Telegram/SourceFiles` and `Telegram/Resources` is empty, skip Phase 6 entirely:
+record in progress that there was no product diff to review, run no lens, no
+synthesis and no fix pass, and continue to the next phase. Four lenses over nothing
+cost real time and produce no evidence, and a lens that goes looking for substitute
+material reviews the plan and the fix pass then rewrites it, so the loop reviews its
+own output and cannot converge. This applies to any task that reaches Phase 6 with
+no product change — a `type: verify` task, or an ordinary task whose request turned
+out to be already satisfied by shipped code. On iteration 1, still run the Phase 6d
+test-design leaf: it reads the spec and plan, takes no part in the review verdict,
+and is useful whether or not a diff exists.
+
+Likewise, never schedule iteration `R+1` off a fix pass that touched no product
+source. A fix that changed nothing under `Telegram/SourceFiles` or
+`Telegram/Resources` leaves the reviewed surface identical, so another round can only
+re-read the same code or drift onto AI artifacts. Close the loop and continue.
+
 The lenses are:
 
 | Lens | Report file | Angle |
@@ -604,10 +621,22 @@ and most real defects are visible only in that context.
 Review only what this task changed. A pre-existing problem outside this task's diff
 is not a finding, however tempting.
 
-Default to NOT CLEAN. A clean verdict is a positive claim that you looked at each
-surface and found nothing — not the absence of an objection. You must report what
-you checked, and a report whose Checked section does not account for the diff is
-incomplete work, not a fast approval.
+STOP FIRST if the product diff is empty. Your review material is the product diff
+and nothing else. If `git diff` and `git status --porcelain` over
+`Telegram/SourceFiles` and `Telegram/Resources` show no change, write a report whose
+Checked section states exactly that, give the verdict CLEAN, and stop. Do not
+substitute other material: the plan, the context, the task text, the test design,
+the source-history note, the test overlay, and already-shipped code are NOT your
+review surface, and reviewing them is a defect in the review, not thoroughness. An
+empty diff is a complete answer — it means this task changed no product code, which
+is normal for a verification task and for a request that turned out to be already
+satisfied. It is never a reason to go looking for something to review.
+
+Default to NOT CLEAN whenever there IS a diff. A clean verdict is then a positive
+claim that you looked at each surface and found nothing — not the absence of an
+objection. You must report what you checked, and a report whose Checked section does
+not account for the diff is incomplete work, not a fast approval. This default does
+not apply to the empty-diff case above; there, CLEAN is the correct and only answer.
 
 A finding is admissible only if you can state the concrete failure it produces: the
 specific input, state, or call sequence that yields a crash, a wrong result, or a
@@ -844,7 +873,15 @@ Rules:
 - Implement exactly the review changes, nothing more.
 - Follow AGENTS.md coding conventions.
 - You are not alone in the codebase. Respect existing changes and do not revert unrelated work.
-- Do not modify AI task files except where the review process explicitly requires it.
+- Your write set is product source under `Telegram/SourceFiles` and `Telegram/Resources`, and
+  nothing else. Never edit `plan.md`, `context.md`, `test-design.md`, the task text, or any other
+  AI artifact. Those are inputs you read, never outputs you write. Editing them makes the next
+  review iteration read a document this loop just rewrote, which cannot converge.
+- If a finding cannot be addressed by changing product source — because it is about the plan, the
+  test design, the task's scope, or code this task did not touch — do not act on it. Report it
+  back as out of scope, naming the finding and why, and let the performer decide.
+- If review<R>.md contains no finding you can act on under those rules, change nothing, say so,
+  and report. An empty fix is a valid and complete outcome.
 
 After all changes are made:
 1. Run the resolved Debug build command from context.md (`<BUILD>`) at the repository root.
