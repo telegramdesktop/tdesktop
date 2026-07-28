@@ -934,7 +934,7 @@ chatSuggestChangeIcon: IconEmoji {
 
 
 repliesEmptyIcon: icon{{ "chat/large_quickreply", msgServiceFg }};
-greetingEmptyIcon: icon{{ "chat/large_greeting", msgServiceFg }};
+greetingEmptyIcon: icon{{ "chat/large_welcome-56x52", msgServiceFg, margins(12px, 4px, 12px, 4px) }};
 awayEmptyIcon: icon{{ "chat/large_away", msgServiceFg }};
 repliesEmptyWidth: 264px;
 repliesEmptySkip: 16px;
