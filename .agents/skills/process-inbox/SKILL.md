@@ -131,6 +131,20 @@ Omit `Inputs` when none are used. For visual work, include the design basis and
 the exact visual/layout evidence expected. Copy every pertinent supplied file
 into `input/`; never reference the ignored inbox or its backup from a task.
 
+Keep acceptance criteria to what actually proves the requested behavior. Never
+write a test-data integrity criterion: the live `TelegramForcePortable` folder
+is a disposable copy, so a task must not ask a performer to hash, back up,
+compare, or restore the account, to verify any setting or folder is unchanged,
+or to leave the account as it was found. A run may leave templates, theme,
+wallpaper, window geometry and interface scale mutated. State needs restoring
+only where a later measurement in the same run depends on it, never as an
+end-of-run obligation. The test-loop's SETUP owns the folder — it requires the
+golden `test_TelegramForcePortable`, reuses a live folder carrying the `testing`
+marker, and otherwise prepares a fresh copy — and its `test-run` command already
+launches with `-testagent -noupdate`, so no task needs to require either flag.
+Every such criterion costs a performer real time and proves nothing about the
+product.
+
 Create `state.yaml` in this exact field order:
 
 ```yaml
