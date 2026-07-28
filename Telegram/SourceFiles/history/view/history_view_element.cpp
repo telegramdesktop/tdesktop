@@ -2237,8 +2237,10 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 		&& !Has<ForumThreadBar>()) {
 		const auto prev = previous->data();
 		const auto previousMarkup = prev->inlineReplyMarkup();
-		const auto possible = (std::abs(prev->date() - item->date())
-				< kAttachMessageToPreviousSecondsDelta)
+		const auto ignoresDateGap = (_context == Context::WelcomeMessages);
+		const auto possible = (ignoresDateGap
+				|| (std::abs(prev->date() - item->date())
+					< kAttachMessageToPreviousSecondsDelta))
 			&& mayBeAttached(this)
 			&& mayBeAttached(previous)
 			&& (!previousMarkup || previousMarkup->hiddenBy(prev->media()))
