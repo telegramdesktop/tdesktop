@@ -7,6 +7,7 @@
 - [Local artifacts and resumption](#local-artifacts-and-resumption)
 - [Delegation](#delegation)
 - [Implementation phases](#implementation-phases)
+- [Verification tasks](#verification-tasks)
 - [Telegram commits](#telegram-commits)
 - [Test loop adapter](#test-loop-adapter)
 - [Final AI state](#final-ai-state)
@@ -279,6 +280,80 @@ Run sequentially:
    committed attempt through the same helper; keep the same `Task:` locator on
    every attempt.
 
+## Verification tasks
+
+A task whose `state.yaml` carries `type: verify` measures behavior that already
+shipped. Read the type from the `resolve` output before planning; it selects
+this profile for the whole run and nothing else does.
+
+A verification carries no implementation. It must not change a byte under
+`Telegram/SourceFiles/` or `Telegram/Resources/` outside the disposable test
+overlay, and it produces **no Telegram commit at all**. Its deliverable is the
+measurement, and its outcome is either "the behavior held" or "here is the exact
+disagreement, and here are the follow-up tasks that fix it". Both are `approved`.
+
+### What it does not run
+
+Skip these phases outright rather than running them against an empty diff:
+
+- **Phase 3, Implement.** There is no product write set. The only code a
+  verification writes is the test overlay, authored in the test loop.
+- **Phase 4, Build,** as a separate implementation step. The overlay build in
+  the test loop is the only build.
+- **Phase 5's four review lenses** — correctness, lifetime, reuse, structure —
+  and the whole three-iteration review/fix loop. They read a product diff that
+  does not exist. Step 6d, the test-check design, is the one part that survives,
+  and it moves into Phase 2V below.
+- **Phase 6, Normalize.** No task-owned source text changes.
+- **Phase 7's `source-commit`.** The helper refuses it for this type. There is no
+  implementation attempt, no `GREEN_REF`, and no attempt counter to advance;
+  `MAX_ATTEMPTS` does not apply, only `MAX_TEST_RUNS`.
+
+### What it does run
+
+1. **Phase 1V: context and measurement plan.** One leaf writes `work/context.md`
+   and then `work/plan.md` as a measurement plan rather than a change plan: the
+   exact claim under test stated as a falsifiable proposition, the oracle that
+   decides it, the fixture and how it is obtained, the surfaces to be read, and
+   the literal values to be quoted before and after. Where the spec names a
+   control — a sibling widget that must measure differently, a pre-change render
+   reconstructed from history, a negative case that must not fire — the plan
+   carries it as a required check, not as an optional extra.
+2. **Phase 3V: assess for falsifiability.** A fresh leaf verifies the plan the
+   way Phase 2 verifies an implementation plan, against one question the four
+   review lenses never ask: *would this run have detected the negative?* It
+   rejects a plan whose oracle passes when the behavior is absent, whose control
+   cannot disagree with the subject, or that reads local state where the claim is
+   about persisted or server state. It also writes `work/test-design.md`, so the
+   test author starts from a reviewed design. Require `Assessed: yes` and a named
+   falsifier for every check.
+3. **Test loop.** Enter it directly after assessment. Everything in the adapter
+   below applies unchanged except that it starts here instead of after a green
+   implementation commit, and `overlay-apply` is never needed because no
+   implementation-fix commit ever moves `RUN_REF`.
+
+`source-begin` still runs in preflight and still sets `BASE_REF` and `RUN_REF`;
+they stay equal for the whole task, which is exactly what makes `overlay-save
+--restore run` restore the checkout to its untouched baseline. `work/owned-paths.txt`
+lists the overlay paths only. For a verification it keeps the preflight's
+`dirty_outside_owned` honest; it never authorizes a commit.
+
+### Failures belong to the subject, not the run
+
+A verification that finds the behavior wrong has succeeded. Record the exact
+disagreement — expected, actual, literal values, quoted — report it as a
+discovered follow-up, and finish `approved`. **Do not repair what you measured**,
+even when the fix looks like one line: the repair is ordinary implementation work
+in a separate task, and making it here would destroy the measurement's
+independence and produce a commit this task may not make.
+
+Reserve `blocked` for a measurement that could not be taken at all — the fixture
+is unobtainable, the surface cannot be reached, the oracle needs infrastructure
+this checkout does not have. A negative result is never a block.
+
+A verification also never widens its own scope. If the run reveals a second
+untested behavior, that is another discovered follow-up, not another check.
+
 ## Telegram commits
 
 The performer owns commit boundaries. The workspace helper's `source-commit`
@@ -313,7 +388,8 @@ notes, reports, chat, or commit messages.
 ## Test loop adapter
 
 Read `.agents/shared/test-loop.md` completely and apply it after the first green
-implementation commit. Read `references/computer-use-testing.md` when choosing
+implementation commit, or — for a `type: verify` task, which never has one —
+immediately after Phase 3V. Read `references/computer-use-testing.md` when choosing
 or operating a UI driver. Retain all task-derived oracle, layout measurement,
 overlay, watchdog, crash/assertion, hang, account, attempt, report, and evidence
 rules, with these external-task safety adaptations:
@@ -393,13 +469,39 @@ rules, with these external-task safety adaptations:
 - Plan the fewest possible runs: one complete programmed scenario per attempt
   that proves every check in a single execution, splitting only for checks
   that cannot share one process lifetime. `MAX_TEST_RUNS` is a safety cap,
-  never a budget to spend.
+  never a budget to spend on fragmenting one scenario into several.
+- **That rule governs how checks are packed, never how many are taken. A
+  coverage gap you find mid-task is closed by another run, not by a follow-up
+  task.** When you discover a check this task's acceptance needs and this
+  checkout can take — a parameter the scenario only sampled (a subset of an
+  enum, one interface scale, one context), a surface reachable only behind a
+  different launch flag, a persisted or server value that only a fresh start
+  re-reads, a wire path an in-process assertion never exercised — take it now.
+  Extend the current scenario when the check can share the process; add a run
+  when it cannot. Do this even after every planned check has passed, and even
+  while writing `work/result.md`.
+  Deferring it is the expensive choice, not the cheap one: this process already
+  holds the context, the branch, the overlay and the build, and a follow-up task
+  rebuilds all four from nothing before it can take the same measurement. One
+  more run costs minutes; the task that replaces it costs a full lifecycle and
+  lands days later. Runs added for coverage are not implementation attempts and
+  never advance `MAX_ATTEMPTS`; they count only against `MAX_TEST_RUNS`.
 - Start the test author from `work/test-design.md` when the review-phase
   draft exists; the author still reconciles every drafted check against the
   final retained diff before writing overlay code, and owns `test.md`.
 - On every terminal test exit, run `test-cleanup --exe EXE --delete-exe` so no
   straggler survives and no overlay-bearing Debug executable is left for the
   user to launch accidentally.
+- **On a `type: verify` task the `IMPL_BUG` branch does not exist.** The shared
+  loop classifies a failing check as either a flawed test or an implementation
+  bug to fix and recommit; a verification may do neither. Classify a failing
+  check as `TEST_FLAW` only when the fault is in the overlay, the oracle, or the
+  fixture — that is still a real flaw and still gets fixed and rerun. When the
+  overlay is sound and the *subject* behaves differently than the claim, that is
+  not a bug to repair here: it is the measurement's result. Stop the loop, record
+  it as `Finding: deviation` with expected and actual quoted literally, and route
+  the repair as a follow-up. Re-running a sound measurement until it agrees with
+  the claim is the one failure mode this task type exists to prevent.
 - When a task needs an out-of-scope fence, snapshot it with
   `fence-create --file <baseline> --root SOURCE_ROOT <paths...>` and verify it
   before publication with `fence-check`.
@@ -411,7 +513,14 @@ combine the exact task commits and inspect their current code at `RUN_REF`
 without treating intervening tasks as this task's changes. It writes checks
 before running, covers every acceptance surface, declares a falsifiable oracle
 for each, compresses all checks into the fewest possible runs — normally
-exactly one — and never reuses a generic navigate-and-screenshot scenario. Missing
+exactly one — and never reuses a generic navigate-and-screenshot scenario. When
+a surface cannot be covered in the packed scenario, the author adds a run for it
+rather than dropping it: run count is the thing to minimize once coverage is
+settled, never the reason to leave a reachable surface unmeasured. Where an
+acceptance criterion ranges over a parameter — every value of an enum, both
+halves of a branch, more than one interface scale — the author iterates the
+range rather than sampling it, because a hand-picked subset is exactly the shape
+of gap that comes back later as its own task. Missing
 or ambiguous evidence is `TEST_FLAW`; no expected task delta is `IMPL_BUG`. Two
 identical consecutive failure signatures block early, except that the macOS
 cached-language signature first gets the shared test loop's one-time Xcode
@@ -454,6 +563,21 @@ Discovered: none | present
 <complete independently testable follow-ups, or omit>
 ```
 
+A `type: verify` task writes one more field and is held to three extra rules,
+all enforced by `finish`:
+
+```text
+Finding: confirmed | deviation | inconclusive
+```
+
+`Touched:` is always `none`. `Finding: deviation` requires `Discovered: present`,
+because a measured disagreement that routes no repair is how a known defect
+becomes invisible. `Finding: inconclusive` is the only finding a blocked
+verification may carry, and it may never be approved — which is what keeps
+"the measurement failed" and "the behavior failed" from collapsing into each
+other. State the finding against quoted literal values in `work/result.md`, never
+as a summary judgement.
+
 For approved project work, promote `work/project.proposed.md` to the project's
 `project.md` immediately before final AI publication. For blocked work, retain
 the proposal only as a task artifact.
@@ -481,14 +605,41 @@ When `Discovered: present`, preserve complete task blocks in `result.md`. The
 `continue` scheduler must route them through the same independent-testability
 planner into new unclaimed dated tasks before selecting more shared work.
 
-A non-`none` `Unverified:` value is routed by that same scheduler step, so write
-it to be routable: the exact behavior that shipped without verification, and what
-closing that gap would require. That second half is what lets the router separate a
-gap a later run can close with the existing setup from one that needs project
-infrastructure this checkout does not have. Never widen `Unverified:` to behavior
-the task never claimed, and never narrow it to `none` because the acceptance
-criteria passed — it records what this run did not prove, not what the task did not
-ask for.
+`Unverified:` records what this run **could not** prove, never what it merely did
+not get to. Before writing a non-`none` value, ask whether this checkout could
+take the measurement now. If it could, the answer is another run and not an
+`Unverified:` line: go back to the test loop and take it, however late that is.
+A gap written here becomes a whole new task that must rebuild this task's
+context, branch, overlay and build before it can measure what this process is
+already holding, so writing one you could have closed trades minutes for days.
+
+What legitimately belongs here is a gap this checkout cannot close: one that
+needs a second account, funded external value, real server-backed cloud state, a
+purpose-built bot, or hardware this machine does not have. Write it to be
+routable — the exact behavior that shipped without verification, and precisely
+what closing it would require — so the scheduler can record it rather than
+queueing work that would be unstartable the moment it entered the queue.
+
+Scope it to this task's own change, with its acceptance criteria as the boundary.
+`Unverified:` is for behavior **this diff** shipped without proof — apply the same
+revert test the test loop applies to a check: if reverting this task's diff could
+not change the outcome, the gap is about pre-existing behavior and does not belong
+on this line at all. Untested code you passed on the way, a neighbouring feature,
+a parameter range the acceptance never named, a pre-existing bug you noticed: none
+of these are this task's unverified behavior. If one is worth anyone's time it is a
+discovered follow-up with its own justification, not a coverage debt this task
+incurred.
+
+Never widen `Unverified:` to behavior the task never asked for, and in particular
+never to a rationale or motivation sentence in the task body that the acceptance
+criteria never encoded — if such a claim is worth verifying it belongs in
+acceptance, where the test design will see it and the same run will cover it.
+Equally, never narrow it to `none` merely because the acceptance criteria passed.
+
+The reason this boundary is strict is that the codebase is far larger than any
+queue. Verification that follows attention rather than the diff has no natural
+stopping point, and every entry written past the boundary becomes a task that
+delays finishing the work actually in hand.
 
 ## Failure handling
 

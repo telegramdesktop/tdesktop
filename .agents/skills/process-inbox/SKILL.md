@@ -149,6 +149,7 @@ Create `state.yaml` in this exact field order:
 
 ```yaml
 status: todo
+type: implement
 created: YYYY-MM-DD
 project: null
 depends_on: []
@@ -164,6 +165,14 @@ Use a project slug instead of `null` when routed to a project. Use a YAML list
 of task identifiers for dependencies. Inbox processing never reserves work:
 new tasks always remain `status: todo` with `claimed_by`, `claimed_at`, and
 `claim_order` set to `null`. The checkout tag belongs in the receipt only.
+
+Inbox processing always writes `type: implement`. A human request is work to do,
+not a measurement of work already done. Only the `continue` scheduler's routing
+step creates `type: verify` tasks, when an approved result leaves an
+`Unverified:` gap the existing checkout could close; that step reuses these
+task-creation rules and sets the field itself. A verification carries no
+implementation, so never give one acceptance criteria that would need a source
+change to satisfy — that request is an `implement` task.
 
 For a new project, create `projects/<slug>/project.md` with a concise durable
 scope and `projects/<slug>/tasks.md` with task links. For an existing project,

@@ -891,7 +891,7 @@ def make_portable_root(root):
 	return debug
 
 
-def source_repo_with_task(root):
+def source_repo_with_task(root, kind="implement"):
 	source = root / "source"
 	git_repo(source)
 	(source / "Telegram" / "build").mkdir(parents=True)
@@ -902,6 +902,25 @@ def source_repo_with_task(root):
 	slot = root / "slot"
 	work = slot / "tasks" / TASK_ID / "work"
 	work.mkdir(parents=True)
+	(work.parent / "task.md").write_text(
+		"# Correct recent-search peer actions\n",
+		encoding="utf-8",
+	)
+	(work.parent / "state.yaml").write_text(
+		f"""status: in-progress
+type: {kind}
+created: 2026-07-19
+project: null
+depends_on: []
+claimed_by: macbook-twork
+claimed_at: 2026-07-19T14:28:01+04:00
+claim_order: 1
+lease_until: null
+phase: setup
+inbox_receipt: receipts/2026/07/19/test.md
+""",
+		encoding="utf-8",
+	)
 	config = {"source_root": str(source)}
 	return source, slot, work, config
 
@@ -1227,6 +1246,91 @@ class MechanicsTest(unittest.TestCase):
 						subject="x" * 80,
 						mark_green=False,
 					)
+
+	def test_verification_task_cannot_commit_telegram_source(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root, kind="verify")
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			(source / "tracked.txt").write_text("task\n", encoding="utf-8")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				with self.assertRaisesRegex(workspace.WorkspaceError, "follow-up"):
+					run_command(
+						workspace.command_source_commit,
+						task=TASK_ID,
+						subject="Correct peer actions",
+						mark_green=False,
+					)
+			self.assertEqual(
+				git(source, "show", "-s", "--format=%s", "HEAD"),
+				"Create baseline",
+			)
+
+	def test_verification_source_state_requires_an_untouched_baseline(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, _, _, config = source_repo_with_task(root, kind="verify")
+			for name in ("base", "run"):
+				git(source, "update-ref", workspace.source_task_ref(TASK_ID, name), "HEAD")
+			workspace.validate_source_state(config, TASK_ID, True, "verify")
+
+			(source / "tracked.txt").write_text("task\n", encoding="utf-8")
+			git(source, "commit", "-am", "Correct peer actions", "-m", f"Task: {TASK_ID}")
+			git(source, "update-ref", workspace.source_task_ref(TASK_ID, "run"), "HEAD")
+			with self.assertRaisesRegex(workspace.WorkspaceError, "local baseline"):
+				workspace.validate_source_state(config, TASK_ID, True, "verify")
+
+			git(source, "update-ref", workspace.source_task_ref(TASK_ID, "green"), "HEAD")
+			with self.assertRaisesRegex(workspace.WorkspaceError, "implementation commit"):
+				workspace.validate_source_state(config, TASK_ID, True, "verify")
+			workspace.validate_source_state(config, TASK_ID, True)
+
+	def test_verification_result_contract(self):
+		path = Path("work/result.md")
+
+		def check(lines, approved=True):
+			workspace.validate_verify_result(lines, path, approved)
+
+		check(["Touched: none", "Finding: confirmed"])
+		check(["Touched: none", "Finding: deviation", "Discovered: present"])
+		check(["Touched: none", "Finding: inconclusive"], approved=False)
+
+		with self.assertRaisesRegex(workspace.WorkspaceError, "Touched: none"):
+			check(["Touched: Telegram/SourceFiles/main.cpp", "Finding: confirmed"])
+		with self.assertRaisesRegex(workspace.WorkspaceError, "exactly one Finding"):
+			check(["Touched: none"])
+		with self.assertRaisesRegex(workspace.WorkspaceError, "exactly one Finding"):
+			check(["Touched: none", "Finding: probably-fine"])
+		with self.assertRaisesRegex(workspace.WorkspaceError, "discovered follow-up"):
+			check(["Touched: none", "Finding: deviation", "Discovered: none"])
+		with self.assertRaisesRegex(workspace.WorkspaceError, "never approved"):
+			check(["Touched: none", "Finding: inconclusive"])
+		with self.assertRaisesRegex(workspace.WorkspaceError, "could not measure"):
+			check(["Touched: none", "Finding: deviation"], approved=False)
+
+	def test_task_type_defaults_to_implementation(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			slot = Path(temporary)
+			directory = write_task(slot, status="todo", claimed_by=None)
+			state = workspace.load_state(slot, directory / "state.yaml")
+			self.assertEqual(state["type"], "implement")
+
+			workspace.update_state(directory / "state.yaml", {"type": "verify"})
+			state = workspace.load_state(slot, directory / "state.yaml")
+			self.assertEqual(state["type"], "verify")
+			text = (directory / "state.yaml").read_text(encoding="utf-8")
+			self.assertEqual(
+				text.splitlines()[:2],
+				["status: todo", "type: verify"],
+			)
+
+			workspace.update_state(directory / "state.yaml", {"type": "guess"})
+			with self.assertRaisesRegex(workspace.WorkspaceError, "Invalid task type"):
+				workspace.load_state(slot, directory / "state.yaml")
 
 	def test_fence_create_and_check_detects_changes(self):
 		with tempfile.TemporaryDirectory() as temporary:

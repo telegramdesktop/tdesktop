@@ -19,6 +19,9 @@ TASK_ID_PATTERN = re.compile(
 	r"[0-9]{4}/[0-9]{2}/[0-9]{2}/[a-z0-9][a-z0-9-]*"
 )
 VALID_STATUSES = {"todo", "in-progress", "approved", "blocked"}
+DEFAULT_TASK_TYPE = "implement"
+VALID_TASK_TYPES = {DEFAULT_TASK_TYPE, "verify"}
+VALID_FINDINGS = {"confirmed", "deviation", "inconclusive"}
 COMMIT_HASH_PATTERN = re.compile(
 	r"(?i)\b(?:commit|revision|sha(?:-1)?)\b[^\r\n]{0,32}(?<!#)\b[0-9a-f]{7,64}\b"
 )
@@ -28,6 +31,7 @@ PROJECT_LINK_PATTERN = re.compile(r"\]\(\.\./\.\./(?!\.\./)")
 ARCHIVED_PROJECT_LINK_PATTERN = re.compile(r"\]\(\.\./\.\./\.\./")
 STATE_FIELD_ORDER = [
 	"status",
+	"type",
 	"created",
 	"project",
 	"depends_on",
@@ -346,6 +350,10 @@ def load_state(root, path):
 	status = str(parse_scalar(values["status"]))
 	if status not in VALID_STATUSES:
 		raise WorkspaceError(f"Invalid status {status!r} in {path}")
+	kind = parse_scalar(values.get("type", DEFAULT_TASK_TYPE))
+	kind = DEFAULT_TASK_TYPE if kind is None else str(kind)
+	if kind not in VALID_TASK_TYPES:
+		raise WorkspaceError(f"Invalid task type {kind!r} in {path}")
 	project = parse_scalar(values["project"])
 	if project is not None and not TAG_PATTERN.fullmatch(str(project)):
 		raise WorkspaceError(f"Invalid project slug {project!r} in {path}")
@@ -367,6 +375,7 @@ def load_state(root, path):
 		"id": task_id,
 		"title": title,
 		"status": status,
+		"type": kind,
 		"created": str(parse_scalar(values["created"])),
 		"project": project,
 		"depends_on": parse_dependencies(values["depends_on"]),
@@ -923,7 +932,11 @@ def is_ancestor(source, older, newer="HEAD"):
 	).returncode
 
 
-def validate_source_state(config, task_id, required):
+def task_type(slot, task_id):
+	return load_state(slot, state_path(slot, task_id))["type"]
+
+
+def validate_source_state(config, task_id, required, kind=DEFAULT_TASK_TYPE):
 	source = Path(config["source_root"])
 	base = resolved_ref(source, source_task_ref(task_id, "base"))
 	green = resolved_ref(source, source_task_ref(task_id, "green"))
@@ -933,6 +946,16 @@ def validate_source_state(config, task_id, required):
 		raise WorkspaceError("The local task baseline ref is missing")
 	if run is None or head != run:
 		raise WorkspaceError("Telegram HEAD no longer matches the task run ref")
+	if kind == "verify":
+		if green is not None:
+			raise WorkspaceError(
+				"A verification task must not retain a Telegram implementation commit"
+			)
+		if head != base:
+			raise WorkspaceError(
+				"A verification task must leave Telegram at its local baseline"
+			)
+		return
 	if green is None:
 		if required:
 			raise WorkspaceError("An approved task must retain a Telegram implementation commit")
@@ -1476,6 +1499,11 @@ def gitlink_paths(source, paths):
 
 def command_source_commit(args):
 	config, slot = task_action_config(args)
+	if task_type(slot, args.task) == "verify":
+		raise WorkspaceError(
+			"A verification task carries no implementation and cannot commit "
+			"Telegram source; report the deviation as a follow-up task instead"
+		)
 	source = Path(config["source_root"])
 	subject = args.subject.strip()
 	if not subject or "\n" in subject:
@@ -1656,28 +1684,67 @@ def command_source_preflight(args):
 	print(json.dumps(result, indent=2, sort_keys=True))
 
 
+def validate_verify_result(lines, result_path, approved):
+	if "Touched: none" not in lines:
+		raise WorkspaceError(
+			f"A verification task must report Touched: none: {result_path}"
+		)
+	findings = [
+		line.split(":", 1)[1].strip() for line in lines
+		if line.startswith("Finding:")
+	]
+	if len(findings) != 1 or findings[0] not in VALID_FINDINGS:
+		raise WorkspaceError(
+			"A verification task must record exactly one Finding: "
+			+ " | ".join(sorted(VALID_FINDINGS))
+			+ f": {result_path}"
+		)
+	finding = findings[0]
+	if approved:
+		if finding == "inconclusive":
+			raise WorkspaceError(
+				"An inconclusive verification is blocked, never approved: "
+				f"{result_path}"
+			)
+		if finding == "deviation" and "Discovered: present" not in lines:
+			raise WorkspaceError(
+				"A verification that found a deviation must route it as a "
+				f"discovered follow-up task: {result_path}"
+			)
+	elif finding != "inconclusive":
+		raise WorkspaceError(
+			"A verification blocks only when it could not measure, so a blocked "
+			f"result must record Finding: inconclusive: {result_path}"
+		)
+
+
 def command_finish(args):
 	config, slot = task_action_config(args, allow_project=True)
 	ensure_clean(Path(config["source_root"]), "Telegram source checkout")
+	kind = task_type(slot, args.task)
+	approved = args.status == "approved"
 	result_path = slot / task_relative_dir(args.task) / "work" / "result.md"
 	if not result_path.is_file():
 		raise WorkspaceError(f"Task result is missing: {result_path}")
 	result = result_path.read_text(encoding="utf-8-sig")
-	expected = "STATUS: DONE" if args.status == "approved" else "STATUS: BLOCKED"
-	if expected not in result.splitlines():
+	lines = result.splitlines()
+	expected = "STATUS: DONE" if approved else "STATUS: BLOCKED"
+	if expected not in lines:
 		raise WorkspaceError(f"Task result does not contain {expected}: {result_path}")
-	if args.status == "approved" and not any(
+	if approved and not any(
 		line in ("Verdict: APPROVED", "Verdict: NOT_APPLICABLE")
-		for line in result.splitlines()
+		for line in lines
 	):
 		raise WorkspaceError(f"Task result does not contain an approved verdict: {result_path}")
-	if "Checkout: clean-buildable" not in result.splitlines():
+	if "Checkout: clean-buildable" not in lines:
 		raise WorkspaceError(f"Task result does not confirm a clean checkout: {result_path}")
+	if kind == "verify":
+		validate_verify_result(lines, result_path, approved)
 	ensure_no_persisted_commit_hashes(result_path.parents[1])
 	source_note = Path(config["source_root"]) / "tasks" / f"{args.task}.md"
 	if source_note.is_file():
 		ensure_no_persisted_commit_hashes(source_note)
-	validate_source_state(config, args.task, args.status == "approved")
+	validate_source_state(config, args.task, approved, kind)
 	path = state_path(slot, args.task)
 	update_state(path, {
 		"status": args.status,

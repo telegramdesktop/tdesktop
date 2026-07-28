@@ -93,6 +93,16 @@ Execute `references/pipeline.md` exactly. A normal task produces:
 3. one canonical `Approve <full-task-id>` commit containing all final AI
    artifacts and state.
 
+Read `type` from the `resolve` output before planning. A `type: verify` task
+measures shipped behavior, carries no implementation, and produces **no Telegram
+commit at all** — only item 2 and item 3 above. It skips implementation, the
+implementation build, the four-lens review loop, and Windows normalization, and
+runs the pipeline's Verification tasks profile instead: measurement plan,
+falsifiability assessment, then the test loop. Its outcome is either that the
+behavior held or a `Finding: deviation` recording the exact disagreement plus
+follow-up tasks that repair it; both finish `approved`. Never repair what a
+verification measured, and never let one commit source.
+
 Only a genuine exhausted implementation or verification blocker produces a
 canonical `Block <full-task-id>` commit. Agent interruption, tool loss, and
 global environment stops leave the task `in-progress` with its task-scoped

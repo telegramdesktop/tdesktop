@@ -199,9 +199,20 @@ writing any overlay:
      alignment); supplied artwork is optional and never a prerequisite for that contract.
    - **Behavior** → drive the specific action and observe the concrete state/log/screenshot the
      change should produce, and confirm the pre-change behavior no longer happens.
-3. **Cover every surface the task names.** If the Observable result lists a settings row, a balance
-   header, a gift field, and a suggestion bar, each must be observed (or explicitly marked N/A with
-   a reason). Do not stop at one or two.
+3. **Cover every surface the task names — and only those.** If the Observable result lists a settings
+   row, a balance header, a gift field, and a suggestion bar, each must be observed (or explicitly
+   marked N/A with a reason). Do not stop at one or two.
+   The same sentence sets the upper bound. You are testing **this change**, not the area it landed
+   in. Apply the revert test to every candidate check: *if this task's diff were reverted, could this
+   check's outcome change?* If not, it is measuring pre-existing behavior and does not belong here,
+   however interesting it looks — a code path that cannot reach the changed lines, a neighbouring
+   feature the diff never touches, a pre-existing bug you noticed on the way. Note such a thing as a
+   discovered follow-up if it is worth anyone's time, and move on.
+   Do not expand the parameter space either. Iterate fully over a range the task's acceptance names
+   (every value of the enum it calls out, both halves of the branch it describes), but do not invent
+   ranges it does not: the four wallpaper kinds, the other themes, the remaining scales, the sibling
+   sections. Existing behavior is not this task's to re-establish, and in a codebase this size a
+   verification that wanders into it has no natural end.
 4. **Write the checks into `<WORK_DIR>/test.md` BEFORE running** (format under "Test report"), so the
    design is explicit and Actual/Result can be filled in per check afterward.
 5. **Run economy — plan ONE run.** A test run costs a build, an app launch, and an assessment pass,
@@ -211,8 +222,21 @@ writing any overlay:
    destroy later fixtures. Plan a second run only when two checks genuinely cannot share one process
    lifetime (mutually exclusive fixtures or settings, state one check needs fresh that another
    necessarily contaminates) — never for scenario simplicity. Unplanned re-runs stay what the state
-   machine allows: a TEST_FLAW re-run or the next attempt after an IMPL_BUG fix — and a TEST_FLAW
-   re-author fixes every flaw observed in that run in one pass, not one flaw per relaunch.
+   machine allows: a TEST_FLAW re-run, the next attempt after an IMPL_BUG fix, or the coverage run
+   below — and a TEST_FLAW re-author fixes every flaw observed in that run in one pass, not one flaw
+   per relaunch.
+6. **Coverage run — when you find a missing check, take it here.** Run economy governs how checks are
+   packed into runs, never how many checks are taken. If at any point before the task is published you
+   find a check its acceptance needs and this checkout can take — a parameter the scenario only
+   sampled (a subset of an enum, one interface scale, one of two branch halves), a surface reachable
+   only behind a different launch flag, a persisted or server value only a fresh start re-reads, a
+   wire path an in-process assertion never exercised — add it now. Extend the current scenario when
+   the check can share the process, otherwise run again. Do this even after every planned check has
+   passed and even while writing the result. This process already holds the context, the branch, the
+   overlay and the build; anything that defers the measurement pays to rebuild all four before it can
+   take the same reading. Where an acceptance criterion ranges over a parameter, iterate the range
+   rather than sampling it — a hand-picked subset is the most common way a check goes missing. A
+   coverage run is not an attempt and never advances the attempt counter.
 
 ## Visual contract (layout tasks)
 

@@ -311,21 +311,64 @@ paths, commits `Route follow-ups from <source-task-id>`, and publishes with the
 workspace helper. Retry ordinary concurrent-master races; preserve a semantic
 conflict or unavailable-remote slot commit and stop.
 
-Each unverified entry gets exactly one of two dispositions, and the receipt
-records which and why:
+First apply the scope filter, before any disposition. A verification exists to
+prove **the source task's own change**, so run the revert test on each entry: if
+reverting that task's diff could not change the outcome, the entry is about
+pre-existing behavior and no verification is created for it. Untested code the
+run passed on the way, a neighbouring feature, a parameter range the acceptance
+never named, a pre-existing bug the performer noticed: record the observation in
+the receipt and stop there. If it deserves work it must earn its own task on its
+own merits, through the ordinary discovered-follow-up planner and with its own
+justification — never as coverage debt attributed to a task that did not create
+it. This filter is what keeps a codebase far larger than the queue from
+generating verification work without end.
+
+Entries that survive the filter get exactly one of two dispositions, and the
+receipt records which and why:
 
 - **Routable** when the existing test account and checkout could close the gap
-  and the run simply did not cover it. Create a verification task naming the
+  and the run simply did not cover it. Create a `type: verify` task naming the
   exact behavior to prove; its acceptance is that verification, and it carries
   no implementation work of its own.
+
+  This disposition should now be rare. `pipeline.md` requires a performer to
+  close any gap its own checkout can measure by adding a test run while it still
+  holds the context, the branch, the overlay and the build, rather than deferring
+  it — so a routable entry means that bar slipped. Route it anyway, because the
+  coverage is genuinely missing and the source run's context is gone, but state
+  plainly in the receipt that the source run could have closed it in context.
+  That sentence is the measurable signal that the pipeline is exporting its own
+  test coverage into the queue; read a run of them as a defect to fix upstream,
+  never as normal throughput.
 - **Infrastructure-limited** when closing it needs something the project does
   not have — a second account, funded external value, real server-backed cloud
   state. Record it in the receipt only. Do not create a task that would be
   unstartable the moment it enters the queue.
 
-Never resolve an entry by deciding the behavior is probably fine. The
-disposition is about who can verify it and when, never about whether it is worth
-verifying.
+Never resolve a surviving entry by deciding the behavior is probably fine. Once
+an entry is in scope, the disposition is about who can verify it and when, never
+about whether it is worth verifying. That rule governs the choice between the two
+dispositions; it does not override the scope filter above, which asks a different
+question — whether this task is the one that owes the measurement at all.
+
+Write `type: verify` into that task's `state.yaml`. It is the only thing that
+selects the verification profile in `perform-task`, so a verification created
+without it silently runs the implementation pipeline against an empty diff.
+Give it one specific measurable claim: a task that would need a source change to
+satisfy its own acceptance is misrouted and belongs in an `implement` task.
+
+Write the source task's diff into it as its scope boundary, naming that task and
+what it changed, and state that the verification proves that change and nothing
+around it. A verification inherits its parent's boundary; it does not get a wider
+one by being about testing. Its acceptance criteria must all pass the revert test
+against the parent's diff, and it may not enumerate a parameter range the parent's
+acceptance never named.
+
+A `verify` task's own follow-ups are always `type: implement`. When a
+verification reports `Finding: deviation`, route the repair as ordinary
+implementation work naming the measured expected and actual values, and cite the
+verification as its evidence. Never route a second verification for a gap the
+first one already measured; the measurement exists, so what is left is the fix.
 
 After validating the discovery receipt, append only the task ids created from
 that result to `discovered_task_ids` and `batch_task_ids`, preserving routing
