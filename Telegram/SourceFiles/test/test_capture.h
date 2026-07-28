@@ -15,8 +15,10 @@ namespace Test {
 // elements, other windows, or a locked desktop session.
 [[nodiscard]] QImage GrabWidget(not_null<QWidget*> widget);
 
-// Grabs the widget and crops to |logicalRect| (widget-local logical
-// coordinates), handling device pixel ratio.
+// Renders only |logicalRect| (widget-local logical coordinates) out of the
+// widget, clamped to its bounds, handling device pixel ratio. The grab
+// renders the widget itself, so a rect outside the visible area is still
+// produced.
 [[nodiscard]] QImage GrabRect(
 	not_null<QWidget*> widget,
 	const QRect &logicalRect);
@@ -30,9 +32,23 @@ QString SaveImage(const QImage &image, const QString &name);
 
 // Grab + blank-check + save as one evidence-grade capture: a hidden widget,
 // an empty grab, or a blank image is a logged FAIL, never a silent pass.
+// CaptureRect's rect must lie fully inside the grabbed widget; a rect that
+// leaves it is a logged FAIL naming the overlap, never a silently reframed
+// image.
 bool CaptureWidget(not_null<QWidget*> widget, const QString &name);
 bool CaptureRect(
 	not_null<QWidget*> widget,
+	const QRect &logicalRect,
+	const QString &name);
+
+// Captures |logicalRect|, expressed in |rectOrigin| coordinates, by grabbing
+// |widget| — the rect is mapped into |widget| first. A grab renders the
+// widget itself, so a row scrolled out of view is captured by passing the
+// scrolled content widget as |widget|; the window that clips it holds no
+// pixels for that row.
+bool CaptureMappedRect(
+	not_null<QWidget*> widget,
+	not_null<QWidget*> rectOrigin,
 	const QRect &logicalRect,
 	const QString &name);
 

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_capture.h"
 
 #include "test/test_log.h"
+#include "ui/ui_utility.h"
 
 #include <QtGui/QPainter>
 
@@ -23,6 +24,31 @@ constexpr auto kContactSheetGap = 8;
 		: (name + u".png"_q);
 }
 
+[[nodiscard]] QString RectText(const QRect &rect) {
+	return u"%1,%2 %3x%4"_q
+		.arg(rect.x())
+		.arg(rect.y())
+		.arg(rect.width())
+		.arg(rect.height());
+}
+
+[[nodiscard]] QString MisframedDetails(
+		not_null<QWidget*> widget,
+		const QRect &logicalRect) {
+	const auto bounds = widget->rect();
+	if (!logicalRect.isEmpty() && bounds.contains(logicalRect)) {
+		return QString();
+	}
+	const auto inside = bounds.intersected(logicalRect);
+	return u"requested rect is not fully inside the grabbed widget: "
+		u"requested=%1 widget=%2 inside=%3 rows=%4/%5 columns=%6/%7"_q
+		.arg(RectText(logicalRect), RectText(bounds), RectText(inside))
+		.arg(inside.height())
+		.arg(logicalRect.height())
+		.arg(inside.width())
+		.arg(logicalRect.width());
+}
+
 } // namespace
 
 QImage GrabWidget(not_null<QWidget*> widget) {
@@ -32,13 +58,10 @@ QImage GrabWidget(not_null<QWidget*> widget) {
 QImage GrabRect(
 		not_null<QWidget*> widget,
 		const QRect &logicalRect) {
-	const auto image = GrabWidget(widget);
-	const auto ratio = image.devicePixelRatio();
-	return Crop(image, QRect(
-		int(std::floor(logicalRect.x() * ratio)),
-		int(std::floor(logicalRect.y() * ratio)),
-		int(std::ceil(logicalRect.width() * ratio)),
-		int(std::ceil(logicalRect.height() * ratio))));
+	const auto bounded = logicalRect.intersected(widget->rect());
+	return bounded.isEmpty()
+		? QImage()
+		: widget->grab(bounded).toImage();
 }
 
 bool LooksBlank(const QImage &image) {
@@ -75,6 +98,7 @@ QString SaveImage(const QImage &image, const QString &name) {
 }
 
 bool CaptureWidget(not_null<QWidget*> widget, const QString &name) {
+	LogGeometry(name, QRect(widget->mapToGlobal(QPoint()), widget->size()));
 	if (!widget->isVisible()) {
 		Fail(u"capture %1"_q.arg(name), u"widget is not visible"_q);
 		return false;
@@ -84,7 +108,6 @@ bool CaptureWidget(not_null<QWidget*> widget, const QString &name) {
 		Fail(u"capture %1"_q.arg(name), u"grabbed image looks blank"_q);
 		return false;
 	}
-	LogGeometry(name, QRect(widget->mapToGlobal(QPoint()), widget->size()));
 	return !SaveImage(image, name).isEmpty();
 }
 
@@ -92,13 +115,14 @@ bool CaptureRect(
 		not_null<QWidget*> widget,
 		const QRect &logicalRect,
 		const QString &name) {
+	LogGeometry(name, logicalRect);
 	if (!widget->isVisible()) {
 		Fail(u"capture %1"_q.arg(name), u"widget is not visible"_q);
 		return false;
-	} else if (!QRect(QPoint(), widget->size()).intersects(logicalRect)) {
-		Fail(
-			u"capture %1"_q.arg(name),
-			u"rect is outside the widget bounds"_q);
+	}
+	const auto misframed = MisframedDetails(widget, logicalRect);
+	if (!misframed.isEmpty()) {
+		Fail(u"capture %1"_q.arg(name), misframed);
 		return false;
 	}
 	const auto image = GrabRect(widget, logicalRect);
@@ -106,8 +130,18 @@ bool CaptureRect(
 		Fail(u"capture %1"_q.arg(name), u"grabbed image looks blank"_q);
 		return false;
 	}
-	LogGeometry(name, logicalRect);
 	return !SaveImage(image, name).isEmpty();
+}
+
+bool CaptureMappedRect(
+		not_null<QWidget*> widget,
+		not_null<QWidget*> rectOrigin,
+		const QRect &logicalRect,
+		const QString &name) {
+	return CaptureRect(
+		widget,
+		Ui::MapFrom(widget, rectOrigin, logicalRect),
+		name);
 }
 
 QImage Crop(const QImage &image, const QRect &pixelRect) {
