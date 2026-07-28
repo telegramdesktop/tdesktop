@@ -137,7 +137,7 @@ public:
 	void insertBlock(State::InsertAction action);
 	void requestMedia(
 		std::optional<State::ReplaceTarget> replaceTarget,
-		RequestMediaType type = RequestMediaType::PhotoVideoAudio);
+		RequestMediaType type);
 	void insertPreparedBlock(RichPage::Block block);
 	void replacePreparedBlock(State::ReplaceTarget target, RichPage::Block block);
 	void insertPreparedBlocks(std::vector<RichPage::Block> blocks);

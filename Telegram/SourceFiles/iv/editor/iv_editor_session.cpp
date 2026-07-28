@@ -243,7 +243,8 @@ private:
 [[nodiscard]] bool AcceptedPreparedFileType(PreparedFileType type) {
 	return (type == PreparedFileType::Photo)
 		|| (type == PreparedFileType::Video)
-		|| (type == PreparedFileType::Music);
+		|| (type == PreparedFileType::Music)
+		|| (type == PreparedFileType::File);
 }
 
 [[nodiscard]] bool CanUseRichMessages(not_null<Main::Session*> session) {
@@ -274,6 +275,7 @@ enum class RichMessagePosting {
 	case RichPage::BlockKind::Photo:
 	case RichPage::BlockKind::Video:
 	case RichPage::BlockKind::Audio:
+	case RichPage::BlockKind::File:
 		return true;
 	default:
 		return false;
@@ -283,6 +285,11 @@ enum class RichMessagePosting {
 [[nodiscard]] bool IsPhotoVideoRichMessageKind(RichPage::BlockKind kind) {
 	return (kind == RichPage::BlockKind::Photo)
 		|| (kind == RichPage::BlockKind::Video);
+}
+
+[[nodiscard]] bool IsStandaloneRichMessageMediaKind(RichPage::BlockKind kind) {
+	return (kind == RichPage::BlockKind::Audio)
+		|| (kind == RichPage::BlockKind::File);
 }
 
 void CountRichPageMedia(
@@ -348,6 +355,8 @@ template <typename Container>
 		return RichPage::BlockKind::Video;
 	case PreparedFileType::Music:
 		return RichPage::BlockKind::Audio;
+	case PreparedFileType::File:
+		return RichPage::BlockKind::File;
 	default:
 		return RichPage::BlockKind::Unsupported;
 	}
@@ -363,6 +372,9 @@ template <typename Container>
 	}
 	if (prepared.type != SendMediaType::File) {
 		return RichPage::BlockKind::Unsupported;
+	}
+	if (prepared.forceFile) {
+		return RichPage::BlockKind::File;
 	}
 	const auto info = DocumentInfoFromPrepared(prepared.document);
 	if (info.video) {
@@ -522,6 +534,7 @@ template <typename Container>
 	const auto sendType = (file.type == PreparedFileType::Photo)
 		? SendMediaType::Photo
 		: SendMediaType::File;
+	const auto forceFile = (file.type == PreparedFileType::File);
 	const auto sendLargePhotos = (sendType == SendMediaType::Photo)
 		|| file.sendLargePhotos;
 	return {
@@ -542,7 +555,7 @@ template <typename Container>
 		.caption = TextWithTags(),
 		.spoiler = file.spoiler,
 		.album = std::make_shared<SendingAlbum>(),
-		.forceFile = false,
+		.forceFile = forceFile,
 		.sendLargePhotos = sendLargePhotos,
 		.idOverride = 0,
 		.displayName = file.displayName,
@@ -780,6 +793,7 @@ private:
 		int order = 0;
 		AttachmentInsertMode insertMode = AttachmentInsertMode::Normal;
 		std::optional<State::ReplaceTarget> replaceTarget;
+		bool forceFileBlock = false;
 	};
 
 	struct EditedItemSnapshot {
@@ -1443,6 +1457,7 @@ private:
 			return true;
 		case RichPage::BlockKind::Video:
 		case RichPage::BlockKind::Audio:
+		case RichPage::BlockKind::File:
 			if (!attachment.serverDocument || !attachment.serverMediaId) {
 				return false;
 			}
@@ -1691,18 +1706,26 @@ private:
 		const auto weak = base::make_weak(this);
 		const auto editorPointer = QPointer<Widget>(editor.get());
 		const auto replacing = replaceTarget.has_value();
+		const auto forceFileBlock = (type == RequestMediaType::File);
 		const auto filter = (type == RequestMediaType::PhotoVideo)
 			? FileDialog::PhotoVideoFilesFilter()
 			: (type == RequestMediaType::Audio)
 			? FileDialog::AudioFilesFilter()
+			: (type == RequestMediaType::File)
+			? FileDialog::AllFilesFilter()
 			: FileDialog::PhotoVideoAudioFilesFilter();
-		auto callback = [weak, editorPointer, replaceTarget = std::move(
-				replaceTarget)](FileDialog::OpenResult &&result) mutable {
+		auto callback = [
+			weak,
+			editorPointer,
+			forceFileBlock,
+			replaceTarget = std::move(replaceTarget)
+		](FileDialog::OpenResult &&result) mutable {
 			if (const auto session = weak.get()) {
 				session->handleMediaDialogResult(
 					editorPointer,
 					std::move(result),
-					std::move(replaceTarget));
+					std::move(replaceTarget),
+					forceFileBlock);
 			}
 		};
 		if (replacing) {
@@ -2047,7 +2070,8 @@ private:
 	void handleMediaDialogResult(
 		QPointer<Widget> editor,
 		FileDialog::OpenResult &&result,
-		std::optional<State::ReplaceTarget> replaceTarget) {
+		std::optional<State::ReplaceTarget> replaceTarget,
+		bool forceFileBlock) {
 		auto showError = [=](tr::phrase<> phrase) {
 			showToast(phrase(tr::now));
 		};
@@ -2074,7 +2098,9 @@ private:
 				? AttachmentInsertMode::ReplaceBlock
 				: AttachmentInsertMode::Normal,
 			std::nullopt,
-			std::move(replaceTarget));
+			std::move(replaceTarget),
+			std::nullopt,
+			forceFileBlock);
 	}
 
 	void applyPreparedMedia(
@@ -2286,7 +2312,8 @@ private:
 		AttachmentInsertMode insertMode = AttachmentInsertMode::Normal,
 		std::optional<PreparedMediaPasteTarget> insertTarget = std::nullopt,
 		std::optional<State::ReplaceTarget> replaceTarget = std::nullopt,
-		std::optional<State::BlockPath> groupAnchor = std::nullopt) {
+		std::optional<State::BlockPath> groupAnchor = std::nullopt,
+		bool forceFileBlock = false) {
 		const auto effectiveInsertMode = replaceTarget
 			? AttachmentInsertMode::ReplaceBlock
 			: insertMode;
@@ -2304,7 +2331,8 @@ private:
 					batchId,
 					0,
 					effectiveInsertMode,
-					std::move(replaceTarget));
+					std::move(replaceTarget),
+					forceFileBlock);
 			} else if (!list.filesToProcess.empty()) {
 				_prepareQueue.push_back({
 					.editor = editor,
@@ -2313,6 +2341,7 @@ private:
 					.order = 0,
 					.insertMode = effectiveInsertMode,
 					.replaceTarget = std::move(replaceTarget),
+					.forceFileBlock = forceFileBlock,
 				});
 				enqueueNextPrepare();
 			}
@@ -2338,7 +2367,8 @@ private:
 				batchId,
 				order++,
 				effectiveInsertMode,
-				replaceTarget);
+				replaceTarget,
+				forceFileBlock);
 		}
 		for (auto &file : list.filesToProcess) {
 			_prepareQueue.push_back({
@@ -2348,6 +2378,7 @@ private:
 				.order = order++,
 				.insertMode = effectiveInsertMode,
 				.replaceTarget = replaceTarget,
+				.forceFileBlock = forceFileBlock,
 			});
 		}
 		enqueueNextPrepare();
@@ -2367,7 +2398,8 @@ private:
 				queued.batchId,
 				queued.order,
 				queued.insertMode,
-				std::move(queued.replaceTarget));
+				std::move(queued.replaceTarget),
+				queued.forceFileBlock);
 		}
 		if (_prepareQueue.empty()) {
 			maybeContinueDeferredSubmit();
@@ -2399,7 +2431,8 @@ private:
 			queued.batchId,
 			queued.order,
 			queued.insertMode,
-			std::move(queued.replaceTarget));
+			std::move(queued.replaceTarget),
+			queued.forceFileBlock);
 		enqueueNextPrepare();
 	}
 
@@ -2409,7 +2442,11 @@ private:
 		uint64 batchId,
 		int order,
 		AttachmentInsertMode insertMode,
-		std::optional<State::ReplaceTarget> replaceTarget) {
+		std::optional<State::ReplaceTarget> replaceTarget,
+		bool forceFileBlock) {
+		if (forceFileBlock) {
+			file.type = PreparedFileType::File;
+		}
 		if (!AcceptedPreparedFileType(file.type)) {
 			if (!IsReplacing(insertMode, replaceTarget)) {
 				markMediaBatchItemSkipped(batchId, order);
@@ -2765,6 +2802,9 @@ private:
 			block.audioPerformer = attachment.audioPerformer;
 			block.audioFileName = attachment.audioFileName;
 			block.audioDuration = attachment.audioDuration;
+		} else if (attachment.blockKind == RichPage::BlockKind::File) {
+			block.documentId = attachment.localMediaId;
+			block.fileName = attachment.filename;
 		}
 		return block;
 	}
@@ -3214,6 +3254,8 @@ private:
 			auto attachment = AttachmentRecord{
 				.type = (kind == RichPage::BlockKind::Audio)
 					? PreparedFileType::Music
+					: (kind == RichPage::BlockKind::File)
+					? PreparedFileType::File
 					: PreparedFileType::Video,
 				.blockKind = kind,
 				.state = AttachmentState::Ready,
@@ -3231,6 +3273,8 @@ private:
 				attachment.audioPerformer = block.audioPerformer;
 				attachment.audioFileName = block.audioFileName;
 				attachment.audioDuration = block.audioDuration;
+			} else if (kind == RichPage::BlockKind::File) {
+				attachment.filename = block.fileName;
 			}
 			refreshAttachmentInput(attachment);
 			_attachments.push_back(std::move(attachment));
@@ -3245,7 +3289,8 @@ private:
 			}
 		} break;
 		case RichPage::BlockKind::Video:
-		case RichPage::BlockKind::Audio: {
+		case RichPage::BlockKind::Audio:
+		case RichPage::BlockKind::File: {
 			const auto document = block.document
 				? block.document
 				: _session->data().document(block.documentId).get();
@@ -3626,7 +3671,7 @@ private:
 				++batch->nextIndex;
 				continue;
 			}
-			if (item.blockKind == RichPage::BlockKind::Audio) {
+			if (IsStandaloneRichMessageMediaKind(item.blockKind)) {
 				blocks.push_back(makeAttachmentBlock(*attachment));
 				emittedUploadIds.push_back(item.uploadId);
 				item.state = MediaBatchItemState::Inserted;
@@ -3657,7 +3702,7 @@ private:
 					waitingBeforeBoundary = true;
 					break;
 				}
-				if (candidate.blockKind == RichPage::BlockKind::Audio) {
+				if (IsStandaloneRichMessageMediaKind(candidate.blockKind)) {
 					break;
 				}
 				if (!IsPhotoVideoRichMessageKind(candidate.blockKind)) {
@@ -3814,6 +3859,9 @@ private:
 				|| groupedMediaBlockMatchesAttachment(block, attachment);
 		case RichPage::BlockKind::Audio:
 			return (block.kind == RichPage::BlockKind::Audio)
+				&& mediaIdMatchesAttachment(block.documentId, attachment);
+		case RichPage::BlockKind::File:
+			return (block.kind == RichPage::BlockKind::File)
 				&& mediaIdMatchesAttachment(block.documentId, attachment);
 		default:
 			return false;

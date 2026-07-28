@@ -415,7 +415,9 @@ bool SetMediaBlockSpoiler(Block *block, bool enabled) {
 }
 
 [[nodiscard]] bool IsReplaceableMediaBlockKind(BlockKind kind) {
-	return IsPhotoVideoBlockKind(kind) || (kind == BlockKind::Audio);
+	return IsPhotoVideoBlockKind(kind)
+		|| (kind == BlockKind::Audio)
+		|| (kind == BlockKind::File);
 }
 
 [[nodiscard]] bool IsTaskList(const std::vector<ListItem> &items) {
@@ -631,6 +633,7 @@ void NormalizeInsertedOrderedListMetadata(std::vector<Block> *blocks) {
 		return block.photoId ? std::make_optional(block.photoId) : std::nullopt;
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 		return block.documentId
 			? std::make_optional(block.documentId)
 			: std::nullopt;
@@ -1377,6 +1380,7 @@ void InsertTableCellBeforeVisualColumn(
 	case BlockKind::Photo:
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 	case BlockKind::Map:
 	case BlockKind::GroupedMedia:
 		return true;
@@ -1445,6 +1449,7 @@ void MergeRichTextAnchors(RichText *target, RichText source) {
 	case BlockKind::Photo:
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 	case BlockKind::Math:
 	case BlockKind::Table:
 	case BlockKind::Map:
@@ -1462,7 +1467,6 @@ void MergeRichTextAnchors(RichText *target, RichText source) {
 	case BlockKind::Embed:
 	case BlockKind::EmbedPost:
 	case BlockKind::Channel:
-	case BlockKind::File:
 	case BlockKind::RelatedArticles:
 		return false;
 	}
@@ -1821,6 +1825,7 @@ QString State::activePlaceholderText() const {
 		case BlockKind::Photo:
 		case BlockKind::Video:
 		case BlockKind::Audio:
+		case BlockKind::File:
 		case BlockKind::Map:
 		case BlockKind::GroupedMedia:
 			return tr::lng_photo_caption(tr::now);
@@ -5948,6 +5953,7 @@ RichText *State::seedInsertedBlock(Block &block) {
 	case BlockKind::Photo:
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 	case BlockKind::Map:
 		return &block.caption;
 	default:
@@ -6233,6 +6239,7 @@ std::optional<int> State::submitActiveSingleLineFieldUnchecked(
 		case BlockKind::Photo:
 		case BlockKind::Video:
 		case BlockKind::Audio:
+		case BlockKind::File:
 		case BlockKind::Map:
 		case BlockKind::GroupedMedia:
 			if (context.position == EnterPosition::Middle) {
@@ -9226,6 +9233,7 @@ void State::rebuildTextNodes(
 		case BlockKind::Photo:
 		case BlockKind::Video:
 		case BlockKind::Audio:
+		case BlockKind::File:
 		case BlockKind::Map:
 		case BlockKind::GroupedMedia:
 			appendBlockTextNode(path, LeafKind::BlockCaption);
@@ -9685,6 +9693,7 @@ void State::collectBoundarySteps(
 		case BlockKind::Photo:
 		case BlockKind::Video:
 		case BlockKind::Audio:
+		case BlockKind::File:
 		case BlockKind::Map:
 		case BlockKind::GroupedMedia:
 			appendBoundaryTextStep({
@@ -10236,6 +10245,7 @@ bool State::BlockIsEmpty(const Block &block) {
 		|| !block.audioTitle.isEmpty()
 		|| !block.audioPerformer.isEmpty()
 		|| !block.audioFileName.isEmpty()
+		|| !block.fileName.isEmpty()
 		|| block.photo
 		|| block.document
 		|| block.peer

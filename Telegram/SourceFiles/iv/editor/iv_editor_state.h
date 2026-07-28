@@ -995,6 +995,7 @@ enum class RequestMediaType : uchar {
 	PhotoVideo,
 	Audio,
 	PhotoVideoAudio,
+	File,
 };
 
 struct MediaUploadState {

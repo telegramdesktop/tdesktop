@@ -1115,6 +1115,7 @@ template <typename Range>
 	case RichPage::BlockKind::Photo:
 	case RichPage::BlockKind::Video:
 	case RichPage::BlockKind::Audio:
+	case RichPage::BlockKind::File:
 		return true;
 	default:
 		return false;
@@ -1127,6 +1128,7 @@ template <typename Range>
 		return block.photoId;
 	case RichPage::BlockKind::Video:
 	case RichPage::BlockKind::Audio:
+	case RichPage::BlockKind::File:
 		return block.documentId;
 	default:
 		return uint64(0);
@@ -6774,7 +6776,10 @@ void Widget::requestReplaceMedia(State::BlockPath path) {
 	if (!target) {
 		return;
 	}
-	requestMedia(std::move(target));
+	const auto type = (target->kind == RichPage::BlockKind::File)
+		? RequestMediaType::File
+		: RequestMediaType::PhotoVideoAudio;
+	requestMedia(std::move(target), type);
 }
 
 void Widget::editPhotoBlock(State::BlockPath path) {

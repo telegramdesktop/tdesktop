@@ -76,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_basic.h"
 #include "styles/style_iv.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 
 namespace Iv::Editor {
@@ -1153,6 +1154,19 @@ void Toolbar::fillAttachMenu(not_null<Ui::PopupMenu*> menu) {
 			}
 		},
 		&st::ivEditorToolbarAudioIcon,
+		false,
+		starSize);
+	Menu::AddActiveColorAction(
+		menu,
+		tr::lng_attach_file(tr::now),
+		[=] {
+			if (_editor) {
+				_editor->requestMedia(
+					std::nullopt,
+					RequestMediaType::File);
+			}
+		},
+		&st::menuIconFile,
 		false,
 		starSize);
 	if (_requestMap) {
