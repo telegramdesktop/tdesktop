@@ -20,21 +20,37 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   override can only pin a leaf below the parent. Do not pass a reasoning field
   either — the Agent tool has none, and effort is inherited unchanged, so every
   leaf keeps the parent's reasoning level.
-- A foreground Agent call may replace Codex-specific polling. Treat its short
-  reply as notification and validate the required files and repository state.
+- Run every phase leaf as a synchronous foreground Agent call. The call
+  returning is the completion signal: validate the required files and
+  repository state right there, treating the short reply as notification
+  only. Do not use background Agent calls plus shell `sleep`/`until` polling
+  loops for phase leaves — the Codex wait ladder, heartbeat-mtime checks, and
+  five-minute stall windows in the shared references are Codex-only mechanics
+  and do not apply in Claude Code. Leaves still write their progress files
+  (they are cheap resumability evidence), but the performer never polls them.
+- Run the independent leaves of one step — the review lenses plus the
+  iteration-1 test-design leaf, or assessed-disjoint implementation units —
+  as parallel Agent calls in a single message so they run concurrently and
+  all return together.
+- A long Debug build may run as background Bash; the harness re-invokes the
+  session when a background command exits, so do not poll its log with sleep
+  loops either.
+- When a synchronous leaf call returns without its required artifact, retry
+  that disposable phase once in a fresh Agent with more specific instructions.
   When Claude exposes a resumable agent id and more work is needed from that
   same stateful worker, resume that id; never create a duplicate performer or
-  duplicate an agent whose writes may still be in flight.
-- Translate Codex-specific wait, message, follow-up, list, and interrupt calls
-  to the closest available Agent operation. Preserve the artifact heartbeat,
-  stall windows, one-retry limit, and terminal-state rules. Never launch a
+  duplicate an agent whose writes may still be in flight. Never launch a
   nested `claude` process from Bash.
 - If the first real leaf Agent is rejected before work begins because nested
   delegation is unavailable, use the shared same-session fallback. Do not
   treat mere presence of the Agent tool as a successful delegation probe.
-- Whenever an Agent is asked to run `process-inbox`, `perform-task`, a phase
-  prompt, or discovered-task routing, explicitly tell it to read this adapter
-  completely before the applicable shared skill or reference.
+- Whenever an Agent is asked to run `process-inbox`, `perform-task`, or
+  discovered-task routing — the orchestrating roles — explicitly tell it to
+  read this adapter completely before the applicable shared skill or
+  reference. Do NOT tell leaf phase agents to read this adapter: their phase
+  prompts are self-contained and already carry the leaf rules (no delegation,
+  no commits, progress and reply contracts); an adapter read there is wasted
+  context.
 
 ## Text handling
 

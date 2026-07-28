@@ -1882,6 +1882,17 @@ PRIVATE
     support/support_templates.h
     tde2e/tde2e_integration.cpp
     tde2e/tde2e_integration.h
+    test/test_agent.cpp
+    test/test_agent.h
+    test/test_capture.cpp
+    test/test_capture.h
+    test/test_log.cpp
+    test/test_log.h
+    test/test_runner.cpp
+    test/test_runner.h
+    test/test_scenario.cpp
+    test/test_widgets.cpp
+    test/test_widgets.h
     ui/boxes/edit_invite_link_session.cpp
     ui/boxes/edit_invite_link_session.h
     ui/boxes/emoji_stake_box.cpp

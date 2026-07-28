@@ -8,8 +8,10 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import time
 
 
 TAG_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]*")
@@ -36,6 +38,14 @@ STATE_FIELD_ORDER = [
 	"phase",
 	"inbox_receipt",
 ]
+PORTABLE_GOLDEN = "test_TelegramForcePortable"
+PORTABLE_LIVE = "TelegramForcePortable"
+PORTABLE_REAL = "real_TelegramForcePortable"
+PORTABLE_MARKER = "testing"
+OVERLAY_PATHS_FILE = "test-overlay.paths"
+OVERLAY_PATCH_FILE = "test-overlay.patch"
+TEST_LOG_FILE = "test_log.txt"
+TEST_COMPLETE_MARKER = "TEST_COMPLETE"
 
 
 class WorkspaceError(RuntimeError):
@@ -1004,22 +1014,646 @@ def command_source_begin(args):
 	}, indent=2, sort_keys=True))
 
 
-def command_source_mark_green(args):
-	config, _ = task_action_config(args)
+def mark_source_green(config, task_id):
 	source = Path(config["source_root"])
 	ensure_clean(source, "Telegram source checkout")
-	base = source_task_ref(args.task, "base")
+	base = source_task_ref(task_id, "base")
 	if resolved_ref(source, base) is None:
 		raise WorkspaceError("The local task baseline ref is missing")
 	if run_git(source, "merge-base", "--is-ancestor", base, "HEAD", check=False).returncode:
 		raise WorkspaceError("The retained implementation does not descend from the task baseline")
-	validate_task_commit(source, "HEAD", args.task)
-	run_git(source, "update-ref", source_task_ref(args.task, "green"), "HEAD")
-	run_git(source, "update-ref", source_task_ref(args.task, "run"), "HEAD")
+	validate_task_commit(source, "HEAD", task_id)
+	run_git(source, "update-ref", source_task_ref(task_id, "green"), "HEAD")
+	run_git(source, "update-ref", source_task_ref(task_id, "run"), "HEAD")
+
+
+def command_source_mark_green(args):
+	config, _ = task_action_config(args)
+	mark_source_green(config, args.task)
 	print(json.dumps({
 		"task": args.task,
 		"source_state": "retained",
 	}, indent=2, sort_keys=True))
+
+
+def run_git_binary(path, *args):
+	result = subprocess.run(
+		["git", "-C", str(path), *args],
+		stdout=subprocess.PIPE,
+		stderr=subprocess.PIPE,
+	)
+	if result.returncode:
+		raise WorkspaceError(
+			result.stderr.decode("utf-8", "replace").strip()
+			or "git failed"
+		)
+	return result.stdout
+
+
+def resolved_exe(value):
+	path = Path(value).expanduser().resolve()
+	if not path.is_file():
+		raise WorkspaceError(f"Test executable does not exist: {path}")
+	return path
+
+
+def portable_root_for(exe, override):
+	if override:
+		root = Path(override).expanduser().resolve()
+		if not root.is_dir():
+			raise WorkspaceError(f"Portable root does not exist: {root}")
+		return root
+	for parent in exe.parents:
+		if parent.suffix == ".app":
+			return parent.parent
+	return exe.parent
+
+
+def setup_test_account(root):
+	golden = root / PORTABLE_GOLDEN
+	live = root / PORTABLE_LIVE
+	real = root / PORTABLE_REAL
+	if not golden.is_dir():
+		raise WorkspaceError(f"Missing golden test account: {golden}")
+	if (live / PORTABLE_MARKER).exists():
+		return "reused-marked-live"
+	if live.exists():
+		if real.exists():
+			shutil.rmtree(live)
+			state = "replaced-manual-live"
+		else:
+			live.rename(real)
+			state = "preserved-real"
+	else:
+		state = "fresh-copy"
+	shutil.copytree(golden, live)
+	(live / PORTABLE_MARKER).write_text("1\n", encoding="utf-8")
+	return state
+
+
+def reset_broken_test_account(root):
+	live = root / PORTABLE_LIVE
+	if not (live / PORTABLE_MARKER).exists():
+		raise WorkspaceError(
+			f"Refusing to reset an unmarked live folder: {live}"
+		)
+	shutil.rmtree(live)
+	return setup_test_account(root)
+
+
+def processes_with_executable(exe):
+	value = str(exe)
+	pids = []
+	if sys.platform == "win32":
+		escaped = value.replace("'", "''")
+		script = (
+			"Get-CimInstance Win32_Process | "
+			f"Where-Object {{ $_.ExecutablePath -eq '{escaped}' }} | "
+			"ForEach-Object { $_.ProcessId }"
+		)
+		result = subprocess.run(
+			["powershell", "-NoProfile", "-Command", script],
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			text=True,
+		)
+		for line in result.stdout.splitlines():
+			line = line.strip()
+			if line.isdigit():
+				pids.append(int(line))
+		return pids
+	result = subprocess.run(
+		["ps", "-axo", "pid=,comm="],
+		stdout=subprocess.PIPE,
+		stderr=subprocess.PIPE,
+		text=True,
+	)
+	for line in result.stdout.splitlines():
+		parts = line.strip().split(None, 1)
+		if len(parts) != 2 or not parts[0].isdigit():
+			continue
+		pid, comm = int(parts[0]), parts[1]
+		if comm == value:
+			pids.append(pid)
+			continue
+		if sys.platform.startswith("linux"):
+			try:
+				if os.readlink(f"/proc/{pid}/exe") == value:
+					pids.append(pid)
+			except OSError:
+				continue
+	return pids
+
+
+def kill_processes_with_executable(exe):
+	killed = []
+	for pid in processes_with_executable(exe):
+		try:
+			if sys.platform == "win32":
+				subprocess.run(
+					["taskkill", "/PID", str(pid), "/F"],
+					stdout=subprocess.PIPE,
+					stderr=subprocess.PIPE,
+				)
+			else:
+				os.kill(pid, signal.SIGKILL)
+			killed.append(pid)
+		except (OSError, subprocess.SubprocessError):
+			continue
+	return killed
+
+
+def parse_test_log(text):
+	steps = []
+	passed = []
+	failed = []
+	screenshots = []
+	for line in text.splitlines():
+		if line.startswith("TEST_STEP: "):
+			steps.append(line[len("TEST_STEP: "):])
+		elif line.startswith("TEST_RESULT: PASS: "):
+			passed.append(line[len("TEST_RESULT: PASS: "):])
+		elif line.startswith("TEST_RESULT: FAIL: "):
+			failed.append(line[len("TEST_RESULT: FAIL: "):])
+		elif line.startswith("SCREENSHOT: "):
+			screenshots.append(line[len("SCREENSHOT: "):])
+	return {
+		"steps": steps,
+		"pass": passed,
+		"fail": failed,
+		"screenshots": screenshots,
+	}
+
+
+def tail_of_file(path, lines=60):
+	if not path.is_file():
+		return None
+	text = path.read_text(encoding="utf-8", errors="replace")
+	return "\n".join(text.splitlines()[-lines:]) if text.strip() else None
+
+
+def parse_env_values(values):
+	environment = {}
+	for value in values or ():
+		if "=" not in value:
+			raise WorkspaceError(f"Invalid --env value (want NAME=VALUE): {value!r}")
+		name, content = value.split("=", 1)
+		if not name:
+			raise WorkspaceError(f"Invalid --env value (empty name): {value!r}")
+		environment[name] = content
+	return environment
+
+
+def command_test_run(args):
+	exe = resolved_exe(args.exe)
+	run_dir = Path(args.run_dir).expanduser().resolve()
+	run_dir.mkdir(parents=True, exist_ok=True)
+	(run_dir / "screenshots").mkdir(exist_ok=True)
+	portable = portable_root_for(exe, args.portable_root)
+	account = setup_test_account(portable)
+	stragglers = kill_processes_with_executable(exe)
+
+	log_path = run_dir / TEST_LOG_FILE
+	if log_path.exists():
+		log_path.unlink()
+	stdout_path = run_dir / "app_stdout.txt"
+	stderr_path = run_dir / "app_stderr.txt"
+	working = portable / PORTABLE_LIVE / "tdata" / "working"
+	dumps_dir = portable / PORTABLE_LIVE / "tdata" / "dumps"
+
+	environment = os.environ.copy()
+	environment["TDESKTOP_TEST_EVIDENCE_DIR"] = str(run_dir)
+	environment.update(parse_env_values(args.env))
+
+	launched_at = time.time()
+	with stdout_path.open("wb") as out, stderr_path.open("wb") as err:
+		process = subprocess.Popen(
+			[str(exe), "-testagent", "-noupdate"],
+			stdout=out,
+			stderr=err,
+			env=environment,
+			cwd=str(portable),
+		)
+		outcome = None
+		exit_code = None
+		complete_seen_at = None
+		last_size = -1
+		last_change = launched_at
+		while True:
+			time.sleep(0.5)
+			now = time.time()
+			size = log_path.stat().st_size if log_path.is_file() else -1
+			if size != last_size:
+				last_size = size
+				last_change = now
+			complete = False
+			if size > 0:
+				complete = TEST_COMPLETE_MARKER in log_path.read_text(
+					encoding="utf-8", errors="replace"
+				)
+			if complete and complete_seen_at is None:
+				complete_seen_at = now
+			exit_code = process.poll()
+			if exit_code is not None:
+				outcome = "exited"
+				break
+			if complete_seen_at is not None and now - complete_seen_at > args.grace:
+				process.kill()
+				outcome = "killed-after-complete"
+				break
+			if now - launched_at > args.deadline:
+				process.kill()
+				outcome = "deadline-killed"
+				break
+			if now - last_change > args.quiet and complete_seen_at is None:
+				process.kill()
+				outcome = "quiet-killed"
+				break
+		process.wait()
+	ended_at = time.time()
+	kill_processes_with_executable(exe)
+
+	log_text = (
+		log_path.read_text(encoding="utf-8", errors="replace")
+		if log_path.is_file()
+		else ""
+	)
+	test_complete = TEST_COMPLETE_MARKER in log_text
+	crash_report_fresh = (
+		working.is_file()
+		and working.stat().st_mtime >= launched_at
+		and working.stat().st_size > 0
+	)
+	dumps = sorted(
+		str(path) for path in dumps_dir.glob("*.dmp")
+		if path.stat().st_mtime >= launched_at
+	) if dumps_dir.is_dir() else []
+	if outcome == "exited":
+		if test_complete:
+			verdict_hint = "complete"
+		elif crash_report_fresh or dumps:
+			verdict_hint = "crash"
+		else:
+			verdict_hint = "died-without-complete"
+	elif outcome == "killed-after-complete":
+		verdict_hint = "complete"
+	else:
+		verdict_hint = "hang"
+
+	print(json.dumps({
+		"account": account,
+		"crash_report": str(working) if working.is_file() else None,
+		"crash_report_excerpt": (
+			working.read_text(encoding="utf-8", errors="replace")[:4000]
+			if crash_report_fresh
+			else None
+		),
+		"crash_report_fresh": crash_report_fresh,
+		"dumps": dumps,
+		"duration_seconds": round(ended_at - launched_at, 1),
+		"exe": str(exe),
+		"exit_code": exit_code,
+		"log_path": str(log_path) if log_path.is_file() else None,
+		"markers": parse_test_log(log_text),
+		"outcome": outcome,
+		"portable_root": str(portable),
+		"run_dir": str(run_dir),
+		"stderr_tail": tail_of_file(stderr_path),
+		"stragglers_killed": stragglers,
+		"test_complete": test_complete,
+		"verdict_hint": verdict_hint,
+	}, indent=2, sort_keys=True))
+
+
+def command_test_cleanup(args):
+	exe = Path(args.exe).expanduser().resolve()
+	killed = kill_processes_with_executable(exe)
+	deleted = False
+	if args.delete_exe and exe.is_file():
+		exe.unlink()
+		deleted = True
+	print(json.dumps({
+		"deleted_exe": deleted,
+		"exe": str(exe),
+		"killed": killed,
+	}, indent=2, sort_keys=True))
+
+
+def command_test_account_reset(args):
+	exe = resolved_exe(args.exe)
+	kill_processes_with_executable(exe)
+	portable = portable_root_for(exe, args.portable_root)
+	account = reset_broken_test_account(portable)
+	print(json.dumps({
+		"account": account,
+		"portable_root": str(portable),
+	}, indent=2, sort_keys=True))
+
+
+def overlay_work_dir(config, slot, task_id):
+	work = slot / task_relative_dir(task_id) / "work"
+	if not work.is_dir():
+		raise WorkspaceError(f"Task work directory does not exist: {work}")
+	return work
+
+
+def read_overlay_paths(work):
+	paths_file = work / OVERLAY_PATHS_FILE
+	if not paths_file.is_file():
+		raise WorkspaceError(f"Missing overlay inventory: {paths_file}")
+	paths = [
+		line.strip() for line in
+		paths_file.read_text(encoding="utf-8-sig").splitlines()
+		if line.strip()
+	]
+	if not paths:
+		raise WorkspaceError(f"Empty overlay inventory: {paths_file}")
+	return paths
+
+
+def command_overlay_save(args):
+	config, slot = task_action_config(args)
+	source = Path(config["source_root"])
+	work = overlay_work_dir(config, slot, args.task)
+	inventory = read_overlay_paths(work)
+	untracked = run_git(
+		source, "ls-files", "--others", "--exclude-standard"
+	).stdout.splitlines()
+	if untracked:
+		raise WorkspaceError(
+			"The overlay may not use untracked source files: "
+			+ ", ".join(untracked)
+		)
+	dirty = changed_paths(source)
+	outside = [
+		path for path in dirty
+		if not path_is_covered(path, inventory)
+	]
+	if outside:
+		raise WorkspaceError(
+			"Dirty source paths are outside the overlay inventory: "
+			+ ", ".join(outside)
+		)
+	patch = run_git_binary(source, "diff", "--binary", "HEAD")
+	if not patch.strip():
+		raise WorkspaceError("The overlay diff is empty; nothing to save")
+	patch_path = work / OVERLAY_PATCH_FILE
+	patch_path.write_bytes(patch)
+	check = subprocess.run(
+		["git", "-C", str(source), "apply", "--check", "--reverse", str(patch_path)],
+		stdout=subprocess.PIPE,
+		stderr=subprocess.PIPE,
+		text=True,
+	)
+	if check.returncode:
+		raise WorkspaceError(
+			"The saved overlay patch does not verify: "
+			+ check.stderr.strip()
+		)
+	restored = []
+	if args.restore != "none":
+		ref = source_task_ref(args.task, args.restore)
+		if resolved_ref(source, ref) is None:
+			raise WorkspaceError(f"Missing task ref for restore: {ref}")
+		run_git(source, "checkout", ref, "--", *inventory)
+		restored = inventory
+		remaining = [
+			path for path in changed_paths(source)
+			if path_is_covered(path, inventory)
+		]
+		if remaining:
+			raise WorkspaceError(
+				"Overlay paths remain dirty after restore: "
+				+ ", ".join(remaining)
+			)
+	print(json.dumps({
+		"patch": str(patch_path),
+		"patch_bytes": len(patch),
+		"restored": restored,
+		"task": args.task,
+	}, indent=2, sort_keys=True))
+
+
+def command_overlay_apply(args):
+	config, slot = task_action_config(args)
+	source = Path(config["source_root"])
+	work = overlay_work_dir(config, slot, args.task)
+	patch_path = work / OVERLAY_PATCH_FILE
+	if not patch_path.is_file() or not patch_path.stat().st_size:
+		raise WorkspaceError(f"Missing overlay patch: {patch_path}")
+	inventory = read_overlay_paths(work)
+	result = subprocess.run(
+		["git", "-C", str(source), "apply", "--3way", str(patch_path)],
+		stdout=subprocess.PIPE,
+		stderr=subprocess.PIPE,
+		text=True,
+	)
+	conflicts = run_git(
+		source, "diff", "--name-only", "--diff-filter=U"
+	).stdout.splitlines()
+	applied = not result.returncode and not conflicts
+	outside = [
+		path for path in changed_paths(source)
+		if not path_is_covered(path, inventory)
+	]
+	print(json.dumps({
+		"applied": applied,
+		"conflicts": conflicts,
+		"error": result.stderr.strip() if result.returncode else None,
+		"outside_inventory": outside,
+		"task": args.task,
+	}, indent=2, sort_keys=True))
+
+
+def gitlink_paths(source, paths):
+	result = []
+	for path in paths:
+		entry = run_git(source, "ls-files", "-s", "--", path).stdout
+		if entry.startswith("160000 "):
+			result.append(path)
+	return result
+
+
+def command_source_commit(args):
+	config, slot = task_action_config(args)
+	source = Path(config["source_root"])
+	subject = args.subject.strip()
+	if not subject or "\n" in subject:
+		raise WorkspaceError("The commit subject must be a single non-empty line")
+	if len(subject) > 72:
+		raise WorkspaceError(
+			f"The commit subject is too long ({len(subject)} > 72 characters)"
+		)
+	work = slot / task_relative_dir(args.task) / "work"
+	owned_file = work / "owned-paths.txt"
+	if not owned_file.is_file():
+		raise WorkspaceError(f"Missing owned-paths inventory: {owned_file}")
+	owned = [
+		line.strip() for line in
+		owned_file.read_text(encoding="utf-8-sig").splitlines()
+		if line.strip()
+	]
+	if not owned:
+		raise WorkspaceError(f"Empty owned-paths inventory: {owned_file}")
+	source_note = f"tasks/{args.task}.md"
+	allowed = owned + [source_note]
+	dirty = changed_paths(source)
+	if not dirty:
+		raise WorkspaceError("The source checkout has no changes to commit")
+	outside = [
+		path for path in dirty
+		if not path_is_covered(path, allowed)
+	]
+	if outside:
+		raise WorkspaceError(
+			"Dirty source paths are outside the owned write set: "
+			+ ", ".join(outside)
+		)
+	submodules = gitlink_paths(source, dirty)
+	if submodules:
+		raise WorkspaceError(
+			"Submodule pointers must be committed explicitly first: "
+			+ ", ".join(submodules)
+		)
+	for path in dirty:
+		run_git(source, "add", "--", path)
+	run_git(
+		source,
+		"commit",
+		"-m",
+		f"{subject}\n\nTask: {args.task}",
+	)
+	validate_task_commit(source, "HEAD", args.task)
+	if args.mark_green:
+		mark_source_green(config, args.task)
+	print(json.dumps({
+		"committed": dirty,
+		"marked_green": bool(args.mark_green),
+		"subject": subject,
+		"task": args.task,
+	}, indent=2, sort_keys=True))
+
+
+def command_source_verify_commit(args):
+	source = source_root(args.source_root)
+	validate_task_commit(source, args.ref, args.task)
+	subject = run_git(
+		source, "show", "-s", "--format=%s", args.ref
+	).stdout.strip()
+	print(json.dumps({
+		"ref": args.ref,
+		"subject": subject,
+		"task": args.task,
+		"valid": True,
+	}, indent=2, sort_keys=True))
+
+
+def file_sha256(path):
+	digest = hashlib.sha256()
+	with path.open("rb") as stream:
+		while True:
+			chunk = stream.read(1024 * 1024)
+			if not chunk:
+				break
+			digest.update(chunk)
+	return digest.hexdigest()
+
+
+def command_fence_create(args):
+	root = Path(args.root).expanduser().resolve()
+	if not root.is_dir():
+		raise WorkspaceError(f"Fence root does not exist: {root}")
+	if not args.paths:
+		raise WorkspaceError("No fence paths were provided")
+	lines = []
+	for value in args.paths:
+		path = root / value
+		if not path.is_file():
+			raise WorkspaceError(f"Fence path does not exist: {path}")
+		lines.append(f"{file_sha256(path)}  {value}")
+	target = Path(args.file).expanduser().resolve()
+	target.parent.mkdir(parents=True, exist_ok=True)
+	target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+	print(json.dumps({
+		"file": str(target),
+		"paths": len(lines),
+	}, indent=2, sort_keys=True))
+
+
+def command_fence_check(args):
+	root = Path(args.root).expanduser().resolve()
+	target = Path(args.file).expanduser().resolve()
+	if not target.is_file():
+		raise WorkspaceError(f"Fence baseline does not exist: {target}")
+	mismatched = []
+	missing = []
+	checked = 0
+	for line in target.read_text(encoding="utf-8-sig").splitlines():
+		line = line.strip()
+		if not line:
+			continue
+		if "  " not in line:
+			raise WorkspaceError(f"Invalid fence line: {line!r}")
+		expected, value = line.split("  ", 1)
+		path = root / value
+		checked += 1
+		if not path.is_file():
+			missing.append(value)
+		elif file_sha256(path) != expected:
+			mismatched.append(value)
+	ok = not mismatched and not missing
+	print(json.dumps({
+		"checked": checked,
+		"mismatched": mismatched,
+		"missing": missing,
+		"ok": ok,
+	}, indent=2, sort_keys=True))
+	if not ok:
+		sys.exit(2)
+
+
+def command_source_preflight(args):
+	config, slot = task_action_config(args)
+	source = Path(config["source_root"])
+	dirty = changed_paths(source)
+	submodule_lines = run_git(
+		source, "submodule", "status", "--recursive"
+	).stdout.splitlines()
+	submodules_dirty = [
+		line.strip() for line in submodule_lines
+		if line and line[0] in "+-U"
+	]
+	work = slot / task_relative_dir(args.task) / "work"
+	owned_file = work / "owned-paths.txt"
+	owned = [
+		line.strip() for line in
+		owned_file.read_text(encoding="utf-8-sig").splitlines()
+		if line.strip()
+	] if owned_file.is_file() else []
+	dirty_outside_owned = [
+		path for path in dirty
+		if not path_is_covered(path, owned + [f"tasks/{args.task}.md"])
+	]
+	result = {
+		"dirty": dirty,
+		"dirty_outside_owned": dirty_outside_owned,
+		"owned_paths_present": owned_file.is_file(),
+		"source_clean": not dirty,
+		"submodules_dirty": submodules_dirty,
+		"task": args.task,
+	}
+	if args.exe:
+		exe = Path(args.exe).expanduser().resolve()
+		result["exe_present"] = exe.is_file()
+		if exe.is_file():
+			portable = portable_root_for(exe, None)
+			result["golden_account_present"] = (
+				portable / PORTABLE_GOLDEN
+			).is_dir()
+			result["live_marker_present"] = (
+				portable / PORTABLE_LIVE / PORTABLE_MARKER
+			).exists()
+	print(json.dumps(result, indent=2, sort_keys=True))
 
 
 def command_finish(args):
@@ -1474,7 +2108,7 @@ def clear_payload(inbox):
 def command_finalize(args):
 	transaction, metadata = load_transaction(args.transaction)
 	inbox = Path(metadata["inbox"])
-	main = Path(metadata["ai_main"])
+	main = Path(metadata["ai_main"]).resolve()
 	receipt_value = normalized_publish_path(args.receipt)
 	if not receipt_value.startswith("receipts/"):
 		raise WorkspaceError("The tracked receipt must be below receipts/")
@@ -1590,6 +2224,71 @@ def parse_args():
 	add_common_arguments(source_mark_green)
 	source_mark_green.add_argument("--task", required=True)
 	source_mark_green.set_defaults(handler=command_source_mark_green)
+
+	source_commit = subparsers.add_parser("source-commit")
+	add_common_arguments(source_commit)
+	source_commit.add_argument("--task", required=True)
+	source_commit.add_argument("--subject", required=True)
+	source_commit.add_argument("--mark-green", action="store_true")
+	source_commit.set_defaults(handler=command_source_commit)
+
+	source_verify_commit = subparsers.add_parser("source-verify-commit")
+	add_common_arguments(source_verify_commit)
+	source_verify_commit.add_argument("--task", required=True)
+	source_verify_commit.add_argument("--ref", default="HEAD")
+	source_verify_commit.set_defaults(handler=command_source_verify_commit)
+
+	source_preflight = subparsers.add_parser("source-preflight")
+	add_common_arguments(source_preflight)
+	source_preflight.add_argument("--task", required=True)
+	source_preflight.add_argument("--exe")
+	source_preflight.set_defaults(handler=command_source_preflight)
+
+	overlay_save = subparsers.add_parser("overlay-save")
+	add_common_arguments(overlay_save)
+	overlay_save.add_argument("--task", required=True)
+	overlay_save.add_argument(
+		"--restore",
+		choices=("run", "green", "none"),
+		default="run",
+	)
+	overlay_save.set_defaults(handler=command_overlay_save)
+
+	overlay_apply = subparsers.add_parser("overlay-apply")
+	add_common_arguments(overlay_apply)
+	overlay_apply.add_argument("--task", required=True)
+	overlay_apply.set_defaults(handler=command_overlay_apply)
+
+	test_run = subparsers.add_parser("test-run")
+	test_run.add_argument("--exe", required=True)
+	test_run.add_argument("--run-dir", required=True)
+	test_run.add_argument("--portable-root")
+	test_run.add_argument("--deadline", type=float, default=120.0)
+	test_run.add_argument("--quiet", type=float, default=60.0)
+	test_run.add_argument("--grace", type=float, default=15.0)
+	test_run.add_argument("--env", action="append")
+	test_run.set_defaults(handler=command_test_run)
+
+	test_cleanup = subparsers.add_parser("test-cleanup")
+	test_cleanup.add_argument("--exe", required=True)
+	test_cleanup.add_argument("--delete-exe", action="store_true")
+	test_cleanup.set_defaults(handler=command_test_cleanup)
+
+	test_account_reset = subparsers.add_parser("test-account-reset")
+	test_account_reset.add_argument("--exe", required=True)
+	test_account_reset.add_argument("--portable-root")
+	test_account_reset.set_defaults(handler=command_test_account_reset)
+
+	fence_create = subparsers.add_parser("fence-create")
+	fence_create.add_argument("--file", required=True)
+	fence_create.add_argument("--root", default=".")
+	fence_create.add_argument("paths", nargs="*")
+	fence_create.set_defaults(handler=command_fence_create)
+
+	fence_check = subparsers.add_parser("fence-check")
+	fence_check.add_argument("--file", required=True)
+	fence_check.add_argument("--root", default=".")
+	fence_check.set_defaults(handler=command_fence_check)
 
 	finish = subparsers.add_parser("finish")
 	add_common_arguments(finish)

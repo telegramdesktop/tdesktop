@@ -4,6 +4,7 @@ import contextlib
 import datetime
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -873,6 +874,420 @@ inbox_receipt: receipts/2026/07/19/test.md
 			self.assertFalse((slot / "projects" / "archive").exists())
 			staged = git(slot, "diff", "--cached", "--name-only")
 			self.assertIn("projects/old-project/tasks.md", staged)
+
+
+def write_fake_exe(path, script):
+	path.parent.mkdir(parents=True, exist_ok=True)
+	path.write_text("#!/bin/sh\n" + script, encoding="utf-8")
+	path.chmod(0o755)
+	return path
+
+
+def make_portable_root(root):
+	debug = root / "out" / "Debug"
+	golden = debug / workspace.PORTABLE_GOLDEN
+	(golden / "tdata").mkdir(parents=True)
+	(golden / "tdata" / "key_data").write_text("golden\n", encoding="utf-8")
+	return debug
+
+
+def source_repo_with_task(root):
+	source = root / "source"
+	git_repo(source)
+	(source / "Telegram" / "build").mkdir(parents=True)
+	tracked = source / "tracked.txt"
+	tracked.write_text("base\n", encoding="utf-8")
+	git(source, "add", "tracked.txt")
+	git(source, "commit", "-m", "Create baseline")
+	slot = root / "slot"
+	work = slot / "tasks" / TASK_ID / "work"
+	work.mkdir(parents=True)
+	config = {"source_root": str(source)}
+	return source, slot, work, config
+
+
+def run_command(handler, **kwargs):
+	out = io.StringIO()
+	with contextlib.redirect_stdout(out):
+		handler(SimpleNamespace(**kwargs))
+	return json.loads(out.getvalue())
+
+
+class MechanicsTest(unittest.TestCase):
+	def test_parse_env_values_requires_name_value_pairs(self):
+		self.assertEqual(
+			workspace.parse_env_values(["A=1", "B=x=y"]),
+			{"A": "1", "B": "x=y"},
+		)
+		with self.assertRaises(workspace.WorkspaceError):
+			workspace.parse_env_values(["NOVALUE"])
+		with self.assertRaises(workspace.WorkspaceError):
+			workspace.parse_env_values(["=x"])
+
+	def test_setup_test_account_lifecycle(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			live = root / workspace.PORTABLE_LIVE
+			real = root / workspace.PORTABLE_REAL
+			golden = root / workspace.PORTABLE_GOLDEN
+
+			with self.assertRaisesRegex(workspace.WorkspaceError, "golden"):
+				workspace.setup_test_account(root)
+
+			(golden / "tdata").mkdir(parents=True)
+			(golden / "tdata" / "key_data").write_text("golden\n", encoding="utf-8")
+			self.assertEqual(workspace.setup_test_account(root), "fresh-copy")
+			self.assertTrue((live / workspace.PORTABLE_MARKER).is_file())
+			self.assertTrue((golden / "tdata" / "key_data").is_file())
+
+			self.assertEqual(
+				workspace.setup_test_account(root),
+				"reused-marked-live",
+			)
+
+			(live / workspace.PORTABLE_MARKER).unlink()
+			(live / "tdata" / "user_file").write_text("mine\n", encoding="utf-8")
+			self.assertEqual(workspace.setup_test_account(root), "preserved-real")
+			self.assertTrue((real / "tdata" / "user_file").is_file())
+			self.assertTrue((live / workspace.PORTABLE_MARKER).is_file())
+			self.assertFalse((live / "tdata" / "user_file").exists())
+
+			(live / workspace.PORTABLE_MARKER).unlink()
+			self.assertEqual(
+				workspace.setup_test_account(root),
+				"replaced-manual-live",
+			)
+			self.assertTrue((real / "tdata" / "user_file").is_file())
+
+			self.assertEqual(
+				workspace.reset_broken_test_account(root),
+				"fresh-copy",
+			)
+			(live / workspace.PORTABLE_MARKER).unlink()
+			with self.assertRaisesRegex(workspace.WorkspaceError, "unmarked"):
+				workspace.reset_broken_test_account(root)
+
+	@unittest.skipUnless(os.name == "posix", "posix launch mechanics")
+	def test_test_run_reports_complete_markers(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_fake_exe(debug / "Telegram", (
+				'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
+				'echo "TEST_STEP: open settings" >> "$LOG"\n'
+				'echo "TEST_RESULT: PASS: row painted" >> "$LOG"\n'
+				'echo "SCREENSHOT: /tmp/fake.png" >> "$LOG"\n'
+				'echo "TEST_COMPLETE" >> "$LOG"\n'
+				"exit 0\n"
+			))
+			result = run_command(
+				workspace.command_test_run,
+				exe=str(exe),
+				run_dir=str(root / "run1"),
+				portable_root=None,
+				deadline=20.0,
+				quiet=10.0,
+				grace=5.0,
+				env=["EXTRA_FLAG=1"],
+			)
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["exit_code"], 0)
+			self.assertEqual(result["account"], "fresh-copy")
+			self.assertEqual(result["markers"]["pass"], ["row painted"])
+			self.assertEqual(result["markers"]["screenshots"], ["/tmp/fake.png"])
+			self.assertFalse(result["crash_report_fresh"])
+
+	@unittest.skipUnless(os.name == "posix", "posix launch mechanics")
+	def test_test_run_reports_crash_diagnostics(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_fake_exe(debug / "Telegram", (
+				'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
+				'echo "TEST_STEP: about to crash" >> "$LOG"\n'
+				f'mkdir -p "{debug}/{workspace.PORTABLE_LIVE}/tdata"\n'
+				f'echo "Assertion: boom" > "{debug}/{workspace.PORTABLE_LIVE}/tdata/working"\n'
+				"exit 0\n"
+			))
+			result = run_command(
+				workspace.command_test_run,
+				exe=str(exe),
+				run_dir=str(root / "run1"),
+				portable_root=None,
+				deadline=20.0,
+				quiet=10.0,
+				grace=5.0,
+				env=None,
+			)
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "crash")
+			self.assertFalse(result["test_complete"])
+			self.assertTrue(result["crash_report_fresh"])
+			self.assertIn("Assertion: boom", result["crash_report_excerpt"])
+
+	@unittest.skipUnless(os.name == "posix", "posix launch mechanics")
+	def test_test_run_kills_on_deadline(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_fake_exe(debug / "Telegram", "sleep 30\n")
+			result = run_command(
+				workspace.command_test_run,
+				exe=str(exe),
+				run_dir=str(root / "run1"),
+				portable_root=None,
+				deadline=2.0,
+				quiet=30.0,
+				grace=5.0,
+				env=None,
+			)
+			self.assertEqual(result["outcome"], "deadline-killed")
+			self.assertEqual(result["verdict_hint"], "hang")
+			self.assertFalse(result["test_complete"])
+
+	def test_portable_root_for_prefers_app_bundle_parent(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			binary = (
+				root / "out" / "Debug" / "Telegram.app"
+				/ "Contents" / "MacOS" / "Telegram"
+			)
+			binary.parent.mkdir(parents=True)
+			binary.write_text("", encoding="utf-8")
+			self.assertEqual(
+				workspace.portable_root_for(binary, None),
+				root / "out" / "Debug",
+			)
+			plain = root / "out" / "Debug" / "Telegram.exe"
+			plain.write_text("", encoding="utf-8")
+			self.assertEqual(
+				workspace.portable_root_for(plain, None),
+				root / "out" / "Debug",
+			)
+
+	def test_overlay_save_and_apply_roundtrip(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			git(
+				source, "update-ref",
+				workspace.source_task_ref(TASK_ID, "run"), "HEAD",
+			)
+			tracked = source / "tracked.txt"
+			tracked.write_text("base\noverlay\n", encoding="utf-8")
+			(work / workspace.OVERLAY_PATHS_FILE).write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				saved = run_command(
+					workspace.command_overlay_save,
+					task=TASK_ID,
+					restore="run",
+				)
+			self.assertGreater(saved["patch_bytes"], 0)
+			self.assertEqual(saved["restored"], ["tracked.txt"])
+			self.assertEqual(
+				tracked.read_text(encoding="utf-8"),
+				"base\n",
+			)
+			self.assertEqual(workspace.changed_paths(source), [])
+
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				applied = run_command(
+					workspace.command_overlay_apply,
+					task=TASK_ID,
+				)
+			self.assertTrue(applied["applied"])
+			self.assertEqual(applied["conflicts"], [])
+			self.assertEqual(
+				tracked.read_text(encoding="utf-8"),
+				"base\noverlay\n",
+			)
+
+	def test_overlay_save_rejects_uninventoried_and_untracked_paths(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			(work / workspace.OVERLAY_PATHS_FILE).write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			(source / "tracked.txt").write_text("base\noverlay\n", encoding="utf-8")
+			(source / "stray.txt").write_text("stray\n", encoding="utf-8")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				with self.assertRaisesRegex(workspace.WorkspaceError, "untracked"):
+					run_command(
+						workspace.command_overlay_save,
+						task=TASK_ID,
+						restore="run",
+					)
+			(source / "stray.txt").unlink()
+			other = source / "other.txt"
+			other.write_text("tracked other\n", encoding="utf-8")
+			git(source, "add", "other.txt")
+			git(source, "commit", "-m", "Add other")
+			other.write_text("dirty\n", encoding="utf-8")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				with self.assertRaisesRegex(workspace.WorkspaceError, "outside"):
+					run_command(
+						workspace.command_overlay_save,
+						task=TASK_ID,
+						restore="run",
+					)
+
+	def test_source_commit_stages_owned_paths_and_marks_green(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			git(
+				source, "update-ref",
+				workspace.source_task_ref(TASK_ID, "base"), "HEAD",
+			)
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			(source / "tracked.txt").write_text("task\n", encoding="utf-8")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				result = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Correct peer actions",
+					mark_green=True,
+				)
+			self.assertEqual(result["committed"], ["tracked.txt"])
+			self.assertTrue(result["marked_green"])
+			message = git(source, "show", "-s", "--format=%B", "HEAD")
+			self.assertEqual(
+				message,
+				f"Correct peer actions\n\nTask: {TASK_ID}",
+			)
+			head = git(source, "rev-parse", "HEAD")
+			self.assertEqual(
+				workspace.resolved_ref(
+					source, workspace.source_task_ref(TASK_ID, "green"),
+				),
+				head,
+			)
+			self.assertEqual(
+				workspace.resolved_ref(
+					source, workspace.source_task_ref(TASK_ID, "run"),
+				),
+				head,
+			)
+			verified = run_command(
+				workspace.command_source_verify_commit,
+				source_root=str(source),
+				task=TASK_ID,
+				ref="HEAD",
+			)
+			self.assertTrue(verified["valid"])
+			self.assertEqual(verified["subject"], "Correct peer actions")
+
+	def test_source_commit_rejects_paths_outside_owned_set(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			(source / "tracked.txt").write_text("task\n", encoding="utf-8")
+			(source / "extra.txt").write_text("extra\n", encoding="utf-8")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				with self.assertRaisesRegex(workspace.WorkspaceError, "extra.txt"):
+					run_command(
+						workspace.command_source_commit,
+						task=TASK_ID,
+						subject="Correct peer actions",
+						mark_green=False,
+					)
+				with self.assertRaisesRegex(workspace.WorkspaceError, "single"):
+					run_command(
+						workspace.command_source_commit,
+						task=TASK_ID,
+						subject="Bad\nsubject",
+						mark_green=False,
+					)
+				with self.assertRaisesRegex(workspace.WorkspaceError, "too long"):
+					run_command(
+						workspace.command_source_commit,
+						task=TASK_ID,
+						subject="x" * 80,
+						mark_green=False,
+					)
+
+	def test_fence_create_and_check_detects_changes(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			(root / "a.png").write_bytes(b"aaa")
+			(root / "sub").mkdir()
+			(root / "sub" / "b.png").write_bytes(b"bbb")
+			baseline = root / "fence.txt"
+			created = run_command(
+				workspace.command_fence_create,
+				file=str(baseline),
+				root=str(root),
+				paths=["a.png", "sub/b.png"],
+			)
+			self.assertEqual(created["paths"], 2)
+			checked = run_command(
+				workspace.command_fence_check,
+				file=str(baseline),
+				root=str(root),
+			)
+			self.assertTrue(checked["ok"])
+			(root / "a.png").write_bytes(b"changed")
+			(root / "sub" / "b.png").unlink()
+			out = io.StringIO()
+			with contextlib.redirect_stdout(out):
+				with self.assertRaises(SystemExit):
+					workspace.command_fence_check(SimpleNamespace(
+						file=str(baseline),
+						root=str(root),
+					))
+			result = json.loads(out.getvalue())
+			self.assertFalse(result["ok"])
+			self.assertEqual(result["mismatched"], ["a.png"])
+			self.assertEqual(result["missing"], ["sub/b.png"])
+
+	def test_source_preflight_reports_dirty_and_account_state(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			(source / "tracked.txt").write_text("dirty\n", encoding="utf-8")
+			(source / "unrelated.txt").write_text("stray\n", encoding="utf-8")
+			debug = make_portable_root(root)
+			exe = write_fake_exe(debug / "Telegram", "exit 0\n")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				result = run_command(
+					workspace.command_source_preflight,
+					task=TASK_ID,
+					exe=str(exe),
+				)
+			self.assertFalse(result["source_clean"])
+			self.assertIn("tracked.txt", result["dirty"])
+			self.assertEqual(result["dirty_outside_owned"], ["unrelated.txt"])
+			self.assertTrue(result["owned_paths_present"])
+			self.assertTrue(result["exe_present"])
+			self.assertTrue(result["golden_account_present"])
+			self.assertFalse(result["live_marker_present"])
 
 
 if __name__ == "__main__":

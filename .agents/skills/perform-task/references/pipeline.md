@@ -77,14 +77,24 @@ Before planning or editing:
 1. Read `SOURCE_ROOT/AGENTS.md`, `REVIEW.md`, `AI_SLOT/AGENTS.md`, `TASK_SPEC`,
    every referenced input, and relevant project context.
 2. Verify `state.yaml` is `in-progress` and owned by this checkout tag.
-3. Require the prepared portable test account. Its absence is a global hard
-   stop before implementation.
-4. Verify a usable Debug executable/build tree, safe path-scoped process
+3. Run the scripted preflight report and act on its JSON instead of composing
+   the equivalent shell checks by hand:
+
+   ```bash
+   python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
+     source-preflight --source-root SOURCE_ROOT --task TASK_ID --exe EXE
+   ```
+
+   It reports source/submodule cleanliness, dirty paths outside the owned
+   write set, and the golden test account and live marker state for `EXE`.
+4. Require the prepared portable test account (`golden_account_present`). Its
+   absence is a global hard stop before implementation.
+5. Verify a usable Debug executable/build tree, safe path-scoped process
    control, safe portable-folder operations, and the ability to launch and
    render the in-binary test flow. A locked macOS session disables Computer Use
    only; it does not fail this preflight or block testing, even when policy was
    `required`.
-5. For a new run require a clean tracked Telegram worktree, clean submodules,
+6. For a new run require a clean tracked Telegram worktree, clean submodules,
    and no unrelated untracked files, then initialize local recovery state:
 
    ```bash
@@ -97,9 +107,10 @@ Before planning or editing:
    and records current `HEAD` in `RUN_REF`. Later task commits may remain above
    the retained implementation. Never resolve or record a ref's object name in
    an artifact.
-6. For an interrupted run, allow dirty Telegram paths only when every one is
+7. For an interrupted run, allow dirty Telegram paths only when every one is
    listed in `work/owned-paths.txt` and completed phase artifacts prove this
-   task owns them. Otherwise hard-stop without cleaning them.
+   task owns them (`dirty_outside_owned` empty in the preflight report).
+   Otherwise hard-stop without cleaning them.
 
 Do not stash. Do not reset, restore, stage, commit, or delete an unexpected
 path. Invocation authorizes recovery only for paths proven to belong to this
@@ -119,6 +130,7 @@ work/review1-lifetime.md
 work/review1-reuse.md
 work/review1-structure.md
 work/review1.md                # synthesized review for the iteration
+work/test-design.md            # check design drafted during review iteration 1
 work/test.md
 work/result.md
 work/owned-paths.txt
@@ -165,16 +177,24 @@ exceptional `Block` commit captures the whole task record.
 
 ## Delegation
 
-Use `references/phase-prompts.md` for the exact context, plan, assessment,
-implementation, build, review, and native-Windows normalization prompts.
+Use `references/phase-prompts.md` for the exact context-and-plan, assessment,
+implementation, build, review, test-design, and native-Windows normalization
+prompts, plus the host-specific orchestration rules.
 
 - The performer is the only stateful task owner.
 - Probe nested mode with the first real leaf phase. If depth, capacity, or
   policy rejects that spawn before work begins, execute the same prompt
   checklists in the performer. This is a supported mode, not degraded failure.
-- In nested mode, use a fresh leaf for context, planning, assessment, each
-  implementation unit, review, review-fix, and test authoring. Every leaf must
-  be told not to delegate and never to commit.
+- In nested mode, use a fresh leaf for context-and-plan, assessment, each
+  implementation unit, review lenses, test design, review synthesis,
+  review-fix, and test authoring. Every leaf must be told not to delegate and
+  never to commit.
+- Small-task fast path: the performer may run the context-and-plan checklist
+  itself, without a leaf, only when the task spec itself names every file to
+  touch and the change is mechanical — roughly two source files or fewer, no
+  new APIs, strings, or style tokens, no layout derivation. When in doubt,
+  delegate. Assessment always runs as a fresh leaf and has the authority to
+  reject the fast-path sizing, which forces a proper Phase 1 leaf rerun.
 - Use `fork_turns: "none"` with explicit paths. Fork the smallest turn window
   only for genuinely unavailable chat-only visual context.
 - Inherit the parent's model and reasoning level. Do not invent tool fields.
@@ -183,44 +203,51 @@ implementation, build, review, and native-Windows normalization prompts.
 - Never duplicate the performer or an implementation unit with uncertain
   writes.
 
-Write the delegated prompt first. Require an early small heartbeat and a final
-reply containing only status, artifact paths, touched paths, and blocker.
-Poll no longer than 60 seconds. A timeout is not failure. Use artifact mtimes
-and heartbeat counters; after five minutes without movement, message the same
-target, and after a second unchanged five-minute window interrupt and retry
-that disposable phase once. Never replace a live stateful performer.
+Write the delegated prompt first. Require a final reply containing only
+status, artifact paths, touched paths, and blocker. On Claude Code, run each
+leaf as a synchronous foreground call and validate its artifacts when the call
+returns; run independent leaves of one step as parallel calls in a single
+message. On Codex, use the asynchronous wait ladder from the phase prompts:
+poll no longer than 60 seconds, treat a timeout as not-failure, use artifact
+mtimes and heartbeat counters, message the target after five minutes without
+movement, and interrupt and retry that disposable phase once after a second
+unchanged window. On either host, never replace a live stateful performer.
 
 ## Implementation phases
 
 Run sequentially:
 
-1. **Context.** Write a self-contained `work/context.md`. For project work,
-   read the current project file and nearest approved task context, then write
-   `work/project.proposed.md` as a coherent finished-state blueprint. Use the
-   Phase 1F prompt when prior task context exists; otherwise use Phase 1 with
-   the project file. Do not promote the proposal yet; blocked work must not
-   become project truth.
-2. **Visual design.** For `Visual: layout`, write `work/visual.md`. Derive every
-   dimension from request relationships, supplied images, font metrics, style
-   tokens, sibling geometry, or a cited desktop analogue. Use ordered
-   calculations, tolerances, relationship checks, same-scale comparison, and
-   an adversarial rejection pass. For `Visual: appearance`, keep the lighter
-   exact color/text/glyph oracle. Skip for non-visual work.
-3. **Plan.** Write `work/plan.md` with exact files, functions, ordered steps,
-   bounded phases, owned write sets, Debug build verification, and status
-   checkboxes.
-4. **Assess.** Independently verify paths and APIs, completeness, design,
-   duplication, edge cases, repository conventions, and phase sizing. Require
-   `Phases: <N>` and `Assessed: yes`.
-5. **Implement.** Run one leaf per assessed plan phase. Before each edit,
+1. **Context, visual design, and plan.** One leaf writes a self-contained
+   `work/context.md`, then — for `Visual: layout` tasks — `work/visual.md`,
+   then `work/plan.md` with exact files, functions, ordered steps, bounded
+   phases, owned write sets, Debug build verification, and status checkboxes.
+   For project work it also writes `work/project.proposed.md` as a coherent
+   finished-state blueprint; use the Phase 1F prompt when prior task context
+   exists, otherwise Phase 1 with the project file. Do not promote the
+   proposal yet; blocked work must not become project truth.
+   The visual contract derives every dimension from request relationships,
+   supplied images, font metrics, style tokens, sibling geometry, or a cited
+   desktop analogue, with ordered calculations, tolerances, relationship
+   checks, same-scale comparison, and an adversarial rejection pass. For
+   `Visual: appearance`, keep the lighter exact color/text/glyph oracle. Skip
+   the visual step for non-visual work.
+   Small-task fast path: under the strict criteria in the Delegation section,
+   the performer may run this phase as a same-session checklist producing the
+   same artifacts.
+2. **Assess.** Independently verify paths and APIs, completeness, design,
+   duplication, edge cases, repository conventions, and phase sizing; on
+   layout tasks verify the visual contract's anchors and derivation; on a
+   fast-path plan verify the sizing itself. Require `Phases: <N>` and
+   `Assessed: yes`.
+3. **Implement.** Run one leaf per assessed plan phase. Before each edit,
    update `work/owned-paths.txt`. A leaf edits only its owned paths and its
    phase status; it does not commit.
-6. **Build.** Run the resolved Debug build in the performer. Fix only build
+4. **Build.** Run the resolved Debug build in the performer. Fix only build
    errors belonging to the task. If the task changed only a resource consumed
    by codegen, force its documented regeneration so the Debug binary contains
    the new resource. A file-lock/access-denied build error is an immediate
    global hard stop with no retry or workaround.
-7. **Review.** Run the multi-lens review/fix loop from the phase prompts for up
+5. **Review.** Run the multi-lens review/fix loop from the phase prompts for up
    to three review iterations. Each iteration runs four independent lenses over
    the task diff — correctness, lifetime and ownership, reuse, structure — and
    then one synthesis pass that confirms every finding against the code itself
@@ -228,28 +255,40 @@ Run sequentially:
    defaults to not clean and must record the surfaces it checked; an approved
    review carries that merged coverage as the evidence for approval. Rebuild
    after every fix pass. Give the correctness and structure lenses the visual
-   contract on layout tasks.
-8. **Normalize.** On native non-WSL Windows, normalize only task-owned source,
+   contract on layout tasks. Alongside the iteration-1 lenses, spawn the
+   Phase 6d test-design leaf; it drafts `work/test-design.md` from the spec,
+   plan, and current diff so the test loop does not start from scratch.
+6. **Normalize.** On native non-WSL Windows, normalize only task-owned source,
    header, style, localization, and build/config text to CRLF without BOM,
    preserving content and trailing-newline state, then rebuild. On macOS,
    Linux, and WSL preserve LF/no-BOM.
-9. **Commit and test.** Create the Telegram implementation commit, then run the
-   test loop below. An implementation bug creates the next committed attempt;
-   keep the same `Task:` locator on every attempt. After each clean buildable
-   attempt, move the local retained-implementation ref with:
+7. **Commit and test.** Create the Telegram implementation commit with the
+   scripted helper, then run the test loop below:
 
    ```bash
    python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
-     source-mark-green --source-root SOURCE_ROOT --task TASK_ID
+     source-commit --source-root SOURCE_ROOT --task TASK_ID \
+     --subject "<one concise plain-language subject>" --mark-green
    ```
+
+   It verifies every dirty path against `work/owned-paths.txt` (plus the
+   optional `tasks/TASK_ID.md` source note), stages exactly those paths,
+   writes and validates the exact three-line message, and with `--mark-green`
+   moves the retained-implementation refs — replacing manual staging and the
+   separate `source-mark-green` call. An implementation bug creates the next
+   committed attempt through the same helper; keep the same `Task:` locator on
+   every attempt.
 
 ## Telegram commits
 
-The performer owns commit boundaries. Inspect every dirty path, verify it is in
-the union of owned write sets, and stage only explicit paths. Never use
-`git add -A`. Commit an intended submodule first only when its preflight was
-clean and all of its changes belong to this task, then stage the superproject
-pointer.
+The performer owns commit boundaries. The workspace helper's `source-commit`
+command is the standard mechanism: it enforces this section's contract —
+every dirty path verified against the union of owned write sets, only explicit
+paths staged, never `git add -A`, the exact three-line message — in one
+deterministic call. Commit an intended submodule first, manually, only when
+its preflight was clean and all of its changes belong to this task, then stage
+the superproject pointer; the helper refuses dirty submodule pointers so an
+unintended one can never slip into an attempt.
 
 Every implementation or implementation-fix commit message is exactly:
 
@@ -279,16 +318,38 @@ or operating a UI driver. Retain all task-derived oracle, layout measurement,
 overlay, watchdog, crash/assertion, hang, account, attempt, report, and evidence
 rules, with these external-task safety adaptations:
 
-- The performer, not leaves, stages and commits every attempt.
-- Overlay code may modify only tracked task-owned source paths. Inventory them
-  in `work/test-overlay.paths`; never introduce an untracked source file.
-- Save the overlay with `git diff --binary HEAD > work/test-overlay.patch`,
-  verify it is nonempty and reapplicable, then restore only inventoried overlay
-  paths to `RUN_REF`. Do not run a repository-wide hard reset. After an
-  implementation-fix commit, move both `GREEN_REF` and `RUN_REF` to the new
-  clean tip before reapplying the overlay.
-- Reapply with `git apply --3way`; re-author a conflicting hunk from `test.md`
-  rather than leaving conflict markers.
+- The performer, not leaves, stages and commits every attempt (through
+  `source-commit`).
+- The overlay is authored against the permanent harness in
+  `Telegram/SourceFiles/test/` and normally consists of replacing
+  `Telegram/SourceFiles/test/test_scenario.cpp` alone — that slot file is
+  always a permitted overlay path. Beyond it, overlay code may modify only
+  tracked task-owned source paths (one-line `Test::Fire` waitpoints or true
+  in-situ injections). Inventory every overlay path in
+  `work/test-overlay.paths`; never introduce an untracked source file, and
+  never re-implement logging, widget-finding, capture, watchdog, or quit
+  mechanics the harness already provides.
+- Save and restore the overlay with the scripted helper instead of manual git
+  mechanics:
+
+  ```bash
+  python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
+    overlay-save --source-root SOURCE_ROOT --task TASK_ID --restore run
+  ```
+
+  It verifies every dirty path against the inventory, refuses untracked
+  files, writes a nonempty verified `work/test-overlay.patch`, and restores
+  only inventoried paths to `RUN_REF` — never a repository-wide hard reset.
+  After an implementation-fix commit (`source-commit --mark-green` moves both
+  `GREEN_REF` and `RUN_REF`), reapply with:
+
+  ```bash
+  python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
+    overlay-apply --source-root SOURCE_ROOT --task TASK_ID
+  ```
+
+  It applies with `--3way` and reports conflicted paths; re-author a
+  conflicting hunk from `test.md` rather than leaving conflict markers.
 - On locked macOS, force overlay-only testing without waiting or blocking.
   Encode the complete interaction inside the Debug binary using application
   actions or Qt events, log assertions and geometry, capture widgets/windows
@@ -305,20 +366,43 @@ rules, with these external-task safety adaptations:
 - Set `RUN_DIR` and `EVIDENCE_DIR` to
   `TASK_DIR/.local/runs/attempt-<n>/run-<m>/`. Promote only decisive compact
   logs/screenshots into tracked `evidence/`.
-- Launch every test binary with `-testagent`. Detect crashes from process death
-  without `TEST_COMPLETE` plus a new `tdata/working`, not exit code. Read
-  captured stderr first, then `tdata/working`, then note the minidump.
-- Before each app run and build, stop only a process whose resolved executable
-  path equals `EXE`. Never use image-name-wide termination.
-- Enforce both the in-app watchdog and an external wall-clock deadline. Count
-  test runs independently from implementation attempts and stop at
-  `MAX_TEST_RUNS`.
+- Execute every app run through the scripted runner instead of hand-composed
+  launch/poll/kill shell:
+
+  ```bash
+  python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
+    test-run --exe EXE --run-dir RUN_DIR [--env NAME=VALUE ...] \
+    [--deadline 120] [--quiet 60]
+  ```
+
+  One call performs the idempotent portable-account SETUP, the path-scoped
+  straggler kill, the `-testagent -noupdate` launch (never auto-update a
+  test binary) with stdout/stderr capture and
+  `TDESKTOP_TEST_EVIDENCE_DIR` set to `RUN_DIR`, the external wall-clock
+  deadline and quiet-log watchdog, and returns one JSON report: outcome,
+  `TEST_COMPLETE` state, parsed `TEST_STEP`/`TEST_RESULT`/`SCREENSHOT`
+  markers, stderr tail, fresh `tdata/working` crash excerpt, and minidump
+  paths. The performer then judges the evidence itself — the runner gathers,
+  it never assesses. Crash detection keys on process death without
+  `TEST_COMPLETE` plus a fresh `tdata/working`, not exit code.
+- If the account breaks mid-loop (login screen, `AUTH_KEY_DUPLICATED`), run
+  `test-account-reset --exe EXE` — it deletes only a marked live copy and
+  re-copies golden — then retry once.
+- Enforce the in-app watchdog too. Count test runs independently from
+  implementation attempts and stop at `MAX_TEST_RUNS`.
 - Plan the fewest possible runs: one complete programmed scenario per attempt
   that proves every check in a single execution, splitting only for checks
   that cannot share one process lifetime. `MAX_TEST_RUNS` is a safety cap,
   never a budget to spend.
-- Delete the overlay-bearing Debug executable on every terminal test exit so
-  the user cannot launch it accidentally.
+- Start the test author from `work/test-design.md` when the review-phase
+  draft exists; the author still reconciles every drafted check against the
+  final retained diff before writing overlay code, and owns `test.md`.
+- On every terminal test exit, run `test-cleanup --exe EXE --delete-exe` so no
+  straggler survives and no overlay-bearing Debug executable is left for the
+  user to launch accidentally.
+- When a task needs an out-of-scope fence, snapshot it with
+  `fence-create --file <baseline> --root SOURCE_ROOT <paths...>` and verify it
+  before publication with `fence-check`.
 
 The test author must read the full task specification and every current-branch
 commit whose message has this task's exact `Task:` line. For an uninterrupted

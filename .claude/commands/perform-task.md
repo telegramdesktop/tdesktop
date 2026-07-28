@@ -11,9 +11,10 @@ the Claude adapter's delegation and text-handling substitutions. Resolve, start
 or resume, implement, verify, and publish only the named task. Do not
 continue with other queue work afterward.
 
-Tell every phase Agent to read `.claude/ai-workflow-adapter.md` before its
-shared phase prompt. Use the Agent tool for delegation; do not start Claude
-subprocesses through Bash.
+Delegate phases with synchronous foreground Agent calls per the adapter; leaf
+phase agents receive self-contained prompts and are not told to read the
+adapter. Use the Agent tool for delegation; do not start Claude subprocesses
+through Bash.
 
 Task short name or full id:
 
