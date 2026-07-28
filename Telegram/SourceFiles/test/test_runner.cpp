@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "test/test_agent.h"
 #include "test/test_log.h"
+#include "base/call_delayed.h"
 #include "core/application.h"
 #include "data/data_session.h"
 #include "main/main_account.h"
@@ -24,6 +25,17 @@ namespace {
 constexpr auto kTickInterval = crl::time(50);
 constexpr auto kDefaultWatchdogSeconds = 120;
 constexpr auto kAbortAfterQuitSeconds = 10;
+
+// The fuse records a blocked launch inside the fused
+// Platform::File::Unsafe* wrapper, which a click reaches only across at
+// least two queued main-thread hops: Ui::ActivateClickHandler's
+// crl::on_main, then Core::File::Launch's crl::on_main or
+// Core::File::OpenWith's InvokeQueued. So finish() must not read
+// FailureCount() in the turn that completes the last stage, or a run that
+// did reach the launcher reports PASS. The window bounds the hand-offs
+// already queued by then; it stands in for no observable condition,
+// main-queue quiescence having none.
+constexpr auto kFinishDrainDelay = crl::time(500);
 
 [[nodiscard]] crl::time WatchdogTimeout() {
 	const auto value = qEnvironmentVariable("TDESKTOP_TEST_WATCHDOG");
@@ -137,15 +149,17 @@ void Runner::finish() {
 	_finished = true;
 	_ticker.cancel();
 	_watchdog.cancel();
-	const auto failures = FailureCount();
-	LogRaw(u"SCENARIO_RESULT: %1 (failures: %2)"_q.arg(
-		failures ? u"FAIL"_q : u"PASS"_q,
-		QString::number(failures)));
-	Complete();
 	QTimer::singleShot(kAbortAfterQuitSeconds * 1000, [] {
 		std::abort();
 	});
-	Core::Quit();
+	base::call_delayed(kFinishDrainDelay, [] {
+		const auto failures = FailureCount();
+		LogRaw(u"SCENARIO_RESULT: %1 (failures: %2)"_q.arg(
+			failures ? u"FAIL"_q : u"PASS"_q,
+			QString::number(failures)));
+		Complete();
+		Core::Quit();
+	});
 }
 
 void Start() {

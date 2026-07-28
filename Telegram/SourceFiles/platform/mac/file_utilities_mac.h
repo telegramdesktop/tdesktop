@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace File {
 
+namespace Unfused {
+
 inline void UnsafeOpenUrl(const QString &url) {
 	return ::File::internal::UnsafeOpenUrlDefault(url);
 }
@@ -19,6 +21,8 @@ inline void UnsafeOpenUrl(const QString &url) {
 inline void UnsafeOpenEmailLink(const QString &email) {
 	return ::File::internal::UnsafeOpenEmailLinkDefault(email);
 }
+
+} // namespace Unfused
 
 inline void PostprocessDownloaded(const QString &filepath) {
 }
