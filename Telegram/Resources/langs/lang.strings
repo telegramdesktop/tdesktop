@@ -8803,6 +8803,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_replace_import" = "Import an Existing Wallet";
 "lng_wallet_created_title" = "Wallet Created";
 "lng_wallet_created_text" = "Your new wallet is ready to use.";
+"lng_wallet_import_title" = "Import Wallet";
+"lng_wallet_import_text" = "Enter the recovery phrase from another wallet you own.";
+"lng_wallet_import_words#one" = "{count} word";
+"lng_wallet_import_words#other" = "{count} words";
+"lng_wallet_import_button" = "Import";
+"lng_wallet_import_paste_error" = "The pasted text must contain 12 or 24 words.";
+"lng_wallet_import_error" = "This recovery phrase could not restore a wallet. Check the words and try again.";
+"lng_wallet_imported_title" = "Wallet Imported";
+"lng_wallet_imported_text" = "Your wallet was restored from your recovery phrase.";
 
 // Wnd specific
 

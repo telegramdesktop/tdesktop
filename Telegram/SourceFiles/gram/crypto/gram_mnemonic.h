@@ -23,6 +23,9 @@ enum class MnemonicType {
 
 [[nodiscard]] std::vector<QString> GenerateMnemonic();
 [[nodiscard]] bool IsWordlistWord(const QString &word);
+[[nodiscard]] std::vector<QString> WordlistSuggestions(
+	const QString &prefix,
+	int limit);
 [[nodiscard]] bool ValidateTonMnemonic(const std::vector<QString> &words);
 [[nodiscard]] std::optional<KeyPair> MnemonicToKeyPair(
 	const std::vector<QString> &words,

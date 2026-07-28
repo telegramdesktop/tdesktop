@@ -7,10 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_section.h"
 
+#include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "core/credits_amount.h"
 #include "data/data_user.h"
 #include "gram/api/gram_api_history.h"
+#include "gram/crypto/gram_mnemonic.h"
 #include "gram/ton/gram_address.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/channel_statistics/earn/earn_format.h"
@@ -37,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
@@ -63,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
+#include <QtWidgets/QTextEdit>
 
 namespace Wallet {
 namespace {
@@ -73,6 +77,9 @@ constexpr auto kAddressGroupsPerLine = 6;
 constexpr auto kDetailsGroupsPerLine = 4;
 constexpr auto kShortAddressChars = 4;
 constexpr auto kMinus = QChar(0x2212);
+constexpr auto kImportWordCountShort = 12;
+constexpr auto kImportWordCountLong = 24;
+constexpr auto kImportSuggestionsLimit = 3;
 
 class Card final : public Ui::RpWidget {
 public:
@@ -1063,6 +1070,493 @@ void WalletRevealFlow(not_null<Window::SessionController*> controller) {
 	}
 }
 
+[[nodiscard]] QStringList SplitPhraseWords(const QString &text) {
+	return text.simplified().split(QChar(' '), Qt::SkipEmptyParts);
+}
+
+void WalletImportBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	struct State {
+		std::vector<Ui::InputField*> fields;
+		std::vector<Ui::RoundButton*> pasteButtons;
+		std::vector<Ui::CrossButton*> clearButtons;
+		rpl::variable<int> count = kImportWordCountShort;
+		rpl::variable<QString> error;
+		std::vector<Ui::AbstractButton*> suggestionRows;
+		std::vector<QString> suggestionWords;
+		int suggestionField = -1;
+		int suggestionSelected = 0;
+		bool importing = false;
+	};
+	const auto state = box->lifetime().make_state<State>();
+
+	AddPhraseBoxHeader(
+		box,
+		tr::lng_wallet_import_title(),
+		tr::lng_wallet_import_text());
+
+	const auto toggle = box->addRow(
+		object_ptr<Ui::SettingsSlider>(box, st::settingsSlider),
+		st::walletImportToggleMargin);
+	toggle->setSections({
+		tr::lng_wallet_import_words(
+			tr::now,
+			lt_count,
+			kImportWordCountShort),
+		tr::lng_wallet_import_words(
+			tr::now,
+			lt_count,
+			kImportWordCountLong),
+	});
+	toggle->setActiveSectionFast(0);
+
+	const auto addWordField = [=](
+			not_null<Ui::VerticalLayout*> container,
+			int index) {
+		const auto field = container->add(
+			object_ptr<Ui::InputField>(
+				container,
+				st::walletImportField,
+				Ui::InputField::Mode::SingleLine),
+			st::walletImportFieldMargin);
+		const auto number = Ui::CreateChild<Ui::FlatLabel>(
+			field,
+			QString::number(index + 1) + QChar('.'),
+			st::walletPhraseNumberLabel);
+		number->setAttribute(Qt::WA_TransparentForMouseEvents);
+		const auto paste = Ui::CreateChild<Ui::RoundButton>(
+			field,
+			tr::lng_wallet_send_paste(),
+			st::walletSendPaste);
+		paste->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+		paste->hide();
+		const auto clear = Ui::CreateChild<Ui::CrossButton>(
+			field,
+			st::walletImportClear);
+		field->widthValue(
+		) | rpl::on_next([=](int width) {
+			number->moveToLeft(
+				st::walletImportNumberLeft,
+				st::walletImportNumberTop,
+				width);
+			paste->moveToRight(0, st::walletSendPasteTop);
+			clear->moveToRight(
+				st::walletImportClearPosition.x(),
+				st::walletImportClearPosition.y(),
+				width);
+		}, field->lifetime());
+		state->fields.push_back(field);
+		state->pasteButtons.push_back(paste);
+		state->clearButtons.push_back(clear);
+	};
+	for (auto i = 0; i != kImportWordCountShort; ++i) {
+		addWordField(box->verticalLayout(), i);
+	}
+	const auto extraWrap = box->verticalLayout()->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			box->verticalLayout(),
+			object_ptr<Ui::VerticalLayout>(box->verticalLayout())));
+	const auto extra = extraWrap->entity();
+	for (auto i = kImportWordCountShort; i != kImportWordCountLong; ++i) {
+		addWordField(extra, i);
+	}
+	extraWrap->toggleOn(state->count.value(
+	) | rpl::map([](int count) { return count == kImportWordCountLong; }));
+	extraWrap->finishAnimating();
+
+	const auto error = AddSendFlowLabel(
+		box,
+		state->error.value(),
+		st::walletSendErrorLabel);
+	error->setVisible(false);
+	state->error.value() | rpl::on_next([=](const QString &text) {
+		error->setVisible(!text.isEmpty());
+	}, error->lifetime());
+
+	AddBoxCloseButton(box);
+
+	const auto wordAt = [=](int index) {
+		return state->fields[index]->getLastText().trimmed().toLower();
+	};
+	const auto formValid = [=] {
+		const auto count = state->count.current();
+		for (auto i = 0; i != count; ++i) {
+			const auto word = wordAt(i);
+			if (word.isEmpty() || !Gram::IsWordlistWord(word)) {
+				return false;
+			}
+		}
+		return true;
+	};
+	const auto refreshAccessories = [=](int index) {
+		const auto field = state->fields[index];
+		const auto focused = field->hasFocus();
+		const auto empty = field->getLastText().isEmpty();
+		state->pasteButtons[index]->setVisible(focused && empty);
+		state->clearButtons[index]->toggle(
+			focused && !empty,
+			anim::type::instant);
+	};
+	const auto applyCount = [=](int count) {
+		if (state->count.current() != count) {
+			state->count = count;
+		}
+		const auto section = (count == kImportWordCountLong) ? 1 : 0;
+		if (toggle->activeSection() != section) {
+			toggle->setActiveSection(section);
+		}
+	};
+	const auto distributePaste = [=](const QStringList &words) {
+		const auto count = int(words.size());
+		if (count != kImportWordCountShort
+			&& count != kImportWordCountLong) {
+			state->error = tr::lng_wallet_import_paste_error(tr::now);
+			return;
+		}
+		applyCount(count);
+		for (auto i = 0; i != count; ++i) {
+			state->fields[i]->setText(words[i].toLower());
+			state->fields[i]->forceProcessContentsChanges();
+		}
+		state->error = QString();
+		const auto last = state->fields[count - 1];
+		crl::on_main(last, [=] {
+			last->setFocus();
+			last->setCursorPosition(last->getLastText().size());
+		});
+	};
+	const auto submit = [=] {
+		if (state->importing || !formValid()) {
+			return;
+		}
+		auto &wallet = controller->session().wallet();
+		const auto count = state->count.current();
+		auto words = std::vector<QString>();
+		words.reserve(count);
+		for (auto i = 0; i != count; ++i) {
+			words.push_back(wordAt(i));
+		}
+		state->importing = true;
+		if (!wallet.import(std::move(words))) {
+			state->importing = false;
+			state->error = tr::lng_wallet_import_error(tr::now);
+			return;
+		}
+		wallet.startPolling();
+		controller->hideLayer();
+		controller->showToast({
+			.title = tr::lng_wallet_imported_title(tr::now),
+			.text = { tr::lng_wallet_imported_text(tr::now) },
+			.icon = &st::toastCheckIcon,
+		});
+	};
+	const auto button = box->addButton(
+		tr::lng_wallet_import_button(),
+		submit);
+	const auto updateButton = [=] {
+		SetButtonDisabledLook(button.data(), !formValid());
+	};
+	SetButtonDisabledLook(button.data(), true);
+
+	box->setFocusCallback([=] {
+		state->fields.front()->setFocusFast();
+	});
+
+	const auto suggestions = Ui::CreateChild<Ui::RpWidget>(box.get());
+	suggestions->hide();
+	suggestions->setFocusPolicy(Qt::NoFocus);
+	suggestions->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(suggestions);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto inner = suggestions->rect().marginsRemoved(
+			st::defaultRoundShadow.extend);
+		Ui::Shadow::paint(
+			p,
+			inner,
+			suggestions->width(),
+			st::defaultRoundShadow);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBg);
+		p.drawRoundedRect(inner, st::boxRadius, st::boxRadius);
+	}, suggestions->lifetime());
+
+	const auto hideSuggestions = [=] {
+		state->suggestionField = -1;
+		state->suggestionWords.clear();
+		suggestions->hide();
+	};
+	const auto repositionSuggestions = [=] {
+		const auto index = state->suggestionField;
+		if (index < 0) {
+			return;
+		}
+		const auto field = state->fields[index];
+		const auto &extend = st::defaultRoundShadow.extend;
+		const auto &padding = st::walletImportSuggestionsPadding;
+		const auto &rowPadding = st::walletImportSuggestionRowPadding;
+		auto textWidth = 0;
+		for (const auto &word : state->suggestionWords) {
+			textWidth = std::max(textWidth, st::normalFont->width(word));
+		}
+		const auto innerWidth = std::min(
+			padding.left()
+				+ rowPadding.left()
+				+ textWidth
+				+ rowPadding.right()
+				+ padding.right(),
+			field->width());
+		const auto count = int(state->suggestionWords.size());
+		const auto innerHeight = padding.top()
+			+ count * st::walletImportSuggestionRowHeight
+			+ padding.bottom();
+		suggestions->resize(
+			extend.left() + innerWidth + extend.right(),
+			extend.top() + innerHeight + extend.bottom());
+		for (auto i = 0; i != int(state->suggestionRows.size()); ++i) {
+			const auto row = state->suggestionRows[i];
+			row->setVisible(i < count);
+			row->setGeometry(
+				extend.left() + padding.left(),
+				extend.top()
+					+ padding.top()
+					+ i * st::walletImportSuggestionRowHeight,
+				innerWidth - padding.left() - padding.right(),
+				st::walletImportSuggestionRowHeight);
+		}
+		const auto fieldTopLeft = field->mapTo(box, QPoint(0, 0));
+		const auto fieldTop = fieldTopLeft.y();
+		const auto below = fieldTop
+			+ field->height()
+			+ st::walletImportSuggestionsSkip;
+		const auto flip = (below + innerHeight > box->height());
+		const auto top = flip
+			? (fieldTop
+				- st::walletImportSuggestionsSkip
+				- innerHeight
+				- extend.top())
+			: (below - extend.top());
+		suggestions->move(fieldTopLeft.x() - extend.left(), top);
+		if (fieldTop + field->height() <= 0 || fieldTop >= box->height()) {
+			suggestions->hide();
+		} else {
+			suggestions->show();
+		}
+	};
+	const auto refreshSuggestions = [=](int index) {
+		const auto field = state->fields[index];
+		const auto typed = wordAt(index);
+		auto words = typed.isEmpty()
+			? std::vector<QString>()
+			: Gram::WordlistSuggestions(typed, kImportSuggestionsLimit);
+		if (!field->hasFocus()
+			|| words.empty()
+			|| (words.size() == 1 && words.front() == typed)) {
+			hideSuggestions();
+			return;
+		}
+		state->suggestionField = index;
+		state->suggestionWords = std::move(words);
+		state->suggestionSelected = 0;
+		suggestions->raise();
+		repositionSuggestions();
+		suggestions->update();
+	};
+	const auto acceptSuggestion = [=] {
+		const auto index = state->suggestionField;
+		if (index < 0
+			|| state->suggestionWords.empty()
+			|| suggestions->isHidden()) {
+			return false;
+		}
+		const auto selected = std::clamp(
+			state->suggestionSelected,
+			0,
+			int(state->suggestionWords.size()) - 1);
+		const auto word = state->suggestionWords[selected];
+		const auto field = state->fields[index];
+		const auto typed = wordAt(index);
+		hideSuggestions();
+		if (word == typed) {
+			return false;
+		}
+		field->setText(word);
+		field->forceProcessContentsChanges();
+		if (index + 1 < state->count.current()) {
+			state->fields[index + 1]->setFocus();
+		} else {
+			field->setCursorPosition(word.size());
+		}
+		return true;
+	};
+	const auto moveSuggestionSelection = [=](int delta) {
+		const auto count = int(state->suggestionWords.size());
+		if (!count) {
+			return;
+		}
+		state->suggestionSelected = std::clamp(
+			state->suggestionSelected + delta,
+			0,
+			count - 1);
+		suggestions->update();
+	};
+	for (auto i = 0; i != kImportSuggestionsLimit; ++i) {
+		const auto row = Ui::CreateChild<Ui::AbstractButton>(suggestions);
+		row->setPointerCursor(true);
+		row->setFocusPolicy(Qt::NoFocus);
+		row->paintRequest(
+		) | rpl::on_next([=] {
+			auto p = QPainter(row);
+			if (i == state->suggestionSelected) {
+				p.fillRect(row->rect(), st::windowBgOver);
+			}
+			if (i >= int(state->suggestionWords.size())
+				|| state->suggestionField < 0) {
+				return;
+			}
+			const auto &word = state->suggestionWords[i];
+			const auto typed = wordAt(state->suggestionField);
+			const auto prefix = word.startsWith(typed)
+				? typed
+				: QString();
+			const auto font = st::normalFont;
+			p.setFont(font);
+			const auto left = st::walletImportSuggestionRowPadding.left();
+			const auto baseline = (row->height() - font->height) / 2
+				+ font->ascent;
+			p.setPen(st::windowSubTextFg);
+			p.drawText(left, baseline, prefix);
+			p.setPen(st::windowFg);
+			p.drawText(
+				left + font->width(prefix),
+				baseline,
+				word.mid(prefix.size()));
+		}, row->lifetime());
+		row->setClickedCallback([=] {
+			state->suggestionSelected = i;
+			acceptSuggestion();
+		});
+		state->suggestionRows.push_back(row);
+	}
+
+	toggle->sectionActivated(
+	) | rpl::on_next([=](int section) {
+		applyCount((section == 1)
+			? kImportWordCountLong
+			: kImportWordCountShort);
+	}, toggle->lifetime());
+	state->count.changes() | rpl::on_next([=] {
+		state->error = QString();
+		updateButton();
+		hideSuggestions();
+	}, box->lifetime());
+
+	for (auto i = 0; i != kImportWordCountLong; ++i) {
+		const auto field = state->fields[i];
+		state->pasteButtons[i]->setClickedCallback([=] {
+			const auto text = QGuiApplication::clipboard()->text();
+			const auto words = SplitPhraseWords(text);
+			if (words.size() > 1) {
+				distributePaste(words);
+			} else {
+				field->setText(text.trimmed().toLower());
+				field->forceProcessContentsChanges();
+				field->setFocusFast();
+			}
+		});
+		state->clearButtons[i]->setClickedCallback([=] {
+			field->setText(QString());
+			field->forceProcessContentsChanges();
+			field->setFocusFast();
+		});
+		field->setMimeDataHook([=](
+				not_null<const QMimeData*> data,
+				Ui::InputField::MimeAction action) {
+			const auto text = data->hasText() ? data->text() : QString();
+			const auto words = SplitPhraseWords(text);
+			if (words.size() < 2) {
+				return false;
+			}
+			if (action == Ui::InputField::MimeAction::Check) {
+				return true;
+			}
+			distributePaste(words);
+			return true;
+		});
+		field->submits() | rpl::on_next([=] {
+			if (acceptSuggestion()) {
+				return;
+			}
+			if (i + 1 < state->count.current()) {
+				state->fields[i + 1]->setFocus();
+			} else {
+				submit();
+			}
+		}, field->lifetime());
+		field->tabbed() | rpl::on_next([=](not_null<bool*> handled) {
+			*handled = true;
+			if (acceptSuggestion()) {
+				return;
+			}
+			if (i + 1 < state->count.current()) {
+				state->fields[i + 1]->setFocus();
+			}
+		}, field->lifetime());
+		base::install_event_filter(field->rawTextEdit(), [=](
+				not_null<QEvent*> event) {
+			if (event->type() != QEvent::KeyPress) {
+				return base::EventFilterResult::Continue;
+			}
+			const auto key = static_cast<QKeyEvent*>(event.get())->key();
+			const auto shown = (state->suggestionField == i)
+				&& !suggestions->isHidden();
+			if (shown && key == Qt::Key_Down) {
+				moveSuggestionSelection(1);
+				return base::EventFilterResult::Cancel;
+			} else if (shown && key == Qt::Key_Up) {
+				moveSuggestionSelection(-1);
+				return base::EventFilterResult::Cancel;
+			} else if (shown && key == Qt::Key_Escape) {
+				hideSuggestions();
+				return base::EventFilterResult::Cancel;
+			} else if (key == Qt::Key_Backspace
+				&& field->getLastText().isEmpty()
+				&& i > 0) {
+				state->fields[i - 1]->setFocus();
+				return base::EventFilterResult::Cancel;
+			}
+			return base::EventFilterResult::Continue;
+		});
+		field->changes() | rpl::on_next([=] {
+			state->error = QString();
+			refreshAccessories(i);
+			refreshSuggestions(i);
+			updateButton();
+		}, field->lifetime());
+		field->focusedChanges() | rpl::on_next([=](bool focused) {
+			refreshAccessories(i);
+			if (focused) {
+				refreshSuggestions(i);
+			} else if (state->suggestionField == i) {
+				hideSuggestions();
+			}
+		}, field->lifetime());
+		refreshAccessories(i);
+	}
+
+	rpl::merge(
+		box->scrolls(),
+		box->widthValue() | rpl::to_empty
+	) | rpl::on_next([=] {
+		repositionSuggestions();
+	}, box->lifetime());
+}
+
 void WalletReplaceBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller) {
@@ -1106,7 +1600,8 @@ void WalletReplaceBox(
 		style::al_justify);
 	import->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
 	import->setClickedCallback([=] {
-		controller->showToast(u"Import is coming soon."_q);
+		box->closeBox();
+		controller->show(Box(WalletImportBox, controller));
 	});
 	Ui::AddSkip(box->verticalLayout());
 }

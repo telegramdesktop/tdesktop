@@ -157,6 +157,33 @@ bool IsWordlistWord(const QString &word) {
 	return ContainsWord(NormalizeWord(word).toUtf8());
 }
 
+std::vector<QString> WordlistSuggestions(
+		const QString &prefix,
+		int limit) {
+	auto result = std::vector<QString>();
+	const auto normalized = NormalizeWord(prefix).toUtf8();
+	if (normalized.isEmpty() || limit <= 0) {
+		return result;
+	}
+	const auto list = Wordlist();
+	const auto value = normalized.constData();
+	const auto length = std::size_t(normalized.size());
+	auto position = std::lower_bound(
+		list.begin(),
+		list.end(),
+		value,
+		[](const char *a, const char *b) {
+			return std::strcmp(a, b) < 0;
+		});
+	while (position != list.end()
+		&& int(result.size()) != limit
+		&& std::strncmp(*position, value, length) == 0) {
+		result.push_back(QString::fromLatin1(*position));
+		++position;
+	}
+	return result;
+}
+
 bool ValidateTonMnemonic(const std::vector<QString> &words) {
 	const auto normalized = NormalizeWords(words);
 	if (!AllWordsInList(normalized)) {

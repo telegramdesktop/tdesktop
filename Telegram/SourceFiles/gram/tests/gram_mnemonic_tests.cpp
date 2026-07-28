@@ -98,6 +98,59 @@ std::vector<Check> MnemonicChecks() {
 			}
 			return QString();
 		} },
+		{ u"wordlist_suggestions"_q, [] {
+			const auto compare = [](
+					const std::vector<QString> &got,
+					const QStringList &expected) {
+				if (int(got.size()) != expected.size()) {
+					return false;
+				}
+				for (auto i = 0; i != int(got.size()); ++i) {
+					if (got[i] != expected[i]) {
+						return false;
+					}
+				}
+				return true;
+			};
+			if (!compare(
+					WordlistSuggestions(u"wor"_q, 3),
+					{ u"word"_q, u"work"_q, u"world"_q })) {
+				return u"wor limit 3 mismatch"_q;
+			}
+			if (!compare(
+					WordlistSuggestions(u"wor"_q, 10),
+					{ u"word"_q, u"work"_q, u"world"_q, u"worry"_q, u"worth"_q })) {
+				return u"wor limit 10 mismatch"_q;
+			}
+			if (!compare(
+					WordlistSuggestions(u"a"_q, 3),
+					{ u"abandon"_q, u"ability"_q, u"able"_q })) {
+				return u"leading-boundary prefix a mismatch"_q;
+			}
+			if (!compare(WordlistSuggestions(u"zoo"_q, 3), { u"zoo"_q })) {
+				return u"single-match zoo mismatch"_q;
+			}
+			if (!compare(
+					WordlistSuggestions(u"sea"_q, 3),
+					{ u"sea"_q, u"search"_q, u"season"_q })) {
+				return u"exact-word-with-completions sea mismatch"_q;
+			}
+			if (!WordlistSuggestions(u"qq"_q, 3).empty()) {
+				return u"qq returned suggestions"_q;
+			}
+			if (!compare(
+					WordlistSuggestions(u" WoR "_q, 3),
+					{ u"word"_q, u"work"_q, u"world"_q })) {
+				return u"normalization mismatch"_q;
+			}
+			if (!WordlistSuggestions(u""_q, 3).empty()) {
+				return u"empty prefix returned suggestions"_q;
+			}
+			if (!WordlistSuggestions(u"wor"_q, 0).empty()) {
+				return u"limit 0 returned suggestions"_q;
+			}
+			return QString();
+		} },
 		{ u"ton_mnemonic_vector_0_golden"_q, [] {
 			return CheckMnemonicKey(
 				Vector0Phrase(),
