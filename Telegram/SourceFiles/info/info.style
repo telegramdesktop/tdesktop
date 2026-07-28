@@ -746,6 +746,7 @@ managePeerButton: SettingsCountButton {
 	iconPosition: point(20px, 5px);
 	label: FlatLabel(defaultFlatLabel) {
 		textFg: windowActiveTextFg;
+		maxHeight: 20px;
 	}
 	labelPosition: point(25px, 12px);
 }
