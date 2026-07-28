@@ -20,7 +20,7 @@ QWidget *FindByObjectName(
 }
 
 void Click(not_null<QWidget*> widget, std::optional<QPoint> point) {
-	const auto local = QPointF(point.value_or(widget->rect().center()));
+	const auto local = QPoint(point.value_or(widget->rect().center()));
 	const auto global = widget->mapToGlobal(local);
 	auto press = QMouseEvent(
 		QEvent::MouseButtonPress,

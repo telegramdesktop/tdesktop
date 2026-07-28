@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QGraphicsView>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QtMath>
 
 namespace Editor {
 namespace {
