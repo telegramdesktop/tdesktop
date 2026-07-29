@@ -812,6 +812,8 @@ private:
 	// HistoryView::Element::Flag::AttachedToPrevious.
 	void recountAttachToPreviousInBlocks();
 
+	void refreshEphemeralBadge();
+
 	[[nodiscard]] bool countIsTopicRootReply() const;
 
 	QSize countOptimalSize() final override;

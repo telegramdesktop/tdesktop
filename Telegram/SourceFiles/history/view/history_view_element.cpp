@@ -1248,9 +1248,7 @@ Element::Element(
 			AddComponents(FakeBotAboutTop::Bit());
 		}
 	}
-	if (data->isEphemeral() || _context == Context::WelcomeMessages) {
-		AddComponents(EphemeralBadge::Bit());
-	}
+	refreshEphemeralBadge();
 }
 
 bool Element::embedReactionsInBubble() const {
@@ -2241,6 +2239,7 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 		const auto possible = (ignoresDateGap
 				|| (std::abs(prev->date() - item->date())
 					< kAttachMessageToPreviousSecondsDelta))
+			&& (item->isEphemeral() == prev->isEphemeral())
 			&& mayBeAttached(this)
 			&& mayBeAttached(previous)
 			&& (!previousMarkup || previousMarkup->hiddenBy(prev->media()))
@@ -2485,6 +2484,19 @@ void Element::setDisplayDate(bool displayDate) {
 	}
 }
 
+void Element::refreshEphemeralBadge() {
+	const auto shown = (data()->isEphemeral()
+			|| _context == Context::WelcomeMessages)
+		&& !isAttachedToPrevious();
+	if (shown && !Has<EphemeralBadge>()) {
+		AddComponents(EphemeralBadge::Bit());
+		setPendingResize();
+	} else if (!shown && Has<EphemeralBadge>()) {
+		RemoveComponents(EphemeralBadge::Bit());
+		setPendingResize();
+	}
+}
+
 void Element::setServicePreMessage(
 		PreparedServiceText text,
 		ClickHandlerPtr fullClickHandler,
@@ -2571,6 +2583,7 @@ void Element::setAttachToPrevious(bool attachToPrevious, Element *previous) {
 	if (pending) {
 		setPendingResize();
 	}
+	refreshEphemeralBadge();
 }
 
 bool Element::displayFromPhoto() const {
