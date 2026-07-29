@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_bot_command.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_edition.h"
@@ -310,6 +311,7 @@ HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
 					.receiverId = UserId(data.vreceiver_id()),
 					.item = local,
 				});
+				recountAttachToPrevious(local);
 				_session->data().requestItemResize(local);
 				return local;
 			}
@@ -355,8 +357,21 @@ HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
 		.receiverId = UserId(data.vreceiver_id()),
 		.item = item,
 	});
+	recountAttachToPrevious(item);
 	_session->data().requestItemResize(item);
 	return item;
+}
+
+void EphemeralMessages::recountAttachToPrevious(
+		not_null<HistoryItem*> item) {
+	const auto view = item->mainView();
+	if (!view) {
+		return;
+	}
+	view->previousInBlocksChanged();
+	if (const auto next = view->nextInBlocks()) {
+		next->previousInBlocksChanged();
+	}
 }
 
 HistoryItem *EphemeralMessages::lookupItem(
@@ -380,6 +395,12 @@ HistoryItem *EphemeralMessages::lookupItem(
 int32 EphemeralMessages::lookupId(not_null<const HistoryItem*> item) const {
 	const auto entry = findByItem(item);
 	return entry ? entry->ephemeralId : 0;
+}
+
+UserId EphemeralMessages::receiverId(
+		not_null<const HistoryItem*> item) const {
+	const auto entry = findByItem(item);
+	return entry ? entry->receiverId : UserId();
 }
 
 UserData *EphemeralMessages::replyReceiver(

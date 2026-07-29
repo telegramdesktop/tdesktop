@@ -2236,6 +2236,26 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 		const auto prev = previous->data();
 		const auto previousMarkup = prev->inlineReplyMarkup();
 		const auto ignoresDateGap = (_context == Context::WelcomeMessages);
+		const auto sameReceiver = [&] {
+			if (!item->isEphemeral()
+				|| !prev->isEphemeral()
+				|| !item->out()
+				|| !prev->out()) {
+				return true;
+			}
+			if (item->isSending() || prev->isSending()) {
+				return true;
+			}
+			const auto &ephemeral
+				= item->history()->session().ephemeralMessages();
+			const auto idA = ephemeral.receiverId(item);
+			const auto idB = ephemeral.receiverId(prev);
+			if (idA && idB) {
+				return (idA == idB);
+			}
+			return (ephemeral.replyReceiver(item)
+				== ephemeral.replyReceiver(prev));
+		};
 		const auto possible = (ignoresDateGap
 				|| (std::abs(prev->date() - item->date())
 					< kAttachMessageToPreviousSecondsDelta))
@@ -2243,7 +2263,8 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 			&& mayBeAttached(this)
 			&& mayBeAttached(previous)
 			&& (!previousMarkup || previousMarkup->hiddenBy(prev->media()))
-			&& (item->topicRootId() == prev->topicRootId());
+			&& (item->topicRootId() == prev->topicRootId())
+			&& sameReceiver();
 		if (possible) {
 			const auto forwarded = item->Get<HistoryMessageForwarded>();
 			const auto prevForwarded = prev->Get<HistoryMessageForwarded>();

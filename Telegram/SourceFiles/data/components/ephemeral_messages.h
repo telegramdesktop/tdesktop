@@ -42,6 +42,7 @@ public:
 		not_null<PeerData*> peer,
 		int32 ephemeralId) const;
 	[[nodiscard]] int32 lookupId(not_null<const HistoryItem*> item) const;
+	[[nodiscard]] UserId receiverId(not_null<const HistoryItem*> item) const;
 	[[nodiscard]] UserData *replyReceiver(
 		not_null<const HistoryItem*> item) const;
 	[[nodiscard]] UserData *replyBot(
@@ -95,6 +96,7 @@ private:
 
 	void applyOrDefer(const MTPEphemeralMessage &message);
 	HistoryItem *applyNew(const MTPDephemeralMessage &data);
+	void recountAttachToPrevious(not_null<HistoryItem*> item);
 	[[nodiscard]] UserData *findCommandBot(
 		not_null<PeerData*> peer,
 		const QString &text) const;
