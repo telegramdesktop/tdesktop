@@ -94,6 +94,7 @@ struct SectionSlideParams {
 	bool withTopBarShadow = false;
 	bool withTabs = false;
 	bool withFade = false;
+	bool fromBottom = false;
 
 	explicit operator bool() const {
 		return !oldContentCache.isNull();

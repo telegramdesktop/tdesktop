@@ -1870,12 +1870,14 @@ void ChatWidget::validateSubsectionTabs() {
 			? ElementChatMode::Narrow
 			: std::optional<ElementChatMode>());
 		updateControlsGeometry();
+		updateSubsectionTabsGeometry();
 		orderWidgets();
 	}, _subsectionTabsLifetime);
 	_inner->overrideChatMode((_subsectionTabs->leftSkip() > 0)
 		? ElementChatMode::Narrow
 		: std::optional<ElementChatMode>());
 	updateControlsGeometry();
+	updateSubsectionTabsGeometry();
 	orderWidgets();
 }
 
@@ -2691,14 +2693,21 @@ bool ChatWidget::preventsClose(Fn<void()> &&continueCallback) const {
 
 QPixmap ChatWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	_topBar->updateControlsVisibility();
-	if (params.withTopBarShadow) _topBarShadow->hide();
+	const auto hideTopBarShadow = params.withTopBarShadow
+		&& !params.fromBottom;
+	if (hideTopBarShadow) {
+		_topBarShadow->hide();
+	}
 	if (_joinGroup) {
 		_composeControls->hide();
 	} else {
 		_composeControls->showForGrab();
 	}
+	if (params.fromBottom && _subsectionTabs) {
+		_subsectionTabs->hide();
+	}
 	auto result = Ui::GrabWidget(this);
-	if (params.withTopBarShadow) {
+	if (hideTopBarShadow) {
 		_topBarShadow->show();
 	}
 	_topBars->hide();
@@ -3115,17 +3124,25 @@ void ChatWidget::updateControlsGeometry() {
 	_composeControls->move(0, composeTop);
 	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
 
-	if (_subsectionTabs) {
-		const auto scrollBottom = _scroll->y() + scrollHeight;
-		const auto areaHeight = scrollBottom
-			+ tabsBottomSkip
-			- subsectionTabsTop;
-		_subsectionTabs->setBoundingRect(
-			{ 0, subsectionTabsTop, width(), areaHeight });
+	if (!animatingShow()) {
+		updateSubsectionTabsGeometry();
 	}
 
 	_cornerButtons.updatePositions();
 	_pullToNext->updateGeometry();
+}
+
+void ChatWidget::updateSubsectionTabsGeometry() {
+	if (!_subsectionTabs) {
+		return;
+	}
+	const auto subsectionTabsTop = _topBar->bottomNoMargins();
+	const auto scrollBottom = _scroll->y() + _scroll->height();
+	const auto areaHeight = scrollBottom
+		+ _subsectionTabs->bottomSkip()
+		- subsectionTabsTop;
+	_subsectionTabs->setBoundingRect(
+		{ 0, subsectionTabsTop, width(), areaHeight });
 }
 
 void ChatWidget::paintEvent(QPaintEvent *e) {
@@ -3229,8 +3246,12 @@ void ChatWidget::setPinnedVisibility(bool shown) {
 void ChatWidget::showAnimatedHook(
 		const Window::SectionSlideParams &params) {
 	_topBar->setAnimatingMode(true);
-	if (params.withTopBarShadow) {
+	if (params.withTopBarShadow && !params.fromBottom) {
 		_topBarShadow->show();
+	}
+	if (params.fromBottom && _subsectionTabs) {
+		_subsectionTabs->show();
+		orderWidgets();
 	}
 	_composeControls->showStarted();
 }
@@ -3246,6 +3267,7 @@ void ChatWidget::showFinishedHook() {
 		_composeControls->showFinished();
 	}
 	_inner->showFinished();
+	updateSubsectionTabsGeometry();
 	_topBars->show();
 	if (_subsectionTabs) {
 		_subsectionTabs->show();

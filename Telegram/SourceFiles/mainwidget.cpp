@@ -1767,7 +1767,8 @@ Window::SectionSlideParams MainWidget::prepareThirdSectionAnimation(Window::Sect
 }
 
 Window::SectionSlideParams MainWidget::prepareShowAnimation(
-		bool willHaveTopBarShadow) {
+		bool willHaveTopBarShadow,
+		bool fromBottom) {
 	Window::SectionSlideParams result;
 	result.withTopBarShadow = willHaveTopBarShadow;
 	if (_mainSection) {
@@ -1777,6 +1778,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	} else if (!_history->peer()) {
 		result.withTopBarShadow = false;
 	}
+	result.fromBottom = fromBottom;
 
 	floatPlayerHideAll();
 	if (_player) {
@@ -1818,16 +1820,18 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	return result;
 }
 
-Window::SectionSlideParams MainWidget::prepareMainSectionAnimation(Window::SectionWidget *section) {
-	return prepareShowAnimation(section->hasTopBarShadow());
+Window::SectionSlideParams MainWidget::prepareMainSectionAnimation(
+		Window::SectionWidget *section,
+		bool fromBottom) {
+	return prepareShowAnimation(section->hasTopBarShadow(), fromBottom);
 }
 
 Window::SectionSlideParams MainWidget::prepareHistoryAnimation(PeerId historyPeerId) {
-	return prepareShowAnimation(historyPeerId != 0);
+	return prepareShowAnimation(historyPeerId != 0, false);
 }
 
 Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
-	return prepareShowAnimation(false);
+	return prepareShowAnimation(false, false);
 }
 
 void MainWidget::showNewSection(
@@ -1884,12 +1888,19 @@ void MainWidget::showNewSection(
 			newMainGeometry);
 	Assert(newMainSection || newThirdSection);
 
+	const auto fromBottom = params.slideFromBottom
+		&& !newThirdSection
+		&& (_mainSection != nullptr);
+
 	auto animatedShow = [&] {
 		if (_showAnimation
 			|| Core::App().passcodeLocked()
 			|| (params.animated == anim::type::instant)
 			|| memento->instant()) {
 			return false;
+		}
+		if (fromBottom) {
+			return true;
 		}
 		if (!isOneColumn() && params.way == SectionShow::Way::ClearStack) {
 			return false;
@@ -1903,7 +1914,7 @@ void MainWidget::showNewSection(
 	auto animationParams = animatedShow
 		? (newThirdSection
 			? prepareThirdSectionAnimation(newThirdSection)
-			: prepareMainSectionAnimation(newMainSection))
+			: prepareMainSectionAnimation(newMainSection, fromBottom))
 		: Window::SectionSlideParams();
 
 	setFocus(); // otherwise dialogs widget could be focused.
@@ -1955,7 +1966,9 @@ void MainWidget::showNewSection(
 
 	if (animationParams) {
 		auto back = (params.way == SectionShow::Way::Backward);
-		auto direction = (back || settingSection->forceAnimateBack())
+		auto direction = fromBottom
+			? Window::SlideDirection::FromBottom
+			: (back || settingSection->forceAnimateBack())
 			? Window::SlideDirection::FromLeft
 			: Window::SlideDirection::FromRight;
 		if (isOneColumn()) {
