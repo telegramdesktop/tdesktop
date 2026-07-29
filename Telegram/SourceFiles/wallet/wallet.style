@@ -9,7 +9,7 @@ using "ui/basic.style";
 using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
 
-walletMenuIcon: icon{{ "payments/ton_emoji-24x24", menuIconColor }};
+walletMenuIcon: icon{{ "menu/wallet-24x24", menuIconColor }};
 
 walletTopBarTitleLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
