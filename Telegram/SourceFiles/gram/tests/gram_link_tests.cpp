@@ -253,6 +253,37 @@ std::vector<Check> LinkChecks() {
 			}
 			return QString();
 		} },
+		{ u"link_parse_text_edges"_q, [] {
+			struct Case {
+				QString text;
+				QString expected;
+			};
+			const auto cases = std::vector<Case>{
+				{ u""_q, QString() },
+				{ u"hi"_q, u"hi"_q },
+				{ u"hi#frag"_q, u"hi#frag"_q },
+				{ u"a%2Bb"_q, u"a+b"_q },
+			};
+			for (const auto &entry : cases) {
+				auto expected = TransferLink();
+				expected.address = kAddress;
+				expected.amountNano = 1;
+				expected.comment = entry.expected;
+				const auto url = Link(kAddress
+					+ u"?amount=1&text="_q
+					+ entry.text);
+				const auto failure = CheckLink(
+					ParseTransferLink(url),
+					expected);
+				if (!failure.isEmpty()) {
+					return u"text \""_q
+						+ entry.text
+						+ u"\": "_q
+						+ failure;
+				}
+			}
+			return QString();
+		} },
 		{ u"link_negative_wrong_scheme"_q, [] {
 			const auto bad = std::vector<QString>{
 				u"https://ton.org/transfer/"_q + kAddress + u"?amount=1"_q,
