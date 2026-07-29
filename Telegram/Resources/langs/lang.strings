@@ -8752,8 +8752,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_title" = "Wallet";
 "lng_wallet_card_ticker" = "GRAM";
 "lng_wallet_send_button" = "Send";
-"lng_wallet_qr_title" = "Wallet Address";
+"lng_wallet_add_funds" = "Add Funds";
 "lng_wallet_qr_copy" = "Copy Address";
+"lng_wallet_receive_about" = "Use to receive GRAM on The Open Network (TON) only.";
+"lng_wallet_receive_show_qr" = "Show my QR";
+"lng_wallet_receive_copied" = "Address copied";
 "lng_wallet_about_instant_title" = "Send Money Instantly";
 "lng_wallet_about_instant_text" = "Send Grams in any chat, just like sharing a photo.";
 "lng_wallet_about_fees_title" = "No Fees";
@@ -8777,6 +8780,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_to_title" = "Send Money to {address}";
 "lng_wallet_send_balance" = "Balance: {amount} Grams";
 "lng_wallet_send_insufficient" = "Insufficient funds";
+"lng_wallet_send_deposit" = "Deposit funds";
 "lng_wallet_send_amount" = "Send {amount} Grams";
 "lng_wallet_send_address_label" = "Address";
 "lng_wallet_sent_toast" = "🎉 Grams have been sent to {address}.";

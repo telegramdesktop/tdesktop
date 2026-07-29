@@ -58,6 +58,7 @@ walletSendButton: RoundButton(defaultActiveButton) {
 	radius: 20px;
 }
 walletSendButtonMargin: margins(0px, 12px, 0px, 0px);
+walletButtonsSkip: 8px;
 
 walletAboutTopSkip: 24px;
 walletAboutPadding: margins(60px, 0px, 24px, 0px);
@@ -111,10 +112,6 @@ walletRowAmountMinorLabel: FlatLabel(defaultFlatLabel) {
 }
 walletRowAmountMinorSkip: 2px;
 walletRowIconMargin: margins(3px, 0px, 0px, 0px);
-
-walletQrPixel: 8px;
-walletQrSkip: 24px;
-walletQrMargin: margins(0px, 0px, 0px, 0px);
 
 walletDetailsAmountMajorLabel: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
@@ -234,3 +231,18 @@ walletImportSuggestionsSkip: 2px;
 walletImportSuggestionsPadding: margins(4px, 4px, 4px, 4px);
 walletImportSuggestionRowHeight: 28px;
 walletImportSuggestionRowPadding: margins(8px, 0px, 8px, 0px);
+
+walletReceivePanelMargin: margins(24px, 48px, 24px, 0px);
+walletReceivePanelRadius: 16px;
+walletReceivePanelPadding: margins(16px, 16px, 16px, 16px);
+walletReceiveQrSize: 260px;
+walletReceiveActionSkip: 16px;
+walletReceiveAddressFont: font(26px semibold);
+walletReceiveAddressLineSkip: 4px;
+walletReceiveCopiedTopSkip: 16px;
+walletReceiveCopiedSkip: 6px;
+walletReceiveCopiedIcon: icon{{ "toast/check-16x16", windowActiveTextFg }};
+walletReceiveAboutLabel: FlatLabel(walletPhraseTextLabel) {
+	textFg: windowSubTextFg;
+}
+walletReceiveAboutMargin: margins(24px, 16px, 24px, 24px);
