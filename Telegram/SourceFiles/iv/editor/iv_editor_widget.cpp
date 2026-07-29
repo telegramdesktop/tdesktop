@@ -1492,13 +1492,8 @@ struct InlineFieldTrimResult {
 		return false;
 	}
 	for (const auto &url : urls) {
-		if (!url.isLocalFile()) {
-			return false;
-		}
-		const auto type = Core::DetectNameType(Platform::File::UrlToLocal(url));
-		if (type != Core::NameType::Image
-			&& type != Core::NameType::Video
-			&& type != Core::NameType::Audio) {
+		if (!url.isLocalFile()
+			|| QFileInfo(Platform::File::UrlToLocal(url)).isDir()) {
 			return false;
 		}
 	}
