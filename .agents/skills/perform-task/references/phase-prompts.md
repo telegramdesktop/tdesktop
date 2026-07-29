@@ -105,7 +105,7 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
   were made. For a project task, `project.proposed.md` must also exist and be
   non-empty. For a `Visual: layout` task, `visual.md` must also satisfy the
   visual design completion check below.
-- Phase 3 is complete only when `plan.md` contains both `Phases:` in the Status section and `Assessed: yes`.
+- Phase 3 is complete only when `plan.md` contains both `Phases:` in the Status section and `Assessed: yes`, or records a rejection outcome (`Fast-Path: rejected` or `Approach: rejected`) that sends the performer back to a fresh Phase 1 leaf.
 - Phase 4 is complete only when the target phase checkbox changed to checked and the touched-file list matches the owned write set, or the blocker explains any mismatch.
 - Phase 5 is complete only when the build outcome is known and the build checkbox is updated on success.
 - Phase 6a is complete only when every lens scheduled for iteration `R` wrote `review<R>-<lens>.md` with a `## Verdict:` line and a non-empty `## Checked` section. A lens report that records no checked surfaces is incomplete work: rerun that lens rather than accepting it.
@@ -196,7 +196,14 @@ The plan.md should contain:
 <one-line summary>
 
 ## Approach
-<high-level description of the implementation approach>
+<high-level description of the implementation approach. Name the closest
+existing analogue in this repository for this kind of change and how the plan
+follows its shape. One line per new file, class, switch, or abstraction the
+plan introduces: the role boundary or constraint that requires it — and for a
+new entry point, switch, or hook, which existing ones were checked and why
+none fits. State where the change is contained: the fewest insertion points
+into existing shared modules, with platform-specific work behind the
+`Platform::` seam rather than inline conditional blocks.>
 
 ## Files to Modify
 <list of files that will be created or modified>
@@ -412,6 +419,13 @@ Do not author overlay code and do not implement anything in this phase.
 
 ## Phase 3: Plan Assessment
 
+Assessment has two rejection outcomes besides refinement, and both withhold
+`Assessed: yes` and send the performer back to a fresh Phase 1 leaf:
+`Fast-Path: rejected` when the performer's same-session Phase 1 undersized the
+task, and `Approach: rejected` when the plan is over-engineered or over-coupled
+beyond step-level repair. On an approach rejection the performer appends the
+assessor's named simpler direction to the Phase 1 rerun prompt.
+
 ```text
 You are a plan assessment agent. Review and refine an implementation plan.
 
@@ -426,7 +440,32 @@ Assess the plan:
 1. Correctness: Are the file paths and line references accurate? Does the plan reference real functions and types?
 2. Completeness: Are there missing steps? Edge cases not handled?
 3. Code quality: Will the plan minimize code duplication? Does it follow existing codebase patterns from AGENTS.md?
-4. Design: Could the approach be improved? Are there better patterns already used in the codebase?
+4. Approach fit — judge this adversarially, as the reviewer who must later
+   defend the diff. Anchor on precedent: find the closest existing feature of
+   the same kind in this repository and compare shapes; when the plan's
+   Approach names no analogue, find one yourself and record it. A plan several
+   times the size or spread of its precedent carries the burden of proof.
+   - Existing mechanism first: before the plan adds a new entry point, switch,
+     flag, hook, or IPC path, search for an existing one whose semantics
+     already fit. Riding an existing mechanism is the strongest simplification
+     this assessment can produce, and it can carry benefits a new surface
+     cannot — code already shipped may already invoke it.
+   - Containment: count the plan's insertion points into existing shared
+     modules. A feature woven through many functions of a global module —
+     platform-specific `#ifdef` blocks or feature-mode conditionals scattered
+     inline through cross-platform code — is the disaster shape even when
+     every hunk is small. Platform work belongs behind the `Platform::` seam;
+     a mode belongs in one contained flow, not in special cases threaded
+     through everything the module already did.
+   - Structure must be load-bearing: for each new file, class, abstraction, or
+     indirection, the plan must name what it enables — a second caller, a
+     second platform, a real layering constraint. A seam with one
+     implementation and no second user, a state machine over a linear flow, a
+     wrapper around a single call, and scaffolding for a testing style this
+     repository does not practice serve no purpose and come out of the plan.
+   - New files are not the problem: a focused file bounding a coherent role
+     beats both growing a mega-module and scattering through one; judge
+     whether the boundary does work, not whether it is new.
 5. Phase sizing: Each phase should be implementable by a single agent in one session. If a phase has more than about 8-10 substantive code changes, split it further.
 6. Visual contract (layout tasks): when visual.md exists, verify its anchors
    are real (the cited style tokens, fonts, and reference widgets exist),
@@ -439,10 +478,20 @@ Assess the plan:
    `Fast-Path: rejected` to the Status section, do NOT add `Assessed: yes`,
    and state what was underestimated; the performer must rerun Phase 1 as a
    fresh leaf.
+8. Approach rejection: when item 4 fails structurally — the approach is
+   several times larger, more scattered, or more coupled than the task
+   warrants and trimming individual steps would not fix it — do not refine
+   the plan. Add `Approach: rejected` to the Status section, do NOT add
+   `Assessed: yes`, and state in 2-3 lines the simpler direction: the
+   precedent or existing mechanism to ride on, which existing files absorb
+   the change, and where it stays contained. The performer reruns Phase 1 as
+   a fresh leaf with those lines as input.
 
 Update plan.md with your refinements. Keep the same structure but:
 - fix any inaccuracies
 - add missing steps
+- remove files, abstractions, and steps the task does not need — deletion is
+  as much a refinement as addition
 - improve the approach if you found better patterns
 - ensure phases are properly sized for single-agent execution
 - add a line at the top of the Status section: `Phases: <N>`
@@ -694,9 +743,10 @@ This lens is not satisfied by reading the diff. Reuse lives OUTSIDE the diff, wh
 is exactly why a single generalist reviewer misses it. Search the repository before
 you judge anything.
 
-- For each helper, widget, algorithm, constant, string, or style value the change
-  introduces: search for an existing equivalent, then either use it or state in your
-  report why the existing one does not fit. Report the search you ran.
+- For each helper, widget, algorithm, constant, string, style value, entry
+  point, or command-line switch the change introduces: search for an existing
+  equivalent, then either use it or state in your report why the existing one
+  does not fit. Report the search you ran.
 - Logic repeated within the change itself that should be shared.
 - A reimplementation of an established repository pattern instead of following it —
   the strongest finding this lens produces, and the one that compounds worst if it
@@ -718,6 +768,18 @@ codebase, and is it no bigger than it needs to be?
 - Minimality: diff hunks with no functional effect; changes broader than the task
   requires; abstraction, indirection, validation, or error handling for cases that
   cannot happen; a compatibility shim or flag where the code can simply change.
+- Scatter: task or platform logic threaded through many existing functions of a
+  shared module. Platform-specific `#ifdef` blocks inline in cross-platform code
+  where a `Platform::` seam exists, or a mode's special cases woven through a
+  module's existing flow instead of one contained hook, are findings even when
+  each hunk is small.
+- Load-bearing structure: every new file, class, or seam needs a nameable
+  enabling purpose — a second user, a second platform, a real layering
+  constraint. An interface with one implementation, a state machine over a
+  linear flow, a wrapper around a single call, or scaffolding for a testing
+  style this repository does not practice is structure without purpose. A
+  focused new file bounding a coherent role is not a finding — that beats
+  growing a mega-module.
 - Dead code: anything added or left behind that nothing reaches.
 - Conventions: REVIEW.md mechanical rules and AGENTS.md coding conventions.
 - Local idiom: comment density, naming, and construction match the surrounding code.

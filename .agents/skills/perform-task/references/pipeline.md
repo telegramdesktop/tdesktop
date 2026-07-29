@@ -195,7 +195,9 @@ prompts, plus the host-specific orchestration rules.
   touch and the change is mechanical — roughly two source files or fewer, no
   new APIs, strings, or style tokens, no layout derivation. When in doubt,
   delegate. Assessment always runs as a fresh leaf and has the authority to
-  reject the fast-path sizing, which forces a proper Phase 1 leaf rerun.
+  reject the fast-path sizing or the plan's whole approach as over-engineered;
+  either rejection forces a Phase 1 leaf rerun, an approach rejection with the
+  assessor's simpler direction added to the prompt.
 - Use `fork_turns: "none"` with explicit paths. Fork the smallest turn window
   only for genuinely unavailable chat-only visual context.
 - Inherit the parent's model and reasoning level. Do not invent tool fields.
@@ -236,10 +238,14 @@ Run sequentially:
    the performer may run this phase as a same-session checklist producing the
    same artifacts.
 2. **Assess.** Independently verify paths and APIs, completeness, design,
-   duplication, edge cases, repository conventions, and phase sizing; on
-   layout tasks verify the visual contract's anchors and derivation; on a
-   fast-path plan verify the sizing itself. Require `Phases: <N>` and
-   `Assessed: yes`.
+   duplication, edge cases, repository conventions, and phase sizing; weigh
+   the approach against the closest repository precedent and its containment
+   against the shared modules it touches, and reject over-engineering rather
+   than refining it; on layout tasks verify the visual contract's anchors and
+   derivation; on a fast-path plan verify the sizing itself. Require
+   `Phases: <N>` and `Assessed: yes`, or a recorded `Fast-Path: rejected` /
+   `Approach: rejected` outcome that reruns Phase 1 as a fresh leaf — an
+   approach rejection with the assessor's simpler direction as added input.
 3. **Implement.** Run one leaf per assessed plan phase. Before each edit,
    update `work/owned-paths.txt`. A leaf edits only its owned paths and its
    phase status; it does not commit.
