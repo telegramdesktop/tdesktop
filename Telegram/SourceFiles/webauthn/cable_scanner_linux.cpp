@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webauthn/cable_core.h"
 
 #include "base/algorithm.h"
+#include "base/debug_log.h"
 #include "base/weak_ptr.h"
 
 #include <crl/crl_on_main.h>
@@ -126,6 +127,9 @@ bool LinuxBleScanner::start(
 			auto manager = Bluez::ObjectManagerClient::new_for_bus_finish(
 				result);
 			if (!manager) {
+				Gio::DBusErrorNS_::strip_remote_error(manager.error());
+				LOG(("Passkey Error: BlueZ object manager: %1."
+					).arg(manager.error().message_().c_str()));
 				handleAvailability(false);
 				return;
 			}
@@ -136,9 +140,11 @@ bool LinuxBleScanner::start(
 				handleObject(object);
 			}
 			if (!_adapter) {
+				LOG(("Passkey Error: No bluetooth adapter in BlueZ."));
 				handleAvailability(false);
 				return;
 			} else if (!_adapter.get_powered()) {
+				LOG(("Passkey Error: Bluetooth adapter is powered off."));
 				handleAvailability(false);
 				return;
 			}
@@ -202,6 +208,9 @@ void LinuxBleScanner::startDiscovery() {
 			}
 			auto started = _adapter.call_start_discovery_finish(result);
 			if (!started) {
+				Gio::DBusErrorNS_::strip_remote_error(started.error());
+				LOG(("Passkey Error: BlueZ StartDiscovery: %1."
+					).arg(started.error().message_().c_str()));
 				handleAvailability(false);
 				return;
 			}
