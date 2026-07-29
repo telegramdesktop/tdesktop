@@ -6355,6 +6355,18 @@ std::optional<State::BlockPath> Widget::simpleMediaBlockPathFromHit(
 	return path;
 }
 
+std::optional<State::BlockPath> Widget::documentRowBlockPathFromHit(
+		const PreparedEditHit &hit) const {
+	const auto path = simpleMediaBlockPathFromHit(hit);
+	if (!path) {
+		return std::nullopt;
+	}
+	const auto block = BlockFromPath(_state->richPage(), *path);
+	return (block && RichBlockIsDocumentRow(block->kind))
+		? path
+		: std::nullopt;
+}
+
 std::optional<State::BlockPath> Widget::groupedMediaBlockPathFromHit(
 		const PreparedEditHit &hit) const {
 	if (hit.kind != PreparedEditHitKind::Block || !hit.block) {
@@ -6437,8 +6449,11 @@ void Widget::showSimpleMediaMenu(
 			&st::menuIconSpoiler,
 			currentSpoiler);
 	}
+	const auto removeText = RichBlockIsDocumentRow(block->kind)
+		? tr::lng_context_delete_msg(tr::now)
+		: tr::lng_box_remove(tr::now);
 	Ui::Menu::CreateAddActionCallback(menu)({
-		.text = tr::lng_box_remove(tr::now),
+		.text = removeText,
 		.handler = [=] {
 			auto target = std::optional<int>();
 			const auto changed = applyMediaBlockChange([=, &target] {
@@ -6640,6 +6655,14 @@ bool Widget::showMediaMenuFromHit(
 		showStructuralPhotoVideoMenu(globalPos);
 		return true;
 	} else if (const auto path = simpleMediaBlockPathFromHit(hit)) {
+		if (documentRowBlockPathFromHit(hit)) {
+			if ((clickKind != MediaClickKind::ContextMenu)
+				|| !articleHit.direct) {
+				return false;
+			}
+			showSimpleMediaMenu(*path, globalPos);
+			return true;
+		}
 		if (articleHit.mediaActivation.kind
 			== Markdown::MediaActivationKind::None) {
 			return false;
@@ -6677,14 +6700,15 @@ bool Widget::showMediaMenuFromHit(
 	return false;
 }
 
-bool Widget::activateGroupedMediaLinkFromHit(
+bool Widget::activateMediaBlockLinkFromHit(
 		const PreparedEditHit &hit,
 		const Markdown::MarkdownArticleHitTestResult &articleHit,
 		Qt::MouseButton button) {
-	if (!groupedMediaBlockPathFromHit(hit)
-		|| !articleHit.state.link
-		|| articleHit.mediaActivation.kind
-			!= Markdown::MediaActivationKind::None) {
+	if (!articleHit.state.link
+		|| (articleHit.mediaActivation.kind
+			!= Markdown::MediaActivationKind::None)
+		|| (!groupedMediaBlockPathFromHit(hit)
+			&& !documentRowBlockPathFromHit(hit))) {
 		return false;
 	}
 	ActivateClickHandler(this, articleHit.state.link, button);
@@ -6965,7 +6989,7 @@ void Widget::paintMediaControls(Painter &p, QPoint topLeft) {
 			paintCircleIcon(group.plus, st::ivEditorMediaAddIcon);
 			continue;
 		}
-		if (!IsSimpleMediaBlockKind(block->kind)) {
+		if (!IsPhotoVideoBlockKind(block->kind)) {
 			continue;
 		}
 		const auto layout = mediaControlLayout(geo.visibleMediaRect);
@@ -7025,6 +7049,8 @@ Widget::PressedMediaControl Widget::mediaControlHitTest(
 			if (layout.radial.contains(articlePoint)) {
 				return { MediaControl::UploadRadial, *path };
 			}
+		} else if (RichBlockIsDocumentRow(block->kind)) {
+			continue;
 		} else if (layout.threeDots.contains(articlePoint)) {
 			return { MediaControl::ThreeDots, *path };
 		} else if (layout.plus.contains(articlePoint)) {
@@ -7694,7 +7720,7 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 			}
 		}
 		if (clickLike) {
-			if (activateGroupedMediaLinkFromHit(editHit, hit, e->button())) {
+			if (activateMediaBlockLinkFromHit(editHit, hit, e->button())) {
 				e->accept();
 				return;
 			}
@@ -7825,7 +7851,7 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 		}
 	} else if (articlePoint.y() >= _articleHeight) {
 		activateTrailingParagraph();
-	} else if (activateGroupedMediaLinkFromHit(editHit, hit, e->button())) {
+	} else if (activateMediaBlockLinkFromHit(editHit, hit, e->button())) {
 		e->accept();
 		return;
 	} else if (!showMediaMenuFromHit(

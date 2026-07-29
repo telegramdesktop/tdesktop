@@ -287,11 +287,6 @@ enum class RichMessagePosting {
 		|| (kind == RichPage::BlockKind::Video);
 }
 
-[[nodiscard]] bool IsStandaloneRichMessageMediaKind(RichPage::BlockKind kind) {
-	return (kind == RichPage::BlockKind::Audio)
-		|| (kind == RichPage::BlockKind::File);
-}
-
 void CountRichPageMedia(
 		const std::vector<RichPage::Block> &blocks,
 		int *result) {
@@ -373,15 +368,15 @@ template <typename Container>
 	if (prepared.type != SendMediaType::File) {
 		return RichPage::BlockKind::Unsupported;
 	}
+	const auto info = DocumentInfoFromPrepared(prepared.document);
+	if (info.audio) {
+		return RichPage::BlockKind::Audio;
+	}
 	if (prepared.forceFile) {
 		return RichPage::BlockKind::File;
 	}
-	const auto info = DocumentInfoFromPrepared(prepared.document);
 	if (info.video) {
 		return RichPage::BlockKind::Video;
-	}
-	if (info.audio) {
-		return RichPage::BlockKind::Audio;
 	}
 	return RichPage::BlockKind::Unsupported;
 }
@@ -2444,7 +2439,7 @@ private:
 		AttachmentInsertMode insertMode,
 		std::optional<State::ReplaceTarget> replaceTarget,
 		bool forceFileBlock) {
-		if (forceFileBlock) {
+		if (forceFileBlock && (file.type != PreparedFileType::Music)) {
 			file.type = PreparedFileType::File;
 		}
 		if (!AcceptedPreparedFileType(file.type)) {
@@ -2621,7 +2616,11 @@ private:
 			maybeContinueDeferredSubmit();
 			return;
 		}
-		if (meta.blockKind != BlockKindForPreparedResult(*prepared)) {
+		const auto resolved = BlockKindForPreparedResult(*prepared);
+		const auto compatible = (meta.blockKind == resolved)
+			|| (RichBlockIsDocumentRow(meta.blockKind)
+				&& RichBlockIsDocumentRow(resolved));
+		if (!compatible) {
 			if (!IsReplacing(insertMode, replaceTarget)) {
 				markMediaBatchItemSkipped(batchId, order);
 				flushMediaBatch(batchId);
@@ -2630,6 +2629,7 @@ private:
 			maybeContinueDeferredSubmit();
 			return;
 		}
+		meta.blockKind = resolved;
 		const auto replacing = IsReplacing(insertMode, replaceTarget);
 		if (exceedsMediaLimitWith(replacing ? 0 : 1)) {
 			if (!replacing) {
@@ -2796,15 +2796,14 @@ private:
 			block.spoiler = attachment.spoiler;
 			block.autoplay = attachment.autoplay;
 			block.loop = attachment.loop;
-		} else if (attachment.blockKind == RichPage::BlockKind::Audio) {
+		} else if (RichBlockIsDocumentRow(attachment.blockKind)) {
 			block.documentId = attachment.localMediaId;
 			block.audioTitle = attachment.audioTitle;
 			block.audioPerformer = attachment.audioPerformer;
-			block.audioFileName = attachment.audioFileName;
 			block.audioDuration = attachment.audioDuration;
-		} else if (attachment.blockKind == RichPage::BlockKind::File) {
-			block.documentId = attachment.localMediaId;
-			block.fileName = attachment.filename;
+			block.fileName = attachment.audioFileName.isEmpty()
+				? attachment.filename
+				: attachment.audioFileName;
 		}
 		return block;
 	}
@@ -3268,12 +3267,10 @@ private:
 				.origin = origin,
 				.serverDocument = document.get(),
 			};
-			if (kind == RichPage::BlockKind::Audio) {
+			if (RichBlockIsDocumentRow(kind)) {
 				attachment.audioTitle = block.audioTitle;
 				attachment.audioPerformer = block.audioPerformer;
-				attachment.audioFileName = block.audioFileName;
 				attachment.audioDuration = block.audioDuration;
-			} else if (kind == RichPage::BlockKind::File) {
 				attachment.filename = block.fileName;
 			}
 			refreshAttachmentInput(attachment);
@@ -3671,7 +3668,7 @@ private:
 				++batch->nextIndex;
 				continue;
 			}
-			if (IsStandaloneRichMessageMediaKind(item.blockKind)) {
+			if (RichBlockIsDocumentRow(item.blockKind)) {
 				blocks.push_back(makeAttachmentBlock(*attachment));
 				emittedUploadIds.push_back(item.uploadId);
 				item.state = MediaBatchItemState::Inserted;
@@ -3702,7 +3699,7 @@ private:
 					waitingBeforeBoundary = true;
 					break;
 				}
-				if (IsStandaloneRichMessageMediaKind(candidate.blockKind)) {
+				if (RichBlockIsDocumentRow(candidate.blockKind)) {
 					break;
 				}
 				if (!IsPhotoVideoRichMessageKind(candidate.blockKind)) {
@@ -3858,10 +3855,8 @@ private:
 					&& mediaIdMatchesAttachment(block.documentId, attachment))
 				|| groupedMediaBlockMatchesAttachment(block, attachment);
 		case RichPage::BlockKind::Audio:
-			return (block.kind == RichPage::BlockKind::Audio)
-				&& mediaIdMatchesAttachment(block.documentId, attachment);
 		case RichPage::BlockKind::File:
-			return (block.kind == RichPage::BlockKind::File)
+			return RichBlockIsDocumentRow(block.kind)
 				&& mediaIdMatchesAttachment(block.documentId, attachment);
 		default:
 			return false;

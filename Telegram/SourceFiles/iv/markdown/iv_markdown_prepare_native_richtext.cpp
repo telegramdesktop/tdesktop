@@ -500,14 +500,16 @@ bool PrepareNativeIvVideoBlock(
 	return true;
 }
 
-bool PrepareNativeIvAudioBlock(
+bool PrepareNativeIvDocumentBlock(
 		const Iv::RichPage::Block &data,
 		std::vector<PreparedBlock> *result,
 		NativeIvPrepareState *state) {
 	if (!CanonicalDocumentId(data)) {
 		return state->editMode
 			? PrepareNativeIvCanonicalPlaceholderBlock(
-				u"Audio"_q,
+				((data.kind == Iv::RichPage::BlockKind::Audio)
+					? u"Audio"_q
+					: u"File"_q),
 				data.caption,
 				data.anchorId,
 				result,
@@ -521,7 +523,7 @@ bool PrepareNativeIvAudioBlock(
 	}
 	SortPreparedIvRichText(&caption);
 	auto block = PreparedBlock();
-	block.kind = PreparedBlockKind::Audio;
+	block.kind = PreparedBlockKind::Document;
 	block.text = std::move(caption.text);
 	block.links = std::move(caption.links);
 	block.anchorId = data.anchorId.isEmpty() ? std::move(anchorId) : data.anchorId;
@@ -529,48 +531,12 @@ bool PrepareNativeIvAudioBlock(
 	block.supplementary = true;
 	block.forceTextSegment = state->editMode;
 	ApplyEmptyMediaCaptionPlaceholder(&block, state);
-	block.audio.id = GeneratePreparedMediaBlockId(state);
-	block.audio.documentId = CanonicalDocumentId(data);
-	block.audio.title = data.audioTitle;
-	block.audio.performer = data.audioPerformer;
-	block.audio.fileName = data.audioFileName;
-	block.audio.duration = data.audioDuration;
-	result->push_back(std::move(block));
-	return true;
-}
-
-bool PrepareNativeIvFileBlock(
-		const Iv::RichPage::Block &data,
-		std::vector<PreparedBlock> *result,
-		NativeIvPrepareState *state) {
-	if (!CanonicalDocumentId(data)) {
-		return state->editMode
-			? PrepareNativeIvCanonicalPlaceholderBlock(
-				u"File"_q,
-				data.caption,
-				data.anchorId,
-				result,
-				state)
-			: true;
-	}
-	auto caption = PreparedIvRichText();
-	auto anchorId = QString();
-	if (!PrepareNativeIvCaption(data.caption, &caption, &anchorId, state)) {
-		return false;
-	}
-	SortPreparedIvRichText(&caption);
-	auto block = PreparedBlock();
-	block.kind = PreparedBlockKind::File;
-	block.text = std::move(caption.text);
-	block.links = std::move(caption.links);
-	block.anchorId = data.anchorId.isEmpty() ? std::move(anchorId) : data.anchorId;
-	block.anchorIds = std::move(caption.anchorIds);
-	block.supplementary = true;
-	block.forceTextSegment = state->editMode;
-	ApplyEmptyMediaCaptionPlaceholder(&block, state);
-	block.file.id = GeneratePreparedMediaBlockId(state);
-	block.file.documentId = CanonicalDocumentId(data);
-	block.file.fileName = data.fileName;
+	block.document.id = GeneratePreparedMediaBlockId(state);
+	block.document.documentId = CanonicalDocumentId(data);
+	block.document.title = data.audioTitle;
+	block.document.performer = data.audioPerformer;
+	block.document.fileName = data.fileName;
+	block.document.duration = data.audioDuration;
 	result->push_back(std::move(block));
 	return true;
 }

@@ -1985,19 +1985,13 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 	case RichPageBlockKind::Channel:
 		return PrepareNativeIvChannelBlock(block, result, state);
 	case RichPageBlockKind::Audio:
-		return PrepareCanonicalNativeIvMediaBlock(
-			block,
-			result,
-			state,
-			path,
-			PrepareNativeIvAudioBlock);
 	case RichPageBlockKind::File:
 		return PrepareCanonicalNativeIvMediaBlock(
 			block,
 			result,
 			state,
 			path,
-			PrepareNativeIvFileBlock);
+			PrepareNativeIvDocumentBlock);
 	case RichPageBlockKind::Math:
 		if (block.formula.trimmed().isEmpty() && !state->editMode) {
 			return true;

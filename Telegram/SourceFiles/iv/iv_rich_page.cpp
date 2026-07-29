@@ -1170,6 +1170,24 @@ void AdoptAnchor(QString *anchorId, RichText *text) {
 	}
 }
 
+[[nodiscard]] Block MakeDocumentBlock(
+		BlockKind kind,
+		uint64 documentId,
+		const MTPPageCaption &caption,
+		ParseContext *context) {
+	const auto info = FindDocumentInfo(*context, documentId);
+	auto parsed = MakeBlock(kind);
+	parsed.audioTitle = info.title;
+	parsed.audioPerformer = info.performer;
+	parsed.audioDuration = info.duration;
+	parsed.fileName = info.fileName;
+	parsed.documentId = documentId;
+	parsed.document = FindDocument(*context, documentId);
+	parsed.caption = ParseCaption(caption, context);
+	AdoptAnchor(&parsed.anchorId, &parsed.caption);
+	return parsed;
+}
+
 void AdoptLeadingParagraphListItemText(ListItem *item) {
 	// List items hold either inline text or a list of blocks, never both,
 	// so adopt the paragraph text only if it is the single item block.
@@ -1443,18 +1461,11 @@ void AppendBlock(
 		});
 		result->push_back(std::move(parsed));
 	}, [&](const MTPDpageBlockAudio &data) {
-		const auto documentId = uint64(data.vaudio_id().v);
-		const auto info = FindDocumentInfo(*context, documentId);
-		auto parsed = MakeBlock(BlockKind::Audio);
-		parsed.audioTitle = info.title;
-		parsed.audioPerformer = info.performer;
-		parsed.audioFileName = info.fileName;
-		parsed.documentId = documentId;
-		parsed.document = FindDocument(*context, documentId);
-		parsed.audioDuration = info.duration;
-		parsed.caption = ParseCaption(data.vcaption(), context);
-		AdoptAnchor(&parsed.anchorId, &parsed.caption);
-		result->push_back(std::move(parsed));
+		result->push_back(MakeDocumentBlock(
+			BlockKind::Audio,
+			uint64(data.vaudio_id().v),
+			data.vcaption(),
+			context));
 	}, [&](const MTPDpageBlockKicker &data) {
 		auto parsed = MakeHeadingBlock(5);
 		parsed.text = ParseRichText(data.vtext(), context);
@@ -1614,15 +1625,11 @@ void AppendBlock(
 		AssertIsDebug();
 		result->push_back(MakeBlock(BlockKind::Unsupported));
 	}, [&](const MTPDpageBlockDocument &data) {
-		const auto documentId = uint64(data.vdocument_id().v);
-		const auto info = FindDocumentInfo(*context, documentId);
-		auto parsed = MakeBlock(BlockKind::File);
-		parsed.fileName = info.fileName;
-		parsed.documentId = documentId;
-		parsed.document = FindDocument(*context, documentId);
-		parsed.caption = ParseCaption(data.vcaption(), context);
-		AdoptAnchor(&parsed.anchorId, &parsed.caption);
-		result->push_back(std::move(parsed));
+		result->push_back(MakeDocumentBlock(
+			BlockKind::File,
+			uint64(data.vdocument_id().v),
+			data.vcaption(),
+			context));
 	}, [&](const MTPDinputPageBlockMap &) {
 		result->push_back(MakeBlock(BlockKind::Unsupported));
 	});
@@ -2581,6 +2588,15 @@ TextWithEntities FlattenRichPageToSimpleText(const RichPage &page) {
 
 bool DetermineRichPageRtl(const RichPage &page) {
 	return BlocksTextRtl(page.blocks).value_or(false);
+}
+
+bool RichDocumentIsAudio(DocumentData *document) {
+	return document
+		&& (document->isAudioFile() || document->isVoiceMessage());
+}
+
+bool RichBlockIsDocumentRow(RichPage::BlockKind kind) {
+	return (kind == BlockKind::Audio) || (kind == BlockKind::File);
 }
 
 std::optional<TextWithEntities> SerializeAsSimple(

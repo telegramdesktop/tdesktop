@@ -1507,29 +1507,23 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 			MTP_long(*documentId),
 			*caption));
 	}
-	case BlockKind::Audio: {
-		const auto documentId = CollectDocument(
-			context,
-			block.documentId,
-			block.document);
-		const auto caption = SerializeCaption(block.caption, block.anchorId, context);
-		return (documentId && caption)
-			? SuccessfulSerializeBlock(MTP_pageBlockAudio(
-				MTP_long(*documentId),
-				*caption))
-			: FailedSerializeBlock();
-	}
+	case BlockKind::Audio:
 	case BlockKind::File: {
 		const auto documentId = CollectDocument(
 			context,
 			block.documentId,
 			block.document);
 		const auto caption = SerializeCaption(block.caption, block.anchorId, context);
-		return (documentId && caption)
-			? SuccessfulSerializeBlock(MTP_pageBlockDocument(
-				MTP_long(*documentId),
-				*caption))
-			: FailedSerializeBlock();
+		if (!documentId || !caption) {
+			return FailedSerializeBlock();
+		}
+		const auto document = ResolveDocumentData(
+			context,
+			block.documentId,
+			block.document);
+		return SuccessfulSerializeBlock(RichDocumentIsAudio(document)
+			? MTP_pageBlockAudio(MTP_long(*documentId), *caption)
+			: MTP_pageBlockDocument(MTP_long(*documentId), *caption));
 	}
 	case BlockKind::Math:
 		return SuccessfulSerializeBlock(MTP_pageBlockMath(

@@ -41,11 +41,7 @@ struct NativeIvRichTextContext {
 	const Iv::RichPage::Block &data,
 	std::vector<PreparedBlock> *result,
 	NativeIvPrepareState *state);
-[[nodiscard]] bool PrepareNativeIvAudioBlock(
-	const Iv::RichPage::Block &data,
-	std::vector<PreparedBlock> *result,
-	NativeIvPrepareState *state);
-[[nodiscard]] bool PrepareNativeIvFileBlock(
+[[nodiscard]] bool PrepareNativeIvDocumentBlock(
 	const Iv::RichPage::Block &data,
 	std::vector<PreparedBlock> *result,
 	NativeIvPrepareState *state);

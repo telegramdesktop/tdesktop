@@ -43,8 +43,7 @@ enum class PreparedBlockKind {
 	Details,
 	Photo,
 	Video,
-	Audio,
-	File,
+	Document,
 	Map,
 	Channel,
 	GroupedMedia,
@@ -600,19 +599,13 @@ struct PreparedVideoBlockData {
 	bool editMode = false;
 };
 
-struct PreparedAudioBlockData {
+struct PreparedDocumentBlockData {
 	PreparedMediaBlockId id;
 	uint64 documentId = 0;
 	QString title;
 	QString performer;
 	QString fileName;
 	int duration = 0;
-};
-
-struct PreparedFileBlockData {
-	PreparedMediaBlockId id;
-	uint64 documentId = 0;
-	QString fileName;
 };
 
 struct PreparedMapBlockData {
@@ -688,8 +681,7 @@ struct PreparedBlock {
 	std::vector<QString> anchorIds;
 	PreparedPhotoBlockData photo;
 	PreparedVideoBlockData video;
-	PreparedAudioBlockData audio;
-	PreparedFileBlockData file;
+	PreparedDocumentBlockData document;
 	PreparedMapBlockData map;
 	PreparedChannelBlockData channel;
 	PreparedGroupedMediaBlockData groupedMedia;

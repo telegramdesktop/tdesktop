@@ -327,8 +327,7 @@ void PaintSelectableTextLeaf(
 			block.textWidth) + CountRevealLinesForBlocks(block.children, st);
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1458,8 +1457,7 @@ void PaintTableCaption(
 	case PreparedBlockKind::ListItem:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -2525,16 +2523,7 @@ void PaintCardSurface(
 	}
 }
 
-void PaintAudioBlock(
-		Painter &p,
-		const LaidOutBlock &block,
-		const style::Markdown &st,
-		const MarkdownArticlePaintContext &context) {
-	PaintPersistentMediaBlock(p, block, context);
-	PaintMediaCaption(p, block, st, context);
-}
-
-void PaintFileBlock(
+void PaintDocumentBlock(
 		Painter &p,
 		const LaidOutBlock &block,
 		const style::Markdown &st,
@@ -3174,11 +3163,8 @@ void PaintBlock(
 	case PreparedBlockKind::Video:
 		PaintVideoBlock(p, block, st, context);
 		break;
-	case PreparedBlockKind::Audio:
-		PaintAudioBlock(p, block, st, context);
-		break;
-	case PreparedBlockKind::File:
-		PaintFileBlock(p, block, st, context);
+	case PreparedBlockKind::Document:
+		PaintDocumentBlock(p, block, st, context);
 		break;
 	case PreparedBlockKind::Map:
 		PaintMapBlock(p, block, st, context);

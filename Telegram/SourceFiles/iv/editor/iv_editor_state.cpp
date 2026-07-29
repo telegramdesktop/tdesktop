@@ -10244,7 +10244,6 @@ bool State::BlockIsEmpty(const Block &block) {
 		|| !block.channelTitle.isEmpty()
 		|| !block.audioTitle.isEmpty()
 		|| !block.audioPerformer.isEmpty()
-		|| !block.audioFileName.isEmpty()
 		|| !block.fileName.isEmpty()
 		|| block.photo
 		|| block.document

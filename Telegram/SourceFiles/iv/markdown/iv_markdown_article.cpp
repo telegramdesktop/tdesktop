@@ -584,8 +584,7 @@ void HarvestCachedTextLeafs(
 		break;
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1105,8 +1104,7 @@ void AppendBlockRevealLines(
 		break;
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1559,8 +1557,7 @@ void RestoreLogicalBlockGeometry(LaidOutBlock *block) {
 	case PreparedBlockKind::Quote:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1590,8 +1587,7 @@ void RestoreLogicalBlockGeometry(LaidOutBlock *block) {
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1700,8 +1696,7 @@ void ApplyOwnerContentGeometry(
 	case PreparedBlockKind::Quote:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1891,8 +1886,7 @@ void CollectMediaBlockGeometries(
 	for (const auto &block : blocks) {
 		const auto media = (block.kind == PreparedBlockKind::Photo)
 			|| (block.kind == PreparedBlockKind::Video)
-			|| (block.kind == PreparedBlockKind::Audio)
-			|| (block.kind == PreparedBlockKind::File)
+			|| (block.kind == PreparedBlockKind::Document)
 			|| (block.kind == PreparedBlockKind::Map)
 			|| (block.kind == PreparedBlockKind::GroupedMedia);
 		if (media && block.editBlock) {
@@ -1949,8 +1943,7 @@ void CollectMediaBlockGeometries(
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -2177,8 +2170,7 @@ void CollectMediaBlockGeometries(
 	case PreparedBlockKind::Rule:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -2749,8 +2741,7 @@ void ConsiderStructuralBlockDropTargets(
 		case PreparedBlockKind::DisplayMath:
 		case PreparedBlockKind::Photo:
 		case PreparedBlockKind::Video:
-		case PreparedBlockKind::Audio:
-		case PreparedBlockKind::File:
+		case PreparedBlockKind::Document:
 		case PreparedBlockKind::Map:
 		case PreparedBlockKind::Channel:
 		case PreparedBlockKind::GroupedMedia:
@@ -2813,8 +2804,7 @@ void ConsiderStructuralListItemDropTargets(
 		case PreparedBlockKind::DisplayMath:
 		case PreparedBlockKind::Photo:
 		case PreparedBlockKind::Video:
-		case PreparedBlockKind::Audio:
-		case PreparedBlockKind::File:
+		case PreparedBlockKind::Document:
 		case PreparedBlockKind::Map:
 		case PreparedBlockKind::Channel:
 		case PreparedBlockKind::GroupedMedia:
@@ -2891,8 +2881,7 @@ void ConsiderStructuralListItemDropTargets(
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -3328,10 +3317,8 @@ void CollectCodeBlockHighlightKeys(
 		return bool(prepared.video.id);
 	case PreparedBlockKind::Map:
 		return bool(prepared.map.id);
-	case PreparedBlockKind::Audio:
-		return bool(prepared.audio.id);
-	case PreparedBlockKind::File:
-		return bool(prepared.file.id);
+	case PreparedBlockKind::Document:
+		return bool(prepared.document.id);
 	case PreparedBlockKind::GroupedMedia:
 		return bool(prepared.groupedMedia.id);
 	default:
@@ -5142,21 +5129,12 @@ std::shared_ptr<MediaBlock> MarkdownArticle::Impl::getOrCreateMediaBlock(
 					_content.mediaRuntime,
 					layoutStyle());
 			});
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 		return getOrCreateMediaBlock(
-			prepared.audio.id,
+			prepared.document.id,
 			[=] {
-				return CreateAudioMediaBlock(
-					prepared.audio,
-					_content.mediaRuntime,
-					layoutStyle());
-			});
-	case PreparedBlockKind::File:
-		return getOrCreateMediaBlock(
-			prepared.file.id,
-			[=] {
-				return CreateFileMediaBlock(
-					prepared.file,
+				return CreateDocumentMediaBlock(
+					prepared.document,
 					_content.mediaRuntime,
 					layoutStyle());
 			});

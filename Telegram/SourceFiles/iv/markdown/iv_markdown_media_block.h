@@ -27,9 +27,8 @@ namespace Iv::Markdown {
 
 struct MarkdownArticlePaintContext;
 class MediaRuntime;
-struct PreparedAudioBlockData;
 struct PreparedChannelBlockData;
-struct PreparedFileBlockData;
+struct PreparedDocumentBlockData;
 struct PreparedGroupedMediaBlockData;
 struct PreparedMapBlockData;
 struct PreparedPhotoBlockData;
@@ -117,12 +116,8 @@ private:
 	const PreparedVideoBlockData &prepared,
 	const std::shared_ptr<MediaRuntime> &mediaRuntime,
 	const style::Markdown &st);
-[[nodiscard]] std::shared_ptr<MediaBlock> CreateAudioMediaBlock(
-	const PreparedAudioBlockData &prepared,
-	const std::shared_ptr<MediaRuntime> &mediaRuntime,
-	const style::Markdown &st);
-[[nodiscard]] std::shared_ptr<MediaBlock> CreateFileMediaBlock(
-	const PreparedFileBlockData &prepared,
+[[nodiscard]] std::shared_ptr<MediaBlock> CreateDocumentMediaBlock(
+	const PreparedDocumentBlockData &prepared,
 	const std::shared_ptr<MediaRuntime> &mediaRuntime,
 	const style::Markdown &st);
 [[nodiscard]] std::shared_ptr<MediaBlock> CreateMapMediaBlock(

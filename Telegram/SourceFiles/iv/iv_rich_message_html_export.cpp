@@ -982,7 +982,7 @@ void SerializeBlock(
 				MediaHref(i->second),
 				identity);
 		} else if (!context.clipboard) {
-			AppendMissingMedia(out, block.audioFileName);
+			AppendMissingMedia(out, block.fileName);
 		} else if (!identity.isEmpty()) {
 			*out += u"<audio controls%1></audio>"_q.arg(identity);
 		}

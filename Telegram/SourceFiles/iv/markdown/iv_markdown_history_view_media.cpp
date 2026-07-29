@@ -546,7 +546,7 @@ bool IvHistoryViewBlock::acceptsVoiceSeekHandler(
 	return _supported
 		&& _media
 		&& alive()
-		&& (_kind == IvHistoryViewMediaKind::Audio)
+		&& (_kind == IvHistoryViewMediaKind::DocumentRow)
 		&& std::dynamic_pointer_cast<VoiceSeekClickHandler>(handler);
 }
 
@@ -666,8 +666,7 @@ IvHistoryViewHit IvHistoryViewBlock::classifyHandler(
 		result.link = handler;
 		return result;
 	}
-	if ((_kind == IvHistoryViewMediaKind::Audio
-			|| _kind == IvHistoryViewMediaKind::File)
+	if (_kind == IvHistoryViewMediaKind::DocumentRow
 		&& std::dynamic_pointer_cast<DocumentOpenClickHandler>(handler)) {
 		result.link = handler;
 		return result;
@@ -709,8 +708,7 @@ bool IvHistoryViewBlock::probeSupport() {
 	case IvHistoryViewMediaKind::GroupedMedia:
 		return supportsHitClassification();
 	case IvHistoryViewMediaKind::Map:
-	case IvHistoryViewMediaKind::Audio:
-	case IvHistoryViewMediaKind::File:
+	case IvHistoryViewMediaKind::DocumentRow:
 		return true;
 	}
 	return false;
@@ -2066,15 +2064,13 @@ IvHistoryViewMediaBlockFactory::IvHistoryViewMediaBlockFactory(
 	base::weak_ptr<Window::SessionController> controller,
 	PhotoFactory createPhoto,
 	VideoFactory createVideo,
-	AudioFactory createAudio,
-	FileFactory createFile,
+	DocumentBlockFactory createDocument,
 	MapFactory createMap,
 	GroupedMediaFactory createGroupedMedia)
 : _controller(std::move(controller))
 , _createPhoto(std::move(createPhoto))
 , _createVideo(std::move(createVideo))
-, _createAudio(std::move(createAudio))
-, _createFile(std::move(createFile))
+, _createDocument(std::move(createDocument))
 , _createMap(std::move(createMap))
 , _createGroupedMedia(std::move(createGroupedMedia)) {
 }
@@ -2089,14 +2085,9 @@ std::shared_ptr<MediaBlock> IvHistoryViewMediaBlockFactory::createVideo(
 	return create(prepared, _createVideo);
 }
 
-std::shared_ptr<MediaBlock> IvHistoryViewMediaBlockFactory::createAudio(
-		const PreparedAudioBlockData &prepared) const {
-	return create(prepared, _createAudio);
-}
-
-std::shared_ptr<MediaBlock> IvHistoryViewMediaBlockFactory::createFile(
-		const PreparedFileBlockData &prepared) const {
-	return create(prepared, _createFile);
+std::shared_ptr<MediaBlock> IvHistoryViewMediaBlockFactory::createDocument(
+		const PreparedDocumentBlockData &prepared) const {
+	return create(prepared, _createDocument);
 }
 
 std::shared_ptr<MediaBlock> IvHistoryViewMediaBlockFactory::createMap(

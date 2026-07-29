@@ -810,6 +810,8 @@ private:
 	void applyTableChange(Fn<bool()> change);
 	[[nodiscard]] std::optional<State::BlockPath> simpleMediaBlockPathFromHit(
 		const Markdown::PreparedEditHit &hit) const;
+	[[nodiscard]] std::optional<State::BlockPath> documentRowBlockPathFromHit(
+		const Markdown::PreparedEditHit &hit) const;
 	[[nodiscard]] std::optional<State::BlockPath> groupedMediaBlockPathFromHit(
 		const Markdown::PreparedEditHit &hit) const;
 	[[nodiscard]] bool structuralPhotoVideoSelectionAvailable() const;
@@ -826,7 +828,7 @@ private:
 		const Markdown::MarkdownArticleHitTestResult &articleHit,
 		QPoint globalPos,
 		MediaClickKind clickKind);
-	[[nodiscard]] bool activateGroupedMediaLinkFromHit(
+	[[nodiscard]] bool activateMediaBlockLinkFromHit(
 		const Markdown::PreparedEditHit &hit,
 		const Markdown::MarkdownArticleHitTestResult &articleHit,
 		Qt::MouseButton button);

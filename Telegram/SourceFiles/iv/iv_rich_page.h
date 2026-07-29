@@ -194,7 +194,6 @@ struct RichPage {
 		QString channelTitle;
 		QString audioTitle;
 		QString audioPerformer;
-		QString audioFileName;
 		QString fileName;
 		TimeId date = 0;
 		int audioDuration = 0;
@@ -334,5 +333,7 @@ inline constexpr auto kTextDiffDeletedColorIndex = 11;
 [[nodiscard]] TextWithEntities FlattenRichPageToSimpleText(
 	const RichPage &page);
 [[nodiscard]] bool DetermineRichPageRtl(const RichPage &page);
+[[nodiscard]] bool RichDocumentIsAudio(DocumentData *document);
+[[nodiscard]] bool RichBlockIsDocumentRow(RichPage::BlockKind kind);
 
 } // namespace Iv

@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_common.h"
 #include "iv/markdown/iv_markdown_history_view_media.h"
 #include "iv/markdown/iv_markdown_prepare.h"
+#include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/view/media_view_open_common.h"
@@ -395,11 +396,6 @@ void CachedPagePhotoRuntime::releaseHeavyData() {
 	};
 }
 
-[[nodiscard]] bool CanHostNativeIvAudioDocument(
-		not_null<DocumentData*> document) {
-	return document->isAudioFile() || document->isVoiceMessage();
-}
-
 [[nodiscard]] QString CachedPageGroupedMediaCopyText(
 		const Markdown::PreparedGroupedMediaBlockData &prepared) {
 	auto photos = 0;
@@ -419,41 +415,39 @@ void CachedPagePhotoRuntime::releaseHeavyData() {
 	return QString();
 }
 
-[[nodiscard]] QString CachedPageAudioTitleText(
-		const Markdown::PreparedAudioBlockData &audio) {
-	if (!audio.title.isEmpty()) {
-		return audio.title;
+[[nodiscard]] QString CachedPageDocumentTitleText(
+		const Markdown::PreparedDocumentBlockData &document,
+		bool audio) {
+	if (audio && !document.title.isEmpty()) {
+		return document.title;
+	} else if (!document.fileName.isEmpty()) {
+		return document.fileName;
 	}
-	if (!audio.fileName.isEmpty()) {
-		return audio.fileName;
-	}
-	return tr::lng_in_dlg_audio_file(tr::now);
+	return audio
+		? tr::lng_in_dlg_audio_file(tr::now)
+		: tr::lng_in_dlg_file(tr::now);
 }
 
-[[nodiscard]] QString CachedPageAudioSubtitleText(
-		const Markdown::PreparedAudioBlockData &audio) {
-	if (!audio.performer.isEmpty()) {
-		return audio.performer;
+[[nodiscard]] QString CachedPageDocumentSubtitleText(
+		const Markdown::PreparedDocumentBlockData &document,
+		bool audio) {
+	if (!audio) {
+		return QString();
+	} else if (!document.performer.isEmpty()) {
+		return document.performer;
 	}
-	if (!audio.fileName.isEmpty()
-		&& audio.fileName != CachedPageAudioTitleText(audio)) {
-		return audio.fileName;
-	}
-	return QString();
+	const auto title = CachedPageDocumentTitleText(document, audio);
+	return (!document.fileName.isEmpty() && document.fileName != title)
+		? document.fileName
+		: QString();
 }
 
-[[nodiscard]] QString CachedPageAudioCopyText(
-		const Markdown::PreparedAudioBlockData &audio) {
-	const auto title = CachedPageAudioTitleText(audio);
-	const auto subtitle = CachedPageAudioSubtitleText(audio);
+[[nodiscard]] QString CachedPageDocumentCopyText(
+		const Markdown::PreparedDocumentBlockData &document,
+		bool audio) {
+	const auto title = CachedPageDocumentTitleText(document, audio);
+	const auto subtitle = CachedPageDocumentSubtitleText(document, audio);
 	return subtitle.isEmpty() ? title : (title + u"\n"_q + subtitle);
-}
-
-[[nodiscard]] QString CachedPageFileCopyText(
-		const Markdown::PreparedFileBlockData &file) {
-	return file.fileName.isEmpty()
-		? tr::lng_in_dlg_file(tr::now)
-		: file.fileName;
 }
 
 class CachedPageDocumentRuntime final : public Markdown::DocumentRuntime {
@@ -1423,42 +1417,7 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 		},
 		[session = _session, host, origin = fileOrigin()](
 				Window::SessionController *controller,
-				const Markdown::PreparedAudioBlockData &prepared) {
-			const auto document = session->data().document(
-				DocumentId(prepared.documentId));
-			if (document->isNull()
-				|| !CanHostNativeIvAudioDocument(document)) {
-				return std::shared_ptr<Markdown::MediaBlock>();
-			}
-			host->registerDocument(document);
-			auto media = std::make_shared<::Data::MediaFile>(
-				host->item(),
-				document,
-				::Data::MediaFile::Args{});
-
-			auto descriptor = Markdown::IvHistoryViewMediaDescriptor();
-			descriptor.stableId = prepared.id.value;
-			descriptor.kind = Markdown::IvHistoryViewMediaKind::Audio;
-			descriptor.copyText = CachedPageAudioCopyText(prepared);
-			descriptor.host = host;
-			descriptor.mediaFactory = [media](
-					not_null<HistoryView::Element*> view) {
-				return media->createView(
-					view,
-					view->data());
-			};
-			descriptor.keepAlive.push_back(base::take(media));
-			descriptor.document = std::make_shared<CachedPageDocumentRuntime>(
-				session,
-				document,
-				origin,
-				host->item()->fullId());
-			return Markdown::CreateIvHistoryViewMediaBlock(
-				std::move(descriptor));
-		},
-		[session = _session, host, origin = fileOrigin()](
-				Window::SessionController *controller,
-				const Markdown::PreparedFileBlockData &prepared) {
+				const Markdown::PreparedDocumentBlockData &prepared) {
 			const auto document = session->data().document(
 				DocumentId(prepared.documentId));
 			if (document->isNull()) {
@@ -1470,10 +1429,11 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 				document,
 				::Data::MediaFile::Args{});
 
+			const auto audio = Iv::RichDocumentIsAudio(document);
 			auto descriptor = Markdown::IvHistoryViewMediaDescriptor();
 			descriptor.stableId = prepared.id.value;
-			descriptor.kind = Markdown::IvHistoryViewMediaKind::File;
-			descriptor.copyText = CachedPageFileCopyText(prepared);
+			descriptor.kind = Markdown::IvHistoryViewMediaKind::DocumentRow;
+			descriptor.copyText = CachedPageDocumentCopyText(prepared, audio);
 			descriptor.host = host;
 			descriptor.mediaFactory = [media](
 					not_null<HistoryView::Element*> view) {

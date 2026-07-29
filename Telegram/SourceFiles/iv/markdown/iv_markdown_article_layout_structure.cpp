@@ -40,8 +40,7 @@ namespace {
 	switch (kind) {
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -288,8 +287,7 @@ void PrepareNestedContext(
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -483,8 +481,7 @@ void FinalizeOwnerSelection(
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1185,8 +1182,7 @@ void FinalizeOwnerSelection(
 	case PreparedBlockKind::Rule:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1839,8 +1835,7 @@ void FinalizeOwnerSelection(
 	case PreparedBlockKind::Rule:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -2533,19 +2528,8 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			top,
 			width,
 			context);
-	case PreparedBlockKind::Audio:
-		return LayoutAudioBlock(
-			prepared,
-			formulas,
-			inlineFormulaObjects,
-			mediaRuntime,
-			st,
-			left,
-			top,
-			width,
-			context);
-	case PreparedBlockKind::File:
-		return LayoutFileBlock(
+	case PreparedBlockKind::Document:
+		return LayoutDocumentBlock(
 			prepared,
 			formulas,
 			inlineFormulaObjects,
@@ -3644,8 +3628,7 @@ int LayoutBlocks(
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -3880,8 +3863,7 @@ int LayoutBlocks(
 				outerRight);
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
-	case PreparedBlockKind::File:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:

@@ -951,8 +951,7 @@ void CollectSelectableSegments(
 		case PreparedBlockKind::Placeholder:
 		case PreparedBlockKind::Photo:
 		case PreparedBlockKind::Video:
-		case PreparedBlockKind::Audio:
-		case PreparedBlockKind::File:
+		case PreparedBlockKind::Document:
 		case PreparedBlockKind::Map:
 		case PreparedBlockKind::Channel:
 		case PreparedBlockKind::GroupedMedia: {
