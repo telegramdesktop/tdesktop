@@ -316,6 +316,76 @@ if (Platform::IsLinux()) {
 
 `Q_OS_LINUX` is only for the rare case where you genuinely want exactly Linux and not the other Unix-like systems — usually you don't. The few existing uses (`Telegram/SourceFiles/core/sandbox.cpp`, `Telegram/SourceFiles/platform/linux/specific_linux.cpp`) are such genuinely Linux-only code paths and stay as-is.
 
+**Treat CMake `LINUX` as the all-other platform:**
+
+In this project, `cmake/validate_special_target.cmake` sets `LINUX` in the
+final `else()` after checking `WIN32` and `APPLE`. It therefore means
+`NOT WIN32 AND NOT APPLE`, including non-Linux Unix platforms; it does not
+mean exactly Linux. For the usual three-way platform split, write:
+
+```cmake
+if (WIN32)
+    set(platform_source platform/win.cpp)
+elseif (APPLE)
+    set(platform_source platform/mac.mm)
+else()
+    set(platform_source platform/linux.cpp)
+endif()
+target_sources(my_target PRIVATE ${platform_source})
+```
+
+Do not add a separate fallback branch after `if (LINUX)` as though `LINUX`
+were one platform among several remaining platforms. There are no remaining
+platforms in this project's CMake platform model.
+
+**Prefer cppgir wrappers over the GLib C API:**
+
+When implementing all-other-platform code with GLib, GObject, or GIO, use the
+generated cppgir C++ bindings under `gi::repository` as much as possible.
+Prefer their `GLib`, `GObject`, and `Gio` types, ownership handling, results,
+and callbacks over raw `g_*`, `g_object_*`, and `g_io_*` APIs. Use the C API
+only when cppgir does not expose the required functionality or at a narrow
+interop boundary that genuinely requires raw GLib types, and keep that raw
+API surface as small as possible.
+
+**Generate typed D-Bus bindings from introspection XML:**
+
+For a D-Bus interface known at build time, prefer the CMake `generate_dbus`
+function from `cmake/external/glib/generate_dbus.cmake` over handwritten
+`GDBusProxy` calls, stringly typed method and signal names, or manually
+maintained C wrappers. Its signature is:
+
+```cmake
+generate_dbus(
+    target_name
+    interface_prefix
+    namespace
+    interface_file)
+```
+
+`target_name` is the existing target that will use the bindings,
+`interface_prefix` is the common D-Bus interface prefix passed to
+`gdbus-codegen`, `namespace` names the generated API, and `interface_file` is
+the D-Bus introspection XML file. Include the helper and call it inside the
+all-other-platform branch:
+
+```cmake
+include(${cmake_helpers_loc}/external/glib/generate_dbus.cmake)
+generate_dbus(
+    my_target
+    org.example.
+    Example
+    ${src_loc}/platform/linux/org.example.Service.xml)
+```
+
+The helper runs `gdbus-codegen`, generates proxy, skeleton, and object-manager
+types, produces GIR metadata, wraps that metadata with cppgir, and links the
+result into `target_name`. Consume the resulting typed API from
+`gi::repository::Example` (using the namespace argument from the example);
+do not edit or separately list files under the build `gen` directory. Use
+generic GLib D-Bus calls only when the interface is genuinely dynamic or
+cannot be represented by suitable introspection XML.
+
 ## API Usage
 
 ### API Schema Files
