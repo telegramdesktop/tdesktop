@@ -25,6 +25,7 @@ namespace Platform::WebAuthn::Cable {
 namespace {
 
 constexpr auto kCeremonyTimeoutMs = crl::time(180000);
+constexpr auto kBluetoothProbeMs = crl::time(1500);
 
 [[nodiscard]] QByteArray ToByteArray(const Bytes &bytes) {
 	return QByteArray(
@@ -54,6 +55,7 @@ struct Ceremony final : std::enable_shared_from_this<Ceremony> {
 	std::shared_ptr<BoxState> ui;
 	bool boxShown = false;
 	base::Timer timeout;
+	base::Timer bluetoothProbe;
 
 	// Keeps the ceremony alive for the duration of the async flow; cleared in
 	// Finish() so nothing lingers once we are done.
@@ -346,65 +348,24 @@ void OnAdvert(std::shared_ptr<Ceremony> ceremony, QByteArray serviceData) {
 	raw->connectToTunnel(QString::fromStdString(domain), path);
 }
 
-void Start(std::shared_ptr<Ceremony> ceremony) {
-	ceremony->ui = std::make_shared<BoxState>();
-	ceremony->qrKey = MakeQRKey();
-	if (!ceremony->qrKey.identity) {
-		Finish(std::move(ceremony), Outcome::Failed);
+void ShowBox(std::shared_ptr<Ceremony> ceremony, bool bluetooth) {
+	if (ceremony->finished || ceremony->boxShown) {
 		return;
 	}
-	const auto secret = ByteSpan(
-		ceremony->qrKey.secret.data(),
-		ceremony->qrKey.secret.size());
-	ceremony->eidKey = Derive<kEidKeySize>(
-		secret,
-		{},
-		DerivedValueType::EidKey);
+	ceremony->bluetoothProbe.cancel();
+	ceremony->bluetoothAvailable = bluetooth;
 
 	const auto weak = std::weak_ptr(ceremony);
-	ceremony->scanner = MakeBleScanner();
-	ceremony->bluetoothAvailable = ceremony->scanner
-		&& ceremony->scanner->start([weak](QByteArray advert) {
-			crl::on_main([weak, advert = std::move(advert)]() mutable {
-				if (const auto strong = weak.lock()) {
-					OnAdvert(strong, std::move(advert));
-				}
-			});
-		}, [weak] {
-			const auto strong = weak.lock();
-			if (strong
-				&& !strong->finished
-				&& strong->step == Ceremony::Step::Scanning) {
-				Finish(strong, Outcome::NoBluetooth);
-			}
-		});
-
-	const auto qrText = ceremony->bluetoothAvailable
-		? QString::fromStdString(EncodeQRContents(
-			ceremony->qrKey,
-			ceremony->isRegister,
-			int64_t(base::unixtime::now())))
-		: QString();
-
-	ceremony->timeout.setCallback([weak] {
-		if (const auto strong = weak.lock()) {
-			if (!strong->finished) {
-				Finish(strong, Outcome::Failed);
-			}
-		}
-	});
-	const auto requested = crl::time(ceremony->isRegister
-		? ceremony->registerRequest.timeoutMs
-		: ceremony->loginRequest.timeoutMs);
-	ceremony->timeout.callOnce((requested > 0)
-		? requested
-		: kCeremonyTimeoutMs);
-
 	ceremony->boxShown = ShowCableBox({
 		.state = ceremony->ui,
-		.qrText = qrText,
+		.qrText = (bluetooth
+			? QString::fromStdString(EncodeQRContents(
+				ceremony->qrKey,
+				ceremony->isRegister,
+				int64_t(base::unixtime::now())))
+			: QString()),
 		.isRegister = ceremony->isRegister,
-		.bluetoothAvailable = ceremony->bluetoothAvailable,
+		.bluetoothAvailable = bluetooth,
 		.securityKeyChosen = [weak] {
 			const auto strong = weak.lock();
 			if (!strong || strong->finished) {
@@ -422,9 +383,67 @@ void Start(std::shared_ptr<Ceremony> ceremony) {
 			}
 		},
 	});
-	if (!ceremony->boxShown && !ceremony->finished) {
+	if (!ceremony->boxShown) {
 		Finish(std::move(ceremony), Outcome::Failed);
 	}
+}
+
+void Start(std::shared_ptr<Ceremony> ceremony) {
+	ceremony->ui = std::make_shared<BoxState>();
+	ceremony->qrKey = MakeQRKey();
+	if (!ceremony->qrKey.identity) {
+		Finish(std::move(ceremony), Outcome::Failed);
+		return;
+	}
+	const auto secret = ByteSpan(
+		ceremony->qrKey.secret.data(),
+		ceremony->qrKey.secret.size());
+	ceremony->eidKey = Derive<kEidKeySize>(
+		secret,
+		{},
+		DerivedValueType::EidKey);
+
+	const auto weak = std::weak_ptr(ceremony);
+	ceremony->scanner = MakeBleScanner();
+	const auto started = ceremony->scanner
+		&& ceremony->scanner->start([weak](QByteArray advert) {
+			crl::on_main([weak, advert = std::move(advert)]() mutable {
+				if (const auto strong = weak.lock()) {
+					OnAdvert(strong, std::move(advert));
+				}
+			});
+		}, [weak](bool available) {
+			crl::on_main([weak, available] {
+				if (const auto strong = weak.lock()) {
+					ShowBox(strong, available);
+				}
+			});
+		});
+
+	ceremony->timeout.setCallback([weak] {
+		if (const auto strong = weak.lock()) {
+			if (!strong->finished) {
+				Finish(strong, Outcome::Failed);
+			}
+		}
+	});
+	const auto requested = crl::time(ceremony->isRegister
+		? ceremony->registerRequest.timeoutMs
+		: ceremony->loginRequest.timeoutMs);
+	ceremony->timeout.callOnce((requested > 0)
+		? requested
+		: kCeremonyTimeoutMs);
+
+	if (!started) {
+		ShowBox(std::move(ceremony), false);
+		return;
+	}
+	ceremony->bluetoothProbe.setCallback([weak] {
+		if (const auto strong = weak.lock()) {
+			ShowBox(strong, false);
+		}
+	});
+	ceremony->bluetoothProbe.callOnce(kBluetoothProbeMs);
 }
 
 } // namespace

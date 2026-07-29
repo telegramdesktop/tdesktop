@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webauthn/cable_scanner.h"
 
 #include "webauthn/cable_core.h"
+#include "base/algorithm.h"
 #include "base/basic_types.h"
 #include "base/platform/win/base_windows_winrt.h"
 
@@ -71,6 +72,7 @@ constexpr auto kFidoCableUuid16 = uint16_t(0xFFF9);
 
 struct State {
 	std::function<void(QByteArray)> onAdvert;
+	std::function<void(bool)> onAvailability;
 	std::set<QByteArray> seen;
 	bool stopped = false;
 };
@@ -81,7 +83,7 @@ public:
 
 	bool start(
 		std::function<void(QByteArray)> onAdvert,
-		std::function<void()> onUnavailable) override;
+		std::function<void(bool)> onAvailability) override;
 	void stop() override;
 
 private:
@@ -97,12 +99,13 @@ WinBleScanner::~WinBleScanner() {
 
 bool WinBleScanner::start(
 		std::function<void(QByteArray)> onAdvert,
-		std::function<void()> onUnavailable) {
+		std::function<void(bool)> onAvailability) {
 	if (!BluetoothRadioPresent()) {
 		return false;
 	}
 	_state = std::make_shared<State>();
 	_state->onAdvert = std::move(onAdvert);
+	_state->onAvailability = std::move(onAvailability);
 	const auto weak = std::weak_ptr(_state);
 	const auto started = base::WinRT::Try([&] {
 		_watcher = BluetoothLEAdvertisementWatcher();
@@ -134,7 +137,16 @@ bool WinBleScanner::start(
 		});
 		_watcher.Start();
 	});
-	return started && _watcher;
+	if (!started || !_watcher) {
+		return false;
+	}
+	crl::on_main([weak] {
+		const auto state = weak.lock();
+		if (state && !state->stopped && state->onAvailability) {
+			base::take(state->onAvailability)(true);
+		}
+	});
+	return true;
 }
 
 void WinBleScanner::stop() {

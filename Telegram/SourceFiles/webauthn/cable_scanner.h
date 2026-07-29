@@ -21,7 +21,7 @@ public:
 
 	[[nodiscard]] virtual bool start(
 		std::function<void(QByteArray)> onAdvert,
-		std::function<void()> onUnavailable) = 0;
+		std::function<void(bool)> onAvailability) = 0;
 	virtual void stop() = 0;
 };
 

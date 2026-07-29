@@ -79,7 +79,7 @@ public:
 
 	bool start(
 		std::function<void(QByteArray)> onAdvert,
-		std::function<void()> onUnavailable) override;
+		std::function<void(bool)> onAvailability) override;
 	void stop() override;
 
 private:
@@ -88,7 +88,7 @@ private:
 	void handleDevice(Bluez::Device1 device);
 	void setDiscoveryFilter();
 	void startDiscovery();
-	void handleUnavailable();
+	void handleAvailability(bool available);
 
 	Bluez::ObjectManagerClient _manager;
 	Bluez::Adapter1 _adapter;
@@ -96,7 +96,7 @@ private:
 	std::set<QByteArray> _seen;
 	bool _discovering = false;
 	std::function<void(QByteArray)> _onAdvert;
-	std::function<void()> _onUnavailable;
+	std::function<void(bool)> _onAvailability;
 
 };
 
@@ -106,12 +106,12 @@ LinuxBleScanner::~LinuxBleScanner() {
 
 bool LinuxBleScanner::start(
 		std::function<void(QByteArray)> onAdvert,
-		std::function<void()> onUnavailable) {
+		std::function<void(bool)> onAvailability) {
 	stop();
 
 	_cancellable = Gio::Cancellable::new_();
 	_onAdvert = std::move(onAdvert);
-	_onUnavailable = std::move(onUnavailable);
+	_onAvailability = std::move(onAvailability);
 
 	Bluez::ObjectManagerClient::new_for_bus(
 		Gio::BusType::SYSTEM_,
@@ -126,7 +126,7 @@ bool LinuxBleScanner::start(
 			auto manager = Bluez::ObjectManagerClient::new_for_bus_finish(
 				result);
 			if (!manager) {
-				handleUnavailable();
+				handleAvailability(false);
 				return;
 			}
 			_manager = *manager;
@@ -136,7 +136,10 @@ bool LinuxBleScanner::start(
 				handleObject(object);
 			}
 			if (!_adapter) {
-				handleUnavailable();
+				handleAvailability(false);
+				return;
+			} else if (!_adapter.get_powered()) {
+				handleAvailability(false);
 				return;
 			}
 			setDiscoveryFilter();
@@ -199,16 +202,17 @@ void LinuxBleScanner::startDiscovery() {
 			}
 			auto started = _adapter.call_start_discovery_finish(result);
 			if (!started) {
-				handleUnavailable();
+				handleAvailability(false);
 				return;
 			}
 			_discovering = true;
+			handleAvailability(true);
 		}));
 }
 
-void LinuxBleScanner::handleUnavailable() {
-	if (const auto onUnavailable = base::take(_onUnavailable)) {
-		onUnavailable();
+void LinuxBleScanner::handleAvailability(bool available) {
+	if (const auto onAvailability = base::take(_onAvailability)) {
+		onAvailability(available);
 	}
 }
 
@@ -223,7 +227,7 @@ void LinuxBleScanner::stop() {
 	_manager = nullptr;
 	_adapter = nullptr;
 	_onAdvert = nullptr;
-	_onUnavailable = nullptr;
+	_onAvailability = nullptr;
 	_seen.clear();
 }
 

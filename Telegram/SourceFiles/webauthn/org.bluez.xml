@@ -10,6 +10,8 @@
     <method name="SetDiscoveryFilter">
       <arg name="properties" direction="in" type="a{sv}"/>
     </method>
+
+    <property name="Powered" type="b" access="read"/>
   </interface>
 
   <interface name="org.bluez.Device1">

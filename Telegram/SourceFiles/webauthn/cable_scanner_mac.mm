@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "webauthn/cable_core.h"
 
+#include "base/algorithm.h"
+
 #include <crl/crl.h>
 
 #import <CoreBluetooth/CoreBluetooth.h>
@@ -20,7 +22,7 @@ namespace {
 
 struct State {
 	std::function<void(QByteArray)> onAdvert;
-	std::function<void()> onUnavailable;
+	std::function<void(bool)> onAvailability;
 	std::set<QByteArray> seen;
 	bool stopped = false;
 };
@@ -75,6 +77,12 @@ struct State {
 		[central
 			scanForPeripheralsWithServices:nil
 			options:@{ CBCentralManagerScanOptionAllowDuplicatesKey: @YES }];
+		crl::on_main([weak = _state] {
+			const auto state = weak.lock();
+			if (state && !state->stopped && state->onAvailability) {
+				base::take(state->onAvailability)(true);
+			}
+		});
 		return;
 	} else if (central.state == CBManagerStateUnknown
 		|| central.state == CBManagerStateResetting) {
@@ -82,8 +90,8 @@ struct State {
 	}
 	crl::on_main([weak = _state] {
 		const auto state = weak.lock();
-		if (state && !state->stopped && state->onUnavailable) {
-			state->onUnavailable();
+		if (state && !state->stopped && state->onAvailability) {
+			base::take(state->onAvailability)(false);
 		}
 	});
 }
@@ -120,7 +128,7 @@ public:
 
 	bool start(
 		std::function<void(QByteArray)> onAdvert,
-		std::function<void()> onUnavailable) override;
+		std::function<void(bool)> onAvailability) override;
 	void stop() override;
 
 private:
@@ -136,10 +144,10 @@ MacBleScanner::~MacBleScanner() {
 
 bool MacBleScanner::start(
 		std::function<void(QByteArray)> onAdvert,
-		std::function<void()> onUnavailable) {
+		std::function<void(bool)> onAvailability) {
 	_state = std::make_shared<State>();
 	_state->onAdvert = std::move(onAdvert);
-	_state->onUnavailable = std::move(onUnavailable);
+	_state->onAvailability = std::move(onAvailability);
 	_delegate = [[TDCableScannerDelegate alloc] initWithState:_state];
 	_central = [[CBCentralManager alloc]
 		initWithDelegate:_delegate
