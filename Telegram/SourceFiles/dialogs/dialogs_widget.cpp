@@ -2772,6 +2772,12 @@ void Widget::updateStoriesVisibility() {
 		|| (pulledDown && hiddenAnimated);
 	const auto hidden = hiddenInstant || hiddenAnimated;
 	const auto changed = (_stories->toggledHidden() != hidden);
+	if (changed
+		&& hidden
+		&& (_storiesExplicitExpand
+			|| _storiesExplicitExpandValue.current() > 0)) {
+		storiesExplicitCollapse();
+	}
 	_stories->setToggledHidden(hiddenInstant, hiddenAnimated);
 	if (changed) {
 		using Type = Ui::ElasticScroll::OverscrollType;
