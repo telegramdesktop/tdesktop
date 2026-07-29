@@ -75,7 +75,7 @@ walletAboutTextLabel: FlatLabel(defaultFlatLabel) {
 walletAboutTitleSkip: 3px;
 walletAboutIconSkip: 3px;
 walletAboutRowSkip: 12px;
-walletAboutInstantIcon: icon{{ "sponsored/withdrawals", windowActiveTextFg }};
+walletAboutInstantIcon: icon{{ "menu/boosts", windowActiveTextFg }};
 walletAboutFeesIcon: icon{{ "sponsored/revenue_split", windowActiveTextFg }};
 walletAboutChainIcon: icon{{ "payments/ton_emoji-24x24", windowActiveTextFg }};
 
@@ -246,3 +246,7 @@ walletReceiveAboutLabel: FlatLabel(walletPhraseTextLabel) {
 	textFg: windowSubTextFg;
 }
 walletReceiveAboutMargin: margins(24px, 16px, 24px, 24px);
+
+walletHowLogoIcon: icon{{ "payments/ton_emoji-48x48", windowFgActive }};
+walletHowLogoPadding: margins(8px, 8px, 8px, 8px);
+walletHowLogoMargin: margins(24px, 48px, 24px, 10px);

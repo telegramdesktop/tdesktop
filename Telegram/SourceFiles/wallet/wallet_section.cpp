@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/event_filter.h"
 #include "base/unixtime.h"
+#include "calls/group/calls_group_common.h"
 #include "core/credits_amount.h"
 #include "data/data_user.h"
 #include "gram/api/gram_api_history.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/emoji_stake_box.h"
+#include "ui/controls/feature_list.h"
 #include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"
 #include "ui/effects/premium_graphics.h"
@@ -697,6 +699,58 @@ void ShowWalletReceiveBox(
 		return;
 	}
 	show->showBox(Box(WalletReceiveBox, address));
+}
+
+void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	box->addRow(
+		Calls::Group::MakeRoundActiveLogo(
+			box,
+			st::walletHowLogoIcon,
+			st::walletHowLogoPadding),
+		st::walletHowLogoMargin);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_wallet_how_title(),
+			st::walletPhraseTitleLabel),
+		st::boxRowPadding,
+		style::al_top);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_wallet_how_subtitle(),
+			st::walletPhraseTextLabel),
+		st::walletPhraseTextMargin,
+		style::al_top);
+
+	const auto features = std::vector<Ui::FeatureListEntry>{
+		{
+			st::walletAboutInstantIcon,
+			tr::lng_wallet_about_instant_title(tr::now),
+			tr::lng_wallet_about_instant_text(tr::now, tr::marked),
+		},
+		{
+			st::walletAboutFeesIcon,
+			tr::lng_wallet_about_fees_title(tr::now),
+			tr::lng_wallet_about_fees_text(tr::now, tr::marked),
+		},
+		{
+			st::walletAboutChainIcon,
+			tr::lng_wallet_about_chain_title(tr::now),
+			tr::lng_wallet_about_chain_text(tr::now, tr::marked),
+		},
+	};
+	for (const auto &feature : features) {
+		box->addRow(Ui::MakeFeatureListEntry(box, feature));
+	}
+
+	AddBoxCloseButton(box);
+
+	box->addButton(tr::lng_wallet_how_button(), [=] { box->closeBox(); });
 }
 
 void WalletTransactionBox(
@@ -2113,6 +2167,11 @@ void FixedBar::showMenu() {
 			controller->show(Box(WalletKeysBackupBox, controller));
 		},
 		&st::menuIconPermissions);
+	_menu->addSeparator();
+	_menu->addAction(
+		Ui::Text::FixAmpersandInAction(tr::lng_wallet_how_menu(tr::now)),
+		[=] { controller->show(Box(WalletHowItWorksBox)); },
+		&st::menuIconFaq);
 	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 	_menu->popup(mapToGlobal(QPoint(
 		width() + st::topBarMenuPosition.x(),
