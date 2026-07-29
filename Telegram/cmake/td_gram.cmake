@@ -40,6 +40,8 @@ PRIVATE
     gram/ton/gram_crc.h
     gram/ton/gram_message.cpp
     gram/ton/gram_message.h
+    gram/ton/gram_transfer_link.cpp
+    gram/ton/gram_transfer_link.h
     gram/wallet/gram_wallet_v5.cpp
     gram/wallet/gram_wallet_v5.h
     gram/wallet/gram_wallet_v5_code.h
@@ -63,6 +65,7 @@ PRIVATE
     gram/tests/gram_api_tests.cpp
     gram/tests/gram_crypto_tests.cpp
     gram/tests/gram_key_tests.cpp
+    gram/tests/gram_link_tests.cpp
     gram/tests/gram_mnemonic_tests.cpp
     gram/tests/gram_tests.h
     gram/tests/gram_tests_main.cpp
