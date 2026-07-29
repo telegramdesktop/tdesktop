@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -88,6 +89,9 @@ constexpr auto kMinus = QChar(0x2212);
 constexpr auto kImportWordCountShort = 12;
 constexpr auto kImportWordCountLong = 24;
 constexpr auto kImportSuggestionsLimit = 3;
+constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
+constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
+constexpr auto kIntroToastDuration = 4 * crl::time(1000);
 
 class Card final : public Ui::RpWidget {
 public:
@@ -753,6 +757,56 @@ void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
 	box->addButton(tr::lng_wallet_how_button(), [=] { box->closeBox(); });
 }
 
+[[nodiscard]] TextWithEntities WalletIntroText(const QString &text) {
+	return Ui::Text::IconEmoji(&st::walletIntroEmoji).append(text);
+}
+
+void SetupIntroTooltip(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Ui::RpWidget*> card) {
+	struct State {
+		Ui::ImportantTooltip *tooltip = nullptr;
+		bool dismissed = false;
+	};
+	const auto state = parent->lifetime().make_state<State>();
+	state->tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
+		parent.get(),
+		Ui::MakeTooltipWithClose(
+			parent,
+			tr::lng_wallet_intro_text() | rpl::map(WalletIntroText),
+			st::walletIntroTooltipMaxWidth,
+			st::defaultImportantTooltipLabel,
+			st::importantTooltipHide,
+			st::defaultImportantTooltip.padding,
+			[=] {
+				state->dismissed = true;
+				state->tooltip->toggleAnimated(false);
+			}),
+		st::historyRecordTooltip);
+	state->tooltip->toggleFast(false);
+
+	rpl::combine(
+		card->geometryValue(),
+		parent->widthValue()
+	) | rpl::on_next([=](const QRect &geometry, int width) {
+		if (state->dismissed || geometry.isEmpty() || !width) {
+			return;
+		}
+		const auto area = Ui::MapFrom(parent, card, card->rect());
+		const auto countPosition = [=](QSize size) {
+			return QPoint(
+				area.x() + (area.width() - size.width()) / 2,
+				area.y()
+					+ st::walletCardBalanceTop
+					+ st::walletCardQrSize
+					+ st::walletIntroTooltipSkip);
+		};
+		state->tooltip->pointAt(area, RectPart::Bottom, countPosition);
+		state->tooltip->toggleFast(true);
+		state->tooltip->updateGeometry();
+	}, parent->lifetime());
+}
+
 void WalletTransactionBox(
 		not_null<Ui::GenericBox*> box,
 		Gram::TransferItem item) {
@@ -766,6 +820,22 @@ void WalletTransactionBox(
 	AddBoxCloseButton(box);
 
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
+}
+
+void ShowWalletTransactionBox(
+		not_null<Window::SessionController*> controller,
+		const Gram::TransferItem &item) {
+	controller->show(Box(WalletTransactionBox, item));
+
+	const auto local = &controller->session().local();
+	if (local->readPref<bool>(kIntroToastShownPref)) {
+		return;
+	}
+	local->writePref<bool>(kIntroToastShownPref, true);
+	controller->showToast({
+		.text = WalletIntroText(tr::lng_wallet_intro_text(tr::now)),
+		.duration = kIntroToastDuration,
+	});
 }
 
 struct SendFlow {
@@ -875,8 +945,7 @@ void WalletSendConfirmBox(
 				lt_address,
 				ShortAddressForm(flow.displayForm)));
 			if (const auto &pending = wallet->pendingSend()) {
-				strong->show(
-					Box(WalletTransactionBox, ItemFromPending(*pending)));
+				ShowWalletTransactionBox(strong, ItemFromPending(*pending));
 			}
 		});
 	};
@@ -2266,7 +2335,7 @@ void SectionWidget::setupContent() {
 	column->show();
 
 	Ui::AddSkip(column, st::walletCardTopSkip);
-	column->add(object_ptr<Card>(column, controller()));
+	const auto card = column->add(object_ptr<Card>(column, controller()));
 
 	const auto controller = this->controller();
 	const auto buttons = column->add(
@@ -2401,12 +2470,12 @@ void SectionWidget::setupContent() {
 			if (pending && !shown) {
 				const auto item = ItemFromPending(*pending);
 				AddHistoryRow(list, RowContentFromPending(*pending), [=] {
-					controller->show(Box(WalletTransactionBox, item));
+					ShowWalletTransactionBox(controller, item);
 				});
 			}
 			for (const auto &item : history) {
 				AddHistoryRow(list, RowContentFromItem(item), [=] {
-					controller->show(Box(WalletTransactionBox, item));
+					ShowWalletTransactionBox(controller, item);
 				});
 			}
 			Ui::AddSkip(list, st::walletRowsTopSkip);
@@ -2440,6 +2509,12 @@ void SectionWidget::setupContent() {
 		column->moveToLeft((width - column->width()) / 2, 0);
 		_container->resize(width, height);
 	}, column->lifetime());
+
+	const auto local = &session().local();
+	if (!local->readPref<bool>(kIntroTooltipShownPref)) {
+		local->writePref<bool>(kIntroTooltipShownPref, true);
+		SetupIntroTooltip(_container, card);
+	}
 }
 
 void SectionWidget::checkLoadMore() {

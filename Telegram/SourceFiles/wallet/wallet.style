@@ -250,3 +250,11 @@ walletReceiveAboutMargin: margins(24px, 16px, 24px, 24px);
 walletHowLogoIcon: icon{{ "payments/ton_emoji-48x48", windowFgActive }};
 walletHowLogoPadding: margins(8px, 8px, 8px, 8px);
 walletHowLogoMargin: margins(24px, 48px, 24px, 10px);
+
+walletIntroEmoji: IconEmoji {
+	icon: icon{{ "payments/ton_emoji-18x18", windowActiveTextFg }};
+	padding: margins(0px, 1px, 4px, 0px);
+	useIconColor: true;
+}
+walletIntroTooltipMaxWidth: 236px;
+walletIntroTooltipSkip: 8px;

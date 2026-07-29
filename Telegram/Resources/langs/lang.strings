@@ -8767,6 +8767,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_how_subtitle" = "Only you control your funds — no one else has access.";
 "lng_wallet_how_button" = "Got it";
 "lng_wallet_how_menu" = "What is Wallet?";
+"lng_wallet_intro_text" = "Gram — Digital currency for Telegram";
 "lng_wallet_row_incoming" = "Incoming transfer";
 "lng_wallet_row_outgoing" = "Outgoing transfer";
 "lng_wallet_row_contract" = "Contract interaction";
