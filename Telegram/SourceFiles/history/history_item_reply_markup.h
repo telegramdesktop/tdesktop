@@ -93,6 +93,7 @@ struct HistoryMessageMarkupButton {
 		WebView,
 		SimpleWebView,
 		CopyText,
+		Disabled,
 
 		SuggestDecline,
 		SuggestAccept,

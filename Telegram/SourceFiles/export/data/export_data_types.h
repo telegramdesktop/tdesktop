@@ -1164,6 +1164,7 @@ struct HistoryMessageMarkupButton {
 		WebView,
 		SimpleWebView,
 		CopyText,
+		Disabled,
 	};
 
 	static QByteArray TypeToString(const HistoryMessageMarkupButton &);

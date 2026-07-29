@@ -161,7 +161,7 @@ std::vector<std::vector<HistoryMessageMarkupButton>> ButtonRowsFromTL(
 						data.vcopy_text().v,
 					});
 				}, [&](const MTPDinlineButtonTypeDisabled &) {
-					AssertIsDebug();
+					row.push_back({ Type::Disabled, text });
 				});
 			});
 		}
@@ -196,6 +196,7 @@ QByteArray HistoryMessageMarkupButton::TypeToString(
 	case Type::WebView: return "web_view";
 	case Type::SimpleWebView: return "simple_web_view";
 	case Type::CopyText: return "copy_text";
+	case Type::Disabled: return "disabled";
 	}
 	Unexpected("Type in HistoryMessageMarkupButton::Type.");
 }

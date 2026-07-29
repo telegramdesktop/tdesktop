@@ -559,6 +559,8 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 		}
 	} break;
 
+	case ButtonType::Disabled: break;
+
 	case ButtonType::SuggestAccept: {
 		Api::AcceptClickHandler(item)->onClick(ClickContext{
 			Qt::LeftButton,

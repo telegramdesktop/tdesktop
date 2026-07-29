@@ -290,7 +290,7 @@ void HistoryMessageMarkupData::fillRows(
 							visual,
 							data.vcopy_text().v);
 					}, [&](const MTPDinlineButtonTypeDisabled &) {
-						AssertIsDebug();
+						row.emplace_back(Type::Disabled, text, visual);
 					});
 				});
 			}
