@@ -1092,6 +1092,27 @@ def portable_root_for(exe, override):
 	return exe.parent
 
 
+def clear_crash_marker(live):
+	"""Drop a stale crash dump so the next launch is not held for a human.
+
+	`Sandbox::singleInstanceChecked()` builds a `LastCrashedWindow` and waits
+	for the user whenever `tdata/working` is non-empty, and `-testagent` does
+	not bypass it — the gate sits above `launchApplication()`. A previous run
+	that died after `TEST_COMPLETE` therefore blocks every later launch until
+	the file is removed by hand. The live folder is a disposable copy and the
+	crash check after a run only counts a dump written during that run, so
+	clearing it here loses nothing.
+	"""
+	working = live / "tdata" / "working"
+	try:
+		if working.is_file() and working.stat().st_size > 0:
+			working.unlink()
+			return True
+	except OSError:
+		pass
+	return False
+
+
 def setup_test_account(root):
 	golden = root / PORTABLE_GOLDEN
 	live = root / PORTABLE_LIVE
@@ -1099,6 +1120,8 @@ def setup_test_account(root):
 	if not golden.is_dir():
 		raise WorkspaceError(f"Missing golden test account: {golden}")
 	if (live / PORTABLE_MARKER).exists():
+		if clear_crash_marker(live):
+			return "reused-marked-live-crash-cleared"
 		return "reused-marked-live"
 	if live.exists():
 		if real.exists():
