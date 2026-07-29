@@ -372,7 +372,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_edit_media_album_error" = "This file cannot be saved as a part of an album.";
 "lng_edit_media_invalid_file" = "Sorry, no way to use this file.";
-"lng_iv_editor_media_invalid_file" = "Sorry, only photos, video, and audio files are supported here.";
+"lng_iv_editor_media_invalid_file" = "Sorry, this file can only be added as a file here.";
 "lng_iv_editor_discard_draft_sure" = "Are you sure you want to discard this message? This action cannot be undone.";
 "lng_iv_editor_saving_draft" = "Saving the draft...";
 "lng_iv_editor_save_draft_failed" = "Could not save the draft.";
