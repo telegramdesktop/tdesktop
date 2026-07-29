@@ -628,7 +628,7 @@ void WalletSendConfirmBox(
 		};
 		wallet->send(args, [=](QString error) {
 			if (!error.isEmpty()) {
-				if (const auto strong = weak.get()) {
+				if (weak.get()) {
 					state->confirmButtonBusy = false;
 				}
 				if (const auto strong = weakController.get()) {
