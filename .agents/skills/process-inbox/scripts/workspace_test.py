@@ -876,11 +876,33 @@ inbox_receipt: receipts/2026/07/19/test.md
 			self.assertIn("projects/old-project/tasks.md", staged)
 
 
-def write_fake_exe(path, script):
+def write_fake_exe(path, script, windows_script):
 	path.parent.mkdir(parents=True, exist_ok=True)
+	if os.name == "nt":
+		path = path.with_suffix(".cmd")
+		path.write_text("@echo off\n" + windows_script, encoding="utf-8")
+		return path
 	path.write_text("#!/bin/sh\n" + script, encoding="utf-8")
 	path.chmod(0o755)
 	return path
+
+
+def write_complete_markers_exe(path):
+	return write_fake_exe(path, (
+		'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
+		'echo "TEST_STEP: open settings" >> "$LOG"\n'
+		'echo "TEST_RESULT: PASS: row painted" >> "$LOG"\n'
+		'echo "SCREENSHOT: /tmp/fake.png" >> "$LOG"\n'
+		'echo "TEST_COMPLETE" >> "$LOG"\n'
+		"exit 0\n"
+	), (
+		'set "LOG=%TDESKTOP_TEST_EVIDENCE_DIR%\\test_log.txt"\n'
+		'echo TEST_STEP: open settings>>"%LOG%"\n'
+		'echo TEST_RESULT: PASS: row painted>>"%LOG%"\n'
+		'echo SCREENSHOT: /tmp/fake.png>>"%LOG%"\n'
+		'echo TEST_COMPLETE>>"%LOG%"\n'
+		"exit /b 0\n"
+	))
 
 
 def make_portable_root(root):
@@ -889,6 +911,16 @@ def make_portable_root(root):
 	(golden / "tdata").mkdir(parents=True)
 	(golden / "tdata" / "key_data").write_text("golden\n", encoding="utf-8")
 	return debug
+
+
+def plant_leftover_crash_state(live):
+	dumps_dir = live / "tdata" / "dumps"
+	dumps_dir.mkdir(parents=True, exist_ok=True)
+	report = live / "tdata" / "working"
+	report.write_bytes(b"Assertion: previous run\n" * 20)
+	dump = dumps_dir / "stale.dmp"
+	dump.write_bytes(b"MDMP stale minidump\n")
+	return report, dump
 
 
 def source_repo_with_task(root, kind="implement"):
@@ -930,6 +962,20 @@ def run_command(handler, **kwargs):
 	with contextlib.redirect_stdout(out):
 		handler(SimpleNamespace(**kwargs))
 	return json.loads(out.getvalue())
+
+
+def run_test_run(exe, run_dir, **overrides):
+	arguments = {
+		"exe": str(exe),
+		"run_dir": str(run_dir),
+		"portable_root": None,
+		"deadline": 20.0,
+		"quiet": 10.0,
+		"grace": 5.0,
+		"env": None,
+	}
+	arguments.update(overrides)
+	return run_command(workspace.command_test_run, **arguments)
 
 
 class MechanicsTest(unittest.TestCase):
@@ -986,29 +1032,12 @@ class MechanicsTest(unittest.TestCase):
 			with self.assertRaisesRegex(workspace.WorkspaceError, "unmarked"):
 				workspace.reset_broken_test_account(root)
 
-	@unittest.skipUnless(os.name == "posix", "posix launch mechanics")
 	def test_test_run_reports_complete_markers(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
 			debug = make_portable_root(root)
-			exe = write_fake_exe(debug / "Telegram", (
-				'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
-				'echo "TEST_STEP: open settings" >> "$LOG"\n'
-				'echo "TEST_RESULT: PASS: row painted" >> "$LOG"\n'
-				'echo "SCREENSHOT: /tmp/fake.png" >> "$LOG"\n'
-				'echo "TEST_COMPLETE" >> "$LOG"\n'
-				"exit 0\n"
-			))
-			result = run_command(
-				workspace.command_test_run,
-				exe=str(exe),
-				run_dir=str(root / "run1"),
-				portable_root=None,
-				deadline=20.0,
-				quiet=10.0,
-				grace=5.0,
-				env=["EXTRA_FLAG=1"],
-			)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			result = run_test_run(exe, root / "run1", env=["EXTRA_FLAG=1"])
 			self.assertEqual(result["outcome"], "exited")
 			self.assertEqual(result["verdict_hint"], "complete")
 			self.assertTrue(result["test_complete"])
@@ -1018,53 +1047,252 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(result["markers"]["screenshots"], ["/tmp/fake.png"])
 			self.assertFalse(result["crash_report_fresh"])
 
-	@unittest.skipUnless(os.name == "posix", "posix launch mechanics")
 	def test_test_run_reports_crash_diagnostics(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
 			debug = make_portable_root(root)
+			live_tdata = debug / workspace.PORTABLE_LIVE / "tdata"
+			live_working = live_tdata / "working"
 			exe = write_fake_exe(debug / "Telegram", (
 				'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
 				'echo "TEST_STEP: about to crash" >> "$LOG"\n'
-				f'mkdir -p "{debug}/{workspace.PORTABLE_LIVE}/tdata"\n'
-				f'echo "Assertion: boom" > "{debug}/{workspace.PORTABLE_LIVE}/tdata/working"\n'
+				f'mkdir -p "{live_tdata}"\n'
+				f'echo "Assertion: boom" > "{live_working}"\n'
 				"exit 0\n"
+			), (
+				'set "LOG=%TDESKTOP_TEST_EVIDENCE_DIR%\\test_log.txt"\n'
+				'echo TEST_STEP: about to crash>>"%LOG%"\n'
+				f'if not exist "{live_tdata}" mkdir "{live_tdata}"\n'
+				f'echo Assertion: boom>"{live_working}"\n'
+				"exit /b 0\n"
 			))
-			result = run_command(
-				workspace.command_test_run,
-				exe=str(exe),
-				run_dir=str(root / "run1"),
-				portable_root=None,
-				deadline=20.0,
-				quiet=10.0,
-				grace=5.0,
-				env=None,
-			)
+			result = run_test_run(exe, root / "run1")
 			self.assertEqual(result["outcome"], "exited")
 			self.assertEqual(result["verdict_hint"], "crash")
 			self.assertFalse(result["test_complete"])
 			self.assertTrue(result["crash_report_fresh"])
 			self.assertIn("Assertion: boom", result["crash_report_excerpt"])
 
-	@unittest.skipUnless(os.name == "posix", "posix launch mechanics")
 	def test_test_run_kills_on_deadline(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
 			debug = make_portable_root(root)
-			exe = write_fake_exe(debug / "Telegram", "sleep 30\n")
-			result = run_command(
-				workspace.command_test_run,
-				exe=str(exe),
-				run_dir=str(root / "run1"),
-				portable_root=None,
-				deadline=2.0,
-				quiet=30.0,
-				grace=5.0,
-				env=None,
+			exe = write_fake_exe(
+				debug / "Telegram", "sleep 30\n", ":loop\ngoto loop\n",
+			)
+			result = run_test_run(
+				exe, root / "run1", deadline=2.0, quiet=30.0,
 			)
 			self.assertEqual(result["outcome"], "deadline-killed")
 			self.assertEqual(result["verdict_hint"], "hang")
 			self.assertFalse(result["test_complete"])
+
+	def test_test_run_clears_and_preserves_stale_crash_state(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			golden = debug / workspace.PORTABLE_GOLDEN
+			real = debug / workspace.PORTABLE_REAL
+			(real / "tdata" / "dumps").mkdir(parents=True)
+			(real / "tdata" / "working").write_bytes(b"real crash\n")
+			(real / "tdata" / "dumps" / "real.dmp").write_bytes(b"real dump\n")
+			self.assertEqual(workspace.setup_test_account(debug), "fresh-copy")
+			live = debug / workspace.PORTABLE_LIVE
+			report, dump = plant_leftover_crash_state(live)
+			report_payload = report.read_bytes()
+			dump_payload = dump.read_bytes()
+			exe = write_complete_markers_exe(debug / "Telegram")
+			run_dir = root / "run1"
+			result = run_test_run(exe, run_dir)
+			stale = run_dir / workspace.STALE_CRASH_DIR
+			self.assertEqual(result["account"], "reused-marked-live")
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertEqual(result["markers"]["pass"], ["row painted"])
+			self.assertEqual(result["stale_crash_cleared"], [
+				{
+					"from": str(report),
+					"kind": "report",
+					"to": str(stale / "working"),
+				},
+				{
+					"from": str(dump),
+					"kind": "dump",
+					"to": str(stale / "dumps" / "stale.dmp"),
+				},
+			])
+			self.assertFalse(report.exists())
+			self.assertFalse(dump.exists())
+			self.assertEqual((stale / "working").read_bytes(), report_payload)
+			self.assertEqual(
+				(stale / "dumps" / "stale.dmp").read_bytes(),
+				dump_payload,
+			)
+			self.assertIsNone(result["crash_report"])
+			self.assertFalse(result["crash_report_fresh"])
+			self.assertEqual(result["dumps"], [])
+			self.assertEqual(
+				(golden / "tdata" / "key_data").read_text(encoding="utf-8"),
+				"golden\n",
+			)
+			self.assertFalse((golden / "tdata" / "working").exists())
+			self.assertFalse((golden / workspace.PORTABLE_MARKER).exists())
+			self.assertEqual(
+				(real / "tdata" / "working").read_bytes(),
+				b"real crash\n",
+			)
+			self.assertEqual(
+				(real / "tdata" / "dumps" / "real.dmp").read_bytes(),
+				b"real dump\n",
+			)
+
+	def test_test_run_without_leftovers_reports_nothing_cleared(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			self.assertEqual(workspace.setup_test_account(debug), "fresh-copy")
+			exe = write_complete_markers_exe(debug / "Telegram")
+			run_dir = root / "run1"
+			result = run_test_run(exe, run_dir)
+			self.assertEqual(result["account"], "reused-marked-live")
+			self.assertEqual(result["stale_crash_cleared"], [])
+			self.assertFalse((run_dir / workspace.STALE_CRASH_DIR).exists())
+			self.assertTrue(result["test_complete"])
+
+	def test_test_run_leaves_an_unmarked_live_folder_alone(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			golden = debug / workspace.PORTABLE_GOLDEN
+			(golden / "tdata" / "dumps").mkdir(parents=True)
+			(golden / "tdata" / "working").write_bytes(b"golden crash\n")
+			golden_dump = golden / "tdata" / "dumps" / "golden.dmp"
+			golden_dump.write_bytes(b"golden dump\n")
+			live = debug / workspace.PORTABLE_LIVE
+			(live / "tdata" / "dumps").mkdir(parents=True)
+			(live / "tdata" / "working").write_bytes(b"user crash\n")
+			(live / "tdata" / "dumps" / "user.dmp").write_bytes(b"user dump\n")
+			(live / "tdata" / "user_file").write_text("mine\n", encoding="utf-8")
+			exe = write_complete_markers_exe(debug / "Telegram")
+			run_dir = root / "run1"
+			result = run_test_run(exe, run_dir)
+			real = debug / workspace.PORTABLE_REAL
+			self.assertEqual(result["account"], "preserved-real")
+			self.assertEqual(result["stale_crash_cleared"], [])
+			self.assertFalse((run_dir / workspace.STALE_CRASH_DIR).exists())
+			self.assertEqual(
+				(real / "tdata" / "working").read_bytes(),
+				b"user crash\n",
+			)
+			self.assertEqual(
+				(real / "tdata" / "dumps" / "user.dmp").read_bytes(),
+				b"user dump\n",
+			)
+			self.assertTrue((real / "tdata" / "user_file").is_file())
+			self.assertEqual(
+				(golden / "tdata" / "working").read_bytes(),
+				b"golden crash\n",
+			)
+			self.assertEqual(golden_dump.read_bytes(), b"golden dump\n")
+			self.assertTrue((live / workspace.PORTABLE_MARKER).is_file())
+			self.assertEqual(
+				(live / "tdata" / "working").read_bytes(),
+				b"golden crash\n",
+			)
+			self.assertEqual(
+				(live / "tdata" / "dumps" / "golden.dmp").read_bytes(),
+				b"golden dump\n",
+			)
+
+	def test_test_run_refuses_to_launch_when_the_stale_report_cannot_move(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			self.assertEqual(workspace.setup_test_account(debug), "fresh-copy")
+			live = debug / workspace.PORTABLE_LIVE
+			report, dump = plant_leftover_crash_state(live)
+			report_payload = report.read_bytes()
+			exe = write_complete_markers_exe(debug / "Telegram")
+			run_dir = root / "run1"
+			with mock.patch.object(
+				workspace.shutil, "move", side_effect=OSError("locked"),
+			):
+				with self.assertRaisesRegex(workspace.WorkspaceError, "working"):
+					run_test_run(exe, run_dir)
+			self.assertEqual(report.read_bytes(), report_payload)
+			self.assertTrue(dump.is_file())
+			self.assertFalse((run_dir / "app_stdout.txt").exists())
+
+	def test_test_run_reports_a_dump_that_could_not_be_moved(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			self.assertEqual(workspace.setup_test_account(debug), "fresh-copy")
+			live = debug / workspace.PORTABLE_LIVE
+			report, dump = plant_leftover_crash_state(live)
+			dump_payload = dump.read_bytes()
+			exe = write_complete_markers_exe(debug / "Telegram")
+			run_dir = root / "run1"
+			real_move = workspace.shutil.move
+
+			def move_unless_dump(source, target):
+				if str(source).endswith(".dmp"):
+					Path(target).write_bytes(Path(source).read_bytes())
+					raise OSError("locked")
+				return real_move(source, target)
+
+			with mock.patch.object(
+				workspace.shutil, "move", side_effect=move_unless_dump,
+			):
+				result = run_test_run(exe, run_dir)
+			stale = run_dir / workspace.STALE_CRASH_DIR
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertEqual(result["stale_crash_cleared"], [
+				{
+					"from": str(report),
+					"kind": "report",
+					"to": str(stale / "working"),
+				},
+				{
+					"from": str(dump),
+					"kind": "dump",
+					"to": None,
+				},
+			])
+			self.assertEqual(dump.read_bytes(), dump_payload)
+			self.assertEqual(result["dumps"], [])
+			self.assertEqual(list((stale / "dumps").iterdir()), [])
+			self.assertEqual(
+				sorted(path.name for path in stale.iterdir()),
+				["dumps", "working"],
+			)
+
+	def test_test_run_discards_a_partial_report_copy_from_a_failed_move(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			self.assertEqual(workspace.setup_test_account(debug), "fresh-copy")
+			live = debug / workspace.PORTABLE_LIVE
+			report, dump = plant_leftover_crash_state(live)
+			report_payload = report.read_bytes()
+			exe = write_complete_markers_exe(debug / "Telegram")
+			run_dir = root / "run1"
+
+			def write_then_fail(source, target):
+				Path(target).write_bytes(Path(source).read_bytes())
+				raise OSError("locked")
+
+			with mock.patch.object(
+				workspace.shutil, "move", side_effect=write_then_fail,
+			):
+				with self.assertRaisesRegex(workspace.WorkspaceError, "working"):
+					run_test_run(exe, run_dir)
+			stale = run_dir / workspace.STALE_CRASH_DIR
+			self.assertEqual(report.read_bytes(), report_payload)
+			self.assertTrue(dump.is_file())
+			self.assertEqual(list(stale.iterdir()), [])
+			self.assertFalse((run_dir / "app_stdout.txt").exists())
 
 	def test_portable_root_for_prefers_app_bundle_parent(self):
 		with tempfile.TemporaryDirectory() as temporary:
@@ -1084,6 +1312,24 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(
 				workspace.portable_root_for(plain, None),
 				root / "out" / "Debug",
+			)
+
+	def test_unique_destination_avoids_an_existing_name(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			self.assertEqual(
+				workspace.unique_destination(root, "working"),
+				root / "working",
+			)
+			(root / "working").write_text("stale\n", encoding="utf-8")
+			self.assertEqual(
+				workspace.unique_destination(root, "working"),
+				root / "working-02",
+			)
+			(root / "stale.dmp").write_text("dump\n", encoding="utf-8")
+			self.assertEqual(
+				workspace.unique_destination(root, "stale.dmp"),
+				root / "stale-02.dmp",
 			)
 
 	def test_overlay_save_and_apply_roundtrip(self):
@@ -1376,7 +1622,7 @@ class MechanicsTest(unittest.TestCase):
 			(source / "tracked.txt").write_text("dirty\n", encoding="utf-8")
 			(source / "unrelated.txt").write_text("stray\n", encoding="utf-8")
 			debug = make_portable_root(root)
-			exe = write_fake_exe(debug / "Telegram", "exit 0\n")
+			exe = write_fake_exe(debug / "Telegram", "exit 0\n", "exit /b 0\n")
 			with mock.patch.object(
 				workspace, "task_action_config", return_value=(config, slot),
 			):

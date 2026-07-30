@@ -50,6 +50,7 @@ OVERLAY_PATHS_FILE = "test-overlay.paths"
 OVERLAY_PATCH_FILE = "test-overlay.patch"
 TEST_LOG_FILE = "test_log.txt"
 TEST_COMPLETE_MARKER = "TEST_COMPLETE"
+STALE_CRASH_DIR = "stale-crash"
 
 
 class WorkspaceError(RuntimeError):
@@ -1092,25 +1093,59 @@ def portable_root_for(exe, override):
 	return exe.parent
 
 
-def clear_crash_marker(live):
-	"""Drop a stale crash dump so the next launch is not held for a human.
+def unique_destination(directory, name):
+	candidate = directory / name
+	index = 2
+	while candidate.exists():
+		candidate = directory / (
+			f"{Path(name).stem}-{index:02d}{Path(name).suffix}"
+		)
+		index += 1
+	return candidate
 
-	`Sandbox::singleInstanceChecked()` builds a `LastCrashedWindow` and waits
-	for the user whenever `tdata/working` is non-empty, and `-testagent` does
-	not bypass it — the gate sits above `launchApplication()`. A previous run
-	that died after `TEST_COMPLETE` therefore blocks every later launch until
-	the file is removed by hand. The live folder is a disposable copy and the
-	crash check after a run only counts a dump written during that run, so
-	clearing it here loses nothing.
-	"""
-	working = live / "tdata" / "working"
-	try:
-		if working.is_file() and working.stat().st_size > 0:
-			working.unlink()
-			return True
-	except OSError:
-		pass
-	return False
+
+def move_stale_leftover(path, target):
+	for attempt in reversed(range(5)):
+		moved = unique_destination(target, path.name)
+		try:
+			shutil.move(path, moved)
+			return moved
+		except OSError:
+			try:
+				moved.unlink(missing_ok=True)
+			except OSError:
+				pass
+			if not attempt:
+				raise
+			time.sleep(0.2)
+
+
+def clear_stale_crash_state(live, destination):
+	report = live / "tdata" / "working"
+	dumps_dir = live / "tdata" / "dumps"
+	leftovers = []
+	if report.is_file() and report.stat().st_size > 0:
+		leftovers.append(("report", report))
+	if dumps_dir.is_dir():
+		leftovers.extend(
+			("dump", path) for path in sorted(dumps_dir.glob("*.dmp"))
+			if path.is_file()
+		)
+	cleared = []
+	for kind, path in leftovers:
+		target = destination / "dumps" if kind == "dump" else destination
+		target.mkdir(parents=True, exist_ok=True)
+		try:
+			moved = move_stale_leftover(path, target)
+		except OSError as error:
+			if kind == "report":
+				raise WorkspaceError(
+					f"Cannot clear the stale crash report {path}: {error}"
+				) from error
+			cleared.append({"from": str(path), "kind": kind, "to": None})
+			continue
+		cleared.append({"from": str(path), "kind": kind, "to": str(moved)})
+	return cleared
 
 
 def setup_test_account(root):
@@ -1120,8 +1155,6 @@ def setup_test_account(root):
 	if not golden.is_dir():
 		raise WorkspaceError(f"Missing golden test account: {golden}")
 	if (live / PORTABLE_MARKER).exists():
-		if clear_crash_marker(live):
-			return "reused-marked-live-crash-cleared"
 		return "reused-marked-live"
 	if live.exists():
 		if real.exists():
@@ -1262,14 +1295,23 @@ def command_test_run(args):
 	log_path = run_dir / TEST_LOG_FILE
 	if log_path.exists():
 		log_path.unlink()
-	stdout_path = run_dir / "app_stdout.txt"
-	stderr_path = run_dir / "app_stderr.txt"
-	working = portable / PORTABLE_LIVE / "tdata" / "working"
-	dumps_dir = portable / PORTABLE_LIVE / "tdata" / "dumps"
 
 	environment = os.environ.copy()
 	environment["TDESKTOP_TEST_EVIDENCE_DIR"] = str(run_dir)
 	environment.update(parse_env_values(args.env))
+
+	cleared = (
+		clear_stale_crash_state(
+			portable / PORTABLE_LIVE, run_dir / STALE_CRASH_DIR
+		)
+		if account == "reused-marked-live"
+		else []
+	)
+
+	stdout_path = run_dir / "app_stdout.txt"
+	stderr_path = run_dir / "app_stderr.txt"
+	working = portable / PORTABLE_LIVE / "tdata" / "working"
+	dumps_dir = portable / PORTABLE_LIVE / "tdata" / "dumps"
 
 	launched_at = time.time()
 	with stdout_path.open("wb") as out, stderr_path.open("wb") as err:
@@ -1364,6 +1406,7 @@ def command_test_run(args):
 		"outcome": outcome,
 		"portable_root": str(portable),
 		"run_dir": str(run_dir),
+		"stale_crash_cleared": cleared,
 		"stderr_tail": tail_of_file(stderr_path),
 		"stragglers_killed": stragglers,
 		"test_complete": test_complete,

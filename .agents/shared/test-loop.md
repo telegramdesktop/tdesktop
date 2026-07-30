@@ -115,7 +115,19 @@ The workspace helper's `test-run` command performs exactly these steps before ev
 contract those commands implement.
 1. Require `test_TelegramForcePortable`. Its absence is the only portable-account setup blocker.
 2. If `TelegramForcePortable/testing` exists, the live folder is already the reusable test copy:
-   touch none of the three folders and proceed straight to testing.
+   never copy, move, or delete any of the three folders. Clear only what an earlier run left
+   inside the live copy — move a non-empty `TelegramForcePortable/tdata/working` into
+   `<EVIDENCE_DIR>/stale-crash/` and every `TelegramForcePortable/tdata/dumps/*.dmp` into
+   `<EVIDENCE_DIR>/stale-crash/dumps/`, then proceed straight to testing. `<EVIDENCE_DIR>` must be
+   a run-specific directory the repository ignores, never a tracked one: a preserved minidump
+   is routinely tens of megabytes, and a tracked destination sweeps it into the wrapper's
+   publishing commit. Never delete either: the leftover `tdata/working` is what blinds the next
+   run (the app shows its "previous launch was not finished properly" window instead of starting,
+   so the run writes no `test_log.txt` and reads as a hang), while a leftover `.dmp` never blocks
+   a launch and is moved only to keep a later run's `dumps` report free of old minidumps.
+   `test-run` names every moved file and its destination in `stale_crash_cleared`, refuses to
+   launch when the report itself cannot be moved, and leaves a minidump it cannot move in place,
+   reported with a null destination.
 3. If `TelegramForcePortable` exists without the marker, it is the user's real data: move it to
    `real_TelegramForcePortable` when that is absent. If `real_...` already exists, the unmarked
    live folder is the user's manual restore of that same preserved data — recursively delete the
