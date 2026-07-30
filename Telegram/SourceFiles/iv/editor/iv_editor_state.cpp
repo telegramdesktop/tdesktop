@@ -5994,7 +5994,16 @@ bool State::appendInsertedTrailingText(
 		last.listItems.push_back(std::move(item));
 		return true;
 	}
-	const auto paragraph = reuseOrInsertParagraph(container, insertAt + count);
+	const auto paragraphIndex = insertAt + count;
+	if (paragraphIndex < int(blocks->size())
+		&& (*blocks)[paragraphIndex].kind == BlockKind::Paragraph
+		&& !BlockIsEmpty((*blocks)[paragraphIndex])) {
+		clearTemporaryDownParagraph();
+		blocks->insert(
+			blocks->begin() + paragraphIndex,
+			MakeParagraphBlock());
+	}
+	const auto paragraph = reuseOrInsertParagraph(container, paragraphIndex);
 	if (!paragraph) {
 		return false;
 	}
