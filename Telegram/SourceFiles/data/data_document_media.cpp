@@ -335,6 +335,12 @@ void DocumentMedia::automaticLoad(
 	const auto loadFromCloud = shouldLoadFromCloud
 		? LoadFromCloudOrLocal
 		: LoadFromLocalOnly;
+	if (_owner->loading()) {
+		if (loadFromCloud == LoadFromCloudOrLocal) {
+			_owner->permitLoadFromCloud();
+		}
+		return;
+	}
 	_owner->save(
 		origin,
 		filename,

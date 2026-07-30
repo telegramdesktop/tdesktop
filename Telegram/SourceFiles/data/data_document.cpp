@@ -1070,6 +1070,12 @@ bool DocumentData::loading() const {
 	return (_loader != nullptr);
 }
 
+void DocumentData::permitLoadFromCloud() {
+	if (_loader) {
+		_loader->permitLoadFromCloud();
+	}
+}
+
 QString DocumentData::loadingFilePath() const {
 	return loading() ? _loader->fileName() : QString();
 }

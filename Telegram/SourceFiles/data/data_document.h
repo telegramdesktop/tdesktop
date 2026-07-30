@@ -133,6 +133,7 @@ public:
 		Media::VideoQuality request);
 
 	[[nodiscard]] bool loading() const;
+	void permitLoadFromCloud();
 	[[nodiscard]] QString loadingFilePath() const;
 	[[nodiscard]] bool displayLoading() const;
 	void save(
