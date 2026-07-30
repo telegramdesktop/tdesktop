@@ -7,85 +7,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "test/test_open_handoff.h"
 
-#include "test/test_launch_fuse.h"
-#include "test/test_log.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "core/file_location.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_document_resolver.h"
 #include "data/data_peer.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "iv/markdown/iv_markdown_common.h"
-#include "ui/image/image_prepare.h"
-
-#include <QtCore/QBuffer>
+#include "test/test_launch_fuse.h"
+#include "test/test_log.h"
 
 namespace Test {
 namespace {
 
-struct ImageBranch {
-	QString mime;
-	QString source;
-	bool sizeOverLimit = false;
-	bool readable = false;
-	bool inApp = false;
-};
-
-[[nodiscard]] ImageBranch DetectImageBranch(
-		not_null<DocumentData*> document,
-		const std::shared_ptr<Data::DocumentMedia> &media,
-		const Core::FileLocation &location) {
-	auto result = ImageBranch();
-	result.source = u"none"_q;
-	if (document->size >= Images::kReadBytesLimit) {
-		result.sizeOverLimit = true;
-		return result;
+[[nodiscard]] QString ImageSourceText(Data::ImageOpenSource source) {
+	switch (source) {
+	case Data::ImageOpenSource::None: return u"none"_q;
+	case Data::ImageOpenSource::Location: return u"location"_q;
+	case Data::ImageOpenSource::Bytes: return u"bytes"_q;
 	}
-	const auto prefix = u"image/"_q;
-	if (!location.isEmpty() && location.accessEnable()) {
-		const auto guard = gsl::finally([&] {
-			location.accessDisable();
-		});
-		const auto path = location.name();
-		result.source = u"location"_q;
-		result.mime = Core::MimeTypeForFile(QFileInfo(path)).name();
-		result.readable = QImageReader(path).canRead();
-		result.inApp = result.mime.startsWith(prefix) && result.readable;
-	} else if (document->mimeString().startsWith(prefix)
-		&& !media->bytes().isEmpty()) {
-		auto bytes = media->bytes();
-		auto buffer = QBuffer(&bytes);
-		result.source = u"bytes"_q;
-		result.mime = document->mimeString();
-		result.readable = QImageReader(&buffer).canRead();
-		result.inApp = result.readable;
-	}
-	return result;
-}
-
-[[nodiscard]] bool LauncherWouldWarn(
-		Core::NameType nameType,
-		bool isIpReveal,
-		const QString &extension,
-		HistoryItem *item) {
-	if (item && item->history()->peer->isVerified()) {
-		return false;
-	}
-	const auto &settings = Core::App().settings();
-	return (isIpReveal && settings.ipRevealWarning())
-		|| ((nameType == Core::NameType::Executable
-			|| nameType == Core::NameType::Unknown)
-			&& !settings.noWarningExtensions().contains(extension));
-}
-
-[[nodiscard]] bool MarkdownCandidate(const QString &path) {
-	const auto info = QFileInfo(path);
-	return info.exists()
-		&& info.isFile()
-		&& info.isReadable()
-		&& Iv::Markdown::LooksLikeMarkdownFile(info.fileName());
+	Unexpected("Data::ImageOpenSource value in ImageSourceText.");
 }
 
 [[nodiscard]] QString ResolveBranch(
@@ -171,7 +114,7 @@ OpenHandoff DescribeOpenHandoff(
 		return result;
 	}
 	const auto media = document->createMediaView();
-	const auto &location = document->location(true);
+	static_cast<void>(document->location(true));
 	result.isTheme = document->isTheme();
 	result.loadedFull = media->loaded(true);
 	result.canBePlayed = media->canBePlayed();
@@ -181,17 +124,21 @@ OpenHandoff DescribeOpenHandoff(
 	result.isSong = document->isSong();
 	result.isVideoFile = document->isVideoFile();
 
-	const auto image = DetectImageBranch(document, media, location);
-	result.sizeOverImageLimit = image.sizeOverLimit;
-	result.imageMime = image.mime;
-	result.imageSource = image.source;
-	result.imageReadable = image.readable;
-	result.isImageInApp = image.inApp;
+	{
+		const auto image = Data::CheckImageOpenInApp(document, media);
+		result.sizeOverImageLimit = image.sizeOverLimit;
+		result.imageMime = image.mime;
+		result.imageSource = ImageSourceText(image.source);
+		result.imageReadable = image.readable;
+		result.isImageInApp = image.openInApp;
+	}
 
 	result.path = document->filepath(true);
 	result.pathExists = !result.path.isEmpty()
 		&& QFileInfo::exists(result.path);
-	result.markdownCandidate = MarkdownCandidate(result.path);
+	const auto pathInfo = QFileInfo(result.path);
+	result.markdownCandidate = Iv::Markdown::IsReadableLocalFile(pathInfo)
+		&& Iv::Markdown::LooksLikeMarkdownFile(pathInfo.fileName());
 	result.nameType = Core::DetectNameType(result.path);
 	result.ipRevealing = (result.nameType != Core::NameType::Executable)
 		&& Core::IsIpRevealingPath(result.path);
@@ -204,7 +151,8 @@ OpenHandoff DescribeOpenHandoff(
 		result.extension);
 	result.peerVerified = item
 		&& item->history()->peer->isVerified();
-	result.launcherWouldWarn = LauncherWouldWarn(
+	result.launcherWouldWarn = Data::LauncherWouldWarn(
+		settings,
 		result.nameType,
 		result.ipRevealing,
 		result.extension,

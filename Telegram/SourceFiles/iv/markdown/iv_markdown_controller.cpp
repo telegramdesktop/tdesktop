@@ -147,10 +147,6 @@ struct PageHistoryTarget {
 	QString hash;
 };
 
-[[nodiscard]] bool IsReadableLocalFile(const QFileInfo &info) {
-	return info.exists() && info.isFile() && info.isReadable();
-}
-
 struct ReadSource {
 	QString path;
 	QString name;
@@ -160,6 +156,7 @@ struct ReadSource {
 		return !path.isEmpty();
 	}
 };
+
 [[nodiscard]] ReadSource ReadLocalSource(
 		const QString &path,
 		const MarkdownParseLimits &limits) {
