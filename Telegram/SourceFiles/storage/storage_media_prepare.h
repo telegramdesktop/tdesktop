@@ -47,11 +47,13 @@ enum class MimeDataState {
 [[nodiscard]] Ui::PreparedList PrepareMediaList(
 	const QList<QUrl> &files,
 	int previewWidth,
-	bool premium);
+	bool premium,
+	Fn<void(const Ui::PreparedList &)> errorCallback = nullptr);
 [[nodiscard]] Ui::PreparedList PrepareMediaList(
 	const QStringList &files,
 	int previewWidth,
-	bool premium);
+	bool premium,
+	Fn<void(const Ui::PreparedList &)> errorCallback = nullptr);
 [[nodiscard]] Ui::PreparedList PrepareMediaFromImage(
 	QImage &&image,
 	QByteArray &&content,

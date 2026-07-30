@@ -27,13 +27,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "data/data_file_origin.h"
 #include "core/shortcuts.h"
 #include "data/components/ephemeral_messages.h"
 #include "data/components/welcome_messages.h"
 #include "data/data_changes.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_drafts.h"
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
 #include "data/data_forum_topic.h"
 #include "data/data_location.h"
 #include "data/data_peer_values.h"
@@ -245,6 +246,30 @@ private:
 		|| (type == PreparedFileType::Video)
 		|| (type == PreparedFileType::Music)
 		|| (type == PreparedFileType::File);
+}
+
+[[nodiscard]] PreparedFileType NormalizePreparedFileType(
+		PreparedFileType type,
+		RequestMediaType requestType,
+		bool replacing) {
+	if (type == PreparedFileType::Music) {
+		return type;
+	}
+	switch (requestType) {
+	case RequestMediaType::File:
+	case RequestMediaType::Audio:
+		return PreparedFileType::File;
+	case RequestMediaType::PhotoVideo:
+		return (type == PreparedFileType::Photo
+			|| type == PreparedFileType::Video)
+			? type
+			: PreparedFileType::File;
+	case RequestMediaType::PhotoVideoAudio:
+		return (!replacing && type == PreparedFileType::None)
+			? PreparedFileType::File
+			: type;
+	}
+	Unexpected("Request media type.");
 }
 
 [[nodiscard]] bool CanUseRichMessages(not_null<Main::Session*> session) {
@@ -788,7 +813,7 @@ private:
 		int order = 0;
 		AttachmentInsertMode insertMode = AttachmentInsertMode::Normal;
 		std::optional<State::ReplaceTarget> replaceTarget;
-		bool forceFileBlock = false;
+		RequestMediaType requestType = RequestMediaType::PhotoVideoAudio;
 	};
 
 	struct EditedItemSnapshot {
@@ -1701,7 +1726,6 @@ private:
 		const auto weak = base::make_weak(this);
 		const auto editorPointer = QPointer<Widget>(editor.get());
 		const auto replacing = replaceTarget.has_value();
-		const auto forceFileBlock = (type == RequestMediaType::File);
 		const auto filter = (type == RequestMediaType::PhotoVideo)
 			? FileDialog::PhotoVideoFilesFilter()
 			: (type == RequestMediaType::Audio)
@@ -1712,7 +1736,7 @@ private:
 		auto callback = [
 			weak,
 			editorPointer,
-			forceFileBlock,
+			type,
 			replaceTarget = std::move(replaceTarget)
 		](FileDialog::OpenResult &&result) mutable {
 			if (const auto session = weak.get()) {
@@ -1720,7 +1744,7 @@ private:
 					editorPointer,
 					std::move(result),
 					std::move(replaceTarget),
-					forceFileBlock);
+					type);
 			}
 		};
 		if (replacing) {
@@ -2066,36 +2090,72 @@ private:
 		QPointer<Widget> editor,
 		FileDialog::OpenResult &&result,
 		std::optional<State::ReplaceTarget> replaceTarget,
-		bool forceFileBlock) {
+		RequestMediaType requestType) {
 		auto showError = [=](tr::phrase<> phrase) {
 			showToast(phrase(tr::now));
 		};
-		auto list = Storage::PreparedFileFromFilesDialog(
-			std::move(result),
-			[](const PreparedList &) {
-				return true;
-			},
-			showError,
-			st::sendMediaPreviewSize,
-			_session->premium());
-		if (!list) {
+		if (replaceTarget) {
+			auto list = Storage::PreparedFileFromFilesDialog(
+				std::move(result),
+				[](const PreparedList &) {
+					return true;
+				},
+				showError,
+				st::sendMediaPreviewSize,
+				true);
+			if (!list) {
+				return;
+			}
+			if (CountAcceptedPreparedFiles(*list) != 1) {
+				showToast(tr::lng_send_media_invalid_files(tr::now));
+				return;
+			}
+			applyPreparedList(
+				editor,
+				std::move(*list),
+				++_prepareBatchId,
+				AttachmentInsertMode::ReplaceBlock,
+				std::nullopt,
+				std::move(replaceTarget),
+				std::nullopt,
+				requestType);
 			return;
 		}
-		if (replaceTarget && CountAcceptedPreparedFiles(*list) != 1) {
-			showToast(tr::lng_send_media_invalid_files(tr::now));
+
+		const auto show = resolveShow();
+		const auto peer = _peer;
+		auto list = result.remoteContent.isEmpty()
+			? Storage::PrepareMediaList(
+				result.paths,
+				st::sendMediaPreviewSize,
+				true,
+				[show, peer](const PreparedList &rejected) {
+					if (show && show->valid()) {
+						::Data::ShowSendError(
+							show,
+							peer,
+							rejected,
+							std::nullopt,
+							true,
+							true);
+					}
+				})
+			: Storage::PrepareMediaFromImage(
+				QImage(),
+				std::move(result.remoteContent),
+				st::sendMediaPreviewSize);
+		if (list.files.empty() && list.filesToProcess.empty()) {
 			return;
 		}
 		applyPreparedList(
 			editor,
-			std::move(*list),
+			std::move(list),
 			++_prepareBatchId,
-			replaceTarget
-				? AttachmentInsertMode::ReplaceBlock
-				: AttachmentInsertMode::Normal,
+			AttachmentInsertMode::Normal,
 			std::nullopt,
-			std::move(replaceTarget),
 			std::nullopt,
-			forceFileBlock);
+			std::nullopt,
+			requestType);
 	}
 
 	void applyPreparedMedia(
@@ -2308,15 +2368,53 @@ private:
 		std::optional<PreparedMediaPasteTarget> insertTarget = std::nullopt,
 		std::optional<State::ReplaceTarget> replaceTarget = std::nullopt,
 		std::optional<State::BlockPath> groupAnchor = std::nullopt,
-		bool forceFileBlock = false) {
+		RequestMediaType requestType = RequestMediaType::PhotoVideoAudio) {
 		const auto effectiveInsertMode = replaceTarget
 			? AttachmentInsertMode::ReplaceBlock
 			: insertMode;
 		const auto replacing = IsReplacing(effectiveInsertMode, replaceTarget);
-		if (const auto accepted = CountAcceptedPreparedFiles(list);
-			accepted && exceedsMediaLimitWith(replacing ? 0 : accepted)) {
-			showRichMessageLimitToast(RichMessageLimitError::Media);
-			return;
+		const auto reservesPrefix = !replacing
+			&& (requestType != RequestMediaType::PhotoVideoAudio);
+		auto totalCount = int(list.files.size() + list.filesToProcess.size());
+		if (reservesPrefix) {
+			const auto freeSlots = std::max(
+				_limits.maxMedia
+					- CountRichPageMedia(_state->richPage())
+					- pendingAttachmentPlaceholders(),
+				0);
+			const auto retainedCount = std::min(totalCount, freeSlots);
+			if (retainedCount < totalCount) {
+				const auto retainedPrepared = std::min(
+					retainedCount,
+					int(list.files.size()));
+				list.files.erase(
+					list.files.begin() + retainedPrepared,
+					list.files.end());
+				list.filesToProcess.erase(
+					list.filesToProcess.begin()
+						+ (retainedCount - retainedPrepared),
+					list.filesToProcess.end());
+				totalCount = retainedCount;
+				showRichMessageLimitToast(RichMessageLimitError::Media);
+			}
+		} else {
+			auto accepted = replacing
+				? CountAcceptedPreparedFiles(list)
+				: totalCount;
+			if (groupAnchor) {
+				accepted = int(list.filesToProcess.size());
+				for (const auto &file : list.files) {
+					if (file.type == PreparedFileType::Photo
+						|| file.type == PreparedFileType::Video) {
+						++accepted;
+					}
+				}
+			}
+			if (accepted
+				&& exceedsMediaLimitWith(replacing ? 0 : accepted)) {
+				showRichMessageLimitToast(RichMessageLimitError::Media);
+				return;
+			}
 		}
 		if (replacing) {
 			if (!list.files.empty()) {
@@ -2327,7 +2425,7 @@ private:
 					0,
 					effectiveInsertMode,
 					std::move(replaceTarget),
-					forceFileBlock);
+					requestType);
 			} else if (!list.filesToProcess.empty()) {
 				_prepareQueue.push_back({
 					.editor = editor,
@@ -2336,14 +2434,12 @@ private:
 					.order = 0,
 					.insertMode = effectiveInsertMode,
 					.replaceTarget = std::move(replaceTarget),
-					.forceFileBlock = forceFileBlock,
+					.requestType = requestType,
 				});
 				enqueueNextPrepare();
 			}
 			return;
 		}
-		const auto totalCount = int(
-			list.files.size() + list.filesToProcess.size());
 		if (totalCount > 0) {
 			_mediaBatches.push_back({
 				.id = batchId,
@@ -2363,7 +2459,7 @@ private:
 				order++,
 				effectiveInsertMode,
 				replaceTarget,
-				forceFileBlock);
+				requestType);
 		}
 		for (auto &file : list.filesToProcess) {
 			_prepareQueue.push_back({
@@ -2373,7 +2469,7 @@ private:
 				.order = order++,
 				.insertMode = effectiveInsertMode,
 				.replaceTarget = replaceTarget,
-				.forceFileBlock = forceFileBlock,
+				.requestType = requestType,
 			});
 		}
 		enqueueNextPrepare();
@@ -2394,7 +2490,7 @@ private:
 				queued.order,
 				queued.insertMode,
 				std::move(queued.replaceTarget),
-				queued.forceFileBlock);
+				queued.requestType);
 		}
 		if (_prepareQueue.empty()) {
 			maybeContinueDeferredSubmit();
@@ -2427,7 +2523,7 @@ private:
 			queued.order,
 			queued.insertMode,
 			std::move(queued.replaceTarget),
-			queued.forceFileBlock);
+			queued.requestType);
 		enqueueNextPrepare();
 	}
 
@@ -2438,23 +2534,33 @@ private:
 		int order,
 		AttachmentInsertMode insertMode,
 		std::optional<State::ReplaceTarget> replaceTarget,
-		bool forceFileBlock) {
-		if (forceFileBlock && (file.type != PreparedFileType::Music)) {
-			file.type = PreparedFileType::File;
+		RequestMediaType requestType) {
+		const auto replacing = IsReplacing(insertMode, replaceTarget);
+		file.type = NormalizePreparedFileType(
+			file.type,
+			requestType,
+			replacing);
+		const auto batch = findMediaBatch(batchId);
+		if (batch
+			&& batch->groupAnchor
+			&& file.type != PreparedFileType::Photo
+			&& file.type != PreparedFileType::Video) {
+			markMediaBatchItemSkipped(batchId, order);
+			flushMediaBatch(batchId);
+			showUnsupportedMediaToast(batchId);
+			return;
 		}
 		if (!AcceptedPreparedFileType(file.type)) {
-			if (!IsReplacing(insertMode, replaceTarget)) {
+			if (!replacing) {
 				markMediaBatchItemSkipped(batchId, order);
 				flushMediaBatch(batchId);
 			}
 			showUnsupportedMediaToast(batchId);
 			return;
 		}
-		const auto additionalMedia = IsReplacing(insertMode, replaceTarget)
-			? 0
-			: 1;
+		const auto additionalMedia = replacing ? 0 : 1;
 		if (exceedsMediaLimitWith(additionalMedia)) {
-			if (!IsReplacing(insertMode, replaceTarget)) {
+			if (!replacing) {
 				markMediaBatchItemSkipped(batchId, order);
 				flushMediaBatch(batchId);
 			}
@@ -2661,10 +2767,17 @@ private:
 		AttachmentInsertMode insertMode,
 		std::optional<State::ReplaceTarget> replaceTarget,
 		QImage originalImage) {
+		const auto replacing = IsReplacing(insertMode, replaceTarget);
+		const auto skipBatchItem = [&] {
+			if (!replacing) {
+				markMediaBatchItemSkipped(batchId, order);
+				flushMediaBatch(batchId);
+			}
+		};
 		if (!editor) {
+			skipBatchItem();
 			return;
 		}
-		const auto replacing = IsReplacing(insertMode, replaceTarget);
 		_editor = editor;
 		const auto blockKind = meta.blockKind;
 		const auto uploadId = createAttachmentUpload(
@@ -2672,10 +2785,12 @@ private:
 			std::move(prepared),
 			std::move(originalImage));
 		if (!uploadId) {
+			skipBatchItem();
 			return;
 		}
 		const auto attachment = findAttachment(*uploadId);
 		if (!attachment) {
+			skipBatchItem();
 			return;
 		}
 		if (!replacing) {
@@ -3639,7 +3754,8 @@ private:
 					continue;
 				}
 				const auto itemHasCaption = !attachment->caption.isEmpty();
-				if (itemHasCaption && hasCaption) {
+				if (int(subrun.size()) >= Ui::MaxAlbumItems()
+					|| (itemHasCaption && hasCaption)) {
 					appendSubrun(subrun);
 					subrun.clear();
 					hasCaption = false;
@@ -4011,7 +4127,14 @@ private:
 			++result;
 		}
 		for (const auto &queued : _prepareQueue) {
-			if (AcceptedPreparedFileType(queued.file.type)
+			const auto replacing = IsReplacing(
+				queued.insertMode,
+				queued.replaceTarget);
+			const auto type = NormalizePreparedFileType(
+				queued.file.type,
+				queued.requestType,
+				replacing);
+			if (AcceptedPreparedFileType(type)
 				|| !queued.file.information) {
 				++result;
 			}

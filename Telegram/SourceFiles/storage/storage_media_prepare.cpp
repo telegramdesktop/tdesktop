@@ -180,48 +180,73 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 PreparedList PrepareMediaList(
 		const QList<QUrl> &files,
 		int previewWidth,
-		bool premium) {
+		bool premium,
+		Fn<void(const PreparedList &)> errorCallback) {
 	auto locals = QStringList();
 	locals.reserve(files.size());
 	for (const auto &url : files) {
 		if (!url.isLocalFile()) {
-			return {
+			auto errorResult = PreparedList(
 				PreparedList::Error::NonLocalUrl,
-				url.toDisplayString()
-			};
+				url.toDisplayString());
+			if (!errorCallback) {
+				return errorResult;
+			}
+			errorCallback(errorResult);
+			continue;
 		}
 		locals.push_back(Platform::File::UrlToLocal(url));
 	}
-	return PrepareMediaList(locals, previewWidth, premium);
+	return PrepareMediaList(
+		locals,
+		previewWidth,
+		premium,
+		std::move(errorCallback));
 }
 
 PreparedList PrepareMediaList(
 		const QStringList &files,
 		int previewWidth,
-		bool premium) {
+		bool premium,
+		Fn<void(const PreparedList &)> errorCallback) {
 	auto result = PreparedList();
 	result.files.reserve(files.size());
 	for (const auto &file : files) {
 		const auto fileinfo = QFileInfo(file);
 		const auto filesize = fileinfo.size();
 		if (fileinfo.isDir()) {
-			return {
+			auto errorResult = PreparedList(
 				PreparedList::Error::Directory,
-				file
-			};
-		} else if (filesize <= 0) {
-			return {
+				file);
+			if (!errorCallback) {
+				return errorResult;
+			}
+			errorCallback(errorResult);
+			continue;
+		} else if (!fileinfo.exists()
+			|| !fileinfo.isFile()
+			|| !fileinfo.isReadable()
+			|| filesize <= 0) {
+			auto errorResult = PreparedList(
 				PreparedList::Error::EmptyFile,
-				file
-			};
+				file);
+			if (!errorCallback) {
+				return errorResult;
+			}
+			errorCallback(errorResult);
+			continue;
 		} else if (filesize > kFileSizePremiumLimit
 			|| (filesize > kFileSizeLimit && !premium)) {
 			auto errorResult = PreparedList(
 				PreparedList::Error::TooLargeFile,
-				QString());
+				file);
 			errorResult.files.emplace_back(file);
 			errorResult.files.back().size = filesize;
-			return errorResult;
+			if (!errorCallback) {
+				return errorResult;
+			}
+			errorCallback(errorResult);
+			continue;
 		}
 		if (result.files.size() < Ui::MaxAlbumItems()) {
 			result.files.emplace_back(file);
