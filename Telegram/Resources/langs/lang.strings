@@ -8790,6 +8790,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_deposit" = "Deposit funds";
 "lng_wallet_send_amount" = "Send {amount} Grams";
 "lng_wallet_send_address_label" = "Address";
+"lng_wallet_comment_title" = "Add comment";
+"lng_wallet_comment_placeholder" = "Optional message";
+"lng_wallet_comment_public" = "This comment is written to the public blockchain and will be permanently visible to everyone. Never include private information.";
+"lng_wallet_comment_add" = "Add";
 "lng_wallet_sent_toast" = "🎉 Grams have been sent to {address}.";
 "lng_wallet_keys_title" = "Keys & Backup";
 "lng_wallet_keys_show_phrase" = "Show Recovery Phrase";

@@ -131,7 +131,7 @@ walletDetailsAddressLabel: FlatLabel(defaultTableValue) {
 	minWidth: 128px;
 	maxHeight: 100px;
 }
-walletDetailsCommentLabel: FlatLabel(defaultFlatLabel) {
+walletCommentLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 128px;
 }
 
@@ -160,6 +160,10 @@ walletSendBalanceLabel: FlatLabel(defaultFlatLabel) {
 }
 walletSendRowSkip: 12px;
 walletSendAmountTopSkip: 16px;
+walletCommentField: InputField(walletSendAddressField) {
+	textMargins: margins(0px, 10px, 0px, 2px);
+}
+walletCommentFieldMargin: margins(24px, 8px, 24px, 0px);
 
 walletBannerTopSkip: 12px;
 walletPhraseTitleLabel: FlatLabel(defaultFlatLabel) {
@@ -174,6 +178,9 @@ walletPhraseTextLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 }
 walletPhraseTextMargin: margins(24px, 8px, 24px, 8px);
+walletBoxAboutLabel: FlatLabel(walletPhraseTextLabel) {
+	textFg: windowSubTextFg;
+}
 walletPhraseWarnPadding: margins(60px, 0px, 24px, 0px);
 walletPhraseWarnLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 248px;
@@ -245,9 +252,6 @@ walletReceiveAddressLineSkip: 4px;
 walletReceiveCopiedTopSkip: 16px;
 walletReceiveCopiedSkip: 6px;
 walletReceiveCopiedIcon: icon{{ "toast/check-16x16", windowActiveTextFg }};
-walletReceiveAboutLabel: FlatLabel(walletPhraseTextLabel) {
-	textFg: windowSubTextFg;
-}
 walletReceiveAboutMargin: margins(24px, 16px, 24px, 24px);
 
 walletHowLogoIcon: icon{{ "payments/ton_emoji-48x48", windowFgActive }};

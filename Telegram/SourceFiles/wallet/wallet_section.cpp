@@ -96,6 +96,7 @@ constexpr auto kImportSuggestionsLimit = 3;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
 constexpr auto kIntroToastDuration = 4 * crl::time(1000);
+constexpr auto kCommentMaxBytes = 960;
 
 class Card final : public Ui::RpWidget {
 public:
@@ -373,6 +374,7 @@ void AddHistoryRow(
 	result.incoming = false;
 	result.counterparty = pending.destination;
 	result.amountNano = pending.amountNano;
+	result.comment = pending.comment;
 	result.date = pending.posted;
 	result.status = Gram::TransferItem::Status::Pending;
 	return result;
@@ -440,6 +442,27 @@ void AddDetailsAmountHeader(
 	}, container->lifetime());
 }
 
+[[nodiscard]] object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> MakeCommentBubble(
+		not_null<QWidget*> parent,
+		rpl::producer<QString> text) {
+	auto result = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+		parent,
+		object_ptr<Ui::FlatLabel>(
+			parent,
+			std::move(text),
+			st::walletCommentLabel),
+		st::giveawayGiftCodeValueMargin);
+	const auto raw = result.data();
+	const auto bg = raw->lifetime().make_state<Ui::RoundRect>(
+		st::boxRadius,
+		st::windowBgOver);
+	raw->paintRequest() | rpl::on_next([=] {
+		auto p = QPainter(raw);
+		bg->paint(p, raw->rect());
+	}, raw->lifetime());
+	return result;
+}
+
 void AddDetailsComment(
 		not_null<Ui::GenericBox*> box,
 		const Gram::TransferItem &item) {
@@ -447,27 +470,14 @@ void AddDetailsComment(
 	if (comment.isEmpty()) {
 		return;
 	}
-	const auto wrap = box->addRow(
-		object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				comment,
-				st::walletDetailsCommentLabel),
-			st::giveawayGiftCodeValueMargin),
+	box->addRow(
+		MakeCommentBubble(box, rpl::single(comment)),
 		style::margins(
 			st::giveawayGiftCodeTableMargin.left(),
 			0,
 			st::giveawayGiftCodeTableMargin.right(),
 			st::walletDetailsAmountBottomSkip),
 		style::al_top);
-	const auto bg = wrap->lifetime().make_state<Ui::RoundRect>(
-		st::boxRadius,
-		st::windowBgOver);
-	wrap->paintRequest() | rpl::on_next([=] {
-		auto p = QPainter(wrap);
-		bg->paint(p, wrap->rect());
-	}, wrap->lifetime());
 }
 
 void AddDetailsTable(
@@ -712,7 +722,7 @@ void WalletReceiveBox(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			tr::lng_wallet_receive_about(),
-			st::walletReceiveAboutLabel),
+			st::walletBoxAboutLabel),
 		st::walletReceiveAboutMargin,
 		style::al_top);
 
@@ -917,6 +927,7 @@ struct SendFlow {
 	int64 amountNano = 0;
 	int64 feeNano = 0;
 	bool feeApproximate = true;
+	QString comment;
 };
 
 [[nodiscard]] std::optional<SendFlow> ParseRecipientFlow(
@@ -955,10 +966,39 @@ not_null<Ui::FlatLabel*> AddSendFlowLabel(
 		style::al_top);
 }
 
+[[nodiscard]] int CommentBytes(const QString &text) {
+	return int(text.trimmed().toUtf8().size());
+}
+
+[[nodiscard]] bool CommentFits(const QString &text) {
+	return CommentBytes(text) <= kCommentMaxBytes;
+}
+
+[[nodiscard]] not_null<Ui::InputField*> AddCommentField(
+		not_null<Ui::GenericBox*> box,
+		const QString &comment) {
+	const auto field = box->addRow(
+		object_ptr<Ui::InputField>(
+			box,
+			st::walletCommentField,
+			Ui::InputField::Mode::NoNewlines,
+			tr::lng_wallet_comment_placeholder(),
+			comment),
+		st::walletCommentFieldMargin);
+	Ui::AddLengthLimitLabel(field, kCommentMaxBytes, {
+		.customCharactersCount = [=] {
+			return CommentBytes(field->getLastText());
+		},
+	});
+	field->setMaxLength(-1);
+	return field;
+}
+
 void WalletSendConfirmBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
-		SendFlow flow) {
+		SendFlow flow,
+		Fn<void(QString)> commentEdited) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -1002,6 +1042,14 @@ void WalletSendConfirmBox(
 		rpl::single(tr::marked(
 			langDateTime(base::unixtime::parse(base::unixtime::now())))));
 
+	const auto field = AddCommentField(box, flow.comment);
+	field->changes() | rpl::on_next([=] {
+		const auto text = field->getLastText().trimmed();
+		if (CommentFits(text)) {
+			commentEdited(text);
+		}
+	}, field->lifetime());
+
 	struct State {
 		rpl::variable<bool> confirmButtonBusy = false;
 	};
@@ -1013,10 +1061,16 @@ void WalletSendConfirmBox(
 		if (state->confirmButtonBusy.current()) {
 			return;
 		}
+		const auto text = field->getLastText().trimmed();
+		if (!CommentFits(text)) {
+			field->showError();
+			return;
+		}
 		state->confirmButtonBusy = true;
 		auto args = SendArgs{
 			.destination = flow.destination,
 			.amountNano = flow.amountNano,
+			.comment = text,
 			.bounce = flow.bounce,
 		};
 		wallet->send(args, [=](QString error) {
@@ -1072,6 +1126,39 @@ void SetButtonDisabledLook(
 	button->setAttribute(Qt::WA_TransparentForMouseEvents, disabled);
 }
 
+void WalletCommentBox(
+		not_null<Ui::GenericBox*> box,
+		const QString &comment,
+		Fn<void(QString)> done) {
+	box->setTitle(tr::lng_wallet_comment_title());
+	box->setWidth(st::boxWideWidth);
+
+	const auto field = AddCommentField(box, comment);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_wallet_comment_public(),
+			st::walletBoxAboutLabel),
+		st::walletPhraseTextMargin,
+		style::al_top);
+	box->setFocusCallback([=] {
+		field->setFocusFast();
+	});
+
+	const auto submit = [=] {
+		const auto text = field->getLastText().trimmed();
+		if (!CommentFits(text)) {
+			field->showError();
+			return;
+		}
+		box->closeBox();
+		done(text);
+	};
+	field->submits() | rpl::on_next(submit, field->lifetime());
+	box->addButton(tr::lng_wallet_comment_add(), submit);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
 void WalletSendAmountBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
@@ -1082,8 +1169,12 @@ void WalletSendAmountBox(
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	AddBoxCloseButton(box);
+	const auto toggle = box->addTopButton(st::boxTitleMenu);
 
 	const auto wallet = &controller->session().wallet();
+	const auto showDeposit = [=] {
+		ShowWalletReceiveBox(controller, box->uiShow());
+	};
 	Ui::AddSkip(box->verticalLayout(), st::walletSendAmountTopSkip);
 	const auto field = Ui::AddTonInputField(box->verticalLayout(), {
 		.value = flow.amountNano,
@@ -1097,9 +1188,15 @@ void WalletSendAmountBox(
 		rpl::variable<int64> fee = 0;
 		rpl::variable<bool> insufficient = false;
 		rpl::variable<bool> canSend = false;
+		rpl::variable<QString> comment;
+		base::unique_qptr<Ui::PopupMenu> menu;
 		bool feeApproximate = true;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	state->comment = flow.comment;
+	const auto setComment = crl::guard(box, [=](QString comment) {
+		state->comment = comment;
+	});
 	const auto updateAmount = [=] {
 		state->amount = Ui::ParseTonAmountString(
 			field->getLastText()).value_or(0);
@@ -1163,11 +1260,48 @@ void WalletSendAmountBox(
 		style::margins(),
 		style::al_top);
 	deposit->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-	deposit->setClickedCallback([=] {
-		ShowWalletReceiveBox(controller, box->uiShow());
-	});
+	deposit->setClickedCallback(showDeposit);
 	depositWrap->toggleOn(state->insufficient.value());
 	depositWrap->finishAnimating();
+
+	const auto commentWrap = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			box,
+			object_ptr<Ui::VerticalLayout>(box)),
+		style::margins(),
+		style::al_justify);
+	const auto commentInner = commentWrap->entity();
+	const auto editComment = [=] {
+		box->uiShow()->showBox(Box(
+			WalletCommentBox,
+			state->comment.current(),
+			setComment));
+	};
+	Ui::AddSkip(commentInner, st::walletSendRowSkip);
+	const auto bubble = commentInner->add(
+		MakeCommentBubble(
+			commentInner,
+			state->comment.value() | rpl::filter([](const QString &text) {
+				return !text.isEmpty();
+			})),
+		st::boxRowPadding,
+		style::al_top);
+	bubble->entity()->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto commentButton = Ui::CreateChild<Ui::AbstractButton>(bubble);
+	commentButton->setPointerCursor(true);
+	commentButton->setClickedCallback(editComment);
+	Ui::ToggleChildrenVisibility(bubble, true);
+	bubble->geometryValue(
+	) | rpl::on_next([=](const QRect &g) {
+		commentButton->resize(g.size());
+		commentButton->lower();
+	}, bubble->lifetime());
+	commentWrap->toggleOn(state->comment.value(
+	) | rpl::map([](const QString &comment) {
+		return !comment.isEmpty();
+	}));
+	commentWrap->finishAnimating();
+
 	AddSendFlowLabel(
 		box,
 		tr::lng_wallet_send_balance(
@@ -1176,6 +1310,34 @@ void WalletSendAmountBox(
 				return Ui::FormatTonAmount(nano).full;
 			})),
 		st::walletSendBalanceLabel);
+
+	toggle->setClickedCallback([=] {
+		if (state->menu) {
+			return;
+		}
+		state->menu = base::make_unique_q<Ui::PopupMenu>(
+			box,
+			st::popupMenuWithIcons);
+		const auto raw = state->menu.get();
+		raw->setDestroyedCallback(crl::guard(toggle, [=] {
+			toggle->setForceRippled(false);
+		}));
+		toggle->setForceRippled(true);
+		raw->addAction(
+			Ui::Text::FixAmpersandInAction(
+				tr::lng_wallet_send_deposit(tr::now)),
+			showDeposit,
+			&st::menuIconAdd);
+		raw->addAction(
+			Ui::Text::FixAmpersandInAction(
+				tr::lng_wallet_comment_title(tr::now)),
+			editComment,
+			&st::menuIconChatBubble);
+		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+		raw->popup(toggle->mapToGlobal(QPoint(
+			toggle->width(),
+			toggle->height())));
+	});
 
 	const auto submit = [=] {
 		if (!state->canSend.current()) {
@@ -1186,8 +1348,12 @@ void WalletSendAmountBox(
 		next.amountNano = state->amount.current();
 		next.feeNano = state->fee.current();
 		next.feeApproximate = state->feeApproximate;
-		box->uiShow()->showBox(
-			Box(WalletSendConfirmBox, controller, next));
+		next.comment = state->comment.current();
+		box->uiShow()->showBox(Box(
+			WalletSendConfirmBox,
+			controller,
+			next,
+			setComment));
 	};
 	field->submits() | rpl::on_next(submit, field->lifetime());
 	const auto button = box->addButton(tr::lng_wallet_send_amount(

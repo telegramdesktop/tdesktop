@@ -43,6 +43,7 @@ struct PendingSend {
 	TimeId posted = 0;
 	int64 amountNano = 0;
 	Gram::Address destination;
+	QString comment;
 };
 
 struct SendArgs {

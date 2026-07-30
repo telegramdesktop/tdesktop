@@ -628,6 +628,7 @@ void Session::sendWithState(
 		.posted = base::unixtime::now(),
 		.amountNano = args.amountNano,
 		.destination = args.destination,
+		.comment = args.comment,
 	};
 	const auto validUntil = request.validUntil;
 	_api.request(
