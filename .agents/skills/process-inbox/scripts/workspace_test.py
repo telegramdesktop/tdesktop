@@ -1073,6 +1073,57 @@ class MechanicsTest(unittest.TestCase):
 			self.assertTrue(result["crash_report_fresh"])
 			self.assertIn("Assertion: boom", result["crash_report_excerpt"])
 
+	def test_test_run_still_diagnoses_a_crash_after_clearing_stale_state(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			self.assertEqual(workspace.setup_test_account(debug), "fresh-copy")
+			live = debug / workspace.PORTABLE_LIVE
+			report, dump = plant_leftover_crash_state(live)
+			report_payload = report.read_bytes()
+			dump_payload = dump.read_bytes()
+			exe = write_fake_exe(debug / "Telegram", (
+				f'echo "Assertion: fresh boom" > "{report}"\n'
+				"exit 0\n"
+			), (
+				f'echo Assertion: fresh boom>"{report}"\n'
+				"exit /b 0\n"
+			))
+			run_dir = root / "run1"
+			result = run_test_run(exe, run_dir)
+			stale = run_dir / workspace.STALE_CRASH_DIR
+			self.assertEqual(result["account"], "reused-marked-live")
+			self.assertEqual(result["stale_crash_cleared"], [
+				{
+					"from": str(report),
+					"kind": "report",
+					"to": str(stale / "working"),
+				},
+				{
+					"from": str(dump),
+					"kind": "dump",
+					"to": str(stale / "dumps" / "stale.dmp"),
+				},
+			])
+			self.assertEqual((stale / "working").read_bytes(), report_payload)
+			self.assertEqual(
+				(stale / "dumps" / "stale.dmp").read_bytes(),
+				dump_payload,
+			)
+			self.assertEqual(result["outcome"], "exited")
+			self.assertFalse(result["test_complete"])
+			self.assertEqual(result["verdict_hint"], "crash")
+			self.assertTrue(result["crash_report_fresh"])
+			self.assertEqual(result["crash_report"], str(report))
+			self.assertIn(
+				"Assertion: fresh boom",
+				result["crash_report_excerpt"],
+			)
+			self.assertIn(
+				"Assertion: fresh boom",
+				report.read_text(encoding="utf-8"),
+			)
+
 	def test_test_run_kills_on_deadline(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
