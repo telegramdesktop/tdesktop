@@ -403,6 +403,19 @@ struct SerializeBlockResult {
 		SerializeContext *context,
 		int skipIndex);
 
+[[nodiscard]] std::optional<MTPRichText> SerializeRichTextValue(
+		const TextWithEntities &text,
+		SerializeContext *context) {
+	const auto entities = SortedRichTextEntities(text);
+	return SerializeRichTextRange(
+		text.text,
+		entities,
+		0,
+		text.text.size(),
+		context,
+		kNoEntityIndex);
+}
+
 [[nodiscard]] std::optional<MTPRichText> SerializeRichTextEntity(
 		const QString &text,
 		const std::vector<EntityInText> &entities,
@@ -501,10 +514,14 @@ struct SerializeBlockResult {
 			case Markdown::InlineTextObjectKind::Button: {
 				const auto button = std::get_if<
 					Markdown::InlineTextObjectButtonData>(&parsed->data);
-				return std::optional<MTPRichText>(MakePlainRichText(
-					(button && !button->label.text.isEmpty())
-						? button->label.text
-						: segment));
+				if (!button || button->label.text.isEmpty()) {
+					return std::optional<MTPRichText>(
+						MakePlainRichText(segment));
+				} else if (button->label.entities.empty()) {
+					return std::optional<MTPRichText>(
+						MakePlainRichText(button->label.text));
+				}
+				return SerializeRichTextValue(button->label, context);
 			}
 			}
 		}
@@ -617,14 +634,7 @@ struct SerializeBlockResult {
 		const RichText &text,
 		const QString &anchorId,
 		SerializeContext *context) {
-	const auto entities = SortedRichTextEntities(text.text);
-	auto result = SerializeRichTextRange(
-		text.text.text,
-		entities,
-		0,
-		text.text.text.size(),
-		context,
-		kNoEntityIndex);
+	auto result = SerializeRichTextValue(text.text, context);
 	if (!result) {
 		return std::nullopt;
 	}

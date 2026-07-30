@@ -226,12 +226,14 @@ void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
 			++i;
 			continue;
 		}
+		auto nested = EntitiesInText();
 		const auto replacement = v::match(object->data, [](
 				const InlineTextObjectFormulaData &data) {
 			return data.trimmedTex;
 		}, [](const InlineTextObjectIvImageData &data) {
 			return data.replacementText;
-		}, [](const InlineTextObjectButtonData &data) {
+		}, [&](const InlineTextObjectButtonData &data) {
+			nested = data.label.entities;
 			return data.label.text;
 		});
 		const auto offset = i->offset();
@@ -260,7 +262,16 @@ void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
 				icon.entities.front().data());
 			++i;
 		} else {
+			auto at = int(i - entities.begin());
 			i = entities.erase(i);
+			for (const auto &entity : nested) {
+				entities.insert(at++, EntityInText(
+					entity.type(),
+					entity.offset() + offset,
+					entity.length(),
+					entity.data()));
+			}
+			i = entities.begin() + at;
 		}
 	}
 }

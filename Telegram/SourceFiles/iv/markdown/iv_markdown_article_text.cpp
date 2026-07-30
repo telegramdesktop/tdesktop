@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_custom_emoji.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/dynamic_image.h"
+#include "ui/emoji_config.h"
 #include "ui/integration.h"
 #include "ui/painter.h"
 
@@ -490,6 +491,26 @@ enum class InlineButtonPresentation : uchar {
 	Link,
 };
 
+class InlineButtonPlainEmoji final : public Ui::Text::CustomEmoji {
+public:
+	InlineButtonPlainEmoji(EmojiPtr emoji, int size);
+
+	int width() override;
+	QString entityData() override;
+	std::optional<Ui::Text::CustomEmojiVerticalMetrics> vertical(
+		const style::TextStyle &textStyle) override;
+	void paint(QPainter &p, const Context &context) override;
+	void unload() override;
+	bool ready() override;
+	bool readyInDefaultState() override;
+
+private:
+	const EmojiPtr _emoji = nullptr;
+	QImage _frame;
+	int _size = 1;
+
+};
+
 class InlineButtonScaledEmoji final : public Ui::Text::CustomEmoji {
 public:
 	InlineButtonScaledEmoji(
@@ -633,6 +654,43 @@ FindInlineFormulaMeasuredData(
 	return InlineButtonPresentation::Default;
 }
 
+[[nodiscard]] QString InlineButtonPlainEmojiPrefix() {
+	return u"iv-markdown:inline-button-emoji:"_q;
+}
+
+[[nodiscard]] TextWithEntities MarkInlineButtonPlainEmoji(
+		TextWithEntities label) {
+	const auto till = [](const EntityInText &entity) {
+		return entity.offset() + entity.length();
+	};
+	const auto start = label.text.constData();
+	const auto finish = start + label.text.size();
+	auto i = label.entities.begin();
+	auto ch = start;
+	while (ch != finish) {
+		auto emojiLength = 0;
+		const auto emoji = Ui::Emoji::Find(ch, finish, &emojiLength);
+		if (!emoji) {
+			++ch;
+			continue;
+		}
+		const auto from = int(ch - start);
+		while (i != label.entities.end() && till(*i) <= from) {
+			++i;
+		}
+		ch += emojiLength;
+		if (i != label.entities.end() && i->offset() < from + emojiLength) {
+			continue;
+		}
+		i = label.entities.insert(i, EntityInText(
+			EntityType::CustomEmoji,
+			from,
+			emojiLength,
+			InlineButtonPlainEmojiPrefix() + emoji->text()));
+	}
+	return label;
+}
+
 [[nodiscard]] Ui::Text::String MakeInlineButtonLabel(
 		const TextWithEntities &label,
 		const style::TextStyle &labelStyle,
@@ -646,12 +704,24 @@ FindInlineFormulaMeasuredData(
 			QStringView data,
 			const Ui::Text::MarkedContext &context
 	) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+		const auto prefix = InlineButtonPlainEmojiPrefix();
+		if (data.startsWith(prefix)) {
+			const auto text = data.mid(prefix.size());
+			const auto emoji = Ui::Emoji::Find(text);
+			return emoji
+				? std::make_unique<InlineButtonPlainEmoji>(emoji, emojiSize)
+				: nullptr;
+		}
 		return Ui::Text::MakeWrappedEmoji<InlineButtonScaledEmoji>(
 			parent ? parent(data, context) : nullptr,
 			emojiSize);
 	};
 	auto result = Ui::Text::String();
-	result.setMarkedText(labelStyle, label, kIvMarkedTextOptions, nested);
+	result.setMarkedText(
+		labelStyle,
+		MarkInlineButtonPlainEmoji(label),
+		kIvMarkedTextOptions,
+		nested);
 	return result;
 }
 
@@ -1182,6 +1252,57 @@ bool InlineIvImageObject::readyInDefaultState() {
 	return true;
 }
 
+InlineButtonPlainEmoji::InlineButtonPlainEmoji(EmojiPtr emoji, int size)
+: _emoji(emoji)
+, _size(std::max(size, 1)) {
+}
+
+int InlineButtonPlainEmoji::width() {
+	return _size;
+}
+
+QString InlineButtonPlainEmoji::entityData() {
+	return InlineButtonPlainEmojiPrefix() + _emoji->text();
+}
+
+auto InlineButtonPlainEmoji::vertical(const style::TextStyle &textStyle)
+-> std::optional<Ui::Text::CustomEmojiVerticalMetrics> {
+	return CenteredVerticalMetrics(textStyle, _size);
+}
+
+void InlineButtonPlainEmoji::paint(QPainter &p, const Context &context) {
+	if (_frame.isNull()) {
+		const auto ratio = style::DevicePixelRatio();
+		const auto large = Ui::Emoji::GetSizeLarge();
+		_frame = QImage(
+			QSize(large, large),
+			QImage::Format_ARGB32_Premultiplied);
+		_frame.setDevicePixelRatio(ratio);
+		_frame.fill(Qt::transparent);
+		{
+			auto q = QPainter(&_frame);
+			Ui::Emoji::Draw(q, _emoji, large, 0, 0);
+		}
+		_frame = _frame.scaled(
+			QSize(_size, _size) * ratio,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	p.drawImage(context.position, _frame);
+}
+
+void InlineButtonPlainEmoji::unload() {
+	_frame = QImage();
+}
+
+bool InlineButtonPlainEmoji::ready() {
+	return true;
+}
+
+bool InlineButtonPlainEmoji::readyInDefaultState() {
+	return true;
+}
+
 InlineButtonScaledEmoji::InlineButtonScaledEmoji(
 	std::unique_ptr<Ui::Text::CustomEmoji> wrapped,
 	int size)
@@ -1205,7 +1326,9 @@ auto InlineButtonScaledEmoji::vertical(const style::TextStyle &textStyle)
 void InlineButtonScaledEmoji::paint(QPainter &p, const Context &context) {
 	const auto ratio = style::DevicePixelRatio();
 	const auto natural = std::max(_wrapped->width(), 1);
-	const auto full = QSize(natural, natural) * ratio;
+	const auto adjusted = Ui::Text::AdjustCustomEmojiSize(natural);
+	const auto skip = (natural - adjusted) / 2;
+	const auto full = QSize(adjusted, adjusted) * ratio;
 	if (_frame.size() != full) {
 		_frame = QImage(full, QImage::Format_ARGB32_Premultiplied);
 		_frame.setDevicePixelRatio(ratio);
@@ -1213,7 +1336,7 @@ void InlineButtonScaledEmoji::paint(QPainter &p, const Context &context) {
 	_frame.fill(Qt::transparent);
 	{
 		auto q = QPainter(&_frame);
-		q.translate(-context.position);
+		q.translate(-context.position - QPoint(skip, skip));
 		_wrapped->paint(q, context);
 	}
 	auto hq = PainterHighQualityEnabler(p);
