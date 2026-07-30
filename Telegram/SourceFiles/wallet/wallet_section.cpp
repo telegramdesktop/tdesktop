@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "profile/profile_back_button.h"
@@ -51,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
@@ -92,6 +94,8 @@ constexpr auto kImportSuggestionsLimit = 3;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
 constexpr auto kIntroToastDuration = 4 * crl::time(1000);
+constexpr auto kExplorerBaseMainnet = "https://tonviewer.com"_cs;
+constexpr auto kExplorerBaseTestnet = "https://testnet.tonviewer.com"_cs;
 
 class Card final : public Ui::RpWidget {
 public:
@@ -480,16 +484,7 @@ void AddDetailsTable(
 }
 
 void AddBoxCloseButton(not_null<Ui::GenericBox*> box) {
-	const auto close = Ui::CreateChild<Ui::IconButton>(
-		box.get(),
-		st::boxTitleClose);
-	close->setClickedCallback([=] {
-		box->closeBox();
-	});
-	box->widthValue(
-	) | rpl::on_next([=](int) {
-		close->moveToRight(0, 0);
-	}, box->lifetime());
+	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 }
 
 [[nodiscard]] QImage ReceiveQrCenter(int side) {
@@ -807,8 +802,29 @@ void SetupIntroTooltip(
 	}, parent->lifetime());
 }
 
+[[nodiscard]] QString ExplorerTransactionUrl(
+		not_null<Main::Session*> session,
+		const QByteArray &traceId) {
+	if (traceId.isEmpty()) {
+		return QString();
+	}
+	auto base = session->appConfig().get<QString>(
+		u"ton_blockchain_explorer_url"_q,
+		QString());
+	while (base.endsWith('/')) {
+		base.chop(1);
+	}
+	if (base.isEmpty()) {
+		base = kExplorerBaseMainnet.utf16();
+	}
+	return base
+		+ u"/transaction/"_q
+		+ QString::fromLatin1(traceId.toHex());
+}
+
 void WalletTransactionBox(
 		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
 		Gram::TransferItem item) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
@@ -818,6 +834,40 @@ void WalletTransactionBox(
 	AddDetailsTable(box, item);
 
 	AddBoxCloseButton(box);
+	const auto toggle = box->addTopButton(st::boxTitleMenu);
+	const auto menu = box->lifetime().make_state<
+		base::unique_qptr<Ui::PopupMenu>>();
+	const auto url = ExplorerTransactionUrl(session, item.traceId);
+	const auto show = box->uiShow();
+	toggle->setClickedCallback([=] {
+		if (*menu) {
+			return;
+		}
+		*menu = base::make_unique_q<Ui::PopupMenu>(
+			box,
+			st::popupMenuWithIcons);
+		const auto raw = menu->get();
+		raw->setDestroyedCallback(crl::guard(toggle, [=] {
+			toggle->setForceRippled(false);
+		}));
+		toggle->setForceRippled(true);
+		if (!url.isEmpty()) {
+			raw->addAction(
+				Ui::Text::FixAmpersandInAction(
+					tr::lng_wallet_details_explorer(tr::now)),
+				[=] { UrlClickHandler::Open(url); },
+				&st::menuIconSearch);
+		}
+		raw->addAction(
+			Ui::Text::FixAmpersandInAction(
+				tr::lng_wallet_details_gram(tr::now)),
+			[=] { show->showBox(Box(WalletHowItWorksBox)); },
+			&st::menuIconFaq);
+		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+		raw->popup(toggle->mapToGlobal(QPoint(
+			toggle->width(),
+			toggle->height())));
+	});
 
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 }
@@ -825,7 +875,7 @@ void WalletTransactionBox(
 void ShowWalletTransactionBox(
 		not_null<Window::SessionController*> controller,
 		const Gram::TransferItem &item) {
-	controller->show(Box(WalletTransactionBox, item));
+	controller->show(Box(WalletTransactionBox, &controller->session(), item));
 
 	const auto local = &controller->session().local();
 	if (local->readPref<bool>(kIntroToastShownPref)) {
@@ -987,7 +1037,7 @@ void WalletSendAmountBox(
 		rpl::single(ShortAddressForm(flow.displayForm))));
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
-	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+	AddBoxCloseButton(box);
 
 	const auto wallet = &controller->session().wallet();
 	Ui::AddSkip(box->verticalLayout(), st::walletSendAmountTopSkip);
@@ -1105,7 +1155,7 @@ void WalletSendRecipientBox(
 	box->setTitle(tr::lng_wallet_send_title());
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
-	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+	AddBoxCloseButton(box);
 
 	Ui::AddSubsectionTitle(
 		box->verticalLayout(),
