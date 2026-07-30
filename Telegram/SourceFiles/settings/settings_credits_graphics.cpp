@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/click_handler_types.h" // UrlClickHandler
+#include "core/ton_explorer_url.h"
 #include "core/ui_integration.h"
 #include "data/components/credits.h"
 #include "data/components/recent_shared_media_gifts.h"
@@ -2069,7 +2070,7 @@ void GenericCreditsEntryBody(
 				st::creditsBoxAboutDivider),
 			style::al_top);
 		label->setClickHandlerFilter([=](const auto &...) {
-			UrlClickHandler::Open(TonAddressUrl(session, address));
+			UrlClickHandler::Open(Core::TonExplorerUrl(session, address));
 			return false;
 		});
 	};

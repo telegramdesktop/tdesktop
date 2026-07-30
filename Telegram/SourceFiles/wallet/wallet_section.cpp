@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "calls/group/calls_group_common.h"
 #include "core/credits_amount.h"
+#include "core/ton_explorer_url.h"
 #include "data/data_user.h"
 #include "gram/api/gram_api_history.h"
 #include "gram/crypto/gram_mnemonic.h"
@@ -21,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
-#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "profile/profile_back_button.h"
@@ -95,8 +95,6 @@ constexpr auto kImportSuggestionsLimit = 3;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
 constexpr auto kIntroToastDuration = 4 * crl::time(1000);
-constexpr auto kExplorerBaseMainnet = "https://tonviewer.com"_cs;
-constexpr auto kExplorerBaseTestnet = "https://testnet.tonviewer.com"_cs;
 
 class Card final : public Ui::RpWidget {
 public:
@@ -809,18 +807,9 @@ void SetupIntroTooltip(
 	if (traceId.isEmpty()) {
 		return QString();
 	}
-	auto base = session->appConfig().get<QString>(
-		u"ton_blockchain_explorer_url"_q,
-		QString());
-	while (base.endsWith('/')) {
-		base.chop(1);
-	}
-	if (base.isEmpty()) {
-		base = kExplorerBaseMainnet.utf16();
-	}
-	return base
-		+ u"/transaction/"_q
-		+ QString::fromLatin1(traceId.toHex());
+	return Core::TonExplorerUrl(
+		session,
+		u"transaction/"_q + QString::fromLatin1(traceId.toHex()));
 }
 
 void WalletTransactionBox(

@@ -603,6 +603,8 @@ PRIVATE
     core/sandbox.h
     core/shortcuts.cpp
     core/shortcuts.h
+    core/ton_explorer_url.cpp
+    core/ton_explorer_url.h
     core/ui_integration.cpp
     core/ui_integration.h
     core/update_channel.h
