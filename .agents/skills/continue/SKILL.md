@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Continue autonomous Telegram Desktop development from the shared ai-tdesktop repository. Use when the user invokes $continue or /continue, asks Codex to keep working through the AI queue, or wants one command to resume the active task, drain a frozen startup batch, or process the local inbox only when startup has no task work, while including follow-ups discovered from the batch but deferring unrelated tasks added mid-run.
+description: Continue autonomous Telegram Desktop development from the shared ai-tdesktop repository. Use when the user invokes $continue or /continue, asks Codex to keep working through the AI queue, or wants one command to resume the active task at the head of a frozen startup batch, drain matching queued work, or process the local inbox only when startup has no task work, while including follow-ups discovered from the batch but deferring unrelated tasks added mid-run.
 ---
 
 # Continue AI Work
@@ -67,7 +67,8 @@ Treat text after `$continue` or `/continue` as optional natural-language
 guidance for new shared work. Its own wording decides its strength. A
 preference such as "payments tasks first" reorders the shared tasks recorded
 in the startup batch; it does not exclude the others. A restriction such as
-"only the payments tasks" records only matching unclaimed shared tasks.
+"only the payments tasks" or "all tasks except projects X and Y" records only
+matching unclaimed shared tasks.
 Hints never exclude this checkout's active, blocked, or legacy-reserved work.
 A restrictive hint that matches no shared task does not make an existing
 queue look idle or permit inbox processing.
@@ -78,6 +79,10 @@ canonical state, then select another recorded id. Always resume this
 checkout's `in-progress` task and previously blocked work before applying a
 priority hint to new shared work, unless the user expressly asks to stop or
 reassign it.
+
+The presence of active work changes ordering, not batch scope. Unless the user
+expressly asks to run only the current task, freeze the same matching startup
+queue behind the active task that would have been recorded without active work.
 
 ## Freeze the invocation batch
 
@@ -95,13 +100,21 @@ Do not write a batch file, claim the whole batch, or publish reservations.
 Queue refreshes update task state but never add ordinary task ids to the
 frozen batch.
 
-### Mode 1: resume active work
+### Mode 1: resume active work, then drain the selected snapshot
 
 If `own_in_progress` contains this checkout's active task, choose `active`
-mode and record only that task id. Do not add existing blocked, reserved, or
-unclaimed tasks. Finish the active task to an approved, genuinely blocked, or
-global-hard-stop boundary, then continue only with follow-ups discovered from
-its result.
+mode and record that task id first. Then append the same queue tail that Mode 2
+would record from the startup snapshot:
+
+- every own blocked and legacy-reserved task, regardless of the hint;
+- every unclaimed task under no hint or a preference, ordered with preferred
+  matches first;
+- only matching unclaimed tasks under a restrictive hint.
+
+Record dependency-waiting tasks too. Finish the active task to an approved,
+genuinely blocked, or global-hard-stop boundary, then continue through ready
+recorded tasks one at a time. Only an explicit request to run just the active
+task produces a one-item active batch.
 
 ### Mode 2: drain the existing queue snapshot
 
@@ -310,6 +323,22 @@ receipt, and write the source task's routing marker. It stages only those
 paths, commits `Route follow-ups from <source-task-id>`, and publishes with the
 workspace helper. Retry ordinary concurrent-master races; preserve a semantic
 conflict or unavailable-remote slot commit and stop.
+
+Project assignment has a strong source-project bias. When the source task has
+a project, assign each discovered implementation or verification task to that
+same project by default, add it to the project index, and name the source task
+in `depends_on` whenever its shipped code or behavior is a prerequisite, even
+when it is already approved. State that code-lineage requirement in the new
+task so it is not attempted on a branch without the project changes.
+
+Detach a discovered task to another project or to `project: null` only when the
+worker proves it remains coherent, implementable, and independently testable
+with the source project's changes absent or reverted. Touching shared code,
+serving another surface, or having a broader title is not proof: projects
+record feature and code lineage, not exclusive file ownership. The discovery
+receipt must record the concrete independence evidence. If the source project
+is archived, restore it before adding the task. When the source task has no
+project, apply the ordinary project-selection rules from `process-inbox`.
 
 First apply the scope filter, before any disposition. A verification exists to
 prove **the source task's own change**, so run the revert test on each entry: if

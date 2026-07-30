@@ -66,6 +66,24 @@ inbox into requests, then decide for each request whether to:
 - add one or more tasks to an existing project;
 - create a new project when durable shared context is useful.
 
+Bias project assignment toward continuity. When a request follows from an
+existing task, begin with that task's project and keep it unless independence
+is affirmatively established. A task belongs to the existing project when it
+builds on project code or behavior, requires source changes shipped by project
+tasks, assumes the project's branch or accumulated context, or must be ordered
+after project work. Touching shared infrastructure or an additional
+non-project consumer does not by itself make the task standalone: projects
+record feature and code lineage, not exclusive ownership of every touched
+file.
+
+Route a derived request to another project or to `project: null` only when it
+remains coherent, implementable, and independently testable in a checkout
+where the originating project's changes are absent or reverted. Record that
+concrete independence evidence in the receipt; "cross-cutting", "cleanup", or
+"broader than the source task" is not enough. For a request without a source
+task, prefer an existing project whenever its code, plan, or prior tasks supply
+essential context, and use a standalone task only when no project does.
+
 Do not create generic holding projects such as `fixes`. A release batch of
 unrelated regressions normally becomes standalone tasks or tasks in existing
 domain projects. Group requests into one task only when they form one cohesive,
@@ -162,9 +180,12 @@ inbox_receipt: receipts/YYYY/MM/DD/<receipt>.md
 ```
 
 Use a project slug instead of `null` when routed to a project. Use a YAML list
-of task identifiers for dependencies. Inbox processing never reserves work:
-new tasks always remain `status: todo` with `claimed_by`, `claimed_at`, and
-`claim_order` set to `null`. The checkout tag belongs in the receipt only.
+of task identifiers for dependencies. Dependencies record code lineage as well
+as readiness: keep an approved source task in `depends_on` when the new task's
+implementation assumes its shipped changes. State that prerequisite in
+`task.md`. Inbox processing never reserves work: new tasks always remain
+`status: todo` with `claimed_by`, `claimed_at`, and `claim_order` set to `null`.
+The checkout tag belongs in the receipt only.
 
 Inbox processing always writes `type: implement`. A human request is work to do,
 not a measurement of work already done. Only the `continue` scheduler's routing
@@ -176,7 +197,8 @@ change to satisfy — that request is an `implement` task.
 
 For a new project, create `projects/<slug>/project.md` with a concise durable
 scope and `projects/<slug>/tasks.md` with task links. For an existing project,
-append only new links. Project indexes do not store live status.
+append every newly assigned task link, including inherited follow-ups. Project
+indexes do not store live status.
 
 Create one tracked Markdown receipt under `receipts/YYYY/MM/DD/`. Include:
 
