@@ -408,6 +408,10 @@ struct SerializeBlockResult {
 		SerializeContext *context,
 		int skipIndex);
 
+[[nodiscard]] std::optional<MTPRichText> SerializeInlineTextButton(
+		const Markdown::InlineTextObjectButtonData &button,
+		SerializeContext *context);
+
 [[nodiscard]] std::optional<MTPRichText> SerializeRichTextValue(
 		const TextWithEntities &text,
 		SerializeContext *context) {
@@ -522,11 +526,8 @@ struct SerializeBlockResult {
 				if (!button || button->label.text.isEmpty()) {
 					return std::optional<MTPRichText>(
 						MakePlainRichText(segment));
-				} else if (button->label.entities.empty()) {
-					return std::optional<MTPRichText>(
-						MakePlainRichText(button->label.text));
 				}
-				return SerializeRichTextValue(button->label, context);
+				return SerializeInlineTextButton(*button, context);
 			}
 			}
 		}
@@ -681,7 +682,8 @@ struct SerializeBlockResult {
 }
 
 [[nodiscard]] std::optional<MTPRichButtonStyle> SerializeRichButtonStyle(
-		HistoryMessageMarkupButton::Color color) {
+		HistoryMessageMarkupButton::Color color,
+		bool link) {
 	using Color = HistoryMessageMarkupButton::Color;
 	using Flag = MTPDrichButtonStyle::Flag;
 	auto flags = MTPDrichButtonStyle::Flags();
@@ -689,7 +691,14 @@ struct SerializeBlockResult {
 	case Color::Primary: flags |= Flag::f_bg_primary; break;
 	case Color::Danger: flags |= Flag::f_bg_danger; break;
 	case Color::Success: flags |= Flag::f_bg_success; break;
-	case Color::Normal: return std::nullopt;
+	case Color::Normal:
+		if (!link) {
+			return std::nullopt;
+		}
+		break;
+	}
+	if (link) {
+		flags |= Flag::f_link;
 	}
 	return MTP_richButtonStyle(MTP_flags(flags));
 }
@@ -704,10 +713,36 @@ struct SerializeBlockResult {
 	if (!text || !type) {
 		return std::nullopt;
 	}
-	const auto style = SerializeRichButtonStyle(button.button.visual.color);
+	const auto style = SerializeRichButtonStyle(
+		button.button.visual.color,
+		false);
 	using Flag = MTPDpageButton::Flag;
 	return MTP_pageButton(
 		MTP_flags(style ? Flag::f_style : MTPDpageButton::Flags()),
+		*text,
+		*type,
+		style.value_or(MTPRichButtonStyle()));
+}
+
+std::optional<MTPRichText> SerializeInlineTextButton(
+		const Markdown::InlineTextObjectButtonData &button,
+		SerializeContext *context) {
+	const auto record = HistoryMessageMarkupButton(
+		button.type,
+		QString(),
+		{},
+		button.data);
+	const auto type = SerializeInlineButtonType(record, context);
+	const auto text = SerializeRichTextValue(
+		Markdown::NormalizeRichButtonLabel(button.label),
+		context);
+	if (!text || !type) {
+		return std::nullopt;
+	}
+	const auto style = SerializeRichButtonStyle(button.color, button.link);
+	using Flag = MTPDtextButton::Flag;
+	return MTP_textButton(
+		MTP_flags(style ? Flag::f_style : MTPDtextButton::Flags()),
 		*text,
 		*type,
 		style.value_or(MTPRichButtonStyle()));

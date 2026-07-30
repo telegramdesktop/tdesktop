@@ -1375,7 +1375,7 @@ InlineButtonObject::InlineButtonObject(
 	context,
 	InlineButtonEmojiSize(textStyle, st.inlineButton)))
 , _presentation(InlineButtonPresentationFor(data))
-, _disabled(data.disabled) {
+, _disabled(data.type == HistoryMessageMarkupButton::Type::Disabled) {
 	const auto &inlineSt = st.inlineButton;
 	const auto link = (_presentation == InlineButtonPresentation::Link);
 	_height = link
@@ -1707,6 +1707,27 @@ void SetTextLeaf(
 		rtl ? kIvMarkedTextOptionsRtl : kIvMarkedTextOptions,
 		context);
 	SetTextLeafSpoilerLinkFilter(leaf, std::move(spoilerLinkFilter));
+}
+
+std::unique_ptr<Ui::Text::CustomEmoji> MakeInlineButtonObject(
+		QStringView data,
+		const style::TextStyle &textStyle,
+		const style::Markdown &st,
+		const Ui::Text::MarkedContext &context) {
+	const auto parsed = ParseInlineTextObjectEntity(data);
+	if (!parsed || parsed->kind != InlineTextObjectKind::Button) {
+		return nullptr;
+	}
+	const auto button = std::get_if<InlineTextObjectButtonData>(&parsed->data);
+	if (!button) {
+		return nullptr;
+	}
+	return std::make_unique<InlineButtonObject>(
+		*button,
+		textStyle,
+		st,
+		context,
+		nullptr);
 }
 
 } // namespace Iv::Markdown

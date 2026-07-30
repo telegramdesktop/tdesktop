@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_compare.h"
 #include "base/timer.h"
 #include "chat_helpers/compose/compose_features.h"
+#include "ui/text/text.h"
 #include "ui/widgets/fields/input_field.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
@@ -79,6 +80,8 @@ struct MessageFieldHandlersArgs {
 	not_null<Ui::InputField*> field;
 	Fn<bool()> customEmojiPaused;
 	Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji;
+	Fn<bool(QStringView)> keepCustomEmojiData;
+	Ui::Text::CustomEmojiFactory customEmojiFactory;
 	const style::InputField *fieldStyle = nullptr;
 	Fn<QString(QString)> linkValidator;
 	base::flat_set<QString> allowMarkdownTags;

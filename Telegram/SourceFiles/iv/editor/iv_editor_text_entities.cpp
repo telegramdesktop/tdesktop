@@ -39,12 +39,26 @@ struct TextRange {
 		&& (length <= text.size() - offset);
 }
 
-[[nodiscard]] bool IsFormulaObjectSpan(
+[[nodiscard]] bool IsInlineObjectSpan(
 		const QString &text,
 		const EntityInText &entity) {
 	return (entity.length() == 1)
 		&& RangeInsideText(text, entity.offset(), entity.length())
 		&& (text[entity.offset()] == QChar::ObjectReplacementCharacter);
+}
+
+[[nodiscard]] bool IsInlineObjectEntity(const EntityInText &entity) {
+	return (entity.type() == EntityType::CustomEmoji)
+		&& Markdown::ParseInlineTextObjectEntity(entity.data()).has_value();
+}
+
+[[nodiscard]] bool IsInlineButtonEntity(const EntityInText &entity) {
+	if (entity.type() != EntityType::CustomEmoji) {
+		return false;
+	}
+	const auto parsed = Markdown::ParseInlineTextObjectEntity(entity.data());
+	return parsed
+		&& (parsed->kind == Markdown::InlineTextObjectKind::Button);
 }
 
 [[nodiscard]] std::optional<Markdown::InlineTextObjectFormulaData>
@@ -140,10 +154,53 @@ FormulaDataFromEntity(const EntityInText &entity) {
 	return std::nullopt;
 }
 
+void AdjustEntitiesForReplacement(
+		EntitiesInText *entities,
+		int from,
+		int oldLength,
+		int newLength) {
+	for (auto i = entities->begin(); i != entities->end();) {
+		if (const auto adjusted = AdjustEntityForReplacement(
+				*i,
+				from,
+				oldLength,
+				newLength)) {
+			*i++ = *adjusted;
+		} else {
+			i = entities->erase(i);
+		}
+	}
+}
+
+void AdjustTagsForReplacement(
+		TextWithTags::Tags *tags,
+		int from,
+		int oldLength,
+		int newLength) {
+	for (auto i = tags->begin(); i != tags->end();) {
+		if (const auto adjusted = AdjustTagForReplacement(
+				*i,
+				from,
+				oldLength,
+				newLength)) {
+			*i++ = *adjusted;
+		} else {
+			i = tags->erase(i);
+		}
+	}
+}
+
+[[nodiscard]] bool IsInlineObjectTag(QStringView tag) {
+	return Ui::InputField::IsCustomEmojiLink(tag)
+		&& Markdown::ParseInlineTextObjectEntity(
+			Ui::InputField::CustomEmojiEntityData(tag)).has_value();
+}
+
 [[nodiscard]] QString TagsWithoutIvEditorTags(QStringView tags) {
 	auto result = QList<QStringView>();
 	for (const auto &tag : TextUtilities::SplitTags(tags)) {
 		if (!Ui::InputField::IsInstantViewEditorTag(tag)
+			&& !IsInlineObjectTag(tag)
 			&& !tag.startsWith(QChar('#'))) {
 			result.push_back(tag);
 		}
@@ -438,6 +495,29 @@ void MergeRanges(std::vector<TextRange> *ranges);
 	return result;
 }
 
+[[nodiscard]] EntitiesInText InlineObjectEntitiesFromTags(
+		const TextWithTags::Tags &tags,
+		const QString &text) {
+	auto result = EntitiesInText();
+	result.reserve(tags.size());
+	for (const auto &tag : tags) {
+		if (tag.length <= 0 || !RangeInsideText(text, tag.offset, tag.length)) {
+			continue;
+		}
+		for (const auto &single : TextUtilities::SplitTags(tag.id)) {
+			if (!IsInlineObjectTag(single)) {
+				continue;
+			}
+			result.push_back(EntityInText(
+				EntityType::CustomEmoji,
+				tag.offset,
+				tag.length,
+				Ui::InputField::CustomEmojiEntityData(single)));
+		}
+	}
+	return result;
+}
+
 [[nodiscard]] std::vector<TextRange> MathRangesWithoutIntersections(
 		const TextWithTags::Tags &tags,
 		const QString &text) {
@@ -525,20 +605,53 @@ void SortEntities(EntitiesInText *entities) {
 		});
 }
 
+[[nodiscard]] bool CoveredByInlineObject(
+		const EntitiesInText &entities,
+		int position) {
+	for (const auto &entity : entities) {
+		if (IsInlineObjectEntity(entity)
+			&& (entity.offset() <= position)
+			&& (position < entity.offset() + entity.length())) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void RemoveOrphanInlineObjects(QString *text, EntitiesInText *entities) {
+	for (auto position = int(text->size()); position != 0;) {
+		--position;
+		if (text->at(position) != QChar::ObjectReplacementCharacter
+			|| CoveredByInlineObject(*entities, position)) {
+			continue;
+		}
+		AdjustEntitiesForReplacement(entities, position, 1, 0);
+		text->remove(position, 1);
+	}
+}
+
 } // namespace
 
 RichTextEditorConversion ConvertRichTextToEditorTags(TextWithEntities text) {
 	auto formulas = std::vector<FormulaReplacement>();
+	auto buttonTags = TextWithTags::Tags();
 	auto entities = EntitiesInText();
 	entities.reserve(text.entities.size());
 
 	for (const auto &entity : text.entities) {
 		const auto formula = FormulaDataFromEntity(entity);
-		if (formula && IsFormulaObjectSpan(text.text, entity)) {
+		if (formula && IsInlineObjectSpan(text.text, entity)) {
 			formulas.push_back({
 				.offset = entity.offset(),
 				.length = entity.length(),
 				.source = EditorSourceForFormula(*formula),
+			});
+		} else if (IsInlineButtonEntity(entity)
+			&& IsInlineObjectSpan(text.text, entity)) {
+			buttonTags.push_back({
+				.offset = entity.offset(),
+				.length = 1,
+				.id = Ui::InputField::CustomEmojiLink(entity.data()),
 			});
 		} else {
 			entities.push_back(entity);
@@ -559,28 +672,21 @@ RichTextEditorConversion ConvertRichTextToEditorTags(TextWithEntities text) {
 	for (const auto &formula : formulas) {
 		const auto newLength = formula.source.size();
 
-		for (auto i = entities.begin(); i != entities.end();) {
-			if (const auto adjusted = AdjustEntityForReplacement(
-					*i,
-					formula.offset,
-					formula.length,
-					newLength)) {
-				*i++ = *adjusted;
-			} else {
-				i = entities.erase(i);
-			}
-		}
-		for (auto i = mathTags.begin(); i != mathTags.end();) {
-			if (const auto adjusted = AdjustTagForReplacement(
-					*i,
-					formula.offset,
-					formula.length,
-					newLength)) {
-				*i++ = *adjusted;
-			} else {
-				i = mathTags.erase(i);
-			}
-		}
+		AdjustEntitiesForReplacement(
+			&entities,
+			formula.offset,
+			formula.length,
+			newLength);
+		AdjustTagsForReplacement(
+			&mathTags,
+			formula.offset,
+			formula.length,
+			newLength);
+		AdjustTagsForReplacement(
+			&buttonTags,
+			formula.offset,
+			formula.length,
+			newLength);
 
 		text.text.replace(formula.offset, formula.length, formula.source);
 		if (newLength > 0) {
@@ -604,6 +710,7 @@ RichTextEditorConversion ConvertRichTextToEditorTags(TextWithEntities text) {
 	RemoveRangesFromTags(&ivTags, mathTags);
 	OverlayTags(&tags, ivTags, text.text);
 	OverlayTags(&tags, mathTags, text.text);
+	OverlayTags(&tags, buttonTags, text.text);
 	SortTags(&tags);
 	tags = TextUtilities::SimplifyTags(tags);
 
@@ -682,6 +789,11 @@ TextWithEntities ConvertEditorTagsToRichText(TextWithTags text) {
 			text.text)) {
 		entities.push_back(entity);
 	}
+	for (const auto &entity : InlineObjectEntitiesFromTags(
+			text.tags,
+			text.text)) {
+		entities.push_back(entity);
+	}
 
 	auto mathRanges = MathRangesWithoutIntersections(text.tags, text.text);
 	for (auto i = mathRanges.rbegin(); i != mathRanges.rend(); ++i) {
@@ -704,17 +816,7 @@ TextWithEntities ConvertEditorTagsToRichText(TextWithTags text) {
 				.trimmedTex = trimmedSource,
 			},
 		});
-		for (auto j = entities.begin(); j != entities.end();) {
-			if (const auto adjusted = AdjustEntityForReplacement(
-					*j,
-					i->offset,
-					i->length,
-					1)) {
-				*j++ = *adjusted;
-			} else {
-				j = entities.erase(j);
-			}
-		}
+		AdjustEntitiesForReplacement(&entities, i->offset, i->length, 1);
 		text.text.replace(
 			i->offset,
 			i->length,
@@ -727,6 +829,7 @@ TextWithEntities ConvertEditorTagsToRichText(TextWithTags text) {
 	}
 
 	SortEntities(&entities);
+	RemoveOrphanInlineObjects(&text.text, &entities);
 	return {
 		.text = text.text,
 		.entities = entities,

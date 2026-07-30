@@ -19,13 +19,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Iv::Markdown {
 namespace {
 
+[[nodiscard]] QString EncodeInlineTextObjectBytes(const QByteArray &value) {
+	return QString::fromUtf8(value.toPercentEncoding());
+}
+
+[[nodiscard]] QByteArray DecodeInlineTextObjectBytes(QStringView value) {
+	return QByteArray::fromPercentEncoding(value.toLatin1());
+}
+
 [[nodiscard]] QString EncodeInlineTextObjectField(const QString &value) {
-	return QString::fromUtf8(value.toUtf8().toPercentEncoding());
+	return EncodeInlineTextObjectBytes(value.toUtf8());
 }
 
 [[nodiscard]] QString DecodeInlineTextObjectField(QStringView value) {
-	return QString::fromUtf8(
-		QByteArray::fromPercentEncoding(value.toLatin1()));
+	return QString::fromUtf8(DecodeInlineTextObjectBytes(value));
 }
 
 [[nodiscard]] QString RichButtonLabelEntityName(EntityType type) {
@@ -142,9 +149,11 @@ QString SerializeInlineTextObjectEntity(const InlineTextObjectEntity &object) {
 			+ u";"_q
 			+ QString::number(int(data->color))
 			+ u";"_q
-			+ QString::number(data->disabled ? 1 : 0)
+			+ QString::number(int(data->type))
 			+ u";"_q
-			+ QString::number(data->link ? 1 : 0);
+			+ QString::number(data->link ? 1 : 0)
+			+ u";"_q
+			+ EncodeInlineTextObjectBytes(data->data);
 	} break;
 	}
 	return QString();
@@ -191,13 +200,21 @@ std::optional<InlineTextObjectEntity> ParseInlineTextObjectEntity(
 			},
 		};
 	} else if (parts[1] == u"button"_q) {
-		if (parts.size() != 6) {
+		if (parts.size() != 7) {
 			return std::nullopt;
 		}
 		using Color = HistoryMessageMarkupButton::Color;
+		using Type = HistoryMessageMarkupButton::Type;
 		auto colorOk = false;
+		auto typeOk = false;
 		const auto color = parts[3].toInt(&colorOk);
-		if (!colorOk || color < 0 || color > int(Color::Success)) {
+		const auto type = parts[4].toInt(&typeOk);
+		if (!colorOk
+			|| color < 0
+			|| color > int(Color::Success)
+			|| !typeOk
+			|| type < 0
+			|| type > int(Type::CreateBot)) {
 			return std::nullopt;
 		}
 		const auto label = DecodeInlineTextObjectField(parts[2]);
@@ -205,8 +222,9 @@ std::optional<InlineTextObjectEntity> ParseInlineTextObjectEntity(
 			.kind = InlineTextObjectKind::Button,
 			.data = InlineTextObjectButtonData{
 				.label = ParseRichButtonLabel(label),
+				.data = DecodeInlineTextObjectBytes(parts[6]),
+				.type = Type(type),
 				.color = Color(color),
-				.disabled = (parts[4] == u"1"_q),
 				.link = (parts[5] == u"1"_q),
 			},
 		};

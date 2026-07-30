@@ -80,4 +80,10 @@ void SetTextLeaf(
 	Fn<void(QRect)> repaintRect = nullptr,
 	Fn<bool(const ClickContext&)> spoilerLinkFilter = nullptr);
 
+[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> MakeInlineButtonObject(
+	QStringView data,
+	const style::TextStyle &textStyle,
+	const style::Markdown &st,
+	const Ui::Text::MarkedContext &context);
+
 } // namespace Iv::Markdown

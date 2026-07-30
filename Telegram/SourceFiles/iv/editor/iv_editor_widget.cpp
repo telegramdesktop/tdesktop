@@ -25,9 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_text_entities.h"
 #include "iv/editor/iv_editor_window.h"
 #include "iv/markdown/iv_markdown_article_paint.h"
+#include "iv/markdown/iv_markdown_article_text.h"
 #include "iv/markdown/iv_markdown_microtex.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_native_richtext.h"
+#include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "iv/iv_search_bar.h"
 #include "iv/iv_search_controller.h"
 #include "lang/lang_keys.h"
@@ -1363,6 +1365,34 @@ struct InlineFieldTrimResult {
 		}
 	}
 	return { std::move(text), from };
+}
+
+[[nodiscard]] QString TagWithoutCustomEmojiCounters(QStringView id) {
+	auto components = QList<QStringView>();
+	for (const auto &single : TextUtilities::SplitTags(id)) {
+		const auto index = Ui::InputField::IsCustomEmojiLink(single)
+			? single.indexOf('?')
+			: -1;
+		components.push_back((index < 0) ? single : single.left(index));
+	}
+	return TextUtilities::JoinTag(components);
+}
+
+[[nodiscard]] TextWithTags::Tags TagsWithoutCustomEmojiCounters(
+		const TextWithTags::Tags &tags) {
+	auto result = tags;
+	for (auto &tag : result) {
+		tag.id = TagWithoutCustomEmojiCounters(tag.id);
+	}
+	return result;
+}
+
+[[nodiscard]] bool InlineFieldTextsEqual(
+		const TextWithTags &a,
+		const TextWithTags &b) {
+	return (a.text == b.text)
+		&& (TagsWithoutCustomEmojiCounters(a.tags)
+			== TagsWithoutCustomEmojiCounters(b.tags));
 }
 
 [[nodiscard]] int MapEditorOffsetToRichOffset(
@@ -4550,14 +4580,14 @@ bool Widget::activeInlineFieldTextMatchesState() const {
 	const auto trimLeft = !_state->codeBlockLanguage(
 		_state->activeTextOrdinal()).has_value();
 	if (_state->activeFieldMode() == State::FieldMode::Raw) {
-		return _field->getTextWithTags() == TrimInlineFieldText(
+		const auto trimmed = TrimInlineFieldText(
 			{ _state->activeRawText(), {} },
-			trimLeft).text;
+			trimLeft);
+		return InlineFieldTextsEqual(_field->getTextWithTags(), trimmed.text);
 	}
 	const auto activeText = ConvertRichTextToEditorTags(_state->activeText());
-	return _field->getTextWithTags() == TrimInlineFieldText(
-		activeText.text,
-		trimLeft).text;
+	const auto trimmed = TrimInlineFieldText(activeText.text, trimLeft);
+	return InlineFieldTextsEqual(_field->getTextWithTags(), trimmed.text);
 }
 
 bool Widget::canPerformHistoryUndoRedo(bool redo) const {
@@ -8132,6 +8162,22 @@ void Widget::setupInlineField() {
 				not_null<DocumentData*> emoji) {
 			return AllowEmojiWithoutPremium(peer, emoji);
 		};
+		const auto keepInlineObjectData = [](QStringView data) {
+			return Markdown::ParseInlineTextObjectEntity(data).has_value();
+		};
+		const auto inlineObjectFactory = [
+			field = _field.get(),
+			articleStyle = _articleStyle
+		](
+				QStringView data,
+				const Ui::Text::MarkedContext &context
+		) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+			return Markdown::MakeInlineButtonObject(
+				data,
+				field->st().style,
+				*articleStyle,
+				context);
+		};
 		_field->setInstantViewEditorTagsEnabled(true);
 		InitMessageFieldHandlers({
 			.session = _session,
@@ -8139,6 +8185,8 @@ void Widget::setupInlineField() {
 			.field = _field.get(),
 			.customEmojiPaused = _customEmojiPaused,
 			.allowPremiumEmoji = allowPremiumEmoji,
+			.keepCustomEmojiData = keepInlineObjectData,
+			.customEmojiFactory = inlineObjectFactory,
 			.fieldStyle = &_field->st(),
 			.linkValidator = ValidateInstantViewEditorLink,
 			.allowMarkdownTags = {
@@ -8527,7 +8575,8 @@ void Widget::setInlineFieldFromActiveState(int selectionFrom, int selectionTo) {
 			&& activeLeaf
 			&& _fieldLeaf
 			&& (*_fieldLeaf == *activeLeaf)
-			&& (matchingHistoryDirection || (_field->getTextWithTags() == text));
+			&& (matchingHistoryDirection
+				|| InlineFieldTextsEqual(_field->getTextWithTags(), text));
 	};
 	const auto finishWithRetainedField = [&] {
 		_fieldLeaf = activeLeaf;
@@ -8548,7 +8597,10 @@ void Widget::setInlineFieldFromActiveState(int selectionFrom, int selectionTo) {
 			notifyToolbarStateChanged();
 			return;
 		}
-		if (resetFieldHistory || (_field->getTextWithTags() != trimmed.text)) {
+		if (resetFieldHistory
+			|| !InlineFieldTextsEqual(
+				_field->getTextWithTags(),
+				trimmed.text)) {
 			_field->setTextWithTags(
 				trimmed.text,
 				Ui::InputField::HistoryAction::Clear);
@@ -8564,7 +8616,10 @@ void Widget::setInlineFieldFromActiveState(int selectionFrom, int selectionTo) {
 			notifyToolbarStateChanged();
 			return;
 		}
-		if (resetFieldHistory || (_field->getTextWithTags() != trimmed.text)) {
+		if (resetFieldHistory
+			|| !InlineFieldTextsEqual(
+				_field->getTextWithTags(),
+				trimmed.text)) {
 			_field->setTextWithTags(
 				trimmed.text,
 				Ui::InputField::HistoryAction::Clear);

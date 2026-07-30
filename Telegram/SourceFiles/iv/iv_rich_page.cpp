@@ -1138,8 +1138,9 @@ void RememberWebPageMedia(
 				.kind = Markdown::InlineTextObjectKind::Button,
 				.data = Markdown::InlineTextObjectButtonData{
 					.label = label,
+					.data = button->data,
+					.type = button->type,
 					.color = button->visual.color,
-					.disabled = disabled,
 					.link = link,
 				},
 			},
