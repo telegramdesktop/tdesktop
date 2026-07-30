@@ -2834,8 +2834,10 @@ void Widget::activateInitialNodeAtEnd() {
 	if (_state->articleEmpty()) {
 		activateInitialNode();
 		return;
-	} else if (_state->richPage().blocks.back().kind
-		== RichPage::BlockKind::Divider) {
+	}
+	const auto kind = _state->richPage().blocks.back().kind;
+	if (kind == RichPage::BlockKind::Divider
+		|| kind == RichPage::BlockKind::ButtonRow) {
 		activateTrailingParagraph();
 		return;
 	}

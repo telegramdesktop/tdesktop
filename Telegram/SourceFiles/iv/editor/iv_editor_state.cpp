@@ -1445,6 +1445,7 @@ void MergeRichTextAnchors(RichText *target, RichText source) {
 	case BlockKind::Code:
 	case BlockKind::Divider:
 	case BlockKind::Anchor:
+	case BlockKind::ButtonRow:
 	case BlockKind::GroupedMedia:
 	case BlockKind::Photo:
 	case BlockKind::Video:
@@ -1464,7 +1465,6 @@ void MergeRichTextAnchors(RichText *target, RichText source) {
 	case BlockKind::Unsupported:
 	case BlockKind::Thinking:
 	case BlockKind::AuthorDate:
-	case BlockKind::ButtonRow:
 	case BlockKind::Embed:
 	case BlockKind::EmbedPost:
 	case BlockKind::Channel:
@@ -10255,7 +10255,8 @@ bool State::BlockIsEmpty(const Block &block) {
 		|| block.accessHash
 		|| block.latitude != 0.
 		|| block.longitude != 0.
-		|| !block.mediaItems.empty()) {
+		|| !block.mediaItems.empty()
+		|| !block.buttons.empty()) {
 		return false;
 	}
 	for (const auto &child : block.blocks) {
