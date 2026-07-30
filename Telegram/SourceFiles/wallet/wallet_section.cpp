@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
+#include "ui/round_rect.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_session.h"
@@ -439,6 +440,36 @@ void AddDetailsAmountHeader(
 	}, container->lifetime());
 }
 
+void AddDetailsComment(
+		not_null<Ui::GenericBox*> box,
+		const Gram::TransferItem &item) {
+	const auto comment = item.comment.trimmed();
+	if (comment.isEmpty()) {
+		return;
+	}
+	const auto wrap = box->addRow(
+		object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				comment,
+				st::walletDetailsCommentLabel),
+			st::giveawayGiftCodeValueMargin),
+		style::margins(
+			st::giveawayGiftCodeTableMargin.left(),
+			0,
+			st::giveawayGiftCodeTableMargin.right(),
+			st::walletDetailsAmountBottomSkip),
+		style::al_top);
+	const auto bg = wrap->lifetime().make_state<Ui::RoundRect>(
+		st::boxRadius,
+		st::windowBgOver);
+	wrap->paintRequest() | rpl::on_next([=] {
+		auto p = QPainter(wrap);
+		bg->paint(p, wrap->rect());
+	}, wrap->lifetime());
+}
+
 void AddDetailsTable(
 		not_null<Ui::GenericBox*> box,
 		const Gram::TransferItem &item) {
@@ -821,6 +852,7 @@ void WalletTransactionBox(
 	box->setNoContentMargin(true);
 
 	AddDetailsAmountHeader(box, item);
+	AddDetailsComment(box, item);
 	AddDetailsTable(box, item);
 
 	AddBoxCloseButton(box);

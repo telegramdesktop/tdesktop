@@ -131,6 +131,9 @@ walletDetailsAddressLabel: FlatLabel(defaultTableValue) {
 	minWidth: 128px;
 	maxHeight: 100px;
 }
+walletDetailsCommentLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 128px;
+}
 
 walletSendAddressField: InputField(defaultInputField) {
 	textMargins: margins(0px, 10px, 76px, 2px);
