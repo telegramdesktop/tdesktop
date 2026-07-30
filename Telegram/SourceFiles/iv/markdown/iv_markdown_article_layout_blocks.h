@@ -29,6 +29,7 @@ struct TextStyle;
 
 namespace Iv::Markdown {
 
+struct InlineButtonPaintState;
 class InlineFormulaObjectCache;
 class CodeBlockSyntaxHighlightTracker {
 public:
@@ -337,6 +338,7 @@ struct LayoutContext {
 	std::shared_ptr<EditableMaxLineWidthOverride>
 		editableMaxLineWidthOverride;
 	std::shared_ptr<EditableTextEmptyOverride> editableTextEmptyOverride;
+	std::shared_ptr<InlineButtonPaintState> inlineButtonPaintState;
 	std::function<std::shared_ptr<MediaBlock>(const PreparedBlock&)> mediaBlockFactory;
 	std::function<std::shared_ptr<PlaceholderBlockRuntime>(
 		PreparedPlaceholderBlockId)> placeholderRuntimeFactory;
@@ -562,6 +564,7 @@ void RepopulateCodeBlockLeaf(
 	LaidOutBlock &block,
 	const std::vector<PreparedFormulaSlot> *formulas,
 	InlineFormulaObjectCache *inlineFormulaObjects,
+	const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
 	const std::shared_ptr<MediaRuntime> &mediaRuntime,
 	const style::Markdown &st,
 	bool allowAsyncSyntaxHighlighting,

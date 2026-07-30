@@ -7,15 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_article_text.h"
 #include "iv/markdown/iv_markdown_article_layout_blocks.h"
+#include "iv/markdown/iv_markdown_button_row.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "lang/lang_keys.h"
+#include "ui/effects/animation_value.h"
 #include "ui/style/style_core.h"
 #include "ui/style/style_core_scale.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/dynamic_image.h"
 #include "ui/integration.h"
+#include "ui/painter.h"
 
 #include "styles/palette.h"
 #include "styles/style_iv.h"
@@ -479,6 +482,80 @@ private:
 
 };
 
+enum class InlineButtonPresentation : uchar {
+	Default,
+	Primary,
+	Success,
+	Danger,
+	Link,
+};
+
+class InlineButtonScaledEmoji final : public Ui::Text::CustomEmoji {
+public:
+	InlineButtonScaledEmoji(
+		std::unique_ptr<Ui::Text::CustomEmoji> wrapped,
+		int size);
+
+	int width() override;
+	QString entityData() override;
+	std::optional<Ui::Text::CustomEmojiVerticalMetrics> vertical(
+		const style::TextStyle &textStyle) override;
+	void paint(QPainter &p, const Context &context) override;
+	void unload() override;
+	bool ready() override;
+	bool readyInDefaultState() override;
+
+private:
+	const std::unique_ptr<Ui::Text::CustomEmoji> _wrapped;
+	QImage _frame;
+	int _size = 1;
+
+};
+
+class InlineButtonObject final : public Ui::Text::CustomEmoji {
+public:
+	InlineButtonObject(
+		const InlineTextObjectButtonData &data,
+		const style::TextStyle &textStyle,
+		const style::Markdown &st,
+		const Ui::Text::MarkedContext &context,
+		std::shared_ptr<InlineButtonPaintState> paintState);
+
+	int width() override;
+	QString entityData() override;
+	std::optional<Ui::Text::CustomEmojiVerticalMetrics> vertical(
+		const style::TextStyle &textStyle) override;
+	QString replacementText() override;
+	Ui::Text::CustomEmojiSemantics semantics() override;
+	void paint(QPainter &p, const Context &context) override;
+	void unload() override;
+	bool ready() override;
+	bool readyInDefaultState() override;
+
+private:
+	[[nodiscard]] const style::Markdown &resolvedStyle() const;
+	void paintLabel(
+		QPainter &p,
+		QPoint position,
+		QColor color,
+		const style::Markdown &st,
+		const Context &context) const;
+
+	const QString _entityData;
+	const QString _replacementText;
+	const style::Markdown *_st = nullptr;
+	const std::shared_ptr<InlineButtonPaintState> _paintState;
+	Ui::Text::String _label;
+	Ui::Text::CustomEmojiVerticalMetrics _vertical;
+	int _width = 1;
+	int _height = 1;
+	int _labelLeft = 0;
+	int _labelTop = 0;
+	InlineButtonPresentation _presentation = InlineButtonPresentation::Default;
+	bool _disabled = false;
+
+};
+
 [[nodiscard]] QString InlineFormulaDisplayFallbackText(
 		const PreparedFormulaMeasurementSignature &signature,
 		const MeasuredFormula &measured) {
@@ -513,6 +590,69 @@ FindInlineFormulaMeasuredData(
 		return std::make_shared<MeasuredFormula>(slot.measured);
 	}
 	return nullptr;
+}
+
+[[nodiscard]] Ui::Text::CustomEmojiVerticalMetrics CenteredVerticalMetrics(
+		const style::TextStyle &textStyle,
+		int height) {
+	const auto top = std::max((TextLineHeight(textStyle) - height) / 2, 0);
+	const auto ascent = TextLineAscent(textStyle) - top;
+	return {
+		.ascent = ascent,
+		.descent = height - ascent,
+	};
+}
+
+[[nodiscard]] int InlineButtonPillHeight(
+		const style::TextStyle &textStyle,
+		const style::MarkdownInlineButton &st) {
+	return std::min(
+		textStyle.font->height,
+		st.labelStyle.font->height + 2 * st.verticalPadding);
+}
+
+[[nodiscard]] int InlineButtonEmojiSize(
+		const style::TextStyle &textStyle,
+		const style::MarkdownInlineButton &st) {
+	return std::max(
+		InlineButtonPillHeight(textStyle, st) - 2 * st.verticalPadding,
+		1);
+}
+
+[[nodiscard]] InlineButtonPresentation InlineButtonPresentationFor(
+		const InlineTextObjectButtonData &data) {
+	using Color = HistoryMessageMarkupButton::Color;
+	if (data.link) {
+		return InlineButtonPresentation::Link;
+	}
+	switch (data.color) {
+	case Color::Primary: return InlineButtonPresentation::Primary;
+	case Color::Success: return InlineButtonPresentation::Success;
+	case Color::Danger: return InlineButtonPresentation::Danger;
+	}
+	return InlineButtonPresentation::Default;
+}
+
+[[nodiscard]] Ui::Text::String MakeInlineButtonLabel(
+		const TextWithEntities &label,
+		const style::TextStyle &labelStyle,
+		const Ui::Text::MarkedContext &context,
+		int emojiSize) {
+	auto nested = context;
+	nested.customEmojiFactory = [
+		parent = context.customEmojiFactory,
+		emojiSize
+	](
+			QStringView data,
+			const Ui::Text::MarkedContext &context
+	) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+		return Ui::Text::MakeWrappedEmoji<InlineButtonScaledEmoji>(
+			parent ? parent(data, context) : nullptr,
+			emojiSize);
+	};
+	auto result = Ui::Text::String();
+	result.setMarkedText(labelStyle, label, kIvMarkedTextOptions, nested);
+	return result;
 }
 
 } // namespace
@@ -1042,6 +1182,202 @@ bool InlineIvImageObject::readyInDefaultState() {
 	return true;
 }
 
+InlineButtonScaledEmoji::InlineButtonScaledEmoji(
+	std::unique_ptr<Ui::Text::CustomEmoji> wrapped,
+	int size)
+: _wrapped(std::move(wrapped))
+, _size(std::max(size, 1)) {
+}
+
+int InlineButtonScaledEmoji::width() {
+	return _size;
+}
+
+QString InlineButtonScaledEmoji::entityData() {
+	return _wrapped->entityData();
+}
+
+auto InlineButtonScaledEmoji::vertical(const style::TextStyle &textStyle)
+-> std::optional<Ui::Text::CustomEmojiVerticalMetrics> {
+	return CenteredVerticalMetrics(textStyle, _size);
+}
+
+void InlineButtonScaledEmoji::paint(QPainter &p, const Context &context) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto natural = std::max(_wrapped->width(), 1);
+	const auto full = QSize(natural, natural) * ratio;
+	if (_frame.size() != full) {
+		_frame = QImage(full, QImage::Format_ARGB32_Premultiplied);
+		_frame.setDevicePixelRatio(ratio);
+	}
+	_frame.fill(Qt::transparent);
+	{
+		auto q = QPainter(&_frame);
+		q.translate(-context.position);
+		_wrapped->paint(q, context);
+	}
+	auto hq = PainterHighQualityEnabler(p);
+	p.drawImage(QRect(context.position, QSize(_size, _size)), _frame);
+}
+
+void InlineButtonScaledEmoji::unload() {
+	_frame = QImage();
+	_wrapped->unload();
+}
+
+bool InlineButtonScaledEmoji::ready() {
+	return _wrapped->ready();
+}
+
+bool InlineButtonScaledEmoji::readyInDefaultState() {
+	return _wrapped->readyInDefaultState();
+}
+
+InlineButtonObject::InlineButtonObject(
+	const InlineTextObjectButtonData &data,
+	const style::TextStyle &textStyle,
+	const style::Markdown &st,
+	const Ui::Text::MarkedContext &context,
+	std::shared_ptr<InlineButtonPaintState> paintState)
+: _entityData(SerializeInlineTextObjectEntity({
+	.kind = InlineTextObjectKind::Button,
+	.data = data,
+}))
+, _replacementText(data.label.text)
+, _st(&st)
+, _paintState(std::move(paintState))
+, _label(MakeInlineButtonLabel(
+	data.label,
+	st.inlineButton.labelStyle,
+	context,
+	InlineButtonEmojiSize(textStyle, st.inlineButton)))
+, _presentation(InlineButtonPresentationFor(data))
+, _disabled(data.disabled) {
+	const auto &inlineSt = st.inlineButton;
+	const auto link = (_presentation == InlineButtonPresentation::Link);
+	_height = link
+		? textStyle.font->height
+		: InlineButtonPillHeight(textStyle, inlineSt);
+	_width = link
+		? std::max(_label.maxWidth(), 1)
+		: std::max(_height, _label.maxWidth() + 2 * inlineSt.padding);
+	_vertical = CenteredVerticalMetrics(textStyle, _height);
+	_labelLeft = link ? 0 : inlineSt.padding;
+	_labelTop = std::clamp(
+		_vertical.ascent - inlineSt.labelStyle.font->ascent,
+		0,
+		std::max(_height - inlineSt.labelStyle.font->height, 0));
+}
+
+int InlineButtonObject::width() {
+	return _width;
+}
+
+QString InlineButtonObject::entityData() {
+	return _entityData;
+}
+
+auto InlineButtonObject::vertical(const style::TextStyle &)
+-> std::optional<Ui::Text::CustomEmojiVerticalMetrics> {
+	return _vertical;
+}
+
+QString InlineButtonObject::replacementText() {
+	return _replacementText;
+}
+
+Ui::Text::CustomEmojiSemantics InlineButtonObject::semantics() {
+	return {
+		.isEmoji = false,
+		.isRealCustomEmoji = false,
+		.exportEntity = false,
+		.unloadPersistentAnimation = true,
+		.allowCustomEmojiClick = false,
+	};
+}
+
+const style::Markdown &InlineButtonObject::resolvedStyle() const {
+	return (_paintState && _paintState->st) ? *_paintState->st : *_st;
+}
+
+void InlineButtonObject::paintLabel(
+		QPainter &p,
+		QPoint position,
+		QColor color,
+		const style::Markdown &st,
+		const Context &context) const {
+	if (_label.isEmpty()) {
+		return;
+	}
+	const auto available = std::max(_label.maxWidth(), 1);
+	p.setPen(color);
+	_label.draw(p, {
+		.position = position + QPoint(_labelLeft, _labelTop),
+		.availableWidth = available,
+		.geometry = Ui::Text::SimpleGeometry(available, 1, 0, false),
+		.palette = &st.textPalette,
+		.now = context.now,
+		.paused = context.paused,
+		.elisionLines = 1,
+	});
+}
+
+void InlineButtonObject::paint(QPainter &p, const Context &context) {
+	const auto &markdownSt = resolvedStyle();
+	const auto &st = markdownSt.inlineButton;
+	const auto position = context.position;
+	const auto rect = QRect(position, QSize(_width, _height));
+	const auto radius = _height / 2;
+	const auto fillPill = [&](QPainter &q, QColor color) {
+		auto hq = PainterHighQualityEnabler(q);
+		q.setPen(Qt::NoPen);
+		q.setBrush(color);
+		q.drawRoundedRect(rect, radius, radius);
+	};
+	p.save();
+	if (_presentation == InlineButtonPresentation::Link) {
+		if (_disabled) {
+			p.setOpacity(p.opacity() * st.disabledOpacity);
+		}
+		paintLabel(p, position, context.textColor, markdownSt, context);
+	} else if (_presentation == InlineButtonPresentation::Primary) {
+		PaintPunchedOutPill(
+			p,
+			rect,
+			_disabled ? st.disabledPrimaryOpacity : 1.,
+			[&](QPainter &q) {
+				fillPill(q, st.primaryBg->c);
+			},
+			[&](QPainter &q, QColor fg) {
+				paintLabel(q, position, fg, markdownSt, context);
+			});
+	} else {
+		const auto fg = (_presentation == InlineButtonPresentation::Success)
+			? st.successFg->c
+			: (_presentation == InlineButtonPresentation::Danger)
+			? st.dangerFg->c
+			: st.defaultFg->c;
+		fillPill(p, anim::with_alpha(fg, st.tintBgOpacity));
+		if (_disabled) {
+			p.setOpacity(p.opacity() * st.disabledOpacity);
+		}
+		paintLabel(p, position, fg, markdownSt, context);
+	}
+	p.restore();
+}
+
+void InlineButtonObject::unload() {
+	_label.unloadPersistentAnimation();
+}
+
+bool InlineButtonObject::ready() {
+	return true;
+}
+
+bool InlineButtonObject::readyInDefaultState() {
+	return true;
+}
+
 std::unique_ptr<Ui::Text::CustomEmoji> InlineFormulaObjectCache::create(
 		const InlineTextObjectFormulaData &data,
 		const style::TextStyle &textStyle,
@@ -1158,6 +1494,7 @@ void SetTextLeaf(
 		const TextWithEntities &text,
 		const std::vector<PreparedFormulaSlot> *formulas,
 		InlineFormulaObjectCache *inlineFormulaObjects,
+		const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,
 		int minResizeWidth,
 		bool rtl,
@@ -1175,6 +1512,7 @@ void SetTextLeaf(
 	context.customEmojiFactory = [
 		formulas,
 		inlineFormulaObjects,
+		inlineButtonPaintState,
 		mediaRuntime,
 		repaintRect = std::move(repaintRect),
 		originalCustomEmojiFactory = std::move(originalCustomEmojiFactory),
@@ -1223,6 +1561,19 @@ void SetTextLeaf(
 				std::move(resolved),
 				context.repaint,
 				repaintRect);
+		}
+		case InlineTextObjectKind::Button: {
+			const auto button = std::get_if<InlineTextObjectButtonData>(
+				&parsed->data);
+			if (!button) {
+				return std::unique_ptr<Ui::Text::CustomEmoji>();
+			}
+			return std::make_unique<InlineButtonObject>(
+				*button,
+				*textStyle,
+				*st,
+				context,
+				inlineButtonPaintState);
 		}
 		}
 		return std::unique_ptr<Ui::Text::CustomEmoji>();

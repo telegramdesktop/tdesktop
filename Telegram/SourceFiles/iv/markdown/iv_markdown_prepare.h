@@ -79,6 +79,7 @@ struct PreparedLink {
 enum class InlineTextObjectKind {
 	Formula,
 	IvImage,
+	Button,
 };
 
 struct InlineTextObjectFormulaData {
@@ -93,11 +94,20 @@ struct InlineTextObjectIvImageData {
 	QString replacementText;
 };
 
+struct InlineTextObjectButtonData {
+	TextWithEntities label;
+	HistoryMessageMarkupButton::Color color
+		= HistoryMessageMarkupButton::Color::Normal;
+	bool disabled = false;
+	bool link = false;
+};
+
 struct InlineTextObjectEntity {
 	InlineTextObjectKind kind = InlineTextObjectKind::Formula;
 	std::variant<
 		InlineTextObjectFormulaData,
-		InlineTextObjectIvImageData> data = InlineTextObjectFormulaData();
+		InlineTextObjectIvImageData,
+		InlineTextObjectButtonData> data = InlineTextObjectFormulaData();
 };
 
 enum class PreparedTableCellVerticalAlignment {

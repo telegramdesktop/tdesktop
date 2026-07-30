@@ -61,6 +61,10 @@ void InvalidateInlineFormulaRasterCache(
 	int devicePixelRatio,
 	const style::Markdown &st);
 
+struct InlineButtonPaintState {
+	const style::Markdown *st = nullptr;
+};
+
 void SetTextLeaf(
 	Ui::Text::String *leaf,
 	const style::TextStyle &textStyle,
@@ -68,6 +72,7 @@ void SetTextLeaf(
 	const TextWithEntities &text,
 	const std::vector<PreparedFormulaSlot> *formulas,
 	InlineFormulaObjectCache *inlineFormulaObjects,
+	const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
 	const std::shared_ptr<MediaRuntime> &mediaRuntime,
 	int minResizeWidth,
 	bool rtl,

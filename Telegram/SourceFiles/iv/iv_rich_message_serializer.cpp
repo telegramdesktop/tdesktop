@@ -498,6 +498,14 @@ struct SerializeBlockResult {
 						? image->replacementText
 						: u"[image]"_q));
 			}
+			case Markdown::InlineTextObjectKind::Button: {
+				const auto button = std::get_if<
+					Markdown::InlineTextObjectButtonData>(&parsed->data);
+				return std::optional<MTPRichText>(MakePlainRichText(
+					(button && !button->label.text.isEmpty())
+						? button->label.text
+						: segment));
+			}
 			}
 		}
 		const auto documentId = ::Data::ParseCustomEmojiData(entity.data());

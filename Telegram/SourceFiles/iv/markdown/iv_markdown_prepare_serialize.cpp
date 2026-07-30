@@ -28,6 +28,77 @@ namespace {
 		QByteArray::fromPercentEncoding(value.toLatin1()));
 }
 
+[[nodiscard]] QString RichButtonLabelEntityName(EntityType type) {
+	return (type == EntityType::CustomEmoji)
+		? u"custom-emoji"_q
+		: (type == EntityType::FormattedDate)
+		? u"formatted-date"_q
+		: QString();
+}
+
+[[nodiscard]] EntityType RichButtonLabelEntityType(QStringView name) {
+	return (name == u"custom-emoji"_q)
+		? EntityType::CustomEmoji
+		: (name == u"formatted-date"_q)
+		? EntityType::FormattedDate
+		: EntityType::Invalid;
+}
+
+[[nodiscard]] QString SerializeRichButtonLabel(const TextWithEntities &text) {
+	auto result = EncodeInlineTextObjectField(text.text);
+	for (const auto &entity : text.entities) {
+		const auto name = RichButtonLabelEntityName(entity.type());
+		if (name.isEmpty()) {
+			continue;
+		}
+		result += u"|"_q
+			+ name
+			+ u","_q
+			+ QString::number(entity.offset())
+			+ u","_q
+			+ QString::number(entity.length())
+			+ u","_q
+			+ EncodeInlineTextObjectField(entity.data());
+	}
+	return result;
+}
+
+[[nodiscard]] TextWithEntities ParseRichButtonLabel(QStringView data) {
+	const auto parts = data.split(QChar('|'), Qt::KeepEmptyParts);
+	if (parts.empty()) {
+		return {};
+	}
+	auto result = TextWithEntities{
+		DecodeInlineTextObjectField(parts[0]),
+	};
+	const auto size = int(result.text.size());
+	for (auto i = 1, count = int(parts.size()); i != count; ++i) {
+		const auto fields = parts[i].split(QChar(','), Qt::KeepEmptyParts);
+		if (fields.size() != 4) {
+			continue;
+		}
+		auto offsetOk = false;
+		auto lengthOk = false;
+		const auto type = RichButtonLabelEntityType(fields[0]);
+		const auto offset = fields[1].toInt(&offsetOk);
+		const auto length = fields[2].toInt(&lengthOk);
+		if (type == EntityType::Invalid
+			|| !offsetOk
+			|| !lengthOk
+			|| offset < 0
+			|| length <= 0
+			|| offset + length > size) {
+			continue;
+		}
+		result.entities.push_back(EntityInText(
+			type,
+			offset,
+			length,
+			DecodeInlineTextObjectField(fields[3])));
+	}
+	return result;
+}
+
 [[nodiscard]] int TextSizeForFormula(const style::TextStyle &textStyle) {
 	return std::max(textStyle.font->height, 1);
 }
@@ -59,6 +130,21 @@ QString SerializeInlineTextObjectEntity(const InlineTextObjectEntity &object) {
 			+ QString::number(data->height)
 			+ u";"_q
 			+ EncodeInlineTextObjectField(data->replacementText);
+	} break;
+	case InlineTextObjectKind::Button: {
+		const auto data = std::get_if<InlineTextObjectButtonData>(&object.data);
+		if (!data) {
+			return QString();
+		}
+		const auto label = SerializeRichButtonLabel(data->label);
+		return u"iv-markdown:inline-text-object;button;"_q
+			+ EncodeInlineTextObjectField(label)
+			+ u";"_q
+			+ QString::number(int(data->color))
+			+ u";"_q
+			+ QString::number(data->disabled ? 1 : 0)
+			+ u";"_q
+			+ QString::number(data->link ? 1 : 0);
 	} break;
 	}
 	return QString();
@@ -104,6 +190,26 @@ std::optional<InlineTextObjectEntity> ParseInlineTextObjectEntity(
 				.replacementText = DecodeInlineTextObjectField(parts[5]),
 			},
 		};
+	} else if (parts[1] == u"button"_q) {
+		if (parts.size() != 6) {
+			return std::nullopt;
+		}
+		using Color = HistoryMessageMarkupButton::Color;
+		auto colorOk = false;
+		const auto color = parts[3].toInt(&colorOk);
+		if (!colorOk || color < 0 || color > int(Color::Success)) {
+			return std::nullopt;
+		}
+		const auto label = DecodeInlineTextObjectField(parts[2]);
+		return InlineTextObjectEntity{
+			.kind = InlineTextObjectKind::Button,
+			.data = InlineTextObjectButtonData{
+				.label = ParseRichButtonLabel(label),
+				.color = Color(color),
+				.disabled = (parts[4] == u"1"_q),
+				.link = (parts[5] == u"1"_q),
+			},
+		};
 	}
 	return std::nullopt;
 }
@@ -125,6 +231,8 @@ void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
 			return data.trimmedTex;
 		}, [](const InlineTextObjectIvImageData &data) {
 			return data.replacementText;
+		}, [](const InlineTextObjectButtonData &data) {
+			return data.label.text;
 		});
 		const auto offset = i->offset();
 		const auto length = i->length();
@@ -155,6 +263,19 @@ void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
 			i = entities.erase(i);
 		}
 	}
+}
+
+TextWithEntities NormalizeRichButtonLabel(TextWithEntities text) {
+	ExpandInlineTextObjects(&text, false);
+	text.entities.erase(
+		ranges::remove_if(text.entities, [](const EntityInText &entity) {
+			const auto type = entity.type();
+			return (type != EntityType::CustomEmoji)
+				&& (type != EntityType::FormattedDate);
+		}),
+		text.entities.end());
+	TextUtilities::Trim(text);
+	return text;
 }
 
 QString InlineFormulaCopySource(const QString &source) {

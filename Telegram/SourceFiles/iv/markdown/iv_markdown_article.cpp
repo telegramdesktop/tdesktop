@@ -3802,6 +3802,8 @@ private:
 	std::vector<RenderedFormula> _formulaRenders;
 	std::shared_ptr<MathRenderer> _renderer;
 	std::shared_ptr<InlineFormulaObjectCache> _inlineFormulaObjects;
+	std::shared_ptr<InlineButtonPaintState> _inlineButtonPaintState
+		= std::make_shared<InlineButtonPaintState>();
 	MediaBlockHost *_mediaBlockHost = nullptr;
 	Fn<void()> _textRepaint;
 	Fn<void(QRect)> _textRepaintRect;
@@ -4064,6 +4066,7 @@ void MarkdownArticle::Impl::updatePreparedLeaf(
 	context.repaint = _textRepaint;
 	context.repaintRect = _textRepaintRect;
 	context.spoilerLinkFilter = _textSpoilerLinkFilter;
+	context.inlineButtonPaintState = _inlineButtonPaintState;
 	if (live.block && incoming.block) {
 		UpdateLaidOutLeafContent(
 			live.block,
@@ -4243,6 +4246,10 @@ void MarkdownArticle::Impl::paint(
 	local.searchState.matches = &_searchMatches;
 	local.searchState.current = _currentSearchMatch;
 	const auto &paintSt = local.paintMarkdownStyle(st);
+	_inlineButtonPaintState->st = &paintSt;
+	const auto inlineButtonPaintGuard = gsl::finally([&] {
+		_inlineButtonPaintState->st = nullptr;
+	});
 	auto textPalette = paintSt.textPalette;
 	auto markBg = MarkBgColorForStyle(paintSt);
 	const auto ownedMarkBg = style::internal::OwnedColor(markBg);
@@ -4863,6 +4870,7 @@ bool MarkdownArticle::Impl::highlightProcessDone(
 			*block,
 			&_content.formulas,
 			_inlineFormulaObjects.get(),
+			_inlineButtonPaintState,
 			_content.mediaRuntime,
 			layoutStyle(),
 			true,
@@ -6118,6 +6126,7 @@ void MarkdownArticle::Impl::relayout(int width) {
 		.repaint = _textRepaint,
 		.repaintRect = _textRepaintRect,
 		.spoilerLinkFilter = _textSpoilerLinkFilter,
+		.inlineButtonPaintState = _inlineButtonPaintState,
 	};
 	if (_editableMaxLineWidthOverrideLeaf
 		&& (_editableMaxLineWidthOverride > 0)) {
@@ -6210,6 +6219,7 @@ void MarkdownArticle::Impl::relayoutRetained(int width) {
 		.repaint = _textRepaint,
 		.repaintRect = _textRepaintRect,
 		.spoilerLinkFilter = _textSpoilerLinkFilter,
+		.inlineButtonPaintState = _inlineButtonPaintState,
 	};
 	if (_editableMaxLineWidthOverrideLeaf
 		&& (_editableMaxLineWidthOverride > 0)) {

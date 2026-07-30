@@ -276,9 +276,10 @@ struct ButtonRowColors {
 }
 
 void PaintButtonLabel(
-		Painter &p,
+		QPainter &p,
 		const LaidOutButton &button,
-		const MarkdownArticlePaintContext &context) {
+		const MarkdownArticlePaintContext &context,
+		const style::TextPalette *palette) {
 	if (button.labelRect.isEmpty() || button.label.isEmpty()) {
 		return;
 	}
@@ -288,27 +289,28 @@ void PaintButtonLabel(
 		.availableWidth = available,
 		.geometry = Ui::Text::SimpleGeometry(available, 1, 0, false),
 		.clip = context.clip,
-		.palette = &p.textPalette(),
+		.palette = palette,
 		.now = context.now,
 		.elisionLines = 1,
 	});
 }
 
 void PaintButtonContent(
-		Painter &p,
+		QPainter &p,
 		const LaidOutButton &button,
 		QColor fg,
 		const MarkdownArticlePaintContext &context,
-		int outerWidth) {
+		int outerWidth,
+		const style::TextPalette *palette) {
 	if (button.icon) {
 		button.icon->paint(p, button.iconRect.topLeft(), outerWidth, fg);
 	}
 	p.setPen(fg);
-	PaintButtonLabel(p, button, context);
+	PaintButtonLabel(p, button, context, palette);
 }
 
 void PaintButtonPill(
-		Painter &p,
+		QPainter &p,
 		const LaidOutButton &button,
 		const ButtonRowColors &colors,
 		Ui::RippleAnimation *ripple,
@@ -343,22 +345,18 @@ void PaintPlainButton(
 	if (disabled) {
 		p.setOpacity(was * st.disabledOpacity);
 	}
-	PaintButtonContent(p, button, colors.fg, context, outerWidth);
+	PaintButtonContent(
+		p,
+		button,
+		colors.fg,
+		context,
+		outerWidth,
+		&p.textPalette());
 	if (disabled) {
 		p.setOpacity(was);
 	}
 }
 
-// A primary pill is composed offscreen so that its label glyphs, its
-// text-colored custom emoji and its corner icon can be erased out of the
-// accent fill with CompositionMode_DestinationOut. No code here reads the
-// surface behind the row: the holes simply expose whatever the host already
-// painted, which is what lets one painter serve an incoming bubble, an
-// outgoing bubble and the article surface alike. The label is then drawn
-// once more on the real painter with a fully transparent pen: plain glyphs
-// and text-colored custom emoji contribute nothing there, while colorful
-// emoji and non-text-colored custom emoji repaint themselves into the holes
-// they punched and so stay colorful above the fill.
 void PaintPrimaryButton(
 		Painter &p,
 		const LaidOutButton &button,
@@ -368,29 +366,17 @@ void PaintPrimaryButton(
 		const MarkdownArticlePaintContext &context,
 		int outerWidth,
 		bool disabled) {
-	const auto ratio = style::DevicePixelRatio();
-	const auto opacity = disabled ? st.disabledPrimaryOpacity : 1.;
-	auto frame = QImage(
-		button.rect.size() * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	frame.setDevicePixelRatio(ratio);
-	frame.fill(Qt::transparent);
-	{
-		auto q = Painter(&frame);
-		q.translate(-button.rect.topLeft());
-		q.setTextPalette(p.textPalette());
-		PaintButtonPill(q, button, colors, ripple, st, outerWidth);
-		q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
-		q.setOpacity(opacity);
-		PaintButtonContent(q, button, QColor(Qt::white), context, outerWidth);
-		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
-	}
-	p.drawImage(button.rect.topLeft(), frame);
-	const auto was = p.opacity();
-	p.setOpacity(was * opacity);
-	p.setPen(QColor(Qt::transparent));
-	PaintButtonLabel(p, button, context);
-	p.setOpacity(was);
+	const auto palette = &p.textPalette();
+	PaintPunchedOutPill(
+		p,
+		button.rect,
+		disabled ? st.disabledPrimaryOpacity : 1.,
+		[&](QPainter &q) {
+			PaintButtonPill(q, button, colors, ripple, st, outerWidth);
+		},
+		[&](QPainter &q, QColor fg) {
+			PaintButtonContent(q, button, fg, context, outerWidth, palette);
+		});
 }
 
 } // namespace
@@ -504,6 +490,44 @@ void RefreshButtonRowHandlers(
 		runtime->rippleIndex = -1;
 		runtime->ripple = nullptr;
 	}
+}
+
+// A punched-out pill is composed offscreen so that its label glyphs, its
+// text-colored custom emoji and any icon can be erased out of the accent
+// fill with CompositionMode_DestinationOut. No code here reads the surface
+// behind the pill: the holes simply expose whatever the host already
+// painted, which is what lets one painter serve an incoming bubble, an
+// outgoing bubble and the article surface alike. The content is then drawn
+// once more on the real painter with a fully transparent color: plain
+// glyphs and text-colored custom emoji contribute nothing there, while
+// colorful emoji and non-text-colored custom emoji repaint themselves into
+// the holes they punched and so stay colorful above the fill.
+void PaintPunchedOutPill(
+		QPainter &p,
+		QRect rect,
+		float64 contentOpacity,
+		const Fn<void(QPainter&)> &paintBackground,
+		const Fn<void(QPainter&, QColor)> &paintContent) {
+	const auto ratio = style::DevicePixelRatio();
+	auto frame = QImage(
+		rect.size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	frame.setDevicePixelRatio(ratio);
+	frame.fill(Qt::transparent);
+	{
+		auto q = QPainter(&frame);
+		q.translate(-rect.topLeft());
+		paintBackground(q);
+		q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+		q.setOpacity(contentOpacity);
+		paintContent(q, QColor(Qt::white));
+		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+	}
+	p.drawImage(rect.topLeft(), frame);
+	const auto was = p.opacity();
+	p.setOpacity(was * contentOpacity);
+	paintContent(p, QColor(Qt::transparent));
+	p.setOpacity(was);
 }
 
 void PaintButtonRow(

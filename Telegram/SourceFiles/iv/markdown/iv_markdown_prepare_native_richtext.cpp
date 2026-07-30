@@ -369,20 +369,6 @@ void ApplyEmptyMediaCaptionPlaceholder(
 	Unexpected("Alignment in NativeIvButtonRowAlignment.");
 }
 
-[[nodiscard]] TextWithEntities NormalizeNativeIvButtonLabel(
-		TextWithEntities text) {
-	ExpandInlineTextObjects(&text, false);
-	text.entities.erase(
-		ranges::remove_if(text.entities, [](const EntityInText &entity) {
-			const auto type = entity.type();
-			return (type != EntityType::CustomEmoji)
-				&& (type != EntityType::FormattedDate);
-		}),
-		text.entities.end());
-	TextUtilities::Trim(text);
-	return text;
-}
-
 } // namespace
 
 bool PrepareNativeIvRichText(
@@ -693,7 +679,7 @@ bool PrepareNativeIvButtonRowBlock(
 	block.buttonRow.buttons.reserve(data.buttons.size());
 	for (const auto &button : data.buttons) {
 		block.buttonRow.buttons.push_back({
-			.text = NormalizeNativeIvButtonLabel(button.text.text),
+			.text = NormalizeRichButtonLabel(button.text.text),
 			.button = button.button,
 			.shared = &button.button,
 		});

@@ -462,6 +462,18 @@ MarkdownButtonRow {
 	disabledOpacity: double;
 	disabledPrimaryOpacity: double;
 }
+MarkdownInlineButton {
+	padding: pixels;
+	verticalPadding: pixels;
+	labelStyle: TextStyle;
+	defaultFg: color;
+	primaryBg: color;
+	successFg: color;
+	dangerFg: color;
+	tintBgOpacity: double;
+	disabledOpacity: double;
+	disabledPrimaryOpacity: double;
+}
 MarkdownPhoto {
 	padding: margins;
 	captionSkip: pixels;
@@ -608,6 +620,7 @@ Markdown {
 	groupedMedia: MarkdownGroupedMedia;
 	failure: MarkdownFailure;
 	buttonRow: MarkdownButtonRow;
+	inlineButton: MarkdownInlineButton;
 }
 
 defaultMarkdownTextPalette: TextPalette(defaultTextPalette) {
@@ -938,6 +951,24 @@ defaultMarkdownButtonRow: MarkdownButtonRow {
 	disabledOpacity: 0.33;
 	disabledPrimaryOpacity: 0.6;
 }
+markdownInlineButtonDisabledOpacity: 0.55;
+markdownInlineButtonDisabledPrimaryOpacity: 0.6;
+defaultMarkdownInlineButtonLabelStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: font(12px semibold);
+	lineHeight: 0px;
+}
+defaultMarkdownInlineButton: MarkdownInlineButton {
+	padding: 6px;
+	verticalPadding: 2px;
+	labelStyle: defaultMarkdownInlineButtonLabelStyle;
+	defaultFg: windowActiveTextFg;
+	primaryBg: activeButtonBg;
+	successFg: historyPeer2NameFg;
+	dangerFg: historyPeer1NameFg;
+	tintBgOpacity: markdownButtonRowTintBgOpacity;
+	disabledOpacity: markdownInlineButtonDisabledOpacity;
+	disabledPrimaryOpacity: markdownInlineButtonDisabledPrimaryOpacity;
+}
 markdownFootnoteBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 0px);
 	buttonHeight: 0px;
@@ -1034,6 +1065,7 @@ defaultMarkdown: Markdown {
 	groupedMedia: defaultMarkdownGroupedMedia;
 	failure: defaultMarkdownFailure;
 	buttonRow: defaultMarkdownButtonRow;
+	inlineButton: defaultMarkdownInlineButton;
 }
 messageMarkdownBodyStyle: TextStyle(messageTextStyle) {
 	font: font(13px);
@@ -1366,6 +1398,11 @@ messageMarkdownOut: Markdown(messageMarkdown) {
 		primaryRipple: msgFileOutBg;
 		successFg: msgOutReplyBarColor;
 	}
+	inlineButton: MarkdownInlineButton(defaultMarkdownInlineButton) {
+		defaultFg: msgOutReplyBarColor;
+		primaryBg: msgOutReplyBarColor;
+		successFg: msgOutReplyBarColor;
+	}
 }
 messageMarkdownSelected: Markdown(messageMarkdown) {
 	textPalette: TextPalette(inTextPaletteSelected) {
@@ -1429,6 +1466,10 @@ messageMarkdownSelected: Markdown(messageMarkdown) {
 	}
 	buttonRow: MarkdownButtonRow(defaultMarkdownButtonRow) {
 		defaultFg: historyTextInFgSelected;
+		successFg: historyPeer2NameFgSelected;
+		dangerFg: historyPeer1NameFgSelected;
+	}
+	inlineButton: MarkdownInlineButton(defaultMarkdownInlineButton) {
 		successFg: historyPeer2NameFgSelected;
 		dangerFg: historyPeer1NameFgSelected;
 	}
@@ -1501,6 +1542,12 @@ messageMarkdownOutSelected: Markdown(messageMarkdown) {
 		defaultFg: msgOutReplyBarSelColor;
 		primaryBg: msgOutReplyBarSelColor;
 		primaryRipple: msgFileOutBgSelected;
+		successFg: msgOutReplyBarSelColor;
+		dangerFg: historyPeer1NameFgSelected;
+	}
+	inlineButton: MarkdownInlineButton(defaultMarkdownInlineButton) {
+		defaultFg: msgOutReplyBarSelColor;
+		primaryBg: msgOutReplyBarSelColor;
 		successFg: msgOutReplyBarSelColor;
 		dangerFg: historyPeer1NameFgSelected;
 	}

@@ -809,6 +809,20 @@ void RememberWebPageMedia(
 		const MTPPageCaption &caption,
 		ParseContext *context);
 
+[[nodiscard]] bool AppendInlineTextObject(
+		TextWithEntities *text,
+		const Markdown::InlineTextObjectEntity &object,
+		const QString &fallback) {
+	const auto entityData = Markdown::SerializeInlineTextObjectEntity(object);
+	if (entityData.isEmpty()) {
+		text->append(fallback);
+		return true;
+	}
+	const auto from = text->text.size();
+	text->append(QChar::ObjectReplacementCharacter);
+	return AddEntity(text, from, EntityType::CustomEmoji, entityData);
+}
+
 [[nodiscard]] bool AppendRichText(
 		const MTPRichText &text,
 		RichText *result,
@@ -836,48 +850,30 @@ void RememberWebPageMedia(
 			result->text.append(replacementText);
 			return true;
 		}
-		const auto entityData = Markdown::SerializeInlineTextObjectEntity({
-			.kind = Markdown::InlineTextObjectKind::IvImage,
-			.data = Markdown::InlineTextObjectIvImageData{
-				.documentId = uint64(data.vdocument_id().v),
-				.width = data.vw().v,
-				.height = data.vh().v,
-				.replacementText = replacementText,
+		return AppendInlineTextObject(
+			&result->text,
+			{
+				.kind = Markdown::InlineTextObjectKind::IvImage,
+				.data = Markdown::InlineTextObjectIvImageData{
+					.documentId = uint64(data.vdocument_id().v),
+					.width = data.vw().v,
+					.height = data.vh().v,
+					.replacementText = replacementText,
+				},
 			},
-		});
-		if (entityData.isEmpty()) {
-			result->text.append(replacementText);
-			return true;
-		}
-		const auto from = result->text.text.size();
-		result->text.append(QChar::ObjectReplacementCharacter);
-		result->text.entities.push_back(EntityInText(
-			EntityType::CustomEmoji,
-			from,
-			1,
-			entityData));
-		return true;
+			replacementText);
 	}, [&](const MTPDtextMath &data) {
 		const auto source = FormulaTexFromSource(qs(data.vsource()));
-		const auto entityData = Markdown::SerializeInlineTextObjectEntity({
-			.kind = Markdown::InlineTextObjectKind::Formula,
-			.data = Markdown::InlineTextObjectFormulaData{
-				.copySource = Markdown::InlineFormulaCopySource(source),
-				.trimmedTex = source,
+		return AppendInlineTextObject(
+			&result->text,
+			{
+				.kind = Markdown::InlineTextObjectKind::Formula,
+				.data = Markdown::InlineTextObjectFormulaData{
+					.copySource = Markdown::InlineFormulaCopySource(source),
+					.trimmedTex = source,
+				},
 			},
-		});
-		if (entityData.isEmpty()) {
-			result->text.append(source);
-			return true;
-		}
-		const auto from = result->text.text.size();
-		result->text.append(QChar::ObjectReplacementCharacter);
-		result->text.entities.push_back(EntityInText(
-			EntityType::CustomEmoji,
-			from,
-			1,
-			entityData));
-		return true;
+			source);
 	}, [&](const MTPDtextCustomEmoji &data) {
 		result->text.append(Ui::Text::SingleCustomEmoji(
 			::Data::SerializeCustomEmojiId(uint64(data.vdocument_id().v)),
@@ -1107,13 +1103,47 @@ void RememberWebPageMedia(
 				EntityType::Colorized,
 				QString(QChar(kTextDiffInsertedColorIndex)));
 	}, [&](const MTPDtextButton &data) {
-		AssertIsDebug();
-		return AppendRichText(
+		const auto buttonStyle = data.vstyle();
+		const auto button = ParseInlineButton(
+			data.vtype(),
+			QString(),
+			ParseRichButtonVisual(buttonStyle));
+		if (!button) {
+			return AppendRichText(
+				data.vtext(),
+				result,
+				context,
+				anchorId,
+				anchorIds);
+		}
+		auto parsed = ParseRichText(
 			data.vtext(),
-			result,
 			context,
-			anchorId,
-			anchorIds);
+			RichTextParseMode::DropClickHandlersKeepDates);
+		const auto label = Markdown::NormalizeRichButtonLabel(
+			std::move(parsed.text));
+		if (label.empty()) {
+			return true;
+		}
+		using Type = HistoryMessageMarkupButton::Type;
+		const auto disabled = (button->type == Type::Disabled);
+		const auto link = buttonStyle
+			&& buttonStyle->data().is_link()
+			&& (disabled
+				|| button->type == Type::Callback
+				|| button->type == Type::CallbackWithPassword);
+		return AppendInlineTextObject(
+			&result->text,
+			{
+				.kind = Markdown::InlineTextObjectKind::Button,
+				.data = Markdown::InlineTextObjectButtonData{
+					.label = label,
+					.color = button->visual.color,
+					.disabled = disabled,
+					.link = link,
+				},
+			},
+			label.text);
 	});
 }
 

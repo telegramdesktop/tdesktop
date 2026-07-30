@@ -20,6 +20,8 @@ namespace Iv::Markdown {
 [[nodiscard]] std::optional<InlineTextObjectEntity> ParseInlineTextObjectEntity(
 	QStringView data);
 void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons);
+[[nodiscard]] TextWithEntities NormalizeRichButtonLabel(
+	TextWithEntities text);
 [[nodiscard]] QString InlineFormulaCopySource(const QString &source);
 [[nodiscard]] MarkdownPrepareDimensions CaptureMarkdownPrepareDimensions();
 [[nodiscard]] MarkdownPrepareDimensions CaptureMarkdownPrepareDimensions(

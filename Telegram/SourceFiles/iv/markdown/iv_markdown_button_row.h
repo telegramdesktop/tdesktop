@@ -72,6 +72,12 @@ void RefreshButtonRowHandlers(
 	const std::shared_ptr<ButtonRowRuntime> &runtime,
 	const PreparedButtonRowBlockData &prepared,
 	const std::vector<LaidOutButton> &buttons);
+void PaintPunchedOutPill(
+	QPainter &p,
+	QRect rect,
+	float64 contentOpacity,
+	const Fn<void(QPainter&)> &paintBackground,
+	const Fn<void(QPainter&, QColor)> &paintContent);
 void PaintButtonRow(
 	Painter &p,
 	const LaidOutBlock &block,
