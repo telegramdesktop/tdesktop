@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/api/gram_api_history.h"
 #include "gram/crypto/gram_mnemonic.h"
 #include "gram/ton/gram_address.h"
+#include "gram/ton/gram_transfer_link.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
@@ -897,6 +898,28 @@ struct SendFlow {
 	bool feeApproximate = true;
 };
 
+[[nodiscard]] std::optional<SendFlow> ParseRecipientFlow(
+		const QString &text) {
+	auto address = text;
+	auto amountNano = int64(0);
+	if (const auto link = Gram::ParseTransferLink(text)) {
+		address = link->address;
+		amountNano = link->amountNano;
+	}
+	const auto parsed = Gram::ParseAddress(address);
+	if (!parsed || parsed->testnet) {
+		return std::nullopt;
+	}
+	return SendFlow{
+		.destination = parsed->address,
+		.bounce = parsed->bounceable,
+		.displayForm = (parsed->friendly
+			? address
+			: Gram::FormatFriendly(parsed->address, parsed->bounceable)),
+		.amountNano = amountNano,
+	};
+}
+
 not_null<Ui::FlatLabel*> AddSendFlowLabel(
 		not_null<Ui::GenericBox*> box,
 		rpl::producer<QString> text,
@@ -1041,7 +1064,9 @@ void WalletSendAmountBox(
 
 	const auto wallet = &controller->session().wallet();
 	Ui::AddSkip(box->verticalLayout(), st::walletSendAmountTopSkip);
-	const auto field = Ui::AddTonInputField(box->verticalLayout(), {});
+	const auto field = Ui::AddTonInputField(box->verticalLayout(), {
+		.value = flow.amountNano,
+	});
 	box->setFocusCallback([=] {
 		field->setFocusFast();
 	});
@@ -1050,13 +1075,16 @@ void WalletSendAmountBox(
 		rpl::variable<int64> amount = 0;
 		rpl::variable<int64> fee = 0;
 		rpl::variable<bool> insufficient = false;
+		rpl::variable<bool> canSend = false;
 		bool feeApproximate = true;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	field->changes() | rpl::on_next([=] {
+	const auto updateAmount = [=] {
 		state->amount = Ui::ParseTonAmountString(
 			field->getLastText()).value_or(0);
-	}, field->lifetime());
+	};
+	field->changes() | rpl::on_next(updateAmount, field->lifetime());
+	updateAmount();
 
 	const auto refreshFee = [=] {
 		auto args = SendArgs{
@@ -1077,9 +1105,17 @@ void WalletSendAmountBox(
 	state->insufficient = rpl::combine(
 		state->amount.value(),
 		state->fee.value(),
-		wallet->balanceNanoValue()
-	) | rpl::map([](int64 amount, int64 fee, int64 balance) {
-		return (amount > 0) && (amount + fee > balance);
+		wallet->balanceNanoValue(),
+		wallet->stateKnownValue()
+	) | rpl::map([](int64 amount, int64 fee, int64 balance, bool known) {
+		return known && (amount > 0) && (amount > balance - fee);
+	});
+	state->canSend = rpl::combine(
+		state->amount.value(),
+		state->insufficient.value(),
+		wallet->stateKnownValue()
+	) | rpl::map([](int64 amount, bool insufficient, bool known) {
+		return known && (amount > 0) && !insufficient;
 	});
 
 	const auto error = AddSendFlowLabel(
@@ -1121,8 +1157,7 @@ void WalletSendAmountBox(
 		st::walletSendBalanceLabel);
 
 	const auto submit = [=] {
-		if (state->amount.current() <= 0
-			|| state->insufficient.current()) {
+		if (!state->canSend.current()) {
 			field->showError();
 			return;
 		}
@@ -1139,13 +1174,8 @@ void WalletSendAmountBox(
 		state->amount.value() | rpl::map([](int64 amount) {
 			return Ui::FormatTonAmount(amount).full;
 		})), submit);
-	rpl::combine(
-		state->amount.value(),
-		state->insufficient.value()
-	) | rpl::on_next([=](int64 amount, bool insufficient) {
-		SetButtonDisabledLook(
-			button.data(),
-			(amount <= 0) || insufficient);
+	state->canSend.value() | rpl::on_next([=](bool canSend) {
+		SetButtonDisabledLook(button.data(), !canSend);
 	}, button->lifetime());
 }
 
@@ -1189,27 +1219,15 @@ void WalletSendRecipientBox(
 	error->setVisible(false);
 
 	struct State {
-		std::optional<Gram::ParsedAddress> parsed;
+		std::optional<SendFlow> flow;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	const auto valid = [=] {
-		return state->parsed && !state->parsed->testnet;
-	};
 	const auto submit = [=] {
-		if (!valid()) {
+		if (!state->flow) {
 			field->showError();
 			return;
 		}
-		const auto parsed = *state->parsed;
-		auto flow = SendFlow{
-			.destination = parsed.address,
-			.bounce = parsed.bounceable,
-			.displayForm = (parsed.friendly
-				? field->getLastText().trimmed()
-				: Gram::FormatFriendly(
-					parsed.address,
-					parsed.bounceable)),
-		};
+		const auto flow = *state->flow;
 		box->closeBox();
 		controller->show(Box(WalletSendAmountBox, controller, flow));
 	};
@@ -1219,11 +1237,10 @@ void WalletSendRecipientBox(
 		submit);
 	field->changes() | rpl::on_next([=] {
 		const auto text = field->getLastText().trimmed();
-		state->parsed = text.isEmpty()
-			? std::nullopt
-			: Gram::ParseAddress(text);
-		error->setVisible(!text.isEmpty() && !valid());
-		SetButtonDisabledLook(button.data(), !valid());
+		state->flow = ParseRecipientFlow(text);
+		const auto valid = state->flow.has_value();
+		error->setVisible(!text.isEmpty() && !valid);
+		SetButtonDisabledLook(button.data(), !valid);
 	}, field->lifetime());
 	SetButtonDisabledLook(button.data(), true);
 }
@@ -2659,6 +2676,18 @@ QRect SectionWidget::floatPlayerAvailableRect() {
 
 bool SectionWidget::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
+}
+
+void OpenTransferLink(
+		not_null<Window::SessionController*> controller,
+		const QString &url) {
+	const auto flow = ParseRecipientFlow(url);
+	if (!flow) {
+		controller->showToast(tr::lng_wallet_send_invalid_address(tr::now));
+		return;
+	}
+	controller->showSection(std::make_shared<SectionMemento>());
+	controller->show(Box(WalletSendAmountBox, controller, *flow));
 }
 
 } // namespace Wallet

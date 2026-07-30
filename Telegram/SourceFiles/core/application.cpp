@@ -87,6 +87,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "payments/payments_checkout_process.h"
 #include "export/export_manager.h"
+#include "wallet/wallet_section.h"
 #include "webrtc/webrtc_environment.h"
 #include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
@@ -1219,6 +1220,18 @@ void Application::checkStartUrls() {
 			if (url.scheme() == u"tonsite"_q) {
 				iv().showTonSite(url.toString(), {});
 				return false;
+			} else if (url.scheme() == u"ton"_q) {
+				const auto window = _lastActivePrimaryWindow;
+				const auto controller = (window && !window->locked())
+					? window->sessionController()
+					: nullptr;
+				if (!controller) {
+					return true;
+				}
+				Wallet::OpenTransferLink(
+					controller,
+					url.toString(QUrl::FullyEncoded));
+				return false;
 			} else if (_lastActivePrimaryWindow) {
 				const auto local = TryConvertUrlToLocal(url.toString());
 				return !openLocalUrl(local, {});
@@ -2060,6 +2073,17 @@ void Application::RegisterUrlScheme() {
 		.arguments = arguments,
 		.protocol = u"tonsite"_q,
 		.protocolName = u"TonSite Link"_q,
+		.shortAppName = u"tdesktop"_q,
+		.longAppName = QCoreApplication::applicationName(),
+		.displayAppName = AppName.utf16(),
+		.displayAppDescription = AppName.utf16(),
+	});
+
+	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
+		.executable = Platform::ExecutablePathForShortcuts(),
+		.arguments = arguments,
+		.protocol = u"ton"_q,
+		.protocolName = u"Ton Link"_q,
 		.shortAppName = u"tdesktop"_q,
 		.longAppName = QCoreApplication::applicationName(),
 		.displayAppName = AppName.utf16(),

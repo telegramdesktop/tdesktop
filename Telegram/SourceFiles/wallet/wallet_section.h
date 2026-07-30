@@ -75,4 +75,8 @@ private:
 
 };
 
+void OpenTransferLink(
+	not_null<Window::SessionController*> controller,
+	const QString &url);
+
 } // namespace Wallet

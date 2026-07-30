@@ -184,6 +184,7 @@ void Session::markPhraseViewed() {
 void Session::clearNetworkState() {
 	_balanceNano = 0;
 	_lastState = Gram::AccountState();
+	_stateKnown = false;
 	_history.clear();
 	_historyUpdates.fire({});
 	_historyErrorLogged = false;
@@ -268,6 +269,7 @@ void Session::refreshState(
 void Session::applyAccountState(const Gram::AccountState &state) {
 	_lastState = state;
 	_balanceNano = state.balanceNano;
+	_stateKnown = true;
 }
 
 void Session::refreshHistory(Fn<void()> done) {
@@ -487,6 +489,10 @@ int64 Session::balanceNano() const {
 
 rpl::producer<int64> Session::balanceNanoValue() const {
 	return _balanceNano.value();
+}
+
+rpl::producer<bool> Session::stateKnownValue() const {
+	return _stateKnown.value();
 }
 
 Gram::AccountStatus Session::status() const {

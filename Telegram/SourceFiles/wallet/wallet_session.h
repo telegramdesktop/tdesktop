@@ -73,6 +73,7 @@ public:
 
 	[[nodiscard]] int64 balanceNano() const;
 	[[nodiscard]] rpl::producer<int64> balanceNanoValue() const;
+	[[nodiscard]] rpl::producer<bool> stateKnownValue() const;
 	[[nodiscard]] Gram::AccountStatus status() const;
 	[[nodiscard]] const std::vector<Gram::TransferItem> &history() const;
 	[[nodiscard]] rpl::producer<> historyUpdates() const;
@@ -137,6 +138,7 @@ private:
 	quint32 _walletId = Gram::kDefaultWalletId;
 
 	rpl::variable<int64> _balanceNano = 0;
+	rpl::variable<bool> _stateKnown = false;
 	Gram::AccountState _lastState;
 	std::vector<Gram::TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;

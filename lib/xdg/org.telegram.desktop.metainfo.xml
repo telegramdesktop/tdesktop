@@ -112,5 +112,6 @@
         <dbus type="session">org.telegram.desktop</dbus>
         <mediatype>x-scheme-handler/tg</mediatype>
         <mediatype>x-scheme-handler/tonsite</mediatype>
+        <mediatype>x-scheme-handler/ton</mediatype>
     </provides>
 </component>
