@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/media/history_view_gif.h"
+#include "test/test_transfer.h"
 #include "window/window_session_controller.h"
 #include "ui/boxes/confirm_box.h"
 #include "base/base_file_utilities.h"
@@ -1199,6 +1200,7 @@ void DocumentData::save(
 		const QString &toFile,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
+	Test::NotifyDocumentSave(this, toFile, autoLoading);
 	if (const auto media = activeMediaView(); media && media->loaded(true)) {
 		auto &l = location(true);
 		if (!toFile.isEmpty()) {
@@ -1333,6 +1335,7 @@ void DocumentData::handleLoaderUpdates() {
 		}
 		finishLoad();
 		status = FileDownloadFailed;
+		Test::NotifyDocumentLoadFailed(this, error.started);
 		_owner->documentLoadFail(this, error.started);
 	}, [=] {
 		finishLoad();
