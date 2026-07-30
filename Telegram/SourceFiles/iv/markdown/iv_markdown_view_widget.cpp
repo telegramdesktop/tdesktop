@@ -278,6 +278,7 @@ void MarkdownDocumentWidget::articleContentChanged() {
 	ClickHandler::clearActive(this);
 	applyCursor(style::cur_default);
 	stopPressedPlaceholderRipple();
+	stopPressedButtonRowRipple();
 	clearSelection();
 	_articlePainted = false;
 	resetTextPaintCaches();
@@ -841,6 +842,7 @@ void MarkdownDocumentWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 
 void MarkdownDocumentWidget::focusOutEvent(QFocusEvent *e) {
 	stopPressedPlaceholderRipple();
+	stopPressedButtonRowRipple();
 	if (!_selection.empty()) {
 		_savedSelection = _selection;
 		_savedSelectionEndpoints = _selectionEndpoints;
@@ -883,6 +885,7 @@ bool MarkdownDocumentWidget::eventHook(QEvent *e) {
 
 void MarkdownDocumentWidget::leaveEventHook(QEvent *e) {
 	ClickHandler::clearActive(this);
+	_hoverTooltip = QString();
 	Ui::Tooltip::Hide();
 	applyCursor((_dragAction == Selecting)
 		? style::cur_text
@@ -910,9 +913,11 @@ void MarkdownDocumentWidget::clickHandlerPressedChanged(
 
 QString MarkdownDocumentWidget::tooltipText() const {
 	if (const auto lnk = ClickHandler::getActive()) {
-		return lnk->tooltip();
+		if (const auto text = lnk->tooltip(); !text.isEmpty()) {
+			return text;
+		}
 	}
-	return QString();
+	return _hoverTooltip;
 }
 
 QPoint MarkdownDocumentWidget::tooltipPos() const {
@@ -1127,10 +1132,13 @@ void MarkdownDocumentWidget::forceRelayoutCurrentWidth() {
 void MarkdownDocumentWidget::updateHover(
 		const MarkdownArticleHitTestResult &state) {
 	const auto changed = ClickHandler::setActive(state.state.link, this);
-	if (changed) {
+	const auto tooltipChanged = (_hoverTooltip != state.customTooltip);
+	_hoverTooltip = state.customTooltip;
+	if (changed || tooltipChanged) {
 		Ui::Tooltip::Hide();
 	}
-	if (state.state.link && _dragAction == NoDrag) {
+	if ((state.state.link || !_hoverTooltip.isEmpty())
+		&& _dragAction == NoDrag) {
 		Ui::Tooltip::Show(1000, this);
 	}
 	auto cursor = style::cur_default;
@@ -1187,6 +1195,7 @@ void MarkdownDocumentWidget::updateHoverAtCursor() {
 				| Ui::Text::StateRequest::Flag::LookupSymbol));
 	} else {
 		ClickHandler::clearActive(this);
+		_hoverTooltip = QString();
 		applyCursor(style::cur_default);
 	}
 }
@@ -1300,10 +1309,20 @@ void MarkdownDocumentWidget::stopPressedPlaceholderRipple() {
 	}
 }
 
+void MarkdownDocumentWidget::stopPressedButtonRowRipple() {
+	if (_pressedButtonRow.index >= 0) {
+		if (_article) {
+			_article->stopButtonRowRipple(_pressedButtonRow.id);
+		}
+		_pressedButtonRow = {};
+	}
+}
+
 void MarkdownDocumentWidget::dragActionStart(
 		QPoint point,
 		Qt::MouseButton button) {
 	stopPressedPlaceholderRipple();
+	stopPressedButtonRowRipple();
 	const auto state = hitTest(
 		point,
 		Ui::Text::StateRequest::Flag::LookupLink
@@ -1325,6 +1344,13 @@ void MarkdownDocumentWidget::dragActionStart(
 		addPlaceholderRipple(
 			state.mediaActivation.placeholderId,
 			state.placeholderLocalPoint);
+	}
+	if ((state.buttonRow.index >= 0) && _article) {
+		_pressedButtonRow = state.buttonRow;
+		_article->addButtonRowRipple(
+			state.buttonRow.id,
+			state.buttonRow.index,
+			state.buttonRow.localPoint);
 	}
 	_dragStartPosition = point;
 	_dragStartHadSelection = !selectionForCopy().empty();
@@ -1402,6 +1428,7 @@ MarkdownArticleHitTestResult MarkdownDocumentWidget::dragActionFinish(
 		Qt::MouseButton button) {
 	const auto state = dragActionUpdate(point);
 	stopPressedPlaceholderRipple();
+	stopPressedButtonRowRipple();
 	auto activated = ClickHandler::unpressed();
 	const auto dragStartHadSelection = _dragStartHadSelection;
 	const auto wasClick = (_dragAction == NoDrag)

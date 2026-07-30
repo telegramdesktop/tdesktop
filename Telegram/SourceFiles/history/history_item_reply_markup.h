@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 #include "data/data_chat_participant_status.h"
+#include "data/data_types.h"
+
+#include <optional>
 
 namespace Api {
 struct SendOptions;
@@ -111,6 +114,10 @@ struct HistoryMessageMarkupButton {
 	struct Visual {
 		DocumentId iconId = 0;
 		Color color = Color::Normal;
+
+		friend inline bool operator==(
+			const Visual &,
+			const Visual &) = default;
 	};
 
 	HistoryMessageMarkupButton(
@@ -136,6 +143,17 @@ struct HistoryMessageMarkupButton {
 	mutable mtpRequestId requestId = 0;
 
 };
+
+[[nodiscard]] bool operator==(
+	const HistoryMessageMarkupButton &a,
+	const HistoryMessageMarkupButton &b);
+
+[[nodiscard]] std::optional<HistoryMessageMarkupButton> ParseInlineButton(
+	const MTPInlineButtonType &type,
+	const QString &text,
+	HistoryMessageMarkupButton::Visual visual);
+[[nodiscard]] HistoryMessageMarkupButton::Visual ParseRichButtonVisual(
+	const tl::conditional<MTPRichButtonStyle> &style);
 
 struct HistoryMessageMarkupData {
 	HistoryMessageMarkupData() = default;

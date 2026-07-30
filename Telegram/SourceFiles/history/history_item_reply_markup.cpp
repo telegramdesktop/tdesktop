@@ -40,6 +40,86 @@ namespace {
 
 } // namespace
 
+HistoryMessageMarkupButton::Visual ParseRichButtonVisual(
+		const tl::conditional<MTPRichButtonStyle> &style) {
+	if (!style) {
+		return {};
+	}
+	using Color = HistoryMessageMarkupButton::Color;
+	const auto &data = style->data();
+	return {
+		.color = (data.is_bg_danger()
+			? Color::Danger
+			: data.is_bg_primary()
+			? Color::Primary
+			: data.is_bg_success()
+			? Color::Success
+			: Color::Normal),
+	};
+}
+
+std::optional<HistoryMessageMarkupButton> ParseInlineButton(
+		const MTPInlineButtonType &type,
+		const QString &text,
+		HistoryMessageMarkupButton::Visual visual) {
+	using Type = HistoryMessageMarkupButton::Type;
+	auto result = std::optional<HistoryMessageMarkupButton>();
+	type.match([&](const MTPDinlineButtonTypeUrl &data) {
+		result.emplace(Type::Url, text, visual, qba(data.vurl()));
+	}, [&](const MTPDinlineButtonTypeUrlAuth &data) {
+		result.emplace(
+			Type::Auth,
+			text,
+			visual,
+			qba(data.vurl()),
+			qs(data.vfwd_text().value_or_empty()),
+			data.vbutton_id().v);
+	}, [&](const MTPDinputInlineButtonTypeUrlAuth &) {
+		LOG(("API Error: inputInlineButtonTypeUrlAuth."));
+		// Should not get those for the users.
+	}, [&](const MTPDinlineButtonTypeWebView &data) {
+		result.emplace(Type::WebView, text, visual, data.vurl().v);
+	}, [&](const MTPDinlineButtonTypeCallback &data) {
+		result.emplace(
+			(data.is_requires_password()
+				? Type::CallbackWithPassword
+				: Type::Callback),
+			text,
+			visual,
+			qba(data.vdata()));
+	}, [&](const MTPDinlineButtonTypeGame &) {
+		result.emplace(Type::Game, text, visual);
+	}, [&](const MTPDinlineButtonTypeBuy &) {
+		result.emplace(Type::Buy, text, visual);
+	}, [&](const MTPDinlineButtonTypeSwitchInline &data) {
+		const auto samePeer = data.is_same_peer();
+		result.emplace(
+			(samePeer ? Type::SwitchInlineSame : Type::SwitchInline),
+			text,
+			visual,
+			qba(data.vquery()));
+		if (!samePeer) {
+			if (const auto types = data.vpeer_types()) {
+				result->peerTypes = PeerTypesFromMTP(*types);
+			}
+		}
+	}, [&](const MTPDinlineButtonTypeUserProfile &data) {
+		result.emplace(
+			Type::UserProfile,
+			text,
+			visual,
+			QByteArray::number(data.vuser_id().v));
+	}, [&](const MTPDinputInlineButtonTypeUserProfile &) {
+		LOG(("API Error: inputInlineButtonTypeUserProfile."));
+		// Should not get those for the users.
+	}, [&](const MTPDinlineButtonTypeCopy &data) {
+		result.emplace(Type::CopyText, text, visual, data.vcopy_text().v);
+	}, [&](const MTPDinlineButtonTypeDisabled &) {
+		result.emplace(Type::Disabled, text, visual);
+	});
+	return result;
+}
+
 RequestPeerQuery RequestPeerQueryFromTL(
 		const MTPDbuttonTypeRequestPeer &query) {
 	using Type = RequestPeerQuery::Type;
@@ -114,6 +194,18 @@ HistoryMessageMarkupButton::HistoryMessageMarkupButton(
 , forwardText(forwardText)
 , data(data)
 , buttonId(buttonId) {
+}
+
+bool operator==(
+		const HistoryMessageMarkupButton &a,
+		const HistoryMessageMarkupButton &b) {
+	return (a.type == b.type)
+		&& (a.visual == b.visual)
+		&& (a.text == b.text)
+		&& (a.forwardText == b.forwardText)
+		&& (a.data == b.data)
+		&& (a.buttonId == b.buttonId)
+		&& (a.peerTypes == b.peerTypes);
 }
 
 HistoryMessageMarkupButton *HistoryMessageMarkupButton::Get(
@@ -218,80 +310,19 @@ void HistoryMessageMarkupData::fillRows(
 							data.vurl().v);
 					});
 				}, [&](const MTPDkeyboardInlineButton &data) {
-					const auto text = qs(data.vtext());
-					const auto visual = ParseVisual(data.vstyle());
-					data.vtype().match([&](
-							const MTPDinlineButtonTypeUrl &data) {
-						row.emplace_back(
-							Type::Url,
-							text,
-							visual,
-							qba(data.vurl()));
-					}, [&](const MTPDinlineButtonTypeUrlAuth &data) {
-						row.emplace_back(
-							Type::Auth,
-							text,
-							visual,
-							qba(data.vurl()),
-							qs(data.vfwd_text().value_or_empty()),
-							data.vbutton_id().v);
-					}, [&](const MTPDinputInlineButtonTypeUrlAuth &) {
-						LOG(("API Error: inputInlineButtonTypeUrlAuth."));
-						// Should not get those for the users.
-					}, [&](const MTPDinlineButtonTypeWebView &data) {
-						row.emplace_back(
-							Type::WebView,
-							text,
-							visual,
-							data.vurl().v);
-					}, [&](const MTPDinlineButtonTypeCallback &data) {
-						row.emplace_back(
-							(data.is_requires_password()
-								? Type::CallbackWithPassword
-								: Type::Callback),
-							text,
-							visual,
-							qba(data.vdata()));
-					}, [&](const MTPDinlineButtonTypeGame &) {
-						row.emplace_back(Type::Game, text, visual);
-					}, [&](const MTPDinlineButtonTypeBuy &) {
-						row.emplace_back(Type::Buy, text, visual);
-					}, [&](const MTPDinlineButtonTypeSwitchInline &data) {
-						const auto type = data.is_same_peer()
-							? Type::SwitchInlineSame
-							: Type::SwitchInline;
-						row.emplace_back(
-							type,
-							text,
-							visual,
-							qba(data.vquery()));
-						if (type == Type::SwitchInline) {
-							// Optimization flag.
-							// Fast check on all new messages if there is a switch button to auto-click it.
-							flags |= ReplyMarkupFlag::HasSwitchInlineButton;
-							if (const auto types = data.vpeer_types()) {
-								row.back().peerTypes = PeerTypesFromMTP(
-									*types);
-							}
-						}
-					}, [&](const MTPDinlineButtonTypeUserProfile &data) {
-						row.emplace_back(
-							Type::UserProfile,
-							text,
-							visual,
-							QByteArray::number(data.vuser_id().v));
-					}, [&](const MTPDinputInlineButtonTypeUserProfile &) {
-						LOG(("API Error: inputInlineButtonTypeUserProfile."));
-						// Should not get those for the users.
-					}, [&](const MTPDinlineButtonTypeCopy &data) {
-						row.emplace_back(
-							Type::CopyText,
-							text,
-							visual,
-							data.vcopy_text().v);
-					}, [&](const MTPDinlineButtonTypeDisabled &) {
-						row.emplace_back(Type::Disabled, text, visual);
-					});
+					auto button = ParseInlineButton(
+						data.vtype(),
+						qs(data.vtext()),
+						ParseVisual(data.vstyle()));
+					if (!button) {
+						return;
+					}
+					if (button->type == Type::SwitchInline) {
+						// Optimization flag.
+						// Fast check on all new messages if there is a switch button to auto-click it.
+						flags |= ReplyMarkupFlag::HasSwitchInlineButton;
+					}
+					row.push_back(std::move(*button));
 				});
 			}
 			if (!row.empty()) {

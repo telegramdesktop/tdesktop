@@ -58,6 +58,7 @@ namespace {
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Placeholder:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::EmbedPost:
 		return false;
 	}
@@ -283,6 +284,7 @@ void PrepareNestedContext(
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::CodeBlock:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
@@ -477,6 +479,7 @@ void FinalizeOwnerSelection(
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::CodeBlock:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
@@ -1179,6 +1182,19 @@ void FinalizeOwnerSelection(
 			contentOverhead + analysis.contentPreferredWidth);
 		analysis.ownerEligible = !prepared.children.empty();
 	} break;
+	case PreparedBlockKind::ButtonRow: {
+		const auto minimum = std::max(
+			ButtonRowMinWidth(
+				int(prepared.buttonRow.buttons.size()),
+				st.buttonRow),
+			1);
+		analysis.contentMinimumWidth = minimum;
+		analysis.contentPreferredWidth = minimum;
+		analysis.outerMinimumWidth = minimum;
+		analysis.outerPreferredWidth = minimum;
+		analysis.scrollOwnerMinimumWidth = minimum;
+		analysis.ownerEligible = false;
+	} break;
 	case PreparedBlockKind::Rule:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
@@ -1832,6 +1848,19 @@ void FinalizeOwnerSelection(
 			contentOverhead + analysis.contentPreferredWidth);
 		analysis.ownerEligible = !prepared.children.empty();
 	} break;
+	case PreparedBlockKind::ButtonRow: {
+		const auto minimum = std::max(
+			ButtonRowMinWidth(
+				int(prepared.buttonRow.buttons.size()),
+				st.buttonRow),
+			1);
+		analysis.contentMinimumWidth = minimum;
+		analysis.contentPreferredWidth = minimum;
+		analysis.outerMinimumWidth = minimum;
+		analysis.outerPreferredWidth = minimum;
+		analysis.scrollOwnerMinimumWidth = minimum;
+		analysis.ownerEligible = false;
+	} break;
 	case PreparedBlockKind::Rule:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
@@ -2433,6 +2462,17 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			context);
 	case PreparedBlockKind::Rule:
 		return LayoutRuleBlock(prepared, st, left, top, width);
+	case PreparedBlockKind::ButtonRow:
+		return LayoutButtonRowBlock(
+			prepared,
+			formulas,
+			inlineFormulaObjects,
+			mediaRuntime,
+			st,
+			left,
+			top,
+			width,
+			context);
 	case PreparedBlockKind::List:
 		return LayoutListBlock(
 			prepared,
@@ -3624,6 +3664,7 @@ int LayoutBlocks(
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::CodeBlock:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
@@ -3823,6 +3864,8 @@ int LayoutBlocks(
 			outerRight);
 	case PreparedBlockKind::Rule:
 		return block.outer.x();
+	case PreparedBlockKind::ButtonRow:
+		return outerRight;
 	case PreparedBlockKind::DisplayMath: {
 		if (!block.textRect.isEmpty()) {
 			return outerRight;

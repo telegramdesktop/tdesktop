@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/qthelp_url.h"
 #include "base/unixtime.h"
-#include "base/variant.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
@@ -39,6 +38,7 @@ namespace {
 
 using Block = RichPage::Block;
 using BlockKind = RichPage::BlockKind;
+using ButtonAlignment = RichPage::ButtonAlignment;
 using GroupedMediaIntent = RichPage::GroupedMediaIntent;
 using ListItem = RichPage::ListItem;
 using ListKind = RichPage::ListKind;
@@ -189,6 +189,7 @@ enum class OrderedMarkerType {
 const auto PhotoLargeLevels = u"ydxcwmbsa"_q;
 constexpr auto kDefaultMapWidth = 400;
 constexpr auto kDefaultMapHeight = 200;
+constexpr auto kMaxButtonRowButtons = 8;
 
 [[nodiscard]] int NonZeroMapWidth(int width) {
 	return (width > 0) ? width : kDefaultMapWidth;
@@ -240,6 +241,7 @@ struct ParseContext {
 	};
 	base::flat_map<uint64, DocumentInfo> documentInfos;
 	bool dropRichTextClickHandlers = false;
+	bool keepRichTextFormattedDates = false;
 	bool displayTextDiff = false;
 };
 
@@ -258,6 +260,7 @@ using TableOccupancyGrid = std::vector<TableOccupancyRow>;
 enum class RichTextParseMode {
 	Normal,
 	DropClickHandlers,
+	DropClickHandlersKeepDates,
 };
 
 void AccumulateTextLength(
@@ -474,6 +477,9 @@ void AccumulateBlockMetrics(
 	AccumulateTextLength(metrics, block.text);
 	AccumulateTextLength(metrics, block.caption);
 	AccumulateTextLength(metrics, block.formula);
+	for (const auto &button : block.buttons) {
+		AccumulateTextLength(metrics, button.text);
+	}
 	if (IsMediaKind(block.kind)) {
 		++metrics->mediaCount;
 	}
@@ -1010,7 +1016,8 @@ void RememberWebPageMedia(
 		if (!AppendRichText(data.vtext(), result, context, anchorId, anchorIds)) {
 			return false;
 		}
-		if (context->dropRichTextClickHandlers) {
+		if (context->dropRichTextClickHandlers
+			&& !context->keepRichTextFormattedDates) {
 			return true;
 		}
 		auto flags = FormattedDateFlags();
@@ -1118,8 +1125,11 @@ void RememberWebPageMedia(
 	auto anchorId = QString();
 	auto anchorIds = std::vector<QString>();
 	const auto wasDropClickHandlers = context->dropRichTextClickHandlers;
+	const auto wasKeepFormattedDates = context->keepRichTextFormattedDates;
 	context->dropRichTextClickHandlers
-		= (mode == RichTextParseMode::DropClickHandlers);
+		= (mode != RichTextParseMode::Normal);
+	context->keepRichTextFormattedDates
+		= (mode == RichTextParseMode::DropClickHandlersKeepDates);
 	const auto parsed = AppendRichText(
 		text,
 		&result,
@@ -1127,6 +1137,7 @@ void RememberWebPageMedia(
 		&anchorId,
 		&anchorIds);
 	context->dropRichTextClickHandlers = wasDropClickHandlers;
+	context->keepRichTextFormattedDates = wasKeepFormattedDates;
 	(void)parsed;
 	result.anchorId = std::move(anchorId);
 	result.anchorIds = std::move(anchorIds);
@@ -1621,9 +1632,40 @@ void AppendBlock(
 		parsed.caption = ParseCaption(data.vcaption(), context);
 		AdoptAnchor(&parsed.anchorId, &parsed.caption);
 		result->push_back(std::move(parsed));
-	}, [&](const MTPDpageBlockButtonRow &) {
-		AssertIsDebug();
-		result->push_back(MakeBlock(BlockKind::Unsupported));
+	}, [&](const MTPDpageBlockButtonRow &data) {
+		auto parsed = MakeBlock(BlockKind::ButtonRow);
+		parsed.buttonAlignment = data.is_align_left()
+			? ButtonAlignment::Left
+			: data.is_align_center()
+			? ButtonAlignment::Center
+			: data.is_align_right()
+			? ButtonAlignment::Right
+			: ButtonAlignment::Stretch;
+		const auto &list = data.vbuttons().v;
+		const auto count = std::min(int(list.size()), kMaxButtonRowButtons);
+		parsed.buttons.reserve(count);
+		for (auto i = 0; i != count; ++i) {
+			const auto &fields = list[i].data();
+			auto button = ParseInlineButton(
+				fields.vtype(),
+				QString(),
+				ParseRichButtonVisual(fields.vstyle()));
+			if (!button) {
+				continue;
+			}
+			auto text = ParseRichText(
+				fields.vtext(),
+				context,
+				RichTextParseMode::DropClickHandlersKeepDates);
+			button->text = text.text.text;
+			parsed.buttons.push_back({
+				.text = std::move(text),
+				.button = std::move(*button),
+			});
+		}
+		if (!parsed.buttons.empty()) {
+			result->push_back(std::move(parsed));
+		}
 	}, [&](const MTPDpageBlockDocument &data) {
 		result->push_back(MakeDocumentBlock(
 			BlockKind::File,
@@ -1645,61 +1687,11 @@ void AppendBlocks(
 	}
 }
 
-void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
-	auto &entities = text->entities;
-	for (auto i = entities.begin(); i != entities.end();) {
-		if (i->type() != EntityType::CustomEmoji) {
-			++i;
-			continue;
-		}
-		const auto object = Markdown::ParseInlineTextObjectEntity(
-			i->data());
-		if (!object) {
-			++i;
-			continue;
-		}
-		const auto replacement = v::match(object->data, [](
-				const Markdown::InlineTextObjectFormulaData &data) {
-			return data.trimmedTex;
-		}, [](const Markdown::InlineTextObjectIvImageData &data) {
-			return data.replacementText;
-		});
-		const auto offset = i->offset();
-		const auto length = i->length();
-		const auto delta = int(replacement.size()) - length;
-		text->text.replace(offset, length, replacement);
-		for (auto &entity : entities) {
-			if (&entity == &*i) {
-				continue;
-			} else if (entity.offset() > offset) {
-				entity.shiftRight(delta);
-			} else if (entity.offset() + entity.length() > offset) {
-				entity.shrinkFromRight(-delta);
-			}
-		}
-		const auto formula = (object->kind
-			== Markdown::InlineTextObjectKind::Formula);
-		if (withIcons && formula && !replacement.isEmpty()) {
-			const auto icon = Ui::Text::IconEmoji(
-				&st::ivSummaryMathIcon,
-				replacement);
-			*i = EntityInText(
-				EntityType::CustomEmoji,
-				offset,
-				int(replacement.size()),
-				icon.entities.front().data());
-			++i;
-		} else {
-			i = entities.erase(i);
-		}
-	}
-}
-
 void AppendSummaryLine(
 		TextWithEntities *result,
 		TextWithEntities &&line,
 		bool withIcons) {
-	ExpandInlineTextObjects(&line, withIcons);
+	Markdown::ExpandInlineTextObjects(&line, withIcons);
 	TextUtilities::Trim(line);
 	if (line.empty()) {
 		return;
@@ -2040,6 +2032,11 @@ void AppendSummaryBlock(
 		AppendSummaryLine(result, std::move(line), withIcons);
 		return;
 	}
+	case BlockKind::ButtonRow:
+		for (const auto &button : block.buttons) {
+			AppendSummaryLine(result, button.text, withIcons);
+		}
+		return;
 	case BlockKind::List: {
 		auto ordered = OrderedListSequenceStart(block);
 		const auto step = block.orderedList.reversed ? -1 : 1;
@@ -2274,6 +2271,7 @@ std::shared_ptr<const RichPage> ParsePage(
 	case BlockKind::File:
 	case BlockKind::GroupedMedia:
 	case BlockKind::Map:
+	case BlockKind::ButtonRow:
 		return false;
 	default:
 		break;
@@ -2542,7 +2540,7 @@ TextWithEntities FlattenRichPageToSimpleText(const RichPage &page) {
 			// Code blocks are allowed at the top level as a Pre entity, but
 			// their content is sent as plain text without any inline entities.
 			auto inner = block.text.text;
-			ExpandInlineTextObjects(&inner, false);
+			Markdown::ExpandInlineTextObjects(&inner, false);
 			inner.entities.clear();
 			AppendSimpleBlock(
 				&result,

@@ -2029,6 +2029,10 @@ void Element::validateText() {
 		runtime->handlerMediaActivation = {};
 		runtime->handlerPlaceholderId = {};
 		runtime->handlerPlaceholderPoint = QPoint();
+		runtime->handlerButtonRow = {};
+		runtime->handlerButtonRowHandler = nullptr;
+		runtime->pressedButtonRow = {};
+		runtime->pressedButtonRowHandler = nullptr;
 		invalidateTextSizeCache();
 	};
 	const auto item = data();

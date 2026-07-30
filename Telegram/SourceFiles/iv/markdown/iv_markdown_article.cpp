@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_article_paint.h"
 #include "iv/markdown/iv_markdown_article_selection.h"
 #include "iv/markdown/iv_markdown_article_text.h"
+#include "iv/markdown/iv_markdown_button_row.h"
 #include "iv/markdown/iv_markdown_media_reuse.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
@@ -606,6 +607,7 @@ void HarvestCachedTextLeafs(
 			&block->placeholderLeaf);
 		break;
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::Quote:
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
@@ -807,6 +809,54 @@ void CollectPlaceholderIds(
 			return &block;
 		}
 		if (const auto child = FindPlaceholderBlock(&block.children, id)) {
+			return child;
+		}
+	}
+	return nullptr;
+}
+
+void CollectButtonRowIds(
+		const std::vector<LaidOutBlock> &blocks,
+		std::unordered_set<uint64> *result) {
+	if (!result) {
+		return;
+	}
+	for (const auto &block : blocks) {
+		if (block.buttonRowId) {
+			result->emplace(block.buttonRowId.value);
+		}
+		CollectButtonRowIds(block.children, result);
+	}
+}
+
+[[nodiscard]] LaidOutBlock *FindButtonRowBlock(
+		std::vector<LaidOutBlock> *blocks,
+		PreparedMediaBlockId id) {
+	if (!blocks || !id) {
+		return nullptr;
+	}
+	for (auto &block : *blocks) {
+		if (block.buttonRowId.value == id.value) {
+			return &block;
+		}
+		if (const auto child = FindButtonRowBlock(&block.children, id)) {
+			return child;
+		}
+	}
+	return nullptr;
+}
+
+[[nodiscard]] const LaidOutBlock *FindButtonRowBlock(
+		const std::vector<LaidOutBlock> &blocks,
+		PreparedMediaBlockId id) {
+	if (!id) {
+		return nullptr;
+	}
+	for (const auto &block : blocks) {
+		if (block.buttonRowId.value == id.value) {
+			return &block;
+		}
+		if (const auto child = FindButtonRowBlock(block.children, id)) {
 			return child;
 		}
 	}
@@ -1086,6 +1136,7 @@ void AppendBlockRevealLines(
 			block.textWidth);
 		break;
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 		AppendGenericRevealBand(lines, block.outer);
 		break;
 	case PreparedBlockKind::List:
@@ -1397,7 +1448,26 @@ void RebuildVisibleSegmentLookup(
 		}
 	};
 	if (segment.block) {
-		if (segment.block->kind == PreparedBlockKind::RelatedArticle
+		if (segment.block->kind == PreparedBlockKind::ButtonRow) {
+			const auto index = ButtonRowHitIndex(
+				segment.block->buttons,
+				point);
+			if (index >= 0) {
+				const auto &button = segment.block->buttons[index];
+				const auto &runtime = segment.block->buttonRowRuntime;
+				if (runtime && (index < int(runtime->handlers.size()))) {
+					result.state.link = runtime->handlers[index];
+				}
+				result.buttonRow = {
+					.id = segment.block->buttonRowId,
+					.localPoint = point - button.rect.topLeft(),
+					.index = index,
+				};
+				if (button.elided) {
+					result.customTooltip = button.fullLabel;
+				}
+			}
+		} else if (segment.block->kind == PreparedBlockKind::RelatedArticle
 			&& segment.block->preparedLink) {
 			result.preparedLink = segment.block->preparedLink;
 			result.state.link = segment.block->preparedLinkHandler;
@@ -1420,7 +1490,8 @@ void RebuildVisibleSegmentLookup(
 			}
 		}
 	}
-	result.direct = true;
+	result.direct = !segment.block
+		|| (segment.block->kind != PreparedBlockKind::ButtonRow);
 	return result;
 }
 
@@ -1540,6 +1611,11 @@ void RestoreLogicalBlockGeometry(LaidOutBlock *block) {
 			cell.textRect = cell.logicalTextRect;
 		}
 	}
+	for (auto &button : block->buttons) {
+		button.rect = button.logicalRect;
+		button.labelRect = button.logicalLabelRect;
+		button.iconRect = button.logicalIconRect;
+	}
 }
 
 [[nodiscard]] bool ScrollOwnerMovesOwnContent(PreparedBlockKind kind) {
@@ -1552,6 +1628,7 @@ void RestoreLogicalBlockGeometry(LaidOutBlock *block) {
 	case PreparedBlockKind::Table:
 		return true;
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
 	case PreparedBlockKind::Quote:
@@ -1583,6 +1660,7 @@ void RestoreLogicalBlockGeometry(LaidOutBlock *block) {
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::CodeBlock:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
@@ -1652,6 +1730,13 @@ void ApplyTranslatedDescendantGeometry(
 			cell.textRect = TranslateRect(cell.logicalTextRect, state.shift);
 		}
 	}
+	for (auto &button : block->buttons) {
+		button.rect = TranslateRect(button.logicalRect, state.shift);
+		button.labelRect = TranslateRect(
+			button.logicalLabelRect,
+			state.shift);
+		button.iconRect = TranslateRect(button.logicalIconRect, state.shift);
+	}
 }
 
 void ApplyOwnerContentGeometry(
@@ -1691,6 +1776,7 @@ void ApplyOwnerContentGeometry(
 		}
 		break;
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
 	case PreparedBlockKind::Quote:
@@ -1939,6 +2025,7 @@ void CollectMediaBlockGeometries(
 	case PreparedBlockKind::Thinking:
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
@@ -2168,6 +2255,7 @@ void CollectMediaBlockGeometries(
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::CodeBlock:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Document:
@@ -2738,6 +2826,7 @@ void ConsiderStructuralBlockDropTargets(
 		case PreparedBlockKind::Heading:
 		case PreparedBlockKind::CodeBlock:
 		case PreparedBlockKind::Rule:
+		case PreparedBlockKind::ButtonRow:
 		case PreparedBlockKind::DisplayMath:
 		case PreparedBlockKind::Photo:
 		case PreparedBlockKind::Video:
@@ -2801,6 +2890,7 @@ void ConsiderStructuralListItemDropTargets(
 		case PreparedBlockKind::Heading:
 		case PreparedBlockKind::CodeBlock:
 		case PreparedBlockKind::Rule:
+		case PreparedBlockKind::ButtonRow:
 		case PreparedBlockKind::DisplayMath:
 		case PreparedBlockKind::Photo:
 		case PreparedBlockKind::Video:
@@ -2878,6 +2968,7 @@ void ConsiderStructuralListItemDropTargets(
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::CodeBlock:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
@@ -3555,6 +3646,11 @@ public:
 		QPoint point);
 	void addPlaceholderRipple(PreparedPlaceholderBlockId id, QPoint point);
 	void stopPlaceholderRipple(PreparedPlaceholderBlockId id);
+	void addButtonRowRipple(
+		PreparedMediaBlockId id,
+		int index,
+		QPoint point);
+	void stopButtonRowRipple(PreparedMediaBlockId id);
 
 	void invalidateLayout();
 
@@ -3586,6 +3682,15 @@ private:
 	void prunePlaceholderRuntimes();
 
 	void requestPlaceholderRepaint(PreparedPlaceholderBlockId id);
+
+	void clearButtonRowRuntimes();
+
+	[[nodiscard]] auto getOrCreateButtonRowRuntime(PreparedMediaBlockId id)
+	-> std::shared_ptr<ButtonRowRuntime>;
+
+	void pruneButtonRowRuntimes();
+
+	void requestButtonRowRepaint(PreparedMediaBlockId id);
 
 	[[nodiscard]] auto getOrCreateTaskMarkerRippleRuntime(
 		const PreparedEditListItemSource &source)
@@ -3714,6 +3819,8 @@ private:
 	int _missingMediaBlocks = 0;
 	std::unordered_map<uint64, std::shared_ptr<PlaceholderBlockRuntime>>
 		_placeholderRuntimes;
+	std::unordered_map<uint64, std::shared_ptr<ButtonRowRuntime>>
+		_buttonRowRuntimes;
 	TaskMarkerRippleRuntimeMap _taskMarkerRippleRuntimes;
 	std::unordered_map<
 		uint64,
@@ -3820,6 +3927,7 @@ void MarkdownArticle::Impl::setContent(MarkdownArticleContent content) {
 		clearMediaBlocks();
 	}
 	clearPlaceholderRuntimes();
+	clearButtonRowRuntimes();
 	_relatedArticleImages.clear();
 	_content = std::move(content);
 	if (reuseMediaBlocks) {
@@ -4930,6 +5038,40 @@ void MarkdownArticle::Impl::stopPlaceholderRipple(
 	requestPlaceholderRepaint(id);
 }
 
+void MarkdownArticle::Impl::addButtonRowRipple(
+		PreparedMediaBlockId id,
+		int index,
+		QPoint point) {
+	const auto block = FindButtonRowBlock(&_blocks, id);
+	if (!block) {
+		return;
+	}
+	auto runtime = block->buttonRowRuntime
+		? block->buttonRowRuntime
+		: getOrCreateButtonRowRuntime(id);
+	if (!runtime) {
+		return;
+	}
+	block->buttonRowRuntime = runtime;
+	AddButtonRowRipple(
+		runtime,
+		block->buttons,
+		index,
+		point,
+		layoutStyle().buttonRow);
+}
+
+void MarkdownArticle::Impl::stopButtonRowRipple(PreparedMediaBlockId id) {
+	if (!id) {
+		return;
+	}
+	const auto i = _buttonRowRuntimes.find(id.value);
+	if (i == end(_buttonRowRuntimes)) {
+		return;
+	}
+	StopButtonRowRipple(i->second);
+}
+
 void MarkdownArticle::Impl::invalidateLayout() {
 	invalidateLayout(true);
 }
@@ -5007,6 +5149,10 @@ void MarkdownArticle::Impl::clearPlaceholderRuntimes() {
 	_placeholderRuntimes.clear();
 }
 
+void MarkdownArticle::Impl::clearButtonRowRuntimes() {
+	_buttonRowRuntimes.clear();
+}
+
 void MarkdownArticle::Impl::refreshMediaBlockHosts() {
 	for (const auto &[id, block] : _mediaBlocks) {
 		if (block) {
@@ -5047,6 +5193,23 @@ MarkdownArticle::Impl::getOrCreatePlaceholderRuntime(
 	return runtime;
 }
 
+auto MarkdownArticle::Impl::getOrCreateButtonRowRuntime(
+		PreparedMediaBlockId id)
+-> std::shared_ptr<ButtonRowRuntime> {
+	if (!id) {
+		return nullptr;
+	}
+	if (const auto i = _buttonRowRuntimes.find(id.value);
+		i != end(_buttonRowRuntimes)) {
+		return i->second;
+	}
+	auto runtime = std::make_shared<ButtonRowRuntime>([=] {
+		requestButtonRowRepaint(id);
+	});
+	_buttonRowRuntimes.emplace(id.value, runtime);
+	return runtime;
+}
+
 void MarkdownArticle::Impl::pruneTaskMarkerRuntimes() {
 	auto live = TaskMarkerSourceSet();
 	CollectTaskMarkerSources(_blocks, &live);
@@ -5072,6 +5235,18 @@ void MarkdownArticle::Impl::prunePlaceholderRuntimes() {
 	}
 }
 
+void MarkdownArticle::Impl::pruneButtonRowRuntimes() {
+	auto live = std::unordered_set<uint64>();
+	CollectButtonRowIds(_blocks, &live);
+	for (auto i = _buttonRowRuntimes.begin(); i != _buttonRowRuntimes.end();) {
+		if (live.find(i->first) != end(live)) {
+			++i;
+		} else {
+			i = _buttonRowRuntimes.erase(i);
+		}
+	}
+}
+
 void MarkdownArticle::Impl::requestTaskMarkerRepaint(
 		const PreparedEditListItemSource &source) {
 	if (const auto block = FindListItemBlock(_blocks, source)) {
@@ -5091,6 +5266,18 @@ void MarkdownArticle::Impl::requestPlaceholderRepaint(
 	if (const auto block = FindPlaceholderBlock(_blocks, id)) {
 		if (_textRepaintRect) {
 			_textRepaintRect(block->mediaRect);
+		} else if (_textRepaint) {
+			_textRepaint();
+		}
+	} else if (_textRepaint) {
+		_textRepaint();
+	}
+}
+
+void MarkdownArticle::Impl::requestButtonRowRepaint(PreparedMediaBlockId id) {
+	if (const auto block = FindButtonRowBlock(_blocks, id)) {
+		if (_textRepaintRect) {
+			_textRepaintRect(block->outer);
 		} else if (_textRepaint) {
 			_textRepaint();
 		}
@@ -5879,6 +6066,7 @@ void MarkdownArticle::Impl::finalizeRelayout(int heightBottom) {
 			page.left() + page.right() + 1));
 	pruneTaskMarkerRuntimes();
 	prunePlaceholderRuntimes();
+	pruneButtonRowRuntimes();
 	_relatedArticleImages.clear();
 	StoreRelatedArticleImageStates(
 		_blocks,
@@ -5968,6 +6156,9 @@ void MarkdownArticle::Impl::relayout(int width) {
 	context.placeholderRuntimeFactory = [=](PreparedPlaceholderBlockId id) {
 		return getOrCreatePlaceholderRuntime(id);
 	};
+	context.buttonRowRuntimeFactory = [=](PreparedMediaBlockId id) {
+		return getOrCreateButtonRowRuntime(id);
+	};
 	context.taskMarkerRippleRuntimeFactory
 		= [=](const PreparedEditListItemSource &source) {
 			return getOrCreateTaskMarkerRippleRuntime(source);
@@ -6050,6 +6241,9 @@ void MarkdownArticle::Impl::relayoutRetained(int width) {
 	};
 	context.placeholderRuntimeFactory = [=](PreparedPlaceholderBlockId id) {
 		return getOrCreatePlaceholderRuntime(id);
+	};
+	context.buttonRowRuntimeFactory = [=](PreparedMediaBlockId id) {
+		return getOrCreateButtonRowRuntime(id);
 	};
 	context.taskMarkerRippleRuntimeFactory
 		= [=](const PreparedEditListItemSource &source) {
@@ -6512,6 +6706,17 @@ void MarkdownArticle::addPlaceholderRipple(
 
 void MarkdownArticle::stopPlaceholderRipple(PreparedPlaceholderBlockId id) {
 	_impl->stopPlaceholderRipple(id);
+}
+
+void MarkdownArticle::addButtonRowRipple(
+		PreparedMediaBlockId id,
+		int index,
+		QPoint point) {
+	_impl->addButtonRowRipple(id, index, point);
+}
+
+void MarkdownArticle::stopButtonRowRipple(PreparedMediaBlockId id) {
+	_impl->stopButtonRowRipple(id);
 }
 
 void MarkdownArticle::clearBeforeDestroy() {

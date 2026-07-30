@@ -1464,6 +1464,7 @@ void MergeRichTextAnchors(RichText *target, RichText source) {
 	case BlockKind::Unsupported:
 	case BlockKind::Thinking:
 	case BlockKind::AuthorDate:
+	case BlockKind::ButtonRow:
 	case BlockKind::Embed:
 	case BlockKind::EmbedPost:
 	case BlockKind::Channel:

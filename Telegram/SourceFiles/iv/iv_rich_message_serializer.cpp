@@ -926,6 +926,7 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 		return RichTextHasVisibleText(block.text) || block.date != 0;
 	case BlockKind::Divider:
 	case BlockKind::Anchor:
+	case BlockKind::ButtonRow:
 	case BlockKind::Unsupported:
 	case BlockKind::List:
 	case BlockKind::Embed:
@@ -1648,6 +1649,7 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 	}
 	case BlockKind::Unsupported:
 	case BlockKind::AuthorDate:
+	case BlockKind::ButtonRow:
 	case BlockKind::Embed:
 	case BlockKind::EmbedPost:
 	case BlockKind::Channel:

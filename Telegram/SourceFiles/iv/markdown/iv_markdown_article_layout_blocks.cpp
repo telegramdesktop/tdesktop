@@ -1282,6 +1282,7 @@ void CopyBlockCachedTextLeafs(
 			&block.placeholderLeaf);
 		break;
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::Quote:
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
@@ -2538,6 +2539,8 @@ int BlockSkip(
 		return skips.code;
 	case PreparedBlockKind::Rule:
 		return skips.rule;
+	case PreparedBlockKind::ButtonRow:
+		return skips.buttonRow;
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
 		return skips.paragraph;
@@ -2837,6 +2840,7 @@ void UpdateLaidOutLeafContent(
 		}
 		break;
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
 	case PreparedBlockKind::Quote:
@@ -2989,6 +2993,13 @@ void UpdateLaidOutLeafContent(
 	int top,
 	int width,
 	LayoutContext context);
+[[nodiscard]] std::optional<int> LayoutButtonRowBlockGeometry(
+	const PreparedBlock &prepared,
+	LaidOutBlock *block,
+	const style::Markdown &st,
+	int left,
+	int top,
+	int width);
 [[nodiscard]] std::optional<int> LayoutRelatedArticleBlockGeometry(
 	const PreparedBlock &prepared,
 	LaidOutBlock *block,
@@ -3435,6 +3446,56 @@ LaidOutBlock LayoutPlaceholderBlock(
 		top,
 		width,
 		context);
+	Expects(bottom.has_value());
+	return FinalizeLaidOutBlock(std::move(block));
+}
+
+LaidOutBlock LayoutButtonRowBlock(
+		const PreparedBlock &prepared,
+		std::vector<PreparedFormulaSlot> *formulas,
+		InlineFormulaObjectCache *inlineFormulaObjects,
+		const std::shared_ptr<MediaRuntime> &mediaRuntime,
+		const style::Markdown &st,
+		int left,
+		int top,
+		int width,
+		LayoutContext context) {
+	auto block = LaidOutBlock();
+	ApplyPreparedEditSources(&block, prepared);
+	block.kind = PreparedBlockKind::ButtonRow;
+	block.buttonRowId = prepared.buttonRow.id;
+	if (block.buttonRowId && context.buttonRowRuntimeFactory) {
+		block.buttonRowRuntime = context.buttonRowRuntimeFactory(
+			block.buttonRowId);
+	}
+	const auto &style = st.buttonRow;
+	block.buttons.reserve(prepared.buttonRow.buttons.size());
+	for (const auto &entry : prepared.buttonRow.buttons) {
+		auto button = LaidOutButton();
+		button.type = entry.button.type;
+		button.color = entry.button.visual.color;
+		SetTextLeaf(
+			&button.label,
+			style.labelStyle,
+			st,
+			entry.text,
+			formulas,
+			inlineFormulaObjects,
+			mediaRuntime,
+			PlainTextMinResizeWidth(style.labelStyle),
+			context.rtl,
+			context.repaint,
+			context.repaintRect);
+		button.fullLabel = button.label.toString();
+		block.buttons.push_back(std::move(button));
+	}
+	const auto bottom = LayoutButtonRowBlockGeometry(
+		prepared,
+		&block,
+		st,
+		left,
+		top,
+		width);
 	Expects(bottom.has_value());
 	return FinalizeLaidOutBlock(std::move(block));
 }
@@ -4535,6 +4596,51 @@ LaidOutBlock LayoutGroupedMediaBlock(
 	return block->outer.y() + block->outer.height();
 }
 
+// LayoutButtonRowButtons fills every button rect relative to the row origin,
+// so the whole row is translated here by the block's top-left corner. From
+// this point on the button rects live in exactly the same coordinate space
+// as block->outer, which is what paint, hit testing and the ripple local
+// point all assume, and what the retained relayout path keeps true when it
+// re-runs this function at a different width.
+[[nodiscard]] std::optional<int> LayoutButtonRowBlockGeometry(
+		const PreparedBlock &prepared,
+		LaidOutBlock *block,
+		const style::Markdown &st,
+		int left,
+		int top,
+		int width) {
+	if (!block) {
+		return std::nullopt;
+	}
+	ClearBlockGeometry(block);
+	const auto &style = st.buttonRow;
+	const auto blockWidth = std::max(width, 1);
+	LayoutButtonRowButtons(
+		&block->buttons,
+		prepared.flowAlignment,
+		blockWidth,
+		style);
+	const auto shift = QPoint(left, top);
+	for (auto &button : block->buttons) {
+		button.rect.translate(shift);
+		button.labelRect.translate(shift);
+		if (button.icon) {
+			button.iconRect.translate(shift);
+		}
+		button.logicalRect = button.rect;
+		button.logicalLabelRect = button.labelRect;
+		button.logicalIconRect = button.iconRect;
+	}
+	block->outer = QRect(left, top, blockWidth, style.height);
+	block->contentRect = block->outer;
+	RefreshButtonRowHandlers(
+		block->buttonRowRuntime,
+		prepared.buttonRow,
+		block->buttons);
+	FinishBlockGeometry(block);
+	return block->outer.y() + block->outer.height();
+}
+
 [[nodiscard]] std::optional<int> LayoutRelatedArticleBlockGeometry(
 		const PreparedBlock &prepared,
 		LaidOutBlock *block,
@@ -4831,6 +4937,14 @@ std::optional<int> RecountSimpleLaidOutBlock(
 			context);
 	case PreparedBlockKind::Rule:
 		return LayoutRuleBlockGeometry(block, st, left, top, width);
+	case PreparedBlockKind::ButtonRow:
+		return LayoutButtonRowBlockGeometry(
+			prepared,
+			block,
+			st,
+			left,
+			top,
+			width);
 	case PreparedBlockKind::DisplayMath:
 		return LayoutDisplayMathBlockGeometry(
 			prepared,

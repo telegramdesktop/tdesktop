@@ -20,6 +20,7 @@ enum class SelectableSegmentKind {
 	Placeholder,
 	Photo,
 	Media,
+	ButtonRow,
 };
 
 struct SelectableSegment {

@@ -107,6 +107,9 @@ void RefreshBlockSegmentRect(
 	case SelectableSegmentKind::Media:
 		segment->outerRect = block.visibleMediaRect;
 		break;
+	case SelectableSegmentKind::ButtonRow:
+		segment->outerRect = block.outer;
+		break;
 	case SelectableSegmentKind::CodeBlock:
 		segment->outerRect = block.outer;
 		segment->textRect = VisibleTextRect(
@@ -319,6 +322,21 @@ void RefreshBlockSegmentRect(
 	return CopyTextForMediaBlock(
 		block.labelText.isEmpty() ? block.copyText : block.labelText,
 		block.leaf);
+}
+
+[[nodiscard]] TextForMimeData CopyTextForButtonRowBlock(
+		const LaidOutBlock &block) {
+	auto result = TextForMimeData();
+	for (const auto &button : block.buttons) {
+		if (button.label.isEmpty()) {
+			continue;
+		}
+		if (!result.empty()) {
+			result.append(u" "_q);
+		}
+		result.append(button.label.toTextForMimeData());
+	}
+	return result;
 }
 
 [[nodiscard]] int AddSelectableSegment(
@@ -704,6 +722,7 @@ void ApplyRichPageSliceEndTrim(TextWithEntities *target, int offset) {
 	case SelectableSegmentKind::Placeholder:
 	case SelectableSegmentKind::Photo:
 	case SelectableSegmentKind::Media:
+	case SelectableSegmentKind::ButtonRow:
 		return BlockBelongsToStructuralSelection(
 			*segment.block,
 			*selectionState.structuralSelection);
@@ -1025,6 +1044,16 @@ void CollectSelectableSegments(
 			}
 			continue;
 		}
+		case PreparedBlockKind::ButtonRow: {
+			auto segment = SelectableSegment();
+			segment.kind = SelectableSegmentKind::ButtonRow;
+			segment.block = &block;
+			segment.outerRect = block.outer;
+			segment.length = 1;
+			block.segmentIndex = AddSelectableSegment(
+				segments,
+				std::move(segment));
+		} break;
 		case PreparedBlockKind::List:
 		case PreparedBlockKind::ListItem:
 		case PreparedBlockKind::Quote:
@@ -1433,6 +1462,10 @@ TextForMimeData TextForSegment(
 	case SelectableSegmentKind::Media:
 		return segment.block
 			? CopyTextForSingleMediaBlock(*segment.block)
+			: TextForMimeData();
+	case SelectableSegmentKind::ButtonRow:
+		return segment.block
+			? CopyTextForButtonRowBlock(*segment.block)
 			: TextForMimeData();
 	}
 	return TextForMimeData();

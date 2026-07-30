@@ -148,6 +148,7 @@ private:
 	[[nodiscard]] MarkdownArticlePaintContext textPaintContext(QRect clip);
 	void touchEvent(QTouchEvent *e);
 	void stopPressedPlaceholderRipple();
+	void stopPressedButtonRowRipple();
 	void dragActionStart(QPoint point, Qt::MouseButton button);
 	MarkdownArticleHitTestResult dragActionUpdate(QPoint point);
 	MarkdownArticleHitTestResult dragActionFinish(
@@ -185,6 +186,8 @@ private:
 	base::Timer _tripleClickTimer;
 	std::optional<PreparedLink> _selectionClickPreparedLink;
 	PreparedPlaceholderBlockId _pressedPlaceholderId;
+	MarkdownArticleButtonRowHit _pressedButtonRow;
+	QString _hoverTooltip;
 	bool _dragStartHadSelection = false;
 	int _lastRelayoutMs = 0;
 	int _zoom = 100;

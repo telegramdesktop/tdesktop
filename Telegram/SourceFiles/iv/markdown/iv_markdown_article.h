@@ -224,12 +224,20 @@ struct MarkdownArticlePaintContext final : Ui::ChatPaintContext {
 	}
 };
 
+struct MarkdownArticleButtonRowHit {
+	PreparedMediaBlockId id;
+	QPoint localPoint;
+	int index = -1;
+};
+
 struct MarkdownArticleHitTestResult {
 	int segmentIndex = -1;
 	Ui::Text::StateResult state;
 	std::optional<PreparedLink> preparedLink;
 	MediaActivation mediaActivation;
 	QPoint placeholderLocalPoint;
+	MarkdownArticleButtonRowHit buttonRow;
+	QString customTooltip;
 	int forcedOffset = -1;
 	bool direct = false;
 	bool codeHeaderCopy = false;
@@ -496,6 +504,11 @@ public:
 	void clearAllPlaceholderLoading();
 	void addPlaceholderRipple(PreparedPlaceholderBlockId id, QPoint point);
 	void stopPlaceholderRipple(PreparedPlaceholderBlockId id);
+	void addButtonRowRipple(
+		PreparedMediaBlockId id,
+		int index,
+		QPoint point);
+	void stopButtonRowRipple(PreparedMediaBlockId id);
 
     void clearBeforeDestroy();
 

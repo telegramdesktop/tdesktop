@@ -2026,7 +2026,14 @@ QString ListWidget::tooltipText() const {
 			return forwarded->text.toString();
 		}
 	} else if (const auto link = ClickHandler::getActive()) {
-		return link->tooltip();
+		if (const auto text = link->tooltip(); !text.isEmpty()) {
+			return text;
+		}
+	}
+	if (const auto view = _overElement) {
+		auto request = StateRequest();
+		request.flags |= Ui::Text::StateRequest::Flag::LookupCustomTooltip;
+		return view->textState(_overState.point, request).customTooltipText;
 	}
 	return QString();
 }
@@ -4620,7 +4627,8 @@ void ListWidget::mouseActionUpdate() {
 	}
 	if (dragState.link
 		|| dragState.cursor == CursorState::Date
-		|| dragState.cursor == CursorState::Forwarded) {
+		|| dragState.cursor == CursorState::Forwarded
+		|| dragState.customTooltip) {
 		Ui::Tooltip::Show(1000, this);
 	}
 

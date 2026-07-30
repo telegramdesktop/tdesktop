@@ -3344,7 +3344,9 @@ void Message::clickHandlerPressedChanged(
 	} else if (const auto rich = richpage()
 		; rich
 		&& ((handler == rich->handler)
-			|| (handler == rich->handlerHorizontalScrollPressed))) {
+			|| (handler == rich->handlerHorizontalScrollPressed)
+			|| (handler == rich->handlerButtonRowHandler)
+			|| (handler == rich->pressedButtonRowHandler))) {
 		if (pressed) {
 			if ((handler == rich->handler)
 				&& rich->handlerHorizontalScrollHit
@@ -3368,6 +3370,21 @@ void Message::clickHandlerPressedChanged(
 			} else {
 				rich->article.stopPlaceholderRipple(rich->handlerPlaceholderId);
 			}
+		}
+		if (pressed) {
+			if ((handler == rich->handlerButtonRowHandler)
+				&& (rich->handlerButtonRow.index >= 0)) {
+				rich->pressedButtonRow = rich->handlerButtonRow;
+				rich->pressedButtonRowHandler = handler;
+				rich->article.addButtonRowRipple(
+					rich->pressedButtonRow.id,
+					rich->pressedButtonRow.index,
+					rich->pressedButtonRow.localPoint);
+			}
+		} else if (handler == rich->pressedButtonRowHandler) {
+			rich->article.stopButtonRowRipple(rich->pressedButtonRow.id);
+			rich->pressedButtonRow = {};
+			rich->pressedButtonRowHandler = nullptr;
 		}
 	} else if (_reactions) {
 		_reactions->clickHandlerPressedChanged(
@@ -4511,6 +4528,10 @@ bool Message::getStateText(
 			rich->handlerHorizontalScrollHit = std::nullopt;
 			rich->handlerHorizontalScrollPoint = {};
 		};
+		const auto clearButtonRowHandler = [&] {
+			rich->handlerButtonRow = {};
+			rich->handlerButtonRowHandler = nullptr;
+		};
 		const auto horizontalScrollHit = rich->article.horizontalScrollHit(local);
 		*outResult = TextState(item);
 		outResult->horizontalScroll = horizontalScrollHit.scrollable;
@@ -4523,6 +4544,7 @@ bool Message::getStateText(
 			rich->handlerMediaActivation = {};
 			rich->handlerPlaceholderId = {};
 			rich->handlerPlaceholderPoint = {};
+			clearButtonRowHandler();
 			if (!rich->handlerHorizontalScrollHit || !rich->handler) {
 				rich->handler = std::make_shared<RichPageActionClickHandler>(
 					[](ClickContext) {
@@ -4536,6 +4558,7 @@ bool Message::getStateText(
 		if (!hit.valid()) {
 			rich->handlerCodeHeaderSegmentIndex = -1;
 			clearHorizontalScrollHandler();
+			clearButtonRowHandler();
 			return horizontalScrollHit.scrollable;
 		}
 		const auto offset = rich->article.selectionOffsetFromHit(
@@ -4554,6 +4577,7 @@ bool Message::getStateText(
 			rich->handlerMediaActivation = {};
 			rich->handlerPlaceholderId = {};
 			rich->handlerPlaceholderPoint = {};
+			clearButtonRowHandler();
 			if (!reuse) {
 				const auto text = rich->article.textForContext(hit);
 				rich->handlerCodeHeaderSegmentIndex = hit.segmentIndex;
@@ -4573,6 +4597,7 @@ bool Message::getStateText(
 			rich->handlerMediaActivation = {};
 			rich->handlerPlaceholderId = {};
 			rich->handlerPlaceholderPoint = {};
+			clearButtonRowHandler();
 			outResult->link = hit.state.link;
 		} else if (hit.preparedLink
 			|| hit.mediaActivation.kind != MediaActivationKind::None) {
@@ -4588,6 +4613,7 @@ bool Message::getStateText(
 			clearHorizontalScrollHandler();
 			rich->handlerPlaceholderId = hit.mediaActivation.placeholderId;
 			rich->handlerPlaceholderPoint = hit.placeholderLocalPoint;
+			clearButtonRowHandler();
 			if (!reuse) {
 				rich->handlerPreparedLink = prepared;
 				rich->handlerMediaActivation = activation;
@@ -4613,6 +4639,19 @@ bool Message::getStateText(
 		} else {
 			rich->handlerCodeHeaderSegmentIndex = -1;
 			clearHorizontalScrollHandler();
+			if (hit.buttonRow.index >= 0) {
+				rich->handlerButtonRow = hit.buttonRow;
+				rich->handlerButtonRowHandler = hit.state.link;
+			} else {
+				clearButtonRowHandler();
+			}
+			if (!hit.customTooltip.isEmpty()) {
+				outResult->customTooltip = true;
+				using Flag = Ui::Text::StateRequest::Flag;
+				if (request.flags & Flag::LookupCustomTooltip) {
+					outResult->customTooltipText = hit.customTooltip;
+				}
+			}
 			outResult->link = hit.state.link;
 		}
 		outResult->cursor = (!outResult->link && hit.direct)

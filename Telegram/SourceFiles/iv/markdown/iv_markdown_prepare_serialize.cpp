@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 
+#include "base/variant.h"
+#include "ui/text/text_utilities.h"
+
 #include "styles/style_iv.h"
 
 #include <QtCore/QByteArray>
@@ -103,6 +106,55 @@ std::optional<InlineTextObjectEntity> ParseInlineTextObjectEntity(
 		};
 	}
 	return std::nullopt;
+}
+
+void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
+	auto &entities = text->entities;
+	for (auto i = entities.begin(); i != entities.end();) {
+		if (i->type() != EntityType::CustomEmoji) {
+			++i;
+			continue;
+		}
+		const auto object = ParseInlineTextObjectEntity(i->data());
+		if (!object) {
+			++i;
+			continue;
+		}
+		const auto replacement = v::match(object->data, [](
+				const InlineTextObjectFormulaData &data) {
+			return data.trimmedTex;
+		}, [](const InlineTextObjectIvImageData &data) {
+			return data.replacementText;
+		});
+		const auto offset = i->offset();
+		const auto length = i->length();
+		const auto delta = int(replacement.size()) - length;
+		text->text.replace(offset, length, replacement);
+		for (auto &entity : entities) {
+			if (&entity == &*i) {
+				continue;
+			} else if (entity.offset() > offset) {
+				entity.shiftRight(delta);
+			} else if (entity.offset() + entity.length() > offset) {
+				entity.shrinkFromRight(-delta);
+			}
+		}
+		const auto formula = (object->kind
+			== InlineTextObjectKind::Formula);
+		if (withIcons && formula && !replacement.isEmpty()) {
+			const auto icon = Ui::Text::IconEmoji(
+				&st::ivSummaryMathIcon,
+				replacement);
+			*i = EntityInText(
+				EntityType::CustomEmoji,
+				offset,
+				int(replacement.size()),
+				icon.entities.front().data());
+			++i;
+		} else {
+			i = entities.erase(i);
+		}
+	}
 }
 
 QString InlineFormulaCopySource(const QString &source) {

@@ -338,6 +338,7 @@ MarkdownBlockSkips {
 	relatedArticle: pixels;
 	embedPost: pixels;
 	placeholder: pixels;
+	buttonRow: pixels;
 }
 MarkdownList {
 	indent: pixels;
@@ -438,6 +439,28 @@ MarkdownPlaceholder {
 	labelStyle: TextStyle;
 	labelFg: color;
 	labelFgActive: color;
+}
+MarkdownButtonRow {
+	height: pixels;
+	spacing: pixels;
+	padding: pixels;
+	labelMinPadding: pixels;
+	iconExtra: pixels;
+	iconPosition: point;
+	labelStyle: TextStyle;
+	defaultBg: color;
+	defaultBgOpacity: double;
+	defaultRipple: color;
+	defaultRippleOpacity: double;
+	defaultFg: color;
+	primaryBg: color;
+	primaryRipple: color;
+	successFg: color;
+	dangerFg: color;
+	tintBgOpacity: double;
+	tintRippleOpacity: double;
+	disabledOpacity: double;
+	disabledPrimaryOpacity: double;
 }
 MarkdownPhoto {
 	padding: margins;
@@ -584,6 +607,7 @@ Markdown {
 	relatedArticle: MarkdownRelatedArticle;
 	groupedMedia: MarkdownGroupedMedia;
 	failure: MarkdownFailure;
+	buttonRow: MarkdownButtonRow;
 }
 
 defaultMarkdownTextPalette: TextPalette(defaultTextPalette) {
@@ -623,6 +647,7 @@ defaultMarkdownBlockSkips: MarkdownBlockSkips {
 	relatedArticle: 0px;
 	embedPost: 12px;
 	placeholder: 12px;
+	buttonRow: 12px;
 }
 defaultMarkdownList: MarkdownList {
 	indent: 28px;
@@ -885,6 +910,34 @@ defaultMarkdownFailure: MarkdownFailure {
 	width: 360px;
 	skip: 12px;
 }
+markdownButtonRowTintBgOpacity: 0.12;
+markdownButtonRowTintRippleOpacity: 0.22;
+defaultMarkdownButtonRowLabelStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: font(13px semibold);
+	lineHeight: 0px;
+}
+defaultMarkdownButtonRow: MarkdownButtonRow {
+	height: 26px;
+	spacing: 6px;
+	padding: 17px;
+	labelMinPadding: 4px;
+	iconExtra: 10px;
+	iconPosition: point(6px, 5px);
+	labelStyle: defaultMarkdownButtonRowLabelStyle;
+	defaultBg: windowBgOver;
+	defaultBgOpacity: 1.0;
+	defaultRipple: windowBgRipple;
+	defaultRippleOpacity: 1.0;
+	defaultFg: windowBoldFg;
+	primaryBg: activeButtonBg;
+	primaryRipple: activeButtonBgRipple;
+	successFg: historyPeer2NameFg;
+	dangerFg: historyPeer1NameFg;
+	tintBgOpacity: markdownButtonRowTintBgOpacity;
+	tintRippleOpacity: markdownButtonRowTintRippleOpacity;
+	disabledOpacity: 0.33;
+	disabledPrimaryOpacity: 0.6;
+}
 markdownFootnoteBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 0px);
 	buttonHeight: 0px;
@@ -980,6 +1033,7 @@ defaultMarkdown: Markdown {
 	relatedArticle: defaultMarkdownRelatedArticle;
 	groupedMedia: defaultMarkdownGroupedMedia;
 	failure: defaultMarkdownFailure;
+	buttonRow: defaultMarkdownButtonRow;
 }
 messageMarkdownBodyStyle: TextStyle(messageTextStyle) {
 	font: font(13px);
@@ -1052,6 +1106,7 @@ messageMarkdownBlockSkips: MarkdownBlockSkips {
 	relatedArticle: 0px;
 	embedPost: 8px;
 	placeholder: 8px;
+	buttonRow: 8px;
 }
 messageMarkdownQuoteBgOpacity: 0.12;
 messageMarkdownDetailsIcon: icon{{ "history_down_arrow", msgInDateFg }};
@@ -1301,6 +1356,16 @@ messageMarkdownOut: Markdown(messageMarkdown) {
 	failure: MarkdownFailure(messageMarkdownFailure) {
 		label: messageMarkdownFailureLabelOut;
 	}
+	buttonRow: MarkdownButtonRow(defaultMarkdownButtonRow) {
+		defaultBg: msgOutReplyBarColor;
+		defaultBgOpacity: markdownButtonRowTintBgOpacity;
+		defaultRipple: msgOutReplyBarColor;
+		defaultRippleOpacity: markdownButtonRowTintRippleOpacity;
+		defaultFg: msgOutReplyBarColor;
+		primaryBg: msgOutReplyBarColor;
+		primaryRipple: msgFileOutBg;
+		successFg: msgOutReplyBarColor;
+	}
 }
 messageMarkdownSelected: Markdown(messageMarkdown) {
 	textPalette: TextPalette(inTextPaletteSelected) {
@@ -1362,6 +1427,11 @@ messageMarkdownSelected: Markdown(messageMarkdown) {
 	failure: MarkdownFailure(messageMarkdownFailure) {
 		label: messageMarkdownFailureLabelSelected;
 	}
+	buttonRow: MarkdownButtonRow(defaultMarkdownButtonRow) {
+		defaultFg: historyTextInFgSelected;
+		successFg: historyPeer2NameFgSelected;
+		dangerFg: historyPeer1NameFgSelected;
+	}
 }
 messageMarkdownOutSelected: Markdown(messageMarkdown) {
 	textPalette: TextPalette(outTextPaletteSelected) {
@@ -1422,6 +1492,17 @@ messageMarkdownOutSelected: Markdown(messageMarkdown) {
 	}
 	failure: MarkdownFailure(messageMarkdownFailure) {
 		label: messageMarkdownFailureLabelOutSelected;
+	}
+	buttonRow: MarkdownButtonRow(defaultMarkdownButtonRow) {
+		defaultBg: msgOutReplyBarSelColor;
+		defaultBgOpacity: markdownButtonRowTintBgOpacity;
+		defaultRipple: msgOutReplyBarSelColor;
+		defaultRippleOpacity: markdownButtonRowTintRippleOpacity;
+		defaultFg: msgOutReplyBarSelColor;
+		primaryBg: msgOutReplyBarSelColor;
+		primaryRipple: msgFileOutBgSelected;
+		successFg: msgOutReplyBarSelColor;
+		dangerFg: historyPeer1NameFgSelected;
 	}
 }
 aiComposeCardMarkdown: Markdown(messageMarkdown) {

@@ -112,6 +112,10 @@ struct HistoryMessageRichPage
 	mutable Iv::Markdown::MediaActivation handlerMediaActivation;
 	mutable Iv::Markdown::PreparedPlaceholderBlockId handlerPlaceholderId;
 	mutable QPoint handlerPlaceholderPoint;
+	mutable Iv::Markdown::MarkdownArticleButtonRowHit handlerButtonRow;
+	mutable ClickHandlerPtr handlerButtonRowHandler;
+	mutable Iv::Markdown::MarkdownArticleButtonRowHit pressedButtonRow;
+	mutable ClickHandlerPtr pressedButtonRowHandler;
 };
 
 enum class BadgeRole : uchar {

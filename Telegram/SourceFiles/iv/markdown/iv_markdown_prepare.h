@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/history_item_reply_markup.h"
 #include "iv/markdown/iv_markdown_document.h"
 #include "iv/markdown/iv_markdown_math_renderer.h"
 
@@ -35,6 +36,7 @@ enum class PreparedBlockKind {
 	Heading,
 	CodeBlock,
 	Rule,
+	ButtonRow,
 	List,
 	ListItem,
 	Quote,
@@ -651,6 +653,21 @@ struct PreparedPlaceholderBlockData {
 	std::optional<EmbedRequest> embed;
 };
 
+struct PreparedButtonRowButton {
+	TextWithEntities text;
+	HistoryMessageMarkupButton button = HistoryMessageMarkupButton(
+		HistoryMessageMarkupButton::Type::Disabled,
+		QString(),
+		{});
+	const HistoryMessageMarkupButton *shared = nullptr;
+};
+
+struct PreparedButtonRowBlockData {
+	PreparedMediaBlockId id;
+	std::shared_ptr<const Iv::RichPage> page;
+	std::vector<PreparedButtonRowButton> buttons;
+};
+
 struct PreparedRelatedArticleBlockData {
 	PreparedLink link;
 	QString copyText;
@@ -687,6 +704,7 @@ struct PreparedBlock {
 	PreparedGroupedMediaBlockData groupedMedia;
 	PreparedEmbedPostBlockData embedPost;
 	PreparedPlaceholderBlockData placeholder;
+	PreparedButtonRowBlockData buttonRow;
 	PreparedRelatedArticleBlockData relatedArticle;
 	ListKind listKind = ListKind::Bullet;
 	ListDelimiter listDelimiter = ListDelimiter::None;

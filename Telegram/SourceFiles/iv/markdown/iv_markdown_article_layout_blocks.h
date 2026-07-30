@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "iv/markdown/iv_markdown_article.h"
+#include "iv/markdown/iv_markdown_button_row.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 
 #include <functional>
@@ -110,9 +111,11 @@ struct LaidOutBlock {
 	std::optional<PreparedLink> preparedLink;
 	ClickHandlerPtr preparedLinkHandler;
 	PreparedPlaceholderBlockId placeholderId;
+	PreparedMediaBlockId buttonRowId;
 	Spellchecker::HighlightProcessId syntaxHighlightProcessId = 0;
 	std::vector<LaidOutBlock> children;
 	std::vector<LaidOutTableRow> tableRows;
+	std::vector<LaidOutButton> buttons;
 	std::vector<int> tableColumnWidths;
 	QRect outer;
 	QRect headerRect;
@@ -178,6 +181,7 @@ struct LaidOutBlock {
 	std::optional<PreparedEditLeafSource> editLeaf;
 	std::shared_ptr<MediaBlock> mediaBlock;
 	std::shared_ptr<PlaceholderBlockRuntime> placeholderRuntime;
+	std::shared_ptr<ButtonRowRuntime> buttonRowRuntime;
 	std::shared_ptr<TaskMarkerRippleRuntime> taskMarkerRippleRuntime;
 	std::shared_ptr<PhotoRuntime> photoRuntime;
 	MediaActivation activation;
@@ -336,6 +340,8 @@ struct LayoutContext {
 	std::function<std::shared_ptr<MediaBlock>(const PreparedBlock&)> mediaBlockFactory;
 	std::function<std::shared_ptr<PlaceholderBlockRuntime>(
 		PreparedPlaceholderBlockId)> placeholderRuntimeFactory;
+	std::function<std::shared_ptr<ButtonRowRuntime>(
+		PreparedMediaBlockId)> buttonRowRuntimeFactory;
 	std::function<std::shared_ptr<TaskMarkerRippleRuntime>(
 		const PreparedEditListItemSource&)> taskMarkerRippleRuntimeFactory;
 };
@@ -637,6 +643,16 @@ void UpdateLaidOutLeafContent(
 	bool scrollOwner,
 	LayoutContext context = {});
 [[nodiscard]] LaidOutBlock LayoutPlaceholderBlock(
+	const PreparedBlock &prepared,
+	std::vector<PreparedFormulaSlot> *formulas,
+	InlineFormulaObjectCache *inlineFormulaObjects,
+	const std::shared_ptr<MediaRuntime> &mediaRuntime,
+	const style::Markdown &st,
+	int left,
+	int top,
+	int width,
+	LayoutContext context = {});
+[[nodiscard]] LaidOutBlock LayoutButtonRowBlock(
 	const PreparedBlock &prepared,
 	std::vector<PreparedFormulaSlot> *formulas,
 	InlineFormulaObjectCache *inlineFormulaObjects,

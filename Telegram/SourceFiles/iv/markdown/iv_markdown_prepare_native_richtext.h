@@ -57,6 +57,10 @@ struct NativeIvRichTextContext {
 	const Iv::RichPage::Block &data,
 	std::vector<PreparedBlock> *result,
 	NativeIvPrepareState *state);
+[[nodiscard]] bool PrepareNativeIvButtonRowBlock(
+	const Iv::RichPage::Block &data,
+	std::vector<PreparedBlock> *result,
+	NativeIvPrepareState *state);
 [[nodiscard]] bool PrepareNativeIvRichText(
 	const Iv::RichPage::RichText &text,
 	PreparedIvRichText *result,

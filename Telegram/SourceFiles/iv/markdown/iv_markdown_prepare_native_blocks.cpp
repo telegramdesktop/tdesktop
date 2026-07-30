@@ -1916,6 +1916,8 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 			false,
 			std::move(editBlock));
 	}
+	case RichPageBlockKind::ButtonRow:
+		return PrepareNativeIvButtonRowBlock(block, result, state);
 	case RichPageBlockKind::List: {
 		auto prepared = PreparedBlock();
 		prepared.kind = PreparedBlockKind::List;

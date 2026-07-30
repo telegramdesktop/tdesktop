@@ -308,6 +308,7 @@ void PaintSelectableTextLeaf(
 			block.textRect,
 			block.textWidth);
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 		return CountGenericRevealBand(block.outer);
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
@@ -1453,6 +1454,7 @@ void PaintTableCaption(
 	case PreparedBlockKind::Thinking:
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
 	case PreparedBlockKind::Photo:
@@ -3059,6 +3061,15 @@ void PaintBlock(
 			block.outer,
 			[&](Painter &p, const MarkdownArticlePaintContext &context) {
 				p.fillRect(block.outer, EffectiveDividerFg(paintSt, context));
+			});
+		break;
+	case PreparedBlockKind::ButtonRow:
+		PaintRevealBand(
+			p,
+			context,
+			block.outer,
+			[&](Painter &p, const MarkdownArticlePaintContext &context) {
+				PaintButtonRow(p, block, st, context, outerWidth);
 			});
 		break;
 	case PreparedBlockKind::List:

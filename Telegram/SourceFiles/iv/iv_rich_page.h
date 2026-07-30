@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "history/history_item_reply_markup.h"
 #include "ui/text/text_entity.h"
 
 #include <QtCore/QByteArray>
@@ -48,6 +49,7 @@ struct RichPage {
 		Code,
 		Divider,
 		Anchor,
+		ButtonRow,
 		List,
 		Quote,
 		Photo,
@@ -180,6 +182,23 @@ struct RichPage {
 			const RelatedArticle &,
 			const RelatedArticle &) = default;
 	};
+	enum class ButtonAlignment : uchar {
+		Stretch,
+		Left,
+		Center,
+		Right,
+	};
+	struct Button {
+		RichText text;
+		HistoryMessageMarkupButton button = HistoryMessageMarkupButton(
+			HistoryMessageMarkupButton::Type::Disabled,
+			QString(),
+			{});
+
+		friend inline bool operator==(
+			const Button &,
+			const Button &) = default;
+	};
 	struct Block {
 		BlockKind kind = BlockKind::Unsupported;
 		QString anchorId;
@@ -217,6 +236,7 @@ struct RichPage {
 		ListKind listKind = ListKind::Bullet;
 		OrderedListData orderedList;
 		GroupedMediaIntent mediaIntent = GroupedMediaIntent::Collage;
+		ButtonAlignment buttonAlignment = ButtonAlignment::Stretch;
 		PhotoData *photo = nullptr;
 		DocumentData *document = nullptr;
 		PeerData *peer = nullptr;
@@ -228,6 +248,7 @@ struct RichPage {
 		std::vector<GroupedMediaItem> mediaItems;
 		std::vector<TableRow> tableRows;
 		std::vector<RelatedArticle> relatedArticles;
+		std::vector<Button> buttons;
 
 		friend inline bool operator==(
 			const Block &,

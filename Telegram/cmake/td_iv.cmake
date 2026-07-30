@@ -72,6 +72,8 @@ PRIVATE
     iv/markdown/iv_markdown_article_selection.h
     iv/markdown/iv_markdown_article_text.cpp
     iv/markdown/iv_markdown_article_text.h
+    iv/markdown/iv_markdown_button_row.cpp
+    iv/markdown/iv_markdown_button_row.h
     iv/markdown/iv_markdown_controller.cpp
     iv/markdown/iv_markdown_controller.h
     iv/markdown/iv_markdown_document.cpp

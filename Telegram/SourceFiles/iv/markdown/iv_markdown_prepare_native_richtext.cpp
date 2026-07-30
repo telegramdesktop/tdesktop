@@ -357,6 +357,32 @@ void ApplyEmptyMediaCaptionPlaceholder(
 	block->editPlaceholderText = tr::lng_photo_caption(tr::now);
 }
 
+[[nodiscard]] TableAlignment NativeIvButtonRowAlignment(
+		Iv::RichPage::ButtonAlignment alignment) {
+	using Alignment = Iv::RichPage::ButtonAlignment;
+	switch (alignment) {
+	case Alignment::Stretch: return TableAlignment::None;
+	case Alignment::Left: return TableAlignment::Left;
+	case Alignment::Center: return TableAlignment::Center;
+	case Alignment::Right: return TableAlignment::Right;
+	}
+	Unexpected("Alignment in NativeIvButtonRowAlignment.");
+}
+
+[[nodiscard]] TextWithEntities NormalizeNativeIvButtonLabel(
+		TextWithEntities text) {
+	ExpandInlineTextObjects(&text, false);
+	text.entities.erase(
+		ranges::remove_if(text.entities, [](const EntityInText &entity) {
+			const auto type = entity.type();
+			return (type != EntityType::CustomEmoji)
+				&& (type != EntityType::FormattedDate);
+		}),
+		text.entities.end());
+	TextUtilities::Trim(text);
+	return text;
+}
+
 } // namespace
 
 bool PrepareNativeIvRichText(
@@ -648,6 +674,30 @@ bool PrepareNativeIvGroupedMediaBlock(
 	ApplyEmptyMediaCaptionPlaceholder(&block, state);
 	block.groupedMedia.caption = block.text;
 	block.groupedMedia.editMode = state->editMode;
+	result->push_back(std::move(block));
+	return true;
+}
+
+bool PrepareNativeIvButtonRowBlock(
+		const Iv::RichPage::Block &data,
+		std::vector<PreparedBlock> *result,
+		NativeIvPrepareState *state) {
+	if (data.buttons.empty()) {
+		return true;
+	}
+	auto block = PreparedBlock();
+	block.kind = PreparedBlockKind::ButtonRow;
+	block.flowAlignment = NativeIvButtonRowAlignment(data.buttonAlignment);
+	block.buttonRow.id = GeneratePreparedMediaBlockId(state);
+	block.buttonRow.page = state->result.richPage;
+	block.buttonRow.buttons.reserve(data.buttons.size());
+	for (const auto &button : data.buttons) {
+		block.buttonRow.buttons.push_back({
+			.text = NormalizeNativeIvButtonLabel(button.text.text),
+			.button = button.button,
+			.shared = &button.button,
+		});
+	}
 	result->push_back(std::move(block));
 	return true;
 }
