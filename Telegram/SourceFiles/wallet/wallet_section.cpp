@@ -97,6 +97,7 @@ constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
 constexpr auto kIntroToastDuration = 4 * crl::time(1000);
 constexpr auto kCommentMaxBytes = 960;
+constexpr auto kFeeUsdDecimals = 5;
 constexpr auto kNanosInCent = 10'000'000LL;
 constexpr auto kMaxCents = 99'999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
@@ -386,7 +387,8 @@ void AddHistoryRow(
 
 void AddDetailsAmountHeader(
 		not_null<Ui::GenericBox*> box,
-		const Gram::TransferItem &item) {
+		const Gram::TransferItem &item,
+		rpl::producer<float64> rate = nullptr) {
 	const auto container = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
 		style::margins(
@@ -425,25 +427,52 @@ void AddDetailsAmountHeader(
 		: st::windowFg->c;
 	major->setTextColorOverride(color);
 	minor->setTextColorOverride(color);
+	const auto amountNano = item.amountNano;
+	const auto fiat = rate
+		? Ui::CreateChild<Ui::FlatLabel>(
+			container,
+			st::walletDetailsFiatLabel)
+		: nullptr;
+	const auto relayout = [=] {
+		const auto majorSize = major->size();
+		const auto minorSize = minor->size();
+		const auto amountWidth = majorSize.width() + minorSize.width();
+		const auto amountHeight = std::max(
+			majorSize.height(),
+			st::walletDetailsAmountMinorSkip + minorSize.height());
+		const auto withFiat = fiat && !fiat->isHidden();
+		const auto width = std::max(
+			amountWidth,
+			withFiat ? fiat->width() : 0);
+		const auto height = amountHeight + (withFiat
+			? st::walletDetailsFiatSkip + fiat->height()
+			: 0);
+		container->resize(width, height);
+		container->setNaturalWidth(width);
+		major->moveToLeft((width - amountWidth) / 2, 0, width);
+		minor->moveToLeft(
+			(width - amountWidth) / 2 + majorSize.width(),
+			st::walletDetailsAmountMinorSkip,
+			width);
+		if (withFiat) {
+			fiat->moveToLeft(
+				(width - fiat->width()) / 2,
+				amountHeight + st::walletDetailsFiatSkip,
+				width);
+		}
+	};
+	if (fiat) {
+		std::move(rate) | rpl::on_next([=](float64 value) {
+			const auto text = FormatUsd(amountNano, value);
+			fiat->setText(text);
+			fiat->setVisible(!text.isEmpty());
+			relayout();
+		}, fiat->lifetime());
+	}
 	rpl::combine(
 		major->sizeValue(),
 		minor->sizeValue()
-	) | rpl::on_next([=](
-			const QSize &majorSize,
-			const QSize &minorSize) {
-		const auto width = majorSize.width() + minorSize.width();
-		container->resize(
-			width,
-			std::max(
-				majorSize.height(),
-				st::walletDetailsAmountMinorSkip + minorSize.height()));
-		container->setNaturalWidth(width);
-		major->moveToLeft(0, 0, width);
-		minor->moveToLeft(
-			majorSize.width(),
-			st::walletDetailsAmountMinorSkip,
-			width);
-	}, container->lifetime());
+	) | rpl::on_next(relayout, container->lifetime());
 }
 
 [[nodiscard]] object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> MakeCommentBubble(
@@ -484,8 +513,49 @@ void AddDetailsComment(
 		style::al_top);
 }
 
+void AddFeeTableRow(
+		not_null<Ui::TableLayout*> table,
+		not_null<Main::Session*> session,
+		int64 feeNano,
+		bool approximate) {
+	auto helper = Ui::Text::CustomEmojiHelper();
+	const auto diamond = helper.paletteDependent({
+		.factory = [] {
+			return Ui::Earn::IconCurrencyColored(
+				st::defaultTableValue.style.font,
+				st::windowActiveTextFg->c);
+		},
+	});
+	auto value = TonUsdRateValue(
+		session
+	) | rpl::map([=](float64 rate) {
+		auto fee = diamond;
+		fee.append(QChar(' '));
+		if (approximate) {
+			fee.append(QChar('~'));
+		}
+		fee.append(Ui::FormatTonAmount(feeNano).full);
+		const auto usd = FormatUsd(
+			feeNano,
+			rate,
+			kFeeUsdDecimals,
+			true);
+		if (!usd.isEmpty()) {
+			fee.append(QChar(' '));
+			fee.append(usd);
+		}
+		return fee;
+	});
+	Ui::AddTableRow(
+		table,
+		tr::lng_wallet_details_fee(),
+		std::move(value),
+		helper.context());
+}
+
 void AddDetailsTable(
 		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
 		const Gram::TransferItem &item) {
 	const auto table = box->addRow(
 		object_ptr<Ui::TableLayout>(
@@ -504,21 +574,7 @@ void AddDetailsTable(
 	const auto pending
 		= (item.status == Gram::TransferItem::Status::Pending);
 	if (item.feeNano > 0 && !pending) {
-		auto helper = Ui::Text::CustomEmojiHelper();
-		auto fee = helper.paletteDependent({
-			.factory = [] {
-				return Ui::Earn::IconCurrencyColored(
-					st::defaultTableValue.style.font,
-					st::windowActiveTextFg->c);
-			},
-		});
-		fee.append(QChar(' '));
-		fee.append(Ui::FormatTonAmount(item.feeNano).full);
-		Ui::AddTableRow(
-			table,
-			tr::lng_wallet_details_fee(),
-			rpl::single(std::move(fee)),
-			helper.context());
+		AddFeeTableRow(table, session, item.feeNano, false);
 	}
 	Ui::AddTableRow(
 		table,
@@ -865,9 +921,9 @@ void WalletTransactionBox(
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 
-	AddDetailsAmountHeader(box, item);
+	AddDetailsAmountHeader(box, item, TonUsdRateValue(session));
 	AddDetailsComment(box, item);
-	AddDetailsTable(box, item);
+	AddDetailsTable(box, session, item);
 
 	AddBoxCloseButton(box);
 	const auto toggle = box->addTopButton(st::boxTitleMenu);
@@ -1025,24 +1081,11 @@ void WalletSendConfirmBox(
 		table,
 		tr::lng_wallet_send_address_label(),
 		AddressValueLabel(table, box->uiShow(), flow.displayForm));
-	auto helper = Ui::Text::CustomEmojiHelper();
-	auto fee = helper.paletteDependent({
-		.factory = [] {
-			return Ui::Earn::IconCurrencyColored(
-				st::defaultTableValue.style.font,
-				st::windowActiveTextFg->c);
-		},
-	});
-	fee.append(QChar(' '));
-	if (flow.feeApproximate) {
-		fee.append(QChar('~'));
-	}
-	fee.append(Ui::FormatTonAmount(flow.feeNano).full);
-	Ui::AddTableRow(
+	AddFeeTableRow(
 		table,
-		tr::lng_wallet_details_fee(),
-		rpl::single(std::move(fee)),
-		helper.context());
+		&controller->session(),
+		flow.feeNano,
+		flow.feeApproximate);
 	Ui::AddTableRow(
 		table,
 		tr::lng_wallet_details_date(),

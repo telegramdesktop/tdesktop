@@ -134,6 +134,13 @@ walletDetailsAmountMinorSkip: 8px;
 walletDetailsIconMargin: margins(6px, 0px, 0px, 0px);
 walletDetailsAmountTopSkip: 16px;
 walletDetailsAmountBottomSkip: 24px;
+walletDetailsFiatLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+}
+walletDetailsFiatSkip: 4px;
 walletDetailsAddressLabel: FlatLabel(defaultTableValue) {
 	minWidth: 128px;
 	maxHeight: 100px;
