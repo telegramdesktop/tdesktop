@@ -1,3 +1,12 @@
+7.0.7 (31.07.26)
+
+- Add geometric shapes to the image editor.
+- Add better passkeys support on Windows, macOS and Linux.
+- Add undo for moving and resizing items in the image editor.
+- Extend chats list pull gesture to unread forum topics.
+- Fix Mini App cookies on Linux.
+- Crash fixes.
+
 7.0.6 (27.07.26)
 
 - Allow muting forever by left click on the profile mute button.
