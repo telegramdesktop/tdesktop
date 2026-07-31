@@ -17,6 +17,7 @@ apps:
     plugs:
       - audio-playback
       - audio-record
+      - bluez
       - camera
       - hardware-observe
       - home
@@ -24,6 +25,7 @@ apps:
       - network-bind
       - network-status
       - removable-media
+      - u2f-devices
     slots:
       - mpris
 
