@@ -67,102 +67,61 @@ std::vector<std::vector<HistoryMessageMarkupButton>> ButtonRowsFromTL(
 		auto row = std::vector<HistoryMessageMarkupButton>();
 		row.reserve(tlRow.data().vbuttons().v.size());
 		for (const auto &button : tlRow.data().vbuttons().v) {
-			button.match([&](const MTPDkeyboardButton &data) {
-				const auto text = qs(data.vtext());
-				data.vtype().match([&](const MTPDbuttonTypeDefault &) {
-					row.push_back({ Type::Default, text });
-				}, [&](const MTPDbuttonTypeRequestPhone &) {
-					row.push_back({ Type::RequestPhone, text });
-				}, [&](const MTPDbuttonTypeRequestGeoLocation &) {
-					row.push_back({ Type::RequestLocation, text });
-				}, [&](const MTPDbuttonTypeRequestPoll &data) {
-					const auto quiz = [&] {
-						if (!data.vquiz()) {
-							return QByteArray();
-						}
-						return data.vquiz()->match([](const MTPDboolTrue &) {
-							return QByteArray(1, 1);
-						}, [](const MTPDboolFalse &) {
-							return QByteArray(1, 0);
-						});
-					}();
-					row.push_back({
-						Type::RequestPoll,
-						text,
-						quiz
-					});
-				}, [&](const MTPDbuttonTypeRequestPeer &data) {
-					row.push_back({
-						Type::RequestPeer,
-						text,
-						QByteArray("unsupported"),
-						QString(),
-						int64(data.vbutton_id().v),
-					});
-				}, [&](const MTPDinputButtonTypeRequestPeer &) {
-				}, [&](const MTPDbuttonTypeSimpleWebView &data) {
-					row.push_back({
-						Type::SimpleWebView,
-						text,
-						data.vurl().v
-					});
+			const auto &fields = button.data();
+			const auto text = qs(fields.vtext());
+			fields.vtype().match([&](const MTPDinlineButtonTypeUrl &data) {
+				row.push_back({
+					Type::Url,
+					text,
+					qba(data.vurl())
 				});
-			}, [&](const MTPDkeyboardInlineButton &data) {
-				const auto text = qs(data.vtext());
-				data.vtype().match([&](const MTPDinlineButtonTypeUrl &data) {
-					row.push_back({
-						Type::Url,
-						text,
-						qba(data.vurl())
-					});
-				}, [&](const MTPDinlineButtonTypeUrlAuth &data) {
-					row.push_back({
-						Type::Auth,
-						text,
-						qba(data.vurl()),
-						qs(data.vfwd_text().value_or_empty()),
-						data.vbutton_id().v,
-					});
-				}, [&](const MTPDinputInlineButtonTypeUrlAuth &) {
-				}, [&](const MTPDinlineButtonTypeWebView &data) {
-					row.push_back({
-						Type::WebView,
-						text,
-						data.vurl().v
-					});
-				}, [&](const MTPDinlineButtonTypeCallback &data) {
-					row.push_back({
-						(data.is_requires_password()
-							? Type::CallbackWithPassword
-							: Type::Callback),
-						text,
-						qba(data.vdata())
-					});
-				}, [&](const MTPDinlineButtonTypeGame &) {
-					row.push_back({ Type::Game, text });
-				}, [&](const MTPDinlineButtonTypeBuy &) {
-					row.push_back({ Type::Buy, text });
-				}, [&](const MTPDinlineButtonTypeSwitchInline &data) {
-					const auto type = data.is_same_peer()
-						? Type::SwitchInlineSame
-						: Type::SwitchInline;
-					row.push_back({ type, text, qba(data.vquery()) });
-				}, [&](const MTPDinlineButtonTypeUserProfile &data) {
-					row.push_back({
-						Type::UserProfile,
-						text,
-						QByteArray::number(data.vuser_id().v)
-					});
-				}, [&](const MTPDinputInlineButtonTypeUserProfile &) {
-				}, [&](const MTPDinlineButtonTypeCopy &data) {
-					row.push_back({
-						Type::CopyText,
-						text,
-						data.vcopy_text().v,
-					});
-				}, [&](const MTPDinlineButtonTypeDisabled &) {
-					row.push_back({ Type::Disabled, text });
+			}, [&](const MTPDinlineButtonTypeUrlAuth &data) {
+				row.push_back({
+					Type::Auth,
+					text,
+					qba(data.vurl()),
+					qs(data.vfwd_text().value_or_empty()),
+					data.vbutton_id().v,
 				});
+			}, [&](const MTPDinputInlineButtonTypeUrlAuth &) {
+			}, [&](const MTPDinlineButtonTypeWebView &data) {
+				row.push_back({
+					Type::WebView,
+					text,
+					data.vurl().v
+				});
+			}, [&](const MTPDinlineButtonTypeCallback &data) {
+				row.push_back({
+					(data.is_requires_password()
+						? Type::CallbackWithPassword
+						: Type::Callback),
+					text,
+					qba(data.vdata())
+				});
+			}, [&](const MTPDinlineButtonTypeGame &) {
+				row.push_back({ Type::Game, text });
+			}, [&](const MTPDinlineButtonTypeBuy &) {
+				row.push_back({ Type::Buy, text });
+			}, [&](const MTPDinlineButtonTypeSwitchInline &data) {
+				const auto type = data.is_same_peer()
+					? Type::SwitchInlineSame
+					: Type::SwitchInline;
+				row.push_back({ type, text, qba(data.vquery()) });
+			}, [&](const MTPDinlineButtonTypeUserProfile &data) {
+				row.push_back({
+					Type::UserProfile,
+					text,
+					QByteArray::number(data.vuser_id().v)
+				});
+			}, [&](const MTPDinputInlineButtonTypeUserProfile &) {
+			}, [&](const MTPDinlineButtonTypeCopy &data) {
+				row.push_back({
+					Type::CopyText,
+					text,
+					data.vcopy_text().v,
+				});
+			}, [&](const MTPDinlineButtonTypeDisabled &) {
+				row.push_back({ Type::Disabled, text });
 			});
 		}
 		if (!row.empty()) {

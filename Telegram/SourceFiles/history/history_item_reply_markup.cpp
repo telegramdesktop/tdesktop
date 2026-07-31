@@ -38,6 +38,78 @@ namespace {
 	};
 }
 
+[[nodiscard]] std::optional<HistoryMessageMarkupButton> ParseButton(
+		const MTPKeyboardButton &button) {
+	using Type = HistoryMessageMarkupButton::Type;
+	const auto &fields = button.data();
+	const auto text = qs(fields.vtext());
+	const auto visual = ParseVisual(fields.vstyle());
+	auto result = std::optional<HistoryMessageMarkupButton>();
+	fields.vtype().match([&](const MTPDbuttonTypeDefault &) {
+		result.emplace(Type::Default, text, visual);
+	}, [&](const MTPDbuttonTypeRequestPhone &) {
+		result.emplace(Type::RequestPhone, text, visual);
+	}, [&](const MTPDbuttonTypeRequestGeoLocation &) {
+		result.emplace(Type::RequestLocation, text, visual);
+	}, [&](const MTPDbuttonTypeRequestPoll &data) {
+		const auto quiz = [&] {
+			if (!data.vquiz()) {
+				return QByteArray();
+			}
+			return data.vquiz()->match([](const MTPDboolTrue &) {
+				return QByteArray(1, 1);
+			}, [](const MTPDboolFalse &) {
+				return QByteArray(1, 0);
+			});
+		}();
+		result.emplace(Type::RequestPoll, text, visual, quiz);
+	}, [&](const MTPDbuttonTypeRequestPeer &data) {
+		data.vpeer_type().match([&](
+				const MTPDrequestPeerTypeCreateBot &create) {
+			auto serialized = QByteArray();
+			{
+				auto stream = QDataStream(&serialized, QIODevice::WriteOnly);
+				stream
+					<< qs(create.vsuggested_name().value_or_empty())
+					<< qs(create.vsuggested_username().value_or_empty());
+			}
+			result.emplace(
+				Type::CreateBot,
+				text,
+				visual,
+				serialized,
+				QString(),
+				int64(data.vbutton_id().v));
+		}, [&](const auto &) {
+			const auto query = RequestPeerQueryFromTL(data);
+			result.emplace(
+				Type::RequestPeer,
+				text,
+				visual,
+				QByteArray(
+					reinterpret_cast<const char*>(&query),
+					sizeof(query)),
+				QString(),
+				int64(data.vbutton_id().v));
+		});
+	}, [&](const MTPDinputButtonTypeRequestPeer &) {
+		LOG(("API Error: inputButtonTypeRequestPeer."));
+		// Should not get those for the users.
+	}, [&](const MTPDbuttonTypeSimpleWebView &data) {
+		result.emplace(Type::SimpleWebView, text, visual, data.vurl().v);
+	});
+	return result;
+}
+
+[[nodiscard]] std::optional<HistoryMessageMarkupButton> ParseButton(
+		const MTPKeyboardInlineButton &button) {
+	const auto &fields = button.data();
+	return ParseInlineButton(
+		fields.vtype(),
+		qs(fields.vtext()),
+		ParseVisual(fields.vstyle()));
+}
+
 } // namespace
 
 HistoryMessageMarkupButton::Visual ParseRichButtonVisual(
@@ -226,8 +298,8 @@ HistoryMessageMarkupButton *HistoryMessageMarkupButton::Get(
 	return nullptr;
 }
 
-void HistoryMessageMarkupData::fillRows(
-		const QVector<MTPKeyboardButtonRow> &list) {
+template <typename Row>
+void HistoryMessageMarkupData::fillRows(const QVector<Row> &list) {
 	rows.clear();
 	if (list.isEmpty()) {
 		return;
@@ -235,100 +307,25 @@ void HistoryMessageMarkupData::fillRows(
 
 	using Type = Button::Type;
 	rows.reserve(list.size());
-	for (const auto &row : list) {
-		row.match([&](const MTPDkeyboardButtonRow &data) {
-			auto row = std::vector<Button>();
-			row.reserve(data.vbuttons().v.size());
-			for (const auto &button : data.vbuttons().v) {
-				button.match([&](const MTPDkeyboardButton &data) {
-					const auto text = qs(data.vtext());
-					const auto visual = ParseVisual(data.vstyle());
-					data.vtype().match([&](const MTPDbuttonTypeDefault &) {
-						row.emplace_back(Type::Default, text, visual);
-					}, [&](const MTPDbuttonTypeRequestPhone &) {
-						row.emplace_back(Type::RequestPhone, text, visual);
-					}, [&](const MTPDbuttonTypeRequestGeoLocation &) {
-						row.emplace_back(Type::RequestLocation, text, visual);
-					}, [&](const MTPDbuttonTypeRequestPoll &data) {
-						const auto quiz = [&] {
-							if (!data.vquiz()) {
-								return QByteArray();
-							}
-							return data.vquiz()->match([](
-									const MTPDboolTrue &) {
-								return QByteArray(1, 1);
-							}, [](const MTPDboolFalse &) {
-								return QByteArray(1, 0);
-							});
-						}();
-						row.emplace_back(
-							Type::RequestPoll,
-							text,
-							visual,
-							quiz);
-					}, [&](const MTPDbuttonTypeRequestPeer &data) {
-						data.vpeer_type().match([&](
-								const MTPDrequestPeerTypeCreateBot &create) {
-							auto serialized = QByteArray();
-							{
-								auto stream = QDataStream(
-									&serialized,
-									QIODevice::WriteOnly);
-								stream
-									<< qs(create.vsuggested_name()
-										.value_or_empty())
-									<< qs(create.vsuggested_username()
-										.value_or_empty());
-							}
-							row.emplace_back(
-								Type::CreateBot,
-								text,
-								visual,
-								serialized,
-								QString(),
-								int64(data.vbutton_id().v));
-						}, [&](const auto &) {
-							const auto query = RequestPeerQueryFromTL(data);
-							row.emplace_back(
-								Type::RequestPeer,
-								text,
-								visual,
-								QByteArray(
-									reinterpret_cast<const char*>(&query),
-									sizeof(query)),
-								QString(),
-								int64(data.vbutton_id().v));
-						});
-					}, [&](const MTPDinputButtonTypeRequestPeer &) {
-						LOG(("API Error: inputButtonTypeRequestPeer."));
-						// Should not get those for the users.
-					}, [&](const MTPDbuttonTypeSimpleWebView &data) {
-						row.emplace_back(
-							Type::SimpleWebView,
-							text,
-							visual,
-							data.vurl().v);
-					});
-				}, [&](const MTPDkeyboardInlineButton &data) {
-					auto button = ParseInlineButton(
-						data.vtype(),
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()));
-					if (!button) {
-						return;
-					}
-					if (button->type == Type::SwitchInline) {
-						// Optimization flag.
-						// Fast check on all new messages if there is a switch button to auto-click it.
-						flags |= ReplyMarkupFlag::HasSwitchInlineButton;
-					}
-					row.push_back(std::move(*button));
-				});
+	for (const auto &entry : list) {
+		const auto &buttons = entry.data().vbuttons().v;
+		auto row = std::vector<Button>();
+		row.reserve(buttons.size());
+		for (const auto &button : buttons) {
+			auto parsed = ParseButton(button);
+			if (!parsed) {
+				continue;
 			}
-			if (!row.empty()) {
-				rows.push_back(std::move(row));
+			if (parsed->type == Type::SwitchInline) {
+				// Optimization flag.
+				// Fast check on all new messages if there is a switch button to auto-click it.
+				flags |= ReplyMarkupFlag::HasSwitchInlineButton;
 			}
-		});
+			row.push_back(std::move(*parsed));
+		}
+		if (!row.empty()) {
+			rows.push_back(std::move(row));
+		}
 	}
 	if (rows.size() == 1
 		&& rows.front().size() == 1

@@ -2152,8 +2152,6 @@ void WebViewInstance::botRequestChat(
 			}, [&](const auto &) {
 				callback(u"UNSUPPORTED_BUTTON_TYPE"_q);
 			});
-		}, [&](const auto &) {
-			callback(u"UNSUPPORTED_BUTTON_TYPE"_q);
 		});
 	}).fail([callback](const MTP::Error &error) {
 		callback(error.type());

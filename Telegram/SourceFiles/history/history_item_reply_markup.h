@@ -170,7 +170,8 @@ struct HistoryMessageMarkupData {
 	QString placeholder;
 
 private:
-	void fillRows(const QVector<MTPKeyboardButtonRow> &v);
+	template <typename Row>
+	void fillRows(const QVector<Row> &v);
 
 };
 

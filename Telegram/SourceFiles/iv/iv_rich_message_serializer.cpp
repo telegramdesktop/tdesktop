@@ -1390,6 +1390,7 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 				context);
 			return (text && caption)
 				? SuccessfulSerializeBlock(MTP_pageBlockBlockquote(
+					MTP_flags(0),
 					*text,
 					*caption))
 				: FailedSerializeBlock();
