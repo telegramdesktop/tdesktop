@@ -222,8 +222,8 @@ elseif (APPLE)
         IOKit)
 else()
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(UDEV REQUIRED IMPORTED_TARGET libudev)
-    target_link_libraries(lib_fido2 PRIVATE PkgConfig::UDEV)
+    pkg_check_modules(TDESKTOP_UDEV REQUIRED IMPORTED_TARGET libudev)
+    target_link_libraries(lib_fido2 PRIVATE PkgConfig::TDESKTOP_UDEV)
 endif()
 
 # Silence third-party C warnings. On MSVC the flags must ride an INTERFACE lib
