@@ -442,21 +442,14 @@ struct SerializeBlockResult {
 	case EntityType::Spoiler:
 		return MTP_textSpoiler(*inner);
 	case EntityType::Mention:
-		return MTP_textMention(*inner);
 	case EntityType::Hashtag:
-		return MTP_textHashtag(*inner);
 	case EntityType::BotCommand:
-		return MTP_textBotCommand(*inner);
 	case EntityType::Cashtag:
-		return MTP_textCashtag(*inner);
 	case EntityType::Url:
-		return MTP_textAutoUrl(*inner);
 	case EntityType::Email:
-		return MTP_textAutoEmail(*inner);
 	case EntityType::Phone:
-		return MTP_textAutoPhone(*inner);
 	case EntityType::BankCard:
-		return MTP_textBankCard(*inner);
+		return *inner;
 	case EntityType::CustomUrl: {
 		const auto data = entity.data();
 		if (data.startsWith(u"mailto:"_q)) {
