@@ -113,6 +113,7 @@ implib /usr/lib64/libGLX.so
 implib /usr/lib64/libOpenGL.so
 implib /usr/lib64/libGL.so
 implib /usr/lib64/libdrm.so
+implib /usr/lib64/libudev.so
 implib /usr/lib64/libwayland-egl.so
 implib /usr/lib64/libwayland-cursor.so
 implib /usr/lib64/libwayland-client.so

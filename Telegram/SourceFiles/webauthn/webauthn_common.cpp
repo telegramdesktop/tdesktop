@@ -5,22 +5,26 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "platform/platform_webauthn.h"
 #include "webauthn/webauthn_common.h"
 
-#include "data/data_passkey_deserialize.h"
-#include "webauthn/cable.h"
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#include "base/platform/linux/base_linux_library.h"
+#endif // !Q_OS_WIN && !Q_OS_MAC
+#include "base/weak_qptr.h"
 #include "core/application.h"
-#include "window/window_controller.h"
+#include "data/data_passkey_deserialize.h"
 #include "lang/lang_keys.h"
+#include "platform/platform_webauthn.h"
+#include "settings/cloud_password/settings_cloud_password_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/layers/show.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/password_input.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
-#include "settings/cloud_password/settings_cloud_password_common.h"
-#include "base/weak_qptr.h"
+#include "webauthn/cable.h"
+#include "window/window_controller.h"
+
 #include "styles/style_layers.h"
 
 #include <crl/crl.h>
@@ -30,10 +34,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <mutex>
 #include <vector>
 
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+extern "C" {
+void _libudev_so_tramp_resolve_all(void) __attribute__((weak));
+} // extern "C"
+#endif // !Q_OS_WIN && !Q_OS_MAC
+
 namespace Platform::WebAuthn {
 namespace {
 
 constexpr auto kDefaultTimeout = 60000;
+
+[[nodiscard]] bool UdevLibraryAvailable() {
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+	static const auto available = !_libudev_so_tramp_resolve_all
+		|| base::Platform::LoadLibrary("libudev.so.1");
+	return available;
+#else // !Q_OS_WIN && !Q_OS_MAC
+	return true;
+#endif // Q_OS_WIN || Q_OS_MAC
+}
 
 enum class Outcome {
 	Success,
@@ -227,6 +247,9 @@ void CloseBox(const std::shared_ptr<State> &state) {
 
 [[nodiscard]] std::vector<QByteArray> DevicePaths() {
 	auto result = std::vector<QByteArray>();
+	if (!UdevLibraryAvailable()) {
+		return result;
+	}
 	constexpr auto kMax = size_t(64);
 	auto list = fido_dev_info_new(kMax);
 	if (!list) {
