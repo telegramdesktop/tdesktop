@@ -920,6 +920,14 @@ void ShowWalletTransactionBox(
 	});
 }
 
+[[nodiscard]] int CommentBytes(const QString &text) {
+	return int(text.trimmed().toUtf8().size());
+}
+
+[[nodiscard]] bool CommentFits(const QString &text) {
+	return CommentBytes(text) <= kCommentMaxBytes;
+}
+
 struct SendFlow {
 	Gram::Address destination;
 	bool bounce = true;
@@ -934,9 +942,11 @@ struct SendFlow {
 		const QString &text) {
 	auto address = text;
 	auto amountNano = int64(0);
+	auto comment = QString();
 	if (const auto link = Gram::ParseTransferLink(text)) {
 		address = link->address;
 		amountNano = link->amountNano;
+		comment = link->comment.trimmed();
 	}
 	const auto parsed = Gram::ParseAddress(address);
 	if (!parsed || parsed->testnet) {
@@ -949,6 +959,7 @@ struct SendFlow {
 			? address
 			: Gram::FormatFriendly(parsed->address, parsed->bounceable)),
 		.amountNano = amountNano,
+		.comment = (CommentFits(comment) ? comment : QString()),
 	};
 }
 
@@ -964,14 +975,6 @@ not_null<Ui::FlatLabel*> AddSendFlowLabel(
 			st::boxRowPadding.right(),
 			0),
 		style::al_top);
-}
-
-[[nodiscard]] int CommentBytes(const QString &text) {
-	return int(text.trimmed().toUtf8().size());
-}
-
-[[nodiscard]] bool CommentFits(const QString &text) {
-	return CommentBytes(text) <= kCommentMaxBytes;
 }
 
 [[nodiscard]] not_null<Ui::InputField*> AddCommentField(
