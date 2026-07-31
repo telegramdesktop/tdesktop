@@ -437,17 +437,30 @@ rules, with these external-task safety adaptations:
   actions or Qt events, log assertions and geometry, capture widgets/windows
   in-process, save the artifacts, and quit. Do not require an OS-level desktop
   screenshot or interactive Computer Use evidence.
-- Missing `test_TelegramForcePortable` is the only portable-account setup
-  blocker. A `testing` marker file inside the live folder marks it as the
-  reusable test copy: marker present means touch no folders and go test. An
-  unmarked live folder is real data: move it to real when real is absent;
-  delete it only when real already exists. Only then deep-copy golden to live
-  and create the `testing` marker inside the copy. There is NO folder cleanup
-  after testing — the marked copy stays live for the next run and next task.
-  Never delete, rename, move, or alter golden or real.
+- Missing `test_TelegramForcePortable` is a portable-account setup blocker. A
+  `testing` marker file inside the live folder marks it as the reusable test
+  copy: never copy, move, or delete any of the three folders on this branch.
+  For this reused marked-live account only, after the exact-path straggler kill
+  and before launch, `test-run` moves a non-empty live `tdata/working` to
+  `RUN_DIR/stale-crash/working` and every live `tdata/dumps/*.dmp` to
+  `RUN_DIR/stale-crash/dumps/`; a zero-byte `tdata/working` is neither moved
+  nor reported. The report is moved because leaving it makes the app show the
+  previous-launch window instead of starting, so no `test_log.txt` is written
+  and the run reads as a hang. A leftover dump never blocks launch and is
+  moved only to keep the current run's mtime-filtered dump report free of old
+  minidumps. After successful relocation, the next SETUP finds nothing left
+  to move. An unmarked live folder is real data: move it to real when real is
+  absent; delete it only when real already exists. Only then deep-copy golden
+  to live and create the `testing` marker inside the copy. The four account
+  results remain `fresh-copy`, `reused-marked-live`, `preserved-real`, and
+  `replaced-manual-live`; clearing creates no fifth account state. There is NO
+  folder cleanup after testing — the marked copy stays live for the next run
+  and next task. Never delete, rename, move, or alter golden or real.
 - Set `RUN_DIR` and `EVIDENCE_DIR` to
-  `TASK_DIR/.local/runs/attempt-<n>/run-<m>/`. Promote only decisive compact
-  logs/screenshots into tracked `evidence/`.
+  `TASK_DIR/.local/runs/attempt-<n>/run-<m>/`, an ignored run-specific path.
+  Promote only decisive compact logs/screenshots and decisive preserved
+  `RUN_DIR/stale-crash/` payloads into tracked `evidence/`; keep promotion
+  selective rather than committing every large dump.
 - Execute every app run through the scripted runner instead of hand-composed
   launch/poll/kill shell:
 
@@ -458,13 +471,21 @@ rules, with these external-task safety adaptations:
   ```
 
   One call performs the idempotent portable-account SETUP, the path-scoped
-  straggler kill, the `-testagent -noupdate` launch (never auto-update a
-  test binary) with stdout/stderr capture and
-  `TDESKTOP_TEST_EVIDENCE_DIR` set to `RUN_DIR`, the external wall-clock
-  deadline and quiet-log watchdog, and returns one JSON report: outcome,
-  `TEST_COMPLETE` state, parsed `TEST_STEP`/`TEST_RESULT`/`SCREENSHOT`
-  markers, stderr tail, fresh `tdata/working` crash excerpt, and minidump
-  paths. The performer then judges the evidence itself — the runner gathers,
+  straggler kill, stale-crash relocation for a reused marked-live account
+  after that kill and before launch, and the `-testagent -noupdate` launch
+  (never auto-update a test binary) with stdout/stderr capture and
+  `TDESKTOP_TEST_EVIDENCE_DIR` set to `RUN_DIR`. It enforces the external
+  wall-clock deadline and quiet-log watchdog and returns one JSON report:
+  outcome, `TEST_COMPLETE` state, parsed
+  `TEST_STEP`/`TEST_RESULT`/`SCREENSHOT` markers, stderr tail, fresh
+  `tdata/working` crash excerpt, minidump paths, and
+  `stale_crash_cleared`. That field is an ordered list of
+  `{from, kind, to}` entries whose `kind` is `"report"` or `"dump"`, and is
+  `[]` when nothing was cleared. If a stale report cannot be moved, `test-run`
+  refuses before launch, prints the helper error on stderr, exits non-zero,
+  and emits no JSON. If a dump cannot be moved, the run leaves it in place,
+  records its entry with `"to": null` (a null destination), and continues to
+  launch. The performer then judges the evidence itself — the runner gathers,
   it never assesses. Crash detection keys on process death without
   `TEST_COMPLETE` plus a fresh `tdata/working`, not exit code.
 - If the account breaks mid-loop (login screen, `AUTH_KEY_DUPLICATED`), run

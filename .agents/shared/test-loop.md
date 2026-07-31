@@ -26,8 +26,8 @@ adapter point; every other rule here still applies.
 - `TASK_ID` — full dated task identifier and required source-commit locator.
 - `BASE_REF` — local pre-task baseline ref derived from `TASK_ID`.
 - `GREEN_REF` — local ref for the current retained implementation attempt.
-- `EVIDENCE_DIR` — per-run logs and screenshots; defaults to `TASK_DIR` unless the wrapper passes a
-  run-specific directory.
+- `EVIDENCE_DIR` — a required run-specific directory the repository ignores; it holds per-run logs,
+  screenshots, and preserved stale-crash payloads.
 - **TASK SPEC** — the task's self-contained `task.md`, including its design
   basis when the wrapper records one, plus any referenced images (`images/<file>` mockups /
   screenshots / graphic resources). Images are optional evidence: read them when present, but their
@@ -70,9 +70,12 @@ signature, perform the one-time clean-rebuild recovery under "Crashes & assertio
 UNRECOVERABLE conditions: the app reaches a login screen / `AUTH_KEY_DUPLICATED` and re-copying the
 test account does not recover it, or a crash has no usable diagnostic after one retry and the
 macOS cached-language recovery below does not apply. Missing `test_TelegramForcePortable` is a
-global environment hard stop, not a task `Block`. A file-lock build error (`LNK1104`, `C1041`,
-access denied, file in use) is likewise a repository hard stop: do not retry or work around it;
-ask the user to close the app and debugger.
+global environment hard stop, not a task `Block`. An unmovable stale-report refusal is also a
+global environment hard stop, not a task `Block`: report the exact helper refusal, consume no
+implementation attempt, do not immediately retry it, and wait for the external lock or permission
+condition to be resolved. A file-lock build error (`LNK1104`, `C1041`, access denied, file in use)
+is likewise a repository hard stop: do not retry or work around it; ask the user to close the app
+and debugger.
 
 ## Handoff tokens
 
@@ -108,12 +111,13 @@ The debug build runs in portable mode out of `out/Debug/`. Three sibling folders
 - `real_TelegramForcePortable` — the user's real data, preserved so manual use survives. Once it
   exists, NO flow step may ever delete, rename, move, overwrite, or write into it.
 
-**SETUP — run at the START of every test run, with NO app instance alive. Idempotent, and a pure
-no-op between runs and between consecutive tasks (the marked test copy is simply reused).**
+**SETUP — run at the START of every test run, with NO app instance alive. It is idempotent: the
+first SETUP after a crash moves leftover crash files and can refuse before launch; after successful
+relocation, the next SETUP finds nothing left to move.**
 The workspace helper's `test-run` command performs exactly these steps before every launch, and
 `test-account-reset` performs the broken-account recovery below; the manual steps remain the
 contract those commands implement.
-1. Require `test_TelegramForcePortable`. Its absence is the only portable-account setup blocker.
+1. Require `test_TelegramForcePortable`. Its absence is a portable-account setup blocker.
 2. If `TelegramForcePortable/testing` exists, the live folder is already the reusable test copy:
    never copy, move, or delete any of the three folders. Clear only what an earlier run left
    inside the live copy — move a non-empty `TelegramForcePortable/tdata/working` into
@@ -140,10 +144,11 @@ Any live/real folder combination is never a blocker. After SETUP the live folder
 copy, the golden folder is untouched, and `real_...` may or may not exist.
 
 **NO CLEANUP — the flow performs no folder operations after testing, ever.** The marked test copy
-stays live, so the next run or next task starts with SETUP as a no-op and the folders are never
-copied, moved, or deleted between testing phases. The flow never restores real data to live: when
-the user wants manual use they copy `real_...` to `TelegramForcePortable` themselves (keeping
-`real_...` in place), and the next SETUP handles that unmarked live folder by step 3.
+stays live, and the three folders are never copied, moved, or deleted between testing phases. SETUP
+may move stale crash files from inside the marked live copy before a launch; this is not a folder
+operation. The flow never restores real data to live: when the user wants manual use they copy
+`real_...` to `TelegramForcePortable` themselves (keeping `real_...` in place), and the next SETUP
+handles that unmarked live folder by step 3.
 
 Deletion guard — the only folder the flow may ever delete is a live `TelegramForcePortable` that
 either carries the `testing` marker or coexists with `real_...` (step 3). If the test account
@@ -458,16 +463,24 @@ bypass it with hand-built relative paths.
   shows no difference from before is the symptom of skipping this.
 - Run: execute the workspace helper's `test-run` command with `EXE` and `EVIDENCE_DIR`. One call
   performs the SETUP steps (Test account), creates `EVIDENCE_DIR`, path-scope-kills stragglers,
-  launches `EXE` **with `-testagent -noupdate`** (so a shipped update can never replace the
-  binary under test mid-run) capturing stdout to `<EVIDENCE_DIR>/app_stdout.txt` and
-  stderr to `<EVIDENCE_DIR>/app_stderr.txt` (the flag prevents modal crash hangs, and stderr
-  captures assertion text), enforces **a hard wall-clock deadline from launch** and a quiet-log
-  watchdog while polling `<EVIDENCE_DIR>/test_log.txt`, detects `TEST_COMPLETE` (success) versus
-  process death (crash) versus the caps elapsing (hang), kills any straggler, and returns one JSON
-  report with the parsed markers, stderr tail, and fresh crash diagnostics. Then read each
-  `SCREENSHOT:` image and judge it, save the binary overlay patch, and restore only inventoried
-  overlay paths (`overlay-save` — the patch must be saved before that restore). The runner only
-  gathers evidence; ASSESS below stays the agent's own adversarial judgement.
+  then, for a reused marked-live account, moves a non-empty live `tdata/working` to
+  `<EVIDENCE_DIR>/stale-crash/working` and every live `tdata/dumps/*.dmp` to
+  `<EVIDENCE_DIR>/stale-crash/dumps/` before launch. A zero-byte `tdata/working` is neither moved
+  nor reported. It launches `EXE` **with `-testagent -noupdate`** (so a shipped update can never
+  replace the binary under test mid-run) capturing stdout to
+  `<EVIDENCE_DIR>/app_stdout.txt` and stderr to `<EVIDENCE_DIR>/app_stderr.txt` (the flag prevents
+  modal crash hangs, and stderr captures assertion text), enforces **a hard wall-clock deadline
+  from launch** and a quiet-log watchdog while polling `<EVIDENCE_DIR>/test_log.txt`, detects
+  `TEST_COMPLETE` (success) versus process death (crash) versus the caps elapsing (hang), kills any
+  straggler, and returns one JSON report with the parsed markers, stderr tail, fresh crash
+  diagnostics, and `stale_crash_cleared`. That field is an ordered list of `{from, kind, to}`
+  entries whose `kind` is `"report"` or `"dump"`, and is `[]` when nothing was cleared. If the
+  stale report cannot be moved, `test-run` refuses before launch, prints the helper error on stderr,
+  exits non-zero, and emits no JSON. If a dump cannot be moved, `test-run` leaves it in place,
+  records `"to": null` (a null destination), and continues to launch. Then read each `SCREENSHOT:`
+  image and judge it, save the binary overlay patch, and restore only inventoried overlay paths
+  (`overlay-save` — the patch must be saved before that restore). The runner only gathers evidence;
+  ASSESS below stays the agent's own adversarial judgement.
 
 ### Crashes & assertions (always launch the test binary with `-testagent`)
 
