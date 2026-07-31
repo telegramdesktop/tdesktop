@@ -175,6 +175,11 @@ foreach(v
         list(APPEND fido2_definitions ${v})
     endif()
 endforeach()
+# Qt6Core embeds TinyCBOR and emits its own cbor_encode_double() in debug
+# builds, so rename libcbor's one to avoid LNK2005.
+list(APPEND fido2_definitions
+    cbor_encode_double=libcbor_encode_double)
+
 target_compile_definitions(lib_fido2 PRIVATE ${fido2_definitions})
 
 # --- Dependencies. ---
