@@ -167,6 +167,14 @@ walletSendBalanceLabel: FlatLabel(defaultFlatLabel) {
 }
 walletSendRowSkip: 12px;
 walletSendAmountTopSkip: 16px;
+walletSendSwapPill: RoundButton(walletSendPaste) {
+	icon: icon{{ "arrows_select", windowActiveTextFg }};
+	iconPosition: point(-6px, 7px);
+}
+walletSendDollarLabel: FlatLabel(defaultFlatLabel) {
+	textFg: currencyFg;
+	style: semiboldTextStyle;
+}
 walletCommentField: InputField(walletSendAddressField) {
 	textMargins: margins(0px, 10px, 0px, 2px);
 }

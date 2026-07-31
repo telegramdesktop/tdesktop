@@ -8789,6 +8789,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_insufficient" = "Insufficient funds";
 "lng_wallet_send_deposit" = "Deposit funds";
 "lng_wallet_send_amount" = "Send {amount} Grams";
+"lng_wallet_send_pill_usd" = "{amount} USD";
+"lng_wallet_send_pill_gram" = "{amount} GRAM";
 "lng_wallet_send_address_label" = "Address";
 "lng_wallet_comment_title" = "Add comment";
 "lng_wallet_comment_placeholder" = "Optional message";

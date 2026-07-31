@@ -41,6 +41,7 @@ using TonFormatFlags = base::flags<TonFormatFlag>;
 [[nodiscard]] not_null<Ui::InputField*> CreateTonAmountInput(
 	not_null<QWidget*> parent,
 	rpl::producer<QString> placeholder,
-	int64 amount = 0);
+	int64 amount = 0,
+	Fn<int()> fractionDigits = nullptr);
 
 } // namespace Ui

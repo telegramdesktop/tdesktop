@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/boxes/emoji_stake_box.h"
 #include "ui/controls/feature_list.h"
 #include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"
@@ -98,6 +97,9 @@ constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
 constexpr auto kIntroToastDuration = 4 * crl::time(1000);
 constexpr auto kCommentMaxBytes = 960;
+constexpr auto kNanosInCent = 10'000'000LL;
+constexpr auto kMaxCents = 99'999'999'999LL;
+constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 
 class Card final : public Ui::RpWidget {
 public:
@@ -1164,6 +1166,52 @@ void WalletCommentBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
+[[nodiscard]] not_null<Ui::InputField*> AddAmountField(
+		not_null<Ui::VerticalLayout*> container,
+		int64 value,
+		Fn<int()> fractionDigits,
+		rpl::producer<bool> dollar) {
+	const auto wrap = container->add(
+		object_ptr<Ui::FixedHeightWidget>(
+			container,
+			st::editTagField.heightMin),
+		st::boxRowPadding);
+	auto placeholder = rpl::duplicate(
+		dollar
+	) | rpl::map([](bool usd) {
+		return '0' + Ui::TonAmountSeparator() + (usd ? u"00"_q : u"0"_q);
+	});
+	const auto field = Ui::CreateTonAmountInput(
+		wrap,
+		std::move(placeholder),
+		value,
+		std::move(fractionDigits));
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto diamond = helper.paletteDependent(Ui::Earn::IconCurrencyEmoji());
+	const auto icon = Ui::CreateChild<Ui::FlatLabel>(
+		field.get(),
+		rpl::single(std::move(diamond)),
+		st::defaultFlatLabel,
+		st::defaultPopupMenu,
+		helper.context());
+	const auto dollarIcon = Ui::CreateChild<Ui::FlatLabel>(
+		field.get(),
+		rpl::single(u"$"_q),
+		st::walletSendDollarLabel);
+	std::move(dollar) | rpl::on_next([=](bool usd) {
+		icon->setVisible(!usd);
+		dollarIcon->setVisible(usd);
+	}, field->lifetime());
+	wrap->widthValue() | rpl::on_next([=](int width) {
+		icon->move(st::tonFieldIconPosition);
+		dollarIcon->move(st::tonFieldIconPosition);
+		field->move(0, 0);
+		field->resize(width, field->height());
+		wrap->resize(width, field->height());
+	}, wrap->lifetime());
+	return field;
+}
+
 void WalletSendAmountBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
@@ -1180,13 +1228,6 @@ void WalletSendAmountBox(
 	const auto showDeposit = [=] {
 		ShowWalletReceiveBox(controller, box->uiShow());
 	};
-	Ui::AddSkip(box->verticalLayout(), st::walletSendAmountTopSkip);
-	const auto field = Ui::AddTonInputField(box->verticalLayout(), {
-		.value = flow.amountNano,
-	});
-	box->setFocusCallback([=] {
-		field->setFocusFast();
-	});
 
 	struct State {
 		rpl::variable<int64> amount = 0;
@@ -1196,18 +1237,87 @@ void WalletSendAmountBox(
 		rpl::variable<QString> comment;
 		base::unique_qptr<Ui::PopupMenu> menu;
 		bool feeApproximate = true;
+		rpl::variable<float64> rate = 0.;
+		rpl::variable<bool> entryUsd = false;
+		bool settingUnitText = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	state->rate = TonUsdRateValue(&controller->session());
 	state->comment = flow.comment;
 	const auto setComment = crl::guard(box, [=](QString comment) {
 		state->comment = comment;
 	});
+
+	Ui::AddSkip(box->verticalLayout(), st::walletSendAmountTopSkip);
+	const auto field = AddAmountField(
+		box->verticalLayout(),
+		std::min(flow.amountNano, kMaxAmountNano),
+		[=] { return state->entryUsd.current() ? 2 : 9; },
+		state->entryUsd.value());
+	box->setFocusCallback([=] {
+		field->setFocusFast();
+	});
+
 	const auto updateAmount = [=] {
-		state->amount = Ui::ParseTonAmountString(
+		if (state->settingUnitText) {
+			return;
+		}
+		const auto parsed = Ui::ParseTonAmountString(
 			field->getLastText()).value_or(0);
+		const auto rate = state->rate.current();
+		state->amount = !state->entryUsd.current()
+			? parsed
+			: (rate > 0.)
+			? std::min(
+				int64(std::clamp(
+					base::SafeRound(double(parsed) / rate),
+					0.,
+					double(kMaxAmountNano))),
+				kMaxAmountNano)
+			: 0;
 	};
 	field->changes() | rpl::on_next(updateAmount, field->lifetime());
 	updateAmount();
+
+	const auto renderUnitText = [=] {
+		const auto amount = state->amount.current();
+		if (!state->entryUsd.current()) {
+			return amount
+				? Ui::FormatTonAmount(
+					amount,
+					Ui::TonFormatFlag::Simple).full
+				: QString();
+		}
+		const auto cents = int64(std::min(
+			base::SafeRound(
+				amount * state->rate.current() / double(kNanosInCent)),
+			double(kMaxCents)));
+		return cents
+			? Ui::FormatTonAmount(
+				cents * kNanosInCent,
+				Ui::TonFormatFlag::Simple).full
+			: QString();
+	};
+	const auto switchEntryUnit = [=](bool usd) {
+		if (state->entryUsd.current() == usd
+			|| (usd && state->rate.current() <= 0.)) {
+			return;
+		}
+		state->entryUsd = usd;
+		state->settingUnitText = true;
+		Ui::PostponeCall(field, [=] {
+			state->settingUnitText = false;
+		});
+		field->setText(renderUnitText());
+		field->setFocusFast();
+	};
+	state->rate.value() | rpl::on_next([=](float64 rate) {
+		if (rate <= 0.) {
+			switchEntryUnit(false);
+		} else if (state->entryUsd.current()) {
+			updateAmount();
+		}
+	}, box->lifetime());
 
 	const auto refreshFee = [=] {
 		auto args = SendArgs{
@@ -1240,6 +1350,50 @@ void WalletSendAmountBox(
 	) | rpl::map([](int64 amount, bool insufficient, bool known) {
 		return known && (amount > 0) && !insufficient;
 	});
+
+	const auto pillWrap = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			box,
+			object_ptr<Ui::VerticalLayout>(box)),
+		style::margins(),
+		style::al_justify);
+	const auto pillInner = pillWrap->entity();
+	Ui::AddSkip(pillInner, st::walletSendRowSkip);
+	auto pillText = rpl::combine(
+		state->amount.value(),
+		state->entryUsd.value(),
+		state->rate.value()
+	) | rpl::map([](int64 amount, bool usd, float64 rate) {
+		if (rate <= 0.) {
+			return QString();
+		}
+		auto text = usd
+			? tr::lng_wallet_send_pill_gram(
+				tr::now,
+				lt_amount,
+				Ui::FormatTonAmount(amount).full)
+			: tr::lng_wallet_send_pill_usd(
+				tr::now,
+				lt_amount,
+				FormatUsd(amount, rate).mid(1));
+		return (amount > 0) ? (QChar('~') + text) : text;
+	});
+	const auto pill = pillInner->add(
+		object_ptr<Ui::RoundButton>(
+			pillInner,
+			std::move(pillText),
+			st::walletSendSwapPill),
+		style::margins(),
+		style::al_top);
+	pill->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+	pill->setClickedCallback([=] {
+		switchEntryUnit(!state->entryUsd.current());
+	});
+	pillWrap->toggleOn(state->rate.value(
+	) | rpl::map([](float64 rate) {
+		return rate > 0.;
+	}));
+	pillWrap->finishAnimating();
 
 	const auto error = AddSendFlowLabel(
 		box,

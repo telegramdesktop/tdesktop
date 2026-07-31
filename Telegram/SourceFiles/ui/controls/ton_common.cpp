@@ -63,7 +63,8 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 [[nodiscard]] FixedAmount FixTonAmountInput(
 		const QString &was,
 		const QString &text,
-		int position) {
+		int position,
+		int fractionDigits) {
 	constexpr auto kMaxDigitsCount = 9;
 	const auto separator = FormatTonAmount(1).separator;
 
@@ -81,7 +82,10 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 	for (auto i = 0; i != result.text.size();) {
 		const auto ch = result.text[i];
 		const auto atSeparator = QStringView(result.text).mid(i).startsWith(separator);
-		if (ch >= '0' && ch <= '9' && digitsCount < kMaxDigitsCount) {
+		if (ch >= '0' && ch <= '9'
+			&& digitsCount < (separatorFound
+				? fractionDigits
+				: kMaxDigitsCount)) {
 			++i;
 			++digitsCount;
 			continue;
@@ -206,7 +210,8 @@ QString TonAmountSeparator() {
 not_null<Ui::InputField*> CreateTonAmountInput(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> placeholder,
-		int64 amount) {
+		int64 amount,
+		Fn<int()> fractionDigits) {
 	const auto result = Ui::CreateChild<Ui::InputField>(
 		parent.get(),
 		st::editTagField,
@@ -225,7 +230,8 @@ not_null<Ui::InputField*> CreateTonAmountInput(
 			const auto fixed = FixTonAmountInput(
 				*lastAmountValue,
 				now,
-				position);
+				position,
+				fractionDigits ? fractionDigits() : kNanoDigits);
 			*lastAmountValue = fixed.text;
 			if (fixed.text == now) {
 				return;
