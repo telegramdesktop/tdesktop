@@ -40,6 +40,12 @@ struct NotificationParsed {
 	bool valid = false;
 };
 
+struct InFlightRequest {
+	QString identifier;
+	NotificationParsed parsed;
+	bool removeWhenDone = false;
+};
+
 [[nodiscard]] NotificationParsed ParseNotification(NSDictionary *userInfo) {
 	auto result = NotificationParsed();
 	NSNumber *sessionObject = [userInfo objectForKey:@"session"];
@@ -234,13 +240,16 @@ private:
 		bool withMarkAsRead,
 		const std::vector<NotificationAction> &actions);
 	void removeDelivered(Fn<bool(const NotificationParsed &)> filter);
+	void finishRequest(const QString &identifier);
 
 	const uint64 _managerId = 0;
 	QString _managerIdString;
+	const base::weak_ptr<UNManager> _manager;
 
 	NSObject *_delegate = nil;
 	NSMutableArray *_categories = nil;
 	base::flat_set<QString> _categoryIds;
+	std::vector<InFlightRequest> _inFlight;
 
 	Media::Audio::LocalDiskCache _sounds;
 
@@ -249,6 +258,7 @@ private:
 UNManager::Private::Private(UNManager *manager)
 : _managerId(base::RandomValue<uint64>())
 , _managerIdString(QString::number(_managerId))
+, _manager(manager)
 , _sounds(ResolveSoundsFolder()) {
 	QDir().mkpath(cWorkingDir() + u"tdata/temp"_q);
 	if (@available(macOS 10.14, *)) {
@@ -430,6 +440,19 @@ void UNManager::Private::showNotification(
 			trigger:nil];
 		UNUserNotificationCenter *center
 			= [UNUserNotificationCenter currentNotificationCenter];
+		_inFlight.push_back({
+			.identifier = identifier,
+			.parsed = NotificationParsed{
+				.sessionId = sessionId,
+				.peerId = peer->id.value,
+				.topicRootId = info.topicRootId.bare,
+				.monoforumPeerId = monoforumPeerId,
+				.msgId = info.itemId.bare,
+				.valid = true,
+			},
+		});
+		const auto weak = _manager;
+		const auto that = this;
 		[center addNotificationRequest:request
 			withCompletionHandler:^(NSError *error) {
 				@autoreleasepool {
@@ -438,6 +461,9 @@ void UNManager::Private::showNotification(
 					LOG(("App Error: Failed to show UN notification: %1"
 						).arg(NS2QString(error.localizedDescription)));
 				}
+				crl::on_main(weak, [=] {
+					that->finishRequest(identifier);
+				});
 
 				}
 			}];
@@ -446,8 +472,35 @@ void UNManager::Private::showNotification(
 	}
 }
 
+void UNManager::Private::finishRequest(const QString &identifier) {
+	for (auto i = _inFlight.begin(); i != _inFlight.end(); ++i) {
+		if (i->identifier != identifier) {
+			continue;
+		}
+		const auto remove = i->removeWhenDone;
+		_inFlight.erase(i);
+		if (remove) {
+			if (@available(macOS 10.14, *)) {
+				@autoreleasepool {
+
+				[[UNUserNotificationCenter currentNotificationCenter]
+					removeDeliveredNotificationsWithIdentifiers:
+						@[Q2NSString(identifier)]];
+
+				}
+			}
+		}
+		return;
+	}
+}
+
 void UNManager::Private::removeDelivered(
 		Fn<bool(const NotificationParsed &)> filter) {
+	for (auto &request : _inFlight) {
+		if (filter(request.parsed)) {
+			request.removeWhenDone = true;
+		}
+	}
 	if (@available(macOS 10.14, *)) {
 		const auto managerId = _managerId;
 		UNUserNotificationCenter *center
