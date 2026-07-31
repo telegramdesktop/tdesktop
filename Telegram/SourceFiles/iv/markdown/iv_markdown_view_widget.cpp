@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_view_widget.h"
 
 #include "base/qt/qt_common_adapters.h"
+#include "base/algorithm.h"
 #include "base/weak_ptr.h"
 #include "core/click_handler_types.h"
 #include "core/credits_amount.h"
@@ -279,6 +280,7 @@ void MarkdownDocumentWidget::articleContentChanged() {
 	applyCursor(style::cur_default);
 	stopPressedPlaceholderRipple();
 	stopPressedButtonRowRipple();
+	stopPressedInlineButtonRipple();
 	clearSelection();
 	_articlePainted = false;
 	resetTextPaintCaches();
@@ -843,6 +845,7 @@ void MarkdownDocumentWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 void MarkdownDocumentWidget::focusOutEvent(QFocusEvent *e) {
 	stopPressedPlaceholderRipple();
 	stopPressedButtonRowRipple();
+	stopPressedInlineButtonRipple();
 	if (!_selection.empty()) {
 		_savedSelection = _selection;
 		_savedSelectionEndpoints = _selectionEndpoints;
@@ -1318,11 +1321,20 @@ void MarkdownDocumentWidget::stopPressedButtonRowRipple() {
 	}
 }
 
+void MarkdownDocumentWidget::stopPressedInlineButtonRipple() {
+	if (base::take(_pressedInlineButton)) {
+		if (_article) {
+			_article->stopInlineButtonRipple();
+		}
+	}
+}
+
 void MarkdownDocumentWidget::dragActionStart(
 		QPoint point,
 		Qt::MouseButton button) {
 	stopPressedPlaceholderRipple();
 	stopPressedButtonRowRipple();
+	stopPressedInlineButtonRipple();
 	const auto state = hitTest(
 		point,
 		Ui::Text::StateRequest::Flag::LookupLink
@@ -1351,6 +1363,10 @@ void MarkdownDocumentWidget::dragActionStart(
 			state.buttonRow.id,
 			state.buttonRow.index,
 			state.buttonRow.localPoint);
+	}
+	if (state.inlineButton && _article) {
+		_pressedInlineButton = true;
+		_article->addInlineButtonRipple(*state.inlineButton);
 	}
 	_dragStartPosition = point;
 	_dragStartHadSelection = !selectionForCopy().empty();
@@ -1429,6 +1445,7 @@ MarkdownArticleHitTestResult MarkdownDocumentWidget::dragActionFinish(
 	const auto state = dragActionUpdate(point);
 	stopPressedPlaceholderRipple();
 	stopPressedButtonRowRipple();
+	stopPressedInlineButtonRipple();
 	auto activated = ClickHandler::unpressed();
 	const auto dragStartHadSelection = _dragStartHadSelection;
 	const auto wasClick = (_dragAction == NoDrag)

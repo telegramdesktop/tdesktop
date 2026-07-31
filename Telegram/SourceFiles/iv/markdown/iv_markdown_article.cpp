@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/style/style_core_color.h"
 #include "ui/style/style_core_scale.h"
+#include "ui/text/text_extended_data.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/dynamic_image.h"
@@ -1401,6 +1402,11 @@ void RebuildVisibleSegmentLookup(
 				result.state.link = CreatePreparedLinkHandler(*prepared);
 			}
 		}
+	}
+	if (!result.preparedLink
+		&& dynamic_cast<Ui::Text::CustomEmojiClickHandler*>(
+			result.state.link.get())) {
+		result.inlineButton = point;
 	}
 	result.direct = true;
 	return result;
@@ -3651,6 +3657,8 @@ public:
 		int index,
 		QPoint point);
 	void stopButtonRowRipple(PreparedMediaBlockId id);
+	void addInlineButtonRipple(QPoint point);
+	void stopInlineButtonRipple();
 
 	void invalidateLayout();
 
@@ -3684,6 +3692,8 @@ private:
 	void requestPlaceholderRepaint(PreparedPlaceholderBlockId id);
 
 	void clearButtonRowRuntimes();
+
+	void clearInlineButtonRipple();
 
 	[[nodiscard]] auto getOrCreateButtonRowRuntime(PreparedMediaBlockId id)
 	-> std::shared_ptr<ButtonRowRuntime>;
@@ -3932,6 +3942,9 @@ void MarkdownArticle::Impl::setContent(MarkdownArticleContent content) {
 	clearButtonRowRuntimes();
 	_relatedArticleImages.clear();
 	_content = std::move(content);
+	_inlineButtonPaintState->editMode = _content.editMode;
+	_inlineButtonPaintState->pressPending = false;
+	clearInlineButtonRipple();
 	if (reuseMediaBlocks) {
 		_mediaBlocks = std::move(reusedMediaBlocks);
 	}
@@ -5061,12 +5074,7 @@ void MarkdownArticle::Impl::addButtonRowRipple(
 		return;
 	}
 	block->buttonRowRuntime = runtime;
-	AddButtonRowRipple(
-		runtime,
-		block->buttons,
-		index,
-		point,
-		layoutStyle().buttonRow);
+	AddButtonRowRipple(runtime, block->buttons, index, point);
 }
 
 void MarkdownArticle::Impl::stopButtonRowRipple(PreparedMediaBlockId id) {
@@ -5078,6 +5086,22 @@ void MarkdownArticle::Impl::stopButtonRowRipple(PreparedMediaBlockId id) {
 		return;
 	}
 	StopButtonRowRipple(i->second);
+}
+
+void MarkdownArticle::Impl::addInlineButtonRipple(QPoint point) {
+	if (!_textRepaint) {
+		return;
+	}
+	_inlineButtonPaintState->repaint = _textRepaint;
+	clearInlineButtonRipple();
+	_inlineButtonPaintState->pressPoint = point;
+	_inlineButtonPaintState->pressPending = true;
+	_textRepaint();
+}
+
+void MarkdownArticle::Impl::stopInlineButtonRipple() {
+	_inlineButtonPaintState->pressPending = false;
+	StopPillRipple(_inlineButtonPaintState->ripple, _textRepaint);
 }
 
 void MarkdownArticle::Impl::invalidateLayout() {
@@ -5159,6 +5183,12 @@ void MarkdownArticle::Impl::clearPlaceholderRuntimes() {
 
 void MarkdownArticle::Impl::clearButtonRowRuntimes() {
 	_buttonRowRuntimes.clear();
+}
+
+void MarkdownArticle::Impl::clearInlineButtonRipple() {
+	_inlineButtonPaintState->ripple = nullptr;
+	_inlineButtonPaintState->rippleRect = QRect();
+	_inlineButtonPaintState->rippleSize = QSize();
 }
 
 void MarkdownArticle::Impl::refreshMediaBlockHosts() {
@@ -6727,6 +6757,14 @@ void MarkdownArticle::addButtonRowRipple(
 
 void MarkdownArticle::stopButtonRowRipple(PreparedMediaBlockId id) {
 	_impl->stopButtonRowRipple(id);
+}
+
+void MarkdownArticle::addInlineButtonRipple(QPoint point) {
+	_impl->addInlineButtonRipple(point);
+}
+
+void MarkdownArticle::stopInlineButtonRipple() {
+	_impl->stopInlineButtonRipple();
 }
 
 void MarkdownArticle::clearBeforeDestroy() {

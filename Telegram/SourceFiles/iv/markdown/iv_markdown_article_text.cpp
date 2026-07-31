@@ -6,6 +6,9 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_article_text.h"
+#include "api/api_bot.h"
+#include "base/weak_ptr.h"
+#include "core/click_handler_types.h"
 #include "iv/markdown/iv_markdown_article_layout_blocks.h"
 #include "iv/markdown/iv_markdown_button_row.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
@@ -572,6 +575,8 @@ private:
 	int _height = 1;
 	int _labelLeft = 0;
 	int _labelTop = 0;
+	int _lineTopSkip = 0;
+	int _lineHeight = 0;
 	InlineButtonPresentation _presentation = InlineButtonPresentation::Default;
 	bool _disabled = false;
 
@@ -652,6 +657,61 @@ FindInlineFormulaMeasuredData(
 	case Color::Danger: return InlineButtonPresentation::Danger;
 	}
 	return InlineButtonPresentation::Default;
+}
+
+[[nodiscard]] std::optional<InlineTextObjectButtonData> InlineButtonDataFor(
+		QStringView data) {
+	const auto parsed = ParseInlineTextObjectEntity(data);
+	if (!parsed || parsed->kind != InlineTextObjectKind::Button) {
+		return std::nullopt;
+	}
+	const auto button = std::get_if<InlineTextObjectButtonData>(&parsed->data);
+	return button
+		? std::make_optional(*button)
+		: std::nullopt;
+}
+
+[[nodiscard]] auto ActionableInlineButtonDataFor(QStringView data)
+-> std::optional<InlineTextObjectButtonData> {
+	auto result = InlineButtonDataFor(data);
+	if (result
+		&& (result->type == HistoryMessageMarkupButton::Type::Disabled)) {
+		return std::nullopt;
+	}
+	return result;
+}
+
+[[nodiscard]] bool InlineButtonActionable(QStringView data) {
+	return ActionableInlineButtonDataFor(data).has_value();
+}
+
+void ActivateInlineButton(
+		const std::shared_ptr<InlineButtonPaintState> &state,
+		QStringView data,
+		ClickContext context) {
+	const auto button = ActionableInlineButtonDataFor(data);
+	if (!button) {
+		return;
+	}
+	const auto key = data.toString();
+	const auto emplaced = state->records.try_emplace(
+		key,
+		button->type,
+		button->label.text,
+		HistoryMessageMarkupButton::Visual{ .color = button->color },
+		button->data,
+		QString(),
+		button->buttonId);
+	if (emplaced.second) {
+		emplaced.first->second.peerTypes = button->peerTypes;
+	}
+	const auto my = context.other.value<ClickHandlerContext>();
+	Api::ActivateBotButton(my, [state, key] {
+		const auto i = state->records.find(key);
+		return (i != end(state->records))
+			? &i->second
+			: nullptr;
+	});
 }
 
 [[nodiscard]] QString InlineButtonPlainEmojiPrefix() {
@@ -1385,6 +1445,8 @@ InlineButtonObject::InlineButtonObject(
 		? std::max(_label.maxWidth(), 1)
 		: std::max(_height, _label.maxWidth() + 2 * inlineSt.padding);
 	_vertical = CenteredVerticalMetrics(textStyle, _height);
+	_lineTopSkip = TextLineAscent(textStyle) - _vertical.ascent;
+	_lineHeight = TextLineHeight(textStyle);
 	_labelLeft = link ? 0 : inlineSt.padding;
 	_labelTop = std::clamp(
 		_vertical.ascent - inlineSt.labelStyle.font->ascent,
@@ -1415,7 +1477,7 @@ Ui::Text::CustomEmojiSemantics InlineButtonObject::semantics() {
 		.isRealCustomEmoji = false,
 		.exportEntity = false,
 		.unloadPersistentAnimation = true,
-		.allowCustomEmojiClick = false,
+		.allowCustomEmojiClick = !_disabled,
 	};
 }
 
@@ -1451,11 +1513,44 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 	const auto position = context.position;
 	const auto rect = QRect(position, QSize(_width, _height));
 	const auto radius = _height / 2;
-	const auto fillPill = [&](QPainter &q, QColor color) {
+	const auto state = _paintState.get();
+	const auto lineRect = QRect(
+		rect.x(),
+		rect.y() - _lineTopSkip,
+		_width,
+		_lineHeight);
+	if (state
+		&& state->pressPending
+		&& lineRect.contains(state->pressPoint)) {
+		state->pressPending = false;
+		if (_presentation != InlineButtonPresentation::Link) {
+			state->rippleRect = rect;
+			AddPillRipple(
+				&state->ripple,
+				&state->rippleSize,
+				rect.size(),
+				state->pressPoint - rect.topLeft(),
+				state->repaint);
+		}
+	}
+	const auto ripple = (state
+		&& state->ripple
+		&& (state->rippleRect == rect))
+		? state->ripple.get()
+		: nullptr;
+	const auto fillPill = [&](QPainter &q, QColor color, QColor rippleColor) {
 		auto hq = PainterHighQualityEnabler(q);
 		q.setPen(Qt::NoPen);
 		q.setBrush(color);
 		q.drawRoundedRect(rect, radius, radius);
+		if (ripple) {
+			ripple->paint(
+				q,
+				rect.x(),
+				rect.y(),
+				rect.x() * 2 + rect.width(),
+				&rippleColor);
+		}
 	};
 	p.save();
 	if (_presentation == InlineButtonPresentation::Link) {
@@ -1469,7 +1564,10 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 			rect,
 			_disabled ? st.disabledPrimaryOpacity : 1.,
 			[&](QPainter &q) {
-				fillPill(q, st.primaryBg->c);
+				fillPill(
+					q,
+					st.primaryBg->c,
+					markdownSt.buttonRow.primaryRipple->c);
 			},
 			[&](QPainter &q, QColor fg) {
 				paintLabel(q, position, fg, markdownSt, context);
@@ -1480,7 +1578,10 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 			: (_presentation == InlineButtonPresentation::Danger)
 			? st.dangerFg->c
 			: st.defaultFg->c;
-		fillPill(p, anim::with_alpha(fg, st.tintBgOpacity));
+		fillPill(
+			p,
+			anim::with_alpha(fg, st.tintBgOpacity),
+			anim::with_alpha(fg, markdownSt.buttonRow.tintRippleOpacity));
 		if (_disabled) {
 			p.setOpacity(p.opacity() * st.disabledOpacity);
 		}
@@ -1707,6 +1808,22 @@ void SetTextLeaf(
 		rtl ? kIvMarkedTextOptionsRtl : kIvMarkedTextOptions,
 		context);
 	SetTextLeafSpoilerLinkFilter(leaf, std::move(spoilerLinkFilter));
+	if (inlineButtonPaintState
+		&& !inlineButtonPaintState->editMode
+		&& ranges::any_of(text.entities, [](const EntityInText &entity) {
+			return (entity.type() == EntityType::CustomEmoji)
+				&& InlineButtonActionable(entity.data());
+		})) {
+		leaf->setCustomEmojiClickHandler(
+			[](QStringView data) {
+				return InlineButtonActionable(data);
+			},
+			[state = inlineButtonPaintState](
+					QStringView data,
+					ClickContext context) {
+				ActivateInlineButton(state, data, std::move(context));
+			});
+	}
 }
 
 std::unique_ptr<Ui::Text::CustomEmoji> MakeInlineButtonObject(
@@ -1714,11 +1831,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> MakeInlineButtonObject(
 		const style::TextStyle &textStyle,
 		const style::Markdown &st,
 		const Ui::Text::MarkedContext &context) {
-	const auto parsed = ParseInlineTextObjectEntity(data);
-	if (!parsed || parsed->kind != InlineTextObjectKind::Button) {
-		return nullptr;
-	}
-	const auto button = std::get_if<InlineTextObjectButtonData>(&parsed->data);
+	const auto button = InlineButtonDataFor(data);
 	if (!button) {
 		return nullptr;
 	}

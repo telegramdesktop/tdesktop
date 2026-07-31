@@ -97,10 +97,12 @@ struct InlineTextObjectIvImageData {
 struct InlineTextObjectButtonData {
 	TextWithEntities label;
 	QByteArray data;
+	int64 buttonId = 0;
 	HistoryMessageMarkupButton::Type type
 		= HistoryMessageMarkupButton::Type::Disabled;
 	HistoryMessageMarkupButton::Color color
 		= HistoryMessageMarkupButton::Color::Normal;
+	InlineBots::PeerTypes peerTypes = 0;
 	bool link = false;
 };
 

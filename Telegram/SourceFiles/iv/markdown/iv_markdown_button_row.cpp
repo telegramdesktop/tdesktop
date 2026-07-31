@@ -577,12 +577,50 @@ void PaintButtonRow(
 	}
 }
 
+void AddPillRipple(
+		not_null<std::unique_ptr<Ui::RippleAnimation>*> ripple,
+		not_null<QSize*> rippleSize,
+		QSize size,
+		QPoint point,
+		Fn<void()> repaint) {
+	if (size.isEmpty()) {
+		return;
+	} else if (!*ripple || (*rippleSize != size)) {
+		*ripple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultRippleAnimation,
+			Ui::RippleAnimation::RoundRectMask(size, size.height() / 2),
+			[=] {
+				if (repaint) {
+					repaint();
+				}
+			});
+		*rippleSize = size;
+	}
+	point.setX(std::clamp(point.x(), 0, std::max(size.width() - 1, 0)));
+	point.setY(std::clamp(point.y(), 0, std::max(size.height() - 1, 0)));
+	(*ripple)->add(point);
+	if (repaint) {
+		repaint();
+	}
+}
+
+void StopPillRipple(
+		const std::unique_ptr<Ui::RippleAnimation> &ripple,
+		const Fn<void()> &repaint) {
+	if (!ripple) {
+		return;
+	}
+	ripple->lastStop();
+	if (repaint) {
+		repaint();
+	}
+}
+
 void AddButtonRowRipple(
 		const std::shared_ptr<ButtonRowRuntime> &runtime,
 		const std::vector<LaidOutButton> &buttons,
 		int index,
-		QPoint point,
-		const style::MarkdownButtonRow &st) {
+		QPoint point) {
 	if (!runtime
 		|| (index < 0)
 		|| (index >= int(buttons.size()))
@@ -593,38 +631,23 @@ void AddButtonRowRipple(
 	const auto size = buttons[index].rect.size();
 	if (size.isEmpty()) {
 		return;
-	}
-	const auto repaint = runtime->repaint;
-	if (!runtime->ripple
-		|| (runtime->rippleIndex != index)
-		|| (runtime->rippleSize != size)) {
-		runtime->ripple = std::make_unique<Ui::RippleAnimation>(
-			st::defaultRippleAnimation,
-			Ui::RippleAnimation::RoundRectMask(size, st.height / 2),
-			[=] {
-				if (repaint) {
-					repaint();
-				}
-			});
-		runtime->rippleSize = size;
+	} else if (runtime->rippleIndex != index) {
+		runtime->ripple = nullptr;
 		runtime->rippleIndex = index;
 	}
-	point.setX(std::clamp(point.x(), 0, std::max(size.width() - 1, 0)));
-	point.setY(std::clamp(point.y(), 0, std::max(size.height() - 1, 0)));
-	runtime->ripple->add(point);
-	if (repaint) {
-		repaint();
-	}
+	AddPillRipple(
+		&runtime->ripple,
+		&runtime->rippleSize,
+		size,
+		point,
+		runtime->repaint);
 }
 
 void StopButtonRowRipple(const std::shared_ptr<ButtonRowRuntime> &runtime) {
-	if (!runtime || !runtime->ripple) {
+	if (!runtime) {
 		return;
 	}
-	runtime->ripple->lastStop();
-	if (runtime->repaint) {
-		runtime->repaint();
-	}
+	StopPillRipple(runtime->ripple, runtime->repaint);
 }
 
 } // namespace Iv::Markdown

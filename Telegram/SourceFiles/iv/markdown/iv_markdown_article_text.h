@@ -63,6 +63,14 @@ void InvalidateInlineFormulaRasterCache(
 
 struct InlineButtonPaintState {
 	const style::Markdown *st = nullptr;
+	base::flat_map<QString, HistoryMessageMarkupButton> records;
+	std::unique_ptr<Ui::RippleAnimation> ripple;
+	Fn<void()> repaint;
+	QSize rippleSize;
+	QRect rippleRect;
+	QPoint pressPoint;
+	bool pressPending = false;
+	bool editMode = false;
 };
 
 void SetTextLeaf(

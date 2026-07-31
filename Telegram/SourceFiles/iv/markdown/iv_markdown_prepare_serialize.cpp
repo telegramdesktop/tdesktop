@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QByteArray>
 
+#include <limits>
 #include <utility>
 
 namespace Iv::Markdown {
@@ -153,7 +154,11 @@ QString SerializeInlineTextObjectEntity(const InlineTextObjectEntity &object) {
 			+ u";"_q
 			+ QString::number(data->link ? 1 : 0)
 			+ u";"_q
-			+ EncodeInlineTextObjectBytes(data->data);
+			+ EncodeInlineTextObjectBytes(data->data)
+			+ u";"_q
+			+ QString::number(data->buttonId)
+			+ u";"_q
+			+ QString::number(data->peerTypes.value());
 	} break;
 	}
 	return QString();
@@ -200,21 +205,30 @@ std::optional<InlineTextObjectEntity> ParseInlineTextObjectEntity(
 			},
 		};
 	} else if (parts[1] == u"button"_q) {
-		if (parts.size() != 7) {
+		if (parts.size() != 9) {
 			return std::nullopt;
 		}
 		using Color = HistoryMessageMarkupButton::Color;
 		using Type = HistoryMessageMarkupButton::Type;
+		using PeerTypes = InlineBots::PeerTypes;
 		auto colorOk = false;
 		auto typeOk = false;
+		auto buttonIdOk = false;
+		auto peerTypesOk = false;
 		const auto color = parts[3].toInt(&colorOk);
 		const auto type = parts[4].toInt(&typeOk);
+		const auto buttonId = parts[7].toLongLong(&buttonIdOk);
+		const auto peerTypes = parts[8].toUInt(&peerTypesOk);
 		if (!colorOk
 			|| color < 0
 			|| color > int(Color::Success)
 			|| !typeOk
 			|| type < 0
-			|| type > int(Type::CreateBot)) {
+			|| type > int(Type::CreateBot)
+			|| !buttonIdOk
+			|| !peerTypesOk
+			|| peerTypes > uint(
+				std::numeric_limits<PeerTypes::Type>::max())) {
 			return std::nullopt;
 		}
 		const auto label = DecodeInlineTextObjectField(parts[2]);
@@ -223,8 +237,10 @@ std::optional<InlineTextObjectEntity> ParseInlineTextObjectEntity(
 			.data = InlineTextObjectButtonData{
 				.label = ParseRichButtonLabel(label),
 				.data = DecodeInlineTextObjectBytes(parts[6]),
+				.buttonId = buttonId,
 				.type = Type(type),
 				.color = Color(color),
+				.peerTypes = PeerTypes::from_raw(PeerTypes::Type(peerTypes)),
 				.link = (parts[5] == u"1"_q),
 			},
 		};

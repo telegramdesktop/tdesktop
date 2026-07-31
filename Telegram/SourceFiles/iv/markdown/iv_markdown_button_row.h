@@ -84,12 +84,20 @@ void PaintButtonRow(
 	const style::Markdown &st,
 	const MarkdownArticlePaintContext &context,
 	int outerWidth);
+void AddPillRipple(
+	not_null<std::unique_ptr<Ui::RippleAnimation>*> ripple,
+	not_null<QSize*> rippleSize,
+	QSize size,
+	QPoint point,
+	Fn<void()> repaint);
+void StopPillRipple(
+	const std::unique_ptr<Ui::RippleAnimation> &ripple,
+	const Fn<void()> &repaint);
 void AddButtonRowRipple(
 	const std::shared_ptr<ButtonRowRuntime> &runtime,
 	const std::vector<LaidOutButton> &buttons,
 	int index,
-	QPoint point,
-	const style::MarkdownButtonRow &st);
+	QPoint point);
 void StopButtonRowRipple(const std::shared_ptr<ButtonRowRuntime> &runtime);
 
 } // namespace Iv::Markdown

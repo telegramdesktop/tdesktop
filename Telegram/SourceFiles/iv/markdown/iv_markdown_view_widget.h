@@ -149,6 +149,7 @@ private:
 	void touchEvent(QTouchEvent *e);
 	void stopPressedPlaceholderRipple();
 	void stopPressedButtonRowRipple();
+	void stopPressedInlineButtonRipple();
 	void dragActionStart(QPoint point, Qt::MouseButton button);
 	MarkdownArticleHitTestResult dragActionUpdate(QPoint point);
 	MarkdownArticleHitTestResult dragActionFinish(
@@ -188,6 +189,7 @@ private:
 	PreparedPlaceholderBlockId _pressedPlaceholderId;
 	MarkdownArticleButtonRowHit _pressedButtonRow;
 	QString _hoverTooltip;
+	bool _pressedInlineButton = false;
 	bool _dragStartHadSelection = false;
 	int _lastRelayoutMs = 0;
 	int _zoom = 100;

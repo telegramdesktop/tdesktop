@@ -237,6 +237,7 @@ struct MarkdownArticleHitTestResult {
 	MediaActivation mediaActivation;
 	QPoint placeholderLocalPoint;
 	MarkdownArticleButtonRowHit buttonRow;
+	std::optional<QPoint> inlineButton;
 	QString customTooltip;
 	int forcedOffset = -1;
 	bool direct = false;
@@ -509,6 +510,8 @@ public:
 		int index,
 		QPoint point);
 	void stopButtonRowRipple(PreparedMediaBlockId id);
+	void addInlineButtonRipple(QPoint point);
+	void stopInlineButtonRipple();
 
     void clearBeforeDestroy();
 

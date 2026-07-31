@@ -2033,6 +2033,9 @@ void Element::validateText() {
 		runtime->handlerButtonRowHandler = nullptr;
 		runtime->pressedButtonRow = {};
 		runtime->pressedButtonRowHandler = nullptr;
+		runtime->handlerInlineButtonPoint = std::nullopt;
+		runtime->handlerInlineButtonHandler = nullptr;
+		runtime->pressedInlineButtonHandler = nullptr;
 		invalidateTextSizeCache();
 	};
 	const auto item = data();

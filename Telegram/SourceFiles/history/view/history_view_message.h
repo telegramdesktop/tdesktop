@@ -116,6 +116,9 @@ struct HistoryMessageRichPage
 	mutable ClickHandlerPtr handlerButtonRowHandler;
 	mutable Iv::Markdown::MarkdownArticleButtonRowHit pressedButtonRow;
 	mutable ClickHandlerPtr pressedButtonRowHandler;
+	mutable std::optional<QPoint> handlerInlineButtonPoint;
+	mutable ClickHandlerPtr handlerInlineButtonHandler;
+	mutable ClickHandlerPtr pressedInlineButtonHandler;
 };
 
 enum class BadgeRole : uchar {
