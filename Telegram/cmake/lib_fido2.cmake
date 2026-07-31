@@ -91,16 +91,16 @@ set(fido2_sources
     ${fido2_src}/util.c)
 
 # Platform USB-HID backend.
-if (LINUX)
+if (WIN32)
     list(APPEND fido2_sources
-        ${fido2_src}/hid_linux.c
-        ${fido2_src}/hid_unix.c)
+        ${fido2_src}/hid_win.c)
 elseif (APPLE)
     list(APPEND fido2_sources
         ${fido2_src}/hid_osx.c)
-elseif (WIN32)
+else()
     list(APPEND fido2_sources
-        ${fido2_src}/hid_win.c)
+        ${fido2_src}/hid_linux.c
+        ${fido2_src}/hid_unix.c)
 endif()
 
 # openbsd-compat/*.c are each internally guarded by #ifndef HAVE_<fn>, so the
@@ -208,22 +208,22 @@ PRIVATE
     desktop-app::external_zlib)
 
 # Platform HID transport dependencies.
-if (LINUX)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(UDEV REQUIRED IMPORTED_TARGET libudev)
-    target_link_libraries(lib_fido2 PRIVATE PkgConfig::UDEV)
-elseif (APPLE)
-    target_link_frameworks(lib_fido2
-    PRIVATE
-        CoreFoundation
-        IOKit)
-elseif (WIN32)
+if (WIN32)
     target_link_libraries(lib_fido2
     PRIVATE
         bcrypt
         setupapi
         hid
         ws2_32)
+elseif (APPLE)
+    target_link_frameworks(lib_fido2
+    PRIVATE
+        CoreFoundation
+        IOKit)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(UDEV REQUIRED IMPORTED_TARGET libudev)
+    target_link_libraries(lib_fido2 PRIVATE PkgConfig::UDEV)
 endif()
 
 # Silence third-party C warnings. On MSVC the flags must ride an INTERFACE lib
