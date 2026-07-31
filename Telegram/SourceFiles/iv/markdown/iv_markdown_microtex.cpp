@@ -36,6 +36,14 @@ constexpr auto kBytesPerPixel = int64(4);
 constexpr auto kMaxFormulaImageBytes = int64(128) * 1024 * 1024;
 constexpr auto kFormulaForegroundRgba = 0xFFFFFFFFU;
 
+// MicroTeX parses on this thread, and the render caps below only apply once
+// parsing has finished, so an article can stall the interface long before any
+// of them is consulted. Refusing absurd input up front bounds that. The value
+// is not a formatting rule: real formulas run to a few hundred characters,
+// and Ui::Text::String cannot address past 0xFFFF anyway, so nothing that
+// could previously be laid out and displayed comes close to this.
+constexpr auto kMaxFormulaTexLength = 32 * 1024;
+
 std::once_flag MicrotexInitOnce;
 bool MicrotexInitialized = false;
 QString MicrotexInitError;
@@ -239,6 +247,10 @@ void FinalizeFailure(MeasuredFormula *result) {
 	const auto trimmedTex = request.trimmedTex.trimmed();
 	if (trimmedTex.isEmpty()) {
 		result->error = u"empty-tex"_q;
+		return false;
+	}
+	if (trimmedTex.size() > kMaxFormulaTexLength) {
+		result->error = u"tex-too-long"_q;
 		return false;
 	}
 	auto metricTextSize = 0;
