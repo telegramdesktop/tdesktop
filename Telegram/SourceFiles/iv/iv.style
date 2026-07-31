@@ -473,6 +473,7 @@ MarkdownInlineButton {
 	tintBgOpacity: double;
 	disabledOpacity: double;
 	disabledPrimaryOpacity: double;
+	maxWidth: pixels;
 }
 MarkdownPhoto {
 	padding: margins;
@@ -968,6 +969,7 @@ defaultMarkdownInlineButton: MarkdownInlineButton {
 	tintBgOpacity: markdownButtonRowTintBgOpacity;
 	disabledOpacity: markdownInlineButtonDisabledOpacity;
 	disabledPrimaryOpacity: markdownInlineButtonDisabledPrimaryOpacity;
+	maxWidth: 408px;
 }
 markdownFootnoteBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 0px);

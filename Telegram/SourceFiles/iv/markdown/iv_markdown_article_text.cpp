@@ -573,6 +573,7 @@ private:
 	Ui::Text::CustomEmojiVerticalMetrics _vertical;
 	int _width = 1;
 	int _height = 1;
+	int _labelWidth = 0;
 	int _labelLeft = 0;
 	int _labelTop = 0;
 	int _lineTopSkip = 0;
@@ -1426,16 +1427,20 @@ InlineButtonObject::InlineButtonObject(
 , _disabled(data.type == HistoryMessageMarkupButton::Type::Disabled) {
 	const auto &inlineSt = st.inlineButton;
 	const auto link = (_presentation == InlineButtonPresentation::Link);
+	const auto padding = link ? 0 : inlineSt.padding;
 	_height = link
 		? textStyle.font->height
 		: InlineButtonPillHeight(textStyle, inlineSt);
+	_labelWidth = std::min(
+		_label.maxWidth(),
+		std::max(inlineSt.maxWidth - 2 * padding, 0));
 	_width = link
-		? std::max(_label.maxWidth(), 1)
-		: std::max(_height, _label.maxWidth() + 2 * inlineSt.padding);
+		? std::max(_labelWidth, 1)
+		: std::max(_height, _labelWidth + 2 * padding);
 	_vertical = CenteredVerticalMetrics(textStyle, _height);
 	_lineTopSkip = TextLineAscent(textStyle) - _vertical.ascent;
 	_lineHeight = TextLineHeight(textStyle);
-	_labelLeft = link ? 0 : inlineSt.padding;
+	_labelLeft = padding;
 	_labelTop = std::clamp(
 		_vertical.ascent - inlineSt.labelStyle.font->ascent,
 		0,
@@ -1482,7 +1487,7 @@ void InlineButtonObject::paintLabel(
 	if (_label.isEmpty()) {
 		return;
 	}
-	const auto available = std::max(_label.maxWidth(), 1);
+	const auto available = std::max(_labelWidth, 1);
 	p.setPen(color);
 	_label.draw(p, {
 		.position = position + QPoint(_labelLeft, _labelTop),
