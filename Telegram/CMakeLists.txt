@@ -2159,6 +2159,8 @@ PRIVATE
     wallet/wallet_api.h
     wallet/wallet_fee_estimator.cpp
     wallet/wallet_fee_estimator.h
+    wallet/wallet_fiat.cpp
+    wallet/wallet_fiat.h
     wallet/wallet_section.cpp
     wallet/wallet_section.h
     wallet/wallet_session.cpp

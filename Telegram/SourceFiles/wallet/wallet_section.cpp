@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "wallet/wallet_fiat.h"
 #include "wallet/wallet_session.h"
 #include "window/window_session_controller.h"
 
@@ -118,6 +119,7 @@ private:
 	Ui::FlatLabel *_major = nullptr;
 	Ui::FlatLabel *_minor = nullptr;
 	Ui::FlatLabel *_ticker = nullptr;
+	Ui::FlatLabel *_fiat = nullptr;
 	Ui::AbstractButton *_qr = nullptr;
 	QString _name;
 	QString _addressLine1;
@@ -2278,9 +2280,14 @@ void Card::setupBalance() {
 		tr::lng_wallet_card_ticker(),
 		st::walletCardTickerLabel);
 	_ticker->setOpacity(st::walletCardSecondaryOpacity);
+	_fiat = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		st::walletCardFiatLabel);
+	_fiat->setOpacity(st::walletCardSecondaryOpacity);
 	_major->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_minor->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_ticker->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_fiat->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	_controller->session().wallet().balanceNanoValue(
 	) | rpl::on_next([=](int64 nano) {
@@ -2296,11 +2303,21 @@ void Card::setupBalance() {
 	}, lifetime());
 
 	rpl::combine(
+		_controller->session().wallet().balanceNanoValue(),
+		TonUsdRateValue(&_controller->session())
+	) | rpl::on_next([=](int64 nano, float64 rate) {
+		const auto text = FormatUsd(nano, rate);
+		_fiat->setText(text);
+		_fiat->setVisible(!text.isEmpty());
+	}, lifetime());
+
+	rpl::combine(
 		widthValue(),
 		_major->sizeValue(),
 		_major->naturalWidthValue(),
 		_minor->sizeValue(),
-		_ticker->sizeValue()
+		_ticker->sizeValue(),
+		_fiat->sizeValue()
 	) | rpl::on_next([=] {
 		updateLayout();
 	}, lifetime());
@@ -2357,6 +2374,10 @@ void Card::updateLayout() {
 		width());
 	left += _minor->width() + st::walletCardTickerSkip;
 	_ticker->moveToLeft(left, st::walletCardBalanceTop, width());
+	_fiat->moveToLeft(
+		st::walletCardContentLeft,
+		st::walletCardFiatTop,
+		width());
 	_qr->moveToLeft(
 		width() - st::walletCardQrRight - _qr->width(),
 		st::walletCardBalanceTop + (_major->height() - _qr->height()) / 2,
