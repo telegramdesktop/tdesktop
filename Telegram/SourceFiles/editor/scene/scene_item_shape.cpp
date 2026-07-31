@@ -404,6 +404,19 @@ void ItemShape::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 	ItemBase::hoverMoveEvent(event);
 }
 
+ItemBase::Placement ItemShape::placement() const {
+	auto result = ItemBase::placement();
+	result.bend = _bend;
+	return result;
+}
+
+void ItemShape::applyPlacement(const Placement &placement) {
+	_bend = placement.bend;
+	ItemBase::applyPlacement(placement);
+	updateArrowFrame();
+	update();
+}
+
 void ItemShape::save(SaveState state) {
 	ItemBase::save(state);
 	auto &saved = (state == SaveState::Keep) ? _keepedShape : _savedShape;

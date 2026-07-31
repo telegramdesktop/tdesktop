@@ -37,6 +37,9 @@ public:
 	void applyFrame(float64 width, float64 height);
 	[[nodiscard]] bool applyDraftFrame(float64 width, float64 height);
 
+	[[nodiscard]] Placement placement() const override;
+	void applyPlacement(const Placement &placement) override;
+
 	void save(SaveState state) override;
 	void restore(SaveState state) override;
 protected:
