@@ -494,6 +494,7 @@ ItemBase::Placement ItemBase::placement() const {
 		.scale = scale(),
 		.zValue = zValue(),
 		.size = _horizontalSize,
+		.aspectRatio = _aspectRatio,
 		.flipped = _flipped,
 	};
 }
@@ -501,6 +502,7 @@ ItemBase::Placement ItemBase::placement() const {
 void ItemBase::applyPlacement(const Placement &placement) {
 	prepareGeometryChange();
 	_horizontalSize = placement.size;
+	_aspectRatio = placement.aspectRatio;
 	updateVerticalSize();
 	setPos(placement.position);
 	setRotation(placement.rotation);

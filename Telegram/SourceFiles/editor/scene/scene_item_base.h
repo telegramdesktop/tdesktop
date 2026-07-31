@@ -77,6 +77,7 @@ public:
 		float64 scale = 1.;
 		float64 zValue = 0.;
 		float64 size = 0.;
+		float64 aspectRatio = 1.;
 		bool flipped = false;
 
 		friend inline bool operator==(
