@@ -42,8 +42,10 @@ constexpr auto kShapeSizeRatio = 2. / 5.;
 }
 
 [[nodiscard]] int DefaultShapeSize(const QSize &imageSize) {
-	return int(std::min(imageSize.width(), imageSize.height())
-		* kShapeSizeRatio);
+	return std::max(
+		int(std::min(imageSize.width(), imageSize.height())
+			* kShapeSizeRatio),
+		1);
 }
 
 constexpr auto kMinCanvasZoom = 1.;

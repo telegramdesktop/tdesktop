@@ -438,8 +438,8 @@ void ItemBase::updateZoom(float64 zoom) {
 		_imageSize.width(),
 		_imageSize.height());
 	_sizeLimits = {
-		.min = int(maxSide * kMinSizeRatio),
-		.max = int(maxSide * kMaxSizeRatio),
+		.min = std::max(int(maxSide * kMinSizeRatio), 1),
+		.max = std::max(int(maxSide * kMaxSizeRatio), 1),
 	};
 	_horizontalSize = std::clamp(
 		_horizontalSize,
