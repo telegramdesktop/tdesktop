@@ -366,16 +366,23 @@ void CloseBox(const std::shared_ptr<State> &state) {
 		? state.data.timeout
 		: kDefaultTimeout;
 
-	auto dev = fido_dev_new();
-	if (!dev) {
-		return Outcome::Other;
-	}
-	fido_dev_set_timeout(dev, timeout);
-	const auto opened = fido_dev_open(dev, paths.front().constData());
-	if (opened != FIDO_OK) {
+	auto dev = (fido_dev_t*)nullptr;
+	for (const auto &path : paths) {
+		dev = fido_dev_new();
+		if (!dev) {
+			continue;
+		}
+		fido_dev_set_timeout(dev, timeout);
+		const auto opened = fido_dev_open(dev, path.constData());
+		if (opened == FIDO_OK) {
+			break;
+		}
 		LOG(("Passkey Error: Could not open the key: %1."
 			).arg(QString::fromUtf8(fido_strerr(opened))));
 		fido_dev_free(&dev);
+		dev = nullptr;
+	}
+	if (!dev) {
 		return Outcome::Other;
 	}
 	state.ceremony->setDevice(dev);
