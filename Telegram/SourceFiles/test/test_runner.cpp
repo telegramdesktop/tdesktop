@@ -51,6 +51,113 @@ constexpr auto kFinishDrainDelay = crl::time(500);
 	return domain.started() && domain.active().sessionExists();
 }
 
+[[nodiscard]] bool ChatsLoaded() {
+	return SessionReady()
+		&& Core::App().domain().active().session().data().chatsListLoaded();
+}
+
+enum class ChatsLoadedWaitOutcome {
+	Pending,
+	Loaded,
+	TimedOut,
+};
+
+struct ChatsLoadedWaitState {
+	ChatsLoadedWaitOutcome outcome = ChatsLoadedWaitOutcome::Pending;
+	crl::time deadline = 0;
+	base::Timer deadlineTimer;
+	rpl::lifetime loadedLifetime;
+};
+
+void ResolveChatsLoadedWait(
+		const std::shared_ptr<ChatsLoadedWaitState> &state,
+		ChatsLoadedWaitOutcome outcome) {
+	if (state->outcome != ChatsLoadedWaitOutcome::Pending) {
+		return;
+	}
+	state->outcome = outcome;
+	state->deadlineTimer.cancel();
+	state->loadedLifetime.destroy();
+}
+
+void ResolveChatsLoadedWaitAt(
+		const std::shared_ptr<ChatsLoadedWaitState> &state,
+		crl::time observedAt) {
+	ResolveChatsLoadedWait(
+		state,
+		(observedAt < state->deadline)
+			? ChatsLoadedWaitOutcome::Loaded
+			: ChatsLoadedWaitOutcome::TimedOut);
+}
+
+void ArmChatsLoadedDeadline(
+		const std::shared_ptr<ChatsLoadedWaitState> &state) {
+	const auto now = crl::now();
+	if (now >= state->deadline) {
+		ResolveChatsLoadedWait(
+			state,
+			ChatsLoadedWaitOutcome::TimedOut);
+	} else {
+		state->deadlineTimer.callOnce(state->deadline - now);
+	}
+}
+
+void StartChatsLoadedWait(
+		const std::shared_ptr<ChatsLoadedWaitState> &state,
+		crl::time stageStarted,
+		crl::time timeout) {
+	state->deadline = stageStarted + timeout;
+	const auto weak = std::weak_ptr<ChatsLoadedWaitState>(state);
+	state->deadlineTimer.setCallback([weak] {
+		if (const auto state = weak.lock()) {
+			ArmChatsLoadedDeadline(state);
+		}
+	});
+	if (ChatsLoaded()) {
+		ResolveChatsLoadedWaitAt(state, crl::now());
+		return;
+	}
+	Core::App().domain().activeSessionValue(
+	) | rpl::map([](Main::Session *session) {
+		if (!session) {
+			return rpl::never<Data::Folder*>();
+		}
+		return session->data().chatsListLoaded()
+			? rpl::single<Data::Folder*>(nullptr)
+			: session->data().chatsListLoadedEvents();
+	}) | rpl::flatten_latest(
+	) | rpl::filter([](Data::Folder *folder) {
+		return !folder;
+	}) | rpl::on_next([weak] {
+		if (const auto state = weak.lock()) {
+			ResolveChatsLoadedWaitAt(state, crl::now());
+		}
+	}, state->loadedLifetime);
+	ArmChatsLoadedDeadline(state);
+}
+
+void ObserveChatsLoadedDeadline(
+		const std::shared_ptr<ChatsLoadedWaitState> &state) {
+	if (state->outcome == ChatsLoadedWaitOutcome::Pending
+		&& crl::now() >= state->deadline) {
+		ResolveChatsLoadedWait(
+			state,
+			ChatsLoadedWaitOutcome::TimedOut);
+	}
+}
+
+[[nodiscard]] bool ChatsLoadedWaitFinished(
+		const std::shared_ptr<ChatsLoadedWaitState> &state) {
+	ObserveChatsLoadedDeadline(state);
+	return state->outcome != ChatsLoadedWaitOutcome::Pending;
+}
+
+[[nodiscard]] bool ChatsLoadedWaitSucceeded(
+		const std::shared_ptr<ChatsLoadedWaitState> &state) {
+	ObserveChatsLoadedDeadline(state);
+	return state->outcome == ChatsLoadedWaitOutcome::Loaded;
+}
+
 } // namespace
 
 void Runner::add(Stage stage) {
@@ -76,13 +183,32 @@ void Runner::waitForSessionReady(crl::time timeout) {
 }
 
 void Runner::waitForChatsLoaded(crl::time timeout) {
+	const auto state = std::make_shared<ChatsLoadedWaitState>();
 	add({
 		.name = u"wait for chats loaded"_q,
-		.until = [] {
-			return SessionReady()
-				&& Core::App().domain().active().session().data(
-					).chatsListLoaded();
+		.run = [=] {
+			StartChatsLoadedWait(state, _stageStarted, timeout);
 		},
+		.until = [=] { return ChatsLoadedWaitFinished(state); },
+		.then = [=] {
+			Note(u"chats loaded wait: loaded=%1 elapsedMs=%2"_q.arg(
+				(state->outcome == ChatsLoadedWaitOutcome::Loaded)
+					? u"true"_q
+					: u"false"_q,
+				QString::number(crl::now() - _stageStarted)));
+		},
+		.timeout = timeout,
+	});
+}
+
+void Runner::waitForChatsLoadedStrict(crl::time timeout) {
+	const auto state = std::make_shared<ChatsLoadedWaitState>();
+	add({
+		.name = u"wait for chats loaded (strict)"_q,
+		.run = [=] {
+			StartChatsLoadedWait(state, _stageStarted, timeout);
+		},
+		.until = [=] { return ChatsLoadedWaitSucceeded(state); },
 		.timeout = timeout,
 	});
 }

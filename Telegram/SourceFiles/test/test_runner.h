@@ -36,6 +36,7 @@ public:
 		crl::time timeout = kStartupStageTimeout);
 	void waitForSessionReady(crl::time timeout = kStartupStageTimeout);
 	void waitForChatsLoaded(crl::time timeout = kStartupStageTimeout);
+	void waitForChatsLoadedStrict(crl::time timeout = kStartupStageTimeout);
 
 	[[nodiscard]] bool empty() const;
 

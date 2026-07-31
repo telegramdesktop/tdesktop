@@ -313,9 +313,10 @@ The repository carries a permanent test harness under
 (`Test::Active()`), with all of its `#ifdef`s inside the harness itself:
 
 - `test_runner.h` — the staged scenario engine: `Stage{name, run, until, then, timeout}`,
-  `waitEvent`, `waitForSessionReady`, `waitForChatsLoaded`; built-in per-stage timeouts, a
-  wall-clock watchdog (default 120s, `TDESKTOP_TEST_WATCHDOG` override), and guaranteed
-  `TEST_COMPLETE` + quit on every exit path including timeout.
+  `waitEvent`, `waitForSessionReady`, the normal bounded non-fatal `waitForChatsLoaded()`, and
+  explicit strict `waitForChatsLoadedStrict()`; timing out an ordinary `Stage` ends the whole
+  scenario, while the wall-clock watchdog (default 120s, `TDESKTOP_TEST_WATCHDOG` override)
+  guarantees `TEST_COMPLETE` + quit on every exit path including timeout.
 - `test_log.h` — evidence dir from `TDESKTOP_TEST_EVIDENCE_DIR` (the workspace `test-run`
   helper sets it), flushed absolute-path logging, `Step/Pass/Fail/Check/Note`, `CheckNear`
   tolerance assertions, `LogGeometry`, the standard markers.
