@@ -2203,6 +2203,12 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 	const auto w = width();
 	const auto mouseY = local.y();
 	clearIrrelevantState();
+	if ((_pressButton == Qt::MiddleButton)
+		&& _activeQuickAction
+		&& (local.x() < 0 || local.x() >= w)) {
+		deselectAllRows();
+		return;
+	}
 	if (_state == WidgetState::Default) {
 		const auto offset = dialogsOffset();
 		const auto collapsedSelected = (mouseY >= 0
@@ -3783,22 +3789,27 @@ void InnerWidget::clearSelection() {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
 	_lastRowLocalMouseX = -1;
-	if (isSelected()) {
-		updateSelectedRow();
-		_collapsedSelected = -1;
-		_selectedMorePosts = false;
-		_selectedChatTypeFilter = false;
-		_selected = nullptr;
-		_communitySelected = -1;
-		_filteredSelected
-			= _searchedSelected
-			= _previewSelected
-			= _peerSearchSelected
-			= _hashtagSelected
-			= -1;
-		setCursor(style::cur_default);
-	}
+	deselectAllRows();
 	setCommunityPressed(-1);
+}
+
+void InnerWidget::deselectAllRows() {
+	if (!isSelected()) {
+		return;
+	}
+	updateSelectedRow();
+	_collapsedSelected = -1;
+	_selectedMorePosts = false;
+	_selectedChatTypeFilter = false;
+	_selected = nullptr;
+	_communitySelected = -1;
+	_filteredSelected
+		= _searchedSelected
+		= _previewSelected
+		= _peerSearchSelected
+		= _hashtagSelected
+		= -1;
+	setCursor(style::cur_default);
 }
 
 void InnerWidget::fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu) {
