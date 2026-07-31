@@ -49,6 +49,18 @@ settingsAttentionButtonWithIcon: SettingsButton(settingsButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
+settingsExperimentalTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 100px;
+}
+settingsExperimentalAbout: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 100px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+settingsExperimentalTitlePadding: margins(22px, 9px, 66px, 1px);
+settingsExperimentalAboutPadding: margins(22px, 0px, 66px, 9px);
 settingsOptionDisabled: SettingsButton(settingsButtonNoIcon) {
 	textFg: windowSubTextFg;
 	textFgOver: windowSubTextFg;
