@@ -63,9 +63,4 @@ elseif (APPLE)
         desktop-app::lib_base
         desktop-app::lib_crl
     )
-else()
-    nice_target_sources(td_webauthn ${src_loc}
-    PRIVATE
-        webauthn/cable_scanner_dummy.cpp
-    )
 endif()
