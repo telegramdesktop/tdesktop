@@ -208,10 +208,10 @@ if (LINUX)
     pkg_check_modules(UDEV REQUIRED IMPORTED_TARGET libudev)
     target_link_libraries(lib_fido2 PRIVATE PkgConfig::UDEV)
 elseif (APPLE)
-    target_link_libraries(lib_fido2
+    target_link_frameworks(lib_fido2
     PRIVATE
-        "-framework CoreFoundation"
-        "-framework IOKit")
+        CoreFoundation
+        IOKit)
 elseif (WIN32)
     target_link_libraries(lib_fido2
     PRIVATE
