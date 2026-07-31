@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_overview.h"
+#include "styles/style_share_box.h"
 #include "styles/style_widgets.h"
 
 #include <QtCore/QTimer>
@@ -116,7 +117,8 @@ public:
 	HistoryMusicSection(
 			QWidget *parent,
 			std::unique_ptr<MusicSectionController> controller,
-			rpl::producer<QString> title);
+			rpl::producer<QString> title,
+			int titleBottomSkip = 0);
 
 	[[nodiscard]] not_null<Info::Media::ListWidget*> list() const;
 	[[nodiscard]] rpl::producer<Info::SelectedItems> selectedListValue() const;
@@ -131,6 +133,7 @@ public:
 	void setPagingEnabled(bool enabled);
 	void setGlobalMediaAccumulationEnabled(bool enabled);
 	void setTitleEligible(bool eligible);
+	void setTopSkip(int topSkip);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -149,6 +152,7 @@ private:
 	bool _pagingEnabled = true;
 	bool _titleEligible = true;
 	bool _inResize = false;
+	int _topSkip = 0;
 
 };
 
@@ -160,13 +164,14 @@ public:
 };
 
 [[nodiscard]] style::margins MusicAttachSubsectionTitlePadding(
-		int topSkip = 0) {
+		int topSkip = 0,
+		int bottomSkip = 0) {
 	const auto sideSkip = st::overviewFileLayout.songPadding.left();
 	return style::margins(
 		sideSkip - st::defaultSubsectionTitlePadding.left(),
 		topSkip,
 		sideSkip - st::defaultSubsectionTitlePadding.right(),
-		0);
+		bottomSkip);
 }
 
 class GlobalMusicSearchSection final
@@ -345,7 +350,8 @@ void MusicSectionController::setQuery(QString query) {
 HistoryMusicSection::HistoryMusicSection(
 		QWidget *parent,
 		std::unique_ptr<MusicSectionController> controller,
-		rpl::producer<QString> title)
+		rpl::producer<QString> title,
+		int titleBottomSkip)
 : RpWidget(parent)
 , _controller(std::move(controller))
 , _titleWrap(this)
@@ -354,7 +360,7 @@ HistoryMusicSection::HistoryMusicSection(
 	Ui::AddSubsectionTitle(
 		_titleWrap.data(),
 		std::move(title),
-		MusicAttachSubsectionTitlePadding());
+		MusicAttachSubsectionTitlePadding(0, titleBottomSkip));
 	_list->show();
 	_list->setGlobalMediaEmbeddedViewport();
 	updatePreloadEnabled();
@@ -436,6 +442,14 @@ void HistoryMusicSection::setTitleEligible(bool eligible) {
 	refreshHeight();
 }
 
+void HistoryMusicSection::setTopSkip(int topSkip) {
+	if (_topSkip == topSkip) {
+		return;
+	}
+	_topSkip = topSkip;
+	refreshHeight();
+}
+
 int HistoryMusicSection::listHeightForCurrentMode() const {
 	const auto height = _list->heightNoMargins();
 	if (!_collapsed) {
@@ -448,16 +462,16 @@ int HistoryMusicSection::resizeGetHeight(int newWidth) {
 	_inResize = true;
 
 	_titleWrap->resizeToWidth(newWidth);
-	_titleWrap->moveToLeft(0, 0, newWidth);
-
 	const auto titleHeight = _titleWrap->isHidden()
 		? 0
 		: _titleWrap->heightNoMargins();
+	const auto topSkip = titleHeight ? _topSkip : 0;
+	_titleWrap->moveToLeft(0, topSkip, newWidth);
 	_list->resizeToWidth(newWidth);
-	_list->moveToLeft(0, titleHeight, newWidth);
+	_list->moveToLeft(0, topSkip + titleHeight, newWidth);
 
 	_inResize = false;
-	return titleHeight + listHeightForCurrentMode();
+	return topSkip + titleHeight + listHeightForCurrentMode();
 }
 
 void HistoryMusicSection::visibleTopBottomUpdated(
@@ -510,6 +524,7 @@ GlobalMusicSearchSection::GlobalMusicSearchSection(
 		&controller->session(),
 		st::giftBoxHiddenMark,
 		RectPart::Center)) {
+	setMouseTracking(true);
 	_titleWrap->show();
 	Ui::AddSubsectionTitle(
 		_titleWrap.data(),
@@ -1633,7 +1648,8 @@ void MusicAttachBox(
 		object_ptr<HistoryMusicSection>(
 			yourChatsBlockLayout,
 			std::move(yourChatsController),
-			tr::lng_reply_in_chats_list()));
+			tr::lng_reply_in_chats_list(),
+			-st::infoMediaMargin.top()));
 	const auto yourChatsShowAllWrap = addShowAllButton(
 		yourChatsBlockLayout);
 	const auto globalSearchWrap = content->add(
@@ -2006,6 +2022,8 @@ void MusicAttachBox(
 					&& globalSearch->awayFromTop());
 			savedMusic->setCollapsed(savedMusicCollapsed);
 			yourChats->setCollapsed(yourChatsCollapsed);
+			yourChats->setTopSkip(
+				searching ? st::defaultVerticalListSkip : 0);
 			savedMusic->setPagingEnabled(
 				!searching && !savedMusicCollapsed);
 			yourChats->setPagingEnabled(
