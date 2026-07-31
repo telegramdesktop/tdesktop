@@ -673,12 +673,10 @@ struct PreparedButtonRowButton {
 		HistoryMessageMarkupButton::Type::Disabled,
 		QString(),
 		{});
-	const HistoryMessageMarkupButton *shared = nullptr;
 };
 
 struct PreparedButtonRowBlockData {
 	PreparedMediaBlockId id;
-	std::shared_ptr<const Iv::RichPage> page;
 	std::vector<PreparedButtonRowButton> buttons;
 };
 

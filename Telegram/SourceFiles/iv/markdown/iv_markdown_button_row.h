@@ -49,8 +49,7 @@ struct ButtonRowRuntime {
 	explicit ButtonRowRuntime(Fn<void()> repaint);
 
 	Fn<void()> repaint;
-	std::shared_ptr<const RichPage> page;
-	std::vector<const HistoryMessageMarkupButton*> shared;
+	std::vector<HistoryMessageMarkupButton> buttons;
 	std::vector<ClickHandlerPtr> handlers;
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 	QSize rippleSize;

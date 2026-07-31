@@ -675,13 +675,11 @@ bool PrepareNativeIvButtonRowBlock(
 	block.kind = PreparedBlockKind::ButtonRow;
 	block.flowAlignment = NativeIvButtonRowAlignment(data.buttonAlignment);
 	block.buttonRow.id = GeneratePreparedMediaBlockId(state);
-	block.buttonRow.page = state->result.richPage;
 	block.buttonRow.buttons.reserve(data.buttons.size());
 	for (const auto &button : data.buttons) {
 		block.buttonRow.buttons.push_back({
 			.text = NormalizeRichButtonLabel(button.text.text),
 			.button = button.button,
-			.shared = &button.button,
 		});
 	}
 	result->push_back(std::move(block));

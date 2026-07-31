@@ -37,5 +37,8 @@ bool SwitchInlineBotButtonReceived(
 
 void ActivateBotButton(ClickHandlerContext context, BotButtonLookup lookup);
 void ActivateBotCommand(ClickHandlerContext context, int row, int column);
+void ActivateRichPageBotButton(
+	ClickHandlerContext context,
+	const HistoryMessageMarkupButton &button);
 
 } // namespace Api

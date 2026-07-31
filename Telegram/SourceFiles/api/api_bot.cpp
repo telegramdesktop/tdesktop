@@ -638,4 +638,28 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 	});
 }
 
+void ActivateRichPageBotButton(
+		ClickHandlerContext context,
+		const HistoryMessageMarkupButton &button) {
+	const auto strong = context.sessionWindow.get();
+	if (!strong) {
+		return;
+	}
+	const auto owner = &strong->session().data();
+	const auto itemId = context.itemId;
+	const auto key = HistoryMessageMarkupButton::RegisterRichPageButton(
+		owner,
+		itemId,
+		button);
+	if (key.isEmpty()) {
+		return;
+	}
+	ActivateBotButton(context, [=] {
+		return HistoryMessageMarkupButton::GetRichPageButton(
+			owner,
+			itemId,
+			key);
+	});
+}
+
 } // namespace Api

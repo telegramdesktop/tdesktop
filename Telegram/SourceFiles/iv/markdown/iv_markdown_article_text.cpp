@@ -685,33 +685,21 @@ FindInlineFormulaMeasuredData(
 	return ActionableInlineButtonDataFor(data).has_value();
 }
 
-void ActivateInlineButton(
-		const std::shared_ptr<InlineButtonPaintState> &state,
-		QStringView data,
-		ClickContext context) {
+void ActivateInlineButton(QStringView data, ClickContext context) {
 	const auto button = ActionableInlineButtonDataFor(data);
 	if (!button) {
 		return;
 	}
-	const auto key = data.toString();
-	const auto emplaced = state->records.try_emplace(
-		key,
+	auto record = HistoryMessageMarkupButton(
 		button->type,
 		button->label.text,
 		HistoryMessageMarkupButton::Visual{ .color = button->color },
 		button->data,
 		QString(),
 		button->buttonId);
-	if (emplaced.second) {
-		emplaced.first->second.peerTypes = button->peerTypes;
-	}
+	record.peerTypes = button->peerTypes;
 	const auto my = context.other.value<ClickHandlerContext>();
-	Api::ActivateBotButton(my, [state, key] {
-		const auto i = state->records.find(key);
-		return (i != end(state->records))
-			? &i->second
-			: nullptr;
-	});
+	Api::ActivateRichPageBotButton(my, record);
 }
 
 [[nodiscard]] QString InlineButtonPlainEmojiPrefix() {
@@ -1816,14 +1804,8 @@ void SetTextLeaf(
 				&& InlineButtonActionable(entity.data());
 		})) {
 		leaf->setCustomEmojiClickHandler(
-			[](QStringView data) {
-				return InlineButtonActionable(data);
-			},
-			[state = inlineButtonPaintState](
-					QStringView data,
-					ClickContext context) {
-				ActivateInlineButton(state, data, std::move(context));
-			});
+			InlineButtonActionable,
+			ActivateInlineButton);
 	}
 }
 

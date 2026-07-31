@@ -44,8 +44,8 @@ using ButtonType = HistoryMessageMarkupButton::Type;
 		const std::weak_ptr<ButtonRowRuntime> &weak,
 		int index) {
 	const auto strong = weak.lock();
-	return (strong && (index >= 0) && (index < int(strong->shared.size())))
-		? strong->shared[index]
+	return (strong && (index >= 0) && (index < int(strong->buttons.size())))
+		? &strong->buttons[index]
 		: nullptr;
 }
 
@@ -79,18 +79,12 @@ void RichPageButtonClickHandler::onClick(ClickContext context) const {
 	if (context.button != Qt::LeftButton) {
 		return;
 	}
-	const auto strong = _runtime.lock();
-	if (!strong || (_index < 0) || (_index >= int(strong->shared.size()))) {
-		return;
-	}
-	const auto record = strong->shared[_index];
-	if (!record || !strong->page) {
+	const auto button = lookup();
+	if (!button) {
 		return;
 	}
 	const auto my = context.other.value<ClickHandlerContext>();
-	Api::ActivateBotButton(my, [record, keepAlive = strong->page] {
-		return record;
-	});
+	Api::ActivateRichPageBotButton(my, *button);
 }
 
 QString RichPageButtonClickHandler::copyToClipboardText() const {
@@ -472,10 +466,10 @@ void RefreshButtonRowHandlers(
 	}
 	const auto &list = prepared.buttons;
 	const auto count = std::min(int(list.size()), int(buttons.size()));
-	runtime->page = prepared.page;
-	runtime->shared.resize(count);
+	runtime->buttons.clear();
+	runtime->buttons.reserve(count);
 	for (auto i = 0; i != count; ++i) {
-		runtime->shared[i] = list[i].shared;
+		runtime->buttons.push_back(list[i].button);
 	}
 	runtime->handlers.resize(count);
 	for (auto i = 0; i != count; ++i) {

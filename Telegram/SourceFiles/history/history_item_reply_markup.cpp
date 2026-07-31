@@ -110,6 +110,17 @@ namespace {
 		ParseVisual(fields.vstyle()));
 }
 
+[[nodiscard]] QByteArray RichPageButtonKey(
+		const HistoryMessageMarkupButton &button) {
+	return QByteArray::number(int(button.type))
+		+ ";"
+		+ QByteArray::number(button.buttonId)
+		+ ";"
+		+ QByteArray::number(button.peerTypes.value())
+		+ ";"
+		+ button.data;
+}
+
 } // namespace
 
 HistoryMessageMarkupButton::Visual ParseRichButtonVisual(
@@ -292,6 +303,45 @@ HistoryMessageMarkupButton *HistoryMessageMarkupButton::Get(
 				if (column < buttons.size()) {
 					return &buttons[column];
 				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+QByteArray HistoryMessageMarkupButton::RegisterRichPageButton(
+		not_null<Data::Session*> owner,
+		FullMsgId itemId,
+		const HistoryMessageMarkupButton &button) {
+	const auto item = owner->message(itemId);
+	if (!item) {
+		return QByteArray();
+	}
+	const auto source = item->Get<HistoryMessageRichPageSource>();
+	if (!source) {
+		return QByteArray();
+	}
+	auto key = RichPageButtonKey(button);
+	const auto i = source->buttonRecords.find(key);
+	if (i != end(source->buttonRecords)) {
+		i->second.text = button.text;
+		return key;
+	}
+	auto record = button;
+	record.requestId = 0;
+	source->buttonRecords.emplace(key, std::move(record));
+	return key;
+}
+
+HistoryMessageMarkupButton *HistoryMessageMarkupButton::GetRichPageButton(
+		not_null<Data::Session*> owner,
+		FullMsgId itemId,
+		const QByteArray &key) {
+	if (const auto item = owner->message(itemId)) {
+		if (const auto source = item->Get<HistoryMessageRichPageSource>()) {
+			const auto i = source->buttonRecords.find(key);
+			if (i != end(source->buttonRecords)) {
+				return &i->second;
 			}
 		}
 	}
