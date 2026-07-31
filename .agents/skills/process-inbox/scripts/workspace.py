@@ -51,6 +51,19 @@ OVERLAY_PATCH_FILE = "test-overlay.patch"
 TEST_LOG_FILE = "test_log.txt"
 TEST_COMPLETE_MARKER = "TEST_COMPLETE"
 STALE_CRASH_DIR = "stale-crash"
+BUILD_LOCK_PROCESS_NAMES = {
+	"cl.exe",
+	"cmake.exe",
+	"cvtres.exe",
+	"link.exe",
+	"moc.exe",
+	"mspdbsrv.exe",
+	"msbuild.exe",
+	"ninja.exe",
+	"rc.exe",
+	"rcc.exe",
+	"uic.exe",
+}
 
 
 class WorkspaceError(RuntimeError):
@@ -1242,6 +1255,352 @@ def kill_processes_with_executable(exe):
 	return killed
 
 
+def windows_process_records():
+	if sys.platform != "win32":
+		return []
+	script = (
+		"Get-CimInstance Win32_Process | "
+		"Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine | "
+		"ConvertTo-Json -Compress"
+	)
+	result = subprocess.run(
+		["powershell", "-NoProfile", "-Command", script],
+		stdout=subprocess.PIPE,
+		stderr=subprocess.PIPE,
+		text=True,
+	)
+	if result.returncode or not result.stdout.strip():
+		return []
+	try:
+		rows = json.loads(result.stdout)
+	except json.JSONDecodeError:
+		return []
+	if isinstance(rows, dict):
+		rows = [rows]
+	records = []
+	for row in rows:
+		try:
+			pid = int(row["ProcessId"])
+			parent_pid = int(row["ParentProcessId"])
+		except (KeyError, TypeError, ValueError):
+			continue
+		records.append({
+			"pid": pid,
+			"parent_pid": parent_pid,
+			"name": str(row.get("Name") or ""),
+			"executable": str(row.get("ExecutablePath") or ""),
+			"command_line": str(row.get("CommandLine") or ""),
+		})
+	return records
+
+
+def locking_process_ids(paths):
+	if sys.platform != "win32" or not paths:
+		return [], None
+	import ctypes
+	from ctypes import wintypes
+
+	class UniqueProcess(ctypes.Structure):
+		_fields_ = [
+			("process_id", wintypes.DWORD),
+			("process_start_time", wintypes.FILETIME),
+		]
+
+	class ProcessInfo(ctypes.Structure):
+		_fields_ = [
+			("process", UniqueProcess),
+			("app_name", wintypes.WCHAR * 256),
+			("service_name", wintypes.WCHAR * 64),
+			("app_type", wintypes.DWORD),
+			("app_status", wintypes.ULONG),
+			("terminal_session_id", wintypes.DWORD),
+			("restartable", wintypes.BOOL),
+		]
+
+	manager = ctypes.WinDLL("Rstrtmgr")
+	manager.RmStartSession.argtypes = [
+		ctypes.POINTER(wintypes.DWORD),
+		wintypes.DWORD,
+		wintypes.LPWSTR,
+	]
+	manager.RmStartSession.restype = wintypes.DWORD
+	manager.RmRegisterResources.argtypes = [
+		wintypes.DWORD,
+		wintypes.UINT,
+		ctypes.POINTER(wintypes.LPCWSTR),
+		wintypes.UINT,
+		ctypes.c_void_p,
+		wintypes.UINT,
+		ctypes.c_void_p,
+	]
+	manager.RmRegisterResources.restype = wintypes.DWORD
+	manager.RmGetList.argtypes = [
+		wintypes.DWORD,
+		ctypes.POINTER(wintypes.UINT),
+		ctypes.POINTER(wintypes.UINT),
+		ctypes.POINTER(ProcessInfo),
+		ctypes.POINTER(wintypes.DWORD),
+	]
+	manager.RmGetList.restype = wintypes.DWORD
+	manager.RmEndSession.argtypes = [wintypes.DWORD]
+	manager.RmEndSession.restype = wintypes.DWORD
+
+	session = wintypes.DWORD()
+	key = ctypes.create_unicode_buffer(33)
+	started = manager.RmStartSession(ctypes.byref(session), 0, key)
+	if started:
+		return [], f"Restart Manager session failed: {started}"
+	try:
+		resources = (wintypes.LPCWSTR * len(paths))(
+			*(str(path) for path in paths)
+		)
+		registered = manager.RmRegisterResources(
+			session,
+			len(paths),
+			resources,
+			0,
+			None,
+			0,
+			None,
+		)
+		if registered:
+			return [], f"Restart Manager registration failed: {registered}"
+		needed = wintypes.UINT()
+		count = wintypes.UINT()
+		reboot_reasons = wintypes.DWORD()
+		status = manager.RmGetList(
+			session,
+			ctypes.byref(needed),
+			ctypes.byref(count),
+			None,
+			ctypes.byref(reboot_reasons),
+		)
+		if status == 0:
+			return [], None
+		if status != 234:
+			return [], f"Restart Manager query failed: {status}"
+		entries = (ProcessInfo * needed.value)()
+		count.value = needed.value
+		status = manager.RmGetList(
+			session,
+			ctypes.byref(needed),
+			ctypes.byref(count),
+			entries,
+			ctypes.byref(reboot_reasons),
+		)
+		if status:
+			return [], f"Restart Manager detail query failed: {status}"
+		return sorted({
+			entries[index].process.process_id
+			for index in range(count.value)
+		}), None
+	finally:
+		manager.RmEndSession(session)
+
+
+def normalized_path_text(path):
+	return os.path.normcase(str(Path(path).expanduser().resolve())).casefold()
+
+
+def recoverable_build_processes(records, build_root, exe, holder_pids):
+	build_text = normalized_path_text(build_root)
+	build_command_text = build_text.replace("\\", "/")
+	exe_text = normalized_path_text(exe)
+	by_pid = {record["pid"]: record for record in records}
+	reasons = {}
+	for record in records:
+		pid = record["pid"]
+		name = record["name"].casefold()
+		executable = record["executable"]
+		command_line = record["command_line"]
+		if executable and normalized_path_text(executable) == exe_text:
+			reasons[pid] = "exact-checkout-executable"
+		elif name in BUILD_LOCK_PROCESS_NAMES and pid in holder_pids:
+			reasons[pid] = "direct-build-artifact-holder"
+		elif (
+			name in BUILD_LOCK_PROCESS_NAMES
+			and build_command_text
+			in command_line.casefold().replace("\\", "/")
+		):
+			reasons[pid] = "exact-build-tree-command"
+	changed = True
+	while changed:
+		changed = False
+		for record in records:
+			pid = record["pid"]
+			if pid in reasons:
+				continue
+			if (
+				record["name"].casefold() in BUILD_LOCK_PROCESS_NAMES
+				and record["parent_pid"] in reasons
+				and record["parent_pid"] in by_pid
+			):
+				reasons[pid] = "verified-build-process-descendant"
+				changed = True
+	return [
+		{
+			**by_pid[pid],
+			"reason": reason,
+		}
+		for pid, reason in sorted(reasons.items())
+	]
+
+
+def terminate_process_ids(processes):
+	results = []
+	for process in sorted(processes, key=lambda value: value["pid"], reverse=True):
+		pid = process["pid"]
+		try:
+			if sys.platform == "win32":
+				result = subprocess.run(
+					["taskkill", "/PID", str(pid), "/F"],
+					stdout=subprocess.PIPE,
+					stderr=subprocess.PIPE,
+					text=True,
+				)
+				stopped = not result.returncode
+				error = (
+					None
+					if stopped
+					else (result.stderr.strip() or result.stdout.strip())
+				)
+			else:
+				os.kill(pid, signal.SIGKILL)
+				stopped = True
+				error = None
+		except (OSError, subprocess.SubprocessError) as exception:
+			stopped = False
+			error = str(exception)
+		results.append({
+			**process,
+			"stopped": stopped,
+			"error": error,
+		})
+	return results
+
+
+def path_inside(path, root):
+	try:
+		path.relative_to(root)
+		return path != root
+	except ValueError:
+		return False
+
+
+def build_root_matches_source(build, source):
+	cache = build / "CMakeCache.txt"
+	if not cache.is_file():
+		return False
+	prefix = "CMAKE_HOME_DIRECTORY:INTERNAL="
+	for line in cache.read_text(encoding="utf-8", errors="replace").splitlines():
+		if line.startswith(prefix):
+			return (
+				normalized_path_text(line[len(prefix):])
+				== normalized_path_text(source)
+			)
+	return False
+
+
+def command_build_lock_recover(args):
+	source = source_root(args.source_root)
+	build = Path(args.build_root).expanduser().resolve()
+	exe = Path(args.exe).expanduser().resolve()
+	if (
+		not build.is_dir()
+		or not path_inside(build, source)
+		or not build_root_matches_source(build, source)
+	):
+		raise WorkspaceError(
+			"Build root must be a configured CMake tree for this checkout: "
+			f"{build}"
+		)
+	if not path_inside(exe, build):
+		raise WorkspaceError(f"Executable is outside the build root: {exe}")
+	artifacts = []
+	for value in args.artifact:
+		path = Path(value).expanduser().resolve()
+		if not path_inside(path, build):
+			raise WorkspaceError(f"Locked artifact is outside the build root: {path}")
+		if path.is_dir():
+			raise WorkspaceError(f"Locked artifact must be a file: {path}")
+		if path not in artifacts:
+			artifacts.append(path)
+	if not 0 <= args.wait <= 60:
+		raise WorkspaceError("--wait must be between 0 and 60 seconds")
+	if args.wait:
+		time.sleep(args.wait)
+
+	exact_exe_killed = kill_processes_with_executable(exe)
+	existing = [path for path in artifacts if path.exists()]
+	holder_pids, holder_query_error = locking_process_ids(existing)
+	records = windows_process_records()
+	recoverable = recoverable_build_processes(
+		records,
+		build,
+		exe,
+		set(holder_pids),
+	)
+	stopped = terminate_process_ids(recoverable)
+	if stopped:
+		time.sleep(1)
+
+	deleted = []
+	already_absent = []
+	delete_errors = {}
+	for path in artifacts:
+		if not path.exists():
+			already_absent.append(str(path))
+			continue
+		try:
+			path.unlink()
+			deleted.append(str(path))
+		except OSError as exception:
+			delete_errors[str(path)] = str(exception)
+
+	remaining = [path for path in artifacts if path.exists()]
+	remaining_holder_pids, remaining_query_error = locking_process_ids(remaining)
+	records_by_pid = {
+		record["pid"]: record for record in windows_process_records()
+	}
+	remaining_holders = [
+		records_by_pid.get(pid, {
+			"pid": pid,
+			"parent_pid": None,
+			"name": "",
+			"executable": "",
+			"command_line": "",
+		})
+		for pid in remaining_holder_pids
+	]
+	safe_to_retry = (
+		not delete_errors
+		and not remaining
+		and not remaining_holders
+	)
+	safety_basis = (
+		"all-named-artifacts-deleted-or-absent"
+		if safe_to_retry
+		else "named-artifact-or-holder-remains"
+	)
+	print(json.dumps({
+		"already_absent": already_absent,
+		"artifacts": [str(path) for path in artifacts],
+		"build_root": str(build),
+		"delete_errors": delete_errors,
+		"deleted": deleted,
+		"exact_exe_killed": exact_exe_killed,
+		"holder_query_error": holder_query_error,
+		"remaining_holder_query_error": remaining_query_error,
+		"remaining_holders": remaining_holders,
+		"safe_to_retry": safe_to_retry,
+		"safety_basis": safety_basis,
+		"stopped_processes": stopped,
+		"wait_seconds": args.wait,
+	}, indent=2, sort_keys=True))
+	if not safe_to_retry:
+		sys.exit(2)
+
+
 def parse_test_log(text):
 	steps = []
 	passed = []
@@ -2376,6 +2735,14 @@ def parse_args():
 	source_preflight.add_argument("--task", required=True)
 	source_preflight.add_argument("--exe")
 	source_preflight.set_defaults(handler=command_source_preflight)
+
+	build_lock_recover = subparsers.add_parser("build-lock-recover")
+	build_lock_recover.add_argument("--source-root", required=True)
+	build_lock_recover.add_argument("--build-root", required=True)
+	build_lock_recover.add_argument("--exe", required=True)
+	build_lock_recover.add_argument("--artifact", action="append", required=True)
+	build_lock_recover.add_argument("--wait", type=float, default=10.0)
+	build_lock_recover.set_defaults(handler=command_build_lock_recover)
 
 	overlay_save = subparsers.add_parser("overlay-save")
 	add_common_arguments(overlay_save)

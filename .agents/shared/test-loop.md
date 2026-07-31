@@ -73,9 +73,9 @@ macOS cached-language recovery below does not apply. Missing `test_TelegramForce
 global environment hard stop, not a task `Block`. An unmovable stale-report refusal is also a
 global environment hard stop, not a task `Block`: report the exact helper refusal, consume no
 implementation attempt, do not immediately retry it, and wait for the external lock or permission
-condition to be resolved. A file-lock build error (`LNK1104`, `C1041`, access denied, file in use)
-is likewise a repository hard stop: do not retry or work around it; ask the user to close the app
-and debugger.
+condition to be resolved. On Windows, recover a file-lock build error (`LNK1104`, `C1041`, access
+denied, file in use) through `.agents/shared/build-lock-recovery.md`; only an exhausted or unsafe
+recovery is a repository hard stop.
 
 ## Handoff tokens
 
@@ -453,9 +453,9 @@ bypass it with hand-built relative paths.
   run the in-binary overlay flow, collect its logs and widget/window grabs, assess them, and clean up.
   Do not try to unlock the session and do not return BLOCKED because the lock screen is present.
 - Build with `BUILD`. A single changed TU compiles fast; only the overlay-touched files + link
-  rebuild between rounds. Proactive path-scoped cleanup may run before the build. If the build reports
-  `LNK1104`, `C1041`, access denied, or file in use, follow `AGENTS.md`: stop immediately, do not
-  retry or attempt a workaround, and ask the user to close the app/debugger.
+  rebuild between rounds. On Windows, run the shared exact-path proactive cleanup before every
+  build. If the build reports `LNK1104`, `C1041`, access denied, or file in use, follow
+  `.agents/shared/build-lock-recovery.md` and retry within its bounded budget.
 - **Codegen does not track resource mtimes.** If the task changed only a resource the style codegen
   consumes (an icon `.svg`, etc.) without touching a `.style`, an incremental build will NOT re-pack
   it and the binary keeps the OLD asset. Before building such a task force regeneration — touch the

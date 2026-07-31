@@ -553,14 +553,16 @@ You are a build verification agent.
 Read these files:
 - <WORK_DIR>/context.md
 - <WORK_DIR>/plan.md
+- .agents/shared/build-lock-recovery.md
 
 The implementation is complete. Your job is to build the project and fix any build errors that block the planned work.
 
 Steps:
-1. Run the resolved Debug build command from context.md (`<BUILD>`) at the repository root. On WSL
+1. On native Windows, run the recovery contract's exact-path proactive cleanup.
+2. Run the resolved Debug build command from context.md (`<BUILD>`) at the repository root. On WSL
    this is the repository Docker entry point; do not run native Windows CMake against that tree.
-2. If the build succeeds, update plan.md: change `- [ ] Build verification` to `- [x] Build verification`
-3. If the build fails:
+3. If the build succeeds, update plan.md: change `- [ ] Build verification` to `- [x] Build verification`
+4. If the build fails:
    a. Read the error messages carefully
    b. Read the relevant source files
    c. Fix the errors in accordance with the plan and AGENTS.md conventions
@@ -570,7 +572,9 @@ Steps:
 Rules:
 - Only fix build errors. Do not refactor or improve code beyond what is needed for a passing build.
 - Follow AGENTS.md conventions.
-- If build fails with file-locked errors (C1041, LNK1104, "cannot open output file", or similar access-denied lock issues), stop and report the lock. Do not retry.
+- If the build fails with C1041, LNK1104, "cannot open output file", or a similar
+  access-denied lock, follow the shared bounded recovery contract. Do not edit
+  source to work around an environment lock.
 - You are not alone in the codebase. Respect existing changes and do not revert unrelated work.
 
 When finished, report the build result and which files, if any, you changed.
@@ -926,6 +930,7 @@ Read these files:
 - <WORK_DIR>/context.md
 - <WORK_DIR>/plan.md
 - <WORK_DIR>/review<R>.md
+- .agents/shared/build-lock-recovery.md
 
 Then read the source files mentioned in the review.
 
@@ -946,9 +951,11 @@ Rules:
   and report. An empty fix is a valid and complete outcome.
 
 After all changes are made:
-1. Run the resolved Debug build command from context.md (`<BUILD>`) at the repository root.
-2. If the build fails, fix build errors and rebuild until it passes.
-3. If build fails with file-locked errors (C1041, LNK1104, "cannot open output file", or similar access-denied lock issues), stop and report the lock. Do not retry.
+1. On native Windows, run the recovery contract's exact-path proactive cleanup.
+2. Run the resolved Debug build command from context.md (`<BUILD>`) at the repository root.
+3. If the build fails, fix build errors and rebuild until it passes.
+4. If the build fails with C1041, LNK1104, "cannot open output file", or a
+   similar access-denied lock, follow the shared bounded recovery contract.
 
 When finished, report what changes were made and which files you touched.
 ```

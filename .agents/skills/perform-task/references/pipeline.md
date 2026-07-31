@@ -252,8 +252,10 @@ Run sequentially:
 4. **Build.** Run the resolved Debug build in the performer. Fix only build
    errors belonging to the task. If the task changed only a resource consumed
    by codegen, force its documented regeneration so the Debug binary contains
-   the new resource. A file-lock/access-denied build error is an immediate
-   global hard stop with no retry or workaround.
+   the new resource. On Windows, run the exact-path proactive cleanup before
+   every build. Recover file-lock/access-denied failures through
+   `.agents/shared/build-lock-recovery.md`; only an exhausted or unsafe
+   recovery is a global hard stop.
 5. **Review.** Run the multi-lens review/fix loop from the phase prompts for up
    to three review iterations. Each iteration runs four independent lenses over
    the task diff — correctness, lifetime and ownership, reuse, structure — and
@@ -679,8 +681,9 @@ delays finishing the work actually in hand.
   proceed with independent work, but the next invocation retries it once before
   starting new shared work. A dirty/non-buildable checkout or global
   environment problem stops the current invocation.
-- A file-lock build error always stops immediately and asks the human to close
-  this checkout's Telegram/debugger.
+- A Windows file-lock build error follows the shared bounded exact-checkout
+  recovery. Only exhaustion or an unsafe/non-owned holder stops the run and
+  asks the human; the task remains `in-progress`.
 - A locked macOS session and the resulting unavailable Computer Use driver
   never stop or block the task; continue with the complete in-binary overlay
   flow.

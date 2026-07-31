@@ -16,6 +16,8 @@ Read these files completely before phase work:
 - `references/pipeline.md` for the authoritative end-to-end runner contract;
 - `references/phase-prompts.md` for exact leaf prompts and retry rules;
 - `.agents/shared/test-loop.md` for the implementation/test state machine;
+- `.agents/shared/build-lock-recovery.md` for bounded exact-checkout Windows
+  build-lock recovery;
 - `references/computer-use-testing.md` when UI-driver selection or operation is
   relevant.
 
@@ -112,6 +114,11 @@ A locked macOS session is not an environment stop or verification blocker.
 Skip interactive Computer Use and complete the same coverage through the
 in-binary overlay: drive the flow, log/assert, capture widgets or windows,
 quit, and assess the saved artifacts.
+
+A Windows build-output lock is not an immediate environment stop. Follow the
+shared bounded recovery contract, including exact-path cleanup before builds.
+Only its exhausted or unsafe outcome is a global hard stop; it never becomes a
+task `Block`.
 
 Do not report success from a source commit alone. The final AI commit must be
 canonical. Retry ordinary concurrent-master publication races until success.

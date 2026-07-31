@@ -289,9 +289,10 @@ After it returns, require one of:
 
 An interruption or environment stop never becomes a convenience `Block`.
 After a genuine `Block`, add the task id to `attempted_blocked` and continue
-with independent work. A dirty source checkout, file-lock build failure,
+with independent work. A dirty source checkout, a file-lock build failure that
+remains after `perform-task` exhausts the shared exact-checkout recovery,
 missing test account, unsafe publication conflict, or comparable global safety
-failure stops the loop.
+failure stops the loop. The first lock signature never stops the batch.
 
 The missing `test_TelegramForcePortable` golden account is the only
 portable-folder global stop. All live/real folder combinations must be

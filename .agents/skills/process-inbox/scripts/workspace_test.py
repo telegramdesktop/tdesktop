@@ -979,6 +979,167 @@ def run_test_run(exe, run_dir, **overrides):
 
 
 class MechanicsTest(unittest.TestCase):
+	def test_build_lock_recovery_selects_only_exact_owned_processes(self):
+		build = Path("C:/Telegram/twin/out")
+		exe = build / "Debug/Telegram.exe"
+		records = [
+			{
+				"pid": 10,
+				"parent_pid": 1,
+				"name": "cmake.exe",
+				"executable": "C:/Tools/cmake.exe",
+				"command_line": "cmake --build C:/Telegram/twin/out",
+			},
+			{
+				"pid": 11,
+				"parent_pid": 10,
+				"name": "cl.exe",
+				"executable": "C:/Tools/cl.exe",
+				"command_line": "cl @compile.rsp",
+			},
+			{
+				"pid": 12,
+				"parent_pid": 1,
+				"name": "mspdbsrv.exe",
+				"executable": "C:/Tools/mspdbsrv.exe",
+				"command_line": "mspdbsrv.exe",
+			},
+			{
+				"pid": 13,
+				"parent_pid": 1,
+				"name": "devenv.exe",
+				"executable": "C:/Tools/devenv.exe",
+				"command_line": "devenv.exe",
+			},
+			{
+				"pid": 14,
+				"parent_pid": 1,
+				"name": "Telegram.exe",
+				"executable": str(exe),
+				"command_line": str(exe),
+			},
+			{
+				"pid": 15,
+				"parent_pid": 1,
+				"name": "Telegram.exe",
+				"executable": "C:/Users/test/Telegram Desktop/Telegram.exe",
+				"command_line": "Telegram.exe",
+			},
+		]
+		selected = workspace.recoverable_build_processes(
+			records,
+			build,
+			exe,
+			{12, 13},
+		)
+		self.assertEqual(
+			{process["pid"] for process in selected},
+			{10, 11, 12, 14},
+		)
+
+	def test_build_lock_recovery_deletes_only_named_build_artifacts(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, _, _, _ = source_repo_with_task(root)
+			build = source / "out"
+			debug = build / "Debug"
+			debug.mkdir(parents=True)
+			(build / "CMakeCache.txt").write_text(
+				f"CMAKE_HOME_DIRECTORY:INTERNAL={source}\n",
+				encoding="utf-8",
+			)
+			exe = debug / "Telegram.exe"
+			obj = build / "Telegram.dir" / "locked.obj"
+			obj.parent.mkdir(parents=True)
+			exe.write_bytes(b"exe")
+			obj.write_bytes(b"obj")
+			records = [{
+				"pid": 22,
+				"parent_pid": 1,
+				"name": "mspdbsrv.exe",
+				"executable": "C:/Tools/mspdbsrv.exe",
+				"command_line": "mspdbsrv.exe",
+			}]
+			with (
+				mock.patch.object(
+					workspace,
+					"kill_processes_with_executable",
+					return_value=[21],
+				),
+				mock.patch.object(
+					workspace,
+					"locking_process_ids",
+					side_effect=[([22], None), ([], None)],
+				),
+				mock.patch.object(
+					workspace,
+					"windows_process_records",
+					return_value=records,
+				),
+				mock.patch.object(
+					workspace,
+					"terminate_process_ids",
+					return_value=[{
+						**records[0],
+						"reason": "direct-build-artifact-holder",
+						"stopped": True,
+						"error": None,
+					}],
+				) as terminate,
+			):
+				result = run_command(
+					workspace.command_build_lock_recover,
+					source_root=str(source),
+					build_root=str(build),
+					exe=str(exe),
+					artifact=[str(exe), str(obj)],
+					wait=0,
+				)
+			self.assertTrue(result["safe_to_retry"])
+			self.assertEqual(
+				result["safety_basis"],
+				"all-named-artifacts-deleted-or-absent",
+			)
+			self.assertEqual(result["exact_exe_killed"], [21])
+			self.assertEqual(
+				{Path(path) for path in result["deleted"]},
+				{exe, obj},
+			)
+			self.assertFalse(exe.exists())
+			self.assertFalse(obj.exists())
+			self.assertEqual(
+				{process["pid"] for process in terminate.call_args.args[0]},
+				{22},
+			)
+
+	def test_build_lock_recovery_rejects_artifact_outside_build_tree(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, _, _, _ = source_repo_with_task(root)
+			build = source / "out"
+			debug = build / "Debug"
+			debug.mkdir(parents=True)
+			(build / "CMakeCache.txt").write_text(
+				f"CMAKE_HOME_DIRECTORY:INTERNAL={source}\n",
+				encoding="utf-8",
+			)
+			exe = debug / "Telegram.exe"
+			exe.write_bytes(b"exe")
+			outside = source / "Telegram" / "outside.obj"
+			outside.write_bytes(b"obj")
+			with self.assertRaisesRegex(
+				workspace.WorkspaceError,
+				"outside the build root",
+			):
+				run_command(
+					workspace.command_build_lock_recover,
+					source_root=str(source),
+					build_root=str(build),
+					exe=str(exe),
+					artifact=[str(outside)],
+					wait=0,
+				)
+
 	def test_parse_env_values_requires_name_value_pairs(self):
 		self.assertEqual(
 			workspace.parse_env_values(["A=1", "B=x=y"]),
