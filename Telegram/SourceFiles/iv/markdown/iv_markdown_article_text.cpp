@@ -1523,7 +1523,8 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 		&& state->pressPending
 		&& lineRect.contains(state->pressPoint)) {
 		state->pressPending = false;
-		if (_presentation != InlineButtonPresentation::Link) {
+		if (!_disabled
+			&& _presentation != InlineButtonPresentation::Link) {
 			state->rippleRect = rect;
 			AddPillRipple(
 				&state->ripple,
