@@ -977,6 +977,14 @@ private:
 	static void StripEditModeWrapperEntities(RichPage::RichText &text);
 	static void StripEditModeWrapperEntities(
 		std::vector<RichPage::Block> &blocks);
+	[[nodiscard]] static bool ButtonTypeIsUserSendable(
+		HistoryMessageMarkupButton::Type type);
+	[[nodiscard]] static bool DegradeEditModeButton(
+		HistoryMessageMarkupButton &button);
+	[[nodiscard]] static bool DegradeEditModeInlineButtons(
+		TextWithEntities &text);
+	[[nodiscard]] static bool DegradeEditModeButtons(
+		std::vector<RichPage::Block> &blocks);
 
 	std::shared_ptr<RichPage> _richPage;
 	std::shared_ptr<Markdown::MediaRuntime> _mediaRuntime;

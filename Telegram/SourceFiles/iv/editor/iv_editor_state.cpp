@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/editor/iv_editor_state.h"
 #include "iv/editor/iv_editor_text_entities.h"
+#include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "lang/lang_keys.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/fields/input_field.h"
@@ -1495,6 +1496,7 @@ State::State(
 		_richPage->blocks.push_back(MakeParagraphBlock());
 	}
 	StripEditModeWrapperEntities(_richPage->blocks);
+	(void)DegradeEditModeButtons(_richPage->blocks);
 	rebuild();
 }
 
@@ -1534,6 +1536,9 @@ Result State::applyCheckedMutation(Result failure, Callback &&callback) {
 	const auto outcome = callback(candidate);
 	if (!outcome.apply) {
 		return outcome.result;
+	}
+	if (DegradeEditModeButtons(candidate._richPage->blocks)) {
+		candidate.rebuildPrepared();
 	}
 	if (const auto error = ValidateRichMessage(*candidate._richPage, _limits)) {
 		_lastLimitError = error;
@@ -1709,6 +1714,7 @@ TextWithEntities State::activeText() const {
 ApplyResult State::applyActiveText(TextWithEntities text) {
 	_lastLimitError = std::nullopt;
 	_lastPreparedMutationKind = PreparedMutationKind::None;
+	(void)DegradeEditModeInlineButtons(text);
 	return applyActiveTextWithLocalLimit(std::move(text));
 }
 
@@ -10334,6 +10340,86 @@ void State::StripEditModeWrapperEntities(
 			}
 		}
 	}
+}
+
+bool State::ButtonTypeIsUserSendable(HistoryMessageMarkupButton::Type type) {
+	using Type = HistoryMessageMarkupButton::Type;
+	switch (type) {
+	case Type::Url:
+	case Type::UserProfile:
+	case Type::CopyText:
+		return true;
+	}
+	return false;
+}
+
+bool State::DegradeEditModeButton(HistoryMessageMarkupButton &button) {
+	using Type = HistoryMessageMarkupButton::Type;
+	if ((button.type == Type::Disabled)
+		|| ButtonTypeIsUserSendable(button.type)) {
+		return false;
+	}
+	button = HistoryMessageMarkupButton(
+		Type::Disabled,
+		button.text,
+		button.visual);
+	return true;
+}
+
+bool State::DegradeEditModeInlineButtons(TextWithEntities &text) {
+	using Type = HistoryMessageMarkupButton::Type;
+	auto result = false;
+	for (auto &entity : text.entities) {
+		if (entity.type() != EntityType::CustomEmoji) {
+			continue;
+		}
+		auto parsed = Markdown::ParseInlineTextObjectEntity(entity.data());
+		if (!parsed) {
+			continue;
+		}
+		const auto button = std::get_if<
+			Markdown::InlineTextObjectButtonData>(&parsed->data);
+		if (!button
+			|| (button->type == Type::Disabled)
+			|| ButtonTypeIsUserSendable(button->type)) {
+			continue;
+		}
+		*button = Markdown::InlineTextObjectButtonData{
+			.label = std::move(button->label),
+			.type = Type::Disabled,
+			.color = button->color,
+			.link = button->link,
+		};
+		entity = EntityInText(
+			EntityType::CustomEmoji,
+			entity.offset(),
+			entity.length(),
+			Markdown::SerializeInlineTextObjectEntity(*parsed));
+		result = true;
+	}
+	return result;
+}
+
+bool State::DegradeEditModeButtons(std::vector<RichPage::Block> &blocks) {
+	auto result = false;
+	for (auto &block : blocks) {
+		result |= DegradeEditModeInlineButtons(block.text.text);
+		result |= DegradeEditModeInlineButtons(block.caption.text);
+		result |= DegradeEditModeButtons(block.blocks);
+		for (auto &item : block.listItems) {
+			result |= DegradeEditModeInlineButtons(item.text.text);
+			result |= DegradeEditModeButtons(item.blocks);
+		}
+		for (auto &row : block.tableRows) {
+			for (auto &cell : row.cells) {
+				result |= DegradeEditModeInlineButtons(cell.text.text);
+			}
+		}
+		for (auto &button : block.buttons) {
+			result |= DegradeEditModeButton(button.button);
+		}
+	}
+	return result;
 }
 
 bool CanEditRichPage(const RichPage &page) {
