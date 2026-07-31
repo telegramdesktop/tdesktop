@@ -9,6 +9,20 @@
 # On Windows it serves only systems without webauthn.dll (Win7/8/8.1,
 # Win10 < 1903); winhello.c is left out.
 
+if (DESKTOP_APP_USE_PACKAGED)
+    find_package(PkgConfig)
+    if (PkgConfig_FOUND)
+        pkg_check_modules(TDESKTOP_FIDO2 IMPORTED_TARGET libfido2)
+    endif()
+
+    if (TDESKTOP_FIDO2_FOUND)
+        add_library(lib_fido2 INTERFACE IMPORTED GLOBAL)
+        add_library(tdesktop::lib_fido2 ALIAS lib_fido2)
+        target_link_libraries(lib_fido2 INTERFACE PkgConfig::TDESKTOP_FIDO2)
+        return()
+    endif()
+endif()
+
 add_library(lib_fido2 STATIC)
 init_target(lib_fido2 "(external)")
 add_library(tdesktop::lib_fido2 ALIAS lib_fido2)
