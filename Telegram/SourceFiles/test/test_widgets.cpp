@@ -5,6 +5,8 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#ifdef _DEBUG
+
 #include "test/test_widgets.h"
 
 #include <QtGui/QMouseEvent>
@@ -68,3 +70,5 @@ void PressKey(
 }
 
 } // namespace Test
+
+#endif // _DEBUG

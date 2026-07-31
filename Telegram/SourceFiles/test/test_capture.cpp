@@ -5,6 +5,8 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#ifdef _DEBUG
+
 #include "test/test_capture.h"
 
 #include "test/test_log.h"
@@ -189,3 +191,5 @@ QImage ContactSheet(const std::vector<QImage> &images) {
 }
 
 } // namespace Test
+
+#endif // _DEBUG

@@ -5,6 +5,8 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#ifdef _DEBUG
+
 #include "test/test_open_handoff.h"
 
 #include "core/application.h"
@@ -250,3 +252,5 @@ OpenHandoff CheckOpenHandoff(
 }
 
 } // namespace Test
+
+#endif // _DEBUG

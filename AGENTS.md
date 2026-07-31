@@ -170,6 +170,13 @@ user to close that checkout's Telegram/debugger before rebuilding.
 ## Commits
 
 - Subject: one concise, plain-language line summarizing the change, ~50-60 characters, matching the style of recent `git log` subjects. This is usually the entire message.
+- For an `ai-tdesktop` task, start the subject with exactly `[ai] ` when the
+  retained task implementation changes permanent test-helper code, the agent
+  harness, or agent documentation in any way. This includes
+  `Telegram/SourceFiles/test/`, `.agents/`, `.claude/`, `AGENTS.md`,
+  `CLAUDE.md`, and files whose sole role is supporting those systems. Do not
+  count the disposable test overlay or external AI task artifacts. For every
+  other task, the subject must not contain `[ai]` anywhere.
 - For ordinary work not associated with an AI task, add a short plain-language body only when the subject can't carry it (what was done, not the technical how) — a line or two at most.
 - Never add a `Co-Authored-By:` line or any tool/assistant attribution trailer.
 - Never add `Autotask:`/attempt or other internal run markers. A commit owned by

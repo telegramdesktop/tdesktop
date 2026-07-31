@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "test/test_agent.h"
 
+#ifdef _DEBUG
+
 #include "test/test_log.h"
 #include "settings.h"
 #include "ui/style/style_core_scale.h"
@@ -22,11 +24,7 @@ namespace {
 } // namespace
 
 bool Active() {
-#ifdef _DEBUG
 	return cTestAgent();
-#else // _DEBUG
-	return false;
-#endif // _DEBUG
 }
 
 void ApplyStartupOverrides() {
@@ -59,3 +57,25 @@ bool HasFired(const QString &event) {
 }
 
 } // namespace Test
+
+#else // _DEBUG
+
+namespace Test {
+
+bool Active() {
+	return false;
+}
+
+void ApplyStartupOverrides() {
+}
+
+void Fire(const QString &) {
+}
+
+bool HasFired(const QString &) {
+	return false;
+}
+
+} // namespace Test
+
+#endif // _DEBUG

@@ -277,7 +277,8 @@ Run sequentially:
    ```bash
    python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
      source-commit --source-root SOURCE_ROOT --task TASK_ID \
-     --subject "<one concise plain-language subject>" --mark-green
+     --subject "<subject with the required conditional [ai] prefix>" \
+     --mark-green
    ```
 
    It verifies every dirty path against `work/owned-paths.txt` (plus the
@@ -376,10 +377,19 @@ unintended one can never slip into an attempt.
 Every implementation or implementation-fix commit message is exactly:
 
 ```text
-<one concise plain-language subject, about 50-60 characters>
+<conditional [ai] prefix><concise plain-language subject, about 50-60 characters>
 
 Task: <full TASK_ID>
 ```
+
+Determine the prefix from the retained task implementation, not from the
+temporary test overlay. Start the subject with exactly `[ai] ` when the task
+changes permanent test-helper code, the agent harness, or agent documentation
+in any way. This includes `Telegram/SourceFiles/test/`, `.agents/`, `.claude/`,
+`AGENTS.md`, `CLAUDE.md`, and files whose sole role is supporting those
+systems. The disposable test overlay and external AI task artifacts do not
+count. For every other task, the subject must not contain `[ai]` anywhere. The
+prefix counts toward the subject length.
 
 Do not add a body, `Autotask:`, attempt marker, `Co-Authored-By:`, assistant
 attribution, or any other trailer. Track rationale in the AI task. If a short

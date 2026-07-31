@@ -93,11 +93,17 @@ recovery is a repository hard stop.
 Impl commits must read like the repository's own history and carry only the durable task locator.
 Match the style of recent `git log` subjects.
 - **Subject:** one concise, plain-language line summarizing the change, ≤ ~50-60 characters. This is
-  the first line.
+  the first line. Start it with exactly `[ai] ` when the retained task implementation changes
+  permanent test-helper code, the agent harness, or agent documentation in any way; for every
+  other task, it must not contain `[ai]` anywhere. The prefix counts toward the length.
 - **Second line:** empty.
 - **Third line:** exactly `Task: <TASK_ID>`.
 - **Nothing else:** no explanatory body, `Autotask:`, attempt marker, `Co-Authored-By:`, or any
   tool/assistant attribution. The attempt number is runner state, never part of the message.
+
+The triggering scope includes `Telegram/SourceFiles/test/`, `.agents/`, `.claude/`, `AGENTS.md`,
+`CLAUDE.md`, and files whose sole role is supporting those systems. Classify the retained
+implementation only: the disposable test overlay and external AI task artifacts do not count.
 
 ## Test account (portable data) — hard rules
 

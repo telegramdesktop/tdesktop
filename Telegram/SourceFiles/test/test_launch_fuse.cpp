@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "test/test_launch_fuse.h"
 
+#ifdef _DEBUG
+
 #include "test/test_agent.h"
 #include "test/test_log.h"
 
@@ -47,3 +49,15 @@ void CheckNoBlockedLaunches(const QString &what) {
 }
 
 } // namespace Test
+
+#else // _DEBUG
+
+namespace Test {
+
+bool BlockLaunch(const QString &, const QString &) {
+	return false;
+}
+
+} // namespace Test
+
+#endif // _DEBUG

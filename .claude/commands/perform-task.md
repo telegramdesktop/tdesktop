@@ -11,6 +11,10 @@ the Claude adapter's delegation and text-handling substitutions. Resolve, start
 or resume, implement, verify, and publish only the named task. Do not
 continue with other queue work afterward.
 
+Apply the shared pipeline's conditional `[ai] ` commit-subject rule exactly;
+the prefix is required for permanent test-helper or agent harness/documentation
+changes and forbidden for every other task.
+
 Delegate phases with synchronous foreground Agent calls per the adapter; leaf
 phase agents receive self-contained prompts and are not told to read the
 adapter. Use the Agent tool for delegation; do not start Claude subprocesses
