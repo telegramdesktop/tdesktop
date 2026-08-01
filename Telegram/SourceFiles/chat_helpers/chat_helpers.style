@@ -1234,7 +1234,6 @@ historyComposeField: InputField(defaultInputField) {
 	duration: 100;
 }
 historyComposeFieldMaxHeight: 224px;
-historyRichMessagePreviewHeight: 72px;
 historyComposeFieldFadeHeight: 6px;
 historySendRight: 2px;
 historySendPadding: 9px;
@@ -1379,7 +1378,6 @@ historyRecordMinorBlobMaxRadius: 47px;
 historyRecordMajorBlobMinRadius: 43px;
 historyRecordMajorBlobMaxRadius: 50px;
 
-
 historyRecordLockTopShadow: icon {{ "voice_lock/record_lock_top_shadow", historyToDownShadow }};
 historyRecordLockTop: icon {{ "voice_lock/record_lock_top", historyToDownBg }};
 historyRecordLockBottomShadow: icon {{ "voice_lock/record_lock_bottom_shadow", historyToDownShadow }};
@@ -1394,7 +1392,6 @@ historyRecordDelete: IconButton(historyAttach) {
 	iconPosition: point(10px, 11px);
 }
 historyRecordWaveformBgMargins: margins(5px, 8px, 5px, 9px);
-
 
 historyRecordTooltip: ImportantTooltip(defaultImportantTooltip) {
 	padding: margins(4px, 4px, 4px, 4px);

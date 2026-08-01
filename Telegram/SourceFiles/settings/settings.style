@@ -427,12 +427,6 @@ settingsPeerToPeerSkip: 9px;
 
 settingsIconRadius: 6px;
 
-settingsReactionSize: 25px;
-settingsReactionRightSkip: 0px;
-settingsReactionCornerSize: size(28px, 22px);
-settingsReactionCornerSkip: point(11px, -6px);
-settingsReactionMessageSize: 18px;
-
 settingsReactionRightIcon: 20px;
 settingsReactionsIslandPadding: margins(12px, 12px, 12px, 4px);
 settingsReactionsFillerOpacity: 0.4;

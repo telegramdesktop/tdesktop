@@ -91,8 +91,6 @@ ivEditorBodyPadding: margins(0px, 8px, 0px, 8px);
 ivEditorToolbarButtonSize: 36px;
 ivEditorEmojiColumnCloseSize: 30px;
 ivEditorToolbarPadding: margins(9px, 10px, 9px, 10px);
-ivEditorToolbarDividerSkip: 6px;
-ivEditorToolbarDividerHeight: 18px;
 ivEditorToolbarGroupsSkip: 6px;
 ivEditorBottomControlsPadding: margins(9px, 10px, 9px, 10px);
 ivEditorPillPadding: 2px;
@@ -118,13 +116,7 @@ ivEditorPillShadow: BoxShadow {
 }
 ivEditorEmojiColumnCloseScrollSkip: 4px;
 ivEditorToolbarUndoIcon: icon {{ "menu/tabs_undo-24x24", menuIconColor }};
-ivEditorToolbarUndoIconOver: icon {{ "menu/tabs_undo-24x24", menuIconColor }};
-ivEditorToolbarUndoIconDisabled: icon {{ "menu/tabs_undo-24x24", windowSubTextFg }};
 ivEditorToolbarRedoIcon: icon {{ "menu/tabs_redo-24x24", menuIconColor }};
-ivEditorToolbarRedoIconOver: icon {{ "menu/tabs_redo-24x24", menuIconColor }};
-ivEditorToolbarRedoIconDisabled: icon {{ "menu/tabs_redo-24x24", windowSubTextFg }};
-ivEditorToolbarOverflowIcon: icon {{ "title_menu_dots", menuIconColor, point(0px, -2px) }};
-ivEditorToolbarOverflowIconOver: icon {{ "title_menu_dots", menuIconColor, point(0px, -2px) }};
 ivEditorToolbarBoldIcon: icon {{ "menu/rich/bold-24x24", menuIconColor }};
 ivEditorToolbarItalicIcon: icon {{ "menu/rich/italic-24x24", menuIconColor }};
 ivEditorToolbarUnderlineIcon: icon {{ "menu/rich/underline-24x24", menuIconColor }};
@@ -205,10 +197,6 @@ ivEditorBottomSaveSend: SendButton(historySend) {
 		rippleAreaPosition: point(0px, 0px);
 	}
 	sendIconFg: windowFgActive;
-}
-ivEditorToolbarOverflowButton: IconButton(ivEditorToolbarButton) {
-	icon: ivEditorToolbarOverflowIcon;
-	iconOver: ivEditorToolbarOverflowIconOver;
 }
 ivEditorEmojiColumnCloseIcon: icon {{ "simple_close", menuIconColor }};
 ivEditorEmojiColumnCloseIconOver: icon {{ "simple_close", menuIconColor }};
@@ -310,7 +298,6 @@ ivEditorTableDeleteRowsIcon: icon {{ "menu/rich/table_delete_row-24x24", menuIco
 ivEditorTableDeleteColumnsIcon: icon {{ "menu/rich/table_delete_column-24x24", menuIconColor }};
 ivEditorTableMergeIcon: icon {{ "menu/rich/table_merge-24x24", menuIconColor }};
 ivEditorTableSplitIcon: icon {{ "menu/rich/table_split-24x24", menuIconColor }};
-ivEditorInlineFieldMargins: margins(4px, 0px, 6px, 0px);
 ivEditorMinHeight: boxWidth;
 ivEditorInputField: InputField(defaultInputField) {
 	style: historyTextStyle;
