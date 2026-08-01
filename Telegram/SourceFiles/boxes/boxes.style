@@ -26,12 +26,10 @@ ShortInfoBox {
 	labeledOneLine: FlatLabel;
 }
 
-
 boxPhotoTitlePosition: point(28px, 20px);
 boxPhotoPadding: margins(28px, 28px, 28px, 18px);
 boxPhotoCompressedSkip: 20px;
 boxPhotoCaptionSkip: 8px;
-
 
 confirmPhoneAboutLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 272px;
@@ -43,7 +41,6 @@ aboutRevokePublicLabel: FlatLabel(defaultFlatLabel) {
 	align: align(topleft);
 	minWidth: 320px;
 }
-
 
 contactsPhotoSize: 42px;
 contactsPadding: margins(16px, 7px, 16px, 7px);
@@ -69,7 +66,6 @@ contactsSortHeaderHeight: 29px;
 contactsSortHeaderFont: font(13px);
 contactsSortHeaderPosition: point(16px, 7px);
 contactsSortHeaderFg: windowSubTextFg;
-
 
 membersMarginTop: 10px;
 membersMarginBottom: 10px;
@@ -113,10 +109,8 @@ localStorageRowSize: FlatLabel(defaultFlatLabel) {
 	}
 }
 
-
 localStorageIslandMargin: margins(12px, 10px, 12px, 0px);
 localStorageIslandRadius: 12px;
-
 
 shareBoxListItem: PeerListItem(defaultPeerListItem) {
 	nameStyle: TextStyle(defaultTextStyle) {
@@ -130,7 +124,6 @@ shareBoxListItem: PeerListItem(defaultPeerListItem) {
 	}
 }
 
-
 membersAboutLimitPadding: margins(0px, 16px, 0px, 16px);
 membersAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 240px;
@@ -143,12 +136,10 @@ fragmentBoxButton: RoundButton(introFragmentButton) {
 	width: 256px;
 }
 
-
 newGroupDescription: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 1px, 4px);
 	heightMax: 116px;
 }
-
 
 themeWarningWidth: boxWideWidth;
 themeWarningHeight: 150px;
@@ -180,7 +171,6 @@ confirmMaxHeight: 245px;
 supportInfoField: InputField(defaultInputField) {
 	heightMax: 256px;
 }
-
 
 langsRadio: Radio(defaultRadio) {
 	bg: boxBg;
@@ -253,7 +243,6 @@ CalendarColors {
 	titleTextColor: color;
 }
 
-
 usernamePadding: margins(24px, 2px, 24px, 10px);
 usernameSkip: 44px;
 
@@ -261,7 +250,6 @@ editMediaLabelMargins: margins(0px, 11px, 0px, 0px);
 editMediaCheckboxMargins: margins(0px, 15px, 23px, 15px);
 
 downloadPathSkip: 10px;
-
 
 changePhoneButton: RoundButton(defaultActiveButton) {
 	width: 256px;
@@ -286,7 +274,6 @@ changePhoneError: FlatLabel(changePhoneLabel) {
 
 normalBoxLottieSize: size(120px, 120px);
 
-
 proxyDropdownDownPosition: point(2px, 35px);
 proxyDropdownUpPosition: point(2px, 20px);
 
@@ -305,7 +292,6 @@ markdownLinkFieldPadding: margins(22px, 0px, 22px, 10px);
 markdownMathCheckboxMargin: margins(22px, 12px, 22px, 10px);
 markdownMathFieldMaxHeight: 140px;
 
-
 themesSmallSkip: 10px;
 themesMenuToggle: IconButton(defaultIconButton) {
 	width: 44px;
@@ -321,7 +307,6 @@ themesMenuToggle: IconButton(defaultIconButton) {
 }
 themesMenuPosition: point(2px, 25px);
 
-
 urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
 	width: 240px;
 }
@@ -329,7 +314,6 @@ urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
 blockUserConfirmation: FlatLabel(boxLabel) {
 	minWidth: 240px;
 }
-
 
 customBadgeField: InputField(defaultInputField) {
 	textMargins: margins(2px, 0px, 2px, 0px);
@@ -401,7 +385,6 @@ boxAttentionDividerLabel: FlatLabel(boxDividerLabel) {
 	textFg: boxTextFgError;
 }
 
-
 sponsoredUrlButtonSkip: 11px;
 sponsoredUrlButton: RoundButton(defaultActiveButton) {
 	height: 32px;
@@ -417,7 +400,6 @@ sponsoredUrlButton: RoundButton(defaultActiveButton) {
 
 	ripple: defaultRippleAnimationBgOver;
 }
-
 
 contactsWithStories: PeerList(peerListBox) {
 	padding: margins(0px, 0px, 0px, 0px);
@@ -508,7 +490,6 @@ birthdayLabel: FlatLabel(infoLabel) {
 }
 birthdayTodayIcon: icon {{ "menu/gift_premium", windowActiveTextFg }};
 
-
 collectibleCopy: RoundButton(defaultLightButton) {
 	height: 36px;
 	textTop: 9px;
@@ -547,7 +528,6 @@ foldersMenu: PopupMenu(popupMenuWithIcons) {
 	}
 }
 
-
 futureOwnerBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 14px);
 	buttonHeight: 0px;
@@ -565,17 +545,14 @@ disableSharingButtonLock: IconEmoji {
 	padding: margins(-2px, 1px, 0px, 0px);
 }
 
-
 managedBotIconEmoji: IconEmoji {
 	icon: icon {{ "chat/code_tags", windowSubTextFg }};
 	padding: margins(-2px, -2px, -2px, 0px);
 }
 
-
 aiComposeButtonBgActive: windowActiveTextFg;
 aiComposeButtonFg: windowBoldFg;
 aiComposeButtonFgActive: windowActiveTextFg;
-
 
 aiToneFieldPadding: margins(16px, 12px, 16px, 12px);
 aiToneFieldsMargin: margins(16px, 0px, 16px, 0px);
@@ -590,7 +567,6 @@ aiTonePromptField: InputField(newGroupDescription) {
 	heightMax: 240px;
 }
 
-
 aiComposeEmojifyCheckbox: Checkbox(defaultBoxCheckbox) {
 	textFg: windowSubTextFg;
 	textFgActive: windowSubTextFg;
@@ -600,7 +576,6 @@ aiComposeEmojifyCheckbox: Checkbox(defaultBoxCheckbox) {
 aiComposeExpandIcon: icon{{ "info/edit/expand_arrow_small", windowActiveTextFg }};
 
 aiComposeCopyIcon: icon{{ "menu/copy", windowActiveTextFg }};
-
 
 aiComposeBoxButton: RoundButton(defaultActiveButton) {
 	height: 42px;
@@ -620,8 +595,3 @@ aiComposeBoxClose: IconButton(boxTitleClose) {
 }
 
 createAiSelectorArrowsIcon: icon{{ "arrows_select", windowSubTextFg }};
-
-communityBoxManage: IconButton(boxTitleClose) {
-	icon: icon {{ "menu/manage", boxTitleCloseFg }};
-	iconOver: icon {{ "menu/manage", boxTitleCloseFgOver }};
-}
