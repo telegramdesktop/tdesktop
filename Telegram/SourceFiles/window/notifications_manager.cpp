@@ -175,7 +175,8 @@ base::options::toggle HideReplyButtonOption({
 }
 
 [[nodiscard]] bool AllowNotificationActions(not_null<PeerData*> peer) {
-	return Platform::IsMac() && peer->isNotificationsUser();
+	return (Platform::IsMac() || Platform::IsLinux())
+		&& peer->isNotificationsUser();
 }
 
 } // namespace
