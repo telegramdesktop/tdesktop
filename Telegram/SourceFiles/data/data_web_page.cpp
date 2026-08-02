@@ -59,7 +59,8 @@ namespace {
 			return true;
 		}, [&](const MTPDpageBlockVideo &data) {
 			const auto document = owner->document(data.vvideo_id().v);
-			if (!document->isVideoFile()) {
+			if (document->isVideoMessage()
+				|| (!document->isVideoFile() && !document->isAnimation())) {
 				return false;
 			}
 			result.items.emplace_back(document);

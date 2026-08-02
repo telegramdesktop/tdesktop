@@ -1139,9 +1139,9 @@ Storage::SharedMediaTypesMask MediaFile::sharedMediaTypes() const {
 }
 
 bool MediaFile::canBeGrouped() const {
-	if (_document->sticker() || _document->isAnimation()) {
+	if (_document->sticker() || _document->isVideoMessage()) {
 		return false;
-	} else if (_document->isVideoFile()) {
+	} else if (_document->isVideoFile() || _document->isAnimation()) {
 		return true;
 	} else if (_document->isTheme() && _document->hasThumbnail()) {
 		return false;
