@@ -43,6 +43,7 @@ class FlatLabel;
 class SettingsButton;
 class AbstractButton;
 class MediaSlider;
+class ToggleView;
 } // namespace Ui
 
 namespace Ui::Menu {
@@ -276,6 +277,15 @@ void CreateRightLabel(
 	const style::SettingsButton &st,
 	rpl::producer<QString> buttonText,
 	Ui::Text::MarkedContext context = {});
+
+struct SeparatedToggle {
+	not_null<Ui::SettingsButton*> button;
+	not_null<Ui::ToggleView*> checkView;
+};
+[[nodiscard]] SeparatedToggle AddSeparatedToggle(
+	not_null<Button*> button,
+	const style::SettingsButton &st,
+	bool checked);
 
 struct DividerWithLottieDescriptor {
 	QString lottie;
