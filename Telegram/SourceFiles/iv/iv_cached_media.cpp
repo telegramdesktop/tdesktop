@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_photo.h"
 #include "info/profile/info_profile_values.h"
+#include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_common.h"
 #include "iv/markdown/iv_markdown_history_view_media.h"
 #include "iv/markdown/iv_markdown_prepare.h"
@@ -58,6 +59,9 @@ namespace {
 
 constexpr auto kGeoPointScale = 1;
 constexpr auto kGeoPointZoomMin = 13;
+
+static_assert(
+	RichPage::kCollageMaxItems == HistoryView::GroupedMedia::kMaxSize);
 
 enum class CachedPagePhotoImageKind {
 	Thumbnail,
@@ -1486,13 +1490,14 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 		[session = _session, host, origin = fileOrigin()](
 				Window::SessionController *controller,
 				const Markdown::PreparedGroupedMediaBlockData &prepared) {
-			if (prepared.items.empty()
-				|| (int(prepared.items.size())
-					> HistoryView::GroupedMedia::kMaxSize)) {
-				return std::shared_ptr<Markdown::MediaBlock>();
-			}
 			const auto slideshow = (prepared.intent
 				== Markdown::PreparedGroupedMediaIntent::Slideshow);
+			if (prepared.items.empty()
+				|| (!slideshow
+					&& int(prepared.items.size())
+					> RichPage::kCollageMaxItems)) {
+				return std::shared_ptr<Markdown::MediaBlock>();
+			}
 			auto descriptor = Markdown::IvHistoryViewMediaDescriptor();
 			auto slideFactories = std::vector<
 				Markdown::IvHistoryViewMediaDescriptor::MediaFactory>();

@@ -2262,10 +2262,14 @@ bool State::groupPhotoVideoBlocks(
 			grouped.caption = std::move(source.caption);
 			grouped.anchorId = std::move(source.anchorId);
 		}
+		auto groupedBlocks = SplitGroupedMediaBlock(std::move(grouped));
 		blocks->erase(
 			blocks->begin() + range->from,
 			blocks->begin() + range->till);
-		blocks->insert(blocks->begin() + range->from, std::move(grouped));
+		blocks->insert(
+			blocks->begin() + range->from,
+			std::make_move_iterator(groupedBlocks.begin()),
+			std::make_move_iterator(groupedBlocks.end()));
 		candidate.rebuild();
 		return CheckedMutationResult<bool>{
 			.apply = true,
@@ -2395,7 +2399,14 @@ bool State::addItemsToGroupedMedia(
 			group.mediaItems.end(),
 			std::make_move_iterator(appended.begin()),
 			std::make_move_iterator(appended.end()));
-		blocks->erase(blocks->begin() + from, blocks->begin() + till);
+		auto groupedBlocks = SplitGroupedMediaBlock(std::move(group));
+		blocks->erase(
+			blocks->begin() + path.index,
+			blocks->begin() + till);
+		blocks->insert(
+			blocks->begin() + path.index,
+			std::make_move_iterator(groupedBlocks.begin()),
+			std::make_move_iterator(groupedBlocks.end()));
 		candidate.rebuild();
 		return CheckedMutationResult<bool>{
 			.apply = true,
@@ -2408,13 +2419,25 @@ bool State::setGroupedMediaIntent(
 		const BlockPath &path,
 		RichPage::GroupedMediaIntent intent) {
 	return applyCheckedMutation(false, [path, intent](State &candidate) {
-		auto *current = candidate.block(path);
-		if (!current || current->kind != BlockKind::GroupedMedia) {
-			return CheckedMutationResult<bool>{ .result = false };
-		} else if (current->mediaIntent == intent) {
+		auto *blocks = candidate.blockContainer(path.container);
+		if (!blocks
+			|| path.index < 0
+			|| path.index >= int(blocks->size())) {
 			return CheckedMutationResult<bool>{ .result = false };
 		}
-		current->mediaIntent = intent;
+		auto &current = (*blocks)[path.index];
+		if (current.kind != BlockKind::GroupedMedia) {
+			return CheckedMutationResult<bool>{ .result = false };
+		} else if (current.mediaIntent == intent) {
+			return CheckedMutationResult<bool>{ .result = false };
+		}
+		current.mediaIntent = intent;
+		auto groupedBlocks = SplitGroupedMediaBlock(std::move(current));
+		blocks->erase(blocks->begin() + path.index);
+		blocks->insert(
+			blocks->begin() + path.index,
+			std::make_move_iterator(groupedBlocks.begin()),
+			std::make_move_iterator(groupedBlocks.end()));
 		candidate.rebuild();
 		return CheckedMutationResult<bool>{
 			.apply = true,

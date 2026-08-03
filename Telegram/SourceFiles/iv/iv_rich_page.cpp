@@ -1173,6 +1173,64 @@ void AdoptLeadingParagraphListItemText(ListItem *item) {
 	item->blocks.erase(item->blocks.begin());
 }
 
+[[nodiscard]] Block ParseGroupedMediaBlock(
+		const QVector<MTPPageBlock> &items,
+		const MTPPageCaption &caption,
+		GroupedMediaIntent intent,
+		ParseContext *context) {
+	auto parsed = MakeBlock(BlockKind::GroupedMedia);
+	parsed.mediaIntent = intent;
+	parsed.mediaItems.reserve(items.size());
+	for (const auto &item : items) {
+		item.match([&](const MTPDpageBlockPhoto &row) {
+			const auto photoId = uint64(row.vphoto_id().v);
+			const auto size = FindPhotoSize(*context, photoId);
+			parsed.mediaItems.push_back({
+				.kind = BlockKind::Photo,
+				.photo = FindPhoto(*context, photoId),
+				.photoId = photoId,
+				.width = size.width(),
+				.height = size.height(),
+				.spoiler = row.is_spoiler(),
+			});
+		}, [&](const MTPDpageBlockVideo &row) {
+			const auto documentId = uint64(row.vvideo_id().v);
+			const auto info = FindDocumentInfo(*context, documentId);
+			parsed.mediaItems.push_back({
+				.kind = BlockKind::Video,
+				.document = FindDocument(*context, documentId),
+				.documentId = documentId,
+				.width = info.width,
+				.height = info.height,
+				.autoplay = row.is_autoplay(),
+				.loop = row.is_loop(),
+				.spoiler = row.is_spoiler(),
+			});
+		}, [](const auto &) {
+		});
+	}
+	parsed.caption = ParseCaption(caption, context);
+	AdoptAnchor(&parsed.anchorId, &parsed.caption);
+	return parsed;
+}
+
+void AppendGroupedMediaBlock(
+		const QVector<MTPPageBlock> &items,
+		const MTPPageCaption &caption,
+		GroupedMediaIntent intent,
+		std::vector<Block> *result,
+		ParseContext *context) {
+	auto blocks = SplitGroupedMediaBlock(ParseGroupedMediaBlock(
+		items,
+		caption,
+		intent,
+		context));
+	result->insert(
+		result->end(),
+		std::make_move_iterator(blocks.begin()),
+		std::make_move_iterator(blocks.end()));
+}
+
 void AppendBlocks(
 		const QVector<MTPPageBlock> &blocks,
 		std::vector<Block> *result,
@@ -1341,75 +1399,19 @@ void AppendBlock(
 		AdoptAnchor(&parsed.anchorId, &parsed.caption);
 		result->push_back(std::move(parsed));
 	}, [&](const MTPDpageBlockCollage &data) {
-		auto parsed = MakeBlock(BlockKind::GroupedMedia);
-		parsed.mediaIntent = GroupedMediaIntent::Collage;
-		parsed.mediaItems.reserve(data.vitems().v.size());
-		for (const auto &item : data.vitems().v) {
-			item.match([&](const MTPDpageBlockPhoto &row) {
-				const auto photoId = uint64(row.vphoto_id().v);
-				const auto size = FindPhotoSize(*context, photoId);
-				parsed.mediaItems.push_back({
-					.kind = BlockKind::Photo,
-					.photo = FindPhoto(*context, photoId),
-					.photoId = photoId,
-					.width = size.width(),
-					.height = size.height(),
-					.spoiler = row.is_spoiler(),
-				});
-			}, [&](const MTPDpageBlockVideo &row) {
-				const auto documentId = uint64(row.vvideo_id().v);
-				const auto info = FindDocumentInfo(*context, documentId);
-				parsed.mediaItems.push_back({
-					.kind = BlockKind::Video,
-					.document = FindDocument(*context, documentId),
-					.documentId = documentId,
-					.width = info.width,
-					.height = info.height,
-					.autoplay = row.is_autoplay(),
-					.loop = row.is_loop(),
-					.spoiler = row.is_spoiler(),
-				});
-			}, [](const auto &) {
-			});
-		}
-		parsed.caption = ParseCaption(data.vcaption(), context);
-		AdoptAnchor(&parsed.anchorId, &parsed.caption);
-		result->push_back(std::move(parsed));
+		AppendGroupedMediaBlock(
+			data.vitems().v,
+			data.vcaption(),
+			GroupedMediaIntent::Collage,
+			result,
+			context);
 	}, [&](const MTPDpageBlockSlideshow &data) {
-		auto parsed = MakeBlock(BlockKind::GroupedMedia);
-		parsed.mediaIntent = GroupedMediaIntent::Slideshow;
-		parsed.mediaItems.reserve(data.vitems().v.size());
-		for (const auto &item : data.vitems().v) {
-			item.match([&](const MTPDpageBlockPhoto &row) {
-				const auto photoId = uint64(row.vphoto_id().v);
-				const auto size = FindPhotoSize(*context, photoId);
-				parsed.mediaItems.push_back({
-					.kind = BlockKind::Photo,
-					.photo = FindPhoto(*context, photoId),
-					.photoId = photoId,
-					.width = size.width(),
-					.height = size.height(),
-					.spoiler = row.is_spoiler(),
-				});
-			}, [&](const MTPDpageBlockVideo &row) {
-				const auto documentId = uint64(row.vvideo_id().v);
-				const auto info = FindDocumentInfo(*context, documentId);
-				parsed.mediaItems.push_back({
-					.kind = BlockKind::Video,
-					.document = FindDocument(*context, documentId),
-					.documentId = documentId,
-					.width = info.width,
-					.height = info.height,
-					.autoplay = row.is_autoplay(),
-					.loop = row.is_loop(),
-					.spoiler = row.is_spoiler(),
-				});
-			}, [](const auto &) {
-			});
-		}
-		parsed.caption = ParseCaption(data.vcaption(), context);
-		AdoptAnchor(&parsed.anchorId, &parsed.caption);
-		result->push_back(std::move(parsed));
+		AppendGroupedMediaBlock(
+			data.vitems().v,
+			data.vcaption(),
+			GroupedMediaIntent::Slideshow,
+			result,
+			context);
 	}, [&](const MTPDpageBlockChannel &data) {
 		auto parsed = MakeBlock(BlockKind::Channel);
 		parsed.peer = context->session->data().processChat(data.vchannel()).get();
@@ -2298,6 +2300,39 @@ std::shared_ptr<const RichPage> ParsePage(
 }
 
 } // namespace
+
+std::vector<RichPage::Block> SplitGroupedMediaBlock(RichPage::Block block) {
+	if (block.kind != BlockKind::GroupedMedia
+		|| block.mediaIntent != GroupedMediaIntent::Collage
+		|| block.mediaItems.size() <= RichPage::kCollageMaxItems) {
+		auto result = std::vector<Block>();
+		result.push_back(std::move(block));
+		return result;
+	}
+	auto items = std::move(block.mediaItems);
+	auto caption = std::move(block.caption);
+	auto anchorId = std::move(block.anchorId);
+	auto result = std::vector<Block>();
+	result.reserve(
+		(items.size() + RichPage::kCollageMaxItems - 1)
+		/ RichPage::kCollageMaxItems);
+	for (auto from = 0; from < int(items.size());) {
+		const auto till = std::min(
+			from + RichPage::kCollageMaxItems,
+			int(items.size()));
+		auto slice = MakeBlock(BlockKind::GroupedMedia);
+		slice.mediaIntent = GroupedMediaIntent::Collage;
+		slice.mediaItems.insert(
+			slice.mediaItems.end(),
+			std::make_move_iterator(items.begin() + from),
+			std::make_move_iterator(items.begin() + till));
+		result.push_back(std::move(slice));
+		from = till;
+	}
+	result.back().caption = std::move(caption);
+	result.back().anchorId = std::move(anchorId);
+	return result;
+}
 
 bool RichPagesEqual(
 		const RichPage &a,

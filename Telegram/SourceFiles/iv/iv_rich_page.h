@@ -27,6 +27,8 @@ class Session;
 namespace Iv {
 
 struct RichPage {
+	static constexpr auto kCollageMaxItems = 10;
+
 	struct RichText {
 		TextWithEntities text;
 		QString anchorId;
@@ -274,6 +276,8 @@ inline constexpr auto kTextDiffDeletedColorIndex = 11;
 
 [[nodiscard]] RichMessageLimits ResolveRichMessageLimits(
 	not_null<Main::Session*> session);
+[[nodiscard]] std::vector<RichPage::Block> SplitGroupedMediaBlock(
+	RichPage::Block block);
 [[nodiscard]] bool RichPagesEqual(
 	const RichPage &a,
 	const RichPage &b);

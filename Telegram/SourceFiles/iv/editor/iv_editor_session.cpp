@@ -2620,7 +2620,7 @@ private:
 		return item;
 	}
 
-	[[nodiscard]] RichPage::Block makeGroupedAttachmentBlock(
+	[[nodiscard]] std::vector<RichPage::Block> makeGroupedAttachmentBlocks(
 			const std::vector<FullMsgId> &uploadIds) const {
 		auto block = RichPage::Block();
 		block.kind = RichPage::BlockKind::GroupedMedia;
@@ -2648,7 +2648,7 @@ private:
 		if (captionCount == 1) {
 			block.caption = ToRichText(std::move(caption));
 		}
-		return block;
+		return SplitGroupedMediaBlock(std::move(block));
 	}
 
 	[[nodiscard]] RichPage::Block makeMapBlock(::Data::InputVenue venue) const {
@@ -3407,7 +3407,11 @@ private:
 					}
 				}
 			} else {
-				blocks.push_back(makeGroupedAttachmentBlock(uploadIds));
+				auto grouped = makeGroupedAttachmentBlocks(uploadIds);
+				blocks.insert(
+					blocks.end(),
+					std::make_move_iterator(grouped.begin()),
+					std::make_move_iterator(grouped.end()));
 			}
 			emittedUploadIds.insert(
 				emittedUploadIds.end(),
