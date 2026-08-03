@@ -1274,7 +1274,7 @@ void WalletCommentBox(
 		st::walletSendFiatLabel);
 	rpl::combine(
 		std::move(entryFiat),
-		fiatIcon->widthValue()
+		fiatIcon->naturalWidthValue()
 	) | rpl::on_next([=](bool fiat, int labelWidth) {
 		icon->setVisible(!fiat);
 		fiatIcon->setVisible(fiat);
