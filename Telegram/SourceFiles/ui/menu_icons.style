@@ -264,6 +264,7 @@ mediaMenuIconTextStyleSemiTransparent: icon {{ "menu/text_style_semi-22x22", med
 
 menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};
+menuIconCommunityRemoveAttention: icon {{ "menu/community_remove-24x24", menuIconAttentionColor }};
 menuIconDisableAttention: icon {{ "menu/disable", menuIconAttentionColor }};
 menuIconReportAttention: icon {{ "menu/report", menuIconAttentionColor }};
 menuIconRestoreAttention: icon {{ "menu/restore", menuIconAttentionColor }};

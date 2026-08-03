@@ -1828,7 +1828,7 @@ void Controller::fillCommunitySection() {
 					.confirmStyle = &st::attentionBoxButton,
 				}));
 			},
-			{ &st::menuIconLeaveAttention },
+			{ &st::menuIconCommunityRemoveAttention },
 			st::manageGroupAttentionButton);
 		::AddSkip(container);
 	} else {
