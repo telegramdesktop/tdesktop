@@ -1,3 +1,7 @@
+7.0.8 (03.08.26)
+
+- Fix launch on some Windows 7 machines.
+
 7.0.7 (31.07.26)
 
 - Add geometric shapes to the image editor.
