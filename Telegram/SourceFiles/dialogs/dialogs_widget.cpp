@@ -4085,9 +4085,10 @@ bool Widget::applySearchState(SearchState state) {
 			return false;
 		}
 	} else if ((folder && folder == _openedFolder)
-		|| (community
+		|| (peer
 			&& _openedCommunity
-			&& community == _openedCommunity->channel())) {
+			&& (!community
+				|| community == _openedCommunity->channel()))) {
 		showSearchInTopBar(anim::type::normal);
 	} else if (peer && (_layout != Layout::Main)) {
 		return false;
