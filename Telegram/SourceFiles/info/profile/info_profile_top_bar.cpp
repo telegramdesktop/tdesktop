@@ -1375,10 +1375,12 @@ void TopBar::setupUserpicButton(
 				this,
 				st::popupMenuWithIcons);
 
-			(*menu)->addAction(
-				tr::lng_profile_open_photo(tr::now),
-				openPhoto,
-				&st::menuIconPhoto);
+			if (_peer->userpicPhotoId()) {
+				(*menu)->addAction(
+					tr::lng_profile_open_photo(tr::now),
+					openPhoto,
+					&st::menuIconPhoto);
+			}
 
 			if (canReport()) {
 				(*menu)->addAction(
