@@ -358,6 +358,7 @@ void ItemShape::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	if ((event->button() == Qt::LeftButton)
 		&& overBendHandle(event->pos())) {
 		raiseToTop();
+		resetDragging();
 		_bendDragging = true;
 		setCursor(Qt::ClosedHandCursor);
 		return;
@@ -366,6 +367,9 @@ void ItemShape::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void ItemShape::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+	if (!dragThresholdPassed(event)) {
+		return;
+	}
 	if (_bendDragging) {
 		updateBend(event->pos());
 		return;

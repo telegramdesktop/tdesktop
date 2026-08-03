@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QGraphicsSceneHoverEvent>
 #include <QGraphicsSceneMouseEvent>
 #include <QStyleOptionGraphicsItem>
+#include <QtWidgets/QApplication>
 #include <QtMath>
 
 namespace Editor {
@@ -147,6 +148,9 @@ void ItemBase::paintHandle(
 }
 
 void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+	if (!dragThresholdPassed(event)) {
+		return;
+	}
 	if (isHandling()) {
 		const auto mousePos = event->pos();
 		const auto shift = event->modifiers().testFlag(Qt::ShiftModifier);
@@ -193,6 +197,7 @@ void ItemBase::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 
 void ItemBase::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	raiseToTop();
+	resetDragging();
 	if (event->button() == Qt::LeftButton) {
 		_handle = handleType(event->pos());
 	}
@@ -338,6 +343,21 @@ QRectF ItemBase::leftHandleRect() const {
 
 bool ItemBase::isHandling() const {
 	return _handle != HandleType::None;
+}
+
+void ItemBase::resetDragging() {
+	_dragging = false;
+}
+
+bool ItemBase::dragThresholdPassed(
+		not_null<QGraphicsSceneMouseEvent*> event) {
+	if (!_dragging) {
+		const auto delta = event->screenPos()
+			- event->buttonDownScreenPos(Qt::LeftButton);
+		const auto distance = QApplication::startDragDistance();
+		_dragging = (delta.manhattanLength() >= distance);
+	}
+	return _dragging;
 }
 
 float64 ItemBase::size() const {
