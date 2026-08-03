@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "ui/widgets/separate_panel.h"
+#include "wallet/wallet_rates.h"
 
 namespace Wallet {
 namespace {
@@ -31,11 +32,16 @@ Session::Session(not_null<Main::Session*> session)
 : _session(session)
 , _api(session)
 , _feeEstimator(MakeFeeEstimator(&_api))
+, _rates(std::make_unique<Rates>(session))
 , _pollTimer([=] { pollTick(); }) {
 }
 
 Session::~Session() {
 	_panel = nullptr;
+}
+
+Rates &Session::rates() {
+	return *_rates;
 }
 
 Ui::SeparatePanel *Session::panel() const {

@@ -3954,4 +3954,20 @@ void Account::writePrefImpl<bool>(std::string_view key, bool value) {
 	writePrefGeneric(key, value ? "\x1"_q : QByteArray());
 }
 
+template <>
+std::optional<QString> Account::readPrefImpl<QString>(
+		std::string_view key) {
+	if (const auto data = readPrefGeneric(key)) {
+		return QString::fromUtf8(*data);
+	}
+	return {};
+}
+
+template <>
+void Account::writePrefImpl<QString>(
+		std::string_view key,
+		QString value) {
+	writePrefGeneric(key, value.toUtf8());
+}
+
 } // namespace Storage

@@ -51,6 +51,8 @@ struct CurrencyRule {
 	const QString &currency,
 	bool forceStripDotZero = false);
 [[nodiscard]] CurrencyRule LookupCurrencyRule(const QString &currency);
+[[nodiscard]] bool KnownCurrency(const QString &currency);
+[[nodiscard]] QString CurrencyName(const QString &currency);
 [[nodiscard]] QString FormatWithSeparators(
 	double amount,
 	int precision,

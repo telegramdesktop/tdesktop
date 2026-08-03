@@ -15,6 +15,8 @@ PRIVATE
     gram/api/gram_api_account.h
     gram/api/gram_api_history.cpp
     gram/api/gram_api_history.h
+    gram/api/gram_api_rates.cpp
+    gram/api/gram_api_rates.h
     gram/api/gram_api_request.cpp
     gram/api/gram_api_request.h
     gram/api/gram_api_send.cpp
@@ -67,6 +69,7 @@ PRIVATE
     gram/tests/gram_key_tests.cpp
     gram/tests/gram_link_tests.cpp
     gram/tests/gram_mnemonic_tests.cpp
+    gram/tests/gram_rates_tests.cpp
     gram/tests/gram_tests.h
     gram/tests/gram_tests_main.cpp
     gram/tests/gram_ton_tests.cpp

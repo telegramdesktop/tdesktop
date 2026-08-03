@@ -2165,6 +2165,8 @@ PRIVATE
     wallet/wallet_fiat.h
     wallet/wallet_panel.cpp
     wallet/wallet_panel.h
+    wallet/wallet_rates.cpp
+    wallet/wallet_rates.h
     wallet/wallet_session.cpp
     wallet/wallet_session.h
     webauthn/cable.h

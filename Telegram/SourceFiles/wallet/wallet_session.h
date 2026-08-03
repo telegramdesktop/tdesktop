@@ -27,6 +27,8 @@ class SeparatePanel;
 
 namespace Wallet {
 
+class Rates;
+
 enum class KeyState {
 	None,
 	Created,
@@ -97,6 +99,8 @@ public:
 	void stopPolling();
 	[[nodiscard]] bool pollingRequested() const;
 
+	[[nodiscard]] Rates &rates();
+
 	[[nodiscard]] Ui::SeparatePanel *panel() const;
 	void setPanel(std::unique_ptr<Ui::SeparatePanel> panel);
 
@@ -136,6 +140,7 @@ private:
 	const not_null<Main::Session*> _session;
 	Api _api;
 	const std::unique_ptr<FeeEstimator> _feeEstimator;
+	const std::unique_ptr<Rates> _rates;
 	base::Timer _pollTimer;
 
 	bool _loaded = false;

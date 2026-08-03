@@ -14,8 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/ton/gram_message.h"
 #include "gram/wallet/gram_wallet_v5.h"
 
-#include <QtCore/QFile>
-
 #include <vector>
 
 namespace Gram::Tests {
@@ -58,15 +56,6 @@ const auto kFixture0Q = u"0QDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53qZr"_q;
 
 [[nodiscard]] std::optional<KeyPair> FixtureKey() {
 	return MnemonicToKeyPair(FixtureWords(), MnemonicType::Ton);
-}
-
-[[nodiscard]] QByteArray ReadFixture(const QString &name) {
-	auto file = QFile(
-		QString::fromUtf8(GRAM_TEST_FIXTURES_PATH) + u"/"_q + name);
-	if (!file.open(QIODevice::ReadOnly)) {
-		return QByteArray();
-	}
-	return file.readAll().trimmed();
 }
 
 [[nodiscard]] TransferRequest FixtureTransferRequest(const Address &dest) {

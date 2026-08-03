@@ -13,8 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/api/gram_api_send.h"
 #include "gram/ton/gram_address.h"
 
-#include <QtCore/QFile>
-
 #include <vector>
 
 namespace Gram::Tests {
@@ -24,15 +22,6 @@ const auto kAcc1Raw = u"0:9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBA
 const auto kAcc2Raw = u"0:BC1B748F5D26B74D857798FF4DD4252A2B79CF51B232AE41BE1F19E8CD9547B7"_q;
 const auto kAcc1Enc = u"0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC"_q;
 const auto kAcc2Friendly = u"UQC8G3SPXSa3TYV3mP9N1CUqK3nPUbIyrkG-HxnozZVHt2Iv"_q;
-
-[[nodiscard]] QByteArray ReadFixture(const QString &name) {
-	auto file = QFile(
-		QString::fromUtf8(GRAM_TEST_FIXTURES_PATH) + u"/"_q + name);
-	if (!file.open(QIODevice::ReadOnly)) {
-		return QByteArray();
-	}
-	return file.readAll().trimmed();
-}
 
 [[nodiscard]] Address Acc1() {
 	const auto parsed = ParseAddress(kAcc1Raw);

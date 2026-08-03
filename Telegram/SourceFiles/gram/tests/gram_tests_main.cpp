@@ -26,6 +26,7 @@ namespace {
 	append(LinkChecks());
 	append(WalletChecks());
 	append(ApiChecks());
+	append(RatesChecks());
 	return result;
 }
 

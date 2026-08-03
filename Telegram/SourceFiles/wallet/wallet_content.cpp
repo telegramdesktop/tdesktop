@@ -36,11 +36,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/custom_emoji_helper.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/fields/password_input.h"
+#include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/menu/menu_common.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/labels.h"
@@ -59,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_fiat.h"
+#include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
 
 #include "styles/style_chat.h"
@@ -96,9 +101,8 @@ constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
 constexpr auto kIntroToastDuration = 4 * crl::time(1000);
 constexpr auto kCommentMaxBytes = 960;
-constexpr auto kFeeUsdDecimals = 5;
-constexpr auto kNanosInCent = 10'000'000LL;
-constexpr auto kMaxCents = 99'999'999'999LL;
+constexpr auto kFeeFiatDecimals = 5;
+constexpr auto kMaxFiatUnits = 999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 
 class Content final : public Ui::RpWidget {
@@ -409,7 +413,7 @@ void AddHistoryRow(
 void AddDetailsAmountHeader(
 		not_null<Ui::GenericBox*> box,
 		const Gram::TransferItem &item,
-		rpl::producer<float64> rate = nullptr) {
+		rpl::producer<FiatRate> rate = nullptr) {
 	const auto container = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
 		style::margins(
@@ -461,7 +465,7 @@ void AddDetailsAmountHeader(
 		const auto amountHeight = std::max(
 			majorSize.height(),
 			st::walletDetailsAmountMinorSkip + minorSize.height());
-		const auto withFiat = fiat && !fiat->isHidden();
+		const auto withFiat = (fiat != nullptr);
 		const auto width = std::max(
 			amountWidth,
 			withFiat ? fiat->width() : 0);
@@ -483,10 +487,8 @@ void AddDetailsAmountHeader(
 		}
 	};
 	if (fiat) {
-		std::move(rate) | rpl::on_next([=](float64 value) {
-			const auto text = FormatUsd(amountNano, value);
-			fiat->setText(text);
-			fiat->setVisible(!text.isEmpty());
+		std::move(rate) | rpl::on_next([=](const FiatRate &value) {
+			fiat->setText(FormatFiat(amountNano, value));
 			relayout();
 		}, fiat->lifetime());
 	}
@@ -547,24 +549,17 @@ void AddFeeTableRow(
 				st::windowActiveTextFg->c);
 		},
 	});
-	auto value = TonUsdRateValue(
+	auto value = FiatRateValue(
 		session
-	) | rpl::map([=](float64 rate) {
+	) | rpl::map([=](FiatRate rate) {
 		auto fee = diamond;
 		fee.append(QChar(' '));
 		if (approximate) {
 			fee.append(QChar('~'));
 		}
 		fee.append(Ui::FormatTonAmount(feeNano).full);
-		const auto usd = FormatUsd(
-			feeNano,
-			rate,
-			kFeeUsdDecimals,
-			true);
-		if (!usd.isEmpty()) {
-			fee.append(QChar(' '));
-			fee.append(usd);
-		}
+		fee.append(QChar(' '));
+		fee.append(FormatFiat(feeNano, rate, kFeeFiatDecimals, true));
 		return fee;
 	});
 	Ui::AddTableRow(
@@ -942,7 +937,7 @@ void WalletTransactionBox(
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 
-	AddDetailsAmountHeader(box, item, TonUsdRateValue(session));
+	AddDetailsAmountHeader(box, item, FiatRateValue(session));
 	AddDetailsComment(box, item);
 	AddDetailsTable(box, session, item);
 
@@ -1230,16 +1225,25 @@ void WalletCommentBox(
 		not_null<Ui::VerticalLayout*> container,
 		int64 value,
 		Fn<int()> fractionDigits,
-		rpl::producer<bool> dollar) {
+		rpl::producer<bool> entryFiat,
+		rpl::producer<QString> currency) {
 	const auto wrap = container->add(
 		object_ptr<Ui::FixedHeightWidget>(
 			container,
 			st::editTagField.heightMin),
 		st::boxRowPadding);
-	auto placeholder = rpl::duplicate(
-		dollar
-	) | rpl::map([](bool usd) {
-		return '0' + Ui::TonAmountSeparator() + (usd ? u"00"_q : u"0"_q);
+	auto placeholder = rpl::combine(
+		rpl::duplicate(entryFiat),
+		rpl::duplicate(currency)
+	) | rpl::map([](bool fiat, const QString &code) {
+		const auto fraction = fiat
+			? QString(Ui::LookupCurrencyRule(code).exponent, QChar('0'))
+			: u"0"_q;
+		auto result = u"0"_q;
+		if (!fraction.isEmpty()) {
+			result += Ui::TonAmountSeparator() + fraction;
+		}
+		return result;
 	});
 	const auto field = Ui::CreateTonAmountInput(
 		wrap,
@@ -1254,17 +1258,19 @@ void WalletCommentBox(
 		st::defaultFlatLabel,
 		st::defaultPopupMenu,
 		helper.context());
-	const auto dollarIcon = Ui::CreateChild<Ui::FlatLabel>(
+	const auto fiatIcon = Ui::CreateChild<Ui::FlatLabel>(
 		field.get(),
-		rpl::single(u"$"_q),
-		st::walletSendDollarLabel);
-	std::move(dollar) | rpl::on_next([=](bool usd) {
-		icon->setVisible(!usd);
-		dollarIcon->setVisible(usd);
+		std::move(currency) | rpl::map([](const QString &code) {
+			return Ui::CurrencyName(code);
+		}),
+		st::walletSendFiatLabel);
+	std::move(entryFiat) | rpl::on_next([=](bool fiat) {
+		icon->setVisible(!fiat);
+		fiatIcon->setVisible(fiat);
 	}, field->lifetime());
 	wrap->widthValue() | rpl::on_next([=](int width) {
 		icon->move(st::tonFieldIconPosition);
-		dollarIcon->move(st::tonFieldIconPosition);
+		fiatIcon->move(st::tonFieldIconPosition);
 		field->move(0, 0);
 		field->resize(width, field->height());
 		wrap->resize(width, field->height());
@@ -1297,12 +1303,13 @@ void WalletSendAmountBox(
 		rpl::variable<QString> comment;
 		base::unique_qptr<Ui::PopupMenu> menu;
 		bool feeApproximate = true;
-		rpl::variable<float64> rate = 0.;
-		rpl::variable<bool> entryUsd = false;
+		rpl::variable<FiatRate> rate;
+		rpl::variable<bool> entryFiat = false;
+		QString previousCurrency;
 		bool settingUnitText = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	state->rate = TonUsdRateValue(&show->session());
+	state->rate = FiatRateValue(&show->session());
 	state->comment = flow.comment;
 	const auto setComment = crl::guard(box, [=](QString comment) {
 		state->comment = comment;
@@ -1312,8 +1319,16 @@ void WalletSendAmountBox(
 	const auto field = AddAmountField(
 		box->verticalLayout(),
 		std::min(flow.amountNano, kMaxAmountNano),
-		[=] { return state->entryUsd.current() ? 2 : 9; },
-		state->entryUsd.value());
+		[=] {
+			return state->entryFiat.current()
+				? Ui::LookupCurrencyRule(
+					state->rate.current().currency).exponent
+				: 9;
+		},
+		state->entryFiat.value(),
+		state->rate.value() | rpl::map([](const FiatRate &rate) {
+			return rate.currency;
+		}) | rpl::distinct_until_changed());
 	box->setFocusCallback([=] {
 		field->setFocusFast();
 	});
@@ -1325,12 +1340,12 @@ void WalletSendAmountBox(
 		const auto parsed = Ui::ParseTonAmountString(
 			field->getLastText()).value_or(0);
 		const auto rate = state->rate.current();
-		state->amount = !state->entryUsd.current()
+		state->amount = !state->entryFiat.current()
 			? parsed
-			: (rate > 0.)
+			: rate.available()
 			? std::min(
 				int64(std::clamp(
-					base::SafeRound(double(parsed) / rate),
+					base::SafeRound(double(parsed) / rate.perGram),
 					0.,
 					double(kMaxAmountNano))),
 				kMaxAmountNano)
@@ -1341,29 +1356,26 @@ void WalletSendAmountBox(
 
 	const auto renderUnitText = [=] {
 		const auto amount = state->amount.current();
-		if (!state->entryUsd.current()) {
+		if (!state->entryFiat.current()) {
 			return amount
 				? Ui::FormatTonAmount(
 					amount,
 					Ui::TonFormatFlag::Simple).full
 				: QString();
 		}
-		const auto cents = int64(std::min(
-			base::SafeRound(
-				amount * state->rate.current() / double(kNanosInCent)),
-			double(kMaxCents)));
-		return cents
+		const auto rate = state->rate.current();
+		const auto quantum = FiatMinorUnitNanos(rate.currency);
+		const auto maxUnits = kMaxFiatUnits * (Ui::kNanosInOne / quantum);
+		const auto units = int64(std::min(
+			base::SafeRound(amount * rate.perGram / double(quantum)),
+			double(maxUnits)));
+		return units
 			? Ui::FormatTonAmount(
-				cents * kNanosInCent,
+				units * quantum,
 				Ui::TonFormatFlag::Simple).full
 			: QString();
 	};
-	const auto switchEntryUnit = [=](bool usd) {
-		if (state->entryUsd.current() == usd
-			|| (usd && state->rate.current() <= 0.)) {
-			return;
-		}
-		state->entryUsd = usd;
+	const auto setUnitText = [=] {
 		state->settingUnitText = true;
 		Ui::PostponeCall(field, [=] {
 			state->settingUnitText = false;
@@ -1371,11 +1383,27 @@ void WalletSendAmountBox(
 		field->setText(renderUnitText());
 		field->setFocusFast();
 	};
-	state->rate.value() | rpl::on_next([=](float64 rate) {
-		if (rate <= 0.) {
+	const auto switchEntryUnit = [=](bool fiat) {
+		if (state->entryFiat.current() == fiat
+			|| (fiat && !state->rate.current().available())) {
+			return;
+		}
+		state->entryFiat = fiat;
+		setUnitText();
+	};
+	state->previousCurrency = state->rate.current().currency;
+	state->rate.value() | rpl::on_next([=](const FiatRate &now) {
+		const auto currencyChanged
+			= (now.currency != state->previousCurrency);
+		state->previousCurrency = now.currency;
+		if (!now.available()) {
 			switchEntryUnit(false);
-		} else if (state->entryUsd.current()) {
-			updateAmount();
+		} else if (state->entryFiat.current()) {
+			if (currencyChanged) {
+				setUnitText();
+			} else {
+				updateAmount();
+			}
 		}
 	}, box->lifetime());
 
@@ -1421,21 +1449,23 @@ void WalletSendAmountBox(
 	Ui::AddSkip(pillInner, st::walletSendRowSkip);
 	auto pillText = rpl::combine(
 		state->amount.value(),
-		state->entryUsd.value(),
+		state->entryFiat.value(),
 		state->rate.value()
-	) | rpl::map([](int64 amount, bool usd, float64 rate) {
-		if (rate <= 0.) {
+	) | rpl::map([](int64 amount, bool fiat, const FiatRate &rate) {
+		if (!rate.available()) {
 			return QString();
 		}
-		auto text = usd
+		auto text = fiat
 			? tr::lng_wallet_send_pill_gram(
 				tr::now,
 				lt_amount,
 				Ui::FormatTonAmount(amount).full)
-			: tr::lng_wallet_send_pill_usd(
+			: tr::lng_wallet_send_pill_fiat(
 				tr::now,
 				lt_amount,
-				FormatUsd(amount, rate).mid(1));
+				FormatFiatAmount(amount, rate),
+				lt_code,
+				rate.currency);
 		return (amount > 0) ? (QChar('~') + text) : text;
 	});
 	const auto pill = pillInner->add(
@@ -1447,11 +1477,11 @@ void WalletSendAmountBox(
 		style::al_top);
 	pill->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
 	pill->setClickedCallback([=] {
-		switchEntryUnit(!state->entryUsd.current());
+		switchEntryUnit(!state->entryFiat.current());
 	});
 	pillWrap->toggleOn(state->rate.value(
-	) | rpl::map([](float64 rate) {
-		return rate > 0.;
+	) | rpl::map([](const FiatRate &rate) {
+		return rate.available();
 	}));
 	pillWrap->finishAnimating();
 
@@ -2518,11 +2548,9 @@ void Card::setupBalance() {
 
 	rpl::combine(
 		_show->session().wallet().balanceNanoValue(),
-		TonUsdRateValue(&_show->session())
-	) | rpl::on_next([=](int64 nano, float64 rate) {
-		const auto text = FormatUsd(nano, rate);
-		_fiat->setText(text);
-		_fiat->setVisible(!text.isEmpty());
+		FiatRateValue(&_show->session())
+	) | rpl::on_next([=](int64 nano, FiatRate rate) {
+		_fiat->setText(FormatFiat(nano, rate));
 	}, lifetime());
 
 	rpl::combine(
@@ -2876,17 +2904,70 @@ void Content::paintEvent(QPaintEvent *e) {
 	QPainter(this).fillRect(e->rect(), st::windowBg);
 }
 
-} // namespace
-
-base::unique_qptr<Ui::RpWidget> CreateContent(
-		not_null<Ui::RpWidget*> parent,
-		std::shared_ptr<Main::SessionShow> show) {
-	return base::make_unique_q<Content>(parent.get(), std::move(show));
+[[nodiscard]] base::unique_qptr<Ui::Menu::ItemBase> MakeNavigationItem(
+		not_null<Ui::PopupMenu*> menu,
+		const QString &text,
+		const style::icon *icon,
+		Fn<void()> handler) {
+	auto result = base::make_unique_q<Ui::Menu::Action>(
+		menu->menu(),
+		menu->menu()->st(),
+		Ui::Menu::CreateAction(menu->menu(), text, std::move(handler)),
+		icon,
+		icon);
+	result->setPreventClose(true);
+	return result;
 }
 
-void FillMenu(
+[[nodiscard]] Ui::PopupMenu *FillCurrencyPage(
 		std::shared_ptr<Main::SessionShow> show,
 		const Ui::Menu::MenuCallback &addAction) {
+	auto result = (Ui::PopupMenu*)nullptr;
+	addAction({
+		.make = [&](not_null<Ui::PopupMenu*> popupMenu) {
+			result = popupMenu;
+			return MakeNavigationItem(
+				popupMenu,
+				Ui::Text::FixAmpersandInAction(
+					tr::lng_create_group_back(tr::now)),
+				&st::walletMenuBackIcon,
+				[=] {
+					popupMenu->swapStashed(
+						Ui::PopupMenu::SwitchDirection::RightToLeft);
+				});
+		},
+	});
+	auto &rates = show->session().wallet().rates();
+	const auto active = rates.current().currency;
+	for (const auto &code : rates.currencies()) {
+		const auto name = Ui::CurrencyName(code);
+		addAction(
+			(name == code) ? code : (code + u"\t"_q + name),
+			[=] { show->session().wallet().rates().setCurrency(code); },
+			(code == active) ? &st::menuIconSelect : nullptr);
+	}
+	return result;
+}
+
+void FillWalletPage(
+		std::shared_ptr<Main::SessionShow> show,
+		const Ui::Menu::MenuCallback &addAction) {
+	const auto currency = show->session().wallet().rates().current().currency;
+	addAction({
+		.make = [=](not_null<Ui::PopupMenu*> popupMenu) {
+			return MakeNavigationItem(
+				popupMenu,
+				(Ui::Text::FixAmpersandInAction(
+					tr::lng_wallet_menu_currency(tr::now))
+					+ u"\t"_q
+					+ currency),
+				&st::walletMenuCurrencyIcon,
+				[=] {
+					popupMenu->swapStashed(
+						Ui::PopupMenu::SwitchDirection::LeftToRight);
+				});
+		},
+	});
 	addAction(
 		Ui::Text::FixAmpersandInAction(tr::lng_wallet_keys_title(tr::now)),
 		[=] {
@@ -2902,6 +2983,24 @@ void FillMenu(
 		Ui::Text::FixAmpersandInAction(tr::lng_wallet_how_menu(tr::now)),
 		[=] { show->showBox(Box(WalletHowItWorksBox)); },
 		&st::menuIconFaq);
+}
+
+} // namespace
+
+base::unique_qptr<Ui::RpWidget> CreateContent(
+		not_null<Ui::RpWidget*> parent,
+		std::shared_ptr<Main::SessionShow> show) {
+	return base::make_unique_q<Content>(parent.get(), std::move(show));
+}
+
+void FillMenu(
+		std::shared_ptr<Main::SessionShow> show,
+		const Ui::Menu::MenuCallback &addAction) {
+	const auto menu = FillCurrencyPage(show, addAction);
+	Assert(menu != nullptr);
+	menu->stashContent([=](not_null<Ui::PopupMenu*> page) {
+		FillWalletPage(show, Ui::Menu::CreateAddActionCallback(page));
+	});
 }
 
 bool TransferLinkValid(const QString &url) {

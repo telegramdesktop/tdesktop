@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 
 #include <QtCore/QByteArray>
+#include <QtCore/QFile>
 
 #include <vector>
 
@@ -32,6 +33,15 @@ struct Check {
 		+ QString::fromLatin1(expectedHex);
 }
 
+[[nodiscard]] inline QByteArray ReadFixture(const QString &name) {
+	auto file = QFile(
+		QString::fromUtf8(GRAM_TEST_FIXTURES_PATH) + u"/"_q + name);
+	if (!file.open(QIODevice::ReadOnly)) {
+		return QByteArray();
+	}
+	return file.readAll().trimmed();
+}
+
 [[nodiscard]] std::vector<Check> CryptoChecks();
 [[nodiscard]] std::vector<Check> KeyChecks();
 [[nodiscard]] std::vector<Check> MnemonicChecks();
@@ -39,5 +49,6 @@ struct Check {
 [[nodiscard]] std::vector<Check> LinkChecks();
 [[nodiscard]] std::vector<Check> WalletChecks();
 [[nodiscard]] std::vector<Check> ApiChecks();
+[[nodiscard]] std::vector<Check> RatesChecks();
 
 } // namespace Gram::Tests

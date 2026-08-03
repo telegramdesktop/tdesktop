@@ -189,9 +189,7 @@ QString FillAmountAndCurrency(
 		? QString::fromUtf8("\xe2\x88\x92")
 		: QString();
 	const auto value = std::abs(amount) / std::pow(10., rule.exponent);
-	const auto name = (*rule.international)
-		? QString::fromUtf8(rule.international)
-		: currency;
+	const auto name = CurrencyName(currency);
 	auto result = prefix;
 	if (rule.left) {
 		result.append(name);
@@ -213,7 +211,9 @@ QString FillAmountAndCurrency(
 	return result;
 }
 
-CurrencyRule LookupCurrencyRule(const QString &currency) {
+namespace {
+
+[[nodiscard]] const base::flat_map<QString, CurrencyRule> &CurrencyRulesMap() {
 	static const auto kRules = std::vector<std::pair<QString, CurrencyRule>>{
 		{ u"AED"_q, { "", ',', '.', true, true } },
 		{ u"AFN"_q, {} },
@@ -376,8 +376,26 @@ CurrencyRule LookupCurrencyRule(const QString &currency) {
 		});
 		return base::flat_map<QString, CurrencyRule>(begin(list), end(list));
 	}();
-	const auto i = kRulesMap.find(currency);
-	return (i != end(kRulesMap)) ? i->second : CurrencyRule{};
+	return kRulesMap;
+}
+
+} // namespace
+
+CurrencyRule LookupCurrencyRule(const QString &currency) {
+	const auto &map = CurrencyRulesMap();
+	const auto i = map.find(currency);
+	return (i != end(map)) ? i->second : CurrencyRule{};
+}
+
+bool KnownCurrency(const QString &currency) {
+	return CurrencyRulesMap().contains(currency);
+}
+
+QString CurrencyName(const QString &currency) {
+	const auto rule = LookupCurrencyRule(currency);
+	return (*rule.international)
+		? QString::fromUtf8(rule.international)
+		: currency;
 }
 
 [[nodiscard]] QString FormatWithSeparators(

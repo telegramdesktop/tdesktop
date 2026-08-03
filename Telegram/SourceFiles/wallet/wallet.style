@@ -10,6 +10,8 @@ using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
 
 walletMenuIcon: icon{{ "menu/wallet-24x24", menuIconColor }};
+walletMenuCurrencyIcon: icon{{ "settings/language", menuIconColor }};
+walletMenuBackIcon: icon{{ "emoji/emoji_back", menuIconColor }};
 
 walletContentWidth: 332px;
 walletPanelSize: size(392px, 600px);
@@ -174,7 +176,7 @@ walletSendSwapPill: RoundButton(walletSendPaste) {
 	icon: icon{{ "arrows_select", windowActiveTextFg }};
 	iconPosition: point(-6px, 7px);
 }
-walletSendDollarLabel: FlatLabel(defaultFlatLabel) {
+walletSendFiatLabel: FlatLabel(defaultFlatLabel) {
 	textFg: currencyFg;
 	style: semiboldTextStyle;
 }
