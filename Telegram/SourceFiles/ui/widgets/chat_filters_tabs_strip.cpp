@@ -365,6 +365,14 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		}
 	};
 
+	slider->accessibilitySectionBrowsed(
+	) | rpl::on_next([=](int index) {
+		// Browsing with a screen reader moves between sections without
+		// activating them, so nothing else scrolls the strip; keep the
+		// browsed section visible.
+		scrollToIndex(index, anim::type::normal);
+	}, slider->lifetime());
+
 	const auto applyFilter = [=](const Data::ChatFilter &filter) {
 		if (slider->reordering()) {
 			return;
