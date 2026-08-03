@@ -2458,6 +2458,13 @@ QSize Gif::countFrameSize() const {
 	auto frameh = animating ? _gif->height() : contentHeight();
 	const auto height = st::inlineMediaHeight;
 	const auto maxSize = st::maxStickerSize;
+	if (framew <= 0 || frameh <= 0) {
+		framew = contentWidth();
+		frameh = contentHeight();
+	}
+	if (framew <= 0 || frameh <= 0) {
+		return { _width, height };
+	}
 	if (framew * height > frameh * _width) {
 		if (framew < maxSize || frameh > height) {
 			if (frameh > height || (framew * height / frameh) <= maxSize) {
