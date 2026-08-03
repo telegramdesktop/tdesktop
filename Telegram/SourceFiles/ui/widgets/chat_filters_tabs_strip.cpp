@@ -230,6 +230,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			trackActiveFilterAndUnreadAndReorder
 				? st::dialogsSearchTabs
 				: st::chatsFiltersTabs));
+	slider->setAccessibleName(tr::lng_filters_title(tr::now));
 	const auto state = wrap->lifetime().make_state<State>();
 	const auto reassignUnreadValue = [=] {
 		state->reorderLifetime.destroy();
