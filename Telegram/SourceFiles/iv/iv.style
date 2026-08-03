@@ -969,7 +969,7 @@ defaultMarkdownInlineButton: MarkdownInlineButton {
 	tintBgOpacity: markdownButtonRowTintBgOpacity;
 	disabledOpacity: markdownInlineButtonDisabledOpacity;
 	disabledPrimaryOpacity: markdownInlineButtonDisabledPrimaryOpacity;
-	maxWidth: 408px;
+	maxWidth: msgMaxWidth - msgPadding.leftRight;
 }
 markdownFootnoteBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 0px);
