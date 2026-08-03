@@ -164,6 +164,7 @@ struct MarkdownArticleHorizontalScrollLookup {
 		bool rtl) {
 	auto result = CachedTextLeafSourceSignature();
 	result.dependsOnMediaRuntime = TextDependsOnMediaRuntime(text);
+	result.dependsOnInlineButtonColumn = TextHasInlineButton(text);
 	result.text = std::move(text);
 	result.minResizeWidth = minResizeWidth;
 	result.styleKey = TextStyleKey(textStyle);
@@ -276,12 +277,13 @@ void StoreCachedTextLeaf(
 	*leaf = Ui::Text::String();
 }
 
-void PruneMediaRuntimeBoundCachedTextLeafs(CachedTextLeafPool *pool) {
+template <typename Predicate>
+void PruneCachedTextLeafs(CachedTextLeafPool *pool, Predicate &&unusable) {
 	if (!pool) {
 		return;
 	}
 	for (auto i = pool->entries.begin(); i != pool->entries.end();) {
-		if (i->second.source.dependsOnMediaRuntime) {
+		if (unusable(i->second.source)) {
 			i = pool->entries.erase(i);
 		} else {
 			++i;
@@ -3801,6 +3803,8 @@ private:
 		int left);
 
 	void finalizeRelayout(int heightBottom);
+	[[nodiscard]] int inlineButtonWidthCap() const;
+	void publishInlineButtonWidthCap();
 	void relayout(int width);
 	void relayoutRetained(int width);
 	void retainBlocks();
@@ -3819,6 +3823,7 @@ private:
 	Fn<void(QRect)> _textRepaintRect;
 	Fn<bool(const ClickContext&)> _textSpoilerLinkFilter;
 	int _width = -1;
+	int _relayoutWidth = 1;
 	int _laidOutWidth = 0;
 	int _height = 0;
 	int _layoutGeneration = 0;
@@ -3926,7 +3931,11 @@ void MarkdownArticle::Impl::setContent(MarkdownArticleContent content) {
 		&_cachedTextLeafs,
 		contentRtl());
 	if (!reuseMediaBlocks) {
-		PruneMediaRuntimeBoundCachedTextLeafs(&_cachedTextLeafs);
+		PruneCachedTextLeafs(
+			&_cachedTextLeafs,
+			[](const CachedTextLeafSourceSignature &source) {
+				return source.dependsOnMediaRuntime;
+			});
 	}
 	if (reuseMediaBlocks) {
 		auto oldMediaBlocks = MediaBlockStorage();
@@ -6089,11 +6098,12 @@ void MarkdownArticle::Impl::endHorizontalScroll() {
 	_activeHorizontalScrollDrag.reset();
 }
 
-// The laid out width is passed through the _width field, assigned by the
-// callers right before the call, instead of a parameter, because GCC 15
-// IPA-CP with LTO wrongly constant-folded such a parameter to 1 (the lower
-// bound of the std::max(width, 1) clamps in the callers), collapsing rich
-// message bubbles to the minimum width in release Linux builds.
+// The laid out width is passed to these relayout helpers through the _width
+// and _relayoutWidth fields, assigned by the callers right before the call,
+// instead of a parameter, because GCC 15 IPA-CP with LTO wrongly
+// constant-folded such a parameter to 1 (the lower bound of the
+// std::max(width, 1) clamps in the callers), collapsing rich message bubbles
+// to the minimum width in release Linux builds.
 void MarkdownArticle::Impl::finalizeRelayout(int heightBottom) {
 	const auto &page = layoutStyle().pagePadding;
 	++_layoutGeneration;
@@ -6125,8 +6135,34 @@ void MarkdownArticle::Impl::finalizeRelayout(int heightBottom) {
 	rebuildVisibleSegmentLookup();
 }
 
+int MarkdownArticle::Impl::inlineButtonWidthCap() const {
+	const auto &st = layoutStyle();
+	const auto &page = st.pagePadding;
+	const auto inner = std::max(
+		_relayoutWidth - page.left() - page.right(),
+		1);
+	const auto column = std::max(
+		inner - st.textPadding.left() - st.textPadding.right(),
+		1);
+	return std::min(column, st.inlineButton.maxWidth);
+}
+
+void MarkdownArticle::Impl::publishInlineButtonWidthCap() {
+	const auto cap = inlineButtonWidthCap();
+	if (_inlineButtonPaintState->widthCap == cap) {
+		return;
+	}
+	_inlineButtonPaintState->widthCap = cap;
+	PruneCachedTextLeafs(
+		&_cachedTextLeafs,
+		[](const CachedTextLeafSourceSignature &source) {
+			return source.dependsOnInlineButtonColumn;
+		});
+}
+
 void MarkdownArticle::Impl::relayout(int width) {
 	width = std::max(width, 1);
+	_relayoutWidth = width;
 	if (_width == width) {
 		return;
 	}
@@ -6142,6 +6178,7 @@ void MarkdownArticle::Impl::relayout(int width) {
 		contentRtl());
 	retainBlocks();
 	_missingMediaBlocks = 0;
+	publishInlineButtonWidthCap();
 
 	const auto &st = layoutStyle();
 	const auto &page = st.pagePadding;
@@ -6228,13 +6265,21 @@ void MarkdownArticle::Impl::relayout(int width) {
 
 void MarkdownArticle::Impl::relayoutRetained(int width) {
 	width = std::max(width, 1);
+	_relayoutWidth = width;
 	if (_width == width) {
 		return;
 	} else if (_blocks.empty()) {
 		relayout(width);
 		return;
 	}
+	const auto widthCap = inlineButtonWidthCap();
+	if (_inlineButtonPaintState->hasInlineButtons
+		&& (widthCap != _inlineButtonPaintState->widthCap)) {
+		relayout(width);
+		return;
+	}
 	captureScrollState();
+	publishInlineButtonWidthCap();
 
 	const auto &st = layoutStyle();
 	const auto &page = st.pagePadding;

@@ -671,8 +671,18 @@ FindInlineFormulaMeasuredData(
 
 [[nodiscard]] int InlineButtonLabelWidthCap(
 		InlineButtonPresentation presentation,
-		const style::MarkdownInlineButton &st) {
-	return std::max(st.maxWidth - 2 * InlineButtonPadding(presentation, st), 0);
+		const style::MarkdownInlineButton &st,
+		int buttonWidthCap) {
+	return std::max(
+		buttonWidthCap - 2 * InlineButtonPadding(presentation, st),
+		0);
+}
+
+[[nodiscard]] int InlineButtonWidthCap(
+		const style::MarkdownInlineButton &st,
+		const std::shared_ptr<InlineButtonPaintState> &paintState) {
+	const auto published = paintState ? paintState->widthCap : 0;
+	return (published > 0) ? std::min(st.maxWidth, published) : st.maxWidth;
 }
 
 [[nodiscard]] RichButtonPillColors ResolveInlineButtonColors(
@@ -1590,7 +1600,8 @@ InlineButtonObject::InlineButtonObject(
 	InlineButtonEmojiSize(textStyle, st.inlineButton),
 	InlineButtonLabelWidthCap(
 		InlineButtonPresentationFor(data),
-		st.inlineButton)))
+		st.inlineButton,
+		st.inlineButton.maxWidth)))
 , _presentation(InlineButtonPresentationFor(data))
 , _disabled(data.type == HistoryMessageMarkupButton::Type::Disabled) {
 	const auto &inlineSt = st.inlineButton;
@@ -1599,9 +1610,10 @@ InlineButtonObject::InlineButtonObject(
 	_height = link
 		? textStyle.font->height
 		: InlineButtonPillHeight(textStyle, inlineSt);
+	const auto buttonWidthCap = InlineButtonWidthCap(inlineSt, _paintState);
 	_labelWidth = std::min(
 		_label.maxWidth(),
-		InlineButtonLabelWidthCap(_presentation, inlineSt));
+		InlineButtonLabelWidthCap(_presentation, inlineSt, buttonWidthCap));
 	_width = link
 		? std::max(_labelWidth, 1)
 		: std::max(_height, _labelWidth + 2 * padding);
@@ -1879,6 +1891,13 @@ void InvalidateInlineFormulaRasterCache(
 	}
 }
 
+bool TextHasInlineButton(const TextWithEntities &text) {
+	return ranges::any_of(text.entities, [](const EntityInText &entity) {
+		return (entity.type() == EntityType::CustomEmoji)
+			&& InlineButtonDataFor(entity.data()).has_value();
+	});
+}
+
 void SetTextLeaf(
 		Ui::Text::String *leaf,
 		const style::TextStyle &textStyle,
@@ -1976,6 +1995,9 @@ void SetTextLeaf(
 		rtl ? kIvMarkedTextOptionsRtl : kIvMarkedTextOptions,
 		context);
 	SetTextLeafSpoilerLinkFilter(leaf, std::move(spoilerLinkFilter));
+	if (inlineButtonPaintState && TextHasInlineButton(text)) {
+		inlineButtonPaintState->hasInlineButtons = true;
+	}
 	if (inlineButtonPaintState
 		&& !inlineButtonPaintState->editMode
 		&& ranges::any_of(text.entities, [](const EntityInText &entity) {

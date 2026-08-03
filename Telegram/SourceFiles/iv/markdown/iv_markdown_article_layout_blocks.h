@@ -289,6 +289,7 @@ struct CachedTextLeafSourceSignature {
 	int minResizeWidth = 1;
 	size_t styleKey = 0;
 	bool dependsOnMediaRuntime = false;
+	bool dependsOnInlineButtonColumn = false;
 	bool rtl = false;
 
 	friend inline bool operator==(

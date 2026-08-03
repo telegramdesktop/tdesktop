@@ -68,9 +68,11 @@ struct InlineButtonPaintState {
 	QSize rippleSize;
 	QRect rippleRect;
 	QPoint pressPoint;
+	int widthCap = 0;
 	bool pressPending = false;
 	bool editMode = false;
 	bool bubbleGradient = false;
+	bool hasInlineButtons = false;
 };
 
 void SetTextLeaf(
@@ -87,6 +89,8 @@ void SetTextLeaf(
 	Fn<void()> repaint = nullptr,
 	Fn<void(QRect)> repaintRect = nullptr,
 	Fn<bool(const ClickContext&)> spoilerLinkFilter = nullptr);
+
+[[nodiscard]] bool TextHasInlineButton(const TextWithEntities &text);
 
 [[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> MakeInlineButtonObject(
 	QStringView data,
