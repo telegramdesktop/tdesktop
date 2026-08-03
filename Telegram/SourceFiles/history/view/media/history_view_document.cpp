@@ -500,6 +500,7 @@ QSize Document::countOptimalSize() {
 		const auto transcribes = &session->api().transcribes();
 		const auto media = _parent->data()->media();
 		if ((media && media->ttlSeconds())
+			|| IsHostedInstantViewMedia(_parent)
 			|| _realParent->isScheduled()
 			|| _realParent->isAdminLogEntry()
 			|| (!session->premium()

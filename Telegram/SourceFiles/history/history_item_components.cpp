@@ -9,10 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_text_entities.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/algorithm.h"
 #include "base/options.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/spoiler_mess.h"
+#include "ui/effects/voice_once_particles.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
@@ -30,10 +32,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h" // FromNameFg.
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_document.h"
+#include "history/view/history_view_transcribe_button.h"
 #include "core/click_handler_types.h"
 #include "core/local_url_handlers.h"
 #include "core/ui_integration.h"
 #include "media/audio/media_audio.h"
+#include "media/player/media_player_float.h"
 #include "media/player/media_player_instance.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
@@ -1540,6 +1544,33 @@ HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(
 }
 
 HistoryDocumentVoicePlayback::~HistoryDocumentVoicePlayback() = default;
+
+HistoryDocumentVoice &HistoryDocumentVoice::operator=(
+		HistoryDocumentVoice &&other) {
+	if (this == &other) {
+		return *this;
+	}
+	if (_seeking) {
+		stopSeeking();
+	}
+	playback = std::move(other.playback);
+	seekl = std::move(other.seekl);
+	lastDurationMs = base::take(other.lastDurationMs);
+	transcribe = std::move(other.transcribe);
+	transcribeText = std::move(other.transcribeText);
+	round = std::move(other.round);
+	once = std::move(other.once);
+	_seeking = base::take(other._seeking);
+	_seekingStart = base::take(other._seekingStart);
+	_seekingCurrent = base::take(other._seekingCurrent);
+	return *this;
+}
+
+HistoryDocumentVoice::~HistoryDocumentVoice() {
+	if (_seeking) {
+		stopSeeking();
+	}
+}
 
 void HistoryDocumentVoice::ensurePlayback(
 		const HistoryView::Document *that) const {

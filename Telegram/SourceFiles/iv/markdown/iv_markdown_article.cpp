@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_article.h"
 
 #include "base/algorithm.h"
+#include "data/data_file_click_handler.h"
 #include "iv/markdown/iv_markdown_article_layout_structure.h"
 #include "iv/markdown/iv_markdown_article_paint.h"
 #include "iv/markdown/iv_markdown_article_selection.h"
@@ -3348,6 +3349,7 @@ public:
 	Impl(
 		const style::Markdown &st,
 		std::shared_ptr<MathRenderer> renderer);
+	~Impl();
 
 	void setRenderer(std::shared_ptr<MathRenderer> renderer);
 
@@ -3423,6 +3425,14 @@ public:
 		const PreparedEditSelection &selection) const;
 	[[nodiscard]] MarkdownArticleEditControlHit editControlHitTest(
 		QPoint point) const;
+
+	void clickHandlerActiveChanged(
+		const ClickHandlerPtr &handler,
+		bool active);
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed);
+	void updatePressed(QPoint point);
 
 	[[nodiscard]] MarkdownArticleHorizontalScrollHit horizontalScrollHit(
 		QPoint point) const;
@@ -3562,6 +3572,7 @@ private:
 	void refreshVisibleSegmentSpan();
 
 	void clearMediaBlocks();
+	void releasePressedHandler();
 
 	void refreshMediaBlockHosts();
 
@@ -3744,6 +3755,10 @@ MarkdownArticle::Impl::Impl(
 	_style.code.font = _style.code.font->monospace();
 }
 
+MarkdownArticle::Impl::~Impl() {
+	releasePressedHandler();
+}
+
 void MarkdownArticle::Impl::setRenderer(std::shared_ptr<MathRenderer> renderer) {
 	_renderer = std::move(renderer);
 	SetInlineFormulaObjectCacheRenderer(_inlineFormulaObjects, _renderer);
@@ -3777,6 +3792,7 @@ void MarkdownArticle::Impl::setTextRepaintCallbacks(
 }
 
 void MarkdownArticle::Impl::setContent(MarkdownArticleContent content) {
+	releasePressedHandler();
 	if (hasHeavyPart()) {
 		unloadHeavyPart();
 	}
@@ -4975,6 +4991,12 @@ void MarkdownArticle::Impl::clearMediaBlocks() {
 	ClearMediaBlockStorage(&_mediaBlocks);
 }
 
+void MarkdownArticle::Impl::releasePressedHandler() {
+	if (const auto handler = ClickHandler::getPressed()) {
+		clickHandlerPressedChanged(handler, false);
+	}
+}
+
 void MarkdownArticle::Impl::clearPlaceholderRuntimes() {
 	_placeholderRuntimes.clear();
 }
@@ -5677,6 +5699,38 @@ bool MarkdownArticle::Impl::revealSegment(int segmentIndex) {
 	return false;
 }
 
+void MarkdownArticle::Impl::clickHandlerActiveChanged(
+		const ClickHandlerPtr &handler,
+		bool active) {
+	for (const auto &entry : _mediaBlocks) {
+		if (const auto &block = entry.second) {
+			block->clickHandlerActiveChanged(handler, active);
+		}
+	}
+}
+
+void MarkdownArticle::Impl::clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) {
+	for (const auto &entry : _mediaBlocks) {
+		if (const auto &block = entry.second) {
+			block->clickHandlerPressedChanged(handler, pressed);
+		}
+	}
+}
+
+void MarkdownArticle::Impl::updatePressed(QPoint point) {
+	if (!std::dynamic_pointer_cast<VoiceSeekClickHandler>(
+			ClickHandler::getPressed())) {
+		return;
+	}
+	for (const auto &entry : _mediaBlocks) {
+		if (const auto &block = entry.second) {
+			block->updatePressed(point);
+		}
+	}
+}
+
 MarkdownArticleHorizontalScrollHit MarkdownArticle::Impl::horizontalScrollHit(
 		QPoint point) const {
 	return findHorizontalScrollOwner(point).hit;
@@ -6183,6 +6237,22 @@ void MarkdownArticle::addTaskMarkerRipple(
 		const PreparedEditListItemSource &source,
 		QPoint point) {
 	_impl->addTaskMarkerRipple(source, point);
+}
+
+void MarkdownArticle::clickHandlerActiveChanged(
+		const ClickHandlerPtr &handler,
+		bool active) {
+	_impl->clickHandlerActiveChanged(handler, active);
+}
+
+void MarkdownArticle::clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) {
+	_impl->clickHandlerPressedChanged(handler, pressed);
+}
+
+void MarkdownArticle::updatePressed(QPoint point) {
+	_impl->updatePressed(point);
 }
 
 MarkdownArticleHorizontalScrollHit MarkdownArticle::horizontalScrollHit(

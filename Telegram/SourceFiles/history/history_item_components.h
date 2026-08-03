@@ -952,6 +952,9 @@ class HistoryDocumentVoice
 	static constexpr float64 kFloatToIntMultiplier = 65536.;
 
 public:
+	HistoryDocumentVoice &operator=(HistoryDocumentVoice &&other);
+	~HistoryDocumentVoice();
+
 	void ensurePlayback(const HistoryView::Document *interfaces) const;
 	void checkPlaybackFinished() const;
 

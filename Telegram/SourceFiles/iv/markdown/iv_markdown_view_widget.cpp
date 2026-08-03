@@ -174,6 +174,15 @@ void EnsurePrePaintCache(
 	return point;
 }
 
+void ReleaseArticlePress(MarkdownArticle *article) {
+	if (!article) {
+		return;
+	}
+	if (const auto handler = ClickHandler::getPressed()) {
+		article->clickHandlerPressedChanged(handler, false);
+	}
+}
+
 } // namespace
 
 MarkdownDocumentWidget::MarkdownDocumentWidget(QWidget *parent)
@@ -196,6 +205,8 @@ MarkdownDocumentWidget::MarkdownDocumentWidget(QWidget *parent)
 }
 
 MarkdownDocumentWidget::~MarkdownDocumentWidget() {
+	ClickHandler::clearActive(this);
+	ReleaseArticlePress(_article.get());
 	if (_article && (_article->mediaBlockHost() == this)) {
 		_article->setTextRepaintCallbacks(nullptr, nullptr);
 		_article->setMediaBlockHost(nullptr);
@@ -227,6 +238,7 @@ void MarkdownDocumentWidget::setClickHandlerContext(
 void MarkdownDocumentWidget::setArticle(
 		std::shared_ptr<MarkdownArticle> article) {
 	ClickHandler::clearActive(this);
+	ReleaseArticlePress(_article.get());
 	applyCursor(style::cur_default);
 	auto previous = std::move(_article);
 	if (previous && (previous->mediaBlockHost() == this)) {
@@ -879,14 +891,20 @@ void MarkdownDocumentWidget::leaveEventHook(QEvent *e) {
 }
 
 void MarkdownDocumentWidget::clickHandlerActiveChanged(
-		const ClickHandlerPtr &,
-		bool) {
+		const ClickHandlerPtr &handler,
+		bool active) {
+	if (_article) {
+		_article->clickHandlerActiveChanged(handler, active);
+	}
 	update();
 }
 
 void MarkdownDocumentWidget::clickHandlerPressedChanged(
-		const ClickHandlerPtr &,
-		bool) {
+		const ClickHandlerPtr &handler,
+		bool pressed) {
+	if (_article) {
+		_article->clickHandlerPressedChanged(handler, pressed);
+	}
 	update();
 }
 
@@ -1373,6 +1391,10 @@ void MarkdownDocumentWidget::dragActionStart(
 }
 
 MarkdownArticleHitTestResult MarkdownDocumentWidget::dragActionUpdate(QPoint point) {
+	const auto articlePoint = ArticlePointFromWidget(point, zoomScale());
+	if (_article && ClickHandler::getPressed()) {
+		_article->updatePressed(articlePoint);
+	}
 	const auto state = hitTest(
 		point,
 		Ui::Text::StateRequest::Flag::LookupLink
