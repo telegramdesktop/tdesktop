@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
+#include "info/profile/tabs/info_profile_tabs_strip.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/profile/info_profile_top_bar.h"
 #include "info/info_controller.h" // Key
@@ -59,7 +60,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/peer/color_sample.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/pill_tabs.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/color_contrast.h"
 #include "ui/painter.h"
@@ -71,7 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
-#include "styles/style_info.h" // defaultSubTabs.
+#include "styles/style_info.h" // defaultSubTabs, infoProfileTabsStrip.
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
@@ -1499,26 +1499,37 @@ Fn<void(int)> CreateTabsWidget(
 		const std::vector<QString> &labels,
 		const std::vector<Fn<void()>> &callbacks) {
 	const auto tabs = container->add(
-		object_ptr<Ui::PillTabs>(
+		object_ptr<Info::Profile::TabsStrip>(
 			container,
-			labels,
-			0,
-			st::giftBoxPillTabs),
+			st::infoProfileTabsStrip),
 		st::boxRowPadding,
 		style::al_top);
 
-	tabs->activeIndexChanges(
-	) | rpl::on_next([=](int index) {
+	auto list = std::vector<Info::Profile::StripTab>();
+	list.reserve(labels.size());
+	for (auto i = 0, count = int(labels.size()); i != count; ++i) {
+		list.push_back({
+			.id = QString::number(i),
+			.text = { labels[i] },
+		});
+	}
+	tabs->setTabs(std::move(list));
+	tabs->setActiveTab(u"0"_q);
+
+	const auto invoke = [=](int index) {
 		if (index >= 0 && index < int(callbacks.size()) && callbacks[index]) {
 			callbacks[index]();
 		}
+	};
+	tabs->activated(
+	) | rpl::on_next([=](const QString &id) {
+		tabs->setActiveTab(id);
+		invoke(id.toInt());
 	}, tabs->lifetime());
 
 	return [=](int index) {
-		tabs->setActiveIndex(index);
-		if (index >= 0 && index < int(callbacks.size()) && callbacks[index]) {
-			callbacks[index]();
-		}
+		tabs->setActiveTab(QString::number(index));
+		invoke(index);
 	};
 }
 
