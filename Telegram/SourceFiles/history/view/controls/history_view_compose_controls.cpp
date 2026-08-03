@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/ui/calls_group_stars_coloring.h"
 #include "calls/group/calls_group_stars_box.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "chat_helpers/bot_command.h"
+#include "chat_helpers/bot_keyboard.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -103,6 +105,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/text/format_values.h"
 #include "ui/controls/compose_ai_button_factory.h"
 #include "ui/controls/emoji_button.h"
@@ -191,6 +194,7 @@ public:
 		SuggestOptions suggest,
 		bool photoEditAllowed = false);
 	void replyToMessage(FullReplyTo id);
+	void keyboardReplyToMessage(FullMsgId id);
 	void updateForwarding(
 		Data::Thread *thread,
 		Data::ResolvedForwardDraft items);
@@ -222,6 +226,9 @@ public:
 	[[nodiscard]] rpl::producer<> replyCancelled() const {
 		return _replyCancelled.events();
 	}
+	[[nodiscard]] rpl::producer<> keyboardReplyCancelled() const {
+		return _keyboardReplyCancelled.events();
+	}
 	[[nodiscard]] rpl::producer<> forwardCancelled() const {
 		return _forwardCancelled.events();
 	}
@@ -237,6 +244,7 @@ public:
 private:
 	void updateControlsGeometry(QSize size);
 	void updateVisible();
+	[[nodiscard]] FullReplyTo displayedReplyTo() const;
 	void setShownMessage(HistoryItem *message);
 	void resolveMessageData();
 	void updateShownMessageText();
@@ -267,6 +275,7 @@ private:
 	Preview _preview;
 	rpl::event_stream<> _editCancelled;
 	rpl::event_stream<> _replyCancelled;
+	rpl::event_stream<> _keyboardReplyCancelled;
 	rpl::event_stream<> _forwardCancelled;
 	rpl::event_stream<> _previewCancelled;
 	rpl::event_stream<> _saveDraftRequests;
@@ -274,6 +283,7 @@ private:
 
 	rpl::variable<FullMsgId> _editMsgId;
 	rpl::variable<FullReplyTo> _replyTo;
+	FullMsgId _keyboardReplyTo;
 	std::unique_ptr<ForwardPanel> _forwardPanel;
 	std::unique_ptr<SuggestOptionsBar> _suggestOptions;
 	rpl::producer<> _toForwardUpdated;
@@ -354,7 +364,7 @@ void FieldHeader::init() {
 			st::historyLinkIcon.paint(p, position, width());
 		} else if (isEditingMessage()) {
 			st::historyEditIcon.paint(p, position, width());
-		} else if (const auto reply = replyingToMessage(); reply.replying()) {
+		} else if (const auto reply = displayedReplyTo(); reply.replying()) {
 			if (!reply.quote.empty()) {
 				st::historyQuoteIcon.paint(p, position, width());
 			} else {
@@ -368,7 +378,7 @@ void FieldHeader::init() {
 			paintWebPage(
 				p,
 				_history ? _history->peer : _data->session().user());
-		} else if (isEditingMessage() || replyingToMessage()) {
+		} else if (isEditingMessage() || displayedReplyTo()) {
 			paintEditOrReplyToMessage(p);
 		} else if (readyToForward()) {
 			paintForwardInfo(p);
@@ -377,14 +387,14 @@ void FieldHeader::init() {
 
 	_editMsgId.value(
 	) | rpl::on_next([=](FullMsgId value) {
-		const auto shown = value ? value : _replyTo.current().messageId;
+		const auto shown = value ? value : displayedReplyTo().messageId;
 		setShownMessage(_data->message(shown));
 	}, lifetime());
 
 	_replyTo.value(
-	) | rpl::on_next([=](const FullReplyTo &value) {
+	) | rpl::on_next([=](const FullReplyTo &) {
 		if (!_editMsgId.current()) {
-			setShownMessage(_data->message(value.messageId));
+			setShownMessage(_data->message(displayedReplyTo().messageId));
 		}
 	}, lifetime());
 
@@ -400,6 +410,8 @@ void FieldHeader::init() {
 			}
 			if (_replyTo.current().messageId == update.item->fullId()) {
 				_replyCancelled.fire({});
+			} else if (_keyboardReplyTo == update.item->fullId()) {
+				_keyboardReplyCancelled.fire({});
 			}
 		} else {
 			updateShownMessageText();
@@ -414,6 +426,8 @@ void FieldHeader::init() {
 			_editCancelled.fire({});
 		} else if (_replyTo.current()) {
 			_replyCancelled.fire({});
+		} else if (_keyboardReplyTo) {
+			_keyboardReplyCancelled.fire({});
 		} else if (readyToForward()) {
 			_forwardCancelled.fire({});
 		}
@@ -429,7 +443,7 @@ void FieldHeader::init() {
 		return (ranges::contains(kMouseEvents, type) || leaving)
 			&& (isEditingMessage()
 				|| readyToForward()
-				|| replyingToMessage()
+				|| displayedReplyTo()
 				|| _preview.parsed);
 	}) | rpl::on_next([=](not_null<QEvent*> event) {
 		const auto updateOver = [&](bool inClickable, bool inPhotoEdit) {
@@ -469,7 +483,7 @@ void FieldHeader::init() {
 			if (isLeftButton && inPhotoEdit) {
 				_editPhotoRequests.fire({});
 			} else if (isLeftButton && inPreviewRect) {
-				const auto reply = replyingToMessage();
+				const auto reply = displayedReplyTo();
 				if (_preview.parsed) {
 					_editOptionsRequests.fire({});
 				} else if (isEditingMessage()) {
@@ -482,6 +496,8 @@ void FieldHeader::init() {
 					}
 				} else if (reply && (e->modifiers() & Qt::ControlModifier)) {
 					_jumpToItemRequests.fire_copy(reply);
+				} else if (reply && !_replyTo.current().messageId) {
+					_jumpToItemRequests.fire_copy(reply);
 				} else if (reply || readyToForward()) {
 					_editOptionsRequests.fire({});
 				}
@@ -491,7 +507,7 @@ void FieldHeader::init() {
 						this,
 						[=] { update(); },
 						_hasSendText());
-				} else if (const auto reply = replyingToMessage()) {
+				} else if (const auto reply = displayedReplyTo()) {
 					_jumpToItemRequests.fire_copy(reply);
 				} else if (readyToForward()) {
 					_forwardPanel->editToNextOption();
@@ -508,7 +524,7 @@ void FieldHeader::updateShownMessageText() {
 		.session = &_data->session(),
 		.repaint = [=] { customEmojiRepaint(); },
 	});
-	const auto reply = replyingToMessage();
+	const auto reply = displayedReplyTo();
 	_shownMessageText.setMarkedText(
 		st::messageTextStyle,
 		((isEditingMessage() || reply.quote.empty())
@@ -524,6 +540,16 @@ void FieldHeader::customEmojiRepaint() {
 	}
 	_repaintScheduled = true;
 	update();
+}
+
+FullReplyTo FieldHeader::displayedReplyTo() const {
+	auto result = _replyTo.current();
+	if (!result.messageId && _keyboardReplyTo) {
+		result.messageId = _keyboardReplyTo;
+		result.topicRootId = _topicRootId;
+		result.monoforumPeerId = _monoforumPeerId;
+	}
+	return result;
 }
 
 void FieldHeader::setShownMessage(HistoryItem *item) {
@@ -544,7 +570,7 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 			.session = &_history->session(),
 			.customEmojiLoopLimit = 1,
 		});
-		const auto replyTo = _replyTo.current();
+		const auto replyTo = displayedReplyTo();
 		_shownMessageName.setMarkedText(
 			st::fwdTextStyle,
 			HistoryView::Reply::ComposePreviewName(_history, item, replyTo),
@@ -560,7 +586,7 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 void FieldHeader::resolveMessageData() {
 	const auto id = isEditingMessage()
 		? _editMsgId.current()
-		: _replyTo.current().messageId;
+		: displayedReplyTo().messageId;
 	if (!id) {
 		return;
 	}
@@ -569,14 +595,16 @@ void FieldHeader::resolveMessageData() {
 	const auto callback = crl::guard(this, [=] {
 		const auto now = isEditingMessage()
 			? _editMsgId.current()
-			: _replyTo.current().messageId;
+			: displayedReplyTo().messageId;
 		if (now == id && !_shownMessage) {
 			if (const auto message = _data->message(peer, itemId)) {
 				setShownMessage(message);
 			} else if (isEditingMessage()) {
 				_editCancelled.fire({});
-			} else {
+			} else if (_replyTo.current().messageId == id) {
 				_replyCancelled.fire({});
+			} else if (_keyboardReplyTo == id) {
+				_keyboardReplyCancelled.fire({});
 			}
 		}
 	});
@@ -669,7 +697,7 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 
 	const auto media = _shownMessage->media();
 	const auto poll = media ? media->poll() : nullptr;
-	const auto reply = replyingToMessage();
+	const auto reply = displayedReplyTo();
 	const auto pollAnswer = poll
 		? poll->answerByOption(reply.pollOption)
 		: nullptr;
@@ -788,7 +816,7 @@ rpl::producer<bool> FieldHeader::visibleChanged() {
 bool FieldHeader::isDisplayed() const {
 	return isEditingMessage()
 		|| readyToForward()
-		|| replyingToMessage()
+		|| displayedReplyTo()
 		|| hasPreview();
 }
 
@@ -899,6 +927,16 @@ void FieldHeader::cancelSuggestPost() {
 void FieldHeader::replyToMessage(FullReplyTo id) {
 	id.monoforumPeerId = 0;
 	_replyTo = id;
+}
+
+void FieldHeader::keyboardReplyToMessage(FullMsgId id) {
+	if (_keyboardReplyTo == id) {
+		return;
+	}
+	_keyboardReplyTo = id;
+	if (!isEditingMessage() && !_replyTo.current().messageId) {
+		setShownMessage(_data->message(id));
+	}
 }
 
 void FieldHeader::updateForwarding(
@@ -1195,6 +1233,7 @@ void ComposeControls::updateTopicRootId(MsgId topicRootId) {
 	trackThreadFieldVisibility();
 	registerDraftSource();
 	updateFieldVisibility();
+	updateBotKeyboard(true);
 }
 
 void ComposeControls::updateShortcutId(BusinessShortcutId shortcutId) {
@@ -1220,6 +1259,17 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 		: rpl::single(0);
 	const auto history = *args.history;
 	if (_history == history) {
+		if (_topicRootId != args.topicRootId) {
+			updateTopicRootId(args.topicRootId);
+		}
+		if (_monoforumPeerId != args.monoforumPeerId) {
+			unregisterDraftSources();
+			_monoforumPeerId = args.monoforumPeerId;
+			_header->setHistory(args);
+			registerDraftSource();
+			updateFieldVisibility();
+			updateBotKeyboard(true);
+		}
 		return;
 	}
 	untrackThreadFieldVisibility();
@@ -1247,6 +1297,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	_sendAs = nullptr;
 	_silent = nullptr;
 	if (!_history) {
+		updateBotKeyboard(true);
 		return;
 	}
 	const auto peer = _history->peer;
@@ -1268,6 +1319,55 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	_field->setMode(args.videoStream
 		? Ui::InputField::Mode::NoNewlines
 		: Ui::InputField::Mode::MultiLine);
+
+	session().changes().historyUpdates(
+		_history,
+		Data::HistoryUpdate::Flag::BotKeyboard
+	) | rpl::on_next([=] {
+		updateBotKeyboard(true);
+	}, _historyLifetime);
+	session().data().historyChanged(
+	) | rpl::filter([=](not_null<const History*> history) {
+		return history == _history;
+	}) | rpl::on_next([=] {
+		updateBotKeyboard();
+	}, _historyLifetime);
+	session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::ReplyMarkup
+		| Data::MessageUpdate::Flag::NewAdded
+		| Data::MessageUpdate::Flag::NewMaybeAdded
+	) | rpl::filter([=](const Data::MessageUpdate &update) {
+		if (update.item->history() != _history) {
+			return false;
+		}
+		if (update.flags & Data::MessageUpdate::Flag::ReplyMarkup) {
+			return _keyboard
+				&& (_keyboard->forMsgId() == update.item->fullId());
+		}
+		if (_topicRootId
+			&& update.item->topicRootId() != _topicRootId) {
+			return false;
+		}
+		if (!update.item->definesReplyKeyboard() || update.item->out()) {
+			return false;
+		}
+		if (update.flags & Data::MessageUpdate::Flag::NewMaybeAdded) {
+			const auto key = keyboardTopicKey();
+			const auto keyboardId = key
+				? _history->replyKeyboardState(key).id
+				: _history->lastKeyboardId;
+			const auto shownId = _keyboard
+				? _keyboard->forMsgId().msg
+				: MsgId();
+			return keyboardId != shownId;
+		}
+		return true;
+	}) | rpl::on_next([=](const Data::MessageUpdate &) {
+		crl::on_main(_wrap.get(), [=] {
+			updateBotKeyboard(true);
+		});
+	}, _historyLifetime);
+	updateBotKeyboard(true);
 }
 
 void ComposeControls::initLikeButton() {
@@ -1887,6 +1987,260 @@ rpl::producer<QString> ComposeControls::sendCommandRequests() const {
 	return _sendCommandRequests.events();
 }
 
+rpl::producer<Bot::SendCommandRequest>
+ComposeControls::botKeyboardCommandRequests() const {
+	return _botKeyboardCommandRequests.events();
+}
+
+void ComposeControls::botKeyboardCommandSent(
+		const Bot::SendCommandRequest &request) {
+	if (!_history || !_keyboard || !request.replyTo) {
+		return;
+	}
+	const auto key = keyboardTopicKey();
+	const auto keyboardId = key
+		? _history->replyKeyboardState(key).id
+		: _history->lastKeyboardId;
+	const auto forMsgId = _keyboard->forMsgId();
+	if (!_keyboard->singleUse()
+		|| !_keyboard->hasMarkup()
+		|| forMsgId != request.replyTo.messageId
+		|| forMsgId != FullMsgId(_history->peer->id, keyboardId)) {
+		return;
+	}
+	if (_kbShown) {
+		toggleKeyboard(false);
+	}
+	if (key) {
+		_history->replyKeyboardState(key).used = true;
+	} else {
+		_history->lastKeyboardUsed = true;
+	}
+}
+
+MsgId ComposeControls::keyboardTopicKey() const {
+	if (!_history || !_history->isForum() || !_topicRootId) {
+		return MsgId(0);
+	}
+	return _topicRootId;
+}
+
+int ComposeControls::keyboardHeight() const {
+	return (_kbShown && _kbScroll) ? _kbScroll->height() : 0;
+}
+
+bool ComposeControls::kbWasHidden() const {
+	if (!_history || !_keyboard) {
+		return false;
+	}
+	const auto forId = _keyboard->forMsgId();
+	if (!forId) {
+		return false;
+	}
+	if (const auto key = keyboardTopicKey()) {
+		return forId.msg == _history->replyKeyboardState(key).hiddenId;
+	}
+	return forId.msg == _history->lastKeyboardHiddenId;
+}
+
+void ComposeControls::showKeyboardHideButton() {
+	if (!_botKeyboardHide || !_keyboard || !_history) {
+		return;
+	}
+	_botKeyboardHide->setVisible(!_history->peer->isUser()
+		|| !_keyboard->persistent());
+}
+
+void ComposeControls::initBotKeyboard() {
+	if (!_regularWindow || _kbScroll) {
+		return;
+	}
+	_kbScroll = std::make_unique<Ui::ScrollArea>(_wrap.get(), st::botKbScroll);
+	_keyboard = _kbScroll->setOwnedWidget(object_ptr<BotKeyboard>(
+		_regularWindow,
+		_wrap.get())).data();
+	_botKeyboardShow = Ui::CreateChild<Ui::IconButton>(
+		_wrap.get(),
+		st::historyBotKeyboardShow);
+	_botKeyboardHide = Ui::CreateChild<Ui::IconButton>(
+		_wrap.get(),
+		st::historyBotKeyboardHide);
+	_kbScroll->hide();
+	_botKeyboardShow->hide();
+	_botKeyboardHide->hide();
+	_botKeyboardShow->setAccessibleName(tr::lng_bot_keyboard_show(tr::now));
+	_botKeyboardHide->setAccessibleName(tr::lng_bot_keyboard_hide(tr::now));
+	_botKeyboardShow->addClickHandler([=] { toggleKeyboard(); });
+	_botKeyboardHide->addClickHandler([=] { toggleKeyboard(); });
+	_keyboard->sendCommandRequests(
+	) | rpl::on_next([=](Bot::SendCommandRequest request) {
+		_botKeyboardCommandRequests.fire(std::move(request));
+	}, _kbScroll->lifetime());
+}
+
+void ComposeControls::toggleKeyboard(bool manual) {
+	if (!_keyboard || !_history) {
+		return;
+	}
+	const auto key = keyboardTopicKey();
+	if (_kbShown) {
+		if (_botKeyboardHide) {
+			_botKeyboardHide->hide();
+		}
+		if (_botKeyboardShow) {
+			_botKeyboardShow->show();
+		}
+		if (manual) {
+			if (key) {
+				_history->replyKeyboardState(key).hiddenId
+					= _keyboard->forMsgId().msg;
+			} else {
+				_history->lastKeyboardHiddenId = _keyboard->forMsgId().msg;
+			}
+		}
+		if (_kbScroll) {
+			_kbScroll->hide();
+		}
+		_kbShown = false;
+		_tabbedSelectorToggle->show();
+		updateHeight();
+		updateControlsVisibility();
+		updateControlsGeometry(_wrap->size());
+	} else if (_keyboard->hasMarkup()) {
+		showKeyboardHideButton();
+		if (_botKeyboardShow) {
+			_botKeyboardShow->hide();
+		}
+		if (_kbScroll) {
+			_kbScroll->show();
+		}
+		_kbShown = true;
+		_tabbedSelectorToggle->hide();
+		if (manual) {
+			if (key) {
+				_history->replyKeyboardState(key).hiddenId = 0;
+			} else {
+				_history->lastKeyboardHiddenId = 0;
+			}
+		}
+		updateHeight();
+		updateControlsVisibility();
+		updateControlsGeometry(_wrap->size());
+	} else if (_keyboard->forceReply()) {
+		dismissForceReplyKeyboard();
+		return;
+	}
+	_header->keyboardReplyToMessage(keyboardReplyTo());
+}
+
+void ComposeControls::updateBotKeyboard(bool force) {
+	if (!_regularWindow) {
+		return;
+	}
+	initBotKeyboard();
+	if (!_keyboard) {
+		return;
+	}
+
+	const auto wasVisible = _kbShown;
+	const auto wasMsgId = _keyboard->forMsgId();
+	auto changed = false;
+	if (!_history || isEditingMessage()) {
+		changed = _keyboard->updateMarkup(nullptr, force);
+	} else {
+		const auto key = keyboardTopicKey();
+		const auto keyboardId = key
+			? _history->replyKeyboardState(key).id
+			: _history->lastKeyboardId;
+		const auto keyboardUsed = key
+			? _history->replyKeyboardState(key).used
+			: _history->lastKeyboardUsed;
+		const auto forceMarkup = force
+			|| (keyboardId
+				&& wasMsgId.msg
+				&& wasMsgId.msg != keyboardId);
+		const auto keyboardItem = keyboardId
+			? session().data().message(_history->peer, keyboardId)
+			: nullptr;
+		changed = _keyboard->updateMarkup(keyboardItem, forceMarkup);
+		if (_keyboard->singleUse()
+			&& _keyboard->hasMarkup()
+			&& keyboardId
+			&& keyboardUsed
+			&& (_keyboard->forMsgId()
+				== FullMsgId(_history->peer->id, keyboardId))) {
+			if (key) {
+				_history->replyKeyboardState(key).hiddenId = keyboardId;
+			} else {
+				_history->lastKeyboardHiddenId = keyboardId;
+			}
+		}
+	}
+	if (changed && _keyboard->forMsgId() != wasMsgId && _kbScroll) {
+		_kbScroll->scrollTo({ 0, 0 });
+	}
+	if (changed) {
+		_keyboard->update();
+	}
+
+	const auto hasMarkup = _keyboard->hasMarkup();
+	const auto forceReply = _keyboard->forceReply();
+	const auto markupReplaced = changed
+		&& hasMarkup
+		&& wasMsgId.msg
+		&& (_keyboard->forMsgId().msg != wasMsgId.msg);
+	const auto canShow = hasMarkup
+		&& !isEditingMessage()
+		&& !kbWasHidden()
+		&& (wasVisible
+			|| markupReplaced
+			|| !hasSendableContent()
+			|| force);
+	if (canShow) {
+		if (_kbScroll) {
+			_kbScroll->show();
+		}
+		_tabbedSelectorToggle->hide();
+		showKeyboardHideButton();
+		if (_botKeyboardShow) {
+			_botKeyboardShow->hide();
+		}
+		if (_botCommandStart) {
+			_botCommandStart->hide();
+		}
+		_kbShown = true;
+	} else if (hasMarkup || forceReply) {
+		if (_kbScroll) {
+			_kbScroll->hide();
+		}
+		_tabbedSelectorToggle->show();
+		if (_botKeyboardHide) {
+			_botKeyboardHide->hide();
+		}
+		if (_botKeyboardShow) {
+			_botKeyboardShow->setVisible(hasMarkup);
+		}
+		_kbShown = false;
+	} else {
+		if (_kbScroll) {
+			_kbScroll->hide();
+		}
+		_tabbedSelectorToggle->show();
+		if (_botKeyboardHide) {
+			_botKeyboardHide->hide();
+		}
+		if (_botKeyboardShow) {
+			_botKeyboardShow->hide();
+		}
+		_kbShown = false;
+	}
+	_header->keyboardReplyToMessage(keyboardReplyTo());
+	updateFieldPlaceholder();
+	updateHeight();
+	updateControlsVisibility();
+	updateControlsGeometry(_wrap->size());
+}
+
 rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
 	auto toValue = rpl::map([=] { return _header->queryToEdit(); });
 	auto filter = rpl::filter([=] {
@@ -2307,6 +2661,7 @@ void ComposeControls::init() {
 			orderControls();
 		}
 		registerDraftSource();
+		updateBotKeyboard();
 	}, _wrap->lifetime());
 
 	_header->replyingToMessageValue(
@@ -2398,6 +2753,11 @@ void ComposeControls::init() {
 	_header->replyCancelled(
 	) | rpl::on_next([=] {
 		cancelReplyMessage();
+	}, _wrap->lifetime());
+
+	_header->keyboardReplyCancelled(
+	) | rpl::on_next([=] {
+		toggleKeyboard();
 	}, _wrap->lifetime());
 
 	_header->forwardCancelled(
@@ -2712,12 +3072,18 @@ void ComposeControls::updateFieldPlaceholder() {
 
 	const auto ephemeralReply = session().ephemeralMessages()
 		.isEphemeralBotReply(replyingToMessage().messageId);
+	const auto keyboardPlaceholder = (_keyboard
+		&& (_kbShown || _keyboard->forceReply()))
+		? _keyboard->placeholder()
+		: QString();
 	_field->setPlaceholder([&] {
 		const auto peer = _history ? _history->peer.get() : nullptr;
 		if (_fieldCustomPlaceholder) {
 			return rpl::duplicate(_fieldCustomPlaceholder);
 		} else if (isEditingMessage()) {
 			return tr::lng_edit_message_text();
+		} else if (!keyboardPlaceholder.isEmpty()) {
+			return rpl::single(keyboardPlaceholder) | rpl::type_erased;
 		} else if (!peer) {
 			return tr::lng_message_ph();
 		} else if (const auto stars = ephemeralReply
@@ -2773,6 +3139,17 @@ void ComposeControls::fieldChanged() {
 		&& !suppressSendAction());
 	updateSendButtonType();
 	_hasSendText = _field->isVisible() && HasSendText(_field);
+	if (!isEditingMessage()) {
+		if (_kbShown && _hasSendText.current()) {
+			toggleKeyboard();
+		} else if (!_kbShown
+			&& _keyboard
+			&& _keyboard->hasMarkup()
+			&& !_hasSendText.current()
+			&& !kbWasHidden()) {
+			updateBotKeyboard();
+		}
+	}
 	if (updateBotCommandShown() || updateLikeShown()) {
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());
@@ -3084,6 +3461,11 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		return;
 	}
 
+	if (draft == editDraft) {
+		_header->editMessage(editingId, editingSuggest, false);
+		_header->replyToMessage({});
+	}
+
 	_textUpdateEvents = 0;
 	setFieldText(draft->textWithTags, 0, fieldHistoryAction);
 	if (hadFocus) {
@@ -3153,7 +3535,6 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 				editingId.msg,
 				callback);
 		}
-		_header->replyToMessage({});
 	} else {
 		_canReplaceMedia = _canAddMedia = false;
 		_photoEditMedia = nullptr;
@@ -4027,11 +4408,14 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	// (_commentsShown) (_attachToggle|_replaceMedia) (_sendAs) -- _inlineResults ------ _tabbedPanel -- _fieldBarCancel (_starsReaction)
 	// (_attachDocument|_attachPhoto) _field (_ttlInfo) (_scheduled) (_silent|_botCommandStart) _tabbedSelectorToggle _send
 
+	const auto kbheight = keyboardHeight();
 	const auto oldComposeHeight = shouldShowRichDraftPreview()
 		? _richDraftPreview->height()
 		: _field->height();
 	const auto commentsShown = _commentsShown
 		&& !_commentsShown->isHidden();
+	const auto kbShowShown = _botKeyboardShow
+		&& !_botKeyboardShow->isHidden();
 	const auto fieldWidth = size.width()
 		- (commentsShown
 			? (_commentsShown->width() + _st.commentsSkip)
@@ -4042,9 +4426,12 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		- _st.padding.right()
 		- _send->width()
 		- (_editStars ? _editStars->width() : 0)
-		- _tabbedSelectorToggle->width()
+		- (_kbShown
+			? (_botKeyboardHide ? _botKeyboardHide->width() : 0)
+			: _tabbedSelectorToggle->width())
+		- (kbShowShown ? _botKeyboardShow->width() : 0)
 		- (_likeShown ? _like->width() : 0)
-		- (_botCommandShown ? _botCommandStart->width() : 0)
+		- (botCommandVisible() ? _botCommandStart->width() : 0)
 		- ((_silent && !_silent->isHidden()) ? _silent->width() : 0)
 		- ((_scheduled && !_scheduled->isHidden())
 			? _scheduled->width()
@@ -4071,7 +4458,15 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		}
 	}
 
-	const auto buttonsTop = size.height() - _st.attach.height;
+	if (_kbShown && _kbScroll) {
+		_kbScroll->setGeometryToLeft(
+			0,
+			size.height() - kbheight,
+			size.width(),
+			kbheight);
+	}
+
+	const auto buttonsTop = size.height() - kbheight - _st.attach.height;
 
 	auto left = 0;
 	if (commentsShown) {
@@ -4093,7 +4488,10 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	const auto fieldHeight = shouldShowRichDraftPreview()
 		? _richDraftPreview->height()
 		: _field->height();
-	const auto fieldTop = size.height() - _st.padding.bottom() - fieldHeight;
+	const auto fieldTop = size.height()
+		- kbheight
+		- _st.padding.bottom()
+		- fieldHeight;
 	_field->moveToLeft(left, fieldTop);
 	if (_richDraftPreview) {
 		_richDraftPreview->moveToLeft(left, fieldTop);
@@ -4116,8 +4514,17 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		_editStars->moveToRight(right, buttonsTop);
 		right += _editStars->width();
 	}
-	_tabbedSelectorToggle->moveToRight(right, buttonsTop);
-	right += _tabbedSelectorToggle->width();
+	if (_kbShown && _botKeyboardHide) {
+		_botKeyboardHide->moveToRight(right, buttonsTop);
+		right += _botKeyboardHide->width();
+	} else {
+		_tabbedSelectorToggle->moveToRight(right, buttonsTop);
+		right += _tabbedSelectorToggle->width();
+	}
+	if (_botKeyboardShow && !_botKeyboardShow->isHidden()) {
+		_botKeyboardShow->moveToRight(right, buttonsTop);
+		right += _botKeyboardShow->width();
+	}
 	if (_like) {
 		using Type = Controls::WriteRestrictionType;
 		if (_writeRestriction.current().type == Type::PremiumRequired) {
@@ -4131,7 +4538,7 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	}
 	if (_botCommandStart) {
 		_botCommandStart->moveToRight(right, buttonsTop);
-		if (_botCommandShown) {
+		if (botCommandVisible()) {
 			right += _botCommandStart->width();
 		}
 	}
@@ -4157,13 +4564,13 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	_voiceRecordBar->resizeToWidth(size.width());
 	_voiceRecordBar->moveToLeft(
 		0,
-		size.height() - _voiceRecordBar->height());
+		size.height() - kbheight - _voiceRecordBar->height());
 }
 
 void ComposeControls::updateControlsVisibility() {
 	const auto hide = hideExtraButtons();
 	if (_botCommandStart) {
-		_botCommandStart->setVisible(_botCommandShown);
+		_botCommandStart->setVisible(botCommandVisible());
 	}
 	if (_like) {
 		_like->setVisible(_likeShown);
@@ -4415,6 +4822,13 @@ bool ComposeControls::updateBotCommandShown() {
 	return false;
 }
 
+bool ComposeControls::botCommandVisible() const {
+	return _botCommandShown
+		&& !isEditingMessage()
+		&& (!_keyboard
+			|| (!_keyboard->hasMarkup() && !_keyboard->forceReply()));
+}
+
 bool ComposeControls::hasVisibleSendText() const {
 	return !_field->isHidden() && HasSendText(_field);
 }
@@ -4643,14 +5057,26 @@ void ComposeControls::toggleTabbedSelectorMode() {
 }
 
 void ComposeControls::updateHeight() {
+	auto kbheight = 0;
+	if (_kbShown && _keyboard && _kbScroll) {
+		const auto maxKeyboardHeight = std::max(
+			st::historyComposeFieldMaxHeight / 2,
+			_field->height());
+		_keyboard->resizeToWidth(_wrap->width(), maxKeyboardHeight);
+		kbheight = std::min(_keyboard->height(), maxKeyboardHeight);
+		_kbScroll->resize(_wrap->width(), kbheight);
+	}
 	const auto height = (_header->isDisplayed() ? _header->height() : 0)
 		+ _st.padding.top()
 		+ (shouldShowRichDraftPreview()
 			? _richDraftPreview->height()
 			: _field->height())
-		+ _st.padding.bottom();
+		+ _st.padding.bottom()
+		+ kbheight;
 	if (height != _wrap->height()) {
 		_wrap->resize(_wrap->width(), height);
+	} else if (kbheight) {
+		updateControlsGeometry(_wrap->size());
 	}
 }
 
@@ -4824,6 +5250,12 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 
 void ComposeControls::cancelReplyMessage() {
 	const auto wasReply = replyingToMessage();
+	const auto forceReplyUsed = _keyboard
+		&& _history
+		&& _keyboard->forceReply()
+		&& _keyboard->singleUse()
+		&& keyboardReplyTo()
+		&& (wasReply.messageId == keyboardReplyTo());
 	_header->replyToMessage({});
 	if (_history) {
 		const auto key = draftKey(DraftType::Normal);
@@ -4840,6 +5272,17 @@ void ComposeControls::cancelReplyMessage() {
 			saveDraftWithTextNow();
 		}
 	}
+	if (forceReplyUsed) {
+		dismissForceReplyKeyboard();
+	}
+}
+
+void ComposeControls::dismissForceReplyKeyboard() {
+	if (!_history || !_keyboard) {
+		return;
+	}
+	_history->clearLastKeyboard(keyboardTopicKey());
+	updateBotKeyboard(true);
 }
 
 void ComposeControls::updateForwarding() {
@@ -4862,8 +5305,11 @@ bool ComposeControls::handleCancelRequest() {
 	} else if (isEditingMessage()) {
 		maybeCancelEditMessage();
 		return true;
-	} else if (replyingToMessage().replying()) {
+	} else if (_header->replyingToMessage().replying()) {
 		cancelReplyMessage();
+		return true;
+	} else if (keyboardReplyTo()) {
+		toggleKeyboard();
 		return true;
 	} else if (readyToForward()) {
 		cancelForward();
@@ -4983,8 +5429,28 @@ bool ComposeControls::isEditingMessage() const {
 	return _header->isEditingMessage();
 }
 
+FullMsgId ComposeControls::keyboardReplyTo() const {
+	if (!_history || !_keyboard) {
+		return {};
+	}
+	const auto forceReply = _keyboard->forceReply();
+	if (!_kbShown && !forceReply) {
+		return {};
+	}
+	const auto peer = _history->peer;
+	if (!peer->isChat() && !peer->isChannel() && !forceReply) {
+		return {};
+	}
+	return _keyboard->forMsgId();
+}
+
 FullReplyTo ComposeControls::replyingToMessage() const {
 	auto result = _header->replyingToMessage();
+	if (!result.messageId) {
+		if (const auto keyboardReply = keyboardReplyTo()) {
+			result.messageId = keyboardReply;
+		}
+	}
 	result.topicRootId = _topicRootId;
 	result.monoforumPeerId = _monoforumPeerId;
 	return result;

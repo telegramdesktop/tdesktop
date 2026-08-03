@@ -20,8 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 
 class History;
+class HistoryItem;
 class DocumentData;
 class Image;
+class BotKeyboard;
 
 namespace style {
 struct ComposeControls;
@@ -60,6 +62,10 @@ class Result;
 struct ResultSelected;
 } // namespace InlineBots
 
+namespace Bot {
+struct SendCommandRequest;
+} // namespace Bot
+
 namespace Ui {
 class AbstractButton;
 class SendButton;
@@ -68,6 +74,7 @@ class EmojiButton;
 class SendAsButton;
 class SilentToggle;
 class DropdownMenu;
+class ScrollArea;
 struct PreparedBundle;
 struct PreparedList;
 struct SendStarButtonState;
@@ -201,6 +208,9 @@ public:
 	[[nodiscard]] rpl::producer<Api::SendOptions> sendRequests() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<QString> sendCommandRequests() const;
+	[[nodiscard]] rpl::producer<Bot::SendCommandRequest>
+	botKeyboardCommandRequests() const;
+	void botKeyboardCommandSent(const Bot::SendCommandRequest &request);
 	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
 	[[nodiscard]] rpl::producer<std::optional<bool>> attachRequests() const;
 	void setSendAsFileConfirmed(
@@ -375,6 +385,16 @@ private:
 	void updateSilentBroadcast();
 	void editMessage(not_null<HistoryItem*> item);
 
+	void initBotKeyboard();
+	void updateBotKeyboard(bool force = false);
+	void toggleKeyboard(bool manual = true);
+	[[nodiscard]] bool kbWasHidden() const;
+	void showKeyboardHideButton();
+	[[nodiscard]] int keyboardHeight() const;
+	[[nodiscard]] MsgId keyboardTopicKey() const;
+	[[nodiscard]] FullMsgId keyboardReplyTo() const;
+	void dismissForceReplyKeyboard();
+
 	void escape();
 	void fieldChanged();
 	[[nodiscard]] bool suppressSendAction() const;
@@ -389,6 +409,7 @@ private:
 	[[nodiscard]] bool showEditStarsButton() const;
 	[[nodiscard]] int shownStarsPerMessage() const;
 	bool updateBotCommandShown();
+	[[nodiscard]] bool botCommandVisible() const;
 	bool updateLikeShown();
 	[[nodiscard]] bool hasVisibleSendText() const;
 	[[nodiscard]] bool hasSendableContent() const;
@@ -511,6 +532,10 @@ private:
 	const not_null<Ui::InputField*> _field;
 	std::unique_ptr<Controls::RichDraftPreview> _richDraftPreview;
 	Ui::IconButton * const _botCommandStart = nullptr;
+	std::unique_ptr<Ui::ScrollArea> _kbScroll;
+	BotKeyboard *_keyboard = nullptr;
+	Ui::IconButton *_botKeyboardShow = nullptr;
+	Ui::IconButton *_botKeyboardHide = nullptr;
 	std::unique_ptr<Ui::SendAsButton> _sendAs;
 	rpl::variable<bool> _videoStreamAdmin;
 	std::unique_ptr<Ui::SilentToggle> _silent;
@@ -541,6 +566,7 @@ private:
 	rpl::event_stream<InlineChosen> _inlineResultChosen;
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<QString> _sendCommandRequests;
+	rpl::event_stream<Bot::SendCommandRequest> _botKeyboardCommandRequests;
 	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
 	rpl::event_stream<not_null<QKeyEvent*>> _editLastMessageRequests;
 	rpl::event_stream<std::optional<bool>> _attachRequests;
@@ -571,6 +597,7 @@ private:
 	mtpRequestId _inlineBotResolveRequestId = 0;
 	bool _isInlineBot = false;
 	bool _botCommandShown = false;
+	bool _kbShown = false;
 	bool _likeShown = false;
 	Webrtc::RecordAvailability _recordAvailability = {};
 

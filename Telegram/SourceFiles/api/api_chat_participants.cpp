@@ -192,7 +192,7 @@ void ApplyBotsList(
 
 	auto needBotsInfos = false;
 	auto botStatus = channel->mgInfo->botStatus;
-	auto keyboardBotFound = !history || !history->lastKeyboardFrom;
+	auto present = base::flat_set<PeerId>();
 	for (const auto &p : list) {
 		const auto participant = channel->owner().peer(p.id());
 		const auto user = participant->asUser();
@@ -203,16 +203,13 @@ void ApplyBotsList(
 				needBotsInfos = true;
 			}
 		}
-		if (!keyboardBotFound
-			&& participant->id == history->lastKeyboardFrom) {
-			keyboardBotFound = true;
-		}
+		present.emplace(participant->id);
 	}
 	if (needBotsInfos) {
 		channel->session().api().requestFullPeer(channel);
 	}
-	if (!keyboardBotFound) {
-		history->clearLastKeyboard();
+	if (history) {
+		history->validateReplyKeyboardSenders(present);
 	}
 
 	channel->mgInfo->botStatus = botStatus;

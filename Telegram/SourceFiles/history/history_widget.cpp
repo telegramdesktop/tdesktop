@@ -8438,6 +8438,8 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 		changed = _keyboard->updateMarkup(nullptr, force);
 	} else if (_replyTo && _replyEditMsg) {
 		changed = _keyboard->updateMarkup(_replyEditMsg, force);
+	} else if (_history->peer->isForum()) {
+		changed = _keyboard->updateMarkup(nullptr, force);
 	} else {
 		const auto keyboardItem = _history->lastKeyboardId
 			? session().data().message(

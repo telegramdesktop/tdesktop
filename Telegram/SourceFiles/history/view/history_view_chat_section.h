@@ -376,6 +376,9 @@ private:
 		const QString &command,
 		const FullMsgId &context,
 		Api::SendOptions options);
+	void sendBotKeyboardCommandWithOptions(
+		Bot::SendCommandRequest request,
+		Api::SendOptions options);
 
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,

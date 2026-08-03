@@ -549,6 +549,7 @@ ForumTopic *Forum::reserveNewBotTopic() {
 void Forum::discardCreatingId(MsgId rootId) {
 	Expects(creating(rootId));
 
+	_history->removeTopicReplyKeyboard(rootId);
 	const auto i = _topics.find(rootId);
 	if (i != end(_topics)) {
 		Assert(!i->second->inChatList());
@@ -571,6 +572,7 @@ void Forum::created(MsgId rootId, MsgId realId) {
 	auto topic = std::move(i->second);
 	_topics.erase(i);
 	const auto id = FullMsgId(_history->peer->id, realId);
+	_history->migrateTopicReplyKeyboard(rootId, realId);
 	if (!_topics.contains(realId)) {
 		_topics.emplace(
 			realId,

@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "ui/boxes/confirm_box.h"
+#include "chat_helpers/bot_command.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "boxes/delete_messages_box.h"
@@ -886,6 +887,15 @@ void ChatWidget::setupComposeControls() {
 	_composeControls->sendCommandRequests(
 	) | rpl::on_next([=](const QString &command) {
 		listSendBotCommand(command, FullMsgId());
+		session().api().finishForwarding(prepareSendAction({}));
+	}, lifetime());
+
+	_composeControls->botKeyboardCommandRequests(
+	) | rpl::on_next([=](const Bot::SendCommandRequest &request) {
+		if (request.peer != _peer) {
+			return;
+		}
+		sendBotKeyboardCommandWithOptions(request, {});
 		session().api().finishForwarding(prepareSendAction({}));
 	}, lifetime());
 
@@ -3567,6 +3577,46 @@ void ChatWidget::sendBotCommandWithOptions(
 	}
 
 	session().api().sendMessage(std::move(message));
+	finishSending();
+}
+
+void ChatWidget::sendBotKeyboardCommandWithOptions(
+		Bot::SendCommandRequest request,
+		Api::SendOptions options) {
+	if (request.peer != _peer) {
+		return;
+	} else if (!request.replyTo) {
+		sendBotCommandWithOptions(request.command, request.context, options);
+		return;
+	}
+
+	auto message = Api::MessageToSend(prepareSendAction(options));
+	message.textWithTags = { request.command, TextWithTags::Tags() };
+	if (!_peer->isUser()) {
+		message.action.replyTo = request.replyTo;
+	}
+
+	const auto ephemeral = session().ephemeralMessages().wouldSend(message);
+	if (!ephemeral && showSlowmodeError()) {
+		return;
+	}
+	if (!ephemeral) {
+		const auto withPaymentApproved = [=](int approved) {
+			auto copy = options;
+			copy.starsApproved = approved;
+			sendBotKeyboardCommandWithOptions(request, copy);
+		};
+		const auto checked = checkSendPayment(
+			1,
+			options,
+			withPaymentApproved);
+		if (!checked) {
+			return;
+		}
+	}
+
+	session().api().sendMessage(std::move(message));
+	_composeControls->botKeyboardCommandSent(request);
 	finishSending();
 }
 

@@ -2858,6 +2858,7 @@ bool Session::updateExistingMessage(const MTPDmessage &data) {
 		return false;
 	}
 	existing->applySentMessage(data);
+	existing->history()->applyItemReplyKeyboard(existing);
 	const auto result = (existing->mainView() != nullptr);
 	if (result) {
 		stickers().checkSavedGif(existing);
