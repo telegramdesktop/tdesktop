@@ -2082,8 +2082,11 @@ void ApiWrap::sendNotifySettingsUpdates() {
 		)).afterDelay(kSmallDelayMs).send();
 	}
 	for (const auto &peer : base::take(_updateNotifyPeers)) {
+		const auto channel = peer->asChannel();
 		request(MTPaccount_UpdateNotifySettings(
-			MTP_inputNotifyPeer(peer->input()),
+			(channel && channel->isCommunity())
+				? MTP_inputNotifyCommunity(channel->inputChannel())
+				: MTP_inputNotifyPeer(peer->input()),
 			peer->notify().serialize()
 		)).afterDelay(kSmallDelayMs).send();
 	}
