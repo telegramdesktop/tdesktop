@@ -460,6 +460,8 @@ void TabsHost::ensureActiveVisible() {
 			return;
 		} else if (mediaSplitSwitching()) {
 			return;
+		} else if (_userChosenTab) {
+			_pendingRestoreId = _activeId;
 		}
 	}
 	if (firstVisible >= 0) {
