@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core.h"
 #include "ui/style/style_core_scale.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/text/text_utilities.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/dynamic_image.h"
 #include "ui/emoji_config.h"
@@ -49,6 +50,8 @@ constexpr auto kIvMarkedTextOptionsRtl = TextParseOptions{
 	0,
 	Qt::RightToLeft,
 };
+
+constexpr auto kInlineButtonLabelProbeStart = 32;
 
 struct PreparedLinkExternalData {
 	ClickHandler::TextEntity entity;
@@ -660,6 +663,18 @@ FindInlineFormulaMeasuredData(
 	return InlineButtonPresentation::Default;
 }
 
+[[nodiscard]] int InlineButtonPadding(
+		InlineButtonPresentation presentation,
+		const style::MarkdownInlineButton &st) {
+	return (presentation == InlineButtonPresentation::Link) ? 0 : st.padding;
+}
+
+[[nodiscard]] int InlineButtonLabelWidthCap(
+		InlineButtonPresentation presentation,
+		const style::MarkdownInlineButton &st) {
+	return std::max(st.maxWidth - 2 * InlineButtonPadding(presentation, st), 0);
+}
+
 [[nodiscard]] RichButtonPillColors ResolveInlineButtonColors(
 		InlineButtonPresentation presentation,
 		const style::Markdown &st) {
@@ -768,6 +783,87 @@ void ActivateInlineButton(QStringView data, ClickContext context) {
 	return label;
 }
 
+[[nodiscard]] int InlineButtonLabelStrongCut(
+		const TextWithEntities &label,
+		int cut) {
+	// A Ui::Text::String takes its first paragraph's direction from the first
+	// character of strong direction in that paragraph and falls back to the
+	// interface direction when there is none, and a line whose paragraph
+	// direction opposes the alignment is drawn shifted by the width it did
+	// not use. A prefix that dropped the label's only strong character would
+	// therefore draw the same glyphs at a different x — but only when that
+	// character resolves to the direction the fallback would not have picked.
+	// A FormattedDate entity is opaque: the block parser replaces its text.
+	const auto &text = label.text;
+	const auto size = int(text.size());
+	auto entity = label.entities.begin();
+	const auto entitiesEnd = label.entities.end();
+	auto i = 0;
+	while (i < size) {
+		while ((entity != entitiesEnd) && (entity->offset() <= i)) {
+			const auto till = entity->offset() + entity->length();
+			if ((entity->type() == EntityType::FormattedDate) && (till > i)) {
+				cut = std::max(cut, till);
+				i = till;
+			}
+			++entity;
+		}
+		if (i >= size) {
+			break;
+		}
+		const auto ch = text.at(i);
+		if (ch.unicode() == QChar::LineFeed) {
+			return cut;
+		}
+		auto ucs4 = uint(ch.unicode());
+		auto length = 1;
+		if (QChar::isHighSurrogate(ucs4) && (i + 1 < size)) {
+			const auto low = text.at(i + 1).unicode();
+			if (QChar::isLowSurrogate(low)) {
+				ucs4 = QChar::surrogateToUcs4(ucs4, low);
+				length = 2;
+			}
+		}
+		const auto direction = QChar::direction(ucs4);
+		const auto strong = (direction == QChar::DirL)
+			? Qt::LeftToRight
+			: (direction == QChar::DirR || direction == QChar::DirAL)
+			? Qt::RightToLeft
+			: Qt::LayoutDirectionAuto;
+		if (strong != Qt::LayoutDirectionAuto) {
+			return (strong == style::LayoutDirection())
+				? cut
+				: std::max(cut, i + length);
+		}
+		i += length;
+	}
+	return cut;
+}
+
+[[nodiscard]] int InlineButtonLabelCut(
+		const TextWithEntities &label,
+		int position) {
+	const auto size = int(label.text.size());
+	if (position >= size) {
+		return size;
+	}
+	auto result = InlineButtonLabelStrongCut(label, position);
+	// Ui::Text::Mid truncates an entity that straddles the range end instead
+	// of dropping it, so a CustomEmoji or FormattedDate entity that starts
+	// inside the drawn region and ends past the cut would be rewritten and
+	// would change visible glyphs; the cut moves past its end instead. One
+	// forward pass is enough because the entity list is ordered by offset,
+	// which MarkInlineButtonPlainEmoji above already relies on when it walks
+	// label.entities with a single forward iterator.
+	for (const auto &entity : label.entities) {
+		const auto till = entity.offset() + entity.length();
+		if ((entity.offset() < result) && (till > result)) {
+			result = till;
+		}
+	}
+	return std::min(result, size);
+}
+
 [[nodiscard]] Ui::Text::String MakeInlineButtonLabel(
 		const TextWithEntities &label,
 		const style::TextStyle &labelStyle,
@@ -800,6 +896,47 @@ void ActivateInlineButton(QStringView data, ClickContext context) {
 		kIvMarkedTextOptions,
 		nested);
 	return result;
+}
+
+[[nodiscard]] Ui::Text::String MakeBoundedInlineButtonLabel(
+		const TextWithEntities &label,
+		const style::TextStyle &labelStyle,
+		const Ui::Text::MarkedContext &context,
+		int emojiSize,
+		int widthCap) {
+	// The renderer lays the whole string out on every paint even though the
+	// pill can only ever draw `available` pixels of it, so the label is built
+	// from a prefix instead. Probe lengths double until one measures wider
+	// than the pill can draw, and the prefix after that one is accepted, so
+	// everything the renderer reaches — the line break, the elision cut and
+	// the ellipsis — sits inside the half the shorter probe already covered,
+	// with more than a pill-width of identical content behind it.
+	const auto available = std::max(widthCap, 1);
+	const auto size = int(label.text.size());
+	auto exceeded = false;
+	auto length = kInlineButtonLabelProbeStart;
+	while (true) {
+		const auto cut = InlineButtonLabelCut(label, length);
+		if (cut >= size) {
+			return MakeInlineButtonLabel(
+				label,
+				labelStyle,
+				context,
+				emojiSize);
+		}
+		auto result = MakeInlineButtonLabel(
+			Ui::Text::Mid(label, 0, cut),
+			labelStyle,
+			context,
+			emojiSize);
+		if (result.maxWidth() > available) {
+			if (exceeded) {
+				return result;
+			}
+			exceeded = true;
+		}
+		length = 2 * cut;
+	}
 }
 
 } // namespace
@@ -1446,22 +1583,25 @@ InlineButtonObject::InlineButtonObject(
 , _replacementText(data.label.text)
 , _st(&st)
 , _paintState(std::move(paintState))
-, _label(MakeInlineButtonLabel(
+, _label(MakeBoundedInlineButtonLabel(
 	data.label,
 	st.inlineButton.labelStyle,
 	context,
-	InlineButtonEmojiSize(textStyle, st.inlineButton)))
+	InlineButtonEmojiSize(textStyle, st.inlineButton),
+	InlineButtonLabelWidthCap(
+		InlineButtonPresentationFor(data),
+		st.inlineButton)))
 , _presentation(InlineButtonPresentationFor(data))
 , _disabled(data.type == HistoryMessageMarkupButton::Type::Disabled) {
 	const auto &inlineSt = st.inlineButton;
 	const auto link = (_presentation == InlineButtonPresentation::Link);
-	const auto padding = link ? 0 : inlineSt.padding;
+	const auto padding = InlineButtonPadding(_presentation, inlineSt);
 	_height = link
 		? textStyle.font->height
 		: InlineButtonPillHeight(textStyle, inlineSt);
 	_labelWidth = std::min(
 		_label.maxWidth(),
-		std::max(inlineSt.maxWidth - 2 * padding, 0));
+		InlineButtonLabelWidthCap(_presentation, inlineSt));
 	_width = link
 		? std::max(_labelWidth, 1)
 		: std::max(_height, _labelWidth + 2 * padding);
