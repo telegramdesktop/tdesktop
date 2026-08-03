@@ -756,9 +756,12 @@ QPoint UserpicButton::countPhotoPosition() const {
 }
 
 QImage UserpicButton::prepareRippleMask() const {
-	return Ui::RippleAnimation::EllipseMask(QSize(
-		_st.photoSize,
-		_st.photoSize));
+	const auto size = QSize(_st.photoSize, _st.photoSize);
+	return useForumShape()
+		? Ui::RippleAnimation::RoundRectMask(
+			size,
+			int(_st.photoSize * Ui::ForumUserpicRadiusMultiplier()))
+		: Ui::RippleAnimation::EllipseMask(size);
 }
 
 QPoint UserpicButton::prepareRippleStartPosition() const {
