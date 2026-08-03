@@ -416,13 +416,14 @@ rules, with these external-task safety adaptations:
   `source-commit`).
 - The overlay is authored against the permanent harness in
   `Telegram/SourceFiles/test/` and normally consists of replacing
-  `Telegram/SourceFiles/test/test_scenario.cpp` alone — that slot file is
-  always a permitted overlay path. Beyond it, overlay code may modify only
-  tracked task-owned source paths (one-line `Test::Fire` waitpoints or true
-  in-situ injections). Inventory every overlay path in
-  `work/test-overlay.paths`; never introduce an untracked source file, and
-  never re-implement logging, widget-finding, capture, watchdog, or quit
-  mechanics the harness already provides.
+  `Telegram/SourceFiles/test/test_scenario.cpp` alone on the first run. That is
+  a preference, not a boundary: after a setup or reachability failure, overlay
+  code may modify any relevant tracked source path, including initialized
+  submodules, to place a disposable probe or direct entry point beside the
+  changed production code. Inventory every overlay path in
+  `work/test-overlay.paths`; never introduce an untracked source file, commit
+  an overlay or submodule injection, or re-implement logging, widget-finding,
+  capture, watchdog, or quit mechanics the harness already provides.
 - Save and restore the overlay with the scripted helper instead of manual git
   mechanics:
 
@@ -432,8 +433,9 @@ rules, with these external-task safety adaptations:
   ```
 
   It verifies every dirty path against the inventory, refuses untracked
-  files, writes a nonempty verified `work/test-overlay.patch`, and restores
-  only inventoried paths to `RUN_REF` — never a repository-wide hard reset.
+  files, writes a verified top-level patch plus per-submodule patch bundle
+  when needed, and restores only inventoried paths to `RUN_REF` or the
+  submodule's current baseline — never a repository-wide hard reset.
   After an implementation-fix commit (`source-commit --mark-green` moves both
   `GREEN_REF` and `RUN_REF`), reapply with:
 
@@ -505,6 +507,11 @@ rules, with these external-task safety adaptations:
   re-copies golden — then retry once.
 - Enforce the in-app watchdog too. Count test runs independently from
   implementation attempts and stop at `MAX_TEST_RUNS`.
+- A repeated setup failure is not a reason to stop below that cap. Apply the
+  shared test loop's directness ladder: preserve what the run proved, forbid
+  the failed fixture technique, and make the next overlay more manual and
+  closer to the changed production seam. Once a setup outside the task's diff
+  fails repeatedly, bypass that setup rather than continuing to test it.
 - Plan the fewest possible runs: one complete programmed scenario per attempt
   that proves every check in a single execution, splitting only for checks
   that cannot share one process lifetime. `MAX_TEST_RUNS` is a safety cap,
@@ -559,12 +566,14 @@ settled, never the reason to leave a reachable surface unmeasured. Where an
 acceptance criterion ranges over a parameter — every value of an enum, both
 halves of a branch, more than one interface scale — the author iterates the
 range rather than sampling it, because a hand-picked subset is exactly the shape
-of gap that comes back later as its own task. Missing
-or ambiguous evidence is `TEST_FLAW`; no expected task delta is `IMPL_BUG`. Two
-identical consecutive failure signatures block early, except that the macOS
-cached-language signature first gets the shared test loop's one-time Xcode
-clean-rebuild recovery. A known implementation bug at the attempt cap is
-implementation-blocked, not a successful retained commit.
+of gap that comes back later as its own task. Missing or ambiguous evidence is
+`TEST_FLAW`; no expected task delta is `IMPL_BUG`. Repeated failure signatures
+trigger the shared directness ladder, not an automatic block. Block before
+`MAX_TEST_RUNS` only after a fresh recovery assessment proves that every
+applicable more-direct strategy is unsafe, unavailable, or would bypass the
+changed code. The macOS cached-language signature first gets the shared test
+loop's one-time Xcode clean-rebuild recovery. A known implementation bug at the
+attempt cap is implementation-blocked, not a successful retained commit.
 
 Skip runtime testing only for a task with no runnable behavior. Record
 `NOT_APPLICABLE` and exact file-level validation. Configuration alone is not a

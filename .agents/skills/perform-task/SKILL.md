@@ -111,6 +111,12 @@ canonical `Block <full-task-id>` commit. Agent interruption, tool loss, and
 global environment stops leave the task `in-progress` with its task-scoped
 local state intact for the next invocation.
 
+A repeated test setup failure is not exhausted verification by itself. Follow
+the shared directness ladder: forbid the failed fixture technique and make the
+next run more manual and closer to the changed production seam. The configured
+test-run cap is the safety boundary; the former two-identical-signature shortcut
+must not be used.
+
 A locked macOS session is not an environment stop or verification blocker.
 Skip interactive Computer Use and complete the same coverage through the
 in-binary overlay: drive the flow, log/assert, capture widgets or windows,

@@ -33,8 +33,9 @@ adapter point; every other rule here still applies.
   screenshots / graphic resources). Images are optional evidence: read them when present, but their
   absence is never by itself a planning, implementation, or test blocker. The spec and its cited
   repository/baseline sources are one side of test design; the implementation diff is the other.
-- Config: `BUILD` (build command), `EXE` (built binary path), `MAX_ATTEMPTS` (default 4). The test
-  account lives in `out/Debug/` as the portable-data folders described under "Test account" below;
+- Config: `BUILD` (build command), `EXE` (built binary path), `MAX_ATTEMPTS` (default 4),
+  `MAX_TEST_RUNS` (default 12). The test account lives in `out/Debug/` as the portable-data folders
+  described under "Test account" below;
   the wrapper has already confirmed the golden one exists (launch gate). All paths are relative to
   the current checkout — no worktrees are created; the run happens in whatever repository slot it
   was launched from.
@@ -62,10 +63,42 @@ On every TERMINAL exit (APPROVED / BLOCKED / UNRECOVERABLE / cap) "delete the te
 step in "Leave no test binary behind" below.
 ```
 
-Early-escalation rule: if two consecutive ASSESS rounds produce the **same failure signature**
-(same step fails the same way after a fix), stop and return BLOCKED — do not burn the rest of
-the attempt budget chasing it. Before applying this rule to the macOS cached-language startup
-signature, perform the one-time clean-rebuild recovery under "Crashes & assertions".
+Repeated-failure rule: a repeated **failure signature is a demand for a more direct test**, not a
+terminal result. Never return `BLOCKED` merely because two runs failed at the same setup step.
+A `TEST_FLAW` rerun must stop repairing the same fixture technique and reduce the distance between
+the test and the production code this task changed.
+
+Before authoring each recovery run, append a short `Recovery plan` to `test.md` that states:
+
+- what the preceding run positively proved;
+- the exact setup assumption that failed;
+- the previous technique that is now forbidden;
+- the next unused directness strategy and why it can reach the changed code even if the failed
+  setup never works.
+
+Choose the next applicable strategy from this ladder. The order is by task fit, not ceremony, and
+one recovery may advance several levels:
+
+1. Add diagnostics that identify the exact production object, key, row, request, or callback and
+   replace guessed predicates with literal state assertions.
+2. Replace synthetic UI/model setup with an established production data-layer insertion API or a
+   real disposable `live-mutate` fixture in the prepared test account.
+3. Bypass setup behavior outside this task's diff through a narrow inventoried `_DEBUG` in-situ
+   seam immediately before the changed production function; construct the object by hand or call
+   the real production collector/handler directly, while keeping an independent oracle.
+4. For network and retry behavior, inject or mock the exact request result / server error at the
+   narrowest transport or callback seam that still executes the changed retry code. Do not wait on
+   a live server when the response is not itself the subject.
+5. When physical interaction is the subject, drive the exact visible target with real Qt events or
+   the safe hybrid driver. On locked macOS, make this direct interaction in-binary; the lock screen
+   never prevents a more manual overlay.
+
+After the same signature repeats, use a fresh test-recovery leaf and explicitly forbid the failed
+approach in its prompt. Early `BLOCKED(test)` is allowed only when a fresh recovery assessment
+records why every applicable unused strategy above is unsafe, unavailable, or would bypass the
+changed code, and the performer confirms that record. Otherwise continue until approval,
+implementation diagnosis, or `MAX_TEST_RUNS`. The macOS cached-language startup signature still
+gets the one-time clean-rebuild recovery under "Crashes & assertions" before entering this ladder.
 
 UNRECOVERABLE conditions: the app reaches a login screen / `AUTH_KEY_DUPLICATED` and re-copying the
 test account does not recover it, or a crash has no usable diagnostic after one retry and the
@@ -365,14 +398,11 @@ void SetupScenario(not_null<Runner*> runner) {
 }
 ```
 
-**The overlay = replacing `test_scenario.cpp` with the task's scenario.** Author the scenario
-fresh against the CURRENT implementation from the task's check design; never re-implement
+**The overlay starts by replacing `test_scenario.cpp` with the task's scenario.** Author the
+scenario fresh against the CURRENT implementation from the task's check design; never re-implement
 logging, finding, capturing, watchdogs, or quit handling that the harness already provides —
-re-derived scaffolding is where capture flaws come from. Only two kinds of edits may touch
-other files, and both stay in the inventory: a one-line `Test::Fire("task_waitpoint")` in code
-this task already owns, and a true in-situ injection at the highest level that still exercises
-the change (often a direct data-layer call like `item->applyEdition(...)` rather than a faked
-MTP response). The scenario is the complete runtime driver of first resort: prefer
+re-derived scaffolding is where capture flaws come from. The scenario is the complete runtime
+driver of first resort: prefer
 programmatically triggering every required action and judging the saved logs and captures
 afterwards over any external desktop driver, whether or not one is available. Drive the whole
 task-specific flow inside the Debug binary on the event loop, waiting for observable state,
@@ -380,6 +410,13 @@ logging assertions, capturing the rendered target in-process, and quitting. A lo
 session does not reduce required coverage and is never a testing blocker. The scenario runs
 only when `-testagent` was passed AND the live portable folder carries the `testing` marker,
 so it can never run against real account data. The overlay must:
+
+- Prefer keeping the first run centralized in `test_scenario.cpp`, but never treat that module as
+  a sandbox boundary. After a setup or reachability failure, inject probes, fixtures, callbacks,
+  waitpoints, or direct test entry points at any relevant tracked production location, including
+  initialized submodules. Choose the location closest to the changed code that preserves a real
+  execution of that code. Scattered test injections are acceptable when they remove fixture
+  assumptions; all must remain disposable, inventoried, and excluded from implementation commits.
 
 - Keep any code added outside `test/` inside `#ifdef _DEBUG` blocks only when it would
   change release behavior; harness calls like `Test::Fire` are runtime no-ops and need no
@@ -442,13 +479,14 @@ bypass it with hand-built relative paths.
 
 ### Git mechanics for the overlay (no stash)
 
-- The inventory in `<WORK_DIR>/test-overlay.paths` is normally exactly
-  `Telegram/SourceFiles/test/test_scenario.cpp`, plus any in-situ injection or `Test::Fire`
-  paths; no unrelated or untracked source path may be used. After building, save the overlay
-  with the workspace helper's `overlay-save` command: it verifies every dirty path against the
-  inventory, writes a nonempty verified `<WORK_DIR>/test-overlay.patch`, and restores only the
-  inventoried overlay paths to the wrapper's restore ref; never hard-reset the repository. The
-  overlay never enters an impl commit.
+- The inventory in `<WORK_DIR>/test-overlay.paths` normally starts with
+  `Telegram/SourceFiles/test/test_scenario.cpp` and then lists every in-situ injection or
+  `Test::Fire` path. It may name any tracked file in the source checkout or an initialized
+  submodule; no unrelated or untracked path may be used. After building, save the overlay with the
+  workspace helper's `overlay-save` command: it verifies every dirty path against the inventory,
+  writes the top-level patch plus a per-submodule patch bundle when needed, and restores only the
+  inventoried overlay paths to their repository baselines; never hard-reset the repository. The
+  overlay never enters an impl or submodule commit.
 - Next round, re-apply on top of the new implementation with `overlay-apply` (a `--3way`
   application that reports conflicted paths). This succeeds ~90% of the time when the tail change
   was small.
@@ -543,7 +581,8 @@ implementation or overlay verdict:
   `Local::readLangPack()`;
 - the same signature occurs on two launches.
 
-Before early escalation, preserve the current overlay and account, stop only the exact-path app,
+Before changing recovery strategies, preserve the current overlay and account,
+stop only the exact-path app,
 follow the portable-folder safety-copy procedure in `AGENTS.md`, then run one full Xcode Debug
 clean followed by `BUILD` (the configured-tree clean is normally
 `cmake --build out --config Debug --target clean`). Restore only portable folders missing after
@@ -551,7 +590,7 @@ the clean, never overwrite survivors, and retain the external backup through one
 post-build launch. Rerun the same scenario once. Record the preceding runs as `TEST_FLAW` caused
 by stale generated-language objects; do not spend an implementation attempt or re-author the
 overlay. If the identical signature remains after the single clean rebuild, resume normal crash
-classification and early escalation. Never loop clean rebuilds.
+classification and the directness ladder. Never loop clean rebuilds.
 
 ### Hangs & freezes (two layers, because they have two causes)
 
@@ -574,8 +613,8 @@ A run that never reaches `TEST_COMPLETE` and never dies is a hang. Two independe
 Classify by which guard tripped: a DeadlockDetector crash with a real main-thread stack in app code
 is an **IMPL_BUG**; the external cap firing is almost always a **TEST_FLAW** (the overlay didn't
 drive to `TEST_COMPLETE`/quit) — re-author the overlay — unless the captured stack/log shows the
-implementation itself wedged, in which case it is an IMPL_BUG. Two external-cap kills in a row with
-the same signature → BLOCKED (early-escalation rule).
+implementation itself wedged, in which case it is an IMPL_BUG. Repeated external-cap kills enter
+the directness ladder above; the same timeout signature alone never blocks the task.
 
 ### Leave no test binary behind
 
@@ -644,7 +683,9 @@ starts the next Attempt. Never overwrite history.
 #### Verdict reasoning
 <1-3 lines tying the checks to the verdict>
 #### Root cause / Fix hint    (only if IMPL_BUG — the impl-fix agent reads this)
-#### Failure signature         (one line, for early-escalation comparison)
+#### Failure signature         (one line, for recovery comparison)
+#### Recovery plan             (TEST_FLAW reruns only: prior proof, failed assumption,
+                                 forbidden technique, next directness strategy)
 ```
 
 ## Compact summary the task-runner returns up

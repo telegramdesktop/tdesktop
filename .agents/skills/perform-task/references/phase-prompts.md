@@ -10,6 +10,7 @@
 - [Assessment](#phase-3-plan-assessment)
 - [Implementation and build](#phase-4-implementation)
 - [Review](#phase-6-code-review-loop)
+- [Test-flaw recovery](#test-flaw-recovery-and-directness)
 - [Windows normalization](#phase-7-native-windows-text-normalization)
 - [Prompt delivery](#prompt-delivery-and-logs)
 
@@ -858,11 +859,69 @@ Write <WORK_DIR>/test-design.md:
   observed
 - a run plan compressed to the fewest possible runs — normally exactly one —
   splitting only for checks that cannot share one process lifetime
+- a fixture fallback plan naming at least two progressively more direct ways
+  to reach the changed production seam if the preferred fixture does not
+  materialize; do not make unrelated UI setup a single point of failure
 - a `## Reconcile` line reminding the test author to re-verify every check
   against the final retained diff after the review loop
 
 Every check needs an oracle that can come out FAIL. "The screen opened" is
 not a check. Do not reuse a generic navigate-and-screenshot scenario.
+```
+
+## Test-Flaw Recovery And Directness
+
+Use this prompt for every `TEST_FLAW` recovery. On a repeated signature, use a
+fresh leaf and include every prior recovery plan. Do not ask it to "try again"
+or merely repair the same fixture.
+
+```text
+You are a test-recovery agent for one Telegram Desktop task. The product
+implementation is retained; repair only the disposable test overlay and its
+test report. You are a leaf and must not delegate.
+
+Read:
+- the task spec and final retained task diff
+- <WORK_DIR>/test-design.md
+- <WORK_DIR>/test.md, including every prior Run and Recovery plan
+- <WORK_DIR>/test-overlay.paths and the current saved overlay
+- .agents/shared/test-loop.md, especially the repeated-failure directness ladder
+
+The latest failure signature is:
+<FAILURE_SIGNATURE>
+
+The previous fixture/recovery techniques are forbidden:
+<FORBIDDEN_TECHNIQUES>
+
+Before editing, append a Recovery plan to the pending Run in test.md:
+- Prior proof: the positive facts already established by earlier runs
+- Failed assumption: the exact setup predicate or fixture behavior that failed
+- Forbidden technique: the approach you will not repeat
+- New directness strategy: the next unused ladder strategy
+- Reachability: why this strategy reaches the task's changed production code
+  even if the failed setup never succeeds
+
+Then implement the recovery. Prefer fewer assumptions and more manual control:
+- insert the production object by hand through an established data API;
+- add a narrow inventoried _DEBUG seam and call the real changed
+  collector/handler directly when unrelated UI setup is flaky;
+- place that seam in any relevant tracked production file or initialized
+  submodule when centralizing it in test_scenario.cpp adds indirection;
+- inject the exact server response/error at the callback or transport seam for
+  retry behavior;
+- use a real disposable account fixture or exact Qt input only when those are
+  part of the behavior under test.
+
+Keep an independent falsifiable oracle. A direct seam may bypass setup outside
+the task diff, but it must not reimplement or bypass the changed code itself.
+Fix every test flaw visible in the latest run together, build Debug, and return
+the compact phase block.
+
+If no unused strategy can safely reach the changed code, do not cite the
+repeated signature as the reason. Add `## Recovery exhaustion` to test.md with
+one row per ladder strategy: attempted evidence, or the concrete reason it is
+unsafe, unavailable, or would bypass the task diff. Return `BLOCKED` for the
+performer to confirm independently.
 ```
 
 ### Step 6s: Review synthesis

@@ -48,6 +48,8 @@ PORTABLE_REAL = "real_TelegramForcePortable"
 PORTABLE_MARKER = "testing"
 OVERLAY_PATHS_FILE = "test-overlay.paths"
 OVERLAY_PATCH_FILE = "test-overlay.patch"
+OVERLAY_SUBMODULES_FILE = "test-overlay-submodules.json"
+OVERLAY_SUBMODULES_DIR = "test-overlay-submodules"
 TEST_LOG_FILE = "test_log.txt"
 TEST_COMPLETE_MARKER = "TEST_COMPLETE"
 STALE_CRASH_DIR = "stale-crash"
@@ -1819,65 +1821,250 @@ def read_overlay_paths(work):
 	return paths
 
 
+def initialized_submodule_paths(source):
+	lines = run_git(
+		source, "submodule", "status", "--recursive"
+	).stdout.splitlines()
+	result = []
+	for line in lines:
+		if not line or line[0] == "-":
+			continue
+		parts = line[1:].split()
+		if len(parts) >= 2:
+			result.append(parts[1])
+	return sorted(result, key=lambda path: (-path.count("/"), path))
+
+
+def overlay_inventory_groups(source, inventory):
+	submodules = initialized_submodule_paths(source)
+	groups = {"": []}
+	for value in inventory:
+		path = PurePosixPath(value)
+		if path.is_absolute() or not path.parts or ".." in path.parts:
+			raise WorkspaceError(f"Invalid overlay inventory path: {value!r}")
+		value = path.as_posix()
+		if value in submodules:
+			raise WorkspaceError(
+				"Overlay inventory must name a tracked file inside the "
+				"submodule, not its gitlink: " + value
+			)
+		owner = next(
+			(
+				submodule for submodule in submodules
+				if value.startswith(submodule + "/")
+			),
+			"",
+		)
+		local = value[len(owner) + 1:] if owner else value
+		repository = source / owner if owner else source
+		tracked = run_git(
+			repository,
+			"ls-files",
+			"--error-unmatch",
+			"--",
+			local,
+			check=False,
+		)
+		if tracked.returncode:
+			raise WorkspaceError(
+				"Overlay inventory paths must be tracked files: " + value
+			)
+		groups.setdefault(owner, []).append(local)
+	return groups, submodules
+
+
+def overlay_coverage(inventory, repository_path):
+	if not repository_path:
+		return inventory
+	prefix = repository_path + "/"
+	return [
+		path[len(prefix):]
+		for path in inventory
+		if path.startswith(prefix)
+	]
+
+
+def overlay_outside_inventory(source, inventory, submodules):
+	outside = []
+	for repository_path in [""] + submodules:
+		repository = source / repository_path if repository_path else source
+		coverage = overlay_coverage(inventory, repository_path)
+		dirty = changed_paths(repository)
+		gitlinks = set(gitlink_paths(repository, dirty))
+		for path in dirty:
+			covered = path_is_covered(path, coverage)
+			covered_gitlink = (
+				path in gitlinks
+				and any(value.startswith(path + "/") for value in coverage)
+			)
+			if covered or covered_gitlink:
+				continue
+			outside.append(
+				f"{repository_path}/{path}" if repository_path else path
+			)
+	return outside
+
+
+def clear_overlay_submodule_bundle(work):
+	manifest = work / OVERLAY_SUBMODULES_FILE
+	patches = work / OVERLAY_SUBMODULES_DIR
+	if manifest.is_file():
+		manifest.unlink()
+	if patches.is_dir():
+		shutil.rmtree(patches)
+
+
+def read_overlay_submodule_bundle(work):
+	manifest = work / OVERLAY_SUBMODULES_FILE
+	if not manifest.is_file():
+		return []
+	data = json.loads(manifest.read_text(encoding="utf-8"))
+	if data.get("version") != 1 or not isinstance(data.get("submodules"), list):
+		raise WorkspaceError(f"Invalid overlay submodule manifest: {manifest}")
+	result = []
+	seen = set()
+	for entry in data["submodules"]:
+		if not isinstance(entry, dict):
+			raise WorkspaceError(f"Invalid overlay submodule entry: {entry!r}")
+		repository = PurePosixPath(str(entry.get("path", "")))
+		patch = PurePosixPath(str(entry.get("patch", "")))
+		if (
+			repository.is_absolute()
+			or not repository.parts
+			or ".." in repository.parts
+			or patch.is_absolute()
+			or not patch.parts
+			or ".." in patch.parts
+			or patch.parts[0] != OVERLAY_SUBMODULES_DIR
+		):
+			raise WorkspaceError(f"Invalid overlay submodule entry: {entry!r}")
+		repository_value = repository.as_posix()
+		if repository_value in seen:
+			raise WorkspaceError(
+				"Duplicate overlay submodule entry: " + repository_value
+			)
+		seen.add(repository_value)
+		result.append({
+			"patch": patch.as_posix(),
+			"path": repository_value,
+		})
+	return result
+
+
 def command_overlay_save(args):
 	config, slot = task_action_config(args)
 	source = Path(config["source_root"])
 	work = overlay_work_dir(config, slot, args.task)
 	inventory = read_overlay_paths(work)
-	untracked = run_git(
-		source, "ls-files", "--others", "--exclude-standard"
-	).stdout.splitlines()
-	if untracked:
-		raise WorkspaceError(
-			"The overlay may not use untracked source files: "
-			+ ", ".join(untracked)
-		)
-	dirty = changed_paths(source)
-	outside = [
-		path for path in dirty
-		if not path_is_covered(path, inventory)
-	]
+	groups, submodules = overlay_inventory_groups(source, inventory)
+	outside = overlay_outside_inventory(source, inventory, submodules)
 	if outside:
 		raise WorkspaceError(
 			"Dirty source paths are outside the overlay inventory: "
 			+ ", ".join(outside)
 		)
-	patch = run_git_binary(source, "diff", "--binary", "HEAD")
-	if not patch.strip():
-		raise WorkspaceError("The overlay diff is empty; nothing to save")
-	patch_path = work / OVERLAY_PATCH_FILE
-	patch_path.write_bytes(patch)
-	check = subprocess.run(
-		["git", "-C", str(source), "apply", "--check", "--reverse", str(patch_path)],
-		stdout=subprocess.PIPE,
-		stderr=subprocess.PIPE,
-		text=True,
+	clear_overlay_submodule_bundle(work)
+	root_paths = groups.get("", [])
+	patch = (
+		run_git_binary(source, "diff", "--binary", "HEAD", "--", *root_paths)
+		if root_paths
+		else b""
 	)
-	if check.returncode:
-		raise WorkspaceError(
-			"The saved overlay patch does not verify: "
-			+ check.stderr.strip()
+	patch_path = work / OVERLAY_PATCH_FILE
+	if patch.strip():
+		patch_path.write_bytes(patch)
+	else:
+		patch_path.unlink(missing_ok=True)
+	submodule_entries = []
+	patches_dir = work / OVERLAY_SUBMODULES_DIR
+	for repository_path, paths in groups.items():
+		if not repository_path:
+			continue
+		repository = source / repository_path
+		repository_patch = run_git_binary(
+			repository, "diff", "--binary", "HEAD", "--", *paths
 		)
+		if not repository_patch.strip():
+			continue
+		patches_dir.mkdir(parents=True, exist_ok=True)
+		name = hashlib.sha256(repository_path.encode("utf-8")).hexdigest()[:16]
+		relative_patch = f"{OVERLAY_SUBMODULES_DIR}/{name}.patch"
+		submodule_patch_path = work / relative_patch
+		submodule_patch_path.write_bytes(repository_patch)
+		submodule_entries.append({
+			"patch": relative_patch,
+			"path": repository_path,
+		})
+	if submodule_entries:
+		(work / OVERLAY_SUBMODULES_FILE).write_text(
+			json.dumps({
+				"submodules": submodule_entries,
+				"version": 1,
+			}, indent=2, sort_keys=True) + "\n",
+			encoding="utf-8",
+		)
+	if not patch.strip() and not submodule_entries:
+		raise WorkspaceError("The overlay diff is empty; nothing to save")
+	checks = []
+	if patch.strip():
+		checks.append((source, patch_path))
+	checks.extend(
+		(source / entry["path"], work / entry["patch"])
+		for entry in submodule_entries
+	)
+	for repository, saved_patch in checks:
+		check = subprocess.run(
+			[
+				"git", "-C", str(repository), "apply", "--check",
+				"--reverse", str(saved_patch),
+			],
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			text=True,
+		)
+		if check.returncode:
+			raise WorkspaceError(
+				"The saved overlay patch does not verify: "
+				+ check.stderr.strip()
+			)
 	restored = []
 	if args.restore != "none":
 		ref = source_task_ref(args.task, args.restore)
 		if resolved_ref(source, ref) is None:
 			raise WorkspaceError(f"Missing task ref for restore: {ref}")
-		run_git(source, "checkout", ref, "--", *inventory)
+		for repository_path, paths in sorted(
+			groups.items(), key=lambda item: -item[0].count("/")
+		):
+			if not repository_path:
+				continue
+			run_git(source / repository_path, "checkout", "HEAD", "--", *paths)
+		if root_paths:
+			run_git(source, "checkout", ref, "--", *root_paths)
 		restored = inventory
-		remaining = [
-			path for path in changed_paths(source)
-			if path_is_covered(path, inventory)
-		]
+		remaining = []
+		for repository_path, paths in groups.items():
+			repository = source / repository_path if repository_path else source
+			remaining.extend(
+				(
+					f"{repository_path}/{path}"
+					if repository_path else path
+				)
+				for path in changed_paths(repository)
+				if path_is_covered(path, paths)
+			)
 		if remaining:
 			raise WorkspaceError(
 				"Overlay paths remain dirty after restore: "
 				+ ", ".join(remaining)
 			)
 	print(json.dumps({
-		"patch": str(patch_path),
-		"patch_bytes": len(patch),
+		"patch": str(patch_path) if patch.strip() else None,
+		"patch_bytes": len(patch) + sum(
+			(work / entry["patch"]).stat().st_size
+			for entry in submodule_entries
+		),
 		"restored": restored,
+		"submodules": [entry["path"] for entry in submodule_entries],
 		"task": args.task,
 	}, indent=2, sort_keys=True))
 
@@ -1887,28 +2074,59 @@ def command_overlay_apply(args):
 	source = Path(config["source_root"])
 	work = overlay_work_dir(config, slot, args.task)
 	patch_path = work / OVERLAY_PATCH_FILE
-	if not patch_path.is_file() or not patch_path.stat().st_size:
+	submodule_entries = read_overlay_submodule_bundle(work)
+	root_patch = patch_path.is_file() and patch_path.stat().st_size
+	if not root_patch and not submodule_entries:
 		raise WorkspaceError(f"Missing overlay patch: {patch_path}")
 	inventory = read_overlay_paths(work)
-	result = subprocess.run(
-		["git", "-C", str(source), "apply", "--3way", str(patch_path)],
-		stdout=subprocess.PIPE,
-		stderr=subprocess.PIPE,
-		text=True,
+	groups, submodules = overlay_inventory_groups(source, inventory)
+	for entry in submodule_entries:
+		if entry["path"] not in groups or entry["path"] not in submodules:
+			raise WorkspaceError(
+				"Overlay submodule manifest is outside the inventory: "
+				+ entry["path"]
+			)
+		if not (work / entry["patch"]).is_file():
+			raise WorkspaceError(
+				"Missing overlay submodule patch: " + entry["patch"]
+			)
+	applications = []
+	if root_patch:
+		applications.append(("", source, patch_path))
+	applications.extend(
+		(entry["path"], source / entry["path"], work / entry["patch"])
+		for entry in submodule_entries
 	)
-	conflicts = run_git(
-		source, "diff", "--name-only", "--diff-filter=U"
-	).stdout.splitlines()
-	applied = not result.returncode and not conflicts
-	outside = [
-		path for path in changed_paths(source)
-		if not path_is_covered(path, inventory)
-	]
+	conflicts = []
+	errors = []
+	for repository_path, repository, saved_patch in applications:
+		result = subprocess.run(
+			[
+				"git", "-C", str(repository), "apply", "--3way",
+				str(saved_patch),
+			],
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			text=True,
+		)
+		if result.returncode:
+			errors.append(
+				f"{repository_path or '.'}: {result.stderr.strip()}"
+			)
+		for path in run_git(
+			repository, "diff", "--name-only", "--diff-filter=U"
+		).stdout.splitlines():
+			conflicts.append(
+				f"{repository_path}/{path}" if repository_path else path
+			)
+	outside = overlay_outside_inventory(source, inventory, submodules)
+	applied = not errors and not conflicts and not outside
 	print(json.dumps({
 		"applied": applied,
 		"conflicts": conflicts,
-		"error": result.stderr.strip() if result.returncode else None,
+		"error": "\n".join(errors) if errors else None,
 		"outside_inventory": outside,
+		"submodules": [entry["path"] for entry in submodule_entries],
 		"task": args.task,
 	}, indent=2, sort_keys=True))
 
