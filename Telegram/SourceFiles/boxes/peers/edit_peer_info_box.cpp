@@ -220,6 +220,21 @@ void AddCommunityRow(
 		controller));
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
+
+	const auto arrow = Ui::CreateChild<Ui::RpWidget>(content);
+	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+	arrow->resize(st::settingsPremiumArrow.size());
+	arrow->paintRequest() | rpl::on_next([=] {
+		auto p = QPainter(arrow);
+		st::settingsPremiumArrow.paint(p, 0, 0, arrow->width());
+	}, arrow->lifetime());
+	content->sizeValue() | rpl::on_next([=](QSize size) {
+		arrow->moveToRight(
+			st::contactsPadding.right(),
+			(size.height() - arrow->height()) / 2,
+			size.width());
+		arrow->show();
+	}, arrow->lifetime());
 }
 
 void SaveDefaultRestrictions(
