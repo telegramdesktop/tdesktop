@@ -262,6 +262,7 @@ void UnpinAllMessages(
 
 [[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread);
 void MarkAsReadThread(not_null<Data::Thread*> thread);
+void MarkAsReadChatList(not_null<Dialogs::MainList*> list);
 
 void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction);
 

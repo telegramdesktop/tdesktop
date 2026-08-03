@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/ui/dialogs_quick_action_context.h"
 #include "apiwrap.h"
+#include "data/data_channel.h"
+#include "data/data_community.h"
 #include "data/data_histories.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -64,6 +66,14 @@ const style::font &SwipeActionFont(
 	Unexpected("SwipeActionFont: can't find font.");
 }
 
+[[nodiscard]] Data::CommunityInfo *QuickActionCommunity(
+		not_null<History*> history) {
+	const auto channel = history->peer->asChannel();
+	return (channel && channel->isCommunity())
+		? channel->communityInfo()
+		: nullptr;
+}
+
 } // namespace
 
 void PerformQuickDialogAction(
@@ -107,7 +117,11 @@ void PerformQuickDialogAction(
 		}
 	} else if (action == Dialogs::Ui::QuickDialogAction::Read) {
 		if (Window::IsUnreadThread(history)) {
-			Window::MarkAsReadThread(history);
+			if (const auto info = QuickActionCommunity(history)) {
+				Window::MarkAsReadChatList(info->chatsList());
+			} else {
+				Window::MarkAsReadThread(history);
+			}
 			controller->showToast(
 				tr::lng_quick_dialog_action_toast_read_success(tr::now));
 		} else if (history) {

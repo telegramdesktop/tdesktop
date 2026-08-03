@@ -236,16 +236,6 @@ void SetActionText(not_null<QAction*> action, rpl::producer<QString> &&text) {
 	}, *lifetime);
 }
 
-void MarkAsReadChatList(not_null<Dialogs::MainList*> list) {
-	auto mark = std::vector<not_null<History*>>();
-	for (const auto &row : list->indexed()->all()) {
-		if (const auto history = row->history()) {
-			mark.push_back(history);
-		}
-	}
-	ranges::for_each(mark, MarkAsReadThread);
-}
-
 void PeerMenuAddMuteSubmenuAction(
 		not_null<Window::SessionController*> controller,
 		not_null<Data::Thread*> thread,
@@ -4350,6 +4340,16 @@ void MarkAsReadThread(not_null<Data::Thread*> thread) {
 	} else if (const auto sublist = thread->asSublist()) {
 		sublist->readTillEnd();
 	}
+}
+
+void MarkAsReadChatList(not_null<Dialogs::MainList*> list) {
+	auto mark = std::vector<not_null<History*>>();
+	for (const auto &row : list->indexed()->all()) {
+		if (const auto history = row->history()) {
+			mark.push_back(history);
+		}
+	}
+	ranges::for_each(mark, MarkAsReadThread);
 }
 
 void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction) {
