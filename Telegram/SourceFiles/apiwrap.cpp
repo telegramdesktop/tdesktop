@@ -1101,17 +1101,31 @@ void ApiWrap::requestPinnedDialogs(Data::Folder *folder) {
 		return;
 	}
 
-	const auto finalize = [=] {
+	state->pinnedRequestId = sendPinnedDialogsRequest(folder, [=] {
 		if (const auto state = dialogsLoadState(folder)) {
 			state->pinnedRequestId = 0;
 			state->pinnedReceived = true;
 			dialogsLoadFinish(folder);
 		}
-	};
-	state->pinnedRequestId = request(MTPmessages_GetPinnedDialogs(
+	});
+}
+
+void ApiWrap::reloadPinnedDialogs(Data::Folder *folder) {
+	if (!_pinnedDialogsReloads.emplace(folder).second) {
+		return;
+	}
+	sendPinnedDialogsRequest(folder, [=] {
+		_pinnedDialogsReloads.remove(folder);
+	});
+}
+
+mtpRequestId ApiWrap::sendPinnedDialogsRequest(
+		Data::Folder *folder,
+		Fn<void()> finish) {
+	return request(MTPmessages_GetPinnedDialogs(
 		MTP_int(folder ? folder->id() : 0)
 	)).done([=](const MTPmessages_PeerDialogs &result) {
-		finalize();
+		finish();
 		result.match([&](const MTPDmessages_peerDialogs &data) {
 			_session->data().processUsers(data.vusers());
 			_session->data().processChats(data.vchats());
@@ -1124,7 +1138,7 @@ void ApiWrap::requestPinnedDialogs(Data::Folder *folder) {
 			_session->data().notifyPinnedDialogsOrderUpdated();
 		});
 	}).fail([=] {
-		finalize();
+		finish();
 	}).send();
 }
 

@@ -1269,6 +1269,12 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 	} else if (!result->isLoaded()) {
 		result->setLoadedStatus(PeerData::LoadedStatus::Normal);
 	}
+	if (!_pinnedCommunitiesNotLoaded.empty()) {
+		if (const auto channel = result->asChannel()
+			; channel && channel->isCommunity()) {
+			checkPinnedCommunityLoaded(channel);
+		}
+	}
 	if (flags) {
 		session().changes().peerUpdated(result, flags);
 	}
@@ -2694,14 +2700,25 @@ void Session::applyDialog(
 	const auto channelId = ChannelId(data.vcommunity_id().v);
 	const auto channel = channelLoaded(channelId);
 	if (!channel || !channel->isCommunity()) {
+		if (data.is_pinned()) {
+			_pinnedCommunitiesNotLoaded.emplace(channelId);
+		}
 		return;
 	}
+	_pinnedCommunitiesNotLoaded.remove(channelId);
 	const auto history = this->history(channel);
 	notifySettings().apply(
 		peerFromChannel(channelId),
 		data.vnotify_settings());
 	channel->ensuredCommunityInfo()->ensureRowInChatList();
 	setPinnedFromEntryList(history, data.is_pinned());
+}
+
+void Session::checkPinnedCommunityLoaded(not_null<ChannelData*> channel) {
+	if (!_pinnedCommunitiesNotLoaded.remove(peerToChannel(channel->id))) {
+		return;
+	}
+	session().api().reloadPinnedDialogs();
 }
 
 bool Session::pinnedCanPin(not_null<Dialogs::Entry*> entry) const {
@@ -2831,6 +2848,9 @@ const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
 }
 
 void Session::clearPinnedChats(Data::Folder *folder) {
+	if (!folder) {
+		_pinnedCommunitiesNotLoaded.clear();
+	}
 	chatsList(folder)->pinned()->clear();
 }
 
