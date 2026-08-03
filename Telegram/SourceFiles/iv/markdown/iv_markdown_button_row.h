@@ -56,6 +56,19 @@ struct ButtonRowRuntime {
 	int rippleIndex = -1;
 };
 
+struct RichButtonPillColors {
+	QColor bg;
+	QColor ripple;
+	QColor fg;
+	bool punchOut = false;
+	bool eraseRipple = false;
+};
+
+[[nodiscard]] RichButtonPillColors BubbleGradientPillColors(
+	const style::Markdown &st,
+	float64 tintBgOpacity,
+	bool primary);
+
 [[nodiscard]] int ButtonRowMinWidth(
 	int count,
 	const style::MarkdownButtonRow &st);

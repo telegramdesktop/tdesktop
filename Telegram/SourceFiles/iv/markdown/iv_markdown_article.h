@@ -208,6 +208,7 @@ struct MarkdownArticlePaintContext final : Ui::ChatPaintContext {
 	int hiddenTextSegmentIndex = -1;
 	int hiddenSegmentIndex = -1;
 	bool debugBlockGeometry = false;
+	bool bubbleGradient = false;
 	double mediaPixelScale = 1.;
 
 	[[nodiscard]] MarkdownArticlePaintContext translated(int x, int y) const {

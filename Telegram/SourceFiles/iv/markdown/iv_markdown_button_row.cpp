@@ -25,6 +25,7 @@ namespace Iv::Markdown {
 namespace {
 
 using ButtonType = HistoryMessageMarkupButton::Type;
+using ButtonColor = HistoryMessageMarkupButton::Color;
 
 [[nodiscard]] const style::icon *ButtonRowIcon(ButtonType type) {
 	switch (type) {
@@ -229,31 +230,23 @@ void ApplyButtonFallbackLadder(
 		: QRect();
 }
 
-struct ButtonRowColors {
-	QColor bg;
-	QColor ripple;
-	QColor fg;
-	bool punchOut = false;
-};
-
-[[nodiscard]] ButtonRowColors ResolveButtonColors(
-		HistoryMessageMarkupButton::Color color,
+[[nodiscard]] RichButtonPillColors ResolveButtonColors(
+		ButtonColor color,
 		const style::MarkdownButtonRow &st) {
-	using Color = HistoryMessageMarkupButton::Color;
 	switch (color) {
-	case Color::Primary:
+	case ButtonColor::Primary:
 		return {
 			.bg = st.primaryBg->c,
 			.ripple = st.primaryRipple->c,
 			.punchOut = true,
 		};
-	case Color::Success:
+	case ButtonColor::Success:
 		return {
 			.bg = anim::with_alpha(st.successFg->c, st.tintBgOpacity),
 			.ripple = anim::with_alpha(st.successFg->c, st.tintRippleOpacity),
 			.fg = st.successFg->c,
 		};
-	case Color::Danger:
+	case ButtonColor::Danger:
 		return {
 			.bg = anim::with_alpha(st.dangerFg->c, st.tintBgOpacity),
 			.ripple = anim::with_alpha(st.dangerFg->c, st.tintRippleOpacity),
@@ -306,35 +299,41 @@ void PaintButtonContent(
 void PaintButtonPill(
 		QPainter &p,
 		const LaidOutButton &button,
-		const ButtonRowColors &colors,
+		const RichButtonPillColors &colors,
 		Ui::RippleAnimation *ripple,
 		const style::MarkdownButtonRow &st,
-		int outerWidth) {
+		int outerWidth,
+		bool eraseRipple) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto radius = st.height / 2;
 	p.setPen(Qt::NoPen);
 	p.setBrush(colors.bg);
 	p.drawRoundedRect(button.rect, radius, radius);
 	if (ripple) {
+		const auto mode = p.compositionMode();
+		if (eraseRipple) {
+			p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+		}
 		ripple->paint(
 			p,
 			button.rect.x(),
 			button.rect.y(),
 			outerWidth,
 			&colors.ripple);
+		p.setCompositionMode(mode);
 	}
 }
 
 void PaintPlainButton(
 		Painter &p,
 		const LaidOutButton &button,
-		const ButtonRowColors &colors,
+		const RichButtonPillColors &colors,
 		Ui::RippleAnimation *ripple,
 		const style::MarkdownButtonRow &st,
 		const MarkdownArticlePaintContext &context,
 		int outerWidth,
 		bool disabled) {
-	PaintButtonPill(p, button, colors, ripple, st, outerWidth);
+	PaintButtonPill(p, button, colors, ripple, st, outerWidth, false);
 	const auto was = p.opacity();
 	if (disabled) {
 		p.setOpacity(was * st.disabledOpacity);
@@ -354,7 +353,7 @@ void PaintPlainButton(
 void PaintPrimaryButton(
 		Painter &p,
 		const LaidOutButton &button,
-		const ButtonRowColors &colors,
+		const RichButtonPillColors &colors,
 		Ui::RippleAnimation *ripple,
 		const style::MarkdownButtonRow &st,
 		const MarkdownArticlePaintContext &context,
@@ -366,7 +365,14 @@ void PaintPrimaryButton(
 		button.rect,
 		disabled ? st.disabledPrimaryOpacity : 1.,
 		[&](QPainter &q) {
-			PaintButtonPill(q, button, colors, ripple, st, outerWidth);
+			PaintButtonPill(
+				q,
+				button,
+				colors,
+				ripple,
+				st,
+				outerWidth,
+				colors.eraseRipple);
 		},
 		[&](QPainter &q, QColor fg) {
 			PaintButtonContent(q, button, fg, context, outerWidth, palette);
@@ -524,13 +530,36 @@ void PaintPunchedOutPill(
 	p.setOpacity(was);
 }
 
+RichButtonPillColors BubbleGradientPillColors(
+		const style::Markdown &st,
+		float64 tintBgOpacity,
+		bool primary) {
+	const auto foreground = st.textColor->c;
+	const auto ripple = anim::with_alpha(
+		foreground,
+		st.buttonRow.tintRippleOpacity);
+	return primary
+		? RichButtonPillColors{
+			.bg = foreground,
+			.ripple = ripple,
+			.punchOut = true,
+			.eraseRipple = true,
+		}
+		: RichButtonPillColors{
+			.bg = anim::with_alpha(foreground, tintBgOpacity),
+			.ripple = ripple,
+			.fg = foreground,
+		};
+}
+
 void PaintButtonRow(
 		Painter &p,
 		const LaidOutBlock &block,
 		const style::Markdown &st,
 		const MarkdownArticlePaintContext &context,
 		int outerWidth) {
-	const auto &style = context.paintMarkdownStyle(st).buttonRow;
+	const auto &paintSt = context.paintMarkdownStyle(st);
+	const auto &style = paintSt.buttonRow;
 	const auto &runtime = block.buttonRowRuntime;
 	const auto count = int(block.buttons.size());
 	for (auto i = 0; i != count; ++i) {
@@ -540,7 +569,12 @@ void PaintButtonRow(
 				&& !button.rect.intersects(context.clip))) {
 			continue;
 		}
-		const auto colors = ResolveButtonColors(button.color, style);
+		const auto colors = context.bubbleGradient
+			? BubbleGradientPillColors(
+				paintSt,
+				style.tintBgOpacity,
+				(button.color == ButtonColor::Primary))
+			: ResolveButtonColors(button.color, style);
 		const auto disabled = (button.type == ButtonType::Disabled);
 		const auto ripple = (runtime
 			&& runtime->ripple

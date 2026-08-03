@@ -660,6 +660,34 @@ FindInlineFormulaMeasuredData(
 	return InlineButtonPresentation::Default;
 }
 
+[[nodiscard]] RichButtonPillColors ResolveInlineButtonColors(
+		InlineButtonPresentation presentation,
+		const style::Markdown &st) {
+	const auto &inlineSt = st.inlineButton;
+	const auto tint = [&](const style::color &fg) {
+		return RichButtonPillColors{
+			.bg = anim::with_alpha(fg->c, inlineSt.tintBgOpacity),
+			.ripple = anim::with_alpha(
+				fg->c,
+				st.buttonRow.tintRippleOpacity),
+			.fg = fg->c,
+		};
+	};
+	switch (presentation) {
+	case InlineButtonPresentation::Primary:
+		return {
+			.bg = inlineSt.primaryBg->c,
+			.ripple = st.buttonRow.primaryRipple->c,
+			.punchOut = true,
+		};
+	case InlineButtonPresentation::Success:
+		return tint(inlineSt.successFg);
+	case InlineButtonPresentation::Danger:
+		return tint(inlineSt.dangerFg);
+	}
+	return tint(inlineSt.defaultFg);
+}
+
 [[nodiscard]] std::optional<InlineTextObjectButtonData> InlineButtonDataFor(
 		QStringView data) {
 	const auto parsed = ParseInlineTextObjectEntity(data);
@@ -1532,18 +1560,27 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 		&& (state->rippleRect == rect))
 		? state->ripple.get()
 		: nullptr;
-	const auto fillPill = [&](QPainter &q, QColor color, QColor rippleColor) {
+	const auto fillPill = [&](
+			QPainter &q,
+			const RichButtonPillColors &colors,
+			bool eraseRipple) {
 		auto hq = PainterHighQualityEnabler(q);
 		q.setPen(Qt::NoPen);
-		q.setBrush(color);
+		q.setBrush(colors.bg);
 		q.drawRoundedRect(rect, radius, radius);
 		if (ripple) {
+			const auto mode = q.compositionMode();
+			if (eraseRipple) {
+				q.setCompositionMode(
+					QPainter::CompositionMode_DestinationOut);
+			}
 			ripple->paint(
 				q,
 				rect.x(),
 				rect.y(),
 				rect.x() * 2 + rect.width(),
-				&rippleColor);
+				&colors.ripple);
+			q.setCompositionMode(mode);
 		}
 	};
 	p.save();
@@ -1552,34 +1589,31 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 			p.setOpacity(p.opacity() * st.disabledOpacity);
 		}
 		paintLabel(p, position, context.textColor, markdownSt, context);
-	} else if (_presentation == InlineButtonPresentation::Primary) {
-		PaintPunchedOutPill(
-			p,
-			rect,
-			_disabled ? st.disabledPrimaryOpacity : 1.,
-			[&](QPainter &q) {
-				fillPill(
-					q,
-					st.primaryBg->c,
-					markdownSt.buttonRow.primaryRipple->c);
-			},
-			[&](QPainter &q, QColor fg) {
-				paintLabel(q, position, fg, markdownSt, context);
-			});
 	} else {
-		const auto fg = (_presentation == InlineButtonPresentation::Success)
-			? st.successFg->c
-			: (_presentation == InlineButtonPresentation::Danger)
-			? st.dangerFg->c
-			: st.defaultFg->c;
-		fillPill(
-			p,
-			anim::with_alpha(fg, st.tintBgOpacity),
-			anim::with_alpha(fg, markdownSt.buttonRow.tintRippleOpacity));
-		if (_disabled) {
-			p.setOpacity(p.opacity() * st.disabledOpacity);
+		const auto colors = (state && state->bubbleGradient)
+			? BubbleGradientPillColors(
+				markdownSt,
+				st.tintBgOpacity,
+				(_presentation == InlineButtonPresentation::Primary))
+			: ResolveInlineButtonColors(_presentation, markdownSt);
+		if (colors.punchOut) {
+			PaintPunchedOutPill(
+				p,
+				rect,
+				_disabled ? st.disabledPrimaryOpacity : 1.,
+				[&](QPainter &q) {
+					fillPill(q, colors, colors.eraseRipple);
+				},
+				[&](QPainter &q, QColor fg) {
+					paintLabel(q, position, fg, markdownSt, context);
+				});
+		} else {
+			fillPill(p, colors, false);
+			if (_disabled) {
+				p.setOpacity(p.opacity() * st.disabledOpacity);
+			}
+			paintLabel(p, position, colors.fg, markdownSt, context);
 		}
-		paintLabel(p, position, fg, markdownSt, context);
 	}
 	p.restore();
 }

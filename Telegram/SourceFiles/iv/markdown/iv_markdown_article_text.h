@@ -70,6 +70,7 @@ struct InlineButtonPaintState {
 	QPoint pressPoint;
 	bool pressPending = false;
 	bool editMode = false;
+	bool bubbleGradient = false;
 };
 
 void SetTextLeaf(

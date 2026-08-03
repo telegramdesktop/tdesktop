@@ -3104,6 +3104,7 @@ void Message::paintRichText(
 			= &context.messageSelection->richPage.endpoints;
 	}
 	articleContext.clip = articleClip;
+	articleContext.bubbleGradient = usesBubblePattern(context);
 	articleContext.caches = {
 		.pre = stm->preCache.get(),
 		.blockquote = context.quoteCache(

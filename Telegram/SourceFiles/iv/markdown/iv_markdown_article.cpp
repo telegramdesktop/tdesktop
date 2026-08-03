@@ -4260,8 +4260,10 @@ void MarkdownArticle::Impl::paint(
 	local.searchState.current = _currentSearchMatch;
 	const auto &paintSt = local.paintMarkdownStyle(st);
 	_inlineButtonPaintState->st = &paintSt;
+	_inlineButtonPaintState->bubbleGradient = local.bubbleGradient;
 	const auto inlineButtonPaintGuard = gsl::finally([&] {
 		_inlineButtonPaintState->st = nullptr;
+		_inlineButtonPaintState->bubbleGradient = false;
 	});
 	auto textPalette = paintSt.textPalette;
 	auto markBg = MarkBgColorForStyle(paintSt);
