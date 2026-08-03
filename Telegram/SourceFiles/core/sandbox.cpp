@@ -672,6 +672,19 @@ void Sandbox::processPostponedCalls(int level) {
 	}
 }
 
+void Sandbox::drainPostponedCalls() {
+	Expects(QThread::currentThreadId() == _mainThreadId);
+
+	if (!cTestAgent()) {
+		return;
+	}
+	while (!_postponedCalls.empty()) {
+		auto taken = std::move(_postponedCalls.back());
+		_postponedCalls.pop_back();
+		taken.callable();
+	}
+}
+
 bool Sandbox::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,

@@ -47,6 +47,32 @@ template <typename T>
 	not_null<QWidget*> root,
 	const QString &name);
 
+// Input delivery and settlement contract.
+//
+// Click, TypeText and PressKey deliver their events synchronously with
+// QApplication::sendEvent from the calling (runner-stage) context, and run
+// SettlePostponedCalls() after every delivered event.
+//
+// Why the explicit drain: Core::Sandbox tags each Ui::PostponeCall with
+// the loop-nesting level current at queue time and runs it only at the
+// unwind of an event whose nesting level matches that tag, and only while
+// it sits newest in the queue. A postponed input fix-up queued under the
+// harness's synthetic nesting gets a tag no later unwind matches: a
+// synchronously sent keystroke's fix-up starves outright, and even a
+// posted keystroke's fix-up would run only at the entry of the NEXT
+// changes-firing event. Text-neutral keys never drain it. The drain runs
+// every pending postponed call (and any calls those queue) to empty — the
+// state real top-level input reaches at its own event's unwind.
+//
+// Guarantee: when a helper returns, every Ui::PostponeCall queued by its
+// delivered events has already run, so postponed text fix-ups (for
+// example Ui::CreateTonAmountInput's FixTonAmountInput rewrite) are
+// settled and the widget shows the product's own rewritten text. The
+// drain covers Ui::PostponeCall only: crl::on_main, InvokeQueued,
+// base::Timer and network completions still need bounded waits. If a
+// drained call destroys the target widget, the helper skips its remaining
+// events and returns.
+
 // Synthesizes a full mouse press + release on the widget, at its center by
 // default. Drives the same event path as a real click.
 void Click(not_null<QWidget*> widget, std::optional<QPoint> point = {});
@@ -59,5 +85,11 @@ void PressKey(
 	not_null<QWidget*> widget,
 	int key,
 	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+
+// Runs every pending Ui::PostponeCall (see the contract above). The input
+// helpers call this after each delivered event; call it directly after
+// programmatic text mutations (InputField::setText) that queue postponed
+// fix-ups of their own.
+void SettlePostponedCalls();
 
 } // namespace Test

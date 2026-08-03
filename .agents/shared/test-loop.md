@@ -328,7 +328,9 @@ The repository carries a permanent test harness under
   tolerance assertions, `LogGeometry`, the standard markers.
 - `test_widgets.h` — `FindAll<T>`/`FindFirst<T>`/`FindVisible<T>` (the `dynamic_cast`-based
   finders that avoid the guaranteed `findChildren<CustomWidget*>` crash), `Click`, `TypeText`,
-  `PressKey` via real Qt events.
+  `PressKey` via real Qt events — each delivered event is followed by a drain of every pending
+  `Ui::PostponeCall` (`SettlePostponedCalls()`), so postponed input fix-ups are settled when
+  the helper returns; call `SettlePostponedCalls()` yourself after programmatic `setText`.
 - `test_capture.h` — `CaptureWidget`/`CaptureRect` (visibility check, `QWidget::grab()` so
   floating elements and locked desktops cannot occlude, automatic blank-image FAIL, geometry
   log, `SCREENSHOT` marker), `Crop`/`Zoom`/`ContactSheet` for tight same-scale evidence.
