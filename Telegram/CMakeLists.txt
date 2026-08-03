@@ -2157,12 +2157,14 @@ PRIVATE
     ui/peer/video_userpic_player.h
     wallet/wallet_api.cpp
     wallet/wallet_api.h
+    wallet/wallet_content.cpp
+    wallet/wallet_content.h
     wallet/wallet_fee_estimator.cpp
     wallet/wallet_fee_estimator.h
     wallet/wallet_fiat.cpp
     wallet/wallet_fiat.h
-    wallet/wallet_section.cpp
-    wallet/wallet_section.h
+    wallet/wallet_panel.cpp
+    wallet/wallet_panel.h
     wallet/wallet_session.cpp
     wallet/wallet_session.h
     webauthn/cable.h

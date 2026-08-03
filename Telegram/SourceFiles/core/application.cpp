@@ -87,7 +87,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "payments/payments_checkout_process.h"
 #include "export/export_manager.h"
-#include "wallet/wallet_section.h"
+#include "wallet/wallet_panel.h"
 #include "webrtc/webrtc_environment.h"
 #include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
@@ -250,6 +250,7 @@ void Application::closeAdditionalWindows() {
 	for (const auto &[index, account] : _domain->accounts()) {
 		if (account->sessionExists()) {
 			account->session().attachWebView().closeAll();
+			Wallet::CloseWallet(&account->session());
 		}
 	}
 	_iv->closeAll();

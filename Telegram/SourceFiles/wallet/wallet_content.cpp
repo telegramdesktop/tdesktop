@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "wallet/wallet_section.h"
+#include "wallet/wallet_content.h"
 
 #include "base/event_filter.h"
 #include "base/unixtime.h"
@@ -22,9 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "main/session/session_show.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
-#include "profile/profile_back_button.h"
 #include "qr/qr_generate.h"
 #include "settings/settings_common.h"
 #include "storage/storage_account.h"
@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/fields/password_input.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/labels.h"
@@ -59,12 +60,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "wallet/wallet_fiat.h"
 #include "wallet/wallet_session.h"
-#include "window/window_session_controller.h"
 
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_giveaway.h"
-#include "styles/style_info.h"
 #include "styles/style_intro.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -102,11 +101,33 @@ constexpr auto kNanosInCent = 10'000'000LL;
 constexpr auto kMaxCents = 99'999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 
+class Content final : public Ui::RpWidget {
+public:
+	Content(
+		QWidget *parent,
+		std::shared_ptr<Main::SessionShow> show);
+	~Content();
+
+protected:
+	void focusInEvent(QFocusEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	void setupContent();
+	void checkLoadMore();
+
+	const std::shared_ptr<Main::SessionShow> _show;
+	object_ptr<Ui::ScrollArea> _scroll;
+	Ui::RpWidget *_container = nullptr;
+
+};
+
 class Card final : public Ui::RpWidget {
 public:
 	Card(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller);
+		std::shared_ptr<Main::SessionShow> show);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -118,7 +139,7 @@ private:
 	void setupQr();
 	void updateLayout();
 
-	const not_null<Window::SessionController*> _controller;
+	const std::shared_ptr<Main::SessionShow> _show;
 	Ui::FlatLabel *_major = nullptr;
 	Ui::FlatLabel *_minor = nullptr;
 	Ui::FlatLabel *_ticker = nullptr;
@@ -790,9 +811,9 @@ void WalletReceiveBox(
 }
 
 void ShowWalletReceiveBox(
-		not_null<Window::SessionController*> controller,
+		not_null<Main::Session*> session,
 		std::shared_ptr<Ui::Show> show) {
-	auto &wallet = controller->session().wallet();
+	auto &wallet = session->wallet();
 	const auto address = wallet.addressFriendly(false);
 	if (address.size() != kAddressLength) {
 		return;
@@ -965,16 +986,16 @@ void WalletTransactionBox(
 }
 
 void ShowWalletTransactionBox(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		const Gram::TransferItem &item) {
-	controller->show(Box(WalletTransactionBox, &controller->session(), item));
+	show->showBox(Box(WalletTransactionBox, &show->session(), item));
 
-	const auto local = &controller->session().local();
+	const auto local = &show->session().local();
 	if (local->readPref<bool>(kIntroToastShownPref)) {
 		return;
 	}
 	local->writePref<bool>(kIntroToastShownPref, true);
-	controller->showToast({
+	show->showToast({
 		.text = WalletIntroText(tr::lng_wallet_intro_text(tr::now)),
 		.duration = kIntroToastDuration,
 	});
@@ -1059,7 +1080,7 @@ not_null<Ui::FlatLabel*> AddSendFlowLabel(
 
 void WalletSendConfirmBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		SendFlow flow,
 		Fn<void(QString)> commentEdited) {
 	box->setWidth(st::boxWideWidth);
@@ -1083,7 +1104,7 @@ void WalletSendConfirmBox(
 		AddressValueLabel(table, box->uiShow(), flow.displayForm));
 	AddFeeTableRow(
 		table,
-		&controller->session(),
+		&show->session(),
 		flow.feeNano,
 		flow.feeApproximate);
 	Ui::AddTableRow(
@@ -1104,9 +1125,8 @@ void WalletSendConfirmBox(
 		rpl::variable<bool> confirmButtonBusy = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	const auto wallet = &controller->session().wallet();
+	const auto wallet = &show->session().wallet();
 	const auto weak = base::make_weak(box.get());
-	const auto weakController = base::make_weak(controller.get());
 	const auto submit = [=] {
 		if (state->confirmButtonBusy.current()) {
 			return;
@@ -1124,26 +1144,23 @@ void WalletSendConfirmBox(
 			.bounce = flow.bounce,
 		};
 		wallet->send(args, [=](QString error) {
+			if (!show->valid()) {
+				return;
+			}
 			if (!error.isEmpty()) {
 				if (weak.get()) {
 					state->confirmButtonBusy = false;
 				}
-				if (const auto strong = weakController.get()) {
-					strong->showToast(error);
-				}
+				show->showToast(error);
 				return;
 			}
-			const auto strong = weakController.get();
-			if (!strong) {
-				return;
-			}
-			strong->hideLayer();
-			strong->showToast(tr::lng_wallet_sent_toast(
+			show->hideLayer();
+			show->showToast(tr::lng_wallet_sent_toast(
 				tr::now,
 				lt_address,
 				ShortAddressForm(flow.displayForm)));
 			if (const auto &pending = wallet->pendingSend()) {
-				ShowWalletTransactionBox(strong, ItemFromPending(*pending));
+				ShowWalletTransactionBox(show, ItemFromPending(*pending));
 			}
 		});
 	};
@@ -1257,7 +1274,7 @@ void WalletCommentBox(
 
 void WalletSendAmountBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Main::SessionShow> show,
 		SendFlow flow) {
 	box->setTitle(tr::lng_wallet_send_to_title(
 		lt_address,
@@ -1267,9 +1284,9 @@ void WalletSendAmountBox(
 	AddBoxCloseButton(box);
 	const auto toggle = box->addTopButton(st::boxTitleMenu);
 
-	const auto wallet = &controller->session().wallet();
+	const auto wallet = &show->session().wallet();
 	const auto showDeposit = [=] {
-		ShowWalletReceiveBox(controller, box->uiShow());
+		ShowWalletReceiveBox(&show->session(), box->uiShow());
 	};
 
 	struct State {
@@ -1285,7 +1302,7 @@ void WalletSendAmountBox(
 		bool settingUnitText = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	state->rate = TonUsdRateValue(&controller->session());
+	state->rate = TonUsdRateValue(&show->session());
 	state->comment = flow.comment;
 	const auto setComment = crl::guard(box, [=](QString comment) {
 		state->comment = comment;
@@ -1553,7 +1570,7 @@ void WalletSendAmountBox(
 		next.comment = state->comment.current();
 		box->uiShow()->showBox(Box(
 			WalletSendConfirmBox,
-			controller,
+			show,
 			next,
 			setComment));
 	};
@@ -1570,7 +1587,7 @@ void WalletSendAmountBox(
 
 void WalletSendRecipientBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller) {
+		std::shared_ptr<Main::SessionShow> show) {
 	box->setTitle(tr::lng_wallet_send_title());
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
@@ -1618,7 +1635,7 @@ void WalletSendRecipientBox(
 		}
 		const auto flow = *state->flow;
 		box->closeBox();
-		controller->show(Box(WalletSendAmountBox, controller, flow));
+		show->showBox(Box(WalletSendAmountBox, show, flow));
 	};
 	field->submits() | rpl::on_next(submit, field->lifetime());
 	const auto button = box->addButton(
@@ -1656,8 +1673,8 @@ void AddPhraseBoxHeader(
 
 void WalletPhraseBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller) {
-	const auto stored = controller->session().local().readWallet();
+		std::shared_ptr<Main::SessionShow> show) {
+	const auto stored = show->session().local().readWallet();
 	if (!stored || stored->words.empty()) {
 		box->closeBox();
 		return;
@@ -1665,7 +1682,7 @@ void WalletPhraseBox(
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
-	controller->session().wallet().markPhraseViewed();
+	show->session().wallet().markPhraseViewed();
 
 	const auto count = int(stored->words.size());
 	AddPhraseBoxHeader(
@@ -1718,7 +1735,7 @@ void WalletPhraseBox(
 
 void WalletPhraseWarningBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller) {
+		std::shared_ptr<Main::SessionShow> show) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -1768,18 +1785,18 @@ void WalletPhraseWarningBox(
 
 	AddBoxCloseButton(box);
 	box->addButton(tr::lng_wallet_keys_show_phrase(), [=] {
-		const auto stored = controller->session().local().readWallet();
+		const auto stored = show->session().local().readWallet();
 		if (!stored || stored->words.empty()) {
 			return;
 		}
 		box->closeBox();
-		controller->show(Box(WalletPhraseBox, controller));
+		show->showBox(Box(WalletPhraseBox, show));
 	});
 }
 
 void WalletPasscodeBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller) {
+		std::shared_ptr<Main::SessionShow> show) {
 	box->setTitle(tr::lng_passcode_check_title());
 	const auto &fieldSt = st::settingLocalPasscodeInputField;
 	const auto wrap = box->addRow(
@@ -1816,11 +1833,11 @@ void WalletPasscodeBox(
 			error->setText(tr::lng_flood_error(tr::now));
 			return;
 		}
-		const auto &domain = controller->session().domain();
+		const auto &domain = show->session().domain();
 		if (domain.local().checkPasscode(field->text().toUtf8())) {
 			cSetPasscodeBadTries(0);
 			box->closeBox();
-			controller->show(Box(WalletPhraseWarningBox, controller));
+			show->showBox(Box(WalletPhraseWarningBox, show));
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(crl::now());
@@ -1836,12 +1853,12 @@ void WalletPasscodeBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
-void WalletRevealFlow(not_null<Window::SessionController*> controller) {
-	const auto &domain = controller->session().domain();
+void WalletRevealFlow(std::shared_ptr<Main::SessionShow> show) {
+	const auto &domain = show->session().domain();
 	if (domain.local().hasLocalPasscode()) {
-		controller->show(Box(WalletPasscodeBox, controller));
+		show->showBox(Box(WalletPasscodeBox, show));
 	} else {
-		controller->show(Box(WalletPhraseWarningBox, controller));
+		show->showBox(Box(WalletPhraseWarningBox, show));
 	}
 }
 
@@ -1851,7 +1868,7 @@ void WalletRevealFlow(not_null<Window::SessionController*> controller) {
 
 void WalletImportBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller) {
+		std::shared_ptr<Main::SessionShow> show) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -2009,7 +2026,7 @@ void WalletImportBox(
 		if (state->importing || !formValid()) {
 			return;
 		}
-		auto &wallet = controller->session().wallet();
+		auto &wallet = show->session().wallet();
 		const auto count = state->count.current();
 		auto words = std::vector<QString>();
 		words.reserve(count);
@@ -2023,8 +2040,8 @@ void WalletImportBox(
 			return;
 		}
 		wallet.startPolling();
-		controller->hideLayer();
-		controller->showToast({
+		show->hideLayer();
+		show->showToast({
 			.title = tr::lng_wallet_imported_title(tr::now),
 			.text = { tr::lng_wallet_imported_text(tr::now) },
 			.icon = &st::toastCheckIcon,
@@ -2334,7 +2351,7 @@ void WalletImportBox(
 
 void WalletReplaceBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller) {
+		std::shared_ptr<Main::SessionShow> show) {
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
@@ -2350,17 +2367,17 @@ void WalletReplaceBox(
 		style::al_justify);
 	create->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
 	create->setClickedCallback([=] {
-		auto &wallet = controller->session().wallet();
+		auto &wallet = show->session().wallet();
 		if (wallet.keyState() != KeyState::None) {
 			return;
 		}
 		if (!wallet.create()) {
-			controller->showToast(u"Wallet create failed."_q);
+			show->showToast(u"Wallet create failed."_q);
 			return;
 		}
 		wallet.startPolling();
-		controller->hideLayer();
-		controller->showToast({
+		show->hideLayer();
+		show->showToast({
 			.title = tr::lng_wallet_created_title(tr::now),
 			.text = { tr::lng_wallet_created_text(tr::now) },
 			.icon = &st::toastCheckIcon,
@@ -2376,15 +2393,15 @@ void WalletReplaceBox(
 	import->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
 	import->setClickedCallback([=] {
 		box->closeBox();
-		controller->show(Box(WalletImportBox, controller));
+		show->showBox(Box(WalletImportBox, show));
 	});
 	Ui::AddSkip(box->verticalLayout());
 }
 
 void WalletKeysBackupBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller) {
-	const auto stored = controller->session().local().readWallet();
+		std::shared_ptr<Main::SessionShow> show) {
+	const auto stored = show->session().local().readWallet();
 	if (!stored || stored->words.empty()) {
 		box->closeBox();
 		return;
@@ -2398,7 +2415,7 @@ void WalletKeysBackupBox(
 		tr::lng_wallet_keys_show_phrase(),
 		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
-		WalletRevealFlow(controller);
+		WalletRevealFlow(show);
 	});
 	Ui::AddSkip(container);
 	Ui::AddDividerText(
@@ -2412,13 +2429,13 @@ void WalletKeysBackupBox(
 		tr::lng_wallet_keys_delete(),
 		st::settingsAttentionButton
 	)->addClickHandler([=] {
-		controller->show(Ui::MakeConfirmBox({
+		show->showBox(Ui::MakeConfirmBox({
 			.text = tr::lng_wallet_delete_text(tr::now, lt_count, count),
 			.confirmed = [=](Fn<void()> close) {
 				close();
-				controller->hideLayer();
-				controller->session().wallet().remove();
-				controller->show(Box(WalletReplaceBox, controller));
+				show->hideLayer();
+				show->session().wallet().remove();
+				show->showBox(Box(WalletReplaceBox, show));
 			},
 			.confirmText = tr::lng_wallet_delete_confirm(),
 			.confirmStyle = &st::attentionBoxButton,
@@ -2431,16 +2448,16 @@ void WalletKeysBackupBox(
 
 Card::Card(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
+	std::shared_ptr<Main::SessionShow> show)
 : RpWidget(parent)
-, _controller(controller) {
-	controller->session().wallet().keyStateValue(
+, _show(std::move(show)) {
+	_show->session().wallet().keyStateValue(
 	) | rpl::on_next([=](KeyState) {
 		refreshAddress();
 	}, lifetime());
 
 	Info::Profile::NameValue(
-		controller->session().user()
+		_show->session().user()
 	) | rpl::on_next([=](const QString &name) {
 		_name = name.toUpper();
 		update();
@@ -2451,7 +2468,7 @@ Card::Card(
 }
 
 void Card::refreshAddress() {
-	auto &wallet = _controller->session().wallet();
+	auto &wallet = _show->session().wallet();
 	const auto address = wallet.addressFriendly(false);
 	_addressLine1 = _addressLine2 = QString();
 	if (address.size() == kAddressLength) {
@@ -2486,7 +2503,7 @@ void Card::setupBalance() {
 	_ticker->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_fiat->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	_controller->session().wallet().balanceNanoValue(
+	_show->session().wallet().balanceNanoValue(
 	) | rpl::on_next([=](int64 nano) {
 		const auto fraction = nano % Ui::kNanosInOne;
 		const auto amount = CreditsAmount(
@@ -2500,8 +2517,8 @@ void Card::setupBalance() {
 	}, lifetime());
 
 	rpl::combine(
-		_controller->session().wallet().balanceNanoValue(),
-		TonUsdRateValue(&_controller->session())
+		_show->session().wallet().balanceNanoValue(),
+		TonUsdRateValue(&_show->session())
 	) | rpl::on_next([=](int64 nano, float64 rate) {
 		const auto text = FormatUsd(nano, rate);
 		_fiat->setText(text);
@@ -2538,9 +2555,8 @@ void Card::setupQr() {
 		st::walletCardQrIcon.paintInCenter(p, _qr->rect());
 	}, _qr->lifetime());
 
-	const auto controller = _controller;
 	_qr->setClickedCallback([=] {
-		ShowWalletReceiveBox(controller, controller->uiShow());
+		ShowWalletReceiveBox(&_show->session(), _show);
 	});
 }
 
@@ -2623,196 +2639,35 @@ void Card::paintEvent(QPaintEvent *e) {
 	}
 }
 
-} // namespace
-
-class FixedBar final : public Ui::RpWidget {
-public:
-	FixedBar(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller);
-
-	void setAnimatingMode(bool enabled);
-
-protected:
-	void mousePressEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	int resizeGetHeight(int newWidth) override;
-
-private:
-	void goBack();
-	void showMenu();
-
-	const not_null<Window::SessionController*> _controller;
-	object_ptr<Profile::BackButton> _backButton;
-	object_ptr<Ui::IconButton> _menuToggle;
-	base::unique_qptr<Ui::PopupMenu> _menu;
-	bool _animatingMode = false;
-
-};
-
-FixedBar::FixedBar(
+Content::Content(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
+	std::shared_ptr<Main::SessionShow> show)
 : RpWidget(parent)
-, _controller(controller)
-, _backButton(this)
-, _menuToggle(this, st::topBarMenuToggle) {
-	_backButton->moveToLeft(0, 0);
-	_backButton->setClickedCallback([=] { goBack(); });
-	_menuToggle->setClickedCallback([=] { showMenu(); });
-
-	const auto title = Ui::CreateChild<Ui::FlatLabel>(
-		_backButton.data(),
-		tr::lng_wallet_title(),
-		st::walletTopBarTitleLabel);
-	title->setAttribute(Qt::WA_TransparentForMouseEvents);
-	title->show();
-	rpl::combine(
-		_backButton->sizeValue(),
-		title->sizeValue()
-	) | rpl::on_next([=](QSize bar, QSize label) {
-		title->moveToLeft(
-			st::topBarArrowPadding.left(),
-			(bar.height() - label.height()) / 2,
-			bar.width());
-	}, title->lifetime());
-}
-
-void FixedBar::goBack() {
-	_controller->showBackFromStack();
-}
-
-void FixedBar::showMenu() {
-	if (_menu) {
-		return;
-	}
-	_menu = base::make_unique_q<Ui::PopupMenu>(
-		this,
-		st::popupMenuWithIcons);
-	_menu->setDestroyedCallback([
-			weak = base::make_weak(this),
-			weakToggle = base::make_weak(_menuToggle.data()),
-			menu = _menu.get()] {
-		if (weak && weak->_menu == menu) {
-			if (weakToggle) {
-				weakToggle->setForceRippled(false);
-			}
-		}
-	});
-	_menuToggle->setForceRippled(true);
-	const auto controller = _controller;
-	_menu->addAction(
-		Ui::Text::FixAmpersandInAction(tr::lng_wallet_keys_title(tr::now)),
-		[=] {
-			const auto stored = controller->session().local().readWallet();
-			if (!stored || stored->words.empty()) {
-				return;
-			}
-			controller->show(Box(WalletKeysBackupBox, controller));
-		},
-		&st::menuIconPermissions);
-	_menu->addSeparator();
-	_menu->addAction(
-		Ui::Text::FixAmpersandInAction(tr::lng_wallet_how_menu(tr::now)),
-		[=] { controller->show(Box(WalletHowItWorksBox)); },
-		&st::menuIconFaq);
-	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
-	_menu->popup(mapToGlobal(QPoint(
-		width() + st::topBarMenuPosition.x(),
-		st::topBarMenuPosition.y())));
-}
-
-void FixedBar::setAnimatingMode(bool enabled) {
-	if (_animatingMode != enabled) {
-		_animatingMode = enabled;
-		setCursor(_animatingMode ? style::cur_pointer : style::cur_default);
-		if (_animatingMode) {
-			setAttribute(Qt::WA_OpaquePaintEvent, false);
-			hideChildren();
-		} else {
-			setAttribute(Qt::WA_OpaquePaintEvent);
-			showChildren();
-		}
-		show();
-	}
-}
-
-void FixedBar::paintEvent(QPaintEvent *e) {
-	if (!_animatingMode) {
-		auto p = QPainter(this);
-		p.fillRect(e->rect(), st::topBarBg);
-	}
-}
-
-void FixedBar::mousePressEvent(QMouseEvent *e) {
-	if (e->button() == Qt::LeftButton) {
-		goBack();
-	} else {
-		RpWidget::mousePressEvent(e);
-	}
-}
-
-int FixedBar::resizeGetHeight(int newWidth) {
-	_backButton->resizeToWidth(newWidth);
-	_menuToggle->moveToRight(0, 0, newWidth);
-	return _backButton->height();
-}
-
-object_ptr<Window::SectionWidget> SectionMemento::createWidget(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		Window::Column column,
-		const QRect &geometry) {
-	if (column == Window::Column::Third) {
-		return nullptr;
-	}
-	auto result = object_ptr<SectionWidget>(parent, controller);
-	result->setInternalState(geometry, this);
-	return result;
-}
-
-SectionWidget::SectionWidget(
-	QWidget *parent,
-	not_null<Window::SessionController*> controller)
-: Window::SectionWidget(parent, controller)
-, _scroll(this, st::defaultScrollArea)
-, _fixedBar(this, controller)
-, _fixedBarShadow(this) {
-	auto &wallet = session().wallet();
+, _show(std::move(show))
+, _scroll(this, st::defaultScrollArea) {
+	auto &wallet = _show->session().wallet();
 	if (wallet.keyState() == KeyState::None) {
 		wallet.create();
 	}
 	wallet.startPolling();
 
-	_fixedBar->move(0, 0);
-	_fixedBar->resizeToWidth(width());
-	_fixedBar->show();
-
-	controller->adaptive().value(
-	) | rpl::on_next([=] {
-		updateAdaptiveLayout();
-	}, lifetime());
-
 	setupContent();
-	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
-	_fixedBarShadow->raise();
 }
 
-SectionWidget::~SectionWidget() {
-	session().wallet().stopPolling();
+Content::~Content() {
+	_show->session().wallet().stopPolling();
 }
 
-void SectionWidget::setupContent() {
+void Content::setupContent() {
 	_container = _scroll->setOwnedWidget(
 		object_ptr<Ui::RpWidget>(_scroll.data()));
 	const auto column = Ui::CreateChild<Ui::VerticalLayout>(_container);
 	column->show();
 
 	Ui::AddSkip(column, st::walletCardTopSkip);
-	const auto card = column->add(object_ptr<Card>(column, controller()));
+	const auto card = column->add(object_ptr<Card>(column, _show));
 
-	const auto controller = this->controller();
 	const auto buttons = column->add(
 		object_ptr<Ui::FixedHeightWidget>(
 			column,
@@ -2832,10 +2687,10 @@ void SectionWidget::setupContent() {
 		return button;
 	};
 	const auto addFunds = addPill(tr::lng_wallet_add_funds(), [=] {
-		ShowWalletReceiveBox(controller, controller->uiShow());
+		ShowWalletReceiveBox(&_show->session(), _show);
 	});
 	const auto send = addPill(tr::lng_wallet_send_button(), [=] {
-		controller->show(Box(WalletSendRecipientBox, controller));
+		_show->showBox(Box(WalletSendRecipientBox, _show));
 	});
 	buttons->widthValue(
 	) | rpl::on_next([=](int width) {
@@ -2847,7 +2702,7 @@ void SectionWidget::setupContent() {
 		send->moveToLeft(left, 0, width);
 	}, buttons->lifetime());
 
-	const auto wallet = &session().wallet();
+	const auto wallet = &_show->session().wallet();
 	const auto bannerWrap = column->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			column,
@@ -2860,7 +2715,7 @@ void SectionWidget::setupContent() {
 		st::settingsAttentionButtonWithIcon,
 		{ &st::menuIconReportAttention }
 	)->addClickHandler([=] {
-		WalletRevealFlow(controller);
+		WalletRevealFlow(_show);
 	});
 	bannerWrap->toggleOn(wallet->phraseUnviewedValue());
 	bannerWrap->finishAnimating();
@@ -2945,12 +2800,12 @@ void SectionWidget::setupContent() {
 			if (pending && !shown) {
 				const auto item = ItemFromPending(*pending);
 				AddHistoryRow(list, RowContentFromPending(*pending), [=] {
-					ShowWalletTransactionBox(controller, item);
+					ShowWalletTransactionBox(_show, item);
 				});
 			}
 			for (const auto &item : history) {
 				AddHistoryRow(list, RowContentFromItem(item), [=] {
-					ShowWalletTransactionBox(controller, item);
+					ShowWalletTransactionBox(_show, item);
 				});
 			}
 			Ui::AddSkip(list, st::walletRowsTopSkip);
@@ -2985,15 +2840,15 @@ void SectionWidget::setupContent() {
 		_container->resize(width, height);
 	}, column->lifetime());
 
-	const auto local = &session().local();
+	const auto local = &_show->session().local();
 	if (!local->readPref<bool>(kIntroTooltipShownPref)) {
 		local->writePref<bool>(kIntroTooltipShownPref, true);
 		SetupIntroTooltip(_container, card);
 	}
 }
 
-void SectionWidget::checkLoadMore() {
-	auto &wallet = session().wallet();
+void Content::checkLoadMore() {
+	auto &wallet = _show->session().wallet();
 	if (!wallet.historyHasNext()) {
 		return;
 	}
@@ -3002,100 +2857,65 @@ void SectionWidget::checkLoadMore() {
 	}
 }
 
-QPixmap SectionWidget::grabForShowAnimation(
-		const Window::SectionSlideParams &params) {
-	if (params.withTopBarShadow) {
-		_fixedBarShadow->hide();
-	}
-	auto result = Ui::GrabWidget(this);
-	if (params.withTopBarShadow) {
-		_fixedBarShadow->show();
-	}
-	return result;
+void Content::focusInEvent(QFocusEvent *e) {
+	_scroll->setFocus();
 }
 
-bool SectionWidget::showInternal(
-		not_null<Window::SectionMemento*> memento,
-		const Window::SectionShow &params) {
-	return (dynamic_cast<SectionMemento*>(memento.get()) != nullptr);
-}
-
-std::shared_ptr<Window::SectionMemento> SectionWidget::createMemento() {
-	return std::make_shared<SectionMemento>();
-}
-
-void SectionWidget::setInternalState(
-		const QRect &geometry,
-		not_null<SectionMemento*> memento) {
-	setGeometry(geometry);
-	Ui::SendPendingMoveResizeEvents(this);
-}
-
-void SectionWidget::updateAdaptiveLayout() {
-	_fixedBarShadow->moveToLeft(
-		controller()->adaptive().isOneColumn() ? 0 : st::lineWidth,
-		_fixedBar->height());
-}
-
-void SectionWidget::resizeEvent(QResizeEvent *e) {
+void Content::resizeEvent(QResizeEvent *e) {
 	if (!width() || !height()) {
 		return;
 	}
-	_fixedBar->resizeToWidth(width());
-	_fixedBarShadow->resize(width(), st::lineWidth);
-	updateAdaptiveLayout();
-	_scroll->setGeometry(
-		0,
-		_fixedBar->height(),
-		width(),
-		height() - _fixedBar->height());
+	_scroll->setGeometry(0, 0, width(), height());
 	if (_container) {
 		_container->resize(width(), _container->height());
 	}
 	checkLoadMore();
 }
 
-void SectionWidget::paintEvent(QPaintEvent *e) {
-	Window::SectionWidget::paintEvent(e);
-	if (!animatingShow()) {
-		QPainter(this).fillRect(e->rect(), st::windowBg);
-	}
+void Content::paintEvent(QPaintEvent *e) {
+	QPainter(this).fillRect(e->rect(), st::windowBg);
 }
 
-void SectionWidget::showAnimatedHook(
-		const Window::SectionSlideParams &params) {
-	_fixedBar->setAnimatingMode(true);
-	if (params.withTopBarShadow) {
-		_fixedBarShadow->show();
-	}
+} // namespace
+
+base::unique_qptr<Ui::RpWidget> CreateContent(
+		not_null<Ui::RpWidget*> parent,
+		std::shared_ptr<Main::SessionShow> show) {
+	return base::make_unique_q<Content>(parent.get(), std::move(show));
 }
 
-void SectionWidget::showFinishedHook() {
-	_fixedBar->setAnimatingMode(false);
+void FillMenu(
+		std::shared_ptr<Main::SessionShow> show,
+		const Ui::Menu::MenuCallback &addAction) {
+	addAction(
+		Ui::Text::FixAmpersandInAction(tr::lng_wallet_keys_title(tr::now)),
+		[=] {
+			const auto stored = show->session().local().readWallet();
+			if (!stored || stored->words.empty()) {
+				return;
+			}
+			show->showBox(Box(WalletKeysBackupBox, show));
+		},
+		&st::menuIconPermissions);
+	addAction({ .isSeparator = true });
+	addAction(
+		Ui::Text::FixAmpersandInAction(tr::lng_wallet_how_menu(tr::now)),
+		[=] { show->showBox(Box(WalletHowItWorksBox)); },
+		&st::menuIconFaq);
 }
 
-void SectionWidget::doSetInnerFocus() {
-	_scroll->setFocus();
+bool TransferLinkValid(const QString &url) {
+	return ParseRecipientFlow(url).has_value();
 }
 
-QRect SectionWidget::floatPlayerAvailableRect() {
-	return mapToGlobal(_scroll->geometry());
-}
-
-bool SectionWidget::floatPlayerHandleWheelEvent(QEvent *e) {
-	return _scroll->viewportEvent(e);
-}
-
-void OpenTransferLink(
-		not_null<Window::SessionController*> controller,
+void ShowTransferLink(
+		std::shared_ptr<Main::SessionShow> show,
 		const QString &url) {
 	const auto flow = ParseRecipientFlow(url);
 	if (!flow) {
-		controller->showToast(tr::lng_wallet_send_invalid_address(tr::now));
 		return;
 	}
-	controller->showSection(std::make_shared<SectionMemento>());
-	controller->show(Box(WalletSendAmountBox, controller, *flow));
+	show->showBox(Box(WalletSendAmountBox, show, *flow));
 }
 
 } // namespace Wallet

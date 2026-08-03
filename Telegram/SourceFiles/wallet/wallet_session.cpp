@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/wallet/gram_wallet_v5.h"
 #include "main/main_session.h"
 #include "storage/storage_account.h"
+#include "ui/widgets/separate_panel.h"
 
 namespace Wallet {
 namespace {
@@ -33,7 +34,17 @@ Session::Session(not_null<Main::Session*> session)
 , _pollTimer([=] { pollTick(); }) {
 }
 
-Session::~Session() = default;
+Session::~Session() {
+	_panel = nullptr;
+}
+
+Ui::SeparatePanel *Session::panel() const {
+	return _panel.get();
+}
+
+void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
+	_panel = std::move(panel);
+}
 
 void Session::ensureLoaded() {
 	if (_loaded) {

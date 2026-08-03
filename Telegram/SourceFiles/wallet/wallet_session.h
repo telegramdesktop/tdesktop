@@ -21,6 +21,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+class SeparatePanel;
+} // namespace Ui
+
 namespace Wallet {
 
 enum class KeyState {
@@ -93,6 +97,9 @@ public:
 	void stopPolling();
 	[[nodiscard]] bool pollingRequested() const;
 
+	[[nodiscard]] Ui::SeparatePanel *panel() const;
+	void setPanel(std::unique_ptr<Ui::SeparatePanel> panel);
+
 	void estimateFee(const SendArgs &args, Fn<void(FeeResult)> done);
 	void send(SendArgs args, Fn<void(QString)> done);
 	[[nodiscard]] SendState sendState() const;
@@ -157,6 +164,8 @@ private:
 
 	rpl::variable<SendState> _sendState = SendState::Idle;
 	std::optional<PendingSend> _pending;
+
+	std::unique_ptr<Ui::SeparatePanel> _panel;
 
 };
 

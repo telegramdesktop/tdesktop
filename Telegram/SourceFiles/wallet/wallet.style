@@ -11,12 +11,8 @@ using "ui/widgets/widgets.style";
 
 walletMenuIcon: icon{{ "menu/wallet-24x24", menuIconColor }};
 
-walletTopBarTitleLabel: FlatLabel(defaultFlatLabel) {
-	style: semiboldTextStyle;
-	textFg: dialogsNameFg;
-}
-
 walletContentWidth: 332px;
+walletPanelSize: size(392px, 600px);
 walletCardHeight: 208px;
 walletCardRadius: 16px;
 walletCardTopSkip: 12px;

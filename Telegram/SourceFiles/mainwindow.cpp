@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "settings/settings_intro.h"
 #include "base/options.h"
+#include "wallet/wallet_panel.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
@@ -226,6 +227,7 @@ void MainWindow::setupSetupEmailLock() {
 	}
 	if (const auto sessionController = controller().sessionController()) {
 		sessionController->session().attachWebView().closeAll();
+		Wallet::CloseWallet(&sessionController->session());
 	}
 }
 

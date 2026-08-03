@@ -63,7 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/slide_wrap.h"
-#include "wallet/wallet_section.h"
+#include "wallet/wallet_panel.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_main_menu_helpers.h"
@@ -723,8 +723,8 @@ void MainMenu::setupMenu() {
 			tr::lng_wallet_menu(),
 			{ &st::walletMenuIcon }
 		)->setClickedCallback([=] {
-			controller->showSection(
-				std::make_shared<Wallet::SectionMemento>());
+			controller->window().hideSettingsAndLayer();
+			Wallet::ShowWallet(&controller->session());
 		});
 	} else {
 		addAction(
