@@ -328,9 +328,10 @@ The repository carries a permanent test harness under
   tolerance assertions, `LogGeometry`, the standard markers.
 - `test_widgets.h` — `FindAll<T>`/`FindFirst<T>`/`FindVisible<T>` (the `dynamic_cast`-based
   finders that avoid the guaranteed `findChildren<CustomWidget*>` crash), `Click`, `TypeText`,
-  `PressKey` via real Qt events — each delivered event is followed by a drain of every pending
-  `Ui::PostponeCall` (`SettlePostponedCalls()`), so postponed input fix-ups are settled when
-  the helper returns; call `SettlePostponedCalls()` yourself after programmatic `setText`.
+  `PressKey` via real Qt events — each delivered event runs with postponed-call processing
+  deferred and is followed by a drain of every pending `Ui::PostponeCall` to empty, so
+  postponed input fix-ups AND their own change handling are settled when the helper returns;
+  wrap programmatic `setText` in `Test::Settle`.
 - `test_capture.h` — `CaptureWidget`/`CaptureRect` (visibility check, `QWidget::grab()` so
   floating elements and locked desktops cannot occlude, automatic blank-image FAIL, geometry
   log, `SCREENSHOT` marker), `Crop`/`Zoom`/`ContactSheet` for tight same-scale evidence.

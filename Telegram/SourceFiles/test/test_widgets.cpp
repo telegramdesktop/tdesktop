@@ -26,8 +26,9 @@ bool DeliverAndSettle(
 	if (!strong) {
 		return false;
 	}
-	QApplication::sendEvent(strong, &event);
-	SettlePostponedCalls();
+	Settle([&] {
+		QApplication::sendEvent(strong, &event);
+	});
 	return (widget.get() != nullptr);
 }
 
@@ -96,6 +97,18 @@ void PressKey(
 	}
 	auto release = QKeyEvent(QEvent::KeyRelease, key, modifiers);
 	DeliverAndSettle(alive, release);
+}
+
+void Settle(Fn<void()> action) {
+	auto &sandbox = Core::Sandbox::Instance();
+	sandbox.setPostponedCallsDeferred(true);
+	{
+		const auto guard = gsl::finally([&] {
+			sandbox.setPostponedCallsDeferred(false);
+		});
+		action();
+	}
+	SettlePostponedCalls();
 }
 
 void SettlePostponedCalls() {

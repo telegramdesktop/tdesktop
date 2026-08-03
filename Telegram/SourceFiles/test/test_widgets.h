@@ -50,28 +50,34 @@ template <typename T>
 // Input delivery and settlement contract.
 //
 // Click, TypeText and PressKey deliver their events synchronously with
-// QApplication::sendEvent from the calling (runner-stage) context, and run
-// SettlePostponedCalls() after every delivered event.
+// QApplication::sendEvent from the calling (runner-stage) context. During
+// each dispatch postponed-call processing is deferred, so a product
+// fix-up queued by the event can never run mid-signal-emission, where
+// Qt's re-entrant document machinery would swallow its own change
+// notifications. After each delivered event every pending
+// Ui::PostponeCall (and any calls those queue) runs to empty in a
+// top-level context — the state real user input reaches at its own
+// event's unwind.
 //
-// Why the explicit drain: Core::Sandbox tags each Ui::PostponeCall with
-// the loop-nesting level current at queue time and runs it only at the
-// unwind of an event whose nesting level matches that tag, and only while
-// it sits newest in the queue. A postponed input fix-up queued under the
-// harness's synthetic nesting gets a tag no later unwind matches: a
-// synchronously sent keystroke's fix-up starves outright, and even a
-// posted keystroke's fix-up would run only at the entry of the NEXT
-// changes-firing event. Text-neutral keys never drain it. The drain runs
-// every pending postponed call (and any calls those queue) to empty — the
-// state real top-level input reaches at its own event's unwind.
+// Why the defer and the explicit drain: Core::Sandbox tags each
+// Ui::PostponeCall with the loop-nesting level current at queue time and
+// runs it only at the unwind of an event whose nesting level matches
+// that tag, and only while it sits newest in the queue. Under the
+// harness's synthetic nesting a fix-up either starves outright or runs
+// at a matching internal unwind INSIDE the sent event's own signal
+// emission — both unlike real top-level input.
 //
-// Guarantee: when a helper returns, every Ui::PostponeCall queued by its
-// delivered events has already run, so postponed text fix-ups (for
-// example Ui::CreateTonAmountInput's FixTonAmountInput rewrite) are
-// settled and the widget shows the product's own rewritten text. The
-// drain covers Ui::PostponeCall only: crl::on_main, InvokeQueued,
-// base::Timer and network completions still need bounded waits. If a
-// drained call destroys the target widget, the helper skips its remaining
-// events and returns.
+// Guarantee: when a helper returns, postponed text fix-ups (for example
+// Ui::CreateTonAmountInput's FixTonAmountInput rewrite) have run AND
+// their own change handling has run, so both the widget's document and
+// the field's cached text state (InputField::getLastText) show the
+// product's rewritten text. The drain covers Ui::PostponeCall only:
+// crl::on_main, InvokeQueued, base::Timer and network completions still
+// need bounded waits. If a drained call destroys the target widget, the
+// helper skips its remaining events and returns.
+//
+// Use Test::Settle for programmatic mutations; SettlePostponedCalls
+// remains the bare drain.
 
 // Synthesizes a full mouse press + release on the widget, at its center by
 // default. Drives the same event path as a real click.
@@ -86,10 +92,14 @@ void PressKey(
 	int key,
 	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
-// Runs every pending Ui::PostponeCall (see the contract above). The input
-// helpers call this after each delivered event; call it directly after
-// programmatic text mutations (InputField::setText) that queue postponed
-// fix-ups of their own.
+// Performs the action with postponed-call processing deferred, then runs
+// every pending Ui::PostponeCall to empty. The input helpers use it
+// around each delivered event; wrap programmatic text mutations
+// (InputField::setText) in it.
+void Settle(Fn<void()> action);
+
+// Runs every pending Ui::PostponeCall (see the contract above) — the
+// bare drain, with no defer around anything.
 void SettlePostponedCalls();
 
 } // namespace Test
