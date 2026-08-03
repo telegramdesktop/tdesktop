@@ -2864,19 +2864,12 @@ void Widget::activateInitialNodeAtEnd() {
 	if (_state->articleEmpty()) {
 		activateInitialNode();
 		return;
-	}
-	const auto kind = _state->richPage().blocks.back().kind;
-	if (kind == RichPage::BlockKind::Divider
-		|| kind == RichPage::BlockKind::ButtonRow) {
-		activateTrailingParagraph();
+	} else if (!_state->lastBlockOwnsLastTextNode()) {
+		activateTrailingParagraph(LimitToast::Skip);
+		resetMutationHistory();
 		return;
 	}
-	const auto ordinal = _state->textNodeCount() - 1;
-	if (ordinal < 0) {
-		activateInitialNode();
-		return;
-	}
-	activateTextOrdinalAtEnd(ordinal);
+	activateTextOrdinalAtEnd(_state->textNodeCount() - 1);
 }
 
 void Widget::activateSegment(int segmentIndex, int cursorOffset) {
@@ -4538,6 +4531,13 @@ void Widget::truncateHistoryRedo() {
 		removeRetainedLeafFieldsAfter(_historyIndex);
 		notifyToolbarStateChanged();
 	}
+}
+
+void Widget::resetMutationHistory() {
+	_history.clear();
+	_history.push_back(captureHistoryEntry());
+	_historyIndex = 0;
+	notifyToolbarStateChanged();
 }
 
 bool Widget::canPerformFieldUndoRedo(bool redo) const {
@@ -8797,7 +8797,7 @@ void Widget::revealActiveInlineField() {
 	}
 }
 
-void Widget::activateTrailingParagraph() {
+void Widget::activateTrailingParagraph(LimitToast toast) {
 	recordMutationTransaction([&] {
 		const auto committed = commitInlineField();
 		if (committed == ApplyResult::Failed) {
@@ -8808,7 +8808,9 @@ void Widget::activateTrailingParagraph() {
 		}
 		const auto ordinal = _state->ensureTrailingParagraphActive();
 		if (!ordinal) {
-			showLastLimitToast();
+			if (toast == LimitToast::Show) {
+				showLastLimitToast();
+			}
 			return MutationTransactionResult{
 				.committed = committed,
 				.changed = (committed == ApplyResult::Changed),

@@ -1605,7 +1605,6 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 		descriptor.state = std::make_shared<State>();
 	}
 	_state = descriptor.state;
-	_initialPage = _state->richPage();
 
 	_window = std::make_unique<Window>();
 	const auto window = _window.get();
@@ -1944,6 +1943,7 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 	_bottom->raise();
 	window->show();
 	editor->activateInitialNodeAtEnd();
+	_initialPage = _state->richPage();
 }
 
 void WindowHost::Impl::setupBottomAiStar(

@@ -9288,6 +9288,17 @@ void State::rebuildTextNodes(
 	}
 }
 
+bool State::lastBlockOwnsLastTextNode() const {
+	if (_textNodes.empty()) {
+		return false;
+	}
+	const auto path = BlockPath{
+		.container = BlockContainerPath(),
+		.index = int(_richPage->blocks.size()) - 1,
+	};
+	return descriptorBelongsToBlock(_textNodes.back(), path);
+}
+
 void State::appendBlockTextNode(
 		const BlockPath &path,
 		LeafKind kind,

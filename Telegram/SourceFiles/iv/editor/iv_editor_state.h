@@ -260,6 +260,7 @@ public:
 	[[nodiscard]] auto activePreparedLeafSource() const
 	-> std::optional<Markdown::PreparedEditLeafSource>;
 	[[nodiscard]] int textNodeCount() const;
+	[[nodiscard]] bool lastBlockOwnsLastTextNode() const;
 	[[nodiscard]] int activeTextOrdinal() const;
 	[[nodiscard]] bool setActiveTextByOrdinal(int ordinal);
 	[[nodiscard]] TextWithEntities activeText() const;

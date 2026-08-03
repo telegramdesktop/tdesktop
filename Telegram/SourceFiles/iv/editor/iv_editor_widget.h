@@ -459,6 +459,11 @@ private:
 		Skip,
 	};
 
+	enum class LimitToast {
+		Show,
+		Skip,
+	};
+
 	void setDocument(const Markdown::MarkdownArticleContent &prepared);
 	void activateTextOrdinal(
 		int ordinal,
@@ -491,7 +496,7 @@ private:
 	void refreshInlineFieldPlaceholderColor();
 	void refreshInlineFieldTextEmptyOverride();
 	void refreshInlineFieldMaxLineWidthOverride();
-	void activateTrailingParagraph();
+	void activateTrailingParagraph(LimitToast toast = LimitToast::Show);
 	void setInlineFieldFromActiveState(int selectionFrom, int selectionTo);
 	void revertInlineFieldToState();
 	struct MathEditRequest {
@@ -666,6 +671,7 @@ private:
 		return result;
 	}
 	void truncateHistoryRedo();
+	void resetMutationHistory();
 	[[nodiscard]] bool activeInlineFieldTextMatchesState() const;
 	[[nodiscard]] bool canPerformFieldUndoRedo(bool redo) const;
 	[[nodiscard]] bool canPerformHistoryUndoRedo(bool redo) const;
