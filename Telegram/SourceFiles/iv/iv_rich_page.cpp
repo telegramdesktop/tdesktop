@@ -2379,6 +2379,13 @@ std::optional<RichMessageLimitError> ValidateRichMessage(
 	return std::nullopt;
 }
 
+int CountRichPageBlocks(const RichPage &page) {
+	auto metrics = RichMessageMetrics();
+	metrics.tableColumnMeasurementLimit = TableColumnMeasurementLimit(0);
+	AccumulateBlockMetrics(&metrics, page.blocks, 1);
+	return metrics.blockCount;
+}
+
 QString EncodeRichPageLinkUrl(
 		const QString &url,
 		uint64 webpageId) {

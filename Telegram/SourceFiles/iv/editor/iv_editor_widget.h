@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 #include "base/flat_map.h"
+#include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_state.h"
 #include "iv/markdown/iv_markdown_article.h"
 #include "ui/style/style_core_types.h"
@@ -599,6 +600,9 @@ private:
 	void copyCurrentSelectionToClipboard();
 	[[nodiscard]] TextForMimeData currentSelectionTextForClipboard() const;
 	void pasteStructuredClipboardData(const ClipboardData &data);
+	[[nodiscard]] std::optional<TableImportResult> importTableFromMimeData(
+		not_null<const QMimeData*> data) const;
+	void pasteImportedTable(TableImportResult &&imported);
 	[[nodiscard]] bool handleIvClipboardMime(
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action);

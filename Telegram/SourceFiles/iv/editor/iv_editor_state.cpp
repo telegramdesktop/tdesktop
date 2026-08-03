@@ -1515,6 +1515,10 @@ auto State::tableRenderLimits() const
 	return Markdown::PrepareTableRenderLimitsForRichMessage(_limits);
 }
 
+const RichMessageLimits &State::limits() const {
+	return _limits;
+}
+
 template <typename Result, typename Callback>
 Result State::applyCheckedMutation(Result failure, Callback &&callback) {
 	_lastLimitError = std::nullopt;

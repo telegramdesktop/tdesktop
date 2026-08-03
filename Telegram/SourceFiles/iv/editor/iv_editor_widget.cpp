@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
+#include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_text_entities.h"
 #include "iv/editor/iv_editor_window.h"
 #include "iv/markdown/iv_markdown_article_paint.h"
@@ -3777,6 +3778,24 @@ void Widget::copyCurrentSelectionToClipboard() {
 	QApplication::clipboard()->setMimeData(mimeData.release());
 }
 
+std::optional<TableImportResult> Widget::importTableFromMimeData(
+		not_null<const QMimeData*> data) const {
+	return TableFromMimeData(
+		data,
+		TableImportLimitsFor(
+			_state->limits(),
+			CountRichPageBlocks(_state->richPage())));
+}
+
+void Widget::pasteImportedTable(TableImportResult &&imported) {
+	auto tableData = ClipboardBlockData();
+	tableData.blocks.push_back(std::move(imported.block));
+	pasteStructuredClipboardData(ClipboardData(std::move(tableData)));
+	if (imported.truncated) {
+		_show->showToast(tr::lng_article_table_truncated(tr::now));
+	}
+}
+
 void Widget::pasteStructuredClipboardData(const ClipboardData &data) {
 	const auto blocks = std::get_if<ClipboardBlockData>(&data);
 	const auto items = std::get_if<ClipboardListItemsData>(&data);
@@ -4185,6 +4204,13 @@ bool Widget::handleClipboardKey(QKeyEvent *e) {
 			pasteStructuredClipboardData(*data);
 			e->accept();
 			return true;
+		}
+		if (mimeData && MimeDataLooksLikeTable(mimeData)) {
+			if (auto imported = importTableFromMimeData(mimeData)) {
+				pasteImportedTable(std::move(*imported));
+				e->accept();
+				return true;
+			}
 		}
 		if (mimeData && _applyPreparedMedia) {
 			if (auto list = PreparedMediaFromClipboard(
@@ -8753,9 +8779,10 @@ bool Widget::handleIvClipboardMime(
 		&& (modifiers & Qt::ShiftModifier)) {
 		return false;
 	}
+	const auto insertContext = ClipboardPasteInsertContext(
+		activeTextInsertContext());
 	const auto clipboardData = ClipboardDataFromMimeData(data.get());
-	if (clipboardData
-		&& ClipboardPasteInsertContext(activeTextInsertContext())) {
+	if (clipboardData && insertContext) {
 		if (action == Ui::InputField::MimeAction::Check) {
 			return true;
 		}
@@ -8765,11 +8792,20 @@ bool Widget::handleIvClipboardMime(
 		return true;
 	}
 	auto blockData = BlockClipboardDataFromFieldTags(data);
+	if (!blockData && insertContext && MimeDataLooksLikeTable(data)) {
+		if (action == Ui::InputField::MimeAction::Check) {
+			return true;
+		} else if (auto imported = importTableFromMimeData(data)) {
+			crl::on_main(this, [=, imported = std::move(*imported)]() mutable {
+				pasteImportedTable(std::move(imported));
+			});
+			return true;
+		}
+	}
 	if (!blockData) {
 		blockData = BlockClipboardDataFromHtml(data);
 	}
-	if (blockData
-		&& ClipboardPasteInsertContext(activeTextInsertContext())) {
+	if (blockData && insertContext) {
 		if (action == Ui::InputField::MimeAction::Check) {
 			return true;
 		}

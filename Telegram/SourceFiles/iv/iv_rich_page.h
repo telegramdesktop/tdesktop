@@ -284,6 +284,7 @@ inline constexpr auto kTextDiffDeletedColorIndex = 11;
 [[nodiscard]] std::optional<RichMessageLimitError> ValidateRichMessage(
 	const RichPage &page,
 	const RichMessageLimits &limits);
+[[nodiscard]] int CountRichPageBlocks(const RichPage &page);
 [[nodiscard]] QString EncodeRichPageLinkUrl(
 	const QString &url,
 	uint64 webpageId);
