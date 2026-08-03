@@ -300,7 +300,23 @@ public:
 		return &_sendActionPainter;
 	}
 
+	struct ReplyKeyboardState {
+		bool inited = false;
+		bool used = false;
+		MsgId id = 0;
+		MsgId hiddenId = 0;
+		MsgId lastUpdateId = 0;
+		PeerId from = 0;
+	};
+
 	void clearLastKeyboard();
+	void clearLastKeyboard(MsgId topicRootId);
+	void applyItemReplyKeyboard(not_null<HistoryItem*> item);
+	void migrateTopicReplyKeyboard(MsgId fromRootId, MsgId toRootId);
+	void removeTopicReplyKeyboard(MsgId topicRootId);
+	[[nodiscard]] ReplyKeyboardState &replyKeyboardState(MsgId topicRootId);
+	[[nodiscard]] const ReplyKeyboardState &replyKeyboardState(
+		MsgId topicRootId) const;
 	void clearUnreadMentionsFor(MsgId topicRootId);
 	void clearUnreadReactionsFor(
 		MsgId topicRootId,
@@ -499,12 +515,16 @@ public:
 	bool lastKeyboardUsed = false;
 	MsgId lastKeyboardId = 0;
 	MsgId lastKeyboardHiddenId = 0;
+	MsgId lastKeyboardUpdateId = 0;
 	PeerId lastKeyboardFrom = 0;
 
 	mtpRequestId sendRequestId = 0;
 
 private:
 	friend class HistoryBlock;
+
+	[[nodiscard]] MsgId replyKeyboardTopicKey(MsgId topicRootId) const;
+	void notifyReplyKeyboardUpdated();
 
 	enum class Flag : ushort {
 		HasPendingResizedItems = (1 << 0),
@@ -700,6 +720,7 @@ private:
 	base::flat_map<Data::DraftKey, Data::ForwardDraft> _forwardDrafts;
 
 	base::flat_map<MsgId, TimeId> _unknownDeletedMessages;
+	base::flat_map<MsgId, ReplyKeyboardState> _topicReplyKeyboards;
 
 	QString _topPromotedMessage;
 	QString _topPromotedType;

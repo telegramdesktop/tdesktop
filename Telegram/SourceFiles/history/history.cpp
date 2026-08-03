@@ -178,16 +178,247 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 
 History::~History() = default;
 
+void History::notifyReplyKeyboardUpdated() {
+	session().changes().historyUpdated(this, UpdateFlag::BotKeyboard);
+}
+
+MsgId History::replyKeyboardTopicKey(MsgId topicRootId) const {
+	return isForum() ? topicRootId : MsgId(0);
+}
+
+History::ReplyKeyboardState &History::replyKeyboardState(MsgId topicRootId) {
+	const auto key = replyKeyboardTopicKey(topicRootId);
+	Expects(key != 0);
+	return _topicReplyKeyboards[key];
+}
+
+const History::ReplyKeyboardState &History::replyKeyboardState(
+		MsgId topicRootId) const {
+	static const ReplyKeyboardState kEmpty;
+	const auto key = replyKeyboardTopicKey(topicRootId);
+	if (!key) {
+		return kEmpty;
+	}
+	const auto i = _topicReplyKeyboards.find(key);
+	if (i != end(_topicReplyKeyboards)) {
+		return i->second;
+	}
+	return kEmpty;
+}
+
 void History::clearLastKeyboard() {
+	auto changed = false;
 	if (lastKeyboardId) {
 		if (lastKeyboardId == lastKeyboardHiddenId) {
 			lastKeyboardHiddenId = 0;
 		}
 		lastKeyboardId = 0;
-		session().changes().historyUpdated(this, UpdateFlag::BotKeyboard);
+		changed = true;
 	}
 	lastKeyboardInited = true;
 	lastKeyboardFrom = 0;
+	if (!_topicReplyKeyboards.empty()) {
+		for (auto &[id, state] : _topicReplyKeyboards) {
+			if (state.id) {
+				changed = true;
+			}
+			state = ReplyKeyboardState{ .inited = true };
+		}
+	}
+	if (changed) {
+		notifyReplyKeyboardUpdated();
+	}
+}
+
+void History::clearLastKeyboard(MsgId topicRootId) {
+	const auto key = replyKeyboardTopicKey(topicRootId);
+	if (!key) {
+		if (lastKeyboardId) {
+			if (lastKeyboardId == lastKeyboardHiddenId) {
+				lastKeyboardHiddenId = 0;
+			}
+			lastKeyboardId = 0;
+			notifyReplyKeyboardUpdated();
+		}
+		lastKeyboardInited = true;
+		lastKeyboardFrom = 0;
+		return;
+	}
+	auto &state = _topicReplyKeyboards[key];
+	const auto had = (state.id != 0);
+	if (state.id == state.hiddenId) {
+		state.hiddenId = 0;
+	}
+	state.id = 0;
+	state.from = 0;
+	state.inited = true;
+	state.used = false;
+	if (had) {
+		notifyReplyKeyboardUpdated();
+	}
+}
+
+void History::applyItemReplyKeyboard(not_null<HistoryItem*> item) {
+	if (!item->definesReplyKeyboard() || item->out()) {
+		return;
+	}
+	const auto markupFlags = item->replyKeyboardFlags();
+	if ((markupFlags & ReplyMarkupFlag::Selective) && !item->mentionsMe()) {
+		return;
+	}
+
+	const auto from = item->from();
+	const auto markupSenders = [&]() -> base::flat_set<not_null<PeerData*>>* {
+		if (const auto chat = peer->asChat()) {
+			return &chat->markupSenders;
+		} else if (const auto channel = peer->asMegagroup()) {
+			return &channel->mgInfo->markupSenders;
+		}
+		return nullptr;
+	}();
+	if (markupSenders) {
+		markupSenders->insert(from);
+	}
+
+	const auto topicKey = replyKeyboardTopicKey(item->topicRootId());
+	const auto isOlderThan = [&](MsgId lastUpdateId) {
+		return lastUpdateId
+			&& item->isRegular()
+			&& lastUpdateId > item->id;
+	};
+	if (topicKey) {
+		const auto i = _topicReplyKeyboards.find(topicKey);
+		if (i != end(_topicReplyKeyboards)
+			&& isOlderThan(i->second.lastUpdateId)) {
+			return;
+		}
+	} else if (isOlderThan(lastKeyboardUpdateId)) {
+		return;
+	}
+	const auto applyHide = [&] {
+		if (topicKey) {
+			const auto i = _topicReplyKeyboards.find(topicKey);
+			if (i != end(_topicReplyKeyboards)
+				&& i->second.inited
+				&& i->second.id
+				&& i->second.from != from->id) {
+				return;
+			}
+			if (i != end(_topicReplyKeyboards) && i->second.inited) {
+				clearLastKeyboard(topicKey);
+			} else {
+				_topicReplyKeyboards[topicKey] = {
+					.inited = true,
+				};
+			}
+			_topicReplyKeyboards[topicKey].lastUpdateId = item->id;
+		} else if (lastKeyboardFrom == from->id
+			|| (lastKeyboardInited && !lastKeyboardId)
+			|| (!lastKeyboardInited
+				&& !peer->isChat()
+				&& !peer->isMegagroup())) {
+			clearLastKeyboard(MsgId(0));
+			lastKeyboardUpdateId = item->id;
+		}
+	};
+	const auto applyShow = [&] {
+		auto botNotInChat = false;
+		if (peer->isChat()) {
+			botNotInChat = from->isUser()
+				&& (!peer->asChat()->participants.empty()
+					|| !Data::CanSendAnything(peer))
+				&& !peer->asChat()->participants.contains(from->asUser());
+		} else if (peer->isMegagroup()) {
+			botNotInChat = from->isUser()
+				&& (peer->asChannel()->mgInfo->botStatus
+						!= Data::BotStatus::Unknown
+					|| !Data::CanSendAnything(peer))
+				&& !peer->asChannel()->mgInfo->bots.contains(from->asUser());
+		}
+		if (botNotInChat) {
+			clearLastKeyboard(topicKey);
+			if (topicKey) {
+				_topicReplyKeyboards[topicKey].lastUpdateId = item->id;
+			} else {
+				lastKeyboardUpdateId = item->id;
+			}
+			return;
+		}
+		if (topicKey) {
+			auto &state = _topicReplyKeyboards[topicKey];
+			const auto changed = (state.id != item->id)
+				|| (state.from != from->id)
+				|| !state.inited;
+			state.inited = true;
+			state.lastUpdateId = item->id;
+			if (changed) {
+				state.id = item->id;
+				state.from = from->id;
+				state.used = false;
+				state.hiddenId = 0;
+				notifyReplyKeyboardUpdated();
+			}
+		} else {
+			const auto changed = (lastKeyboardId != item->id)
+				|| (lastKeyboardFrom != from->id)
+				|| !lastKeyboardInited;
+			lastKeyboardInited = true;
+			lastKeyboardUpdateId = item->id;
+			if (changed) {
+				lastKeyboardId = item->id;
+				lastKeyboardFrom = from->id;
+				lastKeyboardUsed = false;
+				lastKeyboardHiddenId = 0;
+				notifyReplyKeyboardUpdated();
+			}
+		}
+	};
+
+	if (markupFlags & ReplyMarkupFlag::None) {
+		applyHide();
+	} else {
+		applyShow();
+	}
+}
+
+void History::migrateTopicReplyKeyboard(MsgId fromRootId, MsgId toRootId) {
+	if (!fromRootId
+		|| !toRootId
+		|| fromRootId == toRootId
+		|| !isForum()) {
+		return;
+	}
+	const auto fromIt = _topicReplyKeyboards.find(fromRootId);
+	if (fromIt == end(_topicReplyKeyboards)) {
+		return;
+	}
+	const auto toIt = _topicReplyKeyboards.find(toRootId);
+	if (toIt != end(_topicReplyKeyboards) && toIt->second.inited) {
+		_topicReplyKeyboards.erase(fromIt);
+		return;
+	}
+	auto state = std::move(fromIt->second);
+	_topicReplyKeyboards.erase(fromIt);
+	_topicReplyKeyboards[toRootId] = std::move(state);
+	if (_topicReplyKeyboards[toRootId].id) {
+		notifyReplyKeyboardUpdated();
+	}
+}
+
+void History::removeTopicReplyKeyboard(MsgId topicRootId) {
+	const auto key = replyKeyboardTopicKey(topicRootId);
+	if (!key) {
+		return;
+	}
+	const auto i = _topicReplyKeyboards.find(key);
+	if (i == end(_topicReplyKeyboards)) {
+		return;
+	}
+	const auto changed = (i->second.id != 0);
+	_topicReplyKeyboards.erase(i);
+	if (changed) {
+		notifyReplyKeyboardUpdated();
+	}
 }
 
 int History::height() const {
@@ -257,8 +488,13 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 	if (const auto thread = item->maybeNotificationThread()) {
 		thread->removeNotification(item);
 	}
-	if (lastKeyboardId == item->id) {
-		clearLastKeyboard();
+	if (const auto key = replyKeyboardTopicKey(item->topicRootId())) {
+		const auto i = _topicReplyKeyboards.find(key);
+		if (i != end(_topicReplyKeyboards) && i->second.id == item->id) {
+			clearLastKeyboard(key);
+		}
+	} else if (lastKeyboardId == item->id) {
+		clearLastKeyboard(MsgId(0));
 	}
 	if ((!item->out() || item->isPost())
 		&& item->unread(this)
@@ -840,6 +1076,7 @@ not_null<HistoryItem*> History::addNewItem(
 	}
 
 	if (!loadedAtBottom() || peer->migrateTo()) {
+		applyItemReplyKeyboard(item);
 		setLastMessage(item);
 		if (unread) {
 			const auto type = item->out()
@@ -1163,56 +1400,7 @@ not_null<HistoryItem*> History::addNewToBack(
 			}
 		}
 	}
-	if (item->definesReplyKeyboard()) {
-		const auto markupFlags = item->replyKeyboardFlags();
-		if (!(markupFlags & ReplyMarkupFlag::Selective)
-			|| item->mentionsMe()) {
-			const auto markupSenders = [&]() -> base::flat_set<not_null<PeerData*>>* {
-				if (const auto chat = peer->asChat()) {
-					return &chat->markupSenders;
-				} else if (const auto channel = peer->asMegagroup()) {
-					return &channel->mgInfo->markupSenders;
-				}
-				return nullptr;
-			}();
-			if (markupSenders) {
-				markupSenders->insert(from);
-			}
-			if (markupFlags & ReplyMarkupFlag::None) {
-				// None markup means replyKeyboardHide.
-				if (lastKeyboardFrom == from->id
-					|| (!lastKeyboardInited
-						&& !peer->isChat()
-						&& !peer->isMegagroup()
-						&& !item->out())) {
-					clearLastKeyboard();
-				}
-			} else {
-				bool botNotInChat = false;
-				if (peer->isChat()) {
-					botNotInChat = from->isUser()
-						&& (!peer->asChat()->participants.empty()
-							|| !Data::CanSendAnything(peer))
-						&& !peer->asChat()->participants.contains(
-							from->asUser());
-				} else if (peer->isMegagroup()) {
-					botNotInChat = from->isUser()
-						&& (peer->asChannel()->mgInfo->botStatus != Data::BotStatus::Unknown
-							|| !Data::CanSendAnything(peer))
-						&& !peer->asChannel()->mgInfo->bots.contains(
-							from->asUser());
-				}
-				if (botNotInChat) {
-					clearLastKeyboard();
-				} else {
-					lastKeyboardInited = true;
-					lastKeyboardId = item->id;
-					lastKeyboardFrom = from->id;
-					lastKeyboardUsed = false;
-				}
-			}
-		}
-	}
+	applyItemReplyKeyboard(item);
 
 	setLastMessage(item);
 	if (unread) {
@@ -1288,8 +1476,19 @@ void History::applyServiceChanges(
 		}
 	}, [&](const MTPDmessageActionChatDeleteUser &data) {
 		const auto uid = data.vuser_id().v;
-		if (lastKeyboardFrom == peerFromUser(uid)) {
-			clearLastKeyboard();
+		const auto fromId = peerFromUser(uid);
+		if (lastKeyboardFrom == fromId) {
+			clearLastKeyboard(MsgId(0));
+		}
+		for (auto i = begin(_topicReplyKeyboards)
+			; i != end(_topicReplyKeyboards);) {
+			if (i->second.from == fromId) {
+				const auto key = i->first;
+				++i;
+				clearLastKeyboard(key);
+			} else {
+				++i;
+			}
 		}
 		if (const auto megagroup = peer->asMegagroup()) {
 			if (const auto user = owner().userLoaded(uid)) {
@@ -1944,50 +2143,96 @@ void History::addItemsToLists(
 			}
 		}
 		if (item->author()->id) {
+			const auto topicKey = replyKeyboardTopicKey(item->topicRootId());
+			const auto keyboardInited = [&] {
+				if (topicKey) {
+					const auto i = _topicReplyKeyboards.find(topicKey);
+					return (i != end(_topicReplyKeyboards)) && i->second.inited;
+				}
+				return lastKeyboardInited;
+			};
 			if (markupSenders) { // chats with bots
-				if (!lastKeyboardInited && item->definesReplyKeyboard() && !item->out()) {
+				if (!keyboardInited()
+					&& item->definesReplyKeyboard()
+					&& !item->out()) {
 					const auto markupFlags = item->replyKeyboardFlags();
-					if (!(markupFlags & ReplyMarkupFlag::Selective) || item->mentionsMe()) {
-						bool wasKeyboardHide = markupSenders->contains(item->author());
+					if (!(markupFlags & ReplyMarkupFlag::Selective)
+						|| item->mentionsMe()) {
+						const auto wasKeyboardHide = markupSenders->contains(
+							item->author());
 						if (!wasKeyboardHide) {
 							markupSenders->insert(item->author());
 						}
 						if (!(markupFlags & ReplyMarkupFlag::None)) {
-							if (!lastKeyboardInited) {
+							if (!keyboardInited()) {
 								bool botNotInChat = false;
 								if (peer->isChat()) {
 									botNotInChat = (!Data::CanSendAnything(peer)
 										|| !peer->asChat()->participants.empty())
 										&& item->author()->isUser()
-										&& !peer->asChat()->participants.contains(item->author()->asUser());
+										&& !peer->asChat()->participants.contains(
+											item->author()->asUser());
 								} else if (peer->isMegagroup()) {
 									botNotInChat = (!Data::CanSendAnything(peer)
-										|| peer->asChannel()->mgInfo->botStatus != Data::BotStatus::Unknown)
+										|| peer->asChannel()->mgInfo->botStatus
+											!= Data::BotStatus::Unknown)
 										&& item->author()->isUser()
-										&& !peer->asChannel()->mgInfo->bots.contains(item->author()->asUser());
+										&& !peer->asChannel()->mgInfo->bots.contains(
+											item->author()->asUser());
 								}
 								if (wasKeyboardHide || botNotInChat) {
-									clearLastKeyboard();
+									clearLastKeyboard(topicKey);
+									if (topicKey) {
+										_topicReplyKeyboards[topicKey]
+											.lastUpdateId = item->id;
+									} else {
+										lastKeyboardUpdateId = item->id;
+									}
+								} else if (topicKey) {
+									auto &state = _topicReplyKeyboards[topicKey];
+									state.inited = true;
+									state.id = item->id;
+									state.from = item->author()->id;
+									state.used = false;
+									state.lastUpdateId = item->id;
 								} else {
 									lastKeyboardInited = true;
 									lastKeyboardId = item->id;
 									lastKeyboardFrom = item->author()->id;
 									lastKeyboardUsed = false;
+									lastKeyboardUpdateId = item->id;
 								}
 							}
 						}
 					}
 				}
-			} else if (!lastKeyboardInited && item->definesReplyKeyboard() && !item->out()) { // conversations with bots
+			} else if (!keyboardInited()
+				&& item->definesReplyKeyboard()
+				&& !item->out()) { // conversations with bots
 				const auto markupFlags = item->replyKeyboardFlags();
-				if (!(markupFlags & ReplyMarkupFlag::Selective) || item->mentionsMe()) {
+				if (!(markupFlags & ReplyMarkupFlag::Selective)
+					|| item->mentionsMe()) {
 					if (markupFlags & ReplyMarkupFlag::None) {
-						clearLastKeyboard();
+						clearLastKeyboard(topicKey);
+						if (topicKey) {
+							_topicReplyKeyboards[topicKey].lastUpdateId
+								= item->id;
+						} else {
+							lastKeyboardUpdateId = item->id;
+						}
+					} else if (topicKey) {
+						auto &state = _topicReplyKeyboards[topicKey];
+						state.inited = true;
+						state.id = item->id;
+						state.from = item->author()->id;
+						state.used = false;
+						state.lastUpdateId = item->id;
 					} else {
 						lastKeyboardInited = true;
 						lastKeyboardId = item->id;
 						lastKeyboardFrom = item->author()->id;
 						lastKeyboardUsed = false;
+						lastKeyboardUpdateId = item->id;
 					}
 				}
 			}
@@ -4363,6 +4608,8 @@ void History::clear(ClearType type, bool markEmpty) {
 	blocks.clear();
 	owner().notifyHistoryUnloaded(this);
 	lastKeyboardInited = false;
+	lastKeyboardUpdateId = 0;
+	_topicReplyKeyboards.clear();
 	if (type == ClearType::Unload) {
 		_loadedAtTop = _loadedAtBottom = markEmpty;
 	} else {
