@@ -306,6 +306,11 @@ void InitField(
 		options);
 }
 
+void DisableFieldMarkdown(not_null<Ui::InputField*> field) {
+	field->setMarkdownReplacesEnabled(rpl::single(
+		Ui::MarkdownEnabledState{ Ui::MarkdownDisabled() }));
+}
+
 not_null<Ui::FlatLabel*> CreateWarningLabel(
 		not_null<QWidget*> parent,
 		not_null<Ui::InputField*> field,
@@ -736,7 +741,7 @@ void Options::Option::showAddIcon(bool show) {
 PollAnswer Options::Option::toPollAnswer(int index) const {
 	Expects(index >= 0 && index < kMaxOptionsCount);
 
-	const auto text = field()->getTextWithAppliedMarkdown();
+	const auto text = field()->getTextWithTags();
 
 	auto result = PollAnswer{
 		TextWithEntities{
@@ -1062,6 +1067,7 @@ void Options::initOptionField(not_null<Ui::InputField*> field) {
 			}
 		}, emojiToggle->lifetime());
 	}
+	DisableFieldMarkdown(field);
 	field->submits(
 	) | rpl::on_next([=] {
 		const auto index = findField(field);
@@ -1397,6 +1403,7 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 			}, emojiToggle->lifetime());
 		}
 	}
+	DisableFieldMarkdown(question);
 
 	const auto warning = CreateWarningLabel(
 		container,
@@ -3145,7 +3152,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	};
 
 	const auto collectResult = [=] {
-		const auto textWithTags = question->getTextWithAppliedMarkdown();
+		const auto textWithTags = question->getTextWithTags();
 		const auto descriptionWithTags = description->getTextWithTags();
 		using Flag = PollData::Flag;
 		auto result = PollData(&_controller->session().data(), id);
