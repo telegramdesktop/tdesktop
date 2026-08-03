@@ -393,7 +393,7 @@ void ItemCanvas::handleMouseReleaseEvent(
 	drawIncrementalStroke();
 	drawArrowHead();
 	update(_rectToUpdate);
-	if (_contentRect.isValid()) {
+	if ((_currentStroke.size() >= 2) && _contentRect.isValid()) {
 		const auto scaledContentRect = QRectF(
 			_contentRect.x() * style::DevicePixelRatio(),
 			_contentRect.y() * style::DevicePixelRatio(),
