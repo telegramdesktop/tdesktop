@@ -372,7 +372,7 @@ void UserpicButton::choosePhotoLocally() {
 				? Api::PeerPhoto::EmojiListType::Profile
 				: Api::PeerPhoto::EmojiListType::Group),
 			done,
-			_peer ? (_peer->isForum() && !_peer->isBot()) : false);
+			useForumShape());
 	};
 	const auto addFromClipboard = [=](ChosenType type, tr::phrase<> text) {
 		if (const auto data = QGuiApplication::clipboard()->mimeData()) {
@@ -972,9 +972,8 @@ void UserpicButton::processNewPeerPhoto() {
 bool UserpicButton::useForumShape() const {
 	return (_shape == PeerUserpicShape::Forum)
 		|| (_peer
-			&& _peer->isForum()
 			&& _shape == PeerUserpicShape::Auto
-			&& !_peer->isBot());
+			&& _peer->userpicShape() == PeerUserpicShape::Forum);
 }
 
 void UserpicButton::grabOldUserpic() {

@@ -291,7 +291,8 @@ PhotoEditorControls::PhotoEditorControls(
 	: base::make_unique_q<Ui::IconButton>(
 		_transformButtons,
 		st::photoEditorCropRatioButton))
-, _cornersButton((data.cropType == EditorData::CropType::RoundedRect)
+, _cornersButton(((data.cropType == EditorData::CropType::RoundedRect)
+		&& (data.cropMode == EditorData::CropMode::Mask))
 	? base::make_unique_q<Ui::IconButton>(
 		_transformButtons,
 		st::photoEditorCornersButton)
