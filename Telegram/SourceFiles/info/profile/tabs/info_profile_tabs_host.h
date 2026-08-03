@@ -89,8 +89,10 @@ private:
 	void pushViewportToActive();
 	void scheduleBodySync();
 	void scheduleHeightSync();
+	void scheduleVisibilitySync();
 	void syncBodyNow();
 	void syncHeightNow();
+	void syncVisibilityNow();
 	void scrollToBodyTop();
 	[[nodiscard]] QRect bodyVisibleRect() const;
 	void startSlideAnimation(
@@ -102,6 +104,7 @@ private:
 	std::vector<MediaTabDescriptor> _tabs;
 	std::vector<TextWithEntities> _stripTitles;
 	std::vector<bool> _tabsShown;
+	std::vector<bool> _syncedTabsShown;
 	std::vector<int> _order;
 	int _mainTabIndex = -1;
 
@@ -124,6 +127,7 @@ private:
 	bool _userChosenTab = false;
 	bool _bodySyncQueued = false;
 	bool _heightSyncQueued = false;
+	bool _visibilitySyncQueued = false;
 	bool _viewportPushPending = false;
 	bool _scrolledToTop = true;
 	bool _searching = false;

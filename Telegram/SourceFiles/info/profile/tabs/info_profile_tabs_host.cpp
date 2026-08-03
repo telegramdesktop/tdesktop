@@ -148,6 +148,38 @@ void TabsHost::syncHeightNow() {
 	resizeToWidth(width());
 }
 
+void TabsHost::scheduleVisibilitySync() {
+	if (_visibilitySyncQueued) {
+		return;
+	}
+	_visibilitySyncQueued = true;
+	InvokeQueued(this, [=] {
+		if (_visibilitySyncQueued) {
+			syncVisibilityNow();
+		}
+	});
+}
+
+void TabsHost::syncVisibilityNow() {
+	_visibilitySyncQueued = false;
+	scheduleHeightSync();
+	if (_syncedTabsShown == _tabsShown) {
+		return;
+	}
+	refreshOrder();
+	syncStripTitles();
+	if (!_pendingRestoreId.isEmpty()) {
+		const auto i = ranges::find(
+			_tabs,
+			_pendingRestoreId,
+			&MediaTabDescriptor::id);
+		if (i != end(_tabs) && _tabsShown[i - begin(_tabs)]) {
+			restoreActiveTab(base::take(_pendingRestoreId));
+		}
+	}
+	ensureActiveVisible();
+}
+
 TabsHost::~TabsHost() {
 	// Lists notify their delegates while being destroyed, so the tab
 	// widgets must die before the adapters owning those delegates.
@@ -174,15 +206,7 @@ void TabsHost::wireTabsVisibility() {
 		) | rpl::on_next([this, i](bool shown) {
 			if (_tabsShown[i] != shown) {
 				_tabsShown[i] = shown;
-				refreshOrder();
-				syncStripTitles();
-				if (shown
-					&& !_pendingRestoreId.isEmpty()
-					&& (_tabs[i].id == _pendingRestoreId)) {
-					restoreActiveTab(base::take(_pendingRestoreId));
-				}
-				ensureActiveVisible();
-				scheduleHeightSync();
+				scheduleVisibilitySync();
 			}
 		}, lifetime());
 	}
@@ -392,6 +416,7 @@ void TabsHost::setMainTab(Data::ProfileTab tab) {
 }
 
 void TabsHost::syncStripTitles() {
+	_syncedTabsShown = _tabsShown;
 	auto stripTabs = std::vector<StripTab>();
 	stripTabs.reserve(_tabs.size());
 	for (const auto i : _order) {
