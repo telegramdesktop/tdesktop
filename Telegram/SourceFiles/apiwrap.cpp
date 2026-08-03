@@ -4436,6 +4436,10 @@ void ApiWrap::sendRichMessage(
 		return;
 	}
 
+	const auto fullPage = item->fullRichPage();
+	const auto submittedPage = fullPage ? fullPage : item->richPage();
+	const auto submittedSummary = item->originalText();
+
 	StripEphemeralReply(_session, action.replyTo);
 
 	const auto history = item->history();
@@ -4513,14 +4517,12 @@ void ApiWrap::sendRichMessage(
 		})
 		: Data::FileOrigin();
 	const auto serializeCurrent = [=]() -> std::optional<MTPInputRichMessage> {
-		const auto fullPage = item->fullRichPage();
-		const auto page = fullPage ? fullPage : item->richPage();
-		if (!page) {
+		if (!submittedPage) {
 			return std::nullopt;
 		}
 		const auto serialized = Iv::SerializeInputRichMessage(
 			_session,
-			*page,
+			*submittedPage,
 			Iv::SerializeInputRichMessageMode::FinalSubmit);
 		return (serialized.status == Iv::SerializeInputRichMessageStatus::Success)
 			&& serialized.value
@@ -4530,22 +4532,19 @@ void ApiWrap::sendRichMessage(
 	const auto itemId = item->fullId();
 	const auto recoverRichFailure = [=](const QString &type) {
 		if (const auto failed = _session->data().message(itemId)) {
-			if (clearCloudDraft) {
-				const auto fullPage = failed->fullRichPage();
-				if (const auto page = fullPage ? fullPage : failed->richPage()) {
-					auto draft = Data::Draft();
-					draft.reply.topicRootId = draftTopicRootId;
-					draft.reply.monoforumPeerId = draftMonoforumPeerId;
-					draft.richMessage = page;
-					draft.richMessageSummary = failed->originalText();
-					history->createCloudDraft(
-						draftTopicRootId,
-						draftMonoforumPeerId,
-						&draft);
-					history->applyCloudDraft(
-						draftTopicRootId,
-						draftMonoforumPeerId);
-				}
+			if (clearCloudDraft && submittedPage) {
+				auto draft = Data::Draft();
+				draft.reply.topicRootId = draftTopicRootId;
+				draft.reply.monoforumPeerId = draftMonoforumPeerId;
+				draft.richMessage = submittedPage;
+				draft.richMessageSummary = submittedSummary;
+				history->createCloudDraft(
+					draftTopicRootId,
+					draftMonoforumPeerId,
+					&draft);
+				history->applyCloudDraft(
+					draftTopicRootId,
+					draftMonoforumPeerId);
 			}
 			if (randomId) {
 				_session->data().unregisterMessageRandomId(randomId);
