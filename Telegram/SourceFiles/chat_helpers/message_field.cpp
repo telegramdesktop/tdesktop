@@ -276,21 +276,22 @@ void EditLinkBox(
 		}
 	};
 
+	using TabbedRequest = Ui::InputField::TabbedRequest;
 	url->tabbed(
-	) | rpl::on_next([=](not_null<bool*> handled) {
+	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
 		clearFullSelection(url);
 		text->setFocus();
-		*handled = true;
+		request->handled = true;
 	}, url->lifetime());
 
 	text->tabbed(
-	) | rpl::on_next([=](not_null<bool*> handled) {
+	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
 		if (!url->empty()) {
 			url->selectAll();
 		}
 		clearFullSelection(text);
 		url->setFocus();
-		*handled = true;
+		request->handled = true;
 	}, text->lifetime());
 }
 

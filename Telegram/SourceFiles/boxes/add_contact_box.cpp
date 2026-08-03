@@ -1579,15 +1579,16 @@ void EditNameBox::prepare() {
 	_last->submits(
 	) | rpl::on_next([=] { submit(); }, _last->lifetime());
 
+	using TabbedRequest = Ui::InputField::TabbedRequest;
 	_first->tabbed(
-	) | rpl::on_next([=](not_null<bool*> handled) {
+	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
 		_last->setFocus();
-		*handled = true;
+		request->handled = true;
 	}, _first->lifetime());
 	_last->tabbed(
-	) | rpl::on_next([=](not_null<bool*> handled) {
+	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
 		_first->setFocus();
-		*handled = true;
+		request->handled = true;
 	}, _last->lifetime());
 }
 

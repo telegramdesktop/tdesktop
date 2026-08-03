@@ -458,10 +458,10 @@ HistoryWidget::HistoryWidget(
 		escape();
 	}, _field->lifetime());
 	_field->tabbed(
-	) | rpl::on_next([=](not_null<bool*> handled) {
+	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
 		if (_supportAutocomplete) {
 			_supportAutocomplete->activate(_field.data());
-			*handled = true;
+			request->handled = true;
 		}
 	}, _field->lifetime());
 	_field->heightChanges(
