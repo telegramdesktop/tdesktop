@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/chat_filters_tabs_slider.h"
 
+#include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/side_bar_button.h"
 #include "styles/style_dialogs.h"
@@ -169,15 +170,18 @@ void ChatsFiltersTabs::setUnreadCount(int index, int unreadCount, bool mute) {
 				.muted = mute,
 			});
 			update();
+			accessibilityChildNameChanged(index);
 		}
 	} else if (!unreadCount) {
 		_unreadCounts.erase(it);
 		update();
+		accessibilityChildNameChanged(index);
 	} else if (it->second.count != unreadCount || it->second.muted != mute) {
 		it->second.count = unreadCount;
 		it->second.muted = mute;
 		it->second.cache = cacheUnreadCount(unreadCount, mute);
 		update();
+		accessibilityChildNameChanged(index);
 	}
 	updateSectionsContentWidths();
 }
@@ -436,6 +440,41 @@ void ChatsFiltersTabs::contextMenuEvent(QContextMenuEvent *e) {
 		return true;
 	});
 	_contextMenuRequested.fire_copy(index);
+}
+
+QString ChatsFiltersTabs::accessibilityChildName(int index) const {
+	const auto title = Ui::SettingsSlider::accessibilityChildName(index);
+	if (_lockedFrom > 0 && index >= _lockedFrom) {
+		// Surface a locked folder's premium-gated status, which the visual
+		// lock glyph alone can't convey to a screen reader.
+		return tr::lng_sr_folder_locked(tr::now, lt_text, title);
+	}
+	const auto it = _unreadCounts.find(index);
+	return (it != _unreadCounts.end())
+		? tr::lng_filter_unread_chats(
+			tr::now,
+			lt_count,
+			it->second.count,
+			lt_text,
+			title)
+		: title;
+}
+
+QString ChatsFiltersTabs::accessibilityChildDescription(int index) const {
+	return (_lockedFrom > 0 && index >= _lockedFrom)
+		? tr::lng_sr_folder_locked_about(tr::now)
+		: QString();
+}
+
+void ChatsFiltersTabs::activateSectionByAccessibility(int index) {
+	// Keyboard or screen reader activation of a locked (premium) folder
+	// behaves like a click on it: show the premium promo instead of
+	// switching to a folder the user can't use.
+	if (_lockedFrom > 0 && index >= _lockedFrom) {
+		_lockedClicked.fire({});
+	} else {
+		Ui::SettingsSlider::activateSectionByAccessibility(index);
+	}
 }
 
 rpl::producer<int> ChatsFiltersTabs::contextMenuRequested() const {

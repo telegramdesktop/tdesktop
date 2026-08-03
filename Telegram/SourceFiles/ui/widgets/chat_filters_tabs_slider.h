@@ -58,6 +58,9 @@ public:
 
 	void stopAnimation();
 
+	QString accessibilityChildName(int index) const override;
+	QString accessibilityChildDescription(int index) const override;
+
 protected:
 	struct ShiftedSection {
 		not_null<Ui::DiscreteSlider::Section*> section;
@@ -71,6 +74,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void activateSectionByAccessibility(int index) override;
 
 	std::vector<ShiftedSection> _sections;
 
