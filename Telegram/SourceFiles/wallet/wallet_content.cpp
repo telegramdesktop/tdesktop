@@ -562,11 +562,19 @@ void AddFeeTableRow(
 		fee.append(FormatFiat(feeNano, rate, kFeeFiatDecimals, true));
 		return fee;
 	});
-	Ui::AddTableRow(
+	const auto label = Ui::AddTableRow(
 		table,
 		tr::lng_wallet_details_fee(),
 		std::move(value),
 		helper.context());
+	label->naturalWidthValue(
+	) | rpl::skip(1) | rpl::on_next([=] {
+		Ui::PostponeCall(table, [=] {
+			if (const auto width = table->width()) {
+				table->resizeToWidth(width);
+			}
+		});
+	}, label->lifetime());
 }
 
 void AddDetailsTable(
@@ -1264,9 +1272,18 @@ void WalletCommentBox(
 			return Ui::CurrencyName(code);
 		}),
 		st::walletSendFiatLabel);
-	std::move(entryFiat) | rpl::on_next([=](bool fiat) {
+	rpl::combine(
+		std::move(entryFiat),
+		fiatIcon->widthValue()
+	) | rpl::on_next([=](bool fiat, int labelWidth) {
 		icon->setVisible(!fiat);
 		fiatIcon->setVisible(fiat);
+		const auto overflow = st::tonFieldIconPosition.x()
+			+ labelWidth
+			+ st::walletSendFiatLabelSkip
+			- field->st().textMargins.left();
+		field->setAdditionalMargins(
+			{ (fiat && overflow > 0) ? overflow : 0, 0, 0, 0 });
 	}, field->lifetime());
 	wrap->widthValue() | rpl::on_next([=](int width) {
 		icon->move(st::tonFieldIconPosition);

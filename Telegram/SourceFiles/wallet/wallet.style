@@ -180,6 +180,7 @@ walletSendFiatLabel: FlatLabel(defaultFlatLabel) {
 	textFg: currencyFg;
 	style: semiboldTextStyle;
 }
+walletSendFiatLabelSkip: 6px;
 walletCommentField: InputField(walletSendAddressField) {
 	textMargins: margins(0px, 10px, 0px, 2px);
 }
