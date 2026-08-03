@@ -74,6 +74,22 @@ const style::font &SwipeActionFont(
 		: nullptr;
 }
 
+[[nodiscard]] ChannelData *QuickActionUngroupCommunity(
+		not_null<History*> history,
+		Ui::QuickDialogAction action) {
+	const auto info = QuickActionCommunity(history);
+	if (!info || action == Dialogs::Ui::QuickDialogAction::Disabled) {
+		return nullptr;
+	} else if (action == Dialogs::Ui::QuickDialogAction::Mute
+		|| action == Dialogs::Ui::QuickDialogAction::Pin) {
+		return nullptr;
+	} else if (action == Dialogs::Ui::QuickDialogAction::Read
+		&& Window::IsUnreadThread(history)) {
+		return nullptr;
+	}
+	return info->channel();
+}
+
 } // namespace
 
 void PerformQuickDialogAction(
@@ -82,7 +98,9 @@ void PerformQuickDialogAction(
 		Ui::QuickDialogAction action,
 		FilterId filterId) {
 	const auto history = peer->owner().history(peer);
-	if (action == Dialogs::Ui::QuickDialogAction::Mute) {
+	if (const auto community = QuickActionUngroupCommunity(history, action)) {
+		Window::PeerMenuUngroupCommunity(controller, community);
+	} else if (action == Dialogs::Ui::QuickDialogAction::Mute) {
 		const auto muted = MuteMenu::ToggleMuteForever(history);
 		controller->showToast({
 			.text = { muted
@@ -163,6 +181,8 @@ QString ResolveQuickDialogLottieIconName(Ui::QuickDialogActionLabel action) {
 		return u"swipe_unarchive"_q;
 	case Ui::QuickDialogActionLabel::Delete:
 		return u"swipe_delete"_q;
+	case Ui::QuickDialogActionLabel::Ungroup:
+		return u"swipe_ungroup"_q;
 	default:
 		return u"swipe_disabled"_q;
 	}
@@ -172,7 +192,9 @@ Ui::QuickDialogActionLabel ResolveQuickDialogLabel(
 		not_null<History*> history,
 		Ui::QuickDialogAction action,
 		FilterId filterId) {
-	if (action == Dialogs::Ui::QuickDialogAction::Mute) {
+	if (QuickActionUngroupCommunity(history, action)) {
+		return Ui::QuickDialogActionLabel::Ungroup;
+	} else if (action == Dialogs::Ui::QuickDialogAction::Mute) {
 		if (history->peer->isSelf()) {
 			return Ui::QuickDialogActionLabel::Disabled;
 		}
@@ -227,6 +249,8 @@ QString ResolveQuickDialogLabel(Ui::QuickDialogActionLabel action) {
 		return tr::lng_settings_quick_dialog_action_unarchive(tr::now);
 	case Ui::QuickDialogActionLabel::Delete:
 		return tr::lng_settings_quick_dialog_action_delete(tr::now);
+	case Ui::QuickDialogActionLabel::Ungroup:
+		return tr::lng_community_ungroup(tr::now);
 	default:
 		return tr::lng_settings_quick_dialog_action_disabled(tr::now);
 	};
@@ -236,6 +260,7 @@ const style::color &ResolveQuickActionBg(
 		Ui::QuickDialogActionLabel action) {
 	switch (action) {
 	case Ui::QuickDialogActionLabel::Delete:
+	case Ui::QuickDialogActionLabel::Ungroup:
 		return st::attentionButtonFg;
 	case Ui::QuickDialogActionLabel::Disabled:
 		return st::windowSubTextFgOver;

@@ -813,17 +813,7 @@ void Filler::addUngroup() {
 	}
 	const auto controller = _controller;
 	_addAction(tr::lng_community_ungroup(tr::now), [=] {
-		controller->show(Ui::MakeConfirmBox({
-			.text = tr::lng_community_ungroup_text(),
-			.confirmed = [=](Fn<void()> close) {
-				channel->session().api().communities()
-					.toggleCollapsedInDialogs(channel, false);
-				close();
-			},
-			.confirmText = tr::lng_community_ungroup(),
-			.confirmStyle = &st::attentionBoxButton,
-			.title = tr::lng_community_ungroup_title(),
-		}));
+		PeerMenuUngroupCommunity(controller, channel);
 	}, &st::menuIconExpand);
 }
 
@@ -3775,6 +3765,22 @@ base::weak_qptr<Ui::BoxContent> ShowSendNowMessagesBox(
 		.text = text,
 		.confirmed = std::move(done),
 		.confirmText = tr::lng_send_button(),
+	}));
+}
+
+void PeerMenuUngroupCommunity(
+		not_null<Window::SessionController*> controller,
+		not_null<ChannelData*> channel) {
+	controller->show(Ui::MakeConfirmBox({
+		.text = tr::lng_community_ungroup_text(),
+		.confirmed = [=](Fn<void()> close) {
+			channel->session().api().communities()
+				.toggleCollapsedInDialogs(channel, false);
+			close();
+		},
+		.confirmText = tr::lng_community_ungroup(),
+		.confirmStyle = &st::attentionBoxButton,
+		.title = tr::lng_community_ungroup_title(),
 	}));
 }
 
