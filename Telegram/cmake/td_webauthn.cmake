@@ -38,7 +38,6 @@ if (WIN32)
     PRIVATE
         desktop-app::lib_base
         desktop-app::lib_crl
-        Bthprops.lib
     )
 elseif (APPLE)
     nice_target_sources(td_webauthn ${src_loc}

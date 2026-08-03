@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webauthn/cable_core.h"
 #include "base/algorithm.h"
 #include "base/basic_types.h"
+#include "base/platform/win/base_windows_safe_library.h"
 #include "base/platform/win/base_windows_winrt.h"
 
 #include <winrt/Windows.Foundation.Collections.h>
@@ -57,7 +58,33 @@ constexpr auto kFidoCableUuid16 = uint16_t(0xFFF9);
 	return result;
 }
 
+HBLUETOOTH_RADIO_FIND(__stdcall *BluetoothFindFirstRadio)(
+	const BLUETOOTH_FIND_RADIO_PARAMS *pbtfrp,
+	HANDLE *phRadio);
+BOOL(__stdcall *BluetoothFindRadioClose)(HBLUETOOTH_RADIO_FIND hFind);
+
+[[nodiscard]] bool ResolveBluetoothApi() {
+	const auto bthprops = base::Platform::SafeLoadLibrary(L"bthprops.cpl");
+	if (!bthprops) {
+		return false;
+	}
+	auto total = 0, resolved = 0;
+#define LOAD_SYMBOL(name) \
+	++total; \
+	if (base::Platform::LoadMethod(bthprops, #name, name)) ++resolved;
+
+	LOAD_SYMBOL(BluetoothFindFirstRadio);
+	LOAD_SYMBOL(BluetoothFindRadioClose);
+#undef LOAD_SYMBOL
+
+	return (total == resolved);
+}
+
 [[nodiscard]] bool BluetoothRadioPresent() {
+	static const auto Resolved = ResolveBluetoothApi();
+	if (!Resolved) {
+		return false;
+	}
 	auto params = BLUETOOTH_FIND_RADIO_PARAMS();
 	params.dwSize = sizeof(BLUETOOTH_FIND_RADIO_PARAMS);
 	auto radio = HANDLE(nullptr);
