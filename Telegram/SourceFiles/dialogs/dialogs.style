@@ -202,6 +202,7 @@ dialogsTTLBadgeInnerMargins: margins(2px, 2px, 2px, 2px);
 // Relative to a photo place, not a whole userpic place.
 dialogsTTLBadgeSkip: point(1px, 1px);
 dialogsCommunityHiddenBadgeIcon: icon{{ "community/requests_hidden", premiumButtonFg }};
+dialogsCommunityHiddenBadgePadding: 4px;
 
 dialogsSpeakingStrokeNumerator: 16px;
 dialogsSpeakingDenominator: 8.;

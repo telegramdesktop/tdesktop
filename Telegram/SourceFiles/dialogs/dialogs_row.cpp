@@ -142,28 +142,42 @@ constexpr auto kBlurRadius = 24;
 	return result;
 }
 
+[[nodiscard]] QRect CornerBadgeHiddenRect(int photoSize) {
+	const auto iconSize = st::dialogsCommunityHiddenBadgeIcon.size();
+	const auto padding = st::dialogsCommunityHiddenBadgePadding;
+	const auto margins = QMargins(padding, padding, padding, padding);
+	const auto badgeSize = iconSize.grownBy(margins);
+	return QRect(
+		QPoint(
+			photoSize - badgeSize.width()
+				+ st::dialogsTTLBadgeSkip.x(),
+			photoSize - badgeSize.height()
+				+ st::dialogsTTLBadgeSkip.y()),
+		badgeSize);
+}
+
 [[nodiscard]] QImage CornerBadgeHidden(
 		not_null<PeerData*> peer,
 		Ui::PeerUserpicView &view,
 		int photoSize) {
 	const auto ratio = style::DevicePixelRatio();
 	const auto fullSize = photoSize;
-	const auto partRect = CornerBadgeTTLRect(fullSize);
-	const auto &partSize = partRect.width();
-	const auto partSkip = fullSize - partSize;
+	const auto partSize = CornerBadgeHiddenRect(fullSize).size();
 	auto result = Images::Circle(BlurredDarkenedPart(
 		PeerData::GenerateUserpicImage(peer, view, fullSize * ratio, 0),
 		QRect(
-			QPoint(partSkip, partSkip) * ratio,
-			QSize(partSize, partSize) * ratio)));
+			QPoint(
+				fullSize - partSize.width(),
+				fullSize - partSize.height()) * ratio,
+			partSize * ratio)));
 	result.setDevicePixelRatio(ratio);
 
 	auto q = QPainter(&result);
 	PainterHighQualityEnabler hq(q);
 
-	const auto innerRect = QRect(QPoint(), partRect.size())
-		- st::dialogsTTLBadgeInnerMargins;
-	st::dialogsCommunityHiddenBadgeIcon.paintInCenter(q, innerRect);
+	st::dialogsCommunityHiddenBadgeIcon.paintInCenter(
+		q,
+		QRect(QPoint(), partSize));
 
 	return result;
 }
@@ -570,11 +584,11 @@ void Row::PaintCornerBadgeFrame(
 		q.setOpacity(1.);
 	}
 	if (const auto p = manager.progressForLayer(kHiddenLayer); p > 0.) {
+		const auto rect = CornerBadgeHiddenRect(photoSize);
 		if (data->cacheHidden.isNull() && peer && hidden) {
 			data->cacheHidden = CornerBadgeHidden(peer, view, photoSize);
 		}
 		if (!data->cacheHidden.isNull()) {
-			const auto rect = CornerBadgeTTLRect(photoSize);
 			q.setOpacity(p);
 			q.drawImage(rect.topLeft(), data->cacheHidden);
 			q.setOpacity(1.);
