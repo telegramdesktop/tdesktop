@@ -77,11 +77,13 @@ private:
 		const QString &text,
 		Types types);
 	void addMediaOptions(not_null<Ui::VerticalLayout*> container);
-	void addMediaOption(
+	not_null<Ui::Checkbox*> addMediaOption(
 		not_null<Ui::VerticalLayout*> container,
 		const QString &text,
 		MediaType type);
-	void addSizeSlider(not_null<Ui::VerticalLayout*> container);
+	void addSizeSlider(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Ui::Checkbox*> above);
 	void addLocationLabel(
 		not_null<Ui::VerticalLayout*> container);
 	void addFormatAndLocationLabel(
