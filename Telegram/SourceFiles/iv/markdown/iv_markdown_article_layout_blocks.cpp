@@ -126,12 +126,6 @@ thread_local const LayoutContext *CurrentLayoutContext = nullptr;
 	return st.table.bodyStyle;
 }
 
-[[nodiscard]] int TableBorder(
-		bool bordered,
-		const style::Markdown &st) {
-	return bordered ? st.table.border : 0;
-}
-
 [[nodiscard]] bool TextDependsOnMediaRuntime(
 		const TextWithEntities &text) {
 	for (const auto &entity : text.entities) {
@@ -784,16 +778,6 @@ void PopulateCodeBlockLeaf(
 		: QRect(fallbackLeft, 0, std::max(fallbackWidth, 1), 0);
 }
 
-[[nodiscard]] int LimitedMediaWidth(
-		int availableWidth,
-		int intrinsicWidth) {
-	const auto scaledIntrinsic = style::ConvertScale(intrinsicWidth);
-	const auto limit = (scaledIntrinsic > 0)
-		? (2 * scaledIntrinsic)
-		: availableWidth;
-	return std::clamp(limit, 1, std::max(availableWidth, 1));
-}
-
 void ApplyMediaBlockGeometry(
 		LaidOutBlock *block,
 		QRect geometry,
@@ -1328,6 +1312,22 @@ void CopyBlockCachedTextLeafs(
 }
 
 } // namespace
+
+int TableBorder(
+		bool bordered,
+		const style::Markdown &st) {
+	return bordered ? st.table.border : 0;
+}
+
+int LimitedMediaWidth(
+		int availableWidth,
+		int intrinsicWidth) {
+	const auto scaledIntrinsic = style::ConvertScale(intrinsicWidth);
+	const auto limit = (scaledIntrinsic > 0)
+		? (2 * scaledIntrinsic)
+		: availableWidth;
+	return std::clamp(limit, 1, std::max(availableWidth, 1));
+}
 
 bool TextNeedsRetainedLeaf(const QString &text) {
 	const auto size = int(text.size());

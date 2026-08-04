@@ -1401,6 +1401,12 @@ void RebuildVisibleSegmentLookup(
 	}
 	result.preparedLink = ExtractPreparedLink(result.state.link);
 	if (!result.preparedLink
+		&& dynamic_cast<Ui::Text::CustomEmojiClickHandler*>(
+			result.state.link.get())) {
+		result.inlineButton = point;
+	}
+	if (!result.preparedLink
+		&& !result.inlineButton
 		&& (flags & Ui::Text::StateRequest::Flag::LookupLink)) {
 		if (const auto prepared = PreparedLinkForDetailsBlock(segment)) {
 			result.preparedLink = prepared;
@@ -1408,11 +1414,6 @@ void RebuildVisibleSegmentLookup(
 				result.state.link = CreatePreparedLinkHandler(*prepared);
 			}
 		}
-	}
-	if (!result.preparedLink
-		&& dynamic_cast<Ui::Text::CustomEmojiClickHandler*>(
-			result.state.link.get())) {
-		result.inlineButton = point;
 	}
 	result.direct = true;
 	return result;

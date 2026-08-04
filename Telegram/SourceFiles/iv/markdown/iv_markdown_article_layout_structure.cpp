@@ -186,18 +186,6 @@ void RecenterPullquoteChild(
 		: TextBandWidth(st, width, context.useArticleBands);
 }
 
-[[nodiscard]] int BlockInlineButtonWidthCap(
-		const style::Markdown &st,
-		int blockWidth,
-		int width,
-		bool useArticleBands) {
-	return std::min({
-		std::max(blockWidth, 1),
-		TextBandWidth(st, width, useArticleBands),
-		st.inlineButton.maxWidth,
-	});
-}
-
 [[nodiscard]] bool IsRelatedArticlesHeader(
 		const PreparedBlock &block,
 		const PreparedBlock *next) {
@@ -588,6 +576,104 @@ void FinalizeOwnerSelection(
 		: details.bodyPadding;
 }
 
+[[nodiscard]] int BlockTextFrameWidth(
+		const PreparedBlock &block,
+		const style::Markdown &st,
+		int width,
+		LayoutContext context) {
+	const auto bands = context.useArticleBands;
+	switch (block.kind) {
+	case PreparedBlockKind::Details: {
+		const auto band = BlockBandWidth(block.kind, st, width, context);
+		const auto padding = DetailsHeaderPadding(context, st);
+		const auto icon = st.details.icon.empty()
+			? 0
+			: TextLineHeight(st.details.summaryStyle);
+		const auto iconSkip = icon ? st.details.iconSkip : 0;
+		const auto action = context.editMode
+			? DetailsStateReserveWidth(st)
+			: 0;
+		const auto actionSkip = action ? st.details.stateSkip : 0;
+		return std::max(
+			band
+				- padding.left()
+				- padding.right()
+				- icon
+				- iconSkip
+				- actionSkip
+				- action,
+			1);
+	}
+	// Nested media frames are derived from prepared data (paddings and
+	// the doubled intrinsic width), matching the geometry computed before
+	// the runtime media view substitutes its self-chosen size; that size
+	// exists only in the layout walk, so these are exact upper bounds.
+	case PreparedBlockKind::Photo:
+		return bands
+			? TextBandWidth(st, width, true)
+			: LimitedMediaWidth(
+				PaddedWidth(width, st.photo.padding),
+				block.photo.width);
+	case PreparedBlockKind::Video:
+		return bands
+			? TextBandWidth(st, width, true)
+			: LimitedMediaWidth(
+				PaddedWidth(width, st.photo.padding),
+				block.video.media.width);
+	case PreparedBlockKind::Map:
+		return bands
+			? TextBandWidth(st, width, true)
+			: PaddedWidth(width, st.photo.padding);
+	case PreparedBlockKind::GroupedMedia:
+		return bands
+			? TextBandWidth(st, width, true)
+			: PaddedWidth(width, st.groupedMedia.padding);
+	case PreparedBlockKind::Document:
+		return bands
+			? TextBandWidth(st, width, true)
+			: PaddedWidth(width, st.audio.padding);
+	case PreparedBlockKind::Channel:
+		return bands
+			? TextBandWidth(st, width, true)
+			: PaddedWidth(width, st.channel.padding);
+	case PreparedBlockKind::Table:
+		return std::max(
+			TextBandWidth(st, width, bands)
+				- st.table.cellPadding.left()
+				- st.table.cellPadding.right()
+				- 2 * TableBorder(block.tableBordered, st),
+			1);
+	case PreparedBlockKind::Paragraph:
+	case PreparedBlockKind::Thinking:
+	case PreparedBlockKind::Heading:
+	case PreparedBlockKind::CodeBlock:
+	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
+	case PreparedBlockKind::List:
+	case PreparedBlockKind::ListItem:
+	case PreparedBlockKind::Quote:
+	case PreparedBlockKind::DisplayMath:
+	case PreparedBlockKind::RelatedArticle:
+	case PreparedBlockKind::EmbedPost:
+	case PreparedBlockKind::Placeholder:
+		return TextBandWidth(st, width, bands);
+	}
+	return TextBandWidth(st, width, bands);
+}
+
+[[nodiscard]] int BlockInlineButtonWidthCap(
+		const PreparedBlock &block,
+		const style::Markdown &st,
+		int blockWidth,
+		int width,
+		LayoutContext context) {
+	return std::min({
+		std::max(blockWidth, 1),
+		BlockTextFrameWidth(block, st, width, context),
+		st.inlineButton.maxWidth,
+	});
+}
+
 [[nodiscard]] const WidthAnalysisNode *NextActiveScrollOwner(
 		const WidthAnalysisNode &analysis,
 		const WidthAnalysisNode *activeScrollOwner) {
@@ -665,10 +751,11 @@ void FinalizeOwnerSelection(
 				1);
 		}
 		blockContext.inlineButtonWidthCap = BlockInlineButtonWidthCap(
+			block,
 			st,
 			blockWidth,
 			width,
-			context.useArticleBands);
+			context);
 		auto node = AnalyzeBlock(
 			block,
 			formulas,
@@ -1297,10 +1384,11 @@ void FinalizeOwnerSelection(
 				1);
 		}
 		const auto inlineButtonWidthCap = BlockInlineButtonWidthCap(
+			preparedBlock,
 			st,
 			blockWidth,
 			width,
-			context.useArticleBands);
+			context);
 		if (block.carriesInlineButton
 			&& (block.inlineButtonWidthCap != inlineButtonWidthCap)) {
 			return std::nullopt;

@@ -448,6 +448,8 @@ struct TableCellMinimumWidthConstraint {
 	const std::vector<int> &columnWidths,
 	const style::Markdown &st,
 	bool bordered);
+[[nodiscard]] int TableBorder(bool bordered, const style::Markdown &st);
+[[nodiscard]] int LimitedMediaWidth(int availableWidth, int intrinsicWidth);
 
 [[nodiscard]] QRect TableCellHitRect(
 	const LaidOutBlock &block,
