@@ -8459,6 +8459,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sr_bot_verified_badge" = "Verified Bot";
 "lng_sr_profile_menu" = "Profile menu";
 "lng_sr_close_panel" = "Close panel";
+"lng_sr_message_options" = "Message options";
 
 "lng_ai_compose_title" = "AI Editor";
 "lng_ai_compose_apply" = "Apply";

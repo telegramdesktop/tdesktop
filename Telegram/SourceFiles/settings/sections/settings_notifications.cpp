@@ -1567,6 +1567,8 @@ void BuildSystemIntegrationAndAdvancedSection(SectionBuilder &builder) {
 		const auto countSlider = advancedWrap->add(
 			object_ptr<Ui::SettingsSlider>(advancedWrap, st::settingsSlider),
 			st::settingsBigScalePadding);
+		countSlider->setAccessibleName(
+			tr::lng_settings_notifications_count(tr::now));
 		for (int i = 0; i != kMaxNotificationsCount; ++i) {
 			countSlider->addSection(QString::number(i + 1));
 		}
