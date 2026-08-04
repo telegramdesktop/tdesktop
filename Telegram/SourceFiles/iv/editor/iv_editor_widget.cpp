@@ -3884,6 +3884,14 @@ bool Widget::hasActiveSelection() const {
 		|| hasFieldTextSpanSelection();
 }
 
+rpl::producer<bool> Widget::hasSelectionValue() const {
+	return _hasSelection.value();
+}
+
+void Widget::updateHasSelection() {
+	_hasSelection = hasActiveSelection();
+}
+
 TextWithEntities Widget::textSpanForCurrentSelection() {
 	if (hasStructuralSelection()) {
 		return {};
@@ -4622,6 +4630,7 @@ void Widget::performUndoRedo(bool redo, bool allowFieldLocal) {
 }
 
 void Widget::notifyToolbarStateChanged() {
+	updateHasSelection();
 	_toolbarStateChanges.fire_copy(toolbarStateValue());
 }
 
@@ -11037,6 +11046,7 @@ void Widget::startArticleSelection(
 		.from = MakeSelectionEndpoint(hit),
 		.to = MakeSelectionEndpoint(hit),
 	};
+	updateHasSelection();
 	update();
 }
 
@@ -11209,6 +11219,7 @@ void Widget::updateArticleSelection(
 		if (_selection != selection || endpointsChanged || forceUpdate) {
 			_selection = selection;
 			_selectionEndpoints = endpoints;
+			updateHasSelection();
 			update();
 		} else {
 			_selectionEndpoints = endpoints;

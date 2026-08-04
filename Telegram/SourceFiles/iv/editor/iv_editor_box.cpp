@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "iv/editor/iv_editor_session.h"
 #include "iv/editor/iv_editor_state.h"
 #include "iv/editor/iv_editor_toolbar_pill.h"
 #include "iv/editor/iv_editor_widget.h"
@@ -50,7 +51,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
 #include "ui/rp_widget.h"
-#include "ui/toast/toast.h"
 #include "data/data_peer_values.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/buttons.h"
@@ -1722,44 +1722,20 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 		_aiPill->addButton(std::move(owned), st::ivEditorToolbarButton);
 		button->setAccessibleName(tr::lng_ai_compose_title(tr::now));
 		button->setClickedCallback([=] {
-			if (!session->premium()) {
-				const auto show = _show;
-				show->showToast({
-					.text = tr::lng_article_premium_required(
-						tr::now,
-						lt_link,
-						tr::link(tr::bold(
-							tr::lng_article_premium_required_link(
-								tr::now))),
-						tr::marked),
-					.filter = [=](
-							const ClickHandlerPtr &handler,
-							Qt::MouseButton button) {
-						if (button != Qt::LeftButton) {
-							return false;
-						}
-						if (show && show->valid()) {
-							ShowPremiumPreviewToBuy(
-								show,
-								PremiumFeature::RichFormatting);
-						} else if (const auto window
-								= session->tryResolveWindow(nullptr)) {
-							ShowPremiumPreviewToBuy(
-								window,
-								PremiumFeature::RichFormatting);
-						}
-						return true;
-					},
-					.icon = &st::settingsToastStarIcon,
-					.adaptive = true,
-					.duration = Ui::Toast::kDefaultDuration * 2,
-				});
-				return;
-			}
+			const auto premiumRequired = [=] {
+				if (session->premium()) {
+					return false;
+				}
+				ShowRichMessagesPremiumToast(_show);
+				return true;
+			};
 			const auto editor = _editor;
 			if (editor && editor->hasActiveSelection()) {
 				auto span = editor->textSpanForCurrentSelection();
 				if (!span.text.isEmpty()) {
+					if (premiumRequired()) {
+						return;
+					}
 					HistoryView::Controls::ShowComposeAiBox(_show, {
 						.session = session,
 						.text = std::move(span),
@@ -1775,6 +1751,9 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 				}
 				auto source = editor->richPageForCurrentSelection();
 				if (source && !source->blocks.empty()) {
+					if (premiumRequired()) {
+						return;
+					}
 					HistoryView::Controls::ShowComposeAiBox(_show, {
 						.session = session,
 						.richSource = std::move(source),
@@ -1942,9 +1921,10 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 void WindowHost::Impl::setupBottomAiStar(
 		not_null<HistoryView::Controls::ComposeAiButton*> button,
 		not_null<Main::Session*> session) {
-	const auto premium = button->lifetime().make_state<bool>(false);
+	const auto editor = not_null<Widget*>(_editor.data());
+	const auto locked = button->lifetime().make_state<bool>(false);
 	const auto refresh = [=] {
-		if (*premium) {
+		if (!*locked) {
 			button->setPremiumStar(QImage(), QPoint(), 0);
 		} else {
 			const auto side = st::ivEditorToolbarPremiumStarSize;
@@ -1957,8 +1937,11 @@ void WindowHost::Impl::setupBottomAiStar(
 				st::ivEditorToolbarPremiumStarOutline);
 		}
 	};
-	Data::AmPremiumValue(session) | rpl::on_next([=](bool value) {
-		*premium = value;
+	rpl::combine(
+		Data::AmPremiumValue(session),
+		editor->hasSelectionValue()
+	) | rpl::on_next([=](bool premium, bool selection) {
+		*locked = (selection && !premium);
 		refresh();
 	}, button->lifetime());
 	style::PaletteChanged() | rpl::on_next([=] {

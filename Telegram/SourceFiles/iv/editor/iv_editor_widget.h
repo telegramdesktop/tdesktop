@@ -137,6 +137,7 @@ public:
 	void replacePreparedBlock(State::ReplaceTarget target, RichPage::Block block);
 	void insertPreparedBlocks(std::vector<RichPage::Block> blocks);
 	[[nodiscard]] bool hasActiveSelection() const;
+	[[nodiscard]] rpl::producer<bool> hasSelectionValue() const;
 	[[nodiscard]] std::shared_ptr<const RichPage>
 		richPageForCurrentSelection() const;
 	void replaceCurrentSelectionWithRichPage(
@@ -670,6 +671,7 @@ private:
 	[[nodiscard]] bool performFieldUndoRedo(bool redo);
 	void performUndoRedo(bool redo, bool allowFieldLocal = true);
 	void notifyToolbarStateChanged();
+	void updateHasSelection();
 	[[nodiscard]] ToolbarLinkMode toolbarLinkMode() const;
 	[[nodiscard]] ToolbarActionState toolbarActionState(
 		ToolbarFormatAction action) const;
@@ -942,6 +944,7 @@ private:
 	Markdown::MarkdownArticleSelection _selection;
 	Markdown::MarkdownArticleSelectionEndpoints _selectionEndpoints;
 	Markdown::PreparedEditSelection _structuralSelection;
+	rpl::variable<bool> _hasSelection;
 	std::optional<BoundarySelectionOrigin> _boundarySelectionOrigin;
 	Ui::VisibleRange _visibleRange;
 	ArticleSelectionDrag _articleSelectionDrag;
