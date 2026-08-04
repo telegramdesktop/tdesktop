@@ -1181,6 +1181,8 @@ void ProxiesBox::setupContent() {
 			_proxyRotationOptions->entity(),
 			st::settingsSlider),
 		st::settingsBigScalePadding);
+	_proxyRotationTimeout->setAccessibleName(
+		tr::lng_proxy_auto_switch(tr::now));
 	for (const auto seconds : Core::SettingsProxy::kProxyRotationTimeouts) {
 		_proxyRotationTimeout->addSection(
 			tr::lng_proxy_auto_switch_timeout(
