@@ -35,6 +35,8 @@ public:
 		not_null<Main::Session*> session,
 		Settings data);
 
+	[[nodiscard]] int sizeLimitExtraHeight() const;
+
 	rpl::producer<Settings> value() const;
 	rpl::producer<Settings> changes() const;
 	rpl::producer<> startClicks() const;
@@ -113,6 +115,8 @@ private:
 
 	// Use through readData / changeData wrappers.
 	Settings _internal_data;
+
+	int _sizeLimitExtraHeight = 0;
 
 	struct Wrap {
 		Wrap(rpl::producer<> value = nullptr)

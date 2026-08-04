@@ -871,6 +871,13 @@ void SettingsWidget::addSizeSlider(
 		label->setText(text);
 	}, slider->lifetime());
 
+	_sizeLimitExtraHeight = SizeLimitFitsOptionLine(
+		st::exportPanelSize.width(),
+		above->naturalWidth(),
+		label->width())
+		? 0
+		: label->height();
+
 	rpl::combine(
 		container->widthValue(),
 		label->widthValue(),
@@ -954,6 +961,10 @@ void SettingsWidget::chooseFolder() {
 
 rpl::producer<Settings> SettingsWidget::changes() const {
 	return _changes.events();
+}
+
+int SettingsWidget::sizeLimitExtraHeight() const {
+	return _sizeLimitExtraHeight;
 }
 
 rpl::producer<Settings> SettingsWidget::value() const {
