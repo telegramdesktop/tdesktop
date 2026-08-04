@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 
 namespace Main {
+class Session;
 class SessionShow;
 } // namespace Main
 
@@ -36,5 +37,8 @@ void FillMenu(
 void ShowTransferLink(
 	std::shared_ptr<Main::SessionShow> show,
 	const QString &url);
+
+[[nodiscard]] rpl::producer<bool> HistoryShownValue(
+	not_null<Main::Session*> session);
 
 } // namespace Wallet

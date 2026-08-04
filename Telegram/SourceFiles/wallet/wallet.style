@@ -13,110 +13,115 @@ walletMenuIcon: icon{{ "menu/wallet-24x24", menuIconColor }};
 walletMenuCurrencyIcon: icon{{ "settings/language", menuIconColor }};
 walletMenuBackIcon: icon{{ "emoji/emoji_back", menuIconColor }};
 
-walletContentWidth: 332px;
 walletPanelSize: size(392px, 600px);
-walletCardHeight: 208px;
+walletCardHeight: 190px;
+walletCardMargin: margins(40px, 0px, 40px, 0px);
 walletCardRadius: 16px;
-walletCardTopSkip: 12px;
-walletCardContentLeft: 22px;
+walletCardTopSkip: 6px;
+walletCardContentLeft: 20px;
 walletCardContentSkip: 8px;
-walletCardSecondaryOpacity: 0.65;
-walletCardBalanceTop: 74px;
+walletCardSecondaryOpacity: 0.6;
+walletCardBalanceTop: 70px;
 walletCardBalanceMajorLabel: FlatLabel(defaultFlatLabel) {
-	maxHeight: 52px;
-	textFg: premiumButtonFg;
+	maxHeight: 44px;
+	textFg: activeButtonFg;
 	style: TextStyle(defaultTextStyle) {
-		font: font(26px semibold);
+		font: font(22px semibold);
 	}
 }
-walletCardIconMargin: margins(0px, 4px, 2px, 0px);
+walletCardMarkSize: 20px;
+walletCardIconMargin: margins(0px, 1px, 6px, 0px);
 walletCardBalanceMinorLabel: FlatLabel(walletCardBalanceMajorLabel) {
 	style: TextStyle(defaultTextStyle) {
-		font: font(18px semibold);
+		font: font(16px semibold);
 	}
 }
-walletCardBalanceMinorSkip: 8px;
+walletCardBalanceMinorSkip: 6px;
 walletCardTickerLabel: FlatLabel(walletCardBalanceMajorLabel) {
 }
 walletCardTickerSkip: 7px;
 walletCardFiatLabel: FlatLabel(defaultFlatLabel) {
-	textFg: premiumButtonFg;
+	textFg: activeButtonFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
 	}
 }
-walletCardFiatTop: 112px;
+walletCardFiatTop: 98px;
 walletCardNameFont: font(13px semibold);
-walletCardNameBottom: 18px;
-walletCardAddressFont: font(10px semibold);
-walletCardAddressSkip: 17px;
-walletCardAddressRight: 8px;
-walletCardQrSize: 46px;
+walletCardNameBottom: 17px;
+walletCardAddressFont: font(9px semibold);
+walletCardAddressSkip: 13px;
+walletCardAddressRight: 14px;
+walletCardQrSize: size(46px, 36px);
 walletCardQrRadius: 10px;
-walletCardQrRight: 52px;
-walletCardQrIcon: icon{{ "menu/qr_code", premiumButtonFg }};
-walletCardQrBgOpacity: 0.2;
+walletCardQrRight: 42px;
+walletCardQrTop: 72px;
+walletCardQrIcon: icon{{ "menu/qr_code", windowSubTextFg }};
 
 walletSendButton: RoundButton(defaultActiveButton) {
 	height: 40px;
 	textTop: 11px;
 	radius: 20px;
 }
-walletSendButtonMargin: margins(0px, 12px, 0px, 0px);
-walletButtonsSkip: 8px;
+walletSendButtonMargin: margins(12px, 12px, 12px, 0px);
+walletButtonsSkip: 10px;
+walletHeaderBottomSkip: 12px;
 
 walletAboutTopSkip: 24px;
-walletAboutPadding: margins(60px, 0px, 24px, 0px);
+walletAboutPadding: margins(90px, 0px, 54px, 0px);
+walletAboutIconLeft: 48px;
 walletAboutTitleLabel: FlatLabel(defaultFlatLabel) {
-	style: semiboldTextStyle;
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+	}
 }
 walletAboutTextLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 248px;
 	textFg: windowSubTextFg;
-	style: TextStyle(defaultTextStyle) {
-		font: font(12px);
-	}
 }
 walletAboutTitleSkip: 3px;
-walletAboutIconSkip: 3px;
-walletAboutRowSkip: 12px;
-walletAboutInstantIcon: icon{{ "menu/boosts", windowActiveTextFg }};
-walletAboutFeesIcon: icon{{ "sponsored/revenue_split", windowActiveTextFg }};
-walletAboutChainIcon: icon{{ "payments/ton_emoji-24x24", windowActiveTextFg }};
+walletAboutRowSkip: 20px;
+walletAboutInstantIcon: icon{{ "menu/send_instantly-24x24", windowBoldFg }};
+walletAboutFeesIcon: icon{{ "menu/no_fees-24x24", windowBoldFg }};
+walletAboutChainIcon: icon{{ "menu/blockchain_verified-24x24", windowBoldFg }};
 
-walletRowsTopSkip: 24px;
-walletRowPadding: margins(68px, 6px, 24px, 6px);
+walletRowsTopSkip: 16px;
+walletRowPadding: margins(76px, 6px, 20px, 6px);
 walletRowIconSize: 46px;
-walletRowIconLeft: 12px;
+walletRowIconLeft: 20px;
 walletRowIconIn: icon{{ "calls/call_arrow_in", activeButtonFg }};
 walletRowIconOut: icon{{ "calls/call_arrow_out", activeButtonFg }};
 walletRowTitleLabel: FlatLabel(defaultFlatLabel) {
-	style: semiboldTextStyle;
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
 }
 walletRowSubtitleLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
-		font: font(12px);
+		font: font(14px);
 	}
 }
 walletRowDateLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
-		font: font(12px);
+		font: font(14px);
 	}
 }
-walletRowSkip: 3px;
+walletRowSkip: 4px;
 walletRowAmountMajorLabel: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
 	}
 }
-walletRowAmountMinorLabel: FlatLabel(defaultFlatLabel) {
-	style: TextStyle(defaultTextStyle) {
-		font: font(12px semibold);
-	}
+walletRowAmountMinorLabel: FlatLabel(walletRowAmountMajorLabel) {
 }
-walletRowAmountMinorSkip: 2px;
-walletRowIconMargin: margins(3px, 0px, 0px, 0px);
+walletRowAmountMinorSkip: 0px;
+walletRowMarkSize: 15px;
+walletRowIconMargin: margins(5px, 0px, 0px, 0px);
+walletRowsHintHeight: 44px;
 
 walletDetailsAmountMajorLabel: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {

@@ -32,6 +32,17 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	panel->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 	panel->setTitle(tr::lng_wallet_title());
 	panel->setInnerSize(st::walletPanelSize);
+	rpl::single(rpl::empty) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::on_next([=] {
+		panel->overrideTitleColor(st::windowBgOver->c);
+		panel->overrideBottomBarColor(st::windowBgOver->c);
+	}, panel->lifetime());
+	HistoryShownValue(
+		session
+	) | rpl::on_next([=](bool shown) {
+		panel->setBottomBarHeight(shown ? st::walletRowsHintHeight : 0);
+	}, panel->lifetime());
 	panel->setMenuAllowed([=](const Ui::Menu::MenuCallback &addAction) {
 		FillMenu(show, addAction);
 	});

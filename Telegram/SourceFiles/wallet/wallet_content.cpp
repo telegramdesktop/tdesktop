@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/feature_list.h"
 #include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"
-#include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/format_values.h"
@@ -105,6 +104,8 @@ constexpr auto kFeeFiatDecimals = 5;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 
+class Card;
+
 class Content final : public Ui::RpWidget {
 public:
 	Content(
@@ -119,11 +120,20 @@ protected:
 
 private:
 	void setupContent();
+	void setupHeader();
+	void setupStrip();
+	void updateRegions();
 	void checkLoadMore();
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	object_ptr<Ui::ScrollArea> _scroll;
 	Ui::RpWidget *_container = nullptr;
+	Ui::VerticalLayout *_header = nullptr;
+	Ui::PlainShadow *_headerShadow = nullptr;
+	Ui::PlainShadow *_stripShadow = nullptr;
+	Ui::RpWidget *_strip = nullptr;
+	Card *_card = nullptr;
+	bool _stripShown = false;
 
 };
 
@@ -214,7 +224,7 @@ void SetBalanceText(not_null<Ui::FlatLabel*> label, CreditsAmount amount) {
 	auto icon = helper.paletteDependent({
 		.factory = [] {
 			return Ui::Earn::IconCurrencyColored(
-				st::walletCardBalanceMajorLabel.style.font,
+				st::walletCardMarkSize,
 				st::walletCardBalanceMajorLabel.textFg->c);
 		},
 		.margin = st::walletCardIconMargin
@@ -264,7 +274,7 @@ void SetRowAmount(
 	minorText.append(helper.paletteDependent({
 		.factory = [] {
 			return Ui::Earn::IconCurrencyColored(
-				st::walletRowAmountMajorLabel.style.font,
+				st::walletRowMarkSize,
 				st::windowActiveTextFg->c);
 		},
 		.margin = st::walletRowIconMargin,
@@ -274,7 +284,7 @@ void SetRowAmount(
 		? st::windowSubTextFg->c
 		: incoming
 		? st::boxTextFgGood->c
-		: st::windowFg->c;
+		: st::windowBoldFg->c;
 	major->setTextColorOverride(color);
 	minor->setTextColorOverride(color);
 }
@@ -294,9 +304,10 @@ void AddHistoryRow(
 		inner,
 		content.title,
 		st::walletRowTitleLabel));
+	auto subtitle = (Ui::FlatLabel*)nullptr;
 	if (!content.subtitle.isEmpty()) {
 		Ui::AddSkip(inner, st::walletRowSkip);
-		inner->add(object_ptr<Ui::FlatLabel>(
+		subtitle = inner->add(object_ptr<Ui::FlatLabel>(
 			inner,
 			content.subtitle,
 			st::walletRowSubtitleLabel));
@@ -343,9 +354,15 @@ void AddHistoryRow(
 	Ui::ToggleChildrenVisibility(wrap, true);
 	wrap->geometryValue(
 	) | rpl::on_next([=](const QRect &g) {
+		const auto center = subtitle
+			? (st::walletRowPadding.top()
+				+ (title->height()
+					+ st::walletRowSkip
+					+ subtitle->height()) / 2)
+			: (g.height() / 2);
 		circle->moveToLeft(
 			st::walletRowIconLeft,
-			(g.height() - circle->height()) / 2);
+			center - circle->height() / 2);
 		const auto majorTop = st::walletRowPadding.top()
 			+ (title->height() - major->height()) / 2;
 		minor->moveToRight(
@@ -916,8 +933,8 @@ void SetupIntroTooltip(
 			return QPoint(
 				area.x() + (area.width() - size.width()) / 2,
 				area.y()
-					+ st::walletCardBalanceTop
-					+ st::walletCardQrSize
+					+ st::walletCardQrTop
+					+ st::walletCardQrSize.height()
 					+ st::walletIntroTooltipSkip);
 		};
 		state->tooltip->pointAt(area, RectPart::Bottom, countPosition);
@@ -2584,17 +2601,16 @@ void Card::setupBalance() {
 
 void Card::setupQr() {
 	_qr = Ui::CreateChild<Ui::AbstractButton>(this);
-	_qr->resize(st::walletCardQrSize, st::walletCardQrSize);
+	_qr->resize(st::walletCardQrSize);
 	_qr->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = QPainter(_qr);
 		auto hq = PainterHighQualityEnabler(p);
-		auto bg = st::premiumButtonFg->c;
-		bg.setAlphaF(st::walletCardQrBgOpacity);
-		p.setPen(Qt::NoPen);
-		p.setBrush(bg);
+		p.setPen(QPen(st::windowActiveTextFg, st::lineWidth));
+		p.setBrush(st::windowBgOver);
+		const auto half = st::lineWidth / 2.;
 		p.drawRoundedRect(
-			_qr->rect(),
+			QRectF(_qr->rect()).marginsRemoved({ half, half, half, half }),
 			st::walletCardQrRadius,
 			st::walletCardQrRadius);
 		st::walletCardQrIcon.paintInCenter(p, _qr->rect());
@@ -2611,7 +2627,7 @@ void Card::updateLayout() {
 	}
 	const auto qrLeft = width()
 		- st::walletCardQrRight
-		- st::walletCardQrSize;
+		- st::walletCardQrSize.width();
 	const auto available = qrLeft
 		- st::walletCardContentSkip
 		- st::walletCardContentLeft
@@ -2636,26 +2652,16 @@ void Card::updateLayout() {
 		st::walletCardContentLeft,
 		st::walletCardFiatTop,
 		width());
-	_qr->moveToLeft(
-		width() - st::walletCardQrRight - _qr->width(),
-		st::walletCardBalanceTop + (_major->height() - _qr->height()) / 2,
-		width());
+	_qr->moveToLeft(qrLeft, st::walletCardQrTop, width());
 }
 
 void Card::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	auto hq = PainterHighQualityEnabler(p);
 
-	auto gradient = QLinearGradient(
-		QPointF(0, 0),
-		QPointF(width(), height()));
-	gradient.setStops(Ui::Premium::ButtonGradientStops());
 	p.setPen(Qt::NoPen);
-	p.setBrush(gradient);
+	p.setBrush(st::activeButtonBg);
 	p.drawRoundedRect(rect(), st::walletCardRadius, st::walletCardRadius);
-
-	p.setPen(st::premiumButtonFg);
-	p.setOpacity(st::walletCardSecondaryOpacity);
 
 	const auto nameFont = st::walletCardNameFont->monospace();
 	const auto addressFont = st::walletCardAddressFont->monospace();
@@ -2667,6 +2673,7 @@ void Card::paintEvent(QPaintEvent *e) {
 	const auto nameMax = stripLeft
 		- st::walletCardContentSkip
 		- st::walletCardContentLeft;
+	p.setPen(st::activeButtonFg);
 	p.setFont(nameFont);
 	p.drawText(
 		st::walletCardContentLeft,
@@ -2674,6 +2681,7 @@ void Card::paintEvent(QPaintEvent *e) {
 		nameFont->elided(_name, nameMax));
 
 	if (!_addressLine1.isEmpty()) {
+		p.setPen(st::windowActiveTextFg);
 		p.setFont(addressFont);
 		p.save();
 		p.translate(addressBaseline, st::walletCardAddressSkip);
@@ -2710,42 +2718,8 @@ void Content::setupContent() {
 	const auto column = Ui::CreateChild<Ui::VerticalLayout>(_container);
 	column->show();
 
-	Ui::AddSkip(column, st::walletCardTopSkip);
-	const auto card = column->add(object_ptr<Card>(column, _show));
-
-	const auto buttons = column->add(
-		object_ptr<Ui::FixedHeightWidget>(
-			column,
-			st::walletSendButton.height),
-		st::walletSendButtonMargin,
-		style::al_justify);
-	const auto addPill = [&](
-			rpl::producer<QString> text,
-			Fn<void()> callback) {
-		const auto button = Ui::CreateChild<Ui::RoundButton>(
-			buttons,
-			std::move(text),
-			st::walletSendButton);
-		button->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-		button->setClickedCallback(std::move(callback));
-		button->show();
-		return button;
-	};
-	const auto addFunds = addPill(tr::lng_wallet_add_funds(), [=] {
-		ShowWalletReceiveBox(&_show->session(), _show);
-	});
-	const auto send = addPill(tr::lng_wallet_send_button(), [=] {
-		_show->showBox(Box(WalletSendRecipientBox, _show));
-	});
-	buttons->widthValue(
-	) | rpl::on_next([=](int width) {
-		const auto single = (width - st::walletButtonsSkip) / 2;
-		addFunds->setFullWidth(single);
-		addFunds->moveToLeft(0, 0, width);
-		const auto left = single + st::walletButtonsSkip;
-		send->setFullWidth(width - left);
-		send->moveToLeft(left, 0, width);
-	}, buttons->lifetime());
+	setupHeader();
+	setupStrip();
 
 	const auto wallet = &_show->session().wallet();
 	const auto bannerWrap = column->add(
@@ -2798,8 +2772,8 @@ void Content::setupContent() {
 		top->geometryValue(
 		) | rpl::on_next([=](const QRect &g) {
 			left->moveToLeft(
-				(g.left() - left->width()) / 2,
-				g.top() + st::walletAboutIconSkip);
+				st::walletAboutIconLeft,
+				g.top() + (top->height() - left->height()) / 2);
 		}, left->lifetime());
 	};
 	addEntry(
@@ -2817,12 +2791,9 @@ void Content::setupContent() {
 		tr::lng_wallet_about_chain_text(),
 		st::walletAboutChainIcon);
 
-	wrap->toggleOn(rpl::single(rpl::empty) | rpl::then(rpl::merge(
-		wallet->historyUpdates(),
-		wallet->sendStateValue() | rpl::to_empty
-	)) | rpl::map([=] {
-		return wallet->history().empty() && !wallet->pendingSend();
-	}));
+	wrap->toggleOn(HistoryShownValue(
+		&_show->session()
+	) | rpl::map(!rpl::mappers::_1));
 	wrap->finishAnimating();
 
 	const auto listWrap = column->add(
@@ -2836,6 +2807,8 @@ void Content::setupContent() {
 		const auto &pending = wallet->pendingSend();
 		if (!history.empty() || pending) {
 			Ui::AddSkip(list, st::walletRowsTopSkip);
+			Ui::AddSubsectionTitle(list, tr::lng_wallet_rows_title());
+			Ui::AddSkip(list);
 			const auto shown = pending
 				&& ranges::any_of(history, [&](
 						const Gram::TransferItem &item) {
@@ -2855,20 +2828,16 @@ void Content::setupContent() {
 			}
 			Ui::AddSkip(list, st::walletRowsTopSkip);
 		}
-		list->resizeToWidth(st::walletContentWidth);
+		if (const auto width = list->width()) {
+			list->resizeToWidth(width);
+		}
 		checkLoadMore();
 	};
 	rpl::merge(
 		wallet->historyUpdates(),
 		wallet->sendStateValue() | rpl::to_empty
 	) | rpl::on_next(rebuildList, list->lifetime());
-	listWrap->toggleOn(rpl::single(rpl::empty) | rpl::then(rpl::merge(
-		wallet->historyUpdates(),
-		wallet->sendStateValue() | rpl::to_empty
-	)) | rpl::map([=] {
-		return !wallet->history().empty()
-			|| wallet->pendingSend().has_value();
-	}));
+	listWrap->toggleOn(HistoryShownValue(&_show->session()));
 	listWrap->finishAnimating();
 
 	_scroll->scrolls(
@@ -2876,20 +2845,137 @@ void Content::setupContent() {
 		checkLoadMore();
 	}, lifetime());
 
-	column->resizeToWidth(st::walletContentWidth);
-	rpl::combine(
-		_container->widthValue(),
-		column->heightValue()
-	) | rpl::on_next([=](int width, int height) {
-		column->moveToLeft((width - column->width()) / 2, 0);
-		_container->resize(width, height);
-	}, column->lifetime());
+	Ui::ResizeFitChild(_container, column);
 
 	const auto local = &_show->session().local();
 	if (!local->readPref<bool>(kIntroTooltipShownPref)) {
 		local->writePref<bool>(kIntroTooltipShownPref, true);
-		SetupIntroTooltip(_container, card);
+		SetupIntroTooltip(this, _card);
 	}
+}
+
+void Content::setupHeader() {
+	_header = Ui::CreateChild<Ui::VerticalLayout>(this);
+	_header->show();
+
+	Ui::AddSkip(_header, st::walletCardTopSkip);
+	_card = _header->add(
+		object_ptr<Card>(_header, _show),
+		st::walletCardMargin);
+
+	const auto buttons = _header->add(
+		object_ptr<Ui::FixedHeightWidget>(
+			_header,
+			st::walletSendButton.height),
+		st::walletSendButtonMargin,
+		style::al_justify);
+	const auto addPill = [&](
+			rpl::producer<QString> text,
+			Fn<void()> callback) {
+		const auto button = Ui::CreateChild<Ui::RoundButton>(
+			buttons,
+			std::move(text),
+			st::walletSendButton);
+		button->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+		button->setClickedCallback(std::move(callback));
+		button->show();
+		return button;
+	};
+	const auto addFunds = addPill(tr::lng_wallet_add_funds(), [=] {
+		ShowWalletReceiveBox(&_show->session(), _show);
+	});
+	const auto send = addPill(tr::lng_wallet_send_button(), [=] {
+		_show->showBox(Box(WalletSendRecipientBox, _show));
+	});
+	buttons->widthValue(
+	) | rpl::on_next([=](int width) {
+		const auto single = (width - st::walletButtonsSkip) / 2;
+		addFunds->setFullWidth(single);
+		addFunds->moveToLeft(0, 0, width);
+		const auto left = single + st::walletButtonsSkip;
+		send->setFullWidth(width - left);
+		send->moveToLeft(left, 0, width);
+	}, buttons->lifetime());
+	Ui::AddSkip(_header, st::walletHeaderBottomSkip);
+
+	_headerShadow = Ui::CreateChild<Ui::PlainShadow>(this);
+	_headerShadow->show();
+
+	_header->heightValue(
+	) | rpl::on_next([=] {
+		updateRegions();
+	}, lifetime());
+}
+
+void Content::setupStrip() {
+	_stripShadow = Ui::CreateChild<Ui::PlainShadow>(this);
+	_strip = Ui::CreateChild<Ui::RpWidget>(this);
+	_strip->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(_strip);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgOver);
+		p.drawRoundedRect(
+			_strip->rect().marginsAdded({ 0, 2 * st::callRadius, 0, 0 }),
+			st::callRadius,
+			st::callRadius);
+	}, _strip->lifetime());
+
+	const auto hint = Ui::CreateChild<Ui::FlatLabel>(
+		_strip,
+		tr::lng_wallet_rows_hint(),
+		st::defaultSubTextLabel);
+	hint->setAttribute(Qt::WA_TransparentForMouseEvents);
+	hint->show();
+	rpl::combine(
+		_strip->sizeValue(),
+		hint->sizeValue()
+	) | rpl::on_next([=](QSize size, QSize) {
+		hint->moveToLeft(
+			st::boxRowPadding.left(),
+			(size.height() - hint->height()) / 2,
+			size.width());
+	}, hint->lifetime());
+
+	HistoryShownValue(
+		&_show->session()
+	) | rpl::on_next([=](bool shown) {
+		_stripShown = shown;
+		_strip->setVisible(shown);
+		_stripShadow->setVisible(shown);
+		updateRegions();
+	}, lifetime());
+}
+
+void Content::updateRegions() {
+	if (!width() || !height()) {
+		return;
+	}
+	_header->resizeToWidth(width());
+	const auto headerBottom = _header->height();
+	_headerShadow->setGeometry(0, headerBottom, width(), st::lineWidth);
+	const auto stripHeight = _stripShown
+		? (st::walletRowsHintHeight + st::lineWidth)
+		: 0;
+	const auto scrollTop = headerBottom + st::lineWidth;
+	_scroll->setGeometry(
+		0,
+		scrollTop,
+		width(),
+		std::max(0, height() - scrollTop - stripHeight));
+	if (_stripShown) {
+		const auto stripTop = std::max(
+			scrollTop,
+			height() - st::walletRowsHintHeight);
+		_stripShadow->setGeometry(
+			0,
+			stripTop - st::lineWidth,
+			width(),
+			st::lineWidth);
+		_strip->setGeometry(0, stripTop, width(), st::walletRowsHintHeight);
+	}
+	_container->resize(width(), _container->height());
 }
 
 void Content::checkLoadMore() {
@@ -2907,18 +2993,19 @@ void Content::focusInEvent(QFocusEvent *e) {
 }
 
 void Content::resizeEvent(QResizeEvent *e) {
-	if (!width() || !height()) {
-		return;
-	}
-	_scroll->setGeometry(0, 0, width(), height());
-	if (_container) {
-		_container->resize(width(), _container->height());
-	}
+	updateRegions();
 	checkLoadMore();
 }
 
 void Content::paintEvent(QPaintEvent *e) {
-	QPainter(this).fillRect(e->rect(), st::windowBg);
+	auto p = QPainter(this);
+	p.fillRect(
+		0,
+		0,
+		width(),
+		_stripShown ? _strip->y() : height(),
+		st::windowBg);
+	p.fillRect(0, 0, width(), _header->height(), st::windowBgOver);
 }
 
 [[nodiscard]] base::unique_qptr<Ui::Menu::ItemBase> MakeNavigationItem(
@@ -3003,6 +3090,18 @@ void FillWalletPage(
 }
 
 } // namespace
+
+rpl::producer<bool> HistoryShownValue(
+		not_null<Main::Session*> session) {
+	const auto wallet = &session->wallet();
+	return rpl::single(rpl::empty) | rpl::then(rpl::merge(
+		wallet->historyUpdates(),
+		wallet->sendStateValue() | rpl::to_empty
+	)) | rpl::map([=] {
+		return !wallet->history().empty()
+			|| wallet->pendingSend().has_value();
+	}) | rpl::distinct_until_changed();
+}
 
 base::unique_qptr<Ui::RpWidget> CreateContent(
 		not_null<Ui::RpWidget*> parent,
