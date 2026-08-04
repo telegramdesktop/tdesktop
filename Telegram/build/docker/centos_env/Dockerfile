@@ -832,7 +832,7 @@ FROM builder AS openal
 COPY --link --from=pipewire /usr/src/pipewire-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b 1.24.3 --depth=1 https://github.com/kcat/openal-soft.git
+git clone -b 1.25.2 --depth=1 https://github.com/kcat/openal-soft.git
 cd openal-soft
 cmake -B build . \
 	-DLIBTYPE:STRING=STATIC \
