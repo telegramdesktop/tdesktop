@@ -127,6 +127,7 @@ EmojiPan {
 	fadeLeft: icon;
 	fadeRight: icon;
 	menu: PopupMenu;
+	menuAttention: Menu;
 	expandedSeparator: MenuSeparator;
 	tabs: SettingsSlider;
 	search: TabbedSearch;
@@ -762,6 +763,7 @@ defaultEmojiPan: EmojiPan {
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
 	menu: popupMenuWithIcons;
+	menuAttention: menuWithIconsAttention;
 	expandedSeparator: MenuSeparator(defaultMenuSeparator) {
 		padding: margins(0px, 4px, 0px, 4px);
 		width: 6px;

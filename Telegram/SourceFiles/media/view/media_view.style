@@ -585,6 +585,10 @@ storiesPopupMenuWithIcons: PopupMenu(storiesPopupMenu) {
 	scrollPadding: margins(0px, 5px, 0px, 5px);
 	menu: storiesMenuWithIcons;
 }
+storiesMenuWithIconsAttention: Menu(storiesMenuWithIcons) {
+	itemFg: attentionButtonFg;
+	itemFgOver: attentionButtonFgOver;
+}
 
 storiesBoxLabel: FlatLabel(boxLabel) {
 	textFg: groupCallMembersFg;
@@ -652,6 +656,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBg }};
 	fadeRight: icon {{ "fade_horizontal", storiesComposeBg }};
 	menu: storiesPopupMenuWithIcons;
+	menuAttention: storiesMenuWithIconsAttention;
 	expandedSeparator: mediaviewWideMenuSeparator;
 	searchPackRipple: storiesComposeRippleLight;
 	tabs: SettingsSlider(emojiTabs) {

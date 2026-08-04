@@ -16,8 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_entity.h"
 #include "ui/effects/animations.h"
+#include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/menu/menu_common.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
@@ -2078,12 +2080,16 @@ void EmojiListWidget::fillRecentMenu(
 			.labelStyle = &st().boxLabel,
 		}));
 	};
-	addAction({
-		.text = tr::lng_emoji_reset_recent(tr::now),
-		.handler = crl::guard(this, resetRecent),
-		.icon = &st::menuIconRestoreAttention,
-		.isAttention = true,
-	});
+	const auto resetIcon = &st::menuIconRestoreAttention;
+	menu->addAction(base::make_unique_q<Ui::Menu::Action>(
+		menu->menu(),
+		st().menuAttention,
+		Ui::Menu::CreateAction(
+			menu->menu().get(),
+			tr::lng_emoji_reset_recent(tr::now),
+			crl::guard(this, resetRecent)),
+		resetIcon,
+		resetIcon));
 }
 
 void EmojiListWidget::fillEmojiStatusMenu(
