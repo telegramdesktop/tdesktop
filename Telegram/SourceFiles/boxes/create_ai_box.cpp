@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "boxes/create_ai_tone_box.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_file_origin.h"
 #include "data/data_msg_id.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
@@ -419,7 +421,12 @@ void CreateAiBox(not_null<Ui::GenericBox*> box, CreateAiBoxArgs &&args) {
 			Ui::InputField::Mode::MultiLine,
 			rpl::producer<QString>()),
 		st::aiToneFieldsMargin);
-	prompt->setSubmitSettings(Ui::InputField::SubmitSettings::None);
+	prompt->setSubmitSettings(Core::App().settings().sendSubmitWay());
+	prompt->submits() | rpl::on_next([=] {
+		if (!state->loading.current()) {
+			state->generate();
+		}
+	}, prompt->lifetime());
 	const auto promptLimit = state->session->appConfig().get<int>(
 		u"aicompose_tone_prompt_length_max"_q,
 		1024);
