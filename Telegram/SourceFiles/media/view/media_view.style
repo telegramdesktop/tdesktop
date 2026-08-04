@@ -757,9 +757,10 @@ storiesChooseSendAs: ChooseSendAs(defaultChooseSendAs) {
 storiesCommentSentAt: Menu(storiesMenu, whoSentItem) {
 	itemFgDisabled: groupCallMembersFg;
 }
+storiesComposeRadius: 21px;
 storiesComposeControls: ComposeControls(defaultComposeControls) {
 	bg: storiesComposeBg;
-	radius: 21px;
+	radius: storiesComposeRadius;
 	padding: margins(1px, 8px, 1px, 6px);
 	field: InputField(historyComposeField) {
 		textMargins: margins(2px, 0px, 2px, 0px);
@@ -832,7 +833,7 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 	record: RecordBar(defaultRecordBar) {
 		bg: storiesComposeBg;
 		durationFg: storiesComposeWhiteText;
-		radius: storiesRadius;
+		radius: storiesComposeRadius;
 		cancel: storiesComposeGrayText;
 		cancelActive: storiesComposeBlue;
 		cancelRipple: storiesComposeRippleLight;
