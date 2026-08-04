@@ -46,6 +46,12 @@ public:
 	virtual void buttonContextMenu(
 		not_null<SubsectionButton*> button,
 		not_null<QContextMenuEvent*> e) = 0;
+	virtual bool buttonSelected(
+		not_null<const SubsectionButton*> button) = 0;
+	virtual void buttonFocused(not_null<SubsectionButton*> button) = 0;
+	virtual bool buttonKeyPressed(
+		not_null<SubsectionButton*> button,
+		not_null<QKeyEvent*> e) = 0;
 };
 
 class SubsectionButton : public RippleButton {
@@ -58,6 +64,8 @@ public:
 
 	void setData(SubsectionTab &&data);
 	[[nodiscard]] DynamicImage *userpic() const;
+
+	AccessibilityState accessibilityState() const override;
 
 	void setActiveShown(float64 activeShown);
 	void setIsPinned(bool pinned);
@@ -73,6 +81,8 @@ protected:
 	virtual void invalidateCache() = 0;
 
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	const not_null<SubsectionButtonDelegate*> _delegate;
 	SubsectionTab _data;
@@ -107,6 +117,19 @@ public:
 		not_null<SubsectionButton*> button,
 		not_null<QContextMenuEvent*> e) override;
 	Text::MarkedContext buttonContext() override;
+	bool buttonSelected(not_null<const SubsectionButton*> button) override;
+	void buttonFocused(not_null<SubsectionButton*> button) override;
+	bool buttonKeyPressed(
+		not_null<SubsectionButton*> button,
+		not_null<QKeyEvent*> e) override;
+
+	// Accessibility: a single-select list of real tab buttons with one
+	// roving Tab stop, like the folders sidebar list.
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	std::optional<Qt::Orientation> accessibilityOrientation() const override;
+	bool accessibilitySelectionList() const override;
+	std::vector<not_null<QWidget*>> accessibilityChildWidgets() const override;
 	[[nodiscard]] not_null<SubsectionButton*> buttonAt(int index);
 	void setButtonShift(int index, int shift);
 	void reorderButtons(int from, int to);
@@ -136,6 +159,10 @@ protected:
 	[[nodiscard]] Range getFinalActiveRange() const;
 	[[nodiscard]] Range getCurrentActiveRange() const;
 	void activate(int index);
+	[[nodiscard]] int buttonIndex(
+		not_null<const SubsectionButton*> button) const;
+	void refreshAccessibilityFocus();
+	void activeChangedForAccessibility(int old);
 
 	[[nodiscard]] virtual std::unique_ptr<SubsectionButton> makeButton(
 		SubsectionTab &&data) = 0;

@@ -26,6 +26,7 @@ class SessionController;
 
 namespace Ui {
 class RpWidget;
+class IconButton;
 class PopupMenu;
 class ScrollArea;
 class SubsectionSlider;
@@ -87,6 +88,10 @@ private:
 	};
 
 	void track();
+	void detachToggle();
+	[[nodiscard]] not_null<Ui::IconButton*> ensureToggle(
+		not_null<QWidget*> widget);
+	void setToggleAccessibleState(SubsectionTabsMode mode);
 	void setupHorizontal(not_null<QWidget*> parent, bool bottom);
 	void setupVertical(not_null<QWidget*> parent);
 	void toggleModes();
@@ -128,6 +133,7 @@ private:
 	Ui::RpWidget *_vertical = nullptr;
 	Ui::RpWidget *_bottom = nullptr;
 	Ui::RpWidget *_shadow = nullptr;
+	Ui::IconButton *_toggle = nullptr;
 	std::unique_ptr<Ui::SubsectionSliderReorder> _reorder;
 	int _reordering = 0;
 

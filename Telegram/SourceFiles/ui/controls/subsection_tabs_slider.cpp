@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_three_state_icon.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/dynamic_image.h"
 #include "ui/unread_badge_paint.h"
@@ -473,6 +474,16 @@ SubsectionButton::SubsectionButton(
 : RippleButton(parent, st::defaultRippleAnimationBgOver)
 , _delegate(delegate)
 , _data(std::move(data)) {
+	setIsListItem(true);
+}
+
+AccessibilityState SubsectionButton::accessibilityState() const {
+	// The active tab is reported as selected persistently, independent of
+	// keyboard focus, like the folders sidebar items.
+	auto state = RippleButton::accessibilityState();
+	state.selectable = true;
+	state.selected = _delegate->buttonSelected(this);
+	return state;
 }
 
 SubsectionButton::~SubsectionButton() = default;
@@ -539,6 +550,19 @@ void SubsectionButton::contextMenuEvent(QContextMenuEvent *e) {
 	_delegate->buttonContextMenu(this, e);
 }
 
+void SubsectionButton::focusInEvent(QFocusEvent *e) {
+	_delegate->buttonFocused(this);
+	RippleButton::focusInEvent(e);
+}
+
+void SubsectionButton::keyPressEvent(QKeyEvent *e) {
+	// Arrows and Home/End move focus between the tabs; everything else
+	// (including Enter and Space, which activate) goes to the button.
+	if (!_delegate->buttonKeyPressed(this, e)) {
+		RippleButton::keyPressEvent(e);
+	}
+}
+
 SubsectionSlider::SubsectionSlider(not_null<QWidget*> parent, bool vertical)
 : RpWidget(parent)
 , _vertical(vertical)
@@ -548,6 +572,11 @@ SubsectionSlider::SubsectionSlider(not_null<QWidget*> parent, bool vertical)
 , _bar(CreateChild<RpWidget>(this))
 , _barRect(_barSt.radius, _barSt.fg) {
 	setupBar();
+
+	ScreenReaderModeActiveValue(
+	) | rpl::on_next([=](bool) {
+		refreshAccessibilityFocus();
+	}, lifetime());
 }
 
 SubsectionSlider::~SubsectionSlider() = default;
@@ -592,6 +621,10 @@ void SubsectionSlider::setSections(
 	_fixedCount = sections.fixed;
 	_pinnedCount = sections.pinned;
 	_reorderAllowed = sections.reorder;
+
+	const auto hadFocus = ranges::any_of(_tabs, [](const auto &tab) {
+		return tab->hasFocus();
+	});
 
 	auto old = base::take(_tabs);
 	_tabs.reserve(sections.tabs.size());
@@ -659,6 +692,19 @@ void SubsectionSlider::setSections(
 	}
 
 	_bar->raise();
+
+	refreshAccessibilityFocus();
+	if (hadFocus && !ranges::any_of(_tabs, [](const auto &tab) {
+			return tab->hasFocus(); })) {
+		// The focused button was destroyed by the rebuild; keep keyboard
+		// focus inside the list by moving it to the roving Tab stop.
+		for (const auto &tab : _tabs) {
+			if (tab->focusPolicy() == Qt::TabFocus) {
+				tab->setFocus();
+				break;
+			}
+		}
+	}
 }
 
 void SubsectionSlider::activate(int index) {
@@ -677,6 +723,7 @@ void SubsectionSlider::activate(int index) {
 			}
 		}
 	};
+	activeChangedForAccessibility(old);
 	const auto weak = base::make_weak(_bar);
 	_sectionActivated.fire_copy(index);
 	if (weak) {
@@ -687,13 +734,30 @@ void SubsectionSlider::activate(int index) {
 	}
 }
 
+void SubsectionSlider::activeChangedForAccessibility(int old) {
+	if (old == _active) {
+		return;
+	}
+	// The AccessibilityState argument is a mask of which states changed;
+	// screen readers query the current values themselves.
+	const auto count = int(_tabs.size());
+	if (old >= 0 && old < count) {
+		_tabs[old]->accessibilityStateChanged({ .selected = true });
+	}
+	if (_active >= 0 && _active < count) {
+		_tabs[_active]->accessibilityStateChanged({ .selected = true });
+	}
+	refreshAccessibilityFocus();
+}
+
 void SubsectionSlider::setActiveSectionFast(int active, bool ignoreScroll) {
 	Expects(active < int(_tabs.size()));
 
 	if (_active == active) {
 		return;
 	}
-	_active = active;
+	const auto old = std::exchange(_active, active);
+	activeChangedForAccessibility(old);
 	_activeFrom.stop();
 	_activeSize.stop();
 	if (_active >= 0 && !ignoreScroll) {
@@ -803,6 +867,126 @@ void SubsectionSlider::buttonContextMenu(
 
 Text::MarkedContext SubsectionSlider::buttonContext() {
 	return _context;
+}
+
+int SubsectionSlider::buttonIndex(
+		not_null<const SubsectionButton*> button) const {
+	const auto i = ranges::find(
+		_tabs,
+		button.get(),
+		&std::unique_ptr<SubsectionButton>::get);
+	return (i != end(_tabs)) ? int(i - begin(_tabs)) : -1;
+}
+
+bool SubsectionSlider::buttonSelected(
+		not_null<const SubsectionButton*> button) {
+	const auto index = buttonIndex(button);
+	return (index >= 0) && (index == _active);
+}
+
+void SubsectionSlider::buttonFocused(not_null<SubsectionButton*> button) {
+	// The roving Tab stop follows keyboard focus, folders-sidebar style, so
+	// Tab/Shift+Tab always leave the list from the focused tab.
+	refreshAccessibilityFocus();
+	// Bring the focused tab into view - the owner centers it through the
+	// same requestShown channel that is used on activation.
+	const auto from = _vertical ? button->y() : button->x();
+	const auto size = _vertical ? button->height() : button->width();
+	_requestShown.fire({ from, from + size });
+}
+
+bool SubsectionSlider::buttonKeyPressed(
+		not_null<SubsectionButton*> button,
+		not_null<QKeyEvent*> e) {
+	const auto count = int(_tabs.size());
+	const auto key = e->key();
+	const auto next = _vertical ? Qt::Key_Down : Qt::Key_Right;
+	const auto previous = _vertical ? Qt::Key_Up : Qt::Key_Left;
+	auto target = -1;
+	if (key == next || key == previous) {
+		const auto index = buttonIndex(button);
+		if (index < 0) {
+			return false;
+		}
+		target = std::clamp(index + ((key == next) ? 1 : -1), 0, count - 1);
+	} else if (key == Qt::Key_Home) {
+		target = 0;
+	} else if (key == Qt::Key_End) {
+		target = count - 1;
+	} else {
+		return false;
+	}
+	// Arrows only move focus, without activating; activation happens on
+	// Enter or Space. Consume the key even at the list bounds, so it does
+	// not fall through and scroll the chat behind the tabs.
+	if (target >= 0 && target < count && !_tabs[target]->hasFocus()) {
+		_tabs[target]->setFocus();
+	}
+	return true;
+}
+
+QAccessible::Role SubsectionSlider::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy SubsectionSlider::accessibilityFocusPolicy() {
+	// Like the folders sidebar list: the container itself is never a Tab
+	// stop, the roving Tab stop lives on one of the tab buttons.
+	return Qt::ClickFocus;
+}
+
+std::optional<Qt::Orientation> SubsectionSlider::accessibilityOrientation() const {
+	return _vertical ? Qt::Vertical : Qt::Horizontal;
+}
+
+bool SubsectionSlider::accessibilitySelectionList() const {
+	// Opt in to the single-selection list behaviour (selection interface +
+	// container focus forwarding to the active tab).
+	return true;
+}
+
+auto SubsectionSlider::accessibilityChildWidgets() const
+-> std::vector<not_null<QWidget*>> {
+	// Report only the tab buttons - not the active-bar helper widget - in
+	// visual order, which can differ from creation order after reordering.
+	auto result = std::vector<not_null<QWidget*>>();
+	result.reserve(_tabs.size());
+	for (const auto &tab : _tabs) {
+		result.push_back(tab.get());
+	}
+	return result;
+}
+
+void SubsectionSlider::refreshAccessibilityFocus() {
+	if (_tabs.empty()) {
+		return;
+	}
+	// The tabs are focusable only in screen-reader mode, with a single
+	// roving Tab stop for the whole strip: the focused tab if any,
+	// otherwise the active one.
+	if (!ScreenReaderModeActive()) {
+		for (const auto &tab : _tabs) {
+			tab->setFocusPolicy(Qt::NoFocus);
+		}
+		return;
+	}
+	auto stop = (SubsectionButton*)nullptr;
+	for (const auto &tab : _tabs) {
+		if (tab->hasFocus()) {
+			stop = tab.get();
+			break;
+		}
+	}
+	if (!stop) {
+		stop = (_active >= 0 && _active < int(_tabs.size()))
+			? _tabs[_active].get()
+			: _tabs.front().get();
+	}
+	for (const auto &tab : _tabs) {
+		tab->setFocusPolicy((tab.get() == stop)
+			? Qt::TabFocus
+			: Qt::ClickFocus);
+	}
 }
 
 not_null<SubsectionButton*> SubsectionSlider::buttonAt(int index) {
