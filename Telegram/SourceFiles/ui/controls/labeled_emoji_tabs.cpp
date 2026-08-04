@@ -528,9 +528,10 @@ LabeledEmojiScrollTabs::LabeledEmojiScrollTabs(
 			auto p = QPainter(corner);
 			PainterHighQualityEnabler hq(p);
 			const auto width = corner->width();
-			const auto height = corner->height();
+			const auto height = corner->height()
+				+ (_paintBottomOuterCorners ? 0 : width);
 			auto mask = QPainterPath();
-			mask.addRect(0, 0, width, height);
+			mask.addRect(0, 0, width, corner->height());
 			auto rounded = QPainterPath();
 			if (left) {
 				rounded.addRoundedRect(0, 0, width * 2, height, width, width);
@@ -584,6 +585,15 @@ void LabeledEmojiScrollTabs::setPaintOuterCorners(bool paint) {
 	_paintOuterCorners = paint;
 	_cornerLeft->setVisible(paint);
 	_cornerRight->setVisible(paint);
+}
+
+void LabeledEmojiScrollTabs::setPaintBottomOuterCorners(bool paint) {
+	if (_paintBottomOuterCorners == paint) {
+		return;
+	}
+	_paintBottomOuterCorners = paint;
+	_cornerLeft->update();
+	_cornerRight->update();
 }
 
 void LabeledEmojiScrollTabs::scrollToActive() {
