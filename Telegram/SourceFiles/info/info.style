@@ -966,6 +966,10 @@ topBarInfoButton: UserpicButton(defaultUserpicButton) {
 	photoSize: topBarInfoButtonInnerSize;
 	photoPosition: topBarInfoButtonInnerPosition;
 }
+topBarCommunityInfoButton: UserpicButton(topBarInfoButton) {
+	size: size(44px, topBarHeight);
+	photoSize: 34px;
+}
 topBarConnectingPosition: point(2px, 5px);
 topBarConnectingSkip: 6px;
 topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {

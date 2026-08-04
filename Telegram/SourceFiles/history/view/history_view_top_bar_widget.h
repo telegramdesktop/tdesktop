@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_report.h"
 #include "dialogs/dialogs_key.h"
 
+namespace style {
+struct UserpicButton;
+} // namespace style
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -142,6 +146,7 @@ private:
 	[[nodiscard]] bool rootChatsListBar() const;
 	[[nodiscard]] bool communityChatsListBar() const;
 	[[nodiscard]] bool communityUserpicShown() const;
+	[[nodiscard]] const style::UserpicButton &infoButtonStyle() const;
 	void refreshInfoButton();
 	void updateInfoButtonVisibility();
 	void refreshLang();

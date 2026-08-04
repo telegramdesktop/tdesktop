@@ -1035,6 +1035,12 @@ bool TopBarWidget::communityUserpicShown() const {
 	return true;
 }
 
+const style::UserpicButton &TopBarWidget::infoButtonStyle() const {
+	return communityChatsListBar()
+		? st::topBarCommunityInfoButton
+		: st::topBarInfoButton;
+}
+
 void TopBarWidget::refreshInfoButton() {
 	if (_activeChat.key.topic()
 		|| (_activeChat.section == Section::ChatsList
@@ -1050,7 +1056,7 @@ void TopBarWidget::refreshInfoButton() {
 			infoPeer->userpicPaintingPeer(),
 			Ui::UserpicButton::Role::Custom,
 			Ui::UserpicButton::Source::PeerPhoto,
-			st::topBarInfoButton,
+			infoButtonStyle(),
 			infoPeer->userpicShape());
 		info->showSavedMessagesOnSelf(true);
 		info->showMyNotesOnSelf(true);
@@ -1195,7 +1201,7 @@ void TopBarWidget::updateControlsGeometry() {
 	}
 	if (_info && !_info->isHidden()) {
 		if (_back->isHidden() && _narrowRatio > 0.) {
-			const auto &infoSt = st::topBarInfoButton;
+			const auto &infoSt = infoButtonStyle();
 			const auto middle = (_narrowWidth - infoSt.photoSize) / 2;
 			_leftTaken = anim::interpolate(
 				_leftTaken,
