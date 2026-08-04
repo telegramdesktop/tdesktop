@@ -1746,6 +1746,7 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 							editor->replaceCurrentSelectionWithText(
 								std::move(result));
 						},
+						.allowPrompt = true,
 					});
 					return;
 				}
@@ -1765,6 +1766,7 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 							editor->replaceCurrentSelectionWithRichPage(
 								std::move(page));
 						},
+						.allowPrompt = true,
 					});
 					return;
 				}

@@ -8491,6 +8491,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ai_compose_select_style" = "Select Style";
 "lng_ai_compose_apply_style" = "Apply Style";
 "lng_ai_compose_style_tooltip" = "Choose Style";
+"lng_ai_compose_style_prompt_placeholder" = "Write a prompt...";
 "lng_ai_compose_create_tone_title" = "New Style";
 "lng_ai_compose_edit_tone_title" = "Edit Style";
 "lng_ai_compose_create_title" = "Create with AI";

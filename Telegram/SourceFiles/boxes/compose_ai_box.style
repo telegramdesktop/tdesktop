@@ -39,6 +39,10 @@ aiComposeBadge: RoundButton(customEmojiTextBadge) {
 aiComposeBadgeMargin: margins(0px, 2px, 0px, 0px);
 aiComposeAddStyleIcon: icon {{ "menu/edit_stars_add", aiComposeButtonFg }};
 aiComposeAddStyleIconOver: icon {{ "menu/edit_stars_add", aiComposeButtonFgActive }};
+aiComposePromptIcon: icon {{ "menu/ai_prompt", aiComposeButtonFg }};
+aiComposePromptIconOver: icon {{ "menu/ai_prompt", aiComposeButtonFgActive }};
+aiComposePromptFieldMargin: margins(0px, 0px, 0px, 4px);
+aiComposePromptFieldMaxLines: 5;
 aiComposeCollapseIcon: icon{{ "info/edit/expand_arrow_small-flip_vertical", windowActiveTextFg }};
 aiComposeExpandButton: IconButton(defaultIconButton) {
 	width: 32px;
