@@ -153,6 +153,15 @@ void RecenterPullquoteChild(
 	RefreshLogicalGeometry(block);
 }
 
+[[nodiscard]] int TextBandWidth(
+		const style::Markdown &st,
+		int width,
+		bool useArticleBands) {
+	return useArticleBands
+		? PaddedWidth(width, st.textPadding)
+		: std::max(width, 1);
+}
+
 [[nodiscard]] QRect BlockBand(
 		PreparedBlockKind kind,
 		const style::Markdown &st,
@@ -172,12 +181,21 @@ void RecenterPullquoteChild(
 		const style::Markdown &st,
 		int width,
 		LayoutContext context) {
-	if (!context.useArticleBands) {
-		return std::max(width, 1);
-	}
-	return UsesMediaBand(kind)
+	return (context.useArticleBands && UsesMediaBand(kind))
 		? PaddedWidth(width, st.mediaPadding)
-		: PaddedWidth(width, st.textPadding);
+		: TextBandWidth(st, width, context.useArticleBands);
+}
+
+[[nodiscard]] int BlockInlineButtonWidthCap(
+		const style::Markdown &st,
+		int blockWidth,
+		int width,
+		bool useArticleBands) {
+	return std::min({
+		std::max(blockWidth, 1),
+		TextBandWidth(st, width, useArticleBands),
+		st.inlineButton.maxWidth,
+	});
 }
 
 [[nodiscard]] bool IsRelatedArticlesHeader(
@@ -398,6 +416,7 @@ struct WidthAnalysisNode {
 	int scrollOwnerOverflowWidth = 1;
 	int scrollViewportMinimumWidth = 1;
 	int outerScrollViewportMinimumWidth = 1;
+	int inlineButtonWidthCap = 0;
 	bool ownerEligible = false;
 	bool chosenScrollOwner = false;
 	bool subtreeNeedsScrollOwner = false;
@@ -645,14 +664,21 @@ void FinalizeOwnerSelection(
 					- st.relatedArticle.headerPadding.right(),
 				1);
 		}
-		result.push_back(AnalyzeBlock(
+		blockContext.inlineButtonWidthCap = BlockInlineButtonWidthCap(
+			st,
+			blockWidth,
+			width,
+			context.useArticleBands);
+		auto node = AnalyzeBlock(
 			block,
 			formulas,
 			inlineFormulaObjects,
 			mediaRuntime,
 			st,
 			blockWidth,
-			blockContext));
+			blockContext);
+		node.inlineButtonWidthCap = blockContext.inlineButtonWidthCap;
+		result.push_back(std::move(node));
 	}
 	return result;
 }
@@ -1269,6 +1295,15 @@ void FinalizeOwnerSelection(
 					- st.relatedArticle.headerPadding.left()
 					- st.relatedArticle.headerPadding.right(),
 				1);
+		}
+		const auto inlineButtonWidthCap = BlockInlineButtonWidthCap(
+			st,
+			blockWidth,
+			width,
+			context.useArticleBands);
+		if (block.carriesInlineButton
+			&& (block.inlineButtonWidthCap != inlineButtonWidthCap)) {
+			return std::nullopt;
 		}
 		auto analysis = AnalyzeRetainedBlock(
 			preparedBlock,
@@ -2149,6 +2184,8 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			LayoutContext childContext,
 			bool tight) -> std::optional<int> {
 		const auto &child = prepared.children[index];
+		childContext.inlineButtonWidthCap
+			= analysis.children[index].inlineButtonWidthCap;
 		auto laidOut = (child.kind == PreparedBlockKind::ListItem)
 			? LayoutListItemBlock(
 				child,
@@ -2182,6 +2219,8 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 				childLogicalWidth,
 				childContext);
 		const auto bottom = BlockBottom(laidOut);
+		laidOut.inlineButtonWidthCap = childContext.inlineButtonWidthCap;
+		laidOut.carriesInlineButton = PreparedBlockHasInlineButton(child);
 		block.children.push_back(std::move(laidOut));
 		return bottom;
 	};
@@ -2692,6 +2731,7 @@ int LayoutBlocks(
 		const auto next = NextVisibleBlock(prepared, i);
 		auto blockContext = context;
 		blockContext.preparedPath.push_back(i);
+		blockContext.inlineButtonWidthCap = analysis[i].inlineButtonWidthCap;
 		if (HideEmptyQuoteAuthorBlock(block, blockContext)) {
 			blocks->push_back(HiddenQuoteAuthorBlock(block));
 			continue;
@@ -2759,6 +2799,8 @@ int LayoutBlocks(
 			RefreshLogicalGeometry(&laidOut);
 		}
 		y = BlockBottom(laidOut);
+		laidOut.inlineButtonWidthCap = blockContext.inlineButtonWidthCap;
+		laidOut.carriesInlineButton = PreparedBlockHasInlineButton(block);
 		blocks->push_back(std::move(laidOut));
 		if (!anchorOnly) {
 			previous = &block;

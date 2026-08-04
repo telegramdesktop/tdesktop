@@ -72,7 +72,6 @@ struct InlineButtonPaintState {
 	bool pressPending = false;
 	bool editMode = false;
 	bool bubbleGradient = false;
-	bool hasInlineButtons = false;
 };
 
 void SetTextLeaf(
@@ -83,6 +82,7 @@ void SetTextLeaf(
 	const std::vector<PreparedFormulaSlot> *formulas,
 	InlineFormulaObjectCache *inlineFormulaObjects,
 	const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
+	int inlineButtonWidthCap,
 	const std::shared_ptr<MediaRuntime> &mediaRuntime,
 	int minResizeWidth,
 	bool rtl,

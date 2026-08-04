@@ -328,12 +328,17 @@ void HarvestCachedTextLeafs(
 		bool rtl) {
 	const auto storeBlockLeaf = [&](CachedTextLeafSlot slot,
 			CachedTextLeafSourceSignature source,
-			Ui::Text::String *leaf) {
+			Ui::Text::String *leaf,
+			Spellchecker::HighlightProcessId syntaxHighlightProcessId = 0) {
+		if (source.dependsOnInlineButtonColumn) {
+			source.inlineButtonWidthCap = block->inlineButtonWidthCap;
+		}
 		StoreCachedTextLeaf(
 			pool,
 			BlockCachedTextLeafKey(slot, prepared, preparedPath),
 			std::move(source),
-			leaf);
+			leaf,
+			syntaxHighlightProcessId);
 	};
 	const auto storeTableCellLeaf = [&](
 			CachedTextLeafSlot slot,
@@ -342,6 +347,9 @@ void HarvestCachedTextLeafs(
 			int tableCellIndex,
 			CachedTextLeafSourceSignature source,
 			Ui::Text::String *leaf) {
+		if (source.dependsOnInlineButtonColumn) {
+			source.inlineButtonWidthCap = block->inlineButtonWidthCap;
+		}
 		StoreCachedTextLeaf(
 			pool,
 			TableCellCachedTextLeafKey(
@@ -394,12 +402,8 @@ void HarvestCachedTextLeafs(
 			&block->placeholderLeaf);
 	} break;
 	case PreparedBlockKind::CodeBlock:
-		StoreCachedTextLeaf(
-			pool,
-			BlockCachedTextLeafKey(
-				CachedTextLeafSlot::Leaf,
-				prepared,
-				preparedPath),
+		storeBlockLeaf(
+			CachedTextLeafSlot::Leaf,
 			CodeTextLeafSourceSignature(prepared, st),
 			&block->leaf,
 			block->syntaxHighlightProcessId);
@@ -3156,6 +3160,7 @@ struct ConstPreparedArticleLeafLookup {
 };
 
 struct LaidOutArticleLeafLookup {
+	LaidOutBlock *owner = nullptr;
 	LaidOutBlock *block = nullptr;
 	LaidOutTableCell *cell = nullptr;
 
@@ -3358,12 +3363,18 @@ struct LaidOutArticleLeafLookup {
 	}
 	switch (source.kind) {
 	case PreparedEditLeafKind::TableCellText:
-		return { .cell = FindLaidOutArticleLeafCell(owner, source) };
+		return {
+			.owner = owner,
+			.cell = FindLaidOutArticleLeafCell(owner, source),
+		};
 	case PreparedEditLeafKind::BlockText:
 	case PreparedEditLeafKind::BlockCaption:
 	case PreparedEditLeafKind::ListItemText:
 	case PreparedEditLeafKind::MathFormula:
-		return { .block = FindLaidOutArticleLeafBlock(owner, source) };
+		return {
+			.owner = owner,
+			.block = FindLaidOutArticleLeafBlock(owner, source),
+		};
 	}
 	return {};
 }
@@ -4090,6 +4101,9 @@ void MarkdownArticle::Impl::updatePreparedLeaf(
 	context.spoilerLinkFilter = _textSpoilerLinkFilter;
 	context.inlineButtonPaintState = _inlineButtonPaintState;
 	if (live.block && incoming.block) {
+		context.inlineButtonWidthCap = live.block->inlineButtonWidthCap;
+		live.block->carriesInlineButton = PreparedBlockHasInlineButton(
+			*incoming.block);
 		UpdateLaidOutLeafContent(
 			live.block,
 			*incoming.block,
@@ -4099,6 +4113,10 @@ void MarkdownArticle::Impl::updatePreparedLeaf(
 			layoutStyle(),
 			context);
 	} else if (live.cell && incoming.cell) {
+		context.inlineButtonWidthCap = live.owner->inlineButtonWidthCap;
+		if (TextHasInlineButton(incoming.cell->text)) {
+			live.owner->carriesInlineButton = true;
+		}
 		UpdateLaidOutLeafContent(
 			live.cell,
 			*incoming.cell,
@@ -4895,6 +4913,7 @@ bool MarkdownArticle::Impl::highlightProcessDone(
 			&_content.formulas,
 			_inlineFormulaObjects.get(),
 			_inlineButtonPaintState,
+			block->inlineButtonWidthCap,
 			_content.mediaRuntime,
 			layoutStyle(),
 			true,
@@ -6153,11 +6172,6 @@ void MarkdownArticle::Impl::publishInlineButtonWidthCap() {
 		return;
 	}
 	_inlineButtonPaintState->widthCap = cap;
-	PruneCachedTextLeafs(
-		&_cachedTextLeafs,
-		[](const CachedTextLeafSourceSignature &source) {
-			return source.dependsOnInlineButtonColumn;
-		});
 }
 
 void MarkdownArticle::Impl::relayout(int width) {
@@ -6269,12 +6283,6 @@ void MarkdownArticle::Impl::relayoutRetained(int width) {
 	if (_width == width) {
 		return;
 	} else if (_blocks.empty()) {
-		relayout(width);
-		return;
-	}
-	const auto widthCap = inlineButtonWidthCap();
-	if (_inlineButtonPaintState->hasInlineButtons
-		&& (widthCap != _inlineButtonPaintState->widthCap)) {
 		relayout(width);
 		return;
 	}

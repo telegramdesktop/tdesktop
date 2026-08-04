@@ -274,6 +274,9 @@ auto WithCachedTextLeaf(
 		CachedTextLeafSourceSignature source,
 		Builder &&builder,
 		Consumer &&consumer) {
+	if (source.dependsOnInlineButtonColumn) {
+		source.inlineButtonWidthCap = context.inlineButtonWidthCap;
+	}
 	if (const auto pool = context.cachedTextLeafs) {
 		auto i = pool->entries.find(key);
 		if (i == end(pool->entries)
@@ -300,8 +303,11 @@ void BuildOrReuseCachedTextLeaf(
 		Spellchecker::HighlightProcessId *syntaxHighlightProcessId,
 		LayoutContext context,
 		CachedTextLeafKey key,
-		const CachedTextLeafSourceSignature &source,
+		CachedTextLeafSourceSignature source,
 		Builder &&builder) {
+	if (source.dependsOnInlineButtonColumn) {
+		source.inlineButtonWidthCap = context.inlineButtonWidthCap;
+	}
 	if (const auto pool = context.cachedTextLeafs) {
 		if (const auto i = pool->entries.find(key);
 			i != end(pool->entries)
@@ -365,6 +371,7 @@ void BuildOrReuseCachedTextLeaf(
 				formulas,
 				inlineFormulaObjects,
 				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				minResizeWidth,
 				context.rtl,
@@ -678,6 +685,7 @@ void PopulateCodeBlockLeaf(
 		const std::vector<PreparedFormulaSlot> *formulas,
 		InlineFormulaObjectCache *inlineFormulaObjects,
 		const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
+		int inlineButtonWidthCap,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,
 		const style::Markdown &st,
 		bool allowAsyncSyntaxHighlighting,
@@ -718,6 +726,7 @@ void PopulateCodeBlockLeaf(
 		formulas,
 		inlineFormulaObjects,
 		inlineButtonPaintState,
+		inlineButtonWidthCap,
 		mediaRuntime,
 		CodeTextMinResizeWidth(st),
 		false,
@@ -1380,6 +1389,7 @@ void BuildOrReuseMarkedTextLeaf(
 				formulas,
 				inlineFormulaObjects,
 				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				minResizeWidth,
 				context.rtl,
@@ -1708,6 +1718,25 @@ bool IsAnchorOnlyBlock(const PreparedBlock &block) {
 		&& block.children.empty();
 }
 
+bool PreparedBlockHasInlineButton(const PreparedBlock &prepared) {
+	if (TextHasInlineButton(prepared.text)) {
+		return true;
+	}
+	for (const auto &row : prepared.tableRows) {
+		for (const auto &cell : row.cells) {
+			if (TextHasInlineButton(cell.text)) {
+				return true;
+			}
+		}
+	}
+	for (const auto &button : prepared.buttonRow.buttons) {
+		if (TextHasInlineButton(button.text)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 QString ListMarkerText(const PreparedBlock &block) {
 	if (block.listKind == ListKind::Ordered) {
 		if (!block.orderedMarkerText.isEmpty()) {
@@ -1869,6 +1898,7 @@ int FlowBlockPreferredWidth(
 					&formulas,
 					inlineFormulaObjects,
 					context.inlineButtonPaintState,
+					context.inlineButtonWidthCap,
 					mediaRuntime,
 					minResizeWidth,
 					context.rtl,
@@ -1945,6 +1975,7 @@ int FlowBlockContentMinimumWidth(
 				&formulas,
 				inlineFormulaObjects,
 				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				minResizeWidth,
 				context.rtl,
@@ -1992,6 +2023,7 @@ int DetailsSummaryContentMinimumWidth(
 				&formulas,
 				inlineFormulaObjects,
 				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				minResizeWidth,
 				context.rtl,
@@ -2073,6 +2105,7 @@ int CodeBlockPreferredWidth(
 				nullptr,
 				nullptr,
 				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				nullptr,
 				st,
 				context.allowAsyncSyntaxHighlighting,
@@ -2344,6 +2377,7 @@ int TableBlockContentMinimumWidth(
 						&formulas,
 						inlineFormulaObjects,
 						context.inlineButtonPaintState,
+						context.inlineButtonWidthCap,
 						mediaRuntime,
 						minResizeWidth,
 						context.rtl,
@@ -2437,6 +2471,7 @@ int TableBlockContentMinimumWidth(
 							&formulas,
 							inlineFormulaObjects,
 							context.inlineButtonPaintState,
+							context.inlineButtonWidthCap,
 							mediaRuntime,
 							minResizeWidth,
 							context.rtl,
@@ -2657,6 +2692,7 @@ void RepopulateCodeBlockLeaf(
 		const std::vector<PreparedFormulaSlot> *formulas,
 		InlineFormulaObjectCache *inlineFormulaObjects,
 		const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
+		int inlineButtonWidthCap,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,
 		const style::Markdown &st,
 		bool allowAsyncSyntaxHighlighting,
@@ -2673,6 +2709,7 @@ void RepopulateCodeBlockLeaf(
 		formulas,
 		inlineFormulaObjects,
 		inlineButtonPaintState,
+		inlineButtonWidthCap,
 		mediaRuntime,
 		st,
 		allowAsyncSyntaxHighlighting,
@@ -2739,6 +2776,7 @@ void UpdateLaidOutLeafContent(
 			formulas,
 			inlineFormulaObjects,
 			context.inlineButtonPaintState,
+			context.inlineButtonWidthCap,
 			mediaRuntime,
 			st,
 			context.allowAsyncSyntaxHighlighting,
@@ -2914,6 +2952,7 @@ void UpdateLaidOutLeafContent(
 				formulas,
 				inlineFormulaObjects,
 				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				minResizeWidth,
 				context.rtl,
@@ -3120,6 +3159,7 @@ LaidOutBlock LayoutFlowBlock(
 					formulas,
 					inlineFormulaObjects,
 					context.inlineButtonPaintState,
+					context.inlineButtonWidthCap,
 					mediaRuntime,
 					FlowBlockMinimumWidth(prepared, st),
 					context.rtl,
@@ -3203,6 +3243,7 @@ LaidOutBlock LayoutCodeBlock(
 				formulas,
 				inlineFormulaObjects,
 				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				st,
 				allowAsyncSyntaxHighlighting,
@@ -3499,6 +3540,7 @@ LaidOutBlock LayoutButtonRowBlock(
 			formulas,
 			inlineFormulaObjects,
 			context.inlineButtonPaintState,
+			context.inlineButtonWidthCap,
 			mediaRuntime,
 			PlainTextMinResizeWidth(style.labelStyle),
 			context.rtl,

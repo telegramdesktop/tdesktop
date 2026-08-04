@@ -548,7 +548,8 @@ public:
 		const style::TextStyle &textStyle,
 		const style::Markdown &st,
 		const Ui::Text::MarkedContext &context,
-		std::shared_ptr<InlineButtonPaintState> paintState);
+		std::shared_ptr<InlineButtonPaintState> paintState,
+		int widthCap);
 
 	int width() override;
 	QString entityData() override;
@@ -682,8 +683,11 @@ FindInlineFormulaMeasuredData(
 
 [[nodiscard]] int InlineButtonWidthCap(
 		const style::MarkdownInlineButton &st,
-		const std::shared_ptr<InlineButtonPaintState> &paintState) {
-	const auto published = paintState ? paintState->widthCap : 0;
+		const std::shared_ptr<InlineButtonPaintState> &paintState,
+		int bandWidthCap) {
+	const auto published = (bandWidthCap > 0)
+		? bandWidthCap
+		: (paintState ? paintState->widthCap : 0);
 	return (published > 0) ? std::min(st.maxWidth, published) : st.maxWidth;
 }
 
@@ -1878,7 +1882,8 @@ InlineButtonObject::InlineButtonObject(
 	const style::TextStyle &textStyle,
 	const style::Markdown &st,
 	const Ui::Text::MarkedContext &context,
-	std::shared_ptr<InlineButtonPaintState> paintState)
+	std::shared_ptr<InlineButtonPaintState> paintState,
+	int widthCap)
 : _entityData(SerializeInlineTextObjectEntity({
 	.kind = InlineTextObjectKind::Button,
 	.data = data,
@@ -1903,7 +1908,10 @@ InlineButtonObject::InlineButtonObject(
 	_height = link
 		? textStyle.font->height
 		: InlineButtonPillHeight(textStyle, inlineSt);
-	const auto buttonWidthCap = InlineButtonWidthCap(inlineSt, _paintState);
+	const auto buttonWidthCap = InlineButtonWidthCap(
+		inlineSt,
+		_paintState,
+		widthCap);
 	_labelWidth = std::min(
 		_label.maxWidth(),
 		InlineButtonLabelWidthCap(_presentation, inlineSt, buttonWidthCap));
@@ -2199,6 +2207,7 @@ void SetTextLeaf(
 		const std::vector<PreparedFormulaSlot> *formulas,
 		InlineFormulaObjectCache *inlineFormulaObjects,
 		const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
+		int inlineButtonWidthCap,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,
 		int minResizeWidth,
 		bool rtl,
@@ -2217,6 +2226,7 @@ void SetTextLeaf(
 		formulas,
 		inlineFormulaObjects,
 		inlineButtonPaintState,
+		inlineButtonWidthCap,
 		mediaRuntime,
 		repaintRect = std::move(repaintRect),
 		originalCustomEmojiFactory = std::move(originalCustomEmojiFactory),
@@ -2277,7 +2287,8 @@ void SetTextLeaf(
 				*textStyle,
 				*st,
 				context,
-				inlineButtonPaintState);
+				inlineButtonPaintState,
+				inlineButtonWidthCap);
 		}
 		}
 		return std::unique_ptr<Ui::Text::CustomEmoji>();
@@ -2288,9 +2299,6 @@ void SetTextLeaf(
 		rtl ? kIvMarkedTextOptionsRtl : kIvMarkedTextOptions,
 		context);
 	SetTextLeafSpoilerLinkFilter(leaf, std::move(spoilerLinkFilter));
-	if (inlineButtonPaintState && TextHasInlineButton(text)) {
-		inlineButtonPaintState->hasInlineButtons = true;
-	}
 	if (inlineButtonPaintState
 		&& !inlineButtonPaintState->editMode
 		&& ranges::any_of(text.entities, [](const EntityInText &entity) {
@@ -2317,7 +2325,8 @@ std::unique_ptr<Ui::Text::CustomEmoji> MakeInlineButtonObject(
 		textStyle,
 		st,
 		context,
-		nullptr);
+		nullptr,
+		0);
 }
 
 } // namespace Iv::Markdown

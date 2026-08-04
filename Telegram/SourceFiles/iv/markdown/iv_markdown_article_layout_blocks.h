@@ -150,6 +150,7 @@ struct LaidOutBlock {
 	int subtitleWidth = 0;
 	int actionWidth = 0;
 	int markerWidth = 0;
+	int inlineButtonWidthCap = 0;
 	int firstLineBaseline = -1;
 	int headingLevel = 0;
 	ListKind listKind = ListKind::Bullet;
@@ -169,6 +170,7 @@ struct LaidOutBlock {
 	bool pullquote = false;
 	bool quoteAuthor = false;
 	bool footer = false;
+	bool carriesInlineButton = false;
 	bool insideHorizontalScroll = false;
 	int tableBorder = 0;
 	int horizontalScrollLeft = 0;
@@ -287,6 +289,7 @@ struct CachedTextLeafSourceSignature {
 	TextWithEntities text;
 	QString codeLanguage;
 	int minResizeWidth = 1;
+	int inlineButtonWidthCap = 0;
 	size_t styleKey = 0;
 	bool dependsOnMediaRuntime = false;
 	bool dependsOnInlineButtonColumn = false;
@@ -322,6 +325,7 @@ struct LayoutContext {
 	int quoteDepth = 0;
 	int articleLeft = 0;
 	int articleWidth = 0;
+	int inlineButtonWidthCap = 0;
 	double mediaPixelScale = 1.;
 	bool tightList = false;
 	bool useArticleBands = false;
@@ -366,6 +370,7 @@ private:
 	const QString &text,
 	const Ui::Text::String &leaf);
 [[nodiscard]] bool IsAnchorOnlyBlock(const PreparedBlock &block);
+[[nodiscard]] bool PreparedBlockHasInlineButton(const PreparedBlock &prepared);
 [[nodiscard]] bool IsFlowKind(PreparedBlockKind kind);
 [[nodiscard]] QString ListMarkerText(const PreparedBlock &block);
 [[nodiscard]] int TextLineHeight(const style::TextStyle &style);
@@ -566,6 +571,7 @@ void RepopulateCodeBlockLeaf(
 	const std::vector<PreparedFormulaSlot> *formulas,
 	InlineFormulaObjectCache *inlineFormulaObjects,
 	const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
+	int inlineButtonWidthCap,
 	const std::shared_ptr<MediaRuntime> &mediaRuntime,
 	const style::Markdown &st,
 	bool allowAsyncSyntaxHighlighting,
