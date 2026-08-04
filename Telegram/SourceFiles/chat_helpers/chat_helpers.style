@@ -140,6 +140,7 @@ EmojiPan {
 	searchPackTextTop: pixels;
 	searchPackTextPadding: pixels;
 	searchPacksBottom: pixels;
+	searchPackRipple: RippleAnimation;
 	searchResultsHeight: pixels;
 	searchResultsTextTop: pixels;
 	searchSwapDuration: int;
@@ -777,6 +778,7 @@ defaultEmojiPan: EmojiPan {
 	searchPackTextTop: 55px;
 	searchPackTextPadding: 5px;
 	searchPacksBottom: 0px;
+	searchPackRipple: defaultRippleAnimation;
 	searchResultsHeight: 20px;
 	searchResultsTextTop: 3px;
 	searchSwapDuration: 100;

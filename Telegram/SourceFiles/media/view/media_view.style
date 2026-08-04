@@ -653,6 +653,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 	fadeRight: icon {{ "fade_horizontal", storiesComposeBg }};
 	menu: storiesPopupMenuWithIcons;
 	expandedSeparator: mediaviewWideMenuSeparator;
+	searchPackRipple: storiesComposeRippleLight;
 	tabs: SettingsSlider(emojiTabs) {
 		barFgActive: storiesComposeBlue;
 		labelFg: storiesComposeGrayText;
