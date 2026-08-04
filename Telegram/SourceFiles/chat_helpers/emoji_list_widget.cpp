@@ -2426,7 +2426,8 @@ void EmojiListWidget::paint(
 				&& (info.section >= _staticCount)
 				&& (_custom[info.section - _staticCount].id
 					== Data::Stickers::MegagroupSetId);
-			const auto amCreator = !megagroupEmoji
+			const auto amCreator = _features.openStickerSets
+				&& !megagroupEmoji
 				&& titleSet
 				&& (titleSet->flags & Data::StickersSetFlag::AmCreator);
 			const auto badgeText = megagroupEmoji
