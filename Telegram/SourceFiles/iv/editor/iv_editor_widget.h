@@ -603,6 +603,9 @@ private:
 	[[nodiscard]] std::optional<TableImportResult> importTableFromMimeData(
 		not_null<const QMimeData*> data) const;
 	void pasteImportedTable(TableImportResult &&imported);
+	[[nodiscard]] std::optional<BlocksImportResult> importBlocksFromMimeData(
+		not_null<const QMimeData*> data) const;
+	void pasteImportedBlocks(BlocksImportResult &&imported);
 	[[nodiscard]] bool handleIvClipboardMime(
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action);

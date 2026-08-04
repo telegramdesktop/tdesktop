@@ -27,6 +27,11 @@ struct TableImportResult {
 	bool truncated = false;
 };
 
+struct BlocksImportResult {
+	std::vector<RichPage::Block> blocks;
+	bool truncated = false;
+};
+
 [[nodiscard]] TableImportLimits TableImportLimitsFor(
 	const RichMessageLimits &limits,
 	int usedBlocks);
@@ -36,5 +41,10 @@ struct TableImportResult {
 [[nodiscard]] std::optional<TableImportResult> TableFromMimeData(
 	not_null<const QMimeData*> data,
 	const TableImportLimits &limits);
+
+[[nodiscard]] std::optional<BlocksImportResult> BlocksFromMimeData(
+	not_null<const QMimeData*> data,
+	const RichMessageLimits &limits,
+	int usedBlocks);
 
 } // namespace Iv::Editor

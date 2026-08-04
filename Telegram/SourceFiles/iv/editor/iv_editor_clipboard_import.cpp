@@ -84,11 +84,19 @@ constexpr auto kMaxCellLength = 4096;
 	return RichPage::TableAlignment::Left;
 }
 
+[[nodiscard]] TextWithEntities ConvertImportedText(TextWithTags text) {
+	return {
+		std::move(text.text),
+		TextUtilities::ConvertTextTagsToEntities(text.tags),
+	};
+}
+
 [[nodiscard]] RichPage::Block ConvertTable(
 		const TextUtilities::HtmlTable &table) {
 	auto result = RichPage::Block();
 	result.kind = RichPage::BlockKind::Table;
 	result.bordered = true;
+	result.text.text = ConvertImportedText(table.caption);
 	result.tableRows.reserve(table.rows.size());
 	for (const auto &row : table.rows) {
 		auto converted = RichPage::TableRow();
@@ -111,6 +119,138 @@ constexpr auto kMaxCellLength = 4096;
 		result.tableRows.push_back(std::move(converted));
 	}
 	return result;
+}
+
+[[nodiscard]] RichPage::TaskState ConvertTaskState(
+		TextUtilities::HtmlTaskState state) {
+	using Source = TextUtilities::HtmlTaskState;
+	switch (state) {
+	case Source::Unchecked: return RichPage::TaskState::Unchecked;
+	case Source::Checked: return RichPage::TaskState::Checked;
+	case Source::None: break;
+	}
+	return RichPage::TaskState::None;
+}
+
+[[nodiscard]] std::vector<RichPage::Block> ConvertImportedBlocks(
+	std::vector<TextUtilities::HtmlBlock> blocks);
+
+[[nodiscard]] RichPage::Block ConvertImportedBlock(
+		TextUtilities::HtmlBlock block) {
+	using Kind = TextUtilities::HtmlBlockKind;
+	auto result = RichPage::Block();
+	switch (block.kind) {
+	case Kind::Paragraph:
+		result.kind = RichPage::BlockKind::Paragraph;
+		result.text.text = ConvertImportedText(std::move(block.text));
+		break;
+	case Kind::Heading:
+		result.kind = RichPage::BlockKind::Heading;
+		result.headingLevel = std::clamp(block.headingLevel, 1, 6);
+		result.text.text = ConvertImportedText(std::move(block.text));
+		break;
+	case Kind::Divider:
+		result.kind = RichPage::BlockKind::Divider;
+		break;
+	case Kind::Quote:
+	case Kind::Pullquote:
+		result.kind = RichPage::BlockKind::Quote;
+		result.pullquote = (block.kind == Kind::Pullquote);
+		result.text.text = ConvertImportedText(std::move(block.text));
+		result.blocks = ConvertImportedBlocks(std::move(block.children));
+		break;
+	case Kind::Code:
+		result.kind = RichPage::BlockKind::Code;
+		result.language = std::move(block.language);
+		result.text.text = ConvertImportedText(std::move(block.text));
+		break;
+	case Kind::Footer:
+		result.kind = RichPage::BlockKind::Footer;
+		result.text.text = ConvertImportedText(std::move(block.text));
+		break;
+	case Kind::List: {
+		result.kind = RichPage::BlockKind::List;
+		result.listKind = (block.listKind
+			== TextUtilities::HtmlListKind::Ordered)
+			? RichPage::ListKind::Ordered
+			: RichPage::ListKind::Bullet;
+		if (result.listKind == RichPage::ListKind::Ordered) {
+			result.orderedList = RichPage::OrderedListData{
+				.reversed = block.listReversed,
+				.start = block.listStart,
+				.type = (block.listType.isEmpty()
+					? std::optional<QString>()
+					: std::make_optional(block.listType)),
+			};
+		}
+		result.listItems.reserve(block.items.size());
+		for (auto &item : block.items) {
+			auto converted = RichPage::ListItem();
+			converted.taskState = ConvertTaskState(item.taskState);
+			converted.number = RichPage::OrderedListItemData{
+				.value = item.value,
+			};
+			converted.text.text = ConvertImportedText(std::move(item.text));
+			converted.blocks = ConvertImportedBlocks(std::move(item.blocks));
+			result.listItems.push_back(std::move(converted));
+		}
+	} break;
+	case Kind::Details:
+		result.kind = RichPage::BlockKind::Details;
+		result.open = block.detailsOpen;
+		result.text.text = ConvertImportedText(std::move(block.text));
+		result.blocks = ConvertImportedBlocks(std::move(block.children));
+		if (result.blocks.empty()) {
+			auto paragraph = RichPage::Block();
+			paragraph.kind = RichPage::BlockKind::Paragraph;
+			result.blocks.push_back(std::move(paragraph));
+		}
+		break;
+	case Kind::Table:
+		if (block.table) {
+			result = ConvertTable(*block.table);
+		}
+		break;
+	}
+	return result;
+}
+
+std::vector<RichPage::Block> ConvertImportedBlocks(
+		std::vector<TextUtilities::HtmlBlock> blocks) {
+	auto result = std::vector<RichPage::Block>();
+	result.reserve(blocks.size());
+	for (auto &block : blocks) {
+		auto converted = ConvertImportedBlock(std::move(block));
+		if (converted.kind != RichPage::BlockKind::Unsupported) {
+			result.push_back(std::move(converted));
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] TextUtilities::HtmlBlocksLimits BlocksImportLimitsFor(
+		const RichMessageLimits &limits,
+		int usedBlocks) {
+	const auto blocks = limits.maxBlocks - usedBlocks - 1;
+	const auto columns = limits.maxTableCols;
+	if (blocks <= 0 || columns <= 0) {
+		return { .maxBlocks = 0 };
+	}
+	const auto cells = std::min(
+		int64(blocks) * columns,
+		int64(std::numeric_limits<int>::max()));
+	return {
+		.maxBlocks = blocks,
+		.maxDepth = limits.maxDepth,
+		.maxBlockLength = limits.lengthLimit,
+		.maxTotalLength = limits.lengthLimit,
+		.table = {
+			.maxRows = blocks,
+			.maxColumns = columns,
+			.maxCells = int(cells),
+			.maxCellLength = kMaxCellLength,
+		},
+	};
 }
 
 [[nodiscard]] std::vector<std::vector<QString>> ParseDelimited(
@@ -285,6 +425,29 @@ std::optional<TableImportResult> TableFromMimeData(
 		return std::nullopt;
 	}
 	return TableFromDelimitedText(data->text(), limits);
+}
+
+std::optional<BlocksImportResult> BlocksFromMimeData(
+		not_null<const QMimeData*> data,
+		const RichMessageLimits &limits,
+		int usedBlocks) {
+	if (!data->hasHtml()) {
+		return std::nullopt;
+	}
+	auto parsed = TextUtilities::BlocksFromHtml(
+		data->html(),
+		BlocksImportLimitsFor(limits, usedBlocks));
+	if (!parsed) {
+		return std::nullopt;
+	}
+	auto blocks = ConvertImportedBlocks(std::move(parsed->blocks));
+	if (blocks.empty()) {
+		return std::nullopt;
+	}
+	return BlocksImportResult{
+		.blocks = std::move(blocks),
+		.truncated = parsed->truncated,
+	};
 }
 
 } // namespace Iv::Editor

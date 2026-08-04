@@ -7469,6 +7469,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_article_limit_columns" = "The article table has too many columns.";
 "lng_article_limit_media" = "The article has too many media files.";
 "lng_article_table_truncated" = "The pasted table didn't fit and was truncated.";
+"lng_article_paste_truncated" = "The pasted content didn't fit and was truncated.";
 "lng_article_submit_empty" = "The article can't be empty.";
 "lng_article_premium_required" = "Subscribe to {link} to be able to send rich articles.";
 "lng_article_premium_required_link" = "Telegram Premium";
