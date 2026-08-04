@@ -546,7 +546,7 @@ primaryButton: MyButtonStyle(defaultButton) {
 - `pixels` - Pixel values with `px` suffix (e.g., `10px`)
 - `color` - Named colors from `ui/colors.palette`
 - `icon` - Inline icon definition: `icon{{ "path/stem", color }}`
-- `margins` - Four values: `margins(top, right, bottom, left)`
+- `margins` - Four values: `margins(left, top, right, bottom)`
 - `size` - Two values: `size(width, height)`
 - `point` - Two values: `point(x, y)`
 - `align` - Alignment: `align(center)`, `align(left)`
