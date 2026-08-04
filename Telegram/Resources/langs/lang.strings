@@ -8775,6 +8775,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_row_pending" = "Pending";
 "lng_wallet_rows_title" = "Transactions";
 "lng_wallet_rows_hint" = "Tap on a transaction to view details.";
+"lng_wallet_details_title" = "Transaction";
 "lng_wallet_details_sender" = "Sender";
 "lng_wallet_details_recipient" = "Recipient";
 "lng_wallet_details_fee" = "Fee";

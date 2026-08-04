@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
+using "info/channel_statistics/boosts/giveaway/giveaway.style";
 
 walletMenuIcon: icon{{ "menu/wallet-24x24", menuIconColor }};
 walletMenuCurrencyIcon: icon{{ "settings/language", menuIconColor }};
@@ -123,30 +124,45 @@ walletRowMarkSize: 15px;
 walletRowIconMargin: margins(5px, 3px, 0px, 0px);
 walletRowsHintHeight: 44px;
 
+walletDetailsBox: Box(giveawayGiftCodeBox) {
+	bg: windowBgOver;
+	buttonPadding: margins(24px, 11px, 24px, 22px);
+}
+walletDetailsTable: Table(giveawayGiftCodeTable) {
+	defaultValue: FlatLabel(defaultTableValue) {
+		palette: TextPalette(defaultTextPalette) {
+			linkFg: windowSubTextFg;
+		}
+	}
+}
 walletDetailsAmountMajorLabel: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
-		font: font(26px semibold);
+		font: font(28px semibold);
 	}
 }
 walletDetailsAmountMinorLabel: FlatLabel(walletDetailsAmountMajorLabel) {
 	style: TextStyle(defaultTextStyle) {
-		font: font(18px semibold);
+		font: font(22px semibold);
 	}
 }
-walletDetailsAmountMinorSkip: 8px;
-walletDetailsIconMargin: margins(6px, 0px, 0px, 0px);
-walletDetailsAmountTopSkip: 16px;
-walletDetailsAmountBottomSkip: 24px;
+walletDetailsAmountMinorSkip: 6px;
+walletDetailsMarkSize: 24px;
+walletDetailsIconMargin: margins(6px, -2px, 0px, 0px);
+walletDetailsAmountTopSkip: 24px;
+walletDetailsAmountBottomSkip: 20px;
 walletDetailsFiatLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
 	}
 }
-walletDetailsFiatSkip: 4px;
+walletDetailsFiatSkip: 2px;
 walletDetailsAddressLabel: FlatLabel(defaultTableValue) {
 	minWidth: 128px;
 	maxHeight: 100px;
+	palette: TextPalette(defaultTextPalette) {
+		monoFg: windowFg;
+	}
 }
 walletCommentLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 128px;

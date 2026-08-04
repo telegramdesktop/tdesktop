@@ -430,12 +430,13 @@ void AddHistoryRow(
 void AddDetailsAmountHeader(
 		not_null<Ui::GenericBox*> box,
 		const Gram::TransferItem &item,
+		int topSkip,
 		rpl::producer<FiatRate> rate = nullptr) {
 	const auto container = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
 		style::margins(
 			0,
-			st::boxTitleHeight + st::walletDetailsAmountTopSkip,
+			topSkip,
 			0,
 			st::walletDetailsAmountBottomSkip),
 		style::al_top);
@@ -451,7 +452,7 @@ void AddDetailsAmountHeader(
 	minorText.append(helper.paletteDependent({
 		.factory = [] {
 			return Ui::Earn::IconCurrencyColored(
-				st::walletDetailsAmountMajorLabel.style.font,
+				st::walletDetailsMarkSize,
 				st::windowActiveTextFg->c);
 		},
 		.margin = st::walletDetailsIconMargin,
@@ -517,7 +518,8 @@ void AddDetailsAmountHeader(
 
 [[nodiscard]] object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> MakeCommentBubble(
 		not_null<QWidget*> parent,
-		rpl::producer<QString> text) {
+		rpl::producer<QString> text,
+		const style::color &bg) {
 	auto result = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 		parent,
 		object_ptr<Ui::FlatLabel>(
@@ -526,12 +528,12 @@ void AddDetailsAmountHeader(
 			st::walletCommentLabel),
 		st::giveawayGiftCodeValueMargin);
 	const auto raw = result.data();
-	const auto bg = raw->lifetime().make_state<Ui::RoundRect>(
+	const auto background = raw->lifetime().make_state<Ui::RoundRect>(
 		st::boxRadius,
-		st::windowBgOver);
+		bg);
 	raw->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(raw);
-		bg->paint(p, raw->rect());
+		background->paint(p, raw->rect());
 	}, raw->lifetime());
 	return result;
 }
@@ -544,7 +546,7 @@ void AddDetailsComment(
 		return;
 	}
 	box->addRow(
-		MakeCommentBubble(box, rpl::single(comment)),
+		MakeCommentBubble(box, rpl::single(comment), st::windowBg),
 		style::margins(
 			st::giveawayGiftCodeTableMargin.left(),
 			0,
@@ -560,9 +562,9 @@ void AddFeeTableRow(
 		bool approximate) {
 	auto helper = Ui::Text::CustomEmojiHelper();
 	const auto diamond = helper.paletteDependent({
-		.factory = [] {
+		.factory = [=] {
 			return Ui::Earn::IconCurrencyColored(
-				st::defaultTableValue.style.font,
+				table->st().defaultValue.style.font,
 				st::windowActiveTextFg->c);
 		},
 	});
@@ -576,7 +578,8 @@ void AddFeeTableRow(
 		}
 		fee.append(Ui::FormatTonAmount(feeNano).full);
 		fee.append(QChar(' '));
-		fee.append(FormatFiat(feeNano, rate, kFeeFiatDecimals, true));
+		fee.append(Ui::Text::Colorized(
+			FormatFiat(feeNano, rate, kFeeFiatDecimals, true)));
 		return fee;
 	});
 	const auto label = Ui::AddTableRow(
@@ -598,11 +601,20 @@ void AddDetailsTable(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		const Gram::TransferItem &item) {
-	const auto table = box->addRow(
-		object_ptr<Ui::TableLayout>(
+	const auto wrap = box->addRow(
+		object_ptr<Ui::PaddingWrap<Ui::TableLayout>>(
 			box,
-			st::giveawayGiftCodeTable),
+			object_ptr<Ui::TableLayout>(box, st::walletDetailsTable),
+			style::margins()),
 		st::giveawayGiftCodeTableMargin);
+	const auto bg = wrap->lifetime().make_state<Ui::RoundRect>(
+		st::walletDetailsTable.radius,
+		st::windowBg);
+	wrap->paintRequest() | rpl::on_next([=] {
+		auto p = QPainter(wrap);
+		bg->paint(p, wrap->rect());
+	}, wrap->lifetime());
+	const auto table = wrap->entity();
 	if (!item.counterparty.hash.isEmpty()) {
 		const auto address = Gram::FormatFriendly(item.counterparty, true);
 		Ui::AddTableRow(
@@ -959,10 +971,15 @@ void WalletTransactionBox(
 		not_null<Main::Session*> session,
 		Gram::TransferItem item) {
 	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::giveawayGiftCodeBox);
+	box->setStyle(st::walletDetailsBox);
 	box->setNoContentMargin(true);
+	box->setTitle(tr::lng_wallet_details_title());
 
-	AddDetailsAmountHeader(box, item, FiatRateValue(session));
+	AddDetailsAmountHeader(
+		box,
+		item,
+		st::walletDetailsAmountTopSkip,
+		FiatRateValue(session));
 	AddDetailsComment(box, item);
 	AddDetailsTable(box, session, item);
 
@@ -1111,12 +1128,15 @@ void WalletSendConfirmBox(
 	item.incoming = false;
 	item.amountNano = flow.amountNano;
 	item.status = Gram::TransferItem::Status::Success;
-	AddDetailsAmountHeader(box, item);
+	AddDetailsAmountHeader(
+		box,
+		item,
+		st::boxTitleHeight + st::walletDetailsAmountTopSkip);
 
 	const auto table = box->addRow(
 		object_ptr<Ui::TableLayout>(
 			box,
-			st::giveawayGiftCodeTable),
+			st::walletDetailsTable),
 		st::giveawayGiftCodeTableMargin);
 	Ui::AddTableRow(
 		table,
@@ -1566,7 +1586,8 @@ void WalletSendAmountBox(
 			commentInner,
 			state->comment.value() | rpl::filter([](const QString &text) {
 				return !text.isEmpty();
-			})),
+			}),
+			st::windowBgOver),
 		st::boxRowPadding,
 		style::al_top);
 	bubble->entity()->setAttribute(Qt::WA_TransparentForMouseEvents);
