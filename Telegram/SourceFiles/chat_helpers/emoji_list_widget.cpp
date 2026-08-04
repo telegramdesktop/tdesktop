@@ -1994,7 +1994,7 @@ base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
 	auto menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		(_mode == Mode::Full
-			? st::popupMenuWithIcons
+			? st().menu
 			: st::defaultPopupMenu));
 	if (_mode == Mode::Full) {
 		fillRecentMenu(menu, section, index);
@@ -2034,19 +2034,19 @@ void EmojiListWidget::fillRecentMenu(
 			});
 			addAction(tr::lng_emoji_copy(tr::now), [=] {
 				TextUtilities::SetClipboardText(data);
-			}, &st::menuIconCopy);
+			}, &st().icons.menuEmojiCopy);
 		}
 		if (recent && setId && _features.openStickerSets) {
 			addAction(
 				tr::lng_emoji_view_pack(tr::now),
 				crl::guard(this, [=] { displaySet(document); }),
-				&st::menuIconShowAll);
+				&st().icons.menuEmojiViewPack);
 		}
 	} else if (recent && emoji) {
 		addAction(tr::lng_emoji_copy(tr::now), [=] {
 			const auto text = emoji->text();
 			TextUtilities::SetClipboardText({ text, { text } });
-		}, &st::menuIconCopy);
+		}, &st().icons.menuEmojiCopy);
 	}
 	if (!recent) {
 		return;
@@ -2061,7 +2061,7 @@ void EmojiListWidget::fillRecentMenu(
 	addAction(tr::lng_emoji_remove_recent(tr::now), crl::guard(this, [=] {
 		Core::App().settings().hideRecentEmoji(id);
 		refreshRecent();
-	}), &st::menuIconCancel);
+	}), &st().icons.menuEmojiRemoveRecent);
 
 	menu->addSeparator(&st().expandedSeparator);
 
@@ -2122,7 +2122,8 @@ base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillSetContextMenu(
 		_localSetsManager.get(),
 		crl::guard(this, [this](uint64 id) { removeSet(id); }),
 		crl::guard(this, [this] { update(); }),
-		st::popupMenuWithIcons);
+		st().menu,
+		st().icons);
 }
 
 void EmojiListWidget::paintEvent(QPaintEvent *e) {

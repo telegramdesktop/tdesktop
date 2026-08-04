@@ -2645,7 +2645,8 @@ base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillSetContextMenu(
 		_localSetsManager.get(),
 		crl::guard(this, [this](uint64 id) { removeSet(id); }),
 		crl::guard(this, [this] { update(); }),
-		st().menu);
+		st().menu,
+		st().icons);
 }
 
 base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
@@ -2655,7 +2656,8 @@ base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
 		not_null<LocalStickersManager*> localSetsManager,
 		Fn<void(uint64 setId)> remove,
 		Fn<void()> repaint,
-		const style::PopupMenu &menuSt) {
+		const style::PopupMenu &menuSt,
+		const style::ComposeIcons &icons) {
 	if (set->shortName.isEmpty()
 		|| (set->id == Data::Stickers::MegagroupSetId)
 		|| (set->id == Data::Stickers::CollectibleSetId)) {
@@ -2700,12 +2702,12 @@ base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
 					repaint();
 				}
 			},
-			&st::menuIconAdd);
+			&icons.menuSetAdd);
 	}
 	menu->addAction(
 		tr::lng_chat_link_share(tr::now),
 		[=] { FastShareLink(show, url); },
-		&st::menuIconShare);
+		&icons.menuSetShare);
 	menu->addAction(
 		tr::lng_context_copy_link(tr::now),
 		[=] {
@@ -2718,13 +2720,13 @@ base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
 				.iconLottieSize = st::toastLottieIconSize,
 			});
 		},
-		&st::menuIconLink);
+		&icons.menuSetCopyLink);
 	if (installed) {
 		menu->addSeparator();
 		menu->addAction(
 			tr::lng_stickers_remove_pack_confirm(tr::now),
 			[=] { remove(setId); },
-			&st::menuIconDelete);
+			&icons.menuSetRemove);
 	}
 	return menu;
 }

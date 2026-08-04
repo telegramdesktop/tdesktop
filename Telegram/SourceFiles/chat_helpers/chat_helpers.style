@@ -67,6 +67,13 @@ ComposeIcons {
 	menuGifAdd: icon;
 	menuGifRemove: icon;
 	menuGifCaption: icon;
+	menuSetAdd: icon;
+	menuSetShare: icon;
+	menuSetCopyLink: icon;
+	menuSetRemove: icon;
+	menuEmojiCopy: icon;
+	menuEmojiViewPack: icon;
+	menuEmojiRemoveRecent: icon;
 	menuMute: icon;
 	menuSchedule: icon;
 	menuWhenOnline: icon;
@@ -688,6 +695,13 @@ defaultComposeIcons: ComposeIcons {
 	menuGifAdd: menuIconGif;
 	menuGifRemove: menuIconDelete;
 	menuGifCaption: menuIconEdit;
+	menuSetAdd: menuIconAdd;
+	menuSetShare: menuIconShare;
+	menuSetCopyLink: menuIconLink;
+	menuSetRemove: menuIconDelete;
+	menuEmojiCopy: menuIconCopy;
+	menuEmojiViewPack: menuIconShowAll;
+	menuEmojiRemoveRecent: menuIconCancel;
 	menuMute: menuIconMute;
 	menuSchedule: menuIconSchedule;
 	menuWhenOnline: menuIconWhenOnline;
