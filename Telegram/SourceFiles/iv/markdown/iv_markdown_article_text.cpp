@@ -858,6 +858,16 @@ struct InlineButtonLabelCodePoint {
 		: Qt::LayoutDirectionAuto;
 }
 
+[[nodiscard]] bool InlineButtonLabelCharKept(
+		QChar ch,
+		InlineButtonLabelCodePoint point) {
+	return !Ui::Text::IsBad(ch)
+		&& !Ui::Text::IsDiacritic(ch)
+		&& ((point.length == 2)
+			? (point.ucs4 < 0xE0000)
+			: !QChar::isSurrogate(point.ucs4));
+}
+
 [[nodiscard]] int InlineButtonLabelStrongCut(
 		const TextWithEntities &label,
 		int cut) {
@@ -970,7 +980,9 @@ struct InlineButtonLabelCodePoint {
 	return result;
 }
 
-[[nodiscard]] int InlineButtonLabelSpanKeep(QStringView span) {
+[[nodiscard]] int InlineButtonLabelSpanKeep(
+		QStringView span,
+		bool trimmableEnd) {
 	// The text engine draws a CustomEmoji entity as one object of one width
 	// whatever it covers, and BidiAlgorithm::infoAt reads every covered
 	// character as an object replacement character, so the covered text
@@ -980,26 +992,37 @@ struct InlineButtonLabelCodePoint {
 	// so the first one of strong direction still resolves the paragraph
 	// direction. Keep the span's own text through both, and keep all of it
 	// when a character of strong direction is one the parser may skip.
+	// A kept prefix may end on a trimmable parsed character only when the
+	// caller has proven the parser's trailing trim cannot reach it — a
+	// character the parser keeps and does not trim survives after the span
+	// in the spliced label, and BlockParser::trimSourceRange moves only the
+	// two ends of the string it is handed — which is what `trimmableEnd`
+	// asserts. A span with no parsed character at all still yields 0
+	// whatever the caller proved: keeping a character the parser skips
+	// would invent an object where none exists.
 	const auto size = int(span.size());
 	auto keepable = 0;
+	auto trimmable = 0;
 	auto i = 0;
 	while (i != size) {
 		const auto ch = span.at(i);
 		const auto point = InlineButtonLabelCodePointAt(span, i);
-		const auto kept = !Ui::Text::IsBad(ch)
-			&& !Ui::Text::IsDiacritic(ch)
-			&& ((point.length == 2)
-				? (point.ucs4 < 0xE0000)
-				: !QChar::isSurrogate(point.ucs4));
+		const auto kept = InlineButtonLabelCharKept(ch, point);
 		const auto strong = InlineButtonLabelStrongDirection(point.ucs4);
 		if (strong != Qt::LayoutDirectionAuto) {
 			return kept ? (i + point.length) : 0;
 		} else if (!keepable && kept && !Ui::Text::IsTrimmed(ch)) {
 			keepable = i + point.length;
+		} else if (!trimmable && kept) {
+			trimmable = i + point.length;
 		}
 		i += point.length;
 	}
-	return keepable;
+	return keepable
+		? keepable
+		: trimmableEnd
+		? trimmable
+		: 0;
 }
 
 [[nodiscard]] bool InlineButtonLabelEmojiCrosses(
@@ -1031,6 +1054,13 @@ struct InlineButtonLabelCodePoint {
 		return true;
 	});
 	return crosses;
+}
+
+[[nodiscard]] bool InlineButtonLabelSpanCandidate(
+		const EntityInText &entity) {
+	return (entity.type() == EntityType::CustomEmoji)
+		&& (entity.length() > kInlineButtonLabelProbeStart)
+		&& !entity.data().isEmpty();
 }
 
 [[nodiscard]] std::vector<int> InlineButtonLabelEntityOrder(
@@ -1076,6 +1106,55 @@ struct InlineButtonLabelCodePoint {
 	return result;
 }
 
+[[nodiscard]] int InlineButtonLabelLastSolid(
+		const TextWithEntities &label,
+		const std::vector<int> &order) {
+	// A kept trimmable span end is safe only while the parser's trailing
+	// trim cannot reach it, and trimSourceRange moves only the two ends of
+	// the string it is handed — so the end is safe exactly when a character
+	// the parser keeps and does not trim survives after the span in the
+	// spliced label. The witness is searched only in text no planned cut
+	// can remove: outside every candidate span, because a later candidate's
+	// own cut may drop any character inside it, and outside every
+	// FormattedDate entity, whose source text the parser replaces wholesale
+	// so nothing inside one may be read. Text between spans and in
+	// non-candidate entities survives the splice verbatim, which is what
+	// makes the answer valid for the spliced label while it is computed
+	// over the original one. `order` is the entity indices in offset order.
+	const auto text = QStringView(label.text);
+	const auto size = int(text.size());
+	auto entity = order.begin();
+	const auto end = order.end();
+	auto skipTill = 0;
+	auto last = -1;
+	auto i = 0;
+	while (i < size) {
+		while ((entity != end)
+			&& (label.entities[*entity].offset() <= i)) {
+			const auto &excluded = label.entities[*entity];
+			if ((excluded.type() == EntityType::FormattedDate)
+				|| InlineButtonLabelSpanCandidate(excluded)) {
+				skipTill = std::max(
+					skipTill,
+					excluded.offset() + excluded.length());
+			}
+			++entity;
+		}
+		if (i < skipTill) {
+			i = skipTill;
+			continue;
+		}
+		const auto ch = text.at(i);
+		const auto point = InlineButtonLabelCodePointAt(text, i);
+		if (InlineButtonLabelCharKept(ch, point)
+			&& !Ui::Text::IsTrimmed(ch)) {
+			last = i;
+		}
+		i += point.length;
+	}
+	return last;
+}
+
 struct InlineButtonLabelSpanCut {
 	int index = 0;
 	int offset = 0;
@@ -1115,23 +1194,25 @@ struct InlineButtonLabelSpanCut {
 	// label font's height, so they do not scale together: 448 > 408 at 100 %
 	// and 640 > 612 at 150 %. Where it does not hold, under a small markdown
 	// text style, the only effect is that a label is declined which the
-	// search could have bounded, which is the shipped behaviour.
+	// search could have bounded, which is the shipped behaviour. A span
+	// whose every parsed character is trimmable is admitted with its first
+	// parsed character kept only when a witness — a character the parser
+	// keeps and does not trim, in text no planned cut can remove — survives
+	// after the span in the spliced label (see InlineButtonLabelLastSolid).
 	const auto &entities = label.entities;
-	const auto candidate = [](const EntityInText &entity) {
-		return (entity.type() == EntityType::CustomEmoji)
-			&& (entity.length() > kInlineButtonLabelProbeStart)
-			&& !entity.data().isEmpty();
-	};
-	const auto candidates = ranges::count_if(entities, candidate);
+	const auto candidates = ranges::count_if(
+		entities,
+		InlineButtonLabelSpanCandidate);
 	if (!candidates || (candidates > kInlineButtonLabelSpanCutsMax)) {
 		return label;
 	}
 	const auto order = InlineButtonLabelEntityOrder(entities);
 	const auto intersected = InlineButtonLabelIntersected(entities, order);
+	const auto lastSolid = InlineButtonLabelLastSolid(label, order);
 	auto cuts = std::vector<InlineButtonLabelSpanCut>();
 	for (const auto i : order) {
 		const auto &entity = entities[i];
-		if (!candidate(entity)) {
+		if (!InlineButtonLabelSpanCandidate(entity)) {
 			continue;
 		} else if (intersected[i]) {
 			return label;
@@ -1139,7 +1220,8 @@ struct InlineButtonLabelSpanCut {
 		const auto offset = entity.offset();
 		const auto length = entity.length();
 		const auto keep = InlineButtonLabelSpanKeep(
-			QStringView(label.text).mid(offset, length));
+			QStringView(label.text).mid(offset, length),
+			lastSolid >= offset + length);
 		if (!keep
 			|| (keep > kInlineButtonLabelProbeStart)
 			|| !Ui::Text::MakeCustomEmoji(entity.data(), context)) {
@@ -1221,6 +1303,14 @@ struct InlineButtonLabelSpanCut {
 	// render like the shipped build, on either exit, is a span running into
 	// the parser's 32 768-character cap: the text behind it that the capped
 	// parse never reached becomes visible, and the pill grows to fit it.
+	// A probe cut snapped to a shortened span's end can leave the span's
+	// kept trimmable character last in the probe's string, where the
+	// parser's trailing trim eats it and drops the object from that probe.
+	// That only lowers the probe's measured width, so the search runs a
+	// probe longer, never shorter, and the accepted prefix stays
+	// pixel-identical to the whole-label build: the dropped object lies
+	// past everything the renderer reaches, behind the first half that
+	// already measured wider than the pill can draw.
 	const auto nested = InlineButtonLabelContext(context, emojiSize);
 	const auto shortened = ShortenInlineButtonLabelSpans(label, nested);
 	const auto available = std::max(widthCap, 1);
