@@ -695,6 +695,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		menuRecentRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
 		menuGifAdd: icon {{ "menu/gif", storiesComposeWhiteText }};
 		menuGifRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
+		menuGifCaption: icon {{ "menu/edit", storiesComposeWhiteText }};
 		menuMute: icon {{ "menu/mute", storiesComposeWhiteText }};
 		menuSchedule: icon {{ "menu/calendar", storiesComposeWhiteText }};
 		menuWhenOnline: icon {{ "menu/send_when_online", storiesComposeWhiteText }};

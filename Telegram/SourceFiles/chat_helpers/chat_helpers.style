@@ -66,6 +66,7 @@ ComposeIcons {
 	menuRecentRemove: icon;
 	menuGifAdd: icon;
 	menuGifRemove: icon;
+	menuGifCaption: icon;
 	menuMute: icon;
 	menuSchedule: icon;
 	menuWhenOnline: icon;
@@ -686,6 +687,7 @@ defaultComposeIcons: ComposeIcons {
 	menuRecentRemove: menuIconDelete;
 	menuGifAdd: menuIconGif;
 	menuGifRemove: menuIconDelete;
+	menuGifCaption: menuIconEdit;
 	menuMute: menuIconMute;
 	menuSchedule: menuIconSchedule;
 	menuWhenOnline: menuIconWhenOnline;
