@@ -546,7 +546,7 @@ bool IvHistoryViewBlock::acceptsVoiceSeekHandler(
 	return _supported
 		&& _media
 		&& alive()
-		&& (_kind == IvHistoryViewMediaKind::DocumentRow)
+		&& (_kind == IvHistoryViewMediaKind::Audio)
 		&& std::dynamic_pointer_cast<VoiceSeekClickHandler>(handler);
 }
 
