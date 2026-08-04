@@ -120,7 +120,7 @@ walletRowAmountMinorLabel: FlatLabel(walletRowAmountMajorLabel) {
 }
 walletRowAmountMinorSkip: 0px;
 walletRowMarkSize: 15px;
-walletRowIconMargin: margins(5px, 0px, 0px, 0px);
+walletRowIconMargin: margins(5px, 3px, 0px, 0px);
 walletRowsHintHeight: 44px;
 
 walletDetailsAmountMajorLabel: FlatLabel(defaultFlatLabel) {
