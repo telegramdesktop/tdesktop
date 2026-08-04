@@ -430,6 +430,7 @@ StickersBox::StickersBox(
 , _featured(_isMasks ? Tab() : Tab(1, this, _show, Section::Featured))
 , _archived((_isMasks ? 1 : 2), this, _show, Section::Archived) {
 	_tabs->setRippleTopRoundRadius(st::boxRadius);
+	_tabs->setAccessibleName(tr::lng_switch_stickers(tr::now));
 }
 
 StickersBox::StickersBox(

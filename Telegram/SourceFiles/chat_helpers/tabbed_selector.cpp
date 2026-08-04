@@ -1237,6 +1237,9 @@ void TabbedSelector::setAllowEmojiWithoutPremium(bool allow) {
 
 void TabbedSelector::createTabsSlider() {
 	_tabsSlider.create(this, _st.tabs);
+	_tabsSlider->setAccessibleName(full()
+		? tr::lng_emoji_panel_tabs(tr::now)
+		: tr::lng_settings_stickers_emoji(tr::now));
 
 	fillTabsSliderSections();
 

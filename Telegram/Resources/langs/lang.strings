@@ -756,6 +756,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_attach" = "Add attachment";
 "lng_attach_replace" = "Replace attachment";
 "lng_emoji_sticker_gif" = "Choose emoji, sticker or gif";
+"lng_emoji_panel_tabs" = "Emoji, stickers and GIFs";
 "lng_bot_keyboard_show" = "Show bot keyboard";
 "lng_bot_keyboard_hide" = "Hide bot keyboard";
 "lng_bot_commands_start" = "Bot commands start";
@@ -8459,6 +8460,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sr_bot_verified_badge" = "Verified Bot";
 "lng_sr_profile_menu" = "Profile menu";
 "lng_sr_close_panel" = "Close panel";
+"lng_sr_message_options" = "Message options";
 
 "lng_ai_compose_title" = "AI Editor";
 "lng_ai_compose_apply" = "Apply";

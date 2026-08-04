@@ -464,6 +464,7 @@ void InnerWidget::fill() {
 				object_ptr<Ui::CustomWidthSlider>(
 					inner,
 					st::dialogsSearchTabs)));
+		slider->entity()->setAccessibleName(tr::lng_boosts_title(tr::now));
 		if (!hasOneTab) {
 			const auto shadow = Ui::CreateChild<Ui::PlainShadow>(inner);
 			shadow->show();
