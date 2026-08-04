@@ -609,6 +609,7 @@ Fn<SendMenu::Details()> ReplyArea::sendMenuDetails() const {
 			.commentPriceMin = (call
 				? uint64(call->canManage() ? call->messagesMinPrice() : 0)
 				: std::optional<uint64>()),
+			.effectsPan = &st::storiesReactionsPan,
 			.effectAllowed = (!_data.videoStream
 				&& _data.peer
 				&& _data.peer->isUser()),

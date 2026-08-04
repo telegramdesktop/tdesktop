@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/text/text_entity.h"
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace SendMenu {
 
 enum class Type : uchar {
@@ -49,6 +53,7 @@ struct Details {
 	QString commentStreamerName;
 	std::optional<uint64> price;
 	std::optional<uint64> commentPriceMin;
+	const style::EmojiPan *effectsPan = nullptr;
 	bool effectAllowed = false;
 };
 
