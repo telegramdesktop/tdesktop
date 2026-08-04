@@ -141,7 +141,9 @@ private:
 
 	[[nodiscard]] bool rootChatsListBar() const;
 	[[nodiscard]] bool communityChatsListBar() const;
+	[[nodiscard]] bool communityUserpicShown() const;
 	void refreshInfoButton();
+	void updateInfoButtonVisibility();
 	void refreshLang();
 	void updateSearchVisibility();
 	void updateSearchJumpToDateVisibility();

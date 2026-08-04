@@ -1028,10 +1028,18 @@ bool TopBarWidget::communityChatsListBar() const {
 	return channel && channel->isCommunity();
 }
 
+bool TopBarWidget::communityUserpicShown() const {
+	if (_narrowRatio > 0.) {
+		return false;
+	}
+	return true;
+}
+
 void TopBarWidget::refreshInfoButton() {
 	if (_activeChat.key.topic()
 		|| (_activeChat.section == Section::ChatsList
-			&& !rootChatsListBar())) {
+			&& !rootChatsListBar()
+			&& !communityChatsListBar())) {
 		_info.destroy();
 	} else if (const auto peer = _activeChat.key.peer()) {
 		const auto sublist = _activeChat.key.sublist();
@@ -1081,6 +1089,16 @@ void TopBarWidget::updateSearchVisibility() {
 		|| (_activeChat.section == Section::SavedSublist
 			&& _activeChat.key.sublist());
 	_search->setVisible(searchAllowedMode && !_chooseForReportReason);
+}
+
+void TopBarWidget::updateInfoButtonVisibility() {
+	if (!_info) {
+		return;
+	}
+	const auto shown = (communityChatsListBar() && !rootChatsListBar())
+		? communityUserpicShown()
+		: (_controller->adaptive().isOneColumn() || !_primaryWindow);
+	_info->setVisible(!_chooseForReportReason && shown);
 }
 
 void TopBarWidget::updateControlsGeometry() {
@@ -1280,10 +1298,7 @@ void TopBarWidget::updateControlsVisibility() {
 			|| !_controller->content()->stackIsEmpty());
 	_back->setVisible(backVisible && !_chooseForReportReason);
 	_cancelChoose->setVisible(_chooseForReportReason.has_value());
-	if (_info) {
-		_info->setVisible(!_chooseForReportReason
-			&& (isOneColumn || !_primaryWindow));
-	}
+	updateInfoButtonVisibility();
 	if (_unreadBadge) {
 		_unreadBadge->setVisible(!_chooseForReportReason
 			&& !rootChatsListBar());
