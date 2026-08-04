@@ -139,6 +139,7 @@ constexpr auto kMaxCellLength = 4096;
 		TextUtilities::HtmlBlock block) {
 	using Kind = TextUtilities::HtmlBlockKind;
 	auto result = RichPage::Block();
+	result.anchorId = std::move(block.anchorId);
 	switch (block.kind) {
 	case Kind::Paragraph:
 		result.kind = RichPage::BlockKind::Paragraph;
@@ -157,6 +158,7 @@ constexpr auto kMaxCellLength = 4096;
 		result.kind = RichPage::BlockKind::Quote;
 		result.pullquote = (block.kind == Kind::Pullquote);
 		result.text.text = ConvertImportedText(std::move(block.text));
+		result.caption.text = ConvertImportedText(std::move(block.caption));
 		result.blocks = ConvertImportedBlocks(std::move(block.children));
 		break;
 	case Kind::Code:
@@ -190,6 +192,7 @@ constexpr auto kMaxCellLength = 4096;
 			converted.number = RichPage::OrderedListItemData{
 				.value = item.value,
 			};
+			converted.anchorId = std::move(item.anchorId);
 			converted.text.text = ConvertImportedText(std::move(item.text));
 			converted.blocks = ConvertImportedBlocks(std::move(item.blocks));
 			result.listItems.push_back(std::move(converted));
