@@ -52,6 +52,8 @@ constexpr auto kIvMarkedTextOptionsRtl = TextParseOptions{
 };
 
 constexpr auto kInlineButtonLabelProbeStart = 32;
+constexpr auto kInlineButtonLabelSpanCutsMax
+	= 2 * kInlineButtonLabelProbeStart;
 
 struct PreparedLinkExternalData {
 	ClickHandler::TextEntity entity;
@@ -760,37 +762,96 @@ void ActivateInlineButton(QStringView data, ClickContext context) {
 	return u"iv-markdown:inline-button-emoji:"_q;
 }
 
-[[nodiscard]] TextWithEntities MarkInlineButtonPlainEmoji(
-		TextWithEntities label) {
-	const auto till = [](const EntityInText &entity) {
-		return entity.offset() + entity.length();
-	};
-	const auto start = label.text.constData();
-	const auto finish = start + label.text.size();
-	auto i = label.entities.begin();
+// MarkInlineButtonPlainEmoji marks the plain emoji of a label, and
+// InlineButtonLabelEmojiCrosses answers whether a planned removal can change
+// what it marks; the guard is sound only while it visits exactly the positions
+// the marking walk lands on, so the two share one traversal rather than two
+// look-alike loops that can drift. Both details below are load-bearing: `ch`
+// moves past the whole match before the callback runs, so a callback that
+// declines the match still leaves the walk past it, and a miss advances by one
+// code unit rather than by one code point.
+template <typename Callback>
+void EnumerateInlineButtonLabelEmoji(
+		const QString &text,
+		Callback &&callback) {
+	const auto start = text.constData();
+	const auto finish = start + text.size();
 	auto ch = start;
 	while (ch != finish) {
-		auto emojiLength = 0;
-		const auto emoji = Ui::Emoji::Find(ch, finish, &emojiLength);
+		auto length = 0;
+		const auto emoji = Ui::Emoji::Find(ch, finish, &length);
 		if (!emoji) {
 			++ch;
 			continue;
 		}
 		const auto from = int(ch - start);
+		ch += length;
+		if (!callback(from, length, emoji)) {
+			return;
+		}
+	}
+}
+
+[[nodiscard]] TextWithEntities MarkInlineButtonPlainEmoji(
+		TextWithEntities label) {
+	const auto till = [](const EntityInText &entity) {
+		return entity.offset() + entity.length();
+	};
+	auto i = label.entities.begin();
+	EnumerateInlineButtonLabelEmoji(label.text, [&](
+			int from,
+			int length,
+			EmojiPtr emoji) {
 		while (i != label.entities.end() && till(*i) <= from) {
 			++i;
 		}
-		ch += emojiLength;
-		if (i != label.entities.end() && i->offset() < from + emojiLength) {
-			continue;
+		if (i != label.entities.end() && i->offset() < from + length) {
+			return true;
 		}
 		i = label.entities.insert(i, EntityInText(
 			EntityType::CustomEmoji,
 			from,
-			emojiLength,
+			length,
 			InlineButtonPlainEmojiPrefix() + emoji->text()));
-	}
+		return true;
+	});
 	return label;
+}
+
+struct InlineButtonLabelCodePoint {
+	uint ucs4 = 0;
+	int length = 1;
+};
+
+// InlineButtonLabelStrongCut and InlineButtonLabelSpanKeep have to agree on
+// which character is the first strong one: the scan keeps a span's prefix
+// through its own first strong character precisely so that StringDirection
+// and the strong cut still find that same character over the shortened label.
+// Two look-alike decode loops can drift apart; one shared pair cannot.
+[[nodiscard]] InlineButtonLabelCodePoint InlineButtonLabelCodePointAt(
+		QStringView text,
+		int i) {
+	auto result = InlineButtonLabelCodePoint{
+		.ucs4 = uint(text.at(i).unicode()),
+	};
+	if (QChar::isHighSurrogate(result.ucs4) && (i + 1 < int(text.size()))) {
+		const auto low = text.at(i + 1).unicode();
+		if (QChar::isLowSurrogate(low)) {
+			result.ucs4 = QChar::surrogateToUcs4(result.ucs4, low);
+			result.length = 2;
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] Qt::LayoutDirection InlineButtonLabelStrongDirection(
+		uint ucs4) {
+	const auto direction = QChar::direction(ucs4);
+	return (direction == QChar::DirL)
+		? Qt::LeftToRight
+		: (direction == QChar::DirR || direction == QChar::DirAL)
+		? Qt::RightToLeft
+		: Qt::LayoutDirectionAuto;
 }
 
 [[nodiscard]] int InlineButtonLabelStrongCut(
@@ -825,27 +886,14 @@ void ActivateInlineButton(QStringView data, ClickContext context) {
 		if (ch.unicode() == QChar::LineFeed) {
 			return cut;
 		}
-		auto ucs4 = uint(ch.unicode());
-		auto length = 1;
-		if (QChar::isHighSurrogate(ucs4) && (i + 1 < size)) {
-			const auto low = text.at(i + 1).unicode();
-			if (QChar::isLowSurrogate(low)) {
-				ucs4 = QChar::surrogateToUcs4(ucs4, low);
-				length = 2;
-			}
-		}
-		const auto direction = QChar::direction(ucs4);
-		const auto strong = (direction == QChar::DirL)
-			? Qt::LeftToRight
-			: (direction == QChar::DirR || direction == QChar::DirAL)
-			? Qt::RightToLeft
-			: Qt::LayoutDirectionAuto;
+		const auto point = InlineButtonLabelCodePointAt(text, i);
+		const auto strong = InlineButtonLabelStrongDirection(point.ucs4);
 		if (strong != Qt::LayoutDirectionAuto) {
 			return (strong == style::LayoutDirection())
 				? cut
-				: std::max(cut, i + length);
+				: std::max(cut, i + point.length);
 		}
-		i += length;
+		i += point.length;
 	}
 	return cut;
 }
@@ -861,10 +909,15 @@ void ActivateInlineButton(QStringView data, ClickContext context) {
 	// Ui::Text::Mid truncates an entity that straddles the range end instead
 	// of dropping it, so a CustomEmoji or FormattedDate entity that starts
 	// inside the drawn region and ends past the cut would be rewritten and
-	// would change visible glyphs; the cut moves past its end instead. One
-	// forward pass is enough because the entity list is ordered by offset,
-	// which MarkInlineButtonPlainEmoji above already relies on when it walks
-	// label.entities with a single forward iterator.
+	// would change visible glyphs; the cut moves past its end instead. The
+	// list is not ordered by offset and this one forward pass does not need
+	// it to be. What it needs is that no two entities partially overlap, and
+	// the producers nest them: AddEntity in iv_rich_page.cpp pushes a
+	// container after the entities it encloses, so an entry with an earlier
+	// offset than one before it is one that contains it and reaches at least
+	// as far. Moving the cut can therefore never expose an entity the pass
+	// already walked past — a textDate around a textCustomEmoji is the shape
+	// that is handled, not one that is missed.
 	for (const auto &entity : label.entities) {
 		const auto till = entity.offset() + entity.length();
 		if ((entity.offset() < result) && (till > result)) {
@@ -874,13 +927,11 @@ void ActivateInlineButton(QStringView data, ClickContext context) {
 	return std::min(result, size);
 }
 
-[[nodiscard]] Ui::Text::String MakeInlineButtonLabel(
-		const TextWithEntities &label,
-		const style::TextStyle &labelStyle,
+[[nodiscard]] Ui::Text::MarkedContext InlineButtonLabelContext(
 		const Ui::Text::MarkedContext &context,
 		int emojiSize) {
-	auto nested = context;
-	nested.customEmojiFactory = [
+	auto result = context;
+	result.customEmojiFactory = [
 		parent = context.customEmojiFactory,
 		emojiSize
 	](
@@ -899,13 +950,246 @@ void ActivateInlineButton(QStringView data, ClickContext context) {
 			parent ? parent(data, context) : nullptr,
 			emojiSize);
 	};
+	return result;
+}
+
+[[nodiscard]] Ui::Text::String MakeInlineButtonLabel(
+		const TextWithEntities &label,
+		const style::TextStyle &labelStyle,
+		const Ui::Text::MarkedContext &context) {
 	auto result = Ui::Text::String();
 	result.setMarkedText(
 		labelStyle,
 		MarkInlineButtonPlainEmoji(label),
 		kIvMarkedTextOptions,
-		nested);
+		context);
 	return result;
+}
+
+[[nodiscard]] int InlineButtonLabelSpanKeep(QStringView span) {
+	// The text engine draws a CustomEmoji entity as one object of one width
+	// whatever it covers, and BidiAlgorithm::infoAt reads every covered
+	// character as an object replacement character, so the covered text
+	// contributes no glyph, no advance and no direction. It does decide two
+	// other things: BlockParser::createBlock emits the block only if it kept
+	// at least one of those characters, and StringDirection reads them raw,
+	// so the first one of strong direction still resolves the paragraph
+	// direction. Keep the span's own text through both, and keep all of it
+	// when a character of strong direction is one the parser may skip.
+	const auto size = int(span.size());
+	auto keepable = 0;
+	auto i = 0;
+	while (i != size) {
+		const auto ch = span.at(i);
+		const auto point = InlineButtonLabelCodePointAt(span, i);
+		const auto kept = !Ui::Text::IsBad(ch)
+			&& !Ui::Text::IsDiacritic(ch)
+			&& ((point.length == 2)
+				? (point.ucs4 < 0xE0000)
+				: !QChar::isSurrogate(point.ucs4));
+		const auto strong = InlineButtonLabelStrongDirection(point.ucs4);
+		if (strong != Qt::LayoutDirectionAuto) {
+			return kept ? (i + point.length) : 0;
+		} else if (!keepable && kept && !Ui::Text::IsTrimmed(ch)) {
+			keepable = i + point.length;
+		}
+		i += point.length;
+	}
+	return keepable;
+}
+
+[[nodiscard]] bool InlineButtonLabelEmojiCrosses(
+		const QString &text,
+		const std::vector<int> &borders) {
+	// MarkInlineButtonPlainEmoji walks the label left to right and asks
+	// Ui::Emoji::Find at every position it lands on, so removing text can
+	// change what it marks only by carrying that walk over one of the
+	// positions the removal joins: a match starting before such a position
+	// and ending after it hides the emoji behind it from the walk, or stops
+	// hiding one. Running the very same walk here — over the label before the
+	// removal against both ends of every planned cut, and over the spliced
+	// text against every seam — answers that at every position the real walk
+	// can reach, so no match crosses undetected, including one that starts
+	// before the span. `borders` is ascending.
+	auto border = borders.begin();
+	auto crosses = false;
+	EnumerateInlineButtonLabelEmoji(text, [&](
+			int from,
+			int length,
+			EmojiPtr) {
+		while ((border != borders.end()) && (*border <= from)) {
+			++border;
+		}
+		if ((border != borders.end()) && (*border < from + length)) {
+			crosses = true;
+			return false;
+		}
+		return true;
+	});
+	return crosses;
+}
+
+[[nodiscard]] std::vector<int> InlineButtonLabelEntityOrder(
+		const EntitiesInText &entities) {
+	auto result = std::vector<int>(entities.size());
+	for (auto i = 0, count = int(result.size()); i != count; ++i) {
+		result[i] = i;
+	}
+	ranges::sort(result, ranges::less(), [&](int i) {
+		return entities[i].offset();
+	});
+	return result;
+}
+
+[[nodiscard]] std::vector<bool> InlineButtonLabelIntersected(
+		const EntitiesInText &entities,
+		const std::vector<int> &order) {
+	// A candidate may be shortened only when no other entity overlaps it, and
+	// the list is not ordered by offset (see InlineButtonLabelCut), so the
+	// test cannot look at neighbours only. Asking it one candidate at a time
+	// is quadratic in a label the sender sizes; two sweeps in offset order
+	// answer it for the whole list at once. An entity is overlapped when one
+	// before it in that order reaches past its start, or one after it starts
+	// before its end.
+	const auto count = int(order.size());
+	auto result = std::vector<bool>(count, false);
+	auto reached = std::numeric_limits<int>::min();
+	for (auto i = 0; i != count; ++i) {
+		const auto &entity = entities[order[i]];
+		if (entity.offset() < reached) {
+			result[order[i]] = true;
+		}
+		reached = std::max(reached, entity.offset() + entity.length());
+	}
+	auto nearest = std::numeric_limits<int>::max();
+	for (auto i = count; i != 0;) {
+		const auto &entity = entities[order[--i]];
+		if (nearest < entity.offset() + entity.length()) {
+			result[order[i]] = true;
+		}
+		nearest = std::min(nearest, entity.offset());
+	}
+	return result;
+}
+
+struct InlineButtonLabelSpanCut {
+	int index = 0;
+	int offset = 0;
+	int keep = 0;
+	int length = 0;
+};
+
+[[nodiscard]] TextWithEntities ShortenInlineButtonLabelSpans(
+		TextWithEntities label,
+		const Ui::Text::MarkedContext &context) {
+	// This walk runs for every label, before any search, so the candidate
+	// count is what keeps an ordinary one out of it. A span of at most
+	// kInlineButtonLabelProbeStart characters is never a candidate: it cannot
+	// be what leaves the prefix search unbounded, because an accepted prefix
+	// carries at most `available / emojiSize` objects, so a label whose every
+	// span is that short is bounded by width exactly as in the shipped build.
+	// The rewrite is all or nothing over the candidates themselves and not
+	// only over how many there are: the whole label is declined as soon as
+	// one candidate cannot be brought under kInlineButtonLabelProbeStart
+	// characters, and declined again past kInlineButtonLabelSpanCutsMax of
+	// them. A span left whole absorbs the search that the shortened ones
+	// before it no longer trip — every character removed ahead of it pulls it
+	// under a probe that used to land in front of it, and the straddle snap
+	// then jumps to its end. So either every CustomEmoji entity carrying data
+	// in the label the search is handed covers at most
+	// kInlineButtonLabelProbeStart characters, or that label reaches the
+	// search exactly as the shipped build hands it and no input is made worse
+	// than it is today. The count cap is 2 * kInlineButtonLabelProbeStart
+	// because a shortened span draws as one object, so a prefix holding k of
+	// them measures at least k * emojiSize, kInlineButtonLabelProbeStart *
+	// emojiSize is already more than the pill can ever draw, and probe
+	// lengths start at kInlineButtonLabelProbeStart and double while the
+	// search accepts the second prefix wider than the cap, so a prefix made
+	// of shortened spans is accepted at twice that many of them at the
+	// latest. That inequality is checked per scale rather than guaranteed by
+	// construction — the cap is a .style pixel while emojiSize follows the
+	// label font's height, so they do not scale together: 448 > 408 at 100 %
+	// and 640 > 612 at 150 %. Where it does not hold, under a small markdown
+	// text style, the only effect is that a label is declined which the
+	// search could have bounded, which is the shipped behaviour.
+	const auto &entities = label.entities;
+	const auto candidate = [](const EntityInText &entity) {
+		return (entity.type() == EntityType::CustomEmoji)
+			&& (entity.length() > kInlineButtonLabelProbeStart)
+			&& !entity.data().isEmpty();
+	};
+	const auto candidates = ranges::count_if(entities, candidate);
+	if (!candidates || (candidates > kInlineButtonLabelSpanCutsMax)) {
+		return label;
+	}
+	const auto order = InlineButtonLabelEntityOrder(entities);
+	const auto intersected = InlineButtonLabelIntersected(entities, order);
+	auto cuts = std::vector<InlineButtonLabelSpanCut>();
+	for (const auto i : order) {
+		const auto &entity = entities[i];
+		if (!candidate(entity)) {
+			continue;
+		} else if (intersected[i]) {
+			return label;
+		}
+		const auto offset = entity.offset();
+		const auto length = entity.length();
+		const auto keep = InlineButtonLabelSpanKeep(
+			QStringView(label.text).mid(offset, length));
+		if (!keep
+			|| (keep > kInlineButtonLabelProbeStart)
+			|| !Ui::Text::MakeCustomEmoji(entity.data(), context)) {
+			return label;
+		}
+		cuts.push_back({
+			.index = i,
+			.offset = offset,
+			.keep = keep,
+			.length = length,
+		});
+	}
+	auto borders = std::vector<int>();
+	borders.reserve(2 * cuts.size());
+	for (const auto &cut : cuts) {
+		borders.push_back(cut.offset + cut.keep);
+		borders.push_back(cut.offset + cut.length);
+	}
+	if (InlineButtonLabelEmojiCrosses(label.text, borders)) {
+		return label;
+	}
+	auto text = QString();
+	auto seams = std::vector<int>();
+	text.reserve(label.text.size());
+	seams.reserve(cuts.size());
+	auto copied = 0;
+	for (const auto &cut : cuts) {
+		const auto kept = cut.offset + cut.keep;
+		text.append(QStringView(label.text).mid(copied, kept - copied));
+		seams.push_back(int(text.size()));
+		copied = cut.offset + cut.length;
+	}
+	text.append(QStringView(label.text).mid(copied));
+	if (InlineButtonLabelEmojiCrosses(text, seams)) {
+		return label;
+	}
+	auto removed = 0;
+	auto cut = cuts.begin();
+	for (const auto i : order) {
+		auto &entity = label.entities[i];
+		while ((cut != cuts.end())
+			&& (cut->offset + cut->length <= entity.offset())) {
+			removed += cut->length - cut->keep;
+			++cut;
+		}
+		if (removed) {
+			entity.shiftRight(-removed);
+		}
+		if ((cut != cuts.end()) && (cut->index == i)) {
+			entity.shrinkFromRight(cut->length - cut->keep);
+		}
+	}
+	label.text = std::move(text);
+	return label;
 }
 
 [[nodiscard]] Ui::Text::String MakeBoundedInlineButtonLabel(
@@ -920,25 +1204,34 @@ void ActivateInlineButton(QStringView data, ClickContext context) {
 	// than the pill can draw, and the prefix after that one is accepted, so
 	// everything the renderer reaches — the line break, the elision cut and
 	// the ellipsis — sits inside the half the shorter probe already covered,
-	// with more than a pill-width of identical content behind it.
+	// with more than a pill-width of identical content behind it. A prefix
+	// alone cannot bound a custom-emoji span, which draws as one object of
+	// one width however many characters it covers: the search has to step
+	// past the whole span before its width test can trip, so the span is what
+	// makes the accepted prefix long. The spans are therefore shortened
+	// first, once, for every label. That walk asks Ui::Text::MakeCustomEmoji
+	// at most once per candidate span, and that question registers a session
+	// instance and can post messages.getCustomEmojiDocuments, so the walk's
+	// candidate cap is what bounds the fetching — and the accepted prefix may
+	// still drop a span the walk resolved. The one input this does not
+	// render like the shipped build, on either exit, is a span running into
+	// the parser's 32 768-character cap: the text behind it that the capped
+	// parse never reached becomes visible, and the pill grows to fit it.
+	const auto nested = InlineButtonLabelContext(context, emojiSize);
+	const auto shortened = ShortenInlineButtonLabelSpans(label, nested);
 	const auto available = std::max(widthCap, 1);
-	const auto size = int(label.text.size());
+	const auto size = int(shortened.text.size());
 	auto exceeded = false;
 	auto length = kInlineButtonLabelProbeStart;
 	while (true) {
-		const auto cut = InlineButtonLabelCut(label, length);
+		const auto cut = InlineButtonLabelCut(shortened, length);
 		if (cut >= size) {
-			return MakeInlineButtonLabel(
-				label,
-				labelStyle,
-				context,
-				emojiSize);
+			return MakeInlineButtonLabel(shortened, labelStyle, nested);
 		}
 		auto result = MakeInlineButtonLabel(
-			Ui::Text::Mid(label, 0, cut),
+			Ui::Text::Mid(shortened, 0, cut),
 			labelStyle,
-			context,
-			emojiSize);
+			nested);
 		if (result.maxWidth() > available) {
 			if (exceeded) {
 				return result;
