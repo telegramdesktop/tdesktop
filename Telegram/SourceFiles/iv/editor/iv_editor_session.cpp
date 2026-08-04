@@ -1871,6 +1871,9 @@ public:
 		not_null<Main::Session*> session,
 		FullMsgId itemId);
 
+	[[nodiscard]] static std::shared_ptr<ChatHelpers::Show> ActiveShow(
+		not_null<Main::Session*> session);
+
 private:
 	// Registry of all editor sessions that currently own a window, so that
 	// they can be force-closed on session clear or application shutdown.
@@ -4322,7 +4325,35 @@ bool ArticleSession::ActivateEditWindow(
 	return false;
 }
 
+std::shared_ptr<ChatHelpers::Show> ArticleSession::ActiveShow(
+		not_null<Main::Session*> session) {
+	const auto active = QApplication::activeWindow();
+	if (!active) {
+		return nullptr;
+	}
+	for (const auto &weak : Live()) {
+		const auto strong = weak.lock();
+		if (!strong
+			|| strong->_session != session
+			|| !strong->_windowHost) {
+			continue;
+		}
+		const auto show = strong->_editorShow;
+		if (show
+			&& show->valid()
+			&& (show->toastParent()->window() == active)) {
+			return show;
+		}
+	}
+	return nullptr;
+}
+
 } // namespace
+
+std::shared_ptr<ChatHelpers::Show> ActiveWindowShow(
+		not_null<Main::Session*> session) {
+	return ArticleSession::ActiveShow(session);
+}
 
 void ShowRichMessagesPremiumToast(std::shared_ptr<ChatHelpers::Show> show) {
 	if (!show) {

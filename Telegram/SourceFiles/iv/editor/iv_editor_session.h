@@ -55,6 +55,8 @@ struct ComposeBoxOptions {
 	Fn<void(TextWithTags)> returnText;
 };
 
+[[nodiscard]] std::shared_ptr<ChatHelpers::Show> ActiveWindowShow(
+	not_null<Main::Session*> session);
 void ShowRichMessagesPremiumToast(std::shared_ptr<ChatHelpers::Show> show);
 [[nodiscard]] bool CanAuthorRichMessages(not_null<Main::Session*> session);
 void OfferRichMessagePremiumChoice(
