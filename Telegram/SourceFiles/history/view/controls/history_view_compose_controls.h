@@ -354,6 +354,9 @@ private:
 	void initExpandButton();
 	void updateExpandButtonVisibility();
 	void updateExpandButtonGeometry();
+	void initDiscardRichDraftButton();
+	void updateDiscardRichDraftVisibility();
+	void updateDiscardRichDraftGeometry();
 	void setupSendMenu(
 		not_null<Ui::RpWidget*> button,
 		Fn<void(Api::SendOptions)> send);
@@ -493,6 +496,7 @@ private:
 	Controls::ComposeAiButton * const _aiButton = nullptr;
 	Ui::IconButton * const _sendAsFile = nullptr;
 	Ui::IconButton * const _expand = nullptr;
+	Ui::IconButton * const _discardRichDraft = nullptr;
 	Ui::IconButton *_editStars = nullptr;
 	Ui::IconButton *_like = nullptr;
 	rpl::variable<int> _minStarsCount;

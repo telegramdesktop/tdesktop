@@ -1463,6 +1463,13 @@ historyExpandComposeButton: IconButton(historyAiComposeButton) {
 	icon: icon {{ "menu/rich/expand-20x20", historyComposeIconFg }};
 	iconOver: icon {{ "menu/rich/expand-20x20", historyComposeIconFgOver }};
 }
+historyDiscardRichDraftButton: IconButton(historyAiComposeButton) {
+	width: 34px;
+	height: 34px;
+	rippleAreaSize: 34px;
+	icon: icon {{ "chat/input_discard-26x26", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_discard-26x26", historyComposeIconFgOver }};
+}
 historyAiComposeTooltipSkip: 8px;
 importantTooltipHide: IconButton(defaultIconButton) {
 	width: 34px;

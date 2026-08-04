@@ -576,6 +576,9 @@ private:
 	void initExpandButton();
 	void updateExpandButtonVisibility();
 	void updateExpandButtonGeometry();
+	void initDiscardRichDraftButton();
+	void updateDiscardRichDraftVisibility();
+	void updateDiscardRichDraftGeometry();
 	[[nodiscard]] bool canSendAiComposeDirect() const;
 
 	[[nodiscard]] MsgId resolveReplyToTopicRootId();
@@ -901,6 +904,7 @@ private:
 	HistoryView::Controls::ComposeAiButton * const _aiButton = nullptr;
 	Ui::IconButton * const _sendAsFile = nullptr;
 	Ui::IconButton * const _expand = nullptr;
+	Ui::IconButton * const _discardRichDraft = nullptr;
 	object_ptr<Ui::FlatButton> _unblock;
 	object_ptr<Ui::FlatButton> _botStart;
 	object_ptr<Ui::FlatButton> _joinChannel;

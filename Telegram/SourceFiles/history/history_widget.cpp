@@ -210,6 +210,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_iv.h"
+#include "styles/style_layers.h"
 
 #include <QtGui/QWindow>
 #include <QtCore/QMimeData>
@@ -294,6 +295,9 @@ HistoryWidget::HistoryWidget(
 , _expand(Ui::CreateChild<Ui::IconButton>(
 	this,
 	st::historyExpandComposeButton))
+, _discardRichDraft(Ui::CreateChild<Ui::IconButton>(
+	this,
+	st::historyDiscardRichDraftButton))
 , _unblock(
 	this,
 	tr::lng_unblock_button(tr::now).toUpper(),
@@ -553,6 +557,7 @@ HistoryWidget::HistoryWidget(
 	initAiButton();
 	initSendAsFileButton();
 	initExpandButton();
+	initDiscardRichDraftButton();
 
 	_fieldCharsCountManager.limitExceeds(
 	) | rpl::on_next([=] {
@@ -2005,6 +2010,7 @@ void HistoryWidget::orderWidgets() {
 	_sendAsFile->raise();
 	_expand->raise();
 	_richDraftPreview->raise();
+	_discardRichDraft->raise();
 	_topBars->raise();
 	if (_businessBotStatus) {
 		_businessBotStatus->bar().raise();
@@ -4227,6 +4233,7 @@ void HistoryWidget::updateControlsVisibility() {
 	updateAiButtonVisibility();
 	updateSendAsFileVisibility();
 	updateExpandButtonVisibility();
+	updateDiscardRichDraftVisibility();
 	updateMouseTracking();
 }
 
@@ -7073,6 +7080,55 @@ void HistoryWidget::updateExpandButtonGeometry() {
 	_expand->move(QPoint(x, _field->y()) + st::historyAiComposeButtonPosition);
 }
 
+void HistoryWidget::initDiscardRichDraftButton() {
+	_discardRichDraft->hide();
+	_richDraftPreview->shownValue(
+	) | rpl::on_next([=] {
+		updateDiscardRichDraftVisibility();
+	}, lifetime());
+	_discardRichDraft->setAccessibleName(
+		tr::lng_record_lock_discard(tr::now));
+	_discardRichDraft->setClickedCallback([=] {
+		if (!shouldShowRichDraftPreview()) {
+			return;
+		}
+		controller()->show(Ui::MakeConfirmBox({
+			.text = tr::lng_iv_editor_discard_draft_sure(tr::now),
+			.confirmed = crl::guard(this, [=](Fn<void()> close) {
+				clearRichDraft();
+				close();
+			}),
+			.confirmText = tr::lng_record_lock_discard(),
+			.confirmStyle = &st::attentionBoxButton,
+		}));
+	});
+}
+
+void HistoryWidget::updateDiscardRichDraftVisibility() {
+	const auto top = _richDraftPreview->y()
+		+ st::historyAiComposeButtonPosition.y();
+	const auto hidden = _richDraftPreview->isHidden()
+		|| !_send->isVisible()
+		|| _voiceRecordBar->isActive()
+		|| (top + _discardRichDraft->height() > _send->y());
+	if (_discardRichDraft->isHidden() != hidden) {
+		_discardRichDraft->setVisible(!hidden);
+	}
+	updateDiscardRichDraftGeometry();
+}
+
+void HistoryWidget::updateDiscardRichDraftGeometry() {
+	if (_discardRichDraft->isHidden()) {
+		return;
+	}
+	const auto anchor = _attachToggle->geometry();
+	const auto x = anchor.x()
+		+ (anchor.width() - _discardRichDraft->width()) / 2;
+	const auto y = _richDraftPreview->y()
+		+ st::historyAiComposeButtonPosition.y();
+	_discardRichDraft->move(x, y);
+}
+
 void HistoryWidget::updateAiButtonGeometry() {
 	if (_aiButton->isHidden()) {
 		return;
@@ -7186,6 +7242,7 @@ void HistoryWidget::moveFieldControls() {
 	updateAiButtonGeometry();
 	updateSendAsFileGeometry();
 	updateExpandButtonGeometry();
+	updateDiscardRichDraftGeometry();
 
 	_fieldBarCancel->moveToRight(
 		0,
