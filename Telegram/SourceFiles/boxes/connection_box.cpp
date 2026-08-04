@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kSaveSettingsDelayedTimeout = crl::time(1000);
+constexpr auto kMaxConcurrentProxyChecks = 50;
 
 using ProxyData = MTP::ProxyData;
 
@@ -2006,47 +2007,94 @@ auto ProxiesBoxController::proxySettingsValue() const
 
 void ProxiesBoxController::refreshChecker(Item &item) {
 	item.state = ItemState::Checking;
-	const auto id = item.id;
-	MTP::StartProxyCheck(
-		&_account->mtp(),
-		item.data,
-		Core::App().settings().proxy().tryIPv6(),
-		item.checker,
-		item.checkerv6,
-		[=](Connection *raw, int pingTime) {
-			const auto item = ranges::find(
-				_list,
-				id,
-				[](const Item &item) { return item.id; });
-			if (item == end(_list)) {
-				return;
-			}
-			MTP::DropProxyChecker(item->checker, item->checkerv6, raw);
-			MTP::ResetProxyCheckers(item->checker, item->checkerv6);
-			if (item->state == ItemState::Checking) {
-				item->state = ItemState::Available;
-				item->ping = pingTime;
-				updateView(*item);
-			}
-		},
-		[=](Connection *raw) {
-			const auto item = ranges::find(
-				_list,
-				id,
-				[](const Item &item) { return item.id; });
-			if (item == end(_list)) {
-				return;
-			}
-			MTP::DropProxyChecker(item->checker, item->checkerv6, raw);
-			if (!MTP::HasProxyCheckers(item->checker, item->checkerv6)
-				&& item->state == ItemState::Checking) {
-				item->state = ItemState::Unavailable;
-				updateView(*item);
-			}
-		});
-	if (!MTP::HasProxyCheckers(item.checker, item.checkerv6)) {
-		item.state = ItemState::Unavailable;
+	MTP::ResetProxyCheckers(item.checker, item.checkerv6);
+	_checkerQueue.push_back(item.id);
+	processCheckerQueue();
+}
+
+void ProxiesBoxController::processCheckerQueue() {
+	if (_processingCheckerQueue) {
+		return;
 	}
+	_processingCheckerQueue = true;
+	auto active = ranges::count_if(_list, [](const Item &item) {
+		return MTP::HasProxyCheckers(item.checker, item.checkerv6);
+	});
+	while (active < kMaxConcurrentProxyChecks && !_checkerQueue.empty()) {
+		const auto id = _checkerQueue.front();
+		_checkerQueue.pop_front();
+		const auto item = ranges::find(
+			_list,
+			id,
+			[](const Item &item) { return item.id; });
+		if (item == end(_list)
+			|| item->deleted
+			|| item->state != ItemState::Checking
+			|| MTP::HasProxyCheckers(item->checker, item->checkerv6)) {
+			continue;
+		}
+
+		MTP::StartProxyCheck(
+			&_account->mtp(),
+			item->data,
+			Core::App().settings().proxy().tryIPv6(),
+			item->checker,
+			item->checkerv6,
+			[=](Connection *raw, int pingTime) {
+				const auto item = ranges::find(
+					_list,
+					id,
+					[](const Item &item) { return item.id; });
+				if (item == end(_list)
+					|| (item->checker.get() != raw
+						&& item->checkerv6.get() != raw)) {
+					return;
+				}
+				MTP::DropProxyChecker(
+					item->checker,
+					item->checkerv6,
+					raw);
+				MTP::ResetProxyCheckers(item->checker, item->checkerv6);
+				if (item->state == ItemState::Checking) {
+					item->state = ItemState::Available;
+					item->ping = pingTime;
+					updateView(*item);
+				}
+				processCheckerQueue();
+			},
+			[=](Connection *raw) {
+				const auto item = ranges::find(
+					_list,
+					id,
+					[](const Item &item) { return item.id; });
+				if (item == end(_list)
+					|| (item->checker.get() != raw
+						&& item->checkerv6.get() != raw)) {
+					return;
+				}
+				MTP::DropProxyChecker(
+					item->checker,
+					item->checkerv6,
+					raw);
+				if (MTP::HasProxyCheckers(
+						item->checker,
+						item->checkerv6)) {
+					return;
+				}
+				if (item->state == ItemState::Checking) {
+					item->state = ItemState::Unavailable;
+					updateView(*item);
+				}
+				processCheckerQueue();
+			});
+		if (MTP::HasProxyCheckers(item->checker, item->checkerv6)) {
+			++active;
+		} else {
+			item->state = ItemState::Unavailable;
+			updateView(*item);
+		}
+	}
+	_processingCheckerQueue = false;
 }
 
 object_ptr<Ui::BoxContent> ProxiesBoxController::CreateOwningBox(
