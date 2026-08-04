@@ -2273,6 +2273,26 @@ bool HistoryWidget::shouldShowRichDraftPreview() const {
 		&& draft->hasRichMessage();
 }
 
+void HistoryWidget::clearRichDraft() {
+	if (!_history) {
+		return;
+	}
+	clearFieldText();
+	_history->clearLocalDraft(MsgId(), PeerId());
+	_history->clearCloudDraft(MsgId(), PeerId());
+	applyDraft(Ui::InputField::HistoryAction::NewEntry);
+	updateControlsVisibility();
+	updateControlsGeometry();
+	if (const auto cloudDraft = _history->createCloudDraft(
+			MsgId(),
+			PeerId(),
+			nullptr)) {
+		session().api().saveDraftToCloud(
+			not_null{ _history },
+			*cloudDraft);
+	}
+}
+
 void HistoryWidget::migrateFieldToRichEditor() {
 	if (!_history) {
 		return;
@@ -2280,18 +2300,7 @@ void HistoryWidget::migrateFieldToRichEditor() {
 	if (editingMessage()) {
 		cancelEdit();
 	} else {
-		clearFieldText();
-		_history->clearLocalDraft(MsgId(), PeerId());
-		applyDraft(Ui::InputField::HistoryAction::NewEntry);
-		_history->clearCloudDraft(MsgId(), PeerId());
-		if (const auto cloudDraft = _history->createCloudDraft(
-				MsgId(),
-				PeerId(),
-				nullptr)) {
-			session().api().saveDraftToCloud(
-				not_null{ _history },
-				*cloudDraft);
-		}
+		clearRichDraft();
 	}
 }
 

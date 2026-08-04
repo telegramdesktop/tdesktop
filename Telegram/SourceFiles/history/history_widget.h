@@ -715,6 +715,7 @@ private:
 	[[nodiscard]] bool hasEditDraft() const;
 	[[nodiscard]] bool bypassNormalDraftHandling() const;
 	[[nodiscard]] bool shouldShowRichDraftPreview() const;
+	void clearRichDraft();
 	void migrateFieldToRichEditor();
 	void setHistory(History *history);
 	void setEditMsgId(MsgId msgId);

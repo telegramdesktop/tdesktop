@@ -450,6 +450,7 @@ private:
 	[[nodiscard]] bool bypassNormalDraftHandling() const;
 	[[nodiscard]] bool hasEditDraft() const;
 	[[nodiscard]] bool shouldShowRichDraftPreview() const;
+	void clearRichDraft();
 	void migrateFieldToRichEditor();
 	void migrateScheduledFieldToRichEditor();
 	void migrateShortcutFieldToRichEditor(

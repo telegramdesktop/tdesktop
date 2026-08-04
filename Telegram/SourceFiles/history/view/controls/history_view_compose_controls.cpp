@@ -2162,6 +2162,30 @@ bool ComposeControls::shouldShowRichDraftPreview() const {
 		&& draft->hasRichMessage();
 }
 
+void ComposeControls::clearRichDraft() {
+	if (!_history) {
+		return;
+	}
+	clearFieldText();
+	if (const auto key = draftKey(DraftType::Normal)) {
+		_history->clearDraft(key);
+	}
+	_history->clearCloudDraft(_topicRootId, _monoforumPeerId);
+	applyDraft(Ui::InputField::HistoryAction::NewEntry);
+	if (const auto thread = _history->threadFor(
+			_topicRootId,
+			_monoforumPeerId)) {
+		if (const auto cloudDraft = _history->createCloudDraft(
+				_topicRootId,
+				_monoforumPeerId,
+				nullptr)) {
+			session().api().saveDraftToCloud(
+				not_null{ thread },
+				*cloudDraft);
+		}
+	}
+}
+
 void ComposeControls::migrateFieldToRichEditor() {
 	if (!_history) {
 		return;
@@ -2169,24 +2193,7 @@ void ComposeControls::migrateFieldToRichEditor() {
 	if (isEditingMessage()) {
 		cancelEditMessage();
 	} else {
-		clearFieldText();
-		if (const auto key = draftKey(DraftType::Normal)) {
-			_history->clearDraft(key);
-		}
-		applyDraft(Ui::InputField::HistoryAction::NewEntry);
-		_history->clearCloudDraft(_topicRootId, _monoforumPeerId);
-		if (const auto thread = _history->threadFor(
-				_topicRootId,
-				_monoforumPeerId)) {
-			if (const auto cloudDraft = _history->createCloudDraft(
-					_topicRootId,
-					_monoforumPeerId,
-					nullptr)) {
-				session().api().saveDraftToCloud(
-					not_null{ thread },
-					*cloudDraft);
-			}
-		}
+		clearRichDraft();
 	}
 }
 
