@@ -11,10 +11,14 @@ add_library(tdesktop::td_iv ALIAS td_iv)
 add_library(td_iv_reorder_warning_off INTERFACE)
 target_compile_options(td_iv_reorder_warning_off
 INTERFACE
-    $<$<CXX_COMPILER_ID:MSVC>:/wd5038>
     $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-reorder-ctor>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-reorder>
 )
+
+if (MSVC AND CMAKE_GENERATOR MATCHES "^Visual Studio ")
+    set_property(TARGET td_iv APPEND PROPERTY VS_PROJECT_IMPORT
+        ${CMAKE_CURRENT_LIST_DIR}/td_iv_msvc_warning_suppressions.props)
+endif()
 
 target_precompile_headers(td_iv PRIVATE ${src_loc}/iv/iv_pch.h)
 nice_target_sources(td_iv ${src_loc}
