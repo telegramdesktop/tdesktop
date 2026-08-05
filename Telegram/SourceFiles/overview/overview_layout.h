@@ -421,10 +421,17 @@ private:
 
 };
 
+struct DocumentExternalLoading {
+	int64 ready = 0;
+	int64 total = 0;
+};
+
 struct DocumentFields {
 	not_null<DocumentData*> document;
 	TimeId dateOverride = 0;
 	bool forceFileLayout = false;
+	Fn<std::optional<DocumentExternalLoading>()> externalLoading;
+	Fn<void()> externalCancel;
 };
 
 class Document final : public RadialProgressItem {
@@ -463,6 +470,9 @@ private:
 	[[nodiscard]] bool songLayout() const;
 	void ensureDataMediaCreated() const;
 	void paintThumbnail(Painter &p, QRect rthumb, bool wthumb, bool withExt);
+	[[nodiscard]] auto externalLoading() const
+	-> std::optional<DocumentExternalLoading>;
+	[[nodiscard]] bool activeLoading() const;
 
 	not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
@@ -471,6 +481,7 @@ private:
 
 	const style::OverviewFileLayout &_st;
 	const ::Layout::DocumentGenericPreview _generic;
+	const Fn<std::optional<DocumentExternalLoading>()> _externalLoading;
 
 	bool _thumbLoaded = false;
 	bool _forceFileLayout = false;
