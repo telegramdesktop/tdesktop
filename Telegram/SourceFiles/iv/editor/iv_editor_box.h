@@ -84,6 +84,11 @@ struct ShowWindowDescriptor {
 		RequestMediaType)> requestMedia;
 	Fn<void(not_null<Widget*>, Ui::PreparedList, PreparedMediaPasteTarget)>
 		applyPreparedMedia;
+	Fn<void(
+		not_null<Widget*>,
+		Ui::PreparedList,
+		Fn<void(std::vector<std::optional<RichPage::Block>>)>)>
+		prepareDeferredMedia;
 	Fn<void(uint64 /*photoId*/, Fn<void(QImage)>)> requestPhotoEditSource;
 	Fn<void(not_null<Widget*>, Ui::PreparedList, State::ReplaceTarget)>
 		replacePhotoWithList;

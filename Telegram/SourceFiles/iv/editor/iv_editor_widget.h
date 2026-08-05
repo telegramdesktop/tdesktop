@@ -97,6 +97,11 @@ struct WidgetServices {
 		RequestMediaType)> requestMedia;
 	Fn<void(not_null<Widget*>, Ui::PreparedList, PreparedMediaPasteTarget)>
 		applyPreparedMedia;
+	Fn<void(
+		not_null<Widget*>,
+		Ui::PreparedList,
+		Fn<void(std::vector<std::optional<RichPage::Block>>)>)>
+		prepareDeferredMedia;
 	Fn<void(uint64 /*photoId*/, Fn<void(QImage)>)> requestPhotoEditSource;
 	Fn<void(not_null<Widget*>, Ui::PreparedList, State::ReplaceTarget)>
 		replacePhotoWithList;
@@ -607,6 +612,7 @@ private:
 	[[nodiscard]] std::optional<BlocksImportResult> importBlocksFromMimeData(
 		not_null<const QMimeData*> data) const;
 	void pasteImportedBlocks(BlocksImportResult &&imported);
+	void resolveImportedLocalMedia(BlocksImportResult &&imported);
 	[[nodiscard]] bool handleIvClipboardMime(
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action);
@@ -891,6 +897,11 @@ private:
 		RequestMediaType)> _requestMedia;
 	const Fn<void(not_null<Widget*>, Ui::PreparedList, PreparedMediaPasteTarget)>
 		_applyPreparedMedia;
+	const Fn<void(
+		not_null<Widget*>,
+		Ui::PreparedList,
+		Fn<void(std::vector<std::optional<RichPage::Block>>)>)>
+		_prepareDeferredMedia;
 	const Fn<void(uint64, Fn<void(QImage)>)> _requestPhotoEditSource;
 	const Fn<void(not_null<Widget*>, Ui::PreparedList, State::ReplaceTarget)>
 		_replacePhotoWithList;

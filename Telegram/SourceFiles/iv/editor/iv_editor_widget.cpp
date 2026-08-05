@@ -2700,6 +2700,7 @@ Widget::Widget(
 , _customEmojiPaused(std::move(services.customEmojiPaused))
 , _requestMedia(std::move(services.requestMedia))
 , _applyPreparedMedia(std::move(services.applyPreparedMedia))
+, _prepareDeferredMedia(std::move(services.prepareDeferredMedia))
 , _requestPhotoEditSource(std::move(services.requestPhotoEditSource))
 , _replacePhotoWithList(std::move(services.replacePhotoWithList))
 , _mediaUploadState(std::move(services.mediaUploadState))
@@ -3737,18 +3738,136 @@ void Widget::pasteImportedTable(TableImportResult &&imported) {
 std::optional<BlocksImportResult> Widget::importBlocksFromMimeData(
 		not_null<const QMimeData*> data) const {
 	return BlocksFromMimeData(
+		_session,
 		data,
 		_state->limits(),
 		CountRichPageBlocks(_state->richPage()));
 }
 
+[[nodiscard]] std::vector<RichPage::Block> DropImportedMediaPlaceholders(
+		std::vector<RichPage::Block> blocks,
+		const std::vector<std::optional<RichPage::Block>> &prepared) {
+	const auto resolve = [&](uint64 id) -> const RichPage::Block* {
+		const auto index = ImportedMediaPlaceholderIndex(id);
+		if (!index || *index >= int(prepared.size()) || !prepared[*index]) {
+			return nullptr;
+		}
+		return &*prepared[*index];
+	};
+	auto result = std::vector<RichPage::Block>();
+	result.reserve(blocks.size());
+	for (auto &block : blocks) {
+		const auto placeholder = ImportedMediaPlaceholderIndex(
+			block.photoId ? block.photoId : block.documentId);
+		if (placeholder) {
+			const auto ready = resolve(
+				block.photoId ? block.photoId : block.documentId);
+			if (!ready) {
+				continue;
+			}
+			auto caption = std::move(block.caption);
+			auto anchorId = std::move(block.anchorId);
+			block = *ready;
+			block.caption = std::move(caption);
+			block.anchorId = std::move(anchorId);
+		}
+		for (auto i = block.mediaItems.begin()
+			; i != block.mediaItems.end();) {
+			const auto id = i->photoId ? i->photoId : i->documentId;
+			if (!ImportedMediaPlaceholderIndex(id)) {
+				++i;
+				continue;
+			}
+			const auto ready = resolve(id);
+			if (!ready) {
+				i = block.mediaItems.erase(i);
+				continue;
+			}
+			i->kind = ready->kind;
+			i->photoId = ready->photoId;
+			i->documentId = ready->documentId;
+			i->width = ready->width;
+			i->height = ready->height;
+			i->autoplay = ready->autoplay;
+			i->loop = ready->loop;
+			i->spoiler = ready->spoiler;
+			++i;
+		}
+		if ((block.kind == RichPage::BlockKind::GroupedMedia)
+			&& block.mediaItems.empty()) {
+			continue;
+		}
+		block.blocks = DropImportedMediaPlaceholders(
+			std::move(block.blocks),
+			prepared);
+		for (auto &item : block.listItems) {
+			item.blocks = DropImportedMediaPlaceholders(
+				std::move(item.blocks),
+				prepared);
+		}
+		result.push_back(std::move(block));
+	}
+	return result;
+}
+
 void Widget::pasteImportedBlocks(BlocksImportResult &&imported) {
-	auto blocksData = ClipboardBlockData();
-	blocksData.blocks = std::move(imported.blocks);
-	pasteStructuredClipboardData(ClipboardData(std::move(blocksData)));
+	if (!imported.localMediaPaths.isEmpty()) {
+		resolveImportedLocalMedia(std::move(imported));
+		return;
+	}
+	if (!imported.blocks.empty()) {
+		auto blocksData = ClipboardBlockData();
+		blocksData.blocks = std::move(imported.blocks);
+		pasteStructuredClipboardData(ClipboardData(std::move(blocksData)));
+	}
 	if (imported.truncated) {
 		_show->showToast(tr::lng_article_paste_truncated(tr::now));
 	}
+}
+
+void Widget::resolveImportedLocalMedia(BlocksImportResult &&imported) {
+	auto paths = base::take(imported.localMediaPaths);
+	auto list = Ui::PreparedList();
+	auto order = std::vector<int>();
+	if (_prepareDeferredMedia) {
+		for (auto i = 0; i != int(paths.size()); ++i) {
+			auto single = Storage::PrepareMediaList(
+				QStringList{ paths[i] },
+				st::sendMediaPreviewSize,
+				_session->premium());
+			if (single.error != Ui::PreparedList::Error::None
+				|| single.files.size() != 1) {
+				continue;
+			}
+			list.files.push_back(std::move(single.files.front()));
+			order.push_back(i);
+		}
+	}
+	if (list.files.empty()) {
+		imported.blocks = DropImportedMediaPlaceholders(
+			std::move(imported.blocks),
+			{});
+		pasteImportedBlocks(std::move(imported));
+		return;
+	}
+	const auto total = int(paths.size());
+	_prepareDeferredMedia(
+		not_null<Widget*>(this),
+		std::move(list),
+		crl::guard(this, [=, imported = std::move(imported)](
+				std::vector<std::optional<RichPage::Block>> prepared)
+		mutable {
+			auto mapped = std::vector<std::optional<RichPage::Block>>(total);
+			for (auto i = 0; i != int(prepared.size()); ++i) {
+				if (i < int(order.size()) && order[i] < total) {
+					mapped[order[i]] = std::move(prepared[i]);
+				}
+			}
+			imported.blocks = DropImportedMediaPlaceholders(
+				std::move(imported.blocks),
+				mapped);
+			pasteImportedBlocks(std::move(imported));
+		}));
 }
 
 void Widget::pasteStructuredClipboardData(const ClipboardData &data) {
@@ -8764,7 +8883,9 @@ bool Widget::handleIvClipboardMime(
 		return true;
 	}
 	auto blockData = BlockClipboardDataFromFieldTags(data);
-	if (!blockData && insertContext && data->hasHtml()) {
+	if (!blockData
+		&& insertContext
+		&& (data->hasHtml() || MimeDataLooksLikeExportedHtml(data))) {
 		if (auto imported = importBlocksFromMimeData(data)) {
 			if (action == Ui::InputField::MimeAction::Check) {
 				return true;

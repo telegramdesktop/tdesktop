@@ -1643,6 +1643,8 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 			},
 			.requestMedia = std::move(descriptor.requestMedia),
 			.applyPreparedMedia = std::move(descriptor.applyPreparedMedia),
+			.prepareDeferredMedia = std::move(
+				descriptor.prepareDeferredMedia),
 			.requestPhotoEditSource
 				= std::move(descriptor.requestPhotoEditSource),
 			.replacePhotoWithList
