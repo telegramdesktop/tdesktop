@@ -2586,15 +2586,25 @@ void EmojiListWidget::drawCollapsedBadge(
 	const auto &st = st::emojiPanExpand;
 	const auto text = u"+%1"_q.arg(count - _columnCount * kCollapsedRows + 1);
 	const auto textWidth = st.style.font->width(text);
-	const auto buttonw = std::max(textWidth - st.width, st.height);
+	const auto overflow = std::max(
+		position.x() + _singleSize.width() - width(),
+		0);
+	const auto available = std::min(
+		_singleSize.width() - 2 * overflow,
+		st::emojiPanArea.width());
+	const auto normal = std::max(textWidth - st.width, st.height);
+	const auto buttonw = (normal <= available)
+		? normal
+		: std::max(textWidth - st::emojiPanExpandTightWidth, st.height);
 	const auto buttonh = st.height;
 	const auto buttonx = position.x() + (_singleSize.width() - buttonw) / 2;
 	const auto buttony = position.y() + (_singleSize.height() - buttonh) / 2;
+	const auto textOffset = (normal <= available) ? 0 : -st::lineWidth;
 	_collapsedBg.paint(p, QRect(buttonx, buttony, buttonw, buttonh));
 	p.setPen(this->st().bg);
 	p.setFont(st.style.font);
 	p.drawText(
-		buttonx + (buttonw - textWidth) / 2,
+		buttonx + (buttonw - textWidth) / 2 + textOffset,
 		(buttony + st.textTop + st.style.font->ascent),
 		text);
 }
