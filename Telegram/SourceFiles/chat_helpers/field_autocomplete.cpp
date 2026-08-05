@@ -531,7 +531,11 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			if (containsMentionUser(user)) {
 				return;
 			}
-			mrows.push_back({ user, source });
+			mrows.push_back({
+				.user = user,
+				.source = source,
+				.userpic = user->activeUserpicView(),
+			});
 		};
 		const auto markMentionCandidateIfExists = [&](
 				not_null<UserData*> user) {
