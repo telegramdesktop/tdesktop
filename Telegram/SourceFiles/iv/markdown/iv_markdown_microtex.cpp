@@ -175,9 +175,13 @@ struct ParsedMicrotexFormula {
 
 [[nodiscard]] FormulaExactMetrics ExtractExactMetrics(
 		tex::TeXRender &render) {
+	// Floored at zero before use: a box measurement that came out negative or
+	// non-finite saturates to INT_MIN when the render size is taken, and this
+	// runs before the caller checks the size for validity, so the clamp below
+	// would get an upper bound under its lower one.
 	const auto scaledSize = QSize(
-		render.getWidth(),
-		render.getHeight());
+		std::max(render.getWidth(), 0),
+		std::max(render.getHeight(), 0));
 	const auto scaledAscent = std::clamp(
 		int(std::lround(render.getBaseline() * scaledSize.height())),
 		0,
