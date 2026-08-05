@@ -71,6 +71,7 @@ private:
 	int bottomButtonsTop() const;
 
 	const QSize _imageSize;
+	const float64 _originalRatio = 0.;
 	const style::color &_bg;
 	const int _buttonHeight;
 	const base::unique_qptr<ButtonBar> _transformButtons;
@@ -105,6 +106,7 @@ private:
 	bool _flipped = false;
 	bool _shapesFilled = false;
 	bool _shapeToolActive = false;
+	bool _keepOriginalRatio = false;
 
 	Ui::Animations::Simple _toggledBarAnimation;
 

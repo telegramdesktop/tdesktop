@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
@@ -45,6 +46,8 @@ constexpr auto kStickerSide = 512;
 constexpr auto kPreviewSide = 256;
 constexpr auto kWebpQuality = 95;
 constexpr auto kMaxEmojis = 7;
+constexpr auto kMaxOriginalRatio = 3.;
+constexpr auto kSquareRatioEpsilon = 0.01;
 
 [[nodiscard]] int SideForType(Data::StickersType type) {
 	return (type == Data::StickersType::Emoji)
@@ -75,8 +78,10 @@ protected:
 	void paintEvent(QPaintEvent *e) override {
 		auto p = QPainter(this);
 		auto hq = PainterHighQualityEnabler(p);
-		const auto target = QRect(0, 0, width(), height());
-		p.drawImage(target, _image);
+		const auto fitted = _image.size().scaled(
+			size(),
+			Qt::KeepAspectRatio);
+		p.drawImage(style::centerrect(rect(), Rect(fitted)), _image);
 	}
 
 private:
@@ -88,6 +93,7 @@ struct EditorState {
 	std::shared_ptr<Image> canvas;
 	Editor::PhotoModifications modifications;
 	int side = 0;
+	float64 originalRatio = 0.;
 };
 
 [[nodiscard]] std::shared_ptr<EditorState> PrepareEditorState(
@@ -100,6 +106,10 @@ struct EditorState {
 		|| (image.height() > 10 * image.width())) {
 		return nullptr;
 	}
+	const auto ratio = std::clamp(
+		image.width() / float64(image.height()),
+		1. / kMaxOriginalRatio,
+		kMaxOriginalRatio);
 
 	auto canvas = QImage(
 		side,
@@ -137,6 +147,9 @@ struct EditorState {
 			.paint = std::move(scene),
 		},
 		.side = side,
+		.originalRatio = (std::abs(ratio - 1.) < kSquareRatioEpsilon)
+			? 0.
+			: ratio,
 	});
 }
 
@@ -159,9 +172,10 @@ void ShowPhotoEditor(
 		state->canvas,
 		state->modifications,
 		Editor::EditorData{
-			.exactSize = QSize(side, side),
+			.exactSize = Size(side),
 			.cropType = Editor::EditorData::CropType::RoundedRect,
 			.cropMode = Editor::EditorData::CropMode::Mask,
+			.originalRatio = state->originalRatio,
 			.keepAspectRatio = true,
 			.fixedCrop = true,
 		});
@@ -171,10 +185,12 @@ void ShowPhotoEditor(
 			const Editor::PhotoModifications &mods) mutable {
 		state->modifications = mods;
 		auto result = Editor::ImageModified(state->canvas->original(), mods);
-		if (result.size() != QSize(side, side)) {
+		const auto target = result.size().scaled(
+			Size(side),
+			Qt::KeepAspectRatio);
+		if (!target.isEmpty() && (result.size() != target)) {
 			result = result.scaled(
-				side,
-				side,
+				target,
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		}
@@ -230,11 +246,14 @@ void ShowPhotoEditor(
 	return image;
 }
 
-[[nodiscard]] QByteArray EncodeWebp(QImage image, int side) {
-	if (image.size() != QSize(side, side)) {
+[[nodiscard]] QSize FittedStickerSize(QSize size, int side) {
+	return size.scaled(Size(side), Qt::KeepAspectRatio).expandedTo(Size(1));
+}
+
+[[nodiscard]] QByteArray EncodeWebp(QImage image, QSize size) {
+	if (image.size() != size) {
 		image = image.scaled(
-			side,
-			side,
+			size,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
 		image = Sharpened(std::move(image));
@@ -386,7 +405,8 @@ void CreateMediaBox(
 				tr::lng_stickers_create_emoji_required(tr::now));
 			return;
 		}
-		const auto bytes = EncodeWebp(image, side);
+		const auto dimensions = FittedStickerSize(image.size(), side);
+		const auto bytes = EncodeWebp(image, dimensions);
 		if (bytes.isEmpty()) {
 			show->showToast(
 				tr::lng_stickers_create_upload_failed(tr::now));
@@ -404,6 +424,7 @@ void CreateMediaBox(
 			session,
 			set,
 			bytes,
+			dimensions,
 			emoji,
 			type);
 
@@ -493,6 +514,9 @@ void RunImageEditorAndCreate(
 	if (!state) {
 		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
 		return;
+	}
+	if (type != Data::StickersType::Stickers) {
+		state->originalRatio = 0.;
 	}
 	ShowEditorThenCreate(
 		std::move(show),

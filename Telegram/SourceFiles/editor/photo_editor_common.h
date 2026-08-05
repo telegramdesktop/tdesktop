@@ -37,6 +37,7 @@ struct EditorData {
 	QSize exactSize;
 	CropType cropType = CropType::Rect;
 	CropMode cropMode = CropMode::Hint;
+	float64 originalRatio = 0.;
 	bool keepAspectRatio = false;
 	bool fixedCrop = false;
 };

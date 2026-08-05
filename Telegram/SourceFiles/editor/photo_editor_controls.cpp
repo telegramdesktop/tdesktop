@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/controllers/controllers.h"
 #include "lang/lang_keys.h"
 #include "ui/image/image_prepare.h"
+#include "ui/qt_object_factory.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
@@ -33,6 +35,85 @@ namespace {
 			| Qt::ControlModifier
 			| Qt::AltModifier
 			| Qt::MetaModifier);
+}
+
+class CheckAction final : public Ui::Menu::ItemBase {
+public:
+	CheckAction(
+		not_null<Ui::Menu::Menu*> parent,
+		const style::Menu &st,
+		const QString &text,
+		bool checked);
+
+	void setChecked(bool checked);
+
+	not_null<QAction*> action() const override;
+	bool isEnabled() const override;
+
+private:
+	int contentHeight() const override;
+	void paintEvent(QPaintEvent *e) override;
+
+	const style::Menu &_st;
+	Ui::CheckView _check;
+	const base::unique_qptr<Ui::FlatLabel> _text;
+	const not_null<QAction*> _dummyAction;
+
+};
+
+CheckAction::CheckAction(
+	not_null<Ui::Menu::Menu*> parent,
+	const style::Menu &st,
+	const QString &text,
+	bool checked)
+: ItemBase(parent, st)
+, _st(st)
+, _check(st::photoEditorMenuCheck, checked, [=] { update(); })
+, _text(base::make_unique_q<Ui::FlatLabel>(
+	this,
+	rpl::single(text),
+	st::photoEditorMenuCheckLabel))
+, _dummyAction(Ui::CreateChild<QAction>(parent.get())) {
+	ItemBase::enableMouseSelecting();
+	setPreventClose(true);
+	_text->setAttribute(Qt::WA_TransparentForMouseEvents);
+	setMinWidth(_st.widthMin);
+	parent->widthValue() | rpl::on_next([=](int width) {
+		const auto &padding = _st.itemPadding;
+		_text->resizeToWidth(width - rect::m::sum::h(padding));
+		_text->moveToLeft(padding.left(), padding.top());
+		resize(width, contentHeight());
+	}, lifetime());
+}
+
+void CheckAction::setChecked(bool checked) {
+	_check.setChecked(checked, anim::type::normal);
+}
+
+not_null<QAction*> CheckAction::action() const {
+	return _dummyAction;
+}
+
+bool CheckAction::isEnabled() const {
+	return true;
+}
+
+int CheckAction::contentHeight() const {
+	return rect::m::sum::v(_st.itemPadding)
+		+ std::max(_text->heightNoMargins(), _check.getSize().height());
+}
+
+void CheckAction::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	const auto selected = isSelected();
+	p.fillRect(rect(), selected ? _st.itemBgOver : _st.itemBg);
+	RippleButton::paintRipple(p, 0, 0);
+	const auto size = _check.getSize();
+	_check.paint(
+		p,
+		(_st.itemPadding.left() - size.width()) / 2,
+		(height() - size.height()) / 2,
+		width());
 }
 
 } // namespace
@@ -257,6 +338,7 @@ PhotoEditorControls::PhotoEditorControls(
 	bool shapesFilled)
 : RpWidget(parent)
 , _imageSize(imageSize)
+, _originalRatio(data.originalRatio)
 , _bg(st::roundedBg)
 , _buttonHeight(st::photoEditorButtonBarHeight)
 , _transformButtons(base::make_unique_q<ButtonBar>(this, _bg))
@@ -606,6 +688,23 @@ PhotoEditorControls::PhotoEditorControls(
 			add(
 				tr::lng_photo_editor_corners_none(tr::now),
 				RoundedCornersLevel::None);
+			if (_originalRatio > 0.) {
+				_cornersMenu->addSeparator();
+				auto keepRatio = base::make_unique_q<CheckAction>(
+					_cornersMenu->menu(),
+					_cornersMenu->menu()->st(),
+					tr::lng_photo_editor_keep_ratio(tr::now),
+					_keepOriginalRatio);
+				const auto raw = keepRatio.get();
+				keepRatio->setActionTriggered([=] {
+					_keepOriginalRatio = !_keepOriginalRatio;
+					raw->setChecked(_keepOriginalRatio);
+					_aspectRatioChanges.fire_copy(_keepOriginalRatio
+						? _originalRatio
+						: 1.);
+				});
+				_cornersMenu->addAction(std::move(keepRatio));
+			}
 			const auto button = _cornersButton.get();
 			const auto bottomRight = button->mapToGlobal(
 				QPoint(button->width(), 0));

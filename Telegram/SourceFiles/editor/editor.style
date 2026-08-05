@@ -127,6 +127,19 @@ photoEditorCornersMenuAboutPosition: point(12px, 4px);
 
 photoEditorMenuSubmenuArrow: icon {{ "menu/submenu_arrow", groupCallMemberNotJoinedStatus }};
 
+photoEditorMenuCheck: Check(defaultCheck) {
+	untoggledFg: groupCallMemberNotJoinedStatus;
+	toggledFg: groupCallActiveFg;
+	icon: icon {{ "default_checkbox_check", groupCallMembersFg, point(4px, 7px) }};
+}
+photoEditorMenuCheckLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+	minWidth: 100px;
+	textFg: groupCallMembersFg;
+}
+
 photoEditorCropRatioMenu: PopupMenu(mediaviewPopupMenu) {
 	menu: Menu(mediaviewMenu) {
 		widthMin: 108px;

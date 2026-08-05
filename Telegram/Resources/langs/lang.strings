@@ -7808,6 +7808,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_corners_medium" = "Medium";
 "lng_photo_editor_corners_small" = "Small";
 "lng_photo_editor_corners_none" = "None";
+"lng_photo_editor_keep_ratio" = "Keep original aspect ratio";
 
 "lng_photo_editor_shape_circle" = "Circle";
 "lng_photo_editor_shape_rectangle" = "Rectangle";
