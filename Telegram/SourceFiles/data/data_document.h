@@ -168,7 +168,8 @@ public:
 	[[nodiscard]] Image *getReplyPreview(
 		Data::FileOrigin origin,
 		not_null<PeerData*> context,
-		bool spoiler);
+		bool spoiler,
+		bool skipCover = false);
 	[[nodiscard]] Image *getReplyPreview(not_null<HistoryItem*> item);
 	[[nodiscard]] bool replyPreviewLoaded(bool spoiler) const;
 
