@@ -999,7 +999,7 @@ void Viewport::RendererRhi::drawYuv2RgbPass(
 		_rub = _rhi->nextResourceUpdateBatch();
 	}
 	_rub->updateDynamicBuffer(
-		_offscreenVertexBuffer, 0, coords.size(), coords.data());
+		_offscreenVertexBuffer, 0, sizeof(coords), coords.data());
 
 	auto *srb = _rhi->newShaderResourceBindings();
 	_perDrawSrbs.push_back(srb);
