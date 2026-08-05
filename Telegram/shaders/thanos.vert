@@ -12,6 +12,8 @@ layout(std140, binding = 0) uniform Params {
 	vec2 size;
 	uvec2 particleResolution;
 	vec4 scale;
+	// -1.0 when the NDC Y axis points down (Vulkan), 1.0 otherwise.
+	float flipY;
 };
 
 void main() {
@@ -43,7 +45,7 @@ void main() {
 	ndc.x = -1.0 + ndc.x * 2.0;
 	ndc.y = -1.0 + ndc.y * 2.0;
 
-	gl_Position = vec4(ndc, 0.0, 1.0);
+	gl_Position = vec4(ndc.x, ndc.y * flipY, 0.0, 1.0);
 
 	v_alpha = clamp(inLifetime / 0.6, 0.0, 1.0) * scale.z;
 }

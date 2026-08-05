@@ -64,6 +64,8 @@ struct alignas(16) RenderUniforms {
 	float size[2];
 	uint32_t particleResolution[2];
 	float scale[4];
+	float flipY;
+	float _pad0[3];
 };
 static_assert(sizeof(RenderUniforms) % 16 == 0);
 
@@ -86,6 +88,11 @@ static_assert(sizeof(RenderUniforms) % 16 == 0);
 		1.);
 	const auto oneMinus = 1. - t;
 	return 1. - (oneMinus * oneMinus * oneMinus);
+}
+
+// Vulkan is the only backend with the NDC Y axis pointing down.
+[[nodiscard]] float NdcFlipY(not_null<QRhi*> rhi) {
+	return rhi->isYUpInNDC() ? 1.f : -1.f;
 }
 
 [[nodiscard]] QShader LoadShader(const QString &name) {
@@ -461,6 +468,7 @@ void ThanosEffectRenderer::render(
 			uni.scale[1] = 0.;
 			uni.scale[2] = inverseDisappear;
 			uni.scale[3] = 0.;
+			uni.flipY = NdcFlipY(rhi);
 
 			renderRub->updateDynamicBuffer(
 				item.renderUniformBuffer,
