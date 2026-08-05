@@ -452,15 +452,6 @@ void SerializeRichText(
 	SerializeText(out, text.text, context, lineBreaks);
 }
 
-[[nodiscard]] QString RichTextToHtml(
-		const RichPage::RichText &text,
-		const HtmlContext &context,
-		bool lineBreaks = true) {
-	auto result = QString();
-	SerializeRichText(&result, text, context, lineBreaks);
-	return result;
-}
-
 [[nodiscard]] QString FormatExportDate(TimeId date) {
 	return date
 		? QLocale().toString(

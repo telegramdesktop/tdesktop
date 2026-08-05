@@ -531,7 +531,6 @@ public:
 	[[nodiscard]] const TextWithEntities &result() const;
 	[[nodiscard]] std::shared_ptr<const Iv::RichPage> richResult() const;
 	[[nodiscard]] const std::vector<Ui::LabeledEmojiTab> &stylesData() const;
-	[[nodiscard]] const std::vector<Data::AiComposeTone> &tones() const;
 	void setReadyChangedCallback(Fn<void(bool)> callback);
 	void setLoadingChangedCallback(Fn<void(bool)> callback);
 	void setPremiumFloodCallback(Fn<void()> callback);
@@ -1413,10 +1412,6 @@ std::shared_ptr<const Iv::RichPage> ComposeAiContent::richResult() const {
 
 const std::vector<Ui::LabeledEmojiTab> &ComposeAiContent::stylesData() const {
 	return _stylesData;
-}
-
-const std::vector<Data::AiComposeTone> &ComposeAiContent::tones() const {
-	return _tones;
 }
 
 void ComposeAiContent::setReadyChangedCallback(Fn<void(bool)> callback) {
