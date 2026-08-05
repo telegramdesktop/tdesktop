@@ -488,6 +488,7 @@ private:
 	};
 	base::flat_map<uint64, JoinChatWebView> _joinChatWebViews;
 	std::vector<std::unique_ptr<WebViewInstance>> _instances;
+	std::vector<std::unique_ptr<WebViewInstance>> _closing;
 
 	std::vector<not_null<UserData*>> _popularAppBots;
 	mtpRequestId _popularAppBotsRequestId = 0;

@@ -81,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/menu/menu_item_base.h"
 #include "ui/widgets/popup_menu.h"
+#include "webview/webview_dialog.h"
 #include "webview/webview_interface.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
@@ -2189,7 +2190,7 @@ void WebViewInstance::botDownloadFile(
 		return;
 	}
 	_confirmingDownload = true;
-	const auto done = [=](QString path) {
+	const auto done = crl::guard(this, [=](QString path) {
 		_confirmingDownload = false;
 		if (path.isEmpty()) {
 			callback(false);
@@ -2201,7 +2202,7 @@ void WebViewInstance::botDownloadFile(
 			.path = path,
 		});
 		callback(true);
-	};
+	});
 	_api.request(MTPbots_CheckDownloadFileParams(
 		_bot->inputUser(),
 		MTP_string(request.name),
@@ -2510,10 +2511,29 @@ void AttachWebView::close(not_null<WebViewInstance*> instance) {
 		_instances,
 		instance.get(),
 		&std::unique_ptr<WebViewInstance>::get);
-	if (i != end(_instances)) {
-		const auto taken = base::take(*i);
-		_instances.erase(i);
+	if (i == end(_instances)) {
+		return;
 	}
+	auto taken = base::take(*i);
+	_instances.erase(i);
+	if (!Webview::InsideBlockingPopup()) {
+		return;
+	}
+
+	// A popup may have been opened from inside a webview callback, so the
+	// frames of that callback, and the closures owning them, are still on
+	// the stack below the popup. Destroy the instance only from a clean
+	// stack, after the popup is finished.
+	_closing.push_back(std::move(taken));
+	if (_closing.size() > 1) {
+		return;
+	}
+	const auto weak = base::make_weak(this);
+	Webview::RunWhenBlockingPopupFinished([=] {
+		if (const auto strong = weak.get()) {
+			base::take(strong->_closing);
+		}
+	});
 }
 
 void AttachWebView::closeAll() {
