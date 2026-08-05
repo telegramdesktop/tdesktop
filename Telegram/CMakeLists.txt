@@ -1371,6 +1371,8 @@ PRIVATE
     iv/iv_delegate_impl.h
     iv/iv_instance.cpp
     iv/iv_instance.h
+    iv/iv_rich_message_html_export.cpp
+    iv/iv_rich_message_html_export.h
     iv/iv_rich_message_serializer.cpp
     iv/iv_rich_message_serializer.h
     iv/iv_rich_page.cpp
@@ -2119,6 +2121,7 @@ PRIVATE
     qrc/emoji_preview.qrc
     qrc/telegram/animations.qrc
     qrc/telegram/export.qrc
+    qrc/telegram/export_rich.qrc
     qrc/telegram/picker.qrc
     qrc/telegram/telegram.qrc
     qrc/telegram/sounds.qrc

@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/export_rich">
+    <file alias="css/rich_message.css">../../export_rich/css/rich_message.css</file>
+    <file alias="js/rich_message.js">../../export_rich/js/rich_message.js</file>
+  </qresource>
+</RCC>

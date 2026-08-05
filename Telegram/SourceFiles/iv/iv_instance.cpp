@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/share_box.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/file_utilities.h"
 #include "core/shortcuts.h"
 #include "core/click_handler_types.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_cached_media.h"
 #include "iv/iv_controller.h"
 #include "iv/iv_data.h"
+#include "iv/iv_rich_message_html_export.h"
 #include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -1021,6 +1023,13 @@ void Instance::closeMarkdownsForSession(not_null<Main::Session*> session) {
 
 void Instance::closeSessionDataViews(not_null<Main::Session*> session) {
 	closeMarkdownsForSession(session);
+	for (auto i = _htmlExports.begin(); i != _htmlExports.end();) {
+		if ((*i)->session() == session) {
+			i = _htmlExports.erase(i);
+		} else {
+			++i;
+		}
+	}
 	if (_shownSession == session) {
 		_shownSession = nullptr;
 	}
@@ -1232,6 +1241,101 @@ void Instance::resolveRichMessage(
 			token,
 			nullptr);
 	}).send();
+}
+
+void Instance::exportRichMessageHtml(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId) {
+	if (Core::App().settings().askDownloadPath()) {
+		const auto weak = base::make_weak(controller);
+		const auto initialPath = [] {
+			const auto path = Core::App().settings().downloadPath();
+			if (!path.isEmpty() && path != FileDialog::Tmp()) {
+				return path.left(path.size()
+					- (path.endsWith(QChar('/')) ? 1 : 0));
+			}
+			return QString();
+		}();
+		FileDialog::GetFolder(
+			controller->window().widget().get(),
+			tr::lng_download_path_choose(tr::now),
+			initialPath,
+			[=](QString &&result) {
+				const auto strong = weak.get();
+				if (!strong || result.isEmpty()) {
+					return;
+				}
+				Core::App().iv().exportRichMessageHtml(
+					strong,
+					itemId,
+					(result.endsWith(QChar('/'))
+						? result
+						: (result + QChar('/'))));
+			});
+		return;
+	}
+	const auto session = &controller->session();
+	const auto configured = Core::App().settings().downloadPath();
+	exportRichMessageHtml(
+		controller,
+		itemId,
+		(configured.isEmpty()
+			? File::DefaultDownloadPath(session)
+			: (configured == FileDialog::Tmp())
+			? session->local().tempDirectory()
+			: configured));
+}
+
+void Instance::exportRichMessageHtml(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		const QString &basePath) {
+	const auto session = &controller->session();
+	const auto item = session->data().message(itemId);
+	if (basePath.isEmpty() || !item) {
+		return;
+	}
+	eraseSettledHtmlExports();
+	for (const auto &existing : _htmlExports) {
+		if (existing->exporting(itemId)) {
+			return;
+		}
+	}
+	const auto weak = base::make_weak(controller);
+	trackSession(session);
+	resolveRichMessage(session, item, [=](
+			std::shared_ptr<const RichPage> page) {
+		const auto item = session->data().message(itemId);
+		if (!page && item) {
+			const auto full = item->fullRichPage();
+			page = full ? full : item->richPage();
+		}
+		if (!item || !page) {
+			if (const auto strong = weak.get()) {
+				strong->showToast(tr::lng_export_html_failed(tr::now));
+			}
+			return;
+		}
+		auto task = std::make_unique<RichMessageHtmlExport>(
+			item,
+			std::move(page),
+			basePath,
+			weak,
+			[this] { eraseSettledHtmlExports(); });
+		const auto raw = task.get();
+		_htmlExports.push_back(std::move(task));
+		raw->start();
+	});
+}
+
+void Instance::eraseSettledHtmlExports() {
+	for (auto i = _htmlExports.begin(); i != _htmlExports.end();) {
+		if ((*i)->settled()) {
+			i = _htmlExports.erase(i);
+		} else {
+			++i;
+		}
+	}
 }
 
 void Instance::showRichMessage(

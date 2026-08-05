@@ -31,6 +31,7 @@ namespace Iv {
 
 class Data;
 struct RichPage;
+class RichMessageHtmlExport;
 class Shown;
 class TonSite;
 
@@ -75,6 +76,9 @@ public:
 		not_null<Main::Session*> session,
 		not_null<HistoryItem*> item,
 		RichMessageResolved done);
+	void exportRichMessageHtml(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId);
 
 	bool showMarkdown(
 		const QString &path,
@@ -146,6 +150,12 @@ private:
 		std::shared_ptr<const RichPage> page,
 		bool notifyCallbacks = true);
 
+	void exportRichMessageHtml(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		const QString &basePath);
+	void eraseSettledHtmlExports();
+
 	void trackSession(not_null<Main::Session*> session);
 	void bindMarkdown(
 		const QString &key,
@@ -201,6 +211,8 @@ private:
 		QString,
 		std::unique_ptr<Markdown::Controller>> _markdowns;
 	base::flat_map<QString, MarkdownBinding> _markdownBindings;
+
+	std::vector<std::unique_ptr<RichMessageHtmlExport>> _htmlExports;
 
 	rpl::lifetime _lifetime;
 

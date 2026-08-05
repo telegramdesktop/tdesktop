@@ -5396,6 +5396,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_delete_selected" = "Delete Selected";
 "lng_context_save_images_selected" = "Save Selected";
 "lng_context_save_documents_selected" = "Download Selected";
+"lng_context_save_html" = "Save as HTML";
 "lng_context_clear_selection" = "Clear Selection";
 "lng_context_seen_loading" = "Loading...";
 "lng_context_seen_text#one" = "{count} Seen";
@@ -6067,6 +6068,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_saved_images_to" = "Images were saved to your {downloads} folder";
 "lng_mediaview_video_saved_to" = "Video file was saved to your {downloads} folder";
 "lng_mediaview_downloads" = "Downloads";
+"lng_export_html_saved_to" = "Message was saved to your {downloads} folder";
+"lng_export_html_failed" = "Could not save the message as HTML.";
+"lng_export_html_media_missing" = "Media unavailable";
+"lng_export_html_embed" = "Embedded content";
 "lng_mediaview_playback_speed" = "Playback speed: {speed}";
 "lng_mediaview_rotate_video" = "Rotate video";
 "lng_mediaview_quality_auto" = "Auto";
