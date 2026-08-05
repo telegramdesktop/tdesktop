@@ -27,7 +27,8 @@ void main() {
 	vec2 checkboardLadder = floor(fragCoord / transparentSize);
 	float checkboard = mod(checkboardLadder.x + checkboardLadder.y, 2.0);
 	vec4 bg = mix(transparentBg, transparentFg, checkboard);
-	result = vec4(result.rgb * result.a + bg.rgb * (1.0 - result.a), 1.0);
+	// The texture is premultiplied already, so it composites as it is.
+	result = result + bg * (1.0 - result.a);
 
 	float topHeight = shadowTopRect.w;
 	float bottomHeight = shadowBottomSkipOpacityFullFade.x;
