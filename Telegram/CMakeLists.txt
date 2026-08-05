@@ -905,6 +905,8 @@ PRIVATE
     history/view/controls/history_view_suggest_options.h
     history/view/controls/history_view_ttl_button.cpp
     history/view/controls/history_view_ttl_button.h
+    history/view/controls/history_view_video_cover_uploader.cpp
+    history/view/controls/history_view_video_cover_uploader.h
     history/view/controls/history_view_voice_record_bar.cpp
     history/view/controls/history_view_voice_record_bar.h
     history/view/controls/history_view_webpage_processor.cpp

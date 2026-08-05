@@ -64,6 +64,12 @@ historyReplyTop: 2px;
 historyReplyBottom: 2px;
 historyReplyPreview: 32px;
 historyReplyPreviewMargin: margins(7px, 4px, 4px, 4px);
+historyEditCoverRadialBg: 24px;
+historyEditCoverRadial: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: msgDateImgFg;
+	thickness: 2px;
+	size: size(16px, 16px);
+}
 historyReplyPadding: margins(11px, 2px, 6px, 2px);
 historyReplyUser: IconEmoji {
 	icon: icon {{ "chat/reply_type_user", windowFg }};
