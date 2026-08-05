@@ -203,11 +203,12 @@ void OverlayWidget::RendererRhi::createPipelines() {
 
 	auto *sampleSrb = _rhi->newShaderResourceBindings();
 	sampleSrb->setBindings({
-		QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
+		QRhiShaderResourceBinding::uniformBuffer(
 			0,
 			QRhiShaderResourceBinding::VertexStage
 				| QRhiShaderResourceBinding::FragmentStage,
 			_uniformBuffer,
+			0,
 			sizeof(ImageUniforms)),
 		QRhiShaderResourceBinding::sampledTexture(
 			1,
