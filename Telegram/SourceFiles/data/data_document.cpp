@@ -1516,8 +1516,9 @@ bool DocumentData::isStickerSetInstalled() const {
 Image *DocumentData::getReplyPreview(
 		Data::FileOrigin origin,
 		not_null<PeerData*> context,
-		bool spoiler) {
-	if (v::is<Data::FileOriginMessage>(origin.data)) {
+		bool spoiler,
+		bool skipCover) {
+	if (!skipCover && v::is<Data::FileOriginMessage>(origin.data)) {
 		if (const auto item = _owner->message(
 				v::get<FullMsgId>(origin.data))) {
 			if (const auto cover = LookupVideoCover(this, item)) {
