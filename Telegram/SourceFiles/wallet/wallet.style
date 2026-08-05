@@ -345,6 +345,13 @@ walletBuyRowTitle: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 }
 walletBuyRowSubtitle: FlatLabel(defaultFlatLabel) {
+	// Ui::FlatLabel builds its Ui::Text::String with a minimal resize width
+	// of kQFixedMax when minWidth is zero, and Ui::Text::String::countSize
+	// then clamps every measurement to that. A subtitle wider than this
+	// column would be measured as one line and painted wrapped, so every
+	// line but the first would be clipped away. Keep this at or below
+	// boxWideWidth minus the horizontal walletBuyRowPadding.
+	minWidth: 200px;
 	textFg: windowSubTextFg;
 	style: boxTextStyle;
 }
