@@ -1,3 +1,10 @@
+7.0.9 (05.08.26)
+
+- Add saving rich messages to HTML and importing them back.
+- Add custom prompt tab to AI editing in the article editor.
+- Add experimental Vulkan rendering option on Linux.
+- Crash fixes.
+
 7.0.8 (03.08.26)
 
 - Fix launch on some Windows 7 machines.
