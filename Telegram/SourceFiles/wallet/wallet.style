@@ -338,7 +338,7 @@ walletBuySectionBottomSkip: 12px;
 walletBuyRow: SettingsButton(settingsButtonNoIcon) {
 	iconLeft: 22px;
 }
-walletBuyRowPadding: margins(62px, 6px, 40px, 8px);
+walletBuyRowPadding: margins(62px, 6px, 50px, 8px);
 walletBuyRowSkip: 2px;
 walletBuyRowTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
