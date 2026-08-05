@@ -51,7 +51,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
@@ -68,7 +67,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_giveaway.h"
-#include "styles/style_intro.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
@@ -87,10 +85,11 @@ constexpr auto kAddressLength = 48;
 constexpr auto kAddressGroup = 4;
 constexpr auto kAddressGroupsPerLine = 6;
 constexpr auto kDetailsGroupsPerLine = 4;
-constexpr auto kReceiveGroupsPerLine = 3;
+constexpr auto kReceiveGroupsPerLine = 4;
 constexpr auto kReceiveLines = kAddressLength
 	/ kAddressGroup
 	/ kReceiveGroupsPerLine;
+constexpr auto kQrQuietZoneModules = 4;
 constexpr auto kShortAddressChars = 4;
 constexpr auto kMinus = QChar(0x2212);
 constexpr auto kImportWordCountShort = 12;
@@ -640,135 +639,242 @@ void AddBoxCloseButton(not_null<Ui::GenericBox*> box) {
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 }
 
-[[nodiscard]] QImage ReceiveQrCenter(int side) {
+[[nodiscard]] QImage ReceiveQrCenter(int side, int markSide) {
 	auto result = QImage(side, side, QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::white);
 	auto p = QPainter(&result);
 	auto hq = PainterHighQualityEnabler(p);
 	auto svg = QSvgRenderer(
-		Ui::Earn::CurrencySvgColored(st::windowActiveTextFg->c));
-	svg.render(&p, QRectF(0, 0, side, side));
+		Ui::Earn::CurrencySvgColored(st::activeButtonBg->c));
+	const auto skip = (side - markSide) / 2;
+	svg.render(&p, QRectF(skip, skip, markSide, markSide));
 	return result;
 }
 
-[[nodiscard]] QImage ReceiveQrImage(const QString &address) {
+[[nodiscard]] QImage ReceiveQrImage(
+		const QString &address,
+		int size,
+		int ratio,
+		int quietZoneModules = 0) {
 	const auto data = Qr::Encode(address, Qr::Redundancy::Quartile);
-	const auto ratio = style::DevicePixelRatio();
-	const auto pixel = std::max(
-		st::walletReceiveQrSize / std::max(data.size, 1),
-		1);
+	const auto pixel = std::max(size / std::max(data.size, 1), 1);
 	auto image = Qr::Generate(data, pixel * ratio, Qt::black, Qt::white);
+	const auto replaceSide = Qr::ReplaceSize(data, pixel * ratio);
+	const auto markSide = std::min(
+		st::walletReceiveMarkSize * ratio,
+		replaceSide - 2 * pixel * ratio);
 	image = Qr::ReplaceCenter(
 		std::move(image),
-		ReceiveQrCenter(Qr::ReplaceSize(data, pixel * ratio)));
+		ReceiveQrCenter(replaceSide, markSide));
+	if (quietZoneModules > 0) {
+		const auto skip = quietZoneModules * pixel * ratio;
+		auto padded = QImage(
+			image.width() + 2 * skip,
+			image.height() + 2 * skip,
+			QImage::Format_ARGB32_Premultiplied);
+		padded.fill(Qt::white);
+		auto p = QPainter(&padded);
+		p.drawImage(skip, skip, image);
+		p.end();
+		image = std::move(padded);
+	}
 	image.setDevicePixelRatio(ratio);
 	return image;
 }
 
+struct WalletBoxTitleBar {
+	not_null<Ui::FlatLabel*> title;
+	not_null<Ui::IconButton*> back;
+	not_null<Ui::IconButton*> close;
+};
+
+[[nodiscard]] WalletBoxTitleBar AddWalletBoxTitleBar(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> title) {
+	const auto row = box->addRow(
+		object_ptr<Ui::FixedHeightWidget>(
+			box,
+			st::walletReceiveTitleHeight),
+		style::margins(),
+		style::al_justify);
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		row,
+		std::move(title),
+		st::boxTitle);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto back = Ui::CreateChild<Ui::IconButton>(
+		row,
+		st::walletReceiveTitleBack);
+	const auto close = Ui::CreateChild<Ui::IconButton>(
+		row,
+		st::boxTitleClose);
+	Ui::ToggleChildrenVisibility(row, true);
+	row->sizeValue(
+	) | rpl::on_next([=](QSize size) {
+		back->moveToLeft(st::walletReceiveTitleButtonSkip, 0, size.width());
+		close->moveToRight(
+			st::walletReceiveTitleButtonSkip,
+			0,
+			size.width());
+		label->moveToLeft(
+			st::walletReceiveTitleLeft,
+			st::boxTitlePosition.y(),
+			size.width());
+	}, row->lifetime());
+	return { label, back, close };
+}
+
+void AddBuySectionTitle(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text) {
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			std::move(text),
+			st::defaultSubsectionTitle),
+		st::walletBuySubsectionPadding);
+}
+
+void AddBuyRow(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> title,
+		rpl::producer<QString> subtitle,
+		const style::icon &icon,
+		const style::color &background) {
+	const auto wrap = container->add(
+		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container),
+			st::walletBuyRowPadding));
+	const auto inner = wrap->entity();
+	inner->setAttribute(Qt::WA_TransparentForMouseEvents);
+	inner->add(object_ptr<Ui::FlatLabel>(
+		inner,
+		std::move(title),
+		st::walletBuyRowTitle));
+	Ui::AddSkip(inner, st::walletBuyRowSkip);
+	inner->add(object_ptr<Ui::FlatLabel>(
+		inner,
+		std::move(subtitle),
+		st::walletBuyRowSubtitle));
+
+	const auto button = Ui::CreateChild<Ui::SettingsButton>(
+		wrap,
+		rpl::single(QString()),
+		st::walletBuyRow);
+	Settings::AddButtonIcon(button, st::walletBuyRow, {
+		.icon = &icon,
+		.type = Settings::IconType::Rounded,
+		.background = &background,
+	});
+	const auto arrow = Ui::CreateChild<Ui::IconButton>(
+		button,
+		st::backButton);
+	arrow->setIconOverride(
+		&st::settingsPremiumArrow,
+		&st::settingsPremiumArrowOver);
+	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+	button->sizeValue(
+	) | rpl::on_next([=](QSize size) {
+		const auto &shift = st::settingsPremiumArrowShift;
+		arrow->moveToRight(
+			-shift.x(),
+			shift.y() + (size.height() - arrow->height()) / 2);
+	}, arrow->lifetime());
+	Ui::ToggleChildrenVisibility(wrap, true);
+	wrap->geometryValue(
+	) | rpl::on_next([=](const QRect &g) {
+		button->resize(g.size());
+		button->lower();
+	}, wrap->lifetime());
+}
+
 void WalletReceiveBox(
 		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
 		const QString &address) {
 	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::giveawayGiftCodeBox);
+	box->setStyle(st::walletSendBox);
 	box->setNoContentMargin(true);
+	box->setCustomCornersFilling(RectPart::FullTop | RectPart::FullBottom);
 
 	struct State {
-		rpl::variable<bool> qrShown = true;
+		rpl::variable<bool> buying = false;
+		Ui::Animations::Simple buyingAnimation;
+		QImage image;
 	};
 	const auto state = box->lifetime().make_state<State>();
 
-	const auto image = ReceiveQrImage(address);
-	const auto qrSide = image.width() / style::DevicePixelRatio();
-	const auto plateSide = qrSide + 2 * st::introQrBackgroundSkip;
-	const auto panelHeight = st::walletReceivePanelPadding.top()
-		+ plateSide
-		+ st::walletReceiveActionSkip
-		+ st::defaultLightButton.height
-		+ st::walletReceivePanelPadding.bottom();
-
-	const auto panel = box->addRow(
-		object_ptr<Ui::FixedHeightWidget>(box, panelHeight),
-		st::walletReceivePanelMargin,
-		style::al_justify);
-	panel->paintRequest(
+	box->paintRequest(
 	) | rpl::on_next([=] {
-		auto p = QPainter(panel);
+		auto p = QPainter(box);
 		auto hq = PainterHighQualityEnabler(p);
+		const auto shown = state->buyingAnimation.value(
+			state->buying.current() ? 1. : 0.);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgOver);
-		p.drawRoundedRect(
-			panel->rect(),
-			st::walletReceivePanelRadius,
-			st::walletReceivePanelRadius);
-	}, panel->lifetime());
+		p.setBrush(anim::color(st::activeButtonBg, st::boxBg, shown));
+		p.drawRoundedRect(box->rect(), st::boxRadius, st::boxRadius);
+	}, box->lifetime());
+	state->buying.changes(
+	) | rpl::on_next([=](bool buying) {
+		state->buyingAnimation.start([=] {
+			box->update();
+		}, buying ? 0. : 1., buying ? 1. : 0., st::slideWrapDuration);
+	}, box->lifetime());
 
-	const auto addSide = [&](rpl::producer<bool> shown) {
-		const auto wrap = Ui::CreateChild<Ui::FadeWrap<Ui::RpWidget>>(
-			panel,
-			object_ptr<Ui::RpWidget>(panel));
-		const auto inner = wrap->entity();
-		panel->sizeValue(
-		) | rpl::on_next([=](QSize size) {
-			inner->resize(size);
-		}, inner->lifetime());
-		wrap->toggleOn(std::move(shown));
-		return inner;
-	};
-	const auto addAction = [](
-			not_null<Ui::RpWidget*> side,
-			rpl::producer<QString> text,
-			Fn<void()> callback) {
-		const auto button = Ui::CreateChild<Ui::RoundButton>(
-			side.get(),
-			std::move(text),
-			st::defaultLightButton);
-		button->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-		button->setFullRadius(true);
-		button->setClickedCallback(std::move(callback));
-		button->show();
-		side->sizeValue(
-		) | rpl::on_next([=](QSize size) {
-			const auto &padding = st::walletReceivePanelPadding;
-			button->setFullWidth(
-				size.width() - padding.left() - padding.right());
-			button->moveToLeft(
-				padding.left(),
-				(size.height()
-					- padding.bottom()
-					- st::defaultLightButton.height),
-				size.width());
-		}, button->lifetime());
-	};
-
-	const auto qrInner = addSide(state->qrShown.value());
-	qrInner->paintRequest(
-	) | rpl::on_next([=] {
-		auto p = QPainter(qrInner);
-		auto hq = PainterHighQualityEnabler(p);
-		const auto left = (qrInner->width() - plateSide) / 2;
-		const auto top = st::walletReceivePanelPadding.top();
-		p.setPen(Qt::NoPen);
-		p.setBrush(Qt::white);
-		p.drawRoundedRect(
-			QRect(left, top, plateSide, plateSide),
-			st::introQrBackgroundRadius,
-			st::introQrBackgroundRadius);
-		p.drawImage(
-			left + st::introQrBackgroundSkip,
-			top + st::introQrBackgroundSkip,
-			image);
-	}, qrInner->lifetime());
-	addAction(qrInner, tr::lng_wallet_qr_copy(), [=, show = box->uiShow()] {
-		TextUtilities::SetClipboardText(TextForMimeData::Simple(address));
-		show->showToast({
-			.text = { tr::lng_gift_unique_address_copied(tr::now) },
-			.iconLottie = u"toast/copy"_q,
-			.iconLottieSize = st::toastLottieIconSize,
-		});
-		state->qrShown = false;
+	const auto bar = AddWalletBoxTitleBar(box, state->buying.value(
+	) | rpl::map([](bool buying) {
+		return buying
+			? tr::lng_wallet_buy_title()
+			: tr::lng_wallet_add_funds();
+	}) | rpl::flatten_latest());
+	state->buying.value(
+	) | rpl::on_next([=](bool buying) {
+		bar.title->setTextColorOverride(buying
+			? std::optional<QColor>()
+			: st::activeButtonFg->c);
+		bar.back->setIconOverride(
+			buying ? nullptr : &st::walletReceiveBackIconActive,
+			buying ? nullptr : &st::walletReceiveBackIconActiveOver);
+		bar.close->setIconOverride(
+			buying ? nullptr : &st::walletReceiveCloseIconActive,
+			buying ? nullptr : &st::walletReceiveCloseIconActiveOver);
+		const auto ripple = buying ? nullptr : &st::activeButtonBgRipple;
+		bar.back->setRippleColorOverride(ripple);
+		bar.close->setRippleColorOverride(ripple);
+	}, box->lifetime());
+	bar.close->setClickedCallback([=] {
+		box->closeBox();
+	});
+	bar.back->setClickedCallback([=] {
+		if (state->buying.current()) {
+			state->buying = false;
+		} else {
+			box->closeBox();
+		}
 	});
 
+	const auto addFunds = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			box,
+			object_ptr<Ui::VerticalLayout>(box)),
+		style::margins(),
+		style::al_justify);
+	const auto inner = addFunds->entity();
+	addFunds->toggleOn(state->buying.value(
+	) | rpl::map([](bool buying) {
+		return !buying;
+	}));
+	addFunds->finishAnimating();
+
+	state->image = ReceiveQrImage(
+		address,
+		st::walletReceiveQrSize,
+		style::DevicePixelRatio());
+	const auto qrSide = state->image.width() / style::DevicePixelRatio();
+	const auto &padding = st::walletReceivePlatePadding;
 	const auto font = st::walletReceiveAddressFont->monospace();
+	const auto hintFont = st::walletReceiveHintFont;
 	const auto groupWidth = font->width(address.left(kAddressGroup));
 	const auto spaceWidth = font->width(QChar(' '));
 	const auto lineWidth = kReceiveGroupsPerLine * groupWidth
@@ -776,70 +882,177 @@ void WalletReceiveBox(
 	const auto lineHeight = font->height + st::walletReceiveAddressLineSkip;
 	const auto blockHeight = kReceiveLines * font->height
 		+ (kReceiveLines - 1) * st::walletReceiveAddressLineSkip;
-	const auto rowHeight = std::max(
-		st::walletReceiveCopiedIcon.height(),
-		st::normalFont->height);
-	const auto contentTop = st::walletReceivePanelPadding.top()
-		+ (plateSide
-			- blockHeight
-			- st::walletReceiveCopiedTopSkip
-			- rowHeight) / 2;
+	const auto qrLeft = padding.left();
+	const auto qrTop = padding.top();
+	const auto addressTop = qrTop + qrSide + st::walletReceiveAddressTopSkip;
+	const auto hintTop = addressTop
+		+ blockHeight
+		+ st::walletReceiveHintTopSkip;
+	const auto plateWidth = std::max(qrSide, lineWidth)
+		+ padding.left()
+		+ padding.right();
+	const auto plateHeight = hintTop + hintFont->height + padding.bottom();
 
-	const auto textInner = addSide(state->qrShown.value(
-	) | rpl::map([](bool shown) {
-		return !shown;
-	}));
-	textInner->paintRequest(
+	auto plateOwned = object_ptr<Ui::FixedHeightWidget>(inner, plateHeight);
+	plateOwned->setNaturalWidth(plateWidth);
+	const auto plate = inner->add(
+		std::move(plateOwned),
+		st::walletReceivePlateMargin,
+		style::al_top);
+	plate->paintRequest(
 	) | rpl::on_next([=] {
-		auto p = QPainter(textInner);
+		auto p = QPainter(plate);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(Qt::white);
+		p.drawRoundedRect(
+			plate->rect(),
+			st::walletReceivePlateRadius,
+			st::walletReceivePlateRadius);
+		p.drawImage(qrLeft, qrTop, state->image);
 		p.setFont(font);
-		const auto left = (textInner->width() - lineWidth) / 2;
+		const auto left = (plate->width() - lineWidth) / 2;
 		for (auto i = 0; i != kAddressLength / kAddressGroup; ++i) {
 			const auto line = i / kReceiveGroupsPerLine;
 			const auto column = i % kReceiveGroupsPerLine;
-			p.setPen((i % 2) ? st::windowSubTextFg : st::windowFg);
+			p.setPen((i % 2)
+				? QColor(0x99, 0x99, 0x99)
+				: QColor(0x22, 0x22, 0x22));
 			p.drawText(
 				left + column * (groupWidth + spaceWidth),
-				contentTop + line * lineHeight + font->ascent,
+				addressTop + line * lineHeight + font->ascent,
 				address.mid(i * kAddressGroup, kAddressGroup));
 		}
-		const auto &icon = st::walletReceiveCopiedIcon;
-		const auto copied = tr::lng_wallet_receive_copied(tr::now);
-		const auto rowWidth = icon.width()
-			+ st::walletReceiveCopiedSkip
-			+ st::normalFont->width(copied);
-		const auto rowLeft = (textInner->width() - rowWidth) / 2;
-		const auto rowTop = contentTop
-			+ blockHeight
-			+ st::walletReceiveCopiedTopSkip;
-		icon.paint(
-			p,
-			rowLeft,
-			rowTop + (rowHeight - icon.height()) / 2,
-			textInner->width());
-		p.setFont(st::normalFont);
-		p.setPen(st::windowActiveTextFg);
+		const auto hint = hintFont->elided(
+			tr::lng_wallet_receive_copy_hint(tr::now),
+			plate->width() - padding.left() - padding.right());
+		p.setFont(hintFont);
+		p.setPen(QColor(0x99, 0x99, 0x99));
 		p.drawText(
-			rowLeft + icon.width() + st::walletReceiveCopiedSkip,
-			rowTop
-				+ (rowHeight - st::normalFont->height) / 2
-				+ st::normalFont->ascent,
-			copied);
-	}, textInner->lifetime());
-	addAction(
-		textInner,
-		tr::lng_wallet_receive_show_qr(),
-		[=] { state->qrShown = true; });
+			(plate->width() - hintFont->width(hint)) / 2,
+			hintTop + hintFont->ascent,
+			hint);
+	}, plate->lifetime());
+	style::PaletteChanged(
+	) | rpl::on_next([=] {
+		state->image = ReceiveQrImage(
+			address,
+			st::walletReceiveQrSize,
+			style::DevicePixelRatio());
+		plate->update();
+	}, plate->lifetime());
 
-	box->addRow(
+	const auto show = box->uiShow();
+	const auto qrTarget = Ui::CreateChild<Ui::AbstractButton>(plate);
+	qrTarget->setClickedCallback([=] {
+		QGuiApplication::clipboard()->setImage(ReceiveQrImage(
+			address,
+			st::walletReceiveQrCopySize,
+			1,
+			kQrQuietZoneModules));
+		show->showToast({
+			.text = { tr::lng_group_invite_qr_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
+	});
+	const auto textTarget = Ui::CreateChild<Ui::AbstractButton>(plate);
+	textTarget->setClickedCallback([=] {
+		TextUtilities::SetClipboardText(TextForMimeData::Simple(address));
+		show->showToast({
+			.text = { tr::lng_gift_unique_address_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
+	});
+	Ui::ToggleChildrenVisibility(plate, true);
+	const auto textTop = addressTop - st::walletReceiveAddressTopSkip / 2;
+	plate->sizeValue(
+	) | rpl::on_next([=](QSize size) {
+		qrTarget->setGeometry(qrLeft, qrTop, qrSide, qrSide);
+		textTarget->setGeometry(
+			0,
+			textTop,
+			size.width(),
+			size.height() - textTop);
+	}, plate->lifetime());
+
+	inner->add(
 		object_ptr<Ui::FlatLabel>(
-			box,
+			inner,
 			tr::lng_wallet_receive_about(),
-			st::walletBoxAboutLabel),
+			st::walletReceiveAboutLabel),
 		st::walletReceiveAboutMargin,
 		style::al_top);
 
-	AddBoxCloseButton(box);
+	const auto buy = inner->add(
+		object_ptr<Ui::RoundButton>(
+			inner,
+			tr::lng_wallet_buy_button(),
+			st::walletReceiveBuyButton),
+		st::walletReceiveBuyMargin,
+		style::al_justify);
+	buy->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+	buy->setClickedCallback([=] {
+		state->buying = true;
+	});
+	buy->widthValue(
+	) | rpl::on_next([=](int width) {
+		buy->setFullWidth(width);
+	}, buy->lifetime());
+
+	const auto buyGrams = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			box,
+			object_ptr<Ui::VerticalLayout>(box)),
+		style::margins(),
+		style::al_justify);
+	const auto buyInner = buyGrams->entity();
+
+	AddBuySectionTitle(buyInner, tr::lng_wallet_buy_pay_with());
+	Settings::AddButtonWithLabel(
+		buyInner,
+		tr::lng_wallet_menu_currency(),
+		FiatRateValue(session) | rpl::map([](const FiatRate &rate) {
+			return rate.currency;
+		}) | rpl::distinct_until_changed(),
+		st::settingsButtonNoIcon);
+	Ui::AddSkip(buyInner, st::walletBuySectionBottomSkip);
+
+	Ui::AddDivider(buyInner);
+	AddBuySectionTitle(buyInner, tr::lng_wallet_buy_buy_with());
+	AddBuyRow(
+		buyInner,
+		tr::lng_wallet_buy_card(),
+		tr::lng_wallet_buy_card_about(),
+		st::walletBuyBankCardIcon,
+		st::settingsIconBg2);
+	AddBuyRow(
+		buyInner,
+		tr::lng_wallet_buy_crypto(),
+		tr::lng_wallet_buy_crypto_about(),
+		st::walletBuyCryptoIcon,
+		st::settingsIconBg3);
+	AddBuyRow(
+		buyInner,
+		tr::lng_wallet_buy_p2p(),
+		tr::lng_wallet_buy_p2p_about(),
+		st::walletBuyP2pIcon,
+		st::settingsIconBg4);
+	Ui::AddSkip(buyInner, st::walletBuySectionBottomSkip);
+
+	Ui::AddDivider(buyInner);
+	AddBuySectionTitle(buyInner, tr::lng_wallet_buy_deposit_with());
+	AddBuyRow(
+		buyInner,
+		tr::lng_wallet_buy_walt(),
+		tr::lng_wallet_buy_walt_about(),
+		st::walletBuyWaltIcon,
+		st::settingsIconBg4);
+	Ui::AddSkip(buyInner, st::walletBuySectionBottomSkip);
+
+	buyGrams->toggleOn(state->buying.value());
+	buyGrams->finishAnimating();
 }
 
 void ShowWalletReceiveBox(
@@ -850,7 +1063,7 @@ void ShowWalletReceiveBox(
 	if (address.size() != kAddressLength) {
 		return;
 	}
-	show->showBox(Box(WalletReceiveBox, address));
+	show->showBox(Box(WalletReceiveBox, session, address));
 }
 
 void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
@@ -2344,8 +2557,9 @@ void WalletImportBox(
 				submit();
 			}
 		}, field->lifetime());
-		field->tabbed() | rpl::on_next([=](not_null<bool*> handled) {
-			*handled = true;
+		field->tabbed() | rpl::on_next([=](
+				not_null<Ui::InputField::TabbedRequest*> request) {
+			request->handled = true;
 			if (acceptSuggestion()) {
 				return;
 			}

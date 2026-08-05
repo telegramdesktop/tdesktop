@@ -9,6 +9,7 @@ using "ui/basic.style";
 using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
 using "info/channel_statistics/boosts/giveaway/giveaway.style";
+using "settings/settings.style";
 
 walletMenuIcon: icon{{ "menu/wallet-24x24", menuIconColor }};
 walletMenuCurrencyIcon: icon{{ "settings/language", menuIconColor }};
@@ -238,9 +239,6 @@ walletPhraseTextLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 }
 walletPhraseTextMargin: margins(24px, 8px, 24px, 8px);
-walletBoxAboutLabel: FlatLabel(walletPhraseTextLabel) {
-	textFg: windowSubTextFg;
-}
 walletPhraseWarnPadding: margins(60px, 0px, 24px, 0px);
 walletPhraseWarnLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 248px;
@@ -302,17 +300,71 @@ walletImportSuggestionsPadding: margins(4px, 4px, 4px, 4px);
 walletImportSuggestionRowHeight: 28px;
 walletImportSuggestionRowPadding: margins(8px, 0px, 8px, 0px);
 
-walletReceivePanelMargin: margins(24px, 48px, 24px, 0px);
-walletReceivePanelRadius: 16px;
-walletReceivePanelPadding: margins(16px, 16px, 16px, 16px);
-walletReceiveQrSize: 260px;
-walletReceiveActionSkip: 16px;
-walletReceiveAddressFont: font(26px semibold);
-walletReceiveAddressLineSkip: 4px;
-walletReceiveCopiedTopSkip: 16px;
-walletReceiveCopiedSkip: 6px;
-walletReceiveCopiedIcon: icon{{ "toast/check-16x16", windowActiveTextFg }};
-walletReceiveAboutMargin: margins(24px, 16px, 24px, 24px);
+walletReceiveTitleHeight: boxTitleHeight;
+walletReceiveTitleButtonSkip: 6px;
+walletReceiveTitleLeft: 60px;
+walletReceiveTitleBack: IconButton(boxTitleClose) {
+	icon: icon {{ "box_button_back", boxTitleCloseFg }};
+	iconOver: icon {{ "box_button_back", boxTitleCloseFgOver }};
+}
+walletReceiveBackIconActive: icon {{ "box_button_back", activeButtonSecondaryFg }};
+walletReceiveBackIconActiveOver: icon {{ "box_button_back", activeButtonSecondaryFgOver }};
+walletReceiveCloseIconActive: icon {{ "box_button_close", activeButtonSecondaryFg }};
+walletReceiveCloseIconActiveOver: icon {{ "box_button_close", activeButtonSecondaryFgOver }};
+walletReceivePlateMargin: margins(0px, 18px, 0px, 0px);
+walletReceivePlatePadding: margins(16px, 16px, 16px, 16px);
+walletReceivePlateRadius: 16px;
+walletReceiveQrSize: 185px;
+walletReceiveQrCopySize: 320px;
+walletReceiveMarkSize: 44px;
+walletReceiveAddressFont: font(14px semibold);
+walletReceiveAddressTopSkip: 11px;
+walletReceiveAddressLineSkip: -2px;
+walletReceiveHintFont: font(13px);
+walletReceiveHintTopSkip: 4px;
+walletReceiveAboutLabel: FlatLabel(walletPhraseTextLabel) {
+	textFg: activeButtonFg;
+}
+walletReceiveAboutMargin: margins(24px, 12px, 24px, 0px);
+walletReceiveBuyButton: RoundButton(defaultLightButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+walletReceiveBuyMargin: margins(16px, 16px, 16px, 12px);
+
+walletBuySubsectionPadding: margins(22px, 19px, 22px, 10px);
+walletBuySectionBottomSkip: 12px;
+walletBuyRow: SettingsButton(settingsButtonNoIcon) {
+	iconLeft: 22px;
+}
+walletBuyRowPadding: margins(62px, 6px, 40px, 8px);
+walletBuyRowSkip: 2px;
+walletBuyRowTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	style: boxTextStyle;
+}
+walletBuyRowSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: boxTextStyle;
+}
+walletBuyIconSize: size(24px, 24px);
+walletBuyBankCardIcon: icon {
+	{ walletBuyIconSize, transparent },
+	{ "wallet/bank_card", settingsIconFg, point(4px, 7px) },
+};
+walletBuyCryptoIcon: icon {
+	{ walletBuyIconSize, transparent },
+	{ "wallet/cryptocurrency", settingsIconFg, point(6px, 4px) },
+};
+walletBuyP2pIcon: icon {
+	{ walletBuyIconSize, transparent },
+	{ "wallet/p2p_market", settingsIconFg, point(3px, 3px) },
+};
+walletBuyWaltIcon: icon {
+	{ walletBuyIconSize, transparent },
+	{ "wallet/walt", settingsIconFg, point(2px, 2px) },
+};
 
 walletHowLogoIcon: icon{{ "payments/ton_emoji-48x48", windowFgActive }};
 walletHowLogoPadding: margins(8px, 8px, 8px, 8px);

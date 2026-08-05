@@ -8753,10 +8753,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_card_ticker" = "GRAM";
 "lng_wallet_send_button" = "Send";
 "lng_wallet_add_funds" = "Add Funds";
-"lng_wallet_qr_copy" = "Copy Address";
 "lng_wallet_receive_about" = "Use to receive GRAM on The Open Network (TON) only.";
-"lng_wallet_receive_show_qr" = "Show my QR";
-"lng_wallet_receive_copied" = "Address copied";
 "lng_wallet_about_instant_title" = "Send Money Instantly";
 "lng_wallet_about_instant_text" = "Send Grams in any chat, just like sharing a photo.";
 "lng_wallet_about_fees_title" = "No Fees";
@@ -8835,6 +8832,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_import_error" = "This recovery phrase could not restore a wallet. Check the words and try again.";
 "lng_wallet_imported_title" = "Wallet Imported";
 "lng_wallet_imported_text" = "Your wallet was restored from your recovery phrase.";
+"lng_wallet_receive_copy_hint" = "Click to copy address";
+"lng_wallet_buy_title" = "Buy Grams";
+"lng_wallet_buy_button" = "Buy with card or crypto";
+"lng_wallet_buy_pay_with" = "Pay with";
+"lng_wallet_buy_buy_with" = "Buy with";
+"lng_wallet_buy_deposit_with" = "Deposit with";
+"lng_wallet_buy_card" = "Bank Card";
+"lng_wallet_buy_card_about" = "Visa, Mastercard, Apple Pay";
+"lng_wallet_buy_crypto" = "Cryptocurrency";
+"lng_wallet_buy_crypto_about" = "Swap from your existing wallet";
+"lng_wallet_buy_p2p" = "P2P Market";
+"lng_wallet_buy_p2p_about" = "Buy from other users using local payment methods";
+"lng_wallet_buy_walt" = "Walt";
+"lng_wallet_buy_walt_about" = "Transfer Grams from your Walt";
 
 // Wnd specific
 
