@@ -540,12 +540,14 @@ void Panel::Incoming::RendererSW::fillBottomShadow(QPainter &p) {
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
 
+// std140 puts the vec3 at offset 16, not right after the vec2.
 struct IncomingShadowUniforms {
 	float viewport[2];
+	float _pad0[2];
 	float shadow[3];
-	float _pad0;
+	float _pad1;
 };
-static_assert(sizeof(IncomingShadowUniforms) == 24);
+static_assert(sizeof(IncomingShadowUniforms) == 32);
 
 class Panel::Incoming::RendererRhi final
 	: public Ui::GL::Renderer
