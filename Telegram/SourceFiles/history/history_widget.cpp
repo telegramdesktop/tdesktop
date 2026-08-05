@@ -1182,6 +1182,13 @@ HistoryWidget::HistoryWidget(
 	orderWidgets();
 	setupShortcuts();
 
+	// The topic tabs strip and the bars above the list are created only
+	// once they are needed, long after the top bar, the list and the
+	// composer, so the Tab chain has to follow the layout instead of the
+	// creation order - including the strip's moves between the left
+	// column, the top and the bottom.
+	setVisualTabOrder(true);
+
 	_attachToggle->setAccessibleName(tr::lng_attach(tr::now));
 	_tabbedSelectorToggle->setAccessibleName(tr::lng_emoji_sticker_gif(tr::now));
 	_botKeyboardShow->setAccessibleName(tr::lng_bot_keyboard_show(tr::now));

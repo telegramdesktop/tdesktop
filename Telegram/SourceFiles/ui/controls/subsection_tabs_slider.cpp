@@ -987,6 +987,11 @@ void SubsectionSlider::refreshAccessibilityFocus() {
 			? Qt::TabFocus
 			: Qt::ClickFocus);
 	}
+	// The section widget above keeps its Tab chain in visual order, and a
+	// roving stop moving between tabs (or to a freshly rebuilt tab) is
+	// invisible to it - tell it, so a Tab entering the strip from outside
+	// finds the current stop and not a wiring to the previous one.
+	RefreshVisualTabOrder(this);
 }
 
 not_null<SubsectionButton*> SubsectionSlider::buttonAt(int index) {
