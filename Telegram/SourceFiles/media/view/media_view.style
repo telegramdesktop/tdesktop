@@ -716,6 +716,8 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		menuBelow: icon {{ "menu/link_below", storiesComposeWhiteText }};
 		menuAbove: icon {{ "menu/link_above", storiesComposeWhiteText }};
 		menuQualityHigh: icon {{ "menu/quality_hd", storiesComposeWhiteText }};
+		menuCover: icon {{ "menu/edit", storiesComposeWhiteText }};
+		menuCoverRemove: icon {{ "menu/cancel", storiesComposeWhiteText }};
 		menuPrice: icon {{ "menu/earn", storiesComposeWhiteText }};
 		menuEditStars: icon {{ "chat/input_paid", storiesComposeWhiteText, point(-8px, -8px) }};
 

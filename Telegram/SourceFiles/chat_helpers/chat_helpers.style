@@ -81,6 +81,8 @@ ComposeIcons {
 	menuBelow: icon;
 	menuAbove: icon;
 	menuQualityHigh: icon;
+	menuCover: icon;
+	menuCoverRemove: icon;
 	menuPrice: icon;
 	menuEditStars: icon;
 
@@ -712,6 +714,8 @@ defaultComposeIcons: ComposeIcons {
 	menuBelow: menuIconBelow;
 	menuAbove: menuIconAbove;
 	menuQualityHigh: menuIconQualityHigh;
+	menuCover: menuIconEdit;
+	menuCoverRemove: menuIconCancel;
 	menuPrice: menuIconEarn;
 
 	stripBubble: icon{
