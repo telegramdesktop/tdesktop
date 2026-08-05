@@ -2350,6 +2350,81 @@ bool State::ungroupGroupedMediaBlock(const BlockPath &path) {
 	});
 }
 
+bool State::canUngroupGroupedMediaBlocks(
+		const PreparedEditSelection &selection) const {
+	if (selection.kind != PreparedEditSelectionKind::Blocks) {
+		return false;
+	}
+	const auto range = validateBlockRange(selection.blocks);
+	if (!range) {
+		return false;
+	}
+	const auto blocks = blockContainer(range->container);
+	if (!blocks) {
+		return false;
+	}
+	for (auto i = range->from; i != range->till; ++i) {
+		const auto &block = (*blocks)[i];
+		if (block.kind == BlockKind::GroupedMedia
+			&& IsGroupableMediaBlock(block)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool State::ungroupGroupedMediaBlocks(
+		const PreparedEditSelection &selection) {
+	return applyCheckedMutation(false, [selection](State &candidate) {
+		if (!candidate.canUngroupGroupedMediaBlocks(selection)) {
+			return CheckedMutationResult<bool>{ .result = false };
+		}
+		const auto range = candidate.validateBlockRange(selection.blocks);
+		if (!range) {
+			return CheckedMutationResult<bool>{ .result = false };
+		}
+		auto *blocks = candidate.blockContainer(range->container);
+		if (!blocks) {
+			return CheckedMutationResult<bool>{ .result = false };
+		}
+		auto replacement = std::vector<Block>();
+		replacement.reserve(range->till - range->from);
+		for (auto i = range->from; i != range->till; ++i) {
+			auto &block = (*blocks)[i];
+			if (block.kind != BlockKind::GroupedMedia
+				|| !IsGroupableMediaBlock(block)) {
+				replacement.push_back(std::move(block));
+				continue;
+			}
+			auto first = true;
+			for (const auto &item : block.mediaItems) {
+				auto single = PhotoVideoBlockFromGroupedItem(item);
+				if (!single) {
+					return CheckedMutationResult<bool>{ .result = false };
+				}
+				if (first) {
+					single->caption = std::move(block.caption);
+					single->anchorId = std::move(block.anchorId);
+					first = false;
+				}
+				replacement.push_back(std::move(*single));
+			}
+		}
+		blocks->erase(
+			blocks->begin() + range->from,
+			blocks->begin() + range->till);
+		blocks->insert(
+			blocks->begin() + range->from,
+			std::make_move_iterator(replacement.begin()),
+			std::make_move_iterator(replacement.end()));
+		candidate.rebuild();
+		return CheckedMutationResult<bool>{
+			.apply = true,
+			.result = true,
+		};
+	});
+}
+
 bool State::removeGroupedItem(
 		const BlockPath &path,
 		int itemIndex) {

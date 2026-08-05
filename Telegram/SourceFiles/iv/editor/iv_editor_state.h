@@ -540,6 +540,10 @@ public:
 		const Markdown::PreparedEditSelection &selection,
 		RichPage::GroupedMediaIntent intent);
 	[[nodiscard]] bool ungroupGroupedMediaBlock(const BlockPath &path);
+	[[nodiscard]] bool canUngroupGroupedMediaBlocks(
+		const Markdown::PreparedEditSelection &selection) const;
+	[[nodiscard]] bool ungroupGroupedMediaBlocks(
+		const Markdown::PreparedEditSelection &selection);
 	[[nodiscard]] bool removeGroupedItem(
 		const BlockPath &path,
 		int itemIndex);

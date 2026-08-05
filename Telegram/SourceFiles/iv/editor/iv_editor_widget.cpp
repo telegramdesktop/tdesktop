@@ -6597,6 +6597,16 @@ void Widget::showStructuralPhotoVideoMenu(QPoint globalPos) {
 			});
 		},
 		&st::menuIconPhotoSet);
+	if (_state->canUngroupGroupedMediaBlocks(selection)) {
+		menu->addAction(
+			tr::lng_article_media_ungroup(tr::now),
+			[=] {
+				[[maybe_unused]] const auto changed = applyMediaBlockChange([=] {
+					return _state->ungroupGroupedMediaBlocks(selection);
+				});
+			},
+			&st::menuIconExpand);
+	}
 	Ui::Menu::CreateAddActionCallback(menu)({
 		.text = tr::lng_box_remove(tr::now),
 		.handler = [=] {
