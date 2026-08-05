@@ -199,6 +199,7 @@ public:
 	void previewUnregister();
 
 	void mediaEditManagerApply(SendMenu::Action action);
+	[[nodiscard]] bool mediaEditCoverUploading() const;
 
 	[[nodiscard]] bool isDisplayed() const;
 	[[nodiscard]] bool isEditingMessage() const;
@@ -335,6 +336,11 @@ void FieldHeader::init() {
 	sizeValue(
 	) | rpl::on_next([=](QSize size) {
 		updateControlsGeometry(size);
+	}, lifetime());
+
+	_mediaEditManager.updateRequests(
+	) | rpl::on_next([=] {
+		update();
 	}, lifetime());
 
 	_forwardPanel->itemsUpdated(
@@ -491,7 +497,8 @@ void FieldHeader::init() {
 					_mediaEditManager.showMenu(
 						this,
 						[=] { update(); },
-						_hasSendText());
+						_hasSendText(),
+						_show);
 				} else if (const auto reply = replyingToMessage()) {
 					_jumpToItemRequests.fire_copy(reply);
 				} else if (readyToForward()) {
@@ -609,7 +616,11 @@ void FieldHeader::previewUnregister() {
 }
 
 void FieldHeader::mediaEditManagerApply(SendMenu::Action action) {
-	_mediaEditManager.apply(action);
+	_mediaEditManager.apply(action, _show);
+}
+
+bool FieldHeader::mediaEditCoverUploading() const {
+	return _mediaEditManager.videoCoverUploading();
 }
 
 void FieldHeader::paintWebPage(Painter &p, not_null<PeerData*> context) {
@@ -736,6 +747,7 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 			st::historyEditMedia.paintInCenter(p, to);
 			p.setOpacity(1.);
 		}
+		_mediaEditManager.paintCoverUpload(p, to);
 	}
 
 	if (_suggestOptions) {
@@ -943,6 +955,7 @@ MessageToEdit FieldHeader::queryToEdit() {
 			.suggest = suggestOptions(),
 		},
 		.spoilered = _mediaEditManager.spoilered(),
+		.videoCover = _mediaEditManager.videoCover(),
 	};
 }
 
@@ -1894,7 +1907,8 @@ rpl::producer<QString> ComposeControls::sendCommandRequests() const {
 rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
 	auto toValue = rpl::map([=] { return _header->queryToEdit(); });
 	auto filter = rpl::filter([=] {
-		return _send->type() == Ui::SendButton::Type::Save;
+		return (_send->type() == Ui::SendButton::Type::Save)
+			&& !_header->mediaEditCoverUploading();
 	});
 	return rpl::merge(
 		_send->clicks() | filter | toValue,
@@ -3338,7 +3352,9 @@ void ComposeControls::setupSendMenu(
 		} else if (action.type == ActionType::CaptionUp
 			|| action.type == ActionType::CaptionDown
 			|| action.type == ActionType::SpoilerOn
-			|| action.type == ActionType::SpoilerOff) {
+			|| action.type == ActionType::SpoilerOff
+			|| action.type == ActionType::EditCover
+			|| action.type == ActionType::RemoveCover) {
 			_header->mediaEditManagerApply(action);
 		} else {
 			SendMenu::DefaultCallback(_show, send)(action, details);

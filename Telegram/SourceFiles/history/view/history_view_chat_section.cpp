@@ -894,7 +894,12 @@ void ChatWidget::setupComposeControls() {
 	) | rpl::on_next([=](auto data) {
 		if (const auto item = session().data().message(data.fullId)) {
 			const auto spoiler = data.spoilered;
-			edit(item, data.options, saveEditMsgRequestId, spoiler);
+			edit(
+				item,
+				data.options,
+				saveEditMsgRequestId,
+				spoiler,
+				data.videoCover);
 		}
 	}, lifetime());
 
@@ -1714,7 +1719,8 @@ void ChatWidget::edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId,
-		bool spoilered) {
+		bool spoilered,
+		Api::VideoCoverEdit videoCover) {
 	if (*saveEditMsgRequestId) {
 		return;
 	}
@@ -1784,7 +1790,8 @@ void ChatWidget::edit(
 		options,
 		crl::guard(this, done),
 		crl::guard(this, fail),
-		spoilered);
+		spoilered,
+		videoCover);
 
 	_composeControls->hidePanelsAnimated();
 	doSetInnerFocus();

@@ -30,6 +30,7 @@ struct MessageToEdit {
 	Api::SendOptions options;
 	TextWithTags textWithTags;
 	bool spoilered = false;
+	Api::VideoCoverEdit videoCover;
 };
 struct VoiceToSend {
 	QByteArray bytes;

@@ -28,6 +28,7 @@ namespace Api {
 struct MessageToSend;
 struct SendOptions;
 struct SendAction;
+struct VideoCoverEdit;
 } // namespace Api
 
 namespace Storage {
@@ -322,7 +323,8 @@ private:
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId,
-		bool spoilered);
+		bool spoilered,
+		Api::VideoCoverEdit videoCover);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const override;
 	bool processChosenSticker(ChatHelpers::FileChosen &&chosen) override;
