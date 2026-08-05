@@ -43,9 +43,8 @@ float insideTexture() {
 }
 
 vec4 background() {
-	vec4 blur = texture(b_texture, b_texcoord);
-	float blurOpacity = shadow.w;
-	return mix(frameBg, blur, blurOpacity);
+	// Plain blurred color, main() mixes it with frameBg by shadow.w.
+	return texture(b_texture, b_texcoord);
 }
 
 void main() {
