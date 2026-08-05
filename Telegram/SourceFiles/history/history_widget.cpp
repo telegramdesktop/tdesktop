@@ -430,6 +430,7 @@ HistoryWidget::HistoryWidget(
 
 	_mediaEditManager.updateRequests() | rpl::on_next([this] {
 		updateOverStates(mapFromGlobal(QCursor::pos()));
+		updateField();
 	}, lifetime());
 
 	setupSendMenu(_send.get(), [=](SendMenu::Action action, SendMenu::Details) {
@@ -5166,8 +5167,10 @@ void HistoryWidget::setupSendMenu(
 			if (value.type == ActionType::CaptionUp
 				|| value.type == ActionType::CaptionDown
 				|| value.type == ActionType::SpoilerOn
-				|| value.type == ActionType::SpoilerOff) {
-				_mediaEditManager.apply(value);
+				|| value.type == ActionType::SpoilerOff
+				|| value.type == ActionType::EditCover
+				|| value.type == ActionType::RemoveCover) {
+				_mediaEditManager.apply(value, controller()->uiShow());
 			} else {
 				action(value, details);
 			}
@@ -5237,6 +5240,8 @@ void HistoryWidget::saveEditMessage(Api::SendOptions options) {
 	Expects(_history != nullptr);
 
 	if (_saveEditMsgRequestId) {
+		return;
+	} else if (_mediaEditManager.videoCoverUploading()) {
 		return;
 	}
 
@@ -5347,7 +5352,8 @@ void HistoryWidget::saveEditMessage(Api::SendOptions options) {
 		options,
 		done,
 		fail,
-		_mediaEditManager.spoilered());
+		_mediaEditManager.spoilered(),
+		_mediaEditManager.videoCover());
 }
 
 void HistoryWidget::hideChildWidgets() {
@@ -8723,7 +8729,8 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		_mediaEditManager.showMenu(
 			_list,
 			[=] { mouseMoveEvent(nullptr); },
-			fieldHasSendText());
+			fieldHasSendText(),
+			controller()->uiShow());
 	} else if (_inPhotoEdit && _photoEditMedia) {
 		EditCaptionBox::StartPhotoEdit(
 			controller(),
@@ -10977,6 +10984,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 						st::historyEditMedia.paintInCenter(p, to);
 						p.setOpacity(1.);
 					}
+					_mediaEditManager.paintCoverUpload(p, to);
 				}
 				replyLeft += st::historyReplyPreview + st::msgReplyBarSkip;
 			}

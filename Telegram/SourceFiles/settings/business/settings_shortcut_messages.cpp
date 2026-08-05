@@ -239,7 +239,8 @@ private:
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId,
-		bool spoilered);
+		bool spoilered,
+		Api::VideoCoverEdit videoCover);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
 	[[nodiscard]] FullReplyTo replyTo() const;
 	void doSetInnerFocus();
@@ -679,7 +680,12 @@ void ShortcutMessages::setupComposeControls() {
 		if (const auto item = _session->data().message(data.fullId)) {
 			if (item->isBusinessShortcut()) {
 				const auto spoiler = data.spoilered;
-				edit(item, data.options, saveEditMsgRequestId, spoiler);
+				edit(
+					item,
+					data.options,
+					saveEditMsgRequestId,
+					spoiler,
+					data.videoCover);
 			}
 		}
 	}, lifetime());
@@ -1221,7 +1227,8 @@ void ShortcutMessages::edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId,
-		bool spoilered) {
+		bool spoilered,
+		Api::VideoCoverEdit videoCover) {
 	if (*saveEditMsgRequestId) {
 		return;
 	}
@@ -1291,7 +1298,8 @@ void ShortcutMessages::edit(
 		options,
 		crl::guard(this, done),
 		crl::guard(this, fail),
-		spoilered);
+		spoilered,
+		videoCover);
 
 	_composeControls->hidePanelsAnimated();
 	doSetInnerFocus();
