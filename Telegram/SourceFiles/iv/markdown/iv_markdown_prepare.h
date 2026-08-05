@@ -63,6 +63,7 @@ enum class PreparedLinkKind {
 	LocalFile,
 	RejectedRelative,
 	ToggleDetails,
+	ToggleBlockquote,
 };
 
 struct PreparedLink {
@@ -707,6 +708,7 @@ struct PreparedBlock {
 	QString codeLanguage;
 	QString formulaTex;
 	QString anchorId;
+	QString collapseToggleId;
 	std::vector<QString> anchorIds;
 	PreparedPhotoBlockData photo;
 	PreparedVideoBlockData video;

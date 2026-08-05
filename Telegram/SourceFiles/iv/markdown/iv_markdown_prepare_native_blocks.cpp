@@ -115,6 +115,10 @@ struct NativeIvDepthContext {
 	return u"details-"_q + QString::number(++state->nextGeneratedId);
 }
 
+[[nodiscard]] QString NativeIvQuoteToggleId(NativeIvPrepareState *state) {
+	return u"quote-"_q + QString::number(++state->nextGeneratedId);
+}
+
 void SortPreparedIvRichText(PreparedIvRichText *text) {
 	SortEntities(&text->text);
 }
@@ -1300,6 +1304,13 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 	block.kind = PreparedBlockKind::Quote;
 	block.anchorId = data.anchorId;
 	block.pullquote = data.pullquote;
+	if (data.collapsed
+		&& data.blocks.empty()
+		&& !data.pullquote
+		&& !state->editMode) {
+		block.collapseToggleId = NativeIvQuoteToggleId(state);
+		block.collapsed = true;
+	}
 	block.actualDepth = depthContext.quoteDepth;
 	block.visualDepth = CappedNativeIvQuoteDepth(block.actualDepth);
 	block.depthClamped = (block.actualDepth > block.visualDepth);

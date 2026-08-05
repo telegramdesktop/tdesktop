@@ -1396,6 +1396,7 @@ void AppendBlock(
 		result->push_back(std::move(parsed));
 	}, [&](const MTPDpageBlockBlockquote &data) {
 		auto parsed = MakeBlock(BlockKind::Quote);
+		parsed.collapsed = data.is_collapsed();
 		parsed.text = ParseRichText(data.vtext(), context);
 		AdoptAnchor(&parsed.anchorId, &parsed.text);
 		parsed.caption = ParseRichText(data.vcaption(), context);

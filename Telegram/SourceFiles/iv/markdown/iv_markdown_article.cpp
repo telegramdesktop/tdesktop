@@ -1540,6 +1540,27 @@ void RebuildVisibleSegmentLookup(
 	return !rect.isEmpty() && rect.contains(point);
 }
 
+[[nodiscard]] std::optional<PreparedLink> CollapsibleQuoteToggleAt(
+		const std::vector<LaidOutBlock> &blocks,
+		QPoint point) {
+	for (const auto &block : blocks) {
+		if (!ContainsPoint(block.outer, point)) {
+			continue;
+		}
+		if (auto nested = CollapsibleQuoteToggleAt(block.children, point)) {
+			return nested;
+		}
+		if (QuoteHasCollapseControl(block)) {
+			return PreparedLink{
+				.kind = PreparedLinkKind::ToggleBlockquote,
+				.target = block.collapseToggleId,
+			};
+		}
+		break;
+	}
+	return std::nullopt;
+}
+
 struct ActiveHorizontalScrollOwnerState {
 	QRect viewport;
 	int shift = 0;
@@ -3016,6 +3037,25 @@ void ConsiderStructuralListItemDropTargets(
 	return false;
 }
 
+[[nodiscard]] bool ToggleBlockquoteBlock(
+		std::vector<PreparedBlock> *blocks,
+		const QString &toggleId) {
+	if (!blocks || toggleId.isEmpty()) {
+		return false;
+	}
+	for (auto &block : *blocks) {
+		if (block.kind == PreparedBlockKind::Quote
+			&& block.collapseToggleId == toggleId) {
+			block.collapsed = !block.collapsed;
+			return true;
+		}
+		if (ToggleBlockquoteBlock(&block.children, toggleId)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 [[nodiscard]] bool PreparedBlockHasAnchor(
 		const PreparedBlock &block,
 		const QString &anchorId) {
@@ -3574,6 +3614,8 @@ public:
 
 	[[nodiscard]] bool toggleDetails(const QString &anchorId);
 
+	[[nodiscard]] bool toggleBlockquote(const QString &toggleId);
+
 	[[nodiscard]] bool segmentIsText(int index) const;
 
 	[[nodiscard]] bool segmentIsDisplayMath(int index) const;
@@ -3686,6 +3728,10 @@ private:
 	};
 
 	[[nodiscard]] int currentDevicePixelRatio() const;
+
+	[[nodiscard]] MarkdownArticleHitTestResult hitTestSegments(
+		QPoint point,
+		Ui::Text::StateRequest::Flags flags) const;
 
 	void rebuildVisibleSegmentLookup();
 
@@ -4323,7 +4369,7 @@ void MarkdownArticle::Impl::paint(
 	_blocksPainted = true;
 }
 
-MarkdownArticleHitTestResult MarkdownArticle::Impl::hitTest(
+MarkdownArticleHitTestResult MarkdownArticle::Impl::hitTestSegments(
 		QPoint point,
 		Ui::Text::StateRequest::Flags flags) const {
 	const auto span = candidateSegmentSpan(point);
@@ -4352,6 +4398,25 @@ MarkdownArticleHitTestResult MarkdownArticle::Impl::hitTest(
 		return HitSegmentFallback(_segments, span, point);
 	}
 	return {};
+}
+
+MarkdownArticleHitTestResult MarkdownArticle::Impl::hitTest(
+		QPoint point,
+		Ui::Text::StateRequest::Flags flags) const {
+	auto result = hitTestSegments(point, flags);
+	if ((flags & Ui::Text::StateRequest::Flag::LookupLink)
+		&& !result.state.link
+		&& !result.preparedLink
+		&& !result.inlineButton
+		&& (result.buttonRow.index < 0)
+		&& (result.mediaActivation.kind == MediaActivationKind::None)
+		&& !result.codeHeaderCopy) {
+		if (auto toggle = CollapsibleQuoteToggleAt(_blocks, point)) {
+			result.state.link = CreatePreparedLinkHandler(*toggle);
+			result.preparedLink = std::move(toggle);
+		}
+	}
+	return result;
 }
 
 PreparedEditHit MarkdownArticle::Impl::editHitTest(QPoint point) const {
@@ -4547,6 +4612,14 @@ MarkdownArticleAnchorExpansion MarkdownArticle::Impl::expandDetailsBlock(
 
 bool MarkdownArticle::Impl::toggleDetails(const QString &anchorId) {
 	if (!ToggleDetailsBlock(&_content.blocks.blocks, anchorId)) {
+		return false;
+	}
+	invalidateLayout();
+	return true;
+}
+
+bool MarkdownArticle::Impl::toggleBlockquote(const QString &toggleId) {
+	if (!ToggleBlockquoteBlock(&_content.blocks.blocks, toggleId)) {
 		return false;
 	}
 	invalidateLayout();
@@ -6607,6 +6680,10 @@ MarkdownArticleAnchorExpansion MarkdownArticle::expandDetailsBlock(
 
 bool MarkdownArticle::toggleDetails(const QString &anchorId) {
 	return _impl->toggleDetails(anchorId);
+}
+
+bool MarkdownArticle::toggleBlockquote(const QString &toggleId) {
+	return _impl->toggleBlockquote(toggleId);
 }
 
 bool MarkdownArticle::segmentIsText(int index) const {

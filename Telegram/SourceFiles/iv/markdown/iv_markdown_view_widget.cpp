@@ -56,6 +56,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Iv::Markdown {
 namespace {
 
+[[nodiscard]] bool IsToggleLink(const PreparedLink &link) {
+	return (link.kind == PreparedLinkKind::ToggleDetails)
+		|| (link.kind == PreparedLinkKind::ToggleBlockquote);
+}
+
 void EnsureBlockquotePaintCache(
 		std::unique_ptr<Ui::Text::QuotePaintCache> &cache,
 		const style::color &color) {
@@ -400,6 +405,16 @@ QRect MarkdownDocumentWidget::segmentRect(int segmentIndex) const {
 
 bool MarkdownDocumentWidget::toggleDetails(const QString &anchorId) {
 	if (!_article || !_article->toggleDetails(anchorId)) {
+		return false;
+	}
+	clearSelection();
+	forceRelayoutCurrentWidth();
+	updateHoverAtCursor();
+	return true;
+}
+
+bool MarkdownDocumentWidget::toggleBlockquote(const QString &toggleId) {
+	if (!_article || !_article->toggleBlockquote(toggleId)) {
 		return false;
 	}
 	clearSelection();
@@ -1148,8 +1163,7 @@ void MarkdownDocumentWidget::updateHover(
 	if (_dragAction == NoDrag) {
 		if (state.codeHeaderCopy
 			|| state.state.link
-			|| (state.preparedLink
-				&& state.preparedLink->kind == PreparedLinkKind::ToggleDetails)
+			|| (state.preparedLink && IsToggleLink(*state.preparedLink))
 			|| state.mediaActivation.kind != MediaActivationKind::None) {
 			cursor = style::cur_pointer;
 		} else if (state.direct) {
@@ -1371,7 +1385,7 @@ void MarkdownDocumentWidget::dragActionStart(
 	_dragStartPosition = point;
 	_dragStartHadSelection = !selectionForCopy().empty();
 	_selectionClickPreparedLink = (state.preparedLink
-		&& state.preparedLink->kind == PreparedLinkKind::ToggleDetails)
+		&& IsToggleLink(*state.preparedLink))
 		? state.preparedLink
 		: std::nullopt;
 	ClickHandler::pressed();
@@ -1379,7 +1393,9 @@ void MarkdownDocumentWidget::dragActionStart(
 	_dragExpandedSelection = {};
 	_dragSegment = -1;
 	_dragSymbol = 0;
-	if (ClickHandler::getPressed()) {
+	const auto pressedAllowsSelection = state.preparedLink
+		&& (state.preparedLink->kind == PreparedLinkKind::ToggleBlockquote);
+	if (ClickHandler::getPressed() && !pressedAllowsSelection) {
 		_dragStartPosition = point;
 		_dragAction = PrepareDrag;
 		return;
@@ -1450,13 +1466,13 @@ MarkdownArticleHitTestResult MarkdownDocumentWidget::dragActionFinish(
 	const auto dragStartHadSelection = _dragStartHadSelection;
 	const auto wasClick = (_dragAction == NoDrag)
 		|| (_dragAction == PrepareDrag);
-	const auto toggleFromDetailsClick = !dragStartHadSelection
+	const auto toggleFromClick = !dragStartHadSelection
 		&& _selection.empty()
 		&& _selectionClickPreparedLink
 		&& (point - _dragStartPosition).manhattanLength()
 			< QApplication::startDragDistance()
 		&& state.preparedLink
-		&& state.preparedLink->kind == PreparedLinkKind::ToggleDetails
+		&& IsToggleLink(*state.preparedLink)
 		&& state.preparedLink->target == _selectionClickPreparedLink->target;
 	if (_dragAction == Dragging
 		|| (_dragAction == Selecting && !_selection.empty())) {
@@ -1464,7 +1480,7 @@ MarkdownArticleHitTestResult MarkdownDocumentWidget::dragActionFinish(
 	} else if (_dragAction == PrepareDrag && button != Qt::RightButton) {
 		clearSelection();
 	}
-	const auto preparedToggle = toggleFromDetailsClick
+	const auto preparedToggle = toggleFromClick
 		? state.preparedLink
 		: std::nullopt;
 	_dragStartHadSelection = false;
@@ -1486,8 +1502,7 @@ MarkdownArticleHitTestResult MarkdownDocumentWidget::dragActionFinish(
 			return state;
 		}
 		if (state.preparedLink && _activateLink) {
-			if (state.preparedLink->kind == PreparedLinkKind::ToggleDetails
-				&& dragStartHadSelection) {
+			if (IsToggleLink(*state.preparedLink) && dragStartHadSelection) {
 				return state;
 			}
 			_activateLink(*state.preparedLink, button);

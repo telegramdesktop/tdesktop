@@ -442,6 +442,7 @@ public:
 	[[nodiscard]] MarkdownArticleAnchorExpansion expandDetailsBlock(
 		const QString &anchorId);
 	[[nodiscard]] bool toggleDetails(const QString &anchorId);
+	[[nodiscard]] bool toggleBlockquote(const QString &toggleId);
 	[[nodiscard]] bool segmentIsText(int index) const;
 	[[nodiscard]] bool segmentIsDisplayMath(int index) const;
 	[[nodiscard]] bool segmentIsEditable(int index) const;

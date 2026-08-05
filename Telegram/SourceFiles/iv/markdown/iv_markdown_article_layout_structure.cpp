@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_article_text.h"
 
 #include "lang/lang_keys.h"
+#include "ui/text/text_renderer.h" // Ui::Text::kQuoteCollapsedLines
+
 #include "styles/style_iv.h"
 
 #include <algorithm>
@@ -213,6 +215,8 @@ void PrepareNestedContext(
 	context->articleLeft = left;
 	context->articleWidth = std::max(width, 1);
 	context->listItemContentShift = 0;
+	context->collapsibleQuoteLines = 0;
+	context->collapsibleQuoteCollapsed = false;
 }
 
 [[nodiscard]] bool TextEmptyForLayout(
@@ -3285,6 +3289,10 @@ int LayoutBlocks(
 	childContext.hideEmptyQuoteAuthor = QuoteBodyEmptyForLayout(
 		prepared,
 		childContext);
+	if (!prepared.collapseToggleId.isEmpty()) {
+		childContext.collapsibleQuoteLines = Ui::Text::kQuoteCollapsedLines;
+		childContext.collapsibleQuoteCollapsed = prepared.collapsed;
+	}
 	const auto childBottom = layoutNestedBlocks(
 		prepared.children,
 		&block->children,
@@ -3298,6 +3306,11 @@ int LayoutBlocks(
 	if (!childBottom) {
 		return std::nullopt;
 	}
+	block->collapseToggleId = prepared.collapseToggleId;
+	block->collapsed = prepared.collapsed;
+	block->collapsedLinesExceeded = !block->children.empty()
+		&& !block->children.front().quoteAuthor
+		&& block->children.front().collapsedLinesExceeded;
 	const auto contentHeight = std::max(
 		*childBottom - contentTop,
 		prepared.children.empty()

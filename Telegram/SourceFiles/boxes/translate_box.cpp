@@ -102,6 +102,9 @@ void ActivateRichTranslateLink(
 	case Kind::ToggleDetails:
 		static_cast<void>(body->toggleDetails(link.target));
 		break;
+	case Kind::ToggleBlockquote:
+		static_cast<void>(body->toggleBlockquote(link.target));
+		break;
 	default:
 		break;
 	}

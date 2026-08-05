@@ -233,6 +233,7 @@ struct RichPage {
 		bool bordered = false;
 		bool striped = false;
 		bool pullquote = false;
+		bool collapsed = false;
 		ListKind listKind = ListKind::Bullet;
 		OrderedListData orderedList;
 		GroupedMediaIntent mediaIntent = GroupedMediaIntent::Collage;

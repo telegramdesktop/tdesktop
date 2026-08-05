@@ -1968,13 +1968,18 @@ void PaintQuoteBlock(
 			*context.caches.blockquote,
 			quoteStyle);
 		if (!block.pullquote) {
+			const auto control = QuoteHasCollapseControl(block);
 			p.save();
 			p.setClipRect(quoteClip);
 			Ui::Text::FillQuotePaint(
 				p,
 				HorizontalScrollLogicalPaintRect(block),
 				*context.caches.blockquote,
-				quoteStyle);
+				quoteStyle,
+				{
+					.expandIcon = control && block.collapsed,
+					.collapseIcon = control && !block.collapsed,
+				});
 			p.restore();
 		} else {
 			p.save();

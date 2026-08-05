@@ -144,6 +144,7 @@ struct LaidOutBlock {
 	QPoint markerCenter;
 	LaidOutBlockLogicalGeometry logicalGeometry;
 	QString anchorId;
+	QString collapseToggleId;
 	std::vector<QString> anchorIds;
 	int textWidth = 0;
 	int labelWidth = 0;
@@ -161,6 +162,7 @@ struct LaidOutBlock {
 	style::align flowTextAlign = style::al_left;
 	style::align formulaAlign = style::al_left;
 	bool collapsed = false;
+	bool collapsedLinesExceeded = false;
 	bool detailsOpen = false;
 	bool rtl = false;
 	bool overflowed = false;
@@ -326,12 +328,14 @@ struct LayoutContext {
 	int articleLeft = 0;
 	int articleWidth = 0;
 	int inlineButtonWidthCap = 0;
+	int collapsibleQuoteLines = 0;
 	double mediaPixelScale = 1.;
 	bool tightList = false;
 	bool useArticleBands = false;
 	bool editMode = false;
 	bool rtl = false;
 	bool hideEmptyQuoteAuthor = false;
+	bool collapsibleQuoteCollapsed = false;
 	bool allowAsyncSyntaxHighlighting = true;
 	CodeBlockSyntaxHighlightTracker *syntaxHighlightTracker = nullptr;
 	CachedTextLeafPool *cachedTextLeafs = nullptr;
@@ -372,6 +376,7 @@ private:
 [[nodiscard]] bool IsAnchorOnlyBlock(const PreparedBlock &block);
 [[nodiscard]] bool PreparedBlockHasInlineButton(const PreparedBlock &prepared);
 [[nodiscard]] bool IsFlowKind(PreparedBlockKind kind);
+[[nodiscard]] bool QuoteHasCollapseControl(const LaidOutBlock &block);
 [[nodiscard]] QString ListMarkerText(const PreparedBlock &block);
 [[nodiscard]] int TextLineHeight(const style::TextStyle &style);
 [[nodiscard]] int TextLineAscent(const style::TextStyle &style);

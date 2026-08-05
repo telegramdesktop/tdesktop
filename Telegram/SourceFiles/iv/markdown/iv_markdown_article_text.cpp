@@ -123,6 +123,7 @@ struct PreparedLinkExternalData {
 		return link.target;
 	case PreparedLinkKind::RejectedRelative:
 	case PreparedLinkKind::ToggleDetails:
+	case PreparedLinkKind::ToggleBlockquote:
 		return QString();
 	}
 	return QString();
@@ -135,6 +136,7 @@ struct PreparedLinkExternalData {
 	switch (link.kind) {
 	case PreparedLinkKind::RejectedRelative:
 	case PreparedLinkKind::ToggleDetails:
+	case PreparedLinkKind::ToggleBlockquote:
 		return QString();
 	case PreparedLinkKind::External:
 	case PreparedLinkKind::InstantViewPage:

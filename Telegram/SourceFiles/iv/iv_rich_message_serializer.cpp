@@ -1380,6 +1380,11 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 				: FailedSerializeBlock();
 		}
 		if (block.blocks.empty()) {
+			using Flag = MTPDpageBlockBlockquote::Flag;
+			auto flags = MTPDpageBlockBlockquote::Flags();
+			if (block.collapsed) {
+				flags |= Flag::f_collapsed;
+			}
 			const auto caption = SerializeRichTextWithAnchor(
 				block.caption,
 				QString(),
@@ -1390,7 +1395,7 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 				context);
 			return (text && caption)
 				? SuccessfulSerializeBlock(MTP_pageBlockBlockquote(
-					MTP_flags(0),
+					MTP_flags(flags),
 					*text,
 					*caption))
 				: FailedSerializeBlock();

@@ -754,6 +754,19 @@ void PopulateCodeBlockLeaf(
 	return result;
 }
 
+[[nodiscard]] int LeafCollapsedLineBottom(
+		const Ui::Text::String &leaf,
+		int width,
+		int lines) {
+	if (lines <= 0) {
+		return 0;
+	}
+	const auto geometry = leaf.countLinesGeometry(width);
+	return (lines < int(geometry.size()))
+		? geometry[lines - 1].bottom
+		: 0;
+}
+
 [[nodiscard]] QRect PaddedBand(
 		int left,
 		int width,
@@ -1707,6 +1720,12 @@ bool IsFlowKind(PreparedBlockKind kind) {
 	return (kind == PreparedBlockKind::Paragraph)
 		|| (kind == PreparedBlockKind::Thinking)
 		|| (kind == PreparedBlockKind::Heading);
+}
+
+bool QuoteHasCollapseControl(const LaidOutBlock &block) {
+	return (block.kind == PreparedBlockKind::Quote)
+		&& !block.collapseToggleId.isEmpty()
+		&& block.collapsedLinesExceeded;
 }
 
 bool IsAnchorOnlyBlock(const PreparedBlock &block) {
@@ -3945,9 +3964,19 @@ LaidOutBlock LayoutGroupedMediaBlock(
 	const auto &displayLeaf = usePlaceholder
 		? block->placeholderLeaf
 		: block->leaf;
-	const auto height = ResolveEditableHeight(
+	auto height = ResolveEditableHeight(
 		LeafHeight(displayLeaf, textStyle, block->textWidth),
 		context);
+	const auto clipped = prepared.quoteAuthor
+		? 0
+		: LeafCollapsedLineBottom(
+			displayLeaf,
+			block->textWidth,
+			context.collapsibleQuoteLines);
+	block->collapsedLinesExceeded = (clipped > 0);
+	if (clipped > 0 && context.collapsibleQuoteCollapsed) {
+		height = std::min(height, clipped);
+	}
 	block->textRect = QRect(left, top, block->textWidth, height);
 	block->contentRect = QRect(left, top, visibleWidth, height);
 	block->overflowed = (block->textWidth > visibleWidth);

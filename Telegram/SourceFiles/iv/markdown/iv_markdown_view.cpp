@@ -556,6 +556,12 @@ void MarkdownPreviewRoot::activateLink(
 				link.target));
 		}
 		break;
+	case PreparedLinkKind::ToggleBlockquote:
+		if (_body && !_body->toggleBlockquote(link.target)) {
+			DEBUG_LOG(("Native Markdown IV: failed blockquote toggle: %1").arg(
+				link.target));
+		}
+		break;
 	}
 }
 

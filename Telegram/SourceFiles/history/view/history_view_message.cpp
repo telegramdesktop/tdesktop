@@ -207,6 +207,7 @@ void SetRichPageSelectionCursor(
 		return link.target;
 	case PreparedLinkKind::RejectedRelative:
 	case PreparedLinkKind::ToggleDetails:
+	case PreparedLinkKind::ToggleBlockquote:
 		return QString();
 	}
 	return QString();
@@ -221,6 +222,7 @@ void SetRichPageSelectionCursor(
 	switch (link.kind) {
 	case PreparedLinkKind::RejectedRelative:
 	case PreparedLinkKind::ToggleDetails:
+	case PreparedLinkKind::ToggleBlockquote:
 		return QString();
 	case PreparedLinkKind::External:
 	case PreparedLinkKind::InstantViewPage:
@@ -322,6 +324,10 @@ public:
 		return _link
 			? Iv::Markdown::TooltipForPreparedLink(*_link)
 			: QString();
+	}
+
+	[[nodiscard]] const std::optional<PreparedLink> &link() const {
+		return _link;
 	}
 
 private:
@@ -728,6 +734,12 @@ void Message::activateRichPagePreparedLink(
 	case PreparedLinkKind::ToggleDetails:
 		if (const auto rich = const_cast<Message*>(this)->richpage()
 			; rich && rich->article.toggleDetails(link.target)) {
+			const_cast<Message*>(this)->requestRichPageRelayout(QRect());
+		}
+		break;
+	case PreparedLinkKind::ToggleBlockquote:
+		if (const auto rich = const_cast<Message*>(this)->richpage()
+			; rich && rich->article.toggleBlockquote(link.target)) {
 			const_cast<Message*>(this)->requestRichPageRelayout(QRect());
 		}
 		break;
@@ -5605,6 +5617,13 @@ bool Message::allowTextSelectionByHandler(
 	}
 	if (dynamic_cast<Ui::Text::BlockquoteClickHandler*>(handler.get())) {
 		return true;
+	}
+	if (const auto rich = dynamic_cast<RichPageActionClickHandler*>(
+			handler.get())) {
+		const auto &link = rich->link();
+		if (link && link->kind == PreparedLinkKind::ToggleBlockquote) {
+			return true;
+		}
 	}
 	return false;
 }
