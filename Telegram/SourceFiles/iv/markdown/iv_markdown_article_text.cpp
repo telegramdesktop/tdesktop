@@ -706,11 +706,13 @@ FindInlineFormulaMeasuredData(
 	};
 	switch (presentation) {
 	case InlineButtonPresentation::Primary:
-		return {
-			.bg = inlineSt.primaryBg->c,
-			.ripple = st.buttonRow.primaryRipple->c,
-			.fg = st.textColor->c,
-		};
+		return (inlineSt.primaryBg->c == st.textColor->c)
+			? BubbleGradientPillColors(st, inlineSt.tintBgOpacity, true)
+			: RichButtonPillColors{
+				.bg = inlineSt.primaryBg->c,
+				.ripple = st.buttonRow.primaryRipple->c,
+				.fg = st.textColor->c,
+			};
 	case InlineButtonPresentation::Success:
 		return tint(inlineSt.successFg);
 	case InlineButtonPresentation::Danger:

@@ -236,11 +236,13 @@ void ApplyButtonFallbackLadder(
 	const auto &st = markdownSt.buttonRow;
 	switch (color) {
 	case ButtonColor::Primary:
-		return {
-			.bg = st.primaryBg->c,
-			.ripple = st.primaryRipple->c,
-			.fg = markdownSt.textColor->c,
-		};
+		return (st.primaryBg->c == markdownSt.textColor->c)
+			? BubbleGradientPillColors(markdownSt, st.tintBgOpacity, true)
+			: RichButtonPillColors{
+				.bg = st.primaryBg->c,
+				.ripple = st.primaryRipple->c,
+				.fg = markdownSt.textColor->c,
+			};
 	case ButtonColor::Success:
 		return {
 			.bg = anim::with_alpha(st.successFg->c, st.tintBgOpacity),
