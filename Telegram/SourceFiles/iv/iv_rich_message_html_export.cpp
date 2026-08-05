@@ -1151,7 +1151,7 @@ void SerializeBlocks(
 			: base::FileNameFromUserString(keepExtension);
 		result = result.left(kMaxFolderNameLength - tail.size()) + tail;
 	}
-	if (!result.isEmpty() && result.back().isHighSurrogate()) {
+	if (!result.isEmpty() && QChar(result.back()).isHighSurrogate()) {
 		result.chop(1);
 	}
 	while (!result.isEmpty()
