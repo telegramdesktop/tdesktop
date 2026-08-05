@@ -6494,6 +6494,16 @@ void Widget::showGroupedMediaMenu(
 			});
 		},
 		&st::menuIconExpand);
+	const auto toSlideshow = (block->mediaIntent
+		!= RichPage::GroupedMediaIntent::Slideshow);
+	menu->addAction(
+		toSlideshow
+			? tr::lng_article_media_slideshow(tr::now)
+			: tr::lng_article_media_collage(tr::now),
+		[=] {
+			toggleGroupedMediaIntent(path);
+		},
+		toSlideshow ? &st::menuIconPhotoSet : &st::menuIconShowAll);
 	if (GroupedMediaHasPhotoVideoItems(*block)) {
 		Menu::AddCheckedAction(
 			menu,
