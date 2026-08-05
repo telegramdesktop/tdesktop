@@ -128,6 +128,10 @@ walletDetailsBox: Box(giveawayGiftCodeBox) {
 	bg: windowBgOver;
 	buttonPadding: margins(24px, 11px, 24px, 22px);
 }
+walletSendBox: Box(giveawayGiftCodeBox) {
+	buttonPadding: margins(0px, 0px, 0px, 0px);
+	buttonHeight: 0px;
+}
 walletDetailsTable: Table(giveawayGiftCodeTable) {
 	defaultValue: FlatLabel(defaultTableValue) {
 		palette: TextPalette(defaultTextPalette) {
@@ -192,16 +196,30 @@ walletSendBalanceLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 walletSendRowSkip: 12px;
-walletSendAmountTopSkip: 16px;
-walletSendSwapPill: RoundButton(walletSendPaste) {
-	icon: icon{{ "arrows_select", windowActiveTextFg }};
-	iconPosition: point(-6px, 7px);
-}
 walletSendFiatLabel: FlatLabel(defaultFlatLabel) {
 	textFg: currencyFg;
 	style: semiboldTextStyle;
 }
 walletSendFiatLabelSkip: 6px;
+walletSendField: InputField(defaultInputField) {
+	textMargins: margins(0px, 28px, 0px, 8px);
+	placeholderFont: boxTextFont;
+	heightMin: 55px;
+}
+walletSendAmountField: InputField(walletSendField) {
+	textMargins: margins(18px, 28px, 0px, 8px);
+	placeholderMargins: margins(-18px, 0px, 0px, 0px);
+}
+walletSendCommentField: InputField(walletSendField) {
+	textMargins: margins(0px, 12px, 0px, 8px);
+	heightMin: 39px;
+}
+walletSendFieldMargin: margins(24px, 12px, 24px, 12px);
+walletSendMarkSize: 15px;
+walletSendMarkPosition: point(0px, 31px);
+walletSendFiatTop: 29px;
+walletSendBalancePadding: margins(24px, 7px, 24px, 27px);
+walletSendContinueMargin: margins(16px, 12px, 16px, 12px);
 walletCommentField: InputField(walletSendAddressField) {
 	textMargins: margins(0px, 10px, 0px, 2px);
 }

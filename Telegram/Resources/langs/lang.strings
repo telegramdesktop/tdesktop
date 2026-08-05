@@ -8796,6 +8796,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_pill_fiat" = "{amount} {code}";
 "lng_wallet_send_pill_gram" = "{amount} GRAM";
 "lng_wallet_send_address_label" = "Address";
+"lng_wallet_send_amount_label" = "Amount";
+"lng_wallet_send_comment_placeholder" = "Comment (optional)";
 "lng_wallet_comment_title" = "Add comment";
 "lng_wallet_comment_placeholder" = "Optional message";
 "lng_wallet_comment_public" = "This comment is written to the public blockchain and will be permanently visible to everyone. Never include private information.";

@@ -1046,6 +1046,15 @@ void ShowWalletTransactionBox(
 	return CommentBytes(text) <= kCommentMaxBytes;
 }
 
+void ApplyCommentLimit(not_null<Ui::InputField*> field) {
+	Ui::AddLengthLimitLabel(field, kCommentMaxBytes, {
+		.customCharactersCount = [=] {
+			return CommentBytes(field->getLastText());
+		},
+	});
+	field->setMaxLength(-1);
+}
+
 struct SendFlow {
 	Gram::Address destination;
 	bool bounce = true;
@@ -1106,12 +1115,41 @@ not_null<Ui::FlatLabel*> AddSendFlowLabel(
 			tr::lng_wallet_comment_placeholder(),
 			comment),
 		st::walletCommentFieldMargin);
-	Ui::AddLengthLimitLabel(field, kCommentMaxBytes, {
-		.customCharactersCount = [=] {
-			return CommentBytes(field->getLastText());
-		},
+	ApplyCommentLimit(field);
+	return field;
+}
+
+[[nodiscard]] not_null<Ui::InputField*> AddSendField(
+		not_null<Ui::VerticalLayout*> container,
+		const style::InputField &st,
+		rpl::producer<QString> placeholder,
+		const QString &value) {
+	const auto field = container->add(
+		object_ptr<Ui::InputField>(
+			container,
+			st,
+			Ui::InputField::Mode::NoNewlines,
+			std::move(placeholder),
+			value),
+		st::walletSendFieldMargin);
+	const auto paste = Ui::CreateChild<Ui::RoundButton>(
+		field,
+		tr::lng_wallet_send_paste(),
+		st::defaultTableSmallButton);
+	paste->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+	paste->setClickedCallback([=] {
+		field->setFocusFast();
+		field->setText(QGuiApplication::clipboard()->text().trimmed());
 	});
-	field->setMaxLength(-1);
+	field->widthValue(
+	) | rpl::on_next([=, &st](int) {
+		paste->moveToRight(0, st.textMargins.top());
+	}, paste->lifetime());
+	const auto updatePaste = [=] {
+		paste->setVisible(field->getLastText().isEmpty());
+	};
+	field->changes() | rpl::on_next(updatePaste, field->lifetime());
+	updatePaste();
 	return field;
 }
 
@@ -1233,70 +1271,35 @@ void SetButtonDisabledLook(
 	button->setAttribute(Qt::WA_TransparentForMouseEvents, disabled);
 }
 
-void WalletCommentBox(
-		not_null<Ui::GenericBox*> box,
-		const QString &comment,
-		Fn<void(QString)> done) {
-	box->setTitle(tr::lng_wallet_comment_title());
-	box->setWidth(st::boxWideWidth);
-
-	const auto field = AddCommentField(box, comment);
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			tr::lng_wallet_comment_public(),
-			st::walletBoxAboutLabel),
-		st::walletPhraseTextMargin,
-		style::al_top);
-	box->setFocusCallback([=] {
-		field->setFocusFast();
-	});
-
-	const auto submit = [=] {
-		const auto text = field->getLastText().trimmed();
-		if (!CommentFits(text)) {
-			field->showError();
-			return;
-		}
-		box->closeBox();
-		done(text);
-	};
-	field->submits() | rpl::on_next(submit, field->lifetime());
-	box->addButton(tr::lng_wallet_comment_add(), submit);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
 [[nodiscard]] not_null<Ui::InputField*> AddAmountField(
 		not_null<Ui::VerticalLayout*> container,
+		const style::InputField &st,
+		rpl::producer<QString> placeholder,
 		int64 value,
 		Fn<int()> fractionDigits,
 		rpl::producer<bool> entryFiat,
-		rpl::producer<QString> currency) {
+		rpl::producer<QString> currency,
+		rpl::producer<QString> fiat,
+		Fn<void()> swap) {
 	const auto wrap = container->add(
 		object_ptr<Ui::FixedHeightWidget>(
 			container,
-			st::editTagField.heightMin),
-		st::boxRowPadding);
-	auto placeholder = rpl::combine(
-		rpl::duplicate(entryFiat),
-		rpl::duplicate(currency)
-	) | rpl::map([](bool fiat, const QString &code) {
-		const auto fraction = fiat
-			? QString(Ui::LookupCurrencyRule(code).exponent, QChar('0'))
-			: u"0"_q;
-		auto result = u"0"_q;
-		if (!fraction.isEmpty()) {
-			result += Ui::TonAmountSeparator() + fraction;
-		}
-		return result;
-	});
+			st.heightMin),
+		st::walletSendFieldMargin);
 	const auto field = Ui::CreateTonAmountInput(
 		wrap,
 		std::move(placeholder),
 		value,
-		std::move(fractionDigits));
+		std::move(fractionDigits),
+		&st);
 	auto helper = Ui::Text::CustomEmojiHelper();
-	auto diamond = helper.paletteDependent(Ui::Earn::IconCurrencyEmoji());
+	auto diamond = helper.paletteDependent({
+		.factory = [] {
+			return Ui::Earn::IconCurrencyColored(
+				st::walletSendMarkSize,
+				st::windowActiveTextFg->c);
+		},
+	});
 	const auto icon = Ui::CreateChild<Ui::FlatLabel>(
 		field.get(),
 		rpl::single(std::move(diamond)),
@@ -1309,22 +1312,47 @@ void WalletCommentBox(
 			return Ui::CurrencyName(code);
 		}),
 		st::walletSendFiatLabel);
+	const auto fiatLabel = Ui::CreateChild<Ui::FlatLabel>(
+		field.get(),
+		std::move(fiat),
+		st::walletSendFiatLabel);
+	fiatLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto swapButton = Ui::CreateChild<Ui::AbstractButton>(field.get());
+	swapButton->setPointerCursor(true);
+	swapButton->setClickedCallback(std::move(swap));
+	fiatLabel->geometryValue(
+	) | rpl::on_next([=](const QRect &geometry) {
+		swapButton->setGeometry(geometry);
+		swapButton->raise();
+	}, swapButton->lifetime());
 	rpl::combine(
 		std::move(entryFiat),
-		fiatIcon->naturalWidthValue()
-	) | rpl::on_next([=](bool fiat, int labelWidth) {
+		fiatIcon->naturalWidthValue(),
+		fiatLabel->naturalWidthValue()
+	) | rpl::on_next([=](bool fiat, int prefixWidth, int fiatWidth) {
 		icon->setVisible(!fiat);
 		fiatIcon->setVisible(fiat);
-		const auto overflow = st::tonFieldIconPosition.x()
-			+ labelWidth
+		const auto overflow = st::walletSendMarkPosition.x()
+			+ prefixWidth
 			+ st::walletSendFiatLabelSkip
 			- field->st().textMargins.left();
-		field->setAdditionalMargins(
-			{ (fiat && overflow > 0) ? overflow : 0, 0, 0, 0 });
+		field->setAdditionalMargins({
+			(fiat && overflow > 0) ? overflow : 0,
+			0,
+			fiatWidth + st::walletSendFiatLabelSkip,
+			0,
+		});
 	}, field->lifetime());
+	rpl::combine(
+		field->widthValue(),
+		fiatLabel->naturalWidthValue()
+	) | rpl::on_next([=](int width, int naturalWidth) {
+		fiatLabel->resizeToWidth(naturalWidth);
+		fiatLabel->moveToRight(0, st::walletSendFiatTop, width);
+	}, fiatLabel->lifetime());
 	wrap->widthValue() | rpl::on_next([=](int width) {
-		icon->move(st::tonFieldIconPosition);
-		fiatIcon->move(st::tonFieldIconPosition);
+		icon->move(st::walletSendMarkPosition);
+		fiatIcon->move(st::walletSendMarkPosition.x(), st::walletSendFiatTop);
 		field->move(0, 0);
 		field->resize(width, field->height());
 		wrap->resize(width, field->height());
@@ -1332,47 +1360,85 @@ void WalletCommentBox(
 	return field;
 }
 
-void WalletSendAmountBox(
+void WalletSendBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
-		SendFlow flow) {
-	box->setTitle(tr::lng_wallet_send_to_title(
-		lt_address,
-		rpl::single(ShortAddressForm(flow.displayForm))));
+		std::optional<SendFlow> initial) {
 	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::giveawayGiftCodeBox);
+	box->setStyle(st::walletSendBox);
+	box->setTitle(tr::lng_wallet_send_title());
 	AddBoxCloseButton(box);
-	const auto toggle = box->addTopButton(st::boxTitleMenu);
 
 	const auto wallet = &show->session().wallet();
-	const auto showDeposit = [=] {
-		ShowWalletReceiveBox(&show->session(), box->uiShow());
-	};
 
 	struct State {
+		std::optional<SendFlow> flow;
+		rpl::variable<bool> expanded = false;
+		rpl::variable<bool> invalid = false;
 		rpl::variable<int64> amount = 0;
 		rpl::variable<int64> fee = 0;
 		rpl::variable<bool> insufficient = false;
 		rpl::variable<bool> canSend = false;
-		rpl::variable<QString> comment;
-		base::unique_qptr<Ui::PopupMenu> menu;
-		bool feeApproximate = true;
 		rpl::variable<FiatRate> rate;
 		rpl::variable<bool> entryFiat = false;
 		QString previousCurrency;
+		bool feeApproximate = true;
 		bool settingUnitText = false;
+		Fn<void()> swapUnit;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	state->rate = FiatRateValue(&show->session());
-	state->comment = flow.comment;
-	const auto setComment = crl::guard(box, [=](QString comment) {
-		state->comment = comment;
-	});
 
-	Ui::AddSkip(box->verticalLayout(), st::walletSendAmountTopSkip);
-	const auto field = AddAmountField(
-		box->verticalLayout(),
-		std::min(flow.amountNano, kMaxAmountNano),
+	const auto recipient = box->addRow(
+		object_ptr<Ui::VerticalLayout>(box),
+		style::margins(),
+		style::al_justify);
+	const auto recipientField = AddSendField(
+		recipient,
+		st::walletSendField,
+		tr::lng_wallet_send_recipient(),
+		initial ? initial->displayForm : QString());
+	const auto errorWrap = recipient->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			recipient,
+			object_ptr<Ui::FlatLabel>(
+				recipient,
+				tr::lng_wallet_send_invalid_address(),
+				st::walletSendErrorLabel)),
+		style::margins(
+			st::walletSendFieldMargin.left(),
+			0,
+			st::walletSendFieldMargin.right(),
+			0));
+	errorWrap->toggleOn(state->invalid.value());
+	errorWrap->finishAnimating();
+
+	const auto wrap = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			box,
+			object_ptr<Ui::VerticalLayout>(box)),
+		style::margins(),
+		style::al_justify);
+	const auto inner = wrap->entity();
+	Ui::AddDivider(inner);
+
+	auto fiatText = rpl::combine(
+		state->amount.value(),
+		state->entryFiat.value(),
+		state->rate.value()
+	) | rpl::map([](int64 amount, bool fiat, const FiatRate &rate) {
+		return fiat
+			? tr::lng_wallet_send_pill_gram(
+				tr::now,
+				lt_amount,
+				Ui::FormatTonAmount(amount).full)
+			: FormatFiat(amount, rate, kFiatCurrencyDecimals, true);
+	});
+	const auto amountField = AddAmountField(
+		inner,
+		st::walletSendAmountField,
+		tr::lng_wallet_send_amount_label(),
+		std::min(initial ? initial->amountNano : 0, kMaxAmountNano),
 		[=] {
 			return state->entryFiat.current()
 				? Ui::LookupCurrencyRule(
@@ -1382,17 +1448,16 @@ void WalletSendAmountBox(
 		state->entryFiat.value(),
 		state->rate.value() | rpl::map([](const FiatRate &rate) {
 			return rate.currency;
-		}) | rpl::distinct_until_changed());
-	box->setFocusCallback([=] {
-		field->setFocusFast();
-	});
+		}) | rpl::distinct_until_changed(),
+		std::move(fiatText),
+		[=] { state->swapUnit(); });
 
 	const auto updateAmount = [=] {
 		if (state->settingUnitText) {
 			return;
 		}
 		const auto parsed = Ui::ParseTonAmountString(
-			field->getLastText()).value_or(0);
+			amountField->getLastText()).value_or(0);
 		const auto rate = state->rate.current();
 		state->amount = !state->entryFiat.current()
 			? parsed
@@ -1405,7 +1470,8 @@ void WalletSendAmountBox(
 				kMaxAmountNano)
 			: 0;
 	};
-	field->changes() | rpl::on_next(updateAmount, field->lifetime());
+	amountField->changes(
+	) | rpl::on_next(updateAmount, amountField->lifetime());
 	updateAmount();
 
 	const auto renderUnitText = [=] {
@@ -1431,11 +1497,11 @@ void WalletSendAmountBox(
 	};
 	const auto setUnitText = [=] {
 		state->settingUnitText = true;
-		Ui::PostponeCall(field, [=] {
+		Ui::PostponeCall(amountField, [=] {
 			state->settingUnitText = false;
 		});
-		field->setText(renderUnitText());
-		field->setFocusFast();
+		amountField->setText(renderUnitText());
+		amountField->setFocusFast();
 	};
 	const auto switchEntryUnit = [=](bool fiat) {
 		if (state->entryFiat.current() == fiat
@@ -1445,6 +1511,7 @@ void WalletSendAmountBox(
 		state->entryFiat = fiat;
 		setUnitText();
 	};
+	state->swapUnit = [=] { switchEntryUnit(!state->entryFiat.current()); };
 	state->previousCurrency = state->rate.current().currency;
 	state->rate.value() | rpl::on_next([=](const FiatRate &now) {
 		const auto currencyChanged
@@ -1462,10 +1529,13 @@ void WalletSendAmountBox(
 	}, box->lifetime());
 
 	const auto refreshFee = [=] {
+		if (!state->flow) {
+			return;
+		}
 		auto args = SendArgs{
-			.destination = flow.destination,
+			.destination = state->flow->destination,
 			.amountNano = state->amount.current(),
-			.bounce = flow.bounce,
+			.bounce = state->flow->bounce,
 		};
 		wallet->estimateFee(args, crl::guard(box, [=](FeeResult result) {
 			if (result.error.isEmpty()) {
@@ -1488,252 +1558,151 @@ void WalletSendAmountBox(
 	state->canSend = rpl::combine(
 		state->amount.value(),
 		state->insufficient.value(),
+		state->expanded.value(),
 		wallet->stateKnownValue()
-	) | rpl::map([](int64 amount, bool insufficient, bool known) {
-		return known && (amount > 0) && !insufficient;
+	) | rpl::map([](int64 amount, bool insufficient, bool valid, bool known) {
+		return valid && known && (amount > 0) && !insufficient;
 	});
 
-	const auto pillWrap = box->addRow(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			box,
-			object_ptr<Ui::VerticalLayout>(box)),
+	auto balanceLayout = object_ptr<Ui::VerticalLayout>(inner);
+	const auto balance = balanceLayout.data();
+	inner->add(
+		object_ptr<Ui::DividerLabel>(
+			inner,
+			std::move(balanceLayout),
+			st::walletSendBalancePadding,
+			st::defaultDividerBar,
+			RectPart::Top | RectPart::Bottom),
 		style::margins(),
 		style::al_justify);
-	const auto pillInner = pillWrap->entity();
-	Ui::AddSkip(pillInner, st::walletSendRowSkip);
-	auto pillText = rpl::combine(
-		state->amount.value(),
-		state->entryFiat.value(),
-		state->rate.value()
-	) | rpl::map([](int64 amount, bool fiat, const FiatRate &rate) {
-		if (!rate.available()) {
-			return QString();
-		}
-		auto text = fiat
-			? tr::lng_wallet_send_pill_gram(
-				tr::now,
+	balance->add(
+		object_ptr<Ui::FlatLabel>(
+			balance,
+			tr::lng_wallet_send_balance(
 				lt_amount,
-				Ui::FormatTonAmount(amount).full)
-			: tr::lng_wallet_send_pill_fiat(
-				tr::now,
-				lt_amount,
-				FormatFiatAmount(amount, rate),
-				lt_code,
-				rate.currency);
-		return (amount > 0) ? (QChar('~') + text) : text;
-	});
-	const auto pill = pillInner->add(
-		object_ptr<Ui::RoundButton>(
-			pillInner,
-			std::move(pillText),
-			st::walletSendSwapPill),
-		style::margins(),
-		style::al_top);
-	pill->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-	pill->setClickedCallback([=] {
-		switchEntryUnit(!state->entryFiat.current());
-	});
-	pillWrap->toggleOn(state->rate.value(
-	) | rpl::map([](const FiatRate &rate) {
-		return rate.available();
-	}));
-	pillWrap->finishAnimating();
-
-	const auto error = AddSendFlowLabel(
-		box,
-		tr::lng_wallet_send_insufficient(),
-		st::walletSendErrorLabel);
-	error->setVisible(false);
-	state->insufficient.value() | rpl::on_next([=](bool insufficient) {
-		error->setVisible(insufficient);
-	}, error->lifetime());
-	const auto depositWrap = box->addRow(
+				wallet->balanceNanoValue() | rpl::map([](int64 nano) {
+					return Ui::FormatTonAmount(nano).full;
+				})),
+			st::walletSendBalanceLabel));
+	const auto insufficientWrap = balance->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			balance,
+			object_ptr<Ui::FlatLabel>(
+				balance,
+				tr::lng_wallet_send_insufficient(),
+				st::walletSendErrorLabel)));
+	insufficientWrap->toggleOn(state->insufficient.value());
+	insufficientWrap->finishAnimating();
+	const auto depositWrap = balance->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			box,
-			object_ptr<Ui::VerticalLayout>(box)),
-		style::margins(),
-		style::al_justify);
+			balance,
+			object_ptr<Ui::VerticalLayout>(balance)));
 	const auto depositInner = depositWrap->entity();
-	Ui::AddSkip(depositInner, st::walletSendRowSkip);
 	const auto deposit = depositInner->add(
 		object_ptr<Ui::RoundButton>(
 			depositInner,
 			tr::lng_wallet_send_deposit(),
-			st::walletSendPaste),
-		style::margins(),
-		style::al_top);
+			st::defaultTableSmallButton));
 	deposit->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-	deposit->setClickedCallback(showDeposit);
+	deposit->setClickedCallback([=] {
+		ShowWalletReceiveBox(&show->session(), box->uiShow());
+	});
 	depositWrap->toggleOn(state->insufficient.value());
 	depositWrap->finishAnimating();
 
-	const auto commentWrap = box->addRow(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			box,
-			object_ptr<Ui::VerticalLayout>(box)),
-		style::margins(),
-		style::al_justify);
-	const auto commentInner = commentWrap->entity();
-	const auto editComment = [=] {
-		box->uiShow()->showBox(Box(
-			WalletCommentBox,
-			state->comment.current(),
-			setComment));
-	};
-	Ui::AddSkip(commentInner, st::walletSendRowSkip);
-	const auto bubble = commentInner->add(
-		MakeCommentBubble(
-			commentInner,
-			state->comment.value() | rpl::filter([](const QString &text) {
-				return !text.isEmpty();
-			}),
-			st::windowBgOver),
-		st::boxRowPadding,
-		style::al_top);
-	bubble->entity()->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto commentButton = Ui::CreateChild<Ui::AbstractButton>(bubble);
-	commentButton->setPointerCursor(true);
-	commentButton->setClickedCallback(editComment);
-	Ui::ToggleChildrenVisibility(bubble, true);
-	bubble->geometryValue(
-	) | rpl::on_next([=](const QRect &g) {
-		commentButton->resize(g.size());
-		commentButton->lower();
-	}, bubble->lifetime());
-	commentWrap->toggleOn(state->comment.value(
-	) | rpl::map([](const QString &comment) {
-		return !comment.isEmpty();
-	}));
-	commentWrap->finishAnimating();
+	const auto commentField = AddSendField(
+		inner,
+		st::walletSendCommentField,
+		tr::lng_wallet_send_comment_placeholder(),
+		initial ? initial->comment : QString());
+	ApplyCommentLimit(commentField);
 
-	AddSendFlowLabel(
-		box,
-		tr::lng_wallet_send_balance(
-			lt_amount,
-			wallet->balanceNanoValue() | rpl::map([](int64 nano) {
-				return Ui::FormatTonAmount(nano).full;
-			})),
-		st::walletSendBalanceLabel);
-
-	toggle->setClickedCallback([=] {
-		if (state->menu) {
-			return;
-		}
-		state->menu = base::make_unique_q<Ui::PopupMenu>(
-			box,
-			st::popupMenuWithIcons);
-		const auto raw = state->menu.get();
-		raw->setDestroyedCallback(crl::guard(toggle, [=] {
-			toggle->setForceRippled(false);
-		}));
-		toggle->setForceRippled(true);
-		raw->addAction(
-			Ui::Text::FixAmpersandInAction(
-				tr::lng_wallet_send_deposit(tr::now)),
-			showDeposit,
-			&st::menuIconAdd);
-		raw->addAction(
-			Ui::Text::FixAmpersandInAction(
-				tr::lng_wallet_comment_title(tr::now)),
-			editComment,
-			&st::menuIconChatBubble);
-		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
-		raw->popup(toggle->mapToGlobal(QPoint(
-			toggle->width(),
-			toggle->height())));
+	const auto setComment = crl::guard(box, [=](QString comment) {
+		commentField->setText(comment);
 	});
-
 	const auto submit = [=] {
-		if (!state->canSend.current()) {
-			field->showError();
+		if (!state->flow || !state->canSend.current()) {
+			amountField->showError();
 			return;
 		}
-		auto next = flow;
+		auto next = *state->flow;
 		next.amountNano = state->amount.current();
 		next.feeNano = state->fee.current();
 		next.feeApproximate = state->feeApproximate;
-		next.comment = state->comment.current();
+		next.comment = commentField->getLastText().trimmed();
 		box->uiShow()->showBox(Box(
 			WalletSendConfirmBox,
 			show,
 			next,
 			setComment));
 	};
-	field->submits() | rpl::on_next(submit, field->lifetime());
-	const auto button = box->addButton(tr::lng_wallet_send_amount(
-		lt_amount,
-		state->amount.value() | rpl::map([](int64 amount) {
-			return Ui::FormatTonAmount(amount).full;
-		})), submit);
-	state->canSend.value() | rpl::on_next([=](bool canSend) {
-		SetButtonDisabledLook(button.data(), !canSend);
+	const auto button = inner->add(
+		object_ptr<Ui::RoundButton>(
+			inner,
+			tr::lng_wallet_send_continue(),
+			st::giveawayGiftCodeBoxButton),
+		st::walletSendContinueMargin,
+		style::al_justify);
+	button->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+	button->setClickedCallback(submit);
+	button->widthValue(
+	) | rpl::on_next([=](int width) {
+		button->setFullWidth(width);
 	}, button->lifetime());
-}
+	state->canSend.value() | rpl::on_next([=](bool canSend) {
+		SetButtonDisabledLook(button, !canSend);
+	}, button->lifetime());
+	amountField->submits() | rpl::on_next(submit, amountField->lifetime());
+	commentField->submits() | rpl::on_next(submit, commentField->lifetime());
 
-void WalletSendRecipientBox(
-		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show) {
-	box->setTitle(tr::lng_wallet_send_title());
-	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::giveawayGiftCodeBox);
-	AddBoxCloseButton(box);
-
-	Ui::AddSubsectionTitle(
-		box->verticalLayout(),
-		tr::lng_wallet_send_recipient());
-	const auto field = box->addRow(object_ptr<Ui::InputField>(
-		box,
-		st::walletSendAddressField,
-		Ui::InputField::Mode::SingleLine,
-		tr::lng_wallet_send_address()));
-	box->setFocusCallback([=] {
-		field->setFocusFast();
-	});
-	const auto paste = Ui::CreateChild<Ui::RoundButton>(
-		field,
-		tr::lng_wallet_send_paste(),
-		st::walletSendPaste);
-	paste->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-	paste->setClickedCallback([=] {
-		field->setText(QGuiApplication::clipboard()->text().trimmed());
-		field->setFocusFast();
-	});
-	field->widthValue(
-	) | rpl::on_next([=](int) {
-		paste->moveToRight(0, st::walletSendPasteTop);
-	}, paste->lifetime());
-
-	const auto error = AddSendFlowLabel(
-		box,
-		tr::lng_wallet_send_invalid_address(),
-		st::walletSendErrorLabel);
-	error->setVisible(false);
-
-	struct State {
-		std::optional<SendFlow> flow;
-	};
-	const auto state = box->lifetime().make_state<State>();
-	const auto submit = [=] {
-		if (!state->flow) {
-			field->showError();
-			return;
-		}
-		const auto flow = *state->flow;
-		box->closeBox();
-		show->showBox(Box(WalletSendAmountBox, show, flow));
-	};
-	field->submits() | rpl::on_next(submit, field->lifetime());
-	const auto button = box->addButton(
-		tr::lng_wallet_send_continue(),
-		submit);
-	field->changes() | rpl::on_next([=] {
-		const auto text = field->getLastText().trimmed();
+	state->flow = initial;
+	state->expanded = initial.has_value();
+	refreshFee();
+	recipientField->changes() | rpl::on_next([=] {
+		const auto text = recipientField->getLastText().trimmed();
+		const auto previous = state->flow;
+		const auto was = state->expanded.current();
 		state->flow = ParseRecipientFlow(text);
 		const auto valid = state->flow.has_value();
-		error->setVisible(!text.isEmpty() && !valid);
-		SetButtonDisabledLook(button.data(), !valid);
-	}, field->lifetime());
-	SetButtonDisabledLook(button.data(), true);
+		state->invalid = !text.isEmpty() && !valid;
+		state->expanded = valid;
+		if (valid) {
+			refreshFee();
+			const auto changed = !previous
+				|| (previous->amountNano != state->flow->amountNano)
+				|| (previous->comment != state->flow->comment);
+			if (changed) {
+				const auto amountNano = std::min(
+					state->flow->amountNano,
+					kMaxAmountNano);
+				if (amountNano > 0) {
+					state->entryFiat = false;
+					amountField->setText(
+						Ui::FormatTonAmount(
+							amountNano,
+							Ui::TonFormatFlag::Simple).full);
+				}
+				if (!state->flow->comment.isEmpty()) {
+					commentField->setText(state->flow->comment);
+				}
+			}
+			if (!was) {
+				amountField->setFocusFast();
+			}
+		}
+	}, recipientField->lifetime());
+	recipientField->submits() | rpl::on_next([=] {
+		if (state->flow) {
+			amountField->setFocusFast();
+		} else {
+			recipientField->showError();
+		}
+	}, recipientField->lifetime());
+	box->setFocusCallback([=] {
+		(initial ? amountField : recipientField)->setFocusFast();
+	});
+	wrap->toggleOn(state->expanded.value());
+	wrap->finishAnimating();
 }
 
 void AddPhraseBoxHeader(
@@ -2906,7 +2875,7 @@ void Content::setupHeader() {
 		ShowWalletReceiveBox(&_show->session(), _show);
 	});
 	const auto send = addPill(tr::lng_wallet_send_button(), [=] {
-		_show->showBox(Box(WalletSendRecipientBox, _show));
+		_show->showBox(Box(WalletSendBox, _show, std::optional<SendFlow>()));
 	});
 	buttons->widthValue(
 	) | rpl::on_next([=](int width) {
@@ -3151,7 +3120,7 @@ void ShowTransferLink(
 	if (!flow) {
 		return;
 	}
-	show->showBox(Box(WalletSendAmountBox, show, *flow));
+	show->showBox(Box(WalletSendBox, show, flow));
 }
 
 } // namespace Wallet

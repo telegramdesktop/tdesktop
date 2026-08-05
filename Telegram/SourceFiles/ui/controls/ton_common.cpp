@@ -211,10 +211,11 @@ not_null<Ui::InputField*> CreateTonAmountInput(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> placeholder,
 		int64 amount,
-		Fn<int()> fractionDigits) {
+		Fn<int()> fractionDigits,
+		const style::InputField *st) {
 	const auto result = Ui::CreateChild<Ui::InputField>(
 		parent.get(),
-		st::editTagField,
+		st ? *st : st::editTagField,
 		Ui::InputField::Mode::SingleLine,
 		std::move(placeholder),
 		(amount > 0

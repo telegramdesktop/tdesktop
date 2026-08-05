@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 
+namespace style {
+struct InputField;
+} // namespace style
+
 namespace Ui {
 
 class InputField;
@@ -42,6 +46,7 @@ using TonFormatFlags = base::flags<TonFormatFlag>;
 	not_null<QWidget*> parent,
 	rpl::producer<QString> placeholder,
 	int64 amount = 0,
-	Fn<int()> fractionDigits = nullptr);
+	Fn<int()> fractionDigits = nullptr,
+	const style::InputField *st = nullptr);
 
 } // namespace Ui

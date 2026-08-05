@@ -68,14 +68,6 @@ QString FormatFiat(
 	return result;
 }
 
-QString FormatFiatAmount(int64 nanoAmount, const FiatRate &rate) {
-	return FiatDigits(
-		nanoAmount,
-		rate,
-		kFiatCurrencyDecimals,
-		Ui::LookupCurrencyRule(rate.currency));
-}
-
 int64 FiatMinorUnitNanos(const QString &currency) {
 	const auto exponent = Ui::LookupCurrencyRule(currency).exponent;
 	const auto units = std::max(

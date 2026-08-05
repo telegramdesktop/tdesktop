@@ -38,8 +38,6 @@ struct FiatRate {
 	int decimals = kFiatCurrencyDecimals,
 	bool approximate = false);
 
-[[nodiscard]] QString FormatFiatAmount(int64 nanoAmount, const FiatRate &rate);
-
 [[nodiscard]] int64 FiatMinorUnitNanos(const QString &currency);
 
 [[nodiscard]] rpl::producer<FiatRate> FiatRateValue(
