@@ -1624,6 +1624,7 @@ void RestoreLogicalBlockGeometry(LaidOutBlock *block) {
 	block->actionRect = block->logicalGeometry.actionRect;
 	block->markerRect = block->logicalGeometry.markerRect;
 	block->contentRect = block->logicalGeometry.contentRect;
+	block->collapseControlRect = block->logicalGeometry.collapseControlRect;
 	block->formulaRect = block->logicalGeometry.formulaRect;
 	block->tableRect = block->logicalGeometry.tableRect;
 	block->mediaRect = block->logicalGeometry.mediaRect;
@@ -1736,6 +1737,9 @@ void ApplyTranslatedDescendantGeometry(
 	block->actionRect = TranslateRect(block->actionRect, state.shift);
 	block->markerRect = ClipRectToViewport(
 		TranslateRect(block->markerRect, state.shift),
+		state.viewport);
+	block->collapseControlRect = ClipRectToViewport(
+		TranslateRect(block->collapseControlRect, state.shift),
 		state.viewport);
 	block->formulaRect = TranslateRect(block->formulaRect, state.shift);
 	block->tableRect = TranslateRect(block->tableRect, state.shift);
@@ -2238,6 +2242,24 @@ void CollectMediaBlockGeometries(
 	return {};
 }
 
+[[nodiscard]] MarkdownArticleEditControlHit EditControlHitForQuoteBlock(
+		const LaidOutBlock &block,
+		QPoint point) {
+	if (block.editBlock
+		&& QuoteHasCollapseControl(block)
+		&& (block.collapsedAtomic
+			|| ContainsPoint(block.collapseControlRect, point))) {
+		return {
+			.kind = MarkdownArticleEditControlHitKind::QuoteCollapse,
+			.block = *block.editBlock,
+		};
+	}
+	if (!block.children.empty()) {
+		return EditControlHitForBlocks(block.children, point);
+	}
+	return {};
+}
+
 [[nodiscard]] MarkdownArticleEditControlHit EditControlHitForBlock(
 		const LaidOutBlock &block,
 		QPoint point) {
@@ -2246,6 +2268,8 @@ void CollectMediaBlockGeometries(
 		return EditControlHitForListItemBlock(block, point);
 	case PreparedBlockKind::Details:
 		return EditControlHitForDetailsBlock(block, point);
+	case PreparedBlockKind::Quote:
+		return EditControlHitForQuoteBlock(block, point);
 	default:
 		if (!block.children.empty()) {
 			return EditControlHitForBlocks(block.children, point);
@@ -2843,6 +2867,10 @@ void ConsiderStructuralBlockDropTargets(
 			}
 			break;
 		case PreparedBlockKind::Quote:
+			if (block.collapsedAtomic) {
+				break;
+			}
+			[[fallthrough]];
 		case PreparedBlockKind::Details:
 			if (ContainsPoint(block.contentRect, point)) {
 				ConsiderStructuralBlockDropTargets(
@@ -2981,6 +3009,10 @@ void ConsiderStructuralListItemDropTargets(
 		}
 		return {};
 	case PreparedBlockKind::Quote:
+		if (block.collapsedAtomic) {
+			return {};
+		}
+		[[fallthrough]];
 	case PreparedBlockKind::Details:
 		if (ContainsPoint(block.contentRect, point)) {
 			return EditDropLocationForBlockContainer(

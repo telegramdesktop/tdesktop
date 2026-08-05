@@ -871,6 +871,7 @@ void FillMediaCaption(
 		.actionRect = block.actionRect,
 		.markerRect = block.markerRect,
 		.contentRect = block.contentRect,
+		.collapseControlRect = block.collapseControlRect,
 		.formulaRect = block.formulaRect,
 		.tableRect = block.tableRect,
 		.mediaRect = block.mediaRect,
@@ -898,6 +899,7 @@ void ClearBlockGeometry(LaidOutBlock *block) {
 	block->actionRect = QRect();
 	block->markerRect = QRect();
 	block->contentRect = QRect();
+	block->collapseControlRect = QRect();
 	block->formulaRect = QRect();
 	block->tableRect = QRect();
 	block->mediaRect = QRect();
@@ -1725,7 +1727,28 @@ bool IsFlowKind(PreparedBlockKind kind) {
 bool QuoteHasCollapseControl(const LaidOutBlock &block) {
 	return (block.kind == PreparedBlockKind::Quote)
 		&& !block.collapseToggleId.isEmpty()
-		&& block.collapsedLinesExceeded;
+		&& (block.collapsedLinesExceeded || block.collapsedAtomic);
+}
+
+QRect QuoteCollapseControlRect(QRect outer, const style::QuoteStyle &style) {
+	const auto width = std::max(style.expand.width(), style.collapse.width());
+	const auto height = std::max(
+		style.expand.height(),
+		style.collapse.height());
+	const auto skipX = std::max(
+		style.expandPosition.x(),
+		style.collapsePosition.x());
+	const auto skipY = std::max(
+		style.expandPosition.y(),
+		style.collapsePosition.y());
+	if (width <= 0 || height <= 0) {
+		return QRect();
+	}
+	return QRect(
+		outer.x() + outer.width() - width - skipX,
+		outer.y() + outer.height() - height - skipY,
+		width + skipX,
+		height + skipY);
 }
 
 bool IsAnchorOnlyBlock(const PreparedBlock &block) {

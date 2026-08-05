@@ -340,6 +340,7 @@ void RefreshLogicalGeometry(LaidOutBlock *block) {
 		.actionRect = block->actionRect,
 		.markerRect = block->markerRect,
 		.contentRect = block->contentRect,
+		.collapseControlRect = block->collapseControlRect,
 		.formulaRect = block->formulaRect,
 		.tableRect = block->tableRect,
 		.mediaRect = block->mediaRect,
@@ -362,6 +363,7 @@ void ClearBlockGeometry(LaidOutBlock *block) {
 	block->actionRect = QRect();
 	block->markerRect = QRect();
 	block->contentRect = QRect();
+	block->collapseControlRect = QRect();
 	block->formulaRect = QRect();
 	block->tableRect = QRect();
 	block->mediaRect = QRect();
@@ -3308,6 +3310,9 @@ int LayoutBlocks(
 	}
 	block->collapseToggleId = prepared.collapseToggleId;
 	block->collapsed = prepared.collapsed;
+	block->collapsedAtomic = context.editMode
+		&& prepared.collapsed
+		&& !prepared.collapseToggleId.isEmpty();
 	block->collapsedLinesExceeded = !block->children.empty()
 		&& !block->children.front().quoteAuthor
 		&& block->children.front().collapsedLinesExceeded;
@@ -3379,6 +3384,9 @@ int LayoutBlocks(
 		}
 	}
 	block->outer = QRect(outerLeft, top, outerWidth, quoteHeight);
+	block->collapseControlRect = QuoteHasCollapseControl(*block)
+		? QuoteCollapseControlRect(block->outer, st.body.blockquote)
+		: QRect();
 	block->contentRect = QRect(
 		finalContentLeft,
 		contentTop,

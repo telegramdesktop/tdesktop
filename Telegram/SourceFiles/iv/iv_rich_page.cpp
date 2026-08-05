@@ -1913,11 +1913,12 @@ struct SimpleTextBuilder {
 			const QString &wrapData = QString()) {
 		AppendSimpleBlock(&result, TextWithEntities(text), wrap, wrapData);
 	}
-	void appendQuote(SimpleTextBuilder &&body) {
+	void appendQuote(SimpleTextBuilder &&body, bool collapsed) {
 		AppendSimpleBlock(
 			&result,
 			std::move(body.result),
-			EntityType::Blockquote);
+			EntityType::Blockquote,
+			collapsed ? u"1"_q : QString());
 	}
 	[[nodiscard]] int length() const {
 		return int(result.text.size());
@@ -1933,7 +1934,7 @@ struct SimpleTextCounter {
 			const QString & = QString()) {
 		appendLength(TrimmedLength(text));
 	}
-	void appendQuote(SimpleTextCounter &&body) {
+	void appendQuote(SimpleTextCounter &&body, bool) {
 		appendLength(body.result);
 	}
 	void appendLength(int length) {
@@ -2000,7 +2001,9 @@ template <typename Accumulator>
 			if (!CollectSimpleQuote(block, body)) {
 				return false;
 			}
-			to.appendQuote(std::move(body));
+			to.appendQuote(
+				std::move(body),
+				block.collapsed && RichBlockquoteIsCollapsible(block));
 			break;
 		}
 		default:
@@ -2631,6 +2634,12 @@ bool RichBlockIsDocumentRow(RichPage::BlockKind kind) {
 	return (kind == BlockKind::Audio) || (kind == BlockKind::File);
 }
 
+bool RichBlockquoteIsCollapsible(const RichPage::Block &block) {
+	return (block.kind == BlockKind::Quote)
+		&& !block.pullquote
+		&& block.blocks.empty();
+}
+
 std::optional<TextWithEntities> SerializeAsSimple(
 		const RichPage &page,
 		not_null<Main::Session*> session) {
@@ -2735,6 +2744,7 @@ RichPage SplitTextIntoRichPage(TextWithEntities text) {
 			page.blocks.push_back(Block{
 				.kind = BlockKind::Quote,
 				.text = { std::move(body) },
+				.collapsed = !segment.data.isEmpty(),
 			});
 		}
 	}

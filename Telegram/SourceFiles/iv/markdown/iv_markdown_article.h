@@ -260,6 +260,7 @@ enum class MarkdownArticleEditControlHitKind {
 	None,
 	TaskMarker,
 	DetailsToggle,
+	QuoteCollapse,
 };
 
 struct MarkdownArticleEditControlHit {
@@ -273,6 +274,7 @@ struct MarkdownArticleEditControlHit {
 		case MarkdownArticleEditControlHitKind::TaskMarker:
 			return listItem.has_value();
 		case MarkdownArticleEditControlHitKind::DetailsToggle:
+		case MarkdownArticleEditControlHitKind::QuoteCollapse:
 			return block.has_value();
 		case MarkdownArticleEditControlHitKind::None:
 			break;

@@ -324,6 +324,9 @@ public:
 		const Markdown::PreparedEditListItemSource &source);
 	[[nodiscard]] bool toggleDetailsOpen(
 		const Markdown::PreparedEditBlockSource &source);
+	[[nodiscard]] bool toggleQuoteCollapsed(
+		const Markdown::PreparedEditBlockSource &source,
+		bool *movedCaret);
 	[[nodiscard]] ListSelectionInfo listSelectionInfo(
 		const Markdown::PreparedEditListItemRange &range) const;
 	[[nodiscard]] std::optional<Markdown::PreparedEditListItemRange>

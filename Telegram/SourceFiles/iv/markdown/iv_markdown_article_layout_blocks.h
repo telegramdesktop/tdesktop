@@ -87,6 +87,7 @@ struct LaidOutBlockLogicalGeometry {
 	QRect actionRect;
 	QRect markerRect;
 	QRect contentRect;
+	QRect collapseControlRect;
 	QRect formulaRect;
 	QRect tableRect;
 	QRect mediaRect;
@@ -128,6 +129,7 @@ struct LaidOutBlock {
 	QRect actionRect;
 	QRect markerRect;
 	QRect contentRect;
+	QRect collapseControlRect;
 	QRect formulaRect;
 	QRect tableRect;
 	QRect mediaRect;
@@ -163,6 +165,7 @@ struct LaidOutBlock {
 	style::align formulaAlign = style::al_left;
 	bool collapsed = false;
 	bool collapsedLinesExceeded = false;
+	bool collapsedAtomic = false;
 	bool detailsOpen = false;
 	bool rtl = false;
 	bool overflowed = false;
@@ -377,6 +380,9 @@ private:
 [[nodiscard]] bool PreparedBlockHasInlineButton(const PreparedBlock &prepared);
 [[nodiscard]] bool IsFlowKind(PreparedBlockKind kind);
 [[nodiscard]] bool QuoteHasCollapseControl(const LaidOutBlock &block);
+[[nodiscard]] QRect QuoteCollapseControlRect(
+	QRect outer,
+	const style::QuoteStyle &style);
 [[nodiscard]] QString ListMarkerText(const PreparedBlock &block);
 [[nodiscard]] int TextLineHeight(const style::TextStyle &style);
 [[nodiscard]] int TextLineAscent(const style::TextStyle &style);

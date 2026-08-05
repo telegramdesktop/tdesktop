@@ -2733,6 +2733,40 @@ bool State::toggleDetailsOpen(
 	return true;
 }
 
+bool State::toggleQuoteCollapsed(
+		const Markdown::PreparedEditBlockSource &source,
+		bool *movedCaret) {
+	const auto path = convertBlockPath(source);
+	if (!path) {
+		return false;
+	}
+	auto owner = block(*path);
+	if (!owner || !RichBlockquoteIsCollapsible(*owner)) {
+		return false;
+	}
+	const auto activeLeaf = activeLeafPath();
+	auto quoteOrdinal = textNodeCount();
+	for (auto i = 0, count = textNodeCount(); i != count; ++i) {
+		if (_textNodes[i].leaf.block == *path) {
+			quoteOrdinal = i;
+			break;
+		}
+	}
+	owner->collapsed = !owner->collapsed;
+	rebuild();
+	if (activeLeaf
+		&& (textOrdinalForLeafPath(*activeLeaf) >= 0)
+		&& activateRebuiltLeaf(*activeLeaf)) {
+		return true;
+	}
+	*movedCaret = true;
+	const auto nearest = std::min(quoteOrdinal, textNodeCount() - 1);
+	if (!setActiveTextByOrdinal(nearest)) {
+		ensureActiveTextOrdinal();
+	}
+	return true;
+}
+
 State::ListSelectionInfo State::listSelectionInfo(
 		const PreparedEditListItemRange &range) const {
 	const auto validated = validateListItemRange(range);
@@ -9216,6 +9250,9 @@ void State::rebuildTextNodes(
 			appendBlockTextNode(path, LeafKind::BlockText);
 			break;
 		case BlockKind::Quote:
+			if (block.collapsed && RichBlockquoteIsCollapsible(block)) {
+				break;
+			}
 			if (block.blocks.empty()) {
 				appendBlockTextNode(
 					path,

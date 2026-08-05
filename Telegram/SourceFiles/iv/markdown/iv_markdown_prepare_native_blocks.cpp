@@ -1304,12 +1304,11 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 	block.kind = PreparedBlockKind::Quote;
 	block.anchorId = data.anchorId;
 	block.pullquote = data.pullquote;
-	if (data.collapsed
-		&& data.blocks.empty()
-		&& !data.pullquote
-		&& !state->editMode) {
+	const auto collapsible = RichBlockquoteIsCollapsible(data);
+	const auto atomic = collapsible && data.collapsed && state->editMode;
+	if (collapsible && (data.collapsed || state->editMode)) {
 		block.collapseToggleId = NativeIvQuoteToggleId(state);
-		block.collapsed = true;
+		block.collapsed = data.collapsed;
 	}
 	block.actualDepth = depthContext.quoteDepth;
 	block.visualDepth = CappedNativeIvQuoteDepth(block.actualDepth);
@@ -1324,9 +1323,11 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 			std::move(body),
 			data.pullquote,
 			false,
-			state->editMode,
+			state->editMode && !atomic,
 			false,
-			BlockTextLeafSource(path))) {
+			atomic
+				? std::nullopt
+				: std::make_optional(BlockTextLeafSource(path)))) {
 		return false;
 	}
 	auto childContext = depthContext;
@@ -1344,15 +1345,18 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 		return false;
 	}
 	const auto quoteAuthorEmpty = cite.text.text.isEmpty();
-	const auto includeQuoteAuthor = state->editMode || !quoteAuthorEmpty;
+	const auto includeQuoteAuthor = (state->editMode && !atomic)
+		|| !quoteAuthorEmpty;
 	if (includeQuoteAuthor && !AppendPreparedQuoteParagraph(
 			&block.children,
 			std::move(cite),
 			data.pullquote,
 			true,
-			state->editMode,
+			state->editMode && !atomic,
 			true,
-			BlockCaptionLeafSource(path))) {
+			atomic
+				? std::nullopt
+				: std::make_optional(BlockCaptionLeafSource(path)))) {
 		return false;
 	}
 	if (block.children.empty()) {

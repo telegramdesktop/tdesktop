@@ -7590,6 +7590,30 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 					});
 				}
 				break;
+			case Markdown::MarkdownArticleEditControlHitKind::QuoteCollapse:
+				if (pressedControl.block) {
+					const auto source = *pressedControl.block;
+					auto movedCaret = false;
+					applyControlToggle([&] {
+						return _state->toggleQuoteCollapsed(
+							source,
+							&movedCaret);
+					}, [&] {
+						const auto ordinal = _state->textOrdinalForLeaf({
+							.kind = Markdown::PreparedEditLeafKind::BlockText,
+							.block = source.path,
+						});
+						activateTextOrdinal(
+							(ordinal >= 0)
+								? ordinal
+								: _state->activeTextOrdinal(),
+							0,
+							(movedCaret || (ordinal >= 0))
+								? ActivateReveal::Reveal
+								: ActivateReveal::Skip);
+					});
+				}
+				break;
 			case Markdown::MarkdownArticleEditControlHitKind::None:
 				break;
 			}
