@@ -232,13 +232,14 @@ void ApplyButtonFallbackLadder(
 
 [[nodiscard]] RichButtonPillColors ResolveButtonColors(
 		ButtonColor color,
-		const style::MarkdownButtonRow &st) {
+		const style::Markdown &markdownSt) {
+	const auto &st = markdownSt.buttonRow;
 	switch (color) {
 	case ButtonColor::Primary:
 		return {
 			.bg = st.primaryBg->c,
 			.ripple = st.primaryRipple->c,
-			.punchOut = true,
+			.fg = markdownSt.textColor->c,
 		};
 	case ButtonColor::Success:
 		return {
@@ -334,9 +335,12 @@ void PaintPlainButton(
 		int outerWidth,
 		bool disabled) {
 	PaintButtonPill(p, button, colors, ripple, st, outerWidth, false);
+	const auto primary = (button.color == ButtonColor::Primary);
 	const auto was = p.opacity();
 	if (disabled) {
-		p.setOpacity(was * st.disabledOpacity);
+		p.setOpacity(was * (primary
+			? st.disabledPrimaryOpacity
+			: st.disabledOpacity));
 	}
 	PaintButtonContent(
 		p,
@@ -574,7 +578,7 @@ void PaintButtonRow(
 				paintSt,
 				style.tintBgOpacity,
 				(button.color == ButtonColor::Primary))
-			: ResolveButtonColors(button.color, style);
+			: ResolveButtonColors(button.color, paintSt);
 		const auto disabled = (button.type == ButtonType::Disabled);
 		const auto ripple = (runtime
 			&& runtime->ripple

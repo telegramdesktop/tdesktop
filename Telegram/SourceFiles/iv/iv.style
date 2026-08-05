@@ -1398,12 +1398,10 @@ messageMarkdownOut: Markdown(messageMarkdown) {
 		defaultFg: msgOutReplyBarColor;
 		primaryBg: msgOutReplyBarColor;
 		primaryRipple: msgFileOutBg;
-		successFg: msgOutReplyBarColor;
 	}
 	inlineButton: MarkdownInlineButton(defaultMarkdownInlineButton) {
 		defaultFg: msgOutReplyBarColor;
 		primaryBg: msgOutReplyBarColor;
-		successFg: msgOutReplyBarColor;
 	}
 }
 messageMarkdownSelected: Markdown(messageMarkdown) {
@@ -1544,13 +1542,13 @@ messageMarkdownOutSelected: Markdown(messageMarkdown) {
 		defaultFg: msgOutReplyBarSelColor;
 		primaryBg: msgOutReplyBarSelColor;
 		primaryRipple: msgFileOutBgSelected;
-		successFg: msgOutReplyBarSelColor;
+		successFg: historyPeer2NameFgSelected;
 		dangerFg: historyPeer1NameFgSelected;
 	}
 	inlineButton: MarkdownInlineButton(defaultMarkdownInlineButton) {
 		defaultFg: msgOutReplyBarSelColor;
 		primaryBg: msgOutReplyBarSelColor;
-		successFg: msgOutReplyBarSelColor;
+		successFg: historyPeer2NameFgSelected;
 		dangerFg: historyPeer1NameFgSelected;
 	}
 }

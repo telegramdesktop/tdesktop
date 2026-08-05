@@ -709,7 +709,7 @@ FindInlineFormulaMeasuredData(
 		return {
 			.bg = inlineSt.primaryBg->c,
 			.ripple = st.buttonRow.primaryRipple->c,
-			.punchOut = true,
+			.fg = st.textColor->c,
 		};
 	case InlineButtonPresentation::Success:
 		return tint(inlineSt.successFg);
@@ -878,24 +878,10 @@ struct InlineButtonLabelCodePoint {
 	// not use. A prefix that dropped the label's only strong character would
 	// therefore draw the same glyphs at a different x — but only when that
 	// character resolves to the direction the fallback would not have picked.
-	// A FormattedDate entity is opaque: the block parser replaces its text.
 	const auto &text = label.text;
 	const auto size = int(text.size());
-	auto entity = label.entities.begin();
-	const auto entitiesEnd = label.entities.end();
 	auto i = 0;
 	while (i < size) {
-		while ((entity != entitiesEnd) && (entity->offset() <= i)) {
-			const auto till = entity->offset() + entity->length();
-			if ((entity->type() == EntityType::FormattedDate) && (till > i)) {
-				cut = std::max(cut, till);
-				i = till;
-			}
-			++entity;
-		}
-		if (i >= size) {
-			break;
-		}
 		const auto ch = text.at(i);
 		if (ch.unicode() == QChar::LineFeed) {
 			return cut;
@@ -921,17 +907,16 @@ struct InlineButtonLabelCodePoint {
 	}
 	auto result = InlineButtonLabelStrongCut(label, position);
 	// Ui::Text::Mid truncates an entity that straddles the range end instead
-	// of dropping it, so a CustomEmoji or FormattedDate entity that starts
-	// inside the drawn region and ends past the cut would be rewritten and
-	// would change visible glyphs; the cut moves past its end instead. The
-	// list is not ordered by offset and this one forward pass does not need
-	// it to be. What it needs is that no two entities partially overlap, and
-	// the producers nest them: AddEntity in iv_rich_page.cpp pushes a
-	// container after the entities it encloses, so an entry with an earlier
-	// offset than one before it is one that contains it and reaches at least
-	// as far. Moving the cut can therefore never expose an entity the pass
-	// already walked past — a textDate around a textCustomEmoji is the shape
-	// that is handled, not one that is missed.
+	// of dropping it, so a CustomEmoji entity that starts inside the drawn
+	// region and ends past the cut would be rewritten and would change
+	// visible glyphs; the cut moves past its end instead. The list is not
+	// ordered by offset and this one forward pass does not need it to be.
+	// What it needs is that no two entities partially overlap, and the
+	// producers nest them: AddEntity in iv_rich_page.cpp pushes a container
+	// after the entities it encloses, so an entry with an earlier offset
+	// than one before it is one that contains it and reaches at least as
+	// far. Moving the cut can therefore never expose an entity the pass
+	// already walked past.
 	for (const auto &entity : label.entities) {
 		const auto till = entity.offset() + entity.length();
 		if ((entity.offset() < result) && (till > result)) {
@@ -965,6 +950,66 @@ struct InlineButtonLabelCodePoint {
 			emojiSize);
 	};
 	return result;
+}
+
+[[nodiscard]] TextWithEntities ResolveRichButtonLabelDates(
+		TextWithEntities label,
+		const Ui::Text::MarkedContext &context) {
+	// BlockParser::checkEntities hands a FormattedDate entity its own internal
+	// index, createBlock promotes that index to the block's link index, and
+	// the renderer then paints such a block with the link pen and with an
+	// underlined font, and publishes a FormattedDateClickHandler for it. None
+	// of that belongs to a button label, which reads as one label in one font,
+	// one pen and one click target, so the date is resolved here exactly the
+	// way the parser would resolve it and the entity is dropped before layout.
+	// The list is searched from the front again after every replacement,
+	// because a normalized label orders its entities as a laminar family in
+	// post-order rather than by offset, and a textDate may itself contain a
+	// textCustomEmoji, whose entry the rewrite drops together with the text it
+	// covered — which is what the parser does today when it jumps past the
+	// date it substituted.
+	while (true) {
+		const auto i = ranges::find_if(label.entities, [](
+				const EntityInText &entity) {
+			return (entity.type() == EntityType::FormattedDate);
+		});
+		if (i == label.entities.end()) {
+			return label;
+		}
+		const auto offset = i->offset();
+		const auto length = i->length();
+		const auto till = offset + length;
+		const auto [date, flags] = DeserializeFormattedDateData(i->data());
+		if ((flags == FormattedDateFlags())
+			|| !context.formattedDateFactory) {
+			label.entities.erase(i);
+			continue;
+		}
+		const auto replacement = context.formattedDateFactory(
+			date,
+			flags).text;
+		const auto delta = int(replacement.size()) - length;
+		label.text.replace(offset, length, replacement);
+		auto entities = EntitiesInText();
+		entities.reserve(label.entities.size());
+		for (const auto &entity : label.entities) {
+			if (&entity == &*i) {
+				continue;
+			}
+			auto updated = entity;
+			if (entity.offset() >= till) {
+				updated.shiftRight(delta);
+			} else if (entity.offset() + entity.length() <= offset) {
+			} else if ((entity.offset() <= offset)
+				&& (entity.offset() + entity.length() >= till)) {
+				updated.shrinkFromRight(-delta);
+			} else {
+				continue;
+			}
+			entities.push_back(updated);
+		}
+		label.entities = std::move(entities);
+	}
 }
 
 [[nodiscard]] Ui::Text::String MakeInlineButtonLabel(
@@ -1115,9 +1160,7 @@ struct InlineButtonLabelCodePoint {
 	// the parser keeps and does not trim survives after the span in the
 	// spliced label. The witness is searched only in text no planned cut
 	// can remove: outside every candidate span, because a later candidate's
-	// own cut may drop any character inside it, and outside every
-	// FormattedDate entity, whose source text the parser replaces wholesale
-	// so nothing inside one may be read. Text between spans and in
+	// own cut may drop any character inside it. Text between spans and in
 	// non-candidate entities survives the splice verbatim, which is what
 	// makes the answer valid for the spliced label while it is computed
 	// over the original one. `order` is the entity indices in offset order.
@@ -1132,8 +1175,7 @@ struct InlineButtonLabelCodePoint {
 		while ((entity != end)
 			&& (label.entities[*entity].offset() <= i)) {
 			const auto &excluded = label.entities[*entity];
-			if ((excluded.type() == EntityType::FormattedDate)
-				|| InlineButtonLabelSpanCandidate(excluded)) {
+			if (InlineButtonLabelSpanCandidate(excluded)) {
 				skipTill = std::max(
 					skipTill,
 					excluded.offset() + excluded.length());
@@ -1311,8 +1353,9 @@ struct InlineButtonLabelSpanCut {
 	// pixel-identical to the whole-label build: the dropped object lies
 	// past everything the renderer reaches, behind the first half that
 	// already measured wider than the pill can draw.
+	const auto resolved = ResolveRichButtonLabelDates(label, context);
 	const auto nested = InlineButtonLabelContext(context, emojiSize);
-	const auto shortened = ShortenInlineButtonLabelSpans(label, nested);
+	const auto shortened = ShortenInlineButtonLabelSpans(resolved, nested);
 	const auto available = std::max(widthCap, 1);
 	const auto size = int(shortened.text.size());
 	auto exceeded = false;
@@ -2128,10 +2171,13 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 	};
 	p.save();
 	if (_presentation == InlineButtonPresentation::Link) {
+		const auto color = (state && state->bubbleGradient)
+			? *context.textColor
+			: markdownSt.textPalette.linkFg->c;
 		if (_disabled) {
 			p.setOpacity(p.opacity() * st.disabledOpacity);
 		}
-		paintLabel(p, position, context.textColor, markdownSt, context);
+		paintLabel(p, position, color, markdownSt, context);
 	} else {
 		const auto colors = (state && state->bubbleGradient)
 			? BubbleGradientPillColors(
@@ -2151,9 +2197,13 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 					paintLabel(q, position, fg, markdownSt, context);
 				});
 		} else {
+			const auto primary
+				= (_presentation == InlineButtonPresentation::Primary);
 			fillPill(p, colors, false);
 			if (_disabled) {
-				p.setOpacity(p.opacity() * st.disabledOpacity);
+				p.setOpacity(p.opacity() * (primary
+					? st.disabledPrimaryOpacity
+					: st.disabledOpacity));
 			}
 			paintLabel(p, position, colors.fg, markdownSt, context);
 		}
@@ -2303,7 +2353,8 @@ void SetTextLeaf(
 		bool rtl,
 		Fn<void()> repaint,
 		Fn<void(QRect)> repaintRect,
-		Fn<bool(const ClickContext&)> spoilerLinkFilter) {
+		Fn<bool(const ClickContext&)> spoilerLinkFilter,
+		bool richButtonLabel) {
 	*leaf = Ui::Text::String(TextMinResizeWidth(minResizeWidth));
 	auto context = mediaRuntime
 		? mediaRuntime->textContext()
@@ -2383,9 +2434,12 @@ void SetTextLeaf(
 		}
 		return std::unique_ptr<Ui::Text::CustomEmoji>();
 	};
+	const auto resolved = richButtonLabel
+		? ResolveRichButtonLabelDates(text, context)
+		: TextWithEntities();
 	leaf->setMarkedText(
 		textStyle,
-		text,
+		richButtonLabel ? resolved : text,
 		rtl ? kIvMarkedTextOptionsRtl : kIvMarkedTextOptions,
 		context);
 	SetTextLeafSpoilerLinkFilter(leaf, std::move(spoilerLinkFilter));

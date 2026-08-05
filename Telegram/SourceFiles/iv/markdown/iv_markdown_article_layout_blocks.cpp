@@ -3545,7 +3545,9 @@ LaidOutBlock LayoutButtonRowBlock(
 			PlainTextMinResizeWidth(style.labelStyle),
 			context.rtl,
 			context.repaint,
-			context.repaintRect);
+			context.repaintRect,
+			nullptr,
+			true);
 		button.fullLabel = button.label.toString();
 		block.buttons.push_back(std::move(button));
 	}

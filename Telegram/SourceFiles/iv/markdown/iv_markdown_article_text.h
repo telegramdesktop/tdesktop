@@ -88,7 +88,8 @@ void SetTextLeaf(
 	bool rtl,
 	Fn<void()> repaint = nullptr,
 	Fn<void(QRect)> repaintRect = nullptr,
-	Fn<bool(const ClickContext&)> spoilerLinkFilter = nullptr);
+	Fn<bool(const ClickContext&)> spoilerLinkFilter = nullptr,
+	bool richButtonLabel = false);
 
 [[nodiscard]] bool TextHasInlineButton(const TextWithEntities &text);
 
