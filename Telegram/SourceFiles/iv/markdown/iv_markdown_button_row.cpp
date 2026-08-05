@@ -378,7 +378,7 @@ void PaintPrimaryButton(
 				ripple,
 				st,
 				outerWidth,
-				colors.eraseRipple);
+				colors.punchOut);
 		},
 		[&](QPainter &q, QColor fg) {
 			PaintButtonContent(q, button, fg, context, outerWidth, palette);
@@ -549,7 +549,6 @@ RichButtonPillColors BubbleGradientPillColors(
 			.bg = foreground,
 			.ripple = ripple,
 			.punchOut = true,
-			.eraseRipple = true,
 		}
 		: RichButtonPillColors{
 			.bg = anim::with_alpha(foreground, tintBgOpacity),

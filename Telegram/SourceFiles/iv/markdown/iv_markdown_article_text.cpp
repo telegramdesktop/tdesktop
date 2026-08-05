@@ -2195,7 +2195,7 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 				rect,
 				_disabled ? st.disabledPrimaryOpacity : 1.,
 				[&](QPainter &q) {
-					fillPill(q, colors, colors.eraseRipple);
+					fillPill(q, colors, colors.punchOut);
 				},
 				[&](QPainter &q, QColor fg) {
 					paintLabel(q, position, fg, markdownSt, context);

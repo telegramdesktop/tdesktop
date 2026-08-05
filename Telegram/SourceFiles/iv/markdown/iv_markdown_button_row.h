@@ -61,7 +61,6 @@ struct RichButtonPillColors {
 	QColor ripple;
 	QColor fg;
 	bool punchOut = false;
-	bool eraseRipple = false;
 };
 
 [[nodiscard]] RichButtonPillColors BubbleGradientPillColors(
