@@ -543,7 +543,7 @@ void Panel::Incoming::RendererSW::fillBottomShadow(QPainter &p) {
 // std140 puts the vec3 at offset 16, the NDC Y flip fills the hole.
 struct IncomingShadowUniforms {
 	float viewport[2];
-	float _pad0;
+	float fragCoordYUp;
 	float flipY;
 	float shadow[3];
 	float _pad1;
@@ -555,6 +555,11 @@ namespace {
 // Vulkan is the only backend with the NDC Y axis pointing down.
 [[nodiscard]] float NdcFlipY(not_null<QRhi*> rhi) {
 	return rhi->isYUpInNDC() ? 1.f : -1.f;
+}
+
+// OpenGL is the only backend with gl_FragCoord.y counting from the bottom.
+[[nodiscard]] float FragCoordYUp(not_null<QRhi*> rhi) {
+	return rhi->isYUpInFramebuffer() ? 1.f : 0.f;
 }
 
 } // namespace
@@ -869,6 +874,7 @@ public:
 		uniforms.viewport[0] = pw;
 		uniforms.viewport[1] = ph;
 		uniforms.flipY = NdcFlipY(rhi);
+		uniforms.fragCoordYUp = FragCoordYUp(rhi);
 		uniforms.shadow[0] = shadowHeight * factor;
 		uniforms.shadow[1] = shadowBottom.bottom();
 		uniforms.shadow[2] = shadowAlpha;

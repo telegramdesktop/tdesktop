@@ -26,7 +26,8 @@ using namespace Ui::GL;
 
 struct PipUniforms {
 	float viewport[2];
-	float _pad0[2];
+	float fragCoordYUp;
+	float _pad0;
 	float roundRect[4];
 	float roundRadius;
 	float _pad1[3];
@@ -56,6 +57,11 @@ static_assert(sizeof(ImageUniforms) % 16 == 0);
 // Vulkan is the only backend with the NDC Y axis pointing down.
 [[nodiscard]] float NdcFlipY(not_null<QRhi*> rhi) {
 	return rhi->isYUpInNDC() ? 1.f : -1.f;
+}
+
+// OpenGL is the only backend with gl_FragCoord.y counting from the bottom.
+[[nodiscard]] float FragCoordYUp(not_null<QRhi*> rhi) {
+	return rhi->isYUpInFramebuffer() ? 1.f : 0.f;
 }
 
 [[nodiscard]] QRhiGraphicsPipeline *CreatePipeline(
@@ -775,6 +781,7 @@ void Pip::RendererRhi::paintTransformedContent(
 	PipUniforms uniforms{};
 	uniforms.viewport[0] = _viewport.width() * _factor;
 	uniforms.viewport[1] = _viewport.height() * _factor;
+	uniforms.fragCoordYUp = FragCoordYUp(_rhi);
 	uniforms.roundRect[0] = roundRect.left();
 	uniforms.roundRect[1] = roundRect.top();
 	uniforms.roundRect[2] = roundRect.width();
