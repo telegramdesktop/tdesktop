@@ -1233,6 +1233,31 @@ void ChatStyle::make(
 }
 
 void ChatStyle::make(
+		style::MarkdownEmbedPost &my,
+		const style::MarkdownEmbedPost &original) const {
+	my = original;
+	make(my.accentFg, original.accentFg);
+	make(my.authorStyle, original.authorStyle);
+	make(my.authorFg, original.authorFg);
+	make(my.dateStyle, original.dateStyle);
+	make(my.dateFg, original.dateFg);
+}
+
+void ChatStyle::make(
+		style::MarkdownPlaceholder &my,
+		const style::MarkdownPlaceholder &original) const {
+	my = original;
+	make(my.bg, original.bg);
+	make(my.bgActive, original.bgActive);
+	make(my.rippleBg, original.rippleBg);
+	make(my.borderFg, original.borderFg);
+	make(my.spinnerFg, original.spinnerFg);
+	make(my.labelStyle, original.labelStyle);
+	make(my.labelFg, original.labelFg);
+	make(my.labelFgActive, original.labelFgActive);
+}
+
+void ChatStyle::make(
 		style::MarkdownPhoto &my,
 		const style::MarkdownPhoto &original) const {
 	my = original;
@@ -1252,6 +1277,45 @@ void ChatStyle::make(
 	make(my.titleFg, original.titleFg);
 	make(my.subtitleStyle, original.subtitleStyle);
 	make(my.subtitleFg, original.subtitleFg);
+}
+
+void ChatStyle::make(
+		style::MarkdownChannelButton &my,
+		const style::MarkdownChannelButton &original) const {
+	my = original;
+	make(my.borderFg, original.borderFg);
+	make(my.bg, original.bg);
+	make(my.textStyle, original.textStyle);
+	make(my.textFg, original.textFg);
+}
+
+void ChatStyle::make(
+		style::MarkdownChannel &my,
+		const style::MarkdownChannel &original) const {
+	my = original;
+	make(my.borderFg, original.borderFg);
+	make(my.bg, original.bg);
+	make(my.titleStyle, original.titleStyle);
+	make(my.titleFg, original.titleFg);
+	make(my.subtitleStyle, original.subtitleStyle);
+	make(my.subtitleFg, original.subtitleFg);
+	make(my.button, original.button);
+}
+
+void ChatStyle::make(
+		style::MarkdownRelatedArticle &my,
+		const style::MarkdownRelatedArticle &original) const {
+	my = original;
+	make(my.borderFg, original.borderFg);
+	make(my.bg, original.bg);
+	make(my.headerBg, original.headerBg);
+	make(my.separatorFg, original.separatorFg);
+	make(my.titleStyle, original.titleStyle);
+	make(my.titleFg, original.titleFg);
+	make(my.subtitleStyle, original.subtitleStyle);
+	make(my.subtitleFg, original.subtitleFg);
+	make(my.footerStyle, original.footerStyle);
+	make(my.footerFg, original.footerFg);
 }
 
 void ChatStyle::make(
@@ -1322,8 +1386,12 @@ void ChatStyle::make(
 	make(my.displayMath, original.displayMath);
 	make(my.table, original.table);
 	make(my.details, original.details);
+	make(my.embedPost, original.embedPost);
+	make(my.placeholder, original.placeholder);
 	make(my.photo, original.photo);
 	make(my.audio, original.audio);
+	make(my.channel, original.channel);
+	make(my.relatedArticle, original.relatedArticle);
 	make(my.groupedMedia, original.groupedMedia);
 	make(my.failure, original.failure);
 	make(my.buttonRow, original.buttonRow);
