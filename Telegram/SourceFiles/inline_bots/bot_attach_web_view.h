@@ -438,6 +438,9 @@ public:
 	[[nodiscard]] rpl::producer<> popularAppBotsLoaded() const;
 
 private:
+	void destroyDeferred(
+		std::vector<std::unique_ptr<WebViewInstance>> instances);
+
 	void resolveUsername(
 		std::shared_ptr<Ui::Show> show,
 		Fn<void(not_null<PeerData*>)> done);

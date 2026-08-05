@@ -2506,26 +2506,24 @@ void AttachWebView::watchJoinChatWebView(
 	};
 }
 
-void AttachWebView::close(not_null<WebViewInstance*> instance) {
-	const auto i = ranges::find(
-		_instances,
-		instance.get(),
-		&std::unique_ptr<WebViewInstance>::get);
-	if (i == end(_instances)) {
+void AttachWebView::destroyDeferred(
+		std::vector<std::unique_ptr<WebViewInstance>> instances) {
+	if (instances.empty()) {
 		return;
-	}
-	auto taken = base::take(*i);
-	_instances.erase(i);
-	if (!Webview::InsideBlockingPopup()) {
+	} else if (!Webview::InsideBlockingPopup()) {
+		// Destroyed right here, `instances` goes out of scope.
 		return;
 	}
 
 	// A popup may have been opened from inside a webview callback, so the
 	// frames of that callback, and the closures owning them, are still on
-	// the stack below the popup. Destroy the instance only from a clean
+	// the stack below the popup. Destroy the instances only from a clean
 	// stack, after the popup is finished.
-	_closing.push_back(std::move(taken));
-	if (_closing.size() > 1) {
+	const auto was = _closing.size();
+	for (auto &instance : instances) {
+		_closing.push_back(std::move(instance));
+	}
+	if (was > 0) {
 		return;
 	}
 	const auto weak = base::make_weak(this);
@@ -2536,9 +2534,23 @@ void AttachWebView::close(not_null<WebViewInstance*> instance) {
 	});
 }
 
+void AttachWebView::close(not_null<WebViewInstance*> instance) {
+	const auto i = ranges::find(
+		_instances,
+		instance.get(),
+		&std::unique_ptr<WebViewInstance>::get);
+	if (i == end(_instances)) {
+		return;
+	}
+	auto taken = std::vector<std::unique_ptr<WebViewInstance>>();
+	taken.push_back(base::take(*i));
+	_instances.erase(i);
+	destroyDeferred(std::move(taken));
+}
+
 void AttachWebView::closeAll() {
 	cancel();
-	base::take(_instances);
+	destroyDeferred(base::take(_instances));
 }
 
 void AttachWebView::loadPopularAppBots() {

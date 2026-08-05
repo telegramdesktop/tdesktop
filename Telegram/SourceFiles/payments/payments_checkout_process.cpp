@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
+#include "webview/webview_dialog.h"
 #include "window/themes/window_theme.h"
 
 #include <QJsonDocument>
@@ -254,6 +255,11 @@ std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
 }
 
 void CheckoutProcess::ClearAll() {
+	if (Webview::InsideBlockingPopup()) {
+		// See the comment in CheckoutProcess::close().
+		Webview::RunWhenBlockingPopupFinished([] { ClearAll(); });
+		return;
+	}
 	Processes.clear();
 }
 
@@ -598,6 +604,17 @@ void CheckoutProcess::closeAndReactivate(CheckoutResult result) {
 }
 
 void CheckoutProcess::close() {
+	if (Webview::InsideBlockingPopup()) {
+		// A blocking popup may have been opened from inside a webview
+		// callback, so the frames of that callback, and the closures
+		// owning them, are still on the stack below the popup. Destroying
+		// this process (and with it the panel and the webview) here would
+		// pull the ground from under them, so wait for a clean stack.
+		Webview::RunWhenBlockingPopupFinished(crl::guard(this, [=] {
+			close();
+		}));
+		return;
+	}
 	const auto i = Processes.find(_session);
 	if (i == end(Processes)) {
 		return;

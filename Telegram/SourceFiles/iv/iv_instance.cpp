@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "ui/toast/toast.h"
 #include "ui/basic_click_handlers.h"
+#include "webview/webview_dialog.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_session_controller_link_info.h"
@@ -776,7 +777,7 @@ void Instance::showOpenedPage(
 		const auto tonsite = lower.startsWith("tonsite://");
 		switch (event.type) {
 		case Type::Close:
-			_shown = nullptr;
+			destroyLater(base::take(_shown));
 			break;
 		case Type::Quit:
 			Shortcuts::Launch(Shortcuts::Command::Quit);
@@ -1004,7 +1005,9 @@ void Instance::closeMarkdownsForItem(
 	}
 	for (const auto &key : keys) {
 		_markdownBindings.remove(key);
-		_markdowns.take(key);
+		if (auto taken = _markdowns.take(key)) {
+			destroyLater(std::move(*taken));
+		}
 	}
 }
 
@@ -1017,7 +1020,9 @@ void Instance::closeMarkdownsForSession(not_null<Main::Session*> session) {
 	}
 	for (const auto &key : keys) {
 		_markdownBindings.remove(key);
-		_markdowns.take(key);
+		if (auto taken = _markdowns.take(key)) {
+			destroyLater(std::move(*taken));
+		}
 	}
 }
 
@@ -1034,7 +1039,7 @@ void Instance::closeSessionDataViews(not_null<Main::Session*> session) {
 		_shownSession = nullptr;
 	}
 	if (_shown && _shown->showingFrom(session)) {
-		_shown = nullptr;
+		destroyLater(base::take(_shown));
 	}
 }
 
@@ -1140,7 +1145,7 @@ void Instance::showTonSite(
 		const auto tonsite = lower.startsWith("tonsite://");
 		switch (event.type) {
 		case Type::Close:
-			_tonSite = nullptr;
+			destroyLater(base::take(_tonSite));
 			break;
 		case Type::Quit:
 			Shortcuts::Launch(Shortcuts::Command::Quit);
@@ -1443,7 +1448,9 @@ void Instance::showRichMessage(
 			switch (event.type) {
 			case Type::Close:
 				_markdownBindings.remove(key);
-				_markdowns.take(key);
+				if (auto taken = _markdowns.take(key)) {
+					destroyLater(std::move(*taken));
+				}
 				break;
 			case Type::Quit:
 				Shortcuts::Launch(Shortcuts::Command::Quit);
@@ -1497,7 +1504,9 @@ bool Instance::showMarkdown(
 				switch (event.type) {
 				case Type::Close:
 					_markdownBindings.remove(target.key);
-					_markdowns.take(target.key);
+					if (auto taken = _markdowns.take(target.key)) {
+						destroyLater(std::move(*taken));
+					}
 					break;
 				case Type::Quit:
 					Shortcuts::Launch(Shortcuts::Command::Quit);
@@ -1687,7 +1696,7 @@ void Instance::processOpenChannel(const QString &context) {
 		if (channel->isLoaded()) {
 			if (const auto controller = _shownSession->tryResolveWindow(channel)) {
 				controller->showPeerHistory(channel);
-				_shown = nullptr;
+				destroyLater(base::take(_shown));
 			}
 		} else if (const auto username = ResolveNativeIvChannelUsername(
 				channel->username(),
@@ -1696,7 +1705,7 @@ void Instance::processOpenChannel(const QString &context) {
 				controller->showPeerByLink({
 					.usernameOrId = username,
 				});
-				_shown = nullptr;
+				destroyLater(base::take(_shown));
 			}
 		}
 	}
@@ -1731,15 +1740,17 @@ bool Instance::hasActiveWindow(not_null<Main::Session*> session) const {
 
 bool Instance::closeActive() {
 	if (_shown && _shown->active()) {
-		_shown = nullptr;
+		destroyLater(base::take(_shown));
 		return true;
 	} else if (_tonSite && _tonSite->active()) {
-		_tonSite = nullptr;
+		destroyLater(base::take(_tonSite));
 		return true;
 	}
 	for (auto &[key, controller] : _markdowns) {
 		if (controller->active()) {
-			_markdowns.take(key);
+			if (auto taken = _markdowns.take(key)) {
+				destroyLater(std::move(*taken));
+			}
 			return true;
 		}
 	}
@@ -1758,8 +1769,32 @@ bool Instance::minimizeActive() {
 }
 
 void Instance::closeAll() {
-	_shown = nullptr;
-	_tonSite = nullptr;
+	destroyLater(base::take(_shown));
+	destroyLater(base::take(_tonSite));
+}
+
+void Instance::destroyLater(std::shared_ptr<void> object) {
+	if (!object) {
+		return;
+	} else if (!Webview::InsideBlockingPopup()) {
+		// Destroyed right here, `object` goes out of scope.
+		return;
+	}
+
+	// A blocking popup may have been opened from inside a webview callback,
+	// so the frames of that callback, and the closures owning them, are
+	// still on the stack below the popup. Destroy the object only from a
+	// clean stack, after the popup is finished.
+	_closing.push_back(std::move(object));
+	if (_closing.size() > 1) {
+		return;
+	}
+	const auto weak = base::make_weak(this);
+	Webview::RunWhenBlockingPopupFinished([=] {
+		if (const auto strong = weak.get()) {
+			base::take(strong->_closing);
+		}
+	});
 }
 
 bool PreferForUri(const QString &uri) {

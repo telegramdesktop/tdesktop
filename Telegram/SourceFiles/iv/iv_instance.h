@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "data/data_msg_id.h"
 #include "iv/iv_delegate.h"
 
+#include <memory>
 #include <vector>
 
 namespace Main {
@@ -35,7 +37,7 @@ class RichMessageHtmlExport;
 class Shown;
 class TonSite;
 
-class Instance final {
+class Instance final : public base::has_weak_ptr {
 public:
 	using RichMessageResolved = Fn<void(std::shared_ptr<const RichPage>)>;
 
@@ -177,7 +179,13 @@ private:
 		const RichMessageGeneration &generation,
 		const MTPmessages_Messages &result);
 
+	// Destroys `object` right away when no blocking popup event loop is
+	// running, or otherwise from a clean stack once that loop is finished.
+	void destroyLater(std::shared_ptr<void> object);
+
 	const not_null<Delegate*> _delegate;
+
+	std::vector<std::shared_ptr<void>> _closing;
 
 	std::unique_ptr<Shown> _shown;
 	Main::Session *_shownSession = nullptr;
