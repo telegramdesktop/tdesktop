@@ -1490,6 +1490,7 @@ void SetButtonDisabledLook(
 		rpl::producer<QString> placeholder,
 		int64 value,
 		Fn<int()> fractionDigits,
+		Fn<QString()> separator,
 		rpl::producer<bool> entryFiat,
 		rpl::producer<QString> currency,
 		rpl::producer<QString> fiat,
@@ -1504,7 +1505,8 @@ void SetButtonDisabledLook(
 		std::move(placeholder),
 		value,
 		std::move(fractionDigits),
-		&st);
+		&st,
+		std::move(separator));
 	auto helper = Ui::Text::CustomEmojiHelper();
 	auto diamond = helper.paletteDependent({
 		.factory = [] {
@@ -1602,6 +1604,15 @@ void WalletSendBox(
 	const auto state = box->lifetime().make_state<State>();
 	state->rate = FiatRateValue(&show->session());
 
+	const auto entrySeparator = [=] {
+		if (!state->entryFiat.current()) {
+			return Ui::TonAmountSeparator();
+		}
+		const auto rule = Ui::LookupCurrencyRule(
+			state->rate.current().currency);
+		return QString(QChar(rule.decimal));
+	};
+
 	const auto recipient = box->addRow(
 		object_ptr<Ui::VerticalLayout>(box),
 		style::margins(),
@@ -1658,6 +1669,7 @@ void WalletSendBox(
 					state->rate.current().currency).exponent
 				: 9;
 		},
+		entrySeparator,
 		state->entryFiat.value(),
 		state->rate.value() | rpl::map([](const FiatRate &rate) {
 			return rate.currency;
@@ -1670,7 +1682,8 @@ void WalletSendBox(
 			return;
 		}
 		const auto parsed = Ui::ParseTonAmountString(
-			amountField->getLastText()).value_or(0);
+			amountField->getLastText(),
+			entrySeparator()).value_or(0);
 		const auto rate = state->rate.current();
 		state->amount = !state->entryFiat.current()
 			? parsed
@@ -1702,11 +1715,17 @@ void WalletSendBox(
 		const auto units = int64(std::min(
 			base::SafeRound(amount * rate.perGram / double(quantum)),
 			double(maxUnits)));
-		return units
-			? Ui::FormatTonAmount(
-				units * quantum,
-				Ui::TonFormatFlag::Simple).full
-			: QString();
+		if (!units) {
+			return QString();
+		}
+		const auto formatted = Ui::FormatTonAmount(
+			units * quantum,
+			Ui::TonFormatFlag::Simple);
+		auto result = formatted.wholeString;
+		if (!formatted.nanoString.isEmpty()) {
+			result += entrySeparator() + formatted.nanoString;
+		}
+		return result;
 	};
 	const auto setUnitText = [=] {
 		state->settingUnitText = true;
@@ -2881,7 +2900,7 @@ void Card::paintEvent(QPaintEvent *e) {
 	p.setFont(nameFont);
 	p.drawText(
 		st::walletCardContentLeft,
-		height() - st::walletCardNameBottom - nameFont->descent,
+		height() - st::walletCardNameBottom,
 		nameFont->elided(_name, nameMax));
 
 	if (!_addressLine1.isEmpty()) {

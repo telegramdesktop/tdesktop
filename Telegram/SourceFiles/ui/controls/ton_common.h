@@ -38,7 +38,8 @@ using TonFormatFlags = base::flags<TonFormatFlag>;
 	int64 amount,
 	TonFormatFlags flags = TonFormatFlags());
 [[nodiscard]] std::optional<int64> ParseTonAmountString(
-	const QString &amount);
+	const QString &amount,
+	const QString &separator = QString());
 
 [[nodiscard]] QString TonAmountSeparator();
 
@@ -47,6 +48,7 @@ using TonFormatFlags = base::flags<TonFormatFlag>;
 	rpl::producer<QString> placeholder,
 	int64 amount = 0,
 	Fn<int()> fractionDigits = nullptr,
-	const style::InputField *st = nullptr);
+	const style::InputField *st = nullptr,
+	Fn<QString()> separator = nullptr);
 
 } // namespace Ui

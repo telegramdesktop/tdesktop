@@ -64,9 +64,9 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 		const QString &was,
 		const QString &text,
 		int position,
-		int fractionDigits) {
+		int fractionDigits,
+		const QString &separator) {
 	constexpr auto kMaxDigitsCount = 9;
-	const auto separator = FormatTonAmount(1).separator;
 
 	auto result = FixedAmount{ text, position };
 	if (text.isEmpty()) {
@@ -167,14 +167,18 @@ FormattedTonAmount FormatTonAmount(int64 amount, TonFormatFlags flags) {
 	return result;
 }
 
-std::optional<int64> ParseTonAmountString(const QString &amount) {
+std::optional<int64> ParseTonAmountString(
+		const QString &amount,
+		const QString &separator) {
 	const auto trimmed = amount.trimmed();
-	const auto separator = QString(QLocale::system().decimalPoint());
+	const auto decimal = separator.isEmpty()
+		? TonAmountSeparator()
+		: separator;
 	const auto index1 = trimmed.indexOf('.');
 	const auto index2 = trimmed.indexOf(',');
-	const auto index3 = (separator == "." || separator == ",")
+	const auto index3 = (decimal == "." || decimal == ",")
 		? -1
-		: trimmed.indexOf(separator);
+		: trimmed.indexOf(decimal);
 	const auto found = (index1 >= 0 ? 1 : 0)
 		+ (index2 >= 0 ? 1 : 0)
 		+ (index3 >= 0 ? 1 : 0);
@@ -190,7 +194,7 @@ std::optional<int64> ParseTonAmountString(const QString &amount) {
 		? "."
 		: (index2 >= 0)
 		? ","
-		: separator;
+		: decimal;
 	const auto grams = ParseAmountTons(trimmed.mid(0, index));
 	const auto nano = ParseAmountNano(trimmed.mid(index + used.size()));
 	if (index < 0 || index == trimmed.size() - used.size()) {
@@ -212,7 +216,8 @@ not_null<Ui::InputField*> CreateTonAmountInput(
 		rpl::producer<QString> placeholder,
 		int64 amount,
 		Fn<int()> fractionDigits,
-		const style::InputField *st) {
+		const style::InputField *st,
+		Fn<QString()> separator) {
 	const auto result = Ui::CreateChild<Ui::InputField>(
 		parent.get(),
 		st ? *st : st::editTagField,
@@ -232,7 +237,8 @@ not_null<Ui::InputField*> CreateTonAmountInput(
 				*lastAmountValue,
 				now,
 				position,
-				fractionDigits ? fractionDigits() : kNanoDigits);
+				fractionDigits ? fractionDigits() : kNanoDigits,
+				separator ? separator() : TonAmountSeparator());
 			*lastAmountValue = fixed.text;
 			if (fixed.text == now) {
 				return;
