@@ -547,7 +547,10 @@ void BuyResaleGift(
 	const auto invoice = MTP_inputInvoiceStarGiftResale(
 		MTP_flags((type == CreditsType::Ton) ? Flag::f_ton : Flag()),
 		MTP_string(gift->slug),
-		to->input());
+		to->input(),
+		MTP_textWithEntities(
+			MTP_string(),
+			MTP_vector<MTPMessageEntity>()));
 
 	Ui::RequestOurForm(show, invoice, [=](
 			uint64 formId,
