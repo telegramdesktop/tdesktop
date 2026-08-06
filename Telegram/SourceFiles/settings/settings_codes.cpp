@@ -42,6 +42,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 #include "boxes/abstract_box.h" // Ui::show().
 
+#ifdef _DEBUG
+#include "gram/api/gram_api_request.h"
+#include "mtproto/mtproto_config.h"
+#include "test/test_agent.h"
+#include "test/test_log.h"
+#endif // _DEBUG
+
 #include <zlib.h>
 
 namespace Settings {
@@ -90,6 +97,197 @@ using SessionController = Window::SessionController;
 	}
 	return result;
 }
+
+#ifdef _DEBUG
+const auto kAcc1Raw = u"0:9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC"_q;
+
+struct ToncenterProbe {
+	QString name;
+	QString endpoint;
+	QString query;
+};
+
+[[nodiscard]] std::vector<ToncenterProbe> ToncenterProbes() {
+	const auto owner2 = u"0:4E3664FAEE814FBDB6C1CB36D72BAC52D15E186C11ECD664FE1B3F1A7CFD801D"_q;
+	const auto owner3 = u"0:8B704249E018FAA59BDC356F463A7A34FC0201DBBFA7441A387BE83E9FFFBFC4"_q;
+	const auto gift = u"0:CA0CFD519F763102B5BEC9D9E3AF43592EA362FB773FA319EA09C4F162C171E0"_q;
+	const auto numbers = u"EQAOQdwdw8kGftJCSFgOErM1mBjYPe4DBPq8-AhF6vr9si5N"_q;
+	const auto usernames = u"EQCA14o1-VWhS2efqoh_9M1b_A9DtKTuoqfmkn83AbJzwnPi"_q;
+	const auto encoded = [](const QString &address) {
+		return Gram::ApiDetails::PercentEncoded(address);
+	};
+	const auto items = u"/api/v3/nft/items"_q;
+	const auto transfers = u"/api/v3/nft/transfers"_q;
+	const auto records = u"/api/v3/dns/records"_q;
+	return {
+		{
+			u"api-nft-items-owner1"_q,
+			items,
+			u"owner_address="_q + encoded(kAcc1Raw),
+		},
+		{
+			u"api-nft-items-owner2"_q,
+			items,
+			u"owner_address="_q + encoded(owner2),
+		},
+		{
+			u"api-nft-items-owner1-paged"_q,
+			items,
+			u"owner_address="_q + encoded(kAcc1Raw) + u"&limit=50&offset=0"_q,
+		},
+		{
+			u"api-nft-items-address-gift"_q,
+			items,
+			u"address="_q + encoded(gift),
+		},
+		{
+			u"api-nft-items-collection-numbers"_q,
+			items,
+			u"collection_address="_q + encoded(numbers) + u"&limit=1"_q,
+		},
+		{
+			u"api-nft-items-collection-usernames"_q,
+			items,
+			u"collection_address="_q + encoded(usernames) + u"&limit=1"_q,
+		},
+		{
+			u"api-nft-items-camel"_q,
+			u"/api/v3/nftItems"_q,
+			u"owner_address="_q + encoded(kAcc1Raw),
+		},
+		{
+			u"api-nft-transfers-owner1"_q,
+			transfers,
+			u"owner_address="_q + encoded(kAcc1Raw),
+		},
+		{
+			u"api-nft-transfers-owner1-paged"_q,
+			transfers,
+			u"owner_address="_q
+				+ encoded(kAcc1Raw)
+				+ u"&direction=both&limit=50&offset=0"_q,
+		},
+		{
+			u"api-nft-transfers-item-gift"_q,
+			transfers,
+			u"item_address="_q + encoded(gift),
+		},
+		{
+			u"api-nft-transfers-camel"_q,
+			u"/api/v3/nftTransfers"_q,
+			u"owner_address="_q + encoded(kAcc1Raw),
+		},
+		{
+			u"api-dns-records-domain-tolya"_q,
+			records,
+			u"domain=tolya.ton"_q,
+		},
+		{
+			u"api-dns-records-wallet-owner1"_q,
+			records,
+			u"wallet="_q + encoded(kAcc1Raw),
+		},
+		{
+			u"api-dns-records-domain-saint"_q,
+			records,
+			u"domain=saint.ton"_q,
+		},
+		{
+			u"api-dns-records-domain-pumpanddump"_q,
+			records,
+			u"domain=pumpanddump.ton"_q,
+		},
+		{
+			u"api-dns-records-wallet-owner3"_q,
+			records,
+			u"wallet="_q + encoded(owner3),
+		},
+		{
+			u"api-dns-records-camel"_q,
+			u"/api/v3/dnsRecords"_q,
+			u"wallet="_q + encoded(kAcc1Raw),
+		},
+	};
+}
+
+[[nodiscard]] bool WriteProbeBody(
+		const QString &fileName,
+		const QByteArray &bytes) {
+	auto file = QFile(Test::EvidenceDir() + fileName);
+	if (!file.open(QIODevice::WriteOnly)) {
+		Test::Note(u"PROBE_WRITE_FAILED %1"_q.arg(fileName));
+		return false;
+	}
+	return (file.write(bytes) == bytes.size());
+}
+
+void RunToncenterProbes(not_null<SessionController*> window) {
+	struct State {
+		int done = 0;
+		int total = 0;
+		int written = 0;
+	};
+	const auto state = std::make_shared<State>();
+	const auto probes = ToncenterProbes();
+	state->total = int(probes.size());
+	const auto session = &window->session();
+	const auto wallet = &session->wallet();
+	const auto webFileDcId = session->serverConfig().webFileDcId;
+	Test::Note(u"PROBE_START count=%1 dir=%2"_q
+		.arg(state->total)
+		.arg(Test::EvidenceDir()));
+	Test::Note(u"PROBE_CONFIG env=%1 webFileDcId=%2 shifted=%3"_q
+		.arg(session->mtp().environment() == MTP::Environment::Test
+			? u"Test"_q
+			: u"Production"_q)
+		.arg(webFileDcId)
+		.arg(MTP::ShiftDcId(webFileDcId, MTP::kToncenterDcShift)));
+	for (const auto &probe : probes) {
+		const auto name = probe.name;
+		const auto endpoint = probe.endpoint;
+		const auto query = probe.query;
+		const auto record = [=](
+				const QString &suffix,
+				const QByteArray &bytes,
+				bool body) {
+			const auto saved = WriteProbeBody(name + suffix, bytes);
+			if (saved && body) {
+				++state->written;
+			}
+			Test::Note(u"PROBE %1 endpoint=%2 query=%3 bytes=%4"_q.arg(
+				name,
+				endpoint,
+				query,
+				QString::number(bytes.size())));
+			if (++state->done < state->total) {
+				return;
+			}
+			Test::Note(u"PROBE_COMPLETE bodies=%1/%2"_q
+				.arg(state->written)
+				.arg(state->total));
+			Test::Fire(u"toncenter_probe_complete"_q);
+			Ui::Toast::Show(u"Probe: %1/%2 bodies in %3"_q
+				.arg(state->written)
+				.arg(state->total)
+				.arg(Test::EvidenceDir()));
+		};
+		wallet->debugRawRequest(
+			Gram::HttpRequest{
+				.endpoint = endpoint,
+				.query = query,
+			},
+			[=](const QByteArray &bytes) {
+				record(u".json"_q, bytes, true);
+			},
+			[=](const Gram::ApiError &error) {
+				const auto text = u"code=%1 type=%2"_q
+					.arg(error.code)
+					.arg(error.message);
+				record(u".mtp-error.txt"_q, text.toUtf8(), false);
+			});
+	}
+}
+#endif // _DEBUG
 
 auto GenerateCodes() {
 	auto codes = std::map<QString, Fn<void(SessionController*)>>();
@@ -330,9 +528,8 @@ auto GenerateCodes() {
 				const auto json = file.readAll();
 				auto &wallet = strong->session().wallet();
 				auto candidates = std::vector<Gram::Address>();
-				const auto acc1 = u"0:9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC"_q;
 				const auto acc2 = u"0:BC1B748F5D26B74D857798FF4DD4252A2B79CF51B232AE41BE1F19E8CD9547B7"_q;
-				for (const auto &raw : { acc1, acc2 }) {
+				for (const auto &raw : { kAcc1Raw, acc2 }) {
 					if (const auto parsed = Gram::ParseAddress(raw)) {
 						candidates.push_back(parsed->address);
 					}
@@ -368,6 +565,12 @@ auto GenerateCodes() {
 				wallet.injectDebugHistory(std::move(items));
 				Ui::Toast::Show(u"Injected %1 history items."_q.arg(count));
 			});
+	});
+	codes.emplace(u"walletprobe"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		RunToncenterProbes(window);
 	});
 #endif
 	codes.emplace(u"loadcolors"_q, [](SessionController *window) {

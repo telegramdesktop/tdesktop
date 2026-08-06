@@ -452,6 +452,13 @@ void Session::loadMoreHistory() {
 void Session::injectDebugHistory(std::vector<Gram::TransferItem> items) {
 	mergeHistory(std::move(items));
 }
+
+void Session::debugRawRequest(
+		const Gram::HttpRequest &request,
+		Fn<void(const QByteArray &)> done,
+		Fn<void(const Gram::ApiError &)> fail) {
+	_api.debugRawRequest(request, std::move(done), std::move(fail));
+}
 #endif
 
 void Session::startPolling() {

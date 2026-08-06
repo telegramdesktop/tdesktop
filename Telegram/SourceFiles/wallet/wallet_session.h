@@ -93,6 +93,10 @@ public:
 	void loadMoreHistory();
 #ifdef _DEBUG
 	void injectDebugHistory(std::vector<Gram::TransferItem> items);
+	void debugRawRequest(
+		const Gram::HttpRequest &request,
+		Fn<void(const QByteArray &)> done,
+		Fn<void(const Gram::ApiError &)> fail);
 #endif
 
 	void startPolling();

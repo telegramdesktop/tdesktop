@@ -62,6 +62,39 @@ void Api::request(
 	}).handleAllErrors().send();
 }
 
+#ifdef _DEBUG
+void Api::debugRawRequest(
+		const Gram::HttpRequest &request,
+		Fn<void(const QByteArray &)> done,
+		Fn<void(const Gram::ApiError &)> fail) {
+	using Flag = MTPtoncenter_performApiRequest::Flag;
+	++_pendingCount;
+	_killSessionTimer.cancel();
+	_api.request(MTPtoncenter_PerformApiRequest(
+		MTP_flags((request.post ? Flag::f_post : Flag())
+			| (request.query.isEmpty() ? Flag() : Flag::f_query)
+			| (request.payload.isEmpty() ? Flag() : Flag::f_payload)),
+		MTP_string(request.endpoint),
+		MTP_string(request.query),
+		MTP_string(QString::fromUtf8(request.payload))
+	)).toDC(shiftedDcId()).done([=](
+			const MTPtoncenter_ApiResponse &result) {
+		requestFinished();
+		if (done) {
+			done(result.data().vresponse().data().vdata().v);
+		}
+	}).fail([=](const MTP::Error &error) {
+		requestFinished();
+		if (fail) {
+			fail(Gram::ApiError{
+				.code = error.code(),
+				.message = error.type(),
+			});
+		}
+	}).handleAllErrors().send();
+}
+#endif // _DEBUG
+
 bool Api::hasPendingRequests() const {
 	return _pendingCount > 0;
 }

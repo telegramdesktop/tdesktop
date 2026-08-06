@@ -27,6 +27,13 @@ public:
 		Fn<void(const QByteArray &)> done,
 		Fn<void(const Gram::ApiError &)> fail);
 
+#ifdef _DEBUG
+	void debugRawRequest(
+		const Gram::HttpRequest &request,
+		Fn<void(const QByteArray &)> done,
+		Fn<void(const Gram::ApiError &)> fail);
+#endif // _DEBUG
+
 	[[nodiscard]] bool hasPendingRequests() const;
 
 private:
