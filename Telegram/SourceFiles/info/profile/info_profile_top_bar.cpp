@@ -270,6 +270,10 @@ TopBar::TopBar(
 , _wrap(std::move(descriptor.wrap))
 , _st(st::infoTopBar)
 , _source(descriptor.source)
+, _savedMessages(descriptor.source == Source::Profile
+	&& !_topic
+	&& !_key.sublist()
+	&& _peer->isSelf())
 , _badgeTooltipHide(
 	std::make_unique<base::Timer>([=] { hideBadgeTooltip(); }))
 , _botVerify(std::make_unique<Badge>(
@@ -282,7 +286,9 @@ TopBar::TopBar(
 		return controller->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Layer);
 	})))
-, _badgeContent(BadgeContentForPeer(_peer))
+, _badgeContent(_savedMessages
+	? rpl::producer<Badge::Content>(rpl::single(Badge::Content()))
+	: BadgeContentForPeer(_peer))
 , _gifPausedChecker([=, controller = descriptor.controller] {
 	return controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
 })
@@ -300,12 +306,15 @@ TopBar::TopBar(
 	VerifiedContentForPeer(_peer),
 	nullptr,
 	_gifPausedChecker))
-, _hasActions(descriptor.source != Source::Stories
+, _hasActions(!_savedMessages
+	&& descriptor.source != Source::Stories
 	&& descriptor.source != Source::Preview
 	&& (_wrap.current() != Wrap::Side || !_peer->isNotificationsUser()))
 , _minForProgress([&] {
 	QWidget::setMinimumHeight(st::infoLayerTopBarHeight);
-	QWidget::setMaximumHeight(_hasActions
+	QWidget::setMaximumHeight(_savedMessages
+		? st::infoLayerTopBarHeight
+		: _hasActions
 		? st::infoProfileTopBarHeightMax
 		: st::infoProfileTopBarNoActionsHeightMax);
 	return QWidget::minimumHeight()
@@ -314,7 +323,7 @@ TopBar::TopBar(
 			: st::infoProfileTopBarActionButtonsHeight);
 }())
 , _title(this, nameValue(), _st.title)
-, _starsRating(_peer->isUser()
+, _starsRating((_peer->isUser() && !_savedMessages)
 	? std::make_unique<Ui::StarsRating>(
 		this,
 		descriptor.controller->uiShow(),
@@ -365,6 +374,7 @@ TopBar::TopBar(
 	return owned;
 }())
 , _backToggles(std::move(descriptor.backToggles)) {
+	setObjectName(u"profileTopBar"_q);
 	_peer->updateFull();
 	_communityEffect = (_source == Source::Community);
 	if (const auto broadcast = _peer->monoforumBroadcast()) {
@@ -469,7 +479,7 @@ TopBar::TopBar(
 			_topic,
 			_gifPausedChecker,
 			[=] { update(); });
-	} else {
+	} else if (!_savedMessages) {
 		updateVideoUserpic();
 	}
 
@@ -1169,6 +1179,16 @@ void TopBar::setupUserpicButton(
 		this,
 		[=] { return _hasStories; });
 
+	if (_savedMessages) {
+		_userpicButton->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+		style::PaletteChanged(
+		) | rpl::on_next([=] {
+			_userpicUniqueKey = InMemoryKey();
+			update();
+		}, lifetime());
+		return;
+	}
+
 	const auto openPhoto = [=, peer = _peer] {
 		if (const auto id = peer->userpicPhotoId()) {
 			if (const auto photo = peer->owner().photo(id); photo->date()) {
@@ -1779,7 +1799,9 @@ void TopBar::updateLabelsPosition() {
 	_progress = [&] {
 		const auto max = QWidget::maximumHeight();
 		const auto min = _minForProgress;
-		const auto p = (max > min)
+		const auto p = _savedMessages
+			? 0.
+			: (max > min)
 			? ((height() - min) / float64(max - min))
 			: 1.;
 		return std::clamp(p, 0., 1.);
@@ -2634,6 +2656,18 @@ void TopBar::updateGiftButtonsGeometry(
 void TopBar::paintUserpic(QPainter &p, const QRect &geometry) {
 	if (_topicIconView) {
 		_topicIconView->paintInRect(p, geometry);
+		return;
+	}
+	if (_savedMessages) {
+		const auto key = InMemoryKey(1, 1);
+		if (_userpicUniqueKey != key) {
+			_userpicUniqueKey = key;
+			_cachedUserpic = Ui::EmptyUserpic::GenerateSavedMessages(
+				st::infoProfileTopBarPhotoSize * style::DevicePixelRatio());
+			_cachedUserpic.setDevicePixelRatio(style::DevicePixelRatio());
+		}
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(geometry, _cachedUserpic);
 		return;
 	}
 	if (_videoUserpicPlayer && _videoUserpicPlayer->ready()) {
@@ -3615,7 +3649,7 @@ void TopBar::setupStoryOutline(const QRect &geometry) {
 void TopBar::updateStoryOutline(std::optional<QColor> edgeColor) {
 	const auto user = _peer->asUser();
 	const auto channel = _peer->asChannel();
-	if (!user && !channel) {
+	if ((!user && !channel) || _savedMessages) {
 		return;
 	}
 
@@ -3781,7 +3815,9 @@ const style::FlatLabel &TopBar::statusStyle() const {
 }
 
 rpl::producer<QString> TopBar::nameValue() const {
-	if (const auto topic = _key.topic()) {
+	if (_savedMessages) {
+		return tr::lng_saved_messages();
+	} else if (const auto topic = _key.topic()) {
 		return Info::Profile::TitleValue(topic);
 	}
 	return Info::Profile::NameValue(_peer);

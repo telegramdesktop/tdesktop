@@ -248,6 +248,7 @@ private:
 	rpl::variable<Wrap> _wrap;
 	const style::InfoTopBar &_st;
 	const Source _source;
+	const bool _savedMessages = false;
 
 	std::unique_ptr<base::Timer> _badgeTooltipHide;
 	const std::unique_ptr<Badge> _botVerify;
