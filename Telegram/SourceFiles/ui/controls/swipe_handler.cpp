@@ -35,15 +35,14 @@ constexpr auto kSwipedBackSpeedRatio = 0.35;
 constexpr auto kOverswipeLogA = 16.;
 constexpr auto kOverswipeLogB = 10.;
 
-[[nodiscard]] int DampedOverswipe(int translation) {
+[[nodiscard]] float64 DampedOverswipe(float64 translation) {
 	if (!translation) {
-		return 0;
+		return 0.;
 	}
 	const auto scale = style::Scale() / 100.;
 	const auto value = std::abs(translation) / scale;
 	const auto result = kOverswipeLogA * log(1. + value / kOverswipeLogB);
-	return (translation > 0 ? 1 : -1)
-		* int(base::SafeRound(result * scale));
+	return (translation > 0 ? 1. : -1.) * result * scale;
 }
 
 float64 InterpolationRatio(float64 from, float64 to, float64 result) {
@@ -135,13 +134,17 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		ratio = std::max(ratio, 0.);
 		state->data.ratio = ratio;
 		const auto overscrollRatio = std::max(ratio - 1., 0.);
-		const auto translation = int(
-			base::SafeRound(-std::min(ratio, 1.) * state->threshold)
-		) + DampedOverswipe(int(
-			base::SafeRound(-overscrollRatio * state->threshold)
-		));
+		const auto thresholdShift = -std::min(ratio, 1.) * state->threshold;
+		const auto overswipeShift = -overscrollRatio * state->threshold;
+		const auto damped = DampedOverswipe(base::SafeRound(overswipeShift));
+		const auto translation = int(base::SafeRound(thresholdShift))
+			+ int(base::SafeRound(damped));
+		const auto exactTranslation = thresholdShift
+			+ DampedOverswipe(overswipeShift);
 		state->data.msgBareId = state->finishByTopData.msgBareId;
 		state->data.translation = translation
+			* state->directionInt;
+		state->data.exactTranslation = exactTranslation
 			* state->directionInt;
 		state->data.cursorTop = state->cursorPosition.y();
 		update(state->data);
