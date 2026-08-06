@@ -1749,6 +1749,7 @@ bool Instance::closeActive() {
 	}
 	for (auto &[key, controller] : _markdowns) {
 		if (controller->active()) {
+			_markdownBindings.remove(key);
 			if (auto taken = _markdowns.take(key)) {
 				destroyLater(std::move(*taken));
 			}
@@ -1772,6 +1773,10 @@ bool Instance::minimizeActive() {
 void Instance::closeAll() {
 	destroyLater(base::take(_shown));
 	destroyLater(base::take(_tonSite));
+	_markdownBindings.clear();
+	for (auto &[_, controller] : base::take(_markdowns)) {
+		destroyLater(std::move(controller));
+	}
 }
 
 void Instance::destroyLater(std::shared_ptr<void> object) {
