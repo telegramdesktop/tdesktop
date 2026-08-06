@@ -22,6 +22,7 @@ struct SwipeContextData final {
 
 	float64 ratio = 0.;
 	float64 reachRatio = 0.;
+	float64 exactTranslation = 0.;
 	int64 msgBareId = 0;
 	int translation = 0;
 	int cursorTop = 0;
