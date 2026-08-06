@@ -4542,7 +4542,7 @@ QString Poll::Footer::closeTimerText() const {
 	const auto hideResults = (_owner->_flags
 		& PollData::Flag::HideResultsUntilClose);
 	if (left >= 86400) {
-		const auto days = (left + 86399) / 86400;
+		const auto days = left / 86400;
 		return hideResults
 			? tr::lng_polls_results_in_days(tr::now, lt_count, days)
 			: tr::lng_polls_ends_in_days(tr::now, lt_count, days);
