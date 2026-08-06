@@ -1785,6 +1785,12 @@ bool Instance::minimizeActive() {
 		_tonSite->minimize();
 		return true;
 	}
+	for (const auto &[_, controller] : _markdowns) {
+		if (controller->active()) {
+			controller->minimize();
+			return true;
+		}
+	}
 	return false;
 }
 
