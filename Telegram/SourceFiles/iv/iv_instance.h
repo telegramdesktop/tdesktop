@@ -178,6 +178,7 @@ private:
 	void closeMarkdownsForSession(not_null<Main::Session*> session);
 	void closeSessionDataViews(not_null<Main::Session*> session);
 	void cancelRichMessageRequests(not_null<Main::Session*> session);
+	void cancelIvRequest();
 	void closeLegacyWindows();
 
 	ProcessReceivedPageResult processReceivedPage(

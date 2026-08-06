@@ -965,10 +965,7 @@ void Instance::trackSession(not_null<Main::Session*> session) {
 		cancelRichMessageRequests(session);
 		_ivCache.remove(session);
 		if (_ivRequestSession == session) {
-			session->api().request(_ivRequestId).cancel();
-			_ivRequestSession = nullptr;
-			_ivRequestUri = QString();
-			_ivRequestId = 0;
+			cancelIvRequest();
 		}
 	});
 }
@@ -1058,6 +1055,15 @@ void Instance::cancelRichMessageRequests(not_null<Main::Session*> session) {
 	_richMessageRequested.erase(i);
 }
 
+void Instance::cancelIvRequest() {
+	const auto session = base::take(_ivRequestSession);
+	if (!session) {
+		return;
+	}
+	session->api().request(base::take(_ivRequestId)).cancel();
+	_ivRequestUri = QString();
+}
+
 void Instance::openWithIvPreferred(
 		not_null<Window::SessionController*> controller,
 		QString uri,
@@ -1107,9 +1113,8 @@ void Instance::openWithIvPreferred(
 		return;
 	} else if (_ivRequestSession == session.get() && _ivRequestUri == uri) {
 		return;
-	} else if (_ivRequestId) {
-		_ivRequestSession->api().request(_ivRequestId).cancel();
 	}
+	cancelIvRequest();
 	const auto finish = [=](WebPageData *page) {
 		Expects(_ivRequestSession == session);
 
@@ -1802,6 +1807,7 @@ void Instance::closeAll() {
 	while (!_richMessageRequested.empty()) {
 		cancelRichMessageRequests(_richMessageRequested.front().first);
 	}
+	cancelIvRequest();
 	closeLegacyWindows();
 	_markdownBindings.clear();
 	for (auto &[_, controller] : base::take(_markdowns)) {
