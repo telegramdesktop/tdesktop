@@ -141,15 +141,15 @@ private:
 	int contentHeight() const override;
 
 	void prepare();
+	void resizeToMenuWidth(int width);
 	void paint(Painter &p);
 
 	const not_null<QAction*> _dummyAction;
 	const style::Menu &_st;
 
 	Ui::Text::String _text;
-	Ui::Text::String _about;
+	Ui::Text::String _about = { 1 };
 	int _textWidth = 0;
-	int _aboutHeight = 0;
 	int _height = 0;
 
 };
@@ -163,8 +163,14 @@ RevertAction::RevertAction(
 , _st(st) {
 	setAcceptBoth(true);
 	prepare();
-	fitToMenuWidth();
 	setActionTriggered(std::move(callback));
+
+	parent->widthValue(
+	) | rpl::on_next([=](int width) {
+		if (width > 0) {
+			resizeToMenuWidth(width);
+		}
+	}, lifetime());
 
 	paintRequest(
 	) | rpl::on_next([=] {
@@ -190,13 +196,19 @@ void RevertAction::prepare() {
 	const auto goodWidth = added
 		+ std::max(_text.maxWidth(), _about.maxWidth());
 	const auto w = std::clamp(goodWidth, _st.widthMin, _st.widthMax);
-	_textWidth = w - added;
-	_aboutHeight = _about.countHeight(_textWidth);
+	setMinWidth(w);
+	resizeToMenuWidth(w);
+}
+
+void RevertAction::resizeToMenuWidth(int width) {
+	const auto &padding = _st.itemPadding;
+	const auto added = padding.left() + padding.right();
+	_textWidth = std::max(width - added, 1);
 	_height = st::ttlItemPadding.top()
 		+ _st.itemStyle.font->height
-		+ _aboutHeight
+		+ _about.countHeight(_textWidth)
 		+ st::ttlItemPadding.bottom();
-	setMinWidth(w);
+	resize(width, contentHeight());
 	update();
 }
 
