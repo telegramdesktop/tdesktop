@@ -175,6 +175,7 @@ struct LocalMarkdownTarget {
 		return false;
 	}
 	auto article = Markdown::MarkdownArticle(st::defaultMarkdown);
+	article.setTextRepaintCallbacks([] {}, [](QRect) {});
 	article.setContent(content);
 	const auto width = article.maxWidth();
 	static_cast<void>(article.resizeGetHeight(width));
