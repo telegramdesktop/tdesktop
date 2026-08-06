@@ -146,4 +146,15 @@ bool CloseActiveWindow() {
 	return false;
 }
 
+bool MinimizeActiveWindow() {
+	for (const auto &window : LiveWindows()) {
+		if (window->isActiveWindow()) {
+			window->setWindowState(window->windowState()
+				| Qt::WindowMinimized);
+			return true;
+		}
+	}
+	return false;
+}
+
 } // namespace Iv::Editor

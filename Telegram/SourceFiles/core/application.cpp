@@ -1714,6 +1714,7 @@ bool Application::minimizeActiveWindow() {
 		_mediaView->minimize();
 		return true;
 	} else if (_iv->minimizeActive()
+		|| Iv::Editor::MinimizeActiveWindow()
 		|| calls().minimizeCurrentActiveCall()) {
 		return true;
 	} else {
