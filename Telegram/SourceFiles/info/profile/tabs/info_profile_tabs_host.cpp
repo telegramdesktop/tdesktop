@@ -160,14 +160,18 @@ void TabsHost::scheduleVisibilitySync() {
 	});
 }
 
-void TabsHost::syncVisibilityNow() {
-	_visibilitySyncQueued = false;
-	scheduleHeightSync();
+void TabsHost::syncStripVisibility() {
 	if (_syncedTabsShown == _tabsShown) {
 		return;
 	}
 	refreshOrder();
 	syncStripTitles();
+}
+
+void TabsHost::syncVisibilityNow() {
+	_visibilitySyncQueued = false;
+	scheduleHeightSync();
+	syncStripVisibility();
 	if (!_pendingRestoreId.isEmpty()) {
 		const auto i = ranges::find(
 			_tabs,
@@ -529,6 +533,9 @@ Fn<void()> TabsHost::prepareSwitch(bool toNextTab) {
 }
 
 void TabsHost::activateTab(const QString &id, bool animated) {
+	// Visibility changes reach the strip through a queued sync, so it may
+	// not know yet about a tab that is already marked as shown.
+	syncStripVisibility();
 	if (_activeId == id) {
 		_strip->setActiveTab(id);
 		return;

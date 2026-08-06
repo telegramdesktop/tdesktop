@@ -92,6 +92,7 @@ private:
 	void scheduleVisibilitySync();
 	void syncBodyNow();
 	void syncHeightNow();
+	void syncStripVisibility();
 	void syncVisibilityNow();
 	void scrollToBodyTop();
 	[[nodiscard]] QRect bodyVisibleRect() const;
