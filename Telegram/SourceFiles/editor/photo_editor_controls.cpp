@@ -117,6 +117,107 @@ void CheckAction::paintEvent(QPaintEvent *e) {
 		width());
 }
 
+class ShapeAction final : public Ui::Menu::Action {
+public:
+	ShapeAction(
+		not_null<Ui::Menu::Menu*> parent,
+		const style::Menu &st,
+		not_null<QAction*> action,
+		const style::icon *outline,
+		const style::icon *fill,
+		bool filled);
+
+	void setFilled(bool filled);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	const not_null<const style::icon*> _outline;
+	const style::icon *_fill = nullptr;
+	QImage _fillFrame;
+	Ui::Animations::Simple _filledAnimation;
+	bool _filled = false;
+
+};
+
+ShapeAction::ShapeAction(
+	not_null<Ui::Menu::Menu*> parent,
+	const style::Menu &st,
+	not_null<QAction*> action,
+	const style::icon *outline,
+	const style::icon *fill,
+	bool filled)
+: Ui::Menu::Action(parent, st, action, nullptr, nullptr)
+, _outline(outline)
+, _fill(fill)
+, _filled(filled) {
+}
+
+void ShapeAction::setFilled(bool filled) {
+	if (_filled == filled) {
+		return;
+	}
+	_filled = filled;
+	if (_fill) {
+		_filledAnimation.start(
+			[=] { update(); },
+			filled ? 0. : 1.,
+			filled ? 1. : 0.,
+			st::photoEditorShapeFillDuration,
+			anim::linear);
+	}
+}
+
+void ShapeAction::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+
+	const auto selected = isSelected();
+	paintBackground(p, selected);
+	paintRipple(p, 0, 0);
+	p.setPen(selected ? st().itemFgOver : st().itemFg);
+	paintText(p);
+
+	const auto position = st().itemIconPosition;
+	_outline->paint(p, position, width());
+	if (!_fill) {
+		return;
+	}
+	const auto progress = _filledAnimation.value(_filled ? 1. : 0.);
+	if (progress <= 0.) {
+		return;
+	} else if (progress >= 1.) {
+		_fill->paint(p, position, width());
+		return;
+	}
+	const auto size = _fill->size();
+	const auto ratio = style::DevicePixelRatio();
+	if (_fillFrame.size() != size * ratio) {
+		_fillFrame = QImage(
+			size * ratio,
+			QImage::Format_ARGB32_Premultiplied);
+		_fillFrame.setDevicePixelRatio(ratio);
+	}
+	_fillFrame.fill(Qt::transparent);
+	{
+		auto q = QPainter(&_fillFrame);
+		_fill->paint(q, QPoint(), size.width());
+
+		auto hq = PainterHighQualityEnabler(q);
+		const auto radius = st::photoEditorShapeFillRadius * progress;
+		const auto inner = QRectF(QPointF(), QSizeF(size));
+		auto path = QPainterPath();
+		path.addRect(inner);
+		path.addEllipse(inner.center(), radius, radius);
+		q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+		q.setPen(Qt::NoPen);
+		q.setBrush(Qt::black);
+		q.drawPath(path);
+	}
+	p.drawImage(
+		style::rtlrect(QRect(position, size), width()).topLeft(),
+		_fillFrame);
+}
+
 class RoundCheckAction final : public Ui::Menu::Action {
 public:
 	RoundCheckAction(
@@ -828,24 +929,20 @@ void PhotoEditorControls::showShapesMenu() {
 	_shapesMenu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomRight);
 	const auto menu = _shapesMenu.get();
 
-	struct Entry {
-		Ui::Menu::Action *item = nullptr;
-		const style::icon *outline = nullptr;
-		const style::icon *fill = nullptr;
-	};
-	const auto entries = menu->lifetime().make_state<std::vector<Entry>>();
+	const auto entries = menu->lifetime().make_state<
+		std::vector<ShapeAction*>>();
 	const auto add = [&](
 			const QString &text,
 			ShapeType shape,
 			const style::icon *outline,
 			const style::icon *fill) {
-		const auto icon = _shapesFilled ? fill : outline;
-		auto item = base::make_unique_q<Ui::Menu::Action>(
+		auto item = base::make_unique_q<ShapeAction>(
 			menu->menu(),
 			menu->st().menu,
 			new QAction(text, menu),
-			icon,
-			icon);
+			outline,
+			fill,
+			_shapesFilled);
 		item->setActionTriggered([=] {
 			_shapeRequests.fire({
 				.shape = shape,
@@ -854,7 +951,7 @@ void PhotoEditorControls::showShapesMenu() {
 					: ShapeRequest::Action::Arm,
 			});
 		});
-		entries->push_back({ item.get(), outline, fill });
+		entries->push_back(item.get());
 		menu->addAction(std::move(item));
 	};
 	add(
@@ -881,7 +978,7 @@ void PhotoEditorControls::showShapesMenu() {
 		tr::lng_photo_editor_shape_arrow(tr::now),
 		ShapeType::Arrow,
 		&st::photoEditorShapeArrow,
-		&st::photoEditorShapeArrow);
+		nullptr);
 	menu->addSeparator();
 
 	auto filled = base::make_unique_q<RoundCheckAction>(
@@ -894,9 +991,8 @@ void PhotoEditorControls::showShapesMenu() {
 		_shapesFilled = !_shapesFilled;
 		_shapesFillChanges.fire_copy(_shapesFilled);
 		filledRaw->setChecked(_shapesFilled);
-		for (const auto &entry : *entries) {
-			const auto icon = _shapesFilled ? entry.fill : entry.outline;
-			entry.item->setIcon(icon, icon);
+		for (const auto entry : *entries) {
+			entry->setFilled(_shapesFilled);
 		}
 	});
 	filled->setPreventClose(true);
