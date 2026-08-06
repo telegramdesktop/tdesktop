@@ -814,11 +814,16 @@ int TabsHost::resizeGetHeight(int newWidth) {
 	if (!ranges::contains(_tabsShown, true)) {
 		return 0;
 	}
-	if (const auto strip = _stripWeak.get()
-		; strip && strip->parentWidget() == this) {
-		const auto stripWidth = std::min(strip->naturalWidth(), newWidth);
-		strip->resizeToWidth(stripWidth);
-		strip->moveToLeft((newWidth - stripWidth) / 2, 0);
+	if (const auto strip = _stripWeak.get()) {
+		if (strip->parentWidget() == this) {
+			const auto stripWidth = std::min(
+				strip->naturalWidth(),
+				newWidth);
+			strip->resizeToWidth(stripWidth);
+			strip->moveToLeft((newWidth - stripWidth) / 2, 0);
+		}
+		// The saved messages page floats the strip from birth, so the
+		// reserved height must follow a lent out strip as well.
 		_stripHeight = strip->height();
 	}
 	const auto bodyTop = _stripHeight;
