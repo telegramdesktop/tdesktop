@@ -2131,6 +2131,7 @@ void HistoryWidget::fieldChanged() {
 			&& !_editMsgId
 			&& (!_autocomplete || !_autocomplete->stickersEmoji())
 			&& updateTyping
+			&& fieldHasSendText()
 			&& !suppressSendAction()) {
 			session().sendProgressManager().update(
 				_history,
