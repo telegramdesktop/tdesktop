@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/api/gram_api_nft.h"
 #include "gram/ton/gram_address.h"
 
+#include <QtCore/QUrl>
+
 #include <vector>
 
 namespace Gram::Tests {
@@ -238,6 +240,20 @@ std::vector<Check> NftChecks() {
 				}
 				if (item.contentUriHttps) {
 					++flagged;
+				}
+				const auto scheme = QUrl(item.contentUri).scheme();
+				const auto fetchable = (scheme == u"https"_q);
+				if (item.contentUriHttps != fetchable) {
+					return u"contentUriHttps pairing: got "_q
+						+ (item.contentUriHttps ? u"true"_q : u"false"_q)
+						+ u" for "_q
+						+ FormatRaw(item.address).toUpper()
+						+ u" with uri "_q
+						+ item.contentUri
+						+ u", expected "_q
+						+ (fetchable ? u"true"_q : u"false"_q)
+						+ u" from QUrl scheme "_q
+						+ scheme;
 				}
 			}
 			if (withUri != 57 || withoutUri != 13) {
