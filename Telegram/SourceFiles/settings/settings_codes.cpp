@@ -278,6 +278,26 @@ struct ToncenterProbe {
 			u"/api/v3/masterchainInfo"_q,
 			QString(),
 		},
+		{
+			u"api-nft-transfers-owner2"_q,
+			transfers,
+			u"owner_address="_q + encoded(owner2),
+		},
+		{
+			u"api-traces-item-gift"_q,
+			traces,
+			u"account="_q + encoded(gift) + u"&limit=20&offset=0"_q,
+		},
+		{
+			u"api-transactions-item-gift"_q,
+			transactions,
+			u"account="_q + encoded(gift) + u"&limit=20&offset=0"_q,
+		},
+		{
+			u"api-traces-owner1-limit5"_q,
+			traces,
+			u"account="_q + encoded(kAcc1Raw) + u"&limit=5&offset=0"_q,
+		},
 	};
 }
 
