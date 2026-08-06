@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/global_media/info_global_media_widget.h"
 #include "info/profile/info_profile_widget.h"
+#include "info/profile/tabs/info_profile_tabs_host.h"
 #include "info/media/info_media_widget.h"
 #include "info/members/info_members_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
@@ -179,7 +180,9 @@ std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 
 Section Memento::DefaultSection(not_null<PeerData*> peer) {
 	if (peer->savedSublistsInfo()) {
-		return Section(Section::Type::SavedSublists);
+		return Profile::UseProfileMediaTabs()
+			? Section(Section::Type::Profile)
+			: Section(Section::Type::SavedSublists);
 	} else if (peer->sharedMediaInfo()) {
 		return Section(Section::MediaType::Photo);
 	}
