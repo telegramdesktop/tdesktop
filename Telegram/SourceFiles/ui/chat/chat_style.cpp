@@ -1382,6 +1382,7 @@ void ChatStyle::make(
 	make(my.code, original.code);
 	make(my.list, original.list);
 	make(my.quotePaintColors, original.quotePaintColors);
+	make(my.quoteAuthorStyle, original.quoteAuthorStyle);
 	make(my.rule, original.rule);
 	make(my.displayMath, original.displayMath);
 	make(my.table, original.table);
