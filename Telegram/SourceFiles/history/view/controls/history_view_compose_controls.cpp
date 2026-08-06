@@ -2806,7 +2806,9 @@ void ComposeControls::fieldChanged() {
 	}
 	InvokeQueued(_field.get(), [=] {
 		updateInlineBotQuery();
-		if ((!_autocomplete || !_autocomplete->stickersEmoji()) && typing) {
+		if ((!_autocomplete || !_autocomplete->stickersEmoji())
+			&& typing
+			&& _hasSendText.current()) {
 			_sendActionUpdates.fire({ Api::SendProgressType::Typing });
 		}
 	});
