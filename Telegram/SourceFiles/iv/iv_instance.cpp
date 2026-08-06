@@ -962,15 +962,7 @@ void Instance::trackSession(not_null<Main::Session*> session) {
 		_tracking.remove(session);
 		_joining.remove(session);
 		_fullRequested.remove(session);
-		if (const auto i = _richMessageRequested.find(session)
-			; i != end(_richMessageRequested)) {
-			for (const auto &[itemId, requested] : i->second) {
-				if (requested.requestId) {
-					session->api().request(requested.requestId).cancel();
-				}
-			}
-			_richMessageRequested.erase(i);
-		}
+		cancelRichMessageRequests(session);
 		_ivCache.remove(session);
 		if (_ivRequestSession == session) {
 			session->api().request(_ivRequestId).cancel();
@@ -1042,6 +1034,19 @@ void Instance::closeSessionDataViews(not_null<Main::Session*> session) {
 	if (_shown && _shown->showingFrom(session)) {
 		destroyLater(base::take(_shown));
 	}
+}
+
+void Instance::cancelRichMessageRequests(not_null<Main::Session*> session) {
+	const auto i = _richMessageRequested.find(session);
+	if (i == end(_richMessageRequested)) {
+		return;
+	}
+	for (const auto &[itemId, requested] : i->second) {
+		if (requested.requestId) {
+			session->api().request(requested.requestId).cancel();
+		}
+	}
+	_richMessageRequested.erase(i);
 }
 
 void Instance::openWithIvPreferred(
@@ -1789,6 +1794,9 @@ void Instance::closeLegacyWindows() {
 }
 
 void Instance::closeAll() {
+	while (!_richMessageRequested.empty()) {
+		cancelRichMessageRequests(_richMessageRequested.front().first);
+	}
 	closeLegacyWindows();
 	_markdownBindings.clear();
 	for (auto &[_, controller] : base::take(_markdowns)) {
