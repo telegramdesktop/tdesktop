@@ -1341,6 +1341,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_passkeys_button_about" = "Your passkey is stored securely in your password manager. {link}";
 "lng_settings_passkeys_delete_sure_title" = "Delete Passkey";
 "lng_settings_passkeys_delete_sure_about" = "Once deleted, this passkey can't be used to log in.";
+"lng_settings_passkeys_delete_sure_about_name" = "Once deleted, {name} can't be used to log in.";
 "lng_settings_passkeys_delete_sure_about2" = "Don't forget to remove it from your password manager too.";
 "lng_settings_passkeys_none_title" = "Protect your account";
 "lng_settings_passkeys_none_about" = "Log in safely and keep your account secure.";
