@@ -91,7 +91,7 @@ void Api::debugRawRequest(
 				.message = error.type(),
 			});
 		}
-	}).handleAllErrors().send();
+	}).send();
 }
 #endif // _DEBUG
 
