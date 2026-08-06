@@ -1736,7 +1736,20 @@ void Instance::processJoinChannel(const QString &context) {
 }
 
 bool Instance::hasActiveWindow(not_null<Main::Session*> session) const {
-	return _shown && _shown->activeFor(session);
+	if (_shown && _shown->activeFor(session)) {
+		return true;
+	}
+	for (const auto &[key, controller] : _markdowns) {
+		if (!controller->active()) {
+			continue;
+		}
+		const auto i = _markdownBindings.find(key);
+		if (i != end(_markdownBindings)
+			&& i->second.session == session.get()) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool Instance::closeActive() {
