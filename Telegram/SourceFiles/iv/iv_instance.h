@@ -168,6 +168,7 @@ private:
 		FullMsgId itemId);
 	void closeMarkdownsForSession(not_null<Main::Session*> session);
 	void closeSessionDataViews(not_null<Main::Session*> session);
+	void closeLegacyWindows();
 
 	ProcessReceivedPageResult processReceivedPage(
 		not_null<Main::Session*> session,

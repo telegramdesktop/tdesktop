@@ -792,7 +792,7 @@ void Instance::showOpenedPage(
 		case Type::OpenLinkExternal:
 			if (urlChecked) {
 				File::OpenUrl(event.url);
-				closeAll();
+				closeLegacyWindows();
 			} else if (tonsite) {
 				showTonSite(event.url);
 			}
@@ -1154,7 +1154,7 @@ void Instance::showTonSite(
 		case Type::OpenLinkExternal:
 			if (urlChecked) {
 				File::OpenUrl(event.url);
-				closeAll();
+				closeLegacyWindows();
 			} else if (tonsite) {
 				showTonSite(event.url);
 			}
@@ -1783,9 +1783,13 @@ bool Instance::minimizeActive() {
 	return false;
 }
 
-void Instance::closeAll() {
+void Instance::closeLegacyWindows() {
 	destroyLater(base::take(_shown));
 	destroyLater(base::take(_tonSite));
+}
+
+void Instance::closeAll() {
+	closeLegacyWindows();
 	_markdownBindings.clear();
 	for (auto &[_, controller] : base::take(_markdowns)) {
 		destroyLater(std::move(controller));
