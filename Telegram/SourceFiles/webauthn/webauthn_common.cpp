@@ -175,12 +175,17 @@ void ShowMessage(const QString &text) {
 			tr::lng_passkey_pin_placeholder(),
 			QString());
 		box->setFocusCallback([=] { field->setFocusFast(); });
-		box->addButton(tr::lng_passkey_confirm(), [=] {
+		const auto confirm = [=] {
 			const auto pin = field->getLastText();
-			if (!pin.isEmpty()) {
-				submit(pin);
+			if (pin.isEmpty()) {
+				field->setFocus();
+				field->showError();
+				return;
 			}
-		});
+			submit(pin);
+		};
+		QObject::connect(field, &Ui::MaskedInputField::submitted, confirm);
+		box->addButton(tr::lng_passkey_confirm(), confirm);
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 		box->boxClosing() | rpl::on_next([=] {
 			cancel();
