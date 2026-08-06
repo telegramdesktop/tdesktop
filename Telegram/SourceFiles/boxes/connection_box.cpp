@@ -2022,16 +2022,12 @@ void ProxiesBoxController::ShowApplyConfirmation(
 				st::defaultPopupMenu);
 			const auto statusLabel = statusWidget.data();
 			addRow(tr::lng_proxy_box_status(), std::move(statusWidget));
-			const auto relayout = [=] {
-				table->resizeToWidth(table->width());
-			};
 			const auto setUnavailable = [=] {
 				state->statusValue = TextWithEntities{
 					tr::lng_proxy_box_table_unavailable(tr::now),
 				};
 				statusLabel->setTextColorOverride(
 					st::proxyRowStatusFgOffline->c);
-				relayout();
 			};
 			const auto runCheck = [=] {
 				if (!weak) {
@@ -2045,7 +2041,6 @@ void ProxiesBoxController::ShowApplyConfirmation(
 					tr::lng_proxy_box_table_checking(tr::now),
 				};
 				statusLabel->setTextColorOverride(st::proxyRowStatusFg->c);
-				relayout();
 				MTP::StartProxyCheck(
 					&account->mtp(),
 					proxy,
@@ -2067,7 +2062,6 @@ void ProxiesBoxController::ShowApplyConfirmation(
 						};
 						statusLabel->setTextColorOverride(
 							st::proxyRowStatusFgAvailable->c);
-						relayout();
 					},
 					[=](Connection *raw) {
 						if (!weak || state->finished) {
