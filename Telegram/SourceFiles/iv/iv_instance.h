@@ -159,6 +159,15 @@ private:
 	void eraseSettledHtmlExports();
 
 	void trackSession(not_null<Main::Session*> session);
+
+	// Each markdown window is a parentless top level window, and
+	// Markdown::Controller::active() is that window's isActiveWindow(),
+	// so at most one entry of _markdowns can report itself active. That
+	// lets a single key stand for "the focused markdown window": a caller
+	// acting only on the returned key is not skipping a second focused
+	// window that a scan of the whole map would have found.
+	[[nodiscard]] QString activeMarkdownKey() const;
+
 	void bindMarkdown(
 		const QString &key,
 		not_null<Main::Session*> session,

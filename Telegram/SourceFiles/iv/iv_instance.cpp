@@ -973,6 +973,15 @@ void Instance::trackSession(not_null<Main::Session*> session) {
 	});
 }
 
+QString Instance::activeMarkdownKey() const {
+	for (const auto &[key, controller] : _markdowns) {
+		if (controller->active()) {
+			return key;
+		}
+	}
+	return QString();
+}
+
 void Instance::bindMarkdown(
 		const QString &key,
 		not_null<Main::Session*> session,
@@ -1744,17 +1753,9 @@ bool Instance::hasActiveWindow(not_null<Main::Session*> session) const {
 	if (_shown && _shown->activeFor(session)) {
 		return true;
 	}
-	for (const auto &[key, controller] : _markdowns) {
-		if (!controller->active()) {
-			continue;
-		}
-		const auto i = _markdownBindings.find(key);
-		if (i != end(_markdownBindings)
-			&& i->second.session == session.get()) {
-			return true;
-		}
-	}
-	return false;
+	const auto i = _markdownBindings.find(activeMarkdownKey());
+	return (i != end(_markdownBindings))
+		&& (i->second.session == session.get());
 }
 
 bool Instance::closeActive() {
@@ -1765,16 +1766,15 @@ bool Instance::closeActive() {
 		destroyLater(base::take(_tonSite));
 		return true;
 	}
-	for (auto &[key, controller] : _markdowns) {
-		if (controller->active()) {
-			_markdownBindings.remove(key);
-			if (auto taken = _markdowns.take(key)) {
-				destroyLater(std::move(*taken));
-			}
-			return true;
-		}
+	const auto key = activeMarkdownKey();
+	if (key.isEmpty()) {
+		return false;
 	}
-	return false;
+	_markdownBindings.remove(key);
+	if (auto taken = _markdowns.take(key)) {
+		destroyLater(std::move(*taken));
+	}
+	return true;
 }
 
 bool Instance::minimizeActive() {
@@ -1785,13 +1785,12 @@ bool Instance::minimizeActive() {
 		_tonSite->minimize();
 		return true;
 	}
-	for (const auto &[_, controller] : _markdowns) {
-		if (controller->active()) {
-			controller->minimize();
-			return true;
-		}
+	const auto i = _markdowns.find(activeMarkdownKey());
+	if (i == end(_markdowns)) {
+		return false;
 	}
-	return false;
+	i->second->minimize();
+	return true;
 }
 
 void Instance::closeLegacyWindows() {
