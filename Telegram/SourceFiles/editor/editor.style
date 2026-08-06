@@ -139,6 +139,13 @@ photoEditorMenuCheckLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 100px;
 	textFg: groupCallMembersFg;
 }
+photoEditorMenuRoundCheckUntoggledFg: groupCallMemberNotJoinedStatus;
+photoEditorMenuRoundCheck: RoundCheckbox(defaultRoundCheckbox) {
+	size: 20px;
+	border: groupCallActiveFg;
+	bgActive: groupCallActiveFg;
+	check: icon {{ "default_checkbox_check", groupCallMembersFg, point(3px, 6px) }};
+}
 
 photoEditorCropRatioMenu: PopupMenu(mediaviewPopupMenu) {
 	menu: Menu(mediaviewMenu) {

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/controllers/controllers.h"
 #include "lang/lang_keys.h"
+#include "ui/effects/round_checkbox.h"
 #include "ui/image/image_prepare.h"
 #include "ui/qt_object_factory.h"
 #include "ui/widgets/buttons.h"
@@ -114,6 +115,77 @@ void CheckAction::paintEvent(QPaintEvent *e) {
 		(_st.itemPadding.left() - size.width()) / 2,
 		(height() - size.height()) / 2,
 		width());
+}
+
+class RoundCheckAction final : public Ui::Menu::Action {
+public:
+	RoundCheckAction(
+		not_null<Ui::Menu::Menu*> parent,
+		const style::Menu &st,
+		not_null<QAction*> action,
+		bool checked);
+
+	void setChecked(bool checked);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	Ui::RoundCheckbox _check;
+	Ui::Animations::Simple _checkedAnimation;
+	bool _checked = false;
+
+};
+
+RoundCheckAction::RoundCheckAction(
+	not_null<Ui::Menu::Menu*> parent,
+	const style::Menu &st,
+	not_null<QAction*> action,
+	bool checked)
+: Ui::Menu::Action(parent, st, action, nullptr, nullptr)
+, _check(st::photoEditorMenuRoundCheck, [=] { update(); })
+, _checked(checked) {
+	_check.setChecked(checked, anim::type::instant);
+}
+
+void RoundCheckAction::setChecked(bool checked) {
+	if (_checked == checked) {
+		return;
+	}
+	_checked = checked;
+	_check.setChecked(checked, anim::type::normal);
+	_checkedAnimation.start(
+		[=] { update(); },
+		checked ? 0. : 1.,
+		checked ? 1. : 0.,
+		st::photoEditorMenuRoundCheck.duration,
+		anim::linear);
+}
+
+void RoundCheckAction::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+
+	const auto selected = isSelected();
+	paintBackground(p, selected);
+	paintRipple(p, 0, 0);
+	p.setPen(selected ? st().itemFgOver : st().itemFg);
+	paintText(p);
+
+	const auto &check = st::photoEditorMenuRoundCheck;
+	const auto left = (st().itemPadding.left() - check.size) / 2;
+	const auto top = (height() - check.size) / 2;
+	const auto progress = _checkedAnimation.value(_checked ? 1. : 0.);
+	const auto untoggled = 1. - std::min(progress / check.bgDuration, 1.);
+	if (untoggled > 0.) {
+		auto hq = PainterHighQualityEnabler(p);
+		auto pen = st::photoEditorMenuRoundCheckUntoggledFg->p;
+		pen.setWidth(check.width);
+		p.setOpacity(untoggled);
+		p.setPen(pen);
+		p.setBrush(Qt::NoBrush);
+		p.drawEllipse(QRect(left, top, check.size, check.size));
+		p.setOpacity(1.);
+	}
+	_check.paint(p, left, top, width());
 }
 
 } // namespace
@@ -812,20 +884,16 @@ void PhotoEditorControls::showShapesMenu() {
 		&st::photoEditorShapeArrow);
 	menu->addSeparator();
 
-	auto filled = base::make_unique_q<Ui::Menu::Action>(
+	auto filled = base::make_unique_q<RoundCheckAction>(
 		menu->menu(),
 		menu->st().menu,
 		new QAction(tr::lng_photo_editor_shape_filled(tr::now), menu),
-		_shapesFilled ? &st::mediaPlayerMenuCheck : nullptr,
-		_shapesFilled ? &st::mediaPlayerMenuCheck : nullptr);
+		_shapesFilled);
 	const auto filledRaw = filled.get();
 	filled->setActionTriggered([=] {
 		_shapesFilled = !_shapesFilled;
 		_shapesFillChanges.fire_copy(_shapesFilled);
-		const auto check = _shapesFilled
-			? &st::mediaPlayerMenuCheck
-			: nullptr;
-		filledRaw->setIcon(check, check);
+		filledRaw->setChecked(_shapesFilled);
 		for (const auto &entry : *entries) {
 			const auto icon = _shapesFilled ? entry.fill : entry.outline;
 			entry.item->setIcon(icon, icon);
