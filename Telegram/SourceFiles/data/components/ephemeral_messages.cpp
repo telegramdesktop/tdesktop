@@ -75,7 +75,54 @@ struct ParsedCommand {
 	return result;
 }
 
+[[nodiscard]] HistoryMessageContent ContentFromEphemeral(
+		not_null<Main::Session*> session,
+		not_null<HistoryItem*> item,
+		const MTPDephemeralMessage &data) {
+	auto result = HistoryMessageContent{
+		.text = {
+			qs(data.vmessage()),
+			Api::EntitiesFromMTP(
+				session,
+				data.ventities().value_or_empty()),
+		},
+		.media = (data.vmedia()
+			? HistoryItem::CreateMedia(item, *data.vmedia())
+			: nullptr),
+		.markup = HistoryMessageMarkupData(data.vreply_markup()),
+		.invertMedia = data.is_invert_media(),
+		.hideEdited = true,
+	};
+	if (const auto richMessage = data.vrich_message()) {
+		result.richPage = Iv::ParseRichPage(session, *richMessage);
+	}
+	return result;
+}
+
+template <typename Value>
+[[nodiscard]] Value TakeHint(
+		base::flat_map<
+			not_null<History*>,
+			base::flat_map<PeerId, Value>> &map,
+		not_null<History*> history,
+		PeerId key) {
+	const auto i = map.find(history);
+	if (i == end(map)) {
+		return Value();
+	}
+	const auto result = i->second.take(key);
+	if (i->second.empty()) {
+		map.erase(i);
+	}
+	return result.value_or(Value());
+}
+
 } // namespace
+
+PeerId PeerIdFromEphemeral(const MTPDephemeralMessage &data) {
+	const auto peer = data.vpeer_id();
+	return peer ? peerFromMTP(*peer) : PeerId();
+}
 
 EphemeralMessages::EphemeralMessages(not_null<Main::Session*> session)
 : _session(session)
@@ -83,7 +130,7 @@ EphemeralMessages::EphemeralMessages(not_null<Main::Session*> session)
 , _pendingTimer([=] { drainPending(true); }) {
 	_session->data().itemRemoved(
 	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
-		if (item->isEphemeral()) {
+		if (item->isEphemeral() || anchored(item)) {
 			itemRemoved(item);
 		}
 	}, _lifetime);
@@ -92,6 +139,16 @@ EphemeralMessages::EphemeralMessages(not_null<Main::Session*> session)
 }
 
 EphemeralMessages::~EphemeralMessages() = default;
+
+void EphemeralMessages::clear() {
+	_lifetime.destroy();
+	_convertLocalTarget = {};
+	base::take(_data);
+	base::take(_anchored);
+	base::take(_pending);
+	base::take(_callbackTopicHints);
+	base::take(_callbackQueries);
+}
 
 void EphemeralMessages::apply(const MTPDupdateNewEphemeralMessage &update) {
 	if (update.vmessage().data().is_welcome_template()) {
@@ -122,8 +179,11 @@ bool EphemeralMessages::replyTargetMissing(
 		if (!reply.is_reply_to_ephemeral() || !replyToId) {
 			return false;
 		}
-		const auto history = _session->data().history(
-			peerFromMTP(data.vpeer_id()));
+		const auto peerId = PeerIdFromEphemeral(data);
+		if (!peerId) {
+			return false;
+		}
+		const auto history = _session->data().history(peerId);
 		return !lookupItem(history->peer, replyToId->v);
 	}, [](const MTPDmessageReplyStoryHeader &) {
 		return false;
@@ -197,11 +257,17 @@ void EphemeralMessages::apply(const MTPDupdateEditEphemeralMessage &update) {
 		_session->welcomeMessages().applyEdit(data);
 		return;
 	}
-	const auto history = _session->data().history(
-		peerFromMTP(data.vpeer_id()));
+	const auto peerId = PeerIdFromEphemeral(data);
+	if (!peerId) {
+		return;
+	}
+	const auto history = _session->data().history(peerId);
 	const auto item = lookupItem(history->peer, data.vid().v);
 	if (!item) {
 		applyNew(data);
+		return;
+	} else if (anchored(item)) {
+		item->applyContent(ContentFromEphemeral(_session, item, data));
 		return;
 	}
 	auto edition = HistoryMessageEdition();
@@ -239,17 +305,41 @@ void EphemeralMessages::apply(
 			continue;
 		}
 		if (const auto item = lookupItem(history->peer, id.v)) {
-			item->destroy();
+			if (anchored(item)) {
+				revertAnchored(item);
+			} else {
+				item->destroy();
+			}
 		}
 	}
 }
 
+void EphemeralMessages::apply(
+		const MTPDupdateEphemeralBotCallbackQuery &update) {
+	const auto peer = update.vpeer();
+	if (!peer) {
+		return;
+	}
+	const auto history = _session->data().history(peerFromMTP(*peer));
+	const auto userId = peerFromUser(UserId(update.vuser_id()));
+	_callbackQueries[history][userId] = update.vquery_id().v;
+}
+
 HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
-	const auto history = _session->data().history(
-		peerFromMTP(data.vpeer_id()));
+	const auto peerId = PeerIdFromEphemeral(data);
+	if (!peerId) {
+		return nullptr;
+	}
+	const auto history = _session->data().history(peerId);
 	const auto ephemeralId = data.vid().v;
 	if (const auto existing = lookupItem(history->peer, ephemeralId)) {
 		return existing;
+	}
+	if (const auto anchorMsgId = data.vanchor_msg_id()) {
+		const auto result = applyAnchored(history, data, anchorMsgId->v);
+		if (result) {
+			return result;
+		}
 	}
 	const auto fromId = peerFromMTP(data.vfrom_id());
 	auto replyTo = FullReplyTo();
@@ -306,11 +396,11 @@ HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
 						data.ventities().value_or_empty())
 				}, data.vmedia(), data.vrich_message());
 				local->markEphemeralSent();
-				_data[history].push_back({
-					.ephemeralId = ephemeralId,
-					.receiverId = UserId(data.vreceiver_id()),
-					.item = local,
-				});
+				registerEntry(
+					history,
+					ephemeralId,
+					UserId(data.vreceiver_id()),
+					local);
 				recountAttachToPrevious(local);
 				_session->data().requestItemResize(local);
 				return local;
@@ -352,14 +442,70 @@ HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
 	if (const auto richMessage = data.vrich_message()) {
 		item->applyLocalRichPage(Iv::ParseRichPage(_session, *richMessage));
 	}
-	_data[history].push_back({
-		.ephemeralId = ephemeralId,
-		.receiverId = UserId(data.vreceiver_id()),
-		.item = item,
-	});
+	registerEntry(history, ephemeralId, UserId(data.vreceiver_id()), item);
 	recountAttachToPrevious(item);
 	_session->data().requestItemResize(item);
 	return item;
+}
+
+HistoryItem *EphemeralMessages::applyAnchored(
+		not_null<History*> history,
+		const MTPDephemeralMessage &data,
+		MsgId anchorMsgId) {
+	const auto item = _session->data().message(
+		history->peer->id,
+		anchorMsgId);
+	if (!item
+		|| !item->isRegular()
+		|| item->isService()
+		|| item->isEphemeral()
+		|| item->groupId()
+		|| item->isEditingMedia()) {
+		return nullptr;
+	}
+	const auto fullId = item->fullId();
+	if (!_anchored.contains(fullId)) {
+		_anchored.emplace(fullId, item->backupContent());
+	}
+	unregisterEntry(item);
+	item->applyContent(ContentFromEphemeral(_session, item, data));
+	registerEntry(history, data.vid().v, UserId(data.vreceiver_id()), item);
+	_session->data().requestItemResize(item);
+	return item;
+}
+
+void EphemeralMessages::registerEntry(
+		not_null<History*> history,
+		int32 ephemeralId,
+		UserId receiverId,
+		not_null<HistoryItem*> item) {
+	_data[history].push_back({
+		.ephemeralId = ephemeralId,
+		.receiverId = receiverId,
+		.item = item,
+	});
+}
+
+void EphemeralMessages::unregisterEntry(not_null<const HistoryItem*> item) {
+	const auto i = _data.find(item->history());
+	if (i == end(_data)) {
+		return;
+	}
+	i->second.erase(
+		ranges::remove(i->second, item.get(), &Entry::item),
+		end(i->second));
+	if (i->second.empty()) {
+		_data.erase(i);
+	}
+}
+
+void EphemeralMessages::revertAnchored(not_null<HistoryItem*> item) {
+	auto original = _anchored.take(item->fullId());
+	if (!original) {
+		return;
+	}
+	unregisterEntry(item);
+	item->applyContent(std::move(*original));
 }
 
 void EphemeralMessages::recountAttachToPrevious(
@@ -401,6 +547,10 @@ UserId EphemeralMessages::receiverId(
 		not_null<const HistoryItem*> item) const {
 	const auto entry = findByItem(item);
 	return entry ? entry->receiverId : UserId();
+}
+
+bool EphemeralMessages::anchored(not_null<const HistoryItem*> item) const {
+	return !_anchored.empty() && _anchored.contains(item->fullId());
 }
 
 UserData *EphemeralMessages::replyReceiver(
@@ -586,7 +736,8 @@ void EphemeralMessages::send(
 		MsgId topicRootId,
 		FullReplyTo realReply,
 		Data::WebPageDraft webPage,
-		bool invertCaption) {
+		bool invertCaption,
+		uint64 anchorQueryId) {
 	const auto exactWebPage = !webPage.url.isEmpty() && !webPage.removed;
 	const auto manualWebPage = exactWebPage && webPage.manual;
 	const auto invertMedia = (exactWebPage && webPage.invert)
@@ -605,7 +756,30 @@ void EphemeralMessages::send(
 		FullMsgId(),
 		Data::FileOrigin(),
 		nullptr,
-		invertMedia);
+		invertMedia,
+		std::nullopt,
+		nullptr,
+		anchorQueryId);
+}
+
+void EphemeralMessages::sendAnchored(
+		not_null<History*> history,
+		not_null<UserData*> receiver,
+		TextWithEntities text) {
+	const auto anchorQueryId = takeCallbackQueryId(history, receiver->id);
+	if (!anchorQueryId) {
+		return;
+	}
+	send(
+		history,
+		receiver,
+		std::move(text),
+		0,
+		MsgId(),
+		FullReplyTo(),
+		Data::WebPageDraft(),
+		false,
+		anchorQueryId);
 }
 
 bool EphemeralMessages::sendMedia(
@@ -809,7 +983,8 @@ void EphemeralMessages::request(
 		Fn<MTPInputMedia()> rebuildMedia,
 		bool invertMedia,
 		std::optional<MTPInputRichMessage> richMessage,
-		Fn<std::optional<MTPInputRichMessage>()> rebuildRich) {
+		Fn<std::optional<MTPInputRichMessage>()> rebuildRich,
+		uint64 anchorQueryId) {
 	const auto session = _session;
 	const auto destroyLocal = [=] {
 		if (destroyOnResult) {
@@ -839,12 +1014,13 @@ void EphemeralMessages::request(
 		hasReplyTo = (replyTo.type() == mtpc_inputReplyToMessage);
 	}
 	using Flag = MTPephemeral_SendMessage::Flag;
-	const auto flags = Flag(0)
+	const auto flags = Flag::f_peer
 		| (entities.v.isEmpty() ? Flag(0) : Flag::f_entities)
 		| (hasMedia ? Flag::f_media : Flag(0))
 		| (hasReplyTo ? Flag::f_reply_to : Flag(0))
 		| (invertMedia ? Flag::f_invert_media : Flag(0))
-		| (richMessage ? Flag::f_rich_message : Flag(0));
+		| (richMessage ? Flag::f_rich_message : Flag(0))
+		| (anchorQueryId ? (Flag::f_query_id | Flag::f_anchor) : Flag(0));
 	const auto randomId = base::RandomValue<uint64>();
 	const auto send = [=](
 			const auto &send,
@@ -855,7 +1031,7 @@ void EphemeralMessages::request(
 			MTP_flags(flags),
 			history->peer->input(),
 			bot->inputUser(),
-			MTPlong(), // query_id
+			MTP_long(anchorQueryId),
 			MTP_string(text.text),
 			entities,
 			media,
@@ -905,12 +1081,17 @@ void EphemeralMessages::deleteMessage(not_null<HistoryItem*> item) {
 	if (entry && entry->receiverId) {
 		const auto receiver = _session->data().user(entry->receiverId);
 		_session->api().request(MTPephemeral_DeleteMessage(
+			MTP_flags(MTPephemeral_DeleteMessage::Flag::f_peer),
 			item->history()->peer->input(),
 			receiver->inputUser(),
 			MTP_int(entry->ephemeralId)
 		)).send();
 	}
-	item->destroy();
+	if (anchored(item)) {
+		revertAnchored(item);
+	} else if (item->isEphemeral()) {
+		item->destroy();
+	}
 }
 
 const EphemeralMessages::Entry *EphemeralMessages::findByItem(
@@ -936,20 +1117,13 @@ void EphemeralMessages::noteCallbackTopic(
 MsgId EphemeralMessages::takeCallbackTopic(
 		not_null<History*> history,
 		PeerId botId) {
-	const auto i = _callbackTopicHints.find(history);
-	if (i == end(_callbackTopicHints)) {
-		return MsgId();
-	}
-	const auto j = i->second.find(botId);
-	if (j == end(i->second)) {
-		return MsgId();
-	}
-	const auto result = j->second;
-	i->second.erase(j);
-	if (i->second.empty()) {
-		_callbackTopicHints.erase(i);
-	}
-	return result;
+	return TakeHint(_callbackTopicHints, history, botId);
+}
+
+uint64 EphemeralMessages::takeCallbackQueryId(
+		not_null<History*> history,
+		PeerId userId) {
+	return TakeHint(_callbackQueries, history, userId);
 }
 
 UserData *EphemeralMessages::botForSending(const Entry &entry) const {
@@ -966,18 +1140,8 @@ void EphemeralMessages::reportDroppedReply() const {
 }
 
 void EphemeralMessages::itemRemoved(not_null<const HistoryItem*> item) {
-	const auto i = _data.find(item->history());
-	if (i == end(_data)) {
-		return;
-	}
-	const auto j = ranges::find(i->second, item.get(), &Entry::item);
-	if (j == end(i->second)) {
-		return;
-	}
-	i->second.erase(j);
-	if (i->second.empty()) {
-		_data.erase(i);
-	}
+	_anchored.remove(item->fullId());
+	unregisterEntry(item);
 }
 
 void EphemeralMessages::pruneOld() {
@@ -985,7 +1149,7 @@ void EphemeralMessages::pruneOld() {
 	auto old = std::vector<not_null<HistoryItem*>>();
 	for (const auto &[history, list] : _data) {
 		for (const auto &entry : list) {
-			if (entry.item->date() <= till) {
+			if (entry.item->date() <= till && !anchored(entry.item)) {
 				old.push_back(entry.item);
 			}
 		}

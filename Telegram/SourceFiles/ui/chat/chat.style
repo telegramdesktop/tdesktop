@@ -627,6 +627,10 @@ ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 ttlItemPadding: margins(0px, 4px, 0px, 4px);
 ttlItemTimerFont: font(12px);
 
+historyRevertItemAboutStyle: TextStyle(defaultTextStyle) {
+	font: ttlItemTimerFont;
+}
+
 expandedMenuSeparator: MenuSeparator(defaultMenuSeparator) {
 	padding: margins(0px, 4px, 0px, 4px);
 	width: 6px;

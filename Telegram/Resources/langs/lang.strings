@@ -5017,6 +5017,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ephemeral_reply_text_only" = "This type of message can't be sent in reply to this message.";
 "lng_ephemeral_reply_single_message" = "You can send only one message in reply to this message.";
 "lng_ephemeral_cant_schedule" = "Ephemeral messages can't be scheduled.";
+"lng_ephemeral_updated" = "updated";
+"lng_ephemeral_revert" = "Revert";
+"lng_ephemeral_revert_about" = "restores the message to its original content";
 "lng_welcome_messages_title" = "Welcome Message";
 "lng_welcome_messages_empty_title" = "Create a Welcome Message";
 "lng_welcome_messages_empty_about" = "Automatically greet new members when they join.";

@@ -656,6 +656,11 @@ bool CanReplyToEphemeral(not_null<const HistoryItem*> item) {
 	return session.ephemeralMessages().replyBot(item) != nullptr;
 }
 
+bool IsAnchoredEphemeral(not_null<const HistoryItem*> item) {
+	const auto &session = item->history()->session();
+	return session.ephemeralMessages().anchored(item);
+}
+
 bool ShowEphemeralReplyTextOnlyError(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Main::Session*> session,

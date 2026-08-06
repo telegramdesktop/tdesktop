@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "data/data_drafts.h"
 #include "data/data_file_origin.h"
+#include "history/history_item_edition.h"
 
 class History;
 class HistoryItem;
@@ -27,6 +28,8 @@ class Session;
 
 namespace Data {
 
+[[nodiscard]] PeerId PeerIdFromEphemeral(const MTPDephemeralMessage &data);
+
 class EphemeralMessages final {
 public:
 	explicit EphemeralMessages(not_null<Main::Session*> session);
@@ -34,9 +37,12 @@ public:
 	EphemeralMessages &operator=(const EphemeralMessages &other) = delete;
 	~EphemeralMessages();
 
+	void clear();
+
 	void apply(const MTPDupdateNewEphemeralMessage &update);
 	void apply(const MTPDupdateEditEphemeralMessage &update);
 	void apply(const MTPDupdateDeleteEphemeralMessages &update);
+	void apply(const MTPDupdateEphemeralBotCallbackQuery &update);
 
 	[[nodiscard]] HistoryItem *lookupItem(
 		not_null<PeerData*> peer,
@@ -66,7 +72,12 @@ public:
 		MsgId topicRootId = 0,
 		FullReplyTo realReply = {},
 		Data::WebPageDraft webPage = {},
-		bool invertCaption = false);
+		bool invertCaption = false,
+		uint64 anchorQueryId = 0);
+	void sendAnchored(
+		not_null<History*> history,
+		not_null<UserData*> receiver,
+		TextWithEntities text);
 	[[nodiscard]] bool sendMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
@@ -84,6 +95,8 @@ public:
 		not_null<History*> history,
 		PeerId botId,
 		MsgId topicRootId);
+	[[nodiscard]] bool anchored(not_null<const HistoryItem*> item) const;
+	void revertAnchored(not_null<HistoryItem*> item);
 	void deleteMessage(not_null<HistoryItem*> item);
 
 private:
@@ -96,6 +109,16 @@ private:
 
 	void applyOrDefer(const MTPEphemeralMessage &message);
 	HistoryItem *applyNew(const MTPDephemeralMessage &data);
+	HistoryItem *applyAnchored(
+		not_null<History*> history,
+		const MTPDephemeralMessage &data,
+		MsgId anchorMsgId);
+	void registerEntry(
+		not_null<History*> history,
+		int32 ephemeralId,
+		UserId receiverId,
+		not_null<HistoryItem*> item);
+	void unregisterEntry(not_null<const HistoryItem*> item);
 	void recountAttachToPrevious(not_null<HistoryItem*> item);
 	[[nodiscard]] UserData *findCommandBot(
 		not_null<PeerData*> peer,
@@ -116,7 +139,8 @@ private:
 		Fn<MTPInputMedia()> rebuildMedia = nullptr,
 		bool invertMedia = false,
 		std::optional<MTPInputRichMessage> richMessage = {},
-		Fn<std::optional<MTPInputRichMessage>()> rebuildRich = nullptr);
+		Fn<std::optional<MTPInputRichMessage>()> rebuildRich = nullptr,
+		uint64 anchorQueryId = 0);
 	[[nodiscard]] bool replyTargetMissing(
 		const MTPDephemeralMessage &data) const;
 	[[nodiscard]] bool mentionsMe(
@@ -128,6 +152,9 @@ private:
 	[[nodiscard]] MsgId takeCallbackTopic(
 		not_null<History*> history,
 		PeerId botId);
+	[[nodiscard]] uint64 takeCallbackQueryId(
+		not_null<History*> history,
+		PeerId userId);
 	[[nodiscard]] UserData *botForSending(const Entry &entry) const;
 	void reportDroppedReply() const;
 	void itemRemoved(not_null<const HistoryItem*> item);
@@ -138,11 +165,15 @@ private:
 	base::Timer _pruneTimer;
 	base::Timer _pendingTimer;
 	base::flat_map<not_null<History*>, List> _data;
+	base::flat_map<FullMsgId, HistoryMessageContent> _anchored;
 	std::vector<MTPEphemeralMessage> _pending;
 	FullMsgId _convertLocalTarget;
 	base::flat_map<
 		not_null<History*>,
 		base::flat_map<PeerId, MsgId>> _callbackTopicHints;
+	base::flat_map<
+		not_null<History*>,
+		base::flat_map<PeerId, uint64>> _callbackQueries;
 
 	rpl::lifetime _lifetime;
 

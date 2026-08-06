@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "api/api_updates.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/sponsored_messages.h"
 #include "data/components/welcome_messages.h"
@@ -1940,6 +1941,60 @@ void HistoryItem::savePreviousMedia() {
 	data->media = _media ? _media->clone(this) : nullptr;
 }
 
+HistoryMessageContent HistoryItem::backupContent() {
+	const auto component = Get<HistoryMessageReplyMarkup>();
+	auto markup = component ? component->data : HistoryMessageMarkupData();
+	for (auto &row : markup.rows) {
+		for (auto &button : row) {
+			button.requestId = 0;
+		}
+	}
+	return {
+		.text = originalText(),
+		.media = (_media ? _media->clone(this) : nullptr),
+		.markup = std::move(markup),
+		.richPage = richPage(),
+		.invertMedia = invertMedia(),
+		.hideEdited = hideEditedBadge(),
+	};
+}
+
+void HistoryItem::applyContent(HistoryMessageContent &&content) {
+	const auto hasRichPage = (content.richPage != nullptr);
+
+	removeFromSharedMediaIndex();
+
+	if (content.invertMedia) {
+		_flags |= MessageFlag::InvertMedia;
+	} else {
+		_flags &= ~MessageFlag::InvertMedia;
+	}
+	if (content.hideEdited) {
+		_flags |= MessageFlag::HideEdited;
+	} else {
+		_flags &= ~MessageFlag::HideEdited;
+	}
+
+	_media = std::move(content.media);
+	setReplyMarkup(std::move(content.markup));
+
+	clearFullRichPage();
+	if (hasRichPage) {
+		setRichPage(content.richPage);
+	} else {
+		clearRichPage();
+	}
+	auto text = hasRichPage
+		? Iv::FlattenRichPageSummary(content.richPage)
+		: _media
+		? std::move(content.text)
+		: EnsureNonEmpty(content.text);
+	setText(std::move(text));
+	addToSharedMediaIndex();
+
+	finishEdition(-1);
+}
+
 bool HistoryItem::isEditingMedia() const {
 	return Has<HistoryMessageSavedMediaData>();
 }
@@ -2212,6 +2267,8 @@ void HistoryItem::clearMainView() {
 }
 
 void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
+	history()->session().ephemeralMessages().revertAnchored(this);
+
 	int keyboardTop = -1;
 	//if (!pendingResize()) {// #TODO edit bot message
 	//	if (auto keyboard = inlineReplyKeyboard()) {
@@ -2488,6 +2545,8 @@ void HistoryItem::applyEdition(
 }
 
 void HistoryItem::applySentMessage(const MTPDmessage &data) {
+	history()->session().ephemeralMessages().revertAnchored(this);
+
 	if (data.is_invert_media()) {
 		_flags |= MessageFlag::InvertMedia;
 	} else {
@@ -3038,6 +3097,7 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 		&& (!_media || _media->allowsEdit())
 		&& !isLegacyMessage()
 		&& !isEditingMedia()
+		&& !IsAnchoredEphemeral(this)
 		&& (paidType() == PaidPostType::None);
 }
 

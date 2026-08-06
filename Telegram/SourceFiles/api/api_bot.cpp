@@ -88,13 +88,13 @@ void SendBotCallbackData(
 	if (withPassword) {
 		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_password;
 	}
-	const auto ephemeralId = item->isEphemeral()
-		? session->ephemeralMessages().lookupId(item)
-		: 0;
-	if (item->isEphemeral() && (!ephemeralId || isGame || withPassword)) {
+	const auto ephemeralId = session->ephemeralMessages().lookupId(item);
+	if (item->isEphemeral() && !ephemeralId) {
+		return;
+	} else if (ephemeralId && (isGame || withPassword)) {
 		return;
 	}
-	if (ephemeralId) {
+	if (item->isEphemeral()) {
 		session->ephemeralMessages().noteCallbackTopic(
 			history,
 			item->from()->id,

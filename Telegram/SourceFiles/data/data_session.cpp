@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_business_chatbots.h"
 #include "data/business/data_business_info.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/sponsored_messages.h"
 #include "data/components/welcome_messages.h"
@@ -447,6 +448,7 @@ void Session::clear() {
 	_shortcutMessages = nullptr;
 	_session->scheduledMessages().clear();
 	_session->welcomeMessages().clear();
+	_session->ephemeralMessages().clear();
 	_session->sponsoredMessages().clear();
 
 	// Items are gone now, so HistoryMessageReply::resolvedStory raw

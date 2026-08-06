@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/random.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/data_messages.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -170,8 +171,11 @@ void WelcomeMessages::removeSending(not_null<HistoryItem*> item) {
 }
 
 void WelcomeMessages::applyNew(const MTPDephemeralMessage &data) {
-	const auto history = _session->data().history(
-		peerFromMTP(data.vpeer_id()));
+	const auto peerId = PeerIdFromEphemeral(data);
+	if (!peerId) {
+		return;
+	}
+	const auto history = _session->data().history(peerId);
 	auto &list = _data[history];
 	if (_convertLocalTarget
 		&& data.is_welcome_template()
@@ -211,8 +215,11 @@ void WelcomeMessages::applyNew(const MTPDephemeralMessage &data) {
 }
 
 void WelcomeMessages::applyEdit(const MTPDephemeralMessage &data) {
-	const auto history = _session->data().history(
-		peerFromMTP(data.vpeer_id()));
+	const auto peerId = PeerIdFromEphemeral(data);
+	if (!peerId) {
+		return;
+	}
+	const auto history = _session->data().history(peerId);
 	const auto item = lookupItem(history->peer, data.vid().v);
 	if (!item) {
 		applyNew(data);
@@ -240,7 +247,8 @@ void WelcomeMessages::send(
 		text.entities,
 		Api::ConvertOption::SkipLocal);
 	using Flag = MTPephemeral_SendMessage::Flag;
-	const auto flags = Flag::f_welcome_template
+	const auto flags = Flag::f_welcome
+		| Flag::f_peer
 		| (entities.v.isEmpty() ? Flag(0) : Flag::f_entities);
 	_session->api().request(MTPephemeral_SendMessage(
 		MTP_flags(flags),
@@ -280,7 +288,8 @@ void WelcomeMessages::sendMedia(
 		text.entities,
 		Api::ConvertOption::SkipLocal);
 	using Flag = MTPephemeral_SendMessage::Flag;
-	const auto flags = Flag::f_welcome_template
+	const auto flags = Flag::f_welcome
+		| Flag::f_peer
 		| Flag::f_media
 		| (entities.v.isEmpty() ? Flag(0) : Flag::f_entities)
 		| (item->invertMedia() ? Flag::f_invert_media : Flag(0));
@@ -344,7 +353,9 @@ void WelcomeMessages::sendRich(
 		return;
 	}
 	using Flag = MTPephemeral_SendMessage::Flag;
-	const auto flags = Flag::f_welcome_template | Flag::f_rich_message;
+	const auto flags = Flag::f_welcome
+		| Flag::f_peer
+		| Flag::f_rich_message;
 	const auto randomId = base::RandomValue<uint64>();
 	const auto send = [=](
 			const auto &send,
@@ -392,7 +403,8 @@ void WelcomeMessages::edit(
 		text.entities,
 		Api::ConvertOption::SkipLocal);
 	using Flag = MTPephemeral_EditMessage::Flag;
-	const auto flags = Flag::f_welcome_template
+	const auto flags = Flag::f_welcome
+		| Flag::f_peer
 		| Flag::f_message
 		| (entities.v.isEmpty() ? Flag(0) : Flag::f_entities);
 	_session->api().request(MTPephemeral_EditMessage(
@@ -433,7 +445,9 @@ void WelcomeMessages::editRich(
 		return;
 	}
 	using Flag = MTPephemeral_EditMessage::Flag;
-	const auto flags = Flag::f_welcome_template | Flag::f_rich_message;
+	const auto flags = Flag::f_welcome
+		| Flag::f_peer
+		| Flag::f_rich_message;
 	const auto send = [=](
 			const auto &send,
 			const MTPInputRichMessage &rich,

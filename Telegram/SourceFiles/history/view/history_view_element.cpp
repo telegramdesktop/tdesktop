@@ -1189,7 +1189,8 @@ void EphemeralBadge::init(not_null<const Element*> view) {
 		return;
 	}
 	const auto item = view->data();
-	const auto plain = (view->context() == Context::WelcomeMessages);
+	const auto plain = (view->context() == Context::WelcomeMessages)
+		|| IsAnchoredEphemeral(item);
 	receiver = (!plain && item->out())
 		? item->history()->session().ephemeralMessages().replyReceiver(item)
 		: nullptr;
@@ -2263,6 +2264,11 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 			return (ephemeral.replyReceiver(item)
 				== ephemeral.replyReceiver(prev));
 		};
+		const auto sameAnchored = [&] {
+			const auto &ephemeral
+				= item->history()->session().ephemeralMessages();
+			return (ephemeral.anchored(item) == ephemeral.anchored(prev));
+		};
 		const auto possible = (ignoresDateGap
 				|| (std::abs(prev->date() - item->date())
 					< kAttachMessageToPreviousSecondsDelta))
@@ -2271,7 +2277,8 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 			&& mayBeAttached(previous)
 			&& (!previousMarkup || previousMarkup->hiddenBy(prev->media()))
 			&& (item->topicRootId() == prev->topicRootId())
-			&& sameReceiver();
+			&& sameReceiver()
+			&& sameAnchored();
 		if (possible) {
 			const auto forwarded = item->Get<HistoryMessageForwarded>();
 			const auto prevForwarded = prev->Get<HistoryMessageForwarded>();
@@ -2514,7 +2521,8 @@ void Element::setDisplayDate(bool displayDate) {
 
 void Element::refreshEphemeralBadge() {
 	const auto shown = (data()->isEphemeral()
-			|| _context == Context::WelcomeMessages)
+			|| _context == Context::WelcomeMessages
+			|| IsAnchoredEphemeral(data()))
 		&& !isAttachedToPrevious();
 	if (shown && !Has<EphemeralBadge>()) {
 		AddComponents(EphemeralBadge::Bit());

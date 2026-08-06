@@ -292,6 +292,9 @@ public:
 	[[nodiscard]] bool isEditingMedia() const;
 	void clearSavedMedia();
 
+	[[nodiscard]] HistoryMessageContent backupContent();
+	void applyContent(HistoryMessageContent &&content);
+
 	// Zero result means this message is not self-destructing right now.
 	[[nodiscard]] crl::time getSelfDestructIn(crl::time now);
 
