@@ -581,19 +581,11 @@ void AddFeeTableRow(
 			FormatFiat(feeNano, rate, kFeeFiatDecimals, true)));
 		return fee;
 	});
-	const auto label = Ui::AddTableRow(
+	Ui::AddTableRow(
 		table,
 		tr::lng_wallet_details_fee(),
 		std::move(value),
 		helper.context());
-	label->naturalWidthValue(
-	) | rpl::skip(1) | rpl::on_next([=] {
-		Ui::PostponeCall(table, [=] {
-			if (const auto width = table->width()) {
-				table->resizeToWidth(width);
-			}
-		});
-	}, label->lifetime());
 }
 
 void AddDetailsTable(
@@ -2578,6 +2570,13 @@ void WalletImportBox(
 		}, field->lifetime());
 		field->tabbed() | rpl::on_next([=](
 				not_null<Ui::InputField::TabbedRequest*> request) {
+			if (request->backward) {
+				if (i > 0) {
+					request->handled = true;
+					state->fields[i - 1]->setFocus();
+				}
+				return;
+			}
 			request->handled = true;
 			if (acceptSuggestion()) {
 				return;

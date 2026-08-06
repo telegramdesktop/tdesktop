@@ -15,7 +15,7 @@ walletMenuIcon: icon{{ "menu/wallet-24x24", menuIconColor }};
 walletMenuCurrencyIcon: icon{{ "settings/language", menuIconColor }};
 walletMenuBackIcon: icon{{ "emoji/emoji_back", menuIconColor }};
 
-walletPanelSize: size(392px, 600px);
+walletPanelSize: size(392px, 620px);
 walletCardHeight: 190px;
 walletCardMargin: margins(40px, 0px, 40px, 0px);
 walletCardRadius: 16px;
