@@ -34,6 +34,7 @@ ComposeTooltipManager::ComposeTooltipManager(
 			st::ttlMediaImportantTooltipLabel,
 			st::importantTooltipHide,
 			st::defaultImportantTooltip.padding,
+			tr::lng_tooltip_dismiss(tr::now),
 			[=] { hideAndRemember(); }),
 		st::historyRecordTooltip));
 	_tooltip->toggleFast(false);

@@ -1042,6 +1042,7 @@ void List::setShowTooltip(
 			st::dialogsStoriesTooltipLabel,
 			st::importantTooltipHide,
 			st::defaultImportantTooltip.padding,
+			tr::lng_tooltip_dismiss(tr::now),
 			_tooltipHide),
 		st::dialogsStoriesTooltip);
 	const auto tooltip = _tooltip.get();

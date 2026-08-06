@@ -130,6 +130,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cancel" = "Cancel";
 "lng_continue" = "Continue";
 "lng_close" = "Close";
+"lng_tooltip_dismiss" = "Dismiss";
 "lng_minimize_window" = "Minimize";
 "lng_maximize_window" = "Maximize";
 "lng_restore_window" = "Restore";
