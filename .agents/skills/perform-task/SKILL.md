@@ -99,7 +99,7 @@ Execute `references/pipeline.md` exactly. A normal task produces:
 Read `type` from the `resolve` output before planning. A `type: verify` task
 measures shipped behavior, carries no implementation, and produces **no Telegram
 commit at all** — only item 2 and item 3 above. It skips implementation, the
-implementation build, the four-lens review loop, and Windows normalization, and
+implementation build, the five-lens review loop, and Windows normalization, and
 runs the pipeline's Verification tasks profile instead: measurement plan,
 falsifiability assessment, then the test loop. Its outcome is either that the
 behavior held or a `Finding: deviation` recording the exact disagreement plus

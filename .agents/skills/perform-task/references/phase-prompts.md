@@ -585,17 +585,17 @@ When finished, report the build result and which files, if any, you changed.
 
 After build verification passes, run up to 3 review-fix iterations. Set iteration counter `R = 1`.
 
-Each iteration runs four independent review lenses over the same diff, then one
+Each iteration runs five independent review lenses over the same diff, then one
 synthesis pass that produces the single `review<R>.md` the fix phase consumes. The
 lenses never read each other's reports: independence is what makes their agreement
 evidence rather than an echo. Their write sets are disjoint (one report file each),
 so they may run in parallel; when delegation is unavailable, run them as sequential
-checklists in the current session and keep the same four reports.
+checklists in the current session and keep the same five reports.
 
 **Check the diff before spawning anything.** If `git status --porcelain` over
 `Telegram/SourceFiles` and `Telegram/Resources` is empty, skip Phase 6 entirely:
 record in progress that there was no product diff to review, run no lens, no
-synthesis and no fix pass, and continue to the next phase. Four lenses over nothing
+synthesis and no fix pass, and continue to the next phase. Five lenses over nothing
 cost real time and produce no evidence, and a lens that goes looking for substitute
 material reviews the plan and the fix pass then rewrites it, so the loop reviews its
 own output and cannot converge. This applies to any task that reaches Phase 6 with
@@ -617,13 +617,14 @@ The lenses are:
 | `lifetime` | `review<R>-lifetime.md` | Ownership, object lifetime, re-entrancy, threading |
 | `reuse` | `review<R>-reuse.md` | Duplication of what the repository already has |
 | `structure` | `review<R>-structure.md` | Placement, minimality, dead code, conventions |
+| `performance` | `review<R>-performance.md` | Cost, frequency, and scale of the work the diff adds |
 
 Review loop:
 
 ```text
 LOOP:
   1. Run the scheduled Phase 6a lenses for iteration R.
-     R = 1     -> all four lenses, plus the Phase 6d test-design leaf in the
+     R = 1     -> all five lenses, plus the Phase 6d test-design leaf in the
                   same fan-out (it writes test-design.md and takes no part in
                   the review verdict).
      R > 1     -> every lens whose finding survived synthesis in iteration R-1,
@@ -653,7 +654,7 @@ iteration.
 #### Shared lens preamble
 
 ```text
-You are one of four independent code-review lenses for Telegram Desktop (C++ / Qt).
+You are one of five independent code-review lenses for Telegram Desktop (C++ / Qt).
 Your lens is <LENS>, iteration <R>.
 
 Other lenses cover the other angles. Do not review outside your assigned angle, and
@@ -713,8 +714,6 @@ plan specify, on every path it touches?
   change.
 - Values crossing an API boundary — network, settings, a peer or session lookup —
   used without checking what the boundary can actually return.
-- Obviously pathological work in a hot path: per-frame paint, resize, scroll, or a
-  loop over every message or dialog.
 ```
 
 #### Angle: `lifetime`
@@ -788,6 +787,48 @@ codebase, and is it no bigger than it needs to be?
 - Dead code: anything added or left behind that nothing reaches.
 - Conventions: REVIEW.md mechanical rules and AGENTS.md coding conventions.
 - Local idiom: comment density, naming, and construction match the surrounding code.
+```
+
+#### Angle: `performance`
+
+```text
+ANGLE — performance and cost. What does this change cost, how often is that cost
+paid, and multiplied by how many items?
+
+Cost is not visible in the diff. The diff shows the work; the call sites decide how
+often it runs, and the data decides against how many items. For every function the
+change adds or edits, walk up to its callers until you can name the trigger — paint,
+scroll, resize, keypress, network event, session startup — and the cardinality:
+once, per visible row, per every message in a history, per every dialog in the
+account. Judge the cost at that frequency, never in isolation.
+
+- Work in a per-frame path: allocation, text layout or measurement, image scaling
+  or format conversion, style or font construction, string building inside
+  paintEvent, Element::draw, scroll or resize handlers; cached-on-change data
+  recomputed per frame instead of invalidated when its inputs change.
+- Repaint and relayout hygiene: update() on a whole widget where a rect suffices; a
+  subscription that fires per item and repaints the whole list; an animation or
+  timer still running when nothing visible changes.
+- Cardinality: a loop over every message, dialog, or peer where the visible or
+  affected subset is available; per-item timers or subscriptions where one shared
+  driver exists; a field added to a mass-instantiated type without weighing
+  instance counts. These are the strongest findings this lens produces, because
+  they scale with the account, not with the screen.
+- UI-thread stalls: synchronous file I/O, image decode, hashing, or parsing of
+  unbounded data on the main thread where crl::async or an existing loader fits.
+- Copies of heavyweight values — QImage, TextWithEntities, containers — taken per
+  frame, per item, or per event where a reference or move serves.
+- Startup and session-load cost: work added to application launch, session start,
+  or cache reading that could run lazily on first use.
+
+A finding is admissible only with the full cost statement: the trigger and its
+frequency, the multiplier, the unit cost, and the user-visible symptom — dropped
+frames while scrolling, input latency, slower startup, memory growth. "This
+allocates in a loop" with no path to a symptom is not a finding. One-shot cold
+paths — a box constructed once, a settings page, an error branch — are not findings
+territory unless they block the UI thread noticeably. When hotness is genuinely
+uncertain and only measurement can settle it, do not file a finding; record it in
+Checked as examined-and-uncertain so the performer can carry it under Discovered.
 ```
 
 #### Shared lens report contract
@@ -927,7 +968,7 @@ performer to confirm independently.
 ### Step 6s: Review synthesis
 
 ```text
-You are the review synthesizer for iteration <R>. Four independent lenses reviewed
+You are the review synthesizer for iteration <R>. Five independent lenses reviewed
 the same task diff. Produce the single review<R>.md that the fix phase implements.
 
 Read every <WORK_DIR>/review<R>-*.md that exists for this iteration, plus
@@ -968,7 +1009,7 @@ If the verdict is NEEDS_CHANGES, continue with:
 ## Changes Required
 
 ### <Issue 1 title>
-- Category: <correctness | lifetime | duplication | wrong placement | function decomposition | module structure | dead code | minimality | style>
+- Category: <correctness | lifetime | performance | duplication | wrong placement | function decomposition | module structure | dead code | minimality | style>
 - File(s): <file paths>
 - Problem: <clear description, including the concrete failure>
 - Fix: <specific description of what to change>
@@ -1095,6 +1136,7 @@ For review iterations, include the iteration and the lens in the file name, for 
 - `phase-6a-review-1-lifetime.prompt.md`
 - `phase-6a-review-1-reuse.prompt.md`
 - `phase-6a-review-1-structure.prompt.md`
+- `phase-6a-review-1-performance.prompt.md`
 - `phase-6d-test-design-1.prompt.md`
 - `phase-6d-test-design-1.result.md`
 - `phase-6s-synthesis-1.prompt.md`

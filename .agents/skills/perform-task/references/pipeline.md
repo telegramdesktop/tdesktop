@@ -130,6 +130,7 @@ work/review1-correctness.md    # one report per review lens per iteration
 work/review1-lifetime.md
 work/review1-reuse.md
 work/review1-structure.md
+work/review1-performance.md
 work/review1.md                # synthesized review for the iteration
 work/test-design.md            # check design drafted during review iteration 1
 work/test.md
@@ -257,12 +258,13 @@ Run sequentially:
    `.agents/shared/build-lock-recovery.md`; only an exhausted or unsafe
    recovery is a global hard stop.
 5. **Review.** Run the multi-lens review/fix loop from the phase prompts for up
-   to three review iterations. Each iteration runs four independent lenses over
-   the task diff — correctness, lifetime and ownership, reuse, structure — and
-   then one synthesis pass that confirms every finding against the code itself
-   and writes the single `review<R>.md` the fix phase implements. A lens
-   defaults to not clean and must record the surfaces it checked; an approved
-   review carries that merged coverage as the evidence for approval. Rebuild
+   to three review iterations. Each iteration runs five independent lenses over
+   the task diff — correctness, lifetime and ownership, reuse, structure,
+   performance — and then one synthesis pass that confirms every finding
+   against the code itself and writes the single `review<R>.md` the fix phase
+   implements. A lens defaults to not clean and must record the surfaces it
+   checked; an approved review carries that merged coverage as the evidence for
+   approval. Rebuild
    after every fix pass. Give the correctness and structure lenses the visual
    contract on layout tasks. Alongside the iteration-1 lenses, spawn the
    Phase 6d test-design leaf; it drafts `work/test-design.md` from the spec,
@@ -309,10 +311,10 @@ Skip these phases outright rather than running them against an empty diff:
   verification writes is the test overlay, authored in the test loop.
 - **Phase 4, Build,** as a separate implementation step. The overlay build in
   the test loop is the only build.
-- **Phase 5's four review lenses** — correctness, lifetime, reuse, structure —
-  and the whole three-iteration review/fix loop. They read a product diff that
-  does not exist. Step 6d, the test-check design, is the one part that survives,
-  and it moves into Phase 2V below.
+- **Phase 5's five review lenses** — correctness, lifetime, reuse, structure,
+  performance — and the whole three-iteration review/fix loop. They read a
+  product diff that does not exist. Step 6d, the test-check design, is the one
+  part that survives, and it moves into Phase 2V below.
 - **Phase 6, Normalize.** No task-owned source text changes.
 - **Phase 7's `source-commit`.** The helper refuses it for this type. There is no
   implementation attempt, no `GREEN_REF`, and no attempt counter to advance;
@@ -329,7 +331,7 @@ Skip these phases outright rather than running them against an empty diff:
    reconstructed from history, a negative case that must not fire — the plan
    carries it as a required check, not as an optional extra.
 2. **Phase 3V: assess for falsifiability.** A fresh leaf verifies the plan the
-   way Phase 2 verifies an implementation plan, against one question the four
+   way Phase 2 verifies an implementation plan, against one question the five
    review lenses never ask: *would this run have detected the negative?* It
    rejects a plan whose oracle passes when the behavior is absent, whose control
    cannot disagree with the subject, or that reads local state where the claim is
