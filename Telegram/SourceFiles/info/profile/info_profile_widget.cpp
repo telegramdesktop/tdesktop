@@ -325,7 +325,9 @@ rpl::producer<QString> Widget::title() {
 		return tr::lng_profile_direct_messages();
 	}
 	const auto peer = controller()->key().peer();
-	if (const auto user = peer->asUser()) {
+	if (peer->isSelf() && !controller()->key().sublist()) {
+		return tr::lng_saved_messages();
+	} else if (const auto user = peer->asUser()) {
 		return (user->isBot() && !user->isSupport())
 			? tr::lng_info_bot_title()
 			: tr::lng_info_user_title();
