@@ -835,6 +835,7 @@ RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b 1.25.2 --depth=1 https://github.com/kcat/openal-soft.git
 cd openal-soft
 cmake -B build . \
+	-DCMAKE_DISABLE_FIND_PACKAGE_DBus1=ON \
 	-DLIBTYPE:STRING=STATIC \
 	-DALSOFT_EXAMPLES=OFF \
 	-DALSOFT_UTILS=OFF \
