@@ -869,6 +869,7 @@ private:
 	rpl::lifetime _shownForumLifetime;
 	rpl::variable<Data::CommunityInfo*> _openedCommunity;
 	rpl::lifetime _openedCommunityLifetime;
+	FilterId _openedCommunityReturnFilter = 0;
 
 	rpl::event_stream<> _filtersMenuChanged;
 

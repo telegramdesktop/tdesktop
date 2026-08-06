@@ -2105,6 +2105,9 @@ void SessionController::openCommunity(not_null<Data::CommunityInfo*> info) {
 	} else if (_openedCommunity.current() != info) {
 		resetFakeUnreadWhileOpened();
 	}
+	if (!_openedCommunity.current()) {
+		_openedCommunityReturnFilter = activeChatsFilterCurrent();
+	}
 	if (activeChatsFilterCurrent() != 0) {
 		setActiveChatsFilter(0);
 	} else if (adaptive().isOneColumn()) {
@@ -2149,6 +2152,10 @@ void SessionController::closeCommunity() {
 	}
 	_openedCommunityLifetime.destroy();
 	_openedCommunity = nullptr;
+	const auto restore = base::take(_openedCommunityReturnFilter);
+	if (restore && !activeChatsFilterCurrent()) {
+		setActiveChatsFilter(restore);
+	}
 }
 
 const rpl::variable<Data::CommunityInfo*> &
