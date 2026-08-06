@@ -1250,6 +1250,8 @@ PRIVATE
     info/profile/tabs/adapters/info_profile_tab_stories.h
     info/profile/tabs/adapters/info_profile_tab_sub_controller.cpp
     info/profile/tabs/adapters/info_profile_tab_sub_controller.h
+    info/profile/tabs/adapters/info_profile_tab_chats.cpp
+    info/profile/tabs/adapters/info_profile_tab_chats.h
     info/profile/tabs/adapters/info_profile_tab_members.cpp
     info/profile/tabs/adapters/info_profile_tab_members.h
     info/profile/tabs/adapters/info_profile_tab_polls.cpp
