@@ -139,6 +139,8 @@ photoEditorMenuCheckLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 100px;
 	textFg: groupCallMembersFg;
 }
+photoEditorShapeFillDuration: 160;
+photoEditorShapeFillRadius: 13px;
 photoEditorMenuRoundCheckUntoggledFg: groupCallMemberNotJoinedStatus;
 photoEditorMenuRoundCheck: RoundCheckbox(defaultRoundCheckbox) {
 	size: 20px;
