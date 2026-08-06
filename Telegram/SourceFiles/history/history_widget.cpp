@@ -373,6 +373,7 @@ HistoryWidget::HistoryWidget(
 	}))
 , _topShadow(this) {
 	setAcceptDrops(true);
+	setVisualTabOrder(true);
 
 	session().downloaderTaskFinished() | rpl::on_next([=] {
 		update();
