@@ -283,7 +283,7 @@ void PruneCachedTextLeafs(CachedTextLeafPool *pool, Predicate &&unusable) {
 		return;
 	}
 	for (auto i = pool->entries.begin(); i != pool->entries.end();) {
-		if (unusable(i->second.source)) {
+		if (unusable(i->second)) {
 			i = pool->entries.erase(i);
 		} else {
 			++i;
@@ -3214,6 +3214,153 @@ void HideBlocksSpoilers(std::vector<LaidOutBlock> *blocks) {
 	}
 }
 
+void AccumulateFormattedDateUpdate(TimeId *result, TimeId value) {
+	if (value && (!*result || value < *result)) {
+		*result = value;
+	}
+}
+
+[[nodiscard]] bool FormattedDateExpired(TimeId pending, TimeId now) {
+	return pending && (pending <= now);
+}
+
+[[nodiscard]] TimeId CountBlocksFormattedDateUpdate(
+	const std::vector<LaidOutBlock> &blocks);
+
+[[nodiscard]] TimeId CountBlockFormattedDateUpdate(
+		const LaidOutBlock &block) {
+	auto result = TimeId(block.leaf.nextFormattedDateUpdate());
+	for (const auto &row : block.tableRows) {
+		for (const auto &cell : row.cells) {
+			AccumulateFormattedDateUpdate(
+				&result,
+				cell.leaf.nextFormattedDateUpdate());
+		}
+	}
+	AccumulateFormattedDateUpdate(
+		&result,
+		CountBlocksFormattedDateUpdate(block.children));
+	return result;
+}
+
+TimeId CountBlocksFormattedDateUpdate(
+		const std::vector<LaidOutBlock> &blocks) {
+	auto result = TimeId(0);
+	for (const auto &block : blocks) {
+		AccumulateFormattedDateUpdate(
+			&result,
+			CountBlockFormattedDateUpdate(block));
+	}
+	return result;
+}
+
+[[nodiscard]] bool RefreshBlocksFormattedDates(
+	const std::vector<PreparedBlock> &preparedBlocks,
+	std::vector<LaidOutBlock> *blocks,
+	const std::vector<PreparedFormulaSlot> *formulas,
+	InlineFormulaObjectCache *inlineFormulaObjects,
+	const std::shared_ptr<MediaRuntime> &mediaRuntime,
+	const style::Markdown &st,
+	TimeId now,
+	const LayoutContext &context);
+
+[[nodiscard]] bool RefreshBlockFormattedDates(
+		const PreparedBlock &prepared,
+		LaidOutBlock *block,
+		const std::vector<PreparedFormulaSlot> *formulas,
+		InlineFormulaObjectCache *inlineFormulaObjects,
+		const std::shared_ptr<MediaRuntime> &mediaRuntime,
+		const style::Markdown &st,
+		TimeId now,
+		const LayoutContext &context) {
+	auto result = false;
+	if (FormattedDateExpired(block->leaf.nextFormattedDateUpdate(), now)) {
+		auto leafContext = context;
+		leafContext.inlineButtonWidthCap = block->inlineButtonWidthCap;
+		UpdateLaidOutLeafContent(
+			block,
+			prepared,
+			formulas,
+			inlineFormulaObjects,
+			mediaRuntime,
+			st,
+			leafContext);
+		result = true;
+	}
+	const auto rowCount = std::min(
+		int(prepared.tableRows.size()),
+		int(block->tableRows.size()));
+	for (auto rowIndex = 0; rowIndex != rowCount; ++rowIndex) {
+		auto &row = block->tableRows[rowIndex];
+		const auto &preparedRow = prepared.tableRows[rowIndex];
+		const auto cellCount = std::min(
+			int(preparedRow.cells.size()),
+			int(row.cells.size()));
+		for (auto cellIndex = 0; cellIndex != cellCount; ++cellIndex) {
+			auto &cell = row.cells[cellIndex];
+			if (!FormattedDateExpired(
+					cell.leaf.nextFormattedDateUpdate(),
+					now)) {
+				continue;
+			}
+			auto cellContext = context;
+			cellContext.inlineButtonWidthCap = block->inlineButtonWidthCap;
+			UpdateLaidOutLeafContent(
+				&cell,
+				preparedRow.cells[cellIndex],
+				formulas,
+				inlineFormulaObjects,
+				mediaRuntime,
+				st,
+				rowIndex,
+				cellIndex,
+				cellContext);
+			result = true;
+		}
+	}
+	if (RefreshBlocksFormattedDates(
+			prepared.children,
+			&block->children,
+			formulas,
+			inlineFormulaObjects,
+			mediaRuntime,
+			st,
+			now,
+			context)) {
+		result = true;
+	}
+	return result;
+}
+
+bool RefreshBlocksFormattedDates(
+		const std::vector<PreparedBlock> &preparedBlocks,
+		std::vector<LaidOutBlock> *blocks,
+		const std::vector<PreparedFormulaSlot> *formulas,
+		InlineFormulaObjectCache *inlineFormulaObjects,
+		const std::shared_ptr<MediaRuntime> &mediaRuntime,
+		const style::Markdown &st,
+		TimeId now,
+		const LayoutContext &context) {
+	auto result = false;
+	const auto count = std::min(
+		int(preparedBlocks.size()),
+		int(blocks->size()));
+	for (auto i = 0; i != count; ++i) {
+		if (RefreshBlockFormattedDates(
+				preparedBlocks[i],
+				&(*blocks)[i],
+				formulas,
+				inlineFormulaObjects,
+				mediaRuntime,
+				st,
+				now,
+				context)) {
+			result = true;
+		}
+	}
+	return result;
+}
+
 struct PreparedArticleLeafLookup {
 	PreparedBlock *block = nullptr;
 	PreparedTableCell *cell = nullptr;
@@ -3720,6 +3867,9 @@ public:
 	[[nodiscard]] bool highlightProcessDone(
 		Spellchecker::HighlightProcessId processId);
 
+	[[nodiscard]] TimeId nextFormattedDateUpdate() const;
+	void refreshFormattedDates(TimeId now);
+
 	void invalidatePaletteCache();
 
 	void invalidateRasterCache();
@@ -3917,6 +4067,7 @@ private:
 	int _laidOutWidth = 0;
 	int _height = 0;
 	int _layoutGeneration = 0;
+	TimeId _nextFormattedDateUpdate = 0;
 	double _mediaPixelScale = 1.;
 	MarkdownArticleRevealLineCountsCache _revealLineCounts;
 	CachedTextLeafPool _cachedTextLeafs;
@@ -4023,8 +4174,8 @@ void MarkdownArticle::Impl::setContent(MarkdownArticleContent content) {
 	if (!reuseMediaBlocks) {
 		PruneCachedTextLeafs(
 			&_cachedTextLeafs,
-			[](const CachedTextLeafSourceSignature &source) {
-				return source.dependsOnMediaRuntime;
+			[](const CachedTextLeafEntry &entry) {
+				return entry.source.dependsOnMediaRuntime;
 			});
 	}
 	if (reuseMediaBlocks) {
@@ -5031,6 +5182,46 @@ bool MarkdownArticle::Impl::highlightProcessDone(
 		rebuilt = true;
 	}
 	return rebuilt;
+}
+
+TimeId MarkdownArticle::Impl::nextFormattedDateUpdate() const {
+	return _nextFormattedDateUpdate;
+}
+
+void MarkdownArticle::Impl::refreshFormattedDates(TimeId now) {
+	if (!FormattedDateExpired(_nextFormattedDateUpdate, now)) {
+		return;
+	}
+	_nextFormattedDateUpdate = 0;
+	PruneCachedTextLeafs(
+		&_cachedTextLeafs,
+		[&](const CachedTextLeafEntry &entry) {
+			return FormattedDateExpired(
+				entry.leaf.nextFormattedDateUpdate(),
+				now);
+		});
+	if (_blocks.empty()) {
+		return;
+	}
+	auto context = LayoutContext();
+	context.rtl = contentRtl();
+	context.syntaxHighlightTracker = this;
+	context.repaint = _textRepaint;
+	context.repaintRect = _textRepaintRect;
+	context.spoilerLinkFilter = _textSpoilerLinkFilter;
+	context.inlineButtonPaintState = _inlineButtonPaintState;
+	const auto refreshed = RefreshBlocksFormattedDates(
+		_content.blocks.blocks,
+		&_blocks,
+		&_content.formulas,
+		_inlineFormulaObjects.get(),
+		_content.mediaRuntime,
+		layoutStyle(),
+		now,
+		context);
+	if (refreshed && _width > 0) {
+		invalidateGeometry();
+	}
 }
 
 void MarkdownArticle::Impl::invalidatePaletteCache() {
@@ -6258,6 +6449,7 @@ void MarkdownArticle::Impl::finalizeRelayout(int heightBottom) {
 	CollectSelectableSegments(&_blocks, &_segments);
 	RefreshScrollableSegmentRects(_blocks, &_segments);
 	rebuildVisibleSegmentLookup();
+	_nextFormattedDateUpdate = CountBlocksFormattedDateUpdate(_blocks);
 }
 
 int MarkdownArticle::Impl::inlineButtonWidthCap() const {
@@ -6865,6 +7057,14 @@ bool MarkdownArticle::richPageRtl() const {
 bool MarkdownArticle::highlightProcessDone(
 		Spellchecker::HighlightProcessId processId) {
 	return _impl->highlightProcessDone(processId);
+}
+
+TimeId MarkdownArticle::nextFormattedDateUpdate() const {
+	return _impl->nextFormattedDateUpdate();
+}
+
+void MarkdownArticle::refreshFormattedDates(TimeId now) {
+	_impl->refreshFormattedDates(now);
 }
 
 void MarkdownArticle::invalidatePaletteCache() {

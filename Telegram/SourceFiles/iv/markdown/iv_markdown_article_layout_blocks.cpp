@@ -2882,6 +2882,7 @@ void UpdateLaidOutLeafContent(
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
 	case PreparedBlockKind::EmbedPost:
+	case PreparedBlockKind::Placeholder:
 		BuildOrReuseMarkedTextLeaf(
 			&block->leaf,
 			CachedTextLeafSlot::Leaf,
@@ -2938,7 +2939,6 @@ void UpdateLaidOutLeafContent(
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
 	case PreparedBlockKind::Quote:
-	case PreparedBlockKind::Placeholder:
 	case PreparedBlockKind::RelatedArticle:
 		break;
 	}

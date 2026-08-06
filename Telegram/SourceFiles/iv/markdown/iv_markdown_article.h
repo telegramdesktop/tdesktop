@@ -498,6 +498,8 @@ public:
 	[[nodiscard]] bool richPageRtl() const;
 	[[nodiscard]] bool highlightProcessDone(
 		Spellchecker::HighlightProcessId processId);
+	[[nodiscard]] TimeId nextFormattedDateUpdate() const;
+	void refreshFormattedDates(TimeId now);
 	void invalidatePaletteCache();
 	void invalidateRasterCache();
 	[[nodiscard]] bool hasHeavyPart() const;

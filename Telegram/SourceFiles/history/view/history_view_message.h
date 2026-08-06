@@ -102,6 +102,7 @@ struct HistoryMessageRichPage
 	Iv::Markdown::MarkdownArticleThinkingPaintCache thinkingPaintCache;
 	rpl::lifetime highlightReadyLifetime;
 	int paletteVersion = -1;
+	TimeId registeredFormattedDateUpdate = 0;
 	mutable ClickHandlerPtr handler;
 	mutable std::optional<Iv::Markdown::MarkdownArticleHorizontalScrollHit> handlerHorizontalScrollHit;
 	mutable QPoint handlerHorizontalScrollPoint;

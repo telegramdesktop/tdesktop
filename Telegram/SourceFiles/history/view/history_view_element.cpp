@@ -1777,6 +1777,13 @@ int Element::textHeightFor(int textWidth) const {
 				rich->article.lastLayoutWidth(),
 				0,
 				kMaxWidth);
+			const auto next = rich->article.nextFormattedDateUpdate();
+			if (next && next != rich->registeredFormattedDateUpdate) {
+				rich->registeredFormattedDateUpdate = next;
+				history()->session().data().registerFormattedDateUpdate(
+					next,
+					const_cast<Element*>(this));
+			}
 		} else {
 			const auto result = _text.countSize(textWidth);
 			_textRealWidth = std::clamp(result.width(), 0, kMaxWidth);
@@ -2878,6 +2885,10 @@ void Element::itemDataChanged() {
 void Element::itemTextUpdated() {
 	if (const auto media = _media.get()) {
 		media->parentTextUpdated();
+	}
+	if (const auto rich = richpage()) {
+		rich->registeredFormattedDateUpdate = 0;
+		rich->article.refreshFormattedDates(base::unixtime::now());
 	}
 	_flags &= ~Flag::SummaryShown;
 	clearSpecialOnlyEmoji();
