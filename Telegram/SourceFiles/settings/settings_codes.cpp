@@ -43,10 +43,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h" // Ui::show().
 
 #ifdef _DEBUG
+#include "data/data_file_origin.h"
 #include "gram/api/gram_api_request.h"
 #include "mtproto/mtproto_config.h"
+#include "storage/file_download.h"
 #include "test/test_agent.h"
 #include "test/test_log.h"
+#include "ui/image/image_location.h"
 #endif // _DEBUG
 
 #include <zlib.h>
@@ -113,12 +116,16 @@ struct ToncenterProbe {
 	const auto gift = u"0:CA0CFD519F763102B5BEC9D9E3AF43592EA362FB773FA319EA09C4F162C171E0"_q;
 	const auto numbers = u"EQAOQdwdw8kGftJCSFgOErM1mBjYPe4DBPq8-AhF6vr9si5N"_q;
 	const auto usernames = u"EQCA14o1-VWhS2efqoh_9M1b_A9DtKTuoqfmkn83AbJzwnPi"_q;
+	const auto jetton = u"0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE"_q;
+	const auto gifts = u"0:4C71F300665314AF55B75FC91D130DDF24C5006961F8F9772613947945F14863"_q;
 	const auto encoded = [](const QString &address) {
 		return Gram::ApiDetails::PercentEncoded(address);
 	};
 	const auto items = u"/api/v3/nft/items"_q;
 	const auto transfers = u"/api/v3/nft/transfers"_q;
 	const auto records = u"/api/v3/dns/records"_q;
+	const auto traces = u"/api/v3/traces"_q;
+	const auto transactions = u"/api/v3/transactions"_q;
 	return {
 		{
 			u"api-nft-items-owner1"_q,
@@ -207,6 +214,70 @@ struct ToncenterProbe {
 			u"/api/v3/dnsRecords"_q,
 			u"wallet="_q + encoded(kAcc1Raw),
 		},
+		{
+			u"api-traces-owner1"_q,
+			traces,
+			u"account="_q + encoded(kAcc1Raw) + u"&limit=20&offset=0"_q,
+		},
+		{
+			u"api-traces-owner2"_q,
+			traces,
+			u"account="_q + encoded(owner2) + u"&limit=20&offset=0"_q,
+		},
+		{
+			u"api-transactions-owner1"_q,
+			transactions,
+			u"account="_q + encoded(kAcc1Raw) + u"&limit=20&offset=0"_q,
+		},
+		{
+			u"api-nft-items-owner1-limit5"_q,
+			items,
+			u"owner_address="_q + encoded(kAcc1Raw) + u"&limit=5"_q,
+		},
+		{
+			u"api-nft-items-owner1-metadata-flag"_q,
+			items,
+			u"owner_address="_q
+				+ encoded(kAcc1Raw)
+				+ u"&limit=5&include_metadata=true"_q,
+		},
+		{
+			u"api-jetton-wallets-owner1"_q,
+			u"/api/v3/jetton/wallets"_q,
+			u"owner_address="_q
+				+ encoded(kAcc1Raw)
+				+ u"&limit=20&offset=0"_q,
+		},
+		{
+			u"api-jetton-masters-usdt"_q,
+			u"/api/v3/jetton/masters"_q,
+			u"address="_q + encoded(jetton) + u"&limit=1&offset=0"_q,
+		},
+		{
+			u"api-nft-collections-gifts"_q,
+			u"/api/v3/nft/collections"_q,
+			u"collection_address="_q + encoded(gifts),
+		},
+		{
+			u"api-metadata-address-gift"_q,
+			u"/api/v3/metadata"_q,
+			u"address="_q + encoded(gift),
+		},
+		{
+			u"api-nft-transfers-owner1-in"_q,
+			transfers,
+			u"owner_address="_q + encoded(kAcc1Raw) + u"&direction=in"_q,
+		},
+		{
+			u"api-transactions-latest"_q,
+			transactions,
+			u"limit=1&offset=0"_q,
+		},
+		{
+			u"api-masterchain-info"_q,
+			u"/api/v3/masterchainInfo"_q,
+			QString(),
+		},
 	};
 }
 
@@ -285,6 +356,151 @@ void RunToncenterProbes(not_null<SessionController*> window) {
 					.arg(error.message);
 				record(u".mtp-error.txt"_q, text.toUtf8(), false);
 			});
+	}
+}
+
+struct FragmentProbe {
+	QString name;
+	QString extension;
+	QString url;
+};
+
+[[nodiscard]] std::vector<FragmentProbe> FragmentProbes() {
+	const auto gift = u"https://nft.fragment.com/gift/deskcalendar-45754"_q;
+	return {
+		{
+			u"fragment-gift-deskcalendar-45754"_q,
+			u".json"_q,
+			gift + u".json"_q,
+		},
+		{
+			u"fragment-collection-deskcalendar"_q,
+			u".json"_q,
+			u"https://nft.fragment.com/collection/deskcalendar.json"_q,
+		},
+		{
+			u"fragment-gift-deskcalendar-45754-image"_q,
+			u".webp"_q,
+			gift + u".webp"_q,
+		},
+		{
+			u"fragment-imgproxy-deskcalendar-small"_q,
+			u".bin"_q,
+			u"https://imgproxy.toncenter.com/"
+				u"CLisjZYndcPa0HF7lUeL2LkBthE4L7OJ04Gp8GEDknE/pr:small/"
+				u"aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL2dpZnQvZGVza2NhbGVuZGFyLTQ1NzU0LndlYnA"_q,
+		},
+		{
+			u"fragment-missing-control"_q,
+			u".json"_q,
+			gift + u"-notanitem.json"_q,
+		},
+	};
+}
+
+[[nodiscard]] QString FailureDetail(FileLoader::Error error) {
+	using Reason = FileLoader::FailureReason;
+	const auto reason = (error.failureReason == Reason::FileWriteFailure)
+		? u"file-write-failure"_q
+		: (error.failureReason == Reason::OtherFailure)
+		? u"other-failure"_q
+		: u"no-failure"_q;
+	return reason + (error.started ? u" started"_q : u" not-started"_q);
+}
+
+void RunFragmentProbes(not_null<SessionController*> window) {
+	struct Entry {
+		crl::time started = 0;
+		int progress = 0;
+		std::unique_ptr<FileLoader> loader;
+	};
+	struct State {
+		int done = 0;
+		int total = 0;
+		int written = 0;
+		std::vector<Entry> entries;
+	};
+	const auto session = &window->session();
+	const auto state = session->lifetime().make_state<State>();
+	const auto probes = FragmentProbes();
+	state->total = int(probes.size());
+	state->entries.resize(state->total);
+	Test::Note(u"PROBE_LOAD_START count=%1 dir=%2"_q
+		.arg(state->total)
+		.arg(Test::EvidenceDir()));
+	for (auto i = 0; i != state->total; ++i) {
+		const auto name = probes[i].name;
+		const auto extension = probes[i].extension;
+		const auto url = probes[i].url;
+		const auto entry = &state->entries[i];
+		const auto record = [=](
+				const QString &outcome,
+				const QString &detail,
+				const QByteArray &bytes) {
+			const auto saved = !bytes.isEmpty()
+				&& WriteProbeBody(name + extension, bytes);
+			if (saved) {
+				++state->written;
+			}
+			const auto text = u"name=%1\nurl=%2\nmechanism=%3\noutcome=%4\n"
+				u"detail=%5\nbytes=%6\nprogressUpdates=%7\nelapsedMs=%8\n"
+				u"bodyFile=%9\n"_q.arg(
+					name,
+					url,
+					u"DownloadLocation{PlainUrlLocation} -> CreateFileLoader"
+						u" -> webFileLoader"_q,
+					outcome,
+					detail,
+					QString::number(bytes.size()),
+					QString::number(entry->progress),
+					QString::number(crl::now() - entry->started),
+					saved ? (name + extension) : QString());
+			const auto recorded = WriteProbeBody(
+				name + u".load.txt"_q,
+				text.toUtf8());
+			Test::Note(u"PROBE_LOAD %1 outcome=%2 bytes=%3 recorded=%4"_q.arg(
+				name,
+				outcome,
+				QString::number(bytes.size()),
+				recorded ? u"1"_q : u"0"_q));
+			if (++state->done < state->total) {
+				return;
+			}
+			Test::Note(u"PROBE_LOAD_COMPLETE bodies=%1/%2"_q
+				.arg(state->written)
+				.arg(state->total));
+			Test::Fire(u"fragment_probe_complete"_q);
+			Ui::Toast::Show(u"Fragment: %1/%2 bodies in %3"_q
+				.arg(state->written)
+				.arg(state->total)
+				.arg(Test::EvidenceDir()));
+		};
+		entry->started = crl::now();
+		entry->loader = CreateFileLoader(
+			session,
+			DownloadLocation{ PlainUrlLocation{ url } },
+			Data::FileOrigin(),
+			QString(),
+			0,
+			0,
+			UnknownFileLocation,
+			LoadToCacheAsWell,
+			LoadFromCloudOrLocal,
+			false,
+			0);
+		const auto raw = entry->loader.get();
+		raw->updates() | rpl::on_next_error_done([=] {
+			++entry->progress;
+		}, [=](FileLoader::Error error) {
+			record(u"failed"_q, FailureDetail(error), QByteArray());
+		}, [=] {
+			const auto cancelled = raw->cancelled();
+			record(
+				cancelled ? u"cancelled"_q : u"loaded"_q,
+				cancelled ? u"destroyed-in-flight"_q : QString(),
+				raw->bytes());
+		}, raw->lifetime());
+		raw->start();
 	}
 }
 #endif // _DEBUG
@@ -571,6 +787,7 @@ auto GenerateCodes() {
 			return;
 		}
 		RunToncenterProbes(window);
+		RunFragmentProbes(window);
 	});
 #endif
 	codes.emplace(u"loadcolors"_q, [](SessionController *window) {
