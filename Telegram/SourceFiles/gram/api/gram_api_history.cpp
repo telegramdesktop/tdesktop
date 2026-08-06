@@ -28,6 +28,25 @@ namespace {
 	return parsed->address;
 }
 
+[[nodiscard]] std::optional<Address> ParseDecodedAddress(
+		const QJsonValue &value) {
+	if (!value.isObject()) {
+		return std::nullopt;
+	}
+	const auto object = value.toObject();
+	const auto workchain = object.value(u"workchain_id"_q);
+	const auto address = object.value(u"address"_q);
+	if (!workchain.isString() || !address.isString()) {
+		return std::nullopt;
+	}
+	const auto parsed = ParseAddress(
+		workchain.toString() + u":"_q + address.toString());
+	if (!parsed) {
+		return std::nullopt;
+	}
+	return parsed->address;
+}
+
 [[nodiscard]] std::optional<int64> PositiveValue(const QJsonValue &value) {
 	const auto result = ApiDetails::ParseInt64String(value);
 	return (result && *result > 0) ? result : std::nullopt;
@@ -53,14 +72,15 @@ namespace {
 	return fallback;
 }
 
-[[nodiscard]] QString ExtractComment(const QJsonObject &message) {
-	const auto decoded = message.value(u"message_content"_q)
+[[nodiscard]] QJsonObject DecodedBody(const QJsonObject &message) {
+	return message.value(u"message_content"_q)
 		.toObject()
-		.value(u"decoded"_q);
-	if (!decoded.isObject()) {
-		return QString();
-	}
-	const auto object = decoded.toObject();
+		.value(u"decoded"_q)
+		.toObject();
+}
+
+[[nodiscard]] QString ExtractComment(const QJsonObject &message) {
+	const auto object = DecodedBody(message);
 	const auto comment = object.value(u"comment"_q);
 	if (comment.isString() && !comment.toString().isEmpty()) {
 		return comment.toString();
@@ -75,12 +95,7 @@ namespace {
 }
 
 [[nodiscard]] QString DecodedType(const QJsonObject &message) {
-	return message.value(u"message_content"_q)
-		.toObject()
-		.value(u"decoded"_q)
-		.toObject()
-		.value(u"@type"_q)
-		.toString();
+	return DecodedBody(message).value(u"@type"_q).toString();
 }
 
 [[nodiscard]] bool TraceHasJettonOrNft(const QJsonObject &transactions) {
@@ -152,6 +167,46 @@ namespace {
 		&& (info.value(u"pending_messages"_q).toInt() > 0);
 }
 
+[[nodiscard]] QString AddressBookDomain(
+		const QJsonObject &addressBook,
+		const Address &address) {
+	if (address.hash.isEmpty()) {
+		return QString();
+	}
+	const auto domain = addressBook
+		.value(FormatRaw(address).toUpper())
+		.toObject()
+		.value(u"domain"_q);
+	return domain.isString() ? domain.toString() : QString();
+}
+
+void ApplyCounterpartyNames(
+		std::vector<TransferItem> &items,
+		const QJsonObject &addressBook) {
+	for (auto &item : items) {
+		item.counterpartyName = AddressBookDomain(
+			addressBook,
+			item.counterparty);
+	}
+}
+
+[[nodiscard]] QJsonObject IndexedNftTokenInfo(
+		const QJsonObject &metadata,
+		const Address &item) {
+	const auto entry = metadata.value(FormatRaw(item).toUpper()).toObject();
+	if (!entry.value(u"is_indexed"_q).toBool()) {
+		return QJsonObject();
+	}
+	const auto list = entry.value(u"token_info"_q).toArray();
+	for (const auto &value : list) {
+		const auto info = value.toObject();
+		if (info.value(u"type"_q).toString() == u"nft_items"_q) {
+			return info;
+		}
+	}
+	return QJsonObject();
+}
+
 [[nodiscard]] TransferItem MakeContractInteraction(
 		const QJsonObject &sourceTx,
 		const std::optional<QJsonObject> &opcodeOutMsg,
@@ -193,6 +248,72 @@ namespace {
 	item.status = pending
 		? TransferItem::Status::Pending
 		: ComputeTxStatus(sourceTx);
+	return item;
+}
+
+[[nodiscard]] std::optional<TransferItem> MakeCollectible(
+		const QJsonObject &tx,
+		const QJsonObject &metadata,
+		TimeId date,
+		quint64 lt,
+		const QByteArray &traceId,
+		const QByteArray &externalHashNorm,
+		bool pending) {
+	auto item = TransferItem();
+	const auto applyLeg = [&](
+			const QJsonObject &message,
+			const QString &itemKey,
+			const QString &ownerKey,
+			bool incoming) {
+		const auto collectible = ParseRawAccount(message.value(itemKey));
+		if (!collectible) {
+			return false;
+		}
+		item.incoming = incoming;
+		item.collectible = *collectible;
+		if (const auto owner = ParseDecodedAddress(
+				DecodedBody(message).value(ownerKey))) {
+			item.counterparty = *owner;
+		}
+		if (const auto value = ApiDetails::ParseInt64String(
+				message.value(u"value"_q))) {
+			item.amountNano = *value;
+		}
+		return true;
+	};
+	auto found = false;
+	const auto outMsgs = tx.value(u"out_msgs"_q).toArray();
+	for (const auto &outMsgValue : outMsgs) {
+		const auto msg = outMsgValue.toObject();
+		if (DecodedType(msg) == u"nft_transfer"_q
+			&& applyLeg(msg, u"destination"_q, u"new_owner"_q, false)) {
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		const auto inMsg = tx.value(u"in_msg"_q).toObject();
+		found = (DecodedType(inMsg) == u"nft_ownership_assigned"_q)
+			&& applyLeg(inMsg, u"source"_q, u"prev_owner"_q, true);
+	}
+	if (!found) {
+		return std::nullopt;
+	}
+	item.kind = TransferItem::Kind::Collectible;
+	const auto info = IndexedNftTokenInfo(metadata, item.collectible);
+	item.collectibleName = info.value(u"name"_q).toString();
+	item.collectibleImageUrl = info.value(u"image"_q).toString();
+	if (const auto fees = ApiDetails::ParseInt64String(
+			tx.value(u"total_fees"_q))) {
+		item.feeNano = *fees;
+	}
+	item.date = date;
+	item.lt = lt;
+	item.traceId = traceId;
+	item.externalHashNorm = externalHashNorm;
+	item.status = pending
+		? TransferItem::Status::Pending
+		: ComputeTxStatus(tx);
 	return item;
 }
 
@@ -270,6 +391,7 @@ namespace {
 
 [[nodiscard]] std::optional<std::vector<TransferItem>> ParseTraceItems(
 		const QJsonObject &trace,
+		const QJsonObject &metadata,
 		const Address &self) {
 	const auto traceIdValue = trace.value(u"trace_id"_q);
 	if (!traceIdValue.isString()) {
@@ -315,6 +437,7 @@ namespace {
 	auto firstOwnTx = std::optional<QJsonObject>();
 	auto contractTx = std::optional<QJsonObject>();
 	auto contractOutMsg = std::optional<QJsonObject>();
+	auto collectible = std::optional<TransferItem>();
 	for (const auto &key : orderedKeys) {
 		const auto tx = transactions.value(key).toObject();
 		const auto account = ParseRawAccount(tx.value(u"account"_q));
@@ -358,8 +481,21 @@ namespace {
 				}
 			}
 		}
+		if (!collectible) {
+			collectible = MakeCollectible(
+				tx,
+				metadata,
+				date,
+				*lt,
+				traceId,
+				extHashNorm,
+				pending);
+		}
 	}
 
+	if (collectible) {
+		return std::vector<TransferItem>{ *collectible };
+	}
 	if (TraceHasJettonOrNft(transactions)) {
 		const auto sourceTx = contractTx ? contractTx : firstOwnTx;
 		if (!sourceTx) {
@@ -429,18 +565,21 @@ std::optional<HistoryPage> ParseTraces(
 	if (document.isNull() || !document.isObject()) {
 		return std::nullopt;
 	}
-	const auto tracesValue = document.object().value(u"traces"_q);
+	const auto root = document.object();
+	const auto tracesValue = root.value(u"traces"_q);
 	if (!tracesValue.isArray()) {
 		return std::nullopt;
 	}
 	const auto traces = tracesValue.toArray();
+	const auto addressBook = root.value(u"address_book"_q).toObject();
+	const auto metadata = root.value(u"metadata"_q).toObject();
 
 	auto page = HistoryPage();
 	for (const auto &traceValue : traces) {
 		if (!traceValue.isObject()) {
 			return std::nullopt;
 		}
-		auto items = ParseTraceItems(traceValue.toObject(), self);
+		auto items = ParseTraceItems(traceValue.toObject(), metadata, self);
 		if (!items) {
 			return std::nullopt;
 		}
@@ -448,6 +587,7 @@ std::optional<HistoryPage> ParseTraces(
 			page.list.push_back(std::move(item));
 		}
 	}
+	ApplyCounterpartyNames(page.list, addressBook);
 	page.hasNext = int(traces.size()) >= limit;
 	return page;
 }
@@ -474,11 +614,13 @@ std::optional<HistoryPage> ParseTransactions(
 	if (document.isNull() || !document.isObject()) {
 		return std::nullopt;
 	}
-	const auto transactionsValue = document.object().value(u"transactions"_q);
+	const auto root = document.object();
+	const auto transactionsValue = root.value(u"transactions"_q);
 	if (!transactionsValue.isArray()) {
 		return std::nullopt;
 	}
 	const auto transactions = transactionsValue.toArray();
+	const auto addressBook = root.value(u"address_book"_q).toObject();
 
 	auto page = HistoryPage();
 	for (const auto &txValue : transactions) {
@@ -526,6 +668,7 @@ std::optional<HistoryPage> ParseTransactions(
 			return std::nullopt;
 		}
 	}
+	ApplyCounterpartyNames(page.list, addressBook);
 	page.hasNext = int(transactions.size()) >= limit;
 	return page;
 }

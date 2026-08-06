@@ -38,33 +38,6 @@ const auto kAcc2Friendly = u"UQC8G3SPXSa3TYV3mP9N1CUqK3nPUbIyrkG-HxnozZVHt2Iv"_q
 	return parsed ? parsed->address : Address();
 }
 
-[[nodiscard]] QString CheckRequest(
-		const HttpRequest &got,
-		bool post,
-		const QString &endpoint,
-		const QString &query,
-		const QByteArray &payload) {
-	if (got.post != post) {
-		return u"post: got "_q
-			+ (got.post ? u"true"_q : u"false"_q)
-			+ u", expected "_q
-			+ (post ? u"true"_q : u"false"_q);
-	} else if (got.endpoint != endpoint) {
-		return u"endpoint: got "_q
-			+ got.endpoint
-			+ u", expected "_q
-			+ endpoint;
-	} else if (got.query != query) {
-		return u"query: got "_q + got.query + u", expected "_q + query;
-	} else if (got.payload != payload) {
-		return u"payload: got "_q
-			+ QString::fromUtf8(got.payload)
-			+ u", expected "_q
-			+ QString::fromUtf8(payload);
-	}
-	return QString();
-}
-
 [[nodiscard]] QString CheckTracesItem(
 		const TransferItem &got,
 		const TransferItem &expected) {
@@ -717,27 +690,171 @@ std::vector<Check> ApiChecks() {
 			return QString();
 		} },
 		{ u"api_traces_nft_collapse_fixture"_q, [] {
-			const auto names = std::vector<QString>{
-				u"api-nft-sent-traces.json"_q,
-				u"api-nft-received-traces.json"_q,
+			struct Case {
+				QString name;
+				bool incoming = false;
 			};
-			for (const auto &name : names) {
-				const auto bytes = ReadFixture(name);
+			const auto cases = std::vector<Case>{
+				{ u"api-nft-sent-traces.json"_q, false },
+				{ u"api-nft-received-traces.json"_q, true },
+			};
+			const auto item = Raw(u"0:CA0CFD519F763102B5BEC9D9E3AF43592EA362"
+				u"FB773FA319EA09C4F162C171E0"_q);
+			const auto owner = Raw(u"0:4E3664FAEE814FBDB6C1CB36D72BAC52D15E1"
+				u"86C11ECD664FE1B3F1A7CFD801D"_q);
+			for (const auto &entry : cases) {
+				const auto bytes = ReadFixture(entry.name);
 				if (bytes.isEmpty()) {
-					return u"fixture read failed: "_q + name;
+					return u"fixture read failed: "_q + entry.name;
 				}
 				const auto page = ParseTraces(bytes, Acc1(), 20);
 				if (!page) {
-					return name + u": parse failed"_q;
+					return entry.name + u": parse failed"_q;
 				} else if (int(page->list.size()) != 1) {
-					return name + u": count "_q
+					return entry.name + u": count "_q
 						+ QString::number(page->list.size());
-				} else if (page->list.front().kind
-					!= TransferItem::Kind::ContractInteraction) {
-					return name + u": expected ContractInteraction"_q;
+				}
+				const auto &got = page->list.front();
+				if (got.kind != TransferItem::Kind::Collectible) {
+					return entry.name + u": expected Collectible, got "_q
+						+ QString::number(int(got.kind));
+				} else if (got.collectible != item) {
+					return entry.name + u": collectible "_q
+						+ FormatRaw(got.collectible);
+				} else if (got.collectibleName != u"Desk Calendar #45754"_q) {
+					return entry.name + u": collectibleName \""_q
+						+ got.collectibleName
+						+ u"\" - both nft traces fixtures are public "
+						u"toncenter exports whose enriched metadata this "
+						u"deployment never serves, so this pins the parse "
+						u"of an indexed block, not a production "
+						u"expectation"_q;
+				} else if (got.incoming != entry.incoming) {
+					return entry.name + u": incoming "_q
+						+ (got.incoming ? u"true"_q : u"false"_q);
+				} else if (got.counterparty != owner) {
+					return entry.name + u": counterparty "_q
+						+ FormatRaw(got.counterparty);
+				} else if (!got.counterpartyName.isEmpty()) {
+					return entry.name + u": counterpartyName \""_q
+						+ got.counterpartyName
+						+ u"\" - that address carries \"domain\": null in "
+						u"both files, so a name here means the lookup "
+						u"keyed on the wrong address"_q;
 				}
 			}
 			return QString();
+		} },
+		{ u"api_traces_nft_unindexed_fixture"_q, [] {
+			const auto name = u"api-nft-received-traces-unindexed.json"_q;
+			const auto bytes = ReadFixture(name);
+			if (bytes.isEmpty()) {
+				return u"fixture read failed: "_q + name;
+			}
+			const auto page = ParseTraces(bytes, Acc1(), 20);
+			if (!page) {
+				return u"parse failed"_q;
+			} else if (int(page->list.size()) != 1) {
+				return u"count: got "_q + QString::number(page->list.size());
+			}
+			const auto item = Raw(u"0:CA0CFD519F763102B5BEC9D9E3AF43592EA362"
+				u"FB773FA319EA09C4F162C171E0"_q);
+			const auto owner = Raw(u"0:4E3664FAEE814FBDB6C1CB36D72BAC52D15E1"
+				u"86C11ECD664FE1B3F1A7CFD801D"_q);
+			const auto &got = page->list.front();
+			if (got.kind != TransferItem::Kind::Collectible) {
+				return u"expected Collectible, got "_q
+					+ QString::number(int(got.kind));
+			} else if (got.collectible != item) {
+				return u"collectible: got "_q + FormatRaw(got.collectible);
+			} else if (!got.incoming) {
+				return u"expected incoming"_q;
+			} else if (got.counterparty != owner) {
+				return u"counterparty: got "_q + FormatRaw(got.counterparty);
+			} else if (!got.collectibleName.isEmpty()
+				|| !got.collectibleImageUrl.isEmpty()) {
+				return u"this is the production metadata shape - "
+					u"\"is_indexed\": false with token_info carrying only "
+					u"type and nft_index - so the name and the image stay "
+					u"empty while the Collectible is still produced; no "
+					u"check anywhere may require an indexed metadata entry "
+					u"to produce a Collectible"_q;
+			}
+			return QString();
+		} },
+		{ u"api_counterparty_name"_q, [] {
+			const auto selfName = u"tolya.ton"_q;
+			const auto receivedName = u"api-ton-received-traces.json"_q;
+			const auto receivedBytes = ReadFixture(receivedName);
+			if (receivedBytes.isEmpty()) {
+				return u"fixture read failed: "_q + receivedName;
+			}
+			const auto received = ParseTraces(receivedBytes, Acc1(), 20);
+			if (!received) {
+				return receivedName + u": parse failed"_q;
+			} else if (int(received->list.size()) != 1) {
+				return receivedName + u": count "_q
+					+ QString::number(received->list.size());
+			} else if (received->list.front().counterpartyName == selfName) {
+				return receivedName + u": reported the self name "_q
+					+ selfName
+					+ u" - both fixtures carry it for the self address, so a "
+					u"lookup keyed on the wrong address cannot pass"_q;
+			} else if (received->list.front().counterpartyName
+				!= u"pumpanddump.ton"_q) {
+				return receivedName + u": got \""_q
+					+ received->list.front().counterpartyName
+					+ u"\""_q;
+			}
+			const auto sentName = u"api-ton-sent-traces.json"_q;
+			const auto sentBytes = ReadFixture(sentName);
+			if (sentBytes.isEmpty()) {
+				return u"fixture read failed: "_q + sentName;
+			}
+			const auto sent = ParseTraces(sentBytes, Acc1(), 20);
+			if (!sent) {
+				return sentName + u": parse failed"_q;
+			} else if (int(sent->list.size()) != 1) {
+				return sentName + u": count "_q
+					+ QString::number(sent->list.size());
+			} else if (sent->list.front().counterpartyName == selfName) {
+				return sentName + u": reported the self name "_q
+					+ selfName
+					+ u" - both fixtures carry it for the self address, so a "
+					u"lookup keyed on the wrong address cannot pass"_q;
+			} else if (!sent->list.front().counterpartyName.isEmpty()) {
+				return sentName + u": expected no name, got \""_q
+					+ sent->list.front().counterpartyName
+					+ u"\""_q;
+			}
+			const auto txName = u"api-transactions-owner1.json"_q;
+			const auto txBytes = ReadFixture(txName);
+			if (txBytes.isEmpty()) {
+				return u"fixture read failed: "_q + txName;
+			}
+			const auto txPage = ParseTransactions(txBytes, Acc1(), 20);
+			if (!txPage) {
+				return txName + u": parse failed"_q;
+			}
+			const auto wanted = Raw(u"0:44413371D7EF4064A0364A2221740AE02ECA"
+				u"C296F2AA5E6D904F3B83B74B1EF8"_q);
+			auto found = false;
+			for (const auto &got : txPage->list) {
+				if (got.counterpartyName == selfName) {
+					return txName + u": reported the self name "_q + selfName;
+				} else if (got.counterparty != wanted) {
+					continue;
+				}
+				found = true;
+				if (got.counterpartyName != u"coneticnews-on-telegram8.ton"_q) {
+					return txName + u": got \""_q
+						+ got.counterpartyName
+						+ u"\""_q;
+				}
+			}
+			return found
+				? QString()
+				: (txName + u": counterparty not found"_q);
 		} },
 		{ u"api_traces_pending_fixture"_q, [] {
 			const auto name = u"api-pending-traces.json"_q;

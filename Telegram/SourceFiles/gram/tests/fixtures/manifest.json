@@ -341,5 +341,33 @@
         "bytes": 468
       }
     ]
+  },
+  "derivedFixtures": {
+    "note": "fixtures produced by editing a committed body rather than by a request; not wire captures",
+    "files": [
+      {
+        "file": "api-nft-received-traces-unindexed.json",
+        "task": "2026/08/06/port-toncenter-nft-and-name-parsers",
+        "derivedFrom": "api-nft-received-traces.json",
+        "transform": "the metadata block rewritten to the shape this deployment's proxy serves for an nft_items entry - \"is_indexed\": false with token_info carrying only type and nft_index; every other byte unchanged",
+        "encodes": "the production metadata shape measured by 2026/08/06/probe-collectible-metadata-and-date-sources in api-traces-owner1-limit5.json and, bare, in api-metadata-address-gift.json",
+        "bytes": 31259
+      }
+    ]
+  },
+  "kitTraceExports": {
+    "note": "byte-preserving copies of kit/packages/walletkit/data/*.json, fetched by that repo's data.sh with curl against public https://toncenter.com/api/v3 with an API key - toncenter's own answers, not captures from the MTProto proxy this app talks to, which is why they carry no apiCaptures.requests entry",
+    "files": [
+      {
+        "file": "api-nft-received-traces.json",
+        "enrichment": "its metadata block reads \"is_indexed\": true with the item's name, image and three extra._image_* imgproxy URLs - a shape this deployment does not serve: 2026/08/06/probe-collectible-metadata-and-date-sources measured 306 metadata entries across 32 answered bodies with zero name and zero image, and every nft_items entry \"is_indexed\": false",
+        "bytes": 32690
+      },
+      {
+        "file": "api-nft-sent-traces.json",
+        "enrichment": "same enriched metadata shape as api-nft-received-traces.json, and the same verdict: this deployment does not serve it",
+        "bytes": 32996
+      }
+    ]
   }
 }

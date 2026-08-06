@@ -27,6 +27,7 @@ namespace {
 	append(WalletChecks());
 	append(ApiChecks());
 	append(RatesChecks());
+	append(NftChecks());
 	return result;
 }
 

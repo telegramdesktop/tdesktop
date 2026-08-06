@@ -25,11 +25,16 @@ struct TransferItem {
 	enum class Kind {
 		Transfer,
 		ContractInteraction,
+		Collectible,
 	};
 
 	Kind kind = Kind::Transfer;
 	bool incoming = false;
 	Address counterparty;
+	QString counterpartyName;
+	Address collectible;
+	QString collectibleName;
+	QString collectibleImageUrl;
 	int64 amountNano = 0;
 	int64 feeNano = 0;
 	QString comment;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "gram/api/gram_api_request.h"
 
 #include <QtCore/QByteArray>
 #include <QtCore/QFile>
@@ -33,6 +34,33 @@ struct Check {
 		+ QString::fromLatin1(expectedHex);
 }
 
+[[nodiscard]] inline QString CheckRequest(
+		const HttpRequest &got,
+		bool post,
+		const QString &endpoint,
+		const QString &query,
+		const QByteArray &payload) {
+	if (got.post != post) {
+		return u"post: got "_q
+			+ (got.post ? u"true"_q : u"false"_q)
+			+ u", expected "_q
+			+ (post ? u"true"_q : u"false"_q);
+	} else if (got.endpoint != endpoint) {
+		return u"endpoint: got "_q
+			+ got.endpoint
+			+ u", expected "_q
+			+ endpoint;
+	} else if (got.query != query) {
+		return u"query: got "_q + got.query + u", expected "_q + query;
+	} else if (got.payload != payload) {
+		return u"payload: got "_q
+			+ QString::fromUtf8(got.payload)
+			+ u", expected "_q
+			+ QString::fromUtf8(payload);
+	}
+	return QString();
+}
+
 [[nodiscard]] inline QByteArray ReadFixture(const QString &name) {
 	auto file = QFile(
 		QString::fromUtf8(GRAM_TEST_FIXTURES_PATH) + u"/"_q + name);
@@ -50,5 +78,6 @@ struct Check {
 [[nodiscard]] std::vector<Check> WalletChecks();
 [[nodiscard]] std::vector<Check> ApiChecks();
 [[nodiscard]] std::vector<Check> RatesChecks();
+[[nodiscard]] std::vector<Check> NftChecks();
 
 } // namespace Gram::Tests
