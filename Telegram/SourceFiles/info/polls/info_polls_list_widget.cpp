@@ -225,7 +225,7 @@ private:
 	bool _newPollButtonShown = true;
 
 	std::unique_ptr<Lottie::Icon> _emptyIcon;
-	Ui::Text::String _emptyText;
+	Ui::Text::String _emptyText = { 1 };
 	bool _emptyAnimated = false;
 
 	QImage _bg;

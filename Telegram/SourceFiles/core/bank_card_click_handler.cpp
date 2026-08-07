@@ -95,7 +95,7 @@ private:
 	const int _height = 0;
 	Status _status = Status::Loading;
 
-	Ui::Text::String _text;
+	Ui::Text::String _text = { 1 };
 
 };
 
