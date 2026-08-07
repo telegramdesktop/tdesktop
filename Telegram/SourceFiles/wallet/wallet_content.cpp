@@ -673,10 +673,6 @@ void AddDetailsCollectibleHeader(
 	const auto relayout = [=] {
 		const auto hasCollection = !media->collection(address).hash.isEmpty();
 		collection->setVisible(hasCollection);
-		const auto width = std::min(available, std::max({
-			st::walletDetailsCollectibleSize,
-			name->width(),
-			hasCollection ? collection->width() : 0 }));
 		const auto nameTop = st::walletDetailsCollectibleSize
 			+ st::walletDetailsCollectibleNameSkip;
 		const auto collectionTop = nameTop
@@ -685,15 +681,15 @@ void AddDetailsCollectibleHeader(
 		const auto height = hasCollection
 			? (collectionTop + collection->height())
 			: (nameTop + name->height());
-		container->resize(width, height);
-		container->setNaturalWidth(width);
-		artwork->moveToLeft((width - artwork->width()) / 2, 0, width);
-		name->moveToLeft((width - name->width()) / 2, nameTop, width);
+		container->resize(available, height);
+		container->setNaturalWidth(available);
+		artwork->moveToLeft((available - artwork->width()) / 2, 0, available);
+		name->moveToLeft((available - name->width()) / 2, nameTop, available);
 		if (hasCollection) {
 			collection->moveToLeft(
-				(width - collection->width()) / 2,
+				(available - collection->width()) / 2,
 				collectionTop,
-				width);
+				available);
 		}
 	};
 	const auto apply = [=] {
