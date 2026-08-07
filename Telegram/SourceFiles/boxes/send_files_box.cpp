@@ -1653,7 +1653,9 @@ void SendFilesBox::pushBlock(int from, int till) {
 				spoilered);
 		}
 		const auto canEditCover = file.isVideoFile()
-			&& (_toPeer->isBroadcast() || _toPeer->isSelf());
+			&& (_toPeer->isBroadcast()
+				|| _toPeer->isSelf()
+				|| _toPeer->isBot());
 		if (canEditCover) {
 			state->menu->addAction(tr::lng_context_edit_cover(tr::now), [=] {
 				editCover(fileIndex);

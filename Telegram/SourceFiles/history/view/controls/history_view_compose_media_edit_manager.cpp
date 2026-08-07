@@ -242,7 +242,7 @@ bool MediaEditManager::CanEditVideoCover(not_null<HistoryItem*> item) {
 	return document
 		&& document->isVideoFile()
 		&& !document->dimensions.isEmpty()
-		&& (peer->isBroadcast() || peer->isSelf());
+		&& (peer->isBroadcast() || peer->isSelf() || peer->isBot());
 }
 
 void MediaEditManager::editVideoCover(
