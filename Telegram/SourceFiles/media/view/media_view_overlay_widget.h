@@ -316,6 +316,7 @@ private:
 
 	[[nodiscard]] auto scaledRecognitionRect(QPoint position)
 	const -> std::optional<Platform::TextRecognition::RectWithText>;
+	[[nodiscard]] bool recognitionTakesMouse(QPoint position) const;
 	void updateRecognitionSelection(QPoint position);
 	void clearRecognitionSelection();
 	bool copyRecognitionSelection();
