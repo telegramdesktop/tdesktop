@@ -281,6 +281,7 @@ struct RichMessageLimits {
 	int maxDepth = 16;
 	int maxMedia = 50;
 	int maxTableCols = 20;
+	int maxButtons = 8;
 };
 
 enum class RichMessageLimitError : unsigned char {
@@ -289,6 +290,7 @@ enum class RichMessageLimitError : unsigned char {
 	Depth,
 	Media,
 	TableColumns,
+	Buttons,
 };
 
 struct RichPageLinkUrl {

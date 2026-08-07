@@ -444,6 +444,20 @@ int ButtonRowMinWidth(int count, const style::MarkdownButtonRow &st) {
 		: 0;
 }
 
+int ButtonRowControlReserve() {
+	return st::ivEditorButtonRowControlSkip
+		+ st::ivEditorButtonRowControlSize;
+}
+
+QRect ButtonRowControlRect(QRect outer) {
+	const auto size = st::ivEditorButtonRowControlSize;
+	return QRect(
+		outer.x() + outer.width() - size,
+		outer.y() + (outer.height() - size) / 2,
+		size,
+		size);
+}
+
 void LayoutButtonRowButtons(
 		std::vector<LaidOutButton> *buttons,
 		TableAlignment alignment,

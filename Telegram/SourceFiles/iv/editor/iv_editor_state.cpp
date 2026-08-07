@@ -421,6 +421,20 @@ bool SetMediaBlockSpoiler(Block *block, bool enabled) {
 		|| (kind == BlockKind::File);
 }
 
+[[nodiscard]] bool ValidRowButtonIndex(const Block *owner, int index) {
+	return owner
+		&& (owner->kind == BlockKind::ButtonRow)
+		&& (index >= 0)
+		&& (index < int(owner->buttons.size()));
+}
+
+[[nodiscard]] RichPage::Button NormalizedRowButton(RichPage::Button button) {
+	button.text.text = Markdown::NormalizeRichButtonLabel(
+		std::move(button.text.text));
+	button.button.text = button.text.text.text;
+	return button;
+}
+
 [[nodiscard]] bool IsTaskList(const std::vector<ListItem> &items) {
 	return std::any_of(
 		items.begin(),
@@ -8862,10 +8876,7 @@ const RichPage::Button *State::rowButtonAt(
 		int index) const {
 	const auto path = convertBlockPath(source);
 	const auto owner = path ? block(*path) : nullptr;
-	if (!owner
-		|| (owner->kind != BlockKind::ButtonRow)
-		|| (index < 0)
-		|| (index >= int(owner->buttons.size()))) {
+	if (!ValidRowButtonIndex(owner, index)) {
 		return nullptr;
 	}
 	return &owner->buttons[index];
@@ -8875,9 +8886,7 @@ ApplyResult State::editRowButtonAt(
 		const Markdown::PreparedEditBlockSource &source,
 		int index,
 		RichPage::Button button) {
-	button.text.text = Markdown::NormalizeRichButtonLabel(
-		std::move(button.text.text));
-	button.button.text = button.text.text.text;
+	button = NormalizedRowButton(std::move(button));
 	return applyCheckedMutation(ApplyResult::Failed, [
 		source,
 		index,
@@ -8885,10 +8894,7 @@ ApplyResult State::editRowButtonAt(
 	](State &candidate) {
 		const auto path = candidate.convertBlockPath(source);
 		const auto owner = path ? candidate.block(*path) : nullptr;
-		if (!owner
-			|| (owner->kind != BlockKind::ButtonRow)
-			|| (index < 0)
-			|| (index >= int(owner->buttons.size()))) {
+		if (!ValidRowButtonIndex(owner, index)) {
 			return CheckedMutationResult<ApplyResult>{
 				.result = ApplyResult::Unchanged,
 			};
@@ -8906,6 +8912,100 @@ ApplyResult State::editRowButtonAt(
 			};
 		}
 		entry = std::move(updated);
+		candidate.rebuild();
+		return CheckedMutationResult<ApplyResult>{
+			.apply = true,
+			.result = ApplyResult::Changed,
+		};
+	});
+}
+
+State::RowButtonRemoveResult State::removeRowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index) {
+	const auto path = convertBlockPath(source);
+	const auto owner = path ? block(*path) : nullptr;
+	if (!ValidRowButtonIndex(owner, index)) {
+		return { .result = ApplyResult::Unchanged };
+	} else if (owner->buttons.size() == 1) {
+		return {
+			.result = ApplyResult::Changed,
+			.caretOrdinal = removeBlock(*path, true),
+			.removedRow = true,
+		};
+	}
+	const auto result = applyCheckedMutation(ApplyResult::Failed, [
+		source,
+		index
+	](State &candidate) {
+		const auto path = candidate.convertBlockPath(source);
+		const auto owner = path ? candidate.block(*path) : nullptr;
+		if (!ValidRowButtonIndex(owner, index)) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		owner->buttons.erase(owner->buttons.begin() + index);
+		candidate.rebuild();
+		return CheckedMutationResult<ApplyResult>{
+			.apply = true,
+			.result = ApplyResult::Changed,
+		};
+	});
+	return { .result = result };
+}
+
+std::optional<RichPage::ButtonAlignment> State::rowAlignment(
+		const Markdown::PreparedEditBlockSource &source) const {
+	const auto path = convertBlockPath(source);
+	const auto owner = path ? block(*path) : nullptr;
+	if (!owner || (owner->kind != BlockKind::ButtonRow)) {
+		return std::nullopt;
+	}
+	return owner->buttonAlignment;
+}
+
+ApplyResult State::setRowAlignment(
+		const Markdown::PreparedEditBlockSource &source,
+		RichPage::ButtonAlignment alignment) {
+	return applyCheckedMutation(ApplyResult::Failed, [
+		source,
+		alignment
+	](State &candidate) {
+		const auto path = candidate.convertBlockPath(source);
+		const auto owner = path ? candidate.block(*path) : nullptr;
+		if (!owner
+			|| (owner->kind != BlockKind::ButtonRow)
+			|| (owner->buttonAlignment == alignment)) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		owner->buttonAlignment = alignment;
+		candidate.rebuild();
+		return CheckedMutationResult<ApplyResult>{
+			.apply = true,
+			.result = ApplyResult::Changed,
+		};
+	});
+}
+
+ApplyResult State::addRowButton(
+		const Markdown::PreparedEditBlockSource &source,
+		RichPage::Button button) {
+	button = NormalizedRowButton(std::move(button));
+	return applyCheckedMutation(ApplyResult::Failed, [
+		source,
+		button = std::move(button)
+	](State &candidate) {
+		const auto path = candidate.convertBlockPath(source);
+		const auto owner = path ? candidate.block(*path) : nullptr;
+		if (!owner || (owner->kind != BlockKind::ButtonRow)) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		owner->buttons.push_back(button);
 		candidate.rebuild();
 		return CheckedMutationResult<ApplyResult>{
 			.apply = true,

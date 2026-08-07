@@ -278,6 +278,8 @@ ivEditorMediaAddIcon: icon {{ "menu/rich/media_add-20x20", windowFgActive }};
 ivEditorMediaUploadRadialSize: 44px;
 ivEditorMediaToCollageIcon: icon {{ "menu/rich/to_collage-20x20", windowFgActive }};
 ivEditorMediaToSlideshowIcon: icon {{ "menu/rich/to_slideshow-20x20", windowFgActive }};
+ivEditorButtonRowControlSize: 22px;
+ivEditorButtonRowControlSkip: 4px;
 ivEditorTableAddCellsIcon: icon {{ "menu/rich/table_add_cells-24x24", menuIconColor }};
 ivEditorTableAddRowAboveIcon: icon {{ "menu/rich/table_add_row_above-24x24", menuIconColor }};
 ivEditorTableAddRowBelowIcon: icon {{ "menu/rich/table_add_row_below-24x24", menuIconColor }};
@@ -294,6 +296,7 @@ ivEditorTableAlignRightIcon: icon {{ "menu/rich/align_right-24x24", menuIconColo
 ivEditorTableAlignTopIcon: icon {{ "menu/rich/align_top-24x24", menuIconColor }};
 ivEditorTableAlignMiddleIcon: icon {{ "menu/rich/align_middle-24x24", menuIconColor }};
 ivEditorTableAlignBottomIcon: icon {{ "menu/rich/align_bottom-24x24", menuIconColor }};
+ivEditorButtonAlignStretchIcon: icon {{ "menu/rich/align_stretch-24x24", menuIconColor }};
 ivEditorTableDeleteCellsIcon: icon {{ "menu/rich/table_delete_cells-24x24", menuIconColor }};
 ivEditorTableDeleteRowsIcon: icon {{ "menu/rich/table_delete_row-24x24", menuIconColor }};
 ivEditorTableDeleteColumnsIcon: icon {{ "menu/rich/table_delete_column-24x24", menuIconColor }};

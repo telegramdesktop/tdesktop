@@ -71,6 +71,8 @@ struct RichButtonPillColors {
 [[nodiscard]] int ButtonRowMinWidth(
 	int count,
 	const style::MarkdownButtonRow &st);
+[[nodiscard]] int ButtonRowControlReserve();
+[[nodiscard]] QRect ButtonRowControlRect(QRect outer);
 void LayoutButtonRowButtons(
 	std::vector<LaidOutButton> *buttons,
 	TableAlignment alignment,

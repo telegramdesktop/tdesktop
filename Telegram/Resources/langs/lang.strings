@@ -7507,6 +7507,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_article_limit_blocks" = "The article has too many blocks.";
 "lng_article_limit_columns" = "The article table has too many columns.";
 "lng_article_limit_media" = "The article has too many media files.";
+"lng_article_limit_buttons" = "The article row has too many buttons.";
 "lng_article_table_truncated" = "The pasted table didn't fit and was truncated.";
 "lng_article_paste_truncated" = "The pasted content didn't fit and was truncated.";
 "lng_article_submit_empty" = "The article can't be empty.";
@@ -7543,6 +7544,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_article_table_delete_table" = "Delete Table";
 "lng_article_table_borderless" = "Borderless Table";
 "lng_article_table_striped" = "Striped Table";
+"lng_article_button_edit" = "Edit";
+"lng_article_button_row_add" = "Add Button";
+"lng_article_button_row_stretch" = "Full Width";
+"lng_article_button_row_align_left" = "Align Left";
+"lng_article_button_row_align_center" = "Align Center";
+"lng_article_button_row_align_right" = "Align Right";
 "lng_polls_menu_item" = "Poll";
 "lng_polls_create" = "Create poll";
 "lng_polls_create_title" = "New poll";

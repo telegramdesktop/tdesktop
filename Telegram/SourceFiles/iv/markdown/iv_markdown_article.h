@@ -262,6 +262,7 @@ enum class MarkdownArticleEditControlHitKind {
 	DetailsToggle,
 	QuoteCollapse,
 	ButtonEdit,
+	ButtonRowMenu,
 };
 
 struct MarkdownArticleEditControlHit {
@@ -277,6 +278,7 @@ struct MarkdownArticleEditControlHit {
 			return listItem.has_value();
 		case MarkdownArticleEditControlHitKind::DetailsToggle:
 		case MarkdownArticleEditControlHitKind::QuoteCollapse:
+		case MarkdownArticleEditControlHitKind::ButtonRowMenu:
 			return block.has_value();
 		case MarkdownArticleEditControlHitKind::ButtonEdit:
 			return block.has_value() && (buttonIndex >= 0);
@@ -301,6 +303,16 @@ inline bool operator!=(
 		MarkdownArticleEditControlHit b) {
 	return !(a == b);
 }
+
+struct MarkdownArticleButtonRowButtonHit {
+	std::optional<PreparedEditBlockSource> block;
+	int index = -1;
+	bool disabled = false;
+
+	[[nodiscard]] bool valid() const {
+		return block.has_value() && (index >= 0);
+	}
+};
 
 struct MarkdownArticleDropLocation {
 	std::optional<PreparedEditDropTarget> target;
@@ -417,6 +429,8 @@ public:
 		const PreparedEditSelection &selection) const;
 	[[nodiscard]] MarkdownArticleEditControlHit editControlHitTest(
 		QPoint point) const;
+	[[nodiscard]] MarkdownArticleButtonRowButtonHit buttonRowButtonHitTest(
+		QPoint point) const;
 	void addTaskMarkerRipple(
 		const PreparedEditListItemSource &source,
 		QPoint point);
@@ -469,6 +483,7 @@ public:
 	[[nodiscard]] QRect segmentRect(int segmentIndex) const;
 	[[nodiscard]] std::vector<MarkdownArticleMediaGeometry>
 		mediaBlockGeometries() const;
+	[[nodiscard]] std::vector<QRect> buttonRowControlRects() const;
 	void setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index);

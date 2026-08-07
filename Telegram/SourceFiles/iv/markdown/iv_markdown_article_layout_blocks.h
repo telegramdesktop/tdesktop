@@ -88,6 +88,7 @@ struct LaidOutBlockLogicalGeometry {
 	QRect markerRect;
 	QRect contentRect;
 	QRect collapseControlRect;
+	QRect buttonRowControlRect;
 	QRect formulaRect;
 	QRect tableRect;
 	QRect mediaRect;
@@ -130,6 +131,7 @@ struct LaidOutBlock {
 	QRect markerRect;
 	QRect contentRect;
 	QRect collapseControlRect;
+	QRect buttonRowControlRect;
 	QRect formulaRect;
 	QRect tableRect;
 	QRect mediaRect;

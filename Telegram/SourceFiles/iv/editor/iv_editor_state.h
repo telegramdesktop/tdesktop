@@ -459,6 +459,22 @@ public:
 		const Markdown::PreparedEditBlockSource &source,
 		int index,
 		RichPage::Button button);
+	struct RowButtonRemoveResult {
+		ApplyResult result = ApplyResult::Failed;
+		std::optional<int> caretOrdinal;
+		bool removedRow = false;
+	};
+	[[nodiscard]] RowButtonRemoveResult removeRowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index);
+	[[nodiscard]] std::optional<RichPage::ButtonAlignment> rowAlignment(
+		const Markdown::PreparedEditBlockSource &source) const;
+	[[nodiscard]] ApplyResult setRowAlignment(
+		const Markdown::PreparedEditBlockSource &source,
+		RichPage::ButtonAlignment alignment);
+	[[nodiscard]] ApplyResult addRowButton(
+		const Markdown::PreparedEditBlockSource &source,
+		RichPage::Button button);
 	[[nodiscard]] ParagraphBoundaryJoinResult joinActiveParagraphBoundary(
 		bool forward);
 	[[nodiscard]] bool insertBlockAfterActive(

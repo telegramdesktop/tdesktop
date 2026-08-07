@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_native_richtext.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
+#include "iv/markdown/iv_markdown_slideshow_chrome.h"
 #include "iv/iv_search_bar.h"
 #include "iv/iv_search_controller.h"
 #include "lang/lang_keys.h"
@@ -5376,6 +5377,16 @@ void Widget::contextMenuEvent(QContextMenuEvent *e) {
 		e->accept();
 		return;
 	}
+	const auto rowButton = _article->buttonRowButtonHitTest(articlePoint);
+	if (rowButton.valid()) {
+		showRowButtonMenu(
+			*rowButton.block,
+			rowButton.index,
+			rowButton.disabled,
+			e->globalPos());
+		e->accept();
+		return;
+	}
 	const auto owner = StructuralOwnerFromHit(editHit);
 	const auto cell = TableCellFromOwner(owner);
 	if (cell) {
@@ -6630,6 +6641,115 @@ void Widget::showGroupedMediaMenu(
 	menu->popup(globalPos);
 }
 
+void Widget::showRowButtonMenu(
+		const Markdown::PreparedEditBlockSource &block,
+		int index,
+		bool disabled,
+		QPoint globalPos) {
+	if (!_state->rowButtonAt(block, index)) {
+		return;
+	}
+	const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+	if (!disabled) {
+		menu->addAction(
+			tr::lng_article_button_edit(tr::now),
+			[=] {
+				if (const auto request = rowButtonEditRequest(block, index)) {
+					showButtonEditBox(*request);
+				}
+			},
+			&st::menuIconEdit);
+	}
+	Ui::Menu::CreateAddActionCallback(menu)({
+		.text = tr::lng_box_remove(tr::now),
+		.handler = [=] {
+			removeRowButton(block, index);
+		},
+		.icon = &st::menuIconDeleteAttention,
+		.isAttention = true,
+	});
+	if (menu->empty()) {
+		menu->deleteLater();
+		return;
+	}
+	menu->popup(globalPos);
+}
+
+void Widget::removeRowButton(
+		const Markdown::PreparedEditBlockSource &block,
+		int index) {
+	auto removal = State::RowButtonRemoveResult();
+	[[maybe_unused]] const auto applied = applyMutationWithFieldCommit([&] {
+		removal = _state->removeRowButtonAt(block, index);
+		return removal.result;
+	}, [&] {
+		if (!removal.removedRow) {
+			return;
+		} else if (removal.caretOrdinal) {
+			activateTextOrdinal(*removal.caretOrdinal, 0);
+		} else {
+			activateInitialNode();
+		}
+	});
+}
+
+void Widget::showButtonRowMenu(
+		const Markdown::PreparedEditBlockSource &block,
+		QPoint globalPos) {
+	const auto current = _state->rowAlignment(block);
+	if (!current) {
+		return;
+	}
+	const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+	menu->addAction(
+		tr::lng_article_button_row_add(tr::now),
+		[=] {
+			showButtonEditBox({
+				.target = ButtonEditRequest::Target::AppendToRow,
+				.block = block,
+			});
+		},
+		&st::ivEditorToolbarButtonIcon);
+	const auto applyAlignment = [=](RichPage::ButtonAlignment alignment) {
+		[[maybe_unused]] const auto applied = applyMutationWithFieldCommit([=] {
+			return _state->setRowAlignment(block, alignment);
+		}, [] {
+		});
+	};
+	const auto addAlignment = [&](
+			const QString &text,
+			RichPage::ButtonAlignment alignment,
+			const style::icon *icon) {
+		Menu::AddCheckedAction(
+			menu,
+			text,
+			[=] { applyAlignment(alignment); },
+			icon,
+			(*current == alignment));
+	};
+	addAlignment(
+		tr::lng_article_button_row_stretch(tr::now),
+		RichPage::ButtonAlignment::Stretch,
+		&st::ivEditorButtonAlignStretchIcon);
+	addAlignment(
+		tr::lng_article_button_row_align_left(tr::now),
+		RichPage::ButtonAlignment::Left,
+		&st::ivEditorTableAlignLeftIcon);
+	addAlignment(
+		tr::lng_article_button_row_align_center(tr::now),
+		RichPage::ButtonAlignment::Center,
+		&st::ivEditorTableAlignCenterIcon);
+	addAlignment(
+		tr::lng_article_button_row_align_right(tr::now),
+		RichPage::ButtonAlignment::Right,
+		&st::ivEditorTableAlignRightIcon);
+	menu->popup(globalPos);
+}
+
 void Widget::showStructuralPhotoVideoMenu(QPoint globalPos) {
 	if (!structuralPhotoVideoSelectionAvailable()) {
 		return;
@@ -6995,12 +7115,11 @@ void Widget::paintMediaControls(Painter &p, QPoint topLeft) {
 			continue;
 		}
 		const auto paintCircleIcon = [&](QRect circle, const style::icon &icon) {
-			const auto target = circle.translated(topLeft);
-			auto hq = PainterHighQualityEnabler(p);
-			p.setPen(Qt::NoPen);
-			p.setBrush(st::roundedBg);
-			p.drawEllipse(target);
-			icon.paintInCenter(p, target);
+			Markdown::PaintRoundButton(
+				p,
+				circle.translated(topLeft),
+				st::roundedBg,
+				icon);
 		};
 		if (block->kind == RichPage::BlockKind::GroupedMedia) {
 			const auto active = geo.activeItemIndex;
@@ -7036,6 +7155,16 @@ void Widget::paintMediaControls(Painter &p, QPoint topLeft) {
 			paintCircleIcon(layout.threeDots, st::sendBoxAlbumButtonMediaMore);
 			paintCircleIcon(layout.plus, st::ivEditorMediaAddIcon);
 		}
+	}
+}
+
+void Widget::paintButtonRowControls(Painter &p, QPoint topLeft) {
+	for (const auto &rect : _article->buttonRowControlRects()) {
+		Markdown::PaintRoundButton(
+			p,
+			rect.translated(topLeft),
+			st::roundedBg,
+			st::sendBoxAlbumButtonMediaMore);
 	}
 }
 
@@ -7616,6 +7745,11 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 					}
 				}
 				break;
+			case Markdown::MarkdownArticleEditControlHitKind::ButtonRowMenu:
+				if (pressedControl.block) {
+					showButtonRowMenu(*pressedControl.block, e->globalPos());
+				}
+				break;
 			case Markdown::MarkdownArticleEditControlHitKind::None:
 				break;
 			}
@@ -7957,6 +8091,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 		textPaintContext(e->rect().translated(-topLeft.x(), -topLeft.y())));
 	p.restore();
 	paintMediaControls(p, topLeft);
+	paintButtonRowControls(p, topLeft);
 	if (!_articleSelectionDrag.indicatorRect.isEmpty()) {
 		auto color = st::windowActiveTextFg->c;
 		color.setAlphaF(color.alphaF() * 0.7);
@@ -9354,6 +9489,11 @@ ApplyResult Widget::applyButtonEditResult(
 				request.block,
 				request.buttonIndex,
 				makeRowButton());
+		}, [] {
+		});
+	} else if (request.target == ButtonEditRequest::Target::AppendToRow) {
+		return applyMutationWithFieldCommit([&] {
+			return _state->addRowButton(request.block, makeRowButton());
 		}, [] {
 		});
 	} else if (request.target == ButtonEditRequest::Target::InlineToken) {

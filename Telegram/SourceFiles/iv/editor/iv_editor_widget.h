@@ -515,6 +515,7 @@ private:
 			CreateInline,
 			InlineToken,
 			RowButton,
+			AppendToRow,
 		};
 		Target target = Target::CreateInline;
 		RichButtonEditData data;
@@ -865,6 +866,17 @@ private:
 		const State::BlockPath &path,
 		int itemIndex,
 		QPoint globalPos);
+	void showRowButtonMenu(
+		const Markdown::PreparedEditBlockSource &block,
+		int index,
+		bool disabled,
+		QPoint globalPos);
+	void removeRowButton(
+		const Markdown::PreparedEditBlockSource &block,
+		int index);
+	void showButtonRowMenu(
+		const Markdown::PreparedEditBlockSource &block,
+		QPoint globalPos);
 	void showStructuralPhotoVideoMenu(QPoint globalPos);
 	[[nodiscard]] bool showMediaMenuFromHit(
 		const Markdown::PreparedEditHit &hit,
@@ -896,6 +908,7 @@ private:
 		bool spoiler,
 		State::ReplaceTarget target);
 	void paintMediaControls(Painter &p, QPoint topLeft);
+	void paintButtonRowControls(Painter &p, QPoint topLeft);
 	struct MediaControlLayout {
 		QRect threeDots;
 		QRect plus;

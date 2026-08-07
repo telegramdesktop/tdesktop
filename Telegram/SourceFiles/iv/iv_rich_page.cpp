@@ -189,7 +189,6 @@ enum class OrderedMarkerType {
 const auto PhotoLargeLevels = u"ydxcwmbsa"_q;
 constexpr auto kDefaultMapWidth = 400;
 constexpr auto kDefaultMapHeight = 200;
-constexpr auto kMaxButtonRowButtons = 8;
 
 [[nodiscard]] int NonZeroMapWidth(int width) {
 	return (width > 0) ? width : kDefaultMapWidth;
@@ -251,6 +250,7 @@ struct RichMessageMetrics {
 	int maxDepth = 0;
 	int mediaCount = 0;
 	int maxTableColumns = 0;
+	int maxRowButtons = 0;
 	int tableColumnMeasurementLimit = 0;
 };
 
@@ -480,6 +480,9 @@ void AccumulateBlockMetrics(
 	for (const auto &button : block.buttons) {
 		AccumulateTextLength(metrics, button.text);
 	}
+	metrics->maxRowButtons = std::max(
+		metrics->maxRowButtons,
+		int(block.buttons.size()));
 	if (IsMediaKind(block.kind)) {
 		++metrics->mediaCount;
 	}
@@ -1676,7 +1679,9 @@ void AppendBlock(
 			? ButtonAlignment::Right
 			: ButtonAlignment::Stretch;
 		const auto &list = data.vbuttons().v;
-		const auto count = std::min(int(list.size()), kMaxButtonRowButtons);
+		const auto count = std::min(
+			int(list.size()),
+			RichMessageLimits().maxButtons);
 		parsed.buttons.reserve(count);
 		for (auto i = 0; i != count; ++i) {
 			const auto &fields = list[i].data();
@@ -2443,6 +2448,8 @@ std::optional<RichMessageLimitError> ValidateRichMessage(
 		return RichMessageLimitError::Media;
 	} else if (metrics.maxTableColumns > limits.maxTableCols) {
 		return RichMessageLimitError::TableColumns;
+	} else if (metrics.maxRowButtons > limits.maxButtons) {
+		return RichMessageLimitError::Buttons;
 	}
 	return std::nullopt;
 }

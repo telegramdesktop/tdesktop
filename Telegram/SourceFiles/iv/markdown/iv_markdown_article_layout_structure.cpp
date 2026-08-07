@@ -341,6 +341,7 @@ void RefreshLogicalGeometry(LaidOutBlock *block) {
 		.markerRect = block->markerRect,
 		.contentRect = block->contentRect,
 		.collapseControlRect = block->collapseControlRect,
+		.buttonRowControlRect = block->buttonRowControlRect,
 		.formulaRect = block->formulaRect,
 		.tableRect = block->tableRect,
 		.mediaRect = block->mediaRect,
@@ -364,6 +365,7 @@ void ClearBlockGeometry(LaidOutBlock *block) {
 	block->markerRect = QRect();
 	block->contentRect = QRect();
 	block->collapseControlRect = QRect();
+	block->buttonRowControlRect = QRect();
 	block->formulaRect = QRect();
 	block->tableRect = QRect();
 	block->mediaRect = QRect();
@@ -1305,7 +1307,8 @@ void FinalizeOwnerSelection(
 		const auto minimum = std::max(
 			ButtonRowMinWidth(
 				int(prepared.buttonRow.buttons.size()),
-				st.buttonRow),
+				st.buttonRow)
+				+ (context.editMode ? ButtonRowControlReserve() : 0),
 			1);
 		analysis.contentMinimumWidth = minimum;
 		analysis.contentPreferredWidth = minimum;
@@ -1981,7 +1984,8 @@ void FinalizeOwnerSelection(
 		const auto minimum = std::max(
 			ButtonRowMinWidth(
 				int(prepared.buttonRow.buttons.size()),
-				st.buttonRow),
+				st.buttonRow)
+				+ (context.editMode ? ButtonRowControlReserve() : 0),
 			1);
 		analysis.contentMinimumWidth = minimum;
 		analysis.contentPreferredWidth = minimum;

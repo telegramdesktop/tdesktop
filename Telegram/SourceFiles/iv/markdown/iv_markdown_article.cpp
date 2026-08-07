@@ -1625,6 +1625,7 @@ void RestoreLogicalBlockGeometry(LaidOutBlock *block) {
 	block->markerRect = block->logicalGeometry.markerRect;
 	block->contentRect = block->logicalGeometry.contentRect;
 	block->collapseControlRect = block->logicalGeometry.collapseControlRect;
+	block->buttonRowControlRect = block->logicalGeometry.buttonRowControlRect;
 	block->formulaRect = block->logicalGeometry.formulaRect;
 	block->tableRect = block->logicalGeometry.tableRect;
 	block->mediaRect = block->logicalGeometry.mediaRect;
@@ -1740,6 +1741,9 @@ void ApplyTranslatedDescendantGeometry(
 		state.viewport);
 	block->collapseControlRect = ClipRectToViewport(
 		TranslateRect(block->collapseControlRect, state.shift),
+		state.viewport);
+	block->buttonRowControlRect = ClipRectToViewport(
+		TranslateRect(block->buttonRowControlRect, state.shift),
 		state.viewport);
 	block->formulaRect = TranslateRect(block->formulaRect, state.shift);
 	block->tableRect = TranslateRect(block->tableRect, state.shift);
@@ -2037,6 +2041,25 @@ void CollectMediaBlockGeometries(
 	}
 }
 
+[[nodiscard]] bool ButtonRowControlFullyVisible(const LaidOutBlock &block) {
+	return !block.buttonRowControlRect.isEmpty()
+		&& (block.buttonRowControlRect.width()
+			== block.logicalGeometry.buttonRowControlRect.width());
+}
+
+void CollectButtonRowControlRects(
+		std::vector<QRect> *out,
+		const std::vector<LaidOutBlock> &blocks) {
+	for (const auto &block : blocks) {
+		if (ButtonRowControlFullyVisible(block)) {
+			out->push_back(block.buttonRowControlRect);
+		}
+		if (!block.children.empty()) {
+			CollectButtonRowControlRects(out, block.children);
+		}
+	}
+}
+
 [[nodiscard]] PreparedEditHit EditFallbackHitForBlock(
 		const LaidOutBlock &block) {
 	if (block.editListItem) {
@@ -2260,22 +2283,64 @@ void CollectMediaBlockGeometries(
 	return {};
 }
 
+[[nodiscard]] MarkdownArticleButtonRowButtonHit ButtonRowButtonHitForBlocks(
+	const std::vector<LaidOutBlock> &blocks,
+	QPoint point);
+
+[[nodiscard]] MarkdownArticleButtonRowButtonHit ButtonRowButtonHitForBlock(
+		const LaidOutBlock &block,
+		QPoint point) {
+	if (block.kind != PreparedBlockKind::ButtonRow) {
+		if (!block.children.empty()) {
+			return ButtonRowButtonHitForBlocks(block.children, point);
+		}
+		return {};
+	} else if (!block.editBlock) {
+		return {};
+	}
+	const auto index = ButtonRowHitIndex(block.buttons, point);
+	if (index < 0) {
+		return {};
+	}
+	return {
+		.block = *block.editBlock,
+		.index = index,
+		.disabled = (block.buttons[index].type
+			== HistoryMessageMarkupButton::Type::Disabled),
+	};
+}
+
+[[nodiscard]] MarkdownArticleButtonRowButtonHit ButtonRowButtonHitForBlocks(
+		const std::vector<LaidOutBlock> &blocks,
+		QPoint point) {
+	for (const auto &block : blocks) {
+		if (ContainsPoint(block.outer, point)) {
+			return ButtonRowButtonHitForBlock(block, point);
+		}
+	}
+	return {};
+}
+
 [[nodiscard]] MarkdownArticleEditControlHit EditControlHitForButtonRowBlock(
 		const LaidOutBlock &block,
 		QPoint point) {
 	if (!block.editBlock) {
 		return {};
+	} else if (ButtonRowControlFullyVisible(block)
+		&& ContainsPoint(block.buttonRowControlRect, point)) {
+		return {
+			.kind = MarkdownArticleEditControlHitKind::ButtonRowMenu,
+			.block = *block.editBlock,
+		};
 	}
-	const auto index = ButtonRowHitIndex(block.buttons, point);
-	if ((index < 0)
-		|| (block.buttons[index].type
-			== HistoryMessageMarkupButton::Type::Disabled)) {
+	const auto hit = ButtonRowButtonHitForBlock(block, point);
+	if (!hit.valid() || hit.disabled) {
 		return {};
 	}
 	return {
 		.kind = MarkdownArticleEditControlHitKind::ButtonEdit,
-		.block = *block.editBlock,
-		.buttonIndex = index,
+		.block = *hit.block,
+		.buttonIndex = hit.index,
 	};
 }
 
@@ -3764,6 +3829,7 @@ public:
 	[[nodiscard]] PreparedEditHit editHitTest(QPoint point) const;
 	[[nodiscard]] std::vector<MarkdownArticleMediaGeometry>
 		mediaBlockGeometries() const;
+	[[nodiscard]] std::vector<QRect> buttonRowControlRects() const;
 	void setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index);
@@ -3775,6 +3841,8 @@ public:
 		QPoint point,
 		const PreparedEditSelection &selection) const;
 	[[nodiscard]] MarkdownArticleEditControlHit editControlHitTest(
+		QPoint point) const;
+	[[nodiscard]] MarkdownArticleButtonRowButtonHit buttonRowButtonHitTest(
 		QPoint point) const;
 
 	void clickHandlerActiveChanged(
@@ -4634,6 +4702,12 @@ MarkdownArticle::Impl::mediaBlockGeometries() const {
 	return result;
 }
 
+std::vector<QRect> MarkdownArticle::Impl::buttonRowControlRects() const {
+	auto result = std::vector<QRect>();
+	CollectButtonRowControlRects(&result, _blocks);
+	return result;
+}
+
 void MarkdownArticle::Impl::setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index) {
@@ -4726,6 +4800,11 @@ MarkdownArticleDropLocation MarkdownArticle::Impl::editStructuralDropTarget(
 MarkdownArticleEditControlHit MarkdownArticle::Impl::editControlHitTest(
 		QPoint point) const {
 	return EditControlHitForBlocks(_blocks, point);
+}
+
+auto MarkdownArticle::Impl::buttonRowButtonHitTest(QPoint point) const
+-> MarkdownArticleButtonRowButtonHit {
+	return ButtonRowButtonHitForBlocks(_blocks, point);
 }
 
 int MarkdownArticle::Impl::anchorTop(const QString &anchorId) const {
@@ -6847,6 +6926,11 @@ MarkdownArticleEditControlHit MarkdownArticle::editControlHitTest(
 	return _impl->editControlHitTest(point);
 }
 
+MarkdownArticleButtonRowButtonHit MarkdownArticle::buttonRowButtonHitTest(
+		QPoint point) const {
+	return _impl->buttonRowButtonHitTest(point);
+}
+
 void MarkdownArticle::addTaskMarkerRipple(
 		const PreparedEditListItemSource &source,
 		QPoint point) {
@@ -6996,6 +7080,10 @@ QRect MarkdownArticle::segmentRect(int segmentIndex) const {
 std::vector<MarkdownArticleMediaGeometry>
 MarkdownArticle::mediaBlockGeometries() const {
 	return _impl->mediaBlockGeometries();
+}
+
+std::vector<QRect> MarkdownArticle::buttonRowControlRects() const {
+	return _impl->buttonRowControlRects();
 }
 
 void MarkdownArticle::setGroupedActiveIndex(

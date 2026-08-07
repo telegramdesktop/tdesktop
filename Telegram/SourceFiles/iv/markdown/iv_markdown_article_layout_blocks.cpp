@@ -872,6 +872,7 @@ void FillMediaCaption(
 		.markerRect = block.markerRect,
 		.contentRect = block.contentRect,
 		.collapseControlRect = block.collapseControlRect,
+		.buttonRowControlRect = block.buttonRowControlRect,
 		.formulaRect = block.formulaRect,
 		.tableRect = block.tableRect,
 		.mediaRect = block.mediaRect,
@@ -900,6 +901,7 @@ void ClearBlockGeometry(LaidOutBlock *block) {
 	block->markerRect = QRect();
 	block->contentRect = QRect();
 	block->collapseControlRect = QRect();
+	block->buttonRowControlRect = QRect();
 	block->formulaRect = QRect();
 	block->tableRect = QRect();
 	block->mediaRect = QRect();
@@ -3095,7 +3097,8 @@ void UpdateLaidOutLeafContent(
 	const style::Markdown &st,
 	int left,
 	int top,
-	int width);
+	int width,
+	LayoutContext context);
 [[nodiscard]] std::optional<int> LayoutRelatedArticleBlockGeometry(
 	const PreparedBlock &prepared,
 	LaidOutBlock *block,
@@ -3599,7 +3602,8 @@ LaidOutBlock LayoutButtonRowBlock(
 		st,
 		left,
 		top,
-		width);
+		width,
+		context);
 	Expects(bottom.has_value());
 	return FinalizeLaidOutBlock(std::move(block));
 }
@@ -4715,24 +4719,29 @@ LaidOutBlock LayoutGroupedMediaBlock(
 // this point on the button rects live in exactly the same coordinate space
 // as block->outer, which is what paint, hit testing and the ripple local
 // point all assume, and what the retained relayout path keeps true when it
-// re-runs this function at a different width.
+// re-runs this function at a different width. In the editor the buttons take
+// only the band left of the reserved row control, while block->outer keeps
+// spanning the full width, so no button can ever sit under that control.
 [[nodiscard]] std::optional<int> LayoutButtonRowBlockGeometry(
 		const PreparedBlock &prepared,
 		LaidOutBlock *block,
 		const style::Markdown &st,
 		int left,
 		int top,
-		int width) {
+		int width,
+		LayoutContext context) {
 	if (!block) {
 		return std::nullopt;
 	}
 	ClearBlockGeometry(block);
 	const auto &style = st.buttonRow;
 	const auto blockWidth = std::max(width, 1);
+	const auto reserve = context.editMode ? ButtonRowControlReserve() : 0;
+	const auto bandWidth = std::max(blockWidth - reserve, 1);
 	LayoutButtonRowButtons(
 		&block->buttons,
 		prepared.flowAlignment,
-		blockWidth,
+		bandWidth,
 		style);
 	const auto shift = QPoint(left, top);
 	for (auto &button : block->buttons) {
@@ -4747,6 +4756,9 @@ LaidOutBlock LayoutGroupedMediaBlock(
 	}
 	block->outer = QRect(left, top, blockWidth, style.height);
 	block->contentRect = block->outer;
+	block->buttonRowControlRect = reserve
+		? ButtonRowControlRect(block->outer)
+		: QRect();
 	RefreshButtonRowHandlers(
 		block->buttonRowRuntime,
 		prepared.buttonRow,
@@ -5058,7 +5070,8 @@ std::optional<int> RecountSimpleLaidOutBlock(
 			st,
 			left,
 			top,
-			width);
+			width,
+			context);
 	case PreparedBlockKind::DisplayMath:
 		return LayoutDisplayMathBlockGeometry(
 			prepared,

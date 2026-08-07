@@ -4202,6 +4202,9 @@ private:
 		case RichMessageLimitError::TableColumns:
 			showToast(tr::lng_article_limit_columns(tr::now));
 			return;
+		case RichMessageLimitError::Buttons:
+			showToast(tr::lng_article_limit_buttons(tr::now));
+			return;
 		}
 		showToast(tr::lng_edit_error(tr::now));
 	}
