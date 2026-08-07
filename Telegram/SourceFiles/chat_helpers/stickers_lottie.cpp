@@ -332,15 +332,15 @@ not_null<DocumentData*> GenerateLocalSticker(
 		.caption = {},
 		.idOverride = LocalStickerId(path),
 	});
-	task.process({ .generateGoodThumbnail = false });
+	task.process({
+		.generateGoodThumbnail = false,
+		.generateThumbnailBytes = false,
+	});
 	const auto result = task.peekResult();
 	Assert(result != nullptr);
 	const auto document = session->data().processDocument(
 		result->document,
-		Images::FromImageInMemory(
-			result->thumb,
-			"WEBP",
-			result->thumbbytes));
+		ImageWithLocation());
 	document->setLocation(Core::FileLocation(path));
 
 	Ensures(document->sticker());

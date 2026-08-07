@@ -25,6 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr char kPartialPrefix[] = "partial:";
+constexpr auto kPartialPrefixSize = int(sizeof(kPartialPrefix) - 1);
+
 class FromMemoryLoader final : public FileLoader {
 public:
 	FromMemoryLoader(
@@ -215,9 +218,9 @@ void FileLoader::localLoaded(
 		start();
 		return;
 	}
-	const auto partial = result.data.startsWith("partial:");
-	constexpr auto kPrefix = 8;
-	if (partial	&& result.data.size() < _loadSize + kPrefix) {
+	const auto partial = result.data.startsWith(kPartialPrefix);
+	if (partial
+		&& result.data.size() < _loadSize + kPartialPrefixSize) {
 		_localStatus = LocalStatus::NotFound;
 		if (checkForOpen()) {
 			startLoadingWithPartial(result.data);
@@ -230,8 +233,8 @@ void FileLoader::localLoaded(
 	}
 	finishWithBytes(partial
 		? QByteArray::fromRawData(
-			result.data.data() + kPrefix,
-			result.data.size() - kPrefix)
+			result.data.data() + kPartialPrefixSize,
+			result.data.size() - kPartialPrefixSize)
 		: result.data);
 }
 
@@ -264,6 +267,7 @@ bool FileLoader::checkForOpen() {
 
 void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 	const auto readImage = (_locationType != AudioFileLocation);
+	const auto loadSize = _loadSize;
 	auto done = [=, guard = _localLoading.make_guard()](
 			QByteArray &&value,
 			QImage &&image,
@@ -282,12 +286,21 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 	};
 	_session->data().cache().get(key, [=, callback = std::move(done)](
 			QByteArray &&value) mutable {
-		if (readImage && !value.startsWith("partial:")) {
+		const auto partial = value.startsWith(kPartialPrefix);
+		const auto enough = !partial
+			|| (value.size() >= loadSize + kPartialPrefixSize);
+		if (readImage && enough) {
 			crl::async([
 				value = std::move(value),
+				partial,
 				done = std::move(callback)
 			]() mutable {
-				auto read = Images::Read({ .content = value });
+				const auto content = partial
+					? QByteArray::fromRawData(
+						value.data() + kPartialPrefixSize,
+						value.size() - kPartialPrefixSize)
+					: value;
+				auto read = Images::Read({ .content = content });
 				if (!read.image.isNull()) {
 					done(
 						std::move(value),
@@ -463,9 +476,28 @@ bool FileLoader::finalizeResult() {
 				Storage::Cache::Database::TaggedValue(
 					base::duplicate((!_fullSize || _data.size() == _fullSize)
 						? _data
-						: ("partial:" + _data)),
+						: (QByteArray(kPartialPrefix) + _data)),
 					_cacheTag));
 		}
+	}
+	if (_locationType == UnknownFileLocation && !_data.isEmpty()) {
+		const auto weak = base::make_weak(this);
+		crl::async([weak, data = base::duplicate(_data)]() mutable {
+			auto read = Images::Read({ .content = data });
+			crl::on_main(weak, [
+				weak,
+				read = std::move(read)
+			]() mutable {
+				if (!read.image.isNull()) {
+					weak->_imageData = std::move(read.image);
+					weak->_imageFormat = std::move(read.format);
+				}
+				const auto session = weak->_session;
+				weak->_updates.fire_done();
+				session->notifyDownloaderTaskFinished();
+			});
+		});
+		return true;
 	}
 	const auto session = _session;
 	_updates.fire_done();

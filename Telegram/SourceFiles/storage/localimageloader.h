@@ -256,6 +256,7 @@ public:
 
 	struct ProcessArgs {
 		bool generateGoodThumbnail = true;
+		bool generateThumbnailBytes = true;
 	};
 	void process(ProcessArgs &&args);
 

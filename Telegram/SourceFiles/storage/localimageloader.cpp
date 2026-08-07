@@ -114,9 +114,10 @@ struct PreparedFileThumbnail {
 		PreparedFileThumbnail &&prepared,
 		const QString &filemime,
 		int64 filesize,
-		bool isSticker) {
+		bool isSticker,
+		bool generateBytes) {
 	prepared.name = isSticker ? u"thumb.webp"_q : u"thumb.jpg"_q;
-	if (FileThumbnailUploadRequired(filemime, filesize)) {
+	if (generateBytes && FileThumbnailUploadRequired(filemime, filesize)) {
 		const auto format = isSticker ? "WEBP" : "JPG";
 		auto buffer = QBuffer(&prepared.bytes);
 		prepared.image.save(&buffer, format, kThumbnailQuality);
@@ -970,7 +971,8 @@ void FileLoadTask::process(ProcessArgs &&args) {
 		std::move(thumbnail),
 		filemime,
 		filesize,
-		isSticker);
+		isSticker,
+		args.generateThumbnailBytes);
 
 	if (_type == SendMediaType::Photo && photoThumbs.empty()) {
 		_type = SendMediaType::File;

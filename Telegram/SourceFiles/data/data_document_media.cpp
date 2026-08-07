@@ -279,7 +279,7 @@ void DocumentMedia::setVideoThumbnail(QByteArray content) {
 }
 
 void DocumentMedia::checkStickerLarge() {
-	if (_sticker) {
+	if (_sticker || _stickerLoading) {
 		return;
 	}
 	const auto data = _owner->sticker();
@@ -290,15 +290,50 @@ void DocumentMedia::checkStickerLarge() {
 	if (data->isAnimated() || !loaded()) {
 		return;
 	}
-	if (_bytes.isEmpty()) {
-		const auto &loc = _owner->location(true);
-		if (loc.accessEnable()) {
-			_sticker = std::make_unique<Image>(loc.name());
-			loc.accessDisable();
-		}
-	} else {
-		_sticker = std::make_unique<Image>(_bytes);
+	auto location = _bytes.isEmpty()
+		? std::make_unique<Core::FileLocation>(_owner->location(true))
+		: nullptr;
+	const auto active = _owner->activeMediaView();
+	if (active.get() != this) {
+		return;
 	}
+	_stickerLoading = true;
+	const auto weak = std::weak_ptr<DocumentMedia>(active);
+	const auto guard = base::make_weak(&_owner->session());
+	crl::async([
+		guard,
+		weak,
+		content = _bytes,
+		location = std::move(location)
+	]() mutable {
+		const auto accessed = location && location->accessEnable();
+		const auto path = accessed
+			? location->name()
+			: QString();
+		const auto attempted = !content.isEmpty() || !path.isEmpty();
+		auto image = !content.isEmpty()
+			? Images::Read({ .content = content }).image
+			: !path.isEmpty()
+			? Images::Read({ .path = path }).image
+			: QImage();
+		if (accessed) {
+			location->accessDisable();
+		}
+		crl::on_main(guard, [
+			weak,
+			attempted,
+			image = std::move(image)
+		]() mutable {
+			if (const auto strong = weak.lock()) {
+				strong->_stickerLoading = false;
+				if (attempted) {
+					strong->_sticker = std::make_unique<Image>(
+						std::move(image));
+				}
+				strong->_owner->session().notifyDownloaderTaskFinished();
+			}
+		});
+	});
 }
 
 void DocumentMedia::automaticLoad(
@@ -421,13 +456,8 @@ Image *DocumentMedia::getStickerSmall() {
 	return _sticker.get();
 }
 
-void DocumentMedia::checkStickerLarge(not_null<FileLoader*> loader) {
-	if (_sticker || !_owner->sticker()) {
-		return;
-	}
-	if (auto image = loader->imageData(); !image.isNull()) {
-		_sticker = std::make_unique<Image>(std::move(image));
-	}
+void DocumentMedia::checkStickerLarge(not_null<FileLoader*>) {
+	checkStickerLarge();
 }
 
 void DocumentMedia::GenerateGoodThumbnail(
