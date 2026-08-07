@@ -196,6 +196,34 @@ void CallButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
+bool CallButton::inBackground(QPoint point) const {
+	const auto radius = _stFrom->bgSize / 2.;
+	const auto center = QPointF(myrtlpoint(_stFrom->bgPosition))
+		+ QPointF(radius, radius);
+	const auto delta = QPointF(point) - center;
+	return (QPointF::dotProduct(delta, delta) <= radius * radius);
+}
+
+void CallButton::refreshOverState(QPoint point) {
+	setOver(inBackground(point), StateChangeSource::ByHover);
+}
+
+void CallButton::enterEventHook(QEnterEvent *e) {
+	refreshOverState(mapFromGlobal(QCursor::pos()));
+	return RpWidget::enterEventHook(e);
+}
+
+void CallButton::mouseMoveEvent(QMouseEvent *e) {
+	refreshOverState(e->pos());
+}
+
+void CallButton::mousePressEvent(QMouseEvent *e) {
+	refreshOverState(e->pos());
+	if (isOver()) {
+		RippleButton::mousePressEvent(e);
+	}
+}
+
 QPoint CallButton::iconPosition(not_null<const style::CallButton*> st) const {
 	auto result = st->button.iconPosition;
 	if (result.x() < 0) {
