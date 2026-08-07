@@ -1220,12 +1220,30 @@ groupCallTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActive: groupCallTitleCloseIcon;
 	closeIconActiveOver: groupCallTitleCloseIconOver;
 }
-groupCallPinOnTop: IconButton(groupCallTitleButton) {
+groupCallPinOnTop: IconButton(groupCallMenuToggle) {
 	icon: icon{{ "calls/navbar_pin", groupCallMemberNotJoinedStatus }};
 	iconOver: icon{{ "calls/navbar_pin", groupCallMembersFg }};
-	iconPosition: point(0px, 2px);
+	iconPosition: point(0px, 6px);
 }
 groupCallPinnedOnTop: icon{{ "calls/navbar_pin_filled", groupCallMembersFg }};
+groupCallTitlePinIcon: icon {
+	{ "calls/navbar_pin", groupCallMemberNotJoinedStatus },
+};
+groupCallTitlePinIconOver: icon {
+	{ windowTitleButtonSize, groupCallMembersBgOver },
+	{ "calls/navbar_pin", groupCallMembersFg },
+};
+groupCallTitlePinnedIcon: icon {
+	{ "calls/navbar_pin_filled", groupCallMembersFg },
+};
+groupCallTitlePinnedIconOver: icon {
+	{ windowTitleButtonSize, groupCallMembersBgOver },
+	{ "calls/navbar_pin_filled", groupCallMembersFg },
+};
+groupCallTitlePinOnTop: IconButton(groupCallTitleButton) {
+	icon: groupCallTitlePinIcon;
+	iconOver: groupCallTitlePinIconOver;
+}
 
 groupCallMajorBlobMaxRadius: 4px;
 

@@ -86,23 +86,6 @@ constexpr auto kControlsBackgroundOpacity = 0.8;
 constexpr auto kOverrideActiveColorBgAlpha = 172;
 constexpr auto kHideControlsTimeout = 5 * crl::time(1000);
 
-#ifdef Q_OS_WIN
-void UnpinMaximized(not_null<QWidget*> widget) {
-	SetWindowPos(
-		reinterpret_cast<HWND>(widget->window()->windowHandle()->winId()),
-		HWND_NOTOPMOST,
-		0,
-		0,
-		0,
-		0,
-		(SWP_NOMOVE
-			| SWP_NOSIZE
-			| SWP_NOOWNERZORDER
-			| SWP_FRAMECHANGED
-			| SWP_NOACTIVATE));
-}
-#endif // Q_OS_WIN
-
 class Show final : public ChatHelpers::Show {
 public:
 	Show(not_null<Panel*> panel, std::shared_ptr<Ui::Show> base)
@@ -440,7 +423,8 @@ void Panel::initWindow() {
 			&& (!_menuToggle || !_menuToggle->geometry().contains(widgetPoint))
 			&& (!_menu || !_menu->geometry().contains(widgetPoint))
 			&& (!_recordingMark || !_recordingMark->geometry().contains(widgetPoint))
-			&& (!_joinAsToggle || !_joinAsToggle->geometry().contains(widgetPoint)));
+			&& (!_joinAsToggle || !_joinAsToggle->geometry().contains(widgetPoint))
+			&& !pinOnTopRect().contains(widgetPoint));
 		if (!moveable) {
 			return (Flag::None | Flag(0));
 		}
@@ -1417,46 +1401,83 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	updateControlsGeometry();
 }
 
+QRect Panel::pinOnTopRect() const {
+	if (!_pinOnTop || _pinOnTop->isHidden()) {
+		return QRect();
+	}
+	return QRect(
+		_pinOnTop->mapTo(widget().get(), QPoint()),
+		_pinOnTop->size());
+}
+
 void Panel::createPinOnTop() {
-	_pinOnTop.create(widget(), st::groupCallPinOnTop);
-	const auto pinned = [=] {
-		const auto handle = window()->windowHandle();
-		return handle && (handle->flags() & Qt::WindowStaysOnTopHint);
+	const auto wrap = _window->controlsWrap();
+	_pinOnTop.create(
+		wrap ? wrap : widget().get(),
+		wrap ? st::groupCallTitlePinOnTop : st::groupCallPinOnTop);
+	const auto pinnedIcon = wrap
+		? &st::groupCallTitlePinnedIcon
+		: &st::groupCallPinnedOnTop;
+	const auto pinnedIconOver = wrap
+		? &st::groupCallTitlePinnedIconOver
+		: &st::groupCallPinnedOnTop;
+	const auto updateIcon = [=](bool pinned) {
+		_pinOnTop->setIconOverride(
+			pinned ? pinnedIcon : nullptr,
+			pinned ? pinnedIconOver : nullptr);
 	};
 	const auto pin = [=](bool pin) {
-		if (const auto handle = window()->windowHandle()) {
-			handle->setFlag(Qt::WindowStaysOnTopHint, pin);
-			_pinOnTop->setIconOverride(
-				pin ? &st::groupCallPinnedOnTop : nullptr,
-				pin ? &st::groupCallPinnedOnTop : nullptr);
-			if (!_pinOnTop->isHidden()) {
-				uiShow()->showToast({
-					.text = { pin
-						? tr::lng_group_call_pinned_on_top(tr::now)
-						: tr::lng_group_call_unpinned_on_top(tr::now) },
-					.iconLottie = pin
-						? u"toast/pin"_q
-						: u"toast/unpin"_q,
-					.iconLottieSize = st::toastLottieIconSize,
-				});
+		_window->setPinnedOnTop(pin);
+		updateIcon(pin);
+	};
+	updateIcon(_window->pinnedOnTop());
+
+	_fullScreenOrMaximized.value(
+	) | rpl::on_next([=](bool fullScreenOrMaximized) {
+		_pinOnTop->setVisible(!fullScreenOrMaximized);
+		if (!fullScreenOrMaximized) {
+			if (_unpinnedMaximized) {
+				_unpinnedMaximized = false;
+				pin(false);
+			}
+		} else if (_window->pinnedOnTop()) {
+			if (_window->unpinFromTopMaximized()) {
+				_unpinnedMaximized = true;
+			} else {
+				pin(false);
 			}
 		}
-	};
+	}, _pinOnTop->lifetime());
+
+	_pinOnTop->setClickedCallback([=] {
+		const auto now = !_window->pinnedOnTop();
+		pin(now);
+		uiShow()->showToast({
+			.text = { _call->rtmp()
+				? (now
+					? tr::lng_group_call_pinned_on_top(tr::now)
+					: tr::lng_group_call_unpinned_on_top(tr::now))
+				: (now
+					? tr::lng_call_window_pinned_on_top(tr::now)
+					: tr::lng_call_window_unpinned_on_top(tr::now)) },
+			.iconLottie = now ? u"toast/pin"_q : u"toast/unpin"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
+	});
+
+	updateControlsGeometry();
+}
+
+void Panel::setupFullScreenBehavior() {
+	Expects(_call->rtmp());
+
 	_fullScreenOrMaximized.value(
 	) | rpl::on_next([=](bool fullScreenOrMaximized) {
 		_window->setControlsStyle(fullScreenOrMaximized
 			? st::callTitle
 			: st::groupCallTitle);
 
-		_pinOnTop->setVisible(!fullScreenOrMaximized);
 		if (fullScreenOrMaximized) {
-#ifdef Q_OS_WIN
-			UnpinMaximized(window());
-			_unpinnedMaximized = true;
-#else // Q_OS_WIN
-			pin(false);
-#endif // Q_OS_WIN
-
 			_viewport->rp()->events(
 			) | rpl::filter([](not_null<QEvent*> event) {
 				return (event->type() == QEvent::MouseMove);
@@ -1467,27 +1488,21 @@ void Panel::createPinOnTop() {
 
 			_hideControlsTimer.callOnce(kHideControlsTimeout);
 		} else {
-			if (_unpinnedMaximized) {
-				pin(false);
-			}
 			_hideControlsTimerLifetime.destroy();
 			_hideControlsTimer.cancel();
 			refreshTitleGeometry();
 		}
 		refreshTitleBackground();
 		updateMembersGeometry();
-	}, _pinOnTop->lifetime());
-
-	_pinOnTop->setClickedCallback([=] {
-		pin(!pinned());
-	});
-
-	updateControlsGeometry();
+	}, lifetime());
 }
 
 void Panel::refreshTopButton() {
-	if (_call->rtmp() && !_pinOnTop) {
+	if (!_pinOnTop) {
 		createPinOnTop();
+		if (_call->rtmp()) {
+			setupFullScreenBehavior();
+		}
 	}
 	if (_mode.current() == PanelMode::Wide) {
 		_menuToggle.destroy();
@@ -1819,25 +1834,31 @@ void Panel::initGeometry(ConferencePanelMigration info) {
 
 QRect Panel::computeTitleRect() const {
 	const auto skip = st::groupCallTitleSeparator;
-	const auto remove = skip
-		+ (_menuToggle
-			? (_menuToggle->width() + st::groupCallMenuTogglePosition.x())
-			: 0)
-		+ (_joinAsToggle
-			? (_joinAsToggle->width() + st::groupCallMenuTogglePosition.x())
-			: 0)
-		+ (_pinOnTop
-			? (_pinOnTop->width() + skip)
-			: 0);
+	const auto pin = (_pinOnTop && !_window->controlsWrap())
+		? _pinOnTop->width()
+		: 0;
+	const auto remove = skip + ((mode() == PanelMode::Wide)
+		? pin
+		: (st::groupCallMenuTogglePosition.x()
+			+ (_menuToggle
+				? _menuToggle->width()
+				: _joinAsToggle
+				? _joinAsToggle->width()
+				: 0)
+			+ pin));
 	const auto width = widget()->width();
 #ifdef Q_OS_MAC
 	return QRect(70, 0, width - remove - 70, 28);
 #else // Q_OS_MAC
 	const auto controls = _window->controlsGeometry();
-	const auto right = controls.x() + controls.width() + skip;
-	return (controls.center().x() < width / 2)
-		? QRect(right, 0, width - right - remove, controls.height())
-		: QRect(remove, 0, controls.x() - skip - remove, controls.height());
+	const auto onTheLeft = (controls.center().x() < width / 2);
+	const auto band = (_pinOnTop && !_pinOnTop->isHidden())
+		? controls.united(_pinOnTop->geometry())
+		: controls;
+	const auto right = band.x() + band.width() + skip;
+	return onTheLeft
+		? QRect(right, 0, width - right - remove, band.height())
+		: QRect(remove, 0, band.x() - skip - remove, band.height());
 #endif // !Q_OS_MAC
 }
 
@@ -2411,30 +2432,38 @@ void Panel::updateControlsGeometry() {
 	updateMembersGeometry();
 	refreshTitle();
 
-#ifdef Q_OS_MAC
-	const auto controlsOnTheLeft = true;
-	const auto controlsPadding = 0;
-#else // Q_OS_MAC
-	const auto center = _window->controlsGeometry().center();
-	const auto controlsOnTheLeft = center.x()
-		< widget()->width() / 2;
-	const auto controlsPadding = _window->controlsWrapTop();
-#endif // Q_OS_MAC
+	const auto wrap = _window->controlsWrap();
+	const auto controls = _window->controlsGeometry();
+	const auto controlsOnTheLeft = !wrap
+		|| (controls.center().x() < widget()->width() / 2);
 	const auto menux = st::groupCallMenuTogglePosition.x();
 	const auto menuy = st::groupCallMenuTogglePosition.y();
-	if (controlsOnTheLeft) {
-		if (_pinOnTop) {
-			_pinOnTop->moveToRight(controlsPadding, controlsPadding);
+	if (_pinOnTop) {
+		if (wrap) {
+			_pinOnTop->move(
+				(controlsOnTheLeft
+					? (controls.x() + controls.width())
+					: (controls.x() - _pinOnTop->width())),
+				controls.y());
+		} else {
+			const auto toggleWidth = _menuToggle
+				? _menuToggle->width()
+				: _joinAsToggle
+				? _joinAsToggle->width()
+				: 0;
+			const auto wide = (mode() == PanelMode::Wide);
+			_pinOnTop->moveToRight(
+				wide ? 0 : (menux + toggleWidth),
+				wide ? 0 : menuy);
 		}
+	}
+	if (controlsOnTheLeft) {
 		if (_menuToggle) {
 			_menuToggle->moveToRight(menux, menuy);
 		} else if (_joinAsToggle) {
 			_joinAsToggle->moveToRight(menux, menuy);
 		}
 	} else {
-		if (_pinOnTop) {
-			_pinOnTop->moveToLeft(controlsPadding, controlsPadding);
-		}
 		if (_menuToggle) {
 			_menuToggle->moveToLeft(menux, menuy);
 		} else if (_joinAsToggle) {

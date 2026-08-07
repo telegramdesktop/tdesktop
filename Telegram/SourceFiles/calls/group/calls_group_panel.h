@@ -166,6 +166,8 @@ private:
 		std::optional<bool> overrideWideMode = std::nullopt);
 	void refreshTopButton();
 	void createPinOnTop();
+	[[nodiscard]] QRect pinOnTopRect() const;
+	void setupFullScreenBehavior();
 	void setupEmptyRtmp();
 	void toggleWideControls(bool shown);
 	void updateWideControlsVisibility();

@@ -6525,6 +6525,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_sure_screencast" = "{user} is sharing their screen. This action will pin your screencast for all participants.";
 "lng_group_call_pinned_on_top" = "Live stream is pinned on top.";
 "lng_group_call_unpinned_on_top" = "Live stream is unpinned from top.";
+"lng_call_window_pinned_on_top" = "Call window is pinned on top.";
+"lng_call_window_unpinned_on_top" = "Call window is unpinned from top.";
 "lng_group_call_recording_start_sure" = "Record this chat and save the result into an audio file?\n\nParticipants will see that the chat is being recorded.";
 "lng_group_call_recording_stop_sure" = "Do you want to stop recording this video chat?";
 "lng_group_call_recording_start_field" = "Recording Title";
