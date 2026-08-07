@@ -1373,6 +1373,8 @@ PRIVATE
     intro/intro_widget.h
     iv/iv_cached_media.cpp
     iv/iv_cached_media.h
+    iv/editor/iv_editor_button_box.cpp
+    iv/editor/iv_editor_button_box.h
     iv/editor/iv_editor_session.cpp
     iv/editor/iv_editor_session.h
     iv/iv_delegate_impl.cpp

@@ -446,6 +446,19 @@ public:
 	[[nodiscard]] DisplayMathEditResult editActiveDisplayMath(
 		QString source,
 		bool separateLine);
+	[[nodiscard]] auto inlineButtonAt(int ordinal, int offset) const
+	-> std::optional<Markdown::InlineTextObjectButtonData>;
+	[[nodiscard]] ApplyResult editInlineButtonAt(
+		int ordinal,
+		int offset,
+		Markdown::InlineTextObjectButtonData data);
+	[[nodiscard]] const RichPage::Button *rowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index) const;
+	[[nodiscard]] ApplyResult editRowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index,
+		RichPage::Button button);
 	[[nodiscard]] ParagraphBoundaryJoinResult joinActiveParagraphBoundary(
 		bool forward);
 	[[nodiscard]] bool insertBlockAfterActive(

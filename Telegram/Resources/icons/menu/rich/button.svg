@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24px" height="24px" viewBox="0 0 72 72" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Filled / Page / page_button</title>
+    <g id="Filled-/-Page-/-page_button" stroke="none" fill="none" fill-rule="nonzero">
+        <path d="M24,24 L48,24 A12,12 0 0 1 60,36 A12,12 0 0 1 48,48 L24,48 A12,12 0 0 1 12,36 A12,12 0 0 1 24,24 Z M27,33 A3,3 0 0 0 24,36 A3,3 0 0 0 27,39 L45,39 A3,3 0 0 0 48,36 A3,3 0 0 0 45,33 Z" id="Shape" fill="#FFFFFF"></path>
+    </g>
+</svg>

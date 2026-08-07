@@ -2260,6 +2260,25 @@ void CollectMediaBlockGeometries(
 	return {};
 }
 
+[[nodiscard]] MarkdownArticleEditControlHit EditControlHitForButtonRowBlock(
+		const LaidOutBlock &block,
+		QPoint point) {
+	if (!block.editBlock) {
+		return {};
+	}
+	const auto index = ButtonRowHitIndex(block.buttons, point);
+	if ((index < 0)
+		|| (block.buttons[index].type
+			== HistoryMessageMarkupButton::Type::Disabled)) {
+		return {};
+	}
+	return {
+		.kind = MarkdownArticleEditControlHitKind::ButtonEdit,
+		.block = *block.editBlock,
+		.buttonIndex = index,
+	};
+}
+
 [[nodiscard]] MarkdownArticleEditControlHit EditControlHitForBlock(
 		const LaidOutBlock &block,
 		QPoint point) {
@@ -2270,6 +2289,8 @@ void CollectMediaBlockGeometries(
 		return EditControlHitForDetailsBlock(block, point);
 	case PreparedBlockKind::Quote:
 		return EditControlHitForQuoteBlock(block, point);
+	case PreparedBlockKind::ButtonRow:
+		return EditControlHitForButtonRowBlock(block, point);
 	default:
 		if (!block.children.empty()) {
 			return EditControlHitForBlocks(block.children, point);

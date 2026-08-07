@@ -95,6 +95,13 @@ void PaintButtonRow(
 	const style::Markdown &st,
 	const MarkdownArticlePaintContext &context,
 	int outerWidth);
+void PaintRichButtonPreview(
+	Painter &p,
+	const LaidOutButton &button,
+	const style::Markdown &st,
+	QRect clip,
+	crl::time now,
+	int outerWidth);
 void AddPillRipple(
 	not_null<std::unique_ptr<Ui::RippleAnimation>*> ripple,
 	not_null<QSize*> rippleSize,

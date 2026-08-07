@@ -5190,6 +5190,13 @@ void Widget::editMathFromToolbar() {
 	}
 }
 
+void Widget::editButtonFromToolbar() {
+	auto request = ButtonEditRequest();
+	request.allowSeparateLine
+		= _state->activeSurfaceAllowsSeparateLineFormula();
+	showButtonEditBox(std::move(request));
+}
+
 void Widget::setInlineFieldExternalInteractionActive(bool active) {
 	_inlineFieldExternalInteractionActive = active;
 }
@@ -7342,7 +7349,8 @@ void Widget::mouseMoveEvent(QMouseEvent *e) {
 				const auto hit = _article->hitTest(
 					articlePoint,
 					Ui::Text::StateRequest::Flag::LookupSymbol);
-				if (hit.valid() && hit.codeHeaderCopy) {
+				if ((hit.valid() && hit.codeHeaderCopy)
+					|| inlineButtonEditRequestFromArticleHit(hit)) {
 					cursor = style::cur_pointer;
 				} else if (hit.valid()
 					&& hit.direct
@@ -7389,6 +7397,8 @@ void Widget::mousePressEvent(QMouseEvent *e) {
 	_pressedControlPoint = std::nullopt;
 	_pressedMediaControl = {};
 	_pressedMediaControlPoint = std::nullopt;
+	_pressedInlineButton = std::nullopt;
+	_pressedInlineButtonPoint = std::nullopt;
 	auto articlePoint = e->pos() - articleTopLeft();
 	const auto horizontalScrollHit = _article->horizontalScrollHit(
 		articlePoint);
@@ -7474,6 +7484,12 @@ void Widget::mousePressEvent(QMouseEvent *e) {
 		e->accept();
 		return;
 	}
+	_pressedInlineButton = inlineButtonEditRequestFromArticleHit(hit);
+	if (_pressedInlineButton) {
+		_pressedInlineButtonPoint = articlePoint;
+		e->accept();
+		return;
+	}
 	if (hit.valid() && hit.direct && _article->segmentIsText(hit.segmentIndex)) {
 		startArticleSelection(articlePoint, e->globalPos(), hit, editHit);
 		e->accept();
@@ -7526,39 +7542,15 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 	const auto controlHit = _article->editControlHitTest(articlePoint);
-	const auto applyControlToggle = [&](auto &&toggle, auto &&afterRefresh) {
-		const auto hadVisibleField = !_field->isHidden();
-		auto toggled = false;
-		const auto result = recordMutationTransaction([&] {
-			const auto committed = commitInlineField();
-			if (committed == ApplyResult::Failed) {
-				return MutationTransactionResult{
-					.committed = committed,
-					.failed = true,
-				};
-			}
-			_pendingOrdinal = -1;
-			_pendingCursorOffset = 0;
-			hideInlineField();
-			clearInlineFieldEditSession();
-			toggled = toggle();
-			if (toggled) {
-				refreshPreparedContent();
-			} else if (hadVisibleField) {
-				refreshAfterInlineFieldCommit(committed);
-			}
-			clearTextSelection();
-			clearStructuralSelection();
-			setFocus();
-			if (toggled) {
-				afterRefresh();
-			}
-			return MutationTransactionResult{
-				.committed = committed,
-				.changed = (committed == ApplyResult::Changed) || toggled,
-			};
-		});
-		return !result.failed && toggled;
+	const auto applyControlToggle = [&](
+			Fn<bool()> toggle,
+			Fn<void()> afterRefresh) {
+		const auto mutated = applyMutationWithFieldCommit([&] {
+			return toggle()
+				? ApplyResult::Changed
+				: ApplyResult::Unchanged;
+		}, std::move(afterRefresh));
+		return (mutated == ApplyResult::Changed);
 	};
 	if (_pressedControl.valid()) {
 		const auto pressedControl = _pressedControl;
@@ -7614,8 +7606,39 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 					});
 				}
 				break;
+			case Markdown::MarkdownArticleEditControlHitKind::ButtonEdit:
+				if (pressedControl.block) {
+					const auto request = rowButtonEditRequest(
+						*pressedControl.block,
+						pressedControl.buttonIndex);
+					if (request) {
+						showButtonEditBox(*request);
+					}
+				}
+				break;
 			case Markdown::MarkdownArticleEditControlHitKind::None:
 				break;
+			}
+		}
+		e->accept();
+		return;
+	}
+	if (_pressedInlineButton) {
+		const auto pressed = base::take(_pressedInlineButton);
+		const auto pressedPoint = base::take(_pressedInlineButtonPoint);
+		const auto matched = pressedPoint
+			&& ((articlePoint - *pressedPoint).manhattanLength()
+				< QApplication::startDragDistance());
+		if (matched) {
+			const auto releaseHit = _article->hitTest(
+				articlePoint,
+				Ui::Text::StateRequest::Flag::LookupSymbol);
+			const auto request = inlineButtonEditRequestFromArticleHit(
+				releaseHit);
+			if (request
+				&& (request->ordinal == pressed->ordinal)
+				&& (request->offset == pressed->offset)) {
+				showButtonEditBox(*request);
 			}
 		}
 		e->accept();
@@ -9001,6 +9024,121 @@ Widget::MathEditRequest Widget::newDisplayMathRequest() const {
 	};
 }
 
+auto Widget::inlineButtonEditRequestFromArticleHit(
+		const Markdown::MarkdownArticleHitTestResult &hit) const
+-> std::optional<ButtonEditRequest> {
+	if (!hit.valid()
+		|| !hit.direct
+		|| (hit.forcedOffset >= 0)
+		|| !hit.state.uponSymbol
+		|| !_article->segmentIsEditable(hit.segmentIndex)) {
+		return std::nullopt;
+	}
+	const auto ordinal = editableOrdinalForSegment(hit.segmentIndex);
+	if (ordinal < 0) {
+		return std::nullopt;
+	}
+	const auto offset = int(hit.state.symbol);
+	const auto button = _state->inlineButtonAt(ordinal, offset);
+	if (!button
+		|| (button->type == HistoryMessageMarkupButton::Type::Disabled)) {
+		return std::nullopt;
+	}
+	return MakeInlineButtonEditRequest(ordinal, offset, *button);
+}
+
+auto Widget::inlineButtonEditRequestFromFieldPoint(QPoint globalPoint) const
+-> std::optional<ButtonEditRequest> {
+	if (_settingField
+		|| _field->isHidden()
+		|| (_state->activeFieldMode() != State::FieldMode::Rich)) {
+		return std::nullopt;
+	}
+	const auto ordinal = _state->activeTextOrdinal();
+	if (ordinal < 0) {
+		return std::nullopt;
+	}
+	const auto raw = _field->rawTextEdit();
+	const auto local = raw->viewport()->mapFromGlobal(globalPoint);
+	const auto cursor = raw->cursorForPosition(local);
+	const auto boundary = raw->cursorRect(cursor).x();
+	const auto index = (local.x() >= boundary)
+		? cursor.position()
+		: (cursor.position() - 1);
+	if (index < 0) {
+		return std::nullopt;
+	}
+	const auto part = _field->getTextWithTagsPart(index, index + 1);
+	if ((part.text.size() != 1)
+		|| (part.text[0] != QChar::ObjectReplacementCharacter)
+		|| (part.tags.size() != 1)) {
+		return std::nullopt;
+	}
+	const auto &id = part.tags.front().id;
+	auto button = std::optional<Markdown::InlineTextObjectButtonData>();
+	for (const auto &component : TextUtilities::SplitTags(id)) {
+		if (!Ui::InputField::IsCustomEmojiLink(component)) {
+			continue;
+		}
+		button = ButtonDataFromEntity(
+			Ui::InputField::CustomEmojiEntityData(component));
+		if (button) {
+			break;
+		}
+	}
+	if (!button
+		|| (button->type == HistoryMessageMarkupButton::Type::Disabled)) {
+		return std::nullopt;
+	}
+	const auto text = ConvertEditorTagsToRichText(
+		_field->getTextWithAppliedMarkdown());
+	return MakeInlineButtonEditRequest(
+		ordinal,
+		richOffsetForFieldOffset(text, index),
+		*button);
+}
+
+Widget::ButtonEditRequest Widget::MakeInlineButtonEditRequest(
+		int ordinal,
+		int offset,
+		const Markdown::InlineTextObjectButtonData &button) {
+	return ButtonEditRequest{
+		.target = ButtonEditRequest::Target::InlineToken,
+		.data = {
+			.label = button.label,
+			.payload = button.data,
+			.type = button.type,
+			.color = button.color,
+		},
+		.ordinal = ordinal,
+		.offset = offset,
+		.editingExisting = true,
+	};
+}
+
+std::optional<Widget::ButtonEditRequest> Widget::rowButtonEditRequest(
+		const Markdown::PreparedEditBlockSource &block,
+		int index) const {
+	const auto button = _state->rowButtonAt(block, index);
+	if (!button
+		|| (button->button.type
+			== HistoryMessageMarkupButton::Type::Disabled)) {
+		return std::nullopt;
+	}
+	return ButtonEditRequest{
+		.target = ButtonEditRequest::Target::RowButton,
+		.data = {
+			.label = button->text.text,
+			.payload = button->button.data,
+			.type = button->button.type,
+			.color = button->button.visual.color,
+		},
+		.block = block,
+		.buttonIndex = index,
+		.editingExisting = true,
+	};
+}
+
 bool Widget::handleIvClipboardMime(
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action) {
@@ -9185,6 +9323,131 @@ ApplyResult Widget::applyMathEditResult(
 	return committed;
 }
 
+ApplyResult Widget::applyButtonEditResult(
+		const ButtonEditRequest &request,
+		RichButtonEditResult result) {
+	if (_settingField) {
+		return ApplyResult::Unchanged;
+	}
+	auto data = std::move(result.data);
+	const auto makeRowButton = [&] {
+		auto button = RichPage::Button();
+		button.text.text = data.label;
+		button.button = HistoryMessageMarkupButton(
+			data.type,
+			data.label.text,
+			HistoryMessageMarkupButton::Visual{ .color = data.color },
+			data.payload);
+		return button;
+	};
+	const auto makeInlineObject = [&] {
+		return Markdown::InlineTextObjectButtonData{
+			.label = data.label,
+			.data = data.payload,
+			.type = data.type,
+			.color = data.color,
+		};
+	};
+	if (request.target == ButtonEditRequest::Target::RowButton) {
+		return applyMutationWithFieldCommit([&] {
+			return _state->editRowButtonAt(
+				request.block,
+				request.buttonIndex,
+				makeRowButton());
+		}, [] {
+		});
+	} else if (request.target == ButtonEditRequest::Target::InlineToken) {
+		return applyMutationWithFieldCommit([&] {
+			return _state->editInlineButtonAt(
+				request.ordinal,
+				request.offset,
+				makeInlineObject());
+		}, [&] {
+			activateTextOrdinal(request.ordinal, 0);
+		});
+	}
+	if (result.separateLine) {
+		auto block = RichPage::Block();
+		block.kind = RichPage::BlockKind::ButtonRow;
+		block.buttonAlignment = RichPage::ButtonAlignment::Stretch;
+		block.buttons.push_back(makeRowButton());
+		insertPreparedBlock(std::move(block));
+		return ApplyResult::Changed;
+	}
+	if (_field->isHidden()
+		|| (_state->activeFieldMode() != State::FieldMode::Rich)) {
+		return ApplyResult::Unchanged;
+	}
+	const auto serialized = Markdown::SerializeInlineTextObjectEntity({
+		.kind = Markdown::InlineTextObjectKind::Button,
+		.data = makeInlineObject(),
+	});
+	if (serialized.isEmpty()) {
+		return ApplyResult::Unchanged;
+	}
+	const auto committed = recordMutationTransaction([&] {
+		Ui::InsertCustomEmojiAtCursor(
+			_field.get(),
+			_field->textCursor(),
+			QString(QChar::ObjectReplacementCharacter),
+			Ui::InputField::CustomEmojiLink(serialized));
+		const auto committed = commitInlineField();
+		if (committed != ApplyResult::Failed) {
+			_pendingOrdinal = -1;
+			_pendingCursorOffset = 0;
+			hideInlineField();
+			clearInlineFieldEditSession();
+		}
+		return committed;
+	});
+	if (committed != ApplyResult::Failed) {
+		refreshAfterInlineFieldCommit(committed);
+	}
+	return committed;
+}
+
+ApplyResult Widget::applyMutationWithFieldCommit(
+		Fn<ApplyResult()> mutate,
+		Fn<void()> afterRefresh) {
+	const auto hadVisibleField = !_field->isHidden();
+	auto mutated = ApplyResult::Unchanged;
+	const auto transaction = recordMutationTransaction([&] {
+		const auto committed = commitInlineField();
+		if (committed == ApplyResult::Failed) {
+			return MutationTransactionResult{
+				.committed = committed,
+				.failed = true,
+			};
+		}
+		_pendingOrdinal = -1;
+		_pendingCursorOffset = 0;
+		hideInlineField();
+		clearInlineFieldEditSession();
+		mutated = mutate();
+		if (mutated == ApplyResult::Changed) {
+			refreshPreparedContent();
+		} else if (hadVisibleField) {
+			refreshAfterInlineFieldCommit(committed);
+		}
+		clearTextSelection();
+		clearStructuralSelection();
+		setFocus();
+		if (mutated == ApplyResult::Changed) {
+			afterRefresh();
+		}
+		return MutationTransactionResult{
+			.committed = committed,
+			.changed = (committed == ApplyResult::Changed)
+				|| (mutated == ApplyResult::Changed),
+			.failed = (mutated == ApplyResult::Failed),
+		};
+	});
+	if (mutated == ApplyResult::Failed) {
+		showLastLimitToast();
+	}
+	return transaction.failed ? ApplyResult::Failed : mutated;
+}
+
 bool Widget::showLastLimitToast() {
 	if (_showLimitToast) {
 		if (const auto error = _state->lastLimitError()) {
@@ -9216,6 +9479,51 @@ void Widget::showMathEditBox(MathEditRequest request) {
 				.separateLine = separateLine,
 			});
 			if (result != ApplyResult::Changed) {
+				return;
+			}
+			weak->syncInlineFieldGeometry();
+			weak->updateInlineFieldHeightOverride();
+			weak->revealActiveInlineField();
+			weak->notifyToolbarStateChanged();
+		},
+		[=](bool active) {
+			if (weak) {
+				weak->setInlineFieldExternalInteractionActive(active);
+				weak->notifyToolbarStateChanged();
+			}
+		},
+		[=] {
+			if (weak && !weak->_field->isHidden()) {
+				weak->_field->setFocusFast();
+				weak->notifyToolbarStateChanged();
+			}
+		}));
+}
+
+void Widget::showButtonEditBox(ButtonEditRequest request) {
+	if (!_show) {
+		return;
+	}
+	const auto weak = QPointer<Widget>(this);
+	_show->showBox(Box(
+		EditRichButtonBox,
+		_show,
+		RichButtonEditBoxArgs{
+			.data = request.data,
+			.validateUrl = ValidateInstantViewEditorLink,
+			.separateLine = request.allowSeparateLine
+				? std::make_optional(false)
+				: std::nullopt,
+			.editingExisting = request.editingExisting,
+		},
+		[=](RichButtonEditResult result) {
+			if (!weak) {
+				return;
+			}
+			const auto applied = weak->applyButtonEditResult(
+				request,
+				std::move(result));
+			if (applied != ApplyResult::Changed) {
 				return;
 			}
 			weak->syncInlineFieldGeometry();
@@ -12260,6 +12568,13 @@ bool Widget::handleFieldMouseEvent(QEvent *event) {
 				anchorHit,
 				true)) {
 			return false;
+		}
+		const auto buttonRequest = inlineButtonEditRequestFromFieldPoint(
+			globalPoint);
+		if (buttonRequest) {
+			_trackingPointerPress = false;
+			showButtonEditBox(*buttonRequest);
+			return true;
 		}
 		clearTextSelection();
 		clearStructuralSelection();

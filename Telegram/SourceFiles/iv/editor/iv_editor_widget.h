@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 #include "base/flat_map.h"
+#include "iv/editor/iv_editor_button_box.h"
 #include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_state.h"
 #include "iv/markdown/iv_markdown_article.h"
@@ -213,6 +214,7 @@ public:
 	void applyToolbarFormatAction(ToolbarFormatAction action);
 	void editLinkFromToolbar();
 	void editMathFromToolbar();
+	void editButtonFromToolbar();
 	[[nodiscard]] bool inlineToolbarModeActive() const;
 	struct ActiveBlockInfo {
 		RichPage::BlockKind kind = RichPage::BlockKind::Unsupported;
@@ -508,6 +510,21 @@ private:
 		bool separateLine = false;
 		bool insertNewDisplayBlock = false;
 	};
+	struct ButtonEditRequest {
+		enum class Target : uchar {
+			CreateInline,
+			InlineToken,
+			RowButton,
+		};
+		Target target = Target::CreateInline;
+		RichButtonEditData data;
+		Markdown::PreparedEditBlockSource block;
+		int ordinal = -1;
+		int offset = -1;
+		int buttonIndex = -1;
+		bool editingExisting = false;
+		bool allowSeparateLine = false;
+	};
 	[[nodiscard]] std::optional<State::ActiveTextInsertContext>
 	activeTextInsertContext() const;
 	[[nodiscard]] bool hasFieldTextSpanSelection() const;
@@ -524,6 +541,19 @@ private:
 		bool useStructuralSelection = true);
 	[[nodiscard]] std::optional<MathEditRequest> activeMathEditRequest() const;
 	[[nodiscard]] MathEditRequest newDisplayMathRequest() const;
+	[[nodiscard]] auto inlineButtonEditRequestFromArticleHit(
+		const Markdown::MarkdownArticleHitTestResult &hit) const
+	-> std::optional<ButtonEditRequest>;
+	[[nodiscard]] auto inlineButtonEditRequestFromFieldPoint(
+		QPoint globalPoint) const
+	-> std::optional<ButtonEditRequest>;
+	[[nodiscard]] std::optional<ButtonEditRequest> rowButtonEditRequest(
+		const Markdown::PreparedEditBlockSource &block,
+		int index) const;
+	[[nodiscard]] static ButtonEditRequest MakeInlineButtonEditRequest(
+		int ordinal,
+		int offset,
+		const Markdown::InlineTextObjectButtonData &button);
 	[[nodiscard]] int richOffsetForFieldOffset(
 		const TextWithEntities &text,
 		int offset) const;
@@ -536,6 +566,12 @@ private:
 	[[nodiscard]] State::ApplyResult applyMathEditResult(
 		const MathEditRequest &request,
 		MathEditResult result);
+	[[nodiscard]] State::ApplyResult applyButtonEditResult(
+		const ButtonEditRequest &request,
+		RichButtonEditResult result);
+	[[nodiscard]] State::ApplyResult applyMutationWithFieldCommit(
+		Fn<State::ApplyResult()> mutate,
+		Fn<void()> afterRefresh);
 	bool showLastLimitToast();
 	void hideInlineField();
 	void acceptInlineField();
@@ -640,6 +676,7 @@ private:
 	void ensurePendingActivation();
 	void updateInlineFieldHeightOverride();
 	void showMathEditBox(MathEditRequest request);
+	void showButtonEditBox(ButtonEditRequest request);
 	void clearDisplayMathEditSession();
 	void clearInlineFieldEditSession(
 		bool keepRetainedFieldOnCurrentHistoryEntry = false);
@@ -978,6 +1015,8 @@ private:
 	std::optional<QPoint> _pressedControlPoint;
 	PressedMediaControl _pressedMediaControl;
 	std::optional<QPoint> _pressedMediaControlPoint;
+	std::optional<ButtonEditRequest> _pressedInlineButton;
+	std::optional<QPoint> _pressedInlineButtonPoint;
 	HorizontalScrollDrag _horizontalScrollDrag = HorizontalScrollDrag::None;
 	std::optional<QPoint> _pendingTouchHorizontalScrollPoint;
 	bool _syncingInlineFieldGeometry = false;

@@ -836,4 +836,23 @@ TextWithEntities ConvertEditorTagsToRichText(TextWithTags text) {
 	};
 }
 
+auto ButtonDataFromEntity(const EntityInText &entity)
+-> std::optional<Markdown::InlineTextObjectButtonData> {
+	if (entity.type() != EntityType::CustomEmoji) {
+		return std::nullopt;
+	}
+	return ButtonDataFromEntity(entity.data());
+}
+
+auto ButtonDataFromEntity(QStringView data)
+-> std::optional<Markdown::InlineTextObjectButtonData> {
+	const auto parsed = Markdown::ParseInlineTextObjectEntity(data);
+	if (!parsed) {
+		return std::nullopt;
+	}
+	const auto button = std::get_if<
+		Markdown::InlineTextObjectButtonData>(&parsed->data);
+	return button ? std::make_optional(*button) : std::nullopt;
+}
+
 } // namespace Iv::Editor

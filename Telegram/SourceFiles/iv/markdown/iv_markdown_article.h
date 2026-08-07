@@ -261,6 +261,7 @@ enum class MarkdownArticleEditControlHitKind {
 	TaskMarker,
 	DetailsToggle,
 	QuoteCollapse,
+	ButtonEdit,
 };
 
 struct MarkdownArticleEditControlHit {
@@ -268,6 +269,7 @@ struct MarkdownArticleEditControlHit {
 		= MarkdownArticleEditControlHitKind::None;
 	std::optional<PreparedEditListItemSource> listItem;
 	std::optional<PreparedEditBlockSource> block;
+	int buttonIndex = -1;
 
 	[[nodiscard]] bool valid() const {
 		switch (kind) {
@@ -276,6 +278,8 @@ struct MarkdownArticleEditControlHit {
 		case MarkdownArticleEditControlHitKind::DetailsToggle:
 		case MarkdownArticleEditControlHitKind::QuoteCollapse:
 			return block.has_value();
+		case MarkdownArticleEditControlHitKind::ButtonEdit:
+			return block.has_value() && (buttonIndex >= 0);
 		case MarkdownArticleEditControlHitKind::None:
 			break;
 		}
@@ -288,7 +292,8 @@ inline bool operator==(
 		MarkdownArticleEditControlHit b) {
 	return (a.kind == b.kind)
 		&& (a.listItem == b.listItem)
-		&& (a.block == b.block);
+		&& (a.block == b.block)
+		&& (a.buttonIndex == b.buttonIndex);
 }
 
 inline bool operator!=(

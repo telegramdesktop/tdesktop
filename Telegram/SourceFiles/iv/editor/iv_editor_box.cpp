@@ -322,6 +322,8 @@ private:
 	void showListStyleMenu(not_null<Ui::RippleButton*> button);
 	void fillTableStyleMenu(not_null<Ui::PopupMenu*> menu);
 	void showTableStyleMenu(not_null<Ui::RippleButton*> button);
+	void fillLinkMenu(not_null<Ui::PopupMenu*> menu);
+	void showLinkMenu(not_null<Ui::IconButton*> button);
 	void fillAttachMenu(not_null<Ui::PopupMenu*> menu);
 	void showAttachMenu(not_null<Ui::RippleButton*> button);
 	void applyBlockText();
@@ -858,17 +860,22 @@ void Toolbar::buildPills() {
 		controls,
 		ToolbarActionId::Link,
 		&st::ivEditorToolbarLinkIcon,
-		[=] {
-			if (_editor) {
-				_editor->editLinkFromToolbar();
-			}
-		},
+		nullptr,
 		Widget::ToolbarFormatAction::Link,
 		[] {
 			return WithParenShortcut(
 				tr::lng_article_tooltip_link(tr::now),
 				QKeySequence(Ui::kEditLinkSequence));
 		});
+	_linkButton->setClickedCallback([=] {
+		if (!_editor) {
+			return;
+		} else if (_toolbarState.linkMode == Widget::ToolbarLinkMode::Edit) {
+			_editor->editLinkFromToolbar();
+		} else {
+			showLinkMenu(not_null<Ui::IconButton*>(_linkButton));
+		}
+	});
 	if (_hasRequestMedia) {
 		const auto attach = addStarPillButton(
 			controls,
@@ -1331,6 +1338,40 @@ void Toolbar::showTableStyleMenu(not_null<Ui::RippleButton*> button) {
 	_menu->popup(button->mapToGlobal(QPoint(0, button->height())));
 }
 
+void Toolbar::fillLinkMenu(not_null<Ui::PopupMenu*> menu) {
+	Menu::AddActiveColorAction(
+		menu,
+		WithTabShortcut(
+			tr::lng_article_insert_text_link(tr::now),
+			Ui::kEditLinkSequence),
+		[=] {
+			if (_editor) {
+				_editor->editLinkFromToolbar();
+			}
+		},
+		&st::ivEditorToolbarLinkIcon,
+		false);
+	Menu::AddActiveColorAction(
+		menu,
+		tr::lng_article_insert_button(tr::now),
+		[=] {
+			if (_editor) {
+				_editor->editButtonFromToolbar();
+			}
+		},
+		&st::ivEditorToolbarButtonIcon,
+		false);
+}
+
+void Toolbar::showLinkMenu(not_null<Ui::IconButton*> button) {
+	if (_menu) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
+	fillLinkMenu(not_null<Ui::PopupMenu*>(_menu.get()));
+	_menu->popup(button->mapToGlobal(QPoint(0, button->height())));
+}
+
 void Toolbar::updateFromEditorState() {
 	for (const auto &pb : _stateButtons) {
 		const auto &state = _toolbarState[pb.format];
@@ -1344,6 +1385,8 @@ void Toolbar::updateFromEditorState() {
 	if (_linkButton) {
 		_linkButton->setAccessibleName(
 			ToolbarActionLabel(ToolbarActionId::Link, _toolbarState.linkMode));
+		_linkButton->setIsMenuButton(
+			_toolbarState.linkMode == Widget::ToolbarLinkMode::Create);
 	}
 	if (_listButton) {
 		const auto inList = _editor

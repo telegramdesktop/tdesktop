@@ -127,6 +127,7 @@ ivEditorToolbarSuperscriptIcon: icon {{ "menu/rich/superscript-24x24", menuIconC
 ivEditorToolbarMarkedIcon: icon {{ "menu/rich/marked-24x24", menuIconColor }};
 ivEditorToolbarPlainTextIcon: icon {{ "menu/rich/plain_text-24x24", menuIconColor }};
 ivEditorToolbarLinkIcon: icon {{ "menu/rich/link-24x24", menuIconColor }};
+ivEditorToolbarButtonIcon: icon {{ "menu/rich/button-24x24", menuIconColor }};
 ivEditorBottomDiscardIcon: icon {{ "menu/rich/discard-24x24", menuIconColor }};
 ivEditorBottomCancelIcon: icon {{ "menu/rich/cancel-24x24", menuIconColor }};
 ivEditorPremiumChoiceIcon: icon {{ "menu/article_rich-24x24", windowFgActive }};
@@ -722,6 +723,10 @@ ivFormulaSourceField: InputField(defaultInputField) {
 	placeholderShift: -50px;
 	heightMin: 33px;
 }
+ivButtonPreviewMargin: margins(22px, 4px, 22px, 10px);
+ivButtonPreviewUnselectedOpacity: 0.5;
+ivButtonRadioPadding: margins(22px, 5px, 22px, 5px);
+ivButtonPeerRowMargin: margins(0px, 0px, 0px, 10px);
 defaultMarkdownTable: MarkdownTable {
 	cellPadding: margins(8px, 10px, 8px, 10px);
 	border: 1px;

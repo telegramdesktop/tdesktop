@@ -268,7 +268,8 @@ void ApplyButtonFallbackLadder(
 void PaintButtonLabel(
 		QPainter &p,
 		const LaidOutButton &button,
-		const MarkdownArticlePaintContext &context,
+		QRect clip,
+		crl::time now,
 		const style::TextPalette *palette) {
 	if (button.labelRect.isEmpty() || button.label.isEmpty()) {
 		return;
@@ -278,9 +279,9 @@ void PaintButtonLabel(
 		.position = button.labelRect.topLeft(),
 		.availableWidth = available,
 		.geometry = Ui::Text::SimpleGeometry(available, 1, 0, false),
-		.clip = context.clip,
+		.clip = clip,
 		.palette = palette,
-		.now = context.now,
+		.now = now,
 		.elisionLines = 1,
 	});
 }
@@ -289,14 +290,15 @@ void PaintButtonContent(
 		QPainter &p,
 		const LaidOutButton &button,
 		QColor fg,
-		const MarkdownArticlePaintContext &context,
+		QRect clip,
+		crl::time now,
 		int outerWidth,
 		const style::TextPalette *palette) {
 	if (button.icon) {
 		button.icon->paint(p, button.iconRect.topLeft(), outerWidth, fg);
 	}
 	p.setPen(fg);
-	PaintButtonLabel(p, button, context, palette);
+	PaintButtonLabel(p, button, clip, now, palette);
 }
 
 void PaintButtonPill(
@@ -333,7 +335,8 @@ void PaintPlainButton(
 		const RichButtonPillColors &colors,
 		Ui::RippleAnimation *ripple,
 		const style::MarkdownButtonRow &st,
-		const MarkdownArticlePaintContext &context,
+		QRect clip,
+		crl::time now,
 		int outerWidth,
 		bool disabled) {
 	PaintButtonPill(p, button, colors, ripple, st, outerWidth, false);
@@ -348,7 +351,8 @@ void PaintPlainButton(
 		p,
 		button,
 		colors.fg,
-		context,
+		clip,
+		now,
 		outerWidth,
 		&p.textPalette());
 	if (disabled) {
@@ -362,7 +366,8 @@ void PaintPrimaryButton(
 		const RichButtonPillColors &colors,
 		Ui::RippleAnimation *ripple,
 		const style::MarkdownButtonRow &st,
-		const MarkdownArticlePaintContext &context,
+		QRect clip,
+		crl::time now,
 		int outerWidth,
 		bool disabled) {
 	const auto palette = &p.textPalette();
@@ -381,8 +386,50 @@ void PaintPrimaryButton(
 				colors.punchOut);
 		},
 		[&](QPainter &q, QColor fg) {
-			PaintButtonContent(q, button, fg, context, outerWidth, palette);
+			PaintButtonContent(
+				q,
+				button,
+				fg,
+				clip,
+				now,
+				outerWidth,
+				palette);
 		});
+}
+
+void PaintOneButton(
+		Painter &p,
+		const LaidOutButton &button,
+		const RichButtonPillColors &colors,
+		Ui::RippleAnimation *ripple,
+		const style::MarkdownButtonRow &st,
+		QRect clip,
+		crl::time now,
+		int outerWidth,
+		bool disabled) {
+	if (colors.punchOut) {
+		PaintPrimaryButton(
+			p,
+			button,
+			colors,
+			ripple,
+			st,
+			clip,
+			now,
+			outerWidth,
+			disabled);
+	} else {
+		PaintPlainButton(
+			p,
+			button,
+			colors,
+			ripple,
+			st,
+			clip,
+			now,
+			outerWidth,
+			disabled);
+	}
 }
 
 } // namespace
@@ -586,28 +633,37 @@ void PaintButtonRow(
 			&& (runtime->rippleIndex == i))
 			? runtime->ripple.get()
 			: nullptr;
-		if (colors.punchOut) {
-			PaintPrimaryButton(
-				p,
-				button,
-				colors,
-				ripple,
-				style,
-				context,
-				outerWidth,
-				disabled);
-		} else {
-			PaintPlainButton(
-				p,
-				button,
-				colors,
-				ripple,
-				style,
-				context,
-				outerWidth,
-				disabled);
-		}
+		PaintOneButton(
+			p,
+			button,
+			colors,
+			ripple,
+			style,
+			context.clip,
+			context.now,
+			outerWidth,
+			disabled);
 	}
+}
+
+void PaintRichButtonPreview(
+		Painter &p,
+		const LaidOutButton &button,
+		const style::Markdown &st,
+		QRect clip,
+		crl::time now,
+		int outerWidth) {
+	const auto colors = ResolveButtonColors(button.color, st);
+	PaintOneButton(
+		p,
+		button,
+		colors,
+		nullptr,
+		st.buttonRow,
+		clip,
+		now,
+		outerWidth,
+		false);
 }
 
 void AddPillRipple(

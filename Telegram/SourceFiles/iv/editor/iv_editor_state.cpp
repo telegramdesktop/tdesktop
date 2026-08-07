@@ -8788,6 +8788,132 @@ State::DisplayMathEditResult State::editActiveDisplayMath(
 	});
 }
 
+auto State::inlineButtonAt(int ordinal, int offset) const
+-> std::optional<Markdown::InlineTextObjectButtonData> {
+	const auto descriptor = textNode(ordinal);
+	const auto text = descriptor ? richText(descriptor->leaf) : nullptr;
+	if (!text) {
+		return std::nullopt;
+	}
+	for (const auto &entity : text->text.entities) {
+		if (entity.offset() != offset) {
+			continue;
+		} else if (auto button = ButtonDataFromEntity(entity)) {
+			return button;
+		}
+	}
+	return std::nullopt;
+}
+
+ApplyResult State::editInlineButtonAt(
+		int ordinal,
+		int offset,
+		Markdown::InlineTextObjectButtonData data) {
+	data.label = Markdown::NormalizeRichButtonLabel(std::move(data.label));
+	auto serialized = Markdown::SerializeInlineTextObjectEntity({
+		.kind = Markdown::InlineTextObjectKind::Button,
+		.data = std::move(data),
+	});
+	if (serialized.isEmpty()) {
+		return ApplyResult::Unchanged;
+	}
+	return applyCheckedMutation(ApplyResult::Failed, [
+		ordinal,
+		offset,
+		serialized = std::move(serialized)
+	](State &candidate) {
+		const auto descriptor = candidate.textNode(ordinal);
+		const auto text = descriptor
+			? candidate.richText(descriptor->leaf)
+			: nullptr;
+		if (!text) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		for (auto &entity : text->text.entities) {
+			if ((entity.offset() != offset)
+				|| !ButtonDataFromEntity(entity)) {
+				continue;
+			} else if (entity.data() == serialized) {
+				return CheckedMutationResult<ApplyResult>{
+					.result = ApplyResult::Unchanged,
+				};
+			}
+			entity = EntityInText(
+				EntityType::CustomEmoji,
+				entity.offset(),
+				entity.length(),
+				serialized);
+			candidate.rebuild();
+			return CheckedMutationResult<ApplyResult>{
+				.apply = true,
+				.result = ApplyResult::Changed,
+			};
+		}
+		return CheckedMutationResult<ApplyResult>{
+			.result = ApplyResult::Unchanged,
+		};
+	});
+}
+
+const RichPage::Button *State::rowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index) const {
+	const auto path = convertBlockPath(source);
+	const auto owner = path ? block(*path) : nullptr;
+	if (!owner
+		|| (owner->kind != BlockKind::ButtonRow)
+		|| (index < 0)
+		|| (index >= int(owner->buttons.size()))) {
+		return nullptr;
+	}
+	return &owner->buttons[index];
+}
+
+ApplyResult State::editRowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index,
+		RichPage::Button button) {
+	button.text.text = Markdown::NormalizeRichButtonLabel(
+		std::move(button.text.text));
+	button.button.text = button.text.text.text;
+	return applyCheckedMutation(ApplyResult::Failed, [
+		source,
+		index,
+		button = std::move(button)
+	](State &candidate) {
+		const auto path = candidate.convertBlockPath(source);
+		const auto owner = path ? candidate.block(*path) : nullptr;
+		if (!owner
+			|| (owner->kind != BlockKind::ButtonRow)
+			|| (index < 0)
+			|| (index >= int(owner->buttons.size()))) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		auto &entry = owner->buttons[index];
+		auto updated = entry;
+		updated.text.text = button.text.text;
+		updated.button.text = button.button.text;
+		updated.button.type = button.button.type;
+		updated.button.data = button.button.data;
+		updated.button.visual.color = button.button.visual.color;
+		if (entry == updated) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		entry = std::move(updated);
+		candidate.rebuild();
+		return CheckedMutationResult<ApplyResult>{
+			.apply = true,
+			.result = ApplyResult::Changed,
+		};
+	});
+}
+
 bool State::insertBlocksAfterActiveUnchecked(
 		std::vector<Block> blocks,
 		std::optional<ActiveTextInsertContext> context) {

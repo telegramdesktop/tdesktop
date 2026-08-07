@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "iv/markdown/iv_markdown_prepare.h"
 #include "ui/text/text_entity.h"
 
+#include <optional>
 #include <vector>
 
 namespace Iv::Editor {
@@ -31,5 +33,9 @@ struct RichTextEditorConversion {
 	const std::vector<RichTextEditorOffsetReplacement> &replacements,
 	int offset);
 [[nodiscard]] TextWithEntities ConvertEditorTagsToRichText(TextWithTags text);
+[[nodiscard]] auto ButtonDataFromEntity(const EntityInText &entity)
+-> std::optional<Markdown::InlineTextObjectButtonData>;
+[[nodiscard]] auto ButtonDataFromEntity(QStringView data)
+-> std::optional<Markdown::InlineTextObjectButtonData>;
 
 } // namespace Iv::Editor
