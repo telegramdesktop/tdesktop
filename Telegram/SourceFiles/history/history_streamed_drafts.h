@@ -76,6 +76,9 @@ private:
 		const MTPDsendMessageTextDraftAction &data);
 	[[nodiscard]] DraftContent prepareContent(
 		const MTPDsendMessageRichMessageDraftAction &data);
+	[[nodiscard]] std::optional<uint64> previousRandomId(
+		MsgId rootId,
+		PeerId fromId) const;
 	void clearByRandomId(uint64 randomId);
 
 	void check();

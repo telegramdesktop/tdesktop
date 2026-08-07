@@ -123,11 +123,15 @@ void HistoryStreamedDrafts::applyPrepared(
 		&& update(randomId, std::move(content))) {
 		return;
 	}
+	const auto previousId = previousRandomId(rootId, fromId);
 	const auto item = _history->addNewLocalMessage({
 		.id = _history->owner().nextLocalMessageId(),
 		.flags = (MessageFlag::Local
 			| MessageFlag::HasReplyInfo
-			| MessageFlag::TextAppearing),
+			| MessageFlag::TextAppearing
+			| (previousId
+				? MessageFlag::TextAppearingStarted
+				: MessageFlag())),
 		.from = fromId,
 		.replyTo = {
 			.messageId = replyToId,
@@ -138,6 +142,9 @@ void HistoryStreamedDrafts::applyPrepared(
 	if (content.richPage) {
 		item->setRichPage(content.richPage);
 		_history->owner().requestItemTextRefresh(item);
+	}
+	if (previousId) {
+		clearByRandomId(*previousId);
 	}
 	_drafts.emplace(randomId, Draft{
 		.message = item,
@@ -191,6 +198,17 @@ bool HistoryStreamedDrafts::update(
 	i->second.matchText = std::move(content.matchText);
 	i->second.updated = crl::now();
 	return true;
+}
+
+std::optional<uint64> HistoryStreamedDrafts::previousRandomId(
+		MsgId rootId,
+		PeerId fromId) const {
+	for (const auto &[randomId, draft] : _drafts) {
+		if (draft.rootId == rootId && draft.fromId == fromId) {
+			return randomId;
+		}
+	}
+	return std::nullopt;
 }
 
 void HistoryStreamedDrafts::clearByRandomId(uint64 randomId) {
