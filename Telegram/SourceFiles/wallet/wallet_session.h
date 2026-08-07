@@ -109,6 +109,17 @@ public:
 		const Gram::HttpRequest &request,
 		Fn<void(const QByteArray &)> done,
 		Fn<void(const Gram::ApiError &)> fail);
+	void debugProductRequest(
+		const Gram::HttpRequest &request,
+		Fn<void(const QByteArray &)> done,
+		Fn<void(const Gram::ApiError &)> fail);
+	void debugStallNextRequest(
+		const QString &endpoint,
+		Fn<void()> swallowed);
+	void debugReleaseStalledAnswer();
+	void debugClearNetworkState();
+	void debugRestoreNetworkState();
+	[[nodiscard]] int debugPendingCount() const;
 #endif
 
 	void startPolling();
@@ -191,6 +202,7 @@ private:
 		std::vector<Fn<void(const Gram::NftItem &)>>> _collectibleInfoWaiters;
 #ifdef _DEBUG
 	bool _collectiblesInjected = false;
+	int _debugClearedPollingCount = 0;
 #endif // _DEBUG
 
 	int _pollingCount = 0;

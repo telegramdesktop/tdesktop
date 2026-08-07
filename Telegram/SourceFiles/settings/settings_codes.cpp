@@ -47,10 +47,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/api/gram_api_nft.h"
 #include "gram/api/gram_api_request.h"
 #include "mtproto/mtproto_config.h"
+#include "mtproto/mtproto_response.h"
 #include "storage/file_download.h"
 #include "test/test_agent.h"
 #include "test/test_log.h"
 #include "ui/image/image_location.h"
+#include "wallet/wallet_api.h"
 #endif // _DEBUG
 
 #include <zlib.h>
@@ -524,6 +526,204 @@ void RunFragmentProbes(not_null<SessionController*> window) {
 		raw->start();
 	}
 }
+
+constexpr auto kWalletBurstCount = 24;
+constexpr auto kWalletBurstSlowFloor = crl::time(2500);
+constexpr auto kWalletStallReleaseMargin = 5 * crl::time(1000);
+constexpr auto kWalletStallArmTimeout = 20 * crl::time(1000);
+
+void RunWalletStall(not_null<SessionController*> window) {
+	const auto session = &window->session();
+	const auto wallet = &session->wallet();
+	if (wallet->keyState() == Wallet::KeyState::None) {
+		Ui::Toast::Show(u"No wallet."_q);
+		return;
+	}
+	struct State {
+		base::Timer release;
+		base::Timer netreset;
+		crl::time armed = 0;
+		crl::time swallowed = 0;
+		int completions = 0;
+		int round = 0;
+		bool failed = false;
+	};
+	const auto state = session->lifetime().make_state<State>();
+	const auto bound = Wallet::Api::DebugRequestTimeout();
+	const auto items = [=] {
+		return int(wallet->history().size());
+	};
+	const auto elapsed = [=] {
+		const auto from = state->swallowed ? state->swallowed : state->armed;
+		return crl::now() - from;
+	};
+	const auto onSwallowed = [=] {
+		state->swallowed = crl::now();
+		state->completions = 0;
+		Test::Note(u"WALLET_STALL_SWALLOWED round=%1 armElapsedMs=%2"
+			u" pending=%3"_q
+			.arg(state->round)
+			.arg(state->swallowed - state->armed)
+			.arg(wallet->debugPendingCount()));
+		wallet->refreshHistory([=] {
+			Test::Note(u"WALLET_STALL_HISTORY_DONE round=%1 n=%2"
+				u" elapsedMs=%3 items=%4 pending=%5"_q
+				.arg(state->round)
+				.arg(++state->completions)
+				.arg(elapsed())
+				.arg(items())
+				.arg(wallet->debugPendingCount()));
+		});
+		if (state->round == 2) {
+			const auto now = state->swallowed;
+			const auto at = state->armed + bound / 2;
+			state->netreset.callOnce((at > now) ? (at - now) : crl::time(0));
+		}
+		state->release.callOnce(bound + kWalletStallReleaseMargin);
+	};
+	const auto startRound = [=](int round) {
+		state->round = round;
+		state->armed = crl::now();
+		state->swallowed = 0;
+		Test::Note(u"WALLET_STALL_ARM round=%1 boundMs=%2 pending=%3"_q
+			.arg(round)
+			.arg(bound)
+			.arg(wallet->debugPendingCount()));
+		wallet->debugStallNextRequest(
+			Gram::TracesRequest(QString(), 0, 0).endpoint,
+			onSwallowed);
+		if (round == 1) {
+			wallet->startPolling();
+		}
+		wallet->refreshHistory();
+		state->release.callOnce(kWalletStallArmTimeout);
+	};
+	const auto finish = [=] {
+		wallet->debugStallNextRequest(QString(), nullptr);
+		wallet->debugRestoreNetworkState();
+		wallet->stopPolling();
+		if (state->failed) {
+			Test::Note(u"WALLET_STALL_INCOMPLETE"_q);
+			Ui::Toast::Show(u"Wallet stall: incomplete, see the test log."_q);
+			return;
+		}
+		Test::Fire(u"wallet_stall_complete"_q);
+		Ui::Toast::Show(u"Wallet stall: done, see the test log."_q);
+	};
+	state->netreset.setCallback([=] {
+		Test::Note(u"WALLET_STALL_NETRESET pending=%1"_q
+			.arg(wallet->debugPendingCount()));
+		wallet->debugClearNetworkState();
+	});
+	state->release.setCallback([=] {
+		const auto round = state->round;
+		if (!state->swallowed) {
+			state->failed = true;
+			Test::Note(u"WALLET_STALL_NO_SWALLOW round=%1 waitedMs=%2"_q
+				.arg(round)
+				.arg(elapsed()));
+			finish();
+			return;
+		}
+		const auto pendingBefore = wallet->debugPendingCount();
+		Test::Note(u"WALLET_STALL_RELEASE round=%1 elapsedMs=%2 items=%3"
+			u" pending=%4"_q
+			.arg(round)
+			.arg(elapsed())
+			.arg(items())
+			.arg(pendingBefore));
+		wallet->debugReleaseStalledAnswer();
+		const auto pendingAfter = wallet->debugPendingCount();
+		Test::Note(u"WALLET_STALL_AFTER_RELEASE round=%1 items=%2 pending=%3"_q
+			.arg(round)
+			.arg(items())
+			.arg(pendingAfter));
+		const auto recovered = (pendingBefore == pendingAfter)
+			&& ((round > 1) || (state->completions > 0));
+		if (!recovered) {
+			state->failed = true;
+			Test::Note(u"WALLET_STALL_NO_RECOVERY round=%1 completions=%2"_q
+				.arg(round)
+				.arg(state->completions));
+		}
+		if (round < 2) {
+			startRound(2);
+			return;
+		}
+		finish();
+	});
+	startRound(1);
+}
+
+void RunWalletBurst(not_null<SessionController*> window) {
+	const auto session = &window->session();
+	const auto wallet = &session->wallet();
+	if (wallet->keyState() == Wallet::KeyState::None) {
+		Ui::Toast::Show(u"No wallet."_q);
+		return;
+	}
+	struct State {
+		crl::time started = 0;
+		int done = 0;
+		int failed = 0;
+		int flood = 0;
+		int slow = 0;
+	};
+	const auto state = session->lifetime().make_state<State>();
+	state->started = crl::now();
+	Test::Note(u"WALLET_BURST_START count=%1"_q.arg(kWalletBurstCount));
+	for (auto i = 0; i != kWalletBurstCount; ++i) {
+		const auto index = i;
+		const auto started = crl::now();
+		const auto record = [=](
+				const QString &outcome,
+				const QString &detail,
+				int bytes) {
+			const auto elapsed = crl::now() - started;
+			if (elapsed >= kWalletBurstSlowFloor) {
+				++state->slow;
+			}
+			Test::Note(u"WALLET_BURST index=%1 outcome=%2 detail=%3"
+				u" bytes=%4 elapsedMs=%5"_q
+				.arg(index)
+				.arg(outcome)
+				.arg(detail)
+				.arg(bytes)
+				.arg(elapsed));
+			if (++state->done < kWalletBurstCount) {
+				return;
+			}
+			Test::Note(u"WALLET_BURST_COMPLETE count=%1 failed=%2 flood=%3"
+				u" slow=%4 elapsedMs=%5 pending=%6"_q
+				.arg(kWalletBurstCount)
+				.arg(state->failed)
+				.arg(state->flood)
+				.arg(state->slow)
+				.arg(crl::now() - state->started)
+				.arg(wallet->debugPendingCount()));
+			Test::Fire(u"wallet_burst_complete"_q);
+			Ui::Toast::Show(u"Burst: %1 sent, %2 failed, %3 flood."_q
+				.arg(kWalletBurstCount)
+				.arg(state->failed)
+				.arg(state->flood));
+		};
+		wallet->debugProductRequest(
+			Gram::HttpRequest{ .endpoint = u"/api/v3/masterchainInfo"_q },
+			[=](const QByteArray &bytes) {
+				record(u"done"_q, QString(), int(bytes.size()));
+			},
+			[=](const Gram::ApiError &error) {
+				++state->failed;
+				if (MTP::IsFloodError(error.message)) {
+					++state->flood;
+				}
+				const auto detail = u"code=%1 type=%2"_q
+					.arg(error.code)
+					.arg(error.message);
+				record(u"failed"_q, detail, 0);
+			});
+	}
+}
 #endif // _DEBUG
 
 auto GenerateCodes() {
@@ -840,6 +1040,18 @@ auto GenerateCodes() {
 		}
 		RunToncenterProbes(window);
 		RunFragmentProbes(window);
+	});
+	codes.emplace(u"walletstall"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		RunWalletStall(window);
+	});
+	codes.emplace(u"walletburst"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		RunWalletBurst(window);
 	});
 #endif
 	codes.emplace(u"loadcolors"_q, [](SessionController *window) {

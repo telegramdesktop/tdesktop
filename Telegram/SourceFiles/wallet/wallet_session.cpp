@@ -613,6 +613,40 @@ void Session::debugRawRequest(
 		Fn<void(const Gram::ApiError &)> fail) {
 	_api.debugRawRequest(request, std::move(done), std::move(fail));
 }
+
+void Session::debugProductRequest(
+		const Gram::HttpRequest &request,
+		Fn<void(const QByteArray &)> done,
+		Fn<void(const Gram::ApiError &)> fail) {
+	_api.request(request, std::move(done), std::move(fail));
+}
+
+void Session::debugStallNextRequest(
+		const QString &endpoint,
+		Fn<void()> swallowed) {
+	_api.debugStallNextRequest(endpoint, std::move(swallowed));
+}
+
+void Session::debugReleaseStalledAnswer() {
+	_api.debugReleaseStalledAnswer();
+}
+
+void Session::debugClearNetworkState() {
+	if (_keyState.current() == KeyState::None) {
+		return;
+	}
+	_debugClearedPollingCount = _pollingCount;
+	clearNetworkState();
+}
+
+void Session::debugRestoreNetworkState() {
+	_pollingCount += base::take(_debugClearedPollingCount);
+	updatePollingState();
+}
+
+int Session::debugPendingCount() const {
+	return _api.debugPendingCount();
+}
 #endif
 
 void Session::startPolling() {
@@ -830,6 +864,17 @@ void Session::sendWithState(
 		.comment = args.comment,
 	};
 	const auto validUntil = request.validUntil;
+	const auto keepPending = [=](const QString &reason) {
+		if (_pending) {
+			_sendState = SendState::Pending;
+			updatePollingState();
+			LOG(("Wallet: %1, seqno %2, validUntil %3."
+				).arg(reason).arg(usedSeqno).arg(validUntil));
+		}
+		if (done) {
+			done(QString());
+		}
+	};
 	_api.request(
 		Gram::SendMessageRequest(boc.toBase64()),
 		[=](const QByteArray &json) {
@@ -841,18 +886,14 @@ void Session::sendWithState(
 					_pending->messageHashNorm = sent->messageHashNorm;
 				}
 			}
-			if (_pending) {
-				_sendState = SendState::Pending;
-				updatePollingState();
-				LOG(("Wallet: transfer posted, seqno %1, validUntil %2."
-					).arg(usedSeqno).arg(validUntil));
-			}
-			if (done) {
-				done(QString());
-			}
+			keepPending(u"transfer posted"_q);
 		},
 		[=](const Gram::ApiError &error) {
 			if (_keyState.current() == KeyState::None) {
+				return;
+			}
+			if (Api::IsTimeoutError(error)) {
+				keepPending(u"transfer answer timed out, still pending"_q);
 				return;
 			}
 			_pending.reset();
