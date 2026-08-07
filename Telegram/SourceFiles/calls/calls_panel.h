@@ -149,6 +149,8 @@ private:
 	void refreshIncomingGeometry();
 
 	void refreshOutgoingPreviewInBody(State state);
+	void createPinOnTop();
+	[[nodiscard]] QRect pinOnTopRect() const;
 	void toggleFullScreen(bool fullscreen);
 	void createRemoteAudioMute();
 	void createRemoteLowBattery();
@@ -188,6 +190,7 @@ private:
 	base::unique_qptr<Ui::FadeWrap<Ui::CallButton>> _mute;
 	Ui::CallButton *_audioDeviceToggle = nullptr;
 	base::unique_qptr<Ui::FadeWrap<Ui::CallButton>> _addPeople;
+	base::unique_qptr<Ui::IconButton> _pinOnTop;
 	base::unique_qptr<Ui::FlatLabel> _name;
 	base::unique_qptr<Ui::FlatLabel> _status;
 	base::unique_qptr<Ui::RpWidget> _conferenceParticipants;
@@ -205,6 +208,7 @@ private:
 	base::Timer _controlsShownForceTimer;
 	std::unique_ptr<QObject> _hideControlsFilter;
 	bool _hideControlsRequested = false;
+	bool _unpinnedMaximized = false;
 	rpl::variable<bool> _fullScreenOrMaximized;
 	Ui::Animations::Simple _controlsShownAnimation;
 	bool _controlsShownForce = false;

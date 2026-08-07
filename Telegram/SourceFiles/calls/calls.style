@@ -512,6 +512,7 @@ callTitle: WindowTitle(defaultWindowTitle) {
 	bgActive: callBgOpaque;
 	fg: transparent;
 	fgActive: transparent;
+	oneSideControls: true;
 	minimize: IconButton(callTitleButton) {
 		icon: callTitleMinimizeIcon;
 		iconOver: callTitleMinimizeIconOver;
@@ -537,6 +538,42 @@ callTitle: WindowTitle(defaultWindowTitle) {
 }
 callTitleShadowRight: icon {{ "calls/calls_shadow_controls", windowShadowFg }};
 callTitleShadowLeft: icon {{ "calls/calls_shadow_controls-flip_horizontal", windowShadowFg }};
+
+callPinnedOnTopIcon: icon {{ "calls/navbar_pin_filled", callNameFg }};
+callPinOnTop: IconButton {
+	width: 36px;
+	height: 36px;
+
+	icon: icon {{ "calls/navbar_pin", callStatusFg }};
+	iconOver: icon {{ "calls/navbar_pin", callNameFg }};
+	iconPosition: point(0px, 6px);
+
+	rippleAreaPosition: point(3px, 3px);
+	rippleAreaSize: 30px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: callMuteRipple;
+	}
+}
+callTitlePinIcon: icon {
+	{ "calls/navbar_pin", callNameFg },
+};
+callTitlePinIconOver: icon {
+	{ windowTitleButtonSize, callBgButton },
+	{ windowTitleButtonSize, callMuteRipple },
+	{ "calls/navbar_pin", callNameFg },
+};
+callTitlePinnedIcon: icon {
+	{ "calls/navbar_pin_filled", callNameFg },
+};
+callTitlePinnedIconOver: icon {
+	{ windowTitleButtonSize, callBgButton },
+	{ windowTitleButtonSize, callMuteRipple },
+	{ "calls/navbar_pin_filled", callNameFg },
+};
+callTitlePinOnTop: IconButton(callTitleButton) {
+	icon: callTitlePinIcon;
+	iconOver: callTitlePinIconOver;
+}
 
 groupCallWidth: 380px;
 groupCallHeight: 520px;
