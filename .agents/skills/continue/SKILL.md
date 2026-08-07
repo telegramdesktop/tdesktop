@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Continue autonomous Telegram Desktop development from the shared ai-tdesktop repository. Use when the user invokes $continue or /continue, asks Codex to keep working through the AI queue, or wants one command to resume the active task at the head of a frozen startup batch, drain matching queued work, or process the local inbox only when startup has no task work, while including follow-ups discovered from the batch but deferring unrelated tasks added mid-run.
+description: Continue autonomous Telegram Desktop development from the shared ai-tdesktop repository. Use when the user invokes $continue or /continue, asks Codex to keep working through the AI queue, or wants one command to resume the active task at the head of a frozen startup batch, drain matching queued work, or process the local inbox only when startup has no task work, while including and consolidating follow-ups discovered from the batch but deferring unrelated tasks added mid-run.
 ---
 
 # Continue AI Work
@@ -8,8 +8,9 @@ description: Continue autonomous Telegram Desktop development from the shared ai
 Act as the checkout-level scheduler. Choose one invocation mode at startup,
 freeze its task batch, and keep looping only through that batch and follow-ups
 discovered from its results. Do not drain unrelated tasks added while the run
-is in progress. Delegate inbox planning and one-task execution; do not plan or
-implement Telegram changes in this scheduler session.
+is in progress. After routing new follow-ups, consolidate compatible unclaimed
+work in a fresh leaf worker. Delegate inbox planning and one-task execution; do
+not plan or implement Telegram changes in this scheduler session.
 
 This is the default development command and the successor to the old `task`
 and `implement` workflows. Inbox processing may bootstrap an otherwise idle
@@ -39,7 +40,9 @@ Restore those exact tracked paths to the slot branch head, delete their
 untracked files, and continue. Stop instead of cleaning when any other slot
 path changed, and never clean the main worktree or stash anywhere.
 Unpublished clean AI slot commits are incomplete publication; run the
-helper's `publish` command before selecting work.
+helper's `publish` command before selecting work. It recognizes a consolidation
+commit and revalidates its aliases and complete dependency graph after every
+rebase before pushing; never publish such a commit manually.
 
 The canonical lifecycle is deliberately small:
 
@@ -60,6 +63,18 @@ Never infer ownership from an inbox receipt. Do not steal work from another
 checkout. Moving an unfinished task to another checkout is a rare explicit
 human reassignment that may restart the task and discard checkout-local phase
 artifacts; it is never automatic scheduler behavior.
+
+Before freezing a new invocation batch when no task is `in-progress`, handle
+each entry in the queue JSON's `pending_consolidations` once. These durable
+markers mean discovery routing published new tasks but its separate
+consolidation pass did not finish. Spawn the consolidation worker described
+below with the source task and batch ids recorded in the marker, then refresh
+the queue. A repeated pre-commit race may remain pending for the next
+invocation; record that marker as attempted and do not spin. If a task is
+already active, its expected local phase files make the shared AI slot unsafe
+for consolidation: freeze and finish that active task first, then recover all
+pending markers at its clean canonical `Approve` or `Block` boundary before
+selecting more work.
 
 ## Interpret scope hints
 
@@ -94,6 +109,7 @@ these invocation-local values in the scheduler plan:
 - ordered `initial_batch_task_ids`;
 - ordered `batch_task_ids`, initially equal to the initial batch;
 - empty `discovered_task_ids`;
+- empty `consolidation_mappings` and `consolidation_receipts`;
 - empty `attempted_blocked`.
 
 Do not write a batch file, claim the whole batch, or publish reservations.
@@ -316,14 +332,33 @@ Spawn one disposable routing worker with `fork_turns: "none"`. Tell it to read
 the routing, splitting, task-path, artifact, validation, and publication rules
 in `.agents/skills/process-inbox/SKILL.md`, but not to call `prepare`,
 `finalize`, or `abort`. Its immutable input is the result, not the inbox. It
-must not edit Telegram source, start tasks, or implement work.
+must not edit Telegram source, start tasks, or implement work. Give it the
+current ordered `batch_task_ids` for the pending consolidation marker.
 
 The worker must deduplicate existing tasks, create independently testable
 unclaimed `todo` tasks and justified project updates, write a discovery
-receipt, and write the source task's routing marker. It stages only those
-paths, commits `Route follow-ups from <source-task-id>`, and publishes with the
-workspace helper. Retry ordinary concurrent-master races; preserve a semantic
-conflict or unavailable-remote slot commit and stop.
+receipt, and write the source task's routing marker. When it creates at least
+one task, it must also write `work/consolidation-pending.md` under the source
+task, recording the source id, newly created ids, and the post-routing batch:
+the scheduler's current ordered `batch_task_ids` followed by the newly created
+ids in routing order with duplicates removed. The marker is part of the routing
+commit and makes the separate pass resumable after a crash. It stages only
+those paths, commits
+`Route follow-ups from <source-task-id>`, and publishes with the workspace
+helper. Retry ordinary concurrent-master races; preserve a semantic conflict
+or unavailable-remote slot commit and stop.
+
+Use this stable marker shape so a context-free worker can recover it:
+
+```markdown
+# Pending task consolidation
+
+Source: <source-task-id>
+Created:
+- <new-task-id>
+Batch:
+- <ordered-post-routing-batch-task-id>
+```
 
 Project assignment has a strong source-project bias. When the source task has
 a project, assign each discovered implementation or verification task to that
@@ -407,6 +442,46 @@ transitively when a discovered task later reports its own follow-ups.
 Deduplicated references to pre-existing tasks and unrelated tasks observed in
 queue refreshes do not join the batch.
 
+## Consolidate pending tasks after discovery
+
+Whenever discovery routing publishes `work/consolidation-pending.md`, run one
+fresh consolidation pass before selecting the next task. Do not run it for a
+receipt-only routing or a routing that only reused existing tasks. Do not reuse
+the performer or routing worker: spawn one disposable worker with
+`fork_turns: "none"`, instruct it not to delegate, and give it `source_root`,
+`slot_worktree`, `checkout_tag`, the pending marker, and effective batch ids.
+Use the current frozen `batch_task_ids` when one exists; only recovery before a
+new batch is frozen uses the marker's Batch list. The marker always supplies the
+source task and newly created ids after scheduler context is lost.
+
+Tell it to read
+`.agents/skills/continue/references/consolidate-pending-tasks.md` completely and
+own exactly one queue-wide consolidation pass. The worker may edit and publish
+AI task, project, and receipt state, but must not touch Telegram source, build,
+test, claim, start, approve, or block work. Wait and validate it like the routing
+worker; keep its task-description scan and merge reasoning out of the scheduler
+context.
+
+A no-merge result still publishes `work/consolidation-complete.md` and removes
+the pending marker, so it cannot be repeated after a restart. A pre-commit race
+leaves the pending marker intact; refresh the queue, record it as attempted for
+this invocation, and continue without treating the optimization as a blocker.
+If the worker created a commit that cannot be published safely, preserve it and
+hard-stop exactly as for discovery routing.
+
+At every clean canonical `Approve` or `Block` boundary, process any older
+pending marker deferred by an active startup task before selecting more work,
+then process the marker just created by that task's routing. Attempt each marker
+at most once per invocation.
+
+For each published old-to-new mapping, rewrite `batch_task_ids` by placing the
+replacement at the earliest position occupied by any of its sources and removing
+the other source ids and duplicate replacement ids. Do not add a replacement
+when none of its sources was in the batch. Apply the same replacement and
+deduplication to `discovered_task_ids`; leave `initial_batch_task_ids` unchanged
+as the startup record. Append the mapping and receipt to the invocation-local
+consolidation records, refresh canonical state, and only then select more work.
+
 ## Report
 
 Return one compact summary: invocation mode, initial batch ids, discovered ids
@@ -414,7 +489,8 @@ added to the batch, inbox receipt if processed, tasks approved, exceptionally
 blocked tasks with exact unverified behavior and retry status, recorded tasks
 left queued, unrelated new tasks deferred to the next invocation, routed
 discoveries, infrastructure-limited coverage gaps recorded but not routed,
-archived projects, any discarded interrupted-worker leftovers,
+consolidation no-merge results or receipts, old-to-new mappings, the net
+task-count saving, archived projects, any discarded interrupted-worker leftovers,
 elapsed time, and why the loop stopped. Make any global hard stop or unsafe
 state unmistakable. Never include source or AI commit hashes; task ids are the
 only durable locators.

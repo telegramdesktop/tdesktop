@@ -18,10 +18,13 @@ TAG_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]*")
 TASK_ID_PATTERN = re.compile(
 	r"[0-9]{4}/[0-9]{2}/[0-9]{2}/[a-z0-9][a-z0-9-]*"
 )
+SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 VALID_STATUSES = {"todo", "in-progress", "approved", "blocked"}
 DEFAULT_TASK_TYPE = "implement"
 VALID_TASK_TYPES = {DEFAULT_TASK_TYPE, "verify"}
 VALID_FINDINGS = {"confirmed", "deviation", "inconclusive"}
+CONSOLIDATION_PENDING = "work/consolidation-pending.md"
+CONSOLIDATION_COMPLETE = "work/consolidation-complete.md"
 COMMIT_HASH_PATTERN = re.compile(
 	r"(?i)\b(?:commit|revision|sha(?:-1)?)\b[^\r\n]{0,32}(?<!#)\b[0-9a-f]{7,64}\b"
 )
@@ -400,6 +403,7 @@ def load_state(root, path):
 		"claim_order": order,
 		"lease_until": parse_scalar(values.get("lease_until", "null")),
 		"phase": parse_scalar(values.get("phase", "null")),
+		"inbox_receipt": parse_scalar(values.get("inbox_receipt", "null")),
 		"state_path": str(path),
 	}
 
@@ -538,7 +542,7 @@ def sync_inbox_canonical(config):
 	sync_inbox_worktree(config)
 
 
-def publish_worktree(config, worktree_key, branch_key, label):
+def publish_worktree(config, worktree_key, branch_key, label, validate=None):
 	main = Path(config["ai_main"])
 	worktree = Path(config[worktree_key])
 	branch = config[branch_key]
@@ -553,6 +557,8 @@ def publish_worktree(config, worktree_key, branch_key, label):
 				"AI state conflicts with newer master; the worktree commits were preserved. "
 				+ (rebase.stderr.strip() or rebase.stdout.strip())
 			)
+		if validate is not None:
+			validate(worktree)
 		if has_origin(main):
 			push = run_git(worktree, "push", "origin", "HEAD:master", check=False)
 			if push.returncode:
@@ -579,12 +585,13 @@ def publish_worktree(config, worktree_key, branch_key, label):
 		)
 
 
-def publish_slot(config):
+def publish_slot(config, validate=None):
 	return publish_worktree(
 		config,
 		"slot_worktree",
 		"slot_branch",
 		"ai-tdesktop slot",
+		validate,
 	)
 
 
@@ -618,11 +625,112 @@ def normalized_task_name(value):
 	return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
 
 
-def resolve_task(states, value):
+def superseded_paths(root):
+	tasks = root / "tasks"
+	if not tasks.is_dir():
+		return []
+	return sorted(tasks.glob("*/*/*/*/superseded.yaml"))
+
+
+def retained_task_digest(directory):
+	if not directory.is_dir():
+		raise WorkspaceError(f"Task directory does not exist: {directory}")
+	digest = hashlib.sha256()
+	paths = []
+	for path in directory.rglob("*"):
+		if path.is_symlink():
+			raise WorkspaceError(f"Task retained content must not be a symlink: {path}")
+		if not path.is_file():
+			continue
+		relative = path.relative_to(directory).as_posix()
+		if relative in ("state.yaml", "superseded.yaml"):
+			continue
+		paths.append((relative, path))
+	for relative, path in sorted(paths):
+		name = relative.encode("utf-8")
+		data = path.read_bytes()
+		digest.update(len(name).to_bytes(8, "big"))
+		digest.update(name)
+		digest.update(len(data).to_bytes(8, "big"))
+		digest.update(data)
+	return digest.hexdigest()
+
+
+def load_superseded(root):
+	result = {}
+	for path in superseded_paths(root):
+		values = {}
+		for line in path.read_text(encoding="utf-8-sig").splitlines():
+			if not line or line[0].isspace() or ":" not in line:
+				continue
+			key, value = line.split(":", 1)
+			values[key] = parse_scalar(value)
+		old_id = "/".join(path.relative_to(root).parts[1:5])
+		if not TASK_ID_PATTERN.fullmatch(old_id):
+			raise WorkspaceError(f"Invalid superseded task path: {path}")
+		for field in (
+			"superseded_by",
+			"receipt",
+			"type",
+			"project",
+			"content_sha256",
+		):
+			if field not in values:
+				raise WorkspaceError(f"Missing {field} in {path}")
+		target = values["superseded_by"]
+		if not isinstance(target, str) or not TASK_ID_PATTERN.fullmatch(target):
+			raise WorkspaceError(f"Invalid superseded_by in {path}: {target!r}")
+		kind = values["type"]
+		if kind not in VALID_TASK_TYPES:
+			raise WorkspaceError(f"Invalid type in {path}: {kind!r}")
+		project = values["project"]
+		if project is not None and not TAG_PATTERN.fullmatch(str(project)):
+			raise WorkspaceError(f"Invalid project in {path}: {project!r}")
+		if not isinstance(values["receipt"], str):
+			raise WorkspaceError(f"Invalid receipt in {path}: {values['receipt']!r}")
+		content_digest = values["content_sha256"]
+		if (
+			not isinstance(content_digest, str)
+			or not SHA256_PATTERN.fullmatch(content_digest)
+		):
+			raise WorkspaceError(
+				f"Invalid content_sha256 in {path}: {content_digest!r}"
+			)
+		result[old_id] = {
+			"id": old_id,
+			"superseded_by": target,
+			"receipt": values["receipt"],
+			"type": kind,
+			"project": project,
+			"content_sha256": content_digest,
+			"path": str(path),
+		}
+	return result
+
+
+def resolve_task_id(states, superseded, task_id):
+	visited = []
+	current = task_id
+	while current not in states:
+		if current in visited:
+			raise WorkspaceError(
+				"Superseded task cycle: " + " -> ".join(visited + [current])
+			)
+		visited.append(current)
+		alias = superseded.get(current)
+		if alias is None:
+			raise WorkspaceError(f"Task does not exist: {task_id}")
+		current = alias["superseded_by"]
+	result = dict(states[current])
+	if current != task_id:
+		result["superseded_from"] = task_id
+	return result
+
+
+def resolve_task(root, states, value):
+	superseded = load_superseded(root)
 	if TASK_ID_PATTERN.fullmatch(value):
-		if value not in states:
-			raise WorkspaceError(f"Task does not exist: {value}")
-		return states[value]
+		return resolve_task_id(states, superseded, value)
 	name = normalized_task_name(value)
 	if not name:
 		raise WorkspaceError("Task name is empty")
@@ -635,6 +743,16 @@ def resolve_task(states, value):
 			task for task in states.values()
 			if normalized_task_name(task["title"]) == name
 		]
+	if not exact:
+		alias_ids = [
+			task_id for task_id in superseded
+			if task_id.rsplit("/", 1)[-1] == name
+		]
+		exact = [
+			resolve_task_id(states, superseded, task_id)
+			for task_id in alias_ids
+		]
+		exact = list({task["id"]: task for task in exact}.values())
 	unfinished = [
 		task for task in exact
 		if task["status"] in ("todo", "in-progress", "blocked")
@@ -648,6 +766,25 @@ def resolve_task(states, value):
 			+ ", ".join(sorted(task["id"] for task in candidates))
 		)
 	return candidates[0]
+
+
+def pending_consolidations(root):
+	tasks = root / "tasks"
+	if not tasks.is_dir():
+		return []
+	result = []
+	for marker in sorted(tasks.glob(
+			"*/*/*/*/" + CONSOLIDATION_PENDING
+	)):
+		parts = marker.relative_to(root).parts
+		task_id = "/".join(parts[1:5])
+		if not TASK_ID_PATTERN.fullmatch(task_id):
+			raise WorkspaceError(f"Invalid consolidation marker path: {marker}")
+		result.append({
+			"source_task": task_id,
+			"marker": marker.relative_to(root).as_posix(),
+		})
+	return result
 
 
 def command_queue(args):
@@ -710,6 +847,7 @@ def command_queue(args):
 		"own_todo": own_todo,
 		"own_blocked": own_blocked,
 		"unclaimed_todo": unclaimed_todo,
+		"pending_consolidations": pending_consolidations(slot),
 		"other_claimed_unfinished": sum(
 			1 for task in values
 			if task["claimed_by"] not in (None, tag)
@@ -735,7 +873,7 @@ def command_resolve(args):
 	if not changed_paths(slot) and not unpublished_counts(config)["slot_only"]:
 		sync_canonical(config)
 	states = load_states(slot)
-	task = task_summary(resolve_task(states, args.name), states)
+	task = task_summary(resolve_task(slot, states, args.name), states)
 	active = sorted(
 		value["id"] for value in states.values()
 		if value["claimed_by"] == config["checkout_tag"]
@@ -853,9 +991,14 @@ def command_retry(args):
 		"phase": "resume",
 		"lease_until": None,
 	})
-	routed = path.parent / "work" / "discovered-routed.md"
-	if routed.is_file():
-		routed.unlink()
+	for marker in (
+		"work/discovered-routed.md",
+		CONSOLIDATION_PENDING,
+		CONSOLIDATION_COMPLETE,
+	):
+		marker_path = path.parent / marker
+		if marker_path.is_file():
+			marker_path.unlink()
 	print(json.dumps({
 		"task": args.task,
 		"status": "in-progress",
@@ -2421,7 +2564,9 @@ def command_finish(args):
 
 def command_publish(args):
 	config = worktree_config(args, create=True)
-	published = publish_slot(config)
+	slot = Path(config["slot_worktree"])
+	validate = consolidation_validation_for_head(slot)
+	published = publish_slot(config, validate=validate)
 	print(json.dumps({"published": bool(published)}, indent=2, sort_keys=True))
 
 
@@ -2450,6 +2595,395 @@ def normalized_publish_path(value):
 
 def path_is_covered(path, roots):
 	return any(path == root or path.startswith(root + "/") for root in roots)
+
+
+def parse_consolidation_mapping(value):
+	parts = value.split("=", 1)
+	if (
+		len(parts) != 2
+		or not TASK_ID_PATTERN.fullmatch(parts[0])
+		or not TASK_ID_PATTERN.fullmatch(parts[1])
+		or parts[0] == parts[1]
+	):
+		raise WorkspaceError(
+			f"Invalid consolidation mapping {value!r}; use old-task=new-task"
+		)
+	return tuple(parts)
+
+
+def validate_dependency_graph(states):
+	dependents = {task_id: [] for task_id in states}
+	remaining = {}
+	for task in states.values():
+		missing = [
+			dependency for dependency in task["depends_on"]
+			if dependency not in states
+		]
+		if missing:
+			raise WorkspaceError(
+				f"{task['id']} has missing dependencies: " + ", ".join(missing)
+			)
+		dependencies = set(task["depends_on"])
+		remaining[task["id"]] = len(dependencies)
+		for dependency in dependencies:
+			dependents[dependency].append(task["id"])
+	ready = [task_id for task_id, count in remaining.items() if count == 0]
+	processed = 0
+	while ready:
+		task_id = ready.pop()
+		processed += 1
+		for dependent in dependents[task_id]:
+			remaining[dependent] -= 1
+			if remaining[dependent] == 0:
+				ready.append(dependent)
+	if processed != len(states):
+		cycle_members = sorted(
+			task_id for task_id, count in remaining.items()
+			if count
+		)
+		raise WorkspaceError(
+			"Task dependency cycle includes: " + ", ".join(cycle_members)
+		)
+
+
+def validate_superseded_graph(root, states, superseded):
+	for task_id, alias in superseded.items():
+		if task_id in states:
+			raise WorkspaceError(
+				f"Superseded task still has live state.yaml: {task_id}"
+			)
+		directory = root / "tasks" / task_id
+		if not (directory / "task.md").is_file():
+			raise WorkspaceError(f"Superseded task lost task.md: {task_id}")
+		actual_digest = retained_task_digest(directory)
+		if actual_digest != alias["content_sha256"]:
+			raise WorkspaceError(
+				f"Superseded task retained content changed: {task_id}"
+			)
+		current = task_id
+		visited = []
+		while current not in states:
+			if current in visited:
+				raise WorkspaceError(
+					"Superseded task cycle: " + " -> ".join(visited + [current])
+				)
+			visited.append(current)
+			current_alias = superseded.get(current)
+			if current_alias is None:
+				raise WorkspaceError(
+					f"Superseded task {task_id} targets missing task {current}"
+				)
+			current = current_alias["superseded_by"]
+
+
+def validate_consolidation_tree(root, source_task, mappings, receipt):
+	states = load_states(root)
+	superseded = load_superseded(root)
+	if source_task not in states:
+		raise WorkspaceError(
+			f"Consolidation source task does not exist: {source_task}"
+		)
+	if states[source_task]["status"] not in ("approved", "blocked"):
+		raise WorkspaceError(
+			f"Consolidation source task is not finished: {source_task}"
+		)
+	source = root / "tasks" / source_task
+	pending = source / CONSOLIDATION_PENDING
+	complete = source / CONSOLIDATION_COMPLETE
+	if pending.exists():
+		raise WorkspaceError(f"Consolidation pending marker remains: {pending}")
+	if not complete.is_file():
+		raise WorkspaceError(f"Missing consolidation completion marker: {complete}")
+	complete_text = complete.read_text(encoding="utf-8-sig")
+	expected_status = "MERGED" if mappings else "NO_MERGE"
+	if source_task not in complete_text or f"STATUS: {expected_status}" not in complete_text:
+		raise WorkspaceError(
+			f"Consolidation completion marker must name {source_task} and "
+			f"contain STATUS: {expected_status}"
+		)
+	validate_dependency_graph(states)
+	validate_superseded_graph(root, states, superseded)
+	if not mappings:
+		if receipt is not None:
+			raise WorkspaceError("A no-merge consolidation must not publish a receipt")
+		return
+	if receipt is None:
+		raise WorkspaceError("A merged consolidation requires a receipt")
+	receipt_path = root / receipt
+	if not receipt_path.is_file():
+		raise WorkspaceError(f"Missing consolidation receipt: {receipt}")
+	receipt_text = receipt_path.read_text(encoding="utf-8-sig")
+	targets = {}
+	for old_id, new_id in mappings.items():
+		alias = superseded.get(old_id)
+		if alias is None or alias["superseded_by"] != new_id:
+			raise WorkspaceError(
+				f"Missing exact superseded mapping {old_id} -> {new_id}"
+			)
+		if alias["receipt"] != receipt:
+			raise WorkspaceError(
+				f"Superseded task {old_id} names the wrong receipt"
+			)
+		new_task = states.get(new_id)
+		if new_task is None:
+			raise WorkspaceError(f"Replacement task does not exist: {new_id}")
+		if (
+			new_task["status"] != "todo"
+			or any(new_task[field] is not None for field in (
+				"claimed_by",
+				"claimed_at",
+				"claim_order",
+				"lease_until",
+				"phase",
+			))
+		):
+			raise WorkspaceError(
+				f"Replacement task is not pristine unclaimed todo work: {new_id}"
+			)
+		if (
+			alias["type"] != new_task["type"]
+			or alias["project"] != new_task["project"]
+		):
+			raise WorkspaceError(
+				f"Replacement changes type or project for {old_id}: {new_id}"
+			)
+		if new_task["inbox_receipt"] != receipt:
+			raise WorkspaceError(f"Replacement task names the wrong receipt: {new_id}")
+		if old_id not in receipt_text or new_id not in receipt_text:
+			raise WorkspaceError(
+				f"Consolidation receipt omits mapping {old_id} -> {new_id}"
+			)
+		targets.setdefault(new_id, []).append(old_id)
+	for new_id, old_ids in targets.items():
+		if len(old_ids) < 2:
+			raise WorkspaceError(
+				f"Replacement {new_id} consolidates fewer than two tasks"
+			)
+	for project_path in sorted((root / "projects").glob("*/tasks.md")):
+		text = project_path.read_text(encoding="utf-8-sig")
+		for old_id in mappings:
+			if f"tasks/{old_id}/task.md" in text:
+				raise WorkspaceError(
+					f"Project index still links superseded task {old_id}: {project_path}"
+				)
+
+
+def consolidation_validation_for_head(slot):
+	subject = run_git(slot, "show", "-s", "--format=%s", "HEAD").stdout.strip()
+	prefix = "Consolidate pending tasks after "
+	if not subject.startswith(prefix):
+		return None
+	source_task = subject[len(prefix):]
+	if not TASK_ID_PATTERN.fullmatch(source_task):
+		raise WorkspaceError(f"Invalid consolidation commit subject: {subject!r}")
+	changed = run_git(
+		slot,
+		"diff-tree",
+		"--no-commit-id",
+		"--name-only",
+		"-r",
+		"HEAD^",
+		"HEAD",
+	).stdout.splitlines()
+	superseded = load_superseded(slot)
+	mappings = {}
+	for path in changed:
+		if not path.endswith("/superseded.yaml"):
+			continue
+		parts = PurePosixPath(path).parts
+		if len(parts) != 6 or parts[0] != "tasks":
+			raise WorkspaceError(
+				f"Invalid superseded path in consolidation commit: {path}"
+			)
+		old_id = "/".join(parts[1:5])
+		alias = superseded.get(old_id)
+		if alias is None:
+			raise WorkspaceError(
+				f"Consolidation commit removed superseded alias: {old_id}"
+			)
+		mappings[old_id] = alias["superseded_by"]
+	receipts = {
+		superseded[old_id]["receipt"]
+		for old_id in mappings
+	}
+	if len(receipts) > 1:
+		raise WorkspaceError("Consolidation mappings name different receipts")
+	receipt = next(iter(receipts), None)
+	return lambda root: validate_consolidation_tree(
+		root,
+		source_task,
+		mappings,
+		receipt,
+	)
+
+
+def command_task_content_digest(args):
+	config = worktree_config(args, create=True)
+	slot = Path(config["slot_worktree"])
+	path = state_path(slot, args.task).parent
+	print(json.dumps({
+		"content_sha256": retained_task_digest(path),
+		"task": args.task,
+	}, indent=2, sort_keys=True))
+
+
+def command_consolidate_publish(args):
+	config = worktree_config(args, create=True)
+	slot = Path(config["slot_worktree"])
+	if not TASK_ID_PATTERN.fullmatch(args.source_task):
+		raise WorkspaceError(f"Invalid source task: {args.source_task!r}")
+	mappings = {}
+	for value in args.mappings:
+		old_id, new_id = parse_consolidation_mapping(value)
+		if old_id in mappings:
+			raise WorkspaceError(f"Duplicate consolidation source task: {old_id}")
+		mappings[old_id] = new_id
+	receipt = normalized_publish_path(args.receipt) if args.receipt else None
+	if receipt is not None and not receipt.startswith("receipts/"):
+		raise WorkspaceError("The consolidation receipt must be below receipts/")
+	if mappings and receipt is None:
+		raise WorkspaceError("A merged consolidation requires a receipt")
+	if not mappings and receipt is not None:
+		raise WorkspaceError("A no-merge consolidation must not publish a receipt")
+	paths = sorted({normalized_publish_path(value) for value in args.paths})
+	complete = f"tasks/{args.source_task}/{CONSOLIDATION_COMPLETE}"
+	if not path_is_covered(complete, paths):
+		raise WorkspaceError(
+			"The consolidation completion marker is not covered by a publication path"
+		)
+	if receipt is not None and not path_is_covered(receipt, paths):
+		raise WorkspaceError(
+			"The consolidation receipt is not covered by a publication path"
+		)
+	changes = changed_paths(slot)
+	unexpected = [path for path in changes if not path_is_covered(path, paths)]
+	if unexpected:
+		raise WorkspaceError(
+			"Consolidation changes are outside the explicit publication paths: "
+			+ ", ".join(unexpected)
+		)
+	changed_aliases = {
+		"/".join(PurePosixPath(path).parts[1:5])
+		for path in changes
+		if path.endswith("/superseded.yaml")
+	}
+	if changed_aliases != set(mappings):
+		raise WorkspaceError(
+			"Changed superseded aliases do not match explicit mappings: "
+			+ ", ".join(sorted(changed_aliases ^ set(mappings)))
+		)
+	for old_id in mappings:
+		required = {
+			f"tasks/{old_id}/state.yaml",
+			f"tasks/{old_id}/superseded.yaml",
+		}
+		if not required.issubset(changes):
+			raise WorkspaceError(
+				f"Consolidation does not retire {old_id} with state and alias changes"
+			)
+		old_prefix = f"tasks/{old_id}/"
+		unexpected_old = [
+			path for path in changes
+			if path.startswith(old_prefix) and path not in required
+		]
+		if unexpected_old:
+			raise WorkspaceError(
+				f"Consolidation modifies retained content for {old_id}: "
+				+ ", ".join(unexpected_old)
+			)
+	source_allowed = {
+		f"tasks/{args.source_task}/{CONSOLIDATION_PENDING}",
+		f"tasks/{args.source_task}/{CONSOLIDATION_COMPLETE}",
+	}
+	if changes and not source_allowed.issubset(changes):
+		raise WorkspaceError(
+			"Consolidation must replace the pending marker with a completion marker"
+		)
+	unexpected_source = [
+		path for path in changes
+		if path.startswith(f"tasks/{args.source_task}/")
+		and path not in source_allowed
+	]
+	if unexpected_source:
+		raise WorkspaceError(
+			"Consolidation modifies discovery source content: "
+			+ ", ".join(unexpected_source)
+		)
+	if not mappings:
+		unexpected_no_merge = [
+			path for path in changes
+			if path not in source_allowed
+		]
+		if unexpected_no_merge:
+			raise WorkspaceError(
+				"No-merge consolidation changes non-marker paths: "
+				+ ", ".join(unexpected_no_merge)
+			)
+	else:
+		for new_id in set(mappings.values()):
+			required = {
+				f"tasks/{new_id}/task.md",
+				f"tasks/{new_id}/state.yaml",
+			}
+			if not required.issubset(changes):
+				raise WorkspaceError(
+					f"Replacement task is not newly created: {new_id}"
+				)
+		if receipt not in changes:
+			raise WorkspaceError(
+				f"Consolidation receipt is not newly written: {receipt}"
+			)
+	counts = unpublished_counts(config)
+	if changes and counts["slot_only"]:
+		raise WorkspaceError(
+			"The AI slot has unpublished commits before consolidation staging"
+		)
+	validate = lambda root: validate_consolidation_tree(
+		root,
+		args.source_task,
+		mappings,
+		receipt,
+	)
+	validate(slot)
+	committed = False
+	if changes:
+		for path in paths:
+			if (
+				(slot / path).exists()
+				or any(path_is_covered(change, [path]) for change in changes)
+			):
+				run_git(slot, "add", "-A", "--", path)
+		unstaged = run_git(slot, "diff", "--name-only").stdout.splitlines()
+		untracked = run_git(
+			slot,
+			"ls-files",
+			"--others",
+			"--exclude-standard",
+		).stdout.splitlines()
+		if unstaged or untracked:
+			raise WorkspaceError(
+				"Consolidation changes remain unstaged: "
+				+ ", ".join(sorted(set(unstaged + untracked)))
+			)
+		if run_git(slot, "diff", "--cached", "--quiet", check=False).returncode == 0:
+			raise WorkspaceError("No consolidation state changed")
+		run_git(
+			slot,
+			"commit",
+			"-m",
+			f"Consolidate pending tasks after {args.source_task}",
+		)
+		committed = True
+	elif not counts["slot_only"]:
+		raise WorkspaceError("No consolidation changes or unpublished commit")
+	published = publish_slot(config, validate=validate)
+	print(json.dumps({
+		"committed": committed,
+		"mappings": mappings,
+		"published": bool(published),
+		"receipt": receipt,
+		"source_task": args.source_task,
+	}, indent=2, sort_keys=True))
 
 
 def validate_receipt_text(text, metadata, label):
@@ -3029,6 +3563,29 @@ def parse_args():
 		required=True,
 	)
 	inbox_publish.set_defaults(handler=command_inbox_publish)
+
+	consolidate_publish = subparsers.add_parser("consolidate-publish")
+	add_common_arguments(consolidate_publish)
+	consolidate_publish.add_argument("--source-task", required=True)
+	consolidate_publish.add_argument("--receipt")
+	consolidate_publish.add_argument(
+		"--mapping",
+		action="append",
+		dest="mappings",
+		default=[],
+	)
+	consolidate_publish.add_argument(
+		"--path",
+		action="append",
+		dest="paths",
+		required=True,
+	)
+	consolidate_publish.set_defaults(handler=command_consolidate_publish)
+
+	task_content_digest = subparsers.add_parser("task-content-digest")
+	add_common_arguments(task_content_digest)
+	task_content_digest.add_argument("--task", required=True)
+	task_content_digest.set_defaults(handler=command_task_content_digest)
 
 	archive_stale = subparsers.add_parser("archive-stale")
 	add_common_arguments(archive_stale)

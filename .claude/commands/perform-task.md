@@ -9,7 +9,8 @@ Read `.claude/ai-workflow-adapter.md` and
 `.agents/skills/perform-task/SKILL.md` completely. Follow the shared skill with
 the Claude adapter's delegation and text-handling substitutions. Resolve, start
 or resume, implement, verify, and publish only the named task. Do not
-continue with other queue work afterward.
+continue with other queue work, route discoveries, or consolidate pending tasks
+afterward; those post-result phases belong to the `continue` scheduler.
 
 Apply the shared pipeline's conditional `[ai] ` commit-subject rule exactly;
 the prefix is required for permanent test-helper or agent harness/documentation

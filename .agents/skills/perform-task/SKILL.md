@@ -7,7 +7,9 @@ description: Resolve, start or resume, implement, commit, and verify exactly one
 
 Own exactly one task through a Telegram commit and a canonical AI `Approve` or
 exceptional `Block`. Do not process the inbox, split the task, drain the queue,
-or select a follow-up afterward.
+select a follow-up, or consolidate pending tasks afterward. The `continue`
+scheduler isolates discovery routing and queue consolidation in fresh workers
+after this performer returns.
 
 ## Read the complete engine
 

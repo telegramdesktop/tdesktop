@@ -12,8 +12,11 @@ This file adapts harness mechanics and removes unnecessary text normalization.
 - Treat `fork_turns: "none"` as a fresh Agent invocation with a self-contained
   prompt containing exact repository, task, artifact, and input paths. Do not
   rely on the parent conversation being inherited.
-- Tell every leaf Agent not to delegate and never to commit. Preserve the
-  shared workflow's single-writer and one-stateful-performer constraints.
+- Tell every disposable phase leaf Agent not to delegate and never to commit.
+  Publication-owning orchestrators — `process-inbox`, `perform-task`, discovered
+  routing, and pending-task consolidation — follow the shared workflow's exact
+  helper, commit, and publication contract instead. Preserve its single-writer
+  and one-stateful-performer constraints.
 - Every phase leaf and the performer inherit the parent model, as the shared
   workflow says. Do not pass a model override on the Agent call: its family
   aliases already resolve to the newest permitted model of that family, so an
@@ -44,13 +47,13 @@ This file adapts harness mechanics and removes unnecessary text normalization.
 - If the first real leaf Agent is rejected before work begins because nested
   delegation is unavailable, use the shared same-session fallback. Do not
   treat mere presence of the Agent tool as a successful delegation probe.
-- Whenever an Agent is asked to run `process-inbox`, `perform-task`, or
-  discovered-task routing — the orchestrating roles — explicitly tell it to
-  read this adapter completely before the applicable shared skill or
-  reference. Do NOT tell leaf phase agents to read this adapter: their phase
-  prompts are self-contained and already carry the leaf rules (no delegation,
-  no commits, progress and reply contracts); an adapter read there is wasted
-  context.
+- Whenever an Agent is asked to run `process-inbox`, `perform-task`,
+  discovered-task routing, or pending-task consolidation — the orchestrating
+  roles — explicitly tell it to read this adapter completely before the
+  applicable shared skill or reference. Do NOT tell leaf phase agents to read
+  this adapter: their phase prompts are self-contained and already carry the
+  leaf rules (no delegation, no commits, progress and reply contracts); an
+  adapter read there is wasted context.
 
 ## Text handling
 

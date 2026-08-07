@@ -523,9 +523,247 @@ class WorkspaceTest(unittest.TestCase):
 		}
 		states = {task["id"]: task for task in (approved, blocked)}
 
-		resolved = workspace.resolve_task(states, "correct-recent-search-peer-actions")
+		with tempfile.TemporaryDirectory() as temporary:
+			resolved = workspace.resolve_task(
+				Path(temporary),
+				states,
+				"correct-recent-search-peer-actions",
+			)
 
 		self.assertEqual(resolved["id"], TASK_ID)
+
+	def test_resolve_follows_durable_superseded_task_alias(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			write_task(root, status="todo", claimed_by=None)
+			old_id = "2026/07/18/old-recent-search-task"
+			old = root / "tasks" / old_id
+			old.mkdir(parents=True)
+			(old / "task.md").write_text("# Old task\n", encoding="utf-8")
+			content_digest = workspace.retained_task_digest(old)
+			(old / "superseded.yaml").write_text(
+				f"""superseded_by: {TASK_ID}
+receipt: receipts/2026/07/20/consolidation.md
+type: implement
+project: null
+content_sha256: {content_digest}
+""",
+				encoding="utf-8",
+			)
+			states = workspace.load_states(root)
+
+			resolved = workspace.resolve_task(root, states, old_id)
+
+			self.assertEqual(resolved["id"], TASK_ID)
+			self.assertEqual(resolved["superseded_from"], old_id)
+
+	def test_dependency_validation_rejects_missing_and_cyclic_edges(self):
+		first = {**task_state("todo", None), "depends_on": ["missing"]}
+		with self.assertRaisesRegex(workspace.WorkspaceError, "missing dependencies"):
+			workspace.validate_dependency_graph({TASK_ID: first})
+
+		other_id = "2026/07/20/other-task"
+		first = {**task_state("todo", None), "depends_on": [other_id]}
+		other = {
+			**task_state("todo", None),
+			"id": other_id,
+			"depends_on": [TASK_ID],
+		}
+		with self.assertRaisesRegex(workspace.WorkspaceError, "dependency cycle"):
+			workspace.validate_dependency_graph({TASK_ID: first, other_id: other})
+
+	def test_queue_inventory_finds_pending_consolidation_markers(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			directory = write_task(root, status="approved")
+			marker = directory / workspace.CONSOLIDATION_PENDING
+			marker.write_text("Created: one\n", encoding="utf-8")
+
+			self.assertEqual(workspace.pending_consolidations(root), [{
+				"source_task": TASK_ID,
+				"marker": f"tasks/{TASK_ID}/{workspace.CONSOLIDATION_PENDING}",
+			}])
+
+	def test_generic_publish_recognizes_consolidation_validation(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			git_repo(root)
+			directory = write_task(root, status="approved")
+			pending = directory / workspace.CONSOLIDATION_PENDING
+			pending.write_text("pending\n", encoding="utf-8")
+			git(root, "add", ".")
+			git(root, "commit", "-m", "Seed completed task")
+			pending.unlink()
+			complete = directory / workspace.CONSOLIDATION_COMPLETE
+			complete.write_text(
+				f"# Consolidation\n\nSource: {TASK_ID}\nSTATUS: NO_MERGE\n",
+				encoding="utf-8",
+			)
+			git(root, "add", "-A")
+			git(
+				root,
+				"commit",
+				"-m",
+				f"Consolidate pending tasks after {TASK_ID}",
+			)
+
+			validate = workspace.consolidation_validation_for_head(root)
+
+			self.assertIsNotNone(validate)
+			validate(root)
+
+	def test_no_merge_consolidation_publishes_durable_completion(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			config = inbox_worktrees(root)
+			main = Path(config["ai_main"])
+			slot = Path(config["slot_worktree"])
+			source_task = "2026/07/18/active-task"
+			directory = main / "tasks" / source_task
+			state = directory / "state.yaml"
+			state.write_text(
+				state.read_text(encoding="utf-8")
+				.replace("status: todo", "status: approved")
+				.replace("phase: null", "phase: complete"),
+				encoding="utf-8",
+			)
+			pending = directory / workspace.CONSOLIDATION_PENDING
+			pending.parent.mkdir()
+			pending.write_text("# Pending task consolidation\n", encoding="utf-8")
+			git(main, "add", f"tasks/{source_task}")
+			git(main, "commit", "-m", "Route follow-ups")
+			git(slot, "merge", "--ff-only", "master")
+			slot_directory = slot / "tasks" / source_task
+			(slot_directory / workspace.CONSOLIDATION_PENDING).unlink()
+			(slot_directory / workspace.CONSOLIDATION_COMPLETE).write_text(
+				f"# Consolidation\n\nSource: {source_task}\nSTATUS: NO_MERGE\n",
+				encoding="utf-8",
+			)
+			out = io.StringIO()
+			with (
+				mock.patch.object(workspace, "worktree_config", return_value=config),
+				contextlib.redirect_stdout(out),
+			):
+				workspace.command_consolidate_publish(SimpleNamespace(
+					source_task=source_task,
+					mappings=[],
+					receipt=None,
+					paths=[f"tasks/{source_task}"],
+				))
+
+			result = json.loads(out.getvalue())
+			self.assertTrue(result["committed"])
+			self.assertTrue(result["published"])
+			self.assertFalse(
+				(main / "tasks" / source_task / workspace.CONSOLIDATION_PENDING).exists()
+			)
+			self.assertTrue(
+				(main / "tasks" / source_task / workspace.CONSOLIDATION_COMPLETE).is_file()
+			)
+
+	def test_merged_consolidation_validates_aliases_and_dependencies(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source = write_task(root, status="approved")
+			(source / workspace.CONSOLIDATION_COMPLETE).write_text(
+				f"# Consolidation\n\nSource: {TASK_ID}\nSTATUS: MERGED\n",
+				encoding="utf-8",
+			)
+			old_ids = ["2026/07/18/first-task", "2026/07/18/second-task"]
+			new_id = "2026/07/20/combined-task"
+			receipt = "receipts/2026/07/20/consolidation.md"
+			for old_id in old_ids:
+				directory = root / "tasks" / old_id
+				directory.mkdir(parents=True)
+				(directory / "task.md").write_text(
+					f"# {old_id}\n", encoding="utf-8",
+				)
+				content_digest = workspace.retained_task_digest(directory)
+				(directory / "superseded.yaml").write_text(
+					f"""superseded_by: {new_id}
+receipt: {receipt}
+type: implement
+project: null
+content_sha256: {content_digest}
+""",
+					encoding="utf-8",
+				)
+			new = root / "tasks" / new_id
+			new.mkdir(parents=True)
+			(new / "task.md").write_text("# Combined task\n", encoding="utf-8")
+			(new / "state.yaml").write_text(
+				f"""status: todo
+type: implement
+created: 2026-07-20
+project: null
+depends_on: []
+claimed_by: null
+claimed_at: null
+claim_order: null
+lease_until: null
+phase: null
+inbox_receipt: {receipt}
+""",
+				encoding="utf-8",
+			)
+			receipt_path = root / receipt
+			receipt_path.parent.mkdir(parents=True)
+			receipt_path.write_text(
+				"\n".join(old_ids + [new_id]) + "\n",
+				encoding="utf-8",
+			)
+			mappings = {old_id: new_id for old_id in old_ids}
+
+			workspace.validate_consolidation_tree(
+				root,
+				TASK_ID,
+				mappings,
+				receipt,
+			)
+			(root / "tasks" / old_ids[0] / "task.md").write_text(
+				"# Late changed acceptance\n", encoding="utf-8",
+			)
+			with self.assertRaisesRegex(
+				workspace.WorkspaceError,
+				"retained content changed",
+			):
+				workspace.validate_consolidation_tree(
+					root,
+					TASK_ID,
+					mappings,
+					receipt,
+				)
+			(root / "tasks" / old_ids[0] / "task.md").write_text(
+				f"# {old_ids[0]}\n", encoding="utf-8",
+			)
+
+			dependent = root / "tasks" / "2026/07/20/racing-dependent"
+			dependent.mkdir(parents=True)
+			(dependent / "task.md").write_text(
+				"# Racing dependent\n", encoding="utf-8",
+			)
+			(dependent / "state.yaml").write_text(
+				f"""status: todo
+type: implement
+created: 2026-07-20
+project: null
+depends_on: [{old_ids[0]}]
+claimed_by: null
+claimed_at: null
+claim_order: null
+lease_until: null
+phase: null
+inbox_receipt: receipts/2026/07/20/race.md
+""",
+				encoding="utf-8",
+			)
+			with self.assertRaisesRegex(workspace.WorkspaceError, "missing dependencies"):
+				workspace.validate_consolidation_tree(
+					root,
+					TASK_ID,
+					mappings,
+					receipt,
+				)
 
 	def test_retry_reopens_owned_blocked_task_and_resets_routing_marker(self):
 		with tempfile.TemporaryDirectory() as temporary:
@@ -533,6 +771,10 @@ class WorkspaceTest(unittest.TestCase):
 			directory = write_task(slot)
 			routed = directory / "work" / "discovered-routed.md"
 			routed.write_text("routed\n", encoding="utf-8")
+			pending = directory / workspace.CONSOLIDATION_PENDING
+			pending.write_text("pending\n", encoding="utf-8")
+			complete = directory / workspace.CONSOLIDATION_COMPLETE
+			complete.write_text("complete\n", encoding="utf-8")
 			config = {
 				"checkout_tag": "macbook-twork",
 				"slot_worktree": str(slot),
@@ -549,6 +791,8 @@ class WorkspaceTest(unittest.TestCase):
 			self.assertEqual(state["status"], "in-progress")
 			self.assertEqual(state["phase"], "resume")
 			self.assertFalse(routed.exists())
+			self.assertFalse(pending.exists())
+			self.assertFalse(complete.exists())
 			commit.assert_not_called()
 
 	def test_start_atomically_assigns_unclaimed_todo(self):

@@ -54,6 +54,13 @@ Read these before planning:
   `projects/archive/`, and relevant task states from `<inbox_worktree>`;
 - the transaction's `inbox.md` and every file it references.
 
+Some retained task directories have `superseded.yaml` instead of `state.yaml`.
+They are durable aliases created by queue consolidation, not missing or reusable
+paths. Follow `superseded_by` chains to their live task when deduplicating,
+resolving prior receipt references, or checking whether a same-digest result
+still exists. New dependencies and project links must name the final live task,
+never an alias. A dated slug occupied by an alias still counts as a collision.
+
 Use one disposable leaf planner when the harness supports delegation; instruct
 it not to delegate. Otherwise perform the same work locally. The planner may
 write a proposed routing file inside the ignored transaction, but only the
@@ -209,8 +216,9 @@ Create one tracked Markdown receipt under `receipts/YYYY/MM/DD/`. Include:
 - deduplication decisions.
 
 Before writing, search receipts for the same digest. If it was already fully
-processed and all referenced tasks still exist, create nothing and reuse that
-receipt for finalization.
+processed and every referenced task either has live state or has a durable alias
+chain reaching live state, create nothing and reuse that receipt for
+finalization.
 
 ## Validate and publish
 
