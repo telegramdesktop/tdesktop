@@ -153,9 +153,7 @@ callHangup: CallButton(callAnswer) {
 callCancel: CallButton(callAnswer) {
 	button: IconButton(callButton) {
 		icon: icon {{ "calls/call_cancel", callIconFgActive }};
-		ripple: RippleAnimation(defaultRippleAnimation) {
-			color: callIconActiveRipple;
-		}
+		ripple: universalRippleAnimation;
 	}
 	bg: callIconBgActive;
 	outerBg: callIconBgActive;

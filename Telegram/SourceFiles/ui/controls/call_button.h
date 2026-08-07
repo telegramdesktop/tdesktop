@@ -46,6 +46,9 @@ public:
 
 private:
 	void paintEvent(QPaintEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
 
 	void onStateChanged(State was, StateChangeSource source) override;
 
@@ -53,6 +56,8 @@ private:
 	QPoint prepareRippleStartPosition() const override;
 
 	void init();
+	[[nodiscard]] bool inBackground(QPoint point) const;
+	void refreshOverState(QPoint point);
 	QPoint iconPosition(not_null<const style::CallButton*> st) const;
 	void mixIconMasks();
 
