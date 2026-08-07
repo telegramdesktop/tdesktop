@@ -39,6 +39,8 @@ namespace Core {
 
 inline constexpr auto kScreenReaderModeDisabledKey
 	= "screen-reader-mode-disabled"_cs;
+inline constexpr auto kLoopVideoInMediaViewerKey
+	= "loop-video-in-media-viewer"_cs;
 
 struct WindowPosition {
 	int32 moncrc = 0;

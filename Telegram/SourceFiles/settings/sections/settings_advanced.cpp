@@ -911,6 +911,28 @@ void BuildPerformanceSection(SectionBuilder &builder) {
 		}, hwAccel->lifetime());
 	}
 
+	const auto loopVideo = builder.addButton({
+		.id = u"advanced/loop_video_in_viewer"_q,
+		.title = tr::lng_settings_loop_video_in_viewer(),
+		.st = &st::settingsButtonNoIcon,
+		.toggled = rpl::single(Core::App().settings().readPref<bool>(
+			Core::kLoopVideoInMediaViewerKey)),
+		.keywords = { u"loop"_q, u"video"_q, u"viewer"_q, u"repeat"_q },
+	});
+
+	if (loopVideo) {
+		loopVideo->toggledValue(
+		) | rpl::filter([](bool enabled) {
+			return (enabled != Core::App().settings().readPref<bool>(
+				Core::kLoopVideoInMediaViewerKey));
+		}) | rpl::on_next([=](bool enabled) {
+			Core::App().settings().writePref<bool>(
+				Core::kLoopVideoInMediaViewerKey,
+				enabled);
+			Core::App().saveSettingsDelayed();
+		}, loopVideo->lifetime());
+	}
+
 #ifdef DESKTOP_APP_USE_ANGLE
 	BuildANGLEOption(builder);
 #else

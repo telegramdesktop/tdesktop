@@ -1336,6 +1336,21 @@ bool OverlayWidget::videoShown() const {
 		&& !_streamed->instance.info().video.cover.isNull();
 }
 
+// Both the context menu entry and the Finished handler use this, so that
+// the entry is never offered where toggling it would change nothing:
+// silent videos and GIFs are already looped natively by the player
+// (options.loop in restartAtSeekPosition), stories advance to the next
+// story instead, and looping is a seek to zero, which the player can't
+// do without a known duration (the same guard as in restartAtProgress).
+bool OverlayWidget::videoLoopAvailable() const {
+	if (_stories || !videoShown() || !_streamed->withSound) {
+		return false;
+	}
+	const auto duration = _streamed->instance.info().video.state.duration;
+	return (duration != kTimeUnknown)
+		&& (duration != kDurationUnavailable);
+}
+
 QSize OverlayWidget::videoSize() const {
 	Expects(videoShown());
 
@@ -2140,6 +2155,21 @@ void OverlayWidget::fillContextMenuActions(
 				[=] { copyMedia(); },
 				&st::mediaMenuIconCopy);
 		}
+	}
+	if (videoLoopAvailable()) {
+		const auto looping = Core::App().settings().readPref<bool>(
+			Core::kLoopVideoInMediaViewerKey);
+		addAction(
+			(looping
+				? tr::lng_mediaview_loop_video_off(tr::now)
+				: tr::lng_mediaview_loop_video_on(tr::now)),
+			[=] {
+				Core::App().settings().writePref<bool>(
+					Core::kLoopVideoInMediaViewerKey,
+					!looping);
+				Core::App().saveSettingsDelayed();
+			},
+			&st::mediaMenuIconLoop);
 	}
 	if ((_photo && _photo->hasAttachedStickers())
 		|| (_document && _document->hasAttachedStickers())) {
@@ -5104,7 +5134,21 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 	}, [](SpeedEstimate) {
 	}, [](MutedByOther) {
 	}, [&](Finished) {
-		updatePlaybackState();
+		if (videoLoopAvailable()
+			&& Core::App().settings().readPref<bool>(
+				Core::kLoopVideoInMediaViewerKey)) {
+			// A video with sound can't be looped natively, options.loop is
+			// allowed only outside of Mode::Both (see the Expects() in
+			// Streaming::Player::play), so restart the player instead.
+			// Clearing the flag is what playbackPauseResume() does before
+			// its own restart: it survives from the last restart that was
+			// made while paused (a seek or a frame step), and would make
+			// the loop stop paused on the first frame.
+			_streamingStartPaused = false;
+			restartAtSeekPosition(0);
+		} else {
+			updatePlaybackState();
+		}
 	});
 }
 

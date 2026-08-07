@@ -589,6 +589,7 @@ private:
 
 	void applyVideoSize();
 	[[nodiscard]] bool videoShown() const;
+	[[nodiscard]] bool videoLoopAvailable() const;
 	[[nodiscard]] QSize videoSize() const;
 	[[nodiscard]] bool streamingRequiresControls() const;
 	[[nodiscard]] QImage videoFrame() const; // ARGB (changes prepare format)

@@ -252,6 +252,7 @@ mediaMenuIconStealth: icon {{ "menu/stealth", mediaviewMenuFg }};
 mediaMenuIconStats: icon {{ "menu/stats", mediaviewMenuFg }};
 mediaMenuIconRemove: icon {{ "menu/remove", mediaviewMenuFg }};
 mediaMenuIconRetractVote: icon {{ "menu/retract_vote", mediaviewMenuFg }};
+mediaMenuIconLoop: icon {{ "player/player_repeat", mediaviewMenuFg }};
 mediaMenuIconStar: icon {{ "menu/star", mediaviewMenuFg }};
 
 mediaMenuIconInfo: icon {{ "menu/info", mediaviewMenuFg }};
