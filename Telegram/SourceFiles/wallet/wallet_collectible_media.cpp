@@ -231,7 +231,13 @@ void CollectibleMedia::startLoad(
 		crl::on_main(this, [=] {
 			*clear = nullptr;
 		});
-		done(raw->cancelled() ? QByteArray() : raw->bytes());
+		// The loader dies on the next main loop turn and its bytes do not
+		// outlive it, so hand out a copy the consumer owns: the artwork is
+		// kept and decoded lazily, on the first paint of each thumbnail.
+		const auto &loaded = raw->bytes();
+		done(raw->cancelled()
+			? QByteArray()
+			: QByteArray(loaded.constData(), loaded.size()));
 	}, raw->lifetime());
 	raw->start();
 }
