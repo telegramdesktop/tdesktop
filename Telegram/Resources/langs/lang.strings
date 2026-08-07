@@ -8776,6 +8776,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_title" = "Transaction";
 "lng_wallet_details_sender" = "Sender";
 "lng_wallet_details_recipient" = "Recipient";
+"lng_wallet_details_address" = "Address";
 "lng_wallet_details_fee" = "Fee";
 "lng_wallet_details_date" = "Date";
 "lng_wallet_details_explorer" = "View in explorer";

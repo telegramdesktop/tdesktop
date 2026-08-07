@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flat_map.h"
 #include "base/timer.h"
 #include "gram/api/gram_api_account.h"
 #include "gram/api/gram_api_history.h"
@@ -98,6 +99,9 @@ public:
 	[[nodiscard]] bool collectiblesTab() const;
 	[[nodiscard]] rpl::producer<bool> collectiblesTabValue() const;
 	void setCollectiblesTab(bool value);
+	void resolveCollectibleInfo(
+		const Gram::Address &item,
+		Fn<void(const Gram::NftItem &)> done);
 #ifdef _DEBUG
 	void injectDebugHistory(std::vector<Gram::TransferItem> items);
 	void injectDebugCollectibles(std::vector<Gram::NftItem> items);
@@ -181,6 +185,10 @@ private:
 	rpl::variable<bool> _collectiblesTab = false;
 	crl::time _collectiblesRefreshedAt = 0;
 	bool _collectiblesRequestPending = false;
+	base::flat_map<QString, Gram::NftItem> _collectibleInfo;
+	base::flat_map<
+		QString,
+		std::vector<Fn<void(const Gram::NftItem &)>>> _collectibleInfoWaiters;
 #ifdef _DEBUG
 	bool _collectiblesInjected = false;
 #endif // _DEBUG

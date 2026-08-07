@@ -44,6 +44,21 @@ std::vector<Check> NftChecks() {
 				? QString()
 				: (u"clamped: "_q + clamped);
 		} },
+		{ u"nft_builder_item_by_address"_q, [] {
+			const auto raw = u"0:CA0CFD519F763102B5BEC9D9E3AF4359"
+				u"2EA362FB773FA319EA09C4F162C171E0"_q;
+			const auto parsed = ParseAddress(raw);
+			if (!parsed) {
+				return u"address parse failed: "_q + raw;
+			}
+			return CheckRequest(
+				NftItemByAddressRequest(parsed->address),
+				false,
+				u"/api/v3/nft/items"_q,
+				u"address=0%3ACA0CFD519F763102B5BEC9D9E3AF4359"
+				u"2EA362FB773FA319EA09C4F162C171E0"_q,
+				QByteArray());
+		} },
 		{ u"nft_items_owner1_fixture"_q, [] {
 			const auto name = u"api-nft-items-owner1.json"_q;
 			const auto bytes = ReadFixture(name);
@@ -385,6 +400,8 @@ std::vector<Check> NftChecks() {
 			}
 			const auto uri =
 				u"https://nft.fragment.com/gift/deskcalendar-45754.json"_q;
+			const auto collectionUri =
+				u"https://nft.fragment.com/collection/deskcalendar.json"_q;
 			const auto &item = page->list.front();
 			if (item.contentUri != uri) {
 				return u"contentUri: got "_q
@@ -404,6 +421,14 @@ std::vector<Check> NftChecks() {
 					u"into payments.getUniqueStarGift, so the server's own "
 					u"capitalization of it is not derivable from any committed "
 					u"byte and is deliberately not asserted"_q;
+			} else if (item.collectionContentUri != collectionUri) {
+				return u"collectionContentUri: got "_q
+					+ item.collectionContentUri
+					+ u", expected "_q
+					+ collectionUri;
+			} else if (!item.collectionContentUriHttps) {
+				return u"collectionContentUriHttps: got false for "_q
+					+ collectionUri;
 			}
 			const auto nested = QByteArray(
 				"{\"nft_items\":[{"

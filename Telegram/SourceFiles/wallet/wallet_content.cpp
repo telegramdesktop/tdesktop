@@ -60,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
 #include "wallet/wallet_fiat.h"
 #include "wallet/wallet_rates.h"
@@ -203,6 +204,19 @@ private:
 	return result;
 }
 
+[[nodiscard]] Fn<void()> CopyAddressCallback(
+		std::shared_ptr<Ui::Show> show,
+		const QString &address) {
+	return [=] {
+		TextUtilities::SetClipboardText(TextForMimeData::Simple(address));
+		show->showToast({
+			.text = { tr::lng_gift_unique_address_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
+	};
+}
+
 [[nodiscard]] object_ptr<Ui::FlatLabel> AddressValueLabel(
 		not_null<Ui::TableLayout*> table,
 		std::shared_ptr<Ui::Show> show,
@@ -211,13 +225,26 @@ private:
 		table,
 		rpl::single(DetailsAddressValue(address)),
 		st::walletDetailsAddressLabel);
+	const auto copy = CopyAddressCallback(std::move(show), address);
 	result->setClickHandlerFilter([=](const auto &...) {
-		TextUtilities::SetClipboardText(TextForMimeData::Simple(address));
-		show->showToast({
-			.text = { tr::lng_gift_unique_address_copied(tr::now) },
-			.iconLottie = u"toast/copy"_q,
-			.iconLottieSize = st::toastLottieIconSize,
-		});
+		copy();
+		return false;
+	});
+	return result;
+}
+
+[[nodiscard]] object_ptr<Ui::FlatLabel> NameValueLabel(
+		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<Ui::Show> show,
+		const QString &name,
+		const QString &address) {
+	auto result = object_ptr<Ui::FlatLabel>(
+		table,
+		rpl::single(Ui::Text::Link(name)),
+		st::defaultTableValue);
+	const auto copy = CopyAddressCallback(std::move(show), address);
+	result->setClickHandlerFilter([=](const auto &...) {
+		copy();
 		return false;
 	});
 	return result;
@@ -245,6 +272,7 @@ struct HistoryRowContent {
 	int64 amountNano = 0;
 	bool incoming = false;
 	bool pending = false;
+	Gram::Address collectible;
 };
 
 [[nodiscard]] QString ShortAddressForm(const QString &full) {
@@ -296,7 +324,10 @@ void SetRowAmount(
 void AddHistoryRow(
 		not_null<Ui::VerticalLayout*> list,
 		const HistoryRowContent &content,
-		Fn<void()> clicked) {
+		Fn<void()> clicked,
+		std::shared_ptr<CollectibleMedia> media = nullptr) {
+	const auto address = content.collectible;
+	const auto collectible = media && !address.hash.isEmpty();
 	const auto wrap = list->add(
 		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
 			list,
@@ -306,8 +337,17 @@ void AddHistoryRow(
 	inner->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto title = inner->add(object_ptr<Ui::FlatLabel>(
 		inner,
-		content.title,
-		st::walletRowTitleLabel));
+		(collectible
+			? st::walletCollectibleTitleLabel
+			: st::walletRowTitleLabel)));
+	const auto applyTitle = [=] {
+		title->setMarkedText(CollectibleTitleText(media->view(address)));
+	};
+	if (collectible) {
+		applyTitle();
+	} else {
+		title->setText(content.title);
+	}
 	auto subtitle = (Ui::FlatLabel*)nullptr;
 	if (!content.subtitle.isEmpty()) {
 		Ui::AddSkip(inner, st::walletRowSkip);
@@ -322,20 +362,24 @@ void AddHistoryRow(
 		content.date,
 		st::walletRowDateLabel));
 
-	const auto major = Ui::CreateChild<Ui::FlatLabel>(
-		wrap,
-		st::walletRowAmountMajorLabel);
-	major->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto minor = Ui::CreateChild<Ui::FlatLabel>(
-		wrap,
-		st::walletRowAmountMinorLabel);
-	minor->setAttribute(Qt::WA_TransparentForMouseEvents);
-	SetRowAmount(
-		major,
-		minor,
-		content.amountNano,
-		content.incoming,
-		content.pending);
+	auto major = (Ui::FlatLabel*)nullptr;
+	auto minor = (Ui::FlatLabel*)nullptr;
+	if (!collectible) {
+		major = Ui::CreateChild<Ui::FlatLabel>(
+			wrap,
+			st::walletRowAmountMajorLabel);
+		major->setAttribute(Qt::WA_TransparentForMouseEvents);
+		minor = Ui::CreateChild<Ui::FlatLabel>(
+			wrap,
+			st::walletRowAmountMinorLabel);
+		minor->setAttribute(Qt::WA_TransparentForMouseEvents);
+		SetRowAmount(
+			major,
+			minor,
+			content.amountNano,
+			content.incoming,
+			content.pending);
+	}
 	const auto circle = Ui::CreateChild<Ui::RpWidget>(wrap);
 	circle->resize(st::walletRowIconSize, st::walletRowIconSize);
 	circle->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -344,7 +388,16 @@ void AddHistoryRow(
 		: &st::walletRowIconOut;
 	circle->paintRequest(
 	) | rpl::on_next([=] {
-		auto p = QPainter(circle);
+		auto p = Painter(circle);
+		if (collectible) {
+			media->paint(
+				p,
+				address,
+				circle->rect(),
+				circle->width(),
+				st::walletCollectibleThumbRadius);
+			return;
+		}
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::windowBgActive);
@@ -367,21 +420,51 @@ void AddHistoryRow(
 		circle->moveToLeft(
 			st::walletRowIconLeft,
 			center - circle->height() / 2);
-		const auto majorTop = st::walletRowPadding.top()
-			+ (title->height() - major->height()) / 2;
-		minor->moveToRight(
-			st::walletRowPadding.right(),
-			majorTop + st::walletRowAmountMinorSkip);
-		major->moveToRight(
-			st::walletRowPadding.right() + minor->width(),
-			majorTop);
+		if (major) {
+			const auto majorTop = st::walletRowPadding.top()
+				+ (title->height() - major->height()) / 2;
+			minor->moveToRight(
+				st::walletRowPadding.right(),
+				majorTop + st::walletRowAmountMinorSkip);
+			major->moveToRight(
+				st::walletRowPadding.right() + minor->width(),
+				majorTop);
+		}
 		button->resize(g.size());
 		button->lower();
 	}, wrap->lifetime());
+	if (collectible) {
+		const auto mine = [=](const Gram::Address &changed) {
+			return (changed == address);
+		};
+		media->changed(
+		) | rpl::filter(mine) | rpl::on_next(applyTitle, wrap->lifetime());
+		media->repaint(
+		) | rpl::filter(mine) | rpl::on_next([=] {
+			circle->update();
+		}, wrap->lifetime());
+		media->resolve(address);
+	}
+}
+
+[[nodiscard]] bool ShowsCollectible(const Gram::TransferItem &item) {
+	return (item.kind == Gram::TransferItem::Kind::Collectible)
+		&& (item.status == Gram::TransferItem::Status::Success)
+		&& !item.collectible.hash.isEmpty();
 }
 
 [[nodiscard]] HistoryRowContent RowContentFromItem(
 		const Gram::TransferItem &item) {
+	if (ShowsCollectible(item)) {
+		return {
+			.subtitle = (item.incoming
+				? tr::lng_wallet_row_incoming(tr::now)
+				: tr::lng_wallet_row_outgoing(tr::now)),
+			.date = langDateTime(base::unixtime::parse(item.date)),
+			.incoming = item.incoming,
+			.collectible = item.collectible,
+		};
+	}
 	const auto pending
 		= (item.status == Gram::TransferItem::Status::Pending);
 	const auto hasCounterparty = !item.counterparty.hash.isEmpty();
@@ -520,6 +603,128 @@ void AddDetailsAmountHeader(
 	) | rpl::on_next(relayout, container->lifetime());
 }
 
+void AddDetailsCollectibleHeader(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		std::shared_ptr<CollectibleMedia> media,
+		const Gram::TransferItem &item) {
+	const auto container = box->addRow(
+		object_ptr<Ui::RpWidget>(box),
+		style::margins(
+			0,
+			st::walletDetailsAmountTopSkip,
+			0,
+			st::walletDetailsAmountBottomSkip),
+		style::al_top);
+	const auto address = item.collectible;
+	const auto available = st::boxWideWidth
+		- st::giveawayGiftCodeTableMargin.left()
+		- st::giveawayGiftCodeTableMargin.right();
+	const auto arrowWidth = st::walletDetailsCollectionArrowSkip
+		+ st::walletDetailsCollectionArrow.width();
+	const auto artwork = Ui::CreateChild<Ui::RpWidget>(container);
+	artwork->resize(
+		st::walletDetailsCollectibleSize,
+		st::walletDetailsCollectibleSize);
+	artwork->setAttribute(Qt::WA_TransparentForMouseEvents);
+	artwork->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = Painter(artwork);
+		media->paint(
+			p,
+			address,
+			artwork->rect(),
+			artwork->width(),
+			st::walletDetailsCollectibleRadius);
+	}, artwork->lifetime());
+	const auto name = Ui::CreateChild<Ui::FlatLabel>(
+		container,
+		st::walletCollectibleTitleLabel);
+	name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto collection = Ui::CreateChild<Ui::AbstractButton>(container);
+	const auto collectionLabel = Ui::CreateChild<Ui::FlatLabel>(
+		collection,
+		st::walletDetailsCollectionLabel);
+	collectionLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	collection->hide();
+	collection->setClickedCallback([=] {
+		const auto contract = media->collection(address);
+		if (!contract.hash.isEmpty()) {
+			UrlClickHandler::Open(Core::TonExplorerUrl(
+				session,
+				Gram::FormatFriendly(contract, true)));
+		}
+	});
+	collection->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(collection);
+		const auto &arrow = st::walletDetailsCollectionArrow;
+		arrow.paint(
+			p,
+			collectionLabel->width() + st::walletDetailsCollectionArrowSkip,
+			(collection->height() - arrow.height()) / 2,
+			collection->width());
+	}, collection->lifetime());
+	collectionLabel->sizeValue(
+	) | rpl::on_next([=](QSize size) {
+		collection->resize(size.width() + arrowWidth, size.height());
+		collectionLabel->moveToLeft(0, 0, collection->width());
+	}, collection->lifetime());
+	const auto relayout = [=] {
+		const auto hasCollection = !media->collection(address).hash.isEmpty();
+		collection->setVisible(hasCollection);
+		const auto width = std::min(available, std::max({
+			st::walletDetailsCollectibleSize,
+			name->width(),
+			hasCollection ? collection->width() : 0 }));
+		const auto nameTop = st::walletDetailsCollectibleSize
+			+ st::walletDetailsCollectibleNameSkip;
+		const auto collectionTop = nameTop
+			+ name->height()
+			+ st::walletDetailsCollectionSkip;
+		const auto height = hasCollection
+			? (collectionTop + collection->height())
+			: (nameTop + name->height());
+		container->resize(width, height);
+		container->setNaturalWidth(width);
+		artwork->moveToLeft((width - artwork->width()) / 2, 0, width);
+		name->moveToLeft((width - name->width()) / 2, nameTop, width);
+		if (hasCollection) {
+			collection->moveToLeft(
+				(width - collection->width()) / 2,
+				collectionTop,
+				width);
+		}
+	};
+	const auto apply = [=] {
+		const auto view = media->view(address);
+		name->setMarkedText(CollectibleTitleText(view));
+		name->resizeToNaturalWidth(available);
+		const auto contract = media->collection(address);
+		if (!contract.hash.isEmpty()) {
+			collectionLabel->setText(view.collectionName.isEmpty()
+				? ShortAddress(contract)
+				: view.collectionName);
+			collectionLabel->resizeToNaturalWidth(available - arrowWidth);
+		}
+		relayout();
+	};
+	const auto mine = [=](const Gram::Address &changed) {
+		return (changed == address);
+	};
+	media->changed(
+	) | rpl::filter(mine) | rpl::on_next(apply, container->lifetime());
+	media->repaint(
+	) | rpl::filter(mine) | rpl::on_next([=] {
+		artwork->update();
+	}, container->lifetime());
+	rpl::combine(
+		name->sizeValue(),
+		collection->sizeValue()
+	) | rpl::on_next(relayout, container->lifetime());
+	apply();
+}
+
 [[nodiscard]] object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> MakeCommentBubble(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> text,
@@ -613,12 +818,28 @@ void AddDetailsTable(
 	const auto table = wrap->entity();
 	if (!item.counterparty.hash.isEmpty()) {
 		const auto address = Gram::FormatFriendly(item.counterparty, true);
-		Ui::AddTableRow(
-			table,
-			(item.incoming
-				? tr::lng_wallet_details_sender()
-				: tr::lng_wallet_details_recipient()),
-			AddressValueLabel(table, box->uiShow(), address));
+		auto label = (item.incoming
+			? tr::lng_wallet_details_sender()
+			: tr::lng_wallet_details_recipient());
+		if (item.counterpartyName.isEmpty()) {
+			Ui::AddTableRow(
+				table,
+				std::move(label),
+				AddressValueLabel(table, box->uiShow(), address));
+		} else {
+			Ui::AddTableRow(
+				table,
+				std::move(label),
+				NameValueLabel(
+					table,
+					box->uiShow(),
+					item.counterpartyName,
+					address));
+			Ui::AddTableRow(
+				table,
+				tr::lng_wallet_details_address(),
+				AddressValueLabel(table, box->uiShow(), address));
+		}
 	}
 	const auto pending
 		= (item.status == Gram::TransferItem::Status::Pending);
@@ -1179,17 +1400,26 @@ void SetupIntroTooltip(
 void WalletTransactionBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
-		Gram::TransferItem item) {
+		Gram::TransferItem item,
+		std::shared_ptr<CollectibleMedia> media) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::walletDetailsBox);
 	box->setNoContentMargin(true);
 	box->setTitle(tr::lng_wallet_details_title());
 
-	AddDetailsAmountHeader(
-		box,
-		item,
-		st::walletDetailsAmountTopSkip,
-		FiatRateValue(session));
+	if (ShowsCollectible(item)) {
+		if (!media) {
+			media = std::make_shared<CollectibleMedia>(session);
+		}
+		media->resolve(item.collectible);
+		AddDetailsCollectibleHeader(box, session, std::move(media), item);
+	} else {
+		AddDetailsAmountHeader(
+			box,
+			item,
+			st::walletDetailsAmountTopSkip,
+			FiatRateValue(session));
+	}
 	AddDetailsComment(box, item);
 	AddDetailsTable(box, session, item);
 
@@ -1234,8 +1464,13 @@ void WalletTransactionBox(
 
 void ShowWalletTransactionBox(
 		std::shared_ptr<Main::SessionShow> show,
-		const Gram::TransferItem &item) {
-	show->showBox(Box(WalletTransactionBox, &show->session(), item));
+		const Gram::TransferItem &item,
+		std::shared_ptr<CollectibleMedia> media = nullptr) {
+	show->showBox(Box(
+		WalletTransactionBox,
+		&show->session(),
+		item,
+		std::move(media)));
 
 	const auto local = &show->session().local();
 	if (local->readPref<bool>(kIntroToastShownPref)) {
@@ -2971,6 +3206,8 @@ void Content::setupContent() {
 	setupTabs();
 	setupStrip();
 
+	const auto media = std::make_shared<CollectibleMedia>(&_show->session());
+
 	const auto wallet = &_show->session().wallet();
 	const auto bannerWrap = column->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -3078,8 +3315,8 @@ void Content::setupContent() {
 			}
 			for (const auto &item : history) {
 				AddHistoryRow(list, RowContentFromItem(item), [=] {
-					ShowWalletTransactionBox(_show, item);
-				});
+					ShowWalletTransactionBox(_show, item, media);
+				}, media);
 			}
 			Ui::AddSkip(list, st::walletRowsTopSkip);
 		}
@@ -3100,7 +3337,7 @@ void Content::setupContent() {
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			column,
 			object_ptr<Ui::VerticalLayout>(column)));
-	AddCollectiblesList(collectiblesWrap->entity(), _show);
+	AddCollectiblesList(collectiblesWrap->entity(), _show, media);
 	collectiblesWrap->toggleOn(wallet->collectiblesTabValue());
 	collectiblesWrap->finishAnimating();
 

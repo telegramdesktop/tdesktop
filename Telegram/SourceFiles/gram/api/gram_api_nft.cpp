@@ -124,7 +124,17 @@ constexpr auto kFragmentCollections = std::array{
 	if (domain.isString()) {
 		result.domain = domain.toString();
 	}
+	const auto collectionContent = object.value(u"collection"_q)
+		.toObject()
+		.value(u"collection_content"_q)
+		.toObject()
+		.value(u"uri"_q);
+	if (collectionContent.isString()) {
+		result.collectionContentUri = collectionContent.toString();
+	}
 	result.contentUriHttps = result.contentUri.startsWith(u"https://"_q);
+	result.collectionContentUriHttps
+		= result.collectionContentUri.startsWith(u"https://"_q);
 	result.onSale = object.value(u"on_sale"_q).toBool();
 	if (const auto entry = FragmentEntry(result.collection)) {
 		result.kind = entry->kind;
@@ -148,6 +158,15 @@ HttpRequest NftItemsByOwnerRequest(
 		+ QString::number(std::clamp(limit, 0, 100))
 		+ u"&offset="_q
 		+ QString::number(std::max(offset, 0));
+	return result;
+}
+
+HttpRequest NftItemByAddressRequest(const Address &item) {
+	auto result = HttpRequest();
+	result.post = false;
+	result.endpoint = u"/api/v3/nft/items"_q;
+	result.query = u"address="_q
+		+ ApiDetails::PercentEncoded(FormatRaw(item).toUpper());
 	return result;
 }
 

@@ -31,10 +31,12 @@ struct NftItem {
 	Address realOwner;
 	QString index;
 	QString contentUri;
+	QString collectionContentUri;
 	QString domain;
 	QString key;
 	NftKind kind = NftKind::Generic;
 	bool contentUriHttps = false;
+	bool collectionContentUriHttps = false;
 	bool onSale = false;
 };
 
@@ -52,6 +54,7 @@ struct NftDescriptor {
 	const QString &owner,
 	int limit,
 	int offset);
+[[nodiscard]] HttpRequest NftItemByAddressRequest(const Address &item);
 [[nodiscard]] std::optional<NftPage> ParseNftItems(
 	const QByteArray &json,
 	int limit);

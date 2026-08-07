@@ -137,6 +137,11 @@ walletCollectibleTitleStyle: TextStyle(defaultTextStyle) {
 walletCollectibleTitlePalette: TextPalette(defaultTextPalette) {
 	linkFg: windowSubTextFg;
 }
+walletCollectibleTitleLabel: FlatLabel(walletRowTitleLabel) {
+	maxHeight: 20px;
+	style: walletCollectibleTitleStyle;
+	palette: walletCollectibleTitlePalette;
+}
 
 walletDetailsBox: Box(giveawayGiftCodeBox) {
 	bg: windowBgOver;
@@ -182,6 +187,18 @@ walletDetailsAddressLabel: FlatLabel(defaultTableValue) {
 		monoFg: windowFg;
 	}
 }
+walletDetailsCollectibleSize: 120px;
+walletDetailsCollectibleRadius: 10px;
+walletDetailsCollectibleNameSkip: 20px;
+walletDetailsCollectionSkip: 4px;
+walletDetailsCollectionLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+walletDetailsCollectionArrow: icon{{ "dialogs/dialogs_topic_arrow", windowSubTextFg }};
+walletDetailsCollectionArrowSkip: 4px;
 walletCommentLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 128px;
 }

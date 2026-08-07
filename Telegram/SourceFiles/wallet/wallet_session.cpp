@@ -547,7 +547,53 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 	if (_collectibles.empty()) {
 		_collectiblesTab = false;
 	}
+	for (const auto &item : _collectibles) {
+		_collectibleInfo[Gram::FormatRaw(item.address)] = item;
+	}
 	_collectiblesUpdates.fire({});
+}
+
+void Session::resolveCollectibleInfo(
+		const Gram::Address &item,
+		Fn<void(const Gram::NftItem &)> done) {
+	const auto key = Gram::FormatRaw(item);
+	const auto i = _collectibleInfo.find(key);
+	if (i != end(_collectibleInfo)) {
+		done(i->second);
+		return;
+	}
+	auto &waiters = _collectibleInfoWaiters[key];
+	const auto first = waiters.empty();
+	waiters.push_back(std::move(done));
+	if (!first) {
+		return;
+	}
+	const auto finish = [=](Gram::NftItem found, bool remember) {
+		if (remember) {
+			_collectibleInfo[key] = found;
+		}
+		for (const auto &callback : base::take(_collectibleInfoWaiters[key])) {
+			callback(found);
+		}
+		_collectibleInfoWaiters.remove(key);
+	};
+	_api.request(
+		Gram::NftItemByAddressRequest(item),
+		[=](const QByteArray &json) {
+			auto found = Gram::NftItem();
+			if (const auto page = Gram::ParseNftItems(json, 0)) {
+				for (const auto &entry : page->list) {
+					if (entry.address == item) {
+						found = entry;
+						break;
+					}
+				}
+			}
+			finish(found, true);
+		},
+		[=](const Gram::ApiError &) {
+			finish(Gram::NftItem(), false);
+		});
 }
 
 #ifdef _DEBUG

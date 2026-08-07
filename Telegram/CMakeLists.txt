@@ -2157,6 +2157,8 @@ PRIVATE
     ui/peer/video_userpic_player.h
     wallet/wallet_api.cpp
     wallet/wallet_api.h
+    wallet/wallet_collectible_media.cpp
+    wallet/wallet_collectible_media.h
     wallet/wallet_collectibles.cpp
     wallet/wallet_collectibles.h
     wallet/wallet_content.cpp

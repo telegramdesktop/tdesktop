@@ -17,8 +17,11 @@ class VerticalLayout;
 
 namespace Wallet {
 
+class CollectibleMedia;
+
 void AddCollectiblesList(
 	not_null<Ui::VerticalLayout*> container,
-	std::shared_ptr<Main::SessionShow> show);
+	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<CollectibleMedia> media);
 
 } // namespace Wallet
