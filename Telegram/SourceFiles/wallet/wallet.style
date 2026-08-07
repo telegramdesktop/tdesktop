@@ -125,6 +125,19 @@ walletRowMarkSize: 15px;
 walletRowIconMargin: margins(5px, 3px, 0px, 0px);
 walletRowsHintHeight: 44px;
 
+walletTabsSlider: SettingsSlider(defaultTabsSlider) {
+	padding: 12px;
+	strictSkip: 24px;
+}
+walletCollectibleRowHeight: 60px;
+walletCollectibleThumbRadius: 6px;
+walletCollectibleTitleStyle: TextStyle(defaultTextStyle) {
+	font: font(14px);
+}
+walletCollectibleTitlePalette: TextPalette(defaultTextPalette) {
+	linkFg: windowSubTextFg;
+}
+
 walletDetailsBox: Box(giveawayGiftCodeBox) {
 	bg: windowBgOver;
 	buttonPadding: margins(24px, 11px, 24px, 22px);

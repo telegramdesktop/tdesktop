@@ -38,7 +38,7 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 		panel->overrideTitleColor(st::windowBgOver->c);
 		panel->overrideBottomBarColor(st::windowBgOver->c);
 	}, panel->lifetime());
-	HistoryShownValue(
+	TransactionsShownValue(
 		session
 	) | rpl::on_next([=](bool shown) {
 		panel->setBottomBarHeight(shown ? st::walletRowsHintHeight : 0);

@@ -23,8 +23,24 @@ namespace {
 
 constexpr auto kPollInterval = 5 * crl::time(1000);
 constexpr auto kHistoryPageLimit = 20;
+constexpr auto kCollectiblesPageLimit = 50;
+constexpr auto kCollectiblesPollInterval = 60 * crl::time(1000);
 constexpr auto kSendValidUntilOffset = TimeId(300);
 constexpr auto kSendRetryClockMargin = TimeId(60);
+
+[[nodiscard]] bool SameCollectibles(
+		const std::vector<Gram::NftItem> &was,
+		const std::vector<Gram::NftItem> &now) {
+	if (was.size() != now.size()) {
+		return false;
+	}
+	for (auto i = 0, count = int(was.size()); i != count; ++i) {
+		if (was[i].address != now[i].address) {
+			return false;
+		}
+	}
+	return true;
+}
 
 } // namespace
 
@@ -207,6 +223,15 @@ void Session::clearNetworkState() {
 	_historyErrorLogged = false;
 	_historyHasNext = false;
 	_historyLoadedOffset = 0;
+	_collectibles.clear();
+	_collectiblesLoading.clear();
+	_collectiblesTab = false;
+	_collectiblesRefreshedAt = 0;
+	_collectiblesRequestPending = false;
+#ifdef _DEBUG
+	_collectiblesInjected = false;
+#endif // _DEBUG
+	_collectiblesUpdates.fire({});
 	_pending.reset();
 	_sendState = SendState::Idle;
 	_pollingCount = 0;
@@ -448,9 +473,92 @@ void Session::loadMoreHistory() {
 	requestHistory(_historyLoadedOffset);
 }
 
+void Session::refreshCollectibles() {
+	ensureLoaded();
+#ifdef _DEBUG
+	if (_collectiblesInjected) {
+		return;
+	}
+#endif // _DEBUG
+	if (_keyState.current() == KeyState::None
+		|| _collectiblesRequestPending
+		|| (_collectiblesRefreshedAt
+			&& (crl::now() - _collectiblesRefreshedAt
+				< kCollectiblesPollInterval))) {
+		return;
+	}
+	_collectiblesRefreshedAt = crl::now();
+	requestCollectibles(0);
+}
+
+void Session::requestCollectibles(int offset) {
+	_collectiblesRequestPending = true;
+	_api.request(
+		Gram::NftItemsByOwnerRequest(
+			addressFriendly(false),
+			kCollectiblesPageLimit,
+			offset),
+		[=](const QByteArray &json) {
+			_collectiblesRequestPending = false;
+			if (_keyState.current() == KeyState::None) {
+				_collectiblesLoading.clear();
+				return;
+			}
+			auto page = Gram::ParseNftItems(json, kCollectiblesPageLimit);
+			if (!page) {
+				_collectiblesLoading.clear();
+				return;
+			}
+			applyCollectiblesPage(offset, std::move(*page));
+		},
+		[=](const Gram::ApiError &) {
+			_collectiblesRequestPending = false;
+			_collectiblesLoading.clear();
+		});
+}
+
+void Session::applyCollectiblesPage(int offset, Gram::NftPage &&page) {
+#ifdef _DEBUG
+	if (_collectiblesInjected) {
+		_collectiblesLoading.clear();
+		return;
+	}
+#endif // _DEBUG
+	if (!offset) {
+		_collectiblesLoading.clear();
+	}
+	_collectiblesLoading.insert(
+		_collectiblesLoading.end(),
+		std::make_move_iterator(page.list.begin()),
+		std::make_move_iterator(page.list.end()));
+	if (page.hasNext) {
+		requestCollectibles(offset + kCollectiblesPageLimit);
+		return;
+	}
+	auto loaded = base::take(_collectiblesLoading);
+	if (SameCollectibles(_collectibles, loaded)) {
+		return;
+	}
+	setCollectibles(std::move(loaded));
+}
+
+void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
+	_collectibles = std::move(list);
+	if (_collectibles.empty()) {
+		_collectiblesTab = false;
+	}
+	_collectiblesUpdates.fire({});
+}
+
 #ifdef _DEBUG
 void Session::injectDebugHistory(std::vector<Gram::TransferItem> items) {
 	mergeHistory(std::move(items));
+}
+
+void Session::injectDebugCollectibles(std::vector<Gram::NftItem> items) {
+	_collectiblesInjected = true;
+	_collectiblesLoading.clear();
+	setCollectibles(std::move(items));
 }
 
 void Session::debugRawRequest(
@@ -502,6 +610,7 @@ void Session::pollTick() {
 	if (!_historyRequestPending) {
 		refreshHistory();
 	}
+	refreshCollectibles();
 	if (_pending && !_pendingCheckPending) {
 		checkPendingByMessage();
 	}
@@ -529,6 +638,26 @@ const std::vector<Gram::TransferItem> &Session::history() const {
 
 rpl::producer<> Session::historyUpdates() const {
 	return _historyUpdates.events();
+}
+
+const std::vector<Gram::NftItem> &Session::collectibles() const {
+	return _collectibles;
+}
+
+rpl::producer<> Session::collectiblesUpdates() const {
+	return _collectiblesUpdates.events();
+}
+
+bool Session::collectiblesTab() const {
+	return _collectiblesTab.current();
+}
+
+rpl::producer<bool> Session::collectiblesTabValue() const {
+	return _collectiblesTab.value();
+}
+
+void Session::setCollectiblesTab(bool value) {
+	_collectiblesTab = value && !_collectibles.empty();
 }
 
 SendState Session::sendState() const {

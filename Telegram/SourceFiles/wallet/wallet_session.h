@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "gram/api/gram_api_account.h"
 #include "gram/api/gram_api_history.h"
+#include "gram/api/gram_api_nft.h"
 #include "gram/crypto/gram_ed25519.h"
 #include "gram/crypto/gram_mnemonic.h"
 #include "gram/ton/gram_address.h"
@@ -91,8 +92,15 @@ public:
 	void refreshHistory(Fn<void()> done = nullptr);
 	[[nodiscard]] bool historyHasNext() const;
 	void loadMoreHistory();
+
+	[[nodiscard]] const std::vector<Gram::NftItem> &collectibles() const;
+	[[nodiscard]] rpl::producer<> collectiblesUpdates() const;
+	[[nodiscard]] bool collectiblesTab() const;
+	[[nodiscard]] rpl::producer<bool> collectiblesTabValue() const;
+	void setCollectiblesTab(bool value);
 #ifdef _DEBUG
 	void injectDebugHistory(std::vector<Gram::TransferItem> items);
+	void injectDebugCollectibles(std::vector<Gram::NftItem> items);
 	void debugRawRequest(
 		const Gram::HttpRequest &request,
 		Fn<void(const QByteArray &)> done,
@@ -129,6 +137,10 @@ private:
 	void requestHistory(int offset);
 	void requestHistoryFallback(int offset);
 	void applyHistoryPage(int offset, Gram::HistoryPage &&page);
+	void refreshCollectibles();
+	void requestCollectibles(int offset);
+	void applyCollectiblesPage(int offset, Gram::NftPage &&page);
+	void setCollectibles(std::vector<Gram::NftItem> &&list);
 	void checkPendingByMessage();
 	void checkPendingBySeqno(const Gram::AccountState &state);
 	void finishPending();
@@ -162,6 +174,16 @@ private:
 	bool _historyErrorLogged = false;
 	bool _historyHasNext = false;
 	int _historyLoadedOffset = 0;
+
+	std::vector<Gram::NftItem> _collectibles;
+	std::vector<Gram::NftItem> _collectiblesLoading;
+	rpl::event_stream<> _collectiblesUpdates;
+	rpl::variable<bool> _collectiblesTab = false;
+	crl::time _collectiblesRefreshedAt = 0;
+	bool _collectiblesRequestPending = false;
+#ifdef _DEBUG
+	bool _collectiblesInjected = false;
+#endif // _DEBUG
 
 	int _pollingCount = 0;
 	bool _stateRequestPending = false;

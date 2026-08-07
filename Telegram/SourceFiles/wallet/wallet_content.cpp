@@ -60,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "wallet/wallet_collectibles.h"
 #include "wallet/wallet_fiat.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
@@ -120,6 +121,7 @@ protected:
 private:
 	void setupContent();
 	void setupHeader();
+	void setupTabs();
 	void setupStrip();
 	void updateRegions();
 	void checkLoadMore();
@@ -129,9 +131,12 @@ private:
 	Ui::RpWidget *_container = nullptr;
 	Ui::VerticalLayout *_header = nullptr;
 	Ui::PlainShadow *_headerShadow = nullptr;
+	Ui::SettingsSlider *_tabs = nullptr;
+	Ui::PlainShadow *_tabsShadow = nullptr;
 	Ui::PlainShadow *_stripShadow = nullptr;
 	Ui::RpWidget *_strip = nullptr;
 	Card *_card = nullptr;
+	bool _tabsShown = false;
 	bool _stripShown = false;
 
 };
@@ -2934,6 +2939,28 @@ Content::~Content() {
 	_show->session().wallet().stopPolling();
 }
 
+[[nodiscard]] rpl::producer<bool> HistoryShownValue(
+		not_null<Main::Session*> session) {
+	const auto wallet = &session->wallet();
+	return rpl::single(rpl::empty) | rpl::then(rpl::merge(
+		wallet->historyUpdates(),
+		wallet->sendStateValue() | rpl::to_empty
+	)) | rpl::map([=] {
+		return !wallet->history().empty()
+			|| wallet->pendingSend().has_value();
+	}) | rpl::distinct_until_changed();
+}
+
+[[nodiscard]] rpl::producer<bool> CollectiblesShownValue(
+		not_null<Main::Session*> session) {
+	const auto wallet = &session->wallet();
+	return rpl::single(rpl::empty) | rpl::then(
+		wallet->collectiblesUpdates()
+	) | rpl::map([=] {
+		return !wallet->collectibles().empty();
+	}) | rpl::distinct_until_changed();
+}
+
 void Content::setupContent() {
 	_container = _scroll->setOwnedWidget(
 		object_ptr<Ui::RpWidget>(_scroll.data()));
@@ -2941,6 +2968,7 @@ void Content::setupContent() {
 	column->show();
 
 	setupHeader();
+	setupTabs();
 	setupStrip();
 
 	const auto wallet = &_show->session().wallet();
@@ -3013,9 +3041,12 @@ void Content::setupContent() {
 		tr::lng_wallet_about_chain_text(),
 		st::walletAboutChainIcon);
 
-	wrap->toggleOn(HistoryShownValue(
-		&_show->session()
-	) | rpl::map(!rpl::mappers::_1));
+	wrap->toggleOn(rpl::combine(
+		HistoryShownValue(&_show->session()),
+		wallet->collectiblesTabValue()
+	) | rpl::map([](bool history, bool collectibles) {
+		return !history && !collectibles;
+	}));
 	wrap->finishAnimating();
 
 	const auto listWrap = column->add(
@@ -3028,9 +3059,11 @@ void Content::setupContent() {
 		const auto &history = wallet->history();
 		const auto &pending = wallet->pendingSend();
 		if (!history.empty() || pending) {
-			Ui::AddSkip(list, st::walletRowsTopSkip);
-			Ui::AddSubsectionTitle(list, tr::lng_wallet_rows_title());
-			Ui::AddSkip(list);
+			if (wallet->collectibles().empty()) {
+				Ui::AddSkip(list, st::walletRowsTopSkip);
+				Ui::AddSubsectionTitle(list, tr::lng_wallet_rows_title());
+				Ui::AddSkip(list);
+			}
 			const auto shown = pending
 				&& ranges::any_of(history, [&](
 						const Gram::TransferItem &item) {
@@ -3057,10 +3090,19 @@ void Content::setupContent() {
 	};
 	rpl::merge(
 		wallet->historyUpdates(),
+		wallet->collectiblesUpdates(),
 		wallet->sendStateValue() | rpl::to_empty
 	) | rpl::on_next(rebuildList, list->lifetime());
-	listWrap->toggleOn(HistoryShownValue(&_show->session()));
+	listWrap->toggleOn(TransactionsShownValue(&_show->session()));
 	listWrap->finishAnimating();
+
+	const auto collectiblesWrap = column->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			column,
+			object_ptr<Ui::VerticalLayout>(column)));
+	AddCollectiblesList(collectiblesWrap->entity(), _show);
+	collectiblesWrap->toggleOn(wallet->collectiblesTabValue());
+	collectiblesWrap->finishAnimating();
 
 	_scroll->scrolls(
 	) | rpl::on_next([=] {
@@ -3129,6 +3171,41 @@ void Content::setupHeader() {
 	}, lifetime());
 }
 
+void Content::setupTabs() {
+	_tabs = Ui::CreateChild<Ui::SettingsSlider>(this, st::walletTabsSlider);
+	_tabs->setSections({
+		tr::lng_wallet_rows_title(tr::now),
+		tr::lng_wallet_rows_collectibles(tr::now),
+	});
+	_tabs->fitWidthToSections();
+	_tabsShadow = Ui::CreateChild<Ui::PlainShadow>(this);
+
+	const auto wallet = &_show->session().wallet();
+	_tabs->setActiveSectionFast(wallet->collectiblesTab() ? 1 : 0);
+	_tabs->sectionActivated(
+	) | rpl::on_next([=](int index) {
+		wallet->setCollectiblesTab(index == 1);
+		_scroll->scrollToY(0);
+	}, _tabs->lifetime());
+
+	wallet->collectiblesTabValue(
+	) | rpl::on_next([=](bool collectibles) {
+		const auto index = collectibles ? 1 : 0;
+		if (_tabs->activeSection() != index) {
+			_tabs->setActiveSectionFast(index);
+		}
+	}, _tabs->lifetime());
+
+	CollectiblesShownValue(
+		&_show->session()
+	) | rpl::on_next([=](bool shown) {
+		_tabsShown = shown;
+		_tabs->setVisible(shown);
+		_tabsShadow->setVisible(shown);
+		updateRegions();
+	}, lifetime());
+}
+
 void Content::setupStrip() {
 	_stripShadow = Ui::CreateChild<Ui::PlainShadow>(this);
 	_strip = Ui::CreateChild<Ui::RpWidget>(this);
@@ -3160,7 +3237,7 @@ void Content::setupStrip() {
 			size.width());
 	}, hint->lifetime());
 
-	HistoryShownValue(
+	TransactionsShownValue(
 		&_show->session()
 	) | rpl::on_next([=](bool shown) {
 		_stripShown = shown;
@@ -3180,7 +3257,16 @@ void Content::updateRegions() {
 	const auto stripHeight = _stripShown
 		? (st::walletRowsHintHeight + st::lineWidth)
 		: 0;
-	const auto scrollTop = headerBottom + st::lineWidth;
+	auto scrollTop = headerBottom + st::lineWidth;
+	if (_tabsShown) {
+		_tabs->moveToLeft(0, scrollTop, width());
+		_tabsShadow->setGeometry(
+			0,
+			scrollTop + _tabs->height(),
+			width(),
+			st::lineWidth);
+		scrollTop += _tabs->height() + st::lineWidth;
+	}
 	_scroll->setGeometry(
 		0,
 		scrollTop,
@@ -3202,7 +3288,7 @@ void Content::updateRegions() {
 
 void Content::checkLoadMore() {
 	auto &wallet = _show->session().wallet();
-	if (!wallet.historyHasNext()) {
+	if (!wallet.historyHasNext() || wallet.collectiblesTab()) {
 		return;
 	}
 	if (_scroll->scrollTop() + _scroll->height() >= _scroll->scrollTopMax()) {
@@ -3313,15 +3399,13 @@ void FillWalletPage(
 
 } // namespace
 
-rpl::producer<bool> HistoryShownValue(
+rpl::producer<bool> TransactionsShownValue(
 		not_null<Main::Session*> session) {
-	const auto wallet = &session->wallet();
-	return rpl::single(rpl::empty) | rpl::then(rpl::merge(
-		wallet->historyUpdates(),
-		wallet->sendStateValue() | rpl::to_empty
-	)) | rpl::map([=] {
-		return !wallet->history().empty()
-			|| wallet->pendingSend().has_value();
+	return rpl::combine(
+		HistoryShownValue(session),
+		session->wallet().collectiblesTabValue()
+	) | rpl::map([](bool history, bool collectibles) {
+		return history && !collectibles;
 	}) | rpl::distinct_until_changed();
 }
 

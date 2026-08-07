@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifdef _DEBUG
 #include "data/data_file_origin.h"
+#include "gram/api/gram_api_nft.h"
 #include "gram/api/gram_api_request.h"
 #include "mtproto/mtproto_config.h"
 #include "storage/file_download.h"
@@ -800,6 +801,37 @@ auto GenerateCodes() {
 				const auto count = int(items.size());
 				wallet.injectDebugHistory(std::move(items));
 				Ui::Toast::Show(u"Injected %1 history items."_q.arg(count));
+			});
+	});
+	codes.emplace(u"walletcollectiblesfixture"_q, [](
+			SessionController *window) {
+		if (!window) {
+			return;
+		}
+		const auto weak = base::make_weak(window);
+		FileDialog::GetOpenPath(
+			Core::App().getFileDialogParent(),
+			"Open NFT items fixture",
+			"NFT items JSON (*.json)",
+			[weak](const FileDialog::OpenResult &result) {
+				const auto strong = weak.get();
+				if (!strong || result.paths.isEmpty()) {
+					return;
+				}
+				auto file = QFile(result.paths.front());
+				if (!file.open(QIODevice::ReadOnly)) {
+					Ui::Toast::Show(u"Could not open fixture."_q);
+					return;
+				}
+				auto page = Gram::ParseNftItems(file.readAll(), 0);
+				if (!page) {
+					Ui::Toast::Show(u"No items parsed from fixture."_q);
+					return;
+				}
+				const auto count = int(page->list.size());
+				strong->session().wallet().injectDebugCollectibles(
+					std::move(page->list));
+				Ui::Toast::Show(u"Injected %1 collectibles."_q.arg(count));
 			});
 	});
 	codes.emplace(u"walletprobe"_q, [](SessionController *window) {

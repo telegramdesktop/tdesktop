@@ -38,7 +38,7 @@ void ShowTransferLink(
 	std::shared_ptr<Main::SessionShow> show,
 	const QString &url);
 
-[[nodiscard]] rpl::producer<bool> HistoryShownValue(
+[[nodiscard]] rpl::producer<bool> TransactionsShownValue(
 	not_null<Main::Session*> session);
 
 } // namespace Wallet
