@@ -7859,6 +7859,14 @@ const -> std::optional<Platform::TextRecognition::RectWithText> {
 	return std::nullopt;
 }
 
+bool OverlayWidget::recognitionTakesMouse(QPoint position) const {
+	return _showRecognitionResults
+		&& _recognitionResult.success
+		&& !_recognitionResult.items.empty()
+		&& (_recognition.selecting()
+			|| scaledRecognitionRect(position).has_value());
+}
+
 void OverlayWidget::updateRecognitionSelection(QPoint position) {
 	const auto focus = _recognition.positionAt(
 		position,
@@ -7934,7 +7942,7 @@ void OverlayWidget::handleMouseMove(QPoint position) {
 		if (scaledRecognitionRect(position)) {
 			setCursor(style::cur_text);
 		} else if (!_pressed) {
-			setCursor(style::cur_default);
+			updateCursor();
 		}
 	}
 	if (_pressed) {
@@ -8089,9 +8097,13 @@ void OverlayWidget::updateOver(QPoint pos) {
 	using SiblingType = Stories::SiblingType;
 	if (_fullScreenVideo) {
 		updateOverState(Over::Video);
-	} else if (_leftNavVisible && _leftNav.contains(pos)) {
+	} else if (_leftNavVisible
+		&& _leftNav.contains(pos)
+		&& !recognitionTakesMouse(pos)) {
 		updateOverState(Over::Left);
-	} else if (_rightNavVisible && _rightNav.contains(pos)) {
+	} else if (_rightNavVisible
+		&& _rightNav.contains(pos)
+		&& !recognitionTakesMouse(pos)) {
 		updateOverState(Over::Right);
 	} else if (_stories
 		&& _stories->sibling(
