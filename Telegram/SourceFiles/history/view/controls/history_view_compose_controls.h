@@ -367,7 +367,10 @@ private:
 	void updateOuterGeometry(QRect rect);
 	void paintBackground(QPainter &p, QRect full, QRect clip);
 
+	[[nodiscard]] auto baseSendButtonType() const;
 	[[nodiscard]] auto computeSendButtonType() const;
+	[[nodiscard]] bool sendButtonSends() const;
+	[[nodiscard]] bool submitSends() const;
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 	[[nodiscard]] SendMenu::Details saveMenuDetails() const;
 	[[nodiscard]] SendMenu::Details sendButtonMenuDetails() const;
@@ -393,6 +396,7 @@ private:
 
 	[[nodiscard]] bool showRecordButton() const;
 	[[nodiscard]] bool showEditStarsButton() const;
+	[[nodiscard]] bool showStopButton() const;
 	[[nodiscard]] int shownStarsPerMessage() const;
 	bool updateBotCommandShown();
 	bool updateLikeShown();
@@ -404,6 +408,7 @@ private:
 	[[nodiscard]] bool textExceedsMaxSize() const;
 
 	void cancelInlineBot();
+	void stopStreamedDraft();
 	void clearInlineBot();
 	void inlineBotChanged();
 

@@ -807,6 +807,7 @@ HistoryWidget::HistoryWidget(
 		| HistoryUpdateFlag::UnreadView
 		| HistoryUpdateFlag::TopPromoted
 		| HistoryUpdateFlag::ClientSideMessages
+		| HistoryUpdateFlag::StreamedDrafts
 	) | rpl::filter([=](const Data::HistoryUpdate &update) {
 		return (_history == update.history.get());
 	}) | rpl::on_next([=](const Data::HistoryUpdate &update) {
@@ -820,7 +821,8 @@ HistoryWidget::HistoryWidget(
 		if (flags & HistoryUpdateFlag::CloudDraft) {
 			applyCloudDraft(update.history);
 		}
-		if (flags & HistoryUpdateFlag::ClientSideMessages) {
+		if (flags & (HistoryUpdateFlag::ClientSideMessages
+			| HistoryUpdateFlag::StreamedDrafts)) {
 			updateSendButtonType();
 		}
 		if ((flags & HistoryUpdateFlag::UnreadMentions)
@@ -5828,6 +5830,9 @@ bool HistoryWidget::canSendAiComposeDirect() const {
 
 SendMenu::Details HistoryWidget::sendButtonMenuDetails() const {
 	using Type = Ui::SendButton::Type;
+	if (showStopButton()) {
+		return {};
+	}
 	const auto type = computeSendButtonType();
 	if (type == Type::Save) {
 		return saveMenuDetails();
@@ -6190,10 +6195,21 @@ void HistoryWidget::sendButtonClicked() {
 	const auto type = _send->type();
 	if (type == Ui::SendButton::Type::Cancel) {
 		cancelInlineBot();
+	} else if (type == Ui::SendButton::Type::Stop) {
+		stopStreamedDraft();
 	} else if (type != Ui::SendButton::Type::Record
 		&& type != Ui::SendButton::Type::Round) {
 		send({});
 	}
+}
+
+void HistoryWidget::stopStreamedDraft() {
+	if (const auto streamed = _history
+			? _history->streamedDraftsIfExists()
+			: nullptr) {
+		streamed->requestStop(MsgId(0));
+	}
+	updateSendButtonType();
 }
 
 void HistoryWidget::leaveEventHook(QEvent *e) {
@@ -6558,10 +6574,28 @@ bool HistoryWidget::showInlineBotCancel() const {
 	return _inlineBot && !_inlineLookingUpBot;
 }
 
-void HistoryWidget::updateSendButtonType() {
+bool HistoryWidget::showStopButton() const {
 	using Type = Ui::SendButton::Type;
 
 	const auto type = computeSendButtonType();
+	if ((_send->isDown() && _send->type() != Type::Stop)
+		|| !_voiceRecordBar->isHidden()
+		|| type == Type::Save
+		|| type == Type::Cancel) {
+		return false;
+	}
+	const auto streamed = _history
+		? _history->streamedDraftsIfExists()
+		: nullptr;
+	return streamed && streamed->stoppableFor(MsgId(0));
+}
+
+void HistoryWidget::updateSendButtonType() {
+	using Type = Ui::SendButton::Type;
+
+	const auto type = showStopButton()
+		? Type::Stop
+		: computeSendButtonType();
 	const auto forbidden = [&] {
 		if (type != Type::Record && type != Type::Round) {
 			return false;
@@ -6579,7 +6613,10 @@ void HistoryWidget::updateSendButtonType() {
 		&& _peer->slowmodeApplied()
 		&& (_history->latestSendingMessage() != nullptr);
 	const auto delay = [&] {
-		return (type != Type::Cancel && type != Type::Save && _peer)
+		return (type != Type::Cancel
+			&& type != Type::Save
+			&& type != Type::Stop
+			&& _peer)
 			? _peer->slowmodeSecondsLeft()
 			: 0;
 	}();

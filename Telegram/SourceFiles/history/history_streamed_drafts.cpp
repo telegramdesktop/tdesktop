@@ -8,8 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_streamed_drafts.h"
 
 #include "api/api_text_entities.h"
+#include "apiwrap.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/data_changes.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer_id.h"
 #include "data/data_saved_sublist.h"
@@ -81,6 +83,8 @@ HistoryStreamedDrafts::DraftContent HistoryStreamedDrafts::prepareContent(
 			&_history->session(),
 			data.vtext()),
 		.kind = DraftKind::Text,
+		.canStop = data.is_can_stop(),
+		.keepOnStop = data.is_keep_on_stop(),
 	};
 	content.matchText = content.text.text;
 	content.text.append(loadingEmoji());
@@ -94,6 +98,8 @@ HistoryStreamedDrafts::DraftContent HistoryStreamedDrafts::prepareContent(
 			&_history->session(),
 			data.vrich_message()),
 		.kind = DraftKind::Rich,
+		.canStop = data.is_can_stop(),
+		.keepOnStop = data.is_keep_on_stop(),
 	};
 	content.text = Iv::FlattenRichPageSummary(content.richPage, false);
 	content.matchText = content.text.text;
@@ -109,6 +115,7 @@ void HistoryStreamedDrafts::applyPrepared(
 		TimeId when,
 		uint64 randomId,
 		DraftContent &&content) {
+	const auto topMsgId = rootId;
 	const auto replyToId = rootId
 		? FullMsgId(_history->peer->id, rootId)
 		: FullMsgId();
@@ -117,6 +124,9 @@ void HistoryStreamedDrafts::applyPrepared(
 	}
 	if (!when) {
 		clearByRandomId(randomId);
+		return;
+	}
+	if (_stoppedRandomIds.contains(randomId)) {
 		return;
 	}
 	if (_drafts.find(randomId) != end(_drafts)
@@ -151,7 +161,10 @@ void HistoryStreamedDrafts::applyPrepared(
 		.rootId = rootId,
 		.fromId = fromId,
 		.updated = crl::now(),
+		.topMsgId = topMsgId,
 		.kind = content.kind,
+		.canStop = content.canStop,
+		.keepOnStop = content.keepOnStop,
 		.matchText = std::move(content.matchText),
 	});
 	if (!_checkTimer.isActive()) {
@@ -168,6 +181,9 @@ void HistoryStreamedDrafts::applyPrepared(
 			}
 		});
 	});
+	if (content.canStop) {
+		notifyStopChanged();
+	}
 }
 
 bool HistoryStreamedDrafts::update(
@@ -177,6 +193,7 @@ bool HistoryStreamedDrafts::update(
 	if (i == end(_drafts)) {
 		return false;
 	}
+	const auto wasStoppable = i->second.canStop;
 	const auto item = i->second.message;
 	const auto currentRichPage = item->richPage();
 	const auto hadRichPage = (currentRichPage != nullptr);
@@ -197,6 +214,11 @@ bool HistoryStreamedDrafts::update(
 	i->second.kind = content.kind;
 	i->second.matchText = std::move(content.matchText);
 	i->second.updated = crl::now();
+	i->second.canStop = content.canStop;
+	i->second.keepOnStop = content.keepOnStop;
+	if (wasStoppable != content.canStop) {
+		notifyStopChanged();
+	}
 	return true;
 }
 
@@ -211,12 +233,73 @@ std::optional<uint64> HistoryStreamedDrafts::previousRandomId(
 	return std::nullopt;
 }
 
+std::optional<uint64> HistoryStreamedDrafts::stoppableRandomId(
+		MsgId rootId) const {
+	if (!rootId) {
+		rootId = Data::ForumTopic::kGeneralId;
+	}
+	auto result = std::optional<uint64>();
+	auto updated = crl::time();
+	for (const auto &[randomId, draft] : _drafts) {
+		if (!draft.canStop || draft.rootId != rootId) {
+			continue;
+		} else if (!result || draft.updated > updated) {
+			result = randomId;
+			updated = draft.updated;
+		}
+	}
+	return result;
+}
+
+bool HistoryStreamedDrafts::stoppableFor(MsgId rootId) const {
+	return stoppableRandomId(rootId).has_value();
+}
+
 void HistoryStreamedDrafts::clearByRandomId(uint64 randomId) {
 	if (const auto draft = _drafts.take(randomId)) {
 		draft->message->destroy();
+		if (draft->canStop) {
+			notifyStopChanged();
+		}
 	}
 	if (_drafts.empty()) {
 		scheduleDestroy();
+	}
+}
+
+void HistoryStreamedDrafts::notifyStopChanged() {
+	_history->session().changes().historyUpdated(
+		_history,
+		Data::HistoryUpdate::Flag::StreamedDrafts);
+}
+
+void HistoryStreamedDrafts::requestStop(MsgId rootId) {
+	const auto randomId = stoppableRandomId(rootId);
+	if (!randomId) {
+		return;
+	}
+	const auto topMsgId = _drafts.find(*randomId)->second.topMsgId;
+	_history->session().api().request(MTPmessages_SetTyping(
+		MTP_flags(topMsgId
+			? MTPmessages_SetTyping::Flag::f_top_msg_id
+			: MTPmessages_SetTyping::Flag(0)),
+		_history->peer->input(),
+		MTP_int(topMsgId),
+		MTP_sendMessageStopDraftAction(MTP_long(*randomId))
+	)).send();
+	applyStop(*randomId);
+}
+
+void HistoryStreamedDrafts::applyStop(uint64 randomId) {
+	const auto i = _drafts.find(randomId);
+	if (i == end(_drafts)) {
+		return;
+	}
+	_stoppedRandomIds.emplace(randomId);
+	if (!i->second.keepOnStop) {
+		clearByRandomId(randomId);
+	} else if (base::take(i->second.canStop)) {
+		notifyStopChanged();
 	}
 }
 
@@ -234,7 +317,11 @@ bool HistoryStreamedDrafts::hasFor(not_null<HistoryItem*> item) const {
 void HistoryStreamedDrafts::applyItemRemoved(not_null<HistoryItem*> item) {
 	for (auto i = begin(_drafts); i != end(_drafts); ++i) {
 		if (i->second.message == item) {
+			const auto stoppable = i->second.canStop;
 			_drafts.erase(i);
+			if (stoppable) {
+				notifyStopChanged();
+			}
 			if (_drafts.empty()) {
 				scheduleDestroy();
 			}
@@ -335,7 +422,11 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 		return nullptr;
 	}
 	const auto item = best->second.message.get();
+	const auto stoppable = best->second.canStop;
 	_drafts.erase(best);
+	if (stoppable) {
+		notifyStopChanged();
+	}
 
 	item->setRealId(data.vid().v);
 	if (const auto topic = item->topic()) {
@@ -355,10 +446,12 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 
 void HistoryStreamedDrafts::check() {
 	auto closest = crl::time();
+	auto stoppable = false;
 	const auto now = crl::now();
 	for (auto i = begin(_drafts); i != end(_drafts);) {
 		if (now - i->second.updated >= kClearTimeout) {
 			const auto message = i->second.message;
+			stoppable = stoppable || i->second.canStop;
 			i = _drafts.erase(i);
 			message->destroy();
 		} else {
@@ -367,6 +460,9 @@ void HistoryStreamedDrafts::check() {
 			}
 			++i;
 		}
+	}
+	if (stoppable) {
+		notifyStopChanged();
 	}
 	if (closest) {
 		_checkTimer.callOnce(kClearTimeout - (now - closest));

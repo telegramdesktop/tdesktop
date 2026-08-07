@@ -186,6 +186,8 @@ SendButton {
 	recordSize: size;
 	sendDisabledFg: color;
 	sendIconFg: color;
+	stopSize: size;
+	stopRadius: pixels;
 }
 
 RecordBarLock {
@@ -1489,6 +1491,8 @@ historySend: SendButton {
 	recordSize: size(26px, 26px);
 	sendDisabledFg: historyComposeIconFg;
 	sendIconFg: historySendIconFg;
+	stopSize: size(14px, 14px);
+	stopRadius: 3px;
 }
 historyAiComposeButton: IconButton(historyAttach) {
 	width: 28px;

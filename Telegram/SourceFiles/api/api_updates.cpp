@@ -1120,6 +1120,12 @@ void Updates::handleSendActionUpdate(
 		const auto &data = action.c_sendMessageRichMessageDraftAction();
 		history->streamedDrafts().apply(rootId, fromId, when, data);
 		return;
+	} else if (action.type() == mtpc_sendMessageStopDraftAction) {
+		const auto &data = action.c_sendMessageStopDraftAction();
+		if (const auto streamed = history->streamedDraftsIfExists()) {
+			streamed->applyStop(data.vrandom_id().v);
+		}
+		return;
 	}
 	session().data().sendActionManager().registerFor(
 		history,

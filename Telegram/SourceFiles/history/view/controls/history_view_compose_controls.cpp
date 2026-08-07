@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_streamed_drafts.h"
 #include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_compose_ai_button.h"
 #include "history/view/controls/history_view_compose_ai_tooltip.h"
@@ -1212,6 +1213,7 @@ void ComposeControls::updateTopicRootId(MsgId topicRootId) {
 	trackThreadFieldVisibility();
 	registerDraftSource();
 	updateFieldVisibility();
+	updateSendButtonType();
 }
 
 void ComposeControls::updateShortcutId(BusinessShortcutId shortcutId) {
@@ -1848,18 +1850,19 @@ rpl::producer<> ComposeControls::focusRequests() const {
 
 auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
 	auto filter = rpl::filter([=] {
-		const auto type = (_mode == Mode::Normal)
-			? Ui::SendButton::Type::Send
-			: Ui::SendButton::Type::Schedule;
 		const auto sendRequestType = _voiceRecordBar->isListenState()
 			? SendRequestType::Voice
 			: SendRequestType::Text;
-		return (_send->type() == type) && (sendRequestType == requestType);
+		return (sendRequestType == requestType);
 	});
 	auto map = rpl::map_to(Api::SendOptions());
 	return rpl::merge(
-		_send->clicks() | filter | map,
-		_field->submits() | filter | map,
+		_send->clicks() | rpl::filter([=] {
+			return sendButtonSends();
+		}) | filter | map,
+		_field->submits() | rpl::filter([=] {
+			return submitSends();
+		}) | filter | map,
 		_sendCustomRequests.events());
 }
 
@@ -3365,12 +3368,23 @@ void ComposeControls::initSendButton() {
 		updateSendButtonType();
 	}, _send->lifetime());
 
+	session().changes().historyUpdates(
+		Data::HistoryUpdate::Flag::StreamedDrafts
+		| Data::HistoryUpdate::Flag::ClientSideMessages
+	) | rpl::filter([=](const Data::HistoryUpdate &update) {
+		return (_history == update.history.get());
+	}) | rpl::on_next([=] {
+		updateSendButtonType();
+	}, _send->lifetime());
+
 	_send->finishAnimating();
 
 	_send->clicks(
 	) | rpl::on_next([=] {
 		if (_send->type() == Ui::SendButton::Type::Cancel) {
 			cancelInlineBot();
+		} else if (_send->type() == Ui::SendButton::Type::Stop) {
+			stopStreamedDraft();
 		}
 	}, _send->lifetime());
 
@@ -3453,6 +3467,17 @@ void ComposeControls::cancelInlineBot() {
 			TextUpdateEvent::SaveDraft,
 			Ui::InputField::HistoryAction::NewEntry);
 	}
+}
+
+void ComposeControls::stopStreamedDraft() {
+	if (const auto streamed = _history
+			? _history->streamedDraftsIfExists()
+			: nullptr) {
+		streamed->requestStop(_topicRootId);
+	}
+	InvokeQueued(_wrap.get(), [=] {
+		updateSendButtonType();
+	});
 }
 
 void ComposeControls::clearInlineBot() {
@@ -4070,6 +4095,11 @@ void ComposeControls::updateWrappingVisibility() {
 	}
 }
 
+auto ComposeControls::baseSendButtonType() const {
+	using Type = Ui::SendButton::Type;
+	return (_mode == Mode::Normal) ? Type::Send : Type::Schedule;
+}
+
 auto ComposeControls::computeSendButtonType() const {
 	using Type = Ui::SendButton::Type;
 
@@ -4086,7 +4116,31 @@ auto ComposeControls::computeSendButtonType() const {
 	} else if (showEditStarsButton()) {
 		return Type::EditPrice;
 	}
-	return (_mode == Mode::Normal) ? Type::Send : Type::Schedule;
+	return baseSendButtonType();
+}
+
+bool ComposeControls::sendButtonSends() const {
+	return (_send->type() == baseSendButtonType());
+}
+
+bool ComposeControls::submitSends() const {
+	return (computeSendButtonType() == baseSendButtonType());
+}
+
+bool ComposeControls::showStopButton() const {
+	using Type = Ui::SendButton::Type;
+	const auto type = computeSendButtonType();
+	if (_mode != Mode::Normal
+		|| (_send->isDown() && _send->type() != Type::Stop)
+		|| !_voiceRecordBar->isHidden()
+		|| type == Type::Save
+		|| type == Type::Cancel) {
+		return false;
+	}
+	const auto streamed = _history
+		? _history->streamedDraftsIfExists()
+		: nullptr;
+	return streamed && streamed->stoppableFor(_topicRootId);
 }
 
 SendMenu::Details ComposeControls::sendMenuDetails() const {
@@ -4098,6 +4152,9 @@ SendMenu::Details ComposeControls::saveMenuDetails() const {
 }
 
 SendMenu::Details ComposeControls::sendButtonMenuDetails() const {
+	if (showStopButton()) {
+		return {};
+	}
 	return (computeSendButtonType() == Ui::SendButton::Type::Save)
 		? saveMenuDetails()
 		: (computeSendButtonType() == Ui::SendButton::Type::Send)
@@ -4107,7 +4164,9 @@ SendMenu::Details ComposeControls::sendButtonMenuDetails() const {
 
 void ComposeControls::updateSendButtonType() {
 	using Type = Ui::SendButton::Type;
-	const auto type = computeSendButtonType();
+	const auto type = showStopButton()
+		? Type::Stop
+		: computeSendButtonType();
 	const auto forbidden = [&] {
 		if (type != Type::Record && type != Type::Round) {
 			return false;
@@ -4121,7 +4180,9 @@ void ComposeControls::updateSendButtonType() {
 		return !!Data::RestrictionError(_history->peer, restriction);
 	}();
 	const auto delay = [&] {
-		return (type != Type::Cancel && type != Type::Save)
+		return (type != Type::Cancel
+			&& type != Type::Save
+			&& type != Type::Stop)
 			? _slowmodeSecondsLeft.current()
 			: 0;
 	}();
