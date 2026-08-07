@@ -457,6 +457,8 @@ PRIVATE
     ui/chat/requests_bar.h
     ui/controls/button_labels.cpp
     ui/controls/button_labels.h
+    ui/controls/call_button.cpp
+    ui/controls/call_button.h
     ui/controls/call_mute_button.cpp
     ui/controls/call_mute_button.h
     ui/controls/chat_service_checkbox.cpp
