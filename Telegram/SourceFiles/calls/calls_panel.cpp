@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
+#include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
@@ -323,6 +324,7 @@ void Panel::initWindow() {
 		const auto buttonsWidth = buttonWidth * 4;
 		const auto inControls = (_fingerprint
 			&& _fingerprint->geometry().contains(widgetPoint))
+			|| pinOnTopRect().contains(widgetPoint)
 			|| QRect(
 				(widget()->width() - buttonsWidth) / 2,
 				_answerHangupRedial->y(),
@@ -341,6 +343,12 @@ void Panel::initWindow() {
 
 	_window->maximizeRequests() | rpl::on_next([=](bool maximized) {
 		toggleFullScreen(maximized);
+	}, lifetime());
+
+	_window->controlsLayoutChanges(
+	) | rpl::on_next([=] {
+		// _pinOnTop geometry depends on _controls arrangement.
+		crl::on_main(this, [=] { updateControlsGeometry(); });
 	}, lifetime());
 	// Don't do that, it looks awful :(
 //#ifdef Q_OS_WIN
@@ -384,6 +392,8 @@ void Panel::initWidget() {
 }
 
 void Panel::initControls() {
+	createPinOnTop();
+
 	_hangupShown = (_call->type() == Type::Outgoing);
 	_mute->entity()->setClickedCallback([=] {
 		if (_call) {
@@ -992,6 +1002,7 @@ void Panel::showControls() {
 	Expects(_call != nullptr);
 
 	widget()->showChildren();
+	_pinOnTop->setVisible(!_fullScreenOrMaximized.current());
 	_decline->setVisible(_decline->toggled());
 	_cancel->setVisible(_cancel->toggled());
 	_screencast->setVisible(_screencast->toggled());
@@ -1104,6 +1115,67 @@ void Panel::refreshOutgoingPreviewInBody(State state) {
 	updateControlsGeometry();
 }
 
+void Panel::createPinOnTop() {
+	const auto wrap = _window->controlsWrap();
+	_pinOnTop = base::make_unique_q<Ui::IconButton>(
+		wrap ? wrap : widget().get(),
+		wrap ? st::callTitlePinOnTop : st::callPinOnTop);
+	const auto pinnedIcon = wrap
+		? &st::callTitlePinnedIcon
+		: &st::callPinnedOnTopIcon;
+	const auto pinnedIconOver = wrap
+		? &st::callTitlePinnedIconOver
+		: &st::callPinnedOnTopIcon;
+	const auto updateIcon = [=](bool pinned) {
+		_pinOnTop->setIconOverride(
+			pinned ? pinnedIcon : nullptr,
+			pinned ? pinnedIconOver : nullptr);
+	};
+	const auto pin = [=](bool pin) {
+		_window->setPinnedOnTop(pin);
+		updateIcon(pin);
+	};
+	updateIcon(_window->pinnedOnTop());
+
+	_fullScreenOrMaximized.value(
+	) | rpl::on_next([=](bool fullScreenOrMaximized) {
+		_pinOnTop->setVisible(!fullScreenOrMaximized);
+		if (!fullScreenOrMaximized) {
+			if (_unpinnedMaximized) {
+				_unpinnedMaximized = false;
+				pin(false);
+			}
+		} else if (_window->pinnedOnTop()) {
+			if (_window->unpinFromTopMaximized()) {
+				_unpinnedMaximized = true;
+			} else {
+				pin(false);
+			}
+		}
+	}, _pinOnTop->lifetime());
+
+	_pinOnTop->setClickedCallback([=] {
+		const auto now = !_window->pinnedOnTop();
+		pin(now);
+		uiShow()->showToast({
+			.text = { now
+				? tr::lng_call_window_pinned_on_top(tr::now)
+				: tr::lng_call_window_unpinned_on_top(tr::now) },
+			.iconLottie = now ? u"toast/pin"_q : u"toast/unpin"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
+	});
+}
+
+QRect Panel::pinOnTopRect() const {
+	if (!_pinOnTop || _pinOnTop->isHidden()) {
+		return QRect();
+	}
+	return QRect(
+		_pinOnTop->mapTo(widget().get(), QPoint()),
+		_pinOnTop->size());
+}
+
 void Panel::toggleFullScreen(bool fullscreen) {
 	if (fullscreen) {
 		window()->showFullScreen();
@@ -1162,11 +1234,15 @@ void Panel::updateControlsGeometry() {
 #ifndef Q_OS_MAC
 		const auto controlsGeometry = _window->controlsGeometry();
 		const auto halfWidth = widget()->width() / 2;
+		const auto controlsWidth = controlsGeometry.width()
+			+ ((_pinOnTop && !_pinOnTop->isHidden())
+				? _pinOnTop->width()
+				: 0);
 		const auto minLeft = (controlsGeometry.center().x() < halfWidth)
-			? (controlsGeometry.width() + st::callFingerprintTop)
+			? (controlsWidth + st::callFingerprintTop)
 			: 0;
 		const auto minRight = (controlsGeometry.center().x() >= halfWidth)
-			? (controlsGeometry.width() + st::callFingerprintTop)
+			? (controlsWidth + st::callFingerprintTop)
 			: 0;
 		_incoming->setControlsAlignment(minLeft
 			? style::al_left
@@ -1184,6 +1260,20 @@ void Panel::updateControlsGeometry() {
 			_fingerprint->moveToLeft(std::max(desired, minLeft), top);
 		} else {
 			_fingerprint->moveToRight(std::max(desired, minRight), top);
+		}
+	}
+	if (_pinOnTop) {
+		if (_window->controlsWrap()) {
+			const auto controls = _window->controlsGeometry();
+			const auto onTheLeft = (controls.center().x()
+				< widget()->width() / 2);
+			_pinOnTop->move(
+				(onTheLeft
+					? (controls.x() + controls.width())
+					: (controls.x() - _pinOnTop->width())),
+				controls.y());
+		} else {
+			_pinOnTop->moveToRight(0, 0);
 		}
 	}
 	const auto innerHeight = std::max(widget()->height(), st::callHeightMin);
