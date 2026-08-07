@@ -1323,9 +1323,7 @@ void Panel::updateControlsGeometry() {
 		_bodySt->muteSize,
 		_bodySt->muteStroke);
 
-	if (_name->naturalWidth() > innerWidth) {
-		_name->resizeToWidth(innerWidth);
-	}
+	_name->resizeToNaturalWidth(innerWidth);
 	_name->moveToLeft(
 		(widget()->width() - _name->width()) / 2,
 		_bodyTop + _bodySt->nameTop);
@@ -1406,6 +1404,11 @@ void Panel::updateHangupGeometry() {
 }
 
 void Panel::updateStatusGeometry() {
+	if (widget()->size().isEmpty()) {
+		return;
+	}
+	_status->resizeToNaturalWidth(
+		widget()->width() - 2 * st::callInnerPadding);
 	_status->moveToLeft(
 		(widget()->width() - _status->width()) / 2,
 		_bodyTop + _bodySt->statusTop);
