@@ -14,6 +14,19 @@ using "info/info.style"; // ShortInfoCover
 using "window/window.style";
 using "settings/settings.style"; // defaultSubsectionTitle
 
+CallButton {
+	button: IconButton;
+	bg: color;
+	bgSize: pixels;
+	bgPosition: point;
+	angle: double;
+	outerRadius: pixels;
+	outerBg: color;
+	label: FlatLabel;
+	cornerButtonPosition: point;
+	cornerButtonBorder: pixels;
+}
+
 CallSignalBars {
 	width: pixels;
 	radius: pixels;
