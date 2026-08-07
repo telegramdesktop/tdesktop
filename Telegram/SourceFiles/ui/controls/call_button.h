@@ -34,6 +34,10 @@ public:
 	void setProgress(float64 progress);
 	void setOuterValue(float64 value);
 	void setText(rpl::producer<QString> text);
+	void setLabelShown(bool shown);
+	[[nodiscard]] bool textFits() const;
+	[[nodiscard]] rpl::producer<bool> textFitsValue() const;
+	[[nodiscard]] rpl::producer<QString> textValue() const;
 	void setColorOverrides(rpl::producer<CallButtonColors> &&colors);
 
 	void setStyle(
@@ -56,6 +60,8 @@ private:
 	QPoint prepareRippleStartPosition() const override;
 
 	void init();
+	void refreshLabel();
+	void refreshLabelShown();
 	[[nodiscard]] bool inBackground(QPoint point) const;
 	void refreshOverState(QPoint point);
 	QPoint iconPosition(not_null<const style::CallButton*> st) const;
@@ -66,7 +72,10 @@ private:
 	CallButton *_corner = nullptr;
 	float64 _progress = 0.;
 
+	rpl::variable<QString> _text;
+	rpl::variable<bool> _textFits = true;
 	object_ptr<FlatLabel> _label = { nullptr };
+	bool _labelShown = true;
 
 	std::optional<QColor> _bgOverride;
 	std::optional<QColor> _rippleOverride;

@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/widgets/rp_window.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/generic_box.h"
@@ -393,6 +394,10 @@ void Panel::initWidget() {
 
 void Panel::initControls() {
 	createPinOnTop();
+
+	for (const auto &button : bottomButtons()) {
+		setupButtonTooltip(button);
+	}
 
 	_hangupShown = (_call->type() == Type::Outgoing);
 	_mute->entity()->setClickedCallback([=] {
@@ -1214,6 +1219,9 @@ void Panel::updateControlsShown() {
 		|| !_hideControlsRequested;
 	if (_controlsShown != shown) {
 		_controlsShown = shown;
+		if (!shown) {
+			hideButtonTooltip();
+		}
 		_controlsShownAnimation.start([=] {
 			updateControlsGeometry();
 		}, shown ? 0. : 1., shown ? 1. : 0., st::slideDuration);
@@ -1361,6 +1369,7 @@ void Panel::updateControlsGeometry() {
 	}
 
 	updateHangupGeometry();
+	updateButtonTooltipGeometry();
 }
 
 void Panel::updateOutgoingVideoBubbleGeometry() {
@@ -1412,6 +1421,132 @@ void Panel::updateStatusGeometry() {
 	_status->moveToLeft(
 		(widget()->width() - _status->width()) / 2,
 		_bodyTop + _bodySt->statusTop);
+}
+
+auto Panel::bottomButtons() const
+-> std::vector<not_null<Ui::CallButton*>> {
+	auto result = std::vector<not_null<Ui::CallButton*>>{
+		_answerHangupRedial.get(),
+		_decline->entity(),
+		_cancel->entity(),
+		_screencast->entity(),
+		_camera.get(),
+		_mute->entity(),
+		_addPeople->entity(),
+	};
+	if (_startVideo) {
+		result.push_back(_startVideo.get());
+	}
+	return result;
+}
+
+void Panel::refreshButtonLabelsShown() {
+	auto shown = true;
+	for (const auto &button : bottomButtons()) {
+		if (!button->textFits()) {
+			shown = false;
+			break;
+		}
+	}
+	if (_buttonLabelsShown == shown) {
+		return;
+	}
+	_buttonLabelsShown = shown;
+	for (const auto &button : bottomButtons()) {
+		button->setLabelShown(shown);
+	}
+	if (shown) {
+		hideButtonTooltip();
+	}
+}
+
+void Panel::setupButtonTooltip(not_null<Ui::CallButton*> button) {
+	button->textFitsValue() | rpl::on_next([=] {
+		refreshButtonLabelsShown();
+	}, button->lifetime());
+
+	const auto over = button->lifetime().make_state<bool>(false);
+	button->events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Enter) {
+			// Enter events may come from widget destructors,
+			// in that case sync-showing tooltip crashes the whole thing.
+			*over = true;
+			crl::on_main(button, [=] {
+				if (*over) {
+					showButtonTooltip(button);
+				}
+			});
+		} else if (type == QEvent::Leave) {
+			*over = false;
+			crl::on_main(button, [=] {
+				if (!*over && _buttonTooltipFor == button) {
+					hideButtonTooltip();
+				}
+			});
+		}
+	}, button->lifetime());
+}
+
+void Panel::showButtonTooltip(not_null<Ui::CallButton*> button) {
+	hideButtonTooltip();
+	if (_buttonLabelsShown || !_controlsShown || button->isHidden()) {
+		return;
+	}
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		widget().get(),
+		button->textValue(),
+		st::groupCallNiceTooltipLabel);
+	label->naturalWidthValue() | rpl::on_next([=](int width) {
+		label->resizeToWidth(width);
+		updateButtonTooltipGeometry();
+	}, label->lifetime());
+	_buttonTooltip.create(
+		widget().get(),
+		object_ptr<Ui::RpWidget>::fromRaw(label),
+		st::groupCallNiceTooltip);
+	const auto raw = _buttonTooltip.data();
+	const auto weak = base::make_weak(raw);
+	raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+	raw->setHiddenCallback([=] {
+		delete weak.get();
+	});
+	raw->raise();
+	_buttonTooltipFor = button;
+	updateButtonTooltipGeometry();
+	raw->toggleAnimated(true);
+}
+
+void Panel::hideButtonTooltip() {
+	_buttonTooltipFor = nullptr;
+	if (_buttonTooltip) {
+		_buttonTooltip.release()->toggleAnimated(false);
+	}
+}
+
+void Panel::updateButtonTooltipGeometry() {
+	if (!_buttonTooltip) {
+		return;
+	} else if (!_buttonTooltipFor || _buttonTooltipFor->isHidden()) {
+		hideButtonTooltip();
+		return;
+	}
+	const auto button = _buttonTooltipFor.data();
+	const auto geometry = QRect(
+		button->mapTo(widget().get(), QPoint()),
+		button->size());
+	const auto countPosition = [=](QSize size) {
+		const auto skip = st::callInnerPadding;
+		const auto left = std::clamp(
+			geometry.center().x() - size.width() / 2,
+			skip,
+			std::max(widget()->width() - skip - size.width(), skip));
+		return QPoint(
+			left,
+			geometry.y() - st::groupCallNiceTooltipTop - size.height());
+	};
+	_buttonTooltip->pointAt(geometry, RectPart::Top, countPosition);
 }
 
 void Panel::paint(QRect clip) {
@@ -1495,6 +1630,8 @@ void Panel::stateChanged(State state) {
 				widget(),
 				st::callStartVideo);
 			_startVideo->show();
+			_startVideo->setLabelShown(_buttonLabelsShown);
+			setupButtonTooltip(_startVideo.get());
 			_startVideo->setText(tr::lng_call_start_video());
 			_startVideo->setAccessibleName(tr::lng_call_start_video(tr::now));
 			_startVideo->clicks() | rpl::map_to(true) | rpl::start_to_stream(

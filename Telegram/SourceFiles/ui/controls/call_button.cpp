@@ -101,8 +101,32 @@ void CallButton::setOuterValue(float64 value) {
 }
 
 void CallButton::setText(rpl::producer<QString> text) {
-	_label.create(this, std::move(text), _stFrom->label);
-	_label->show();
+	_text = std::move(text);
+	refreshLabel();
+}
+
+void CallButton::setLabelShown(bool shown) {
+	if (_labelShown == shown) {
+		return;
+	}
+	_labelShown = shown;
+	refreshLabelShown();
+}
+
+bool CallButton::textFits() const {
+	return _textFits.current();
+}
+
+rpl::producer<bool> CallButton::textFitsValue() const {
+	return _textFits.value();
+}
+
+rpl::producer<QString> CallButton::textValue() const {
+	return _text.value();
+}
+
+void CallButton::refreshLabel() {
+	_label.create(this, _text.value(), _stFrom->label);
 	rpl::combine(
 		sizeValue(),
 		_label->naturalWidthValue()
@@ -112,7 +136,16 @@ void CallButton::setText(rpl::producer<QString> text) {
 			(my.width() - _label->width()) / 2,
 			my.height() - _label->height(),
 			my.width());
+		_textFits = (naturalWidth <= my.width());
+		refreshLabelShown();
 	}, _label->lifetime());
+	refreshLabelShown();
+}
+
+void CallButton::refreshLabelShown() {
+	if (_label) {
+		_label->setVisible(_labelShown && _textFits.current());
+	}
 }
 
 void CallButton::setProgress(float64 progress) {
