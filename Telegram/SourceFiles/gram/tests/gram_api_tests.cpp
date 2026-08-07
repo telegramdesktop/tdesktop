@@ -741,6 +741,14 @@ std::vector<Check> ApiChecks() {
 						+ u"\" - that address carries \"domain\": null in "
 						u"both files, so a name here means the lookup "
 						u"keyed on the wrong address"_q;
+				} else if (got.status != TransferItem::Status::Success) {
+					return entry.name + u": status "_q
+						+ QString::number(int(got.status))
+						+ u" - both files carry a confirmed transfer; the "
+						u"received leg aborts because a wallet has no "
+						u"nft_ownership_assigned handler, so it is Success "
+						u"only through its positive credit_ph.credit, "
+						u"exactly as a plain incoming transfer is"_q;
 				}
 			}
 			return QString();
@@ -779,6 +787,13 @@ std::vector<Check> ApiChecks() {
 					u"empty while the Collectible is still produced; no "
 					u"check anywhere may require an indexed metadata entry "
 					u"to produce a Collectible"_q;
+			} else if (got.status != TransferItem::Status::Success) {
+				return u"status: got "_q
+					+ QString::number(int(got.status))
+					+ u" - the receiving transaction aborts with a skipped "
+					u"compute phase on every incoming collectible, so the "
+					u"leg is Success only through its positive "
+					u"credit_ph.credit"_q;
 			}
 			return QString();
 		} },

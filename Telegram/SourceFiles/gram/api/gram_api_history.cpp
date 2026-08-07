@@ -311,9 +311,12 @@ void ApplyCounterpartyNames(
 	item.lt = lt;
 	item.traceId = traceId;
 	item.externalHashNorm = externalHashNorm;
+	const auto status = ComputeTxStatus(tx);
 	item.status = pending
 		? TransferItem::Status::Pending
-		: ComputeTxStatus(tx);
+		: item.incoming
+		? IncomingStatus(tx, status)
+		: status;
 	return item;
 }
 
