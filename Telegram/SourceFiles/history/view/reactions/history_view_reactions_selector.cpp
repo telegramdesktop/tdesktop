@@ -47,6 +47,7 @@ constexpr auto kExpandDuration = crl::time(300);
 constexpr auto kScaleDuration = crl::time(120);
 constexpr auto kFullDuration = kExpandDuration + kScaleDuration;
 constexpr auto kExpandDelay = crl::time(40);
+constexpr auto kAcceptClicksAfter = crl::time(300);
 constexpr auto kDefaultColumns = 8;
 constexpr auto kMinNonTransparentColumns = 7;
 
@@ -877,6 +878,10 @@ void Selector::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void Selector::showEvent(QShowEvent *e) {
+	_shownAt = crl::now();
+}
+
 void Selector::mouseMoveEvent(QMouseEvent *e) {
 	if (!_strip) {
 		return;
@@ -942,6 +947,9 @@ void Selector::mouseReleaseEvent(QMouseEvent *e) {
 		e->ignore();
 		return;
 	} else if (!_strip) {
+		return;
+	} else if (crl::now() < _shownAt + kAcceptClicksAfter) {
+		_pressed = -1;
 		return;
 	}
 	if (_pressed != lookupSelectedIndex(e->pos())) {
