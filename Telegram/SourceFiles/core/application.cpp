@@ -84,6 +84,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h"
 #include "export/export_manager.h"
 #include "webrtc/webrtc_environment.h"
+#include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -220,6 +221,9 @@ void Application::closeAdditionalWindows() {
 }
 
 Application::~Application() {
+	if (_savedWindows) {
+		_savedWindows->writeNow();
+	}
 	if (_saveSettingsTimer && _saveSettingsTimer->isActive()) {
 		Local::writeSettings();
 	}
@@ -339,6 +343,8 @@ void Application::run() {
 	[[maybe_unused]] const auto &webviewAvailability
 		= Core::CachedWebviewAvailability();
 
+	_savedWindows = std::make_unique<Window::SavedWindows>(this);
+
 	_windows.emplace(nullptr, std::make_unique<Window::Controller>());
 	setLastActiveWindow(_windows.front().second.get());
 	_windowInSettings = _lastActivePrimaryWindow = _lastActiveWindow;
@@ -427,6 +433,8 @@ void Application::run() {
 
 	processCreatedWindow(_lastActivePrimaryWindow);
 
+	_savedWindows->startRestore();
+
 	Test::Fire(u"launch_finished"_q);
 	Test::Start();
 }
@@ -455,6 +463,9 @@ void Application::checkWindowId(not_null<Window::Controller*> window) {
 			_windows.emplace(id, std::move(found));
 			break;
 		}
+	}
+	if (_savedWindows) {
+		_savedWindows->scheduleSave();
 	}
 }
 
@@ -537,6 +548,9 @@ void Application::enumerateWindows(Fn<void(
 
 void Application::processCreatedWindow(
 		not_null<Window::Controller*> window) {
+	if (_savedWindows) {
+		_savedWindows->attachToWindow(window);
+	}
 	window->openInMediaViewRequests(
 	) | rpl::start_to_stream(_openInMediaViewRequests, window->lifetime());
 }
@@ -1640,6 +1654,9 @@ void Application::closeWindow(not_null<Window::Controller*> window) {
 		&& _lastActiveWindow) {
 		domain().activate(&_lastActiveWindow->account());
 	}
+	if (_savedWindows) {
+		_savedWindows->scheduleSave();
+	}
 }
 
 void Application::closeChatFromWindows(not_null<PeerData*> peer) {
@@ -1671,6 +1688,10 @@ void Application::windowActivated(not_null<Window::Controller*> window) {
 	const auto now = window;
 
 	setLastActiveWindow(window);
+
+	if (_savedWindows) {
+		_savedWindows->windowActivated();
+	}
 
 	if (window->isPrimary()) {
 		_lastActivePrimaryWindow = window;

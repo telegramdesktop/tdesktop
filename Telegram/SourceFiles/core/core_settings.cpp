@@ -1347,6 +1347,19 @@ void Settings::writePrefImpl<bool>(std::string_view key, bool value) {
 	writePrefGeneric(key, value ? "\x1"_q : QByteArray());
 }
 
+template <>
+std::optional<QByteArray> Settings::readPrefImpl<QByteArray>(
+		std::string_view key) {
+	return readPrefGeneric(key);
+}
+
+template <>
+void Settings::writePrefImpl<QByteArray>(
+		std::string_view key,
+		QByteArray value) {
+	writePrefGeneric(key, value);
+}
+
 QString Settings::getSoundPath(const QString &key) const {
 	auto it = _soundOverrides.find(key);
 	if (it != _soundOverrides.end()) {

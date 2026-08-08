@@ -2047,6 +2047,8 @@ PRIVATE
     window/window_media_preview.h
     window/window_peer_menu.cpp
     window/window_peer_menu.h
+    window/window_saved_windows.cpp
+    window/window_saved_windows.h
     window/window_section_common.h
     window/window_separate_id.cpp
     window/window_separate_id.h

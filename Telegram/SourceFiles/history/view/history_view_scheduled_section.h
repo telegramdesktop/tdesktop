@@ -330,6 +330,10 @@ public:
 		return _history;
 	}
 
+	[[nodiscard]] const Data::ForumTopic *forumTopic() const {
+		return _forumTopic;
+	}
+
 	[[nodiscard]] not_null<ListMemento*> list() {
 		return &_list;
 	}

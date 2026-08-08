@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_connecting_widget.h"
 #include "window/window_top_bar_wrap.h"
 #include "window/notifications_manager.h"
+#include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
 #include "window/window_slide_animation.h"
 #include "window/window_history_hider.h"
@@ -55,8 +56,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_helpers.h" // GetErrorForSending.
+#include "history/admin_log/history_admin_log_section.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/history_view_chat_section.h"
+#include "history/view/history_view_pinned_section.h"
+#include "history/view/history_view_scheduled_section.h"
 #include "history/view/history_view_service_message.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
@@ -207,6 +211,9 @@ public:
 	}
 	std::shared_ptr<Window::SectionMemento> takeMemento() {
 		return std::move(_memento);
+	}
+	[[nodiscard]] Window::SectionMemento *memento() const {
+		return _memento.get();
 	}
 
 private:
@@ -2029,6 +2036,102 @@ Dialogs::RowDescriptor MainWidget::resolveChatPrevious(
 
 bool MainWidget::stackIsEmpty() const {
 	return _stack.empty();
+}
+
+std::vector<Window::SavedChat> MainWidget::chatStackForSave() const {
+	auto result = std::vector<Window::SavedChat>();
+	result.reserve(_stack.size() + 1);
+	const auto push = [&](Data::Thread *thread, MsgId msgId) {
+		if (thread) {
+			result.push_back(Window::SavedChatFromThread(thread, msgId));
+		}
+	};
+	const auto pushSection = [&](Window::SectionMemento *memento) {
+		using ChatMemento = HistoryView::ChatMemento;
+		using PinnedMemento = HistoryView::PinnedMemento;
+		using ScheduledMemento = HistoryView::ScheduledMemento;
+		if (const auto chat = dynamic_cast<ChatMemento*>(memento)) {
+			const auto id = chat->id();
+			if (const auto sublist = id.sublist) {
+				push(sublist, chat->highlightId());
+			} else if (id.repliesRootId) {
+				result.push_back(Window::SavedChat{
+					.peer = id.history->peer->id,
+					.accessHash = Window::SavedAccessHash(id.history->peer),
+					.topicRootId = id.repliesRootId,
+					.msgId = (IsServerMsgId(chat->highlightId())
+						? chat->highlightId()
+						: MsgId()),
+				});
+			}
+		} else if (const auto pinned = dynamic_cast<PinnedMemento*>(
+				memento)) {
+			auto saved = Window::SavedChatFromThread(
+				pinned->getThread(),
+				pinned->getHighlightId());
+			saved.section = Window::SavedChatSection::Pinned;
+			result.push_back(saved);
+		} else if (const auto scheduled = dynamic_cast<ScheduledMemento*>(
+				memento)) {
+			const auto topic = scheduled->forumTopic();
+			const auto peer = scheduled->getHistory()->peer;
+			result.push_back(Window::SavedChat{
+				.peer = peer->id,
+				.accessHash = Window::SavedAccessHash(peer),
+				.topicRootId = topic ? topic->topicRootId() : MsgId(),
+				.section = Window::SavedChatSection::Scheduled,
+			});
+		} else if (const auto log = dynamic_cast<AdminLog::SectionMemento*>(
+				memento)) {
+			const auto channel = log->getChannel();
+			result.push_back(Window::SavedChat{
+				.peer = channel->id,
+				.accessHash = Window::SavedAccessHash(channel),
+				.section = Window::SavedChatSection::AdminLog,
+			});
+		}
+	};
+	for (const auto &item : _stack) {
+		if (item->type() == HistoryStackItem) {
+			const auto history = static_cast<StackItemHistory*>(item.get());
+			push(history->history, history->msgId);
+		} else if (item->type() == SectionStackItem) {
+			const auto section = static_cast<StackItemSection*>(item.get());
+			pushSection(section->memento());
+		}
+	}
+	if (_mainSection) {
+		const auto entry = _mainSection->activeChat();
+		const auto thread = entry.key.thread();
+		const auto chat = dynamic_cast<HistoryView::ChatWidget*>(
+			_mainSection.data());
+		const auto rootId = (chat && thread && thread->asHistory())
+			? chat->id().repliesRootId
+			: MsgId();
+		const auto known = !chat
+			&& (dynamic_cast<HistoryView::PinnedWidget*>(_mainSection.data())
+				|| dynamic_cast<HistoryView::ScheduledWidget*>(
+					_mainSection.data())
+				|| dynamic_cast<AdminLog::Widget*>(_mainSection.data()));
+		if (rootId) {
+			const auto peer = chat->id().history->peer;
+			result.push_back(Window::SavedChat{
+				.peer = peer->id,
+				.accessHash = Window::SavedAccessHash(peer),
+				.topicRootId = rootId,
+				.msgId = (IsServerMsgId(entry.fullId.msg)
+					? entry.fullId.msg
+					: MsgId()),
+			});
+		} else if (known) {
+			pushSection(_mainSection->createMemento().get());
+		} else {
+			push(thread, entry.fullId.msg);
+		}
+	} else if (const auto history = _history->history()) {
+		push(history, _history->msgId());
+	}
+	return result;
 }
 
 bool MainWidget::preventsCloseSection(Fn<void()> callback) const {

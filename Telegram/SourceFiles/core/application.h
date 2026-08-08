@@ -28,6 +28,7 @@ class Databases;
 
 namespace Window {
 class Controller;
+class SavedWindows;
 } // namespace Window
 
 namespace Window::Notifications {
@@ -197,6 +198,15 @@ public:
 	void closeChatFromWindows(not_null<PeerData*> peer);
 	void checkWindowId(not_null<Window::Controller*> window);
 	void activate();
+	[[nodiscard]] Window::SavedWindows *savedWindows() const {
+		return _savedWindows.get();
+	}
+	[[nodiscard]] auto windowStack() const
+	-> const std::vector<not_null<Window::Controller*>> & {
+		return _windowStack;
+	}
+	void enumerateWindows(
+		Fn<void(not_null<Window::Controller*>)> callback) const;
 
 	// Media view interface.
 	bool hideMediaView();
@@ -372,8 +382,6 @@ private:
 	void updateWindowTitles();
 	void setLastActiveWindow(Window::Controller *window);
 	void showAccount(not_null<Main::Account*> account);
-	void enumerateWindows(
-		Fn<void(not_null<Window::Controller*>)> callback) const;
 	void processCreatedWindow(not_null<Window::Controller*> window);
 	void refreshApplicationIcon(Main::Session *session);
 
@@ -436,6 +444,7 @@ private:
 	Window::Controller *_lastActiveWindow = nullptr;
 	Window::Controller *_lastActivePrimaryWindow = nullptr;
 	Window::Controller *_windowInSettings = nullptr;
+	std::unique_ptr<Window::SavedWindows> _savedWindows;
 	bool _lastMouseIgnored = false;
 	bool _lastTouchProcessed = false;
 

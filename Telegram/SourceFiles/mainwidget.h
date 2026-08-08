@@ -85,6 +85,7 @@ struct SectionShow;
 enum class Column;
 class HistoryHider;
 struct SeparateId;
+struct SavedChat;
 } // namespace Window
 
 namespace Calls {
@@ -143,6 +144,7 @@ public:
 		const SectionShow &params);
 	void updateColumnLayout();
 	bool stackIsEmpty() const;
+	[[nodiscard]] std::vector<Window::SavedChat> chatStackForSave() const;
 	bool showBackFromStack(const SectionShow &params);
 	void orderWidgets();
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
