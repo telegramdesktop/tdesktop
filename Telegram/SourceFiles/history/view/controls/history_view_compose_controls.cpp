@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_compose_ai_button.h"
 #include "history/view/controls/history_view_compose_ai_tooltip.h"
@@ -3849,12 +3850,22 @@ void ComposeControls::showRichEditor() {
 		}
 		return;
 	}
+	const auto ephemeralError = [&](const Api::SendAction &action) {
+		return ShowEphemeralReplyTextOnlyError(
+			_show,
+			&_show->session(),
+			action.replyTo.messageId);
+	};
 	if (_mode == Mode::Scheduled) {
+		auto action = _sendActionFactory();
+		if (ephemeralError(action)) {
+			return;
+		}
 		using Options = Iv::Editor::ComposeBoxOptions;
 		Iv::Editor::ShowComposeBox(
 			_regularWindow,
 			_history->peer,
-			_sendActionFactory(),
+			std::move(action),
 			sendMenuDetails(),
 			getTextWithAppliedMarkdown(),
 			crl::guard(_wrap.get(), [=] {
@@ -3881,6 +3892,9 @@ void ComposeControls::showRichEditor() {
 		if (!isShortcutComposeEligible()
 			|| _shortcutId != expectedShortcutId
 			|| action.options.shortcutId != expectedShortcutId) {
+			return;
+		}
+		if (ephemeralError(action)) {
 			return;
 		}
 		auto fieldText = getTextWithAppliedMarkdown();
@@ -3910,10 +3924,14 @@ void ComposeControls::showRichEditor() {
 	if (_mode != Mode::Normal || !hasRichDraftThreadScope()) {
 		return;
 	}
+	auto action = _sendActionFactory();
+	if (ephemeralError(action)) {
+		return;
+	}
 	Iv::Editor::ShowComposeBox(
 		_regularWindow,
 		_history->peer,
-		_sendActionFactory(),
+		std::move(action),
 		sendMenuDetails(),
 		getTextWithAppliedMarkdown(),
 		crl::guard(_wrap.get(), [=] {
