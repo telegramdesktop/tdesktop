@@ -5,7 +5,7 @@ body {
 	padding: 0 16px 48px;
 	background: #ffffff;
 	color: #000000;
-	font: 12px/18px 'Open Sans', "Lucida Grande", "Lucida Sans Unicode",
+	font: 16px/24px 'Open Sans', "Lucida Grande", "Lucida Sans Unicode",
 		Arial, Helvetica, Verdana, sans-serif;
 }
 article {
@@ -17,12 +17,12 @@ article {
 a { color: #168acd; text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1, h2, h3, h4, h5, h6 { font-weight: 700; margin: 12px 0 6px; }
-h1 { font-size: 20px; line-height: 26px; }
-h2 { font-size: 18px; line-height: 24px; }
-h3 { font-size: 16px; line-height: 22px; }
-h4 { font-size: 15px; line-height: 21px; }
-h5 { font-size: 14px; line-height: 20px; }
-h6 { font-size: 13px; line-height: 19px; }
+h1 { font-size: 36px; line-height: 50px; }
+h2 { font-size: 32px; line-height: 44px; }
+h3 { font-size: 27px; line-height: 38px; }
+h4 { font-size: 23px; line-height: 33px; }
+h5 { font-size: 21px; line-height: 30px; }
+h6 { font-size: 18px; line-height: 26px; }
 p { margin: 0 0 12px; }
 .byline, footer { display: block; color: #70777b; }
 hr { border: none; border-top: 1px solid #e3e6e8; margin: 24px 0; }
@@ -60,8 +60,6 @@ aside {
 	margin: 0 0 12px;
 	text-align: center;
 	font-style: italic;
-	font-size: 16px;
-	line-height: 22px;
 }
 blockquote cite, aside cite, figcaption cite {
 	display: block;
